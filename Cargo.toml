@@ -32,6 +32,9 @@ default = ["dd"]
 # `web/` wasm crate) builds with `default-features = false`.
 dd = ["dep:ddss"]
 serde = ["dep:serde", "contract-bridge/serde", "ddss?/serde", "bitflags/serde"]
+# Narrow, opt-in surface used by the out-of-crate performance harness. It is
+# deliberately absent from normal builds and doc-hidden when all features build.
+bench-internals = []
 
 [dependencies]
 bitflags = "2.2.1"
@@ -67,6 +70,11 @@ harness = false
 [[bench]]
 name = "par"
 harness = false
+
+[[bench]]
+name = "bidding"
+harness = false
+required-features = ["bench-internals"]
 
 # The BBA reference anchor (AI-bidder Side-track S.1), split into a single-thread
 # EPBot *generator* and a parallel-DD *scorer* that exchange a JSON board `Dump`.
@@ -104,6 +112,19 @@ required-features = ["serde"]
 name = "probe-bba-sensitivity"
 path = "examples/probe-bba-sensitivity.rs"
 required-features = ["serde"]
+
+# Main-thread-only: EPBot's NativeAOT library is unsafe under the libtest
+# worker threads.  This runner is the paired latency/reference harness, not a
+# bidding-behaviour A/B.
+[[example]]
+name = "bidding-performance"
+path = "examples/bidding-performance/main.rs"
+required-features = ["bench-internals"]
+
+# Deterministically regenerates the frozen 512-position benchmark corpus.
+[[example]]
+name = "bidding-corpus"
+path = "examples/bidding-corpus/main.rs"
 
 [[example]]
 name = "ab-dump-diff"

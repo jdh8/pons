@@ -364,13 +364,32 @@ fn reshape(z: [f32; OUT]) -> TrickEstimates {
 /// The raw `OUT` outputs, before reshaping and rescaling. Serves the weights
 /// fit on the reading regime the calling thread is actually in: the knob-on
 /// twin under [`envelope_union_reading`], the shipped artifact otherwise.
-fn forward(x: &[f32]) -> [f32; OUT] {
+pub(super) fn forward(x: &[f32]) -> [f32; OUT] {
     let weights = if envelope_union_reading() {
         WEIGHTS_UNION_READING.as_slice()
     } else {
         WEIGHTS.as_slice()
     };
     forward_with::<IN>(weights, x)
+}
+
+/// Benchmark-only forward half of the active v3 calls-tail evaluator.
+#[cfg(feature = "bench-internals")]
+pub(super) fn forward_v3(x: &[f32]) -> [f32; OUT] {
+    assert_eq!(x.len(), IN_V3, "v3 evaluator feature width");
+    let weights = if pass_exclusion_reading() {
+        &WEIGHTS_V3_EXCLUSION
+    } else {
+        &WEIGHTS_V3_UNION_READING
+    };
+    forward_with::<IN_V3>(weights, x)
+}
+
+/// Benchmark-only forward half of the active v4 shape evaluator.
+#[cfg(feature = "bench-internals")]
+pub(super) fn forward_v4(x: &[f32]) -> [f32; OUT] {
+    assert_eq!(x.len(), IN_V4, "v4 evaluator feature width");
+    forward_with::<IN_V4>(&WEIGHTS_V4_UNION_READING, x)
 }
 
 /// One forward pass of the shared architecture at input width `IN_DIM`, over

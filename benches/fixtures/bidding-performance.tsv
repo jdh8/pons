@@ -1,0 +1,515 @@
+# pons bidding performance corpus v1
+# seed=1; exact cells: 64 Pons + 64 BBA per depth 2/4/8/12
+# id	origin	depth	category	relative-vulnerability	hand	auction
+0	pons	2	representative	none	QT84.A84.K96.J73	P 1S
+1	pons	2	representative	none	A.K97.KQJ72.QT96	1S P
+2	pons	2	representative	none	Q95.K.AQ97654.52	P 3H
+3	pons	2	representative	we	AQJT9.AT.2.AK854	P P
+4	pons	2	representative	they	K5.KQ96.KJ2.QJT4	2S P
+5	pons	2	representative	we	Q3.JT76.T64.JT53	2S X
+6	pons	2	representative	they	863.T2.QJ985.Q54	1H P
+7	pons	2	representative	they	T43.QT.JT8652.75	3H 3N
+8	pons	2	representative	they	8743.865.J84.KQT	1C 1D
+9	pons	2	representative	we	QT9.K875.862.943	1D 1H
+10	pons	2	representative	both	KQ.K95.873.K9432	3H P
+11	pons	2	representative	both	K432.J.KQ92.J932	1C 1H
+12	pons	2	representative	both	KT86532.965.J6.A	P 1D
+13	pons	2	representative	both	952.Q83.Q8654.53	P 1C
+14	pons	2	representative	none	J963.KJ72.AJ.843	P P
+15	pons	2	representative	none	A94.82.A876.T876	P 2S
+16	pons	2	representative	none	AQ3.Q764.T93.T97	P 1N
+17	pons	2	representative	none	AT.862.T752.AKT7	1H P
+18	pons	2	representative	we	.KJT642.K763.AJ7	P 1S
+19	pons	2	representative	they	J74.A652.96.KT63	P P
+20	pons	2	representative	we	T97.T2.J73.KT973	P 1S
+21	pons	2	representative	they	.AQ93.AQ865.KQ94	P P
+22	pons	2	representative	they	8652.AT72.KQ75.4	P 1N
+23	pons	2	representative	we	AQ842.A875.T.Q97	P P
+24	pons	2	representative	they	QJ5.AKQT.3.AKQJ3	P P
+25	pons	2	representative	we	98743.9862.93.Q5	P P
+26	pons	2	representative	both	Q952.K62.43.J942	1D P
+27	pons	2	representative	both	A872.A7542.7432.	1H P
+28	pons	2	representative	both	82.J764.A53.KQ96	P 1D
+29	pons	2	representative	both	.AK543.AJ642.K84	P P
+30	pons	2	representative	none	J86.T7.AKQ94.AK6	P P
+31	pons	2	representative	none	QJT98543.A5.3.74	1C 1H
+32	pons	2	representative	none	A9542.T72.Q52.AQ	1H P
+33	pons	2	representative	none	A94.542.J3.J9874	1N P
+34	pons	2	representative	we	Q97.Q.T9764.K863	P P
+35	pons	2	representative	they	A973.KQ6.T43.J76	P P
+36	pons	2	representative	we	97.T9765.K763.95	1N 2C
+37	pons	2	representative	they	42.QJT94.43.JT84	P 1C
+38	pons	2	representative	they	KJ632.9764.9.J43	1N P
+39	pons	2	representative	we	KJ92.JT2.743.AK6	P 1C
+40	pons	2	representative	they	AJ7.A6.K9872.K62	1S 2H
+41	pons	2	representative	we	QJ5.QJ653.K74.75	P 1N
+42	pons	2	representative	both	Q82.A8743.KQ95.7	P P
+43	pons	2	representative	both	KQ2.AK5.QJ83.952	P 1D
+44	pons	2	representative	both	J6.J87.J854.J964	P 1N
+45	pons	2	representative	both	Q94.T5.AK73.AKJ8	2S P
+46	pons	2	representative	none	Q54.A932.JT53.A3	P 1D
+47	pons	2	representative	none	5.943.J74.AKJ986	P P
+48	pons	2	representative	none	K9..T97654.KJT54	1C 1H
+49	pons	2	representative	none	8.KQJ8752.2.K932	P 1D
+50	pons	2	representative	we	A652.K653..J8752	3D P
+51	pons	2	representative	they	9742.J954.QJ5.96	1C P
+52	pons	2	representative	we	Q2.AJ87.Q3.T9752	1S P
+53	pons	2	representative	they	KT98743.J5.Q95.6	1D 1N
+54	pons	2	representative	they	AT975.Q7.762.KQ7	P P
+55	pons	2	representative	we	Q72.AKQT5.J5.K83	P P
+56	pons	2	representative	they	QT6.QJT32.J.AQJT	P P
+57	pons	2	representative	we	K864.A3.943.A865	1H P
+58	pons	2	representative	both	T2.K752.KJ87.AK2	P 1N
+59	pons	2	representative	both	AQ53.2.8742.AJ98	P P
+60	pons	2	representative	both	8.KQ543.7.KQ8654	P 1S
+61	pons	2	representative	both	J86.AT98.AJT7.AK	P P
+62	pons	2	authored-shallow	none	98.K5.KQ9654.A75	1S P
+63	pons	2	fallback	we	9762.843.AK5.T95	1C 1S
+64	pons	4	representative	none	KQ532.A92.T2.QJ9	1S P 2D P
+65	pons	4	representative	none	Q8743.AT4.A3.K85	1S P 2C P
+66	pons	4	representative	none	J764.72.KT32.J98	P 3H P 6H
+67	pons	4	representative	we	73.J53.A8763.JT2	P P 1S P
+68	pons	4	representative	they	AQJ732.7543..972	2S P 2N P
+69	pons	4	representative	we	KJT985.832.KQ7.6	2S X P P
+70	pons	4	representative	they	K52.A987653.K.93	3H 3N P P
+71	pons	4	representative	we	A8.AQT7.732.Q742	1C 1S P P
+72	pons	4	representative	they	Q62.JT74.KQ.AJ97	1C 1D P 1S
+73	pons	4	representative	we	854.A.KQJ975.KJ2	1D 1H P 2H
+74	pons	4	representative	both	AQ9.A632.AJT.AT8	1C 1H X P
+75	pons	4	representative	both	Q.K872.KT87.KT92	P 1D 1S 1N
+76	pons	4	representative	both	Q83.A7642.93.QJT	P 1C P 1H
+77	pons	4	representative	none	874.T954.82.AKJ2	P P P 1N
+78	pons	4	representative	none	82.KJ654.KT2.A53	P 2S P 2N
+79	pons	4	representative	none	T652.J9.852.AQ32	P 1N P 2D
+80	pons	4	representative	none	K73.AKJ975.6.Q94	1H P 1N P
+81	pons	4	representative	we	JT76.Q.QJ982.865	P 1S 2H 3S
+82	pons	4	representative	they	AT92.T87.Q73.A52	P P P 1N
+83	pons	4	representative	we	62.KJ5.QT98.A862	P 1S P 3N
+84	pons	4	representative	they	AJ72.T7.KJT73.T8	P P 1D 1S
+85	pons	4	representative	they	QT3.Q985.T864.J7	P 1N P 2S
+86	pons	4	representative	we	T.KJT92.K986.632	P P 1S P
+87	pons	4	representative	they	A8.984.98765.954	P P 2C P
+88	pons	4	representative	we	J652.KT54.K84.T7	P P P 2C
+89	pons	4	representative	both	A873.QJ5.AQ862.K	1D P 1S P
+90	pons	4	representative	both	9753.T9.KT92.T72	P 1D P 1H
+91	pons	4	representative	both	Q875.J986.T.QJ65	P P 1H X
+92	pons	4	representative	none	43.KQ95.J73.J954	P P 1N 2S
+93	pons	4	representative	none	A7.KT4.KQ9.QT532	1C 1H 1S 2C
+94	pons	4	representative	none	.AQJ864.A863.J82	1H P 1S P
+95	pons	4	representative	we	864.T983.52.AQ92	P P P 1N
+96	pons	4	representative	we	J83.AQ3.QT42.AQJ	1N 2C 2D P
+97	pons	4	representative	they	Q7653.86.K82.K75	P 1C P 1D
+98	pons	4	representative	they	AT87.A3.A6532.A8	1N P 2H 2S
+99	pons	4	representative	we	T765.A84.KQ6.J72	P 1C P 1H
+100	pons	4	representative	they	KQT9863..AT.J985	1S 2H 3H 4H
+101	pons	4	representative	we	T8764.T4.852.K92	P 1N 2H X
+102	pons	4	representative	both	T4.J5.A7642.KT43	P P 1H 1S
+103	pons	4	representative	both	7643.97.964.QT63	P 1D 1N 2H
+104	pons	4	representative	both	A732.Q953.A76.85	P 1N P 2H
+105	pons	4	representative	both	JT8652.AJ87.T.T7	2S P 2N P
+106	pons	4	representative	none	JT73.KJ87..K9742	P 1D P 1N
+107	pons	4	representative	none	K764.7.AT83.7432	P P P 1S
+108	pons	4	representative	none	AQT8.QT9.A32.Q83	1C 1H 3C 3H
+109	pons	4	representative	none	KJ95.963.T653.T6	P 1D 1H 1S
+110	pons	4	representative	we	Q8.JT94.AKT9753.	3D P P 4C
+111	pons	4	representative	we	AJ9875.K43.AKJ.3	1S P 1N P
+112	pons	4	representative	they	AJ.T64.AJ62.A975	1D 1N P 2D
+113	pons	4	representative	they	Q83.K9862.Q3.532	P P 1S 2N
+114	pons	4	representative	we	AT9.93.AT74.Q765	P P 1H 1S
+115	pons	4	representative	they	K9875.76.KT76.86	P P 1H P
+116	pons	4	representative	we	AJ7.KT9865..Q742	1H P 1S P
+117	pons	4	representative	both	K43.Q984.T6.8764	P 1N P 2H
+118	pons	4	representative	both	T984.QJ94.K9.KT5	P P 1D P
+119	pons	4	representative	both	4.986.AK432.JT32	P 1S 2S 4S
+120	pons	4	representative	both	A754.765.K862.J8	P P 1N P
+121	pons	4	representative	none	AJT2.98.T842.K82	P 1D 1H P
+122	pons	4	representative	none	JT985.Q.QJ4.T964	P 1C 1H X
+123	pons	4	representative	none	A5.52.964.AK8654	1C 1H P P
+124	pons	4	representative	none	KQT6.A7.AJT4.AKJ	2C P 2D P
+125	pons	4	representative	we	K94.KQ94.J732.82	P 1C P 1H
+126	pons	4	neural-floor	none	A53.JT7.872.K985	P 1S P 1N
+127	pons	4	systems-on	both	3.QJT63.AK9.Q765	1H P 4C X
+128	pons	8	representative	none	A53.JT7.872.K985	P 1S P 1N P 2S P P
+129	pons	8	representative	they	AQJ732.7543..972	2S P 2N P 3S P 4S P
+130	pons	8	representative	we	A8.AQT7.732.Q742	1C 1S P P X 2D P 2S
+131	pons	8	representative	they	Q62.JT74.KQ.AJ97	1C 1D P 1S P 1N P 2C
+132	pons	8	representative	both	Q.K872.KT87.KT92	P 1D 1S 1N P P 2S P
+133	pons	8	representative	both	Q83.A7642.93.QJT	P 1C P 1H P 1S P 2D
+134	pons	8	representative	none	82.KJ654.KT2.A53	P 2S P 2N P 3C P 3S
+135	pons	8	representative	none	T652.J9.852.AQ32	P 1N P 2D P 2H P 2S
+136	pons	8	representative	none	K73.AKJ975.6.Q94	1H P 1N P 2H P 3H P
+137	pons	8	representative	we	JT76.Q.QJ982.865	P 1S 2H 3S P 4S P P
+138	pons	8	representative	we	62.KJ5.QT98.A862	P 1S P 3N P 4S P P
+139	pons	8	representative	they	AJ72.T7.KJT73.T8	P P 1D 1S 2S P 3D P
+140	pons	8	representative	they	QT3.Q985.T864.J7	P 1N P 2S P 2N P 3H
+141	pons	8	representative	we	T.KJT92.K986.632	P P 1S P 1N P 2H P
+142	pons	8	representative	they	A8.984.98765.954	P P 2C P 2D P 3C P
+143	pons	8	representative	we	J652.KT54.K84.T7	P P P 2C P 2D P 2N
+144	pons	8	representative	both	9753.T9.KT92.T72	P 1D P 1H P 1S P 2D
+145	pons	8	representative	both	Q875.J986.T.QJ65	P P 1H X 3H P 4H 4S
+146	pons	8	representative	none	A7.KT4.KQ9.QT532	1C 1H 1S 2C P 4H 4S P
+147	pons	8	representative	none	.AQJ864.A863.J82	1H P 1S P 2H P 3H P
+148	pons	8	representative	we	864.T983.52.AQ92	P P P 1N P 2D P 2H
+149	pons	8	representative	they	Q7653.86.K82.K75	P 1C P 1D P 1S P 2D
+150	pons	8	representative	we	T765.A84.KQ6.J72	P 1C P 1H P 1N P P
+151	pons	8	representative	they	KQT9863..AT.J985	1S 2H 3H 4H 4S P P 5H
+152	pons	8	representative	both	T4.J5.A7642.KT43	P P 1H 1S P 1N P 2S
+153	pons	8	representative	both	7643.97.964.QT63	P 1D 1N 2H P 3H P P
+154	pons	8	representative	both	A732.Q953.A76.85	P 1N P 2H P 2S P 3N
+155	pons	8	representative	both	JT8652.AJ87.T.T7	2S P 2N P 3H P 4S P
+156	pons	8	representative	none	K764.7.AT83.7432	P P P 1S P 2S P 3H
+157	pons	8	representative	none	KJ95.963.T653.T6	P 1D 1H 1S P 2C 2H 3S
+158	pons	8	representative	we	AJ9875.K43.AKJ.3	1S P 1N P 3S P 4S P
+159	pons	8	representative	they	AJ.T64.AJ62.A975	1D 1N P 2D P 2H 3S P
+160	pons	8	representative	they	Q83.K9862.Q3.532	P P 1S 2N 3S X P 4C
+161	pons	8	representative	we	AT9.93.AT74.Q765	P P 1H 1S 1N P 2C P
+162	pons	8	representative	they	K9875.76.KT76.86	P P 1H P 1S 1N X 2C
+163	pons	8	representative	we	AJ7.KT9865..Q742	1H P 1S P 2H 3D 3H P
+164	pons	8	representative	both	K43.Q984.T6.8764	P 1N P 2H P 2S P P
+165	pons	8	representative	both	T984.QJ94.K9.KT5	P P 1D P 1H P 1S P
+166	pons	8	representative	both	A754.765.K862.J8	P P 1N P 2C P 2H P
+167	pons	8	representative	none	JT985.Q.QJ4.T964	P 1C 1H X P 2C P P
+168	pons	8	representative	none	A5.52.964.AK8654	1C 1H P P 2C P 3N P
+169	pons	8	representative	we	K94.KQ94.J732.82	P 1C P 1H P 2C P 3N
+170	pons	8	representative	they	J54.KT83.AQ83.JT	P P 1N P 3C P 3D P
+171	pons	8	representative	we	AT432..AKQJ84.96	1S 2H P 2S 3D 4H P P
+172	pons	8	representative	they	AKJ4.653.QT53.98	P P P 1D P 1H P 2N
+173	pons	8	representative	they	7652.AJ54.9.A762	P 2D X P 3C P 3S P
+174	pons	8	representative	they	K2.J53.A97632.72	2D 2S P 3D P 4S P P
+175	pons	8	representative	we	J8.KT965.J6.A532	P P 1S P 1N P 2H P
+176	pons	8	representative	both	QT3.984.QJ.QT972	P 1D P 1H P 1N P 2H
+177	pons	8	representative	both	A96.K5.KT92.J753	P 1H 1S 2H 2S 4H P P
+178	pons	8	representative	none	AKJT953.9.A42.75	1S X 2H P P 3C P P
+179	pons	8	representative	none	J74.532.AQ93.Q52	P P 1C 1S P P 1N P
+180	pons	8	representative	we	K6.Q864.98.QT543	P 1N P 3C P 3S P 3N
+181	pons	8	representative	they	K5.AQT63.62.KJ76	1H X 3H P P X P 3S
+182	pons	8	representative	they	KJ52.8.QJ8.AJ965	1C P 1D 2H P P 3D P
+183	pons	8	representative	they	843.QJ97.KT5.A32	P 1N P 2C P 2D P 3N
+184	pons	8	representative	we	8.K4.J843.AQ7653	1C P 1H P 2C X XX P
+185	pons	8	representative	we	AKQJ.9732.Q62.42	1D P 2C P 2N P 3N P
+186	pons	8	representative	both	4.J85.KT874.J987	P 1S P 2S P 3S P 4S
+187	pons	8	representative	both	T965.T8.84.JT986	P 1S 2H P P 3D P P
+188	pons	8	representative	none	KQ54.KT98.AQ.J94	1N 2D X 2H P P 3N P
+189	pons	8	authored-deep	we	73.J53.A8763.JT2	P P 1S P 1N P 2N P
+190	pons	8	constructive-floor	none	KQ532.A92.T2.QJ9	1S P 2D P 2N P 3D P
+191	pons	8	forced-instinct-floor	none	Q8743.AT4.A3.K85	1S P 2C P 2N P 3N P
+192	pons	12	representative	we	73.J53.A8763.JT2	P P 1S P 1N P 2N P 3D P 3N P
+193	pons	12	representative	they	Q62.JT74.KQ.AJ97	1C 1D P 1S P 1N P 2C P 2D P P
+194	pons	12	representative	both	Q83.A7642.93.QJT	P 1C P 1H P 1S P 2D P 3C P 3N
+195	pons	12	representative	none	T652.J9.852.AQ32	P 1N P 2D P 2H P 2S P 3N P P
+196	pons	12	representative	they	AJ72.T7.KJT73.T8	P P 1D 1S 2S P 3D P 4D P 4H P
+197	pons	12	representative	they	QT3.Q985.T864.J7	P 1N P 2S P 2N P 3H P 3N P P
+198	pons	12	representative	we	J652.KT54.K84.T7	P P P 2C P 2D P 2N P 3N P P
+199	pons	12	representative	both	9753.T9.KT92.T72	P 1D P 1H P 1S P 2D P 2N P 4H
+200	pons	12	representative	we	864.T983.52.AQ92	P P P 1N P 2D P 2H P 3N P P
+201	pons	12	representative	they	Q7653.86.K82.K75	P 1C P 1D P 1S P 2D P 2N P 3N
+202	pons	12	representative	they	KQT9863..AT.J985	1S 2H 3H 4H 4S P P 5H P P X P
+203	pons	12	representative	both	T4.J5.A7642.KT43	P P 1H 1S P 1N P 2S 3H 3S P P
+204	pons	12	representative	none	K764.7.AT83.7432	P P P 1S P 2S P 3H P 4S P P
+205	pons	12	representative	we	AJ7.KT9865..Q742	1H P 1S P 2H 3D 3H P P 4D X P
+206	pons	12	representative	both	T984.QJ94.K9.KT5	P P 1D P 1H P 1S P 2S P 3S P
+207	pons	12	representative	both	A754.765.K862.J8	P P 1N P 2C P 2H P 2N P 3N P
+208	pons	12	representative	they	J54.KT83.AQ83.JT	P P 1N P 3C P 3D P 3S P 3N P
+209	pons	12	representative	both	QT3.984.QJ.QT972	P 1D P 1H P 1N P 2H P 3H P P
+210	pons	12	representative	both	A.AKJ5.AJT7643.9	1D 1S P 2S 3D 3S P P 4D P P 4S
+211	pons	12	representative	they	A642.9643.QT.K96	P 1C 1N P 2C P 2H P 3S P 4H P
+212	pons	12	representative	they	653.J2.QJ63.Q764	P P P 1D P 2D P 2N P 3D P 4D
+213	pons	12	representative	we	963.764.7543.742	P 1H P 1S P 1N P 2D P 2N P 7H
+214	pons	12	representative	both	JT875.J2.KQ965.A	P P P 1H 2H 3C 3S P P 4H 4S X
+215	pons	12	representative	both	K943.6.AKQ872.52	1D X XX 1H 1S 2H 2S 3H 3S P 4S P
+216	pons	12	representative	none	JT.T9843.KQ6.974	P 2C P 2D P 2N P 3H P 3S P 3N
+217	pons	12	representative	they	K76.AQ6.K9632.84	1D P 1H P 1N P 2C P 2D P 2N P
+218	pons	12	representative	we	.KQ6.AKQ984.KJ62	1D 1H 1S P 2C 2H 3S P 4H P 4S P
+219	pons	12	representative	none	KQ7543.K732.65.Q	P P P 1D 1S X P 2D P 3D P P
+220	pons	12	representative	none	T987..K9753.KQ98	P 1N 2H X 2N P 3C X P 3N P P
+221	pons	12	representative	we	KJ852.85.865.Q65	P 1H 2C 2D P 3D P 4C P 4H P 4N
+222	pons	12	representative	none	Q96.J843.J84.732	P 1S 2C X P 2H P P 3C X P 4H
+223	pons	12	representative	both	.AK83.Q97.T98762	P 1N 2S 2N P 3C P 3H P 4H P P
+224	pons	12	representative	both	6.972.753.AQJT64	P 1D 1H 2C P 2S P P 3C X P P
+225	pons	12	representative	none	QT984.97.Q9742.9	P P 1C P 1S 2H X P 2S P P 3H
+226	pons	12	representative	none	QJT.Q8542.64.K32	P P 1D X 1H P 1N P 2H P 3H P
+227	pons	12	representative	we	K97.KJ953.Q93.A8	1H P 1S 2C X P 2S P P 3C 4S P
+228	pons	12	representative	they	4.QT2.J82.T87532	P 1H 1S 2D P 2N P 3N P 4H P P
+229	pons	12	representative	both	7.J.AQJT863.A985	1D 1H X P 2D 2H P P 3D P P 3H
+230	pons	12	representative	none	K83.53.T8643.Q85	P P 1D P 3D P 4N P 5D P 6D P
+231	pons	12	representative	they	Q94.A3.AJ9643.95	1D P 1S 2H X P 3C P 3D 3H P P
+232	pons	12	representative	we	94.987.AQ98764.4	3D P P X P 3S P 4D P 4S P P
+233	pons	12	representative	they	A.T8.Q6543.KQ872	1D 1H 2N P 3C P 3H 3S P P X P
+234	pons	12	representative	both	Q.KQJ42.A8.AJ842	1H P 1S P 2C P 2D P 2N P 3N P
+235	pons	12	representative	none	AQ98753.AKT..976	1S 2D P 2H 2S 3D P P 3S P P X
+236	pons	12	representative	none	JT76.QT532.Q74.A	P P 1S P 4C P 4N P 5C P 5S P
+237	pons	12	representative	we	JT983.J43.T62.A6	P 1D P 1H P 1N P 2D P 2N P 4H
+238	pons	12	representative	we	KT3.KJ754.J.T864	P P 1N P 2D P 2H P 2S P 3H P
+239	pons	12	representative	they	T953.964.A843.76	P P P 1N P 2C P 2S P 3H P 4S
+240	pons	12	representative	they	J43.T92.J42.9765	P 1C P 1H P 1S P 2D P 2H P 3N
+241	pons	12	representative	none	Q87.KJ9.J7.T9874	P P P 1S P 2S P 3H P 4S P P
+242	pons	12	representative	they	AK42.T85.Q32.954	P P P 1C P 1S P 2C P P 2N X
+243	pons	12	representative	we	Q72.5.A9653.Q865	P 1C 1H P P 1S P P 2D X P 4S
+244	pons	12	representative	they	95.K652.T754.K94	P 1D P 1S P 2S P 3N P 4S P P
+245	pons	12	representative	we	98653.A974.A.J85	P 1D P 2C P 2D P 3C P 3N P P
+246	pons	12	representative	both	QJ52.64.Q974.QT6	P 1D P 1S P 2S P 3N P 4S P P
+247	pons	12	representative	none	A65.K832.J976.74	P 1C 1N P 2C X 2S P 3C X XX P
+248	pons	12	representative	they	KT92.52.AK2.AJ74	1N P P 2H P P 3S P P 4H P P
+249	pons	12	representative	we	Q84.T632.73.KQ97	P 1D P 1S P 1N P 2C P 2D P 2S
+250	pons	12	representative	both	AT63.T72.A95.J64	P P 1D 1H X 1N 2S P P 3H P P
+251	pons	12	representative	we	AQT75.KJT9.84.A9	1S P 2D P 2H P 3H P 4N P 5H P
+252	pons	12	representative	they	65.A.J4.AQJT9654	1C 2C P 2H 3C 3H P P 4C P P X
+253	pons	12	representative	they	K62.KT3.J984.QJ9	P P P 1H P 1S P 3H P 4H P P
+254	pons	12	representative	they	AQ2.A63.Q9863.43	1D P 1S P 1N P 2C P 2D P 2S P
+255	pons	12	rkcb-slam-tail	none	KQ.9.AQ9875.T764	1D P 1H 1S P 3S 4D P 4N P 5H X
+256	bba	2	representative	none	98.K5.KQ9654.A75	1S P
+257	bba	2	representative	none	QT84.A84.K96.J73	P 1S
+258	bba	2	representative	none	A.K97.KQJ72.QT96	1S P
+259	bba	2	representative	none	Q95.K.AQ97654.52	P 3H
+260	bba	2	representative	we	AQJT9.AT.2.AK854	P P
+261	bba	2	representative	they	K5.KQ96.KJ2.QJT4	2S P
+262	bba	2	representative	we	Q3.JT76.T64.JT53	2S X
+263	bba	2	representative	they	863.T2.QJ985.Q54	1H P
+264	bba	2	representative	they	T43.QT.JT8652.75	1H X
+265	bba	2	representative	we	9762.843.AK5.T95	1C 1S
+266	bba	2	representative	they	8743.865.J84.KQT	1C 1D
+267	bba	2	representative	we	QT9.K875.862.943	1D 1H
+268	bba	2	representative	both	KQ.K95.873.K9432	3H P
+269	bba	2	representative	both	K432.J.KQ92.J932	1C 1H
+270	bba	2	representative	both	KT86532.965.J6.A	P 1D
+271	bba	2	representative	both	952.Q83.Q8654.53	P 1C
+272	bba	2	representative	none	J963.KJ72.AJ.843	P P
+273	bba	2	representative	none	A94.82.A876.T876	1H 2S
+274	bba	2	representative	none	AQ3.Q764.T93.T97	P 1N
+275	bba	2	representative	none	AT.862.T752.AKT7	1H P
+276	bba	2	representative	we	.KJT642.K763.AJ7	P 1S
+277	bba	2	representative	they	J74.A652.96.KT63	P P
+278	bba	2	representative	we	T97.T2.J73.KT973	P 1S
+279	bba	2	representative	they	.AQ93.AQ865.KQ94	P P
+280	bba	2	representative	they	8652.AT72.KQ75.4	P 1N
+281	bba	2	representative	we	AQ842.A875.T.Q97	P P
+282	bba	2	representative	they	QJ5.AKQT.3.AKQJ3	P P
+283	bba	2	representative	we	98743.9862.93.Q5	P P
+284	bba	2	representative	both	Q952.K62.43.J942	1D P
+285	bba	2	representative	both	A872.A7542.7432.	1H P
+286	bba	2	representative	both	82.J764.A53.KQ96	P 1D
+287	bba	2	representative	both	.AK543.AJ642.K84	P P
+288	bba	2	representative	none	J86.T7.AKQ94.AK6	P P
+289	bba	2	representative	none	QJT98543.A5.3.74	1C 1H
+290	bba	2	representative	none	A9542.T72.Q52.AQ	1H 2H
+291	bba	2	representative	none	A94.542.J3.J9874	1N P
+292	bba	2	representative	we	Q97.Q.T9764.K863	P 1H
+293	bba	2	representative	they	A973.KQ6.T43.J76	P P
+294	bba	2	representative	we	97.T9765.K763.95	1N 2S
+295	bba	2	representative	they	42.QJT94.43.JT84	P 1C
+296	bba	2	representative	they	KJ632.9764.9.J43	1D P
+297	bba	2	representative	we	KJ92.JT2.743.AK6	P 1C
+298	bba	2	representative	they	AJ7.A6.K9872.K62	1S P
+299	bba	2	representative	we	QJ5.QJ653.K74.75	P 1N
+300	bba	2	representative	both	Q82.A8743.KQ95.7	P P
+301	bba	2	representative	both	KQ2.AK5.QJ83.952	P 1D
+302	bba	2	representative	both	J6.J87.J854.J964	P 1N
+303	bba	2	representative	both	Q94.T5.AK73.AKJ8	2S P
+304	bba	2	representative	none	Q54.A932.JT53.A3	P 1D
+305	bba	2	representative	none	5.943.J74.AKJ986	P P
+306	bba	2	representative	none	K9..T97654.KJT54	1C 1H
+307	bba	2	representative	none	8.KQJ8752.2.K932	P 1D
+308	bba	2	representative	we	A652.K653..J8752	1D P
+309	bba	2	representative	they	9742.J954.QJ5.96	1C X
+310	bba	2	representative	we	Q2.AJ87.Q3.T9752	1S P
+311	bba	2	representative	they	KT98743.J5.Q95.6	1D 1N
+312	bba	2	representative	they	AT975.Q7.762.KQ7	P P
+313	bba	2	representative	we	Q72.AKQT5.J5.K83	P P
+314	bba	2	representative	they	QT6.QJT32.J.AQJT	P 1D
+315	bba	2	representative	we	K864.A3.943.A865	2H 3D
+316	bba	2	representative	both	T2.K752.KJ87.AK2	P 1N
+317	bba	2	representative	both	AQ53.2.8742.AJ98	P 1H
+318	bba	2	representative	both	8.KQ543.7.KQ8654	P 1S
+319	bba	2	representative	both	J86.AT98.AJT7.AK	P P
+320	bba	4	representative	none	KQ532.A92.T2.QJ9	1S P 1N P
+321	bba	4	representative	none	A53.JT7.872.K985	P 1S P 1N
+322	bba	4	representative	none	Q8743.AT4.A3.K85	1S P 2D P
+323	bba	4	representative	none	J764.72.KT32.J98	P 3H P 5D
+324	bba	4	representative	we	73.J53.A8763.JT2	P P 1S P
+325	bba	4	representative	they	AQJ732.7543..972	2S P 2N P
+326	bba	4	representative	we	KJT985.832.KQ7.6	2S X P 3C
+327	bba	4	representative	they	K52.A987653.K.93	1H X P 2C
+328	bba	4	representative	we	A8.AQT7.732.Q742	1C 1S P P
+329	bba	4	representative	they	Q62.JT74.KQ.AJ97	1C 1D 1S X
+330	bba	4	representative	we	854.A.KQJ975.KJ2	1D 1H P P
+331	bba	4	representative	both	7.QT87643.A642.Q	3H P 4H P
+332	bba	4	representative	both	AQ9.A632.AJT.AT8	1C 1H X P
+333	bba	4	representative	both	Q.K872.KT87.KT92	P 1D 3S P
+334	bba	4	representative	both	Q83.A7642.93.QJT	P 1C P 2H
+335	bba	4	representative	none	874.T954.82.AKJ2	P P P 1N
+336	bba	4	representative	none	82.KJ654.KT2.A53	1H 2S P P
+337	bba	4	representative	none	T652.J9.852.AQ32	P 1N P 2D
+338	bba	4	representative	none	K73.AKJ975.6.Q94	1H P 1N P
+339	bba	4	representative	we	JT76.Q.QJ982.865	P 1S 2H 2S
+340	bba	4	representative	they	AT92.T87.Q73.A52	P P P 1N
+341	bba	4	representative	we	62.KJ5.QT98.A862	P 1S P 2C
+342	bba	4	representative	they	AJ72.T7.KJT73.T8	P P 1D 2S
+343	bba	4	representative	they	QT3.Q985.T864.J7	P 1N P 3N
+344	bba	4	representative	we	T.KJT92.K986.632	P P 1S P
+345	bba	4	representative	they	A8.984.98765.954	P P 2C P
+346	bba	4	representative	we	J652.KT54.K84.T7	P P P 2C
+347	bba	4	representative	both	A873.QJ5.AQ862.K	1D P 1S P
+348	bba	4	representative	both	3.QJT63.AK9.Q765	1H P 4H P
+349	bba	4	representative	both	9753.T9.KT92.T72	P 1D P 2H
+350	bba	4	representative	both	Q875.J986.T.QJ65	P P 1H X
+351	bba	4	representative	none	43.KQ95.J73.J954	P P 1N P
+352	bba	4	representative	none	A7.KT4.KQ9.QT532	1C 1H 4S P
+353	bba	4	representative	none	.AQJ864.A863.J82	1H 2H 2S X
+354	bba	4	representative	we	864.T983.52.AQ92	P 1H P 1S
+355	bba	4	representative	we	J83.AQ3.QT42.AQJ	1N 2S P 2N
+356	bba	4	representative	they	Q7653.86.K82.K75	P 1C P 1D
+357	bba	4	representative	they	AT87.A3.A6532.A8	1D P 1S X
+358	bba	4	representative	we	T765.A84.KQ6.J72	P 1C P 1H
+359	bba	4	representative	they	KQT9863..AT.J985	1S P 2D P
+360	bba	4	representative	we	T8764.T4.852.K92	P 1N P 3N
+361	bba	4	representative	both	T4.J5.A7642.KT43	P P 1H 1S
+362	bba	4	representative	both	7643.97.964.QT63	P 1D 1N 2H
+363	bba	4	representative	both	A732.Q953.A76.85	P 1N P 2H
+364	bba	4	representative	both	JT8652.AJ87.T.T7	2S P 4S P
+365	bba	4	representative	none	JT73.KJ87..K9742	P 1D P 1N
+366	bba	4	representative	none	K764.7.AT83.7432	P P 3C 3S
+367	bba	4	representative	none	AQT8.QT9.A32.Q83	1C 1H 3C 4H
+368	bba	4	representative	none	KJ95.963.T653.T6	P 1D 3H 3S
+369	bba	4	representative	we	Q8.JT94.AKT9753.	1D P 1H 2C
+370	bba	4	representative	they	AT83.K8.A3.AQJT4	1C X P 1D
+371	bba	4	representative	we	AJ9875.K43.AKJ.3	1S P 1N P
+372	bba	4	representative	they	AJ.T64.AJ62.A975	1D 1N P 2D
+373	bba	4	representative	they	Q83.K9862.Q3.532	P P 1S 2N
+374	bba	4	representative	we	AT9.93.AT74.Q765	P P 1N 2S
+375	bba	4	representative	they	K9875.76.KT76.86	P 1D 1H 1N
+376	bba	4	representative	we	AJ7.KT9865..Q742	2H 3D P P
+377	bba	4	representative	both	K43.Q984.T6.8764	P 1N P 2H
+378	bba	4	representative	both	T984.QJ94.K9.KT5	P 1H X XX
+379	bba	4	representative	both	4.986.AK432.JT32	P 1S 2S 3S
+380	bba	4	representative	both	A754.765.K862.J8	P P 1N 3C
+381	bba	4	representative	none	AJT2.98.T842.K82	P 1D 1H P
+382	bba	4	representative	none	JT985.Q.QJ4.T964	P 1C 1H X
+383	bba	4	representative	none	A5.52.964.AK8654	1C 2C 2S P
+384	bba	8	representative	none	KQ532.A92.T2.QJ9	1S P 1N P 2C P 3D P
+385	bba	8	representative	none	A53.JT7.872.K985	P 1S P 1N P 2C P 2N
+386	bba	8	representative	none	Q8743.AT4.A3.K85	1S P 2D P 2N P 3C P
+387	bba	8	representative	none	J764.72.KT32.J98	P 3H P 5D P 5S P 6H
+388	bba	8	representative	we	73.J53.A8763.JT2	P P 1S P 1N P 3C P
+389	bba	8	representative	we	KJT985.832.KQ7.6	2S X P 3C P 3N P P
+390	bba	8	representative	they	K52.A987653.K.93	1H X P 2C P 3C P 3D
+391	bba	8	representative	we	A8.AQT7.732.Q742	1C 1S P P X P 2C P
+392	bba	8	representative	they	Q62.JT74.KQ.AJ97	1C 1D 1S X XX 2D P 3D
+393	bba	8	representative	we	854.A.KQJ975.KJ2	1D 1H P P 2D P P 2H
+394	bba	8	representative	both	Q83.A7642.93.QJT	P 1C P 2H P 2S P 3N
+395	bba	8	representative	none	82.KJ654.KT2.A53	1H 2S P P X P 3H 3S
+396	bba	8	representative	none	T652.J9.852.AQ32	P 1N P 2D P 2H P 2N
+397	bba	8	representative	none	K73.AKJ975.6.Q94	1H P 1N P 2H P 4H P
+398	bba	8	representative	we	JT76.Q.QJ982.865	P 1S 2H 2S P P 3H 3S
+399	bba	8	representative	they	AT92.T87.Q73.A52	P P P 1N P 2C P 2D
+400	bba	8	representative	we	62.KJ5.QT98.A862	P 1S P 2C P 2H P 4S
+401	bba	8	representative	they	AJ72.T7.KJT73.T8	P P 1D 2S 3D P 4S P
+402	bba	8	representative	we	T.KJT92.K986.632	P P 1S P 1N P 2H P
+403	bba	8	representative	they	A8.984.98765.954	P P 2C P 2D P 2N P
+404	bba	8	representative	we	J652.KT54.K84.T7	P P P 2C P 3D P 4D
+405	bba	8	representative	both	9753.T9.KT92.T72	P 1D P 2H P 2S P 3H
+406	bba	8	representative	both	Q875.J986.T.QJ65	P P 1H X 2H P P 2S
+407	bba	8	representative	none	43.KQ95.J73.J954	P P 1N P 2C P 2D P
+408	bba	8	representative	none	.AQJ864.A863.J82	1H 2H 2S X 3D P 3S P
+409	bba	8	representative	we	864.T983.52.AQ92	P 1H P 1S P 1N P 4H
+410	bba	8	representative	we	J83.AQ3.QT42.AQJ	1N 2S P 2N P 3C P 3S
+411	bba	8	representative	they	Q7653.86.K82.K75	P 1C P 1D P 1S P 3N
+412	bba	8	representative	we	T765.A84.KQ6.J72	P 1C P 1H P 1N P P
+413	bba	8	representative	both	T4.J5.A7642.KT43	P P 1H 1S P 1N P 2S
+414	bba	8	representative	both	A732.Q953.A76.85	P 1N P 2H P 2S P 3N
+415	bba	8	representative	none	JT73.KJ87..K9742	P 1D P 1N P 2D P P
+416	bba	8	representative	none	AQT8.QT9.A32.Q83	1C 1H 3C 4H P P X P
+417	bba	8	representative	none	KJ95.963.T653.T6	P 1D 3H 3S P 4C P 4S
+418	bba	8	representative	they	AT83.K8.A3.AQJT4	1C X P 1D 1N P P 2D
+419	bba	8	representative	we	AJ9875.K43.AKJ.3	1S P 1N P 3S P 4S P
+420	bba	8	representative	they	AJ.T64.AJ62.A975	1D 1N P 2D P 2H 2S P
+421	bba	8	representative	they	Q83.K9862.Q3.532	P P 1S 2N P 3D P P
+422	bba	8	representative	we	AT9.93.AT74.Q765	P P 1N 2S 2N P 3C P
+423	bba	8	representative	both	K43.Q984.T6.8764	P 1N P 2H P 2S X P
+424	bba	8	representative	both	T984.QJ94.K9.KT5	P 1H X XX 2S P P 3H
+425	bba	8	representative	none	JT985.Q.QJ4.T964	P 1C 1H X P 2D P 3D
+426	bba	8	representative	none	A5.52.964.AK8654	1C 2C 2S P 3C P 3H P
+427	bba	8	representative	none	KQT6.A7.AJT4.AKJ	2C P 2D P 2N P 3C P
+428	bba	8	representative	we	K94.KQ94.J732.82	P 1C P 1H P 2C P 3C
+429	bba	8	representative	they	J54.KT83.AQ83.JT	P P 1D P 1H P 2C P
+430	bba	8	representative	we	AT432..AKQJ84.96	1D 1H P 2D 4S 5H 6D X
+431	bba	8	representative	they	AKJ4.653.QT53.98	P P P 1D P 1H P 2N
+432	bba	8	representative	they	7652.AJ54.9.A762	P 2D 3S P 4D P 4S P
+433	bba	8	representative	we	Q976.AQ632.T7.A6	1H 2N 3S P 4C P 4S P
+434	bba	8	representative	they	K2.J53.A97632.72	2D 2S 3D X P 4C P P
+435	bba	8	representative	we	J8.KT965.J6.A532	P P 1S P 1N P 2H P
+436	bba	8	representative	both	QT3.984.QJ.QT972	P 1D P 1H P 1N P P
+437	bba	8	representative	both	A96.K5.KT92.J753	P 1H 2S 3H 3S 4H P P
+438	bba	8	representative	both	AKQJ9.98.T98732.	1D P 1N P 2D P 3C P
+439	bba	8	representative	none	AKJT953.9.A42.75	1S X P 2D 2S X P 3D
+440	bba	8	representative	none	AKJ9.T97.7.Q9643	P 1H P 1N P 2D P 2N
+441	bba	8	representative	none	J74.532.AQ93.Q52	P P 1C 1S P P 1N P
+442	bba	8	representative	none	J8.K85.K873.AJ42	1D P 2D P 2N P 3D P
+443	bba	8	representative	they	K5.AQT63.62.KJ76	1H X P 3S P 4S P P
+444	bba	8	representative	we	842.AT9.Q9.AK654	1C 1S X P 2C 2D P 2S
+445	bba	8	representative	they	KJ52.8.QJ8.AJ965	1C P 1D 3H P P X P
+446	bba	8	representative	they	843.QJ97.KT5.A32	P 1N P 2C P 2D P 3N
+447	bba	8	representative	we	8.K4.J843.AQ7653	P 1N P 2H P 3S P P
+448	bba	12	representative	we	73.J53.A8763.JT2	P P 1S P 1N P 3C P 3S P 3N P
+449	bba	12	representative	they	K52.A987653.K.93	1H X P 2C P 3C P 3D P 3N P P
+450	bba	12	representative	we	A8.AQT7.732.Q742	1C 1S P P X P 2C P P 2D P 2S
+451	bba	12	representative	we	854.A.KQJ975.KJ2	1D 1H P P 2D P P 2H X P 3D P
+452	bba	12	representative	none	T652.J9.852.AQ32	P 1N P 2D P 2H P 2N P 3N P P
+453	bba	12	representative	they	AT92.T87.Q73.A52	P P P 1N P 2C P 2D P 2N P P
+454	bba	12	representative	they	AJ72.T7.KJT73.T8	P P 1D 2S 3D P 4S P 5C P 5D P
+455	bba	12	representative	we	T.KJT92.K986.632	P P 1S P 1N P 2H P 3H P 4H P
+456	bba	12	representative	we	J652.KT54.K84.T7	P P P 2C P 3D P 4D P 4H P 4N
+457	bba	12	representative	both	9753.T9.KT92.T72	P 1D P 2H P 2S P 3H P 3N P P
+458	bba	12	representative	both	Q875.J986.T.QJ65	P P 1H X 2H P P 2S 3H 3S 4H P
+459	bba	12	representative	none	43.KQ95.J73.J954	P P 1N P 2C P 2D P 2N P 3N P
+460	bba	12	representative	none	.AQJ864.A863.J82	1H 2H 2S X 3D P 3S P 3N P 4H P
+461	bba	12	representative	both	T4.J5.A7642.KT43	P P 1H 1S P 1N P 2S P 3S P P
+462	bba	12	representative	both	T984.QJ94.K9.KT5	P 1H X XX 2S P P 3H P P 3S P
+463	bba	12	representative	none	A5.52.964.AK8654	1C 2C 2S P 3C P 3H P 4C P 5C P
+464	bba	12	representative	none	KQT6.A7.AJT4.AKJ	2C P 2D P 2N P 3C P 3S P 3N P
+465	bba	12	representative	they	J54.KT83.AQ83.JT	P P 1D P 1H P 2C P 3D P 3N P
+466	bba	12	representative	we	J8.KT965.J6.A532	P P 1S P 1N P 2H P 3H P 4H P
+467	bba	12	representative	both	A96.K5.KT92.J753	P 1H 2S 3H 3S 4H P P 4S 5H X P
+468	bba	12	representative	none	AKJT953.9.A42.75	1S X P 2D 2S X P 3D 3S P 4D P
+469	bba	12	representative	both	4.J85.KT874.J987	P 1S P 3D P 3H P 4C P 4H P 4S
+470	bba	12	representative	both	T965.T8.84.JT986	P 1S 2H P P 3D 3H 4D P 5D P P
+471	bba	12	representative	they	Q9532.T4.KJ98.A4	P 1D P 1H 1S 2H 2S 3H 3S P P 4H
+472	bba	12	representative	they	A7653.6.A8764.AK	1S P 1N 3H P P 4C P 4H P 4S P
+473	bba	12	representative	none	AT5.876.AJ932.82	P P P 1C 1D P P 2D P 2H P 3C
+474	bba	12	representative	none	AJ2..983.KQJT973	1C 1H 2D 2H 3C 3H 4C 4H 5C X P P
+475	bba	12	representative	we	T6.85.QT972.KJ96	P P 1D P 3D P 3H P 4D P 4H P
+476	bba	12	representative	we	J.98653.T76.8654	P 1D X 1S P 2C P 4S P P X P
+477	bba	12	representative	we	963.764.7543.742	P 1H P 1S P 1N P 4C P 4D P 6H
+478	bba	12	representative	we	73.8652.KJ983.87	P P 1C 1S P P X XX 2D 3C P 3S
+479	bba	12	representative	they	532.AT42.AKQ86.9	1D 1S P 2D X XX P 3S P 4S P P
+480	bba	12	representative	we	.KQ6.AKQ984.KJ62	1D 3H P P 4D P 4H P 4N P 5H P
+481	bba	12	representative	both	AQ95.T963.2.T852	P P 1S 2D 2S 2N 3S 4D 4S X P P
+482	bba	12	representative	they	K86.AJ62.QT7.K62	1C P 2C P 2D P 4C P 4H P 4S P
+483	bba	12	representative	they	A852.A753.AT.QT6	1C P 2H P 3H P 3S P 4D P 4H P
+484	bba	12	representative	they	Q932.Q875.AQ952.	P 1C P P X 1S X P 3H P 4H P
+485	bba	12	representative	both	KT.AKQ987.74.KJ4	1H P P 2D 3H 4D 4H P P 5D P P
+486	bba	12	representative	none	Q96.J843.J84.732	P 1S P 1N P 2D P 2N P 3N P P
+487	bba	12	representative	they	QJ9.JT653.J852.8	P 1C 1S 2C P 2H P 3C P 3N P P
+488	bba	12	representative	they	J8.AT8.KT.KJT962	1C 1S X 2S P P X P 3C P 3D P
+489	bba	12	representative	they	J.Q8.T863.Q97432	P 2C P 3D P 3S P 4N P 5D P 6S
+490	bba	12	representative	both	6.972.753.AQJT64	P 1D P 1S 2C 4C P 4H P 4S P P
+491	bba	12	representative	we	T985.964.T432.Q8	P P P 2N P 3C P 3D P 3N P P
+492	bba	12	representative	we	K97.KJ953.Q93.A8	1H P 1S 2C X P 2S P P 3C 3S 4C
+493	bba	12	representative	we	42.T82.KQ532.Q87	P 1H P 1S P 2S P 4D X P P 4S
+494	bba	12	representative	none	K83.53.T8643.Q85	P P 1D 2D P 3H 4D P P 4H P P
+495	bba	12	representative	we	94.987.AQ98764.4	3D P P X P 3S 4D 4S P P 5D P
+496	bba	12	representative	both	J85.QT6.K832.643	P 1C P 1H P 2S P 4C P 4D P 4H
+497	bba	12	representative	we	74.QJT82.AQ854.K	1H P 2D P 3D P 4D P 4N P 5S P
+498	bba	12	representative	they	4.K982.QT875.AQ6	1D P 1S P 1N P 2C P 2D P 2N P
+499	bba	12	representative	none	AQ98753.AKT..976	1S 2D P 2H 2S 3D P 3S X P P 4D
+500	bba	12	representative	none	JT4.984.AK52.A84	1D P 1S 2C X P 2S 3C P P 3S P
+501	bba	12	representative	none	JT76.QT532.Q74.A	P P 1C P 1H P 1S X 3S P 4S P
+502	bba	12	representative	we	JT983.J43.T62.A6	P 1D P 2H P 3C P 3H P 4H P 6C
+503	bba	12	representative	they	QJ65.AKQ.AKT32.2	1D P 2C P 2S P 4C P 4N P 5S P
+504	bba	12	representative	both	K72.KJ82.43.K542	P P P 2C P 2D X 3C P 3H P 4C
+505	bba	12	representative	both	QT5.J2.AQT.KQ764	1C 1H P 1S P 2H P 3H P 4H P P
+506	bba	12	representative	we	T86.AKJ87.76.762	P P 2C P 2H P 2N P 4N P 6N P
+507	bba	12	representative	they	T953.964.A843.76	P P P 1N P 2C P 2S P 4S P P
+508	bba	12	representative	they	J43.T92.J42.9765	P 1C P 1H P 1S P 2D P 3H P 3N
+509	bba	12	representative	they	K93.KJ82.74.Q865	P 1C 2S P P 3D P P 3S 4C P P
+510	bba	12	representative	we	97.A743.Q842.QT9	P P P 1D P 1H P 1S P 2S P 3S
+511	bba	12	representative	they	KQ532.Q852.KT7.J	1S P 2C P 2H P 4N P 5C P 5S P

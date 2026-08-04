@@ -2,6 +2,10 @@
 pub mod american;
 /// [`Call`]-indexed array
 pub mod array;
+/// Narrow, opt-in hooks for the out-of-crate performance harness.
+#[cfg(feature = "bench-internals")]
+#[doc(hidden)]
+pub mod benchmark;
 /// Role-aware partnership books
 pub mod book;
 /// `.bbsa` convention cards generated from the live system
