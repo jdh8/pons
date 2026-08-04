@@ -425,6 +425,34 @@ These produced actual wrong conclusions; each has a memory/ledger trail.
   structure, not sample noise. λ is a property of the **16-world**
   emulation (the misguess rate shrinks with worlds); re-fit before changing
   the world count.
+- **λ is bucketed by level, but level is not the whole story — and his cells
+  are not our cells.** Split Pavlicek's per-contract table by strain class
+  (`probe-sd-calibration` now fits `(level, m/M/NT)` cells, 2026-08-04, seed
+  1785794459, 158,534 contracts, 600 playouts per cell), and the after-lead
+  shift spans −0.075 (4m) to −0.217 (4M) *within* level 4; 6NT (−0.396) is the
+  most DD-optimistic cell on the board, more so than any suit slam (6m −0.318,
+  6M −0.341). But the per-cell fit also exposes why importing those targets is
+  mostly **illegitimate**: the `align` column (our sd-lead make% − his
+  DD-after-lead make%, both DD play after a real lead, so equal populations
+  must agree) misses by −28pp at 6m, −9.7pp at 5m, −5.9pp at 4M, +8.5pp at 3m.
+  Expert contract *choice* selects the hands — they bid 5m only when the hand
+  screams it, take saves we never take, and reach 3-level partscores
+  competitively where ours are constructive — so a cell label alone does not
+  identify the same population. **Only import a cell whose `align` is within
+  ≈2pp.** Two things survive that filter and matter: (i) the 4M-guessier-than-5m
+  ordering *replicates on our own population* in the corpus-free column — our
+  playout's own haircut is −0.321 at 4M vs −0.262 at 5m (log-odds), a different
+  hand-selection and a different declarer model reproducing his ordering, which
+  is what answers the "his corpus is skewed toward easy 4M" objection; and
+  (ii) at the slam level the two aligned cells are exactly the ones the blend
+  exists for — 6M (align −0.8pp, λ 0.554) and 6NT (align +0.8pp, λ 0.457),
+  against shipped λ(6) = 0.664 fitted with 6m in the pool, whose λ clamps to
+  1.0 on a population that does not transfer at all. Fitting on 6M+6NT alone
+  gives **λ(6) = 0.510**, i.e. the shipped blend is ≈0.15 too pessimistic on
+  slam stop-vs-bid — the kickback §7.15 decision cell. Owed before that number
+  ships: a fresh-seed holdout of the aligned-cell fit. One discrepancy stands
+  unresolved: this run's level-4 pooled λ is 0.644 against the shipped 0.539
+  (≈1 se at these counts, but larger than the ≤0.02 the first holdout moved).
 - **Right-siding alone never wins on DD.** Both arms reach the same contract;
   only the declarer differs, and neither plain DD nor PD sees who declares.
   A convention whose only edge is right-siding measures ≈0 — don't trade real

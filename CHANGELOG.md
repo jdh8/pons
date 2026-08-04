@@ -9,6 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Measured
 
+- **λ is not a function of level alone, and most of Pavlicek's cells do not
+  transfer to ours.** `probe-sd-calibration` now buckets by `(level, strain
+  class)` — 4M, 5m, 3NT, 6NT — with targets re-aggregated from his
+  per-contract after-lead table (each level's n-weighted pooled row reproduces
+  his per-level row exactly, which is the transcription check). Fitted on a
+  fresh seed 1785794459, 158,534 contracts, 600 playouts per cell. Two
+  results. **The transfer test (new `align` column: our sd-lead make% minus
+  his DD-after-lead make%, which must agree if the cells hold the same hands)
+  fails almost everywhere** — −28pp at 6m, −9.7pp at 5m, −5.9pp at 4M, +8.5pp
+  at 3m: expert contract choice selects which hands reach a cell, so his
+  per-cell shift may only be imported where `align` is within ≈2pp. **The
+  λ(4) > λ(5) inversion survives the objection that his corpus over-selects
+  easy 4M**, because it replicates in the corpus-free column: our own
+  playout's haircut is −0.321 at 4M against −0.262 at 5m (log-odds), a
+  different hand selection and a different declarer model reproducing the same
+  ordering. At slam level the two cells that *do* align are the two the blend
+  exists for — 6M (−0.8pp, λ 0.554) and 6NT (+0.8pp, λ 0.457) — and fitting
+  λ(6) on them alone gives **0.510** against the shipped 0.664, which was
+  pulled up by 6m clamping to λ = 1.0 on a population that does not transfer.
+  `common::SD_BLEND_LAMBDA` is unchanged pending a fresh-seed holdout of the
+  aligned-cell fit; until then the slam bracket reads ≈0.15 too pessimistic.
+  Also unresolved: this run's level-4 pooled λ is 0.644 against the shipped
+  0.539.
+
 - **The kickback fair cell, re-diagnosed under the slam bracket
   (bba-kickback.md §7.15): the verdict is not rescue.** The cell reproduced
   exactly from seed 1785708870 (NV −0.01041, vul −0.00905 plain DD per board),

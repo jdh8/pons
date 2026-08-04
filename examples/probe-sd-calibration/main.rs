@@ -1,4 +1,8 @@
-//! Calibrate the three play brackets per contract level against Pavlicek.
+//! Calibrate the three play brackets per contract cell against Pavlicek.
+//!
+//! A *cell* is `(level, strain class)` — 4M, 5m, 3NT, 6X — not level alone:
+//! Pavlicek's after-lead shift spans −0.075 (4m) to −0.217 (4M) within level
+//! 4, and 6NT (−0.396) trails DD play by more than any suit slam.
 //!
 //! Plain DD, sd-lead ([`single_dummy_lead_tricks`]), and the sd-declarer
 //! playout ([`single_dummy_playout`]) model progressively more of real play.
@@ -22,7 +26,7 @@
 
 use clap::Parser;
 use contract_bridge::auction::Auction;
-use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Seat};
+use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Seat, Strain};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::context::relative;
@@ -52,8 +56,9 @@ struct Args {
     /// Worlds per blind lead and per declarer decision
     #[arg(long, default_value_t = 16)]
     sd_worlds: usize,
-    /// Cap of playouts per contract level (the DD and sd-lead columns still
-    /// see every contract; only the expensive playout is subsampled)
+    /// Cap of playouts per (level, strain-class) cell — 4M, 5m, 6NT… (the DD
+    /// and sd-lead columns still see every contract; only the expensive
+    /// playout is subsampled)
     #[arg(long, default_value_t = 500)]
     per_level: usize,
     /// Keep dealing batches until every level up to --target-level has this
@@ -69,36 +74,138 @@ struct Args {
     max_batches: usize,
 }
 
-/// One reached contract: its level, whether the bid was made under each
-/// bracket, and each bracket's declarer tricks.
+/// One reached contract: its level and strain class, whether the bid was made
+/// under each bracket, and each bracket's declarer tricks.
 struct Row {
     level: u8,
+    class: usize,
     need: u8,
     dd: u8,
     sd_lead: u8,
     sd_line: Option<u8>,
 }
 
+/// The strain class λ is bucketed in, alongside level: minor, major, notrump.
+/// Level alone is not enough — within level 4 the after-lead shift spans
+/// −0.075 (4m) to −0.217 (4M), a factor of three, and 6NT (−0.396) is the
+/// most DD-optimistic cell on the board.
+const CLASSES: [&str; 3] = ["m", "M", "NT"];
+
+fn class_of(strain: Strain) -> usize {
+    match strain {
+        Strain::Notrump => 2,
+        s if s.is_minor() => 0,
+        _ => 1,
+    }
+}
+
 /// Pavlicek's **after-the-opening-lead** table (rpbridge.net/8j45.htm,
-/// 77,406 expert-vs-expert vugraph contracts, 1996–2014), per level:
+/// 77,406 expert-vs-expert vugraph contracts, 1996–2014), aggregated from his
+/// per-contract table into `[level][class]` cells:
 /// `(actual make %, double-dummy-after-the-actual-lead make %, n)`.
 ///
 /// This is the exact bias position of the sd-lead endpoint — realistic lead,
 /// then clairvoyant play — so `logit(actual) − logit(DD after lead)` is the
-/// declarer-fallibility quantum the blend must apply on top of it.  At the
-/// two slam levels the shift is flat (−0.334 and −0.339 log-odds); below
-/// game it shrinks toward zero (real declarers barely trail DD play at the
-/// one level).  Index 0 is unused padding.
-const PAVLICEK_AFTER_LEAD: [(f64, f64, u32); 8] = [
-    (f64::NAN, f64::NAN, 0),
-    (67.97, 68.76, 5_573),
-    (65.59, 67.70, 11_391),
-    (63.85, 66.91, 25_091),
-    (66.66, 71.02, 23_547),
-    (49.84, 52.87, 6_087),
-    (66.70, 73.67, 4_949),
-    (64.84, 72.14, 768),
+/// declarer-fallibility quantum the blend must apply on top of it.  Level 0
+/// is unused padding.
+///
+/// The n-weighted pooled row of each level reproduces Pavlicek's own per-level
+/// row exactly (67.97/68.76, 65.59/67.70, 63.85/66.91, 66.66/71.02,
+/// 49.84/52.87, 66.70/73.67, 64.84/72.14), which is the transcription check.
+/// Two cells are too thin to fit on: 5NT (n = 17) and 7NT (n = 95).
+const PAVLICEK_AFTER_LEAD: [[(f64, f64, u32); 3]; 8] = [
+    [(f64::NAN, f64::NAN, 0); 3],
+    [
+        (54.46, 55.36, 112),
+        (70.48, 71.05, 708),
+        (67.92, 68.74, 4_753),
+    ],
+    [
+        (63.83, 64.38, 2_159),
+        (67.68, 69.99, 7_837),
+        (56.56, 60.00, 1_395),
+    ],
+    [
+        (58.40, 61.20, 4_730),
+        (52.39, 54.39, 5_438),
+        (69.76, 73.28, 14_923),
+    ],
+    [
+        (48.46, 50.35, 1_428),
+        (67.59, 72.15, 21_792),
+        (84.10, 85.93, 327),
+    ],
+    [
+        (49.61, 53.21, 4_106),
+        (50.25, 51.99, 1_964),
+        (58.82, 70.59, 17),
+    ],
+    [
+        (63.70, 70.68, 1_835),
+        (67.63, 74.60, 2_669),
+        (73.48, 80.45, 445),
+    ],
+    [(53.36, 63.60, 283), (70.00, 75.90, 390), (77.89, 82.11, 95)],
 ];
+
+/// Make-rates of one cell: every contract in it (`dd`, `lead`) and the
+/// playout subsample (`*_sub`), in percent.
+struct Stats {
+    n: usize,
+    dd: f64,
+    lead: f64,
+    n_line: usize,
+    dd_sub: f64,
+    lead_sub: f64,
+    line_sub: f64,
+}
+
+impl Stats {
+    fn of(at: &[&Row]) -> Self {
+        #[allow(clippy::cast_precision_loss)]
+        let made = |set: &[&Row], tricks: fn(&Row) -> u8| {
+            100.0 * set.iter().filter(|row| tricks(row) >= row.need).count() as f64
+                / set.len().max(1) as f64
+        };
+        let lined: Vec<&Row> = at
+            .iter()
+            .filter(|row| row.sd_line.is_some())
+            .copied()
+            .collect();
+        Self {
+            n: at.len(),
+            dd: made(at, |row| row.dd),
+            lead: made(at, |row| row.sd_lead),
+            n_line: lined.len(),
+            dd_sub: made(&lined, |row| row.dd),
+            lead_sub: made(&lined, |row| row.sd_lead),
+            line_sub: made(&lined, |row| row.sd_line.expect("filtered Some")),
+        }
+    }
+
+    /// Pool cells by their share of *contracts*, not of playouts — the
+    /// playout cap is per cell, so the subsample is not population-weighted.
+    #[allow(clippy::cast_precision_loss)]
+    fn pool<'a>(cells: impl Iterator<Item = &'a Self> + Clone) -> Self {
+        let n: usize = cells.clone().map(|cell| cell.n).sum();
+        let mean = |pick: fn(&Self) -> f64| {
+            cells
+                .clone()
+                .map(|cell| pick(cell) * cell.n as f64)
+                .sum::<f64>()
+                / n.max(1) as f64
+        };
+        Self {
+            n,
+            dd: mean(|cell| cell.dd),
+            lead: mean(|cell| cell.lead),
+            n_line: cells.clone().map(|cell| cell.n_line).sum(),
+            dd_sub: mean(|cell| cell.dd_sub),
+            lead_sub: mean(|cell| cell.lead_sub),
+            line_sub: mean(|cell| cell.line_sub),
+        }
+    }
+}
 
 /// `ln(p / (1 − p))` with `p` in percent
 fn logit(percent: f64) -> f64 {
@@ -111,11 +218,29 @@ fn sigmoid_pct(x: f64) -> f64 {
     100.0 / (1.0 + (-x).exp())
 }
 
+/// Pavlicek's cell for a level and strain class, `None` = the level pooled
+/// over strains (n-weighted, reproducing his own per-level row).
+fn pavlicek(level: u8, class: Option<usize>) -> (f64, f64, u32) {
+    let cells = PAVLICEK_AFTER_LEAD[usize::from(level)];
+    let Some(class) = class else {
+        let n = cells.iter().map(|&(.., n)| n).sum::<u32>();
+        let mean = |pick: fn(&(f64, f64, u32)) -> f64| {
+            cells
+                .iter()
+                .map(|cell| pick(cell) * f64::from(cell.2))
+                .sum::<f64>()
+                / f64::from(n)
+        };
+        return (mean(|cell| cell.0), mean(|cell| cell.1), n);
+    };
+    cells[class]
+}
+
 fn main() {
     let args = Args::parse();
     let stance = american().against();
     let mut rows: Vec<Row> = Vec::new();
-    let mut playouts_at = [0usize; 8];
+    let mut playouts_at = [[0usize; 3]; 8];
 
     for batch in 0..args.max_batches.max(1) {
         // Deal and bid this batch (bidding parallelizes; the solver never
@@ -171,8 +296,9 @@ fn main() {
             reached.into_iter().zip(tables).zip(leads)
         {
             let level = contract.bid.level.get();
-            let sd_line = (playouts_at[usize::from(level)] < args.per_level).then(|| {
-                playouts_at[usize::from(level)] += 1;
+            let class = class_of(contract.bid.strain);
+            let sd_line = (playouts_at[usize::from(level)][class] < args.per_level).then(|| {
+                playouts_at[usize::from(level)][class] += 1;
                 u8::from(single_dummy_playout(
                     &deal,
                     contract.bid.strain,
@@ -185,6 +311,7 @@ fn main() {
             });
             rows.push(Row {
                 level,
+                class,
                 need: 6 + level,
                 dd: u8::from(table[contract.bid.strain].get(declarer)),
                 sd_lead: u8::from(lead_tricks),
@@ -192,13 +319,17 @@ fn main() {
             });
         }
 
-        let filled = (1..=args.target_level)
-            .all(|level| playouts_at[usize::from(level)] >= args.min_level_count);
+        // The top-up loop still chases *level* totals: the rare cells (5NT,
+        // any 7) are so thin in self-play that requiring them per cell would
+        // exhaust --max-batches without ever filling.
+        let at_level = |level: u8| playouts_at[usize::from(level)].iter().sum::<usize>();
+        let filled = (1..=args.target_level).all(|level| at_level(level) >= args.min_level_count);
         if filled || args.min_level_count == 0 {
             break;
         }
         eprintln!(
-            "batch {batch}: playouts per level {:?}, topping up…",
+            "batch {batch}: playouts per level {:?} (cells {:?}), topping up…",
+            (1..=args.target_level).map(at_level).collect::<Vec<_>>(),
             &playouts_at[1..=usize::from(args.target_level)]
         );
     }
@@ -211,8 +342,8 @@ fn main() {
         args.seed,
     );
     println!(
-        "{:>5} {:>6} | {:>8} {:>8} {:>7} | {:>6} {:>8} {:>8} {:>8} {:>8} {:>8}",
-        "level",
+        "{:>6} {:>6} | {:>8} {:>8} {:>7} | {:>6} {:>8} {:>8} {:>8} {:>8} {:>8}",
+        "cell",
         "n",
         "DD mk%",
         "lead mk%",
@@ -229,44 +360,53 @@ fn main() {
          Δguess = playout − sd-lead, the pure misguess haircut; Δtable = playout − DD, the \
          full table-proxy shift.)"
     );
-    let mut fit: Vec<(u8, usize, f64, f64)> = Vec::new();
+    let mut fit: Vec<(String, u8, Option<usize>, usize, f64, f64)> = Vec::new();
     for level in 1..=7u8 {
-        let at: Vec<&Row> = rows.iter().filter(|row| row.level == level).collect();
-        if at.is_empty() {
-            continue;
+        let mut cells: Vec<(usize, Stats)> = Vec::new();
+        for class in 0..3 {
+            let at: Vec<&Row> = rows
+                .iter()
+                .filter(|row| row.level == level && row.class == class)
+                .collect();
+            if at.is_empty() {
+                continue;
+            }
+            cells.push((class, Stats::of(&at)));
         }
-        #[allow(clippy::cast_precision_loss)]
-        let pct = |made: usize, of: usize| 100.0 * made as f64 / of.max(1) as f64;
-        let made = |set: &[&Row], tricks: fn(&Row) -> u8| {
-            pct(
-                set.iter().filter(|row| tricks(row) >= row.need).count(),
-                set.len(),
-            )
-        };
-        let lined: Vec<&Row> = at
+        // Each class, then the level pooled (`4·` — the bucket the shipped
+        // per-level λ was fitted in, kept as the continuity check).  The
+        // pooled row weights each class by its share of the level's
+        // *contracts*: the playout cap is per cell, so pooling the starred
+        // subsample raw would count 4m (12% of level 4) equally with 4M (87%)
+        // and quietly report a λ for a population that never occurs.
+        let pooled = Stats::pool(cells.iter().map(|(_, stats)| stats));
+        for (label, class, stats) in cells
             .iter()
-            .filter(|row| row.sd_line.is_some())
-            .copied()
-            .collect();
-        let dd_all = made(&at, |row| row.dd);
-        let lead_all = made(&at, |row| row.sd_lead);
-        let dd_sub = made(&lined, |row| row.dd);
-        let lead_sub = made(&lined, |row| row.sd_lead);
-        let line_sub = made(&lined, |row| row.sd_line.expect("filtered Some"));
-        println!(
-            "{level:>5} {:>6} | {:>7.1}% {:>7.1}% {:>+6.1}pp | {:>6} {:>7.1}% {:>7.1}% {:>7.1}% {:>+6.1}pp {:>+6.1}pp",
-            at.len(),
-            dd_all,
-            lead_all,
-            lead_all - dd_all,
-            lined.len(),
-            dd_sub,
-            lead_sub,
-            line_sub,
-            line_sub - lead_sub,
-            line_sub - dd_sub,
-        );
-        fit.push((level, lined.len(), lead_sub, line_sub));
+            .map(|&(class, ref stats)| (format!("{level}{}", CLASSES[class]), Some(class), stats))
+            .chain(std::iter::once((format!("{level}·"), None, &pooled)))
+        {
+            println!(
+                "{label:>6} {:>6} | {:>7.1}% {:>7.1}% {:>+6.1}pp | {:>6} {:>7.1}% {:>7.1}% {:>7.1}% {:>+6.1}pp {:>+6.1}pp",
+                stats.n,
+                stats.dd,
+                stats.lead,
+                stats.lead - stats.dd,
+                stats.n_line,
+                stats.dd_sub,
+                stats.lead_sub,
+                stats.line_sub,
+                stats.line_sub - stats.lead_sub,
+                stats.line_sub - stats.dd_sub,
+            );
+            fit.push((
+                label,
+                level,
+                class,
+                stats.n_line,
+                stats.lead_sub,
+                stats.line_sub,
+            ));
+        }
     }
 
     // The λ fit: per level, the weight of the playout endpoint in the
@@ -281,20 +421,36 @@ fn main() {
         "\n-- λ fit vs Pavlicek after-lead (playout subsample; paste into common::SD_BLEND_LAMBDA) --",
     );
     println!(
-        "{:>5} {:>6} | {:>8} {:>8} {:>7} | {:>8} {:>8} {:>8} | {:>6}",
-        "level", "n", "lead mk%", "pav DDaL", "shift", "target%", "blend%", "pav act", "λ",
+        "{:>6} {:>6} {:>7} | {:>8} {:>8} {:>7} {:>7} | {:>8} {:>8} {:>8} | {:>6}",
+        "cell",
+        "n",
+        "pav n",
+        "lead mk%",
+        "pav DDaL",
+        "align",
+        "shift",
+        "target%",
+        "blend%",
+        "pav act",
+        "λ",
     );
     println!(
-        "(lead mk% should track `pav DDaL` — that is the model-alignment check; `blend%` \
-         vs `pav act` is the population check.  shift in log-odds.)"
+        "(`align` = lead mk% − pav DDaL, the TRANSFER TEST: both are DD play after a real \
+         lead, so a cell where they disagree holds different HANDS in his corpus and in \
+         ours, and his shift must NOT be imported into it — inherit the pooled λ instead. \
+         `blend%` vs `pav act` is the population check.  shift in log-odds.  `pav n` is \
+         Pavlicek's own cell count: under ~500 the target is noise.  `·` rows are the \
+         level pooled.)"
     );
-    for (level, n, lead, line) in fit {
-        let (actual, dd_after_lead, _) = PAVLICEK_AFTER_LEAD[usize::from(level)];
+    for (label, level, class, n, lead, line) in fit {
+        let (actual, dd_after_lead, pav_n) = pavlicek(level, class);
         let shift = logit(actual) - logit(dd_after_lead);
+        let align = lead - dd_after_lead;
         if !(0.1..=99.9).contains(&lead) || (lead - line).abs() < f64::EPSILON {
             println!(
-                "{level:>5} {n:>6} | {lead:>7.1}% {dd_after_lead:>7.2}% {shift:>+7.3} | \
-                 {:>8} {:>8} {actual:>7.2}% | degenerate (endpoints equal or saturated)",
+                "{label:>6} {n:>6} {pav_n:>7} | {lead:>7.1}% {dd_after_lead:>7.2}% \
+                 {align:>+6.1}pp {shift:>+7.3} | {:>8} {:>8} {actual:>7.2}% | \
+                 degenerate (endpoints equal or saturated)",
                 "—", "—",
             );
             continue;
@@ -303,8 +459,8 @@ fn main() {
         let lambda = ((lead - target) / (lead - line)).clamp(0.0, 1.0);
         let blend = lead + lambda * (line - lead);
         println!(
-            "{level:>5} {n:>6} | {lead:>7.1}% {dd_after_lead:>7.2}% {shift:>+7.3} | \
-             {target:>7.2}% {blend:>7.2}% {actual:>7.2}% | {lambda:>6.3}",
+            "{label:>6} {n:>6} {pav_n:>7} | {lead:>7.1}% {dd_after_lead:>7.2}% {align:>+6.1}pp \
+             {shift:>+7.3} | {target:>7.2}% {blend:>7.2}% {actual:>7.2}% | {lambda:>6.3}",
         );
     }
 }
