@@ -2315,6 +2315,12 @@ const TAKEOUT_DOUBLE: Alert = Alert("takeout-double");
 /// name the longer one.  A "pick a suit" call, not a desire to sit, so alerted.
 const LANDY_SOS: Alert = Alert("landy:sos-redouble");
 
+/// Answers to the Landy `2NT` game-force ask — conventional step responses, not
+/// natural suits: `3♣`/`3♦` are the 5-4 strength steps and name no minor at all,
+/// `3♥`/`3♠`/`3NT` are 5-5 minimum / medium / maximum.  The row-layer invariant
+/// caught `3♥`: it floors *spades* at five while naming hearts.
+const LANDY_2NT_ANSWER: Alert = Alert("landy:2nt-answer");
+
 const WOOLSEY_X: Alert = Alert("1ntd:woolsey-x");
 const LANDY_X: Alert = Alert("1ntd:landy-x");
 const DONT_X: Alert = Alert("1ntd:dont-x");
@@ -3412,15 +3418,20 @@ fn landy_2nt_rebid(lo: u8, hi: u8) -> Rules {
             1.3,
             five_five.clone() & points(lo..med),
         )
+        .alert(LANDY_2NT_ANSWER)
         .rule(
             Bid::new(3, Strain::Spades),
             1.3,
             five_five.clone() & points(med..max),
         )
+        .alert(LANDY_2NT_ANSWER)
         .rule(Bid::new(3, Strain::Notrump), 1.3, five_five & points(max..))
+        .alert(LANDY_2NT_ANSWER)
         // 5-4 (the source omits a min-5-4 slot, so 3♣ folds min+medium together).
         .rule(Bid::new(3, Strain::Clubs), 1.2, points(lo..max))
+        .alert(LANDY_2NT_ANSWER)
         .rule(Bid::new(3, Strain::Diamonds), 1.2, points(max..))
+        .alert(LANDY_2NT_ANSWER)
 }
 
 // ---------------------------------------------------------------------------
@@ -5134,6 +5145,122 @@ fn meckwell_advance_package() -> Package {
     }
 }
 
+/// Over each one-of-a-suit opening: our direct defense, and the advances of
+/// partner's Michaels cue and Unusual `2NT`
+///
+/// All three key sets are disjoint from every other write in
+/// [`defensive`] — `[1t]`, `[1t, 2t, P]` and `[1t, 2NT, P]` — so they lift out
+/// of the per-suit loop without changing what lands where.
+fn suit_defense_package() -> Package {
+    Package {
+        name: "suit-defense",
+        gate: || true,
+        entries: || {
+            let mut entries = Vec::new();
+            for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+                let theirs = Strain::from(suit);
+                let opening = Bid::new(1, theirs);
+                let key = format!("P* ({opening})");
+                entries.extend(rows_of(Pattern::node(&key), defense_to_suit(opening)));
+                entries.extend(rows_of(
+                    Pattern::node(&format!("{key} 2{theirs} (P)")),
+                    michaels_advances(suit),
+                ));
+                entries.extend(rows_of(
+                    Pattern::node(&format!("{key} 2NT (P)")),
+                    unusual_nt_advances(suit),
+                ));
+            }
+            entries
+        },
+    }
+}
+
+/// Advancing partner's Landy `2♣` (both majors) over their `1NT`
+///
+/// Woolsey's `2♣` is the identical both-majors call on the same shared band,
+/// so it reuses this same advance wiring.  The undoubled branch runs the
+/// `2♦` "pick a major" relay and the `2NT` game-ask; over their double the
+/// advancer runs the richer escape (Redouble = equal-majors relay, Pass =
+/// clubs, `2♦` = natural, `2♥`/`2♠` = the longer major).
+fn landy_advance_package() -> Package {
+    Package {
+        name: "landy-advance",
+        gate: || landy_range().is_some() || woolsey_enabled(),
+        entries: || {
+            let (lo, hi) = woolsey_points();
+            [
+                ("P* (1NT) 2♣ (P)", landy_advances(lo)),
+                ("P* (1NT) 2♣ (P) 2♦ (P)", landy_2d_rebid()),
+                ("P* (1NT) 2♣ (P) 2NT (P)", landy_2nt_rebid(lo, hi)),
+                ("P* (1NT) 2♣ (X)", landy_advances_over_double(lo)),
+                ("P* (1NT) 2♣ (X) XX (P)", landy_2d_rebid()),
+                ("P* (1NT) 2♣ (X) 2♦ (P)", landy_doubled_2d_rebid()),
+                ("P* (1NT) 2♣ (X) 2NT (P)", landy_2nt_rebid(lo, hi)),
+            ]
+            .into_iter()
+            .flat_map(|(key, rules)| rows_of(Pattern::node(key), rules))
+            .collect()
+        },
+    }
+}
+
+/// Direct-seat both-majors `X` advances
+/// ([`set_direct_landy_double`][super::set_direct_landy_double])
+///
+/// The `X` is a Landy-style both-majors takeout double at every seat, so the
+/// advancer answers exactly as over a Landy `2♣` — binding `[1NT, X, P]` is
+/// correct here, the direct `X` is both-majors, not penalty.  The `2♦` relay
+/// and the `2NT` ask are artificial, so the doubler answers them whether they
+/// are passed **or** doubled; over their redouble the relay is dropped
+/// entirely (`Pass` = ask back), which kills the phantom-`3♦` run.
+fn both_majors_double_package() -> Package {
+    Package {
+        name: "both-majors-double",
+        gate: || direct_landy_double().is_some(),
+        entries: || {
+            // The advancer's invite/game thresholds track the X floor (a
+            // stronger X asks less of the advancer), so read it here too.
+            let (lo, hi) = (direct_landy_double_floor(), 37u8);
+            let mut entries = Vec::new();
+            for (key, rules) in [
+                ("P* (1NT) X (P)", both_majors_x_advance(lo)),
+                ("P* (1NT) X (P) 2♦ (P)", landy_2d_rebid()),
+                ("P* (1NT) X (P) 2♦ (X)", landy_2d_rebid()),
+                ("P* (1NT) X (P) 2NT (P)", landy_2nt_rebid(lo, hi)),
+                ("P* (1NT) X (P) 2NT (X)", landy_2nt_rebid(lo, hi)),
+                ("P* (1NT) X (XX)", both_majors_x_runout(lo)),
+                ("P* (1NT) X (XX) P (P)", landy_2d_rebid()),
+            ] {
+                entries.extend(rows_of(Pattern::node(key), rules));
+            }
+            // …then the advancer SITS for that major whether it is passed or
+            // doubled — play 2Mx (our real fit), never run.
+            for m in ["2♥", "2♠"] {
+                for after in ["(P)", "(X)"] {
+                    entries.extend(rows_of(
+                        Pattern::node(&format!("P* (1NT) X (XX) P (P) {m} {after}")),
+                        sit(),
+                    ));
+                }
+            }
+            // The undoubled branch keeps the 2♦ relay (Pass there defends 1NT,
+            // so it cannot be the ask).  Once the doubler names its major over
+            // the (possibly doubled) relay, SIT when the opponents double it —
+            // the doubler plays 2Mx instead of running to the phantom 3♦.
+            for relay in ["(X)", "(P)"] {
+                for m in ["2♥", "2♠"] {
+                    entries.extend(rows_of(
+                        Pattern::node(&format!("P* (1NT) X (P) 2♦ {relay} {m} (X) P (P)")),
+                        sit(),
+                    ));
+                }
+            }
+            entries
+        },
+    }
+}
+
 /// Build the defensive book: all our actions when the opponents open
 ///
 /// Seat-fanned with `insert_all_seats(…, 3, …)` so every seat is covered.
@@ -5155,11 +5282,15 @@ pub fn defensive() -> Defensive {
         nt
     });
 
-    // Over each one-of-a-suit opening: overcalls, double, 1NT, Michaels, Unusual.
+    // Over each one-of-a-suit opening: our direct defense, and the advances of
+    // partner's Michaels cue and Unusual 2NT.
+    compile_into(&mut d, &[suit_defense_package()]);
+
+    // Over each one-of-a-suit opening: the takeout-double and overcall
+    // continuations.
     for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         let theirs = Strain::from(suit);
         let opening = Bid::new(1, theirs);
-        insert_all_seats(&mut d, &[Call::Bid(opening)], 3, defense_to_suit(opening));
 
         // Advancing partner's takeout double: [1t, X, P] — advancer to act.
         // Rich cue + notrump ladder when enabled, else the flat floor ladder.
@@ -5570,24 +5701,6 @@ pub fn defensive() -> Defensive {
             }
         }
 
-        // Advances of Michaels: [1t, 2t, Pass] — advancer to act.
-        let michaels_bid = call(2, theirs);
-        insert_all_seats(
-            &mut d,
-            &[Call::Bid(opening), michaels_bid, Call::Pass],
-            3,
-            michaels_advances(suit),
-        );
-
-        // Advances of Unusual 2NT: [1t, 2NT, Pass] — advancer to act.
-        let unusual_bid = call(2, Strain::Notrump);
-        insert_all_seats(
-            &mut d,
-            &[Call::Bid(opening), unusual_bid, Call::Pass],
-            3,
-            unusual_nt_advances(suit),
-        );
-
         // Responsive doubles: partner doubled for takeout, they raised to lvl.
         // On by default; the A/B knob (`--conv takeout`) turns it off to compare the
         // shipped node against the bare floor.
@@ -5719,87 +5832,7 @@ pub fn defensive() -> Defensive {
     // Advancing partner's Landy 2♣ (both majors) over their 1NT, when on.  Woolsey's
     // 2♣ is the identical both-majors call on the same shared band, so it reuses this
     // same advance wiring.
-    if landy_range().is_some() || woolsey_enabled() {
-        let (lo, hi) = woolsey_points();
-        let landy_2c = call(2, Strain::Clubs);
-
-        // [1NT, 2♣, P] — advancer picks a major / asks via the 2♦ / 2NT routes.
-        insert_all_seats(
-            &mut d,
-            &[notrump, landy_2c, Call::Pass],
-            3,
-            landy_advances(lo),
-        );
-        // [1NT, 2♣, P, 2♦, P] — overcaller corrects to the longer major.
-        insert_all_seats(
-            &mut d,
-            &[
-                notrump,
-                landy_2c,
-                Call::Pass,
-                call(2, Strain::Diamonds),
-                Call::Pass,
-            ],
-            3,
-            landy_2d_rebid(),
-        );
-        // [1NT, 2♣, P, 2NT, P] — overcaller answers the game-forcing ask.
-        insert_all_seats(
-            &mut d,
-            &[
-                notrump,
-                landy_2c,
-                Call::Pass,
-                call(2, Strain::Notrump),
-                Call::Pass,
-            ],
-            3,
-            landy_2nt_rebid(lo, hi),
-        );
-
-        // [1NT, 2♣, X] — opponents doubled (stolen Stayman); advancer runs the
-        // richer escape (Redouble = equal-majors relay, Pass = clubs, 2♦ = natural
-        // diamonds, 2♥/2♠ = longer major). The Double frees the Redouble step.
-        insert_all_seats(
-            &mut d,
-            &[notrump, landy_2c, Call::Double],
-            3,
-            landy_advances_over_double(lo),
-        );
-        // [1NT, 2♣, X, XX, P] — Redouble was the equal-majors relay; name the major.
-        insert_all_seats(
-            &mut d,
-            &[notrump, landy_2c, Call::Double, Call::Redouble, Call::Pass],
-            3,
-            landy_2d_rebid(),
-        );
-        // [1NT, 2♣, X, 2♦, P] — advancer's 2♦ is natural; pass it or pull to a major.
-        insert_all_seats(
-            &mut d,
-            &[
-                notrump,
-                landy_2c,
-                Call::Double,
-                call(2, Strain::Diamonds),
-                Call::Pass,
-            ],
-            3,
-            landy_doubled_2d_rebid(),
-        );
-        // [1NT, 2♣, X, 2NT, P] — overcaller answers the game-forcing ask.
-        insert_all_seats(
-            &mut d,
-            &[
-                notrump,
-                landy_2c,
-                Call::Double,
-                call(2, Strain::Notrump),
-                Call::Pass,
-            ],
-            3,
-            landy_2nt_rebid(lo, hi),
-        );
-    }
+    compile_into(&mut d, &[landy_advance_package()]);
 
     // Woolsey "Multi-Landy" continuations, when on — authored in full (the
     // both-majors 2♣ reuses the Landy advance wiring above).  Every artificial call
@@ -5898,10 +5931,6 @@ pub fn defensive() -> Defensive {
     // Advancing partner's both-minors 2NT over their 1NT, when on.
     compile_into(&mut d, &[unusual_notrump_advance_package()]);
 
-    let p = Call::Pass;
-    let x = Call::Double;
-    let xx = Call::Redouble;
-
     // Direct-seat DONT and Meckwell advances.  Both write `[1NT, X, P]` and
     // friends; with both knobs on, Meckwell wins the shared keys exactly as it
     // did when these were consecutive `insert_all_seats` blocks, so the package
@@ -5911,53 +5940,8 @@ pub fn defensive() -> Defensive {
         &[direct_dont_advance_package(), meckwell_advance_package()],
     );
 
-    // Direct-seat both-majors X advances: the X is a Landy-style both-majors takeout
-    // double at every seat, so the advancer answers exactly as over a Landy 2♣ (pick
-    // a major / 2♦ relay / 2NT game-ask), keyed at [1NT,X,…] via insert_all_seats.
-    // Binding [1NT,X,P] is correct here — the direct X is both-majors, not penalty.
-    if direct_landy_double().is_some() {
-        // The advancer's invite/game thresholds track the X floor (a stronger X asks
-        // less of the advancer), so read it here too.
-        let (lo, hi) = (direct_landy_double_floor(), 37u8);
-        let d2 = call(2, Strain::Diamonds);
-        let nt2 = call(2, Strain::Notrump);
-        // [1NT,X,P] — advancer picks a major / relays 2♦ / asks 2NT, or (with the
-        // penalty-pass knob on) passes to defend 1NTx with no fit and enough defense.
-        insert_all_seats(&mut d, &[notrump, x, p], 3, both_majors_x_advance(lo));
-        // [1NT,X,P,2♦,*] — the 2♦ relay is artificial (equal-majors "pick a major"),
-        // so the doubler names the longer major whether the relay is passed OR
-        // doubled — never left to sit in a short-diamond 2♦x misfit (the DONT bug).
-        insert_all_seats(&mut d, &[notrump, x, p, d2, p], 3, landy_2d_rebid());
-        insert_all_seats(&mut d, &[notrump, x, p, d2, x], 3, landy_2d_rebid());
-        // [1NT,X,P,2NT,*] — the game-ask is artificial too; the doubler answers it
-        // regardless of a double (landy_2nt_rebid has no Pass, so it always pulls).
-        insert_all_seats(&mut d, &[notrump, x, p, nt2, p], 3, landy_2nt_rebid(lo, hi));
-        insert_all_seats(&mut d, &[notrump, x, p, nt2, x], 3, landy_2nt_rebid(lo, hi));
-        // [1NT,X,XX] — their redouble.  A *clean* runout (no artificial 2♦ relay):
-        // Pass = ask back (doubler names its five-card major), a bid = to play the
-        // natural suit (2♣ now sits at the two level over the redoubled 1NT, so a
-        // club one-suiter has a home).  Killing the relay kills the phantom-3♦ run.
-        insert_all_seats(&mut d, &[notrump, x, xx], 3, both_majors_x_runout(lo));
-        // [1NT,X,XX,P,P] — advancer asked; the doubler names its longer major.
-        insert_all_seats(&mut d, &[notrump, x, xx, p, p], 3, landy_2d_rebid());
-        // …then the advancer SITS for that major whether it is passed or doubled —
-        // play 2Mx (our real fit), never run.
-        for m in [call(2, Strain::Hearts), call(2, Strain::Spades)] {
-            insert_all_seats(&mut d, &[notrump, x, xx, p, p, m, p], 3, sit());
-            insert_all_seats(&mut d, &[notrump, x, xx, p, p, m, x], 3, sit());
-        }
-        // The undoubled branch keeps the 2♦ relay (Pass there defends 1NT, so it
-        // cannot be the ask).  Once the doubler names its major over the (possibly
-        // doubled) relay, SIT when the opponents double it: `[1NT,X,P,2♦,{X|P},2M,X,P,P]`
-        // round-trips to the doubler, who plays 2Mx instead of running to the phantom
-        // 3♦.  (The dominant DD leak was this `… 2♦ X 2M X … 3♦` run from a making
-        // doubled major; the redoubled branch above now avoids the relay entirely.)
-        for relay in [x, p] {
-            for m in [call(2, Strain::Hearts), call(2, Strain::Spades)] {
-                insert_all_seats(&mut d, &[notrump, x, p, d2, relay, m, x, p, p], 3, sit());
-            }
-        }
-    }
+    // Direct-seat both-majors X advances.
+    compile_into(&mut d, &[both_majors_double_package()]);
     d
 }
 
@@ -5981,7 +5965,10 @@ mod tests {
     fn row_package_invariants() {
         crate::bidding::rows::assert_package_invariants(&[
             super::weak_two_defense_package(),
+            super::suit_defense_package(),
             super::notrump_defense_package(),
+            super::landy_advance_package(),
+            super::both_majors_double_package(),
             super::their_stayman_defense_package(),
             super::their_transfer_defense_package(),
             super::their_minor_transfer_defense_package(),

@@ -13,8 +13,7 @@ use super::super::constraint::{
 };
 use super::super::context::Context;
 use super::super::fallback::{
-    Fallback, FirstIs, OvercallAtMost, ReplaceNext, SuffixIs, described_guard, described_rewrite,
-    guard, rewriter,
+    Fallback, FirstIs, ReplaceNext, SuffixIs, described_guard, described_rewrite, guard, rewriter,
 };
 use super::super::rows::{Entry, Package, Pattern, compile_into, rebase, row, rows_of};
 use super::super::trie::{Classifier, classifier};
@@ -4030,6 +4029,634 @@ fn competition_over_diamond_transfer_package() -> Package {
     }
 }
 
+/// Section 2b as a row package: systems-on over their double of our splinter
+/// ([`set_splinter_doubled`][super::set_splinter_doubled])
+///
+/// A splinter is game-forcing, but the double reroutes opener into this book,
+/// where — unauthored — it fell to the floor and passed out the doubled game
+/// force.  The [`FirstIs`]`(Double)` rebase strips the double off the whole
+/// subtree, so opener (and responder's keycard answers) resolve on the
+/// undisturbed splinter continuation.
+fn splinter_doubled_package() -> Package {
+    Package {
+        name: "splinter-doubled",
+        gate: splinter_doubled,
+        entries: || {
+            let mut entries = Vec::new();
+            for major in [Suit::Hearts, Suit::Spades] {
+                let m_strain = Strain::from(major);
+                let splinter_suits: &[Suit] = if major == Suit::Hearts {
+                    &[Suit::Spades, Suit::Clubs, Suit::Diamonds]
+                } else {
+                    &[Suit::Clubs, Suit::Diamonds, Suit::Hearts]
+                };
+                for &x in splinter_suits {
+                    let (level, strain) = super::responses::splinter_bid(major, x);
+                    let key = format!("P* 1{m_strain} (P) {}", Bid::new(level, strain));
+                    entries.push(rebase(Pattern::first(&key, "X"), ReplaceNext(Call::Pass)));
+                }
+            }
+            entries
+        },
+    }
+}
+
+/// Section 3 as a row package: support doubles and redoubles
+///
+/// The four minor-major pairs always; `1♥ – (P) – 1♠` behind
+/// [`set_major_support_double`][super::set_major_support_double] (default on).
+/// The double answers an overcall at most one step below our major
+/// ([`OvercallAtMost`]); the redouble answers their takeout double.
+fn support_double_package() -> Package {
+    Package {
+        name: "support-double",
+        gate: || true,
+        entries: || {
+            let mut support_pairs = vec![
+                (Suit::Clubs, Suit::Hearts),
+                (Suit::Clubs, Suit::Spades),
+                (Suit::Diamonds, Suit::Hearts),
+                (Suit::Diamonds, Suit::Spades),
+            ];
+            if major_support_double() {
+                support_pairs.push((Suit::Hearts, Suit::Spades));
+            }
+            let mut entries = Vec::new();
+            for (opening, major) in support_pairs {
+                let m = Strain::from(major);
+                let key = format!("P* 1{} (P) 1{m}", Strain::from(opening));
+                let just_below = if major == Suit::Hearts {
+                    Bid::new(2, Strain::Diamonds)
+                } else {
+                    Bid::new(2, Strain::Hearts)
+                };
+
+                // Support double: they overcall at most `just_below`
+                entries.extend(rows_of(
+                    Pattern::up_to(&key, &just_below.to_string()),
+                    support_rules(major),
+                ));
+
+                // Support redouble: they doubled
+                entries.extend(rows_of(
+                    Pattern::after(&key, "(X)"),
+                    Rules::new()
+                        .rule(Call::Redouble, 1.5, support(3..=3))
+                        .alert(SUPPORT_DOUBLE)
+                        .rule(Bid::new(2, m), 1.4, support(4..))
+                        .rule(Call::Pass, 0.0, hcp(0..)),
+                ));
+            }
+            entries
+        },
+    }
+}
+
+/// Section 4f as a row package: opener completes the 2-level free-bid transfer
+/// and responder clarifies ([`FreeBidStyle::Transfer`] only)
+///
+/// The swap contexts are a closed enumeration — (opening, their overcall,
+/// lower slot → shown, wrap slot → shown, completing a level higher on the
+/// wrap).
+fn transfer_free_bid_package() -> Package {
+    Package {
+        name: "transfer-free-bid",
+        gate: || free_bids_engaged() && free_bid_style() == FreeBidStyle::Transfer,
+        entries: || {
+            #[allow(clippy::type_complexity)]
+            #[rustfmt::skip]
+            let swaps: [(Strain, u8, Strain, [(Strain, Suit); 2]); 7] = [
+                (Strain::Clubs, 1, Strain::Spades, [(Strain::Diamonds, Suit::Hearts), (Strain::Hearts, Suit::Diamonds)]),
+                (Strain::Clubs, 2, Strain::Diamonds, [(Strain::Hearts, Suit::Spades), (Strain::Spades, Suit::Hearts)]),
+                (Strain::Diamonds, 1, Strain::Spades, [(Strain::Clubs, Suit::Hearts), (Strain::Hearts, Suit::Clubs)]),
+                (Strain::Diamonds, 2, Strain::Clubs, [(Strain::Hearts, Suit::Spades), (Strain::Spades, Suit::Hearts)]),
+                (Strain::Hearts, 1, Strain::Spades, [(Strain::Clubs, Suit::Diamonds), (Strain::Diamonds, Suit::Clubs)]),
+                (Strain::Hearts, 2, Strain::Clubs, [(Strain::Diamonds, Suit::Spades), (Strain::Spades, Suit::Diamonds)]),
+                (Strain::Spades, 2, Strain::Clubs, [(Strain::Diamonds, Suit::Hearts), (Strain::Hearts, Suit::Diamonds)]),
+            ];
+            let mut entries = Vec::new();
+            for (o_strain, ovc_level, ovc_strain, slots) in swaps {
+                let key = format!("P* 1{o_strain} ({ovc_level}{ovc_strain})");
+                for (slot, shown) in slots {
+                    let shown_strain = Strain::from(shown);
+                    let comp_lvl = if shown_strain > slot { 2 } else { 3 };
+                    let cue_lvl = comp_lvl + u8::from(ovc_strain < shown_strain);
+                    let completion = format!("2{slot} (P)");
+                    entries.extend(rows_of(
+                        Pattern::after(&key, &completion),
+                        free_transfer_completion(shown, comp_lvl),
+                    ));
+                    entries.extend(rows_of(
+                        Pattern::after(&key, &format!("{completion} {comp_lvl}{shown_strain} (P)")),
+                        free_transfer_clarify(shown, comp_lvl, Bid::new(cue_lvl, ovc_strain)),
+                    ));
+                }
+            }
+            entries
+        },
+    }
+}
+
+/// Section 4 as a row package: opener answers partner's negative double of a
+/// two-level minor overcall
+fn answer_negative_double_package() -> Package {
+    Package {
+        name: "answer-negative-double-of-minor",
+        gate: || true,
+        entries: || {
+            [Suit::Hearts, Suit::Spades]
+                .into_iter()
+                .flat_map(|major| {
+                    rows_of(
+                        Pattern::guarded(
+                            &format!("P* 1{}", Strain::from(major)),
+                            "(2♦) X (P)",
+                            described_guard(
+                                "2♣/2♦ X -",
+                                guard(|_: &Context<'_>, suffix: &[Call]| {
+                                    matches!(
+                                        suffix,
+                                        [Call::Bid(b), Call::Double, Call::Pass]
+                                            if b.level.get() == 2
+                                                && (b.strain == Strain::Clubs
+                                                    || b.strain == Strain::Diamonds)
+                                    )
+                                }),
+                            ),
+                        ),
+                        answer_neg_double_of_minor(major),
+                    )
+                })
+                .collect()
+        },
+    }
+}
+
+/// Section 4b as a row package: opener answers partner's cue-raise of the
+/// opening major ([`set_cue_raise_answer`][super::set_cue_raise_answer])
+///
+/// The guard checks the calls after the opening are `[ovc, cue, P]` where the
+/// cue bids the overcaller's suit (higher than the overcall) and the overcall
+/// is at most `2♠` — the cue-raise's authored ceiling in
+/// [`over_their_overcall`].  The `ovc.strain != trump` clause excludes the
+/// opponents cue-bidding *our* major (a Michaels `1♠-(2♠)`): there responder's
+/// `3♠` is a natural raise, not a cue-raise, and this table must not hijack it.
+/// Without the node the cue-raise falls through to the keyless floor — whose
+/// raise ladder needs partner's *named* and *shown* suit to agree, which a cue
+/// decouples — so opener passes and the cuebid is left in as the contract.
+fn cue_raise_answer_package() -> Package {
+    Package {
+        name: "cue-raise-answer",
+        gate: cue_raise_answer,
+        entries: || {
+            [Suit::Hearts, Suit::Spades]
+                .into_iter()
+                .flat_map(|major| {
+                    let trump = Strain::from(major);
+                    // The sample's overcall must not be in our own major.
+                    let sample = if major == Suit::Hearts {
+                        "(1♠) 2♠ (P)"
+                    } else {
+                        "(2♥) 3♥ (P)"
+                    };
+                    rows_of(
+                        Pattern::guarded(
+                            &format!("P* 1{trump}"),
+                            sample,
+                            described_guard(
+                                "(overcall ≤2♠) cue -",
+                                guard(move |_: &Context<'_>, suffix: &[Call]| {
+                                    matches!(
+                                        suffix,
+                                        [Call::Bid(ovc), Call::Bid(cue), Call::Pass]
+                                            if cue.strain == ovc.strain
+                                                && cue > ovc
+                                                && *ovc <= Bid::new(2, Strain::Spades)
+                                                && ovc.strain != trump
+                                    )
+                                }),
+                            ),
+                        ),
+                        answer_cue_raise(major),
+                    )
+                })
+                .collect()
+        },
+    }
+}
+
+/// Section 4c as a row package: the minor twin of
+/// [`cue_raise_answer_package`] ([`set_cue_minor_raise_answer`][super::set_cue_minor_raise_answer])
+///
+/// A minor-opening cue-raise passes out the same way.  The cue may sit as high
+/// as `3♠` (a 2-level overcall forces the cue to the 3 level), so the ceiling
+/// is `cue ≤ 3♠` rather than `ovc ≤ 2♠`.  `ovc.strain != trump` again excludes
+/// a cue of our own minor (`1♣-(2♣)` Michaels — responder's `3♣` is a raise).
+fn cue_minor_raise_answer_package() -> Package {
+    Package {
+        name: "cue-minor-raise-answer",
+        gate: cue_minor_raise_answer,
+        entries: || {
+            [Suit::Clubs, Suit::Diamonds]
+                .into_iter()
+                .flat_map(|minor| {
+                    let trump = Strain::from(minor);
+                    rows_of(
+                        Pattern::guarded(
+                            &format!("P* 1{trump}"),
+                            "(1♠) 2♠ (P)",
+                            described_guard(
+                                "(overcall) (cue ≤3♠) -",
+                                guard(move |_: &Context<'_>, suffix: &[Call]| {
+                                    matches!(
+                                        suffix,
+                                        [Call::Bid(ovc), Call::Bid(cue), Call::Pass]
+                                            if cue.strain == ovc.strain
+                                                && cue > ovc
+                                                && *cue <= Bid::new(3, Strain::Spades)
+                                                && ovc.strain != trump
+                                    )
+                                }),
+                            ),
+                        ),
+                        answer_cue_minor_raise(minor),
+                    )
+                })
+                .collect()
+        },
+    }
+}
+
+/// Section 4d as a row package: opener answers responder's natural free bid
+/// (a non-jump new suit over their overcall ≤ `2♠`), forcing one round at both
+/// levels — the free-bid-quality A/B's worst vulnerable-PD boards were opener
+/// *passing* a game-going free bid out
+///
+/// The suffix guard mirrors the free-bid authoring in [`over_their_overcall`]:
+/// overcall ≤ `2♠` and not a cue of our suit (4b/4c own the cue-raises), the
+/// free bid a cheapest-level new suit that is neither their suit nor ours nor
+/// notrump (the free `1NT`/`2NT` are non-forcing).  Cachalot rotates the
+/// 1-level calls over its minor openings, so those stay with the Section-9
+/// completions (whose deeper keys shadow this entry anyway — the `rotated`
+/// conjunct is defense-in-depth and honest rendering); its natural 2-level
+/// frees get the forcing answers like every other school's.  The 2-level
+/// free-bid *style* carves this node further: [`FreeBidStyle::Negative`] sends
+/// the level-2 frees to 4d′ (non-forcing answers, with `Pass`),
+/// [`FreeBidStyle::Transfer`] sends the swapped slots to the Section-4f
+/// completions (a lone or three-way slot stays natural-forcing and keeps the
+/// 4d answers).
+///
+/// The `free.level < 3` ceiling makes the guard say what the convention says.
+/// [`over_their_overcall`] authors free bids at exactly two rungs, each pinned
+/// by `min_level_is` to one *exact* cheapest level — 1 and 2 — so over a
+/// two-level overcall every suit below it has no free bid at all and responder
+/// never produces a three-level one.  Without the ceiling the guard claimed
+/// those auctions anyway, and `answer_free_bid` has no legal rung there (its
+/// raise, notrump and catch-all rungs all stop at 3, which a `3♦` free bid has
+/// already passed) — an untotal guarded table over auctions that cannot happen.
+/// **Verified inert**: no hand bids a three-level free suit.
+///
+/// Under Cachalot *and* [`FreeBidStyle::Negative`] the entry then admits
+/// nothing — rotation claims level 1 and 4d′ claims level 2 — which is what it
+/// already was in substance.
+fn free_bid_answer_package() -> Package {
+    Package {
+        name: "free-bid-answer",
+        gate: free_bids_engaged,
+        entries: || {
+            let cachalot = negative_double_shape() == NegativeDoubleShape::Cachalot;
+            let negative = free_bid_style() == FreeBidStyle::Negative;
+            let transfer = free_bid_style() == FreeBidStyle::Transfer;
+            let mut entries = Vec::new();
+            for opening in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+                let o_strain = Strain::from(opening);
+                let rotated = cachalot && matches!(opening, Suit::Clubs | Suit::Diamonds);
+                let key = format!("P* 1{o_strain}");
+                // A reachable free bid.  Only a minor opening leaves room for
+                // the 1-level rung — over `1♥`/`1♠` every legal overcall is
+                // high enough that the cheapest new suit already sits at the
+                // two level — and Cachalot's rotation claims the minors' too.
+                let free_sample = match (opening, rotated) {
+                    (Suit::Clubs, false) => "(1♦) 1♥ (P)",
+                    (Suit::Diamonds, false) => "(1♥) 1♠ (P)",
+                    (Suit::Diamonds | Suit::Hearts, _) => "(2♣) 2♠ (P)",
+                    _ => "(2♦) 2♥ (P)",
+                };
+                entries.extend(rows_of(
+                    Pattern::guarded(
+                        &key,
+                        free_sample,
+                        described_guard(
+                            if rotated {
+                                "(overcall ≤2♠) 2-level free-suit -"
+                            } else {
+                                "(overcall ≤2♠) free-suit -"
+                            },
+                            guard(move |_: &Context<'_>, suffix: &[Call]| {
+                                matches!(
+                                    suffix,
+                                    [Call::Bid(ovc), Call::Bid(free), Call::Pass]
+                                        if *ovc <= Bid::new(2, Strain::Spades)
+                                            && ovc.strain != o_strain
+                                            && free.strain != Strain::Notrump
+                                            && free.strain != ovc.strain
+                                            && free.strain != o_strain
+                                            && free.level.get() < 3
+                                            && free.level.get()
+                                                == ovc.level.get()
+                                                    + u8::from(free.strain < ovc.strain)
+                                            && !(rotated && free.level.get() == 1)
+                                            && !(negative && free.level.get() == 2)
+                                            && !(transfer
+                                                && free.level.get() == 2
+                                                && two_level_slots(o_strain, *ovc) == 2)
+                                )
+                            }),
+                        ),
+                    ),
+                    answer_free_bid(opening),
+                ));
+
+                if !negative {
+                    continue;
+                }
+
+                // Section 4d′: the capped, non-forcing level-2 frees get
+                // answers WITH a Pass catch-all.  The sample must be a level-2
+                // free, so it rides an overcall the free bid can out-rank
+                // without stepping up a level.
+                let negative_sample = match opening {
+                    Suit::Clubs => "(2♦) 2♥ (P)",
+                    Suit::Hearts => "(2♣) 2♠ (P)",
+                    _ => "(2♣) 2♥ (P)",
+                };
+                entries.extend(rows_of(
+                    Pattern::guarded(
+                        &key,
+                        negative_sample,
+                        described_guard(
+                            "(overcall ≤2♠) negative free-suit -",
+                            guard(move |_: &Context<'_>, suffix: &[Call]| {
+                                matches!(
+                                    suffix,
+                                    [Call::Bid(ovc), Call::Bid(free), Call::Pass]
+                                        if *ovc <= Bid::new(2, Strain::Spades)
+                                            && ovc.strain != o_strain
+                                            && free.strain != Strain::Notrump
+                                            && free.strain != ovc.strain
+                                            && free.strain != o_strain
+                                            && free.level.get() == 2
+                                            && free.level.get()
+                                                == ovc.level.get()
+                                                    + u8::from(free.strain < ovc.strain)
+                                )
+                            }),
+                        ),
+                    ),
+                    answer_negative_free_bid(opening),
+                ));
+
+                // Section 4d″: the doubler's rebid over opener's answer — a new
+                // suit is the strong hand the capped free bid could not carry,
+                // forcing to game.  This node also claims the ordinary
+                // doubler's second turn (previously floored — bucket
+                // X-then-Pass vs X-then-suit in the forensics).
+                let over = if opening == Suit::Spades {
+                    "(2♥)"
+                } else {
+                    "(2♠)"
+                };
+                entries.extend(rows_of(
+                    Pattern::guarded(
+                        &key,
+                        &format!("{over} X (P) 3♣ (P)"),
+                        described_guard(
+                            "(overcall ≤2♠) X - answer -",
+                            guard(move |_: &Context<'_>, suffix: &[Call]| {
+                                matches!(
+                                    suffix,
+                                    [
+                                        Call::Bid(ovc),
+                                        Call::Double,
+                                        Call::Pass,
+                                        Call::Bid(_),
+                                        Call::Pass
+                                    ] if *ovc <= Bid::new(2, Strain::Spades)
+                                        && ovc.strain != o_strain
+                                )
+                            }),
+                        ),
+                    ),
+                    negative_doubler_rebid(opening),
+                ));
+
+                // Section 4d‴: opener answers the game-forcing rebid with the
+                // ordinary forcing-answer table; the guard's `< 3 of the
+                // opening suit` scope keeps that table's catch-all legal.
+                let fg_sample = match opening {
+                    Suit::Clubs => "(1♥) X (P) 1♠ (P) 2♦ (P)",
+                    Suit::Diamonds => "(1♥) X (P) 1♠ (P) 2♣ (P)",
+                    Suit::Hearts => "(1♠) X (P) 2♣ (P) 2♦ (P)",
+                    Suit::Spades => "(1♥) X (P) 2♣ (P) 2♦ (P)",
+                };
+                entries.extend(rows_of(
+                    Pattern::guarded(
+                        &key,
+                        fg_sample,
+                        described_guard(
+                            "(overcall ≤2♠) X - answer - FG-suit -",
+                            guard(move |_: &Context<'_>, suffix: &[Call]| {
+                                matches!(
+                                    suffix,
+                                    [
+                                        Call::Bid(ovc),
+                                        Call::Double,
+                                        Call::Pass,
+                                        Call::Bid(ans),
+                                        Call::Pass,
+                                        Call::Bid(new),
+                                        Call::Pass
+                                    ] if *ovc <= Bid::new(2, Strain::Spades)
+                                        && ovc.strain != o_strain
+                                        && new.strain != Strain::Notrump
+                                        && new.strain != ovc.strain
+                                        && new.strain != o_strain
+                                        && new.strain != ans.strain
+                                        && *new < Bid::new(3, o_strain)
+                                )
+                            }),
+                        ),
+                    ),
+                    answer_free_bid(opening),
+                ));
+            }
+            entries
+        },
+    }
+}
+
+/// Section 10 as a row package: their jump / 3-level suit overcalls
+/// ([`set_high_overcall_responses`][super::set_high_overcall_responses],
+/// default off)
+///
+/// A second guarded entry at `[1x]` — its bid range `(2NT, 3♠]` is disjoint
+/// from the shipped `OvercallAtMost(2♠)` entry, so declaration order is
+/// irrelevant.  Their `(2NT)` and their 3-level cue of our own suit are
+/// excluded (the first is a two-suiter, the second is rare enough for the
+/// floor).
+fn high_overcall_package() -> Package {
+    Package {
+        name: "high-overcall-responses",
+        gate: high_overcall_responses,
+        entries: || {
+            let mut entries = Vec::new();
+            for opening in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+                let o_strain = Strain::from(opening);
+                let key = format!("P* 1{o_strain}");
+                // The sample overcall must be a suit other than our own.
+                let over = if opening == Suit::Diamonds {
+                    "(3♥)"
+                } else {
+                    "(3♦)"
+                };
+                let in_range = move |bid: &Bid| {
+                    *bid > Bid::new(2, Strain::Notrump)
+                        && *bid <= Bid::new(3, Strain::Spades)
+                        && bid.strain.is_suit()
+                        && bid.strain != o_strain
+                };
+                entries.extend(rows_of(
+                    Pattern::guarded(
+                        &key,
+                        over,
+                        described_guard(
+                            "(2NT < overcall ≤3♠)",
+                            guard(move |_: &Context<'_>, s: &[Call]| {
+                                matches!(s, [Call::Bid(b)] if in_range(b))
+                            }),
+                        ),
+                    ),
+                    over_their_high_overcall(opening),
+                ));
+                entries.extend(rows_of(
+                    Pattern::guarded(
+                        &key,
+                        &format!("{over} X (P)"),
+                        described_guard(
+                            "(2NT < overcall ≤3♠) X -",
+                            guard(move |_: &Context<'_>, s: &[Call]| {
+                                matches!(s, [Call::Bid(b), Call::Double, Call::Pass] if in_range(b))
+                            }),
+                        ),
+                    ),
+                    answer_high_neg_double(opening),
+                ));
+            }
+            entries
+        },
+    }
+}
+
+/// Section 7 as a row package: our contested weak twos
+/// ([`set_weak_two_competition`][super::set_weak_two_competition], default off)
+///
+/// Their double: responder's first call at the deeper `[2M, X]` node (business
+/// `XX` riding on the uncontested responses), everything deeper systems-on.
+/// Their overcall (≤ `3♠`): responder's direct action, and a targeted rebase so
+/// an Ogust `2NT` bid over the overcall still gets opener's undisturbed
+/// five-rung answer.
+fn weak_two_competition_package() -> Package {
+    Package {
+        name: "weak-two-competition",
+        gate: weak_two_competition,
+        entries: || {
+            let two_nt = call(2, Strain::Notrump);
+            let mut entries = Vec::new();
+            for our in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+                let trump = Strain::from(our);
+                let key = format!("P* 2{trump}");
+
+                entries.extend(rows_of(
+                    Pattern::table(&format!("{key} (X)")),
+                    weak_two_doubled_responder(our),
+                ));
+                entries.push(rebase(Pattern::first(&key, "X"), ReplaceNext(Call::Pass)));
+
+                entries.extend(rows_of(
+                    Pattern::up_to(&key, "3♠"),
+                    weak_two_overcalled_responder(our),
+                ));
+                // The guard admits any overcall below `2NT`, of which a `2♠`
+                // opening has none — the sample stays inside the guard (which
+                // never checks legality) rather than inside the auction.
+                let sample = if our == Suit::Hearts {
+                    "(2♠) 2NT"
+                } else {
+                    "(2♥) 2NT"
+                };
+                entries.push(rebase(
+                    Pattern::guarded(
+                        &key,
+                        sample,
+                        described_guard(
+                            "(overcall <2NT) 2NT …",
+                            guard(move |_: &Context<'_>, s: &[Call]| {
+                                matches!(s.first(), Some(&Call::Bid(b)) if b < Bid::new(2, Strain::Notrump))
+                                    && s.get(1) == Some(&two_nt)
+                            }),
+                        ),
+                    ),
+                    ReplaceNext(Call::Pass),
+                ));
+            }
+            entries
+        },
+    }
+}
+
+/// Section 8 as a row package: our contested strong `2♣`
+/// ([`set_strong_two_competition`][super::set_strong_two_competition], default
+/// on)
+///
+/// Their double steals no room → systems on wholesale; their overcall gets
+/// responder's natural-GF / values-`X` / waiting-pass table, backed by opener's
+/// forced reopening in the pass-out seat.
+fn strong_two_competition_package() -> Package {
+    Package {
+        name: "strong-two-competition",
+        gate: strong_two_competition,
+        entries: || {
+            const OPEN: &str = "P* 2♣";
+            let mut entries = vec![rebase(Pattern::first(OPEN, "X"), ReplaceNext(Call::Pass))];
+            entries.extend(rows_of(
+                Pattern::guarded(
+                    OPEN,
+                    "(2♦)",
+                    described_guard(
+                        "(overcall)",
+                        guard(|_: &Context<'_>, s: &[Call]| matches!(s, [Call::Bid(_)])),
+                    ),
+                ),
+                strong_two_overcalled_responder(),
+            ));
+            entries.extend(rows_of(
+                Pattern::guarded(
+                    OPEN,
+                    "(2♦) P (P)",
+                    described_guard(
+                        "(overcall) - -",
+                        guard(|_: &Context<'_>, s: &[Call]| {
+                            matches!(s, [Call::Bid(_), Call::Pass, Call::Pass])
+                        }),
+                    ),
+                ),
+                strong_two_reopening(),
+            ));
+            entries
+        },
+    }
+}
+
 /// The competitive package over our openings: cue-bid raises, preemptive raises,
 /// negative doubles for all four openings, support doubles/redoubles, and
 /// opener's answers to negative doubles of minor overcalls
@@ -4045,353 +4672,33 @@ pub fn competition() -> Competitive {
     // and system-on over their double.
     compile_into(&mut book, &[direct_seat_package()]);
 
-    // Section 2b: systems-on over their double of our splinter. A splinter is
-    // game-forcing, but the double reroutes opener into this book, where —
-    // unauthored — it fell to the floor and passed out the doubled game force.
-    // The `FirstIs(Double)` rebase strips the double off the whole subtree, so
-    // opener (and responder's keycard answers) resolve on the undisturbed
-    // splinter continuation. See `set_splinter_doubled`.
-    if splinter_doubled() {
-        for major in [Suit::Hearts, Suit::Spades] {
-            let m_strain = Strain::from(major);
-            let splinter_suits: &[Suit] = if major == Suit::Hearts {
-                &[Suit::Spades, Suit::Clubs, Suit::Diamonds]
-            } else {
-                &[Suit::Clubs, Suit::Diamonds, Suit::Hearts]
-            };
-            for &x in splinter_suits {
-                let (level, strain) = super::responses::splinter_bid(major, x);
-                let suffix = [call(1, m_strain), Call::Pass, call(level, strain)];
-                fallback_all_seats(
-                    &mut book,
-                    &suffix,
-                    3,
-                    Arc::new(FirstIs(Call::Double)),
-                    Fallback::rebase(ReplaceNext(Call::Pass)),
-                );
-            }
-        }
-    }
-
-    // Section 3: support doubles and redoubles for each (opening, major)
-    // pair. The four minor-major pairs always; `1♥ – (P) – 1♠` behind
-    // `set_major_support_double` (default on).
-    let mut support_pairs = vec![
-        (Suit::Clubs, Suit::Hearts),
-        (Suit::Clubs, Suit::Spades),
-        (Suit::Diamonds, Suit::Hearts),
-        (Suit::Diamonds, Suit::Spades),
-    ];
-    if major_support_double() {
-        support_pairs.push((Suit::Hearts, Suit::Spades));
-    }
-    for (opening, major) in support_pairs {
-        let suffix = [
-            call(1, Strain::from(opening)),
-            Call::Pass,
-            call(1, Strain::from(major)),
-        ];
-        let just_below = if major == Suit::Hearts {
-            Bid::new(2, Strain::Diamonds)
-        } else {
-            Bid::new(2, Strain::Hearts)
-        };
-
-        // Support double: they overcall at most `just_below`
-        fallback_all_seats(
-            &mut book,
-            &suffix,
-            3,
-            Arc::new(OvercallAtMost(just_below)),
-            Fallback::classify(support_rules(major)),
-        );
-
-        // Support redouble: they doubled
-        fallback_all_seats(
-            &mut book,
-            &suffix,
-            3,
-            Arc::new(SuffixIs(vec![Call::Double])),
-            Fallback::classify({
-                let m = Strain::from(major);
-                Rules::new()
-                    .rule(Call::Redouble, 1.5, support(3..=3))
-                    .alert(SUPPORT_DOUBLE)
-                    .rule(Bid::new(2, m), 1.4, support(4..))
-                    .rule(Call::Pass, 0.0, hcp(0..))
-            }),
-        );
-    }
+    // Section 2b: systems-on over their double of our splinter.
+    // Section 3: support doubles and redoubles for each (opening, major) pair.
+    compile_into(
+        &mut book,
+        &[splinter_doubled_package(), support_double_package()],
+    );
 
     // Section 4: opener answers partner's negative double of a two-level minor.
-    // Suffix is [1M]; guard checks that suffix is [2m, X, P].
-    for major in [Suit::Hearts, Suit::Spades] {
-        fallback_all_seats(
-            &mut book,
-            &[call(1, Strain::from(major))],
-            3,
-            Arc::new(described_guard(
-                "2♣/2♦ X -",
-                guard(|_: &Context<'_>, suffix: &[Call]| {
-                    matches!(
-                        suffix,
-                        [Call::Bid(b), Call::Double, Call::Pass]
-                            if b.level.get() == 2
-                                && (b.strain == Strain::Clubs || b.strain == Strain::Diamonds)
-                    )
-                }),
-            )),
-            Fallback::classify(answer_neg_double_of_minor(major)),
-        );
-    }
+    // Section 4b/4c: opener answers partner's cue-raise of the opening suit.
+    compile_into(
+        &mut book,
+        &[
+            answer_negative_double_package(),
+            cue_raise_answer_package(),
+            cue_minor_raise_answer_package(),
+        ],
+    );
 
-    // Section 4b: opener answers partner's cue-raise of the opening major. Suffix
-    // is [1M]; the guard checks the calls after it are [ovc, cue, P] where the cue
-    // bids the overcaller's suit (higher than the overcall) and the overcall is at
-    // most 2♠ (matching the cue-raise's authored ceiling in `over_their_overcall`).
-    // The `ovc.strain != trump` clause excludes the opponents cue-bidding *our*
-    // major (e.g. a Michaels `1♠-(2♠)`): there responder's `3♠` is a natural raise,
-    // not a cue-raise, and this table must not hijack it.  Majors only. Without
-    // this the cue-raise falls through to the keyless floor — whose raise ladder
-    // needs partner's *named* and *shown* suit to agree, which a cue decouples — so
-    // opener passes and the cuebid is left in as the contract.
-    if cue_raise_answer() {
-        for major in [Suit::Hearts, Suit::Spades] {
-            let trump = Strain::from(major);
-            fallback_all_seats(
-                &mut book,
-                &[call(1, trump)],
-                3,
-                Arc::new(described_guard(
-                    "(overcall ≤2♠) cue -",
-                    guard(move |_: &Context<'_>, suffix: &[Call]| {
-                        matches!(
-                            suffix,
-                            [Call::Bid(ovc), Call::Bid(cue), Call::Pass]
-                                if cue.strain == ovc.strain
-                                    && cue > ovc
-                                    && *ovc <= Bid::new(2, Strain::Spades)
-                                    && ovc.strain != trump
-                        )
-                    }),
-                )),
-                Fallback::classify(answer_cue_raise(major)),
-            );
-        }
-    }
-
-    // Section 4c: the minor twin of 4b. A minor-opening cue-raise passes out the
-    // same way. The cue may sit as high as `3♠` (a 2-level overcall forces the
-    // cue to the 3 level), so the ceiling is `cue <= 3♠` rather than `ovc <= 2♠`.
-    // `ovc.strain != trump` again excludes a cue of our own minor (e.g. Michaels
-    // `1♣-(2♣)` showing the majors — responder's `3♣` there is a raise).
-    if cue_minor_raise_answer() {
-        for minor in [Suit::Clubs, Suit::Diamonds] {
-            let trump = Strain::from(minor);
-            fallback_all_seats(
-                &mut book,
-                &[call(1, trump)],
-                3,
-                Arc::new(described_guard(
-                    "(overcall) (cue ≤3♠) -",
-                    guard(move |_: &Context<'_>, suffix: &[Call]| {
-                        matches!(
-                            suffix,
-                            [Call::Bid(ovc), Call::Bid(cue), Call::Pass]
-                                if cue.strain == ovc.strain
-                                    && cue > ovc
-                                    && *cue <= Bid::new(3, Strain::Spades)
-                                    && ovc.strain != trump
-                        )
-                    }),
-                )),
-                Fallback::classify(answer_cue_minor_raise(minor)),
-            );
-        }
-    }
-
-    // Section 4d: opener answers responder's natural free bid (a non-jump new
-    // suit over their overcall ≤2♠), forcing one round at both levels — the
-    // free-bid-quality A/B's worst vulnerable-PD boards were opener *passing*
-    // a game-going free bid out. Suffix guard mirrors the free-bid authoring
-    // in `over_their_overcall`: overcall ≤2♠ and not a cue of our suit (4b/4c
-    // own the cue-raises), the free bid a cheapest-level new suit that is
-    // neither their suit nor ours nor notrump (the free 1NT/2NT are
-    // non-forcing). Cachalot rotates the 1-level calls over its minor
-    // openings, so those stay with the Section-9 completions (whose deeper
-    // keys shadow this entry anyway — the `rotated` conjunct is
-    // defense-in-depth and honest rendering); its natural 2-level frees get
-    // the forcing answers like every other school's. The 2-level free-bid
-    // *style* carves this node further: `Negative` sends the level-2 frees
-    // to 4d′ (non-forcing answers, with Pass), `Transfer` sends the swapped
-    // slots to the Section-4f completions (a lone or three-way slot stays
-    // natural-forcing and keeps the 4d answers).
-    if free_bids_engaged() {
-        let cachalot = negative_double_shape() == NegativeDoubleShape::Cachalot;
-        let negative = free_bid_style() == FreeBidStyle::Negative;
-        let transfer = free_bid_style() == FreeBidStyle::Transfer;
-        for opening in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
-            let o_strain = Strain::from(opening);
-            let rotated = cachalot && matches!(opening, Suit::Clubs | Suit::Diamonds);
-            fallback_all_seats(
-                &mut book,
-                &[call(1, o_strain)],
-                3,
-                Arc::new(described_guard(
-                    if rotated {
-                        "(overcall ≤2♠) 2-level free-suit -"
-                    } else {
-                        "(overcall ≤2♠) free-suit -"
-                    },
-                    guard(move |_: &Context<'_>, suffix: &[Call]| {
-                        matches!(
-                            suffix,
-                            [Call::Bid(ovc), Call::Bid(free), Call::Pass]
-                                if *ovc <= Bid::new(2, Strain::Spades)
-                                    && ovc.strain != o_strain
-                                    && free.strain != Strain::Notrump
-                                    && free.strain != ovc.strain
-                                    && free.strain != o_strain
-                                    && free.level.get()
-                                        == ovc.level.get() + u8::from(free.strain < ovc.strain)
-                                    && !(rotated && free.level.get() == 1)
-                                    && !(negative && free.level.get() == 2)
-                                    && !(transfer
-                                        && free.level.get() == 2
-                                        && two_level_slots(o_strain, *ovc) == 2)
-                        )
-                    }),
-                )),
-                Fallback::classify(answer_free_bid(opening)),
-            );
-
-            // Section 4d′ (`FreeBidStyle::Negative`): the capped, non-forcing
-            // level-2 frees get answers WITH a Pass catch-all.
-            if negative {
-                fallback_all_seats(
-                    &mut book,
-                    &[call(1, o_strain)],
-                    3,
-                    Arc::new(described_guard(
-                        "(overcall ≤2♠) negative free-suit -",
-                        guard(move |_: &Context<'_>, suffix: &[Call]| {
-                            matches!(
-                                suffix,
-                                [Call::Bid(ovc), Call::Bid(free), Call::Pass]
-                                    if *ovc <= Bid::new(2, Strain::Spades)
-                                        && ovc.strain != o_strain
-                                        && free.strain != Strain::Notrump
-                                        && free.strain != ovc.strain
-                                        && free.strain != o_strain
-                                        && free.level.get() == 2
-                                        && free.level.get()
-                                            == ovc.level.get()
-                                                + u8::from(free.strain < ovc.strain)
-                            )
-                        }),
-                    )),
-                    Fallback::classify(answer_negative_free_bid(opening)),
-                );
-
-                // Section 4d″: the doubler's rebid over opener's answer — a
-                // new suit is the strong hand the capped free bid could not
-                // carry, forcing to game. This node also claims the ordinary
-                // doubler's second turn (previously floored — bucket
-                // X-then-Pass vs X-then-suit in the forensics).
-                fallback_all_seats(
-                    &mut book,
-                    &[call(1, o_strain)],
-                    3,
-                    Arc::new(described_guard(
-                        "(overcall ≤2♠) X - answer -",
-                        guard(move |_: &Context<'_>, suffix: &[Call]| {
-                            matches!(
-                                suffix,
-                                [Call::Bid(ovc), Call::Double, Call::Pass, Call::Bid(_), Call::Pass]
-                                    if *ovc <= Bid::new(2, Strain::Spades)
-                                        && ovc.strain != o_strain
-                            )
-                        }),
-                    )),
-                    Fallback::classify(negative_doubler_rebid(opening)),
-                );
-
-                // Section 4d‴: opener answers the game-forcing rebid with the
-                // ordinary forcing-answer table; the guard's `< 3 of the
-                // opening suit` scope keeps that table's catch-all legal.
-                fallback_all_seats(
-                    &mut book,
-                    &[call(1, o_strain)],
-                    3,
-                    Arc::new(described_guard(
-                        "(overcall ≤2♠) X - answer - FG-suit -",
-                        guard(move |_: &Context<'_>, suffix: &[Call]| {
-                            matches!(
-                                suffix,
-                                [Call::Bid(ovc), Call::Double, Call::Pass, Call::Bid(ans), Call::Pass, Call::Bid(new), Call::Pass]
-                                    if *ovc <= Bid::new(2, Strain::Spades)
-                                        && ovc.strain != o_strain
-                                        && new.strain != Strain::Notrump
-                                        && new.strain != ovc.strain
-                                        && new.strain != o_strain
-                                        && new.strain != ans.strain
-                                        && *new < Bid::new(3, o_strain)
-                            )
-                        }),
-                    )),
-                    Fallback::classify(answer_free_bid(opening)),
-                );
-            }
-        }
-    }
+    // Section 4d/4d′/4d″/4d‴: opener answers responder's natural free bid,
+    // and the Negative style's capped-free-bid continuations.
+    compile_into(&mut book, &[free_bid_answer_package()]);
 
     // Section 4f (`FreeBidStyle::Transfer`): opener completes the 2-level
     // free-bid transfer and responder clarifies. The swap contexts are a
     // closed enumeration — (opening, their overcall, lower slot → shown,
     // wrap slot → shown, completing a level higher on the wrap):
-    if free_bids_engaged() && free_bid_style() == FreeBidStyle::Transfer {
-        #[allow(clippy::type_complexity)]
-        #[rustfmt::skip]
-        let swaps: [(Strain, u8, Strain, [(Strain, Suit); 2]); 7] = [
-            (Strain::Clubs, 1, Strain::Spades, [(Strain::Diamonds, Suit::Hearts), (Strain::Hearts, Suit::Diamonds)]),
-            (Strain::Clubs, 2, Strain::Diamonds, [(Strain::Hearts, Suit::Spades), (Strain::Spades, Suit::Hearts)]),
-            (Strain::Diamonds, 1, Strain::Spades, [(Strain::Clubs, Suit::Hearts), (Strain::Hearts, Suit::Clubs)]),
-            (Strain::Diamonds, 2, Strain::Clubs, [(Strain::Hearts, Suit::Spades), (Strain::Spades, Suit::Hearts)]),
-            (Strain::Hearts, 1, Strain::Spades, [(Strain::Clubs, Suit::Diamonds), (Strain::Diamonds, Suit::Clubs)]),
-            (Strain::Hearts, 2, Strain::Clubs, [(Strain::Diamonds, Suit::Spades), (Strain::Spades, Suit::Diamonds)]),
-            (Strain::Spades, 2, Strain::Clubs, [(Strain::Diamonds, Suit::Hearts), (Strain::Hearts, Suit::Diamonds)]),
-        ];
-        for (o_strain, ovc_level, ovc_strain, slots) in swaps {
-            for (slot, shown) in slots {
-                let shown_strain = Strain::from(shown);
-                let comp_lvl = if shown_strain > slot { 2 } else { 3 };
-                let cue_lvl = comp_lvl + u8::from(ovc_strain < shown_strain);
-                fallback_all_seats(
-                    &mut book,
-                    &[call(1, o_strain), call(ovc_level, ovc_strain)],
-                    3,
-                    Arc::new(SuffixIs(vec![call(2, slot), Call::Pass])),
-                    Fallback::classify(free_transfer_completion(shown, comp_lvl)),
-                );
-                fallback_all_seats(
-                    &mut book,
-                    &[call(1, o_strain), call(ovc_level, ovc_strain)],
-                    3,
-                    Arc::new(SuffixIs(vec![
-                        call(2, slot),
-                        Call::Pass,
-                        call(comp_lvl, shown_strain),
-                        Call::Pass,
-                    ])),
-                    Fallback::classify(free_transfer_clarify(
-                        shown,
-                        comp_lvl,
-                        Bid::new(cue_lvl, ovc_strain),
-                    )),
-                );
-            }
-        }
-    }
+    compile_into(&mut book, &[transfer_free_bid_package()]);
 
     // Section 6: their two-suiters over our 1M.
     compile_into(&mut book, &[uvu_over_majors_package()]);
@@ -4409,44 +4716,7 @@ pub fn competition() -> Competitive {
     // OvercallAtMost(2♠) entry, so declaration order is irrelevant. Their
     // (2NT) and their 3-level cue of our own suit are excluded (the first is
     // a two-suiter, the second is rare enough for the floor).
-    if high_overcall_responses() {
-        for opening in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
-            let o_strain = Strain::from(opening);
-            let open = call(1, o_strain);
-            fallback_all_seats(
-                &mut book,
-                &[open],
-                3,
-                Arc::new(described_guard(
-                    "(2NT < overcall ≤3♠)",
-                    guard(move |_: &Context<'_>, s: &[Call]| {
-                        matches!(s, [Call::Bid(b)]
-                            if *b > Bid::new(2, Strain::Notrump)
-                                && *b <= Bid::new(3, Strain::Spades)
-                                && b.strain.is_suit()
-                                && b.strain != o_strain)
-                    }),
-                )),
-                Fallback::classify(over_their_high_overcall(opening)),
-            );
-            fallback_all_seats(
-                &mut book,
-                &[open],
-                3,
-                Arc::new(described_guard(
-                    "(2NT < overcall ≤3♠) X -",
-                    guard(move |_: &Context<'_>, s: &[Call]| {
-                        matches!(s, [Call::Bid(b), Call::Double, Call::Pass]
-                            if *b > Bid::new(2, Strain::Notrump)
-                                && *b <= Bid::new(3, Strain::Spades)
-                                && b.strain.is_suit()
-                                && b.strain != o_strain)
-                    }),
-                )),
-                Fallback::classify(answer_high_neg_double(opening)),
-            );
-        }
-    }
+    compile_into(&mut book, &[high_overcall_package()]);
 
     // Section 9: opener's Cachalot answers (`NegativeDoubleShape::Cachalot`
     // only). The rotated calls are forcing; each gets its completion table at
@@ -4543,87 +4813,13 @@ pub fn competition() -> Competitive {
     // systems-on. Their overcall (≤ 3♠): responder's direct action, and a
     // targeted rebase so an Ogust 2NT bid over the overcall still gets
     // opener's undisturbed five-rung answer.
-    if weak_two_competition() {
-        for our in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
-            let trump = Strain::from(our);
-            let open = call(2, trump);
-            let two_nt = call(2, Strain::Notrump);
-
-            fallback_all_seats(
-                &mut book,
-                &[open, Call::Double],
-                3,
-                Arc::new(SuffixIs(vec![])),
-                Fallback::classify(weak_two_doubled_responder(our)),
-            );
-            fallback_all_seats(
-                &mut book,
-                &[open],
-                3,
-                Arc::new(FirstIs(Call::Double)),
-                Fallback::rebase(ReplaceNext(Call::Pass)),
-            );
-
-            fallback_all_seats(
-                &mut book,
-                &[open],
-                3,
-                Arc::new(OvercallAtMost(Bid::new(3, Strain::Spades))),
-                Fallback::classify(weak_two_overcalled_responder(our)),
-            );
-            fallback_all_seats(
-                &mut book,
-                &[open],
-                3,
-                Arc::new(described_guard(
-                    "(overcall <2NT) 2NT …",
-                    guard(move |_: &Context<'_>, s: &[Call]| {
-                        matches!(s.first(), Some(&Call::Bid(b)) if b < Bid::new(2, Strain::Notrump))
-                            && s.get(1) == Some(&two_nt)
-                    }),
-                )),
-                Fallback::rebase(ReplaceNext(Call::Pass)),
-            );
-        }
-    }
+    compile_into(&mut book, &[weak_two_competition_package()]);
 
     // Section 8: our contested strong 2♣ (`set_strong_two_competition`,
     // default on). Their double steals no room → systems on wholesale; their
     // overcall gets responder's natural-GF / values-X / waiting-pass table,
     // backed by opener's forced reopening in the pass-out seat.
-    if strong_two_competition() {
-        let open = call(2, Strain::Clubs);
-
-        fallback_all_seats(
-            &mut book,
-            &[open],
-            3,
-            Arc::new(FirstIs(Call::Double)),
-            Fallback::rebase(ReplaceNext(Call::Pass)),
-        );
-        fallback_all_seats(
-            &mut book,
-            &[open],
-            3,
-            Arc::new(described_guard(
-                "(overcall)",
-                guard(|_: &Context<'_>, s: &[Call]| matches!(s, [Call::Bid(_)])),
-            )),
-            Fallback::classify(strong_two_overcalled_responder()),
-        );
-        fallback_all_seats(
-            &mut book,
-            &[open],
-            3,
-            Arc::new(described_guard(
-                "(overcall) - -",
-                guard(|_: &Context<'_>, s: &[Call]| {
-                    matches!(s, [Call::Bid(_), Call::Pass, Call::Pass])
-                }),
-            )),
-            Fallback::classify(strong_two_reopening()),
-        );
-    }
+    compile_into(&mut book, &[strong_two_competition_package()]);
 
     // Section 5: Lebensohl after our 1NT is overcalled at the 2 level. Purely
     // additive — nothing else lands at [1NT] in the competitive book. Plain or
@@ -4992,6 +5188,16 @@ mod tests {
     fn row_package_invariants() {
         crate::bidding::rows::assert_package_invariants(&[
             super::direct_seat_package(),
+            super::splinter_doubled_package(),
+            super::support_double_package(),
+            super::transfer_free_bid_package(),
+            super::answer_negative_double_package(),
+            super::cue_raise_answer_package(),
+            super::cue_minor_raise_answer_package(),
+            super::free_bid_answer_package(),
+            super::high_overcall_package(),
+            super::weak_two_competition_package(),
+            super::strong_two_competition_package(),
             super::jordan_truscott_package(),
             super::uvu_over_majors_package(),
             super::sputnik_residual_answer_package(),

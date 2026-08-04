@@ -169,6 +169,18 @@ shape/suit-quality gate on *which* free bids to make, not a strength floor.
   continuations are a follow-up if the buckets drag.
 - Balancing-seat two-suiter reading (`[1M, P, P, 2M/2NT]`) is not recorded —
   the P1 reading is direct-seat only, matching the authored nodes.
+- **The free bids die once the overcall reaches the two level and our suit sits
+  below it** (spotted 2026-08-04 while porting §4d to the row layer). Both
+  free-bid rules in `over_their_overcall` are pinned by `min_level_is` to one
+  *exact* cheapest rung — 1 and 2 — so over `1♣ (2♠)` no suit but spades has a
+  free bid, and nothing covers the next rung up. Measured consequence: a
+  15-HCP hand with six diamonds **passes** `1♣ (2♠)`; so does a 7-carder. The
+  double, the cue and `2NT` are responder's only authored actions there.
+  Authoring a three-level rung is a bidding change — strength floor and
+  forcing-or-not both open, and it interacts with the negative double's range —
+  so it is deferred to the post-refactor competitive revision, not fixed in a
+  port batch. Note that §4d's answer table has no legal rung over a three-level
+  free bid either, so the rung and its answer must be authored together.
 
 ## Measurement discipline per package
 

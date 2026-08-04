@@ -136,6 +136,68 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The seven guard-carrying competition sections are declarative rows.** All
+  of them ride `Pattern::guarded`, which carries the `described_guard(...)` the
+  imperative site wrote **verbatim**, so `render-book` is unmoved: §4 (opener
+  answers a negative double of a two-level minor), §4b/§4c (opener answers a
+  cue-raise of the opening major / minor), §4d and its `Negative`-style
+  continuations 4d′/4d″/4d‴, §7 (contested weak twos), §8 (contested strong
+  `2♣`) and §10 (their jump / 3-level overcalls). ~450 imperative lines become
+  seven packages; `competition()` now holds no `fallback_all_seats` outside
+  Lebensohl and Cachalot. Byte-identical on the seeded 20k `smoke-default` and
+  `render-book`, and re-rendered under weak-two-competition and high-overcall
+  (both default-off) with no diff.
+
+- **§4d's guard now carries a `free.level < 3` ceiling, matching the convention
+  it answers.** `over_their_overcall` authors free bids at exactly two rungs,
+  each pinned by `min_level_is` to one *exact* cheapest level — 1 and 2 — so
+  once an overcall reaches the two level, every suit below it has no free bid
+  and responder never produces a three-level one. The guard, which asked only
+  for a cheapest-level new suit, claimed those auctions anyway, and
+  `answer_free_bid` has no legal rung there: over `1♣ (2♠) 3♦ (P)` its raise,
+  notrump and catch-all rungs all stop at level 3, which `3♦` has already
+  passed, leaving `3♥` on 16+ with four hearts as the only call. A plain
+  13-count fell through — an untotal guarded table, which the row layer's
+  totality probe caught. **Verified inert**: 100,000 auctions across five
+  free-bid configurations (Forcing / Negative / Transfer, each with and without
+  the Cachalot rotation) are byte-identical.
+
+- **Noted, not fixed: a 15-count with six diamonds passes `1♣ (2♠)`.** The same
+  `min_level_is` pinning that makes the three-level free bid unreachable leaves
+  responder with no free-bid outlet at all once the overcall sits at the two
+  level and our suit is below it — the double, the cue and `2NT` are the only
+  authored actions. That is a live gap in `over_their_overcall`, not a porting
+  artifact, and authoring the rung is a bidding change owed a measurement.
+
+- **Seven more book sections are declarative rows, and the row invariants found
+  an unalerted convention on the way.** No new grammar: every one of them is a
+  loop fan-out over the constructs already shipped. From `competition()` —
+  systems-on over their double of our splinter (`Pattern::first` + a rebase),
+  support doubles and redoubles (`Pattern::up_to` for the overcall, the `(X)`
+  suffix for the redouble), and the `FreeBidStyle::Transfer` free-bid
+  completions and clarifications. From `defensive()` — our defense to each
+  one-of-a-suit opening together with the Michaels and Unusual-`2NT` advances
+  (lifted clean out of the per-suit loop: `[1t]`, `[1t, 2t, P]` and
+  `[1t, 2NT, P]` are written nowhere else), the Landy/Woolsey both-majors `2♣`
+  advances, and the direct-seat both-majors `X` advances. ~320 lines of
+  imperative wiring become seven packages. Byte-identical: the seeded 20k
+  `smoke-default` dump and `render-book` are unchanged, and because four of the
+  seven ride default-off knobs (free bids, Landy, Woolsey, direct-Landy `X`)
+  the books were re-rendered under each of those configurations too, where the
+  only difference is the alert below.
+
+- **The Landy `2NT` game-ask answers are alerted** (`landy:2nt-answer`). They
+  are conventional step responses — `3♣`/`3♦` are the 5-4 strength steps and
+  name no minor at all, `3♥`/`3♠`/`3NT` are 5-5 minimum / medium / maximum —
+  and carried no alert. `assert_package_invariants` ignores knob gates, so
+  porting the Landy advances put them in front of the artificiality witness for
+  the first time: the crate-wide `artificial_calls_are_alerted` walks
+  `american()` at default knobs, where Landy, Woolsey and direct-Landy are all
+  off. The witness caught `3♥`, which floors *spades* at five while naming
+  hearts; the other four are the same structure. No effect on the default
+  system — the alert exists only on the three opt-in 1NT-defense arms, where it
+  also pins the reading to the rule's own box instead of a natural suit.
+
 - **The four "competition over our own convention" blocks are now declarative
   rows**, and the row grammar grew the one construct that unblocked them.
   From `competition()`: opener's replies after the opponents double or overcall
