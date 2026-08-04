@@ -3648,6 +3648,133 @@ fn direct_seat_package() -> Package {
     }
 }
 
+/// Section 6 as a row package: their two-suiters over our `1M`
+/// ([`set_uvu_over_majors`][super::set_uvu_over_majors])
+///
+/// Unusual-vs-unusual over their both-minors `2NT`, and a raise structure over
+/// their Michaels cue of our own major.  Keyed at the deeper `1M (their call)`
+/// tables — their cue and their `2NT` are single concrete calls — so these
+/// shadow the `1M` direct-seat package (whose negative double misfires over a
+/// Michaels cue) with no declaration-order race.  Both cue answers reuse the
+/// shipped cue-raise table: its accept/decline shape is cue-agnostic.
+fn uvu_over_majors_package() -> Package {
+    Package {
+        name: "uvu-over-majors",
+        gate: uvu_over_majors,
+        entries: || {
+            let mut entries = Vec::new();
+            for major in [Suit::Hearts, Suit::Spades] {
+                let trump = Strain::from(major);
+                let unusual = format!("P* 1{trump} (2NT)");
+                let michaels = format!("P* 1{trump} (2{trump})");
+                let om_cue = if major == Suit::Hearts {
+                    "2♠"
+                } else {
+                    "3♥"
+                };
+
+                // Their (2NT): responder, then opener's answers to the two cues.
+                entries.extend(rows_of(
+                    Pattern::table(&unusual),
+                    uvu_major_responder(major),
+                ));
+                entries.extend(rows_of(
+                    Pattern::after(&unusual, "3♣ (P)"),
+                    answer_cue_raise(major),
+                ));
+                entries.extend(rows_of(
+                    Pattern::after(&unusual, "3♦ (P)"),
+                    uvu_fourth_suit_answer(major),
+                ));
+
+                // Their Michaels cue of our major: responder, then opener's
+                // answer to the other-major cue.
+                entries.extend(rows_of(
+                    Pattern::table(&michaels),
+                    michaels_cue_responder(major),
+                ));
+                entries.extend(rows_of(
+                    Pattern::after(&michaels, &format!("{om_cue} (P)")),
+                    answer_cue_raise(major),
+                ));
+            }
+            entries
+        },
+    }
+}
+
+/// Section 9b as a row package: opener's answers to the Sputnik residual double
+///
+/// The double *denies* a biddable major, so — unlike a classic negative double
+/// — opener must NOT raise a major: the floor's "negative double = the unbid
+/// major" instinct is exactly inverted here and would jump the phantom denied
+/// suit into a doubled game (the measured leak).  [`cachalot_takeout_answer`]
+/// bids NT or the opening minor naturally instead.  Over `(1♠)` or a 2-minor,
+/// Sputnik's double is Modern's major-showing one, which the floor reads
+/// correctly — left to it.
+fn sputnik_residual_answer_package() -> Package {
+    Package {
+        name: "sputnik-residual-answer",
+        gate: || negative_double_shape() == NegativeDoubleShape::Sputnik,
+        entries: || {
+            // (1♦) over 1♣: X = ≤3 in both majors — no fit to hunt.
+            let mut entries = rows_of(
+                Pattern::after("P* 1♣ (1♦)", "X (P)"),
+                cachalot_takeout_answer(Suit::Clubs, Suit::Diamonds),
+            );
+            // (1♥) over 1♣/1♦: X = ≤3 spades.
+            for opening in [Suit::Clubs, Suit::Diamonds] {
+                entries.extend(rows_of(
+                    Pattern::after(&format!("P* 1{} (1♥)", Strain::from(opening)), "X (P)"),
+                    cachalot_takeout_answer(opening, Suit::Hearts),
+                ));
+            }
+            entries
+        },
+    }
+}
+
+/// Section 5d as a row package: Unusual vs Unusual over a both-minors `(2NT)`
+/// overcall of our `1NT` ([`set_uvu`][super::set_uvu])
+///
+/// Responder's `X` is penalty; `3♣`/`3♦` are INV+ cues (Stayman/5+♠, 5+♥);
+/// `4♣`/`4♦` are FG+ 5-5-majors splinters; the `3♣`→`3♦` denial runs symmetric
+/// Smolen.  Opener's `3♣` answer, the Smolen completions, the splinter advance,
+/// and the `3♠` rebid are all shared with the `(2♦)` Transfer machinery.
+fn uvu_package() -> Package {
+    Package {
+        name: "uvu-over-1nt",
+        gate: uvu,
+        entries: || {
+            // Responder's first action: the uncovered suffix is exactly their 2NT.
+            let mut entries = rows_of(Pattern::after("P* 1NT", "(2NT)"), uvu_responder());
+            for (suffix, rules) in [
+                // 3♣ Stayman/5+♠: opener answers, then symmetric Smolen / fit rebids.
+                ("(2NT) 3♣ (P)", stayman_2d_answer()),
+                ("(2NT) 3♣ (P) 3♦ (P)", uvu_smolen()),
+                (
+                    "(2NT) 3♣ (P) 3♦ (P) 3♥ (P)",
+                    smolen_completion(Suit::Spades),
+                ),
+                (
+                    "(2NT) 3♣ (P) 3♦ (P) 3♠ (P)",
+                    smolen_completion(Suit::Hearts),
+                ),
+                ("(2NT) 3♣ (P) 3♥ (P)", uvu_rebid_over_3h()),
+                ("(2NT) 3♣ (P) 3♠ (P)", stayman_2d_fit_rebid(Suit::Spades)),
+                // 3♦ = 5+♥: opener raises with a fit, else 3NT.
+                ("(2NT) 3♦ (P)", smolen_completion(Suit::Hearts)),
+                // 4♣/4♦ = FG+ 5-5-majors splinters: opener bids the better major game.
+                ("(2NT) 4♣ (P)", lm_2d_both_majors_advance()),
+                ("(2NT) 4♦ (P)", lm_2d_both_majors_advance()),
+            ] {
+                entries.extend(rows_of(Pattern::after("P* 1NT", suffix), rules));
+            }
+            entries
+        },
+    }
+}
+
 /// The competitive package over our openings: cue-bid raises, preemptive raises,
 /// negative doubles for all four openings, support doubles/redoubles, and
 /// opener's answers to negative doubles of minor overcalls
@@ -4011,67 +4138,8 @@ pub fn competition() -> Competitive {
         }
     }
 
-    // Section 6: their two-suiters over our 1M (`set_uvu_over_majors`, default
-    // on): unusual-vs-unusual over their both-minors (2NT), and a raise
-    // structure over their Michaels cue of our own major. Keyed at the deeper
-    // [1M, <their call>] nodes — their cue and their 2NT are single concrete
-    // calls — so these shadow the [1M] direct-seat package (whose negative
-    // double misfires over a Michaels cue) with no declaration-order race.
-    if uvu_over_majors() {
-        for major in [Suit::Hearts, Suit::Spades] {
-            let trump = Strain::from(major);
-            let open = call(1, trump);
-            let unusual = call(2, Strain::Notrump);
-            let michaels = call(2, trump);
-            let om_cue = if major == Suit::Hearts {
-                call(2, Strain::Spades)
-            } else {
-                call(3, Strain::Hearts)
-            };
-
-            // Their (2NT): responder, then opener's answers to the two cues.
-            // The limit-plus 3♣ cue reuses the shipped cue-raise answer table.
-            fallback_all_seats(
-                &mut book,
-                &[open, unusual],
-                3,
-                Arc::new(SuffixIs(vec![])),
-                Fallback::classify(uvu_major_responder(major)),
-            );
-            fallback_all_seats(
-                &mut book,
-                &[open, unusual],
-                3,
-                Arc::new(SuffixIs(vec![call(3, Strain::Clubs), Call::Pass])),
-                Fallback::classify(answer_cue_raise(major)),
-            );
-            fallback_all_seats(
-                &mut book,
-                &[open, unusual],
-                3,
-                Arc::new(SuffixIs(vec![call(3, Strain::Diamonds), Call::Pass])),
-                Fallback::classify(uvu_fourth_suit_answer(major)),
-            );
-
-            // Their Michaels cue of our major: responder, then opener's answer
-            // to the other-major cue (again the shipped cue-raise table — its
-            // accept/decline shape is cue-agnostic).
-            fallback_all_seats(
-                &mut book,
-                &[open, michaels],
-                3,
-                Arc::new(SuffixIs(vec![])),
-                Fallback::classify(michaels_cue_responder(major)),
-            );
-            fallback_all_seats(
-                &mut book,
-                &[open, michaels],
-                3,
-                Arc::new(SuffixIs(vec![om_cue, Call::Pass])),
-                Fallback::classify(answer_cue_raise(major)),
-            );
-        }
-    }
+    // Section 6: their two-suiters over our 1M.
+    compile_into(&mut book, &[uvu_over_majors_package()]);
 
     // Section 11: over their takeout double (`set_jordan_truscott`, default
     // on). Responder's first call at the deeper [1x, X] key — it wins over
@@ -4211,35 +4279,8 @@ pub fn competition() -> Competitive {
         }
     }
 
-    // Section 9b: opener's answers to the Sputnik residual double
-    // (`NegativeDoubleShape::Sputnik`). The double *denies* a biddable major,
-    // so — unlike a classic negative double — opener must NOT raise a major:
-    // the floor's "negative double = the unbid major" instinct is exactly
-    // inverted here and would jump the phantom denied suit into a doubled game
-    // (the measured leak). `cachalot_takeout_answer` bids NT/opening-minor
-    // naturally instead. Over (1♠)/a 2-minor Sputnik's double is Modern's
-    // major-showing one, which the floor reads correctly — left to it.
-    if negative_double_shape() == NegativeDoubleShape::Sputnik {
-        let one_heart = call(1, Strain::Hearts);
-        // (1♦) over 1♣: X = ≤3 in both majors — no fit to hunt.
-        fallback_all_seats(
-            &mut book,
-            &[call(1, Strain::Clubs), call(1, Strain::Diamonds)],
-            3,
-            Arc::new(SuffixIs(vec![Call::Double, Call::Pass])),
-            Fallback::classify(cachalot_takeout_answer(Suit::Clubs, Suit::Diamonds)),
-        );
-        // (1♥) over 1♣/1♦: X = ≤3 spades.
-        for opening in [Suit::Clubs, Suit::Diamonds] {
-            fallback_all_seats(
-                &mut book,
-                &[call(1, Strain::from(opening)), one_heart],
-                3,
-                Arc::new(SuffixIs(vec![Call::Double, Call::Pass])),
-                Fallback::classify(cachalot_takeout_answer(opening, Suit::Hearts)),
-            );
-        }
-    }
+    // Section 9b: opener's answers to the Sputnik residual double.
+    compile_into(&mut book, &[sputnik_residual_answer_package()]);
 
     // Section 7: our contested weak twos (`set_weak_two_competition`, default
     // off). Their double: responder's first call at the deeper [2M, X] node
@@ -5032,65 +5073,8 @@ pub fn competition() -> Competitive {
         }
     }
 
-    // Section 5d: Unusual vs Unusual over a both-minors (2NT) overcall of our 1NT
-    // (`set_uvu`, default on). Responder's `X` is penalty; `3♣`/`3♦` are
-    // INV+ cues (Stayman/5+♠, 5+♥); `4♣`/`4♦` are FG+ 5-5-majors splinters; the
-    // `3♣`→`3♦` denial runs symmetric Smolen. Opener's `3♣` answer, the Smolen
-    // completions, the splinter advance, and the `3♠` rebid are all shared with
-    // the (2♦) Transfer machinery.
-    if uvu() {
-        let one_nt = call(1, Strain::Notrump);
-        let p = Call::Pass;
-        let overcall = call(2, Strain::Notrump);
-        let c3 = call(3, Strain::Clubs);
-        let d3 = call(3, Strain::Diamonds);
-        let h3 = call(3, Strain::Hearts);
-        let s3 = call(3, Strain::Spades);
-        let c4 = call(4, Strain::Clubs);
-        let d4 = call(4, Strain::Diamonds);
-
-        // Responder's first action: the uncovered suffix is exactly their 2NT.
-        fallback_all_seats(
-            &mut book,
-            &[one_nt],
-            3,
-            Arc::new(SuffixIs(vec![overcall])),
-            Fallback::classify(uvu_responder()),
-        );
-
-        let nodes: Vec<(Vec<Call>, Rules)> = vec![
-            // 3♣ Stayman/5+♠: opener answers, then symmetric Smolen / fit rebids.
-            (vec![overcall, c3, p], stayman_2d_answer()),
-            (vec![overcall, c3, p, d3, p], uvu_smolen()),
-            (
-                vec![overcall, c3, p, d3, p, h3, p],
-                smolen_completion(Suit::Spades),
-            ),
-            (
-                vec![overcall, c3, p, d3, p, s3, p],
-                smolen_completion(Suit::Hearts),
-            ),
-            (vec![overcall, c3, p, h3, p], uvu_rebid_over_3h()),
-            (
-                vec![overcall, c3, p, s3, p],
-                stayman_2d_fit_rebid(Suit::Spades),
-            ),
-            // 3♦ = 5+♥: opener raises with a fit, else 3NT.
-            (vec![overcall, d3, p], smolen_completion(Suit::Hearts)),
-            // 4♣/4♦ = FG+ 5-5-majors splinters: opener bids the better major game.
-            (vec![overcall, c4, p], lm_2d_both_majors_advance()),
-            (vec![overcall, d4, p], lm_2d_both_majors_advance()),
-        ];
-        for (suffix, rules) in nodes {
-            fallback_all_seats(
-                &mut book,
-                &[one_nt],
-                3,
-                Arc::new(SuffixIs(suffix)),
-                Fallback::classify(rules),
-            );
-        }
-    }
+    // Section 5d: Unusual vs Unusual over their (2NT) overcall of our 1NT.
+    compile_into(&mut book, &[uvu_package()]);
 
     book
 }
@@ -5114,6 +5098,9 @@ mod tests {
         crate::bidding::rows::assert_package_invariants(&[
             super::direct_seat_package(),
             super::jordan_truscott_package(),
+            super::uvu_over_majors_package(),
+            super::sputnik_residual_answer_package(),
+            super::uvu_package(),
         ]);
     }
 

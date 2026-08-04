@@ -136,6 +136,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Three competitive sections are now declarative rows**, completing the
+  first Phase 1 batch: Section 6 (unusual-vs-unusual and the raise structure
+  over their Michaels cue of our `1M`), Section 9b (opener's answers to the
+  Sputnik residual double), and Section 5d (UvU over their `2NT` overcall of
+  our `1NT`). Unlike the defensive batch these are `SuffixIs` guarded tables,
+  so they port through `Pattern::table` and `Pattern::after` rather than
+  exact nodes — and being guarded, they are subject to the totality invariant
+  the exact-node ports are exempt from. All three joined the invariant test
+  and passed unchanged. Byte-identical on the shipped default (seeded
+  20k-board `smoke-default` diff and `render-book` diff, both empty).
+
 - **Eight defensive sections are now declarative rows** — the first half of
   the first Phase 1 batch, the sections expressible in today's grammar with no
   new constructs. From `defensive()`: the `1NT` defense and its balancing
