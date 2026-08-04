@@ -11,16 +11,28 @@ Current pinned-core baseline:
 | 96 MB V-cache CCD | 197.8 µs/decision | 166.2 µs/decision |
 | 32 MB frequency CCD | 184.1 µs/decision | 212.3 µs/decision |
 
+The `Trie` today carries both semantics and mechanics: semantics — what an auction means (authored rules, weights, DNF readings, alerts, guards) — and mechanics — how a key routes (children maps, the fallback walk, the rebase loop). The declarative book layer is moving the semantics out into row data. What remains in the trie afterwards is pure mechanics, which the stages below may compile and cache aggressively — compiled routing, step-by-step auction caching — without touching meaning.
+
 The solution has two complementary parts:
 
-- Cache auction- and hand-dependent computations once per classification.
-- Use the ongoing declarative row/rule work to compile routing, rule indexes, projections, and reader metadata when a complete `Stance` is built.
+- Cache hand-dependent computations once per classification, and auction-dependent state once per deal, appended step by step.
+- Compile routing, rule indexes, projections, and reader metadata from the row data when a complete `Stance` is built.
 
 Data flow:
 
-`Rows/legacy authoring → mutable Pair/Trie → Pair::against() finalization → compiled rule/reader plans → per-decision cache`
+`Rows/legacy authoring → mutable Pair/Trie → Pair::against() finalization → compiled rule/reader plans → per-deal auction step cache → per-decision cache`
 
 This document is planning only; no repository changes are authorized here.
+
+## Sequencing: execution awaits the declarative book layer
+
+No stage below starts until the rows migration has ported the contested books — `competition()` and `defensive()` as package lists — so that most semantics live in row data and the trie holds mechanics plus an enumerated set of escape hatches.
+
+- Stages 3–5 compile the row data itself. Compiling mid-port means building against a moving substrate and proving parity twice; each rows batch already ships its own byte-identity proof.
+- The escape-hatch inventory — opaque `guarded` rows, the closure-classifier sections still awaiting a row form, the grafted 1NT book, the `insert_advance_of_double`/`insert_sohl_over` producers — is exactly stage 5's legacy slow path. It must be closed as an enumeration before decoder coverage can be stated.
+- Stages 1–2 do not depend on rows, but execute with the rest: stage 1 freezes an internal reference implementation, and freezing the pre-rows one wastes the freeze.
+
+Non-gates: the floating addendum (RKCB/DOPI) lowers to root-level guarded fallbacks the decoder already models, and knob migration only widens which reading profiles can be compiled — stage 4 already falls back to the legacy path on a profile mismatch.
 
 ## Implementation Plan
 
@@ -61,10 +73,10 @@ Acceptance for this stage:
 
 ### 3. Preserve row structure until whole-system finalization
 
-The row layer currently lowers structured patterns into opaque classifier and guard objects too early. Preserve the following metadata through authoring:
+The row layer currently lowers rows immediately through the legacy verbs into type-erased classifier and guard objects. Preserve the authored `Pattern`/`Row` values alongside the lowered objects until finalization:
 
 - Stable, unique `PatternId`.
-- `PatternKind`: exact node, exact suffix, first uncovered call, bounded overcall, rebase, or opaque guard.
+- The pattern's shipped grammar construct: exact node or table, uncontested interleave (`after`), first-call dispatch (`first`), bounded overcall (`up_to`), typed rebase, or the opaque `guarded` escape hatch.
 - Concrete seat-fanned keys and declaration order.
 - Rule-table identity independent of rendered labels or diagnostic samples.
 
@@ -128,6 +140,14 @@ Once parity is established, replace `project_authored`’s repeated root-to-pref
 
 This removes the current roughly quadratic prefix resolution and repeated `Context::new` scans.
 
+Then extend the one-shot scan into a per-deal step cache — the mechanical optimization the semantics move makes safe. A call's authoring classifier, its at-the-time context, and its projection boxes are fixed the moment the call is made; extending the auction never changes them. A serving loop therefore keeps one append-only state per deal and reading profile:
+
+- Per-call records: authoring classifier, at-the-time context facts, projection boxes, rebase rewrites taken.
+- Incrementally maintained context facts and legal-call masks.
+- Running envelope intersections per seat.
+
+Each decision appends the new call's record and re-derives only the running intersection, so the auction-dependent share of a decision becomes depth-constant and a deal's total reading work depth-linear, replacing today's per-decision full re-read. The fold order equals auction order, so appending reproduces box order bit-for-bit. The cache is deal-scoped and append-only, keyed by stance and reading profile; a knob change, probe overlay, or opaque-node resolution mid-deal drops that deal to the legacy path. Historical-prefix questions such as RKCB pre-answer decoding keep their separate results, and stage 2's classification-scoped cache remains for hand-dependent values and one-off classifications outside a serving loop.
+
 ### 6. Reduce remaining allocation and duplicate work
 
 After caching and compiled decoding are measured:
@@ -154,6 +174,7 @@ After caching and compiled decoding are measured:
 - Repeat under DNF on/off, fallback projection on/off, Pass/table reading on/off, bilans/net-collar combinations, evaluator variants, all vulnerabilities, and configured/unconfigured floors.
 - Test exact-node rejection followed by fallback, cloned configured contexts, different hands sharing a bare context, separate threads with different knob profiles, systems-on auction stripping, RKCB historical-prefix reads, typed guards, opaque guards, and rebases.
 - For every prefix in the fixed corpus, require the compiled authoring decoder to select the same classifier and provenance as legacy resolution.
+- For every prefix in the fixed corpus, require the appended step-cache state to equal the from-scratch read bit-for-bit — boxes, box order, and provenance — including a mid-deal knob change that must drop to the legacy path.
 - Any changed output ends the performance-only track; it becomes a separate bidding change requiring fresh paired bidding A/B measurement.
 
 ### Performance
@@ -168,8 +189,8 @@ After caching and compiled decoding are measured:
 
 ## Assumptions
 
-- The ongoing row migration continues independently; the optimizer consumes both row-authored and legacy trie entries, so full migration is not a prerequisite.
+- Execution awaits the declarative book layer: stages 3–5 compile row data, so the contested-book port is a prerequisite (see Sequencing). The optimizer still consumes opaque and legacy entries through the slow path, and the payoff — and any coverage statement — scales with grammar coverage.
 - Structured row patterns receive fast compiled routing automatically. Opaque guards preserve identity, declaration order, and legacy resolution.
-- Auction- and hand-dependent inference/evaluator results are cached per decision, never baked into the trie.
+- Auction- and hand-dependent inference/evaluator results are cached per decision, or per deal in the append-only step cache, never baked into the trie.
 - No bidding feature, model, reading mode, or convention is disabled to meet the performance target.
 - The historical 17.73 µs figure is a stretch reference, not a release gate; the controlled two-CCD BBA comparison and bit-identical behavior are the shipping criteria.
