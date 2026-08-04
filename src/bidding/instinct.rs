@@ -56,7 +56,6 @@ use super::constraint::{
     top_honors,
 };
 use super::context::Context;
-use super::evaluator::trick_estimates_with_auction;
 use super::inference::{Inferences, Relative, relative_of};
 use super::rules::Alert;
 use contract_bridge::auction::{Call, RelativeVulnerability};
@@ -633,7 +632,7 @@ pub fn set_two_over_one_force(on: bool) {
     TWO_OVER_ONE_FORCE.with(|cell| cell.set(on));
 }
 
-fn two_over_one_force() -> bool {
+pub(super) fn two_over_one_force() -> bool {
     TWO_OVER_ONE_FORCE.with(Cell::get)
 }
 
@@ -669,7 +668,7 @@ pub fn set_two_over_one_slam_strength(on: bool) {
 /// Partner's shown minimum points, floored by a live 2/1 (see
 /// [`set_two_over_one_slam_strength`])
 fn partner_slam_strength(context: &Context<'_>) -> u8 {
-    let shown = Inferences::read(context).partner().strength.shown_floor();
+    let shown = context.inferences().partner().strength.shown_floor();
     if !TWO_OVER_ONE_SLAM_STRENGTH.with(Cell::get) || !two_over_one_game_force(context) {
         return shown;
     }
@@ -702,7 +701,7 @@ pub fn set_floor_rkcb(enabled: bool) {
 }
 
 /// The floor RKCB is enabled (see [`set_floor_rkcb`])
-fn floor_rkcb_now() -> bool {
+pub(in crate::bidding) fn floor_rkcb_now() -> bool {
     FLOOR_RKCB.with(Cell::get)
 }
 
@@ -1607,7 +1606,7 @@ fn minimum_reraise_blocked() -> Cons<impl Constraint + Clone> {
 /// fit the calls have promised.  Used by the free-bid gate to stop inventing a
 /// new suit once a trump suit is already found.
 fn has_fit(hand: Hand, context: &Context<'_>) -> bool {
-    let inferences = Inferences::read(context);
+    let inferences = context.inferences();
     let partner = inferences.partner();
     Suit::ASC
         .iter()
@@ -1848,7 +1847,7 @@ fn below_slam() -> Cons<impl Constraint + Clone> {
 /// rather than lifting a carve; a live relocation lifts it too
 /// ([`minor_asks_now`]).
 fn keycard_trump(hand: Hand, context: &Context<'_>) -> Option<Suit> {
-    let inferences = Inferences::read(context);
+    let inferences = context.inferences();
     let partner = inferences.partner();
     let candidates: &[Suit] = if minor_asks_now() {
         &Suit::ASC
@@ -2112,7 +2111,7 @@ fn answer_trump(hand: Hand, context: &Context<'_>, ask: usize) -> Option<Suit> {
     keycard_trump(hand, context)
         .filter(|&suit| corroborated(suit))
         .or_else(|| {
-            let inferences = Inferences::read(context);
+            let inferences = context.inferences();
             let total =
                 |suit: Suit| hand[suit].len() + usize::from(inferences.partner().length(suit).min);
             [Suit::Hearts, Suit::Spades]
@@ -2932,8 +2931,7 @@ fn resolve_total(mine: usize, low: usize, high: usize) -> usize {
 /// take, a ten-card fit draws trumps in two rounds without it, and nine is in
 /// between — which is exactly where a sweep, not a constant, belongs.
 fn long_fit_for_queen(hand: Hand, context: &Context<'_>, trump: Suit) -> bool {
-    let shown =
-        hand[trump].len() + usize::from(Inferences::read(context).partner().length(trump).min);
+    let shown = hand[trump].len() + usize::from(context.inferences().partner().length(trump).min);
     shown >= usize::from(QUEEN_FIT)
 }
 
@@ -3136,7 +3134,7 @@ fn queen_settled(hand: Hand, context: &Context<'_>, trump: Suit) -> Option<bool>
 fn queen_moot(hand: Hand, context: &Context<'_>, trump: Suit) -> bool {
     holds_queen(hand, context, trump) || {
         let shown =
-            hand[trump].len() + usize::from(Inferences::read(context).partner().length(trump).min);
+            hand[trump].len() + usize::from(context.inferences().partner().length(trump).min);
         shown >= usize::from(QUEEN_BUFF_FIT)
     }
 }
@@ -3264,8 +3262,7 @@ fn queen_reply(bid: Bid, artificial: bool) -> Cons<impl Constraint + Clone> {
 /// No queen, but something the ladder has no rung for and partner cannot see:
 /// the fit itself at `QUEEN_BUFF_FIT`, or a side-suit void
 fn queen_buff(hand: Hand, context: &Context<'_>, trump: Suit) -> bool {
-    let shown =
-        hand[trump].len() + usize::from(Inferences::read(context).partner().length(trump).min);
+    let shown = hand[trump].len() + usize::from(context.inferences().partner().length(trump).min);
     shown >= usize::from(QUEEN_BUFF_FIT)
         || Suit::ASC
             .into_iter()
@@ -3443,7 +3440,8 @@ fn partner_control_bid(trump: Suit) -> Cons<impl Constraint + Clone> {
         }
         let n = context.auction().len();
         n >= 2
-            && Inferences::read(context)
+            && context
+                .inferences()
                 .control_bid()
                 .is_some_and(|(index, agreed)| usize::from(index) == n - 2 && agreed == trump)
     })
@@ -3466,7 +3464,7 @@ fn partner_control_bid(trump: Suit) -> Cons<impl Constraint + Clone> {
 fn known_eight_card_fit(suit: Suit) -> Cons<impl Constraint + Clone> {
     pred(move |hand: Hand, context: &Context<'_>| {
         let mine = hand[suit].len();
-        let partner = usize::from(Inferences::read(context).partner().length(suit).min);
+        let partner = usize::from(context.inferences().partner().length(suit).min);
         mine + partner >= 8 && !bare_four_four_own_flat(hand, suit, partner)
     })
 }
@@ -3495,7 +3493,7 @@ fn bare_four_four_own_flat(hand: Hand, suit: Suit, partner_min: usize) -> bool {
 /// [`Inferences`]: super::inference::Inferences
 fn combined_points(threshold: u8) -> Cons<impl Constraint + Clone> {
     pred(move |hand: Hand, context: &Context<'_>| {
-        let partner_min = Inferences::read(context).partner().strength.shown_floor();
+        let partner_min = context.inferences().partner().strength.shown_floor();
         u16::from(point_count(hand)) + u16::from(partner_min) >= u16::from(threshold)
     })
 }
@@ -3516,7 +3514,7 @@ fn raw_hcp(hand: Hand) -> u8 {
 /// milestones stay byte-identical until the knob flips.
 fn combined_hcp(threshold: u8) -> Cons<impl Constraint + Clone> {
     pred(move |hand: Hand, context: &Context<'_>| {
-        let inferences = Inferences::read(context);
+        let inferences = context.inferences();
         let partner = inferences.partner();
         let (own, partner_min) = if NT_HCP_READ.with(Cell::get) {
             (
@@ -3543,9 +3541,13 @@ fn slam_entry_reached() -> Cons<impl Constraint + Clone> {
         if BILANS_FLOOR.with(Cell::get) {
             return keycard_trump(hand, context).is_some_and(|trump| {
                 let strain = Strain::from(trump);
-                trick_estimates_with_auction(hand, &Inferences::read(context), context.auction())
-                    .p_at_least(strain, our_declarer(context, strain), 12)
-                    >= SLAM_ENTRY_P
+                bilans_accepts(
+                    hand,
+                    context,
+                    strain,
+                    12,
+                    BilansThreshold::Inclusive(SLAM_ENTRY_P),
+                )
             });
         }
         // Fit-known: the RKCB ask only fires on a shown trump, so count
@@ -3580,7 +3582,7 @@ fn fit_sum_game(suit: Suit, slack: u8) -> Cons<impl Constraint + Clone> {
         // Fit-known (the rule pairs this with `known_eight_card_fit`), so count
         // shortness as support value — side suits only, never the own trump
         // holding; the fit length term is explicit.
-        let inferences = Inferences::read(context);
+        let inferences = context.inferences();
         let partner = inferences.partner();
         // Edit 1: partner's raise valued on the support scale when that gauge is
         // populated (a fit-showing raise fired), else the length-scale floor.
@@ -3658,18 +3660,74 @@ fn our_declarer(context: &Context<'_>, strain: Strain) -> Relative {
         .unwrap_or(Relative::Me)
 }
 
+/// The comparison made by a bilans trick gate
+///
+/// Keep strict and inclusive thresholds distinct: several established rules
+/// intentionally disagree at exactly 0.5, and cache plumbing must not move
+/// that boundary.
+#[derive(Clone, Copy)]
+enum BilansThreshold {
+    Strict(f32),
+    Inclusive(f32),
+    BreakEven,
+}
+
+/// Evaluate one named bilans boundary from the decision-scoped forward pass
+fn bilans_accepts(
+    hand: Hand,
+    context: &Context<'_>,
+    strain: Strain,
+    tricks: u8,
+    threshold: BilansThreshold,
+) -> bool {
+    let probability =
+        context
+            .trick_estimates(hand)
+            .p_at_least(strain, our_declarer(context, strain), tricks);
+    match threshold {
+        BilansThreshold::Strict(value) => probability > value,
+        BilansThreshold::Inclusive(value) => probability >= value,
+        BilansThreshold::BreakEven => {
+            probability
+                >= break_even(
+                    tricks,
+                    strain,
+                    context.vul().contains(RelativeVulnerability::WE),
+                )
+        }
+    }
+}
+
+/// A classification-time bilans constraint with one explicit boundary
+///
+/// The knob test remains ahead of the evaluator so disabled arms retain their
+/// historical short-circuit behavior even though surrounding `And`/`Or`
+/// constraints are eager.
+fn bilans_trick_gate(
+    knob: fn() -> bool,
+    want: bool,
+    strain: Strain,
+    tricks: u8,
+    threshold: BilansThreshold,
+) -> Cons<impl Constraint + Clone> {
+    pred(move |hand: Hand, context: &Context<'_>| {
+        knob() && want == bilans_accepts(hand, context, strain, tricks, threshold)
+    })
+}
+
 /// With [`set_bilans_floor`] on, the net likes `tricks` of ours in `strain` at
 /// better than even money
 ///
 /// Unlike [`points_or_net`] this converts no authored arithmetic — it is a gate
 /// that exists *only* knob-on, for a decision the point sums never priced.
 fn net_makes(strain: Strain, tricks: u8) -> Cons<impl Constraint + Clone> {
-    pred(move |hand: Hand, context: &Context<'_>| {
-        BILANS_FLOOR.with(Cell::get)
-            && trick_estimates_with_auction(hand, &Inferences::read(context), context.auction())
-                .p_at_least(strain, our_declarer(context, strain), tricks)
-                > 0.5
-    })
+    bilans_trick_gate(
+        bilans_enabled,
+        true,
+        strain,
+        tricks,
+        BilansThreshold::Strict(0.5),
+    )
 }
 
 /// A **game** milestone's authored point arithmetic, which the evaluator net may
@@ -3691,9 +3749,8 @@ fn net_makes(strain: Strain, tricks: u8) -> Cons<impl Constraint + Clone> {
 /// Games break even at or *below* even money in IMPs ([`break_even`]), which is
 /// why the collared licence here is to add rather than to decline; the slam
 /// milestones take the mirror shape, [`points_and_net`].
-// ponytail: knob-on recomputes trick_estimates per converted rule (~17 rule
-// evals × ~9k multiply-adds per decision); a OnceCell<TrickEstimates> on
-// Context is the upgrade if profiling ever bites.
+// The decision-scoped Context memoizes the evaluator, so every eager rule in
+// this ladder observes the same one forward pass.
 fn points_or_net(
     authored: Cons<impl Constraint + Clone>,
     collar: Cons<impl Constraint + Clone>,
@@ -3745,21 +3802,7 @@ pub(crate) fn net_break_even_gate(
     strain: Strain,
     tricks: u8,
 ) -> Cons<impl Constraint + Clone> {
-    pred(move |hand: Hand, context: &Context<'_>| {
-        knob()
-            && want
-                == (trick_estimates_with_auction(
-                    hand,
-                    &Inferences::read(context),
-                    context.auction(),
-                )
-                .p_at_least(strain, our_declarer(context, strain), tricks)
-                    >= break_even(
-                        tricks,
-                        strain,
-                        context.vul().contains(RelativeVulnerability::WE),
-                    ))
-    })
+    bilans_trick_gate(knob, want, strain, tricks, BilansThreshold::BreakEven)
 }
 
 /// Partner opened a strong notrump of `level` (we are the responder)
@@ -3821,13 +3864,13 @@ fn penalizing(context: &Context<'_>) -> bool {
 /// Instinct's reading of an auction: the system intent the laws-only [`Context`]
 /// deliberately omits, reconstructed from the immutable auction on demand
 ///
-/// There is no per-classification scratchpad to cache this in, so each flag is
-/// recovered by a short walk of the auction whenever the floor consults it.
-/// Every flag here is *hand-independent* — it follows from the calls alone — so
-/// hand-conditioned forces (a strong-notrump responder who holds game values)
-/// stay as ordinary [`Constraint`]s rather than living here.
-#[derive(Clone, Copy, Debug)]
-struct Interpretation {
+/// Each flag is recovered by a short walk of the auction and memoized by a
+/// classification-scoped [`Context`]. Every flag here is *hand-independent* —
+/// it follows from the calls alone — so hand-conditioned forces (a
+/// strong-notrump responder who holds game values) stay as ordinary
+/// [`Constraint`]s rather than living here.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Interpretation {
     /// Our side is committed to at least game by a prior call: a strong 2♣
     /// whose response cleared the double negative, or an opener forced past
     /// invitation opposite our strong notrump.
@@ -3839,7 +3882,7 @@ struct Interpretation {
 
 impl Interpretation {
     /// Read the auction's intent from its [`Context`]
-    fn read(context: &Context<'_>) -> Self {
+    pub(crate) fn read(context: &Context<'_>) -> Self {
         Self {
             forced_to_game: forcing_two_clubs_response(context)
                 || opener_forced_past_invitation(context)
@@ -3885,7 +3928,7 @@ fn two_over_one_game_force(context: &Context<'_>) -> bool {
 
 /// A prior call has committed our side to game (see [`Interpretation`])
 fn auction_forces_game() -> Cons<impl Constraint + Clone> {
-    pred(|_: Hand, context: &Context<'_>| Interpretation::read(context).forced_to_game)
+    pred(|_: Hand, context: &Context<'_>| context.interpretation().forced_to_game)
 }
 
 /// We are not sitting for a penalty double of our own (see [`Interpretation`])
@@ -3896,7 +3939,7 @@ fn auction_forces_game() -> Cons<impl Constraint + Clone> {
 /// including the [advance][advancing_a_double] of partner's penalty double —
 /// govern.
 fn not_penalizing() -> Cons<impl Constraint + Clone> {
-    pred(|_: Hand, context: &Context<'_>| !Interpretation::read(context).penalizing)
+    pred(|_: Hand, context: &Context<'_>| !context.interpretation().penalizing)
 }
 
 /// The opponents have made nothing but passes (see [`Context::undisturbed`])
@@ -4137,7 +4180,7 @@ const TRANSFERS: [(u8, Bid, Bid); 6] = [
 /// they are judgement the net is trusted with, measured on the harness.
 pub(crate) fn forced(context: &Context<'_>) -> bool {
     advancing_a_double_now(context)
-        || Interpretation::read(context).forced_to_game
+        || context.interpretation().forced_to_game
         || TRANSFERS
             .iter()
             .any(|&(nt_level, from, _)| partner_transferred_now(context, from, nt_level))
@@ -4187,7 +4230,7 @@ pub(crate) fn keycard_conversation_now(context: &Context<'_>) -> bool {
             && !(ask >= 2
                 && matches!(auction[ask - 2], Call::Bid(bid) if bid.strain == Strain::Notrump))
             && (face_trump(auction, ask).is_some() || {
-                let inferences = Inferences::read(context);
+                let inferences = context.inferences();
                 [Suit::Hearts, Suit::Spades].into_iter().any(|major| {
                     inferences
                         .me()
@@ -5294,7 +5337,7 @@ pub fn instinct() -> Rules {
                 floor_rkcb_now()
                     && context.undisturbed()
                     && keycard_trump(hand, context).is_some_and(|trump| {
-                        let inferences = Inferences::read(context);
+                        let inferences = context.inferences();
                         let partner = inferences.partner().length(trump).min;
                         let on_table = inferences.me().length(trump).min + partner;
                         // A fit the fit-sum machinery refuses to play is no
@@ -5494,7 +5537,7 @@ pub fn instinct() -> Rules {
                     pred(move |hand: Hand, context: &Context<'_>| {
                         let auction = context.auction();
                         keycard_trump(hand, context).is_some_and(|trump| {
-                            let inferences = Inferences::read(context);
+                            let inferences = context.inferences();
                             let partner = inferences.partner().length(trump).min;
                             let on_table = inferences.me().length(trump).min + partner;
                             kickback_ladder(auction, auction.len())[target as usize] == Some(trump)
@@ -8121,6 +8164,42 @@ mod tests {
             best(&club_lane, "QJ98.KQJ4.QJ92.4"),
             Call::Pass,
             "the notrump escape is respected short a keycard"
+        );
+    }
+
+    #[test]
+    fn rkcb_historical_prefix_does_not_reuse_the_full_auction_reading() {
+        use crate::bidding::american::american_instinct;
+
+        let auction = [
+            call(1, Strain::Diamonds),
+            Call::Pass,
+            call(1, Strain::Hearts),
+            call(1, Strain::Spades),
+            Call::Pass,
+            call(3, Strain::Spades),
+            call(4, Strain::Diamonds),
+            Call::Pass,
+            call(4, Strain::Notrump),
+            Call::Pass,
+            call(5, Strain::Hearts),
+            Call::Double,
+        ];
+        let hand: Hand = "KQ.9.AQ9875.T764".parse().expect("valid test hand");
+        let stance = american_instinct().against();
+        let uncached_context = stance.prefixed_context(RelativeVulnerability::NONE, &auction);
+        let reference = answer_trump(hand, &uncached_context, 8);
+
+        let cached_context = stance
+            .prefixed_context(RelativeVulnerability::NONE, &auction)
+            .with_decision_cache(hand);
+        let cached = answer_trump(hand, &cached_context, 8);
+        assert_eq!(cached, reference);
+        assert_eq!(cached, Some(Suit::Diamonds));
+        assert_eq!(
+            cached_context.decision_cache_init_counts(),
+            Some((1, 0, 0)),
+            "only the full-auction read belongs to the decision cache"
         );
     }
 

@@ -59,7 +59,9 @@ fn resolve(
     vul: RelativeVulnerability,
     auction: &[Call],
 ) -> Option<Logits> {
-    let context = Context::new(vul, auction).with_prefixes(trie.common_prefixes(auction));
+    let context = Context::new(vul, auction)
+        .with_prefixes(trie.common_prefixes(auction))
+        .with_decision_cache(hand);
     trie.classify_floored(hand, &context, auction)
         .map(|(logits, _)| logits)
 }
@@ -336,6 +338,20 @@ impl Stance {
         }
     }
 
+    /// Enter one cached serving decision after attaching its structural context
+    fn decision_context<'a>(
+        &'a self,
+        hand: Hand,
+        vul: RelativeVulnerability,
+        auction: &'a [Call],
+    ) -> Context<'a> {
+        let trie = self.trie_for(auction);
+        Context::new(vul, auction)
+            .with_prefixes(trie.common_prefixes(auction))
+            .with_their_system(self)
+            .with_decision_cache(hand)
+    }
+
     /// Classify with the resolution [`Provenance`] — where the answer came from
     ///
     /// Same routing and result as the [`System`] implementation, with the
@@ -346,6 +362,24 @@ impl Stance {
     /// it most often are the next nodes worth authoring properly.
     #[must_use]
     pub fn classify_with_provenance(
+        &self,
+        hand: Hand,
+        vul: RelativeVulnerability,
+        auction: &[Call],
+    ) -> Option<(Logits, Provenance)> {
+        let trie = self.trie_for(auction);
+        let context = self.decision_context(hand, vul, auction);
+        trie.classify_floored(hand, &context, auction)
+    }
+
+    /// The pre-decision-cache classification path
+    ///
+    /// Keep this as a same-process semantic reference for cache parity tests:
+    /// it deliberately constructs a fresh, cache-free [`Context`] from the
+    /// causal auction prefix and must not inherit a classification scope.
+    #[must_use]
+    #[allow(dead_code)] // retained as the same-process cache-parity oracle
+    pub(crate) fn classify_with_provenance_uncached(
         &self,
         hand: Hand,
         vul: RelativeVulnerability,
@@ -377,13 +411,23 @@ impl Stance {
         auction: &[Call],
         call: Call,
     ) -> Option<(Provenance, Option<ExplainedRule>)> {
-        let trie = self.trie_for(auction);
-        let context = Context::new(vul, auction)
-            .with_prefixes(trie.common_prefixes(auction))
-            .with_their_system(self);
-        let (classifier, _, provenance) = trie.resolve_floored(hand, &context, auction)?;
+        let context = self.decision_context(hand, vul, auction);
+        self.explain_call_in_context(hand, &context, call)
+    }
+
+    /// Explain through one already-built context, retaining its decision scope
+    fn explain_call_in_context(
+        &self,
+        hand: Hand,
+        context: &Context<'_>,
+        call: Call,
+    ) -> Option<(Provenance, Option<ExplainedRule>)> {
+        let auction = context.auction();
+        let (classifier, _, provenance) = self
+            .trie_for(auction)
+            .resolve_floored(hand, context, auction)?;
         let rule = classifier.as_rules().and_then(|rules| {
-            let &(index, _) = rules.explain(hand, &context).get(call)?;
+            let &(index, _) = rules.explain(hand, context).get(call)?;
             let rule = &rules.rules()[index];
             Some(ExplainedRule {
                 index,
@@ -393,6 +437,27 @@ impl Stance {
             })
         });
         Some((provenance, rule))
+    }
+
+    /// The pre-decision-cache explanation path
+    ///
+    /// Like [`classify_with_provenance_uncached`][Self::classify_with_provenance_uncached],
+    /// this always evaluates under a fresh cache-free context.  It remains a
+    /// crate-private reference after the public path acquires a decision scope.
+    #[must_use]
+    #[allow(dead_code)] // retained as the same-process cache-parity oracle
+    pub(crate) fn explain_call_uncached(
+        &self,
+        hand: Hand,
+        vul: RelativeVulnerability,
+        auction: &[Call],
+        call: Call,
+    ) -> Option<(Provenance, Option<ExplainedRule>)> {
+        let trie = self.trie_for(auction);
+        let context = Context::new(vul, auction)
+            .with_prefixes(trie.common_prefixes(auction))
+            .with_their_system(self);
+        self.explain_call_in_context(hand, &context, call)
     }
 }
 
@@ -682,8 +747,12 @@ impl System for Stance {
 }
 
 #[cfg(test)]
+#[path = "../../benches/support/mod.rs"]
+mod performance_support;
+
+#[cfg(test)]
 mod tests {
-    use super::Phase;
+    use super::{Phase, performance_support};
     use contract_bridge::auction::Call;
     use contract_bridge::{Bid, Strain, Suit};
 
@@ -882,5 +951,559 @@ mod tests {
         assert!(provenance.fallback.is_some());
         let rule = rule.expect("the instinct floor is a Rules ladder");
         assert!(!rule.description.is_empty());
+    }
+
+    /// Explanation re-evaluates the winning Rules ladder after resolution;
+    /// both passes must share the same causal decision cache.
+    #[test]
+    fn explanation_reuses_decision_initializers() {
+        use crate::bidding::american::american_instinct;
+        use contract_bridge::Hand;
+        use contract_bridge::auction::RelativeVulnerability;
+
+        let stance = american_instinct().against();
+        let auction = [bid(1, Strain::Diamonds), ONE_HEART, P, TWO_HEARTS];
+        let hand: Hand = "765.A.AKJT984.63".parse().expect("valid test hand");
+        let context = stance.decision_context(hand, RelativeVulnerability::NONE, &auction);
+        assert_eq!(context.decision_cache_init_counts(), Some((0, 0, 0)));
+
+        let explained = stance
+            .explain_call_in_context(hand, &context, bid(3, Strain::Diamonds))
+            .expect("the scoped public helper explains the floor");
+        assert!(explained.0.fallback.is_some());
+        assert!(explained.1.is_some());
+        let after_explanation = context
+            .decision_cache_init_counts()
+            .expect("decision cache attached");
+        assert_eq!(
+            after_explanation.0, 1,
+            "resolution and explanation share inference"
+        );
+        assert!(after_explanation.0 <= 1);
+        assert!(after_explanation.1 <= 1);
+        assert!(after_explanation.2 <= 1);
+
+        // Re-running the same helper cannot initialize anything again.  This
+        // is the exact helper public `explain_call` invokes after entering its
+        // decision scope, rather than a hand-copied approximation of that path.
+        let repeated = stance
+            .explain_call_in_context(hand, &context, bid(3, Strain::Diamonds))
+            .expect("the scoped public helper explains twice");
+        assert_eq!(repeated.0, explained.0);
+        assert_eq!(
+            context.decision_cache_init_counts(),
+            Some(after_explanation)
+        );
+    }
+
+    /// The fresh-context path is the in-process oracle for the scoped cache.
+    /// Compare float representations rather than `f32` equality so signed
+    /// zeroes, infinities, and any NaN payloads cannot drift unnoticed.
+    #[test]
+    fn public_paths_match_uncached_reference_bit_for_bit() {
+        use crate::bidding::american::american_instinct;
+        use contract_bridge::Hand;
+        use contract_bridge::auction::RelativeVulnerability;
+
+        let stance = american_instinct().against();
+        let assert_classification = |hand: Hand, auction: &[Call]| {
+            let (actual, actual_provenance) = stance
+                .classify_with_provenance(hand, RelativeVulnerability::NONE, auction)
+                .expect("the public path classifies");
+            let (reference, reference_provenance) = stance
+                .classify_with_provenance_uncached(hand, RelativeVulnerability::NONE, auction)
+                .expect("the legacy path classifies");
+
+            assert_eq!(actual_provenance, reference_provenance);
+            for ((call, actual), (reference_call, reference)) in
+                (&actual.0).into_iter().zip(&reference.0)
+            {
+                assert_eq!(call, reference_call);
+                assert_eq!(
+                    actual.to_bits(),
+                    reference.to_bits(),
+                    "logit bits differ for {call:?} at {auction:?}"
+                );
+            }
+        };
+
+        // Exact authored node in the constructive book.
+        let opener: Hand = "AKJ84.K52.Q4.982".parse().expect("valid test hand");
+        assert_classification(opener, &[]);
+
+        // Their opening routes through the defensive book.
+        let overcaller: Hand = "AQJ9.K42.763.542".parse().expect("valid test hand");
+        assert_classification(overcaller, &[ONE_HEART]);
+
+        // Rejected/missing exact continuation falling through to the
+        // deterministic floor in the competitive book.
+        let auction = [bid(1, Strain::Diamonds), ONE_HEART, P, TWO_HEARTS];
+        let one_suiter: Hand = "765.A.AKJT984.63".parse().expect("valid test hand");
+        assert_classification(one_suiter, &auction);
+
+        let assert_explanation = |hand: Hand, auction: &[Call], call: Call| {
+            let (actual_provenance, actual) = stance
+                .explain_call(hand, RelativeVulnerability::NONE, auction, call)
+                .expect("the public path explains");
+            let (reference_provenance, reference) = stance
+                .explain_call_uncached(hand, RelativeVulnerability::NONE, auction, call)
+                .expect("the legacy path explains");
+            assert_eq!(actual_provenance, reference_provenance);
+
+            match (actual, reference) {
+                (Some(actual), Some(reference)) => {
+                    assert_eq!(actual.index, reference.index);
+                    assert_eq!(actual.label, reference.label);
+                    assert_eq!(actual.description, reference.description);
+                    assert_eq!(actual.alert, reference.alert);
+                }
+                (None, None) => {}
+                (actual, reference) => panic!(
+                    "explanation presence differs at {auction:?}: actual={actual:?}, reference={reference:?}"
+                ),
+            }
+        };
+
+        assert_explanation(opener, &[], ONE_SPADE);
+        assert_explanation(one_suiter, &auction, bid(3, Strain::Diamonds));
+    }
+
+    #[test]
+    fn cached_reference_parity_across_reading_and_evaluator_profiles() {
+        use crate::bidding::american::{american_configured, american_instinct};
+        use crate::bidding::inference::ReadingScope;
+        use contract_bridge::Hand;
+        use contract_bridge::auction::RelativeVulnerability;
+
+        struct Profile {
+            scope: ReadingScope,
+            union: bool,
+            exclusion: bool,
+            eval_auction: bool,
+            eval_shape: bool,
+            blind: bool,
+            bilans: bool,
+            collar: bool,
+            configured: bool,
+        }
+
+        let profiles = [
+            Profile {
+                scope: ReadingScope::Alerted,
+                union: true,
+                exclusion: false,
+                eval_auction: true,
+                eval_shape: false,
+                blind: false,
+                bilans: false,
+                collar: false,
+                configured: false,
+            },
+            Profile {
+                scope: ReadingScope::None,
+                union: false,
+                exclusion: false,
+                eval_auction: false,
+                eval_shape: false,
+                blind: false,
+                bilans: false,
+                collar: false,
+                configured: false,
+            },
+            Profile {
+                scope: ReadingScope::All,
+                union: true,
+                exclusion: true,
+                eval_auction: true,
+                eval_shape: true,
+                blind: false,
+                bilans: true,
+                collar: false,
+                configured: false,
+            },
+            Profile {
+                scope: ReadingScope::Alerted,
+                union: true,
+                exclusion: false,
+                eval_auction: true,
+                eval_shape: false,
+                blind: false,
+                bilans: true,
+                collar: true,
+                configured: false,
+            },
+            Profile {
+                scope: ReadingScope::Alerted,
+                union: true,
+                exclusion: false,
+                eval_auction: true,
+                eval_shape: false,
+                blind: false,
+                bilans: false,
+                collar: false,
+                configured: true,
+            },
+            Profile {
+                scope: ReadingScope::Alerted,
+                union: true,
+                exclusion: false,
+                eval_auction: true,
+                eval_shape: true,
+                blind: true,
+                bilans: false,
+                collar: false,
+                configured: true,
+            },
+        ];
+        let vulnerabilities = [
+            RelativeVulnerability::NONE,
+            RelativeVulnerability::WE,
+            RelativeVulnerability::THEY,
+            RelativeVulnerability::ALL,
+        ];
+        let auction = [bid(1, Strain::Diamonds), ONE_HEART, P, TWO_HEARTS];
+        let hand: Hand = "765.A.AKJT984.63".parse().expect("valid test hand");
+
+        for (index, profile) in profiles.into_iter().enumerate() {
+            crate::bidding::set_reading_scope(profile.scope);
+            crate::bidding::set_envelope_union_reading(profile.union);
+            crate::bidding::set_pass_exclusion_reading(profile.exclusion);
+            crate::bidding::evaluator::set_eval_auction(profile.eval_auction);
+            crate::bidding::evaluator::set_eval_shape(profile.eval_shape);
+            crate::bidding::features::set_blind_inference(profile.blind);
+            crate::bidding::instinct::set_bilans_floor(profile.bilans);
+            crate::bidding::instinct::set_net_collar(profile.collar);
+
+            let stance = if profile.configured {
+                american_configured().against()
+            } else {
+                american_instinct().against()
+            };
+            let vul = vulnerabilities[index % vulnerabilities.len()];
+            let cached = stance
+                .classify_with_provenance(hand, vul, &auction)
+                .expect("cached profile classifies");
+            let uncached = stance
+                .classify_with_provenance_uncached(hand, vul, &auction)
+                .expect("reference profile classifies");
+            assert_eq!(cached.1, uncached.1, "profile {index}");
+            for ((call, actual), (reference_call, reference)) in
+                (&cached.0.0).into_iter().zip(&uncached.0.0)
+            {
+                assert_eq!(call, reference_call);
+                assert_eq!(
+                    actual.to_bits(),
+                    reference.to_bits(),
+                    "profile {index}, call {call:?}"
+                );
+            }
+        }
+
+        // Restore this worker thread's shipped defaults for later tests.
+        crate::bidding::set_reading_scope(ReadingScope::Alerted);
+        crate::bidding::set_envelope_union_reading(true);
+        crate::bidding::set_pass_exclusion_reading(false);
+        crate::bidding::evaluator::set_eval_auction(true);
+        crate::bidding::evaluator::set_eval_shape(false);
+        crate::bidding::features::set_blind_inference(false);
+        crate::bidding::instinct::set_bilans_floor(true);
+        crate::bidding::instinct::set_net_collar(false);
+    }
+
+    /// Component-by-component release parity over the frozen stage-1 corpus.
+    ///
+    /// Unlike the live-deal sweep below, this names every cached intermediate:
+    /// full inference unions (including announced-box order), every evaluator
+    /// feature generation, the forward-pass result, interpretation, routing,
+    /// legal selection, and explanation attribution.
+    #[test]
+    #[ignore = "release component parity over 512 frozen positions"]
+    fn cached_and_uncached_match_frozen_performance_corpus() {
+        use super::ExplainedRule;
+        use crate::bidding::american::american;
+        use crate::bidding::array::Logits;
+        use crate::bidding::evaluator::trick_estimates_with_auction;
+        use crate::bidding::features::{features_eval, features_eval_v3, features_eval_v4};
+        use crate::bidding::inference::{Inferences, ReadingScope};
+        use crate::bidding::instinct::Interpretation;
+        use crate::bidding::trie::Provenance;
+        use contract_bridge::auction::Auction;
+
+        fn set_shipped_profile() {
+            crate::bidding::set_reading_scope(ReadingScope::Alerted);
+            crate::bidding::set_envelope_union_reading(true);
+            crate::bidding::set_pass_exclusion_reading(false);
+            crate::bidding::evaluator::set_eval_auction(true);
+            crate::bidding::evaluator::set_eval_shape(false);
+            crate::bidding::features::set_blind_inference(false);
+            crate::bidding::instinct::set_bilans_floor(true);
+            crate::bidding::instinct::set_net_collar(false);
+        }
+
+        fn assert_float_bits(actual: &[f32], reference: &[f32], component: &str, position: u16) {
+            assert_eq!(
+                actual.len(),
+                reference.len(),
+                "{component} width at position {position}"
+            );
+            for (index, (&actual, &reference)) in actual.iter().zip(reference).enumerate() {
+                assert_eq!(
+                    actual.to_bits(),
+                    reference.to_bits(),
+                    "{component}[{index}] bits at position {position}"
+                );
+            }
+        }
+
+        fn assert_logits_bits(
+            actual: &Logits,
+            reference: &Logits,
+            auction: &[Call],
+            position: u16,
+        ) {
+            for ((call, actual), (reference_call, reference)) in
+                (&actual.0).into_iter().zip(&reference.0)
+            {
+                assert_eq!(call, reference_call);
+                assert_eq!(
+                    actual.to_bits(),
+                    reference.to_bits(),
+                    "logit bits for {call:?} at position {position}, {auction:?}"
+                );
+            }
+        }
+
+        fn legal_call(logits: &Logits, auction: &[Call]) -> Call {
+            let mut played = Auction::new();
+            played
+                .try_extend(auction.iter().copied())
+                .expect("the frozen corpus contains legal prefixes");
+            let mut scored: Vec<(Call, f32)> = logits
+                .iter()
+                .map(|(call, &logit)| (call, logit))
+                .filter(|&(_, logit)| logit.is_finite())
+                .collect();
+            scored.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("logits are never NaN"));
+            scored
+                .into_iter()
+                .map(|(call, _)| call)
+                .find(|&call| played.can_push(call).is_ok())
+                .unwrap_or(Call::Pass)
+        }
+
+        fn assert_explanation_identity(
+            actual: Option<(Provenance, Option<ExplainedRule>)>,
+            reference: Option<(Provenance, Option<ExplainedRule>)>,
+            position: u16,
+        ) {
+            match (actual, reference) {
+                (
+                    Some((actual_provenance, actual_rule)),
+                    Some((reference_provenance, reference_rule)),
+                ) => {
+                    assert_eq!(
+                        actual_provenance, reference_provenance,
+                        "explanation provenance at position {position}"
+                    );
+                    match (actual_rule, reference_rule) {
+                        (Some(actual), Some(reference)) => {
+                            assert_eq!(actual.index, reference.index, "position {position}");
+                            assert_eq!(actual.label, reference.label, "position {position}");
+                            assert_eq!(
+                                actual.description, reference.description,
+                                "position {position}"
+                            );
+                            assert_eq!(actual.alert, reference.alert, "position {position}");
+                        }
+                        (None, None) => {}
+                        (actual, reference) => panic!(
+                            "explanation presence differs at position {position}: actual={actual:?}, reference={reference:?}"
+                        ),
+                    }
+                }
+                (None, None) => {}
+                (actual, reference) => panic!(
+                    "explanation resolution differs at position {position}: actual={actual:?}, reference={reference:?}"
+                ),
+            }
+        }
+
+        set_shipped_profile();
+        let positions = performance_support::parse_corpus().expect("valid frozen corpus");
+        assert_eq!(positions.len(), performance_support::POSITION_COUNT);
+        let stance = american().against();
+
+        for position in positions {
+            let id = position.id;
+            let hand = position.hand;
+            let auction = position.auction.as_slice();
+            let cached_context = stance.decision_context(hand, position.vul, auction);
+            let uncached_context = stance.prefixed_context(position.vul, auction);
+
+            let cached_inferences = cached_context.inferences();
+            let uncached_inferences = Inferences::read(&uncached_context);
+            assert_eq!(
+                *cached_inferences, uncached_inferences,
+                "full inference payload and box order at position {id}"
+            );
+
+            for (name, cached, uncached) in [
+                (
+                    "evaluator-v2-features",
+                    features_eval(hand, &cached_inferences),
+                    features_eval(hand, &uncached_inferences),
+                ),
+                (
+                    "evaluator-v3-features",
+                    features_eval_v3(hand, &cached_inferences, auction),
+                    features_eval_v3(hand, &uncached_inferences, auction),
+                ),
+                (
+                    "evaluator-v4-features",
+                    features_eval_v4(hand, &cached_inferences, auction),
+                    features_eval_v4(hand, &uncached_inferences, auction),
+                ),
+            ] {
+                assert_float_bits(&cached, &uncached, name, id);
+            }
+
+            let cached_tricks = cached_context.trick_estimates(hand);
+            let uncached_tricks = trick_estimates_with_auction(hand, &uncached_inferences, auction);
+            assert_eq!(
+                cached_tricks.bit_pattern(),
+                uncached_tricks.bit_pattern(),
+                "trick-estimate bits at position {id}"
+            );
+
+            assert_eq!(
+                cached_context.interpretation(),
+                Interpretation::read(&uncached_context),
+                "auction interpretation at position {id}"
+            );
+
+            let cached = stance
+                .trie_for(auction)
+                .classify_floored(hand, &cached_context, auction)
+                .expect("the cached default stance is total");
+            let uncached = stance
+                .classify_with_provenance_uncached(hand, position.vul, auction)
+                .expect("the uncached default stance is total");
+            assert_eq!(cached.1, uncached.1, "provenance at position {id}");
+            assert_logits_bits(&cached.0, &uncached.0, auction, id);
+
+            let cached_call = legal_call(&cached.0, auction);
+            let uncached_call = legal_call(&uncached.0, auction);
+            assert_eq!(cached_call, uncached_call, "legal call at position {id}");
+            assert_explanation_identity(
+                stance.explain_call_in_context(hand, &cached_context, cached_call),
+                stance.explain_call_uncached(hand, position.vul, auction, uncached_call),
+                id,
+            );
+
+            let counts = cached_context
+                .decision_cache_init_counts()
+                .expect("the cached corpus path has a decision scope");
+            assert!(
+                counts.0 <= 1,
+                "inference initialized {counts:?} at position {id}"
+            );
+            assert!(
+                counts.1 <= 1,
+                "evaluator initialized {counts:?} at position {id}"
+            );
+            assert!(
+                counts.2 <= 1,
+                "interpretation initialized {counts:?} at position {id}"
+            );
+        }
+
+        // This ignored test is often selected beside other release checks on a
+        // reused harness worker; leave every setting it pins at the shipped value.
+        set_shipped_profile();
+    }
+
+    /// Same-process release sweep of the causal cached path against its
+    /// pre-cache oracle. Uses the identical deal/dealer/vulnerability schedule
+    /// as `examples/smoke-default` and checks every live decision before either
+    /// call is allowed to advance the auction.
+    #[test]
+    #[ignore = "release parity sweep over 20,000 complete deals"]
+    fn cached_and_uncached_match_over_twenty_thousand_deals() {
+        use crate::bidding::american::american;
+        use crate::bidding::array::Logits;
+        use crate::bidding::context::relative;
+        use contract_bridge::auction::Auction;
+        use contract_bridge::deck::full_deal;
+        use contract_bridge::{AbsoluteVulnerability, Seat};
+        use rand::SeedableRng as _;
+
+        fn legal_call(logits: &Logits, auction: &Auction) -> Call {
+            let mut scored: Vec<(Call, f32)> = logits
+                .iter()
+                .map(|(call, &logit)| (call, logit))
+                .filter(|&(_, logit)| logit.is_finite())
+                .collect();
+            scored.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("logits are never NaN"));
+            scored
+                .into_iter()
+                .map(|(call, _)| call)
+                .find(|&call| auction.can_push(call).is_ok())
+                .unwrap_or(Call::Pass)
+        }
+
+        let stance = american().against();
+        let vulnerabilities = [
+            AbsoluteVulnerability::NONE,
+            AbsoluteVulnerability::NS,
+            AbsoluteVulnerability::EW,
+            AbsoluteVulnerability::ALL,
+        ];
+        let mut decisions = 0usize;
+
+        for board in 0..20_000usize {
+            let deal = full_deal(&mut rand::rngs::StdRng::seed_from_u64(
+                1u64.wrapping_add(board as u64),
+            ));
+            let dealer = Seat::ALL[board % 4];
+            let table_vul = vulnerabilities[(board / 4) % 4];
+            let mut auction = Auction::new();
+
+            while !auction.has_ended() {
+                let seat = Seat::ALL[(dealer as usize + auction.len()) % 4];
+                let vul = relative(table_vul, seat);
+                let cached = stance
+                    .classify_with_provenance(deal[seat], vul, &auction)
+                    .expect("the default stance is total");
+                let uncached = stance
+                    .classify_with_provenance_uncached(deal[seat], vul, &auction)
+                    .expect("the reference stance is total");
+
+                assert_eq!(cached.1, uncached.1, "provenance on board {board}");
+                for ((call, actual), (reference_call, reference)) in
+                    (&cached.0.0).into_iter().zip(&uncached.0.0)
+                {
+                    assert_eq!(call, reference_call);
+                    assert_eq!(
+                        actual.to_bits(),
+                        reference.to_bits(),
+                        "logit bits for {call:?} on board {board} at {auction:?}"
+                    );
+                }
+
+                let cached_call = legal_call(&cached.0, &auction);
+                let uncached_call = legal_call(&uncached.0, &auction);
+                assert_eq!(
+                    cached_call, uncached_call,
+                    "legal selection on board {board} at {auction:?}"
+                );
+                auction.push(cached_call);
+                decisions += 1;
+            }
+        }
+
+        assert!(
+            decisions >= 80_000,
+            "unexpectedly shallow corpus: {decisions}"
+        );
     }
 }

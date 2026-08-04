@@ -630,8 +630,8 @@ impl FusedIterator for CommonPrefixes<'_, '_> {}
 mod tests {
     use super::*;
     use crate::bidding::Rules;
-    use crate::bidding::constraint::hcp;
-    use crate::bidding::fallback::Always;
+    use crate::bidding::constraint::{hcp, partner_shown_points};
+    use crate::bidding::fallback::{Always, FirstIs, ReplaceNext};
     use contract_bridge::auction::RelativeVulnerability;
     use contract_bridge::{Bid, Strain};
 
@@ -642,22 +642,26 @@ mod tests {
     #[test]
     fn partial_node_falls_through_to_the_floor() {
         let auction = [Call::Bid(Bid::new(1, Strain::Clubs))];
-        let weak_only = Rules::new().rule(Call::Pass, 0.0, hcp(..6));
+        let weak_only = Rules::new().rule(Call::Pass, 0.0, hcp(..6) & partner_shown_points(0..));
         // A total floor: `hcp(0..)` accepts every hand, so Pass is always finite.
-        let floor = Rules::new().rule(Call::Pass, 0.0, hcp(0..));
+        let floor = Rules::new().rule(Call::Pass, 0.0, hcp(0..) & partner_shown_points(0..));
 
         let mut trie = Trie::new();
         trie.insert(&auction, weak_only);
         trie.fallback_at(&[], Always, Fallback::classify(floor));
 
         let strong: Hand = "AKQ2.KQ5.AQJ4.92".parse().expect("valid test hand");
-        let context = Context::new(RelativeVulnerability::NONE, &auction);
+        let uncached = Context::new(RelativeVulnerability::NONE, &auction);
 
         // The exact node alone rejects this 21-count: all-`-∞`, no mass.
-        let (exact, _) = trie.resolve(&context, &auction).expect("exact node");
-        assert!(!exact.classify(strong, &context).has_mass());
+        let (exact, _) = trie.resolve(&uncached, &auction).expect("exact node");
+        assert!(!exact.classify(strong, &uncached).has_mass());
 
-        // `classify_floored` falls through to the total floor instead.
+        // `classify_floored` falls through to the total floor instead. Both
+        // ladders consult the full-auction reading, but the decision scope
+        // initializes it only once across exact rejection and fallback.
+        let context =
+            Context::new(RelativeVulnerability::NONE, &auction).with_decision_cache(strong);
         let (logits, provenance) = trie
             .classify_floored(strong, &context, &auction)
             .expect("the floor answers");
@@ -667,6 +671,7 @@ mod tests {
             provenance.fallback.is_some(),
             "via a fallback, not the book"
         );
+        assert_eq!(context.decision_cache_init_counts(), Some((1, 0, 0)));
     }
 
     /// A node that *does* cover the hand keeps its own answer — fall-through
@@ -690,6 +695,34 @@ mod tests {
             provenance.fallback, None,
             "the exact node wins, not the floor"
         );
+    }
+
+    #[test]
+    fn rebase_guard_and_rewritten_classifier_share_the_decision_cache() {
+        let one_nt = Call::Bid(Bid::new(1, Strain::Notrump));
+        let two_hearts = Call::Bid(Bid::new(2, Strain::Hearts));
+        let rewritten = [one_nt, Call::Pass, two_hearts];
+        let auction = [one_nt, Call::Double, two_hearts];
+        let rules = Rules::new().rule(Call::Pass, 0.0, hcp(0..) & partner_shown_points(0..));
+
+        let mut trie = Trie::new();
+        trie.insert(&rewritten, rules);
+        trie.fallback_at(
+            &[one_nt],
+            |context: &Context<'_>, suffix: &[Call]| {
+                let _ = context.inferences();
+                FirstIs(Call::Double).admits(context, suffix)
+            },
+            Fallback::rebase(ReplaceNext(Call::Pass)),
+        );
+
+        let hand: Hand = "AKQ2.KQ5.AQJ4.92".parse().expect("valid test hand");
+        let context = Context::new(RelativeVulnerability::NONE, &auction).with_decision_cache(hand);
+        let (_, provenance) = trie
+            .classify_floored(hand, &context, &auction)
+            .expect("the rewritten node answers");
+        assert_eq!(provenance.rebases, 1);
+        assert_eq!(context.decision_cache_init_counts(), Some((1, 0, 0)));
     }
 
     /// [`Trie::fallbacks`] yields every entry, in declaration order within a

@@ -189,14 +189,12 @@ fn keycards(
 fn has_trump_queen(
     trump: Suit,
 ) -> crate::bidding::constraint::Cons<impl crate::bidding::constraint::Constraint + Clone> {
-    use crate::bidding::inference::Inferences;
     let long_fit_counts = usize::from(queen_fit());
     described(
         format!("holds the {trump} queen"),
         move |hand: Hand, context: &crate::bidding::context::Context<'_>| {
             hand[trump].contains(Rank::Q)
-                || hand[trump].len()
-                    + usize::from(Inferences::read(context).partner().length(trump).min)
+                || hand[trump].len() + usize::from(context.inferences().partner().length(trump).min)
                     >= long_fit_counts
         },
     )
@@ -212,14 +210,12 @@ fn has_trump_queen(
 fn queen_moot(
     trump: Suit,
 ) -> crate::bidding::constraint::Cons<impl crate::bidding::constraint::Constraint + Clone> {
-    use crate::bidding::inference::Inferences;
     let threshold = usize::from(crate::bidding::instinct::queen_buff_fit());
     described(
         format!("the {trump} queen cannot change the call"),
         move |hand: Hand, context: &crate::bidding::context::Context<'_>| {
             hand[trump].contains(Rank::Q)
-                || hand[trump].len()
-                    + usize::from(Inferences::read(context).partner().length(trump).min)
+                || hand[trump].len() + usize::from(context.inferences().partner().length(trump).min)
                     >= threshold
         },
     )
@@ -234,12 +230,11 @@ fn queen_moot(
 fn trump_buff(
     trump: Suit,
 ) -> crate::bidding::constraint::Cons<impl crate::bidding::constraint::Constraint + Clone> {
-    use crate::bidding::inference::Inferences;
     let threshold = usize::from(crate::bidding::instinct::queen_buff_fit());
     described(
         format!("a ninth {trump} or a void"),
         move |hand: Hand, context: &crate::bidding::context::Context<'_>| {
-            hand[trump].len() + usize::from(Inferences::read(context).partner().length(trump).min)
+            hand[trump].len() + usize::from(context.inferences().partner().length(trump).min)
                 >= threshold
                 || Suit::ASC
                     .into_iter()

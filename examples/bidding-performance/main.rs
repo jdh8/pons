@@ -55,7 +55,7 @@ struct Args {
     #[arg(long)]
     skip_allocations: bool,
     /// Omit cached-vs-legacy stage-2 acceptance workloads (used by perf engine runs).
-    #[arg(long, default_value_t = true)]
+    #[arg(long)]
     skip_cache_acceptance: bool,
     /// Return success despite CV >2%; diagnostic only, never an acceptance run.
     #[arg(long)]

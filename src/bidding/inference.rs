@@ -696,6 +696,103 @@ pub fn rule_accept_enabled() -> bool {
     RULE_ACCEPT.with(Cell::get)
 }
 
+/// Thread-local settings that can change a full-auction reading
+///
+/// Kept as a value rather than a hash so cache validation cannot collide.  It
+/// is captured once when a decision scope is entered and compared only by
+/// debug assertions on the cached path.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) struct ReadingProfile {
+    nt_invite: bool,
+    rubens_transfer: bool,
+    scope: ReadingScope,
+    fallback_projection: bool,
+    envelope_union: bool,
+    blind_opponents: bool,
+    gauge_membership: bool,
+    sum_closure: bool,
+    upgrade_closure: bool,
+    control_bid: bool,
+    cue: bool,
+    length_soundness: bool,
+    pass: bool,
+    pass_exclusion: bool,
+    probed: bool,
+    probed_vacuous: bool,
+    announced: bool,
+    table_alerts: bool,
+    rule_accept: bool,
+    point_scale: super::constraint::PointScale,
+    rubens_advances: bool,
+    penalty_latch: bool,
+    nt_overcall_systems_on: bool,
+    nt_overcall_gladiator: bool,
+    nt_splinter: bool,
+    opener_extras_ladder: bool,
+    xyz: bool,
+    notrump_minors: super::rules::Alert,
+    opener_major_jump_rebid: bool,
+    garbage_stayman: bool,
+    crawling_stayman: bool,
+    woolsey_points: (u8, u8),
+    woolsey_double_floor: u8,
+    natural_double_floor: u8,
+    longer_major_response: bool,
+    landy_range: Option<(u8, u8)>,
+    notrump_defense: super::american::NotrumpDefense,
+    natural_overcall_points: (u8, u8),
+    two_notrump_wide: bool,
+    floor_rkcb: bool,
+    rkcb_variant: super::instinct::RkcbVariant,
+}
+
+/// Snapshot the reading settings active on this thread
+pub(crate) fn reading_profile() -> ReadingProfile {
+    ReadingProfile {
+        nt_invite: nt_invite_inference(),
+        rubens_transfer: rubens_transfer_reading(),
+        scope: reading_scope(),
+        fallback_projection: fallback_projection_enabled(),
+        envelope_union: envelope_union_reading(),
+        blind_opponents: blind_opponent_reading(),
+        gauge_membership: gauge_membership(),
+        sum_closure: sum_closure(),
+        upgrade_closure: upgrade_closure(),
+        control_bid: control_bid_reading(),
+        cue: cue_reading(),
+        length_soundness: length_soundness(),
+        pass: pass_reading(),
+        pass_exclusion: pass_exclusion_reading(),
+        probed: probed_reading(),
+        probed_vacuous: probed_vacuous_reading(),
+        announced: announced_reading(),
+        table_alerts: table_alert_reading(),
+        rule_accept: rule_accept_enabled(),
+        point_scale: super::constraint::point_scale(),
+        rubens_advances: super::instinct::rubens_advances_enabled(),
+        penalty_latch: super::instinct::penalty_latch_enabled(),
+        nt_overcall_systems_on: super::american::nt_overcall_systems_on(),
+        nt_overcall_gladiator: super::american::nt_overcall_gladiator(),
+        nt_splinter: super::american::nt_splinter(),
+        opener_extras_ladder: super::american::opener_extras_ladder(),
+        xyz: super::american::xyz(),
+        notrump_minors: super::american::notrump_minors(),
+        opener_major_jump_rebid: super::american::opener_major_jump_rebid(),
+        garbage_stayman: super::american::garbage_stayman(),
+        crawling_stayman: super::american::crawling_stayman(),
+        woolsey_points: super::american::woolsey_points(),
+        woolsey_double_floor: super::american::woolsey_double_floor(),
+        natural_double_floor: super::american::natural_double_floor(),
+        longer_major_response: super::american::longer_major_response(),
+        landy_range: super::american::landy_range(),
+        notrump_defense: super::american::notrump_defense(),
+        natural_overcall_points: super::american::natural_overcall_points(),
+        two_notrump_wide: super::american::two_notrump_wide(),
+        floor_rkcb: super::instinct::floor_rkcb_now(),
+        rkcb_variant: super::instinct::rkcb_variant_now(),
+    }
+}
+
 /// An inclusive `[min, max]` range of a shown quantity — a length or points
 ///
 /// A plain `Copy` pair rather than [`core::ops::RangeInclusive`], so it can be
@@ -1491,7 +1588,7 @@ fn systems_on_overcall_strip(auction: &[Call]) -> Option<Vec<Call>> {
 ///
 /// `Vec`-backed [`EnvelopeUnion`] means this is `Clone`, not `Copy` (two convertible call
 /// sites: `narrowed_points`, `single_dummy`).
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Inferences {
     /// Per-seat bounding-box hull of `unions` — the single-[`Envelope`] reading the
@@ -5383,6 +5480,28 @@ mod tests {
         ];
         let inf = read(&auction);
         assert_eq!(inf.partner().length(Suit::Diamonds), Range::FULL_LENGTH);
+    }
+
+    #[test]
+    fn systems_on_stripped_read_is_separate_from_the_full_decision_cache() {
+        let auction = [
+            bid(1, Strain::Diamonds),
+            bid(1, Strain::Notrump),
+            Call::Pass,
+            bid(2, Strain::Diamonds),
+            Call::Pass,
+        ];
+        let hand: Hand = "AQ32.K53.QJ4.A92".parse().expect("valid test hand");
+        let stance = crate::american().against();
+        let uncached = stance.infer(RelativeVulnerability::NONE, &auction);
+        let context = stance
+            .prefixed_context(RelativeVulnerability::NONE, &auction)
+            .with_decision_cache(hand);
+        let cached = context.inferences();
+
+        assert_eq!(*cached, uncached);
+        assert_eq!(context.decision_cache_init_counts(), Some((1, 0, 0)));
+        assert_eq!(cached.partner().length(Suit::Diamonds), Range::FULL_LENGTH);
     }
 
     #[test]

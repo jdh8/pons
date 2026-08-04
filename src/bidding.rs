@@ -185,7 +185,9 @@ impl System for Trie {
         vul: RelativeVulnerability,
         auction: &[Call],
     ) -> Option<array::Logits> {
-        let context = Context::new(vul, auction).with_prefixes(self.common_prefixes(auction));
+        let context = Context::new(vul, auction)
+            .with_prefixes(self.common_prefixes(auction))
+            .with_decision_cache(hand);
         self.classify_floored(hand, &context, auction)
             .map(|(logits, _)| logits)
     }

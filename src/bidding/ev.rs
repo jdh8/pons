@@ -32,7 +32,7 @@
 
 use super::System;
 use super::context::Context;
-use super::inference::{Inferences, rule_accept_enabled};
+use super::inference::rule_accept_enabled;
 use super::sampler::{sample_layouts, sample_layouts_replay};
 use super::table::Table;
 use crate::scoring::{final_contract, ns_score_bid};
@@ -51,7 +51,8 @@ use rand::Rng;
 ///   [`sample_layouts`] — [`Context`] carries neither).
 /// - `vul` is the absolute table vulnerability, used to score and to drive the
 ///   continuation policy (which converts it per seat itself).
-/// - `context` carries the prior auction; its [`Inferences`] are read here to
+/// - `context` carries the prior auction; its
+///   [`Inferences`][super::inference::Inferences] are read here to
 ///   sample the layouts the rollout continues.
 /// - `policy` bids every seat during the rollout (the self-play assumption).
 ///
@@ -80,7 +81,7 @@ pub fn ev_all(
         return Vec::new();
     }
 
-    let inferences = Inferences::read(context);
+    let inferences = context.inferences();
     let deals = if rule_accept_enabled() {
         // Read each authored prior bid by replaying the rule that authored it
         // (frozen at its node); unauthored nodes fall back to the range reading.

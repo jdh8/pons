@@ -274,6 +274,13 @@ fn standard_normal_cdf(z: f32) -> f32 {
 pub struct TrickEstimates([[Gaussian; 4]; STRAIN_ROWS]);
 
 impl TrickEstimates {
+    /// Exact floating-point representation for cache-parity tests
+    #[cfg(test)]
+    pub(crate) fn bit_pattern(&self) -> [[[u32; 2]; 4]; STRAIN_ROWS] {
+        self.0
+            .map(|row| row.map(|estimate| [estimate.mean.to_bits(), estimate.sd.to_bits()]))
+    }
+
     /// The estimate for one contract's strain and declarer, the declarer named
     /// relative to the player whose hand was evaluated.
     #[must_use]

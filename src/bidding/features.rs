@@ -136,17 +136,18 @@ pub fn set_blind_inference(on: bool) {
     BLIND_INFERENCE.with(|cell| cell.set(on));
 }
 
+/// Whether evaluator feature extraction is blind to auction inferences
+pub(crate) fn blind_inference() -> bool {
+    BLIND_INFERENCE.with(std::cell::Cell::get)
+}
+
 /// The reading the nets are fed: the seat's agreement, or nothing under
 /// [`set_blind_inference`].
 fn shown(player: &Envelope) -> &Envelope {
     // ponytail: one shared `unknown` rather than a per-call temporary — the
     // envelope is immutable and `Envelope::unknown` is `const`.
     const NOTHING: Envelope = Envelope::unknown();
-    if BLIND_INFERENCE.with(std::cell::Cell::get) {
-        &NOTHING
-    } else {
-        player
-    }
+    if blind_inference() { &NOTHING } else { player }
 }
 
 /// Push one player's shown ranges ([`LEN_INFERENCE`] values): per suit
@@ -744,7 +745,7 @@ fn push_context(out: &mut Vec<f32>, context: &Context<'_>) {
     out.push(f32::from(context.we_opened()));
 
     // ── Inferences (40 values) ──────────────────────────────────────────────
-    let inf = Inferences::read(context);
+    let inf = context.inferences();
 
     for who in [
         Relative::Me,

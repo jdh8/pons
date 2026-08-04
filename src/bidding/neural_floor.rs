@@ -184,6 +184,37 @@ mod tests {
         assert_ne!(off, on, "the kickback row must reach the feature vector");
     }
 
+    /// Attaching the configured floor's card clones Context, but must retain
+    /// the decision scope shared by the surrounding trie resolution.
+    #[test]
+    fn configured_floor_clone_reuses_the_decision_cache() {
+        let auction = [call(1, Strain::Spades), Call::Pass];
+        let hand: Hand = "AQ32.K53.QJ4.A92".parse().expect("valid test hand");
+        let floor =
+            ConfiguredFloorBba::new(Config::symmetric(&crate::bidding::card::american_card()));
+        let context = Context::new(RelativeVulnerability::NONE, &auction).with_decision_cache(hand);
+
+        let first = floor.classify(hand, &context);
+        let after_first = context
+            .decision_cache_init_counts()
+            .expect("decision cache attached");
+        let second = floor.classify(hand, &context);
+        assert_eq!(
+            (&first.0)
+                .into_iter()
+                .map(|(_, x)| x.to_bits())
+                .collect::<Vec<_>>(),
+            (&second.0)
+                .into_iter()
+                .map(|(_, x)| x.to_bits())
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(context.decision_cache_init_counts(), Some(after_first));
+        assert_eq!(after_first.0, 1, "configured features read inference once");
+        assert!(after_first.1 <= 1);
+        assert!(after_first.2 <= 1);
+    }
+
     /// The shelled net's highest-logit call
     fn best(auction: &[Call], hand: &str) -> Call {
         let logits = shelled(auction, hand);

@@ -30,7 +30,7 @@
 //! ```
 
 use super::context::Context;
-use super::inference::{Envelope, EnvelopeUnion, Inferences, Range, envelope_union_reading};
+use super::inference::{Envelope, EnvelopeUnion, Range, envelope_union_reading};
 use contract_bridge::auction::Call;
 use contract_bridge::eval::{self, HandEvaluator, SimpleEvaluator};
 use contract_bridge::{Hand, Holding, Level, Rank, Strain, Suit};
@@ -916,6 +916,11 @@ std::thread_local! {
 #[doc(hidden)]
 pub fn set_point_scale(scale: PointScale) {
     POINT_SCALE.with(|cell| cell.set(scale));
+}
+
+/// The point scale active on the current classification thread
+pub(crate) fn point_scale() -> PointScale {
+    POINT_SCALE.with(Cell::get)
 }
 
 /// Enable or disable [`fifths`] alone
@@ -2225,7 +2230,7 @@ struct PartnerShownLen<R> {
 
 impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for PartnerShownLen<R> {
     fn eval(&self, _: Hand, context: &Context<'_>) -> f32 {
-        let shown = Inferences::read(context).partner().length(self.suit);
+        let shown = context.inferences().partner().length(self.suit);
         crisp(self.range.contains(&shown.min))
     }
 
@@ -2257,7 +2262,7 @@ struct PartnerShownPoints<R>(R);
 
 impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for PartnerShownPoints<R> {
     fn eval(&self, _: Hand, context: &Context<'_>) -> f32 {
-        let shown = Inferences::read(context).partner().strength.points;
+        let shown = context.inferences().partner().strength.points;
         crisp(self.0.contains(&shown.min))
     }
 

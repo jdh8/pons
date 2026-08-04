@@ -10,10 +10,20 @@
 //! not live here — it belongs to classifiers, which know their system.
 
 use super::book::Stance;
+use super::evaluator::{TrickEstimates, trick_estimates_with_auction};
 use super::features::Config;
+use super::inference::{Inferences, ReadingProfile, reading_profile};
+use super::instinct::Interpretation;
 use super::trie::CommonPrefixes;
 use contract_bridge::auction::{AbsoluteVulnerability, Call, RelativeVulnerability};
-use contract_bridge::{Bid, Level, Penalty, Seat, Strain, Suit};
+use contract_bridge::{Bid, Hand, Level, Penalty, Seat, Strain, Suit};
+use core::fmt;
+use std::borrow::Cow;
+use std::sync::{Arc, OnceLock};
+use std::thread::{self, ThreadId};
+
+#[cfg(test)]
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 /// Convert absolute vulnerability to the perspective of a seat
 ///
@@ -52,7 +62,7 @@ pub(crate) fn flipped(vul: RelativeVulnerability) -> RelativeVulnerability {
 /// A context is computed once per classification from the raw table auction
 /// (all four players' calls).  "We" always refers to the partnership of the
 /// player about to call, and the vulnerability is relative to that side.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct Context<'a> {
     vul: RelativeVulnerability,
     auction: &'a [Call],
@@ -68,6 +78,114 @@ pub struct Context<'a> {
     prefixes: Option<CommonPrefixes<'a, 'a>>,
     their_system: Option<&'a Stance>,
     config: Option<&'a Config>,
+    revision: u64,
+    decision_cache: Option<Arc<DecisionCache>>,
+}
+
+/// The thread-local inputs whose values must stay fixed during one decision
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct DecisionProfile {
+    reading: ReadingProfile,
+    eval_auction: bool,
+    eval_shape: bool,
+    blind_inference: bool,
+    two_over_one_force: bool,
+}
+
+impl DecisionProfile {
+    fn current() -> Self {
+        Self {
+            reading: reading_profile(),
+            eval_auction: super::evaluator::eval_auction(),
+            eval_shape: super::evaluator::eval_shape(),
+            blind_inference: super::features::blind_inference(),
+            two_over_one_force: super::instinct::two_over_one_force(),
+        }
+    }
+}
+
+/// Values shared by every classifier consulted for one immutable decision
+struct DecisionCache {
+    hand: Hand,
+    revision: u64,
+    thread: ThreadId,
+    profile: DecisionProfile,
+    inferences: OnceLock<Inferences>,
+    trick_estimates: OnceLock<TrickEstimates>,
+    interpretation: OnceLock<Interpretation>,
+    #[cfg(test)]
+    inference_inits: AtomicUsize,
+    #[cfg(test)]
+    trick_estimate_inits: AtomicUsize,
+    #[cfg(test)]
+    interpretation_inits: AtomicUsize,
+}
+
+impl DecisionCache {
+    fn new(hand: Hand, revision: u64, thread: ThreadId, profile: DecisionProfile) -> Self {
+        Self {
+            hand,
+            revision,
+            thread,
+            profile,
+            inferences: OnceLock::new(),
+            trick_estimates: OnceLock::new(),
+            interpretation: OnceLock::new(),
+            #[cfg(test)]
+            inference_inits: AtomicUsize::new(0),
+            #[cfg(test)]
+            trick_estimate_inits: AtomicUsize::new(0),
+            #[cfg(test)]
+            interpretation_inits: AtomicUsize::new(0),
+        }
+    }
+
+    fn reusable(
+        &self,
+        hand: Hand,
+        revision: u64,
+        thread: ThreadId,
+        profile: DecisionProfile,
+    ) -> bool {
+        self.hand == hand
+            && self.revision == revision
+            && self.thread == thread
+            && self.profile == profile
+    }
+
+    fn assert_fixed_call(&self) {
+        debug_assert!(
+            self.thread == thread::current().id(),
+            "a decision cache crossed its creating thread"
+        );
+        debug_assert!(
+            self.profile == DecisionProfile::current(),
+            "a reading or evaluator setting changed during one decision"
+        );
+    }
+}
+
+// Keep `Context`'s diagnostic representation stable: the cache and its
+// structural revision are serving mechanics, not auction facts.
+impl fmt::Debug for Context<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Context")
+            .field("vul", &self.vul)
+            .field("auction", &self.auction)
+            .field("our_strains", &self.our_strains)
+            .field("their_strains", &self.their_strains)
+            .field("partner_last_bid", &self.partner_last_bid)
+            .field("last_bid", &self.last_bid)
+            .field("penalty", &self.penalty)
+            .field("undisturbed", &self.undisturbed)
+            .field("passed_hand", &self.passed_hand)
+            .field("partner_passed_hand", &self.partner_passed_hand)
+            .field("opening_index", &self.opening_index)
+            .field("prefixes", &self.prefixes)
+            .field("their_system", &self.their_system)
+            .field("config", &self.config)
+            .finish()
+    }
 }
 
 impl<'a> Context<'a> {
@@ -93,6 +211,8 @@ impl<'a> Context<'a> {
             prefixes: None,
             their_system: None,
             config: None,
+            revision: 0,
+            decision_cache: None,
         };
 
         for (index, &call) in auction.iter().enumerate() {
@@ -133,6 +253,9 @@ impl<'a> Context<'a> {
     #[must_use]
     pub const fn with_prefixes(mut self, prefixes: CommonPrefixes<'a, 'a>) -> Self {
         self.prefixes = Some(prefixes);
+        // Keep this builder `const`: retaining an attached `Arc` and rejecting
+        // it by revision avoids a const-incompatible drop.
+        self.revision = self.revision.wrapping_add(1);
         self
     }
 
@@ -148,6 +271,7 @@ impl<'a> Context<'a> {
     #[must_use]
     pub(crate) const fn with_their_system(mut self, them: &'a Stance) -> Self {
         self.their_system = Some(them);
+        self.revision = self.revision.wrapping_add(1);
         self
     }
 
@@ -173,6 +297,97 @@ impl<'a> Context<'a> {
     pub const fn with_config(mut self, config: &'a Config) -> Self {
         self.config = Some(config);
         self
+    }
+
+    /// Attach the cache shared by every route attempted for this decision
+    ///
+    /// Calling this on an already-scoped clone preserves the existing cache
+    /// when its hand, auction structure, thread, and active profile all match.
+    /// A bare [`Context::new`] remains uncached until serving code enters this
+    /// scope explicitly.
+    #[must_use]
+    pub(crate) fn with_decision_cache(mut self, hand: Hand) -> Self {
+        let thread = thread::current().id();
+        let profile = DecisionProfile::current();
+        let reusable = self
+            .decision_cache
+            .as_deref()
+            .is_some_and(|cache| cache.reusable(hand, self.revision, thread, profile));
+        if !reusable {
+            self.decision_cache = Some(Arc::new(DecisionCache::new(
+                hand,
+                self.revision,
+                thread,
+                profile,
+            )));
+        }
+        self
+    }
+
+    /// The active cache, if no structural builder has invalidated it
+    fn active_decision_cache(&self) -> Option<&DecisionCache> {
+        let cache = self.decision_cache.as_deref()?;
+        if cache.revision != self.revision {
+            return None;
+        }
+        cache.assert_fixed_call();
+        Some(cache)
+    }
+
+    /// Read the auction once within a decision, or return an owned uncached read
+    #[must_use]
+    pub(crate) fn inferences(&self) -> Cow<'_, Inferences> {
+        let Some(cache) = self.active_decision_cache() else {
+            return Cow::Owned(Inferences::read(self));
+        };
+        Cow::Borrowed(cache.inferences.get_or_init(|| {
+            #[cfg(test)]
+            cache.inference_inits.fetch_add(1, Ordering::Relaxed);
+            Inferences::read(self)
+        }))
+    }
+
+    /// Evaluate tricks once for the hand that owns this decision scope
+    #[must_use]
+    pub(crate) fn trick_estimates(&self, hand: Hand) -> TrickEstimates {
+        let Some(cache) = self.active_decision_cache() else {
+            let inferences = self.inferences();
+            return trick_estimates_with_auction(hand, &inferences, self.auction());
+        };
+        if cache.hand != hand {
+            let inferences = self.inferences();
+            return trick_estimates_with_auction(hand, &inferences, self.auction());
+        }
+        *cache.trick_estimates.get_or_init(|| {
+            #[cfg(test)]
+            cache.trick_estimate_inits.fetch_add(1, Ordering::Relaxed);
+            let inferences = self.inferences();
+            trick_estimates_with_auction(hand, &inferences, self.auction())
+        })
+    }
+
+    /// Read the auction-only instinct flags once within a decision
+    #[must_use]
+    pub(crate) fn interpretation(&self) -> Interpretation {
+        let Some(cache) = self.active_decision_cache() else {
+            return Interpretation::read(self);
+        };
+        *cache.interpretation.get_or_init(|| {
+            #[cfg(test)]
+            cache.interpretation_inits.fetch_add(1, Ordering::Relaxed);
+            Interpretation::read(self)
+        })
+    }
+
+    /// Test-only initialization counts for the active decision cache
+    #[cfg(test)]
+    pub(crate) fn decision_cache_init_counts(&self) -> Option<(usize, usize, usize)> {
+        let cache = self.active_decision_cache()?;
+        Some((
+            cache.inference_inits.load(Ordering::Relaxed),
+            cache.trick_estimate_inits.load(Ordering::Relaxed),
+            cache.interpretation_inits.load(Ordering::Relaxed),
+        ))
     }
 
     /// The attached configuration, if any ([`Self::with_config`])
@@ -329,12 +544,18 @@ impl<'a> Context<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::bidding::card::american_card;
+    use crate::bidding::trie::Trie;
 
     const fn bid(level: u8, strain: Strain) -> Call {
         Call::Bid(Bid {
             level: Level::new(level),
             strain,
         })
+    }
+
+    fn test_hand() -> Hand {
+        "AKQ2.KQ53.QJ4.92".parse().expect("valid test hand")
     }
 
     #[test]
@@ -452,5 +673,195 @@ mod tests {
 
         let passed_out = Context::new(RelativeVulnerability::NONE, &passes);
         assert_eq!(passed_out.seat_to_open(), None);
+    }
+
+    #[test]
+    fn bare_context_stays_uncached() {
+        let context = Context::new(RelativeVulnerability::NONE, &[]);
+        assert!(context.decision_cache.is_none());
+        assert!(matches!(context.inferences(), Cow::Owned(_)));
+        assert!(matches!(context.inferences(), Cow::Owned(_)));
+    }
+
+    #[test]
+    fn decision_values_initialize_once() {
+        let hand = test_hand();
+        let context = Context::new(RelativeVulnerability::NONE, &[]).with_decision_cache(hand);
+
+        let uncached_inferences = Inferences::read(&context);
+        let cached_inferences = context.inferences();
+        assert!(matches!(cached_inferences, Cow::Borrowed(_)));
+        assert_eq!(*cached_inferences, uncached_inferences);
+        assert!(matches!(context.inferences(), Cow::Borrowed(_)));
+        let first = context.trick_estimates(hand);
+        let second = context.trick_estimates(hand);
+        let uncached_tricks =
+            trick_estimates_with_auction(hand, &Inferences::read(&context), context.auction());
+        assert_eq!(first.bit_pattern(), second.bit_pattern());
+        assert_eq!(first.bit_pattern(), uncached_tricks.bit_pattern());
+        let first_interpretation = context.interpretation();
+        let second_interpretation = context.interpretation();
+        assert_eq!(first_interpretation, Interpretation::read(&context));
+        assert_eq!(first_interpretation, second_interpretation);
+
+        assert_eq!(context.decision_cache_init_counts(), Some((1, 1, 1)));
+    }
+
+    #[test]
+    fn configured_clone_preserves_decision_cache() {
+        let context =
+            Context::new(RelativeVulnerability::NONE, &[]).with_decision_cache(test_hand());
+        let cache = Arc::clone(context.decision_cache.as_ref().expect("attached cache"));
+        let config = Config::symmetric(&american_card());
+        let configured = context.with_config(&config);
+
+        assert_eq!(configured.revision, cache.revision);
+        assert!(Arc::ptr_eq(
+            configured.decision_cache.as_ref().expect("preserved cache"),
+            &cache,
+        ));
+        assert!(configured.active_decision_cache().is_some());
+    }
+
+    #[test]
+    fn structural_builders_reject_an_attached_cache() {
+        let auction = [];
+        let trie = Trie::new();
+        let stance = Stance::default();
+        let context =
+            Context::new(RelativeVulnerability::NONE, &auction).with_decision_cache(test_hand());
+        let cache = Arc::clone(context.decision_cache.as_ref().expect("attached cache"));
+
+        let prefixed = context
+            .clone()
+            .with_prefixes(trie.common_prefixes(&auction));
+        assert_eq!(prefixed.revision, cache.revision + 1);
+        assert!(prefixed.active_decision_cache().is_none());
+        assert!(Arc::ptr_eq(
+            prefixed
+                .decision_cache
+                .as_ref()
+                .expect("logically retained"),
+            &cache,
+        ));
+
+        let opposed = context.with_their_system(&stance);
+        assert_eq!(opposed.revision, cache.revision + 1);
+        assert!(opposed.active_decision_cache().is_none());
+    }
+
+    #[test]
+    fn wrong_hand_does_not_fill_scoped_trick_cache() {
+        let owner = test_hand();
+        let other = "98432.K53.QJ4.92".parse().expect("valid test hand");
+        let context = Context::new(RelativeVulnerability::NONE, &[]).with_decision_cache(owner);
+
+        let _ = context.trick_estimates(other);
+        let cache = context.decision_cache.as_deref().expect("attached cache");
+        assert_eq!(context.decision_cache_init_counts(), Some((1, 0, 0)));
+        assert!(cache.trick_estimates.get().is_none());
+    }
+
+    #[test]
+    fn debug_omits_cache_mechanics() {
+        let context =
+            Context::new(RelativeVulnerability::NONE, &[]).with_decision_cache(test_hand());
+        let debug = format!("{context:?}");
+        assert!(!debug.contains("revision"));
+        assert!(!debug.contains("decision_cache"));
+    }
+
+    #[cfg(debug_assertions)]
+    #[test]
+    fn decision_cache_rejects_profile_changes() {
+        use crate::bidding::evaluator::{eval_auction, set_eval_auction};
+        use std::panic::{AssertUnwindSafe, catch_unwind};
+
+        let original = eval_auction();
+        let context =
+            Context::new(RelativeVulnerability::NONE, &[]).with_decision_cache(test_hand());
+        let _ = context.inferences();
+        set_eval_auction(!original);
+        let result = catch_unwind(AssertUnwindSafe(|| {
+            let _ = context.inferences();
+        }));
+        set_eval_auction(original);
+
+        assert!(result.is_err());
+    }
+
+    #[cfg(debug_assertions)]
+    #[test]
+    fn decision_cache_rejects_rkcb_face_profile_changes() {
+        use crate::bidding::instinct::{
+            RkcbVariant, floor_rkcb_now, rkcb_variant_now, set_floor_rkcb, set_rkcb_variant,
+        };
+        use std::panic::{AssertUnwindSafe, catch_unwind};
+
+        let original_floor = floor_rkcb_now();
+        let floor_context =
+            Context::new(RelativeVulnerability::NONE, &[]).with_decision_cache(test_hand());
+        let _ = floor_context.inferences();
+        set_floor_rkcb(!original_floor);
+        let floor_result = catch_unwind(AssertUnwindSafe(|| {
+            let _ = floor_context.inferences();
+        }));
+        set_floor_rkcb(original_floor);
+        assert!(floor_result.is_err());
+
+        let original_variant = rkcb_variant_now();
+        let other_variant = if original_variant == RkcbVariant::Plain {
+            RkcbVariant::Kickback
+        } else {
+            RkcbVariant::Plain
+        };
+        let variant_context =
+            Context::new(RelativeVulnerability::NONE, &[]).with_decision_cache(test_hand());
+        let _ = variant_context.inferences();
+        set_rkcb_variant(other_variant);
+        let variant_result = catch_unwind(AssertUnwindSafe(|| {
+            let _ = variant_context.inferences();
+        }));
+        set_rkcb_variant(original_variant);
+        assert!(variant_result.is_err());
+    }
+
+    #[cfg(debug_assertions)]
+    #[test]
+    fn decision_cache_rejects_cross_thread_use() {
+        let context =
+            Context::new(RelativeVulnerability::NONE, &[]).with_decision_cache(test_hand());
+
+        std::thread::scope(|scope| {
+            let result = scope
+                .spawn(move || {
+                    let _ = context.inferences();
+                })
+                .join();
+            assert!(result.is_err());
+        });
+    }
+
+    #[test]
+    fn threads_capture_their_own_profiles() {
+        let handles = [false, true].map(|eval_auction| {
+            std::thread::spawn(move || {
+                super::super::evaluator::set_eval_auction(eval_auction);
+                let context =
+                    Context::new(RelativeVulnerability::NONE, &[]).with_decision_cache(test_hand());
+                let uncached = Inferences::read(&context);
+                assert_eq!(*context.inferences(), uncached);
+                assert_eq!(context.decision_cache_init_counts(), Some((1, 0, 0)));
+                context
+                    .decision_cache
+                    .as_deref()
+                    .expect("decision cache attached")
+                    .profile
+                    .eval_auction
+            })
+        });
+
+        let profiles = handles.map(|handle| handle.join().expect("profile thread"));
+        assert_eq!(profiles, [false, true]);
     }
 }

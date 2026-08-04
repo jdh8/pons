@@ -47,7 +47,7 @@ for cpu in "${cpus[@]}"; do
     fi
 
     echo "cpu=$cpu warmups=2 repetitions=10"
-    if ! taskset -c "$cpu" "$runner" --warmups 2 --repetitions 10 --skip-cache-acceptance "${runner_extra[@]}"; then
+    if ! taskset -c "$cpu" "$runner" --warmups 2 --repetitions 10 "${runner_extra[@]}"; then
         status=1
     fi
 

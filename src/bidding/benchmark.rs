@@ -26,11 +26,7 @@ pub fn classify_with_provenance_uncached(
     vul: RelativeVulnerability,
     auction: &[Call],
 ) -> Option<(Logits, Provenance)> {
-    let trie = stance.trie_for(auction);
-    let context = Context::new(vul, auction)
-        .with_prefixes(trie.common_prefixes(auction))
-        .with_their_system(stance);
-    trie.classify_floored(hand, &context, auction)
+    stance.classify_with_provenance_uncached(hand, vul, auction)
 }
 
 /// Whether serving delegates this floor position bit-for-bit to deterministic instinct.
@@ -111,7 +107,7 @@ pub fn active_evaluator_forward(features: &ActiveEvaluatorFeatures) -> [f32; 40]
     }
 }
 
-/// Classify the deterministic instinct ladder under one fresh context.
+/// Classify the deterministic instinct ladder under one fresh decision scope.
 #[must_use]
 pub fn classify_instinct_scoped(
     stance: &Stance,
@@ -123,7 +119,8 @@ pub fn classify_instinct_scoped(
     let trie = stance.trie_for(auction);
     let context = Context::new(vul, auction)
         .with_prefixes(trie.common_prefixes(auction))
-        .with_their_system(stance);
+        .with_their_system(stance)
+        .with_decision_cache(hand);
     ladder.classify(hand, &context)
 }
 

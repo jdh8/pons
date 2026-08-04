@@ -4,12 +4,24 @@
 
 Recover Pons’s bidding throughput without disabling bilans, envelope-union reading, fallback projection, or authored reading, and without changing any auction, logit, inference, alert, provenance, or explanation.
 
-Current pinned-core baseline:
+Pre-stage-2 pinned-core baseline:
 
 | CPU placement | Pons | Wrapped BBA |
 |---|---:|---:|
 | 96 MB V-cache CCD | 197.8 µs/decision | 166.2 µs/decision |
 | 32 MB frequency CCD | 184.1 µs/decision | 212.3 µs/decision |
+
+Stage-2 acceptance run (2026-08-05; two warmups and ten measured
+repetitions, fixed batches of the 512-position corpus):
+
+| CPU placement | Pons median | Wrapped BBA median | Pons/BBA 95% ratio CI | Hot cache/reference upper CI | Whole-deal cache/reference upper CI |
+|---|---:|---:|---:|---:|---:|
+| CPU 4, 96 MB V-cache CCD | 13.706 µs/decision | 167.961 µs/decision | 0.0811–0.0818 | 0.0127 | 0.0567 |
+| CPU 14, 32 MB frequency CCD | 12.979 µs/decision | 205.341 µs/decision | 0.0625–0.0634 | 0.0129 | 0.0592 |
+
+Every measured CV was at most 1.82%. Hardware counters were unavailable
+under the host's `perf` policy; the separate Rust allocation count/bytes pass
+completed on both CPUs.
 
 The `Trie` today carries both semantics and mechanics: semantics — what an auction means (authored rules, weights, envelope-union readings, alerts, guards) — and mechanics — how a key routes (children maps, the fallback walk, the rebase loop). The declarative book layer is moving the semantics out into row data. What remains in the trie afterwards is pure mechanics, which the stages below may compile and cache aggressively — compiled routing, step-by-step auction caching — without touching meaning.
 
@@ -22,15 +34,22 @@ Data flow:
 
 `Rows/legacy authoring → mutable Pair/Trie → Pair::against() finalization → compiled rule/reader plans → per-deal auction step cache → per-decision cache`
 
-This document is planning only; no repository changes are authorized here.
+This document records the staged design. Stages 1–2 are implemented; phase
+1.5 and stages 3 onward remain planning only until separately authorized.
 
-## Sequencing: execution awaits the declarative book layer
+## Sequencing
 
-No stage below starts until the rows migration has ported the contested books — `competition()` and `defensive()` as package lists — so that most semantics live in row data and the trie holds mechanics plus an enumerated set of escape hatches.
+The execution order is explicit:
+
+1. Complete stages 1–2: the reference/performance harness and the classification-scoped cache.
+2. Complete phase 1.5 of the declarative book layer, moving floating agreements such as RKCB into book-owned declarative data.
+3. Begin stage 3 and the later compilation/cursor work only after phase 1.5 is complete.
+
+The contested-book rows prerequisite for stages 1–2 is complete.  Stages 3–5 additionally wait for phase 1.5 so that most semantics — including agreements which currently float at classification time — live in row data and the trie holds mechanics plus an enumerated set of escape hatches.
 
 - Stages 3–5 compile the row data itself. Compiling mid-port means building against a moving substrate and proving parity twice; each rows batch already ships its own byte-identity proof.
 - The escape-hatch inventory — opaque `guarded` rows, the closure-classifier sections still awaiting a row form, the grafted 1NT book, the `insert_advance_of_double`/`insert_sohl_over` producers — is exactly stage 5's legacy slow path. It must be closed as an enumeration before decoder coverage can be stated.
-- Stages 1–2 do not depend on rows, but execute with the rest: stage 1 freezes an internal reference implementation, and freezing the pre-rows one wastes the freeze.
+- Stages 1–2 freeze and optimize the current post-contested-rows serving behavior.  They do not compile row data and do not absorb phase 1.5's authoring work.
 
 Non-gates: the floating addendum (RKCB/DOPI) lowers to root-level guarded fallbacks the decoder already models, and knob migration only widens which reading profiles can be compiled — stage 4 already falls back to the legacy path on a profile mismatch.
 
