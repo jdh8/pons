@@ -150,6 +150,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Debug` naming break with no behavior change; historical DNF ledgers,
   harnesses, result labels, and trained-artifact filenames retain their names.
 
+- **Six more defensive sections are declarative rows.** `defensive()`'s two
+  per-suit mega-loops shed everything that is a plain exact node: the advance
+  of partner's takeout double and the whole rich-advance continuation tree
+  (doubler's answer to the cue and the advancer's clarification, the Rubens
+  transfer completion and its rebid, the invitational minor jump's
+  accept/decline plus the stopper-ask answer, the same over the `2NT` invite —
+  each on both the RHO-pass and RHO-double branch), the responsive double after
+  partner's takeout double and after partner's overcall, the advances of our
+  `2NT` overcall of their weak two, and the Leaping Michaels advances. ~300
+  imperative lines become six packages; the two loops now hold only the
+  1NT-overcall Gladiator/graft block and `insert_advance_of_double`, which are
+  the batch's declared non-goals (an opaque classifier payload, a `&[Call]`
+  row producer, and a whole-subbook `Trie::graft`). No alert or totality gap
+  surfaced. Byte-identical on the seeded 20k `smoke-default` and `render-book`,
+  and re-rendered with the three default-off knobs armed (Rubens advances, the
+  responsive double over an overcall, the weak-two `2NT` advances) with no
+  diff.
+
 - **The seven guard-carrying competition sections are declarative rows.** All
   of them ride `Pattern::guarded`, which carries the `described_guard(...)` the
   imperative site wrote **verbatim**, so `render-book` is unmoved: §4 (opener
