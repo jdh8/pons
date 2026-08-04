@@ -2,7 +2,7 @@
 
 ## Summary
 
-Recover Pons’s bidding throughput without disabling bilans, DNF, fallback projection, or authored reading, and without changing any auction, logit, inference, alert, provenance, or explanation.
+Recover Pons’s bidding throughput without disabling bilans, envelope-union reading, fallback projection, or authored reading, and without changing any auction, logit, inference, alert, provenance, or explanation.
 
 Current pinned-core baseline:
 
@@ -11,7 +11,7 @@ Current pinned-core baseline:
 | 96 MB V-cache CCD | 197.8 µs/decision | 166.2 µs/decision |
 | 32 MB frequency CCD | 184.1 µs/decision | 212.3 µs/decision |
 
-The `Trie` today carries both semantics and mechanics: semantics — what an auction means (authored rules, weights, DNF readings, alerts, guards) — and mechanics — how a key routes (children maps, the fallback walk, the rebase loop). The declarative book layer is moving the semantics out into row data. What remains in the trie afterwards is pure mechanics, which the stages below may compile and cache aggressively — compiled routing, step-by-step auction caching — without touching meaning.
+The `Trie` today carries both semantics and mechanics: semantics — what an auction means (authored rules, weights, envelope-union readings, alerts, guards) — and mechanics — how a key routes (children maps, the fallback walk, the rebase loop). The declarative book layer is moving the semantics out into row data. What remains in the trie afterwards is pure mechanics, which the stages below may compile and cache aggressively — compiled routing, step-by-step auction caching — without touching meaning.
 
 The solution has two complementary parts:
 
@@ -152,7 +152,7 @@ Each decision appends the new call's record and re-derives only the running inte
 
 After caching and compiled decoding are measured:
 
-- Represent common one-box DNF values inline, with heap-backed storage only for true unions.
+- Represent common one-box `EnvelopeUnion` values inline, with heap-backed storage only for true unions.
 - Reuse intersection buffers and defer `tidy` until semantic boundaries while preserving box order and exact results.
 - Share immutable precompiled projection boxes instead of cloning `Vec`s.
 - Replace evaluator feature `Vec`s with fixed arrays sized for each model version.
@@ -167,11 +167,11 @@ After caching and compiled decoding are measured:
   - All 38 logits via `f32::to_bits`.
   - Selected call.
   - Provenance and fallback/rebase count.
-  - Inference envelopes, DNF boxes and ordering.
+  - Inference envelopes, envelope-union boxes and ordering.
   - Evaluator feature vectors.
   - Alerts, announcements, rendered books, and explanation rule indices.
 - Byte-compare `smoke-default --count 20000 --seed 1` and `render-book` before and after.
-- Repeat under DNF on/off, fallback projection on/off, Pass/table reading on/off, bilans/net-collar combinations, evaluator variants, all vulnerabilities, and configured/unconfigured floors.
+- Repeat under envelope-union reading on/off, fallback projection on/off, Pass/table reading on/off, bilans/net-collar combinations, evaluator variants, all vulnerabilities, and configured/unconfigured floors.
 - Test exact-node rejection followed by fallback, cloned configured contexts, different hands sharing a bare context, separate threads with different knob profiles, systems-on auction stripping, RKCB historical-prefix reads, typed guards, opaque guards, and rebases.
 - For every prefix in the fixed corpus, require the compiled authoring decoder to select the same classifier and provenance as legacy resolution.
 - For every prefix in the fixed corpus, require the appended step-cache state to equal the from-scratch read bit-for-bit — boxes, box order, and provenance — including a mid-deal knob change that must drop to the legacy path.

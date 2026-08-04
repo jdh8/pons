@@ -5,7 +5,7 @@
 # it, so a both-majors reading claims `{♠ 5..13, ♥ 5..13, ♦ 0..13, ♣ 0..13}`
 # when eight of the thirteen cards are already spoken for.  The closure is
 # exact and membership-inert (every real hand satisfies the sum), so the
-# sampler cannot move — only `Dnf::hull` (tighter) and the `subset_of` dedup
+# sampler cannot move — only `EnvelopeUnion::hull` (tighter) and the `subset_of` dedup
 # (fewer terms).  Smoke-measured 8.0% of boards diverge.
 #
 # Two arms per vul, identical deals:

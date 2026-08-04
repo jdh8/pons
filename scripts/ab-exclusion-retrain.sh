@@ -8,7 +8,7 @@
 # (probe-closure-features --pass-exclusion, seed 1785351807) confirmed the
 # retrain is earnable — 10.8% cross-arm membership rejections and real moment
 # movement, the anti-C1 picture.  This run re-prices the knob with the
-# exclusion twin (evaluator_v3_exclusion, corpus --dnf --pass-exclusion)
+# exclusion twin (evaluator_v3_exclusion, corpus --envelope-union --pass-exclusion)
 # serving the ON arm; knob-off serving is structurally unchanged.
 #
 # Decision table (docs/measurement.md): plain wash + PD win or better flips

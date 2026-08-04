@@ -3,7 +3,7 @@
 # the shipped default.  The 2026-07-27 NLL ablation priced the last-4-call
 # identities at 0.038 NLL over the hull-only vector (bare calls; the full
 # tags+alerts block adds only 0.004 more and is not served); the v3 twin
-# (`evaluator_v3_dnf`, features_eval_v3, trained on the same --dnf regime the
+# (`evaluator_v3_dnf`, features_eval_v3, trained on the same envelope-union regime the
 # default serves) turns that into a bidding arm.  Only the bilans game/slam
 # gates consume trick estimates, so this is a decision A/B on those gates, not
 # a reading change — divergences are the net re-pricing game/slam boundaries

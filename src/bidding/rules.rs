@@ -127,10 +127,11 @@ impl Rule {
     /// [`Constraint::project`]).
     #[must_use]
     pub fn project(&self, context: &Context<'_>) -> Envelope {
-        // ponytail: hull the DNF to a single box, so the alert/`artificial`
-        // checks and `authored_reading` stay on `Envelope`.  The overlay that
-        // the sampler consumes uses [`project_dnf`][Self::project_dnf] to keep
-        // the boxes when `dnf_reading` is on.
+        // ponytail: hull the envelope union to a single box, so the
+        // alert/`artificial` checks and `authored_reading` stay on `Envelope`.
+        // The overlay that the sampler consumes uses
+        // [`project_union`][Self::project_union] to keep the boxes when
+        // `envelope_union_reading` is on.
         self.when.project(context).hull()
     }
 
@@ -139,9 +140,10 @@ impl Rule {
     ///
     /// The overlay [`Inferences::read`][super::inference::Inferences] feeds the
     /// sampler; keeps the disjunctive boxes under
-    /// [`set_dnf_reading`][super::set_dnf_reading] (off → one box, the hull).
+    /// [`set_envelope_union_reading`][super::set_envelope_union_reading]
+    /// (off → one box, the hull).
     #[must_use]
-    pub fn project_dnf(&self, context: &Context<'_>) -> super::inference::Dnf {
+    pub fn project_union(&self, context: &Context<'_>) -> super::inference::EnvelopeUnion {
         self.when.project(context)
     }
 
@@ -157,9 +159,9 @@ impl Rule {
     }
 
     /// The two-sided band as a union of boxes — [`project_band`][Self::project_band]
-    /// without the hull (the DNF overlay's Pass reading)
+    /// without the hull (the envelope-union overlay's Pass reading)
     #[must_use]
-    pub fn project_band_dnf(&self, context: &Context<'_>) -> super::inference::Dnf {
+    pub fn project_band_union(&self, context: &Context<'_>) -> super::inference::EnvelopeUnion {
         self.when.project_band(context)
     }
 
@@ -171,19 +173,22 @@ impl Rule {
     /// the passer lies in the gate's complement.  The reading-side fold
     /// behind [`set_pass_exclusion_reading`][super::set_pass_exclusion_reading].
     #[must_use]
-    pub fn project_complement_dnf(&self, context: &Context<'_>) -> super::inference::Dnf {
+    pub fn project_complement_union(
+        &self,
+        context: &Context<'_>,
+    ) -> super::inference::EnvelopeUnion {
         self.when.project_complement(context)
     }
 
     /// The **agreement** this rule announces, as a union of boxes
     /// ([`Constraint::announce`])
     ///
-    /// The disclosure twin of [`project_dnf`][Self::project_dnf].  Identical to
+    /// The disclosure twin of [`project_union`][Self::project_union].  Identical to
     /// it unless the rule's constraint used
     /// [`announced`][super::constraint::announced], which is what keeps the two
     /// overlays byte-identical everywhere the split is not deliberately taken.
     #[must_use]
-    pub fn announce_dnf(&self, context: &Context<'_>) -> super::inference::Dnf {
+    pub fn announce_union(&self, context: &Context<'_>) -> super::inference::EnvelopeUnion {
         self.when.announce(context)
     }
 }

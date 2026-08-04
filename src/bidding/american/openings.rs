@@ -728,7 +728,7 @@ mod tests {
     }
 
     /// D1b: the box union behind each [`NotrumpShape`] variant accepts exactly
-    /// the shapes the pre-DNF `balanced() | described(closure)` composite did,
+    /// the shapes the legacy `balanced() | described(closure)` composite did,
     /// exhaustively over the 560-shape length lattice.
     #[test]
     fn notrump_shape_boxes_match_closure() {

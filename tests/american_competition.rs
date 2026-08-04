@@ -273,13 +273,13 @@ fn competitive_rebid_reaches_the_missed_game() {
         call(5, Strain::Diamonds),
         "responder raises the shown suit"
     );
-    pons::bidding::set_dnf_reading(false);
+    pons::bidding::set_envelope_union_reading(false);
     assert_eq!(
         best_call(&system, &after_rebid, "AKQ.T95.Q73.QJ95"),
         call(5, Strain::Diamonds),
         "legacy hull read raises to the diamond game"
     );
-    pons::bidding::set_dnf_reading(true);
+    pons::bidding::set_envelope_union_reading(true);
 
     set_competitive_rebid(false); // restore the default
 }

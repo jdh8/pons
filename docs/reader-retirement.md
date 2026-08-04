@@ -1,9 +1,9 @@
 # Retiring the hand-written disjunction readers
 
 Campaign: replace each hand-written convention reader in
-`src/bidding/inference.rs` with the authored rules' own DNF projection, one
-measured chop at a time. This is the correctly-aimed half of "reading DNF
-obsoletes the special cases" — the *readers* are the pre-DNF legacy, not the
+`src/bidding/inference.rs` with the authored rules' own envelope-union projection,
+one measured chop at a time. This is the correctly-aimed half of "envelope-union
+reading obsoletes the special cases" — the *readers* are the pre-campaign legacy, not the
 alerts (the alert is what makes projection decoding sound: it gates the
 decode, drives the natural-walk suppression, and selects rule variants at
 build time; see [bidding-architecture.md](bidding-architecture.md)
@@ -18,13 +18,13 @@ in, the chop is a no-op and the A/B has nothing to measure. See
 
 ## Why the readers exist, and why they can die
 
-They predate `Dnf`. `Inferences` once held only per-seat interval envelopes,
+They predate `EnvelopeUnion`. `Inferences` once held only per-seat interval envelopes,
 which cannot carry a disjunction ("five spades *or* five hearts"), so
 conventions whose meaning is an `Or` got hand-written readers that pin the
 expressible half (suppress the natural walk, narrow the other suits) and let
-the sampler deal the residual. Post-FLIP (`set_dnf_reading` default-on,
+the sampler deal the residual. Post-FLIP (`set_envelope_union_reading` default-on,
 2026-07-23), the generic path carries the whole meaning: `project_authored`
-unions each authoring rule's `project` fold via `Dnf::disjoin`, and the
+unions each authoring rule's `project` fold via `EnvelopeUnion::disjoin`, and the
 sampler tests membership per box (`Inferences::admits`). A reader whose
 knowledge is expressible as its rules' boxes is redundant machinery — and a
 second copy of the convention's meaning that can drift from the rules (the
@@ -59,7 +59,7 @@ Those are invisible to projection *entirely* — converting them is the
 
 1. **Express the meaning on the authoring rules.** The rule's constraint must
    project the convention's whole claim: DSL where it folds exactly
-   (`and`/`or` suit-sets, staircases, `shapes`), `dnf_upgrade(legacy, boxes)`
+   (`and`/`or` suit-sets, staircases, `shapes`), `envelope_union_upgrade(legacy, boxes)`
    where a leg is context-sensitive or the composite projects loose — boxes
    pinned statically to the node's own suits (the Jacoby idiom;
    authoring-time boxes use `union`, never `disjoin`). The `.alert(...)`
@@ -192,7 +192,7 @@ disjunction** whose third arm is `points(game..) & balanced() & len(o, 3..=3) &
 !flat_4333()` — a game-forcing hand with exactly three in the unbid major, whose
 entry that arm is to the delayed cue (`gladiator_relay_continuation` authors the
 cue `points(inv..)`, unbounded above). The stamp lands on the walk hull before
-`assemble`, which folds `Dnf::from(players[i]).intersect(&overlay[i])`, so
+`assemble`, which folds `EnvelopeUnion::from(players[i]).intersect(&overlay[i])`, so
 `0..=9 ∩ 10..` emptied exactly that box: a **wrong** box, not a loose one.
 
 Deleted, with no A/B owed — `set_nt_overcall_gladiator` is `Cell::new(false)`
@@ -226,7 +226,7 @@ Three findings worth keeping:
   Gladiator did not. Default byte-identical (the strip covers every auction the
   new clause does, whenever it is on). This is regime 2 of
   [reading-drift-handoff.md](reading-drift-handoff.md) — authored-but-natural
-  calls, which no DNF projection reads and no static test compares.
+  calls, which no envelope-union projection reads and no static test compares.
 
 Pinned by three new tests: `gladiator_advances_follow_the_card` (one hand per
 advance and per relay continuation, replaying the **bidder** — so a floor that

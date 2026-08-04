@@ -223,18 +223,18 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_fallback_projection: bool,
 
-    /// Turn OFF the DNF union-of-boxes reading for our side (`set_dnf_reading`,
+    /// Turn OFF the envelope-union reading for our side (`set_envelope_union_reading`,
     /// crate default ON since chop F2b — docs/dnf-migration.md): fall back to
     /// hulling every disjunction to its bounding box, the legacy reading and
     /// the F2b A/B's off arm.
     #[arg(long, default_value_t = false)]
-    no_ns_dnf: bool,
+    no_ns_envelope_union: bool,
 
     /// Also give the strength gauges membership teeth for our side
     /// (`set_gauge_membership`, crate default off): samplers reject hands
     /// outside the raw-HCP / support-points bands.  Measured WASH on sd-lead;
-    /// independent kill-switch.  It reads DNF boxes, so it wants the DNF
-    /// reading live — which is the default, i.e. pass no `--no-ns-dnf`.
+    /// independent kill-switch. It reads envelope-union boxes, so it wants that
+    /// reading live — which is the default, i.e. pass no `--no-ns-envelope-union`.
     #[arg(long, default_value_t = false)]
     ns_gauge_membership: bool,
 
@@ -271,8 +271,8 @@ struct Args {
     /// `win | win`, plain +0.018/+0.028 by vul).  The bilans game/slam gates
     /// read trick estimates from the v3 artifact, whose input is the hull
     /// vector plus the last four call identities — the 0.038-NLL win of the
-    /// auction-input ablation, served.  Only honoured in the DNF reading
-    /// regime the twin was trained on (`--no-ns-dnf` makes it inert); off,
+    /// auction-input ablation, served. Only honoured in the envelope-union reading
+    /// regime the twin was trained on (`--no-ns-envelope-union` makes it inert); off,
     /// the hull-only `evaluator_v2_dnf` serves as before.
     #[arg(long, default_value_t = false)]
     no_ns_eval_auction: bool,
@@ -287,7 +287,7 @@ struct Args {
     /// it measured −0.0037 plain / −0.0034 PD, so it stays off and is kept as
     /// the reference invariant reading.  Supersedes
     /// `--no-ns-eval-auction` (v4 carries the calls tail) and is only honoured
-    /// in the DNF reading regime it was trained on.
+    /// in the envelope-union reading regime it was trained on.
     #[arg(long, default_value_t = false)]
     ns_eval_shape: bool,
 
@@ -1505,7 +1505,7 @@ fn main() -> anyhow::Result<()> {
     }
     pons::bidding::american::set_transfer_longer_major(!args.no_ns_transfer_longer);
     pons::bidding::set_fallback_projection(!args.no_ns_fallback_projection);
-    pons::bidding::set_dnf_reading(!args.no_ns_dnf);
+    pons::bidding::set_envelope_union_reading(!args.no_ns_envelope_union);
     pons::bidding::set_gauge_membership(args.ns_gauge_membership);
     pons::bidding::instinct::set_bilans_floor(!args.no_ns_bilans);
     pons::bidding::instinct::set_net_collar(args.ns_net_collar);

@@ -3679,7 +3679,7 @@ fn natural_advance(
 /// exactly three cards, every rival whose advance is cheaper capped at two
 /// (it would be forced first), every dearer rival capped at three (a fourth
 /// card there promotes the hand to the longest-first rung).  Knob-off the
-/// reading stays ⊤, leaving the companion `len` floor as the whole pre-DNF
+/// reading stays ⊤, leaving the companion `len` floor as the whole legacy
 /// reading.
 fn cheapest_forced(suit: Suit, theirs: Suit, their_level: u8) -> Cons<impl Constraint + Clone> {
     let bid_of = |s: Suit| {
@@ -6440,10 +6440,10 @@ mod tests {
     fn longest_unbid_reads_the_relative_length() {
         use super::Context;
         use crate::bidding::constraint::Constraint as _;
-        use crate::bidding::inference::set_dnf_reading;
+        use crate::bidding::inference::set_envelope_union_reading;
         use contract_bridge::Suit;
 
-        set_dnf_reading(true);
+        set_envelope_union_reading(true);
         let context = Context::new(RelativeVulnerability::NONE, &[]);
         // The ♦ instance over their (1♥): rivals ♠ (higher rank, must stay
         // strictly shorter) and ♣ (lower rank, may equal).
@@ -8209,7 +8209,7 @@ mod tests {
     }
 
     /// D1b: the 5-box `semi_balanced` union accepts exactly the shapes the
-    /// pre-DNF `balanced() | described("5422/6322/7222", …)` composite did,
+    /// legacy `balanced() | described("5422/6322/7222", …)` composite did,
     /// exhaustively over the 560-shape length lattice.
     #[test]
     fn semi_balanced_boxes_match_closure() {

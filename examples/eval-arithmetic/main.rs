@@ -22,7 +22,7 @@
 //! MAE 1.441 tricks** (`evaluator_v2_dnf`, `docs/dnf-migration.md` row F2b).
 //!
 //! No solver, no sampler, no bidding: the corpus is already
-//! `(own hand + hidden-seat DNF hulls, double-dummy tricks)`.
+//! `(own hand + hidden-seat envelope-union hulls, double-dummy tricks)`.
 //!
 //! ```text
 //! cargo run --release --example eval-arithmetic -- \

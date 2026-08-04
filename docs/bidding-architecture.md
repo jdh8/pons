@@ -76,8 +76,8 @@ three:
 | --- | --- | --- |
 | `eval` | logit for a hand | classification (bidding) |
 | `describe` | `Description` tree | disclosure, corpus, `render-book` |
-| `project` | forward `Envelope` (floors) | decoding a call back into shape/strength |
-| `project_band` | two-sided envelope (ceilings return) | the pass reading — a *declined* call reads by what its gate would have allowed (`set_pass_reading`) |
+| `project` | forward `EnvelopeUnion` (floors) | decoding a call back into shape/strength |
+| `project_band` | two-sided `EnvelopeUnion` (ceilings return) | the pass reading — a *declined* call reads by what its gate would have allowed (`set_pass_reading`) |
 
 Builders: `hcp`, `points`, `fifths`, `len`, `balanced`, `support`,
 `stopper_in_their_suits`, `they_bid`, combined with `&`/`|`/`!`. The suit-set
@@ -97,11 +97,12 @@ range (projects the union — sound but loose).
   unpredictably. A cheaper overlapping rule (a transfer) can swallow the hands
   a new rule was written for — check who wins the weight race.
 
-### Trie × DNF (assessed 2026-07-28: DNF stays a fold, not the storage)
+### Trie × envelope unions (assessed 2026-07-28: the union stays a fold, not the storage)
 
-The trie stores *rules*; `Dnf` (union of `Envelope` boxes) is the compiled
-reading — the `project*`/`announce` folds of the constraint, not its
-replacement. Storing the book as a trie of DNF was considered and declined:
+The trie stores *rules*; `EnvelopeUnion` is the compiled union of `Envelope`
+boxes — mathematically a DNF — and is the reading produced by the
+`project*`/`announce` folds of the constraint, not its
+replacement. Storing the book as a trie of envelope unions was considered and declined:
 
 - Boxes carry only membership. The other folds do the bidding: `eval`'s
   weighted logits are how overlapping rules resolve, and gates like
@@ -111,20 +112,21 @@ replacement. Storing the book as a trie of DNF was considered and declined:
   context-relative legs (`support`, `stopper_in_their_suits`): they
   re-project under the *reader's* context, so no box list fixed at authoring
   time reproduces them ([dnf-migration.md](dnf-migration.md), the F2b′
-  Jacoby family). Where a node's boxes *are* static, `dnf_upgrade(legacy,
-  boxes)` pins them on the node — DNF incorporated into the trie exactly
+  Jacoby family). Where a node's boxes *are* static, `envelope_union_upgrade(legacy,
+  boxes)` pins them on the node — `EnvelopeUnion` incorporated into the trie exactly
   where it is sound, and only there.
 - The measured record prices representation churn negative even when
   information-preserving: chop C1 (−0.037 plain), the F flip (lost until the
   evaluator was retrained), MARG/MASS (refused at the NLL gate).
 
 A rule whose meaning genuinely is a box union can be authored as one — 
-`Envelope`/`Dnf` implement `Constraint` with identity projection (chop C).
+`Envelope`/`EnvelopeUnion` implement `Constraint` with identity projection
+(chop C).
 The live sequel is retiring the hand-written disjunction readers in favor of
 the authored projections: [reader-retirement.md](reader-retirement.md).
 
 The corollary (assessed 2026-07-28): **no opaque-predicate field on
-`Envelope`/`Dnf`** — `boxes & pred(...)` already merges the two with the box
+`Envelope`/`EnvelopeUnion`** — `boxes & pred(...)` already merges the two with the box
 half projecting exactly, `sample_layouts_replay` already gives every pred
 membership teeth under the correct authoring-seat context, and a stored
 closure would make `subset_of` undecidable (breaking `tidy`'s dedup) while
@@ -166,7 +168,7 @@ seat-carrying `project` or the sampled projection.
   readings suppress the literal natural reading at the artificial bid's index
   and post-walk narrow the real shape; the per-suit ranges can't express
   disjunctions, so pin the *other* suits and let the sampler deal the residual
-  into the long suit. That set is **shrinking**: post-`Dnf` the projection
+  into the long suit. That set is **shrinking**: with envelope unions the projection
   carries the disjunction itself, so the hand-written readers are being retired
   one measured chop at a time — see
   [reader-retirement.md](reader-retirement.md).

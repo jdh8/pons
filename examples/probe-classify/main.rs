@@ -30,17 +30,17 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_competitive_rebid: bool,
 
-    /// Classify under the legacy bounding-box hull reading (`set_dnf_reading`
+    /// Classify under the legacy bounding-box hull reading (`set_envelope_union_reading`
     /// off; the crate default is ON since chop F2b) — the forensic view of
     /// what the flip changes at this node
     #[arg(long, default_value_t = false)]
-    no_dnf: bool,
+    no_envelope_union: bool,
 }
 
 fn main() {
     let args = Args::parse();
     pons::bidding::instinct::set_competitive_rebid(!args.no_competitive_rebid);
-    pons::bidding::set_dnf_reading(!args.no_dnf);
+    pons::bidding::set_envelope_union_reading(!args.no_envelope_union);
     let hand: Hand = args.hand.parse().expect("valid hand");
     let mut auction = Auction::new();
     for token in args.auction.split_whitespace() {
@@ -54,8 +54,8 @@ fn main() {
     // The prefixed reading — what the bidder actually sees (a bare
     // `Context::new` skips the projection overlay; see `Inferences::read`).
     println!(
-        "inferences via Stance::infer (dnf_reading={}):\n{:#?}",
-        !args.no_dnf,
+        "inferences via Stance::infer (envelope_union_reading={}):\n{:#?}",
+        !args.no_envelope_union,
         stance.infer(vul, &auction)
     );
     match stance.classify_with_provenance(hand, vul, &auction) {

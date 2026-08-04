@@ -168,7 +168,7 @@ fn ev_net_game(h: Hand) -> f64 {
 
 /// [`ev_net_nt`] on the **shipped** evaluator: `trick_estimates_with_auction`
 /// serves `evaluator_v3` under the default knobs (`set_eval_auction` on,
-/// `dnf_reading` on) and `evaluator_v4` under `--shape`, where the bare
+/// `envelope_union_reading` on) and `evaluator_v4` under `--shape`, where the bare
 /// `trick_estimates` the v2 columns call is pinned to v2 for good.
 fn ev_net_nt3(h: Hand) -> f64 {
     f64::from(

@@ -384,8 +384,8 @@ instrument Stage D needs). **Go straight to B2**; B1 only if B2 slips. This is t
 stage that unparks the evaluator — the three tests pinning the 12-count at 4♠ are
 downstream of the blind envelope.
 
-**Stage C — the DNF.** `Constraint::project` returns a capped DNF instead of one
-`Envelope`; combinators implement their cases; `Flip` gets NNF. Consumers wanting a
+**Stage C — the DNF.** `Constraint::project` returns an `EnvelopeUnion` (a capped
+DNF) instead of one `Envelope`; combinators implement their cases; `Flip` gets NNF. Consumers wanting a
 single box take the hull, **which is exactly today's behaviour**, so the migration is
 incremental and each consumer moves at its own pace. Feature-version bump when the
 net starts reading more than the hull.
@@ -770,7 +770,7 @@ predicted channels are live, so the perturbation carries information and the
 retrain can be earned.
 
 The twin is the F2b recipe on the shipped v3: `dump-evaluator --encoding
-eval3 --dnf --pass-exclusion` (new flag, sidecar records the regime) over
+eval3 --envelope-union --pass-exclusion` (new flag, sidecar records the regime) over
 500k deals of `22.pdd` seed 1 → 10,161,643 rows (knob-on auctions move, as
 they should); trainer `--hidden 256 --epochs 150 --batch 4096 --lr 0.001
 --seed 1`. **Held-out gate passed: val NLL −1.55010 / MAE 1.391 tricks** on

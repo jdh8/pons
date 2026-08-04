@@ -203,13 +203,13 @@ struct Args {
     /// Output path stem; writes `<out>.f32`, `<out>.json`, `<out>.tags`
     #[arg(long, default_value = "target/evaluator-data")]
     out: String,
-    /// Bid and read with `set_dnf_reading(true)` — the F2b corpus. Both the
+    /// Bid and read with `set_envelope_union_reading(true)` — the F2b corpus. Both the
     /// auctions and the range features come from the knob-on regime, matching
     /// what a knob-on bidder serves the evaluator.
     #[arg(long)]
-    dnf: bool,
+    envelope_union: bool,
     /// Bid and read with `set_pass_exclusion_reading(true)` — the exclusion
-    /// twin's corpus. Like `--dnf`, auctions and range features both come
+    /// twin's corpus. Like `--envelope-union`, auctions and range features both come
     /// from the knob-on regime.
     #[arg(long)]
     pass_exclusion: bool,
@@ -218,9 +218,9 @@ struct Args {
     /// closures are flipped on only around `infer`/`encode`, so the *auctions*
     /// are still bid knob-off and stay byte-identical to a dump without this
     /// flag: same rows, same targets, only the hull columns tighten. Requires
-    /// `--dnf` (the closures fold inside `Dnf::tidy`, which is a no-op
+    /// `--envelope-union` (the closures fold inside `EnvelopeUnion::tidy`, which is a no-op
     /// knob-off).
-    #[arg(long, requires = "dnf")]
+    #[arg(long, requires = "envelope_union")]
     closed_hulls: bool,
 }
 
@@ -235,7 +235,7 @@ const VULS: [AbsoluteVulnerability; 4] = [
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     // Main thread's copy; the rayon workers get theirs via `broadcast` below.
-    pons::bidding::set_dnf_reading(args.dnf);
+    pons::bidding::set_envelope_union_reading(args.envelope_union);
     pons::bidding::set_pass_exclusion_reading(args.pass_exclusion);
     let encoding = match args.encoding.as_str() {
         "summary" => Encoding::Summary,
@@ -304,7 +304,7 @@ fn main() -> anyhow::Result<()> {
     // setting main got at the top, and `broadcast` forces the pool up so no
     // worker is born later with the bare default.
     rayon::broadcast(|_| {
-        pons::bidding::set_dnf_reading(args.dnf);
+        pons::bidding::set_envelope_union_reading(args.envelope_union);
         pons::bidding::set_pass_exclusion_reading(args.pass_exclusion);
     });
 
@@ -470,7 +470,7 @@ fn main() -> anyhow::Result<()> {
         "seed": args.seed,
         "deal_rng": "per-deal StdRng(seed ^ index·0x9E3779B97F4A7C15); \
                      not byte-compatible with pre-parallel sequential dumps",
-        "dnf": args.dnf,
+        "envelope_union": args.envelope_union,
         "pass_exclusion": args.pass_exclusion,
         "rows": rows,
         "contested_rows": contested,

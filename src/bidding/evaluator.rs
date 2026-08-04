@@ -35,7 +35,7 @@ use super::features::{
     FEATURES_LEN_EVAL, FEATURES_LEN_EVAL_V3, FEATURES_LEN_EVAL_V4, features_eval, features_eval_v3,
     features_eval_v4,
 };
-use super::inference::{Inferences, Relative, dnf_reading, pass_exclusion_reading};
+use super::inference::{Inferences, Relative, envelope_union_reading, pass_exclusion_reading};
 use super::neural::{affine, decode, relu};
 use contract_bridge::auction::Call;
 use contract_bridge::{Hand, Strain};
@@ -71,20 +71,20 @@ const _: () = assert!(
 );
 
 /// The knob-matched twin (DNF chop F2b): same architecture and training
-/// recipe, corpus regenerated with `set_dnf_reading(true)` so the range
+/// recipe, corpus regenerated with `set_envelope_union_reading(true)` so the range
 /// blocks come from the tightened prefixed readings a knob-on bidder serves.
-/// Selected per call by [`dnf_reading`]; knob-off never touches it.
-static RAW_DNF: &[u8] = include_bytes!("weights/evaluator_v2_dnf.f32");
+/// Selected per call by [`envelope_union_reading`]; knob-off never touches it.
+static RAW_UNION_READING: &[u8] = include_bytes!("weights/evaluator_v2_dnf.f32");
 const _: () = assert!(
-    RAW_DNF.len() == TOTAL * 4,
-    "dnf evaluator weights artifact size mismatch"
+    RAW_UNION_READING.len() == TOTAL * 4,
+    "envelope-union evaluator weights artifact size mismatch"
 );
 
 /// Weights decoded to `f32` once, on first use.
 static WEIGHTS: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW));
 
-/// [`RAW_DNF`] decoded once, on first use.
-static WEIGHTS_DNF: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_DNF));
+/// [`RAW_UNION_READING`] decoded once, on first use.
+static WEIGHTS_UNION_READING: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_UNION_READING));
 
 /// Input width of the v3 (calls-tail) artifact.
 const IN_V3: usize = FEATURES_LEN_EVAL_V3;
@@ -92,21 +92,22 @@ const IN_V3: usize = FEATURES_LEN_EVAL_V3;
 /// Float count of the v3 MLP — same architecture, wider first layer.
 const TOTAL_V3: usize = HID * IN_V3 + HID + HID * HID + HID + OUT * HID + OUT;
 
-/// The calls-tail evaluator (`features_eval_v3`), trained on the `--dnf`
+/// The calls-tail evaluator (`features_eval_v3`), trained on the envelope-union
 /// reading regime — the only regime it serves; see
 /// [`trick_estimates_with_auction`].
-static RAW_V3_DNF: &[u8] = include_bytes!("weights/evaluator_v3_dnf.f32");
+static RAW_V3_UNION_READING: &[u8] = include_bytes!("weights/evaluator_v3_dnf.f32");
 const _: () = assert!(
-    RAW_V3_DNF.len() == TOTAL_V3 * 4,
+    RAW_V3_UNION_READING.len() == TOTAL_V3 * 4,
     "v3 evaluator weights artifact size mismatch"
 );
 
-/// [`RAW_V3_DNF`] decoded once, on first use.
-static WEIGHTS_V3_DNF: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_V3_DNF));
+/// [`RAW_V3_UNION_READING`] decoded once, on first use.
+static WEIGHTS_V3_UNION_READING: LazyLock<Vec<f32>> =
+    LazyLock::new(|| decode(RAW_V3_UNION_READING));
 
 /// The pass-exclusion twin of the v3 artifact — same architecture and recipe,
 /// corpus regenerated with `set_pass_exclusion_reading(true)` on top of the
-/// `--dnf` regime (val NLL −1.55010 vs the dnf twin's −1.54872 on its own
+/// envelope-union regime (val NLL −1.55010 vs the union-reading twin's −1.54872 on its own
 /// regime).  Selected per call by [`pass_exclusion_reading`] inside the v3
 /// path; knob-off never touches it.
 static RAW_V3_EXCLUSION: &[u8] = include_bytes!("weights/evaluator_v3_exclusion.f32");
@@ -124,17 +125,18 @@ const IN_V4: usize = FEATURES_LEN_EVAL_V4;
 /// Float count of the v4 MLP — same architecture, three columns wider.
 const TOTAL_V4: usize = HID * IN_V4 + HID + HID * HID + HID + OUT * HID + OUT;
 
-/// The shape-reading evaluator (`features_eval_v4`), trained on the `--dnf`
+/// The shape-reading evaluator (`features_eval_v4`), trained on the envelope-union
 /// regime whose union readings the shape block conditions on; see
 /// [`set_eval_shape`].
-static RAW_V4_DNF: &[u8] = include_bytes!("weights/evaluator_v4_dnf.f32");
+static RAW_V4_UNION_READING: &[u8] = include_bytes!("weights/evaluator_v4_dnf.f32");
 const _: () = assert!(
-    RAW_V4_DNF.len() == TOTAL_V4 * 4,
+    RAW_V4_UNION_READING.len() == TOTAL_V4 * 4,
     "v4 evaluator weights artifact size mismatch"
 );
 
-/// [`RAW_V4_DNF`] decoded once, on first use.
-static WEIGHTS_V4_DNF: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_V4_DNF));
+/// [`RAW_V4_UNION_READING`] decoded once, on first use.
+static WEIGHTS_V4_UNION_READING: LazyLock<Vec<f32>> =
+    LazyLock::new(|| decode(RAW_V4_UNION_READING));
 
 std::thread_local! {
     /// Whether [`trick_estimates_with_auction`] serves the v3 calls-tail
@@ -156,7 +158,7 @@ std::thread_local! {
 /// (none) / +0.0284 ± 0.0056 (both), PD +0.0222 / +0.0360, on 204,800
 /// boards/arm/vul at `SEED_BASE` 1785138816 — fired 1.3–1.6%, +1.3 to +2.3
 /// IMPs per fired board at the bilans game/slam gates.  The v3 twin was
-/// trained on the [`dnf_reading`] regime only, so the knob is only honoured
+/// trained on the [`envelope_union_reading`] regime only, so the knob is only honoured
 /// there; anywhere else the v2 path serves as before.
 ///
 /// Per-thread, like every reading knob; set it inside worker closures.
@@ -190,7 +192,7 @@ pub fn eval_auction() -> bool {
 /// measurable on their own terms.
 ///
 /// Supersedes [`set_eval_auction`] when both are on — v4 carries the calls tail
-/// verbatim.  Like the v3 twin it was trained on the [`dnf_reading`] regime
+/// verbatim.  Like the v3 twin it was trained on the [`envelope_union_reading`] regime
 /// only, and its shape block reads the *union* of announced boxes, so it is
 /// honoured only there.
 ///
@@ -306,7 +308,7 @@ pub fn trick_estimates(hand: Hand, inferences: &Inferences) -> TrickEstimates {
 /// [`trick_estimates`], with the raw auction available for the v3 calls-tail
 /// artifact.
 ///
-/// Under [`set_eval_auction`] **and** the [`dnf_reading`] regime the v3 twin
+/// Under [`set_eval_auction`] **and** the [`envelope_union_reading`] regime the v3 twin
 /// was trained on, this serves [`features_eval_v3`] — the same vector plus the
 /// last four call identities — from the weight set matching the calling
 /// thread's [`pass_exclusion_reading`] regime.  Under [`set_eval_shape`] it
@@ -322,13 +324,13 @@ pub fn trick_estimates_with_auction(
 ) -> TrickEstimates {
     // Both twins were fit on the tightened prefixed readings a knob-on bidder
     // serves, and v4's shape block conditions on the box union itself.
-    if !dnf_reading() {
+    if !envelope_union_reading() {
         return trick_estimates(hand, inferences);
     }
     if eval_shape() {
         let x = features_eval_v4(hand, inferences, calls);
         debug_assert_eq!(x.len(), IN_V4);
-        return reshape(forward_with::<IN_V4>(&WEIGHTS_V4_DNF, &x));
+        return reshape(forward_with::<IN_V4>(&WEIGHTS_V4_UNION_READING, &x));
     }
     if !eval_auction() {
         return trick_estimates(hand, inferences);
@@ -340,7 +342,7 @@ pub fn trick_estimates_with_auction(
     let weights = if pass_exclusion_reading() {
         &WEIGHTS_V3_EXCLUSION
     } else {
-        &WEIGHTS_V3_DNF
+        &WEIGHTS_V3_UNION_READING
     };
     reshape(forward_with::<IN_V3>(weights, &x))
 }
@@ -361,10 +363,10 @@ fn reshape(z: [f32; OUT]) -> TrickEstimates {
 
 /// The raw `OUT` outputs, before reshaping and rescaling. Serves the weights
 /// fit on the reading regime the calling thread is actually in: the knob-on
-/// twin under [`dnf_reading`], the shipped artifact otherwise.
+/// twin under [`envelope_union_reading`], the shipped artifact otherwise.
 fn forward(x: &[f32]) -> [f32; OUT] {
-    let weights = if dnf_reading() {
-        WEIGHTS_DNF.as_slice()
+    let weights = if envelope_union_reading() {
+        WEIGHTS_UNION_READING.as_slice()
     } else {
         WEIGHTS.as_slice()
     };
@@ -407,15 +409,15 @@ mod tests {
     /// Thread-local knob, restored to the crate default afterwards.
     #[test]
     fn matches_candle_fixture() {
-        crate::bidding::set_dnf_reading(false);
+        crate::bidding::set_envelope_union_reading(false);
         check_candle_fixture(include_str!("weights/evaluator_v2.fixture.json"));
-        crate::bidding::set_dnf_reading(true);
+        crate::bidding::set_envelope_union_reading(true);
     }
 
     /// The knob-on twin (the shipped default) against its own fixture.
     #[test]
-    fn dnf_matches_candle_fixture() {
-        crate::bidding::set_dnf_reading(true);
+    fn union_reading_matches_candle_fixture() {
+        crate::bidding::set_envelope_union_reading(true);
         check_candle_fixture(include_str!("weights/evaluator_v2_dnf.fixture.json"));
     }
 
@@ -427,7 +429,7 @@ mod tests {
             include_str!("weights/evaluator_v3_dnf.fixture.json"),
             3,
             IN_V3,
-            |x| forward_with::<IN_V3>(&WEIGHTS_V3_DNF, x),
+            |x| forward_with::<IN_V3>(&WEIGHTS_V3_UNION_READING, x),
         );
     }
 
@@ -444,7 +446,7 @@ mod tests {
 
     /// The exclusion knob's serving contract: with the reading held fixed,
     /// knob on swaps the v3 path onto the exclusion twin and knob off is
-    /// byte-identical to the dnf twin.  Restores the crate default (off).
+    /// byte-identical to the union-reading twin. Restores the crate default (off).
     #[test]
     fn exclusion_knob_swaps_v3_weights() {
         use contract_bridge::{Bid, Level};
@@ -459,18 +461,21 @@ mod tests {
         let inf = Inferences::read(&ctx);
         let h = hand("AQ32.K53.QJ4.A92");
 
-        crate::bidding::set_dnf_reading(true);
+        crate::bidding::set_envelope_union_reading(true);
         crate::bidding::set_pass_exclusion_reading(false);
-        let dnf = trick_estimates_with_auction(h, &inf, &auction);
+        let union_reading = trick_estimates_with_auction(h, &inf, &auction);
 
         crate::bidding::set_pass_exclusion_reading(true);
         let exclusion = trick_estimates_with_auction(h, &inf, &auction);
         crate::bidding::set_pass_exclusion_reading(false);
 
-        assert_ne!(exclusion, dnf, "the twin should not shadow the dnf weights");
+        assert_ne!(
+            exclusion, union_reading,
+            "the twin should not shadow the envelope-union weights"
+        );
         assert_eq!(
             trick_estimates_with_auction(h, &inf, &auction),
-            dnf,
+            union_reading,
             "knob off must be byte-identical"
         );
     }
@@ -482,7 +487,7 @@ mod tests {
             include_str!("weights/evaluator_v4_dnf.fixture.json"),
             u64::from(crate::bidding::features::FEATURES_VERSION_EVAL_V4),
             IN_V4,
-            |x| forward_with::<IN_V4>(&WEIGHTS_V4_DNF, x),
+            |x| forward_with::<IN_V4>(&WEIGHTS_V4_UNION_READING, x),
         );
     }
 
@@ -502,7 +507,7 @@ mod tests {
         let inf = Inferences::read(&ctx);
         let h = hand("AQ32.K53.QJ4.A92");
 
-        crate::bidding::set_dnf_reading(true);
+        crate::bidding::set_envelope_union_reading(true);
         set_eval_auction(true);
         let v3 = trick_estimates_with_auction(h, &inf, &auction);
         assert!(!eval_shape(), "the v4 knob ships off");
@@ -581,7 +586,7 @@ mod tests {
 
     /// Knob off, `trick_estimates_with_auction` is exactly `trick_estimates`
     /// — the byte-identity half of the knob contract.  Knob on (the shipped
-    /// default) in the dnf regime, the v3 artifact serves: same plausibility
+    /// default) in the envelope-union regime, the v3 artifact serves: same plausibility
     /// bounds, and the auction tail visibly moves the estimate.
     #[test]
     fn with_auction_knob_contract() {
@@ -601,7 +606,7 @@ mod tests {
         let v2 = trick_estimates(h, &inf);
         assert_eq!(trick_estimates_with_auction(h, &inf, &auction), v2);
 
-        crate::bidding::set_dnf_reading(true);
+        crate::bidding::set_envelope_union_reading(true);
         set_eval_auction(true);
         let v3 = trick_estimates_with_auction(h, &inf, &auction);
 

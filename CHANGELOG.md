@@ -136,6 +136,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The forward-reading box aggregate is now `EnvelopeUnion`, and bounding
+  operations are `span`.** The unreleased `Dnf` name described the Boolean
+  construction rather than the concrete public value: a nonempty union of
+  `Envelope` boxes. The public type and all live `*_dnf` Rust APIs now use
+  `EnvelopeUnion` / `*_union`; `set_dnf_reading` is
+  `set_envelope_union_reading`. `Range::union`, `Strength::union`, and
+  `Envelope::union` become `span`, leaving `EnvelopeUnion::union` as the exact
+  set union. The development CLIs likewise use `--envelope-union`,
+  `--no-ns-envelope-union`, and `--no-envelope-union`, and newly serialized
+  `Inferences`/evaluator metadata use `unions` / `announced_unions` /
+  `envelope_union`. This is an intentional 0.11 source, serde, CLI, and derived
+  `Debug` naming break with no behavior change; historical DNF ledgers,
+  harnesses, result labels, and trained-artifact filenames retain their names.
+
 - **The seven guard-carrying competition sections are declarative rows.** All
   of them ride `Pattern::guarded`, which carries the `described_guard(...)` the
   imperative site wrote **verbatim**, so `render-book` is unmoved: §4 (opener

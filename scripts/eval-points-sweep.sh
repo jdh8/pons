@@ -20,7 +20,7 @@
 #
 # Corpus (400k deals, 8,146,934 rows — the same nodes the shape sweep saw):
 #   ./target/release/examples/dump-evaluator --deals /nfs2/jdh8/pons/22.pdd \
-#       --count 400000 --seed 1 --systems american,dutch --encoding points --dnf \
+#       --count 400000 --seed 1 --systems american,dutch --encoding points --envelope-union \
 #       --out target/eval-points-corpus
 #
 # Usage:  scripts/eval-points-sweep.sh [out-dir]

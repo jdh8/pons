@@ -25,9 +25,9 @@ played a long time and read a lot. For 5-card major systems, see my
 | Neural/AI bidder work | `.claude/skills/ai-bidder` + [docs/ai-bidder/](docs/ai-bidder/) (`README.md` then `plan.md`) |
 | A call reads as nothing, or an `Or` projects to `0..=37` | [docs/ai-bidder/sampled-projection.md](docs/ai-bidder/sampled-projection.md) — read a call off the *bidder*, not its rules; includes the measured 2/1 reading bug |
 | The Dutch system (champion candidate; wide non-forcing 1♣) | [docs/dutch-system.md](docs/dutch-system.md) — campaign ledger + phase plan; full bidding spec in [docs/dutch-spec.md](docs/dutch-spec.md) |
-| DNF readings (union-of-boxes; killing the Or wall) | [docs/dnf-migration.md](docs/dnf-migration.md) — chop ledger, knob matrix, the one migration rule |
+| Envelope-union readings (the historical DNF campaign; killing the Or wall) | [docs/dnf-migration.md](docs/dnf-migration.md) — chop ledger, knob matrix, the one migration rule |
 | Retiring a hand-written convention reader (`inference.rs`) | [docs/reader-retirement.md](docs/reader-retirement.md) — inventory, per-reader migration rule, ledger |
-| A rule's constraint and its reading disagree; a "reading-only" change moved calls | [docs/reading-drift-handoff.md](docs/reading-drift-handoff.md) — the three reading regimes, why DNF left one uncovered, and why a reading knob is a bidding knob under a neural floor |
+| A rule's constraint and its reading disagree; a "reading-only" change moved calls | [docs/reading-drift-handoff.md](docs/reading-drift-handoff.md) — the three reading regimes, why the historical DNF campaign left one uncovered, and why a reading knob is a bidding knob under a neural floor |
 | Competitive book (we open, they interfere) | [docs/competitive-book.md](docs/competitive-book.md) — wiring idiom, package designs, campaign ledger |
 | Kickback / Redwood (relocating the keycard ask below 4NT) | [docs/ai-bidder/bba-kickback.md](docs/ai-bidder/bba-kickback.md) §7 — BBA's next-suit-up ladder (the walk-up retired 2026-08-02), the three-arm A/B design, the two build traps (structural `alerted`, 4NT-as-answer), and the 4NT question deferred to control bids |
 | Long data-gen runs | [docs/shared-machine-data-gen.md](docs/shared-machine-data-gen.md) — this box is shared |

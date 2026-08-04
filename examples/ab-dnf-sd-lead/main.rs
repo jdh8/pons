@@ -1,5 +1,5 @@
 //! DNF sd-lead A/B: the **same** auction scored four ways — the
-//! `set_dnf_reading` × `set_gauge_membership` knob matrix (off / dnf / gauge /
+//! `set_envelope_union_reading` × `set_gauge_membership` knob matrix (off / dnf / gauge /
 //! both), all in one process so every arm prices the identical lead question.
 //!
 //! Both knobs are inert for the floor+net bidder — it never samples during
@@ -43,7 +43,7 @@ use contract_bridge::auction::Auction;
 use contract_bridge::{AbsoluteVulnerability, Contract, Seat};
 use pons::american;
 use pons::bidding::context::relative;
-use pons::bidding::{Inferences, Stance, set_dnf_reading, set_gauge_membership};
+use pons::bidding::{Inferences, Stance, set_envelope_union_reading, set_gauge_membership};
 use pons::scoring::{final_contract, imps, ns_score_tricks};
 use pons::single_dummy::{LeadQuestion, single_dummy_leads};
 use rand::SeedableRng;
@@ -121,9 +121,9 @@ fn main() {
     // sample worlds *under the arm's knobs* (disjunctive boxes and/or gauge
     // membership).  The sampler runs on the main thread inside
     // `single_dummy_leads`, so the thread-locals set here govern it.
-    let score_arm = |dnf: bool, gauge: bool| -> Vec<i64> {
+    let score_arm = |envelope_union: bool, gauge: bool| -> Vec<i64> {
         let set_knobs = || {
-            set_dnf_reading(dnf);
+            set_envelope_union_reading(envelope_union);
             set_gauge_membership(gauge);
         };
         set_knobs();
@@ -153,13 +153,13 @@ fn main() {
                 score[i] = ns_score_tricks(contract, declarer, u8::from(tricks), vul);
             }
         }
-        set_dnf_reading(false);
+        set_envelope_union_reading(false);
         set_gauge_membership(false);
         score
     };
 
     let off = score_arm(false, false);
-    let dnf = score_arm(true, false);
+    let union = score_arm(true, false);
     let gauge = score_arm(false, true);
     let both = score_arm(true, true);
 
@@ -186,8 +186,8 @@ fn main() {
             100.0 * divergent as f64 / args.count.max(1) as f64,
         );
     };
-    report("dnf   vs off", &dnf, &off);
+    report("dnf   vs off", &union, &off);
     report("gauge vs off", &gauge, &off);
     report("both  vs off", &both, &off);
-    report("both  vs dnf", &both, &dnf);
+    report("both  vs dnf", &both, &union);
 }

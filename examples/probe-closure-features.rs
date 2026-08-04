@@ -214,8 +214,8 @@ fn main() {
                             shape_witness = Some(format!(
                                 "board {board} cut {cut}, {who:?}, column {col} moved {delta:.6}\
                                  \n  loose boxes  {:?}\n  closed boxes {:?}",
-                                off.announced_dnf(who).boxes(),
-                                on.announced_dnf(who).boxes(),
+                                off.announced_union(who).boxes(),
+                                on.announced_union(who).boxes(),
                             ));
                         }
                     }

@@ -506,9 +506,9 @@ impl Observed {
             return;
         }
         self.count += other.count;
-        self.points = self.points.union(other.points);
+        self.points = self.points.span(other.points);
         for (a, b) in self.lengths.iter_mut().zip(other.lengths) {
-            *a = a.union(b);
+            *a = a.span(b);
         }
     }
 

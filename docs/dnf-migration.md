@@ -1,5 +1,11 @@
 # DNF migration ledger
 
+> **Terminology (0.11):** this historical campaign and its retained artifact,
+> harness, and result names use *DNF*. The live Rust abstraction is now
+> `EnvelopeUnion`, and the live reading toggle is
+> `set_envelope_union_reading`; each value is a nonempty union of `Envelope`
+> boxes. Historical identifiers and commands below are left as provenance.
+
 Campaign: every authored bidding constraint yields a tight union-of-boxes
 (`Dnf` of `Envelope`) reading instead of hulling to ⊤ at `Or` — then flip
 `set_dnf_reading` on after measurement. Why readings collapse today and how to

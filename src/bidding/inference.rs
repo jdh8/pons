@@ -215,21 +215,21 @@ pub fn fallback_projection_enabled() -> bool {
 }
 
 std::thread_local! {
-    /// Whether a call's reading is stored as a *union of boxes* (a DNF) and the
+    /// Whether a call's reading is stored as an *envelope union* and the
     /// sampler accepts a hand that lies in **any** box, rather than the single
-    /// bounding-box hull (see [`set_dnf_reading`]).  **On by default** since
+    /// bounding-box hull (see [`set_envelope_union_reading`]).  **On by default** since
     /// chop F2b (docs/dnf-migration.md): with the knob-matched evaluator twin
     /// and the statically pinned Jacoby box, the flip measured a win in all
     /// four cells — plain +0.0094/+0.0080, PD +0.0118/+0.0085 NV/vul, CIs
     /// clear (204,800 boards/arm/vul, seed 1784809754).  Off is the legacy
     /// hull path, kept as the kill-switch.
-    static DNF_READING: Cell<bool> = const { Cell::new(true) };
+    static ENVELOPE_UNION_READING: Cell<bool> = const { Cell::new(true) };
 }
 
-/// Toggle union-of-boxes (DNF) readings for the sampler (**default on**, F2b)
+/// Toggle envelope-union readings for the sampler (**default on**, F2b)
 ///
 /// Off, a disjunctive reading (`Or`, `AnyLen`, a call authored by several rules)
-/// widens to its bounding box, so the sampler accepts the whole hull — today's
+/// widens to its bounding box, so the sampler accepts the whole hull — the legacy
 /// behaviour.  On, the reading keeps its separate boxes and the sampler accepts
 /// a layout only if it lies in *some* box, pinning two-suiters / Multi / the
 /// fit-split instead of the box that spans them.  Two hull regimes, measured
@@ -238,16 +238,16 @@ std::thread_local! {
 /// knob-invariant, byte-identical over a 21K-row dump; on a **prefixed**
 /// context (`Stance::infer` — what the bidder, the floor net, and the
 /// bilans evaluator actually see) the authored-projection overlay tightens
-/// knob-on (⊤→box upgrades, `dnf_upgrade`), so those consumers' inputs move
+/// knob-on (⊤→box upgrades, `envelope_union_upgrade`), so those consumers' inputs move
 /// with the knob.  Read at classification and acceptance time, per-thread.
-pub fn set_dnf_reading(on: bool) {
-    DNF_READING.with(|cell| cell.set(on));
+pub fn set_envelope_union_reading(on: bool) {
+    ENVELOPE_UNION_READING.with(|cell| cell.set(on));
 }
 
-/// Whether union-of-boxes readings are enabled (default on)
+/// Whether envelope-union readings are enabled (default on)
 #[must_use]
-pub fn dnf_reading() -> bool {
-    DNF_READING.with(Cell::get)
+pub fn envelope_union_reading() -> bool {
+    ENVELOPE_UNION_READING.with(Cell::get)
 }
 
 std::thread_local! {
@@ -258,7 +258,7 @@ std::thread_local! {
 
 /// Blank what the *opponents* have shown (**default off**, measurement only)
 ///
-/// On, [`Inferences`] hands back [`Envelope::unknown`] / [`Dnf::unknown`] for
+/// On, [`Inferences`] hands back [`Envelope::unknown`] / [`EnvelopeUnion::unknown`] for
 /// [`Relative::Lho`] and [`Relative::Rho`]; partner and the actor keep their
 /// live readings.  This is the `blind` arm of the deviation panel
 /// (docs/deviation-panel.md): the paired `seen − blind` score is what our
@@ -292,7 +292,7 @@ std::thread_local! {
 /// docs/dnf-migration.md)
 ///
 /// Off, [`Envelope::admits`] — and everything routed through it: sampler
-/// acceptance, [`Dnf::contains`], the DNF overlay — tests suit lengths and
+/// acceptance, [`EnvelopeUnion::contains`], the envelope-union overlay — tests suit lengths and
 /// the legacy `points` gauge only, the pre-`Strength` behaviour.  On, a
 /// sampled hand must also fall within the box's raw-HCP, support-points, and
 /// per-suit HCP bands, so a 15–17 1NT stops admitting 13-counts the `points`
@@ -301,7 +301,7 @@ std::thread_local! {
 /// `suit_hcp` axis — those bands have real teeth (an Ogust quality ceiling
 /// rejects hands no whole-hand gauge can), so a future flip owes a fresh
 /// measurement.  Deliberately its **own** knob, never folded into
-/// [`set_dnf_reading`]: the mechanisms are independent (gauge bands tighten
+/// [`set_envelope_union_reading`]: the mechanisms are independent (gauge bands tighten
 /// sampling even on the single-hull reading), the recorded DNF sd-lead WASH
 /// stays meaningful, and this is the one chop that can *reject legal hands*
 /// if a projection over-claims — the book-wide eval ⟹ membership sweep is
@@ -318,11 +318,11 @@ pub fn gauge_membership() -> bool {
 }
 
 std::thread_local! {
-    /// Whether [`Dnf::tidy`] narrows suit lengths by `Σ len = 13` (see
+    /// Whether [`EnvelopeUnion::tidy`] narrows suit lengths by `Σ len = 13` (see
     /// [`set_sum_closure`]).  **Off by default** — a hull change, so it owes
     /// an A/B.
     static SUM_CLOSURE: Cell<bool> = const { Cell::new(false) };
-    /// Whether [`Dnf::tidy`] closes `hcp` against `points` through the shape
+    /// Whether [`EnvelopeUnion::tidy`] closes `hcp` against `points` through the shape
     /// upgrade (see [`set_upgrade_closure`]).  **Off by default**, same reason.
     static UPGRADE_CLOSURE: Cell<bool> = const { Cell::new(false) };
 }
@@ -338,7 +338,7 @@ std::thread_local! {
 ///
 /// Its own knob, never folded into [`set_upgrade_closure`]: the two closures
 /// read different axes and the A/B measures them apart before stacking.
-/// Requires [`dnf_reading`] (the knob-off hull path stays byte-identical).
+/// Requires [`envelope_union_reading`] (the knob-off hull path stays byte-identical).
 /// Read at classification time, per-thread.
 #[doc = include_str!("closure-inertness.md")]
 pub fn set_sum_closure(on: bool) {
@@ -362,7 +362,7 @@ pub fn sum_closure() -> bool {
 /// scale's **global** worst case — a 2-HCP leak at each end of the most-read
 /// strength gate in the book.  See `Envelope::narrow_to_upgrade`.
 ///
-/// Requires [`dnf_reading`].  Read at classification time, per-thread.
+/// Requires [`envelope_union_reading`].  Read at classification time, per-thread.
 #[doc = include_str!("closure-inertness.md")]
 pub fn set_upgrade_closure(on: bool) {
     UPGRADE_CLOSURE.with(|cell| cell.set(on));
@@ -520,7 +520,7 @@ fn pass_reading() -> bool {
 /// inference: the bidder is argmax over `weight + eval`, so a hand inside a
 /// sibling gate whose weight strictly beats **every** Pass rule's weight could
 /// not have passed — the passer lies in that gate's complement
-/// ([`Rule::project_complement_dnf`][super::rules::Rule::project_complement_dnf]),
+/// ([`Rule::project_complement_union`][super::rules::Rule::project_complement_union]),
 /// and the pass band may be intersected with it.
 ///
 /// Only **single-box** complements are folded in — a shape-free
@@ -615,7 +615,7 @@ pub(crate) fn probed_vacuous_reading() -> bool {
 
 std::thread_local! {
     /// Whether [`project_authored`] folds a second, *agreement* overlay off
-    /// [`Rule::announce_dnf`][super::rules::Rule::announce_dnf] (see
+    /// [`Rule::announce_union`][super::rules::Rule::announce_union] (see
     /// [`set_announced_reading`]).  Off by default — knob-off the announce
     /// overlay is a clone of the projection overlay and every reading is
     /// byte-identical.
@@ -749,7 +749,7 @@ impl Range {
     /// Two independently sound inferences about the same quantity both hold, so
     /// the truth lies in their intersection.  If the bounds cross (an empty
     /// intersection), some inference was unsound for this auction; rather than
-    /// drop the truth, widen to the *union* — soundness over tightness.
+    /// drop the truth, widen to their *span* — soundness over tightness.
     #[must_use]
     pub fn intersect(self, other: Self) -> Self {
         let min = self.min.max(other.min);
@@ -771,7 +771,7 @@ impl Range {
     /// range or the other, so the sound envelope is their span.  The dual of
     /// [`intersect`][Self::intersect], which keeps the tighter bounds.
     #[must_use]
-    pub fn union(self, other: Self) -> Self {
+    pub fn span(self, other: Self) -> Self {
         Self {
             min: self.min.min(other.min),
             max: self.max.max(other.max),
@@ -782,7 +782,7 @@ impl Range {
     ///
     /// Unlike [`intersect`][Self::intersect], which widens a crossed range to
     /// preserve soundness within a single box, this reports the empty product so
-    /// a [`Dnf`] can **drop** the contradictory term.
+    /// an [`EnvelopeUnion`] can **drop** the contradictory term.
     #[must_use]
     fn intersect_nonempty(self, other: Self) -> Option<Self> {
         let (min, max) = (self.min.max(other.min), self.max.min(other.max));
@@ -833,7 +833,7 @@ pub struct Strength {
     /// quality gates (`suit_hcp`, `top_honors`) read — deliberately uncoupled
     /// from the whole-hand gauges in `canonicalize`: every candidate coupling
     /// either writes an old axis (a shipped-reading change) or manufactures
-    /// the containment that lets `Dnf::tidy`'s correct dedup swallow the arm
+    /// the containment that lets `EnvelopeUnion::tidy`'s correct dedup swallow the arm
     /// holding the suit knowledge.
     pub suit_hcp: [Range; 4],
 }
@@ -871,7 +871,7 @@ impl Strength {
     /// sound whole-hand implications (`hcp.min >= Σ suit mins`, a length-capped
     /// suit ceiling) all write an *old* axis — a shipped-reading change — and
     /// the floor coupling manufactures exactly the containment that lets
-    /// [`Dnf::tidy`]'s correct dedup swallow the arm carrying the suit
+    /// [`EnvelopeUnion::tidy`]'s correct dedup swallow the arm carrying the suit
     /// knowledge (the `points(22..) | hcp(22..)` lesson, in reverse).
     fn canonicalize(&mut self) {
         let slack = super::constraint::flat_hcp_slack();
@@ -893,16 +893,16 @@ impl Strength {
         self
     }
 
-    /// Field-by-field [`Range::union`] — the `|` dual, soundness over tightness
+    /// Field-by-field [`Range::span`] — the `|` dual, soundness over tightness
     #[must_use]
-    fn union(self, other: Self) -> Self {
+    fn span(self, other: Self) -> Self {
         Self {
-            hcp: self.hcp.union(other.hcp),
-            points: self.points.union(other.points),
+            hcp: self.hcp.span(other.hcp),
+            points: self.points.span(other.points),
             support_points: core::array::from_fn(|i| {
-                self.support_points[i].union(other.support_points[i])
+                self.support_points[i].span(other.support_points[i])
             }),
-            suit_hcp: core::array::from_fn(|i| self.suit_hcp[i].union(other.suit_hcp[i])),
+            suit_hcp: core::array::from_fn(|i| self.suit_hcp[i].span(other.suit_hcp[i])),
         }
     }
 
@@ -911,7 +911,7 @@ impl Strength {
     /// **Only `points` gates box-emptiness**, exactly as the pre-`Strength` box
     /// algebra did.  The new gauges combine by the widening [`Range::intersect`]
     /// so they never drop a box a `points`/length reading would have kept — they
-    /// are inert until Edits 1/2, and must not perturb the [`Dnf`] the sampler
+    /// are inert until Edits 1/2, and must not perturb the [`EnvelopeUnion`] the sampler
     /// reads through `admits` (which reads `points` only).
     fn intersect_nonempty(self, other: Self) -> Option<Self> {
         let mut out = Self {
@@ -1034,18 +1034,18 @@ impl Envelope {
         out
     }
 
-    /// Pointwise union — the `|` projection (either set of bounds may hold)
+    /// Pointwise span — the bounding box covering either set of bounds
     ///
     /// The forward dual of a constraint disjunction: a hand accepted by `a | b`
     /// lies within one envelope or the other, so each quantity spans both
-    /// ([`Range::union`]) — soundness over tightness.
+    /// ([`Range::span`]) — soundness over tightness.
     #[must_use]
-    pub fn union(&self, other: &Self) -> Self {
+    pub fn span(&self, other: &Self) -> Self {
         let mut out = *self;
         for suit in Suit::ASC {
-            out.lengths[suit as usize] = out.length(suit).union(other.length(suit));
+            out.lengths[suit as usize] = out.length(suit).span(other.length(suit));
         }
-        out.strength = out.strength.union(other.strength);
+        out.strength = out.strength.span(other.strength);
         out
     }
 
@@ -1053,7 +1053,7 @@ impl Envelope {
     ///
     /// Unlike [`intersect`][Self::intersect], which widens a crossed range to
     /// preserve soundness *within* a single box, this reports the empty product
-    /// so a [`Dnf`] can **drop** the contradictory term — the surviving terms of
+    /// so an [`EnvelopeUnion`] can **drop** the contradictory term — the surviving terms of
     /// a union still cover every hand, so the union stays sound while getting
     /// tighter (e.g. `1NT ∩ 4-5♥` drops the balanced-diamond box whose hearts
     /// cannot reach four).
@@ -1073,7 +1073,7 @@ impl Envelope {
 
     /// Whether a hand's suit lengths and point count all fall within this box
     ///
-    /// The per-box membership test the sampler and [`Dnf::contains`] share.
+    /// The per-box membership test the sampler and [`EnvelopeUnion::contains`] share.
     /// Reads the `points` (length) gauge only — until
     /// [`set_gauge_membership`] (chop E, default off) also gives the raw-HCP
     /// and support-points bands membership teeth.
@@ -1139,7 +1139,7 @@ impl Envelope {
     /// `sum_feasible` box.  Symmetric for the floor.
     ///
     /// **Membership-inert** — every 13-card hand satisfies the sum, so
-    /// [`admits`][Self::admits] is unchanged.  Only [`Dnf::hull`] (tighter) and
+    /// [`admits`][Self::admits] is unchanged.  Only [`EnvelopeUnion::hull`] (tighter) and
     /// [`subset_of`][Self::subset_of] (more containments) move.  Idempotent.
     fn narrow_to_sum(&mut self) {
         let total_min: u8 = self.lengths.iter().map(|range| range.min).sum();
@@ -1215,7 +1215,7 @@ impl Envelope {
     /// [`admits`][Self::admits] plus the raw-HCP and support-points gauges,
     /// each scored on its own scale (raw HCP, per-suit
     /// [`support_point_count_in`][super::constraint::support_point_count_in]).
-    /// This is what a natively authored `Envelope`/[`Dnf`] **gate** evaluates
+    /// This is what a natively authored [`Envelope`] / [`EnvelopeUnion`] **gate** evaluates
     /// through `Constraint::eval`: the box is the whole rule, so every stored
     /// bound — ceilings included — is enforced.  The reading-side
     /// [`admits`][Self::admits] stays lenient (lengths + `points` only) for
@@ -1231,43 +1231,44 @@ impl Envelope {
     }
 }
 
-/// A forward reading as a union of boxes — disjunctive normal form
+/// A forward reading as a nonempty union of envelope boxes
 ///
 /// One [`Envelope`] is a single axis-aligned box; a disjunction (`Multi`, a
 /// two-suiter, a `!`-shape) needs a *union* of boxes, which a single box cannot
-/// hold without widening to the bounding box (the "`Or` wall").  A [`Dnf`] keeps
-/// the terms: a hand is consistent with the call iff it lies in **some** box.
+/// hold without widening to the bounding box (the "`Or` wall").  An
+/// [`EnvelopeUnion`] keeps the terms of that disjunctive normal form: a hand is
+/// consistent with the call iff it lies in **some** box.
 ///
 /// Sound by construction — every operation is *exact or widening, never
 /// narrowing*.  [`intersect`][Self::intersect] distributes (Cartesian product of
 /// box-intersects, dropping empty products); [`union`][Self::union] concatenates.
 /// [`hull`][Self::hull] collapses the union back to the single bounding box, the
-/// migration escape hatch that reproduces today's single-box reading.
+/// migration escape hatch that reproduces the legacy single-box reading.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct Dnf(
+pub struct EnvelopeUnion(
     /// The disjoined boxes; non-empty (`len >= 1`) by invariant.
     Vec<Envelope>,
 );
 
-impl Dnf {
+impl EnvelopeUnion {
     /// Nothing shown yet: a single [`Envelope::unknown`] box
     #[must_use]
     pub fn unknown() -> Self {
         Self(vec![Envelope::unknown()])
     }
 
-    /// The bounding box of the union — fold [`Envelope::union`] over the terms
+    /// The bounding box of the union — fold [`Envelope::span`] over the terms
     ///
     /// Today's single-box behaviour: every consumer that still wants one
     /// [`Envelope`] hulls here.  Never narrows (a hand in some term is in the
-    /// hull), so hulling a sound `Dnf` stays sound.
+    /// hull), so hulling a sound `EnvelopeUnion` stays sound.
     #[must_use]
     pub fn hull(&self) -> Envelope {
         self.0
             .iter()
             .copied()
-            .reduce(|a, b| a.union(&b))
+            .reduce(|a, b| a.span(&b))
             .unwrap_or_else(Envelope::unknown)
     }
 
@@ -1291,17 +1292,17 @@ impl Dnf {
     }
 
     /// The `|` combine the projection fold uses: separate boxes under
-    /// [`dnf_reading`], else the single bounding-box hull
+    /// [`envelope_union_reading`], else the single bounding-box hull
     ///
-    /// Off (the default), reproduces [`Envelope::union`] exactly, so the hull
+    /// Off, reproduces [`Envelope::span`] exactly, so the hull
     /// path stays byte-identical; on, keeps the arms so an enclosing `&`
     /// distributes and the sampler pins the disjunction.
     #[must_use]
     pub fn disjoin(self, other: Self) -> Self {
-        if dnf_reading() {
+        if envelope_union_reading() {
             self.union(other).tidy()
         } else {
-            Self::from(self.hull().union(&other.hull()))
+            Self::from(self.hull().span(&other.hull()))
         }
     }
 
@@ -1312,7 +1313,7 @@ impl Dnf {
     /// each → one box out (`and` is a cheap box-shrink); growth needs *both*
     /// sides to be genuine disjunctions.  If every product is empty the whole
     /// conjunction is unsatisfiable, so fall back to the widened hull-intersect
-    /// — sound and loose, never an empty (unsound) `Dnf`.
+    /// — sound and loose, never an empty (unsound) `EnvelopeUnion`.
     #[must_use]
     pub fn intersect(&self, other: &Self) -> Self {
         let mut out = Vec::new();
@@ -1333,7 +1334,7 @@ impl Dnf {
         let out = Self(out).tidy();
         debug_assert!(
             out.0.len() < 64,
-            "DNF term explosion: {} boxes",
+            "envelope union term explosion: {} boxes",
             out.0.len()
         );
         out
@@ -1348,12 +1349,13 @@ impl Dnf {
     /// [`set_sum_closure`] / [`set_upgrade_closure`], each surviving box is
     /// narrowed to the bounds its own contents imply
     /// (`Envelope::narrow_to_sum`, `Envelope::narrow_to_upgrade`) — exact, so
-    /// the extra containments the dedup then finds are real.  Runs only under [`dnf_reading`] —
+    /// the extra containments the dedup then finds are real.  Runs only under
+    /// [`envelope_union_reading`] —
     /// the knob-off hull path must stay byte-identical — and restores the
     /// non-empty invariant with ⊤ if every box was a ghost (an unsatisfiable
     /// conjunction; sound, loose, rare).
     fn tidy(mut self) -> Self {
-        if !dnf_reading() {
+        if !envelope_union_reading() {
             return self;
         }
         self.0.retain(Envelope::sum_feasible);
@@ -1387,7 +1389,7 @@ impl Dnf {
     }
 }
 
-impl From<Envelope> for Dnf {
+impl From<Envelope> for EnvelopeUnion {
     fn from(box_: Envelope) -> Self {
         Self(vec![box_])
     }
@@ -1487,26 +1489,27 @@ fn systems_on_overcall_strip(auction: &[Call]) -> Option<Vec<Call>> {
 
 /// All four players' shown shape and strength, relative to the side to act
 ///
-/// `Vec`-backed [`Dnf`] means this is `Clone`, not `Copy` (two convertible call
+/// `Vec`-backed [`EnvelopeUnion`] means this is `Clone`, not `Copy` (two convertible call
 /// sites: `narrowed_points`, `single_dummy`).
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Inferences {
-    /// Per-seat bounding-box hull of `dnf` — the single-[`Envelope`] reading the
+    /// Per-seat bounding-box hull of `unions` — the single-[`Envelope`] reading the
     /// American engine consumes via [`get`][Self::get].  A redundant cache of
-    /// `dnf[i].hull()` (`ponytail: keeps get()->&Envelope and all readers
+    /// `unions[i].hull()` (`ponytail: keeps get()->&Envelope and all readers
     /// unchanged; collapse to get-by-value if the two ever drift`).
     players: [Envelope; 4],
     /// Per-seat union-of-boxes reading; the sampler tests any-box under
-    /// [`dnf_reading`].  Off, every entry is a single box equal to `players[i]`.
-    dnf: [Dnf; 4],
-    /// Per-seat hull of `announced` — the *agreement* twin of `players`, and
+    /// [`envelope_union_reading`].  Off, every entry is a single box equal to
+    /// `players[i]`.
+    unions: [EnvelopeUnion; 4],
+    /// Per-seat hull of `announced_unions` — the *agreement* twin of `players`, and
     /// what [`features`][super::features] hands the nets.  Equal to `players`
     /// unless [`set_announced_reading`] is on and some rule split the two with
     /// [`announced`][super::constraint::announced].
     announced_players: [Envelope; 4],
-    /// Per-seat agreement boxes; the twin of `dnf` (see `announced_players`).
-    announced: [Dnf; 4],
+    /// Per-seat agreement boxes; the twin of `unions` (see `announced_players`).
+    announced_unions: [EnvelopeUnion; 4],
     /// The last call the M6.4 classifier read as a control bid: its auction
     /// index and the suit it agrees.  The exact witness for the instinct
     /// signoff — "the named suit is unread" cannot tell a control bid from an
@@ -1576,8 +1579,8 @@ impl Inferences {
     /// [`features_eval_shape`][super::features::features_eval_shape] — reads
     /// the boxes here and tests membership atom by atom.
     #[must_use]
-    pub const fn announced_dnf(&self, who: Relative) -> &Dnf {
-        &self.announced[who as usize]
+    pub const fn announced_union(&self, who: Relative) -> &EnvelopeUnion {
+        &self.announced_unions[who as usize]
     }
 
     /// Assemble a reading from the natural walk's hull and the two overlays
@@ -1589,15 +1592,15 @@ impl Inferences {
     // agreement ever needs to show through; nothing wants one yet.
     fn assemble(
         players: [Envelope; 4],
-        overlay: &[Dnf; 4],
-        agreement: &[Dnf; 4],
+        overlay: &[EnvelopeUnion; 4],
+        agreement: &[EnvelopeUnion; 4],
         control_bid: Option<(u8, Suit)>,
     ) -> Self {
-        let announced = dnf_of(&players, agreement);
+        let announced_unions = intersect_overlay(&players, agreement);
         let mut this = Self {
-            dnf: dnf_of(&players, overlay),
-            announced_players: std::array::from_fn(|i| announced[i].hull()),
-            announced,
+            unions: intersect_overlay(&players, overlay),
+            announced_players: std::array::from_fn(|i| announced_unions[i].hull()),
+            announced_unions,
             players,
             control_bid,
         };
@@ -1606,8 +1609,8 @@ impl Inferences {
                 let i = who as usize;
                 this.players[i] = Envelope::unknown();
                 this.announced_players[i] = Envelope::unknown();
-                this.dnf[i] = Dnf::unknown();
-                this.announced[i] = Dnf::unknown();
+                this.unions[i] = EnvelopeUnion::unknown();
+                this.announced_unions[i] = EnvelopeUnion::unknown();
             }
         }
         this
@@ -1615,14 +1618,14 @@ impl Inferences {
 
     /// Whether `hand` is consistent with one seat's reading
     ///
-    /// Under [`dnf_reading`] a hand must lie in *some* box of that seat's union
+    /// Under [`envelope_union_reading`] a hand must lie in *some* box of that seat's union
     /// (tighter — pins two-suiters / Multi / the fit-split); off, it need only
     /// lie in the bounding-box hull (today's acceptance).  The sampler's per-seat
     /// test.
     #[must_use]
     pub fn admits(&self, who: Relative, hand: Hand) -> bool {
-        if dnf_reading() {
-            self.dnf[who as usize].contains(hand)
+        if envelope_union_reading() {
+            self.unions[who as usize].contains(hand)
         } else {
             self.players[who as usize].admits(hand)
         }
@@ -1664,7 +1667,7 @@ impl Inferences {
         let mut copy = self.clone();
         let i = who as usize;
         copy.players[i].strength.points = copy.players[i].strength.points.intersect(points);
-        // Narrow the points of every box in the union to keep `dnf` == the hull's
+        // Narrow the points of every box in the union to keep `unions` == the hull's
         // source (a points-only slab drops no box: it never crosses a length axis).
         let slab = Envelope {
             strength: Strength {
@@ -1673,13 +1676,13 @@ impl Inferences {
             },
             ..Envelope::unknown()
         };
-        copy.dnf[i] = copy.dnf[i].intersect(&slab.into());
+        copy.unions[i] = copy.unions[i].intersect(&slab.into());
         // An externally-imposed points slice is a fact about the hand, not a
         // reading of a call, so it narrows the agreement side identically —
         // otherwise the two drift apart on the one axis the caller sliced.
         copy.announced_players[i].strength.points =
             copy.announced_players[i].strength.points.intersect(points);
-        copy.announced[i] = copy.announced[i].intersect(&slab.into());
+        copy.announced_unions[i] = copy.announced_unions[i].intersect(&slab.into());
         copy
     }
 
@@ -1718,11 +1721,13 @@ impl Inferences {
         let len = auction.len();
         let mut players = [Envelope::unknown(); 4];
         // The disjunctive overlay, folded into `players` (the hull) below and into
-        // `dnf` (the boxes) at each return.  Unknown until `project_authored` runs.
-        let mut overlay_dnf: [Dnf; 4] = std::array::from_fn(|_| Dnf::unknown());
-        // The agreement twin of `overlay_dnf`; a clone of it unless
+        // `unions` (the boxes) at each return.  Unknown until `project_authored` runs.
+        let mut overlay_unions: [EnvelopeUnion; 4] =
+            std::array::from_fn(|_| EnvelopeUnion::unknown());
+        // The agreement twin of `overlay_unions`; a clone of it unless
         // [`set_announced_reading`] is on (see [`project_authored`]).
-        let mut agreement_dnf: [Dnf; 4] = std::array::from_fn(|_| Dnf::unknown());
+        let mut agreement_unions: [EnvelopeUnion; 4] =
+            std::array::from_fn(|_| EnvelopeUnion::unknown());
         let mut control_bid = None;
 
         let Some(opening_index) = auction.iter().position(|&c| c != Call::Pass) else {
@@ -1736,13 +1741,13 @@ impl Inferences {
                 for (player, projected) in players.iter_mut().zip(&overlay) {
                     *player = player.intersect(&projected.hull());
                 }
-                overlay_dnf = overlay;
-                agreement_dnf = agreement;
+                overlay_unions = overlay;
+                agreement_unions = agreement;
             }
-            return Self::assemble(players, &overlay_dnf, &agreement_dnf, control_bid);
+            return Self::assemble(players, &overlay_unions, &agreement_unions, control_bid);
         };
         let Call::Bid(opening_bid) = auction[opening_index] else {
-            return Self::assemble(players, &overlay_dnf, &agreement_dnf, control_bid);
+            return Self::assemble(players, &overlay_unions, &agreement_unions, control_bid);
         };
         let opener_lane = opening_index % 4;
         // SAFETY: at most three passes precede the opening, so the cast is safe.
@@ -1787,11 +1792,11 @@ impl Inferences {
         // `suppressed` is a bitset of the indices whose natural single-suit reading
         // the walk must skip.
         let (overlay_boxes, agreement_boxes, suppressed) = project_authored(context);
-        overlay_dnf = overlay_boxes;
-        agreement_dnf = agreement_boxes;
+        overlay_unions = overlay_boxes;
+        agreement_unions = agreement_boxes;
         // The hulled overlay the natural walk consumes (`shown_suit`, the post-walk
-        // intersect); the boxes are re-combined into `dnf` at the return.
-        let overlay: [Envelope; 4] = std::array::from_fn(|i| overlay_dnf[i].hull());
+        // intersect); the boxes are re-combined into `unions` at the return.
+        let overlay: [Envelope; 4] = std::array::from_fn(|i| overlay_unions[i].hull());
         // The one suppression the projection cannot see: the advancer's 2♦ relay /
         // 2♥-2♠ preference over a Landy/Woolsey both-majors 2♣ names no length of its
         // own, so its rule projects nothing — suppress it by hand (the doc's stub).
@@ -2671,7 +2676,7 @@ impl Inferences {
             }
         }
 
-        Self::assemble(players, &overlay_dnf, &agreement_dnf, control_bid)
+        Self::assemble(players, &overlay_unions, &agreement_unions, control_bid)
     }
 
     /// The last call the M6.4 classifier read as a control bid: its auction
@@ -2700,12 +2705,12 @@ impl Inferences {
 #[cfg(test)]
 #[must_use]
 pub(crate) fn authored_reading(context: &Context<'_>) -> Inferences {
-    let (dnf, announced, _) = project_authored(context);
+    let (unions, announced_unions, _) = project_authored(context);
     Inferences {
-        players: std::array::from_fn(|i| dnf[i].hull()),
-        announced_players: std::array::from_fn(|i| announced[i].hull()),
-        dnf,
-        announced,
+        players: std::array::from_fn(|i| unions[i].hull()),
+        announced_players: std::array::from_fn(|i| announced_unions[i].hull()),
+        unions,
+        announced_unions,
         control_bid: None,
     }
 }
@@ -2891,15 +2896,16 @@ fn classify_high_bid(
 /// The bitset indexes by auction position; a position past 64 (never reached by a
 /// real auction) is simply left unmarked, falling back to the natural reading.
 /// Combine the final hulled `players` with the disjunctive `overlay` into the
-/// per-seat DNF the sampler consumes
+/// per-seat envelope union the sampler consumes
 ///
 /// `players[i]` already folds `overlay[i].hull()` and every hand-walk narrowing,
 /// and each overlay box is `⊆` that hull, so re-intersecting recovers exactly
 /// `⋃(hand-walk ∩ boxₖ)` — the tight union — while dropping boxes the walk
-/// contradicts.  With [`dnf_reading`] off each overlay is one box, so the result
-/// is the single box `players[i]` and `dnf[i].hull() == players[i]` (byte-identical).
-fn dnf_of(players: &[Envelope; 4], overlay: &[Dnf; 4]) -> [Dnf; 4] {
-    std::array::from_fn(|i| Dnf::from(players[i]).intersect(&overlay[i]))
+/// contradicts.  With [`envelope_union_reading`] off each overlay is one box,
+/// so the result is the single box `players[i]` and
+/// `unions[i].hull() == players[i]` (byte-identical).
+fn intersect_overlay(players: &[Envelope; 4], overlay: &[EnvelopeUnion; 4]) -> [EnvelopeUnion; 4] {
+    std::array::from_fn(|i| EnvelopeUnion::from(players[i]).intersect(&overlay[i]))
 }
 
 /// One table's pass reading: the union of its Pass rules' bands, knob-on
@@ -2912,13 +2918,13 @@ fn dnf_of(players: &[Envelope; 4], overlay: &[Dnf; 4]) -> [Dnf; 4] {
 /// shape-free tiers; skipping the rest costs precision, never soundness, and
 /// holds the box count down.  [`None`] when the table authors no Pass rule at
 /// all (the projection pass then records nothing, as before).
-fn project_pass(rules: &super::rules::Rules, ctx: &Context<'_>) -> Option<Dnf> {
+fn project_pass(rules: &super::rules::Rules, ctx: &Context<'_>) -> Option<EnvelopeUnion> {
     let band = rules
         .rules()
         .iter()
         .filter(|rule| rule.call() == Call::Pass)
-        .map(|rule| rule.project_band_dnf(ctx))
-        .reduce(Dnf::disjoin)?;
+        .map(|rule| rule.project_band_union(ctx))
+        .reduce(EnvelopeUnion::disjoin)?;
     if !pass_exclusion_reading() {
         return Some(band);
     }
@@ -2933,7 +2939,7 @@ fn project_pass(rules: &super::rules::Rules, ctx: &Context<'_>) -> Option<Dnf> {
             .rules()
             .iter()
             .filter(|rule| rule.call() != Call::Pass && rule.weight() > ceiling)
-            .map(|rule| rule.project_complement_dnf(ctx))
+            .map(|rule| rule.project_complement_union(ctx))
             .filter(|complement| {
                 complement.boxes().len() == 1 && complement.boxes()[0] != Envelope::unknown()
             })
@@ -2941,18 +2947,19 @@ fn project_pass(rules: &super::rules::Rules, ctx: &Context<'_>) -> Option<Dnf> {
     )
 }
 
-fn project_authored(context: &Context<'_>) -> ([Dnf; 4], [Dnf; 4], u64) {
+fn project_authored(context: &Context<'_>) -> ([EnvelopeUnion; 4], [EnvelopeUnion; 4], u64) {
     let auction = context.auction();
     let len = auction.len();
-    let mut players: [Dnf; 4] = std::array::from_fn(|_| Dnf::unknown());
-    // The agreement overlay, folded in lockstep with `players` off
-    // `Rule::announce_dnf`.  Knob-off it is never read separately — the caller
-    // gets a clone of `players` — so the second reduce below costs nothing.
-    let mut announced: [Dnf; 4] = std::array::from_fn(|_| Dnf::unknown());
+    let mut unions: [EnvelopeUnion; 4] = std::array::from_fn(|_| EnvelopeUnion::unknown());
+    // The agreement overlay, folded in lockstep with `unions` off
+    // `Rule::announce_union`.  Knob-off it is never read separately — the caller
+    // gets a clone of `unions` — so the second reduce below costs nothing.
+    let mut announced_unions: [EnvelopeUnion; 4] =
+        std::array::from_fn(|_| EnvelopeUnion::unknown());
     let mut suppressed = 0u64;
 
     let Some(prefixes) = context.prefixes() else {
-        return (players.clone(), players, suppressed);
+        return (unions.clone(), unions, suppressed);
     };
 
     let read_passes = pass_reading();
@@ -2990,8 +2997,8 @@ fn project_authored(context: &Context<'_>) -> ([Dnf; 4], [Dnf; 4], u64) {
                 .rules()
                 .iter()
                 .filter(|rule| rule.call() == made && rule.face_live(ctx))
-                .map(|rule| rule.project_dnf(ctx))
-                .reduce(Dnf::disjoin)
+                .map(|rule| rule.project_union(ctx))
+                .reduce(EnvelopeUnion::disjoin)
         };
 
         // A call is artificial — decode it — when its authoring rule *alerts* it.
@@ -3048,14 +3055,14 @@ fn project_authored(context: &Context<'_>) -> ([Dnf; 4], [Dnf; 4], u64) {
                     .filter(|rule| {
                         rule.call() == made && rule.alert().is_some() && rule.face_live(ctx)
                     })
-                    .map(|rule| rule.announce_dnf(ctx))
-                    .reduce(Dnf::disjoin)
+                    .map(|rule| rule.announce_union(ctx))
+                    .reduce(EnvelopeUnion::disjoin)
                     .unwrap_or_else(|| projection.clone())
             } else {
                 projection.clone()
             };
-            announced[who] = announced[who].intersect(&agreement);
-            players[who] = players[who].intersect(&projection);
+            announced_unions[who] = announced_unions[who].intersect(&agreement);
+            unions[who] = unions[who].intersect(&projection);
             // A pass suppresses nothing — it never had a natural suit reading.
             // Neither does an unalerted call read only because `natural_reading`
             // is on: it *is* natural, and suppressing it would delete the walk's
@@ -3066,7 +3073,7 @@ fn project_authored(context: &Context<'_>) -> ([Dnf; 4], [Dnf; 4], u64) {
             }
         }
     };
-    // `players` is a `[Dnf; 4]` closed over by `project_call`; every branch below
+    // `unions` is an `[EnvelopeUnion; 4]` closed over by `project_call`; every branch below
     // accumulates through it, and the caller hulls each entry for the natural walk.
 
     // A rule's constraint is a claim about the moment its call was made, so it
@@ -3172,14 +3179,14 @@ fn project_authored(context: &Context<'_>) -> ([Dnf; 4], [Dnf; 4], u64) {
         for index in 0..len {
             if let Some(&box_) = them.probed_box(&auction[..=index]) {
                 let who = relative_of(len, index) as usize;
-                let dnf = Dnf::from(box_);
-                players[who] = players[who].intersect(&dnf);
-                announced[who] = announced[who].intersect(&dnf);
+                let union = EnvelopeUnion::from(box_);
+                unions[who] = unions[who].intersect(&union);
+                announced_unions[who] = announced_unions[who].intersect(&union);
             }
         }
     }
 
-    (players, announced, suppressed)
+    (unions, announced_unions, suppressed)
 }
 
 /// Whether a call's projection floors a suit other than the one it names
@@ -4279,11 +4286,12 @@ mod tests {
         }
     }
 
-    /// The `Dnf` box algebra: `intersect` distributes and **drops** the empty
+    /// The `EnvelopeUnion` box algebra: `union` retains alternatives,
+    /// `intersect` distributes and **drops** the empty
     /// products, so a disjunctive reading stays tight instead of hulling to the
     /// bounding box.  The worked example is `1NT ∩ 4-5♥` (opener's Stayman `2♥`).
     #[test]
-    fn dnf_intersect_drops_empty_products() {
+    fn envelope_union_algebra_preserves_exact_alternatives() {
         // A box literal: [♣, ♦, ♥, ♠] length ranges (ASC order) and points.
         let box_ = |c: (u8, u8), d: (u8, u8), h: (u8, u8), s: (u8, u8), p: (u8, u8)| Envelope {
             lengths: [
@@ -4299,13 +4307,14 @@ mod tests {
         };
 
         // 1NT as three shapes, all 15-17: balanced, then each 5-card major.
-        let one_nt = Dnf(vec![
+        let one_nt = EnvelopeUnion(vec![
             box_((2, 6), (2, 6), (2, 4), (2, 4), (15, 17)), // balanced
             box_((2, 3), (2, 3), (2, 3), (5, 5), (15, 17)), // 5=♠
             box_((2, 3), (2, 3), (5, 5), (2, 3), (15, 17)), // 5=♥
         ]);
         // Opener's `2♥` over Stayman = 1NT ∩ {4-5 hearts}, other suits free.
-        let four_five_hearts = Dnf::from(box_((0, 13), (0, 13), (4, 5), (0, 13), (0, 37)));
+        let four_five_hearts =
+            EnvelopeUnion::from(box_((0, 13), (0, 13), (4, 5), (0, 13), (0, 37)));
 
         let two_hearts = one_nt.intersect(&four_five_hearts);
 
@@ -4319,10 +4328,17 @@ mod tests {
             .collect();
         assert!(hearts.contains(&Range::new(4, 4)) && hearts.contains(&Range::new(5, 5)));
 
-        // The hull re-widens to the bounding box — the slop the Dnf avoids: it
+        // The hull re-widens to the bounding box — the slop the union avoids: it
         // admits ♠4♥5, a hand *neither* surviving box holds (balanced caps ♠ at 4
         // only with ≤4♥; the 5♥ box caps ♠ at 3).
         let hull = two_hearts.hull();
+        let folded_span = two_hearts
+            .boxes()
+            .iter()
+            .copied()
+            .reduce(|a, b| a.span(&b))
+            .unwrap_or_else(Envelope::unknown);
+        assert_eq!(hull, folded_span);
         assert_eq!(hull.length(Suit::Hearts), Range::new(4, 5));
         assert_eq!(hull.length(Suit::Spades), Range::new(2, 4));
         assert!(two_hearts.0.iter().all(|b| {
@@ -4330,17 +4346,28 @@ mod tests {
         }));
 
         // Fully-contradictory intersect falls back to the widened hull, never empty.
-        let empty = Dnf::from(box_((0, 0), (0, 13), (0, 13), (0, 13), (0, 37)));
-        let clubs = Dnf::from(box_((5, 13), (0, 13), (0, 13), (0, 13), (0, 37)));
-        assert_eq!(empty.intersect(&clubs).0.len(), 1);
+        let empty = EnvelopeUnion::from(box_((0, 0), (0, 13), (0, 13), (0, 13), (0, 37)));
+        let clubs = EnvelopeUnion::from(box_((5, 13), (0, 13), (0, 13), (0, 13), (0, 37)));
+        let widened = empty.intersect(&clubs);
+        let expected_widening = EnvelopeUnion::from(empty.hull().span(&clubs.hull()));
+        assert_eq!(widened, expected_widening);
+
+        let exact = empty.union(clubs);
+        assert_eq!(exact.boxes().len(), 2, "exact union must retain both boxes");
     }
 
-    /// `set_dnf_reading` gates the `Or` wall: off, `or([♥, ♠], 6..)` hulls to one
+    /// `set_envelope_union_reading` gates the `Or` wall: off,
+    /// `or([♥, ♠], 6..)` hulls to one
     /// box that admits a 5-4 hand with no six-card major; on, it keeps the two
     /// boxes and rejects that hand while still admitting each true one-suiter.
     #[test]
-    fn dnf_reading_pins_the_two_suiter() {
+    fn envelope_union_reading_pins_the_two_suiter() {
         use crate::bidding::constraint::{Constraint, or};
+        assert!(
+            std::thread::spawn(envelope_union_reading).join().unwrap(),
+            "the envelope-union reading must default on"
+        );
+
         // Holdings are spades.hearts.diamonds.clubs.
         let six_spades: Hand = "AKQJ32.KQ4.32.32".parse().unwrap();
         let six_hearts: Hand = "KQ4.AKQJ32.32.32".parse().unwrap();
@@ -4348,23 +4375,26 @@ mod tests {
         let ctx = Context::new(RelativeVulnerability::NONE, &[]);
         let reading = or([Suit::Hearts, Suit::Spades], 6..);
 
-        set_dnf_reading(false);
-        let hull = reading.project(&ctx);
-        assert_eq!(hull.0.len(), 1, "off: one bounding box");
-        assert!(
-            hull.contains(five_four),
-            "off: the hull admits the 5-4 slop"
-        );
-
-        set_dnf_reading(true);
+        set_envelope_union_reading(true);
         let boxes = reading.project(&ctx);
+        let expected_legacy_hull = EnvelopeUnion::from(boxes.hull());
         assert_eq!(boxes.0.len(), 2, "on: one box per major");
         assert!(boxes.contains(six_spades) && boxes.contains(six_hearts));
         assert!(
             !boxes.contains(five_four),
             "on: neither box holds the 5-4 hand"
         );
-        set_dnf_reading(true);
+
+        set_envelope_union_reading(false);
+        let hull = reading.project(&ctx);
+        assert_eq!(hull, expected_legacy_hull, "off: the legacy span");
+        assert_eq!(hull.0.len(), 1, "off: one bounding box");
+        assert!(
+            hull.contains(five_four),
+            "off: the hull admits the 5-4 slop"
+        );
+
+        set_envelope_union_reading(true);
     }
 
     /// `set_blind_opponent_reading` blanks LHO and RHO and *only* those: the
@@ -4387,7 +4417,7 @@ mod tests {
 
         for who in [Relative::Lho, Relative::Rho] {
             assert_eq!(*blind.get(who), Envelope::unknown(), "{who:?} not blanked");
-            assert_eq!(blind.announced_dnf(who), &Dnf::unknown());
+            assert_eq!(blind.announced_union(who), &EnvelopeUnion::unknown());
         }
         assert_ne!(
             *seen.get(Relative::Rho),
@@ -4396,7 +4426,7 @@ mod tests {
         );
         for who in [Relative::Me, Relative::Partner] {
             assert_eq!(*blind.get(who), *seen.get(who), "{who:?} moved");
-            assert_eq!(blind.announced_dnf(who), seen.announced_dnf(who));
+            assert_eq!(blind.announced_union(who), seen.announced_union(who));
         }
         // Knob off is byte-identical to never having set it.
         let after = read(&auction);
@@ -4407,7 +4437,7 @@ mod tests {
             Relative::Rho,
         ] {
             assert_eq!(*after.get(who), *seen.get(who), "{who:?} moved after reset");
-            assert_eq!(after.announced_dnf(who), seen.announced_dnf(who));
+            assert_eq!(after.announced_union(who), seen.announced_union(who));
         }
     }
 
@@ -5604,7 +5634,7 @@ mod tests {
         use rand::SeedableRng as _;
 
         crate::bidding::american::set_nt_overcall_gladiator(true);
-        set_dnf_reading(true);
+        set_envelope_union_reading(true);
         let stance = crate::american().against();
         let node = [bid(1, Strain::Spades), bid(1, Strain::Notrump), Call::Pass];
 
@@ -5709,7 +5739,7 @@ mod tests {
     fn readings_admit_the_bidder() {
         use rand::SeedableRng as _;
 
-        set_dnf_reading(true);
+        set_envelope_union_reading(true);
         let stance = crate::american().against();
 
         // (what the node is, the auction up to the seat replayed).  Multi-call
@@ -5982,7 +6012,7 @@ mod tests {
     #[test]
     fn natural_reading_publishes_an_unalerted_rules_promise() {
         crate::bidding::american::set_nt_overcall_gladiator(true);
-        set_dnf_reading(true);
+        set_envelope_union_reading(true);
         let auction = [
             bid(1, Strain::Spades),
             bid(1, Strain::Notrump),
@@ -7105,7 +7135,7 @@ mod tests {
     fn tidy_prunes_ghosts_and_contained() {
         use crate::bidding::constraint::{Constraint as _, and, balanced, points};
 
-        set_dnf_reading(true);
+        set_envelope_union_reading(true);
         let context = Context::new(RelativeVulnerability::NONE, &[]);
 
         // `balanced & {3..}⁴`: the four 5(332) pan-handles intersect to
@@ -7120,7 +7150,7 @@ mod tests {
         let dup = (balanced() & (points(8..) | points(10..))).project_band(&context);
         assert_eq!(dup.boxes().len(), 5);
 
-        set_dnf_reading(true);
+        set_envelope_union_reading(true);
     }
 
     /// The 560 ordered shapes — every 4-tuple of suit lengths summing to 13.
@@ -7208,13 +7238,13 @@ mod tests {
     fn upgrade_closure_crisps_the_balanced_band() {
         use crate::bidding::constraint::{Constraint as _, balanced, points};
 
-        set_dnf_reading(true);
+        set_envelope_union_reading(true);
         let context = Context::new(RelativeVulnerability::NONE, &[]);
         let read_hcp = |on: bool| {
             set_upgrade_closure(on);
-            let dnf = (balanced() & points(15..)).project(&context);
+            let union = (balanced() & points(15..)).project(&context);
             set_upgrade_closure(false);
-            dnf.hull().strength.hcp
+            union.hull().strength.hcp
         };
 
         assert_eq!(read_hcp(false), Range::new(13, Range::FULL_POINTS.max));
@@ -7239,7 +7269,7 @@ mod tests {
         // Outside the `hcp(..=8)` claim, yet the loose reading admits it,
         // because `points` was slacked to `hcp + hcp_ceiling_slack()`.
         let hand: Hand = "AKQ2.J43.432.432".parse().expect("valid hand");
-        set_dnf_reading(true);
+        set_envelope_union_reading(true);
         let context = Context::new(RelativeVulnerability::NONE, &[]);
         let reading = (balanced() & hcp(..=8)).project_band(&context);
 
@@ -7273,7 +7303,7 @@ mod tests {
 
     #[test]
     fn range_intersect_widens_on_conflict() {
-        // Disjoint ranges cannot both hold; widen to the union, never empty.
+        // Disjoint ranges cannot both hold; widen to the span, never empty.
         assert_eq!(
             Range::new(5, 13).intersect(Range::new(6, 13)),
             Range::new(6, 13)
@@ -7344,13 +7374,14 @@ mod tests {
     /// The alert-invariant worklist for one trie: rules whose projection the
     /// structural [`artificial`] detector flags but which carry no `.alert(...)`
     ///
-    /// Walks under the **legacy hull projection** (`set_dnf_reading(false)`):
+    /// Walks under the **legacy hull projection**
+    /// (`set_envelope_union_reading(false)`):
     /// the detector's "floors a suit it did not name" reading was defined
     /// against hulls, and knob-on box unions (the fit-split's major floors,
-    /// `dnf_upgrade` boxes) legitimately carry other-suit information that
+    /// `envelope_union_upgrade` boxes) legitimately carry other-suit information that
     /// would false-positive it.
     fn unalerted_artificial(label: &str, trie: &crate::bidding::trie::Trie) -> Vec<String> {
-        set_dnf_reading(false);
+        set_envelope_union_reading(false);
         let mut worklist = Vec::new();
         for_each_authored_rule(trie, |auction, context, rule| {
             let made = rule.call();
@@ -7367,7 +7398,7 @@ mod tests {
                 ));
             }
         });
-        set_dnf_reading(true);
+        set_envelope_union_reading(true);
         worklist
     }
 
@@ -7484,7 +7515,7 @@ mod tests {
     /// Per-column reading-leak lists over a set of book tries
     ///
     /// A **leak** is an authored rule whose [`Constraint::describe`] names an
-    /// axis while **no box** of its [`Rule::project_band_dnf`] band constrains
+    /// axis while **no box** of its [`Rule::project_band_union`] band constrains
     /// that axis.  Per-box (not hull) on purpose: a disjunction that constrains
     /// the axis in every arm — the fit-split's `points | support points` — is a
     /// *sound* reading knob-on even though its hull is full, but knob-off the
@@ -7548,7 +7579,7 @@ mod tests {
             walk(trie, &mut |_, context, rule| {
                 let mut leaves = Vec::new();
                 atoms(&rule.describe(), &mut leaves);
-                let band = rule.project_band_dnf(context);
+                let band = rule.project_band_union(context);
                 let boxes = band.boxes();
                 let text = leaves.join(" | ");
                 let entry = format!("{system}: {} :: {text}", rule.call());
@@ -7660,7 +7691,7 @@ mod tests {
             .map(|text| text.parse::<Hand>().unwrap_or_else(|_| unreachable!())),
         );
 
-        set_dnf_reading(true);
+        set_envelope_union_reading(true);
         let american = american();
         let dutch = dutch();
         let tries: [(&str, &crate::bidding::trie::Trie); 4] = [
@@ -7678,14 +7709,14 @@ mod tests {
             context: &Context<'_>,
             rule: &crate::bidding::rules::Rule,
         ) {
-            let forward = rule.project_dnf(context);
-            let band = rule.project_band_dnf(context);
+            let forward = rule.project_union(context);
+            let band = rule.project_band_union(context);
             for &hand in hands {
                 if !rule.eval(hand, context).is_finite() {
                     continue;
                 }
-                for (fold, dnf) in [("project", &forward), ("band", &band)] {
-                    if !dnf.boxes().iter().any(|envelope| envelope.accepts(hand))
+                for (fold, union) in [("project", &forward), ("band", &band)] {
+                    if !union.boxes().iter().any(|envelope| envelope.accepts(hand))
                         && failures.len() < 16
                     {
                         failures.push(format!(
@@ -7752,7 +7783,7 @@ mod tests {
                 .map(|text| text.parse::<Hand>().unwrap_or_else(|_| unreachable!())),
         );
 
-        set_dnf_reading(true);
+        set_envelope_union_reading(true);
         set_pass_exclusion_reading(true);
         let american = american();
         let dutch = dutch();
@@ -7840,7 +7871,8 @@ mod tests {
     /// constructive trie (Dutch reuses american's competitive and defensive
     /// books), and runs **twice**:
     ///
-    /// - **knob-off** (`set_dnf_reading(false)`, the shipped reading) — the
+    /// - **knob-off** (`set_envelope_union_reading(false)`) — the legacy reading;
+    ///   the
     ///   byte-identity guard.  These counts must not move *in either direction*:
     ///   a fall means a knob-off hull tightened, which is a bidding change that
     ///   must ship through measurement, not slip in as a refactor.
@@ -7864,14 +7896,14 @@ mod tests {
             ("dutch constructive", &dutch.constructive.0),
         ];
 
-        set_dnf_reading(false);
+        set_envelope_union_reading(false);
         let off = axis_leaks(&tries);
-        set_dnf_reading(true);
+        set_envelope_union_reading(true);
         let on = axis_leaks(&tries);
 
         // (column, knob-off pin, knob-on pin) — re-pins go in the
         // docs/dnf-migration.md ledger.  Chop G drove every knob-on column to
-        // **zero**: comparative staircases, reroute `dnf_upgrade` boxes,
+        // **zero**: comparative staircases, reroute `envelope_union_upgrade` boxes,
         // `top_honors`/`Points` gauge floors, and `Balanced`'s unbalanced
         // complement.  Knob-off pins are the byte-identity guard; `length`
         // dropped 71 → 59 when the sniffer stopped counting context claims
@@ -7880,7 +7912,7 @@ mod tests {
         // stayed clean).  The 2026-07-25 `Points13` gate default (the major
         // no-fit 2/1 now gauges `points(13..)`, not `hcp(13..)`) swaps six
         // legacy-`Or` leaks from HCP (17 → 11) to points (3 → 9); the knob-on
-        // DNF box pins both axes exactly, so both knob-on columns stay 0.
+        // The envelope-union box pins both axes exactly, so both knob-on columns stay 0.
         let pinned: [(&str, usize, usize); 6] = [
             // 11/0 → 20/9 when the queen relay went default-on (2026-08-02).
             // The nine new leaks are the same three calls in each column —
@@ -7963,9 +7995,9 @@ mod tests {
         ];
         let walk: RuleWalk = |trie, visit| for_each_fallback_rule(trie, visit, |_, _| {});
 
-        set_dnf_reading(false);
+        set_envelope_union_reading(false);
         let off = axis_leaks_with(&tries, walk);
-        set_dnf_reading(true);
+        set_envelope_union_reading(true);
         let on = axis_leaks_with(&tries, walk);
 
         // Pinned at birth (2026-07-27) — the meter getting honest, not a
@@ -8205,7 +8237,7 @@ mod tests {
         /// The load-bearing C1/C2 pin: closing the boxes is **membership-inert**
         /// on the real reading path, so the sampler cannot move.  Every hand a
         /// reading admitted knob-off it still admits knob-on, and vice versa —
-        /// on the lenient `Dnf::contains` the sampler uses *and* the strict
+        /// on the lenient `EnvelopeUnion::contains` the sampler uses *and* the strict
         /// `Envelope::accepts` gate.  If this ever fires, the closure is
         /// dropping legal hands and the A/B verdict means nothing.
         #[test]
@@ -8218,7 +8250,7 @@ mod tests {
             let deal = full_deal(&mut rng);
             let hand: Hand = deal[contract_bridge::Seat::North];
 
-            set_dnf_reading(true);
+            set_envelope_union_reading(true);
             let context = Context::new(RelativeVulnerability::NONE, &[]);
             let readings = [
                 (balanced() & points(15..17)).project_band(&context),

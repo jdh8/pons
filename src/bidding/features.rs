@@ -18,7 +18,7 @@
 
 use super::card::Card;
 use super::context::Context;
-use super::inference::{Dnf, Envelope, Inferences, Range, Relative};
+use super::inference::{Envelope, EnvelopeUnion, Inferences, Range, Relative};
 use crate::bidding::constraint::{upgrade, upgrade_ceiling};
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::eval::{self, HandEvaluator, SimpleEvaluator};
@@ -422,8 +422,8 @@ fn push_shape_dist(out: &mut Vec<f32>, shape: &Shape) {
 
 /// The boxes the nets are fed: the seat's agreement union, or nothing under
 /// [`set_blind_inference`].  `None` means "shows nothing", the ⊤ reading.
-fn shown_boxes(dnf: &Dnf) -> Option<&[Envelope]> {
-    (!BLIND_INFERENCE.with(std::cell::Cell::get)).then(|| dnf.boxes())
+fn shown_boxes(union: &EnvelopeUnion) -> Option<&[Envelope]> {
+    (!BLIND_INFERENCE.with(std::cell::Cell::get)).then(|| union.boxes())
 }
 
 // ── The HCP-distribution reading ──────────────────────────────────────────────
@@ -1126,7 +1126,7 @@ pub fn features_eval_v4(hand: Hand, inferences: &Inferences, auction: &[Call]) -
     let unseen = Unseen::new(hand);
     for who in [Relative::Lho, Relative::Partner, Relative::Rho] {
         push_points(&mut out, shown(inferences.announced(who)));
-        let boxes = shown_boxes(inferences.announced_dnf(who));
+        let boxes = shown_boxes(inferences.announced_union(who));
         push_shape_gauss(&mut out, &shape_of(&unseen, boxes));
     }
     for age in 1..=CALLS_EVAL_V3 {
@@ -1173,7 +1173,7 @@ pub fn features_eval_shape(hand: Hand, inferences: &Inferences, auction: &[Call]
     let unseen = Unseen::new(hand);
     for who in [Relative::Lho, Relative::Partner, Relative::Rho] {
         push_inference(&mut out, inferences.announced(who));
-        let boxes = shown_boxes(inferences.announced_dnf(who));
+        let boxes = shown_boxes(inferences.announced_union(who));
         push_shape_dist(&mut out, &shape_of(&unseen, boxes));
     }
     for age in 1..=CALLS_EVAL_V3 {
@@ -1235,7 +1235,7 @@ pub fn features_eval_points(hand: Hand, inferences: &Inferences, auction: &[Call
     let honours = UnseenHonours::new(hand);
     for who in [Relative::Lho, Relative::Partner, Relative::Rho] {
         push_inference(&mut out, inferences.announced(who));
-        let boxes = shown_boxes(inferences.announced_dnf(who));
+        let boxes = shown_boxes(inferences.announced_union(who));
         push_shape_gauss(&mut out, &shape_of(&unseen, boxes));
         push_hcp_ends(&mut out, shown(inferences.announced(who)));
         push_hcp_gauss(&mut out, &hcp_of(&honours, boxes));

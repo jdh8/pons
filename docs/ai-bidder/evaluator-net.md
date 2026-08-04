@@ -388,7 +388,7 @@ differences *within* this one mean anything.
 The standing commitment — *no auction in the input, ever* — was put to the NLL
 gate, expecting a refusal, and instead measured the largest single featurization
 delta in this document. Two arms, fresh corpus: 500k deals of `22.pdd` under
-`american()` + `dutch()`, `--encoding bits --auction --dnf --seed 1` (data
+`american()` + `dutch()`, `--encoding bits --auction --envelope-union --seed 1` (data
 `77091ca`, trainer `b1078aa`), 10,181,930 rows, val = the deal-disjoint 10%
 tail. The dump appends a 160-float auction block to the 79-float superset: for
 each of the last 4 calls, 7 bid-encoding floats + 3 pass/X/XX bits + the 21
@@ -475,7 +475,7 @@ tags/alerts left on the table per `ben-calls`), dumped verbatim by
 construction; the native twin `evaluator_v3_dnf` hit −1.54872 val NLL,
 reproducing the masked `ben-calls` arm (−1.54826); serving rides
 `trick_estimates_with_auction` behind `evaluator::set_eval_auction`, honoured
-only in the DNF regime the twin was trained on.  The A/B (204,800
+only in the envelope-union regime the twin was trained on.  The A/B (204,800
 boards/arm/vul, `SEED_BASE` 1785138816, vs BBA 2/1) came back `win | win` on
 every cell:
 
@@ -903,8 +903,8 @@ code and of the projection algebra, recorded before it bites.
 ```
 
 `net_break_even_gate` is a `pred`, so it inherits the default
-`project` — `Dnf::unknown()`, [`constraint.rs:73`](../../src/bidding/constraint.rs#L73) —
-and a DNF union containing ⊤ is ⊤. **Knob-on, every one of the eleven
+`project` — `EnvelopeUnion::unknown()`, [`constraint.rs:73`](../../src/bidding/constraint.rs#L73) —
+and an envelope union containing ⊤ is ⊤. **Knob-on, every one of the eleven
 converted milestones publishes a vacuous reading**, the same Or wall that
 erased the 2/1 (see [`sampled-projection.md`](sampled-projection.md)).
 
@@ -1155,7 +1155,7 @@ is not free, and follow-up A is now the only route that does not cost IMPs.
 ### Follow-ups this leaves open
 
 - **A — project with seat and partial state.** Widen `Constraint::project` to
-  `project(&self, ctx, who: Relative, partial: &[Dnf; 4])`. Non-recursive:
+  `project(&self, ctx, who: Relative, partial: &[EnvelopeUnion; 4])`. Non-recursive:
   `project_authored`'s fold is already sequential over `0..len` and already
   holds `players`, so the readings from indices `< i` are available at index `i`
   without re-entering `Inferences::read`; `who` kills the wrong-seat trap.
@@ -1232,7 +1232,7 @@ disclosure, and the net's ⊤ propagates to a partner computing its estimate on
 nothing.
 
 So: a second fold. `Constraint::announce`, defaulting to `project`, forwarded
-through `And` (intersect) / `Or` (disjoin) / `Cons`; `Rule::announce_dnf`; a
+through `And` (intersect) / `Or` (disjoin) / `Cons`; `Rule::announce_union`; a
 parallel overlay in `project_authored`; `Inferences::announced(who)`. The two
 arrays are byte-identical everywhere until
 
@@ -1248,7 +1248,7 @@ agreement. Knob `set_announced_reading`, default off.
 
 **The agreement must union over *alerted* rules only.** The floor's 4NT keycard
 ask shares its bid with an unalerted weight-0.3 catch-all, and the fold's
-`reduce(Dnf::disjoin)` over every rule for that call unioned the agreement
+`reduce(EnvelopeUnion::disjoin)` over every rule for that call unioned the agreement
 straight back to ⊤. For the projection that union is mandatory — any of those
 rules could have produced the call, so the sampler may not exclude a hand any of
 them accepts. For disclosure it is simply wrong: an alerted call is explained as
@@ -1420,7 +1420,7 @@ gain lives on patterns the corpus does not cover — which is exactly what a
 closure chop manufactures.
 
 Shipped artifact, trained natively on the 97-wide layout at the v3 protocol
-(500k deals of `22.pdd`, seed 1, pooled american+dutch, `--dnf`, 9,165,496 train
+(500k deals of `22.pdd`, seed 1, pooled american+dutch, `--envelope-union`, 9,165,496 train
 rows): **−1.54856 / MAE 1.392 / slam-MAE 2.474**, against the shipped v3's
 −1.54872 / 1.392 / 2.479.
 
@@ -1539,7 +1539,7 @@ serving time:
 ### The ablation — six arms over one corpus
 
 `scripts/eval-points-sweep.sh`, `--encoding points`, 400k deals of `22.pdd`,
-seed 1, pooled american+dutch, `--dnf`, 8,146,934 rows (the same decision nodes
+seed 1, pooled american+dutch, `--envelope-union`, 8,146,934 rows (the same decision nodes
 the shape sweep saw).  Every arm is a `--arm` mask, so all see identical rows in
 identical batch order at identical parameter count.  `pts-control` reproduces
 `features_eval_v4` out of the superset and lands at −1.54560 against the shape
@@ -1675,7 +1675,7 @@ Three things fall out:
 
 - **`suit_hcp` is dead at serving time.**  It rounds to zero in 500k readings.
   The honour-location gauge the quality gates read is written by so few rules,
-  and survives so little of `Dnf::tidy`, that no corpus should be dumped for it.
+  and survives so little of `EnvelopeUnion::tidy`, that no corpus should be dumped for it.
   This inverts the prior bet — honour location is physics the DD target depends
   on, but the reading does not carry it.
 - **`support_points` fires at ~10%**, and every firing binds beyond the implied
@@ -1701,7 +1701,7 @@ doc then says the meanings are `american`'s.  At our own seats the guarantee is
 therefore *derived*; at LHO and RHO, who are not playing `american`, it is only
 *assumed* — and nothing in the repo had ever measured it.
 
-`examples/probe-reading-sound` does, with `Dnf::contains(true_hand)` at every
+`examples/probe-reading-sound` does, with `EnvelopeUnion::contains(true_hand)` at every
 decision node of our two seats, BBA at the opponent seats.  10,000 deals:
 
 | hidden seat | readings | exclude the truth |

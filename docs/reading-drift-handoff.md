@@ -6,14 +6,14 @@ crate currently runs. This file names the family, prices it, and proposes the
 program; the [ledger](#campaign-ledger) at the bottom tracks the campaign that
 took it up (same day).
 
-Prerequisites: [dnf-migration.md](dnf-migration.md) (what the DNF work did and
+Prerequisites: [dnf-migration.md](dnf-migration.md) (what the historical DNF campaign did and
 did not do), [reader-retirement.md](reader-retirement.md) (the hand-written
 readers still standing), [ai-bidder/sampled-projection.md](ai-bidder/sampled-projection.md)
 (read a call off the *bidder*, not off its rules).
 
 ## The question
 
-DNF projection was supposed to end reader drift: instead of a hand-written
+Envelope-union projection was supposed to end reader drift: instead of a hand-written
 `Inferences` arm restating what a rule says, `project_authored` reads the rule
 *itself* and unions its boxes. So why did the Gladiator audit still find a rule
 that says `len(♦, 5..) & points(10..)` read as "six-plus diamonds, no strength
@@ -98,7 +98,7 @@ more. Two consequences worth internalising:
 1. A "reading-only" change cannot be shipped on a soundness argument. It needs
    the same A/B as a bidding change, or a book node that shadows the floor.
 2. A knob that suppresses a reading (`--no-ns-rubens`, `set_alert_reading`,
-   `set_dnf_reading`, the strip) is an *off-arm for the floor too*. Verdicts
+   `set_envelope_union_reading`, the strip) is an *off-arm for the floor too*. Verdicts
    from those A/Bs are joint, never attributable to the reading alone.
 
 That is why the first fix here was to author `gladiator_doubled_runout` rather
@@ -170,7 +170,7 @@ has attributed that 3.3% to specific nodes.
      is an A/B, not a desk fix.
 4. **Regime 2 projects on a knob now — `set_natural_reading`, default off**
    (`bba-gen --ns-natural-reading`). Built 2026-07-31 on jdh8's call that *every*
-   call should be read by DNF. Two implementation choices worth knowing before
+   call should be read by its envelope union. Two implementation choices worth knowing before
    measuring it:
 
    - It **intersects with** the walk rather than replacing it: an unalerted call
@@ -189,7 +189,7 @@ has attributed that 3.3% to specific nodes.
    tightens thousands of readings at once, and per dnf-migration.md's C1 finding
    a tightening that moves *endpoints without mass* is close to pure feature
    perturbation for the frozen nets. Expect it to need the knob-matched
-   evaluator twin (F2b), exactly as `set_dnf_reading` did — the bare flip lost
+   evaluator twin (F2b), exactly as `set_envelope_union_reading` did — the bare flip lost
    there and the twin is what made it ship.
 
 ## Do not conclude from this
@@ -225,7 +225,7 @@ this campaign, contrary to the freshly-written section above):
 - `--ns-natural-reading` runs the census under the regime-2 knob;
 - every cell counts **both predicates** — `Inferences::admits` (the table
   reading every in-crate consumer sits on; the invariant's predicate) and
-  `announced_dnf().contains` (the recorded baseline). Under default knobs the
+  `announced_union().contains` (the recorded baseline). Under default knobs the
   two are byte-identical (the announce overlay is a clone of the projection
   overlay until `set_announced_reading` is on), which the first run confirmed;
 - the worklist buckets **partner only** — every partner offender is a node we
@@ -252,7 +252,7 @@ top-40: ~20%, but each family covers many tail keys):
 | preference/raise of a shown 5-6 suit | `1♠ P 1NT P 2♦ P 2♠` (10/11), `…2♥ P 2♠` (8/8), `…3♠ P 4♠` (11/14) | support 3.. — doubleton preference excluded |
 | rebid inflation through artificial calls | XYZ `…2♣ P 2♦ P 2♠` (12/14), transfer `1NT P 2♦ P 2♥ P 3♦` (8/8) | ♠6.. / ♦6.. — the relay counted as a natural suit bid |
 | opener's X of RHO's overcall | `1♦ P 1♥ 1♠ X` (9/9) | support-double stamp (♥3..=3, 10..=21) the bidder never matches |
-| cue raise | `1♥ 1♠ 2♠` (8/15) | hull ⊤ but a DNF box excludes — projection-level |
+| cue raise | `1♥ 1♠ 2♠` (8/15) | hull ⊤ but an envelope-union box excludes — projection-level |
 | strip node, both-majors 3♦ | `1♠ 1NT P 3♦` (sweep catch) | reads walk-natural ♦5.. instead of the alerted both-majors; floor also bids it on 5 HCP |
 
 ### Invariant (step 2 — done)
@@ -601,7 +601,7 @@ joining the one batched A/B:
   full-auction context, and `Support::project` resolves `partner_last_suit()`
   seat-relatively — so the cue raise's `support(n..)` stamped n+ cards of the
   **cue suit** (`1♣ 1♦ 2♦` 24/24 excluded; the hull stayed near-⊤, which is
-  why only the DNF probe saw it) and the support double's `support(3..=3)`
+  why only the envelope-union probe saw it) and the support double's `support(3..=3)`
   stamped exactly-3 on the **opened minor** (`1♦ P 1♥ 1♠ X` 9/9 — the bidder
   plays a textbook support double, every doubler has exactly 3 hearts; the
   reading was the wrong suit). Fixed by projecting under the bidder's
@@ -629,7 +629,7 @@ joining the one batched A/B:
 - **Test-hygiene audit (side finding).** The sweep was flaky in-suite: the
   committed `transfer_gf_majors_*` tests hold the GF knobs across assertion
   windows, and a full audit found ~14 tests ending with non-default knob
-  state (dnf/table-alert readings, leaping-michaels, woolsey points,
+  state (envelope-union/table-alert readings, leaping-michaels, woolsey points,
   choice-of-games, lebensohl/double styles, negative-double shape, Stayman
   minor slam try) — every one a same-thread landmine for later tests.
   One-line restores applied to all.

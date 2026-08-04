@@ -15,7 +15,7 @@
 //! So: bid a mixed table with BBA at the opponent seats, and at every decision
 //! node of *our* seats test two predicates per hidden seat: [`Inferences::admits`]
 //! (the strict *table* reading every in-crate consumer sits on) and
-//! `announced_dnf(who).contains(true_hand)` (the lenient *disclosure* overlay,
+//! `announced_union(who).contains(true_hand)` (the lenient *disclosure* overlay,
 //! the recorded baseline).  Partner exclusions are additionally bucketed by the
 //! auction prefix through partner's call — the repair worklist of
 //! `docs/reading-drift-handoff.md`.
@@ -131,7 +131,7 @@ struct Args {
 /// `bad` tests [`Inferences::admits`], the *table* reading every in-crate
 /// consumer (sampler, nets, `set_inference_aware` floor) actually sits on, and
 /// the one the `readings_admit_the_bidder` sweep enforces.  `bad_announced`
-/// tests `announced_dnf().contains`, the lenient *disclosure* overlay — the
+/// tests `announced_union().contains`, the lenient *disclosure* overlay — the
 /// predicate of the recorded 8.2/3.3/8.3% baseline (`docs/deviation-panel.md`).
 /// The delta between them is itself a finding: an announce-vs-reading gap.
 #[derive(Default, Clone, Copy)]
@@ -212,7 +212,7 @@ fn census(
             // `back` calls ago is `back` seats counter-clockwise from the actor.
             let hand = deal[Seat::ALL[(seat as usize + 4 - back) % 4]];
             let admits = read.admits(who, hand);
-            let announced = read.announced_dnf(who).contains(hand);
+            let announced = read.announced_union(who).contains(hand);
             seats[slot].add(admits, announced);
             if who == Relative::Partner {
                 keys.entry(auction_key(&auction[..=last]))

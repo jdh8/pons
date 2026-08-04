@@ -15,11 +15,11 @@
 
 use super::{call, insert_uncontested, slam};
 use crate::bidding::constraint::{
-    Cons, Constraint, balanced, described, dnf_upgrade, equal_length, hcp, len, long_suit_box,
-    longer_suit, point_count, points, pred, reads_as, stopper_in, support_point_count_in,
-    support_points, top_honors,
+    Cons, Constraint, balanced, described, envelope_union_upgrade, equal_length, hcp, len,
+    long_suit_box, longer_suit, point_count, points, pred, reads_as, stopper_in,
+    support_point_count_in, support_points, top_honors,
 };
-use crate::bidding::inference::{Dnf, Range};
+use crate::bidding::inference::{EnvelopeUnion, Range};
 use crate::bidding::instinct::net_break_even_gate;
 use crate::bidding::{Alert, Context, Rules, Trie};
 use contract_bridge::auction::Call;
@@ -2166,7 +2166,7 @@ fn slam_55_reroute() -> Cons<impl Constraint + Clone> {
         Range::FULL_LENGTH,
     );
     envelope.strength.points = Range::new(17, Range::FULL_POINTS.max);
-    dnf_upgrade(legacy, Dnf::from(envelope))
+    envelope_union_upgrade(legacy, EnvelopeUnion::from(envelope))
 }
 
 /// A void or low singleton — the shortness a splinter shows
@@ -2186,9 +2186,9 @@ fn splinter_short(suit: Suit) -> Cons<impl Constraint + Clone> {
     );
     // Sound over-approximation: the singleton-A/K exclusion is honor
     // location, which no `Envelope` axis holds — the box keeps `suit ≤ 1`.
-    dnf_upgrade(
+    envelope_union_upgrade(
         legacy,
-        Dnf::from(long_suit_box(suit, Range::new(0, 1), Range::FULL_LENGTH)),
+        EnvelopeUnion::from(long_suit_box(suit, Range::new(0, 1), Range::FULL_LENGTH)),
     )
 }
 
@@ -2240,11 +2240,11 @@ fn major_splinter_reroute(major: Suit) -> Cons<impl Constraint + Clone> {
             );
             envelope.lengths[short as usize] = Range::new(0, 1);
             envelope.narrow_support_points(major, Range::new(16, Range::FULL_POINTS.max));
-            Dnf::from(envelope)
+            EnvelopeUnion::from(envelope)
         })
-        .reduce(Dnf::union)
-        .unwrap_or_else(Dnf::unknown);
-    dnf_upgrade(legacy, boxes)
+        .reduce(EnvelopeUnion::union)
+        .unwrap_or_else(EnvelopeUnion::unknown);
+    envelope_union_upgrade(legacy, boxes)
 }
 
 /// The splinter reroute negated (carves the direct Texas and direct game-jump)

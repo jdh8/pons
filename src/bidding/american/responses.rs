@@ -4,12 +4,12 @@ use super::super::Alert;
 use super::super::Rules;
 use super::super::Trie;
 use super::super::constraint::{
-    Cons, Constraint, balanced, described, dnf_upgrade, hcp, len, points, stopper_in, support,
-    support_points,
+    Cons, Constraint, balanced, described, envelope_union_upgrade, hcp, len, points, stopper_in,
+    support, support_points,
 };
 use super::notrump::flat_4333;
 use crate::bidding::context::Context;
-use crate::bidding::inference::{Dnf, Envelope, Range, Strength};
+use crate::bidding::inference::{Envelope, EnvelopeUnion, Range, Strength};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Hand, Strain, Suit};
 use std::cell::Cell;
@@ -348,7 +348,7 @@ pub fn major_responses(major: Suit) -> Rules {
         .rule(
             Bid::new(2, Strain::Notrump),
             3.0,
-            dnf_upgrade(
+            envelope_union_upgrade(
                 support(4..) & support_points(major, 13..),
                 jacoby_box(major),
             ),
@@ -566,7 +566,7 @@ pub(super) fn splinter_bid(major: Suit, x: Suit) -> (u8, Strain) {
     }
 }
 
-/// The 2/1 fit-split gate as a native [`Dnf`] — the union of the two hands a
+/// The 2/1 fit-split gate as a native [`EnvelopeUnion`] — the union of the two hands a
 /// game-forcing 2/1 with the fit leg admits
 ///
 /// Replaces the composite `len(suit, min_len..) & !support(4..) & (no_fit |
@@ -580,11 +580,11 @@ pub(super) fn splinter_bid(major: Suit, x: Suit) -> (u8, Strain) {
 /// | fit | `min_len..` | exactly 3 | 13+ support points |
 ///
 /// The knob-on boxes are pinned eval-equivalent to the legacy composite by
-/// `fit_split_dnf_matches_composite`, and the legacy gate carries everything
+/// `fit_split_union_matches_composite`, and the legacy gate carries everything
 /// shipped — eval, describe, and the knob-off reading with all its
 /// context-sensitivity (its `support` legs replay under the *reader's* seat,
 /// which is how every 2/1 came to read `0..=37`,
-/// docs/ai-bidder/sampled-projection.md).  Knob-on, [`dnf_upgrade`] swaps in
+/// docs/ai-bidder/sampled-projection.md).  Knob-on, [`envelope_union_upgrade`] swaps in
 /// the exact two-box reading — the fit-split bug's cure.
 fn fit_split_gate(
     suit: Suit,
@@ -596,19 +596,19 @@ fn fit_split_gate(
     let legacy = len(suit, min_len..)
         & !support(4..)
         & (no_fit | (support(3..) & support_points(major, 13..)));
-    dnf_upgrade(legacy, fit_split_boxes(suit, min_len, major, no_fit_floor))
+    envelope_union_upgrade(legacy, fit_split_boxes(suit, min_len, major, no_fit_floor))
 }
 
 /// The exact one-box knob-on reading of Jacoby 2NT: four-card support for the
 /// node's own `major` (statically pinned — immune to the reader-seat
 /// re-targeting of the `support` leg) with game-forcing support points.
 /// Eval-equivalence to the legacy composite is pinned by
-/// `jacoby_dnf_matches_composite`.
-fn jacoby_box(major: Suit) -> Dnf {
+/// `jacoby_union_matches_composite`.
+fn jacoby_box(major: Suit) -> EnvelopeUnion {
     let mut env = Envelope::unknown();
     env.lengths[major as usize] = Range::new(4, Range::FULL_LENGTH.max);
     env.narrow_support_points(major, Range::new(13, Range::FULL_POINTS.max));
-    Dnf::from(env)
+    EnvelopeUnion::from(env)
 }
 
 /// The exact two-box knob-on reading of [`fit_split_gate`]
@@ -617,7 +617,7 @@ fn fit_split_boxes(
     min_len: usize,
     major: Suit,
     no_fit_floor: impl FnOnce(&mut Strength),
-) -> Dnf {
+) -> EnvelopeUnion {
     // A 2/1 length floor is 3..=5, so the cast cannot truncate.
     let min_len = u8::try_from(min_len).unwrap_or_else(|_| unreachable!());
     let mut base = Envelope::unknown();
@@ -631,10 +631,10 @@ fn fit_split_boxes(
     fit.lengths[major as usize] = Range::new(3, 3);
     fit.narrow_support_points(major, Range::new(13, Range::FULL_POINTS.max));
 
-    Dnf::from(no_fit).union(Dnf::from(fit))
+    EnvelopeUnion::from(no_fit).union(EnvelopeUnion::from(fit))
 }
 
-/// A gauge floor for [`fit_split_dnf`]'s no-fit box: `floor..` on the field
+/// A gauge floor for [`fit_split_boxes`]'s no-fit box: `floor..` on the field
 /// `pick` selects
 fn gauge_floor(
     pick: impl FnOnce(&mut Strength) -> &mut Range,
@@ -973,13 +973,13 @@ mod tests {
         );
     }
 
-    /// C2 pilot invariant: the native-[`Dnf`] fit-split gate accepts exactly
+    /// C2 pilot invariant: the native-[`EnvelopeUnion`] fit-split gate accepts exactly
     /// the hands the composite it replaced accepted — per response suit,
     /// opener's major, length floor, and gauge arm.
     ///
-    /// [`Dnf`]: crate::bidding::inference::Dnf
+    /// [`EnvelopeUnion`]: crate::bidding::inference::EnvelopeUnion
     #[test]
-    fn jacoby_dnf_matches_composite() {
+    fn jacoby_union_matches_composite() {
         use super::jacoby_box;
         use crate::bidding::constraint::{support, support_points};
         use crate::bidding::context::Context;
@@ -1014,7 +1014,7 @@ mod tests {
     }
 
     #[test]
-    fn fit_split_dnf_matches_composite() {
+    fn fit_split_union_matches_composite() {
         use super::{fit_split_boxes, gauge_floor};
         use crate::bidding::constraint::{Cons, hcp, len, points, support, support_points};
         use crate::bidding::context::Context;
