@@ -167,6 +167,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `render-book`, and on a re-render with `NegativeDoubleShape::Cachalot`
   armed.
 
+- **The whole Lebensohl block (§5 / 5b / 5c) is a declarative row package, and
+  `competition()` has no hand-rolled wiring left.** The ~330-line imperative
+  block under `[1NT]` — the `(2♣)` systems-on rebase and its stolen-Stayman
+  transplant, the penalty pass of that double, and for each of `(2♦)`/`(2♥)`/
+  `(2♠)` responder's table, opener's leave-in reply, the `2NT`→`3♣` relay and
+  its rebid, both sign-off raises (relay and floored-natural), the Plain cue
+  answer, the Transfer 3-level completions, the delayed cue, and the `(2♦)`
+  Smolen + Jacoby + Leaping-Michaels tail — is now `lebensohl_package()`,
+  gated on `LebensohlStyle`, and joins the invariant test. The stolen-Stayman
+  transplant is the second consumer of `rows::classified`. Every other payload
+  is authored `Rules`, so the alert and totality probes now cover the block;
+  neither found a gap. Byte-identical on the seeded 20k `smoke-default` and
+  `render-book`, and on a two-arm knob-armed re-render (`Plain` + Multi-`(2♦)`
+  + `DoubleStyle::Penalty`, then `Transfer` + `set_delayed_cue`). With this,
+  `competition()` is `compile_into` calls end to end.
+
 - **Six more defensive sections are declarative rows.** `defensive()`'s two
   per-suit mega-loops shed everything that is a plain exact node: the advance
   of partner's takeout double and the whole rich-advance continuation tree

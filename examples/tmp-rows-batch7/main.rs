@@ -1,13 +1,14 @@
-//! Throwaway: render-book's walk with every batch-6 knob armed
+//! Throwaway: render-book's walk with every batch-7 knob armed
 //!
-//! The default `render-book` diff cannot see Section 9, which rides
-//! `NegativeDoubleShape::Cachalot` (default `Modern`).  This arms it — with
-//! the contested-`X` sub-knob explicitly on — and prints the alert slug on
-//! each line, so an alert change is visible too.  Delete after the batch is
-//! blessed.
+//! The default `render-book` diff sees the Transfer-Lebensohl wiring but not
+//! the `Plain` cue answer, the delayed-cue rules, the Multi `(2♦)` responder,
+//! or the penalty-style opener reply.  This arms all four and prints the alert
+//! slug on each line, so an alert change is visible too.  Delete after the
+//! batch is blessed.
 
 use pons::bidding::american::{
-    NegativeDoubleShape, american_book, set_cachalot_contested_x, set_negative_double_shape,
+    DoubleStyle, LebensohlStyle, american_book, set_defense_to_2d_multi, set_delayed_cue,
+    set_double_style, set_lebensohl_style,
 };
 use pons::bidding::fallback::Fallback;
 use pons::bidding::rules::Rules;
@@ -29,9 +30,23 @@ fn print_rules(rules: &Rules) {
 }
 
 fn main() {
-    set_negative_double_shape(NegativeDoubleShape::Cachalot);
-    set_cachalot_contested_x(true);
+    // Arm 1: the Plain package, the Multi (2♦) responder, the penalty-style
+    // opener reply.  Arm 2: the default Transfer package with the stopper-split
+    // delayed cue on.  Both are rendered so one diff covers every branch.
+    render("plain+multi+penalty", || {
+        set_lebensohl_style(LebensohlStyle::Plain);
+        set_defense_to_2d_multi(true);
+        set_double_style(DoubleStyle::Penalty);
+    });
+    render("transfer+delayed-cue", || {
+        set_lebensohl_style(LebensohlStyle::Transfer);
+        set_delayed_cue(true);
+    });
+}
 
+fn render(arm: &str, arms: impl FnOnce()) {
+    arms();
+    println!("\n########  {arm}  ########");
     let pair = american_book();
     let books: [(&str, &Trie); 3] = [
         ("constructive", &pair.constructive.0),

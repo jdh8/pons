@@ -12,24 +12,19 @@ use super::super::constraint::{
     vulnerable,
 };
 use super::super::context::Context;
-use super::super::fallback::{
-    Fallback, FirstIs, ReplaceNext, SuffixIs, described_guard, described_rewrite, guard, rewriter,
-};
-use super::super::rows::{
-    Entry, Package, Pattern, classified, compile_into, rebase, row, rows_of,
-};
+use super::super::fallback::{ReplaceNext, described_guard, described_rewrite, guard, rewriter};
+use super::super::rows::{Entry, Package, Pattern, classified, compile_into, rebase, row, rows_of};
 use super::super::trie::{Classifier, classifier};
 use super::super::{Alert, Competitive, Rules};
+use super::call;
 use super::notrump::{
     PUPPET, complete_transfer, notrump_minors, notrump_responses, smolen_at_three,
     smolen_completion, stayman_answers, transfer_super_accept,
 };
 use super::weak_twos;
-use super::{call, fallback_all_seats};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Hand, Strain, Suit};
 use std::cell::Cell;
-use std::sync::Arc;
 
 // Per-call alerts for the competitive book's artificial calls.  An [`Alert`] marks
 // a call as *conventional*: the inference reader decodes it as the convention
@@ -4111,7 +4106,7 @@ fn competition_over_diamond_transfer_package() -> Package {
 ///
 /// A splinter is game-forcing, but the double reroutes opener into this book,
 /// where — unauthored — it fell to the floor and passed out the doubled game
-/// force.  The [`FirstIs`]`(Double)` rebase strips the double off the whole
+/// force.  The [`FirstIs`][super::super::fallback::FirstIs]`(Double)` rebase strips the double off the whole
 /// subtree, so opener (and responder's keycard answers) resolve on the
 /// undisturbed splinter continuation.
 fn splinter_doubled_package() -> Package {
@@ -4734,6 +4729,255 @@ fn strong_two_competition_package() -> Package {
     }
 }
 
+/// Sections 5 / 5b / 5c as a row package: Lebensohl after our `1NT` is
+/// overcalled at the 2 level ([`set_lebensohl_style`])
+///
+/// Purely additive — nothing else lands at `[1NT]` in the competitive book.
+/// Plain or Transfer Lebensohl per [`LebensohlStyle`]; both keep the weak `2NT`
+/// relay.  Over a natural `(2♣)` we play *systems on* instead (a rebase onto the
+/// uncontested tree), so Lebensohl proper is wired only over the overcalls that
+/// actually steal room.
+fn lebensohl_package() -> Package {
+    Package {
+        name: "lebensohl",
+        gate: || lebensohl_style() != LebensohlStyle::Off,
+        entries: || {
+            const NT: &str = "P* 1NT";
+            let style = lebensohl_style();
+
+            // Over a natural (2♣) overcall we play *systems on*, not Lebensohl:
+            // 2♣ steals no room (every transfer/relay still sits above it), so
+            // responder keeps the uncontested 1NT structure (Jacoby transfers,
+            // minor transfers, the 2NT invite, …) and shows the now-unbiddable
+            // 2♣ Stayman with a Double.  Rather than re-author all of that,
+            // rebase onto the uncontested tree: the (2♣) overcall maps to the
+            // opponent's pass, and a Double directly over it maps to the 2♣
+            // Stayman it replaces.  (So there is no natural 2♦/2♥/2♠ escape over
+            // 2♣ — those are transfers.)
+            let two_clubs = call(2, Strain::Clubs);
+            let mut entries = vec![rebase(
+                Pattern::first(NT, "2♣"),
+                described_rewrite(
+                    "systems on: their 2♣ is treated as a pass; X asks as the stolen 2♣ Stayman",
+                    rewriter(move |auction: &[Call], depth: usize| {
+                        if auction.get(depth) != Some(&two_clubs) {
+                            return None;
+                        }
+                        let mut rewritten = auction.to_vec();
+                        rewritten[depth] = Call::Pass; // (2♣) steals no room → systems on
+                        if auction.get(depth + 1) == Some(&Call::Double) {
+                            rewritten[depth + 1] = two_clubs; // stolen 2♣ Stayman = Double
+                        }
+                        Some(rewritten)
+                    }),
+                ),
+            )];
+
+            // The rebase routes every *continuation*, but responder must be
+            // handed a finite logit on Double to *choose* the stolen Stayman
+            // (the rebase only offers the uncontested calls, where 2♣ is illegal
+            // here).  So classify responder's own call with the uncontested
+            // responses, moving the 2♣ Stayman logit onto Double: X *is* the
+            // stolen 2♣ — same weight, same constraint, nothing to drift if
+            // Stayman is retuned.  The empty-suffix table claims only
+            // responder's first call; deeper calls fall through to the rebase.
+            let responses = notrump_responses();
+            entries.push(classified(
+                Pattern::table("P* 1NT (2♣)"),
+                classifier(move |hand: Hand, context: &Context<'_>| {
+                    let mut logits = responses.classify(hand, context);
+                    let stayman = *logits.0.get(two_clubs);
+                    *logits.0.get_mut(two_clubs) = f32::NEG_INFINITY; // 2♣ is stolen
+                    *logits.0.get_mut(Call::Double) = stayman; // X inherits 2♣ exactly
+                    logits
+                }),
+            ));
+
+            // Opener's penalty-pass of that Double: after [1NT, (2♣), X, (P)]
+            // opener with good clubs sits to defend 2♣ doubled instead of
+            // answering the stolen Stayman.  Authored at the same [1NT, 2♣] node
+            // as the responder classifier (depth 2), so `resolve_at` reaches it
+            // *before* the depth-1 systems-on rebase; the disjoint suffix guard
+            // ([X, P] vs the responder's empty suffix) keeps the two from
+            // colliding.  `stayman_answers()` rides along as the always-mass
+            // catch-all, so a hand failing the club gate just answers Stayman
+            // exactly as the rebase would (no silent pass).
+            if let Some((min_len, min_hcp, over_major)) = penalty_pass() {
+                let pass_logit = if over_major { 1.5 } else { 0.75 };
+                entries.extend(rows_of(
+                    Pattern::after("P* 1NT (2♣)", "X (P)"),
+                    stayman_answers().rule(
+                        Call::Pass,
+                        pass_logit,
+                        len(Suit::Clubs, min_len..) & suit_hcp(Suit::Clubs, min_hcp..),
+                    ),
+                ));
+            }
+
+            // Lebensohl proper applies only over (2♦/2♥/2♠) — the overcalls that
+            // actually steal room.  (2♣) is the systems-on rebase above.
+            for over in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+                let o = Strain::from(over);
+                let their = format!("(2{o})");
+
+                // Responder's first action: the uncovered suffix is exactly
+                // their overcall.
+                entries.extend(rows_of(
+                    Pattern::after(NT, &their),
+                    match style {
+                        _ if over == Suit::Diamonds && defense_2d_multi() => multi_responder(),
+                        LebensohlStyle::Transfer if over == Suit::Diamonds => {
+                            // gate_4333 = true: our 1NT overcalled, partner is balanced.
+                            transfer_stayman_2d_responder(true)
+                        }
+                        LebensohlStyle::Transfer => transfer_lebensohl_responder(over, true),
+                        _ => lebensohl_responder(over),
+                    },
+                ));
+
+                // Opener's reply to responder's double of the overcall.  The
+                // penalty styles SIT (else the floor reads it as a takeout
+                // advance and pulls — the documented leak); the optional style
+                // cooperates (stand on a fit, run with a doubleton); takeout
+                // keeps the floor's advance.  Gated on the leave-in knob.
+                let opener_reply = match double_style() {
+                    DoubleStyle::Penalty | DoubleStyle::PenaltyLight => {
+                        Some(opener_leaves_in_penalty_double())
+                    }
+                    DoubleStyle::Optional => Some(opener_cooperates_optional(over)),
+                    DoubleStyle::Takeout => None,
+                };
+                if let (true, Some(reply)) = (penalty_double_leave_in(), opener_reply) {
+                    entries.extend(rows_of(
+                        Pattern::after(NT, &format!("{their} X (P)")),
+                        reply,
+                    ));
+                }
+
+                // Opener completes the 2NT relay with 3♣, and responder rebids
+                // over it (the weak relay sign-off).
+                entries.extend(rows_of(
+                    Pattern::after(NT, &format!("{their} 2NT (P)")),
+                    complete_lebensohl_relay(),
+                ));
+                let relay = format!("{their} 2NT (P) 3♣ (P)");
+                entries.extend(rows_of(
+                    Pattern::after(NT, &relay),
+                    lebensohl_relay_rebid(over),
+                ));
+
+                // Opener's reply to a weak major sign-off: pass, or stretch to
+                // game with a maximum + fit (see [`lebensohl_signoff_raise`]).
+                // Only a major *below* the overcall is reachable via the relay —
+                // a higher major is bid naturally at the 2 level — so in
+                // practice this wires only (2♠)→3♥.
+                for signoff in [Suit::Hearts, Suit::Spades] {
+                    if (signoff as u8) >= (over as u8) {
+                        continue;
+                    }
+                    entries.extend(rows_of(
+                        Pattern::after(NT, &format!("{relay} 3{} (P)", Strain::from(signoff))),
+                        lebensohl_signoff_raise(signoff, 6),
+                    ));
+                }
+
+                // Floored natural escape (only under [`set_natural_floor`]):
+                // opener's reply to a *direct* natural major sign-off — the
+                // one-level-lower mirror of the relay sign-off raise above,
+                // where 2M is a major *above* the overcall (a weak 5-card-suit
+                // hand bids it naturally rather than relaying).  Same
+                // [`lebensohl_signoff_raise`], but fed the natural floor (5, not
+                // the relay's 6) so opener's game bar is one point higher to
+                // compensate.
+                if natural_floor_on() {
+                    for signoff in [Suit::Hearts, Suit::Spades] {
+                        if (signoff as u8) <= (over as u8) {
+                            continue; // not above the overcall — no 2-level natural
+                        }
+                        entries.extend(rows_of(
+                            Pattern::after(NT, &format!("{their} 2{} (P)", Strain::from(signoff))),
+                            lebensohl_signoff_raise(signoff, natural_floor_hcp()),
+                        ));
+                    }
+                }
+
+                // Plain style: opener's reply to the direct cue (Stayman).
+                // (Transfer wires its cue reply in the block below.)
+                if style == LebensohlStyle::Plain {
+                    entries.extend(rows_of(
+                        Pattern::after(NT, &format!("{their} 3{o} (P)")),
+                        cue_stayman_answer(over),
+                    ));
+                }
+
+                // Transfer style: opener's reply to each 3-level transfer / cue.
+                // Over (2♦) the Smolen block below owns the 3-level replies, so
+                // this covers (2♥)/(2♠) only.
+                if style == LebensohlStyle::Transfer && over != Suit::Diamonds {
+                    for bid_suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+                        let reply = if bid_suit == over {
+                            cue_stayman_answer(over)
+                        } else if let Some(target) = transfer_target(bid_suit, over) {
+                            transfer_completion(target, over)
+                        } else if over != Suit::Clubs {
+                            clubs_transfer_completion(over) // top step → clubs (forced GF)
+                        } else {
+                            continue; // over (2♣): clubs is their suit — floored
+                        };
+                        entries.extend(rows_of(
+                            Pattern::after(NT, &format!("{their} 3{} (P)", Strain::from(bid_suit))),
+                            reply,
+                        ));
+                    }
+                }
+
+                // Recognize a delayed cue (2NT relay, then their suit) over
+                // (2♥)/(2♠): Stayman with a stopper, answered like the direct
+                // cue but with 3NT safe.  Always wired so a human partner who
+                // plays it gets a sensible reply, even though the bot only
+                // *bids* it under `set_delayed_cue`.
+                if style == LebensohlStyle::Transfer && unbid_major(over).is_some() {
+                    entries.extend(rows_of(
+                        Pattern::after(NT, &format!("{relay} 3{o} (P)")),
+                        cue_stayman_answer(over),
+                    ));
+                }
+
+                // Section 5c: Transfer over (2♦) — 3♣-Stayman + Smolen, the
+                // Jacoby transfers (3♦→♥, 3♥→♠, 3♠→♣), and Leaping Michaels
+                // 4♣/4♦.  (The 2♥/2♠ branches reuse the Transfer completions
+                // above.)
+                if style == LebensohlStyle::Transfer && over == Suit::Diamonds {
+                    for (suffix, rules) in [
+                        // 3♣ Stayman, opener's answer; then Smolen after the 3♦ denial.
+                        ("3♣ (P)", stayman_2d_answer()),
+                        ("3♣ (P) 3♦ (P)", smolen_at_three()),
+                        ("3♣ (P) 3♦ (P) 3♥ (P)", smolen_completion(Suit::Spades)),
+                        ("3♣ (P) 3♦ (P) 3♠ (P)", smolen_completion(Suit::Hearts)),
+                        // Opener showed a 4-card major over Stayman; responder places.
+                        ("3♣ (P) 3♥ (P)", stayman_2d_fit_rebid(Suit::Hearts)),
+                        ("3♣ (P) 3♠ (P)", stayman_2d_fit_rebid(Suit::Spades)),
+                        // Jacoby transfers: 3♦→♥, 3♥→♠ (auto-driven), 3♠→♣ (forced GF).
+                        ("3♦ (P)", transfer_completion(Suit::Hearts, over)),
+                        ("3♥ (P)", transfer_completion(Suit::Spades, over)),
+                        ("3♠ (P)", clubs_transfer_completion(over)),
+                        // Leaping Michaels: 4♦ both majors, 4♣ clubs + a major (ask).
+                        ("4♦ (P)", lm_2d_both_majors_advance()),
+                        ("4♣ (P)", lm_2d_clubs_ask()),
+                        ("4♣ (P) 4♦ (P)", lm_2d_clubs_major()),
+                    ] {
+                        entries.extend(rows_of(
+                            Pattern::after(NT, &format!("{their} {suffix}")),
+                            rules,
+                        ));
+                    }
+                }
+            }
+            entries
+        },
+    }
+}
+
 /// The competitive package over our openings: cue-bid raises, preemptive raises,
 /// negative doubles for all four openings, support doubles/redoubles, and
 /// opener's answers to negative doubles of minor overcalls
@@ -4816,333 +5060,11 @@ pub fn competition() -> Competitive {
     // backed by opener's forced reopening in the pass-out seat.
     compile_into(&mut book, &[strong_two_competition_package()]);
 
-    // Section 5: Lebensohl after our 1NT is overcalled at the 2 level. Purely
-    // additive — nothing else lands at [1NT] in the competitive book. Plain or
-    // Transfer Lebensohl per [`LebensohlStyle`]; both keep the weak 2NT relay.
-    let style = lebensohl_style();
-    if style != LebensohlStyle::Off {
-        let one_nt = call(1, Strain::Notrump);
-        let two_nt = call(2, Strain::Notrump);
-        let three_clubs = call(3, Strain::Clubs);
-
-        // Over a natural (2♣) overcall we play *systems on*, not Lebensohl: 2♣
-        // steals no room (every transfer/relay still sits above it), so responder
-        // keeps the uncontested 1NT structure (Jacoby transfers, minor transfers,
-        // the 2NT invite, …) and shows the now-unbiddable 2♣ Stayman with a Double.
-        // Rather than re-author all of that, rebase onto the uncontested tree: the
-        // (2♣) overcall maps to the opponent's pass, and a Double directly over it
-        // maps to the 2♣ Stayman it replaces. (So there is no natural 2♦/2♥/2♠
-        // escape over 2♣ — those are transfers.)
-        let two_clubs = call(2, Strain::Clubs);
-        fallback_all_seats(
-            &mut book,
-            &[one_nt],
-            3,
-            Arc::new(FirstIs(two_clubs)),
-            Fallback::rebase(described_rewrite(
-                "systems on: their 2♣ is treated as a pass; X asks as the stolen 2♣ Stayman",
-                rewriter(move |auction: &[Call], depth: usize| {
-                    if auction.get(depth) != Some(&two_clubs) {
-                        return None;
-                    }
-                    let mut rewritten = auction.to_vec();
-                    rewritten[depth] = Call::Pass; // (2♣) steals no room → systems on
-                    if auction.get(depth + 1) == Some(&Call::Double) {
-                        rewritten[depth + 1] = two_clubs; // stolen 2♣ Stayman = Double
-                    }
-                    Some(rewritten)
-                }),
-            )),
-        );
-
-        // The rebase routes every *continuation*, but responder must be handed a
-        // finite logit on Double to *choose* the stolen Stayman (the rebase only
-        // offers the uncontested calls, where 2♣ is illegal here). So classify
-        // responder's own call with the uncontested responses, moving the 2♣
-        // Stayman logit onto Double: X *is* the stolen 2♣ — same weight, same
-        // constraint, nothing to drift if Stayman is retuned. Empty-suffix guard →
-        // only responder's first call; deeper calls fall through to the rebase.
-        let responses = notrump_responses();
-        fallback_all_seats(
-            &mut book,
-            &[one_nt, two_clubs],
-            3,
-            Arc::new(SuffixIs(vec![])),
-            Fallback::classify(classifier(move |hand: Hand, context: &Context<'_>| {
-                let mut logits = responses.classify(hand, context);
-                let stayman = *logits.0.get(two_clubs);
-                *logits.0.get_mut(two_clubs) = f32::NEG_INFINITY; // 2♣ is stolen
-                *logits.0.get_mut(Call::Double) = stayman; // X inherits 2♣ exactly
-                logits
-            })),
-        );
-
-        // Opener's penalty-pass of that Double: after [1NT, (2♣), X, (P)] opener
-        // with good clubs sits to defend 2♣ doubled instead of answering the
-        // stolen Stayman. Authored at the same [1NT, 2♣] node as the responder
-        // classifier (depth 2), so `resolve_at` reaches it *before* the depth-1
-        // systems-on rebase; the disjoint suffix guard ([X, P] vs the responder's
-        // empty suffix) keeps the two from colliding. `stayman_answers()` rides
-        // along as the always-mass catch-all, so a hand failing the club gate just
-        // answers Stayman exactly as the rebase would (no silent pass).
-        if let Some((min_len, min_hcp, over_major)) = penalty_pass() {
-            let pass_logit = if over_major { 1.5 } else { 0.75 };
-            let answers = stayman_answers().rule(
-                Call::Pass,
-                pass_logit,
-                len(Suit::Clubs, min_len..) & suit_hcp(Suit::Clubs, min_hcp..),
-            );
-            fallback_all_seats(
-                &mut book,
-                &[one_nt, two_clubs],
-                3,
-                Arc::new(SuffixIs(vec![Call::Double, Call::Pass])),
-                Fallback::classify(answers),
-            );
-        }
-
-        // Lebensohl proper applies only over (2♦/2♥/2♠) — the overcalls that
-        // actually steal room. (2♣) is the systems-on rebase above.
-        for over in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
-            let overcall = call(2, Strain::from(over));
-
-            // Responder's first action: the uncovered suffix is exactly their overcall.
-            let responder = match style {
-                _ if over == Suit::Diamonds && defense_2d_multi() => multi_responder(),
-                LebensohlStyle::Transfer if over == Suit::Diamonds => {
-                    // gate_4333 = true: our 1NT overcalled, partner is balanced.
-                    transfer_stayman_2d_responder(true)
-                }
-                LebensohlStyle::Transfer => transfer_lebensohl_responder(over, true),
-                _ => lebensohl_responder(over),
-            };
-            fallback_all_seats(
-                &mut book,
-                &[one_nt],
-                3,
-                Arc::new(SuffixIs(vec![overcall])),
-                Fallback::classify(responder),
-            );
-
-            // Opener's reply to responder's double of the overcall: suffix is
-            // [overcall, X, P].  The penalty styles SIT (else the floor reads it as
-            // a takeout advance and pulls — the documented leak); the optional style
-            // cooperates (stand on a fit, run with a doubleton); takeout keeps the
-            // floor's advance.  Gated on the leave-in knob.
-            let opener_reply = match double_style() {
-                DoubleStyle::Penalty | DoubleStyle::PenaltyLight => {
-                    Some(opener_leaves_in_penalty_double())
-                }
-                DoubleStyle::Optional => Some(opener_cooperates_optional(over)),
-                DoubleStyle::Takeout => None,
-            };
-            if let (true, Some(reply)) = (penalty_double_leave_in(), opener_reply) {
-                fallback_all_seats(
-                    &mut book,
-                    &[one_nt],
-                    3,
-                    Arc::new(SuffixIs(vec![overcall, Call::Double, Call::Pass])),
-                    Fallback::classify(reply),
-                );
-            }
-
-            // Opener completes the 2NT relay with 3♣: suffix is [overcall, 2NT, P].
-            fallback_all_seats(
-                &mut book,
-                &[one_nt],
-                3,
-                Arc::new(SuffixIs(vec![overcall, two_nt, Call::Pass])),
-                Fallback::classify(complete_lebensohl_relay()),
-            );
-
-            // Responder's rebid after 3♣ (the weak relay sign-off): suffix is
-            // [overcall, 2NT, P, 3♣, P].
-            fallback_all_seats(
-                &mut book,
-                &[one_nt],
-                3,
-                Arc::new(SuffixIs(vec![
-                    overcall,
-                    two_nt,
-                    Call::Pass,
-                    three_clubs,
-                    Call::Pass,
-                ])),
-                Fallback::classify(lebensohl_relay_rebid(over)),
-            );
-
-            // Opener's reply to a weak major sign-off: pass, or stretch to game
-            // with a maximum + fit (see [`lebensohl_signoff_raise`]). Suffix is
-            // [overcall, 2NT, P, 3♣, P, 3M, P]. Only a major *below* the overcall
-            // is reachable via the relay — a higher major is bid naturally at the
-            // 2 level — so in practice this wires only (2♠)→3♥.
-            for signoff in [Suit::Hearts, Suit::Spades] {
-                if (signoff as u8) >= (over as u8) {
-                    continue;
-                }
-                let three_m = call(3, Strain::from(signoff));
-                fallback_all_seats(
-                    &mut book,
-                    &[one_nt],
-                    3,
-                    Arc::new(SuffixIs(vec![
-                        overcall,
-                        two_nt,
-                        Call::Pass,
-                        three_clubs,
-                        Call::Pass,
-                        three_m,
-                        Call::Pass,
-                    ])),
-                    Fallback::classify(lebensohl_signoff_raise(signoff, 6)),
-                );
-            }
-
-            // Floored natural escape (only under [`set_natural_floor`]): opener's
-            // reply to a *direct* natural major sign-off — the one-level-lower
-            // mirror of the relay sign-off raise above. Suffix is [overcall, 2M, P]
-            // where 2M is a major *above* the overcall (a weak 5-card-suit hand
-            // bids it naturally rather than relaying). Same
-            // [`lebensohl_signoff_raise`], but fed the natural floor (5, not the
-            // relay's 6) so opener's game bar is one point higher to compensate.
-            if natural_floor_on() {
-                for signoff in [Suit::Hearts, Suit::Spades] {
-                    if (signoff as u8) <= (over as u8) {
-                        continue; // not above the overcall — no 2-level natural
-                    }
-                    let two_m = call(2, Strain::from(signoff));
-                    fallback_all_seats(
-                        &mut book,
-                        &[one_nt],
-                        3,
-                        Arc::new(SuffixIs(vec![overcall, two_m, Call::Pass])),
-                        Fallback::classify(lebensohl_signoff_raise(signoff, natural_floor_hcp())),
-                    );
-                }
-            }
-
-            // Plain style: opener's reply to the direct cue (Stayman). Suffix is
-            // [overcall, 3X, P] where 3X is the cue of their suit. (Transfer wires
-            // its cue reply in the block below.)
-            if style == LebensohlStyle::Plain {
-                let cue = call(3, Strain::from(over));
-                fallback_all_seats(
-                    &mut book,
-                    &[one_nt],
-                    3,
-                    Arc::new(SuffixIs(vec![overcall, cue, Call::Pass])),
-                    Fallback::classify(cue_stayman_answer(over)),
-                );
-            }
-
-            // Transfer style: opener's reply to each 3-level transfer / cue.
-            // Suffix is [overcall, 3X, P] where 3X is responder's transfer or cue.
-            // Over (2♦) the Smolen block below owns the 3-level replies, so this
-            // covers (2♥)/(2♠)/(2♣) only.
-            if style == LebensohlStyle::Transfer && over != Suit::Diamonds {
-                for bid_suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
-                    let resp = call(3, Strain::from(bid_suit));
-                    let reply = if bid_suit == over {
-                        cue_stayman_answer(over)
-                    } else if let Some(target) = transfer_target(bid_suit, over) {
-                        transfer_completion(target, over)
-                    } else if over != Suit::Clubs {
-                        clubs_transfer_completion(over) // top step → clubs (forced GF)
-                    } else {
-                        continue; // over (2♣): clubs is their suit — floored
-                    };
-                    fallback_all_seats(
-                        &mut book,
-                        &[one_nt],
-                        3,
-                        Arc::new(SuffixIs(vec![overcall, resp, Call::Pass])),
-                        Fallback::classify(reply),
-                    );
-                }
-            }
-
-            // Recognize a delayed cue (2NT relay, then their suit) over (2♥)/(2♠):
-            // Stayman with a stopper, answered like the direct cue but with 3NT
-            // safe. Always wired so a human partner who plays it gets a sensible
-            // reply, even though the bot only *bids* it under `set_delayed_cue`.
-            if style == LebensohlStyle::Transfer && unbid_major(over).is_some() {
-                let cue = call(3, Strain::from(over));
-                fallback_all_seats(
-                    &mut book,
-                    &[one_nt],
-                    3,
-                    Arc::new(SuffixIs(vec![
-                        overcall,
-                        two_nt,
-                        Call::Pass,
-                        three_clubs,
-                        Call::Pass,
-                        cue,
-                        Call::Pass,
-                    ])),
-                    Fallback::classify(cue_stayman_answer(over)),
-                );
-            }
-
-            // Section 5c: Transfer over (2♦) — 3♣-Stayman + Smolen, the Jacoby
-            // transfers (3♦→♥, 3♥→♠, 3♠→♣), and Leaping Michaels 4♣/4♦.
-            // (The 2♥/2♠/2♣ branches reuse the Transfer completions above.)
-            if style == LebensohlStyle::Transfer && over == Suit::Diamonds {
-                let p = Call::Pass;
-                let c3 = call(3, Strain::Clubs);
-                let d3 = call(3, Strain::Diamonds);
-                let h3 = call(3, Strain::Hearts);
-                let s3 = call(3, Strain::Spades);
-                let c4 = call(4, Strain::Clubs);
-                let d4 = call(4, Strain::Diamonds);
-                let nodes: Vec<(Vec<Call>, Rules)> = vec![
-                    // 3♣ Stayman, opener's answer; then Smolen after the 3♦ denial.
-                    (vec![overcall, c3, p], stayman_2d_answer()),
-                    (vec![overcall, c3, p, d3, p], smolen_at_three()),
-                    (
-                        vec![overcall, c3, p, d3, p, h3, p],
-                        smolen_completion(Suit::Spades),
-                    ),
-                    (
-                        vec![overcall, c3, p, d3, p, s3, p],
-                        smolen_completion(Suit::Hearts),
-                    ),
-                    // Opener showed a 4-card major over Stayman; responder places.
-                    (
-                        vec![overcall, c3, p, h3, p],
-                        stayman_2d_fit_rebid(Suit::Hearts),
-                    ),
-                    (
-                        vec![overcall, c3, p, s3, p],
-                        stayman_2d_fit_rebid(Suit::Spades),
-                    ),
-                    // Jacoby transfers: 3♦→♥, 3♥→♠ (auto-driven), 3♠→♣ (forced GF).
-                    (
-                        vec![overcall, d3, p],
-                        transfer_completion(Suit::Hearts, over),
-                    ),
-                    (
-                        vec![overcall, h3, p],
-                        transfer_completion(Suit::Spades, over),
-                    ),
-                    (vec![overcall, s3, p], clubs_transfer_completion(over)),
-                    // Leaping Michaels: 4♦ both majors, 4♣ clubs + a major (ask).
-                    (vec![overcall, d4, p], lm_2d_both_majors_advance()),
-                    (vec![overcall, c4, p], lm_2d_clubs_ask()),
-                    (vec![overcall, c4, p, d4, p], lm_2d_clubs_major()),
-                ];
-                for (suffix, rules) in nodes {
-                    fallback_all_seats(
-                        &mut book,
-                        &[one_nt],
-                        3,
-                        Arc::new(SuffixIs(suffix)),
-                        Fallback::classify(rules),
-                    );
-                }
-            }
-        }
-    }
+    // Section 5 / 5b / 5c: Lebensohl after our 1NT is overcalled at the 2
+    // level. Purely additive — nothing else lands at [1NT] in the competitive
+    // book. Plain or Transfer Lebensohl per [`LebensohlStyle`]; both keep the
+    // weak 2NT relay, and (2♣) gets the systems-on rebase instead.
+    compile_into(&mut book, &[lebensohl_package()]);
 
     // Competition over our own conventions: the opponents double or overcall
     // our Stayman, our Jacoby transfer, our two-way 2♠, or our 2NT diamond
@@ -5198,6 +5120,7 @@ mod tests {
             super::cachalot_package(),
             super::sputnik_residual_answer_package(),
             super::uvu_package(),
+            super::lebensohl_package(),
             super::competition_over_stayman_package(),
             super::competition_over_transfer_package(),
             super::competition_over_minor_transfer_package(),
