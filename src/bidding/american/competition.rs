@@ -16,7 +16,7 @@ use super::super::fallback::{
     Fallback, FirstIs, OvercallAtMost, ReplaceNext, SuffixIs, described_guard, described_rewrite,
     guard, rewriter,
 };
-use super::super::rows::{Package, Pattern, compile_into, rebase, rows_of};
+use super::super::rows::{Package, Pattern, compile_into, rebase, row, rows_of};
 use super::super::trie::{Classifier, classifier};
 use super::super::{Alert, Competitive, Rules};
 use super::notrump::{
@@ -2141,108 +2141,161 @@ fn cachalot_x_contested_answer(shown: Suit) -> impl Classifier {
 // Section 11: over their takeout double (`set_jordan_truscott`)
 // ---------------------------------------------------------------------------
 
-/// Responder's first call after our 1-suit opening and their takeout double
+/// Section 11 as rows: responder's re-authored first call over their takeout
+/// double, and opener's shadow answers (`set_jordan_truscott`)
 ///
-/// Over a double the meanings genuinely change, so the whole first call is
-/// re-authored (total table); every *deeper* continuation still rides the
-/// shipped systems-on rebase below this node. Jordan/Truscott `2NT` = limit+
-/// raise (4+ support majors, 5+ minors); `XX` = 10+ without that fit; the
-/// jump raise **flips preemptive**; 1-level suits stay forcing-as-uncontested
-/// (their continuations rebase onto the uncontested tree); 2-level new suits
-/// are weak and non-forcing (2/1 is off over the double); `1NT` natural 6–9.
-fn doubled_opening_responder(opening: Suit) -> Rules {
-    let o = opening;
-    let o_strain = Strain::from(o);
-    let is_major = matches!(o, Suit::Hearts | Suit::Spades);
-    let jordan_min: usize = if is_major { 4 } else { 5 };
-    let raise_min: usize = if is_major { 3 } else { 5 };
-    let xx_max: usize = if is_major { 3 } else { 4 };
+/// Over a double the meanings genuinely change, so responder's whole first
+/// call is re-authored — a total table at the deeper `1x (X)` key; every
+/// *deeper* continuation still rides the shipped systems-on rebase below it.
+/// Jordan/Truscott `2NT` = limit+ raise (4+ support majors, 5+ minors); `XX`
+/// = 10+ without that fit; the jump raise **flips preemptive**; 1-level suits
+/// stay forcing-as-uncontested (their continuations rebase onto the
+/// uncontested tree); 2-level new suits are weak and non-forcing (2/1 is off
+/// over the double); `1NT` natural 6–9.
+///
+/// Opener's `after` tables shadow exactly the rebase misreads:
+///
+/// * **Jordan 2NT** would replay as Jacoby — answered by the shared
+///   cue-raise tables ([`answer_cue_raise`], [`answer_cue_minor_raise`]).
+/// * **The preemptive `3x`** would replay as the uncontested limit raise —
+///   game only with genuine extras, else pass the preempt out.
+/// * **The weak `2y`** would replay as a 2/1 game force — raise with a fit
+///   and real extras, else pass.
+/// * **The value redouble** (behind [`set_redouble_answer`]) would strip to
+///   an uncontested rebid with responder's 10+ unseen — the floor then
+///   re-prices a shaped minimum as game-going and blasts a stopperless 3NT.
+///   Sound bridge is **pass**, full stop: even (especially) a long-suit
+///   minimum — one-of-a-suit redoubled with six-plus trumps makes with
+///   overtricks, while any pull forfeits the redoubled bonus and reopens the
+///   auction for their runout (a 2M-escape rung measured −11 IMPs/fired in
+///   the smoke A/B before it was deleted).  Extras act naturally on the next
+///   round once they run.
+fn jordan_truscott_package() -> Package {
+    Package {
+        name: "P4:jordan-truscott",
+        gate: jordan_truscott,
+        entries: || {
+            let mut entries = Vec::new();
+            for o in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+                let o_strain = Strain::from(o);
+                let is_major = matches!(o, Suit::Hearts | Suit::Spades);
+                let jordan_min: usize = if is_major { 4 } else { 5 };
+                let raise_min: usize = if is_major { 3 } else { 5 };
+                let xx_max: usize = if is_major { 3 } else { 4 };
+                let key = format!("P* 1{o_strain} (X)");
+                let responder = || Pattern::table(&key);
 
-    let mut rules = Rules::new()
-        .rule(
-            Bid::new(2, Strain::Notrump),
-            2.0,
-            len(o, jordan_min..) & points(10..),
-        )
-        .alert(JORDAN)
-        .rule(Call::Redouble, 1.6, hcp(10..) & len(o, ..=xx_max))
-        .alert(VALUE_REDOUBLE)
-        .rule(
-            Bid::new(3, o_strain),
-            1.5,
-            len(o, jordan_min..) & points(..=9),
-        )
-        .rule(
-            Bid::new(2, o_strain),
-            1.4,
-            len(o, raise_min..) & points(6..=9),
-        );
-    for x in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
-        if x == o {
-            continue;
-        }
-        let xs = Strain::from(x);
-        rules = rules
-            .rule(
-                Bid::new(1, xs),
-                1.3,
-                min_level_is(1, xs) & len(x, 4..) & points(6..),
-            )
-            .rule(
-                Bid::new(2, xs),
-                1.2,
-                min_level_is(2, xs) & len(x, 5..) & points(6..=9),
-            );
+                entries.push(
+                    row(
+                        responder(),
+                        Bid::new(2, Strain::Notrump),
+                        2.0,
+                        len(o, jordan_min..) & points(10..),
+                    )
+                    .alert(JORDAN)
+                    .into(),
+                );
+                entries.push(
+                    row(
+                        responder(),
+                        Call::Redouble,
+                        1.6,
+                        hcp(10..) & len(o, ..=xx_max),
+                    )
+                    .alert(VALUE_REDOUBLE)
+                    .into(),
+                );
+                entries.push(
+                    row(
+                        responder(),
+                        Bid::new(3, o_strain),
+                        1.5,
+                        len(o, jordan_min..) & points(..=9),
+                    )
+                    .into(),
+                );
+                entries.push(
+                    row(
+                        responder(),
+                        Bid::new(2, o_strain),
+                        1.4,
+                        len(o, raise_min..) & points(6..=9),
+                    )
+                    .into(),
+                );
+                for x in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+                    if x == o {
+                        continue;
+                    }
+                    let xs = Strain::from(x);
+                    entries.push(
+                        row(
+                            responder(),
+                            Bid::new(1, xs),
+                            1.3,
+                            min_level_is(1, xs) & len(x, 4..) & points(6..),
+                        )
+                        .into(),
+                    );
+                    entries.push(
+                        row(
+                            responder(),
+                            Bid::new(2, xs),
+                            1.2,
+                            min_level_is(2, xs) & len(x, 5..) & points(6..=9),
+                        )
+                        .into(),
+                    );
+                }
+                entries
+                    .push(row(responder(), Bid::new(1, Strain::Notrump), 1.1, hcp(6..=9)).into());
+                entries.push(row(responder(), Call::Pass, 0.0, hcp(0..)).into());
+
+                entries.extend(rows_of(
+                    Pattern::after(&key, "2NT (P)"),
+                    if is_major {
+                        answer_cue_raise(o)
+                    } else {
+                        answer_cue_minor_raise(o)
+                    },
+                ));
+                let preempt = Pattern::after(&key, &format!("3{o_strain} (P)"));
+                if is_major {
+                    entries.push(
+                        row(preempt.clone(), Bid::new(4, o_strain), 0.9, points(17..)).into(),
+                    );
+                } else {
+                    entries.push(
+                        row(preempt.clone(), Bid::new(5, o_strain), 0.9, points(19..)).into(),
+                    );
+                }
+                entries.push(row(preempt, Call::Pass, 0.0, hcp(0..)).into());
+                if redouble_answer() {
+                    entries.push(
+                        row(Pattern::after(&key, "XX (P)"), Call::Pass, 0.6, hcp(0..)).into(),
+                    );
+                }
+                for x in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
+                    let xs = Strain::from(x);
+                    if xs >= o_strain {
+                        continue;
+                    }
+                    let weak = Pattern::after(&key, &format!("2{xs} (P)"));
+                    entries.push(
+                        row(
+                            weak.clone(),
+                            Bid::new(3, xs),
+                            0.9,
+                            len(x, 4..) & points(15..),
+                        )
+                        .into(),
+                    );
+                    entries.push(row(weak, Call::Pass, 0.3, hcp(0..)).into());
+                }
+            }
+            entries
+        },
     }
-    rules
-        .rule(Bid::new(1, Strain::Notrump), 1.1, hcp(6..=9))
-        .rule(Call::Pass, 0.0, hcp(0..))
-}
-
-/// Opener's rebid over responder's value redouble and their pass
-/// (`1x – (X) – XX – (P)`, behind [`set_redouble_answer`])
-///
-/// Partner holds 10+ HCP with at most three (majors; four minors) of our suit:
-/// the deal belongs to us, and the partnership's plan is to penalize their
-/// runout or buy the redoubled contract.  The rebase would strip both the
-/// double and the redouble and replay opener uncontested, where partner's
-/// shown strength reads as silence — the floor then re-prices a shaped minimum
-/// as game-going and blasts a stopperless 3NT.  Sound bridge is **pass**,
-/// full stop: even (especially) a long-suit minimum — one-of-a-suit
-/// redoubled with six-plus trumps makes with overtricks, while any pull
-/// forfeits the redoubled bonus and reopens the auction for their runout (a
-/// 2M-escape rung measured −11 IMPs/fired in the smoke A/B before it was
-/// deleted).  Extras act naturally on the next round once they run.
-fn answer_value_redouble() -> Rules {
-    Rules::new().rule(Call::Pass, 0.6, hcp(0..))
-}
-
-/// Opener's answer to the flipped preemptive jump raise (`1x – (X) – 3x`)
-///
-/// The rebase would misread it as the uncontested limit raise, so this node
-/// shadows it: game only with genuine extras, else pass the preempt out.
-fn answer_preemptive_raise(opening: Suit) -> Rules {
-    let o_strain = Strain::from(opening);
-    let game = if matches!(opening, Suit::Hearts | Suit::Spades) {
-        Rules::new().rule(Bid::new(4, o_strain), 0.9, points(17..))
-    } else {
-        Rules::new().rule(Bid::new(5, o_strain), 0.9, points(19..))
-    };
-    game.rule(Call::Pass, 0.0, hcp(0..))
-}
-
-/// Opener's answer to a weak non-forcing 2-level new suit (`1x – (X) – 2y`)
-///
-/// The rebase would misread it as a 2/1 game force, so this node shadows it:
-/// raise with a fit and real extras, else pass.
-fn answer_weak_new_suit(x: Suit) -> Rules {
-    Rules::new()
-        .rule(
-            Bid::new(3, Strain::from(x)),
-            0.9,
-            len(x, 4..) & points(15..),
-        )
-        .rule(Call::Pass, 0.3, hcp(0..))
 }
 
 // ---------------------------------------------------------------------------
@@ -4023,65 +4076,9 @@ pub fn competition() -> Competitive {
     // Section 11: over their takeout double (`set_jordan_truscott`, default
     // on). Responder's first call at the deeper [1x, X] key — it wins over
     // the [1x] FirstIs(X) systems-on rebase structurally, and the rebase
-    // survives untouched below it for every deeper suffix these exact-suffix
-    // guards don't claim. Opener nodes shadow exactly the three rebase
-    // misreads: Jordan-onto-Jacoby-2NT, preemptive-3x-onto-limit-raise, and
-    // weak-2y-onto-2/1.
-    if jordan_truscott() {
-        for opening in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
-            let o_strain = Strain::from(opening);
-            let key = [call(1, o_strain), Call::Double];
-
-            fallback_all_seats(
-                &mut book,
-                &key,
-                3,
-                Arc::new(SuffixIs(vec![])),
-                Fallback::classify(doubled_opening_responder(opening)),
-            );
-            fallback_all_seats(
-                &mut book,
-                &key,
-                3,
-                Arc::new(SuffixIs(vec![call(2, Strain::Notrump), Call::Pass])),
-                Fallback::classify(match opening {
-                    Suit::Hearts | Suit::Spades => answer_cue_raise(opening),
-                    minor => answer_cue_minor_raise(minor),
-                }),
-            );
-            fallback_all_seats(
-                &mut book,
-                &key,
-                3,
-                Arc::new(SuffixIs(vec![call(3, o_strain), Call::Pass])),
-                Fallback::classify(answer_preemptive_raise(opening)),
-            );
-            // Opener over the value redouble: the rebase replays it as an
-            // uncontested rebid with responder's 10+ unseen, so the floor
-            // blasts; shadow it with the pass-only answer.
-            if redouble_answer() {
-                fallback_all_seats(
-                    &mut book,
-                    &key,
-                    3,
-                    Arc::new(SuffixIs(vec![Call::Redouble, Call::Pass])),
-                    Fallback::classify(answer_value_redouble()),
-                );
-            }
-            for x in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
-                if Strain::from(x) >= o_strain {
-                    continue;
-                }
-                fallback_all_seats(
-                    &mut book,
-                    &key,
-                    3,
-                    Arc::new(SuffixIs(vec![call(2, Strain::from(x)), Call::Pass])),
-                    Fallback::classify(answer_weak_new_suit(x)),
-                );
-            }
-        }
-    }
+    // survives untouched below it for every deeper suffix the package's
+    // exact-suffix guards don't claim.
+    compile_into(&mut book, &[jordan_truscott_package()]);
 
     // Section 10: their jump / 3-level suit overcalls
     // (`set_high_overcall_responses`, default off). A second guarded entry at
@@ -5110,14 +5107,14 @@ mod tests {
 
     /// The ported row packages hold the compile-time invariants: guarded
     /// tables total (the 7NT rule — a guarded table cannot fall through to
-    /// the floor), and artificial fallback rows alerted (the fallback-row
-    /// extension of `artificial_calls_are_alerted`).
+    /// the floor), and artificial rows alerted (the row extension of
+    /// `artificial_calls_are_alerted`).
     #[test]
     fn row_package_invariants() {
-        let mut book = crate::bidding::trie::Trie::new();
-        crate::bidding::rows::compile_into(&mut book, &[super::direct_seat_package()]);
-        crate::bidding::rows::assert_guarded_tables_total(&book);
-        crate::bidding::rows::assert_artificial_fallback_rows_alerted(&book);
+        crate::bidding::rows::assert_package_invariants(&[
+            super::direct_seat_package(),
+            super::jordan_truscott_package(),
+        ]);
     }
 
     /// `american()`'s best call for a hand in an auction, and whether the instinct

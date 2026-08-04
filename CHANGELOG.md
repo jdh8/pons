@@ -145,12 +145,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `compile_into` regroups consecutive same-pattern rows into exactly the
   `insert_all_seats`/`fallback_all_seats` calls the imperative code made,
   preserving declaration order and Arc-sharing, so ports are provable inert.
-  First port: the direct-seat overcall wiring (Sections 1–2 of
-  `competition()`). Two invariants are now machine-checked per compiled
-  package: every guarded fallback table stays total (the 7NT rule), and every
-  artificial call in a fallback row carries an alert — the WS0 gap, closed
-  for ported packages. Byte-identical on the shipped default (seeded
-  20k-board `smoke-default` diff and `render-book` diff, both empty).
+  First ports: the direct-seat overcall wiring (Sections 1–2 of
+  `competition()`), and Section 11 (Jordan/Truscott) in the fine-grained
+  form — one `row(...)` per rule with per-row alerts, the four wiring-only
+  table fns dissolved into the package, and the shared cue-raise answers
+  lifted whole via `rows_of`. Two invariants are now machine-checked per
+  package, probed under each table's guard-completed auction so
+  legality-anchored rules see the real bidding space: every guarded fallback
+  table stays total (the 7NT rule), and every artificial row carries an
+  alert — the WS0 gap, closed for ported packages. Byte-identical on the
+  shipped default (seeded 20k-board `smoke-default` diff and `render-book`
+  diff, both empty, per port commit).
 
 - **Every A/B script in `scripts/` now carries its category as a *prefix*, not a
   suffix** — 51 `<topic>-ab.sh` files became `ab-<topic>.sh`, and the five

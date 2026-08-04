@@ -18,11 +18,11 @@
 //! | exact calls | exact trie key |
 //! | [`Pattern::first`] | [`FirstIs`] guarded fallback |
 //! | [`Pattern::up_to`] | [`OvercallAtMost`] guarded fallback |
+//! | [`Pattern::table`], [`Pattern::after`] | [`SuffixIs`] guarded fallback |
 //! | [`rebase`] entry | [`Fallback::Rebase`] |
 //!
-//! The grammar grows only with its consumers: the exact-node and
-//! [`SuffixIs`][super::fallback::SuffixIs]-table constructors land with the
-//! first package that needs them.
+//! The grammar grows only with its consumers: the exact-node constructor
+//! lands with the first package that needs it.
 //!
 //! Auction strings write our calls bare and their calls in parentheses —
 //! `"P* 1♥ (X)"` — and the parser checks that parenthesisation against seat
@@ -36,8 +36,9 @@
 //! catch-all in every guarded table.
 
 use super::common::{fallback_all_seats, insert_all_seats};
-use super::fallback::{Fallback, FirstIs, Guard, OvercallAtMost, Rewrite};
-use super::rules::Rules;
+use super::constraint::Constraint;
+use super::fallback::{Fallback, FirstIs, Guard, OvercallAtMost, Rewrite, SuffixIs};
+use super::rules::{Alert, Rules};
 use super::trie::Trie;
 use contract_bridge::Bid;
 use contract_bridge::auction::Call;
@@ -68,6 +69,8 @@ enum GuardSpec {
     First(Call),
     /// Exactly one uncovered bid at most this one → [`OvercallAtMost`]
     UpTo(Bid),
+    /// Exactly this continuation → [`SuffixIs`]
+    Suffix(Vec<Call>),
 }
 
 impl GuardSpec {
@@ -75,6 +78,7 @@ impl GuardSpec {
         match self {
             Self::First(call) => Arc::new(FirstIs(*call)),
             Self::UpTo(bid) => Arc::new(OvercallAtMost(*bid)),
+            Self::Suffix(calls) => Arc::new(SuffixIs(calls.clone())),
         }
     }
 }
@@ -170,6 +174,63 @@ impl Pattern {
             guard: Some(GuardSpec::UpTo(bid)),
         }
     }
+
+    /// A total re-authoring table at the `key` itself
+    ///
+    /// Lowers to [`SuffixIs`]`([])`: the whole next call is re-authored at a
+    /// deeper key (winning structurally over any guard at the parent), while
+    /// every longer suffix stays with whatever the parent authored — the
+    /// idiom for "meanings change here, continuations ride the rebase".
+    pub(crate) fn table(key: &str) -> Self {
+        let (tokens, fan) = parse(key);
+        check_sides(key, &tokens, tokens.len());
+        Self {
+            source: key.to_string(),
+            key: tokens.into_iter().map(|token| token.call).collect(),
+            fan,
+            guard: Some(GuardSpec::Suffix(Vec::new())),
+        }
+    }
+
+    /// A table behind the exact continuation `suffix` after the `key`
+    ///
+    /// Lowers to [`SuffixIs`]`(suffix)`: our answer after one specific
+    /// partner call and their pass — `Pattern::after("P* 1♥ (X)", "2NT (P)")`
+    /// is opener's rebid over the Jordan raise.
+    pub(crate) fn after(key: &str, suffix: &str) -> Self {
+        let (tokens, fan) = parse(key);
+        let (rest, rest_fan) = parse(suffix);
+        assert_eq!(rest_fan, 0, "pattern {suffix:?}: P* is only valid leading");
+        let key_len = tokens.len();
+        let source = format!("{key} {suffix}");
+        let all: Vec<Token> = tokens.into_iter().chain(rest).collect();
+        check_sides(&source, &all, all.len());
+        let mut calls = all.into_iter().map(|token| token.call);
+        Self {
+            key: calls.by_ref().take(key_len).collect(),
+            source,
+            fan,
+            guard: Some(GuardSpec::Suffix(calls.collect())),
+        }
+    }
+
+    /// The auction this pattern's table actually answers: the key completed
+    /// by the guard's admitted continuation
+    ///
+    /// ponytail: `UpTo` samples only its bound — the level-tightest admitted
+    /// auction; probe per admitted bid if a legality-anchored table ever
+    /// hides behind one.
+    #[cfg(test)]
+    fn probe_auction(&self) -> Vec<Call> {
+        let mut auction = self.key.clone();
+        match &self.guard {
+            None => {}
+            Some(GuardSpec::First(call)) => auction.push(*call),
+            Some(GuardSpec::UpTo(bid)) => auction.push(Call::Bid(*bid)),
+            Some(GuardSpec::Suffix(calls)) => auction.extend_from_slice(calls),
+        }
+        auction
+    }
 }
 
 /// One rule at one pattern — the row of the declarative layer
@@ -180,6 +241,34 @@ impl Pattern {
 pub(crate) struct Row {
     pattern: Pattern,
     rules: Rules,
+}
+
+/// Author one rule at one pattern — the fine-grained form
+///
+/// The row-native twin of [`Rules::rule`]; chain [`Row::alert`] for the
+/// artificial-call column, then `.into()` for the [`Entry`].
+pub(crate) fn row(
+    pattern: Pattern,
+    call: impl Into<Call>,
+    weight: f32,
+    when: impl Constraint + 'static,
+) -> Row {
+    Row {
+        pattern,
+        rules: Rules::new().rule(call, weight, when),
+    }
+}
+
+impl Row {
+    /// Alert this row's call as the artificial convention `alert`
+    ///
+    /// Mirrors [`Rules::alert`]; the invariant test
+    /// [`assert_artificial_fallback_rows_alerted`] checks the column is
+    /// filled wherever the projection says it must be.
+    pub(crate) fn alert(mut self, alert: Alert) -> Self {
+        self.rules = self.rules.alert(alert);
+        self
+    }
 }
 
 /// A whole authored [`Rules`] table as rows at one pattern
@@ -239,6 +328,55 @@ pub(crate) struct Package {
     pub entries: fn() -> Vec<Entry>,
 }
 
+/// One lowered unit at one pattern: a regrouped rule table or a rebase
+enum Lowered {
+    Table(Rules),
+    Rebase(Fallback),
+}
+
+/// Group a package's entries: consecutive same-pattern rows into one table
+///
+/// The regrouping seam [`compile_into`] and the invariant checks share, so
+/// what is checked is exactly what is inserted.
+///
+/// # Panics
+///
+/// Panics when a pattern re-appears non-consecutively within a package (the
+/// second group would author a second fallback entry, or silently replace an
+/// exact node, instead of extending the first table — an authoring bug either
+/// way), and on a guardless rebase.
+fn group(package: &Package) -> Vec<(Pattern, Lowered)> {
+    let mut groups: Vec<(Pattern, Lowered)> = Vec::new();
+    for entry in (package.entries)() {
+        match entry {
+            Entry::Rebase(pattern, fallback) => {
+                assert!(
+                    pattern.guard.is_some(),
+                    "{}: rebase at {:?} lacks a guard",
+                    package.name,
+                    pattern.source,
+                );
+                groups.push((pattern, Lowered::Rebase(fallback)));
+            }
+            Entry::Row(row) => match groups.last_mut() {
+                Some((pattern, Lowered::Table(rules))) if *pattern == row.pattern => {
+                    *rules = std::mem::replace(rules, Rules::new()).chain(row.rules);
+                }
+                _ => {
+                    assert!(
+                        !groups.iter().any(|(pattern, _)| *pattern == row.pattern),
+                        "{}: pattern {:?} re-declared non-consecutively",
+                        package.name,
+                        row.pattern.source,
+                    );
+                    groups.push((row.pattern, Lowered::Table(row.rules)));
+                }
+            },
+        }
+    }
+    groups
+}
+
 /// Lower packages onto a trie — the only writer the row layer uses
 ///
 /// Consecutive [`Entry::Row`]s sharing a pattern regroup into one [`Rules`]
@@ -249,74 +387,56 @@ pub(crate) struct Package {
 ///
 /// # Panics
 ///
-/// Panics when a pattern re-appears non-consecutively within a package: the
-/// second group would author a second fallback entry (or silently replace an
-/// exact node) instead of extending the first table — an authoring bug either
-/// way.
+/// See [`group`].
 pub(crate) fn compile_into(book: &mut Trie, packages: &[Package]) {
     for package in packages {
         if !(package.gate)() {
             continue;
         }
-        let mut done: Vec<Pattern> = Vec::new();
-        let mut entries = (package.entries)().into_iter().peekable();
-        while let Some(entry) = entries.next() {
-            match entry {
-                Entry::Rebase(pattern, fallback) => {
-                    let spec = pattern.guard.as_ref().unwrap_or_else(|| {
-                        panic!(
-                            "{}: rebase at {:?} lacks a guard",
-                            package.name, pattern.source
-                        )
-                    });
+        for (pattern, lowered) in group(package) {
+            match (lowered, &pattern.guard) {
+                (Lowered::Rebase(fallback), Some(spec)) => {
                     fallback_all_seats(book, &pattern.key, pattern.fan, spec.lower(), fallback);
                 }
-                Entry::Row(first) => {
-                    let pattern = first.pattern;
-                    assert!(
-                        !done.contains(&pattern),
-                        "{}: pattern {:?} re-declared non-consecutively",
-                        package.name,
-                        pattern.source,
-                    );
-                    let mut rules = first.rules;
-                    while let Some(Entry::Row(next)) = entries.peek() {
-                        if next.pattern != pattern {
-                            break;
-                        }
-                        let Some(Entry::Row(next)) = entries.next() else {
-                            unreachable!("peeked a row");
-                        };
-                        rules = rules.chain(next.rules);
-                    }
-                    match &pattern.guard {
-                        None => insert_all_seats(book, &pattern.key, pattern.fan, rules),
-                        Some(spec) => fallback_all_seats(
-                            book,
-                            &pattern.key,
-                            pattern.fan,
-                            spec.lower(),
-                            Fallback::classify(rules),
-                        ),
-                    }
-                    done.push(pattern);
+                (Lowered::Rebase(_), None) => unreachable!("group() rejects guardless rebases"),
+                (Lowered::Table(rules), None) => {
+                    insert_all_seats(book, &pattern.key, pattern.fan, rules);
                 }
+                (Lowered::Table(rules), Some(spec)) => fallback_all_seats(
+                    book,
+                    &pattern.key,
+                    pattern.fan,
+                    spec.lower(),
+                    Fallback::classify(rules),
+                ),
             }
         }
     }
 }
 
-/// Assert every compiled guarded table gives every probe hand a finite call
+/// Assert the row invariants over whole packages
 ///
-/// The 7NT invariant, machine-checked over a [`compile_into`] product: a
-/// guarded table survives the floor's fall-through pass, so a hand it rejects
-/// would be left with no call at all.  Probed rather than proved — a spread of
-/// hands from yarborough to rock under the table's own key as context — which
-/// catches the classic omission (no catch-all `Pass`) without trying to decide
-/// totality symbolically.
+/// Walks the same [`group`]ing [`compile_into`] inserts, probing each table
+/// under the auction it actually answers — the pattern's key completed by its
+/// guard's admitted continuation — so legality-anchored rules
+/// (`min_level_is`) see the real bidding space.  Two invariants:
+///
+/// * **Totality**, guarded tables only (the 7NT rule): a guarded table
+///   survives the floor's fall-through pass, so a hand it rejects would be
+///   left with no call at all.  Probed rather than proved — a spread of hands
+///   from yarborough to rock — which catches the classic omission (no
+///   catch-all `Pass`) without deciding totality symbolically.  Exact nodes
+///   may reject-to-floor by design and are exempt.
+/// * **Alerts**, every table: an artificial call (witness: a projection
+///   flooring 4+ in a suit the call did not name) must carry an alert — the
+///   fallback-row extension of `artificial_calls_are_alerted`, which walks
+///   exact trie nodes only.
+///
+/// Gates are ignored: opt-in packages must satisfy the invariants too.
 #[cfg(test)]
-pub(crate) fn assert_guarded_tables_total(book: &Trie) {
+pub(crate) fn assert_package_invariants(packages: &[Package]) {
     use super::context::Context;
+    use super::inference::artificial;
     use super::trie::Classifier;
     use contract_bridge::auction::RelativeVulnerability;
 
@@ -332,61 +452,39 @@ pub(crate) fn assert_guarded_tables_total(book: &Trie) {
     .map(|hand| hand.parse().expect("valid probe hand"))
     .collect();
 
-    for (key, guard, fallback) in book.fallbacks() {
-        let Fallback::Classify(classifier) = fallback else {
-            continue;
-        };
-        let Some(rules) = classifier.as_rules() else {
-            continue;
-        };
-        let context = Context::new(RelativeVulnerability::NONE, &key);
-        for &hand in &probes {
-            assert!(
-                rules.classify(hand, &context).has_mass(),
-                "guarded table at {key:?} {} rejects {hand} — \
-                 guarded tables cannot fall through to the floor",
-                guard.describe().unwrap_or_default(),
-            );
-        }
-    }
-}
-
-/// Assert every artificial call in a compiled book's guarded tables carries an
-/// alert
-///
-/// The fallback-row extension of the `artificial_calls_are_alerted` invariant
-/// (which walks exact nodes only): reuses the same sound-sufficient witness —
-/// a projection flooring 4+ in a suit the call did not name — over every rule
-/// reachable through a [`Fallback::Classify`] entry.
-#[cfg(test)]
-pub(crate) fn assert_artificial_fallback_rows_alerted(book: &Trie) {
-    use super::context::Context;
-    use super::inference::artificial;
-    use contract_bridge::auction::RelativeVulnerability;
-
-    for (key, _, fallback) in book.fallbacks() {
-        let Fallback::Classify(classifier) = fallback else {
-            continue;
-        };
-        let Some(rules) = classifier.as_rules() else {
-            continue;
-        };
-        let context = Context::new(RelativeVulnerability::NONE, &key);
-        // The doubled strain for an X/XX row: the last bid in the key.  A key
-        // whose double sits beyond it (inside a guard suffix) is not
-        // recoverable here; `None` errs toward flagging, never toward
-        // missing.
-        let doubled = key.iter().rev().find_map(|call| match call {
-            Call::Bid(bid) => Some(bid.strain),
-            _ => None,
-        });
-        for rule in rules.rules() {
-            if artificial(&rule.project(&context), rule.call(), doubled) {
-                assert!(
-                    rule.alert().is_some(),
-                    "artificial call {} at {key:?} has no alert",
-                    rule.call(),
-                );
+    for package in packages {
+        for (pattern, lowered) in group(package) {
+            let Lowered::Table(rules) = lowered else {
+                continue;
+            };
+            let auction = pattern.probe_auction();
+            let context = Context::new(RelativeVulnerability::NONE, &auction);
+            if pattern.guard.is_some() {
+                for &hand in &probes {
+                    assert!(
+                        rules.classify(hand, &context).has_mass(),
+                        "{}: guarded table at {:?} rejects {hand} — \
+                         guarded tables cannot fall through to the floor",
+                        package.name,
+                        pattern.source,
+                    );
+                }
+            }
+            // The doubled strain for an X/XX row: the last bid before it.
+            let doubled = auction.iter().rev().find_map(|call| match call {
+                Call::Bid(bid) => Some(bid.strain),
+                _ => None,
+            });
+            for rule in rules.rules() {
+                if artificial(&rule.project(&context), rule.call(), doubled) {
+                    assert!(
+                        rule.alert().is_some(),
+                        "{}: artificial call {} at {:?} has no alert",
+                        package.name,
+                        rule.call(),
+                        pattern.source,
+                    );
+                }
             }
         }
     }
@@ -486,6 +584,53 @@ mod tests {
             .expect("the rebase reaches the systems-on node");
         assert_eq!(provenance.rebases, 1, "resolved through one rewrite");
         assert_eq!(provenance.depth, 3, "at the [1♥ P 2♥] node");
+    }
+
+    /// `after` splits the key from the guard suffix at the string boundary,
+    /// and fine-grained `row(...)` rows regroup with the alert riding along.
+    #[test]
+    fn after_splits_key_and_suffix() {
+        let book = compiled(&[Package {
+            name: "test",
+            gate: || true,
+            entries: || {
+                vec![
+                    row(
+                        Pattern::after("P* 1♥ (X)", "2NT (P)"),
+                        Bid::new(4, Strain::Hearts),
+                        1.0,
+                        hcp(13..),
+                    )
+                    .alert(Alert("test:conv"))
+                    .into(),
+                    row(
+                        Pattern::after("P* 1♥ (X)", "2NT (P)"),
+                        Call::Pass,
+                        0.0,
+                        hcp(0..),
+                    )
+                    .into(),
+                ]
+            },
+        }]);
+
+        let entries = book.fallbacks();
+        assert_eq!(
+            &*entries[0].0,
+            calls("1♥ X"),
+            "their double keys, not guards"
+        );
+        let auction = calls("2NT P");
+        let context = Context::new(RelativeVulnerability::NONE, &auction);
+        assert!(entries[0].1.admits(&context, &auction));
+        assert!(!entries[0].1.admits(&context, &calls("2NT")));
+
+        let Fallback::Classify(classifier) = entries[0].2 else {
+            panic!("rows lower to a classifying fallback");
+        };
+        let rules = classifier.as_rules().expect("rows regroup into Rules");
+        assert_eq!(rules.rules().len(), 2, "both rows in one table");
+        assert!(rules.rules()[0].alert().is_some(), "the alert rode along");
     }
 
     /// A gated-off package compiles to nothing.
