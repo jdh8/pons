@@ -19,6 +19,7 @@
 //! | [`Pattern::first`] | [`FirstIs`] guarded fallback |
 //! | [`Pattern::up_to`] | [`OvercallAtMost`] guarded fallback |
 //! | [`Pattern::table`], [`Pattern::after`] | [`SuffixIs`] guarded fallback |
+//! | [`Pattern::guarded`] | a hand-written [`Guard`], carried verbatim |
 //! | [`rebase`] entry | [`Fallback::Rebase`] |
 //!
 //! The grammar grows only with its consumers.
@@ -62,7 +63,7 @@ pub(crate) struct Pattern {
 }
 
 /// The guard constructs the grammar admits, each naming its lowering
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone)]
 enum GuardSpec {
     /// Any continuation starting with this call → [`FirstIs`]
     First(Call),
@@ -70,6 +71,46 @@ enum GuardSpec {
     UpTo(Bid),
     /// Exactly this continuation → [`SuffixIs`]
     Suffix(Vec<Call>),
+    /// A hand-written guard, carried verbatim → itself
+    Opaque {
+        /// One continuation the guard admits, for probing and diagnostics
+        sample: Vec<Call>,
+        /// The guard as the imperative site wrote it
+        guard: Arc<dyn Guard>,
+    },
+}
+
+/// Compared by shape alone: an [`Arc<dyn Guard>`][Guard] is a closure and has
+/// no equality.  [`Pattern`]'s derived comparison also covers `source`, which
+/// for an [`Opaque`][GuardSpec::Opaque] spec carries the guard's own
+/// `describe()` — so two rows authored from one call regroup into one table,
+/// and two differently-labelled guards stay apart.  The residual: two guards
+/// sharing a label *and* a sample would merge under the first one's `Arc`.
+impl PartialEq for GuardSpec {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::First(a), Self::First(b)) => a == b,
+            (Self::UpTo(a), Self::UpTo(b)) => a == b,
+            (Self::Suffix(a), Self::Suffix(b)) => a == b,
+            (Self::Opaque { sample: a, .. }, Self::Opaque { sample: b, .. }) => a == b,
+            _ => false,
+        }
+    }
+}
+
+impl Eq for GuardSpec {}
+
+impl std::fmt::Debug for GuardSpec {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::First(call) => write!(f, "First({call})"),
+            Self::UpTo(bid) => write!(f, "UpTo({bid})"),
+            Self::Suffix(calls) => write!(f, "Suffix({calls:?})"),
+            Self::Opaque { sample, guard } => {
+                write!(f, "Opaque({:?}, sample {sample:?})", guard.describe())
+            }
+        }
+    }
 }
 
 impl GuardSpec {
@@ -78,6 +119,7 @@ impl GuardSpec {
             Self::First(call) => Arc::new(FirstIs(*call)),
             Self::UpTo(bid) => Arc::new(OvercallAtMost(*bid)),
             Self::Suffix(calls) => Arc::new(SuffixIs(calls.clone())),
+            Self::Opaque { guard, .. } => Arc::clone(guard),
         }
     }
 }
@@ -229,6 +271,50 @@ impl Pattern {
         }
     }
 
+    /// A hand-written guard at the `key`, with a `sample` continuation it
+    /// admits
+    ///
+    /// The escape hatch for guards the constructs above cannot spell — a
+    /// prefix wildcard (`X (bid) …`, our stopper-bid after their double of
+    /// our Stayman), a relational overcall/cue pair.  The guard is carried
+    /// **verbatim**, so the renderers and resolution see exactly what the
+    /// imperative site wrote; wrap it in
+    /// [`described_guard`][super::fallback::described_guard] as that site did,
+    /// or the book renders an opaque entry.
+    ///
+    /// `sample` is what buys back the checks the named constructs get for
+    /// free: it is seat-checked like any suffix, it is the probe auction the
+    /// totality invariant needs, and
+    /// `assert_package_invariants` asserts the guard really does admit it —
+    /// so a sample that drifts from its guard fails the test rather than
+    /// silently probing the wrong auction.
+    pub(crate) fn guarded(key: &str, sample: &str, guard: impl Guard + 'static) -> Self {
+        let (tokens, fan) = parse(key);
+        let (rest, rest_fan) = parse(sample);
+        assert_eq!(rest_fan, 0, "pattern {sample:?}: P* is only valid leading");
+        let key_len = tokens.len();
+        let seats = format!("{key} {sample}");
+        let all: Vec<Token> = tokens.into_iter().chain(rest).collect();
+        // Unlike an exact suffix, a wildcard sample need not end just before
+        // our turn — so anchor on the key instead: every key starts with our
+        // call, hence an even token index is ours.  Rounding the length up to
+        // an even `our_index` says exactly that without underflowing.
+        check_sides(&seats, &all, all.len().next_multiple_of(2));
+        let mut calls = all.into_iter().map(|token| token.call);
+        Self {
+            key: calls.by_ref().take(key_len).collect(),
+            source: match guard.describe() {
+                Some(label) => format!("{key} {label}"),
+                None => seats,
+            },
+            fan,
+            guard: Some(GuardSpec::Opaque {
+                sample: calls.collect(),
+                guard: Arc::new(guard),
+            }),
+        }
+    }
+
     /// The auction this pattern's table actually answers: the key completed
     /// by the guard's admitted continuation
     ///
@@ -243,6 +329,7 @@ impl Pattern {
             Some(GuardSpec::First(call)) => auction.push(*call),
             Some(GuardSpec::UpTo(bid)) => auction.push(Call::Bid(*bid)),
             Some(GuardSpec::Suffix(calls)) => auction.extend_from_slice(calls),
+            Some(GuardSpec::Opaque { sample, .. }) => auction.extend_from_slice(sample),
         }
         auction
     }
@@ -469,11 +556,20 @@ pub(crate) fn assert_package_invariants(packages: &[Package]) {
 
     for package in packages {
         for (pattern, lowered) in group(package) {
+            let auction = pattern.probe_auction();
+            let context = Context::new(RelativeVulnerability::NONE, &auction);
+            if let Some(spec @ GuardSpec::Opaque { sample, .. }) = &pattern.guard {
+                assert!(
+                    spec.lower().admits(&context, sample),
+                    "{}: hand-written guard at {:?} rejects its own sample — \
+                     the probe auction and the guard have drifted apart",
+                    package.name,
+                    pattern.source,
+                );
+            }
             let Lowered::Table(rules) = lowered else {
                 continue;
             };
-            let auction = pattern.probe_auction();
-            let context = Context::new(RelativeVulnerability::NONE, &auction);
             if pattern.guard.is_some() {
                 for &hand in &probes {
                     assert!(
@@ -509,7 +605,7 @@ pub(crate) fn assert_package_invariants(packages: &[Package]) {
 mod tests {
     use super::super::constraint::hcp;
     use super::super::context::Context;
-    use super::super::fallback::ReplaceNext;
+    use super::super::fallback::{ReplaceNext, described_guard, guard};
     use super::*;
     use contract_bridge::auction::RelativeVulnerability;
     use contract_bridge::{Hand, Strain};
@@ -646,6 +742,51 @@ mod tests {
         let rules = classifier.as_rules().expect("rows regroup into Rules");
         assert_eq!(rules.rules().len(), 2, "both rows in one table");
         assert!(rules.rules()[0].alert().is_some(), "the alert rode along");
+    }
+
+    /// A hand-written guard rides onto the trie verbatim — label and all —
+    /// and its sample is seat-checked against the key.
+    #[test]
+    fn guarded_carries_the_guard_verbatim() {
+        let book = compiled(&[Package {
+            name: "test",
+            gate: || true,
+            entries: || {
+                vec![rebase(
+                    Pattern::guarded(
+                        "P* 1NT (P) 2♣",
+                        "(X) 2♦",
+                        described_guard(
+                            "X (bid) …",
+                            guard(|_: &Context<'_>, suffix: &[Call]| {
+                                suffix.first() == Some(&Call::Double)
+                                    && matches!(suffix.get(1), Some(Call::Bid(_)))
+                            }),
+                        ),
+                    ),
+                    ReplaceNext(Call::Pass),
+                )]
+            },
+        }]);
+
+        let entries = book.fallbacks();
+        assert_eq!(&*entries[0].0, calls("1NT P 2♣"), "keyed below our Stayman");
+        assert_eq!(
+            entries[0].1.describe().as_deref(),
+            Some("X (bid) …"),
+            "the guard's own label survives, so render-book is unchanged",
+        );
+
+        let auction = calls("1NT P 2♣ X 2♦");
+        let context = Context::new(RelativeVulnerability::NONE, &auction);
+        assert!(
+            entries[0].1.admits(&context, &calls("X 2♦")),
+            "wildcard tail"
+        );
+        assert!(
+            !entries[0].1.admits(&context, &calls("X P P")),
+            "the re-ask suffix is left to its own table — what FirstIs would swallow",
+        );
     }
 
     /// A gated-off package compiles to nothing.

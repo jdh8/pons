@@ -16,7 +16,7 @@ use super::super::fallback::{
     Fallback, FirstIs, OvercallAtMost, ReplaceNext, SuffixIs, described_guard, described_rewrite,
     guard, rewriter,
 };
-use super::super::rows::{Package, Pattern, compile_into, rebase, row, rows_of};
+use super::super::rows::{Entry, Package, Pattern, compile_into, rebase, row, rows_of};
 use super::super::trie::{Classifier, classifier};
 use super::super::{Alert, Competitive, Rules};
 use super::notrump::{
@@ -3775,6 +3775,261 @@ fn uvu_package() -> Package {
     }
 }
 
+/// The `X (bid) …` systems-on rebase, shared by the four
+/// competition-over-our-own-convention packages
+///
+/// They doubled our artificial call and we answered with a bid; from there
+/// responder's rebids are the *uncontested* tree, so strip the double to a
+/// Pass and re-key.  `bid` is one answer the guard admits — the sample the
+/// row layer seat-checks and probes with.
+///
+/// The guard is a two-call prefix with a free tail, which no named [`Pattern`]
+/// construct spells: `Pattern::first("…", "X")` would also swallow the
+/// `X (P) (P)` re-ask whose own table is declared just below it, rebasing the
+/// re-ask instead of classifying it.  So it rides in verbatim through
+/// [`Pattern::guarded`].
+fn systems_on_over_double(key: &str, bid: &str) -> Entry {
+    rebase(
+        Pattern::guarded(
+            key,
+            &format!("(X) {bid}"),
+            described_guard(
+                "X (bid) …",
+                guard(|_: &Context<'_>, s: &[Call]| {
+                    s.first() == Some(&Call::Double) && matches!(s.get(1), Some(Call::Bid(_)))
+                }),
+            ),
+        ),
+        described_rewrite(
+            "systems on: their X is stripped to a pass",
+            rewriter(|auction: &[Call], depth: usize| {
+                if auction.get(depth) != Some(&Call::Double) {
+                    return None;
+                }
+                let mut rewritten = auction.to_vec();
+                rewritten[depth] = Call::Pass; // strip the X → systems on
+                Some(rewritten)
+            }),
+        ),
+    )
+}
+
+/// Competition over our own `2♣` Stayman as a row package
+/// ([`set_competition_over_stayman`], default on)
+///
+/// Opener's replies after they double `1NT-(P)-2♣-(X)` or overcall it.  Keyed
+/// at the `[1NT, P, 2♣]` node — a distinct trie path from the systems-on
+/// `[1NT, (2♣)]` block, where their `2♣` sits at depth 1.
+fn competition_over_stayman_package() -> Package {
+    Package {
+        name: "competition-over-stayman",
+        gate: competition_over_stayman,
+        entries: || {
+            const STAYMAN: &str = "P* 1NT (P) 2♣";
+            // A.1 — our Stayman doubled.  Opener's coded reply, then the
+            // systems-on rebase off his stopper-bid.
+            let mut entries = rows_of(Pattern::after(STAYMAN, "(X)"), stayman_doubled_opener());
+            entries.push(systems_on_over_double(STAYMAN, "2♦"));
+            // Opener passed to deny a stopper; responder re-asks, opener must
+            // answer — `stayman_answers()` has no Pass rule, and its 2♦ is
+            // exactly the artificial "no major" denial.
+            entries.extend(rows_of(
+                Pattern::after(STAYMAN, "(X) P (P)"),
+                stayman_redouble_reask(),
+            ));
+            entries.extend(rows_of(
+                Pattern::after(STAYMAN, "(X) P (P) XX (P)"),
+                stayman_answers(),
+            ));
+
+            // A.1c — opener's 2-level answer (2♦/2♥/2♠) doubled.  The double
+            // steals no room (responder's escapes all sit above 2♦), so
+            // responder is systems-on: this is the escape the invitational-5-4
+            // reroute needs — a 5♠4♥ that Staymaned bids its 2♠ instead of
+            // sitting for a doubled 2♦ — and it also lets a 4-4 hand run to
+            // 2NT rather than passing the double out.
+            entries.push(rebase(
+                Pattern::guarded(
+                    STAYMAN,
+                    "(P) 2♦ (X)",
+                    described_guard(
+                        "- 2♦/2♥/2♠ X …",
+                        guard(|_: &Context<'_>, s: &[Call]| {
+                            s.first() == Some(&Call::Pass)
+                                && matches!(
+                                    s.get(1),
+                                    Some(Call::Bid(b))
+                                        if b.level.get() == 2
+                                            && matches!(
+                                                b.strain,
+                                                Strain::Diamonds | Strain::Hearts | Strain::Spades
+                                            )
+                                )
+                                && s.get(2) == Some(&Call::Double)
+                        }),
+                    ),
+                ),
+                described_rewrite(
+                    "systems on: their X is stripped to a pass",
+                    rewriter(|auction: &[Call], depth: usize| {
+                        if auction.get(depth + 2) != Some(&Call::Double) {
+                            return None;
+                        }
+                        let mut rewritten = auction.to_vec();
+                        rewritten[depth + 2] = Call::Pass; // strip the X → systems on
+                        Some(rewritten)
+                    }),
+                ),
+            ));
+
+            // A.2 — our Stayman overcalled at the 2-level.  Opener's natural reply.
+            for over in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+                entries.extend(rows_of(
+                    Pattern::after(STAYMAN, &format!("(2{})", Strain::from(over))),
+                    stayman_overcalled_opener(over),
+                ));
+            }
+            entries
+        },
+    }
+}
+
+/// Competition over our own Jacoby transfers as a row package
+/// ([`set_competition_over_transfer`], default off)
+///
+/// Opener's replies after they double `1NT-(P)-2♦/2♥-(X)` or overcall it.
+/// Keyed at the `[1NT, P, 2♦]` / `[1NT, P, 2♥]` nodes — distinct trie paths
+/// from the Transfer-Lebensohl `[1NT, (2♦/2♥)]` block, where theirs sits at
+/// depth 1.
+fn competition_over_transfer_package() -> Package {
+    Package {
+        name: "competition-over-transfer",
+        gate: competition_over_transfer,
+        entries: || {
+            let mut entries = Vec::new();
+            for (resp, major) in [(Suit::Diamonds, Suit::Hearts), (Suit::Hearts, Suit::Spades)] {
+                let key = format!("P* 1NT (P) 2{}", Strain::from(resp));
+                let completion = format!("2{}", Strain::from(major));
+
+                // Our transfer doubled: opener's reply, then the systems-on
+                // rebase off his completion or super-accept.
+                entries.extend(rows_of(
+                    Pattern::after(&key, "(X)"),
+                    transfer_doubled_opener(major, resp),
+                ));
+                entries.push(systems_on_over_double(&key, &completion));
+                // Opener passed to decline; responder re-asks, and opener's
+                // forced completion has no Pass rule so he cannot sit.
+                entries.extend(rows_of(
+                    Pattern::after(&key, "(X) P (P)"),
+                    transfer_pass_reask(major),
+                ));
+                entries.extend(rows_of(
+                    Pattern::after(&key, "(X) P (P) XX (P)"),
+                    complete_transfer(major),
+                ));
+
+                // Our transfer overcalled.  Opener's natural reply.
+                let overcalls: &[(Suit, u8)] = match resp {
+                    Suit::Diamonds => &[(Suit::Spades, 2), (Suit::Clubs, 3), (Suit::Diamonds, 3)],
+                    _ => &[(Suit::Clubs, 3), (Suit::Diamonds, 3)],
+                };
+                for &(over_suit, over_level) in overcalls {
+                    entries.extend(rows_of(
+                        Pattern::after(&key, &format!("({over_level}{})", Strain::from(over_suit))),
+                        transfer_overcalled_opener(major, over_suit, over_level),
+                    ));
+                }
+            }
+            entries
+        },
+    }
+}
+
+/// Competition over our own two-way `2♠` minor response as a row package
+/// ([`set_competition_over_minor_transfer`], default on)
+///
+/// Opener's replies after they double `1NT-(P)-2♠-(X)` or overcall it.  Only
+/// the PUPPET `2♠` (clubs *or* the balanced size-ask) has a min/max answer to
+/// protect, so the package no-ops under the EUROPEAN pure-transfer scheme.
+fn competition_over_minor_transfer_package() -> Package {
+    Package {
+        name: "competition-over-minor-transfer",
+        gate: || competition_over_minor_transfer() && notrump_minors() == PUPPET,
+        entries: || {
+            const TWO_SPADE: &str = "P* 1NT (P) 2♠";
+            // A.1 — our 2♠ doubled.  Opener's coded min/max + stopper reply,
+            // then the systems-on rebase off his 2NT/3♣ stopper-bid (the
+            // `two_spade_over_min`/`max` machinery).
+            let mut entries = rows_of(Pattern::after(TWO_SPADE, "(X)"), minor_doubled_opener());
+            entries.push(systems_on_over_double(TWO_SPADE, "2NT"));
+            // Opener denied a stopper (Pass = min, XX = max); responder signs
+            // off in clubs.
+            for deny in ["(X) P (P)", "(X) XX (P)"] {
+                entries.extend(rows_of(
+                    Pattern::after(TWO_SPADE, deny),
+                    minor_no_stopper_rebid(),
+                ));
+            }
+
+            // A.2 — our 2♠ overcalled.  `2NT`/`3♣` steal the size-ask steps, so
+            // opener keeps the min/max + stopper signal; a higher overcall
+            // (`3♦/3♥/3♠`) is systems-off.
+            for (over, rules) in [
+                ("(2NT)", minor_overcalled_high()),
+                ("(3♣)", minor_overcalled_high()),
+                ("(3♦)", minor_overcalled_low(Suit::Diamonds)),
+                ("(3♥)", minor_overcalled_low(Suit::Hearts)),
+                ("(3♠)", minor_overcalled_low(Suit::Spades)),
+            ] {
+                entries.extend(rows_of(Pattern::after(TWO_SPADE, over), rules));
+            }
+            entries
+        },
+    }
+}
+
+/// Competition over our own `2NT` diamond transfer as a row package
+/// ([`set_competition_over_diamond_transfer`], default on)
+///
+/// Opener's replies after they double `1NT-(P)-2NT-(X)` or overcall it.  Only
+/// the PUPPET scheme plays `2NT` as the diamond transfer, so the package
+/// no-ops under EUROPEAN.
+fn competition_over_diamond_transfer_package() -> Package {
+    Package {
+        name: "competition-over-diamond-transfer",
+        gate: || competition_over_diamond_transfer() && notrump_minors() == PUPPET,
+        entries: || {
+            const TWO_NT: &str = "P* 1NT (P) 2NT";
+            // Our 2NT doubled: opener's 3♦-fit / 3♣-clubs / XX-values / Pass
+            // reply, then the systems-on rebase off his fit-showing bid.
+            let mut entries = rows_of(Pattern::after(TWO_NT, "(X)"), diamond_doubled_opener());
+            entries.push(systems_on_over_double(TWO_NT, "3♦"));
+            // Opener denied a fit (Pass = min, XX = max values); responder
+            // signs off in 3♦ (always 5+♦).
+            for deny in ["(X) P (P)", "(X) XX (P)"] {
+                entries.extend(rows_of(
+                    Pattern::after(TWO_NT, deny),
+                    diamond_no_fit_rebid(),
+                ));
+            }
+
+            // Our 2NT overcalled.  `3♣` leaves the `3♦` completion legal; a
+            // higher overcall (`3♦` cue / `3♥` / `3♠`) keeps `3NT`/`X`/Pass
+            // natural.
+            for (over, rules) in [
+                ("(3♣)", diamond_overcalled_low()),
+                ("(3♦)", diamond_overcalled_high(Suit::Diamonds)),
+                ("(3♥)", diamond_overcalled_high(Suit::Hearts)),
+                ("(3♠)", diamond_overcalled_high(Suit::Spades)),
+            ] {
+                entries.extend(rows_of(Pattern::after(TWO_NT, over), rules));
+            }
+            entries
+        },
+    }
+}
+
 /// The competitive package over our openings: cue-bid raises, preemptive raises,
 /// negative doubles for all four openings, support doubles/redoubles, and
 /// opener's answers to negative doubles of minor overcalls
@@ -4698,380 +4953,20 @@ pub fn competition() -> Competitive {
         }
     }
 
-    // Competition over our own 2♣ Stayman (`set_competition_over_stayman`,
-    // default on): opener's replies after the opponents double `1NT-(P)-2♣-(X)`
-    // or overcall it `-(2♦/2♥/2♠)`.  Keyed at the `[1NT, P, 2♣]` node — a distinct
-    // trie path from the systems-on `[1NT, (2♣)]` block (their 2♣ at depth 1).
-    if competition_over_stayman() {
-        let stayman = [call(1, Strain::Notrump), Call::Pass, call(2, Strain::Clubs)];
-
-        // A.1 — our Stayman doubled.  Opener's coded reply (suffix `[X]`).
-        fallback_all_seats(
-            &mut book,
-            &stayman,
-            3,
-            Arc::new(SuffixIs(vec![Call::Double])),
-            Fallback::classify(stayman_doubled_opener()),
-        );
-        // After opener's *stopper-bid* (suffix `[X, <bid>, …]`) responder's rebids
-        // are identical to the uncontested tree: rebase by stripping the X to a
-        // Pass, re-keying onto `[1NT, P, 2♣, P, <bid>, …]`.
-        fallback_all_seats(
-            &mut book,
-            &stayman,
-            3,
-            Arc::new(described_guard(
-                "X (bid) …",
-                guard(|_: &Context<'_>, s: &[Call]| {
-                    s.first() == Some(&Call::Double) && matches!(s.get(1), Some(Call::Bid(_)))
-                }),
-            )),
-            Fallback::rebase(described_rewrite(
-                "systems on: their X is stripped to a pass",
-                rewriter(move |auction: &[Call], depth: usize| {
-                    if auction.get(depth) != Some(&Call::Double) {
-                        return None;
-                    }
-                    let mut rewritten = auction.to_vec();
-                    rewritten[depth] = Call::Pass; // strip the X → systems on
-                    Some(rewritten)
-                }),
-            )),
-        );
-        // Opener passed to deny a stopper; responder re-asks (suffix `[X, P, P]`).
-        fallback_all_seats(
-            &mut book,
-            &stayman,
-            3,
-            Arc::new(SuffixIs(vec![Call::Double, Call::Pass, Call::Pass])),
-            Fallback::classify(stayman_redouble_reask()),
-        );
-        // Opener's forced re-answer to the re-ask (suffix `[X, P, P, XX, P]`):
-        // reuse `stayman_answers()` — no Pass rule (opener cannot sit), and its 2♦
-        // is exactly the artificial "no major" denial.
-        fallback_all_seats(
-            &mut book,
-            &stayman,
-            3,
-            Arc::new(SuffixIs(vec![
-                Call::Double,
-                Call::Pass,
-                Call::Pass,
-                Call::Redouble,
-                Call::Pass,
-            ])),
-            Fallback::classify(stayman_answers()),
-        );
-
-        // A.1c — opener's 2-level answer (2♦/2♥/2♠) doubled.  The double of the
-        // artificial answer steals no room (responder's escapes all sit above 2♦),
-        // so responder's rebids are systems-on: strip the X to a Pass and re-key onto
-        // the uncontested `[1NT, P, 2♣, P, <answer>, …]` tree.  This is the escape the
-        // invitational-5-4 reroute needs — a 5♠4♥ that Staymaned bids its 2♠ instead
-        // of sitting for a doubled 2♦ — and it also lets a 4-4 hand run to 2NT rather
-        // than passing the double out.  Suffix `[P, <2-bid>, X, …]`.
-        fallback_all_seats(
-            &mut book,
-            &stayman,
-            3,
-            Arc::new(described_guard(
-                "- 2♦/2♥/2♠ X …",
-                guard(|_: &Context<'_>, s: &[Call]| {
-                    s.first() == Some(&Call::Pass)
-                        && matches!(
-                            s.get(1),
-                            Some(Call::Bid(b))
-                                if b.level.get() == 2
-                                    && matches!(
-                                        b.strain,
-                                        Strain::Diamonds | Strain::Hearts | Strain::Spades
-                                    )
-                        )
-                        && s.get(2) == Some(&Call::Double)
-                }),
-            )),
-            Fallback::rebase(described_rewrite(
-                "systems on: their X is stripped to a pass",
-                rewriter(move |auction: &[Call], depth: usize| {
-                    if auction.get(depth + 2) != Some(&Call::Double) {
-                        return None;
-                    }
-                    let mut rewritten = auction.to_vec();
-                    rewritten[depth + 2] = Call::Pass; // strip the X → systems on
-                    Some(rewritten)
-                }),
-            )),
-        );
-
-        // A.2 — our Stayman overcalled at the 2-level.  Opener's natural reply.
-        for over in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
-            let overcall = call(2, Strain::from(over));
-            fallback_all_seats(
-                &mut book,
-                &stayman,
-                3,
-                Arc::new(SuffixIs(vec![overcall])),
-                Fallback::classify(stayman_overcalled_opener(over)),
-            );
-        }
-    }
-
-    // Competition over our own Jacoby transfers (`set_competition_over_transfer`,
-    // default off): opener's replies after the opponents double `1NT-(P)-2♦/2♥-(X)`
-    // or overcall it.  Keyed at the `[1NT, P, 2♦]` / `[1NT, P, 2♥]` nodes — distinct
-    // trie paths from the Transfer-Lebensohl `[1NT, (2♦/2♥)]` block (theirs at depth 1).
-    if competition_over_transfer() {
-        for (resp, major) in [(Suit::Diamonds, Suit::Hearts), (Suit::Hearts, Suit::Spades)] {
-            let transfer = [
-                call(1, Strain::Notrump),
-                Call::Pass,
-                call(2, Strain::from(resp)),
-            ];
-
-            // Our transfer doubled.  Opener's reply (suffix `[X]`).
-            fallback_all_seats(
-                &mut book,
-                &transfer,
-                3,
-                Arc::new(SuffixIs(vec![Call::Double])),
-                Fallback::classify(transfer_doubled_opener(major, resp)),
-            );
-            // After opener completes/super-accepts (suffix `[X, <bid>, …]`)
-            // responder's rebids match the uncontested tree: strip the X to a Pass,
-            // re-keying onto `[1NT, P, 2♦/2♥, P, <bid>, …]`.
-            fallback_all_seats(
-                &mut book,
-                &transfer,
-                3,
-                Arc::new(described_guard(
-                    "X (bid) …",
-                    guard(|_: &Context<'_>, s: &[Call]| {
-                        s.first() == Some(&Call::Double) && matches!(s.get(1), Some(Call::Bid(_)))
-                    }),
-                )),
-                Fallback::rebase(described_rewrite(
-                    "systems on: their X is stripped to a pass",
-                    rewriter(move |auction: &[Call], depth: usize| {
-                        if auction.get(depth) != Some(&Call::Double) {
-                            return None;
-                        }
-                        let mut rewritten = auction.to_vec();
-                        rewritten[depth] = Call::Pass; // strip the X → systems on
-                        Some(rewritten)
-                    }),
-                )),
-            );
-            // Opener passed to decline; responder re-asks (suffix `[X, P, P]`).
-            fallback_all_seats(
-                &mut book,
-                &transfer,
-                3,
-                Arc::new(SuffixIs(vec![Call::Double, Call::Pass, Call::Pass])),
-                Fallback::classify(transfer_pass_reask(major)),
-            );
-            // Opener's forced completion after the re-ask (suffix `[X, P, P, XX, P]`):
-            // reuse `complete_transfer` — no Pass rule, so opener cannot sit.
-            fallback_all_seats(
-                &mut book,
-                &transfer,
-                3,
-                Arc::new(SuffixIs(vec![
-                    Call::Double,
-                    Call::Pass,
-                    Call::Pass,
-                    Call::Redouble,
-                    Call::Pass,
-                ])),
-                Fallback::classify(complete_transfer(major)),
-            );
-
-            // Our transfer overcalled.  Opener's natural reply (suffix `[overcall]`).
-            let overcalls: &[(Suit, u8)] = match resp {
-                Suit::Diamonds => &[(Suit::Spades, 2), (Suit::Clubs, 3), (Suit::Diamonds, 3)],
-                _ => &[(Suit::Clubs, 3), (Suit::Diamonds, 3)],
-            };
-            for &(over_suit, over_level) in overcalls {
-                let overcall = call(over_level, Strain::from(over_suit));
-                fallback_all_seats(
-                    &mut book,
-                    &transfer,
-                    3,
-                    Arc::new(SuffixIs(vec![overcall])),
-                    Fallback::classify(transfer_overcalled_opener(major, over_suit, over_level)),
-                );
-            }
-        }
-    }
-
-    // Competition over our own two-way 2♠ minor response (`set_competition_over_
-    // minor_transfer`, default on): opener's replies after the opponents double
-    // `1NT-(P)-2♠-(X)` or overcall it.  Keyed at `[1NT, P, 2♠]`.  Only the PUPPET
-    // 2♠ (clubs *or* the balanced size-ask) has a min/max answer to protect, so the
-    // block no-ops under the EUROPEAN pure-transfer scheme.
-    if competition_over_minor_transfer() && notrump_minors() == PUPPET {
-        let two_spade = [
-            call(1, Strain::Notrump),
-            Call::Pass,
-            call(2, Strain::Spades),
-        ];
-
-        // A.1 — our 2♠ doubled.  Opener's coded min/max + stopper reply (suffix `[X]`).
-        fallback_all_seats(
-            &mut book,
-            &two_spade,
-            3,
-            Arc::new(SuffixIs(vec![Call::Double])),
-            Fallback::classify(minor_doubled_opener()),
-        );
-        // After opener's stopper-bid (`2NT`/`3♣`, suffix `[X, <bid>, …]`) responder's
-        // rebids match the uncontested tree: strip the `X` to a Pass, re-keying onto
-        // `[1NT, P, 2♠, P, 2NT/3♣, …]` (the `two_spade_over_min`/`max` machinery).
-        fallback_all_seats(
-            &mut book,
-            &two_spade,
-            3,
-            Arc::new(described_guard(
-                "X (bid) …",
-                guard(|_: &Context<'_>, s: &[Call]| {
-                    s.first() == Some(&Call::Double) && matches!(s.get(1), Some(Call::Bid(_)))
-                }),
-            )),
-            Fallback::rebase(described_rewrite(
-                "systems on: their X is stripped to a pass",
-                rewriter(move |auction: &[Call], depth: usize| {
-                    if auction.get(depth) != Some(&Call::Double) {
-                        return None;
-                    }
-                    let mut rewritten = auction.to_vec();
-                    rewritten[depth] = Call::Pass; // strip the X → systems on
-                    Some(rewritten)
-                }),
-            )),
-        );
-        // Opener denied a stopper (Pass = min, suffix `[X, P, P]`; or XX = max, suffix
-        // `[X, XX, P]`).  Responder signs off in clubs.
-        for deny in [
-            [Call::Double, Call::Pass, Call::Pass],
-            [Call::Double, Call::Redouble, Call::Pass],
-        ] {
-            fallback_all_seats(
-                &mut book,
-                &two_spade,
-                3,
-                Arc::new(SuffixIs(deny.to_vec())),
-                Fallback::classify(minor_no_stopper_rebid()),
-            );
-        }
-
-        // A.2 — our 2♠ overcalled.  `2NT`/`3♣` steal the size-ask steps, so opener
-        // keeps the min/max + stopper signal (`minor_overcalled_high`); a higher
-        // overcall (`3♦/3♥/3♠`) is systems-off (`minor_overcalled_low`).
-        let overcalls: [(Call, Rules); 5] = [
-            (call(2, Strain::Notrump), minor_overcalled_high()),
-            (call(3, Strain::Clubs), minor_overcalled_high()),
-            (
-                call(3, Strain::Diamonds),
-                minor_overcalled_low(Suit::Diamonds),
-            ),
-            (call(3, Strain::Hearts), minor_overcalled_low(Suit::Hearts)),
-            (call(3, Strain::Spades), minor_overcalled_low(Suit::Spades)),
-        ];
-        for (over, rules) in overcalls {
-            fallback_all_seats(
-                &mut book,
-                &two_spade,
-                3,
-                Arc::new(SuffixIs(vec![over])),
-                Fallback::classify(rules),
-            );
-        }
-    }
-
-    // Competition over our own 2NT diamond transfer (`set_competition_over_
-    // diamond_transfer`, default on): opener's replies after the opponents double
-    // `1NT-(P)-2NT-(X)` or overcall it.  Keyed at `[1NT, P, 2NT]`.  Only the PUPPET
-    // scheme plays 2NT as the diamond transfer, so the block no-ops under EUROPEAN.
-    if competition_over_diamond_transfer() && notrump_minors() == PUPPET {
-        let two_nt = [
-            call(1, Strain::Notrump),
-            Call::Pass,
-            call(2, Strain::Notrump),
-        ];
-
-        // Our 2NT doubled.  Opener's 3♦-fit / 3♣-clubs / XX-values / Pass reply.
-        fallback_all_seats(
-            &mut book,
-            &two_nt,
-            3,
-            Arc::new(SuffixIs(vec![Call::Double])),
-            Fallback::classify(diamond_doubled_opener()),
-        );
-        // After opener's fit-showing bid (`3♦`/`3♣`) responder's rebids match the
-        // uncontested tree: strip the `X` to a Pass.
-        fallback_all_seats(
-            &mut book,
-            &two_nt,
-            3,
-            Arc::new(described_guard(
-                "X (bid) …",
-                guard(|_: &Context<'_>, s: &[Call]| {
-                    s.first() == Some(&Call::Double) && matches!(s.get(1), Some(Call::Bid(_)))
-                }),
-            )),
-            Fallback::rebase(described_rewrite(
-                "systems on: their X is stripped to a pass",
-                rewriter(move |auction: &[Call], depth: usize| {
-                    if auction.get(depth) != Some(&Call::Double) {
-                        return None;
-                    }
-                    let mut rewritten = auction.to_vec();
-                    rewritten[depth] = Call::Pass; // strip the X → systems on
-                    Some(rewritten)
-                }),
-            )),
-        );
-        // Opener denied a fit (Pass = min, suffix `[X, P, P]`; or XX = max values,
-        // suffix `[X, XX, P]`).  Responder signs off in 3♦ (always 5+♦).
-        for deny in [
-            [Call::Double, Call::Pass, Call::Pass],
-            [Call::Double, Call::Redouble, Call::Pass],
-        ] {
-            fallback_all_seats(
-                &mut book,
-                &two_nt,
-                3,
-                Arc::new(SuffixIs(deny.to_vec())),
-                Fallback::classify(diamond_no_fit_rebid()),
-            );
-        }
-
-        // Our 2NT overcalled.  `3♣` leaves the `3♦` completion legal; a higher
-        // overcall (`3♦` cue / `3♥` / `3♠`) keeps `3NT`/`X`/Pass natural.
-        let overcalls: [(Call, Rules); 4] = [
-            (call(3, Strain::Clubs), diamond_overcalled_low()),
-            (
-                call(3, Strain::Diamonds),
-                diamond_overcalled_high(Suit::Diamonds),
-            ),
-            (
-                call(3, Strain::Hearts),
-                diamond_overcalled_high(Suit::Hearts),
-            ),
-            (
-                call(3, Strain::Spades),
-                diamond_overcalled_high(Suit::Spades),
-            ),
-        ];
-        for (over, rules) in overcalls {
-            fallback_all_seats(
-                &mut book,
-                &two_nt,
-                3,
-                Arc::new(SuffixIs(vec![over])),
-                Fallback::classify(rules),
-            );
-        }
-    }
+    // Competition over our own conventions: the opponents double or overcall
+    // our Stayman, our Jacoby transfer, our two-way 2♠, or our 2NT diamond
+    // transfer.  Each is keyed under the uncontested `[1NT, P, <our call>]`
+    // node — a distinct trie path from the systems-on blocks where their call
+    // sits at depth 1 — and each shares the `X (bid) …` systems-on rebase.
+    compile_into(
+        &mut book,
+        &[
+            competition_over_stayman_package(),
+            competition_over_transfer_package(),
+            competition_over_minor_transfer_package(),
+            competition_over_diamond_transfer_package(),
+        ],
+    );
 
     // Section 5d: Unusual vs Unusual over their (2NT) overcall of our 1NT.
     compile_into(&mut book, &[uvu_package()]);
@@ -5101,6 +4996,10 @@ mod tests {
             super::uvu_over_majors_package(),
             super::sputnik_residual_answer_package(),
             super::uvu_package(),
+            super::competition_over_stayman_package(),
+            super::competition_over_transfer_package(),
+            super::competition_over_minor_transfer_package(),
+            super::competition_over_diamond_transfer_package(),
         ]);
     }
 

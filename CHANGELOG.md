@@ -136,6 +136,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The four "competition over our own convention" blocks are now declarative
+  rows**, and the row grammar grew the one construct that unblocked them.
+  From `competition()`: opener's replies after the opponents double or overcall
+  our `2♣` Stayman, our Jacoby transfers, our two-way `2♠` minor response, and
+  our `2NT` diamond transfer — ~370 lines of imperative wiring replaced by four
+  packages and one `compile_into`. All four pivot on the same hand-written
+  guard, a **two-call prefix with a free tail** (`X (bid) …`: they doubled our
+  artificial call, we answered with a bid, and from there responder is
+  systems-on). No named `Pattern` construct spells that, and `Pattern::first`
+  is not a substitute — it would also swallow the `X (P) (P)` re-ask whose own
+  table is declared just below, rebasing the re-ask instead of classifying it.
+  So `Pattern::guarded` carries the guard **verbatim**, exactly as the
+  imperative site wrote it, together with a sample continuation it admits;
+  the sample is seat-checked like any suffix, is the auction the totality
+  invariant probes with, and the invariant test now asserts the guard really
+  does admit it, so a sample that drifts from its guard fails rather than
+  silently probing the wrong auction. Deliberately *not* a new `PrefixIs` guard
+  type: a derived description would not reproduce the authored label, and the
+  Stayman block's second, three-deep wildcard (`- 2♦/2♥/2♠ X …`) needs the
+  escape hatch anyway. All four packages joined the invariant test — the first
+  ports whose tables are guarded *and* artificial, so their coded stopper and
+  min/max answers are now machine-checked for totality and alerts — and passed
+  unchanged. Byte-identical on the shipped default (seeded 20k-board
+  `smoke-default` diff and `render-book` diff, both empty).
+
 - **Three competitive sections are now declarative rows**, completing the
   first Phase 1 batch: Section 6 (unusual-vs-unusual and the raise structure
   over their Michaels cue of our `1M`), Section 9b (opener's answers to the
