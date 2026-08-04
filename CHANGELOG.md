@@ -167,6 +167,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `render-book`, and on a re-render with `NegativeDoubleShape::Cachalot`
   armed.
 
+- **Gladiator is a declarative row package, and `defensive()` has no
+  hand-rolled wiring left.** The ~200-line imperative block under `[1M, 1NT]` —
+  the advances, the cue-Stayman and its placements, the invitational and
+  game-forcing naturals, Leaping Michaels, the `2♣` relay tree with its
+  invitational answers and delayed cue, the doubled runout, and the two
+  guard-carrying entries (their `(2♣)` rebased away, and the transplant that
+  moves the relay's logit onto `Double` behind it) — is now
+  `gladiator_package()`, hoisted out of the per-suit loop. The loop that
+  remains does only the permanently imperative systems-on graft of the whole
+  opening-1NT book, which `compile_into` cannot express: it writes rows, not a
+  subtree. `insert_all_seats` and `fallback_all_seats` now have no caller in
+  `defense.rs`. Byte-identical on the seeded 20k `smoke-default` and
+  `render-book`, on the knob-armed re-render, and — because `render-book` shows
+  a guard's label but not its behaviour — on a 20k **serially bid** dump with
+  `set_nt_overcall_gladiator` armed (572 boards reach `(1M) 1NT`; 113 diverge
+  from the default system, so the arm bites).
+
 - **The sohl wiring helpers are row producers, and `defensive()`'s last two
   imperative call sites are packages.** `insert_sohl_over` took `&mut Defensive`
   and keyed off a `&[Call]` prefix; it is now `sohl_rows_over`, which takes the

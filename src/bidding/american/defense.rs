@@ -14,11 +14,12 @@ use super::super::constraint::{
     unbid_support, vulnerable,
 };
 use super::super::context::Context;
-use super::super::fallback::{Fallback, FirstIs, SuffixIs, described_rewrite, rewriter};
+use super::super::fallback::{described_rewrite, rewriter};
 use super::super::inference::Range;
-use super::super::rows::{Entry, Package, Pattern, compile_into, rows_of};
+use super::super::rows::{Entry, Package, Pattern, classified, compile_into, rebase, rows_of};
 use super::super::trie::{Classifier, classifier};
 use super::super::{Alert, Defensive, Rules, Trie};
+use super::call;
 use super::competition::{
     LebensohlStyle, clubs_transfer_completion, complete_lebensohl_relay, cue_stayman_answer,
     cue_stayman_answer_no_stopper, delayed_cue, lebensohl_relay_rebid, lebensohl_responder,
@@ -28,11 +29,9 @@ use super::competition::{
 };
 use super::notrump::{flat_4333, smolen_at_three, smolen_completion};
 use super::openings::two_notrump_wide_shape;
-use super::{call, fallback_all_seats, insert_all_seats};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Hand, Strain, Suit};
 use std::cell::Cell;
-use std::sync::Arc;
 
 // ---------------------------------------------------------------------------
 // Sohl after a takeout double (advancing partner's takeout double of a weak two)
@@ -4336,6 +4335,183 @@ fn advance_of_double_package() -> Package {
     }
 }
 
+/// Gladiator: the advances of our 1NT overcall of their major
+/// ([`set_nt_overcall_gladiator`])
+///
+/// Over a MAJOR one Stayman-found major is theirs, so the systems-on graft of
+/// the whole opening-1NT structure does not fit the geometry; Gladiator replaces
+/// it with a weak `2♣` relay, a cue-Stayman for the one unbid major `O`, and
+/// shape actions.  Authored in every seat the opening could have been made
+/// (mirrors the overcall's fan).  Two entries are not rules: their `(2♣)` is
+/// rebased away (it steals no room, so systems stay on and only the relay is
+/// consumed, reappearing as `X`), and the advance behind it is a transplant that
+/// moves the relay's logit onto `Double`.  Their 2-level suit action instead
+/// goes to [`gladiator_sohl_package`].
+fn gladiator_package() -> Package {
+    Package {
+        name: "gladiator",
+        gate: nt_overcall_gladiator,
+        entries: || {
+            let mut entries = Vec::new();
+            for suit in [Suit::Hearts, Suit::Spades] {
+                let theirs = Strain::from(suit);
+                let opening = Bid::new(1, theirs);
+                let base = format!("P* ({opening}) 1NT (P)");
+                let os = Strain::from(other_major(suit));
+                let cue = call(2, theirs);
+                let cheap = if os > theirs { 2 } else { 3 };
+                entries.extend(rows_of(Pattern::node(&base), gladiator_advances(suit)));
+
+                // Advancer places the contract from what the cue answer showed —
+                // the same ladder after the direct and the delayed cue.  Over `1♠`
+                // the jump is `4♥` and the `3NT` misfit is already game, so those
+                // advancer bids are left to the floor to pass.
+                let cue_placements = |prefix: &str| {
+                    let mut rows = rows_of(
+                        Pattern::node(&format!("{prefix} {} (P)", call(cheap, os))),
+                        gladiator_cue_min_fit(suit),
+                    );
+                    rows.extend(rows_of(
+                        Pattern::node(&format!("{prefix} 2NT (P)")),
+                        gladiator_cue_min_misfit(),
+                    ));
+                    if cheap + 1 < 4 {
+                        rows.extend(rows_of(
+                            Pattern::node(&format!("{prefix} {} (P)", call(cheap + 1, os))),
+                            gladiator_cue_max_fit_raise(suit),
+                        ));
+                    }
+                    rows
+                };
+
+                // Cue (Stayman for the one unbid major): overcaller answers, then
+                // advancer places.
+                let after_cue = format!("{base} {cue} (P)");
+                entries.extend(rows_of(
+                    Pattern::node(&after_cue),
+                    gladiator_cue_answer(suit),
+                ));
+                entries.extend(cue_placements(&after_cue));
+
+                // Natural invitational 2♦/2O and the 2NT weak club transfer —
+                // overcaller accepts, or completes 3♣ for advancer to pass.
+                for (advance, answer) in [
+                    (call(2, Strain::Diamonds), gladiator_inv_diamond_answer()),
+                    (call(2, os), gladiator_inv_major_answer(suit)),
+                    (call(2, Strain::Notrump), gladiator_club_transfer_rebid()),
+                    // Game-forcing naturals 3♣/3♦/3O and the 3M splinter —
+                    // overcaller drives to game.
+                    (call(3, Strain::Clubs), gladiator_gf_minor_answer()),
+                    (call(3, Strain::Diamonds), gladiator_gf_minor_answer()),
+                    (call(3, os), gladiator_gf_major_answer(suit)),
+                    (call(3, theirs), gladiator_gf_major_answer(suit)),
+                    // Leaping Michaels — overcaller places the 5-5 game force.
+                    (
+                        call(4, Strain::Clubs),
+                        gladiator_leaping_answer(suit, Some(Suit::Clubs)),
+                    ),
+                    (
+                        call(4, Strain::Diamonds),
+                        gladiator_leaping_answer(suit, Some(Suit::Diamonds)),
+                    ),
+                    (call(4, theirs), gladiator_leaping_answer(suit, None)),
+                ] {
+                    entries.extend(rows_of(
+                        Pattern::node(&format!("{base} {advance} (P)")),
+                        answer,
+                    ));
+                }
+
+                // 2♣ relay → forced 2♦ → advancer's XYZ-style sort; overcaller
+                // then accepts or declines each invitational rebid.
+                entries.extend(rows_of(
+                    Pattern::node(&format!("{base} 2♣ (P)")),
+                    gladiator_relay_rebid(),
+                ));
+                let sorted = format!("{base} 2♣ (P) 2♦ (P)");
+                entries.extend(rows_of(
+                    Pattern::node(&sorted),
+                    gladiator_relay_continuation(suit),
+                ));
+                for inv in ["2NT", "3♣", "3♦"] {
+                    entries.extend(rows_of(
+                        Pattern::node(&format!("{sorted} {inv} (P)")),
+                        gladiator_relay_inv_answer(),
+                    ));
+                }
+                entries.extend(rows_of(
+                    Pattern::node(&format!("{sorted} {} (P)", call(3, os))),
+                    gladiator_relay_major_answer(suit),
+                ));
+                // The weak `2O` takeout is a signoff, not a free bid — overcaller
+                // passes it unless a max with four trumps pushes once.
+                entries.extend(rows_of(
+                    Pattern::node(&format!("{sorted} {} (P)", call(2, os))),
+                    gladiator_relay_signoff_answer(suit),
+                ));
+                // Delayed cue (relay → forced 2♦ → cue of their major = exactly 3
+                // `O`, INV+, not flat): overcaller shows min/max × 5-`O`-fit/misfit,
+                // then advancer places with the same logic as after the direct cue.
+                let delayed = format!("{sorted} {cue} (P)");
+                entries.extend(rows_of(
+                    Pattern::node(&delayed),
+                    gladiator_delayed_cue_answer(suit),
+                ));
+                entries.extend(cue_placements(&delayed));
+
+                // --- RHO acts over our 1NT before advancer can bid Gladiator ---
+
+                // (X): a doubled 1NT always wants a runout, and Gladiator cannot
+                // borrow the graft's — turning off `systems_on_overcall_strip`
+                // leaves the floor reading an auction it was never distilled on.
+                // Author it (see `gladiator_doubled_runout`).
+                entries.extend(rows_of(
+                    Pattern::node(&format!("P* ({opening}) 1NT (X)")),
+                    gladiator_doubled_runout(suit),
+                ));
+
+                // (2♣): systems on, but it is Gladiator.  2♣ steals no room — every
+                // other advance still sits above it — so only the 2♣ relay is
+                // consumed, reappearing as X.  Rebase (their 2♣ → pass, our X → the
+                // relay) routes every continuation onto the uncontested Gladiator
+                // tree above; the transplant hands X a finite logit to be chosen.
+                let relay_call = call(2, Strain::Clubs);
+                entries.push(rebase(
+                    Pattern::first(&format!("P* ({opening}) 1NT"), "2♣"),
+                    described_rewrite(
+                        "systems on: their 2♣ is treated as a pass; X asks as the stolen Gladiator relay",
+                        rewriter(move |auction: &[Call], depth: usize| {
+                            if auction.get(depth) != Some(&relay_call) {
+                                return None;
+                            }
+                            let mut rewritten = auction.to_vec();
+                            rewritten[depth] = Call::Pass; // (2♣) steals no room → systems on
+                            if auction.get(depth + 1) == Some(&Call::Double) {
+                                rewritten[depth + 1] = relay_call; // stolen relay = Double
+                            }
+                            Some(rewritten)
+                        }),
+                    ),
+                ));
+                // The rebase routes continuations; hand advancer a finite logit on
+                // Double so it can *choose* the stolen relay (2♣ is illegal here).
+                let advances = gladiator_advances(suit);
+                entries.push(classified(
+                    Pattern::table(&format!("P* ({opening}) 1NT (2♣)")),
+                    classifier(move |hand: Hand, context: &Context<'_>| {
+                        let mut logits = advances.classify(hand, context);
+                        let relay = *logits.0.get(relay_call);
+                        *logits.0.get_mut(relay_call) = f32::NEG_INFINITY; // 2♣ is stolen
+                        *logits.0.get_mut(Call::Double) = relay; // X inherits the relay
+                        logits
+                    }),
+                ));
+            }
+            entries
+        },
+    }
+}
+
 /// Gladiator's contested advance: their 2-level action over our 1NT overcall
 ///
 /// No room for the `2♣` relay tree, so the partnership plays its Transfer
@@ -5665,10 +5841,12 @@ fn leaping_michaels_package() -> Package {
 
 /// Build the defensive book: all our actions when the opponents open
 ///
-/// Seat-fanned with `insert_all_seats(…, 3, …)` so every seat is covered.
-/// Keys for a defensive auction are the raw table auction starting from their
-/// opening, e.g. `[1♦, 2♦, Pass]` means they opened 1♦, we cue-bid 2♦
-/// (Michaels), opener's side passed, and we are the advancer.
+/// Every package leads with `P*`, the seat fan, so every seat is covered.  A
+/// defensive auction string starts from their opening, e.g. `P* (1♦) 2♦ (P)`
+/// means they opened 1♦, we cue-bid 2♦ (Michaels), opener's side passed, and we
+/// are the advancer.  The one hand-rolled site left is the systems-on graft of
+/// the whole opening-1NT book below our 1NT overcall — `compile_into` writes
+/// rows, not a subtree.
 #[must_use]
 pub fn defensive() -> Defensive {
     let mut d = Defensive::new();
@@ -5694,251 +5872,26 @@ pub fn defensive() -> Defensive {
         &[advance_double_package(), rich_advance_double_package()],
     );
 
-    // Over each one-of-a-suit opening: the 1NT-overcall continuations.
-    for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
-        let theirs = Strain::from(suit);
-        let opening = Bid::new(1, theirs);
-        // Advances of a natural overcall ([1t, overcall, Pass]) are left to the
-        // instinct floor's Rubens transfers — the programmatic floor expresses
-        // the transfer band for every (opening, overcall) pair in one place,
-        // where a per-suit authored table cannot.
-
-        // Advances of our 1NT overcall ([1t, 1NT, P]).  Over a MINOR the advancer
-        // plays the full opening-1NT structure (Stayman/transfers/Smolen) grafted
-        // below `[1t, 1NT]` — `1♦–1NT` equals `1♣–1NT` equals an opening 1NT,
-        // transfers preserving right-siding.  Over a MAJOR one Stayman-found major
-        // is theirs; when `nt_overcall_gladiator()` is set we replace the graft
-        // with Gladiator — a weak `2♣` relay + a cue-Stayman for the one unbid
-        // major + shape actions — which fits that geometry.  Author/graft in every
-        // seat the opening could have been made (mirrors the overcall's fan).
-        if matches!(suit, Suit::Hearts | Suit::Spades) && nt_overcall_gladiator() {
-            let one_nt = call(1, Strain::Notrump);
-            let base = [Call::Bid(opening), one_nt, Call::Pass];
-            let p = Call::Pass;
-            // Suffix off `base` (leading passes added by `insert_all_seats`).
-            let seq = |tail: &[Call]| -> Vec<Call> {
-                base.iter().copied().chain(tail.iter().copied()).collect()
-            };
-            insert_all_seats(&mut d, &base, 3, gladiator_advances(suit));
-
-            let o = other_major(suit);
-            let os = Strain::from(o);
-
-            // Cue (Stayman for the one unbid major): overcaller answers, then
-            // advancer places the contract from what the answer showed.
-            let cue = call(2, theirs);
-            insert_all_seats(&mut d, &seq(&[cue, p]), 3, gladiator_cue_answer(suit));
-            let cheap = if os > theirs { 2 } else { 3 };
-            insert_all_seats(
-                &mut d,
-                &seq(&[cue, p, call(cheap, os), p]),
-                3,
-                gladiator_cue_min_fit(suit),
-            );
-            insert_all_seats(
-                &mut d,
-                &seq(&[cue, p, call(2, Strain::Notrump), p]),
-                3,
-                gladiator_cue_min_misfit(),
-            );
-            if cheap + 1 < 4 {
-                // Jump-O is below game (`3O` over `1♥`) — raise to game.  Over
-                // `1♠` the jump is `4♥` and the `3NT` misfit is already game, so
-                // advancer passes them via the floor.
-                insert_all_seats(
-                    &mut d,
-                    &seq(&[cue, p, call(cheap + 1, os), p]),
-                    3,
-                    gladiator_cue_max_fit_raise(suit),
-                );
+    // Advances of our 1NT overcall ([1t, 1NT, P]).  Over a MINOR the advancer
+    // plays the full opening-1NT structure (Stayman/transfers/Smolen) grafted
+    // below `[1t, 1NT]` — `1♦–1NT` equals `1♣–1NT` equals an opening 1NT,
+    // transfers preserving right-siding.  Grafted in every seat the opening could
+    // have been made (mirrors the overcall's fan).  This is the one permanently
+    // imperative site: `compile_into` writes rows, not a whole subtree.
+    //
+    // Advances of a *natural* overcall ([1t, overcall, Pass]) are left to the
+    // instinct floor's Rubens transfers — the programmatic floor expresses the
+    // transfer band for every (opening, overcall) pair in one place, where a
+    // per-suit authored table cannot.
+    if let Some(nt) = &nt_overcall_book {
+        let one_nt = call(1, Strain::Notrump);
+        for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+            // Over a major the graft's Stayman would look for a major they own;
+            // `gladiator_package` replaces it with the geometry that fits.
+            if matches!(suit, Suit::Hearts | Suit::Spades) && nt_overcall_gladiator() {
+                continue;
             }
-
-            // Natural invitational 2♦/2O and 2NT club-invite — overcaller accepts.
-            insert_all_seats(
-                &mut d,
-                &seq(&[call(2, Strain::Diamonds), p]),
-                3,
-                gladiator_inv_diamond_answer(),
-            );
-            insert_all_seats(
-                &mut d,
-                &seq(&[call(2, os), p]),
-                3,
-                gladiator_inv_major_answer(suit),
-            );
-            // 2NT = weak club transfer → overcaller completes 3♣ (advancer passes).
-            insert_all_seats(
-                &mut d,
-                &seq(&[call(2, Strain::Notrump), p]),
-                3,
-                gladiator_club_transfer_rebid(),
-            );
-
-            // Game-forcing naturals 3♣/3♦/3O and the 3M splinter — overcaller
-            // drives to game.
-            insert_all_seats(
-                &mut d,
-                &seq(&[call(3, Strain::Clubs), p]),
-                3,
-                gladiator_gf_minor_answer(),
-            );
-            insert_all_seats(
-                &mut d,
-                &seq(&[call(3, Strain::Diamonds), p]),
-                3,
-                gladiator_gf_minor_answer(),
-            );
-            insert_all_seats(
-                &mut d,
-                &seq(&[call(3, os), p]),
-                3,
-                gladiator_gf_major_answer(suit),
-            );
-            insert_all_seats(
-                &mut d,
-                &seq(&[call(3, theirs), p]),
-                3,
-                gladiator_gf_major_answer(suit),
-            );
-
-            // Leaping Michaels — overcaller places the 5-5 game force.
-            for (jump, shown) in [
-                (call(4, Strain::Clubs), Some(Suit::Clubs)),
-                (call(4, Strain::Diamonds), Some(Suit::Diamonds)),
-                (call(4, theirs), None),
-            ] {
-                insert_all_seats(
-                    &mut d,
-                    &seq(&[jump, p]),
-                    3,
-                    gladiator_leaping_answer(suit, shown),
-                );
-            }
-
-            // 2♣ relay → forced 2♦ → advancer's XYZ-style sort; overcaller then
-            // accepts or declines each invitational rebid.
-            let relay = call(2, Strain::Clubs);
-            let forced = call(2, Strain::Diamonds);
-            insert_all_seats(&mut d, &seq(&[relay, p]), 3, gladiator_relay_rebid());
-            insert_all_seats(
-                &mut d,
-                &seq(&[relay, p, forced, p]),
-                3,
-                gladiator_relay_continuation(suit),
-            );
-            for inv in [
-                call(2, Strain::Notrump),
-                call(3, Strain::Clubs),
-                call(3, Strain::Diamonds),
-            ] {
-                insert_all_seats(
-                    &mut d,
-                    &seq(&[relay, p, forced, p, inv, p]),
-                    3,
-                    gladiator_relay_inv_answer(),
-                );
-            }
-            insert_all_seats(
-                &mut d,
-                &seq(&[relay, p, forced, p, call(3, os), p]),
-                3,
-                gladiator_relay_major_answer(suit),
-            );
-            // The weak `2O` takeout is a signoff, not a free bid — overcaller
-            // passes it unless a max with four trumps pushes once.
-            insert_all_seats(
-                &mut d,
-                &seq(&[relay, p, forced, p, call(2, os), p]),
-                3,
-                gladiator_relay_signoff_answer(suit),
-            );
-            // Delayed cue (relay → forced 2♦ → cue of their major = exactly 3 `O`,
-            // INV+, not flat): overcaller shows min/max × 5-`O`-fit/misfit, then
-            // advancer places with the same logic as after the direct cue.
-            insert_all_seats(
-                &mut d,
-                &seq(&[relay, p, forced, p, cue, p]),
-                3,
-                gladiator_delayed_cue_answer(suit),
-            );
-            insert_all_seats(
-                &mut d,
-                &seq(&[relay, p, forced, p, cue, p, call(cheap, os), p]),
-                3,
-                gladiator_cue_min_fit(suit),
-            );
-            insert_all_seats(
-                &mut d,
-                &seq(&[relay, p, forced, p, cue, p, call(2, Strain::Notrump), p]),
-                3,
-                gladiator_cue_min_misfit(),
-            );
-            if cheap + 1 < 4 {
-                insert_all_seats(
-                    &mut d,
-                    &seq(&[relay, p, forced, p, cue, p, call(cheap + 1, os), p]),
-                    3,
-                    gladiator_cue_max_fit_raise(suit),
-                );
-            }
-
-            // --- RHO acts over our 1NT before advancer can bid Gladiator ---
-
-            // (X): a doubled 1NT always wants a runout, and Gladiator cannot
-            // borrow the graft's — turning off `systems_on_overcall_strip`
-            // leaves the floor reading an auction it was never distilled on.
-            // Author it (see `gladiator_doubled_runout`).
-            insert_all_seats(
-                &mut d,
-                &[Call::Bid(opening), one_nt, Call::Double],
-                3,
-                gladiator_doubled_runout(suit),
-            );
-
-            // (2♣): systems on, but it is Gladiator.  2♣ steals no room — every
-            // other advance still sits above it — so only the 2♣ relay is
-            // consumed, reappearing as X.  Rebase (their 2♣ → pass, our X → the
-            // relay) routes every continuation onto the uncontested Gladiator
-            // tree above; the transplant hands X a finite logit to be chosen.
-            let relay_call = call(2, Strain::Clubs);
-            fallback_all_seats(
-                &mut d,
-                &[Call::Bid(opening), one_nt],
-                3,
-                Arc::new(FirstIs(relay_call)),
-                Fallback::rebase(described_rewrite(
-                    "systems on: their 2♣ is treated as a pass; X asks as the stolen Gladiator relay",
-                    rewriter(move |auction: &[Call], depth: usize| {
-                        if auction.get(depth) != Some(&relay_call) {
-                            return None;
-                        }
-                        let mut rewritten = auction.to_vec();
-                        rewritten[depth] = Call::Pass; // (2♣) steals no room → systems on
-                        if auction.get(depth + 1) == Some(&Call::Double) {
-                            rewritten[depth + 1] = relay_call; // stolen relay = Double
-                        }
-                        Some(rewritten)
-                    }),
-                )),
-            );
-            // The rebase routes continuations; hand advancer a finite logit on
-            // Double so it can *choose* the stolen relay (2♣ is illegal here).
-            let advances = gladiator_advances(suit);
-            fallback_all_seats(
-                &mut d,
-                &[Call::Bid(opening), one_nt, relay_call],
-                3,
-                Arc::new(SuffixIs(vec![])),
-                Fallback::classify(classifier(move |hand: Hand, context: &Context<'_>| {
-                    let mut logits = advances.classify(hand, context);
-                    let relay = *logits.0.get(relay_call);
-                    *logits.0.get_mut(relay_call) = f32::NEG_INFINITY; // 2♣ is stolen
-                    *logits.0.get_mut(Call::Double) = relay; // X inherits the relay
-                    logits
-                })),
-            );
-        } else if let Some(nt) = &nt_overcall_book {
-            let one_nt = call(1, Strain::Notrump);
+            let opening = Bid::new(1, Strain::from(suit));
             for n in 0..=3 {
                 let prefix: Vec<Call> = core::iter::repeat_n(Call::Pass, n)
                     .chain([Call::Bid(opening), one_nt])
@@ -5952,9 +5905,9 @@ pub fn defensive() -> Defensive {
         }
     }
 
-    // Gladiator's `(2♦/2♥/2♠)` tail, hoisted out of that loop: their 2-level
-    // action over our 1NT overcall of a major.
-    compile_into(&mut d, &[gladiator_sohl_package()]);
+    // Gladiator, when on: the advances of our 1NT overcall of their major, then
+    // the tail for their 2-level action over it.
+    compile_into(&mut d, &[gladiator_package(), gladiator_sohl_package()]);
 
     // Responsive doubles: partner acted (double or overcall) and they raised.
     compile_into(
@@ -6054,6 +6007,7 @@ mod tests {
             super::leaping_michaels_package(),
             super::woolsey_package(),
             super::advance_of_double_package(),
+            super::gladiator_package(),
             super::gladiator_sohl_package(),
         ]);
     }

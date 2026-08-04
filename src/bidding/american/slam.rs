@@ -91,7 +91,7 @@ use contract_bridge::Hand;
 
 /// Insert an already-shared classifier at `suffix` under every leading-pass prefix
 ///
-/// Identical to [`super::insert_all_seats`] but accepts an `Arc<dyn Classifier>`
+/// Identical to [`insert_all_seats`][crate::bidding::common::insert_all_seats] but accepts an `Arc<dyn Classifier>`
 /// directly so one allocation can be reused across multiple seat paths.
 fn insert_arc_all_seats(
     book: &mut Trie,
