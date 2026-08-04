@@ -16,7 +16,7 @@ use super::super::constraint::{
 use super::super::context::Context;
 use super::super::fallback::{Fallback, FirstIs, SuffixIs, described_rewrite, rewriter};
 use super::super::inference::Range;
-use super::super::rows::{Package, Pattern, compile_into, rows_of};
+use super::super::rows::{Entry, Package, Pattern, compile_into, rows_of};
 use super::super::trie::{Classifier, classifier};
 use super::super::{Alert, Defensive, Rules, Trie};
 use super::competition::{
@@ -4201,46 +4201,17 @@ fn answer_advance_2nt(their_opening: Bid) -> Rules {
     rules
 }
 
-/// Insert the advancer's actions after partner's takeout double of weak-two
-/// `opening` (in `suit`), honoring the selected [`set_advance_sohl_style`]
-///
-/// `Off` keeps the flat [`advance_double`] ladder.  `Plain`/`Transfer`
-/// shadow it with the reused Section-5 sohl builders under the `[2X, X, P]`
-/// prefix — the `2NT` relay (and, for `Transfer`, the transfers + cue-Stayman) —
-/// plus the doubler's continuations (relay completion, the rebid after `3♣`, and
-/// the transfer / cue answers).  Over `(2♦)`, `Transfer` additionally
-/// plays `3♣`-Stayman + Smolen + Leaping Michaels.  A forcing 3-level suit (`Plain`) or a
-/// constructive advance is driven on by the instinct floor, which already
-/// handles forced-to-game auctions.
-fn insert_advance_of_double(d: &mut Defensive, suit: Suit, opening: Bid, style: LebensohlStyle) {
-    let dbl_p = [Call::Bid(opening), Call::Double, Call::Pass];
-    if style == LebensohlStyle::Off {
-        insert_all_seats(d, &dbl_p, 3, advance_double(opening));
-        return;
-    }
-    // gate_4333 = false: advancing partner's takeout double — partner is short in
-    // their suit, so the 4-4 fit keeps its ruffing value (the 4333 curse does not
-    // apply here, and that A/B was never run).
-    insert_sohl_over(d, &dbl_p, suit, style, false);
-}
-
-/// Wire a Section-5 sohl structure for our side's advancer over a single
-/// interfering suit `over`, hung off `base` (a three-call prefix ending at the
-/// advancer's first turn) — the advancer's responses, the relay completion, and
-/// (for `Transfer`) the transfer / cue-Stayman answers plus the `(2♦)` Smolen +
-/// Leaping-Michaels package.  Shared by [`insert_advance_of_double`]
-/// (`[2X, X, P]`) and Gladiator's contested advance (`[1M, 1NT, 2Y]`).
+/// A Section-5 sohl structure for our side's advancer over a single
+/// interfering suit `over`, hung off the auction-string `base` (a three-call
+/// prefix ending at the advancer's first turn) — the advancer's responses, the
+/// relay completion, and (for `Transfer`) the transfer / cue-Stayman answers
+/// plus the `(2♦)` Smolen + Leaping-Michaels package.  Shared by
+/// [`advance_of_double_package`] (`P* (2X) X (P)`) and
+/// [`gladiator_sohl_package`] (`P* (1M) 1NT (2Y)`).
 /// `gate_4333` gates the flat-4333 Stayman/cue carve; callers pass `false` when
 /// partner is known short in `over`, `true` when partner is balanced (a 1NT).
-fn insert_sohl_over(
-    d: &mut Defensive,
-    base: &[Call],
-    over: Suit,
-    style: LebensohlStyle,
-    gate_4333: bool,
-) {
-    let node =
-        |rest: &[Call]| -> Vec<Call> { base.iter().copied().chain(rest.iter().copied()).collect() };
+fn sohl_rows_over(base: &str, over: Suit, style: LebensohlStyle, gate_4333: bool) -> Vec<Entry> {
+    let mut entries = Vec::new();
 
     // Advancer's first action shadows the floor (the builders end in a 0.0 Pass,
     // which covers the weak and penalty-pass hands).
@@ -4251,23 +4222,15 @@ fn insert_sohl_over(
         LebensohlStyle::Transfer => transfer_lebensohl_responder(over, gate_4333),
         _ => lebensohl_responder(over),
     };
-    insert_all_seats(d, base, 3, advancer);
+    entries.extend(rows_of(Pattern::node(base), advancer));
 
     // Partner completes the 2NT relay with a forced 3♣; advancer then signs off.
-    let two_nt = call(2, Strain::Notrump);
-    let three_clubs = call(3, Strain::Clubs);
-    insert_all_seats(
-        d,
-        &node(&[two_nt, Call::Pass]),
-        3,
-        complete_lebensohl_relay(),
-    );
-    insert_all_seats(
-        d,
-        &node(&[two_nt, Call::Pass, three_clubs, Call::Pass]),
-        3,
+    let relay = format!("{base} 2NT (P)");
+    entries.extend(rows_of(Pattern::node(&relay), complete_lebensohl_relay()));
+    entries.extend(rows_of(
+        Pattern::node(&format!("{relay} 3♣ (P)")),
         lebensohl_relay_rebid(over),
-    );
+    ));
 
     // Transfer style: partner answers each 3-level transfer / cue. Over (2♦) the
     // Smolen block below owns the 3-level replies, so this covers (2♥)/(2♠).
@@ -4293,19 +4256,17 @@ fn insert_sohl_over(
             } else {
                 continue; // the lowest suit has no transfer target — floored
             };
-            insert_all_seats(d, &node(&[resp, Call::Pass]), 3, reply);
+            entries.extend(rows_of(Pattern::node(&format!("{base} {resp} (P)")), reply));
         }
         // Delayed cue: base–2NT–P–3♣–P–3X (their suit) — Stayman with a stopper,
         // answered exactly like the direct cue but with 3NT safe. Wired whenever
         // it could be bid (recognition), independent of whether the bot bids it.
         if recognize {
             let cue = call(3, Strain::from(over));
-            insert_all_seats(
-                d,
-                &node(&[two_nt, Call::Pass, three_clubs, Call::Pass, cue, Call::Pass]),
-                3,
+            entries.extend(rows_of(
+                Pattern::node(&format!("{relay} 3♣ (P) {cue} (P)")),
                 cue_stayman_answer(over),
-            );
+            ));
         }
     }
 
@@ -4313,34 +4274,94 @@ fn insert_sohl_over(
     // (3♦→♥, 3♥→♠, 3♠→♣), and Leaping Michaels 4♣/4♦ — the diamond-only package
     // ported from the 1NT-(2♦) context. (2♥/2♠ reuse the Transfer completions above.)
     if style == LebensohlStyle::Transfer && over == Suit::Diamonds {
-        let p = Call::Pass;
-        let c3 = call(3, Strain::Clubs);
-        let d3 = call(3, Strain::Diamonds);
-        let h3 = call(3, Strain::Hearts);
-        let s3 = call(3, Strain::Spades);
-        let c4 = call(4, Strain::Clubs);
-        let d4 = call(4, Strain::Diamonds);
-        let nodes: Vec<(Vec<Call>, Rules)> = vec![
+        let nodes: Vec<(&str, Rules)> = vec![
             // 3♣ Stayman, partner's answer; then Smolen after the 3♦ denial.
-            (vec![c3, p], stayman_2d_answer()),
-            (vec![c3, p, d3, p], smolen_at_three()),
-            (vec![c3, p, d3, p, h3, p], smolen_completion(Suit::Spades)),
-            (vec![c3, p, d3, p, s3, p], smolen_completion(Suit::Hearts)),
+            ("3♣ (P)", stayman_2d_answer()),
+            ("3♣ (P) 3♦ (P)", smolen_at_three()),
+            ("3♣ (P) 3♦ (P) 3♥ (P)", smolen_completion(Suit::Spades)),
+            ("3♣ (P) 3♦ (P) 3♠ (P)", smolen_completion(Suit::Hearts)),
             // Partner showed a 4-card major over Stayman; advancer places.
-            (vec![c3, p, h3, p], stayman_2d_fit_rebid(Suit::Hearts)),
-            (vec![c3, p, s3, p], stayman_2d_fit_rebid(Suit::Spades)),
+            ("3♣ (P) 3♥ (P)", stayman_2d_fit_rebid(Suit::Hearts)),
+            ("3♣ (P) 3♠ (P)", stayman_2d_fit_rebid(Suit::Spades)),
             // Jacoby transfers: 3♦→♥, 3♥→♠ (auto-driven), 3♠→♣ (forced GF).
-            (vec![d3, p], transfer_completion(Suit::Hearts, over)),
-            (vec![h3, p], transfer_completion(Suit::Spades, over)),
-            (vec![s3, p], clubs_transfer_completion(over)),
+            ("3♦ (P)", transfer_completion(Suit::Hearts, over)),
+            ("3♥ (P)", transfer_completion(Suit::Spades, over)),
+            ("3♠ (P)", clubs_transfer_completion(over)),
             // Leaping Michaels: 4♦ both majors, 4♣ clubs + a major (ask).
-            (vec![d4, p], lm_2d_both_majors_advance()),
-            (vec![c4, p], lm_2d_clubs_ask()),
-            (vec![c4, p, d4, p], lm_2d_clubs_major()),
+            ("4♦ (P)", lm_2d_both_majors_advance()),
+            ("4♣ (P)", lm_2d_clubs_ask()),
+            ("4♣ (P) 4♦ (P)", lm_2d_clubs_major()),
         ];
         for (rest, rules) in nodes {
-            insert_all_seats(d, &node(&rest), 3, rules);
+            entries.extend(rows_of(Pattern::node(&format!("{base} {rest}")), rules));
         }
+    }
+    entries
+}
+
+/// Advancing partner's takeout double of a weak two, honoring the selected
+/// [`set_advance_sohl_style`]
+///
+/// `Off` keeps the flat [`advance_double`] ladder.  `Plain`/`Transfer` shadow it
+/// with the reused Section-5 sohl builders under the `P* (2X) X (P)` prefix — the
+/// `2NT` relay (and, for `Transfer`, the transfers + cue-Stayman) — plus the
+/// doubler's continuations (relay completion, the rebid after `3♣`, and the
+/// transfer / cue answers).  Over `(2♦)`, `Transfer` additionally plays
+/// `3♣`-Stayman + Smolen + Leaping Michaels.  A forcing 3-level suit (`Plain`) or
+/// a constructive advance is driven on by the instinct floor, which already
+/// handles forced-to-game auctions.
+fn advance_of_double_package() -> Package {
+    Package {
+        name: "advance-of-weak-two-double",
+        gate: || true,
+        entries: || {
+            let style = advance_sohl_style();
+            [Suit::Diamonds, Suit::Hearts, Suit::Spades]
+                .into_iter()
+                .flat_map(|suit| {
+                    let opening = Bid::new(2, Strain::from(suit));
+                    let base = format!("P* ({opening}) X (P)");
+                    if style == LebensohlStyle::Off {
+                        rows_of(Pattern::node(&base), advance_double(opening))
+                    } else {
+                        // gate_4333 = false: advancing partner's takeout double —
+                        // partner is short in their suit, so the 4-4 fit keeps its
+                        // ruffing value (the 4333 curse does not apply here, and
+                        // that A/B was never run).
+                        sohl_rows_over(&base, suit, style, false)
+                    }
+                })
+                .collect()
+        },
+    }
+}
+
+/// Gladiator's contested advance: their 2-level action over our 1NT overcall
+///
+/// No room for the `2♣` relay tree, so the partnership plays its Transfer
+/// Lebensohl as if partner had opened 1NT.  `gate_4333 = true`: the overcaller is
+/// balanced like a 1NT opener.  Reading is free via the builders' alerts; RHO's
+/// 3-level+ interference falls to the floor.
+fn gladiator_sohl_package() -> Package {
+    Package {
+        name: "gladiator-sohl",
+        gate: nt_overcall_gladiator,
+        entries: || {
+            let mut entries = Vec::new();
+            for major in [Suit::Hearts, Suit::Spades] {
+                let opening = Bid::new(1, Strain::from(major));
+                for over in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+                    let overcall = Bid::new(2, Strain::from(over));
+                    entries.extend(sohl_rows_over(
+                        &format!("P* ({opening}) 1NT ({overcall})"),
+                        over,
+                        LebensohlStyle::Transfer,
+                        true,
+                    ));
+                }
+            }
+            entries
+        },
     }
 }
 
@@ -5651,7 +5672,6 @@ fn leaping_michaels_package() -> Package {
 #[must_use]
 pub fn defensive() -> Defensive {
     let mut d = Defensive::new();
-    let advance_sohl = advance_sohl_style();
 
     // Systems-on advances of our 1NT overcall: the whole 1NT-opening response
     // structure (Stayman, transfers, Smolen — reflecting the same knobs), built
@@ -5917,16 +5937,6 @@ pub fn defensive() -> Defensive {
                     logits
                 })),
             );
-
-            // (2♦/2♥/2♠): no room for the relay tree — play the partnership's
-            // Transfer Lebensohl, as if partner had opened 1NT.  gate_4333 = true:
-            // the overcaller is balanced like a 1NT opener.  Reading is free via
-            // the builders' alerts.  RHO's 3-level+ interference falls to the floor.
-            for over in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
-                let overcall = call(2, Strain::from(over));
-                let base = [Call::Bid(opening), one_nt, overcall];
-                insert_sohl_over(&mut d, &base, over, LebensohlStyle::Transfer, true);
-            }
         } else if let Some(nt) = &nt_overcall_book {
             let one_nt = call(1, Strain::Notrump);
             for n in 0..=3 {
@@ -5941,6 +5951,10 @@ pub fn defensive() -> Defensive {
             }
         }
     }
+
+    // Gladiator's `(2♦/2♥/2♠)` tail, hoisted out of that loop: their 2-level
+    // action over our 1NT overcall of a major.
+    compile_into(&mut d, &[gladiator_sohl_package()]);
 
     // Responsive doubles: partner acted (double or overcall) and they raised.
     compile_into(
@@ -5960,11 +5974,7 @@ pub fn defensive() -> Defensive {
         ],
     );
     // Advancing partner's takeout double: [2t, X, P] — advancer to act.
-    // Plain/Transfer sohl per `set_advance_sohl_style` (default Off keeps the
-    // flat `advance_double` ladder).
-    for suit in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
-        insert_advance_of_double(&mut d, suit, Bid::new(2, Strain::from(suit)), advance_sohl);
-    }
+    compile_into(&mut d, &[advance_of_double_package()]);
 
     // Their 1NT opening and the three artificial responses we have a defense to
     // (Stayman, Jacoby, the two-way 2♠ and the 2NT diamond transfer); all three
@@ -6042,6 +6052,9 @@ mod tests {
             super::responsive_overcall_package(),
             super::weak_two_notrump_advance_package(),
             super::leaping_michaels_package(),
+            super::woolsey_package(),
+            super::advance_of_double_package(),
+            super::gladiator_sohl_package(),
         ]);
     }
 

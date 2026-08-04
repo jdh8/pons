@@ -167,6 +167,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `render-book`, and on a re-render with `NegativeDoubleShape::Cachalot`
   armed.
 
+- **The sohl wiring helpers are row producers, and `defensive()`'s last two
+  imperative call sites are packages.** `insert_sohl_over` took `&mut Defensive`
+  and keyed off a `&[Call]` prefix; it is now `sohl_rows_over`, which takes the
+  prefix as an **auction string** and returns `Vec<Entry>`, so its two consumers
+  become packages: `advance_of_double_package()` (advancing partner's takeout
+  double of a weak two, `P* (2X) X (P)`, the flat ladder or the `Plain`/
+  `Transfer` sohl per `set_advance_sohl_style`) and `gladiator_sohl_package()`
+  (their 2-level action over our 1NT overcall of a major, `P* (1M) 1NT (2Y)`,
+  hoisted out of the per-suit loop). `insert_advance_of_double` is gone. The
+  prefix strings are seat-checked at book build, which the `&[Call]` form never
+  was. Byte-identical on the seeded 20k `smoke-default` and `render-book`, and
+  on a three-arm knob-armed re-render (`Plain`; `Transfer` + `set_delayed_cue`;
+  `set_nt_overcall_gladiator`) — the default dumps see none of the three.
+
+- **Fix: `woolsey_package()` was not in the row invariant test.** The package
+  shipped one commit earlier claiming the alert/totality probe covered it; it
+  was never registered, so the probe never ran on it. Registered now, along with
+  the two new packages — no gap found, but the earlier claim was unbacked.
+
 - **The Woolsey Multi-Landy continuations are a declarative row package.** The
   ~90-line imperative `if woolsey_enabled()` block under `[1NT]` — the Multi
   `2♦` advance over their pass or double and the overcaller's rebid after each
