@@ -20,8 +20,9 @@
 //! tails (they double `2♣`) rely on alert-reading: the relay's projection
 //! carries no phantom club suit, so the floor defends sanely.
 
-use super::{call, insert_uncontested};
+use super::call;
 use crate::bidding::constraint::{balanced, len, points};
+use crate::bidding::rows::{Entry, Package, Pattern, compile_into, rows_of};
 use crate::bidding::{Alert, Rules, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
@@ -223,36 +224,43 @@ fn xyz_gf_answers(opening: Suit, response: Suit, rebid: Strain) -> Rules {
         .rule(Bid::new(2, Strain::Notrump), 0.1, points(0..))
 }
 
-/// Register the XYZ tree under one `1x – 1y – 1z` prefix
-fn register_prefix(book: &mut Trie, opening: Suit, response: Suit, rebid: Strain) {
-    let prefix = [
+/// The XYZ tree under one `1x – 1y – 1z` prefix
+fn rows_for_prefix(opening: Suit, response: Suit, rebid: Strain) -> Vec<Entry> {
+    let prefix = format!(
+        "P* {} (P) {} (P) {} (P)",
         call(1, Strain::from(opening)),
         call(1, Strain::from(response)),
         call(1, rebid),
-    ];
-    let two_c = call(2, Strain::Clubs);
-    let two_d = call(2, Strain::Diamonds);
+    );
+
+    let mut entries = Vec::new();
 
     // Responder's XYZ round, the forced completion, and the game force.
-    insert_uncontested(book, &prefix, xyz_responder(response, rebid));
-    insert_uncontested(
-        book,
-        &[prefix[0], prefix[1], prefix[2], two_c],
+    entries.extend(rows_of(
+        Pattern::node(&prefix),
+        xyz_responder(response, rebid),
+    ));
+    entries.extend(rows_of(
+        Pattern::node(&format!("{prefix} 2♣ (P)")),
         xyz_completion(),
-    );
-    insert_uncontested(
-        book,
-        &[prefix[0], prefix[1], prefix[2], two_d],
+    ));
+    entries.extend(rows_of(
+        Pattern::node(&format!("{prefix} 2♦ (P)")),
         xyz_gf_answers(opening, response, rebid),
-    );
+    ));
 
     // The invitational round after the relay, and opener's acceptances.
-    let relay = [prefix[0], prefix[1], prefix[2], two_c, two_d];
-    insert_uncontested(book, &relay, xyz_after_relay(opening, response, rebid));
+    let relay = format!("{prefix} 2♣ (P) 2♦ (P)");
+    entries.extend(rows_of(
+        Pattern::node(&relay),
+        xyz_after_relay(opening, response, rebid),
+    ));
 
     let mut accept = |invite: Call, table: Rules| {
-        let key = [relay[0], relay[1], relay[2], relay[3], relay[4], invite];
-        insert_uncontested(book, &key, table);
+        entries.extend(rows_of(
+            Pattern::node(&format!("{relay} {invite} (P)")),
+            table,
+        ));
     };
     if rebid.suit().is_some() {
         // Raise of opener's second-suit major → game in it.
@@ -298,37 +306,51 @@ fn register_prefix(book: &mut Trie, opening: Suit, response: Suit, rebid: Strain
         call(2, Strain::Notrump),
         accept_or_decline(Bid::new(3, Strain::Notrump)),
     );
+
+    entries
 }
 
-/// Register the XYZ structure on all ten one-level prefixes (no-op when off)
+/// The XYZ structure on all ten one-level prefixes (no-op when off)
 ///
 /// On the four `1m – 1M – 1NT` slots, [New Minor Forcing](super::nmf) overrides
 /// XYZ when its knob is on (default off) — the two conventions are mutually
-/// exclusive on that node, so at most one is authored there.
-pub(super) fn register(book: &mut Trie) {
-    let nmf = super::nmf::new_minor_forcing();
-    if !xyz() && !nmf {
-        return;
-    }
-    for opening in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
-        for response in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
-            if Strain::from(response) <= Strain::from(opening) {
-                continue;
-            }
-            if xyz() {
-                for higher in Suit::ASC {
-                    if Strain::from(higher) > Strain::from(response) {
-                        register_prefix(book, opening, response, Strain::from(higher));
+/// exclusive on that node, so this package yields those slots and
+/// [`nmf::package`][super::nmf::package] writes them instead.
+pub(super) fn package() -> Package {
+    Package {
+        name: "xyz",
+        gate: xyz,
+        entries: || {
+            let nmf = super::nmf::new_minor_forcing();
+            let mut entries = Vec::new();
+            for opening in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
+                for response in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+                    if Strain::from(response) <= Strain::from(opening) {
+                        continue;
+                    }
+                    for higher in Suit::ASC {
+                        if Strain::from(higher) > Strain::from(response) {
+                            entries.extend(rows_for_prefix(
+                                opening,
+                                response,
+                                Strain::from(higher),
+                            ));
+                        }
+                    }
+                    // The 1NT rebid: NMF claims the four minor-opening/
+                    // major-response slots when on, otherwise XYZ as before.
+                    if !(nmf && super::nmf::is_nmf_slot(opening, response)) {
+                        entries.extend(rows_for_prefix(opening, response, Strain::Notrump));
                     }
                 }
             }
-            // The 1NT rebid: NMF claims the four minor-opening/major-response
-            // slots when on, otherwise XYZ (when on) as before.
-            if nmf && super::nmf::is_nmf_slot(opening, response) {
-                super::nmf::register_prefix(book, opening, response);
-            } else if xyz() {
-                register_prefix(book, opening, response, Strain::Notrump);
-            }
-        }
+            entries
+        },
     }
+}
+
+/// Register both checkback conventions; each package is a no-op when its knob
+/// is off, and their keys are disjoint by construction
+pub(super) fn register(book: &mut Trie) {
+    compile_into(book, &[package(), super::nmf::package()]);
 }

@@ -150,6 +150,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Debug` naming break with no behavior change; historical DNF ledgers,
   harnesses, result labels, and trained-artifact filenames retain their names.
 
+- **The declarative row layer reaches the constructive book: openings, the
+  weak-two responses, XYZ, and New Minor Forcing are packages.** The
+  constructive book keys the *undisturbed* auction — our calls with an
+  opposing pass interleaved, fanned over the four seats — which the existing
+  grammar already spells as `Pattern::node("P* 2♦ (P) 2NT (P)")`, so all four
+  files ported with **no grammar addition**: `openings::package()` (the empty
+  auction, one row group), `weak_twos::package()` (the three suits' first
+  responses, Ogust answers and asker continuations, and opener's reply to each
+  forcing new suit), `xyz::package()` and `nmf::package()`. The two
+  registration helpers that took `&mut Trie` are now `Vec<Entry>` producers
+  keyed by auction string, and the per-suit loops moved inside `entries`
+  (`Package::entries` is a bare `fn` and cannot capture). `openings::register`
+  no longer takes a `NotrumpShape`: the package reads `notrump_shape_setting()`
+  itself, which is what its one caller passed. The XYZ/NMF dispatch — NMF
+  overriding XYZ on the four `1m – 1M – 1NT` slots — becomes two gated
+  packages writing disjoint keys instead of one interleaved loop. Byte-identical
+  on the seeded 20k `smoke-default` and `render-book`, and on a four-arm
+  knob-armed re-render of the constructive book (`set_new_minor_forcing`,
+  `set_xyz(false)`, both off, and `NotrumpShape::Balanced` — the last proving
+  the moved shape read inert); all four arms differ from the default dump, so
+  none is vacuous. No alert or totality gap found.
+
 - **The row layer grew its escape hatch for computed tables, and Cachalot
   (§9) is declarative.** A guarded entry whose table is built at classify time
   — reading the context, or transplanting another table's logits — could not

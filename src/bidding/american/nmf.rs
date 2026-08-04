@@ -10,7 +10,7 @@
 //!
 //! Gated on [`set_new_minor_forcing`] — default **off**.  When on it
 //! *overrides* XYZ on exactly those four slots (the dispatch lives in
-//! [`super::xyz::register`]); the other six XYZ auctions are untouched, so an
+//! [`super::xyz::package`]); the other six XYZ auctions are untouched, so an
 //! A/B differs only in the four-slot treatment.
 //!
 //! The checkback's projection floors the *major* (real) and not the minor, so
@@ -23,9 +23,10 @@
 //! floor's `combined_points` and an invitational responder under-reaches game.
 //! So both sides are authored in full through to game.
 
-use super::{call, insert_uncontested};
+use super::call;
 use crate::bidding::constraint::{len, points};
-use crate::bidding::{Alert, Rules, Trie};
+use crate::bidding::rows::{Entry, Package, Pattern, rows_of};
+use crate::bidding::{Alert, Rules};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
 use std::cell::Cell;
@@ -53,7 +54,7 @@ pub fn set_new_minor_forcing(on: bool) {
     NEW_MINOR_FORCING.with(|cell| cell.set(on));
 }
 
-/// Whether NMF is currently authored (read by [`super::xyz::register`])
+/// Whether NMF is currently authored (read by [`super::xyz::package`])
 pub(crate) fn new_minor_forcing() -> bool {
     NEW_MINOR_FORCING.with(Cell::get)
 }
@@ -216,81 +217,90 @@ fn placement_over_other_major(response: Suit, other: Suit) -> Rules {
         .rule(Bid::new(2, Strain::Notrump), 0.2, points(10..))
 }
 
-/// Register NMF and its continuations under one `1m – 1M – 1NT` prefix
+/// NMF and its continuations under one `1m – 1M – 1NT` prefix
 ///
-/// Called from [`super::xyz::register`].  Authors both sides in full: the
+/// Compiled by [`package`], one call per slot.  Authors both sides in full: the
 /// checkback and every opener answer, then responder's placement over each
 /// answer and opener's accept/decline of the two invitations that stop below
 /// game — so nothing load-bearing is left to floor placement.
-pub(super) fn register_prefix(book: &mut Trie, opening: Suit, response: Suit) {
-    let prefix = [
+fn rows_for_prefix(opening: Suit, response: Suit) -> Vec<Entry> {
+    let prefix = format!(
+        "P* {} (P) {} (P) 1NT (P)",
         call(1, Strain::from(opening)),
         call(1, Strain::from(response)),
-        call(1, Strain::Notrump),
-    ];
+    );
     let major = Strain::from(response);
     let other = other_major(response);
-    let nmf_bid = call(2, Strain::from(new_minor(opening)));
-    let after_nmf = |tail: &[Call]| -> Vec<Call> {
-        let mut key = vec![prefix[0], prefix[1], prefix[2], nmf_bid];
-        key.extend_from_slice(tail);
-        key
-    };
+    let nmf = format!("{prefix} {} (P)", call(2, Strain::from(new_minor(opening))));
+    let after_nmf = |tail: &str| Pattern::node(&format!("{nmf} {tail}"));
+
+    let mut entries = Vec::new();
 
     // Responder's checkback round, then opener's answer.
-    insert_uncontested(book, &prefix, nmf_responder(opening, response));
-    insert_uncontested(book, &after_nmf(&[]), nmf_opener_answers(response));
+    entries.extend(rows_of(
+        Pattern::node(&prefix),
+        nmf_responder(opening, response),
+    ));
+    entries.extend(rows_of(Pattern::node(&nmf), nmf_opener_answers(response)));
 
     // Responder's placement over each answer.
-    insert_uncontested(
-        book,
-        &after_nmf(&[call(2, major)]),
+    entries.extend(rows_of(
+        after_nmf(&format!("{} (P)", call(2, major))),
         placement_over_support(major, false),
-    );
-    insert_uncontested(
-        book,
-        &after_nmf(&[call(3, major)]),
+    ));
+    entries.extend(rows_of(
+        after_nmf(&format!("{} (P)", call(3, major))),
         placement_over_support(major, true),
-    );
-    insert_uncontested(
-        book,
-        &after_nmf(&[call(2, Strain::Notrump)]),
-        placement_no_fit(false),
-    );
-    insert_uncontested(
-        book,
-        &after_nmf(&[call(3, Strain::Notrump)]),
-        placement_no_fit(true),
-    );
-    insert_uncontested(
-        book,
-        &after_nmf(&[call(2, Strain::from(other))]),
+    ));
+    entries.extend(rows_of(after_nmf("2NT (P)"), placement_no_fit(false)));
+    entries.extend(rows_of(after_nmf("3NT (P)"), placement_no_fit(true)));
+    entries.extend(rows_of(
+        after_nmf(&format!("{} (P)", call(2, Strain::from(other)))),
         placement_over_other_major(response, other),
-    );
+    ));
 
     // Opener judges responder's natural direct 2NT invitation (a balanced
     // invite with no five-card major to check back).  Without this the invite
     // floats to the floor, which passes a maximum instead of raising to game.
-    insert_uncontested(
-        book,
-        &[prefix[0], prefix[1], prefix[2], call(2, Strain::Notrump)],
+    entries.extend(rows_of(
+        Pattern::node(&format!("{prefix} 2NT (P)")),
         accept_or_decline(Bid::new(3, Strain::Notrump)),
-    );
+    ));
 
     // Opener judges the two invitations that stop below game.
-    insert_uncontested(
-        book,
-        &after_nmf(&[call(2, Strain::from(other)), call(3, Strain::from(other))]),
+    let over_other = format!("{} (P)", call(2, Strain::from(other)));
+    entries.extend(rows_of(
+        after_nmf(&format!(
+            "{over_other} {} (P)",
+            call(3, Strain::from(other))
+        )),
         accept_or_decline(Bid::new(4, Strain::from(other))),
-    );
-    insert_uncontested(
-        book,
-        &after_nmf(&[call(2, Strain::from(other)), call(3, major)]),
+    ));
+    entries.extend(rows_of(
+        after_nmf(&format!("{over_other} {} (P)", call(3, major))),
         accept_or_decline(Bid::new(4, major)),
-    );
-    insert_uncontested(
-        book,
-        &after_nmf(&[call(2, Strain::from(other)), call(2, Strain::Notrump)]),
+    ));
+    entries.extend(rows_of(
+        after_nmf(&format!("{over_other} 2NT (P)")),
         accept_or_decline(Bid::new(3, Strain::Notrump)),
-    );
+    ));
+
+    entries
+}
+
+/// New Minor Forcing on all four `1m – 1M – 1NT` slots (no-op when off)
+pub(super) fn package() -> Package {
+    Package {
+        name: "new-minor-forcing",
+        gate: new_minor_forcing,
+        entries: || {
+            let mut entries = Vec::new();
+            for opening in [Suit::Clubs, Suit::Diamonds] {
+                for response in [Suit::Hearts, Suit::Spades] {
+                    entries.extend(rows_for_prefix(opening, response));
+                }
+            }
+            entries
+        },
+    }
 }

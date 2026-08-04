@@ -1,12 +1,12 @@
 //! Uncontested openings for every seat
 
-use super::insert_uncontested;
 use crate::bidding::constraint::{
     Cons, Constraint, balanced, cccc, described, fifths, hcp, len, length_box, long_suit_box, nltc,
     nth_seat, points, shapes,
 };
 use crate::bidding::context::Context;
 use crate::bidding::inference::Range;
+use crate::bidding::rows::{Package, Pattern, compile_into, rows_of};
 use crate::bidding::{Alert, Rules, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Hand, Strain, Suit};
@@ -467,9 +467,23 @@ pub fn openings_with(shape: NotrumpShape) -> Rules {
     rules.rule(Call::Pass, 0.0, points(..12))
 }
 
+/// The opening table as a row package
+///
+/// The whole file is one node — the empty auction, fanned over the four seats
+/// — so the package is a single row group.  The 1NT shape policy is read from
+/// [`notrump_shape_setting`] here rather than passed in: [`Package::entries`]
+/// is a bare `fn` and cannot capture, and the one caller passed exactly that.
+pub(super) fn package() -> Package {
+    Package {
+        name: "openings",
+        gate: || true,
+        entries: || rows_of(Pattern::node("P*"), openings_with(notrump_shape_setting())),
+    }
+}
+
 /// Register the opening table in the constructive book
-pub(super) fn register(book: &mut Trie, shape: NotrumpShape) {
-    insert_uncontested(book, &[], openings_with(shape));
+pub(super) fn register(book: &mut Trie) {
+    compile_into(book, &[package()]);
 }
 
 #[cfg(test)]

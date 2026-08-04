@@ -26,8 +26,9 @@
 
 use std::cell::Cell;
 
-use super::{call, insert_uncontested};
+use super::call;
 use crate::bidding::constraint::{hcp, len, longest_unbid, points, suit_hcp, support, top_honors};
+use crate::bidding::rows::{Entry, Package, Pattern, compile_into, rows_of};
 use crate::bidding::{Rules, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
@@ -342,7 +343,7 @@ fn reply_to_new_suit(our: Suit, x: Suit, response_level: u8) -> Rules {
 // Registration
 // ---------------------------------------------------------------------------
 
-/// Register all weak-two response machinery into the constructive book
+/// All weak-two response machinery as one row package
 ///
 /// For each weak-two suit M ∈ {♦, ♥, ♠}:
 ///
@@ -350,74 +351,82 @@ fn reply_to_new_suit(our: Suit, x: Suit, response_level: u8) -> Rules {
 /// - Ogust answers at `[2M, 2NT]`
 /// - Asker's Ogust continuations at `[2M, 2NT, <answer>]`
 /// - Opener's reply to each forcing new suit at `[2M, <new suit>]`
-pub(super) fn register(book: &mut Trie) {
-    for our in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
-        let trump = Strain::from(our);
-        let open = call(2, trump);
+pub(super) fn package() -> Package {
+    Package {
+        name: "weak-two-responses",
+        gate: || true,
+        entries: || {
+            let mut entries = Vec::new();
+            for our in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+                let open = format!("P* {} (P)", call(2, Strain::from(our)));
 
-        // First responses (at [2M]).
-        insert_uncontested(book, &[open], responses(our));
+                // First responses (at [2M]).
+                entries.extend(rows_of(Pattern::node(&open), responses(our)));
 
-        // Ogust: opener's answers (at [2M, 2NT]).
-        let ogust = call(2, Strain::Notrump);
-        insert_uncontested(book, &[open, ogust], ogust_answers(our));
+                // Ogust: opener's answers (at [2M, 2NT]).
+                let ogust = format!("{open} 2NT (P)");
+                entries.extend(rows_of(Pattern::node(&ogust), ogust_answers(our)));
 
-        // Asker's Ogust continuations (at [2M, 2NT, <answer>]).
-        register_ogust_continuations(book, our, open, ogust);
+                // Asker's Ogust continuations (at [2M, 2NT, <answer>]).
+                entries.extend(ogust_continuation_rows(our, &ogust));
 
-        // Opener's reply to each forcing new suit (at [2M, <new suit>]).
-        register_new_suit_replies(book, our, open);
+                // Opener's reply to each forcing new suit (at [2M, <new suit>]).
+                entries.extend(new_suit_reply_rows(our, &open));
+            }
+            entries
+        },
     }
 }
 
-/// Register asker's Ogust continuations for a given weak-two suit
-fn register_ogust_continuations(book: &mut Trie, our: Suit, open: Call, ogust: Call) {
+/// Register all weak-two response machinery into the constructive book
+pub(super) fn register(book: &mut Trie) {
+    compile_into(book, &[package()]);
+}
+
+/// Asker's Ogust continuations for a given weak-two suit, keyed under `ogust`
+fn ogust_continuation_rows(our: Suit, ogust: &str) -> Vec<Entry> {
     let min_bad = call(3, Strain::Clubs); // min, bad suit
     let min_good = call(3, Strain::Diamonds); // min, good suit
     let max_bad = call(3, Strain::Hearts); // max, bad suit
     let max_good = call(3, Strain::Spades); // max, good suit
     // 3NT (solid): no continuation table — pass plays 3NT.
 
+    let after = |answer: Call| Pattern::node(&format!("{ogust} {answer} (P)"));
+    let mut entries = Vec::new();
     if our == Suit::Diamonds {
-        insert_uncontested(
-            book,
-            &[open, ogust, min_bad],
-            asker_after_diamonds_min_bad(),
-        );
-        insert_uncontested(
-            book,
-            &[open, ogust, min_good],
-            asker_after_diamonds_min_good(),
-        );
+        entries.extend(rows_of(after(min_bad), asker_after_diamonds_min_bad()));
+        entries.extend(rows_of(after(min_good), asker_after_diamonds_min_good()));
         for max_ans in [max_bad, max_good] {
-            insert_uncontested(book, &[open, ogust, max_ans], asker_after_diamonds_max());
+            entries.extend(rows_of(after(max_ans), asker_after_diamonds_max()));
         }
     } else {
         // Hearts and spades share the same continuation logic.
         for min_ans in [min_bad, min_good] {
-            insert_uncontested(book, &[open, ogust, min_ans], asker_after_min_major(our));
+            entries.extend(rows_of(after(min_ans), asker_after_min_major(our)));
         }
         for max_ans in [max_bad, max_good] {
-            insert_uncontested(book, &[open, ogust, max_ans], asker_after_max_major(our));
+            entries.extend(rows_of(after(max_ans), asker_after_max_major(our)));
         }
     }
+    entries
 }
 
-/// Register opener's reply to each forcing new suit over `open` (= 2M)
-fn register_new_suit_replies(book: &mut Trie, our: Suit, open: Call) {
+/// Opener's reply to each forcing new suit over `open` (= 2M)
+fn new_suit_reply_rows(our: Suit, open: &str) -> Vec<Entry> {
     let trump = Strain::from(our);
+    let mut entries = Vec::new();
     for x in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         if x == our {
             continue;
         }
         let level: u8 = if Strain::from(x) > trump { 2 } else { 3 };
         let new_suit_call = call(level, Strain::from(x));
-        insert_uncontested(
-            book,
-            &[open, new_suit_call],
+        entries.extend(rows_of(
+            Pattern::node(&format!("{open} {new_suit_call} (P)")),
             reply_to_new_suit(our, x, level),
-        );
+        ));
     }
+    entries
 }
 
 #[cfg(test)]

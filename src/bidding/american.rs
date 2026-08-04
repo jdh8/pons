@@ -296,7 +296,7 @@ pub fn american_floor() -> Pair {
 pub fn american_book() -> Pair {
     let mut c = Constructive::new();
 
-    openings::register(&mut c, openings::notrump_shape_setting());
+    openings::register(&mut c);
     responses::register(&mut c);
     notrump::register(&mut c);
     rebids::register(&mut c);
@@ -465,6 +465,19 @@ mod tests {
         assert_eq!(best(&r, &a, "KJ542.Q32.K43.92"), call(2, Strain::Hearts));
         // Four-four in the majors takes Stayman; a 4-3 hand would Puppet (3♣).
         assert_eq!(best(&r, &a, "KJ54.KQ32.43.Q92"), call(2, Strain::Clubs));
+    }
+
+    /// The ported constructive packages hold the row invariants (alerts;
+    /// totality is exact-node-exempt).  Gates are ignored by the probe, so the
+    /// default-off NMF package is checked too.
+    #[test]
+    fn row_package_invariants() {
+        crate::bidding::rows::assert_package_invariants(&[
+            openings::package(),
+            weak_twos::package(),
+            xyz::package(),
+            nmf::package(),
+        ]);
     }
 
     #[test]
