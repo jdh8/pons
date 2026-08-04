@@ -213,6 +213,16 @@ impl Rules {
         Self { rules: Vec::new() }
     }
 
+    /// Wrap one [`Rule`] as a singleton list
+    ///
+    /// The regrouping seam for the row layer ([`rows`][super::rows]): a table
+    /// split into rows reassembles through [`chain`][Self::chain] into the
+    /// same rule list.
+    #[must_use]
+    pub(crate) fn of(rule: Rule) -> Self {
+        Self { rules: vec![rule] }
+    }
+
     /// Append a rule justifying a call (builder style)
     #[must_use]
     pub fn rule(

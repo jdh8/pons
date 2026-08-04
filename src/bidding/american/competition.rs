@@ -16,6 +16,7 @@ use super::super::fallback::{
     Fallback, FirstIs, OvercallAtMost, ReplaceNext, SuffixIs, described_guard, described_rewrite,
     guard, rewriter,
 };
+use super::super::rows::{Package, Pattern, compile_into, rebase, rows_of};
 use super::super::trie::{Classifier, classifier};
 use super::super::{Alert, Competitive, Rules};
 use super::notrump::{
@@ -3572,6 +3573,28 @@ fn diamond_overcalled_high(over: Suit) -> Rules {
         .rule(Call::Pass, 0.2, hcp(0..))
 }
 
+/// Section 1 & 2 as a row package: over each one-suit opening, the direct-seat
+/// responder table for their overcall through 2♠ ([`over_their_overcall`]) and
+/// the systems-on rebase over their takeout double
+fn direct_seat_package() -> Package {
+    Package {
+        name: "direct-seat",
+        gate: || true,
+        entries: || {
+            let mut entries = Vec::new();
+            for opening in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+                let key = format!("P* 1{}", Strain::from(opening));
+                entries.extend(rows_of(
+                    Pattern::up_to(&key, "2♠"),
+                    over_their_overcall(opening),
+                ));
+                entries.push(rebase(Pattern::first(&key, "X"), ReplaceNext(Call::Pass)));
+            }
+            entries
+        },
+    }
+}
+
 /// The competitive package over our openings: cue-bid raises, preemptive raises,
 /// negative doubles for all four openings, support doubles/redoubles, and
 /// opener's answers to negative doubles of minor overcalls
@@ -3585,23 +3608,7 @@ pub fn competition() -> Competitive {
 
     // Section 1 & 2: over all four openings, attach direct-seat response rules
     // and system-on over their double.
-    for opening in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
-        let opening_call = call(1, Strain::from(opening));
-        fallback_all_seats(
-            &mut book,
-            &[opening_call],
-            3,
-            Arc::new(OvercallAtMost(Bid::new(2, Strain::Spades))),
-            Fallback::classify(over_their_overcall(opening)),
-        );
-        fallback_all_seats(
-            &mut book,
-            &[opening_call],
-            3,
-            Arc::new(FirstIs(Call::Double)),
-            Fallback::rebase(ReplaceNext(Call::Pass)),
-        );
-    }
+    compile_into(&mut book, &[direct_seat_package()]);
 
     // Section 2b: systems-on over their double of our splinter. A splinter is
     // game-forcing, but the double reroutes opener into this book, where —
@@ -5099,6 +5106,18 @@ mod tests {
 
     const fn call(level: u8, strain: Strain) -> Call {
         Call::Bid(Bid::new(level, strain))
+    }
+
+    /// The ported row packages hold the compile-time invariants: guarded
+    /// tables total (the 7NT rule — a guarded table cannot fall through to
+    /// the floor), and artificial fallback rows alerted (the fallback-row
+    /// extension of `artificial_calls_are_alerted`).
+    #[test]
+    fn row_package_invariants() {
+        let mut book = crate::bidding::trie::Trie::new();
+        crate::bidding::rows::compile_into(&mut book, &[super::direct_seat_package()]);
+        crate::bidding::rows::assert_guarded_tables_total(&book);
+        crate::bidding::rows::assert_artificial_fallback_rows_alerted(&book);
     }
 
     /// `american()`'s best call for a hand in an auction, and whether the instinct

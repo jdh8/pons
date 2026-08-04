@@ -3212,7 +3212,7 @@ fn project_authored(context: &Context<'_>) -> ([Dnf; 4], [Dnf; 4], u64) {
 /// any future artificial call added without an `.alert(...)` must fail that test
 /// rather than silently lose its decoding.
 #[cfg(test)]
-fn artificial(projection: &Envelope, made: Call, doubled: Option<Strain>) -> bool {
+pub(crate) fn artificial(projection: &Envelope, made: Call, doubled: Option<Strain>) -> bool {
     // The "named" suit is the one the call offers to play: a bid names its own
     // strain; a double/redouble "names" the doubled strain it offers to defend.
     // Artificial = the projection floors some *other* suit ≥4 — the call is really

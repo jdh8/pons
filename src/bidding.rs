@@ -33,6 +33,8 @@ pub mod map;
 pub mod neural;
 /// Deterministic safety shell over the distilled neural floor
 pub mod neural_floor;
+/// Declarative book layer: entry rows compiled into the existing [`Trie`]
+pub(in crate::bidding) mod rows;
 pub mod rules;
 /// Constrained layout sampling: deals consistent with an auction's inferences
 pub mod sampler;
