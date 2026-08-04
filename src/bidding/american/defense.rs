@@ -5205,6 +5205,91 @@ fn landy_advance_package() -> Package {
     }
 }
 
+/// Woolsey "Multi-Landy" continuations ([`NotrumpDefense::Woolsey`])
+///
+/// Authored in full — the both-majors `2♣` reuses [`landy_advance_package`]'s
+/// wiring.  Every artificial call carries its doubled / redoubled escape so the
+/// opponents can never trap us in a doubled artificial contract.
+fn woolsey_package() -> Package {
+    Package {
+        name: "woolsey",
+        gate: woolsey_enabled,
+        entries: || {
+            let lo = woolsey_points().0;
+            let mut entries = Vec::new();
+
+            // Multi 2♦.  The advance is the same over a pass or a double (it never
+            // sits 2♦x — the overcaller has a major, not diamonds).  `rho` is the
+            // opponents' call over our 2♦; `after` is their call over our
+            // pass-or-correct — the overcaller names its major regardless of a
+            // double, so we are never left to the floor in a doubled 2♥x/2♠x (the
+            // dominant 2♦ leak vs BBA).
+            for rho in ["P", "X"] {
+                let base = format!("P* (1NT) 2♦ ({rho})");
+                entries.extend(rows_of(Pattern::node(&base), multi_advances(lo)));
+                for after in ["P", "X"] {
+                    for (bid, rebid) in [
+                        // Weak 2♥ p/c → pass / correct 2♠ / jump 3M with seven.
+                        ("2♥", multi_2h_rebid()),
+                        // Constructive 2♠ p/c → pass spades / 3♥ with hearts.
+                        ("2♠", multi_2s_rebid()),
+                        // Game-force 2NT ask → overcaller jumps to game in its major.
+                        ("2NT", multi_2nt_rebid()),
+                    ] {
+                        entries.extend(rows_of(
+                            Pattern::node(&format!("{base} {bid} ({after})")),
+                            rebid,
+                        ));
+                    }
+                }
+            }
+
+            // Muiderberg 2♥/2♠ — raises + the 2NT minor-ask (a doubled escape with
+            // no fit).
+            for (major, mbid) in [(Suit::Hearts, "2♥"), (Suit::Spades, "2♠")] {
+                entries.extend(rows_of(
+                    Pattern::node(&format!("P* (1NT) {mbid} (P)")),
+                    muiderberg_advances(major, lo),
+                ));
+                entries.extend(rows_of(
+                    Pattern::node(&format!("P* (1NT) {mbid} (X)")),
+                    muiderberg_advances_doubled(major, lo),
+                ));
+                // The 2NT minor-ask reaches the overcaller over either RHO action.
+                for rho in ["P", "X"] {
+                    entries.extend(rows_of(
+                        Pattern::node(&format!("P* (1NT) {mbid} ({rho}) 2NT (P)")),
+                        muiderberg_2nt_rebid(),
+                    ));
+                }
+            }
+
+            // Takeout X — advancer relays to the minor / bids its own major / asks
+            // 2NT.  A redouble forces us to run (never sit 1NTxx): the same advance
+            // applies.
+            let xfloor = woolsey_double_floor();
+            for adv in ["P", "XX"] {
+                let base = format!("P* (1NT) X ({adv})");
+                entries.extend(rows_of(Pattern::node(&base), woolsey_x_advance(xfloor)));
+                // The doubler names its 5-6 minor whether the 2♣ relay is passed or
+                // doubled.
+                for after in ["P", "X"] {
+                    entries.extend(rows_of(
+                        Pattern::node(&format!("{base} 2♣ ({after})")),
+                        woolsey_x_minor_rebid(),
+                    ));
+                }
+                // The 2NT game-ask → the doubler names its 4-card major.
+                entries.extend(rows_of(
+                    Pattern::node(&format!("{base} 2NT (P)")),
+                    woolsey_x_2nt_rebid(),
+                ));
+            }
+            entries
+        },
+    }
+}
+
 /// Direct-seat both-majors `X` advances
 /// ([`set_direct_landy_double`][super::set_direct_landy_double])
 ///
@@ -5881,7 +5966,6 @@ pub fn defensive() -> Defensive {
         insert_advance_of_double(&mut d, suit, Bid::new(2, Strain::from(suit)), advance_sohl);
     }
 
-    let notrump = call(1, Strain::Notrump);
     // Their 1NT opening and the three artificial responses we have a defense to
     // (Stayman, Jacoby, the two-way 2♠ and the 2NT diamond transfer); all three
     // response defenses are opt-in, default off.
@@ -5901,99 +5985,8 @@ pub fn defensive() -> Defensive {
     // same advance wiring.
     compile_into(&mut d, &[landy_advance_package()]);
 
-    // Woolsey "Multi-Landy" continuations, when on — authored in full (the
-    // both-majors 2♣ reuses the Landy advance wiring above).  Every artificial call
-    // carries its doubled / redoubled escape so the opponents can never trap us in a
-    // doubled artificial contract.
-    if woolsey_enabled() {
-        let lo = woolsey_points().0;
-        let x = Call::Double;
-        let multi = call(2, Strain::Diamonds);
-        let hearts = call(2, Strain::Hearts);
-        let spades = call(2, Strain::Spades);
-        let clubs = call(2, Strain::Clubs);
-        let nt2 = call(2, Strain::Notrump);
-
-        // Multi 2♦.  The advance is the same over a pass or a double (it never sits
-        // 2♦x — the overcaller has a major, not diamonds).  `rho` is the opponents'
-        // call over our 2♦; `after` is their call over our pass-or-correct — the
-        // overcaller names its major regardless of a double, so we are never left to
-        // the floor in a doubled 2♥x/2♠x (the dominant 2♦ leak vs BBA).
-        for rho in [Call::Pass, x] {
-            insert_all_seats(&mut d, &[notrump, multi, rho], 3, multi_advances(lo));
-            for after in [Call::Pass, x] {
-                // Weak 2♥ p/c → pass / correct 2♠ / jump 3M with seven.
-                insert_all_seats(
-                    &mut d,
-                    &[notrump, multi, rho, hearts, after],
-                    3,
-                    multi_2h_rebid(),
-                );
-                // Constructive 2♠ p/c → pass spades / 3♥ with hearts.
-                insert_all_seats(
-                    &mut d,
-                    &[notrump, multi, rho, spades, after],
-                    3,
-                    multi_2s_rebid(),
-                );
-                // Game-force 2NT ask → overcaller jumps to game in its major.
-                insert_all_seats(
-                    &mut d,
-                    &[notrump, multi, rho, nt2, after],
-                    3,
-                    multi_2nt_rebid(),
-                );
-            }
-        }
-
-        // Muiderberg 2♥/2♠ — raises + the 2NT minor-ask (a doubled escape with no fit).
-        for (major, mbid) in [(Suit::Hearts, hearts), (Suit::Spades, spades)] {
-            insert_all_seats(
-                &mut d,
-                &[notrump, mbid, Call::Pass],
-                3,
-                muiderberg_advances(major, lo),
-            );
-            insert_all_seats(
-                &mut d,
-                &[notrump, mbid, x],
-                3,
-                muiderberg_advances_doubled(major, lo),
-            );
-            // The 2NT minor-ask reaches the overcaller over either RHO action.
-            for rho in [Call::Pass, x] {
-                insert_all_seats(
-                    &mut d,
-                    &[notrump, mbid, rho, nt2, Call::Pass],
-                    3,
-                    muiderberg_2nt_rebid(),
-                );
-            }
-        }
-
-        // Takeout X — advancer relays to the minor / bids its own major / asks 2NT.
-        // A redouble forces us to run (never sit 1NTxx): the same advance applies.
-        let xfloor = woolsey_double_floor();
-        for adv in [Call::Pass, Call::Redouble] {
-            insert_all_seats(&mut d, &[notrump, x, adv], 3, woolsey_x_advance(xfloor));
-            // The doubler names its 5-6 minor whether the 2♣ relay is passed or doubled.
-            for after in [Call::Pass, x] {
-                insert_all_seats(
-                    &mut d,
-                    &[notrump, x, adv, clubs, after],
-                    3,
-                    woolsey_x_minor_rebid(),
-                );
-            }
-            // The 2NT game-ask → the doubler names its 4-card major.
-            insert_all_seats(
-                &mut d,
-                &[notrump, x, adv, nt2, Call::Pass],
-                3,
-                woolsey_x_2nt_rebid(),
-            );
-        }
-    }
+    // Woolsey "Multi-Landy" continuations, when on.
+    compile_into(&mut d, &[woolsey_package()]);
 
     // Advancing partner's both-minors 2NT over their 1NT, when on.
     compile_into(&mut d, &[unusual_notrump_advance_package()]);

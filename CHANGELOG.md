@@ -167,6 +167,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `render-book`, and on a re-render with `NegativeDoubleShape::Cachalot`
   armed.
 
+- **The Woolsey Multi-Landy continuations are a declarative row package.** The
+  ~90-line imperative `if woolsey_enabled()` block under `[1NT]` — the Multi
+  `2♦` advance over their pass or double and the overcaller's rebid after each
+  of the `2♥`/`2♠` pass-or-corrects and the `2NT` game ask (each again over
+  their pass or double), the Muiderberg `2♥`/`2♠` raises undoubled and doubled
+  plus the `2NT` minor-ask rebid, and the takeout `X` advance over their pass
+  or redouble with the doubler's `2♣` minor rebid and `2NT` major reply — is
+  now `woolsey_package()`, gated on `NotrumpDefense::Woolsey`, and joins the
+  invariant test. Every key is an exact node, so nothing here needed new
+  grammar; the alert probe now covers the block and found no gap. This was the
+  one item left over from the batch-2 inventory's "needs no new grammar" list.
+  Byte-identical on the seeded 20k `smoke-default` and `render-book`, and on a
+  knob-armed re-render with `NotrumpDefense::Woolsey` selected (the default
+  dump sees none of it).
+
 - **The whole Lebensohl block (§5 / 5b / 5c) is a declarative row package, and
   `competition()` has no hand-rolled wiring left.** The ~330-line imperative
   block under `[1NT]` — the `(2♣)` systems-on rebase and its stolen-Stayman
