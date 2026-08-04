@@ -136,6 +136,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Eight defensive sections are now declarative rows** — the first half of
+  the first Phase 1 batch, the sections expressible in today's grammar with no
+  new constructs. From `defensive()`: the `1NT` defense and its balancing
+  seat, the three opt-in defenses to their artificial `1NT` responses
+  (Stayman, Jacoby, the two-way `2♠` and the `2NT` diamond transfer), the
+  Unusual `2NT` advances, and the direct-seat DONT and Meckwell advance
+  ladders — all exact-node `Pattern::node` ports. The mega-function keeps its
+  remaining sections: `compile_into` writes into a `&mut Trie`, so the
+  declarative and imperative idioms coexist and a port needs no total
+  coverage. Package order at the shared keys is load-bearing and preserved —
+  with both knobs on, Meckwell still wins `(1NT) X (P)` and friends, exactly
+  as when these were consecutive `insert_all_seats` blocks. All eight packages
+  joined the invariant test, which checks them **regardless of their knob
+  gate** — so the opt-in DONT, Meckwell, and response-defense wiring is now
+  machine-checked for totality and alerts for the first time, and passed
+  unchanged. Byte-identical on the shipped default (seeded 20k-board
+  `smoke-default` diff and `render-book` diff, both empty).
+
 - **Book assembly is becoming declarative: a new row layer
   (`bidding::rows`) compiles entry rows into the existing `Trie`.** A
   `Pattern` is a regex-like auction key — our calls bare, their calls in

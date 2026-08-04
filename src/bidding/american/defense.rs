@@ -4948,6 +4948,192 @@ fn responsive_overcall_doubles(open: Suit, overcall: Suit, _raise_lvl: u8) -> Ru
 // Assembly
 // ---------------------------------------------------------------------------
 
+/// Defense to their `1NT` opening, direct and balancing seat
+///
+/// The balancing entry reuses the direct ranges so `(1NT) P P ?` no longer
+/// falls to the instinct floor's undisciplined balancing doubles; a lighter
+/// balancing-specific range is a later refinement.  See
+/// `set_notrump_balancing`.
+fn notrump_defense_package() -> Package {
+    Package {
+        name: "notrump-defense",
+        gate: || true,
+        entries: || {
+            let mut entries = rows_of(Pattern::node("P* (1NT)"), defense_to_notrump());
+            if notrump_balancing_enabled() {
+                entries.extend(rows_of(
+                    Pattern::node("P* (1NT) P (P)"),
+                    defense_to_notrump(),
+                ));
+            }
+            entries
+        },
+    }
+}
+
+/// Defense to their `2♣` Stayman: `X` = lead-directing clubs, natural
+/// overcalls, Unusual `2NT`, natural `3♣` preempt (`set_stayman_defense`)
+fn their_stayman_defense_package() -> Package {
+    Package {
+        name: "their-stayman-defense",
+        gate: stayman_defense_enabled,
+        entries: || rows_of(Pattern::node("P* (1NT) P (2♣)"), defense_to_their_stayman()),
+    }
+}
+
+/// Defense to their Jacoby transfers: `X` = lead-directing the bid suit, the
+/// cue is Michaels (the other major plus a minor), plus natural overcalls
+/// (`set_transfer_defense`)
+fn their_transfer_defense_package() -> Package {
+    Package {
+        name: "their-transfer-defense",
+        gate: transfer_defense_enabled,
+        entries: || {
+            [(Suit::Diamonds, Suit::Hearts), (Suit::Hearts, Suit::Spades)]
+                .into_iter()
+                .flat_map(|(resp, shown)| {
+                    let response = Bid::new(2, Strain::from(resp));
+                    rows_of(
+                        Pattern::node(&format!("P* (1NT) P ({response})")),
+                        defense_to_their_transfer(resp, shown),
+                    )
+                })
+                .collect()
+        },
+    }
+}
+
+/// Defense to their two-way `2♠` minor response: `X` = lead-directing spades,
+/// `2NT` = the red two-suiter, `3♣` cue = top-and-bottom, natural `3♦`/`3♥`
+/// overcalls (`set_minor_transfer_defense`)
+fn their_minor_transfer_defense_package() -> Package {
+    Package {
+        name: "their-minor-transfer-defense",
+        gate: minor_transfer_defense_enabled,
+        entries: || {
+            rows_of(
+                Pattern::node("P* (1NT) P (2♠)"),
+                defense_to_their_minor_transfer(),
+            )
+        },
+    }
+}
+
+/// Defense to their `2NT` diamond transfer: `X` = lead-directing diamonds,
+/// `3♦` cue = both majors, natural `3♣`/`3♥`/`3♠` overcalls
+/// (`set_diamond_transfer_defense`)
+fn their_diamond_transfer_defense_package() -> Package {
+    Package {
+        name: "their-diamond-transfer-defense",
+        gate: diamond_transfer_defense_enabled,
+        entries: || {
+            rows_of(
+                Pattern::node("P* (1NT) P (2NT)"),
+                defense_to_their_diamond_transfer(),
+            )
+        },
+    }
+}
+
+/// Advancing partner's both-minors `2NT` over their `1NT`
+///
+/// Doubled we never sit — sitting in `2NT`-doubled is a loser, the doubler has
+/// values behind a 15-17 `1NT` — so both entries just pick the longer minor.
+fn unusual_notrump_advance_package() -> Package {
+    Package {
+        name: "unusual-notrump-advance",
+        gate: || unusual_notrump_range().is_some(),
+        entries: || {
+            let mut entries = rows_of(
+                Pattern::node("P* (1NT) 2NT (P)"),
+                unusual_nt_advances(Suit::Spades),
+            );
+            entries.extend(rows_of(
+                Pattern::node("P* (1NT) 2NT (X)"),
+                unusual_nt_advances(Suit::Spades),
+            ));
+            entries
+        },
+    }
+}
+
+/// Direct-seat DONT advances: the same pass-or-correct relays, keyed at
+/// *every* seat (the `X`/`2♣`/`2♦`/`2♥` are direct-seat conventional calls)
+///
+/// Binding `(1NT) X (P)` is correct here — with DONT on, the direct `X` is a
+/// one-suiter wanting the `2♣` relay, not a penalty.  Every artificial leg
+/// carries a doubled/redoubled escape so we never sit in `1NT`-redoubled or a
+/// doubled misfit `2♣`, the dominant DONT-`X` loss in the honest measure.
+fn direct_dont_advance_package() -> Package {
+    Package {
+        name: "direct-dont-advance",
+        gate: direct_dont_enabled,
+        entries: || {
+            let mut entries = rows_of(Pattern::node("P* (1NT) X (P)"), passed_dont_x_advance());
+            for (key, rules) in [
+                ("P* (1NT) X (P) 2♣ (P)", passed_dont_x_rebid()),
+                ("P* (1NT) 2♣ (P)", passed_dont_2c_advance()),
+                ("P* (1NT) 2♣ (P) 2♦ (P)", passed_dont_2c_rebid()),
+                ("P* (1NT) 2♦ (P)", passed_dont_2d_advance()),
+                ("P* (1NT) 2♦ (P) 2♥ (P)", passed_dont_2d_rebid()),
+                ("P* (1NT) 2♥ (P)", passed_dont_2h_advance()),
+                // Their redouble of our one-suiter X: never sit in 1NTxx — relay
+                // 2♣ just as over a pass, then the doubler names the suit.
+                ("P* (1NT) X (XX)", passed_dont_x_advance()),
+                ("P* (1NT) X (XX) 2♣ (P)", passed_dont_x_rebid()),
+                // Their double of our artificial 2♣ relay (after our X, passed or
+                // redoubled): the relay is NOT a club fit, so the doubler must
+                // still name the real one-suiter (or pass with genuine clubs).
+                ("P* (1NT) X (P) 2♣ (X)", passed_dont_x_rebid()),
+                ("P* (1NT) X (XX) 2♣ (X)", passed_dont_x_rebid()),
+            ] {
+                entries.extend(rows_of(Pattern::node(key), rules));
+            }
+            entries
+        },
+    }
+}
+
+/// Direct-seat Meckwell advances: the `X` is a two-way "single 6+ minor OR
+/// both majors" double
+///
+/// Advancer relays `2♣` (pass-or-correct); the doubler passes with clubs,
+/// names `2♦` with diamonds, or bids `2♥` (4+ hearts ⇒ both majors here) and
+/// the advancer passes or corrects to `2♠`.  The minor+major `2♣`/`2♦` reuse
+/// the DONT pass-or-correct advances (the same "name your higher suit"
+/// relay).  Every artificial leg has a doubled/redoubled escape.
+fn meckwell_advance_package() -> Package {
+    Package {
+        name: "meckwell-advance",
+        gate: meckwell_enabled,
+        entries: || {
+            let mut entries = rows_of(Pattern::node("P* (1NT) X (P)"), meckwell_x_advance());
+            for (key, rules) in [
+                ("P* (1NT) X (P) 2♣ (P)", meckwell_x_rebid()),
+                ("P* (1NT) X (P) 2♣ (P) 2♥ (P)", passed_dont_2h_advance()),
+                // 2♣/2♦ minor+major: reuse the DONT pass-or-correct advances.
+                ("P* (1NT) 2♣ (P)", passed_dont_2c_advance()),
+                ("P* (1NT) 2♣ (P) 2♦ (P)", passed_dont_2c_rebid()),
+                ("P* (1NT) 2♦ (P)", passed_dont_2d_advance()),
+                ("P* (1NT) 2♦ (P) 2♥ (P)", passed_dont_2d_rebid()),
+                // Their redouble of our X: relay 2♣ anyway (never sit 1NTxx).
+                ("P* (1NT) X (XX)", meckwell_x_advance()),
+                ("P* (1NT) X (XX) 2♣ (P)", meckwell_x_rebid()),
+                // Their double of our artificial 2♣ relay: the doubler still names
+                // the real suit (pass only with genuine clubs), else runs.
+                ("P* (1NT) X (P) 2♣ (X)", meckwell_x_rebid()),
+                ("P* (1NT) X (XX) 2♣ (X)", meckwell_x_rebid()),
+                // Their double of the doubler's both-majors 2♥ show: advancer
+                // still picks a major.
+                ("P* (1NT) X (P) 2♣ (P) 2♥ (X)", passed_dont_2h_advance()),
+            ] {
+                entries.extend(rows_of(Pattern::node(key), rules));
+            }
+            entries
+        },
+    }
+}
+
 /// Build the defensive book: all our actions when the opponents open
 ///
 /// Seat-fanned with `insert_all_seats(…, 3, …)` so every seat is covered.
@@ -5516,67 +5702,19 @@ pub fn defensive() -> Defensive {
     }
 
     let notrump = call(1, Strain::Notrump);
-    insert_all_seats(&mut d, &[notrump], 3, defense_to_notrump());
-    // Balancing seat (1NT) P P ?: reuse the same defense so we no longer fall to
-    // the instinct floor's undisciplined balancing doubles.  First cut reuses the
-    // direct ranges; a lighter balancing-specific range is a later refinement.
-    if notrump_balancing_enabled() {
-        insert_all_seats(
-            &mut d,
-            &[notrump, Call::Pass, Call::Pass],
-            3,
-            defense_to_notrump(),
-        );
-    }
-
-    // Defense to the opponents' 2♣ Stayman: (1NT) P (2♣) ?  Opt-in (default off).
-    // X = lead-directing clubs, natural overcalls, Unusual 2NT, natural 3♣ preempt.
-    if stayman_defense_enabled() {
-        insert_all_seats(
-            &mut d,
-            &[notrump, Call::Pass, call(2, Strain::Clubs)],
-            3,
-            defense_to_their_stayman(),
-        );
-    }
-
-    // Defense to the opponents' Jacoby transfers: (1NT) P (2♦→♥) / (2♥→♠) ?
-    // Opt-in (default off).  X = lead-directing the bid suit, cue = Michaels (the
-    // other major + a minor), natural overcalls.
-    if transfer_defense_enabled() {
-        for (resp, shown) in [(Suit::Diamonds, Suit::Hearts), (Suit::Hearts, Suit::Spades)] {
-            insert_all_seats(
-                &mut d,
-                &[notrump, Call::Pass, call(2, Strain::from(resp))],
-                3,
-                defense_to_their_transfer(resp, shown),
-            );
-        }
-    }
-
-    // Defense to the opponents' two-way 2♠ minor response: (1NT) P (2♠) ?  Opt-in
-    // (default off).  X = lead-directing spades, 2NT = the red two-suiter, 3♣ cue =
-    // top-and-bottom, natural 3♦/3♥ overcalls.
-    if minor_transfer_defense_enabled() {
-        insert_all_seats(
-            &mut d,
-            &[notrump, Call::Pass, call(2, Strain::Spades)],
-            3,
-            defense_to_their_minor_transfer(),
-        );
-    }
-
-    // Defense to the opponents' 2NT diamond transfer: (1NT) P (2NT) ?  Opt-in
-    // (default off).  X = lead-directing diamonds, 3♦ cue = both majors, natural
-    // 3♣/3♥/3♠ overcalls.
-    if diamond_transfer_defense_enabled() {
-        insert_all_seats(
-            &mut d,
-            &[notrump, Call::Pass, call(2, Strain::Notrump)],
-            3,
-            defense_to_their_diamond_transfer(),
-        );
-    }
+    // Their 1NT opening and the three artificial responses we have a defense to
+    // (Stayman, Jacoby, the two-way 2♠ and the 2NT diamond transfer); all three
+    // response defenses are opt-in, default off.
+    compile_into(
+        &mut d,
+        &[
+            notrump_defense_package(),
+            their_stayman_defense_package(),
+            their_transfer_defense_package(),
+            their_minor_transfer_defense_package(),
+            their_diamond_transfer_defense_package(),
+        ],
+    );
 
     // Advancing partner's Landy 2♣ (both majors) over their 1NT, when on.  Woolsey's
     // 2♣ is the identical both-majors call on the same shared band, so it reuses this
@@ -5758,96 +5896,20 @@ pub fn defensive() -> Defensive {
     }
 
     // Advancing partner's both-minors 2NT over their 1NT, when on.
-    if unusual_notrump_range().is_some() {
-        // [1NT, 2NT, P] — pick the longer minor (reuse the Unusual 2NT advance).
-        insert_all_seats(
-            &mut d,
-            &[notrump, call(2, Strain::Notrump), Call::Pass],
-            3,
-            unusual_nt_advances(Suit::Spades),
-        );
-        // [1NT, 2NT, X] — doubled: never sit, just run to the longer minor (sitting
-        // in 2NT-X is a loser — the doubler has values behind a 15-17 1NT).
-        insert_all_seats(
-            &mut d,
-            &[notrump, call(2, Strain::Notrump), Call::Double],
-            3,
-            unusual_nt_advances(Suit::Spades),
-        );
-    }
+    compile_into(&mut d, &[unusual_notrump_advance_package()]);
 
     let p = Call::Pass;
     let x = Call::Double;
     let xx = Call::Redouble;
 
-    // Direct-seat DONT advances: the same pass-or-correct relays, but keyed at
-    // *every* seat via insert_all_seats (the X/2♣/2♦/2♥ are now direct-seat
-    // conventional calls).  Binding [1NT,X,P] etc. is correct here — with DONT on
-    // the direct `X` is a one-suiter wanting the 2♣ relay, not a penalty, so this
-    // is exactly the case the passed-hand note above warned against doing when off.
-    if direct_dont_enabled() {
-        let c2 = call(2, Strain::Clubs);
-        let d2 = call(2, Strain::Diamonds);
-        let h2 = call(2, Strain::Hearts);
-        insert_all_seats(&mut d, &[notrump, x, p], 3, passed_dont_x_advance());
-        insert_all_seats(&mut d, &[notrump, x, p, c2, p], 3, passed_dont_x_rebid());
-        insert_all_seats(&mut d, &[notrump, c2, p], 3, passed_dont_2c_advance());
-        insert_all_seats(&mut d, &[notrump, c2, p, d2, p], 3, passed_dont_2c_rebid());
-        insert_all_seats(&mut d, &[notrump, d2, p], 3, passed_dont_2d_advance());
-        insert_all_seats(&mut d, &[notrump, d2, p, h2, p], 3, passed_dont_2d_rebid());
-        insert_all_seats(&mut d, &[notrump, h2, p], 3, passed_dont_2h_advance());
-        // Their redouble of our one-suiter X: never sit in 1NTxx — relay 2♣ just as
-        // over a pass, then the doubler names the suit (mirrors the passed-hand
-        // NaturalLandyDouble redouble escape).
-        insert_all_seats(&mut d, &[notrump, x, xx], 3, passed_dont_x_advance());
-        insert_all_seats(&mut d, &[notrump, x, xx, c2, p], 3, passed_dont_x_rebid());
-        // Their double of our artificial 2♣ relay (after our X, passed or redoubled):
-        // the relay is NOT a club fit, so the doubler must still name the real
-        // one-suiter (2♦/2♥/2♠, or pass with genuine clubs) — else we sit in a
-        // doubled misfit 2♣x, the dominant DONT-X loss in the honest measure.
-        insert_all_seats(&mut d, &[notrump, x, p, c2, x], 3, passed_dont_x_rebid());
-        insert_all_seats(&mut d, &[notrump, x, xx, c2, x], 3, passed_dont_x_rebid());
-    }
-
-    // Direct-seat Meckwell advances: the X is a two-way "single 6+ minor OR both
-    // majors" double.  Advancer relays 2♣ (pass-or-correct); the doubler passes with
-    // clubs, names 2♦ with diamonds, or bids 2♥ (4+ hearts ⇒ both majors here) and the
-    // advancer passes / corrects to 2♠.  The minor+major 2♣/2♦ reuse the DONT
-    // pass-or-correct advances (same "name your higher suit" relay).  Every artificial
-    // leg has a doubled/redoubled escape so we never sit in 1NTxx or a doubled misfit.
-    if meckwell_enabled() {
-        let c2 = call(2, Strain::Clubs);
-        let d2 = call(2, Strain::Diamonds);
-        let h2 = call(2, Strain::Hearts);
-        // X = two-way: relay 2♣, doubler names its minor / shows both majors (2♥).
-        insert_all_seats(&mut d, &[notrump, x, p], 3, meckwell_x_advance());
-        insert_all_seats(&mut d, &[notrump, x, p, c2, p], 3, meckwell_x_rebid());
-        insert_all_seats(
-            &mut d,
-            &[notrump, x, p, c2, p, h2, p],
-            3,
-            passed_dont_2h_advance(),
-        );
-        // 2♣/2♦ minor+major: reuse the DONT pass-or-correct advances.
-        insert_all_seats(&mut d, &[notrump, c2, p], 3, passed_dont_2c_advance());
-        insert_all_seats(&mut d, &[notrump, c2, p, d2, p], 3, passed_dont_2c_rebid());
-        insert_all_seats(&mut d, &[notrump, d2, p], 3, passed_dont_2d_advance());
-        insert_all_seats(&mut d, &[notrump, d2, p, h2, p], 3, passed_dont_2d_rebid());
-        // Their redouble of our X: relay 2♣ anyway (never sit 1NTxx), doubler names.
-        insert_all_seats(&mut d, &[notrump, x, xx], 3, meckwell_x_advance());
-        insert_all_seats(&mut d, &[notrump, x, xx, c2, p], 3, meckwell_x_rebid());
-        // Their double of our artificial 2♣ relay: the doubler still names the real
-        // suit (pass only with genuine clubs), else runs — never a doubled misfit 2♣x.
-        insert_all_seats(&mut d, &[notrump, x, p, c2, x], 3, meckwell_x_rebid());
-        insert_all_seats(&mut d, &[notrump, x, xx, c2, x], 3, meckwell_x_rebid());
-        // Their double of the doubler's both-majors 2♥ show: advancer still picks a major.
-        insert_all_seats(
-            &mut d,
-            &[notrump, x, p, c2, p, h2, x],
-            3,
-            passed_dont_2h_advance(),
-        );
-    }
+    // Direct-seat DONT and Meckwell advances.  Both write `[1NT, X, P]` and
+    // friends; with both knobs on, Meckwell wins the shared keys exactly as it
+    // did when these were consecutive `insert_all_seats` blocks, so the package
+    // order here is load-bearing.
+    compile_into(
+        &mut d,
+        &[direct_dont_advance_package(), meckwell_advance_package()],
+    );
 
     // Direct-seat both-majors X advances: the X is a Landy-style both-majors takeout
     // double at every seat, so the advancer answers exactly as over a Landy 2♣ (pick
@@ -5917,7 +5979,17 @@ mod tests {
     /// exact-node-exempt).
     #[test]
     fn row_package_invariants() {
-        crate::bidding::rows::assert_package_invariants(&[super::weak_two_defense_package()]);
+        crate::bidding::rows::assert_package_invariants(&[
+            super::weak_two_defense_package(),
+            super::notrump_defense_package(),
+            super::their_stayman_defense_package(),
+            super::their_transfer_defense_package(),
+            super::their_minor_transfer_defense_package(),
+            super::their_diamond_transfer_defense_package(),
+            super::unusual_notrump_advance_package(),
+            super::direct_dont_advance_package(),
+            super::meckwell_advance_package(),
+        ]);
     }
 
     /// The direct-seat pass gate is the strong tier's complement, authored so
