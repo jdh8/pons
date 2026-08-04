@@ -1,12 +1,13 @@
-//! Throwaway: render-book's walk with every batch-5 knob armed
+//! Throwaway: render-book's walk with every batch-6 knob armed
 //!
-//! The default `render-book` diff cannot see a package that rides a default-off
-//! knob (Rubens advances, the responsive double over an overcall, the weak-two
-//! `2NT` advances).  This arms them all and prints the alert slug on each line,
-//! so an alert change is visible too.  Delete after the batch is blessed.
+//! The default `render-book` diff cannot see Section 9, which rides
+//! `NegativeDoubleShape::Cachalot` (default `Modern`).  This arms it — with
+//! the contested-`X` sub-knob explicitly on — and prints the alert slug on
+//! each line, so an alert change is visible too.  Delete after the batch is
+//! blessed.
 
 use pons::bidding::american::{
-    american_book, set_advance_rubens, set_responsive_overcall, set_weak_two_notrump_advances,
+    NegativeDoubleShape, american_book, set_cachalot_contested_x, set_negative_double_shape,
 };
 use pons::bidding::fallback::Fallback;
 use pons::bidding::rules::Rules;
@@ -28,9 +29,8 @@ fn print_rules(rules: &Rules) {
 }
 
 fn main() {
-    set_advance_rubens(true);
-    set_responsive_overcall(true);
-    set_weak_two_notrump_advances(true);
+    set_negative_double_shape(NegativeDoubleShape::Cachalot);
+    set_cachalot_contested_x(true);
 
     let pair = american_book();
     let books: [(&str, &Trie); 3] = [
@@ -50,10 +50,7 @@ fn main() {
             if !seen.insert(id) {
                 continue;
             }
-            println!(
-                "\n{}",
-                contract_bridge::auction::display_calls(&auction)
-            );
+            println!("\n{}", contract_bridge::auction::display_calls(&auction));
             print_rules(rules);
         }
         for (auction, guard, fallback) in trie.fallbacks() {
@@ -64,7 +61,9 @@ fn main() {
             if !seen.insert(id) {
                 continue;
             }
-            let condition = guard.describe().unwrap_or_else(|| "(unlabeled)".to_string());
+            let condition = guard
+                .describe()
+                .unwrap_or_else(|| "(unlabeled)".to_string());
             println!(
                 "\n{} {condition}",
                 contract_bridge::auction::display_calls(&auction)

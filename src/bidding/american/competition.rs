@@ -15,7 +15,9 @@ use super::super::context::Context;
 use super::super::fallback::{
     Fallback, FirstIs, ReplaceNext, SuffixIs, described_guard, described_rewrite, guard, rewriter,
 };
-use super::super::rows::{Entry, Package, Pattern, compile_into, rebase, row, rows_of};
+use super::super::rows::{
+    Entry, Package, Pattern, classified, compile_into, rebase, row, rows_of,
+};
 use super::super::trie::{Classifier, classifier};
 use super::super::{Alert, Competitive, Rules};
 use super::notrump::{
@@ -3702,6 +3704,81 @@ fn uvu_over_majors_package() -> Package {
     }
 }
 
+/// Section 9 as a row package: opener's Cachalot answers
+///
+/// The rotated calls are forcing; each gets its completion table at the deeper
+/// `[1m, <their 1-level overcall>]` key.
+fn cachalot_package() -> Package {
+    Package {
+        name: "cachalot-answer",
+        gate: || negative_double_shape() == NegativeDoubleShape::Cachalot,
+        entries: || {
+            // (1♦) over 1♣: X shows hearts, 1♥ shows spades, 1♠ is the takeout.
+            let over_diamond = "P* 1♣ (1♦)";
+            let mut entries = rows_of(
+                Pattern::after(over_diamond, "X (P)"),
+                cachalot_answer(Suit::Clubs, Suit::Diamonds, Suit::Hearts),
+            );
+            entries.extend(rows_of(
+                Pattern::after(over_diamond, "1♥ (P)"),
+                cachalot_answer(Suit::Clubs, Suit::Diamonds, Suit::Spades),
+            ));
+            entries.extend(rows_of(
+                Pattern::after(over_diamond, "1♠ (P)"),
+                cachalot_takeout_answer(Suit::Clubs, Suit::Diamonds),
+            ));
+
+            // (1♥) over 1♣/1♦: X shows spades, 1♠ is the takeout.
+            for opening in [Suit::Clubs, Suit::Diamonds] {
+                let key = format!("P* 1{} (1♥)", Strain::from(opening));
+                entries.extend(rows_of(
+                    Pattern::after(&key, "X (P)"),
+                    cachalot_answer(opening, Suit::Hearts, Suit::Spades),
+                ));
+                entries.extend(rows_of(
+                    Pattern::after(&key, "1♠ (P)"),
+                    cachalot_takeout_answer(opening, Suit::Hearts),
+                ));
+            }
+
+            // Contested X: LHO competed over the transfer, so the pass-out
+            // completions above don't fire and opener would fall to the floor
+            // (the measured X·wrapped leak).  Author opener's raise of the
+            // shown major — hearts over (1♦), spades over (1♥).  The guard
+            // admits exactly opener's immediate answer,
+            // [X, <their non-pass intervention>]: the [X, P] pass-out is
+            // shadowed above, and deeper continuations fall to the floor as
+            // before.  The answer reads the intervention off the context, so
+            // it is a computed table, not authored rules.
+            if cachalot_contested_x() {
+                let x_intervention = || {
+                    described_guard(
+                        "X (their intervention) -",
+                        guard(
+                            |_: &Context<'_>, s: &[Call]| matches!(s, [Call::Double, c] if !matches!(c, Call::Pass)),
+                        ),
+                    )
+                };
+                entries.push(classified(
+                    Pattern::guarded(over_diamond, "X (2♦)", x_intervention()),
+                    cachalot_x_contested_answer(Suit::Hearts),
+                ));
+                for opening in [Suit::Clubs, Suit::Diamonds] {
+                    entries.push(classified(
+                        Pattern::guarded(
+                            &format!("P* 1{} (1♥)", Strain::from(opening)),
+                            "X (2♦)",
+                            x_intervention(),
+                        ),
+                        cachalot_x_contested_answer(Suit::Spades),
+                    ));
+                }
+            }
+            entries
+        },
+    }
+}
+
 /// Section 9b as a row package: opener's answers to the Sputnik residual double
 ///
 /// The double *denies* a biddable major, so — unlike a classic negative double
@@ -4719,93 +4796,11 @@ pub fn competition() -> Competitive {
     compile_into(&mut book, &[high_overcall_package()]);
 
     // Section 9: opener's Cachalot answers (`NegativeDoubleShape::Cachalot`
-    // only). The rotated calls are forcing; each gets its completion table at
-    // the deeper [1m, <their 1-level overcall>] key.
-    if negative_double_shape() == NegativeDoubleShape::Cachalot {
-        let one_heart = call(1, Strain::Hearts);
-        let one_spade = call(1, Strain::Spades);
-
-        // (1♦) over 1♣: X shows hearts, 1♥ shows spades, 1♠ is the takeout.
-        let clubs = call(1, Strain::Clubs);
-        let d_ovc = call(1, Strain::Diamonds);
-        fallback_all_seats(
-            &mut book,
-            &[clubs, d_ovc],
-            3,
-            Arc::new(SuffixIs(vec![Call::Double, Call::Pass])),
-            Fallback::classify(cachalot_answer(Suit::Clubs, Suit::Diamonds, Suit::Hearts)),
-        );
-        fallback_all_seats(
-            &mut book,
-            &[clubs, d_ovc],
-            3,
-            Arc::new(SuffixIs(vec![one_heart, Call::Pass])),
-            Fallback::classify(cachalot_answer(Suit::Clubs, Suit::Diamonds, Suit::Spades)),
-        );
-        fallback_all_seats(
-            &mut book,
-            &[clubs, d_ovc],
-            3,
-            Arc::new(SuffixIs(vec![one_spade, Call::Pass])),
-            Fallback::classify(cachalot_takeout_answer(Suit::Clubs, Suit::Diamonds)),
-        );
-
-        // (1♥) over 1♣/1♦: X shows spades, 1♠ is the takeout.
-        for opening in [Suit::Clubs, Suit::Diamonds] {
-            let open = call(1, Strain::from(opening));
-            fallback_all_seats(
-                &mut book,
-                &[open, one_heart],
-                3,
-                Arc::new(SuffixIs(vec![Call::Double, Call::Pass])),
-                Fallback::classify(cachalot_answer(opening, Suit::Hearts, Suit::Spades)),
-            );
-            fallback_all_seats(
-                &mut book,
-                &[open, one_heart],
-                3,
-                Arc::new(SuffixIs(vec![one_spade, Call::Pass])),
-                Fallback::classify(cachalot_takeout_answer(opening, Suit::Hearts)),
-            );
-        }
-
-        // Contested X: LHO competed over the transfer, so the pass-out
-        // completions above don't fire and opener would fall to the floor (the
-        // measured X·wrapped leak).  Author opener's raise of the shown major —
-        // hearts over (1♦), spades over (1♥).  The guard admits exactly opener's
-        // immediate answer, [X, <their non-pass intervention>]: the [X, P]
-        // pass-out is shadowed above, and deeper continuations fall to the floor
-        // as before.
-        if cachalot_contested_x() {
-            let x_intervention = || {
-                described_guard(
-                    "X (their intervention) -",
-                    guard(
-                        |_: &Context<'_>, s: &[Call]| matches!(s, [Call::Double, c] if !matches!(c, Call::Pass)),
-                    ),
-                )
-            };
-            fallback_all_seats(
-                &mut book,
-                &[clubs, d_ovc],
-                3,
-                Arc::new(x_intervention()),
-                Fallback::classify(cachalot_x_contested_answer(Suit::Hearts)),
-            );
-            for opening in [Suit::Clubs, Suit::Diamonds] {
-                fallback_all_seats(
-                    &mut book,
-                    &[call(1, Strain::from(opening)), one_heart],
-                    3,
-                    Arc::new(x_intervention()),
-                    Fallback::classify(cachalot_x_contested_answer(Suit::Spades)),
-                );
-            }
-        }
-    }
-
-    // Section 9b: opener's answers to the Sputnik residual double.
-    compile_into(&mut book, &[sputnik_residual_answer_package()]);
+    // only). Section 9b: opener's answers to the Sputnik residual double.
+    compile_into(
+        &mut book,
+        &[cachalot_package(), sputnik_residual_answer_package()],
+    );
 
     // Section 7: our contested weak twos (`set_weak_two_competition`, default
     // off). Their double: responder's first call at the deeper [2M, X] node
@@ -5200,6 +5195,7 @@ mod tests {
             super::strong_two_competition_package(),
             super::jordan_truscott_package(),
             super::uvu_over_majors_package(),
+            super::cachalot_package(),
             super::sputnik_residual_answer_package(),
             super::uvu_package(),
             super::competition_over_stayman_package(),

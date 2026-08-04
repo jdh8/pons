@@ -150,6 +150,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Debug` naming break with no behavior change; historical DNF ledgers,
   harnesses, result labels, and trained-artifact filenames retain their names.
 
+- **The row layer grew its escape hatch for computed tables, and Cachalot
+  (§9) is declarative.** A guarded entry whose table is built at classify time
+  — reading the context, or transplanting another table's logits — could not
+  be spelled as `Rules`; `rows::classified(pattern, classifier)` now carries
+  such a classifier verbatim into `Fallback::Classify`, the twin of `rebase`.
+  `Entry::Rebase` is accordingly `Entry::Guarded`: the variant always was a
+  bare `Fallback`, so `compile_into` is unchanged. The invariant checker takes
+  its **totality** probe off `Rules` and onto `Classifier`, so a computed
+  table is probed too — which is exactly where mass goes missing, a
+  transplant pushing one call to −∞ and relying on another inheriting it; its
+  **alerts** stay unchecked, the disclosure price of being opaque, and are
+  now documented as such. First consumer: all of §9, opener's Cachalot
+  answers, including the contested-`X` answer that reads their intervention
+  off the auction. Byte-identical on the seeded 20k `smoke-default` and
+  `render-book`, and on a re-render with `NegativeDoubleShape::Cachalot`
+  armed.
+
 - **Six more defensive sections are declarative rows.** `defensive()`'s two
   per-suit mega-loops shed everything that is a plain exact node: the advance
   of partner's takeout double and the whole rich-advance continuation tree
