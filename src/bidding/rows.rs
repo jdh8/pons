@@ -15,14 +15,13 @@
 //! | Pattern construct | Lowers to |
 //! | --- | --- |
 //! | leading `P*` | seat fan, keys under `0..=3` leading passes |
-//! | exact calls | exact trie key |
+//! | [`Pattern::node`] | exact trie key |
 //! | [`Pattern::first`] | [`FirstIs`] guarded fallback |
 //! | [`Pattern::up_to`] | [`OvercallAtMost`] guarded fallback |
 //! | [`Pattern::table`], [`Pattern::after`] | [`SuffixIs`] guarded fallback |
 //! | [`rebase`] entry | [`Fallback::Rebase`] |
 //!
-//! The grammar grows only with its consumers: the exact-node constructor
-//! lands with the first package that needs it.
+//! The grammar grows only with its consumers.
 //!
 //! Auction strings write our calls bare and their calls in parentheses —
 //! `"P* 1♥ (X)"` — and the parser checks that parenthesisation against seat
@@ -172,6 +171,22 @@ impl Pattern {
             key: tokens.into_iter().map(|token| token.call).collect(),
             fan,
             guard: Some(GuardSpec::UpTo(bid)),
+        }
+    }
+
+    /// An exact classifier node at the `key`
+    ///
+    /// Lowers to a plain trie insert.  Unlike a guarded table, an exact node
+    /// may reject a hand (all-−∞) and fall through to the floor — the idiom
+    /// for a defense whose no-sound-action default belongs to the floor.
+    pub(crate) fn node(key: &str) -> Self {
+        let (tokens, fan) = parse(key);
+        check_sides(key, &tokens, tokens.len());
+        Self {
+            source: key.to_string(),
+            key: tokens.into_iter().map(|token| token.call).collect(),
+            fan,
+            guard: None,
         }
     }
 

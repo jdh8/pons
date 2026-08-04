@@ -16,6 +16,7 @@ use super::super::constraint::{
 use super::super::context::Context;
 use super::super::fallback::{Fallback, FirstIs, SuffixIs, described_rewrite, rewriter};
 use super::super::inference::Range;
+use super::super::rows::{Package, Pattern, compile_into, rows_of};
 use super::super::trie::{Classifier, classifier};
 use super::super::{Alert, Defensive, Rules, Trie};
 use super::competition::{
@@ -2093,6 +2094,30 @@ pub fn defense_to_weak_two(their_opening: Bid) -> Rules {
         }
     }
     rules
+}
+
+/// [`defense_to_weak_two`] over each weak-two opening, as rows
+///
+/// The exact-node pilot of the row layer: `P* (2♦)` and friends lower to the
+/// plain seat-fanned insert.  Clubs is omitted — a 2♣ opening is the strong
+/// artificial bid, not a weak two.
+fn weak_two_defense_package() -> Package {
+    Package {
+        name: "weak-two-defense",
+        gate: || true,
+        entries: || {
+            [Suit::Diamonds, Suit::Hearts, Suit::Spades]
+                .into_iter()
+                .flat_map(|suit| {
+                    let opening = Bid::new(2, Strain::from(suit));
+                    rows_of(
+                        Pattern::node(&format!("P* ({opening})")),
+                        defense_to_weak_two(opening),
+                    )
+                })
+                .collect()
+        },
+    }
 }
 
 /// Advancer's Gladiator structure over our `2NT` overcall of their weak two in
@@ -5417,19 +5442,12 @@ pub fn defensive() -> Defensive {
         }
     }
 
-    // Over each weak-two opening: takeout double, natural overcalls, 2NT, and
-    // advancing partner's takeout double.  Clubs is omitted — a 2♣ opening is
-    // the strong artificial bid, not a weak two.
+    // Over each weak-two opening (the row package): takeout double, natural
+    // overcalls, 2NT.  Then, per opening, the advances of those actions.
+    compile_into(&mut d, &[weak_two_defense_package()]);
     for suit in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         let theirs = Strain::from(suit);
         let opening = Bid::new(2, theirs);
-        insert_all_seats(
-            &mut d,
-            &[Call::Bid(opening)],
-            3,
-            defense_to_weak_two(opening),
-        );
-
         // Advancing our 2NT overcall: [2t, 2NT, P] — advancer to act.  Majors
         // only; over 2♦ both majors are unbid, so the cue has no Stayman to be.
         if weak_two_notrump_advances_enabled() && matches!(suit, Suit::Hearts | Suit::Spades) {
@@ -5893,6 +5911,13 @@ mod tests {
 
     const fn call(level: u8, strain: Strain) -> Call {
         Call::Bid(Bid::new(level, strain))
+    }
+
+    /// The ported row package holds the row invariants (alerts; totality is
+    /// exact-node-exempt).
+    #[test]
+    fn row_package_invariants() {
+        crate::bidding::rows::assert_package_invariants(&[super::weak_two_defense_package()]);
     }
 
     /// The direct-seat pass gate is the strong tier's complement, authored so
