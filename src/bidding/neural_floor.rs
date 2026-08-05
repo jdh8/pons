@@ -1,11 +1,13 @@
 //! Deterministic safety shell over the distilled neural floor — AI-bidder M1.3.
 //!
-//! [`neural::classify_bba`][crate::bidding::neural::classify_bba] is a bare MLP:
-//! it emits a finite logit for every one of the 38 calls, with no built-in
-//! respect for the laws or for the floor's non-negotiable forced-situation
-//! rails.  [`NeuralFloorBba`][crate::bidding::neural_floor::NeuralFloorBba] wraps it so it is safe to attach as the floor,
-//! exactly where [`instinct()`][super::instinct::instinct] attaches (see
-//! [`american`][super::american::american]).
+//! [`neural::classify_bba_v4`][crate::bidding::neural::classify_bba_v4] is a
+//! bare MLP: it emits a finite logit for every one of the 38 calls, with no
+//! built-in respect for the laws or for the floor's non-negotiable
+//! forced-situation rails.
+//! [`ConfiguredFloorBba`][crate::bidding::neural_floor::ConfiguredFloorBba]
+//! wraps it so it is safe to
+//! attach as the floor, exactly where [`instinct()`][super::instinct::instinct]
+//! attaches (see [`american`][super::american::american]).
 //!
 //! The shell has two paths:
 //!
@@ -46,44 +48,26 @@ use std::sync::LazyLock;
 /// The deterministic ladder, built once; the forced path reuses it per board.
 static LADDER: LazyLock<Rules> = LazyLock::new(instinct);
 
-/// The BBA-distilled disclosable floor, made safe to attach under the book
+/// The **configured** BBA-distilled floor — the shipped floor
 ///
 /// A [`Classifier`] drop-in for [`instinct()`][super::instinct::instinct]: the
 /// learned net in the judgement middle, the deterministic rails preserved by
-/// delegation.  It is fed the *disclosable-only*
-/// [`features_v3`][super::features::features_v3] (no card-specific values) and
-/// distilled from the vendored **EPBot 2/1** oracle
-/// ([`neural::classify_bba`]) — a stronger learned prior than the deterministic
-/// ladder it floors (EPBot clears our instinct floor by ~1.9 IMPs/board).  See
-/// the [module docs][self].
-#[derive(Clone, Copy, Debug, Default)]
-pub struct NeuralFloorBba;
-
-impl Classifier for NeuralFloorBba {
-    fn classify(&self, hand: Hand, context: &Context<'_>) -> Logits {
-        if forced(context) {
-            // Rails: trust the deterministic floor, never the net.
-            return LADDER.classify(hand, context);
-        }
-        let mut logits = neural::classify_bba(&features::features_v3(hand, context));
-        mask_illegal(&mut logits, context.auction());
-        logits
-    }
-}
-
-/// The **configured** BBA-distilled floor — the same shell over
-/// [`neural::classify_bba_v4`]
+/// delegation.  Distilled from the vendored **EPBot 2/1** oracle
+/// ([`neural::classify_bba_v4`]) — a stronger learned prior than the
+/// deterministic ladder it floors (EPBot clears our instinct floor by ~1.9
+/// IMPs/board).  See the [module docs][self].
 ///
-/// Identical to [`NeuralFloorBba`] in every respect but its inputs: it feeds the
-/// net [`features_v4`][super::features::features_v4], whose last 280 floats are
-/// both partnerships' convention cards.  So the regime is an *input* rather
-/// than a choice of artifact, and an A/B arm differs by a card row instead of
-/// by a separately trained net — the confound
-/// `docs/ai-bidder/configured-net.md` exists to remove.
+/// It is fed [`features_v4`][super::features::features_v4], whose last 280
+/// floats are **both partnerships' convention cards**.  So the regime is an
+/// *input* rather than a choice of artifact, and an A/B arm differs by a card
+/// row instead of by a separately trained net — the confound
+/// `docs/ai-bidder/configured-net.md` exists to remove.  It replaced the v3
+/// twin scheme on gate 1's verdict: +0.1933/+0.2469 plain DD and
+/// +0.5256/+0.5358 PD at 2,000,000 fresh boards per cell.
 ///
 /// The [`Config`] is captured **once, when the floor is built**, from whatever
 /// the knobs said at that moment (see
-/// [`american_configured`][super::american::american_configured]).  A stance is
+/// [`american`][super::american::american]).  A stance is
 /// built per A/B arm and a card is an agreement, not a per-call decision, so
 /// this is the right granularity — and it keeps the per-decision path from
 /// reading ambient state that could silently change what a feature vector
@@ -144,21 +128,21 @@ mod tests {
         Call::Bid(Bid::new(level, strain))
     }
 
-    /// The shelled net's logits for a hand in an auction
+    /// The shelled net's logits under the card the knobs currently describe
+    ///
+    /// The card is read per call, not once, because several tests below arm a
+    /// knob and re-shell to assert the logits moved.
     fn shelled(auction: &[Call], hand: &str) -> Logits {
-        let hand: Hand = hand.parse().expect("valid test hand");
-        let context = Context::new(RelativeVulnerability::NONE, auction);
-        NeuralFloorBba.classify(hand, &context)
-    }
-
-    /// The configured shell's logits under the card the knobs currently describe
-    fn configured(auction: &[Call], hand: &str) -> Vec<f32> {
         let hand: Hand = hand.parse().expect("valid test hand");
         let floor =
             ConfiguredFloorBba::new(Config::symmetric(&crate::bidding::card::american_card()));
         let context = Context::new(RelativeVulnerability::NONE, auction);
-        floor
-            .classify(hand, &context)
+        floor.classify(hand, &context)
+    }
+
+    /// [`shelled`] as a plain vector, for whole-vector comparisons
+    fn configured(auction: &[Call], hand: &str) -> Vec<f32> {
+        shelled(auction, hand)
             .iter()
             .map(|(_, logit)| *logit)
             .collect()

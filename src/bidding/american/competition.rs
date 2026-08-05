@@ -5883,11 +5883,21 @@ mod tests {
         assert!(floored, "without the toggle the auction is unauthored");
     }
 
+    /// 1NT-(2NT)-X, opponents run to 3♣: responder with a club stack doubles
+    /// (the UvU penalty chase), and partner would leave it in.
+    ///
+    /// Asserted against `american_instinct()`, not `american()`, because the
+    /// chase is a rule of the **deterministic** ladder gated on
+    /// `set_uvu_encircle` — and `with_floor` attaches `instinct()` to the
+    /// *constructive* book only, so on a contested auction like this one the
+    /// learned floor is the sole answer and the rule never runs. Through
+    /// `american()` this test asserted that the net happened to *agree* with the
+    /// ladder, which the v3 net did and the configured v4 net does not (it
+    /// passes, X 7.813 against P 8.544 — a 0.73-logit margin). Pinning an
+    /// individual net call is what `tests/common/mod.rs` exists to forbid; the
+    /// net is validated in aggregate by the `ab-*` harnesses.
     #[test]
     fn uvu_encircling_doubles_the_runout() {
-        // 1NT-(2NT)-X, opponents run to 3♣: responder with a club stack doubles
-        // (the UvU penalty chase), and partner would leave it in. The chase is
-        // the instinct floor's, gated on set_uvu_encircle (read on this thread).
         super::set_uvu(true);
         crate::bidding::instinct::set_uvu_encircle(true);
         let auction = [
@@ -5898,8 +5908,17 @@ mod tests {
             Call::Pass,
             Call::Pass,
         ];
-        let (c, _) = best_call(&auction, "K54.84.732.KQJT9");
-        crate::bidding::instinct::set_uvu_encircle(false); // restore for siblings
+        let hand: Hand = "K54.84.732.KQJT9".parse().expect("valid test hand");
+        let (logits, _) = crate::bidding::american::american_instinct()
+            .against()
+            .classify_with_provenance(hand, RelativeVulnerability::NONE, &auction)
+            .expect("a legal auction classifies");
+        let c = (&logits.0)
+            .into_iter()
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))
+            .map(|(call, _)| call)
+            .expect("array is never empty");
+        crate::bidding::instinct::set_uvu_encircle(true); // the shipped default
         assert_eq!(c, Call::Double, "encircle the 3♣ runout with a club stack");
     }
 

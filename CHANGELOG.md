@@ -136,6 +136,114 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The configured net is the default floor, and the v3 twins are gone
+  (breaking).** `american()` and `dutch()` now stand on `ConfiguredFloorBba`
+  over `american_bba_v4` — the net that reads **both partnerships' convention
+  cards** as 280 of its 368 input floats — instead of `NeuralFloorBba` over the
+  v3 twin artifacts. This is the ship decision
+  `docs/ai-bidder/configured-net.md` deferred to gate 1, and gate 1 passed
+  decisively: at **2,000,000 freshly generated boards per cell** (seed
+  1785708870, arms sequential, identical rules and book — only the floor
+  artifact differs), `v4 − minors` measured **plain DD +0.1933 ± 0.0047 (none)
+  / +0.2469 ± 0.0057 (both)** and **perfect defense +0.5256 ± 0.0060 /
+  +0.5358 ± 0.0070**, divergent on 33.24% / 29.89% of boards. Plain-DD win *and*
+  PD win at both vulnerabilities, every interval far from zero.
+
+  Gate 1's verdict transfers to this commit with no vintage drift — the only
+  behaviour-changing `src/bidding` commit between it and here fixes disclosure
+  in the `(floor_rkcb = off, variant = Kickback)` cell, which is not gate 1's
+  cell; everything else since was proven byte-identical.
+
+  **API (0.11 development window):** `american_configured()` is gone — once it
+  is the default the name distinguishes nothing, and collapsing to one
+  constructor is what makes card/rules disagreement inexpressible on the shipped
+  path, since `american()` reads the card and the book from one knob state in
+  one expression. `american_configured_with` is renamed `american_with_config`
+  and remains the way to declare an opponent the knobs cannot describe.
+  `NeuralFloorBba`, `neural::classify_bba`, and the artifacts
+  `weights/american_bba{,_kickback}.{f32,fixture.json,json}` are deleted.
+
+  **`set_rkcb_variant` is unchanged in behaviour and still opt-in** (default
+  `Plain`), but it now reaches the net *only* through the generated card's
+  `Kickback 1430` row — an arm differs by a card row rather than by a weights
+  artifact, which is the separation this campaign existed to buy. Both `.bbsa`
+  snapshots are byte-identical, and so is `render-book` (SHA-256
+  `759527867f98600961e6ed9b3d757cb91f0d30dd7f72dbb1cd8e22e80be35bde`), which
+  walks the floor-less books — proof the change is floor-only. `smoke-default
+  --count 20000 --seed 1` moves, as it must: `33dd53ef…` → `82854c3a…`.
+
+  **Costs, measured not estimated.** The net is 170,022 parameters against the
+  v3 net's 98,342 and takes a 368-float vector instead of 88, all of the growth
+  in layer 1; `features_v4` also reallocates to append the card block.
+  `scripts/bench-bidding-performance.sh`, same protocol as the closed
+  performance campaign:
+
+  | | before (v3) | after (v4) | |
+  | --- | ---: | ---: | ---: |
+  | µs/decision, CPU 4 | 13.016 | **16.325** | +25.4% |
+  | µs/decision, CPU 14 | 12.516 | **15.312** | +22.3% |
+  | µs/deal, CPU 4 | 104.11 | **126.72** | +21.7% |
+  | µs/deal, CPU 14 | 99.447 | **118.78** | +19.4% |
+  | allocations/decision | 16.189 | **16.729** | +3.3% |
+  | requested bytes/decision | 3,817.3 | **4,610.8** | +20.8% |
+
+  **This is the headroom being spent on decision quality, which is what it was
+  for.** The intolerable state was losing to BBA *and* being slower than it —
+  before the performance campaign, pons ran 197.8 µs/decision against wrapped
+  BBA's 166.2 on the V-cache CCD. It now runs 16.325 against 167.756, a **10.3×
+  margin**, while bidding +0.19 plain / +0.53 PD IMPs per board better. Buying
+  that with a fifth of a tenfold surplus is the trade the optimization existed
+  to make available.
+
+  No gate fails: all three are *ratios* over the same stance, and Pons/BBA is
+  0.0972 / 0.0746 against a `< 1.0` bar. BBA-opposed A/Bs are unaffected — BBA
+  dominates at 168–204 µs — so only self-play data-gen pays the ~20%, and that
+  is the one number to watch if throughput ever binds again. **The recovery path
+  is known and deliberately not taken here:** the 280-float card block is
+  constant for a built floor, so `W1[:, 88..] @ card` folds into `l1.bias` at
+  build time, removing both the layer-1 growth and the reallocation. It is not
+  bit-exact (summation order), so it would need its own fixture tolerance and
+  would mean the shipped bidder is no longer the artifact gate 1 measured — a
+  bad trade while the surplus is this large. (CPU 14's stability CV came in at
+  2.13% against the 2% bar — the box was not idle; CPU 4's 0.46% is clean and
+  the two agree.)
+
+  Deleting two unconditionally-embedded 393 KB artifacts shrinks every binary —
+  including the wasm bundle — by **786 KB**. And gate 1
+  is no longer reproducible: its baseline arm *was* the shipped v3 behaviour, so
+  `ab-kickback` loses its `v4`/`v4-kickback` arms (every arm is configured now,
+  so `minors` ≡ the old `v4`); it reproduces at `f719be9`.
+
+  **`ab-kickback` needed a fix the swap forced.** It built non-configured arms
+  with bare `american()` and leaned on re-arming knobs before every call to
+  carry the mixed table — which worked only because `classify_bba` read the
+  kickback knob per decision. A configured floor captures at build and reads no
+  ambient state, so every arm now routes through
+  `american_with_config(Config::new(&card(arm), &card(opponent)))`. Left alone,
+  each arm would have claimed the opponent plays its own card, on precisely the
+  mixed boards gate 2 measures.
+
+  **One test moved, and it exposed a mis-targeted assertion.**
+  `uvu_encircling_doubles_the_runout` asserted the UvU penalty chase through
+  `american()`, but the chase is a rule of the **deterministic** ladder gated on
+  `set_uvu_encircle`, and `with_floor` attaches `instinct()` to the
+  *constructive* book only — so on a contested auction the learned floor is the
+  sole answer and that rule never runs. The test was asserting that the net
+  happened to *agree* with the ladder; the v3 net did, the v4 net does not
+  (after `1NT (2NT) X (3♣) P P` holding `K54.84.732.KQJT9` it passes, X 7.813
+  against P 8.544 — a 0.73-logit margin, and the double is the better bridge
+  call). Retargeted at `american_instinct()`, where the rule actually lives and
+  still fires. Pinning an individual net call is what `tests/common/mod.rs`
+  exists to forbid: the net is validated in aggregate, and in aggregate it wins
+  by the margins above.
+
+  **Owed, and off the critical path:** Dutch's floor A/B
+  (`scripts/ab-dutch-floor.sh`) — its +0.1764/+0.2764 was taken under v3 —
+  the book-value ablation (`scripts/ab-book-value.sh`, both arms moved), and the
+  shipping-pair anchor side-run. The decompose-and-rank anchor series is
+  unaffected: it is anchored on `american_instinct()` precisely because
+  `american()` carries a net floor.
+
 - **Evaluator feature extractors now return fixed arrays (breaking).**
   `features_eval`, `features_eval_v3`, `features_eval_v4`,
   `features_eval_shape`, and `features_eval_points` return arrays at their

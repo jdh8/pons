@@ -1,22 +1,23 @@
 //! Measure the keycard ladder's relocated ask (Kickback/Redwood) as a
 //! duplicate A/B match.
 //!
-//! Five arms over three axes, so each coupled change stays attributable:
+//! Three arms over two axes, so each coupled change stays attributable:
 //!
-//! | arm | `set_rkcb_minors` | `set_rkcb_variant` | floor | what it is |
-//! |---|---|---|---|---|
-//! | `plain` | off | plain | v3 | majors-only trump, the ask is 4NT |
-//! | `minors` | on | plain | v3 | minor asks at plain 4NT — round 4's losing arm, re-priced |
-//! | `kickback` | on | kickback | v3 twin | opt-in again since the gate-2 loss: 4♦/4♥ Redwood, 4♠ over hearts |
-//! | `v4` | on | plain | **v4** | the configured net, playing `minors`' rules |
-//! | `v4-kickback` | on | kickback | **v4** | the configured net, playing `kickback`'s rules |
+//! | arm | `set_rkcb_minors` | `set_rkcb_variant` | what it is |
+//! |---|---|---|---|
+//! | `plain` | off | plain | majors-only trump, the ask is 4NT |
+//! | `minors` | on | plain | minor asks at plain 4NT — round 4's losing arm, re-priced |
+//! | `kickback` | on | kickback | opt-in again since the gate-2 loss: 4♦/4♥ Redwood, 4♠ over hearts |
 //!
-//! The last two are `docs/ai-bidder/configured-net.md`'s acceptance gates:
-//!
-//! | gate | invocation | question |
-//! |---|---|---|
-//! | 1. quality | `--feature v4 --baseline minors` | is the configured net a better bidder at *fixed* rules? |
-//! | 2. convention | `--feature v4-kickback --baseline v4` | what is the relocation worth, alone? |
+//! Every arm stands on the configured (v4) floor, which is now the only floor
+//! `american()` has — so an arm differs from another by a **convention card
+//! row**, never by a weights artifact.  That is the separation
+//! `docs/ai-bidder/configured-net.md` was written to buy, and it is now
+//! structural rather than opt-in.  `--feature kickback --baseline minors` is
+//! gate 2 (what the relocation is worth, alone; measured a loss).  **Gate 1**
+//! — `v4 − minors`, which priced the floor swap itself — is no longer
+//! expressible: its baseline *was* the v3 artifact, deleted with the twins.
+//! It reproduces at `f719be9`.
 //!
 //! Gate 2 is the fair comparison the first three arms cannot give.  Under the v3
 //! floor the kickback stance swaps the weights as well as the rules, so `kickback −
@@ -77,9 +78,7 @@
 //! cargo run --release --features serde --example ab-kickback -- \
 //!     --feature kickback --baseline plain --count 10000000 --sd
 //! cargo run --release --features serde --example ab-kickback -- \
-//!     --feature v4 --baseline minors --count 2000000 --sd       # gate 1
-//! cargo run --release --features serde --example ab-kickback -- \
-//!     --feature v4-kickback --baseline v4 --count 2000000 \
+//!     --feature kickback --baseline minors --count 2000000 \
 //!     --dump /mnt/hdd-data/jdh8/pons-ab-results/kickback-cell-nv  # gate 2
 //! cargo run --release --features serde --example ab-kickback -- \
 //!     --rescore /mnt/hdd-data/jdh8/pons-ab-results/kickback-cell-nv --show 999999
@@ -90,9 +89,8 @@ use contract_bridge::auction::{Auction, Call};
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat, Suit};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::Accumulator;
-use pons::american;
 use pons::bidding::Stance;
-use pons::bidding::american::american_configured_with;
+use pons::bidding::american::american_with_config;
 use pons::bidding::card::{Card, american_card};
 use pons::bidding::features::Config;
 use pons::bidding::instinct::{
@@ -109,7 +107,12 @@ mod common;
 use common::{Board, next_call, seat_to_act, seeded_deals};
 use std::path::PathBuf;
 
-/// One arm of the experiment: which knobs it arms, and which floor it stands on
+/// One arm of the experiment: which knobs it arms
+///
+/// The `v4`/`v4-kickback` arms are gone with the twin artifacts: every arm now
+/// stands on the configured floor, so `minors` *is* the old `v4` and `kickback`
+/// *is* the old `v4-kickback`.  Gate 1 (`v4 − minors`) priced the floor swap and
+/// is no longer expressible here; it reproduces at `f719be9`.
 #[derive(Clone, Copy, PartialEq, Eq, ValueEnum)]
 enum Arm {
     /// Today's system: majors-only keycard trump, the ask is 4NT
@@ -118,33 +121,20 @@ enum Arm {
     Minors,
     /// Full Kickback: minor asks relocated to 4♦/4♥ (Redwood), hearts to 4♠
     Kickback,
-    /// `minors`' rules on the configured (v4) floor — gate 1's feature arm
-    V4,
-    /// `kickback`'s rules on the configured (v4) floor — gate 2's feature arm
-    V4Kickback,
 }
 
 impl Arm {
     /// Whether this arm lifts `keycard_trump`'s majors-only carve
     const fn minors(self) -> bool {
-        matches!(
-            self,
-            Self::Minors | Self::Kickback | Self::V4 | Self::V4Kickback
-        )
+        matches!(self, Self::Minors | Self::Kickback)
     }
 
     /// The relocation stance this arm plays
     const fn variant(self) -> RkcbVariant {
         match self {
-            Self::Kickback | Self::V4Kickback => RkcbVariant::Kickback,
-            Self::Plain | Self::Minors | Self::V4 => RkcbVariant::Plain,
+            Self::Kickback => RkcbVariant::Kickback,
+            Self::Plain | Self::Minors => RkcbVariant::Plain,
         }
-    }
-
-    /// Whether this arm's floor reads its convention card (`american_bba_v4`)
-    /// rather than selecting one of the twin v3 artifacts by knob
-    const fn configured(self) -> bool {
-        matches!(self, Self::V4 | Self::V4Kickback)
     }
 
     const fn label(self) -> &'static str {
@@ -152,8 +142,6 @@ impl Arm {
             Self::Plain => "plain",
             Self::Minors => "minors",
             Self::Kickback => "kickback",
-            Self::V4 => "v4",
-            Self::V4Kickback => "v4-kickback",
         }
     }
 }
@@ -352,19 +340,16 @@ fn card(arm: Arm) -> Card {
 /// presence, and `set_rkcb_minors` by the book's `install_rkcb`, so the arms
 /// cannot share a book.
 ///
-/// A configured arm additionally captures the cell at build time: its own card
-/// and `opponent`'s, which is the mixed table these two arms will play.  The
-/// cards are read *before* the knobs are armed for the build, because
-/// `american_card` reads the same knobs.
+/// Every arm captures the cell at build time: its own card and `opponent`'s,
+/// which is the mixed table these two arms will play.  Bare [`american`] would
+/// be *wrong* here — it declares the opponents as playing our own card, so each
+/// arm would claim the other relocates exactly as it does, on precisely the
+/// mixed boards this experiment measures.  The cards are read *before* the knobs
+/// are armed for the build, because `american_card` reads the same knobs.
 fn build(arm: Arm, opponent: Arm) -> Stance {
-    let cell = arm
-        .configured()
-        .then(|| Config::new(&card(arm), &card(opponent)));
+    let cell = Config::new(&card(arm), &card(opponent));
     arm_knobs(arm);
-    let stance = match cell {
-        Some(config) => american_configured_with(config).against(),
-        None => american().against(),
-    };
+    let stance = american_with_config(cell).against();
     arm_knobs(Arm::Plain);
     stance
 }

@@ -1631,7 +1631,7 @@ mod tests {
 
     #[test]
     fn cached_reference_parity_across_reading_and_evaluator_profiles() {
-        use crate::bidding::american::{american_configured, american_instinct};
+        use crate::bidding::american::{american, american_instinct};
         use crate::bidding::inference::ReadingScope;
         use contract_bridge::Hand;
         use contract_bridge::auction::RelativeVulnerability;
@@ -1736,7 +1736,7 @@ mod tests {
             crate::bidding::instinct::set_net_collar(profile.collar);
 
             let stance = if profile.configured {
-                american_configured().against()
+                american().against()
             } else {
                 american_instinct().against()
             };

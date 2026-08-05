@@ -2,10 +2,11 @@
 //!
 //! An `f32` matmul + ReLU evaluation of the MLP that `trainer/` fits off-crate.
 //! There is no ML runtime: the weights are embedded with [`include_bytes!`] and
-//! the arithmetic is three `nalgebra` gemvs. The BBA-distilled net
-//! (`classify_bba`) backs the default [`american`][crate::american()] floor, and
-//! runs on roughly half of all bidding decisions — the hand-rolled scalar loops
-//! this replaced were ~60% of the crate's bidding time on their own.
+//! the arithmetic is three `nalgebra` gemvs. The configured BBA-distilled net
+//! ([`classify_bba_v4`][crate::bidding::neural::classify_bba_v4]) backs the
+//! default [`american`][crate::american()]
+//! floor, and runs on the contested off-book decisions — the hand-rolled scalar
+//! loops this replaced were ~60% of the crate's bidding time on their own.
 //!
 //! The forward pass mirrors `candle_nn::Linear` (weights are `(out, in)`
 //! row-major, `y = x·Wᵀ + b`). The parity test below asserts it reproduces the
@@ -13,8 +14,7 @@
 //! that the arg-max (the chosen call) matches exactly.
 
 use super::array::Logits;
-use super::features::{FEATURES_LEN_V3, FEATURES_LEN_V4};
-use super::instinct::relocating_now;
+use super::features::FEATURES_LEN_V4;
 use nalgebra::{SMatrixView, SVector, SVectorView};
 use std::sync::LazyLock;
 
@@ -91,95 +91,11 @@ fn forward<const IN: usize>(weights: &[f32], x: &[f32]) -> Logits {
     logits
 }
 
-// ── BBA-distilled floor: the disclosable v3 features, EPBot 2/1 teacher ───────
-// The net sees only the *disclosable* hand summary — no card-specific values
-// (see `features::features_v3`) — and its teacher is the vendored EPBot 2/1
-// oracle, a behavioral clone of BBA's chosen call. A stronger prior for the
-// floor to stand on than the deterministic ladder it replaces.
-
-/// Input width of `american_bba`, pinned to the artifact (= [`FEATURES_LEN_V3`]).
-const IN_V3: usize = FEATURES_LEN_V3;
-
-/// Embedded BBA-distilled weights: v3 layout (88 disclosable inputs), EPBot 2/1 teacher.
-static RAW_BBA: &[u8] = include_bytes!("weights/american_bba.f32");
-const _: () = assert!(
-    RAW_BBA.len() == total(IN_V3) * 4,
-    "BBA weights artifact size mismatch"
-);
-
-/// BBA weights decoded to `f32` once, on first use.
-static WEIGHTS_BBA: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_BBA));
-
-/// The kickback twin of the BBA artifact — same architecture, same recipe, same
-/// `data_seed`/`init_seed`, corpus regenerated from a teacher that *plays*
-/// kickback (`dump-teacher --conv "Kickback 1430=1" --kickback`).  Selected per
-/// call by [`relocating_now`] — the full ladder or its Redwood minor half,
-/// which has no twin of its own and for which this one is the nearest regime
-/// (right about the relocated minor lanes, trained to expect a 4♠ ask the
-/// hearts lane no longer makes); the plain stance never touches it.
-///
-/// It exists because kickback is not a rule the reader can hold on its own.  A
-/// ladder decides what a bid *means*; the net decides what gets *bid*, and a net
-/// distilled from a kickback-blind teacher keeps jumping to a natural 4♥ in the
-/// very auction where the ladder has claimed 4♥ as the diamond ask — the
-/// answerer reads a question, the natural continuation is face-gated off, and
-/// the auction is passed out in a 4-1 fit.  Retuning the ladder cannot reach
-/// that; only the net that chooses the call can
-/// (`docs/ai-bidder/bba-kickback.md` §7.7).
-///
-/// **Why two nets and not one that reads the regime off the auction.**  The
-/// obvious economy is a single net trained on both systems, letting it infer
-/// which one it is in from the ranges the bids carry — forty of the
-/// eighty-eight features come from `Inferences::read`, and a 4♥ that asks for
-/// keycards reads nothing like a 4♥ that shows hearts.  It was built
-/// (`dump-teacher --mix-kickback`, 866k rows alternating by board) and it is a
-/// better *net* by every aggregate: val CE 0.4004 against this twin's 0.4431
-/// and the plain net's 0.4518.
-///
-/// It still bids the phantom 4♥.  The regime is not in the features **at the
-/// moment the call is chosen**: the readings describe the auction *so far*, and
-/// `1♦ P 1♠ P 2♦` is three natural bids in either system, so both regimes
-/// present that decision with byte-identical inputs and contradictory targets —
-/// 2♥ from the kickback teacher, 4♥ from the plain one.  The net can only
-/// average them.  The ranges do diverge, but one ply too late: only once a
-/// relocated ask has been *made*, which is the decision we needed it to get
-/// right.  Separate weights are how a regime bit gets expressed without
-/// widening the pinned v3 feature vector; carrying a disclosable "kickback on"
-/// input instead would make one net feasible, and owes a feature-version bump.
-static RAW_BBA_KICKBACK: &[u8] = include_bytes!("weights/american_bba_kickback.f32");
-const _: () = assert!(
-    RAW_BBA_KICKBACK.len() == total(IN_V3) * 4,
-    "kickback BBA weights artifact size mismatch"
-);
-
-/// [`RAW_BBA_KICKBACK`] decoded to `f32` once, on first use.
-static WEIGHTS_BBA_KICKBACK: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_BBA_KICKBACK));
-
-/// Evaluate the BBA-distilled floor: 88 disclosable features → 38 logits, in
-/// `Call`-index order. Distilled from the vendored EPBot 2/1 oracle (a hard
-/// clone of BBA's argmax call). Deterministic — fixed weights, no RNG.
-///
-/// This is the raw net output; legality masking and the forced-situation
-/// overrides are the job of the safety shell (M1.3), not of this function.
-///
-/// # Panics
-///
-/// Panics if `features.len()` is not the pinned v3 [`FEATURES_LEN_V3`] (88).
-#[must_use]
-pub fn classify_bba(features: &[f32]) -> Logits {
-    assert_eq!(features.len(), IN_V3, "expected {IN_V3} features");
-    let weights = if relocating_now() {
-        WEIGHTS_BBA_KICKBACK.as_slice()
-    } else {
-        WEIGHTS_BBA.as_slice()
-    };
-    forward::<IN_V3>(weights, features)
-}
-
 // ── The configured floor: v4 features, one net for every regime ──────────────
 // `docs/ai-bidder/configured-net.md`.  The convention card is an *input* here,
-// so the regime no longer needs a weights artifact of its own and the twin
-// above no longer needs a sibling per knob.
+// so a regime needs no weights artifact of its own.  That is what retired the v3
+// twin pair — one net per kickback stance, selected per decision by the knob —
+// on gate 1's verdict (configured-net.md phase 6).
 
 /// Input width of `american_bba_v4`, pinned to the artifact (= [`FEATURES_LEN_V4`]).
 const IN_V4: usize = FEATURES_LEN_V4;
@@ -198,7 +114,9 @@ static WEIGHTS_BBA_V4: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_BBA_V4))
 
 /// Evaluate the **configured** BBA-distilled floor: 368 features → 38 logits.
 ///
-/// The sibling of [`classify_bba`], and its intended replacement.  It reads no
+/// The shipped floor's net, and the only one left: it retired the v3 twin pair
+/// (`american_bba` + `american_bba_kickback`, selected per call by the kickback
+/// knob) on gate 1's verdict.  It reads no
 /// ambient knob state at all: the regime arrives in the feature vector as both
 /// partnerships' convention cards ([`features_v4`][super::features::features_v4]),
 /// so one artifact serves every cell and an A/B arm differs by a card row
@@ -269,32 +187,9 @@ mod tests {
         );
     }
 
-    /// The plain net is now the *knob-off* artifact, so this arms the knob
-    /// explicitly rather than leaning on the default.  Together with its twin
-    /// below, the pair pins the **selection**: each fixture is missed by the
-    /// other net's logits, so a swapped branch fails both ways.  The knob is a
-    /// thread-local and the harness gives each test its own thread, so setting
-    /// it here cannot leak into a sibling.
-    #[test]
-    fn matches_candle_fixture_bba() {
-        crate::bidding::instinct::set_rkcb_variant(crate::bidding::instinct::RkcbVariant::Plain);
-        check_fixture(include_str!("weights/american_bba.fixture.json"), |x| {
-            classify_bba(x).iter().map(|(_, l)| *l).collect()
-        });
-    }
-
-    /// The kickback twin clears the same parity bar, on the opt-in stance.
-    #[test]
-    fn matches_candle_fixture_bba_kickback() {
-        crate::bidding::instinct::set_rkcb_variant(crate::bidding::instinct::RkcbVariant::Kickback);
-        check_fixture(
-            include_str!("weights/american_bba_kickback.fixture.json"),
-            |x| classify_bba(x).iter().map(|(_, l)| *l).collect(),
-        );
-    }
-
-    /// The configured net clears the same bar at its wider input.  No knob is
-    /// armed: it reads the regime off the features, which is the whole point.
+    /// The configured net clears the parity bar at its wider input.  No knob is
+    /// armed: it reads the regime off the features, which is the whole point,
+    /// and it is the only artifact left to pin since the v3 twins went.
     #[test]
     fn matches_candle_fixture_bba_v4() {
         check_fixture(include_str!("weights/american_bba_v4.fixture.json"), |x| {

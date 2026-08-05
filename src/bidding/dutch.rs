@@ -16,8 +16,10 @@ mod responses;
 
 use super::Pair;
 use super::american::american_book;
+use super::card::dutch_card;
 use super::common::{call, insert_uncontested, with_floor, with_instinct_floor};
-use super::neural_floor::NeuralFloorBba;
+use super::features::Config;
+use super::neural_floor::ConfiguredFloorBba;
 use contract_bridge::auction::Call;
 use contract_bridge::{Strain, Suit};
 
@@ -25,6 +27,12 @@ use contract_bridge::{Strain, Suit};
 ///
 /// Bind it with [`Pair::against`] and seat two pairs with
 /// [`Table::of_pairs`][super::Table::of_pairs], exactly like `american()`.
+///
+/// The contested books stand on [`ConfiguredFloorBba`] under
+/// [`dutch_card`], so the net is told it is bidding
+/// Dutch rather than 2/1 — the v4 corpus covers both base systems.  Before the
+/// configured net this was `NeuralFloorBba`, which had never seen a WJ card and
+/// invented a diamond suit over the `1♦` relay.
 ///
 /// ```
 /// use pons::dutch;
@@ -46,13 +54,16 @@ use contract_bridge::{Strain, Suit};
 /// ```
 #[must_use]
 pub fn dutch() -> Pair {
-    with_floor(dutch_book(), NeuralFloorBba)
+    with_floor(
+        dutch_book(),
+        ConfiguredFloorBba::new(Config::symmetric(&dutch_card())),
+    )
 }
 
 /// The Dutch pair with the deterministic **instinct** floor (the pre-swap default)
 ///
 /// Exactly [`dutch`] but for the floor: the BBA-distilled
-/// [`NeuralFloorBba`] gives way to the deterministic
+/// [`ConfiguredFloorBba`] gives way to the deterministic
 /// [`instinct`][crate::bidding::instinct()] ladder.  Mirrors
 /// [`american_instinct`][crate::american_instinct] — the fully-disclosable
 /// reference, and the fixed baseline the Dutch campaign's floor A/Bs anchor on.

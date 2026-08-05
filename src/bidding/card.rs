@@ -29,12 +29,20 @@
 //! * **filler** — the remaining `Not defined = 0` rows and the trailing
 //!   `Opponent type = 0`, emitted verbatim to keep the file's shape reviewable.
 //!
-//! # Limitation
+//! # The card is also the floor's input
 //!
-//! The card describes the **authored book**.  It cannot express floor behaviour,
-//! so `american()` and [`american_instinct`][crate::american_instinct] generate
-//! the same card, and a `--our-floor` swap is not disclosed.  The default floor
-//! is BBA-distilled, so BBA's own defaults approximate it; no row exists for it.
+//! The card describes the **authored book**, and since the configured net
+//! shipped it is *also* what the default floor reads: `american()` encodes this
+//! card into [`Config`][crate::bidding::features::Config] and hands it to
+//! [`ConfiguredFloorBba`][crate::bidding::neural_floor::ConfiguredFloorBba].  So
+//! a row here moves three things at once — what we disclose, what the rules
+//! play, and what the net is told it is playing.  That is the point: a knob
+//! cannot change the system without the disclosure and the net following.
+//!
+//! It still cannot express *which* floor is attached, so `american()` and
+//! [`american_instinct`][crate::american_instinct] generate the same card and a
+//! `--our-floor` swap is not disclosed.  BBA's own defaults approximate the
+//! distilled floor; no row exists for it.
 
 use super::american::{
     EUROPEAN, LebensohlStyle, NotrumpDefense, NotrumpShape, fourth_suit_forcing, garbage_stayman,
@@ -628,8 +636,9 @@ mod tests {
     /// turning the floor's keycard machinery off while a relocation was selected
     /// published a convention we then never bid — an undisclosed-system fault
     /// before it is a measurement one, and it invalidates a kickback-vs-BBA
-    /// anchor.  `classify_bba`'s weight selection reads the same predicate, so
-    /// this pins that too.
+    /// anchor.  This row is now the **only** channel by which the knob reaches
+    /// the floor — the v3 twin selection that read the same predicate is gone —
+    /// so the pin matters more, not less.
     #[test]
     fn the_card_discloses_kickback_only_when_the_floor_can_ask() {
         use crate::bidding::instinct::{RkcbVariant, set_floor_rkcb, set_rkcb_variant};

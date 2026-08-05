@@ -175,6 +175,18 @@ pub use xyz::{set_xyz, set_xyz_invite_judgment};
 /// two pairs with [`Table::of_pairs`][super::Table::of_pairs] for a full
 /// table.
 ///
+/// The contested books stand on
+/// [`ConfiguredFloorBba`][crate::bidding::neural_floor::ConfiguredFloorBba] —
+/// one artifact that takes both partnerships' convention cards as inputs, so
+/// the convention regime is a card *row* rather than a separately trained net.
+/// **The card is read here, at build time**, from whatever the `set_*` knobs say
+/// when this is called, in the same expression that reads them for
+/// [`american_book`].  That is what keeps card and rules from disagreeing: an
+/// A/B arm builds its stance with its own knobs armed, exactly as it already
+/// does for rule presence, and gets a matching card for free.  Opponents are
+/// modeled as playing our own card, matching every other undeclared-opposition
+/// default in the crate; a genuinely mixed table wants [`american_with_config`].
+///
 /// ```
 /// use pons::american;
 /// use pons::bidding::System;
@@ -195,36 +207,12 @@ pub use xyz::{set_xyz, set_xyz_invite_judgment};
 /// ```
 #[must_use]
 pub fn american() -> Pair {
-    with_floor(american_book(), super::neural_floor::NeuralFloorBba)
-}
-
-/// The 2/1 pair with the **configured** floor — the net reads the card
-///
-/// Exactly [`american`] but for the floor:
-/// [`NeuralFloorBba`][crate::bidding::neural_floor::NeuralFloorBba] gives way to
-/// [`ConfiguredFloorBba`][crate::bidding::neural_floor::ConfiguredFloorBba], one
-/// artifact that takes both partnerships' convention cards as inputs instead of
-/// one artifact per regime.
-///
-/// **The card is read here, at build time**, from whatever the `set_*` knobs say
-/// when this is called — so build a stance per A/B arm with that arm's knobs
-/// already armed, exactly as the arms already do for rule presence.  Opponents
-/// are modeled as playing our own card, matching every other
-/// undeclared-opposition default in the crate; a genuinely mixed table needs
-/// [`ConfiguredFloorBba::new`][crate::bidding::neural_floor::ConfiguredFloorBba::new]
-/// with a [`Config::new`][crate::bidding::features::Config::new].
-///
-/// Not yet the default: `docs/ai-bidder/configured-net.md`'s gate 1 is what
-/// decides whether this replaces [`american`], and gate 2 is what the
-/// separation buys.
-#[must_use]
-pub fn american_configured() -> Pair {
-    american_configured_with(super::features::Config::symmetric(
+    american_with_config(super::features::Config::symmetric(
         &super::card::american_card(),
     ))
 }
 
-/// [`american_configured`] against a declared opponent — the mixed table
+/// [`american`] against a **declared** opponent — the mixed table
 ///
 /// The two arms of an A/B *play each other*, so at every table one side
 /// relocates its asks and the other does not.  That asymmetric cell is in the
@@ -233,9 +221,12 @@ pub fn american_configured() -> Pair {
 ///
 /// `config` is taken verbatim and the **book still comes from the live knobs**,
 /// so set them to match — a card claiming an agreement the rules do not play is
-/// a misdisclosure to the net, and nothing checks it.
+/// a misdisclosure to the net, and nothing checks it.  [`american`] cannot make
+/// that mistake (it reads card and book from one knob state in one expression);
+/// this entry point can, which is the price of declaring an opponent the knobs
+/// cannot describe.
 #[must_use]
-pub fn american_configured_with(config: super::features::Config) -> Pair {
+pub fn american_with_config(config: super::features::Config) -> Pair {
     with_floor(
         american_book(),
         super::neural_floor::ConfiguredFloorBba::new(config),
@@ -245,7 +236,8 @@ pub fn american_configured_with(config: super::features::Config) -> Pair {
 /// The 2/1 pair with the deterministic **instinct** floor (the pre-BBA default)
 ///
 /// Exactly [`american`] but for the floor: the learned
-/// [`NeuralFloorBba`][crate::bidding::neural_floor::NeuralFloorBba] gives way to
+/// [`ConfiguredFloorBba`][crate::bidding::neural_floor::ConfiguredFloorBba]
+/// gives way to
 /// the deterministic [`instinct`][crate::bidding::instinct()] ladder.  This is the
 /// fully-disclosable reference system — every off-book call is a described,
 /// natural instinct call — and the fixed baseline the BBA-gap campaign anchors
@@ -260,22 +252,28 @@ pub fn american_instinct() -> Pair {
 ///
 /// Exactly [`american`] but for the books: all three are empty, so every
 /// auction falls straight through to the same floor wiring [`american`] uses —
-/// [`NeuralFloorBba`][crate::bidding::neural_floor::NeuralFloorBba] on the
-/// contested books, the deterministic [`instinct`][crate::bidding::instinct()]
+/// [`ConfiguredFloorBba`][crate::bidding::neural_floor::ConfiguredFloorBba] on
+/// the contested books, the deterministic [`instinct`][crate::bidding::instinct()]
 /// ladder on the constructive one.  The ablation handle that prices the
 /// authored book: `american` − `american_floor` is what [`american_book`] is
 /// worth.
 ///
+/// The floor takes the **same** card [`american`] would, even though there is no
+/// book behind it to play those agreements: the ablation isolates the book only
+/// if the floor's inputs are identical on both arms.
+///
 /// Note it prices the book's *total* contribution.  An empty book also stops
 /// projecting authored constraints into
 /// [`Inferences`][crate::bidding::inference::Inferences], so the net's
-/// `features_v3` inference block collapses to unknown — the measured gap is the
+/// `features_v4` inference block collapses to unknown — the measured gap is the
 /// book as authored calls **and** as disclosure, not the calls alone.
 #[must_use]
 pub fn american_floor() -> Pair {
     with_floor(
         Pair::new(Constructive::new(), Competitive::new(), Defensive::new()),
-        super::neural_floor::NeuralFloorBba,
+        super::neural_floor::ConfiguredFloorBba::new(super::features::Config::symmetric(
+            &super::card::american_card(),
+        )),
     )
 }
 
@@ -488,5 +486,47 @@ mod tests {
         assert_eq!(best(&r, &a, "A.Q6.KJ852.AKJ42"), Call::Double);
         // A light five-card major overcalls.
         assert_eq!(best(&r, &a, "AQJ32.853.42.K92"), call(1, Strain::Spades));
+    }
+
+    /// The shipped-path twin of
+    /// [`the_configured_floor_reads_its_card`][crate::bidding::neural_floor]:
+    /// [`american`] must build its card from the *live* knobs, so a knob that
+    /// moves a card row moves the default floor's inputs.
+    ///
+    /// Asserts on the logit vector, never on the chosen call — the
+    /// `Kickback 1430` row decides roughly one auction in seven hundred, so a
+    /// call-level assertion would be asserting noise.  What this catches is
+    /// someone hoisting the card into a `LazyLock`: the only symptom would be
+    /// every future card-row A/B measuring zero.
+    #[test]
+    fn the_default_floor_reads_the_live_card() {
+        use crate::bidding::System as _;
+        use crate::bidding::instinct::{RkcbVariant, set_rkcb_variant};
+
+        // Not a forced auction, and no authored node — the net answers.
+        let auction = [
+            call(1, Strain::Hearts),
+            call(1, Strain::Spades),
+            Call::Pass,
+            call(2, Strain::Spades),
+            Call::Pass,
+        ];
+        let hand: Hand = "92.K53.AQJ42.962".parse().expect("valid test hand");
+        let logits = |stance: &crate::bidding::Stance| {
+            stance
+                .classify(hand, RelativeVulnerability::NONE, &auction)
+                .expect("the floor always answers")
+        };
+
+        let plain = logits(&american().against());
+        set_rkcb_variant(RkcbVariant::Kickback);
+        let relocated = logits(&american().against());
+        set_rkcb_variant(RkcbVariant::Plain);
+
+        assert_ne!(
+            plain.0.into_iter().collect::<Vec<_>>(),
+            relocated.0.into_iter().collect::<Vec<_>>(),
+            "the default floor must read the card the live knobs describe"
+        );
     }
 }
