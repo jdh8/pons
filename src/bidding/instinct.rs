@@ -4594,20 +4594,20 @@ fn natural_new_suit_advance(target: Suit) -> Cons<impl Constraint + Clone> {
 pub fn instinct() -> Rules {
     let mut rules = Rules::new()
         // Forced: a trump stack sits for partner's takeout double.
-        .rule(Call::Pass, 1.5, advancing_a_double() & doubled_suit_stack())
+        .rule(Call::Pass, 150, advancing_a_double() & doubled_suit_stack())
         // Settle floor (opt-in): a takeout double is not 100% forcing.  With four
         // cards behind their doubled suit, *defend* — pass plays their doubled
         // contract.  Above the advance ladder (new suit ~1.0, raises 1.2) and the
         // 0.3 notrump escape, below the trump stack 1.5 and the game jumps 1.45.
         .rule(
             Call::Pass,
-            1.35,
+            135,
             settle_floor() & advancing_a_double() & doubled_suit_length(),
         )
         // Forced: 3NT to play with game values and their suits stopped.
         .rule(
             Bid::new(3, Strain::Notrump),
-            1.3,
+            130,
             advancing_a_double()
                 & hcp(13..)
                 & stopper_in_their_suits()
@@ -4616,9 +4616,9 @@ pub fn instinct() -> Rules {
         // Default unforced pass.  Under the settle floor it is also available in a
         // advance of partner's double (pass plays the top bid) — it still loses to every advance
         // rule, so a bust with no penalty advances as before.
-        .rule(Call::Pass, 0.0, !advancing_a_double() | settle_floor())
+        .rule(Call::Pass, 0, !advancing_a_double() | settle_floor())
         // The absolute last resort, keeping logits finite when all else is illegal.
-        .rule(Call::Pass, -5.0, hcp(0..));
+        .rule(Call::Pass, -500, hcp(0..));
 
     // Forced: jump to a major-suit game with four-plus cards and values —
     // in an unbid major, never in the suit partner asked us to take out of.
@@ -4626,7 +4626,7 @@ pub fn instinct() -> Rules {
         let strain = Strain::from(major);
         rules = rules.rule(
             Bid::new(4, strain),
-            1.45,
+            145,
             advancing_a_double()
                 & len(major, 4..)
                 & points(11..)
@@ -4638,9 +4638,9 @@ pub fn instinct() -> Rules {
     for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         let strain = Strain::from(suit);
         let major_bonus = if matches!(suit, Suit::Hearts | Suit::Spades) {
-            0.05
+            5
         } else {
-            0.0
+            0
         };
 
         // Forced: a new suit at the cheapest level; longer suits and majors
@@ -4651,7 +4651,7 @@ pub fn instinct() -> Rules {
             rules = rules
                 .rule(
                     Bid::new(level, strain),
-                    1.0 + major_bonus,
+                    100 + major_bonus,
                     advancing_a_double()
                         & min_level_is(level, strain)
                         & len(suit, 4..)
@@ -4660,7 +4660,7 @@ pub fn instinct() -> Rules {
                 )
                 .rule(
                     Bid::new(level, strain),
-                    1.1 + major_bonus,
+                    110 + major_bonus,
                     advancing_a_double()
                         & min_level_is(level, strain)
                         & len(suit, 5..)
@@ -4690,11 +4690,11 @@ pub fn instinct() -> Rules {
             rules = if rein_advance_raise_enabled() && level >= 3 {
                 rules.rule(
                     Bid::new(level, strain),
-                    1.2,
+                    120,
                     raise & (!partner_advanced_our_double() | points(17..)),
                 )
             } else {
-                rules.rule(Bid::new(level, strain), 1.2, raise)
+                rules.rule(Bid::new(level, strain), 120, raise)
             };
         }
 
@@ -4704,7 +4704,7 @@ pub fn instinct() -> Rules {
         // weak end the book's `advances` used to cover.
         rules = rules.rule(
             Bid::new(4, strain),
-            1.3,
+            130,
             partner_suit_is(suit)
                 & partner_shown_len(suit, 3..)
                 & support(5..)
@@ -4717,7 +4717,7 @@ pub fn instinct() -> Rules {
         for (level, floor) in [(1u8, 8u8), (2, 10), (3, 13)] {
             rules = rules.rule(
                 Bid::new(level, strain),
-                1.0 + major_bonus,
+                100 + major_bonus,
                 we_have_not_bid()
                     & may_pull_penalty()
                     & min_level_is(level, strain)
@@ -4740,14 +4740,14 @@ pub fn instinct() -> Rules {
     for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         let strain = Strain::from(suit);
         let major_bonus = if matches!(suit, Suit::Hearts | Suit::Spades) {
-            0.05
+            5
         } else {
-            0.0
+            0
         };
         rules = rules
             .rule(
                 Bid::new(2, strain),
-                1.0 + major_bonus,
+                100 + major_bonus,
                 one_nt_runout_enabled()
                     & responder_one_nt_runout()
                     & len(suit, 5..)
@@ -4755,7 +4755,7 @@ pub fn instinct() -> Rules {
             )
             .rule(
                 Bid::new(2, strain),
-                1.1 + major_bonus,
+                110 + major_bonus,
                 one_nt_runout_enabled()
                     & responder_one_nt_runout()
                     & len(suit, 6..)
@@ -4773,19 +4773,19 @@ pub fn instinct() -> Rules {
     for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         let strain = Strain::from(suit);
         let major_bonus = if matches!(suit, Suit::Hearts | Suit::Spades) {
-            0.05
+            5
         } else {
-            0.0
+            0
         };
         rules = rules
             .rule(
                 Bid::new(2, strain),
-                1.0 + major_bonus,
+                100 + major_bonus,
                 advancer_xx_runout() & len(suit, 5..) & hcp(..RUNOUT_MAX_HCP),
             )
             .rule(
                 Bid::new(2, strain),
-                1.1 + major_bonus,
+                110 + major_bonus,
                 advancer_xx_runout() & len(suit, 6..) & hcp(..RUNOUT_MAX_HCP),
             );
     }
@@ -4800,19 +4800,19 @@ pub fn instinct() -> Rules {
         for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
             let strain = Strain::from(suit);
             let major_bonus = if matches!(suit, Suit::Hearts | Suit::Spades) {
-                0.05
+                5
             } else {
-                0.0
+                0
             };
             rules = rules
                 .rule(
                     Bid::new(2, strain),
-                    1.0 + major_bonus,
+                    100 + major_bonus,
                     doubler_xx_runout() & len(suit, 5..),
                 )
                 .rule(
                     Bid::new(2, strain),
-                    1.1 + major_bonus,
+                    110 + major_bonus,
                     doubler_xx_runout() & len(suit, 6..),
                 );
         }
@@ -4824,7 +4824,7 @@ pub fn instinct() -> Rules {
     // bids it instead.  Opener then passes (1NT-XX) or bids game off the floor.
     rules = rules.rule(
         Call::Redouble,
-        1.2,
+        120,
         one_nt_runout_enabled() & responder_one_nt_runout() & responder_has_xx_values(),
     );
 
@@ -4845,7 +4845,7 @@ pub fn instinct() -> Rules {
     // those take 15+ opposite the opening to fire at all.
     rules = rules.rule(
         Call::Redouble,
-        1.78,
+        178,
         one_nt_runout_enabled()
             & responder_one_nt_runout()
             & responder_has_xx_values()
@@ -4861,7 +4861,7 @@ pub fn instinct() -> Rules {
     // `Direct` mode runs straight to a minor (below); A/B'd the relay a loser.
     rules = rules.rule(
         Bid::new(2, Strain::Notrump),
-        0.5,
+        50,
         one_nt_runout_enabled()
             & responder_one_nt_runout()
             & !unusual_2nt_is(Unusual2nt::Direct)
@@ -4878,7 +4878,7 @@ pub fn instinct() -> Rules {
     // hand cannot hold a five-card major, so no major guard is needed.
     rules = rules.rule(
         Bid::new(2, Strain::Notrump),
-        1.15,
+        115,
         one_nt_runout_enabled()
             & responder_one_nt_runout()
             & unusual_2nt_is(Unusual2nt::FiveFiveAdd)
@@ -4902,12 +4902,12 @@ pub fn instinct() -> Rules {
     rules = rules
         .rule(
             Bid::new(2, Strain::Diamonds),
-            1.0,
+            100,
             direct_bust.clone() & longer_diamonds(),
         )
         .rule(
             Bid::new(2, Strain::Clubs),
-            1.0,
+            100,
             direct_bust & !longer_diamonds(),
         );
 
@@ -4918,7 +4918,7 @@ pub fn instinct() -> Rules {
     // ponytail: always pass; pulling to a better suit on a misfit is deferred.
     rules = rules.rule(
         Call::Pass,
-        1.55,
+        155,
         one_nt_runout_enabled() & opener_after_one_nt_runout(),
     );
 
@@ -4928,12 +4928,12 @@ pub fn instinct() -> Rules {
     rules = rules
         .rule(
             Bid::new(3, Strain::Diamonds),
-            1.6,
+            160,
             one_nt_runout_enabled() & opener_after_one_nt_minors() & longer_diamonds(),
         )
         .rule(
             Bid::new(3, Strain::Clubs),
-            1.6,
+            160,
             one_nt_runout_enabled() & opener_after_one_nt_minors() & !longer_diamonds(),
         );
 
@@ -4944,14 +4944,14 @@ pub fn instinct() -> Rules {
     for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         let strain = Strain::from(suit);
         let major_bonus = if matches!(suit, Suit::Hearts | Suit::Spades) {
-            0.05
+            5
         } else {
-            0.0
+            0
         };
         rules = rules
             .rule(
                 Bid::new(2, strain),
-                1.0 + major_bonus,
+                100 + major_bonus,
                 one_nt_runout_enabled()
                     & one_nt_runout_universal()
                     & opener_balancing_runout()
@@ -4960,7 +4960,7 @@ pub fn instinct() -> Rules {
             )
             .rule(
                 Bid::new(2, strain),
-                1.1 + major_bonus,
+                110 + major_bonus,
                 one_nt_runout_enabled()
                     & one_nt_runout_universal()
                     & opener_balancing_runout()
@@ -4973,7 +4973,7 @@ pub fn instinct() -> Rules {
     // ask partner to pick a suit, four-card suits included.
     rules = rules.rule(
         Call::Redouble,
-        1.0,
+        100,
         one_nt_runout_enabled()
             & one_nt_runout_universal()
             & opener_balancing_runout()
@@ -4988,11 +4988,11 @@ pub fn instinct() -> Rules {
     for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         let strain = Strain::from(suit);
         let major_bonus = if matches!(suit, Suit::Hearts | Suit::Spades) {
-            0.05
+            5
         } else {
-            0.0
+            0
         };
-        for (length, weight) in [(4usize, 1.0f32), (5, 1.1), (6, 1.2)] {
+        for (length, weight) in [(4usize, 100i16), (5, 110), (6, 120)] {
             rules = rules.rule(
                 Bid::new(2, strain),
                 weight + major_bonus,
@@ -5008,7 +5008,7 @@ pub fn instinct() -> Rules {
     // Outranks the natural raise and the transfer completion, as elsewhere.
     rules = rules.rule(
         Call::Pass,
-        1.55,
+        155,
         one_nt_runout_enabled() & one_nt_runout_universal() & opener_after_responder_sos(),
     );
 
@@ -5021,7 +5021,7 @@ pub fn instinct() -> Rules {
     rules = rules
         .rule(
             Call::Double,
-            1.6,
+            160,
             one_nt_runout_enabled()
                 & penalize_escape_stack_enabled()
                 & opp_escaped_our_nt_undoubled()
@@ -5029,7 +5029,7 @@ pub fn instinct() -> Rules {
         )
         .rule(
             Call::Double,
-            1.6,
+            160,
             one_nt_runout_enabled()
                 & penalize_escape_values_enabled()
                 & opp_escaped_our_business_xx()
@@ -5041,7 +5041,7 @@ pub fn instinct() -> Rules {
     // Outranks every advance action (<=1.5).
     rules = rules.rule(
         Call::Pass,
-        1.55,
+        155,
         one_nt_runout_enabled() & leave_in_escape_penalty(),
     );
 
@@ -5053,7 +5053,7 @@ pub fn instinct() -> Rules {
     // (sit on a fit, run when short) via the general advance-a-double machinery.
     rules = rules.rule(
         Call::Pass,
-        1.55,
+        155,
         penalty_latched_c() & latch_penalty_c() & advancing_a_double(),
     );
 
@@ -5064,12 +5064,12 @@ pub fn instinct() -> Rules {
     rules = rules
         .rule(
             Call::Double,
-            1.6,
+            160,
             uvu_encircle_enabled() & opp_escaped_our_uvu_undoubled() & doubled_suit_stack(),
         )
         .rule(
             Call::Pass,
-            1.55,
+            155,
             uvu_encircle_enabled() & leave_in_uvu_penalty(),
         );
 
@@ -5078,7 +5078,7 @@ pub fn instinct() -> Rules {
         // stopper, no four-card suit outside theirs still has a call.
         rules = rules.rule(
             Bid::new(level, Strain::Notrump),
-            0.3,
+            30,
             advancing_a_double() & min_level_is(level, Strain::Notrump),
         );
     }
@@ -5087,7 +5087,7 @@ pub fn instinct() -> Rules {
         // Notrump overcall: 15–18 balanced with their suits stopped.
         rules = rules.rule(
             Bid::new(level, Strain::Notrump),
-            1.05,
+            105,
             we_have_not_bid()
                 & may_pull_penalty()
                 & min_level_is(level, Strain::Notrump)
@@ -5104,7 +5104,7 @@ pub fn instinct() -> Rules {
     for (nt_level, from, to) in TRANSFERS {
         rules = rules.rule(
             to,
-            1.5,
+            150,
             partner_transferred(from, nt_level) & level_available(to.level.get(), to.strain),
         );
     }
@@ -5134,7 +5134,7 @@ pub fn instinct() -> Rules {
         | auction_forces_game();
     rules = rules.rule(
         Bid::new(3, Strain::Notrump),
-        1.40,
+        140,
         (game_forces.clone()
             | points_or_net(
                 combined_hcp(25),
@@ -5160,7 +5160,7 @@ pub fn instinct() -> Rules {
         rules = rules
             .rule(
                 Bid::new(3, Strain::Notrump),
-                1.45,
+                145,
                 one_nt_runout_enabled()
                     & responder_one_nt_runout()
                     & gambling_3nt_authored()
@@ -5180,7 +5180,7 @@ pub fn instinct() -> Rules {
         let known_minor_fit = known_eight_card_fit(minor);
         rules = rules.rule(
             Bid::new(5, strain),
-            1.42,
+            142,
             (game_forces.clone()
                 | points_or_net(
                     combined_points(25),
@@ -5206,7 +5206,7 @@ pub fn instinct() -> Rules {
         let known_major_fit = known_eight_card_fit(major);
         rules = rules.rule(
             Bid::new(4, strain),
-            1.45,
+            145,
             (game_forces.clone()
                 | points_or_net(
                     combined_points(25),
@@ -5227,7 +5227,7 @@ pub fn instinct() -> Rules {
         // game-values arm above still governs undisturbed and over an overcall.
         rules = rules.rule(
             Bid::new(4, strain),
-            1.45,
+            145,
             one_nt_runout_enabled()
                 & responder_one_nt_runout()
                 & preempt_4m_authored()
@@ -5243,7 +5243,7 @@ pub fn instinct() -> Rules {
         // clear the [`FIT_SUM_GAME`] threshold (default 31).
         rules = rules.rule(
             Bid::new(4, strain),
-            1.50,
+            150,
             (game_forces.clone()
                 | points_or_net(
                     fit_sum_game(major, 0),
@@ -5266,7 +5266,7 @@ pub fn instinct() -> Rules {
         // auctions, where the pull to the four level walks into a penalty double.
         rules = rules.rule(
             Bid::new(4, strain),
-            1.50,
+            150,
             correct_3nt_to_major_now()
                 & undisturbed()
                 & inference_aware()
@@ -5278,7 +5278,7 @@ pub fn instinct() -> Rules {
         // minimum in the small- (33) or grand- (37) slam zone, bid it.
         rules = rules.rule(
             Bid::new(6, strain),
-            1.65,
+            165,
             points_and_net(combined_points(33), strain, 12)
                 & not_penalizing()
                 & below_slam()
@@ -5288,7 +5288,7 @@ pub fn instinct() -> Rules {
         );
         rules = rules.rule(
             Bid::new(7, strain),
-            1.75,
+            175,
             points_and_net(combined_points(37), strain, 13)
                 & not_penalizing()
                 & below_slam()
@@ -5302,7 +5302,7 @@ pub fn instinct() -> Rules {
     rules = rules
         .rule(
             Bid::new(6, Strain::Notrump),
-            1.60,
+            160,
             points_and_net(combined_hcp(33), Strain::Notrump, 12)
                 & not_penalizing()
                 & below_slam()
@@ -5311,7 +5311,7 @@ pub fn instinct() -> Rules {
         )
         .rule(
             Bid::new(7, Strain::Notrump),
-            1.70,
+            170,
             points_and_net(combined_hcp(37), Strain::Notrump, 13)
                 & not_penalizing()
                 & below_slam()
@@ -5343,7 +5343,7 @@ pub fn instinct() -> Rules {
     rules = rules
         .rule(
             Bid::new(4, Strain::Notrump),
-            1.68,
+            168,
             pred(|hand: Hand, context: &Context<'_>| {
                 floor_rkcb_now()
                     && context.undisturbed()
@@ -5407,18 +5407,18 @@ pub fn instinct() -> Rules {
         // below stays ungated — byte-identical to the shipped default.
         for &landing in &KICKBACK_ANSWERS {
             rules = rules
-                .rule(landing, 1.9, keycard_answer(landing))
+                .rule(landing, 190, keycard_answer(landing))
                 .alert(RKCB_FLOOR)
                 .shared_face(FACE_RKCB_ANSWER, |context: &Context<'_>| {
                     keycard_asked_face(context).is_some()
                 })
-                .rule(landing, 1.92, ropi_step(landing))
+                .rule(landing, 192, ropi_step(landing))
                 .alert(RKCB_FLOOR)
                 .shared_face(FACE_RKCB_ROPI, |context: &Context<'_>| {
                     context.auction().last() == Some(&Call::Double)
                         && keycard_asked_face(context).is_some()
                 })
-                .rule(landing, 1.9, dopi_step(landing))
+                .rule(landing, 190, dopi_step(landing))
                 .alert(RKCB_FLOOR)
                 .shared_face(FACE_RKCB_DOPI, |context: &Context<'_>| {
                     keycard_asked_over_bid_face(context).is_some()
@@ -5429,13 +5429,13 @@ pub fn instinct() -> Rules {
         // system's five-level answers, confining them to a live ask window.
         for &landing in &PLAIN_ANSWERS {
             rules = rules
-                .rule(landing, 1.9, keycard_answer(landing))
+                .rule(landing, 190, keycard_answer(landing))
                 .alert(RKCB_FLOOR)
                 .shared_face(FACE_RKCB_ANSWER, answer_window_face)
-                .rule(landing, 1.92, ropi_step(landing))
+                .rule(landing, 192, ropi_step(landing))
                 .alert(RKCB_FLOOR)
                 .shared_face(FACE_RKCB_ROPI, ropi_window_face)
-                .rule(landing, 1.9, dopi_step(landing))
+                .rule(landing, 190, dopi_step(landing))
                 .alert(RKCB_FLOOR)
                 .shared_face(FACE_RKCB_DOPI, dopi_window_face);
         }
@@ -5462,7 +5462,7 @@ pub fn instinct() -> Rules {
             // most common placements in the window ([`relay_lanes`]).
             if artificial_reply_can_land(landing) {
                 rules = rules
-                    .rule(landing, 1.9, queen_reply(landing, true))
+                    .rule(landing, 190, queen_reply(landing, true))
                     .alert(RKCB_FLOOR)
                     .shared_face(rkcb_relay_face(6), |context: &Context<'_>| {
                         relay_window_face(context, 6)
@@ -5470,7 +5470,7 @@ pub fn instinct() -> Rules {
             }
             if denial_can_land(landing) {
                 rules = rules
-                    .rule(landing, 1.9, queen_reply(landing, false))
+                    .rule(landing, 190, queen_reply(landing, false))
                     .shared_face(rkcb_relay_face(6), |context: &Context<'_>| {
                         relay_window_face(context, 6)
                     });
@@ -5479,7 +5479,7 @@ pub fn instinct() -> Rules {
             // is six of the agreed trump and places the contract.
             if king_reply_can_land(landing, true) {
                 rules = rules
-                    .rule(landing, 1.9, king_reply(landing, true))
+                    .rule(landing, 190, king_reply(landing, true))
                     .alert(RKCB_FLOOR)
                     .shared_face(rkcb_relay_face(10), |context: &Context<'_>| {
                         relay_window_face(context, 10)
@@ -5487,7 +5487,7 @@ pub fn instinct() -> Rules {
             }
             if king_reply_can_land(landing, false) {
                 rules = rules
-                    .rule(landing, 1.9, king_reply(landing, false))
+                    .rule(landing, 190, king_reply(landing, false))
                     .shared_face(rkcb_relay_face(10), |context: &Context<'_>| {
                         relay_window_face(context, 10)
                     });
@@ -5496,7 +5496,7 @@ pub fn instinct() -> Rules {
                 rules = rules
                     .rule(
                         landing,
-                        1.85,
+                        185,
                         queen_ask_here(landing) & one_keycard_missing() & slam_entry_reached(),
                     )
                     .alert(RKCB_FLOOR)
@@ -5510,32 +5510,32 @@ pub fn instinct() -> Rules {
         // ROPI over their double of the ask — classic R0P1, outweighing the
         // 1430 answers (whose quiet window tolerates the double) so the
         // doubled ask answers in scheme: redouble 0, pass 1, step 1 is 2.
-        .rule(Call::Redouble, 1.92, ropi_answer(&[0, 3]))
+        .rule(Call::Redouble, 192, ropi_answer(&[0, 3]))
         .alert(RKCB_FLOOR)
         .shared_face(FACE_RKCB_ROPI, ropi_window_face)
-        .rule(Call::Pass, 1.92, ropi_answer(&[1, 4]))
+        .rule(Call::Pass, 192, ropi_answer(&[1, 4]))
         .alert(RKCB_FLOOR)
         .shared_face(FACE_RKCB_ROPI, ropi_window_face)
         // DOPI over their bid below five of trump — classic D0P1: double 0,
         // pass 1, the cheapest step 2.  The machinery used to stand down on
         // their bid over the ask (the card declared DOPI with nothing
         // behind it); these rungs are that window's authored floor.
-        .rule(Call::Double, 1.9, dopi_answer(&[0, 3]))
+        .rule(Call::Double, 190, dopi_answer(&[0, 3]))
         .alert(RKCB_FLOOR)
         .shared_face(FACE_RKCB_DOPI, dopi_window_face)
-        .rule(Call::Pass, 1.9, dopi_answer(&[1, 4]))
+        .rule(Call::Pass, 190, dopi_answer(&[1, 4]))
         .alert(RKCB_FLOOR)
         .shared_face(FACE_RKCB_DOPI, dopi_window_face)
         // DEPO at or above five of trump: no room for steps — double even,
         // pass odd.
-        .rule(Call::Double, 1.9, depo_answer(true))
+        .rule(Call::Double, 190, depo_answer(true))
         .alert(RKCB_FLOOR)
         .shared_face(FACE_RKCB_DOPI, dopi_window_face)
-        .rule(Call::Pass, 1.9, depo_answer(false))
+        .rule(Call::Pass, 190, depo_answer(false))
         .alert(RKCB_FLOOR)
         .shared_face(FACE_RKCB_DOPI, dopi_window_face)
         // After our answer the asker holds the count: respect the placement.
-        .rule(Call::Pass, 1.88, respect_keycard_signoff());
+        .rule(Call::Pass, 188, respect_keycard_signoff());
     // The relocated ask (`set_rkcb_variant`): the cheapest unguarded suit above
     // the trump, so every 1430 answer lands at or below five of trump instead
     // of blowing past it — 4♦ and 4♥ over the minors are Redwood, 4♠ over
@@ -5558,7 +5558,7 @@ pub fn instinct() -> Rules {
             rules = rules
                 .rule(
                     Bid::new(4, strain),
-                    1.69,
+                    169,
                     pred(move |hand: Hand, context: &Context<'_>| {
                         let auction = context.auction();
                         keycard_trump(hand, context).is_some_and(|trump| {
@@ -5603,7 +5603,7 @@ pub fn instinct() -> Rules {
             // relay has no room, so the blast is unchanged in those lanes.
             .rule(
                 Bid::new(7, strain),
-                1.86,
+                186,
                 keycard_total(trump, 5..)
                     & points_and_net(combined_points(37), strain, 13)
                     & !relay_pending(trump)
@@ -5622,7 +5622,7 @@ pub fn instinct() -> Rules {
             // on four exactly as before.
             .rule(
                 Bid::new(6, strain),
-                1.84,
+                184,
                 keycard_total(trump, 4..)
                     & slam_entry_reached()
                     & queen_ok(trump)
@@ -5633,13 +5633,13 @@ pub fn instinct() -> Rules {
             // entry values" still bids the slam)...
             .rule(
                 Bid::new(5, strain),
-                1.82,
+                182,
                 keycard_total(trump, ..) & level_available(5, strain),
             )
             // ...pass when partner's answer already is five of the trump...
             .rule(
                 Call::Pass,
-                1.80,
+                180,
                 keycard_total(trump, ..) & answer_is_five_of(trump),
             )
             // ...and with no room below slam (a cramped minor, or a 5♠ answer
@@ -5647,7 +5647,7 @@ pub fn instinct() -> Rules {
             // the book's `no_room_six` policy.
             .rule(
                 Bid::new(6, strain),
-                0.3,
+                30,
                 keycard_total(trump, ..) & level_available(6, strain),
             )
             // The cramped doubled answer: their X sits on partner's answer
@@ -5661,7 +5661,7 @@ pub fn instinct() -> Rules {
             // derived trump as the last resort.
             .rule(
                 Bid::new(6, strain),
-                1.73,
+                173,
                 keycard_total(trump, ..)
                     & answer_doubled()
                     & known_eight_card_fit(trump)
@@ -5669,7 +5669,7 @@ pub fn instinct() -> Rules {
             )
             .rule(
                 Bid::new(5, Strain::Notrump),
-                1.72,
+                172,
                 keycard_total(trump, ..)
                     & answer_doubled()
                     & stopper_in_their_suits()
@@ -5677,7 +5677,7 @@ pub fn instinct() -> Rules {
             )
             .rule(
                 Bid::new(6, strain),
-                1.70,
+                170,
                 keycard_total(trump, ..) & answer_doubled() & level_available(6, strain),
             );
         // The asker's continuations one and two rounds further on — after the
@@ -5698,7 +5698,7 @@ pub fn instinct() -> Rules {
                     rules = rules
                         .rule(
                             landing,
-                            1.85,
+                            185,
                             queen_ask_here(landing)
                                 & keycard_total(trump, 5..)
                                 & grand_zone(strain),
@@ -5715,7 +5715,7 @@ pub fn instinct() -> Rules {
                     rules = rules
                         .rule(
                             landing,
-                            1.85,
+                            185,
                             king_ask_here(landing)
                                 & relay_verdict(trump, 5.., true)
                                 & grand_zone(strain),
@@ -5733,7 +5733,7 @@ pub fn instinct() -> Rules {
                 // which is the round the second relay no longer has to spend.
                 .rule(
                     Bid::new(7, strain),
-                    1.86,
+                    186,
                     relay_verdict(trump, 5.., true)
                         & kings_so_far(trump, 2)
                         & grand_zone(strain)
@@ -5742,26 +5742,26 @@ pub fn instinct() -> Rules {
                 // ...or the second relay found the second one.
                 .rule(
                     Bid::new(7, strain),
-                    1.86,
+                    186,
                     king_total(trump, 2..) & level_available(7, strain),
                 )
                 // The queen came back (or five keycards made it moot): six.
                 .rule(
                     Bid::new(6, strain),
-                    1.84,
+                    184,
                     relay_verdict(trump, 4.., true) & level_available(6, strain),
                 )
                 // The second relay answered short of two kings — six.
                 .rule(
                     Bid::new(6, strain),
-                    1.84,
+                    184,
                     king_total(trump, ..) & level_available(6, strain),
                 )
                 // The queen came back denied on four keycards — one keycard
                 // *and* the queen missing.  Stop at five while we still can...
                 .rule(
                     Bid::new(5, strain),
-                    1.82,
+                    182,
                     relay_verdict(trump, .., false) & level_available(5, strain),
                 )
                 // ...and pass when partner's reply already **is** the contract.
@@ -5770,8 +5770,8 @@ pub fn instinct() -> Rules {
                 // — and the second relay's "no more kings" on six as well, so
                 // every one of them is a place to play rather than a rung to
                 // rescue.
-                .rule(Call::Pass, 1.80, relay_verdict(trump, .., false))
-                .rule(Call::Pass, 1.80, king_total(trump, ..));
+                .rule(Call::Pass, 180, relay_verdict(trump, .., false))
+                .rule(Call::Pass, 180, king_total(trump, ..));
         }
         // Fleeing the face-derived trump to a fit we can actually see: the
         // face's agreement rule is both-bid-it, not eight cards, so a seen
@@ -5787,7 +5787,7 @@ pub fn instinct() -> Rules {
             let other_strain = Strain::from(other);
             rules = rules.rule(
                 Bid::new(6, other_strain),
-                1.71,
+                171,
                 keycard_total(trump, ..)
                     & answer_doubled()
                     & !answer_is_five_of(other)
@@ -5806,7 +5806,7 @@ pub fn instinct() -> Rules {
         for level in 4..=6 {
             rules = rules.rule(
                 Bid::new(level, strain),
-                1.55,
+                155,
                 partner_control_bid(trump)
                     & inference_aware()
                     & known_eight_card_fit(trump)
@@ -5831,7 +5831,7 @@ pub fn instinct() -> Rules {
         rules = rules
             .rule(
                 Bid::new(2, source_strain),
-                1.35,
+                135,
                 rubens_transfer(source, false)
                     & len(target, 5..)
                     & points(10..)
@@ -5839,7 +5839,7 @@ pub fn instinct() -> Rules {
             )
             .rule(
                 Bid::new(2, source_strain),
-                1.45,
+                145,
                 rubens_transfer(source, true)
                     & support(3..)
                     & points(10..)
@@ -5850,7 +5850,7 @@ pub fn instinct() -> Rules {
         let cue_strain = Strain::from(cue);
         rules = rules.rule(
             Bid::new(2, cue_strain),
-            1.45,
+            145,
             rubens_cue_raise(cue) & support(3..) & points(10..) & min_level_is(2, cue_strain),
         );
     }
@@ -5859,7 +5859,7 @@ pub fn instinct() -> Rules {
     for target in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         rules = rules.rule(
             Bid::new(2, Strain::from(target)),
-            1.55,
+            155,
             rubens_completes(target),
         );
     }
@@ -5877,18 +5877,18 @@ pub fn instinct() -> Rules {
         rules = rules
             .rule(
                 Bid::new(4, Strain::from(y)),
-                1.6,
+                160,
                 rubens_into_partner(y) & points(15..),
             )
             .rule(
                 Bid::new(3, Strain::from(y)),
-                1.58,
+                158,
                 rubens_into_partner(y) & points(13..15),
             );
     }
     rules = rules.rule(
         Bid::new(3, Strain::Notrump),
-        1.6,
+        160,
         rubens_into_partner(Suit::Diamonds) & points(15..) & stopper_in_their_suits(),
     );
     // The overcaller breaks a NEW-SUIT completion, too, exactly when it would
@@ -5898,19 +5898,19 @@ pub fn instinct() -> Rules {
     for target in [Suit::Diamonds, Suit::Hearts] {
         rules = rules.rule(
             Bid::new(3, Strain::from(target)),
-            1.58,
+            158,
             rubens_new_suit_completion(target) & len(target, 3..) & points(13..15),
         );
     }
     rules = rules
         .rule(
             Bid::new(4, Strain::from(Suit::Hearts)),
-            1.6,
+            160,
             rubens_new_suit_completion(Suit::Hearts) & len(Suit::Hearts, 3..) & points(15..),
         )
         .rule(
             Bid::new(3, Strain::Notrump),
-            1.6,
+            160,
             rubens_new_suit_completion(Suit::Diamonds) & points(15..) & stopper_in_their_suits(),
         );
 
@@ -5919,13 +5919,13 @@ pub fn instinct() -> Rules {
     for y in [Suit::Hearts, Suit::Spades] {
         rules = rules.rule(
             Bid::new(4, Strain::from(y)),
-            1.5,
+            150,
             rubens_raiser_rebids(y) & points(14..),
         );
     }
     rules = rules.rule(
         Bid::new(3, Strain::Notrump),
-        1.5,
+        150,
         rubens_raiser_rebids(Suit::Diamonds) & points(14..) & stopper_in_their_suits(),
     );
     // The new-suit transferee's rebid: the transfer was wide yet unlimited —
@@ -5935,19 +5935,19 @@ pub fn instinct() -> Rules {
     // 14+ clarifies to game — the six-card major, or `3NT` behind a stopper.
     rules = rules.rule(
         Bid::new(4, Strain::from(Suit::Hearts)),
-        1.52,
+        152,
         rubens_transferee_rebids(Suit::Hearts) & len(Suit::Hearts, 6..) & points(14..),
     );
     for target in [Suit::Diamonds, Suit::Hearts] {
         rules = rules
             .rule(
                 Bid::new(3, Strain::Notrump),
-                1.5,
+                150,
                 rubens_transferee_rebids(target) & points(14..) & stopper_in_their_suits(),
             )
             .rule(
                 Bid::new(3, Strain::from(target)),
-                1.5,
+                150,
                 rubens_transferee_rebids(target) & len(target, 6..) & points(12..14),
             );
     }
@@ -5957,17 +5957,17 @@ pub fn instinct() -> Rules {
     // maximum (14+, opposite the cue's 10+) place the game instead: `4♥` on
     // the heart fit, `3NT` over a minor with their suit stopped.
     for y in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
-        rules = rules.rule(Bid::new(3, Strain::from(y)), 1.5, rubens_cue_answers(y));
+        rules = rules.rule(Bid::new(3, Strain::from(y)), 150, rubens_cue_answers(y));
     }
     rules = rules.rule(
         Bid::new(4, Strain::from(Suit::Hearts)),
-        1.55,
+        155,
         rubens_cue_answers(Suit::Hearts) & points(14..),
     );
     for y in [Suit::Clubs, Suit::Diamonds] {
         rules = rules.rule(
             Bid::new(3, Strain::Notrump),
-            1.55,
+            155,
             rubens_cue_answers(y) & points(14..) & stopper_in_their_suits(),
         );
     }
@@ -5977,7 +5977,7 @@ pub fn instinct() -> Rules {
         let target_strain = Strain::from(target);
         rules = rules.rule(
             Bid::new(2, target_strain),
-            1.35,
+            135,
             natural_new_suit_advance(target)
                 & len(target, 5..)
                 & points(10..)
@@ -6009,7 +6009,7 @@ pub fn instinct() -> Rules {
             let strain = Strain::from(suit);
             rules = rules.rule(
                 Bid::new(2, strain),
-                1.0,
+                100,
                 their_live_bid_at_most(3)
                     & i_bid_suit(suit)
                     & min_level_is(2, strain)
@@ -6019,7 +6019,7 @@ pub fn instinct() -> Rules {
             );
             rules = rules.rule(
                 Bid::new(3, strain),
-                1.0,
+                100,
                 their_live_bid_at_most(3)
                     & i_bid_suit(suit)
                     & min_level_is(3, strain)
@@ -6046,7 +6046,7 @@ pub fn instinct() -> Rules {
         rules = rules
             .rule(
                 Bid::new(1, Strain::Notrump),
-                0.95,
+                95,
                 opener_reopening()
                     & min_level_is(1, Strain::Notrump)
                     & balanced()
@@ -6056,12 +6056,12 @@ pub fn instinct() -> Rules {
             )
             .rule(
                 Bid::new(3, Strain::Notrump),
-                1.0,
+                100,
                 opener_over_free_1nt() & balanced() & hcp(18..=19) & not_penalty_latched(),
             )
             .rule(
                 Bid::new(3, Strain::Notrump),
-                1.0,
+                100,
                 responder_over_reopening_1nt() & hcp(6..),
             );
     }
@@ -6072,7 +6072,7 @@ pub fn instinct() -> Rules {
     rules
         .rule(
             Call::Double,
-            0.9,
+            90,
             their_live_bid_at_most(3)
                 & short_in_their_suits()
                 & hcp(12..)
@@ -6082,14 +6082,14 @@ pub fn instinct() -> Rules {
         )
         .rule(
             Call::Double,
-            0.8,
+            80,
             their_live_bid_at_most(3) & points(17..) & not_penalty_latched(),
         )
         // Penalty latch: double their runout for penalty on a trump stack instead
         // of takeout on shortness.  Weight matches the runout penalty doubles.
         .rule(
             Call::Double,
-            1.6,
+            160,
             their_live_bid_at_most(3)
                 & penalty_latched_c()
                 & latch_penalty_c()
@@ -6100,7 +6100,7 @@ pub fn instinct() -> Rules {
         // mirror of the we-open optional double; same weight as the penalty stack.
         .rule(
             Call::Double,
-            1.6,
+            160,
             their_live_bid_at_most(3)
                 & penalty_latched_c()
                 & latch_optional_c()

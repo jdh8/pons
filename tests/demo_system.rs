@@ -27,23 +27,23 @@ const fn call(level: u8, strain: Strain) -> Call {
 /// leading-pass prefix is what replaces the old passed/unpassed split.
 fn opening() -> Rules {
     Rules::new()
-        .rule(Bid::new(1, Strain::Notrump), 1.0, hcp(15..=17) & balanced())
+        .rule(Bid::new(1, Strain::Notrump), 100, hcp(15..=17) & balanced())
         .rule(
             Bid::new(1, Strain::Spades),
-            1.0,
+            100,
             hcp(11..=21) & len(Suit::Spades, 5..),
         )
         .rule(
             Bid::new(1, Strain::Hearts),
-            1.0,
+            100,
             hcp(11..=21) & len(Suit::Hearts, 5..),
         )
         .rule(
             Bid::new(1, Strain::Spades),
-            2.0,
+            200,
             hcp(9..=21) & len(Suit::Spades, 5..) & (nth_seat(3) | nth_seat(4)),
         )
-        .rule(Call::Pass, 0.0, hcp(..11))
+        .rule(Call::Pass, 0, hcp(..11))
 }
 
 /// Responses to our 1♥ opening
@@ -51,23 +51,23 @@ fn heart_responses() -> Rules {
     Rules::new()
         .rule(
             Bid::new(4, Strain::Hearts),
-            1.0,
+            100,
             support(4..) & hcp(10..=13),
         )
-        .rule(Bid::new(2, Strain::Hearts), 1.0, support(3..) & hcp(6..=9))
+        .rule(Bid::new(2, Strain::Hearts), 100, support(3..) & hcp(6..=9))
         .rule(
             Bid::new(1, Strain::Spades),
-            1.0,
+            100,
             len(Suit::Spades, 4..) & hcp(6..),
         )
-        .rule(Call::Pass, 0.0, hcp(..6))
+        .rule(Call::Pass, 0, hcp(..6))
 }
 
 /// Negative doubles over their overcall of our 1♥ opening
 fn negative_doubles() -> Rules {
     Rules::new()
-        .rule(Call::Double, 1.0, len(Suit::Spades, 4..) & hcp(8..))
-        .rule(Call::Pass, 0.0, hcp(0..))
+        .rule(Call::Double, 100, len(Suit::Spades, 4..) & hcp(8..))
+        .rule(Call::Pass, 0, hcp(0..))
 }
 
 /// A 1♠ overcall over their 1♣ opening
@@ -75,10 +75,10 @@ fn overcalls() -> Rules {
     Rules::new()
         .rule(
             Bid::new(1, Strain::Spades),
-            1.0,
+            100,
             len(Suit::Spades, 5..) & hcp(8..),
         )
-        .rule(Call::Pass, 0.0, hcp(0..))
+        .rule(Call::Pass, 0, hcp(0..))
 }
 
 fn demo_system() -> Pair {

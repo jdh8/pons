@@ -96,21 +96,21 @@ fn xyz_responder(response: Suit, rebid: Strain) -> Rules {
     let mut rules = Rules::new()
         .rule(
             Bid::new(2, Strain::Clubs),
-            1.5,
+            150,
             points(10..=12) | (len(Suit::Diamonds, 6..) & points(..=9)),
         )
         .alert(XYZ_RELAY)
-        .rule(Bid::new(2, Strain::Diamonds), 1.4, points(13..))
+        .rule(Bid::new(2, Strain::Diamonds), 140, points(13..))
         .alert(XYZ_FORCE);
     // Weak raise of opener's second-suit major.
     if let Some(second) = rebid.suit() {
-        rules = rules.rule(Bid::new(2, rebid), 1.15, len(second, 4..) & points(6..=9));
+        rules = rules.rule(Bid::new(2, rebid), 115, len(second, 4..) & points(6..=9));
     }
     // Weak rebid of responder's own major, to play.
     if response != Suit::Diamonds {
         rules = rules.rule(
             Bid::new(2, Strain::from(response)),
-            1.1,
+            110,
             len(response, 5..) & points(..=9),
         );
     }
@@ -118,17 +118,17 @@ fn xyz_responder(response: Suit, rebid: Strain) -> Rules {
     if response == Suit::Spades && rebid == Strain::Notrump {
         rules = rules.rule(
             Bid::new(2, Strain::Hearts),
-            1.05,
+            105,
             len(Suit::Hearts, 4..) & points(..=9),
         );
     }
-    rules.rule(Call::Pass, 0.0, points(..=9))
+    rules.rule(Call::Pass, 0, points(..=9))
 }
 
 /// Opener completes the puppet: `2♦`, always
 fn xyz_completion() -> Rules {
     Rules::new()
-        .rule(Bid::new(2, Strain::Diamonds), 0.0, points(0..))
+        .rule(Bid::new(2, Strain::Diamonds), 0, points(0..))
         .alert(XYZ_COMPLETION)
 }
 
@@ -140,13 +140,13 @@ fn xyz_after_relay(opening: Suit, response: Suit, rebid: Strain) -> Rules {
     let mut rules = Rules::new();
     // Invitational raise of opener's second-suit major — fit first.
     if let Some(second) = rebid.suit() {
-        rules = rules.rule(Bid::new(2, rebid), 1.3, len(second, 4..) & points(10..=12));
+        rules = rules.rule(Bid::new(2, rebid), 130, len(second, 4..) & points(10..=12));
     }
     // Invitational rebid of responder's own major (5+).
     if response != Suit::Diamonds {
         rules = rules.rule(
             Bid::new(2, Strain::from(response)),
-            1.2,
+            120,
             len(response, 5..) & points(10..=12),
         );
     }
@@ -154,7 +154,7 @@ fn xyz_after_relay(opening: Suit, response: Suit, rebid: Strain) -> Rules {
     if response == Suit::Spades && rebid == Strain::Notrump {
         rules = rules.rule(
             Bid::new(2, Strain::Hearts),
-            1.1,
+            110,
             len(Suit::Hearts, 4..) & points(10..=12),
         );
     }
@@ -163,15 +163,15 @@ fn xyz_after_relay(opening: Suit, response: Suit, rebid: Strain) -> Rules {
         let long = if minor == opening { 5 } else { 6 };
         rules = rules.rule(
             Bid::new(3, Strain::from(minor)),
-            1.0,
+            100,
             len(minor, long..) & points(10..=12),
         );
     }
     rules
         // Balanced invite, and the finite catch-all for every 10+ hand.
-        .rule(Bid::new(2, Strain::Notrump), 0.2, points(10..))
+        .rule(Bid::new(2, Strain::Notrump), 20, points(10..))
         // The weak sign-off: the relay promised diamonds.
-        .rule(Call::Pass, 0.0, points(..=9))
+        .rule(Call::Pass, 0, points(..=9))
 }
 
 /// Opener accepts (14+) or declines an invitation reached through the relay
@@ -184,8 +184,8 @@ fn accept_or_decline(game: Bid) -> Rules {
         return Rules::new();
     }
     Rules::new()
-        .rule(game, 1.0, points(14..))
-        .rule(Call::Pass, 0.0, points(0..))
+        .rule(game, 100, points(14..))
+        .rule(Call::Pass, 0, points(0..))
 }
 
 /// Opener's answer to the `2♦` game force: natural, cheapest useful feature
@@ -196,32 +196,32 @@ fn xyz_gf_answers(opening: Suit, response: Suit, rebid: Strain) -> Rules {
     let mut rules = Rules::new();
     // Three-card support for responder's major.
     if response != Suit::Diamonds {
-        rules = rules.rule(Bid::new(2, Strain::from(response)), 1.3, len(response, 3..));
+        rules = rules.rule(Bid::new(2, Strain::from(response)), 130, len(response, 3..));
     }
     // A concealed four-card spade suit (the 1♥ rebid was bid up the line).
     if rebid == Strain::Hearts {
-        rules = rules.rule(Bid::new(2, Strain::Spades), 1.2, len(Suit::Spades, 4..));
+        rules = rules.rule(Bid::new(2, Strain::Spades), 120, len(Suit::Spades, 4..));
     }
     // Opener's five-card heart suit after 1♥ – 1♠ – 1NT.
     if opening == Suit::Hearts {
-        rules = rules.rule(Bid::new(2, Strain::Hearts), 1.2, len(Suit::Hearts, 6..));
+        rules = rules.rule(Bid::new(2, Strain::Hearts), 120, len(Suit::Hearts, 6..));
     }
     // A four-card diamond raise after a 1♦ response.
     if response == Suit::Diamonds {
-        rules = rules.rule(Bid::new(3, Strain::Diamonds), 1.1, len(Suit::Diamonds, 4..));
+        rules = rules.rule(Bid::new(3, Strain::Diamonds), 110, len(Suit::Diamonds, 4..));
     }
     // A six-card minor rebids its suit.
     if opening != Suit::Hearts {
-        rules = rules.rule(Bid::new(3, Strain::from(opening)), 0.8, len(opening, 6..));
+        rules = rules.rule(Bid::new(3, Strain::from(opening)), 80, len(opening, 6..));
     }
     rules
         .rule(
             Bid::new(2, Strain::Notrump),
-            1.0,
+            100,
             points(12..=14) & balanced(),
         )
         // Guaranteed-legal catch-all — the force may not be passed.
-        .rule(Bid::new(2, Strain::Notrump), 0.1, points(0..))
+        .rule(Bid::new(2, Strain::Notrump), 10, points(0..))
 }
 
 /// The XYZ tree under one `1x – 1y – 1z` prefix
@@ -272,9 +272,9 @@ fn rows_for_prefix(opening: Suit, response: Suit, rebid: Strain) -> Vec<Entry> {
         accept(
             call(2, major),
             Rules::new()
-                .rule(Bid::new(4, major), 1.2, len(response, 3..) & points(14..))
-                .rule(Bid::new(3, Strain::Notrump), 1.0, points(14..))
-                .rule(Call::Pass, 0.0, points(0..)),
+                .rule(Bid::new(4, major), 120, len(response, 3..) & points(14..))
+                .rule(Bid::new(3, Strain::Notrump), 100, points(14..))
+                .rule(Call::Pass, 0, points(0..)),
         );
     }
     if response == Suit::Spades && rebid == Strain::Notrump {
@@ -284,16 +284,16 @@ fn rows_for_prefix(opening: Suit, response: Suit, rebid: Strain) -> Vec<Entry> {
             Rules::new()
                 .rule(
                     Bid::new(4, Strain::Spades),
-                    1.3,
+                    130,
                     len(Suit::Spades, 3..) & points(14..),
                 )
                 .rule(
                     Bid::new(4, Strain::Hearts),
-                    1.2,
+                    120,
                     len(Suit::Hearts, 4..) & points(14..),
                 )
-                .rule(Bid::new(3, Strain::Notrump), 1.0, points(14..))
-                .rule(Call::Pass, 0.0, points(0..)),
+                .rule(Bid::new(3, Strain::Notrump), 100, points(14..))
+                .rule(Call::Pass, 0, points(0..)),
         );
     }
     for minor in [Suit::Clubs, Suit::Diamonds] {

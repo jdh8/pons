@@ -347,7 +347,7 @@ pub fn major_responses(major: Suit) -> Rules {
         // knob-off reading unchanged.
         .rule(
             Bid::new(2, Strain::Notrump),
-            3.0,
+            300,
             envelope_union_upgrade(
                 support(4..) & support_points(major, 13..),
                 jacoby_box(major),
@@ -357,18 +357,18 @@ pub fn major_responses(major: Suit) -> Rules {
         // Limit raise: four-card support, 10–12 points.
         .rule(
             Bid::new(3, trump),
-            2.0,
+            200,
             support(4..) & support_points(major, 10..=12),
         )
         // Weak jump to game: lots of trumps, few points.  Left on legacy
         // `points`: this preempt's ceiling gates obstruction, and revaluing
         // shortness here would demote shapely-weak hands into a constructive
         // single raise — a DD-flattering de-preemption (see the roadmap).
-        .rule(Bid::new(4, trump), 1.6, support(5..) & points(..6))
+        .rule(Bid::new(4, trump), 160, support(5..) & points(..6))
         // Single raise.
         .rule(
             Bid::new(2, trump),
-            1.5,
+            150,
             support(3..) & support_points(major, 6..=9),
         )
         // Forcing 1NT: the catch-all when nothing more descriptive fits.
@@ -380,16 +380,16 @@ pub fn major_responses(major: Suit) -> Rules {
         // caught by neither rule — to the floor instead of a designed 1NT.
         .rule(
             Bid::new(1, Strain::Notrump),
-            0.5,
+            50,
             hcp(6..=(two_over_one_gate().hcp_floor().max(13) - 1)),
         )
-        .rule(Call::Pass, 0.0, hcp(..6));
+        .rule(Call::Pass, 0, hcp(..6));
 
     // 1♠ over 1♥: a new suit at the one level, preferred to a single raise.
     if major == Suit::Hearts {
         rules = rules.rule(
             Bid::new(1, Strain::Spades),
-            1.7,
+            170,
             len(Suit::Spades, 4..) & points(6..) & !support(4..),
         );
     }
@@ -406,11 +406,11 @@ pub fn major_responses(major: Suit) -> Rules {
         rules = if major == Suit::Hearts {
             rules.rule(
                 Bid::new(3, Strain::Notrump),
-                3.2,
+                320,
                 cog & len(Suit::Spades, ..4),
             )
         } else {
-            rules.rule(Bid::new(3, Strain::Notrump), 3.2, cog)
+            rules.rule(Bid::new(3, Strain::Notrump), 320, cog)
         }
         .alert(CHOICE_OF_GAMES);
     }
@@ -428,7 +428,7 @@ pub fn major_responses(major: Suit) -> Rules {
         rules = rules
             .rule(
                 Bid::new(level, strain),
-                2.8,
+                280,
                 support(4..) & support_points(major, 10..=13) & len(x, ..=1),
             )
             .alert(SPLINTER);
@@ -444,7 +444,7 @@ pub fn major_responses(major: Suit) -> Rules {
     for &x in wjs_suits {
         let (level, strain) = wjs_bid(major, x);
         rules = rules
-            .rule(Bid::new(level, strain), 1.0, len(x, 6..) & points(2..=5))
+            .rule(Bid::new(level, strain), 100, len(x, 6..) & points(2..=5))
             .alert(WEAK_JUMP_SHIFT);
     }
 
@@ -455,7 +455,7 @@ pub fn major_responses(major: Suit) -> Rules {
     // `support_points` — fit-known, so shortness counts.  The default is
     // `(true, Points13)` (shipped 2026-07-25); the `(off, Points13)` arm
     // reproduces the pre-knob legacy book byte-identically.
-    let mut weight = 1.1;
+    let mut weight = 110;
     for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
         if Strain::from(suit) < trump {
             let bid = Bid::new(2, Strain::from(suit));
@@ -488,7 +488,7 @@ pub fn major_responses(major: Suit) -> Rules {
                         fit_split_gate(suit, 5, major, hcp(12..), gauge_floor(|s| &mut s.hcp, 12)),
                     )
                     .alert(GAME_FORCE);
-                weight -= 0.05;
+                weight -= 5;
                 continue;
             }
             rules = match (two_over_one_fit(), two_over_one_gate()) {
@@ -542,7 +542,7 @@ pub fn major_responses(major: Suit) -> Rules {
                 ),
             }
             .alert(GAME_FORCE);
-            weight -= 0.05;
+            weight -= 5;
         }
     }
     rules
@@ -677,12 +677,12 @@ pub fn minor_responses(minor: Suit) -> Rules {
         rules
             .rule(
                 Bid::new(1, Strain::Spades),
-                1.5,
+                150,
                 len(Suit::Spades, 4..) & points(6..) & spades_first(),
             )
             .rule(
                 Bid::new(1, Strain::Hearts),
-                1.4,
+                140,
                 len(Suit::Hearts, 4..) & points(6..) & hearts_first(),
             )
     } else {
@@ -698,12 +698,12 @@ pub fn minor_responses(minor: Suit) -> Rules {
         rules
             .rule(
                 Bid::new(1, Strain::Hearts),
-                1.5,
+                150,
                 len(Suit::Hearts, 4..) & points(6..),
             )
             .rule(
                 Bid::new(1, Strain::Spades),
-                1.4,
+                140,
                 len(Suit::Spades, 4..) & points(6..) & len(Suit::Hearts, ..4),
             )
     };
@@ -715,7 +715,7 @@ pub fn minor_responses(minor: Suit) -> Rules {
     if minor == Suit::Clubs && up_the_line() {
         rules = rules.rule(
             Bid::new(1, Strain::Diamonds),
-            1.2,
+            120,
             len(Suit::Diamonds, 4..)
                 & points(6..)
                 & len(Suit::Hearts, ..4)
@@ -726,24 +726,24 @@ pub fn minor_responses(minor: Suit) -> Rules {
         // Notrump ladder without a four-card major (3NT open-ended for game-plus).
         .rule(
             Bid::new(3, Strain::Notrump),
-            1.0,
+            100,
             hcp(13..) & balanced() & len(Suit::Hearts, ..4) & len(Suit::Spades, ..4),
         )
         .rule(
             Bid::new(2, Strain::Notrump),
-            1.0,
+            100,
             hcp(11..=12) & balanced() & len(Suit::Hearts, ..4) & len(Suit::Spades, ..4),
         )
         .rule(
             Bid::new(1, Strain::Notrump),
-            0.5,
+            50,
             hcp(6..=10) & len(Suit::Hearts, ..4) & len(Suit::Spades, ..4),
         )
         // Inverted minor raises (five-card support required since opener may hold only three).
         // Strong raise: forcing one round — no majors, 10+ points.
         .rule(
             Bid::new(2, trump),
-            1.25,
+            125,
             support(5..)
                 & support_points(minor, 10..)
                 & len(Suit::Hearts, ..4)
@@ -755,18 +755,18 @@ pub fn minor_responses(minor: Suit) -> Rules {
         // so it rides along to keep every fit-known raise gate on one scale.
         .rule(
             Bid::new(3, trump),
-            1.1,
+            110,
             support(5..) & support_points(minor, ..=9),
         )
         .alert(INVERTED_MINOR)
-        .rule(Call::Pass, 0.0, hcp(..6));
+        .rule(Call::Pass, 0, hcp(..6));
 
     // Weak jump shifts: 2♥ and 2♠ over either minor.
     for x in [Suit::Hearts, Suit::Spades] {
         rules = rules
             .rule(
                 Bid::new(2, Strain::from(x)),
-                1.0,
+                100,
                 len(x, 6..) & points(2..=5),
             )
             .alert(WEAK_JUMP_SHIFT);
@@ -777,7 +777,7 @@ pub fn minor_responses(minor: Suit) -> Rules {
         rules = rules
             .rule(
                 Bid::new(2, Strain::Clubs),
-                1.3,
+                130,
                 len(Suit::Clubs, 4..)
                     & points(13..)
                     & len(Suit::Hearts, ..4)
@@ -807,8 +807,8 @@ pub(super) fn register(book: &mut Trie) {
                 book,
                 &[super::call(1, m_strain), super::call(3, Strain::Notrump)],
                 Rules::new()
-                    .rule(Bid::new(4, m_strain), 1.0, !balanced())
-                    .rule(Call::Pass, 0.0, hcp(0..)),
+                    .rule(Bid::new(4, m_strain), 100, !balanced())
+                    .rule(Call::Pass, 0, hcp(0..)),
             );
         }
     }
@@ -838,11 +838,11 @@ pub(super) fn register(book: &mut Trie) {
                 // Opener's seat: the trump is the own five-card major, +5.
                 .rule(
                     Bid::new(4, Strain::Notrump),
-                    1.0,
+                    100,
                     support_points(major, 16..),
                 )
                 .alert(super::slam::RKCB)
-                .rule(Bid::new(4, m_strain), 0.5, hcp(0..));
+                .rule(Bid::new(4, m_strain), 50, hcp(0..));
 
             super::insert_uncontested(book, our_calls, after_splinter);
             super::slam::install_rkcb(book, our_calls, major);
@@ -856,26 +856,26 @@ pub(super) fn register(book: &mut Trie) {
 
         // Opener's rebid after the inverted raise: no Pass (forcing).
         let after_inv_raise = Rules::new()
-            .rule(Bid::new(2, Strain::Notrump), 1.0, hcp(12..=14) & balanced())
-            .rule(Bid::new(3, Strain::Notrump), 1.0, hcp(18..=19))
+            .rule(Bid::new(2, Strain::Notrump), 100, hcp(12..=14) & balanced())
+            .rule(Bid::new(3, Strain::Notrump), 100, hcp(18..=19))
             .rule(
                 Bid::new(2, Strain::Hearts),
-                0.8,
+                80,
                 stopper_in(Suit::Hearts) & hcp(15..),
             )
             .rule(
                 Bid::new(2, Strain::Spades),
-                0.8,
+                80,
                 stopper_in(Suit::Spades) & hcp(15..),
             )
-            .rule(Bid::new(3, m_strain), 0.5, hcp(0..));
+            .rule(Bid::new(3, m_strain), 50, hcp(0..));
 
         super::insert_uncontested(book, our_calls, after_inv_raise);
 
         // Responder's third call after opener bids 2NT.
         let after_2nt = Rules::new()
-            .rule(Bid::new(3, Strain::Notrump), 1.0, hcp(13..))
-            .rule(Bid::new(3, m_strain), 0.5, hcp(0..));
+            .rule(Bid::new(3, Strain::Notrump), 100, hcp(13..))
+            .rule(Bid::new(3, m_strain), 50, hcp(0..));
 
         let our_calls_2nt = &[
             super::call(1, m_strain),
@@ -895,11 +895,11 @@ pub(super) fn register(book: &mut Trie) {
                 // Responder's seat: the inverted raise promised 5+ trumps, +5.
                 .rule(
                     Bid::new(4, Strain::Notrump),
-                    1.0,
+                    100,
                     support_points(minor, 14..),
                 )
                 .alert(super::slam::RKCB)
-                .rule(Call::Pass, 0.5, hcp(0..));
+                .rule(Call::Pass, 50, hcp(0..));
             let our_calls_3nt = &[
                 super::call(1, m_strain),
                 super::call(2, m_strain),
@@ -913,9 +913,9 @@ pub(super) fn register(book: &mut Trie) {
         for major in [Suit::Hearts, Suit::Spades] {
             let major_strain = Strain::from(major);
             let after_major = Rules::new()
-                .rule(Bid::new(3, Strain::Notrump), 1.0, hcp(13..))
-                .rule(Bid::new(2, Strain::Notrump), 0.8, hcp(10..=12))
-                .rule(Bid::new(3, m_strain), 0.5, hcp(0..));
+                .rule(Bid::new(3, Strain::Notrump), 100, hcp(13..))
+                .rule(Bid::new(2, Strain::Notrump), 80, hcp(10..=12))
+                .rule(Bid::new(3, m_strain), 50, hcp(0..));
 
             let our_calls_major = &[
                 super::call(1, m_strain),
@@ -925,7 +925,7 @@ pub(super) fn register(book: &mut Trie) {
             super::insert_uncontested(book, our_calls_major, after_major);
 
             // Fourth call: after [1m, 2m, 2M, 2NT].
-            let after_2nt_4th = Rules::new().rule(Bid::new(3, Strain::Notrump), 0.5, hcp(0..));
+            let after_2nt_4th = Rules::new().rule(Bid::new(3, Strain::Notrump), 50, hcp(0..));
 
             let our_calls_2nt_4th = &[
                 super::call(1, m_strain),

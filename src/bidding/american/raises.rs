@@ -85,7 +85,7 @@ fn jacoby_rebids(major: Suit) -> Rules {
         if Strain::from(side) < trump {
             rules = rules.rule(
                 Bid::new(4, Strain::from(side)),
-                2.2,
+                220,
                 len(side, 5..) & top_honors(side, 2..),
             );
         }
@@ -94,7 +94,7 @@ fn jacoby_rebids(major: Suit) -> Rules {
     // 3-of-x for each side suit: singleton or void (shortness).
     for &side in &side_suits {
         rules = rules
-            .rule(Bid::new(3, Strain::from(side)), 2.0, len(side, ..=1))
+            .rule(Bid::new(3, Strain::from(side)), 200, len(side, ..=1))
             .alert(SHORTNESS);
     }
 
@@ -106,19 +106,19 @@ fn jacoby_rebids(major: Suit) -> Rules {
     // Opener's seat: the trump is the own five-card major, +5.
     rules = rules.rule(
         Bid::new(3, trump),
-        1.5,
+        150,
         support_points(major, 18..) & no_shortness.clone(),
     );
 
     // 3NT: 15–17 Fifths, no side shortness (medium, balanced).
     rules = rules.rule(
         Bid::new(3, Strain::Notrump),
-        1.4,
+        140,
         fifths(15.0..18.0) & no_shortness,
     );
 
     // 4M: minimum opener, always applies (guaranteed legal).
-    rules.rule(Bid::new(4, trump), 0.5, hcp(0..))
+    rules.rule(Bid::new(4, trump), 50, hcp(0..))
 }
 
 /// Responder's continuation after opener's Jacoby rebid
@@ -134,15 +134,15 @@ fn responder_after_jacoby(major: Suit, opener_bid: Call) -> Rules {
     if opener_bid == four_major {
         // Opener showed a minimum; slam needs extra values.
         Rules::new()
-            .rule(four_nt, 1.0, support_points(major, 18..))
+            .rule(four_nt, 100, support_points(major, 18..))
             .alert(slam::RKCB)
-            .rule(Call::Pass, 0.0, hcp(0..))
+            .rule(Call::Pass, 0, hcp(0..))
     } else {
         // Opener showed something descriptive; slam is in range with 16+.
         Rules::new()
-            .rule(four_nt, 1.0, support_points(major, 16..))
+            .rule(four_nt, 100, support_points(major, 16..))
             .alert(slam::RKCB)
-            .rule(four_major, 0.5, hcp(0..))
+            .rule(four_major, 50, hcp(0..))
     }
 }
 
@@ -208,15 +208,15 @@ fn opener_after_raise(major: Suit) -> Rules {
         // 4NT: RKCB ask on a maximum.
         .rule(
             Bid::new(4, Strain::Notrump),
-            2.6,
+            260,
             support_points(major, 22..),
         )
         .alert(slam::RKCB)
         // 4M: a non-asking maximum.
-        .rule(Bid::new(4, trump), 2.2, support_points(major, 19..));
+        .rule(Bid::new(4, trump), 220, support_points(major, 19..));
 
     // Long-suit game tries, cheapest first: natural, no alert.
-    for (suit, weight) in game_try_suits(major).into_iter().zip([1.5_f32, 1.45, 1.40]) {
+    for (suit, weight) in game_try_suits(major).into_iter().zip([150_i16, 145, 140]) {
         rules = rules.rule(
             Bid::new(try_level(major, suit), Strain::from(suit)),
             weight,
@@ -226,9 +226,9 @@ fn opener_after_raise(major: Suit) -> Rules {
 
     rules
         // 3M: the general re-raise try, deliberately below the suit tries.
-        .rule(Bid::new(3, trump), 1.2, support_points(major, 16..=18))
+        .rule(Bid::new(3, trump), 120, support_points(major, 16..=18))
         // Pass: a minimum, the finite catch-all.
-        .rule(Call::Pass, 0.0, hcp(0..))
+        .rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Responder's answer to a long-suit game try: accept with a maximum, a
@@ -244,11 +244,11 @@ fn responder_after_try(major: Suit, try_suit: Suit) -> Rules {
         // Responder's seat: the single raise promised 3+ trumps, +3.
         .rule(
             Bid::new(4, trump),
-            1.0,
+            100,
             support_points(major, 8..=9) | len(try_suit, ..=1) | top_honors(try_suit, 2..),
         )
         // Decline, guaranteed legal (every try sits below 3M).
-        .rule(Bid::new(3, trump), 0.5, hcp(0..))
+        .rule(Bid::new(3, trump), 50, hcp(0..))
 }
 
 /// Responder's answer to the general re-raise try: accept with a maximum,
@@ -259,10 +259,10 @@ fn responder_after_general_try(major: Suit) -> Rules {
         // Responder's seat: the single raise promised 3+ trumps, +3.
         .rule(
             Bid::new(4, Strain::from(major)),
-            1.0,
+            100,
             support_points(major, 8..=9),
         )
-        .rule(Call::Pass, 0.0, hcp(0..))
+        .rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Opener's follow-up after a long-suit try is declined: push on with
@@ -273,10 +273,10 @@ fn opener_after_decline(major: Suit) -> Rules {
         // Opener's seat: the trump is the own five-card major, +5.
         .rule(
             Bid::new(4, Strain::from(major)),
-            1.0,
+            100,
             support_points(major, 18..),
         )
-        .rule(Call::Pass, 0.0, hcp(0..))
+        .rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Register opener's major game tries after `1M – 2M` and their
@@ -333,14 +333,14 @@ fn opener_after_limit_raise(major: Suit) -> Rules {
         // 4NT: RKCB ask.
         .rule(
             Bid::new(4, Strain::Notrump),
-            1.5,
+            150,
             support_points(major, 19..),
         )
         .alert(slam::RKCB)
         // 4M: accept.
-        .rule(Bid::new(4, trump), 1.0, support_points(major, 13..))
+        .rule(Bid::new(4, trump), 100, support_points(major, 13..))
         // Pass: decline.
-        .rule(Call::Pass, 0.0, hcp(0..))
+        .rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Register opener's limit-raise acceptance after `1M – 3M` — a no-op

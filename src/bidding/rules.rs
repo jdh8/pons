@@ -6,8 +6,21 @@
 //! alternative justifications for the same call do not multiply its
 //! probability.
 //!
-//! Weights are soft priority: a gap of about 3 nats is near-deterministic
-//! after softmax, while equal weights yield a genuine mixed strategy.
+//! Weights are soft priority in **centinats** — hundredths of a nat, so `155`
+//! is a weight of 1.55.  A gap of about 300 is near-deterministic after
+//! softmax.  The unit is integral on purpose: two rules either agree on a rung
+//! exactly or they do not, and a book diagnostic can rely on that equality.
+//! Under `f32` it could not — several tables build a declining ladder by
+//! repeated subtraction, and the rounding drifted a rung off the literal it was
+//! meant to match at some sites but not others.
+//!
+//! Equal weight on the same call is therefore a *claim*: that two rules are
+//! alternative justifications of one bid, which the reader already unions
+//! ([`Inferences`][super::inference::Inferences] disjoins every matching rule's
+//! projection).  Such a pair says nothing a single rule with an
+//! [`EnvelopeUnion`] constraint does not, so prefer authoring the union.
+//! Differing weights are the opposite — an authored precedence, where the lower
+//! rule speaks only for hands the higher one rejects.
 
 use super::Map;
 use super::array::Logits;
@@ -20,8 +33,19 @@ use super::trie::Classifier;
 use contract_bridge::Hand;
 use contract_bridge::auction::Call;
 use core::fmt;
+use core::panic::Location;
 use std::collections::HashMap;
 use std::sync::Arc;
+
+/// A weight in centinats as the logit it contributes
+///
+/// Division, never multiplication by `0.01`: `i16 → f32` is exact and IEEE
+/// division is correctly rounded, so `nats(155)` is bit-for-bit the `1.55f32`
+/// this book authored before the unit change.  `x * 0.01` is not.
+#[must_use]
+const fn nats(centinats: i16) -> f32 {
+    centinats as f32 / 100.0
+}
 
 /// A per-call alert: the name of the artificial convention a rule's call shows
 ///
@@ -65,12 +89,13 @@ impl FaceId {
 #[derive(Clone)]
 pub struct Rule {
     call: Call,
-    weight: f32,
+    weight: i16,
     when: Arc<dyn Constraint>,
     label: &'static str,
     alert: Option<Alert>,
     face: Option<FaceGate>,
     face_id: Option<FaceId>,
+    origin: &'static Location<'static>,
 }
 
 impl Rule {
@@ -80,10 +105,27 @@ impl Rule {
         self.call
     }
 
-    /// The weight (soft priority) of this rule
+    /// The weight (soft priority) of this rule, in **centinats**
+    ///
+    /// See the [module documentation][self] for the unit.  Integral so that two
+    /// rules either agree on a rung exactly or do not — the equality a book
+    /// diagnostic can rely on, which `f32` could not give once a weight was
+    /// ever *computed* rather than authored.
     #[must_use]
-    pub const fn weight(&self) -> f32 {
+    pub const fn weight(&self) -> i16 {
         self.weight
+    }
+
+    /// Where this rule was authored, for build-time diagnostics
+    ///
+    /// Captured by `#[track_caller]` at [`Rules::rule`].  Two rules colliding on
+    /// one call at one weight mean something quite different depending on
+    /// whether one author wrote both or two authors each wrote one, and only
+    /// the origin can tell them apart — the row layer's `Pattern` carries the
+    /// *auction* it attaches to, never the source site.
+    #[must_use]
+    pub const fn origin(&self) -> &'static Location<'static> {
+        self.origin
     }
 
     /// The human-readable meaning of this rule, or `""` if unlabeled
@@ -124,7 +166,7 @@ impl Rule {
         if !self.face_live(context) {
             return f32::NEG_INFINITY;
         }
-        self.weight + self.when.eval(hand, context)
+        nats(self.weight) + self.when.eval(hand, context)
     }
 
     /// Runtime facts this rule's bidder-side evaluation may consult.
@@ -273,11 +315,15 @@ impl Rules {
     }
 
     /// Append a rule justifying a call (builder style)
+    ///
+    /// `weight` is in **centinats** — `155` is the old `1.55`.  See the
+    /// [module documentation][self].
     #[must_use]
+    #[track_caller]
     pub fn rule(
         mut self,
         call: impl Into<Call>,
-        weight: f32,
+        weight: i16,
         when: impl Constraint + 'static,
     ) -> Self {
         self.rules.push(Rule {
@@ -288,6 +334,7 @@ impl Rules {
             alert: None,
             face: None,
             face_id: None,
+            origin: Location::caller(),
         });
         self
     }
@@ -461,7 +508,7 @@ pub(crate) struct CompiledCallPlan {
     call: Call,
     rules: IndexRange,
     alerted: IndexRange,
-    max_weight: f32,
+    max_weight: i16,
 }
 
 impl CompiledCallPlan {
@@ -472,10 +519,10 @@ impl CompiledCallPlan {
         self.call
     }
 
-    /// The authored-order maximum rule weight for this call.
+    /// The authored-order maximum rule weight for this call, in centinats.
     #[must_use]
     #[cfg(test)]
-    pub(crate) const fn max_weight(&self) -> f32 {
+    pub(crate) const fn max_weight(&self) -> i16 {
         self.max_weight
     }
 }
@@ -489,15 +536,15 @@ impl CompiledCallPlan {
 pub(crate) struct CompiledPassPlan {
     rules: IndexRange,
     #[allow(dead_code)] // retained as authored pass-plan metadata
-    max_weight: f32,
+    max_weight: i16,
     stronger_nonpass: Box<[RuleIndex]>,
 }
 
 impl CompiledPassPlan {
-    /// The exact authored-order `f32::max` fold over Pass weights.
+    /// The authored-order maximum over Pass weights, in centinats.
     #[must_use]
     #[cfg(test)]
-    pub(crate) const fn max_weight(&self) -> f32 {
+    pub(crate) const fn max_weight(&self) -> i16 {
         self.max_weight
     }
 
@@ -679,7 +726,7 @@ impl Default for FaceMemo {
 struct CompiledRulePlan {
     authored_index: RuleIndex,
     call: Call,
-    weight_bits: u32,
+    weight: i16,
     dependencies: ConstraintDependencies,
     face: CompiledFacePlan,
     projection_dependencies: ProjectionDependencies,
@@ -729,7 +776,7 @@ impl CompiledRulePlan {
         Self {
             authored_index: RuleIndex::try_from(index).expect("a rule table fits in u32 indices"),
             call: rule.call,
-            weight_bits: rule.weight.to_bits(),
+            weight: rule.weight,
             dependencies: rule.dependencies(),
             face: match (&rule.face, rule.face_id) {
                 (None, _) => CompiledFacePlan::Always,
@@ -764,7 +811,7 @@ impl CompiledRulePlan {
         if !self.face_live(rule, context, memo) {
             return f32::NEG_INFINITY;
         }
-        rule.weight + rule.when.eval(hand, context)
+        nats(rule.weight) + rule.when.eval(hand, context)
     }
 }
 
@@ -827,7 +874,7 @@ impl CompiledRules {
         let profile = reading_profile();
         let mut by_call: Map<usize> = Map::new();
         let mut alerted_by_call: Map<usize> = Map::new();
-        let mut max_weight_by_call: Map<f32> = Map::new();
+        let mut max_weight_by_call: Map<i16> = Map::new();
         for rule in &authored.rules {
             *by_call.entry(rule.call).get_or_insert(0) += 1;
             if rule.alert.is_some() {
@@ -953,7 +1000,7 @@ impl CompiledRules {
         let plan = &self.rules[index as usize];
         debug_assert_eq!(plan.authored_index, index);
         debug_assert_eq!(plan.call, rule.call);
-        debug_assert_eq!(plan.weight_bits, rule.weight.to_bits());
+        debug_assert_eq!(plan.weight, rule.weight);
         rule
     }
 
@@ -1266,13 +1313,13 @@ mod tests {
 
     fn opening_rules() -> Rules {
         Rules::new()
-            .rule(Bid::new(1, Strain::Notrump), 1.0, hcp(15..=17) & balanced())
+            .rule(Bid::new(1, Strain::Notrump), 100, hcp(15..=17) & balanced())
             .rule(
                 Bid::new(1, Strain::Spades),
-                1.0,
+                100,
                 hcp(11..=21) & len(Suit::Spades, 5..),
             )
-            .rule(Call::Pass, 0.0, hcp(..11))
+            .rule(Call::Pass, 0, hcp(..11))
     }
 
     fn best_call(logits: &Logits) -> Call {
@@ -1334,9 +1381,9 @@ mod tests {
     #[test]
     fn test_note_labels_last_rule_and_downcasts() {
         let rules = Rules::new()
-            .rule(Bid::new(1, Strain::Notrump), 1.0, hcp(15..=17) & balanced())
+            .rule(Bid::new(1, Strain::Notrump), 100, hcp(15..=17) & balanced())
             .note("15-17 BAL")
-            .rule(Call::Pass, 0.0, hcp(..11));
+            .rule(Call::Pass, 0, hcp(..11));
 
         // note() labels the immediately preceding rule; the unlabeled one is "".
         assert_eq!(rules.rules()[0].label(), "15-17 BAL");
@@ -1356,15 +1403,15 @@ mod tests {
 
         // Shared (unalerted) rule, then one alerted block per variant chained in.
         let rules = Rules::new()
-            .rule(Call::Pass, 0.0, hcp(..8))
+            .rule(Call::Pass, 0, hcp(..8))
             .chain(
                 Rules::new()
-                    .rule(Bid::new(3, Strain::Clubs), 1.0, hcp(9..))
+                    .rule(Bid::new(3, Strain::Clubs), 100, hcp(9..))
                     .alert(PUPPET),
             )
             .chain(
                 Rules::new()
-                    .rule(Bid::new(3, Strain::Clubs), 1.0, hcp(9..))
+                    .rule(Bid::new(3, Strain::Clubs), 100, hcp(9..))
                     .alert(EUROPEAN),
             );
 
@@ -1387,7 +1434,7 @@ mod tests {
     #[test]
     fn test_face_gate() {
         let rules = Rules::new()
-            .rule(Bid::new(1, Strain::Notrump), 1.0, hcp(15..=17) & balanced())
+            .rule(Bid::new(1, Strain::Notrump), 100, hcp(15..=17) & balanced())
             .face(|context| !context.auction().is_empty());
         let rule = &rules.rules()[0];
         let hand = "AKQ2.K53.QJ4.T92".parse().expect("valid hand");
@@ -1422,12 +1469,12 @@ mod tests {
         let one_spade = Call::Bid(Bid::new(1, Strain::Spades));
         let one_notrump = Call::Bid(Bid::new(1, Strain::Notrump));
         let rules = Rules::new()
-            .rule(one_spade, 0.75, |_hand: Hand, _context: &Context<'_>| 0.25)
+            .rule(one_spade, 75, |_hand: Hand, _context: &Context<'_>| 0.25)
             // Equal same-call result: strict `>` explanation keeps index 0.
-            .rule(one_spade, 1.0, |_hand: Hand, _context: &Context<'_>| 0.0)
-            .rule(one_notrump, -0.0, hcp(15..=17) & balanced())
-            .rule(Call::Double, 3.0, pred(|_, _| false))
-            .rule(Call::Redouble, 9.0, pred(|_, _| true))
+            .rule(one_spade, 100, |_hand: Hand, _context: &Context<'_>| 0.0)
+            .rule(one_notrump, 0, hcp(15..=17) & balanced())
+            .rule(Call::Double, 300, pred(|_, _| false))
+            .rule(Call::Redouble, 900, pred(|_, _| true))
             .face(|context| !context.auction().is_empty());
         let context = Context::new(RelativeVulnerability::NONE, &[]);
         let hand = "AKQ2.K53.QJ4.T92".parse().expect("valid hand");
@@ -1459,7 +1506,7 @@ mod tests {
         let rules = Rules::new()
             .rule(
                 Bid::new(1, Strain::Clubs),
-                1.0,
+                100,
                 move |_hand: Hand, _context: &Context<'_>| {
                     first_constraint_events.lock().unwrap().push("first");
                     0.0
@@ -1472,7 +1519,7 @@ mod tests {
             })
             .rule(
                 Bid::new(1, Strain::Diamonds),
-                1.0,
+                100,
                 move |_hand: Hand, _context: &Context<'_>| {
                     second_constraint_events.lock().unwrap().push("second");
                     0.0
@@ -1525,12 +1572,12 @@ mod tests {
         let first = Arc::clone(&evaluations);
         let second = Arc::clone(&evaluations);
         let rules = Rules::new()
-            .rule(Bid::new(1, Strain::Clubs), 1.0, pred(|_, _| true))
+            .rule(Bid::new(1, Strain::Clubs), 100, pred(|_, _| true))
             .face(move |_| {
                 first.fetch_add(1, Ordering::Relaxed);
                 true
             })
-            .rule(Bid::new(1, Strain::Diamonds), 1.0, pred(|_, _| true))
+            .rule(Bid::new(1, Strain::Diamonds), 100, pred(|_, _| true))
             .face(move |_| {
                 second.fetch_add(1, Ordering::Relaxed);
                 true
@@ -1550,14 +1597,14 @@ mod tests {
         let one_club = Call::Bid(Bid::new(1, Strain::Clubs));
         let one_diamond = Call::Bid(Bid::new(1, Strain::Diamonds));
         let rules = Rules::new()
-            .rule(Call::Pass, 1.0, pred(|_, _| true))
+            .rule(Call::Pass, 100, pred(|_, _| true))
             .face(|_| false)
-            .rule(one_club, 2.0, pred(|_, _| true))
-            .rule(Call::Pass, 2.0, pred(|_, _| true))
-            .rule(one_club, 3.0, pred(|_, _| true))
+            .rule(one_club, 200, pred(|_, _| true))
+            .rule(Call::Pass, 200, pred(|_, _| true))
+            .rule(one_club, 300, pred(|_, _| true))
             .alert(ARTIFICIAL)
-            .rule(one_diamond, 4.0, pred(|_, _| true))
-            .rule(one_club, 2.0, pred(|_, _| true));
+            .rule(one_diamond, 400, pred(|_, _| true))
+            .rule(one_club, 200, pred(|_, _| true));
         let context = Context::new(RelativeVulnerability::NONE, &[]);
         let compiled = rules.compile(&context);
 
@@ -1573,13 +1620,13 @@ mod tests {
             compiled
                 .call_plan(one_club)
                 .map(CompiledCallPlan::max_weight),
-            Some(3.0)
+            Some(300)
         );
 
         let pass = compiled.pass_plan().expect("Pass was authored");
         // Face-dead Pass rule 0 remains in the reading plan by design.
         assert_eq!(compiled.pass_rule_indices(), [0, 2]);
-        assert_eq!(pass.max_weight().to_bits(), 2.0f32.to_bits());
+        assert_eq!(pass.max_weight(), 200);
         assert_eq!(pass.stronger_nonpass_indices(), [3, 4]);
     }
 
@@ -1587,11 +1634,11 @@ mod tests {
     fn projection_folds_compile_independently_and_profile_mismatch_falls_back() {
         let one_club = Bid::new(1, Strain::Clubs);
         let rules = Rules::new()
-            .rule(one_club, 0.0, len(Suit::Spades, 4..=5))
-            .rule(one_club, 0.0, support(3..))
+            .rule(one_club, 0, len(Suit::Spades, 4..=5))
+            .rule(one_club, 0, support(3..))
             .rule(
                 one_club,
-                0.0,
+                0,
                 announced(pred(|_, _| true), len(Suit::Hearts, 5..)),
             )
             .alert(Alert("test announcement"));

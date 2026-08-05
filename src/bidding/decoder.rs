@@ -1762,11 +1762,11 @@ mod tests {
         fn entries() -> Vec<Entry> {
             let mut entries = rows_of(
                 Pattern::node("P* (1♣)"),
-                Rules::new().rule(Call::Pass, 0.0, hcp(0..)),
+                Rules::new().rule(Call::Pass, 0, hcp(0..)),
             );
             entries.extend(rows_of(
                 Pattern::first("P* 1♦", "X"),
-                Rules::new().rule(Call::Pass, 0.0, hcp(0..)),
+                Rules::new().rule(Call::Pass, 0, hcp(0..)),
             ));
             entries
         }

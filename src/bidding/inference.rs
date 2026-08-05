@@ -3200,7 +3200,8 @@ fn project_pass<'a>(
         .iter()
         .filter(|rule| rule.call() == Call::Pass)
         .map(super::rules::Rule::weight)
-        .fold(f32::NEG_INFINITY, f32::max);
+        .max()
+        .unwrap_or(i16::MIN);
     Some(super::rules::ProjectedUnion::Owned(
         rules
             .rules()
@@ -5416,7 +5417,7 @@ mod tests {
 
         let face_events = Arc::new(Mutex::new(Vec::new()));
         let observed_face = Arc::clone(&face_events);
-        let face_rules = Rules::new().rule(one_club, 0.0, hcp(0..)).face(move |_| {
+        let face_rules = Rules::new().rule(one_club, 0, hcp(0..)).face(move |_| {
             observed_face.lock().unwrap().push("face");
             true
         });
@@ -5441,7 +5442,7 @@ mod tests {
         let projection_events = Arc::new(Mutex::new(Vec::new()));
         let projection_rules = Rules::new().rule(
             one_club,
-            0.0,
+            0,
             ObservableProjection {
                 events: Arc::clone(&projection_events),
             },
@@ -5469,7 +5470,7 @@ mod tests {
         let pass_events = Arc::new(Mutex::new(Vec::new()));
         let pass_rules = Rules::new().rule(
             Call::Pass,
-            0.0,
+            0,
             ObservableProjection {
                 events: Arc::clone(&pass_events),
             },
@@ -5492,13 +5493,13 @@ mod tests {
         assert_eq!(*pass_events.lock().unwrap(), legacy_pass_events);
         assert_eq!(legacy_pass_events, ["project"]);
 
-        let pure_nonpass = Rules::new().rule(one_club, 0.0, hcp(0..));
+        let pure_nonpass = Rules::new().rule(one_club, 0, hcp(0..));
         assert!(
             pure_nonpass
                 .compile(&context)
                 .can_skip_nonpass_effect(one_club)
         );
-        let pure_pass = Rules::new().rule(Call::Pass, 0.0, hcp(0..));
+        let pure_pass = Rules::new().rule(Call::Pass, 0, hcp(0..));
         assert!(pure_pass.compile(&context).can_skip_pass_effect(false));
     }
 
@@ -5522,7 +5523,7 @@ mod tests {
             Rules::new()
                 .rule(
                     one_club,
-                    0.0,
+                    0,
                     ObservableProjection {
                         events: Arc::clone(&events),
                     },
@@ -5594,7 +5595,7 @@ mod tests {
             Rules::new()
                 .rule(
                     bid(1, Strain::Diamonds),
-                    0.0,
+                    0,
                     crate::bidding::constraint::len(Suit::Hearts, 5..),
                 )
                 .alert(Alert("stateful opaque test")),
@@ -5661,7 +5662,7 @@ mod tests {
             Rules::new()
                 .rule(
                     bid(1, Strain::Clubs),
-                    0.0,
+                    0,
                     crate::bidding::constraint::hcp(0..),
                 )
                 .alert(Alert("transactional opaque-route test"))
@@ -5733,7 +5734,7 @@ mod tests {
         let calls = Arc::new(AtomicUsize::new(0));
         let observed = Arc::clone(&calls);
         let classifier: Arc<dyn Classifier> =
-            Arc::new(Rules::new().rule(Call::Pass, 0.0, crate::bidding::constraint::hcp(0..)));
+            Arc::new(Rules::new().rule(Call::Pass, 0, crate::bidding::constraint::hcp(0..)));
         let mut pair = Pair::default();
         pair.constructive.fallback_at(
             &[],

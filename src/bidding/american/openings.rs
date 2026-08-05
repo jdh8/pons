@@ -310,7 +310,7 @@ pub fn openings_with(shape: NotrumpShape) -> Rules {
         // force to a passable 1♣ (the shipped floored scale reads it 22, and
         // unbalanced 22-HCP hands read 22+ points on every scale, so the
         // union adds nothing else — it's redundant-but-exact by default).
-        .rule(Bid::new(2, Strain::Clubs), 3.0, points(22..) | hcp(22..))
+        .rule(Bid::new(2, Strain::Clubs), 300, points(22..) | hcp(22..))
         .alert(STRONG_2C);
     // Strong 1NT — gated so a diagnostic can suppress our own 1NT opening
     // (`set_open_one_notrump`); the 15-17 balanced hands then open a minor.
@@ -321,7 +321,7 @@ pub fn openings_with(shape: NotrumpShape) -> Rules {
         rules = if (ONE_NOTRUMP_FIFTHS.with(Cell::get), one_notrump_offshape()) == (true, true) {
             rules.rule(
                 Bid::new(1, Strain::Notrump),
-                2.0,
+                200,
                 fifths(14.5..17.5) & (notrump_shape(shape) | one_notrump_offshape_gate()),
             )
         } else if ONE_NOTRUMP_FIFTHS.with(Cell::get) {
@@ -330,19 +330,19 @@ pub fn openings_with(shape: NotrumpShape) -> Rules {
             // plain-HCP band's centre — the old 15..18 was half a point too high.
             rules.rule(
                 Bid::new(1, Strain::Notrump),
-                2.0,
+                200,
                 fifths(14.5..17.5) & notrump_shape(shape),
             )
         } else if one_notrump_offshape() {
             rules.rule(
                 Bid::new(1, Strain::Notrump),
-                2.0,
+                200,
                 hcp(15..=17) & (notrump_shape(shape) | one_notrump_offshape_gate()),
             )
         } else {
             rules.rule(
                 Bid::new(1, Strain::Notrump),
-                2.0,
+                200,
                 hcp(15..=17) & notrump_shape(shape),
             )
         };
@@ -353,13 +353,13 @@ pub fn openings_with(shape: NotrumpShape) -> Rules {
     rules = if TWO_NOTRUMP_WIDE.with(Cell::get) {
         rules.rule(
             Bid::new(2, Strain::Notrump),
-            2.0,
+            200,
             fifths(20.0..22.0) & two_notrump_wide_shape(),
         )
     } else {
         rules.rule(
             Bid::new(2, Strain::Notrump),
-            2.0,
+            200,
             fifths(20.0..22.0) & balanced(),
         )
     };
@@ -385,29 +385,29 @@ pub fn openings_with(shape: NotrumpShape) -> Rules {
     rules = rules
         .rule(
             Bid::new(1, Strain::Spades),
-            1.6,
+            160,
             points(12..=21) & hcp(10..) & len(Suit::Spades, 5..) & (nth_seat(1) | nth_seat(2)),
         )
         .rule(
             Bid::new(1, Strain::Hearts),
-            1.5,
+            150,
             points(12..=21) & hcp(10..) & len(Suit::Hearts, 5..) & (nth_seat(1) | nth_seat(2)),
         )
         // Lighter five-card majors in third/fourth seat.
         .rule(
             Bid::new(1, Strain::Spades),
-            2.6,
+            260,
             points(11..=21) & hcp(8..) & len(Suit::Spades, 5..) & (nth_seat(3) | nth_seat(4)),
         )
         .rule(
             Bid::new(1, Strain::Hearts),
-            2.5,
+            250,
             points(11..=21) & hcp(8..) & len(Suit::Hearts, 5..) & (nth_seat(3) | nth_seat(4)),
         )
         // Better-minor openings (deny a five-card major).
         .rule(
             Bid::new(1, Strain::Diamonds),
-            1.0,
+            100,
             points(12..=21)
                 & hcp(10..)
                 & prefers_diamonds()
@@ -416,7 +416,7 @@ pub fn openings_with(shape: NotrumpShape) -> Rules {
         )
         .rule(
             Bid::new(1, Strain::Clubs),
-            1.0,
+            100,
             points(12..=21)
                 & hcp(10..)
                 & len(Suit::Clubs, 3..)
@@ -436,35 +436,35 @@ pub fn openings_with(shape: NotrumpShape) -> Rules {
         let bid = Bid::new(2, Strain::from(suit));
         let six = move || len(suit, 6..=6);
         if weak_two_wild() {
-            rules = rules.rule(bid, 1.0, len(suit, 5..=6) & points(3..=12) & !nth_seat(4));
+            rules = rules.rule(bid, 100, len(suit, 5..=6) & points(3..=12) & !nth_seat(4));
             continue;
         }
         rules = match (weak_two_eval, weak_two_band) {
             (Some(WeakTwoEval::CcccBand(lo, hi)), _) => {
-                rules.rule(bid, 1.0, six() & cccc(lo..hi) & !nth_seat(4))
+                rules.rule(bid, 100, six() & cccc(lo..hi) & !nth_seat(4))
             }
             (Some(WeakTwoEval::CcccFloor(x)), _) => {
-                rules.rule(bid, 1.0, six() & points(5..=10) & cccc(x..) & !nth_seat(4))
+                rules.rule(bid, 100, six() & points(5..=10) & cccc(x..) & !nth_seat(4))
             }
             (Some(WeakTwoEval::NltcBand(lo, hi)), _) => {
-                rules.rule(bid, 1.0, six() & nltc(lo..=hi) & !nth_seat(4))
+                rules.rule(bid, 100, six() & nltc(lo..=hi) & !nth_seat(4))
             }
             (Some(WeakTwoEval::NltcCeil(x)), _) => {
-                rules.rule(bid, 1.0, six() & points(5..=10) & nltc(..=x) & !nth_seat(4))
+                rules.rule(bid, 100, six() & points(5..=10) & nltc(..=x) & !nth_seat(4))
             }
-            (None, Some((lo, hi))) => rules.rule(bid, 1.0, six() & hcp(lo..=hi) & !nth_seat(4)),
-            (None, None) => rules.rule(bid, 1.0, six() & points(5..=10) & !nth_seat(4)),
+            (None, Some((lo, hi))) => rules.rule(bid, 100, six() & hcp(lo..=hi) & !nth_seat(4)),
+            (None, None) => rules.rule(bid, 100, six() & points(5..=10) & !nth_seat(4)),
         };
     }
     // Three-level preempts (seven-card suit, not in fourth seat).
     for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         rules = rules.rule(
             Bid::new(3, Strain::from(suit)),
-            0.9,
+            90,
             len(suit, 7..) & points(..12) & !nth_seat(4),
         );
     }
-    rules.rule(Call::Pass, 0.0, points(..12))
+    rules.rule(Call::Pass, 0, points(..12))
 }
 
 /// The opening table as a row package

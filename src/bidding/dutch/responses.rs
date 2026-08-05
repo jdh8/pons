@@ -68,77 +68,77 @@ pub(super) fn one_club_responses() -> Rules {
         // Natural four-card majors, up the line (7+; six-counts take the relay).
         .rule(
             Bid::new(1, Strain::Hearts),
-            1.5,
+            150,
             len(Suit::Hearts, 4..) & points(7..),
         )
         .rule(
             Bid::new(1, Strain::Spades),
-            1.4,
+            140,
             len(Suit::Spades, 4..) & points(7..) & len(Suit::Hearts, ..4),
         )
         // 2♦ game-forcing, natural diamonds — alerted for the force.
         .rule(
             Bid::new(2, Strain::Diamonds),
-            1.3,
+            130,
             len(Suit::Diamonds, 5..) & points(13..) & no_major(),
         )
         .alert(GAME_FORCE)
         // 2♣ invitational-or-better, natural clubs.
         .rule(
             Bid::new(2, Strain::Clubs),
-            1.2,
+            120,
             len(Suit::Clubs, 5..) & points(11..) & no_major(),
         )
         .alert(INVITE_PLUS)
         // Balanced invite / to-play, no four-card major.
         .rule(
             Bid::new(2, Strain::Notrump),
-            1.05,
+            105,
             hcp(10..=11) & balanced() & no_major(),
         )
         .rule(
             Bid::new(3, Strain::Notrump),
-            1.0,
+            100,
             hcp(12..=15) & balanced() & no_major(),
         )
         // Weak jump shifts — exactly six cards (seven-plus preempts a level higher).
         .rule(
             Bid::new(2, Strain::Hearts),
-            1.0,
+            100,
             len(Suit::Hearts, 6..=6) & points(0..=6),
         )
         .alert(WEAK_JUMP)
         .rule(
             Bid::new(2, Strain::Spades),
-            1.0,
+            100,
             len(Suit::Spades, 6..=6) & points(0..=6),
         )
         .alert(WEAK_JUMP)
         // 1NT natural, 8–10, no four-card major.
-        .rule(Bid::new(1, Strain::Notrump), 0.9, hcp(8..=10) & no_major())
+        .rule(Bid::new(1, Strain::Notrump), 90, hcp(8..=10) & no_major())
         // Shapely invitational minor jumps — six-plus cards, 9–11.
         .rule(
             Bid::new(3, Strain::Clubs),
-            0.85,
+            85,
             len(Suit::Clubs, 6..) & points(9..=11) & no_major(),
         )
         .alert(MINOR_INVITE)
         .rule(
             Bid::new(3, Strain::Diamonds),
-            0.85,
+            85,
             len(Suit::Diamonds, 6..) & points(9..=11) & no_major(),
         )
         .alert(MINOR_INVITE)
         // Preemptive major jumps — seven-plus cards, 3–6.
         .rule(
             Bid::new(3, Strain::Hearts),
-            0.8,
+            80,
             len(Suit::Hearts, 7..) & points(3..=6),
         )
         .alert(MAJOR_PREEMPT)
         .rule(
             Bid::new(3, Strain::Spades),
-            0.8,
+            80,
             len(Suit::Spades, 7..) & points(3..=6),
         )
         .alert(MAJOR_PREEMPT)
@@ -146,12 +146,12 @@ pub(super) fn one_club_responses() -> Rules {
         // pass: everything the naturals above didn't take.
         .rule(
             Bid::new(1, Strain::Diamonds),
-            0.3,
+            30,
             hcp(5..) | len(Suit::Clubs, ..3),
         )
         .alert(RELAY)
         // Weak with club tolerance — content to play 1♣.
-        .rule(Call::Pass, 0.0, hcp(0..))
+        .rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Opener's rebid after the `1♣-1♦` relay
@@ -174,44 +174,44 @@ pub(super) fn opener_rebids_after_relay() -> Rules {
         // 18–20 with six-plus clubs.
         .rule(
             Bid::new(3, Strain::Clubs),
-            1.35,
+            135,
             hcp(18..=20) & len(Suit::Clubs, 6..),
         )
         // 18–20 reverse into a four-card major, up the line.
         .rule(
             Bid::new(2, Strain::Hearts),
-            1.3,
+            130,
             hcp(18..=20) & len(Suit::Hearts, 4..),
         )
         .rule(
             Bid::new(2, Strain::Spades),
-            1.25,
+            125,
             hcp(18..=20) & len(Suit::Spades, 4..) & len(Suit::Hearts, ..4),
         )
         // 18–20 balanced — a minimum balanced hand may NOT rebid 1NT (below).
-        .rule(Bid::new(1, Strain::Notrump), 1.2, hcp(18..=20) & balanced())
+        .rule(Bid::new(1, Strain::Notrump), 120, hcp(18..=20) & balanced())
         // 11–20 with five-plus clubs (band resolved on opener's next round).
         .rule(
             Bid::new(2, Strain::Clubs),
-            1.1,
+            110,
             hcp(11..=20) & len(Suit::Clubs, 5..),
         )
         // 21–23 no specific shape — artificial catch-all (diamond reversals dropped).
-        .rule(Bid::new(2, Strain::Diamonds), 1.05, hcp(21..=23))
+        .rule(Bid::new(2, Strain::Diamonds), 105, hcp(21..=23))
         .alert(STRONG_REBID)
         // 11–17 minimum — a three-card major, up the line.
         .rule(
             Bid::new(1, Strain::Hearts),
-            1.0,
+            100,
             hcp(11..=17) & len(Suit::Hearts, 3..),
         )
         .rule(
             Bid::new(1, Strain::Spades),
-            0.95,
+            95,
             hcp(11..=17) & len(Suit::Spades, 3..) & len(Suit::Hearts, ..3),
         )
         // Finite catch-all (opener is always 11–23; guards impossible hands).
-        .rule(Call::Pass, 0.0, hcp(0..))
+        .rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Responder's second call after `1♣-1♦-1M` (opener minimum, 11–17, 3+ in the
@@ -242,51 +242,51 @@ pub(super) fn relay_responses_after_major(opener: Suit) -> Rules {
         // 2M! raise = Reverse Flannery: exactly 5♠, 4–5♥, 7–9.
         .rule(
             Bid::new(2, Strain::from(opener)),
-            1.5,
+            150,
             len(Suit::Spades, 5..=5) & len(Suit::Hearts, 4..=5) & points(7..=9),
         )
         .alert(REVERSE_FLANNERY)
         // 2OM! = both minors 5+/4+, 9–11 invite.
         .rule(
             Bid::new(2, Strain::from(other)),
-            1.45,
+            145,
             both_minors() & points(9..=11),
         )
         .alert(BOTH_MINORS)
         // 2NT = 16+ balanced, game-forcing (rightsides the notrump).
-        .rule(Bid::new(2, Strain::Notrump), 1.4, hcp(16..) & balanced())
+        .rule(Bid::new(2, Strain::Notrump), 140, hcp(16..) & balanced())
         .alert(STRONG_BALANCED)
         // 3♣ = 6–9, 6+♣ — the shapely jump.
         .rule(
             Bid::new(3, Strain::Clubs),
-            1.3,
+            130,
             len(Suit::Clubs, 6..) & points(6..=9),
         )
         // 2♦ = 5–9, 6+♦.
         .rule(
             Bid::new(2, Strain::Diamonds),
-            1.25,
+            125,
             len(Suit::Diamonds, 6..) & points(5..=9),
         )
         // 2♣ = 0–9, 5+♣.
         .rule(
             Bid::new(2, Strain::Clubs),
-            1.15,
+            115,
             len(Suit::Clubs, 5..) & points(0..=9),
         );
     // 1♠ = 0–6, 4+♠ — only after 1♥ (over 1♠ the call is unavailable).
     if opener == Suit::Hearts {
         rules = rules.rule(
             Bid::new(1, Strain::Spades),
-            1.2,
+            120,
             len(Suit::Spades, 4..) & points(0..=6),
         );
     }
     rules
         // 1NT = natural, weak balanced (usually 5–7).
-        .rule(Bid::new(1, Strain::Notrump), 1.0, hcp(5..=7))
+        .rule(Bid::new(1, Strain::Notrump), 100, hcp(5..=7))
         // Finite catch-all — a weak hand content to pass opener's minimum.
-        .rule(Call::Pass, 0.0, hcp(0..))
+        .rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Responder's second call after `1♣-1♦-2♣` (opener minimum, 11–17, 5+♣)
@@ -302,34 +302,34 @@ pub(super) fn relay_responses_after_club() -> Rules {
         // 2♥! = Reverse Flannery: exactly 5♠, 4–5♥, 7–9.
         .rule(
             Bid::new(2, Strain::Hearts),
-            1.5,
+            150,
             len(Suit::Spades, 5..=5) & len(Suit::Hearts, 4..=5) & points(7..=9),
         )
         .alert(REVERSE_FLANNERY)
         // 2♠! = 9–11, 4+♣ — the invitational club raise (inverted: cheaper = stronger).
         .rule(
             Bid::new(2, Strain::Spades),
-            1.45,
+            145,
             len(Suit::Clubs, 4..) & points(9..=11),
         )
         .alert(CLUB_RAISE_INV)
         // 2NT = 16+ balanced, game-forcing.
-        .rule(Bid::new(2, Strain::Notrump), 1.4, hcp(16..) & balanced())
+        .rule(Bid::new(2, Strain::Notrump), 140, hcp(16..) & balanced())
         .alert(STRONG_BALANCED)
         // 2♦ = 7–9, 5+♦.
         .rule(
             Bid::new(2, Strain::Diamonds),
-            1.25,
+            125,
             len(Suit::Diamonds, 5..) & points(7..=9),
         )
         // 3♣ = 7–9, 4+♣ — the natural minimum raise.
         .rule(
             Bid::new(3, Strain::Clubs),
-            1.1,
+            110,
             len(Suit::Clubs, 4..) & points(7..=9),
         )
         // Finite catch-all.
-        .rule(Call::Pass, 0.0, hcp(0..))
+        .rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Opener's rebid after `1♣-2♦` (responder game-forcing, 5+♦, no four-card major)
@@ -356,38 +356,34 @@ pub(super) fn relay_responses_after_club() -> Rules {
 pub(super) fn opener_rebids_after_two_diamonds() -> Rules {
     Rules::new()
         // 3♦ — four-card diamond support: a known nine-card fit, the best news.
-        .rule(
-            Bid::new(3, Strain::Diamonds),
-            1.45,
-            len(Suit::Diamonds, 4..),
-        )
+        .rule(Bid::new(3, Strain::Diamonds), 145, len(Suit::Diamonds, 4..))
         // 3♣ — a real five-card club suit, no diamond support (minor two-suiter).
         .rule(
             Bid::new(3, Strain::Clubs),
-            1.35,
+            135,
             len(Suit::Clubs, 5..) & len(Suit::Diamonds, ..4),
         )
         // 3NT — balanced extras, both majors stopped, to play.
         .rule(
             Bid::new(3, Strain::Notrump),
-            1.2,
+            120,
             balanced() & hcp(15..) & stopper_in(Suit::Hearts) & stopper_in(Suit::Spades),
         )
         // 2♥ / 2♠ — a single major stopper, shown up the line toward 3NT (a
         // both-stopped hand is excluded and falls to the notrump catch-all).
         .rule(
             Bid::new(2, Strain::Hearts),
-            1.0,
+            100,
             stopper_in(Suit::Hearts) & !stopper_in(Suit::Spades),
         )
         .rule(
             Bid::new(2, Strain::Spades),
-            0.95,
+            95,
             stopper_in(Suit::Spades) & !stopper_in(Suit::Hearts),
         )
         // Finite catch-all — a minimum, or both-major stoppers without extras:
         // bid notrump and let responder place the game (never Pass; opener is 11–23).
-        .rule(Bid::new(2, Strain::Notrump), 0.5, hcp(0..))
+        .rule(Bid::new(2, Strain::Notrump), 50, hcp(0..))
 }
 
 /// Opener's rebid after `1♣-2♣` (responder invitational-or-better, 5+♣, no major)
@@ -409,22 +405,22 @@ pub(super) fn opener_rebids_after_two_clubs() -> Rules {
         // 3NT — accept to game: balanced maximum, both majors stopped.
         .rule(
             Bid::new(3, Strain::Notrump),
-            1.3,
+            130,
             balanced() & hcp(14..) & stopper_in(Suit::Hearts) & stopper_in(Suit::Spades),
         )
         // 3NT — accept to game: a 17+ maximum forces even stopper-shy, since
         // opposite the 11+ invite the partnership holds 28+ (no minimum rebid may
         // be passed out).
-        .rule(Bid::new(3, Strain::Notrump), 1.1, hcp(17..))
+        .rule(Bid::new(3, Strain::Notrump), 110, hcp(17..))
         // 3♣ — decline: minimum-or-invitational club support, non-forcing (capped
         // at 16 so a maximum can never leave this in).
         .rule(
             Bid::new(3, Strain::Clubs),
-            1.0,
+            100,
             len(Suit::Clubs, 3..) & hcp(..=16),
         )
         // 2NT — decline / finite catch-all: balanced minimum, non-forcing.
-        .rule(Bid::new(2, Strain::Notrump), 0.9, hcp(0..))
+        .rule(Bid::new(2, Strain::Notrump), 90, hcp(0..))
 }
 
 /// Responder's continuation after `1♣-2♦` (game force), keyed on opener's rebid.
@@ -442,10 +438,10 @@ pub(super) fn opener_rebids_after_two_clubs() -> Rules {
 pub(super) fn responder_after_two_diamonds(opener_rebid: Bid) -> Rules {
     // Opener's own 3NT is the balanced to-play acceptance — pass the game.
     if opener_rebid == Bid::new(3, Strain::Notrump) {
-        return Rules::new().rule(Call::Pass, 0.0, hcp(0..));
+        return Rules::new().rule(Call::Pass, 0, hcp(0..));
     }
     // Every other rebid (3♦ / 3♣ / 2♥ / 2♠ / 2NT): the force lands in 3NT.
-    Rules::new().rule(Bid::new(3, Strain::Notrump), 1.0, hcp(0..))
+    Rules::new().rule(Bid::new(3, Strain::Notrump), 100, hcp(0..))
 }
 
 /// Responder's continuation after `1♣-2♣` (invite+), keyed on opener's rebid.
@@ -459,10 +455,10 @@ pub(super) fn responder_after_two_diamonds(opener_rebid: Bid) -> Rules {
 pub(super) fn responder_after_two_clubs(opener_rebid: Bid) -> Rules {
     // Opener accepted to game — pass 3NT.
     if opener_rebid == Bid::new(3, Strain::Notrump) {
-        return Rules::new().rule(Call::Pass, 0.0, hcp(0..));
+        return Rules::new().rule(Call::Pass, 0, hcp(0..));
     }
     // A non-forcing decline (3♣ / 2NT): drive game with the GF end, else pass.
     Rules::new()
-        .rule(Bid::new(3, Strain::Notrump), 1.0, points(12..))
-        .rule(Call::Pass, 0.0, hcp(0..))
+        .rule(Bid::new(3, Strain::Notrump), 100, points(12..))
+        .rule(Call::Pass, 0, hcp(0..))
 }

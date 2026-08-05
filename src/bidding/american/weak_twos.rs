@@ -124,15 +124,15 @@ pub(super) fn responses(our: Suit) -> Rules {
         // Ogust 2NT: at least two-card support and opening values.
         .rule(
             Bid::new(2, Strain::Notrump),
-            2.0,
+            200,
             points(14..) & support(2..),
         )
         // Pre-emptive game raise.
-        .rule(Bid::new(4, trump), 1.3, support(4..))
+        .rule(Bid::new(4, trump), 130, support(4..))
         // Pre-emptive simple raise (RONF — raise is to play, not invitational).
-        .rule(Bid::new(3, trump), 1.2, support(3..))
+        .rule(Bid::new(3, trump), 120, support(3..))
         // Pass: the catch-all.
-        .rule(Call::Pass, 0.0, hcp(0..));
+        .rule(Call::Pass, 0, hcp(0..));
 
     // Forcing new suits: each suit other than `our`, with a natural two-level
     // bid (if the suit ranks higher) or three-level bid (if lower).
@@ -151,9 +151,9 @@ pub(super) fn responses(our: Suit) -> Rules {
         // above the 2.0 Ogust ask.
         let weight =
             if weak_two_major_priority() && our == Suit::Diamonds && Strain::from(x) > trump {
-                2.1
+                210
             } else {
-                1.5
+                150
             };
         let gate = len(x, 5..) & top_honors(x, 2..) & points(14..);
         rules = if weak_two_longest_first() {
@@ -208,34 +208,34 @@ fn ogust_answers(our: Suit) -> Rules {
     // A-J-x-x-x-x — 4 + 1 = 5 HCP with only one top honor.
     Rules::new()
         // Solid six-card suit (A-K-Q present): bid 3NT.  Matches BBA exactly.
-        .rule(Bid::new(3, Strain::Notrump), 1.5, top_honors(our, 3..))
+        .rule(Bid::new(3, Strain::Notrump), 150, top_honors(our, 3..))
         // Minimum values (5–7 points), bad suit (under 5 HCP in trumps).
         .rule(
             Bid::new(3, Strain::Clubs),
-            1.0,
+            100,
             points(5..=7) & suit_hcp(our, ..5),
         )
         // Minimum values, good suit (5+ HCP in trumps).
         .rule(
             Bid::new(3, Strain::Diamonds),
-            1.0,
+            100,
             points(5..=7) & suit_hcp(our, 5..),
         )
         // Maximum values (8–10 points), bad suit.
         .rule(
             Bid::new(3, Strain::Hearts),
-            1.0,
+            100,
             points(8..=10) & suit_hcp(our, ..5),
         )
         // Maximum values, good suit.
         .rule(
             Bid::new(3, Strain::Spades),
-            1.0,
+            100,
             points(8..=10) & suit_hcp(our, 5..),
         )
         // Safety fallback: guarantees a legal response for any legitimate
         // weak-two hand even when the crisp constraints leave a gap.
-        .rule(Bid::new(3, Strain::Clubs), 0.2, hcp(0..))
+        .rule(Bid::new(3, Strain::Clubs), 20, hcp(0..))
 }
 
 // ---------------------------------------------------------------------------
@@ -256,9 +256,9 @@ fn asker_after_min_major(our: Suit) -> Rules {
     let trump = Strain::from(our);
     Rules::new()
         // With game-going values, push to game anyway.
-        .rule(Bid::new(4, trump), 1.0, points(17..))
+        .rule(Bid::new(4, trump), 100, points(17..))
         // Sign-off at three: opener was minimum, asker is short of game force.
-        .rule(Bid::new(3, trump), 0.5, hcp(0..))
+        .rule(Bid::new(3, trump), 50, hcp(0..))
 }
 
 /// Asker's continuation after a *maximum* Ogust answer (3♥ or 3♠) to a
@@ -270,7 +270,7 @@ fn asker_after_min_major(our: Suit) -> Rules {
 fn asker_after_max_major(our: Suit) -> Rules {
     let trump = Strain::from(our);
     // Forcing node (no pass): opener showed maximum, game is in range.
-    Rules::new().rule(Bid::new(4, trump), 0.5, hcp(0..))
+    Rules::new().rule(Bid::new(4, trump), 50, hcp(0..))
 }
 
 // ---------------------------------------------------------------------------
@@ -283,8 +283,8 @@ fn asker_after_max_major(our: Suit) -> Rules {
 #[must_use]
 fn asker_after_diamonds_min_bad() -> Rules {
     Rules::new()
-        .rule(Bid::new(3, Strain::Notrump), 1.0, hcp(17..))
-        .rule(Bid::new(3, Strain::Diamonds), 0.5, hcp(0..))
+        .rule(Bid::new(3, Strain::Notrump), 100, hcp(17..))
+        .rule(Bid::new(3, Strain::Diamonds), 50, hcp(0..))
 }
 
 /// Asker's continuation after the minimum-good (3♦) Ogust answer to 2♦
@@ -293,9 +293,9 @@ fn asker_after_diamonds_min_bad() -> Rules {
 #[must_use]
 fn asker_after_diamonds_min_good() -> Rules {
     Rules::new()
-        .rule(Bid::new(3, Strain::Notrump), 1.0, hcp(17..))
+        .rule(Bid::new(3, Strain::Notrump), 100, hcp(17..))
         // Pass: 3♦ is already on the table; sign off there.
-        .rule(Call::Pass, 0.0, hcp(0..))
+        .rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Asker's continuation after a *maximum* Ogust answer (3♥ or 3♠) to 2♦
@@ -306,8 +306,8 @@ fn asker_after_diamonds_min_good() -> Rules {
 fn asker_after_diamonds_max() -> Rules {
     // Forcing node: game is in range given combined values.
     Rules::new()
-        .rule(Bid::new(5, Strain::Diamonds), 1.0, points(17..))
-        .rule(Bid::new(3, Strain::Notrump), 0.5, hcp(0..))
+        .rule(Bid::new(5, Strain::Diamonds), 100, points(17..))
+        .rule(Bid::new(3, Strain::Notrump), 50, hcp(0..))
 }
 
 // ---------------------------------------------------------------------------
@@ -334,9 +334,9 @@ fn reply_to_new_suit(our: Suit, x: Suit, response_level: u8) -> Rules {
 
     Rules::new()
         // Raise partner's suit with adequate support.
-        .rule(Bid::new(raise_level, Strain::from(x)), 1.0, support(3..))
+        .rule(Bid::new(raise_level, Strain::from(x)), 100, support(3..))
         // Rebid our suit as the fallback description.
-        .rule(Bid::new(rebid_level, Strain::from(our)), 0.5, hcp(0..))
+        .rule(Bid::new(rebid_level, Strain::from(our)), 50, hcp(0..))
 }
 
 // ---------------------------------------------------------------------------

@@ -177,6 +177,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Rule weights are integer centinats, not `f32` nats (breaking).**
+  `Rules::rule`, `Rule::weight`, and `set_natural_double_weight` take and return
+  `i16` hundredths of a nat: the old `1.55` is now `155`, and `bba-gen
+  --ns-double-weight` defaults to `130`. **No board moved** — `smoke-default`
+  over 20 000 seeded boards is byte-identical, and `nats(c) = c as f32 / 100.0`
+  is bit-for-bit the old decimal literal for all 75 distinct authored weights
+  (`i16` division is exact, and IEEE division is correctly rounded). The lone
+  exception, an authored `-0.0`, is inert: `eval` adds the weight to a crisp
+  `0.0`/`−∞` and `-0.0 + 0.0` is `+0.0`.
+
+  The unit change buys an equality that `f32` could not give. Four tables built
+  a declining ladder by repeated subtraction, and the drift was silent and
+  site-dependent: the 2/1 up-the-line ladder in `responses.rs` reached
+  `1.000000119` where it meant `1.0`, so it compared **unequal** to a rule
+  authored `1.0`, while the same idiom in `notrump.rs` stayed exact. Integer
+  centinats make "these two rules share a rung" decidable, which the row layer
+  needs before generic (auction-pattern) rows can detect their own collisions.
+
+  The corpus dump (`examples/dump-corpus`) deliberately still emits `weight` in
+  nats, so its JSON consumers see unchanged numbers.
+
+- **The build now rejects a new same-call weight tie.**
+  `rows::weight_tie_report`, asserted by `assert_package_invariants`, reports
+  every rung claimed twice in one table, naming each rule's authoring site
+  (`#[track_caller]` on `Rules::rule`, exposed as `Rule::origin`). Such a pair
+  is redundant — the logit is the max over crisp constraints, so it is exactly
+  `w + crisp(C₁ ∨ C₂)`, and the reader already disjoins every matching rule's
+  projection — and lossy, since `Rules::explain` breaks the tie with a strict
+  `>` and names only the first rule, leaving authoring order to decide which
+  alert and label describe the call.
+
+  The census found **two standing clusters**, both in the `direct-seat` package
+  and both one convention partitioned across the auction cases its row pattern
+  spans, not a precedence bug: the Modern negative double (four arms on
+  `min_level_is`/`they_bid`, HCP floors 6/6/8/8) and the invitational `2NT` (two
+  arms with the *same* hand gate, split only on cheapest-versus-jump). They are
+  recorded in `KNOWN_WEIGHT_TIES`; retiring either is a bidding change and wants
+  the A/B first.
+
 - **The configured net is the default floor, and the v3 twins are gone
   (breaking).** `american()` and `dutch()` now stand on `ConfiguredFloorBba`
   over `american_bba_v4` — the net that reads **both partnerships' convention

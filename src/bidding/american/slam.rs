@@ -246,28 +246,28 @@ fn rkcb_answers(trump: Suit) -> Rules {
         // 5♣ = 1 or 4 keycards ("14")
         .rule(
             Bid::new(5, Strain::Clubs),
-            1.0,
+            100,
             keycards(trump, 1..=1) | keycards(trump, 4..=4),
         )
         .alert(RKCB)
         // 5♦ = 0 or 3 keycards ("30")
         .rule(
             Bid::new(5, Strain::Diamonds),
-            1.0,
+            100,
             keycards(trump, 0..=0) | keycards(trump, 3..=3),
         )
         .alert(RKCB)
         // 5♥ = 2 or 5 keycards without the trump queen
         .rule(
             Bid::new(5, Strain::Hearts),
-            1.0,
+            100,
             (keycards(trump, 2..=2) | keycards(trump, 5..=5)) & !has_trump_queen(trump),
         )
         .alert(RKCB)
         // 5♠ = 2 or 5 keycards with the trump queen
         .rule(
             Bid::new(5, Strain::Spades),
-            1.0,
+            100,
             (keycards(trump, 2..=2) | keycards(trump, 5..=5)) & has_trump_queen(trump),
         )
         .alert(RKCB)
@@ -293,15 +293,15 @@ fn asker_after_5c(trump: Suit) -> Rules {
     // king asks ride
     .rule(
         Bid::new(5, Strain::Notrump),
-        1.4,
+        140,
         keycards(trump, 4..=4) & hcp(19..),
     )
     .alert(RKCB)
     // 6T: all five on the table without the grand values, or three of our own
     // plus partner's one when the queen question is already settled
-    .rule(Bid::new(6, t), 1.0, keycards(trump, 3..=4))
+    .rule(Bid::new(6, t), 100, keycards(trump, 3..=4))
     // 5T: signoff (asker doesn't want slam)
-    .rule(Bid::new(5, t), 0.5, hcp(0..))
+    .rule(Bid::new(5, t), 50, hcp(0..))
 }
 
 /// Asker's continuation after a 5♦ response
@@ -323,11 +323,11 @@ fn asker_after_5d(trump: Suit) -> Rules {
     // 6T: asker with ≤2 assumes partner has 3 (slam OK), or asker has 4+
     .rule(
         Bid::new(6, t),
-        1.0,
+        100,
         keycards(trump, 2..=2) | keycards(trump, 4..),
     )
     // 5T: signoff (asker has ≥3 and knows partner has 0)
-    .rule(Bid::new(5, t), 0.5, hcp(0..))
+    .rule(Bid::new(5, t), 50, hcp(0..))
 }
 
 // ---------------------------------------------------------------------------
@@ -357,7 +357,7 @@ fn relay_first(
     let rules = Rules::new();
     match queen_ask_room(answer, trump) {
         Some(relay) => rules
-            .rule(relay, 1.6, interested & !queen_moot(trump))
+            .rule(relay, 160, interested & !queen_moot(trump))
             .alert(RKCB),
         None => rules,
     }
@@ -392,7 +392,7 @@ fn queen_replies(trump: Suit, map: &RelayMap) -> Rules {
         rules = rules
             .rule(
                 call,
-                1.0,
+                100,
                 has_trump_queen(trump) & cheapest_king(suit, cheaper),
             )
             .alert(RKCB);
@@ -400,12 +400,12 @@ fn queen_replies(trump: Suit, map: &RelayMap) -> Rules {
     rules = rules
         .rule(
             map.no_king,
-            1.0,
+            100,
             has_trump_queen(trump) & kings_outside(trump, 0..=0),
         )
         .alert(RKCB)
-        .rule(map.deny, 0.6, !has_trump_queen(trump) & trump_buff(trump));
-    rules.rule(map.weak, 0.5, hcp(0..))
+        .rule(map.deny, 60, !has_trump_queen(trump) & trump_buff(trump));
+    rules.rule(map.weak, 50, hcp(0..))
 }
 
 /// Asker's placement over a denied queen
@@ -427,11 +427,11 @@ fn asker_after_denial(
 ) -> Rules {
     let t = Strain::from(trump);
     if denial == Bid::new(6, t) {
-        return Rules::new().rule(Call::Pass, 0.5, hcp(0..));
+        return Rules::new().rule(Call::Pass, 50, hcp(0..));
     }
     Rules::new()
-        .rule(Bid::new(6, t), 1.0, five)
-        .rule(Call::Pass, 0.5, hcp(0..))
+        .rule(Bid::new(6, t), 100, five)
+        .rule(Call::Pass, 50, hcp(0..))
 }
 
 /// Asker's placement over a queen-and-king reply
@@ -463,14 +463,14 @@ fn asker_after_queen(
     if partner_king {
         rules = rules.rule(
             Bid::new(7, t),
-            1.5,
+            150,
             five.clone() & kings_outside(trump, 1..) & hcp(19..),
         );
         if let Some(relay) = relay {
             rules = rules
                 .rule(
                     relay.ask,
-                    1.4,
+                    140,
                     five & kings_outside(trump, 0..=0) & hcp(19..),
                 )
                 .alert(RKCB);
@@ -478,20 +478,20 @@ fn asker_after_queen(
     } else {
         rules = rules.rule(
             Bid::new(7, t),
-            1.5,
+            150,
             five & kings_outside(trump, 2..) & hcp(19..),
         );
     }
-    rules.rule(Bid::new(6, t), 1.0, hcp(0..))
+    rules.rule(Bid::new(6, t), 100, hcp(0..))
 }
 
 /// Partner's reply to the second relay: one more king, or six of trumps
 fn king_replies(trump: Suit, relay: KingRelay) -> Rules {
     Rules::new()
-        .rule(relay.more, 1.0, kings_outside(trump, 2..))
+        .rule(relay.more, 100, kings_outside(trump, 2..))
         .alert(RKCB)
         // Six of the agreed trump is a contract, not a code.
-        .rule(relay.none, 0.5, hcp(0..))
+        .rule(relay.none, 50, hcp(0..))
 }
 
 /// Asker's placement over the second relay's reply: seven on the second king,
@@ -499,9 +499,9 @@ fn king_replies(trump: Suit, relay: KingRelay) -> Rules {
 fn asker_after_relay_kings(trump: Suit, more: bool) -> Rules {
     let rules = Rules::new();
     if more {
-        rules.rule(Bid::new(7, Strain::from(trump)), 1.0, hcp(0..))
+        rules.rule(Bid::new(7, Strain::from(trump)), 100, hcp(0..))
     } else {
-        rules.rule(Call::Pass, 0.5, hcp(0..))
+        rules.rule(Call::Pass, 50, hcp(0..))
     }
 }
 
@@ -510,9 +510,9 @@ fn asker_after_5h(trump: Suit) -> Rules {
     let t = Strain::from(trump);
     Rules::new()
         // 6T: asker has 3+ keycards → 5+ total, slam interest
-        .rule(Bid::new(6, t), 1.0, keycards(trump, 3..))
+        .rule(Bid::new(6, t), 100, keycards(trump, 3..))
         // 5T: signoff
-        .rule(Bid::new(5, t), 0.5, hcp(0..))
+        .rule(Bid::new(5, t), 50, hcp(0..))
 }
 
 /// Asker's continuation after a 5♠ response (2 keycards, with trump queen)
@@ -527,19 +527,19 @@ fn asker_after_5s(trump: Suit) -> Rules {
         // 5NT: asker has 3+ keycards + partner's 2 w/Q, and 2+ outside kings → grand
         .rule(
             Bid::new(5, Strain::Notrump),
-            1.4,
+            140,
             keycards(trump, 3..) & kings_outside(trump, 2..),
         )
         .alert(RKCB)
         // 6T: asker has 2+ keycards → slam
-        .rule(Bid::new(6, t), 1.0, keycards(trump, 2..))
+        .rule(Bid::new(6, t), 100, keycards(trump, 2..))
         // 5T: signoff (dead for spades, catches hearts where 5♥ is illegal)
-        .rule(Bid::new(5, t), 0.5, hcp(0..));
+        .rule(Bid::new(5, t), 50, hcp(0..));
 
     if trump == Suit::Hearts {
         // Over a 5♠ answer the 5♥ signoff above is illegal; this 6♥ catch-all
         // ensures we don't pass 5♠ when we can't sign off naturally.
-        rules = rules.rule(Bid::new(6, t), 0.3, hcp(0..));
+        rules = rules.rule(Bid::new(6, t), 30, hcp(0..));
     }
     rules
 }
@@ -560,11 +560,11 @@ fn asker_after_5s(trump: Suit) -> Rules {
 /// off in 5♦ (legal over 5♣); clubs must Pass to play partner's 5♣.
 fn asker_after_5c_minor(trump: Suit) -> Rules {
     let t = Strain::from(trump);
-    let rules = Rules::new().rule(Bid::new(6, t), 1.0, keycards(trump, 3..));
+    let rules = Rules::new().rule(Bid::new(6, t), 100, keycards(trump, 3..));
     if trump == Suit::Diamonds {
-        rules.rule(Bid::new(5, t), 0.5, hcp(0..))
+        rules.rule(Bid::new(5, t), 50, hcp(0..))
     } else {
-        rules.rule(Call::Pass, 0.5, hcp(0..))
+        rules.rule(Call::Pass, 50, hcp(0..))
     }
 }
 
@@ -578,10 +578,10 @@ fn asker_after_5d_minor(trump: Suit) -> Rules {
         Rules::new()
             .rule(
                 Bid::new(6, t),
-                1.0,
+                100,
                 keycards(trump, 2..=2) | keycards(trump, 4..),
             )
-            .rule(Call::Pass, 0.5, hcp(0..))
+            .rule(Call::Pass, 50, hcp(0..))
     } else {
         no_room_six(trump)
     }
@@ -592,7 +592,7 @@ fn asker_after_5d_minor(trump: Suit) -> Rules {
 /// Used for the 5♥/5♠ answers (both minors) and the clubs 5♦ answer — all sit
 /// above 5-of-either-minor, so signing off below slam is impossible.
 fn no_room_six(trump: Suit) -> Rules {
-    Rules::new().rule(Bid::new(6, Strain::from(trump)), 1.0, hcp(0..))
+    Rules::new().rule(Bid::new(6, Strain::from(trump)), 100, hcp(0..))
 }
 
 /// King answers at the 5NT node (for all answer paths — shared table)
@@ -603,11 +603,11 @@ fn no_room_six(trump: Suit) -> Rules {
 /// For hearts: 6♣ (0), 6♦ (1), 6♥ catch-all signoff (2+).
 fn king_answers(trump: Suit) -> Rules {
     let mut rules = Rules::new()
-        .rule(Bid::new(6, Strain::Clubs), 1.0, kings_outside(trump, 0..=0))
+        .rule(Bid::new(6, Strain::Clubs), 100, kings_outside(trump, 0..=0))
         .alert(RKCB)
         .rule(
             Bid::new(6, Strain::Diamonds),
-            1.0,
+            100,
             kings_outside(trump, 1..=1),
         )
         .alert(RKCB);
@@ -617,16 +617,16 @@ fn king_answers(trump: Suit) -> Rules {
             rules = rules
                 .rule(
                     Bid::new(6, Strain::Hearts),
-                    1.0,
+                    100,
                     kings_outside(trump, 2..=2),
                 )
                 .alert(RKCB)
                 // 3 outside kings → 6♠ signoff (counting stops below 7)
-                .rule(Bid::new(6, Strain::Spades), 0.5, hcp(0..));
+                .rule(Bid::new(6, Strain::Spades), 50, hcp(0..));
         }
         Suit::Hearts => {
             // 6♥ is a catch-all signoff for 2+ outside kings
-            rules = rules.rule(Bid::new(6, Strain::Hearts), 0.5, hcp(0..));
+            rules = rules.rule(Bid::new(6, Strain::Hearts), 50, hcp(0..));
         }
         _ => unreachable!("the 5NT king ask is major-only; minors never install it"),
     }
@@ -637,24 +637,24 @@ fn king_answers(trump: Suit) -> Rules {
 fn asker_after_6c(trump: Suit) -> Rules {
     let t = Strain::from(trump);
     Rules::new()
-        .rule(Bid::new(7, t), 1.0, kings_outside(trump, 3..))
-        .rule(Bid::new(6, t), 0.5, hcp(0..))
+        .rule(Bid::new(7, t), 100, kings_outside(trump, 3..))
+        .rule(Bid::new(6, t), 50, hcp(0..))
 }
 
 /// Asker's call after a 6♦ king answer (1 outside king)
 fn asker_after_6d(trump: Suit) -> Rules {
     let t = Strain::from(trump);
     Rules::new()
-        .rule(Bid::new(7, t), 1.0, kings_outside(trump, 2..))
-        .rule(Bid::new(6, t), 0.5, hcp(0..))
+        .rule(Bid::new(7, t), 100, kings_outside(trump, 2..))
+        .rule(Bid::new(6, t), 50, hcp(0..))
 }
 
 /// Asker's call after a 6♥ king answer (2 outside kings; only when trump == Spades)
 fn asker_after_6h(trump: Suit) -> Rules {
     let t = Strain::from(trump);
     Rules::new()
-        .rule(Bid::new(7, t), 1.0, kings_outside(trump, 1..))
-        .rule(Bid::new(6, t), 0.5, hcp(0..))
+        .rule(Bid::new(7, t), 100, kings_outside(trump, 1..))
+        .rule(Bid::new(6, t), 50, hcp(0..))
 }
 
 // ---------------------------------------------------------------------------

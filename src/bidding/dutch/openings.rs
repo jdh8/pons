@@ -35,7 +35,7 @@ pub(super) fn dutch_openings() -> Rules {
         // six-card minor, or any 24+.
         .rule(
             Bid::new(2, Strain::Clubs),
-            3.0,
+            300,
             (hcp(21..=23) & (or(majors, 5..) | or(minors, 6..))) | hcp(24..),
         )
         .alert(STRONG_2C)
@@ -43,32 +43,32 @@ pub(super) fn dutch_openings() -> Rules {
         // with a long minor ([`NotrumpShape::Wide6322`], american's default).
         .rule(
             Bid::new(1, Strain::Notrump),
-            2.0,
+            200,
             hcp(15..=17) & notrump_shape(NotrumpShape::Wide6322),
         )
         // Strong 2NT — balanced 20–21 (Phase 1 placeholder; Phase 3 → UNT).
         .rule(
             Bid::new(2, Strain::Notrump),
-            2.0,
+            200,
             fifths(20.0..22.0) & balanced(),
         )
         // Five-card majors, 10–20 HCP and 12+ points; 1♠ ranks above 1♥ so 5-5
         // opens the higher.
         .rule(
             Bid::new(1, Strain::Spades),
-            1.6,
+            160,
             hcp(10..=20) & points(12..) & len(Suit::Spades, 5..),
         )
         .rule(
             Bid::new(1, Strain::Hearts),
-            1.5,
+            150,
             hcp(10..=20) & points(12..) & len(Suit::Hearts, 5..),
         )
         // 1♦ — 5+♦, or exactly the singleton-club 4=4=4=1 (`≤1♣` with no five-card
         // major forces four diamonds).  No five-card major; 11–23 HCP, 12+ points.
         .rule(
             Bid::new(1, Strain::Diamonds),
-            1.0,
+            100,
             hcp(11..=23)
                 & points(12..)
                 & len(Suit::Hearts, ..5)
@@ -90,7 +90,7 @@ pub(super) fn dutch_openings() -> Rules {
         // needs its thirteenth point, which is what the Rule of 20 asked for.
         .rule(
             Bid::new(1, Strain::Clubs),
-            1.0,
+            100,
             hcp(11..=23)
                 & points(12..)
                 & (points(13..) | or(Suit::ASC, ..3))
@@ -103,7 +103,7 @@ pub(super) fn dutch_openings() -> Rules {
     for suit in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         rules = rules.rule(
             Bid::new(2, Strain::from(suit)),
-            1.0,
+            100,
             len(suit, 6..=6) & points(5..=10) & !nth_seat(4),
         );
     }
@@ -111,10 +111,10 @@ pub(super) fn dutch_openings() -> Rules {
     for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         rules = rules.rule(
             Bid::new(3, Strain::from(suit)),
-            0.9,
+            90,
             len(suit, 7..) & points(..12) & !nth_seat(4),
         );
     }
     // Finite, total catch-all.
-    rules.rule(Call::Pass, 0.0, hcp(0..))
+    rules.rule(Call::Pass, 0, hcp(0..))
 }

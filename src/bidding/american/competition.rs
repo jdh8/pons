@@ -266,7 +266,7 @@ fn penalty_double_leave_in() -> bool {
 /// floor reads `[…,X,P]` as a takeout advance and *pulls* the penalty double (opener
 /// is usually short in their suit, so its own length-gated leave-in never fires).
 fn opener_leaves_in_penalty_double() -> Rules {
-    Rules::new().rule(Call::Pass, 1.5, hcp(0..))
+    Rules::new().rule(Call::Pass, 150, hcp(0..))
 }
 
 /// Opener's reply to responder's **optional** (cooperative) double of their `over`
@@ -280,7 +280,7 @@ fn opener_leaves_in_penalty_double() -> Rules {
 /// run, so it sits (the catch-all `Pass`).
 fn opener_cooperates_optional(over: Suit) -> Rules {
     // Stand by default: a fit defends, and a short hand with no suit has no better.
-    let mut rules = Rules::new().rule(Call::Pass, 1.5, hcp(0..));
+    let mut rules = Rules::new().rule(Call::Pass, 150, hcp(0..));
     // Run with a doubleton-or-less to a real five-card suit (cheapest legal level).
     for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         if suit == over {
@@ -290,7 +290,7 @@ fn opener_cooperates_optional(over: Suit) -> Rules {
         for level in 2..=3 {
             rules = rules.rule(
                 Bid::new(level, strain),
-                1.6,
+                160,
                 min_level_is(level, strain) & len(over, ..=2) & len(suit, 5..),
             );
         }
@@ -381,14 +381,14 @@ pub fn set_double_override(spec: Option<(usize, usize, u8)>) {
 /// floor's takeout double so the threshold is the one chosen here.
 fn responder_double(rules: Rules, over: Suit) -> Rules {
     if let Some((lo, hi, floor)) = DOUBLE_OVERRIDE.with(Cell::get) {
-        return rules.rule(Call::Double, 1.55, len(over, lo..=hi) & hcp(floor..));
+        return rules.rule(Call::Double, 155, len(over, lo..=hi) & hcp(floor..));
     }
     // The `len` ranges have distinct types, so author inside each arm.
     match double_style() {
-        DoubleStyle::Takeout => rules.rule(Call::Double, 1.55, len(over, ..=3) & hcp(8..)),
-        DoubleStyle::Penalty => rules.rule(Call::Double, 1.55, len(over, 4..) & hcp(9..)),
-        DoubleStyle::PenaltyLight => rules.rule(Call::Double, 1.55, len(over, 4..) & hcp(7..)),
-        DoubleStyle::Optional => rules.rule(Call::Double, 1.55, len(over, 2..=3) & hcp(8..)),
+        DoubleStyle::Takeout => rules.rule(Call::Double, 155, len(over, ..=3) & hcp(8..)),
+        DoubleStyle::Penalty => rules.rule(Call::Double, 155, len(over, 4..) & hcp(9..)),
+        DoubleStyle::PenaltyLight => rules.rule(Call::Double, 155, len(over, 4..) & hcp(7..)),
+        DoubleStyle::Optional => rules.rule(Call::Double, 155, len(over, 2..=3) & hcp(8..)),
     }
 }
 
@@ -932,7 +932,7 @@ fn splinter_doubled() -> bool {
 /// stopper ([`direct_3nt_stopper`]) and trap-pass ([`trap_pass`]) toggles. The
 /// trap denies a too-good stopper (`suit_hcp(over, ..=4)`). The `&`-chained
 /// constraints have distinct types, so each combination is authored in its own arm.
-fn author_direct_3nt(rules: Rules, weight: f32, over: Suit) -> Rules {
+fn author_direct_3nt(rules: Rules, weight: i16, over: Suit) -> Rules {
     let nt = Bid::new(3, Strain::Notrump);
     match (direct_3nt_stopper(), trap_pass()) {
         (true, true) => rules.rule(
@@ -1238,7 +1238,7 @@ fn over_their_overcall(opening: Suit) -> Rules {
             rules = rules
                 .rule(
                     Bid::new(lvl, t_strain),
-                    2.0,
+                    200,
                     they_bid(t_strain)
                         & min_level_is(lvl, t_strain)
                         & support(raise_min..)
@@ -1251,21 +1251,21 @@ fn over_their_overcall(opening: Suit) -> Rules {
     // Jump raise: preemptive (min_level=2 means we could bid 2o, so 3o is a jump)
     rules = rules.rule(
         Bid::new(3, o_strain),
-        1.6,
+        160,
         min_level_is(2, o_strain) & support(jump_min..) & points(..=9),
     );
 
     // Competitive raise: 3o when it's the minimum legal bid
     rules = rules.rule(
         Bid::new(3, o_strain),
-        1.3,
+        130,
         min_level_is(3, o_strain) & support(raise_min..) & points(6..=9),
     );
 
     // Single raise
     rules = rules.rule(
         Bid::new(2, o_strain),
-        1.5,
+        150,
         min_level_is(2, o_strain) & support(raise_min..) & points(6..=9),
     );
 
@@ -1278,7 +1278,7 @@ fn over_their_overcall(opening: Suit) -> Rules {
     rules = if is_major {
         // Other major, 4+ cards, 8+ HCP
         rules
-            .rule(Call::Double, 1.0, len(other_major, 4..) & hcp(8..))
+            .rule(Call::Double, 100, len(other_major, 4..) & hcp(8..))
             .alert(NEGATIVE_DOUBLE)
     } else {
         match shape {
@@ -1286,7 +1286,7 @@ fn over_their_overcall(opening: Suit) -> Rules {
             NegativeDoubleShape::BothMajors => rules
                 .rule(
                     Call::Double,
-                    1.0,
+                    100,
                     len(Suit::Hearts, 4..) & len(Suit::Spades, 4..) & hcp(8..),
                 )
                 .alert(NEGATIVE_DOUBLE),
@@ -1294,7 +1294,7 @@ fn over_their_overcall(opening: Suit) -> Rules {
                 // Over (1♦): both majors, floor 6.
                 .rule(
                     Call::Double,
-                    1.0,
+                    100,
                     min_level_is(1, Strain::Hearts)
                         & len(Suit::Hearts, 4..)
                         & len(Suit::Spades, 4..)
@@ -1304,7 +1304,7 @@ fn over_their_overcall(opening: Suit) -> Rules {
                 // Over (1♥): exactly four spades (five-plus bids the free 1♠).
                 .rule(
                     Call::Double,
-                    1.0,
+                    100,
                     they_bid(Strain::Hearts)
                         & min_level_is(1, Strain::Spades)
                         & len(Suit::Spades, 4..=4)
@@ -1315,14 +1315,14 @@ fn over_their_overcall(opening: Suit) -> Rules {
                 // 2 level).
                 .rule(
                     Call::Double,
-                    1.0,
+                    100,
                     they_bid(Strain::Spades) & len(Suit::Hearts, 4..) & hcp(8..),
                 )
                 .alert(NEGATIVE_DOUBLE)
                 // Over a 2-level minor: both majors, floor 8.
                 .rule(
                     Call::Double,
-                    1.0,
+                    100,
                     (they_bid(Strain::Clubs) | they_bid(Strain::Diamonds))
                         & !min_level_is(1, Strain::Hearts)
                         & len(Suit::Hearts, 4..)
@@ -1334,7 +1334,7 @@ fn over_their_overcall(opening: Suit) -> Rules {
                 // Over (1♦): X transfers — 4+ hearts (may hold spades too).
                 .rule(
                     Call::Double,
-                    1.0,
+                    100,
                     min_level_is(1, Strain::Hearts)
                         & len(Suit::Hearts, 4..)
                         & points(free_bid_floor()..),
@@ -1343,7 +1343,7 @@ fn over_their_overcall(opening: Suit) -> Rules {
                 // Over (1♥): X transfers — 4+ spades.
                 .rule(
                     Call::Double,
-                    1.0,
+                    100,
                     they_bid(Strain::Hearts)
                         & min_level_is(1, Strain::Spades)
                         & len(Suit::Spades, 4..)
@@ -1353,13 +1353,13 @@ fn over_their_overcall(opening: Suit) -> Rules {
                 // Natural from (1♠) up: the Modern rules apply.
                 .rule(
                     Call::Double,
-                    1.0,
+                    100,
                     they_bid(Strain::Spades) & len(Suit::Hearts, 4..) & hcp(8..),
                 )
                 .alert(NEGATIVE_DOUBLE)
                 .rule(
                     Call::Double,
-                    1.0,
+                    100,
                     (they_bid(Strain::Clubs) | they_bid(Strain::Diamonds))
                         & !min_level_is(1, Strain::Hearts)
                         & len(Suit::Hearts, 4..)
@@ -1372,7 +1372,7 @@ fn over_their_overcall(opening: Suit) -> Rules {
                 // either bids the natural free 1-level suit below).
                 .rule(
                     Call::Double,
-                    1.0,
+                    100,
                     min_level_is(1, Strain::Hearts)
                         & len(Suit::Hearts, ..=3)
                         & len(Suit::Spades, ..=3)
@@ -1382,7 +1382,7 @@ fn over_their_overcall(opening: Suit) -> Rules {
                 // Over (1♥): the residual — ≤3 spades, 7+ (4+ bids the free 1♠).
                 .rule(
                     Call::Double,
-                    1.0,
+                    100,
                     they_bid(Strain::Hearts)
                         & min_level_is(1, Strain::Spades)
                         & len(Suit::Spades, ..=3)
@@ -1393,14 +1393,14 @@ fn over_their_overcall(opening: Suit) -> Rules {
                 // (the Modern rule).
                 .rule(
                     Call::Double,
-                    1.0,
+                    100,
                     they_bid(Strain::Spades) & len(Suit::Hearts, 4..) & hcp(8..),
                 )
                 .alert(NEGATIVE_DOUBLE)
                 // Over a 2-level minor: both majors, floor 8 (the Modern rule).
                 .rule(
                     Call::Double,
-                    1.0,
+                    100,
                     (they_bid(Strain::Clubs) | they_bid(Strain::Diamonds))
                         & !min_level_is(1, Strain::Hearts)
                         & len(Suit::Hearts, 4..)
@@ -1420,7 +1420,7 @@ fn over_their_overcall(opening: Suit) -> Rules {
     // the cue (2.0) and the free bids (1.45) so a biddable hand still bids.
     if free_bid_style() == FreeBidStyle::Negative {
         rules = rules
-            .rule(Call::Double, 0.9, points(12..))
+            .rule(Call::Double, 90, points(12..))
             .alert(NEGATIVE_DOUBLE);
     }
 
@@ -1435,7 +1435,7 @@ fn over_their_overcall(opening: Suit) -> Rules {
             // Over (1♦): 1♥ = 4+ spades without 4 hearts (4+ hearts doubles).
             .rule(
                 Bid::new(1, Strain::Hearts),
-                1.45,
+                145,
                 min_level_is(1, Strain::Hearts)
                     & len(Suit::Spades, 4..)
                     & len(Suit::Hearts, ..=3)
@@ -1446,7 +1446,7 @@ fn over_their_overcall(opening: Suit) -> Rules {
             // the notrump rules so a stopper hand prefers 1NT/2NT.
             .rule(
                 Bid::new(1, Strain::Spades),
-                0.85,
+                85,
                 min_level_is(1, Strain::Hearts)
                     & len(Suit::Hearts, ..=3)
                     & len(Suit::Spades, ..=3)
@@ -1456,7 +1456,7 @@ fn over_their_overcall(opening: Suit) -> Rules {
             // Over (1♥): 1♠ = the takeout hand, ≤3 spades (4+ doubles).
             .rule(
                 Bid::new(1, Strain::Spades),
-                0.85,
+                85,
                 they_bid(Strain::Hearts)
                     & min_level_is(1, Strain::Spades)
                     & len(Suit::Spades, ..=3)
@@ -1472,14 +1472,14 @@ fn over_their_overcall(opening: Suit) -> Rules {
         rules = rules
             .rule(
                 Bid::new(1, Strain::Hearts),
-                1.45,
+                145,
                 min_level_is(1, Strain::Hearts)
                     & len(Suit::Hearts, 4..)
                     & points(free_bid_floor()..),
             )
             .rule(
                 Bid::new(1, Strain::Spades),
-                1.45,
+                145,
                 min_level_is(1, Strain::Spades)
                     & len(Suit::Spades, 4..)
                     & points(free_bid_floor()..),
@@ -1510,11 +1510,11 @@ fn over_their_overcall(opening: Suit) -> Rules {
                 rules = if free_bid_quality() {
                     rules.rule(
                         Bid::new(1, xs),
-                        1.45,
+                        145,
                         one_level & (top_honors(x, 2..) | !vulnerable()),
                     )
                 } else {
-                    rules.rule(Bid::new(1, xs), 1.45, one_level)
+                    rules.rule(Bid::new(1, xs), 145, one_level)
                 };
             }
             match free_bid_style() {
@@ -1522,7 +1522,7 @@ fn over_their_overcall(opening: Suit) -> Rules {
                 FreeBidStyle::Forcing => {
                     rules = rules.rule(
                         Bid::new(2, xs),
-                        1.45,
+                        145,
                         min_level_is(2, xs) & len(x, 5..) & points(10..) & !they_bid(xs),
                     );
                 }
@@ -1532,7 +1532,7 @@ fn over_their_overcall(opening: Suit) -> Rules {
                 FreeBidStyle::Negative => {
                     rules = rules.rule(
                         Bid::new(2, xs),
-                        1.45,
+                        145,
                         min_level_is(2, xs)
                             & (len(x, 6..) | (len(x, 5..) & top_honors(x, 2..)))
                             & points(5..=11)
@@ -1567,14 +1567,14 @@ fn over_their_overcall(opening: Suit) -> Rules {
                     rules = rules
                         .rule(
                             Bid::new(2, Strain::from(x)),
-                            1.45,
+                            145,
                             slot(x) & slot(y) & !slot(w) & len(y, 5..) & points(6..),
                         )
                         .alert(FREE_TRANSFER)
                         // …and the higher slot wraps around to show the lower.
                         .rule(
                             Bid::new(2, Strain::from(y)),
-                            1.45,
+                            145,
                             slot(x) & slot(y) & !slot(w) & len(x, 5..) & points(6..),
                         )
                         .alert(FREE_TRANSFER);
@@ -1587,7 +1587,7 @@ fn over_their_overcall(opening: Suit) -> Rules {
                 // in the default style.
                 rules = rules.rule(
                     Bid::new(2, Strain::from(x)),
-                    1.45,
+                    145,
                     slot(x)
                         & ((slot(y) & slot(z)) | (!slot(y) & !slot(z)))
                         & len(x, 5..)
@@ -1601,15 +1601,15 @@ fn over_their_overcall(opening: Suit) -> Rules {
         rules = if free_bid_quality() {
             rules.rule(
                 Bid::new(1, Strain::Notrump),
-                0.9,
+                90,
                 one_notrump & !vulnerable(),
             )
         } else {
-            rules.rule(Bid::new(1, Strain::Notrump), 0.9, one_notrump)
+            rules.rule(Bid::new(1, Strain::Notrump), 90, one_notrump)
         };
         rules = rules.rule(
             Bid::new(2, Strain::Notrump),
-            0.95,
+            95,
             min_level_is(2, Strain::Notrump) & hcp(11..=12) & stopper_in_their_suits(),
         );
         // The natural invitational 2NT *jump* over a 1-level overcall: 11–12
@@ -1618,7 +1618,7 @@ fn over_their_overcall(opening: Suit) -> Rules {
         // 1NT is still the cheapest notrump, so this 2NT is a jump.
         rules = rules.rule(
             Bid::new(2, Strain::Notrump),
-            0.95,
+            95,
             min_level_is(1, Strain::Notrump) & hcp(11..=12) & stopper_in_their_suits(),
         );
     }
@@ -1632,14 +1632,14 @@ fn over_their_overcall(opening: Suit) -> Rules {
         for lvl in 2u8..=3 {
             rules = rules.rule(
                 Bid::new(lvl, x_strain),
-                1.1,
+                110,
                 min_level_is(lvl - 1, x_strain) & len(x, 6..) & points(2..=5) & !they_bid(x_strain),
             );
         }
     }
 
     // Pass
-    rules.rule(Call::Pass, 0.0, hcp(0..))
+    rules.rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Opener's answer to responder's natural free bid — a new suit over their
@@ -1675,7 +1675,7 @@ fn answer_free_bid(opening: Suit) -> Rules {
             let min_support = if lvl == 2 { two_level_support } else { 3 };
             rules = rules.rule(
                 Bid::new(lvl, y_strain),
-                1.5,
+                150,
                 partner_suit_is(y) & min_level_is(lvl, y_strain) & support(min_support..),
             );
         }
@@ -1685,7 +1685,7 @@ fn answer_free_bid(opening: Suit) -> Rules {
     for lvl in 1u8..=2 {
         rules = rules.rule(
             Bid::new(lvl, Strain::Notrump),
-            1.2,
+            120,
             min_level_is(lvl, Strain::Notrump) & stopper_in_their_suits() & hcp(12..=14),
         );
     }
@@ -1704,9 +1704,9 @@ fn answer_free_bid(opening: Suit) -> Rules {
                 & !they_bid(x_strain)
                 & len(x, 4..);
             rules = if strong {
-                rules.rule(Bid::new(lvl, x_strain), 1.1, shape & hcp(16..))
+                rules.rule(Bid::new(lvl, x_strain), 110, shape & hcp(16..))
             } else {
-                rules.rule(Bid::new(lvl, x_strain), 1.1, shape)
+                rules.rule(Bid::new(lvl, x_strain), 110, shape)
             };
         }
     }
@@ -1715,7 +1715,7 @@ fn answer_free_bid(opening: Suit) -> Rules {
     for lvl in 2u8..=3 {
         rules = rules.rule(
             Bid::new(lvl, o_strain),
-            0.0,
+            0,
             min_level_is(lvl, o_strain) & hcp(0..),
         );
     }
@@ -1737,17 +1737,17 @@ fn answer_negative_free_bid(opening: Suit) -> Rules {
         let ys = Strain::from(y);
         rules = rules.rule(
             Bid::new(3, ys),
-            0.9,
+            90,
             partner_suit_is(y) & min_level_is(3, ys) & len(y, 3..) & points(15..),
         );
     }
     rules
         .rule(
             Bid::new(2, Strain::Notrump),
-            0.8,
+            80,
             min_level_is(2, Strain::Notrump) & stopper_in_their_suits() & hcp(13..=14),
         )
-        .rule(Call::Pass, 0.3, hcp(0..))
+        .rule(Call::Pass, 30, hcp(0..))
 }
 
 /// The negative doubler's rebid after opener answers (`FreeBidStyle::
@@ -1769,7 +1769,7 @@ fn negative_doubler_rebid(opening: Suit) -> Rules {
         for lvl in 2u8..=3 {
             rules = rules.rule(
                 Bid::new(lvl, zs),
-                1.3,
+                130,
                 min_level_is(lvl, zs)
                     & !partner_suit_is(z)
                     & !they_bid(zs)
@@ -1784,7 +1784,7 @@ fn negative_doubler_rebid(opening: Suit) -> Rules {
         for lvl in 2u8..=3 {
             rules = rules.rule(
                 Bid::new(lvl, ys),
-                1.0,
+                100,
                 partner_suit_is(y) & min_level_is(lvl, ys) & support(4..) & points(8..),
             );
         }
@@ -1792,10 +1792,10 @@ fn negative_doubler_rebid(opening: Suit) -> Rules {
     rules
         .rule(
             Bid::new(2, Strain::Notrump),
-            0.9,
+            90,
             min_level_is(2, Strain::Notrump) & stopper_in_their_suits() & hcp(10..=12),
         )
-        .rule(Call::Pass, 0.2, hcp(0..))
+        .rule(Call::Pass, 20, hcp(0..))
 }
 
 /// Opener's completion of a 2-level free-bid transfer (`FreeBidStyle::
@@ -1811,10 +1811,10 @@ fn free_transfer_completion(shown: Suit, comp_lvl: u8) -> Rules {
     Rules::new()
         .rule(
             Bid::new(comp_lvl + 1, m),
-            1.3,
+            130,
             len(shown, 4..) & points(15..),
         )
-        .rule(Bid::new(comp_lvl, m), 1.2, hcp(0..))
+        .rule(Bid::new(comp_lvl, m), 120, hcp(0..))
 }
 
 /// Responder's clarification after opener completes the 2-level transfer:
@@ -1823,9 +1823,9 @@ fn free_transfer_completion(shown: Suit, comp_lvl: u8) -> Rules {
 fn free_transfer_clarify(shown: Suit, comp_lvl: u8, cue: Bid) -> Rules {
     let m = Strain::from(shown);
     Rules::new()
-        .rule(cue, 1.1, points(13..))
-        .rule(Bid::new(comp_lvl + 1, m), 1.0, points(10..=12))
-        .rule(Call::Pass, 0.3, hcp(0..))
+        .rule(cue, 110, points(13..))
+        .rule(Bid::new(comp_lvl + 1, m), 100, points(10..=12))
+        .rule(Call::Pass, 30, hcp(0..))
 }
 
 /// How many unbid suits sit at the two level over their `ovc` after our
@@ -1855,10 +1855,10 @@ fn two_level_slots(o_strain: Strain, ovc: Bid) -> usize {
 fn support_rules(major: Suit) -> Rules {
     let m = Strain::from(major);
     Rules::new()
-        .rule(Call::Double, 1.5, support(3..=3))
+        .rule(Call::Double, 150, support(3..=3))
         .alert(SUPPORT_DOUBLE)
-        .rule(Bid::new(2, m), 1.4, support(4..))
-        .rule(Call::Pass, 0.0, hcp(0..))
+        .rule(Bid::new(2, m), 140, support(4..))
+        .rule(Call::Pass, 0, hcp(0..))
 }
 
 // ---------------------------------------------------------------------------
@@ -1878,8 +1878,8 @@ fn answer_neg_double_of_minor(opening_major: Suit) -> Rules {
     };
     let other_strain = Strain::from(other);
     Rules::new()
-        .rule(Bid::new(2, other_strain), 1.0, len(other, 3..))
-        .rule(Bid::new(2, m), 0.5, len(opening_major, 5..))
+        .rule(Bid::new(2, other_strain), 100, len(other, 3..))
+        .rule(Bid::new(2, m), 50, len(opening_major, 5..))
 }
 
 /// Opener's answer after `1M – (ovc) – cue – P` (partner cue-raised to a
@@ -1902,14 +1902,14 @@ fn answer_cue_raise(major: Suit) -> Rules {
     let trump = Strain::from(major);
     Rules::new()
         // 4M: accept → game.
-        .rule(Bid::new(4, trump), 1.0, points(13..))
+        .rule(Bid::new(4, trump), 100, points(13..))
         // 3M: decline → sign off in the major (catch-all).
         //
         // ponytail: decline assumes 3M is legal, which holds for every cue below
         // 3M — all cues over 1♠, and cues over 1♥ except a 3♠ cue. A 3♠ cue over
         // 1♥ with a minimum opener has 3♥ illegal and falls back through to the
         // floor (Pass); rare, revisit if the A/B surfaces it.
-        .rule(Bid::new(3, trump), 0.0, hcp(0..))
+        .rule(Bid::new(3, trump), 0, hcp(0..))
 }
 
 /// Opener's answer after `1m – (ovc) – cue – P` (partner cue-raised to a
@@ -1939,13 +1939,13 @@ fn answer_cue_minor_raise(minor: Suit) -> Rules {
         // fit length is the upgrade path if a re-measure wants the last IMPs.
         .rule(
             Bid::new(3, Strain::Notrump),
-            1.0,
+            100,
             points(14..) & stopper_in_their_suits(),
         )
         // 3m: decline when our minor is still available at the 3 level.
-        .rule(Bid::new(3, trump), 0.5, min_level_is(3, trump))
+        .rule(Bid::new(3, trump), 50, min_level_is(3, trump))
         // 4m: decline when 3m sits below the cue (club opening, 3-level cue).
-        .rule(Bid::new(4, trump), 0.5, min_level_is(4, trump))
+        .rule(Bid::new(4, trump), 50, min_level_is(4, trump))
 }
 
 // ---------------------------------------------------------------------------
@@ -1968,33 +1968,33 @@ fn uvu_major_responder(major: Suit) -> Rules {
     Rules::new()
         .rule(
             Bid::new(3, Strain::Clubs),
-            2.0,
+            200,
             len(major, 3..) & points(10..),
         )
         .alert(UVU_MAJOR_RAISE)
         .rule(
             Bid::new(3, Strain::Diamonds),
-            1.9,
+            190,
             len(om, 5..) & points(13..),
         )
         .alert(UVU_MAJOR_FOURTH)
         .rule(
             Bid::new(3, Strain::Notrump),
-            1.5,
+            150,
             points(13..) & stopper_in(Suit::Clubs) & stopper_in(Suit::Diamonds),
         )
         .rule(
             Call::Double,
-            1.4,
+            140,
             hcp(10..)
                 & (len(Suit::Clubs, 4..)
                     | suit_hcp(Suit::Clubs, 4..)
                     | len(Suit::Diamonds, 4..)
                     | suit_hcp(Suit::Diamonds, 4..)),
         )
-        .rule(Bid::new(3, m), 1.3, len(major, 3..) & points(6..=9))
-        .rule(Bid::new(4, m), 1.25, len(major, 4..) & points(..=9))
-        .rule(Call::Pass, 0.0, hcp(0..))
+        .rule(Bid::new(3, m), 130, len(major, 3..) & points(6..=9))
+        .rule(Bid::new(4, m), 125, len(major, 4..) & points(..=9))
+        .rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Responder after our 1M and their Michaels cue of our own major (`1♥-(2♥)`
@@ -2015,22 +2015,22 @@ fn michaels_cue_responder(major: Suit) -> Rules {
     };
 
     Rules::new()
-        .rule(om_cue, 2.0, len(major, 3..) & points(10..))
+        .rule(om_cue, 200, len(major, 3..) & points(10..))
         .alert(UVU_MAJOR_RAISE)
-        .rule(Call::Double, 1.6, hcp(10..))
-        .rule(Bid::new(3, m), 1.3, len(major, 3..) & points(6..=9))
-        .rule(Bid::new(4, m), 1.25, len(major, 4..) & points(..=9))
+        .rule(Call::Double, 160, hcp(10..))
+        .rule(Bid::new(3, m), 130, len(major, 3..) & points(6..=9))
+        .rule(Bid::new(4, m), 125, len(major, 4..) & points(..=9))
         .rule(
             Bid::new(3, Strain::Clubs),
-            1.1,
+            110,
             len(Suit::Clubs, 6..) & points(2..=9),
         )
         .rule(
             Bid::new(3, Strain::Diamonds),
-            1.1,
+            110,
             len(Suit::Diamonds, 6..) & points(2..=9),
         )
-        .rule(Call::Pass, 0.0, hcp(0..))
+        .rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Opener's answer after `1M – (2NT) – 3♦ – (P)` — partner's game force with
@@ -2046,14 +2046,14 @@ fn uvu_fourth_suit_answer(major: Suit) -> Rules {
     let om_strain = Strain::from(om);
 
     Rules::new()
-        .rule(Bid::new(4, om_strain), 1.5, len(om, 3..))
+        .rule(Bid::new(4, om_strain), 150, len(om, 3..))
         .rule(
             Bid::new(3, Strain::Notrump),
-            1.2,
+            120,
             stopper_in(Suit::Clubs) & stopper_in(Suit::Diamonds),
         )
-        .rule(Bid::new(4, m), 1.0, len(major, 6..))
-        .rule(Bid::new(3, Strain::Notrump), 0.2, hcp(0..))
+        .rule(Bid::new(4, m), 100, len(major, 6..))
+        .rule(Bid::new(3, Strain::Notrump), 20, hcp(0..))
 }
 
 /// Opener's answer to a Cachalot rotation showing 4+ in `shown` after our
@@ -2068,18 +2068,18 @@ fn uvu_fourth_suit_answer(major: Suit) -> Rules {
 fn cachalot_answer(opening: Suit, over: Suit, shown: Suit) -> Rules {
     let m = Strain::from(shown);
     let mut rules = Rules::new()
-        .rule(Bid::new(2, m), 1.3, len(shown, 4..))
-        .rule(Bid::new(1, m), 1.2, len(shown, 3..=3))
+        .rule(Bid::new(2, m), 130, len(shown, 4..))
+        .rule(Bid::new(1, m), 120, len(shown, 3..=3))
         .alert(CACHALOT_THREE);
     if shown == Suit::Hearts {
         // The fourth suit at the one level (spades, when hearts were shown
         // over their (1♦)).
-        rules = rules.rule(Bid::new(1, Strain::Spades), 1.1, len(Suit::Spades, 4..));
+        rules = rules.rule(Bid::new(1, Strain::Spades), 110, len(Suit::Spades, 4..));
     }
     rules
-        .rule(Bid::new(1, Strain::Notrump), 1.0, stopper_in(over))
-        .rule(Bid::new(2, Strain::from(opening)), 0.9, len(opening, 5..))
-        .rule(Bid::new(1, Strain::Notrump), 0.2, hcp(0..))
+        .rule(Bid::new(1, Strain::Notrump), 100, stopper_in(over))
+        .rule(Bid::new(2, Strain::from(opening)), 90, len(opening, 5..))
+        .rule(Bid::new(1, Strain::Notrump), 20, hcp(0..))
 }
 
 /// Opener's answer to the Cachalot takeout `1♠` — as over a Sputnik double
@@ -2090,9 +2090,9 @@ fn cachalot_answer(opening: Suit, over: Suit, shown: Suit) -> Rules {
 fn cachalot_takeout_answer(opening: Suit, over: Suit) -> Rules {
     let o = Strain::from(opening);
     Rules::new()
-        .rule(Bid::new(1, Strain::Notrump), 1.0, stopper_in(over))
-        .rule(Bid::new(2, o), 0.9, len(opening, 5..))
-        .rule(Bid::new(2, o), 0.2, hcp(0..))
+        .rule(Bid::new(1, Strain::Notrump), 100, stopper_in(over))
+        .rule(Bid::new(2, o), 90, len(opening, 5..))
+        .rule(Bid::new(2, o), 20, hcp(0..))
 }
 
 /// Opener's answer to a Cachalot `X` transfer once LHO has competed — hearts
@@ -2121,15 +2121,13 @@ fn cachalot_x_contested_answer(shown: Suit) -> impl Classifier {
                 bid.level.get() + 1
             };
             if level < 7 {
-                rules = rules.rule(Bid::new(level + 1, m), 1.3, len(shown, 4..));
+                rules = rules.rule(Bid::new(level + 1, m), 130, len(shown, 4..));
             }
             if level <= 7 {
-                rules = rules.rule(Bid::new(level, m), 1.2, len(shown, 3..));
+                rules = rules.rule(Bid::new(level, m), 120, len(shown, 3..));
             }
         }
-        rules
-            .rule(Call::Pass, 0.2, hcp(0..))
-            .classify(hand, context)
+        rules.rule(Call::Pass, 20, hcp(0..)).classify(hand, context)
     })
 }
 
@@ -2185,7 +2183,7 @@ fn jordan_truscott_package() -> Package {
                     row(
                         responder(),
                         Bid::new(2, Strain::Notrump),
-                        2.0,
+                        200,
                         len(o, jordan_min..) & points(10..),
                     )
                     .alert(JORDAN)
@@ -2195,7 +2193,7 @@ fn jordan_truscott_package() -> Package {
                     row(
                         responder(),
                         Call::Redouble,
-                        1.6,
+                        160,
                         hcp(10..) & len(o, ..=xx_max),
                     )
                     .alert(VALUE_REDOUBLE)
@@ -2205,7 +2203,7 @@ fn jordan_truscott_package() -> Package {
                     row(
                         responder(),
                         Bid::new(3, o_strain),
-                        1.5,
+                        150,
                         len(o, jordan_min..) & points(..=9),
                     )
                     .into(),
@@ -2214,7 +2212,7 @@ fn jordan_truscott_package() -> Package {
                     row(
                         responder(),
                         Bid::new(2, o_strain),
-                        1.4,
+                        140,
                         len(o, raise_min..) & points(6..=9),
                     )
                     .into(),
@@ -2228,7 +2226,7 @@ fn jordan_truscott_package() -> Package {
                         row(
                             responder(),
                             Bid::new(1, xs),
-                            1.3,
+                            130,
                             min_level_is(1, xs) & len(x, 4..) & points(6..),
                         )
                         .into(),
@@ -2237,15 +2235,15 @@ fn jordan_truscott_package() -> Package {
                         row(
                             responder(),
                             Bid::new(2, xs),
-                            1.2,
+                            120,
                             min_level_is(2, xs) & len(x, 5..) & points(6..=9),
                         )
                         .into(),
                     );
                 }
                 entries
-                    .push(row(responder(), Bid::new(1, Strain::Notrump), 1.1, hcp(6..=9)).into());
-                entries.push(row(responder(), Call::Pass, 0.0, hcp(0..)).into());
+                    .push(row(responder(), Bid::new(1, Strain::Notrump), 110, hcp(6..=9)).into());
+                entries.push(row(responder(), Call::Pass, 0, hcp(0..)).into());
 
                 entries.extend(rows_of(
                     Pattern::after(&key, "2NT (P)"),
@@ -2257,19 +2255,16 @@ fn jordan_truscott_package() -> Package {
                 ));
                 let preempt = Pattern::after(&key, &format!("3{o_strain} (P)"));
                 if is_major {
-                    entries.push(
-                        row(preempt.clone(), Bid::new(4, o_strain), 0.9, points(17..)).into(),
-                    );
+                    entries
+                        .push(row(preempt.clone(), Bid::new(4, o_strain), 90, points(17..)).into());
                 } else {
-                    entries.push(
-                        row(preempt.clone(), Bid::new(5, o_strain), 0.9, points(19..)).into(),
-                    );
+                    entries
+                        .push(row(preempt.clone(), Bid::new(5, o_strain), 90, points(19..)).into());
                 }
-                entries.push(row(preempt, Call::Pass, 0.0, hcp(0..)).into());
+                entries.push(row(preempt, Call::Pass, 0, hcp(0..)).into());
                 if redouble_answer() {
-                    entries.push(
-                        row(Pattern::after(&key, "XX (P)"), Call::Pass, 0.6, hcp(0..)).into(),
-                    );
+                    entries
+                        .push(row(Pattern::after(&key, "XX (P)"), Call::Pass, 60, hcp(0..)).into());
                 }
                 for x in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
                     let xs = Strain::from(x);
@@ -2281,12 +2276,12 @@ fn jordan_truscott_package() -> Package {
                         row(
                             weak.clone(),
                             Bid::new(3, xs),
-                            0.9,
+                            90,
                             len(x, 4..) & points(15..),
                         )
                         .into(),
                     );
-                    entries.push(row(weak, Call::Pass, 0.3, hcp(0..)).into());
+                    entries.push(row(weak, Call::Pass, 30, hcp(0..)).into());
                 }
             }
             entries
@@ -2312,7 +2307,7 @@ fn over_their_high_overcall(opening: Suit) -> Rules {
 
     let mut rules = Rules::new().rule(
         Bid::new(3, Strain::Notrump),
-        1.7,
+        170,
         points(13..) & stopper_in_their_suits(),
     );
 
@@ -2324,7 +2319,7 @@ fn over_their_high_overcall(opening: Suit) -> Rules {
         let xs = Strain::from(x);
         rules = rules.rule(
             Bid::new(3, xs),
-            1.45,
+            145,
             min_level_is(3, xs) & !they_bid(xs) & len(x, 5..) & points(13..),
         );
     }
@@ -2336,7 +2331,7 @@ fn over_their_high_overcall(opening: Suit) -> Rules {
         rules
             .rule(
                 Call::Double,
-                1.0,
+                100,
                 len(om, 4..) & hcp(10..) & !they_bid(om_strain),
             )
             .alert(NEGATIVE_DOUBLE)
@@ -2344,7 +2339,7 @@ fn over_their_high_overcall(opening: Suit) -> Rules {
         rules
             .rule(
                 Call::Double,
-                1.0,
+                100,
                 (len(Suit::Hearts, 4..) | len(Suit::Spades, 4..)) & hcp(10..),
             )
             .alert(NEGATIVE_DOUBLE)
@@ -2354,16 +2349,16 @@ fn over_their_high_overcall(opening: Suit) -> Rules {
     // preemptive on shape (minors).
     rules = rules.rule(
         Bid::new(3, o_strain),
-        1.3,
+        130,
         min_level_is(3, o_strain) & len(o, raise_min..) & points(6..),
     );
     rules = if is_major {
-        rules.rule(Bid::new(4, o_strain), 1.25, len(o, 4..) & points(11..))
+        rules.rule(Bid::new(4, o_strain), 125, len(o, 4..) & points(11..))
     } else {
-        rules.rule(Bid::new(4, o_strain), 1.25, len(o, 5..) & points(..=9))
+        rules.rule(Bid::new(4, o_strain), 125, len(o, 5..) & points(..=9))
     };
 
-    rules.rule(Call::Pass, 0.0, hcp(0..))
+    rules.rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Opener's forced answer to partner's negative double of a 3-level overcall
@@ -2384,25 +2379,25 @@ fn answer_high_neg_double(opening: Suit) -> Rules {
         rules = rules
             .rule(
                 Bid::new(3, ms),
-                1.2,
+                120,
                 min_level_is(3, ms) & len(m, 4..) & !they_bid(ms),
             )
             .rule(
                 Bid::new(4, ms),
-                1.1,
+                110,
                 min_level_is(4, ms) & len(m, 4..) & !they_bid(ms),
             );
     }
     rules = rules
-        .rule(Bid::new(3, Strain::Notrump), 1.0, stopper_in_their_suits())
+        .rule(Bid::new(3, Strain::Notrump), 100, stopper_in_their_suits())
         .rule(
             Bid::new(3, o_strain),
-            0.9,
+            90,
             min_level_is(3, o_strain) & len(opening, 6..),
         )
         .rule(
             Bid::new(4, o_strain),
-            0.85,
+            85,
             min_level_is(4, o_strain) & len(opening, 6..),
         );
     for m in [Suit::Hearts, Suit::Spades] {
@@ -2413,16 +2408,16 @@ fn answer_high_neg_double(opening: Suit) -> Rules {
         rules = rules
             .rule(
                 Bid::new(3, ms),
-                0.3,
+                30,
                 min_level_is(3, ms) & len(m, 3..) & !they_bid(ms),
             )
             .rule(
                 Bid::new(4, ms),
-                0.25,
+                25,
                 min_level_is(4, ms) & len(m, 3..) & !they_bid(ms),
             );
     }
-    rules.rule(Bid::new(3, Strain::Notrump), 0.15, hcp(0..))
+    rules.rule(Bid::new(3, Strain::Notrump), 15, hcp(0..))
 }
 
 // ---------------------------------------------------------------------------
@@ -2437,7 +2432,7 @@ fn answer_high_neg_double(opening: Suit) -> Rules {
 /// hand still prefers the ask, whose weight sits above).
 fn weak_two_doubled_responder(our: Suit) -> Rules {
     weak_twos::responses(our)
-        .rule(Call::Redouble, 1.8, hcp(13..))
+        .rule(Call::Redouble, 180, hcp(13..))
         .alert(WEAK_TWO_XX)
 }
 
@@ -2452,18 +2447,18 @@ fn weak_two_overcalled_responder(our: Suit) -> Rules {
     Rules::new()
         .rule(
             Bid::new(2, Strain::Notrump),
-            2.0,
+            200,
             min_level_is(2, Strain::Notrump) & len(our, 2..) & points(14..),
         )
         .alert(CONTESTED_OGUST)
-        .rule(Call::Double, 1.6, hcp(11..))
+        .rule(Call::Double, 160, hcp(11..))
         .rule(
             Bid::new(3, trump),
-            1.3,
+            130,
             min_level_is(3, trump) & len(our, 3..),
         )
-        .rule(Bid::new(4, trump), 1.25, len(our, 4..))
-        .rule(Call::Pass, 0.0, hcp(0..))
+        .rule(Bid::new(4, trump), 125, len(our, 4..))
+        .rule(Call::Pass, 0, hcp(0..))
 }
 
 // ---------------------------------------------------------------------------
@@ -2482,22 +2477,22 @@ fn strong_two_overcalled_responder() -> Rules {
     let mut rules = Rules::new()
         .rule(
             Bid::new(2, Strain::Notrump),
-            1.3,
+            130,
             min_level_is(2, Strain::Notrump) & hcp(8..) & balanced() & stopper_in_their_suits(),
         )
         .rule(
             Bid::new(3, Strain::Notrump),
-            1.3,
+            130,
             min_level_is(3, Strain::Notrump) & hcp(8..) & balanced() & stopper_in_their_suits(),
         )
-        .rule(Call::Double, 1.2, hcp(6..))
-        .rule(Call::Pass, 0.5, hcp(0..));
+        .rule(Call::Double, 120, hcp(6..))
+        .rule(Call::Pass, 50, hcp(0..));
     for x in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         let strain = Strain::from(x);
         for level in 2..=3u8 {
             rules = rules.rule(
                 Bid::new(level, strain),
-                1.5,
+                150,
                 min_level_is(level, strain) & len(x, 5..) & top_honors(x, 2..) & points(8..),
             );
         }
@@ -2514,21 +2509,21 @@ fn strong_two_reopening() -> Rules {
     let mut rules = Rules::new()
         .rule(
             Bid::new(2, Strain::Notrump),
-            1.2,
+            120,
             min_level_is(2, Strain::Notrump) & balanced() & stopper_in_their_suits(),
         )
         .rule(
             Bid::new(3, Strain::Notrump),
-            1.2,
+            120,
             min_level_is(3, Strain::Notrump) & balanced() & stopper_in_their_suits(),
         )
-        .rule(Call::Double, 0.4, hcp(0..));
+        .rule(Call::Double, 40, hcp(0..));
     for x in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         let strain = Strain::from(x);
         for level in 2..=3u8 {
             rules = rules.rule(
                 Bid::new(level, strain),
-                1.0,
+                100,
                 min_level_is(level, strain) & len(x, 5..),
             );
         }
@@ -2569,7 +2564,7 @@ pub(super) fn lebensohl_responder(over: Suit) -> Rules {
             continue;
         }
         let strain = Strain::from(s);
-        rules = rules.rule(Bid::new(3, strain), 1.8, len(s, 5..) & points(10..));
+        rules = rules.rule(Bid::new(3, strain), 180, len(s, 5..) & points(10..));
     }
 
     // Direct cue of their suit = Stayman: game-forcing with a 4-card unbid major
@@ -2581,12 +2576,12 @@ pub(super) fn lebensohl_responder(over: Suit) -> Rules {
     let cue = Bid::new(3, Strain::from(over));
     rules = match unbid_major(over) {
         Some(major) => rules
-            .rule(cue, 1.75, len(major, 4..) & points(10..))
+            .rule(cue, 175, len(major, 4..) & points(10..))
             .alert(LEBENSOHL_CUE),
         None => rules
             .rule(
                 cue,
-                1.75,
+                175,
                 (len(Suit::Hearts, 4..) | len(Suit::Spades, 4..)) & points(10..),
             )
             .alert(LEBENSOHL_CUE),
@@ -2594,7 +2589,7 @@ pub(super) fn lebensohl_responder(over: Suit) -> Rules {
 
     // Direct 3NT to play: game values with their suit stopped (toggles: drop the
     // stopper requirement, and/or trap-pass with 4+ in their suit).
-    rules = author_direct_3nt(rules, 1.7, over);
+    rules = author_direct_3nt(rules, 170, over);
 
     // Responder's double of their overcall (penalty by default; see [`DoubleStyle`]).
     rules = responder_double(rules, over);
@@ -2608,7 +2603,7 @@ pub(super) fn lebensohl_responder(over: Suit) -> Rules {
         let strain = Strain::from(s);
         rules = rules.rule(
             Bid::new(2, strain),
-            1.5,
+            150,
             min_level_is(2, strain)
                 & len(s, 5..)
                 & points(..=9)
@@ -2625,11 +2620,11 @@ pub(super) fn lebensohl_responder(over: Suit) -> Rules {
     // shape and the PD-distilled 6-HCP floor on the 5-card arm.
     let long_suit = lebensohl_relay_shape(over);
     rules = rules
-        .rule(Bid::new(2, Strain::Notrump), 1.4, points(..=9) & long_suit)
+        .rule(Bid::new(2, Strain::Notrump), 140, points(..=9) & long_suit)
         .alert(LEBENSOHL_RELAY);
 
     // Pass — weak, nothing constructive to say.
-    rules.rule(Call::Pass, 0.0, hcp(0..))
+    rules.rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Responder's counter-defense after `1NT − (2♦)` when the `2♦` is read as a
@@ -2651,25 +2646,25 @@ fn multi_responder() -> Rules {
     // X = values / takeout of the unknown major — BBA's backbone (41%). Floored
     // at 8 (a touch above BBA's loose ~5) for doubled-contract discipline.
     rules = rules
-        .rule(Call::Double, 1.55, points(8..))
+        .rule(Call::Double, 155, points(8..))
         .alert(MULTI_TAKEOUT);
 
     // Natural forcing 3-level single-suiter (incl. natural 3♦ — diamonds is not
     // their suit, so no cue).
     for s in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         let strain = Strain::from(s);
-        rules = rules.rule(Bid::new(3, strain), 1.8, len(s, 5..) & points(10..));
+        rules = rules.rule(Bid::new(3, strain), 180, len(s, 5..) & points(10..));
     }
 
     // Direct 3NT to play (default toggles → plain game values).
-    rules = author_direct_3nt(rules, 1.7, over);
+    rules = author_direct_3nt(rules, 170, over);
 
     // Natural weak 2-level major — both majors clear the `2♦` overcall.
     for s in [Suit::Hearts, Suit::Spades] {
         let strain = Strain::from(s);
         rules = rules.rule(
             Bid::new(2, strain),
-            1.5,
+            150,
             len(s, 5..) & points(..=9) & hcp(natural_floor_hcp()..) & points(natural_floor_pts()..),
         );
     }
@@ -2677,15 +2672,15 @@ fn multi_responder() -> Rules {
     // 2NT = Lebensohl relay to 3♣ (weak long minor / suit below the majors).
     let long_suit = lebensohl_relay_shape(over);
     rules = rules
-        .rule(Bid::new(2, Strain::Notrump), 1.4, points(..=9) & long_suit)
+        .rule(Bid::new(2, Strain::Notrump), 140, points(..=9) & long_suit)
         .alert(LEBENSOHL_RELAY);
 
-    rules.rule(Call::Pass, 0.0, hcp(0..))
+    rules.rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Opener completes responder's Lebensohl `2NT` relay with the forced `3♣`
 pub(super) fn complete_lebensohl_relay() -> Rules {
-    Rules::new().rule(Bid::new(3, Strain::Clubs), 1.0, hcp(0..))
+    Rules::new().rule(Bid::new(3, Strain::Clubs), 100, hcp(0..))
 }
 
 /// Responder's rebid after the `2NT` relay is completed at `3♣`
@@ -2700,7 +2695,7 @@ pub(super) fn lebensohl_relay_rebid(over: Suit) -> Rules {
         let strain = Strain::from(s);
         rules = rules.rule(
             Bid::new(3, strain),
-            1.0,
+            100,
             min_level_is(3, strain) & len(s, 5..),
         );
     }
@@ -2711,12 +2706,12 @@ pub(super) fn lebensohl_relay_rebid(over: Suit) -> Rules {
         rules = rules
             .rule(
                 Bid::new(3, Strain::from(over)),
-                1.5,
+                150,
                 points(10..) & stopper_in(over) & len(major, 4..) & len(major, ..5),
             )
             .alert(LEBENSOHL_CUE);
     }
-    rules.rule(Call::Pass, 0.0, hcp(0..))
+    rules.rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Opener's reply to responder's weak Lebensohl sign-off in a major
@@ -2740,12 +2735,12 @@ pub(super) fn lebensohl_signoff_raise(signoff: Suit, resp_floor: u8) -> Rules {
     Rules::new()
         .rule(
             game,
-            1.0,
+            100,
             (len(signoff, 3..=3) & points(base..))
                 | (len(signoff, 4..=4) & points(base.saturating_sub(1)..))
                 | (len(signoff, 5..) & points(base.saturating_sub(2)..)),
         )
-        .rule(Call::Pass, 0.0, hcp(0..))
+        .rule(Call::Pass, 0, hcp(0..))
 }
 
 // ---------------------------------------------------------------------------
@@ -2867,7 +2862,7 @@ pub(super) fn transfer_lebensohl_responder(over: Suit, gate_4333: bool) -> Rules
                 (Suit::Hearts, true) => rules
                     .rule(
                         cue,
-                        1.7,
+                        170,
                         len(Suit::Spades, 4..)
                             & points(10..)
                             & !stopper_in(over)
@@ -2877,7 +2872,7 @@ pub(super) fn transfer_lebensohl_responder(over: Suit, gate_4333: bool) -> Rules
                 (Suit::Spades, true) => rules
                     .rule(
                         cue,
-                        1.7,
+                        170,
                         len(Suit::Hearts, 4..)
                             & points(10..)
                             & !stopper_in(over)
@@ -2887,7 +2882,7 @@ pub(super) fn transfer_lebensohl_responder(over: Suit, gate_4333: bool) -> Rules
                 (Suit::Hearts, false) => rules
                     .rule(
                         cue,
-                        1.7,
+                        170,
                         len(Suit::Spades, 4..)
                             & points(10..)
                             & competitive_4333_ok(over, gate_4333),
@@ -2896,7 +2891,7 @@ pub(super) fn transfer_lebensohl_responder(over: Suit, gate_4333: bool) -> Rules
                 (Suit::Spades, false) => rules
                     .rule(
                         cue,
-                        1.7,
+                        170,
                         len(Suit::Hearts, 4..)
                             & points(10..)
                             & competitive_4333_ok(over, gate_4333),
@@ -2905,7 +2900,7 @@ pub(super) fn transfer_lebensohl_responder(over: Suit, gate_4333: bool) -> Rules
                 _ => rules
                     .rule(
                         cue,
-                        1.7,
+                        170,
                         (len(Suit::Hearts, 4..) | len(Suit::Spades, 4..))
                             & points(10..)
                             & competitive_4333_ok(over, gate_4333),
@@ -2918,9 +2913,9 @@ pub(super) fn transfer_lebensohl_responder(over: Suit, gate_4333: bool) -> Rules
             // transfer, not Stayman; a minor target is rare (long minor, no
             // stopper) and yields to Stayman / 3NT.
             let weight = if matches!(target, Suit::Hearts | Suit::Spades) {
-                1.8
+                180
             } else {
-                1.45
+                145
             };
             rules = rules
                 .rule(Bid::new(3, strain), weight, len(target, 5..) & points(9..))
@@ -2935,7 +2930,7 @@ pub(super) fn transfer_lebensohl_responder(over: Suit, gate_4333: bool) -> Rules
             rules = rules
                 .rule(
                     Bid::new(3, strain),
-                    1.45,
+                    145,
                     len(Suit::Clubs, 6..) & points(10..),
                 )
                 .alert(LEBENSOHL_TRANSFER);
@@ -2945,7 +2940,7 @@ pub(super) fn transfer_lebensohl_responder(over: Suit, gate_4333: bool) -> Rules
     // Direct 3NT to play: game values with their suit stopped, no major to show
     // (toggles: drop the stopper requirement, and/or trap-pass with 4+ in their
     // suit — long-in-their-suit defends better than it declares).
-    rules = author_direct_3nt(rules, 1.5, over);
+    rules = author_direct_3nt(rules, 150, over);
 
     // Stopper-split on: a GF hand with a stopper *and* exactly a 4-card unbid
     // major relays through 2NT to bid the cue *slowly* (Stayman with a stopper,
@@ -2955,7 +2950,7 @@ pub(super) fn transfer_lebensohl_responder(over: Suit, gate_4333: bool) -> Rules
         rules = rules
             .rule(
                 Bid::new(2, Strain::Notrump),
-                1.6,
+                160,
                 points(10..) & stopper_in(over) & len(major, 4..) & len(major, ..5),
             )
             .alert(LEBENSOHL_RELAY);
@@ -2974,7 +2969,7 @@ pub(super) fn transfer_lebensohl_responder(over: Suit, gate_4333: bool) -> Rules
         let strain = Strain::from(s);
         rules = rules.rule(
             Bid::new(2, strain),
-            1.4,
+            140,
             min_level_is(2, strain)
                 & len(s, 5..)
                 & points(..=8)
@@ -2988,11 +2983,11 @@ pub(super) fn transfer_lebensohl_responder(over: Suit, gate_4333: bool) -> Rules
     // a 5-carder with the PD-distilled 6-HCP floor, never their suit).
     let long_suit = lebensohl_relay_shape(over);
     rules = rules
-        .rule(Bid::new(2, Strain::Notrump), 1.35, points(..=8) & long_suit)
+        .rule(Bid::new(2, Strain::Notrump), 135, points(..=8) & long_suit)
         .alert(LEBENSOHL_RELAY);
 
     // Pass — weak, nothing constructive to say.
-    rules.rule(Call::Pass, 0.0, hcp(0..))
+    rules.rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Opener's reply after responder's Transfer-Lebensohl transfer to `target`
@@ -3004,9 +2999,9 @@ pub(super) fn transfer_completion(target: Suit, over: Suit) -> Rules {
     let t = Strain::from(target);
     let mut rules = Rules::new();
     if matches!(target, Suit::Hearts | Suit::Spades) {
-        rules = rules.rule(Bid::new(4, t), 1.6, len(target, 3..)).rule(
+        rules = rules.rule(Bid::new(4, t), 160, len(target, 3..)).rule(
             Bid::new(3, Strain::Notrump),
-            1.4,
+            140,
             len(target, ..3),
         );
     } else {
@@ -3014,10 +3009,10 @@ pub(super) fn transfer_completion(target: Suit, over: Suit) -> Rules {
         // 3NT-or-complete covers the common game. Author it if the A/B shows
         // minor transfers matter.
         rules = rules
-            .rule(Bid::new(3, Strain::Notrump), 1.5, stopper_in(over))
-            .rule(Bid::new(3, t), 1.3, len(target, 3..));
+            .rule(Bid::new(3, Strain::Notrump), 150, stopper_in(over))
+            .rule(Bid::new(3, t), 130, len(target, 3..));
     }
-    rules.rule(Call::Pass, 0.0, hcp(0..))
+    rules.rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Opener's reply to responder's Transfer-Lebensohl cue (Stayman, game-forcing)
@@ -3031,11 +3026,11 @@ pub(super) fn cue_stayman_answer(over: Suit) -> Rules {
         }
         let m = Strain::from(major);
         rules = rules
-            .rule(Bid::new(3, m), 1.6, len(major, 4..) & min_level_is(3, m))
-            .rule(Bid::new(4, m), 1.5, len(major, 4..) & min_level_is(4, m));
+            .rule(Bid::new(3, m), 160, len(major, 4..) & min_level_is(3, m))
+            .rule(Bid::new(4, m), 150, len(major, 4..) & min_level_is(4, m));
     }
     // No 4-card unbid major → 3NT (always legal above the 3-level cue).
-    rules.rule(Bid::new(3, Strain::Notrump), 1.3, hcp(0..))
+    rules.rule(Bid::new(3, Strain::Notrump), 130, hcp(0..))
 }
 
 /// Answerer's reply to the *direct* (no-stopper) cue under the stopper-split
@@ -3053,18 +3048,18 @@ pub(super) fn cue_stayman_answer_no_stopper(over: Suit) -> Rules {
         }
         let m = Strain::from(major);
         rules = rules
-            .rule(Bid::new(3, m), 1.6, len(major, 4..) & min_level_is(3, m))
-            .rule(Bid::new(4, m), 1.5, len(major, 4..) & min_level_is(4, m));
+            .rule(Bid::new(3, m), 160, len(major, 4..) & min_level_is(3, m))
+            .rule(Bid::new(4, m), 150, len(major, 4..) & min_level_is(4, m));
     }
     // 3NT only with our own stopper (the cuer has none).
-    rules = rules.rule(Bid::new(3, Strain::Notrump), 1.45, stopper_in(over));
+    rules = rules.rule(Bid::new(3, Strain::Notrump), 145, stopper_in(over));
     // No fit, no stopper → minor-suit game.
     for minor in [Suit::Clubs, Suit::Diamonds] {
         let m = Strain::from(minor);
-        rules = rules.rule(Bid::new(4, m), 1.2, len(minor, 4..) & min_level_is(4, m));
+        rules = rules.rule(Bid::new(4, m), 120, len(minor, 4..) & min_level_is(4, m));
     }
     // Guaranteed-finite catch-all (rare: no major, no stopper, no 4-card minor).
-    rules.rule(Bid::new(3, Strain::Notrump), 1.0, hcp(0..))
+    rules.rule(Bid::new(3, Strain::Notrump), 100, hcp(0..))
 }
 
 // ---------------------------------------------------------------------------
@@ -3093,7 +3088,7 @@ pub(super) fn transfer_stayman_2d_responder(gate_4333: bool) -> Rules {
     rules = rules
         .rule(
             Bid::new(3, Strain::Clubs),
-            1.85,
+            185,
             (len(Suit::Hearts, 4..=4) | len(Suit::Spades, 4..=4))
                 & points(10..)
                 & competitive_4333_ok(Suit::Diamonds, gate_4333),
@@ -3104,13 +3099,13 @@ pub(super) fn transfer_stayman_2d_responder(gate_4333: bool) -> Rules {
     rules = rules
         .rule(
             Bid::new(3, Strain::Diamonds),
-            1.8,
+            180,
             len(Suit::Hearts, 5..) & points(9..),
         )
         .alert(LEBENSOHL_TRANSFER)
         .rule(
             Bid::new(3, Strain::Hearts),
-            1.8,
+            180,
             len(Suit::Spades, 5..) & points(9..),
         )
         .alert(LEBENSOHL_TRANSFER);
@@ -3121,7 +3116,7 @@ pub(super) fn transfer_stayman_2d_responder(gate_4333: bool) -> Rules {
     rules = rules
         .rule(
             Bid::new(3, Strain::Spades),
-            1.45,
+            145,
             len(Suit::Clubs, 6..) & points(10..),
         )
         .alert(LEBENSOHL_TRANSFER);
@@ -3130,13 +3125,13 @@ pub(super) fn transfer_stayman_2d_responder(gate_4333: bool) -> Rules {
     rules = rules
         .rule(
             Bid::new(4, Strain::Diamonds),
-            2.0,
+            200,
             len(Suit::Hearts, 5..) & len(Suit::Spades, 5..) & points(10..),
         )
         .alert(LEAPING_MICHAELS)
         .rule(
             Bid::new(4, Strain::Clubs),
-            2.0,
+            200,
             len(Suit::Clubs, 5..)
                 & (len(Suit::Hearts, 5..) | len(Suit::Spades, 5..))
                 & points(10..),
@@ -3146,7 +3141,7 @@ pub(super) fn transfer_stayman_2d_responder(gate_4333: bool) -> Rules {
     // Weak / to-play outlets — identical to `transfer_lebensohl_responder(Diamonds)`.
     rules = rules.rule(
         Bid::new(3, Strain::Notrump),
-        1.5,
+        150,
         points(10..) & stopper_in(Suit::Diamonds),
     );
     rules = responder_double(rules, Suit::Diamonds);
@@ -3154,7 +3149,7 @@ pub(super) fn transfer_stayman_2d_responder(gate_4333: bool) -> Rules {
         let strain = Strain::from(s);
         rules = rules.rule(
             Bid::new(2, strain),
-            1.4,
+            140,
             min_level_is(2, strain)
                 & len(s, 5..)
                 & points(..=8)
@@ -3166,10 +3161,10 @@ pub(super) fn transfer_stayman_2d_responder(gate_4333: bool) -> Rules {
     // never their diamonds (see [`lebensohl_relay_shape`]).
     let long_suit = lebensohl_relay_shape(Suit::Diamonds);
     rules = rules
-        .rule(Bid::new(2, Strain::Notrump), 1.35, points(..=8) & long_suit)
+        .rule(Bid::new(2, Strain::Notrump), 135, points(..=8) & long_suit)
         .alert(LEBENSOHL_RELAY);
 
-    rules.rule(Call::Pass, 0.0, hcp(0..))
+    rules.rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Opener's answer to `3♣` Stayman over `(2♦)`: a 4-card major, else `3♦`
@@ -3178,13 +3173,13 @@ pub(super) fn transfer_stayman_2d_responder(gate_4333: bool) -> Rules {
 /// leaving `3♥`/`3♠` free for responder's Smolen. `3♦` is the finite catch-all.
 pub(super) fn stayman_2d_answer() -> Rules {
     Rules::new()
-        .rule(Bid::new(3, Strain::Hearts), 1.6, len(Suit::Hearts, 4..))
+        .rule(Bid::new(3, Strain::Hearts), 160, len(Suit::Hearts, 4..))
         .rule(
             Bid::new(3, Strain::Spades),
-            1.55,
+            155,
             len(Suit::Spades, 4..) & len(Suit::Hearts, ..4),
         )
-        .rule(Bid::new(3, Strain::Diamonds), 0.5, hcp(0..))
+        .rule(Bid::new(3, Strain::Diamonds), 50, hcp(0..))
 }
 
 /// Responder's rebid after opener shows a 4-card major over `3♣` Stayman
@@ -3193,8 +3188,8 @@ pub(super) fn stayman_2d_answer() -> Rules {
 /// eight-card fit), else settle in `3NT` (the finite catch-all).
 pub(super) fn stayman_2d_fit_rebid(major: Suit) -> Rules {
     Rules::new()
-        .rule(Bid::new(4, Strain::from(major)), 1.4, len(major, 4..))
-        .rule(Bid::new(3, Strain::Notrump), 0.5, hcp(0..))
+        .rule(Bid::new(4, Strain::from(major)), 140, len(major, 4..))
+        .rule(Bid::new(3, Strain::Notrump), 50, hcp(0..))
 }
 
 /// Opener's completion of the top-step→clubs transfer (a forced game-force)
@@ -3207,8 +3202,8 @@ pub(super) fn stayman_2d_fit_rebid(major: Suit) -> Rules {
 // the common game. Author a keycard ladder here only if the A/B shows it matters.
 pub(super) fn clubs_transfer_completion(over: Suit) -> Rules {
     Rules::new()
-        .rule(Bid::new(3, Strain::Notrump), 1.4, stopper_in(over))
-        .rule(Bid::new(5, Strain::Clubs), 0.5, hcp(0..))
+        .rule(Bid::new(3, Strain::Notrump), 140, stopper_in(over))
+        .rule(Bid::new(5, Strain::Clubs), 50, hcp(0..))
 }
 
 /// Opener's reply to Leaping Michaels `4♦` (both majors, 5-5 game-forcing)
@@ -3217,10 +3212,10 @@ pub(super) fn clubs_transfer_completion(over: Suit) -> Rules {
 /// support) and breaking ties toward spades. `4♥` is the finite catch-all.
 pub(super) fn lm_2d_both_majors_advance() -> Rules {
     Rules::new()
-        .rule(Bid::new(4, Strain::Spades), 1.6, len(Suit::Spades, 4..))
-        .rule(Bid::new(4, Strain::Hearts), 1.55, len(Suit::Hearts, 4..))
-        .rule(Bid::new(4, Strain::Spades), 1.5, len(Suit::Spades, 3..))
-        .rule(Bid::new(4, Strain::Hearts), 1.0, hcp(0..))
+        .rule(Bid::new(4, Strain::Spades), 160, len(Suit::Spades, 4..))
+        .rule(Bid::new(4, Strain::Hearts), 155, len(Suit::Hearts, 4..))
+        .rule(Bid::new(4, Strain::Spades), 150, len(Suit::Spades, 3..))
+        .rule(Bid::new(4, Strain::Hearts), 100, hcp(0..))
 }
 
 /// Opener's reply to Leaping Michaels `4♣` (clubs + an unknown 5+ major)
@@ -3231,15 +3226,15 @@ pub(super) fn lm_2d_both_majors_advance() -> Rules {
 // final placement (pass the major / correct to 5♣) is left to the floor. Add a
 // direct 5♣ sign-off only if the A/B shows the relay costs.
 pub(super) fn lm_2d_clubs_ask() -> Rules {
-    Rules::new().rule(Bid::new(4, Strain::Diamonds), 1.4, hcp(0..))
+    Rules::new().rule(Bid::new(4, Strain::Diamonds), 140, hcp(0..))
 }
 
 /// Responder names the 5+ major behind a `4♣` Leaping Michaels, over the `4♦` ask
 pub(super) fn lm_2d_clubs_major() -> Rules {
     Rules::new()
-        .rule(Bid::new(4, Strain::Hearts), 1.5, len(Suit::Hearts, 5..))
-        .rule(Bid::new(4, Strain::Spades), 1.5, len(Suit::Spades, 5..))
-        .rule(Bid::new(5, Strain::Clubs), 0.5, hcp(0..))
+        .rule(Bid::new(4, Strain::Hearts), 150, len(Suit::Hearts, 5..))
+        .rule(Bid::new(4, Strain::Spades), 150, len(Suit::Spades, 5..))
+        .rule(Bid::new(5, Strain::Clubs), 50, hcp(0..))
 }
 
 /// Responder's first call over `1NT − (2NT both minors)` — Unusual vs Unusual
@@ -3264,13 +3259,13 @@ pub(super) fn uvu_responder() -> Rules {
     rules = rules
         .rule(
             Bid::new(4, Strain::Clubs),
-            2.0,
+            200,
             both_majors_55.clone() & len(Suit::Clubs, ..=1) & points(10..),
         )
         .alert(UVU_SPLINTER)
         .rule(
             Bid::new(4, Strain::Diamonds),
-            2.0,
+            200,
             both_majors_55 & len(Suit::Diamonds, ..=1) & points(10..),
         )
         .alert(UVU_SPLINTER);
@@ -3280,7 +3275,7 @@ pub(super) fn uvu_responder() -> Rules {
     rules = rules
         .rule(
             Bid::new(3, Strain::Clubs),
-            1.85,
+            185,
             ((len(Suit::Spades, 5..) & len(Suit::Hearts, ..=4))
                 | len(Suit::Spades, 4..=4)
                 | (len(Suit::Hearts, 4..=4) & len(Suit::Spades, ..=3)))
@@ -3289,7 +3284,7 @@ pub(super) fn uvu_responder() -> Rules {
         .alert(UVU_CUE)
         .rule(
             Bid::new(3, Strain::Diamonds),
-            1.8,
+            180,
             len(Suit::Hearts, 5..) & len(Suit::Spades, ..=3) & points(cue_floor..),
         )
         .alert(UVU_CUE);
@@ -3297,7 +3292,7 @@ pub(super) fn uvu_responder() -> Rules {
     // 3NT to play: game values, both minors stopped, no major to pursue.
     rules = rules.rule(
         Bid::new(3, Strain::Notrump),
-        1.5,
+        150,
         points(10..) & stopper_in(Suit::Clubs) & stopper_in(Suit::Diamonds),
     );
 
@@ -3309,7 +3304,7 @@ pub(super) fn uvu_responder() -> Rules {
     // their actual runout is the encircling follow-up.
     rules = rules.rule(
         Call::Double,
-        1.4,
+        140,
         hcp(x_floor..)
             & (len(Suit::Clubs, 4..)
                 | suit_hcp(Suit::Clubs, 4..)
@@ -3324,16 +3319,16 @@ pub(super) fn uvu_responder() -> Rules {
     rules = rules
         .rule(
             Bid::new(3, Strain::Hearts),
-            1.3,
+            130,
             len(Suit::Hearts, nat..) & points(..=weak),
         )
         .rule(
             Bid::new(3, Strain::Spades),
-            1.3,
+            130,
             len(Suit::Spades, nat..) & points(..=weak),
         );
 
-    rules.rule(Call::Pass, 0.0, hcp(0..))
+    rules.rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Responder's symmetric Smolen after `1NT − (2NT) − 3♣ − (P) − 3♦` — opener
@@ -3344,11 +3339,11 @@ pub(super) fn uvu_responder() -> Rules {
 /// no-five-card-major catch-all (the plain 4-4 Stayman hand).
 pub(super) fn uvu_smolen() -> Rules {
     Rules::new()
-        .rule(Bid::new(3, Strain::Hearts), 1.5, len(Suit::Spades, 5..))
+        .rule(Bid::new(3, Strain::Hearts), 150, len(Suit::Spades, 5..))
         .alert(SMOLEN)
-        .rule(Bid::new(3, Strain::Spades), 1.5, len(Suit::Hearts, 5..))
+        .rule(Bid::new(3, Strain::Spades), 150, len(Suit::Hearts, 5..))
         .alert(SMOLEN)
-        .rule(Bid::new(3, Strain::Notrump), 0.5, hcp(0..))
+        .rule(Bid::new(3, Strain::Notrump), 50, hcp(0..))
 }
 
 /// Responder's rebid after `1NT − (2NT) − 3♣ − (P) − 3♥` (opener showed 4 hearts)
@@ -3357,9 +3352,9 @@ pub(super) fn uvu_smolen() -> Rules {
 /// opener places); else `3NT` (the finite catch-all).
 pub(super) fn uvu_rebid_over_3h() -> Rules {
     Rules::new()
-        .rule(Bid::new(4, Strain::Hearts), 1.5, len(Suit::Hearts, 4..))
-        .rule(Bid::new(3, Strain::Spades), 1.4, len(Suit::Spades, 5..))
-        .rule(Bid::new(3, Strain::Notrump), 0.5, hcp(0..))
+        .rule(Bid::new(4, Strain::Hearts), 150, len(Suit::Hearts, 4..))
+        .rule(Bid::new(3, Strain::Spades), 140, len(Suit::Spades, 5..))
+        .rule(Bid::new(3, Strain::Notrump), 50, hcp(0..))
 }
 
 /// Opener's coded reply after the opponents double our 2♣ Stayman
@@ -3375,25 +3370,25 @@ fn stayman_doubled_opener() -> Rules {
     Rules::new()
         .rule(
             Call::Redouble,
-            1.0,
+            100,
             len(Suit::Clubs, 5..) & suit_hcp(Suit::Clubs, 5..),
         )
         .rule(
             Bid::new(2, Strain::Hearts),
-            1.0,
+            100,
             len(Suit::Hearts, 4..) & stopper_in(Suit::Clubs),
         )
         .rule(
             Bid::new(2, Strain::Spades),
-            1.0,
+            100,
             len(Suit::Spades, 4..) & len(Suit::Hearts, ..4) & stopper_in(Suit::Clubs),
         )
         .rule(
             Bid::new(2, Strain::Diamonds),
-            0.5,
+            50,
             len(Suit::Hearts, ..4) & len(Suit::Spades, ..4) & stopper_in(Suit::Clubs),
         )
-        .rule(Call::Pass, 0.25, !stopper_in(Suit::Clubs))
+        .rule(Call::Pass, 25, !stopper_in(Suit::Clubs))
 }
 
 /// Responder's re-ask after opener passed our doubled Stayman to deny a club
@@ -3406,11 +3401,11 @@ fn stayman_redouble_reask() -> Rules {
     Rules::new()
         .rule(
             Call::Redouble,
-            1.0,
+            100,
             len(Suit::Hearts, 4..) | len(Suit::Spades, 4..),
         )
         .alert(STAYMAN_REDOUBLE)
-        .rule(Call::Pass, 0.1, hcp(0..))
+        .rule(Call::Pass, 10, hcp(0..))
 }
 
 /// Opener's natural reply after the opponents overcall our 2♣ Stayman at the
@@ -3422,18 +3417,18 @@ fn stayman_redouble_reask() -> Rules {
 fn stayman_overcalled_opener(over: Suit) -> Rules {
     let mut rules = Rules::new();
     if (Suit::Hearts as u8) > (over as u8) {
-        rules = rules.rule(Bid::new(2, Strain::Hearts), 1.0, len(Suit::Hearts, 4..));
+        rules = rules.rule(Bid::new(2, Strain::Hearts), 100, len(Suit::Hearts, 4..));
     }
     if (Suit::Spades as u8) > (over as u8) {
         rules = rules.rule(
             Bid::new(2, Strain::Spades),
-            1.0,
+            100,
             len(Suit::Spades, 4..) & len(Suit::Hearts, ..4),
         );
     }
     rules
-        .rule(Call::Double, 0.6, len(over, 4..))
-        .rule(Call::Pass, 0.2, hcp(0..))
+        .rule(Call::Double, 60, len(over, 4..))
+        .rule(Call::Pass, 20, hcp(0..))
 }
 
 /// Opener's reply after the opponents double our Jacoby transfer
@@ -3448,12 +3443,12 @@ fn transfer_doubled_opener(major: Suit, bid: Suit) -> Rules {
     let strain = Strain::from(major);
     let mut rules = Rules::new();
     if transfer_super_accept() {
-        rules = rules.rule(Bid::new(3, strain), 1.5, len(major, 4..) & hcp(17..));
+        rules = rules.rule(Bid::new(3, strain), 150, len(major, 4..) & hcp(17..));
     }
     rules
-        .rule(Bid::new(2, strain), 1.0, len(major, 3..))
-        .rule(Call::Redouble, 0.6, len(bid, 5..) & suit_hcp(bid, 5..))
-        .rule(Call::Pass, 0.25, len(major, ..3))
+        .rule(Bid::new(2, strain), 100, len(major, 3..))
+        .rule(Call::Redouble, 60, len(bid, 5..) & suit_hcp(bid, 5..))
+        .rule(Call::Pass, 25, len(major, ..3))
 }
 
 /// Responder's re-ask after opener passed our doubled transfer
@@ -3464,9 +3459,9 @@ fn transfer_doubled_opener(major: Suit, bid: Suit) -> Rules {
 /// [`complete_transfer`], no Pass).  An owning Pass is the catch-all.
 fn transfer_pass_reask(major: Suit) -> Rules {
     Rules::new()
-        .rule(Call::Redouble, 1.0, len(major, 5..))
+        .rule(Call::Redouble, 100, len(major, 5..))
         .alert(TRANSFER_REDOUBLE)
-        .rule(Call::Pass, 0.1, hcp(0..))
+        .rule(Call::Pass, 10, hcp(0..))
 }
 
 /// Opener's reply after the opponents overcall our Jacoby transfer
@@ -3485,11 +3480,11 @@ fn transfer_overcalled_opener(major: Suit, over_suit: Suit, over_level: u8) -> R
     Rules::new()
         .rule(
             Bid::new(lvl, strain),
-            1.0,
+            100,
             min_level_is(lvl, strain) & len(major, 4..),
         )
-        .rule(Call::Double, 0.6, len(over_suit, 4..))
-        .rule(Call::Pass, 0.2, hcp(0..))
+        .rule(Call::Double, 60, len(over_suit, 4..))
+        .rule(Call::Pass, 20, hcp(0..))
 }
 
 /// Opener's coded reply after the opponents double our two-way 2♠
@@ -3505,15 +3500,15 @@ fn minor_doubled_opener() -> Rules {
         // Maximum + spade stopper: the uncontested `3♣` max answer.
         .rule(
             Bid::new(3, Strain::Clubs),
-            1.0,
+            100,
             hcp(17..) & stopper_in(Suit::Spades),
         )
         // Minimum + spade stopper: the uncontested `2NT` min answer.
-        .rule(Bid::new(2, Strain::Notrump), 0.9, stopper_in(Suit::Spades))
+        .rule(Bid::new(2, Strain::Notrump), 90, stopper_in(Suit::Spades))
         // Maximum, no stopper: `XX`.
-        .rule(Call::Redouble, 0.8, hcp(17..))
+        .rule(Call::Redouble, 80, hcp(17..))
         // Minimum, no stopper: `Pass`.
-        .rule(Call::Pass, 0.25, hcp(0..))
+        .rule(Call::Pass, 25, hcp(0..))
 }
 
 /// Responder's placement after opener denied a spade stopper over our doubled 2♠
@@ -3527,8 +3522,8 @@ fn minor_doubled_opener() -> Rules {
 // if an A/B says the no-stopper branch leaks.
 fn minor_no_stopper_rebid() -> Rules {
     Rules::new()
-        .rule(Bid::new(3, Strain::Clubs), 0.8, len(Suit::Clubs, 6..))
-        .rule(Call::Pass, 0.1, hcp(0..))
+        .rule(Bid::new(3, Strain::Clubs), 80, len(Suit::Clubs, 6..))
+        .rule(Call::Pass, 10, hcp(0..))
 }
 
 /// Opener's reply after the opponents overcall our two-way 2♠ at `2NT` or `3♣` —
@@ -3541,11 +3536,11 @@ fn minor_overcalled_high() -> Rules {
     Rules::new()
         .rule(
             Bid::new(3, Strain::Notrump),
-            1.0,
+            100,
             hcp(17..) & stopper_in(Suit::Spades),
         )
-        .rule(Call::Double, 0.7, hcp(17..))
-        .rule(Call::Pass, 0.2, hcp(0..))
+        .rule(Call::Double, 70, hcp(17..))
+        .rule(Call::Pass, 20, hcp(0..))
 }
 
 /// Opener's systems-off reply after the opponents overcall our two-way 2♠ above
@@ -3556,8 +3551,8 @@ fn minor_overcalled_high() -> Rules {
 /// responder captain.
 fn minor_overcalled_low(over: Suit) -> Rules {
     Rules::new()
-        .rule(Call::Double, 0.6, len(over, 4..))
-        .rule(Call::Pass, 0.2, hcp(0..))
+        .rule(Call::Double, 60, len(over, 4..))
+        .rule(Call::Pass, 20, hcp(0..))
 }
 
 /// Opener's reply after the opponents double our 2NT diamond transfer
@@ -3570,17 +3565,17 @@ fn minor_overcalled_low(over: Suit) -> Rules {
 fn diamond_doubled_opener() -> Rules {
     Rules::new()
         // Accept the transfer with a diamond fit — primary.
-        .rule(Bid::new(3, Strain::Diamonds), 1.0, len(Suit::Diamonds, 3..))
+        .rule(Bid::new(3, Strain::Diamonds), 100, len(Suit::Diamonds, 3..))
         // No fit but real clubs: natural, lands responder's 5♦-4♣ in the club fit.
         .rule(
             Bid::new(3, Strain::Clubs),
-            0.7,
+            70,
             len(Suit::Diamonds, ..3) & len(Suit::Clubs, 4..),
         )
         // Maximum without a fit: redouble shows values (penalty-oriented).
-        .rule(Call::Redouble, 0.6, hcp(17..))
+        .rule(Call::Redouble, 60, hcp(17..))
         // Catch-all: minimum, no fit, no clubs.
-        .rule(Call::Pass, 0.25, hcp(0..))
+        .rule(Call::Pass, 25, hcp(0..))
 }
 
 /// Responder's signoff after opener denied a diamond fit over our doubled 2NT
@@ -3593,17 +3588,17 @@ fn diamond_doubled_opener() -> Rules {
 // spot left to the floor — refine only if an A/B says this branch leaks.
 fn diamond_no_fit_rebid() -> Rules {
     Rules::new()
-        .rule(Bid::new(3, Strain::Diamonds), 0.8, len(Suit::Diamonds, 5..))
-        .rule(Call::Pass, 0.1, hcp(0..))
+        .rule(Bid::new(3, Strain::Diamonds), 80, len(Suit::Diamonds, 5..))
+        .rule(Call::Pass, 10, hcp(0..))
 }
 
 /// Opener's reply after the opponents overcall our 2NT diamond transfer at `3♣`
 /// (the one overcall that leaves the `3♦` completion legal)
 fn diamond_overcalled_low() -> Rules {
     Rules::new()
-        .rule(Bid::new(3, Strain::Diamonds), 1.0, len(Suit::Diamonds, 3..))
-        .rule(Call::Double, 0.6, len(Suit::Clubs, 4..))
-        .rule(Call::Pass, 0.2, hcp(0..))
+        .rule(Bid::new(3, Strain::Diamonds), 100, len(Suit::Diamonds, 3..))
+        .rule(Call::Double, 60, len(Suit::Clubs, 4..))
+        .rule(Call::Pass, 20, hcp(0..))
 }
 
 /// Opener's reply after the opponents overcall our 2NT diamond transfer above `3♣`
@@ -3615,11 +3610,11 @@ fn diamond_overcalled_high(over: Suit) -> Rules {
     Rules::new()
         .rule(
             Bid::new(3, Strain::Notrump),
-            1.0,
+            100,
             hcp(17..) & stopper_in(over),
         )
-        .rule(Call::Double, 0.6, len(over, 4..))
-        .rule(Call::Pass, 0.2, hcp(0..))
+        .rule(Call::Double, 60, len(over, 4..))
+        .rule(Call::Pass, 20, hcp(0..))
 }
 
 /// Section 1 & 2 as a row package: over each one-suit opening, the direct-seat
@@ -4173,10 +4168,10 @@ fn support_double_package() -> Package {
                 entries.extend(rows_of(
                     Pattern::after(&key, "(X)"),
                     Rules::new()
-                        .rule(Call::Redouble, 1.5, support(3..=3))
+                        .rule(Call::Redouble, 150, support(3..=3))
                         .alert(SUPPORT_DOUBLE)
-                        .rule(Bid::new(2, m), 1.4, support(4..))
-                        .rule(Call::Pass, 0.0, hcp(0..)),
+                        .rule(Bid::new(2, m), 140, support(4..))
+                        .rule(Call::Pass, 0, hcp(0..)),
                 ));
             }
             entries
@@ -4803,7 +4798,7 @@ fn lebensohl_package() -> Package {
             // catch-all, so a hand failing the club gate just answers Stayman
             // exactly as the rebase would (no silent pass).
             if let Some((min_len, min_hcp, over_major)) = penalty_pass() {
-                let pass_logit = if over_major { 1.5 } else { 0.75 };
+                let pass_logit = if over_major { 150 } else { 75 };
                 entries.extend(rows_of(
                     Pattern::after("P* 1NT (2♣)", "X (P)"),
                     stayman_answers().rule(

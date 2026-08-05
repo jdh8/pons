@@ -98,22 +98,22 @@ fn nmf_responder(opening: Suit, response: Suit) -> Rules {
     Rules::new()
         .rule(
             Bid::new(2, Strain::from(new_minor(opening))),
-            1.5,
+            150,
             points(10..) & len(response, 5..),
         )
         .alert(NMF)
         .rule(
             Bid::new(2, Strain::Notrump),
-            1.2,
+            120,
             points(10..=12) & len(response, ..=4),
         )
         .rule(
             Bid::new(3, Strain::Notrump),
-            1.1,
+            110,
             points(13..) & len(response, ..=4),
         )
-        .rule(Bid::new(2, major), 1.0, len(response, 5..) & points(..=9))
-        .rule(Call::Pass, 0.0, points(..=9))
+        .rule(Bid::new(2, major), 100, len(response, 5..) & points(..=9))
+        .rule(Call::Pass, 0, points(..=9))
 }
 
 /// Opener's answer to the forcing new minor: majors first, else natural notrump
@@ -136,21 +136,21 @@ fn nmf_opener_answers(response: Suit) -> Rules {
     let other = other_major(response);
     Rules::new()
         // Three-card support for responder's major: minimum raise, maximum jump.
-        .rule(Bid::new(2, major), 1.30, len(response, 3..) & points(..=13))
-        .rule(Bid::new(3, major), 1.20, len(response, 3..) & points(14..))
+        .rule(Bid::new(2, major), 130, len(response, 3..) & points(..=13))
+        .rule(Bid::new(3, major), 120, len(response, 3..) & points(14..))
         // Four cards in the other major, denying support.  Only reachable when
         // opener could not show it earlier (always for a 1♠ response; for a 1♥
         // response only with up-the-line off) — otherwise the guard never fires.
         .rule(
             Bid::new(2, Strain::from(other)),
-            1.25,
+            125,
             len(other, 4..) & len(response, ..=2),
         )
         // Balanced minimum, no fit — and the guaranteed-legal catch-all.
-        .rule(Bid::new(2, Strain::Notrump), 1.00, points(..=13))
-        .rule(Bid::new(2, Strain::Notrump), 0.10, points(0..))
+        .rule(Bid::new(2, Strain::Notrump), 100, points(..=13))
+        .rule(Bid::new(2, Strain::Notrump), 10, points(0..))
         // Balanced maximum, no fit.
-        .rule(Bid::new(3, Strain::Notrump), 1.10, points(14..))
+        .rule(Bid::new(3, Strain::Notrump), 110, points(14..))
 }
 
 /// Opener accepts (14+) or declines an invitation reached below game
@@ -158,8 +158,8 @@ fn nmf_opener_answers(response: Suit) -> Rules {
 /// The same min/max threshold as the rest of the system (`points(14..)`).
 fn accept_or_decline(game: Bid) -> Rules {
     Rules::new()
-        .rule(game, 1.0, points(14..))
-        .rule(Call::Pass, 0.0, points(0..))
+        .rule(game, 100, points(14..))
+        .rule(Call::Pass, 0, points(0..))
 }
 
 /// Responder places after opener shows three-card support for the major
@@ -171,11 +171,11 @@ fn accept_or_decline(game: Bid) -> Rules {
 /// jump's extra values never reach the floor's `combined_points`.)
 fn placement_over_support(major: Strain, maxed: bool) -> Rules {
     if maxed {
-        Rules::new().rule(Bid::new(4, major), 1.0, points(0..))
+        Rules::new().rule(Bid::new(4, major), 100, points(0..))
     } else {
         Rules::new()
-            .rule(Bid::new(4, major), 1.0, points(13..))
-            .rule(Call::Pass, 0.0, points(0..))
+            .rule(Bid::new(4, major), 100, points(13..))
+            .rule(Call::Pass, 0, points(0..))
     }
 }
 
@@ -185,11 +185,11 @@ fn placement_over_support(major: Strain, maxed: bool) -> Rules {
 /// game values); opener's maximum jumped to `3NT`, already game.
 fn placement_no_fit(maxed: bool) -> Rules {
     if maxed {
-        Rules::new().rule(Call::Pass, 0.0, points(0..))
+        Rules::new().rule(Call::Pass, 0, points(0..))
     } else {
         Rules::new()
-            .rule(Bid::new(3, Strain::Notrump), 1.0, points(13..))
-            .rule(Call::Pass, 0.0, points(0..))
+            .rule(Bid::new(3, Strain::Notrump), 100, points(13..))
+            .rule(Call::Pass, 0, points(0..))
     }
 }
 
@@ -203,18 +203,14 @@ fn placement_over_other_major(response: Suit, other: Suit) -> Rules {
     let major = Strain::from(response);
     let o = Strain::from(other);
     Rules::new()
-        .rule(Bid::new(4, o), 1.1, len(other, 4..) & points(13..))
-        .rule(Bid::new(3, o), 1.0, len(other, 4..) & points(10..=12))
+        .rule(Bid::new(4, o), 110, len(other, 4..) & points(13..))
+        .rule(Bid::new(3, o), 100, len(other, 4..) & points(10..=12))
         // No 4-4, but a seventh card in our own major: a 7-2 fit to insist on
         // (a 6-2 belongs in notrump — bid 2NT/3NT below).
-        .rule(Bid::new(4, major), 1.05, len(response, 7..) & points(13..))
-        .rule(
-            Bid::new(3, major),
-            0.95,
-            len(response, 7..) & points(10..=12),
-        )
-        .rule(Bid::new(3, Strain::Notrump), 0.9, points(13..))
-        .rule(Bid::new(2, Strain::Notrump), 0.2, points(10..))
+        .rule(Bid::new(4, major), 105, len(response, 7..) & points(13..))
+        .rule(Bid::new(3, major), 95, len(response, 7..) & points(10..=12))
+        .rule(Bid::new(3, Strain::Notrump), 90, points(13..))
+        .rule(Bid::new(2, Strain::Notrump), 20, points(10..))
 }
 
 /// NMF and its continuations under one `1m – 1M – 1NT` prefix

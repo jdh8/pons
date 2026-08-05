@@ -891,10 +891,10 @@ struct Args {
     #[arg(long, default_value = "8:14")]
     ns_overcall: String,
 
-    /// Logit weight of our natural penalty double of their 1NT (default 1.3, above
-    /// the 1.0 suit overcall).
-    #[arg(long, default_value_t = 1.3)]
-    ns_double_weight: f32,
+    /// Logit weight of our natural penalty double of their 1NT, in centinats
+    /// (default 130, above the 100 suit overcall).
+    #[arg(long, default_value_t = 130)]
+    ns_double_weight: i16,
 
     /// Support gate on our 12+ takeout double of a suit / weak-two opening:
     /// off | lenient | strict (default, matches shipped `american()`).

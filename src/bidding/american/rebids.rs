@@ -224,7 +224,7 @@ fn with_major_jump_rebid(rules: Rules, major: Suit, highest: Bid) -> Rules {
     }
     let trump = Strain::from(major);
     let level = cheapest_level_over(highest, trump) + 1;
-    rules.rule(Bid::new(level, trump), 1.5, len(major, 6..) & points(16..))
+    rules.rule(Bid::new(level, trump), 150, len(major, 6..) & points(16..))
 }
 
 /// The cheapest level at which `strain` may be bid over `highest`
@@ -277,7 +277,7 @@ fn with_extras_ladder(
     if jump_rebid_level <= 3 {
         rules = rules.rule(
             Bid::new(jump_rebid_level, opener_strain),
-            1.5,
+            150,
             len(opener, 6..) & points(16..),
         );
     }
@@ -295,7 +295,7 @@ fn with_extras_ladder(
             rules = rules
                 .rule(
                     Bid::new(2, second_strain),
-                    1.6,
+                    160,
                     len(opener, 5..) & len(second, 4..) & points(17..),
                 )
                 .alert(OPENER_REVERSE);
@@ -309,7 +309,7 @@ fn with_extras_ladder(
             rules = rules
                 .rule(
                     Bid::new(jump_shift_level, second_strain),
-                    1.7,
+                    170,
                     len(opener, 5..) & len(second, 4..) & points(18..),
                 )
                 .alert(OPENER_JUMP_SHIFT);
@@ -335,7 +335,7 @@ fn with_invitational_minors(mut rules: Rules) -> Rules {
         for minor in [Suit::Clubs, Suit::Diamonds] {
             rules = rules.rule(
                 Bid::new(3, Strain::from(minor)),
-                1.05,
+                105,
                 len(minor, 5..) & points(15..=17),
             );
         }
@@ -372,14 +372,14 @@ fn with_forcing_nt_two_suiter(rules: Rules, major: Suit) -> Rules {
         Suit::Hearts => rules
             .rule(
                 Bid::new(2, Strain::Spades),
-                1.1,
+                110,
                 len(Suit::Hearts, 5..) & len(Suit::Spades, 4..) & points(15..=17),
             )
             .alert(OPENER_REVERSE),
         Suit::Spades => rules
             .rule(
                 Bid::new(3, Strain::Hearts),
-                1.15,
+                115,
                 len(Suit::Spades, 5..) & len(Suit::Hearts, 5..) & points(15..=17),
             )
             .alert(OPENER_JUMP_SHIFT),
@@ -394,23 +394,23 @@ fn rebid_one_heart_one_spade() -> Rules {
     let mut rules = Rules::new()
         .rule(
             Bid::new(4, Strain::Spades),
-            2.6,
+            260,
             support(4..) & points(19..),
         )
         .rule(
             Bid::new(3, Strain::Spades),
-            2.2,
+            220,
             support(4..) & points(16..=18),
         )
         .rule(
             Bid::new(2, Strain::Spades),
-            1.8,
+            180,
             support(4..) & points(12..=15),
         )
-        .rule(Bid::new(2, Strain::Hearts), 1.4, len(Suit::Hearts, 6..))
+        .rule(Bid::new(2, Strain::Hearts), 140, len(Suit::Hearts, 6..))
         .rule(
             Bid::new(2, Strain::Notrump),
-            1.2,
+            120,
             fifths(18.0..20.0) & balanced(),
         );
     // Meckstroth adjunct: invitational 3♣/3♦ jumps with a five-card minor.
@@ -418,11 +418,11 @@ fn rebid_one_heart_one_spade() -> Rules {
     // Major jump-rebid: 1♥ – 1♠ – 3♥ on a six-card major with extras.
     rules = with_major_jump_rebid(rules, Suit::Hearts, Bid::new(1, Strain::Spades));
     rules
-        .rule(Bid::new(2, Strain::Clubs), 0.9, len(Suit::Clubs, 4..))
-        .rule(Bid::new(2, Strain::Diamonds), 0.9, len(Suit::Diamonds, 4..))
+        .rule(Bid::new(2, Strain::Clubs), 90, len(Suit::Clubs, 4..))
+        .rule(Bid::new(2, Strain::Diamonds), 90, len(Suit::Diamonds, 4..))
         // Balanced minimum, and the guaranteed-legal fallback.
-        .rule(Bid::new(1, Strain::Notrump), 0.5, fifths(12.0..15.0))
-        .rule(Bid::new(1, Strain::Notrump), 0.2, hcp(0..))
+        .rule(Bid::new(1, Strain::Notrump), 50, fifths(12.0..15.0))
+        .rule(Bid::new(1, Strain::Notrump), 20, hcp(0..))
 }
 
 /// Opener's rebid after `1M – 1NT` (the forcing notrump)
@@ -438,16 +438,16 @@ fn rebid_after_forcing_notrump(major: Suit) -> Rules {
     // force while the invitational 3m jumps stay 15–17.
     if meckstroth() {
         rules = rules
-            .rule(Bid::new(2, Strain::Notrump), 1.6, points(18..))
+            .rule(Bid::new(2, Strain::Notrump), 160, points(18..))
             .alert(OPENER_GF_2NT);
     } else {
         rules = rules.rule(
             Bid::new(2, Strain::Notrump),
-            1.2,
+            120,
             fifths(18.0..20.0) & balanced(),
         );
     }
-    rules = rules.rule(Bid::new(2, trump), 1.0, len(major, 6..));
+    rules = rules.rule(Bid::new(2, trump), 100, len(major, 6..));
     // Meckstroth adjunct: invitational 3♣/3♦ jumps with a five-card minor.
     rules = with_invitational_minors(rules);
     // Major jump-rebid: 1M – 1NT – 3M on a six-card major with extras.
@@ -456,11 +456,11 @@ fn rebid_after_forcing_notrump(major: Suit) -> Rules {
     rules = with_forcing_nt_two_suiter(rules, major);
     for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
         if Strain::from(suit) < trump {
-            rules = rules.rule(Bid::new(2, Strain::from(suit)), 0.9, len(suit, 4..));
+            rules = rules.rule(Bid::new(2, Strain::from(suit)), 90, len(suit, 4..));
         }
     }
     // Opener always holds at least five of the major, so this always applies.
-    rules.rule(Bid::new(2, trump), 0.3, len(major, 5..))
+    rules.rule(Bid::new(2, trump), 30, len(major, 5..))
 }
 
 /// Opener's rebid raising responder's new major after a minor opening
@@ -472,12 +472,12 @@ fn rebid_after_forcing_notrump(major: Suit) -> Rules {
 fn rebid_raise_major(responder_major: Suit, opener_minor: Suit) -> Rules {
     let m = Strain::from(responder_major);
     let mut rules = Rules::new()
-        .rule(Bid::new(4, m), 2.6, support(4..) & points(19..))
-        .rule(Bid::new(3, m), 2.2, support(4..) & points(16..=18))
-        .rule(Bid::new(2, m), 1.8, support(4..) & points(12..=15))
+        .rule(Bid::new(4, m), 260, support(4..) & points(19..))
+        .rule(Bid::new(3, m), 220, support(4..) & points(16..=18))
+        .rule(Bid::new(2, m), 180, support(4..) & points(12..=15))
         .rule(
             Bid::new(2, Strain::Notrump),
-            1.2,
+            120,
             fifths(18.0..20.0) & balanced(),
         );
     // Balanced 12–14 with a five-card minor: rebid 1NT rather than the natural
@@ -486,7 +486,7 @@ fn rebid_raise_major(responder_major: Suit, opener_minor: Suit) -> Rules {
     if balanced_1nt_rebid() {
         rules = rules.rule(
             Bid::new(1, Strain::Notrump),
-            0.92,
+            92,
             fifths(12.0..15.0) & balanced(),
         );
     }
@@ -494,22 +494,22 @@ fn rebid_raise_major(responder_major: Suit, opener_minor: Suit) -> Rules {
     // and the notrump fallbacks (a heart raise with four-card support still
     // wins on weight).
     if responder_major == Suit::Hearts && super::responses::up_the_line() {
-        rules = rules.rule(Bid::new(1, Strain::Spades), 0.95, len(Suit::Spades, 4..));
+        rules = rules.rule(Bid::new(1, Strain::Spades), 95, len(Suit::Spades, 4..));
     }
     // Strength-showing ladder: jump-rebid, reverse, jump-shift (default off).
     rules = with_extras_ladder(rules, opener_minor, Bid::new(1, m), Some(responder_major));
     rules
         .rule(
             Bid::new(2, Strain::from(opener_minor)),
-            0.9,
+            90,
             len(opener_minor, 5..),
         )
         .rule(
             Bid::new(1, Strain::Notrump),
-            0.5,
+            50,
             fifths(12.0..15.0) & balanced(),
         )
-        .rule(Bid::new(1, Strain::Notrump), 0.2, hcp(0..))
+        .rule(Bid::new(1, Strain::Notrump), 20, hcp(0..))
 }
 
 /// Opener's rebid after `1♣ – 1♦`
@@ -519,29 +519,29 @@ fn rebid_raise_major(responder_major: Suit, opener_minor: Suit) -> Rules {
 /// 1NT catch-all.
 fn rebid_one_club_one_diamond() -> Rules {
     let mut rules = Rules::new()
-        .rule(Bid::new(1, Strain::Hearts), 1.3, len(Suit::Hearts, 4..))
+        .rule(Bid::new(1, Strain::Hearts), 130, len(Suit::Hearts, 4..))
         .rule(
             Bid::new(1, Strain::Spades),
-            1.3,
+            130,
             len(Suit::Spades, 4..) & len(Suit::Hearts, ..4),
         )
         .rule(
             Bid::new(3, Strain::Diamonds),
-            1.5,
+            150,
             support(4..) & points(16..=18),
         )
         .rule(
             Bid::new(2, Strain::Diamonds),
-            1.2,
+            120,
             support(4..) & points(12..=15),
         )
         .rule(
             Bid::new(2, Strain::Notrump),
-            1.1,
+            110,
             fifths(18.0..20.0) & balanced(),
         );
     if super::responses::up_the_line() {
-        rules = rules.rule(Bid::new(2, Strain::Clubs), 0.9, len(Suit::Clubs, 6..));
+        rules = rules.rule(Bid::new(2, Strain::Clubs), 90, len(Suit::Clubs, 6..));
     }
     // Strength-showing ladder: jump-rebid, reverse, jump-shift (default off).
     rules = with_extras_ladder(
@@ -553,10 +553,10 @@ fn rebid_one_club_one_diamond() -> Rules {
     rules
         .rule(
             Bid::new(1, Strain::Notrump),
-            0.5,
+            50,
             fifths(12.0..15.0) & balanced(),
         )
-        .rule(Bid::new(1, Strain::Notrump), 0.2, hcp(0..))
+        .rule(Bid::new(1, Strain::Notrump), 20, hcp(0..))
 }
 
 // ---------------------------------------------------------------------------
@@ -580,13 +580,13 @@ fn responder_after_forcing_notrump(major: Suit) -> Rules {
     let trump = Strain::from(major);
     let mut rules = Rules::new()
         // Three-card limit raise — the standard 2/1 route: 1NT then 3M.
-        .rule(Bid::new(3, trump), 1.5, len(major, 3..) & hcp(10..=12))
+        .rule(Bid::new(3, trump), 150, len(major, 3..) & hcp(10..=12))
         // Natural notrump invite.
-        .rule(Bid::new(2, Strain::Notrump), 1.2, hcp(11..=12))
+        .rule(Bid::new(2, Strain::Notrump), 120, hcp(11..=12))
         // Preference to opener's major.
-        .rule(Bid::new(2, trump), 1.0, len(major, 2..) & hcp(7..))
+        .rule(Bid::new(2, trump), 100, len(major, 2..) & hcp(7..))
         // Catch-all pass; the forcing 1NT is one round only.
-        .rule(Call::Pass, 0.0, hcp(0..));
+        .rule(Call::Pass, 0, hcp(0..));
 
     // Six-card runouts into a side suit (dead when the call is illegal in
     // the current auction).
@@ -594,7 +594,7 @@ fn responder_after_forcing_notrump(major: Suit) -> Rules {
         if suit != major {
             rules = rules.rule(
                 Bid::new(2, Strain::from(suit)),
-                1.1,
+                110,
                 len(suit, 6..) & hcp(..=9),
             );
         }
@@ -621,15 +621,15 @@ fn responder_after_invitational_minor(major: Suit) -> Rules {
     let trump = Strain::from(major);
     Rules::new()
         // Accept to the 5-3 major game.
-        .rule(Bid::new(4, trump), 1.4, len(major, 3..) & points(10..))
+        .rule(Bid::new(4, trump), 140, len(major, 3..) & points(10..))
         // Accept to notrump game with no major fit.
-        .rule(Bid::new(3, Strain::Notrump), 1.2, points(10..))
+        .rule(Bid::new(3, Strain::Notrump), 120, points(10..))
         // Decline: preference to opener's five-card major.
-        .rule(Bid::new(3, trump), 1.0, len(major, 2..) & points(..10))
+        .rule(Bid::new(3, trump), 100, len(major, 2..) & points(..10))
         // Catch-all: minimum, short in the major — pass the invitation.
         // ponytail: a 5m minor game is folded into 3NT; add an explicit 5m raise
         // if the A/B shows it matters.
-        .rule(Call::Pass, 0.0, points(0..))
+        .rule(Call::Pass, 0, points(0..))
 }
 
 /// Responder's call over opener's invitational `3M` jump-rebid
@@ -648,9 +648,9 @@ fn responder_after_invitational_minor(major: Suit) -> Rules {
 fn responder_after_major_jump_rebid(major: Suit) -> Rules {
     let trump = Strain::from(major);
     Rules::new()
-        .rule(Bid::new(4, trump), 1.4, len(major, 2..) & points(8..))
-        .rule(Bid::new(3, Strain::Notrump), 1.2, points(9..))
-        .rule(Call::Pass, 0.0, points(0..))
+        .rule(Bid::new(4, trump), 140, len(major, 2..) & points(8..))
+        .rule(Bid::new(3, Strain::Notrump), 120, points(9..))
+        .rule(Call::Pass, 0, points(0..))
 }
 
 /// Opener accepts or declines responder's 2NT notrump invite
@@ -658,8 +658,8 @@ fn responder_after_major_jump_rebid(major: Suit) -> Rules {
 /// Accept with 14+ HCP (bid 3NT), decline with a pass.
 fn opener_accept_notrump_invite() -> Rules {
     Rules::new()
-        .rule(Bid::new(3, Strain::Notrump), 1.0, hcp(14..))
-        .rule(Call::Pass, 0.0, hcp(0..))
+        .rule(Bid::new(3, Strain::Notrump), 100, hcp(14..))
+        .rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Opener accepts or declines responder's 3M limit raise
@@ -667,8 +667,8 @@ fn opener_accept_notrump_invite() -> Rules {
 /// Accept with 14+ points (bid game in the major), decline with a pass.
 fn opener_accept_limit_raise(major: Suit) -> Rules {
     Rules::new()
-        .rule(Bid::new(4, Strain::from(major)), 1.0, points(14..))
-        .rule(Call::Pass, 0.0, hcp(0..))
+        .rule(Bid::new(4, Strain::from(major)), 100, points(14..))
+        .rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Register responder's second call and opener's acceptance in the
@@ -804,17 +804,17 @@ fn responder_over_forcing_nt_reverse() -> Rules {
     Rules::new()
         .rule(
             Bid::new(4, Strain::Hearts),
-            1.5,
+            150,
             len(Suit::Hearts, 3..) & points(8..),
         )
         .rule(
             Bid::new(4, Strain::Spades),
-            1.3,
+            130,
             len(Suit::Spades, 3..=3) & points(8..),
         )
-        .rule(Bid::new(3, Strain::Notrump), 1.2, points(8..))
-        .rule(Bid::new(3, Strain::Hearts), 1.0, len(Suit::Hearts, 2..))
-        .rule(Bid::new(2, Strain::Notrump), 0.0, points(0..))
+        .rule(Bid::new(3, Strain::Notrump), 120, points(8..))
+        .rule(Bid::new(3, Strain::Hearts), 100, len(Suit::Hearts, 2..))
+        .rule(Bid::new(2, Strain::Notrump), 0, points(0..))
 }
 
 /// Responder's call over opener's `1♠ – 1NT – 3♥` jump (5-5 majors, invitational)
@@ -834,17 +834,17 @@ fn responder_over_forcing_nt_5_5() -> Rules {
     Rules::new()
         .rule(
             Bid::new(4, Strain::Spades),
-            1.5,
+            150,
             len(Suit::Spades, 3..) & points(8..),
         )
         .rule(
             Bid::new(4, Strain::Hearts),
-            1.4,
+            140,
             len(Suit::Hearts, 3..) & points(8..),
         )
-        .rule(Bid::new(3, Strain::Notrump), 1.2, points(8..))
-        .rule(Bid::new(3, Strain::Spades), 1.0, len(Suit::Spades, 2..))
-        .rule(Call::Pass, 0.0, points(0..))
+        .rule(Bid::new(3, Strain::Notrump), 120, points(8..))
+        .rule(Bid::new(3, Strain::Spades), 100, len(Suit::Spades, 2..))
+        .rule(Call::Pass, 0, points(0..))
 }
 
 /// Register responder's continuations over opener's invitational major
@@ -904,13 +904,13 @@ fn other_major(major: Suit) -> Suit {
 fn responder_over_gf_2nt(major: Suit) -> Rules {
     let m = Strain::from(major);
     let mut rules = Rules::new()
-        .rule(Bid::new(3, m), 1.45, len(major, 3..) & points(10..))
-        .rule(Bid::new(4, m), 1.40, len(major, 3..) & points(..=9));
+        .rule(Bid::new(3, m), 145, len(major, 3..) & points(10..))
+        .rule(Bid::new(4, m), 140, len(major, 3..) & points(..=9));
     // Natural five-plus red suits (the game force is set, so free to show).  Over
     // 1♥ only diamonds is available — 1NT denied four spades, and hearts is the fit.
     for red in [Suit::Diamonds, Suit::Hearts] {
         if red != major {
-            rules = rules.rule(Bid::new(3, Strain::from(red)), 1.30, len(red, 5..));
+            rules = rules.rule(Bid::new(3, Strain::from(red)), 130, len(red, 5..));
         }
     }
     rules
@@ -919,12 +919,12 @@ fn responder_over_gf_2nt(major: Suit) -> Rules {
         // a 6-2 game).  Non-forcing — opener may pass 3NT.
         .rule(
             Bid::new(3, Strain::Notrump),
-            1.25,
+            125,
             len(Suit::Clubs, 5..) & len(major, 2..=2),
         )
         .alert(RESP_CLUBS_2NT)
         // Relay: nothing to show — "you describe".  The finite catch-all.
-        .rule(Bid::new(3, Strain::Clubs), 0.50, points(0..))
+        .rule(Bid::new(3, Strain::Clubs), 50, points(0..))
         .alert(PUPPET_2NT)
 }
 
@@ -943,17 +943,17 @@ fn opener_shapeout(major: Suit) -> Rules {
     let m = Strain::from(major);
     let other = other_major(major);
     Rules::new()
-        .rule(Bid::new(3, m), 1.35, len(major, 6..))
-        .rule(Bid::new(3, Strain::from(other)), 1.30, len(other, 4..))
+        .rule(Bid::new(3, m), 135, len(major, 6..))
+        .rule(Bid::new(3, Strain::from(other)), 130, len(other, 4..))
         .rule(
             Bid::new(3, Strain::Notrump),
-            1.25,
+            125,
             len(Suit::Clubs, 5..) | len(Suit::Diamonds, 5..),
         )
         .alert(GF_MINOR)
         // Default: balanced 18–19 or a four-card minor — the guaranteed-legal
         // catch-all (opener is 18+, so `points(0..)` always applies).
-        .rule(Bid::new(3, Strain::Diamonds), 1.20, points(0..))
+        .rule(Bid::new(3, Strain::Diamonds), 120, points(0..))
         .alert(GF_DEFAULT)
 }
 
@@ -964,8 +964,8 @@ fn opener_shapeout(major: Suit) -> Rules {
 /// or signs off in `3NT`.
 fn resp_place_over_default(major: Suit) -> Rules {
     Rules::new()
-        .rule(Bid::new(4, Strain::from(major)), 1.2, len(major, 3..))
-        .rule(Bid::new(3, Strain::Notrump), 1.0, points(0..))
+        .rule(Bid::new(4, Strain::from(major)), 120, len(major, 3..))
+        .rule(Bid::new(3, Strain::Notrump), 100, points(0..))
 }
 
 /// Responder places over opener's `3(other major)` (four-plus the other major)
@@ -975,9 +975,9 @@ fn resp_place_over_default(major: Suit) -> Rules {
 fn resp_place_over_other_major(major: Suit) -> Rules {
     let o = other_major(major);
     Rules::new()
-        .rule(Bid::new(4, Strain::from(o)), 1.3, len(o, 4..))
-        .rule(Bid::new(4, Strain::from(major)), 1.1, len(major, 3..))
-        .rule(Bid::new(3, Strain::Notrump), 0.8, points(0..))
+        .rule(Bid::new(4, Strain::from(o)), 130, len(o, 4..))
+        .rule(Bid::new(4, Strain::from(major)), 110, len(major, 3..))
+        .rule(Bid::new(3, Strain::Notrump), 80, points(0..))
 }
 
 /// Responder places over opener's six-plus own major (`… – 3♣! – 3M`)
@@ -987,9 +987,9 @@ fn resp_place_over_other_major(major: Suit) -> Rules {
 fn resp_place_over_six(major: Suit) -> Rules {
     let m = Strain::from(major);
     Rules::new()
-        .rule(Bid::new(4, Strain::Notrump), 1.3, points(11..))
+        .rule(Bid::new(4, Strain::Notrump), 130, points(11..))
         .alert(super::slam::RKCB)
-        .rule(Bid::new(4, m), 1.0, points(0..))
+        .rule(Bid::new(4, m), 100, points(0..))
 }
 
 /// Responder places over opener's `3NT` (five-plus a minor, i.e. 5-5)
@@ -997,8 +997,8 @@ fn resp_place_over_six(major: Suit) -> Rules {
 /// Non-forcing: responder pulls to a 5-3 major game or passes to play `3NT`.
 fn resp_place_over_minor(major: Suit) -> Rules {
     Rules::new()
-        .rule(Bid::new(4, Strain::from(major)), 1.1, len(major, 3..))
-        .rule(Call::Pass, 0.0, points(0..))
+        .rule(Bid::new(4, Strain::from(major)), 110, len(major, 3..))
+        .rule(Call::Pass, 0, points(0..))
 }
 
 /// Opener's call over responder's direct fit slam-try (`1M – 1NT – 2NT! – 3M`)
@@ -1008,9 +1008,9 @@ fn resp_place_over_minor(major: Suit) -> Rules {
 fn opener_over_fit_slamtry(major: Suit) -> Rules {
     let m = Strain::from(major);
     Rules::new()
-        .rule(Bid::new(4, Strain::Notrump), 1.3, points(20..))
+        .rule(Bid::new(4, Strain::Notrump), 130, points(20..))
         .alert(super::slam::RKCB)
-        .rule(Bid::new(4, m), 0.5, points(0..))
+        .rule(Bid::new(4, m), 50, points(0..))
 }
 
 /// Opener's call over responder's natural five-plus red suit
@@ -1022,11 +1022,11 @@ fn opener_over_fit_slamtry(major: Suit) -> Rules {
 fn opener_over_resp_red(major: Suit, red: Suit) -> Rules {
     let mut rules = Rules::new();
     if red == Suit::Hearts {
-        rules = rules.rule(Bid::new(4, Strain::Hearts), 1.3, len(Suit::Hearts, 3..));
+        rules = rules.rule(Bid::new(4, Strain::Hearts), 130, len(Suit::Hearts, 3..));
     }
     rules
-        .rule(Bid::new(3, Strain::from(major)), 1.1, len(major, 6..))
-        .rule(Bid::new(3, Strain::Notrump), 0.5, points(0..))
+        .rule(Bid::new(3, Strain::from(major)), 110, len(major, 6..))
+        .rule(Bid::new(3, Strain::Notrump), 50, points(0..))
 }
 
 /// Opener's call over responder's `3NT` (five-plus clubs, doubleton major)
@@ -1035,8 +1035,8 @@ fn opener_over_resp_red(major: Suit, red: Suit) -> Rules {
 /// to play `3NT`.
 fn opener_over_resp_clubs(major: Suit) -> Rules {
     Rules::new()
-        .rule(Bid::new(4, Strain::from(major)), 1.0, len(major, 6..))
-        .rule(Call::Pass, 0.0, points(0..))
+        .rule(Bid::new(4, Strain::from(major)), 100, len(major, 6..))
+        .rule(Call::Pass, 0, points(0..))
 }
 
 /// Register the artificial game-forcing `2NT` adjunct (no-op unless
@@ -1224,11 +1224,11 @@ fn nt_invite_hcp() -> bool {
 #[must_use]
 fn responder_after_spade_raise() -> Rules {
     Rules::new()
-        .rule(Bid::new(4, Strain::Notrump), 2.0, points(16..))
+        .rule(Bid::new(4, Strain::Notrump), 200, points(16..))
         .alert(super::slam::RKCB)
-        .rule(Bid::new(4, Strain::Spades), 1.5, points(12..))
-        .rule(Bid::new(3, Strain::Spades), 1.2, points(10..=11))
-        .rule(Call::Pass, 0.0, hcp(0..))
+        .rule(Bid::new(4, Strain::Spades), 150, points(12..))
+        .rule(Bid::new(3, Strain::Spades), 120, points(10..=11))
+        .rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Responder's second call after opener jumps to `3♠` in `1♥ – 1♠`
@@ -1245,10 +1245,10 @@ fn responder_after_spade_raise() -> Rules {
 #[must_use]
 fn responder_after_spade_jump() -> Rules {
     Rules::new()
-        .rule(Bid::new(4, Strain::Notrump), 1.5, points(14..))
+        .rule(Bid::new(4, Strain::Notrump), 150, points(14..))
         .alert(super::slam::RKCB)
-        .rule(Bid::new(4, Strain::Spades), 1.0, points(8..))
-        .rule(Call::Pass, 0.0, hcp(0..))
+        .rule(Bid::new(4, Strain::Spades), 100, points(8..))
+        .rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Responder's second call after opener rebids `2♥` in `1♥ – 1♠`
@@ -1268,17 +1268,17 @@ fn responder_after_heart_rebid() -> Rules {
     Rules::new()
         .rule(
             Bid::new(4, Strain::Hearts),
-            1.5,
+            150,
             len(Suit::Hearts, 2..) & points(13..),
         )
-        .rule(Bid::new(3, Strain::Notrump), 1.3, points(13..))
+        .rule(Bid::new(3, Strain::Notrump), 130, points(13..))
         .rule(
             Bid::new(3, Strain::Hearts),
-            1.2,
+            120,
             len(Suit::Hearts, 2..) & points(10..=12),
         )
-        .rule(Bid::new(2, Strain::Notrump), 1.0, points(10..=12))
-        .rule(Call::Pass, 0.0, hcp(0..))
+        .rule(Bid::new(2, Strain::Notrump), 100, points(10..=12))
+        .rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Opener's call over responder's `2NT` notrump invite after `1♥ – 1♠ – 2♥`
@@ -1288,8 +1288,8 @@ fn responder_after_heart_rebid() -> Rules {
 #[must_use]
 fn opener_after_heart_invite() -> Rules {
     Rules::new()
-        .rule(Bid::new(3, Strain::Notrump), 1.0, hcp(14..))
-        .rule(Bid::new(3, Strain::Hearts), 0.5, hcp(0..))
+        .rule(Bid::new(3, Strain::Notrump), 100, hcp(14..))
+        .rule(Bid::new(3, Strain::Hearts), 50, hcp(0..))
 }
 
 /// Responder's second call after opener rebids a new minor in `1♥ – 1♠`
@@ -1324,36 +1324,36 @@ fn responder_after_minor_rebid(minor: Suit) -> Rules {
         // Fourth-suit-forcing: an artificial game force.  Points-only on
         // purpose — the projection must claim nothing about diamond length.
         rules = rules
-            .rule(Bid::new(2, Strain::Diamonds), 2.0, points(12..))
+            .rule(Bid::new(2, Strain::Diamonds), 200, points(12..))
             .alert(FOURTH_SUIT);
     }
     rules = rules
         .rule(
             Bid::new(3, Strain::Hearts),
-            1.3,
+            130,
             len(Suit::Hearts, 3..) & points(10..=12),
         )
-        .rule(Bid::new(3, m), 1.25, len(minor, 5..) & points(10..=12));
+        .rule(Bid::new(3, m), 125, len(minor, 5..) & points(10..=12));
     // The one no-fit rung: HCP-gauged when `set_nt_invite_hcp` is armed (a
     // notrump invite takes no ruffs), else the shipped `points`.
     rules = if nt_invite_hcp() {
-        rules.rule(Bid::new(2, Strain::Notrump), 1.2, hcp(10..=12))
+        rules.rule(Bid::new(2, Strain::Notrump), 120, hcp(10..=12))
     } else {
-        rules.rule(Bid::new(2, Strain::Notrump), 1.2, points(10..=12))
+        rules.rule(Bid::new(2, Strain::Notrump), 120, points(10..=12))
     };
     rules
         .rule(
             Bid::new(2, Strain::Spades),
-            1.05,
+            105,
             len(Suit::Spades, 6..) & hcp(..=9),
         )
         .rule(
             Bid::new(2, Strain::Hearts),
-            1.0,
+            100,
             len(Suit::Hearts, 2..) & hcp(6..=9),
         )
-        .rule(Bid::new(3, Strain::Notrump), 0.9, hcp(13..))
-        .rule(Call::Pass, 0.0, hcp(0..))
+        .rule(Bid::new(3, Strain::Notrump), 90, hcp(13..))
+        .rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Opener's call over responder's raise to `3m` after `1♥ – 1♠ – 2m`
@@ -1364,8 +1364,8 @@ fn responder_after_minor_rebid(minor: Suit) -> Rules {
 #[must_use]
 fn opener_accept_minor_raise() -> Rules {
     Rules::new()
-        .rule(Bid::new(3, Strain::Notrump), 1.0, points(14..))
-        .rule(Call::Pass, 0.0, hcp(0..))
+        .rule(Bid::new(3, Strain::Notrump), 100, points(14..))
+        .rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Opener's answer at `[1♥,1♠,2♣,2♦]`, the fourth-suit-forcing game force
@@ -1384,15 +1384,15 @@ fn opener_accept_minor_raise() -> Rules {
 #[must_use]
 fn opener_after_fourth_suit() -> Rules {
     Rules::new()
-        .rule(Bid::new(2, Strain::Spades), 1.4, len(Suit::Spades, 3..))
-        .rule(Bid::new(2, Strain::Hearts), 1.3, len(Suit::Hearts, 6..))
+        .rule(Bid::new(2, Strain::Spades), 140, len(Suit::Spades, 3..))
+        .rule(Bid::new(2, Strain::Hearts), 130, len(Suit::Hearts, 6..))
         .rule(
             Bid::new(2, Strain::Notrump),
-            1.2,
+            120,
             stopper_in(Suit::Diamonds),
         )
-        .rule(Bid::new(3, Strain::Clubs), 1.1, len(Suit::Clubs, 5..))
-        .rule(Bid::new(2, Strain::Hearts), 0.2, len(Suit::Hearts, 5..))
+        .rule(Bid::new(3, Strain::Clubs), 110, len(Suit::Clubs, 5..))
+        .rule(Bid::new(2, Strain::Hearts), 20, len(Suit::Hearts, 5..))
 }
 
 /// Responder's placement at `[1♥,1♠,2♣,2♦,X]`, after opener answers the
@@ -1415,16 +1415,16 @@ fn responder_after_fourth_suit_answer() -> Rules {
     Rules::new()
         .rule(
             Bid::new(4, Strain::Spades),
-            1.5,
+            150,
             partner_suit_is(Suit::Spades) & len(Suit::Spades, 5..),
         )
-        .rule(Bid::new(4, Strain::Hearts), 1.2, len(Suit::Hearts, 3..))
+        .rule(Bid::new(4, Strain::Hearts), 120, len(Suit::Hearts, 3..))
         .rule(
             Bid::new(4, Strain::Hearts),
-            1.1,
+            110,
             partner_suit_is(Suit::Hearts) & len(Suit::Hearts, 2..),
         )
-        .rule(Bid::new(3, Strain::Notrump), 0.8, hcp(0..))
+        .rule(Bid::new(3, Strain::Notrump), 80, hcp(0..))
 }
 
 /// Register the major-rebid-tails adjunct: full continuations after

@@ -121,6 +121,9 @@ struct Record {
     book: &'static str,
     auction: Vec<Call>,
     call: Call,
+    /// The representative rule's weight **in nats**, not the authored centinats.
+    /// Rules moved to integer centinats; this emitted field deliberately did
+    /// not, so a corpus consumer sees the same numbers as before.
     weight: f32,
     tags: Vec<&'static str>,
     label: &'static str,
@@ -158,12 +161,12 @@ fn node_records(node: &Node<'_>) -> Vec<Record> {
     // Best (weight, label, constraint description) per call, first-seen order.
     // The representative is the highest-weight rule for the call.
     let mut order: Vec<Call> = Vec::new();
-    let mut best: std::collections::HashMap<Call, (f32, &'static str, Description)> =
+    let mut best: std::collections::HashMap<Call, (i16, &'static str, Description)> =
         std::collections::HashMap::new();
     for rule in node.rules.rules() {
         let entry = best.entry(rule.call()).or_insert_with(|| {
             order.push(rule.call());
-            (f32::NEG_INFINITY, "", Description::Opaque)
+            (i16::MIN, "", Description::Opaque)
         });
         if rule.weight() > entry.0 {
             *entry = (rule.weight(), rule.label(), rule.describe());
@@ -193,7 +196,7 @@ fn node_records(node: &Node<'_>) -> Vec<Record> {
                 book: node.book,
                 auction: node.auction.clone(),
                 call,
-                weight,
+                weight: f32::from(weight) / 100.0,
                 tags,
                 label,
                 constraint,

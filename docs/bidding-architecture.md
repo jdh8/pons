@@ -111,6 +111,22 @@ range (projects the union — sound but loose).
   meanings (Woolsey) must keep their shapes disjoint or equal-weight rules tie
   unpredictably. A cheaper overlapping rule (a transfer) can swallow the hands
   a new rule was written for — check who wins the weight race.
+- Weights are **centinats** — integer hundredths of a nat, so `155` is the old
+  `1.55` and a near-deterministic gap is about `300`. Integral on purpose: two
+  rules either share a rung exactly or they do not. Under `f32` they could not,
+  because several tables build a declining ladder by repeated subtraction and
+  the rounding drifted a rung off the literal it was meant to match at some
+  sites but not others.
+- **Two rules for one call at one weight is a claim, and the build checks it**
+  (`rows::weight_tie_report`, asserted by `assert_package_invariants`). Such a
+  pair is redundant: the logit is the max and constraints are crisp, so it
+  evaluates to `w + crisp(C₁ ∨ C₂)`, and the reader already disjoins every
+  matching rule's projection. It is also lossy — `Rules::explain` breaks the tie
+  with a strict `>` and names only the first rule, so which alert and which
+  label describe the call falls to authoring order. Prefer one rule with an
+  authored `EnvelopeUnion`. Differing weights are the opposite and are fine:
+  an authored precedence, the lower rule speaking only for hands the higher
+  one rejects.
 
 ### Trie × envelope unions (assessed 2026-07-28: the union stays a fold, not the storage)
 

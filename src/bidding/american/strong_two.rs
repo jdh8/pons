@@ -38,30 +38,30 @@ const DOUBLE_NEGATIVE: Alert = Alert("strong-2c:negative");
 fn responses() -> Rules {
     Rules::new()
         // 2♥: double negative — 0–3 HCP.
-        .rule(Bid::new(2, Strain::Hearts), 2.0, hcp(0..=3))
+        .rule(Bid::new(2, Strain::Hearts), 200, hcp(0..=3))
         .alert(DOUBLE_NEGATIVE)
         // 2♠: natural positive — five spades to two of the top three honors.
         .rule(
             Bid::new(2, Strain::Spades),
-            1.5,
+            150,
             len(Suit::Spades, 5..) & top_honors(Suit::Spades, 2..) & points(8..),
         )
         // 3♣: natural positive — five clubs to two top honors.
         .rule(
             Bid::new(3, Strain::Clubs),
-            1.4,
+            140,
             len(Suit::Clubs, 5..) & top_honors(Suit::Clubs, 2..) & points(8..),
         )
         // 3♦: natural positive — five diamonds to two top honors.
         .rule(
             Bid::new(3, Strain::Diamonds),
-            1.4,
+            140,
             len(Suit::Diamonds, 5..) & top_honors(Suit::Diamonds, 2..) & points(8..),
         )
         // 2NT: balanced positive — 8+ HCP, balanced shape.
-        .rule(Bid::new(2, Strain::Notrump), 1.3, hcp(8..) & balanced())
+        .rule(Bid::new(2, Strain::Notrump), 130, hcp(8..) & balanced())
         // 2♦: waiting catch-all — 4+ HCP (not strong enough for a positive).
-        .rule(Bid::new(2, Strain::Diamonds), 0.5, hcp(4..))
+        .rule(Bid::new(2, Strain::Diamonds), 50, hcp(4..))
         .alert(WAITING)
 }
 
@@ -73,27 +73,27 @@ fn responses() -> Rules {
 fn opener_rebid_after_waiting() -> Rules {
     Rules::new()
         // 2♠: five or more spades.
-        .rule(Bid::new(2, Strain::Spades), 1.55, len(Suit::Spades, 5..))
+        .rule(Bid::new(2, Strain::Spades), 155, len(Suit::Spades, 5..))
         // 2♥: five or more hearts.
-        .rule(Bid::new(2, Strain::Hearts), 1.5, len(Suit::Hearts, 5..))
+        .rule(Bid::new(2, Strain::Hearts), 150, len(Suit::Hearts, 5..))
         // 2NT: balanced 22–24.
         .rule(
             Bid::new(2, Strain::Notrump),
-            1.2,
+            120,
             fifths(22.0..25.0) & balanced(),
         )
         // 3NT: balanced 25–27.
         .rule(
             Bid::new(3, Strain::Notrump),
-            1.2,
+            120,
             fifths(25.0..28.0) & balanced(),
         )
         // 3♣: five or more clubs.
-        .rule(Bid::new(3, Strain::Clubs), 1.0, len(Suit::Clubs, 5..))
+        .rule(Bid::new(3, Strain::Clubs), 100, len(Suit::Clubs, 5..))
         // 3♦: five or more diamonds.
-        .rule(Bid::new(3, Strain::Diamonds), 1.0, len(Suit::Diamonds, 5..))
+        .rule(Bid::new(3, Strain::Diamonds), 100, len(Suit::Diamonds, 5..))
         // 2NT fallback: guaranteed legal for any 22+ hand.
-        .rule(Bid::new(2, Strain::Notrump), 0.2, fifths(22.0..))
+        .rule(Bid::new(2, Strain::Notrump), 20, fifths(22.0..))
 }
 
 /// Opener's rebid after `2♣–(P)–2♥–(P)` (at `&[2♣, 2♥]`)
@@ -104,27 +104,27 @@ fn opener_rebid_after_waiting() -> Rules {
 fn opener_rebid_after_negative() -> Rules {
     Rules::new()
         // 2♠: five or more spades.
-        .rule(Bid::new(2, Strain::Spades), 1.55, len(Suit::Spades, 5..))
+        .rule(Bid::new(2, Strain::Spades), 155, len(Suit::Spades, 5..))
         // 3♥: five or more hearts (2♥ is taken by the double negative).
-        .rule(Bid::new(3, Strain::Hearts), 1.5, len(Suit::Hearts, 5..))
+        .rule(Bid::new(3, Strain::Hearts), 150, len(Suit::Hearts, 5..))
         // 2NT: balanced 22–24.
         .rule(
             Bid::new(2, Strain::Notrump),
-            1.2,
+            120,
             fifths(22.0..25.0) & balanced(),
         )
         // 3NT: balanced 25–27.
         .rule(
             Bid::new(3, Strain::Notrump),
-            1.2,
+            120,
             fifths(25.0..28.0) & balanced(),
         )
         // 3♣: five or more clubs.
-        .rule(Bid::new(3, Strain::Clubs), 1.0, len(Suit::Clubs, 5..))
+        .rule(Bid::new(3, Strain::Clubs), 100, len(Suit::Clubs, 5..))
         // 3♦: five or more diamonds.
-        .rule(Bid::new(3, Strain::Diamonds), 1.0, len(Suit::Diamonds, 5..))
+        .rule(Bid::new(3, Strain::Diamonds), 100, len(Suit::Diamonds, 5..))
         // 2NT fallback: guaranteed legal for any 22+ hand.
-        .rule(Bid::new(2, Strain::Notrump), 0.2, fifths(22.0..))
+        .rule(Bid::new(2, Strain::Notrump), 20, fifths(22.0..))
 }
 
 // ---------------------------------------------------------------------------
@@ -136,8 +136,8 @@ fn opener_rebid_after_negative() -> Rules {
 /// Raise hearts with three-card support; retreat to 2NT otherwise.
 fn resp_after_waiting_hearts() -> Rules {
     Rules::new()
-        .rule(Bid::new(3, Strain::Hearts), 1.5, support(3..))
-        .rule(Bid::new(2, Strain::Notrump), 0.5, hcp(0..))
+        .rule(Bid::new(3, Strain::Hearts), 150, support(3..))
+        .rule(Bid::new(2, Strain::Notrump), 50, hcp(0..))
 }
 
 /// Responder after `2♣–(P)–2♦–(P)–2♠–(P)` (at `&[2♣, 2♦, 2♠]`)
@@ -145,8 +145,8 @@ fn resp_after_waiting_hearts() -> Rules {
 /// Raise spades with three-card support; retreat to 2NT otherwise.
 fn resp_after_waiting_spades() -> Rules {
     Rules::new()
-        .rule(Bid::new(3, Strain::Spades), 1.5, support(3..))
-        .rule(Bid::new(2, Strain::Notrump), 0.5, hcp(0..))
+        .rule(Bid::new(3, Strain::Spades), 150, support(3..))
+        .rule(Bid::new(2, Strain::Notrump), 50, hcp(0..))
 }
 
 /// Responder after `2♣–(P)–2♦–(P)–3♣–(P)` (at `&[2♣, 2♦, 3♣]`)
@@ -154,8 +154,8 @@ fn resp_after_waiting_spades() -> Rules {
 /// Raise clubs with four-card support and values; bid 3NT otherwise.
 fn resp_after_waiting_clubs() -> Rules {
     Rules::new()
-        .rule(Bid::new(4, Strain::Clubs), 1.2, support(4..) & points(4..))
-        .rule(Bid::new(3, Strain::Notrump), 0.5, hcp(0..))
+        .rule(Bid::new(4, Strain::Clubs), 120, support(4..) & points(4..))
+        .rule(Bid::new(3, Strain::Notrump), 50, hcp(0..))
 }
 
 /// Responder after `2♣–(P)–2♦–(P)–3♦–(P)` (at `&[2♣, 2♦, 3♦]`)
@@ -165,10 +165,10 @@ fn resp_after_waiting_diamonds() -> Rules {
     Rules::new()
         .rule(
             Bid::new(4, Strain::Diamonds),
-            1.2,
+            120,
             support(4..) & points(4..),
         )
-        .rule(Bid::new(3, Strain::Notrump), 0.5, hcp(0..))
+        .rule(Bid::new(3, Strain::Notrump), 50, hcp(0..))
 }
 
 // ---------------------------------------------------------------------------
@@ -181,8 +181,8 @@ fn resp_after_waiting_diamonds() -> Rules {
 /// Without support, pass.
 fn resp_after_negative_suit(raise: Bid) -> Rules {
     Rules::new()
-        .rule(raise, 1.0, support(4..))
-        .rule(Call::Pass, 0.0, hcp(0..))
+        .rule(raise, 100, support(4..))
+        .rule(Call::Pass, 0, hcp(0..))
 }
 
 // ---------------------------------------------------------------------------
@@ -194,9 +194,9 @@ fn resp_after_negative_suit(raise: Bid) -> Rules {
 /// With 28+ HCP, launch RKCB (4NT); otherwise sign off in 4♥.
 fn opener_after_hearts_raise() -> Rules {
     Rules::new()
-        .rule(Bid::new(4, Strain::Notrump), 1.0, hcp(28..))
+        .rule(Bid::new(4, Strain::Notrump), 100, hcp(28..))
         .alert(super::slam::RKCB)
-        .rule(Bid::new(4, Strain::Hearts), 0.5, hcp(0..))
+        .rule(Bid::new(4, Strain::Hearts), 50, hcp(0..))
 }
 
 /// Opener after `2♣–(P)–2♦–(P)–2♠–(P)–3♠–(P)` (at `&[2♣, 2♦, 2♠, 3♠]`)
@@ -204,9 +204,9 @@ fn opener_after_hearts_raise() -> Rules {
 /// With 28+ HCP, launch RKCB (4NT); otherwise sign off in 4♠.
 fn opener_after_spades_raise() -> Rules {
     Rules::new()
-        .rule(Bid::new(4, Strain::Notrump), 1.0, hcp(28..))
+        .rule(Bid::new(4, Strain::Notrump), 100, hcp(28..))
         .alert(super::slam::RKCB)
-        .rule(Bid::new(4, Strain::Spades), 0.5, hcp(0..))
+        .rule(Bid::new(4, Strain::Spades), 50, hcp(0..))
 }
 
 // ---------------------------------------------------------------------------
@@ -221,13 +221,13 @@ fn opener_after_spades_raise() -> Rules {
 fn opener_after_clubs_raise() -> Rules {
     if !super::slam::minor_keycard() {
         return Rules::new()
-            .rule(Bid::new(6, Strain::Clubs), 1.0, hcp(27..))
-            .rule(Bid::new(5, Strain::Clubs), 0.5, hcp(0..));
+            .rule(Bid::new(6, Strain::Clubs), 100, hcp(27..))
+            .rule(Bid::new(5, Strain::Clubs), 50, hcp(0..));
     }
     Rules::new()
-        .rule(Bid::new(4, Strain::Notrump), 1.0, hcp(28..))
+        .rule(Bid::new(4, Strain::Notrump), 100, hcp(28..))
         .alert(super::slam::RKCB)
-        .rule(Bid::new(5, Strain::Clubs), 0.5, hcp(0..))
+        .rule(Bid::new(5, Strain::Clubs), 50, hcp(0..))
 }
 
 /// Opener after `2♣–(P)–2♦–(P)–3♦–(P)–4♦–(P)` (at `&[2♣, 2♦, 3♦, 4♦]`)
@@ -238,13 +238,13 @@ fn opener_after_clubs_raise() -> Rules {
 fn opener_after_diamonds_raise() -> Rules {
     if !super::slam::minor_keycard() {
         return Rules::new()
-            .rule(Bid::new(6, Strain::Diamonds), 1.0, hcp(27..))
-            .rule(Bid::new(5, Strain::Diamonds), 0.5, hcp(0..));
+            .rule(Bid::new(6, Strain::Diamonds), 100, hcp(27..))
+            .rule(Bid::new(5, Strain::Diamonds), 50, hcp(0..));
     }
     Rules::new()
-        .rule(Bid::new(4, Strain::Notrump), 1.0, hcp(28..))
+        .rule(Bid::new(4, Strain::Notrump), 100, hcp(28..))
         .alert(super::slam::RKCB)
-        .rule(Bid::new(5, Strain::Diamonds), 0.5, hcp(0..))
+        .rule(Bid::new(5, Strain::Diamonds), 50, hcp(0..))
 }
 
 // ---------------------------------------------------------------------------

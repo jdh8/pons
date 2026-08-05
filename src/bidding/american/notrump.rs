@@ -152,11 +152,11 @@ fn size_ask_eight_pass() -> Rules {
     let base = hcp(..8) & len(Suit::Hearts, ..5) & len(Suit::Spades, ..5);
     match size_ask_eight() {
         SizeAskEight::Shipped | SizeAskEight::Invite => {
-            Rules::new().rule(Call::Pass, 0.0, base | (hcp(8..=8) & flat_4333()))
+            Rules::new().rule(Call::Pass, 0, base | (hcp(8..=8) & flat_4333()))
         }
         SizeAskEight::Pass => Rules::new().rule(
             Call::Pass,
-            0.0,
+            0,
             base | (hcp(8..=8) & flat_4333()) | size_ask_eight_class(),
         ),
     }
@@ -233,7 +233,7 @@ pub fn notrump_responses() -> Rules {
     let head = if prefer_longer {
         Rules::new().rule(
             Bid::new(2, Strain::Diamonds),
-            2.0,
+            200,
             len(Suit::Hearts, 5..)
                 & (len(Suit::Spades, ..4)
                     | (len(Suit::Spades, 4..=4) & hcp(..9))
@@ -244,7 +244,7 @@ pub fn notrump_responses() -> Rules {
     } else {
         Rules::new().rule(
             Bid::new(2, Strain::Diamonds),
-            2.0,
+            200,
             len(Suit::Hearts, 5..)
                 & (len(Suit::Spades, ..4) | hcp(..9) | major_splinter_reroute(Suit::Hearts)),
         )
@@ -257,7 +257,7 @@ pub fn notrump_responses() -> Rules {
     let head = match (prefer_longer, invitational_5card_majors()) {
         (true, true) => head.rule(
             Bid::new(2, Strain::Hearts),
-            2.0,
+            200,
             len(Suit::Spades, 5..)
                 & (len(Suit::Hearts, ..4)
                     | (len(Suit::Hearts, 4..=4) & (hcp(..8) | len(Suit::Spades, 6..)))
@@ -266,7 +266,7 @@ pub fn notrump_responses() -> Rules {
         ),
         (true, false) => head.rule(
             Bid::new(2, Strain::Hearts),
-            2.0,
+            200,
             len(Suit::Spades, 5..)
                 & (len(Suit::Hearts, ..4)
                     | (len(Suit::Hearts, 4..=4) & hcp(..9))
@@ -276,13 +276,13 @@ pub fn notrump_responses() -> Rules {
         ),
         (false, true) => head.rule(
             Bid::new(2, Strain::Hearts),
-            2.0,
+            200,
             len(Suit::Spades, 5..)
                 & (len(Suit::Hearts, ..4) | hcp(..8) | len(Suit::Spades, 6..) | slam_55_reroute()),
         ),
         (false, false) => head.rule(
             Bid::new(2, Strain::Hearts),
-            2.0,
+            200,
             len(Suit::Spades, 5..)
                 & (len(Suit::Hearts, ..4)
                     | hcp(..9)
@@ -301,7 +301,7 @@ pub fn notrump_responses() -> Rules {
         // 6-5 hand names its longer suit first via the transfer instead.
         .rule(
             Bid::new(3, Strain::Diamonds),
-            2.1,
+            210,
             len(Suit::Hearts, 5..)
                 & len(Suit::Spades, 5..)
                 & points(8..)
@@ -333,7 +333,7 @@ pub fn notrump_responses() -> Rules {
         // slam-invitational (15–18) to the direct slam try.
         .rule(
             Bid::new(4, Strain::Clubs),
-            2.5,
+            250,
             len(Suit::Hearts, 6..)
                 & len(Suit::Spades, ..5)
                 & texas_strength_gate(Suit::Hearts)
@@ -342,7 +342,7 @@ pub fn notrump_responses() -> Rules {
         .alert(TEXAS)
         .rule(
             Bid::new(4, Strain::Diamonds),
-            2.5,
+            250,
             len(Suit::Spades, 6..)
                 & len(Suit::Hearts, ..5)
                 & texas_strength_gate(Suit::Spades)
@@ -351,7 +351,7 @@ pub fn notrump_responses() -> Rules {
         .alert(TEXAS)
         .rule(
             Bid::new(4, Strain::Hearts),
-            2.6,
+            260,
             len(Suit::Hearts, 6..)
                 & len(Suit::Spades, ..5)
                 & hcp(15..=direct_4m_max)
@@ -360,7 +360,7 @@ pub fn notrump_responses() -> Rules {
         .alert(TEXAS)
         .rule(
             Bid::new(4, Strain::Spades),
-            2.6,
+            260,
             len(Suit::Spades, 6..)
                 & len(Suit::Hearts, ..5)
                 & hcp(15..=direct_4m_max)
@@ -372,14 +372,14 @@ pub fn notrump_responses() -> Rules {
         // (no ruffing value), so it invites/forces in notrump directly.
         .rule(
             Bid::new(2, Strain::Clubs),
-            1.5,
+            150,
             (len(Suit::Hearts, 4..=4) | len(Suit::Spades, 4..=4)) & hcp(8..) & !flat_4333(),
         )
         .alert(STAYMAN)
         // Quantitative 4NT slam invite (balanced, no four-card major).
         .rule(
             Bid::new(4, Strain::Notrump),
-            1.2,
+            120,
             hcp(16..=17) & len(Suit::Hearts, ..5) & len(Suit::Spades, ..5),
         )
         // Natural 3NT game-force, 9+, no five-card major (those transfer).  A
@@ -407,7 +407,7 @@ pub fn notrump_responses() -> Rules {
         // and wins *more* with each version (+0.052 → +0.055 → +0.058 NV).
         .rule(
             Bid::new(3, Strain::Notrump),
-            1.0,
+            100,
             hcp(9..) & len(Suit::Hearts, ..5) & len(Suit::Spades, ..5),
         )
         // The source-of-tricks *eight* (opt-in, OFF by default — measured a loss):
@@ -458,7 +458,7 @@ fn garbage_stayman_rule() -> Rules {
         // Broke (0-4): escape at almost any cost; accept a thin 2♦ landing.
         .rule(
             Bid::new(2, Strain::Clubs),
-            1.5,
+            150,
             (len(Suit::Hearts, 4..) | len(Suit::Spades, 4..))
                 & len(Suit::Hearts, 3..)
                 & len(Suit::Spades, 3..)
@@ -471,7 +471,7 @@ fn garbage_stayman_rule() -> Rules {
         // Weak (5-7): insist on a safe 2♦ landing (4+ diamonds).
         .rule(
             Bid::new(2, Strain::Clubs),
-            1.5,
+            150,
             (len(Suit::Hearts, 4..) | len(Suit::Spades, 4..))
                 & len(Suit::Hearts, 3..)
                 & len(Suit::Spades, 3..)
@@ -498,7 +498,7 @@ fn crawling_stayman_rule() -> Rules {
     Rules::new()
         .rule(
             Bid::new(2, Strain::Clubs),
-            1.5,
+            150,
             len(Suit::Hearts, 4..=4)
                 & len(Suit::Spades, 4..=4)
                 & len(Suit::Diamonds, ..=1)
@@ -523,7 +523,7 @@ fn long_minor_force_rule() -> Rules {
     }
     Rules::new().rule(
         Bid::new(3, Strain::Notrump),
-        1.4,
+        140,
         hcp(8..=8)
             & len(Suit::Hearts, ..4)
             & len(Suit::Spades, ..4)
@@ -581,12 +581,12 @@ fn nt_splinter_rules() -> Rules {
         rules = rules
             .rule(
                 Bid::new(3, Strain::from(short)),
-                // Above the `2♠`/`2NT` minor transfers (1.3) so the `♣6` rows
-                // route here.  Nothing else can match: Stayman (1.5) wants a
-                // four-card major, Puppet `3♣` (1.6) wants `balanced()`, the
-                // both-majors `3♦` (2.1) wants 5-5 majors, and the Jacoby
-                // transfers (2.0) want a five-card major.
-                1.7,
+                // Above the `2♠`/`2NT` minor transfers (130) so the `♣6` rows
+                // route here.  Nothing else can match: Stayman (150) wants a
+                // four-card major, Puppet `3♣` (160) wants `balanced()`, the
+                // both-majors `3♦` (210) wants 5-5 majors, and the Jacoby
+                // transfers (200) want a five-card major.
+                170,
                 splinter_short(short)
                     & len(other, 2..=3)
                     & len(Suit::Diamonds, 4..=4)
@@ -625,23 +625,23 @@ fn nt_splinter_rules() -> Rules {
 fn nt_splinter_answer(short: Suit) -> Rules {
     Rules::new()
         // A guard in the short major: `3NT` is the nine-trick game.
-        .rule(Bid::new(3, Strain::Notrump), 1.0, stopper_in(short))
+        .rule(Bid::new(3, Strain::Notrump), 100, stopper_in(short))
         // No guard.  Prefer the longer fit: responder's 5-6 clubs opposite three
         // is a nine-card trump suit, and only when opener is short in clubs does
         // the 4-4 diamond fit win.
         .rule(
             Bid::new(5, Strain::Clubs),
-            1.2,
+            120,
             !stopper_in(short) & len(Suit::Clubs, 3..),
         )
         .rule(
             Bid::new(5, Strain::Diamonds),
-            1.2,
+            120,
             !stopper_in(short) & len(Suit::Clubs, ..3) & len(Suit::Diamonds, 4..),
         )
         // Finite catch-all: no guard, no fit (a 4-4 major hand with a doubleton
         // club and three diamonds) — take the nine-trick game anyway.
-        .rule(Bid::new(3, Strain::Notrump), 0.5, hcp(0..))
+        .rule(Bid::new(3, Strain::Notrump), 50, hcp(0..))
 }
 
 /// The minor scheme *not* selected — the one [`notrump_responses`] gates out
@@ -672,7 +672,7 @@ fn puppet_minors() -> Rules {
     let two_spades = match size_ask_eight() {
         SizeAskEight::Shipped => Rules::new().rule(
             Bid::new(2, Strain::Spades),
-            1.3,
+            130,
             len(Suit::Clubs, 6..)
                 | (hcp(8..=8)
                     & balanced()
@@ -682,24 +682,24 @@ fn puppet_minors() -> Rules {
         ),
         SizeAskEight::Invite => Rules::new().rule(
             Bid::new(2, Strain::Spades),
-            1.3,
+            130,
             len(Suit::Clubs, 6..) | size_ask_eight_class(),
         ),
         SizeAskEight::Pass => {
-            Rules::new().rule(Bid::new(2, Strain::Spades), 1.3, len(Suit::Clubs, 6..))
+            Rules::new().rule(Bid::new(2, Strain::Spades), 130, len(Suit::Clubs, 6..))
         }
     };
     two_spades
         .alert(PUPPET)
         .rule(
             Bid::new(2, Strain::Notrump),
-            1.3,
+            130,
             len(Suit::Diamonds, 6..) | (len(Suit::Diamonds, 5..) & len(Suit::Clubs, 4..)),
         )
         .alert(PUPPET)
         .rule(
             Bid::new(3, Strain::Clubs),
-            1.6,
+            160,
             balanced()
                 & hcp(9..=15)
                 & (len(Suit::Hearts, 3..=3) | len(Suit::Spades, 3..=3))
@@ -727,7 +727,7 @@ fn european_minors() -> Rules {
         SizeAskEight::Shipped => Rules::new()
             .rule(
                 Bid::new(2, Strain::Notrump),
-                1.3,
+                130,
                 hcp(8..=8)
                     & balanced()
                     & len(Suit::Hearts, ..4)
@@ -736,17 +736,17 @@ fn european_minors() -> Rules {
             )
             .alert(EUROPEAN),
         SizeAskEight::Invite => Rules::new()
-            .rule(Bid::new(2, Strain::Notrump), 1.3, size_ask_eight_class())
+            .rule(Bid::new(2, Strain::Notrump), 130, size_ask_eight_class())
             .alert(EUROPEAN),
         SizeAskEight::Pass => Rules::new(),
     };
     Rules::new()
-        .rule(Bid::new(2, Strain::Spades), 1.3, len(Suit::Clubs, 6..))
+        .rule(Bid::new(2, Strain::Spades), 130, len(Suit::Clubs, 6..))
         .alert(EUROPEAN)
         .chain(size_ask)
         .rule(
             Bid::new(3, Strain::Clubs),
-            1.3,
+            130,
             len(Suit::Diamonds, 6..) | (len(Suit::Diamonds, 5..) & len(Suit::Clubs, 4..)),
         )
         .alert(EUROPEAN)
@@ -758,15 +758,15 @@ fn european_minors() -> Rules {
 /// when authoring opener's penalty-pass over a `(2♣)` overcall (systems on).
 pub(super) fn stayman_answers() -> Rules {
     Rules::new()
-        .rule(Bid::new(2, Strain::Hearts), 1.0, len(Suit::Hearts, 4..))
+        .rule(Bid::new(2, Strain::Hearts), 100, len(Suit::Hearts, 4..))
         .rule(
             Bid::new(2, Strain::Spades),
-            1.0,
+            100,
             len(Suit::Spades, 4..) & len(Suit::Hearts, ..4),
         )
         .rule(
             Bid::new(2, Strain::Diamonds),
-            0.5,
+            50,
             len(Suit::Hearts, ..4) & len(Suit::Spades, ..4),
         )
 }
@@ -789,7 +789,7 @@ fn stayman_answers_uncontested() -> Rules {
         // a step on the maximum.
         let both = len(Suit::Hearts, 4..) & len(Suit::Spades, 4..);
         rules = rules
-            .rule(Bid::new(2, Strain::Notrump), 1.1, both & hcp(16..))
+            .rule(Bid::new(2, Strain::Notrump), 110, both & hcp(16..))
             .alert(BOTH_MAJORS);
     }
     if stayman_5card_max() {
@@ -798,12 +798,12 @@ fn stayman_answers_uncontested() -> Rules {
         rules = rules
             .rule(
                 Bid::new(3, Strain::Hearts),
-                1.1,
+                110,
                 len(Suit::Hearts, 5..) & hcp(16..),
             )
             .rule(
                 Bid::new(3, Strain::Spades),
-                1.1,
+                110,
                 len(Suit::Spades, 5..) & hcp(16..),
             );
     }
@@ -822,7 +822,7 @@ fn both_majors_max_responder() -> Rules {
     Rules::new()
         .rule(
             Bid::new(3, Strain::Diamonds),
-            1.0,
+            100,
             described("spades > hearts", |hand: Hand, _: &Context<'_>| {
                 hand[Suit::Spades].len() > hand[Suit::Hearts].len()
             }),
@@ -830,7 +830,7 @@ fn both_majors_max_responder() -> Rules {
         .alert(BOTH_MAJORS)
         .rule(
             Bid::new(3, Strain::Clubs),
-            1.0,
+            100,
             described("hearts ≥ spades", |hand: Hand, _: &Context<'_>| {
                 hand[Suit::Hearts].len() >= hand[Suit::Spades].len()
             }),
@@ -844,7 +844,7 @@ fn both_majors_max_responder() -> Rules {
 /// Alerted — it completes the relay and shows nothing beyond the `2NT` already did.
 fn both_majors_relay_complete(major: Suit) -> Rules {
     Rules::new()
-        .rule(Bid::new(3, Strain::from(major)), 1.0, hcp(0..))
+        .rule(Bid::new(3, Strain::from(major)), 100, hcp(0..))
         .alert(BOTH_MAJORS)
 }
 
@@ -866,7 +866,7 @@ fn both_majors_relay_placement(major: Suit) -> Rules {
     };
     Rules::new().rule(
         Bid::new(4, Strain::from(major)),
-        1.3,
+        130,
         described("game values for the agreed major", move |hand: Hand, _| {
             let double_fit = usize::from(hand[other].len() >= 4);
             fit_value(hand, major) + double_fit >= 8
@@ -895,8 +895,8 @@ fn fit_value(hand: Hand, major: Suit) -> usize {
 /// sign off in `3NT`.
 fn five_card_max_rebid(major: Suit) -> Rules {
     Rules::new()
-        .rule(Bid::new(4, Strain::from(major)), 1.3, len(major, 3..))
-        .rule(Bid::new(3, Strain::Notrump), 1.0, hcp(0..))
+        .rule(Bid::new(4, Strain::from(major)), 130, len(major, 3..))
+        .rule(Bid::new(3, Strain::Notrump), 100, hcp(0..))
 }
 
 thread_local! {
@@ -1062,7 +1062,7 @@ fn texas_slam_drive_rebid() -> Rules {
         return Rules::new();
     }
     Rules::new()
-        .rule(Bid::new(4, Strain::Notrump), 1.4, hcp(16..))
+        .rule(Bid::new(4, Strain::Notrump), 140, hcp(16..))
         .alert(slam::RKCB)
 }
 
@@ -1550,11 +1550,11 @@ pub(super) fn complete_transfer(into: Suit) -> Rules {
     if transfer_super_accept() {
         rules = rules.rule(
             Bid::new(3, Strain::from(into)),
-            1.5,
+            150,
             len(into, 4..) & hcp(17..),
         );
     }
-    rules.rule(Bid::new(2, Strain::from(into)), 1.0, hcp(0..))
+    rules.rule(Bid::new(2, Strain::from(into)), 100, hcp(0..))
 }
 
 /// Complete a four-level Texas transfer by bidding game in the anchor major
@@ -1562,7 +1562,7 @@ pub(super) fn complete_transfer(into: Suit) -> Rules {
 /// `4♣ → 4♥`, `4♦ → 4♠`.  Responder showed 6+ with game-no-slam values, so
 /// opener simply names the game and declares.
 fn complete_texas(into: Suit) -> Rules {
-    Rules::new().rule(Bid::new(4, Strain::from(into)), 1.0, hcp(0..))
+    Rules::new().rule(Bid::new(4, Strain::from(into)), 100, hcp(0..))
 }
 
 /// Responder's invitational jump after a Jacoby transfer completes, holding a
@@ -1583,7 +1583,7 @@ fn sixcard_invite_rebid(major: Suit) -> Rules {
     let floor = sixcard_invite_floor();
     Rules::new().rule(
         Bid::new(3, Strain::from(major)),
-        1.3,
+        130,
         len(major, 6..)
             & len(other_major(major), ..5)
             & described("six-card invitational value", move |hand: Hand, _| {
@@ -1606,7 +1606,7 @@ fn accept_sixcard_invitation(major: Suit) -> Rules {
     Rules::new()
         .rule(
             Bid::new(4, Strain::from(major)),
-            1.0,
+            100,
             described("accept six-card invite", move |hand: Hand, _| {
                 // Fit-known: responder showed six, opener has 2+ — an 8-card fit.
                 // A doubleton trump holding earns no phantom ruffing value —
@@ -1615,7 +1615,7 @@ fn accept_sixcard_invitation(major: Suit) -> Rules {
                 support + hand[major].len() >= floor
             }),
         )
-        .rule(Call::Pass, 0.0, hcp(0..))
+        .rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Opener's answer to a direct four-of-a-major slam try (`1NT–4♥/4♠`)
@@ -1625,9 +1625,9 @@ fn accept_sixcard_invitation(major: Suit) -> Rules {
 /// keycards and places `6M`, or `5M` when the partnership is missing two.
 fn slam_try_answer() -> Rules {
     Rules::new()
-        .rule(Bid::new(4, Strain::Notrump), 1.0, hcp(17..))
+        .rule(Bid::new(4, Strain::Notrump), 100, hcp(17..))
         .alert(slam::RKCB)
-        .rule(Call::Pass, 0.0, hcp(..17))
+        .rule(Call::Pass, 0, hcp(..17))
 }
 
 /// The other major
@@ -1683,7 +1683,7 @@ fn stayman_major_rebid(major: Suit) -> Rules {
         // invariant); the spade-capped raises split off the ≤4-spade hands.
         rules = rules.rule(
             Bid::new(2, Strain::Spades),
-            1.3,
+            130,
             len(Suit::Spades, 5..) & hcp(8..),
         );
     }
@@ -1691,7 +1691,7 @@ fn stayman_major_rebid(major: Suit) -> Rules {
         // Fit: artificial slam try / choice of game (balanced, or 16+); denies 5♠.
         .rule(
             Bid::new(3, other),
-            1.4,
+            140,
             stayman_net_seam(
                 len(major, 4..) & (balanced() | hcp(16..)) & spade_cap.clone(),
                 hcp(9..),
@@ -1705,7 +1705,7 @@ fn stayman_major_rebid(major: Suit) -> Rules {
         // trump, or working shape) commits to game opposite the 15-17 opener.
         .rule(
             Bid::new(4, strain),
-            1.3,
+            130,
             stayman_net_seam(
                 len(major, 4..) & spade_cap.clone(),
                 described("game value for the fit", move |hand: Hand, _| {
@@ -1720,7 +1720,7 @@ fn stayman_major_rebid(major: Suit) -> Rules {
         // net-priced, any fit hand whose game the net declines).
         .rule(
             Bid::new(3, strain),
-            1.2,
+            120,
             stayman_net_seam(
                 len(major, 4..) & spade_cap.clone(),
                 described("invitational value for the fit", move |hand: Hand, _| {
@@ -1734,14 +1734,14 @@ fn stayman_major_rebid(major: Suit) -> Rules {
         // No fit: quantitative 4NT (as if the 2♣ detour never happened).
         .rule(
             Bid::new(4, Strain::Notrump),
-            1.2,
+            120,
             len(major, ..4) & hcp(16..=17),
         )
         // No fit: game / invitational notrump raise.  The net seams keep the
         // 2♣ entry's 8-HCP floor so a garbage/crawling weak hand never invites.
         .rule(
             Bid::new(3, Strain::Notrump),
-            1.0,
+            100,
             stayman_net_seam(
                 len(major, ..4) & hcp(8..),
                 hcp(9..),
@@ -1752,7 +1752,7 @@ fn stayman_major_rebid(major: Suit) -> Rules {
         )
         .rule(
             Bid::new(2, Strain::Notrump),
-            1.0,
+            100,
             stayman_net_seam(
                 len(major, ..4) & hcp(8..),
                 hcp(8..=8),
@@ -1771,12 +1771,12 @@ fn stayman_major_rebid(major: Suit) -> Rules {
         rules
             .rule(
                 Bid::new(3, Strain::Clubs),
-                1.25,
+                125,
                 len(Suit::Clubs, 5..) & hcp(14..) & len(major, ..4),
             )
             .rule(
                 Bid::new(3, Strain::Diamonds),
-                1.25,
+                125,
                 len(Suit::Diamonds, 5..) & hcp(14..) & len(major, ..4),
             )
     } else {
@@ -1798,9 +1798,9 @@ pub(super) fn flat_4333() -> Cons<impl Constraint + Clone> {
 /// A flat `(4333)` chooses notrump (`3NT`); a maximum (17) cue-bids the cheapest
 /// honour control to cooperate; otherwise opener signs off in the major game.
 fn stayman_slam_try_answer(major: Suit) -> Rules {
-    let mut rules = Rules::new().rule(Bid::new(3, Strain::Notrump), 1.4, flat_4333());
+    let mut rules = Rules::new().rule(Bid::new(3, Strain::Notrump), 140, flat_4333());
     // Cheapest control cue with a maximum: each suit ranking below the major.
-    let mut weight = 1.3;
+    let mut weight = 130;
     for cue in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
         if Strain::from(cue) < Strain::from(major) {
             rules = rules.rule(
@@ -1808,11 +1808,11 @@ fn stayman_slam_try_answer(major: Suit) -> Rules {
                 weight,
                 hcp(17..) & control_in(cue),
             );
-            weight -= 0.05;
+            weight -= 5;
         }
     }
     // Minimum, or a maximum without a cheap control: sign off in game.
-    rules.rule(Bid::new(4, Strain::from(major)), 1.0, hcp(0..))
+    rules.rule(Bid::new(4, Strain::from(major)), 100, hcp(0..))
 }
 
 /// Responder's rebid after opener cooperates with the `3OM` slam try by cue-bidding
@@ -1827,10 +1827,10 @@ fn stayman_slam_try_answer(major: Suit) -> Rules {
 fn stayman_cue_rebid(major: Suit) -> Rules {
     Rules::new()
         // Slam values opposite a known maximum plus the shown control: keycard.
-        .rule(Bid::new(4, Strain::Notrump), 1.2, hcp(14..))
+        .rule(Bid::new(4, Strain::Notrump), 120, hcp(14..))
         .alert(slam::RKCB)
         // Otherwise the 3OM was only choosing the game: sign off in the major.
-        .rule(Bid::new(4, Strain::from(major)), 1.0, hcp(0..))
+        .rule(Bid::new(4, Strain::from(major)), 100, hcp(0..))
 }
 
 /// Opener's reply to responder's Stayman-then-minor slam try (`…3♣` / `…3♦`)
@@ -1845,11 +1845,11 @@ fn stayman_minor_answer(minor: Suit) -> Rules {
         // Fit + maximum: raise the minor, inviting the keycard ask.
         .rule(
             Bid::new(4, Strain::from(minor)),
-            1.3,
+            130,
             len(minor, 4..) & hcp(16..),
         )
         // No fit, or a minimum: place game in notrump.
-        .rule(Bid::new(3, Strain::Notrump), 1.0, hcp(0..))
+        .rule(Bid::new(3, Strain::Notrump), 100, hcp(0..))
 }
 
 /// Responder's keycard ask after opener raises the Stayman-then-minor slam try
@@ -1863,7 +1863,7 @@ fn stayman_minor_answer(minor: Suit) -> Rules {
 /// `4NT` carries the [`slam::RKCB`] alert.
 fn stayman_minor_slam_rkcb() -> Rules {
     Rules::new()
-        .rule(Bid::new(4, Strain::Notrump), 1.0, hcp(0..))
+        .rule(Bid::new(4, Strain::Notrump), 100, hcp(0..))
         .alert(slam::RKCB)
 }
 
@@ -1891,7 +1891,7 @@ fn transfer_slam_try_rebid(major: Suit) -> Rules {
     Rules::new()
         .rule(
             Bid::new(3, Strain::from(other_major(major))),
-            1.4,
+            140,
             len(major, 5..) & len(other_major(major), ..4) & hcp(16..),
         )
         .alert(SLAM_TRY)
@@ -1924,17 +1924,17 @@ fn transfer_spade_gf_rebid() -> Rules {
         // un-named suit keeps them off the alert list (the `artificial` invariant).
         .rule(
             Bid::new(3, Strain::Hearts),
-            1.5,
+            150,
             len(Suit::Hearts, 5..) & points(17..),
         )
         .rule(
             Bid::new(3, Strain::Clubs),
-            1.45,
+            145,
             len(Suit::Clubs, 4..) & len(Suit::Hearts, ..4) & points(minor_floor..),
         )
         .rule(
             Bid::new(3, Strain::Diamonds),
-            1.45,
+            145,
             len(Suit::Diamonds, 4..) & len(Suit::Hearts, ..4) & points(minor_floor..),
         )
         // Choice of games: exactly five spades (the transfer pins the floor; `..6`
@@ -1957,12 +1957,12 @@ fn transfer_spade_gf_rebid() -> Rules {
         // the floor before, and every rule sharing a 9..15 hand outweighs 1.4).
         .rule(
             Bid::new(3, Strain::Notrump),
-            1.4,
+            140,
             len(Suit::Spades, ..6) & len(Suit::Hearts, ..4) & hcp(9..16),
         )
         .rule(
             Bid::new(4, Strain::Notrump),
-            1.4,
+            140,
             len(Suit::Spades, 5..)
                 & len(Suit::Hearts, ..4)
                 & len(Suit::Clubs, ..4)
@@ -1976,7 +1976,7 @@ fn transfer_spade_gf_rebid() -> Rules {
         // Responder's own six-card spade suit is the trump, +6.
         .rule(
             Bid::new(4, Strain::Clubs),
-            1.55,
+            155,
             len(Suit::Spades, 6..)
                 & splinter_short(Suit::Clubs)
                 & support_points(Suit::Spades, 16..),
@@ -1984,7 +1984,7 @@ fn transfer_spade_gf_rebid() -> Rules {
         .alert(SPLINTER)
         .rule(
             Bid::new(4, Strain::Diamonds),
-            1.55,
+            155,
             len(Suit::Spades, 6..)
                 & splinter_short(Suit::Diamonds)
                 & support_points(Suit::Spades, 16..),
@@ -1992,7 +1992,7 @@ fn transfer_spade_gf_rebid() -> Rules {
         .alert(SPLINTER)
         .rule(
             Bid::new(4, Strain::Hearts),
-            1.55,
+            155,
             len(Suit::Spades, 6..)
                 & splinter_short(Suit::Hearts)
                 & support_points(Suit::Spades, 16..),
@@ -2026,12 +2026,12 @@ fn transfer_heart_gf_rebid() -> Rules {
     Rules::new()
         .rule(
             Bid::new(3, Strain::Clubs),
-            1.45,
+            145,
             len(Suit::Clubs, 4..) & len(Suit::Spades, ..4) & points(minor_floor..),
         )
         .rule(
             Bid::new(3, Strain::Diamonds),
-            1.45,
+            145,
             len(Suit::Diamonds, 4..) & len(Suit::Spades, ..4) & points(minor_floor..),
         )
         // Choice of games: exactly five hearts (`..6` rules out a six-card one-suiter),
@@ -2042,7 +2042,7 @@ fn transfer_heart_gf_rebid() -> Rules {
         // actually produces — see the spade mirror (`transfer_spade_gf_rebid`).
         .rule(
             Bid::new(3, Strain::Notrump),
-            1.4,
+            140,
             len(Suit::Hearts, ..6) & len(Suit::Spades, ..4) & hcp(9..16),
         )
         // Six-card-heart slam tries with a side-suit splinter — the spade shortness at
@@ -2050,7 +2050,7 @@ fn transfer_heart_gf_rebid() -> Rules {
         // Responder's own six-card heart suit is the trump, +6.
         .rule(
             Bid::new(3, Strain::Spades),
-            1.55,
+            155,
             len(Suit::Hearts, 6..)
                 & splinter_short(Suit::Spades)
                 & support_points(Suit::Hearts, 16..),
@@ -2058,7 +2058,7 @@ fn transfer_heart_gf_rebid() -> Rules {
         .alert(SPLINTER)
         .rule(
             Bid::new(4, Strain::Clubs),
-            1.55,
+            155,
             len(Suit::Hearts, 6..)
                 & splinter_short(Suit::Clubs)
                 & support_points(Suit::Hearts, 16..),
@@ -2066,7 +2066,7 @@ fn transfer_heart_gf_rebid() -> Rules {
         .alert(SPLINTER)
         .rule(
             Bid::new(4, Strain::Diamonds),
-            1.55,
+            155,
             len(Suit::Hearts, 6..)
                 & splinter_short(Suit::Diamonds)
                 & support_points(Suit::Hearts, 16..),
@@ -2074,7 +2074,7 @@ fn transfer_heart_gf_rebid() -> Rules {
         .alert(SPLINTER)
         .rule(
             Bid::new(4, Strain::Notrump),
-            1.4,
+            140,
             len(Suit::Hearts, 5..)
                 & len(Suit::Spades, ..4)
                 & len(Suit::Clubs, ..4)
@@ -2095,11 +2095,11 @@ fn gf_quant_answer(major: Suit) -> Rules {
     Rules::new()
         .rule(
             Bid::new(6, Strain::from(major)),
-            1.3,
+            130,
             hcp(17..) & len(major, 3..),
         )
-        .rule(Bid::new(6, Strain::Notrump), 1.2, hcp(17..))
-        .rule(Call::Pass, 0.0, hcp(..17))
+        .rule(Bid::new(6, Strain::Notrump), 120, hcp(17..))
+        .rule(Call::Pass, 0, hcp(..17))
 }
 
 /// Opener's answer to responder's five-spade-plus-minor game force (`…3♣` / `…3♦`)
@@ -2113,8 +2113,8 @@ fn gf_quant_answer(major: Suit) -> Rules {
 /// slam is left to the (near-impossible) rare hand this treatment already discounts.
 fn gf_minor_answer(major: Suit) -> Rules {
     Rules::new()
-        .rule(Bid::new(4, Strain::from(major)), 1.1, len(major, 3..))
-        .rule(Bid::new(3, Strain::Notrump), 1.0, len(major, ..3))
+        .rule(Bid::new(4, Strain::from(major)), 110, len(major, 3..))
+        .rule(Bid::new(3, Strain::Notrump), 100, len(major, ..3))
 }
 
 /// Opener's answer to responder's six-card-spade splinter (`…4♣` / `…4♦` / `…4♥`)
@@ -2126,9 +2126,9 @@ fn gf_minor_answer(major: Suit) -> Rules {
 /// strength — a finer wasted-value gate is the upgrade path if the A/B wants it.
 fn gf_splinter_answer(major: Suit) -> Rules {
     Rules::new()
-        .rule(Bid::new(4, Strain::Notrump), 1.0, hcp(17..))
+        .rule(Bid::new(4, Strain::Notrump), 100, hcp(17..))
         .alert(slam::RKCB)
-        .rule(Bid::new(4, Strain::from(major)), 0.0, hcp(..17))
+        .rule(Bid::new(4, Strain::from(major)), 0, hcp(..17))
 }
 
 /// The `longer` major strictly outnumbers `shorter` — the transfer names the
@@ -2264,9 +2264,9 @@ fn not_major_splinter_slam(major: Suit) -> Cons<impl Constraint + Clone> {
 /// 3-level part-contract in the wrong strain).
 fn transfer_slam_try_answer(major: Suit) -> Rules {
     Rules::new()
-        .rule(Bid::new(4, Strain::Notrump), 1.0, hcp(17..))
+        .rule(Bid::new(4, Strain::Notrump), 100, hcp(17..))
         .alert(slam::RKCB)
-        .rule(Bid::new(4, Strain::from(major)), 0.0, hcp(..17))
+        .rule(Bid::new(4, Strain::from(major)), 0, hcp(..17))
 }
 
 /// Responder's rebid after opener denies a major (`1NT–2♣–2♦`)
@@ -2278,27 +2278,27 @@ fn stayman_no_major_rebid() -> Rules {
     let rules = Rules::new()
         .rule(
             Bid::new(3, Strain::Hearts),
-            1.4,
+            140,
             len(Suit::Hearts, 4..=4) & len(Suit::Spades, 5..) & hcp(9..),
         )
         .alert(SMOLEN)
         .rule(
             Bid::new(3, Strain::Spades),
-            1.4,
+            140,
             len(Suit::Spades, 4..=4) & len(Suit::Hearts, 5..) & hcp(9..),
         )
         .alert(SMOLEN)
-        .rule(Bid::new(4, Strain::Notrump), 1.2, hcp(16..=17))
+        .rule(Bid::new(4, Strain::Notrump), 120, hcp(16..=17))
         // The notrump revert seams are net-priced under `set_stayman_net_force`
         // (Smolen and the quantitative 4NT outrank them by weight either way).
         .rule(
             Bid::new(3, Strain::Notrump),
-            1.0,
+            100,
             stayman_net_seam(hcp(8..), hcp(9..), true, Strain::Notrump, 9),
         )
         .rule(
             Bid::new(2, Strain::Notrump),
-            1.0,
+            100,
             stayman_net_seam(hcp(8..), hcp(8..=8), false, Strain::Notrump, 9),
         );
     let rules = if crawling_stayman() {
@@ -2310,7 +2310,7 @@ fn stayman_no_major_rebid() -> Rules {
         // the 2♠ sibling).  Disjoint from every rule above (all need hcp ≥8).
         rules.rule(
             Bid::new(2, Strain::Hearts),
-            1.4,
+            140,
             len(Suit::Hearts, 4..) & len(Suit::Diamonds, ..=1) & hcp(..8),
         )
     } else {
@@ -2324,7 +2324,7 @@ fn stayman_no_major_rebid() -> Rules {
         // (it Staymaned), so `2♠` floors only spades and stays unalerted natural.
         rules.rule(
             Bid::new(2, Strain::Spades),
-            1.1,
+            110,
             len(Suit::Spades, 5..) & hcp(8..=8),
         )
     } else {
@@ -2339,12 +2339,12 @@ fn stayman_no_major_rebid() -> Rules {
         rules
             .rule(
                 Bid::new(3, Strain::Clubs),
-                1.25,
+                125,
                 len(Suit::Clubs, 5..) & hcp(14..),
             )
             .rule(
                 Bid::new(3, Strain::Diamonds),
-                1.25,
+                125,
                 len(Suit::Diamonds, 5..) & hcp(14..),
             )
     } else {
@@ -2357,9 +2357,9 @@ pub(super) fn smolen_completion(five_card: Suit) -> Rules {
     let strain = Strain::from(five_card);
     Rules::new()
         // Eight-card fit: bid game in the long major so opener declares.
-        .rule(Bid::new(4, strain), 1.0, len(five_card, 3..))
+        .rule(Bid::new(4, strain), 100, len(five_card, 3..))
         // No fit: notrump game.
-        .rule(Bid::new(3, Strain::Notrump), 0.5, len(five_card, ..3))
+        .rule(Bid::new(3, Strain::Notrump), 50, len(five_card, ..3))
 }
 
 /// Smolen at the three level: responder's jump after opener denies a major
@@ -2368,17 +2368,17 @@ pub(super) fn smolen_at_three() -> Rules {
     Rules::new()
         .rule(
             Bid::new(3, Strain::Hearts),
-            1.4,
+            140,
             len(Suit::Hearts, 4..=4) & len(Suit::Spades, 5..),
         )
         .alert(SMOLEN)
         .rule(
             Bid::new(3, Strain::Spades),
-            1.4,
+            140,
             len(Suit::Spades, 4..=4) & len(Suit::Hearts, 5..),
         )
         .alert(SMOLEN)
-        .rule(Bid::new(3, Strain::Notrump), 1.0, hcp(0..))
+        .rule(Bid::new(3, Strain::Notrump), 100, hcp(0..))
 }
 
 /// Opener accepts a no-fit (2NT) Stayman invitation with a maximum, else passes
@@ -2389,8 +2389,8 @@ pub(super) fn smolen_at_three() -> Rules {
 /// invitational raise.
 fn accept_invitation(game: Bid) -> Rules {
     Rules::new()
-        .rule(game, 1.0, hcp(17..))
-        .rule(Call::Pass, 0.0, hcp(0..))
+        .rule(game, 100, hcp(17..))
+        .rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Opener's acceptance of an invitational major raise
@@ -2399,9 +2399,9 @@ fn accept_invitation(game: Bid) -> Rules {
 /// notrump rates to play as well as the eight-card fit.  A minimum passes.
 fn accept_major_invitation(major: Suit) -> Rules {
     Rules::new()
-        .rule(Bid::new(3, Strain::Notrump), 1.1, hcp(17..) & flat_4333())
-        .rule(Bid::new(4, Strain::from(major)), 1.0, hcp(17..))
-        .rule(Call::Pass, 0.0, hcp(0..))
+        .rule(Bid::new(3, Strain::Notrump), 110, hcp(17..) & flat_4333())
+        .rule(Bid::new(4, Strain::from(major)), 100, hcp(17..))
+        .rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Opener's reply to the crawl (`1NT–2♣–2♦–2♥`): drop-dead pass-or-correct
@@ -2414,15 +2414,15 @@ fn answer_crawling_stayman() -> Rules {
     Rules::new()
         .rule(
             Bid::new(3, Strain::Clubs),
-            1.0,
+            100,
             len(Suit::Hearts, ..3) & len(Suit::Spades, ..3),
         )
         .rule(
             Bid::new(2, Strain::Spades),
-            1.0,
+            100,
             len(Suit::Hearts, ..3) & len(Suit::Spades, 3..),
         )
-        .rule(Call::Pass, 0.0, len(Suit::Hearts, 3..))
+        .rule(Call::Pass, 0, len(Suit::Hearts, 3..))
 }
 
 /// Opener's reply to the non-forcing `2♠` invite (`1NT–2♣–2♦–2♠`, auction A)
@@ -2434,15 +2434,15 @@ fn answer_inv_5card_spades() -> Rules {
     Rules::new()
         .rule(
             Bid::new(4, Strain::Spades),
-            1.2,
+            120,
             hcp(17..) & len(Suit::Spades, 3..),
         )
         .rule(
             Bid::new(3, Strain::Notrump),
-            1.1,
+            110,
             hcp(17..) & len(Suit::Spades, ..3),
         )
-        .rule(Call::Pass, 0.0, hcp(0..))
+        .rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Opener's reply to the forcing `2♠` (`1NT–2♣–2♥–2♠`, auction B)
@@ -2457,22 +2457,22 @@ fn answer_inv_5card_both() -> Rules {
     Rules::new()
         .rule(
             Bid::new(4, Strain::Spades),
-            1.3,
+            130,
             hcp(17..) & len(Suit::Spades, 3..),
         )
         .rule(
             Bid::new(4, Strain::Hearts),
-            1.2,
+            120,
             hcp(17..) & len(Suit::Spades, ..3),
         )
         .rule(
             Bid::new(3, Strain::Spades),
-            1.1,
+            110,
             hcp(..17) & len(Suit::Spades, 3..),
         )
         .rule(
             Bid::new(3, Strain::Hearts),
-            1.0,
+            100,
             hcp(..17) & len(Suit::Spades, ..3),
         )
 }
@@ -2484,8 +2484,8 @@ fn answer_inv_5card_both() -> Rules {
 // ponytail: 9+ always bids game — slam tries past 4M are left to the floor.
 fn inv_5card_raise(strain: Strain) -> Rules {
     Rules::new()
-        .rule(Bid::new(4, strain), 1.0, hcp(9..))
-        .rule(Call::Pass, 0.0, hcp(0..))
+        .rule(Bid::new(4, strain), 100, hcp(9..))
+        .rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Responder's invitational 5-4 rebid after the heart transfer completes
@@ -2500,13 +2500,13 @@ fn transfer_heart_invite_rebid() -> Rules {
     Rules::new()
         .rule(
             Bid::new(2, Strain::Notrump),
-            1.2,
+            120,
             len(Suit::Hearts, 5..) & len(Suit::Spades, 4..=4) & hcp(8..=8),
         )
         .alert(INV_5CARD)
         .rule(
             Bid::new(2, Strain::Spades),
-            1.2,
+            120,
             len(Suit::Hearts, 5..) & len(Suit::Spades, ..4) & hcp(8..=8),
         )
         .alert(INV_5CARD)
@@ -2521,20 +2521,20 @@ fn answer_transfer_heart_single() -> Rules {
     Rules::new()
         .rule(
             Bid::new(4, Strain::Hearts),
-            1.4,
+            140,
             hcp(17..) & len(Suit::Hearts, 3..),
         )
         .rule(
             Bid::new(3, Strain::Notrump),
-            1.3,
+            130,
             hcp(17..) & len(Suit::Hearts, ..3),
         )
         .rule(
             Bid::new(3, Strain::Hearts),
-            1.1,
+            110,
             hcp(..17) & len(Suit::Hearts, 3..),
         )
-        .rule(Bid::new(2, Strain::Notrump), 0.0, hcp(0..))
+        .rule(Bid::new(2, Strain::Notrump), 0, hcp(0..))
 }
 
 /// Opener's reply to the `2NT` invite showing five hearts and four spades
@@ -2547,30 +2547,30 @@ fn answer_transfer_heart_spade() -> Rules {
     Rules::new()
         .rule(
             Bid::new(4, Strain::Hearts),
-            1.6,
+            160,
             hcp(17..) & len(Suit::Hearts, 3..),
         )
         .rule(
             Bid::new(4, Strain::Spades),
-            1.5,
+            150,
             hcp(17..) & len(Suit::Hearts, ..3) & len(Suit::Spades, 4..),
         )
         .rule(
             Bid::new(3, Strain::Notrump),
-            1.4,
+            140,
             hcp(17..) & len(Suit::Hearts, ..3) & len(Suit::Spades, ..4),
         )
         .rule(
             Bid::new(3, Strain::Hearts),
-            1.2,
+            120,
             hcp(..17) & len(Suit::Hearts, 3..),
         )
         .rule(
             Bid::new(3, Strain::Spades),
-            1.1,
+            110,
             hcp(..17) & len(Suit::Hearts, ..3) & len(Suit::Spades, 4..),
         )
-        .rule(Call::Pass, 0.0, hcp(0..))
+        .rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Responder's invitational single-suited 5-spade rebid after the spade transfer
@@ -2586,7 +2586,7 @@ fn transfer_spade_invite_rebid() -> Rules {
     Rules::new()
         .rule(
             Bid::new(2, Strain::Notrump),
-            1.2,
+            120,
             len(Suit::Spades, 5..) & len(Suit::Hearts, ..4) & hcp(8..=8),
         )
         .alert(INV_5CARD)
@@ -2604,20 +2604,20 @@ fn answer_transfer_spade_single() -> Rules {
     Rules::new()
         .rule(
             Bid::new(4, Strain::Spades),
-            1.4,
+            140,
             hcp(17..) & len(Suit::Spades, 3..),
         )
         .rule(
             Bid::new(3, Strain::Notrump),
-            1.3,
+            130,
             hcp(17..) & len(Suit::Spades, ..3),
         )
         .rule(
             Bid::new(3, Strain::Spades),
-            1.1,
+            110,
             hcp(..17) & len(Suit::Spades, 3..),
         )
-        .rule(Call::Pass, 0.0, hcp(0..))
+        .rule(Call::Pass, 0, hcp(0..))
 }
 
 // ---------------------------------------------------------------------------
@@ -2631,15 +2631,15 @@ fn answer_transfer_spade_single() -> Rules {
 /// holding a four-card major for the Smolen-style 4-4 hunt below.
 fn puppet_answers() -> Rules {
     Rules::new()
-        .rule(Bid::new(3, Strain::Hearts), 1.0, len(Suit::Hearts, 5..))
+        .rule(Bid::new(3, Strain::Hearts), 100, len(Suit::Hearts, 5..))
         .rule(
             Bid::new(3, Strain::Spades),
-            1.0,
+            100,
             len(Suit::Spades, 5..) & len(Suit::Hearts, ..5),
         )
         .rule(
             Bid::new(3, Strain::Diamonds),
-            0.5,
+            50,
             len(Suit::Hearts, ..5) & len(Suit::Spades, ..5),
         )
 }
@@ -2652,8 +2652,8 @@ fn puppet_answers() -> Rules {
 /// tool lives in the shapely 2♠ club structure).
 fn puppet_major_rebid(major: Suit) -> Rules {
     Rules::new()
-        .rule(Bid::new(4, Strain::from(major)), 1.0, len(major, 3..))
-        .rule(Bid::new(3, Strain::Notrump), 0.5, len(major, ..3))
+        .rule(Bid::new(4, Strain::from(major)), 100, len(major, 3..))
+        .rule(Bid::new(3, Strain::Notrump), 50, len(major, ..3))
 }
 
 /// Responder's rebid after opener denies a five-card major (`1NT–3♣–3♦`)
@@ -2666,17 +2666,17 @@ fn puppet_deny_rebid() -> Rules {
     Rules::new()
         .rule(
             Bid::new(3, Strain::Hearts),
-            1.0,
+            100,
             len(Suit::Spades, 4..=4) & len(Suit::Hearts, 3..=3),
         )
         .alert(SMOLEN)
         .rule(
             Bid::new(3, Strain::Spades),
-            1.0,
+            100,
             len(Suit::Hearts, 4..=4) & len(Suit::Spades, 3..=3),
         )
         .alert(SMOLEN)
-        .rule(Bid::new(3, Strain::Notrump), 0.5, hcp(0..))
+        .rule(Bid::new(3, Strain::Notrump), 50, hcp(0..))
 }
 
 /// Opener completes the Puppet 4-4 hunt: game in responder's shown major, or 3NT
@@ -2687,10 +2687,10 @@ fn puppet_smolen_completion(shown_major: Suit) -> Rules {
     Rules::new()
         .rule(
             Bid::new(4, Strain::from(shown_major)),
-            1.0,
+            100,
             len(shown_major, 4..),
         )
-        .rule(Bid::new(3, Strain::Notrump), 0.5, len(shown_major, ..4))
+        .rule(Bid::new(3, Strain::Notrump), 50, len(shown_major, ..4))
 }
 
 // ---------------------------------------------------------------------------
@@ -2712,21 +2712,21 @@ fn five_five_major_answer() -> Rules {
     Rules::new()
         .rule(
             Bid::new(4, Strain::Spades),
-            1.2,
+            120,
             hcp(17..) & len(Suit::Spades, 3..),
         )
         .rule(
             Bid::new(4, Strain::Hearts),
-            1.2,
+            120,
             hcp(17..) & len(Suit::Spades, ..3) & len(Suit::Hearts, 3..),
         )
         .rule(
             Bid::new(3, Strain::Notrump),
-            1.2,
+            120,
             hcp(17..) & len(Suit::Spades, ..3) & len(Suit::Hearts, ..3),
         )
-        .rule(Bid::new(3, Strain::Spades), 1.0, len(Suit::Spades, 3..))
-        .rule(Bid::new(3, Strain::Hearts), 1.0, len(Suit::Spades, ..3))
+        .rule(Bid::new(3, Strain::Spades), 100, len(Suit::Spades, 3..))
+        .rule(Bid::new(3, Strain::Hearts), 100, len(Suit::Spades, ..3))
 }
 
 /// Responder's decision over opener's minimum 3-level signoff
@@ -2737,8 +2737,8 @@ fn five_five_major_answer() -> Rules {
 /// not pass the invitation.  `points` again — responder is the 5-5 hand.
 fn five_five_min_rebid(major: Suit) -> Rules {
     Rules::new()
-        .rule(Bid::new(4, Strain::from(major)), 1.0, points(10..))
-        .rule(Call::Pass, 0.9, points(..10))
+        .rule(Bid::new(4, Strain::from(major)), 100, points(10..))
+        .rule(Call::Pass, 90, points(..10))
 }
 
 // ---------------------------------------------------------------------------
@@ -2750,7 +2750,7 @@ fn five_five_min_rebid(major: Suit) -> Rules {
 /// Authored only to override the keyless floor, which reads a three-level suit
 /// response to our 1NT as game-forcing and would otherwise refuse to pass.
 fn pass_out() -> Rules {
-    Rules::new().rule(Call::Pass, 0.0, hcp(0..))
+    Rules::new().rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Opener's reply to the 2NT diamond transfer: complete to 3♦ with a fit, else 3♣
@@ -2760,8 +2760,8 @@ fn pass_out() -> Rules {
 /// responder pick the better minor.
 fn diamond_transfer_answer() -> Rules {
     Rules::new()
-        .rule(Bid::new(3, Strain::Diamonds), 1.0, len(Suit::Diamonds, 3..))
-        .rule(Bid::new(3, Strain::Clubs), 0.5, len(Suit::Diamonds, ..3))
+        .rule(Bid::new(3, Strain::Diamonds), 100, len(Suit::Diamonds, 3..))
+        .rule(Bid::new(3, Strain::Clubs), 50, len(Suit::Diamonds, ..3))
 }
 
 /// Responder's rebid after opener completes the diamond transfer (`…2NT–3♦`)
@@ -2770,8 +2770,8 @@ fn diamond_transfer_answer() -> Rules {
 /// below the 9 a balanced hand needs).  Otherwise pass the diamond partscore.
 fn diamond_transfer_game(threshold: u8) -> Rules {
     Rules::new()
-        .rule(Bid::new(3, Strain::Notrump), 1.0, hcp(threshold..))
-        .rule(Call::Pass, 0.0, hcp(..threshold))
+        .rule(Bid::new(3, Strain::Notrump), 100, hcp(threshold..))
+        .rule(Call::Pass, 0, hcp(..threshold))
 }
 
 /// Responder's rebid after opener's pass-or-correct `3♣` (`…2NT–3♣`, short ♦)
@@ -2780,13 +2780,13 @@ fn diamond_transfer_game(threshold: u8) -> Rules {
 /// the possible club misfit); otherwise (5♦4♣) pass and sit for opener's clubs.
 fn diamond_transfer_correct(threshold: u8) -> Rules {
     Rules::new()
-        .rule(Bid::new(3, Strain::Notrump), 1.0, hcp(threshold..))
+        .rule(Bid::new(3, Strain::Notrump), 100, hcp(threshold..))
         .rule(
             Bid::new(3, Strain::Diamonds),
-            0.5,
+            50,
             len(Suit::Diamonds, 6..) & hcp(..threshold),
         )
-        .rule(Call::Pass, 0.0, len(Suit::Diamonds, ..6) & hcp(..threshold))
+        .rule(Call::Pass, 0, len(Suit::Diamonds, ..6) & hcp(..threshold))
 }
 
 /// A six-card club one-suiter short in `short` with game values — a splinter shape
@@ -2812,44 +2812,44 @@ fn two_spade_answer() -> Rules {
     Rules::new()
         .rule(
             Bid::new(3, Strain::Clubs),
-            1.0,
+            100,
             hcp(size_ask_accept_floor()..),
         )
-        .rule(Bid::new(2, Strain::Notrump), 0.9, hcp(0..))
+        .rule(Bid::new(2, Strain::Notrump), 90, hcp(0..))
 }
 
 /// Responder's pass-or-correct after opener's minimum `2NT` over the two-way 2♠
 fn two_spade_over_min() -> Rules {
     Rules::new()
         // Balanced invite: opener is minimum, settle in 2NT.
-        .rule(Call::Pass, 0.0, hcp(8..=8) & balanced())
+        .rule(Call::Pass, 0, hcp(8..=8) & balanced())
         // Weak club one-suiter: correct to the club partscore.
         .rule(
             Bid::new(3, Strain::Clubs),
-            0.8,
+            80,
             len(Suit::Clubs, 6..) & hcp(..8),
         )
         // Game-going clubs with a singleton: splinter so opener picks 3NT or 5♣.
         .rule(
             Bid::new(3, Strain::Diamonds),
-            1.0,
+            100,
             club_splinter(Suit::Diamonds, 8),
         )
         .alert(SPLINTER)
         .rule(
             Bid::new(3, Strain::Hearts),
-            1.0,
+            100,
             club_splinter(Suit::Hearts, 8),
         )
         .alert(SPLINTER)
         .rule(
             Bid::new(3, Strain::Spades),
-            1.0,
+            100,
             club_splinter(Suit::Spades, 8),
         )
         .alert(SPLINTER)
         // Game-going clubs without a singleton: 3NT.
-        .rule(Bid::new(3, Strain::Notrump), 0.9, club_no_shortness(8))
+        .rule(Bid::new(3, Strain::Notrump), 90, club_no_shortness(8))
         .alert(PUPPET)
 }
 
@@ -2857,23 +2857,23 @@ fn two_spade_over_min() -> Rules {
 fn two_spade_over_max() -> Rules {
     Rules::new()
         // Weak club one-suiter: pass the club partscore.
-        .rule(Call::Pass, 0.0, len(Suit::Clubs, 6..) & hcp(..8))
+        .rule(Call::Pass, 0, len(Suit::Clubs, 6..) & hcp(..8))
         // Game-going clubs with a singleton: splinter.
         .rule(
             Bid::new(3, Strain::Diamonds),
-            1.0,
+            100,
             club_splinter(Suit::Diamonds, 8),
         )
         .alert(SPLINTER)
         .rule(
             Bid::new(3, Strain::Hearts),
-            1.0,
+            100,
             club_splinter(Suit::Hearts, 8),
         )
         .alert(SPLINTER)
         .rule(
             Bid::new(3, Strain::Spades),
-            1.0,
+            100,
             club_splinter(Suit::Spades, 8),
         )
         .alert(SPLINTER)
@@ -2881,7 +2881,7 @@ fn two_spade_over_max() -> Rules {
         // singleton: 3NT.
         .rule(
             Bid::new(3, Strain::Notrump),
-            0.9,
+            90,
             (hcp(8..=8) & balanced()) | club_no_shortness(8),
         )
 }
@@ -2890,8 +2890,8 @@ fn two_spade_over_max() -> Rules {
 /// stopped, else 5♣
 fn pick_game_over_club_splinter(short: Suit) -> Rules {
     Rules::new()
-        .rule(Bid::new(3, Strain::Notrump), 1.0, stopper_in(short))
-        .rule(Bid::new(5, Strain::Clubs), 0.9, hcp(0..))
+        .rule(Bid::new(3, Strain::Notrump), 100, stopper_in(short))
+        .rule(Bid::new(5, Strain::Clubs), 90, hcp(0..))
 }
 
 // ---------------------------------------------------------------------------
@@ -2904,7 +2904,7 @@ fn pick_game_over_club_splinter(short: Suit) -> Rules {
 
 /// Opener completes the European club transfer: `3♣` (the 2♠ bidder has clubs)
 fn european_two_spade_answer() -> Rules {
-    Rules::new().rule(Bid::new(3, Strain::Clubs), 0.0, hcp(0..))
+    Rules::new().rule(Bid::new(3, Strain::Clubs), 0, hcp(0..))
 }
 
 /// Responder's rebid after opener completes the European club transfer (`…2♠–3♣`)
@@ -2914,23 +2914,23 @@ fn european_two_spade_answer() -> Rules {
 /// 2♠ club machinery minus its balanced-invite arm — that hand is the European 2NT.
 fn european_two_spade_rebid() -> Rules {
     Rules::new()
-        .rule(Call::Pass, 0.0, len(Suit::Clubs, 6..) & hcp(..8))
+        .rule(Call::Pass, 0, len(Suit::Clubs, 6..) & hcp(..8))
         .rule(
             Bid::new(3, Strain::Diamonds),
-            1.0,
+            100,
             club_splinter(Suit::Diamonds, 8),
         )
         .rule(
             Bid::new(3, Strain::Hearts),
-            1.0,
+            100,
             club_splinter(Suit::Hearts, 8),
         )
         .rule(
             Bid::new(3, Strain::Spades),
-            1.0,
+            100,
             club_splinter(Suit::Spades, 8),
         )
-        .rule(Bid::new(3, Strain::Notrump), 0.9, club_no_shortness(8))
+        .rule(Bid::new(3, Strain::Notrump), 90, club_no_shortness(8))
 }
 
 /// Opener's reply to the European 2NT invite: `3NT` with a maximum, else pass
@@ -2940,13 +2940,13 @@ fn european_two_spade_rebid() -> Rules {
 fn european_two_nt_answer() -> Rules {
     let floor = size_ask_accept_floor();
     Rules::new()
-        .rule(Bid::new(3, Strain::Notrump), 1.0, hcp(floor..))
-        .rule(Call::Pass, 0.0, hcp(..floor))
+        .rule(Bid::new(3, Strain::Notrump), 100, hcp(floor..))
+        .rule(Call::Pass, 0, hcp(..floor))
 }
 
 /// Opener completes the European diamond transfer: `3♦`
 fn european_three_club_answer() -> Rules {
-    Rules::new().rule(Bid::new(3, Strain::Diamonds), 0.0, hcp(0..))
+    Rules::new().rule(Bid::new(3, Strain::Diamonds), 0, hcp(0..))
 }
 
 // ---------------------------------------------------------------------------
@@ -2969,7 +2969,7 @@ fn two_notrump_responses() -> Rules {
         // 3-level Jacoby transfers.
         .rule(
             Bid::new(3, Strain::Diamonds),
-            2.0,
+            200,
             len(Suit::Hearts, 5..)
                 & described(
                     "hearts not outnumbered (longer-major discipline)",
@@ -2981,7 +2981,7 @@ fn two_notrump_responses() -> Rules {
         .alert(JACOBY)
         .rule(
             Bid::new(3, Strain::Hearts),
-            2.0,
+            200,
             len(Suit::Spades, 5..)
                 & described(
                     "spades longer (longer-major discipline)",
@@ -2995,43 +2995,43 @@ fn two_notrump_responses() -> Rules {
         // flat 4-3-3-3 (it bids notrump directly, as over a 1NT opening).
         .rule(
             Bid::new(3, Strain::Clubs),
-            1.5,
+            150,
             (len(Suit::Hearts, 4..=4) | len(Suit::Spades, 4..=4)) & hcp(5..) & !flat_4333(),
         )
         // Quantitative 4NT slam invite (balanced, no four-card major).
         .rule(
             Bid::new(4, Strain::Notrump),
-            1.2,
+            120,
             hcp(11..=12) & len(Suit::Hearts, ..5) & len(Suit::Spades, ..5),
         )
         // 3NT to play: game values, no major fit.
         .rule(
             Bid::new(3, Strain::Notrump),
-            1.0,
+            100,
             hcp(5..=10) & len(Suit::Hearts, ..5) & len(Suit::Spades, ..5),
         )
-        .rule(Call::Pass, 0.0, hcp(..5))
+        .rule(Call::Pass, 0, hcp(..5))
 }
 
 /// Opener's answer to 3-level Stayman: a four-card major, else 3♦
 fn stayman_answers_at_three() -> Rules {
     Rules::new()
-        .rule(Bid::new(3, Strain::Hearts), 1.0, len(Suit::Hearts, 4..))
+        .rule(Bid::new(3, Strain::Hearts), 100, len(Suit::Hearts, 4..))
         .rule(
             Bid::new(3, Strain::Spades),
-            1.0,
+            100,
             len(Suit::Spades, 4..) & len(Suit::Hearts, ..4),
         )
         .rule(
             Bid::new(3, Strain::Diamonds),
-            0.5,
+            50,
             len(Suit::Hearts, ..4) & len(Suit::Spades, ..4),
         )
 }
 
 /// Complete a 3-level transfer by bidding the anchor suit
 fn complete_transfer_at_three(into: Suit) -> Rules {
-    Rules::new().rule(Bid::new(3, Strain::from(into)), 1.0, hcp(0..))
+    Rules::new().rule(Bid::new(3, Strain::from(into)), 100, hcp(0..))
 }
 
 /// Opener's answer to the quantitative 4NT: accept or decline the slam invite
@@ -3040,8 +3040,8 @@ fn complete_transfer_at_three(into: Suit) -> Rules {
 /// 24 after a 2♣–2x–2NT sequence (22–24).
 fn quantitative_answer(accept_hcp: u8) -> Rules {
     Rules::new()
-        .rule(Bid::new(6, Strain::Notrump), 1.0, hcp(accept_hcp..))
-        .rule(Call::Pass, 0.0, hcp(0..))
+        .rule(Bid::new(6, Strain::Notrump), 100, hcp(accept_hcp..))
+        .rule(Call::Pass, 0, hcp(0..))
 }
 
 // ---------------------------------------------------------------------------
@@ -3053,9 +3053,9 @@ fn quantitative_answer(accept_hcp: u8) -> Rules {
 /// 6+ HCP bids 3NT; 12–13 makes a quantitative 4NT invite; fewer points pass.
 fn after_rebid_two_notrump() -> Rules {
     Rules::new()
-        .rule(Bid::new(4, Strain::Notrump), 1.2, hcp(12..=13))
-        .rule(Bid::new(3, Strain::Notrump), 1.0, hcp(6..))
-        .rule(Call::Pass, 0.0, hcp(..6))
+        .rule(Bid::new(4, Strain::Notrump), 120, hcp(12..=13))
+        .rule(Bid::new(3, Strain::Notrump), 100, hcp(6..))
+        .rule(Call::Pass, 0, hcp(..6))
 }
 
 /// Opener's reply to the quantitative raise opposite the 18–19 rebid
@@ -3063,8 +3063,8 @@ fn after_rebid_two_notrump() -> Rules {
 /// Accept (6NT) with a maximum 19 HCP, decline (pass) otherwise.
 fn accept_quantitative_nineteen() -> Rules {
     Rules::new()
-        .rule(Bid::new(6, Strain::Notrump), 1.0, hcp(19..))
-        .rule(Call::Pass, 0.0, hcp(0..))
+        .rule(Bid::new(6, Strain::Notrump), 100, hcp(19..))
+        .rule(Call::Pass, 0, hcp(0..))
 }
 
 // ---------------------------------------------------------------------------

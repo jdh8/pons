@@ -851,9 +851,9 @@ mod tests {
     #[test]
     fn partial_node_falls_through_to_the_floor() {
         let auction = [Call::Bid(Bid::new(1, Strain::Clubs))];
-        let weak_only = Rules::new().rule(Call::Pass, 0.0, hcp(..6) & partner_shown_points(0..));
+        let weak_only = Rules::new().rule(Call::Pass, 0, hcp(..6) & partner_shown_points(0..));
         // A total floor: `hcp(0..)` accepts every hand, so Pass is always finite.
-        let floor = Rules::new().rule(Call::Pass, 0.0, hcp(0..) & partner_shown_points(0..));
+        let floor = Rules::new().rule(Call::Pass, 0, hcp(0..) & partner_shown_points(0..));
 
         let mut trie = Trie::new();
         trie.insert(&auction, weak_only);
@@ -888,8 +888,8 @@ mod tests {
     #[test]
     fn exact_node_with_mass_is_not_floored() {
         let auction = [Call::Bid(Bid::new(1, Strain::Clubs))];
-        let opener = Rules::new().rule(Call::Pass, 0.0, hcp(0..));
-        let floor = Rules::new().rule(Call::Pass, -5.0, hcp(0..));
+        let opener = Rules::new().rule(Call::Pass, 0, hcp(0..));
+        let floor = Rules::new().rule(Call::Pass, -500, hcp(0..));
 
         let mut trie = Trie::new();
         trie.insert(&auction, opener);
@@ -912,7 +912,7 @@ mod tests {
         let two_hearts = Call::Bid(Bid::new(2, Strain::Hearts));
         let rewritten = [one_nt, Call::Pass, two_hearts];
         let auction = [one_nt, Call::Double, two_hearts];
-        let rules = Rules::new().rule(Call::Pass, 0.0, hcp(0..) & partner_shown_points(0..));
+        let rules = Rules::new().rule(Call::Pass, 0, hcp(0..) & partner_shown_points(0..));
 
         let mut trie = Trie::new();
         trie.insert(&rewritten, rules);
@@ -948,7 +948,7 @@ mod tests {
             .chain(opening.iter().copied())
             .collect();
 
-        let rules = || Fallback::classify(Rules::new().rule(Call::Pass, 0.0, hcp(0..)));
+        let rules = || Fallback::classify(Rules::new().rule(Call::Pass, 0, hcp(0..)));
         let shared: Arc<dyn Guard> = Arc::new(SuffixIs(vec![Call::Double]));
 
         let mut trie = Trie::new();

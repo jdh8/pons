@@ -150,15 +150,15 @@ fn opener_rebid(major: Suit, resp: Suit) -> Rules {
 
     let mut rules = Rules::new()
         // Jump to 3M: solid six-card major.
-        .rule(call(3, major_strain), 1.7, len(major, 6..) & points(15..))
+        .rule(call(3, major_strain), 170, len(major, 6..) & points(15..))
         // Raise responder's suit.
-        .rule(call(3, resp_strain), 1.6, support(4..))
+        .rule(call(3, resp_strain), 160, support(4..))
         // Simple rebid of the major.
-        .rule(call(2, major_strain), 1.4, len(major, 6..))
+        .rule(call(2, major_strain), 140, len(major, 6..))
         // Balanced minimum (12–14) or balanced 18–19.
         .rule(
             call(2, Strain::Notrump),
-            1.2,
+            120,
             balanced() & (fifths(12.0..15.0) | fifths(18.0..20.0)),
         );
 
@@ -170,25 +170,25 @@ fn opener_rebid(major: Suit, resp: Suit) -> Rules {
         .collect();
 
     // Partition into 2-level and 3-level candidates.
-    let mut two_level_weight = 1.0_f32;
+    let mut two_level_weight = 100;
     for &x in &other_suits {
         let x_strain = Strain::from(x);
         if x_strain > resp_strain {
             // Above resp → can be bid at the 2 level.
             rules = rules.rule(call(2, x_strain), two_level_weight, len(x, 4..));
-            two_level_weight -= 0.05;
+            two_level_weight -= 5;
         }
     }
     for &x in &other_suits {
         let x_strain = Strain::from(x);
         if x_strain < resp_strain {
             // Below resp → must be bid at the 3 level.
-            rules = rules.rule(call(3, x_strain), 0.9, len(x, 4..));
+            rules = rules.rule(call(3, x_strain), 90, len(x, 4..));
         }
     }
 
     // Guaranteed-legal fallback: opener always has 5+ of the major.
-    rules.rule(call(2, major_strain), 0.3, len(major, 5..))
+    rules.rule(call(2, major_strain), 30, len(major, 5..))
 }
 
 /// Responder's rebid after opener has rebid at the two-over-one node
@@ -206,23 +206,23 @@ fn responder_rebid(major: Suit, resp: Suit) -> Rules {
 
     let mut rules = Rules::new()
         // Sets trump: at least three-card support for opener's major.
-        .rule(call(3, major_strain), 2.0, len(major, 3..))
+        .rule(call(3, major_strain), 200, len(major, 3..))
         // Rebid own suit with six.
-        .rule(call(3, resp_strain), 1.2, len(resp, 6..))
+        .rule(call(3, resp_strain), 120, len(resp, 6..))
         // Raise to game on a direct 6-card rebid by opener.
         .rule(
             call(4, major_strain),
-            1.0,
+            100,
             partner_suit_is(major) & len(major, 2..),
         )
         // Default game.
-        .rule(call(3, Strain::Notrump), 0.8, hcp(13..));
+        .rule(call(3, Strain::Notrump), 80, hcp(13..));
 
     // Raise each suit opener might have bid (x ∉ {major, resp}).
     for &x in &[Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         if x != major && x != resp {
             let x_strain = Strain::from(x);
-            rules = rules.rule(call(3, x_strain), 1.4, partner_suit_is(x) & support(4..));
+            rules = rules.rule(call(3, x_strain), 140, partner_suit_is(x) & support(4..));
         }
     }
     rules
@@ -237,9 +237,9 @@ fn responder_rebid(major: Suit, resp: Suit) -> Rules {
 fn opener_third(major: Suit) -> Rules {
     let major_strain = Strain::from(major);
     Rules::new()
-        .rule(call(4, Strain::Notrump), 1.0, points(15..))
+        .rule(call(4, Strain::Notrump), 100, points(15..))
         .alert(super::slam::RKCB)
-        .rule(call(4, major_strain), 0.5, hcp(0..))
+        .rule(call(4, major_strain), 50, hcp(0..))
 }
 
 /// Opener's third call after responder raises opener's second suit
@@ -254,14 +254,14 @@ fn opener_third(major: Suit) -> Rules {
 fn opener_third_agree(agreed: Suit) -> Rules {
     let strain = Strain::from(agreed);
     let rules = Rules::new()
-        .rule(call(4, Strain::Notrump), 1.0, points(15..))
+        .rule(call(4, Strain::Notrump), 100, points(15..))
         .alert(super::slam::RKCB);
     if matches!(agreed, Suit::Hearts | Suit::Spades) {
-        rules.rule(call(4, strain), 0.5, hcp(0..))
+        rules.rule(call(4, strain), 50, hcp(0..))
     } else {
         rules
-            .rule(call(3, Strain::Notrump), 0.5, hcp(0..))
-            .rule(call(5, strain), 0.3, hcp(0..))
+            .rule(call(3, Strain::Notrump), 50, hcp(0..))
+            .rule(call(5, strain), 30, hcp(0..))
     }
 }
 
@@ -279,20 +279,20 @@ fn opener_third_agree(agreed: Suit) -> Rules {
 fn opener_rebid_1d_2c() -> Rules {
     Rules::new()
         // Raise clubs.
-        .rule(call(3, Strain::Clubs), 1.6, support(4..))
+        .rule(call(3, Strain::Clubs), 160, support(4..))
         // Balanced hand.
         .rule(
             call(2, Strain::Notrump),
-            1.2,
+            120,
             balanced() & (fifths(12.0..15.0) | fifths(18.0..20.0)),
         )
         // New four-card majors.
-        .rule(call(2, Strain::Hearts), 1.0, len(Suit::Hearts, 4..))
-        .rule(call(2, Strain::Spades), 0.95, len(Suit::Spades, 4..))
+        .rule(call(2, Strain::Hearts), 100, len(Suit::Hearts, 4..))
+        .rule(call(2, Strain::Spades), 95, len(Suit::Spades, 4..))
         // Long diamonds.
-        .rule(call(2, Strain::Diamonds), 1.0, len(Suit::Diamonds, 6..))
+        .rule(call(2, Strain::Diamonds), 100, len(Suit::Diamonds, 6..))
         // Guaranteed-legal fallback (opener may have only three diamonds).
-        .rule(call(2, Strain::Notrump), 0.2, hcp(0..))
+        .rule(call(2, Strain::Notrump), 20, hcp(0..))
 }
 
 /// Responder's rebid after 1♦–2♣–R
@@ -303,13 +303,13 @@ fn responder_rebid_1d_2c() -> Rules {
         // Raise opener's diamonds.
         .rule(
             call(3, Strain::Diamonds),
-            1.2,
+            120,
             partner_suit_is(Suit::Diamonds) & len(Suit::Diamonds, 4..),
         )
         // Rebid clubs.
-        .rule(call(3, Strain::Clubs), 1.1, len(Suit::Clubs, 6..))
+        .rule(call(3, Strain::Clubs), 110, len(Suit::Clubs, 6..))
         // Default game.
-        .rule(call(3, Strain::Notrump), 0.8, hcp(13..))
+        .rule(call(3, Strain::Notrump), 80, hcp(13..))
 }
 
 // ---------------------------------------------------------------------------
@@ -325,17 +325,17 @@ fn game_backstop() -> Rules {
     Rules::new()
         .rule(
             call(4, Strain::Hearts),
-            0.7,
+            70,
             described("our side bid ♥", |_, ctx| ctx.we_bid(Strain::Hearts))
                 & len(Suit::Hearts, 3..),
         )
         .rule(
             call(4, Strain::Spades),
-            0.7,
+            70,
             described("our side bid ♠", |_, ctx| ctx.we_bid(Strain::Spades))
                 & len(Suit::Spades, 3..),
         )
-        .rule(call(3, Strain::Notrump), 0.5, hcp(0..))
+        .rule(call(3, Strain::Notrump), 50, hcp(0..))
 }
 
 // ---------------------------------------------------------------------------

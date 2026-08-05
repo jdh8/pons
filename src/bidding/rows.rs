@@ -604,10 +604,11 @@ pub(crate) struct Row {
 ///
 /// The row-native twin of [`Rules::rule`]; chain [`Row::alert`] for the
 /// artificial-call column, then `.into()` for the [`Entry`].
+#[track_caller]
 pub(crate) fn row(
     pattern: Pattern,
     call: impl Into<Call>,
-    weight: f32,
+    weight: i16,
     when: impl Constraint + 'static,
 ) -> Row {
     Row {
@@ -881,9 +882,125 @@ pub(crate) fn compile_entries(book: &mut Trie, name: &str, entries: Vec<Entry>) 
 ///   readable rules and goes unchecked here; its alerts ride on the tables it
 ///   computes from.
 ///
+/// The weight ties standing when [`weight_tie_report`] was introduced
+///
+/// Two clusters, each one convention partitioned across the auction cases its
+/// row pattern spans — the long-hand form of a generic row, not a precedence
+/// bug:
+///
+/// * the Modern negative double (`competition.rs`, four arms keyed on
+///   `min_level_is`/`they_bid`, HCP floors 6/6/8/8 — the arms genuinely differ,
+///   so a merge would lose the per-overcall reading);
+/// * the invitational `2NT` (`competition.rs`, two arms with the *same* hand
+///   gate `hcp(11..=12) & stopper_in_their_suits()`, split only on whether the
+///   bid is cheapest or a jump).
+///
+/// Both clusters recur under every opening the `direct-seat` rows span, so each
+/// entry keys on the shared pattern tail and the tie's shape rather than on one
+/// opening — and on substrings, so the entries survive the line-number drift an
+/// origin-keyed list would not.  Retiring either cluster is a bidding change and
+/// wants the A/B; until then this list keeps them visible while any *new* tie
+/// fails the build.
+// ponytail: substring match, not a structured key — a new tie differing in
+// call, weight, or arity still fails, which is the whole job.
+#[cfg(test)]
+const KNOWN_WEIGHT_TIES: [&str; 2] = [
+    "(≤2♠)\" — X at weight 100, 4 rules",
+    "(≤2♠)\" — 2NT at weight 95, 2 rules",
+];
+
+/// Every pair of rules in one table justifying the same call at the same weight
+///
+/// Such a pair is redundant, not expressive.  The logit of a call is the
+/// **maximum** over its rules and constraints are crisp, so two rules
+/// `(call, w, C₁)` and `(call, w, C₂)` evaluate to exactly `w + crisp(C₁ ∨ C₂)`
+/// — and the reader already disjoins every matching rule's projection, so it
+/// reads the union too.  One rule whose constraint is the authored
+/// [`EnvelopeUnion`][super::inference::EnvelopeUnion] says the same thing once.
+///
+/// The pair is also actively lossy: `Rules::explain` breaks the tie with a
+/// strict `>`, so it names only the *first* rule while the reader unions both.
+/// Which alert and which label describe the call is then decided by authoring
+/// order alone.
+///
+/// Differing weights are the opposite and are not reported — that is an
+/// authored precedence, where the lower rule speaks only for the hands the
+/// higher one rejects.
+///
+/// Each report line carries both rules' [`Rule::origin`], because a tie between
+/// two authoring sites is a collision while a tie inside one is a local
+/// redundancy.  A pair that is *deliberately* two named justifications shows up
+/// as `both labeled` — merging it into a union would fold the two
+/// [`Rules::note`] labels into one, the only content such a pair actually has.
+#[cfg(test)]
+fn weight_tie_report(packages: &[Package]) -> Vec<String> {
+    let mut report = Vec::new();
+    for package in packages {
+        for (pattern, lowered) in group(package.name, (package.entries)()) {
+            let Lowered::Table(rules) = lowered else {
+                continue;
+            };
+            let rules = rules.rules();
+            for (index, rule) in rules.iter().enumerate() {
+                // One line per rung, listing every rule on it: an N-way tie is
+                // one fact, not the N(N-1)/2 pairs it decomposes into.
+                let tied: Vec<&super::rules::Rule> = rules[index..]
+                    .iter()
+                    .filter(|other| other.call() == rule.call() && other.weight() == rule.weight())
+                    .collect();
+                if tied.len() < 2
+                    || rules[..index].iter().any(|earlier| {
+                        earlier.call() == rule.call() && earlier.weight() == rule.weight()
+                    })
+                {
+                    continue;
+                }
+                let labeled = tied.iter().all(|rule| !rule.label().is_empty());
+                let sites: Vec<String> = tied
+                    .iter()
+                    .map(|rule| {
+                        format!(
+                            "    {}:{}  {}",
+                            rule.origin().file(),
+                            rule.origin().line(),
+                            rule.describe(),
+                        )
+                    })
+                    .collect();
+                report.push(format!(
+                    "{}: {:?} — {} at weight {}, {} rules{}\n{}",
+                    package.name,
+                    pattern.source,
+                    rule.call(),
+                    rule.weight(),
+                    tied.len(),
+                    if labeled { " (all labeled)" } else { "" },
+                    sites.join("\n"),
+                ));
+            }
+        }
+    }
+    report
+}
+
+/// * **Weight ties**, authored tables only: see [`weight_tie_report`].
+///
 /// Gates are ignored: opt-in packages must satisfy the invariants too.
 #[cfg(test)]
 pub(crate) fn assert_package_invariants(packages: &[Package]) {
+    let ties: Vec<String> = weight_tie_report(packages)
+        .into_iter()
+        .filter(|tie| !KNOWN_WEIGHT_TIES.iter().any(|known| tie.contains(known)))
+        .collect();
+    assert!(
+        ties.is_empty(),
+        "{} new same-call weight tie(s) — two rules claim one call at one rung, \
+         so which alert and reading describe it is decided by authoring order \
+         alone (see `weight_tie_report`):\n{}",
+        ties.len(),
+        ties.join("\n"),
+    );
+
     use super::context::Context;
     use super::inference::artificial;
     use super::trie::Classifier;
@@ -972,14 +1089,59 @@ mod tests {
 
     fn two_rule_table() -> Rules {
         Rules::new()
-            .rule(Bid::new(2, Strain::Hearts), 1.0, hcp(10..))
-            .rule(Call::Pass, 0.0, hcp(0..))
+            .rule(Bid::new(2, Strain::Hearts), 100, hcp(10..))
+            .rule(Call::Pass, 0, hcp(0..))
     }
 
     fn compiled(packages: &[Package]) -> Trie {
         let mut book = Trie::new();
         compile_into(&mut book, packages);
         book
+    }
+
+    /// The tie census sees a rung claimed twice, and only then.
+    ///
+    /// Three rules on one rung must report as one 3-way line, not the three
+    /// pairs it decomposes into, and not once per member.
+    #[test]
+    fn weight_ties_report_once_per_rung() {
+        fn package(entries: fn() -> Vec<Entry>) -> Package {
+            Package {
+                name: "probe",
+                gate: || true,
+                entries,
+            }
+        }
+
+        let distinct = package(|| {
+            rows_of(
+                Pattern::node("1♥ (P)"),
+                Rules::new()
+                    .rule(Bid::new(2, Strain::Hearts), 100, hcp(10..))
+                    .rule(Bid::new(2, Strain::Hearts), 90, hcp(6..))
+                    .rule(Call::Pass, 0, hcp(0..)),
+            )
+        });
+        assert!(weight_tie_report(&[distinct]).is_empty());
+
+        let tied = package(|| {
+            rows_of(
+                Pattern::node("1♥ (P)"),
+                Rules::new()
+                    .rule(Bid::new(2, Strain::Hearts), 100, hcp(10..))
+                    .rule(Bid::new(2, Strain::Hearts), 100, hcp(6..))
+                    .rule(Bid::new(2, Strain::Hearts), 100, hcp(4..))
+                    // Same rung, different call: a mixed strategy, not a tie.
+                    .rule(Bid::new(2, Strain::Spades), 100, hcp(10..))
+                    .rule(Call::Pass, 0, hcp(0..)),
+            )
+        });
+        let report = weight_tie_report(&[tied]);
+        assert_eq!(report.len(), 1, "one rung, one line: {report:?}");
+        assert!(
+            report[0].contains("2♥ at weight 100, 3 rules"),
+            "{report:?}"
+        );
     }
 
     /// Guarded rows lower onto every seat-fanned key, regrouped into one
@@ -1087,7 +1249,7 @@ mod tests {
                     row(
                         Pattern::after("P* 1♥ (X)", "2NT (P)"),
                         Bid::new(4, Strain::Hearts),
-                        1.0,
+                        100,
                         hcp(13..),
                     )
                     .alert(Alert("test:conv"))
@@ -1095,7 +1257,7 @@ mod tests {
                     row(
                         Pattern::after("P* 1♥ (X)", "2NT (P)"),
                         Call::Pass,
-                        0.0,
+                        0,
                         hcp(0..),
                     )
                     .into(),
@@ -1214,7 +1376,7 @@ mod tests {
             entries: || rows_of(Pattern::node("1♥ (P)"), two_rule_table()),
         }]);
         assert_eq!(book.finalize_authoring().patterns().len(), 1);
-        book.insert(&calls("1♥ P"), Rules::new().rule(Call::Pass, 0.0, hcp(0..)));
+        book.insert(&calls("1♥ P"), Rules::new().rule(Call::Pass, 0, hcp(0..)));
         assert!(book.finalize_authoring().patterns().is_empty());
     }
 
@@ -1408,7 +1570,7 @@ mod tests {
         book.fallback_at(
             &[],
             Always,
-            Fallback::classify(Rules::new().rule(Call::Pass, 0.0, hcp(0..))),
+            Fallback::classify(Rules::new().rule(Call::Pass, 0, hcp(0..))),
         );
         assert_eq!(book.fallbacks().len(), 2, "row plus imperative floor");
 
