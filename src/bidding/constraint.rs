@@ -39,6 +39,180 @@ use core::fmt;
 use core::ops::{BitAnd, BitOr, Bound, Not, RangeBounds};
 use std::borrow::Cow;
 
+/// Runtime facts a [`Constraint`] may consult.
+///
+/// The mask is deliberately conservative: downstream constraints that do not
+/// override [`Constraint::dependencies`] or
+/// [`Constraint::projection_dependencies`] report [`Self::ALL`].  Compilers
+/// may use a narrower mask as an optimization hint, but must never use it to
+/// change evaluation order or semantics.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ConstraintDependencies(u8);
+
+impl ConstraintDependencies {
+    /// No runtime dependencies.
+    pub const NONE: Self = Self(0);
+    /// The bidder's hand.
+    pub const HAND: Self = Self(1 << 0);
+    /// Auction, vulnerability, seat, or another direct [`Context`] fact.
+    pub const CONTEXT: Self = Self(1 << 1);
+    /// Derived auction [`Inferences`][super::inference::Inferences].
+    pub const INFERENCES: Self = Self(1 << 2);
+    /// Cached trick estimates.
+    pub const TRICKS: Self = Self(1 << 3);
+    /// Thread-local bidding/reading profile state.
+    pub const PROFILE: Self = Self(1 << 4);
+    /// Conservative default for an opaque constraint.
+    pub const ALL: Self = Self(
+        Self::HAND.0 | Self::CONTEXT.0 | Self::INFERENCES.0 | Self::TRICKS.0 | Self::PROFILE.0,
+    );
+
+    /// Combine two dependency masks.
+    #[must_use]
+    pub const fn union(self, other: Self) -> Self {
+        Self(self.0 | other.0)
+    }
+
+    /// Whether this mask contains any bit in `other`.
+    #[must_use]
+    pub const fn intersects(self, other: Self) -> bool {
+        self.0 & other.0 != 0
+    }
+
+    /// Whether a projection can be frozen for one captured profile.
+    ///
+    /// [`Self::PROFILE`] is allowed: a compiled projection records the active
+    /// reading profile and falls back to the virtual method when it changes.
+    /// Hand/context/inference/trick dependencies require live evaluation.
+    #[must_use]
+    pub const fn projection_context_independent(self) -> bool {
+        !self.intersects(
+            Self::HAND
+                .union(Self::CONTEXT)
+                .union(Self::INFERENCES)
+                .union(Self::TRICKS),
+        )
+    }
+}
+
+impl BitOr for ConstraintDependencies {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        self.union(rhs)
+    }
+}
+
+/// The four independent reading folds a constraint exposes.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum ProjectionKind {
+    /// [`Constraint::project`]
+    Forward,
+    /// [`Constraint::project_band`]
+    Band,
+    /// [`Constraint::project_complement`]
+    Complement,
+    /// [`Constraint::announce`]
+    Announcement,
+}
+
+/// Dependency masks for each projection fold.
+///
+/// The folds are separate because wrappers such as [`announced`] deliberately
+/// source evaluation/projection from one constraint and disclosure from
+/// another.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct ProjectionDependencies {
+    forward: ConstraintDependencies,
+    band: ConstraintDependencies,
+    complement: ConstraintDependencies,
+    announcement: ConstraintDependencies,
+    pure: bool,
+}
+
+impl ProjectionDependencies {
+    /// Build four independently described, observationally pure folds.
+    ///
+    /// Calling this constructor is the purity promise which permits compiled
+    /// readers to freeze or omit an unused fold. Stateful implementations
+    /// should return [`Self::OPAQUE`] instead.
+    #[must_use]
+    pub const fn new(
+        forward: ConstraintDependencies,
+        band: ConstraintDependencies,
+        complement: ConstraintDependencies,
+        announcement: ConstraintDependencies,
+    ) -> Self {
+        Self {
+            forward,
+            band,
+            complement,
+            announcement,
+            pure: true,
+        }
+    }
+
+    /// Use one mask for every pure fold.
+    #[must_use]
+    pub const fn all(mask: ConstraintDependencies) -> Self {
+        Self::new(mask, mask, mask, mask)
+    }
+
+    /// Conservative dependencies for an opaque constraint.
+    pub const OPAQUE: Self = Self {
+        forward: ConstraintDependencies::ALL,
+        band: ConstraintDependencies::ALL,
+        complement: ConstraintDependencies::ALL,
+        announcement: ConstraintDependencies::ALL,
+        pure: false,
+    };
+
+    /// Read one fold's mask.
+    #[must_use]
+    pub const fn get(self, kind: ProjectionKind) -> ConstraintDependencies {
+        match kind {
+            ProjectionKind::Forward => self.forward,
+            ProjectionKind::Band => self.band,
+            ProjectionKind::Complement => self.complement,
+            ProjectionKind::Announcement => self.announcement,
+        }
+    }
+
+    /// Whether the four folds are safe to freeze or omit when unused.
+    #[must_use]
+    pub const fn is_pure(self) -> bool {
+        self.pure
+    }
+
+    const fn with_purity(mut self, pure: bool) -> Self {
+        self.pure = pure;
+        self
+    }
+
+    const fn remap(
+        self,
+        forward: ConstraintDependencies,
+        band: ConstraintDependencies,
+        complement: ConstraintDependencies,
+        announcement: ConstraintDependencies,
+    ) -> Self {
+        Self::new(forward, band, complement, announcement).with_purity(self.pure)
+    }
+
+    /// Union corresponding folds.
+    #[must_use]
+    pub const fn union(self, other: Self) -> Self {
+        Self::new(
+            self.forward.union(other.forward),
+            self.band.union(other.band),
+            self.complement.union(other.complement),
+            self.announcement.union(other.announcement),
+        )
+        .with_purity(self.pure && other.pure)
+    }
+}
+
 /// Trait for a logit contribution of a hand feature
 ///
 /// Implementations must not return `f32::INFINITY`: combining `+∞` with the
@@ -46,6 +220,26 @@ use std::borrow::Cow;
 pub trait Constraint: Send + Sync {
     /// Evaluate the constraint into a logit contribution
     fn eval(&self, hand: Hand, context: &Context<'_>) -> f32;
+
+    /// Runtime facts evaluation may consult.
+    ///
+    /// The default is conservative so adding this hook cannot change the
+    /// behavior of downstream implementations.
+    fn dependencies(&self) -> ConstraintDependencies {
+        ConstraintDependencies::ALL
+    }
+
+    /// Runtime facts each projection fold may consult.
+    ///
+    /// The default keeps all four folds dynamic.  Implementors should narrow a
+    /// fold only when that promise remains true for every value of the type.
+    /// A narrowed fold also promises that projection is observationally pure:
+    /// the compiler may freeze it or omit a result which the active reading
+    /// profile cannot consume. Stateful custom projections must retain the
+    /// conservative default.
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        ProjectionDependencies::OPAQUE
+    }
 
     /// Render the constraint's meaning as a [`Description`]
     ///
@@ -159,6 +353,12 @@ where
     fn eval(&self, hand: Hand, context: &Context<'_>) -> f32 {
         self(hand, context)
     }
+
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        // Closure constraints use the trait's four vacuous default folds;
+        // only their hand evaluation is opaque.
+        ProjectionDependencies::all(ConstraintDependencies::NONE)
+    }
 }
 
 /// Describe one box through the same nouns the atom constraints use
@@ -234,6 +434,14 @@ impl Constraint for Envelope {
         crisp(self.accepts(hand))
     }
 
+    fn dependencies(&self) -> ConstraintDependencies {
+        ConstraintDependencies::HAND | ConstraintDependencies::PROFILE
+    }
+
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        ProjectionDependencies::all(ConstraintDependencies::NONE)
+    }
+
     fn describe(&self) -> Description {
         describe_box(self)
     }
@@ -254,6 +462,19 @@ impl Constraint for Envelope {
 impl Constraint for EnvelopeUnion {
     fn eval(&self, hand: Hand, _: &Context<'_>) -> f32 {
         crisp(self.boxes().iter().any(|envelope| envelope.accepts(hand)))
+    }
+
+    fn dependencies(&self) -> ConstraintDependencies {
+        ConstraintDependencies::HAND | ConstraintDependencies::PROFILE
+    }
+
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        ProjectionDependencies::new(
+            ConstraintDependencies::PROFILE,
+            ConstraintDependencies::PROFILE,
+            ConstraintDependencies::NONE,
+            ConstraintDependencies::PROFILE,
+        )
     }
 
     fn describe(&self) -> Description {
@@ -288,6 +509,14 @@ impl<T: Constraint> Constraint for Cons<T> {
         self.0.eval(hand, context)
     }
 
+    fn dependencies(&self) -> ConstraintDependencies {
+        self.0.dependencies()
+    }
+
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        self.0.projection_dependencies()
+    }
+
     fn describe(&self) -> Description {
         self.0.describe()
     }
@@ -316,6 +545,23 @@ pub struct And<A, B>(A, B);
 impl<A: Constraint, B: Constraint> Constraint for And<A, B> {
     fn eval(&self, hand: Hand, context: &Context<'_>) -> f32 {
         self.0.eval(hand, context) + self.1.eval(hand, context)
+    }
+
+    fn dependencies(&self) -> ConstraintDependencies {
+        self.0.dependencies() | self.1.dependencies()
+    }
+
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        let combined = self
+            .0
+            .projection_dependencies()
+            .union(self.1.projection_dependencies());
+        combined.remap(
+            combined.get(ProjectionKind::Forward) | ConstraintDependencies::PROFILE,
+            combined.get(ProjectionKind::Band) | ConstraintDependencies::PROFILE,
+            combined.get(ProjectionKind::Complement) | ConstraintDependencies::PROFILE,
+            combined.get(ProjectionKind::Announcement) | ConstraintDependencies::PROFILE,
+        )
     }
 
     fn describe(&self) -> Description {
@@ -361,6 +607,23 @@ impl<A: Constraint, B: Constraint> Constraint for Or<A, B> {
         self.0.eval(hand, context).max(self.1.eval(hand, context))
     }
 
+    fn dependencies(&self) -> ConstraintDependencies {
+        self.0.dependencies() | self.1.dependencies()
+    }
+
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        let combined = self
+            .0
+            .projection_dependencies()
+            .union(self.1.projection_dependencies());
+        combined.remap(
+            combined.get(ProjectionKind::Forward) | ConstraintDependencies::PROFILE,
+            combined.get(ProjectionKind::Band) | ConstraintDependencies::PROFILE,
+            combined.get(ProjectionKind::Complement) | ConstraintDependencies::PROFILE,
+            combined.get(ProjectionKind::Announcement) | ConstraintDependencies::PROFILE,
+        )
+    }
+
     fn describe(&self) -> Description {
         self.0.describe().or(self.1.describe())
     }
@@ -403,6 +666,21 @@ pub struct Flip<T>(T);
 impl<T: Constraint> Constraint for Flip<T> {
     fn eval(&self, hand: Hand, context: &Context<'_>) -> f32 {
         crisp(self.0.eval(hand, context) == f32::NEG_INFINITY)
+    }
+
+    fn dependencies(&self) -> ConstraintDependencies {
+        self.0.dependencies()
+    }
+
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        let inner = self.0.projection_dependencies();
+        let complement = inner.get(ProjectionKind::Complement);
+        inner.remap(
+            complement,
+            complement,
+            inner.get(ProjectionKind::Band) | ConstraintDependencies::PROFILE,
+            complement,
+        )
     }
 
     fn describe(&self) -> Description {
@@ -671,6 +949,11 @@ where
         crisp((self.condition)(hand, context))
     }
 
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        // Like `pred`, this evaluator inherits the vacuous default folds.
+        ProjectionDependencies::all(ConstraintDependencies::NONE)
+    }
+
     fn describe(&self) -> Description {
         Description::atom(self.label.clone())
     }
@@ -715,6 +998,22 @@ struct ReadsAs<E, R> {
 impl<E: Constraint, R: Constraint> Constraint for ReadsAs<E, R> {
     fn eval(&self, hand: Hand, context: &Context<'_>) -> f32 {
         self.evaluated.eval(hand, context)
+    }
+
+    fn dependencies(&self) -> ConstraintDependencies {
+        self.evaluated.dependencies()
+    }
+
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        let reading = self.reading.projection_dependencies();
+        reading.remap(
+            reading.get(ProjectionKind::Forward),
+            reading.get(ProjectionKind::Band),
+            reading.get(ProjectionKind::Complement),
+            // `announce` is not overridden, so its default calls this type's
+            // `project`, not `reading.announce`.
+            reading.get(ProjectionKind::Forward),
+        )
     }
 
     fn describe(&self) -> Description {
@@ -763,6 +1062,22 @@ struct Announced<J, A> {
 impl<J: Constraint, A: Constraint> Constraint for Announced<J, A> {
     fn eval(&self, hand: Hand, context: &Context<'_>) -> f32 {
         self.judgment.eval(hand, context)
+    }
+
+    fn dependencies(&self) -> ConstraintDependencies {
+        self.judgment.dependencies()
+    }
+
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        let judgment = self.judgment.projection_dependencies();
+        let agreement = self.agreement.projection_dependencies();
+        ProjectionDependencies::new(
+            judgment.get(ProjectionKind::Forward),
+            judgment.get(ProjectionKind::Band),
+            judgment.get(ProjectionKind::Complement),
+            agreement.get(ProjectionKind::Announcement),
+        )
+        .with_purity(judgment.is_pure() && agreement.is_pure())
     }
 
     fn describe(&self) -> Description {
@@ -1054,6 +1369,14 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Hcp<R> {
         crisp(self.range.contains(&value))
     }
 
+    fn dependencies(&self) -> ConstraintDependencies {
+        ConstraintDependencies::HAND | ConstraintDependencies::CONTEXT
+    }
+
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        ProjectionDependencies::all(ConstraintDependencies::PROFILE)
+    }
+
     fn describe(&self) -> Description {
         describe_int_range(&self.range, "HCP")
     }
@@ -1286,6 +1609,16 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Points<R> {
         crisp(self.range.contains(&value))
     }
 
+    fn dependencies(&self) -> ConstraintDependencies {
+        ConstraintDependencies::HAND
+            | ConstraintDependencies::CONTEXT
+            | ConstraintDependencies::PROFILE
+    }
+
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        ProjectionDependencies::all(ConstraintDependencies::PROFILE)
+    }
+
     fn describe(&self) -> Description {
         describe_int_range(&self.range, "points")
     }
@@ -1451,6 +1784,16 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for SupportPoints<R> {
         crisp(self.band().contains(value))
     }
 
+    fn dependencies(&self) -> ConstraintDependencies {
+        ConstraintDependencies::HAND
+            | ConstraintDependencies::CONTEXT
+            | ConstraintDependencies::PROFILE
+    }
+
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        ProjectionDependencies::all(ConstraintDependencies::PROFILE)
+    }
+
     fn describe(&self) -> Description {
         // The gate names no suit in disclosure: every gate conjoins 3+ trumps,
         // where the suit-indexed value equals the familiar suit-blind count.
@@ -1540,6 +1883,14 @@ impl<R: RangeBounds<f64> + Clone + Send + Sync> Constraint for Fifths<R> {
         crisp(self.0.contains(&value))
     }
 
+    fn dependencies(&self) -> ConstraintDependencies {
+        ConstraintDependencies::HAND | ConstraintDependencies::PROFILE
+    }
+
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        ProjectionDependencies::all(ConstraintDependencies::NONE)
+    }
+
     fn describe(&self) -> Description {
         describe_real_range(&self.0, "fifths")
     }
@@ -1574,6 +1925,19 @@ struct Len<R> {
 impl<R: RangeBounds<usize> + Clone + Send + Sync> Constraint for Len<R> {
     fn eval(&self, hand: Hand, _: &Context<'_>) -> f32 {
         crisp(self.range.contains(&hand[self.suit].len()))
+    }
+
+    fn dependencies(&self) -> ConstraintDependencies {
+        ConstraintDependencies::HAND
+    }
+
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        ProjectionDependencies::new(
+            ConstraintDependencies::NONE,
+            ConstraintDependencies::NONE,
+            ConstraintDependencies::PROFILE,
+            ConstraintDependencies::NONE,
+        )
     }
 
     fn describe(&self) -> Description {
@@ -1644,6 +2008,14 @@ impl<const N: usize, R: RangeBounds<usize> + Clone + Send + Sync> Constraint for
         )
     }
 
+    fn dependencies(&self) -> ConstraintDependencies {
+        ConstraintDependencies::HAND
+    }
+
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        ProjectionDependencies::all(ConstraintDependencies::NONE)
+    }
+
     fn describe(&self) -> Description {
         self.suits
             .iter()
@@ -1695,6 +2067,19 @@ impl<const N: usize, R: RangeBounds<usize> + Clone + Send + Sync> Constraint for
         )
     }
 
+    fn dependencies(&self) -> ConstraintDependencies {
+        ConstraintDependencies::HAND
+    }
+
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        ProjectionDependencies::new(
+            ConstraintDependencies::PROFILE,
+            ConstraintDependencies::PROFILE,
+            ConstraintDependencies::NONE,
+            ConstraintDependencies::PROFILE,
+        )
+    }
+
     fn describe(&self) -> Description {
         self.suits
             .iter()
@@ -1743,6 +2128,19 @@ struct SuitHcp<R> {
 impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for SuitHcp<R> {
     fn eval(&self, hand: Hand, _: &Context<'_>) -> f32 {
         crisp(self.range.contains(&suit_raw_hcp(hand, self.suit)))
+    }
+
+    fn dependencies(&self) -> ConstraintDependencies {
+        ConstraintDependencies::HAND
+    }
+
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        ProjectionDependencies::new(
+            ConstraintDependencies::NONE,
+            ConstraintDependencies::NONE,
+            ConstraintDependencies::PROFILE,
+            ConstraintDependencies::NONE,
+        )
     }
 
     fn describe(&self) -> Description {
@@ -1812,6 +2210,14 @@ struct Balanced;
 impl Constraint for Balanced {
     fn eval(&self, hand: Hand, _: &Context<'_>) -> f32 {
         crisp(is_balanced(hand))
+    }
+
+    fn dependencies(&self) -> ConstraintDependencies {
+        ConstraintDependencies::HAND
+    }
+
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        ProjectionDependencies::all(ConstraintDependencies::PROFILE)
     }
 
     fn describe(&self) -> Description {
@@ -1927,6 +2333,19 @@ struct Shapes {
 impl Constraint for Shapes {
     fn eval(&self, hand: Hand, _: &Context<'_>) -> f32 {
         crisp(self.boxes.iter().any(|envelope| envelope.accepts(hand)))
+    }
+
+    fn dependencies(&self) -> ConstraintDependencies {
+        ConstraintDependencies::HAND | ConstraintDependencies::PROFILE
+    }
+
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        ProjectionDependencies::new(
+            ConstraintDependencies::PROFILE,
+            ConstraintDependencies::PROFILE,
+            ConstraintDependencies::NONE,
+            ConstraintDependencies::PROFILE,
+        )
     }
 
     fn describe(&self) -> Description {
@@ -2073,6 +2492,30 @@ impl<T: Constraint> Constraint for EnvelopeUnionUpgrade<T> {
         self.legacy.eval(hand, context)
     }
 
+    fn dependencies(&self) -> ConstraintDependencies {
+        self.legacy.dependencies()
+    }
+
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        let legacy = self.legacy.projection_dependencies();
+        let boxes = self.boxes.projection_dependencies();
+        ProjectionDependencies::new(
+            legacy.get(ProjectionKind::Forward)
+                | boxes.get(ProjectionKind::Forward)
+                | ConstraintDependencies::PROFILE,
+            legacy.get(ProjectionKind::Band)
+                | boxes.get(ProjectionKind::Band)
+                | ConstraintDependencies::PROFILE,
+            legacy.get(ProjectionKind::Complement),
+            // The default `announce` calls this type's profile-switched
+            // `project`.
+            legacy.get(ProjectionKind::Forward)
+                | boxes.get(ProjectionKind::Forward)
+                | ConstraintDependencies::PROFILE,
+        )
+        .with_purity(legacy.is_pure() && boxes.is_pure())
+    }
+
     fn describe(&self) -> Description {
         self.legacy.describe()
     }
@@ -2116,6 +2559,14 @@ impl<R: RangeBounds<f64> + Clone + Send + Sync> Constraint for Cccc<R> {
         crisp(self.0.contains(&eval::cccc(hand)))
     }
 
+    fn dependencies(&self) -> ConstraintDependencies {
+        ConstraintDependencies::HAND
+    }
+
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        ProjectionDependencies::all(ConstraintDependencies::NONE)
+    }
+
     fn describe(&self) -> Description {
         describe_real_range(&self.0, "CCCC")
     }
@@ -2150,6 +2601,14 @@ impl<R: RangeBounds<f64> + Clone + Send + Sync> Constraint for Nltc<R> {
         crisp(self.0.contains(&eval::NLTC.eval(hand)))
     }
 
+    fn dependencies(&self) -> ConstraintDependencies {
+        ConstraintDependencies::HAND
+    }
+
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        ProjectionDependencies::all(ConstraintDependencies::NONE)
+    }
+
     fn describe(&self) -> Description {
         describe_real_range(&self.0, "NLTC")
     }
@@ -2179,6 +2638,15 @@ impl<R: RangeBounds<usize> + Clone + Send + Sync> Constraint for Support<R> {
                 .partner_last_suit()
                 .is_some_and(|suit| self.0.contains(&hand[suit].len())),
         )
+    }
+
+    fn dependencies(&self) -> ConstraintDependencies {
+        ConstraintDependencies::HAND | ConstraintDependencies::CONTEXT
+    }
+
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        let live = ConstraintDependencies::CONTEXT | ConstraintDependencies::PROFILE;
+        ProjectionDependencies::new(live, live, live, live)
     }
 
     fn describe(&self) -> Description {
@@ -2234,6 +2702,16 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for PartnerShownLen<R>
         crisp(self.range.contains(&shown.min))
     }
 
+    fn dependencies(&self) -> ConstraintDependencies {
+        ConstraintDependencies::CONTEXT
+            | ConstraintDependencies::INFERENCES
+            | ConstraintDependencies::PROFILE
+    }
+
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        ProjectionDependencies::all(ConstraintDependencies::NONE)
+    }
+
     fn describe(&self) -> Description {
         describe_int_range(&self.range, &format!("{} shown by partner", self.suit))
     }
@@ -2266,6 +2744,16 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for PartnerShownPoints
         crisp(self.0.contains(&shown.min))
     }
 
+    fn dependencies(&self) -> ConstraintDependencies {
+        ConstraintDependencies::CONTEXT
+            | ConstraintDependencies::INFERENCES
+            | ConstraintDependencies::PROFILE
+    }
+
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        ProjectionDependencies::all(ConstraintDependencies::NONE)
+    }
+
     fn describe(&self) -> Description {
         describe_int_range(&self.0, "points shown by partner")
     }
@@ -2296,6 +2784,19 @@ impl<R: RangeBounds<usize> + Clone + Send + Sync> Constraint for TopHonors<R> {
             .filter(|&rank| holding.contains(rank))
             .count();
         crisp(self.range.contains(&count))
+    }
+
+    fn dependencies(&self) -> ConstraintDependencies {
+        ConstraintDependencies::HAND
+    }
+
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        ProjectionDependencies::new(
+            ConstraintDependencies::PROFILE,
+            ConstraintDependencies::PROFILE,
+            ConstraintDependencies::NONE,
+            ConstraintDependencies::PROFILE,
+        )
     }
 
     fn describe(&self) -> Description {
@@ -2362,6 +2863,14 @@ impl Constraint for StopperIn {
         crisp(has_stopper(hand[self.0]))
     }
 
+    fn dependencies(&self) -> ConstraintDependencies {
+        ConstraintDependencies::HAND
+    }
+
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        ProjectionDependencies::all(ConstraintDependencies::NONE)
+    }
+
     fn describe(&self) -> Description {
         Description::atom(format!("stopper in {}", self.0))
     }
@@ -2386,6 +2895,14 @@ impl Constraint for StopperInTheirSuits {
         crisp(context.their_suits().all(|suit| has_stopper(hand[suit])))
     }
 
+    fn dependencies(&self) -> ConstraintDependencies {
+        ConstraintDependencies::HAND | ConstraintDependencies::CONTEXT
+    }
+
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        ProjectionDependencies::all(ConstraintDependencies::NONE)
+    }
+
     fn describe(&self) -> Description {
         Description::atom("stopper in their suit(s)")
     }
@@ -2408,6 +2925,14 @@ impl Constraint for TheyBid {
         crisp(context.they_bid(self.0))
     }
 
+    fn dependencies(&self) -> ConstraintDependencies {
+        ConstraintDependencies::CONTEXT
+    }
+
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        ProjectionDependencies::all(ConstraintDependencies::NONE)
+    }
+
     fn describe(&self) -> Description {
         Description::atom(format!("opponents bid {}", self.0))
     }
@@ -2426,6 +2951,14 @@ struct ShortInTheirSuits;
 impl Constraint for ShortInTheirSuits {
     fn eval(&self, hand: Hand, context: &Context<'_>) -> f32 {
         crisp(context.their_suits().all(|suit| hand[suit].len() <= 3))
+    }
+
+    fn dependencies(&self) -> ConstraintDependencies {
+        ConstraintDependencies::HAND | ConstraintDependencies::CONTEXT
+    }
+
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        ProjectionDependencies::all(ConstraintDependencies::NONE)
     }
 
     fn describe(&self) -> Description {
@@ -2642,6 +3175,14 @@ impl Constraint for UnbidSupport {
         crisp(short <= self.max_short)
     }
 
+    fn dependencies(&self) -> ConstraintDependencies {
+        ConstraintDependencies::HAND | ConstraintDependencies::CONTEXT
+    }
+
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        ProjectionDependencies::all(ConstraintDependencies::NONE)
+    }
+
     fn describe(&self) -> Description {
         Description::atom(if self.max_short == 0 {
             "at least three cards in each unbid suit".to_owned()
@@ -2677,6 +3218,14 @@ impl Constraint for PartnerSuitIs {
         crisp(context.partner_last_suit() == Some(self.0))
     }
 
+    fn dependencies(&self) -> ConstraintDependencies {
+        ConstraintDependencies::CONTEXT
+    }
+
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        ProjectionDependencies::all(ConstraintDependencies::NONE)
+    }
+
     fn describe(&self) -> Description {
         Description::atom(format!("partner's last suit is {}", self.0))
     }
@@ -2704,6 +3253,14 @@ impl Constraint for MinLevelIs {
         crisp(context.min_level(self.strain) == Some(Level::new(self.level)))
     }
 
+    fn dependencies(&self) -> ConstraintDependencies {
+        ConstraintDependencies::CONTEXT
+    }
+
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        ProjectionDependencies::all(ConstraintDependencies::NONE)
+    }
+
     fn describe(&self) -> Description {
         Description::atom(format!("{}{} is the cheapest bid", self.level, self.strain))
     }
@@ -2728,6 +3285,14 @@ impl Constraint for PassedHand {
         crisp(context.passed_hand())
     }
 
+    fn dependencies(&self) -> ConstraintDependencies {
+        ConstraintDependencies::CONTEXT
+    }
+
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        ProjectionDependencies::all(ConstraintDependencies::NONE)
+    }
+
     fn describe(&self) -> Description {
         Description::atom("a passed hand")
     }
@@ -2746,6 +3311,14 @@ struct Undisturbed;
 impl Constraint for Undisturbed {
     fn eval(&self, _: Hand, context: &Context<'_>) -> f32 {
         crisp(context.undisturbed())
+    }
+
+    fn dependencies(&self) -> ConstraintDependencies {
+        ConstraintDependencies::CONTEXT
+    }
+
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        ProjectionDependencies::all(ConstraintDependencies::NONE)
     }
 
     fn describe(&self) -> Description {
@@ -2769,6 +3342,14 @@ impl Constraint for Vulnerable {
         crisp(context.vul().contains(RelativeVulnerability::WE))
     }
 
+    fn dependencies(&self) -> ConstraintDependencies {
+        ConstraintDependencies::CONTEXT
+    }
+
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        ProjectionDependencies::all(ConstraintDependencies::NONE)
+    }
+
     fn describe(&self) -> Description {
         Description::atom("vulnerable")
     }
@@ -2790,6 +3371,14 @@ impl Constraint for TheyVulnerable {
         crisp(context.vul().contains(RelativeVulnerability::THEY))
     }
 
+    fn dependencies(&self) -> ConstraintDependencies {
+        ConstraintDependencies::CONTEXT
+    }
+
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        ProjectionDependencies::all(ConstraintDependencies::NONE)
+    }
+
     fn describe(&self) -> Description {
         Description::atom("opponents vulnerable")
     }
@@ -2808,6 +3397,14 @@ struct NthSeat(u8);
 impl Constraint for NthSeat {
     fn eval(&self, _: Hand, context: &Context<'_>) -> f32 {
         crisp(context.seat_to_open() == Some(self.0))
+    }
+
+    fn dependencies(&self) -> ConstraintDependencies {
+        ConstraintDependencies::CONTEXT
+    }
+
+    fn projection_dependencies(&self) -> ProjectionDependencies {
+        ProjectionDependencies::all(ConstraintDependencies::NONE)
     }
 
     fn describe(&self) -> Description {
@@ -3773,5 +4370,85 @@ mod tests {
         // and n top honors are n cards.
         assert_eq!(min_hcp_of_honors, [0, 2, 5, 9]);
         assert_eq!(min_len_of_honors, [0, 1, 2, 3]);
+    }
+
+    #[test]
+    fn dependency_hooks_are_conservative_and_projection_folds_are_independent() {
+        let opaque = pred(|_, _| true);
+        assert_eq!(opaque.dependencies(), ConstraintDependencies::ALL);
+        assert_eq!(
+            opaque.projection_dependencies(),
+            ProjectionDependencies::all(ConstraintDependencies::NONE)
+        );
+
+        let length = len(Suit::Spades, 5..);
+        assert_eq!(length.dependencies(), ConstraintDependencies::HAND);
+        assert_eq!(
+            length
+                .projection_dependencies()
+                .get(ProjectionKind::Forward),
+            ConstraintDependencies::NONE
+        );
+        assert_eq!(
+            length
+                .projection_dependencies()
+                .get(ProjectionKind::Complement),
+            ConstraintDependencies::PROFILE
+        );
+
+        let contextual = support(3..);
+        assert!(
+            contextual
+                .projection_dependencies()
+                .get(ProjectionKind::Forward)
+                .intersects(ConstraintDependencies::CONTEXT)
+        );
+
+        let split = announced(pred(|_, _| true), len(Suit::Hearts, 5..));
+        assert_eq!(
+            split.projection_dependencies().get(ProjectionKind::Forward),
+            ConstraintDependencies::NONE
+        );
+        assert_eq!(
+            split
+                .projection_dependencies()
+                .get(ProjectionKind::Announcement),
+            ConstraintDependencies::NONE
+        );
+    }
+
+    #[test]
+    fn combinator_eval_remains_eager_and_left_to_right() {
+        use std::sync::Arc;
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        let context = empty_context();
+        let test_hand = hand(BALANCED_15);
+
+        let sequence = Arc::new(AtomicUsize::new(0));
+        let left_sequence = Arc::clone(&sequence);
+        let right_sequence = Arc::clone(&sequence);
+        let conjunction = Cons(move |_: Hand, _: &Context<'_>| {
+            assert_eq!(left_sequence.fetch_add(1, Ordering::SeqCst), 0);
+            f32::NEG_INFINITY
+        }) & Cons(move |_: Hand, _: &Context<'_>| {
+            assert_eq!(right_sequence.fetch_add(1, Ordering::SeqCst), 1);
+            0.0
+        });
+        assert_reject(conjunction.eval(test_hand, &context));
+        assert_eq!(sequence.load(Ordering::SeqCst), 2);
+
+        let sequence = Arc::new(AtomicUsize::new(0));
+        let left_sequence = Arc::clone(&sequence);
+        let right_sequence = Arc::clone(&sequence);
+        let disjunction = Cons(move |_: Hand, _: &Context<'_>| {
+            assert_eq!(left_sequence.fetch_add(1, Ordering::SeqCst), 0);
+            0.0
+        }) | Cons(move |_: Hand, _: &Context<'_>| {
+            assert_eq!(right_sequence.fetch_add(1, Ordering::SeqCst), 1);
+            f32::NEG_INFINITY
+        });
+        assert_pass(disjunction.eval(test_hand, &context));
+        assert_eq!(sequence.load(Ordering::SeqCst), 2);
     }
 }

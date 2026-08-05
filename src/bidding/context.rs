@@ -12,18 +12,19 @@
 use super::book::Stance;
 use super::evaluator::{TrickEstimates, trick_estimates_with_auction};
 use super::features::Config;
-use super::inference::{Inferences, ReadingProfile, reading_profile};
+use super::inference::{AuthoredProjection, Inferences, ReadingProfile, reading_profile};
 use super::instinct::Interpretation;
 use super::trie::CommonPrefixes;
 use contract_bridge::auction::{AbsoluteVulnerability, Call, RelativeVulnerability};
 use contract_bridge::{Bid, Hand, Level, Penalty, Seat, Strain, Suit};
 use core::fmt;
 use std::borrow::Cow;
+use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::{Arc, OnceLock};
 use std::thread::{self, ThreadId};
 
 #[cfg(test)]
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::AtomicUsize;
 
 /// Convert absolute vulnerability to the perspective of a seat
 ///
@@ -78,6 +79,7 @@ pub struct Context<'a> {
     prefixes: Option<CommonPrefixes<'a, 'a>>,
     their_system: Option<&'a Stance>,
     config: Option<&'a Config>,
+    authored_projection: Option<&'a AuthoredProjection>,
     revision: u64,
     decision_cache: Option<Arc<DecisionCache>>,
 }
@@ -113,6 +115,9 @@ struct DecisionCache {
     inferences: OnceLock<Inferences>,
     trick_estimates: OnceLock<TrickEstimates>,
     interpretation: OnceLock<Interpretation>,
+    rule_face_slots: usize,
+    rule_faces: [AtomicU8; 16],
+    rule_face_overflow: Box<[AtomicU8]>,
     #[cfg(test)]
     inference_inits: AtomicUsize,
     #[cfg(test)]
@@ -121,8 +126,112 @@ struct DecisionCache {
     interpretation_inits: AtomicUsize,
 }
 
+/// Owned mechanical auction cursor used by the deal-level append cache.
+///
+/// It carries only laws-derived facts; constructing a borrowed [`Context`]
+/// from the current prefix is constant work.
+#[derive(Clone, Debug)]
+pub(crate) struct ContextCursor {
+    depth: usize,
+    strains: [u8; 2],
+    side_has_nonpass: [bool; 2],
+    last_by_seat: [Option<Bid>; 4],
+    last_bid: Option<Bid>,
+    penalty: Penalty,
+    opening_index: Option<usize>,
+}
+
+impl ContextCursor {
+    pub(crate) const fn new() -> Self {
+        Self {
+            depth: 0,
+            strains: [0; 2],
+            side_has_nonpass: [false; 2],
+            last_by_seat: [None; 4],
+            last_bid: None,
+            penalty: Penalty::Undoubled,
+            opening_index: None,
+        }
+    }
+
+    pub(crate) fn context<'a>(
+        &self,
+        vul: RelativeVulnerability,
+        auction: &'a [Call],
+    ) -> Context<'a> {
+        debug_assert_eq!(self.depth, auction.len());
+        let side = self.depth % 2;
+        Context {
+            vul,
+            auction,
+            our_strains: self.strains[side],
+            their_strains: self.strains[1 - side],
+            partner_last_bid: self.last_by_seat[(self.depth + 2) % 4],
+            last_bid: self.last_bid,
+            penalty: self.penalty,
+            undisturbed: !self.side_has_nonpass[1 - side],
+            passed_hand: self.depth >= 4 && matches!(auction[self.depth % 4], Call::Pass),
+            partner_passed_hand: self.depth >= 2
+                && matches!(auction[(self.depth - 2) % 4], Call::Pass),
+            opening_index: self.opening_index,
+            prefixes: None,
+            their_system: None,
+            config: None,
+            authored_projection: None,
+            revision: 0,
+            decision_cache: None,
+        }
+    }
+
+    pub(crate) fn push(&mut self, call: Call) {
+        let side = self.depth % 2;
+        if call != Call::Pass {
+            self.side_has_nonpass[side] = true;
+            self.opening_index.get_or_insert(self.depth);
+        }
+        match call {
+            Call::Pass => {}
+            Call::Double => self.penalty = Penalty::Doubled,
+            Call::Redouble => self.penalty = Penalty::Redoubled,
+            Call::Bid(bid) => {
+                self.strains[side] |= 1 << bid.strain as u8;
+                self.last_by_seat[self.depth % 4] = Some(bid);
+                self.last_bid = Some(bid);
+                self.penalty = Penalty::Undoubled;
+            }
+        }
+        self.depth += 1;
+    }
+
+    pub(crate) fn phase(&self) -> super::book::Phase {
+        let Some(opening) = self.opening_index else {
+            return super::book::Phase::Constructive;
+        };
+        let side = self.depth % 2;
+        if opening % 2 != side {
+            super::book::Phase::Defensive
+        } else if self.side_has_nonpass[1 - side] {
+            super::book::Phase::Competitive
+        } else {
+            super::book::Phase::Constructive
+        }
+    }
+}
+
+impl Default for ContextCursor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DecisionCache {
-    fn new(hand: Hand, revision: u64, thread: ThreadId, profile: DecisionProfile) -> Self {
+    fn new(
+        hand: Hand,
+        revision: u64,
+        thread: ThreadId,
+        profile: DecisionProfile,
+        rule_face_slots: usize,
+    ) -> Self {
         Self {
             hand,
             revision,
@@ -131,6 +240,9 @@ impl DecisionCache {
             inferences: OnceLock::new(),
             trick_estimates: OnceLock::new(),
             interpretation: OnceLock::new(),
+            rule_face_slots,
+            rule_faces: [const { AtomicU8::new(0) }; 16],
+            rule_face_overflow: (16..rule_face_slots).map(|_| AtomicU8::new(0)).collect(),
             #[cfg(test)]
             inference_inits: AtomicUsize::new(0),
             #[cfg(test)]
@@ -146,11 +258,13 @@ impl DecisionCache {
         revision: u64,
         thread: ThreadId,
         profile: DecisionProfile,
+        rule_face_slots: usize,
     ) -> bool {
         self.hand == hand
             && self.revision == revision
             && self.thread == thread
             && self.profile == profile
+            && self.rule_face_slots == rule_face_slots
     }
 
     fn assert_fixed_call(&self) {
@@ -211,6 +325,7 @@ impl<'a> Context<'a> {
             prefixes: None,
             their_system: None,
             config: None,
+            authored_projection: None,
             revision: 0,
             decision_cache: None,
         };
@@ -245,6 +360,35 @@ impl<'a> Context<'a> {
             }
         }
         context
+    }
+
+    /// Build the at-the-time context for every auction prefix in one scan.
+    ///
+    /// Entry `i` is byte-for-byte the mechanical state of
+    /// `Context::new(vul_at_i, &auction[..i])`, with vulnerability flipped on
+    /// turns belonging to the other partnership.  Maintaining both parity
+    /// sides at once avoids rescanning every historical prefix in the authored
+    /// reader.
+    pub(crate) fn at_each_turn(
+        vul_at_end: RelativeVulnerability,
+        auction: &'a [Call],
+    ) -> Vec<Self> {
+        let len = auction.len();
+        let mut contexts = Vec::with_capacity(len + 1);
+        let mut cursor = ContextCursor::new();
+
+        for depth in 0..=len {
+            let vul = if (len - depth).is_multiple_of(2) {
+                vul_at_end
+            } else {
+                flipped(vul_at_end)
+            };
+            contexts.push(cursor.context(vul, &auction[..depth]));
+            if let Some(&call) = auction.get(depth) {
+                cursor.push(call);
+            }
+        }
+        contexts
     }
 
     /// Attach the common prefixes of the auction in the queried [`Trie`]
@@ -299,6 +443,23 @@ impl<'a> Context<'a> {
         self
     }
 
+    /// Attach the append-only deal cache's authored projection snapshot.
+    #[must_use]
+    pub(crate) const fn with_authored_projection(
+        mut self,
+        projection: &'a AuthoredProjection,
+    ) -> Self {
+        self.authored_projection = Some(projection);
+        self.revision = self.revision.wrapping_add(1);
+        self
+    }
+
+    /// The deal-cached authored projection, when serving through a table loop.
+    #[must_use]
+    pub(crate) const fn authored_projection(&self) -> Option<&'a AuthoredProjection> {
+        self.authored_projection
+    }
+
     /// Attach the cache shared by every route attempted for this decision
     ///
     /// Calling this on an already-scoped clone preserves the existing cache
@@ -307,21 +468,40 @@ impl<'a> Context<'a> {
     /// scope explicitly.
     #[must_use]
     pub(crate) fn with_decision_cache(mut self, hand: Hand) -> Self {
+        self.install_decision_cache(hand, 0);
+        self
+    }
+
+    /// Enter a serving decision with fixed slots for compiled pure face gates.
+    ///
+    /// The stance-wide compiler assigns the slots. Standalone public rule
+    /// tables keep using [`Self::with_decision_cache`] with zero slots and
+    /// retain opaque face evaluation semantics.
+    #[must_use]
+    pub(crate) fn with_compiled_decision_cache(
+        mut self,
+        hand: Hand,
+        rule_face_slots: usize,
+    ) -> Self {
+        self.install_decision_cache(hand, rule_face_slots);
+        self
+    }
+
+    fn install_decision_cache(&mut self, hand: Hand, rule_face_slots: usize) {
         let thread = thread::current().id();
         let profile = DecisionProfile::current();
-        let reusable = self
-            .decision_cache
-            .as_deref()
-            .is_some_and(|cache| cache.reusable(hand, self.revision, thread, profile));
+        let reusable = self.decision_cache.as_deref().is_some_and(|cache| {
+            cache.reusable(hand, self.revision, thread, profile, rule_face_slots)
+        });
         if !reusable {
             self.decision_cache = Some(Arc::new(DecisionCache::new(
                 hand,
                 self.revision,
                 thread,
                 profile,
+                rule_face_slots,
             )));
         }
-        self
     }
 
     /// The active cache, if no structural builder has invalidated it
@@ -332,6 +512,39 @@ impl<'a> Context<'a> {
         }
         cache.assert_fixed_call();
         Some(cache)
+    }
+
+    /// Reading profile already captured at decision entry, or the current
+    /// thread profile for an uncached diagnostic context.
+    pub(crate) fn reading_profile(&self) -> ReadingProfile {
+        self.active_decision_cache()
+            .map_or_else(reading_profile, |cache| cache.profile.reading)
+    }
+
+    /// Evaluate one explicitly pure compiled face gate at most once in this
+    /// immutable decision. Opaque gates never call this method.
+    pub(crate) fn compiled_rule_face(&self, slot: u32, evaluate: impl FnOnce() -> bool) -> bool {
+        let Some(cache) = self.active_decision_cache() else {
+            return evaluate();
+        };
+        let slot = slot as usize;
+        if slot >= cache.rule_face_slots {
+            return evaluate();
+        };
+        let value = if slot < cache.rule_faces.len() {
+            &cache.rule_faces[slot]
+        } else {
+            &cache.rule_face_overflow[slot - cache.rule_faces.len()]
+        };
+        match value.load(Ordering::Relaxed) {
+            1 => false,
+            2 => true,
+            _ => {
+                let live = evaluate();
+                value.store(if live { 2 } else { 1 }, Ordering::Relaxed);
+                live
+            }
+        }
     }
 
     /// Read the auction once within a decision, or return an owned uncached read
@@ -600,6 +813,53 @@ mod tests {
         assert!(!context.passed_hand());
         assert!(!context.partner_passed_hand());
         assert_eq!(context.opener_seat(), Some(1));
+    }
+
+    #[test]
+    fn incremental_turn_contexts_match_fresh_construction() {
+        let auction = [
+            bid(1, Strain::Clubs),
+            Call::Double,
+            Call::Redouble,
+            Call::Pass,
+            bid(1, Strain::Diamonds),
+            Call::Pass,
+            bid(1, Strain::Hearts),
+            Call::Pass,
+        ];
+        for final_vul in [
+            RelativeVulnerability::NONE,
+            RelativeVulnerability::WE,
+            RelativeVulnerability::THEY,
+            RelativeVulnerability::ALL,
+        ] {
+            let timeline = Context::at_each_turn(final_vul, &auction);
+            assert_eq!(timeline.len(), auction.len() + 1);
+            for (depth, actual) in timeline.iter().enumerate() {
+                let vul = if (auction.len() - depth).is_multiple_of(2) {
+                    final_vul
+                } else {
+                    flipped(final_vul)
+                };
+                let expected = Context::new(vul, &auction[..depth]);
+                assert_eq!(
+                    format!("{actual:?}"),
+                    format!("{expected:?}"),
+                    "context differs at depth {depth}",
+                );
+            }
+        }
+
+        let mut cursor = ContextCursor::new();
+        for depth in 0..=auction.len() {
+            assert_eq!(
+                cursor.phase(),
+                super::super::book::Phase::of(&auction[..depth])
+            );
+            if let Some(&call) = auction.get(depth) {
+                cursor.push(call);
+            }
+        }
     }
 
     #[test]

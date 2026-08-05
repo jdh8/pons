@@ -746,6 +746,28 @@ pub(crate) struct ReadingProfile {
     rkcb_variant: super::instinct::RkcbVariant,
 }
 
+impl ReadingProfile {
+    pub(crate) const fn decodes_nonpass(self, alerted: bool) -> bool {
+        match self.scope {
+            ReadingScope::None => false,
+            ReadingScope::Alerted => alerted,
+            ReadingScope::All => true,
+        }
+    }
+
+    pub(crate) const fn pass_reading(self) -> bool {
+        self.pass
+    }
+
+    pub(crate) const fn pass_exclusion_reading(self) -> bool {
+        self.pass_exclusion
+    }
+
+    pub(crate) const fn announced_reading(self) -> bool {
+        self.announced
+    }
+}
+
 /// Snapshot the reading settings active on this thread
 pub(crate) fn reading_profile() -> ReadingProfile {
     ReadingProfile {
@@ -3015,15 +3037,42 @@ fn intersect_overlay(players: &[Envelope; 4], overlay: &[EnvelopeUnion; 4]) -> [
 /// shape-free tiers; skipping the rest costs precision, never soundness, and
 /// holds the box count down.  [`None`] when the table authors no Pass rule at
 /// all (the projection pass then records nothing, as before).
-fn project_pass(rules: &super::rules::Rules, ctx: &Context<'_>) -> Option<EnvelopeUnion> {
-    let band = rules
-        .rules()
-        .iter()
-        .filter(|rule| rule.call() == Call::Pass)
-        .map(|rule| rule.project_band_union(ctx))
-        .reduce(EnvelopeUnion::disjoin)?;
+#[inline]
+fn project_pass(
+    rules: &super::rules::Rules,
+    compiled: Option<&super::rules::CompiledRules>,
+    ctx: &Context<'_>,
+) -> Option<EnvelopeUnion> {
+    let band = if let Some(compiled) = compiled {
+        compiled
+            .pass_rule_indices()
+            .iter()
+            .map(|&index| compiled.project_band_union_matched(rules, index, ctx))
+            .reduce(EnvelopeUnion::disjoin)?
+    } else {
+        rules
+            .rules()
+            .iter()
+            .filter(|rule| rule.call() == Call::Pass)
+            .map(|rule| rule.project_band_union(ctx))
+            .reduce(EnvelopeUnion::disjoin)?
+    };
     if !pass_exclusion_reading() {
         return Some(band);
+    }
+    if let Some(compiled) = compiled {
+        let pass = compiled
+            .pass_plan()
+            .expect("Pass indices imply a Pass plan");
+        return Some(
+            pass.stronger_nonpass_indices()
+                .iter()
+                .map(|&index| compiled.project_complement_union_matched(rules, index, ctx))
+                .filter(|complement| {
+                    complement.boxes().len() == 1 && complement.boxes()[0] != Envelope::unknown()
+                })
+                .fold(band, |acc, complement| acc.intersect(&complement)),
+        );
     }
     let ceiling = rules
         .rules()
@@ -3044,23 +3093,860 @@ fn project_pass(rules: &super::rules::Rules, ctx: &Context<'_>) -> Option<Envelo
     )
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct AuthoredProjection {
+    unions: [EnvelopeUnion; 4],
+    announced_unions: [EnvelopeUnion; 4],
+    suppressed: u64,
+}
+
+impl AuthoredProjection {
+    fn unknown() -> Self {
+        Self {
+            unions: std::array::from_fn(|_| EnvelopeUnion::unknown()),
+            announced_unions: std::array::from_fn(|_| EnvelopeUnion::unknown()),
+            suppressed: 0,
+        }
+    }
+
+    fn apply(&mut self, len: usize, index: usize, effect: AuthoredEffect) {
+        let who = relative_of(len, index) as usize;
+        self.announced_unions[who] = self.announced_unions[who].intersect(&effect.agreement);
+        self.unions[who] = self.unions[who].intersect(&effect.projection);
+        if effect.suppresses_natural && index < 64 {
+            self.suppressed |= 1 << index;
+        }
+    }
+
+    fn into_parts(self) -> ([EnvelopeUnion; 4], [EnvelopeUnion; 4], u64) {
+        (self.unions, self.announced_unions, self.suppressed)
+    }
+
+    fn cloned_parts(&self) -> ([EnvelopeUnion; 4], [EnvelopeUnion; 4], u64) {
+        (
+            self.unions.clone(),
+            self.announced_unions.clone(),
+            self.suppressed,
+        )
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct AuthoredEffect {
+    projection: EnvelopeUnion,
+    agreement: EnvelopeUnion,
+    suppresses_natural: bool,
+}
+
+#[inline(always)]
+fn authored_effect(
+    made: Call,
+    ctx: &Context<'_>,
+    classifier: &dyn super::trie::Classifier,
+    compiled: Option<&super::rules::CompiledRules>,
+    decode_pass: bool,
+    announce_split: bool,
+) -> Option<AuthoredEffect> {
+    let rules = classifier.as_rules()?;
+    let is_pass = made == Call::Pass;
+    let scope = (!is_pass).then(reading_scope);
+    let mut face_memo = super::rules::FaceMemo::new();
+
+    // A compiled call plan can reject structurally unreadable groups before
+    // evaluating faces or materializing their projections.  The shipped
+    // Alerted scope sees many natural authoring nodes while walking every
+    // prefix; those groups cannot contribute regardless of context.  Keep the
+    // non-compiled oracle's evaluation order intact for opaque public hooks.
+    if let Some(compiled) = compiled {
+        if is_pass {
+            if !decode_pass && compiled.can_skip_pass_effect(pass_exclusion_reading()) {
+                return None;
+            }
+        } else {
+            match scope.expect("non-pass reading scope") {
+                ReadingScope::None if compiled.can_skip_nonpass_effect(made) => return None,
+                ReadingScope::Alerted
+                    if compiled.alerted_rule_indices(made).is_empty()
+                        && compiled.can_skip_nonpass_effect(made) =>
+                {
+                    return None;
+                }
+                ReadingScope::None | ReadingScope::Alerted | ReadingScope::All => {}
+            }
+        }
+    }
+
+    let projection = if is_pass {
+        project_pass(rules, compiled, ctx)
+    } else if let Some(compiled) = compiled {
+        compiled
+            .rule_indices(made)
+            .iter()
+            .filter(|&&index| compiled.face_live_memoized(rules, index, ctx, &mut face_memo))
+            .map(|&index| compiled.project_union_matched(rules, index, ctx))
+            .reduce(EnvelopeUnion::disjoin)
+    } else {
+        rules
+            .rules()
+            .iter()
+            .filter(|rule| rule.call() == made && rule.face_live(ctx))
+            .map(|rule| rule.project_union(ctx))
+            .reduce(EnvelopeUnion::disjoin)
+    }?;
+
+    let alerted = !is_pass
+        && if let Some(compiled) = compiled {
+            compiled
+                .alerted_rule_indices(made)
+                .iter()
+                .any(|&index| compiled.face_live_memoized(rules, index, ctx, &mut face_memo))
+        } else {
+            rules
+                .rules()
+                .iter()
+                .any(|rule| rule.call() == made && rule.alert().is_some() && rule.face_live(ctx))
+        };
+    let decode = if is_pass {
+        decode_pass
+    } else {
+        match scope.expect("non-pass reading scope") {
+            ReadingScope::None => false,
+            ReadingScope::Alerted => alerted,
+            ReadingScope::All => true,
+        }
+    };
+    if !decode {
+        return None;
+    }
+
+    let agreement = if announce_split && !is_pass {
+        if let Some(compiled) = compiled {
+            compiled
+                .alerted_rule_indices(made)
+                .iter()
+                .filter(|&&index| compiled.face_live_memoized(rules, index, ctx, &mut face_memo))
+                .map(|&index| compiled.announce_union_matched(rules, index, ctx))
+                .reduce(EnvelopeUnion::disjoin)
+                .unwrap_or_else(|| projection.clone())
+        } else {
+            rules
+                .rules()
+                .iter()
+                .filter(|rule| rule.call() == made && rule.alert().is_some() && rule.face_live(ctx))
+                .map(|rule| rule.announce_union(ctx))
+                .reduce(EnvelopeUnion::disjoin)
+                .unwrap_or_else(|| projection.clone())
+        }
+    } else {
+        projection.clone()
+    };
+    Some(AuthoredEffect {
+        projection,
+        agreement,
+        suppresses_natural: alerted,
+    })
+}
+
+#[derive(Clone, Debug)]
+struct AbsoluteProjection {
+    unions: [EnvelopeUnion; 4],
+    announced_unions: [EnvelopeUnion; 4],
+    suppressed: u64,
+}
+
+impl AbsoluteProjection {
+    fn unknown() -> Self {
+        Self {
+            unions: std::array::from_fn(|_| EnvelopeUnion::unknown()),
+            announced_unions: std::array::from_fn(|_| EnvelopeUnion::unknown()),
+            suppressed: 0,
+        }
+    }
+
+    fn push(&mut self, index: usize, effect: AuthoredEffect) {
+        let seat = index % 4;
+        self.unions[seat] = self.unions[seat].intersect(&effect.projection);
+        self.announced_unions[seat] = self.announced_unions[seat].intersect(&effect.agreement);
+        if effect.suppresses_natural && index < 64 {
+            self.suppressed |= 1 << index;
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[allow(dead_code)] // retained as the per-call route/provenance cache record
+struct CachedRoute {
+    classifier_id: super::decoder::DecoderClassifierId,
+    provenance: super::trie::Provenance,
+    pattern_id: Option<super::rows::PatternId>,
+    table_id: Option<super::rows::RuleTableId>,
+    fast: bool,
+}
+
+impl From<super::decoder::DecodedAuthoring<'_>> for CachedRoute {
+    fn from(answer: super::decoder::DecodedAuthoring<'_>) -> Self {
+        Self {
+            classifier_id: answer.classifier_id,
+            provenance: answer.provenance,
+            pattern_id: answer.pattern_id,
+            table_id: answer.table_id,
+            fast: answer.fast,
+        }
+    }
+}
+
+/// One route-safe append waiting for its projection effects to be committed.
+///
+/// A table side normally advances by two calls between decisions, so keep the
+/// common transaction entirely on the stack.  Seeded auctions and other large
+/// jumps spill only the excess entries below.
+#[derive(Clone, Copy)]
+struct PendingAuthoringStep<'a> {
+    index: usize,
+    call: Call,
+    own: Option<super::decoder::DecodedAuthoring<'a>>,
+    own_exact: Option<&'a dyn super::trie::Classifier>,
+    own_compiled: Option<&'a super::rules::CompiledRules>,
+    routed: Option<super::decoder::DecodedAuthoring<'a>>,
+    routed_compiled: Option<&'a super::rules::CompiledRules>,
+}
+
+/// Whether retaining this call's authored effect can omit no observable work.
+///
+/// Non-rule classifiers have no projection effect. Rule-backed routes require
+/// a plan compiled for the current profile and its explicit purity proof;
+/// otherwise public face/projection hooks must keep replaying on every read.
+fn authored_effect_is_reusable(
+    made: Call,
+    classifier: &dyn super::trie::Classifier,
+    compiled: Option<&super::rules::CompiledRules>,
+    profile: ReadingProfile,
+) -> bool {
+    classifier.as_rules().is_none()
+        || compiled.is_some_and(|plan| {
+            plan.can_reuse_authored_effect(made, profile.pass_exclusion_reading())
+        })
+}
+
+#[derive(Clone, Debug)]
+#[allow(dead_code)] // retained for append-only auditability and future reuse
+struct AuthoringStepRecord {
+    call: Call,
+    own: Option<CachedRoute>,
+    routed: Option<CachedRoute>,
+}
+
+/// Deal-owned append-only cache for the authored-reading portion of inference.
+///
+/// It is created by `Table::bid_out_from`, never by `Context::new`.  Each call
+/// is decoded and projected once, category accumulators retain the historical
+/// own/opponent/Pass/probe fold order, and the snapshot is rotated to the next
+/// actor in constant work.  A profile change, non-prefix query, or selected
+/// opaque/dynamic route permanently drops this deal to the legacy reader.
+pub(crate) struct AuthoringStepCache {
+    stance_identity: Option<std::sync::Arc<super::book::StanceCacheIdentity>>,
+    profile: Option<ReadingProfile>,
+    vul: Option<contract_bridge::auction::RelativeVulnerability>,
+    reader_parity: Option<usize>,
+    phase: Option<super::book::Phase>,
+    auction: Vec<Call>,
+    context_cursor: super::context::ContextCursor,
+    own_cursor: super::decoder::DecoderCursorState,
+    routed_cursors: [super::decoder::DecoderCursorState; 3],
+    own: AbsoluteProjection,
+    opponents: AbsoluteProjection,
+    passes: AbsoluteProjection,
+    probed: AbsoluteProjection,
+    records: Vec<AuthoringStepRecord>,
+    snapshot: AuthoredProjection,
+    disabled: bool,
+    #[cfg(test)]
+    successful_prepares: usize,
+    #[cfg(test)]
+    appended_steps: usize,
+}
+
+impl Default for AuthoringStepCache {
+    fn default() -> Self {
+        Self {
+            stance_identity: None,
+            profile: None,
+            vul: None,
+            reader_parity: None,
+            phase: None,
+            auction: Vec::new(),
+            context_cursor: super::context::ContextCursor::new(),
+            own_cursor: super::decoder::DecoderCursorState::default(),
+            routed_cursors: std::array::from_fn(|_| super::decoder::DecoderCursorState::default()),
+            own: AbsoluteProjection::unknown(),
+            opponents: AbsoluteProjection::unknown(),
+            passes: AbsoluteProjection::unknown(),
+            probed: AbsoluteProjection::unknown(),
+            records: Vec::new(),
+            snapshot: AuthoredProjection::unknown(),
+            disabled: false,
+            #[cfg(test)]
+            successful_prepares: 0,
+            #[cfg(test)]
+            appended_steps: 0,
+        }
+    }
+}
+
+impl AuthoringStepCache {
+    pub(crate) fn new() -> Self {
+        Self::default()
+    }
+
+    #[cfg(test)]
+    pub(crate) const fn coverage(&self) -> (usize, usize) {
+        (self.successful_prepares, self.appended_steps)
+    }
+
+    /// Check the route identity cached for each record appended by the most
+    /// recent successful prepare against both independent resolution paths.
+    ///
+    /// The decoder pool ID is the persisted classifier identity; the pointer
+    /// comparison below is deliberately only a same-process oracle against the
+    /// authoritative trie.  Comparing the full cached record also checks the
+    /// exact fallback depth/index and typed-rebase count in
+    /// [`Provenance`][super::trie::Provenance].
+    #[cfg(test)]
+    fn assert_new_route_records_match_one_shot(
+        &self,
+        stance: &super::book::Stance,
+        vul: contract_bridge::auction::RelativeVulnerability,
+        auction: &[Call],
+        first_new: usize,
+    ) {
+        assert_eq!(self.auction, auction, "route audit auction differs");
+        assert_eq!(
+            self.records.len(),
+            auction.len(),
+            "route record count differs"
+        );
+        let phase = self.phase.expect("a successful prepare has a phase");
+        let profile = self.profile.expect("a successful prepare has a profile");
+        let reader_parity = self
+            .reader_parity
+            .expect("a successful prepare has a reader parity");
+        let full_context = Context::new(vul, auction);
+
+        for (index, record) in self.records.iter().enumerate().skip(first_new) {
+            let prefix = &auction[..index];
+            assert_eq!(
+                record.call, auction[index],
+                "cached call differs at {index}"
+            );
+
+            if profile.fallback_projection {
+                assert_cached_route_matches_one_shot(
+                    "own",
+                    index,
+                    record.own,
+                    stance.decoder_for_phase(phase),
+                    stance.trie_for(auction),
+                    &full_context,
+                    prefix,
+                );
+            } else {
+                assert_eq!(record.own, None, "disabled own route cached at {index}");
+            }
+
+            let opponent = index % 2 != reader_parity;
+            let routed_needed = (profile.table_alerts && opponent)
+                || (profile.pass
+                    && record.call == Call::Pass
+                    && (!opponent || profile.table_alerts));
+            if routed_needed {
+                let actor_vul = if index % 2 == reader_parity {
+                    vul
+                } else {
+                    super::context::flipped(vul)
+                };
+                let at_time = Context::new(actor_vul, prefix);
+                assert_cached_route_matches_one_shot(
+                    "routed",
+                    index,
+                    record.routed,
+                    stance.decoder_for(prefix),
+                    stance.trie_for(prefix),
+                    &at_time,
+                    prefix,
+                );
+            } else {
+                assert_eq!(
+                    record.routed, None,
+                    "unneeded routed route cached at {index}"
+                );
+            }
+        }
+    }
+
+    fn phase_index(phase: super::book::Phase) -> usize {
+        match phase {
+            super::book::Phase::Constructive => 0,
+            super::book::Phase::Competitive => 1,
+            super::book::Phase::Defensive => 2,
+        }
+    }
+
+    fn clear_steps(&mut self, phase: super::book::Phase) {
+        self.phase = Some(phase);
+        self.auction.clear();
+        self.context_cursor = super::context::ContextCursor::new();
+        self.own_cursor = super::decoder::DecoderCursorState::default();
+        self.routed_cursors =
+            std::array::from_fn(|_| super::decoder::DecoderCursorState::default());
+        self.own = AbsoluteProjection::unknown();
+        self.opponents = AbsoluteProjection::unknown();
+        self.passes = AbsoluteProjection::unknown();
+        self.probed = AbsoluteProjection::unknown();
+        self.records.clear();
+        self.snapshot = AuthoredProjection::unknown();
+    }
+
+    fn disable(&mut self) -> Option<&AuthoredProjection> {
+        self.disabled = true;
+        None
+    }
+
+    pub(crate) fn prepare<'a>(
+        &'a mut self,
+        stance: &super::book::Stance,
+        vul: contract_bridge::auction::RelativeVulnerability,
+        auction: &[Call],
+    ) -> Option<&'a AuthoredProjection> {
+        if self.disabled {
+            return None;
+        }
+        match &self.stance_identity {
+            None => self.stance_identity = Some(std::sync::Arc::clone(stance.cache_identity())),
+            Some(identity) if std::sync::Arc::ptr_eq(identity, stance.cache_identity()) => {}
+            Some(_) => return self.disable(),
+        }
+        let profile = reading_profile();
+        let reader_parity = auction.len() % 2;
+        match (self.profile, self.vul, self.reader_parity) {
+            (None, None, None) => {
+                self.profile = Some(profile);
+                self.vul = Some(vul);
+                self.reader_parity = Some(reader_parity);
+            }
+            (Some(old_profile), Some(old_vul), Some(old_parity))
+                if old_profile == profile && old_vul == vul && old_parity == reader_parity => {}
+            _ => return self.disable(),
+        }
+        if !auction.starts_with(&self.auction) {
+            return self.disable();
+        }
+
+        let mut full_cursor = self.context_cursor.clone();
+        for &call in &auction[self.auction.len()..] {
+            full_cursor.push(call);
+        }
+        let phase = full_cursor.phase();
+        let phase_changed = self.phase != Some(phase);
+        if phase_changed {
+            full_cursor = super::context::ContextCursor::new();
+            for &call in auction {
+                full_cursor.push(call);
+            }
+        }
+        let full_context = full_cursor.context(vul, auction);
+        let announce_split = announced_reading();
+        let read_passes = pass_reading();
+        let table_alerts = table_alert_reading();
+        let fallback_projection = fallback_projection_enabled();
+
+        // Route the whole append before consulting any authored projection.
+        // An opaque route at the second (normally opponent) call must not make
+        // an earlier public face/projection hook run speculatively before the
+        // caller falls back to the legacy full-auction reader.
+        let start = if phase_changed { 0 } else { self.auction.len() };
+        let mut scan_context_cursor = if phase_changed {
+            super::context::ContextCursor::new()
+        } else {
+            self.context_cursor.clone()
+        };
+        let mut scan_own_cursor = if phase_changed {
+            super::decoder::DecoderCursorState::default()
+        } else {
+            core::mem::take(&mut self.own_cursor)
+        };
+        let mut scan_routed_cursors = if phase_changed {
+            std::array::from_fn(|_| super::decoder::DecoderCursorState::default())
+        } else {
+            core::mem::take(&mut self.routed_cursors)
+        };
+        let mut pending_inline: [Option<PendingAuthoringStep<'_>>; 2] = [None; 2];
+        let mut pending_inline_len = 0usize;
+        let mut pending_spill = Vec::<PendingAuthoringStep<'_>>::new();
+
+        for index in start..auction.len() {
+            let prefix = &auction[..index];
+            let made = auction[index];
+            let actor_vul = if index % 2 == reader_parity {
+                vul
+            } else {
+                super::context::flipped(vul)
+            };
+            let at_time = scan_context_cursor.context(actor_vul, prefix);
+
+            let own_decoder = stance.decoder_for_phase(phase);
+            let own_answer = if fallback_projection {
+                match own_decoder.resolve_checked_with_cursor(
+                    &mut scan_own_cursor,
+                    &full_context,
+                    prefix,
+                ) {
+                    super::decoder::CheckedResolution::Decoded(answer) => answer,
+                    super::decoder::CheckedResolution::Opaque => return self.disable(),
+                }
+            } else {
+                None
+            };
+            if fallback_projection && !scan_own_cursor.cache_stable() {
+                return self.disable();
+            }
+            let own_exact = if fallback_projection {
+                None
+            } else {
+                stance.trie_for(auction).get(prefix)
+            };
+            let own_classifier = own_answer.map(|answer| answer.classifier).or(own_exact);
+            let own_compiled = own_classifier
+                .and_then(|classifier| stance.compiled_rules_for(auction, classifier, profile));
+            if own_classifier.is_some_and(|classifier| {
+                !authored_effect_is_reusable(made, classifier, own_compiled, profile)
+            }) {
+                return self.disable();
+            }
+
+            let opponent = index % 2 != reader_parity;
+            let routed_needed = (table_alerts && opponent)
+                || (read_passes && made == Call::Pass && (!opponent || table_alerts));
+            let routed_phase = scan_context_cursor.phase();
+            let routed_decoder = stance.decoder_for_phase(routed_phase);
+            let routed_answer = if routed_needed {
+                match routed_decoder.resolve_checked_with_cursor(
+                    &mut scan_routed_cursors[Self::phase_index(routed_phase)],
+                    &at_time,
+                    prefix,
+                ) {
+                    super::decoder::CheckedResolution::Decoded(answer) => answer,
+                    super::decoder::CheckedResolution::Opaque => return self.disable(),
+                }
+            } else {
+                None
+            };
+            if routed_needed && !scan_routed_cursors[Self::phase_index(routed_phase)].cache_stable()
+            {
+                return self.disable();
+            }
+            let routed_compiled = routed_answer
+                .and_then(|answer| stance.compiled_rules_for(prefix, answer.classifier, profile));
+            if routed_answer.is_some_and(|answer| {
+                !authored_effect_is_reusable(made, answer.classifier, routed_compiled, profile)
+            }) {
+                return self.disable();
+            }
+
+            let pending = PendingAuthoringStep {
+                index,
+                call: made,
+                own: own_answer,
+                own_exact,
+                own_compiled,
+                routed: routed_answer,
+                routed_compiled,
+            };
+            if pending_inline_len < pending_inline.len() {
+                pending_inline[pending_inline_len] = Some(pending);
+                pending_inline_len += 1;
+            } else {
+                pending_spill.push(pending);
+            }
+            scan_context_cursor.push(made);
+        }
+
+        // Every needed route is now known cache-safe. Reset on a phase change
+        // only at this commit point, then replay the append in its original
+        // call/category order so observable public hooks retain legacy order.
+        if phase_changed {
+            self.clear_steps(phase);
+        }
+        for pending in pending_inline[..pending_inline_len]
+            .iter()
+            .flatten()
+            .chain(&pending_spill)
+        {
+            let index = pending.index;
+            let prefix = &auction[..index];
+            let made = pending.call;
+            let actor_vul = if index % 2 == reader_parity {
+                vul
+            } else {
+                super::context::flipped(vul)
+            };
+            let at_time = self.context_cursor.context(actor_vul, prefix);
+
+            if let Some(answer) = pending.own {
+                if let Some(effect) = authored_effect(
+                    made,
+                    &at_time,
+                    answer.classifier,
+                    pending.own_compiled,
+                    false,
+                    announce_split,
+                ) {
+                    self.own.push(index, effect);
+                }
+            } else if !fallback_projection
+                && let Some(classifier) = pending.own_exact
+                && let Some(effect) = authored_effect(
+                    made,
+                    &at_time,
+                    classifier,
+                    pending.own_compiled,
+                    false,
+                    announce_split,
+                )
+            {
+                self.own.push(index, effect);
+            }
+
+            let opponent = index % 2 != reader_parity;
+            let routed_answer = pending.routed;
+            if let Some(answer) = routed_answer {
+                if table_alerts
+                    && opponent
+                    && let Some(effect) = authored_effect(
+                        made,
+                        &at_time,
+                        answer.classifier,
+                        pending.routed_compiled,
+                        false,
+                        announce_split,
+                    )
+                {
+                    self.opponents.push(index, effect);
+                }
+                if read_passes
+                    && made == Call::Pass
+                    && (!opponent || table_alerts)
+                    && let Some(effect) = authored_effect(
+                        made,
+                        &at_time,
+                        answer.classifier,
+                        pending.routed_compiled,
+                        true,
+                        announce_split,
+                    )
+                {
+                    self.passes.push(index, effect);
+                }
+            }
+
+            if probed_reading()
+                && let Some(&box_) = stance.probed_box(&auction[..=index])
+            {
+                let union = EnvelopeUnion::from(box_);
+                self.probed.push(
+                    index,
+                    AuthoredEffect {
+                        projection: union.clone(),
+                        agreement: union,
+                        suppresses_natural: false,
+                    },
+                );
+            }
+            self.records.push(AuthoringStepRecord {
+                call: made,
+                own: pending.own.map(Into::into),
+                routed: routed_answer.map(Into::into),
+            });
+            self.context_cursor.push(made);
+            self.auction.push(made);
+            #[cfg(test)]
+            {
+                self.appended_steps += 1;
+            }
+        }
+        self.own_cursor = scan_own_cursor;
+        self.routed_cursors = scan_routed_cursors;
+
+        let mut snapshot = AuthoredProjection::unknown();
+        for absolute in 0..4 {
+            let relative = (absolute + 4 - auction.len() % 4) % 4;
+            for category in [&self.own, &self.opponents, &self.passes, &self.probed] {
+                snapshot.unions[relative] =
+                    snapshot.unions[relative].intersect(&category.unions[absolute]);
+                snapshot.announced_unions[relative] = snapshot.announced_unions[relative]
+                    .intersect(&category.announced_unions[absolute]);
+                snapshot.suppressed |= category.suppressed;
+            }
+        }
+        self.snapshot = snapshot;
+        #[cfg(test)]
+        {
+            self.successful_prepares += 1;
+        }
+        Some(&self.snapshot)
+    }
+}
+
 fn project_authored(context: &Context<'_>) -> ([EnvelopeUnion; 4], [EnvelopeUnion; 4], u64) {
+    if let Some(projection) = context.authored_projection() {
+        return projection.cloned_parts();
+    }
+    project_authored_with(context, true)
+}
+
+/// Same-process semantic oracle retained for compilation parity tests.
+#[cfg(test)]
+fn project_authored_legacy(context: &Context<'_>) -> ([EnvelopeUnion; 4], [EnvelopeUnion; 4], u64) {
+    project_authored_with(context, false)
+}
+
+#[cfg(test)]
+pub(crate) fn assert_compiled_authoring_projection_parity(context: &Context<'_>) {
+    let compiled = project_authored(context);
+    let legacy = project_authored_legacy(context);
+    assert_eq!(compiled.0, legacy.0, "authored projection boxes differ");
+    assert_eq!(compiled.1, legacy.1, "authored announcement boxes differ");
+    assert_eq!(compiled.2, legacy.2, "authored suppression mask differs");
+}
+
+#[cfg(test)]
+#[allow(clippy::too_many_arguments)]
+fn assert_cached_route_matches_one_shot(
+    lane: &str,
+    index: usize,
+    cached: Option<CachedRoute>,
+    decoder: &super::decoder::AuthoringDecoder,
+    trie: &super::trie::Trie,
+    context: &Context<'_>,
+    prefix: &[Call],
+) {
+    let decoded = decoder.resolve(context, prefix);
+    let legacy = trie.resolve(context, prefix);
+    match (decoded, legacy) {
+        (None, None) => {}
+        (Some(decoded), Some((legacy_classifier, legacy_provenance))) => {
+            assert!(
+                core::ptr::eq(decoded.classifier, legacy_classifier),
+                "{lane} classifier differs at call {index}"
+            );
+            assert_eq!(
+                decoded.provenance.depth, legacy_provenance.depth,
+                "{lane} fallback depth differs at call {index}"
+            );
+            assert_eq!(
+                decoded.provenance.fallback, legacy_provenance.fallback,
+                "{lane} fallback index differs at call {index}"
+            );
+            assert_eq!(
+                decoded.provenance.rebases, legacy_provenance.rebases,
+                "{lane} typed-rebase count differs at call {index}"
+            );
+        }
+        (decoded, legacy) => panic!(
+            "{lane} route presence differs at call {index}: decoder={}, legacy={}",
+            decoded.is_some(),
+            legacy.is_some()
+        ),
+    }
+
+    let decoded = decoded.map(CachedRoute::from);
+    match (cached, decoded) {
+        (None, None) => {}
+        (Some(cached), Some(decoded)) => {
+            assert_eq!(
+                cached.classifier_id, decoded.classifier_id,
+                "{lane} cached classifier ID differs at call {index}"
+            );
+            assert_eq!(
+                cached.provenance.depth, decoded.provenance.depth,
+                "{lane} cached fallback depth differs at call {index}"
+            );
+            assert_eq!(
+                cached.provenance.fallback, decoded.provenance.fallback,
+                "{lane} cached fallback index differs at call {index}"
+            );
+            assert_eq!(
+                cached.provenance.rebases, decoded.provenance.rebases,
+                "{lane} cached typed-rebase count differs at call {index}"
+            );
+            assert_eq!(
+                cached.pattern_id, decoded.pattern_id,
+                "{lane} cached pattern ID differs at call {index}"
+            );
+            assert_eq!(
+                cached.table_id, decoded.table_id,
+                "{lane} cached rule-table ID differs at call {index}"
+            );
+            assert_eq!(
+                cached.fast, decoded.fast,
+                "{lane} cached route stability differs at call {index}"
+            );
+        }
+        (cached, decoded) => panic!(
+            "{lane} cached route presence differs at call {index}: cached={}, decoded={}",
+            cached.is_some(),
+            decoded.is_some()
+        ),
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn assert_step_cache_projection_parity(
+    stance: &super::book::Stance,
+    vul: contract_bridge::auction::RelativeVulnerability,
+    auction: &[Call],
+    cache: &mut AuthoringStepCache,
+) -> bool {
+    let expected = project_authored_legacy(&stance.prefixed_context(vul, auction));
+    let old_phase = cache.phase;
+    let old_record_count = cache.records.len();
+    let Some(actual) = cache.prepare(stance, vul, auction).cloned() else {
+        return false;
+    };
+    let first_new = if old_phase == cache.phase {
+        old_record_count
+    } else {
+        0
+    };
+    cache.assert_new_route_records_match_one_shot(stance, vul, auction, first_new);
+    assert_eq!(actual.unions, expected.0, "step-cache projection differs");
+    assert_eq!(
+        actual.announced_unions, expected.1,
+        "step-cache announcement differs"
+    );
+    assert_eq!(
+        actual.suppressed, expected.2,
+        "step-cache suppression differs"
+    );
+    true
+}
+
+fn project_authored_with(
+    context: &Context<'_>,
+    compiled_reader: bool,
+) -> ([EnvelopeUnion; 4], [EnvelopeUnion; 4], u64) {
     let auction = context.auction();
     let len = auction.len();
-    let mut unions: [EnvelopeUnion; 4] = std::array::from_fn(|_| EnvelopeUnion::unknown());
-    // The agreement overlay, folded in lockstep with `unions` off
-    // `Rule::announce_union`.  Knob-off it is never read separately — the caller
-    // gets a clone of `unions` — so the second reduce below costs nothing.
-    let mut announced_unions: [EnvelopeUnion; 4] =
-        std::array::from_fn(|_| EnvelopeUnion::unknown());
-    let mut suppressed = 0u64;
+    let mut projection = AuthoredProjection::unknown();
 
     let Some(prefixes) = context.prefixes() else {
-        return (unions.clone(), unions, suppressed);
+        return projection.into_parts();
     };
 
     let read_passes = pass_reading();
+    let table_alerts = table_alert_reading();
+    let fallback_projection = fallback_projection_enabled();
     let announce_split = announced_reading();
+    let profile = context.reading_profile();
 
     // Project the call made at `index`, authored by `classifier`, into the
     // overlay, evaluating its rules under `ctx` — always the bidder's
@@ -3075,103 +3961,17 @@ fn project_authored(context: &Context<'_>) -> ([EnvelopeUnion; 4], [EnvelopeUnio
     let mut project_call = |ctx: &Context<'_>,
                             index: usize,
                             classifier: &dyn super::trie::Classifier,
+                            compiled: Option<&super::rules::CompiledRules>,
                             decode_pass: bool| {
-        let (Some(&made), Some(rules)) = (auction.get(index), classifier.as_rules()) else {
+        let Some(&made) = auction.get(index) else {
             return;
         };
-
-        let is_pass = made == Call::Pass;
-        // The logit of a call is the max over its rules, so a hand could satisfy
-        // any one of them — the sound forward envelope is their union.  A made
-        // bid reads by what it promises (`project`, floors); a pass reads by
-        // what its gate would have *allowed* (`project_band`, both bounds) —
-        // the negative inference of declining every other call, which is what
-        // the author wrote the table's Pass gate to document.
-        let projection = if is_pass {
-            project_pass(rules, ctx)
-        } else {
-            rules
-                .rules()
-                .iter()
-                .filter(|rule| rule.call() == made && rule.face_live(ctx))
-                .map(|rule| rule.project_union(ctx))
-                .reduce(EnvelopeUnion::disjoin)
-        };
-
-        // A call is artificial — decode it — when its authoring rule *alerts* it.
-        // The alert is now the complete, exhaustive signal: every artificial call
-        // in the book carries one (guarded by the `artificial_calls_are_alerted`
-        // invariant test), so the old structural `artificial(p, made)` fallback
-        // has been retired (alert-by-disclosed-meaning, the move modern bridge
-        // made retiring "X is self-alerting").  A pass is natural-by-default and
-        // never alerted; it decodes on the pass-reading knob instead.
-        let alerted = !is_pass
-            && rules
-                .rules()
-                .iter()
-                .any(|rule| rule.call() == made && rule.alert().is_some() && rule.face_live(ctx));
-        let decode = if is_pass {
-            decode_pass
-        } else {
-            // An *unalerted* authored call is natural, so it is read by the
-            // natural walk — and the rule that produced it says nothing, which
-            // is how a rule and its reading drift apart (the regime-2 class of
-            // `docs/reading-drift-handoff.md`).  Knob-on, project it too: the
-            // union is the same sound one, but the suppression bit below stays
-            // clear, so the projection *adds to* the walk's natural reading
-            // instead of replacing it.
-            match reading_scope() {
-                ReadingScope::None => false,
-                ReadingScope::Alerted => alerted,
-                ReadingScope::All => true,
-            }
-        };
-
-        if let Some(projection) = projection.filter(|_| decode) {
-            let who = relative_of(len, index) as usize;
-            // The agreement, where it differs.  `announce` defaults to
-            // `project`, so knob-off — and at every rule that never called
-            // `announced` — this is the same union and the two overlays stay
-            // identical.  A pass reads by its *band*, which `announce` does not
-            // split.
-            //
-            // The union is over the **alerted** rules alone, and that is the
-            // second half of the split.  A projection must cover every rule that
-            // shares the bid, because any of them could have produced it and the
-            // sampler may not exclude a hand one of them accepts — the floor's
-            // 4NT keycard ask sits on the same call as an unalerted weight-0.3
-            // catch-all, whose ⊤ would union the agreement away.  But disclosure
-            // does not work like that: an alerted call is explained as *the
-            // convention*, not as the residue sharing its bid.  An unalerted
-            // call reaching here on `ReadingScope::All` has nothing to announce
-            // beyond what it projects, and the `unwrap_or_else` catches it.
-            let agreement = if announce_split && !is_pass {
-                rules
-                    .rules()
-                    .iter()
-                    .filter(|rule| {
-                        rule.call() == made && rule.alert().is_some() && rule.face_live(ctx)
-                    })
-                    .map(|rule| rule.announce_union(ctx))
-                    .reduce(EnvelopeUnion::disjoin)
-                    .unwrap_or_else(|| projection.clone())
-            } else {
-                projection.clone()
-            };
-            announced_unions[who] = announced_unions[who].intersect(&agreement);
-            unions[who] = unions[who].intersect(&projection);
-            // A pass suppresses nothing — it never had a natural suit reading.
-            // Neither does an unalerted call read only because `natural_reading`
-            // is on: it *is* natural, and suppressing it would delete the walk's
-            // lane bookkeeping (natural-suit masks, agreed fits, cue detection)
-            // that later calls read from.
-            if alerted && index < 64 {
-                suppressed |= 1 << index;
-            }
+        if let Some(effect) =
+            authored_effect(made, ctx, classifier, compiled, decode_pass, announce_split)
+        {
+            projection.apply(len, index, effect);
         }
     };
-    // `unions` is an `[EnvelopeUnion; 4]` closed over by `project_call`; every branch below
-    // accumulates through it, and the caller hulls each entry for the natural walk.
 
     // A rule's constraint is a claim about the moment its call was made, so it
     // must project under the bidder's **at-the-time** context — exactly as the
@@ -3184,23 +3984,116 @@ fn project_authored(context: &Context<'_>) -> ([EnvelopeUnion; 4], [EnvelopeUnio
     // same skew put the support double's 3-card claim on opener's own suit.
     // For plain raises the two contexts happen to agree (the raise suit is the
     // support suit), which is how this survived the raise-reader sweeps.
-    let at_the_time = |index: usize| {
-        let vul = if index % 2 == len % 2 {
-            context.vul()
+    // Resolve each enabled authoring route in one forward scan.  `own` deliberately
+    // uses the reader's final-phase book and full-auction guard context, just
+    // like the historical first pass.  `routed` uses the phase of each actor's
+    // turn and their at-the-time context; the opponent-alert and Pass passes
+    // consume the same answer later without resolving the prefix again.  Keep
+    // the scans separate and in legacy category order: besides avoiding work
+    // when a reading mode is disabled, public opaque guards may be stateful.
+    let at_times = if compiled_reader {
+        Context::at_each_turn(context.vul(), auction)
+    } else {
+        (0..=len)
+            .map(|index| {
+                let vul = if index % 2 == len % 2 {
+                    context.vul()
+                } else {
+                    super::context::flipped(context.vul())
+                };
+                Context::new(vul, &auction[..index])
+            })
+            .collect()
+    };
+    let stance = compiled_reader.then(|| context.their_system()).flatten();
+
+    let decoded_own = if fallback_projection {
+        if let Some(stance) = stance {
+            let mut own_cursor = stance.decoder_for(auction).cursor_with_capacity(len);
+            let mut own = Vec::with_capacity(len);
+            for index in 0..len {
+                let prefix = &auction[..index];
+                match own_cursor.resolve_checked(context, prefix) {
+                    super::decoder::CheckedResolution::Decoded(answer) => own.push(answer),
+                    super::decoder::CheckedResolution::Opaque => {
+                        return project_authored_with(context, false);
+                    }
+                }
+            }
+            Some(own)
         } else {
-            super::context::flipped(context.vul())
-        };
-        Context::new(vul, &auction[..index])
+            None
+        }
+    } else {
+        None
+    };
+    let decode_routed = table_alerts || read_passes;
+    let decoded_routed = if decode_routed {
+        if let Some(stance) = stance {
+            let mut constructive = stance
+                .decoder_for_phase(super::book::Phase::Constructive)
+                .cursor_with_capacity(len);
+            let mut competitive = stance
+                .decoder_for_phase(super::book::Phase::Competitive)
+                .cursor_with_capacity(len);
+            let mut defensive = stance
+                .decoder_for_phase(super::book::Phase::Defensive)
+                .cursor_with_capacity(len);
+            let mut routed = Vec::with_capacity(len);
+            for index in 0..len {
+                let prefix = &auction[..index];
+                let opponent = index % 2 != len % 2;
+                let needed = (table_alerts && opponent)
+                    || (read_passes && auction[index] == Call::Pass && (!opponent || table_alerts));
+                if !needed {
+                    routed.push(None);
+                    continue;
+                }
+                let resolution = match super::book::Phase::of(prefix) {
+                    super::book::Phase::Constructive => {
+                        constructive.resolve_checked(&at_times[index], prefix)
+                    }
+                    super::book::Phase::Competitive => {
+                        competitive.resolve_checked(&at_times[index], prefix)
+                    }
+                    super::book::Phase::Defensive => {
+                        defensive.resolve_checked(&at_times[index], prefix)
+                    }
+                };
+                match resolution {
+                    super::decoder::CheckedResolution::Decoded(answer) => routed.push(answer),
+                    super::decoder::CheckedResolution::Opaque => {
+                        return project_authored_with(context, false);
+                    }
+                }
+            }
+            Some(routed)
+        } else {
+            None
+        }
+    } else {
+        None
     };
 
-    if fallback_projection_enabled() {
+    if fallback_projection {
         // Decode every prior call by the classifier that *authored* it — node or
         // guarded fallback — so contested conventions (transfers, Leaping Michaels,
         // the Lebensohl cue) survive later competition without a per-convention reader.
-        let trie = prefixes.root();
-        for index in 0..len {
-            if let Some(classifier) = trie.authoring_classifier(context, &auction[..index]) {
-                project_call(&at_the_time(index), index, classifier, false);
+        if let Some(own) = &decoded_own {
+            for (index, answer) in own.iter().enumerate() {
+                let Some(answer) = answer else { continue };
+                let classifier = answer.classifier;
+                let compiled = context
+                    .their_system()
+                    .and_then(|stance| stance.compiled_rules_for(auction, classifier, profile));
+                project_call(&at_times[index], index, classifier, compiled, false);
+            }
+        } else {
+            let trie = prefixes.root();
+            for index in 0..len {
+                if let Some(classifier) = trie.authoring_classifier(context, &auction[..index]) {
+                    project_call(&at_times[index], index, classifier, None, false);
+                }
             }
         }
     } else {
@@ -3208,7 +4101,17 @@ fn project_authored(context: &Context<'_>) -> ([EnvelopeUnion; 4], [EnvelopeUnio
         // default, takes the branch above); fallback-authored conventions are
         // then read by the hand-written readers in [`Inferences::read`].
         for (prefix, classifier) in prefixes.clone() {
-            project_call(&at_the_time(prefix.len()), prefix.len(), classifier, false);
+            let compiled = compiled_reader
+                .then(|| context.their_system())
+                .flatten()
+                .and_then(|stance| stance.compiled_rules_for(auction, classifier, profile));
+            project_call(
+                &at_times[prefix.len()],
+                prefix.len(),
+                classifier,
+                compiled,
+                false,
+            );
         }
     }
 
@@ -3217,18 +4120,20 @@ fn project_authored(context: &Context<'_>) -> ([EnvelopeUnion; 4], [EnvelopeUnio
     // phase-routed book (the attached stance models them as playing our own
     // books) under their at-the-time context, exactly as it was classified
     // when made.  Their unalerted (natural) calls keep the natural walk.
-    if table_alert_reading()
-        && let Some(them) = context.their_system()
-    {
-        let vul = super::context::flipped(context.vul());
+    if table_alerts && let Some(them) = context.their_system() {
         for index in ((len + 1) % 2..len).step_by(2) {
             let prefix = &auction[..index];
-            let their_context = Context::new(vul, prefix);
-            if let Some(classifier) = them
-                .trie_for(prefix)
-                .authoring_classifier(&their_context, prefix)
+            let answer = decoded_routed.as_ref().and_then(|routed| routed[index]);
+            if let Some(answer) = answer {
+                let classifier = answer.classifier;
+                let compiled = them.compiled_rules_for(prefix, classifier, profile);
+                project_call(&at_times[index], index, classifier, compiled, false);
+            } else if decoded_routed.is_none()
+                && let Some(classifier) = them
+                    .trie_for(prefix)
+                    .authoring_classifier(&at_times[index], prefix)
             {
-                project_call(&their_context, index, classifier, false);
+                project_call(&at_times[index], index, classifier, None, false);
             }
         }
     }
@@ -3242,23 +4147,26 @@ fn project_authored(context: &Context<'_>) -> ([EnvelopeUnion; 4], [EnvelopeUnio
     // the same books (`their_system` is the reader's own stance), so it serves
     // own-side resolution too.
     if read_passes && let Some(them) = context.their_system() {
-        let their_vul = super::context::flipped(context.vul());
         for index in 0..len {
             if auction[index] != Call::Pass {
                 continue;
             }
             let own_side = index % 2 == len % 2;
-            if !own_side && !table_alert_reading() {
+            if !own_side && !table_alerts {
                 continue;
             }
             let prefix = &auction[..index];
-            let vul = if own_side { context.vul() } else { their_vul };
-            let at_the_time = Context::new(vul, prefix);
-            if let Some(classifier) = them
-                .trie_for(prefix)
-                .authoring_classifier(&at_the_time, prefix)
+            let answer = decoded_routed.as_ref().and_then(|routed| routed[index]);
+            if let Some(answer) = answer {
+                let classifier = answer.classifier;
+                let compiled = them.compiled_rules_for(prefix, classifier, profile);
+                project_call(&at_times[index], index, classifier, compiled, true);
+            } else if decoded_routed.is_none()
+                && let Some(classifier) = them
+                    .trie_for(prefix)
+                    .authoring_classifier(&at_times[index], prefix)
             {
-                project_call(&at_the_time, index, classifier, true);
+                project_call(&at_times[index], index, classifier, None, true);
             }
         }
     }
@@ -3277,13 +4185,14 @@ fn project_authored(context: &Context<'_>) -> ([EnvelopeUnion; 4], [EnvelopeUnio
             if let Some(&box_) = them.probed_box(&auction[..=index]) {
                 let who = relative_of(len, index) as usize;
                 let union = EnvelopeUnion::from(box_);
-                unions[who] = unions[who].intersect(&union);
-                announced_unions[who] = announced_unions[who].intersect(&union);
+                projection.unions[who] = projection.unions[who].intersect(&union);
+                projection.announced_unions[who] =
+                    projection.announced_unions[who].intersect(&union);
             }
         }
     }
 
-    (unions, announced_unions, suppressed)
+    projection.into_parts()
 }
 
 /// Whether a call's projection floors a suit other than the one it names
@@ -4324,10 +5233,27 @@ fn is_american(opening: Bid, response: Bid) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::bidding::constraint::point_count;
+    use crate::bidding::constraint::{Constraint, point_count};
     use contract_bridge::auction::RelativeVulnerability;
     use contract_bridge::{Bid, Hand, Level};
     use proptest::prelude::*;
+    use std::sync::{Arc, Mutex};
+
+    #[derive(Clone)]
+    struct ObservableProjection {
+        events: Arc<Mutex<Vec<&'static str>>>,
+    }
+
+    impl Constraint for ObservableProjection {
+        fn eval(&self, _: Hand, _: &Context<'_>) -> f32 {
+            0.0
+        }
+
+        fn project(&self, _: &Context<'_>) -> EnvelopeUnion {
+            self.events.lock().unwrap().push("project");
+            EnvelopeUnion::unknown()
+        }
+    }
 
     const fn bid(level: u8, strain: Strain) -> Call {
         Call::Bid(Bid {
@@ -4347,6 +5273,379 @@ mod tests {
     fn read_booked(auction: &[Call]) -> Inferences {
         let stance = crate::american().against();
         Inferences::read(&stance.prefixed_context(RelativeVulnerability::NONE, auction))
+    }
+
+    #[test]
+    fn unread_compiled_effects_preserve_opaque_face_and_projection_hooks() {
+        use crate::bidding::constraint::hcp;
+        use crate::bidding::rules::Rules;
+
+        set_reading_scope(ReadingScope::Alerted);
+        set_pass_exclusion_reading(false);
+        set_announced_reading(false);
+
+        let one_club = bid(1, Strain::Clubs);
+        let context = Context::new(RelativeVulnerability::NONE, &[]);
+
+        let face_events = Arc::new(Mutex::new(Vec::new()));
+        let observed_face = Arc::clone(&face_events);
+        let face_rules = Rules::new().rule(one_club, 0.0, hcp(0..)).face(move |_| {
+            observed_face.lock().unwrap().push("face");
+            true
+        });
+        let face_compiled = face_rules.compile(&context);
+        assert_eq!(
+            authored_effect(one_club, &context, &face_rules, None, false, false),
+            None
+        );
+        let legacy_face_events = face_events.lock().unwrap().clone();
+        face_events.lock().unwrap().clear();
+        assert_eq!(
+            authored_effect(
+                one_club,
+                &context,
+                &face_rules,
+                Some(&face_compiled),
+                false,
+                false,
+            ),
+            None
+        );
+        assert_eq!(*face_events.lock().unwrap(), legacy_face_events);
+        assert_eq!(legacy_face_events, ["face"]);
+
+        let projection_events = Arc::new(Mutex::new(Vec::new()));
+        let projection_rules = Rules::new().rule(
+            one_club,
+            0.0,
+            ObservableProjection {
+                events: Arc::clone(&projection_events),
+            },
+        );
+        let projection_compiled = projection_rules.compile(&context);
+        assert_eq!(
+            authored_effect(one_club, &context, &projection_rules, None, false, false,),
+            None
+        );
+        let legacy_projection_events = projection_events.lock().unwrap().clone();
+        projection_events.lock().unwrap().clear();
+        assert_eq!(
+            authored_effect(
+                one_club,
+                &context,
+                &projection_rules,
+                Some(&projection_compiled),
+                false,
+                false,
+            ),
+            None
+        );
+        assert_eq!(*projection_events.lock().unwrap(), legacy_projection_events);
+        assert_eq!(legacy_projection_events, ["project"]);
+
+        let pass_events = Arc::new(Mutex::new(Vec::new()));
+        let pass_rules = Rules::new().rule(
+            Call::Pass,
+            0.0,
+            ObservableProjection {
+                events: Arc::clone(&pass_events),
+            },
+        );
+        let pass_compiled = pass_rules.compile(&context);
+        assert_eq!(
+            authored_effect(Call::Pass, &context, &pass_rules, None, false, false),
+            None
+        );
+        let legacy_pass_events = pass_events.lock().unwrap().clone();
+        pass_events.lock().unwrap().clear();
+        assert_eq!(
+            authored_effect(
+                Call::Pass,
+                &context,
+                &pass_rules,
+                Some(&pass_compiled),
+                false,
+                false,
+            ),
+            None
+        );
+        assert_eq!(*pass_events.lock().unwrap(), legacy_pass_events);
+        assert_eq!(legacy_pass_events, ["project"]);
+
+        let pure_nonpass = Rules::new().rule(one_club, 0.0, hcp(0..));
+        assert!(
+            pure_nonpass
+                .compile(&context)
+                .can_skip_nonpass_effect(one_club)
+        );
+        let pure_pass = Rules::new().rule(Call::Pass, 0.0, hcp(0..));
+        assert!(pure_pass.compile(&context).can_skip_pass_effect(false));
+    }
+
+    #[test]
+    fn deal_cache_rejects_observable_faces_and_projections_before_hooks_run() {
+        use crate::bidding::book::Pair;
+        use crate::bidding::rules::{Alert, Rules};
+        use crate::bidding::trie::Classifier;
+
+        set_reading_scope(ReadingScope::Alerted);
+        set_pass_reading(false);
+        set_pass_exclusion_reading(false);
+        set_table_alert_reading(false);
+        set_announced_reading(false);
+        set_probed_reading(false);
+
+        let events = Arc::new(Mutex::new(Vec::new()));
+        let face_events = Arc::clone(&events);
+        let one_club = bid(1, Strain::Clubs);
+        let classifier: Arc<dyn Classifier> = Arc::new(
+            Rules::new()
+                .rule(
+                    one_club,
+                    0.0,
+                    ObservableProjection {
+                        events: Arc::clone(&events),
+                    },
+                )
+                .alert(Alert("deal-cache-observable-test"))
+                .face(move |_| {
+                    face_events.lock().unwrap().push("face");
+                    true
+                }),
+        );
+        let mut pair = Pair::default();
+        pair.constructive.insert_arc(&[], classifier);
+        let auction = [one_club, Call::Pass];
+
+        for fallback_projection in [true, false] {
+            set_fallback_projection(fallback_projection);
+            let stance = pair.against();
+            let mut cache = AuthoringStepCache::new();
+
+            assert!(
+                cache
+                    .prepare(&stance, RelativeVulnerability::NONE, &auction)
+                    .is_none(),
+                "observable route was cached with fallback projection {fallback_projection}",
+            );
+            assert!(events.lock().unwrap().is_empty());
+            assert!(
+                cache
+                    .prepare(&stance, RelativeVulnerability::NONE, &auction)
+                    .is_none(),
+                "a disabled cache became live again",
+            );
+            assert!(events.lock().unwrap().is_empty());
+
+            let context = stance.prefixed_context(RelativeVulnerability::NONE, &auction);
+            let expected = project_authored_legacy(&context);
+            let expected_events = core::mem::take(&mut *events.lock().unwrap());
+            assert_eq!(expected_events, ["face", "project", "face"]);
+
+            for _ in 0..2 {
+                let actual = project_authored(&context);
+                let actual_events = core::mem::take(&mut *events.lock().unwrap());
+                assert_eq!(actual, expected);
+                assert_eq!(actual_events, expected_events);
+            }
+        }
+
+        set_fallback_projection(true);
+        set_pass_reading(true);
+        set_table_alert_reading(true);
+    }
+
+    #[test]
+    fn opaque_routes_keep_legacy_invocation_order_and_disable_step_cache() {
+        use crate::bidding::book::Pair;
+        use crate::bidding::fallback::{Fallback, guard};
+        use crate::bidding::rules::{Alert, Rules};
+        use crate::bidding::trie::Classifier;
+        use std::sync::Arc;
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        set_reading_scope(ReadingScope::Alerted);
+        set_fallback_projection(true);
+        set_pass_reading(true);
+        set_table_alert_reading(true);
+
+        let calls = Arc::new(AtomicUsize::new(0));
+        let classifier: Arc<dyn Classifier> = Arc::new(
+            Rules::new()
+                .rule(
+                    bid(1, Strain::Diamonds),
+                    0.0,
+                    crate::bidding::constraint::len(Suit::Hearts, 5..),
+                )
+                .alert(Alert("stateful opaque test")),
+        );
+        let make_guard = |calls: Arc<AtomicUsize>| {
+            guard(move |_: &Context<'_>, _: &[Call]| {
+                calls.fetch_add(1, Ordering::SeqCst).is_multiple_of(2)
+            })
+        };
+
+        let mut pair = Pair::default();
+        pair.constructive.fallback_at(
+            &[],
+            make_guard(Arc::clone(&calls)),
+            Fallback::Classify(Arc::clone(&classifier)),
+        );
+        pair.defensive.fallback_at(
+            &[],
+            make_guard(Arc::clone(&calls)),
+            Fallback::Classify(classifier),
+        );
+        let stance = pair.against();
+
+        let auction = [bid(1, Strain::Clubs), bid(1, Strain::Diamonds)];
+        let context = stance.prefixed_context(RelativeVulnerability::NONE, &auction);
+        calls.store(0, Ordering::SeqCst);
+        let compiled_entry = project_authored(&context);
+        let compiled_calls = calls.load(Ordering::SeqCst);
+        calls.store(0, Ordering::SeqCst);
+        let legacy = project_authored_legacy(&context);
+        let legacy_calls = calls.load(Ordering::SeqCst);
+        assert_eq!(compiled_entry, legacy);
+        assert_eq!(compiled_calls, legacy_calls);
+        assert!(legacy_calls > 0);
+
+        calls.store(0, Ordering::SeqCst);
+        let mut cache = AuthoringStepCache::new();
+        assert!(
+            cache
+                .prepare(&stance, RelativeVulnerability::NONE, &auction)
+                .is_none()
+        );
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+    }
+
+    #[test]
+    fn later_opaque_route_does_not_speculatively_consult_an_earlier_face() {
+        use crate::bidding::book::Pair;
+        use crate::bidding::fallback::{Fallback, guard};
+        use crate::bidding::rules::{Alert, Rules};
+        use crate::bidding::trie::Classifier;
+        use std::sync::Arc;
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        set_reading_scope(ReadingScope::Alerted);
+        set_fallback_projection(true);
+        set_pass_reading(false);
+        set_table_alert_reading(false);
+        set_announced_reading(false);
+
+        let face_calls = Arc::new(AtomicUsize::new(0));
+        let observed_face = Arc::clone(&face_calls);
+        let root: Arc<dyn Classifier> = Arc::new(
+            Rules::new()
+                .rule(
+                    bid(1, Strain::Clubs),
+                    0.0,
+                    crate::bidding::constraint::hcp(0..),
+                )
+                .alert(Alert("transactional opaque-route test"))
+                // Public faces are deliberately observable on every consult.
+                .face(move |_| {
+                    observed_face.fetch_add(1, Ordering::SeqCst);
+                    true
+                }),
+        );
+        let guard_calls = Arc::new(AtomicUsize::new(0));
+        let observed_guard = Arc::clone(&guard_calls);
+        let opaque_target: Arc<dyn Classifier> = Arc::new(Rules::new());
+
+        let mut pair = Pair::default();
+        pair.constructive.insert_arc(&[], root);
+        pair.competitive.fallback_at(
+            &[],
+            guard(move |_: &Context<'_>, _: &[Call]| {
+                observed_guard.fetch_add(1, Ordering::SeqCst);
+                false
+            }),
+            Fallback::Classify(opaque_target),
+        );
+        let stance = pair.against();
+        // The same side's deal cache sees both calls in one append: the root
+        // exact classifier authors 1♣, then the next prefix reaches the opaque
+        // competitive fallback.
+        let auction = [bid(1, Strain::Clubs), bid(1, Strain::Diamonds)];
+        let context = stance.prefixed_context(RelativeVulnerability::NONE, &auction);
+
+        let expected = project_authored_legacy(&context);
+        let expected_face_calls = face_calls.swap(0, Ordering::SeqCst);
+        let expected_guard_calls = guard_calls.swap(0, Ordering::SeqCst);
+        assert!(expected_face_calls > 0);
+        assert!(expected_guard_calls > 0);
+
+        let mut cache = AuthoringStepCache::new();
+        assert!(
+            cache
+                .prepare(&stance, RelativeVulnerability::NONE, &auction)
+                .is_none()
+        );
+        assert_eq!(face_calls.load(Ordering::SeqCst), 0);
+        assert_eq!(guard_calls.load(Ordering::SeqCst), 0);
+
+        let actual = project_authored(&context);
+        assert_eq!(actual, expected);
+        assert_eq!(face_calls.load(Ordering::SeqCst), expected_face_calls);
+        assert_eq!(guard_calls.load(Ordering::SeqCst), expected_guard_calls);
+
+        set_pass_reading(true);
+        set_table_alert_reading(true);
+    }
+
+    #[test]
+    fn opaque_route_on_unused_routed_prefix_is_never_invoked() {
+        use crate::bidding::book::Pair;
+        use crate::bidding::fallback::{Fallback, guard};
+        use crate::bidding::rules::Rules;
+        use crate::bidding::trie::Classifier;
+        use std::sync::Arc;
+        use std::sync::atomic::{AtomicUsize, Ordering};
+
+        set_reading_scope(ReadingScope::Alerted);
+        set_fallback_projection(false);
+        set_pass_reading(true);
+        set_table_alert_reading(true);
+
+        let calls = Arc::new(AtomicUsize::new(0));
+        let observed = Arc::clone(&calls);
+        let classifier: Arc<dyn Classifier> =
+            Arc::new(Rules::new().rule(Call::Pass, 0.0, crate::bidding::constraint::hcp(0..)));
+        let mut pair = Pair::default();
+        pair.constructive.fallback_at(
+            &[],
+            guard(move |_: &Context<'_>, _: &[Call]| {
+                observed.fetch_add(1, Ordering::SeqCst);
+                true
+            }),
+            Fallback::Classify(classifier),
+        );
+        let stance = pair.against();
+        let auction = [
+            bid(1, Strain::Clubs),
+            bid(1, Strain::Spades),
+            Call::Double,
+            Call::Pass,
+        ];
+        let context = stance.prefixed_context(RelativeVulnerability::NONE, &auction);
+        let compiled_entry = project_authored(&context);
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+        let legacy = project_authored_legacy(&context);
+        assert_eq!(compiled_entry, legacy);
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+
+        let mut cache = AuthoringStepCache::new();
+        assert!(
+            cache
+                .prepare(&stance, RelativeVulnerability::NONE, &auction)
+                .is_some()
+        );
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+
+        set_fallback_projection(true);
     }
 
     /// Pins the skew bound `support_band_to_points` is derived from: at every
@@ -7918,7 +9217,7 @@ mod tests {
                          auction: &[Call],
                          context: &Context<'_>,
                          rules: &crate::bidding::rules::Rules| {
-            let Some(projection) = super::project_pass(rules, context) else {
+            let Some(projection) = super::project_pass(rules, None, context) else {
                 return;
             };
             for &hand in &hands {

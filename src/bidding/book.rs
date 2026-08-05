@@ -42,12 +42,17 @@
 use super::System;
 use super::array::Logits;
 use super::context::Context;
-use super::inference::{Envelope, Inferences, Range};
-use super::trie::{Provenance, Trie};
+use super::decoder::AuthoringDecoder;
+use super::inference::{
+    AuthoringStepCache, Envelope, Inferences, Range, ReadingProfile, reading_profile,
+};
+use super::rules::{CompiledRules, FaceRegistry, ProjectionCache};
+use super::trie::{Classifier, Provenance, Trie};
 use contract_bridge::auction::{Auction, Call, RelativeVulnerability};
 use contract_bridge::{FullDeal, Hand, Seat, Suit};
 use core::ops::{Deref, DerefMut};
 use std::collections::HashMap;
+use std::sync::Arc;
 
 /// Resolve `auction` against `trie` exactly like the bare table model
 ///
@@ -286,20 +291,198 @@ impl Pair {
     /// collision is an authoring bug.
     #[must_use]
     pub fn against(&self) -> Stance {
+        let constructive = self.constructive.0.clone();
         let mut bound = self.competitive.0.clone();
-        let collisions = bound.merge(self.constructive.0.clone());
+        let collisions = bound.merge(constructive.clone());
         debug_assert!(
             collisions.is_empty(),
             "competitive and constructive books collide at {collisions:?}"
         );
 
+        let (constructive_trie, constructive_decoder) = BoundBook::finalize(constructive);
+        let (competitive_trie, competitive_decoder) = BoundBook::finalize(bound);
+        let (defensive_trie, defensive_decoder) = BoundBook::finalize(self.defensive.0.clone());
+        let compiled_rules = Arc::new(CompiledRuleRegistry::compile([
+            constructive_decoder.as_ref(),
+            competitive_decoder.as_ref(),
+            defensive_decoder.as_ref(),
+        ]));
+        let constructive = BoundBook::new(
+            constructive_trie,
+            constructive_decoder,
+            Arc::clone(&compiled_rules),
+        );
+        let competitive = BoundBook::new(
+            competitive_trie,
+            competitive_decoder,
+            Arc::clone(&compiled_rules),
+        );
+        let defensive = BoundBook::new(defensive_trie, defensive_decoder, compiled_rules);
         Stance {
-            constructive: self.constructive.0.clone(),
-            competitive: bound,
-            defensive: self.defensive.0.clone(),
+            constructive,
+            competitive,
+            defensive,
             probed: HashMap::new(),
+            cache_identity: Arc::new(StanceCacheIdentity::default()),
         }
     }
+}
+
+/// One finalized runtime book
+///
+/// The mutable [`Trie`] remains the public authoring surface. Binding freezes
+/// the concrete row sites after every merge, graft, overwrite, and floor has
+/// happened, producing owned metadata that can safely back compiled plans.
+#[derive(Clone, Debug)]
+struct BoundBook {
+    trie: Trie,
+    decoder: Arc<AuthoringDecoder>,
+    compiled_rules: Arc<CompiledRuleRegistry>,
+}
+
+impl BoundBook {
+    fn finalize(mut trie: Trie) -> (Trie, Arc<AuthoringDecoder>) {
+        let authoring = trie.take_authoring_ledger();
+        let decoder = Arc::new(AuthoringDecoder::compile_ledger(&trie, authoring));
+        (trie, decoder)
+    }
+
+    fn new(
+        trie: Trie,
+        decoder: Arc<AuthoringDecoder>,
+        compiled_rules: Arc<CompiledRuleRegistry>,
+    ) -> Self {
+        Self {
+            trie,
+            decoder,
+            compiled_rules,
+        }
+    }
+
+    fn classify(&self, classifier: &dyn Classifier, hand: Hand, context: &Context<'_>) -> Logits {
+        classifier.as_rules().map_or_else(
+            || classifier.classify(hand, context),
+            |rules| {
+                self.compiled_for(classifier).map_or_else(
+                    || rules.classify(hand, context),
+                    |plan| plan.classify(rules, hand, context),
+                )
+            },
+        )
+    }
+
+    fn resolve_floored<'a>(
+        &'a self,
+        hand: Hand,
+        context: &Context<'_>,
+        auction: &[Call],
+    ) -> Option<(&'a dyn Classifier, Logits, Provenance)> {
+        if let Some((classifier, provenance)) = self.trie.resolve(context, auction) {
+            let logits = self.classify(classifier, hand, context);
+            if logits.has_mass() {
+                return Some((classifier, logits, provenance));
+            }
+        }
+        let (classifier, provenance) = self.trie.resolve_after_exact_rejection(context, auction)?;
+        Some((
+            classifier,
+            self.classify(classifier, hand, context),
+            provenance,
+        ))
+    }
+
+    fn compiled_for(&self, classifier: &dyn Classifier) -> Option<&CompiledRules> {
+        self.compiled_rules.get(classifier)
+    }
+}
+
+/// Rule sidecars keyed by the data pointer of the authoritative classifier.
+///
+/// The registry owns no classifier or constraint objects.  Those remain in
+/// the trie, while the sidecar stores compact authored indices and frozen
+/// context-independent projections.
+#[derive(Clone)]
+struct CompiledRuleRegistry {
+    profile: ReadingProfile,
+    tables: HashMap<usize, Arc<CompiledRules>>,
+    face_slots: usize,
+}
+
+impl core::fmt::Debug for CompiledRuleRegistry {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("CompiledRuleRegistry")
+            .field("tables", &self.tables.len())
+            .finish()
+    }
+}
+
+impl CompiledRuleRegistry {
+    fn key(classifier: &dyn Classifier) -> usize {
+        std::ptr::from_ref(classifier).cast::<()>() as usize
+    }
+
+    fn compile<'a>(decoders: impl IntoIterator<Item = &'a AuthoringDecoder>) -> Self {
+        let mut registry = Self {
+            profile: reading_profile(),
+            tables: HashMap::new(),
+            face_slots: 0,
+        };
+        let context = Context::new(RelativeVulnerability::NONE, &[]);
+        let mut projections = ProjectionCache::default();
+        let mut faces = FaceRegistry::default();
+        let mut insert = |classifier: &dyn Classifier| {
+            let key = Self::key(classifier);
+            if registry.tables.contains_key(&key) {
+                return;
+            }
+            if let Some(rules) = classifier.as_rules() {
+                registry.tables.insert(
+                    key,
+                    Arc::new(CompiledRules::compile_with_cache(
+                        rules,
+                        &context,
+                        &mut projections,
+                        &mut faces,
+                    )),
+                );
+            }
+        };
+        for decoder in decoders {
+            for classifier in decoder.classifiers() {
+                insert(classifier);
+            }
+        }
+        registry.face_slots = faces.len();
+        registry
+    }
+
+    fn get(&self, classifier: &dyn Classifier) -> Option<&CompiledRules> {
+        self.tables.get(&Self::key(classifier)).map(AsRef::as_ref)
+    }
+
+    fn get_for_profile(
+        &self,
+        classifier: &dyn Classifier,
+        profile: ReadingProfile,
+    ) -> Option<&CompiledRules> {
+        (self.profile == profile)
+            .then(|| self.get(classifier))
+            .flatten()
+    }
+}
+
+impl Default for BoundBook {
+    fn default() -> Self {
+        let (trie, decoder) = Self::finalize(Trie::new());
+        let compiled_rules = Arc::new(CompiledRuleRegistry::compile([decoder.as_ref()]));
+        Self::new(trie, decoder, compiled_rules)
+    }
+}
+
+/// Clone-stable identity for stance-local data consumed by deal caches.
+#[derive(Debug, Default)]
+pub(crate) struct StanceCacheIdentity {
+    revision: u64,
 }
 
 /// A pair's system, bound and ready to classify
@@ -311,19 +494,56 @@ impl Pair {
 /// trie answers when they open.  Constructive-phase queries use the *unmerged*
 /// constructive trie, so no competitive fallback can leak into undisturbed
 /// auctions.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Default)]
 pub struct Stance {
-    constructive: Trie,
-    competitive: Trie,
-    defensive: Trie,
+    constructive: BoundBook,
+    competitive: BoundBook,
+    defensive: BoundBook,
     /// Behaviorally probed readings, keyed by auction prefix with leading
     /// passes stripped (dealer rotations merge, as the books fan).  Empty
     /// until [`probe`][Self::probe] runs; consumed by the projection pass
     /// under [`set_probed_reading`][super::set_probed_reading].
     probed: HashMap<Vec<Call>, Envelope>,
+    /// Stable across clones, replaced whenever stance-local reading data
+    /// changes. Deal caches retain this small token, so an allocator cannot
+    /// recycle a raw address into a false identity match.
+    cache_identity: Arc<StanceCacheIdentity>,
+}
+
+impl core::fmt::Debug for Stance {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("Stance")
+            .field("constructive", &self.constructive.trie)
+            .field("competitive", &self.competitive.trie)
+            .field("defensive", &self.defensive.trie)
+            .field("probed", &self.probed)
+            .finish()
+    }
 }
 
 impl Stance {
+    pub(crate) fn cache_identity(&self) -> &Arc<StanceCacheIdentity> {
+        &self.cache_identity
+    }
+
+    fn invalidate_cache_identity(&mut self) {
+        self.cache_identity = Arc::new(StanceCacheIdentity {
+            revision: self.cache_identity.revision.wrapping_add(1),
+        });
+    }
+
+    fn bound_for(&self, auction: &[Call]) -> &BoundBook {
+        self.bound_for_phase(Phase::of(auction))
+    }
+
+    fn bound_for_phase(&self, phase: Phase) -> &BoundBook {
+        match phase {
+            Phase::Constructive => &self.constructive,
+            Phase::Competitive => &self.competitive,
+            Phase::Defensive => &self.defensive,
+        }
+    }
+
     /// The trie answering for the auction's [`Phase`]
     ///
     /// [`Phase::of`] is relative to the side to act on the slice, so this
@@ -331,11 +551,28 @@ impl Stance {
     /// auction cut at their turn yields their side's phase and book — how the
     /// table-wide alert decode resolves their calls (`project_authored`).
     pub(crate) fn trie_for(&self, auction: &[Call]) -> &Trie {
-        match Phase::of(auction) {
-            Phase::Constructive => &self.constructive,
-            Phase::Competitive => &self.competitive,
-            Phase::Defensive => &self.defensive,
-        }
+        &self.bound_for(auction).trie
+    }
+
+    /// Finalized authoring decoder for the auction's phase.
+    pub(crate) fn decoder_for(&self, auction: &[Call]) -> &AuthoringDecoder {
+        &self.bound_for(auction).decoder
+    }
+
+    pub(crate) fn decoder_for_phase(&self, phase: Phase) -> &AuthoringDecoder {
+        &self.bound_for_phase(phase).decoder
+    }
+
+    /// A rule plan compiled for the active reading profile at this route.
+    pub(crate) fn compiled_rules_for(
+        &self,
+        auction: &[Call],
+        classifier: &dyn Classifier,
+        profile: ReadingProfile,
+    ) -> Option<&CompiledRules> {
+        self.bound_for(auction)
+            .compiled_rules
+            .get_for_profile(classifier, profile)
     }
 
     /// Enter one cached serving decision after attaching its structural context
@@ -345,11 +582,43 @@ impl Stance {
         vul: RelativeVulnerability,
         auction: &'a [Call],
     ) -> Context<'a> {
-        let trie = self.trie_for(auction);
+        let bound = self.bound_for(auction);
         Context::new(vul, auction)
-            .with_prefixes(trie.common_prefixes(auction))
+            .with_prefixes(bound.trie.common_prefixes(auction))
             .with_their_system(self)
-            .with_decision_cache(hand)
+            .with_compiled_decision_cache(hand, bound.compiled_rules.face_slots)
+    }
+
+    fn classify_with_step_cache(
+        &self,
+        hand: Hand,
+        vul: RelativeVulnerability,
+        auction: &[Call],
+        cache: &mut AuthoringStepCache,
+    ) -> Option<Logits> {
+        self.classify_with_step_cache_provenance(hand, vul, auction, cache)
+            .map(|(logits, _)| logits)
+    }
+
+    pub(crate) fn classify_with_step_cache_provenance(
+        &self,
+        hand: Hand,
+        vul: RelativeVulnerability,
+        auction: &[Call],
+        cache: &mut AuthoringStepCache,
+    ) -> Option<(Logits, Provenance)> {
+        let bound = self.bound_for(auction);
+        let projection = cache.prepare(self, vul, auction);
+        let mut context = Context::new(vul, auction)
+            .with_prefixes(bound.trie.common_prefixes(auction))
+            .with_their_system(self);
+        if let Some(projection) = projection {
+            context = context.with_authored_projection(projection);
+        }
+        let context = context.with_compiled_decision_cache(hand, bound.compiled_rules.face_slots);
+        bound
+            .resolve_floored(hand, &context, auction)
+            .map(|(_, logits, provenance)| (logits, provenance))
     }
 
     /// Classify with the resolution [`Provenance`] — where the answer came from
@@ -367,9 +636,11 @@ impl Stance {
         vul: RelativeVulnerability,
         auction: &[Call],
     ) -> Option<(Logits, Provenance)> {
-        let trie = self.trie_for(auction);
+        let bound = self.bound_for(auction);
         let context = self.decision_context(hand, vul, auction);
-        trie.classify_floored(hand, &context, auction)
+        bound
+            .resolve_floored(hand, &context, auction)
+            .map(|(_, logits, provenance)| (logits, provenance))
     }
 
     /// The pre-decision-cache classification path
@@ -423,11 +694,14 @@ impl Stance {
         call: Call,
     ) -> Option<(Provenance, Option<ExplainedRule>)> {
         let auction = context.auction();
-        let (classifier, _, provenance) = self
-            .trie_for(auction)
-            .resolve_floored(hand, context, auction)?;
+        let bound = self.bound_for(auction);
+        let (classifier, _, provenance) = bound.resolve_floored(hand, context, auction)?;
         let rule = classifier.as_rules().and_then(|rules| {
-            let &(index, _) = rules.explain(hand, context).get(call)?;
+            let explanation = bound.compiled_for(classifier).map_or_else(
+                || rules.explain(hand, context),
+                |plan| plan.explain(rules, hand, context),
+            );
+            let &(index, _) = explanation.get(call)?;
             let rule = &rules.rules()[index];
             Some(ExplainedRule {
                 index,
@@ -457,7 +731,18 @@ impl Stance {
         let context = Context::new(vul, auction)
             .with_prefixes(trie.common_prefixes(auction))
             .with_their_system(self);
-        self.explain_call_in_context(hand, &context, call)
+        let (classifier, _, provenance) = trie.resolve_floored(hand, &context, auction)?;
+        let rule = classifier.as_rules().and_then(|rules| {
+            let &(index, _) = rules.explain(hand, &context).get(call)?;
+            let rule = &rules.rules()[index];
+            Some(ExplainedRule {
+                index,
+                label: rule.label(),
+                description: rule.describe().to_string(),
+                alert: rule.alert().map(|alert| alert.0),
+            })
+        });
+        Some((provenance, rule))
     }
 }
 
@@ -680,6 +965,7 @@ impl Stance {
         let was = super::inference::probed_reading();
         let first = boxed(harvest(self, false));
         self.probed = first;
+        self.invalidate_cache_identity();
         let second = boxed(harvest(self, true));
         super::inference::set_probed_reading(was);
 
@@ -693,6 +979,7 @@ impl Stance {
                 .filter(|key| !second.contains_key(*key))
                 .count();
         self.probed = second;
+        self.invalidate_cache_identity();
         ProbeReport {
             keys: self.probed.len(),
             drifted,
@@ -734,6 +1021,17 @@ impl Stance {
     }
 }
 
+// At shallow depths the already-linear reader is cheaper than initializing
+// four route cursors and projection accumulators.  Start the deal cache where
+// repeated prefix reading becomes the dominant cost; its first prepare can
+// reconstruct the prefix, then every continuation is append-only.
+const DEAL_CACHE_MIN_DEPTH: usize = 8;
+
+#[derive(Default)]
+struct StanceDealState {
+    authoring: Option<AuthoringStepCache>,
+}
+
 impl System for Stance {
     fn classify(&self, hand: Hand, vul: RelativeVulnerability, auction: &[Call]) -> Option<Logits> {
         self.classify_with_provenance(hand, vul, auction)
@@ -744,6 +1042,27 @@ impl System for Stance {
         // Delegate to the phase-routed trie's rebasing-aware check.
         self.trie_for(auction).authored_at(vul, auction)
     }
+
+    fn new_deal_state(&self) -> Option<Box<dyn std::any::Any>> {
+        Some(Box::new(StanceDealState::default()))
+    }
+
+    fn classify_in_deal(
+        &self,
+        hand: Hand,
+        vul: RelativeVulnerability,
+        auction: &[Call],
+        state: Option<&mut dyn std::any::Any>,
+    ) -> Option<Logits> {
+        let Some(state) = state.and_then(|state| state.downcast_mut::<StanceDealState>()) else {
+            return self.classify(hand, vul, auction);
+        };
+        if auction.len() < DEAL_CACHE_MIN_DEPTH {
+            return self.classify(hand, vul, auction);
+        }
+        let cache = state.authoring.get_or_insert_with(AuthoringStepCache::new);
+        self.classify_with_step_cache(hand, vul, auction, cache)
+    }
 }
 
 #[cfg(test)]
@@ -752,12 +1071,254 @@ mod performance_support;
 
 #[cfg(test)]
 mod tests {
-    use super::{Phase, performance_support};
+    use super::{DEAL_CACHE_MIN_DEPTH, Phase, StanceDealState, performance_support};
     use contract_bridge::auction::Call;
     use contract_bridge::{Bid, Strain, Suit};
 
     const fn bid(level: u8, strain: Strain) -> Call {
         Call::Bid(Bid::new(level, strain))
+    }
+
+    #[test]
+    fn table_deal_state_activates_the_causal_cache_at_deep_prefixes() {
+        use crate::bidding::System;
+        use crate::bidding::american::american_book;
+        use contract_bridge::auction::RelativeVulnerability;
+
+        let stance = american_book().against();
+        let hand = "AKQ2.K53.QJ4.T92".parse().expect("valid hand");
+        let mut state = stance.new_deal_state().expect("stance deal state");
+        assert!(
+            state
+                .downcast_ref::<StanceDealState>()
+                .expect("typed stance state")
+                .authoring
+                .is_none()
+        );
+
+        let shallow = vec![Call::Pass; DEAL_CACHE_MIN_DEPTH - 1];
+        let _ = stance.classify_in_deal(
+            hand,
+            RelativeVulnerability::NONE,
+            &shallow,
+            Some(state.as_mut()),
+        );
+        assert!(
+            state
+                .downcast_ref::<StanceDealState>()
+                .expect("typed stance state")
+                .authoring
+                .is_none(),
+            "shallow auctions should avoid cache setup",
+        );
+
+        let deep = vec![Call::Pass; DEAL_CACHE_MIN_DEPTH];
+        let _ = stance.classify_in_deal(
+            hand,
+            RelativeVulnerability::NONE,
+            &deep,
+            Some(state.as_mut()),
+        );
+        assert!(
+            state
+                .downcast_ref::<StanceDealState>()
+                .expect("typed stance state")
+                .authoring
+                .is_some(),
+            "deep auctions should enter the append-only causal cache",
+        );
+    }
+
+    #[test]
+    fn finalized_decoder_matches_legacy_resolution_on_frozen_corpus() {
+        use crate::bidding::american::american_book;
+        use crate::bidding::context::{Context, flipped};
+
+        let stance = american_book().against();
+        let corpus = performance_support::parse_corpus().expect("valid frozen corpus");
+        for position in corpus {
+            for depth in 0..=position.auction.len() {
+                let prefix = &position.auction[..depth];
+                let vul = if (position.auction.len() - depth).is_multiple_of(2) {
+                    position.vul
+                } else {
+                    flipped(position.vul)
+                };
+                let context = Context::new(vul, prefix);
+                let legacy = stance.trie_for(prefix).resolve(&context, prefix);
+                let compiled = stance.decoder_for(prefix).resolve(&context, prefix);
+                match (legacy, compiled) {
+                    (None, None) => {}
+                    (Some((legacy, legacy_provenance)), Some(compiled)) => {
+                        assert!(
+                            std::ptr::eq(legacy, compiled.classifier),
+                            "classifier differs at corpus {} prefix {depth}",
+                            position.id,
+                        );
+                        assert_eq!(
+                            legacy_provenance, compiled.provenance,
+                            "provenance differs at corpus {} prefix {depth}",
+                            position.id,
+                        );
+                    }
+                    (legacy, compiled) => panic!(
+                        "resolution presence differs at corpus {} prefix {depth}: legacy={}, compiled={}",
+                        position.id,
+                        legacy.is_some(),
+                        compiled.is_some(),
+                    ),
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn compiled_authored_projection_matches_legacy_on_frozen_corpus() {
+        use crate::bidding::american::american_book;
+        use crate::bidding::inference::{
+            ReadingScope, assert_compiled_authoring_projection_parity, set_announced_reading,
+            set_envelope_union_reading, set_fallback_projection, set_pass_exclusion_reading,
+            set_pass_reading, set_reading_scope, set_table_alert_reading,
+        };
+
+        let corpus = performance_support::parse_corpus().expect("valid frozen corpus");
+        let profiles = [
+            (ReadingScope::Alerted, true, true, true, false, false, true),
+            (ReadingScope::All, false, false, false, false, true, false),
+            (ReadingScope::None, true, true, true, true, true, true),
+        ];
+        for (scope, union, fallback, pass, exclusion, announced, table) in profiles {
+            set_reading_scope(scope);
+            set_envelope_union_reading(union);
+            set_fallback_projection(fallback);
+            set_pass_reading(pass);
+            set_pass_exclusion_reading(exclusion);
+            set_announced_reading(announced);
+            set_table_alert_reading(table);
+            let stance = american_book().against();
+            for position in &corpus {
+                let context = stance.prefixed_context(position.vul, &position.auction);
+                assert_compiled_authoring_projection_parity(&context);
+            }
+        }
+
+        set_reading_scope(ReadingScope::Alerted);
+        set_envelope_union_reading(true);
+        set_fallback_projection(true);
+        set_pass_reading(true);
+        set_pass_exclusion_reading(false);
+        set_announced_reading(false);
+        set_table_alert_reading(true);
+    }
+
+    #[test]
+    fn append_only_step_cache_matches_from_scratch_frozen_prefixes() {
+        use crate::bidding::american::american_book;
+        use crate::bidding::context::flipped;
+        use crate::bidding::inference::{AuthoringStepCache, assert_step_cache_projection_parity};
+
+        let stance = american_book().against();
+        let corpus = performance_support::parse_corpus().expect("valid frozen corpus");
+        let mut cache_hits = 0usize;
+        for position in corpus {
+            let mut caches = [AuthoringStepCache::new(), AuthoringStepCache::new()];
+            for depth in 0..=position.auction.len() {
+                let vul = if (position.auction.len() - depth).is_multiple_of(2) {
+                    position.vul
+                } else {
+                    flipped(position.vul)
+                };
+                cache_hits += usize::from(assert_step_cache_projection_parity(
+                    &stance,
+                    vul,
+                    &position.auction[..depth],
+                    &mut caches[depth % 2],
+                ));
+            }
+        }
+        assert!(
+            cache_hits > 2_000,
+            "too many prefixes dropped to the slow path"
+        );
+    }
+
+    #[test]
+    fn step_cache_drops_to_legacy_after_middeal_profile_change() {
+        use crate::bidding::american::american_book;
+        use crate::bidding::inference::{AuthoringStepCache, set_envelope_union_reading};
+        use contract_bridge::auction::RelativeVulnerability;
+
+        let stance = american_book().against();
+        let auction = [bid(1, Strain::Notrump), Call::Pass];
+        let mut cache = AuthoringStepCache::new();
+        assert!(
+            cache
+                .prepare(&stance, RelativeVulnerability::NONE, &[])
+                .is_some()
+        );
+        set_envelope_union_reading(false);
+        assert!(
+            cache
+                .prepare(&stance, RelativeVulnerability::NONE, &auction)
+                .is_none(),
+            "profile change must disable this deal cache"
+        );
+        set_envelope_union_reading(true);
+    }
+
+    #[test]
+    fn step_cache_is_bound_to_stance_identity_and_probe_revision() {
+        use crate::bidding::american::american_book;
+        use crate::bidding::inference::AuthoringStepCache;
+        use contract_bridge::auction::RelativeVulnerability;
+
+        let stance = american_book().against();
+        let clone = stance.clone();
+        let mut clone_cache = AuthoringStepCache::new();
+        assert!(
+            clone_cache
+                .prepare(&stance, RelativeVulnerability::NONE, &[])
+                .is_some()
+        );
+        assert!(
+            clone_cache
+                .prepare(
+                    &clone,
+                    RelativeVulnerability::NONE,
+                    &[Call::Pass, Call::Pass],
+                )
+                .is_some(),
+            "a clone preserves the stance cache identity"
+        );
+
+        let other = american_book().against();
+        let mut other_cache = AuthoringStepCache::new();
+        assert!(
+            other_cache
+                .prepare(&stance, RelativeVulnerability::NONE, &[])
+                .is_some()
+        );
+        assert!(
+            other_cache
+                .prepare(&other, RelativeVulnerability::NONE, &[])
+                .is_none(),
+            "a cache must not cross independently bound stances"
+        );
+
+        let mut probed = stance.clone();
+        let mut probe_cache = AuthoringStepCache::new();
+        assert!(
+            probe_cache
+                .prepare(&probed, RelativeVulnerability::NONE, &[])
+                .is_some()
+        );
+        let _ = probed.probe(0, 0xCA_C4E);
+        assert!(
+            probe_cache
+                .prepare(&probed, RelativeVulnerability::NONE, &[])
+                .is_none(),
+            "probing must replace the stance cache identity"
+        );
     }
 
     /// [`Stance::probe`] stores boxes for high-traffic keys; the knob-on

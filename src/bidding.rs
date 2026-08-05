@@ -113,6 +113,29 @@ pub trait System {
         auction: &[Call],
     ) -> Option<array::Logits>;
 
+    /// Allocate optional state for one table-driven deal.
+    ///
+    /// Hidden serving hook: ordinary systems remain stateless, while finalized
+    /// stances use it for their append-only authored-reading cache.
+    #[doc(hidden)]
+    fn new_deal_state(&self) -> Option<Box<dyn std::any::Any>> {
+        None
+    }
+
+    /// Classify inside a table-driven deal using the state from
+    /// [`System::new_deal_state`].
+    #[doc(hidden)]
+    fn classify_in_deal(
+        &self,
+        hand: Hand,
+        vul: RelativeVulnerability,
+        auction: &[Call],
+        state: Option<&mut dyn std::any::Any>,
+    ) -> Option<array::Logits> {
+        let _ = state;
+        self.classify(hand, vul, auction)
+    }
+
     /// Whether `auction` resolves to an *authored* node rather than the floor
     ///
     /// True unless resolution (following `Rebase` fallbacks) falls all the way to
@@ -168,6 +191,20 @@ impl<S: System + ?Sized> System for &S {
 
     fn authored_at(&self, vul: RelativeVulnerability, auction: &[Call]) -> bool {
         (**self).authored_at(vul, auction)
+    }
+
+    fn new_deal_state(&self) -> Option<Box<dyn std::any::Any>> {
+        (**self).new_deal_state()
+    }
+
+    fn classify_in_deal(
+        &self,
+        hand: Hand,
+        vul: RelativeVulnerability,
+        auction: &[Call],
+        state: Option<&mut dyn std::any::Any>,
+    ) -> Option<array::Logits> {
+        (**self).classify_in_deal(hand, vul, auction, state)
     }
 }
 

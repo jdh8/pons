@@ -57,7 +57,7 @@ use super::constraint::{
 };
 use super::context::Context;
 use super::inference::{Inferences, Relative, relative_of};
-use super::rules::Alert;
+use super::rules::{Alert, FaceId};
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::eval::hcp as holding_hcp;
 use contract_bridge::{Bid, Hand, Penalty, Rank, Strain, Suit};
@@ -577,6 +577,17 @@ pub(super) fn rubens_advances_enabled() -> bool {
 /// the alert suppresses their natural reading — without it partner would read
 /// a 5♦ answer as a diamond suit and the sampler would deal the phantom.
 const RKCB_FLOOR: Alert = Alert("floor:rkcb");
+const FACE_RKCB_ANSWER: FaceId = FaceId::new("rkcb:answer-window", 0);
+const FACE_RKCB_ROPI: FaceId = FaceId::new("rkcb:ropi-window", 0);
+const FACE_RKCB_DOPI: FaceId = FaceId::new("rkcb:dopi-window", 0);
+
+const fn rkcb_relay_face(back: u8) -> FaceId {
+    FaceId::new("rkcb:relay-window", back)
+}
+
+const fn rkcb_relocated_ask_face(target: Suit) -> FaceId {
+    FaceId::new("rkcb:relocated-ask", target as u8)
+}
 
 std::thread_local! {
     /// Whether the floor asks and answers RKCB 1430 once a fit and small-slam
@@ -5398,16 +5409,20 @@ pub fn instinct() -> Rules {
             rules = rules
                 .rule(landing, 1.9, keycard_answer(landing))
                 .alert(RKCB_FLOOR)
-                .face(|context: &Context<'_>| keycard_asked_face(context).is_some())
+                .shared_face(FACE_RKCB_ANSWER, |context: &Context<'_>| {
+                    keycard_asked_face(context).is_some()
+                })
                 .rule(landing, 1.92, ropi_step(landing))
                 .alert(RKCB_FLOOR)
-                .face(|context: &Context<'_>| {
+                .shared_face(FACE_RKCB_ROPI, |context: &Context<'_>| {
                     context.auction().last() == Some(&Call::Double)
                         && keycard_asked_face(context).is_some()
                 })
                 .rule(landing, 1.9, dopi_step(landing))
                 .alert(RKCB_FLOOR)
-                .face(|context: &Context<'_>| keycard_asked_over_bid_face(context).is_some());
+                .shared_face(FACE_RKCB_DOPI, |context: &Context<'_>| {
+                    keycard_asked_over_bid_face(context).is_some()
+                });
         }
     } else {
         // The plain arm's gates: the same §7.3.1 cure reaches the default
@@ -5416,13 +5431,13 @@ pub fn instinct() -> Rules {
             rules = rules
                 .rule(landing, 1.9, keycard_answer(landing))
                 .alert(RKCB_FLOOR)
-                .face(answer_window_face)
+                .shared_face(FACE_RKCB_ANSWER, answer_window_face)
                 .rule(landing, 1.92, ropi_step(landing))
                 .alert(RKCB_FLOOR)
-                .face(ropi_window_face)
+                .shared_face(FACE_RKCB_ROPI, ropi_window_face)
                 .rule(landing, 1.9, dopi_step(landing))
                 .alert(RKCB_FLOOR)
-                .face(dopi_window_face);
+                .shared_face(FACE_RKCB_DOPI, dopi_window_face);
         }
     }
     // The relay: the queen ask one step above partner's
@@ -5449,12 +5464,16 @@ pub fn instinct() -> Rules {
                 rules = rules
                     .rule(landing, 1.9, queen_reply(landing, true))
                     .alert(RKCB_FLOOR)
-                    .face(|context: &Context<'_>| relay_window_face(context, 6));
+                    .shared_face(rkcb_relay_face(6), |context: &Context<'_>| {
+                        relay_window_face(context, 6)
+                    });
             }
             if denial_can_land(landing) {
                 rules = rules
                     .rule(landing, 1.9, queen_reply(landing, false))
-                    .face(|context: &Context<'_>| relay_window_face(context, 6));
+                    .shared_face(rkcb_relay_face(6), |context: &Context<'_>| {
+                        relay_window_face(context, 6)
+                    });
             }
             // The second relay's rungs: "one more king" is a code, "none"
             // is six of the agreed trump and places the contract.
@@ -5462,12 +5481,16 @@ pub fn instinct() -> Rules {
                 rules = rules
                     .rule(landing, 1.9, king_reply(landing, true))
                     .alert(RKCB_FLOOR)
-                    .face(|context: &Context<'_>| relay_window_face(context, 10));
+                    .shared_face(rkcb_relay_face(10), |context: &Context<'_>| {
+                        relay_window_face(context, 10)
+                    });
             }
             if king_reply_can_land(landing, false) {
                 rules = rules
                     .rule(landing, 1.9, king_reply(landing, false))
-                    .face(|context: &Context<'_>| relay_window_face(context, 10));
+                    .shared_face(rkcb_relay_face(10), |context: &Context<'_>| {
+                        relay_window_face(context, 10)
+                    });
             }
             if queen_ask_can_land(landing) {
                 rules = rules
@@ -5477,7 +5500,9 @@ pub fn instinct() -> Rules {
                         queen_ask_here(landing) & one_keycard_missing() & slam_entry_reached(),
                     )
                     .alert(RKCB_FLOOR)
-                    .face(|context: &Context<'_>| relay_window_face(context, 4));
+                    .shared_face(rkcb_relay_face(4), |context: &Context<'_>| {
+                        relay_window_face(context, 4)
+                    });
             }
         }
     }
@@ -5487,28 +5512,28 @@ pub fn instinct() -> Rules {
         // doubled ask answers in scheme: redouble 0, pass 1, step 1 is 2.
         .rule(Call::Redouble, 1.92, ropi_answer(&[0, 3]))
         .alert(RKCB_FLOOR)
-        .face(ropi_window_face)
+        .shared_face(FACE_RKCB_ROPI, ropi_window_face)
         .rule(Call::Pass, 1.92, ropi_answer(&[1, 4]))
         .alert(RKCB_FLOOR)
-        .face(ropi_window_face)
+        .shared_face(FACE_RKCB_ROPI, ropi_window_face)
         // DOPI over their bid below five of trump — classic D0P1: double 0,
         // pass 1, the cheapest step 2.  The machinery used to stand down on
         // their bid over the ask (the card declared DOPI with nothing
         // behind it); these rungs are that window's authored floor.
         .rule(Call::Double, 1.9, dopi_answer(&[0, 3]))
         .alert(RKCB_FLOOR)
-        .face(dopi_window_face)
+        .shared_face(FACE_RKCB_DOPI, dopi_window_face)
         .rule(Call::Pass, 1.9, dopi_answer(&[1, 4]))
         .alert(RKCB_FLOOR)
-        .face(dopi_window_face)
+        .shared_face(FACE_RKCB_DOPI, dopi_window_face)
         // DEPO at or above five of trump: no room for steps — double even,
         // pass odd.
         .rule(Call::Double, 1.9, depo_answer(true))
         .alert(RKCB_FLOOR)
-        .face(dopi_window_face)
+        .shared_face(FACE_RKCB_DOPI, dopi_window_face)
         .rule(Call::Pass, 1.9, depo_answer(false))
         .alert(RKCB_FLOOR)
-        .face(dopi_window_face)
+        .shared_face(FACE_RKCB_DOPI, dopi_window_face)
         // After our answer the asker holds the count: respect the placement.
         .rule(Call::Pass, 1.88, respect_keycard_signoff());
     // The relocated ask (`set_rkcb_variant`): the cheapest unguarded suit above
@@ -5553,14 +5578,17 @@ pub fn instinct() -> Rules {
                         & level_available(4, strain),
                 )
                 .alert(RKCB_FLOOR)
-                .face(move |context: &Context<'_>| {
-                    let auction = context.auction();
-                    relocating_now()
-                        && context.undisturbed()
-                        && kickback_ladder(auction, auction.len())[target as usize].is_some()
-                        && partner_last_call(auction)
-                            .is_none_or(|bid| bid.strain != Strain::Notrump)
-                });
+                .shared_face(
+                    rkcb_relocated_ask_face(target),
+                    move |context: &Context<'_>| {
+                        let auction = context.auction();
+                        relocating_now()
+                            && context.undisturbed()
+                            && kickback_ladder(auction, auction.len())[target as usize].is_some()
+                            && partner_last_call(auction)
+                                .is_none_or(|bid| bid.strain != Strain::Notrump)
+                    },
+                );
         }
     }
     // The asker's continuations, per possible trump.
@@ -5676,7 +5704,9 @@ pub fn instinct() -> Rules {
                                 & grand_zone(strain),
                         )
                         .alert(RKCB_FLOOR)
-                        .face(|context: &Context<'_>| relay_window_face(context, 4));
+                        .shared_face(rkcb_relay_face(4), |context: &Context<'_>| {
+                            relay_window_face(context, 4)
+                        });
                 }
                 // Explore seven only when the values are already there:
                 // RKCB is a slam veto, not a slam seeker, so a partnership
@@ -5691,7 +5721,9 @@ pub fn instinct() -> Rules {
                                 & grand_zone(strain),
                         )
                         .alert(RKCB_FLOOR)
-                        .face(|context: &Context<'_>| relay_window_face(context, 8));
+                        .shared_face(rkcb_relay_face(8), |context: &Context<'_>| {
+                            relay_window_face(context, 8)
+                        });
                 }
             }
             rules = rules
