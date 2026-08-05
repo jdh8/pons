@@ -15,6 +15,8 @@ pub(in crate::bidding) mod common;
 pub mod compose;
 pub mod constraint;
 pub mod context;
+/// Finalized reader-side routing plans.
+pub(in crate::bidding) mod decoder;
 /// The Dutch system — a natural 2/1 built around a wide, non-forcing 1♣
 pub mod dutch;
 /// Call-EV evaluator: a candidate call's cardplay-grounded worth by rollout

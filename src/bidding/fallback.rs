@@ -21,6 +21,27 @@ use core::fmt;
 use std::borrow::Cow;
 use std::sync::Arc;
 
+/// A machine-readable description of a [`Guard`]
+///
+/// This is deliberately conservative: guards which do not explicitly expose
+/// one of the built-in shapes are [`Opaque`](Self::Opaque).
+#[doc(hidden)]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum GuardPlan {
+    /// Admit every uncovered auction.
+    Always,
+    /// Admit only while the opponents have not disturbed the auction.
+    Undisturbed,
+    /// Admit when the first uncovered call is the given call.
+    FirstIs(Call),
+    /// Admit a single uncovered overcall no higher than the given bid.
+    OvercallAtMost(Bid),
+    /// Admit exactly the given uncovered suffix.
+    SuffixIs(Vec<Call>),
+    /// No structured description is available.
+    Opaque,
+}
+
 /// Trait deciding whether a fallback applies to an uncovered auction
 pub trait Guard: Send + Sync {
     /// Whether the fallback applies
@@ -35,6 +56,12 @@ pub trait Guard: Send + Sync {
     /// unlabeled section; wrap the closure in [`described_guard`] to name it.
     fn describe(&self) -> Option<String> {
         None
+    }
+
+    /// Machine-readable admit condition for internal decoders
+    #[doc(hidden)]
+    fn plan(&self) -> GuardPlan {
+        GuardPlan::Opaque
     }
 }
 
@@ -81,6 +108,10 @@ impl Guard for Always {
     fn describe(&self) -> Option<String> {
         Some("(always)".into())
     }
+
+    fn plan(&self) -> GuardPlan {
+        GuardPlan::Always
+    }
 }
 
 /// Guard admitting auctions the opponents have not disturbed
@@ -94,6 +125,10 @@ impl Guard for Undisturbed {
 
     fn describe(&self) -> Option<String> {
         Some("(undisturbed)".into())
+    }
+
+    fn plan(&self) -> GuardPlan {
+        GuardPlan::Undisturbed
     }
 }
 
@@ -115,6 +150,10 @@ impl Guard for FirstIs {
     fn describe(&self) -> Option<String> {
         Some(format!("{} …", self.0))
     }
+
+    fn plan(&self) -> GuardPlan {
+        GuardPlan::FirstIs(self.0)
+    }
 }
 
 /// Guard admitting exactly one uncovered call: a bid at most the given one
@@ -134,6 +173,10 @@ impl Guard for OvercallAtMost {
 
     fn describe(&self) -> Option<String> {
         Some(format!("(overcall ≤{})", self.0))
+    }
+
+    fn plan(&self) -> GuardPlan {
+        GuardPlan::OvercallAtMost(self.0)
     }
 }
 
@@ -157,6 +200,23 @@ impl Guard for SuffixIs {
     fn describe(&self) -> Option<String> {
         Some(contract_bridge::auction::display_calls(&self.0).to_string())
     }
+
+    fn plan(&self) -> GuardPlan {
+        GuardPlan::SuffixIs(self.0.clone())
+    }
+}
+
+/// A machine-readable description of a [`Rewrite`]
+///
+/// This is deliberately conservative: rewrites which do not explicitly
+/// expose a built-in shape are [`Opaque`](Self::Opaque).
+#[doc(hidden)]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum RewritePlan {
+    /// Replace the first uncovered call with the given call.
+    ReplaceNext(Call),
+    /// No structured description is available.
+    Opaque,
 }
 
 /// Trait rewriting an auction for re-resolution
@@ -174,6 +234,12 @@ pub trait Rewrite: Send + Sync {
     /// opaque rebase; wrap the closure in [`described_rewrite`] to name it.
     fn describe(&self) -> Option<String> {
         None
+    }
+
+    /// Machine-readable rewrite for internal decoders
+    #[doc(hidden)]
+    fn plan(&self) -> RewritePlan {
+        RewritePlan::Opaque
     }
 }
 
@@ -228,6 +294,10 @@ impl Rewrite for ReplaceNext {
     fn describe(&self) -> Option<String> {
         Some(format!("systems on: their call is treated as {}", self.0))
     }
+
+    fn plan(&self) -> RewritePlan {
+        RewritePlan::ReplaceNext(self.0)
+    }
 }
 
 /// A [`Guard`] or [`Rewrite`] carrying a renderer label
@@ -248,6 +318,10 @@ impl<G: Guard> Guard for Described<G> {
     fn describe(&self) -> Option<String> {
         Some(self.label.clone().into_owned())
     }
+
+    fn plan(&self) -> GuardPlan {
+        self.inner.plan()
+    }
 }
 
 impl<R: Rewrite> Rewrite for Described<R> {
@@ -257,6 +331,10 @@ impl<R: Rewrite> Rewrite for Described<R> {
 
     fn describe(&self) -> Option<String> {
         Some(self.label.clone().into_owned())
+    }
+
+    fn plan(&self) -> RewritePlan {
+        self.inner.plan()
     }
 }
 
@@ -361,9 +439,11 @@ mod tests {
         let context = empty_context();
         assert!(guard.admits(&context, &[Call::Double]));
         assert_eq!(guard.describe().as_deref(), Some("(their overcall) cue -"));
+        assert_eq!(guard.plan(), GuardPlan::Always);
 
         let rewrite = described_rewrite("systems on", ReplaceNext(Call::Pass));
         assert_eq!(rewrite.describe().as_deref(), Some("systems on"));
+        assert_eq!(rewrite.plan(), RewritePlan::ReplaceNext(Call::Pass));
         assert_eq!(
             rewrite.rewrite(&[bid(1, Strain::Notrump), Call::Double], 1),
             Some(vec![bid(1, Strain::Notrump), Call::Pass]),
@@ -380,5 +460,42 @@ mod tests {
             Some(vec![bid(1, Strain::Notrump), Call::Pass, Call::Pass]),
         );
         assert_eq!(rewrite.rewrite(&auction, 3), None);
+    }
+
+    #[test]
+    fn test_builtin_plans() {
+        let suffix = vec![bid(2, Strain::Hearts), Call::Double];
+
+        assert_eq!(Always.plan(), GuardPlan::Always);
+        assert_eq!(Undisturbed.plan(), GuardPlan::Undisturbed);
+        assert_eq!(
+            FirstIs(Call::Double).plan(),
+            GuardPlan::FirstIs(Call::Double),
+        );
+        assert_eq!(
+            OvercallAtMost(Bid::new(2, Strain::Spades)).plan(),
+            GuardPlan::OvercallAtMost(Bid::new(2, Strain::Spades)),
+        );
+        assert_eq!(SuffixIs(suffix.clone()).plan(), GuardPlan::SuffixIs(suffix),);
+        assert_eq!(
+            ReplaceNext(Call::Pass).plan(),
+            RewritePlan::ReplaceNext(Call::Pass),
+        );
+    }
+
+    #[test]
+    fn test_closure_plans_are_opaque() {
+        let closure_guard = guard(|_: &Context<'_>, suffix: &[Call]| suffix.is_empty());
+        let closure_rewrite = rewriter(|auction: &[Call], _: usize| Some(auction.to_vec()));
+
+        assert_eq!(closure_guard.plan(), GuardPlan::Opaque);
+        assert_eq!(closure_rewrite.plan(), RewritePlan::Opaque);
+
+        let context = empty_context();
+        assert!(closure_guard.admits(&context, &[]));
+        assert_eq!(
+            closure_rewrite.rewrite(&[Call::Pass], 0),
+            Some(vec![Call::Pass]),
+        );
     }
 }

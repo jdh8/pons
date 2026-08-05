@@ -36,14 +36,256 @@
 //! the fall-through pass and therefore must stay total — keep a finite
 //! catch-all in every guarded table.
 
-use super::common::{fallback_all_seats, insert_all_seats};
+use super::common::fallback_all_seats;
 use super::constraint::Constraint;
 use super::fallback::{Fallback, FirstIs, Guard, OvercallAtMost, Rewrite, SuffixIs};
 use super::rules::{Alert, Rules};
 use super::trie::{Classifier, Trie};
 use contract_bridge::Bid;
 use contract_bridge::auction::Call;
+use core::fmt;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
+
+static NEXT_PATTERN_ID: AtomicU64 = AtomicU64::new(1);
+static NEXT_RULE_TABLE_ID: AtomicU64 = AtomicU64::new(1);
+
+/// Stable identity of one preserved row pattern within a mutable book
+///
+/// IDs are opaque process-local tokens. They survive cloning, merging, and
+/// grafting, so every concrete copy of one logical row retains one identity;
+/// independently-authored rows cannot collide.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub(crate) struct PatternId(u64);
+
+/// Stable identity of a classifier table, independent of labels and samples
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub(crate) struct RuleTableId(u64);
+
+/// The shipped, enumerable part of the row pattern grammar
+#[derive(Clone)]
+pub(crate) enum PatternGrammar {
+    Exact,
+    First(Call),
+    UpTo(Bid),
+    Suffix(Box<[Call]>),
+    Opaque {
+        sample: Box<[Call]>,
+        guard: Arc<dyn Guard>,
+    },
+}
+
+impl fmt::Debug for PatternGrammar {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Exact => f.write_str("Exact"),
+            Self::First(call) => f.debug_tuple("First").field(call).finish(),
+            Self::UpTo(bid) => f.debug_tuple("UpTo").field(bid).finish(),
+            Self::Suffix(suffix) => f.debug_tuple("Suffix").field(suffix).finish(),
+            Self::Opaque { sample, guard } => f
+                .debug_struct("Opaque")
+                .field("sample", sample)
+                .field("guard", guard)
+                .finish(),
+        }
+    }
+}
+
+/// The lowered object a preserved pattern selects
+#[derive(Clone, Debug)]
+pub(crate) enum PreservedTarget {
+    Rules(Arc<dyn Classifier>),
+    Computed(Arc<dyn Classifier>),
+    Rebase(Arc<dyn Rewrite>),
+}
+
+/// Kind of lowered target retained after pointer validation at finalization
+///
+/// The concrete classifier/guard/rewrite `Arc`s already live in the finalized
+/// trie and decoder.  Keeping them a second time in the catalog would retain
+/// overwritten authoring objects and make every `Stance` clone heavier.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum PreservedTargetKind {
+    Rules,
+    Computed,
+    Rebase,
+}
+
+impl PreservedTarget {
+    pub(crate) const fn kind(&self) -> PreservedTargetKind {
+        match self {
+            Self::Rules(_) => PreservedTargetKind::Rules,
+            Self::Computed(_) => PreservedTargetKind::Computed,
+            Self::Rebase(_) => PreservedTargetKind::Rebase,
+        }
+    }
+}
+
+impl PreservedTarget {
+    fn is_table(&self) -> bool {
+        matches!(self, Self::Rules(_))
+    }
+
+    pub(crate) fn classifier(&self) -> Option<&Arc<dyn Classifier>> {
+        match self {
+            Self::Rules(classifier) | Self::Computed(classifier) => Some(classifier),
+            Self::Rebase(_) => None,
+        }
+    }
+}
+
+/// One row pattern retained beside all of its concrete lowered routes
+#[derive(Clone, Debug)]
+pub(crate) struct PreservedPattern {
+    pub(crate) id: PatternId,
+    pub(crate) table_id: Option<RuleTableId>,
+    #[allow(dead_code)] // retained through finalization for diagnostics/catalog parity
+    pub(crate) package: Arc<str>,
+    #[allow(dead_code)] // retained through finalization for diagnostics/catalog parity
+    pub(crate) source: Arc<str>,
+    pub(crate) grammar: PatternGrammar,
+    pub(crate) keys: Box<[Box<[Call]>]>,
+    pub(crate) guard: Option<Arc<dyn Guard>>,
+    pub(crate) target: PreservedTarget,
+}
+
+/// One ledger slot. Sharing the row payload keeps `Trie::clone` and merges
+/// pointer-cheap until the whole-system finalization consumes the ledger.
+#[derive(Clone, Debug)]
+pub(crate) struct LedgerPattern {
+    pub(crate) declaration: u64,
+    pattern: Arc<PreservedPattern>,
+}
+
+impl core::ops::Deref for LedgerPattern {
+    type Target = PreservedPattern;
+
+    fn deref(&self) -> &Self::Target {
+        &self.pattern
+    }
+}
+
+/// One surviving concrete placement of a preserved pattern
+#[derive(Clone, Debug, PartialEq, Eq)]
+#[cfg(test)]
+pub(crate) struct ConcreteSite {
+    pub(crate) key: Box<[Call]>,
+    pub(crate) placement: Placement,
+}
+
+/// Whether a concrete pattern owns the exact node or one fallback slot
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[cfg(test)]
+pub(crate) enum Placement {
+    Exact,
+    Fallback { index: usize },
+}
+
+/// A logical row pattern and every route that survived final mutation
+#[derive(Clone, Debug)]
+#[cfg(test)]
+pub(crate) struct BoundPattern {
+    pub(crate) id: PatternId,
+    pub(crate) table_id: Option<RuleTableId>,
+    pub(crate) package: Arc<str>,
+    pub(crate) source: Arc<str>,
+    pub(crate) grammar: PatternGrammar,
+    pub(crate) declaration: u64,
+    pub(crate) target: PreservedTargetKind,
+    pub(crate) sites: Box<[ConcreteSite]>,
+}
+
+/// Finalized, mutation-free row catalog attached to one bound book
+#[derive(Clone, Debug, Default)]
+#[cfg(test)]
+pub(crate) struct AuthoringCatalog {
+    patterns: Box<[BoundPattern]>,
+}
+
+#[cfg(test)]
+impl AuthoringCatalog {
+    pub(crate) fn new(patterns: Vec<BoundPattern>) -> Self {
+        Self {
+            patterns: patterns.into_boxed_slice(),
+        }
+    }
+
+    pub(crate) fn patterns(&self) -> &[BoundPattern] {
+        &self.patterns
+    }
+}
+
+/// Whole-book ledger of row patterns, retained until `Pair::against()`
+#[derive(Clone, Debug)]
+pub(crate) struct AuthoringLedger {
+    patterns: Vec<LedgerPattern>,
+    next_declaration: u64,
+}
+
+impl AuthoringLedger {
+    pub(crate) const fn new() -> Self {
+        Self {
+            patterns: Vec::new(),
+            next_declaration: 0,
+        }
+    }
+
+    pub(crate) fn push(&mut self, pattern: PreservedPattern) {
+        let declaration = self.next_declaration;
+        self.next_declaration += 1;
+        self.patterns.push(LedgerPattern {
+            declaration,
+            pattern: Arc::new(pattern),
+        });
+    }
+
+    pub(crate) fn extend(&mut self, other: Self) {
+        for mut pattern in other.patterns {
+            pattern.declaration = self.next_declaration;
+            self.next_declaration += 1;
+            self.patterns.push(pattern);
+        }
+    }
+
+    pub(crate) fn extend_graft(&mut self, other: &Self, dst_prefix: &[Call], src_prefix: &[Call]) {
+        for pattern in &other.patterns {
+            let keys: Vec<Box<[Call]>> = pattern
+                .keys
+                .iter()
+                .filter_map(|key| {
+                    key.strip_prefix(src_prefix).map(|suffix| {
+                        dst_prefix
+                            .iter()
+                            .copied()
+                            .chain(suffix.iter().copied())
+                            .collect()
+                    })
+                })
+                .collect();
+            if keys.is_empty() {
+                continue;
+            }
+            let mut copied = (**pattern).clone();
+            copied.keys = keys.into_boxed_slice();
+            self.push(copied);
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn patterns(&self) -> &[LedgerPattern] {
+        &self.patterns
+    }
+
+    pub(crate) fn into_patterns(self) -> impl Iterator<Item = LedgerPattern> {
+        self.patterns.into_iter()
+    }
+}
+
+impl Default for AuthoringLedger {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 /// Where a row lives: a trie key, a seat fan, and an optional guard
 ///
@@ -121,6 +363,18 @@ impl GuardSpec {
             Self::UpTo(bid) => Arc::new(OvercallAtMost(*bid)),
             Self::Suffix(calls) => Arc::new(SuffixIs(calls.clone())),
             Self::Opaque { guard, .. } => Arc::clone(guard),
+        }
+    }
+
+    fn grammar(&self) -> PatternGrammar {
+        match self {
+            Self::First(call) => PatternGrammar::First(*call),
+            Self::UpTo(bid) => PatternGrammar::UpTo(*bid),
+            Self::Suffix(calls) => PatternGrammar::Suffix(calls.clone().into_boxed_slice()),
+            Self::Opaque { sample, guard } => PatternGrammar::Opaque {
+                sample: sample.clone().into_boxed_slice(),
+                guard: Arc::clone(guard),
+            },
         }
     }
 }
@@ -533,25 +787,74 @@ pub(crate) fn compile_into(book: &mut Trie, packages: &[Package]) {
 ///
 /// See [`group`].
 pub(crate) fn compile_entries(book: &mut Trie, name: &str, entries: Vec<Entry>) {
+    let package: Arc<str> = Arc::from(name);
     for (pattern, lowered) in group(name, entries) {
-        match (lowered, &pattern.guard) {
-            (Lowered::Fallback(fallback), Some(spec)) => {
-                fallback_all_seats(book, &pattern.key, pattern.fan, spec.lower(), fallback);
+        let keys: Vec<Box<[Call]>> = (0..=pattern.fan)
+            .map(|passes| {
+                core::iter::repeat_n(Call::Pass, passes)
+                    .chain(pattern.key.iter().copied())
+                    .collect()
+            })
+            .collect();
+        let source: Arc<str> = Arc::from(pattern.source.as_str());
+        let grammar = pattern
+            .guard
+            .as_ref()
+            .map_or(PatternGrammar::Exact, GuardSpec::grammar);
+        let lowered_guard = pattern.guard.as_ref().map(GuardSpec::lower);
+
+        let target = match (lowered, &pattern.guard) {
+            (Lowered::Fallback(fallback), Some(_)) => {
+                let target = match &fallback {
+                    Fallback::Classify(classifier) => {
+                        PreservedTarget::Computed(Arc::clone(classifier))
+                    }
+                    Fallback::Rebase(rewrite) => PreservedTarget::Rebase(Arc::clone(rewrite)),
+                };
+                fallback_all_seats(
+                    book,
+                    &pattern.key,
+                    pattern.fan,
+                    Arc::clone(lowered_guard.as_ref().expect("guarded pattern")),
+                    fallback,
+                );
+                target
             }
             (Lowered::Fallback(_), None) => {
                 unreachable!("group() rejects guardless entries")
             }
             (Lowered::Table(rules), None) => {
-                insert_all_seats(book, &pattern.key, pattern.fan, rules);
+                let classifier: Arc<dyn Classifier> = Arc::new(rules);
+                for key in &keys {
+                    book.insert_arc(key, Arc::clone(&classifier));
+                }
+                PreservedTarget::Rules(classifier)
             }
-            (Lowered::Table(rules), Some(spec)) => fallback_all_seats(
-                book,
-                &pattern.key,
-                pattern.fan,
-                spec.lower(),
-                Fallback::classify(rules),
-            ),
-        }
+            (Lowered::Table(rules), Some(_)) => {
+                let classifier: Arc<dyn Classifier> = Arc::new(rules);
+                fallback_all_seats(
+                    book,
+                    &pattern.key,
+                    pattern.fan,
+                    Arc::clone(lowered_guard.as_ref().expect("guarded pattern")),
+                    Fallback::Classify(Arc::clone(&classifier)),
+                );
+                PreservedTarget::Rules(classifier)
+            }
+        };
+        let table_id = target
+            .is_table()
+            .then(|| RuleTableId(NEXT_RULE_TABLE_ID.fetch_add(1, Ordering::Relaxed)));
+        book.preserve_authoring(PreservedPattern {
+            id: PatternId(NEXT_PATTERN_ID.fetch_add(1, Ordering::Relaxed)),
+            table_id,
+            package: Arc::clone(&package),
+            source,
+            grammar,
+            keys: keys.into_boxed_slice(),
+            guard: lowered_guard,
+            target,
+        });
     }
 }
 
@@ -656,7 +959,7 @@ pub(crate) fn assert_package_invariants(packages: &[Package]) {
 mod tests {
     use super::super::constraint::hcp;
     use super::super::context::Context;
-    use super::super::fallback::{ReplaceNext, described_guard, guard};
+    use super::super::fallback::{Always, ReplaceNext, described_guard, guard};
     use super::*;
     use contract_bridge::auction::RelativeVulnerability;
     use contract_bridge::{Hand, Strain};
@@ -721,6 +1024,30 @@ mod tests {
             .expect("the table answers over their overcall");
         assert!(logits.has_mass());
         assert_eq!(provenance.depth, 1, "found at the [1♥] node");
+
+        let authored = book.authoring().patterns();
+        assert_eq!(authored.len(), 1, "one grouped pattern, not one per row");
+        assert!(
+            authored[0].table_id.is_some(),
+            "the rule table has its own ID"
+        );
+        assert!(
+            matches!(authored[0].grammar, PatternGrammar::UpTo(bid) if bid == Bid::new(2, Strain::Spades))
+        );
+        assert_eq!(
+            authored[0].keys.len(),
+            4,
+            "all concrete seat-fanned keys retained"
+        );
+        let catalog = book.finalize_authoring();
+        assert_eq!(catalog.patterns().len(), 1);
+        assert_eq!(catalog.patterns()[0].sites.len(), 4);
+        assert!(
+            catalog.patterns()[0]
+                .sites
+                .iter()
+                .all(|site| matches!(site.placement, Placement::Fallback { .. }))
+        );
     }
 
     /// A rebase entry lowers to `Fallback::Rebase` and re-resolves onto the
@@ -850,6 +1177,290 @@ mod tests {
         }]);
         assert!(book.fallbacks().is_empty());
         assert_eq!(book.iter().count(), 0);
+        assert!(book.authoring().patterns().is_empty());
+    }
+
+    /// IDs name the logical row: clones and grafted concrete routes retain
+    /// them, while the finalized catalog reports the destination key.
+    #[test]
+    fn clone_and_graft_preserve_pattern_identity() {
+        let source = compiled(&[Package {
+            name: "test",
+            gate: || true,
+            entries: || rows_of(Pattern::node("1NT (P) 2♣ (P)"), two_rule_table()),
+        }]);
+        let original = source.authoring().patterns()[0].id;
+        assert_eq!(source.clone().authoring().patterns()[0].id, original);
+
+        let mut grafted = Trie::new();
+        assert!(
+            grafted
+                .graft(&calls("1♠ 1NT"), &source, &calls("1NT"))
+                .is_empty()
+        );
+        let catalog = grafted.finalize_authoring();
+        assert_eq!(catalog.patterns().len(), 1);
+        assert_eq!(catalog.patterns()[0].id, original);
+        assert_eq!(&*catalog.patterns()[0].sites[0].key, calls("1♠ 1NT P 2♣ P"));
+    }
+
+    /// A later imperative overwrite is authoritative; displaced row metadata
+    /// does not leak into finalization (the Dutch opening compatibility case).
+    #[test]
+    fn exact_overwrite_drops_displaced_metadata() {
+        let mut book = compiled(&[Package {
+            name: "test",
+            gate: || true,
+            entries: || rows_of(Pattern::node("1♥ (P)"), two_rule_table()),
+        }]);
+        assert_eq!(book.finalize_authoring().patterns().len(), 1);
+        book.insert(&calls("1♥ P"), Rules::new().rule(Call::Pass, 0.0, hcp(0..)));
+        assert!(book.finalize_authoring().patterns().is_empty());
+    }
+
+    /// Merge keeps the receiver's exact classifier at a collision, while
+    /// retaining metadata from every non-colliding route in the other trie.
+    #[test]
+    fn merge_filters_exact_collision_and_keeps_disjoint_metadata() {
+        let mut book = compiled(&[Package {
+            name: "receiver",
+            gate: || true,
+            entries: || rows_of(Pattern::node("1♥ (P)"), two_rule_table()),
+        }]);
+        let receiver_id = book.authoring().patterns()[0].id;
+
+        let other = compiled(&[Package {
+            name: "other",
+            gate: || true,
+            entries: || {
+                let mut entries = rows_of(Pattern::node("1♥ (P)"), two_rule_table());
+                entries.extend(rows_of(Pattern::node("1♠ (P)"), two_rule_table()));
+                entries
+            },
+        }]);
+        let displaced_id = other.authoring().patterns()[0].id;
+        let disjoint_id = other.authoring().patterns()[1].id;
+
+        assert_eq!(
+            book.merge(other),
+            vec![calls("1♥ P").into_boxed_slice()],
+            "the shared exact node is the sole collision",
+        );
+
+        let catalog = book.finalize_authoring();
+        assert_eq!(catalog.patterns().len(), 2);
+        assert!(
+            catalog
+                .patterns()
+                .iter()
+                .any(|pattern| pattern.id == receiver_id)
+        );
+        assert!(
+            catalog
+                .patterns()
+                .iter()
+                .any(|pattern| pattern.id == disjoint_id)
+        );
+        assert!(
+            catalog
+                .patterns()
+                .iter()
+                .all(|pattern| pattern.id != displaced_id),
+            "metadata for the classifier rejected by merge is stale",
+        );
+
+        let disjoint = catalog
+            .patterns()
+            .iter()
+            .find(|pattern| pattern.id == disjoint_id)
+            .expect("the non-colliding pattern survives");
+        assert_eq!(&*disjoint.sites[0].key, calls("1♠ P"));
+        assert_eq!(disjoint.sites[0].placement, Placement::Exact);
+        assert_eq!(&*disjoint.package, "other");
+    }
+
+    /// Fallback lists concatenate receiver-first on merge, and finalized
+    /// sites retain the same indices used by runtime provenance.
+    #[test]
+    fn merge_preserves_fallback_order_in_catalog_and_runtime() {
+        let mut book = compiled(&[Package {
+            name: "receiver",
+            gate: || true,
+            entries: || rows_of(Pattern::first("1♥", "X"), two_rule_table()),
+        }]);
+        let receiver_id = book.authoring().patterns()[0].id;
+        let other = compiled(&[Package {
+            name: "other",
+            gate: || true,
+            entries: || rows_of(Pattern::first("1♥", "X"), two_rule_table()),
+        }]);
+        let other_id = other.authoring().patterns()[0].id;
+        assert!(book.merge(other).is_empty());
+
+        let catalog = book.finalize_authoring();
+        let receiver = catalog
+            .patterns()
+            .iter()
+            .find(|pattern| pattern.id == receiver_id)
+            .expect("receiver metadata survives");
+        let other = catalog
+            .patterns()
+            .iter()
+            .find(|pattern| pattern.id == other_id)
+            .expect("merged metadata survives");
+        assert_eq!(
+            receiver.sites[0].placement,
+            Placement::Fallback { index: 0 }
+        );
+        assert_eq!(other.sites[0].placement, Placement::Fallback { index: 1 });
+
+        let auction = calls("1♥ X");
+        let context = Context::new(RelativeVulnerability::NONE, &auction);
+        let (_, provenance) = book
+            .resolve(&context, &auction)
+            .expect("a fallback answers");
+        assert_eq!(provenance.fallback, Some(0), "receiver fallback wins first");
+    }
+
+    /// Cloning and merging can deliberately create two pointer-identical live
+    /// fallback slots. Both indices belong to the same logical pattern.
+    #[test]
+    fn duplicate_live_fallback_slots_are_all_cataloged() {
+        let mut book = compiled(&[Package {
+            name: "test",
+            gate: || true,
+            entries: || rows_of(Pattern::first("1♥", "X"), two_rule_table()),
+        }]);
+        let id = book.authoring().patterns()[0].id;
+        assert!(book.merge(book.clone()).is_empty());
+
+        let catalog = book.finalize_authoring();
+        assert_eq!(catalog.patterns().len(), 1, "one logical pattern ID");
+        let pattern = &catalog.patterns()[0];
+        assert_eq!(pattern.id, id);
+        assert_eq!(pattern.sites.len(), 2, "both runtime slots are live");
+        assert_eq!(
+            pattern
+                .sites
+                .iter()
+                .map(|site| site.placement)
+                .collect::<Vec<_>>(),
+            [
+                Placement::Fallback { index: 0 },
+                Placement::Fallback { index: 1 },
+            ],
+        );
+        let expected = calls("1♥");
+        assert!(
+            pattern
+                .sites
+                .iter()
+                .all(|site| site.key.as_ref() == expected.as_slice()),
+        );
+    }
+
+    /// Grafting a rebase row carries its logical identity and fallback site
+    /// to the destination, and the copied runtime rewrite still resolves.
+    #[test]
+    fn graft_preserves_rebase_metadata_and_behavior() {
+        let mut source = compiled(&[Package {
+            name: "systems-on",
+            gate: || true,
+            entries: || vec![rebase(Pattern::first("1NT", "X"), ReplaceNext(Call::Pass))],
+        }]);
+        source.insert(&calls("1NT P 2♣"), two_rule_table());
+        let id = source.authoring().patterns()[0].id;
+
+        let mut grafted = Trie::new();
+        assert!(
+            grafted
+                .graft(&calls("1♠ 1NT"), &source, &calls("1NT"))
+                .is_empty()
+        );
+
+        let catalog = grafted.finalize_authoring();
+        assert_eq!(catalog.patterns().len(), 1);
+        let pattern = &catalog.patterns()[0];
+        assert_eq!(pattern.id, id);
+        assert_eq!(pattern.target, PreservedTargetKind::Rebase);
+        assert_eq!(&*pattern.package, "systems-on");
+        assert_eq!(&*pattern.sites[0].key, calls("1♠ 1NT"));
+        assert_eq!(pattern.sites[0].placement, Placement::Fallback { index: 0 });
+
+        let auction = calls("1♠ 1NT X 2♣");
+        let context = Context::new(RelativeVulnerability::NONE, &auction);
+        let (_, provenance) = grafted
+            .resolve(&context, &auction)
+            .expect("the grafted rebase reaches its copied exact node");
+        assert_eq!(provenance.rebases, 1);
+        assert_eq!(provenance.depth, 4);
+    }
+
+    /// An imperative root floor remains available to resolution but does not
+    /// become an authored pattern or disturb the row fallback's slot.
+    #[test]
+    fn floor_is_not_cataloged_or_confused_with_row_fallback() {
+        let mut book = compiled(&[Package {
+            name: "row",
+            gate: || true,
+            entries: || rows_of(Pattern::first("", "1♣"), two_rule_table()),
+        }]);
+        book.fallback_at(
+            &[],
+            Always,
+            Fallback::classify(Rules::new().rule(Call::Pass, 0.0, hcp(0..))),
+        );
+        assert_eq!(book.fallbacks().len(), 2, "row plus imperative floor");
+
+        let catalog = book.finalize_authoring();
+        assert_eq!(catalog.patterns().len(), 1, "only the row is inventoried");
+        assert_eq!(catalog.patterns()[0].sites.len(), 1);
+        assert!(catalog.patterns()[0].sites[0].key.is_empty());
+        assert_eq!(
+            catalog.patterns()[0].sites[0].placement,
+            Placement::Fallback { index: 0 }
+        );
+
+        let row_auction = calls("1♣");
+        let row_context = Context::new(RelativeVulnerability::NONE, &row_auction);
+        let (_, row_provenance) = book
+            .resolve(&row_context, &row_auction)
+            .expect("the authored row answers");
+        assert_eq!(row_provenance.fallback, Some(0));
+
+        let floor_auction = calls("P");
+        let floor_context = Context::new(RelativeVulnerability::NONE, &floor_auction);
+        let (_, floor_provenance) = book
+            .resolve(&floor_context, &floor_auction)
+            .expect("the floor answers outside the row guard");
+        assert_eq!(floor_provenance.fallback, Some(1));
+    }
+
+    /// Production finalization transfers package provenance into the flat
+    /// catalog, drains pending metadata, and leaves runtime classifiers live.
+    #[test]
+    fn consuming_finalization_drains_ledger_and_retains_package() {
+        let mut book = compiled(&[Package {
+            name: "P3:inventory-regression",
+            gate: || true,
+            entries: || rows_of(Pattern::node("1♥ (P)"), two_rule_table()),
+        }]);
+        assert_eq!(book.authoring().patterns().len(), 1);
+
+        let catalog = book.take_finalized_authoring();
+        assert!(book.authoring().patterns().is_empty());
+        assert_eq!(catalog.patterns().len(), 1);
+        assert_eq!(&*catalog.patterns()[0].package, "P3:inventory-regression");
+        assert_eq!(&*catalog.patterns()[0].source, "1♥ (P)");
+        assert_eq!(catalog.patterns()[0].sites[0].placement, Placement::Exact);
+        assert!(
+            book.get(&calls("1♥ P")).is_some(),
+            "draining metadata does not remove the runtime classifier",
+        );
+        assert!(
+            book.take_finalized_authoring().patterns().is_empty(),
+            "the pending ledger was consumed exactly once",
+        );
     }
 
     /// Re-declaring a pattern non-consecutively is an authoring bug: the
