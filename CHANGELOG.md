@@ -136,6 +136,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Evaluator feature extractors now return fixed arrays (breaking).**
+  `features_eval`, `features_eval_v3`, `features_eval_v4`,
+  `features_eval_shape`, and `features_eval_points` return arrays at their
+  published `FEATURES_LEN_*` widths instead of allocating `Vec<f32>` values.
+  This is an intentional source break in the 0.11 development window; slices
+  remain available through ordinary array borrowing, and every element is
+  bit-identical to the former vectors. The policy extractors `features_v3` and
+  `features_v4` are unchanged.
+
 - **The forward-reading box aggregate is now `EnvelopeUnion`, and bounding
   operations are `span`.** The unreleased `Dnf` name described the Boolean
   construction rather than the concrete public value: a nonempty union of

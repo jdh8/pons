@@ -1350,6 +1350,12 @@ impl Envelope {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum EnvelopeBoxes {
+    One(Envelope),
+    Many(Vec<Envelope>),
+}
+
 /// A forward reading as a nonempty union of envelope boxes
 ///
 /// One [`Envelope`] is a single axis-aligned box; a disjunction (`Multi`, a
@@ -1363,18 +1369,54 @@ impl Envelope {
 /// box-intersects, dropping empty products); [`union`][Self::union] concatenates.
 /// [`hull`][Self::hull] collapses the union back to the single bounding box, the
 /// migration escape hatch that reproduces the legacy single-box reading.
-#[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-pub struct EnvelopeUnion(
-    /// The disjoined boxes; non-empty (`len >= 1`) by invariant.
-    Vec<Envelope>,
-);
+#[derive(Clone, PartialEq, Eq)]
+pub struct EnvelopeUnion(EnvelopeBoxes);
+
+impl core::fmt::Debug for EnvelopeUnion {
+    fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        formatter
+            .debug_tuple("EnvelopeUnion")
+            .field(&self.boxes())
+            .finish()
+    }
+}
+
+#[cfg(feature = "serde")]
+impl serde::Serialize for EnvelopeUnion {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serde::Serialize::serialize(self.boxes(), serializer)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> serde::Deserialize<'de> for EnvelopeUnion {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let boxes = <Vec<Envelope> as serde::Deserialize>::deserialize(deserializer)?;
+        Ok(Self::from_boxes(boxes))
+    }
+}
 
 impl EnvelopeUnion {
     /// Nothing shown yet: a single [`Envelope::unknown`] box
     #[must_use]
     pub fn unknown() -> Self {
-        Self(vec![Envelope::unknown()])
+        Self(EnvelopeBoxes::One(Envelope::unknown()))
+    }
+
+    fn from_boxes(mut boxes: Vec<Envelope>) -> Self {
+        if boxes.len() == 1 {
+            Self(EnvelopeBoxes::One(boxes.pop().expect("one envelope")))
+        } else {
+            // Preserve serde's historical acceptance of an empty sequence even
+            // though all public constructors maintain the non-empty invariant.
+            Self(EnvelopeBoxes::Many(boxes))
+        }
     }
 
     /// The bounding box of the union — fold [`Envelope::span`] over the terms
@@ -1384,7 +1426,7 @@ impl EnvelopeUnion {
     /// hull), so hulling a sound `EnvelopeUnion` stays sound.
     #[must_use]
     pub fn hull(&self) -> Envelope {
-        self.0
+        self.boxes()
             .iter()
             .copied()
             .reduce(|a, b| a.span(&b))
@@ -1394,20 +1436,38 @@ impl EnvelopeUnion {
     /// Whether **some** box admits the hand — tighter than `hull().admits()`
     #[must_use]
     pub fn contains(&self, hand: Hand) -> bool {
-        self.0.iter().any(|b| b.admits(hand))
+        self.boxes().iter().any(|b| b.admits(hand))
     }
 
     /// The disjoined boxes — non-empty (`len >= 1`) by invariant
     #[must_use]
     pub fn boxes(&self) -> &[Envelope] {
-        &self.0
+        match &self.0 {
+            EnvelopeBoxes::One(box_) => core::slice::from_ref(box_),
+            EnvelopeBoxes::Many(boxes) => boxes,
+        }
     }
 
     /// Concatenate the terms — the `|` projection (either box may hold)
     #[must_use]
-    pub fn union(mut self, mut other: Self) -> Self {
-        self.0.append(&mut other.0);
-        self
+    pub fn union(self, other: Self) -> Self {
+        match (self.0, other.0) {
+            (EnvelopeBoxes::One(one), EnvelopeBoxes::One(two)) => {
+                Self(EnvelopeBoxes::Many(vec![one, two]))
+            }
+            (EnvelopeBoxes::One(one), EnvelopeBoxes::Many(mut many)) => {
+                many.insert(0, one);
+                Self(EnvelopeBoxes::Many(many))
+            }
+            (EnvelopeBoxes::Many(mut many), EnvelopeBoxes::One(one)) => {
+                many.push(one);
+                Self(EnvelopeBoxes::Many(many))
+            }
+            (EnvelopeBoxes::Many(mut one), EnvelopeBoxes::Many(mut two)) => {
+                one.append(&mut two);
+                Self(EnvelopeBoxes::Many(one))
+            }
+        }
     }
 
     /// The `|` combine the projection fold uses: separate boxes under
@@ -1435,28 +1495,62 @@ impl EnvelopeUnion {
     /// — sound and loose, never an empty (unsound) `EnvelopeUnion`.
     #[must_use]
     pub fn intersect(&self, other: &Self) -> Self {
-        let mut out = Vec::new();
-        for a in &self.0 {
-            for b in &other.0 {
-                if let Some(product) = a.intersect_nonempty(b) {
-                    out.push(product);
+        self.clone().intersect_owned(other)
+    }
+
+    /// Consuming intersection used by append-only projection accumulators.
+    pub(crate) fn intersect_owned(self, other: &Self) -> Self {
+        let fallback = self.hull().intersect(&other.hull());
+        match (self.0, &other.0) {
+            (EnvelopeBoxes::One(one), EnvelopeBoxes::One(two)) => Self(EnvelopeBoxes::One(
+                one.intersect_nonempty(two).unwrap_or(fallback),
+            ))
+            .tidy(),
+            (EnvelopeBoxes::Many(mut boxes), EnvelopeBoxes::One(one)) => {
+                boxes.retain_mut(|box_| {
+                    let Some(product) = box_.intersect_nonempty(one) else {
+                        return false;
+                    };
+                    *box_ = product;
+                    true
+                });
+                if boxes.is_empty() {
+                    Self(EnvelopeBoxes::One(fallback)).tidy()
+                } else {
+                    Self::from_boxes(boxes).tidy()
                 }
             }
+            (left, _) => {
+                let left = Self(left);
+                let mut out = Vec::new();
+                for a in left.boxes() {
+                    for b in other.boxes() {
+                        if let Some(product) = a.intersect_nonempty(b) {
+                            out.push(product);
+                        }
+                    }
+                }
+                if out.is_empty() {
+                    out.push(fallback);
+                }
+                // ponytail: no cap — `and`-of-two-`or`s is the only multiplier and it is
+                // rare, so the Vec stays short on the real book.  The assert fires
+                // loudly if some auction blows up; add sound exact-merge (containment +
+                // axis-adjacency) only then.
+                let out = Self::from_boxes(out).tidy();
+                debug_assert!(
+                    out.boxes().len() < 64,
+                    "envelope union term explosion: {} boxes",
+                    out.boxes().len()
+                );
+                out
+            }
         }
-        if out.is_empty() {
-            out.push(self.hull().intersect(&other.hull()));
-        }
-        // ponytail: no cap — `and`-of-two-`or`s is the only multiplier and it is
-        // rare, so the Vec stays short on the real book.  The assert fires
-        // loudly if some auction blows up; add sound exact-merge (containment +
-        // axis-adjacency) only then.
-        let out = Self(out).tidy();
-        debug_assert!(
-            out.0.len() < 64,
-            "envelope union term explosion: {} boxes",
-            out.0.len()
-        );
-        out
+    }
+
+    fn intersect_assign(&mut self, other: &Self) {
+        let owned = core::mem::replace(self, Self::unknown());
+        *self = owned.intersect_owned(other);
     }
 
     /// Knob-on box hygiene — drop what changes nothing, keep the union exact
@@ -1473,17 +1567,32 @@ impl EnvelopeUnion {
     /// the knob-off hull path must stay byte-identical — and restores the
     /// non-empty invariant with ⊤ if every box was a ghost (an unsatisfiable
     /// conjunction; sound, loose, rare).
-    fn tidy(mut self) -> Self {
+    fn tidy(self) -> Self {
         if !envelope_union_reading() {
             return self;
         }
-        self.0.retain(Envelope::sum_feasible);
+        let mut boxes = match self.0 {
+            EnvelopeBoxes::One(mut box_) => {
+                if !box_.sum_feasible() {
+                    return Self::unknown();
+                }
+                if sum_closure() {
+                    box_.narrow_to_sum();
+                }
+                if upgrade_closure() {
+                    box_.narrow_to_upgrade();
+                }
+                return Self(EnvelopeBoxes::One(box_));
+            }
+            EnvelopeBoxes::Many(boxes) => boxes,
+        };
+        boxes.retain(Envelope::sum_feasible);
         if sum_closure() || upgrade_closure() {
             // Exact and membership-inert, so running it *before* the dedup is
             // safe: every containment it exposes is a real one.  Sum first —
             // it can force a box balanced, which is what the upgrade closure
             // reads.
-            for box_ in &mut self.0 {
+            for box_ in &mut boxes {
                 if sum_closure() {
                     box_.narrow_to_sum();
                 }
@@ -1492,25 +1601,32 @@ impl EnvelopeUnion {
                 }
             }
         }
-        let mut kept = Vec::with_capacity(self.0.len());
-        'boxes: for (i, a) in self.0.iter().enumerate() {
-            for (j, b) in self.0.iter().enumerate() {
+        let mut i = 0;
+        while i < boxes.len() {
+            let mut redundant = false;
+            for (j, b) in boxes.iter().enumerate() {
+                let a = &boxes[i];
                 if i != j && a.subset_of(b) && (!b.subset_of(a) || j < i) {
-                    continue 'boxes;
+                    redundant = true;
+                    break;
                 }
             }
-            kept.push(*a);
+            if redundant {
+                boxes.remove(i);
+            } else {
+                i += 1;
+            }
         }
-        if kept.is_empty() {
-            kept.push(Envelope::unknown());
+        if boxes.is_empty() {
+            return Self::unknown();
         }
-        Self(kept)
+        Self::from_boxes(boxes)
     }
 }
 
 impl From<Envelope> for EnvelopeUnion {
     fn from(box_: Envelope) -> Self {
-        Self(vec![box_])
+        Self(EnvelopeBoxes::One(box_))
     }
 }
 
@@ -1795,13 +1911,13 @@ impl Inferences {
             },
             ..Envelope::unknown()
         };
-        copy.unions[i] = copy.unions[i].intersect(&slab.into());
+        copy.unions[i].intersect_assign(&slab.into());
         // An externally-imposed points slice is a fact about the hand, not a
         // reading of a call, so it narrows the agreement side identically —
         // otherwise the two drift apart on the one axis the caller sliced.
         copy.announced_players[i].strength.points =
             copy.announced_players[i].strength.points.intersect(points);
-        copy.announced_unions[i] = copy.announced_unions[i].intersect(&slab.into());
+        copy.announced_unions[i].intersect_assign(&slab.into());
         copy
     }
 
@@ -3024,7 +3140,7 @@ fn classify_high_bid(
 /// so the result is the single box `players[i]` and
 /// `unions[i].hull() == players[i]` (byte-identical).
 fn intersect_overlay(players: &[Envelope; 4], overlay: &[EnvelopeUnion; 4]) -> [EnvelopeUnion; 4] {
-    std::array::from_fn(|i| EnvelopeUnion::from(players[i]).intersect(&overlay[i]))
+    std::array::from_fn(|i| EnvelopeUnion::from(players[i]).intersect_owned(&overlay[i]))
 }
 
 /// One table's pass reading: the union of its Pass rules' bands, knob-on
@@ -3038,24 +3154,26 @@ fn intersect_overlay(players: &[Envelope; 4], overlay: &[EnvelopeUnion; 4]) -> [
 /// holds the box count down.  [`None`] when the table authors no Pass rule at
 /// all (the projection pass then records nothing, as before).
 #[inline]
-fn project_pass(
+fn project_pass<'a>(
     rules: &super::rules::Rules,
-    compiled: Option<&super::rules::CompiledRules>,
+    compiled: Option<&'a super::rules::CompiledRules>,
     ctx: &Context<'_>,
-) -> Option<EnvelopeUnion> {
+) -> Option<super::rules::ProjectedUnion<'a>> {
     let band = if let Some(compiled) = compiled {
         compiled
             .pass_rule_indices()
             .iter()
             .map(|&index| compiled.project_band_union_matched(rules, index, ctx))
-            .reduce(EnvelopeUnion::disjoin)?
+            .reduce(super::rules::ProjectedUnion::disjoin)?
     } else {
-        rules
-            .rules()
-            .iter()
-            .filter(|rule| rule.call() == Call::Pass)
-            .map(|rule| rule.project_band_union(ctx))
-            .reduce(EnvelopeUnion::disjoin)?
+        super::rules::ProjectedUnion::Owned(
+            rules
+                .rules()
+                .iter()
+                .filter(|rule| rule.call() == Call::Pass)
+                .map(|rule| rule.project_band_union(ctx))
+                .reduce(EnvelopeUnion::disjoin)?,
+        )
     };
     if !pass_exclusion_reading() {
         return Some(band);
@@ -3064,15 +3182,18 @@ fn project_pass(
         let pass = compiled
             .pass_plan()
             .expect("Pass indices imply a Pass plan");
-        return Some(
+        return Some(super::rules::ProjectedUnion::Owned(
             pass.stronger_nonpass_indices()
                 .iter()
                 .map(|&index| compiled.project_complement_union_matched(rules, index, ctx))
                 .filter(|complement| {
-                    complement.boxes().len() == 1 && complement.boxes()[0] != Envelope::unknown()
+                    complement.as_union().boxes().len() == 1
+                        && complement.as_union().boxes()[0] != Envelope::unknown()
                 })
-                .fold(band, |acc, complement| acc.intersect(&complement)),
-        );
+                .fold(band.into_owned(), |acc, complement| {
+                    acc.intersect_owned(complement.as_union())
+                }),
+        ));
     }
     let ceiling = rules
         .rules()
@@ -3080,7 +3201,7 @@ fn project_pass(
         .filter(|rule| rule.call() == Call::Pass)
         .map(super::rules::Rule::weight)
         .fold(f32::NEG_INFINITY, f32::max);
-    Some(
+    Some(super::rules::ProjectedUnion::Owned(
         rules
             .rules()
             .iter()
@@ -3089,8 +3210,10 @@ fn project_pass(
             .filter(|complement| {
                 complement.boxes().len() == 1 && complement.boxes()[0] != Envelope::unknown()
             })
-            .fold(band, |acc, complement| acc.intersect(&complement)),
-    )
+            .fold(band.into_owned(), |acc, complement| {
+                acc.intersect_owned(&complement)
+            }),
+    ))
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -3109,10 +3232,10 @@ impl AuthoredProjection {
         }
     }
 
-    fn apply(&mut self, len: usize, index: usize, effect: AuthoredEffect) {
+    fn apply(&mut self, len: usize, index: usize, effect: AuthoredEffect<'_>) {
         let who = relative_of(len, index) as usize;
-        self.announced_unions[who] = self.announced_unions[who].intersect(&effect.agreement);
-        self.unions[who] = self.unions[who].intersect(&effect.projection);
+        self.announced_unions[who].intersect_assign(effect.agreement());
+        self.unions[who].intersect_assign(effect.projection.as_union());
         if effect.suppresses_natural && index < 64 {
             self.suppressed |= 1 << index;
         }
@@ -3131,22 +3254,30 @@ impl AuthoredProjection {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-struct AuthoredEffect {
-    projection: EnvelopeUnion,
-    agreement: EnvelopeUnion,
+struct AuthoredEffect<'a> {
+    projection: super::rules::ProjectedUnion<'a>,
+    agreement: Option<super::rules::ProjectedUnion<'a>>,
     suppresses_natural: bool,
 }
 
+impl AuthoredEffect<'_> {
+    fn agreement(&self) -> &EnvelopeUnion {
+        self.agreement
+            .as_ref()
+            .unwrap_or(&self.projection)
+            .as_union()
+    }
+}
+
 #[inline(always)]
-fn authored_effect(
+fn authored_effect<'a>(
     made: Call,
     ctx: &Context<'_>,
     classifier: &dyn super::trie::Classifier,
-    compiled: Option<&super::rules::CompiledRules>,
+    compiled: Option<&'a super::rules::CompiledRules>,
     decode_pass: bool,
     announce_split: bool,
-) -> Option<AuthoredEffect> {
+) -> Option<AuthoredEffect<'a>> {
     let rules = classifier.as_rules()?;
     let is_pass = made == Call::Pass;
     let scope = (!is_pass).then(reading_scope);
@@ -3184,14 +3315,14 @@ fn authored_effect(
             .iter()
             .filter(|&&index| compiled.face_live_memoized(rules, index, ctx, &mut face_memo))
             .map(|&index| compiled.project_union_matched(rules, index, ctx))
-            .reduce(EnvelopeUnion::disjoin)
+            .reduce(super::rules::ProjectedUnion::disjoin)
     } else {
         rules
             .rules()
             .iter()
             .filter(|rule| rule.call() == made && rule.face_live(ctx))
-            .map(|rule| rule.project_union(ctx))
-            .reduce(EnvelopeUnion::disjoin)
+            .map(|rule| super::rules::ProjectedUnion::Owned(rule.project_union(ctx)))
+            .reduce(super::rules::ProjectedUnion::disjoin)
     }?;
 
     let alerted = !is_pass
@@ -3226,19 +3357,17 @@ fn authored_effect(
                 .iter()
                 .filter(|&&index| compiled.face_live_memoized(rules, index, ctx, &mut face_memo))
                 .map(|&index| compiled.announce_union_matched(rules, index, ctx))
-                .reduce(EnvelopeUnion::disjoin)
-                .unwrap_or_else(|| projection.clone())
+                .reduce(super::rules::ProjectedUnion::disjoin)
         } else {
             rules
                 .rules()
                 .iter()
                 .filter(|rule| rule.call() == made && rule.alert().is_some() && rule.face_live(ctx))
-                .map(|rule| rule.announce_union(ctx))
-                .reduce(EnvelopeUnion::disjoin)
-                .unwrap_or_else(|| projection.clone())
+                .map(|rule| super::rules::ProjectedUnion::Owned(rule.announce_union(ctx)))
+                .reduce(super::rules::ProjectedUnion::disjoin)
         }
     } else {
-        projection.clone()
+        None
     };
     Some(AuthoredEffect {
         projection,
@@ -3263,10 +3392,10 @@ impl AbsoluteProjection {
         }
     }
 
-    fn push(&mut self, index: usize, effect: AuthoredEffect) {
+    fn push(&mut self, index: usize, effect: AuthoredEffect<'_>) {
         let seat = index % 4;
-        self.unions[seat] = self.unions[seat].intersect(&effect.projection);
-        self.announced_unions[seat] = self.announced_unions[seat].intersect(&effect.agreement);
+        self.unions[seat].intersect_assign(effect.projection.as_union());
+        self.announced_unions[seat].intersect_assign(effect.agreement());
         if effect.suppresses_natural && index < 64 {
             self.suppressed |= 1 << index;
         }
@@ -3755,8 +3884,8 @@ impl AuthoringStepCache {
                 self.probed.push(
                     index,
                     AuthoredEffect {
-                        projection: union.clone(),
-                        agreement: union,
+                        projection: super::rules::ProjectedUnion::Owned(union),
+                        agreement: None,
                         suppresses_natural: false,
                     },
                 );
@@ -3780,10 +3909,9 @@ impl AuthoringStepCache {
         for absolute in 0..4 {
             let relative = (absolute + 4 - auction.len() % 4) % 4;
             for category in [&self.own, &self.opponents, &self.passes, &self.probed] {
-                snapshot.unions[relative] =
-                    snapshot.unions[relative].intersect(&category.unions[absolute]);
-                snapshot.announced_unions[relative] = snapshot.announced_unions[relative]
-                    .intersect(&category.announced_unions[absolute]);
+                snapshot.unions[relative].intersect_assign(&category.unions[absolute]);
+                snapshot.announced_unions[relative]
+                    .intersect_assign(&category.announced_unions[absolute]);
                 snapshot.suppressed |= category.suppressed;
             }
         }
@@ -4185,9 +4313,8 @@ fn project_authored_with(
             if let Some(&box_) = them.probed_box(&auction[..=index]) {
                 let who = relative_of(len, index) as usize;
                 let union = EnvelopeUnion::from(box_);
-                projection.unions[who] = projection.unions[who].intersect(&union);
-                projection.announced_unions[who] =
-                    projection.announced_unions[who].intersect(&union);
+                projection.unions[who].intersect_assign(&union);
+                projection.announced_unions[who].intersect_assign(&union);
             }
         }
     }
@@ -5294,13 +5421,10 @@ mod tests {
             true
         });
         let face_compiled = face_rules.compile(&context);
-        assert_eq!(
-            authored_effect(one_club, &context, &face_rules, None, false, false),
-            None
-        );
+        assert!(authored_effect(one_club, &context, &face_rules, None, false, false).is_none());
         let legacy_face_events = face_events.lock().unwrap().clone();
         face_events.lock().unwrap().clear();
-        assert_eq!(
+        assert!(
             authored_effect(
                 one_club,
                 &context,
@@ -5308,8 +5432,8 @@ mod tests {
                 Some(&face_compiled),
                 false,
                 false,
-            ),
-            None
+            )
+            .is_none()
         );
         assert_eq!(*face_events.lock().unwrap(), legacy_face_events);
         assert_eq!(legacy_face_events, ["face"]);
@@ -5323,13 +5447,12 @@ mod tests {
             },
         );
         let projection_compiled = projection_rules.compile(&context);
-        assert_eq!(
-            authored_effect(one_club, &context, &projection_rules, None, false, false,),
-            None
+        assert!(
+            authored_effect(one_club, &context, &projection_rules, None, false, false,).is_none()
         );
         let legacy_projection_events = projection_events.lock().unwrap().clone();
         projection_events.lock().unwrap().clear();
-        assert_eq!(
+        assert!(
             authored_effect(
                 one_club,
                 &context,
@@ -5337,8 +5460,8 @@ mod tests {
                 Some(&projection_compiled),
                 false,
                 false,
-            ),
-            None
+            )
+            .is_none()
         );
         assert_eq!(*projection_events.lock().unwrap(), legacy_projection_events);
         assert_eq!(legacy_projection_events, ["project"]);
@@ -5352,13 +5475,10 @@ mod tests {
             },
         );
         let pass_compiled = pass_rules.compile(&context);
-        assert_eq!(
-            authored_effect(Call::Pass, &context, &pass_rules, None, false, false),
-            None
-        );
+        assert!(authored_effect(Call::Pass, &context, &pass_rules, None, false, false).is_none());
         let legacy_pass_events = pass_events.lock().unwrap().clone();
         pass_events.lock().unwrap().clear();
-        assert_eq!(
+        assert!(
             authored_effect(
                 Call::Pass,
                 &context,
@@ -5366,8 +5486,8 @@ mod tests {
                 Some(&pass_compiled),
                 false,
                 false,
-            ),
-            None
+            )
+            .is_none()
         );
         assert_eq!(*pass_events.lock().unwrap(), legacy_pass_events);
         assert_eq!(legacy_pass_events, ["project"]);
@@ -5686,6 +5806,133 @@ mod tests {
     /// `intersect` distributes and **drops** the empty
     /// products, so a disjunctive reading stays tight instead of hulling to the
     /// bounding box.  The worked example is `1NT ∩ 4-5♥` (opener's Stayman `2♥`).
+    #[derive(Clone)]
+    struct VecEnvelopeUnion(Vec<Envelope>);
+
+    impl VecEnvelopeUnion {
+        fn hull(&self) -> Envelope {
+            self.0
+                .iter()
+                .copied()
+                .reduce(|a, b| a.span(&b))
+                .unwrap_or_else(Envelope::unknown)
+        }
+
+        fn union(mut self, mut other: Self) -> Self {
+            self.0.append(&mut other.0);
+            self
+        }
+
+        fn disjoin(self, other: Self) -> Self {
+            if envelope_union_reading() {
+                self.union(other).tidy()
+            } else {
+                Self(vec![self.hull().span(&other.hull())])
+            }
+        }
+
+        fn intersect(&self, other: &Self) -> Self {
+            let mut out = Vec::new();
+            for a in &self.0 {
+                for b in &other.0 {
+                    if let Some(product) = a.intersect_nonempty(b) {
+                        out.push(product);
+                    }
+                }
+            }
+            if out.is_empty() {
+                out.push(self.hull().intersect(&other.hull()));
+            }
+            Self(out).tidy()
+        }
+
+        fn tidy(mut self) -> Self {
+            if !envelope_union_reading() {
+                return self;
+            }
+            self.0.retain(Envelope::sum_feasible);
+            if sum_closure() || upgrade_closure() {
+                for box_ in &mut self.0 {
+                    if sum_closure() {
+                        box_.narrow_to_sum();
+                    }
+                    if upgrade_closure() {
+                        box_.narrow_to_upgrade();
+                    }
+                }
+            }
+            let mut kept = Vec::with_capacity(self.0.len());
+            'boxes: for (i, a) in self.0.iter().enumerate() {
+                for (j, b) in self.0.iter().enumerate() {
+                    if i != j && a.subset_of(b) && (!b.subset_of(a) || j < i) {
+                        continue 'boxes;
+                    }
+                }
+                kept.push(*a);
+            }
+            if kept.is_empty() {
+                kept.push(Envelope::unknown());
+            }
+            Self(kept)
+        }
+    }
+
+    #[test]
+    fn inline_union_matches_the_vec_oracle_in_every_closure_profile() {
+        let envelope = |lengths: [(u8, u8); 4], points: (u8, u8)| Envelope {
+            lengths: lengths.map(|(min, max)| Range::new(min, max)),
+            strength: Strength {
+                points: Range::new(points.0, points.1),
+                ..Strength::unknown()
+            },
+        };
+        let left = vec![
+            envelope([(2, 6), (2, 6), (2, 4), (2, 4)], (15, 17)),
+            envelope([(2, 3), (2, 3), (2, 3), (5, 5)], (15, 17)),
+            envelope([(0, 1), (0, 1), (0, 1), (0, 1)], (0, 37)),
+        ];
+        let right = vec![
+            envelope([(0, 13), (0, 13), (4, 5), (0, 13)], (0, 37)),
+            envelope([(0, 13), (0, 13), (5, 5), (0, 13)], (8, 20)),
+        ];
+
+        for union in [false, true] {
+            for sum in [false, true] {
+                for upgrade in [false, true] {
+                    set_envelope_union_reading(union);
+                    set_sum_closure(sum);
+                    set_upgrade_closure(upgrade);
+
+                    let actual_left = EnvelopeUnion::from_boxes(left.clone());
+                    let actual_right = EnvelopeUnion::from_boxes(right.clone());
+                    let reference_left = VecEnvelopeUnion(left.clone());
+                    let reference_right = VecEnvelopeUnion(right.clone());
+
+                    assert_eq!(
+                        actual_left.clone().tidy().boxes(),
+                        reference_left.clone().tidy().0
+                    );
+                    assert_eq!(
+                        actual_left.clone().union(actual_right.clone()).boxes(),
+                        reference_left.clone().union(reference_right.clone()).0
+                    );
+                    assert_eq!(
+                        actual_left.clone().disjoin(actual_right.clone()).boxes(),
+                        reference_left.clone().disjoin(reference_right.clone()).0
+                    );
+                    assert_eq!(
+                        actual_left.intersect(&actual_right).boxes(),
+                        reference_left.intersect(&reference_right).0
+                    );
+                }
+            }
+        }
+
+        set_envelope_union_reading(true);
+        set_sum_closure(false);
+        set_upgrade_closure(false);
+    }
+
     #[test]
     fn envelope_union_algebra_preserves_exact_alternatives() {
         // A box literal: [♣, ♦, ♥, ♠] length ranges (ASC order) and points.
@@ -5703,7 +5950,7 @@ mod tests {
         };
 
         // 1NT as three shapes, all 15-17: balanced, then each 5-card major.
-        let one_nt = EnvelopeUnion(vec![
+        let one_nt = EnvelopeUnion::from_boxes(vec![
             box_((2, 6), (2, 6), (2, 4), (2, 4), (15, 17)), // balanced
             box_((2, 3), (2, 3), (2, 3), (5, 5), (15, 17)), // 5=♠
             box_((2, 3), (2, 3), (5, 5), (2, 3), (15, 17)), // 5=♥
@@ -5715,10 +5962,10 @@ mod tests {
         let two_hearts = one_nt.intersect(&four_five_hearts);
 
         // The 5=♠ box (hearts 2-3) contradicts 4-5♥ and is dropped: 2 boxes, not 3.
-        assert_eq!(two_hearts.0.len(), 2, "empty product not dropped");
+        assert_eq!(two_hearts.boxes().len(), 2, "empty product not dropped");
         // The survivors pin hearts to exactly 4 (from balanced) and exactly 5.
         let hearts: Vec<Range> = two_hearts
-            .0
+            .boxes()
             .iter()
             .map(|b| b.length(Suit::Hearts))
             .collect();
@@ -5737,7 +5984,7 @@ mod tests {
         assert_eq!(hull, folded_span);
         assert_eq!(hull.length(Suit::Hearts), Range::new(4, 5));
         assert_eq!(hull.length(Suit::Spades), Range::new(2, 4));
-        assert!(two_hearts.0.iter().all(|b| {
+        assert!(two_hearts.boxes().iter().all(|b| {
             !(b.length(Suit::Spades).contains(4) && b.length(Suit::Hearts).contains(5))
         }));
 
@@ -5774,7 +6021,7 @@ mod tests {
         set_envelope_union_reading(true);
         let boxes = reading.project(&ctx);
         let expected_legacy_hull = EnvelopeUnion::from(boxes.hull());
-        assert_eq!(boxes.0.len(), 2, "on: one box per major");
+        assert_eq!(boxes.boxes().len(), 2, "on: one box per major");
         assert!(boxes.contains(six_spades) && boxes.contains(six_hearts));
         assert!(
             !boxes.contains(five_four),
@@ -5784,7 +6031,7 @@ mod tests {
         set_envelope_union_reading(false);
         let hull = reading.project(&ctx);
         assert_eq!(hull, expected_legacy_hull, "off: the legacy span");
-        assert_eq!(hull.0.len(), 1, "off: one bounding box");
+        assert_eq!(hull.boxes().len(), 1, "off: one bounding box");
         assert!(
             hull.contains(five_four),
             "off: the hull admits the 5-4 slop"
@@ -9231,7 +9478,13 @@ mod tests {
                 if !pass.is_finite() || pass < best_other {
                     continue;
                 }
-                if !projection.boxes().iter().any(|b| b.accepts(hand)) && failures.len() < 16 {
+                if !projection
+                    .as_union()
+                    .boxes()
+                    .iter()
+                    .any(|b| b.accepts(hand))
+                    && failures.len() < 16
+                {
                     failures.push(format!(
                         "{system}: [{}] pass reading excludes passing hand {hand}",
                         auction

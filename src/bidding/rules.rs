@@ -512,6 +512,33 @@ impl CompiledPassPlan {
 #[derive(Clone, Copy, Debug)]
 struct ProjectionPlan(RuleIndex);
 
+/// A compiled projection is borrowed from the stance-wide pool until a fold
+/// genuinely needs owned mutable boxes; dynamic projections remain owned.
+pub(crate) enum ProjectedUnion<'a> {
+    Borrowed(&'a EnvelopeUnion),
+    Owned(EnvelopeUnion),
+}
+
+impl<'a> ProjectedUnion<'a> {
+    pub(crate) const fn as_union(&self) -> &EnvelopeUnion {
+        match self {
+            Self::Borrowed(value) => value,
+            Self::Owned(value) => value,
+        }
+    }
+
+    pub(crate) fn into_owned(self) -> EnvelopeUnion {
+        match self {
+            Self::Borrowed(value) => value.clone(),
+            Self::Owned(value) => value,
+        }
+    }
+
+    pub(crate) fn disjoin(self, other: Self) -> Self {
+        Self::Owned(self.into_owned().disjoin(other.into_owned()))
+    }
+}
+
 /// Whole-stance pool of projections already proved context-independent.
 ///
 /// Row tables are often cloned into several concrete routes while retaining
@@ -1062,26 +1089,26 @@ impl CompiledRules {
     }
 
     #[inline]
-    fn projection_matched(
-        &self,
+    fn projection_matched<'a>(
+        &'a self,
         authored: &Rules,
         index: RuleIndex,
         kind: ProjectionKind,
         context: &Context<'_>,
-    ) -> EnvelopeUnion {
+    ) -> ProjectedUnion<'a> {
         let rule = self.rule(authored, index);
         if let Some(projected) = self.rules[index as usize]
             .projection(kind)
             .constant(&self.constant_projections)
         {
-            return projected.clone();
+            return ProjectedUnion::Borrowed(projected);
         }
-        match kind {
+        ProjectedUnion::Owned(match kind {
             ProjectionKind::Forward => rule.project_union(context),
             ProjectionKind::Band => rule.project_band_union(context),
             ProjectionKind::Complement => rule.project_complement_union(context),
             ProjectionKind::Announcement => rule.announce_union(context),
-        }
+        })
     }
 
     /// Forward projection when the registry has already matched the profile.
@@ -1090,7 +1117,7 @@ impl CompiledRules {
         authored: &Rules,
         index: RuleIndex,
         context: &Context<'_>,
-    ) -> EnvelopeUnion {
+    ) -> ProjectedUnion<'_> {
         self.projection_matched(authored, index, ProjectionKind::Forward, context)
     }
 
@@ -1100,7 +1127,7 @@ impl CompiledRules {
         authored: &Rules,
         index: RuleIndex,
         context: &Context<'_>,
-    ) -> EnvelopeUnion {
+    ) -> ProjectedUnion<'_> {
         self.projection_matched(authored, index, ProjectionKind::Band, context)
     }
 
@@ -1110,7 +1137,7 @@ impl CompiledRules {
         authored: &Rules,
         index: RuleIndex,
         context: &Context<'_>,
-    ) -> EnvelopeUnion {
+    ) -> ProjectedUnion<'_> {
         self.projection_matched(authored, index, ProjectionKind::Complement, context)
     }
 
@@ -1120,7 +1147,7 @@ impl CompiledRules {
         authored: &Rules,
         index: RuleIndex,
         context: &Context<'_>,
-    ) -> EnvelopeUnion {
+    ) -> ProjectedUnion<'_> {
         self.projection_matched(authored, index, ProjectionKind::Announcement, context)
     }
 

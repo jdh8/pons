@@ -36,7 +36,29 @@ fn histogram_roundtrip() -> Result<(), serde_json::Error> {
 
 #[test]
 fn envelope_union_and_inferences_use_canonical_keys() -> Result<(), serde_json::Error> {
-    roundtrip(&EnvelopeUnion::from(Envelope::unknown()))?;
+    let one = EnvelopeUnion::from(Envelope::unknown());
+    roundtrip(&one)?;
+    assert_eq!(
+        serde_json::to_vec(&one)?,
+        serde_json::to_vec(&vec![Envelope::unknown()])?,
+        "inline singleton keeps the old newtype-sequence wire shape"
+    );
+
+    let mut second = Envelope::unknown();
+    second.lengths[0].min = 5;
+    let many = one.union(EnvelopeUnion::from(second));
+    roundtrip(&many)?;
+    assert_eq!(
+        serde_json::to_vec(&many)?,
+        serde_json::to_vec(&vec![Envelope::unknown(), second])?,
+        "heap-backed unions keep the old sequence wire shape"
+    );
+
+    let empty: EnvelopeUnion = serde_json::from_str("[]")?;
+    assert!(
+        empty.boxes().is_empty(),
+        "serde acceptance must not tighten"
+    );
 
     let context = Context::new(RelativeVulnerability::NONE, &[]);
     let inferences = Inferences::read(&context);

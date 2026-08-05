@@ -6,13 +6,17 @@
 
 use super::array::Logits;
 use super::context::Context;
-use super::features::{features_eval, features_eval_v3, features_eval_v4};
+use super::features::{
+    FEATURES_LEN_EVAL, FEATURES_LEN_EVAL_V3, FEATURES_LEN_EVAL_V4, features_eval, features_eval_v3,
+    features_eval_v4,
+};
 use super::inference::{Inferences, envelope_union_reading};
 use super::rules::Rules;
 use super::trie::Classifier;
 use super::trie::Provenance;
 use super::{Stance, System};
 use contract_bridge::Hand;
+use contract_bridge::auction::Auction;
 use contract_bridge::auction::{Call, RelativeVulnerability};
 
 /// Run the frozen pre-cache classification path.
@@ -60,11 +64,11 @@ pub fn is_deterministic_instinct_floor(
 #[derive(Clone, Debug)]
 pub enum ActiveEvaluatorFeatures {
     /// Legacy v2 hull features.
-    V2(Vec<f32>),
+    V2([f32; FEATURES_LEN_EVAL]),
     /// Shipped v3 calls-tail features.
-    V3(Vec<f32>),
+    V3([f32; FEATURES_LEN_EVAL_V3]),
     /// Optional v4 shape-reading features.
-    V4(Vec<f32>),
+    V4([f32; FEATURES_LEN_EVAL_V4]),
 }
 
 impl ActiveEvaluatorFeatures {
@@ -105,6 +109,12 @@ pub fn active_evaluator_forward(features: &ActiveEvaluatorFeatures) -> [f32; 40]
         ActiveEvaluatorFeatures::V3(features) => super::evaluator::forward_v3(features),
         ActiveEvaluatorFeatures::V4(features) => super::evaluator::forward_v4(features),
     }
+}
+
+/// Select a call through the production legality mask and stable maximum.
+#[must_use]
+pub fn select_legal_call(logits: Logits, auction: &Auction) -> Call {
+    super::table::select_legal_call(Some(logits), auction)
 }
 
 /// Classify the deterministic instinct ladder under one fresh decision scope.

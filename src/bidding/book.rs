@@ -1908,25 +1908,24 @@ mod tests {
                 "full inference payload and box order at position {id}"
             );
 
-            for (name, cached, uncached) in [
-                (
-                    "evaluator-v2-features",
-                    features_eval(hand, &cached_inferences),
-                    features_eval(hand, &uncached_inferences),
-                ),
-                (
-                    "evaluator-v3-features",
-                    features_eval_v3(hand, &cached_inferences, auction),
-                    features_eval_v3(hand, &uncached_inferences, auction),
-                ),
-                (
-                    "evaluator-v4-features",
-                    features_eval_v4(hand, &cached_inferences, auction),
-                    features_eval_v4(hand, &uncached_inferences, auction),
-                ),
-            ] {
-                assert_float_bits(&cached, &uncached, name, id);
-            }
+            assert_float_bits(
+                &features_eval(hand, &cached_inferences),
+                &features_eval(hand, &uncached_inferences),
+                "evaluator-v2-features",
+                id,
+            );
+            assert_float_bits(
+                &features_eval_v3(hand, &cached_inferences, auction),
+                &features_eval_v3(hand, &uncached_inferences, auction),
+                "evaluator-v3-features",
+                id,
+            );
+            assert_float_bits(
+                &features_eval_v4(hand, &cached_inferences, auction),
+                &features_eval_v4(hand, &uncached_inferences, auction),
+                "evaluator-v4-features",
+                id,
+            );
 
             let cached_tricks = cached_context.trick_estimates(hand);
             let uncached_tricks = trick_estimates_with_auction(hand, &uncached_inferences, auction);

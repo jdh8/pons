@@ -1,7 +1,7 @@
 //! Versioned feature extractor for the AI instinct bidder
 //!
 //! Converts a bridge hand and its auction [`Context`] into a fixed-size
-//! `Vec<f32>` suitable for input to a neural network.  Every value is
+//! feature vector suitable for input to a neural network.  Every value is
 //! normalised so that the expected range is roughly `[0.0, 1.0]`; the exact
 //! layout is pinned by [`FEATURES_VERSION_V3`] so that a model trained on one
 //! version cannot be accidentally loaded under another.
@@ -60,6 +60,49 @@ pub const LEN_VUL: usize = 2;
 
 // ── Private helpers ───────────────────────────────────────────────────────────
 
+/// Minimal append-only target shared by heap-backed policy features and the
+/// evaluator's fixed stack buffers.
+trait FeatureSink {
+    fn push(&mut self, value: f32);
+}
+
+impl FeatureSink for Vec<f32> {
+    fn push(&mut self, value: f32) {
+        Vec::push(self, value);
+    }
+}
+
+/// Bounds-checked builder for one statically sized evaluator feature vector.
+struct FixedFeatures<const N: usize> {
+    values: [f32; N],
+    len: usize,
+}
+
+impl<const N: usize> FixedFeatures<N> {
+    const fn new() -> Self {
+        Self {
+            values: [0.0; N],
+            len: 0,
+        }
+    }
+
+    fn finish(self) -> [f32; N] {
+        assert_eq!(self.len, N, "evaluator feature width");
+        self.values
+    }
+}
+
+impl<const N: usize> FeatureSink for FixedFeatures<N> {
+    fn push(&mut self, value: f32) {
+        let slot = self
+            .values
+            .get_mut(self.len)
+            .expect("evaluator feature extractor exceeded its fixed width");
+        *slot = value;
+        self.len += 1;
+    }
+}
+
 /// HCP of a single holding (A=4, K=3, Q=2, J=1)
 fn holding_hcp(holding: Holding) -> u8 {
     4 * u8::from(holding.contains(Rank::A))
@@ -70,7 +113,7 @@ fn holding_hcp(holding: Holding) -> u8 {
 
 /// Push the disclosable hand summary ([`LEN_HAND_V3`] values): per suit
 /// `len/13` and `suit_hcp/10`, then global `hcp/40` and `shape/2`.
-fn push_hand(out: &mut Vec<f32>, hand: Hand) {
+fn push_hand(out: &mut impl FeatureSink, hand: Hand) {
     // Per suit: length and suit HCP only — no rank/honor/stopper card detail.
     for suit in Suit::ASC {
         let holding = hand[suit];
@@ -96,7 +139,7 @@ const HONOURS: [Rank; 5] = [Rank::A, Rank::K, Rank::Q, Rank::J, Rank::T];
 /// both one weight away, so the first layer can recover the summary exactly.
 /// The globals `hcp` and `shape` are dropped for the same reason — measured
 /// free, because `hcp` is a fixed dot product of the sixteen honour bits.
-fn push_hand_eval(out: &mut Vec<f32>, hand: Hand) {
+fn push_hand_eval(out: &mut impl FeatureSink, hand: Hand) {
     for suit in Suit::ASC {
         let holding = hand[suit];
         // A suit holds any *subset* of the honours, so count what is actually
@@ -104,7 +147,9 @@ fn push_hand_eval(out: &mut Vec<f32>, hand: Hand) {
         let held = HONOURS.map(|rank| holding.contains(rank));
         let spots = holding.len() - held.iter().filter(|&&h| h).count();
         out.push(spots as f32 / 8.0);
-        out.extend(held.map(f32::from));
+        for honour in held {
+            out.push(f32::from(honour));
+        }
     }
 }
 
@@ -153,7 +198,7 @@ fn shown(player: &Envelope) -> &Envelope {
 /// Push one player's shown ranges ([`LEN_INFERENCE`] values): per suit
 /// `{min, max}` length ÷ 13, then `{min, max}` points ÷ 37.  Nothing shown is
 /// the `[0, 1]` pattern (`Envelope::unknown`), *not* zeros.
-fn push_inference(out: &mut Vec<f32>, player: &Envelope) {
+fn push_inference(out: &mut impl FeatureSink, player: &Envelope) {
     let player = shown(player);
     for suit in Suit::ASC {
         let range = player.length(suit);
@@ -169,7 +214,7 @@ fn push_inference(out: &mut Vec<f32>, player: &Envelope) {
 ///
 /// Takes the [`shown`] envelope, not the raw one: [`push_inference`] has already
 /// resolved the blind knob by the time it delegates here.
-fn push_points(out: &mut Vec<f32>, shown: &Envelope) {
+fn push_points(out: &mut impl FeatureSink, shown: &Envelope) {
     let points = net_points(shown);
     out.push(points.min as f32 / 37.0);
     out.push(points.max as f32 / 37.0);
@@ -373,7 +418,7 @@ fn shape_of(unseen: &Unseen, boxes: Option<&[Envelope]>) -> Shape {
 /// [`upgrade`] and its two endpoint columns stay beside this block — and on one
 /// seat at a time, marginalising over the other two hidden hands exactly as the
 /// hull it replaces does.
-fn push_shape_gauss(out: &mut Vec<f32>, shape: &Shape) {
+fn push_shape_gauss(out: &mut impl FeatureSink, shape: &Shape) {
     for value in shape.mean {
         out.push((value / 13.0) as f32);
     }
@@ -406,7 +451,7 @@ fn push_shape_gauss(out: &mut Vec<f32>, shape: &Shape) {
 /// Layout is [`push_shape_gauss`]'s summary, the marginal, then the log-mass —
 /// the mass column stays last so the ablation's block offsets keep their
 /// meaning.
-fn push_shape_dist(out: &mut Vec<f32>, shape: &Shape) {
+fn push_shape_dist(out: &mut impl FeatureSink, shape: &Shape) {
     for value in shape.mean {
         out.push((value / 13.0) as f32);
     }
@@ -647,7 +692,7 @@ fn hcp_of(unseen: &UnseenHonours, boxes: Option<&[Envelope]>) -> HcpDist {
 /// it against the [`push_hcp_gauss`] block that consumes the same axis.
 ///
 /// Takes the [`shown`] envelope, like [`push_points`].
-fn push_hcp_ends(out: &mut Vec<f32>, shown: &Envelope) {
+fn push_hcp_ends(out: &mut impl FeatureSink, shown: &Envelope) {
     out.push(shown.strength.hcp.min as f32 / 37.0);
     out.push(shown.strength.hcp.max as f32 / 37.0);
 }
@@ -667,14 +712,14 @@ fn push_hcp_ends(out: &mut Vec<f32>, shown: &Envelope) {
 /// Conditions on the strength axes only, and on one seat at a time,
 /// marginalising over the other two hidden hands exactly as the endpoints it
 /// replaces do.
-fn push_hcp_gauss(out: &mut Vec<f32>, dist: &HcpDist) {
+fn push_hcp_gauss(out: &mut impl FeatureSink, dist: &HcpDist) {
     out.push((dist.mean / 37.0) as f32);
     out.push((dist.sd / HCP_SPREAD_SCALE) as f32);
     out.push(dist.mass as f32);
 }
 
 /// Push a 7-value bid encoding: [present, level/7, strain one-hot ×5]
-fn push_bid_encoding(out: &mut Vec<f32>, bid: Option<contract_bridge::Bid>) {
+fn push_bid_encoding(out: &mut impl FeatureSink, bid: Option<contract_bridge::Bid>) {
     match bid {
         None => {
             out.push(0.0); // present
@@ -702,7 +747,7 @@ fn push_bid_encoding(out: &mut Vec<f32>, bid: Option<contract_bridge::Bid>) {
 /// Everything here is derivable from the *public* auction and the partnership's
 /// disclosed agreements (the [`Inferences`] ranges), so it stays in the
 /// restrictive v3 vector unchanged.
-fn push_context(out: &mut Vec<f32>, context: &Context<'_>) {
+fn push_context(out: &mut impl FeatureSink, context: &Context<'_>) {
     // ── Context (36 values) ─────────────────────────────────────────────────
 
     // our_strains: 5 bits
@@ -963,6 +1008,13 @@ pub const LEN_HAND_EVAL: usize = 24;
 /// hand block ([`LEN_HAND_EVAL`]) plus the three *hidden* seats' range blocks.
 pub const FEATURES_LEN_EVAL: usize = LEN_HAND_EVAL + 3 * LEN_INFERENCE;
 
+fn push_eval_base(out: &mut impl FeatureSink, hand: Hand, inferences: &Inferences) {
+    push_hand_eval(out, hand);
+    for who in [Relative::Lho, Relative::Partner, Relative::Rho] {
+        push_inference(out, inferences.announced(who));
+    }
+}
+
 /// Extract the **trick-evaluator** feature vector: own hand plus what the
 /// three hidden seats have shown.
 ///
@@ -996,17 +1048,10 @@ pub const FEATURES_LEN_EVAL: usize = LEN_HAND_EVAL + 3 * LEN_INFERENCE;
 /// trie-prefixed reading is what decodes conventional calls off their authoring
 /// rules.
 #[must_use]
-pub fn features_eval(hand: Hand, inferences: &Inferences) -> Vec<f32> {
-    let mut out = Vec::with_capacity(FEATURES_LEN_EVAL);
-    push_hand_eval(&mut out, hand);
-    for who in [Relative::Lho, Relative::Partner, Relative::Rho] {
-        // The hidden seats' *agreements* — see `push_context`.  This is the site
-        // the reach ceiling names: a seat whose call the net decided projects ⊤,
-        // so without the split partner's estimate is computed on nothing.
-        push_inference(&mut out, inferences.announced(who));
-    }
-    debug_assert_eq!(out.len(), FEATURES_LEN_EVAL);
-    out
+pub fn features_eval(hand: Hand, inferences: &Inferences) -> [f32; FEATURES_LEN_EVAL] {
+    let mut out = FixedFeatures::new();
+    push_eval_base(&mut out, hand, inferences);
+    out.finish()
 }
 
 // ── The trick-evaluator extractor, v3: + the raw call tail ────────────────────
@@ -1026,7 +1071,7 @@ pub const FEATURES_LEN_EVAL_V3: usize = FEATURES_LEN_EVAL + CALLS_EVAL_V3 * LEN_
 /// Push one call-identity slot ([`LEN_CALL_EVAL_V3`] values).  `None` — the
 /// auction is shorter than the window — is all zeros, distinguishable from
 /// every real call because a real call sets `present` or a call-kind bit.
-fn push_call_identity(out: &mut Vec<f32>, call: Option<Call>) {
+fn push_call_identity(out: &mut impl FeatureSink, call: Option<Call>) {
     push_bid_encoding(
         out,
         match call {
@@ -1064,15 +1109,18 @@ fn push_call_identity(out: &mut Vec<f32>, call: Option<Call>) {
 /// | Call −4           |    84 |  10 |
 /// | **Total**         |       | **94** |
 #[must_use]
-pub fn features_eval_v3(hand: Hand, inferences: &Inferences, auction: &[Call]) -> Vec<f32> {
-    let mut out = features_eval(hand, inferences);
-    out.reserve_exact(CALLS_EVAL_V3 * LEN_CALL_EVAL_V3);
+pub fn features_eval_v3(
+    hand: Hand,
+    inferences: &Inferences,
+    auction: &[Call],
+) -> [f32; FEATURES_LEN_EVAL_V3] {
+    let mut out = FixedFeatures::new();
+    push_eval_base(&mut out, hand, inferences);
     for age in 1..=CALLS_EVAL_V3 {
         let call = auction.len().checked_sub(age).map(|j| auction[j]);
         push_call_identity(&mut out, call);
     }
-    debug_assert_eq!(out.len(), FEATURES_LEN_EVAL_V3);
-    out
+    out.finish()
 }
 
 // ── The shape-reading evaluator vector (v4) ───────────────────────────────────
@@ -1121,8 +1169,12 @@ pub const FEATURES_LEN_EVAL_V4: usize =
 /// | Calls −1 … −4               |    57 |  40 |
 /// | **Total**                   |       | **97** |
 #[must_use]
-pub fn features_eval_v4(hand: Hand, inferences: &Inferences, auction: &[Call]) -> Vec<f32> {
-    let mut out = Vec::with_capacity(FEATURES_LEN_EVAL_V4);
+pub fn features_eval_v4(
+    hand: Hand,
+    inferences: &Inferences,
+    auction: &[Call],
+) -> [f32; FEATURES_LEN_EVAL_V4] {
+    let mut out = FixedFeatures::new();
     push_hand_eval(&mut out, hand);
     let unseen = Unseen::new(hand);
     for who in [Relative::Lho, Relative::Partner, Relative::Rho] {
@@ -1134,8 +1186,7 @@ pub fn features_eval_v4(hand: Hand, inferences: &Inferences, auction: &[Call]) -
         let call = auction.len().checked_sub(age).map(|j| auction[j]);
         push_call_identity(&mut out, call);
     }
-    debug_assert_eq!(out.len(), FEATURES_LEN_EVAL_V4);
-    out
+    out.finish()
 }
 
 // ── The shape-distribution research superset ──────────────────────────────────
@@ -1168,8 +1219,12 @@ pub const FEATURES_LEN_EVAL_SHAPE: usize =
 /// | Calls −1 … −4                  |   249 |  40 |
 /// | **Total**                      |       | **289** |
 #[must_use]
-pub fn features_eval_shape(hand: Hand, inferences: &Inferences, auction: &[Call]) -> Vec<f32> {
-    let mut out = Vec::with_capacity(FEATURES_LEN_EVAL_SHAPE);
+pub fn features_eval_shape(
+    hand: Hand,
+    inferences: &Inferences,
+    auction: &[Call],
+) -> [f32; FEATURES_LEN_EVAL_SHAPE] {
+    let mut out = FixedFeatures::new();
     push_hand_eval(&mut out, hand);
     let unseen = Unseen::new(hand);
     for who in [Relative::Lho, Relative::Partner, Relative::Rho] {
@@ -1181,8 +1236,7 @@ pub fn features_eval_shape(hand: Hand, inferences: &Inferences, auction: &[Call]
         let call = auction.len().checked_sub(age).map(|j| auction[j]);
         push_call_identity(&mut out, call);
     }
-    debug_assert_eq!(out.len(), FEATURES_LEN_EVAL_SHAPE);
-    out
+    out.finish()
 }
 
 // ── The strength-reading research superset ────────────────────────────────────
@@ -1229,8 +1283,12 @@ pub const FEATURES_LEN_EVAL_POINTS: usize =
 /// moments, 1 shape mass, 2 `hcp` endpoints, 2 strength moments, 1 strength
 /// mass.
 #[must_use]
-pub fn features_eval_points(hand: Hand, inferences: &Inferences, auction: &[Call]) -> Vec<f32> {
-    let mut out = Vec::with_capacity(FEATURES_LEN_EVAL_POINTS);
+pub fn features_eval_points(
+    hand: Hand,
+    inferences: &Inferences,
+    auction: &[Call],
+) -> [f32; FEATURES_LEN_EVAL_POINTS] {
+    let mut out = FixedFeatures::new();
     push_hand_eval(&mut out, hand);
     let unseen = Unseen::new(hand);
     let honours = UnseenHonours::new(hand);
@@ -1245,8 +1303,7 @@ pub fn features_eval_points(hand: Hand, inferences: &Inferences, auction: &[Call
         let call = auction.len().checked_sub(age).map(|j| auction[j]);
         push_call_identity(&mut out, call);
     }
-    debug_assert_eq!(out.len(), FEATURES_LEN_EVAL_POINTS);
-    out
+    out.finish()
 }
 
 #[cfg(test)]
@@ -1264,6 +1321,96 @@ mod tests {
 
     fn hand(s: &str) -> Hand {
         s.parse().expect("valid test hand")
+    }
+
+    fn assert_feature_bits<const N: usize>(actual: [f32; N], reference: Vec<f32>) {
+        assert_eq!(reference.len(), N);
+        assert!(
+            actual
+                .iter()
+                .zip(reference)
+                .all(|(actual, reference)| actual.to_bits() == reference.to_bits())
+        );
+    }
+
+    #[test]
+    fn fixed_evaluator_extractors_match_the_vec_reference_bit_for_bit() {
+        let cards = hand("AQ32.K53.QJ4.A92");
+        let auction = [
+            bid(1, Strain::Clubs),
+            Call::Pass,
+            bid(1, Strain::Spades),
+            Call::Double,
+        ];
+        let context = Context::new(RelativeVulnerability::NONE, &auction);
+        let inferences = Inferences::read(&context);
+
+        let mut v2 = Vec::with_capacity(FEATURES_LEN_EVAL);
+        push_eval_base(&mut v2, cards, &inferences);
+        assert_feature_bits(features_eval(cards, &inferences), v2.clone());
+
+        let mut v3 = v2;
+        v3.reserve_exact(CALLS_EVAL_V3 * LEN_CALL_EVAL_V3);
+        for age in 1..=CALLS_EVAL_V3 {
+            push_call_identity(
+                &mut v3,
+                auction.len().checked_sub(age).map(|index| auction[index]),
+            );
+        }
+        assert_feature_bits(features_eval_v3(cards, &inferences, &auction), v3);
+
+        let unseen = Unseen::new(cards);
+        let mut v4 = Vec::with_capacity(FEATURES_LEN_EVAL_V4);
+        push_hand_eval(&mut v4, cards);
+        for who in [Relative::Lho, Relative::Partner, Relative::Rho] {
+            push_points(&mut v4, shown(inferences.announced(who)));
+            push_shape_gauss(
+                &mut v4,
+                &shape_of(&unseen, shown_boxes(inferences.announced_union(who))),
+            );
+        }
+        for age in 1..=CALLS_EVAL_V3 {
+            push_call_identity(
+                &mut v4,
+                auction.len().checked_sub(age).map(|index| auction[index]),
+            );
+        }
+        assert_feature_bits(features_eval_v4(cards, &inferences, &auction), v4);
+
+        let mut shape = Vec::with_capacity(FEATURES_LEN_EVAL_SHAPE);
+        push_hand_eval(&mut shape, cards);
+        for who in [Relative::Lho, Relative::Partner, Relative::Rho] {
+            push_inference(&mut shape, inferences.announced(who));
+            push_shape_dist(
+                &mut shape,
+                &shape_of(&unseen, shown_boxes(inferences.announced_union(who))),
+            );
+        }
+        for age in 1..=CALLS_EVAL_V3 {
+            push_call_identity(
+                &mut shape,
+                auction.len().checked_sub(age).map(|index| auction[index]),
+            );
+        }
+        assert_feature_bits(features_eval_shape(cards, &inferences, &auction), shape);
+
+        let honours = UnseenHonours::new(cards);
+        let mut points = Vec::with_capacity(FEATURES_LEN_EVAL_POINTS);
+        push_hand_eval(&mut points, cards);
+        for who in [Relative::Lho, Relative::Partner, Relative::Rho] {
+            push_inference(&mut points, inferences.announced(who));
+            let boxes = shown_boxes(inferences.announced_union(who));
+            push_shape_gauss(&mut points, &shape_of(&unseen, boxes));
+            push_hcp_ends(&mut points, shown(inferences.announced(who)));
+            push_hcp_gauss(&mut points, &hcp_of(&honours, boxes));
+        }
+        for age in 1..=CALLS_EVAL_V3 {
+            push_call_identity(
+                &mut points,
+                auction.len().checked_sub(age).map(|index| auction[index]),
+            );
+        }
+        assert_feature_bits(features_eval_points(cards, &inferences, &auction), points);
     }
 
     fn empty_context() -> Context<'static> {

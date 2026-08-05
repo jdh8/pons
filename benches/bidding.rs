@@ -9,7 +9,7 @@ use pons::bidding::array::Logits;
 use pons::bidding::benchmark::{
     ActiveEvaluatorFeatures, active_evaluator_features, active_evaluator_forward,
     classify_instinct_scoped, classify_instinct_uncached, classify_with_provenance_uncached,
-    is_deterministic_instinct_floor,
+    is_deterministic_instinct_floor, select_legal_call,
 };
 use pons::bidding::evaluator::trick_estimates_with_auction;
 use pons::bidding::inference::Inferences;
@@ -48,20 +48,6 @@ impl System for Legacy<'_> {
     ) -> bool {
         self.0.authored_at(vul, auction)
     }
-}
-
-fn next_legal(logits: &Logits, auction: &Auction) -> Call {
-    let mut scored: Vec<_> = logits
-        .iter()
-        .filter(|(_, score)| score.is_finite())
-        .map(|(call, score)| (call, *score))
-        .collect();
-    scored.sort_by(|a, b| b.1.partial_cmp(&a.1).expect("finite logits are never NaN"));
-    scored
-        .into_iter()
-        .map(|(call, _)| call)
-        .find(|&call| auction.can_push(call).is_ok())
-        .unwrap_or(Call::Pass)
 }
 
 fn as_auction(calls: &[Call]) -> Auction {
@@ -273,7 +259,7 @@ fn allocation_report(
     });
     measured("legal-selection", positions.len(), || {
         for (logits, auction) in logits.iter().zip(auctions) {
-            black_box(next_legal(black_box(logits), black_box(auction)));
+            black_box(select_legal_call(black_box(*logits), black_box(auction)));
         }
     });
     measured("whole-deal", deals.len(), || {
@@ -566,8 +552,8 @@ fn bidding(c: &mut Criterion) {
         b.iter(|| {
             let index = legal_index.get();
             legal_index.set((index + 1) % positions.len());
-            black_box(next_legal(
-                black_box(&logits[index]),
+            black_box(select_legal_call(
+                black_box(logits[index]),
                 black_box(&auctions[index]),
             ))
         });

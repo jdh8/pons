@@ -1,5 +1,7 @@
 # Bidding Engine Performance Recovery and Rule-Compilation Record
 
+> **Status:** Complete and archived on 2026-08-05 after Stage 6.
+
 ## Summary
 
 Recover Pons’s bidding throughput without disabling bilans, envelope-union reading, fallback projection, or authored reading, and without changing any auction, logit, inference, alert, provenance, or explanation.
@@ -40,9 +42,9 @@ Data flow:
 `Rows/legacy authoring → mutable Pair/Trie → Pair::against() finalization → compiled rule/reader plans → per-deal auction step cache → per-decision cache`
 
 This document records both the staged design and its implementation status.
-Stages 1–5 and the intervening RKCB phase 1.5 are implemented. Stage 6 remains
-follow-up work; the final acceptance measurements for stages 3–5 are recorded
-in the explicitly marked section below once the pinned runs complete.
+Stages 1–6 and the intervening RKCB phase 1.5 are implemented. The final
+acceptance measurements for stages 3–5 and the evidence-gated Stage 6
+allocation series are recorded in the explicitly marked sections below.
 
 ## Sequencing
 
@@ -52,7 +54,7 @@ The execution order was explicit:
 2. Complete phase 1.5 of the declarative book layer, moving floating agreements such as RKCB into book-owned declarative data.
 3. Begin stage 3 and the later compilation/cursor work only after phase 1.5 is complete.
 
-That order is now complete through stage 5. The contested-book rows prerequisite
+That order is now complete through stage 6. The contested-book rows prerequisite
 and phase 1.5 landed before compilation began, so most semantics — including
 RKCB — were already represented in authored data and the trie exposed a bounded
 inventory of escape hatches.
@@ -244,16 +246,28 @@ consumer for it, and table selection continues to use the authoritative
 fixed-array legal selection keeps one parity surface instead of maintaining
 unused duplicate legality state.
 
-### 6. Reduce remaining allocation and duplicate work
+### 6. Reduce remaining allocation and duplicate work (implemented)
 
 After caching and compiled decoding are measured:
 
-- Represent common one-box `EnvelopeUnion` values inline, with heap-backed storage only for true unions.
-- Reuse intersection buffers and defer `tidy` until semantic boundaries while preserving box order and exact results.
-- Share immutable precompiled projection boxes instead of cloning `Vec`s.
-- Replace evaluator feature `Vec`s with fixed arrays sized for each model version.
-- Add an incremental laws-derived legal-call mask and replace sorted legal-call selection with an order-preserving fixed-array maximum only if every mask result and all tie behavior remain identical to `Auction::can_push` and the current selector.
-- Collapse the duplicated net-collar/bilans expression into one named predicate after the cache-only implementation has established a bit-identical reference.
+- Common one-box `EnvelopeUnion` values are inline; only true unions own a
+  heap buffer. Consuming intersections reuse a multi-box left buffer, run the
+  one-box product inline, and retain the existing binary fold boundaries and
+  box order. Manual serde emits and accepts the same JSON sequence shape,
+  including the historically accepted empty sequence.
+- Compiled constant projections remain borrowed through their folds and become
+  owned only when a real union/intersection needs mutation; the `Arc`-backed
+  boxes are no longer cloned merely to inspect them.
+- The five fixed-width evaluator extractors return arrays built through a
+  bounds-checked internal writer. The policy-net `features_v3`/`features_v4`
+  APIs remain `Vec`-returning.
+- A 38-bit laws mask is derived once for one-shot selection and carried
+  incrementally through whole deals. Selection scans canonical call order,
+  accepts only finite legal logits, and replaces the winner only on strict
+  improvement. `Auction::push` remains the final authority.
+- A decision-scoped four-state bilans/collar mode was implemented and measured,
+  but not retained: it changed no allocations and its paired 95% timing interval
+  crossed no change. The established eager topology therefore remains.
 
 ## Stages 3–5 completion and performance record
 
@@ -301,6 +315,134 @@ warmups and twenty measured repetitions after shorter runs failed the 2% CV
 stability gate. Every accepted CV was at most 1.67%. BBA remains
 wrapper-inclusive. Hardware counters remained unavailable under the host
 `perf` policy.
+
+## Stage 6 completion and performance record
+
+Stage 6 completed on 2026-08-05 as a performance-only series. No bidding-strength
+A/B was run. Every retained candidate cleared a deterministic allocation gate;
+the one candidate without an allocation win was timed and rejected. Candidate
+checkpoints were taken in order so the gains below remain attributable.
+
+### Retained and rejected candidates
+
+| Candidate | Attributable evidence | Verdict |
+|---|---|---|
+| Fixed evaluator arrays | `evaluator-features` and `evaluator-complete`: 2.000 allocations / 592.0 bytes → 0 / 0; old-`Vec` oracle equal element-by-element with `f32::to_bits` for v2/v3/v4/shape/points | Retained |
+| Inline unions, borrowed compiled projections, consuming intersections | From the post-array/post-laws checkpoint: inference 84.061 / 6,767.6 → 15.619 / 3,234.5; full classification 98.967 / 7,865.8 → 16.189 / 3,817.3; whole deal 773.484 / 65,758.8 → 148.312 / 35,608.1 (allocations / requested bytes) | Retained |
+| Incremental laws mask and canonical maximum | Legal selection 2.625 / 285.8 → 0 / 0; whole deal at that checkpoint 797.297 / 68,239.8 → 773.484 / 65,758.8 | Retained |
+| Decision-scoped bilans/collar mode | No allocation change; paired CPU-4 instinct-component timing change 95% interval **[−0.2084%, +0.9369%]**, p=0.24 | Rejected and fully reverted |
+
+The union candidate keeps `tidy` at the established binary combinator
+boundaries. More aggressive deferral was not mixed into the retained result:
+the Vec-backed oracle requires each intermediate result and box order to equal
+the old binary folds exactly.
+
+### Allocation checkpoints
+
+Rust-global allocation counts are deterministic across the two pinned CPUs;
+native EPBot allocations remain outside the counter.
+
+| Workload | Stage 6 baseline allocations / bytes | Stage 6 final allocations / bytes |
+|---|---:|---:|
+| Inference construction | 84.061 / 6,767.6 | 15.619 / 3,234.5 |
+| Evaluator features | 2.000 / 592.0 | 0 / 0 |
+| Evaluator forward | 0 / 0 | 0 / 0 |
+| Evaluator complete | 2.000 / 592.0 | 0 / 0 |
+| Scoped instinct component | 130.041 / 10,014.0 | 17.568 / 4,069.9 |
+| Full classification | 99.158 / 7,922.4 | 16.189 / 3,817.3 |
+| Hot instinct, cached | 368.167 / 21,590.1 | 18.458 / 4,869.3 |
+| Legal selection | 2.625 / 285.8 | 0 / 0 |
+| Whole deal | 798.547 / 68,609.8 | 148.312 / 35,608.1 |
+| `Pair::against` construction | 155,528 / 54,528,334 | 139,342 / 53,579,542 |
+
+Thus full-classification allocation count falls **83.7%** and requested bytes
+**51.8%**; whole-deal allocation count falls **81.4%** and requested bytes
+**48.1%**.
+
+### Final component timing
+
+Criterion used 100 samples after its three-second warmup for these component
+rows. The acceptance driver below separately used the required two warmups and
+ten measured repetitions.
+
+| Component | CPU 4 baseline → final | CPU 14 baseline → final |
+|---|---:|---:|
+| Inference, depth 2 | 1.489 → 1.564 µs | 1.464 → 1.521 µs |
+| Inference, depth 4 | 2.409 → 2.387 µs | 2.298 → 2.325 µs |
+| Inference, depth 8 | 3.480 → 3.725 µs | 3.398 → 3.636 µs |
+| Inference, depth 12 | 5.113 → 5.254 µs | 4.949 → 5.098 µs |
+| Evaluator features | 125.75 → 85.24 ns | 123.12 → 81.99 ns |
+| Evaluator complete | 12.554 → 12.275 µs | 11.816 → 11.711 µs |
+| Scoped instinct component | 26.088 → 25.267 µs | 24.946 → 24.565 µs |
+| Full classification | 13.031 → 12.952 µs | 12.499 → 12.314 µs |
+| Production legal selection | 233.25 → 105.81 ns | 219.09 → 109.22 ns |
+| Whole deal | 108.57 → 104.11 µs | 104.66 → 99.447 µs |
+| `Pair::against` | 24.999 → 22.782 ms | 34.938 → 33.737 ms |
+
+The allocation-first union trade moves the isolated depth-8 inference
+microbenchmark by about +7% while reducing its allocations by 81%. It is not
+the representative-hot-path gate: the named hot instinct workload, scoped
+instinct component, every classification category, full classification, and
+whole-deal serving all remain below their regression limits. The depth-8
+improvement over Stage 2 also remains above 2×.
+
+### Final acceptance gates
+
+| Gate | CPU 4, 96 MB V-cache CCD | CPU 14, 32 MB frequency CCD | Verdict |
+|---|---:|---:|---|
+| Pons median decision time | 13.016 µs | 12.516 µs | Pass |
+| Pons CV | 0.35% | 1.23% | Pass |
+| Wrapped BBA median decision time | 181.229 µs | 226.958 µs | Pass |
+| Pons/BBA 95% ratio CI | 0.0715–0.0722 | 0.0544–0.0554 | Pass |
+| Pons/BBA median ratio | 0.0717 | 0.0550 | Pass |
+| Depth-8 improvement over stage 2 | at least 2.06× | at least 2.06× | Pass |
+| Depth-12 / depth-4 latency | 2.20× | 2.19× | Pass |
+| Hot cache/reference upper CI | 0.0268 | 0.0268 | Pass |
+| Whole-deal cache/reference upper CI | 0.1343 | 0.1336 | Pass |
+
+Same-session Stage 5 binaries put the representative hot-instinct medians at
+33.111 / 31.340 µs and whole-deal medians at 110.602 / 105.483 µs on CPU 4 /
+CPU 14. Stage 6 finishes at 32.629 / 31.160 µs and 105.045 / 99.926 µs,
+respectively: the hot path improves 1.5% / 0.6% and whole serving improves 5.0%
+/ 5.3%. Aggregate Pons moves 13.089 → 13.016 µs on CPU 4 and 12.471 → 12.516
+µs on CPU 14, a 0.4% movement on the latter. Neither regression guard is
+approached. CPU 14 cleared the 2% CV gate on the prescribed 2/10 run, so the
+3/20 fallback was not needed.
+
+Construction remains inside its cap: it improves 8.9% / 3.4% against the
+same-session Stage 5 binary on CPU 4 / CPU 14. The CPU-4 result is 1.03× the
+22.047 ms uncompiled reference and 36.1% below the earlier Stage 5 acceptance
+measurement.
+Five allocator-trimmed samples from the new
+`bidding-performance --retained-memory-only` mode gave the same median
+**32,432 KiB** `Pair::against` RSS delta on CPU 4 and CPU 14. That is 2.5% below
+the Stage 5 compiled stance and **19.9%** above the 27,052 KiB reference, inside
+the 25% retained-memory cap.
+
+### Final correctness record
+
+- Full all-features core suite: **721 passed, 0 failed, 4 ignored** in 668.95 s;
+  every integration, example, serde, doc, profile, hook-order, vulnerability,
+  reading, and evaluator test also passed.
+- Focused inference/projection suite: **111 passed, 0 failed** in 659.36 s.
+- Both ignored 20,000-deal release sweeps passed. The strengthened deal-cache
+  sweep additionally compared all 38 mask bits with `Auction::can_push` at
+  every seeded prefix and passed in 411.89 s.
+- Every prefix of the 512-position frozen corpus compares all 38 laws bits;
+  explicit tests cover doubles, redoubles, ended auctions, non-finite logits,
+  and exact canonical-order ties.
+- Fixed-array extractors match old Vec-built references bit-for-bit. Inline
+  unions match a test-only Vec oracle across union, disjoin, intersection,
+  closure profiles, empty products, deduplication, and order; one-box,
+  multi-box, and empty JSON sequences retain their bytes/acceptance.
+- `smoke-default --count 20000 --seed 1`: SHA-256
+  `33dd53efa4b796e2e1c4d3f809ddb1476112e1a1ca0092721b9ba86e6f78dd7b`.
+- `render-book`: SHA-256
+  `759527867f98600961e6ed9b3d757cb91f0d30dd7f72dbb1cd8e22e80be35bde`.
+
+Hardware counters remained unavailable under the host `perf` policy. Wall
+time, paired intervals, deterministic Rust allocations/bytes, construction,
+and allocator-trimmed retained RSS form the completed Stage 6 evidence record.
 
 ## Verification and Acceptance
 

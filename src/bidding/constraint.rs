@@ -569,13 +569,15 @@ impl<A: Constraint, B: Constraint> Constraint for And<A, B> {
     }
 
     fn project(&self, context: &Context<'_>) -> EnvelopeUnion {
-        self.0.project(context).intersect(&self.1.project(context))
+        self.0
+            .project(context)
+            .intersect_owned(&self.1.project(context))
     }
 
     fn project_band(&self, context: &Context<'_>) -> EnvelopeUnion {
         self.0
             .project_band(context)
-            .intersect(&self.1.project_band(context))
+            .intersect_owned(&self.1.project_band(context))
     }
 
     fn project_complement(&self, context: &Context<'_>) -> EnvelopeUnion {
@@ -594,7 +596,7 @@ impl<A: Constraint, B: Constraint> Constraint for And<A, B> {
     fn announce(&self, context: &Context<'_>) -> EnvelopeUnion {
         self.0
             .announce(context)
-            .intersect(&self.1.announce(context))
+            .intersect_owned(&self.1.announce(context))
     }
 }
 
@@ -645,7 +647,7 @@ impl<A: Constraint, B: Constraint> Constraint for Or<A, B> {
         if envelope_union_reading() {
             self.0
                 .project_complement(context)
-                .intersect(&self.1.project_complement(context))
+                .intersect_owned(&self.1.project_complement(context))
         } else {
             EnvelopeUnion::unknown()
         }

@@ -6,10 +6,10 @@ use core::mem::MaybeUninit;
 use core::ops::{Deref, DerefMut, Index, IndexMut, Range, RangeFrom, RangeFull, RangeInclusive};
 
 /// Number of possible calls
-const CALL_VARIANTS: usize = 3 + 7 * 5;
+pub(crate) const CALL_VARIANTS: usize = 3 + 7 * 5;
 
 /// Hash/encode calls into indices for array storage
-const fn encode_call(call: Call) -> usize {
+pub(crate) const fn encode_call(call: Call) -> usize {
     match call {
         Call::Pass => 0,
         Call::Double => 1,

@@ -60,6 +60,9 @@ struct Args {
     /// Return success despite CV >2%; diagnostic only, never an acceptance run.
     #[arg(long)]
     allow_unstable: bool,
+    /// Report allocator-trimmed RSS retained by `Pair::against`, then exit.
+    #[arg(long)]
+    retained_memory_only: bool,
 }
 
 const DEAL_SEED: u64 = 1;
@@ -116,6 +119,42 @@ fn classify_all(system: &dyn System, positions: &[Position], loops: usize) {
             );
         }
     }
+}
+
+#[cfg(all(target_os = "linux", target_env = "gnu"))]
+fn trimmed_rss_kib() -> anyhow::Result<u64> {
+    unsafe extern "C" {
+        fn malloc_trim(pad: usize) -> i32;
+    }
+    // SAFETY: glibc's process-global allocator trim accepts any padding value;
+    // no Rust allocation is live through a raw pointer here.
+    let _ = unsafe { malloc_trim(0) };
+    let status = std::fs::read_to_string("/proc/self/status")?;
+    let rss = status
+        .lines()
+        .find_map(|line| line.strip_prefix("VmRSS:"))
+        .and_then(|value| value.split_ascii_whitespace().next())
+        .ok_or_else(|| anyhow::anyhow!("/proc/self/status has no VmRSS row"))?;
+    Ok(rss.parse()?)
+}
+
+#[cfg(all(target_os = "linux", target_env = "gnu"))]
+fn report_retained_memory() -> anyhow::Result<()> {
+    let pair = american();
+    let before = trimmed_rss_kib()?;
+    let stance = pair.against();
+    black_box(&stance);
+    let after = trimmed_rss_kib()?;
+    println!(
+        "Pair::against retained memory: before={before} KiB after={after} KiB delta={} KiB",
+        after.saturating_sub(before),
+    );
+    Ok(())
+}
+
+#[cfg(not(all(target_os = "linux", target_env = "gnu")))]
+fn report_retained_memory() -> anyhow::Result<()> {
+    anyhow::bail!("allocator-trimmed RSS measurement requires Linux with glibc")
 }
 
 fn timed(system: &dyn System, positions: &[Position], loops: usize) -> Duration {
@@ -469,6 +508,9 @@ fn run_cache_acceptance(
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     anyhow::ensure!(args.repetitions > 0, "--repetitions must be positive");
+    if args.retained_memory_only {
+        return report_retained_memory();
+    }
     if matches!(args.engine, Engine::Both)
         || (!args.skip_cache_acceptance && matches!(args.engine, Engine::Both | Engine::Pons))
     {
