@@ -343,7 +343,9 @@ freewheeled it. The repair, in `src/bidding/instinct.rs` +
 - **Delegation** (`keycard_conversation_now`, a new `forced()` arm): a live
   keycard window — partner's decodable 4NT, partner's 1430 answer to ours,
   partner's placement over our answer — is forced-rail territory, so
-  `NeuralFloorBba` hands it to the deterministic ladder instead of the net.
+  the distilled floor shell (`ConfiguredFloorBba` since 2026-08-05, and
+  `NeuralFloorBba` when this was written) hands it to the deterministic ladder
+  instead of the net.
   Auction-determined like the other rails; shares the window helper with
   the machinery's gates so the two cannot disagree.
 - **`raised_major`** — the trump derivation that works when readings are

@@ -545,6 +545,18 @@ fits them unchanged; `neural::classify_bba` + `NeuralFloorBba` +
   IMPs. Remaining follow-on: reach *past* BBA by putting the live DD search on
   top of this stronger prior (M8). Not compared against the search champion
   `neural-search` — different category.
+- **SUPERSEDED 2026-08-05 by the configured net.** The v3 artifact this section
+  shipped (and its later kickback twin) were deleted when `ConfiguredFloorBba`
+  over `american_bba_v4` became the default floor, on gate 1's
+  +0.1933/+0.2469 plain and +0.5256/+0.5358 PD at 2M fresh boards per cell
+  (`docs/ai-bidder/configured-net.md` phase 6). Two figures here are now
+  historical: B4's own routing-gate numbers, and the **+0.131 plain / +0.101 PD**
+  shipping-pair side-run below, which priced the v3 floor against
+  `american_instinct()` on the anchor's deals. A re-run of that side-run is owed
+  — gate 1 measured v4 winning on *both* scorers at *both* vulnerabilities,
+  which is evidence the NV PD loss recorded there is gone. **The anchor series
+  itself is unaffected**: it is anchored on `american_instinct()` precisely
+  because `american()` carries a net floor, and `bba-decompose` hard-codes that.
 
 ## Pillar C — measurement unlock (sd-lead third scorer)
 

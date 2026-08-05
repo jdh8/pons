@@ -1,19 +1,20 @@
 # The configured net — one net that reads the convention card
 
-**Status: all five phases landed; one ship decision taken, one open.** Gate 1
-passed decisively (+0.19/+0.25 plain DD, +0.53/+0.54 PD) and gate 2 measured the
-relocation a **loss** under three scorers — see
+**Status: COMPLETE. Both ship decisions taken.** Gate 1 passed decisively
+(+0.19/+0.25 plain DD, +0.53/+0.54 PD) and gate 2 measured the relocation a
+**loss** under three scorers — see
 [phase 5](#phase-5-measured-gate-1-passes-gate-2-fails). On that verdict jdh8
-reverted `set_kickback` to opt-in (2026-08-03). Making v4 the default floor and
-deleting the twins remains open.
+reverted `set_kickback` to opt-in (2026-08-03), and on gate 1's, **v4 became the
+default floor and the v3 twins were deleted (2026-08-05)** — see
+[phase 6](#phase-6-v4-ships-as-the-default-floor).
 
 **Phases 0–4** — the `set_conv` read-back guard; `features_v4`
 and `Context::with_config`; `dump-teacher --configured --cell` with sliced bank
 reads, per-side cards/stances/teachers, prefixed-context extraction and the
 enriched slice; the trained artifact and its flip diagnostic; and the crate
-wiring, `american_configured()`. Still open: the foreign-`.bbsa` → `SCHEMA`
+wiring, then `american_configured()`, now folded into `american()` itself.
+Still open: the foreign-`.bbsa` → `SCHEMA`
 mapping, so only `Config::symmetric` is honest for a foreign opponent.
-`american()` still stands on the v3 twins.
 Supersedes the two-artifact twin scheme
 (`american_bba.f32` + `american_bba_kickback.f32`) that
 [`bba-kickback.md`](bba-kickback.md) §7.7 introduced and §7.12 showed the cost
@@ -396,7 +397,7 @@ headroom, and scaling the enriched draw is the lever if gate 2 disappoints.
 | --- | --- |
 | forward pass at 368 inputs | `neural::classify_bba_v4` |
 | the safety shell over it | `neural_floor::ConfiguredFloorBba` |
-| the 2/1 pair standing on it | `american_configured()`, and `american_configured_with(config)` for a mixed table |
+| the 2/1 pair standing on it | `american()` itself since phase 6, and `american_with_config(config)` for a mixed table |
 | the A/B arms | `ab-kickback`'s `v4` and `v4-kickback` |
 
 **The cell is captured when the floor is built, not per decision.** A card is an
@@ -407,8 +408,9 @@ attaches its config to the trie's context on the way into the extractor.
 
 `classify_bba_v4` consults **no knob at all**, which is the whole point: the
 regime arrives in the feature vector. The twin selection in `classify_bba`
-survives untouched, because gate 1's baseline arm *is* the shipped v3 behaviour.
-It goes when gate 1 says v4 replaces it.
+survived this phase untouched, because gate 1's baseline arm *was* the shipped
+v3 behaviour — and went in [phase 6](#phase-6-v4-ships-as-the-default-floor) once
+gate 1 said v4 replaces it.
 
 ### The two tests that pin the wiring
 
@@ -507,7 +509,7 @@ widened hidden layer.
 
 `dump-teacher` builds features from a bare `Context::new`, which has **no trie
 prefixes**, so `Inferences::read` skips `project_authored` entirely. Serving
-does not: `NeuralFloorBba::classify` gets the trie context, so the authored
+does not: `ConfiguredFloorBba::classify` gets the trie context, so the authored
 projection overlay *is* applied. This is the standing train/serve skew already
 recorded in `dnf-migration.md` F1 — not something the configured net
 introduces, but something it makes newly consequential.
@@ -639,8 +641,9 @@ opt-in, so the shipped default is the plain-4NT arm again; the
 kickback case is closed until a scorer exists that fights DD's slam optimism the
 way sd-lead fights its defensive optimism. Reverting the knob restores a stance
 the shipped twins already serve correctly, so it did not have to wait on 1 after
-all. Decision 1 — v4 as the default floor, twins deleted — stands open on gate
-1's verdict, which keeps.
+all.
+
+**Decision 1 taken 2026-08-05** — see [phase 6](#phase-6-v4-ships-as-the-default-floor).
 
 **What is *not* in doubt** is the relocation's own arithmetic. The ladder is
 sound: a relocated ask genuinely brings the overshooting answers to zero, which
@@ -659,6 +662,53 @@ asker gains by stopping accurately.
 | 3 | Train on GPU | **done** — corpus, net and the mechanism diagnostic [above](#phase-3-measured-the-corpus-the-net-and-the-diagnostics-verdict); `pons-trainer` takes repeated `--data` stems and mixes them ([`load_mixture`](../../trainer/src/data.rs)) |
 | 4 | Artifact + candle-parity fixture, wire `classify_bba` to v4, retire the twin selection | **done** — [above](#phase-4-what-serves-it); the twin selection stays until gate 1 passes, since it *is* gate 1's baseline |
 | 5 | Gate 1, then gate 2 | **done** — [above](#phase-5-measured-gate-1-passes-gate-2-fails); 2M fresh boards per cell, plus the sd row |
+| 6 | Ship v4 as the default floor, delete the twins | **done** — [below](#phase-6-v4-ships-as-the-default-floor) |
+
+## Phase 6: v4 ships as the default floor
+
+Taken 2026-08-05 on gate 1's verdict, which keeps. `american()` is now
+`american_with_config(Config::symmetric(&american_card()))`, `dutch()` the same
+under `dutch_card()`, and `american_floor()` — the book ablation — takes the
+**same** card so the ablation still isolates the book. `american_configured()`
+is gone: once it is the default the name distinguishes nothing, and collapsing
+to one constructor is what makes card/rules disagreement inexpressible on the
+shipped path (both come from one knob state in one expression). What was
+`american_configured_with` is now `american_with_config`.
+
+**Gate 1's verdict transfers to HEAD with no vintage drift.** The net trained at
+`0815eda`; gate 1 was recorded in `fdc0c5f`. The only behaviour-changing
+`src/bidding` commit after that is `3e816dc`, which fixes disclosure in the
+`(floor_rkcb = off, variant = Kickback)` cell — not gate 1's cell, which ran
+`set_rkcb_minors` on and `set_kickback` off, i.e. the shipped default.
+Everything since is `perf(bidding)` / `feat(rows)` / `refactor`, each separately
+proven byte-identical.
+
+Deleted: `weights/american_bba{,_kickback}.{f32,fixture.json,json}` (786,736 B of
+weights), `classify_bba` and its per-decision `relocating_now()` read,
+`NeuralFloorBba`, and the two v3 candle-parity fixtures. All three artifacts were
+`include_bytes!`'d unconditionally, so **every binary — including the wasm
+bundle — shrinks by 786 KB.** `set_rkcb_variant` stays opt-in and now reaches the
+net *only* through the `Kickback 1430` card row.
+
+**Accepted cost: gate 1 is no longer reproducible.** Its baseline arm (`minors`)
+*was* the shipped v3 behaviour, so `--feature v4 --baseline minors` cannot be
+built once the artifacts go. `ab-kickback` keeps `plain`/`minors`/`kickback`, all
+now on the configured floor, so `kickback − minors` is still gate 2. Gate 1
+reproduces at `f719be9`.
+
+Two verification gates behaved as designed: `render-book` is **byte-identical**
+(SHA-256 `759527867f98600961e6ed9b3d757cb91f0d30dd7f72dbb1cd8e22e80be35bde`),
+proving the change is floor-only, while `smoke-default --count 20000 --seed 1`
+**moved**, `33dd53ef…` → `82854c3a…`, proving the floor actually attached. Both
+`.bbsa` snapshots are unchanged.
+
+**`ab-kickback` needed a fix the swap forced.** It built non-configured arms with
+bare `american()` and leaned on `arm_knobs(arm)` before *every call* to carry the
+mixed table — which worked only because `classify_bba` read `relocating_now()`
+per decision. `ConfiguredFloorBba` captures at build and reads no ambient state,
+so every arm now routes through `american_with_config(Config::new(&card(arm),
+&card(opponent)))`. Left alone, each arm would have claimed the opponent plays
+its own card, on precisely the mixed boards gate 2 measures.
 
 ## Resolved: the opponents' config rides on `Context`
 

@@ -15,7 +15,8 @@ auction + hand
   →   Rules         (rules.rs — weighted, constraint-gated rule tables)
   → floor chain     (fallback.rs — when no node claims the hand)
   →   instinct()    (instinct.rs — keyless natural-action ladder)
-  →   learned floor  (neural_floor.rs — the BBA-distilled net)
+  →   learned floor  (neural_floor.rs — the configured BBA-distilled net,
+                       which reads both partnerships' convention cards)
 ```
 
 - **Books** (`book.rs`): `Constructive`, `Competitive`, `Defensive` tries per
@@ -37,9 +38,12 @@ auction + hand
   CIs clear of zero, but far short of the whole system. Auctions diverge on 53%
   of boards, so the book earns ≈+0.5 IMPs per board it actually touches. Read
   it as the book's *total* contribution: an empty book also stops projecting
-  into `Inferences`, so the net's `features_v3` inference block collapses to
+  into `Inferences`, so the net's `features_v4` inference block collapses to
   unknown, and the gap is the book as authored calls **and** as disclosure. The
   BBA-distilled floor has absorbed most of what the book does.
+  **Superseded 2026-08-05**: both arms moved to the configured (v4) floor, so
+  the ablation stays self-consistent but the figure prices a floor neither arm
+  now runs — a re-run of `scripts/ab-book-value.sh` is owed.
 
 ## Resolution and shadowing — the invariants
 

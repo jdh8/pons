@@ -3,7 +3,9 @@
 > **⚠️ SUPERSEDED — the machinery this doc plans against was deleted.** The
 > M1–M3 search and neural line (`american_search`, `american_neural*`,
 > `search_floor.rs`, the v1/v2/v3/search nets and their weights) was removed in
-> the variant tidy-up; only the BBA-distilled `NeuralFloorBba` survives. The
+> the variant tidy-up; only the BBA-distilled floor survives (and since
+> 2026-08-05 that is `ConfiguredFloorBba` on `features_v4`, the v3 twins
+> deleted). The
 > *reasoning* here is kept for the record, but every code reference below is
 > dangling — re-deriving the machinery is a prerequisite for any phase.
 

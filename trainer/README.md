@@ -50,11 +50,15 @@ inside this directory.
 feature spec changes, bump them together — a version mismatch fails the load
 loudly.
 
-**Note:** the crate now ships only the restrictive disclosable extractor
-(`FEATURES_VERSION_V3 = 3`, `FEATURES_LEN_V3 = 88`); the v1 (160-float) and v2
-(tag-augmented) extractors were removed with the M1–M3 neural line, so
-`dump-teacher` emits v3 rows unconditionally. Anything here still written
-against `FEATURES_VERSION = 1` / `FEATURES_LEN = 160` is stale.
+**Note:** the crate ships two policy extractors — the restrictive disclosable
+`FEATURES_VERSION_V3 = 3` (`FEATURES_LEN_V3 = 88`) and the **configured**
+`FEATURES_VERSION_V4 = 4` (`FEATURES_LEN_V4 = 368`, the v3 block plus both
+partnerships' convention cards). `dump-teacher` emits v3 by default and v4 under
+`--configured`. **v4 is what the shipped floor runs** since 2026-08-05, so a net
+meant to replace it must be trained on v4 rows. The v1 (160-float) and v2
+(tag-augmented) extractors were removed with the M1–M3 neural line; anything
+here still written against `FEATURES_VERSION = 1` / `FEATURES_LEN = 160` is
+stale.
 
 ## Useful flags
 

@@ -102,6 +102,17 @@ what the decomposition predicts: `dutch()` ran the deterministic floor over
 strictly more unauthored territory, so it had more to gain. Plain and PD agree at
 both vulnerabilities — not a doubling artifact.
 
+> **Superseded 2026-08-05 — these numbers were taken under the v3 net.**
+> `dutch()` now stands on `ConfiguredFloorBba` under `dutch_card()`
+> (`docs/ai-bidder/configured-net.md` phase 6), so the table above prices a
+> floor Dutch no longer runs. Leaving Dutch on v3 while american moved to v4
+> would have put a floor-vintage confound *inside* `dutch − american`, which is
+> this campaign's own measuring instrument — the exact confound the configured
+> net exists to remove — so the swap was not optional. **A re-run of
+> `scripts/ab-dutch-floor.sh` against `dutch-instinct` is owed** and is off the
+> critical path; the v4 corpus covers Dutch cells, and the v3 net had never seen
+> a WJ card (see the relay diagnosis below).
+
 **The residual tail is a redouble bug, and it is probably american's too.** Four
 of the five worst plain boards and four of the five worst PD boards share one
 shape: the net **redoubles** an opponent's double of our artificial call instead

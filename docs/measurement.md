@@ -337,6 +337,16 @@ thousand accepted deals — enrichment is what makes that affordable at all.
 
 These produced actual wrong conclusions; each has a memory/ledger trail.
 
+- **Series breaks: the default floor has moved twice.** Almost every `ab-*`
+  harness builds `american()` as its baseline without naming a floor, so a
+  floor swap silently re-baselines all of them. Within one A/B this is harmless
+  — both arms rebuild from the same source — but a number quoted *across* a
+  swap is comparing floors, not treatments. The two breaks: **2026-07-19**
+  (`instinct()` → the v3 BBA-distilled net) and **2026-08-05** (v3 → the
+  configured `american_bba_v4`, which reads both convention cards). Numbers in
+  `docs/bidding-options.md` marked `fresh` before 2026-08-05 keep their deltas
+  but no longer describe the shipped population.
+
 - **The obstruction wall.** DD sees through concealment: preempts, weak jumps,
   lead-direction, "make them guess" value is invisible, while the overbid cost
   is fully counted. Preemptive/obstructive treatments *cannot* measure positive

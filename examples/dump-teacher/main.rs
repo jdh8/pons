@@ -1,9 +1,16 @@
 //! Teacher dump (AI-bidder M0.4)
 //!
 //! Bids out boards — random, or every deal in a GIB file via `--deals` — with
-//! the *teacher* system (`american()`, or the vendored EPBot 2/1 oracle via
-//! `--teacher bba`) and records, at every decision point, a training row of
-//! `(features, teacher_softmax)`:
+//! the *teacher* system (`american_instinct()` under `--teacher american`, or
+//! the vendored EPBot 2/1 oracle via `--teacher bba`) and records, at every
+//! decision point, a training row of `(features, teacher_softmax)`.
+//!
+//! The teacher is deliberately the **deterministic** pair, never the net-floored
+//! `american()` — that is what keeps distillation from feeding a net its own
+//! output. `american()` does appear here, as the *reader* stance that builds the
+//! prefixed context, but a floor projects nothing (`Classifier::as_rules` is
+//! `None`), so which floor is attached cannot reach the features.  Note that
+//! stops being true the day the floor gains a reading.
 //!
 //! - **features** — the restrictive *disclosable-only* v3 vector for the hand
 //!   to act ([`features_v3`][pons::bidding::features::features_v3]): 88 floats

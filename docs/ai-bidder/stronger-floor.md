@@ -3,7 +3,9 @@
 > **⚠️ SUPERSEDED — the machinery this doc plans against was deleted.** The
 > M1–M3 search and neural line (`american_search`, `american_neural*`,
 > `search_floor.rs`, the v1/v2/v3/search nets and their weights) was removed in
-> the variant tidy-up; only the BBA-distilled `NeuralFloorBba` survives. The
+> the variant tidy-up; only the BBA-distilled floor survives (and since
+> 2026-08-05 that is `ConfiguredFloorBba` on `features_v4`, the v3 twins
+> deleted). The
 > *reasoning* here is kept for the record, but every code reference below is
 > dangling — re-deriving the machinery is a prerequisite for any phase.
 
@@ -45,9 +47,9 @@ The comparison the review asked for. Sources: BEN v0.8.8.4 21GF, read from
 [`features.rs`](../../src/bidding/features.rs), [`neural.rs`](../../src/bidding/neural.rs),
 [`search_floor.rs`](../../src/bidding/search_floor.rs).
 
-| Axis | pons (shipped `NeuralFloorBba`) | BEN (21GF) |
+| Axis | pons (shipped `ConfiguredFloorBba`) | BEN (21GF) |
 | --- | --- | --- |
-| **Input width** | **88 f32** (`features_v3`) | **193 f32** per step |
+| **Input width** | **368 f32** (`features_v4` — the 88 of `features_v3` plus both convention cards) | **193 f32** per step |
 | **Hand encoding** | Two nets, two answers. **Policy** (`features_v3`, what the rest of this table is about): **10 summary numbers** — 4 suit lengths + 4 per-suit HCP + total HCP + a shape scalar; disclosable-only *by rule*, so unchanged. **Evaluator** (`features_eval`, physics not calls): per-suit `[A,K,Q,J,T,#spots]` — BEN's own granularity, [measured](evaluator-net.md#featurization-sweep) and shipped in v2. | **24-cell honor bitmap** `[A,K,Q,J,T,#small]`/suit (the real hand at honor granularity) **+** exact HCP + 4 shape scalars. |
 | **Auction encoding** | **Flattened summary**: last bid, partner's last bid, strain bitmasks, penalty/passout flags **+** the disclosed `Inferences` min/max ranges (40 cells). No ordered call history. | **Full `4×40` seat-separated one-hot call history**, fed step-by-step. |
 | **Memory over the auction** | **None** — a per-decision MLP (88→256→256→38). | **LSTM ×3 (128)** — recurrent auction-state memory. |

@@ -18,7 +18,7 @@ relevant to the task. `plan.md` is the milestone map and the source of truth for
 
 ## Standing decisions (do not re-litigate without the user)
 
-- **Distill, then search** — clone `american()` first (M1), beat it with
+- **Distill, then search** — clone `american_instinct()` first (M1), beat it with
   constrained-sampling + double-dummy search second (M3).
 - **Search runs at inference time too** — not only as an offline teacher. M2.3 is
   a gated, slow "thinking" bidder (retired with the M1–M3 line) that simulates before

@@ -82,7 +82,16 @@ scores a net on deals it was fitted to.
 slice (4 shards of 125,000, rows 2.75M..3.25M), of which 24,864 were kept.
 3,362,892 rows total. Recorded in the register above as a training draw for
 `american_bba_v4`: it advances no cursor, but that net must never be scored on
-these rows — both of its gates run on freshly generated deals.
+these rows — both of its gates ran on freshly generated deals.
+
+> **Scope widened 2026-08-05.** `american_bba_v4` is now the floor of
+> `american()` *and* `dutch()`, so this constraint no longer binds one opt-in
+> factory — **it binds every measurement of the shipped default.** Any A/B or
+> probe that seats `american()`/`dutch()` and draws these rows is scoring a net
+> on its own training deals. Most harnesses draw `24.pdd` and are unaffected;
+> the one to watch is `examples/probe-keycard-reach.rs`, which documents
+> `22.pdd --count 200000` and builds `american().against()`. Prefer fresh deals,
+> or draw `22.pdd` outside 2.5M..3.25M.
 
 ## Slice ledger — `24.pdd`
 
