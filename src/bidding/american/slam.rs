@@ -52,7 +52,6 @@ use crate::bidding::{Alert, Rules, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Rank, Strain, Suit};
 use core::ops::RangeBounds;
-use std::sync::Arc;
 
 /// Roman Keycard Blackwood — the artificial keycard ask, answers, and king ask
 pub(super) const RKCB: Alert = Alert("rkcb");
@@ -81,31 +80,12 @@ pub(super) fn minor_keycard() -> bool {
     crate::bidding::instinct::minor_asks_now()
 }
 
-use super::{insert_uncontested, uncontested};
 use crate::bidding::constraint::{described, hcp};
 use crate::bidding::instinct::{
     KingRelay, RelayMap, king_relay, queen_ask_room, queen_fit, relay_map,
 };
-use crate::bidding::trie::Classifier;
+use crate::bidding::rows::{Entry, Pattern, compile_entries, rows_of};
 use contract_bridge::Hand;
-
-/// Insert an already-shared classifier at `suffix` under every leading-pass prefix
-///
-/// Identical to [`insert_all_seats`][crate::bidding::common::insert_all_seats] but accepts an `Arc<dyn Classifier>`
-/// directly so one allocation can be reused across multiple seat paths.
-fn insert_arc_all_seats(
-    book: &mut Trie,
-    suffix: &[Call],
-    max_passes: usize,
-    f: &Arc<dyn Classifier>,
-) {
-    for n in 0..=max_passes {
-        let key: Vec<Call> = core::iter::repeat_n(Call::Pass, n)
-            .chain(suffix.iter().copied())
-            .collect();
-        book.insert_arc(&key, Arc::clone(f));
-    }
-}
 
 // ---------------------------------------------------------------------------
 // Keycard constraint helpers
@@ -681,76 +661,66 @@ fn asker_after_6h(trump: Suit) -> Rules {
 // Public entry point
 // ---------------------------------------------------------------------------
 
-/// Install RKCB 1430 below an agreed trump suit
+/// The RKCB 1430 subtree as rows, below the auction `prefix`
 ///
-/// `our_calls` is the undisturbed sequence of our side's calls so far (the
-/// same form [`uncontested`][super::uncontested] takes); the 4NT ask and its
-/// answers are inserted below it.  Both majors and minors are supported; for
-/// minors the asker's signoff is cramped (see the module docs) and the 5NT king
-/// ask is skipped.
+/// `prefix` is an auction string ending just before **our 4NT ask** — the row
+/// layer's spelling of the undisturbed sequence
+/// [`install_rkcb`] takes as `&[Call]` (`"P* 1♠ (P) 3♠ (P)"`).  The ask, its
+/// answers and every continuation are keyed below it.  Both majors and minors
+/// are supported; for minors the asker's signoff is cramped (see the module
+/// docs) and the 5NT king ask is skipped.
 ///
-/// The 4NT bid itself must already be in the caller's table; this function
-/// registers everything that comes *after* 4NT.
-pub(super) fn install_rkcb(book: &mut Trie, our_calls: &[Call], trump: Suit) {
-    // The ask and the four RKCB answer calls
-    let c_4nt = Call::Bid(Bid::new(4, Strain::Notrump));
-    let ans_5c = Call::Bid(Bid::new(5, Strain::Clubs));
-    let ans_5d = Call::Bid(Bid::new(5, Strain::Diamonds));
-    let ans_5h = Call::Bid(Bid::new(5, Strain::Hearts));
-    let ans_5s = Call::Bid(Bid::new(5, Strain::Spades));
-    let c_5nt = Call::Bid(Bid::new(5, Strain::Notrump));
+/// The 4NT bid itself must already be in the caller's table; this produces
+/// everything that comes *after* 4NT.
+pub(super) fn rkcb_rows(prefix: &str, trump: Suit) -> Vec<Entry> {
+    let ans_5c = Bid::new(5, Strain::Clubs);
+    let ans_5d = Bid::new(5, Strain::Diamonds);
+    let ans_5h = Bid::new(5, Strain::Hearts);
+    let ans_5s = Bid::new(5, Strain::Spades);
 
-    // Helper: build `our_calls + [4NT] + [tail…]`
-    let extend = |tail: &[Call]| -> Vec<Call> {
-        our_calls
-            .iter()
-            .copied()
-            .chain(core::iter::once(c_4nt))
-            .chain(tail.iter().copied())
-            .collect()
-    };
+    // Every key hangs off our 4NT; the trailing `(P)` is the opposing pass
+    // `uncontested` used to interleave by hand.
+    let ask = format!("{prefix} 4NT (P)");
+    let node = |tail: &str| Pattern::node(format!("{ask} {tail}").trim_end());
 
     // -----------------------------------------------------------------------
-    // 1. Answers at `our_calls + [4NT]` (forcing, no Pass rule)
+    // 1. Answers at the ask itself (forcing, no Pass rule)
     // -----------------------------------------------------------------------
-    insert_uncontested(book, &extend(&[]), rkcb_answers(trump));
+    let mut entries = rows_of(node(""), rkcb_answers(trump));
 
     // -----------------------------------------------------------------------
     // 2. Asker's continuations after each answer
-    //    `our_calls + [4NT, ans]`
     // -----------------------------------------------------------------------
-
-    // Build the shared asker tables once.  Majors use the full ladder; minors
-    // use the cramped-signoff tables (and skip the king ask further down).
+    //
+    // Majors use the full ladder; minors use the cramped-signoff tables (and
+    // skip the king ask further down).
     let (after_5c, after_5d, after_5h, after_5s) = if matches!(trump, Suit::Hearts | Suit::Spades) {
         (
-            Arc::new(asker_after_5c(trump)) as Arc<dyn Classifier>,
-            Arc::new(asker_after_5d(trump)) as Arc<dyn Classifier>,
-            Arc::new(asker_after_5h(trump)) as Arc<dyn Classifier>,
-            Arc::new(asker_after_5s(trump)) as Arc<dyn Classifier>,
+            asker_after_5c(trump),
+            asker_after_5d(trump),
+            asker_after_5h(trump),
+            asker_after_5s(trump),
         )
     } else {
         (
-            Arc::new(asker_after_5c_minor(trump)) as Arc<dyn Classifier>,
-            Arc::new(asker_after_5d_minor(trump)) as Arc<dyn Classifier>,
-            Arc::new(no_room_six(trump)) as Arc<dyn Classifier>,
-            Arc::new(no_room_six(trump)) as Arc<dyn Classifier>,
+            asker_after_5c_minor(trump),
+            asker_after_5d_minor(trump),
+            no_room_six(trump),
+            no_room_six(trump),
         )
     };
 
-    let suffix_5c = uncontested(&extend(&[ans_5c]));
-    let suffix_5d = uncontested(&extend(&[ans_5d]));
-    let suffix_5h = uncontested(&extend(&[ans_5h]));
-    let suffix_5s = uncontested(&extend(&[ans_5s]));
-
-    insert_arc_all_seats(book, &suffix_5c, 3, &after_5c);
-    insert_arc_all_seats(book, &suffix_5d, 3, &after_5d);
-    insert_arc_all_seats(book, &suffix_5h, 3, &after_5h);
-    insert_arc_all_seats(book, &suffix_5s, 3, &after_5s);
+    for (answer, table) in [
+        (ans_5c, after_5c),
+        (ans_5d, after_5d),
+        (ans_5h, after_5h),
+        (ans_5s, after_5s),
+    ] {
+        entries.extend(rows_of(node(&format!("{answer} (P)")), table));
+    }
 
     // -----------------------------------------------------------------------
     // 2b. The queen relay, where the lane has room for it
-    //     `our_calls + [4NT, ans, relay, reply…]`
     // -----------------------------------------------------------------------
     //
     // Only the two ambiguous answers grow one — 5♥ and 5♠ already disclose the
@@ -758,60 +728,47 @@ pub(super) fn install_rkcb(book: &mut Trie, our_calls: &[Call], trump: Suit) {
     // lands at or below five of trump, which excludes both plain-4NT minors and
     // hearts after a 0-or-3.  Those lanes keep betting the small slam on four
     // keycards, exactly as they do today.
-    {
-        for &answer in &[ans_5c, ans_5d] {
-            let Call::Bid(answer_bid) = answer else {
+    for answer in [ans_5c, ans_5d] {
+        let Some(map) = relay_map(answer, trump) else {
+            continue;
+        };
+        let relay = format!("{answer} (P) {} (P)", map.ask);
+
+        // The answer lane owns the combined-count decode.  Over 5♣ partner
+        // showed one, so four of our own is all five; over 5♦ partner showed
+        // none or three, so two of our own (partner's three) or all five of our
+        // own is — and four of our own is exactly four, the hand the relay
+        // exists for and the hand a grand must never tempt.
+        let (exact, at_least) = if answer == ans_5c { (4, 4) } else { (2, 5) };
+        let five = || keycards(trump, exact..=exact) | keycards(trump, at_least..);
+
+        entries.extend(rows_of(node(&relay), queen_replies(trump, &map)));
+        for denial in [map.weak, map.deny] {
+            entries.extend(rows_of(
+                node(&format!("{relay} {denial} (P)")),
+                asker_after_denial(trump, denial, five()),
+            ));
+        }
+        entries.extend(rows_of(
+            node(&format!("{relay} {} (P)", map.no_king)),
+            asker_after_queen(trump, false, None, five()),
+        ));
+        for &(_, shown) in &map.kings {
+            let second = king_relay(shown, trump);
+            entries.extend(rows_of(
+                node(&format!("{relay} {shown} (P)")),
+                asker_after_queen(trump, true, second, five()),
+            ));
+            let Some(second) = second else {
                 continue;
             };
-            let Some(map) = relay_map(answer_bid, trump) else {
-                continue;
-            };
-            let relay = Call::Bid(map.ask);
-
-            // The answer lane owns the combined-count decode.  Over 5♣ partner
-            // showed one, so four of our own is all five; over 5♦ partner
-            // showed none or three, so two of our own (partner's three) or all
-            // five of our own is — and four of our own is exactly four, the
-            // hand the relay exists for and the hand a grand must never tempt.
-            let (exact, at_least) = if answer == ans_5c { (4, 4) } else { (2, 5) };
-            let five = || keycards(trump, exact..=exact) | keycards(trump, at_least..);
-
-            insert_uncontested(book, &extend(&[answer, relay]), queen_replies(trump, &map));
-            for denial in [map.weak, map.deny] {
-                insert_uncontested(
-                    book,
-                    &extend(&[answer, relay, Call::Bid(denial)]),
-                    asker_after_denial(trump, denial, five()),
-                );
-            }
-            insert_uncontested(
-                book,
-                &extend(&[answer, relay, Call::Bid(map.no_king)]),
-                asker_after_queen(trump, false, None, five()),
-            );
-            for &(_, shown) in &map.kings {
-                let second = king_relay(shown, trump);
-                insert_uncontested(
-                    book,
-                    &extend(&[answer, relay, Call::Bid(shown)]),
-                    asker_after_queen(trump, true, second, five()),
-                );
-                let Some(second) = second else {
-                    continue;
-                };
-                let ask = Call::Bid(second.ask);
-                insert_uncontested(
-                    book,
-                    &extend(&[answer, relay, Call::Bid(shown), ask]),
-                    king_replies(trump, second),
-                );
-                for (reply, more) in [(second.more, true), (second.none, false)] {
-                    insert_uncontested(
-                        book,
-                        &extend(&[answer, relay, Call::Bid(shown), ask, Call::Bid(reply)]),
-                        asker_after_relay_kings(trump, more),
-                    );
-                }
+            let asked = format!("{relay} {shown} (P) {} (P)", second.ask);
+            entries.extend(rows_of(node(&asked), king_replies(trump, second)));
+            for (reply, more) in [(second.more, true), (second.none, false)] {
+                entries.extend(rows_of(
+                    node(&format!("{asked} {reply} (P)")),
+                    asker_after_relay_kings(trump, more),
+                ));
             }
         }
     }
@@ -820,47 +777,58 @@ pub(super) fn install_rkcb(book: &mut Trie, our_calls: &[Call], trump: Suit) {
     // (5NT misreads as the ask; 6♣/6♦ king answers collide with the trump slam).
     // Grand-in-minor stays under-bid; the upgrade path is Kickback (out of scope).
     if matches!(trump, Suit::Clubs | Suit::Diamonds) {
-        return;
+        return entries;
     }
 
     // -----------------------------------------------------------------------
-    // 3. King answers at `our_calls + [4NT, ans, 5NT]` — shared table
+    // 3. King answers after the 5NT ask
     // -----------------------------------------------------------------------
-    let shared_king_answers = Arc::new(king_answers(trump)) as Arc<dyn Classifier>;
-
-    for &ans in &[ans_5c, ans_5d, ans_5h, ans_5s] {
-        let king_path = uncontested(&extend(&[ans, c_5nt]));
-        insert_arc_all_seats(book, &king_path, 3, &shared_king_answers);
+    for answer in [ans_5c, ans_5d, ans_5h, ans_5s] {
+        entries.extend(rows_of(
+            node(&format!("{answer} (P) 5NT (P)")),
+            king_answers(trump),
+        ));
     }
 
     // -----------------------------------------------------------------------
     // 4. Asker after king answers
-    //    `our_calls + [4NT, ans, 5NT, kans]`
     // -----------------------------------------------------------------------
-    let kans_6c = Call::Bid(Bid::new(6, Strain::Clubs));
-    let kans_6d = Call::Bid(Bid::new(6, Strain::Diamonds));
-    let kans_6h = Call::Bid(Bid::new(6, Strain::Hearts));
-
-    let shared_after_6c = Arc::new(asker_after_6c(trump)) as Arc<dyn Classifier>;
-    let shared_after_6d = Arc::new(asker_after_6d(trump)) as Arc<dyn Classifier>;
-
-    // Register asker-after-king-answer for each of the four ans paths
-    for &ans in &[ans_5c, ans_5d, ans_5h, ans_5s] {
-        // after 6♣
-        let suffix_6c = uncontested(&extend(&[ans, c_5nt, kans_6c]));
-        insert_arc_all_seats(book, &suffix_6c, 3, &shared_after_6c);
-
-        // after 6♦
-        let suffix_6d = uncontested(&extend(&[ans, c_5nt, kans_6d]));
-        insert_arc_all_seats(book, &suffix_6d, 3, &shared_after_6d);
-
-        // after 6♥ (only when trump == Spades)
+    for answer in [ans_5c, ans_5d, ans_5h, ans_5s] {
+        let kings = format!("{answer} (P) 5NT (P)");
+        entries.extend(rows_of(
+            node(&format!("{kings} 6♣ (P)")),
+            asker_after_6c(trump),
+        ));
+        entries.extend(rows_of(
+            node(&format!("{kings} 6♦ (P)")),
+            asker_after_6d(trump),
+        ));
+        // 6♥ is a king answer only when trumps are spades; over hearts it is
+        // the catch-all signoff.
         if trump == Suit::Spades {
-            let suffix_6h = uncontested(&extend(&[ans, c_5nt, kans_6h]));
-            let after_6h = Arc::new(asker_after_6h(trump)) as Arc<dyn Classifier>;
-            insert_arc_all_seats(book, &suffix_6h, 3, &after_6h);
+            entries.extend(rows_of(
+                node(&format!("{kings} 6♥ (P)")),
+                asker_after_6h(trump),
+            ));
         }
     }
+
+    entries
+}
+
+/// Install RKCB 1430 below an agreed trump suit
+///
+/// `our_calls` is the undisturbed sequence of our side's calls so far (the
+/// same form [`uncontested`][super::uncontested] takes); the 4NT ask and its
+/// answers are inserted below it.  A thin shim over [`rkcb_rows`], kept so the
+/// ~25 imperative call sites need not spell the prefix themselves; a file
+/// ported to the row layer calls the producer directly instead.
+pub(super) fn install_rkcb(book: &mut Trie, our_calls: &[Call], trump: Suit) {
+    let prefix = core::iter::once("P*".to_owned())
+        .chain(our_calls.iter().map(|call| format!("{call} (P)")))
+        .collect::<Vec<_>>()
+        .join(" ");
+    compile_entries(book, "rkcb", rkcb_rows(&prefix, trump));
 }
 
 // ---------------------------------------------------------------------------
@@ -886,6 +854,31 @@ mod tests {
         ];
         install_rkcb(&mut trie, &our_calls, Suit::Spades);
         trie
+    }
+
+    /// The rows the producer emits hold the row invariants — alerts on every
+    /// artificial rung (totality is exact-node-exempt, and RKCB is all exact
+    /// nodes).  One package per trump: the minor lanes take the cramped-signoff
+    /// branch and stop before the king ask, so a majors-only probe would miss
+    /// half the tables.
+    #[test]
+    fn row_package_invariants() {
+        use crate::bidding::rows::Package;
+
+        const fn package(name: &'static str, entries: fn() -> Vec<Entry>) -> Package {
+            Package {
+                name,
+                gate: || true,
+                entries,
+            }
+        }
+
+        crate::bidding::rows::assert_package_invariants(&[
+            package("rkcb:♠", || rkcb_rows("P* 1♠ (P) 3♠ (P)", Suit::Spades)),
+            package("rkcb:♥", || rkcb_rows("P* 1♥ (P) 3♥ (P)", Suit::Hearts)),
+            package("rkcb:♦", || rkcb_rows("P* 1♦ (P) 3♦ (P)", Suit::Diamonds)),
+            package("rkcb:♣", || rkcb_rows("P* 1♣ (P) 3♣ (P)", Suit::Clubs)),
+        ]);
     }
 
     /// The best call made by the trie for the given hand at the given auction

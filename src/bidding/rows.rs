@@ -472,15 +472,14 @@ enum Lowered {
 /// second group would author a second fallback entry, or silently replace an
 /// exact node, instead of extending the first table — an authoring bug either
 /// way), and on a guardless [`Entry::Guarded`].
-fn group(package: &Package) -> Vec<(Pattern, Lowered)> {
+fn group(name: &str, entries: Vec<Entry>) -> Vec<(Pattern, Lowered)> {
     let mut groups: Vec<(Pattern, Lowered)> = Vec::new();
-    for entry in (package.entries)() {
+    for entry in entries {
         match entry {
             Entry::Guarded(pattern, fallback) => {
                 assert!(
                     pattern.guard.is_some(),
-                    "{}: guarded entry at {:?} lacks a guard",
-                    package.name,
+                    "{name}: guarded entry at {:?} lacks a guard",
                     pattern.source,
                 );
                 groups.push((pattern, Lowered::Fallback(fallback)));
@@ -492,8 +491,7 @@ fn group(package: &Package) -> Vec<(Pattern, Lowered)> {
                 _ => {
                     assert!(
                         !groups.iter().any(|(pattern, _)| *pattern == row.pattern),
-                        "{}: pattern {:?} re-declared non-consecutively",
-                        package.name,
+                        "{name}: pattern {:?} re-declared non-consecutively",
                         row.pattern.source,
                     );
                     groups.push((row.pattern, Lowered::Table(row.rules)));
@@ -517,28 +515,42 @@ fn group(package: &Package) -> Vec<(Pattern, Lowered)> {
 /// See [`group`].
 pub(crate) fn compile_into(book: &mut Trie, packages: &[Package]) {
     for package in packages {
-        if !(package.gate)() {
-            continue;
+        if (package.gate)() {
+            compile_entries(book, package.name, (package.entries)());
         }
-        for (pattern, lowered) in group(package) {
-            match (lowered, &pattern.guard) {
-                (Lowered::Fallback(fallback), Some(spec)) => {
-                    fallback_all_seats(book, &pattern.key, pattern.fan, spec.lower(), fallback);
-                }
-                (Lowered::Fallback(_), None) => {
-                    unreachable!("group() rejects guardless entries")
-                }
-                (Lowered::Table(rules), None) => {
-                    insert_all_seats(book, &pattern.key, pattern.fan, rules);
-                }
-                (Lowered::Table(rules), Some(spec)) => fallback_all_seats(
-                    book,
-                    &pattern.key,
-                    pattern.fan,
-                    spec.lower(),
-                    Fallback::classify(rules),
-                ),
+    }
+}
+
+/// Lower one block of entries under a diagnostic `name`
+///
+/// The seam for row *producers* — a subtree authored under a prefix the caller
+/// computes, which a [`Package`] cannot express: its `entries` is a bare `fn`
+/// pointer, so it captures nothing, not even which suit is trumps.  RKCB's
+/// `rkcb_rows` is the case that motivated it; a producer's rows still regroup
+/// and lower exactly as a package's do.
+///
+/// # Panics
+///
+/// See [`group`].
+pub(crate) fn compile_entries(book: &mut Trie, name: &str, entries: Vec<Entry>) {
+    for (pattern, lowered) in group(name, entries) {
+        match (lowered, &pattern.guard) {
+            (Lowered::Fallback(fallback), Some(spec)) => {
+                fallback_all_seats(book, &pattern.key, pattern.fan, spec.lower(), fallback);
             }
+            (Lowered::Fallback(_), None) => {
+                unreachable!("group() rejects guardless entries")
+            }
+            (Lowered::Table(rules), None) => {
+                insert_all_seats(book, &pattern.key, pattern.fan, rules);
+            }
+            (Lowered::Table(rules), Some(spec)) => fallback_all_seats(
+                book,
+                &pattern.key,
+                pattern.fan,
+                spec.lower(),
+                Fallback::classify(rules),
+            ),
         }
     }
 }
@@ -587,7 +599,7 @@ pub(crate) fn assert_package_invariants(packages: &[Package]) {
     .collect();
 
     for package in packages {
-        for (pattern, lowered) in group(package) {
+        for (pattern, lowered) in group(package.name, (package.entries)()) {
             let auction = pattern.probe_auction();
             let context = Context::new(RelativeVulnerability::NONE, &auction);
             if let Some(spec @ GuardSpec::Opaque { sample, .. }) = &pattern.guard {

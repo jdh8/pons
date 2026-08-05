@@ -150,6 +150,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Debug` naming break with no behavior change; historical DNF ledgers,
   harnesses, result labels, and trained-artifact filenames retain their names.
 
+- **RKCB is a row producer, unblocking the rest of the constructive book.**
+  `slam::install_rkcb` wrote a whole 1430 subtree under a caller-computed
+  prefix, and a `Package`'s `entries` is a bare `fn` pointer that captures
+  nothing — not even which suit is trumps — so the six remaining constructive
+  files could not port while they called it. It is now `rkcb_rows(prefix,
+  trump) -> Vec<Entry>` behind a same-signature shim, lowered by the new
+  `rows::compile_entries(book, name, entries)` seam that `compile_into` was
+  split to expose. **No grammar addition:** RKCB is exact `insert_uncontested`
+  nodes throughout, and `Call`'s `Display`/`FromStr` round-trip losslessly, so
+  the prefix is a `format!`ed auction string — the `Pattern`-from-`&[Call]`
+  constructor the batch-8 note asked for is not needed. All ~25 call sites are
+  untouched, including the three that derive the prefix (and, in
+  `game_force`, the trump) by reflecting over a just-built table's `rules()`.
+  Byte-identical: a no-dedup dump of every book node under seven knob arms
+  (default, `rkcb_minors` on/off, Kickback, game tries, limit-raise
+  acceptance, opener's third call) and a seeded 20k `smoke-default` auction
+  dump all diff empty. One visible consequence, cosmetic: `render-book`
+  dedupes nodes by classifier pointer identity, and one `Arc` per pattern
+  replaces the cross-key sharing `insert_arc_all_seats` provided (that helper
+  is deleted with its only caller), so the renderer now prints 4390 authored
+  nodes instead of 3526 — 864 previously-hidden duplicates of tables the book
+  always held, a pure-insertion diff with zero deleted lines.
+
+  This closes Phase 1.5 of the campaign. The floating-addendum half
+  (`FloatGuard`, semantic "wherever trumps are agreed" agreements lowered to
+  root fallbacks) is **not** owed: the instinct floor already implements it as
+  `keycard_trump` / `keycard_ask_bid` under `set_floor_rkcb`, default-on since
+  M6.4 and disclosed via `Alert("floor:rkcb")`. Building it in the book would
+  shadow a measured floor package with hand-authored rows. DOPI/ROPI/DEPO and
+  the Kickback ladder are likewise floor code, not book wiring — the Kickback
+  arm above changes no book node at all.
+
 - **The declarative row layer reaches the constructive book: openings, the
   weak-two responses, XYZ, and New Minor Forcing are packages.** The
   constructive book keys the *undisturbed* auction — our calls with an
