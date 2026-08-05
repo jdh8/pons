@@ -22,6 +22,7 @@
 //! | [`Pattern::guarded`] | a hand-written [`Guard`], carried verbatim |
 //! | [`rebase`] entry | [`Fallback::Rebase`] |
 //! | [`classified`] entry | [`Fallback::Classify`] of a computed table |
+//! | [`expand`] template | one [`Pattern::node`] row per assignment |
 //!
 //! The grammar grows only with its consumers.
 //!
@@ -30,20 +31,59 @@
 //! alternation, so a row authored on the wrong side of the table fails at
 //! build time rather than bidding for the opponents.
 //!
+//! ## Variable rows
+//!
+//! [`expand`] turns one template auction string into many exact rows: it
+//! cross-products every variable's domain, keeps the assignments the caller's
+//! domain closure accepts and whose auctions are strictly ascending, and
+//! emits [`Pattern::node`] rows from a table closure handed each assignment's
+//! [`Bindings`].  Variables are **binders, not matchers**: the result is a
+//! finite family of exact keys (infinite tails stay with the guard verbs),
+//! and `P`/`X`/`XX` stay literal — a table for their overcall is never the
+//! table for their double.
+//!
+//! A variable word is a **level slot** then a **strain slot**, implicitly
+//! typed by spelling, and **case is the variable/literal boundary**: a single
+//! lowercase letter is a variable; uppercase words and glyphs are literals.
+//! The lexer rejects lowercase literals, pre-empting the case-insensitive
+//! upstream `FromStr` that would silently read `"2s"` as 2♠.
+//!
+//! | Slot | Literals | Variables | Keywords |
+//! | --- | --- | --- | --- |
+//! | level | `1`–`7` | `i j k l n` bind a level; `.` = fresh anonymous | — |
+//! | strain | `♣ ♦ ♥ ♠`, `C D H S`, `N`/`NT` | any other lowercase letter binds a [`Suit`]; `.` = fresh anonymous | `M` a major, `m` a minor (binding); `OM`/`om` the other one (derived) |
+//!
+//! * Notrump enters **literally only** (`iN` is notrump at level `i`):
+//!   letters bind suits, never five-strain domains — notrump meanings are
+//!   systemically special and get their own rows.
+//! * `M`, `OM`, `m`, `om` are reserved strain words like `NT`, not letters;
+//!   a row using `OM` must also use `M` (`om` likewise `m`) or the build
+//!   panics.
+//! * One letter binds once per row — `"1x (P) 2x (P)"` is a raise — while each
+//!   `.` is fresh.
+//! * Quantifiers apply to `P` alone, and only leading: no other call can
+//!   repeat in an ascending auction, and an internal pass run would flip
+//!   which side later calls fall on.  `P*` is the seat fan above; `P+` is
+//!   recognized but deferred until a consumer exists.
+//!
+//! Style: prefer `x y z a b c` for suit letters — `o` reads as the `om` tail,
+//! `l` as `1`, `n` as the `N` literal.
+//!
 //! The exact-node/guarded-table distinction is load-bearing, not cosmetic: an
 //! exact node that rejects a hand (all-−∞) falls through to the floor
 //! ([`Trie::classify_floored`]), while a guarded table is consulted again on
 //! the fall-through pass and therefore must stay total — keep a finite
 //! catch-all in every guarded table.
 
-use super::common::fallback_all_seats;
+use super::common::{fallback_all_seats, other_major, other_minor};
 use super::constraint::Constraint;
 use super::fallback::{Fallback, FirstIs, Guard, OvercallAtMost, Rewrite, SuffixIs};
 use super::rules::{Alert, Rules};
 use super::trie::{Classifier, Trie};
-use contract_bridge::Bid;
 use contract_bridge::auction::Call;
+use contract_bridge::{Bid, Level, Strain, Suit};
 use core::fmt;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
@@ -400,16 +440,35 @@ fn parse(source: &str) -> (Vec<Token>, usize) {
             fan = 3;
             continue;
         }
+        if word == "P+" {
+            assert_eq!(index, 0, "pattern {source:?}: P+ is only valid leading");
+            panic!("pattern {source:?}: P+ is recognized but deferred — it has no consumer yet");
+        }
         let (theirs, text) = match word.strip_prefix('(').and_then(|w| w.strip_suffix(')')) {
             Some(inner) => (true, inner),
             None => (false, word),
         };
-        let call = text
-            .parse()
-            .unwrap_or_else(|_| panic!("pattern {source:?}: unparsable call {word:?}"));
+        let call = parse_call(source, word, text);
         tokens.push(Token { call, theirs });
     }
     (tokens, fan)
+}
+
+/// Parse one concrete call word, enforcing the case boundary
+///
+/// Case is the variable/literal boundary (see the [module docs][self]), but
+/// the upstream `FromStr` is case-*insensitive* — left alone it would read
+/// `"2s"` as 2♠ where the grammar means a suit variable.  Rejecting lowercase
+/// wherever a literal is expected keeps the boundary crisp at build time.
+fn parse_call(source: &str, word: &str, text: &str) -> Call {
+    assert!(
+        !text.contains(|c: char| c.is_ascii_lowercase()),
+        "pattern {source:?}: {word:?} is lowercase — a lowercase letter is a variable; \
+         write literals uppercase ({})",
+        text.to_ascii_uppercase(),
+    );
+    text.parse()
+        .unwrap_or_else(|_| panic!("pattern {source:?}: unparsable call {word:?}"))
 }
 
 /// Check parenthesisation against seat alternation
@@ -441,9 +500,7 @@ impl Pattern {
     pub(crate) fn first(key: &str, their_call: &str) -> Self {
         let (tokens, fan) = parse(key);
         check_sides(key, &tokens, tokens.len() + 1);
-        let call = their_call
-            .parse()
-            .unwrap_or_else(|_| panic!("pattern {key:?}: unparsable call {their_call:?}"));
+        let call = parse_call(key, their_call, their_call);
         Self {
             source: format!("{key} ({their_call}) …"),
             key: tokens.into_iter().map(|token| token.call).collect(),
@@ -459,8 +516,8 @@ impl Pattern {
     pub(crate) fn up_to(key: &str, their_bid: &str) -> Self {
         let (tokens, fan) = parse(key);
         check_sides(key, &tokens, tokens.len() + 1);
-        let bid = match their_bid.parse() {
-            Ok(Call::Bid(bid)) => bid,
+        let bid = match parse_call(key, their_bid, their_bid) {
+            Call::Bid(bid) => bid,
             _ => panic!("pattern {key:?}: {their_bid:?} is not a bid"),
         };
         Self {
@@ -588,6 +645,408 @@ impl Pattern {
         }
         auction
     }
+}
+
+/// The level slot of one template word
+#[derive(Clone, Copy)]
+enum LevelSlot {
+    Lit(Level),
+    Var(char),
+    Anon(usize),
+}
+
+/// The strain slot of one template word
+///
+/// `M`/`m`/`OM`/`om` are reserved words, not letters — they live here rather
+/// than in `Var` so the case rule needs no exception.
+#[derive(Clone, Copy)]
+enum StrainSlot {
+    Lit(Strain),
+    Var(char),
+    Major,
+    Minor,
+    OtherMajor,
+    OtherMinor,
+    Anon(usize),
+}
+
+/// One word of a variable-row template
+enum TemplateWord {
+    /// Passed through verbatim; a bid word joins the ascension check
+    Literal { text: String, bid: Option<Bid> },
+    /// Substituted per assignment, parenthesised as authored
+    Variable {
+        parens: bool,
+        level: LevelSlot,
+        strain: StrainSlot,
+    },
+}
+
+/// Type one template word per the [module grammar][self]
+fn lex_word(
+    source: &str,
+    word: &str,
+    anon_levels: &mut usize,
+    anon_suits: &mut usize,
+) -> TemplateWord {
+    let (parens, text) = match word.strip_prefix('(').and_then(|w| w.strip_suffix(')')) {
+        Some(inner) => (true, inner),
+        None => (false, word),
+    };
+    if matches!(text, "P*" | "P+") {
+        // Quantifier position and P+ deferral are `parse`'s panics.
+        return TemplateWord::Literal {
+            text: word.into(),
+            bid: None,
+        };
+    }
+    let mut chars = text.chars();
+    let level = match chars.next() {
+        Some(digit @ '1'..='7') => LevelSlot::Lit(Level::new(digit as u8 - b'0')),
+        Some(letter @ ('i' | 'j' | 'k' | 'l' | 'n')) => LevelSlot::Var(letter),
+        Some('.') => {
+            *anon_levels += 1;
+            LevelSlot::Anon(*anon_levels - 1)
+        }
+        // No level slot: a concrete call word (`P`, `X`, `-`, …)
+        _ => {
+            return TemplateWord::Literal {
+                text: word.into(),
+                bid: match parse_call(source, word, text) {
+                    Call::Bid(bid) => Some(bid),
+                    _ => None,
+                },
+            };
+        }
+    };
+    let strain = match chars.as_str() {
+        "" => panic!("template {source:?}: {word:?} has an empty strain slot"),
+        "." => {
+            *anon_suits += 1;
+            StrainSlot::Anon(*anon_suits - 1)
+        }
+        "M" => StrainSlot::Major,
+        "m" => StrainSlot::Minor,
+        "OM" => StrainSlot::OtherMajor,
+        "om" => StrainSlot::OtherMinor,
+        rest => {
+            let mut singleton = rest.chars();
+            match (singleton.next(), singleton.next()) {
+                (Some(letter @ ('i' | 'j' | 'k' | 'l' | 'n')), None) => panic!(
+                    "template {source:?}: {word:?} puts level letter {letter:?} in the \
+                     strain slot — notrump is the literal `N`",
+                ),
+                (Some(letter @ 'a'..='z'), None) => StrainSlot::Var(letter),
+                _ => {
+                    assert!(
+                        !rest.contains(|c: char| c.is_ascii_lowercase()),
+                        "template {source:?}: {word:?} is lowercase — literals are \
+                         uppercase; write {}",
+                        text.to_ascii_uppercase(),
+                    );
+                    StrainSlot::Lit(rest.parse().unwrap_or_else(|_| {
+                        panic!("template {source:?}: unparsable strain in {word:?}")
+                    }))
+                }
+            }
+        }
+    };
+    match (level, strain) {
+        // A fully literal bid word is just a literal.
+        (LevelSlot::Lit(level), StrainSlot::Lit(strain)) => TemplateWord::Literal {
+            text: word.into(),
+            bid: Some(Bid { level, strain }),
+        },
+        (level, strain) => TemplateWord::Variable {
+            parens,
+            level,
+            strain,
+        },
+    }
+}
+
+/// The enumerable variables of one template, in deterministic order
+struct Variables {
+    /// Named level letters, sorted, each over `1..=7`
+    levels: Vec<char>,
+    /// Fresh anonymous levels, each over `1..=7`
+    anon_levels: usize,
+    /// Named strain keys, sorted (`'M'`/`'m'` carry the keywords)
+    suits: Vec<char>,
+    /// Fresh anonymous suits, each over the four suits
+    anon_suits: usize,
+}
+
+impl Variables {
+    fn of(source: &str, words: &[TemplateWord]) -> Self {
+        let mut levels = BTreeSet::new();
+        let mut suits = BTreeSet::new();
+        let (mut anon_levels, mut anon_suits) = (0, 0);
+        let (mut derived_major, mut derived_minor) = (false, false);
+        for word in words {
+            let TemplateWord::Variable { level, strain, .. } = word else {
+                continue;
+            };
+            match level {
+                LevelSlot::Var(letter) => {
+                    levels.insert(*letter);
+                }
+                LevelSlot::Anon(index) => anon_levels = anon_levels.max(index + 1),
+                LevelSlot::Lit(_) => {}
+            }
+            match strain {
+                StrainSlot::Var(letter) => {
+                    suits.insert(*letter);
+                }
+                StrainSlot::Major => {
+                    suits.insert('M');
+                }
+                StrainSlot::Minor => {
+                    suits.insert('m');
+                }
+                StrainSlot::OtherMajor => derived_major = true,
+                StrainSlot::OtherMinor => derived_minor = true,
+                StrainSlot::Anon(index) => anon_suits = anon_suits.max(index + 1),
+                StrainSlot::Lit(_) => {}
+            }
+        }
+        assert!(
+            !derived_major || suits.contains(&'M'),
+            "template {source:?}: OM requires M in the row",
+        );
+        assert!(
+            !derived_minor || suits.contains(&'m'),
+            "template {source:?}: om requires m in the row",
+        );
+        Self {
+            levels: levels.into_iter().collect(),
+            anon_levels,
+            suits: suits.into_iter().collect(),
+            anon_suits,
+        }
+    }
+
+    fn suit_domain(key: char) -> &'static [Suit] {
+        match key {
+            'M' => &[Suit::Hearts, Suit::Spades],
+            'm' => &[Suit::Clubs, Suit::Diamonds],
+            _ => &Suit::ASC,
+        }
+    }
+
+    /// Domain sizes, one axis per variable
+    fn dims(&self) -> Vec<usize> {
+        core::iter::repeat_n(7, self.levels.len() + self.anon_levels)
+            .chain(self.suits.iter().map(|&key| Self::suit_domain(key).len()))
+            .chain(core::iter::repeat_n(4, self.anon_suits))
+            .collect()
+    }
+
+    /// Materialize the assignment at one odometer state
+    fn bind(&self, state: &[usize]) -> Assignment {
+        let mut cursor = state.iter().copied();
+        let level = |index: usize| Level::new(u8::try_from(index + 1).expect("level fits"));
+        Assignment {
+            levels: self
+                .levels
+                .iter()
+                .map(|&letter| (letter, level(cursor.next().expect("state covers levels"))))
+                .collect(),
+            anon_levels: (0..self.anon_levels)
+                .map(|_| level(cursor.next().expect("state covers anonymous levels")))
+                .collect(),
+            suits: self
+                .suits
+                .iter()
+                .map(|&key| {
+                    let domain = Self::suit_domain(key);
+                    (key, domain[cursor.next().expect("state covers suits")])
+                })
+                .collect(),
+            anon_suits: (0..self.anon_suits)
+                .map(|_| Suit::ASC[cursor.next().expect("state covers anonymous suits")])
+                .collect(),
+        }
+    }
+}
+
+/// One concrete valuation of a template's variables
+struct Assignment {
+    levels: BTreeMap<char, Level>,
+    anon_levels: Vec<Level>,
+    suits: BTreeMap<char, Suit>,
+    anon_suits: Vec<Suit>,
+}
+
+impl Assignment {
+    fn level(&self, slot: LevelSlot) -> Level {
+        match slot {
+            LevelSlot::Lit(level) => level,
+            LevelSlot::Var(letter) => self.levels[&letter],
+            LevelSlot::Anon(index) => self.anon_levels[index],
+        }
+    }
+
+    fn strain(&self, slot: StrainSlot) -> Strain {
+        match slot {
+            StrainSlot::Lit(strain) => strain,
+            StrainSlot::Var(letter) => self.suits[&letter].into(),
+            StrainSlot::Major => self.suits[&'M'].into(),
+            StrainSlot::Minor => self.suits[&'m'].into(),
+            StrainSlot::OtherMajor => other_major(self.suits[&'M']).into(),
+            StrainSlot::OtherMinor => other_minor(self.suits[&'m']).into(),
+            StrainSlot::Anon(index) => self.anon_suits[index].into(),
+        }
+    }
+}
+
+/// One assignment of a template's variables, handed to the domain and table
+/// closures of [`expand`]
+pub(crate) struct Bindings {
+    levels: BTreeMap<char, Level>,
+    suits: BTreeMap<char, Suit>,
+    /// Every variable-strain word's substituted bid, for [`bid`][Self::bid]
+    bids: Vec<(char, Bid)>,
+}
+
+#[allow(dead_code)] // the grammar lands one commit before its first consumer
+impl Bindings {
+    /// The level bound to a level letter
+    pub(crate) fn level(&self, letter: char) -> Level {
+        *self
+            .levels
+            .get(&letter)
+            .unwrap_or_else(|| panic!("no level variable {letter:?} in the row"))
+    }
+
+    /// The suit bound to a suit letter, or to the `'M'`/`'m'` keyword
+    pub(crate) fn suit(&self, letter: char) -> Suit {
+        *self
+            .suits
+            .get(&letter)
+            .unwrap_or_else(|| panic!("no suit variable {letter:?} in the row"))
+    }
+
+    /// The bid at a strain letter's unique occurrence
+    ///
+    /// # Panics
+    ///
+    /// When the letter spells no bid in the row, or several — read an
+    /// ambiguous letter's bids off their level letters instead.
+    pub(crate) fn bid(&self, letter: char) -> Bid {
+        let mut hits = self
+            .bids
+            .iter()
+            .filter(|(key, _)| *key == letter)
+            .map(|&(_, bid)| bid);
+        let bid = hits
+            .next()
+            .unwrap_or_else(|| panic!("no bid spells strain letter {letter:?} in the row"));
+        assert!(
+            hits.next().is_none(),
+            "strain letter {letter:?} spells several bids in the row — \
+             read the one you mean off its level letter",
+        );
+        bid
+    }
+}
+
+/// Substitute one assignment into the template: the concrete source, its
+/// bindings, and whether its bids strictly ascend
+fn substitute(words: &[TemplateWord], assignment: &Assignment) -> (String, Bindings, bool) {
+    let mut texts = Vec::new();
+    let mut bids = Vec::new();
+    let mut letter_bids = Vec::new();
+    for word in words {
+        match word {
+            TemplateWord::Literal { text, bid } => {
+                texts.push(text.clone());
+                bids.extend(*bid);
+            }
+            TemplateWord::Variable {
+                parens,
+                level,
+                strain,
+            } => {
+                let bid = Bid {
+                    level: assignment.level(*level),
+                    strain: assignment.strain(*strain),
+                };
+                match strain {
+                    StrainSlot::Var(letter) => letter_bids.push((*letter, bid)),
+                    StrainSlot::Major => letter_bids.push(('M', bid)),
+                    StrainSlot::Minor => letter_bids.push(('m', bid)),
+                    _ => {}
+                }
+                texts.push(if *parens {
+                    format!("({bid})")
+                } else {
+                    bid.to_string()
+                });
+                bids.push(bid);
+            }
+        }
+    }
+    let ascending = bids.windows(2).all(|pair| pair[0] < pair[1]);
+    let bindings = Bindings {
+        levels: assignment.levels.clone(),
+        suits: assignment.suits.clone(),
+        bids: letter_bids,
+    };
+    (texts.join(" "), bindings, ascending)
+}
+
+/// Expand a variable-row template into exact rows, one table per assignment
+///
+/// Cross-products every variable's domain (see the [module grammar][self]),
+/// keeps the assignments `domain` accepts whose bids strictly ascend, and for
+/// each survivor emits [`Pattern::node`] rows carrying `table`'s [`Rules`].
+/// Exact nodes only: a wildcard tail is the guard verbs' native shape, not a
+/// template's.
+///
+/// # Panics
+///
+/// On a malformed template (see [`lex_word`] and [`Variables::of`]), and when
+/// no assignment survives the filters — an empty expansion is an authoring
+/// bug, not a package.
+#[allow(dead_code)] // the grammar lands one commit before its first consumer
+pub(crate) fn expand(
+    source: &str,
+    domain: impl Fn(&Bindings) -> bool,
+    table: impl Fn(&Bindings) -> Rules,
+) -> Vec<Entry> {
+    let (mut anon_levels, mut anon_suits) = (0, 0);
+    let words: Vec<TemplateWord> = source
+        .split_whitespace()
+        .map(|word| lex_word(source, word, &mut anon_levels, &mut anon_suits))
+        .collect();
+    let variables = Variables::of(source, &words);
+    let dims = variables.dims();
+    let mut state = vec![0usize; dims.len()];
+    let mut entries = Vec::new();
+    'assignments: loop {
+        let (concrete, bindings, ascending) = substitute(&words, &variables.bind(&state));
+        if ascending && domain(&bindings) {
+            entries.extend(rows_of(Pattern::node(&concrete), table(&bindings)));
+        }
+        let mut axis = 0;
+        loop {
+            if axis == dims.len() {
+                break 'assignments;
+            }
+            state[axis] += 1;
+            if state[axis] < dims[axis] {
+                break;
+            }
+            state[axis] = 0;
+            axis += 1;
+        }
+    }
+    assert!(
+        !entries.is_empty(),
+        "template {source:?}: no assignment survives the domain and legality filters",
+    );
+    entries
 }
 
 /// One rule at one pattern — the row of the declarative layer
@@ -1659,5 +2118,210 @@ mod tests {
     #[should_panic(expected = "P* is only valid leading")]
     fn interior_fan_panics() {
         let _ = Pattern::up_to("1♥ P*", "2♠");
+    }
+
+    /// The sources a template expands to, in declaration order.
+    fn expansion_sources(source: &str) -> Vec<String> {
+        group("test", expand(source, |_| true, |_| two_rule_table()))
+            .into_iter()
+            .map(|(pattern, _)| pattern.source)
+            .collect()
+    }
+
+    /// A template expands to one exact node per surviving assignment; the
+    /// substituted source round-trips through `Pattern::node`, the binding
+    /// reaches the table, and the seat fan rides along.
+    #[test]
+    fn expand_substitutes_and_round_trips() {
+        let mut book = Trie::new();
+        compile_entries(
+            &mut book,
+            "weak-twos",
+            expand(
+                "P* 2x (P)",
+                |bindings| bindings.suit('x') != Suit::Clubs,
+                |bindings| {
+                    Rules::new()
+                        .rule(Bid::new(4, bindings.suit('x').into()), 100, hcp(10..))
+                        .rule(Call::Pass, 0, hcp(0..))
+                },
+            ),
+        );
+        assert!(
+            book.get(&calls("2♣ P")).is_none(),
+            "the domain closed ♣ out"
+        );
+        for suit in ["♦", "♥", "♠"] {
+            let rules = book
+                .get(&calls(&format!("2{suit} P")))
+                .expect("an exact node per assignment")
+                .as_rules()
+                .expect("rows regroup into Rules");
+            assert_eq!(
+                rules.rules()[0].call().to_string(),
+                format!("4{suit}"),
+                "the binding reached the table",
+            );
+        }
+        let patterns = book.authoring().patterns();
+        let sources: Vec<&str> = patterns.iter().map(|pattern| &*pattern.source).collect();
+        assert_eq!(sources, ["P* 2♦ (P)", "P* 2♥ (P)", "P* 2♠ (P)"]);
+        assert_eq!(patterns[0].keys.len(), 4, "the fan rode through");
+    }
+
+    /// Non-ascending assignments are pruned: at one level the strain must
+    /// rise, leaving the six ascending pairs of sixteen.
+    #[test]
+    fn expand_prunes_non_ascending() {
+        assert_eq!(expansion_sources("1x (1y)").len(), 6);
+    }
+
+    /// Notrump enters literally only: `iN` is notrump at a level variable.
+    #[test]
+    fn notrump_enters_literally() {
+        let sources: Vec<String> = group(
+            "test",
+            expand(
+                "P* 1♥ (iN)",
+                |bindings| bindings.level('i').get() == 1,
+                |_| two_rule_table(),
+            ),
+        )
+        .into_iter()
+        .map(|(pattern, _)| pattern.source)
+        .collect();
+        assert_eq!(sources, ["P* 1♥ (1NT)"]);
+    }
+
+    /// One letter binds once per row: `2x` raises the suit `1x` opened.
+    #[test]
+    fn one_letter_binds_once() {
+        assert_eq!(
+            expansion_sources("1x (P) 2x (P)"),
+            [
+                "1♣ (P) 2♣ (P)",
+                "1♦ (P) 2♦ (P)",
+                "1♥ (P) 2♥ (P)",
+                "1♠ (P) 2♠ (P)"
+            ],
+        );
+    }
+
+    /// `bid()` of a letter spelling several bids is ambiguous.
+    #[test]
+    #[should_panic(expected = "several bids")]
+    fn ambiguous_bid_lookup_panics() {
+        let _ = expand(
+            "1x (P) 2x (P)",
+            |bindings| bindings.bid('x').level.get() == 1,
+            |_| two_rule_table(),
+        );
+    }
+
+    /// A letter absent from the row has no binding to read.
+    #[test]
+    #[should_panic(expected = "no level variable")]
+    fn missing_letter_panics() {
+        let _ = expand(
+            "2x (P)",
+            |bindings| bindings.level('i').get() > 0,
+            |_| two_rule_table(),
+        );
+    }
+
+    /// Case is the variable/literal boundary: `2s` is a suit variable while
+    /// `2S` and `2♠` spell the same literal key.
+    #[test]
+    fn lowercase_is_a_variable_uppercase_a_literal() {
+        assert_eq!(expansion_sources("2s (P)").len(), 4);
+        let mut letters = Trie::new();
+        compile_entries(
+            &mut letters,
+            "letters",
+            rows_of(Pattern::node("2S (P)"), two_rule_table()),
+        );
+        let mut glyphs = Trie::new();
+        compile_entries(
+            &mut glyphs,
+            "glyphs",
+            rows_of(Pattern::node("2♠ (P)"), two_rule_table()),
+        );
+        assert!(letters.get(&calls("2♠ P")).is_some());
+        assert!(glyphs.get(&calls("2♠ P")).is_some());
+    }
+
+    /// A lowercase word where a literal is expected fails loudly instead of
+    /// riding the case-insensitive upstream parse.
+    #[test]
+    #[should_panic(expected = "lowercase")]
+    fn lowercase_literal_call_panics() {
+        let _ = Pattern::node("1♥ (x)");
+    }
+
+    /// `1n` is neither a literal (notrump is `N`) nor a variable word (`n`
+    /// binds levels).
+    #[test]
+    #[should_panic(expected = "level letter")]
+    fn lowercase_notrump_panics() {
+        let _ = expand("1♥ (1n)", |_| true, |_| two_rule_table());
+    }
+
+    /// `M` and `m` are binding keywords over the majors and minors.
+    #[test]
+    fn major_minor_keywords_bind() {
+        assert_eq!(
+            expansion_sources("1m (P) 1M (P)"),
+            [
+                "1♣ (P) 1♥ (P)",
+                "1♣ (P) 1♠ (P)",
+                "1♦ (P) 1♥ (P)",
+                "1♦ (P) 1♠ (P)"
+            ],
+        );
+    }
+
+    /// `OM` derives from the row's `M` binding.
+    #[test]
+    fn other_major_derives_from_major() {
+        assert_eq!(
+            expansion_sources("1M (P) 2OM (P)"),
+            ["1♥ (P) 2♠ (P)", "1♠ (P) 2♥ (P)"],
+        );
+    }
+
+    /// A derived keyword without its base has nothing to derive from.
+    #[test]
+    #[should_panic(expected = "OM requires M")]
+    fn other_major_alone_panics() {
+        let _ = expand("P* 2OM (P)", |_| true, |_| two_rule_table());
+    }
+
+    /// Each `.` is a fresh anonymous variable.
+    #[test]
+    fn anonymous_slots_are_fresh() {
+        assert_eq!(expansion_sources("2. (P)").len(), 4);
+        assert_eq!(expansion_sources("1. (P) 2. (P)").len(), 16);
+    }
+
+    /// `P+` is recognized, and deferred until a consumer exists.
+    #[test]
+    #[should_panic(expected = "deferred")]
+    fn leading_plus_is_recognized_but_deferred() {
+        let _ = Pattern::node("P+ 2♥ (P)");
+    }
+
+    /// Quantifiers are leading-only: an internal pass run would flip the
+    /// side parity of every later call.
+    #[test]
+    #[should_panic(expected = "P+ is only valid leading")]
+    fn interior_plus_panics() {
+        let _ = expand("2♥ P+ (P)", |_| true, |_| two_rule_table());
+    }
+
+    /// An expansion nothing survives is an authoring bug, not a package.
+    #[test]
+    #[should_panic(expected = "no assignment survives")]
+    fn empty_expansion_panics() {
+        let _ = expand("1x (P)", |_| false, |_| two_rule_table());
     }
 }

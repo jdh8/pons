@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Variable rows: a slot-typed template grammar for the declarative book
+  layer.** `rows::expand` turns one template auction string into many exact
+  rows: each word is a level slot (`1`–`7` literal, `[ijkln]` binding a
+  level, `.` fresh anonymous) plus a strain slot (suit/NT literals, any
+  other lowercase letter binding a suit, `.`, and the keywords `M`/`m` —
+  binding a major/minor — with derived `OM`/`om`), cross-producted over the
+  variables' domains, filtered by the caller's domain closure and by strict
+  bid ascension, each surviving assignment emitting `Pattern::node` rows
+  from a table closure handed its `Bindings` (`level`/`suit`/`bid`).
+  **Case is now the variable/literal boundary**: lowercase where a literal
+  call is expected panics at build time, pre-empting the case-insensitive
+  upstream `FromStr` that would silently read `"2s"` as 2♠. Quantifiers
+  stay leading-`P`-only (`P+` recognized but deferred until a consumer
+  exists). `common::other_major`/`other_minor` land as the shared derived-
+  strain helpers. User impact: none yet — zero call sites, and the shipped
+  book is proven byte-identical (seeded 20k-board `smoke-default` dump and
+  `render-book` both diff empty against the parent commit); the first
+  consumer is the per-overcall direct-seat conversion, next. The grammar
+  spec lives in `rows.rs`'s module doc.
+
 ### Measured
 
 - **The three A/Bs the floor swap invalidated, re-run under the configured

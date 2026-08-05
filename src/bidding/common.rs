@@ -10,12 +10,28 @@ use super::instinct::instinct;
 use super::trie::Classifier;
 use super::{Pair, Trie};
 use contract_bridge::auction::Call;
-use contract_bridge::{Bid, Strain};
+use contract_bridge::{Bid, Strain, Suit};
 use std::sync::Arc;
 
 /// A bid as a [`Call`], for trie keys
 pub(in crate::bidding) const fn call(level: u8, strain: Strain) -> Call {
     Call::Bid(Bid::new(level, strain))
+}
+
+/// The other major
+pub(in crate::bidding) const fn other_major(major: Suit) -> Suit {
+    match major {
+        Suit::Hearts => Suit::Spades,
+        _ => Suit::Hearts,
+    }
+}
+
+/// The other minor
+pub(in crate::bidding) const fn other_minor(minor: Suit) -> Suit {
+    match minor {
+        Suit::Clubs => Suit::Diamonds,
+        _ => Suit::Clubs,
+    }
 }
 
 // ---------------------------------------------------------------------------
