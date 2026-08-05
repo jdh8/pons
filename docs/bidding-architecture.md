@@ -33,17 +33,28 @@ auction + hand
   `american_instinct()` the books over the deterministic ladder instead of the
   net. The private `with_floor` is where floors attach.
 - **What the authored book is worth**: `american` − `american_floor`, 204800
-  boards/vul vs the BBA reference (2026-07-20, `scripts/ab-book-value.sh`), is
-  **+0.29 plain / +0.23 PD** NV and **+0.37 plain / +0.27 PD** vul — real, all
-  CIs clear of zero, but far short of the whole system. Auctions diverge on 53%
-  of boards, so the book earns ≈+0.5 IMPs per board it actually touches. Read
-  it as the book's *total* contribution: an empty book also stops projecting
-  into `Inferences`, so the net's `features_v4` inference block collapses to
-  unknown, and the gap is the book as authored calls **and** as disclosure. The
-  BBA-distilled floor has absorbed most of what the book does.
-  **Superseded 2026-08-05**: both arms moved to the configured (v4) floor, so
-  the ablation stays self-consistent but the figure prices a floor neither arm
-  now runs — a re-run of `scripts/ab-book-value.sh` is owed.
+  boards/vul vs the BBA reference (2026-08-06, `scripts/ab-book-value.sh`, seed
+  base 1785947357, both arms on the configured v4 floor), is **+0.3049 ±0.0174
+  plain / +0.5470 ±0.0212 PD** NV and **+0.4509 ±0.0224 plain / +0.7994 ±0.0271
+  PD** vul. Auctions diverge on 49% of boards, so the book earns ≈+0.6 plain /
+  ≈+1.4 PD IMPs per board it actually touches. Read it as the book's *total*
+  contribution: an empty book also stops projecting into `Inferences`, so the
+  net's `features_v4` inference block collapses to unknown, and the gap is the
+  book as authored calls **and** as disclosure.
+
+  **The gap grew where a stronger floor was predicted to shrink it**, and
+  entirely in PD: against the v3-floor run (2026-07-20, `7b0b51d`) plain moved
+  +0.29 → +0.30 NV and +0.37 → +0.45 vul, while PD moved +0.23 → **+0.55** and
+  +0.27 → **+0.80**. So the floor swap's PD gain — gate 1's +0.53/+0.54 — is
+  roughly the *same size* as the growth in this gap, which is what you would see
+  if the configured net's PD gain accrues **only where an authored book sits
+  above it**. Two co-explanations are not separated by this run: the fortnight of
+  conventions shipped in between were themselves mostly plain-wash/PD-win, and
+  `american_floor` now hands the net a card describing agreements it has no book
+  to play, which can only widen the gap. Separating them needs an
+  instinct-floored no-book arm, which is not currently a factory — the shipped
+  reading is "the book is worth more under the configured floor, mechanism
+  unattributed."
 
 ## Resolution and shadowing — the invariants
 

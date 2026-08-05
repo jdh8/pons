@@ -345,6 +345,31 @@ decided; the arms share deals, so a paired NV A/B of the floor's routing gate
 would settle it cheaply.  For context, B4's routing gate recorded +0.11 NV /
 +0.25 vul at `7122756`, eight net-floor commits ago.
 
+> **Settled 2026-08-06 under the configured floor — the NV pathology is gone.**
+> The paired A/B this paragraph asked for, run at `e650a86` on the anchor seed
+> (1783375064, 204 800 bd/vul), with **both arms generated at the same sha**:
+>
+> | `american` − `american-instinct`, v4 floor | plain DD | perfect defense | fired |
+> | --- | --- | --- | --- |
+> | vul none | **+0.1745** ±0.0128 | **+0.2540** ±0.0156 | 26.15% |
+> | vul both | **+0.2247** ±0.0162 | **+0.3802** ±0.0194 | 24.33% |
+>
+> NV perfect defense goes **−0.034 → +0.2540**: the calls that bought the
+> contract and got doubled are no longer there, and the floor now wins on both
+> scorers at both vulnerabilities. Pooled, the floor is worth **+0.200 plain /
+> +0.317 PD** against v3's +0.131 / +0.101.
+>
+> Two method notes, both of which cut against over-reading the improvement.
+> First, v3's figure was a **difference of two absolute vs-BBA gaps** (hence
+> "the unpaired CIs overlap"); the table above is a **paired** `ab-dump-diff`,
+> same quantity but a much tighter instrument. Second, **do not diff a fresh
+> `--our-floor american` arm against an older snapshot's `american-instinct`
+> arm.** Doing exactly that against `3c94802` — 87 `src/bidding` commits back,
+> several of them behaviour-changing for `american_instinct()` itself — reads
+> **+0.1905/+0.2832 NV and +0.2489/+0.4214 vul**, overstating the floor by
+> ≈9–11% because the *baseline* had improved in the interval. Regenerate the
+> control at HEAD.
+
 **Re-anchor `3c94802` (2026-07-28, 409.6k boards, same seed) — and the series
 changes meaning here.**  `bba-gen --disclose` now defaults to `generated`, so
 from this snapshot on **BBA is told what we play**: every earlier anchor faced a

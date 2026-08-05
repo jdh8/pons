@@ -9,6 +9,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Measured
 
+- **The three A/Bs the floor swap invalidated, re-run under the configured
+  net.** All at `e650a86`, 204 800 boards per arm per vul, arms sequential.
+
+  **The floor's value over the deterministic prior, and the NV pathology is
+  gone.** `american` − `american-instinct` on the anchor seed (1783375064),
+  **both arms generated at the same sha**: plain DD **+0.1745 ± 0.0128** (NV) and
+  **+0.2247 ± 0.0162** (vul), perfect defense **+0.2540 ± 0.0156** and **+0.3802
+  ± 0.0194**. Under the v3 net the same contrast measured +0.094 plain and
+  **−0.034 PD** at NV — a PD *loss*, the signature of calls that buy the contract
+  and get doubled. It is now +0.254, and the floor wins on both scorers at both
+  vulnerabilities; pooled, +0.200 plain / +0.317 PD against v3's +0.131 / +0.101.
+  Method caveat recorded in `docs/bba-gap-campaign.md`: diffing a fresh
+  `american` arm against the `3c94802` snapshot's `american-instinct` arm — 87
+  `src/bidding` commits back, several behaviour-changing for
+  `american_instinct()` itself — overstates the floor by ≈9–11%, because the
+  *baseline* improved in the interval. The control has to be regenerated at HEAD.
+
+  **Dutch keeps the floor on all four cells, but the gain moved from plain into
+  PD.** `dutch` − `dutch-instinct` (seed base 1785947357): plain **+0.1727 ±
+  0.0128** / **+0.2169 ± 0.0161**, PD **+0.2421 ± 0.0156** / **+0.3589 ± 0.0193**.
+  Against the v3 run, NV plain is flat and vul plain is *down* (+0.2764 →
+  +0.2169, intervals disjoint) while NV PD is up (+0.1678 → +0.2421) — the same
+  PD-heavier signature gate 1 recorded. The comparison is unpaired and cross-sha
+  and `dutch_instinct()` — the baseline — improved in the interval, so a risen
+  baseline explains it as well as an underperforming treatment. What did move is
+  the tail the v3 run diagnosed: the net redoubling an opponent's double of our
+  artificial call covered **16 of the 20** worst boards then and **4 of 20** now.
+
+  **The authored book is worth more under the configured floor, not less.**
+  `american` − `american_floor` (seed base 1785947357, both arms on the same
+  card): plain **+0.3049 ± 0.0174** (NV) / **+0.4509 ± 0.0224** (vul), PD
+  **+0.5470 ± 0.0212** / **+0.7994 ± 0.0271**. The prediction was that a stronger
+  floor would *absorb* the book and shrink this. Plain barely moved (+0.29/+0.37
+  under v3) while PD roughly tripled (+0.23/+0.27) — and the PD growth is about
+  the size of gate 1's own PD gain, which is what you would see if the configured
+  net's PD gain accrues **only where an authored book sits above it**. Two
+  co-explanations are unseparated by this run: the conventions shipped in the
+  interval were themselves mostly plain-wash/PD-win, and `american_floor` hands
+  the net a card describing agreements it has no book to play. Separating them
+  needs an instinct-floored no-book arm, which is not currently a factory.
+
 - **λ is not a function of level alone, and most of Pavlicek's cells do not
   transfer to ours.** `probe-sd-calibration` now buckets by `(level, strain
   class)` — 4M, 5m, 3NT, 6NT — with targets re-aggregated from his

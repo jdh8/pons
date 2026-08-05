@@ -102,16 +102,45 @@ what the decomposition predicts: `dutch()` ran the deterministic floor over
 strictly more unauthored territory, so it had more to gain. Plain and PD agree at
 both vulnerabilities — not a doubling artifact.
 
-> **Superseded 2026-08-05 — these numbers were taken under the v3 net.**
+> **Superseded 2026-08-05 — the table above was taken under the v3 net.**
 > `dutch()` now stands on `ConfiguredFloorBba` under `dutch_card()`
-> (`docs/ai-bidder/configured-net.md` phase 6), so the table above prices a
-> floor Dutch no longer runs. Leaving Dutch on v3 while american moved to v4
-> would have put a floor-vintage confound *inside* `dutch − american`, which is
-> this campaign's own measuring instrument — the exact confound the configured
-> net exists to remove — so the swap was not optional. **A re-run of
-> `scripts/ab-dutch-floor.sh` against `dutch-instinct` is owed** and is off the
-> critical path; the v4 corpus covers Dutch cells, and the v3 net had never seen
-> a WJ card (see the relay diagnosis below).
+> (`docs/ai-bidder/configured-net.md` phase 6). Leaving Dutch on v3 while
+> american moved to v4 would have put a floor-vintage confound *inside*
+> `dutch − american`, which is this campaign's own measuring instrument — the
+> exact confound the configured net exists to remove — so the swap was not
+> optional. Re-measured below.
+
+**Step A re-measured under the configured floor (2026-08-06).** Same runner, 204
+800 bd/arm/vul, fresh seed base 1785947357 at `e650a86`.
+
+| `dutch` − `dutch-instinct`, v4 | plain DD | perfect defense | fired |
+| --- | --- | --- | --- |
+| vul none | **+0.1727** ±0.0128 | **+0.2421** ±0.0156 | 25.64% |
+| vul both | **+0.2169** ±0.0161 | **+0.3589** ±0.0193 | 23.85% |
+
+**The floor still wins all four cells decisively, but it did not beat v3 the way
+the card block predicted it would** — and the answer is *shape*, not size. Plain
+DD is flat at NV (+0.1764 → +0.1727, inside the CI) and **down** at vul (+0.2764
+→ +0.2169, intervals disjoint); PD is **up** at NV (+0.1678 → +0.2421, disjoint)
+and flat at vul. Same PD-heavier signature gate 1 recorded for `american()`
+(+0.19/+0.25 plain against +0.53/+0.54 PD): what the configured net buys is
+mostly the doubling tail, not extra tricks.
+
+Read the v3→v4 comparison as **unpaired and cross-sha**. The runs used different
+seed bases, and `dutch_instinct()` — the *baseline* — moved between them: the
+reading-drift repairs, the keycard rail and the cramped-doubled escape all landed
+in the interval and all improve `instinct()`. A baseline that rose explains a
+margin that shrank at least as well as a treatment that underperformed, and
+nothing here separates the two.
+
+**What did move, and is the honest evidence the card block reached Dutch: the
+redouble tail is largely gone.** The v3 run's residual diagnosis below — the net
+redoubling an opponent's double of our artificial call instead of bidding on —
+covered **16 of the 20** worst boards across the four cells. Under v4 it covers
+**4 of 20**. n = 20 makes that indicative rather than measured, and the interim
+`instinct()` fixes are a co-explanation, but the pathology that defined the v3
+tail no longer defines the v4 one. The `1♦`-relay phantom-diamond diagnosis below
+is the remaining thing to re-check against a v4 dump.
 
 **The residual tail is a redouble bug, and it is probably american's too.** Four
 of the five worst plain boards and four of the five worst PD boards share one
