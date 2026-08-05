@@ -710,6 +710,62 @@ so every arm now routes through `american_with_config(Config::new(&card(arm),
 &card(opponent)))`. Left alone, each arm would have claimed the opponent plays
 its own card, on precisely the mixed boards gate 2 measures.
 
+## Priced, not taken: fold the card into layer 1's bias
+
+The whole +22–25% is recoverable by arithmetic, and we are **deliberately not
+spending the effort yet** (decision 2026-08-06). Recorded here so nobody
+re-derives it.
+
+280 of the 368 inputs — both card blocks — are constant for a given built floor;
+`ConfiguredFloorBba` captures its `Config` once, at construction. Split layer 1's
+`W1` (256×368) column-wise at 88 into `[A | B]`, and matrix–vector multiply
+distributes:
+
+```
+W1·x + b1  =  A·x_hand + (B·card + b1)
+                         └── constant for this floor: compute once, at build
+```
+
+So `b1' = b1 + B·card` and serving becomes `h1 = ReLU(A·x_hand + b1')`. Layer-1
+MACs 94,208 → 22,528; total 169,472 → 97,792 — **exactly v3's count**. The
+extractor reverts to `features_v3` shape, so the realloc and the per-decision
+`context.clone().with_config()` disappear too. Expect ~16.3 → ~13.0 µs.
+
+**Why it is deferred, not scheduled.** The trigger is *self-play data-gen
+throughput binding*, not the latency number looking bad. Against BBA, BBA's
+167.8 µs/decision dominates completely and the floor swap is invisible in any
+BBA-opposed A/B; pons keeps a 10.3× margin. Fold first only before a large
+`dump-teacher` corpus draw or a big self-play A/B, where 20% is hours.
+
+**What it costs when taken.** `b1' = b1 + B·card` is algebraically exact but not
+bit-exact in `f32` — the original path sums all 368 products at once, the folded
+one rounds a 280-term partial at build then adds 88 at serve. Float addition is
+not associative, so logits move ~1e-6 relative, and the call is an `argmax` over
+38 of them. "Gate 1 measured this artifact" therefore weakens to "gate 1 measured
+an artifact whose logits agree with this one to ~1e-6" — the distinction this
+repo paid to keep when the twins died. A non-zero argmax-disagreement rate makes
+it a **bidding** change, which does not ship on analysis alone.
+
+Three real obstacles, in the order they bite:
+
+1. **Columns `0..88` of a row-major (256, 368) blob are strided** (256 runs of 88
+   with stride 368). `affine` needs a contiguous buffer to view as column-major,
+   so `A` must be repacked into a fresh (256, 88) buffer — 88 KiB, once per built
+   floor. The strided-`MatrixView` alternative gives up the cache-optimal
+   contiguous-column dot product the current design deliberately buys.
+2. `ConfiguredFloorBba::new` is `pub const fn`; precomputing makes it non-`const`
+   — a (minor) public API change.
+3. `Config`'s `ours`/`theirs` are private to `features`; the fold needs the raw
+   280 floats, so add a `pub(crate)` accessor or fold inside `features`.
+
+The shape when taken: a pure `fold_card(weights, card) -> (Box<[f32]>, [f32;
+256])` in `neural.rs`, unit-testable alone; `classify_bba_v4` (unfolded) stays
+alive for the candle-parity fixture, which feeds 368-wide rows; and the
+load-bearing test is an equivalence sweep over a few thousand seeded `(hand,
+auction)` pairs that **counts and reports** argmax disagreements rather than
+asserting zero. `smoke-default` is a free detector for the same thing — it moves
+if and only if some argmax flips.
+
 ## Resolved: the opponents' config rides on `Context`
 
 Our own card falls out of live knob state, exactly as `card()` reads it today.
