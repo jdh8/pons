@@ -1,4 +1,4 @@
-# Bidding Engine Performance Recovery and Rule-Compilation Plan
+# Bidding Engine Performance Recovery and Rule-Compilation Record
 
 ## Summary
 
@@ -23,7 +23,12 @@ Every measured CV was at most 1.82%. Hardware counters were unavailable
 under the host's `perf` policy; the separate Rust allocation count/bytes pass
 completed on both CPUs.
 
-The `Trie` today carries both semantics and mechanics: semantics — what an auction means (authored rules, weights, envelope-union readings, alerts, guards) — and mechanics — how a key routes (children maps, the fallback walk, the rebase loop). The declarative book layer is moving the semantics out into row data. What remains in the trie afterwards is pure mechanics, which the stages below may compile and cache aggressively — compiled routing, step-by-step auction caching — without touching meaning.
+During authoring, the mutable `Trie` remains the semantic authority for what an
+auction means — authored rules, weights, envelope-union readings, alerts, and
+guards — as well as the mechanical routing structure. Binding now preserves
+the declarative row identities beside that authoritative trie and compiles its
+routing and reading mechanics into immutable sidecars. The serving path can
+therefore cache those mechanics aggressively without changing meaning.
 
 The solution has two complementary parts:
 
@@ -34,24 +39,31 @@ Data flow:
 
 `Rows/legacy authoring → mutable Pair/Trie → Pair::against() finalization → compiled rule/reader plans → per-deal auction step cache → per-decision cache`
 
-This document records the staged design. Stages 1–2 are implemented; phase
-1.5 and stages 3 onward remain planning only until separately authorized.
+This document records both the staged design and its implementation status.
+Stages 1–5 and the intervening RKCB phase 1.5 are implemented. Stage 6 remains
+follow-up work; the final acceptance measurements for stages 3–5 are recorded
+in the explicitly marked section below once the pinned runs complete.
 
 ## Sequencing
 
-The execution order is explicit:
+The execution order was explicit:
 
 1. Complete stages 1–2: the reference/performance harness and the classification-scoped cache.
 2. Complete phase 1.5 of the declarative book layer, moving floating agreements such as RKCB into book-owned declarative data.
 3. Begin stage 3 and the later compilation/cursor work only after phase 1.5 is complete.
 
-The contested-book rows prerequisite for stages 1–2 is complete.  Stages 3–5 additionally wait for phase 1.5 so that most semantics — including agreements which currently float at classification time — live in row data and the trie holds mechanics plus an enumerated set of escape hatches.
+That order is now complete through stage 5. The contested-book rows prerequisite
+and phase 1.5 landed before compilation began, so most semantics — including
+RKCB — were already represented in authored data and the trie exposed a bounded
+inventory of escape hatches.
 
-- Stages 3–5 compile the row data itself. Compiling mid-port means building against a moving substrate and proving parity twice; each rows batch already ships its own byte-identity proof.
-- The escape-hatch inventory — opaque `guarded` rows, the closure-classifier sections still awaiting a row form, the grafted 1NT book, the `insert_advance_of_double`/`insert_sohl_over` producers — is exactly stage 5's legacy slow path. It must be closed as an enumeration before decoder coverage can be stated.
+- Stages 3–5 compile the row data itself. Waiting avoided building against a moving substrate and proving parity twice; each rows batch already shipped its own byte-identity proof.
+- The escape-hatch inventory — opaque `guarded` rows, the closure-classifier sections still awaiting a row form, the grafted 1NT book, and the `insert_advance_of_double`/`insert_sohl_over` producers — is stage 5's enumerated legacy slow path.
 - Stages 1–2 freeze and optimize the current post-contested-rows serving behavior.  They do not compile row data and do not absorb phase 1.5's authoring work.
 
-Non-gates: the floating addendum (RKCB/DOPI) lowers to root-level guarded fallbacks the decoder already models, and knob migration only widens which reading profiles can be compiled — stage 4 already falls back to the legacy path on a profile mismatch.
+Non-gates: the RKCB/DOPI addendum lowered to root-level guarded fallbacks the
+decoder models, and knob migration only widens which reading profiles can be
+compiled — stage 4 falls back to the legacy path on a profile mismatch.
 
 ## Implementation Plan
 
@@ -90,7 +102,7 @@ Acceptance for this stage:
 - At least 4× improvement on hot instinct positions and 25% on whole-deal throughput.
 - No change to any output bit or provenance.
 
-### 3. Preserve row structure until whole-system finalization
+### 3. Preserve row structure until whole-system finalization (implemented)
 
 The row layer currently lowers rows immediately through the legacy verbs into type-erased classifier and guard objects. Preserve the authored `Pattern`/`Row` values alongside the lowered objects until finalization:
 
@@ -108,13 +120,19 @@ BoundBook
   finalized Trie
   CompiledRules registry
   AuthoringDecoder
-  per-site projection plans
   reading-profile identity
 ```
 
 Mutable standalone `Trie` values retain the legacy path. Public `Pair`, `Stance`, `Trie`, `System`, `Classifier::classify`, and `Context::new` behavior remains unchanged.
 
-### 4. Compile rule tables
+The implementation keeps an authoring ledger through trie mutation, grafting,
+merging, and flooring. Finalization consumes that ledger only in
+`Pair::against()`, validates each preserved target against the authoritative
+live `Arc`, and emits the flat decoder metadata. Stale overwritten or collided
+sites are discarded rather than compiled. The test-only catalog finalizer
+remains an independent oracle.
+
+### 4. Compile rule tables (implemented, level 1)
 
 For every rule-backed classifier, build an immutable `CompiledRules` while retaining the original authored `Rules` for rendering and explanation.
 
@@ -138,7 +156,30 @@ Precompute projection data in two levels:
 
 Keep `project`, `project_band`, `project_complement`, and `announce` distinct. Compile the active/default reading profile; if runtime knobs do not match it, use the legacy projection path. Additional profiles may be compiled later if their benchmarks justify the memory.
 
-### 5. Compile a reader-side authoring decoder
+The implemented `CompiledRules` sidecar contains the declaration-order call
+groups, alert and Pass indexes, pass-exclusion ceiling, stable explanation
+indexes, four distinct projection plans, and conservative dependency masks.
+Context-independent pure projections are eagerly evaluated and interned across
+the stance; a runtime profile mismatch uses the legacy folds.
+
+Level-2 projection specialization per concrete seat-fanned key and
+vulnerability is deliberately deferred. The deal cache already evaluates a
+dynamic projection only once for the call that made it, while eager
+site-by-vulnerability expansion would spend the limited compiled-stance memory
+headroom before demonstrating an additional serving benefit. Revisit it only
+with an interned representation and the same construction-time and memory
+gates.
+
+The current explicitly shareable face predicates are the RKCB recognizers in
+the root instinct classifier. That classifier covers an unbounded set of
+auction routes, so there is no finite concrete-route face mask to freeze in the
+shipped stance. They therefore take the designed dynamic path: an explicit
+`FaceId` is evaluated lazily once in an immutable decision and reused by
+classification and explanation; historical reader contexts use an
+effect-scoped memo. Public opaque `Rules::face` closures remain observable and
+are evaluated on every legacy-equivalent consult.
+
+### 5. Compile a reader-side authoring decoder (implemented)
 
 Build a sidecar decoder from the preserved row patterns:
 
@@ -150,22 +191,58 @@ Build a sidecar decoder from the preserved row patterns:
 
 Initially, leave bidding resolution unchanged. Use the decoder only to reproduce the authoring classifier for every auction prefix and parity-check it against `Trie::resolve_at`.
 
-Once parity is established, replace `project_authored`’s repeated root-to-prefix resolutions with one forward auction scan. That scan will:
+After parity was established, `project_authored`’s repeated root-to-prefix
+resolutions were replaced with one forward auction scan. That scan:
 
-- Produce each call’s authoring classifier and at-the-time context.
-- Reuse results for own-side projection, opponent alerts, Pass reading, cue/control reading, and probed overlays.
-- Incrementally maintain opening, phase, last bid, penalty, strain masks, passed-hand state, and legal-call masks.
-- Key opponent decoding by the actual modeled stance and reading profile.
+- Produces each call’s authoring classifier and at-the-time context.
+- Reuses results for own-side projection, opponent alerts, Pass reading, cue/control reading, and probed overlays.
+- Incrementally maintains opening, phase, last bid, penalty, strain masks, and passed-hand state.
+- Keys opponent decoding by the actual modeled stance and reading profile.
 
-This removes the current roughly quadratic prefix resolution and repeated `Context::new` scans.
+This removes the former roughly quadratic prefix resolution and repeated `Context::new` scans.
 
-Then extend the one-shot scan into a per-deal step cache — the mechanical optimization the semantics move makes safe. A call's authoring classifier, its at-the-time context, and its projection boxes are fixed the moment the call is made; extending the auction never changes them. A serving loop therefore keeps one append-only state per deal and reading profile:
+The one-shot scan is also extended into a per-deal step cache — the mechanical optimization the semantics move makes safe. A call's authoring classifier, its at-the-time context, and its projection boxes are fixed the moment the call is made; extending the auction never changes them. A serving loop therefore keeps one append-only state per deal and reading profile:
 
-- Per-call records: authoring classifier, at-the-time context facts, projection boxes, rebase rewrites taken.
-- Incrementally maintained context facts and legal-call masks.
+- Compact per-call route/provenance records.
+- An incremental mechanical-context cursor.
+- Category-specific accumulated projection effects in auction order.
 - Running envelope intersections per seat.
 
-Each decision appends the new call's record and re-derives only the running intersection, so the auction-dependent share of a decision becomes depth-constant and a deal's total reading work depth-linear, replacing today's per-decision full re-read. The fold order equals auction order, so appending reproduces box order bit-for-bit. The cache is deal-scoped and append-only, keyed by stance and reading profile; a knob change, probe overlay, or opaque-node resolution mid-deal drops that deal to the legacy path. Historical-prefix questions such as RKCB pre-answer decoding keep their separate results, and stage 2's classification-scoped cache remains for hand-dependent values and one-off classifications outside a serving loop.
+At shallow depths the linear one-shot reader is cheaper than initializing the
+cursor and projection accumulators, so table serving activates this state
+lazily at depth 8. Its first prepare reconstructs that prefix in one forward
+scan; each later decision appends only the new calls and re-derives the running
+intersection. Thus the deep auction-dependent share becomes depth-constant and
+the cached tail is depth-linear instead of repeatedly re-reading every prefix,
+without regressing ordinary short deals. The fold order equals auction order,
+so appending reproduces box order bit-for-bit. The cache is deal-scoped and
+append-only, keyed by stance and reading profile; a profile change, non-prefix
+query, or opaque/cache-unstable resolution mid-deal drops that deal to the
+legacy path. Historical-prefix questions such as RKCB pre-answer decoding keep
+their separate results, and stage 2's classification-scoped cache remains for
+hand-dependent values and one-off classifications outside a serving loop.
+
+The cache intentionally keeps the causal sufficient state rather than copies
+of every intermediate. It materializes each at-the-time `Context` once, folds
+that call's boxes once into the ordered category accumulators, and retains the
+final route provenance and rebase count. Typed rewrite metadata stays in the
+decoder rather than being copied into every deal record. Thus extending an
+auction never recomputes an earlier context or projection, without retaining
+unused full contexts, raw boxes, or rewrite traces.
+
+For the normal structured path, advancing the exact-transition cursor is
+amortized O(1) per appended call and direct resolution is depth-constant.
+Structured typed rebases remain the bounded exception: they retain their
+rewrite plan and recurse through at most the existing eight-rebase limit.
+Opaque guards, opaque rewrites, computed targets, a profile change, or another
+cache-unstable route fall back before observable hooks are invoked out of
+legacy order.
+
+An incremental legal-call mask is deferred to stage 6. Stage 5's reader has no
+consumer for it, and table selection continues to use the authoritative
+`Auction::can_push` laws check. Adding the mask together with the deferred
+fixed-array legal selection keeps one parity surface instead of maintaining
+unused duplicate legality state.
 
 ### 6. Reduce remaining allocation and duplicate work
 
@@ -175,8 +252,55 @@ After caching and compiled decoding are measured:
 - Reuse intersection buffers and defer `tidy` until semantic boundaries while preserving box order and exact results.
 - Share immutable precompiled projection boxes instead of cloning `Vec`s.
 - Replace evaluator feature `Vec`s with fixed arrays sized for each model version.
-- Replace sorted legal-call selection with an order-preserving fixed-array maximum only if all tie behavior remains identical.
+- Add an incremental laws-derived legal-call mask and replace sorted legal-call selection with an order-preserving fixed-array maximum only if every mask result and all tie behavior remain identical to `Auction::can_push` and the current selector.
 - Collapse the duplicated net-collar/bilans expression into one named predicate after the cache-only implementation has established a bit-identical reference.
+
+## Stages 3–5 completion and performance record
+
+### Completion record
+
+| Stage | Commit subject | Verification summary |
+|---|---|---|
+| 3 — preserved authoring ledger and finalizer | `perf(bidding): preserve row grammar through finalization (stage 3)` | Live-`Arc` validation, overwrite/collision/graft/merge tests, decoder metadata oracle |
+| 4 — compiled rule sidecars and shared-face execution | `perf(bidding): compile rule and reader execution (stage 4)` | Bit-exact logits/explanations, projection-profile parity, pure/opaque hook-order tests |
+| 5 — flat decoder, forward cursor, and deal step cache | `perf(bidding): activate causal per-deal caching (stage 5)` | Trie/decoder route identity and provenance, linear-depth cursor, cache/drop and whole-auction parity |
+
+### Final correctness record
+
+- Full test suite: **716 passed, 0 failed, 4 ignored** in 683.73 s.
+- 20,000-deal optimized/reference parity: **passed** in 517.08 s; the
+  cache-coverage floor also passed.
+- `smoke-default --count 20000 --seed 1`: byte-identical,
+  SHA-256 `33dd53efa4b796e2e1c4d3f809ddb1476112e1a1ca0092721b9ba86e6f78dd7b`
+- `render-book`: byte-identical,
+  SHA-256 `759527867f98600961e6ed9b3d757cb91f0d30dd7f72dbb1cd8e22e80be35bde`
+- Profile, vulnerability, opaque-route, typed-rebase, hook-order, stance/probe
+  identity, and cache-drop focused coverage: **passed**
+
+### Final performance record
+
+| Gate | CPU 4, 96 MB V-cache CCD | CPU 14, 32 MB frequency CCD | Verdict |
+|---|---:|---:|---|
+| Pons median decision time | 13.341 µs | 12.729 µs | Pass |
+| Wrapped BBA median decision time | 182.831 µs | 232.510 µs | Pass |
+| Pons/BBA 95% ratio CI | 0.0723–0.0734 | 0.0543–0.0551 | Pass |
+| Depth-8 improvement over stage 2 | 2.06× | 2.06× | Pass |
+| Depth-12 / depth-4 latency | 2.27× | 2.25× | Pass |
+| Whole-deal cache/reference upper CI | 0.1436 | 0.1426 | Pass |
+
+- `Pair::against()` construction ratio: **1.62×** (35.667 ms / 22.047 ms), pass.
+- Compiled-stance retained-memory growth: **22.95%** (33,260 KiB /
+  27,052 KiB allocator-trimmed RSS delta), pass.
+- Full-classification Rust allocations: **99.158 allocations and 7,922.4
+  requested bytes per decision**; whole-deal serving: **798.547 allocations
+  and 68,609.8 requested bytes per deal** (native allocations are not
+  observed).
+
+CPU 4 used two warmups and ten measured repetitions; CPU 14 used three
+warmups and twenty measured repetitions after shorter runs failed the 2% CV
+stability gate. Every accepted CV was at most 1.67%. BBA remains
+wrapper-inclusive. Hardware counters remained unavailable under the host
+`perf` policy.
 
 ## Verification and Acceptance
 
@@ -208,7 +332,7 @@ After caching and compiled decoding are measured:
 
 ## Assumptions
 
-- Execution awaits the declarative book layer: stages 3–5 compile row data, so the contested-book port is a prerequisite (see Sequencing). The optimizer still consumes opaque and legacy entries through the slow path, and the payoff — and any coverage statement — scales with grammar coverage.
+- The declarative-book prerequisite was completed before stages 3–5 began. The optimizer still consumes opaque and legacy entries through the slow path, and the payoff — and any coverage statement — scales with grammar coverage.
 - Structured row patterns receive fast compiled routing automatically. Opaque guards preserve identity, declaration order, and legacy resolution.
 - Auction- and hand-dependent inference/evaluator results are cached per decision, or per deal in the append-only step cache, never baked into the trie.
 - No bidding feature, model, reading mode, or convention is disabled to meet the performance target.
