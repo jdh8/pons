@@ -500,6 +500,8 @@ mod tests {
             notrump::european_two_notrump(),
             notrump::two_spade_two_way(),
             notrump::european_two_spade(),
+            notrump::two_notrump_structure(),
+            notrump::two_notrump_rebids(),
         ]);
     }
 

@@ -81,6 +81,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     Trie)` signature is unchanged, which matters: `defense.rs` calls it on a
     fresh empty `Trie` to build the 1NT-overcall graft.  This batch also
     surfaced the unalerted European splinters fixed above.
+  - **N5** — `notrump.rs` 3614–3716, 10 sites, no `install_rkcb` and no gates:
+    `register_two_nt_and_rebids` becomes the ungated `two-notrump-structure`
+    (the three 2NT-strength bases — the 2NT opening and the two `2♣–2x–2NT`
+    sequences — with their Stayman answers, transfer completions, Smolen tail
+    and quantitative 4NT reply) and `two-notrump-rebids` (the eight prefixes
+    whose 18–19 2NT rebid the existing tables already carry).  Both stay
+    computed `entries` closures rather than `expand` templates, because the
+    bases carry a per-prefix scalar — `quantitative_answer(21/24/24)` — and an
+    `expand` closure sees the bound calls, not which row bound them.  **With
+    this batch `notrump.rs` has no imperative wiring left**: 90
+    `insert_uncontested` and 10 `install_rkcb` become 26 packages, and
+    `insert_uncontested` drops out of the file's import list.
   - **The Stayman `2♣` weight tie is a partition, and is now allowlisted.**
     Putting `notrump_responses()` under `assert_package_invariants` for the
     first time surfaced four rules claiming `2♣` at weight 150: constructive

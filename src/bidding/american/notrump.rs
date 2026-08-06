@@ -13,7 +13,7 @@
 //! The public surface is [`register`], called once by
 //! [`american`][super::american] during system assembly.
 
-use super::{call, insert_uncontested, other_major, slam};
+use super::{call, other_major, slam};
 use crate::bidding::constraint::{
     Cons, Constraint, balanced, described, envelope_union_upgrade, equal_length, hcp, len,
     long_suit_box, longer_suit, point_count, points, pred, reads_as, stopper_in,
@@ -3759,6 +3759,131 @@ pub(super) fn european_two_spade() -> Package {
     }
 }
 
+/// Responses and continuations shared by the three 2NT-strength sequences
+pub(super) fn two_notrump_structure() -> Package {
+    Package {
+        name: "two-notrump-structure",
+        gate: || true,
+        entries: || {
+            let two_nt = call(2, Strain::Notrump);
+            let four_nt = call(4, Strain::Notrump);
+            let bases: &[(&[Call], u8)] = &[
+                (&[two_nt], 21),
+                (
+                    &[call(2, Strain::Clubs), call(2, Strain::Diamonds), two_nt],
+                    24,
+                ),
+                (
+                    &[call(2, Strain::Clubs), call(2, Strain::Hearts), two_nt],
+                    24,
+                ),
+            ];
+            let mut entries = Vec::new();
+
+            for (base, accept_hcp) in bases {
+                let prefix = core::iter::once("P*".to_owned())
+                    .chain(base.iter().map(|call| format!("{call} (P)")))
+                    .collect::<Vec<_>>()
+                    .join(" ");
+
+                // Responses to the 2NT bid.
+                entries.extend(rows_of(Pattern::node(&prefix), two_notrump_responses()));
+
+                // Stayman answers and transfer completions at the three level.
+                let extend = |tail: Call| format!("{prefix} {tail} (P)");
+                entries.extend(rows_of(
+                    Pattern::node(&extend(call(3, Strain::Clubs))),
+                    stayman_answers_at_three(),
+                ));
+                entries.extend(rows_of(
+                    Pattern::node(&extend(call(3, Strain::Diamonds))),
+                    complete_transfer_at_three(Suit::Hearts),
+                ));
+                entries.extend(rows_of(
+                    Pattern::node(&extend(call(3, Strain::Hearts))),
+                    complete_transfer_at_three(Suit::Spades),
+                ));
+
+                // Quantitative 4NT answer.
+                entries.extend(rows_of(
+                    Pattern::node(&extend(four_nt)),
+                    quantitative_answer(*accept_hcp),
+                ));
+
+                // Smolen after 3♣ Stayman when opener denies a major (3♦):
+                // responder jumps to show 5–4 in the majors, opener completes
+                // to game in the long one.
+                let extend2 = |a: Call, b: Call| format!("{prefix} {a} (P) {b} (P)");
+                let extend3 =
+                    |a: Call, b: Call, c: Call| format!("{prefix} {a} (P) {b} (P) {c} (P)");
+                let (three_c, three_d) = (call(3, Strain::Clubs), call(3, Strain::Diamonds));
+                let (three_h, three_s) = (call(3, Strain::Hearts), call(3, Strain::Spades));
+                entries.extend(rows_of(
+                    Pattern::node(&extend2(three_c, three_d)),
+                    smolen_at_three(),
+                ));
+                entries.extend(rows_of(
+                    Pattern::node(&extend3(three_c, three_d, three_h)),
+                    smolen_completion(Suit::Spades),
+                ));
+                entries.extend(rows_of(
+                    Pattern::node(&extend3(three_c, three_d, three_s)),
+                    smolen_completion(Suit::Hearts),
+                ));
+            }
+
+            entries
+        },
+    }
+}
+
+/// Continuations after opener's 18–19 2NT rebid
+pub(super) fn two_notrump_rebids() -> Package {
+    Package {
+        name: "two-notrump-rebids",
+        gate: || true,
+        entries: || {
+            let one_nt = call(1, Strain::Notrump);
+            let two_nt = call(2, Strain::Notrump);
+            let four_nt = call(4, Strain::Notrump);
+            let rebid_prefixes: &[&[Call]] = &[
+                &[call(1, Strain::Hearts), call(1, Strain::Spades)],
+                &[call(1, Strain::Clubs), call(1, Strain::Diamonds)],
+                &[call(1, Strain::Clubs), call(1, Strain::Hearts)],
+                &[call(1, Strain::Clubs), call(1, Strain::Spades)],
+                &[call(1, Strain::Diamonds), call(1, Strain::Hearts)],
+                &[call(1, Strain::Diamonds), call(1, Strain::Spades)],
+                &[call(1, Strain::Hearts), one_nt],
+                &[call(1, Strain::Spades), one_nt],
+            ];
+            let mut entries = Vec::new();
+
+            for prefix in rebid_prefixes {
+                let prefix = core::iter::once("P*".to_owned())
+                    .chain(prefix.iter().map(|call| format!("{call} (P)")))
+                    .collect::<Vec<_>>()
+                    .join(" ");
+
+                // Responder's action over opener's 2NT rebid.
+                let two_nt_rebid = format!("{prefix} {two_nt} (P)");
+                entries.extend(rows_of(
+                    Pattern::node(&two_nt_rebid),
+                    after_rebid_two_notrump(),
+                ));
+
+                // Opener's reply to the quantitative 4NT raise.
+                let quantitative_raise = format!("{two_nt_rebid} {four_nt} (P)");
+                entries.extend(rows_of(
+                    Pattern::node(&quantitative_raise),
+                    accept_quantitative_nineteen(),
+                ));
+            }
+
+            entries
+        },
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Registration
 // ---------------------------------------------------------------------------
@@ -3817,107 +3942,7 @@ pub(super) fn register_one_nt(book: &mut Trie) {
 /// The half of the notrump book that an alternative 1NT-opening scheme would
 /// keep unchanged — only [`register_one_nt`] varies.
 pub(super) fn register_two_nt_and_rebids(book: &mut Trie) {
-    let one_nt = call(1, Strain::Notrump);
-    let two_nt = call(2, Strain::Notrump);
-    let four_nt = call(4, Strain::Notrump);
-
-    // --- 2NT-strength structure ----------------------------------------------
-    //
-    // Three base prefixes (our calls only; passes are interleaved by
-    // `insert_uncontested`):
-    //   1. [2NT]                  → direct 2NT opening (20–21), accept_hcp = 21
-    //   2. [2♣, 2♦, 2NT]         → 2♣–2♦–2NT sequence (22–24), accept_hcp = 24
-    //   3. [2♣, 2♥, 2NT]         → 2♣–2♥–2NT sequence (22–24), accept_hcp = 24
-
-    let bases: &[(&[Call], u8)] = &[
-        (&[two_nt], 21),
-        (
-            &[call(2, Strain::Clubs), call(2, Strain::Diamonds), two_nt],
-            24,
-        ),
-        (
-            &[call(2, Strain::Clubs), call(2, Strain::Hearts), two_nt],
-            24,
-        ),
-    ];
-
-    for (base, accept_hcp) in bases {
-        // Responses to the 2NT bid.
-        insert_uncontested(book, base, two_notrump_responses());
-
-        // Stayman answers and transfer completions at the three level.
-        let extend = |tail: Call| -> Vec<Call> {
-            base.iter().copied().chain(core::iter::once(tail)).collect()
-        };
-        insert_uncontested(
-            book,
-            &extend(call(3, Strain::Clubs)),
-            stayman_answers_at_three(),
-        );
-        insert_uncontested(
-            book,
-            &extend(call(3, Strain::Diamonds)),
-            complete_transfer_at_three(Suit::Hearts),
-        );
-        insert_uncontested(
-            book,
-            &extend(call(3, Strain::Hearts)),
-            complete_transfer_at_three(Suit::Spades),
-        );
-
-        // Quantitative 4NT answer.
-        insert_uncontested(book, &extend(four_nt), quantitative_answer(*accept_hcp));
-
-        // Smolen after 3♣ Stayman when opener denies a major (3♦): responder
-        // jumps to show 5–4 in the majors, opener completes to game in the long
-        // one.  Mirrors the 1NT-level structure one level up.
-        let extend2 =
-            |a: Call, b: Call| -> Vec<Call> { base.iter().copied().chain([a, b]).collect() };
-        let extend3 = |a: Call, b: Call, c: Call| -> Vec<Call> {
-            base.iter().copied().chain([a, b, c]).collect()
-        };
-        let (three_c, three_d) = (call(3, Strain::Clubs), call(3, Strain::Diamonds));
-        let (three_h, three_s) = (call(3, Strain::Hearts), call(3, Strain::Spades));
-        insert_uncontested(book, &extend2(three_c, three_d), smolen_at_three());
-        insert_uncontested(
-            book,
-            &extend3(three_c, three_d, three_h),
-            smolen_completion(Suit::Spades),
-        );
-        insert_uncontested(
-            book,
-            &extend3(three_c, three_d, three_s),
-            smolen_completion(Suit::Hearts),
-        );
-    }
-
-    // --- 18–19 2NT rebid continuations --------------------------------------
-    //
-    // The auctions where opener's existing rebid table carries 2NT = 18–19.
-    // Each prefix is [opener's opening, responder's first call] — our side's
-    // two calls that precede the rebid.
-
-    let rebid_prefixes: &[&[Call]] = &[
-        &[call(1, Strain::Hearts), call(1, Strain::Spades)],
-        &[call(1, Strain::Clubs), call(1, Strain::Diamonds)],
-        &[call(1, Strain::Clubs), call(1, Strain::Hearts)],
-        &[call(1, Strain::Clubs), call(1, Strain::Spades)],
-        &[call(1, Strain::Diamonds), call(1, Strain::Hearts)],
-        &[call(1, Strain::Diamonds), call(1, Strain::Spades)],
-        &[call(1, Strain::Hearts), one_nt],
-        &[call(1, Strain::Spades), one_nt],
-    ];
-
-    for prefix in rebid_prefixes {
-        // Responder's action over opener's 2NT rebid.
-        let mut our = prefix.to_vec();
-        our.push(two_nt);
-        insert_uncontested(book, &our, after_rebid_two_notrump());
-
-        // Opener's reply to the quantitative 4NT raise.
-        our.push(four_nt);
-        insert_uncontested(book, &our, accept_quantitative_nineteen());
-    }
+    compile_into(book, &[two_notrump_structure(), two_notrump_rebids()]);
 }
 
 #[cfg(test)]
