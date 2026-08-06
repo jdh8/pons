@@ -494,6 +494,12 @@ mod tests {
             notrump::european_three_club(),
             notrump::both_majors_three_diamond(),
             notrump::notrump_splinter(),
+            notrump::texas_transfers(),
+            notrump::texas_drive(),
+            notrump::diamond_transfer(),
+            notrump::european_two_notrump(),
+            notrump::two_spade_two_way(),
+            notrump::european_two_spade(),
         ]);
     }
 

@@ -3615,6 +3615,150 @@ pub(super) fn notrump_splinter() -> Package {
     }
 }
 
+/// South African Texas transfers, direct slam tries, and their RKCB subtrees
+pub(super) fn texas_transfers() -> Package {
+    Package {
+        name: "texas-transfers",
+        gate: || true,
+        entries: || {
+            let heart_slam = "P* 1NT (P) 4♥ (P)";
+            let spade_slam = "P* 1NT (P) 4♠ (P)";
+            let mut entries = rows_of(
+                Pattern::node("P* 1NT (P) 4♣ (P)"),
+                complete_texas(Suit::Hearts),
+            );
+            entries.extend(rows_of(
+                Pattern::node("P* 1NT (P) 4♦ (P)"),
+                complete_texas(Suit::Spades),
+            ));
+            entries.extend(rows_of(Pattern::node(heart_slam), slam_try_answer()));
+            entries.extend(rows_of(Pattern::node(spade_slam), slam_try_answer()));
+            entries.extend(slam::rkcb_rows(heart_slam, Suit::Hearts));
+            entries.extend(slam::rkcb_rows(spade_slam, Suit::Spades));
+            entries
+        },
+    }
+}
+
+/// Responder's Texas slam drive and its RKCB subtrees
+pub(super) fn texas_drive() -> Package {
+    Package {
+        name: "texas-slam-drive",
+        gate: texas_slam_drive,
+        entries: || {
+            let heart_drive = "P* 1NT (P) 4♣ (P) 4♥ (P)";
+            let spade_drive = "P* 1NT (P) 4♦ (P) 4♠ (P)";
+            let mut entries = rows_of(Pattern::node(heart_drive), texas_slam_drive_rebid());
+            entries.extend(rows_of(
+                Pattern::node(spade_drive),
+                texas_slam_drive_rebid(),
+            ));
+            entries.extend(slam::rkcb_rows(heart_drive, Suit::Hearts));
+            entries.extend(slam::rkcb_rows(spade_drive, Suit::Spades));
+            entries
+        },
+    }
+}
+
+/// Puppet-scheme 1NT–2NT diamond transfer and its continuations
+pub(super) fn diamond_transfer() -> Package {
+    Package {
+        name: "diamond-transfer",
+        gate: puppet_scheme,
+        entries: || {
+            let mut entries = rows_of(
+                Pattern::node("P* 1NT (P) 2NT (P)"),
+                diamond_transfer_answer(),
+            );
+            entries.extend(rows_of(
+                Pattern::node("P* 1NT (P) 2NT (P) 3♦ (P)"),
+                diamond_transfer_game(8),
+            ));
+            entries.extend(rows_of(
+                Pattern::node("P* 1NT (P) 2NT (P) 3♣ (P)"),
+                diamond_transfer_correct(8),
+            ));
+            entries.extend(rows_of(
+                Pattern::node("P* 1NT (P) 2NT (P) 3♣ (P) 3♦ (P)"),
+                pass_out(),
+            ));
+            entries
+        },
+    }
+}
+
+/// European balanced invitation through 1NT–2NT
+pub(super) fn european_two_notrump() -> Package {
+    Package {
+        name: "european-two-notrump",
+        gate: european_scheme,
+        entries: || {
+            rows_of(
+                Pattern::node("P* 1NT (P) 2NT (P)"),
+                european_two_nt_answer(),
+            )
+        },
+    }
+}
+
+/// Puppet-scheme two-way 1NT–2♠ structure and club-splinter continuations
+pub(super) fn two_spade_two_way() -> Package {
+    Package {
+        name: "two-spade-two-way",
+        gate: puppet_scheme,
+        entries: || {
+            let mut entries = rows_of(Pattern::node("P* 1NT (P) 2♠ (P)"), two_spade_answer());
+            entries.extend(rows_of(
+                Pattern::node("P* 1NT (P) 2♠ (P) 2NT (P)"),
+                two_spade_over_min(),
+            ));
+            entries.extend(rows_of(
+                Pattern::node("P* 1NT (P) 2♠ (P) 3♣ (P)"),
+                two_spade_over_max(),
+            ));
+            entries.extend(rows_of(
+                Pattern::node("P* 1NT (P) 2♠ (P) 2NT (P) 3♣ (P)"),
+                pass_out(),
+            ));
+            entries.extend(expand(
+                "P* 1NT (P) 2♠ (P) 2NT (P) 3x (P)",
+                |b| b.suit('x') != Suit::Clubs,
+                |b| pick_game_over_club_splinter(b.suit('x')),
+            ));
+            entries.extend(expand(
+                "P* 1NT (P) 2♠ (P) 3♣ (P) 3x (P)",
+                |b| b.suit('x') != Suit::Clubs,
+                |b| pick_game_over_club_splinter(b.suit('x')),
+            ));
+            entries
+        },
+    }
+}
+
+/// European 1NT–2♠ club transfer and club-splinter continuations
+pub(super) fn european_two_spade() -> Package {
+    Package {
+        name: "european-two-spade",
+        gate: european_scheme,
+        entries: || {
+            let mut entries = rows_of(
+                Pattern::node("P* 1NT (P) 2♠ (P)"),
+                european_two_spade_answer(),
+            );
+            entries.extend(rows_of(
+                Pattern::node("P* 1NT (P) 2♠ (P) 3♣ (P)"),
+                european_two_spade_rebid(),
+            ));
+            entries.extend(expand(
+                "P* 1NT (P) 2♠ (P) 3♣ (P) 3x (P)",
+                |b| b.suit('x') != Suit::Clubs,
+                |b| pick_game_over_club_splinter(b.suit('x')),
+            ));
+            entries
+        },
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Registration
 // ---------------------------------------------------------------------------
@@ -3637,13 +3781,6 @@ pub(super) fn register(book: &mut Trie) {
 /// 2NT-strength/18–19-rebid block ([`register_two_nt_and_rebids`]) so an
 /// alternative 1NT scheme could replace just this part.
 pub(super) fn register_one_nt(book: &mut Trie) {
-    let one_nt = call(1, Strain::Notrump);
-    let two_nt = call(2, Strain::Notrump);
-
-    let two_s = call(2, Strain::Spades);
-    let three_c = call(3, Strain::Clubs);
-    let three_d = call(3, Strain::Diamonds);
-
     compile_into(
         book,
         &[
@@ -3665,82 +3802,14 @@ pub(super) fn register_one_nt(book: &mut Trie) {
             european_three_club(),
             both_majors_three_diamond(),
             notrump_splinter(),
+            texas_transfers(),
+            texas_drive(),
+            diamond_transfer(),
+            european_two_notrump(),
+            two_spade_two_way(),
+            european_two_spade(),
         ],
     );
-
-    // --- South African Texas (1NT–4♣/4♦ transfers, 1NT–4♥/4♠ slam tries) ------
-    //
-    // To-play transfers: opener names the game in the anchor major and declares.
-    // Slam tries: opener passes (minimum) or launches RKCB (maximum); the 1430
-    // ladder in `slam` registers the keycard exchange and the slam placement.
-    let four_c = call(4, Strain::Clubs);
-    let four_d = call(4, Strain::Diamonds);
-    let four_h = call(4, Strain::Hearts);
-    let four_s = call(4, Strain::Spades);
-    insert_uncontested(book, &[one_nt, four_c], complete_texas(Suit::Hearts));
-    insert_uncontested(book, &[one_nt, four_d], complete_texas(Suit::Spades));
-    insert_uncontested(book, &[one_nt, four_h], slam_try_answer());
-    insert_uncontested(book, &[one_nt, four_s], slam_try_answer());
-    slam::install_rkcb(book, &[one_nt, four_h], Suit::Hearts);
-    slam::install_rkcb(book, &[one_nt, four_s], Suit::Spades);
-    // Texas slam-drive (gated): over opener's completion, a 17+ hand drives RKCB
-    // (`4NT`); the 1430 ladder rooted here places the slam, so the strong responder
-    // reaches it regardless of opener's minimum.
-    if texas_slam_drive() {
-        insert_uncontested(book, &[one_nt, four_c, four_h], texas_slam_drive_rebid());
-        insert_uncontested(book, &[one_nt, four_d, four_s], texas_slam_drive_rebid());
-        slam::install_rkcb(book, &[one_nt, four_c, four_h], Suit::Hearts);
-        slam::install_rkcb(book, &[one_nt, four_d, four_s], Suit::Spades);
-    }
-
-    // --- 2NT response (diamond transfer, or European balanced invite) ---------
-    if puppet_scheme() {
-        // Transfer to diamonds: opener completes 3♦ with a fit, else pass-or-correct
-        // 3♣; a weak retreat to 3♦ over that 3♣ must be passed.
-        insert_uncontested(book, &[one_nt, two_nt], diamond_transfer_answer());
-        insert_uncontested(book, &[one_nt, two_nt, three_d], diamond_transfer_game(8));
-        insert_uncontested(
-            book,
-            &[one_nt, two_nt, three_c],
-            diamond_transfer_correct(8),
-        );
-        insert_uncontested(book, &[one_nt, two_nt, three_c, three_d], pass_out());
-    } else {
-        // European: 2NT is a balanced invite — opener accepts game (3NT) or passes.
-        insert_uncontested(book, &[one_nt, two_nt], european_two_nt_answer());
-    }
-
-    // --- 2♠ response (two-way clubs/invite, or European club transfer) --------
-    if puppet_scheme() {
-        insert_uncontested(book, &[one_nt, two_s], two_spade_answer());
-        insert_uncontested(book, &[one_nt, two_s, two_nt], two_spade_over_min());
-        insert_uncontested(book, &[one_nt, two_s, three_c], two_spade_over_max());
-        // Weak-club correction to 3♣ over opener's minimum 2NT — opener must pass.
-        insert_uncontested(book, &[one_nt, two_s, two_nt, three_c], pass_out());
-        // Opener picks 3NT/5♣ over the game-going club splinter (3♦/3♥/3♠), after
-        // either the minimum (2NT) or maximum (3♣) reply.
-        for opener_reply in [two_nt, three_c] {
-            for short in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
-                insert_uncontested(
-                    book,
-                    &[one_nt, two_s, opener_reply, call(3, Strain::from(short))],
-                    pick_game_over_club_splinter(short),
-                );
-            }
-        }
-    } else {
-        // European: 2♠ is a transfer to clubs — opener completes 3♣, responder
-        // passes (weak) or splinters (game); opener picks the game over a splinter.
-        insert_uncontested(book, &[one_nt, two_s], european_two_spade_answer());
-        insert_uncontested(book, &[one_nt, two_s, three_c], european_two_spade_rebid());
-        for short in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
-            insert_uncontested(
-                book,
-                &[one_nt, two_s, three_c, call(3, Strain::from(short))],
-                pick_game_over_club_splinter(short),
-            );
-        }
-    }
 }
 
 /// Register the 2NT-strength structure and the 18–19 2NT-rebid continuations
