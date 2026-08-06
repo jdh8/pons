@@ -137,7 +137,7 @@ good fit, and hard-bounded at 13. Both the trainer and `eval-evaluator` report
 |---|---|
 | Feature extractor (54 floats) | `src/bidding/features.rs` — `features_eval` |
 | Corpus generator | `examples/dump-evaluator` |
-| Trainer (candle, off-crate) | `trainer/src/bin/evaluator.rs` |
+| Trainer (candle, off-crate) | `trainer/src/bin/evaluator/main.rs` |
 | In-crate forward pass | `src/bidding/evaluator.rs` (ungated; 352 KB of weights, no deps) |
 | Weights + sidecar + parity fixture | `src/bidding/weights/evaluator_v2.{f32,json,fixture.json}` |
 | Truth head-to-head | `examples/eval-evaluator` |

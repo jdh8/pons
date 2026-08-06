@@ -3,7 +3,7 @@
 //!
 //! The repo contradicts itself here.  `docs/ai-bidder/bba-kickback.md` records an
 //! "FFI trap" claiming the argument is a side (0/1), that seats 2/3 return −2, and
-//! that `examples/common/oracle.rs` is correct only by an aliasing accident.
+//! that `examples/common/oracle/mod.rs` is correct only by an aliasing accident.
 //! `docs/ai-bidder/configured-net.md` claims the opposite — seat + name, with −2
 //! coming from passing a convention *index* instead of a name.  Both cannot hold,
 //! and the configured net pushes 135 rows per side, so the answer decides whether
@@ -69,7 +69,7 @@ fn main() -> anyhow::Result<()> {
     let (system, toggles) = parse(&card)?;
 
     // SAFETY: a trusted vendored library; both signatures are the ones already
-    // bound in `examples/common/oracle.rs` and `probe-bba-conventions`.
+    // bound in `examples/common/oracle/mod.rs` and `probe-bba-conventions`.
     let lib = unsafe { Library::new(DEFAULT_LIB) }?;
     let (create, destroy, set_system, get_conv, set_conv) = unsafe {
         (

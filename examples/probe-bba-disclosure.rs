@@ -137,7 +137,7 @@ impl Epbot {
         let suits = CString::new(probe.hand).expect("a literal hand has no NUL");
         let empty = c"".as_ptr();
         // SAFETY: a fresh bot used and destroyed within this call; all argument
-        // types match the ABI confirmed in `examples/common/oracle.rs`.
+        // types match the ABI confirmed in `examples/common/oracle/mod.rs`.
         unsafe {
             let bot = (self.create)();
             assert!(!bot.is_null(), "EPBot failed to allocate a bot");
@@ -159,7 +159,7 @@ fn main() -> anyhow::Result<()> {
         .nth(1)
         .unwrap_or_else(|| DEFAULT_LIB.into());
     // SAFETY: loading the vendored EPBot shared object and binding symbols whose
-    // signatures are confirmed in `examples/common/oracle.rs` and by `nm -D`.
+    // signatures are confirmed in `examples/common/oracle/mod.rs` and by `nm -D`.
     let (epbot, _lib) = unsafe {
         let lib = Library::new(&path)?;
         let epbot = Epbot {

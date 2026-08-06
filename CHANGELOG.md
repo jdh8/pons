@@ -41,6 +41,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Tests now live in dedicated module files.** All inline cfg-test module
+  bodies moved to naturally resolved files, with directory crate roots for the
+  exceptional example and trainer binary. User impact: none.
+
 - **The port checklist, batch by batch.** One rolling entry for the campaign —
   the `notrump.rs` batches are inert re-spellings, so the interesting number is
   the one that *never moves*: at every batch the seeded `smoke-default`

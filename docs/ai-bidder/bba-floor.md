@@ -515,7 +515,7 @@ actually lives.
 
 ## 6. The bilans surface, bound and measured  *(session 7A — DONE)*
 
-`libEPBot.so` exports **70** `epbot_*` symbols. [`examples/common/oracle.rs`](../../examples/common/oracle.rs)
+`libEPBot.so` exports **70** `epbot_*` symbols. [`examples/common/oracle/mod.rs`](../../examples/common/oracle/mod.rs)
 now binds **22**, and [`examples/probe-bba-bilans`](../../examples/probe-bba-bilans/main.rs)
 dumps them beside our own call, one jsonl row per decision. The oracle is no
 longer a one-bit comparator.

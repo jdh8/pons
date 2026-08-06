@@ -17,7 +17,7 @@ use rand::rngs::StdRng;
 mod support;
 use support::{Category, DepthBin, Origin, format_auction, format_vulnerability};
 
-#[path = "../common/oracle.rs"]
+#[path = "../common/oracle/mod.rs"]
 #[allow(dead_code)]
 mod oracle;
 use oracle::{BbaOracle, DEFAULT_LIB, SYSTEM_2_OVER_1};

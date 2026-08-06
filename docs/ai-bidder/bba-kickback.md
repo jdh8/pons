@@ -32,7 +32,7 @@ three kickback rows to 0 ([card.rs](../../src/bidding/card.rs) `SCHEMA`;
 
 **FFI trap (new finding).** `epbot_set_conventions(bot, site, name, on)`
 takes a *side* (0/1), not a seat: the engine holds `cc = new TYP_SYSTEM[2]`.
-Sites 2/3 throw (return −2, swallowed everywhere). `examples/common/oracle.rs`
+Sites 2/3 throw (return −2, swallowed everywhere). `examples/common/oracle/mod.rs`
 passes raw seats `[actor, (actor+2)%4]` — functionally correct only because
 the out-of-range half of each pair silently no-ops onto the same side.
 

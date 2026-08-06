@@ -186,7 +186,7 @@ test = true
 # reading zero reach after a rewording.
 [[example]]
 name = "probe-keycard-reach"
-path = "examples/probe-keycard-reach.rs"
+path = "examples/probe-keycard-reach/main.rs"
 required-features = ["dd"]
 test = true
 

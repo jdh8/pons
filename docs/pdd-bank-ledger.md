@@ -89,7 +89,7 @@ these rows — both of its gates ran on freshly generated deals.
 > factory — **it binds every measurement of the shipped default.** Any A/B or
 > probe that seats `american()`/`dutch()` and draws these rows is scoring a net
 > on its own training deals. Most harnesses draw `24.pdd` and are unaffected;
-> the one to watch is `examples/probe-keycard-reach.rs`, which documents
+> the one to watch is `examples/probe-keycard-reach/main.rs`, which documents
 > `22.pdd --count 200000` and builds `american().against()`. Prefer fresh deals,
 > or draw `22.pdd` outside 2.5M..3.25M.
 

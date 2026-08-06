@@ -22,7 +22,7 @@ use std::time::{Duration, Instant};
 mod support;
 use support::{AllocationSnapshot, CountingAllocator, Position};
 
-#[path = "../common/oracle.rs"]
+#[path = "../common/oracle/mod.rs"]
 #[allow(dead_code)]
 mod oracle;
 use oracle::{BbaOracle, DEFAULT_LIB, SYSTEM_2_OVER_1};

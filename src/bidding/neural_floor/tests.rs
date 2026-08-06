@@ -1,0 +1,237 @@
+use super::*;
+use contract_bridge::auction::RelativeVulnerability;
+use contract_bridge::{Bid, Strain};
+
+const fn call(level: u8, strain: Strain) -> Call {
+    Call::Bid(Bid::new(level, strain))
+}
+
+/// The shelled net's logits under the card the knobs currently describe
+///
+/// The card is read per call, not once, because several tests below arm a
+/// knob and re-shell to assert the logits moved.
+fn shelled(auction: &[Call], hand: &str) -> Logits {
+    let hand: Hand = hand.parse().expect("valid test hand");
+    let floor = ConfiguredFloorBba::new(Config::symmetric(&crate::bidding::card::american_card()));
+    let context = Context::new(RelativeVulnerability::NONE, auction);
+    floor.classify(hand, &context)
+}
+
+/// [`shelled`] as a plain vector, for whole-vector comparisons
+fn configured(auction: &[Call], hand: &str) -> Vec<f32> {
+    shelled(auction, hand)
+        .iter()
+        .map(|(_, logit)| *logit)
+        .collect()
+}
+
+/// The card block reaches the net: flipping one row moves the logits.
+///
+/// The in-crate echo of `scripts/pair-flip-diagnostic.py`, and the check
+/// that would have caught a v4 floor wired to a config it never attaches —
+/// which would look exactly like "the convention is worth nothing" at gate
+/// 2, with no other symptom.  It asserts the logits *move*, not that the
+/// chosen call does: `Kickback 1430` decides about one auction in 700, so a
+/// call-level assertion on an arbitrary hand would be asserting noise.
+#[test]
+fn the_configured_floor_reads_its_card() {
+    let auction = [call(1, Strain::Spades), Call::Pass];
+    let hand = "AQ32.K53.QJ4.A92";
+    crate::bidding::instinct::set_rkcb_variant(crate::bidding::instinct::RkcbVariant::Plain);
+    let off = configured(&auction, hand);
+    crate::bidding::instinct::set_rkcb_variant(crate::bidding::instinct::RkcbVariant::Kickback);
+    let on = configured(&auction, hand);
+    crate::bidding::instinct::set_rkcb_variant(crate::bidding::instinct::RkcbVariant::Plain);
+    assert_ne!(off, on, "the kickback row must reach the feature vector");
+}
+
+/// Attaching the configured floor's card clones Context, but must retain
+/// the decision scope shared by the surrounding trie resolution.
+#[test]
+fn configured_floor_clone_reuses_the_decision_cache() {
+    let auction = [call(1, Strain::Spades), Call::Pass];
+    let hand: Hand = "AQ32.K53.QJ4.A92".parse().expect("valid test hand");
+    let floor = ConfiguredFloorBba::new(Config::symmetric(&crate::bidding::card::american_card()));
+    let context = Context::new(RelativeVulnerability::NONE, &auction).with_decision_cache(hand);
+
+    let first = floor.classify(hand, &context);
+    let after_first = context
+        .decision_cache_init_counts()
+        .expect("decision cache attached");
+    let second = floor.classify(hand, &context);
+    assert_eq!(
+        (&first.0)
+            .into_iter()
+            .map(|(_, x)| x.to_bits())
+            .collect::<Vec<_>>(),
+        (&second.0)
+            .into_iter()
+            .map(|(_, x)| x.to_bits())
+            .collect::<Vec<_>>()
+    );
+    assert_eq!(context.decision_cache_init_counts(), Some(after_first));
+    assert_eq!(after_first.0, 1, "configured features read inference once");
+    assert!(after_first.1 <= 1);
+    assert!(after_first.2 <= 1);
+}
+
+/// The shelled net's highest-logit call
+fn best(auction: &[Call], hand: &str) -> Call {
+    let logits = shelled(auction, hand);
+    (&logits.0)
+        .into_iter()
+        .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))
+        .map(|(call, _)| call)
+        .expect("array is never empty")
+}
+
+/// The board that priced the whole kickback campaign.  After `1♦ P 1♠ P 2♦`
+/// the ladder claims 4♥ as the diamond keycard ask — and responder here is
+/// 6-6 in the majors and **void in diamonds**, so a 4♥ from this hand can
+/// only mean hearts.  The kickback-blind net jumped to 4♥ anyway (it had
+/// never seen 4♥ mean keycards), partner answered the phantom ask, and the
+/// auction was passed out in a 4-1 fit on 171 of 2090 divergent boards.
+///
+/// BBA escapes by bidding the second suit cheaply instead, and the
+/// mixed-regime net was distilled from a teacher that does exactly that.
+/// The fix is not that 4♥ became legal-but-unattractive; it is that the net
+/// stops offering it at all once the readings say the suit is spoken for.
+#[test]
+fn the_six_six_hand_stops_jumping_into_the_relocated_ask() {
+    let auction = [
+        call(1, Strain::Diamonds),
+        Call::Pass,
+        call(1, Strain::Spades),
+        Call::Pass,
+        call(2, Strain::Diamonds),
+        Call::Pass,
+    ];
+    let hand = "AQJT83.QT9875..6"; // ♠AQJT83 ♥QT9875 ♦— ♣6, board 229
+    crate::bidding::instinct::set_rkcb_variant(crate::bidding::instinct::RkcbVariant::Kickback);
+    let with_kickback = best(&auction, hand);
+    crate::bidding::instinct::set_rkcb_variant(crate::bidding::instinct::RkcbVariant::Plain);
+    assert_ne!(
+        with_kickback,
+        call(4, Strain::Hearts),
+        "4♥ is the diamond ask on this face — the net must not bid it naturally"
+    );
+}
+
+// The five §0.4 safety properties, enforced by the shell against the learned
+// net.  The four forced rails delegate to `instinct()`, so they reproduce
+// its tested calls exactly; the legality rail exercises the net + mask.
+
+#[test]
+fn advancing_a_double_delegates_to_instinct() {
+    // Partner doubled their 3♣ for takeout; the shell delegates to instinct,
+    // reproducing its calls — advance a bust with an outside suit, defend with
+    // four cards behind their suit (the settle floor, default on).
+    let auction = [call(3, Strain::Clubs), Call::Double, Call::Pass];
+    assert_eq!(best(&auction, "96432.J85.9742.2"), call(3, Strain::Spades));
+    assert_eq!(best(&auction, "964.J85.974.9632"), Call::Pass);
+}
+
+#[test]
+fn keycard_window_delegates_in_competition() {
+    // The reading-drift A/B's worst board: inside this live contested
+    // keycard window the bare net mis-answered 5♣, redoubled the doubled
+    // answer, and left 5♣XX to play in a 2-2 club fit (−24 IMPs).  A
+    // keycard conversation is forced-rail territory: the shell delegates
+    // to instinct, which answers 1430 and places the contract.
+    let ask = [
+        Call::Pass,
+        Call::Pass,
+        call(1, Strain::Diamonds),
+        call(2, Strain::Clubs),
+        call(2, Strain::Spades),
+        Call::Pass,
+        call(3, Strain::Spades),
+        Call::Pass,
+        call(4, Strain::Notrump),
+        Call::Pass,
+    ];
+    assert_eq!(
+        best(&ask, "AKT8.8432.KQJ.65"),
+        call(5, Strain::Hearts),
+        "two keycards, no queen → 5♥, interference notwithstanding"
+    );
+    let doubled = [ask.as_slice(), &[call(5, Strain::Hearts), Call::Double]].concat();
+    let placed = best(&doubled, "J9654.AJ.AT74.74");
+    assert_ne!(
+        placed,
+        Call::Redouble,
+        "a doubled 1430 answer is never redoubled"
+    );
+    assert_eq!(
+        placed,
+        call(5, Strain::Spades),
+        "the asker places the contract over their double"
+    );
+}
+
+#[test]
+fn forced_to_game_never_passes_below_game() {
+    // 2♣ (strong) – 2♦ (game-forcing) – 2NT: the auction forces game, so the
+    // shell delegates to instinct and never passes below game.
+    let auction = [
+        call(2, Strain::Clubs),
+        Call::Pass,
+        call(2, Strain::Diamonds),
+        Call::Pass,
+        call(2, Strain::Notrump),
+        Call::Pass,
+    ];
+    assert_eq!(best(&auction, "QJ52.K43.T62.J32"), call(3, Strain::Notrump));
+    assert_eq!(best(&auction, "3.QJ9854.K32.J32"), call(4, Strain::Hearts));
+}
+
+#[test]
+fn completes_partners_transfer_over_notrump() {
+    // We opened 1NT and partner transferred 2♦ (hearts): the shell delegates
+    // to instinct and completes with 2♥.
+    let auction = [
+        call(1, Strain::Notrump),
+        Call::Pass,
+        call(2, Strain::Diamonds),
+        Call::Pass,
+    ];
+    assert_eq!(best(&auction, "AQ32.KJ5.KQ4.Q92"), call(2, Strain::Hearts));
+}
+
+#[test]
+fn forced_game_steps_aside_when_penalizing() {
+    // 2♣ – 2♦ – 2NT, then they sacrifice in 3♦ and partner doubles for
+    // penalty.  The auction still forces game, so the shell delegates to
+    // instinct, which shows the six-card suit rather than a stopperless 3NT.
+    let auction = [
+        call(2, Strain::Clubs),
+        Call::Pass,
+        call(2, Strain::Diamonds),
+        Call::Pass,
+        call(2, Strain::Notrump),
+        call(3, Strain::Diamonds),
+        Call::Double,
+        Call::Pass,
+    ];
+    let chosen = best(&auction, "K3.KQ4.65.QJ8765");
+    assert_eq!(chosen, call(4, Strain::Clubs));
+    assert_ne!(chosen, call(3, Strain::Notrump));
+}
+
+#[test]
+fn doubles_only_their_live_bids() {
+    // Not a forced auction → the net + legality mask.  The call to beat is
+    // our own 2♠ (partner raised our overcall); the net emits a finite Double
+    // logit, but doubling our own side is illegal, so the mask zeroes it —
+    // while Pass stays finite so a distribution always exists.
+    let auction = [
+        call(1, Strain::Hearts),
+        call(1, Strain::Spades),
+        Call::Pass,
+        call(2, Strain::Spades),
+        Call::Pass,
+    ];
+    let logits = shelled(&auction, "92.K53.AQJ42.962");
+    assert_eq!(*logits.0.get(Call::Double), f32::NEG_INFINITY);
+    assert!(logits.0.get(Call::Pass).is_finite());
+}
