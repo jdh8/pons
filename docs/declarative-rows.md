@@ -163,10 +163,11 @@ does not decide anything:
 ## Port checklist
 
 Scoped 2026-08-06: the original tail was six American constructive files plus
-`dutch.rs`; phases 2/3 remain untouched. N1–N5, R1, S1, and P1 are complete.
-The remaining sequence is G0, G1, Z1, T1, D0, D1. One batch = one commit = one
-inertness proof under the porting rule above. Site counts are the reproducible
-greps — `insert_uncontested|insert_all_seats|fallback_all_seats` per file, plus
+`dutch.rs`; phases 2/3 remain untouched. N1–N5, R1, S1, P1, and G0 are
+complete. The remaining sequence is G1, Z1, T1, D0, D1. One batch = one
+commit = one inertness proof under the porting rule above. Site counts are the
+reproducible greps — `insert_uncontested|insert_all_seats|fallback_all_seats`
+per file, plus
 `install_rkcb(` counted separately.
 
 **Conversion policy.** A site that resists transparent rows converts only when
@@ -217,15 +218,15 @@ the policy is dormant: every verb site in the tail is an exact
 | R1 | **Done** | historical `rebids.rs`, seven register fns | 34 + 4 rkcb production; 1 test fixture | the ten rebid sweep arms | nine packages; two table-derived key sets |
 | S1 | **Done** | `strong_two.rs` | 15 + 4 rkcb | `slam::minor_keycard` | ported at fan 3; corrected the stale 0–2 comment |
 | P1 | **Done** | `responses.rs` | 9 + 2 rkcb | `major_choice_of_games`, `slam::minor_keycard` | three packages; seven inline tables hoisted |
-| G0 | **Next** | `rows.rs`: builder-level fan = 2 | — | — | the grammar grows with its consumer, G1 |
-| G1 | Open | `game_force.rs` | 8 + 2 rkcb | `game_backstop_enabled` | two backstop hatches; two table-derived key sets |
+| G0 | **Done** | `rows.rs`: builder-level fan = 2 | — | — | `Pattern::with_fan(2)`; no string syntax added |
+| G1 | **Next** | `game_force.rs` | 8 + 2 rkcb | `game_backstop_enabled` | two backstop hatches; two table-derived key sets |
 | Z1 | Open | `raises.rs` | 7 + 3 rkcb | game-try + limit-raise gates | one table-derived key set |
 | T1 | Open | retire `install_rkcb` (`slam.rs`) | — | — | also convert its three test-only callers |
 | D0 | Open | Dutch inertness harness | — | — | Dutch twins of smoke and render |
 | D1 | Open | `dutch.rs::dutch_book()` | 10 | — | own package list, compiled after American's |
 
-Completed: N1→N5, R1, S1, P1. Remaining sequence:
-G0→G1→Z1→T1→D0→D1. The remaining anchors are exact: 8+2,
+Completed: N1→N5, R1, S1, P1, G0. Remaining sequence:
+G1→Z1→T1→D0→D1. The remaining anchors are exact: 8+2,
 7+3, and Dutch 10+0 — 25 verb sites and five production RKCB calls in total.
 Completed notrump/rebid locations in the table are historical; commit `1c0ef51`
 subsequently split them into agreement modules.

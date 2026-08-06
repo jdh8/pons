@@ -15,6 +15,7 @@
 //! | Pattern construct | Lowers to |
 //! | --- | --- |
 //! | leading `P*` | seat fan, keys under `0..=3` leading passes |
+//! | [`Pattern::with_fan`] | explicit seat fan, keys under `0..=fan` leading passes |
 //! | [`Pattern::node`] | exact trie key |
 //! | [`Pattern::first`] | [`FirstIs`] guarded fallback |
 //! | [`Pattern::up_to`] | [`OvercallAtMost`] guarded fallback |
@@ -70,6 +71,9 @@
 //!   repeat in an ascending auction, and an internal pass run would flip
 //!   which side later calls fall on.  `P*` is the seat fan above; `P+` is
 //!   recognized but deferred until a consumer exists.
+//! * A legacy site with a deliberately smaller leading-pass ceiling uses
+//!   [`Pattern::with_fan`] after construction; this keeps exceptional fan
+//!   counts out of the auction-string grammar.
 //!
 //! Style: prefer `x y z a b c` for suit letters — `o` reads as the `om` tail,
 //! `l` as `1`, `n` as the `N` literal.
@@ -511,6 +515,22 @@ fn check_sides(source: &str, tokens: &[Token], our_index: usize) {
 }
 
 impl Pattern {
+    /// Set the maximum number of leading passes this pattern fans across
+    ///
+    /// `P*` remains the readable shorthand for the ordinary all-seat fan of
+    /// `0..=3`.  This builder carries the exceptional legacy ceiling that is
+    /// neither zero nor three without adding another auction-string token.
+    #[must_use]
+    #[allow(dead_code)] // G0: the first production consumer lands in the following G1 batch
+    pub(crate) fn with_fan(mut self, fan: usize) -> Self {
+        assert!(
+            fan <= 3,
+            "seat fan {fan} exceeds the three possible leading passes"
+        );
+        self.fan = fan;
+        self
+    }
+
     /// A guard at the `key` admitting any continuation starting with
     /// `their_call`
     ///

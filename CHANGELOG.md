@@ -215,6 +215,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     distinct before and after the port and byte-identical across it;
     `smoke-default` remains `59a27d7f…` and `render-book` remains `01bf875f…`.
     User impact: none.
+  - **G0** — the row pattern builder gains `Pattern::with_fan`, the narrow
+    escape hatch G1 needs to preserve its two legacy backstop sites' `0..=2`
+    leading-pass fan without growing the auction-string grammar.  The builder
+    rejects ceilings above the table's three possible leading passes, with
+    tests for the partial fan and the bound.  All 26 sweep arms remain pairwise
+    distinct and byte-identical across the batch; `smoke-default` remains
+    `59a27d7f…` and `render-book` remains `01bf875f…`.  User impact: none.
   - **The Stayman `2♣` weight tie is a partition, and is now allowlisted.**
     Putting `notrump_responses()` under `assert_package_invariants` for the
     first time surfaced four rules claiming `2♣` at weight 150: constructive

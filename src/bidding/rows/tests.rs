@@ -136,6 +136,28 @@ fn rows_regroup_and_fan() {
     );
 }
 
+/// Exceptional legacy sites can set a partial seat fan without growing the
+/// auction-string grammar.
+#[test]
+fn builder_sets_a_partial_fan() {
+    let book = compiled(&[Package {
+        name: "test",
+        gate: || true,
+        entries: || rows_of(Pattern::up_to("1♥", "2♠").with_fan(2), two_rule_table()),
+    }]);
+
+    let entries = book.fallbacks();
+    let keys: Vec<&[Call]> = entries.iter().map(|(key, ..)| &**key).collect();
+    assert_eq!(keys, [&calls("1♥")[..], &calls("P 1♥"), &calls("P P 1♥"),],);
+    assert_eq!(book.authoring().patterns()[0].keys.len(), 3);
+}
+
+#[test]
+#[should_panic(expected = "exceeds the three possible leading passes")]
+fn builder_rejects_an_impossible_fan() {
+    let _ = Pattern::node("1♥ (P)").with_fan(4);
+}
+
 /// A rebase entry lowers to `Fallback::Rebase` and re-resolves onto the
 /// rewritten auction.
 #[test]
