@@ -2926,17 +2926,26 @@ fn european_two_spade_rebid() -> Rules {
             100,
             club_splinter(Suit::Diamonds, 8),
         )
+        .alert(SPLINTER)
         .rule(
             Bid::new(3, Strain::Hearts),
             100,
             club_splinter(Suit::Hearts, 8),
         )
+        .alert(SPLINTER)
         .rule(
             Bid::new(3, Strain::Spades),
             100,
             club_splinter(Suit::Spades, 8),
         )
+        .alert(SPLINTER)
+        // Game-going clubs without a singleton: 3NT.  Artificial — it shows the
+        // club one-suiter, not notrump — and tagged with its own scheme's variant
+        // alert, mirroring `two_spade_over_min`'s identical rule under `PUPPET`.
+        // Pure disclosure here: this is a continuation node, not one of the
+        // `notrump_responses` that `gated(|a| a != dormant_minors())` filters.
         .rule(Bid::new(3, Strain::Notrump), 90, club_no_shortness(8))
+        .alert(EUROPEAN)
 }
 
 /// Opener's reply to the European 2NT invite: `3NT` with a maximum, else pass

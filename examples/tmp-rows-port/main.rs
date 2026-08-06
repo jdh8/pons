@@ -96,14 +96,25 @@ const ARMS: &[(&str, fn())] = &[
     // N5 — `register_two_nt_and_rebids` reads no gate at all.
 ];
 
+/// Dump one table, **including each rule's alert**
+///
+/// `label()` is a human-readable note, not the alert, and neither `render-book`
+/// nor this dump used to print `alert()` at all — so the campaign's oracle was
+/// blind to an alert being dropped in translation.  That is not hypothetical:
+/// the alert is load-bearing twice over, once for disclosure and once through
+/// `Rules::gated`, which retains an alerted rule only while its alert is
+/// active.  N1–N3 were safe (they added and removed zero `.alert(` lines, and
+/// alerts live only inside table builders the port never edits), but the column
+/// is cheap and the blindness was not worth keeping.
 fn print_rules(book: &str, auction: &str, kind: &str, rules: &Rules) {
     for rule in rules.rules() {
         println!(
-            "{book}\t{auction}\t{kind}\t{}\t{:.3}\t{}\t{}",
+            "{book}\t{auction}\t{kind}\t{}\t{:.3}\t{}\t{}\t{:?}",
             rule.call(),
             rule.weight(),
             rule.describe(),
             rule.label(),
+            rule.alert(),
         );
     }
 }

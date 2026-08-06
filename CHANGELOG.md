@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **The European 2♠ rebid's four artificial calls were unalerted.**  Under
+  `set_notrump_minors(EUROPEAN)`, all four of responder's game-going actions
+  over `1NT–2♠–3♣` are artificial: 3♦/3♥/3♠ show a singleton with clubs agreed,
+  and 3NT shows the club one-suiter rather than notrump.  None carried an
+  alert, though `european_two_spade_rebid`'s own doc comment says it reuses the
+  two-way 2♠ machinery, whose `two_spade_over_min` alerts all four — the three
+  splinters as `SPLINTER` and the 3NT with its own scheme's variant tag.  The
+  European twin now mirrors that exactly, taking `EUROPEAN` for its 3NT.  Pure
+  disclosure in both cases: this is a continuation node, not one of the
+  `notrump_responses` that `gated(|a| a != dormant_minors())` filters, so no
+  rule's membership moves.  (`two_spade_over_max`'s 3NT needs no alert — it
+  folds in the balanced invite, so the call is partly natural.)
+  `artificial_calls_are_alerted` never caught any of this because that test
+  walks `american()` — the *default* book — and `NOTRUMP_MINORS` defaults to
+  `PUPPET`, so the rules are not in it.  The port surfaced it:
+  `assert_package_invariants` probes a package's entries **regardless of gate**.
+  Default users see nothing change (both campaign shas hold); under `EUROPEAN`
+  the four calls now disclose and read as what they are.
+
 ### Changed
 
 - **The port checklist, batch by batch.** One rolling entry for the campaign —
@@ -51,6 +72,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `fn european_scheme()`, defined as `!puppet_scheme()`; N4's two further
     `else` arms reuse it.  Armed under `set_stayman_both_majors`,
     `set_stayman_5card_max`, `set_nt_splinter` and `set_notrump_minors(EUROPEAN)`.
+  - **N4** — `notrump.rs` 3535–3608, 23 sites (19 `insert_uncontested` + 4
+    `install_rkcb`) become six packages: South African Texas and its slam
+    drive, and the 2NT and 2♠ responses, each of the latter two a
+    Puppet/European gate/anti-gate pair.  **`register_one_nt`'s body is now a
+    single `compile_into` call** — 500 lines of imperative wiring gone, every
+    `let` in it dead and removed.  Its `pub(super) fn register_one_nt(&mut
+    Trie)` signature is unchanged, which matters: `defense.rs` calls it on a
+    fresh empty `Trie` to build the 1NT-overcall graft.  This batch also
+    surfaced the unalerted European splinters fixed above.
   - **The Stayman `2♣` weight tie is a partition, and is now allowlisted.**
     Putting `notrump_responses()` under `assert_package_invariants` for the
     first time surfaced four rules claiming `2♣` at weight 150: constructive
