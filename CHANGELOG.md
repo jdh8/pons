@@ -269,6 +269,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `01bf875f750069bab23e250b2ab6324f852cf2b79d0bb4c4aa2a2c546c5d4abc`.
     The final sweep and four older one-batch throwaways are deleted after that
     proof. User impact: none.
+  - **D0** — the Dutch system gains exact twins of the campaign's two
+    inertness harnesses: `smoke-dutch` drives the shipped `dutch()` over the
+    same 20 000 seeded boards, while `render-dutch-book` walks all three
+    floorless authored books. `dutch_book()` is now a documented, `#[must_use]`
+    public factory, re-exported from both `pons::bidding` and the crate root.
+    Each Dutch output is byte-identical across two runs and distinct from its
+    American twin. These are D1's parent baselines: `smoke-dutch` hashes
+    `956b99de8e6aee96a66f1235d5aa30e8a06c48e5b3856c9643900509755b79b4`,
+    and `render-dutch-book` hashes
+    `c1bf4a1519d5028c0039c5f88d70d14cbaae20c2e060b89dcf449f3f4f430bdd`
+    with 4 587 authored nodes, 129 guarded sections, and no opaque rules or
+    unlabeled guards. User impact: a new public floorless Dutch-book factory.
   - **The Stayman `2♣` weight tie is a partition, and is now allowlisted.**
     Putting `notrump_responses()` under `assert_package_invariants` for the
     first time surfaced four rules claiming `2♣` at weight 150: constructive

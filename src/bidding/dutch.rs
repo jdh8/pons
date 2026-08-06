@@ -74,17 +74,18 @@ pub fn dutch_instinct() -> Pair {
     with_instinct_floor(dutch_book())
 }
 
-/// The Dutch pair as the authored books alone, with no floor
+/// Build the Dutch pair as the authored books alone, with no floor
 ///
 /// Takes a full [`american_book`] pair and overwrites the **divergent nodes**
 /// (`Trie::insert_arc` replaces the classifier at each key); every other
 /// american continuation is reused verbatim.  Phase 1 overwrote the opening
-/// table ([`openings::dutch_openings`]); Phase 2.1 overwrites the wide-1♣
+/// table (`openings::dutch_openings`); Phase 2.1 overwrites the wide-1♣
 /// response node and opener's rebid after the `1♦` relay; Phase 2.2 adds
 /// responder's second call over opener's minimum rebids (`1♣-1♦-1M`,
 /// `1♣-1♦-2♣`).  The rare 18–20 `1NT` / 21–23 `2♦!` continuations stay
 /// american's — projection discloses their strength; see `docs/dutch-system.md`.
-fn dutch_book() -> Pair {
+#[must_use]
+pub fn dutch_book() -> Pair {
     let mut pair = american_book();
     let book = &mut pair.constructive.0;
     // `insert_uncontested` re-keys at the undisturbed auction for every seat,

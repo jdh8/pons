@@ -163,9 +163,9 @@ does not decide anything:
 ## Port checklist
 
 Scoped 2026-08-06: the original tail was six American constructive files plus
-`dutch.rs`; phases 2/3 remain untouched. N1–N5, R1, S1, P1, G0, G1, Z1, and
-T1 are complete. The remaining sequence is D0, D1. One batch = one
-commit = one inertness proof under the porting rule above. Site counts are the
+`dutch.rs`; phases 2/3 remain untouched. N1–N5, R1, S1, P1, G0, G1, Z1, T1,
+and D0 are complete. The remaining batch is D1. One batch = one commit = one
+inertness proof under the porting rule above. Site counts are the
 reproducible greps — `insert_uncontested|insert_all_seats|fallback_all_seats`
 per file, plus
 `install_rkcb(` counted separately.
@@ -194,11 +194,11 @@ policy is dormant for the remaining tail: every Dutch verb site is an exact
 - Every port adds its package(s) to `row_package_invariants`
   (`american/tests.rs:161`). The list is hand-edited; a port not listed there is
   not gated.
-- `smoke-default` and `render-book` hardwire the shipped `american()`, so a
-  dutch port is unprovable until D0 builds the dutch twins. And `dutch_book()`
-  overwrites american nodes by re-insert — legal across `compile_into` calls,
-  a `group()` panic within one package — so dutch is its own package list,
-  compiled after american's.
+- `smoke-dutch` and `render-dutch-book` now provide D1's deterministic parent
+  proof over the shipped `dutch()` and public floorless `dutch_book()`.
+  `dutch_book()` overwrites american nodes by re-insert — legal across
+  `compile_into` calls, a `group()` panic within one package — so dutch is its
+  own package list, compiled after american's.
 - All 25 original production `install_rkcb` sites now inline
   `rkcb_rows(prefix, trump)`. The three test fixtures compile the same producer
   through `compile_entries`; the shim is gone.
@@ -219,11 +219,11 @@ policy is dormant for the remaining tail: every Dutch verb site is an exact
 | G1 | **Done** | `game_force.rs` | 8 + 2 rkcb | `opener_third_enabled`, `second_suit_agreement`, `game_backstop_enabled` | four packages; two backstop hatches; two table-derived key sets |
 | Z1 | **Done** | `raises.rs` | 7 + 3 rkcb | game-try + limit-raise gates | three packages; one table-derived key set |
 | T1 | **Done** | retire `install_rkcb` (`slam.rs`) | — | — | three test fixtures use the row producer directly |
-| D0 | **Next** | Dutch inertness harness | — | — | Dutch twins of smoke and render |
-| D1 | Open | `dutch.rs::dutch_book()` | 10 | — | own package list, compiled after American's |
+| D0 | **Done** | Dutch inertness harness | — | — | deterministic, non-vacuous Dutch twins of smoke and render |
+| D1 | **Next** | `dutch.rs::dutch_book()` | 10 | — | own package list, compiled after American's |
 
-Completed: N1→N5, R1, S1, P1, G0, G1, Z1, T1. Remaining sequence:
-D0→D1. The remaining production anchors are the ten exact Dutch sites;
+Completed: N1→N5, R1, S1, P1, G0, G1, Z1, T1, D0. Remaining: D1. The
+remaining production anchors are the ten exact Dutch sites;
 `install_rkcb` has no callers because the shim no longer exists.
 Completed notrump/rebid locations in the table are historical; commit `1c0ef51`
 subsequently split them into agreement modules.
@@ -254,5 +254,4 @@ subsequently split them into agreement modules.
 resolution touches the reading and may not be inert; escalate rather than
 nudge. Any dump delta is a translation bug: fix it, never re-bless.
 
-Delegation: D1 remains a mechanical re-spelling with this recipe as the spec;
-D0 stays in the main loop.
+Delegation: D1 remains a mechanical re-spelling with this recipe as the spec.

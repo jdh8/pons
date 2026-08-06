@@ -63,7 +63,7 @@ pub use book::{
 };
 pub use compose::{OrElse, Versus};
 pub use context::Context;
-pub use dutch::{dutch, dutch_instinct};
+pub use dutch::{dutch, dutch_book, dutch_instinct};
 #[cfg(feature = "dd")]
 pub use ev::ev_all;
 pub use features::{
