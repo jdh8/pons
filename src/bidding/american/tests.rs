@@ -206,6 +206,9 @@ fn row_package_invariants() {
         game_force::opener_third_continuations(),
         game_force::second_suit_agreement_continuations(),
         game_force::backstops(),
+        raises::jacoby_continuations(),
+        raises::major_game_try_continuations(),
+        raises::limit_raise_acceptance_continuations(),
         strong_two::package(),
         strong_two::minor_keycard_continuations(),
     ]);

@@ -48,7 +48,9 @@
 //! grand-slam exploration in a minor is not supported.  Kickback (4♣/4♦), the
 //! usual remedy, is out of scope.
 
-use crate::bidding::{Alert, Rules, Trie};
+#[cfg(test)]
+use crate::bidding::Trie;
+use crate::bidding::{Alert, Rules};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Rank, Strain, Suit};
 use core::ops::RangeBounds;
@@ -84,7 +86,9 @@ use crate::bidding::constraint::{described, hcp};
 use crate::bidding::instinct::{
     KingRelay, RelayMap, king_relay, queen_ask_room, queen_fit, relay_map,
 };
-use crate::bidding::rows::{Entry, Pattern, compile_entries, rows_of};
+#[cfg(test)]
+use crate::bidding::rows::compile_entries;
+use crate::bidding::rows::{Entry, Pattern, rows_of};
 use contract_bridge::Hand;
 
 // ---------------------------------------------------------------------------
@@ -820,10 +824,9 @@ pub(super) fn rkcb_rows(prefix: &str, trump: Suit) -> Vec<Entry> {
 ///
 /// `our_calls` is the undisturbed sequence of our side's calls so far (the
 /// same form [`uncontested`][super::uncontested] takes); the 4NT ask and its
-/// answers are inserted below it.  A thin shim over [`rkcb_rows`], kept so the
-/// seven remaining production callers and three test helpers need not spell
-/// the prefix themselves; a file ported to the row layer calls the producer
-/// directly instead.
+/// answers are inserted below it.  A thin test-only shim over [`rkcb_rows`],
+/// kept for the three fixtures that T1 converts before deleting it.
+#[cfg(test)]
 pub(super) fn install_rkcb(book: &mut Trie, our_calls: &[Call], trump: Suit) {
     let prefix = core::iter::once("P*".to_owned())
         .chain(our_calls.iter().map(|call| format!("{call} (P)")))

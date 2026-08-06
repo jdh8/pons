@@ -151,6 +151,14 @@ const ARMS: &[(&str, fn())] = &[
     ("game-backstop", || {
         pons::bidding::american::set_game_backstop(true)
     }),
+    // Z1 — raises.rs.  Both translated gates ship on, so their off arms prove
+    // that the table and its RKCB answer subtree still move together.
+    ("no-major-game-tries", || {
+        pons::bidding::american::set_major_game_tries(false)
+    }),
+    ("no-limit-raise-acceptance", || {
+        pons::bidding::american::set_limit_raise_acceptance(false)
+    }),
 ];
 
 /// Dump one table, **including each rule's alert**

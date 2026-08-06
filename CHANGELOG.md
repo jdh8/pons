@@ -118,8 +118,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (20 000 boards, seed 1) hashes `59a27d7f…` and `render-book` hashes
   `01bf875f…`, both the values at `367dc2c`.  The reusable knob-armed sweep
   (`examples/tmp-rows-port`) grew from 14 arms for N1–N5 to 24 for R1, 25 for
-  S1, 26 for P1/G0, and 29 for G1; each batch's then-current arms were pairwise
-  distinct and byte-identical across it.  User impact: none.
+  S1, 26 for P1/G0, 29 for G1, and 31 for Z1; each batch's then-current arms
+  were pairwise distinct and byte-identical across it.  User impact: none.
   - **N1** — `notrump.rs` 3096–3238, 24 sites (22 `insert_uncontested` + 2
     `install_rkcb`) become four packages: the ungated `one-nt-base` (18 sites)
     plus `stayman-cue-continuation`, `stayman-minor-slam-try` and
@@ -242,6 +242,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     sweep arms are pairwise distinct before and after the port and
     byte-identical across it;
     `smoke-default` remains `59a27d7f…` and `render-book` remains `01bf875f…`.
+    User impact: none.
+  - **Z1** — `raises.rs`'s seven `insert_uncontested` sites and three
+    `install_rkcb` sites become three exact-row packages: ungated Jacoby 2NT
+    continuations, major game tries, and limit-raise acceptance.  The latter
+    two keep their table and RKCB subtree under the same construction-time
+    gate; the Jacoby responder keys remain derived from the live rebid table in
+    first-rule order.  Every pattern keeps the legacy `P*` fan, every table
+    builder is untouched, and `register` is one `compile_into` call.  All 31
+    sweep arms are pairwise distinct and byte-identical across the port;
+    `smoke-default` remains
+    `59a27d7f36bf4bd1b1026825769d8f26bec14f030367c141fb299e72073217dc`
+    and `render-book` remains
+    `01bf875f750069bab23e250b2ab6324f852cf2b79d0bb4c4aa2a2c546c5d4abc`.
+    The now-production-dead `install_rkcb` shim becomes test-only for T1.
     User impact: none.
   - **The Stayman `2♣` weight tie is a partition, and is now allowlisted.**
     Putting `notrump_responses()` under `assert_package_invariants` for the

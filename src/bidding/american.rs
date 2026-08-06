@@ -60,7 +60,7 @@
 //! Constraints are kept disjoint where practical; where calls can both apply,
 //! the weights order them so the more descriptive bid wins.
 
-use super::common::{call, insert_uncontested, other_major, with_floor, with_instinct_floor};
+use super::common::{call, other_major, with_floor, with_instinct_floor};
 use super::{Competitive, Constructive, Defensive, Pair};
 
 mod competition;

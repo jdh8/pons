@@ -9,8 +9,9 @@
 //! keycards — gated by [`set_limit_raise_acceptance`] (+0.002/+0.002, the
 //! whole win being the keycard ask at +4.4/+5.2 IMPs/divergent).
 
-use super::{call, insert_uncontested, slam};
+use super::{call, slam};
 use crate::bidding::constraint::{fifths, hcp, len, support_points, top_honors};
+use crate::bidding::rows::{Package, Pattern, compile_into, rows_of};
 use crate::bidding::{Alert, Rules, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
@@ -279,32 +280,6 @@ fn opener_after_decline(major: Suit) -> Rules {
         .rule(Call::Pass, 0, hcp(0..))
 }
 
-/// Register opener's major game tries after `1M – 2M` and their
-/// continuations — a no-op unless [`major_game_tries`] is on
-fn register_major_game_tries(book: &mut Trie) {
-    if !major_game_tries() {
-        return;
-    }
-    for major in [Suit::Hearts, Suit::Spades] {
-        let trump = Strain::from(major);
-        let raise_calls = [call(1, trump), call(2, trump)];
-        insert_uncontested(book, &raise_calls, opener_after_raise(major));
-        slam::install_rkcb(book, &raise_calls, major);
-
-        for suit in game_try_suits(major) {
-            let try_call = call(try_level(major, suit), Strain::from(suit));
-            let try_calls = [raise_calls[0], raise_calls[1], try_call];
-            insert_uncontested(book, &try_calls, responder_after_try(major, suit));
-
-            let decline_calls = [try_calls[0], try_calls[1], try_calls[2], call(3, trump)];
-            insert_uncontested(book, &decline_calls, opener_after_decline(major));
-        }
-
-        let general_try_calls = [raise_calls[0], raise_calls[1], call(3, trump)];
-        insert_uncontested(book, &general_try_calls, responder_after_general_try(major));
-    }
-}
-
 // ---------------------------------------------------------------------------
 // Limit-raise acceptance: 1M – 3M (set_limit_raise_acceptance)
 // ---------------------------------------------------------------------------
@@ -343,63 +318,114 @@ fn opener_after_limit_raise(major: Suit) -> Rules {
         .rule(Call::Pass, 0, hcp(0..))
 }
 
-/// Register opener's limit-raise acceptance after `1M – 3M` — a no-op
-/// unless [`limit_raise_acceptance`] is on
-fn register_limit_raise_acceptance(book: &mut Trie) {
-    if !limit_raise_acceptance() {
-        return;
-    }
-    for major in [Suit::Hearts, Suit::Spades] {
-        let limit_calls = [call(1, Strain::from(major)), call(3, Strain::from(major))];
-        insert_uncontested(book, &limit_calls, opener_after_limit_raise(major));
-        slam::install_rkcb(book, &limit_calls, major);
+/// Jacoby 2NT opener rebids, responder continuations and RKCB answer trees
+pub(super) fn jacoby_continuations() -> Package {
+    Package {
+        name: "jacoby-two-notrump-continuations",
+        gate: || true,
+        entries: || {
+            let mut entries = Vec::new();
+            for major in [Suit::Hearts, Suit::Spades] {
+                let prefix = format!("P* {} (P) 2NT (P)", call(1, Strain::from(major)),);
+                let rebids = jacoby_rebids(major);
+
+                // Derive continuation keys from the live source table while
+                // preserving first-declaration order.  The HashSet is only
+                // the membership test; iterating the rules carries the order.
+                let distinct: Vec<Call> = {
+                    let mut seen = std::collections::HashSet::new();
+                    rebids
+                        .rules()
+                        .iter()
+                        .filter_map(|rule| seen.insert(rule.call()).then_some(rule.call()))
+                        .collect()
+                };
+
+                entries.extend(rows_of(Pattern::node(&prefix), rebids));
+                for opener_bid in distinct {
+                    let response = format!("{prefix} {opener_bid} (P)");
+                    entries.extend(rows_of(
+                        Pattern::node(&response),
+                        responder_after_jacoby(major, opener_bid),
+                    ));
+                    entries.extend(slam::rkcb_rows(&response, major));
+                }
+            }
+            entries
+        },
     }
 }
 
-/// Register the Jacoby 2NT opener-rebid and responder-continuation nodes,
-/// plus the opt-in major-game-try and limit-raise-acceptance ladders
-///
-/// For each major M, inserts:
-/// - opener's rebid at `[1M, 2NT]`, and
-/// - for every distinct call R in that rebid table, responder's continuation
-///   at `[1M, 2NT, R]`, followed by RKCB hooks.
-///
-/// When [`major_game_tries`] is on, also installs opener's game tries at
-/// `[1M, 2M]` and their continuations; when [`limit_raise_acceptance`] is on,
-/// also installs opener's acceptance ladder at `[1M, 3M]`.  Both are no-ops
-/// while their knob is off.
-pub(super) fn register(book: &mut Trie) {
-    for major in [Suit::Hearts, Suit::Spades] {
-        let our_calls = [call(1, Strain::from(major)), call(2, Strain::Notrump)];
-        let rebids = jacoby_rebids(major);
+/// Major game tries after `1M – 2M`, with every answer and RKCB subtree
+pub(super) fn major_game_try_continuations() -> Package {
+    Package {
+        name: "major-game-try-continuations",
+        gate: major_game_tries,
+        entries: || {
+            let mut entries = Vec::new();
+            for major in [Suit::Hearts, Suit::Spades] {
+                let trump = Strain::from(major);
+                let prefix = format!("P* {} (P) {} (P)", call(1, trump), call(2, trump));
+                entries.extend(rows_of(Pattern::node(&prefix), opener_after_raise(major)));
+                entries.extend(slam::rkcb_rows(&prefix, major));
 
-        // Collect distinct bid calls before moving `rebids` into the trie.
-        let distinct: Vec<Call> = {
-            let mut seen = std::collections::HashSet::new();
-            rebids
-                .rules()
-                .iter()
-                .filter_map(|r| seen.insert(r.call()).then_some(r.call()))
-                .collect()
-        };
+                for suit in game_try_suits(major) {
+                    let try_call = call(try_level(major, suit), Strain::from(suit));
+                    let tried = format!("{prefix} {try_call} (P)");
+                    entries.extend(rows_of(
+                        Pattern::node(&tried),
+                        responder_after_try(major, suit),
+                    ));
 
-        insert_uncontested(book, &our_calls, rebids);
+                    let declined = format!("{tried} {} (P)", call(3, trump));
+                    entries.extend(rows_of(
+                        Pattern::node(&declined),
+                        opener_after_decline(major),
+                    ));
+                }
 
-        // Responder's continuation after each of opener's rebids.
-        for opener_bid in distinct {
-            let resp = responder_after_jacoby(major, opener_bid);
-            let resp_calls: [Call; 3] = [
-                call(1, Strain::from(major)),
-                call(2, Strain::Notrump),
-                opener_bid,
-            ];
-            insert_uncontested(book, &resp_calls, resp);
-            slam::install_rkcb(book, &resp_calls, major);
-        }
+                let general = format!("{prefix} {} (P)", call(3, trump));
+                entries.extend(rows_of(
+                    Pattern::node(&general),
+                    responder_after_general_try(major),
+                ));
+            }
+            entries
+        },
     }
+}
 
-    register_major_game_tries(book);
-    register_limit_raise_acceptance(book);
+/// Limit-raise acceptance after `1M – 3M`, including its RKCB subtree
+pub(super) fn limit_raise_acceptance_continuations() -> Package {
+    Package {
+        name: "limit-raise-acceptance-continuations",
+        gate: limit_raise_acceptance,
+        entries: || {
+            let mut entries = Vec::new();
+            for major in [Suit::Hearts, Suit::Spades] {
+                let trump = Strain::from(major);
+                let prefix = format!("P* {} (P) {} (P)", call(1, trump), call(3, trump));
+                entries.extend(rows_of(
+                    Pattern::node(&prefix),
+                    opener_after_limit_raise(major),
+                ));
+                entries.extend(slam::rkcb_rows(&prefix, major));
+            }
+            entries
+        },
+    }
+}
+
+/// Register all strong-raise continuations into the constructive book
+pub(super) fn register(book: &mut Trie) {
+    compile_into(
+        book,
+        &[
+            jacoby_continuations(),
+            major_game_try_continuations(),
+            limit_raise_acceptance_continuations(),
+        ],
+    );
 }
 
 // ---------------------------------------------------------------------------
