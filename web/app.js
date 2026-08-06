@@ -384,8 +384,9 @@ function filterBook() {
   id('b-count').textContent = `${n} node${n === 1 ? '' : 's'}`;
 }
 
+// Weights arrive as integral centinats (the engine's unit); nats read better.
 function fmtWeight(w) {
-  return Number.isInteger(w) ? w.toFixed(1) : String(w);
+  return (w / 100).toFixed(2);
 }
 
 // --- deal editor ---------------------------------------------------------------

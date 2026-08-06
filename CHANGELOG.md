@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`web/` builds again, and its stale book test with it.** Two breaks, both
+  from the separate workspace: `Rule::weight` became `i16` centinats and the
+  browser's `RuleJson` still declared `f32`, which failed the `web` job and the
+  Pages deploy at the same line; `fmtWeight` now divides by 100 so the rendered
+  weight stays the nats a reader already sees. Separately,
+  `book_renders_the_competitive_fallbacks` asserted that a heading carries the
+  direct-seat overcall package's `(overcall ≤2♠)` ceiling — that guard dissolved
+  into one exact table per overcall, so the assertion now takes a `FirstIs`
+  guard's `…` condition instead, which is the property the test was after. The
+  `web` job (added 2026-08-03) is what caught both.
+
 - **The European 2♠ rebid's four artificial calls were unalerted.**  Under
   `set_notrump_minors(EUROPEAN)`, all four of responder's game-going actions
   over `1NT–2♠–3♣` are artificial: 3♦/3♥/3♠ show a singleton with clubs agreed,

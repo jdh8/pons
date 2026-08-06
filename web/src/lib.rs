@@ -700,7 +700,8 @@ struct NodeJson {
 #[derive(Serialize)]
 struct RuleJson {
     call: String,
-    weight: f32,
+    /// Soft priority in centinats, as the engine stores it; the JS divides by 100
+    weight: i16,
     text: String,
     label: &'static str,
 }
@@ -1850,11 +1851,14 @@ mod tests {
             "expected >30 competitive entries, got {}",
             competitive.len()
         );
+        // A `FirstIs` guard's condition, e.g. "1♣ X …".  This used to test the
+        // direct-seat overcall package's "(overcall ≤2♠)" ceiling, which is gone:
+        // that guard dissolved into one exact table per overcall.
         assert!(
             competitive
                 .iter()
-                .any(|node| node["auction"].as_str().expect("auction").contains("≤2♠")),
-            "the direct-seat overcall package renders with its ceiling"
+                .any(|node| node["auction"].as_str().expect("auction").ends_with('…')),
+            "a guarded section renders with its guard condition in the heading"
         );
         assert!(
             competitive.iter().any(|node| matches!(
