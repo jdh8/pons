@@ -127,6 +127,12 @@ const ARMS: &[(&str, fn())] = &[
     ("no-up-the-line", || {
         pons::bidding::american::set_up_the_line(false)
     }),
+    // S1 — strong_two.rs.  The same knob drives the minor-raise ask tables
+    // and their RKCB answer subtrees, so its off arm proves both halves move
+    // together through the row port.
+    ("no-minor-keycard", || {
+        pons::bidding::instinct::set_rkcb_minors(false)
+    }),
 ];
 
 /// Dump one table, **including each rule's alert**

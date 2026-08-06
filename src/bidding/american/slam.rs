@@ -821,8 +821,9 @@ pub(super) fn rkcb_rows(prefix: &str, trump: Suit) -> Vec<Entry> {
 /// `our_calls` is the undisturbed sequence of our side's calls so far (the
 /// same form [`uncontested`][super::uncontested] takes); the 4NT ask and its
 /// answers are inserted below it.  A thin shim over [`rkcb_rows`], kept so the
-/// ~25 imperative call sites need not spell the prefix themselves; a file
-/// ported to the row layer calls the producer directly instead.
+/// seven remaining production callers and three test helpers need not spell
+/// the prefix themselves; a file ported to the row layer calls the producer
+/// directly instead.
 pub(super) fn install_rkcb(book: &mut Trie, our_calls: &[Call], trump: Suit) {
     let prefix = core::iter::once("P*".to_owned())
         .chain(our_calls.iter().map(|call| format!("{call} (P)")))

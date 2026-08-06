@@ -116,9 +116,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the `notrump.rs` batches are inert re-spellings, so the interesting number is
   the one that *never moves*: at every batch the seeded `smoke-default`
   (20 000 boards, seed 1) hashes `59a27d7f…` and `render-book` hashes
-  `01bf875f…`, both the values at `367dc2c`.  A knob-armed sweep
-  (`examples/tmp-rows-port`, 14 arms, verified pairwise distinct so none is
-  vacuous) is byte-identical across every batch too.  User impact: none.
+  `01bf875f…`, both the values at `367dc2c`.  The reusable knob-armed sweep
+  (`examples/tmp-rows-port`) grew from 14 arms for N1–N5 to 24 for R1 and 25
+  for S1; each batch's then-current arms were pairwise distinct and
+  byte-identical across it.  User impact: none.
   - **N1** — `notrump.rs` 3096–3238, 24 sites (22 `insert_uncontested` + 2
     `install_rkcb`) become four packages: the ungated `one-nt-base` (18 sites)
     plus `stayman-cue-continuation`, `stayman-minor-slam-try` and
@@ -191,6 +192,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     knob sweep are pairwise distinct before the port and byte-identical across
     it; the campaign's `smoke-default` and `render-book` hashes remain
     unchanged.  User impact: none.
+  - **S1** — `strong_two.rs`'s 15 `insert_uncontested` sites and four
+    `install_rkcb` sites become two packages.  The ungated
+    `strong-two-continuations` package carries all 15 exact nodes and the two
+    major-suit RKCB tails; `strong-two-minor-keycard` gates the club and diamond
+    tails on the same relocation-aware `minor_keycard` value their ask tables
+    read, so the ask and answer subtree still move together.  Every node keeps
+    the legacy `P*` fan of 0–3 leading passes (and the stale 0–2 comment is now
+    corrected), every `Rules` builder is untouched, and `register` is one
+    `compile_into` call.  All 25 sweep arms are pairwise distinct before and
+    after the port and byte-identical across it; `smoke-default` remains
+    `59a27d7f…` and `render-book` remains `01bf875f…`.  User impact: none.
   - **The Stayman `2♣` weight tie is a partition, and is now allowlisted.**
     Putting `notrump_responses()` under `assert_package_invariants` for the
     first time surfaced four rules claiming `2♣` at weight 150: constructive

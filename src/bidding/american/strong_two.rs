@@ -17,7 +17,7 @@
 
 use super::super::constraint::{balanced, fifths, hcp, len, points, support, top_honors};
 use super::super::{Alert, Rules, Trie};
-use super::{call, insert_uncontested};
+use crate::bidding::rows::{Package, Pattern, compile_into, rows_of};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
 
@@ -251,120 +251,112 @@ fn opener_after_diamonds_raise() -> Rules {
 // Registration
 // ---------------------------------------------------------------------------
 
-/// Register all strong 2♣ continuations into the constructive book
+/// The strong 2♣ response tree and its major-suit RKCB continuations
 ///
-/// Called once from [`american`][super::american] to attach the
-/// full strong-two structure.  Every table is inserted via
-/// [`insert_uncontested`], which fans 0–2 leading passes so the same
-/// logic fires regardless of which seat held the 2♣ opening.
+/// Every exact node carries `P*`, preserving the legacy `0..=3` leading-pass
+/// fan so the same structure fires regardless of which seat opened 2♣.
+pub(super) fn package() -> Package {
+    Package {
+        name: "strong-two-continuations",
+        gate: || true,
+        entries: || {
+            // Responses to 2♣ and opener's first rebid.
+            let mut entries = rows_of(Pattern::node("P* 2♣ (P)"), responses());
+            entries.extend(rows_of(
+                Pattern::node("P* 2♣ (P) 2♦ (P)"),
+                opener_rebid_after_waiting(),
+            ));
+            entries.extend(rows_of(
+                Pattern::node("P* 2♣ (P) 2♥ (P)"),
+                opener_rebid_after_negative(),
+            ));
+
+            // Responder continuations after opener's waiting-sequence rebid.
+            entries.extend(rows_of(
+                Pattern::node("P* 2♣ (P) 2♦ (P) 2♥ (P)"),
+                resp_after_waiting_hearts(),
+            ));
+            entries.extend(rows_of(
+                Pattern::node("P* 2♣ (P) 2♦ (P) 2♠ (P)"),
+                resp_after_waiting_spades(),
+            ));
+            entries.extend(rows_of(
+                Pattern::node("P* 2♣ (P) 2♦ (P) 3♣ (P)"),
+                resp_after_waiting_clubs(),
+            ));
+            entries.extend(rows_of(
+                Pattern::node("P* 2♣ (P) 2♦ (P) 3♦ (P)"),
+                resp_after_waiting_diamonds(),
+            ));
+
+            // Responder continuations after opener's double-negative rebid.
+            // Raise to the cheapest level; pass without support.
+            entries.extend(rows_of(
+                Pattern::node("P* 2♣ (P) 2♥ (P) 2♠ (P)"),
+                resp_after_negative_suit(Bid::new(3, Strain::Spades)),
+            ));
+            entries.extend(rows_of(
+                Pattern::node("P* 2♣ (P) 2♥ (P) 3♣ (P)"),
+                resp_after_negative_suit(Bid::new(4, Strain::Clubs)),
+            ));
+            entries.extend(rows_of(
+                Pattern::node("P* 2♣ (P) 2♥ (P) 3♦ (P)"),
+                resp_after_negative_suit(Bid::new(4, Strain::Diamonds)),
+            ));
+            entries.extend(rows_of(
+                Pattern::node("P* 2♣ (P) 2♥ (P) 3♥ (P)"),
+                resp_after_negative_suit(Bid::new(4, Strain::Hearts)),
+            ));
+
+            // Opener after responder's major raise, followed by the authored
+            // RKCB answer ladders.
+            let heart_raise = "P* 2♣ (P) 2♦ (P) 2♥ (P) 3♥ (P)";
+            entries.extend(rows_of(
+                Pattern::node(heart_raise),
+                opener_after_hearts_raise(),
+            ));
+            entries.extend(super::slam::rkcb_rows(heart_raise, Suit::Hearts));
+
+            let spade_raise = "P* 2♣ (P) 2♦ (P) 2♠ (P) 3♠ (P)";
+            entries.extend(rows_of(
+                Pattern::node(spade_raise),
+                opener_after_spades_raise(),
+            ));
+            entries.extend(super::slam::rkcb_rows(spade_raise, Suit::Spades));
+
+            // The minor-raise tables read the same live knob as the separately
+            // gated answer subtrees below, so a 4NT ask can never be stranded.
+            entries.extend(rows_of(
+                Pattern::node("P* 2♣ (P) 2♦ (P) 3♣ (P) 4♣ (P)"),
+                opener_after_clubs_raise(),
+            ));
+            entries.extend(rows_of(
+                Pattern::node("P* 2♣ (P) 2♦ (P) 3♦ (P) 4♦ (P)"),
+                opener_after_diamonds_raise(),
+            ));
+
+            entries
+        },
+    }
+}
+
+/// Minor-suit RKCB answers below the strong 2♣ raise sequences
+pub(super) fn minor_keycard_continuations() -> Package {
+    Package {
+        name: "strong-two-minor-keycard",
+        gate: super::slam::minor_keycard,
+        entries: || {
+            let mut entries = super::slam::rkcb_rows("P* 2♣ (P) 2♦ (P) 3♣ (P) 4♣ (P)", Suit::Clubs);
+            entries.extend(super::slam::rkcb_rows(
+                "P* 2♣ (P) 2♦ (P) 3♦ (P) 4♦ (P)",
+                Suit::Diamonds,
+            ));
+            entries
+        },
+    }
+}
+
+/// Register all strong 2♣ continuations into the constructive book
 pub(super) fn register(book: &mut Trie) {
-    let c2 = call(2, Strain::Clubs);
-    let d2 = call(2, Strain::Diamonds);
-    let h2 = call(2, Strain::Hearts);
-    let s2 = call(2, Strain::Spades);
-    let c3 = call(3, Strain::Clubs);
-    let d3 = call(3, Strain::Diamonds);
-    let h3 = call(3, Strain::Hearts);
-    let s3 = call(3, Strain::Spades);
-    let h4 = call(4, Strain::Hearts);
-    let s4 = call(4, Strain::Spades);
-    let c4 = call(4, Strain::Clubs);
-    let d4 = call(4, Strain::Diamonds);
-
-    // Responses to 2♣ (forcing).
-    insert_uncontested(book, &[c2], responses());
-
-    // Opener's rebid after the waiting 2♦.
-    insert_uncontested(book, &[c2, d2], opener_rebid_after_waiting());
-
-    // Opener's rebid after the double-negative 2♥.
-    insert_uncontested(book, &[c2, h2], opener_rebid_after_negative());
-
-    // Responder continuations after opener's suit rebid (waiting sequence).
-    insert_uncontested(book, &[c2, d2, h2], resp_after_waiting_hearts());
-    insert_uncontested(book, &[c2, d2, s2], resp_after_waiting_spades());
-    insert_uncontested(book, &[c2, d2, c3], resp_after_waiting_clubs());
-    insert_uncontested(book, &[c2, d2, d3], resp_after_waiting_diamonds());
-
-    // Responder continuations after opener's suit rebid (double-negative sequence).
-    // Raise to the cheapest level; pass without support.
-    insert_uncontested(
-        book,
-        &[c2, h2, s2],
-        resp_after_negative_suit(Bid::new(3, Strain::Spades)),
-    );
-    insert_uncontested(
-        book,
-        &[c2, h2, c3],
-        resp_after_negative_suit(Bid::new(4, Strain::Clubs)),
-    );
-    insert_uncontested(
-        book,
-        &[c2, h2, d3],
-        resp_after_negative_suit(Bid::new(4, Strain::Diamonds)),
-    );
-    insert_uncontested(
-        book,
-        &[c2, h2, h3],
-        resp_after_negative_suit(Bid::new(4, Strain::Hearts)),
-    );
-
-    // Opener after responder's major raise (waiting sequence).
-    insert_uncontested(book, &[c2, d2, h2, h3], opener_after_hearts_raise());
-    super::slam::install_rkcb(
-        book,
-        &[
-            call(2, Strain::Clubs),
-            call(2, Strain::Diamonds),
-            call(2, Strain::Hearts),
-            call(3, Strain::Hearts),
-        ],
-        Suit::Hearts,
-    );
-
-    insert_uncontested(book, &[c2, d2, s2, s3], opener_after_spades_raise());
-    super::slam::install_rkcb(
-        book,
-        &[
-            call(2, Strain::Clubs),
-            call(2, Strain::Diamonds),
-            call(2, Strain::Spades),
-            call(3, Strain::Spades),
-        ],
-        Suit::Spades,
-    );
-
-    // Opener after responder's minor raise (waiting sequence).  The 4NT ask
-    // and its answer ladder ride the minor-keycard knob together — a lone ask
-    // with no authored answers would strand partner on the floor.
-    insert_uncontested(book, &[c2, d2, c3, c4], opener_after_clubs_raise());
-    if super::slam::minor_keycard() {
-        super::slam::install_rkcb(
-            book,
-            &[
-                call(2, Strain::Clubs),
-                call(2, Strain::Diamonds),
-                call(3, Strain::Clubs),
-                call(4, Strain::Clubs),
-            ],
-            Suit::Clubs,
-        );
-    }
-
-    insert_uncontested(book, &[c2, d2, d3, d4], opener_after_diamonds_raise());
-    if super::slam::minor_keycard() {
-        super::slam::install_rkcb(
-            book,
-            &[
-                call(2, Strain::Clubs),
-                call(2, Strain::Diamonds),
-                call(3, Strain::Diamonds),
-                call(4, Strain::Diamonds),
-            ],
-            Suit::Diamonds,
-        );
-    }
-
-    // Suppress unused-variable warnings for variables used only in some branches.
-    let _ = (h4, s4);
+    compile_into(book, &[package(), minor_keycard_continuations()]);
 }
