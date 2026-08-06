@@ -26,9 +26,8 @@
 
 use std::cell::Cell;
 
-use super::call;
 use crate::bidding::constraint::{hcp, len, longest_unbid, points, suit_hcp, support, top_honors};
-use crate::bidding::rows::{Entry, Package, Pattern, compile_into, rows_of};
+use crate::bidding::rows::{Bindings, Package, compile_into, expand};
 use crate::bidding::{Rules, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
@@ -356,23 +355,43 @@ pub(super) fn package() -> Package {
         name: "weak-two-responses",
         gate: || true,
         entries: || {
-            let mut entries = Vec::new();
-            for our in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
-                let open = format!("P* {} (P)", call(2, Strain::from(our)));
+            // `x` is the weak-two suit; clubs is the strong 2♣, not a weak two.
+            let weak_two = |bindings: &Bindings| bindings.suit('x') != Suit::Clubs;
 
-                // First responses (at [2M]).
-                entries.extend(rows_of(Pattern::node(&open), responses(our)));
+            // First responses (at [2M]).
+            let mut entries = expand("P* 2x -", weak_two, |b| responses(b.suit('x')));
 
-                // Ogust: opener's answers (at [2M, 2NT]).
-                let ogust = format!("{open} 2NT (P)");
-                entries.extend(rows_of(Pattern::node(&ogust), ogust_answers(our)));
+            // Ogust: opener's answers (at [2M, 2NT]).
+            entries.extend(expand("P* 2x - 2NT -", weak_two, |b| {
+                ogust_answers(b.suit('x'))
+            }));
 
-                // Asker's Ogust continuations (at [2M, 2NT, <answer>]).
-                entries.extend(ogust_continuation_rows(our, &ogust));
+            // Asker's Ogust continuations (at [2M, 2NT, <answer>]): the
+            // answer suit encodes the rung — ♣/♦ a minimum with a bad/good
+            // suit, ♥/♠ a maximum — and diamonds split from the majors in
+            // the dispatch.  3NT (solid) has no continuation table; pass
+            // plays it.
+            entries.extend(expand("P* 2x - 2NT - 3y -", weak_two, |b| {
+                match (b.suit('x'), b.suit('y')) {
+                    (Suit::Diamonds, Suit::Clubs) => asker_after_diamonds_min_bad(),
+                    (Suit::Diamonds, Suit::Diamonds) => asker_after_diamonds_min_good(),
+                    (Suit::Diamonds, _) => asker_after_diamonds_max(),
+                    (our, Suit::Clubs | Suit::Diamonds) => asker_after_min_major(our),
+                    (our, _) => asker_after_max_major(our),
+                }
+            }));
 
-                // Opener's reply to each forcing new suit (at [2M, <new suit>]).
-                entries.extend(new_suit_reply_rows(our, &open));
-            }
+            // Opener's reply to each forcing new suit (at [2M, <new suit>]):
+            // ascension pins the 2-level row to suits above the weak two,
+            // the domain pins the 3-level row to suits below it.
+            entries.extend(expand("P* 2x - 2y -", weak_two, |b| {
+                reply_to_new_suit(b.suit('x'), b.suit('y'), 2)
+            }));
+            entries.extend(expand(
+                "P* 2x - 3y -",
+                |b| weak_two(b) && b.suit('y') < b.suit('x'),
+                |b| reply_to_new_suit(b.suit('x'), b.suit('y'), 3),
+            ));
             entries
         },
     }
@@ -383,54 +402,9 @@ pub(super) fn register(book: &mut Trie) {
     compile_into(book, &[package()]);
 }
 
-/// Asker's Ogust continuations for a given weak-two suit, keyed under `ogust`
-fn ogust_continuation_rows(our: Suit, ogust: &str) -> Vec<Entry> {
-    let min_bad = call(3, Strain::Clubs); // min, bad suit
-    let min_good = call(3, Strain::Diamonds); // min, good suit
-    let max_bad = call(3, Strain::Hearts); // max, bad suit
-    let max_good = call(3, Strain::Spades); // max, good suit
-    // 3NT (solid): no continuation table — pass plays 3NT.
-
-    let after = |answer: Call| Pattern::node(&format!("{ogust} {answer} (P)"));
-    let mut entries = Vec::new();
-    if our == Suit::Diamonds {
-        entries.extend(rows_of(after(min_bad), asker_after_diamonds_min_bad()));
-        entries.extend(rows_of(after(min_good), asker_after_diamonds_min_good()));
-        for max_ans in [max_bad, max_good] {
-            entries.extend(rows_of(after(max_ans), asker_after_diamonds_max()));
-        }
-    } else {
-        // Hearts and spades share the same continuation logic.
-        for min_ans in [min_bad, min_good] {
-            entries.extend(rows_of(after(min_ans), asker_after_min_major(our)));
-        }
-        for max_ans in [max_bad, max_good] {
-            entries.extend(rows_of(after(max_ans), asker_after_max_major(our)));
-        }
-    }
-    entries
-}
-
-/// Opener's reply to each forcing new suit over `open` (= 2M)
-fn new_suit_reply_rows(our: Suit, open: &str) -> Vec<Entry> {
-    let trump = Strain::from(our);
-    let mut entries = Vec::new();
-    for x in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
-        if x == our {
-            continue;
-        }
-        let level: u8 = if Strain::from(x) > trump { 2 } else { 3 };
-        let new_suit_call = call(level, Strain::from(x));
-        entries.extend(rows_of(
-            Pattern::node(&format!("{open} {new_suit_call} (P)")),
-            reply_to_new_suit(our, x, level),
-        ));
-    }
-    entries
-}
-
 #[cfg(test)]
 mod tests {
+    use super::super::call;
     use super::*;
     use crate::bidding::Table;
     use crate::bidding::american::american;

@@ -16,6 +16,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   defense.rs copy's majors-only `debug_assert` retires with it (the shared
   form is total and agrees on majors).  User impact: none.
 
+### Changed
+
+- **Pilot port: the weak-two-responses package speaks variable rows.** The
+  `for our in [♦,♥,♠]` + `format!` wiring becomes five `expand` templates:
+  `"P* 2x -"` (first responses), `"P* 2x - 2NT -"` (Ogust answers),
+  `"P* 2x - 2NT - 3y -"` (asker's continuations — the answer suit encodes
+  the rung, and the ♦-vs-major split moves into the table dispatch), and the
+  forcing new-suit replies as the two-level pair `"P* 2x - 2y -"` /
+  `"P* 2x - 3y -"` — ascension itself pins the 2-level row to suits above
+  the weak two, the domain pins the 3-level row below it.  Table builders
+  untouched; keys, rules, and grouping identical, so seeded smoke-default
+  and render-book are byte-identical.  Also sweeps two latent unused imports
+  a stale clippy cache had passed (defense.rs `vulnerable` after the
+  `points_by_vul` migration; weak_twos' lib-level `call`).  User impact:
+  none.
+
 ### Added
 
 - **`points_by_vul(nv, vul)`: the two-band vulnerability split as one

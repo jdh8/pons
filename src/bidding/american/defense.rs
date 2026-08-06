@@ -11,7 +11,7 @@ use super::super::constraint::{
     Cons, Constraint, and, at_least_as_long, balanced, equal_length, hcp, len, length_box,
     long_suit_box, longer_suit, longest_unbid, min_level_is, or, passed_hand, points,
     points_by_vul, shapes, short_in_their_suits, stopper_in_their_suits, suit_hcp,
-    takeout_double_shape_ok, top_honors, unbid_support, vulnerable,
+    takeout_double_shape_ok, top_honors, unbid_support,
 };
 use super::super::context::Context;
 use super::super::fallback::{described_rewrite, rewriter};
