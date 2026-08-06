@@ -1910,7 +1910,7 @@ impl<R: RangeBounds<f64> + Clone + Send + Sync> Constraint for Fifths<R> {
 /// `hcp(15..=17)` becomes `fifths(15.0..18.0)` so adjacent bands keep tiling.
 // ponytail: blended unconditionally — every current `fifths` site is an
 // *initial* NT bid, where the 3NT bias hurts.  Raising a notrump partner has
-// shown (1NT–2NT, 1NT–3NT) is the one place pure Fifths is fine, but those
+// shown (1NT - 2NT, 1NT - 3NT) is the one place pure Fifths is fine, but those
 // rules gate on `hcp` today; add a pure-Fifths variant only when one needs it.
 #[must_use]
 pub fn fifths(range: impl RangeBounds<f64> + Clone + Send + Sync) -> Cons<impl Constraint + Clone> {

@@ -11,7 +11,7 @@ use super::*;
 
 thread_local! {
     /// Whether the *rich* advance of partner's takeout double of a one-opening
-    /// (`[1t, X, P]`) is authored — the cue + notrump ladder that gives the
+    /// (`(1t) X -`) is authored — the cue + notrump ladder that gives the
     /// advancer an invite/force channel; see [`set_rich_advance_double`].
     static RICH_ADVANCE_DOUBLE: Cell<bool> = const { Cell::new(true) };
     /// Whether the **jump-cue Rubens transfer** layer sits on top of the rich
@@ -43,7 +43,7 @@ thread_local! {
 }
 
 /// Toggle the **rich advance** of partner's takeout double of a one-of-a-suit
-/// opening (`(1t)–X–(P)–?`) for books built *after* this call (thread-local,
+/// opening (`(1t) X - ?`) for books built *after* this call (thread-local,
 /// read once at book-construction time)
 ///
 /// **On by default** (the shipped behavior); pass `false` (`bba-gen
@@ -84,7 +84,7 @@ fn advance_rubens_enabled() -> bool {
 }
 
 /// Toggle the **longest-first** suit discipline for the flat advance of partner's
-/// takeout double of a one-of-a-suit opening (`(1t)–X–(P)–?`) for books built
+/// takeout double of a one-of-a-suit opening (`(1t) X - ?`) for books built
 /// *after* this call (thread-local, read at book-construction time)
 ///
 /// **On by default** (the shipped behavior); pass `false` (`bba-gen
@@ -105,7 +105,7 @@ pub(super) fn longest_first_advance_enabled() -> bool {
 }
 
 /// Toggle the weak advancer's **pass-yield to a 4-card major** over partner's
-/// takeout double (`(1t)–X–(P)–?`) for books built *after* this call
+/// takeout double (`(1t) X - ?`) for books built *after* this call
 /// (thread-local, read at book-construction time)
 ///
 /// **Off by default.**  On (`bba-gen --ns-advance-pass-yield`), the penalty
@@ -126,7 +126,7 @@ pub(super) fn advance_pass_yield_major_enabled() -> bool {
 }
 
 /// Swap the advancer's **4-card penalty-pass quality gate** over partner's
-/// takeout double (`(1t)–X–(P)–?`) to a per-suit HCP floor for books built
+/// takeout double (`(1t) X - ?`) to a per-suit HCP floor for books built
 /// *after* this call (thread-local, read at book-construction time)
 ///
 /// **`None` by default** (the shipped behavior): a 4-card trump stack sits
@@ -159,7 +159,7 @@ fn advance_sit_hcp_gate() -> Option<u8> {
 /// book-construction time)
 ///
 /// **On by default**, and a no-op unless [`set_rich_advance_double`] is on. When
-/// on, a three-level jump in a *minor* (`(1♥)–X–(P)–3♣`, `(1♠)–X–(P)–3♦`, …)
+/// on, a three-level jump in a *minor* (`(1♥) X - 3♣`, `(1♠) X - 3♦`, …)
 /// shows an invitational one-suiter — a real 5-card suit, 10–12, **denying a
 /// 4-card unbid major** (with one the advancer cues opener's suit to find the
 /// 4-4 major fit).  It ranks *below* the notrump ladder, so a stopper still
@@ -184,7 +184,7 @@ fn advance_minor_jump_enabled() -> bool {
 /// (thread-local, read at book-construction time)
 ///
 /// **On by default**, and a no-op unless [`set_rich_advance_double`] is on. The
-/// advancer's `2NT` (`(1t)–X–(P)–2NT`) is a limited balanced 11–12 invite with a
+/// advancer's `2NT` (`(1t) X - 2NT`) is a limited balanced 11–12 invite with a
 /// stopper, but with no authored continuation the doubler falls to the instinct
 /// floor, which treats `2NT` as non-forcing and *passes it even holding a game*.
 /// When on, the doubler answers the invite naturally: **Pass** declines with a
@@ -203,7 +203,7 @@ fn advance_2nt_continuation_enabled() -> bool {
 }
 
 /// Rich advance of partner's takeout double of a one-of-a-suit `their_opening`
-/// (`(1t)–X–(P)–?`), gated by [`set_rich_advance_double`]
+/// (`(1t) X - ?`), gated by [`set_rich_advance_double`]
 ///
 /// The flat [`advance_double`] ladder gives the advancer only a cheapest natural
 /// suit, a `3NT`, and a penalty pass — so the whole 10+ invitational-and-up
@@ -299,7 +299,7 @@ pub(super) fn advance_double_rich(their_opening: Bid) -> Rules {
     // on).  For these the strong hands transfer, so the direct `4M` jump is
     // freed up to be purely preemptive; for the rest `4M` is the limited game
     // force.  Over `(1♠)` hearts is *not* here (it sits below the jump-cue), so
-    // `1♠`–X–`4♥` stays the minimum game force.
+    // The direct 4♥ advance over 1♠ doubled stays the minimum game force.
     let transfer_majors: Vec<Suit> = if advance_rubens_enabled() {
         advance_major_transfers(theirs)
             .into_iter()
@@ -441,7 +441,7 @@ fn advance_major_transfers(theirs: Strain) -> Vec<(Bid, Suit)> {
 }
 
 /// Doubler's completion of the advancer's Rubens transfer
-/// (`[1t, X, P, transfer, {P,X}, ?]`, gated by [`set_advance_rubens`])
+/// (`(1t) X - transfer { - | (X) } ?`, gated by [`set_advance_rubens`])
 ///
 /// The transfer promised a 5+ `target` major; the doubler bids it (declaring —
 /// the right-siding point), jumping to game (`4M`) with a maximum and support.
@@ -457,7 +457,7 @@ fn complete_advance_transfer(target: Suit) -> Rules {
 }
 
 /// Advancer's rebid after the doubler completed the transfer
-/// (`[1t, X, P, transfer, {P,X}, 3M, P, ?]`)
+/// (`(1t) X - transfer { - | (X) } 3M - ?`)
 ///
 /// The transfer was invitational-or-better; opposite the doubler's minimum
 /// completion a game-forcing advancer (12+) raises to game, an invitational one
@@ -468,7 +468,7 @@ fn advance_transfer_rebid(target: Suit) -> Rules {
         .rule(Call::Pass, 0, hcp(0..))
 }
 
-/// Doubler's answer to the advancer's cue (`[1t, X, P, cue, P, ?]`, gated by
+/// Doubler's answer to the advancer's cue (`(1t) X - cue - ?`, gated by
 /// [`set_rich_advance_double`])
 ///
 /// The cue ([`advance_double_rich`]) is invitational-or-better and forcing for
@@ -530,7 +530,7 @@ fn advance_cue_answers(their_opening: Bid) -> Vec<Bid> {
 }
 
 /// Advancer's clarifying rebid after the cue and the doubler's minimum `answer`
-/// (`[1t, X, P, cue, {P,X}, answer, {P,X}, ?]`, gated by
+/// (`(1t) X - cue { - | (X) } answer { - | (X) } ?`, gated by
 /// [`set_rich_advance_double`])
 ///
 /// The cue was invitational-or-better ([`advance_double_rich`]); here the
@@ -560,7 +560,7 @@ fn advance_cue_rebid(answer: Bid) -> Rules {
 }
 
 /// Doubler's accept-or-decline of the advancer's invitational minor jump
-/// (`[1t, X, P, 3m, {P,X}, ?]`, gated by [`set_advance_minor_jump`])
+/// (`(1t) X - 3m { - | (X) } ?`, gated by [`set_advance_minor_jump`])
 ///
 /// The jump is a *limited* natural invite (10–12, 5+ `minor`, no 4-card unbid
 /// major) that does **not** promise a stopper, so — unlike the forcing cue,
@@ -607,7 +607,7 @@ fn answer_advance_minor_jump(their_opening: Bid, minor: Suit) -> Rules {
 }
 
 /// Advancer's placement after the doubler accepts the minor jump with a forcing
-/// new suit (`[1t, X, P, 3m, {P,X}, 3S, {P,X}, ?]`, gated by
+/// new suit (`(1t) X - 3m { - | (X) } 3S { - | (X) } ?`, gated by
 /// [`set_advance_minor_jump`])
 ///
 /// The doubler forced to game showing a 5+ `shown` suit; the advancer (already
@@ -629,7 +629,7 @@ fn advance_minor_jump_rebid(shown: Suit) -> Rules {
 }
 
 /// Advancer's answer to the doubler's stopper-ask cue after the minor jump
-/// (`[1t, X, P, 3m, {P,X}, 3t, {P,X}, ?]`, gated by [`set_advance_minor_jump`])
+/// (`(1t) X - 3m { - | (X) } 3t { - | (X) } ?`, gated by [`set_advance_minor_jump`])
 ///
 /// The doubler cued their suit holding game values but no stopper (and no 5-card
 /// side suit); the advancer supplies the notrump decision.  With a stopper the
@@ -647,7 +647,7 @@ fn advance_minor_stopper_ask_answer(minor: Suit) -> Rules {
 }
 
 /// Doubler's accept-or-decline of the advancer's invitational `2NT`
-/// (`[1t, X, P, 2NT, {P,X}, ?]`, gated by [`set_advance_2nt_continuation`])
+/// (`(1t) X - 2NT { - | (X) } ?`, gated by [`set_advance_2nt_continuation`])
 ///
 /// The `2NT` invite is a limited balanced 11–12 with a stopper (the advancer
 /// supplies the notrump stopper), so the doubler — sitting on the wide takeout
@@ -702,17 +702,17 @@ pub(super) fn rich_advance_double_package() -> Package {
             for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
                 let theirs = Strain::from(suit);
                 let opening = Bid::new(1, theirs);
-                let base = format!("P* ({opening}) X (P)");
+                let base = format!("P* ({opening}) X -");
 
                 let cue = Bid::new(2, theirs);
-                for rho in ["(P)", "(X)"] {
+                for rho in ["-", "(X)"] {
                     let after_cue = format!("{base} {cue} {rho}");
                     entries.extend(rows_of(
                         Pattern::node(&after_cue),
                         answer_advance_cue(opening),
                     ));
                     for answer in advance_cue_answers(opening) {
-                        for rho2 in ["(P)", "(X)"] {
+                        for rho2 in ["-", "(X)"] {
                             entries.extend(rows_of(
                                 Pattern::node(&format!("{after_cue} {answer} {rho2}")),
                                 advance_cue_rebid(answer),
@@ -727,14 +727,14 @@ pub(super) fn rich_advance_double_package() -> Package {
                 if advance_rubens_enabled() {
                     for (bid, target) in advance_major_transfers(theirs) {
                         let completion = Bid::new(3, Strain::from(target));
-                        for rho in ["(P)", "(X)"] {
+                        for rho in ["-", "(X)"] {
                             let after_xfer = format!("{base} {bid} {rho}");
                             entries.extend(rows_of(
                                 Pattern::node(&after_xfer),
                                 complete_advance_transfer(target),
                             ));
                             entries.extend(rows_of(
-                                Pattern::node(&format!("{after_xfer} {completion} (P)")),
+                                Pattern::node(&format!("{after_xfer} {completion} -")),
                                 advance_transfer_rebid(target),
                             ));
                         }
@@ -752,7 +752,7 @@ pub(super) fn rich_advance_double_package() -> Package {
                             continue;
                         }
                         let jump = Bid::new(3, m);
-                        for rho in ["(P)", "(X)"] {
+                        for rho in ["-", "(X)"] {
                             let after_jump = format!("{base} {jump} {rho}");
                             entries.extend(rows_of(
                                 Pattern::node(&after_jump),
@@ -766,7 +766,7 @@ pub(super) fn rich_advance_double_package() -> Package {
                                     continue;
                                 }
                                 let bid = Bid::new(3, s);
-                                for rho2 in ["(P)", "(X)"] {
+                                for rho2 in ["-", "(X)"] {
                                     entries.extend(rows_of(
                                         Pattern::node(&format!("{after_jump} {bid} {rho2}")),
                                         advance_minor_jump_rebid(shown),
@@ -777,7 +777,7 @@ pub(super) fn rich_advance_double_package() -> Package {
                             // (3 of their suit): 3NT with a stopper (right-sided),
                             // else the minor game.
                             let ask = Bid::new(3, theirs);
-                            for rho2 in ["(P)", "(X)"] {
+                            for rho2 in ["-", "(X)"] {
                                 entries.extend(rows_of(
                                     Pattern::node(&format!("{after_jump} {ask} {rho2}")),
                                     advance_minor_stopper_ask_answer(minor),
@@ -788,7 +788,7 @@ pub(super) fn rich_advance_double_package() -> Package {
                 }
 
                 if advance_2nt_continuation_enabled() {
-                    for rho in ["(P)", "(X)"] {
+                    for rho in ["-", "(X)"] {
                         let after_2nt = format!("{base} 2NT {rho}");
                         entries.extend(rows_of(
                             Pattern::node(&after_2nt),
@@ -802,7 +802,7 @@ pub(super) fn rich_advance_double_package() -> Package {
                                 continue;
                             }
                             let bid = Bid::new(3, s);
-                            for rho2 in ["(P)", "(X)"] {
+                            for rho2 in ["-", "(X)"] {
                                 entries.extend(rows_of(
                                     Pattern::node(&format!("{after_2nt} {bid} {rho2}")),
                                     advance_minor_jump_rebid(major),

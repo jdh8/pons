@@ -39,7 +39,7 @@ the 5-card holding that takes a natural 2♥/2♠. So BBA's compiled Multi is an
 weak two. The bucket leans spades in the sample but the heart tail (up to 6) and
 the relay below confirm it is genuinely either major.
 
-## 2. The advancer relay (`advance`, overcaller's partner after 1NT-2♦-P)
+## 2. The advancer relay (`advance`, overcaller's partner after 1NT - 2♦ -)
 
 | call | freq | hand |
 |------|------|------|
@@ -52,7 +52,7 @@ mechanics are the convention's *offense* and don't bear on our counter-defense.
 
 ## 3. BBA's counter-defense (`counter`, 1NT-opener side over the Multi)
 
-Responder's call after `1NT-(2♦ Multi)`. Vulnerability barely moves it (the X
+Responder's call after `1NT (2♦ Multi)`. Vulnerability barely moves it (the X
 floor is identical NV vs both-vul); both-vul only adds rare slam tries.
 
 | call | freq | distilled | reading |
@@ -74,7 +74,7 @@ everywhere else.**
 
 ## 4. Candidate counter-defense to author (to A/B, default opt-in)
 
-Distilled from §3 + Multi theory, for our responder after `[1NT, (2♦)]` *when we
+Distilled from §3 + Multi theory, for our responder after `1NT (2♦)` *when we
 treat their 2♦ as a Multi* (faithful for the A/B vs BBA, whose 2♦ is always a
 Multi). Tighten BBA's loose floors slightly for DD penalty discipline:
 
@@ -88,7 +88,7 @@ Multi). Tighten BBA's loose floors slightly for DD penalty discipline:
 - **4♥/4♠** — long (6+) major to game.
 - **Pass** — everything else (weak), handled by the floor.
 
-Open question the A/B answers: does this beat pons's *current* `[1NT,(2♦)]`
+Open question the A/B answers: does this beat pons's *current* `1NT (2♦)`
 handling (the Lebensohl/Transfer package in `competition.rs`, which treats 2♦ as
 **natural diamonds** — wrong-sided against a hand that actually holds a major)?
 Prior: competitive/defensive conventions usually lose on plain-DD (obstruction

@@ -47,7 +47,7 @@ fn direct_dont_replaces_the_penalty_double() {
 
 #[test]
 fn direct_dont_one_suiter_double_relays_then_names() {
-    // [1NT,X,P]: with DONT on the direct-seat X is a one-suiter, so the advancer
+    // `(1NT) X -`: with DONT on the direct-seat X is a one-suiter, so the advancer
     // relays 2♣ (a book node now keyed at the direct seat, not floored)...
     let nt = call(1, Strain::Notrump);
     let p = Call::Pass;

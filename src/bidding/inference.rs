@@ -589,7 +589,7 @@ pub(crate) fn probed_reading() -> bool {
 ///   it fills an axis, earlier keys leave it alone.
 ///
 /// The target is the measured coverage hole — contested free bids and raises
-/// the natural walk stamps nothing for (`1♦ (2♣) 2♠ P 3♠` all `0..13`,
+/// the natural walk stamps nothing for (`1♦ (2♣) 2♠ - 3♠` all `0..13`,
 /// docs/reading-drift-handoff.md), which no symbolic reader reaches.  A
 /// third gate scopes the fold to **contested prefixes** (both sides have
 /// acted): filling constructive axes smoke-tested at −0.67 IMPs/board of
@@ -1665,7 +1665,7 @@ pub(crate) const fn relative_of(len: usize, index: usize) -> Relative {
 /// A systems-on advance of our 1NT overcall, with their opening stripped
 ///
 /// When `set_nt_overcall_systems_on` is enabled the advancer plays the full
-/// opening-1NT structure grafted below `[their 1-of-a-suit, our 1NT]`, so the
+/// opening-1NT structure grafted below `(their 1-of-a-suit) 1NT`, so the
 /// artificial Stayman/transfer calls need the *opening-1NT* reading, not the
 /// natural walk.  This returns the auction with their opening removed, which
 /// reads exactly like an opening 1NT: `(len - index) % 4` is invariant under
@@ -1766,7 +1766,7 @@ pub struct Inferences {
 /// doubletons upgrades 1 with no shortness credit).  So a support promise
 /// `[F, C]` pins the legacy scale only to `[F − 5, C + 1]` — publishing the
 /// band verbatim excluded the shapely light raises that measurably make it
-/// (the `1♠ P 2♠` divergence-meter defect: observed point counts 4–10
+/// (the `1♠ - 2♠` divergence-meter defect: observed point counts 4–10
 /// against a published 6..=10), and [`Envelope::admits`] gauges the legacy
 /// axis unconditionally, so the sampler refused to deal partner those hands.
 /// Pinned by `support_band_points_image_is_sound`.
@@ -1992,7 +1992,7 @@ impl Inferences {
             opening_bid.strain == Strain::Notrump || opening_bid == Bid::new(2, Strain::Clubs);
         let defending_parity = (opener_lane + 1) % 2;
         let read_nt_invite = nt_invite_inference();
-        // A 1NT–2♣ Stayman auction (opponents silent): opener's major answer and
+        // A 1NT - 2♣ Stayman auction (opponents silent): opener's major answer and
         // responder's strength are read below so the floor judges the fit and
         // accepts or declines invitations.  The artificial 3OM / Smolen jumps are
         // suppressed from the natural suit reading rather than re-derived.
@@ -2033,7 +2033,7 @@ impl Inferences {
         // intersect); the boxes are re-combined into `unions` at the return.
         let overlay: [Envelope; 4] = std::array::from_fn(|i| overlay_unions[i].hull());
         // The one suppression the projection cannot see: the advancer's 2♦ relay /
-        // 2♥-2♠ preference over a Landy/Woolsey both-majors 2♣ names no length of its
+        // `2♥ - 2♠` preference over a Landy/Woolsey both-majors 2♣ names no length of its
         // own, so its rule projects nothing — suppress it by hand (the doc's stub).
         let landy_relay = landy_advance_suppress(auction);
         // The Woolsey Multi family: 2♦ (a single 6+ major — its diamond reading
@@ -2137,7 +2137,7 @@ impl Inferences {
                             && bid.level.get() == 3
                             && matches!(bid.strain, Strain::Hearts | Strain::Spades)
                             && lane_suits[(lane + 2) % 4] & (1u8 << suit as u8) == 0;
-                        // Responder's 1NT–3M splinter, when authored, is the
+                        // Responder's 1NT - 3M splinter, when authored, is the
                         // shortest possible major: never a natural five-plus.
                         // Suppressing this *one* index (rather than routing it
                         // through `nt_structure_artificial`, whose `entered` set
@@ -2487,7 +2487,7 @@ impl Inferences {
                             // preempt on nothing OR bidding a game to make on
                             // 16+ — so no strength band is sound there (the
                             // `1..=11` image of the constructive band excluded
-                            // every to-make raiser of `[3♥ P 4♥]` from its own
+                            // every to-make raiser of `3♥ - 4♥` from its own
                             // box).
                             let partner_bid_it =
                                 lane_suits[(lane + 2) % 4] & (1 << suit as u8) != 0;
@@ -2554,7 +2554,7 @@ impl Inferences {
                     }
 
                     // Opener's major jump-rebid (set_opener_major_jump_rebid):
-                    // a 3M jump in opener's own opened major over 1♥-1♠ / 1M-1NT
+                    // a 3M jump in opener's own opened major over `1♥ - 1♠` / `1M - 1NT`
                     // shows 16+.  Natural, so the six-card length is read above
                     // (the `i_bid_it` branch); add the strength floor here.
                     if crate::bidding::american::opener_major_jump_rebid()
@@ -2969,7 +2969,7 @@ enum HighBid {
 /// The deterministic rule, calibrated to what this system actually bids: the
 /// bid is a **control bid** iff the bidder *bypassed* the suit — it was
 /// biddable more cheaply (same level, lower strain) at their first
-/// suit-showing call and they chose another suit (`1♦–1♠–2♦–4♥`: 1♥ was
+/// suit-showing call and they chose another suit (`1♦ - 1♠ - 2♦ - 4♥`: 1♥ was
 /// available under 1♠, so hearts are short and 4♥ agrees diamonds — the
 /// partnership's most recently shown suit, BWS's priority).  A suit *above*
 /// the first-shown one was never denied: both the book and the floor bid the
@@ -3012,7 +3012,7 @@ fn classify_high_bid(
     if !Suit::ASC.into_iter().any(|s| s != suit && shown(who, s)) {
         // The bidder has shown nothing: the suit can be their longest — to
         // play (which covers the possible splinter below game in partner's
-        // major, `1♥–4♣`, since nothing is recorded either way).
+        // major, `1♥ - 4♣`, since nothing is recorded either way).
         return HighBid::ToPlay;
     }
 
@@ -4109,7 +4109,8 @@ fn project_authored_with(
     // `support(3..)` reads `partner_last_suit()`, and the reader's "partner's
     // last bid" *is the projected call itself*, so a cue raise's support atom
     // stamped n+ cards of the **cue suit** — a wrong box that excluded the
-    // bidder (probe-reading-sound: `[1♥ 1♠ 2♠]` 8/15, `[1♣ 1♦ 2♦]` 4/4).  The
+    // bidder (probe-reading-sound: `1♥ (1♠) 2♠` 8/15,
+    // `1♣ (1♦) 2♦` 4/4).  The
     // same skew put the support double's 3-card claim on opener's own suit.
     // For plain raises the two contexts happen to agree (the raise suit is the
     // support suit), which is how this survived the raise-reader sweeps.
@@ -4378,7 +4379,7 @@ pub(crate) fn artificial(projection: &Envelope, made: Call, doubled: Option<Stra
 /// ([`notrump_minors`][crate::bidding::american::notrump_minors]):
 ///
 /// - **Puppet:** 3♣ Puppet, 2NT diamond transfer, or 2♠ two-way relay — except
-///   opener's genuine five-card major show over Puppet (`1NT–3♣–3♥/3♠`).
+///   opener's genuine five-card major show over Puppet (`1NT - 3♣ - 3♥/3♠`).
 /// - **European:** 2♠ (clubs) or 3♣ (diamonds) transfer — every continuation
 ///   (opener's completion, responder's splinter) is a relay, no exception; the
 ///   natural 2NT invite enters nothing.
@@ -4692,7 +4693,7 @@ fn multi_reading(auction: &[Call]) -> Option<MultiReading> {
 /// Our **Gladiator** advance of a 1NT overcall of their major
 /// ([`set_nt_overcall_gladiator`][crate::bidding::american::set_nt_overcall_gladiator])
 ///
-/// The advancer's artificial calls under `[1M, 1NT, P, ?]` — the `2♣` relay (and
+/// The advancer's artificial calls under `(1M) 1NT - ?` — the `2♣` relay (and
 /// its forced `2♦` completion), the cue of their major (Stayman for the unbid
 /// major), the `3M` splinter, and the `4M` both-minor Leaping Michaels — are bids
 /// of a suit the caller does *not* hold; the natural walk would floor a phantom
@@ -4779,13 +4780,14 @@ fn gladiator_reading(auction: &[Call]) -> Option<GladiatorReading> {
     let mut suppress = 0u64;
     let advance = if bid == Bid::new(2, Strain::Clubs) {
         suppress |= 1 << index;
-        // The overcaller's forced 2♦ completion (relay, P, 2♦) says nothing of
-        // diamonds — suppress it too.
+        // The overcaller's forced 2♦ completion in `relay - 2♦` says nothing
+        // of diamonds — suppress it too.
         let mut delayed = false;
         if auction.get(index + 2) == Some(&Call::Bid(Bid::new(2, Strain::Diamonds))) {
             suppress |= 1 << (index + 2);
-            // Delayed cue at index+4 (relay, P, 2♦, P, cue-of-their-major): a
-            // phantom-suit call too (advancer holds exactly 3 `o`, not `m`).
+            // The delayed cue at index+4 in
+            // `relay - 2♦ - cue-of-their-major` is a phantom-suit call too
+            // (advancer holds exactly 3 `o`, not `m`).
             if auction.get(index + 4) == Some(&Call::Bid(Bid::new(2, opening.strain))) {
                 suppress |= 1 << (index + 4);
                 delayed = true;
@@ -4951,7 +4953,7 @@ pub(super) fn penalty_x_reading(auction: &[Call]) -> Option<usize> {
 }
 
 /// The index of responder's double of an opponent's overcall of *our* 1NT
-/// (`[1NT,(2X),X]`), or `None`
+/// (`1NT (2X) X`), or `None`
 ///
 /// Every [`DoubleStyle`][crate::bidding::american::DoubleStyle] makes this double
 /// show **8+ values** (takeout ≤3/8, penalty 4+/9, optional 2-3/8), so the post-walk
@@ -5333,7 +5335,7 @@ fn balanced(inf: &mut Envelope) {
 /// The point floor a responder's first natural new suit shows, when uncontested
 ///
 /// A one-level new suit promises six-plus points; a game-forcing 2/1 (a
-/// two-level new suit over a one-of-a-major opening, or `1♦`–`2♣`) promises
+/// two-level new suit over a one-of-a-major opening, or `1♦ - 2♣`) promises
 /// thirteen-plus.
 fn apply_response_points(inf: &mut Envelope, response: Bid, opening: Bid, eligible: bool) {
     if !eligible {

@@ -370,7 +370,7 @@ A/B vs baseline, and the BBA gap (S.1's −2.6) on the relevant auctions.
 
 - ✅ **M6.1 Parametric auction inferences.** Push the floor deeper by *deriving*
   facts from the auction rather than authoring, via the existing `Inferences` /
-  `inference.rs` reader. Canonical case: `1NT–2♦–2♥–4♥` — responder transferred
+  `inference.rs` reader. Canonical case: `1NT - 2♦ - 2♥ - 4♥` — responder transferred
   (5+♥) then jumped past the choice-of-games `3NT` to `4♥`, so the floor can
   *know* a 6-card major and act on it. *Deliverable:* a few derived inferences
   the floor reads on demand. *Measure:* no regression, ideally a gain on
@@ -384,8 +384,8 @@ A/B vs baseline, and the BBA gap (S.1's −2.6) on the relevant auctions.
   (`len(major,2..) & partner_shown_len(major,6..)`) so opener acts on the shown
   six opposite a doubleton — the exact gap `project_sat-slam-try` flagged.
   Verified off-book by `classify_with_provenance` (not shadowed —
-  `project_floor_shadowed_by_book_nodes`): `1NT–2♦–2♥–3♥`/`–4♥` fire the floor,
-  and a max accepts `1NT–2♦–2♥–3♥` → `4♥`. **A/B** (seeded constructive,
+  `project_floor_shadowed_by_book_nodes`): `1NT - 2♦ - 2♥ - 3♥`/`–4♥` fire the floor,
+  and a max accepts `1NT - 2♦ - 2♥ - 3♥` → `4♥`. **A/B** (seeded constructive,
   `stayman-abc` harness, baseline vs M6.1, opponents silenced, 200k boards):
   **+1.94 IMPs/divergent vul none, +2.25 vul both** (306 divergent, +0.003
   IMPs/board); whole inference floor still +0.05 IMPs/board (`inference-floor`,
@@ -428,10 +428,10 @@ A/B vs baseline, and the BBA gap (S.1's −2.6) on the relevant auctions.
     (`set_direct_dont`), each with a suppress-and-narrow floor reading
     (`dont_reading`, Woolsey takeout-X reading).
   - **Passed-hand both-majors X** of their 1NT (DD-positive, promoted default-on).
-  - **`[1NT,(X)]` runout** (default-on) + Phase 2 (encircling penalty-X of the
+  - **`1NT (X)` runout** (default-on) + Phase 2 (encircling penalty-X of the
     escape, direct minor escape via `set_unusual_2nt`).
   - **Double styles:** responder's X of a 1NT overcall now Optional by default
-    (bf6e5cd) + the optional-latch knob; the defensive `(1NT)-X-(2Y)-X` latch
+    (bf6e5cd) + the optional-latch knob; the defensive `(1NT) X (2Y) X` latch
     (`set_latch_style`, opt-in, DD-wash); the penalty-double latch (default-on).
   - **Transfer-Lebensohl / Rubinsohl** threads over interference.
   - **Rubens advances** (`set_rubens_advances`, default-on; `--no-ns-rubens`
@@ -470,15 +470,15 @@ A/B vs baseline, and the BBA gap (S.1's −2.6) on the relevant auctions.
     `--no-ns-control-bid-reading`): the deterministic rule, calibrated by the
     A/B to what the system *actually bids* — an undisturbed four-plus-level
     new suit is a **control bid iff the bidder bypassed it** (biddable more
-    cheaply at their first suit-showing call: `1♦–1♠–2♦–4♥` agrees diamonds;
-    `1NT–2♥–2♠–4♥` through the transfer overlay agrees spades — suppress the
+    cheaply at their first suit-showing call: `1♦ - 1♠ - 2♦ - 4♥` agrees diamonds;
+    `1NT - 2♥ - 2♠ - 4♥` through the transfer overlay agrees spades — suppress the
     phantom, record support 3+/own 6+ and 13+ points).  A suit *above* the
     first-shown one was **never denied → natural 6+**: the book responds 1♥ /
-    transfers to hearts holding 6♠5♥ (probed), so `1♣–1♥–2♣–4♠` and the
-    post-transfer `1NT–2♦–2♥–4♠` are to-play — round 1 read them as controls
+    transfers to hearts holding 6♠5♥ (probed), so `1♣ - 1♥ - 2♣ - 4♠` and the
+    post-transfer `1NT - 2♦ - 2♥ - 4♠` are to-play — round 1 read them as controls
     ("shown another suit ⟹ can't be longest") and bled −6.1/fired pulling
-    natural 4♠s.  Silent bidder → natural (`1♦–4♥` floored 6+) except below
-    partner's major game (`1♥–4♣` splinter-possible, unread); undeniable
+    natural 4♠s.  Silent bidder → natural (`1♦ - 4♥` floored 6+) except below
+    partner's major game (`1♥ - 4♣` splinter-possible, unread); undeniable
     minors unread.  Plus the **never-pass-a-cue signoff** (return to trump at
     the cheapest level) — the Rubens round-1 lesson applied up front.
   *Measure:* 204.8k boards vs BBA per round, paired `ab-dump-diff`, both knobs
@@ -516,7 +516,7 @@ A/B vs baseline, and the BBA gap (S.1's −2.6) on the relevant auctions.
   `Inferences::control_bid` (exact — "named suit unread" can no longer tell
   control from to-play).  **Round 5 (`1782989478`): 4 fired / 204.8k, delta
   exactly 0.0000 plain and PD** — the four divergences are all
-  `2NT–3♥–3♠–4NT–…–6♠` checking keycards into a real six-card fit where the
+  `2NT - 3♥ - 3♠ - 4NT - … - 6♠` checking keycards into a real six-card fit where the
   baseline blasts an equal-value 6NT.  **Wash with the safety net kept →
   default-on stands** (plain-wash policy).  *Meta-lesson:* on plain DD at
   33-plus combined, the 6NT power-blast is near-optimal — keycard discipline

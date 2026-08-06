@@ -98,7 +98,7 @@ fn test_trie_longest_prefix_picks_deepest_match() {
         classifier(|_, _| marker_logits(2.0)),
     );
 
-    // Diverges after [1C, P]: deepest match is [1C].
+    // Diverges after `1C -`: deepest match is `1C`.
     let query = [one_c, Call::Pass, one_d];
     let (prefix, _) = trie.longest_prefix(&query).expect("expected a match");
     assert_eq!(prefix, &[one_c]);
@@ -121,7 +121,7 @@ fn test_trie_longest_prefix_no_match_returns_none() {
 
 #[test]
 fn test_trie_longest_prefix_skips_empty_intermediate() {
-    // Root has no classifier; only [1C, P, 1H] does. Querying that exact
+    // Root has no classifier; only `1C - 1H` does. Querying that exact
     // auction must still return the deepest match.
     let mut trie = Trie::new();
     let one_c = bid(1, Strain::Clubs);

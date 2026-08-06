@@ -86,7 +86,7 @@ fn demo_system() -> Pair {
     let one_h = call(1, Strain::Hearts);
 
     // Openings: one table, authored explicitly at each seat's leading-pass
-    // prefix — [], [P], [P, P], [P, P, P] for 1st through 4th seat.
+    // prefix — empty, `-`, `- -`, `- - -` for 1st through 4th seat.
     let passes = [Call::Pass; 3];
     for seat in 0..=3 {
         constructive.insert(&passes[..seat], opening());
@@ -192,12 +192,12 @@ fn test_responses_authored_for_each_opening_seat() {
     let system = demo_stance();
     let one_h = call(1, Strain::Hearts);
 
-    // 1st-seat opening: 1♥ - (P) - ?
+    // 1st-seat opening: 1♥ - ?
     assert_eq!(
         best_call(&system, &[one_h, Call::Pass], RAISER),
         call(2, Strain::Hearts),
     );
-    // 2nd-seat opening: (P) - 1♥ - (P) - ?, authored at its own prefix.
+    // 2nd-seat opening: - 1♥ - ?, authored at its own prefix.
     assert_eq!(
         best_call(&system, &[Call::Pass, one_h, Call::Pass], RAISER),
         call(2, Strain::Hearts),
@@ -209,7 +209,7 @@ fn test_negative_double_package() {
     let system = demo_stance();
     let one_h = call(1, Strain::Hearts);
 
-    // 1♥ - (2♣) - ?: the package handles any overcall through 2♠.
+    // 1♥ (2♣) ?: the package handles any overcall through 2♠.
     assert_eq!(
         best_call(&system, &[one_h, call(2, Strain::Clubs)], DOUBLER),
         Call::Double,
@@ -225,7 +225,7 @@ fn test_system_on_over_their_double() {
     let system = demo_stance();
     let one_h = call(1, Strain::Hearts);
 
-    // 1♥ - (X) - ?: the rebase maps onto the undisturbed responses.
+    // 1♥ (X) ?: the rebase maps onto the undisturbed responses.
     assert_eq!(
         best_call(&system, &[one_h, Call::Double], RAISER),
         call(2, Strain::Hearts),
@@ -236,7 +236,7 @@ fn test_system_on_over_their_double() {
 fn test_defensive_overcall_when_they_open() {
     let system = demo_stance();
 
-    // (1♣) - ?: the auction routes to the defensive book, where a 9-count with
+    // (1♣) ?: the auction routes to the defensive book, where a 9-count with
     // five spades overcalls 1♠.
     assert_eq!(
         best_call(&system, &[call(1, Strain::Clubs)], LIGHT_OPENER),

@@ -683,8 +683,8 @@ fn envelope_union_reading_pins_the_two_suiter() {
 /// intact, or it stops measuring what reading *their* calls is worth.
 #[test]
 fn blind_opponent_reading_spares_our_side() {
-    // 1♦ (me) - 1♥ (LHO) - 1♠ (partner) - 2♥ (RHO): all four seats have
-    // shown something, so blanking two of them is visible.
+    // `1♦ (1♥) 1♠ (2♥)`: all four seats have shown something, so blanking
+    // LHO and RHO while retaining our side is visible.
     let auction = [
         bid(1, Strain::Diamonds),
         bid(1, Strain::Hearts),
@@ -724,7 +724,7 @@ fn blind_opponent_reading_spares_our_side() {
 
 #[test]
 fn opening_shapes() {
-    // [1♥]: the opener sits to our right (the call just before ours).
+    // `(1♥)`: the opener sits to our right (the call just before ours).
     let one_heart = read(&[bid(1, Strain::Hearts)]);
     assert_eq!(one_heart.rho().length(Suit::Hearts), Range::new(5, 13));
     // `points(12..)` is the Rule of 20, which opens sound 10-11 HCP counts,
@@ -762,7 +762,7 @@ fn opening_shapes() {
 ///
 /// `Flip` had no projection at all, so `!support(4..)` — a plain box, "at
 /// most three of partner's suit" — read as ⊤ and responder's spades came
-/// back `0..=13` after `1♠–2♣`.  The strength half of the same rule is
+/// back `0..=13` after `1♠ - 2♣`.  The strength half of the same rule is
 /// still blind (`Or::project` unions `hcp(13..)` away; see
 /// `docs/ai-bidder/sampled-projection.md`), which is why only the length
 /// axis is asserted here.
@@ -897,7 +897,7 @@ fn opener_extras_ladder_reads_extras() {
     let s = bid(1, Strain::Spades);
     let p = Call::Pass;
     set_opener_extras_ladder(true);
-    // Opener (partner of the hero to act) after 1♦ – 1♠ – X.
+    // Opener (partner of the hero to act) after 1♦ - 1♠ - X.
     // Jump-rebid 3♦: a self-sufficient six-plus diamonds, 16+.
     let jr = read(&[d, p, s, p, bid(3, Strain::Diamonds), p]);
     assert!(jr.partner().length(Suit::Diamonds).min >= 6);
@@ -926,7 +926,7 @@ fn opener_major_jump_rebid_reads_extras() {
     let s = bid(1, Strain::Spades);
     let p = Call::Pass;
     set_opener_major_jump_rebid(true);
-    // Opener after 1♥ – 1♠ – 3♥: jump-rebid of a six-plus major, 16+.
+    // Opener after 1♥ - 1♠ - 3♥: jump-rebid of a six-plus major, 16+.
     let jr = read(&[h, p, s, p, bid(3, Strain::Hearts), p]);
     assert!(jr.partner().length(Suit::Hearts).min >= 6);
     assert!(jr.partner().strength.points.min >= 16);
@@ -945,7 +945,7 @@ fn high_bid_control_vs_natural() {
     // default is covered by `high_bid_under_longer_major_response`, and the
     // 1NT-transfer sub-cases below are knob-independent.
     set_longer_major_response(false);
-    // 1♦–1♠–2♦–4♥: responder bid spades first, so hearts cannot be their
+    // 1♦ - 1♠ - 2♦ - 4♥: responder bid spades first, so hearts cannot be their
     // longest — a control bid agreeing diamonds.  Hearts stays unfloored;
     // diamond support and slam-try values are recorded instead.
     let control = read(&[
@@ -962,7 +962,7 @@ fn high_bid_control_vs_natural() {
     assert!(control.partner().length(Suit::Diamonds).min >= 3);
     assert!(control.partner().strength.points.min >= 13);
 
-    // 1♦–1♠–2♦–4♠: rebidding one's own suit is natural — six-plus spades.
+    // 1♦ - 1♠ - 2♦ - 4♠: rebidding one's own suit is natural — six-plus spades.
     let rebid = read(&[
         bid(1, Strain::Diamonds),
         Call::Pass,
@@ -975,7 +975,7 @@ fn high_bid_control_vs_natural() {
     ]);
     assert!(rebid.partner().length(Suit::Spades).min >= 6);
 
-    // 1♦–4♥: the bidder has shown nothing, so hearts can be their
+    // 1♦ - 4♥: the bidder has shown nothing, so hearts can be their
     // longest — to play, no control machinery (and no phantom floor:
     // the honest envelope of an unread jump stays wide).
     let preempt = read(&[
@@ -986,7 +986,7 @@ fn high_bid_control_vs_natural() {
     ]);
     assert!(preempt.control_bid().is_none());
 
-    // 1♣–1♥–2♣–4♠: spades sit *above* the first-shown hearts, so they were
+    // 1♣ - 1♥ - 2♣ - 4♠: spades sit *above* the first-shown hearts, so they were
     // never denied — this system's response and transfer styles bid the
     // cheaper suit first holding a longer higher one (the first M6.4 A/B
     // bled six IMPs a fired board pulling these to the "agreed" minor).
@@ -1003,7 +1003,7 @@ fn high_bid_control_vs_natural() {
     ]);
     assert!(above.control_bid().is_none());
 
-    // 1NT–2♦–2♥–4♠: same shape through a transfer (the overlay attributes
+    // 1NT - 2♦ - 2♥ - 4♠: same shape through a transfer (the overlay attributes
     // the hearts to the bidder) — spades were never denied, so to play.
     let post_transfer = read_booked(&[
         bid(1, Strain::Notrump),
@@ -1018,7 +1018,7 @@ fn high_bid_control_vs_natural() {
     assert!(post_transfer.control_bid().is_none());
     assert!(post_transfer.partner().length(Suit::Hearts).min >= 5);
 
-    // 1NT–2♥–2♠–4♥ — the mirror: hearts sit *below* the transferred
+    // 1NT - 2♥ - 2♠ - 4♥ — the mirror: hearts sit *below* the transferred
     // spades and the cheaper heart transfer was bypassed, so 4♥ cannot be
     // long — a control bid agreeing spades, promising a sixth.
     let mirror = read_booked(&[
@@ -1044,7 +1044,7 @@ fn high_bid_control_vs_natural() {
 fn high_bid_under_longer_major_response() {
     use crate::bidding::american::set_longer_major_response;
 
-    // 1♣–1♥–2♣–4♠, discipline on: 1♥ denied longer spades, so 4♠ is a
+    // 1♣ - 1♥ - 2♣ - 4♠, discipline on: 1♥ denied longer spades, so 4♠ is a
     // bypass — a control bid agreeing clubs, spades left unfloored.
     set_longer_major_response(true);
     let control = read(&[
@@ -1057,7 +1057,7 @@ fn high_bid_under_longer_major_response() {
         bid(4, Strain::Spades),
         Call::Pass,
     ]);
-    // The mirror 1♣–1♠–2♣–4♥: a 1♠ response no longer proves short
+    // The mirror 1♣ - 1♠ - 2♣ - 4♥: a 1♠ response no longer proves short
     // hearts (5-5 responds 1♠), so the heart jump reads to play.
     let to_play = read(&[
         bid(1, Strain::Clubs),
@@ -1094,7 +1094,7 @@ fn high_bid_under_longer_major_response() {
 #[test]
 fn gambling_3nt_over_double_reads_unbalanced() {
     use crate::bidding::instinct::set_gambling_3nt_over_double;
-    // [1NT,(X),3NT,P]: opener reads partner's gambling 3NT.  The floor alerts the
+    // `1NT (X) 3NT -`: opener reads partner's gambling 3NT.  The floor alerts the
     // call as the long-minor gamble, so the natural balanced-3NT reading is
     // suppressed and a six-card minor stays within range — the search sampler must
     // be free to deal responder its running suit, not pin it to a flat hand.
@@ -1114,7 +1114,7 @@ fn gambling_3nt_over_double_reads_unbalanced() {
 fn leaping_michaels_conditions_partner() {
     use crate::bidding::american::set_leaping_michaels;
 
-    // (2♥)–4♣–(P): the advancer reads partner's two-suiter — five-plus clubs
+    // (2♥) 4♣ -: the advancer reads partner's two-suiter — five-plus clubs
     // AND five-plus spades, game-forcing — so the search sampler deals partner
     // the right shape rather than a natural club one-suiter.
     set_leaping_michaels(true);
@@ -1145,7 +1145,7 @@ fn leaping_michaels_conditions_partner() {
 fn landy_conditions_partner() {
     use crate::bidding::american::{set_landy, set_unusual_notrump_defense};
 
-    // (1NT)–2♣–(P): the advancer reads partner's both-majors two-suiter (at
+    // (1NT) 2♣ -: the advancer reads partner's both-majors two-suiter (at
     // least 4-4 in the majors, 8+ points) rather than a natural club suit.
     set_landy(Some((8, 15)));
     set_unusual_notrump_defense(Some((8, 15)));
@@ -1155,7 +1155,7 @@ fn landy_conditions_partner() {
     assert_eq!(advance.partner().length(Suit::Clubs), Range::FULL_LENGTH);
     assert_eq!(advance.partner().strength.points, Range::new(8, 37));
 
-    // (1NT)–2NT–(P): both minors, 5-5 (the independent unusual-2NT toggle).
+    // (1NT) 2NT -: both minors, 5-5 (the independent unusual-2NT toggle).
     let minors = read_booked(&[bid(1, Strain::Notrump), bid(2, Strain::Notrump), Call::Pass]);
     assert_eq!(minors.partner().length(Suit::Clubs), Range::new(5, 13));
     assert_eq!(minors.partner().length(Suit::Diamonds), Range::new(5, 13));
@@ -1195,7 +1195,7 @@ fn woolsey_conditions_partner() {
     set_notrump_defense(NotrumpDefense::Woolsey);
     set_woolsey_points(10, 19);
 
-    // (1NT)–2♣–(P): Woolsey's 2♣ is both majors, 10+, never a natural club suit.
+    // (1NT) 2♣ -: Woolsey's 2♣ is both majors, 10+, never a natural club suit.
     // Read off the authored rule's projection (on a prefixed/booked context),
     // which pins each major to 4-5 exactly — Woolsey sends a six-card major to
     // the Multi/Muiderberg calls, a distinction the old loose reader missed.
@@ -1205,7 +1205,7 @@ fn woolsey_conditions_partner() {
     assert_eq!(two_c.partner().length(Suit::Clubs), Range::FULL_LENGTH);
     assert_eq!(two_c.partner().strength.points, Range::new(10, 37));
 
-    // (1NT)–2♦–(P): the Multi names diamonds it does NOT hold, so the natural
+    // (1NT) 2♦ -: the Multi names diamonds it does NOT hold, so the natural
     // ≥5 reading is suppressed and BOTH minors narrow to ≤4 — the floor can no
     // longer "raise diamonds" into a doubled 5♦ (the 6+ major falls out of the
     // residual the per-suit framework cannot pin).
@@ -1217,7 +1217,7 @@ fn woolsey_conditions_partner() {
     assert_eq!(multi.partner().length(Suit::Diamonds), Range::new(0, 4));
     assert_eq!(multi.partner().length(Suit::Clubs), Range::new(0, 4));
 
-    // (1NT)–2♥–(P): Muiderberg — exactly 5 hearts, ≤3 spades.
+    // (1NT) 2♥ -: Muiderberg — exactly 5 hearts, ≤3 spades.
     let muiderberg = read(&[bid(1, Strain::Notrump), bid(2, Strain::Hearts), Call::Pass]);
     assert_eq!(muiderberg.partner().length(Suit::Hearts), Range::new(5, 5));
     assert_eq!(muiderberg.partner().length(Suit::Spades), Range::new(0, 3));
@@ -1321,13 +1321,13 @@ fn woolsey_double_and_advances_read() {
     set_woolsey_points(10, 19);
     set_woolsey_double_floor(12);
 
-    // (1NT)–X–(P): the takeout double names no suit, so nothing is misread — but
+    // (1NT) X -: the takeout double names no suit, so nothing is misread — but
     // the doubler's strength (12+) is recorded, where a bare double of 1NT would
     // otherwise read as nothing.
     let x = read(&[bid(1, Strain::Notrump), Call::Double, Call::Pass]);
     assert_eq!(x.partner().strength.points, Range::new(12, 37));
 
-    // (1NT)–X–(P)–2♣–(P): the advancer's 2♣ is a "name your minor" relay, not own
+    // (1NT) X - 2♣ -: the advancer's 2♣ is a "name your minor" relay, not own
     // clubs, so its natural ≥4 reading is suppressed (read from the advancer seat).
     let relay = read(&[
         bid(1, Strain::Notrump),
@@ -1338,7 +1338,7 @@ fn woolsey_double_and_advances_read() {
     ]);
     assert_eq!(relay.partner().length(Suit::Clubs), Range::FULL_LENGTH);
 
-    // (1NT)–2♥–(P)–2NT–(P): the Muiderberg minor-ask 2NT is a relay in a
+    // (1NT) 2♥ - 2NT -: the Muiderberg minor-ask 2NT is a relay in a
     // COMPETITIVE auction (our side already overcalled), so it is never read as a
     // natural notrump invite — the advancer's points stay unconstrained.
     let ask = read(&[
@@ -1369,14 +1369,14 @@ fn dont_overcalls_and_advances_read() {
     set_unusual_notrump_defense(None);
     set_notrump_defense(NotrumpDefense::DirectDont);
 
-    // (1NT)–X–(P): a one-suiter in ♣/♦/♥ — spades short (≤3, the one sound fact),
+    // (1NT) X -: a one-suiter in ♣/♦/♥ — spades short (≤3, the one sound fact),
     // strength recorded (the default 8+ overcall floor) where a bare double of 1NT
     // would otherwise read as nothing.
     let x = read(&[bid(1, Strain::Notrump), Call::Double, Call::Pass]);
     assert_eq!(x.partner().length(Suit::Spades), Range::new(0, 3));
     assert_eq!(x.partner().strength.points, Range::new(8, 37));
 
-    // (1NT)–X–(P)–2♣–(P): the advancer's 2♣ is a "name your suit" relay, not own
+    // (1NT) X - 2♣ -: the advancer's 2♣ is a "name your suit" relay, not own
     // clubs, so its natural ≥4 reading is suppressed (read from the advancer seat).
     let relay = read(&[
         bid(1, Strain::Notrump),
@@ -1387,13 +1387,13 @@ fn dont_overcalls_and_advances_read() {
     ]);
     assert_eq!(relay.partner().length(Suit::Clubs), Range::FULL_LENGTH);
 
-    // (1NT)–2♣–(P): a real ≥4 club suit + an unknown major.  The natural ≥5 reading
+    // (1NT) 2♣ -: a real ≥4 club suit + an unknown major.  The natural ≥5 reading
     // is suppressed (a 4-club / 5-major DONT hand makes this call), re-pinned to ≥4.
     let two_c = read(&[bid(1, Strain::Notrump), bid(2, Strain::Clubs), Call::Pass]);
     assert_eq!(two_c.partner().length(Suit::Clubs), Range::new(4, 13));
     assert_eq!(two_c.partner().strength.points, Range::new(8, 37));
 
-    // (1NT)–2♣–(P)–2♦–(P): the advancer's 2♦ is a "name your higher suit" relay,
+    // (1NT) 2♣ - 2♦ -: the advancer's 2♦ is a "name your higher suit" relay,
     // not own diamonds — suppressed.
     let pref = read(&[
         bid(1, Strain::Notrump),
@@ -1404,7 +1404,7 @@ fn dont_overcalls_and_advances_read() {
     ]);
     assert_eq!(pref.partner().length(Suit::Diamonds), Range::FULL_LENGTH);
 
-    // (1NT)–2♥–(P): both majors, ≥4-4 — exactly a Landy two-suiter on the 2♥ bid.
+    // (1NT) 2♥ -: both majors, ≥4-4 — exactly a Landy two-suiter on the 2♥ bid.
     let two_h = read(&[bid(1, Strain::Notrump), bid(2, Strain::Hearts), Call::Pass]);
     assert_eq!(two_h.partner().length(Suit::Hearts), Range::new(4, 13));
     assert_eq!(two_h.partner().length(Suit::Spades), Range::new(4, 13));
@@ -1424,7 +1424,7 @@ fn meckwell_overcalls_and_advances_read() {
     set_unusual_notrump_defense(None);
     set_notrump_defense(NotrumpDefense::Meckwell);
 
-    // (1NT)–X–(P): the two-way double (single 6+ minor OR both majors) shares no
+    // (1NT) X -: the two-way double (single 6+ minor OR both majors) shares no
     // sound per-suit fact, so ONLY the points floor is recorded — no length is
     // narrowed (unlike DONT's X, which pins spades ≤ 3).
     let x = read(&[bid(1, Strain::Notrump), Call::Double, Call::Pass]);
@@ -1432,7 +1432,7 @@ fn meckwell_overcalls_and_advances_read() {
     assert_eq!(x.partner().length(Suit::Spades), Range::FULL_LENGTH);
     assert_eq!(x.partner().length(Suit::Hearts), Range::FULL_LENGTH);
 
-    // (1NT)–X–(P)–2♣–(P): the advancer's 2♣ is a "name your suit" relay, not own
+    // (1NT) X - 2♣ -: the advancer's 2♣ is a "name your suit" relay, not own
     // clubs, so its natural ≥ 4 reading is suppressed.
     let relay = read(&[
         bid(1, Strain::Notrump),
@@ -1443,13 +1443,13 @@ fn meckwell_overcalls_and_advances_read() {
     ]);
     assert_eq!(relay.partner().length(Suit::Clubs), Range::FULL_LENGTH);
 
-    // (1NT)–2♣–(P): a real ≥ 4 club suit + an unknown major.  The natural ≥ 5
+    // (1NT) 2♣ -: a real ≥ 4 club suit + an unknown major.  The natural ≥ 5
     // reading is suppressed (a 4-club / 5-major hand makes this call), re-pinned ≥ 4.
     let two_c = read(&[bid(1, Strain::Notrump), bid(2, Strain::Clubs), Call::Pass]);
     assert_eq!(two_c.partner().length(Suit::Clubs), Range::new(4, 13));
     assert_eq!(two_c.partner().strength.points, Range::new(8, 37));
 
-    // (1NT)–2♦–(P): diamonds + a major, real ≥ 4.
+    // (1NT) 2♦ -: diamonds + a major, real ≥ 4.
     let two_d = read(&[
         bid(1, Strain::Notrump),
         bid(2, Strain::Diamonds),
@@ -1457,7 +1457,7 @@ fn meckwell_overcalls_and_advances_read() {
     ]);
     assert_eq!(two_d.partner().length(Suit::Diamonds), Range::new(4, 13));
 
-    // (1NT)–2♥–(P): NATURAL hearts (Meckwell's 2♥ is a single-suiter, not DONT's
+    // (1NT) 2♥ -: NATURAL hearts (Meckwell's 2♥ is a single-suiter, not DONT's
     // both-majors), so spades are not floored — the DONT-vs-Meckwell fork.
     let two_h = read(&[bid(1, Strain::Notrump), bid(2, Strain::Hearts), Call::Pass]);
     assert_eq!(
@@ -1508,14 +1508,14 @@ fn narrowed_points_intersects_one_player() {
 
 #[test]
 fn third_seat_openings_are_light() {
-    // [P, P, 1♠]: a third-seat opener may be down to nine points.
+    // `- - (1♠)`: a third-seat opponent may open on as few as nine points.
     let third = read(&[Call::Pass, Call::Pass, bid(1, Strain::Spades)]);
     assert_eq!(third.rho().strength.points, Range::new(9, 21));
 }
 
 #[test]
 fn responses_narrow_partner_and_opener() {
-    // [1♥, P, 2♣, P]: we opened 1♥ (partner is us at index 0... no — at
+    // `1♥ - 2♣ -`: we opened 1♥ (partner is us at index 0... no — at
     // len 4, index 0 is Me), partner responded 2♣ (game-forcing 2/1).
     let auction = [
         bid(1, Strain::Hearts),
@@ -1533,7 +1533,7 @@ fn responses_narrow_partner_and_opener() {
 
 #[test]
 fn opener_rebid_reads_five_plus_by_default() {
-    // [1♥, P, 1♠, P, 2♥, P]: the opener (who bid 1♥ and rebid 2♥) sits as
+    // `1♥ - 1♠ - 2♥ -`: the opener (who bid 1♥ and rebid 2♥) sits as
     // partner, and the 1♠ responder is us.  The shipped sound reading
     // keeps the rebid at five-plus (the floor routinely rebids a good
     // five); the legacy six-card claim needs the knob off.
@@ -1558,7 +1558,7 @@ fn opener_rebid_reads_five_plus_by_default() {
 
 #[test]
 fn competitive_opener_rebid_shows_sixth_card() {
-    // [1♦, 1♥, P, 2♥, 3♦, P]: partner opened 1♦ and, over the opponents'
+    // `1♦ (1♥) - (2♥) 3♦ -`: partner opened 1♦ and, over the opponents'
     // heart auction, rebid 3♦ (the opt-in `set_competitive_rebid` floor).
     // The natural length reading applies in competition too — only the
     // *strength* reading is suppressed when opponents act — so partner is
@@ -1578,8 +1578,7 @@ fn competitive_opener_rebid_shows_sixth_card() {
 
 #[test]
 fn overcall_shows_five_cards() {
-    // [1♦, 1♠]: their 1♦ opening, our partner's... no — at len 2, index 1
-    // (1♠) is RHO.  Their 1♦ is two before → Partner? recompute below.
+    // `1♦ (1♠)`: partner opened 1♦ and RHO overcalled 1♠.
     let auction = [bid(1, Strain::Diamonds), bid(1, Strain::Spades)];
     let inf = read(&auction);
     // Index 0 (1♦ opening) → Partner; index 1 (1♠ overcall) → Rho.
@@ -1590,7 +1589,7 @@ fn overcall_shows_five_cards() {
 
 #[test]
 fn transfers_are_not_read_as_natural() {
-    // [1NT, P, 2♦, P]: 2♦ is a Jacoby transfer, not diamonds — the
+    // `1NT - 2♦ -`: 2♦ is a Jacoby transfer, not diamonds — the
     // opening side's artificial response leaves shape unknown.
     let auction = [
         bid(1, Strain::Notrump),
@@ -1604,7 +1603,7 @@ fn transfers_are_not_read_as_natural() {
 
 #[test]
 fn three_level_suit_over_one_notrump_is_natural() {
-    // [1NT, P, 3♥, P]: with the splinter *not* authored, a three-level suit
+    // `1NT - 3♥ -`: with the splinter *not* authored, a three-level suit
     // bid over 1NT is forcing and natural in the instinct reading —
     // five-plus hearts.  This is the knob-off control for
     // `nt_splinter_is_read_as_shortness_not_length`; the splinter is on by
@@ -1623,7 +1622,7 @@ fn three_level_suit_over_one_notrump_is_natural() {
 
 #[test]
 fn nt_splinter_is_read_as_shortness_not_length() {
-    // [1NT, P, 3♥, P] with the splinter authored: the *same* call that reads
+    // `1NT - 3♥ -` with the splinter authored: the *same* call that reads
     // as five-plus hearts above now decodes off its alert into the pinned
     // shape — short hearts, 2-3 spades, exactly four diamonds, 5-6 clubs.
     // The natural walk would floor a phantom heart suit responder is void in.
@@ -1651,9 +1650,9 @@ fn nt_splinter_is_read_as_shortness_not_length() {
 
 #[test]
 fn systems_on_overcall_transfer_is_not_read_as_diamonds() {
-    // [1♦, 1NT, P, 2♦, P]: their 1♦, our 1NT overcall, the advancer's 2♦ is a
+    // `(1♦) 1NT - 2♦ -`: their 1♦, our 1NT overcall, the advancer's 2♦ is a
     // Jacoby transfer (grafted opening-1NT structure), not natural diamonds.
-    // Stripping their opening reads it as [1NT, P, 2♦, P], so the floor never
+    // Stripping their opening reads it as `1NT - 2♦ -`, so the floor never
     // raises a phantom diamond suit into a doubled disaster (the iron rule).
     let auction = [
         bid(1, Strain::Diamonds),
@@ -1690,7 +1689,7 @@ fn systems_on_stripped_read_is_separate_from_the_full_decision_cache() {
 
 #[test]
 fn gladiator_cue_is_not_read_as_their_major() {
-    // [1♠, 1NT, P, 2♠, P]: our 1NT overcall of their 1♠; the advancer's 2♠ is
+    // `(1♠) 1NT - 2♠ -`: our 1NT overcall of their 1♠; the advancer's 2♠ is
     // Gladiator Stayman for hearts (exactly 4, INV+) — NOT a natural spade
     // suit.  The major-strip is suppressed for Gladiator, so `gladiator_reading`
     // reads the cue.
@@ -1712,7 +1711,7 @@ fn gladiator_cue_is_not_read_as_their_major() {
 
 #[test]
 fn gladiator_relay_is_not_read_as_clubs() {
-    // [1♠, 1NT, P, 2♣, P]: the advancer's 2♣ is the Gladiator relay (weak /
+    // `(1♠) 1NT - 2♣ -`: the advancer's 2♣ is the Gladiator relay (weak /
     // invitational, any suit), not a natural club suit.
     crate::bidding::american::set_nt_overcall_gladiator(true);
     let auction = [
@@ -1729,7 +1728,7 @@ fn gladiator_relay_is_not_read_as_clubs() {
 
 #[test]
 fn gladiator_delayed_cue_is_read_as_exactly_three_not_spades() {
-    // [1♠,1NT,P,2♣,P,2♦,P,2♠,P]: the advancer's SECOND 2♠ (after the 2♣ relay
+    // `(1♠) 1NT - 2♣ - 2♦ - 2♠ -`: the advancer's SECOND 2♠ (after the 2♣ relay
     // and forced 2♦) is the Gladiator delayed cue — exactly 3 hearts, INV+ —
     // NOT a natural spade suit.  The suppression must cover it too, else the
     // floor raises a phantom spade suit into a doubled disaster (the iron rule).
@@ -1755,7 +1754,7 @@ fn gladiator_delayed_cue_is_read_as_exactly_three_not_spades() {
 
 #[test]
 fn gladiator_stolen_relay_double_is_read_as_the_relay() {
-    // [1♠, 1NT, (2♣), X, P]: over RHO's systems-on 2♣, the advancer's Double is
+    // `(1♠) 1NT (2♣) X -`: over RHO's systems-on 2♣, the advancer's Double is
     // the stolen Gladiator relay (weak-or-invitational, any suit) — NOT a
     // penalty double naming clubs.  The reader mirrors the book rebase.
     crate::bidding::american::set_nt_overcall_gladiator(true);
@@ -1965,10 +1964,7 @@ fn gladiator_readings_admit_the_bidder() {
         if !inferences.admits(Relative::Partner, hand) && failures.len() < 16 {
             failures.push(format!(
                 "[{}] reading excludes the hand that bid it: {hand}",
-                read.iter()
-                    .map(ToString::to_string)
-                    .collect::<Vec<_>>()
-                    .join(" "),
+                contract_bridge::auction::display_calls(&read),
             ));
         }
     };
@@ -2004,7 +2000,7 @@ fn gladiator_readings_admit_the_bidder() {
             let continued = chosen_call(&stance, hand, &sorted);
             check(&mut failures, hand, &sorted, continued);
         }
-        // The runout branch too — `[1♠, 1NT, (X)]` is authored, so its
+        // The runout branch too — `(1♠) 1NT (X)` is authored, so its
         // escapes are read by the walk like any other natural call.
         let doubled = [
             bid(1, Strain::Spades),
@@ -2056,7 +2052,7 @@ fn readings_admit_the_bidder() {
         ("response to 1♥", &[bid(1, Strain::Hearts), Call::Pass]),
         // A raise of a preempt is two-way (furthering or to-make), so the
         // walk stamps no band and no support floor on it — the `1..=11`
-        // cap used to exclude every to-make raiser of `[3♥ P 4♥]`.
+        // cap used to exclude every to-make raiser of `3♥ - 4♥`.
         (
             "raise of a 3♥ preempt",
             &[bid(3, Strain::Hearts), Call::Pass],
@@ -2237,10 +2233,7 @@ fn readings_admit_the_bidder() {
                 if !inferences.admits(Relative::Partner, hand) && failures.len() < 16 {
                     failures.push(format!(
                         "{what} [{}] (natural-reading {natural}) excludes the hand that bid it: {hand}",
-                        read.iter()
-                            .map(ToString::to_string)
-                            .collect::<Vec<_>>()
-                            .join(" "),
+                        contract_bridge::auction::display_calls(&read),
                     ));
                 }
             }
@@ -2258,7 +2251,7 @@ fn readings_admit_the_bidder() {
 /// A doubled 1NT overcall runs out — it does not jump to the three level.
 ///
 /// Gladiator turns off `systems_on_overcall_strip`, which is what let the
-/// floor read `[1M, 1NT, X]` as a doubled *opening* 1NT.  Without it the
+/// floor read `(1M) 1NT (X)` as a doubled *opening* 1NT.  Without it the
 /// distilled net escaped a 1-count to `3♥`; `gladiator_doubled_runout` is
 /// the book node that shadows it.
 #[test]
@@ -2484,7 +2477,7 @@ fn gladiator_keeps_the_strip_where_it_has_no_structure() {
     let p = Call::Pass;
     let one_s = bid(1, Strain::Spades);
     let one_nt = bid(1, Strain::Notrump);
-    // (auction after [1♠, 1NT], stripped?)
+    // (auction after `(1♠) 1NT`, stripped?)
     let rows: &[(&[Call], bool, &str)] = &[
         (&[Call::Double], true, "their X — a runout in both systems"),
         (
@@ -2531,7 +2524,7 @@ fn gladiator_keeps_the_strip_where_it_has_no_structure() {
 
 #[test]
 fn gladiator_contested_transfer_lebensohl_pins_the_target() {
-    // [1♠, 1NT, (2♥), 3♦, P]: over RHO's 2♥ there is no room for the relay
+    // `(1♠) 1NT (2♥) 3♦ -`: over RHO's 2♥ there is no room for the relay
     // tree, so advancer plays Transfer Lebensohl; 3♦ transfers up through their
     // hearts (showing spades), read via the builders' alerts — opener must not
     // raise a phantom diamond suit.
@@ -2557,7 +2550,7 @@ fn gladiator_contested_transfer_lebensohl_pins_the_target() {
 
 #[test]
 fn completed_major_transfer_shows_five() {
-    // [1NT, P, 2♦, P, 2♥, P]: partner transferred to hearts and we
+    // `1NT - 2♦ - 2♥ -`: partner transferred to hearts and we
     // completed; at length 6 the responder is us (Me).  The transfer shows a
     // five-card major even before a jump confirms the sixth, while the
     // transferred-*from* suit stays unread.
@@ -2576,7 +2569,7 @@ fn completed_major_transfer_shows_five() {
 
 #[test]
 fn transfer_jump_to_game_shows_at_least_five() {
-    // [1NT, P, 2♦, P, 2♥, P, 4♥, P]: partner transferred then jumped to 4♥.
+    // `1NT - 2♦ - 2♥ - 4♥ -`: partner transferred then jumped to 4♥.
     // The projection reads the 2♦ transfer's authored rule — a five-card floor;
     // the old reader's six-card upgrade off the jump is dropped (soundness over
     // tightness, M6.2c).  At length 8 the responder sits as Partner.
@@ -2596,7 +2589,7 @@ fn transfer_jump_to_game_shows_at_least_five() {
 
 #[test]
 fn transfer_then_three_major_shows_at_least_five() {
-    // [1NT, P, 2♦, P, 2♥, P, 3♥, P]: a raise of the transferred suit.  The
+    // `1NT - 2♦ - 2♥ - 3♥ -`: a raise of the transferred suit.  The
     // projection pins the transfer's five-card floor; the old reader's six-card
     // upgrade and the 8–9 invitational points are dropped (soundness over
     // tightness, M6.2c).
@@ -2646,7 +2639,7 @@ fn transfer_projection_covers_spades_and_two_notrump() {
 
 #[test]
 fn contested_transfer_auction_is_not_specially_read() {
-    // [1NT, 2♣, 2♦, P, 2♥, P, 4♥, P]: with the opponents in, the transfer
+    // `1NT (2♣) 2♦ - 2♥ - 4♥ -`: with the opponents in, the transfer
     // positions shift, so the special reading must not pin a six-card suit.
     let auction = [
         bid(1, Strain::Notrump),
@@ -2664,7 +2657,7 @@ fn contested_transfer_auction_is_not_specially_read() {
 
 #[test]
 fn contested_transfer_lebensohl_reads_the_target_under_intervention() {
-    // Board 881510: [1NT, (2♠), 3♦, (3♠)] — responder's 3♦ is a Transfer-
+    // Board 881510: `1NT (2♠) 3♦ (3♠)` — responder's 3♦ is a Transfer-
     // Lebensohl transfer to hearts (up the line through their spade suit).  RHO's
     // (3♠) skips opener's completion node; the default-on fallback projection
     // re-resolves 3♦'s authoring rule and pins hearts, so opener does not read it
@@ -2689,7 +2682,7 @@ fn contested_transfer_lebensohl_reads_the_target_under_intervention() {
 
 #[test]
 fn fallback_projection_decodes_contested_leaping_michaels() {
-    // [1NT, (2♦), 4♦, (P)]: Leaping Michaels = both majors 5-5, authored as a
+    // `1NT (2♦) 4♦ -`: Leaping Michaels = both majors 5-5, authored as a
     // *guarded fallback* in the (2♦) Transfer block — invisible to the exact-node
     // projection, and with no hand reader.  The default-on fallback projection
     // re-resolves its authoring rule and pins both majors (no reader involved).
@@ -2717,7 +2710,7 @@ fn fallback_projection_decodes_contested_leaping_michaels() {
 #[test]
 fn kickback_face_gate_keeps_natural_four_spades_natural() {
     use crate::bidding::instinct::{RkcbVariant, set_rkcb_variant};
-    // The audited C−B shape: 1♦ P 1♠ P 2♦ P 4♠ P — the reader is the
+    // The audited C−B shape: 1♦ - 1♠ - 2♦ - 4♠ - — the reader is the
     // opener, partner is the natural 4♠ bidder.
     let auction = [
         bid(1, Strain::Diamonds),
@@ -2820,7 +2813,7 @@ fn answer_gates_keep_the_live_window_alerted() {
 
 #[test]
 fn contested_transfer_lebensohl_direct_jacoby_over_2d() {
-    // Over (2♦) the transfers are direct Jacoby: 3♦→♥.  [1NT, (2♦), 3♦, (X)].
+    // Over (2♦) the transfers are direct Jacoby: 3♦→♥.  `1NT (2♦) 3♦ (X)`.
     let auction = [
         bid(1, Strain::Notrump),
         bid(2, Strain::Diamonds),
@@ -2834,7 +2827,7 @@ fn contested_transfer_lebensohl_direct_jacoby_over_2d() {
 #[test]
 fn contested_transfer_lebensohl_cue_is_not_a_transfer() {
     // The cue of their suit is Stayman (a 4-card unbid major), not a 5+ transfer:
-    // [1NT, (2♠), 3♠, (P)] projects hearts as only 4-card interest, and the
+    // `1NT (2♠) 3♠ -` projects hearts as only 4-card interest, and the
     // natural-spades reading of the cue is suppressed (not a long spade suit).
     let auction = [
         bid(1, Strain::Notrump),
@@ -2866,7 +2859,7 @@ fn relative_seat_tracks_the_actor() {
 
 #[test]
 fn limited_notrump_rebids_narrow_strength() {
-    // [1♦, P, 1♥, P, 1NT, P]: the opener (partner) showed a 12–16 minimum.
+    // `1♦ - 1♥ - 1NT -`: the opener (partner) showed a 12–16 minimum.
     let one_nt = read(&[
         bid(1, Strain::Diamonds),
         Call::Pass,
@@ -2891,7 +2884,7 @@ fn limited_notrump_rebids_narrow_strength() {
 
 #[test]
 fn cheapest_two_notrump_over_a_response_is_not_strong() {
-    // [1♦, P, 2♣, P, 2NT, P]: 2NT is the *cheapest* notrump over a 2/1, a
+    // `1♦ - 2♣ - 2NT -`: 2NT is the *cheapest* notrump over a 2/1, a
     // minimum — it must not be read as the 18–19 jump.  Opener stays at the
     // opening floor (10–21).
     let inf = read(&[
@@ -2907,10 +2900,10 @@ fn cheapest_two_notrump_over_a_response_is_not_strong() {
 
 #[test]
 fn raises_and_one_notrump_response_narrow_the_responder() {
-    // [1♥, P, 2♥, P]: a single raise is 6–10 — a support-scale band, so
+    // `1♥ - 2♥ -`: a single raise is 6–10 — a support-scale band, so
     // the dedicated gauge carries it exactly and the legacy axis holds
     // only its sound image (4-point shapely raises are measured fact:
-    // the `1♠ P 2♠` divergence-meter defect).
+    // the `1♠ - 2♠` divergence-meter defect).
     let single = read(&[
         bid(1, Strain::Hearts),
         Call::Pass,
@@ -2924,7 +2917,7 @@ fn raises_and_one_notrump_response_narrow_the_responder() {
     );
     assert_eq!(single.partner().strength.points, Range::new(1, 11));
     assert_eq!(single.partner().strength.shown_floor(), 6);
-    // [1♥, P, 3♥, P]: a limit (jump) raise is 10–12.
+    // `1♥ - 3♥ -`: a limit (jump) raise is 10–12.
     let limit = read(&[
         bid(1, Strain::Hearts),
         Call::Pass,
@@ -2936,7 +2929,7 @@ fn raises_and_one_notrump_response_narrow_the_responder() {
         Range::new(10, 12)
     );
     assert_eq!(limit.partner().strength.points, Range::new(5, 13));
-    // [1♥, P, 1NT, P]: a 1NT response is 6–12.
+    // `1♥ - 1NT -`: a 1NT response is 6–12.
     let one_nt = read(&[
         bid(1, Strain::Hearts),
         Call::Pass,
@@ -2948,7 +2941,7 @@ fn raises_and_one_notrump_response_narrow_the_responder() {
 
 #[test]
 fn competition_suppresses_the_limited_rebid_reading() {
-    // [1♦, P, 1♥, 1♠, 1NT, P]: with the opponents in, opener's 1NT is not
+    // `1♦ - 1♥ (1♠) 1NT -`: with the opponents in, opener's 1NT is not
     // the quiet 12–16 rebid — leave the strength at the opening floor
     // (10–21).
     let inf = read(&[
@@ -2964,7 +2957,7 @@ fn competition_suppresses_the_limited_rebid_reading() {
 
 #[test]
 fn rubens_cue_raise_shows_support() {
-    // (1♠) 2♣ (P) 2♠ (P): we overcalled 2♣, partner cue-raised 2♠ — a
+    // (1♠) 2♣ - 2♠ -: we overcalled 2♣, partner cue-raised 2♠ — a
     // limit-plus club raise.  The overcaller reads three-plus clubs and
     // ten-plus points, but no spade length (the cue is a relay).
     let inf = read(&[
@@ -2984,7 +2977,7 @@ fn rubens_cue_raise_shows_support() {
 
 #[test]
 fn rubens_transfer_is_not_read_as_natural() {
-    // (1♣) 1♠ (P) 2♣ (P): we overcalled 1♠, partner transferred 2♣ (a relay
+    // (1♣) 1♠ - 2♣ -: we overcalled 1♠, partner transferred 2♣ (a relay
     // to diamonds).  The bid suit must not be read as a club holding.
     let inf = read(&[
         bid(1, Strain::Clubs),
@@ -3065,7 +3058,7 @@ fn their_cue_of_our_overcall_is_a_raise() {
 
 #[test]
 fn a_doublers_jump_is_not_a_weak_jump() {
-    // 2♠ (X) P (3♦) P (4♥): the doubler's jump to game is strength, made
+    // `(2♠) X - 3♦ - 4♥`: the doubler's jump to game is strength, made
     // on as few as three hearts — never a weak six-card jump.
     set_length_soundness(true);
     let auction = [
@@ -3086,7 +3079,7 @@ fn a_doublers_jump_is_not_a_weak_jump() {
 
 #[test]
 fn an_agreed_suit_re_raise_adds_no_length() {
-    // 1♥ (P) 2♥ (P) 3♥: opener's game-try re-raise of the agreed suit adds
+    // 1♥ - 2♥ - 3♥: opener's game-try re-raise of the agreed suit adds
     // no length — the five from the opening stands, not a phantom sixth.
     set_length_soundness(true);
     let auction = [
@@ -3106,7 +3099,7 @@ fn an_agreed_suit_re_raise_adds_no_length() {
 
 #[test]
 fn opener_minor_rebid_reads_five_plus() {
-    // 1♦ (P) 1♠ (P) 2♦: opener's two-level rebid of the opened minor is
+    // 1♦ - 1♠ - 2♦: opener's two-level rebid of the opened minor is
     // routinely a good five-card suit, not six (the probe: five of eight
     // rebids were made on five).
     set_length_soundness(true);
@@ -3127,7 +3120,7 @@ fn opener_minor_rebid_reads_five_plus() {
 
 #[test]
 fn their_splinter_is_disclosed_to_the_table() {
-    // 1♠ (P) 4♦ read by a defender: their splinter is alerted and
+    // 1♠ - 4♦ read by a defender: their splinter is alerted and
     // explained at the table, so it decodes off their authoring rule —
     // diamond shortness with spade support, never diamond length.
     set_table_alert_reading(true);
@@ -3163,7 +3156,7 @@ fn their_michaels_is_disclosed_to_the_table() {
 
 #[test]
 fn their_checkback_is_disclosed_to_the_table() {
-    // 1♦ (P) 1♠ (P) 1NT (P) 2♣ read by a defender: their artificial
+    // 1♦ - 1♠ - 1NT - 2♣ read by a defender: their artificial
     // checkback 2♣ promises no clubs — the natural walk floored four (the
     // probe: four-plus clubs read on a singleton).
     set_table_alert_reading(true);
@@ -3187,7 +3180,7 @@ fn their_checkback_is_disclosed_to_the_table() {
 #[test]
 fn rubens_limit_raise_transfer_records_support() {
     crate::bidding::instinct::set_rubens_advances(true);
-    // (1♣) 1♠ (P) 2♥ (P): partner's transfer into our spades is the
+    // (1♣) 1♠ - 2♥ -: partner's transfer into our spades is the
     // limit-plus raise — the overcaller reads three-plus spades and
     // ten-plus points, while the named hearts stay unread (a relay).
     let inf = read(&[
@@ -3205,7 +3198,7 @@ fn rubens_limit_raise_transfer_records_support() {
 #[test]
 fn rubens_new_suit_transfer_records_the_target() {
     crate::bidding::instinct::set_rubens_advances(true);
-    // (1♣) 1♠ (P) 2♣ (P): the new-suit transfer shows the advancer's own
+    // (1♣) 1♠ - 2♣ -: the new-suit transfer shows the advancer's own
     // five-card diamond suit and ten-plus points; clubs stay unread.
     let inf = read(&[
         bid(1, Strain::Clubs),
@@ -3222,7 +3215,7 @@ fn rubens_new_suit_transfer_records_the_target() {
 #[test]
 fn rubens_transfer_records_despite_intervention() {
     crate::bidding::instinct::set_rubens_advances(true);
-    // (1♣) 1♠ (P) 2♥ (X): opener doubles the transfer — the completion
+    // (1♣) 1♠ - 2♥ (X): opener doubles the transfer — the completion
     // never comes, but the shown limit raise is exactly what the
     // overcaller needs for the competitive decision.
     let inf = read(&[
@@ -3263,7 +3256,7 @@ fn rubens_transfer_is_not_read_for_the_opponents() {
 /// did.
 #[test]
 fn michaels_cue_over_our_major_reads_the_other_major() {
-    // [1♥, (2♥)]: their direct cue of our opened major is Michaels — 5+
+    // `1♥ (2♥)`: their direct cue of our opened major is Michaels — 5+
     // spades with the rule's 8+ floor, and NOT a natural heart suit (the
     // walk's misread suppressed by the alert).
     let inf = read_booked(&[bid(1, Strain::Hearts), bid(2, Strain::Hearts)]);
@@ -3385,7 +3378,7 @@ fn retired_two_suiter_reader_is_subsumed_by_the_projection() {
 fn uvu_major_cue_projects_the_raise() {
     use crate::bidding::american::set_uvu_over_majors;
 
-    // [1♥, (2NT), 3♣, (P)] from opener's seat: partner's cheap cue is the
+    // `1♥ (2NT) 3♣ -` from opener's seat: partner's cheap cue is the
     // alerted limit-plus raise — decoded off its authored rule's
     // projection (3+ hearts, 10+), not as natural clubs.
     set_uvu_over_majors(true);
@@ -3689,11 +3682,7 @@ fn unalerted_artificial(label: &str, trie: &crate::bidding::trie::Trie) -> Vec<S
         if super::artificial(&rule.project(context), made, doubled) && rule.alert().is_none() {
             worklist.push(format!(
                 "{label}: [{}] {made}  (label: {:?})",
-                auction
-                    .iter()
-                    .map(ToString::to_string)
-                    .collect::<Vec<_>>()
-                    .join(" "),
+                contract_bridge::auction::display_calls(auction),
                 rule.label(),
             ));
         }
@@ -4021,11 +4010,7 @@ fn authored_rules_eval_within_projection() {
                 {
                     failures.push(format!(
                         "{system}: [{}] {} {fold} excludes accepted hand {hand}",
-                        auction
-                            .iter()
-                            .map(ToString::to_string)
-                            .collect::<Vec<_>>()
-                            .join(" "),
+                        contract_bridge::auction::display_calls(auction),
                         rule.call(),
                     ));
                 }
@@ -4122,11 +4107,7 @@ fn passes_read_within_their_table() {
             {
                 failures.push(format!(
                     "{system}: [{}] pass reading excludes passing hand {hand}",
-                    auction
-                        .iter()
-                        .map(ToString::to_string)
-                        .collect::<Vec<_>>()
-                        .join(" "),
+                    contract_bridge::auction::display_calls(auction),
                 ));
             }
         }
@@ -4249,7 +4230,7 @@ fn authored_calls_read_what_they_gate() {
         // (where this walk never saw them, and where the fallback sibling
         // metered them under the guard-key context whose
         // `partner_last_suit()` is `None`, sniffing no support atom) onto
-        // exact `[1x (overcall)]` nodes where the support axis is live.
+        // exact `1x (overcall)` nodes where the support axis is live.
         // The knob-on column stays 0: the envelope union projects support
         // exactly.  107 → 115 when the C6 batch (negX answer, strong-two
         // competition, high-overcall, free-bid answer) followed the same
@@ -4389,11 +4370,7 @@ fn fallback_rules_read_what_they_gate() {
             |auction, label| {
                 opaque.push(format!(
                     "{system}: [{}] guard: {}",
-                    auction
-                        .iter()
-                        .map(ToString::to_string)
-                        .collect::<Vec<_>>()
-                        .join(" "),
+                    contract_bridge::auction::display_calls(auction),
                     label.unwrap_or_else(|| "<unlabelled>".into()),
                 ));
             },

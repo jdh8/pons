@@ -17,9 +17,9 @@ Verified directly from the engine (`examples/bba-conv-probe`):
 
 | auction | hand | toggle ON | toggle OFF |
 |---|---|---|---|
-| `1♦-(2♥)-?` | 6-card club one-suiter | **2NT** (transfer→♣) | 3♥ |
-| `1♣-(2♥)-?` | 6 diamonds | **3♣** (transfer→♦) | 3♥ |
-| `1♦-(1♠)-?` | (1-level overcall) | unchanged | unchanged |
+| `1♦ (2♥) ?` | 6-card club one-suiter | **2NT** (transfer→♣) | 3♥ |
+| `1♣ (2♥) ?` | 6 diamonds | **3♣** (transfer→♦) | 3♥ |
+| `1♦ (1♠) ?` | (1-level overcall) | unchanged | unchanged |
 
 ## How we flipped one toggle
 
@@ -36,7 +36,7 @@ Addressing is **seat + name** (mirroring `set_system_type(bot, seat, system)`),
 **not** the convention index — passing the index as the int arg returns −2. Apply
 overrides **after** `set_system` (which loads the system defaults). Ground-truth
 check: 240/258 boolean toggles round-trip vs `21GF.bbsa`, and `get_bid` genuinely
-consults the per-seat flag (control: flipping `Texas` gives 1NT-(P)-4♥ vs 2♥).
+consults the per-seat flag (control: flipping `Texas` gives 1NT - 4♥ vs 2♥).
 
 ### Caveat — the FFI default ≠ the file
 

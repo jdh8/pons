@@ -5,7 +5,7 @@
 # measured against the natural ladder it replaced — docs/bidding-options.md
 # files it as "baseline default; knob is the A/B off-arm".  A probe of our own
 # bidder says the layer is largely dead at the node it is supposed to own
-# (`probe-bba-constraints --mode rub-ch --ours`, 20k hands): over `1♣ (1♥) P`
+# (`probe-bba-constraints --mode rub-ch --ours`, 20k hands): over `(1♣) 1♥ -`
 # the 2♦ "transfer into partner's hearts" is chosen 0.4% of the time and those
 # hands hold **6-7 diamonds and 1-2 hearts** (natural diamonds), the 2♣
 # "transfer to diamonds" holds no diamond suit at all (median 3), and the

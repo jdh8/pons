@@ -1,7 +1,7 @@
 //! Integration tests for the major-suit continuation knobs: opener's game
 //! tries after a single raise (`set_major_game_tries`), opener's acceptance
 //! ladder after a limit raise (`set_limit_raise_acceptance`), the full
-//! continuations after `1♥–1♠` (`set_major_rebid_tails`), and fourth-suit-
+//! continuations after `1♥ - 1♠` (`set_major_rebid_tails`), and fourth-suit-
 //! forcing riding that adjunct (`set_fourth_suit_forcing`).  Each test builds
 //! its own stance with the knobs it needs and restores the defaults, so the
 //! rest of the suite keeps measuring the shipped system.
@@ -45,7 +45,7 @@ fn extend(auction: &[Call], next: Call) -> Vec<Call> {
 }
 
 // =============================================================================
-// Major game tries: 1M – (P) – 2M – (P) (set_major_game_tries)
+// Major game tries: 1M - 2M - (set_major_game_tries)
 // =============================================================================
 
 #[test]
@@ -159,7 +159,7 @@ fn single_raise_passed_without_extras() {
 }
 
 // =============================================================================
-// Limit-raise acceptance: 1M – (P) – 3M – (P) (set_limit_raise_acceptance)
+// Limit-raise acceptance: 1M - 3M - (set_limit_raise_acceptance)
 // =============================================================================
 
 #[test]
@@ -251,7 +251,7 @@ fn limit_raise_keycard_ladder() {
 }
 
 // =============================================================================
-// Major-rebid tails: full continuations after 1♥ – (P) – 1♠ (set_major_rebid_tails)
+// Major-rebid tails: full continuations after 1♥ - 1♠ (set_major_rebid_tails)
 // =============================================================================
 
 #[test]
@@ -354,7 +354,7 @@ fn heart_rebid_preference_structure() {
 }
 
 // =============================================================================
-// Fourth-suit-forcing: 1♥ – (P) – 1♠ – (P) – 2♣ – (P) – 2♦ (set_fourth_suit_forcing)
+// Fourth-suit-forcing: 1♥ - 1♠ - 2♣ - 2♦ (set_fourth_suit_forcing)
 // =============================================================================
 
 #[test]
@@ -430,7 +430,7 @@ fn fsf_without_tails_is_inert() {
         best_call(&fsf_only, &auction, responder),
         best_call(&baseline, &auction, responder),
         "fsf without the tails adjunct must be inert — both stances fall to \
-         the same floor at 1♥-1♠-2♣"
+         the same floor at 1♥ - 1♠ - 2♣"
     );
 }
 
@@ -443,7 +443,7 @@ fn default_state_matches_all_on() {
     let all_on = stance_with(true, true, true, true);
     let fresh = american().against();
 
-    // The 1♥ – 2♥ opener decision (the game-tries node): reuse
+    // The 1♥ - 2♥ opener decision (the game-tries node): reuse
     // `single_raise_passed_without_extras`'s flat 13-point opener.
     let opener = "KQx.AJxxx.Kxx.xx";
     let raise_auction = [call(1, Strain::Hearts), P, call(2, Strain::Hearts), P];
@@ -451,10 +451,10 @@ fn default_state_matches_all_on() {
         best_call(&all_on, &raise_auction, opener),
         best_call(&fresh, &raise_auction, opener),
         "a freshly built default stance must match stance_with(true, true, \
-         true, true) at 1♥-2♥"
+         true, true) at 1♥ - 2♥"
     );
 
-    // The 1♥ – 1♠ – 2♣ responder decision (the fsf node): reuse the
+    // The 1♥ - 1♠ - 2♣ responder decision (the fsf node): reuse the
     // fourth-suit-forcing candidate, which must now bid 2♦ by default.
     let responder = "AKxxx.xx.Qxx.AQx";
     let fsf_auction = [

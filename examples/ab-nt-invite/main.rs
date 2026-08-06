@@ -1,9 +1,9 @@
 //! 1NT invite-acceptance A/B: blind opener vs an opener that reads the raise.
 //!
-//! `american()` had no opener rebid after `1NT–2NT`, so opener passed the
+//! `american()` had no opener rebid after `1NT - 2NT`, so opener passed the
 //! invitation even with a maximum — `Inferences::read` was silent on a notrump
 //! raise of our *own* 1NT opening (its NT-raise reading was gated to one-of-a-suit
-//! openings).  Teaching the inference that `1NT–2NT` shows ≈8–9 (and `1NT–3NT` 10+)
+//! openings).  Teaching the inference that `1NT - 2NT` shows ≈8–9 (and `1NT - 3NT` 10+)
 //! lets the keyless floor see responder's strength and accept game opposite a
 //! maximum — no hand-authored acceptance node.  Both arms run the same 2/1 system;
 //! the only difference is the [`set_nt_invite_inference`] toggle.

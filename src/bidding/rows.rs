@@ -27,15 +27,16 @@
 //!
 //! The grammar grows only with its consumers.
 //!
-//! Auction strings write our calls bare and their calls in parentheses —
-//! `"P* 1♥ (X)"` — and the parser checks that parenthesisation against seat
-//! alternation, so a row authored on the wrong side of the table fails at
-//! build time rather than bidding for the opponents.  `-` is a **pass by
-//! whoever is to act** — side-agnostic, for the routine passes that pad a
-//! constructive auction; explicit `P`/`(P)` stays worthwhile in contested
-//! tails where seat-tracking earns its parens.  Pick one spelling per
-//! package: [`Pattern`] equality includes the source string, and two
-//! spellings of one key regroup as two patterns.
+//! Auction strings write our non-pass calls bare, their non-pass calls in
+//! parentheses, and every ordinary pass as `-`: `"P* 1♥ (X) 2NT -"`.  The
+//! parser checks non-pass parenthesisation against seat alternation, so a row
+//! authored on the wrong side of the table fails at build time rather than
+//! bidding for the opponents.  `-` is side-agnostic and takes whichever seat
+//! its position implies.  Legacy `P`/`(P)` pass spellings remain accepted for
+//! compatibility, but are not canonical authoring style; `P*` and the
+//! recognized-but-deferred `P+` remain leading-pass quantifiers.  Do not mix
+//! equivalent spellings within a package: [`Pattern`] equality includes the
+//! source string, so two spellings of one key regroup as two patterns.
 //!
 //! ## Variable rows
 //!
@@ -45,8 +46,8 @@
 //! emits [`Pattern::node`] rows from a table closure handed each assignment's
 //! [`Bindings`].  Variables are **binders, not matchers**: the result is a
 //! finite family of exact keys (infinite tails stay with the guard verbs),
-//! and `P`/`X`/`XX` stay literal — a table for their overcall is never the
-//! table for their double.
+//! and `X`/`XX` stay literal (as do accepted legacy `P` spellings) — a table
+//! for their overcall is never the table for their double.
 //!
 //! A variable word is a **level slot** then a **strain slot**, implicitly
 //! typed by spelling, and **case is the variable/literal boundary**: a single
@@ -65,7 +66,7 @@
 //! * `M`, `OM`, `m`, `om` are reserved strain words like `NT`, not letters;
 //!   a row using `OM` must also use `M` (`om` likewise `m`) or the build
 //!   panics.
-//! * One letter binds once per row — `"1x (P) 2x (P)"` is a raise — while each
+//! * One letter binds once per row — `"1x - 2x -"` is a raise — while each
 //!   `.` is fresh.
 //! * Quantifiers apply to `P` alone, and only leading: no other call can
 //!   repeat in an ascending auction, and an internal pass run would flip
@@ -430,8 +431,8 @@ impl GuardSpec {
 
 /// One parsed auction token: the call and whether it is theirs
 ///
-/// `theirs` is [`None`] for `-`, the side-agnostic pass — it takes whichever
-/// seat its position implies and [`check_sides`] does not second-guess it.
+/// `theirs` is [`None`] for a pass: canonical `-` and legacy `P`/`(P)` are all
+/// side-agnostic and take whichever seat their position implies.
 struct Token {
     call: Call,
     theirs: Option<bool>,
@@ -456,7 +457,7 @@ fn parse(source: &str) -> (Vec<Token>, usize) {
             assert_eq!(index, 0, "pattern {source:?}: P+ is only valid leading");
             panic!("pattern {source:?}: P+ is recognized but deferred — it has no consumer yet");
         }
-        if word == "-" {
+        if matches!(word, "-" | "P" | "(P)") {
             tokens.push(Token {
                 call: Call::Pass,
                 theirs: None,
@@ -535,7 +536,7 @@ impl Pattern {
     ///
     /// Lowers to [`FirstIs`]; the canonical carrier of a systems-on
     /// [`rebase`] — `Pattern::first("P* 1♥", "X")` with
-    /// [`ReplaceNext`][super::fallback::ReplaceNext]`(Pass)` strips their
+    /// `ReplaceNext(Call::Pass)` strips their
     /// double off the whole subtree.
     pub(crate) fn first(key: &str, their_call: &str) -> Self {
         let (tokens, fan) = parse(key);
@@ -604,7 +605,7 @@ impl Pattern {
     /// A table behind the exact continuation `suffix` after the `key`
     ///
     /// Lowers to [`SuffixIs`]`(suffix)`: our answer after one specific
-    /// partner call and their pass — `Pattern::after("P* 1♥ (X)", "2NT (P)")`
+    /// partner call and their pass — `Pattern::after("P* 1♥ (X)", "2NT -")`
     /// is opener's rebid over the Jordan raise.
     pub(crate) fn after(key: &str, suffix: &str) -> Self {
         let (tokens, fan) = parse(key);
@@ -1409,7 +1410,7 @@ pub(crate) fn compile_entries(book: &mut Trie, name: &str, entries: Vec<Entry>) 
 // the entry deliberately: a *fifth* `2♣` rule at 150 is a new claim on the
 // partition and must come back for its own disjointness argument.
 #[cfg(test)]
-const KNOWN_WEIGHT_TIES: [&str; 1] = ["one-nt-base: \"P* 1NT (P)\" — 2♣ at weight 150, 4 rules"];
+const KNOWN_WEIGHT_TIES: [&str; 1] = ["one-nt-base: \"P* 1NT -\" — 2♣ at weight 150, 4 rules"];
 
 /// Every pair of rules in one table justifying the same call at the same weight
 ///

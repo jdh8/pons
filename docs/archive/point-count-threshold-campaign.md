@@ -50,7 +50,7 @@ test expectations get updated.
 - **Floors** (`points(lo..)`, `point_count(h) >= N`): fire earlier → more
   aggressive → the measured win. **Safe, no action.**
 - **Caps / upper bounds** (`points(lo..=hi)`, `<= N`, invite/game band tops):
-  the hand overflows the top → falls into a *gap* (→ Pass) or a
+  the hand overflows the top → falls into a *gap* (→ -) or a
   semantically-wrong stronger bid. **Regression candidates.**
 
 ## Clear bugs (fix first)
@@ -109,7 +109,7 @@ assertions. Each is a genuine mis-bid the aggregate SD win masks (all rare).
    ceiling (10) and the 1-opener floor (12) → **Pass**. **Fix:** the weak-two
    gate should read raw HCP (Root A); or widen the seam. Test:
    `test_more_openings`.
-11. **`1♥–1♠` rebid table missing a GF jump-shift rung** (structural). An
+11. **`1♥ - 1♠` rebid table missing a GF jump-shift rung** (structural). An
     18-point 5-5 (`Q2.AK853.4.AQ976`) upgrades past the `points(15..=17)`
     invitational band into a hole and drops to a non-forcing 2♣ responder can
     pass — missing game. **Fix:** add a GF jump-shift rung (mirror
@@ -126,7 +126,7 @@ assertions. Each is a genuine mis-bid the aggregate SD win masks (all rare).
    *partner's* overcalled suit (`2.Q32.KQT54.J432`) reads 10 and reaches the
    10-point transfer floor. Test: `rubens_new_suit_transfer`.
 7. **XYZ relay sign-off misfire**
-   ([xyz.rs](../../src/bidding/american/xyz.rs)). After `1♣-1♥-1NT-2♣-2♦`, a 6-HCP
+   ([xyz.rs](../../src/bidding/american/xyz.rs)). After `1♣ - 1♥ - 1NT - 2♣ - 2♦`, a 6-HCP
    `x.Qxxx.KJxxxx.xx` reads 8 (singleton + 6-card suit) and raises its own
    *forced* 2♦ sign-off to 3♦ — same strain, higher level, no game ambition.
    Test: `xyz_relay_signs_off_in_diamonds`.
@@ -295,13 +295,13 @@ gates.
 
 | family (flagged buckets, both directions) | ≈IMPs NV / vul per 1M | gate | prescription |
 | --- | --- | --- | --- |
-| **Weak-two band** — `[] 2♥→P`, `[] P→2♥`, `[] 2♠→P`, `[P] P→2♠`, … all seats | −2.0k / −3.1k | `len(suit, 6..=6) & points(5..=10)` ([openings.rs](../../src/bidding/american/openings.rs)) | Root A: the band shifted down ~1–2 HCP both edges (a 6-card suit reads +1..+2, and legacy's wasted-honor veto did real work). Re-denominate on raw HCP: `hcp(5..=10)`-ish, sweep the edges. |
-| **Quantitative 6NT** — `[2♣ P 2NT P 3NT P] 6NT↔P`, every rotation, **both directions lose** | −1.9k / −2.0k | no-fit NT slam `combined_points(33)`/`(37)` ([instinct.rs:2949-2960](../../src/bidding/instinct.rs#L2949-L2960)) | A *notrump* slam has no ruffs — long-suit length is the wrong currency, and legacy wins both flip directions. Gauge raw HCP (+ partner floor) for the NT 6/7 gates; echoes the NT-invite-evaluator null (raw HCP wins at NT boundaries). |
-| **2/1 response band** — `[1♠ P] 2♣↔1NT`, `2♦↔1NT`, `2♥↔1NT`, passed-hand variants | −1.5k / −2.1k | two-over-one `len(x, 4..) & points(13..)` vs residual 1NT `points(6..)` ([responses.rs:219](../../src/bidding/american/responses.rs#L219)) | Both directions lose: flat 13s belong in the game force, shaped 11s belong in 1NT. The GF entry is shape-indifferent → `hcp` leg (union, like the 2♣ fix), sweep 12/13. |
-| **One-level opening seam** — `[] P→1♣/1♦` (freaks), `[] 1♣/1♦→P` (flat 12s), all seats; NV-heavy | −2.3k / ~0 | `points(12..=21)` + Pass `points(..12)` ([openings.rs](../../src/bidding/american/openings.rs)) | Two legs: flat 12-HCP now reads 11 and passes (add the `hcp(12..)` union leg, mirror of the 2♣ fix); sub-10-HCP freaks (11+ cards in two suits) now open where even the rule-of-20 light rules required `hcp(10..=11)` (add an `hcp(10..)` floor to the light seam). |
-| **Competitive X ↔ bid seams** — `[1♦] X→1♠`, `[1♣ P 1♥] X→1♠`, `[P 1♠] 2♣→X`, neg-X families | −1.5k / −2.8k scattered | takeout/negative-double and free-bid bands in [competition.rs](../../src/bidding/american/competition.rs) | Scattered small buckets, no one dominant gate; probe per docs/convention-tuning.md forensics before touching bands. |
-| **2NT rebid-invite seam** — `[1♥ P 1♠ P 2♦ P] 2NT↔P` | — / −0.5k | responder's 2NT invite after two suits | NT-oriented invite → HCP gauge; probe. |
-| **Weak-two ask answer** — `[2♦ P 2NT P] 3♣→3♥` | −0.2k / — | weak-two max/min answer band | Same Root A as the opening band; fix with it. |
+| **Weak-two band** — `2♥ → -`, `- → 2♥`, `2♠ → -`, `- - → 2♠`, … all seats | −2.0k / −3.1k | `len(suit, 6..=6) & points(5..=10)` ([openings.rs](../../src/bidding/american/openings.rs)) | Root A: the band shifted down ~1–2 HCP both edges (a 6-card suit reads +1..+2, and legacy's wasted-honor veto did real work). Re-denominate on raw HCP: `hcp(5..=10)`-ish, sweep the edges. |
+| **Quantitative 6NT** — `2♣ - 2NT - 3NT - 6NT ↔ -`, every rotation, **both directions lose** | −1.9k / −2.0k | no-fit NT slam `combined_points(33)`/`(37)` ([instinct.rs](../../src/bidding/instinct.rs#L2949-L2960)) | A *notrump* slam has no ruffs — long-suit length is the wrong currency, and legacy wins both flip directions. Gauge raw HCP (+ partner floor) for the NT 6/7 gates; echoes the NT-invite-evaluator null (raw HCP wins at NT boundaries). |
+| **2/1 response band** — `1♠ - 2♣ ↔ 1NT`, `2♦ ↔ 1NT`, `2♥ ↔ 1NT`, passed-hand variants | −1.5k / −2.1k | two-over-one `len(x, 4..) & points(13..)` vs residual 1NT `points(6..)` ([responses.rs:219](../../src/bidding/american/responses.rs#L219)) | Both directions lose: flat 13s belong in the game force, shaped 11s belong in 1NT. The GF entry is shape-indifferent → `hcp` leg (union, like the 2♣ fix), sweep 12/13. |
+| **One-level opening seam** — `- → 1♣/1♦` (freaks), `1♣/1♦ → -` (flat 12s), all seats; NV-heavy | −2.3k / ~0 | `points(12..=21)` + Pass `points(..12)` ([openings.rs](../../src/bidding/american/openings.rs)) | Two legs: flat 12-HCP now reads 11 and passes (add the `hcp(12..)` union leg, mirror of the 2♣ fix); sub-10-HCP freaks (11+ cards in two suits) now open where even the rule-of-20 light rules required `hcp(10..=11)` (add an `hcp(10..)` floor to the light seam). |
+| **Competitive X ↔ bid seams** — `(1♦) X → 1♠`, `(1♣) - (1♥) X → 1♠`, `- (1♠) 2♣ → X`, neg-X families | −1.5k / −2.8k scattered | takeout/negative-double and free-bid bands in [competition.rs](../../src/bidding/american/competition.rs) | Scattered small buckets, no one dominant gate; probe per docs/convention-tuning.md forensics before touching bands. |
+| **2NT rebid-invite seam** — `1♥ - 1♠ - 2♦ - 2NT ↔ -` | — / −0.5k | responder's 2NT invite after two suits | NT-oriented invite → HCP gauge; probe. |
+| **Weak-two ask answer** — `2♦ - 2NT - 3♣ → 3♥` | −0.2k / — | weak-two max/min answer band | Same Root A as the opening band; fix with it. |
 
 Every prescription is expressible as an `hcp(..)` swap or an `hcp` union leg —
 the `legacy_points(range)` pin combinator was never needed (YAGNI held). Each
@@ -356,9 +356,9 @@ floor's own fix-vs-shipped delta (+0.0252 + 0.0129 ≈ +0.0381;
 to **−6.7k NV / −8.3k vul** per 1M boards. Family status changes:
 
 - **One-level opening seam — CLEARED but for the freak leg.** The flat-12
-  buckets (`[] 1♣/1♦ → P` + mirrors, −2.3k NV) vanished — the floor *is*
+  buckets (`[] 1♣/1♦ → -` + mirrors, −2.3k NV) vanished — the floor *is*
   that fix, the `hcp(12..)` union-leg prescription is confirmed moot. Only
-  `[P P] P → 1♦` ×138 (−155 NV) survives: the sub-10-HCP freak leg
+  `[- -] - → 1♦` ×138 (−155 NV) survives: the sub-10-HCP freak leg
   (`hcp(10..)` floor on the light seam) is still open, now minor.
 - **Quantitative 6NT — dropped out of the flagged set entirely** (zero
   buckets in either top-40; was −1.9k/−2.0k). The pass-direction losses were
@@ -368,7 +368,7 @@ to **−6.7k NV / −8.3k vul** per 1M boards. Family status changes:
 - **Weak-two band, 2/1 response band, competitive-X seams, 2NT rebid-invite,
   weak-two ask answer — all stand** (no 4333 exposure for the weak-two
   families; both 2/1 directions still flagged). The redouble-then-game
-  buckets (`[1M X XX P] game → P`, ×13–14 at −10..−17/board) now flag both
+  buckets (`1M (X) XX - game → -`, ×13–14 at −10..−17/board) now flag both
   vuls — the floor A/B's NV forensic made visible; part of the
   competitive-X family.
 
@@ -379,7 +379,7 @@ entry became `hcp(13..) | (support(3..) & support_points(13..))` —
 shape-indifferent without a fit (`set_two_over_one_gate` = `Hcp13`; shaped
 11-12s return to the forcing 1NT), `support_points` with exactly three-card
 support (`set_two_over_one_fit`; the fit is privately known, opener promised
-five, so the 2/1 is a priced preparation for `4M`) — plus the `1M – 3NT`
+five, so the 2/1 is a priced preparation for `4M`) — plus the `1M - 3NT`
 choice-of-games response carving out the flat (4333) 12-15s
 (`set_major_choice_of_games`). Self-play `ab-major-continuations`, 1M
 boards/vul/arm: the gate+fit pair plain **+0.0033/+0.0048** NV/vul, PD
@@ -437,8 +437,8 @@ read the acting hand's HCP/shape/points on each divergent board.  The
 `X ↔ bid` family decomposed into **four mechanisms**, none of them the
 negative double (the shipped negX is `hcp(8..)`, scale-invariant):
 
-1. **The overcall / double-first partition edge** (the `[1♦] X→1♠`,
-   `[P 1♠] 2♣→X`, sandwich and passed-seat cousins — both mirror directions
+1. **The overcall / double-first partition edge** (the `(1♦) X → 1♠`,
+   `- (1♠) 2♣ → X`, sandwich and passed-seat cousins — both mirror directions
    CI-flagged).  Weights make the effective partition "overcall until the
    band top (17), double first above it" — and *both* faces of that edge were
    `points`-denominated ([defense.rs](../../src/bidding/american/defense.rs)
@@ -450,9 +450,9 @@ negative double (the shipped negX is `hcp(8..)`, scale-invariant):
    strong tier `hcp(18..)`, every overcall band top `hcp(..18)`, floors stay
    `points` (the obstruction win).  The 17-HCP shaped hands — the forensic
    winners — keep overcalling.
-2. **Redouble-then-game `[1M X XX P]`** — the report's single worst
+2. **Redouble-then-game `1M (X) XX -`** — the report's single worst
    per-board family (vul −16..−17 IMPs/board, near-deterministic; ≈−2.6k NV /
-   −3.1k vul per 1M over all `X XX` buckets).  Not a gauge bug: an
+   −3.1k vul per 1M over all `X` / `XX` buckets).  Not a gauge bug: an
    **unauthored continuation**.  Section 11 authors responder's XX but no
    opener answer, so the `FirstIs(Double)` systems-on rebase strips both the
    double and the redouble and opener replays *uncontested* — partner's shown
@@ -464,9 +464,9 @@ negative double (the shipped negX is `hcp(8..)`, scale-invariant):
    minimum is exactly the hand that wants to sit (one-of-a-suit redoubled
    makes with overtricks), and any pull reopens the auction for their runout.
    The forensic dump also shows the **doubler's side** sitting out a making
-   `1M xx` after `[1M X XX P P]` — a separate defensive-side node candidate,
+   `1M xx` after `1M (X) XX - -` — a separate defensive-side node candidate,
    parked pending post-fix forensics.
-3. **Garbage Michaels** (`[1♥] 2♥→P` and mirrors, ≈−2.1k in the NV dump).
+3. **Garbage Michaels** (`(1♥) 2♥ → -` and mirrors, ≈−2.1k in the NV dump).
    Michaels and the Unusual 2NT are documented "8+ HCP" but were gauged
    `points(8..)`: a 5-HCP 6-6 freak reads 9, cues at weight 2.0, and eats
    −800 penalty doubles (−17..−21/board).  **Fix:
@@ -478,7 +478,7 @@ negative double (the shipped negX is `hcp(8..)`, scale-invariant):
    pass.  Rare; revisit only if post-fix forensics still flag it.
 
 Also visible at `--show 2000` (the original `--show 40` cut them off): the
-`[1NT] 2♥↔P` natural-1NT-defense buckets and the `[] 1♠↔2♠`
+`(1NT) 2♥ ↔ -` natural-1NT-defense buckets and the `1♠ ↔ 2♠`
 weak-two↔1-opener seam. The former drove the re-sweep below and stays a **wall**:
 widening the overcall band is plain/sd-positive but perfect-defense negative at
 every evaluator, so it is opt-in only. The latter remains the weak-two family's
@@ -488,13 +488,13 @@ over-disclosure — parked.
 
 The two small families fixed alongside:
 
-- **2NT rebid-invite** `[1♥ P 1♠ P 2♦ P] 2NT↔P` (now flagged both vuls,
+- **2NT rebid-invite** `1♥ - 1♠ - 2♦ - 2NT ↔ -` (now flagged both vuls,
   both mirror directions): responder's one no-fit rung in
   `responder_after_minor_rebid` was `points(10..=12)` — a notrump invite
   priced in ruffs it never takes.  **Fix: `set_nt_invite_hcp`** —
   `hcp(10..=12)`; the fit-showing 3♥/3m invites keep `points` (the 2/1
   hcp/support-points split, again).
-- **Freak opening leg** `[P P] P→1♦` ×138 (−155 NV): `points(12..) &
+- **Freak opening leg** `- - - → 1♦` ×138 (−155 NV): `points(12..) &
   hcp(..10)` ⟺ eleven-plus cards in two suits, so a 9-HCP 6-5 (reads 12)
   walks in the sound-opening front door; legacy passed or preempted.  **Fix:
   `set_opening_hcp_floor(10)`** on the four `points(12..=21)` openings; the
@@ -541,12 +541,12 @@ scale-vs-scale comparison, so the delta grows only by what each fix removes
 of legacy's relative edge.)  Bucket check: the redouble-then-game,
 garbage-Michaels, 2NT-invite, and direct-seat X↔bid buckets are **gone**
 from the flagged set.  Standing, as expected: the weak-two band and Ogust
-buckets (closed as the disclosure wall), the `[1NT]` natural-defense buckets
+  buckets (closed as the disclosure wall), the `(1NT)` natural-defense buckets
 (the re-sweep below confirms them a wall — widening is PD-negative at every
 evaluator, opt-in only), and the opening-seam trickle (wash-priced).
 
 One real residual: the X↔bid seam persists in the **sandwich**
-(`[1♦ P 1♥] 1♠→X`, −5.1/board ×52) and **balancing** (`[1♦ P P] X→1♠`)
+(`(1♦) - (1♥) 1♠ → X`, −5.1/board ×52) and **balancing** (`(1♦) - - X → 1♠`)
 seats.  Those actions come from the instinct floor, not `defense_to_suit`
 (which only serves the direct seat — the seat the fix closed), so the
 prescription is a floor change: apply the same HCP partition to the floor's
@@ -626,8 +626,8 @@ sd loss.  The wide band reproduces the refuted raw-HCP arm's exact signature
 (plain wash, PD win, sd refuses to pay) from a *weaker* starting bracket.
 Bucket forensics (`--show 40`) close the artifact escape hatch: every
 flagged remnant bucket sits at the *opening call itself*, and the loss is
-symmetric — the hands CCCC adds (`[] P → 2M`, −0.49/divergent) lose and the
-shipped weak twos it drops (`[] 2M → P`, −0.47/divergent) lose alike.  An
+symmetric — the hands CCCC adds (`[] - → 2M`, −0.49/divergent) lose and the
+shipped weak twos it drops (`[] 2M → -`, −0.47/divergent) lose alike.  An
 unauthored-Ogust artifact could only bleed on the add side (the drop side's
 candidate just passes), so this is gauge quality, not a missing
 continuation.
@@ -649,7 +649,7 @@ suit-oriented evaluator ever shows up.
 
 ## Natural 1NT-defense range re-sweep (2026-07-15)
 
-The remnant report left the `[1NT] 2M↔Pass` family as an sd re-sweep after
+The remnant report left the `(1NT) 2M ↔ -` family as an sd re-sweep after
 Rule-of-N+8 changed which shaped hands crossed the old `points(8..=14)` band.
 The live seam was real: the penalty `X` is balanced-only, so strong shapely
 hands above 14 did not route into the double — they fell into the owning

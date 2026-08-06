@@ -65,7 +65,7 @@ fn responses() -> Rules {
         .alert(WAITING)
 }
 
-/// Opener's rebid after `2♣–(P)–2♦–(P)` (at `&[2♣, 2♦]`)
+/// Opener's rebid after `2♣ - 2♦ -` (at `&[2♣, 2♦]`)
 ///
 /// Forcing — no [`Call::Pass`] rule.  Opener describes shape and Fifths
 /// range; 2NT is used for a 22–24 balanced minimum and 3NT for 25–27.
@@ -96,7 +96,7 @@ fn opener_rebid_after_waiting() -> Rules {
         .rule(Bid::new(2, Strain::Notrump), 20, fifths(22.0..))
 }
 
-/// Opener's rebid after `2♣–(P)–2♥–(P)` (at `&[2♣, 2♥]`)
+/// Opener's rebid after `2♣ - 2♥ -` (at `&[2♣, 2♥]`)
 ///
 /// Forcing — no [`Call::Pass`] rule.  Identical shape logic to
 /// [`opener_rebid_after_waiting`], except hearts must be rebid at the
@@ -131,7 +131,7 @@ fn opener_rebid_after_negative() -> Rules {
 // Responder continuations after a suit rebid (waiting sequence)
 // ---------------------------------------------------------------------------
 
-/// Responder after `2♣–(P)–2♦–(P)–2♥–(P)` (at `&[2♣, 2♦, 2♥]`)
+/// Responder after `2♣ - 2♦ - 2♥ -` (at `&[2♣, 2♦, 2♥]`)
 ///
 /// Raise hearts with three-card support; retreat to 2NT otherwise.
 fn resp_after_waiting_hearts() -> Rules {
@@ -140,7 +140,7 @@ fn resp_after_waiting_hearts() -> Rules {
         .rule(Bid::new(2, Strain::Notrump), 50, hcp(0..))
 }
 
-/// Responder after `2♣–(P)–2♦–(P)–2♠–(P)` (at `&[2♣, 2♦, 2♠]`)
+/// Responder after `2♣ - 2♦ - 2♠ -` (at `&[2♣, 2♦, 2♠]`)
 ///
 /// Raise spades with three-card support; retreat to 2NT otherwise.
 fn resp_after_waiting_spades() -> Rules {
@@ -149,7 +149,7 @@ fn resp_after_waiting_spades() -> Rules {
         .rule(Bid::new(2, Strain::Notrump), 50, hcp(0..))
 }
 
-/// Responder after `2♣–(P)–2♦–(P)–3♣–(P)` (at `&[2♣, 2♦, 3♣]`)
+/// Responder after `2♣ - 2♦ - 3♣ -` (at `&[2♣, 2♦, 3♣]`)
 ///
 /// Raise clubs with four-card support and values; bid 3NT otherwise.
 fn resp_after_waiting_clubs() -> Rules {
@@ -158,7 +158,7 @@ fn resp_after_waiting_clubs() -> Rules {
         .rule(Bid::new(3, Strain::Notrump), 50, hcp(0..))
 }
 
-/// Responder after `2♣–(P)–2♦–(P)–3♦–(P)` (at `&[2♣, 2♦, 3♦]`)
+/// Responder after `2♣ - 2♦ - 3♦ -` (at `&[2♣, 2♦, 3♦]`)
 ///
 /// Raise diamonds with four-card support and values; bid 3NT otherwise.
 fn resp_after_waiting_diamonds() -> Rules {
@@ -175,7 +175,7 @@ fn resp_after_waiting_diamonds() -> Rules {
 // Responder continuations after a suit rebid (double-negative sequence)
 // ---------------------------------------------------------------------------
 
-/// Responder after `2♣–(P)–2♥–(P)–R–(P)` for suit `R` after the double negative
+/// Responder after `2♣ - 2♥ - R -` for suit `R` after the double negative
 ///
 /// With four-card support, raise to the cheapest level of opener's suit.
 /// Without support, pass.
@@ -189,7 +189,7 @@ fn resp_after_negative_suit(raise: Bid) -> Rules {
 // Opener after a major raise
 // ---------------------------------------------------------------------------
 
-/// Opener after `2♣–(P)–2♦–(P)–2♥–(P)–3♥–(P)` (at `&[2♣, 2♦, 2♥, 3♥]`)
+/// Opener after `2♣ - 2♦ - 2♥ - 3♥ -` (at `&[2♣, 2♦, 2♥, 3♥]`)
 ///
 /// With 28+ HCP, launch RKCB (4NT); otherwise sign off in 4♥.
 fn opener_after_hearts_raise() -> Rules {
@@ -199,7 +199,7 @@ fn opener_after_hearts_raise() -> Rules {
         .rule(Bid::new(4, Strain::Hearts), 50, hcp(0..))
 }
 
-/// Opener after `2♣–(P)–2♦–(P)–2♠–(P)–3♠–(P)` (at `&[2♣, 2♦, 2♠, 3♠]`)
+/// Opener after `2♣ - 2♦ - 2♠ - 3♠ -` (at `&[2♣, 2♦, 2♠, 3♠]`)
 ///
 /// With 28+ HCP, launch RKCB (4NT); otherwise sign off in 4♠.
 fn opener_after_spades_raise() -> Rules {
@@ -213,7 +213,7 @@ fn opener_after_spades_raise() -> Rules {
 // Opener after a minor raise
 // ---------------------------------------------------------------------------
 
-/// Opener after `2♣–(P)–2♦–(P)–3♣–(P)–4♣–(P)` (at `&[2♣, 2♦, 3♣, 4♣]`)
+/// Opener after `2♣ - 2♦ - 3♣ - 4♣ -` (at `&[2♣, 2♦, 3♣, 4♣]`)
 ///
 /// With 28+ HCP, launch minor RKCB (4NT); otherwise sign off in 5♣.  With the
 /// minor keycard off ([`set_rkcb_minors`][crate::bidding::instinct::set_rkcb_minors]),
@@ -230,7 +230,7 @@ fn opener_after_clubs_raise() -> Rules {
         .rule(Bid::new(5, Strain::Clubs), 50, hcp(0..))
 }
 
-/// Opener after `2♣–(P)–2♦–(P)–3♦–(P)–4♦–(P)` (at `&[2♣, 2♦, 3♦, 4♦]`)
+/// Opener after `2♣ - 2♦ - 3♦ - 4♦ -` (at `&[2♣, 2♦, 3♦, 4♦]`)
 ///
 /// With 28+ HCP, launch minor RKCB (4NT); otherwise sign off in 5♦.  With the
 /// minor keycard off ([`set_rkcb_minors`][crate::bidding::instinct::set_rkcb_minors]),
@@ -261,63 +261,63 @@ pub(super) fn package() -> Package {
         gate: || true,
         entries: || {
             // Responses to 2♣ and opener's first rebid.
-            let mut entries = rows_of(Pattern::node("P* 2♣ (P)"), responses());
+            let mut entries = rows_of(Pattern::node("P* 2♣ -"), responses());
             entries.extend(rows_of(
-                Pattern::node("P* 2♣ (P) 2♦ (P)"),
+                Pattern::node("P* 2♣ - 2♦ -"),
                 opener_rebid_after_waiting(),
             ));
             entries.extend(rows_of(
-                Pattern::node("P* 2♣ (P) 2♥ (P)"),
+                Pattern::node("P* 2♣ - 2♥ -"),
                 opener_rebid_after_negative(),
             ));
 
             // Responder continuations after opener's waiting-sequence rebid.
             entries.extend(rows_of(
-                Pattern::node("P* 2♣ (P) 2♦ (P) 2♥ (P)"),
+                Pattern::node("P* 2♣ - 2♦ - 2♥ -"),
                 resp_after_waiting_hearts(),
             ));
             entries.extend(rows_of(
-                Pattern::node("P* 2♣ (P) 2♦ (P) 2♠ (P)"),
+                Pattern::node("P* 2♣ - 2♦ - 2♠ -"),
                 resp_after_waiting_spades(),
             ));
             entries.extend(rows_of(
-                Pattern::node("P* 2♣ (P) 2♦ (P) 3♣ (P)"),
+                Pattern::node("P* 2♣ - 2♦ - 3♣ -"),
                 resp_after_waiting_clubs(),
             ));
             entries.extend(rows_of(
-                Pattern::node("P* 2♣ (P) 2♦ (P) 3♦ (P)"),
+                Pattern::node("P* 2♣ - 2♦ - 3♦ -"),
                 resp_after_waiting_diamonds(),
             ));
 
             // Responder continuations after opener's double-negative rebid.
             // Raise to the cheapest level; pass without support.
             entries.extend(rows_of(
-                Pattern::node("P* 2♣ (P) 2♥ (P) 2♠ (P)"),
+                Pattern::node("P* 2♣ - 2♥ - 2♠ -"),
                 resp_after_negative_suit(Bid::new(3, Strain::Spades)),
             ));
             entries.extend(rows_of(
-                Pattern::node("P* 2♣ (P) 2♥ (P) 3♣ (P)"),
+                Pattern::node("P* 2♣ - 2♥ - 3♣ -"),
                 resp_after_negative_suit(Bid::new(4, Strain::Clubs)),
             ));
             entries.extend(rows_of(
-                Pattern::node("P* 2♣ (P) 2♥ (P) 3♦ (P)"),
+                Pattern::node("P* 2♣ - 2♥ - 3♦ -"),
                 resp_after_negative_suit(Bid::new(4, Strain::Diamonds)),
             ));
             entries.extend(rows_of(
-                Pattern::node("P* 2♣ (P) 2♥ (P) 3♥ (P)"),
+                Pattern::node("P* 2♣ - 2♥ - 3♥ -"),
                 resp_after_negative_suit(Bid::new(4, Strain::Hearts)),
             ));
 
             // Opener after responder's major raise, followed by the authored
             // RKCB answer ladders.
-            let heart_raise = "P* 2♣ (P) 2♦ (P) 2♥ (P) 3♥ (P)";
+            let heart_raise = "P* 2♣ - 2♦ - 2♥ - 3♥ -";
             entries.extend(rows_of(
                 Pattern::node(heart_raise),
                 opener_after_hearts_raise(),
             ));
             entries.extend(super::slam::rkcb_rows(heart_raise, Suit::Hearts));
 
-            let spade_raise = "P* 2♣ (P) 2♦ (P) 2♠ (P) 3♠ (P)";
+            let spade_raise = "P* 2♣ - 2♦ - 2♠ - 3♠ -";
             entries.extend(rows_of(
                 Pattern::node(spade_raise),
                 opener_after_spades_raise(),
@@ -327,11 +327,11 @@ pub(super) fn package() -> Package {
             // The minor-raise tables read the same live knob as the separately
             // gated answer subtrees below, so a 4NT ask can never be stranded.
             entries.extend(rows_of(
-                Pattern::node("P* 2♣ (P) 2♦ (P) 3♣ (P) 4♣ (P)"),
+                Pattern::node("P* 2♣ - 2♦ - 3♣ - 4♣ -"),
                 opener_after_clubs_raise(),
             ));
             entries.extend(rows_of(
-                Pattern::node("P* 2♣ (P) 2♦ (P) 3♦ (P) 4♦ (P)"),
+                Pattern::node("P* 2♣ - 2♦ - 3♦ - 4♦ -"),
                 opener_after_diamonds_raise(),
             ));
 
@@ -346,9 +346,9 @@ pub(super) fn minor_keycard_continuations() -> Package {
         name: "strong-two-minor-keycard",
         gate: super::slam::minor_keycard,
         entries: || {
-            let mut entries = super::slam::rkcb_rows("P* 2♣ (P) 2♦ (P) 3♣ (P) 4♣ (P)", Suit::Clubs);
+            let mut entries = super::slam::rkcb_rows("P* 2♣ - 2♦ - 3♣ - 4♣ -", Suit::Clubs);
             entries.extend(super::slam::rkcb_rows(
-                "P* 2♣ (P) 2♦ (P) 3♦ (P) 4♦ (P)",
+                "P* 2♣ - 2♦ - 3♦ - 4♦ -",
                 Suit::Diamonds,
             ));
             entries

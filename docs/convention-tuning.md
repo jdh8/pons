@@ -238,7 +238,7 @@ that leaks and fix it. The loop:
    convention is almost always a missing/ wrong continuation, not the action —
    this is measurement.md's "a half-built convention measures as a loss" seen
    from the tuning side. DONT's whole deficit was one missing escape node
-   (`1NT X XX 2♣ X P P P → 2♣x` on a misfit); authoring the doubler's real-suit
+   (`1NT (X) XX (2♣) X - - - → 2♣x` on a misfit); authoring the doubler's real-suit
    rebid over a doubled relay was worth +0.083/board.
 
 ### Two harness techniques (from the point-count campaign)

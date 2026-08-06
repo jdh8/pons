@@ -61,7 +61,7 @@ thread_local! {
 /// Tune the doubled-Landy minor-escape gate for books built *after* this call
 /// (thread-local, read once at book-construction time)
 ///
-/// After `[1NT, 2♣, X]` the advancer may run to a long minor — `Pass` to play `2♣`
+/// After `(1NT) 2♣ (X)` the advancer may run to a long minor — `Pass` to play `2♣`
 /// doubled with clubs, `2♦` to play diamonds — but only with `min_minor`+ in that
 /// minor and at most `max_major` in *each* major (a longer major has an 8-card fit
 /// opposite the overcaller's 5-carder worth more than a doubled minor).  **The
@@ -116,7 +116,7 @@ thread_local! {
     /// The advancer's invite/game thresholds track it.  See [`set_direct_landy_double_floor`].
     static DIRECT_LANDY_DOUBLE_FLOOR: Cell<u8> = const { Cell::new(15) };
     /// Whether the advancer may **pass the both-majors `X` for penalty** (defend
-    /// `1NTx`) at `[1NT, X, P]`; **off by default**.  On, a hand with no major fit
+    /// `1NTx`) at `(1NT) X -`; **off by default**.  On, a hand with no major fit
     /// (both majors ≤2) and enough defense converts the takeout double to penalties
     /// rather than running to a 5-2 major; the threshold tracks the X floor (a
     /// stronger X needs less from the advancer).  See [`set_direct_landy_penalty_pass`].
@@ -184,7 +184,7 @@ pub(super) fn direct_landy_penalty_pass() -> bool {
     DIRECT_LANDY_PENALTY_PASS.with(Cell::get)
 }
 
-/// The advancer's action over partner's both-majors `X` (RHO passing, `[1NT, X, P]`)
+/// The advancer's action over partner's both-majors `X` (RHO passing, `(1NT) X -`)
 ///
 /// The Landy advance ([`landy_advances`]) plus — when [`set_direct_landy_penalty_pass`]
 /// is on — a **penalty pass**: with no major fit (both majors ≤2) and enough defense
@@ -300,7 +300,7 @@ fn landy_advances(lo: u8) -> Rules {
         )
 }
 
-/// Advancer's response to a *doubled* Landy `2♣` (`[1NT, 2♣, X]`)
+/// Advancer's response to a *doubled* Landy `2♣` (`(1NT) 2♣ (X)`)
 ///
 /// The opponents' Double is the stolen `2♣` Stayman, and their opener can sit for
 /// `2♣` doubled with good clubs (the [`set_penalty_pass`] conversion) — a disaster
@@ -383,7 +383,7 @@ fn landy_advances_over_double(lo: u8) -> Rules {
 }
 
 /// Overcaller's rebid after advancer's *natural* `2♦` over the doubled Landy
-/// (`[1NT, 2♣, X, 2♦, P]`): pass partner's diamonds, but with a singleton/void
+/// (`(1NT) 2♣ (X) 2♦ -`): pass partner's diamonds, but with a singleton/void
 /// diamond pull to the longer major (a 5-2 major fit beats a 6-1 diamond one).
 fn landy_doubled_2d_rebid() -> Rules {
     let hearts_longer = at_least_as_long(Suit::Hearts, Suit::Spades);
@@ -402,7 +402,7 @@ fn landy_doubled_2d_rebid() -> Rules {
         .rule(Call::Pass, 0, hcp(0..))
 }
 
-/// Overcaller's rebid after the `2♦` relay (`[1NT, 2♣, P, 2♦, P]`): name the
+/// Overcaller's rebid after the `2♦` relay (`(1NT) 2♣ - 2♦ -`): name the
 /// longer major, so the equal-majors advancer plays the right strain
 fn landy_2d_rebid() -> Rules {
     let hearts_longer = at_least_as_long(Suit::Hearts, Suit::Spades);
@@ -419,7 +419,7 @@ pub(super) fn sit() -> Rules {
     Rules::new().rule(Call::Pass, 0, hcp(0..))
 }
 
-/// Advancer's runout after partner's both-majors `X` is **redoubled** (`[1NT, X, XX]`)
+/// Advancer's runout after partner's both-majors `X` is **redoubled** (`(1NT) X (XX)`)
 ///
 /// The redouble forces our side to act (sitting plays `1NTxx`), but it also frees a
 /// clean structure: over the redoubled one-level `1NT` our `2♣` sits at the two level,
@@ -464,7 +464,7 @@ fn both_majors_x_runout(lo: u8) -> Rules {
         .rule(Call::Pass, 50, hcp(0..))
 }
 
-/// Overcaller's rebid after the game-forcing `2NT` ask (`[1NT, 2♣, P, 2NT, P]`)
+/// Overcaller's rebid after the game-forcing `2NT` ask (`(1NT) 2♣ - 2NT -`)
 ///
 /// The sourced min/med/max × 5-4/5-5 ladder, with the strength buckets tracking
 /// the `2♣` range (partition `[lo, hi]` into thirds, `hi` capped at 16 when the
@@ -514,13 +514,13 @@ pub(super) fn landy_advance_package() -> Package {
         entries: || {
             let (lo, hi) = woolsey_points();
             [
-                ("P* (1NT) 2♣ (P)", landy_advances(lo)),
-                ("P* (1NT) 2♣ (P) 2♦ (P)", landy_2d_rebid()),
-                ("P* (1NT) 2♣ (P) 2NT (P)", landy_2nt_rebid(lo, hi)),
+                ("P* (1NT) 2♣ -", landy_advances(lo)),
+                ("P* (1NT) 2♣ - 2♦ -", landy_2d_rebid()),
+                ("P* (1NT) 2♣ - 2NT -", landy_2nt_rebid(lo, hi)),
                 ("P* (1NT) 2♣ (X)", landy_advances_over_double(lo)),
-                ("P* (1NT) 2♣ (X) XX (P)", landy_2d_rebid()),
-                ("P* (1NT) 2♣ (X) 2♦ (P)", landy_doubled_2d_rebid()),
-                ("P* (1NT) 2♣ (X) 2NT (P)", landy_2nt_rebid(lo, hi)),
+                ("P* (1NT) 2♣ (X) XX -", landy_2d_rebid()),
+                ("P* (1NT) 2♣ (X) 2♦ -", landy_doubled_2d_rebid()),
+                ("P* (1NT) 2♣ (X) 2NT -", landy_2nt_rebid(lo, hi)),
             ]
             .into_iter()
             .flat_map(|(key, rules)| rows_of(Pattern::node(key), rules))
@@ -533,7 +533,7 @@ pub(super) fn landy_advance_package() -> Package {
 /// ([`set_direct_landy_double`][super::set_direct_landy_double])
 ///
 /// The `X` is a Landy-style both-majors takeout double at every seat, so the
-/// advancer answers exactly as over a Landy `2♣` — binding `[1NT, X, P]` is
+/// advancer answers exactly as over a Landy `2♣` — binding `(1NT) X -` is
 /// correct here, the direct `X` is both-majors, not penalty.  The `2♦` relay
 /// and the `2NT` ask are artificial, so the doubler answers them whether they
 /// are passed **or** doubled; over their redouble the relay is dropped
@@ -548,22 +548,22 @@ pub(super) fn both_majors_double_package() -> Package {
             let (lo, hi) = (direct_landy_double_floor(), 37u8);
             let mut entries = Vec::new();
             for (key, rules) in [
-                ("P* (1NT) X (P)", both_majors_x_advance(lo)),
-                ("P* (1NT) X (P) 2♦ (P)", landy_2d_rebid()),
-                ("P* (1NT) X (P) 2♦ (X)", landy_2d_rebid()),
-                ("P* (1NT) X (P) 2NT (P)", landy_2nt_rebid(lo, hi)),
-                ("P* (1NT) X (P) 2NT (X)", landy_2nt_rebid(lo, hi)),
+                ("P* (1NT) X -", both_majors_x_advance(lo)),
+                ("P* (1NT) X - 2♦ -", landy_2d_rebid()),
+                ("P* (1NT) X - 2♦ (X)", landy_2d_rebid()),
+                ("P* (1NT) X - 2NT -", landy_2nt_rebid(lo, hi)),
+                ("P* (1NT) X - 2NT (X)", landy_2nt_rebid(lo, hi)),
                 ("P* (1NT) X (XX)", both_majors_x_runout(lo)),
-                ("P* (1NT) X (XX) P (P)", landy_2d_rebid()),
+                ("P* (1NT) X (XX) - -", landy_2d_rebid()),
             ] {
                 entries.extend(rows_of(Pattern::node(key), rules));
             }
             // …then the advancer SITS for that major whether it is passed or
             // doubled — play 2Mx (our real fit), never run.
             for m in ["2♥", "2♠"] {
-                for after in ["(P)", "(X)"] {
+                for after in ["-", "(X)"] {
                     entries.extend(rows_of(
-                        Pattern::node(&format!("P* (1NT) X (XX) P (P) {m} {after}")),
+                        Pattern::node(&format!("P* (1NT) X (XX) - - {m} {after}")),
                         sit(),
                     ));
                 }
@@ -572,10 +572,10 @@ pub(super) fn both_majors_double_package() -> Package {
             // so it cannot be the ask).  Once the doubler names its major over
             // the (possibly doubled) relay, SIT when the opponents double it —
             // the doubler plays 2Mx instead of running to the phantom 3♦.
-            for relay in ["(X)", "(P)"] {
+            for relay in ["(X)", "-"] {
                 for m in ["2♥", "2♠"] {
                     entries.extend(rows_of(
-                        Pattern::node(&format!("P* (1NT) X (P) 2♦ {relay} {m} (X) P (P)")),
+                        Pattern::node(&format!("P* (1NT) X - 2♦ {relay} {m} (X) - -")),
                         sit(),
                     ));
                 }

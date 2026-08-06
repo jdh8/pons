@@ -83,7 +83,7 @@ fn up_the_line_completion() {
         best_call(&system, &after_one_heart, "KQxx.xx.Kxx.AQxx"),
         call(1, Strain::Spades),
     );
-    // ... and rebids a natural 2♣ on six clubs after 1♣ – 1♦.
+    // ... and rebids a natural 2♣ on six clubs after 1♣ - 1♦.
     assert_eq!(
         best_call(&system, &after_one_diamond, "xx.Kx.Kx.AQJxxx"),
         call(2, Strain::Clubs),
@@ -109,7 +109,7 @@ fn up_the_line_completion() {
 
 // --- Knob B: XYZ -------------------------------------------------------------
 
-/// `1♣ P 1♥ P 1NT P` plus the given tail of our-side calls (RHO passes
+/// `1♣ - 1♥ - 1NT -` plus the given tail of our-side calls (RHO passes
 /// interleaved)
 fn xyz_auction(response: Strain, tail: &[Call]) -> Vec<Call> {
     let mut auction = vec![
@@ -230,7 +230,7 @@ fn xyz_invitation_accepted_to_game() {
 
 /// A stance running New Minor Forcing in place of XYZ, defaults restored
 ///
-/// NMF overrides XYZ on the four `1m – 1M – 1NT` slots; the tests only touch
+/// NMF overrides XYZ on the four `1m - 1M - 1NT` slots; the tests only touch
 /// those, so `set_xyz` is left off to isolate the convention purely.
 fn nmf_stance() -> Stance {
     set_longer_major_response(false);

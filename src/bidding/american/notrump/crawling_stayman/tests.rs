@@ -33,7 +33,7 @@ fn crawling_stayman_escape() {
     assert_eq!(best(&two_d, h4414), bid(2, Strain::Hearts));
     assert_eq!(best(&two_d, h4405), bid(2, Strain::Hearts));
 
-    // Opener's reply to the crawl (1NT–2♣–2♦–2♥): three hearts pass the 4-3
+    // Opener's reply to the crawl (1NT - 2♣ - 2♦ - 2♥): three hearts pass the 4-3
     // fit; two hearts/three spades correct to 2♠; short in both majors with a
     // five-card minor flee to 3♣ (an 8-9 card club fit — responder is short
     // diamonds, hence long clubs).
@@ -51,7 +51,7 @@ fn crawling_stayman_escape() {
     assert_eq!(best(&crawl, "K43.A2.KQ32.A432"), bid(2, Strain::Spades)); // 3-2 → 2♠
     assert_eq!(best(&crawl, "K2.A2.KJ43.AJ432"), bid(3, Strain::Clubs)); // 2-2-4-5 → 3♣
 
-    // Doubled tail (1NT–2♣–2♦–(X)–2♥) is systems-on via the competition rebase:
+    // Doubled tail (1NT - 2♣ - 2♦ (X) 2♥) is systems-on via the competition rebase:
     // responder still crawls to 2♥, and opener still corrects (2♠ shown here).
     let two_d_doubled = [
         bid(1, Strain::Notrump),

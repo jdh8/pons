@@ -70,7 +70,7 @@ thread_local! {
 /// different inputs downstream.  The ceiling is sound only because that tier is
 /// **shape-free**: it accepts every 17+ hand, so no hand that could have passed
 /// is excluded.  A shaped tier would leave holes at every strength and no
-/// ceiling would be authorable — which is why the analogous `1NT P` (90.7% ⊤ on
+/// ceiling would be authorable — which is why the analogous `1NT -` (90.7% ⊤ on
 /// all five axes in the census) cannot be fixed this way.
 ///
 /// **Default off — REFUTED** (204.8k bd/vul, `SEED_BASE` 1785083246; numbers on
@@ -128,8 +128,8 @@ fn weak_two_notrump_shape() -> bool {
 /// overcalls: the jump eats the room the strength wanted.
 ///
 /// ```text
-/// on:  2♦ 3♥ - 4♦ - 4♥ - - -     off: 2♦ 2♥ - 6♥ - - -
-/// on:  2♦ 3♥ - 4♥ - - -          off: 2♦ 2♥ - 3♣ - 3♥ - 5♣ - - -
+/// on:  (2♦) 3♥ - 4♦ - 4♥ - - -     off: (2♦) 2♥ - 6♥ - - -
+/// on:  (2♦) 3♥ - 4♥ - - -          off: (2♦) 2♥ - 3♣ - 3♥ - 5♣ - - -
 /// ```
 ///
 /// The authoring makes it worse than it needs to be: `points(13..=19)` at weight
@@ -161,12 +161,13 @@ fn weak_two_jump_overcall() -> bool {
 ///
 /// **Default off, and its A/B is VOID** — not a verdict on Michaels.  The
 /// advancer has no node: the seat-fanned rows wire continuations for the
-/// takeout double and Leaping Michaels only, so `[2♠, 3♠, P]` drops to the
+/// takeout double and Leaping Michaels only, so `(2♠) 3♠ -` drops to the
 /// floor, which *redoubles the cue* — the phantom-suit disaster in the flesh.
 ///
 /// ```text
-/// on:  - 2♠ 3♠ X XX - - -                                    (playing 3♠ redoubled — in their suit)
-/// on:  2♠ 3♠ X 4♥ 4♠ - - X XX - - 4NT X 5♦ - 5♥ - 6♥ X - - -
+/// on:  - (2♠) 3♠ (X) XX - - -
+///      (playing 3♠ redoubled — in their suit)
+/// on:  (2♠) 3♠ (X) 4♥ (4♠) - - X (XX) - - 4NT (X) 5♦ - 5♥ - 6♥ (X) - - -
 /// ```
 ///
 /// Measured −0.78 to −2.63 IMPs/fired, which is the missing continuation
@@ -236,7 +237,7 @@ fn weak_two_overcall_discipline() -> bool {
 ///
 /// Before this, the 2NT overcall had **no continuations at all** — the book
 /// authors advances of the takeout double and of Leaping Michaels, but nothing
-/// at `[2M, 2NT, P, ?]`, so advancer dropped to the instinct floor.  That is
+/// at `(2M) 2NT - ?`, so advancer dropped to the instinct floor.  That is
 /// the same structural hole that voided the `set_weak_two_cue` measurement,
 /// except this call is a shipped default rather than an opt-in.
 ///
@@ -244,15 +245,15 @@ fn weak_two_overcall_discipline() -> bool {
 /// 16–17 opposite there is no room to invite, so it is `3♣` or game:
 ///
 /// ```text
-/// 2♥ 2NT P  3♣    relay: weak, 5+ ♦, wants a 3-level partscore
-///        P  3♦    game-forcing, 5+ ♦
-///        P  3♥    cue = Stayman: exactly 4 ♠, game values, not flat
-///        P  3♠    game-forcing, 5+ ♠
-///        P 3NT    balanced game, to play
+/// (2♥) 2NT - 3♣    relay: weak, 5+ ♦, wants a 3-level partscore
+/// (2♥) 2NT - 3♦    game-forcing, 5+ ♦
+/// (2♥) 2NT - 3♥    cue = Stayman: exactly 4 ♠, game values, not flat
+/// (2♥) 2NT - 3♠    game-forcing, 5+ ♠
+/// (2♥) 2NT - 3NT   balanced game, to play
 ///
-/// 2♥ 2NT P  3♣ P 3♦    forced, pass-or-correct, says nothing about diamonds
-///                 P 3♥ cue = 6+ ♦, long enough that 4♦ is safe
-///                 P  P play 3♦
+/// (2♥) 2NT - 3♣ - 3♦        forced, pass-or-correct, says nothing about diamonds
+/// (2♥) 2NT - 3♣ - 3♦ - 3♥  cue = 6+ ♦, long enough that 4♦ is safe
+/// (2♥) 2NT - 3♣ - 3♦ - -   play 3♦
 /// ```
 ///
 /// Two deliberate gaps, both `for now`.  Advancer's `3♠` and above in the relay
@@ -676,20 +677,20 @@ pub(super) fn weak_two_notrump_advance_package() -> Package {
             let mut entries = Vec::new();
             for suit in [Suit::Hearts, Suit::Spades] {
                 let opening = Bid::new(2, Strain::from(suit));
-                let base = format!("P* ({opening}) 2NT (P)");
+                let base = format!("P* ({opening}) 2NT -");
                 entries.extend(rows_of(
                     Pattern::node(&base),
                     weak_two_notrump_advances(suit),
                 ));
                 entries.extend(rows_of(
-                    Pattern::node(&format!("{base} 3♣ (P)")),
+                    Pattern::node(&format!("{base} 3♣ -")),
                     weak_two_notrump_relay_reply(),
                 ));
                 // The delayed cue is 3♥ over their 2♥ but 3♠ over their 2♠, and
                 // 3♠+ is unauthored — so over 2♠ the node would be Pass alone.
                 if suit == Suit::Hearts {
                     entries.extend(rows_of(
-                        Pattern::node(&format!("{base} 3♣ (P) 3♦ (P)")),
+                        Pattern::node(&format!("{base} 3♣ - 3♦ -")),
                         weak_two_notrump_relay_rebid(suit),
                     ));
                 }

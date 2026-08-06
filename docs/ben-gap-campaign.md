@@ -84,12 +84,12 @@ Provenance and its limits:
 - **Weights-vs-card caveat**: EPBot loaded with BEN's card is BEN's
   *skeleton*, not BEN — EPBot measures ≈0.35 IMPs/bd behind BEN, and that
   edge lives in the weights (search over sampled worlds), not the card.
-- **Owed — reading BEN's splinter.** We now author a `1NT–3M` splinter of our
+- **Owed — reading BEN's splinter.** We now author a `1NT - 3M` splinter of our
   own and read it off the alert, but in the *Bridge World / Polish Club* form
   (2–3 in the other major) rather than BEN's **GIB** form (exactly 4). Against
   BEN the box is therefore wrong on one axis. Deferred rather than guessed,
   because it is unmeasurable today: BBA's *engine* default for the toggle is
-  off, so no anchor run ever produces a `1NT–3M`, and there is no BEN harness
+  off, so no anchor run ever produces a `1NT - 3M`, and there is no BEN harness
   yet. Land it with `ben-gen` — a per-opponent reading, not a change to ours.
 - Rule-level query surface: `~/ben/src/bba/BBA.py` wraps EPBot with the BEN
   card loaded and exposes `interpret_bid`, `get_info_meaning`,
@@ -126,10 +126,10 @@ hand (residual-strength inference ours deliberately leaves to the sampler),
 so trust auction-level aggregates, not single rows.
 
 First 1000-board run (2026-07-17, NV, seed 1784259000): real reading bugs —
-preemptive `1C (P) 3C` jump raise read as 10+ limit (3/3), cue/two-suiter
-calls read as their *natural* suit (phantom-suit class: `(P 2D) 4D` on a
-void, `(P 1C) 2C` Michaels on a club void, `P P 1H (2D) 3D` cue-raise read
-as 4+ diamonds 4/4), opener's `1D (P) 1S (P) 2D` rebid shown 6+ but bid on
+preemptive `1C - 3C` jump raise read as 10+ limit (3/3), cue/two-suiter
+calls read as their *natural* suit (phantom-suit class: `- (2D) 4D` on a
+void, `- (1C) 2C` Michaels on a club void, `- - 1H (2D) 3D` cue-raise read
+as 4+ diamonds 4/4), opener's `1D - 1S - 2D` rebid shown 6+ but bid on
 5 (5/8), and `1S (1N) X` read as 15+ on a 9-count. BEN-misreads-us: our
 natural 2D/2C over 1NT (BEN's prior says Multi/Landy), our South-African
 Texas 4D. Vagueness: **passes narrow nothing** in our reading — BEN reads a
@@ -151,7 +151,7 @@ passed hand at ~6.3 mean HCP.
     support, 10+ points, mirroring the Rubens floors).
   - `set_length_soundness` — opener's immediate 2-level rebid of the opened
     suit reads 5+ not 6+ (the floor routinely rebids a good five, 5/8 +
-    3/4); an agreed-suit re-raise adds no length (`1M-2M-3M` game tries read
+    3/4); an agreed-suit re-raise adds no length (`1M - 2M - 3M` game tries read
     a phantom sixth); a doubler's later jump is never a weak six-card jump
     (made on three, 2/2).
 - **Table-wide alert reading — BUILT 2026-07-17** (jdh8: "Alerting in bridge
@@ -193,18 +193,18 @@ passed hand at ~6.3 mean HCP.
   ceilings — floor-only before, so a cap-only change was unfalsifiable);
   full-band hidden seats **15,101 → 7,279 (−52 %)**; acted-seat vagueness
   deviation **24,417 → 9,740 (−60 %**, vs −3 % from the three prior knobs
-  combined) — the `[P]`, `[P P]`, `[1x P]` passer buckets all drain
+  combined) — the `-`, `- -`, `1x -` passer buckets all drain
   (arm: `probe-nv-pass.jsonl`). Remaining pass-family vagueness: *unacted*
   seats (deal conservation — joint, envelope-inexpressible; the layout
   sampler applies it when dealing full deals) and the deferred gates —
-  `[1N P]` their-1NT direct seat, advance/balancing seats, later-round
+  `(1N) -` their-1NT direct seat, advance/balancing seats, later-round
   passes — author those tables' gates the same way once their complements
   are checked.
 - **Reading-knob bid-inertness probe — MEASURED 2026-07-17** (same-seed
   bba-gen divergence vs the off arm, 6400 boards/knob at seed 1784294370
   plus 211,200 board-pairs for pass from the guard cells): `cue_reading`
   **0** divergent, `table_alert_reading` **0**, `pass_reading` **1/211,200**
-  (a deep contested floor decision, 3NT↔4♠), `length_soundness` **23/6400
+  (a deep contested floor decision, 3NT ↔ 4♠), `length_soundness` **23/6400
   (0.36%)** — and the all-four composite's divergence is entirely
   length-soundness's. Consequence for the queued A/B: three of the four
   knobs are reading/instrument-side — their plain/PD IMPs verdict is a
@@ -232,9 +232,9 @@ passed hand at ~6.3 mean HCP.
   scaled to 32 instances (~1 GB RSS each, Tier-F arenas grow ~30 KB/board)
   after the run's port discovery completed.
 - **Still open, by ranked margin**: (1) preemptive minor jump raises
-  (`1C (P) 3C`, `P P (1D) P 3D`) read as 10+ limit while the floor bids
+  (`1C - 3C`, `- - (1D) - (3D)`) read as 10+ limit while the floor bids
   them on 3–6 — decide the raise's meaning, then align floor and reader;
-  (2) the XYZ complex after `1m-1M-1S/1NT` **over-claims in the projection
+  (2) the XYZ complex after `1m - 1M - 1S/1NT` **over-claims in the projection
   itself** (12 violation rows survive table-wide decode — same-pair and
   defender views now share the one buggy projection; fixing it fixes both) —
   audit the XYZ rules' alerts/projection; (3) `1S (1N) X` shows 15+ on the
@@ -279,7 +279,7 @@ hands (16+ HCP: 2%, 20+: 0%). The top tail is two clean patterns:
   *into* the 6-card suit keep the preempt (`KL≈0`), the same HCP scattered *out*
   of it → **PASS** (`KL 3.6–4.9`). BEN preempts only with a good suit.
 - **Slam-zone control placement** — 8-to-14-call NT auctions where honor
-  relocation flips `5♣↔5♥↔5♦` (`KL 4–5`): which suit to cue / where to place it.
+  relocation flips `5♣ ↔ 5♥ ↔ 5♦` (`KL 4–5`): which suit to cue / where to place it.
 
 Consequence for the floor: our authoring vocabulary (`points`,
 `support_points`, `fit_sum`, `hcp`, length constraints) **is** `(HCP, shape)` and
@@ -470,14 +470,14 @@ ceiling** (exact-tuple majority — the *best possible* such rule).
 | --- | --- | --- | --- | --- | --- |
 | `(root)` | dealer open | 77.1% | 60.8% | **96.7%** (93.6) | 0.7% |
 | `P` | LHO / 2nd | 74.9% | 61.1% | **97.1%** (90.0) | — |
-| `P P` | 3rd-seat open | 67.7% | 60.9% | **91.2%** (79.5) | **8.4% [VUL]** |
+| `- -` | 3rd-seat open | 67.7% | 60.9% | **91.2%** (79.5) | **8.4% [VUL]** |
 | `1D` | LHO overcall | 67.3% | 43.2% | **98.1%** (70.7) | — |
 | `1C` | LHO overcall | 61.5% | 28.9% | **96.9%** (70.4) | — |
 | `1H` | LHO overcall | 70.5% | 49.3% | **96.4%** (62.5) | — |
 | `1S` | LHO overcall | 71.9% | 15.4% | **97.2%** (59.9) | — |
 | `1NT` | LHO overcall | 84.3% | 19.2% | **98.7%** (55.9) | — |
-| `1D P` | responder | 87.3% | 89.3% | **100%** (60.1) | — |
-| `1C P` | responder | 88.6% | 88.9% | **99.2%** (56.1) | — |
+| `1D -` | responder | 87.3% | 89.3% | **100%** (60.1) | — |
+| `1C -` | responder | 88.6% | 88.9% | **99.2%** (56.1) | — |
 
 **Verdict — the policy is ~95%+ rule-expressible; the gap to BEN is search,
 not rules.**
@@ -497,8 +497,8 @@ not rules.**
 3. **BEN is a human 2/1, the opposite of brl.** Opening rate is **monotone**
    in HCP (0.8 / 10.3 / 30 / 100 / 100% by band; brl was *anti*-monotone) and
    constructive vul-flip is **0.7%** (brl root 16.6%). Vul-conditioning shows
-   up only where humans do it — 3rd-seat opens (`P P` 8.4%), balancing,
-   preempts — and even there it is *the vul feature itself*: `P P`'s ceiling
+   up only where humans do it — 3rd-seat opens (`- -` 8.4%), balancing,
+   preempts — and even there it is *the vul feature itself*: `- -`'s ceiling
    rises 91.2% → **96.1% once vul joins the tuple**. A rule with a vul term
    captures it.
 4. **`--first-deal` shard flag** added to `ben-gen` so fleet shards keep
@@ -534,8 +534,8 @@ decisions).
 | `1D 1S` | advancer | 1897 | **97.1%** (28) |
 | `1C 1S` | advancer | 1746 | **100%** (28) |
 | `1D 1H` | advancer | 1657 | **95.7%** (25) |
-| `P 1D 1S` | advancer | 1335 | **100%** (26) |
-| `1S X` | advancer | 1023 | **100%** (18) |
+| `- 1D 1S` | advancer | 1335 | **100%** (26) |
+| `1S (X)` | advancer | 1023 | **100%** (18) |
 
 All 12 fitted two-sided nodes: ceiling **median 100%, min 92.3%** — the same
 ruliness the constructive + entry nodes showed. So **the −1.9 gap to BEN is
@@ -608,7 +608,7 @@ in fact produce the auction:
 - **Unreachable** — our system simply never makes that call, so the −∞ is
   correct and the auction never arises in play. Screen artifact, change nothing.
 
-Worked example of the second: `1♦–1♠–1NT–2NT` and `1♦–1♠–1NT–2♣–3♠` both read
+Worked example of the second: `1♦ - 1♠ - 1NT - 2NT` and `1♦ - 1♠ - 1NT - 2♣ - 3♠` both read
 0%, but `xyz_responder` ([xyz.rs](../src/bidding/american/xyz.rs)) names only
 2♣/2♦/2M/Pass — under XYZ every invite goes through the relay, so responder's
 natural 2NT and the 3M jump are deliberately unbid. Both keys belong to NMF
@@ -660,7 +660,7 @@ passing through each candidate key. 400,000 deals, seed 1784484329:
 
 | Key | Reach |
 | --- | --- |
-| yardstick — `1♠–2♣`, the retired backstop's anchor | **0.5975%** |
+| yardstick — `1♠ - 2♣`, the retired backstop's anchor | **0.5975%** |
 | #3 `xyz accept_or_decline` | **0.1143%** |
 | #5 `asker_after_max_major` | 0.0560% |
 | #2 `opener_third` | 0.0488% |
@@ -696,7 +696,7 @@ flipped to off — and then flipped back, because two integration tests
 does not price:
 
 ```text
-1♠–(P)–2♣–(P)–2♦–(P)–3♠–(P), opener holds:
+1♠ - 2♣ - 2♦ - 3♠ -, opener holds:
   AQJ52.A2.KQJ4.92   (17 HCP)  ->  4♠
   AKQJ2.AKQ.AQJ4.9   (26 HCP)  ->  4♠
 ```

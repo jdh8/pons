@@ -36,7 +36,7 @@ What the buckets and archetypes establish:
 - The four suit overcalls are **wide-range (9–18 HCP), not preempts**; vulnerability
   lifts the floor ≈ 1 HCP. The structure relies on the relays below to sort out level.
 
-## Continuations over the 2♦ Multi — advancer at `(1NT)-2♦-P-?`
+## Continuations over the 2♦ Multi — advancer at `(1NT) 2♦ - ?`
 
 The advancer almost never passes 2♦ (0.1%); it bids a major as pass-or-correct, in two
 strengths:
@@ -51,7 +51,7 @@ strengths:
 `rebid-d` / `rebid-d2s` confirm the Multi is a genuine 6+ single major, **symmetric**
 between hearts and spades (≈42% pass / ≈42% correct to 2♠; the rest are 7-card jumps).
 
-## Continuations over the 2♥/2♠ Muiderberg — advancer at `(1NT)-2M-P-?`
+## Continuations over the 2♥/2♠ Muiderberg — advancer at `(1NT) 2M - ?`
 
 Three calls do essentially all the work:
 

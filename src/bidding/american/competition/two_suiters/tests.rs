@@ -4,8 +4,9 @@ use contract_bridge::auction::Call;
 
 #[test]
 fn michaels_cue_of_our_major_is_not_a_cue_raise() {
-    // 1♠ – (2♠ Michaels, a cue of OUR spades) – 3♠ (responder's NATURAL raise)
-    // – P: the cue-raise answer table must not hijack this. A strong opener
+    // `1♠ (2♠) 3♠ -`: their 2♠ is Michaels, a cue of our spades, while
+    // responder's 3♠ is a natural raise.  The cue-raise answer table must not
+    // hijack this. A strong opener
     // (this hand tripped the old over-broad guard into a passed-out 4NT) must
     // NOT bid 4NT here.
     let auction = [
@@ -25,7 +26,8 @@ fn michaels_cue_of_our_major_is_not_a_cue_raise() {
 #[test]
 fn uvu_major_cues_split_raise_and_fourth_suit() {
     super::two_suiters::set_uvu_over_majors(true);
-    // [1♥, (2NT both minors)]: 12-count with 3 hearts → 3♣ = limit+ raise.
+    // `1♥ (2NT)`: their 2NT shows both minors; a 12-count with 3 hearts bids
+    // 3♣ as a limit-plus raise.
     let auction = [call(1, Strain::Hearts), call(2, Strain::Notrump)];
     let (raise, floored) = best_call(&auction, "K52.QJ5.A964.Q32");
     assert_eq!(raise, call(3, Strain::Clubs), "the cheap cue raises");
@@ -39,7 +41,8 @@ fn uvu_major_cues_split_raise_and_fourth_suit() {
 #[test]
 fn michaels_cue_of_our_major_gets_a_structure() {
     super::two_suiters::set_uvu_over_majors(true);
-    // [1♠, (2♠ Michaels)]: a limit raise cues their known major (3♥)...
+    // `1♠ (2♠)`: their 2♠ is Michaels; a limit raise cues their known major
+    // with 3♥...
     let auction = [call(1, Strain::Spades), call(2, Strain::Spades)];
     let (cue, floored) = best_call(&auction, "KQ5.A54.96432.Q2");
     assert_eq!(cue, call(3, Strain::Hearts), "the known-suit cue raises");
@@ -54,7 +57,7 @@ fn michaels_cue_of_our_major_gets_a_structure() {
 #[test]
 fn opener_answers_the_uvu_major_cue() {
     super::two_suiters::set_uvu_over_majors(true);
-    // [1♥, (2NT), 3♣ = limit+ raise, (P)]: a minimum declines in 3♥, a
+    // `1♥ (2NT) 3♣ -` (limit+ raise): a minimum declines in 3♥, a
     // maximum accepts to game — the shipped cue-raise answer, rewired.
     let auction = [
         call(1, Strain::Hearts),
@@ -73,7 +76,7 @@ fn opener_answers_the_uvu_major_cue() {
 #[test]
 fn opener_answers_the_uvu_fourth_suit_force() {
     super::two_suiters::set_uvu_over_majors(true);
-    // [1♥, (2NT), 3♦ = GF 5+ spades, (P)]: three-card support raises the
+    // `1♥ (2NT) 3♦ -` (GF, 5+ spades): three-card support raises the
     // shown major to game.
     let auction = [
         call(1, Strain::Hearts),

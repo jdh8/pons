@@ -16,8 +16,8 @@
 //!   the hand: cheap natural rebids for 11–17, jumps/reverses for 18–20, and an
 //!   artificial `2♦!` catch-all for 21–23.
 //! * **Responder's second call** over opener's *minimum* rebids (Phase 2.2) —
-//!   [`relay_responses_after_major`] (`1♣-1♦-1M`) and [`relay_responses_after_club`]
-//!   (`1♣-1♦-2♣`): natural ladders around Reverse Flannery, a both-minors
+//!   [`relay_responses_after_major`] (`1♣ - 1♦ - 1M`) and [`relay_responses_after_club`]
+//!   (`1♣ - 1♦ - 2♣`): natural ladders around Reverse Flannery, a both-minors
 //!   repurposing of the "other major", and inverted club raises.
 
 use crate::bidding::constraint::{balanced, hcp, len, points, stopper_in};
@@ -155,7 +155,7 @@ pub(super) fn one_club_responses() -> Rules {
         .rule(Call::Pass, 0, hcp(0..))
 }
 
-/// Opener's rebid after the `1♣-1♦` relay
+/// Opener's rebid after the `1♣ - 1♦` relay
 ///
 /// The clarification ladder that pays for the wide 1♣.  Minimum (11–17) hands
 /// rebid cheaply — a three-card major, or five-plus clubs; medium (18–20) hands
@@ -169,7 +169,7 @@ pub(super) fn one_club_responses() -> Rules {
 pub(super) fn opener_rebids_after_relay() -> Rules {
     // Note: the source system's `2NT!` rebid (21–23, 5+♦ 5+♣) is unreachable in
     // pons — every 5+♦ hand (5-5 minors included) opens `1♦`, so it never
-    // reaches `1♣-1♦`.  Dropped rather than ship dead code; all 21–23 hands
+    // reaches `1♣ - 1♦`.  Dropped rather than ship dead code; all 21–23 hands
     // that arrive here take the `2♦!` catch-all below.
     Rules::new()
         // 18–20 with six-plus clubs.
@@ -215,12 +215,12 @@ pub(super) fn opener_rebids_after_relay() -> Rules {
         .rule(Call::Pass, 0, hcp(0..))
 }
 
-/// Responder's second call after `1♣-1♦-1M` (opener minimum, 11–17, 3+ in the
+/// Responder's second call after `1♣ - 1♦ - 1M` (opener minimum, 11–17, 3+ in the
 /// major)
 ///
 /// A natural ladder around two artificial gadgets.  The **raise** of opener's
 /// major (`2M!`) is Reverse Flannery — exactly the 7–9 / 5=♠ / 4–5♥ two-suiter
-/// that took the relay to dodge the `1♣-1♠-2♣` rebid squeeze — so an ordinary
+/// that took the relay to dodge the `1♣ - 1♠ - 2♣` rebid squeeze — so an ordinary
 /// invitational raiser (who would have raised or bid on round one) never arrives
 /// and needs no call.  The **other major** (`2OM!`) is repurposed to both minors
 /// (5+/4+, invite): a natural major here is impossible (real four-card majors bid
@@ -290,7 +290,7 @@ pub(super) fn relay_responses_after_major(opener: Suit) -> Rules {
         .rule(Call::Pass, 0, hcp(0..))
 }
 
-/// Responder's second call after `1♣-1♦-2♣` (opener minimum, 11–17, 5+♣)
+/// Responder's second call after `1♣ - 1♦ - 2♣` (opener minimum, 11–17, 5+♣)
 ///
 /// The earlier relay frees the low bids to turn conventional.  `2♥!` is the same
 /// Reverse Flannery two-suiter (a natural heart suit is impossible — it bids up
@@ -333,12 +333,12 @@ pub(super) fn relay_responses_after_club() -> Rules {
         .rule(Call::Pass, 0, hcp(0..))
 }
 
-/// Opener's rebid after `1♣-2♦` (responder game-forcing, 5+♦, no four-card major)
+/// Opener's rebid after `1♣ - 2♦` (responder game-forcing, 5+♦, no four-card major)
 ///
 /// A game force with **no major fit possible** — opener denied a five-card major
 /// by opening 1♣, responder denied a four-card major — so the only live questions
 /// are the strain (diamonds / clubs / notrump) and slam.  Opener borrows the
-/// inverted-minor ladder (american's `1♦-2♦` continuation): raise responder's
+/// inverted-minor ladder (american's `1♦ - 2♦` continuation): raise responder's
 /// diamonds (a known nine-card fit, the best news — and the wide 1♣ hosts most
 /// four-diamond hands), introduce a real club suit, show a single major stopper
 /// up the line toward 3NT, or bid notrump by strength.  Forcing, so the catch-all
@@ -387,7 +387,7 @@ pub(super) fn opener_rebids_after_two_diamonds() -> Rules {
         .rule(Bid::new(2, Strain::Notrump), 50, hcp(0..))
 }
 
-/// Opener's rebid after `1♣-2♣` (responder invitational-or-better, 5+♣, no major)
+/// Opener's rebid after `1♣ - 2♣` (responder invitational-or-better, 5+♣, no major)
 ///
 /// Same no-major-fit world as the game-forcing `2♦`, but 2♣ is only **invite+**,
 /// so opener must be able to stop.  Opener accepts to game with a maximum (jump
@@ -424,7 +424,7 @@ pub(super) fn opener_rebids_after_two_clubs() -> Rules {
         .rule(Bid::new(2, Strain::Notrump), 90, hcp(0..))
 }
 
-/// Responder's continuation after `1♣-2♦` (game force), keyed on opener's rebid.
+/// Responder's continuation after `1♣ - 2♦` (game force), keyed on opener's rebid.
 ///
 /// The single job that the floor got wrong — and cost the increment its first
 /// A/B — is honouring the game force without blasting slam blind.  Over every
@@ -445,7 +445,7 @@ pub(super) fn responder_after_two_diamonds(opener_rebid: Bid) -> Rules {
     Rules::new().rule(Bid::new(3, Strain::Notrump), 100, hcp(0..))
 }
 
-/// Responder's continuation after `1♣-2♣` (invite+), keyed on opener's rebid.
+/// Responder's continuation after `1♣ - 2♣` (invite+), keyed on opener's rebid.
 ///
 /// `2♣` was only invite+, so opener's rebid may be a non-forcing decline that
 /// responder must be able to pass.  Over opener's `3NT` (accept to game)
@@ -470,41 +470,41 @@ pub(super) fn package() -> Package {
         name: "dutch-wide-one-club",
         gate: || true,
         entries: || {
-            let mut entries: Vec<Entry> = rows_of(Pattern::node("P* 1♣ (P)"), one_club_responses());
+            let mut entries: Vec<Entry> = rows_of(Pattern::node("P* 1♣ -"), one_club_responses());
             entries.extend(rows_of(
-                Pattern::node("P* 1♣ (P) 1♦ (P)"),
+                Pattern::node("P* 1♣ - 1♦ -"),
                 opener_rebids_after_relay(),
             ));
             entries.extend(rows_of(
-                Pattern::node("P* 1♣ (P) 1♦ (P) 1♥ (P)"),
+                Pattern::node("P* 1♣ - 1♦ - 1♥ -"),
                 relay_responses_after_major(Suit::Hearts),
             ));
             entries.extend(rows_of(
-                Pattern::node("P* 1♣ (P) 1♦ (P) 1♠ (P)"),
+                Pattern::node("P* 1♣ - 1♦ - 1♠ -"),
                 relay_responses_after_major(Suit::Spades),
             ));
             entries.extend(rows_of(
-                Pattern::node("P* 1♣ (P) 1♦ (P) 2♣ (P)"),
+                Pattern::node("P* 1♣ - 1♦ - 2♣ -"),
                 relay_responses_after_club(),
             ));
             entries.extend(rows_of(
-                Pattern::node("P* 1♣ (P) 2♦ (P)"),
+                Pattern::node("P* 1♣ - 2♦ -"),
                 opener_rebids_after_two_diamonds(),
             ));
             entries.extend(rows_of(
-                Pattern::node("P* 1♣ (P) 2♣ (P)"),
+                Pattern::node("P* 1♣ - 2♣ -"),
                 opener_rebids_after_two_clubs(),
             ));
 
             // Preserve the legacy rebid-list order exactly. These are distinct
             // tables keyed by the rebid, not one template expansion.
             for (pattern, rebid) in [
-                ("P* 1♣ (P) 2♦ (P) 3♦ (P)", Bid::new(3, Strain::Diamonds)),
-                ("P* 1♣ (P) 2♦ (P) 3♣ (P)", Bid::new(3, Strain::Clubs)),
-                ("P* 1♣ (P) 2♦ (P) 3NT (P)", Bid::new(3, Strain::Notrump)),
-                ("P* 1♣ (P) 2♦ (P) 2♥ (P)", Bid::new(2, Strain::Hearts)),
-                ("P* 1♣ (P) 2♦ (P) 2♠ (P)", Bid::new(2, Strain::Spades)),
-                ("P* 1♣ (P) 2♦ (P) 2NT (P)", Bid::new(2, Strain::Notrump)),
+                ("P* 1♣ - 2♦ - 3♦ -", Bid::new(3, Strain::Diamonds)),
+                ("P* 1♣ - 2♦ - 3♣ -", Bid::new(3, Strain::Clubs)),
+                ("P* 1♣ - 2♦ - 3NT -", Bid::new(3, Strain::Notrump)),
+                ("P* 1♣ - 2♦ - 2♥ -", Bid::new(2, Strain::Hearts)),
+                ("P* 1♣ - 2♦ - 2♠ -", Bid::new(2, Strain::Spades)),
+                ("P* 1♣ - 2♦ - 2NT -", Bid::new(2, Strain::Notrump)),
             ] {
                 entries.extend(rows_of(
                     Pattern::node(pattern),
@@ -512,9 +512,9 @@ pub(super) fn package() -> Package {
                 ));
             }
             for (pattern, rebid) in [
-                ("P* 1♣ (P) 2♣ (P) 3NT (P)", Bid::new(3, Strain::Notrump)),
-                ("P* 1♣ (P) 2♣ (P) 3♣ (P)", Bid::new(3, Strain::Clubs)),
-                ("P* 1♣ (P) 2♣ (P) 2NT (P)", Bid::new(2, Strain::Notrump)),
+                ("P* 1♣ - 2♣ - 3NT -", Bid::new(3, Strain::Notrump)),
+                ("P* 1♣ - 2♣ - 3♣ -", Bid::new(3, Strain::Clubs)),
+                ("P* 1♣ - 2♣ - 2NT -", Bid::new(2, Strain::Notrump)),
             ] {
                 entries.extend(rows_of(
                     Pattern::node(pattern),

@@ -1,4 +1,4 @@
-//! Stayman (1NT–2♣) A/B: a seeded duplicate match across two builds of
+//! Stayman at `1NT - 2♣` A/B: a seeded duplicate match across two builds of
 //! `american()`.
 //!
 //! The Stayman authoring is a structural change (new book nodes), not a runtime

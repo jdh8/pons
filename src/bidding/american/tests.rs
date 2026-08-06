@@ -125,7 +125,7 @@ fn two_over_one_natural_lengths_and_light_major() {
     set_two_over_one_major_discount(false);
     let baseline = major_responses(Suit::Spades);
 
-    // 1♠-2♣ is the catch-all and may be three: a 2=4=4=3 game force bids
+    // 1♠ - 2♣ is the catch-all and may be three: a 2=4=4=3 game force bids
     // the cheaper club (weight 1.1) once three qualifies; on the uniform
     // 4+ floor it must show its four-card diamond instead.
     assert_eq!(
@@ -134,7 +134,7 @@ fn two_over_one_natural_lengths_and_light_major() {
     );
     assert_eq!(best(&nat, &a, "AK.KJ54.KJ54.432"), call(2, Strain::Clubs));
 
-    // 1♠-2♥ promises five, and the discount lets a 12-HCP five-carder with
+    // 1♠ - 2♥ promises five, and the discount lets a 12-HCP five-carder with
     // no spade fit force game; without it the no-fit floor is 13 and the
     // hand makes a forcing 1NT.
     assert_eq!(best(&nat, &a, "Q2.KQJ54.K32.J43"), call(1, Strain::Notrump));

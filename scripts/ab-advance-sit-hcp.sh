@@ -1,6 +1,6 @@
 #!/bin/sh
 # ab-advance-sit-hcp.sh — sweep the advancer's 4-card penalty-pass quality
-# gate over partner's takeout double ([1t, X, P]).  The shipped gate is two
+# gate over partner's takeout double (`(1t) X -`). The shipped gate is two
 # of the top three honors; the arms swap it for a per-suit HCP floor
 # (set_advance_sit_hcp_gate).  The gates nest, {6+} ⊂ {top2} ⊂ {5+}:
 #   off  — default system (top_honors(t, 2..); the shipped behavior)

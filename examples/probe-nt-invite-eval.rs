@@ -121,7 +121,7 @@ fn ev_controls(h: Hand) -> f64 {
 /// The auction responder decides over: partner opened `1NT`, RHO passed.
 const PRIOR: [Call; 2] = [Call::Bid(Bid::new(1, Strain::Notrump)), Call::Pass];
 
-/// Responder's decision-time reading of `1NT`–`Pass` — the same
+/// Responder's decision-time reading of `1NT -` — the same
 /// `Inferences::read(context)` the production `points_or_net` bilans gates feed
 /// the net, so the screen matches the input distribution a wired gate would see.
 static NT_INF: LazyLock<Inferences> =

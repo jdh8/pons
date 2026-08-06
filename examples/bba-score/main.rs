@@ -75,7 +75,7 @@ fn action_label(call: Call) -> String {
 
 /// If this auction's *opening* call is 1NT, its index and whether the opener is
 /// North/South.  The opening requirement (all prior calls passes) excludes a
-/// `1♣-P-1NT` rebid — we want 1NT *openings* only.
+/// `1♣ - 1NT` rebid — we want 1NT *openings* only.
 fn opening_1nt(auction: &[Call], dealer: Seat) -> Option<(usize, bool)> {
     let one_nt = Call::Bid(Bid::new(1, Strain::Notrump));
     let index = auction.iter().position(|&call| call == one_nt)?;
@@ -282,10 +282,10 @@ fn main() -> anyhow::Result<()> {
         defend,
         &defend_shape_by,
     );
-    report("OUR 1NT-(2NT) responses (focus)", uvu, &uvu_by);
+    report("OUR 1NT (2NT) responses (focus)", uvu, &uvu_by);
 
     // Uncontested continuations: we open 1NT, LHO passes, bucket by responder's
-    // call (`1NT P <response>`).  Unlike `open_by` above, this filters out boards
+    // call (`1NT - <response>`). Unlike `open_by` above, this filters out boards
     // where the opponents overcalled, and the denominator is ALL such boards (not
     // just divergent), so each line is the honest IMP/board for that continuation.
     let mut cont_by: BTreeMap<String, (i64, i64)> = BTreeMap::new();
@@ -307,7 +307,7 @@ fn main() -> anyhow::Result<()> {
         entry.1 += imp;
     }
     report(
-        "OUR uncontested continuations (1NT P <response>)",
+        "OUR uncontested continuations after 1NT - <response>",
         cont,
         &cont_by,
     );
@@ -357,7 +357,7 @@ fn main() -> anyhow::Result<()> {
             .collect();
         dump_rows(
             &format!(
-                "Worst {} we-OPEN-1NT boards (1NT P {want})",
+                "Worst {} we-OPEN-1NT boards after 1NT - {want}",
                 worst_open.len(),
             ),
             &worst_open,

@@ -194,8 +194,8 @@ fn gladiator_over_two_level_runs_transfer_lebensohl() {
 #[test]
 fn gladiator_continuations_reach_game() {
     // The completed book must drive game-forcing advances to game rather than
-    // dying in the floor's partscore.  (1♠) 1NT, cue 2♠, min-fit answer 3♥:
-    // a game-forcing advancer raises to 4♥.  And a game-forcing natural 3♥
+    // dying in the floor's partscore.  After `(1♠) 1NT - 2♠ - 3♥`, a
+    // game-forcing advancer raises to 4♥.  And a game-forcing natural 3♥
     // (5+ hearts) is raised to 4♥ by the overcaller's heart fit.
     super::gladiator::set_nt_overcall_gladiator(true);
     let s = || call(1, Strain::Spades);

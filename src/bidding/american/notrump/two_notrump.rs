@@ -93,7 +93,7 @@ fn complete_transfer_at_three(into: Suit) -> Rules {
 /// Opener's answer to the quantitative 4NT: accept or decline the slam invite
 ///
 /// `accept_hcp` is the minimum HCP to accept: 21 after a 2NT opening (20–21),
-/// 24 after a 2♣–2x–2NT sequence (22–24).
+/// 24 after a 2♣ - 2x - 2NT sequence (22–24).
 pub(super) fn quantitative_answer(accept_hcp: u8) -> Rules {
     Rules::new()
         .rule(Bid::new(6, Strain::Notrump), 100, hcp(accept_hcp..))
@@ -142,7 +142,7 @@ pub(crate) fn two_notrump_structure() -> Package {
 
             for (base, accept_hcp) in bases {
                 let prefix = core::iter::once("P*".to_owned())
-                    .chain(base.iter().map(|call| format!("{call} (P)")))
+                    .chain(base.iter().map(|call| format!("{call} -")))
                     .collect::<Vec<_>>()
                     .join(" ");
 
@@ -150,7 +150,7 @@ pub(crate) fn two_notrump_structure() -> Package {
                 entries.extend(rows_of(Pattern::node(&prefix), two_notrump_responses()));
 
                 // Stayman answers and transfer completions at the three level.
-                let extend = |tail: Call| format!("{prefix} {tail} (P)");
+                let extend = |tail: Call| format!("{prefix} {tail} -");
                 entries.extend(rows_of(
                     Pattern::node(&extend(call(3, Strain::Clubs))),
                     stayman_answers_at_three(),
@@ -173,9 +173,8 @@ pub(crate) fn two_notrump_structure() -> Package {
                 // Smolen after 3♣ Stayman when opener denies a major (3♦):
                 // responder jumps to show 5–4 in the majors, opener completes
                 // to game in the long one.
-                let extend2 = |a: Call, b: Call| format!("{prefix} {a} (P) {b} (P)");
-                let extend3 =
-                    |a: Call, b: Call, c: Call| format!("{prefix} {a} (P) {b} (P) {c} (P)");
+                let extend2 = |a: Call, b: Call| format!("{prefix} {a} - {b} -");
+                let extend3 = |a: Call, b: Call, c: Call| format!("{prefix} {a} - {b} - {c} -");
                 let (three_c, three_d) = (call(3, Strain::Clubs), call(3, Strain::Diamonds));
                 let (three_h, three_s) = (call(3, Strain::Hearts), call(3, Strain::Spades));
                 entries.extend(rows_of(
@@ -220,19 +219,19 @@ pub(crate) fn two_notrump_rebids() -> Package {
 
             for prefix in rebid_prefixes {
                 let prefix = core::iter::once("P*".to_owned())
-                    .chain(prefix.iter().map(|call| format!("{call} (P)")))
+                    .chain(prefix.iter().map(|call| format!("{call} -")))
                     .collect::<Vec<_>>()
                     .join(" ");
 
                 // Responder's action over opener's 2NT rebid.
-                let two_nt_rebid = format!("{prefix} {two_nt} (P)");
+                let two_nt_rebid = format!("{prefix} {two_nt} -");
                 entries.extend(rows_of(
                     Pattern::node(&two_nt_rebid),
                     after_rebid_two_notrump(),
                 ));
 
                 // Opener's reply to the quantitative 4NT raise.
-                let quantitative_raise = format!("{two_nt_rebid} {four_nt} (P)");
+                let quantitative_raise = format!("{two_nt_rebid} {four_nt} -");
                 entries.extend(rows_of(
                     Pattern::node(&quantitative_raise),
                     accept_quantitative_nineteen(),

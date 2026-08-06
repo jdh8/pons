@@ -11,7 +11,7 @@ use super::advance_rich::{
 use super::advance_sohl::{advance_sohl_style, sohl_rows_over};
 use super::*;
 
-/// Advancer's action after partner's takeout double, RHO passing: `(opening) X (P)`
+/// Advancer's action after partner's takeout double, RHO passing: `(opening) X -`
 ///
 /// Partner doubled for takeout and asked us to pick.  In priority order:
 ///
@@ -108,8 +108,8 @@ pub(super) fn natural_advance(
 ///
 /// With a 4-card suit somewhere the longest-first rung takes over; stuck below
 /// that, the priority flips from highest-ranking to **cheapest bid**, keeping
-/// the forced auction as low as possible — `(1♥)`–X–(P) with 3=2=3=3 bids
-/// `1♠`, but `(1♠)`–X–(P) with 2=3=3=3 bids `2♣`.  One exact box: `suit`
+/// the forced auction as low as possible — `(1♥)` X - with 3=2=3=3 bids
+/// `1♠`, but `(1♠)` X - with 2=3=3=3 bids `2♣`.  One exact box: `suit`
 /// exactly three cards, every rival whose advance is cheaper capped at two
 /// (it would be forced first), every dearer rival capped at three (a fourth
 /// card there promotes the hand to the longest-first rung).  Knob-off the
@@ -169,7 +169,7 @@ pub(super) fn no_unbid_major(theirs: Suit) -> Cons<impl Constraint + Clone> {
 /// [`set_advance_sohl_style`]
 ///
 /// `Off` keeps the flat [`advance_double`] ladder.  `Plain`/`Transfer` shadow it
-/// with the reused Section-5 sohl builders under the `P* (2X) X (P)` prefix — the
+/// with the reused Section-5 sohl builders under the `P* (2X) X -` prefix — the
 /// `2NT` relay (and, for `Transfer`, the transfers + cue-Stayman) — plus the
 /// doubler's continuations (relay completion, the rebid after `3♣`, and the
 /// transfer / cue answers).  Over `(2♦)`, `Transfer` additionally plays
@@ -186,7 +186,7 @@ pub(super) fn advance_of_double_package() -> Package {
                 .into_iter()
                 .flat_map(|suit| {
                     let opening = Bid::new(2, Strain::from(suit));
-                    let base = format!("P* ({opening}) X (P)");
+                    let base = format!("P* ({opening}) X -");
                     if style == LebensohlStyle::Off {
                         rows_of(Pattern::node(&base), advance_double(opening))
                     } else {
@@ -221,7 +221,7 @@ pub(super) fn advance_double_package() -> Package {
                     } else {
                         advance_double(opening)
                     };
-                    rows_of(Pattern::node(&format!("P* ({opening}) X (P)")), advances)
+                    rows_of(Pattern::node(&format!("P* ({opening}) X -")), advances)
                 })
                 .collect()
         },

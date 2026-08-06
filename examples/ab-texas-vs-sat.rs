@@ -6,7 +6,7 @@
 //!
 //! - **Texas** (and the crate's current default, which transfers `2♦/2♥` then
 //!   raises): the 1NT opener always declares.
-//! - **South African Texas**: responder may declare directly (`1NT–4♥/4♠`,
+//! - **South African Texas**: responder may declare directly (`1NT - 4♥/4♠`,
 //!   "when declaring is not bad").
 //!
 //! The DD/perfect-defense scorer is blind to *concealment* — the textbook reason

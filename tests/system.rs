@@ -95,8 +95,8 @@ fn test_books_gate_on_phase() {
     let one_s = bid(1, Strain::Spades);
     let two_h = bid(2, Strain::Hearts);
 
-    // The constructive book holds the keys, but [1♠] is a they-opened auction
-    // and [1♠, 2♥] is competitive, so its gate keeps it silent on both.
+    // The constructive book holds the keys, but `(1♠)` is a they-opened auction
+    // and `(1♠) 2♥` is competitive, so its gate keeps it silent on both.
     let mut constructive = Constructive::new();
     constructive.insert(&[one_s], classifier(|_, _| marker_logits(1.0)));
     constructive.insert(&[one_s, two_h], classifier(|_, _| marker_logits(1.5)));

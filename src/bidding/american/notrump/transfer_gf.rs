@@ -9,7 +9,7 @@ use super::*;
 
 thread_local! {
     /// Responder's game-forcing structure after the spade transfer completes
-    /// (`1NT–2♥–2♠`): the natural `3♥` 5-5 slam try, minor side-suits (`3♣`/`3♦`),
+    /// (`1NT - 2♥ - 2♠`): the natural `3♥` 5-5 slam try, minor side-suits (`3♣`/`3♦`),
     /// and the single-suiter's quantitative `4NT`; **on by default** (A/B vs BBA:
     /// plain +0.0014, PD +0.0016 IMPs/board, both CI ±0.0003, +1.70/+1.90 per fired).
     /// See [`set_transfer_gf_majors`].
@@ -19,7 +19,7 @@ thread_local! {
     /// the minor, so `3♣`/`3♦` are reserved for slam tries; **off by default**.  See
     /// [`set_minor_min_to_3nt`].
     static MINOR_MIN_TO_3NT: Cell<bool> = const { Cell::new(false) };
-    /// Mirror the GF structure onto the *heart* transfer (`1NT–2♦–2♥`): minor
+    /// Mirror the GF structure onto the *heart* transfer (`1NT - 2♦ - 2♥`): minor
     /// side-suits (`3♣`/`3♦`), the `3♠` spade splinter (plus `4♣`/`4♦`), and the
     /// quantitative `4NT` — the single-suited slam try relocating off `3♠`, just as
     /// spades relocated off `3♥`.  The 5-5 slam try needs no heart slot (it rides the
@@ -32,7 +32,7 @@ thread_local! {
 /// Author responder's game-forcing structure after the spade transfer for books
 /// built *after* this call (thread-local; **on by default**).
 ///
-/// After `1NT–2♥–2♠`, responder's game-forcing hands otherwise fall to the floor's
+/// After `1NT - 2♥ - 2♠`, responder's game-forcing hands otherwise fall to the floor's
 /// natural raise.  When on: a natural `3♥` shows 5-5 majors with slam interest
 /// (rerouted off the capped both-majors `3♦`), `3♣`/`3♦` show a five-spade hand with
 /// a four-card minor, and `4NT` is the single-suiter's quantitative slam invite
@@ -61,7 +61,7 @@ fn minor_min_to_3nt() -> bool {
 /// Mirror the post-transfer game-forcing structure onto the heart transfer for books
 /// built *after* this call (thread-local; **on by default**).
 ///
-/// After `1NT–2♦–2♥`, responder shows a five-heart-plus-minor game force (`3♣`/`3♦`),
+/// After `1NT - 2♦ - 2♥`, responder shows a five-heart-plus-minor game force (`3♣`/`3♦`),
 /// a six-heart splinter (`3♠` short in spades, `4♣`/`4♦` short in a minor), or a
 /// single-suited quantitative slam invite (`4NT`, relocated off the `3♠` slam try).
 /// The 5-5 majors slam try keeps its single home on the spade transfer.  No effect
@@ -76,10 +76,10 @@ pub(super) fn transfer_gf_hearts() -> bool {
 }
 
 /// Responder's game-forcing rebid after the spade transfer completes
-/// (`1NT–2♥–2♠`), under the GF-majors structure
+/// (`1NT - 2♥ - 2♠`), under the GF-majors structure
 ///
 /// `3♥` is a natural 5-5 slam try — the slam end of the both-majors hands, rerouted
-/// off the capped `1NT–3♦` (the `points(17..)` floor tiles against the `3♦` cap of
+/// off the capped `1NT - 3♦` (the `points(17..)` floor tiles against the `3♦` cap of
 /// `points(..=16)`).  `4NT` is the single-suiter's quantitative slam invite (16+,
 /// denying a fourth heart — the hand the old artificial `3♥` slam try showed, now
 /// relocated here).  `3♥` floors only its own strain (the transfer pins the five
@@ -178,7 +178,7 @@ pub(super) fn transfer_spade_gf_rebid() -> Rules {
         .alert(SPLINTER)
 }
 
-/// Responder's game-forcing rebid after the *heart* transfer completes (`1NT–2♦–2♥`)
+/// Responder's game-forcing rebid after the *heart* transfer completes (`1NT - 2♦ - 2♥`)
 ///
 /// The heart mirror of [`transfer_spade_gf_rebid`], tighter because `2♠`/`2NT` are the
 /// single-suited/`5♥4♠` invites and `3♥` is the six-card invite.  So there is **no**
@@ -262,7 +262,7 @@ pub(super) fn transfer_heart_gf_rebid() -> Rules {
         .alert(SLAM_TRY)
 }
 
-/// Opener's answer to responder's quantitative `4NT` (`1NT–2♥–2♠–4NT`)
+/// Opener's answer to responder's quantitative `4NT` (`1NT - 2♥ - 2♠ - 4NT`)
 ///
 /// Responder is a balanced 16+ single-suited five-spade hand inviting slam.  A
 /// maximum (17) accepts — `6M` on three-card support (the known eight-card fit),
@@ -440,16 +440,16 @@ pub(crate) fn spade_transfer_game_force() -> Package {
         gate: transfer_gf_majors,
         entries: || {
             let mut entries = rows_of(
-                Pattern::node("P* 1NT (P) 2♥ (P) 2♠ (P) 4NT (P)"),
+                Pattern::node("P* 1NT - 2♥ - 2♠ - 4NT -"),
                 gf_quant_answer(Suit::Spades),
             );
             entries.extend(expand(
-                "P* 1NT (P) 2♥ (P) 2♠ (P) 3m (P)",
+                "P* 1NT - 2♥ - 2♠ - 3m -",
                 |_| true,
                 |_| gf_minor_answer(Suit::Spades),
             ));
             for short in [Strain::Clubs, Strain::Diamonds, Strain::Hearts] {
-                let path = format!("P* 1NT (P) 2♥ (P) 2♠ (P) {} (P)", call(4, short),);
+                let path = format!("P* 1NT - 2♥ - 2♠ - {} -", call(4, short),);
                 entries.extend(rows_of(
                     Pattern::node(&path),
                     gf_splinter_answer(Suit::Spades),
@@ -468,11 +468,11 @@ pub(crate) fn heart_transfer_game_force() -> Package {
         gate: transfer_gf_hearts,
         entries: || {
             let mut entries = rows_of(
-                Pattern::node("P* 1NT (P) 2♦ (P) 2♥ (P) 4NT (P)"),
+                Pattern::node("P* 1NT - 2♦ - 2♥ - 4NT -"),
                 gf_quant_answer(Suit::Hearts),
             );
             entries.extend(expand(
-                "P* 1NT (P) 2♦ (P) 2♥ (P) 3m (P)",
+                "P* 1NT - 2♦ - 2♥ - 3m -",
                 |_| true,
                 |_| gf_minor_answer(Suit::Hearts),
             ));
@@ -481,7 +481,7 @@ pub(crate) fn heart_transfer_game_force() -> Package {
                 call(4, Strain::Clubs),
                 call(4, Strain::Diamonds),
             ] {
-                let path = format!("P* 1NT (P) 2♦ (P) 2♥ (P) {splinter} (P)");
+                let path = format!("P* 1NT - 2♦ - 2♥ - {splinter} -");
                 entries.extend(rows_of(
                     Pattern::node(&path),
                     gf_splinter_answer(Suit::Hearts),

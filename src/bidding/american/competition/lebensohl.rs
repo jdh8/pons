@@ -240,7 +240,7 @@ pub(crate) fn lebensohl_responder(over: Suit) -> Rules {
     rules.rule(Call::Pass, 0, hcp(0..))
 }
 
-/// Responder's counter-defense after `1NT − (2♦)` when the `2♦` is read as a
+/// Responder's counter-defense after `1NT (2♦)` when the `2♦` is read as a
 /// **Multi** (an unknown single-suited major), engaged by
 /// [`set_defense_to_2d_multi`]
 ///
@@ -359,7 +359,7 @@ pub(super) fn lebensohl_signoff_raise(signoff: Suit, resp_floor: u8) -> Rules {
 /// Sections 5 / 5b / 5c as a row package: Lebensohl after our `1NT` is
 /// overcalled at the 2 level ([`set_lebensohl_style`])
 ///
-/// Purely additive — nothing else lands at `[1NT]` in the competitive book.
+/// Purely additive — nothing else lands at `1NT` in the competitive book.
 /// Plain or Transfer Lebensohl per [`LebensohlStyle`]; both keep the weak `2NT`
 /// relay.  Over a natural `(2♣)` we play *systems on* instead (a rebase onto the
 /// uncontested tree), so Lebensohl proper is wired only over the overcalls that
@@ -420,19 +420,19 @@ pub(super) fn lebensohl_package() -> Package {
                 }),
             ));
 
-            // Opener's penalty-pass of that Double: after [1NT, (2♣), X, (P)]
+            // Opener's penalty-pass of that Double: after `1NT (2♣) X -`
             // opener with good clubs sits to defend 2♣ doubled instead of
-            // answering the stolen Stayman.  Authored at the same [1NT, 2♣] node
+            // answering the stolen Stayman.  Authored at the same `1NT (2♣)` node
             // as the responder classifier (depth 2), so `resolve_at` reaches it
             // *before* the depth-1 systems-on rebase; the disjoint suffix guard
-            // ([X, P] vs the responder's empty suffix) keeps the two from
+            // (`X -` vs the responder's empty suffix) keeps the two from
             // colliding.  `stayman_answers()` rides along as the always-mass
             // catch-all, so a hand failing the club gate just answers Stayman
             // exactly as the rebase would (no silent pass).
             if let Some((min_len, min_hcp, over_major)) = penalty_pass() {
                 let pass_logit = if over_major { 150 } else { 75 };
                 entries.extend(rows_of(
-                    Pattern::after("P* 1NT (2♣)", "X (P)"),
+                    Pattern::after("P* 1NT (2♣)", "X -"),
                     stayman_answers().rule(
                         Call::Pass,
                         pass_logit,
@@ -475,19 +475,16 @@ pub(super) fn lebensohl_package() -> Package {
                     DoubleStyle::Takeout => None,
                 };
                 if let (true, Some(reply)) = (penalty_double_leave_in(), opener_reply) {
-                    entries.extend(rows_of(
-                        Pattern::after(NT, &format!("{their} X (P)")),
-                        reply,
-                    ));
+                    entries.extend(rows_of(Pattern::after(NT, &format!("{their} X -")), reply));
                 }
 
                 // Opener completes the 2NT relay with 3♣, and responder rebids
                 // over it (the weak relay sign-off).
                 entries.extend(rows_of(
-                    Pattern::after(NT, &format!("{their} 2NT (P)")),
+                    Pattern::after(NT, &format!("{their} 2NT -")),
                     complete_lebensohl_relay(),
                 ));
-                let relay = format!("{their} 2NT (P) 3♣ (P)");
+                let relay = format!("{their} 2NT - 3♣ -");
                 entries.extend(rows_of(
                     Pattern::after(NT, &relay),
                     lebensohl_relay_rebid(over),
@@ -503,7 +500,7 @@ pub(super) fn lebensohl_package() -> Package {
                         continue;
                     }
                     entries.extend(rows_of(
-                        Pattern::after(NT, &format!("{relay} 3{} (P)", Strain::from(signoff))),
+                        Pattern::after(NT, &format!("{relay} 3{} -", Strain::from(signoff))),
                         lebensohl_signoff_raise(signoff, 6),
                     ));
                 }
@@ -522,7 +519,7 @@ pub(super) fn lebensohl_package() -> Package {
                             continue; // not above the overcall — no 2-level natural
                         }
                         entries.extend(rows_of(
-                            Pattern::after(NT, &format!("{their} 2{} (P)", Strain::from(signoff))),
+                            Pattern::after(NT, &format!("{their} 2{} -", Strain::from(signoff))),
                             lebensohl_signoff_raise(signoff, natural_floor_hcp()),
                         ));
                     }
@@ -532,7 +529,7 @@ pub(super) fn lebensohl_package() -> Package {
                 // (Transfer wires its cue reply in the block below.)
                 if style == LebensohlStyle::Plain {
                     entries.extend(rows_of(
-                        Pattern::after(NT, &format!("{their} 3{o} (P)")),
+                        Pattern::after(NT, &format!("{their} 3{o} -")),
                         cue_stayman_answer(over),
                     ));
                 }
@@ -552,7 +549,7 @@ pub(super) fn lebensohl_package() -> Package {
                             continue; // over (2♣): clubs is their suit — floored
                         };
                         entries.extend(rows_of(
-                            Pattern::after(NT, &format!("{their} 3{} (P)", Strain::from(bid_suit))),
+                            Pattern::after(NT, &format!("{their} 3{} -", Strain::from(bid_suit))),
                             reply,
                         ));
                     }
@@ -565,7 +562,7 @@ pub(super) fn lebensohl_package() -> Package {
                 // *bids* it under `set_delayed_cue`.
                 if style == LebensohlStyle::Transfer && unbid_major(over).is_some() {
                     entries.extend(rows_of(
-                        Pattern::after(NT, &format!("{relay} 3{o} (P)")),
+                        Pattern::after(NT, &format!("{relay} 3{o} -")),
                         cue_stayman_answer(over),
                     ));
                 }
@@ -577,21 +574,21 @@ pub(super) fn lebensohl_package() -> Package {
                 if style == LebensohlStyle::Transfer && over == Suit::Diamonds {
                     for (suffix, rules) in [
                         // 3♣ Stayman, opener's answer; then Smolen after the 3♦ denial.
-                        ("3♣ (P)", stayman_2d_answer()),
-                        ("3♣ (P) 3♦ (P)", smolen_at_three()),
-                        ("3♣ (P) 3♦ (P) 3♥ (P)", smolen_completion(Suit::Spades)),
-                        ("3♣ (P) 3♦ (P) 3♠ (P)", smolen_completion(Suit::Hearts)),
+                        ("3♣ -", stayman_2d_answer()),
+                        ("3♣ - 3♦ -", smolen_at_three()),
+                        ("3♣ - 3♦ - 3♥ -", smolen_completion(Suit::Spades)),
+                        ("3♣ - 3♦ - 3♠ -", smolen_completion(Suit::Hearts)),
                         // Opener showed a 4-card major over Stayman; responder places.
-                        ("3♣ (P) 3♥ (P)", stayman_2d_fit_rebid(Suit::Hearts)),
-                        ("3♣ (P) 3♠ (P)", stayman_2d_fit_rebid(Suit::Spades)),
+                        ("3♣ - 3♥ -", stayman_2d_fit_rebid(Suit::Hearts)),
+                        ("3♣ - 3♠ -", stayman_2d_fit_rebid(Suit::Spades)),
                         // Jacoby transfers: 3♦→♥, 3♥→♠ (auto-driven), 3♠→♣ (forced GF).
-                        ("3♦ (P)", transfer_completion(Suit::Hearts, over)),
-                        ("3♥ (P)", transfer_completion(Suit::Spades, over)),
-                        ("3♠ (P)", clubs_transfer_completion(over)),
+                        ("3♦ -", transfer_completion(Suit::Hearts, over)),
+                        ("3♥ -", transfer_completion(Suit::Spades, over)),
+                        ("3♠ -", clubs_transfer_completion(over)),
                         // Leaping Michaels: 4♦ both majors, 4♣ clubs + a major (ask).
-                        ("4♦ (P)", lm_2d_both_majors_advance()),
-                        ("4♣ (P)", lm_2d_clubs_ask()),
-                        ("4♣ (P) 4♦ (P)", lm_2d_clubs_major()),
+                        ("4♦ -", lm_2d_both_majors_advance()),
+                        ("4♣ -", lm_2d_clubs_ask()),
+                        ("4♣ - 4♦ -", lm_2d_clubs_major()),
                     ] {
                         entries.extend(rows_of(
                             Pattern::after(NT, &format!("{their} {suffix}")),

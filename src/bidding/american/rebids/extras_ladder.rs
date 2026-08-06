@@ -26,11 +26,11 @@ std::thread_local! {
 /// largest un-worked lever in the Constructive/book/round-2 anchor bucket.  This
 /// adds three rungs above the minimum, disjoint from it by crisp point bands:
 ///
-/// - **Jump-rebid** of opener's suit (`1♦ – 1♠ – 3♦`): a self-sufficient 6+
+/// - **Jump-rebid** of opener's suit (`1♦ - 1♠ - 3♦`): a self-sufficient 6+
 ///   suit, 16+ points, invitational.
-/// - **Reverse** into a higher new suit (`1♦ – 1♠ – 2♥`): 5+ first suit, 4+
+/// - **Reverse** into a higher new suit (`1♦ - 1♠ - 2♥`): 5+ first suit, 4+
 ///   second, 17+ points, forcing.
-/// - **Jump-shift** into a new suit (`1♦ – 1♠ – 3♣`): 5-4, 18+ points,
+/// - **Jump-shift** into a new suit (`1♦ - 1♠ - 3♣`): 5-4, 18+ points,
 ///   game-forcing.
 ///
 /// Read at book-construction time; shipped default-on (+0.0203/+0.0332 plain,

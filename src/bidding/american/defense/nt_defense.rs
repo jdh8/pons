@@ -10,7 +10,7 @@
 //! conventions: only the call carries a convention, not the system.  "Woolsey"
 //! is `X` = Woolsey + `2♣` = Landy + `2♦` = Multi + `2♥`/`2♠` = Muiderberg.  So
 //! each artificial `(call, convention)` is authored once as an alerted block, all
-//! of them are chained at the `[1NT]` node, and [`Rules::gated`] ships only the
+//! of them are chained at the `(1NT)` node, and [`Rules::gated`] ships only the
 //! active system's calls at book-construction time (the same build-time gate the
 //! European 1NT minors use; see `notrump::notrump_responses`).
 //!
@@ -69,8 +69,8 @@ pub enum NotrumpDefense {
     DirectLandy,
     /// Author only `Pass` for every hand — our side never competes.
     AlwaysPass,
-    /// Author nothing; the `[1NT]` node falls through to the bare instinct floor
-    /// (what selecting this variant gives: no authored rules at the `[1NT]` node).
+    /// Author nothing; the `(1NT)` node falls through to the bare instinct floor
+    /// (what selecting this variant gives: no authored rules at the `(1NT)` node).
     Off,
 }
 
@@ -93,7 +93,7 @@ pub(crate) fn notrump_defense() -> NotrumpDefense {
 
 thread_local! {
     /// Whether to also author the natural defense in the *balancing* seat
-    /// `(1NT) P P ?`; **off by default** (opt-in A/B). Off leaves the balancing
+    /// `(1NT) - - ?`; **off by default** (opt-in A/B). Off leaves the balancing
     /// seat to the instinct floor — the source of the toxic balancing doubles.
     static NOTRUMP_BALANCING: Cell<bool> = const { Cell::new(false) };
 }
@@ -103,7 +103,7 @@ pub(crate) fn natural_defense_enabled() -> bool {
     notrump_defense() == NotrumpDefense::Natural
 }
 
-/// Extend the natural 1NT defense to the *balancing* seat `(1NT) P P ?` for books
+/// Extend the natural 1NT defense to the *balancing* seat `(1NT) - - ?` for books
 /// built *after* this call (thread-local; **off by default**). On, the balancing
 /// seat reuses `defense_to_notrump` instead of falling to the instinct floor's
 /// undisciplined balancing doubles. An A/B knob (`bba-match --ns-balancing`).
@@ -220,7 +220,7 @@ fn chain_natural_base(rules: Rules) -> Rules {
     }
 }
 
-/// The artificial alerts live at the `[1NT]` node for the configured system, one
+/// The artificial alerts live at the `(1NT)` node for the configured system, one
 /// per [`NotrumpDefense`] plus the two independent overlays.  Read once at
 /// book-construction time.
 fn active_alerts() -> Vec<Alert> {
@@ -260,7 +260,7 @@ fn active_alerts() -> Vec<Alert> {
 /// Our defense to the opponents' 1NT opening, composed from per-call alert tags
 ///
 /// The untagged natural base ([`chain_natural_base`]) and every artificial alert
-/// are chained at the `[1NT]` node; [`Rules::gated`] then ships only the active
+/// are chained at the `(1NT)` node; [`Rules::gated`] then ships only the active
 /// system's alerts (untagged natural rules always survive).  [`active_alerts`]
 /// guarantees at most one convention per call, and the natural base skips any slot
 /// an alert owns, so no two rules collide at a node.
@@ -287,7 +287,7 @@ pub fn defense_to_notrump() -> Rules {
 
 /// Defense to their `1NT` opening, direct and balancing seat
 ///
-/// The balancing entry reuses the direct ranges so `(1NT) P P ?` no longer
+/// The balancing entry reuses the direct ranges so `(1NT) - - ?` no longer
 /// falls to the instinct floor's undisciplined balancing doubles; a lighter
 /// balancing-specific range is a later refinement.  See
 /// `set_notrump_balancing`.
@@ -298,10 +298,7 @@ pub(super) fn notrump_defense_package() -> Package {
         entries: || {
             let mut entries = rows_of(Pattern::node("P* (1NT)"), defense_to_notrump());
             if notrump_balancing_enabled() {
-                entries.extend(rows_of(
-                    Pattern::node("P* (1NT) P (P)"),
-                    defense_to_notrump(),
-                ));
+                entries.extend(rows_of(Pattern::node("P* (1NT) - -"), defense_to_notrump()));
             }
             entries
         },

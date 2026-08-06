@@ -5,7 +5,7 @@ use contract_bridge::auction::Call;
 #[test]
 fn weak_two_doubled_gets_business_redouble_and_systems_on() {
     super::our_preempts::set_weak_two_competition(true);
-    // [2♠, (X)]: 17-count with a singleton spade — no Ogust fit — redoubles.
+    // `2♠ (X)`: 17-count with a singleton spade — no Ogust fit — redoubles.
     let auction = [call(2, Strain::Spades), Call::Double];
     let (xx, floored) = best_call(&auction, "A.K654.A964.KQ32");
     assert_eq!(xx, Call::Redouble, "business redouble on values");
@@ -29,7 +29,7 @@ fn weak_two_doubled_gets_business_redouble_and_systems_on() {
 #[test]
 fn weak_two_overcalled_double_is_values_and_ogust_survives() {
     super::our_preempts::set_weak_two_competition(true);
-    // [2♥, (2♠)]: a 12-count doubles for penalty-leaning values.
+    // `2♥ (2♠)`: a 12-count doubles for penalty-leaning values.
     let auction = [call(2, Strain::Hearts), call(2, Strain::Spades)];
     let (double, floored) = best_call(&auction, "KJ54.Q5.A964.Q32");
     assert_eq!(double, Call::Double, "values double");
@@ -52,12 +52,12 @@ fn weak_two_overcalled_double_is_values_and_ogust_survives() {
 #[test]
 fn strong_two_contested_stays_strong() {
     super::our_preempts::set_strong_two_competition(true);
-    // [2♣, (X)]: systems on — a bust still gives the 2♥ double negative.
+    // `2♣ (X)`: systems on — a bust still gives the 2♥ double negative.
     let doubled = [call(2, Strain::Clubs), Call::Double];
     let (negative, floored) = best_call(&doubled, "9542.Q54.964.432");
     assert_eq!(negative, call(2, Strain::Hearts), "systems on over their X");
     assert!(!floored, "the rebase resolves to the authored tree");
-    // [2♣, (2♠)]: a positive with good hearts bids them naturally (3♥ —
+    // `2♣ (2♠)`: a positive with good hearts bids them naturally (3♥ —
     // the 2-level is gone); a values hand without a suit doubles; a bust
     // passes and waits.
     let overcalled = [call(2, Strain::Clubs), call(2, Strain::Spades)];

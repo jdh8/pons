@@ -5,7 +5,7 @@ use contract_bridge::auction::Call;
 #[test]
 fn high_overcalls_get_a_structure() {
     super::high_overcall::set_high_overcall_responses(true);
-    // [1♠, (3♦)]: 4 hearts + 12 HCP make the 3-level negative double; a
+    // `1♠ (3♦)`: 4 hearts + 12 HCP make the 3-level negative double; a
     // diamond stopper + 16 bids 3NT instead.
     let auction = [call(1, Strain::Spades), call(3, Strain::Diamonds)];
     let (neg, floored) = best_call(&auction, "K5.KQ54.965.A432");

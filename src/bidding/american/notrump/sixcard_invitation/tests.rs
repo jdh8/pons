@@ -44,7 +44,7 @@ fn sixcard_major_invite() {
     assert_eq!(best(&after_transfer, inv), bid(3, Strain::Hearts));
     assert_ne!(best(&after_transfer, weak), bid(3, Strain::Hearts));
 
-    // Opener over 1NT–2♦–2♥–3♥: accept (4♥) on point_count + trump length ≥ 18,
+    // Opener over 1NT - 2♦ - 2♥ - 3♥: accept (4♥) on point_count + trump length ≥ 18,
     // else pass.  16 with a doubleton (16+2) accepts; a flat 15 with a doubleton
     // (15+2 = 17) passes; a 15 with three-card support (15+3) accepts.
     let over_invite = [

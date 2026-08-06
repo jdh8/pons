@@ -12,7 +12,7 @@ fn ladder_trie() -> Trie {
     trie
 }
 
-/// The raw table auction `[1♦, P, 1♠, P]` (opener to rebid).
+/// The raw table auction `1♦ - 1♠ -` (opener to rebid).
 const AFTER_1D_1S: &[Call] = &[
     Call::Bid(Bid::new(1, Strain::Diamonds)),
     Call::Pass,

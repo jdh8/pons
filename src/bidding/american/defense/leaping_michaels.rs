@@ -82,7 +82,7 @@ fn leaping_michaels_advances(theirs: Suit, lm: Suit) -> Rules {
     }
 }
 
-/// Overcaller's rebid after `(2♦)–4♣–(P)–4♥–(P)`: pass-or-correct to their major
+/// Overcaller's rebid after `(2♦) 4♣ - 4♥ -`: pass-or-correct to their major
 ///
 /// `4♣` over `2♦` showed clubs + a major; advancer's `4♥` is pass-or-correct, so
 /// the overcaller passes with hearts or corrects to `4♠` with spades.
@@ -107,7 +107,7 @@ pub(super) fn leaping_michaels_package() -> Package {
                 for lm in [Suit::Clubs, Suit::Diamonds] {
                     let jump = Bid::new(4, Strain::from(lm));
                     entries.extend(rows_of(
-                        Pattern::node(&format!("P* ({opening}) {jump} (P)")),
+                        Pattern::node(&format!("P* ({opening}) {jump} -")),
                         leaping_michaels_advances(suit, lm),
                     ));
                 }
@@ -115,7 +115,7 @@ pub(super) fn leaping_michaels_package() -> Package {
                 // pass-or-correct, so the overcaller names their major in rebid.
                 if suit == Suit::Diamonds {
                     entries.extend(rows_of(
-                        Pattern::node(&format!("P* ({opening}) 4♣ (P) 4♥ (P)")),
+                        Pattern::node(&format!("P* ({opening}) 4♣ - 4♥ -")),
                         leaping_michaels_2d_4c_rebid(),
                     ));
                 }

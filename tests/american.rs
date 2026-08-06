@@ -213,7 +213,7 @@ fn test_negative_double_and_system_on() {
     let system = stance();
     let one_h = call(1, Strain::Hearts);
 
-    // 1♥ - (2♣) - ?: 10 HCP with four spades makes a negative double.
+    // 1♥ (2♣) ?: 10 HCP with four spades makes a negative double.
     assert_eq!(
         best_call(
             &system,
@@ -222,7 +222,7 @@ fn test_negative_double_and_system_on() {
         ),
         Call::Double,
     );
-    // 1♥ - (X) - ?: system on, the responses apply through the double.
+    // 1♥ (X) ?: system on, the responses apply through the double.
     assert_eq!(
         best_call(&system, &[one_h, Call::Double], "Q32.J53.A964.Q92"),
         call(2, Strain::Hearts),
@@ -235,17 +235,17 @@ fn test_negative_double_and_system_on() {
 fn test_defense() {
     let system = stance();
 
-    // (1♣) - ?: 9 HCP with five spades overcalls 1♠.
+    // (1♣) ?: 9 HCP with five spades overcalls 1♠.
     assert_eq!(
         best_call(&system, &[call(1, Strain::Clubs)], "AQJ32.853.Q42.92"),
         call(1, Strain::Spades),
     );
-    // (1♠) - ?: 15 HCP short in spades makes a takeout double.
+    // (1♠) ?: 15 HCP short in spades makes a takeout double.
     assert_eq!(
         best_call(&system, &[call(1, Strain::Spades)], "2.KQ54.AJ43.KQ92"),
         Call::Double,
     );
-    // (1♣) - 1♠ - (P) - ?: advancing partner's overcall is the instinct floor's
+    // (1♣) 1♠ - ?: advancing partner's overcall is the instinct floor's
     // Rubens job now; a weak three-card raise still takes the simple 2♠ (a limit
     // raise would transfer — see the Rubens rails in american_instinct).
     assert_eq!(
@@ -342,12 +342,12 @@ fn test_notrump_ladder() {
 fn test_defense_extras() {
     let system = stance();
 
-    // (1♦) - 18 HCP with length in diamonds: double first, plan to bid again.
+    // (1♦): 18 HCP with length in diamonds: double first, plan to bid again.
     assert_eq!(
         best_call(&system, &[call(1, Strain::Diamonds)], "A.Q6.KJ852.AKJ42"),
         Call::Double,
     );
-    // (1♣) - 17 HCP balanced with a club stopper -> 1NT overcall.
+    // (1♣): 17 HCP balanced with a club stopper -> 1NT overcall.
     assert_eq!(
         best_call(&system, &[call(1, Strain::Clubs)], "AQ2.KJ3.KQ54.Q92"),
         call(1, Strain::Notrump),
@@ -398,7 +398,7 @@ fn strength_dial_zero_preserves_american_logits() {
 
 #[test]
 fn test_jacoby_into_keycards() {
-    // 1♠ - 2NT (Jacoby) - 3♣ (shortness) - 4NT (RKCB): opener answers.
+    // `1♠ - 2NT - 3♣ - 4NT`: Jacoby, then shortness, then RKCB; opener answers.
     let system = stance();
     let p = Call::Pass;
     let auction = [
@@ -420,7 +420,7 @@ fn test_jacoby_into_keycards() {
 
 #[test]
 fn test_game_force_into_keycards() {
-    // 1♠ - 2♣ - 2♦ - 3♠ (sets trump) - 4NT: responder answers 1430.
+    // `1♠ - 2♣ - 2♦ - 3♠ - 4NT`: responder sets trump, then answers 1430.
     let system = stance();
     let p = Call::Pass;
     let auction = [
@@ -444,7 +444,7 @@ fn test_game_force_into_keycards() {
 
 #[test]
 fn test_strong_two_system_on_transfer() {
-    // 2♣ - 2♥ (double negative) - 2NT (22-24): transfers stay on.
+    // `2♣ - 2♥ - 2NT`: after the double negative and 22–24 rebid, transfers stay on.
     let system = stance();
     let p = Call::Pass;
     let auction = [

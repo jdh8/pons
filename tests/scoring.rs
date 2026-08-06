@@ -20,7 +20,7 @@ fn auction(calls: impl IntoIterator<Item = Call>) -> Auction {
 
 #[test]
 fn test_final_contract_doubled() {
-    // (2♠) X passed out, dealer West: 2♠X played by West.
+    // `(2♠) X - - -`, dealer West: 2♠X played by West.
     let auction = auction([
         bid(2, Strain::Spades),
         Call::Double,
@@ -39,7 +39,7 @@ fn test_final_contract_doubled() {
 
 #[test]
 fn test_final_contract_bid_resets_penalty() {
-    // 1♥ X 1♠ all pass: the double applies to 1♥, not to the final 1♠.
+    // `1♥ (X) 1♠ - - -`: the double applies to 1♥, not to the final 1♠.
     let auction = auction([
         bid(1, Strain::Hearts),
         Call::Double,

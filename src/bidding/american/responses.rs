@@ -28,15 +28,15 @@ std::thread_local! {
     /// (turn this knob *off*).
     static LONGER_MAJOR_RESPONSE: Cell<bool> = const { Cell::new(true) };
     /// Whether the natural minor-opening tree is completed **up the line**:
-    /// the `1♣ – 1♦` response, opener's `1♠` rebid over `1m – 1♥`, and
-    /// opener's natural `2♣` rebid after `1♣ – 1♦`.  Default `true`, shipped
+    /// the `1♣ - 1♦` response, opener's `1♠` rebid over `1m - 1♥`, and
+    /// opener's natural `2♣` rebid after `1♣ - 1♦`.  Default `true`, shipped
     /// **jointly with XYZ** (`ab-minor-continuations`, 300k boards, with
     /// `set_xyz`: plain +0.0382/+0.0559 IMPs/board NV/vul, PD
     /// +0.0289/+0.0407).  Alone it is a measured **loss** (plain
     /// −0.91/−1.28 per divergent) — the 1♦ response reroutes hands into
     /// auctions only the XYZ round continues; don't enable it with XYZ off.
     static UP_THE_LINE: Cell<bool> = const { Cell::new(true) };
-    /// Whether `1M – 3NT` is authored as a **choice of games**: 3-4 card
+    /// Whether `1M - 3NT` is authored as a **choice of games**: 3-4 card
     /// support, exactly (4333), 12-15 HCP — responder offers 3NT, opener
     /// passes balanced and corrects to `4M` with shape.  Default `true` —
     /// **shipped default-on 2026-07-15** (isolated: plain +0.0006/+0.0011
@@ -59,17 +59,17 @@ std::thread_local! {
     static TWO_OVER_ONE_GATE: Cell<TwoOverOneGate> =
         const { Cell::new(TwoOverOneGate::Points13) };
     /// Whether the major 2/1 game force names **natural per-call suit lengths**
-    /// instead of a uniform four: `1♠–2♥` promises five (a 2/1 into a major is
-    /// a real five-card suit), `1♠–2♣` allows three (the cheapest 2/1 is the
+    /// instead of a uniform four: `1♠ - 2♥` promises five (a 2/1 into a major is
+    /// a real five-card suit), `1♠ - 2♣` allows three (the cheapest 2/1 is the
     /// catch-all), and the rest keep four.  Default `false` (uniform four,
     /// book byte-identical); A/B pending.
     static TWO_OVER_ONE_NATURAL_LENGTHS: Cell<bool> = const { Cell::new(false) };
-    /// Whether `1♠–2♥` (the five-card-major 2/1) forces game a shade light: its
+    /// Whether `1♠ - 2♥` (the five-card-major 2/1) forces game a shade light: its
     /// no-fit `Hcp*` floor drops by one — `hcp(12..)` at the default `Hcp13`
     /// gate — serving both 3NT and `4♥`.  Default `false` (book byte-identical);
     /// A/B pending.
     static TWO_OVER_ONE_MAJOR_DISCOUNT: Cell<bool> = const { Cell::new(false) };
-    /// Whether `1♠–2♥` forces game on a flat twelve, banking its **ensured
+    /// Whether `1♠ - 2♥` forces game on a flat twelve, banking its **ensured
     /// five-card heart suit**: the no-fit leg becomes `len(♥,5..) & hcp(12..)`
     /// (from the default `points(13..)` at `min_len` four), admitting the flat
     /// 5=3=3=2 twelve-counts that the `points` scale leaves at a forcing 1NT
@@ -155,9 +155,9 @@ pub(crate) fn longer_major_response() -> bool {
 ///
 /// On: responder bids `1♦` over `1♣` on four-plus diamonds without a
 /// four-card major (off, those hands squeeze into the notrump ladder or fall
-/// to the floor), opener rebids `1♠` over `1m – 1♥` on four spades (off, the
+/// to the floor), opener rebids `1♠` over `1m - 1♥` on four spades (off, the
 /// 4-4 spade fit is lost to a 1NT rebid), and opener rebids a natural `2♣`
-/// after `1♣ – 1♦` on six-plus clubs (off, a misdescribed 1NT catch-all).
+/// after `1♣ - 1♦` on six-plus clubs (off, a misdescribed 1NT catch-all).
 ///
 /// Shipped **jointly with [`set_xyz`][super::set_xyz]**: the 1♦ response only
 /// pays once responder's second round has the XYZ machinery (alone it
@@ -171,7 +171,7 @@ pub(crate) fn up_the_line() -> bool {
     UP_THE_LINE.with(Cell::get)
 }
 
-/// Author the `1M – 3NT` choice-of-games response for books built after this
+/// Author the `1M - 3NT` choice-of-games response for books built after this
 /// call (default `true`; off-switch `--no-ns-major-choice-of-games` in
 /// `bba-gen`)
 ///
@@ -222,7 +222,7 @@ fn two_over_one_gate() -> TwoOverOneGate {
 /// built after this call (default `false`;
 /// `--ns-two-over-one-natural-lengths` in `bba-gen`)
 ///
-/// On: `1♠–2♥` promises 5+ hearts and `1♠–2♣` allows 3+ clubs (the cheapest
+/// On: `1♠ - 2♥` promises 5+ hearts and `1♠ - 2♣` allows 3+ clubs (the cheapest
 /// 2/1 is the catch-all); every other 2/1 keeps its 4+ floor.  Off: a uniform
 /// 4+ in every 2/1 suit.
 pub fn set_two_over_one_natural_lengths(on: bool) {
@@ -234,10 +234,10 @@ fn two_over_one_natural_lengths() -> bool {
     TWO_OVER_ONE_NATURAL_LENGTHS.with(Cell::get)
 }
 
-/// Lighten the `1♠–2♥` game force by one HCP for books built after this call
+/// Lighten the `1♠ - 2♥` game force by one HCP for books built after this call
 /// (default `false`; `--ns-two-over-one-major-discount` in `bba-gen`)
 ///
-/// On: the no-fit leg of `1♠–2♥` drops its `Hcp*` floor by one — `hcp(12..)`
+/// On: the no-fit leg of `1♠ - 2♥` drops its `Hcp*` floor by one — `hcp(12..)`
 /// at the default `Hcp13` gate — because the five-card major is worth a game
 /// force a shade light.  Off: the full gate floor.  No effect on the `Points*`
 /// gates or on any other 2/1.
@@ -245,16 +245,16 @@ pub fn set_two_over_one_major_discount(on: bool) {
     TWO_OVER_ONE_MAJOR_DISCOUNT.with(|cell| cell.set(on));
 }
 
-/// Whether the `1♠–2♥` HCP discount is currently authored
+/// Whether the `1♠ - 2♥` HCP discount is currently authored
 fn two_over_one_major_discount() -> bool {
     TWO_OVER_ONE_MAJOR_DISCOUNT.with(Cell::get)
 }
 
-/// Force `1♠–2♥` game on a flat twelve with five hearts for books built after
+/// Force `1♠ - 2♥` game on a flat twelve with five hearts for books built after
 /// this call (default `false`; measured via `ab-point-count --fix
 /// two-over-one-heart-light`)
 ///
-/// On: the no-fit leg of `1♠–2♥` becomes `len(♥,5..) & hcp(12..)` — the ensured
+/// On: the no-fit leg of `1♠ - 2♥` becomes `len(♥,5..) & hcp(12..)` — the ensured
 /// five-card major forces game a full HCP light, admitting the flat 5=3=3=2
 /// twelve-counts the `points` scale leaves at a forcing 1NT.  Off: the shipped
 /// `points(13..)` no-fit gate at `min_len` four.  No effect on any other 2/1 or
@@ -273,7 +273,7 @@ pub fn set_two_over_one_heart_light(on: bool) {
     TWO_OVER_ONE_HEART_LIGHT.with(|cell| cell.set(on));
 }
 
-/// Whether the `1♠–2♥` flat-twelve heart-light gate is currently authored
+/// Whether the `1♠ - 2♥` flat-twelve heart-light gate is currently authored
 fn two_over_one_heart_light() -> bool {
     TWO_OVER_ONE_HEART_LIGHT.with(Cell::get)
 }
@@ -325,7 +325,7 @@ const WEAK_JUMP_SHIFT: Alert = Alert("weak-jump-shift");
 const INVERTED_MINOR: Alert = Alert("inverted-minor");
 /// 2/1 game force — a new suit at the two level, game forcing
 const GAME_FORCE: Alert = Alert("game-force");
-/// Choice of games — `1M – 3NT` with 3-4 card support, (4333), 12-15 HCP
+/// Choice of games — `1M - 3NT` with 3-4 card support, (4333), 12-15 HCP
 const CHOICE_OF_GAMES: Alert = Alert("choice-of-games-3nt");
 
 /// Responses to our `1♥`/`1♠` opening
@@ -475,7 +475,7 @@ pub fn major_responses(major: Suit) -> Rules {
             };
             // 2♥ over 1♠ (the five-card major) may force game one HCP light.
             let discount = u8::from(two_over_one_major_discount() && suit == Suit::Hearts);
-            // Heart-light overrides the gate on `1♠–2♥` alone: the ensured
+            // Heart-light overrides the gate on `1♠ - 2♥` alone: the ensured
             // five-card suit forces game on a flat twelve (`len(♥,5..) &
             // hcp(12..)`), reaching `4♥` on the 5-3 fit — the strain-location
             // bet.  Fit leg (exactly-three-card spade support) unchanged; an
@@ -662,7 +662,7 @@ fn wjs_bid(major: Suit, x: Suit) -> (u8, Strain) {
 
 /// Responses to our `1♣`/`1♦` opening
 ///
-/// Four-card majors up the line, a 2/1 game force (`1♦–2♣`), the notrump
+/// Four-card majors up the line, a 2/1 game force (`1♦ - 2♣`), the notrump
 /// ladder when no major fits, and inverted minor raises promising five-card
 /// support (strong 2-of-minor forcing, weak preemptive 3-of-minor).
 #[must_use]
@@ -674,7 +674,7 @@ pub fn minor_responses(minor: Suit) -> Rules {
         // Longer-major discipline (the default, `set_longer_major_response`): the response
         // names the longer major — 1♠ on 5♠4♥/6♠5♥ or any 5-5+, 1♥ up the
         // line only on 4-4 — so 1♥ denies longer spades and the M6.4
-        // control-bid classifier can read `1♣–1♥–2♣–4♠` as a control bid.
+        // control-bid classifier can read `1♣ - 1♥ - 2♣ - 4♠` as a control bid.
         rules
             .rule(
                 Bid::new(1, Strain::Spades),
@@ -773,7 +773,7 @@ pub fn minor_responses(minor: Suit) -> Rules {
             .alert(WEAK_JUMP_SHIFT);
     }
 
-    // 2/1 game force: 1♦–2♣ (clubs are cheaper than diamonds).
+    // 2/1 game force: 1♦ - 2♣ (clubs are cheaper than diamonds).
     if minor == Suit::Diamonds {
         rules = rules
             .rule(
@@ -873,9 +873,9 @@ pub(super) fn package() -> Package {
         name: "suit-opening-responses",
         gate: || true,
         entries: || {
-            let mut entries = expand("P* 1M (P)", |_| true, |b| major_responses(b.suit('M')));
+            let mut entries = expand("P* 1M -", |_| true, |b| major_responses(b.suit('M')));
             entries.extend(expand(
-                "P* 1m (P)",
+                "P* 1m -",
                 |_| true,
                 |b| minor_responses(b.suit('m')),
             ));
@@ -890,7 +890,7 @@ pub(super) fn package() -> Package {
                 for &shortness in splinter_suits {
                     let (level, strain) = splinter_bid(major, shortness);
                     let prefix = format!(
-                        "P* {} (P) {} (P)",
+                        "P* {} - {} -",
                         super::call(1, Strain::from(major)),
                         super::call(level, strain),
                     );
@@ -903,22 +903,22 @@ pub(super) fn package() -> Package {
             }
 
             entries.extend(expand(
-                "P* 1m (P) 2m (P)",
+                "P* 1m - 2m -",
                 |_| true,
                 |b| opener_after_inverted_raise(b.suit('m')),
             ));
             entries.extend(expand(
-                "P* 1m (P) 2m (P) 2NT (P)",
+                "P* 1m - 2m - 2NT -",
                 |_| true,
                 |b| responder_after_inverted_raise_two_notrump(b.suit('m')),
             ));
             entries.extend(expand(
-                "P* 1m (P) 2m (P) 2M (P)",
+                "P* 1m - 2m - 2M -",
                 |_| true,
                 |b| responder_after_inverted_raise_major(b.suit('m')),
             ));
             entries.extend(expand(
-                "P* 1m (P) 2m (P) 2M (P) 2NT (P)",
+                "P* 1m - 2m - 2M - 2NT -",
                 |_| true,
                 |_| opener_after_inverted_raise_two_notrump(),
             ));
@@ -934,7 +934,7 @@ pub(super) fn choice_of_games_continuations() -> Package {
         gate: major_choice_of_games,
         entries: || {
             expand(
-                "P* 1M (P) 3NT (P)",
+                "P* 1M - 3NT -",
                 |_| true,
                 |b| opener_after_choice_of_games(b.suit('M')),
             )
@@ -951,7 +951,7 @@ pub(super) fn minor_keycard_continuations() -> Package {
             let mut entries = Vec::new();
             for minor in [Suit::Clubs, Suit::Diamonds] {
                 let prefix = format!(
-                    "P* {} (P) {} (P) 3NT (P)",
+                    "P* {} - {} - 3NT -",
                     super::call(1, Strain::from(minor)),
                     super::call(2, Strain::from(minor)),
                 );

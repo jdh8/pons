@@ -1,4 +1,4 @@
-//! Both-major agreements — the Stayman `2NT` relay, the five-card max, and `1NT – 3♦`
+//! Both-major agreements — the Stayman `2NT` relay, the five-card max, and `1NT - 3♦`
 //!
 //! Three ways a both-majors hand is shown: opener's max-only relay over Stayman
 //! ([`set_stayman_both_majors`]), the five-card-major maximum jump
@@ -96,7 +96,7 @@ fn five_card_max_rebid(major: Suit) -> Rules {
 }
 
 thread_local! {
-    /// Opener jumps to `2NT` over 1NT-2♣ holding *both* four-card majors and a
+    /// Opener jumps to `2NT` over `1NT - 2♣` holding *both* four-card majors and a
     /// *maximum* (16-17); a minimum (15) bids 2♥ naturally.  Responder then names own
     /// major (`3♣` = hearts, `3♦` = spades) and opener completes (`3♥`/`3♠`), so the
     /// strong concealed hand declares the known 4-4 fit (right-siding) instead of
@@ -106,7 +106,7 @@ thread_local! {
     /// with garbage off — a win in every regime, unlike the earlier strength-step
     /// scheme it replaces.  See [`set_stayman_both_majors`].
     static STAYMAN_BOTH_MAJORS: Cell<bool> = const { Cell::new(true) };
-    /// Opener jumps `3♥`/`3♠` over 1NT-2♣ holding a *five-card* major and a
+    /// Opener jumps `3♥`/`3♠` over `1NT - 2♣` holding a *five-card* major and a
     /// maximum (16-17), showing the 5-3/5-4 fit plus extras.  **On by default** —
     /// the cleanest of the three: +3.45 IMPs/fired plain (+0.0007/board, 95% CI
     /// excl 0) and +3.33 PD, holding up at +1.47/+0.90 even with garbage on.  See
@@ -114,13 +114,13 @@ thread_local! {
     static STAYMAN_5CARD_MAX: Cell<bool> = const { Cell::new(true) };
 }
 
-/// Author opener's max-only right-siding relay over 1NT-2♣ with both four-card
+/// Author opener's max-only right-siding relay over `1NT - 2♣` with both four-card
 /// majors for books built *after* this call (thread-local; **on by default**).
 pub fn set_stayman_both_majors(on: bool) {
     STAYMAN_BOTH_MAJORS.with(|cell| cell.set(on));
 }
 
-/// Author opener's max five-card-major jump over 1NT-2♣ for books built *after*
+/// Author opener's max five-card-major jump over `1NT - 2♣` for books built *after*
 /// this call (thread-local; **on by default**).
 pub fn set_stayman_5card_max(on: bool) {
     STAYMAN_5CARD_MAX.with(|cell| cell.set(on));
@@ -187,23 +187,23 @@ pub(crate) fn both_majors_relay() -> Package {
         gate: stayman_both_majors,
         entries: || {
             let mut entries = rows_of(
-                Pattern::node("P* 1NT (P) 2♣ (P) 2NT (P)"),
+                Pattern::node("P* 1NT - 2♣ - 2NT -"),
                 both_majors_max_responder(),
             );
             entries.extend(rows_of(
-                Pattern::node("P* 1NT (P) 2♣ (P) 2NT (P) 3♣ (P)"),
+                Pattern::node("P* 1NT - 2♣ - 2NT - 3♣ -"),
                 both_majors_relay_complete(Suit::Hearts),
             ));
             entries.extend(rows_of(
-                Pattern::node("P* 1NT (P) 2♣ (P) 2NT (P) 3♦ (P)"),
+                Pattern::node("P* 1NT - 2♣ - 2NT - 3♦ -"),
                 both_majors_relay_complete(Suit::Spades),
             ));
             entries.extend(rows_of(
-                Pattern::node("P* 1NT (P) 2♣ (P) 2NT (P) 3♣ (P) 3♥ (P)"),
+                Pattern::node("P* 1NT - 2♣ - 2NT - 3♣ - 3♥ -"),
                 both_majors_relay_placement(Suit::Hearts),
             ));
             entries.extend(rows_of(
-                Pattern::node("P* 1NT (P) 2♣ (P) 2NT (P) 3♦ (P) 3♠ (P)"),
+                Pattern::node("P* 1NT - 2♣ - 2NT - 3♦ - 3♠ -"),
                 both_majors_relay_placement(Suit::Spades),
             ));
             entries
@@ -218,7 +218,7 @@ pub(crate) fn five_card_max() -> Package {
         gate: stayman_5card_max,
         entries: || {
             expand(
-                "P* 1NT (P) 2♣ (P) 3M (P)",
+                "P* 1NT - 2♣ - 3M -",
                 |_| true,
                 |b| five_card_max_rebid(b.suit('M')),
             )
@@ -226,15 +226,15 @@ pub(crate) fn five_card_max() -> Package {
     }
 }
 
-/// Both-majors 1NT–3♦ answer and responder's decision over a minimum
+/// Both-majors 1NT - 3♦ answer and responder's decision over a minimum
 pub(crate) fn both_majors_three_diamond() -> Package {
     Package {
         name: "both-majors-three-diamond",
         gate: || true,
         entries: || {
-            let mut entries = rows_of(Pattern::node("P* 1NT (P) 3♦ (P)"), five_five_major_answer());
+            let mut entries = rows_of(Pattern::node("P* 1NT - 3♦ -"), five_five_major_answer());
             entries.extend(expand(
-                "P* 1NT (P) 3♦ (P) 3M (P)",
+                "P* 1NT - 3♦ - 3M -",
                 |_| true,
                 |b| five_five_min_rebid(b.suit('M')),
             ));

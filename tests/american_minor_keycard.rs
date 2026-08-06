@@ -8,13 +8,13 @@ use common::*;
 
 const P: Call = Call::Pass;
 
-// --- Inverted minor raise: 1♣ – 2♣ – 3NT (18–19) ---------------------------
+// --- Inverted minor raise: 1♣ - 2♣ - 3NT (18–19) ---------------------------
 
 /// Responder with slam values launches keycard (4NT) over opener's 3NT.
 #[test]
 fn responder_launches_minor_keycard_over_3nt() {
     let system = stance();
-    // 1♣ P 2♣ P 3NT P — responder to act.
+    // 1♣ - 2♣ - 3NT - — responder to act.
     let auction = [
         call(1, Strain::Clubs),
         P,
@@ -50,7 +50,7 @@ fn responder_passes_3nt_without_slam_values() {
 #[test]
 fn opener_answers_keycard_in_inverted_minor() {
     let system = stance();
-    // 1♣ P 2♣ P 3NT P 4NT P — opener to answer.
+    // 1♣ - 2♣ - 3NT - 4NT - — opener to answer.
     let auction = [
         call(1, Strain::Clubs),
         P,
@@ -68,13 +68,13 @@ fn opener_answers_keycard_in_inverted_minor() {
     );
 }
 
-// --- Strong 2♣ minor raise: 2♣ – 2♦ – 3♣ – 4♣ ------------------------------
+// --- Strong 2♣ minor raise: 2♣ - 2♦ - 3♣ - 4♣ ------------------------------
 
 /// A 28+ HCP opener launches keycard rather than blasting the slam blind.
 #[test]
 fn strong_two_opener_launches_minor_keycard() {
     let system = stance();
-    // 2♣ P 2♦ P 3♣ P 4♣ P — opener to act.
+    // 2♣ - 2♦ - 3♣ - 4♣ - — opener to act.
     let auction = [
         call(2, Strain::Clubs),
         P,
@@ -99,7 +99,7 @@ fn strong_two_opener_launches_minor_keycard() {
 #[test]
 fn opener_passes_the_minor_slam_placement() {
     let system = stance();
-    // 1♣ P 2♣ P 3NT P 4NT P 5♣ P 6♣ P — opener (the answerer) to act.
+    // 1♣ - 2♣ - 3NT - 4NT - 5♣ - 6♣ - — opener (the answerer) to act.
     let auction = [
         call(1, Strain::Clubs),
         P,

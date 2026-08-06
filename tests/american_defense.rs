@@ -70,7 +70,7 @@ fn test_michaels_over_heart() {
 
 // --- Responsive double ------------------------------------------------------
 
-/// (1♥) – X – (2♥) with 4-4 minors → responsive double
+/// (1♥) X (2♥) with 4-4 minors → responsive double
 #[test]
 fn test_responsive_double() {
     let system = stance();
@@ -89,7 +89,7 @@ fn test_responsive_double() {
     );
 }
 
-/// (1♥) – 2♣ – (2♥) with 4-4 in the unbid suits → overcall responsive double,
+/// (1♥) 2♣ (2♥) with 4-4 in the unbid suits → overcall responsive double,
 /// but only when the opt-in toggle is on (off by default → floored, not a double)
 #[test]
 fn test_responsive_overcall_double_toggle() {
@@ -111,7 +111,7 @@ fn test_responsive_overcall_double_toggle() {
 
 // --- Unusual 2NT advance ----------------------------------------------------
 
-/// (1♠) – 2NT – (P) with diamonds longer than clubs → 3♦
+/// (1♠) 2NT - with diamonds longer than clubs → 3♦
 #[test]
 fn test_unusual_nt_advance_longer_diamond() {
     let system = stance();
@@ -180,7 +180,7 @@ fn test_weak_two_suit_overcall() {
 
 // --- Advancing a takeout double of a weak two -------------------------------
 
-/// (2♠) – X – (P) with a weak spade stack → pass for penalty
+/// (2♠) X - with a weak spade stack → pass for penalty
 #[test]
 fn test_advance_double_penalty_pass() {
     let system = stance();
@@ -197,7 +197,7 @@ fn test_advance_double_penalty_pass() {
     );
 }
 
-/// (2♠) – X – (P) with a stopper and game values → 3NT
+/// (2♠) X - with a stopper and game values → 3NT
 #[test]
 fn test_advance_double_three_notrump() {
     let system = stance();
@@ -212,7 +212,7 @@ fn test_advance_double_three_notrump() {
     );
 }
 
-/// (2♠) – X – (P) with four hearts and game values → 3♠ cue (Stayman)
+/// (2♠) X - with four hearts and game values → 3♠ cue (Stayman)
 #[test]
 fn test_advance_double_major_cue() {
     let system = stance();
@@ -230,7 +230,7 @@ fn test_advance_double_major_cue() {
 }
 
 /// Recognition (default, no `set_delayed_cue`): a partner who plays the delayed
-/// cue — (2♠)–X–(P)–2NT–(P)–3♣–(P)–3♠ = Stayman with a spade stopper — is answered
+/// cue — `(2♠) X - 2NT - 3♣ - 3♠` = Stayman with a spade stopper — is answered
 /// even though the bot never bids it itself. With four hearts the answerer shows
 /// the fit (4♥, since 3♥ is below the 3♠ cue).
 #[test]
@@ -259,7 +259,7 @@ fn test_recognize_delayed_cue_major_fit() {
     );
 }
 
-/// The same advance machinery answers over a one-level opening: (1♦) – X – (P)
+/// The same advance machinery answers over a one-level opening: (1♦) X -
 /// with a weak five-card major → cheapest-level natural advance 1♠
 #[test]
 fn test_advance_double_over_one_bid() {

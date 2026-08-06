@@ -43,7 +43,7 @@ fn jordan_truscott_over_their_double() {
 
 #[test]
 fn redouble_answer_shadows_the_rebase_blast() {
-    // [1♠ (X) XX (P)]: opener's rebid.  The systems-on rebase strips the
+    // `1♠ (X) XX -`: opener's rebid.  The systems-on rebase strips the
     // double and the redouble, so opener replays uncontested with
     // responder's shown 10+ unseen, and the floor re-prices this shaped
     // minimum (12 HCP, 15 points) as game-going — the remnant report's

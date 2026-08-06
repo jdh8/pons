@@ -2,14 +2,14 @@
 //!
 //! They double or overcall our Stayman, our Jacoby transfer, our two-way `2♠`
 //! or our `2NT` diamond transfer.  Each is keyed under the uncontested
-//! `[1NT, P, <our call>]` node — a distinct trie path from the systems-on
+//! `1NT - <our call>` node — a distinct trie path from the systems-on
 //! blocks, where their call sits at depth 1 — and each shares the
 //! `X (bid) …` systems-on rebase.
 use super::*;
 
 thread_local! {
     /// Whether opener authors continuations after the opponents contest our 2♣
-    /// Stayman (`1NT-(P)-2♣-(X)` and `-(2♦/2♥/2♠)`); **on by default**, with an
+    /// Stayman (`1NT - 2♣ (X)` or a `2♦`/`2♥`/`2♠` overcall); **on by default**, with an
     /// off-switch for A/B measurement.  See [`set_competition_over_stayman`].
     static COMPETITION_OVER_STAYMAN: Cell<bool> = const { Cell::new(true) };
 }
@@ -33,7 +33,7 @@ fn competition_over_stayman() -> bool {
 
 thread_local! {
     /// Whether opener authors continuations after the opponents contest our Jacoby
-    /// transfer (`1NT-(P)-2♦/2♥-(X)` and `-(overcall)`); **off by default** (opt-in
+    /// transfer (`1NT - 2♦/2♥ (X)` or an overcall); **off by default** (opt-in
     /// A/B).  See [`set_competition_over_transfer`].
     static COMPETITION_OVER_TRANSFER: Cell<bool> = const { Cell::new(false) };
 }
@@ -61,7 +61,7 @@ fn competition_over_transfer() -> bool {
 
 thread_local! {
     /// Whether opener authors continuations after the opponents contest our two-way
-    /// 2♠ minor response (`1NT-(P)-2♠-(X)` and `-(overcall)`); **on by default**,
+    /// 2♠ minor response (`1NT - 2♠ (X)` or an overcall); **on by default**,
     /// with an off-switch for A/B measurement.  See
     /// [`set_competition_over_minor_transfer`].
     static COMPETITION_OVER_MINOR_TRANSFER: Cell<bool> = const { Cell::new(true) };
@@ -98,7 +98,7 @@ fn competition_over_minor_transfer() -> bool {
 
 thread_local! {
     /// Whether opener authors continuations after the opponents contest our 2NT
-    /// diamond transfer (`1NT-(P)-2NT-(X)` and `-(overcall)`); **on by default**,
+    /// diamond transfer (`1NT - 2NT (X)` or an overcall); **on by default**,
     /// with an off-switch for A/B measurement.  See
     /// [`set_competition_over_diamond_transfer`].
     static COMPETITION_OVER_DIAMOND_TRANSFER: Cell<bool> = const { Cell::new(true) };
@@ -137,7 +137,7 @@ fn competition_over_diamond_transfer() -> bool {
 }
 
 /// Opener's coded reply after the opponents double our 2♣ Stayman
-/// (`1NT-(P)-2♣-(X)`)
+/// (`1NT - 2♣ (X)`)
 ///
 /// The `(X)` is lead-directing clubs, so the *pass-denies-stopper* scheme spends
 /// the free pass on a club-stopper signal: a 4-card major (`2♥`/`2♠`) or `2♦`
@@ -171,7 +171,7 @@ fn stayman_doubled_opener() -> Rules {
 }
 
 /// Responder's re-ask after opener passed our doubled Stayman to deny a club
-/// stopper (`1NT-(P)-2♣-(X)-P-(P)`)
+/// stopper (`1NT - 2♣ (X) - -`)
 ///
 /// Balancing XX is SOS, not business: `XX` re-asks Stayman (forcing — responder
 /// still holds the 4-card major), and opener must answer (`stayman_answers`, no
@@ -188,7 +188,7 @@ fn stayman_redouble_reask() -> Rules {
 }
 
 /// Opener's natural reply after the opponents overcall our 2♣ Stayman at the
-/// 2-level (`1NT-(P)-2♣-(2♦/2♥/2♠)`)
+/// 2-level (`1NT - 2♣ (2♦/2♥/2♠)`)
 ///
 /// Show the 4-card major if it outranks their suit; else `X` shows length in
 /// their suit (cards/penalty — and, when they overcalled the very major opener
@@ -211,7 +211,7 @@ fn stayman_overcalled_opener(over: Suit) -> Rules {
 }
 
 /// Opener's reply after the opponents double our Jacoby transfer
-/// (`1NT-(P)-2♦/2♥-(X)`)
+/// (`1NT - 2♦/2♥ (X)`)
 ///
 /// The transfer is still a command, but the `(X)` buys opener a meaningful pass:
 /// **complete** (bid `major`) with three-card support, **jump super-accept**
@@ -231,7 +231,7 @@ fn transfer_doubled_opener(major: Suit, bid: Suit) -> Rules {
 }
 
 /// Responder's re-ask after opener passed our doubled transfer
-/// (`1NT-(P)-2♦/2♥-(X)-P-(P)`)
+/// (`1NT - 2♦/2♥ (X) - -`)
 ///
 /// Opener's pass declined the transfer; responder still holds the five-card
 /// major, so `XX` insists opener complete (forcing — opener answers with
@@ -244,7 +244,7 @@ fn transfer_pass_reask(major: Suit) -> Rules {
 }
 
 /// Opener's reply after the opponents overcall our Jacoby transfer
-/// (`1NT-(P)-2♦/2♥-(overcall)`)
+/// (`1NT - 2♦/2♥ (overcall)`)
 ///
 /// Super-accept the `major` at the cheapest level above their `over_suit` with
 /// four-card support; else `X` shows length in their suit (cards); else Pass.
@@ -267,7 +267,7 @@ fn transfer_overcalled_opener(major: Suit, over_suit: Suit, over_level: u8) -> R
 }
 
 /// Opener's coded reply after the opponents double our two-way 2♠
-/// (`1NT-(P)-2♠-(X)`)
+/// (`1NT - 2♠ (X)`)
 ///
 /// Their `X` is lead-directing spades, so opener answers the size-ask *and* shows
 /// a spade stopper in one call: `2NT`/`3♣` keep their uncontested min/max meaning
@@ -291,7 +291,7 @@ fn minor_doubled_opener() -> Rules {
 }
 
 /// Responder's placement after opener denied a spade stopper over our doubled 2♠
-/// (`1NT-(P)-2♠-(X)-P-(P)` minimum, or `…-XX-(P)` maximum)
+/// (`1NT - 2♠ (X) - -` minimum, or `… XX -` maximum)
 ///
 /// Opener has shown min/max but no stopper, so notrump is off; the six-card club
 /// hand signs off in `3♣`.  Pass is the catch-all — the balanced-invite hand has no
@@ -306,7 +306,7 @@ fn minor_no_stopper_rebid() -> Rules {
 }
 
 /// Opener's reply after the opponents overcall our two-way 2♠ at `2NT` or `3♣` —
-/// the bids that steal opener's size-ask steps (`1NT-(P)-2♠-(2NT/3♣)`)
+/// the bids that steal opener's size-ask steps (`1NT - 2♠ (2NT/3♣)`)
 ///
 /// Keep the min/max + stopper signal alive in the room that remains: `3NT` =
 /// maximum with a spade stopper (to play), `X` = maximum without one (penalty /
@@ -323,7 +323,7 @@ fn minor_overcalled_high() -> Rules {
 }
 
 /// Opener's systems-off reply after the opponents overcall our two-way 2♠ above
-/// `3♣` (`1NT-(P)-2♠-(3♦/3♥/3♠)`)
+/// `3♣` (`1NT - 2♠ (3♦/3♥/3♠)`)
 ///
 /// Their suit is too high to keep the size-ask, so opener falls back to natural
 /// competition: `X` shows length in their suit (cards), else Pass and leave
@@ -335,7 +335,7 @@ fn minor_overcalled_low(over: Suit) -> Rules {
 }
 
 /// Opener's reply after the opponents double our 2NT diamond transfer
-/// (`1NT-(P)-2NT-(X)`)
+/// (`1NT - 2NT (X)`)
 ///
 /// `Pass` now carries the "no diamond fit" message (the uncontested job of `3♣`),
 /// so opener's `3♣` is freed to be natural 4+♣ (finding responder's 5♦-4♣ fit):
@@ -358,7 +358,7 @@ fn diamond_doubled_opener() -> Rules {
 }
 
 /// Responder's signoff after opener denied a diamond fit over our doubled 2NT
-/// (`1NT-(P)-2NT-(X)-P-(P)` minimum, or `…-XX-(P)` maximum)
+/// (`1NT - 2NT (X) - -` minimum, or `… XX -` maximum)
 ///
 /// Responder always holds 5+♦ from the transfer, so pull to `3♦` rather than
 /// languish in a doubled 2NT; Pass is a near-dead catch-all.
@@ -406,7 +406,7 @@ fn diamond_overcalled_high(over: Suit) -> Rules {
 ///
 /// The guard is a two-call prefix with a free tail, which no named [`Pattern`]
 /// construct spells: `Pattern::first("…", "X")` would also swallow the
-/// `X (P) (P)` re-ask whose own table is declared just below it, rebasing the
+/// `X - -` re-ask whose own table is declared just below it, rebasing the
 /// re-ask instead of classifying it.  So it rides in verbatim through
 /// [`Pattern::guarded`].
 fn systems_on_over_double(key: &str, bid: &str) -> Entry {
@@ -438,15 +438,15 @@ fn systems_on_over_double(key: &str, bid: &str) -> Entry {
 /// Competition over our own `2♣` Stayman as a row package
 /// ([`set_competition_over_stayman`], default on)
 ///
-/// Opener's replies after they double `1NT-(P)-2♣-(X)` or overcall it.  Keyed
-/// at the `[1NT, P, 2♣]` node — a distinct trie path from the systems-on
-/// `[1NT, (2♣)]` block, where their `2♣` sits at depth 1.
+/// Opener's replies after they double `1NT - 2♣ (X)` or overcall it.  Keyed
+/// at the `1NT - 2♣` node — a distinct trie path from the systems-on
+/// `1NT (2♣)` block, where their `2♣` sits at depth 1.
 pub(super) fn competition_over_stayman_package() -> Package {
     Package {
         name: "competition-over-stayman",
         gate: competition_over_stayman,
         entries: || {
-            const STAYMAN: &str = "P* 1NT (P) 2♣";
+            const STAYMAN: &str = "P* 1NT - 2♣";
             // A.1 — our Stayman doubled.  Opener's coded reply, then the
             // systems-on rebase off his stopper-bid.
             let mut entries = rows_of(Pattern::after(STAYMAN, "(X)"), stayman_doubled_opener());
@@ -455,11 +455,11 @@ pub(super) fn competition_over_stayman_package() -> Package {
             // answer — `stayman_answers()` has no Pass rule, and its 2♦ is
             // exactly the artificial "no major" denial.
             entries.extend(rows_of(
-                Pattern::after(STAYMAN, "(X) P (P)"),
+                Pattern::after(STAYMAN, "(X) - -"),
                 stayman_redouble_reask(),
             ));
             entries.extend(rows_of(
-                Pattern::after(STAYMAN, "(X) P (P) XX (P)"),
+                Pattern::after(STAYMAN, "(X) - - XX -"),
                 stayman_answers(),
             ));
 
@@ -472,7 +472,7 @@ pub(super) fn competition_over_stayman_package() -> Package {
             entries.push(rebase(
                 Pattern::guarded(
                     STAYMAN,
-                    "(P) 2♦ (X)",
+                    "- 2♦ (X)",
                     described_guard(
                         "- 2♦/2♥/2♠ X …",
                         guard(|_: &Context<'_>, s: &[Call]| {
@@ -518,9 +518,9 @@ pub(super) fn competition_over_stayman_package() -> Package {
 /// Competition over our own Jacoby transfers as a row package
 /// ([`set_competition_over_transfer`], default off)
 ///
-/// Opener's replies after they double `1NT-(P)-2♦/2♥-(X)` or overcall it.
-/// Keyed at the `[1NT, P, 2♦]` / `[1NT, P, 2♥]` nodes — distinct trie paths
-/// from the Transfer-Lebensohl `[1NT, (2♦/2♥)]` block, where theirs sits at
+/// Opener's replies after they double `1NT - 2♦/2♥ (X)` or overcall it.
+/// Keyed at the `1NT - 2♦` / `1NT - 2♥` nodes — distinct trie paths
+/// from the Transfer-Lebensohl `1NT (2♦/2♥)` block, where theirs sits at
 /// depth 1.
 pub(super) fn competition_over_transfer_package() -> Package {
     Package {
@@ -529,7 +529,7 @@ pub(super) fn competition_over_transfer_package() -> Package {
         entries: || {
             let mut entries = Vec::new();
             for (resp, major) in [(Suit::Diamonds, Suit::Hearts), (Suit::Hearts, Suit::Spades)] {
-                let key = format!("P* 1NT (P) 2{}", Strain::from(resp));
+                let key = format!("P* 1NT - 2{}", Strain::from(resp));
                 let completion = format!("2{}", Strain::from(major));
 
                 // Our transfer doubled: opener's reply, then the systems-on
@@ -542,11 +542,11 @@ pub(super) fn competition_over_transfer_package() -> Package {
                 // Opener passed to decline; responder re-asks, and opener's
                 // forced completion has no Pass rule so he cannot sit.
                 entries.extend(rows_of(
-                    Pattern::after(&key, "(X) P (P)"),
+                    Pattern::after(&key, "(X) - -"),
                     transfer_pass_reask(major),
                 ));
                 entries.extend(rows_of(
-                    Pattern::after(&key, "(X) P (P) XX (P)"),
+                    Pattern::after(&key, "(X) - - XX -"),
                     complete_transfer(major),
                 ));
 
@@ -570,7 +570,7 @@ pub(super) fn competition_over_transfer_package() -> Package {
 /// Competition over our own two-way `2♠` minor response as a row package
 /// ([`set_competition_over_minor_transfer`], default on)
 ///
-/// Opener's replies after they double `1NT-(P)-2♠-(X)` or overcall it.  Only
+/// Opener's replies after they double `1NT - 2♠ (X)` or overcall it.  Only
 /// the PUPPET `2♠` (clubs *or* the balanced size-ask) has a min/max answer to
 /// protect, so the package no-ops under the EUROPEAN pure-transfer scheme.
 pub(super) fn competition_over_minor_transfer_package() -> Package {
@@ -578,7 +578,7 @@ pub(super) fn competition_over_minor_transfer_package() -> Package {
         name: "competition-over-minor-transfer",
         gate: || competition_over_minor_transfer() && notrump_minors() == PUPPET,
         entries: || {
-            const TWO_SPADE: &str = "P* 1NT (P) 2♠";
+            const TWO_SPADE: &str = "P* 1NT - 2♠";
             // A.1 — our 2♠ doubled.  Opener's coded min/max + stopper reply,
             // then the systems-on rebase off his 2NT/3♣ stopper-bid (the
             // `two_spade_over_min`/`max` machinery).
@@ -586,7 +586,7 @@ pub(super) fn competition_over_minor_transfer_package() -> Package {
             entries.push(systems_on_over_double(TWO_SPADE, "2NT"));
             // Opener denied a stopper (Pass = min, XX = max); responder signs
             // off in clubs.
-            for deny in ["(X) P (P)", "(X) XX (P)"] {
+            for deny in ["(X) - -", "(X) XX -"] {
                 entries.extend(rows_of(
                     Pattern::after(TWO_SPADE, deny),
                     minor_no_stopper_rebid(),
@@ -613,7 +613,7 @@ pub(super) fn competition_over_minor_transfer_package() -> Package {
 /// Competition over our own `2NT` diamond transfer as a row package
 /// ([`set_competition_over_diamond_transfer`], default on)
 ///
-/// Opener's replies after they double `1NT-(P)-2NT-(X)` or overcall it.  Only
+/// Opener's replies after they double `1NT - 2NT (X)` or overcall it.  Only
 /// the PUPPET scheme plays `2NT` as the diamond transfer, so the package
 /// no-ops under EUROPEAN.
 pub(super) fn competition_over_diamond_transfer_package() -> Package {
@@ -621,14 +621,14 @@ pub(super) fn competition_over_diamond_transfer_package() -> Package {
         name: "competition-over-diamond-transfer",
         gate: || competition_over_diamond_transfer() && notrump_minors() == PUPPET,
         entries: || {
-            const TWO_NT: &str = "P* 1NT (P) 2NT";
+            const TWO_NT: &str = "P* 1NT - 2NT";
             // Our 2NT doubled: opener's 3♦-fit / 3♣-clubs / XX-values / Pass
             // reply, then the systems-on rebase off his fit-showing bid.
             let mut entries = rows_of(Pattern::after(TWO_NT, "(X)"), diamond_doubled_opener());
             entries.push(systems_on_over_double(TWO_NT, "3♦"));
             // Opener denied a fit (Pass = min, XX = max values); responder
             // signs off in 3♦ (always 5+♦).
-            for deny in ["(X) P (P)", "(X) XX (P)"] {
+            for deny in ["(X) - -", "(X) XX -"] {
                 entries.extend(rows_of(
                     Pattern::after(TWO_NT, deny),
                     diamond_no_fit_rebid(),

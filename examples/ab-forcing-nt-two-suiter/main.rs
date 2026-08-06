@@ -1,9 +1,9 @@
 //! Forcing-1NT two-suiter A/B: minimum natural rebid vs the invitational reverse/jump.
 //!
-//! After `1M – 1NT` (the forcing notrump) opener with 15–17 and a second major
+//! After `1M - 1NT` (the forcing notrump) opener with 15–17 and a second major
 //! suit has no invitational rebid in the baseline — a 5-4 or 5-5 hand underbids
-//! as a minimum natural call.  The treatment adds `1♥ – 1NT – 2♠` (reverse: 5+
-//! hearts, 4+ spades) and `1♠ – 1NT – 3♥` (jump: 5-5 majors), both 15–17, with
+//! as a minimum natural call.  The treatment adds `1♥ - 1NT - 2♠` (reverse: 5+
+//! hearts, 4+ spades) and `1♠ - 1NT - 3♥` (jump: 5-5 majors), both 15–17, with
 //! responder's continuations.  Both arms run the same shipped 2/1 system
 //! (Meckstroth-2NT on); the only difference is the [`set_forcing_nt_two_suiter`]
 //! toggle, read once at book-construction time.

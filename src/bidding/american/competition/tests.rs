@@ -152,7 +152,7 @@ fn competitive_fallbacks_are_renderable() {
         }
     }
 
-    // Two concrete probes.  The [1♠] systems-on rebase renders with its
+    // Two concrete probes.  The `1♠` systems-on rebase renders with its
     // first-call label (the direct-seat table itself became exact
     // per-overcall nodes and no longer lives in the fallback layer)…
     let (_, guard, fallback) = all
@@ -164,7 +164,7 @@ fn competitive_fallbacks_are_renderable() {
         matches!(fallback, Fallback::Rebase(_)),
         "the systems-on entry is a rebase"
     );
-    // …and the exact [1♠ (2♣)] node carries the negative double.
+    // …and the exact `1♠ (2♣)` node carries the negative double.
     let auction = [
         Call::Bid(Bid::new(1, Strain::Spades)),
         Call::Bid(Bid::new(2, Strain::Clubs)),

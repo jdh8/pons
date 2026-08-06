@@ -126,7 +126,7 @@ fn strong_two_overcalled_responder() -> Rules {
     rules
 }
 
-/// Opener's forced reopening after `2♣ – (overcall) – P – (P)`
+/// Opener's forced reopening after `2♣ (overcall) - -`
 ///
 /// A 22+ hand never sells out to an overcall: natural 5+ suit rebids
 /// (legality-anchored rungs), notrump with their suit stopped, and a "cards"
@@ -160,7 +160,7 @@ fn strong_two_reopening() -> Rules {
 /// Section 7 as a row package: our contested weak twos
 /// ([`set_weak_two_competition`][super::set_weak_two_competition], default off)
 ///
-/// Their double: responder's first call at the deeper `[2M, X]` node (business
+/// Their double: responder's first call at the deeper `2M (X)` node (business
 /// `XX` riding on the uncontested responses), everything deeper systems-on.
 /// Their overcall (≤ `3♠`): responder's direct action, and a targeted rebase so
 /// an Ogust `2NT` bid over the overcall still gets opener's undisturbed
@@ -274,7 +274,7 @@ pub(super) fn strong_two_competition_package_legacy() -> Package {
             entries.extend(rows_of(
                 Pattern::guarded(
                     OPEN,
-                    "(2♦) P (P)",
+                    "(2♦) - -",
                     described_guard(
                         "(overcall) - -",
                         guard(|_: &Context<'_>, s: &[Call]| {

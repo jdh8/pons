@@ -58,7 +58,7 @@ fn woolsey_has_no_penalty_double() {
 
 #[test]
 fn woolsey_multi_advance_pass_or_corrects() {
-    // [1NT, 2♦, P] — a weak advancer bids the 2♥ pass-or-correct.
+    // `(1NT) 2♦ -` — a weak advancer bids the 2♥ pass-or-correct.
     let auction = [
         call(1, Strain::Notrump),
         call(2, Strain::Diamonds),
@@ -71,7 +71,7 @@ fn woolsey_multi_advance_pass_or_corrects() {
 
 #[test]
 fn woolsey_x_advance_never_sits_for_penalty() {
-    // [1NT, X, P] — the X is takeout, so a weak no-major advancer relays 2♣
+    // `(1NT) X -` — the X is takeout, so a weak no-major advancer relays 2♣
     // (names the doubler's minor), never passing to defend a phantom 1NTx.
     let auction = [call(1, Strain::Notrump), Call::Double, Call::Pass];
     let (relay, floored) = woolsey(&auction, "432.432.432.5432");
@@ -86,7 +86,7 @@ fn woolsey_x_advance_never_sits_for_penalty() {
 
 #[test]
 fn woolsey_muiderberg_advance_raises_and_asks() {
-    // [1NT, 2♥, P] — a known 5-card heart suit.  With support + game values the
+    // `(1NT) 2♥ -` — a known 5-card heart suit.  With support + game values the
     // advancer raises to 4♥; with no fit it asks the minor via 2NT (a book node).
     let auction = [
         call(1, Strain::Notrump),
@@ -108,7 +108,7 @@ fn woolsey_muiderberg_advance_raises_and_asks() {
 
 #[test]
 fn woolsey_muiderberg_doubled_escapes_a_misfit() {
-    // [1NT, 2♥, X] — a weak hand short in hearts escapes the doubled misfit via
+    // `(1NT) 2♥ (X)` — a weak hand short in hearts escapes the doubled misfit via
     // the 2NT minor-ask rather than sitting in a doubled 5-1 fit.
     let auction = [
         call(1, Strain::Notrump),
@@ -124,7 +124,7 @@ fn woolsey_muiderberg_doubled_escapes_a_misfit() {
 
 #[test]
 fn woolsey_muiderberg_2nt_names_the_minor() {
-    // [1NT, 2♥, P, 2NT, P] — the overcaller answers the minor-ask: 3♦ with
+    // `(1NT) 2♥ - 2NT -` — the overcaller answers the minor-ask: 3♦ with
     // diamonds, 3♣ with clubs (it always holds a 4+ minor).
     let asked = [
         call(1, Strain::Notrump),

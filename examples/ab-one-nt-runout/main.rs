@@ -256,7 +256,7 @@ fn is_1nt_opener(hand: Hand) -> bool {
 }
 
 /// If our side opened 1NT (all prior calls passes) and the next hand doubled it,
-/// responder's call (the `[1NT, (X), ?]` action) and seat.
+/// responder's call (the `1NT (X) ?` action) and seat.
 fn responder_over_double(auction: &Auction, dealer: Seat) -> Option<(Call, Seat)> {
     let one_nt = Call::Bid(Bid::new(1, Strain::Notrump));
     let calls: Vec<Call> = auction.iter().copied().collect();
@@ -439,7 +439,7 @@ fn main() {
             let board = &boards[index];
             let calls: Vec<Call> = board.table_a.iter().copied().collect();
             // The gambler's hand (responder over the double) — the "find some hands"
-            // payload: the actual holdings that bid 1NT-(X)-3NT/4M.
+            // payload: the actual holdings that bid 1NT (X) 3NT/4M.
             let responder = responder_over_double(&board.table_a, board.dealer)
                 .map(|(_, seat)| {
                     format!(

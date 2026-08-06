@@ -39,7 +39,7 @@ fn weight_ties_report_once_per_rung() {
 
     let distinct = package(|| {
         rows_of(
-            Pattern::node("1♥ (P)"),
+            Pattern::node("1♥ -"),
             Rules::new()
                 .rule(Bid::new(2, Strain::Hearts), 100, hcp(10..))
                 .rule(Bid::new(2, Strain::Hearts), 90, hcp(6..))
@@ -50,7 +50,7 @@ fn weight_ties_report_once_per_rung() {
 
     let tied = package(|| {
         rows_of(
-            Pattern::node("1♥ (P)"),
+            Pattern::node("1♥ -"),
             Rules::new()
                 .rule(Bid::new(2, Strain::Hearts), 100, hcp(10..))
                 .rule(Bid::new(2, Strain::Hearts), 100, hcp(6..))
@@ -84,9 +84,9 @@ fn rows_regroup_and_fan() {
         keys,
         [
             &calls("1♥")[..],
-            &calls("P 1♥"),
-            &calls("P P 1♥"),
-            &calls("P P P 1♥"),
+            &calls("- 1♥"),
+            &calls("- - 1♥"),
+            &calls("- - - 1♥"),
         ],
         "one entry per seat, pass-less key first",
     );
@@ -148,14 +148,14 @@ fn builder_sets_a_partial_fan() {
 
     let entries = book.fallbacks();
     let keys: Vec<&[Call]> = entries.iter().map(|(key, ..)| &**key).collect();
-    assert_eq!(keys, [&calls("1♥")[..], &calls("P 1♥"), &calls("P P 1♥"),],);
+    assert_eq!(keys, [&calls("1♥")[..], &calls("- 1♥"), &calls("- - 1♥"),],);
     assert_eq!(book.authoring().patterns()[0].keys.len(), 3);
 }
 
 #[test]
 #[should_panic(expected = "exceeds the three possible leading passes")]
 fn builder_rejects_an_impossible_fan() {
-    let _ = Pattern::node("1♥ (P)").with_fan(4);
+    let _ = Pattern::node("1♥ -").with_fan(4);
 }
 
 /// A rebase entry lowers to `Fallback::Rebase` and re-resolves onto the
@@ -172,7 +172,7 @@ fn rebase_lowers_and_reresolves() {
             )]
         },
     }]);
-    book.insert(&calls("1♥ P 2♥"), two_rule_table());
+    book.insert(&calls("1♥ - 2♥"), two_rule_table());
 
     let auction = calls("1♥ X 2♥");
     let context = Context::new(RelativeVulnerability::NONE, &auction);
@@ -180,7 +180,7 @@ fn rebase_lowers_and_reresolves() {
         .resolve(&context, &auction)
         .expect("the rebase reaches the systems-on node");
     assert_eq!(provenance.rebases, 1, "resolved through one rewrite");
-    assert_eq!(provenance.depth, 3, "at the [1♥ P 2♥] node");
+    assert_eq!(provenance.depth, 3, "at the [1♥ - 2♥] node");
 }
 
 /// `after` splits the key from the guard suffix at the string boundary,
@@ -193,7 +193,7 @@ fn after_splits_key_and_suffix() {
         entries: || {
             vec![
                 row(
-                    Pattern::after("P* 1♥ (X)", "2NT (P)"),
+                    Pattern::after("P* 1♥ (X)", "2NT -"),
                     Bid::new(4, Strain::Hearts),
                     100,
                     hcp(13..),
@@ -201,7 +201,7 @@ fn after_splits_key_and_suffix() {
                 .alert(Alert("test:conv"))
                 .into(),
                 row(
-                    Pattern::after("P* 1♥ (X)", "2NT (P)"),
+                    Pattern::after("P* 1♥ (X)", "2NT -"),
                     Call::Pass,
                     0,
                     hcp(0..),
@@ -217,7 +217,7 @@ fn after_splits_key_and_suffix() {
         calls("1♥ X"),
         "their double keys, not guards"
     );
-    let auction = calls("2NT P");
+    let auction = calls("2NT -");
     let context = Context::new(RelativeVulnerability::NONE, &auction);
     assert!(entries[0].1.admits(&context, &auction));
     assert!(!entries[0].1.admits(&context, &calls("2NT")));
@@ -240,7 +240,7 @@ fn guarded_carries_the_guard_verbatim() {
         entries: || {
             vec![rebase(
                 Pattern::guarded(
-                    "P* 1NT (P) 2♣",
+                    "P* 1NT - 2♣",
                     "(X) 2♦",
                     described_guard(
                         "X (bid) …",
@@ -256,21 +256,21 @@ fn guarded_carries_the_guard_verbatim() {
     }]);
 
     let entries = book.fallbacks();
-    assert_eq!(&*entries[0].0, calls("1NT P 2♣"), "keyed below our Stayman");
+    assert_eq!(&*entries[0].0, calls("1NT - 2♣"), "keyed below our Stayman");
     assert_eq!(
         entries[0].1.describe().as_deref(),
         Some("X (bid) …"),
         "the guard's own label survives, so render-book is unchanged",
     );
 
-    let auction = calls("1NT P 2♣ X 2♦");
+    let auction = calls("1NT - 2♣ X 2♦");
     let context = Context::new(RelativeVulnerability::NONE, &auction);
     assert!(
         entries[0].1.admits(&context, &calls("X 2♦")),
         "wildcard tail"
     );
     assert!(
-        !entries[0].1.admits(&context, &calls("X P P")),
+        !entries[0].1.admits(&context, &calls("X - -")),
         "the re-ask suffix is left to its own table — what FirstIs would swallow",
     );
 }
@@ -295,7 +295,7 @@ fn clone_and_graft_preserve_pattern_identity() {
     let source = compiled(&[Package {
         name: "test",
         gate: || true,
-        entries: || rows_of(Pattern::node("1NT (P) 2♣ (P)"), two_rule_table()),
+        entries: || rows_of(Pattern::node("1NT - 2♣ -"), two_rule_table()),
     }]);
     let original = source.authoring().patterns()[0].id;
     assert_eq!(source.clone().authoring().patterns()[0].id, original);
@@ -309,7 +309,7 @@ fn clone_and_graft_preserve_pattern_identity() {
     let catalog = grafted.finalize_authoring();
     assert_eq!(catalog.patterns().len(), 1);
     assert_eq!(catalog.patterns()[0].id, original);
-    assert_eq!(&*catalog.patterns()[0].sites[0].key, calls("1♠ 1NT P 2♣ P"));
+    assert_eq!(&*catalog.patterns()[0].sites[0].key, calls("1♠ 1NT - 2♣ -"));
 }
 
 /// A later imperative overwrite is authoritative; displaced row metadata
@@ -319,10 +319,10 @@ fn exact_overwrite_drops_displaced_metadata() {
     let mut book = compiled(&[Package {
         name: "test",
         gate: || true,
-        entries: || rows_of(Pattern::node("1♥ (P)"), two_rule_table()),
+        entries: || rows_of(Pattern::node("1♥ -"), two_rule_table()),
     }]);
     assert_eq!(book.finalize_authoring().patterns().len(), 1);
-    book.insert(&calls("1♥ P"), Rules::new().rule(Call::Pass, 0, hcp(0..)));
+    book.insert(&calls("1♥ -"), Rules::new().rule(Call::Pass, 0, hcp(0..)));
     assert!(book.finalize_authoring().patterns().is_empty());
 }
 
@@ -333,7 +333,7 @@ fn merge_filters_exact_collision_and_keeps_disjoint_metadata() {
     let mut book = compiled(&[Package {
         name: "receiver",
         gate: || true,
-        entries: || rows_of(Pattern::node("1♥ (P)"), two_rule_table()),
+        entries: || rows_of(Pattern::node("1♥ -"), two_rule_table()),
     }]);
     let receiver_id = book.authoring().patterns()[0].id;
 
@@ -341,8 +341,8 @@ fn merge_filters_exact_collision_and_keeps_disjoint_metadata() {
         name: "other",
         gate: || true,
         entries: || {
-            let mut entries = rows_of(Pattern::node("1♥ (P)"), two_rule_table());
-            entries.extend(rows_of(Pattern::node("1♠ (P)"), two_rule_table()));
+            let mut entries = rows_of(Pattern::node("1♥ -"), two_rule_table());
+            entries.extend(rows_of(Pattern::node("1♠ -"), two_rule_table()));
             entries
         },
     }]);
@@ -351,7 +351,7 @@ fn merge_filters_exact_collision_and_keeps_disjoint_metadata() {
 
     assert_eq!(
         book.merge(other),
-        vec![calls("1♥ P").into_boxed_slice()],
+        vec![calls("1♥ -").into_boxed_slice()],
         "the shared exact node is the sole collision",
     );
 
@@ -382,7 +382,7 @@ fn merge_filters_exact_collision_and_keeps_disjoint_metadata() {
         .iter()
         .find(|pattern| pattern.id == disjoint_id)
         .expect("the non-colliding pattern survives");
-    assert_eq!(&*disjoint.sites[0].key, calls("1♠ P"));
+    assert_eq!(&*disjoint.sites[0].key, calls("1♠ -"));
     assert_eq!(disjoint.sites[0].placement, Placement::Exact);
     assert_eq!(&*disjoint.package, "other");
 }
@@ -476,7 +476,7 @@ fn graft_preserves_rebase_metadata_and_behavior() {
         gate: || true,
         entries: || vec![rebase(Pattern::first("1NT", "X"), ReplaceNext(Call::Pass))],
     }]);
-    source.insert(&calls("1NT P 2♣"), two_rule_table());
+    source.insert(&calls("1NT - 2♣"), two_rule_table());
     let id = source.authoring().patterns()[0].id;
 
     let mut grafted = Trie::new();
@@ -536,7 +536,7 @@ fn floor_is_not_cataloged_or_confused_with_row_fallback() {
         .expect("the authored row answers");
     assert_eq!(row_provenance.fallback, Some(0));
 
-    let floor_auction = calls("P");
+    let floor_auction = calls("-");
     let floor_context = Context::new(RelativeVulnerability::NONE, &floor_auction);
     let (_, floor_provenance) = book
         .resolve(&floor_context, &floor_auction)
@@ -551,7 +551,7 @@ fn consuming_finalization_drains_ledger_and_retains_package() {
     let mut book = compiled(&[Package {
         name: "P3:inventory-regression",
         gate: || true,
-        entries: || rows_of(Pattern::node("1♥ (P)"), two_rule_table()),
+        entries: || rows_of(Pattern::node("1♥ -"), two_rule_table()),
     }]);
     assert_eq!(book.authoring().patterns().len(), 1);
 
@@ -559,10 +559,10 @@ fn consuming_finalization_drains_ledger_and_retains_package() {
     assert!(book.authoring().patterns().is_empty());
     assert_eq!(catalog.patterns().len(), 1);
     assert_eq!(&*catalog.patterns()[0].package, "P3:inventory-regression");
-    assert_eq!(&*catalog.patterns()[0].source, "1♥ (P)");
+    assert_eq!(&*catalog.patterns()[0].source, "1♥ -");
     assert_eq!(catalog.patterns()[0].sites[0].placement, Placement::Exact);
     assert!(
-        book.get(&calls("1♥ P")).is_some(),
+        book.get(&calls("1♥ -")).is_some(),
         "draining metadata does not remove the runtime classifier",
     );
     assert!(
@@ -625,7 +625,7 @@ fn expand_substitutes_and_round_trips() {
         &mut book,
         "weak-twos",
         expand(
-            "P* 2x (P)",
+            "P* 2x -",
             |bindings| bindings.suit('x') != Suit::Clubs,
             |bindings| {
                 Rules::new()
@@ -635,12 +635,12 @@ fn expand_substitutes_and_round_trips() {
         ),
     );
     assert!(
-        book.get(&calls("2♣ P")).is_none(),
+        book.get(&calls("2♣ -")).is_none(),
         "the domain closed ♣ out"
     );
     for suit in ["♦", "♥", "♠"] {
         let rules = book
-            .get(&calls(&format!("2{suit} P")))
+            .get(&calls(&format!("2{suit} -")))
             .expect("an exact node per assignment")
             .as_rules()
             .expect("rows regroup into Rules");
@@ -652,7 +652,7 @@ fn expand_substitutes_and_round_trips() {
     }
     let patterns = book.authoring().patterns();
     let sources: Vec<&str> = patterns.iter().map(|pattern| &*pattern.source).collect();
-    assert_eq!(sources, ["P* 2♦ (P)", "P* 2♥ (P)", "P* 2♠ (P)"]);
+    assert_eq!(sources, ["P* 2♦ -", "P* 2♥ -", "P* 2♠ -"]);
     assert_eq!(patterns[0].keys.len(), 4, "the fan rode through");
 }
 
@@ -684,13 +684,8 @@ fn notrump_enters_literally() {
 #[test]
 fn one_letter_binds_once() {
     assert_eq!(
-        expansion_sources("1x (P) 2x (P)"),
-        [
-            "1♣ (P) 2♣ (P)",
-            "1♦ (P) 2♦ (P)",
-            "1♥ (P) 2♥ (P)",
-            "1♠ (P) 2♠ (P)"
-        ],
+        expansion_sources("1x - 2x -"),
+        ["1♣ - 2♣ -", "1♦ - 2♦ -", "1♥ - 2♥ -", "1♠ - 2♠ -"],
     );
 }
 
@@ -699,7 +694,7 @@ fn one_letter_binds_once() {
 #[should_panic(expected = "several bids")]
 fn ambiguous_bid_lookup_panics() {
     let _ = expand(
-        "1x (P) 2x (P)",
+        "1x - 2x -",
         |bindings| bindings.bid('x').level.get() == 1,
         |_| two_rule_table(),
     );
@@ -710,7 +705,7 @@ fn ambiguous_bid_lookup_panics() {
 #[should_panic(expected = "no level variable")]
 fn missing_letter_panics() {
     let _ = expand(
-        "2x (P)",
+        "2x -",
         |bindings| bindings.level('i').get() > 0,
         |_| two_rule_table(),
     );
@@ -720,21 +715,21 @@ fn missing_letter_panics() {
 /// `2S` and `2♠` spell the same literal key.
 #[test]
 fn lowercase_is_a_variable_uppercase_a_literal() {
-    assert_eq!(expansion_sources("2s (P)").len(), 4);
+    assert_eq!(expansion_sources("2s -").len(), 4);
     let mut letters = Trie::new();
     compile_entries(
         &mut letters,
         "letters",
-        rows_of(Pattern::node("2S (P)"), two_rule_table()),
+        rows_of(Pattern::node("2S -"), two_rule_table()),
     );
     let mut glyphs = Trie::new();
     compile_entries(
         &mut glyphs,
         "glyphs",
-        rows_of(Pattern::node("2♠ (P)"), two_rule_table()),
+        rows_of(Pattern::node("2♠ -"), two_rule_table()),
     );
-    assert!(letters.get(&calls("2♠ P")).is_some());
-    assert!(glyphs.get(&calls("2♠ P")).is_some());
+    assert!(letters.get(&calls("2♠ -")).is_some());
+    assert!(glyphs.get(&calls("2♠ -")).is_some());
 }
 
 /// A lowercase word where a literal is expected fails loudly instead of
@@ -757,44 +752,36 @@ fn lowercase_notrump_panics() {
 #[test]
 fn major_minor_keywords_bind() {
     assert_eq!(
-        expansion_sources("1m (P) 1M (P)"),
-        [
-            "1♣ (P) 1♥ (P)",
-            "1♣ (P) 1♠ (P)",
-            "1♦ (P) 1♥ (P)",
-            "1♦ (P) 1♠ (P)"
-        ],
+        expansion_sources("1m - 1M -"),
+        ["1♣ - 1♥ -", "1♣ - 1♠ -", "1♦ - 1♥ -", "1♦ - 1♠ -"],
     );
 }
 
 /// `OM` derives from the row's `M` binding.
 #[test]
 fn other_major_derives_from_major() {
-    assert_eq!(
-        expansion_sources("1M (P) 2OM (P)"),
-        ["1♥ (P) 2♠ (P)", "1♠ (P) 2♥ (P)"],
-    );
+    assert_eq!(expansion_sources("1M - 2OM -"), ["1♥ - 2♠ -", "1♠ - 2♥ -"],);
 }
 
 /// A derived keyword without its base has nothing to derive from.
 #[test]
 #[should_panic(expected = "OM requires M")]
 fn other_major_alone_panics() {
-    let _ = expand("P* 2OM (P)", |_| true, |_| two_rule_table());
+    let _ = expand("P* 2OM -", |_| true, |_| two_rule_table());
 }
 
 /// Each `.` is a fresh anonymous variable.
 #[test]
 fn anonymous_slots_are_fresh() {
-    assert_eq!(expansion_sources("2. (P)").len(), 4);
-    assert_eq!(expansion_sources("1. (P) 2. (P)").len(), 16);
+    assert_eq!(expansion_sources("2. -").len(), 4);
+    assert_eq!(expansion_sources("1. - 2. -").len(), 16);
 }
 
 /// `P+` is recognized, and deferred until a consumer exists.
 #[test]
 #[should_panic(expected = "deferred")]
 fn leading_plus_is_recognized_but_deferred() {
-    let _ = Pattern::node("P+ 2♥ (P)");
+    let _ = Pattern::node("P+ 2♥ -");
 }
 
 /// Quantifiers are leading-only: an internal pass run would flip the
@@ -802,36 +789,39 @@ fn leading_plus_is_recognized_but_deferred() {
 #[test]
 #[should_panic(expected = "P+ is only valid leading")]
 fn interior_plus_panics() {
-    let _ = expand("2♥ P+ (P)", |_| true, |_| two_rule_table());
+    let _ = expand("2♥ P+ -", |_| true, |_| two_rule_table());
 }
 
 /// An expansion nothing survives is an authoring bug, not a package.
 #[test]
 #[should_panic(expected = "no assignment survives")]
 fn empty_expansion_panics() {
-    let _ = expand("1x (P)", |_| false, |_| two_rule_table());
+    let _ = expand("1x -", |_| false, |_| two_rule_table());
 }
 
-/// `-` is a pass by whoever is to act: the same key as the explicit
-/// spelling, in either seat.
+/// Canonical `-` and legacy `P`/`(P)` each lower to the same pass call whether
+/// the pass belongs to the opponents or to our side.
 #[test]
-fn dash_matches_either_seat() {
-    for source in ["1♥ (P)", "1♥ -"] {
+fn canonical_and_legacy_passes_match_in_either_seat() {
+    // Their pass after our bid.
+    for source in ["1♥ -", "1♥ P", "1♥ (P)"] {
         let mut book = Trie::new();
         compile_entries(
             &mut book,
             "t",
             rows_of(Pattern::node(source), two_rule_table()),
         );
-        assert!(book.get(&calls("1♥ P")).is_some(), "{source}");
+        assert!(book.get(&calls("1♥ -")).is_some(), "{source}");
     }
-    for source in ["1♥ (1♠) P (P)", "1♥ (1♠) - -"] {
+
+    // Our pass after their bid, before their partner's response.
+    for source in ["(1♥) - (1♠)", "(1♥) P (1♠)", "(1♥) (P) (1♠)"] {
         let mut book = Trie::new();
         compile_entries(
             &mut book,
             "t",
             rows_of(Pattern::node(source), two_rule_table()),
         );
-        assert!(book.get(&calls("1♥ 1♠ P P")).is_some(), "{source}");
+        assert!(book.get(&calls("1♥ - 1♠")).is_some(), "{source}");
     }
 }

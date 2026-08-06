@@ -1,4 +1,4 @@
-//! `1NT–3♥/3♠` splinter A/B: the shipped empty slot vs the Polish Club treatment.
+//! `1NT - 3♥/3♠` splinter A/B: the shipped empty slot vs the Polish Club treatment.
 //!
 //! Responder's `3♥`/`3♠` over our 1NT are the only two slots the response ladder
 //! leaves empty. [`set_nt_splinter`] fills them with the Bridge World Standard /
@@ -56,7 +56,7 @@ use rayon::prelude::*;
 mod common;
 use common::{bid_uncontested, report_sd_brackets, seat_to_act};
 
-/// 1NT–3M splinter A/B: the Polish Club treatment vs the shipped empty slot
+/// 1NT - 3M splinter A/B: the Polish Club treatment vs the shipped empty slot
 #[derive(Parser)]
 struct Args {
     /// Number of boards in the match (dealer rotates per board)
@@ -201,7 +201,7 @@ fn main() {
     }
 
     println!(
-        "=== 1NT–3M splinter A/B: {} boards, vulnerability {}, floor {}, seed {} ===",
+        "=== 1NT - 3M splinter A/B: {} boards, vulnerability {}, floor {}, seed {} ===",
         args.count, args.vulnerability, args.floor, args.seed,
     );
     println!("(opponents silenced — constructive value only)");

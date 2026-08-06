@@ -43,7 +43,7 @@ use rand::seq::SliceRandom;
 /// terminate auctions whose ranges no hand can satisfy.
 ///
 /// It was 256, which the ranges *do* approach: `probe-replay-yield` measured
-/// 59–93 % fills on ordinary auctions (`(1NT) X`, `1H (2C)`, a 2/1 sequence),
+/// 59–93 % fills on ordinary auctions (`(1NT) X`, `1♥ (2♣)`, a 2/1 sequence),
 /// each exhausting the whole budget — the shortfall was the cap, not
 /// infeasibility.  A short fill is the expensive failure: `ev_all` then averages
 /// over fewer, edge-biased worlds.  A draw is ~0.24 µs (same probe), so even a

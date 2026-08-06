@@ -686,13 +686,13 @@ fn we_opened_bit() {
     let f0 = features_v3(h, &empty_context());
     assert_eq!(f0[we_opened_offset], 0.0, "no opener → 0.0");
 
-    // After [1♠]: auction.len()=1, opening_index=0, (1-0)%2=1 ≠ 0 → they opened
+    // After `(1♠)`: auction.len()=1, opening_index=0, (1-0)%2=1 ≠ 0 → they opened
     let auction_they = [bid(1, Strain::Spades)];
     let ctx_they = Context::new(RelativeVulnerability::NONE, &auction_they);
     let f1 = features_v3(h, &ctx_they);
     assert_eq!(f1[we_opened_offset], 0.0, "they opened (RHO opened)");
 
-    // After [1♠, P]: auction.len()=2, opening_index=0, (2-0)%2=0 → we opened
+    // After `1♠ -`: auction.len()=2, opening_index=0, (2-0)%2=0 → we opened
     let auction_we = [bid(1, Strain::Spades), Call::Pass];
     let ctx_we = Context::new(RelativeVulnerability::NONE, &auction_we);
     let f2 = features_v3(h, &ctx_we);

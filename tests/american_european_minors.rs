@@ -23,7 +23,7 @@ fn stance() -> Stance {
 
 const P: Call = Call::Pass;
 
-/// `1NT P` plus the given tail of our-side calls (RHO passes interleaved)
+/// `1NT -` plus the given tail of our-side calls (RHO passes interleaved)
 fn after_1nt(tail: &[Call]) -> Vec<Call> {
     let mut auction = vec![call(1, Strain::Notrump), P];
     for &c in tail {

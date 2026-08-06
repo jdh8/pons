@@ -131,7 +131,7 @@ struct Args {
     #[arg(long, default_value = "20260620")]
     seed: u64,
 
-    /// Only count deals that can plausibly reach `1NT–(2♦/2♥)` (a cheap shape
+    /// Only count deals that can plausibly reach `1NT (2♦/2♥)` (a cheap shape
     /// pre-filter), so the DD budget lands on boards that can actually diverge.
     /// `--count` is then the number of such filtered boards.
     #[arg(long, default_value = "false")]
@@ -144,7 +144,7 @@ struct Args {
     only_topstep: bool,
 
     /// PD-gate the measured (NS) pair's 5-card 2NT relay: at the responder's
-    /// `1NT–(2X)` node, when the book would relay (`2NT`), double-dummy compare
+    /// `1NT (2X)` node, when the book would relay (`2NT`), double-dummy compare
     /// relaying vs defending (`Pass`) over sampled layouts and take the higher EV.
     /// "Relay only when our 3-level line out-scores defending their contract."
     /// Slow (one ev_all per relay decision), so pair with a small `--count`.
@@ -180,7 +180,7 @@ struct Args {
     /// Per-call divergence diff: bucket every divergent board by the measured
     /// (`--ns`) pair's *first* call the baseline (`--ew`) would not have made,
     /// and report IMPs per bucket. Each call is tagged `resp` (responder's action
-    /// directly over our `1NT–(2X)`: the penalty double, a transfer, the relay,
+    /// directly over our `1NT (2X)`: the penalty double, a transfer, the relay,
     /// direct `3NT`) or `late` (a later call, e.g. opener completing a transfer).
     /// Answers "which call drives the swing" — e.g. is it the penalty double, or
     /// the transfers / 3NT? Each board lands in exactly one bucket, so the
@@ -359,7 +359,7 @@ fn is_1nt_opener(hand: Hand) -> bool {
     balanced && (15..=17).contains(&hand_hcp(hand))
 }
 
-/// Cheap pre-filter (no bidding): could this deal plausibly reach `1NT–(2♦/2♥)`?
+/// Cheap pre-filter (no bidding): could this deal plausibly reach `1NT (2♦/2♥)`?
 ///
 /// Some seat is a `1NT` opener whose left-hand opponent holds a five-card diamond
 /// or heart suit. For an A/B that only diverges on red-suit overcalls of our 1NT,
@@ -489,7 +489,7 @@ fn prefix_auction(calls: &[Call]) -> Auction {
 /// Replays `auction` (the measured/Lebensohl pair sits NS when `is_ns`); at each
 /// of that pair's turns it compares the actual call to what `baseline` would
 /// choose for the same hand and prefix. Returns the call index, the diverging
-/// call, and whether it is the responder's action directly over our `1NT–(2X)`
+/// call, and whether it is the responder's action directly over our `1NT (2X)`
 /// (so the diff can separate the responder node from later, e.g. opener
 /// completing a transfer). `None` if the pair never diverged at this table.
 fn first_divergent(
@@ -769,14 +769,14 @@ fn main() {
     );
     if args.filter_dh {
         println!(
-            "(pre-filtered to plausible 1NT–(2♦/2♥): kept {} of {scanned} dealt, {:.1}%)",
+            "(pre-filtered to plausible 1NT (2♦/2♥): kept {} of {scanned} dealt, {:.1}%)",
             args.count,
             100.0 * args.count as f64 / scanned.max(1) as f64,
         );
     }
     let leb_divergent = divergent.len() - systems_on.0;
     println!(
-        "Divergent boards: {} of {} ({:.1}%); systems-on (1NT–2♣) {} excluded",
+        "Divergent boards: {} of {} ({:.1}%); systems-on after 1NT - 2♣: {} excluded",
         leb_divergent,
         args.count,
         100.0 * leb_divergent as f64 / args.count.max(1) as f64,
@@ -790,7 +790,7 @@ fn main() {
         total_imps as f64 / leb_divergent.max(1) as f64,
     );
     println!(
-        "systems on (1NT–2♣, not Lebensohl): {} boards, {:+} IMPs ({:+.3}/board) — excluded above",
+        "systems on after 1NT - 2♣ (not Lebensohl): {} boards, {:+} IMPs ({:+.3}/board) — excluded above",
         systems_on.0,
         systems_on.1,
         systems_on.1 as f64 / systems_on.0.max(1) as f64,

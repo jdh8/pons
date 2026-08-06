@@ -1,4 +1,4 @@
-# BBA's `1NT–3♥/3♠` splinter
+# BBA's `1NT - 3♥/3♠` splinter
 
 What BBA/EPBot's `1N-3M splinter` toggle actually plays, read off the live engine
 with [`examples/probe-bba-constraints`](../../examples/probe-bba-constraints/main.rs)
@@ -32,7 +32,7 @@ entirely from the response ladder (0 of 40 000). The toggle owns the slot.
 Untrimmed over 40 000 hands, seed 7 — the bounds below are hard min/max, not
 percentiles:
 
-| | `1NT–3♥` (n=341, 0.9%) | `1NT–3♠` (n=377, 0.9%) |
+| | `1NT - 3♥` (n=341, 0.9%) | `1NT - 3♠` (n=377, 0.9%) |
 | --- | --- | --- |
 | bid major | **0–1** (med 1) | **0–1** (med 1) |
 | other major | **exactly 4** | **exactly 4** |
@@ -59,7 +59,7 @@ points with game-forcing playing strength.
 
 ## What opener does over it
 
-Opener at `[1NT, P, 3♥, P]` and `[1NT, P, 3♠, P]`, filtered to hands BBA actually
+Opener at `1NT - 3♥ -` and `1NT - 3♠ -`, filtered to hands BBA actually
 opens 1NT (n≈1000 each, every bucket 15–17 HCP, ≈100% balanced):
 
 | opener's call | over `3♥` | over `3♠` |
@@ -110,7 +110,7 @@ floors the other major at four and "no 5-card major" caps it there. But a
 four-card major opposite our 1NT is what Stayman is *for* — BBA's splinter
 competes with its own `2♣`. The Bridge World form does not:
 
-| authority | `1NT–3M` |
+| authority | `1NT - 3M` |
 | --- | --- |
 | **BWS 2017** IV.F(e) | "three of another suit = both minors strong … three of a major = **at most one card in the suit bid**" |
 | **BWS 2001** poll 814c | "both minors with shortness in the bid suit" — **(37, 29)**, the expert plurality (814a natural-and-forcing: 21, 25) |
@@ -160,7 +160,7 @@ Responder's rule alone was measured **inert**. With opener left to the floor —
 which receives the whole pinned shape through the alert decode and is already
 barred from passing by `opener_forced_past_invitation` — a 600 000-board
 self-play run fired 217 times, diverged on **9** boards, and moved −4 IMPs plain
-/ −22 PD. A direct probe explains it: over `[1NT, P, 3♥, P]` the floor bid `3NT`
+/ −22 PD. A direct probe explains it: over `1NT - 3♥ -` the floor bid `3NT`
 on *every* opener hand tried, including `♥KQJ` (total wastage) and five spades
 opposite a known three-card holding.
 
@@ -226,9 +226,9 @@ same floor BBA measured for its own version of the slot, and BWS's "strong".
 
 ### Owed: reading BEN's form
 
-Our reader now decodes `1NT–3M` off the alert instead of the natural five-plus
+Our reader now decodes `1NT - 3M` off the alert instead of the natural five-plus
 walk — but only for **our** book's shape. BEN loads its card and plays the GIB
 form, so against BEN the box is still wrong (2–3 in the other major where BEN
 holds exactly four). Deferred rather than guessed, because it is **unmeasurable
 today**: BBA's engine default for the toggle is off, so no anchor run ever sees a
-`1NT–3M`, and there is no BEN harness yet. Land it with `ben-gen`.
+`1NT - 3M`, and there is no BEN harness yet. Land it with `ben-gen`.

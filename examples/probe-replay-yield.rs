@@ -47,15 +47,12 @@ fn main() {
 
     let auctions: &[(&str, Vec<Call>)] = &[
         (
-            "partner 1H, RHO 2C",
+            "1H (2C) ?",
             vec![bid(1, Strain::Hearts), bid(2, Strain::Clubs)],
         ),
+        ("1NT (X) ?", vec![bid(1, Strain::Notrump), Call::Double]),
         (
-            "partner 1NT, RHO X",
-            vec![bid(1, Strain::Notrump), Call::Double],
-        ),
-        (
-            "LHO 1NT, partner 2C, RHO 2H",
+            "(1NT) 2C (2H) ?",
             vec![
                 bid(1, Strain::Notrump),
                 bid(2, Strain::Clubs),
@@ -63,7 +60,7 @@ fn main() {
             ],
         ),
         (
-            "p 1H, RHO 1S, me?, LHO 2S, p 3H, RHO P",
+            "1H (1S) - (2S) 3H - ?",
             vec![
                 bid(1, Strain::Hearts),
                 bid(1, Strain::Spades),
@@ -76,7 +73,7 @@ fn main() {
         // Search's home is constructive reach, so the tight long auctions matter
         // most: every extra round narrows partner further (Phase 1c's target).
         (
-            "p 1NT, me 2D transfer, p 2H, me?",
+            "1NT - 2D - 2H - ?",
             vec![
                 bid(1, Strain::Notrump),
                 Call::Pass,
@@ -87,7 +84,7 @@ fn main() {
             ],
         ),
         (
-            "p 1S, me 2C GF, p 2D, me 2H, p 3C, me?",
+            "1S - 2C - 2D - 2H - 3C - ?",
             vec![
                 bid(1, Strain::Spades),
                 Call::Pass,
@@ -102,7 +99,7 @@ fn main() {
             ],
         ),
         (
-            "p 2NT, me 3C Stayman, p 3S, me 4NT RKCB, p 5H, me?",
+            "2NT - 3C - 3S - 4NT - 5H - ?",
             vec![
                 bid(2, Strain::Notrump),
                 Call::Pass,
@@ -123,7 +120,7 @@ fn main() {
         // while an unconditional rule keeps its `best` finite, so the escape
         // hatch cannot fire.  Deletion candidate on sight.
         (
-            "#1 1S-2C-2D-3D (opener_third_agree)",
+            "#1 1S - 2C - 2D - 3D (opener_third_agree)",
             key(&[
                 bid(1, Strain::Spades),
                 bid(2, Strain::Clubs),
@@ -132,7 +129,7 @@ fn main() {
             ]),
         ),
         (
-            "#2 1S-2C-2D-3S (opener_third)",
+            "#2 1S - 2C - 2D - 3S (opener_third)",
             key(&[
                 bid(1, Strain::Spades),
                 bid(2, Strain::Clubs),
@@ -141,7 +138,7 @@ fn main() {
             ]),
         ),
         (
-            "#3 1D-1S-1NT-2C-2D-2NT (xyz accept_or_decline)",
+            "#3 1D - 1S - 1NT - 2C - 2D - 2NT (xyz accept_or_decline)",
             key(&[
                 bid(1, Strain::Diamonds),
                 bid(1, Strain::Spades),
@@ -159,7 +156,7 @@ fn main() {
         // it.  Unreachable, not infeasible: nothing to delete.  Keep both as
         // the worked example of that false positive.
         (
-            "#3 1D-1S-1NT-2NT (unreachable under XYZ)",
+            "#3 1D - 1S - 1NT - 2NT (unreachable under XYZ)",
             key(&[
                 bid(1, Strain::Diamonds),
                 bid(1, Strain::Spades),
@@ -168,7 +165,7 @@ fn main() {
             ]),
         ),
         (
-            "#4 1D-1S-1NT-2C-3S (unreachable under XYZ)",
+            "#4 1D - 1S - 1NT - 2C - 3S (unreachable under XYZ)",
             key(&[
                 bid(1, Strain::Diamonds),
                 bid(1, Strain::Spades),
@@ -178,7 +175,7 @@ fn main() {
             ]),
         ),
         (
-            "#5 2S-2NT-3S (asker_after_max_major)",
+            "#5 2S - 2NT - 3S (asker_after_max_major)",
             key(&[
                 bid(2, Strain::Spades),
                 bid(2, Strain::Notrump),
@@ -186,7 +183,7 @@ fn main() {
             ]),
         ),
         (
-            "#6 2C-2D-2S-3S (opener_after_spades_raise)",
+            "#6 2C - 2D - 2S - 3S (opener_after_spades_raise)",
             key(&[
                 bid(2, Strain::Clubs),
                 bid(2, Strain::Diamonds),
@@ -195,7 +192,7 @@ fn main() {
             ]),
         ),
         (
-            "#7 1NT-2NT-3C-3D (pass_out)",
+            "#7 1NT - 2NT - 3C - 3D (pass_out)",
             key(&[
                 bid(1, Strain::Notrump),
                 bid(2, Strain::Notrump),

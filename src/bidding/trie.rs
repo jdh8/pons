@@ -70,7 +70,7 @@ where
 /// Decision trie as a vulnerability-agnostic bidding system
 ///
 /// A trie stores a [`Classifier`] for each covered auction without
-/// vulnerability.  For example, `[P, 1♠]` as an index stands for the 2nd-seat
+/// vulnerability.  For example, `- 1♠` as an index stands for the 2nd-seat
 /// opening of 1♠.
 ///
 /// Besides the exact book, every node may carry guarded [`Fallback`]s that

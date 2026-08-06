@@ -185,7 +185,7 @@ struct Args {
     #[arg(long, default_value_t = false)]
     filter_1nt: bool,
 
-    /// Enable our Unusual-vs-Unusual structure over 1NT-(2NT) — BBA overcalls our
+    /// Enable our Unusual-vs-Unusual structure over 1NT (2NT) — BBA overcalls our
     /// 1NT with a both-minors 2NT (Multi-Landy), so this is the live test.  Sets
     /// the responder structure + the encircling chase at the given floors.
     #[arg(long, default_value_t = false)]
@@ -393,7 +393,7 @@ struct Args {
     nt_fifths: bool,
 
     /// Disable our continuations after the opponents contest our 2♣ Stayman
-    /// (`1NT-(P)-2♣-(X)`/`-(2♦/2♥/2♠)`); on by default.  Off-switch for the A/B.
+    /// (`1NT - 2♣ (X)` / `1NT - 2♣ (2♦/2♥/2♠)`); on by default. Off-switch for the A/B.
     #[arg(long, default_value_t = false)]
     no_ns_comp_over_stayman: bool,
 
@@ -407,13 +407,13 @@ struct Args {
     )]
     ns_competitive_4333: String,
 
-    /// Author our defense to the opponents' 2♣ Stayman (`(1NT)-P-(2♣)`): X =
+    /// Author our defense to the opponents' 2♣ Stayman (`(1NT) - (2♣)`): X =
     /// lead-directing clubs, natural overcalls, strong 3♣ (default off; opt-in A/B).
     #[arg(long, default_value_t = false)]
     ns_defense_to_their_stayman: bool,
 
     /// Author our continuations after the opponents contest our Jacoby transfer
-    /// (`1NT-(P)-2♦/2♥-(X)`/`-(overcall)`); default off (opt-in A/B — DD-negative).
+    /// (`1NT - 2♦/2♥ (X)` / `1NT - 2♦/2♥ (overcall)`); default off (opt-in A/B — DD-negative).
     #[arg(long, default_value_t = false)]
     ns_comp_over_transfer: bool,
 
@@ -423,7 +423,7 @@ struct Args {
     ns_transfer_super_accept: bool,
 
     /// Disable responder's game-forcing structure after the spade transfer
-    /// (`1NT–2♥–2♠`: natural 5-5 `3♥` slam try, `3♣`/`3♦` minors, `4♣`/`4♦`/`4♥`
+    /// (`1NT - 2♥ - 2♠`: natural 5-5 `3♥` slam try, `3♣`/`3♦` minors, `4♣`/`4♦`/`4♥`
     /// splinters, quantitative `4NT`); on by default.
     #[arg(long, default_value_t = false)]
     no_ns_transfer_gf_majors: bool,
@@ -433,19 +433,19 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_minor_min_to_3nt: bool,
 
-    /// Disable the GF structure's heart-transfer mirror (`1NT–2♦–2♥`: `3♣`/`3♦` minors,
+    /// Disable the GF structure's heart-transfer mirror (`1NT - 2♦ - 2♥`: `3♣`/`3♦` minors,
     /// `3♠`/`4♣`/`4♦` splinters, quantitative `4NT`); on by default (with the master
     /// GF-majors structure).
     #[arg(long, default_value_t = false)]
     no_ns_transfer_gf_hearts: bool,
 
-    /// Disable responder's post-transfer single-suited slam try (`1NT–2♦–2♥–3♠` /
-    /// `1NT–2♥–2♠–3♥`, a 5-card-major RKCB slam try); on by default.
+    /// Disable responder's post-transfer single-suited slam try (`1NT - 2♦ - 2♥ - 3♠` /
+    /// `1NT - 2♥ - 2♠ - 3♥`, a 5-card-major RKCB slam try); on by default.
     #[arg(long, default_value_t = false)]
     no_ns_transfer_slam_try: bool,
 
     /// Disable the Texas + responder-RKCB slam drive for 6-card-major hands
-    /// (restores the opener-decides direct `1NT–4♥/4♠` at 15-18); on by default.
+    /// (restores the opener-decides direct `1NT - 4♥/4♠` at 15-18); on by default.
     #[arg(long, default_value_t = false)]
     no_ns_texas_slam_drive: bool,
 
@@ -454,13 +454,13 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_garbage_stayman: bool,
 
-    /// Disable opener's max-only right-siding relay over 1NT-2♣ with both four-card
+    /// Disable opener's max-only right-siding relay over 1NT - 2♣ with both four-card
     /// majors (2NT = 16-17; responder names a major via 3♣/3♦, opener completes and
     /// declares); on by default.  Off-switch for the A/B.
     #[arg(long, default_value_t = false)]
     no_ns_stayman_both_majors: bool,
 
-    /// Disable opener's max five-card-major jump over 1NT-2♣ (3♥/3♠); on by
+    /// Disable opener's max five-card-major jump over 1NT - 2♣ (3♥/3♠); on by
     /// default.  Off-switch for the A/B.
     #[arg(long, default_value_t = false)]
     no_ns_stayman_5card_max: bool,
@@ -478,7 +478,7 @@ struct Args {
     no_ns_crawling_stayman: bool,
 
     /// Disable responder's continuation after opener's 3OM-slam-try cue
-    /// (`1NT-2♣-2M-3OM-4x`): on, responder keycards or signs off in the major game
+    /// (`1NT - 2♣ - 2M - 3OM - 4x`): on, responder keycards or signs off in the major game
     /// instead of passing the cue out below game; on by default. Off-switch for the A/B.
     #[arg(long, default_value_t = false)]
     no_ns_stayman_cue_continuation: bool,
@@ -491,13 +491,13 @@ struct Args {
     no_ns_longer_major_response: bool,
 
     /// Disable the up-the-line completion of the natural minor tree (the
-    /// 1♣-1♦ response, opener's 1♠ rebid over 1m-1♥, opener's natural 2♣
-    /// after 1♣-1♦); on by default, shipped jointly with XYZ. Off-switch for
+    /// 1♣ - 1♦ response, opener's 1♠ rebid over 1m - 1♥, opener's natural 2♣
+    /// after 1♣ - 1♦); on by default, shipped jointly with XYZ. Off-switch for
     /// the A/B.
     #[arg(long, default_value_t = false)]
     no_ns_up_the_line: bool,
 
-    /// Disable the 1M-3NT choice-of-games response (3-4 card support, exactly
+    /// Disable the 1M - 3NT choice-of-games response (3-4 card support, exactly
     /// (4333), 12-15 HCP; opener passes balanced, corrects to 4M with shape);
     /// on by default. Off-switch for the A/B (see `set_major_choice_of_games`).
     #[arg(long, default_value_t = false)]
@@ -519,14 +519,14 @@ struct Args {
     #[arg(long, default_value = "points13")]
     ns_two_over_one_gate: String,
 
-    /// Natural per-call 2/1 suit lengths: `1♠–2♥` promises 5+ hearts, `1♠–2♣`
+    /// Natural per-call 2/1 suit lengths: `1♠ - 2♥` promises 5+ hearts, `1♠ - 2♣`
     /// allows 3+ clubs (the cheapest 2/1 catch-all); every other 2/1 keeps 4+.
     /// Off by default (uniform 4+) — on-switch for the A/B (see
     /// `set_two_over_one_natural_lengths`).
     #[arg(long, default_value_t = false)]
     ns_two_over_one_natural_lengths: bool,
 
-    /// Lighten `1♠–2♥` by one HCP on its no-fit leg (`hcp(12..)` at the default
+    /// Lighten `1♠ - 2♥` by one HCP on its no-fit leg (`hcp(12..)` at the default
     /// hcp13 gate), the five-card major worth a shade-light game force. Off by
     /// default — on-switch for the A/B (see `set_two_over_one_major_discount`).
     #[arg(long, default_value_t = false)]
@@ -538,30 +538,30 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_xyz: bool,
 
-    /// Enable New Minor Forcing in place of XYZ on the four `1m-1M-1NT` slots
+    /// Enable New Minor Forcing in place of XYZ on the four `1m - 1M - 1NT` slots
     /// (opt-in, off by default): responder's two-of-the-new-minor is an
     /// invitational-or-better checkback promising a five-card major.
     #[arg(long, default_value_t = false)]
     ns_new_minor_forcing: bool,
 
-    /// Author opener's major game tries after a single raise (`1M – 2M`): a
+    /// Author opener's major game tries after a single raise (`1M - 2M`): a
     /// long-suit try, the general re-raise, or a keycard-asking maximum
     /// (shipped default-on; see `set_major_game_tries`).
     #[arg(long, default_value_t = false)]
     no_ns_major_game_tries: bool,
 
-    /// Disable opener's limit-raise acceptance ladder after `1M – 3M`
+    /// Disable opener's limit-raise acceptance ladder after `1M - 3M`
     /// (shipped default-on; see `set_limit_raise_acceptance`).
     #[arg(long, default_value_t = false)]
     no_ns_limit_raise_acceptance: bool,
 
-    /// Disable opener's answer to partner's cue-raise (`1M – (ovc) – cue – P`)
+    /// Disable opener's answer to partner's cue-raise (`1M (ovc) cue -`)
     /// (shipped default-on; see `set_cue_raise_answer`).
     #[arg(long, default_value_t = false)]
     no_ns_cue_raise_answer: bool,
 
     /// Disable opener's answer to a *minor*-opening cue-raise
-    /// (`1m – (ovc) – cue – P`) (default-on; see `set_cue_minor_raise_answer`).
+    /// (`1m (ovc) cue -`) (default-on; see `set_cue_minor_raise_answer`).
     #[arg(long, default_value_t = false)]
     no_ns_cue_minor_raise_answer: bool,
 
@@ -584,7 +584,7 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_strong_two_comp: bool,
 
-    /// Disable opener's support double/redouble on `1♥ – (P) – 1♠` (shipped
+    /// Disable opener's support double/redouble on `1♥ - 1♠` (shipped
     /// default-on; see `set_major_support_double`).
     #[arg(long, default_value_t = false)]
     no_ns_major_support_double: bool,
@@ -664,7 +664,7 @@ struct Args {
     no_ns_suppress_5card_major_takeout: bool,
 
     /// Disable the **rich advance** of partner's takeout double of a one-opening
-    /// (`(1t)–X–(P)–?`) — revert to the flat advance without the cue + notrump
+    /// (`(1t) X - ?`) — revert to the flat advance without the cue + notrump
     /// invite/force ladder (shipped default-on; see `set_rich_advance_double`).
     #[arg(long, default_value_t = false)]
     no_ns_rich_advance: bool,
@@ -712,7 +712,7 @@ struct Args {
     #[arg(long, value_name = "N")]
     ns_advance_sit_hcp: Option<u8>,
 
-    /// Disable opener's balanced `1NT` rebid after `1m – 1M` — revert a balanced
+    /// Disable opener's balanced `1NT` rebid after `1m - 1M` — revert a balanced
     /// 12–14 with a five-card minor to the natural `2m` (shipped default-on; see
     /// `set_balanced_1nt_rebid`).
     #[arg(long, default_value_t = false)]
@@ -725,7 +725,7 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_opener_extras_ladder: bool,
 
-    /// Disable opener's major jump-rebid rung (`1♥ – 1♠ – 3♥`, `1M – 1NT – 3M`)
+    /// Disable opener's major jump-rebid rung (`1♥ - 1♠ - 3♥`, `1M - 1NT - 3M`)
     /// on a six-card major with 16+ and responder's continuation over it — the
     /// major-opening half of the extras ladder (shipped default-on; see
     /// `set_opener_major_jump_rebid`).
@@ -733,14 +733,14 @@ struct Args {
     no_ns_opener_major_jump_rebid: bool,
 
     /// Disable opener's third-call table after responder raises opener's second
-    /// suit in a 2/1 auction (`1M – 2r – 2x – 3x`) — drop that node to the floor
+    /// suit in a 2/1 auction (`1M - 2r - 2x - 3x`) — drop that node to the floor
     /// (shipped default-on; see `set_second_suit_agreement`).  Constructive
     /// book re-audit candidate #1: two rules, `points(15..)` RKCB else an
     /// unconditional sign-off, the retired backstop's signature.
     #[arg(long, default_value_t = false)]
     no_ns_second_suit_agreement: bool,
 
-    /// Disable opener's third call after trump is agreed at `1M – 2r – R – 3M`
+    /// Disable opener's third call after trump is agreed at `1M - 2r - R - 3M`
     /// — drop that node to the floor (shipped default-on; see
     /// `set_opener_third`).  Re-audit candidate #2: the deletion measures
     /// +0.437/+0.527 plain per divergent but leaves the floor unable to ask
@@ -810,12 +810,12 @@ struct Args {
     no_ns_splinter_doubled: bool,
 
     /// Disable the major-rebid-tails adjunct — the full continuations after
-    /// `1♥ – 1♠` below opener's `2♠`/`3♠` raise, `2♥` rebid, and `2♣`/`2♦`
+    /// `1♥ - 1♠` below opener's `2♠`/`3♠` raise, `2♥` rebid, and `2♣`/`2♦`
     /// minor rebid (shipped default-on; see `set_major_rebid_tails`).
     #[arg(long, default_value_t = false)]
     no_ns_major_rebid_tails: bool,
 
-    /// Disable fourth-suit-forcing — at `1♥ – 1♠ – 2♣`, responder's `2♦`
+    /// Disable fourth-suit-forcing — at `1♥ - 1♠ - 2♣`, responder's `2♦`
     /// reverts to the natural-tail reading (shipped default-on; rides the
     /// tails adjunct, so `--no-ns-major-rebid-tails` also silences it — see
     /// `set_fourth_suit_forcing`).
@@ -841,32 +841,32 @@ struct Args {
     #[arg(long, default_value_t = 18)]
     ns_sixcard_accept_floor: u8,
 
-    /// Author our defense to the opponents' Jacoby transfers (`(1NT)-P-(2♦/2♥)`):
+    /// Author our defense to the opponents' Jacoby transfers (`(1NT) - (2♦/2♥)`):
     /// X = lead-directing the bid suit, Michaels cue, natural overcalls (default
     /// off; opt-in A/B).
     #[arg(long, default_value_t = false)]
     ns_transfer_defense: bool,
 
     /// Turn OFF our continuations after the opponents contest our two-way 2♠ minor
-    /// response (`1NT-(P)-2♠-(X)`/`-(overcall)`); default on (the A/B off-switch —
+    /// response (`1NT - 2♠ (X)` / `1NT - 2♠ (overcall)`); default on (the A/B off-switch —
     /// measured +4.80 IMPs/fired plain, +5.63 PD).
     #[arg(long, default_value_t = false)]
     no_ns_comp_over_minor_transfer: bool,
 
     /// Author our defense to the opponents' two-way 2♠ minor response
-    /// (`(1NT)-P-(2♠)`): X = lead-directing spades, 2NT/3♣ two-suiters, natural
+    /// (`(1NT) - (2♠)`): X = lead-directing spades, 2NT/3♣ two-suiters, natural
     /// overcalls (default off; opt-in A/B).
     #[arg(long, default_value_t = false)]
     ns_minor_transfer_defense: bool,
 
     /// Turn OFF our continuations after the opponents contest our 2NT diamond
-    /// transfer (`1NT-(P)-2NT-(X)`/`-(overcall)`); default on (the A/B off-switch —
+    /// transfer (`1NT - 2NT (X)` / `1NT - 2NT (overcall)`); default on (the A/B off-switch —
     /// measured a plain-DD wash +0.24/fired, +3.40 PD).
     #[arg(long, default_value_t = false)]
     no_ns_comp_over_diamond_transfer: bool,
 
     /// Author our defense to the opponents' 2NT diamond transfer
-    /// (`(1NT)-P-(2NT)`): X = lead-directing diamonds, 3♦ cue = both majors,
+    /// (`(1NT) - (2NT)`): X = lead-directing diamonds, 3♦ cue = both majors,
     /// natural overcalls (default off; opt-in A/B).
     #[arg(long, default_value_t = false)]
     ns_diamond_transfer_defense: bool,
@@ -925,7 +925,7 @@ struct Args {
 
     /// Disable systems-on advances after our 1NT overcall: on, the advancer plays
     /// the full opening-1NT structure (Stayman/transfers/Smolen) grafted below
-    /// `[1t,1NT]`, finding and right-siding major fits; on by default. Off-switch
+    /// `(1t) 1NT`, finding and right-siding major fits; on by default. Off-switch
     /// for the A/B.
     #[arg(long, default_value_t = false)]
     no_ns_nt_overcall_systems_on: bool,
@@ -937,7 +937,7 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_nt_overcall_gladiator: bool,
 
-    /// Extend our 1NT defense to the balancing seat (1NT) P P ? (default off).
+    /// Extend our 1NT defense to the balancing seat `(1NT) - - ?` (default off).
     #[arg(long, default_value_t = false)]
     ns_balancing: bool,
 
@@ -1015,13 +1015,13 @@ struct Args {
     ns_allow_pull: bool,
 
     /// Disable the advancer's runout from BBA's redoubled penalty X (default on):
-    /// after `[1NT, X, XX]`, a weak advancer sits for `1NTxx` instead of escaping to
+    /// after `(1NT) X (XX)`, a weak advancer sits for `1NTxx` instead of escaping to
     /// its long suit.
     #[arg(long, default_value_t = false)]
     no_ns_xx_runout: bool,
 
     /// Disable the *doubler's* runout once BBA's redoubled penalty X runs back around
-    /// (default on): after `[1NT, X, XX, P, P]`, a 15+ doubler with a five-plus suit
+    /// (default on): after `(1NT) X (XX) - -`, a 15+ doubler with a five-plus suit
     /// escapes to it instead of defending `1NTxx`.
     #[arg(long, default_value_t = false)]
     no_ns_doubler_run: bool,
@@ -1348,7 +1348,7 @@ fn is_1nt_opener(hand: Hand) -> bool {
 
 /// If this auction's *opening* call is 1NT, its index and whether the opener is
 /// North/South.  The opening requirement (all prior calls passes) excludes a
-/// `1♣-P-1NT` rebid — we want 1NT *openings* only.  Used by `--isolate-defense`
+/// `1♣ - 1NT` rebid — we want 1NT *openings* only. Used by `--isolate-defense`
 /// to keep only BBA-opens-1NT / we-defend boards.
 fn opening_1nt(auction: &[Call], dealer: Seat) -> Option<(usize, bool)> {
     let one_nt = Call::Bid(Bid::new(1, Strain::Notrump));

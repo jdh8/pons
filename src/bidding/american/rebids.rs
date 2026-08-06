@@ -11,9 +11,9 @@
 //! | [`extras_ladder`] | jump-rebid / reverse / jump-shift after a minor opening | [`set_opener_extras_ladder`] |
 //! | [`major_jump_rebid`] | `3M` on a six-card major with extras | [`set_opener_major_jump_rebid`] |
 //! | [`meckstroth`] | the artificial GF `2NT` and the invitational `3m` jumps | [`set_meckstroth_adjunct`] |
-//! | [`two_suiter`] | `1♥ – 1NT – 2♠` / `1♠ – 1NT – 3♥`, 15–17 | [`set_forcing_nt_two_suiter`] |
+//! | [`two_suiter`] | `1♥ - 1NT - 2♠` / `1♠ - 1NT - 3♥`, 15–17 | [`set_forcing_nt_two_suiter`] |
 //! | [`forcing_notrump`] | responder's second call after the forcing `1NT` | always on |
-//! | [`major_tails`] | full continuations after `1♥ – 1♠` (with 4SF) | [`set_major_rebid_tails`] |
+//! | [`major_tails`] | full continuations after `1♥ - 1♠` (with 4SF) | [`set_major_rebid_tails`] |
 
 use super::{call, other_major};
 use crate::bidding::constraint::{
@@ -62,7 +62,7 @@ pub(super) use two_suiter::forcing_nt_two_suiter_continuations;
 // during `register()`, so set it before building the `Pair`.
 std::thread_local! {
     /// Whether opener rebids `1NT` (not `2m`) with a balanced 12–14 and a
-    /// five-card minor after `1m – 1M`.  On by default (shipped);
+    /// five-card minor after `1m - 1M`.  On by default (shipped);
     /// see [`set_balanced_1nt_rebid`].
     static BALANCED_1NT_REBID: Cell<bool> = const { Cell::new(true) };
 }
@@ -70,7 +70,7 @@ std::thread_local! {
 /// Prefer opener's `1NT` rebid over `2m` on a balanced 12–14 in books built
 /// *after* this call
 ///
-/// After `1m – 1M`, a 5332 balanced minimum with the five-card minor otherwise
+/// After `1m - 1M`, a 5332 balanced minimum with the five-card minor otherwise
 /// rebids a natural `2m` (weight 0.9) that outranks the balanced `1NT` (0.5),
 /// misdescribing the hand and losing the `1NT`-based game placement BBA finds
 /// (the largest lever in the Constructive/book/round-2 anchor bucket).  Read at
@@ -103,7 +103,7 @@ const OPENER_REVERSE: Alert = Alert("opener-reverse");
 /// Opener's jump-shift — a new suit showing a big two-suiter, game-forcing
 const OPENER_JUMP_SHIFT: Alert = Alert("opener-jump-shift");
 
-/// Opener's rebid after `1♥ – 1♠`: raise spades, rebid hearts, or show shape
+/// Opener's rebid after `1♥ - 1♠`: raise spades, rebid hearts, or show shape
 ///
 /// Forcing on opener — there is no pass rule.
 fn rebid_one_heart_one_spade() -> Rules {
@@ -131,7 +131,7 @@ fn rebid_one_heart_one_spade() -> Rules {
         );
     // Meckstroth adjunct: invitational 3♣/3♦ jumps with a five-card minor.
     rules = with_invitational_minors(rules);
-    // Major jump-rebid: 1♥ – 1♠ – 3♥ on a six-card major with extras.
+    // Major jump-rebid: 1♥ - 1♠ - 3♥ on a six-card major with extras.
     rules = with_major_jump_rebid(rules, Suit::Hearts, Bid::new(1, Strain::Spades));
     rules
         .rule(Bid::new(2, Strain::Clubs), 90, len(Suit::Clubs, 4..))
@@ -141,7 +141,7 @@ fn rebid_one_heart_one_spade() -> Rules {
         .rule(Bid::new(1, Strain::Notrump), 20, hcp(0..))
 }
 
-/// Opener's rebid after `1M – 1NT` (the forcing notrump)
+/// Opener's rebid after `1M - 1NT` (the forcing notrump)
 ///
 /// Forcing on opener.  A five-card-major rebid is the guaranteed-legal
 /// fallback when nothing more descriptive fits — a basic simplification.
@@ -166,9 +166,9 @@ fn rebid_after_forcing_notrump(major: Suit) -> Rules {
     rules = rules.rule(Bid::new(2, trump), 100, len(major, 6..));
     // Meckstroth adjunct: invitational 3♣/3♦ jumps with a five-card minor.
     rules = with_invitational_minors(rules);
-    // Major jump-rebid: 1M – 1NT – 3M on a six-card major with extras.
+    // Major jump-rebid: 1M - 1NT - 3M on a six-card major with extras.
     rules = with_major_jump_rebid(rules, major, Bid::new(1, Strain::Notrump));
-    // Invitational two-suiter: 1♥ – 1NT – 2♠ reverse / 1♠ – 1NT – 3♥ jump.
+    // Invitational two-suiter: 1♥ - 1NT - 2♠ reverse / 1♠ - 1NT - 3♥ jump.
     rules = with_forcing_nt_two_suiter(rules, major);
     for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
         if Strain::from(suit) < trump {
@@ -181,7 +181,7 @@ fn rebid_after_forcing_notrump(major: Suit) -> Rules {
 
 /// Opener's rebid raising responder's new major after a minor opening
 ///
-/// Used at `1m – 1M`.  Forcing on opener; a 1NT rebid is the guaranteed-legal
+/// Used at `1m - 1M`.  Forcing on opener; a 1NT rebid is the guaranteed-legal
 /// fallback.  Under the up-the-line completion (`set_up_the_line`) opener
 /// also shows four spades over a `1♥` response — without it the 4-4 spade
 /// fit is lost to the 1NT rebid.
@@ -228,7 +228,7 @@ fn rebid_raise_major(responder_major: Suit, opener_minor: Suit) -> Rules {
         .rule(Bid::new(1, Strain::Notrump), 20, hcp(0..))
 }
 
-/// Opener's rebid after `1♣ – 1♦`
+/// Opener's rebid after `1♣ - 1♦`
 ///
 /// Under the up-the-line completion (`set_up_the_line`) a six-plus club suit
 /// rebids a natural `2♣` — without it those hands land in the misdescribed
@@ -293,17 +293,12 @@ fn opener_accept_limit_raise(major: Suit) -> Rules {
         .rule(Call::Pass, 0, hcp(0..))
 }
 
-/// Opener's base rebid after `1♥ – 1♠`
+/// Opener's base rebid after `1♥ - 1♠`
 pub(super) fn one_heart_one_spade_rebid() -> Package {
     Package {
         name: "one-heart-one-spade-rebid",
         gate: || true,
-        entries: || {
-            rows_of(
-                Pattern::node("P* 1♥ (P) 1♠ (P)"),
-                rebid_one_heart_one_spade(),
-            )
-        },
+        entries: || rows_of(Pattern::node("P* 1♥ - 1♠ -"), rebid_one_heart_one_spade()),
     }
 }
 
@@ -314,16 +309,16 @@ pub(super) fn remaining_rebid_bases() -> Package {
         gate: || true,
         entries: || {
             let mut entries = expand(
-                "P* 1M (P) 1NT (P)",
+                "P* 1M - 1NT -",
                 |_| true,
                 |b| rebid_after_forcing_notrump(b.suit('M')),
             );
             entries.extend(rows_of(
-                Pattern::node("P* 1♣ (P) 1♦ (P)"),
+                Pattern::node("P* 1♣ - 1♦ -"),
                 rebid_one_club_one_diamond(),
             ));
             entries.extend(expand(
-                "P* 1m (P) 1M (P)",
+                "P* 1m - 1M -",
                 |_| true,
                 |b| rebid_raise_major(b.suit('M'), b.suit('m')),
             ));

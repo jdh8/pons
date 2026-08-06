@@ -9,7 +9,7 @@
 #[allow(dead_code)]
 pub mod oracle;
 
-use contract_bridge::auction::{Auction, Call};
+use contract_bridge::auction::{Auction, Call, display_calls};
 use contract_bridge::deck::full_deal;
 use contract_bridge::eval::hcp as holding_hcp;
 use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Hand, Seat, Suit};
@@ -63,16 +63,15 @@ pub fn slam_ish(deal: &FullDeal) -> (u8, u8) {
 /// leading passes only encode the seat, which the books already fan over.  The
 /// result is directly greppable against `examples/render-book`.
 pub fn auction_key(auction: &[Call]) -> String {
-    let key = auction
+    let calls = auction
         .iter()
         .skip_while(|&&call| call == Call::Pass)
-        .map(ToString::to_string)
-        .collect::<Vec<_>>()
-        .join(" ");
-    if key.is_empty() {
+        .copied()
+        .collect::<Vec<_>>();
+    if calls.is_empty() {
         "(opening passes)".to_owned()
     } else {
-        key
+        display_calls(&calls).to_string()
     }
 }
 

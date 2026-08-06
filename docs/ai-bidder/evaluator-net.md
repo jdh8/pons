@@ -752,8 +752,8 @@ bought — shows up first as *fewer* contracts bid past their break-even.
 - **Wide envelopes bias the gates upward — the competitive-auction note.**
   When the bilans floor shipped default-on (2026-07-21) it changed six floor
   positions, and *every* competitive one moved up a level: a limit raise over a
-  jump overcall 3♥→4♥, a game opposite a 3-level overcall Pass→4♥, a 21-count
-  opposite an overcall 4♠→6♠.
+  jump overcall `3♥ → 4♥`, a game opposite a 3-level overcall `- → 4♥`, a 21-count
+  opposite an overcall 4♠ → 6♠.
 
   There is a mechanism that predicts exactly this, and it is worth stating
   because it is a property of the *gate*, not of the net's accuracy. A gate
@@ -1081,8 +1081,8 @@ Smoke, same seed, knob-on vs knob-off (3200 bd/vul):
 | both | 89 (2.78%) | 77 | 5 | 7 |
 
 **The veto does essentially all the work; the accelerator is close to inert.**
-Top families are `4♠ → Pass`, `6NT → Pass`, `6NT → 3NT`, `4♥ → Pass`,
-`3NT → Pass`, `6♠ → Pass`, `6♥ → 4♥` — the collar is removing overbids the net
+Top families are `4♠ → -`, `6NT → -`, `6NT → 3NT`, `4♥ → -`,
+`3NT → -`, `6♠ → -`, `6♥ → 4♥` — the collar is removing overbids the net
 alone was making, not finding thin games. Even the handful of "higher" boards
 are not game-site accelerations: the best example is off `3NT` → collar `4♦`,
 the 3NT veto letting a lower-ranked rule win.
@@ -1093,7 +1093,7 @@ accelerator) barely fires. Two arms suffice, and if the collar loses, the
 accelerator is not where to look for the reason.
 
 The flagship board is the F1 forensic's 6NT blast, reached from the other side.
-Seed 20260726 board 33, `AJ843.AK7.KJ52.7` at `1NT–2♥–2♠–3♦–3NT`: the shipped
+Seed 20260726 board 33, `AJ843.AK7.KJ52.7` at `1NT - 2♥ - 2♠ - 3♦ - 3NT`: the shipped
 wiring bids **6NT on a combined 31** because `combined_hcp(33)` was masked off
 entirely; collared, `authored & net` declines and the auction rests in 3NT. F1
 fixed the net's *inputs*; the collar restores the point floor the net was allowed
@@ -1127,11 +1127,11 @@ first divergent call, both vuls under PD:
 | --- | --- | --- |
 | `7NT → 3NT` | 15 | −234 |
 | `7♠ → 4♠`, `7♥ → 4♥` | 17 | −265 |
-| `4♠ → Pass`, `4♥ → Pass` | 22 | −328 |
+| `4♠ → -`, `4♥ → -` | 22 | −328 |
 | `4m → 3NT` | 9 | −120 |
 
 The shipped net bids those grands and they **make**. Board
-`AQ9.98.AQT32.JT6` opposite `KJT4.AKQ.K96.A72` is the clean one: `2NT–7NT`
+`AQ9.98.AQT32.JT6` opposite `KJT4.AKQ.K96.A72` is the clean one: `2NT - 7NT`
 cold on a combined 33, and the collar rests in 3NT for −14.
 
 **Both shapes lose, so neither half is salvageable and the third arm is moot.**
@@ -1139,7 +1139,7 @@ The veto is refuted directly. The accelerator is too, and by a mechanism the
 design missed: `COLLAR_SLACK = 2` caps the net's reach *below* the authored
 threshold, but the shipped wiring's reach is **unbounded**, so at the game sites
 the collar does not add hands — it takes away the ones the net was reaching for
-past 2 points. Every `4M → Pass` above is that. An accelerator whose collar is
+past 2 points. Every `4M → -` above is that. An accelerator whose collar is
 tighter than the incumbent's reach is a veto wearing the other shape's name.
 
 **What this settles, one level up.** The doubt that opened this whole session —
@@ -1335,8 +1335,8 @@ not a weaker one — it says the tighter agreement does not mislead the nets.
 Left **default off** pending an explicit call on the default.
 
 Worth noting for whoever picks this up: the worst boards diverge *early* —
-`1♥ 1♠ 2♠ 2NT …` against `1♥ 1♠ 2♠ – …`, the fourth call — and cluster on
-competitive auctions with `6♣ X` sacrifices, nowhere near the RKCB site. That is
+`1♥ (1♠) 2♠ (2NT) …` against `1♥ (1♠) 2♠ - …`, the fourth call — and cluster on
+competitive auctions with `6♣ (X)` sacrifices, nowhere near the RKCB site. That is
 the alerted-only union reaching every alerted call in the book, exactly as the
 isolation runs said. If the default is ever flipped, the per-family attribution
 to run first is which *alerted conventions* the tightened agreement moved, not
@@ -1719,8 +1719,8 @@ what each number is made of:
   major.  This is the phantom-suit failure the alert invariant exists to prevent,
   arriving from the other side of the table where no invariant of ours applies.
 - **Partner — a real defect, 3.3%.**  Expected ≈0%.  The offenders are our own
-  preference and raise sequences (`1♠ P 1NT P 2♥ P 2♠` 100%, `1♣ P 2♣` 92%,
-  `1♦ P 3♦` 100%, `3♥ P 4♥` 100%), i.e. calls the instinct floor makes on hands
+  preference and raise sequences (`1♠ - 1NT - 2♥ - 2♠` 100%, `1♣ - 2♣` 92%,
+  `1♦ - 3♦` 100%, `3♥ - 4♥` 100%), i.e. calls the instinct floor makes on hands
   the authored rule that *reads* them would not admit.  A book node and its
   floor-made continuations disagree about what the call shows.  **Not fixed
   here** — logged as its own defect.

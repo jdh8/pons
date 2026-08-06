@@ -1,4 +1,4 @@
-//! Puppet Stayman — `1NT – 3♣` asking for a five-card major
+//! Puppet Stayman — `1NT - 3♣` asking for a five-card major
 //!
 //! Opener's answers, the denial, and the Smolen completion below it.  Built
 //! only under [`PUPPET`](super::PUPPET), the shipped minor scheme.
@@ -36,7 +36,7 @@ fn puppet_major_rebid(major: Suit) -> Rules {
         .rule(Bid::new(3, Strain::Notrump), 50, len(major, ..3))
 }
 
-/// Responder's rebid after opener denies a five-card major (`1NT–3♣–3♦`)
+/// Responder's rebid after opener denies a five-card major (`1NT - 3♣ - 3♦`)
 ///
 /// Smolen-style: a four-card major (so responder is 4-3) bids the *shorter*
 /// three-card major to show four in the longer, right-siding game to opener.
@@ -73,31 +73,31 @@ fn puppet_smolen_completion(shown_major: Suit) -> Rules {
         .rule(Bid::new(3, Strain::Notrump), 50, len(shown_major, ..4))
 }
 
-/// Puppet Stayman responses and continuations after the 1NT–3♣ ask
+/// Puppet Stayman responses and continuations after the 1NT - 3♣ ask
 pub(crate) fn puppet() -> Package {
     Package {
         name: "puppet-stayman",
         gate: puppet_scheme,
         entries: || {
-            let mut entries = rows_of(Pattern::node("P* 1NT (P) 3♣ (P)"), puppet_answers());
+            let mut entries = rows_of(Pattern::node("P* 1NT - 3♣ -"), puppet_answers());
             entries.extend(expand(
-                "P* 1NT (P) 3♣ (P) 3M (P)",
+                "P* 1NT - 3♣ - 3M -",
                 |_| true,
                 |b| puppet_major_rebid(b.suit('M')),
             ));
             entries.extend(rows_of(
-                Pattern::node("P* 1NT (P) 3♣ (P) 3♦ (P)"),
+                Pattern::node("P* 1NT - 3♣ - 3♦ -"),
                 puppet_deny_rebid(),
             ));
 
             // The shorter-major bid shows four cards in the other major, so
             // these derived-suit completions stay literal.
             entries.extend(rows_of(
-                Pattern::node("P* 1NT (P) 3♣ (P) 3♦ (P) 3♥ (P)"),
+                Pattern::node("P* 1NT - 3♣ - 3♦ - 3♥ -"),
                 puppet_smolen_completion(Suit::Spades),
             ));
             entries.extend(rows_of(
-                Pattern::node("P* 1NT (P) 3♣ (P) 3♦ (P) 3♠ (P)"),
+                Pattern::node("P* 1NT - 3♣ - 3♦ - 3♠ -"),
                 puppet_smolen_completion(Suit::Hearts),
             ));
             entries

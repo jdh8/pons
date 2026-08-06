@@ -74,7 +74,7 @@ pub(crate) fn stayman_answers() -> Rules {
         )
 }
 
-/// Opener's Stayman answer at the *uncontested* `[1NT, 2♣]` node
+/// Opener's Stayman answer at the *uncontested* `1NT - 2♣` node
 ///
 /// Wraps [`stayman_answers`] with the opt-in max-showing overlays so the shared
 /// `stayman_answers` (reused by the competitive book) stays untouched.  With both
@@ -339,7 +339,7 @@ pub(super) fn stayman_major_rebid(major: Suit) -> Rules {
     }
 }
 
-/// Responder's rebid after opener denies a major (`1NT–2♣–2♦`)
+/// Responder's rebid after opener denies a major (`1NT - 2♣ - 2♦`)
 ///
 /// Smolen: jump in the four-card major to show *five* in the other, game-forcing,
 /// so the strong notrump hand declares.  Lacking 5–4, revert to notrump as if the
@@ -433,7 +433,7 @@ pub(crate) fn smolen_completion(five_card: Suit) -> Rules {
 }
 
 /// Smolen at the three level: responder's jump after opener denies a major
-/// (`…3♣–3♦`).  Game is already forced, so no strength gate.
+/// (`…3♣ - 3♦`).  Game is already forced, so no strength gate.
 pub(crate) fn smolen_at_three() -> Rules {
     Rules::new()
         .rule(

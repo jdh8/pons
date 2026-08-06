@@ -271,7 +271,7 @@ fn projection_reproduces_the_declarative_readers() {
         );
     };
 
-    // Jacoby transfer to hearts (on by default): [1NT, P, 2♦, P, 2♥, P], the
+    // Jacoby transfer to hearts (on by default): `1NT - 2♦ - 2♥ -`, the
     // responder is Me at length 6; the 2♦ rule is `len(♥,5..) & …`.
     agree(
         &[
@@ -287,7 +287,7 @@ fn projection_reproduces_the_declarative_readers() {
         full,
     );
 
-    // Leaping Michaels: (2♥)–4♣–(P) = clubs + the other major (spades), 14+;
+    // Leaping Michaels: (2♥) 4♣ - = clubs + the other major (spades), 14+;
     // partner at length 3.  `len(♣,5..) & len(♠,5..) & points(14..)`.
     set_leaping_michaels(true);
     agree(
@@ -301,7 +301,7 @@ fn projection_reproduces_the_declarative_readers() {
     );
     set_leaping_michaels(false);
 
-    // Landy: (1NT)–2♣–(P) = both majors, at least 4-4, 8+; partner at length 3.
+    // Landy: (1NT) 2♣ - = both majors, at least 4-4, 8+; partner at length 3.
     // `((len(♥,5..)&len(♠,4..)) | (len(♥,4..)&len(♠,5..))) & points(8..)`.
     set_landy(Some((8, 15)));
     agree(

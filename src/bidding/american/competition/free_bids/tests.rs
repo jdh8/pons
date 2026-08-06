@@ -5,12 +5,12 @@ use contract_bridge::auction::Call;
 #[test]
 fn free_bids_fill_the_natural_gaps() {
     super::free_bids::set_free_bids(true);
-    // [1♠, (2♦)]: an 11-count with five hearts bids the 2/1-ish 2♥.
+    // `1♠ (2♦)`: an 11-count with five hearts bids the 2/1-ish 2♥.
     let auction = [call(1, Strain::Spades), call(2, Strain::Diamonds)];
     let (two_hearts, floored) = best_call(&auction, "K5.AQ542.964.Q32");
     assert_eq!(two_hearts, call(2, Strain::Hearts), "the 2-level free bid");
     assert!(!floored, "an authored node, not the floor");
-    // [1♥, (1♠)]: a balanced 10 with a spade stopper bids 1NT.
+    // `1♥ (1♠)`: a balanced 10 with a spade stopper bids 1NT.
     let one_nt_auction = [call(1, Strain::Hearts), call(1, Strain::Spades)];
     let (one_nt, _) = best_call(&one_nt_auction, "K52.95.KJ64.QJ32");
     assert_eq!(one_nt, call(1, Strain::Notrump), "the natural 1NT");
@@ -20,7 +20,7 @@ fn free_bids_fill_the_natural_gaps() {
 #[test]
 fn free_bid_floor_gates_the_marginal_hand() {
     super::free_bids::set_free_bids(true);
-    // [1♣, (1♦)]: a 6-ish balanced hand with five hearts. At the default
+    // `1♣ (1♦)`: a 6-ish balanced hand with five hearts. At the default
     // floor of 6 it makes the 1♥ free bid; raise the floor to 8 and it no
     // longer qualifies (falls through to the floor's pass).
     let auction = [call(1, Strain::Clubs), call(1, Strain::Diamonds)];
@@ -69,7 +69,7 @@ fn negative_free_bid_is_weak_and_capped() {
 #[test]
 fn free_bid_transfers_swap_the_two_level() {
     super::free_bids::set_free_bid_style(super::free_bids::FreeBidStyle::Transfer);
-    // [1♣, (1♠)]: both red suits sit at the two level, so the slots swap
+    // `1♣ (1♠)`: both red suits sit at the two level, so the slots swap
     // — 2♦ shows hearts, 2♥ shows diamonds (the wrap).
     let auction = [call(1, Strain::Clubs), call(1, Strain::Spades)];
     let (hearts, floored) = best_call(&auction, "52.KJ864.Q42.T53");

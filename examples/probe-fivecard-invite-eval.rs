@@ -4,7 +4,7 @@
 //! Opposite a 15-17 balanced 1NT, responder with **exactly five** cards in a major
 //! (and ≤3 in the other — a single-suiter, no second four-card suit) and
 //! *invitational* values (≈8 HCP) transfers (`2♦/2♥`), opener completes (`2♥/2♠`),
-//! then responder bids `2NT` to invite (for spades this is `1NT–2♥–2♠–2NT`; for
+//! then responder bids `2NT` to invite (for spades this is `1NT - 2♥ - 2♠ - 2NT`; for
 //! hearts the `2NT` step is taken by the 5♥4♠ invite, so the single-suiter relays
 //! through `2♠`).  Opener — holding *two or three* trumps (the fit is unknown) and
 //! a minimum or a maximum — must place the contract:

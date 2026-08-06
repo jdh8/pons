@@ -7,7 +7,7 @@
 //! are the two ways responder passes for value.
 use super::*;
 
-/// The meaning of responder's double of the overcall in `1NT − (overcall) − X`.
+/// The meaning of responder's double of the overcall in `1NT (overcall) X`.
 ///
 /// All variants are *authored* in the book (a finite logit), so the instinct
 /// floor's own takeout double — whose `hcp(12..)` threshold is too strong here —
@@ -63,7 +63,7 @@ pub(super) fn double_style() -> DoubleStyle {
 
 thread_local! {
     /// Whether opener leaves in responder's penalty double of a natural overcall of
-    /// our 1NT (`[1NT,(2X),X,(P)]`) instead of letting the floor read `[…,X,P]` as a
+    /// our 1NT (`1NT (2X) X -`) instead of letting the floor read `… X -` as a
     /// takeout advance and pull it. **On by default**; a no-op unless the active
     /// [`DoubleStyle`] is penalty. Read once at book construction. See
     /// [`set_penalty_double_leave_in`] — the A/B knob for the "opener pulls
@@ -75,7 +75,7 @@ thread_local! {
 /// 1NT, for books built *after* this call (thread-local; **on by default**)
 ///
 /// Only matters when the active [`DoubleStyle`] is `Penalty`/`PenaltyLight`: opener
-/// sits for `[1NT,(2X),X,(P)]` (defending the doubled overcall) rather than pulling
+/// sits for `1NT (2X) X -` (defending the doubled overcall) rather than pulling
 /// it, since responder's penalty double promised the trumps.  Off restores the bare
 /// floor (which reads the double as takeout and advances).
 pub fn set_penalty_double_leave_in(on: bool) {
@@ -88,7 +88,7 @@ pub(super) fn penalty_double_leave_in() -> bool {
 }
 
 /// Opener's reply to responder's **penalty** double of their overcall of our 1NT
-/// (`[1NT,(2X),X,(P)]`): always sit and defend, since responder promised length and
+/// (`1NT (2X) X -`): always sit and defend, since responder promised length and
 /// values in their suit
 ///
 /// A 3NT escape (opener-max with their suit stopped) was A/B'd a clear *loss* vs
@@ -97,14 +97,14 @@ pub(super) fn penalty_double_leave_in() -> bool {
 /// length in their suit — so opener never pulls.
 ///
 /// The book dual of the penalty latch's leave-in: without an authored node here the
-/// floor reads `[…,X,P]` as a takeout advance and *pulls* the penalty double (opener
+/// floor reads `… X -` as a takeout advance and *pulls* the penalty double (opener
 /// is usually short in their suit, so its own length-gated leave-in never fires).
 pub(super) fn opener_leaves_in_penalty_double() -> Rules {
     Rules::new().rule(Call::Pass, 150, hcp(0..))
 }
 
 /// Opener's reply to responder's **optional** (cooperative) double of their `over`
-/// overcall of our 1NT (`[1NT,(2X),X,(P)]`): responder showed only 2-3 cards in
+/// overcall of our 1NT (`1NT (2X) X -`): responder showed only 2-3 cards in
 /// their suit, so opener *decides* — stand (defend) with a three-card-plus fit, but
 /// **run with a doubleton** to a real five-card suit, escaping a thin defense
 ///
@@ -166,7 +166,7 @@ pub(super) fn responder_double(rules: Rules, over: Suit) -> Rules {
 
 thread_local! {
     /// Opener's penalty-pass over a `(2♣)` overcall, as
-    /// `(min_club_len, min_club_hcp, convert_over_major)`. After `1NT-(2♣)-X-(P)`
+    /// `(min_club_len, min_club_hcp, convert_over_major)`. After `1NT (2♣) X -`
     /// — where the systems-on Double is the stolen `2♣` Stayman — opener with this
     /// club holding *passes* to defend `2♣` doubled instead of answering Stayman.
     /// `convert_over_major` decides whether good clubs outrank a `2♥`/`2♠` major

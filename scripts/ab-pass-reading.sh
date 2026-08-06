@@ -8,7 +8,7 @@
 #   exclusion  --ns-pass-exclusion    passes exclude declined heavier siblings
 #              (the weak-two defensive passes read <=16 points instead of ⊤)
 #   probed     --ns-probe 100000      Stance::probe behavioral boxes, traffic-
-#              keyed (the floor's passes — 1NT P, 2♣/2NT P, fourth seat — read
+#              keyed (the floor's passes — `1NT -`, `2♣/2NT -`, fourth seat — read
 #              their measured bands; the only reader that can)
 #
 # Expectations, stated before the run (docs/ai-bidder/sampled-projection.md):

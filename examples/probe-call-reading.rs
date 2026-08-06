@@ -9,7 +9,7 @@
 //! the perspective of the seat about to act.
 //!
 //! ```sh
-//! cargo run --release --example probe-call-reading -- "2H P" "2H X" "2H 2N"
+//! cargo run --release --example probe-call-reading -- "2H -" "2H (X)" "2H (2N)"
 //! ```
 //!
 //! The three above read `⊤ ⊤ ⊤ ⊤ ⊤`, `points 12..` (shape ⊤), and `⊤ ⊤ ⊤ ⊤ ⊤`
@@ -33,7 +33,7 @@ use common::seat_to_act;
 
 #[derive(Parser)]
 struct Args {
-    /// Auctions to read, e.g. `"2H P"`; the last call of each is the one read
+    /// Auctions to read, e.g. `"2H -"` or `"2H (X)"`; the last call of each is read
     auctions: Vec<String>,
 
     /// Author the weak-two pass gate (`set_weak_two_pass_gate`, default off)
@@ -66,7 +66,14 @@ fn main() {
     for text in &args.auctions {
         let auction: Vec<Call> = text
             .split_whitespace()
-            .map(|call| call.parse().expect("a call"))
+            .map(|token| {
+                token
+                    .strip_prefix('(')
+                    .and_then(|token| token.strip_suffix(')'))
+                    .unwrap_or(token)
+                    .parse()
+                    .expect("a call")
+            })
             .collect();
         // Read from the seat about to act, so the auction's last call is RHO's.
         let rel = relative(

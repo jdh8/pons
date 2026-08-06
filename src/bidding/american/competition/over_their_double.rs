@@ -34,7 +34,7 @@ pub(crate) fn jordan_truscott() -> bool {
 }
 
 thread_local! {
-    /// Whether opener's rebid over the value redouble (`1x – (X) – XX – (P)`)
+    /// Whether opener's rebid over the value redouble (`1x (X) XX -`)
     /// is authored.  **Default on** (fix-vs-shipped, 1M boards/vul, 24.pdd
     /// 16.3M–18.3M: plain DD +0.0056 ± 0.0005 NV / +0.0078 ± 0.0007 vul, PD
     /// +0.0058/+0.0080, ≈ +11..+14 IMPs per divergent board).  Off, the
@@ -46,7 +46,7 @@ thread_local! {
     static REDOUBLE_ANSWER: Cell<bool> = const { Cell::new(true) };
 }
 
-/// Author opener's rebid over the value redouble (`1x – (X) – XX – (P)`) for
+/// Author opener's rebid over the value redouble (`1x (X) XX -`) for
 /// books built *after* this call (thread-local); requires
 /// [`set_jordan_truscott`] on (the redouble itself)
 ///
@@ -72,7 +72,7 @@ thread_local! {
 /// Play systems-on over their double of our splinter for books built *after*
 /// this call (thread-local)
 ///
-/// A splinter (`1M – (P) – double-jump`) is game-forcing, but the double
+/// A splinter (`1M - double-jump`) is game-forcing, but the double
 /// reroutes opener's rebid to the competitive book, where — unauthored — it
 /// fell to the floor and *passed*, leaving the game force doubled at the four
 /// level (the anchor's Constructive/book/round-1 bucket #4 tail: our monster
@@ -202,14 +202,14 @@ pub(super) fn jordan_truscott_package() -> Package {
                 entries.push(row(responder(), Call::Pass, 0, hcp(0..)).into());
 
                 entries.extend(rows_of(
-                    Pattern::after(&key, "2NT (P)"),
+                    Pattern::after(&key, "2NT -"),
                     if is_major {
                         answer_cue_raise(o)
                     } else {
                         answer_cue_minor_raise(o)
                     },
                 ));
-                let preempt = Pattern::after(&key, &format!("3{o_strain} (P)"));
+                let preempt = Pattern::after(&key, &format!("3{o_strain} -"));
                 if is_major {
                     entries
                         .push(row(preempt.clone(), Bid::new(4, o_strain), 90, points(17..)).into());
@@ -220,14 +220,14 @@ pub(super) fn jordan_truscott_package() -> Package {
                 entries.push(row(preempt, Call::Pass, 0, hcp(0..)).into());
                 if redouble_answer() {
                     entries
-                        .push(row(Pattern::after(&key, "XX (P)"), Call::Pass, 60, hcp(0..)).into());
+                        .push(row(Pattern::after(&key, "XX -"), Call::Pass, 60, hcp(0..)).into());
                 }
                 for x in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
                     let xs = Strain::from(x);
                     if xs >= o_strain {
                         continue;
                     }
-                    let weak = Pattern::after(&key, &format!("2{xs} (P)"));
+                    let weak = Pattern::after(&key, &format!("2{xs} -"));
                     entries.push(
                         row(
                             weak.clone(),
@@ -268,7 +268,7 @@ pub(super) fn splinter_doubled_package() -> Package {
                 };
                 for &x in splinter_suits {
                     let (level, strain) = super::super::responses::splinter_bid(major, x);
-                    let key = format!("P* 1{m_strain} (P) {}", Bid::new(level, strain));
+                    let key = format!("P* 1{m_strain} - {}", Bid::new(level, strain));
                     entries.push(rebase(Pattern::first(&key, "X"), ReplaceNext(Call::Pass)));
                 }
             }

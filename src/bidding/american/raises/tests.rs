@@ -36,7 +36,7 @@ fn limit_raise_trie() -> Trie {
     trie
 }
 
-/// `[1♥, P, 2♥, P]`: the single-raise node, undisturbed
+/// `1♥ - 2♥ -`: the single-raise node, undisturbed
 const RAISE_AUCTION: &[Call] = &[
     Call::Bid(Bid::new(1, Strain::Hearts)),
     Call::Pass,
@@ -44,7 +44,7 @@ const RAISE_AUCTION: &[Call] = &[
     Call::Pass,
 ];
 
-/// `[1♥, P, 3♥, P]`: the limit-raise node, undisturbed
+/// `1♥ - 3♥ -`: the limit-raise node, undisturbed
 const LIMIT_RAISE_AUCTION: &[Call] = &[
     Call::Bid(Bid::new(1, Strain::Hearts)),
     Call::Pass,
@@ -118,7 +118,7 @@ fn opener_passes_a_flat_minimum() {
     assert_eq!(best(&trie, RAISE_AUCTION, "KQ3.AJ854.K63.93"), Call::Pass);
 }
 
-/// `[1♥, P, 2♥, P, 3♣, P]`: responder's answer to the club try
+/// `1♥ - 2♥ - 3♣ -`: responder's answer to the club try
 fn after_club_try() -> Vec<Call> {
     RAISE_AUCTION
         .iter()

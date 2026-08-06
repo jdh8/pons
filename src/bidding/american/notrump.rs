@@ -198,7 +198,7 @@ pub fn notrump_responses() -> Rules {
     // see [`set_transfer_longer_major`]) a two-suiter (both majors 5+) always
     // transfers to the LONGER major, and equal lengths split by strength: weak
     // → hearts (safety), invitational / minimum game force → the both-majors
-    // 3♦, slam try → spades (the `1NT–2♥–2♠–3♥` structure).  2♦ (to hearts) is
+    // 3♦, slam try → spades (the `1NT - 2♥ - 2♠ - 3♥` structure).  2♦ (to hearts) is
     // UNCHANGED by the invitational-5-4 reroute — a 5♥4♠ invite keeps
     // transferring and shows the spades with a later 2NT/2♠.
     let prefer_longer = transfer_longer_major();
@@ -436,87 +436,87 @@ pub(super) fn base() -> Package {
         name: "one-nt-base",
         gate: || true,
         entries: || {
-            let mut entries = rows_of(Pattern::node("P* 1NT (P)"), notrump_responses());
+            let mut entries = rows_of(Pattern::node("P* 1NT -"), notrump_responses());
 
             // Stayman answers and transfer completions.  The uncontested table
             // folds in the opt-in max-showing overlays.
             entries.extend(rows_of(
-                Pattern::node("P* 1NT (P) 2♣ (P)"),
+                Pattern::node("P* 1NT - 2♣ -"),
                 stayman_answers_uncontested(),
             ));
             entries.extend(rows_of(
-                Pattern::node("P* 1NT (P) 2♦ (P)"),
+                Pattern::node("P* 1NT - 2♦ -"),
                 complete_transfer(Suit::Hearts),
             ));
             entries.extend(rows_of(
-                Pattern::node("P* 1NT (P) 2♥ (P)"),
+                Pattern::node("P* 1NT - 2♥ -"),
                 complete_transfer(Suit::Spades),
             ));
             entries.extend(rows_of(
-                Pattern::node("P* 1NT (P) 4NT (P)"),
+                Pattern::node("P* 1NT - 4NT -"),
                 quantitative_answer(17),
             ));
 
             // Responder's rebid after opener shows a major, and opener's reply
             // to the artificial 3OM slam try.
             entries.extend(rows_of(
-                Pattern::node("P* 1NT (P) 2♣ (P) 2♥ (P)"),
+                Pattern::node("P* 1NT - 2♣ - 2♥ -"),
                 stayman_major_rebid(Suit::Hearts),
             ));
             entries.extend(rows_of(
-                Pattern::node("P* 1NT (P) 2♣ (P) 2♠ (P)"),
+                Pattern::node("P* 1NT - 2♣ - 2♠ -"),
                 stayman_major_rebid(Suit::Spades),
             ));
             entries.extend(rows_of(
-                Pattern::node("P* 1NT (P) 2♣ (P) 2♥ (P) 3♠ (P)"),
+                Pattern::node("P* 1NT - 2♣ - 2♥ - 3♠ -"),
                 stayman_slam_try_answer(Suit::Hearts),
             ));
             entries.extend(rows_of(
-                Pattern::node("P* 1NT (P) 2♣ (P) 2♠ (P) 3♥ (P)"),
+                Pattern::node("P* 1NT - 2♣ - 2♠ - 3♥ -"),
                 stayman_slam_try_answer(Suit::Spades),
             ));
 
             // Responder's rebid after opener denies a major, and opener's
             // Smolen completion in responder's five-card major.
             entries.extend(rows_of(
-                Pattern::node("P* 1NT (P) 2♣ (P) 2♦ (P)"),
+                Pattern::node("P* 1NT - 2♣ - 2♦ -"),
                 stayman_no_major_rebid(),
             ));
             entries.extend(rows_of(
-                Pattern::node("P* 1NT (P) 2♣ (P) 2♦ (P) 3♥ (P)"),
+                Pattern::node("P* 1NT - 2♣ - 2♦ - 3♥ -"),
                 smolen_completion(Suit::Spades),
             ));
             entries.extend(rows_of(
-                Pattern::node("P* 1NT (P) 2♣ (P) 2♦ (P) 3♠ (P)"),
+                Pattern::node("P* 1NT - 2♣ - 2♦ - 3♠ -"),
                 smolen_completion(Suit::Hearts),
             ));
 
             // Opener accepts or declines responder's invitations.
             entries.extend(rows_of(
-                Pattern::node("P* 1NT (P) 2♣ (P) 2♥ (P) 3♥ (P)"),
+                Pattern::node("P* 1NT - 2♣ - 2♥ - 3♥ -"),
                 accept_major_invitation(Suit::Hearts),
             ));
             entries.extend(rows_of(
-                Pattern::node("P* 1NT (P) 2♣ (P) 2♠ (P) 3♠ (P)"),
+                Pattern::node("P* 1NT - 2♣ - 2♠ - 3♠ -"),
                 accept_major_invitation(Suit::Spades),
             ));
             entries.extend(expand(
-                "P* 1NT (P) 2♣ (P) 2x (P) 2NT (P)",
+                "P* 1NT - 2♣ - 2x - 2NT -",
                 |_| true,
                 |_| accept_invitation(Bid::new(3, Strain::Notrump)),
             ));
 
             // Opener's quantitative accept after a no-fit revert to 4NT.
             entries.extend(rows_of(
-                Pattern::node("P* 1NT (P) 2♣ (P) 2♥ (P) 4NT (P)"),
+                Pattern::node("P* 1NT - 2♣ - 2♥ - 4NT -"),
                 quantitative_answer(17),
             ));
             entries.extend(rows_of(
-                Pattern::node("P* 1NT (P) 2♣ (P) 2♠ (P) 4NT (P)"),
+                Pattern::node("P* 1NT - 2♣ - 2♠ - 4NT -"),
                 quantitative_answer(17),
             ));
             entries.extend(rows_of(
-                Pattern::node("P* 1NT (P) 2♣ (P) 2♦ (P) 4NT (P)"),
+                Pattern::node("P* 1NT - 2♣ - 2♦ - 4NT -"),
                 quantitative_answer(17),
             ));
 
@@ -529,7 +529,7 @@ pub(super) fn base() -> Package {
 ///
 /// Registers the 1NT structure (Stayman, transfers, 4NT quantitative), the
 /// 2NT-strength structure (3-level Stayman/transfers, 4NT invite) under three
-/// base prefixes (direct 2NT opening and the two 2♣–2x–2NT auctions), and
+/// base prefixes (direct 2NT opening and the two 2♣ - 2x - 2NT auctions), and
 /// simple responses after opener's 18–19 2NT rebid.
 pub(super) fn register(book: &mut Trie) {
     register_one_nt(book);

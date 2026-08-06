@@ -14,18 +14,19 @@ thread_local! {
     /// Default on: the constructive cues are DD-robust (A/B +0.6–2.6 IMPs/board
     /// per call vs the passing floor) and the auction was previously unauthored.
     static UVU: Cell<bool> = const { Cell::new(true) };
-    /// Responder's penalty-double HCP floor over `1NT − (2NT)`.
+    /// Responder's penalty-double HCP floor over `1NT (2NT)`.
     static UVU_X_FLOOR: Cell<u8> = const { Cell::new(9) };
-    /// Responder's INV+ cue-bid points floor over `1NT − (2NT)`.
+    /// Responder's INV+ cue-bid points floor over `1NT (2NT)`.
     static UVU_CUE_FLOOR: Cell<u8> = const { Cell::new(8) };
-    /// Length floor for responder's weak natural `3♥`/`3♠` escape over `1NT − (2NT)`
+    /// Length floor for responder's weak natural `3♥`/`3♠` escape over `1NT (2NT)`
     /// (`6` = a clean six-bagger; `5` lets a five-card major escape when defending
     /// the both-minors overcall looks bad — the A/B sweep knob).
     static UVU_NATURAL_FLOOR: Cell<u8> = const { Cell::new(6) };
 }
 
-/// Enable the Unusual-vs-Unusual structure over `1NT − (2NT both minors)` for
-/// books built *after* this call (thread-local, read once at construction).
+/// Enable the Unusual-vs-Unusual structure over `1NT (2NT)` when their 2NT
+/// shows both minors, for books built *after* this call (thread-local, read once
+/// at construction).
 ///
 /// Responder's `X` is penalty ("I can beat ≥1 of their suits"); the constructive
 /// answers are cue-bids — `3♣` = INV+ Stayman or 5+♠, `3♦` = INV+ 5+♥, `4♣`/`4♦`
@@ -41,7 +42,7 @@ pub(super) fn uvu() -> bool {
     UVU.with(Cell::get)
 }
 
-/// Set responder's penalty-double HCP floor over `1NT − (2NT)` — the A/B sweep
+/// Set responder's penalty-double HCP floor over `1NT (2NT)` — the A/B sweep
 /// knob for "I can penalize one of their suits" (default `9`)
 pub fn set_uvu_x_floor(floor: u8) {
     UVU_X_FLOOR.with(|cell| cell.set(floor));
@@ -51,7 +52,7 @@ fn uvu_x_floor() -> u8 {
     UVU_X_FLOOR.with(Cell::get)
 }
 
-/// Set responder's INV+ cue-bid points floor over `1NT − (2NT)` (default `8`)
+/// Set responder's INV+ cue-bid points floor over `1NT (2NT)` (default `8`)
 pub fn set_uvu_cue_floor(floor: u8) {
     UVU_CUE_FLOOR.with(|cell| cell.set(floor));
 }
@@ -61,7 +62,7 @@ fn uvu_cue_floor() -> u8 {
 }
 
 /// Set the length floor for responder's weak natural `3♥`/`3♠` escape over
-/// `1NT − (2NT)` (default `6`; `5` lets a five-card major escape a bad defence)
+/// `1NT (2NT)` (default `6`; `5` lets a five-card major escape a bad defence)
 pub fn set_uvu_natural_floor(floor: u8) {
     UVU_NATURAL_FLOOR.with(|cell| cell.set(floor));
 }
@@ -70,7 +71,7 @@ fn uvu_natural_floor() -> u8 {
     UVU_NATURAL_FLOOR.with(Cell::get)
 }
 
-/// Responder's first call over `1NT − (2NT both minors)` — Unusual vs Unusual
+/// Responder's first call over `1NT (2NT)` — their 2NT shows both minors
 ///
 /// `X` is penalty ("I can beat ≥1 of their suits", `hcp(x_floor..)`); the cues
 /// find a major fit — `3♣` = INV+ Stayman (a 4-card major) or 5+♠, `3♦` = INV+
@@ -164,7 +165,7 @@ pub(super) fn uvu_responder() -> Rules {
     rules.rule(Call::Pass, 0, hcp(0..))
 }
 
-/// Responder's symmetric Smolen after `1NT − (2NT) − 3♣ − (P) − 3♦` — opener
+/// Responder's symmetric Smolen after `1NT (2NT) 3♣ - 3♦ -` — opener
 /// denied a 4-card major, so show the 5-card major right-sided into opener
 ///
 /// `3♥` = 5+♠, `3♠` = 5+♥; neither promises the *other* major (opener's `3♦`
@@ -179,7 +180,7 @@ pub(super) fn uvu_smolen() -> Rules {
         .rule(Bid::new(3, Strain::Notrump), 50, hcp(0..))
 }
 
-/// Responder's rebid after `1NT − (2NT) − 3♣ − (P) − 3♥` (opener showed 4 hearts)
+/// Responder's rebid after `1NT (2NT) 3♣ - 3♥ -` (opener showed 4 hearts)
 ///
 /// Raise to `4♥` with a fit; with 5+♠ and no heart fit show the spades (`3♠`,
 /// opener places); else `3NT` (the finite catch-all).
@@ -206,23 +207,17 @@ pub(super) fn uvu_package() -> Package {
             let mut entries = rows_of(Pattern::after("P* 1NT", "(2NT)"), uvu_responder());
             for (suffix, rules) in [
                 // 3♣ Stayman/5+♠: opener answers, then symmetric Smolen / fit rebids.
-                ("(2NT) 3♣ (P)", stayman_2d_answer()),
-                ("(2NT) 3♣ (P) 3♦ (P)", uvu_smolen()),
-                (
-                    "(2NT) 3♣ (P) 3♦ (P) 3♥ (P)",
-                    smolen_completion(Suit::Spades),
-                ),
-                (
-                    "(2NT) 3♣ (P) 3♦ (P) 3♠ (P)",
-                    smolen_completion(Suit::Hearts),
-                ),
-                ("(2NT) 3♣ (P) 3♥ (P)", uvu_rebid_over_3h()),
-                ("(2NT) 3♣ (P) 3♠ (P)", stayman_2d_fit_rebid(Suit::Spades)),
+                ("(2NT) 3♣ -", stayman_2d_answer()),
+                ("(2NT) 3♣ - 3♦ -", uvu_smolen()),
+                ("(2NT) 3♣ - 3♦ - 3♥ -", smolen_completion(Suit::Spades)),
+                ("(2NT) 3♣ - 3♦ - 3♠ -", smolen_completion(Suit::Hearts)),
+                ("(2NT) 3♣ - 3♥ -", uvu_rebid_over_3h()),
+                ("(2NT) 3♣ - 3♠ -", stayman_2d_fit_rebid(Suit::Spades)),
                 // 3♦ = 5+♥: opener raises with a fit, else 3NT.
-                ("(2NT) 3♦ (P)", smolen_completion(Suit::Hearts)),
+                ("(2NT) 3♦ -", smolen_completion(Suit::Hearts)),
                 // 4♣/4♦ = FG+ 5-5-majors splinters: opener bids the better major game.
-                ("(2NT) 4♣ (P)", lm_2d_both_majors_advance()),
-                ("(2NT) 4♦ (P)", lm_2d_both_majors_advance()),
+                ("(2NT) 4♣ -", lm_2d_both_majors_advance()),
+                ("(2NT) 4♦ -", lm_2d_both_majors_advance()),
             ] {
                 entries.extend(rows_of(Pattern::after("P* 1NT", suffix), rules));
             }

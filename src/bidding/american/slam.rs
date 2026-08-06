@@ -60,9 +60,9 @@ pub(super) const RKCB: Alert = Alert("rkcb");
 /// [`set_rkcb_minors`][crate::bidding::instinct::set_rkcb_minors]
 ///
 /// One agreement, two layers: the book authors the minor-suit plain-4NT
-/// keycard at its two vehicles — the strong-2♣ minor raise (`2♣–2♦–3m–4m`,
+/// keycard at its two vehicles — the strong-2♣ minor raise (`2♣ - 2♦ - 3m - 4m`,
 /// opener asks with 28+ HCP instead of blind-jumping `6m` on 27+) and the
-/// inverted minor raise (`1m–2m–3NT`, responder asks on `points(14..)` instead
+/// inverted minor raise (`1m - 2m - 3NT`, responder asks on `points(14..)` instead
 /// of resting in the 18–19 3NT) — while the floor lifts `keycard_trump`'s
 /// majors-only carve.  They used to be *two* knobs, `set_minor_keycard` here
 /// and `set_keycard_minors` there, whose four combinations included two
@@ -664,7 +664,7 @@ fn asker_after_6h(trump: Suit) -> Rules {
 /// The RKCB 1430 subtree as rows, below the auction `prefix`
 ///
 /// `prefix` is the row layer's auction string ending just before **our 4NT
-/// ask**, for example `"P* 1♠ (P) 3♠ (P)"`.  The ask, its answers and every
+/// ask**, for example `"P* 1♠ - 3♠ -"`.  The ask, its answers and every
 /// continuation are keyed below it.  Both majors and minors are supported; for
 /// minors the asker's signoff is cramped (see the module docs) and the 5NT king
 /// ask is skipped.
@@ -677,9 +677,9 @@ pub(super) fn rkcb_rows(prefix: &str, trump: Suit) -> Vec<Entry> {
     let ans_5h = Bid::new(5, Strain::Hearts);
     let ans_5s = Bid::new(5, Strain::Spades);
 
-    // Every key hangs off our 4NT; the trailing `(P)` is the opposing pass the
+    // Every key hangs off our 4NT; the trailing `-` is the opposing pass the
     // retired imperative helper used to interleave by hand.
-    let ask = format!("{prefix} 4NT (P)");
+    let ask = format!("{prefix} 4NT -");
     let node = |tail: &str| Pattern::node(format!("{ask} {tail}").trim_end());
 
     // -----------------------------------------------------------------------
@@ -715,7 +715,7 @@ pub(super) fn rkcb_rows(prefix: &str, trump: Suit) -> Vec<Entry> {
         (ans_5h, after_5h),
         (ans_5s, after_5s),
     ] {
-        entries.extend(rows_of(node(&format!("{answer} (P)")), table));
+        entries.extend(rows_of(node(&format!("{answer} -")), table));
     }
 
     // -----------------------------------------------------------------------
@@ -731,7 +731,7 @@ pub(super) fn rkcb_rows(prefix: &str, trump: Suit) -> Vec<Entry> {
         let Some(map) = relay_map(answer, trump) else {
             continue;
         };
-        let relay = format!("{answer} (P) {} (P)", map.ask);
+        let relay = format!("{answer} - {} -", map.ask);
 
         // The answer lane owns the combined-count decode.  Over 5♣ partner
         // showed one, so four of our own is all five; over 5♦ partner showed
@@ -744,28 +744,28 @@ pub(super) fn rkcb_rows(prefix: &str, trump: Suit) -> Vec<Entry> {
         entries.extend(rows_of(node(&relay), queen_replies(trump, &map)));
         for denial in [map.weak, map.deny] {
             entries.extend(rows_of(
-                node(&format!("{relay} {denial} (P)")),
+                node(&format!("{relay} {denial} -")),
                 asker_after_denial(trump, denial, five()),
             ));
         }
         entries.extend(rows_of(
-            node(&format!("{relay} {} (P)", map.no_king)),
+            node(&format!("{relay} {} -", map.no_king)),
             asker_after_queen(trump, false, None, five()),
         ));
         for &(_, shown) in &map.kings {
             let second = king_relay(shown, trump);
             entries.extend(rows_of(
-                node(&format!("{relay} {shown} (P)")),
+                node(&format!("{relay} {shown} -")),
                 asker_after_queen(trump, true, second, five()),
             ));
             let Some(second) = second else {
                 continue;
             };
-            let asked = format!("{relay} {shown} (P) {} (P)", second.ask);
+            let asked = format!("{relay} {shown} - {} -", second.ask);
             entries.extend(rows_of(node(&asked), king_replies(trump, second)));
             for (reply, more) in [(second.more, true), (second.none, false)] {
                 entries.extend(rows_of(
-                    node(&format!("{asked} {reply} (P)")),
+                    node(&format!("{asked} {reply} -")),
                     asker_after_relay_kings(trump, more),
                 ));
             }
@@ -784,7 +784,7 @@ pub(super) fn rkcb_rows(prefix: &str, trump: Suit) -> Vec<Entry> {
     // -----------------------------------------------------------------------
     for answer in [ans_5c, ans_5d, ans_5h, ans_5s] {
         entries.extend(rows_of(
-            node(&format!("{answer} (P) 5NT (P)")),
+            node(&format!("{answer} - 5NT -")),
             king_answers(trump),
         ));
     }
@@ -793,20 +793,20 @@ pub(super) fn rkcb_rows(prefix: &str, trump: Suit) -> Vec<Entry> {
     // 4. Asker after king answers
     // -----------------------------------------------------------------------
     for answer in [ans_5c, ans_5d, ans_5h, ans_5s] {
-        let kings = format!("{answer} (P) 5NT (P)");
+        let kings = format!("{answer} - 5NT -");
         entries.extend(rows_of(
-            node(&format!("{kings} 6♣ (P)")),
+            node(&format!("{kings} 6♣ -")),
             asker_after_6c(trump),
         ));
         entries.extend(rows_of(
-            node(&format!("{kings} 6♦ (P)")),
+            node(&format!("{kings} 6♦ -")),
             asker_after_6d(trump),
         ));
         // 6♥ is a king answer only when trumps are spades; over hearts it is
         // the catch-all signoff.
         if trump == Suit::Spades {
             entries.extend(rows_of(
-                node(&format!("{kings} 6♥ (P)")),
+                node(&format!("{kings} 6♥ -")),
                 asker_after_6h(trump),
             ));
         }

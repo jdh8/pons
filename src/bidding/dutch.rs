@@ -3,7 +3,7 @@
 //! Dutch naturalises the Polish 1♣: a "lawyer's Polish Club" that keeps Polish
 //! constructiveness while staying natural and less restricted.  The 1♣ opening
 //! is non-forcing, 2+♣, 11–23 HCP, and hosts every strong hand that lacks the
-//! strong-2♣ shape (the `1♣–1♦` relay sorts them out).  Otherwise it mirrors
+//! strong-2♣ shape (the `1♣ - 1♦` relay sorts them out).  Otherwise it mirrors
 //! `american()`: five-card majors, a 15–17 1NT, 2/1 game-forcing continuations.
 //!
 //! This is a **champion candidate**, built by copying `american()` and applying

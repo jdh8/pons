@@ -252,7 +252,7 @@ fn step_cache_is_bound_to_stance_identity_and_probe_revision() {
 /// reading tightens and the knob-off reading is byte-identical to an
 /// unprobed stance.  The **floorless** book keeps the self-play cheap in
 /// debug (rule evaluation only — the neural floor is ~75 ms/board
-/// unoptimized); 2,000 boards give the `1♦ P` key ~240 expected samples,
+/// unoptimized); 2,000 boards give the `1♦ -` key ~240 expected samples,
 /// clearing the [`Stance::MIN_SAMPLES`] floor.
 #[test]
 fn probe_stores_and_reads_high_traffic_keys() {

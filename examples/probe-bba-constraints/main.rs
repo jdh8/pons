@@ -19,10 +19,10 @@
 //! cargo run --release --example probe-bba-constraints -- --mode rebid-h  # 2♥-overcaller's rebid after the 2NT ask
 //! cargo run --release --example probe-bba-constraints -- --mode rebid-s  # 2♠-overcaller's rebid after the 2NT ask
 //! cargo run --release --example probe-bba-constraints -- --mode counter --vul none,both  # our-side counter-defense
-//! cargo run --release --example probe-bba-constraints -- --mode weak2-h  # opener's rebid over 2♥-P-2NT-P
+//! cargo run --release --example probe-bba-constraints -- --mode weak2-h  # opener's rebid over 2♥ - 2NT -
 //! cargo run --release --example probe-bba-constraints -- --mode weak2-h --conv Ogust=1  # ...with BBA's Ogust on
 //! cargo run --release --example probe-bba-constraints -- --mode nt-resp --conv "1N-3M splinter"=1  # responses to BBA's own 1NT
-//! cargo run --release --example probe-bba-constraints -- --mode nt-3h --conv "1N-3M splinter"=1    # opener over 1NT-P-3♥-P
+//! cargo run --release --example probe-bba-constraints -- --mode nt-3h --conv "1N-3M splinter"=1    # opener over 1NT - 3♥ -
 //! ```
 //!
 //! The `weak2-*` modes read a node we author as **Ogust** and BBA does not: its
@@ -355,69 +355,69 @@ fn main() -> Result<()> {
             3,
             &[ONE_NT, TWO_D, PASS],
             None,
-            "BBA advancer over 1NT-(2♦)-P — the pass-or-correct relay",
+            "BBA advancer over (1NT) 2♦ - — the pass-or-correct relay",
         ),
         "counter" => (
             2,
             &[ONE_NT, TWO_D],
             None,
-            "BBA responder's counter-defense over 1NT-(2♦)",
+            "BBA responder's counter-defense over 1NT (2♦)",
         ),
         "muider-h" => (
             3,
             &[ONE_NT, TWO_H, PASS],
             None,
-            "BBA advancer over 1NT-(2♥)-P — the Muiderberg advance (2NT/3♣/3♦ asks)",
+            "BBA advancer over (1NT) 2♥ - — the Muiderberg advance (2NT/3♣/3♦ asks)",
         ),
         "muider-s" => (
             3,
             &[ONE_NT, TWO_S, PASS],
             None,
-            "BBA advancer over 1NT-(2♠)-P — the Muiderberg advance (2NT/3♣/3♦ asks)",
+            "BBA advancer over (1NT) 2♠ - — the Muiderberg advance (2NT/3♣/3♦ asks)",
         ),
         "rebid-d" => (
             1,
             &[ONE_NT, TWO_D, PASS, TWO_H, PASS],
             Some(TWO_D),
-            "BBA 2♦-overcaller's rebid over 1NT-(2♦)-P-2♥-P — Pass=hearts, 2♠=spades",
+            "BBA 2♦-overcaller's rebid over (1NT) 2♦ - 2♥ - — Pass=hearts, 2♠=spades",
         ),
         "rebid-d2s" => (
             1,
             &[ONE_NT, TWO_D, PASS, TWO_S, PASS],
             Some(TWO_D),
-            "BBA 2♦-overcaller's rebid over 1NT-(2♦)-P-2♠-P — what the 2♠ advance forces",
+            "BBA 2♦-overcaller's rebid over (1NT) 2♦ - 2♠ - — what the 2♠ advance forces",
         ),
         "rebid-h" => (
             1,
             &[ONE_NT, TWO_H, PASS, TWO_NT, PASS],
             Some(TWO_H),
-            "BBA 2♥-overcaller's rebid over 1NT-(2♥)-P-2NT-P — what the 2NT ask wants",
+            "BBA 2♥-overcaller's rebid over (1NT) 2♥ - 2NT - — what the 2NT ask wants",
         ),
         "rebid-s" => (
             1,
             &[ONE_NT, TWO_S, PASS, TWO_NT, PASS],
             Some(TWO_S),
-            "BBA 2♠-overcaller's rebid over 1NT-(2♠)-P-2NT-P — what the 2NT ask wants",
+            "BBA 2♠-overcaller's rebid over (1NT) 2♠ - 2NT - — what the 2NT ask wants",
         ),
         // Defense to the opponents' 1NT *response* (Stayman / Jacoby transfers),
-        // 4th seat at [1NT, P, 2x].  No filter — the 4th-seat hand is unconstrained.
+        // 4th seat at `(1NT) - (2x)`. No filter — the 4th-seat hand is unconstrained.
         "stayman" => (
             3,
             &[ONE_NT, PASS, TWO_C],
             None,
-            "BBA 4th-seat over 1NT-P-(2♣ Stayman) — X=clubs, natural, no 2NT",
+            "BBA 4th-seat over (1NT) - (2♣) Stayman — X=clubs, natural, no 2NT",
         ),
         "xfer-h" => (
             3,
             &[ONE_NT, PASS, TWO_D],
             None,
-            "BBA 4th-seat over 1NT-P-(2♦ →♥) — X=diamonds, 2♥ cue=spades+minor",
+            "BBA 4th-seat over (1NT) - (2♦), a transfer to hearts — X=diamonds, 2♥ cue=spades+minor",
         ),
         "xfer-s" => (
             3,
             &[ONE_NT, PASS, TWO_H],
             None,
-            "BBA 4th-seat over 1NT-P-(2♥ →♠) — X=hearts, 2♠ cue=hearts+minor",
+            "BBA 4th-seat over (1NT) - (2♥), a transfer to spades — X=hearts, 2♠ cue=hearts+minor",
         ),
         // Opener's rebid after our own weak two is asked with 2NT.  We author
         // Ogust here; BBA's 2/1 default has `Ogust = 0` (verified against the live
@@ -428,19 +428,19 @@ fn main() -> Result<()> {
             0,
             &[TWO_D, PASS, TWO_NT, PASS],
             Some(TWO_D),
-            "BBA opener's rebid over 2♦-P-2NT-P — what the 2NT ask wants",
+            "BBA opener's rebid over 2♦ - 2NT - — what the 2NT ask wants",
         ),
         "weak2-h" => (
             0,
             &[TWO_H, PASS, TWO_NT, PASS],
             Some(TWO_H),
-            "BBA opener's rebid over 2♥-P-2NT-P — what the 2NT ask wants",
+            "BBA opener's rebid over 2♥ - 2NT - — what the 2NT ask wants",
         ),
         "weak2-s" => (
             0,
             &[TWO_S, PASS, TWO_NT, PASS],
             Some(TWO_S),
-            "BBA opener's rebid over 2♠-P-2NT-P — what the 2NT ask wants",
+            "BBA opener's rebid over 2♠ - 2NT - — what the 2NT ask wants",
         ),
         // Direct seat over THEIR weak two — the whole toolkit at once: the 2NT
         // overcall's range and shape, the takeout double's floor, the natural
@@ -470,19 +470,19 @@ fn main() -> Result<()> {
             2,
             &[ONE_NT, PASS],
             None,
-            "BBA responder over its own 1NT-P — the 3♥/3♠ buckets are the splinter",
+            "BBA responder over its own 1NT - — the 3♥/3♠ buckets are the splinter",
         ),
         "nt-3h" => (
             0,
             &[ONE_NT, PASS, THREE_H, PASS],
             Some(ONE_NT),
-            "BBA opener over 1NT-P-3♥-P — a natural read raises hearts, a splinter never does",
+            "BBA opener over 1NT - 3♥ - — a natural read raises hearts, a splinter never does",
         ),
         "nt-3s" => (
             0,
             &[ONE_NT, PASS, THREE_S, PASS],
             Some(ONE_NT),
-            "BBA opener over 1NT-P-3♠-P — a natural read raises spades, a splinter never does",
+            "BBA opener over 1NT - 3♠ - — a natural read raises spades, a splinter never does",
         ),
         // The **unassuming cue-raise**: BBA's advancer over our 1-of-a-suit
         // opening and its partner's simple *two-level* overcall.  This is the
@@ -497,19 +497,19 @@ fn main() -> Result<()> {
             3,
             &[ONE_S, TWO_D, PASS],
             None,
-            "BBA advancer over 1♠-(2♦)-P — the 2♠ bucket is the unassuming cue-raise",
+            "BBA advancer over (1♠) 2♦ - — the 2♠ bucket is the unassuming cue-raise",
         ),
         "ucb-sc" => (
             3,
             &[ONE_S, TWO_C, PASS],
             None,
-            "BBA advancer over 1♠-(2♣)-P — the 2♠ bucket is the unassuming cue-raise",
+            "BBA advancer over (1♠) 2♣ - — the 2♠ bucket is the unassuming cue-raise",
         ),
         "ucb-dc" => (
             3,
             &[ONE_D, TWO_C, PASS],
             None,
-            "BBA advancer over 1♦-(2♣)-P — the 2♦ bucket is the unassuming cue-raise",
+            "BBA advancer over (1♦) 2♣ - — the 2♦ bucket is the unassuming cue-raise",
         ),
         // The one *major* the cue can ever be about: the overcall must rank
         // below opener's suit, so ♠ is never a two-level simple overcall and
@@ -520,7 +520,7 @@ fn main() -> Result<()> {
             3,
             &[ONE_S, TWO_H, PASS],
             None,
-            "BBA advancer over 1♠-(2♥)-P — the 2♠ bucket is the unassuming cue-raise (major)",
+            "BBA advancer over (1♠) 2♥ - — the 2♠ bucket is the unassuming cue-raise (major)",
         ),
         // The *one-level* overcall: `(1♣) 1♥` routes to the Rubens **transfer**
         // branch instead, where `2♦` (the transfer into partner's suit) is the
@@ -532,7 +532,7 @@ fn main() -> Result<()> {
             3,
             &[ONE_C, ONE_H, PASS],
             None,
-            "advancer over 1♣-(1♥)-P — the 2♦ bucket is the transfer into partner's hearts",
+            "advancer over (1♣) 1♥ - — the 2♦ bucket is the transfer into partner's hearts",
         ),
         other => bail!(
             "--mode must be open|multi|advance|counter|muider-h|muider-s|rebid-d|rebid-h|rebid-s|stayman|xfer-h|xfer-s|weak2-d|weak2-h|weak2-s|def2-d|def2-h|def2-s|nt-resp|nt-3h|nt-3s|ucb-sd|ucb-sc|ucb-dc|ucb-sh|rub-ch, got {other:?}"

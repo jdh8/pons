@@ -68,7 +68,7 @@ fn systems_on_over_two_clubs() {
     // 4-4 majors, invitational: the stolen 2♣ Stayman is shown by Double.
     assert_eq!(best_legal(&over_2c, "KJ32.KQ43.432.43"), Call::Double);
 
-    // Opener completes the transfer: 1NT–(2♣)–2♦–(P) → 2♥, via the rebase.
+    // Opener completes the transfer: 1NT (2♣) 2♦ - → 2♥, via the rebase.
     let over_xfer = [
         bid(1, Strain::Notrump),
         bid(2, Strain::Clubs),
@@ -80,7 +80,7 @@ fn systems_on_over_two_clubs() {
         bid(2, Strain::Hearts)
     );
 
-    // Opener answers the stolen Stayman: 1NT–(2♣)–X–(P) → 2♥ with four hearts.
+    // Opener answers the stolen Stayman: 1NT (2♣) X - → 2♥ with four hearts.
     let over_dbl = [
         bid(1, Strain::Notrump),
         bid(2, Strain::Clubs),

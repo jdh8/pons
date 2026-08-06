@@ -516,7 +516,7 @@ pub fn defense_to_suit(their_opening: Bid) -> Rules {
 /// partner's Michaels cue and Unusual `2NT`
 ///
 /// All three key sets are disjoint from every other write in
-/// [`defensive`] — `[1t]`, `[1t, 2t, P]` and `[1t, 2NT, P]` — so they lift out
+/// [`defensive`] — `(1t)`, `(1t) 2t -` and `(1t) 2NT -` — so they lift out
 /// of the per-suit loop without changing what lands where.
 pub(super) fn suit_defense_package() -> Package {
     Package {
@@ -530,11 +530,11 @@ pub(super) fn suit_defense_package() -> Package {
                 let key = format!("P* ({opening})");
                 entries.extend(rows_of(Pattern::node(&key), defense_to_suit(opening)));
                 entries.extend(rows_of(
-                    Pattern::node(&format!("{key} 2{theirs} (P)")),
+                    Pattern::node(&format!("{key} 2{theirs} -")),
                     michaels_advances(suit),
                 ));
                 entries.extend(rows_of(
-                    Pattern::node(&format!("{key} 2NT (P)")),
+                    Pattern::node(&format!("{key} 2NT -")),
                     unusual_nt_advances(suit),
                 ));
             }

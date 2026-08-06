@@ -112,7 +112,7 @@ struct Args {
     ew_double_shape: String,
 
     /// The *measured* pair's doubler runout once the redouble runs back around
-    /// (`[1NT, X, XX, P, P]`): `on` or `off` (default). On, a 15+ doubler with a
+    /// (`(1NT) X (XX) - -`): `on` or `off` (default). On, a 15+ doubler with a
     /// five-plus suit escapes the redoubled `1NTxx`; the baseline always sits.
     #[arg(long, default_value = "off")]
     ns_doubler_run: String,
@@ -139,7 +139,7 @@ struct Args {
     ns_landy_x_penalty: String,
 
     /// Opener's penalty-pass over a `(2♣)` overcall for the *measured* (NS) pair:
-    /// `off` (default), `LEN:HCP`, or `LEN:HCP:major`. After `1NT-(2♣)-X-(P)` opener
+    /// `off` (default), `LEN:HCP`, or `LEN:HCP:major`. After `1NT (2♣) X -` opener
     /// with `LEN+` clubs and `HCP+` club HCP passes to defend `2♣` doubled instead
     /// of answering the stolen Stayman; the `:major` suffix makes good clubs outrank
     /// a `2♥`/`2♠` major fit (else opener keeps the major). Run both NS and EW `on`
@@ -154,8 +154,8 @@ struct Args {
     ew_penalty_pass: String,
 
     /// Doubled-Landy minor-escape gate for the *measured* (NS) pair: `MIN:MAJ`
-    /// (default `6:2`). After `[1NT, 2♣, X]` the advancer runs to a long minor —
-    /// `Pass` to play `2♣` doubled with clubs, `2♦` to play diamonds — with `MIN`+
+    /// (default `6:2`). After `(1NT) 2♣ (X)` the advancer runs to a long minor —
+    /// `-` to play `2♣` doubled with clubs, `2♦` to play diamonds — with `MIN`+
     /// in that minor and ≤`MAJ` in each major. Only fires when Landy is on. Sweep to
     /// tune the escape vs. relaying/signing off into a major.
     #[arg(long, default_value = "6:2")]

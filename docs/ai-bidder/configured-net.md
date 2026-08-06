@@ -54,7 +54,7 @@ against the twin's 0.4431 — **and it still bid the phantom 4♥**.
 
 The diagnosis is in `neural.rs`: the regime was not in the features *at the
 moment the call is chosen*. Readings describe the auction so far, and
-`1♦ P 1♠ P 2♦` is three natural bids in either system, so both regimes present
+`1♦ - 1♠ - 2♦` is three natural bids in either system, so both regimes present
 that decision with **byte-identical inputs and contradictory targets** — 2♥
 from the kickback teacher, 4♥ from the plain one. The net could only average
 them. The ranges do diverge, but one ply too late: only once a relocated ask
@@ -522,7 +522,7 @@ it across two.
 
 **Measured twice, and the first measurement badly understated it.**
 
-A single auction (`1♠ P 2NT P`, Jacoby — one projectable artificial call) moves
+A single auction (`1♠ - 2NT -`, Jacoby — one projectable artificial call) moves
 **3 of 40** inference floats, which reads as "bounded". At corpus scale it is
 not: dumping the same 200 bank deals both ways moves **all 40 inference floats,
 on 75.1% of rows**. One mild auction is simply not representative, and the

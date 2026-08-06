@@ -1,7 +1,7 @@
 #!/bin/sh
 # ab-advance-2nt.sh — price the doubler's ACCEPT/DECLINE of the advancer's
 # invitational 2NT on the rich advance of a takeout double
-# ((1t)-X-(P)-2NT-(P)-?).  The 2NT invite is default-on, but its continuation
+# (`(1t) X - 2NT - ?`). The 2NT invite is default-on, but its continuation
 # falls to the instinct floor, which treats 2NT as non-forcing and PASSES even
 # game-going hands — this A/B measures authoring the natural accept/decline:
 #   base    — 2NT continuation left to the floor (--no-ns-advance-2nt-continuation)

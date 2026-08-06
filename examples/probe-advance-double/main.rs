@@ -167,7 +167,7 @@ struct Bucket {
 }
 
 #[derive(Parser)]
-#[command(about = "Distill BBA's advance of a takeout double ([1t, X, P]) into the DSL")]
+#[command(about = "Distill BBA's advance after (1t) X - into the DSL")]
 struct Args {
     /// Probe hands per (opening, vulnerability) combination
     #[arg(long, default_value_t = 40_000)]
@@ -213,7 +213,7 @@ fn main() -> Result<()> {
     let mut report = String::new();
     let _ = writeln!(
         report,
-        "# BBA advance-of-takeout-double probe — [1t, X, P], advancer (seat 3)\n\n\
+        "# BBA advance-of-takeout-double probe — (1t) X -, advancer (seat 3)\n\n\
          system: 0 (2/1 GF), no convention overrides (matches the anchor's BBA config)\n\
          samples per (opening, vul): {}\n",
         args.samples

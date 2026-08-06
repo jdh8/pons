@@ -74,7 +74,7 @@ fn resolve(
 /// Our book for the strictly uncontested auctions
 ///
 /// Keyed by the raw table auction, so seats are explicit leading passes: the
-/// opening lives at `[]`, `[P]`, `[P, P]`, `[P, P, P]` for 1st through 4th seat,
+/// opening prefix is empty, `-`, `- -`, or `- - -` for 1st through 4th seat,
 /// and continuations hang off the matching prefix.  As a [`System`] it answers
 /// only while nobody has opened or we opened and the opponents have only
 /// passed; see the [module docs][self].
@@ -113,7 +113,7 @@ impl System for Constructive {
 
 /// Our book for the auctions where **they** open
 ///
-/// Keyed by the raw table auction starting from their opening: `[1♠]` is our
+/// Keyed by the raw table auction starting from their opening: `(1♠)` is our
 /// overcall decision over their 1♠, and continuations hang off it.  As a
 /// [`System`] it answers only when the opponents opened; see the
 /// [module docs][self].
@@ -201,7 +201,7 @@ impl Phase {
 
 /// Our book for the auctions where **we** open and **they** intervene
 ///
-/// Keyed by the raw table auction like its siblings: `[1♥, 2♣]` is our
+/// Keyed by the raw table auction like its siblings: `1♥ (2♣)` is our
 /// decision after our 1st-seat 1♥ opening and their 2♣ overcall.  As a
 /// [`System`] it answers only in its [`Phase`].
 ///

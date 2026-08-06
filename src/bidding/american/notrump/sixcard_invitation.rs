@@ -70,8 +70,8 @@ pub(super) fn sixcard_invite_active() -> bool {
 }
 
 /// Responder's invitational jump after a Jacoby transfer completes, holding a
-/// six-card major just below the Texas game-blast floor (`1NT–2♦–2♥–3♥` /
-/// `1NT–2♥–2♠–3♠`)
+/// six-card major just below the Texas game-blast floor (`1NT - 2♦ - 2♥ - 3♥` /
+/// `1NT - 2♥ - 2♠ - 3♠`)
 ///
 /// A natural invitational raise of responder's own suit: 6+ in `major`, ≤4 in the
 /// other, and `point_count + length` at or above the invite floor.  No upper
@@ -129,11 +129,11 @@ pub(crate) fn sixcard_invite() -> Package {
         gate: sixcard_invite_active,
         entries: || {
             let mut entries = rows_of(
-                Pattern::node("P* 1NT (P) 2♦ (P) 2♥ (P) 3♥ (P)"),
+                Pattern::node("P* 1NT - 2♦ - 2♥ - 3♥ -"),
                 accept_sixcard_invitation(Suit::Hearts),
             );
             entries.extend(rows_of(
-                Pattern::node("P* 1NT (P) 2♥ (P) 2♠ (P) 3♠ (P)"),
+                Pattern::node("P* 1NT - 2♥ - 2♠ - 3♠ -"),
                 accept_sixcard_invitation(Suit::Spades),
             ));
             entries

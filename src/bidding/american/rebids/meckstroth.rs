@@ -4,7 +4,7 @@
 //! Two independent features shipped under one flag ([`set_meckstroth_adjunct`],
 //! with [`set_meckstroth_minor_jumps`] isolating the second half):
 //!
-//! - **`1M – 1NT – 2NT!`** — an 18+ game force of *any* shape, replacing the
+//! - **`1M - 1NT - 2NT!`** — an 18+ game force of *any* shape, replacing the
 //!   natural 18–19 balanced rebid.  Responder relays `3♣`, opener
 //!   shape-describes, responder places the contract (with RKCB on the two
 //!   major-fit nodes).
@@ -20,15 +20,15 @@ use crate::bidding::american::slam;
 std::thread_local! {
     /// Whether opener's rebid tables carry the **complete Meckstroth adjunct**:
     /// the artificial game-forcing `2NT` (18+, any shape) with its `3♣`-relay
-    /// shape-outs, *and* the invitational `3m` jumps (`1M – 1NT – 3m` and
-    /// `1♥ – 1♠ – 3m`).  On by default; both feature sets ship on together.
+    /// shape-outs, *and* the invitational `3m` jumps (`1M - 1NT - 3m` and
+    /// `1♥ - 1♠ - 3m`).  On by default; both feature sets ship on together.
     static MECKSTROTH: Cell<bool> = const { Cell::new(true) };
 }
 
 /// Enable the complete Meckstroth adjunct in books built *after* this call
 /// (default **on**)
 ///
-/// After `1M – 1NT` (the forcing notrump), opener's `2NT` is an artificial 18+
+/// After `1M - 1NT` (the forcing notrump), opener's `2NT` is an artificial 18+
 /// game force of *any* shape (responder relays `3♣`, opener shape-describes
 /// toward game or slam) instead of the natural 18–19 balanced rebid; opener also
 /// has the invitational `3m` jumps (5+ minor, 15–17).  Read at book-construction
@@ -117,7 +117,7 @@ pub(super) fn with_invitational_minors(mut rules: Rules) -> Rules {
 /// with a maximum forcing-1NT (or `1♠`) hand and declines to a preference in
 /// opener's five-card major with a minimum.  The `len(major, ..)` guards keep
 /// the major-preference rules dead when responder is short, so one table serves
-/// both the forcing-1NT auctions and `1♥ – 1♠` (where responder's holding in
+/// both the forcing-1NT auctions and `1♥ - 1♠` (where responder's holding in
 /// opener's major is unknown).
 ///
 /// | Call   | Wt  | Meaning |
@@ -143,8 +143,8 @@ fn responder_after_invitational_minor(major: Suit) -> Rules {
 
 /// Responder's call over opener's invitational `3m` (Meckstroth adjunct)
 ///
-/// Covers both the forcing-1NT auctions (`1M – 1NT – 3m`) and the `1♥ – 1♠`
-/// auction (`1♥ – 1♠ – 3m`, where opener's major is hearts).  The package gate
+/// Covers both the forcing-1NT auctions (`1M - 1NT - 3m`) and the `1♥ - 1♠`
+/// auction (`1♥ - 1♠ - 3m`, where opener's major is hearts).  The package gate
 /// deliberately follows only the parent Meckstroth knob: with the minor-jump
 /// subknob off these continuation nodes remain authored but unreachable, just
 /// as they were before the rows port.
@@ -156,22 +156,22 @@ pub(crate) fn invitational_minor_continuations() -> Package {
             let three_minors = [call(3, Strain::Clubs), call(3, Strain::Diamonds)];
             let mut entries = Vec::new();
 
-            // Forcing 1NT: 1M – 1NT – 3m, responder's major support unknown.
+            // Forcing 1NT: 1M - 1NT - 3m, responder's major support unknown.
             for major in [Suit::Hearts, Suit::Spades] {
-                let prefix = format!("P* {} (P) 1NT (P)", call(1, Strain::from(major)));
+                let prefix = format!("P* {} - 1NT -", call(1, Strain::from(major)));
                 for three_m in three_minors {
                     entries.extend(rows_of(
-                        Pattern::node(&format!("{prefix} {three_m} (P)")),
+                        Pattern::node(&format!("{prefix} {three_m} -")),
                         responder_after_invitational_minor(major),
                     ));
                 }
             }
 
-            // 1♥ – 1♠ – 3m: opener's major is hearts, responder has shown 4+
+            // 1♥ - 1♠ - 3m: opener's major is hearts, responder has shown 4+
             // spades.
             for three_m in three_minors {
                 entries.extend(rows_of(
-                    Pattern::node(&format!("P* 1♥ (P) 1♠ (P) {three_m} (P)")),
+                    Pattern::node(&format!("P* 1♥ - 1♠ - {three_m} -")),
                     responder_after_invitational_minor(Suit::Hearts),
                 ));
             }
@@ -182,7 +182,7 @@ pub(crate) fn invitational_minor_continuations() -> Package {
 
 /// Responder's call over opener's artificial game-forcing `2NT`
 ///
-/// `1M – 1NT – 2NT!` set up a game force (18+, any shape).  Responder shows a
+/// `1M - 1NT - 2NT!` set up a game force (18+, any shape).  Responder shows a
 /// fit, a five-card red suit, five clubs (artificially, via `3NT`), or relays
 /// `3♣` for opener to describe.  Forcing — the `3♣` relay is the finite
 /// catch-all, so there is no `Pass`.
@@ -221,7 +221,7 @@ fn responder_over_gf_2nt(major: Suit) -> Rules {
         .alert(PUPPET_2NT)
 }
 
-/// Opener's shape-out over the `3♣` relay (`1M – 1NT – 2NT! – 3♣!`)
+/// Opener's shape-out over the `3♣` relay (`1M - 1NT - 2NT! - 3♣!`)
 ///
 /// Opener describes toward the right game or slam.  Forcing — `3♦` is the finite
 /// catch-all, so there is no `Pass`.
@@ -250,7 +250,7 @@ fn opener_shapeout(major: Suit) -> Rules {
         .alert(GF_DEFAULT)
 }
 
-/// Responder places over opener's `3♦` default (`… – 2NT! – 3♣! – 3♦!`)
+/// Responder places over opener's `3♦` default (`… - 2NT! - 3♣! - 3♦!`)
 ///
 /// Opener is balanced 18–19 or has a four-card minor, with exactly five of the
 /// major (a sixth would have jumped to `3M`).  Responder raises a 5-3 major fit
@@ -273,7 +273,7 @@ fn resp_place_over_other_major(major: Suit) -> Rules {
         .rule(Bid::new(3, Strain::Notrump), 80, points(0..))
 }
 
-/// Responder places over opener's six-plus own major (`… – 3♣! – 3M`)
+/// Responder places over opener's six-plus own major (`… - 3♣! - 3M`)
 ///
 /// An eight-card major fit is near-certain; responder drives slam with a maximum
 /// (`4NT` RKCB) or signs off in game.
@@ -294,7 +294,7 @@ fn resp_place_over_minor(major: Suit) -> Rules {
         .rule(Call::Pass, 0, points(0..))
 }
 
-/// Opener's call over responder's direct fit slam-try (`1M – 1NT – 2NT! – 3M`)
+/// Opener's call over responder's direct fit slam-try (`1M - 1NT - 2NT! - 3M`)
 ///
 /// Responder agreed the major with slam interest; opener asks keycards on a
 /// clear maximum, else signs off in game.
@@ -334,11 +334,11 @@ fn opener_over_resp_clubs(major: Suit) -> Rules {
 
 /// The artificial game-forcing `2NT` adjunct
 ///
-/// Authors both sides below `1M – 1NT – 2NT!`: responder's relay round, opener's
+/// Authors both sides below `1M - 1NT - 2NT!`: responder's relay round, opener's
 /// shape-out over `3♣`, responder's placement over each shape-out (with RKCB on
 /// the two major-fit nodes), and opener's placement over responder's own bids.
 /// This **overrides** the natural-2NT continuation `notrump.rs` installed at
-/// `[1M, 1NT, 2NT]` — `rebids::register` runs after `notrump::register`, so the
+/// `1M - 1NT - 2NT` — `rebids::register` runs after `notrump::register`, so the
 /// on-knob insert wins; with the knob off nothing is authored and the natural
 /// handling stands.
 pub(crate) fn meckstroth_two_notrump_continuations() -> Package {
@@ -349,39 +349,39 @@ pub(crate) fn meckstroth_two_notrump_continuations() -> Package {
             let mut entries = Vec::new();
             for major in [Suit::Hearts, Suit::Spades] {
                 let m = Strain::from(major);
-                let base = format!("P* {} (P) 1NT (P) 2NT (P)", call(1, Strain::from(major)),);
+                let base = format!("P* {} - 1NT - 2NT -", call(1, Strain::from(major)),);
 
                 // Responder's relay round over the game-forcing 2NT.
                 entries.extend(rows_of(Pattern::node(&base), responder_over_gf_2nt(major)));
 
                 // Opener's shape-out over the 3♣ relay, and responder's
                 // placement over each of opener's four shape-outs.
-                let relay = format!("{base} 3♣ (P)");
+                let relay = format!("{base} 3♣ -");
                 entries.extend(rows_of(Pattern::node(&relay), opener_shapeout(major)));
                 entries.extend(rows_of(
-                    Pattern::node(&format!("{relay} 3♦ (P)")),
+                    Pattern::node(&format!("{relay} 3♦ -")),
                     resp_place_over_default(major),
                 ));
                 entries.extend(rows_of(
                     Pattern::node(&format!(
-                        "{relay} {} (P)",
+                        "{relay} {} -",
                         call(3, Strain::from(other_major(major))),
                     )),
                     resp_place_over_other_major(major),
                 ));
-                let six_node = format!("{relay} {} (P)", call(3, m));
+                let six_node = format!("{relay} {} -", call(3, m));
                 entries.extend(rows_of(
                     Pattern::node(&six_node),
                     resp_place_over_six(major),
                 ));
                 entries.extend(slam::rkcb_rows(&six_node, major));
                 entries.extend(rows_of(
-                    Pattern::node(&format!("{relay} 3NT (P)")),
+                    Pattern::node(&format!("{relay} 3NT -")),
                     resp_place_over_minor(major),
                 ));
 
                 // Responder's direct fit slam-try, then RKCB.
-                let fit_node = format!("{base} {} (P)", call(3, m));
+                let fit_node = format!("{base} {} -", call(3, m));
                 entries.extend(rows_of(
                     Pattern::node(&fit_node),
                     opener_over_fit_slamtry(major),
@@ -392,7 +392,7 @@ pub(crate) fn meckstroth_two_notrump_continuations() -> Package {
                 for red in [Suit::Diamonds, Suit::Hearts] {
                     if red != major {
                         entries.extend(rows_of(
-                            Pattern::node(&format!("{base} {} (P)", call(3, Strain::from(red)),)),
+                            Pattern::node(&format!("{base} {} -", call(3, Strain::from(red)),)),
                             opener_over_resp_red(major, red),
                         ));
                     }
@@ -400,7 +400,7 @@ pub(crate) fn meckstroth_two_notrump_continuations() -> Package {
 
                 // Opener's placement over responder's 3NT clubs (non-forcing).
                 entries.extend(rows_of(
-                    Pattern::node(&format!("{base} 3NT (P)")),
+                    Pattern::node(&format!("{base} 3NT -")),
                     opener_over_resp_clubs(major),
                 ));
             }

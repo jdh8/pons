@@ -146,10 +146,10 @@ strength information at all — while every natural response reads correctly.
 
 | response | partner's points |
 | --- | --- |
-| `1♠–2♣` / `2♦` / `2♥`, `1♥–2♣` / `2♦` (every 2/1) | **0..=37** |
-| `1♠–1NT` (forcing) | 6..=12 |
-| `1♠–2♠` (raise) | 6..=10 |
-| `1♠–3♠` (limit) | 10..=12 |
+| `1♠ - 2♣` / `2♦` / `2♥`, `1♥ - 2♣` / `2♦` (every 2/1) | **0..=37** |
+| `1♠ - 1NT` (forcing) | 6..=12 |
+| `1♠ - 2♠` (raise) | 6..=10 |
+| `1♠ - 3♠` (limit) | 10..=12 |
 
 The cause is the shipped fit-split in
 [`american/responses.rs`](../../src/bidding/american/responses.rs):
@@ -178,7 +178,7 @@ measured against this blind envelope.
 
 ## Feasibility, measured
 
-Release build, `1♠ – (P) – 2♣`, dealing responder's hand and replaying the bidder:
+Release build, `1♠ - 2♣`, dealing responder's hand and replaying the bidder:
 
 | source | partner's points |
 | --- | --- |
@@ -477,15 +477,15 @@ Every fully-blind key is a pass. Ranked by 5/5-⊤ readings:
 
 | key | readings | ⊤/seat | blind |
 | --- | --- | --- | --- |
-| `1NT P` | 4,518 | 4.907 | **90.7%** |
-| `2♦ P` / `2♥ P` / `2♠ P` | 650 / 631 / 563 | 5.000 | **100%** |
-| `2NT P` | 821 | 4.866 | 86.6% |
-| `2♣ P` | 867 | 4.803 | 80.3% |
-| `1NT P 2♣` | 1,089 | 4.747 | 74.7% |
-| `1♦ 1♠ P`, `1♣ 1♠ P`, `1♣ 1♦ P` | 511 / 492 / 421 | 4.77–4.82 | 73–82% |
-| `1x P 1y P` (fourth seat) | 1,620–2,481 | 4.36–4.48 | 35–48% |
+| `1NT -` | 4,518 | 4.907 | **90.7%** |
+| `2♦ -` / `2♥ -` / `2♠ -` | 650 / 631 / 563 | 5.000 | **100%** |
+| `2NT -` | 821 | 4.866 | 86.6% |
+| `2♣ -` | 867 | 4.803 | 80.3% |
+| `1NT - 2♣` | 1,089 | 4.747 | 74.7% |
+| `1♦ (1♠) -`, `1♣ (1♠) -`, `1♣ (1♦) -` | 511 / 492 / 421 | 4.77–4.82 | 73–82% |
+| `1x - 1y -` (fourth seat) | 1,620–2,481 | 4.36–4.48 | 35–48% |
 
-Against that, `1♣ P` / `1♦ P` / `1♥ P` / `1♠ P` are **0.00% blind** — a pass
+Against that, `1♣ -` / `1♦ -` / `1♥ -` / `1♠ -` are **0.00% blind** — a pass
 over a natural one-of-a-suit opening reads its points band and nothing else,
 which is the pass reading working as designed.
 
@@ -514,13 +514,13 @@ blindness decomposes instead as:
   honestly reports the `hcp(0..)` catch-all Pass gate (weak-two and 1NT
   defenses, `over_their_overcall`). Fixed symbolically by
   `set_pass_exclusion_reading` (below).
-- **≈4,700 readings, the neural floor's passes** — `2NT P`, `2♣ P`,
-  fourth-seat `1x P 1y P`: chosen by the net, nothing to expose. **Only the
+- **≈4,700 readings, the neural floor's passes** — `2NT -`, `2♣ -`,
+  fourth-seat `1x - 1y -`: chosen by the net, nothing to expose. **Only the
   probe reads these.**
-- **≈800 readings, truthful unions** — `1NT P 2♣` with garbage + crawling
+- **≈800 readings, truthful unions** — `1NT - 2♣` with garbage + crawling
   Stayman shipped genuinely promises ~nothing on the census axes. Correct
   blindness; leave it.
-- `1NT P` (≈4,100) is **hull-irreducible**: the only strong tier over their
+- `1NT -` (≈4,100) is **hull-irreducible**: the only strong tier over their
   1NT is shaped (`hcp(15..) & balanced` double), so no sound points ceiling
   exists for the passer at hull level — probe territory too.
 
@@ -565,7 +565,7 @@ the pass band is intersected with those gates' complements — single-box
 complements only (a shape-free tier like the weak-two defense's
 `points(17..)` double; a shaped or bounded gate complements to a union or ⊤
 and is skipped, costing precision never soundness). Census (20k boards, seed
-1785200001): `2♦/2♥/2♠ P` **100% blind → 0.00%**, ⊤/seat 5.000 → 4.000,
+1785200001): `2♦/2♥/2♠ -` **100% blind → 0.00%**, ⊤/seat 5.000 → 4.000,
 every control key byte-unmoved. Guarded by the
 `passes_read_within_their_table` sweep: wherever a table's argmax is (or
 ties with) Pass, the knob-on projection must admit the hand. Expectation
@@ -581,8 +581,8 @@ iterations with fixed-point drift reported. This dissolves the per-node
 acceptance-rate question the caveat below poses: there is no per-node
 rejection sampling at all, and `examples/probe-pass-meaning` (the viability
 gate) measures 57.9% of decision traffic at ≥100 samples from 100k boards.
-The class-C keys it reaches are real content: `1NT P` passer mean 7.8 points
-p99 17 (vs ⊤, and hull-irreducible symbolically), `2NT P` mean 7.1, `2♣ P`
+The class-C keys it reaches are real content: `1NT -` passer mean 7.8 points
+p99 17 (vs ⊤, and hull-irreducible symbolically), `2NT -` mean 7.1, `2♣ -`
 mean 6.2, all vs ⊤ today.
 
 **The probed census** (20k boards, seed 1785200001, `--probe 100000`: 520
@@ -592,8 +592,8 @@ surface, not just the pass head: has-bid ⊤/seat **2.642 → 0.541** (blind
 Every key of the old blind head leaves the worklist — including the **1♥/1♠
 rule-competition ceilings** (3.03 → ~0.09 ⊤/seat), the chop deferred above:
 the probe fills an axis without asking why it was ⊤. The residual head is
-exactly what traffic-keying predicts, the sub-`MIN_SAMPLES` tail (`1♣ 1NT P`
-at 280 readings, `2♠ X XX`, deep competitive keys) — coverage there is a
+exactly what traffic-keying predicts, the sub-`MIN_SAMPLES` tail (`1♣ (1NT) -`
+at 280 readings, `2♠ (X) XX`, deep competitive keys) — coverage there is a
 boards-count dial, not a design question. The 241/520 drift is the honest
 fixed-point number: probed readings materially move the bidder's own
 auctions, so a consumer that retrains on probed features must retrain on the
@@ -601,10 +601,10 @@ auctions, so a consumer that retrains on probed features must retrain on the
 
 The same example doubles as a **published-vs-actual divergence meter**, and
 its first run reported two candidate defects. One was the meter's own:
-`1♣ P 1♥` appeared to announce 6..=11 against responders running past 20.
+`1♣ - 1♥` appeared to announce 6..=11 against responders running past 20.
 Both readings were correct and the *row* was wrong — `auction_key` strips
-leading passes, so the key pooled `1♣ P 1♥` (unpassed responder, a new suit
-is unlimited: `at_least(6, POINTS_CAP)`) with `P P 1♣ P 1♥` (passed
+leading passes, so the key pooled `1♣ - 1♥` (unpassed responder, a new suit
+is unlimited: `at_least(6, POINTS_CAP)`) with `- - 1♣ - 1♥` (passed
 responder, where `set_pass_reading`'s 11-point opening-pass cap correctly
 intersects it to 6..=11), and printed whichever prefix the aggregate happened
 to store. **Two populations, one row.** The meter now keys on the full prefix
@@ -616,9 +616,9 @@ the reading, and passer status changes it.*
 The second was real, and is now **closed (2026-07-30)** — but the recorded
 attribution ("fuzzy-gate slack") was wrong. The re-run on corrected keys
 (100k boards, seed 1785200001) confirmed the breach survives the split on
-every passer variant — `1♠ P 2♠` observed 4-10 (n=722, p1 5) against a
-published 6..=10, `P P 1♠ P 2♠` observed 4-9 (n=332), `P 1♠ P 2♠` 5-10,
-`P P P 1♠ P 2♠` 5-9; the ceiling held everywhere — so it was not pooling,
+every passer variant — `1♠ - 2♠` observed 4-10 (n=722, p1 5) against a
+published 6..=10, `- - 1♠ - 2♠` observed 4-9 (n=332), `- 1♠ - 2♠` 5-10,
+`- - - 1♠ - 2♠` 5-9; the ceiling held everywhere — so it was not pooling,
 and the strength dial defaults to 0, so it was not fuzz either. The
 mechanism is a **unit transplant**: the raise gate is
 `support(3..) & support_points(major, 6..=9)` — a *support-scale* band,
@@ -655,7 +655,7 @@ things from the same number:
   (a reading change the net consumes is a retrain, not a free edit); the
   next feature version retires the fold by serving the slots as columns.
 
-**Verification (2026-07-30).** Post-fix meter, same seed: every `1♠ P 2♠`
+**Verification (2026-07-30).** Post-fix meter, same seed: every `1♠ - 2♠`
 passer variant reads `1..=11` with the observed 4-10 inside — sound on both
 bounds — and the per-key sample counts are byte-identical, so the self-play
 traffic did not move at the fixed keys. The behavioral residue was priced
@@ -723,7 +723,7 @@ default off) serves the same probed map:
 - **contested prefixes only** — from the first index where both sides have
   acted.  Measured necessary, not hypothesized: unscoped fill-⊤ smoke-tested
   at 23% fired, **−0.67 IMPs/board**, all constructive grand blasts
-  (`1NT–2♦–2♥–3NT–7NT X`) — filling constructive ⊤ axes (opener's minors,
+  (`1NT - 2♦ - 2♥ - 3NT - 7NT (X)`) — filling constructive ⊤ axes (opener's minors,
   responder's side suits) shrinks sampling σ on slam auctions, the exclusion
   retrain's worst-board signature at 30× the fired rate.  Contested-scoped,
   the same 200-board smoke reads 8% fired, +0.015 [±0.212].

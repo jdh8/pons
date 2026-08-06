@@ -112,7 +112,7 @@ fn fallbacks_enumerate_pass_less_key_first() {
     let shared: Arc<dyn Guard> = Arc::new(SuffixIs(vec![Call::Double]));
 
     let mut trie = Trie::new();
-    // Declaration order within the [1♠] node: first the double guard,
+    // Declaration order within the `1♠` node: first the double guard,
     // then an Always entry.
     trie.fallback_arc_at(&opening, Arc::clone(&shared), rules());
     trie.fallback_at(&opening, Always, rules());

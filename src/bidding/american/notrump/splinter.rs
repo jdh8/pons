@@ -72,7 +72,7 @@ pub(super) fn nt_splinter_rules() -> Rules {
     rules
 }
 
-/// Opener's answer to the `1NT–3M` splinter — place the game
+/// Opener's answer to the `1NT - 3M` splinter — place the game
 ///
 /// Authored because the floor **measured inert here**: given the whole pinned
 /// shape it bid `3NT` on every hand, including a total-wastage `♥KQJ` and five
@@ -179,14 +179,14 @@ fn nt_splinter_floor() -> u8 {
     NT_SPLINTER_FLOOR.with(Cell::get)
 }
 
-/// Opener's game placement after responder's opt-in 1NT–3M splinter
+/// Opener's game placement after responder's opt-in 1NT - 3M splinter
 pub(crate) fn notrump_splinter() -> Package {
     Package {
         name: "nt-splinter",
         gate: nt_splinter,
         entries: || {
             expand(
-                "P* 1NT (P) 3M (P)",
+                "P* 1NT - 3M -",
                 |_| true,
                 |b| nt_splinter_answer(b.suit('M')),
             )

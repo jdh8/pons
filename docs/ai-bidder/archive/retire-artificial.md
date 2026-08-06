@@ -63,8 +63,8 @@ call where `artificial(project(rule), call) && !alerted`.
 the prior handoff's assumptions:
 
 1. **Doubles and passes ARE caught.** The handoff claimed `artificial()` is
-   "always false for a double". False: our **trap-pass** (`[1♦ X P] P`, floors
-   4+ in their suit) and **responsive doubles** (`[1♦ X 2♦] X`) carry shape
+   "always false for a double". False: our **trap-pass** (`(1♦) X - -`, floors
+   4+ in their suit) and **responsive doubles** (`(1♦) X (2♦) X`) carry shape
    projections. 32 doubles + 20 passes are in the list.
 2. **No-suit calls need per-category judgement, not blind alerting.** *(Corrects
    the prior "alert every hit".)* The "floors a suit it did not name" witness is
@@ -107,13 +107,13 @@ constants where one already exists.
 
 | # | Convention | Sample auctions | Source | Alert | Gating |
 |---|---|---|---|---|---|
-| ✅1 | Michaels cue-bid | `[1♦] 2♦`, `[1♠] 2♠`, `[1♣] 2♣` | [defense.rs](../../../src/bidding/american/defense.rs) overcall/cue block | `MICHAELS` (`aa237be`) | none |
-| ✅2 | Unusual 2NT | `[1♦] 2NT`, `[1♠] 2NT` | ungated tail of `defense_to_suit` (NOT the 1NT-defense `unusual_2nt()` — already alerted) | `UNUSUAL` `"unusual-2nt"` (`955fada`) — named `UNUSUAL` to dodge the `set_unusual_notrump_defense` thread-local | none (outside the `active_alerts()` gate) |
-| ✅3 | Leaping Michaels | `[2♥] 4♣/4♦`, `[2♦] 4♦` | `defense_to_weak_two` LM block (overcalls). The `leaping_michaels_advances` continuations project no foreign suit → not in the worklist | `LEAPING` `"leaping-michaels"` (`842da31`) — named `LEAPING` to dodge the `leaping_michaels_enabled` thread-local | `leaping_michaels_enabled()` only; outside `active_alerts()` |
-| ✅4 | Responsive double (takeout family) | `[1♦ X 2♦] X`, `[1♦ X 3♦] X` | [defense.rs](../../../src/bidding/american/defense.rs) `responsive_doubles` / `responsive_overcall_doubles` | `RESPONSIVE` `"responsive-double"` — asks partner to pick a suit (artificial) | `responsive_*_enabled()` toggles |
-| ~~5~~ | ~~Trap pass~~ → **natural, not alerted** | `[1♦ X P] P` | naturalized by bid-only `artificial()`; the settle floor reads "pass = play the top bid" — the trap pass *defends* the doubled contract, so it is not artificial. (The resp-3NT trap in `competition.rs set_trap_pass` was never a counterexample: it floors HCP, not length.) | — (no alert) | — |
-| ✅6 | Transfers over 2NT (opening + 2♣ rebid) | `[2NT P] 3♦/3♥`, `[2♣ P 2♥ P 2NT P] 3♦/3♥` | `two_notrump_responses` (the 3♦/3♥ transfers only — 3♣ Stayman is an OR-disjunction the witness never flags) | reused `JACOBY` (`"jacoby-transfer"`) | none — outside the `.gated()` block |
-| ✅7 | Puppet / two-way-relay continuations | `[1NT 2♠ 2NT] 3♦/3♥/3♠/3NT`, `[1NT 2♠ 3♣] 3♦/3♥/3♠`, `[1NT 2♣ 2M] 3OM`, `[1NT 3♣ 3♦] 3♥/3♠` | `two_spade_over_min`/`_max` club splinters → `SPLINTER`; slamless 6♣ `3NT` → `PUPPET`; `stayman_major_rebid` 3OM slam try → `SLAM_TRY`; `puppet_deny_rebid` 4-4 hunt → `SMOLEN` | new `SPLINTER`/`SLAM_TRY`, reused `PUPPET`/`SMOLEN` | none — the continuation nodes are plain `insert_uncontested`, not the `.gated()` response node |
+| ✅1 | Michaels cue-bid | `(1♦) 2♦`, `(1♠) 2♠`, `(1♣) 2♣` | [defense.rs](../../../src/bidding/american/defense.rs) overcall/cue block | `MICHAELS` (`aa237be`) | none |
+| ✅2 | Unusual 2NT | `(1♦) 2NT`, `(1♠) 2NT` | ungated tail of `defense_to_suit` (NOT the 1NT-defense `unusual_2nt()` — already alerted) | `UNUSUAL` `"unusual-2nt"` (`955fada`) — named `UNUSUAL` to dodge the `set_unusual_notrump_defense` thread-local | none (outside the `active_alerts()` gate) |
+| ✅3 | Leaping Michaels | `(2♥) 4♣/4♦`, `(2♦) 4♦` | `defense_to_weak_two` LM block (overcalls). The `leaping_michaels_advances` continuations project no foreign suit → not in the worklist | `LEAPING` `"leaping-michaels"` (`842da31`) — named `LEAPING` to dodge the `leaping_michaels_enabled` thread-local | `leaping_michaels_enabled()` only; outside `active_alerts()` |
+| ✅4 | Responsive double (takeout family) | `(1♦) X (2♦) X`, `(1♦) X (3♦) X` | [defense.rs](../../../src/bidding/american/defense.rs) `responsive_doubles` / `responsive_overcall_doubles` | `RESPONSIVE` `"responsive-double"` — asks partner to pick a suit (artificial) | `responsive_*_enabled()` toggles |
+| ~~5~~ | ~~Trap pass~~ → **natural, not alerted** | `(1♦) X - -` | naturalized by bid-only `artificial()`; the settle floor reads "pass = play the top bid" — the trap pass *defends* the doubled contract, so it is not artificial. (The resp-3NT trap in `competition.rs set_trap_pass` was never a counterexample: it floors HCP, not length.) | — (no alert) | — |
+| ✅6 | Transfers over 2NT (opening + 2♣ rebid) | `2NT - 3♦/3♥`, `2♣ - 2♥ - 2NT - 3♦/3♥` | `two_notrump_responses` (the 3♦/3♥ transfers only — 3♣ Stayman is an OR-disjunction the witness never flags) | reused `JACOBY` (`"jacoby-transfer"`) | none — outside the `.gated()` block |
+| ✅7 | Puppet / two-way-relay continuations | `1NT - 2♠ - 2NT - 3♦/3♥/3♠/3NT`, `1NT - 2♠ - 3♣ - 3♦/3♥/3♠`, `1NT - 2♣ - 2M - 3OM`, `1NT - 3♣ - 3♦ - 3♥/3♠` | `two_spade_over_min`/`_max` club splinters → `SPLINTER`; slamless 6♣ `3NT` → `PUPPET`; `stayman_major_rebid` 3OM slam try → `SLAM_TRY`; `puppet_deny_rebid` 4-4 hunt → `SMOLEN` | new `SPLINTER`/`SLAM_TRY`, reused `PUPPET`/`SMOLEN` | none — the continuation nodes are plain `insert_uncontested`, not the `.gated()` response node |
 
 The table is a map; the **test is the source of truth**. After each increment,
 re-run the driver — the count drops by that convention's positions. Some hits
@@ -125,7 +125,7 @@ alerting them aligns the gate with that suppression and lets both retire togethe
 **The Pass/Double half already dropped** (this increment): `artificial()` is
 bid-only, so passes/doubles are alert-only today. The one behavior change it
 carried is the **trap pass naturalizing** — verify in the measurement below
-(watch `[1♦ X P] P` and `1NT-(2M)-P-(P)` reopening boards). What remains is the
+(watch `(1♦) X - -` and `1NT (2M) - -` reopening boards). What remains is the
 **bid-only** drop after #6–#7.
 
 Pre-req: the invariant test is green (zero counterexamples — all remaining are bids).

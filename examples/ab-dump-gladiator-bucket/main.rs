@@ -1,8 +1,8 @@
 //! Bucket a Gladiator-advance A/B by *which advance our advancer made*.
 //!
 //! `set_nt_overcall_gladiator` layers a whole advancing structure on top of our
-//! 1NT overcall of a major (their `1M` — our `1NT` — partner `Pass` — our
-//! advance).  A single IMPs/board number over that structure is the usual
+//! 1NT overcall of a major (`(1M) 1NT - ?`). A single IMPs/board number over
+//! that structure is the usual
 //! obstruction-wall + scope blend (docs/measurement.md); the verdict has to be
 //! read per advance — the constructive relay/cue/invitational advances are
 //! DD-visible, the leaping/to-play sacrifices are not.
@@ -11,7 +11,7 @@
 //! two dirs, keys each board by the Gladiator advance found in ON's `table_a`,
 //! and reports per advance: divergent count, IMPs/board (±95% CI) and
 //! IMPs/fired, dual-scored (plain DD + perfect defense).  Boards without the
-//! `1M`-`1NT`-`Pass`-advance shape land in `(no-gladiator)` — still a divergence
+//! `(1M) 1NT - ?` shape land in `(no-gladiator)` — still a divergence
 //! the convention caused downstream, just not keyed to an advance.
 //!
 //! ```text
@@ -83,7 +83,7 @@ fn is_bid(calls: &[Call], at: usize, level: u8, strain: Strain) -> bool {
 }
 
 /// The label of the Gladiator advance our advancer made in `calls` (ON's
-/// `table_a`), or `(no-gladiator)` if the `1M`-`1NT`-`Pass`-advance shape is
+/// `table_a`), or `(no-gladiator)` if the `(1M) 1NT - ?` shape is
 /// absent.  `M` = their major opening, `O` = the other major.
 fn gladiator_bucket(calls: &[Call]) -> &'static str {
     for i in 0..calls.len() {

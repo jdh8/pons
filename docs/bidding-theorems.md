@@ -17,7 +17,7 @@ AI-bidder corpus) when it earns its keep.
   reads.  Our minor-opening responses over-apply up-the-line beyond 4-4 — the
   1♥ rule fires on any four-plus hearts, so 5♠4♥ and 6♠5♥ respond 1♥
   (`minor_responses`, `responses.rs`) — which breaks longest-first inference
-  and forced the M6.4 control-bid classifier to read `1♣–1♥–2♣–4♠` as natural
+  and forced the M6.4 control-bid classifier to read `1♣ - 1♥ - 2♣ - 4♠` as natural
   (the naive "shown another suit ⟹ can't be longest" reading lost 6 IMPs per
   fired board on real 6♠5♥ traffic).  The 1NT/2NT transfer tables had the same
   disease and were fixed (`set_transfer_longer_major`: transfer the longer
@@ -36,7 +36,7 @@ AI-bidder corpus) when it earns its keep.
   Hearts-first stays the default; the knob remains opt-in.
 - **An authored node must not be more conservative than the floor it
   shadows** — and the floor is more aggressive than the textbook.  Over
-  `1M–3M` (limit raise, 9-card fit known) the instinct floor's raise-partner
+  `1M - 3M` (limit raise, 9-card fit known) the instinct floor's raise-partner
   ladder accepts at **13+** points, and A/Bs of textbook accepts at 14 (then
   15) lost −4.6/−5.2 IMPs per divergent board vulnerable: *every* divergent
   board was the authored table stopping in 3M where the floor's game made

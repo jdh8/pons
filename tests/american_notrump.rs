@@ -2,7 +2,7 @@
 //!
 //! Covers:
 //! - Responses to the 2NT opening (3-level Stayman/transfers)
-//! - System on after 2♣–2♦–2NT (22–24 balanced)
+//! - System on after 2♣ - 2♦ - 2NT (22–24 balanced)
 //! - Quantitative 4NT over the 1NT opening
 //! - Acceptance of quantitative 4NT raises
 //! - Simple responses after opener's 18–19 2NT rebid
@@ -36,11 +36,11 @@ fn test_2nt_stayman() {
     );
 }
 
-// --- System on after 2♣–2♦–2NT ---------------------------------------------
+// --- System on after 2♣ - 2♦ - 2NT -----------------------------------------
 
 #[test]
 fn test_system_on_after_2c_2d_2nt() {
-    // 2♣ – (P) – 2♦ – (P) – 2NT – (P): five spades → 3♥ (transfer), system on.
+    // `2♣ - 2♦ - 2NT -`: five spades → 3♥ (transfer), system on.
     let system = stance();
     let auction = &[
         call(2, Strain::Clubs),
@@ -94,7 +94,7 @@ fn test_1nt_decline_quantitative_4nt() {
 
 #[test]
 fn test_rebid_2nt_response_3nt() {
-    // 1♥ – 1♠ – 2NT: 10 HCP → bid 3NT opposite opener's 18–19.
+    // 1♥ - 1♠ - 2NT: 10 HCP → bid 3NT opposite opener's 18–19.
     let system = stance();
     let auction = &[
         call(1, Strain::Hearts),

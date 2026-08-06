@@ -1,4 +1,4 @@
-//! Integration tests for responder's `1NT–3♥/3♠` splinter
+//! Integration tests for responder's `1NT - 3♥/3♠` splinter
 //! ([`set_nt_splinter`]), the Bridge World Standard / Polish Club treatment of
 //! the two slots our response ladder leaves empty.
 //!
@@ -32,7 +32,7 @@ fn without() -> Stance {
 
 const P: Call = Call::Pass;
 
-/// `1NT P` — the direct-response auction
+/// `1NT -` — the direct-response auction
 fn after_1nt() -> Vec<Call> {
     vec![call(1, Strain::Notrump), P]
 }

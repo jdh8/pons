@@ -7,7 +7,7 @@ fn modern_negative_double_is_exactly_four_over_one_heart() {
     super::negative_double::set_negative_double_shape(
         super::negative_double::NegativeDoubleShape::Modern,
     );
-    // [1♦, (1♥)]: five spades bid the free 1♠; exactly four double.
+    // `1♦ (1♥)`: five spades bid the free 1♠; exactly four double.
     let auction = [call(1, Strain::Diamonds), call(1, Strain::Hearts)];
     let (free, floored) = best_call(&auction, "AQ542.95.964.Q32");
     assert_eq!(free, call(1, Strain::Spades), "five spades bid the suit");
@@ -61,7 +61,7 @@ fn cachalot_probe_spades3() {
     let h = "A2.KJ54.KQ543.A2"; // opener-ish, 4 spades
     let cases = vec![
         (
-            "1D(1H)X (1S)",
+            "1♦ (1♥) X (1♠)",
             vec![
                 call(1, Diamonds),
                 call(1, Hearts),
@@ -70,7 +70,7 @@ fn cachalot_probe_spades3() {
             ],
         ),
         (
-            "1D(1H)X (1NT)",
+            "1♦ (1♥) X (1NT)",
             vec![
                 call(1, Diamonds),
                 call(1, Hearts),
@@ -79,7 +79,7 @@ fn cachalot_probe_spades3() {
             ],
         ),
         (
-            "1D(1H)X (2C)",
+            "1♦ (1♥) X (2♣)",
             vec![
                 call(1, Diamonds),
                 call(1, Hearts),
@@ -88,7 +88,7 @@ fn cachalot_probe_spades3() {
             ],
         ),
         (
-            "1C(1H)X (2C)",
+            "1♣ (1♥) X (2♣)",
             vec![
                 call(1, Clubs),
                 call(1, Hearts),
@@ -97,7 +97,7 @@ fn cachalot_probe_spades3() {
             ],
         ),
         (
-            "nat 1D(1H)1S(2C)",
+            "natural 1♦ (1♥) 1♠ (2♣)",
             vec![
                 call(1, Diamonds),
                 call(1, Hearts),
@@ -106,7 +106,7 @@ fn cachalot_probe_spades3() {
             ],
         ),
         (
-            "1C(1D)X (2C) [hearts fam]",
+            "1♣ (1♦) X (2♣) [hearts family]",
             vec![
                 call(1, Clubs),
                 call(1, Diamonds),
@@ -115,7 +115,7 @@ fn cachalot_probe_spades3() {
             ],
         ),
         (
-            "nat 1C(1D)1H(2C)",
+            "natural 1♣ (1♦) 1♥ (2♣)",
             vec![
                 call(1, Clubs),
                 call(1, Diamonds),
@@ -148,11 +148,11 @@ fn cachalot_probe_spades2() {
         Call::Pass,
     ];
     eprintln!(
-        "1D(1H)X P  opener 4sp: {:?}",
+        "1♦ (1♥) X -; opener 4♠: {:?}",
         best_call(&passout, "AQ54.K2.KQ543.A2")
     );
     eprintln!(
-        "1D(1H)X P  opener 3sp: {:?}",
+        "1♦ (1♥) X -; opener 3♠: {:?}",
         best_call(&passout, "AQ5.K42.KQ543.A2")
     );
     // and the (1D) hearts pass-out for contrast:
@@ -163,7 +163,7 @@ fn cachalot_probe_spades2() {
         Call::Pass,
     ];
     eprintln!(
-        "1C(1D)X P  opener 4he: {:?}",
+        "1♣ (1♦) X -; opener 4♥: {:?}",
         best_call(&ph, "A2.KQ54.A3.KJ654")
     );
     super::negative_double::set_negative_double_shape(
@@ -179,7 +179,7 @@ fn cachalot_probe_spades() {
     super::negative_double::set_negative_double_shape(
         super::negative_double::NegativeDoubleShape::Cachalot,
     );
-    // Is 1♦(1♥)X even the spade transfer? And does reveal fire?
+    // Is `1♦ (1♥) X` even the spade transfer? And does reveal fire?
     let respond = [call(1, Strain::Diamonds), call(1, Strain::Hearts)];
     eprintln!(
         "responder 4=spades: {:?}",
@@ -233,7 +233,7 @@ fn cachalot_x_contested_answer_raises_the_shown_major() {
     super::negative_double::set_negative_double_shape(
         super::negative_double::NegativeDoubleShape::Cachalot,
     );
-    // [1♣, (1♦), X(=4+♥), (2♦)]: opener with four hearts jumps to 3♥.
+    // `1♣ (1♦) X (2♦)` (X = 4+♥): opener with four hearts jumps to 3♥.
     let x_hearts = [
         call(1, Strain::Clubs),
         call(1, Strain::Diamonds),
@@ -249,7 +249,7 @@ fn cachalot_x_contested_answer_raises_the_shown_major() {
     let (defend, _) = best_call(&x_hearts, "AQ32.J.KQ632.A54");
     assert_eq!(defend, Call::Pass, "no fit defends");
 
-    // [1♦, (1♥), X(=4+♠), (2♣)]: over (1♥) the X shows spades — opener raises.
+    // `1♦ (1♥) X (2♣)` (X = 4+♠): over (1♥) the X shows spades — opener raises.
     let x_spades = [
         call(1, Strain::Diamonds),
         call(1, Strain::Hearts),
@@ -272,7 +272,7 @@ fn sputnik_negative_double_is_the_residual() {
     super::negative_double::set_negative_double_shape(
         super::negative_double::NegativeDoubleShape::Sputnik,
     );
-    // [1♣, (1♦)]: a 4-card major is bid naturally at the 1-level...
+    // `1♣ (1♦)`: a 4-card major is bid naturally at the 1-level...
     let auction = [call(1, Strain::Clubs), call(1, Strain::Diamonds)];
     // 7 HCP: a flat 6-count reads 5 on the rule-of-N+8 scale and passes.
     let (spades, floored) = best_call(&auction, "KJ54.952.964.QJ2");

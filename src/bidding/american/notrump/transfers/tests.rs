@@ -4,7 +4,7 @@ use contract_bridge::Strain;
 /// The longer-major transfer discipline (default on): a two-suiter
 /// transfers to its longer major, and equal lengths split by strength —
 /// weak to hearts, invitational/minimum-game-force to the both-majors 3♦,
-/// slam tries to spades for the `1NT–2♥–2♠–3♥` structure.
+/// slam tries to spades for the `1NT - 2♥ - 2♠ - 3♥` structure.
 #[test]
 fn transfers_prefer_the_longer_major() {
     let one_nt = [bid(1, Strain::Notrump), P];

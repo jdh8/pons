@@ -236,14 +236,14 @@ pub fn competition() -> Competitive {
     compile_into(&mut book, &[uvu_over_majors_package()]);
 
     // Section 11: over their takeout double (`set_jordan_truscott`, default
-    // on). Responder's first call at the deeper [1x, X] key — it wins over
-    // the [1x] FirstIs(X) systems-on rebase structurally, and the rebase
+    // on). Responder's first call at the deeper `1x (X)` key — it wins over
+    // the `1x` FirstIs(X) systems-on rebase structurally, and the rebase
     // survives untouched below it for every deeper suffix the package's
     // exact-suffix guards don't claim.
     compile_into(&mut book, &[jordan_truscott_package()]);
 
     // Section 10: their jump / 3-level suit overcalls
-    // (`set_high_overcall_responses`, default off). A guarded entry at [1x] —
+    // (`set_high_overcall_responses`, default off). A guarded entry at `1x` —
     // its bid range (2NT, 3♠] sits above the shipped per-overcall exact nodes
     // (which stop at 2♠), so nothing races it. Their (2NT) and their 3-level
     // cue of our own suit are excluded (the first is a two-suiter, the second
@@ -258,7 +258,7 @@ pub fn competition() -> Competitive {
     );
 
     // Section 7: our contested weak twos (`set_weak_two_competition`, default
-    // off). Their double: responder's first call at the deeper [2M, X] node
+    // off). Their double: responder's first call at the deeper `2M (X)` node
     // (business XX riding on the uncontested responses), everything deeper
     // systems-on. Their overcall (≤ 3♠): responder's direct action, and a
     // targeted rebase so an Ogust 2NT bid over the overcall still gets
@@ -272,14 +272,14 @@ pub fn competition() -> Competitive {
     compile_into(&mut book, &[strong_two_competition_package()]);
 
     // Section 5 / 5b / 5c: Lebensohl after our 1NT is overcalled at the 2
-    // level. Purely additive — nothing else lands at [1NT] in the competitive
+    // level. Purely additive — nothing else lands at `1NT` in the competitive
     // book. Plain or Transfer Lebensohl per [`LebensohlStyle`]; both keep the
     // weak 2NT relay, and (2♣) gets the systems-on rebase instead.
     compile_into(&mut book, &[lebensohl_package()]);
 
     // Competition over our own conventions: the opponents double or overcall
     // our Stayman, our Jacoby transfer, our two-way 2♠, or our 2NT diamond
-    // transfer.  Each is keyed under the uncontested `[1NT, P, <our call>]`
+    // transfer.  Each is keyed under the uncontested `1NT - <our call>`
     // node — a distinct trie path from the systems-on blocks where their call
     // sits at depth 1 — and each shares the `X (bid) …` systems-on rebase.
     compile_into(

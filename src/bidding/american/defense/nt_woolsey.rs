@@ -140,7 +140,7 @@ pub(super) fn muiderberg(major: Suit) -> Rules {
 // opponents can never trap us in a doubled artificial contract.
 // ---------------------------------------------------------------------------
 
-/// Advancer over the Woolsey **Multi** `2♦` (`[1NT, 2♦, P]` or `[1NT, 2♦, X]`):
+/// Advancer over the Woolsey **Multi** `2♦` (`(1NT) 2♦ -` or `(1NT) 2♦ (X)`):
 /// a major pass-or-correct in two strengths, plus a game-forcing ask.  Holds no
 /// `Pass`, so over a double it always corrects rather than sitting in `2♦x` (the
 /// overcaller has a major, never diamonds).  Thresholds track the overcall floor
@@ -157,7 +157,7 @@ fn multi_advances(lo: u8) -> Rules {
         .rule(Bid::new(2, Strain::Hearts), 90, points(..invite))
 }
 
-/// Overcaller over the weak `2♥` pass-or-correct (`[1NT, 2♦, P, 2♥, P]`): pass
+/// Overcaller over the weak `2♥` pass-or-correct (`(1NT) 2♦ - 2♥ -`): pass
 /// with six hearts, correct to `2♠` with six spades, jump to `3♥`/`3♠` with seven
 fn multi_2h_rebid() -> Rules {
     Rules::new()
@@ -167,7 +167,7 @@ fn multi_2h_rebid() -> Rules {
         .rule(Call::Pass, 0, hcp(0..))
 }
 
-/// Overcaller over the constructive `2♠` pass-or-correct (`[1NT, 2♦, P, 2♠, *]`):
+/// Overcaller over the constructive `2♠` pass-or-correct (`(1NT) 2♦ - 2♠ *`):
 /// pass with spades, bid `3♥` with hearts.  Bidding the major directly (rather than
 /// a 2NT heart-relay) keeps the rebid identical whether the `2♠` was passed or
 /// doubled — over a double we must not be left to the floor.
@@ -177,7 +177,7 @@ fn multi_2s_rebid() -> Rules {
         .rule(Call::Pass, 0, hcp(0..))
 }
 
-/// Overcaller over the game-forcing `2NT` ask (`[1NT, 2♦, P, 2NT, P]`): jump to
+/// Overcaller over the game-forcing `2NT` ask (`(1NT) 2♦ - 2NT -`): jump to
 /// game in the 6-card major
 fn multi_2nt_rebid() -> Rules {
     Rules::new()
@@ -185,7 +185,7 @@ fn multi_2nt_rebid() -> Rules {
         .rule(Bid::new(4, Strain::Spades), 100, len(Suit::Spades, 6..))
 }
 
-/// Advancer over a **Muiderberg** `2M` (`[1NT, 2M, P]`): raise the known 5-card
+/// Advancer over a **Muiderberg** `2M` (`(1NT) 2M -`): raise the known 5-card
 /// major with support (`4M` game / `3M` invitational, or a `3M` preempt with
 /// four-card support), or with no fit ask the 4+ minor via `2NT` (overcaller
 /// answers `3♣`/`3♦`); a weak no-fit hand passes and plays `2M`.  `major` is the
@@ -210,7 +210,7 @@ fn muiderberg_advances(major: Suit, lo: u8) -> Rules {
         .rule(Call::Pass, 0, hcp(0..))
 }
 
-/// Advancer over a **doubled** Muiderberg `2M` (`[1NT, 2M, X]`): with a fit sit
+/// Advancer over a **doubled** Muiderberg `2M` (`(1NT) 2M (X)`): with a fit sit
 /// for `2Mx` (a known 8+ card trump fit) or raise; with no fit escape via the
 /// `2NT` minor-ask rather than be trapped in a doubled 5-1 misfit
 fn muiderberg_advances_doubled(major: Suit, lo: u8) -> Rules {
@@ -229,7 +229,7 @@ fn muiderberg_advances_doubled(major: Suit, lo: u8) -> Rules {
         .rule(Call::Pass, 0, len(major, 3..))
 }
 
-/// Overcaller answering the Muiderberg `2NT` minor-ask (`[1NT, 2M, …, 2NT, P]`):
+/// Overcaller answering the Muiderberg `2NT` minor-ask (`(1NT) 2M … 2NT -`):
 /// name the 4+ minor — `3♦` with diamonds (longer or equal), else `3♣`
 fn muiderberg_2nt_rebid() -> Rules {
     let diamonds_longer = at_least_as_long(Suit::Diamonds, Suit::Clubs);
@@ -238,7 +238,7 @@ fn muiderberg_2nt_rebid() -> Rules {
         .rule(Bid::new(3, Strain::Clubs), 90, hcp(0..))
 }
 
-/// Advancer over the Woolsey takeout `X` (`[1NT, X, P]`): bid a 5+ major of your
+/// Advancer over the Woolsey takeout `X` (`(1NT) X -`): bid a 5+ major of your
 /// own (to play), ask with a game-going hand, else relay `2♣` to the doubler's
 /// long minor.  The catch-all `2♣` owns a finite logit so the floor never runs.
 fn woolsey_x_advance(lo: u8) -> Rules {
@@ -253,7 +253,7 @@ fn woolsey_x_advance(lo: u8) -> Rules {
         .rule(Bid::new(2, Strain::Clubs), 90, hcp(0..))
 }
 
-/// Doubler over the `2♣` minor relay (`[1NT, X, P, 2♣, P]`): pass with the club
+/// Doubler over the `2♣` minor relay (`(1NT) X - 2♣ -`): pass with the club
 /// minor, correct to `2♦` with the diamond minor (advancer denied a major)
 fn woolsey_x_minor_rebid() -> Rules {
     Rules::new()
@@ -261,7 +261,7 @@ fn woolsey_x_minor_rebid() -> Rules {
         .rule(Call::Pass, 0, hcp(0..))
 }
 
-/// Doubler over the `2NT` game-ask (`[1NT, X, P, 2NT, P]`): name the 4-card major
+/// Doubler over the `2NT` game-ask (`(1NT) X - 2NT -`): name the 4-card major
 /// (the `X` always holds exactly one), leaving the advancer to place the game
 fn woolsey_x_2nt_rebid() -> Rules {
     Rules::new()
@@ -288,10 +288,10 @@ pub(super) fn woolsey_package() -> Package {
             // pass-or-correct — the overcaller names its major regardless of a
             // double, so we are never left to the floor in a doubled 2♥x/2♠x (the
             // dominant 2♦ leak vs BBA).
-            for rho in ["P", "X"] {
-                let base = format!("P* (1NT) 2♦ ({rho})");
+            for rho in ["-", "(X)"] {
+                let base = format!("P* (1NT) 2♦ {rho}");
                 entries.extend(rows_of(Pattern::node(&base), multi_advances(lo)));
-                for after in ["P", "X"] {
+                for after in ["-", "(X)"] {
                     for (bid, rebid) in [
                         // Weak 2♥ p/c → pass / correct 2♠ / jump 3M with seven.
                         ("2♥", multi_2h_rebid()),
@@ -301,7 +301,7 @@ pub(super) fn woolsey_package() -> Package {
                         ("2NT", multi_2nt_rebid()),
                     ] {
                         entries.extend(rows_of(
-                            Pattern::node(&format!("{base} {bid} ({after})")),
+                            Pattern::node(&format!("{base} {bid} {after}")),
                             rebid,
                         ));
                     }
@@ -312,7 +312,7 @@ pub(super) fn woolsey_package() -> Package {
             // no fit).
             for (major, mbid) in [(Suit::Hearts, "2♥"), (Suit::Spades, "2♠")] {
                 entries.extend(rows_of(
-                    Pattern::node(&format!("P* (1NT) {mbid} (P)")),
+                    Pattern::node(&format!("P* (1NT) {mbid} -")),
                     muiderberg_advances(major, lo),
                 ));
                 entries.extend(rows_of(
@@ -320,9 +320,9 @@ pub(super) fn woolsey_package() -> Package {
                     muiderberg_advances_doubled(major, lo),
                 ));
                 // The 2NT minor-ask reaches the overcaller over either RHO action.
-                for rho in ["P", "X"] {
+                for rho in ["-", "(X)"] {
                     entries.extend(rows_of(
-                        Pattern::node(&format!("P* (1NT) {mbid} ({rho}) 2NT (P)")),
+                        Pattern::node(&format!("P* (1NT) {mbid} {rho} 2NT -")),
                         muiderberg_2nt_rebid(),
                     ));
                 }
@@ -332,20 +332,20 @@ pub(super) fn woolsey_package() -> Package {
             // 2NT.  A redouble forces us to run (never sit 1NTxx): the same advance
             // applies.
             let xfloor = woolsey_double_floor();
-            for adv in ["P", "XX"] {
-                let base = format!("P* (1NT) X ({adv})");
+            for adv in ["-", "(XX)"] {
+                let base = format!("P* (1NT) X {adv}");
                 entries.extend(rows_of(Pattern::node(&base), woolsey_x_advance(xfloor)));
                 // The doubler names its 5-6 minor whether the 2♣ relay is passed or
                 // doubled.
-                for after in ["P", "X"] {
+                for after in ["-", "(X)"] {
                     entries.extend(rows_of(
-                        Pattern::node(&format!("{base} 2♣ ({after})")),
+                        Pattern::node(&format!("{base} 2♣ {after}")),
                         woolsey_x_minor_rebid(),
                     ));
                 }
                 // The 2NT game-ask → the doubler names its 4-card major.
                 entries.extend(rows_of(
-                    Pattern::node(&format!("{base} 2NT (P)")),
+                    Pattern::node(&format!("{base} 2NT -")),
                     woolsey_x_2nt_rebid(),
                 ));
             }

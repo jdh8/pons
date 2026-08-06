@@ -10,7 +10,7 @@ fn advance(style: LebensohlStyle, auction: &[Call], hand: &str) -> (Call, bool) 
     best_call(auction, hand)
 }
 
-/// `(2♦)–X–(P)` — partner doubled their weak two, advancer to act
+/// `(2♦) X -` — partner doubled their weak two, advancer to act
 fn over_2d() -> [Call; 3] {
     [call(2, Strain::Diamonds), Call::Double, Call::Pass]
 }
@@ -62,7 +62,7 @@ fn transfer_shows_spades_through_their_hearts() {
 
 #[test]
 fn transfer_doubler_bids_game_not_partscore() {
-    // After (2♥)–X–(P)–3♦ (transfer to spades), the doubler with a fit bids
+    // After (2♥) X - 3♦ (transfer to spades), the doubler with a fit bids
     // the spade *game*, never a 3♠ partscore.
     let auction = [
         call(2, Strain::Hearts),
@@ -77,7 +77,7 @@ fn transfer_doubler_bids_game_not_partscore() {
 
 #[test]
 fn transfer_cue_is_stayman() {
-    // (2♥)–X–(P)–3♥ is the cue = Stayman; the doubler shows a 4-card major.
+    // (2♥) X - 3♥ is the cue = Stayman; the doubler shows a 4-card major.
     // (Over (2♦) the cue slot is freed for the Smolen 3♣-Stayman instead.)
     let auction = [
         call(2, Strain::Hearts),
@@ -104,7 +104,7 @@ fn penalty_pass_sits_for_the_double() {
 
 #[test]
 fn transfer_over_2d_is_three_club_stayman() {
-    // (2♦)–X–(P): Transfer's (2♦)-only Smolen leg bids 3♣-Stayman for a 4-4
+    // (2♦) X -: Transfer's (2♦)-only Smolen leg bids 3♣-Stayman for a 4-4
     // majors GF advancer, a book node (over (2♥)/(2♠) it is plain Cohen, whose
     // 3♣ is not Stayman).
     let (c, floored) = advance(LebensohlStyle::Transfer, &over_2d(), "AQ32.KJ32.A2.432");

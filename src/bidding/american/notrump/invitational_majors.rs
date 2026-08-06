@@ -1,4 +1,4 @@
-//! Invitational 5-4 and 5-5 majors — `1NT – 2♣` then an invitational rebid
+//! Invitational 5-4 and 5-5 majors — `1NT - 2♣` then an invitational rebid
 //!
 //! The hand too strong to sign off and too weak to force, holding five of one
 //! major and four (or five) of the other.  Gated by
@@ -15,7 +15,7 @@ thread_local! {
     /// `2♠` denies them).  **On by default** — a paired A/B vs BBA (1.28M boards/arm,
     /// `--filter-1nt`, vul none) measured **+0.375 IMPs/fired plain (+0.0020/board,
     /// 95% CI ±0.0004) and +0.134 PD (+0.0007/board, 95% CI ±0.0005)**, both excl 0.
-    /// The win needed the doubled-2♦ escape (`1NT-2♣-2♦-(X)` systems-on rebase in
+    /// The win needed the doubled-2♦ escape (`1NT - 2♣ - 2♦ (X)` systems-on rebase in
     /// `competition.rs`): without it the reroute walked 5♠4♥ into a doubled artificial
     /// 2♦ it passed out, and PD was a wash (−0.0001).  Flipped per
     /// [`set_invitational_5card_majors`].
@@ -41,7 +41,7 @@ pub(super) fn invitational_5card_majors() -> bool {
     INVITATIONAL_5CARD_MAJORS.with(Cell::get)
 }
 
-/// Opener's reply to the non-forcing `2♠` invite (`1NT–2♣–2♦–2♠`, auction A)
+/// Opener's reply to the non-forcing `2♠` invite (`1NT - 2♣ - 2♦ - 2♠`, auction A)
 ///
 /// Responder is a bare-8 5♠4♥; opener denied both majors (so 2-3 spades).  With a
 /// maximum (17) accept game — `4♠` on three-card support, else `3NT`; a minimum
@@ -61,7 +61,7 @@ fn answer_inv_5card_spades() -> Rules {
         .rule(Call::Pass, 0, hcp(0..))
 }
 
-/// Opener's reply to the forcing `2♠` (`1NT–2♣–2♥–2♠`, auction B)
+/// Opener's reply to the forcing `2♠` (`1NT - 2♣ - 2♥ - 2♠`, auction B)
 ///
 /// Responder is 5♠4♥, invitational through slam; opener has four hearts (so a 4-4
 /// heart fit at least) and may hold three spades (a 5-3 spade fit).  Prefer the
@@ -111,31 +111,31 @@ pub(crate) fn invitational_majors() -> Package {
         gate: invitational_5card_majors,
         entries: || {
             let mut entries = rows_of(
-                Pattern::node("P* 1NT (P) 2♣ (P) 2♦ (P) 2♠ (P)"),
+                Pattern::node("P* 1NT - 2♣ - 2♦ - 2♠ -"),
                 answer_inv_5card_spades(),
             );
             entries.extend(rows_of(
-                Pattern::node("P* 1NT (P) 2♣ (P) 2♥ (P) 2♠ (P)"),
+                Pattern::node("P* 1NT - 2♣ - 2♥ - 2♠ -"),
                 answer_inv_5card_both(),
             ));
             entries.extend(rows_of(
-                Pattern::node("P* 1NT (P) 2♣ (P) 2♥ (P) 2♠ (P) 3♥ (P)"),
+                Pattern::node("P* 1NT - 2♣ - 2♥ - 2♠ - 3♥ -"),
                 inv_5card_raise(Strain::Hearts),
             ));
             entries.extend(rows_of(
-                Pattern::node("P* 1NT (P) 2♣ (P) 2♥ (P) 2♠ (P) 3♠ (P)"),
+                Pattern::node("P* 1NT - 2♣ - 2♥ - 2♠ - 3♠ -"),
                 inv_5card_raise(Strain::Spades),
             ));
             entries.extend(rows_of(
-                Pattern::node("P* 1NT (P) 2♦ (P) 2♥ (P) 2♠ (P)"),
+                Pattern::node("P* 1NT - 2♦ - 2♥ - 2♠ -"),
                 answer_transfer_heart_single(),
             ));
             entries.extend(rows_of(
-                Pattern::node("P* 1NT (P) 2♦ (P) 2♥ (P) 2NT (P)"),
+                Pattern::node("P* 1NT - 2♦ - 2♥ - 2NT -"),
                 answer_transfer_heart_spade(),
             ));
             entries.extend(rows_of(
-                Pattern::node("P* 1NT (P) 2♥ (P) 2♠ (P) 2NT (P)"),
+                Pattern::node("P* 1NT - 2♥ - 2♠ - 2NT -"),
                 answer_transfer_spade_single(),
             ));
             entries

@@ -5,7 +5,7 @@ use contract_bridge::auction::Call;
 #[test]
 fn major_support_double_shows_three_spades() {
     super::support_double::set_major_support_double(true);
-    // [1♥, (P), 1♠, (2♣)]: opener with exactly three spades doubles.
+    // `1♥ - 1♠ (2♣)`: opener with exactly three spades doubles.
     let auction = [
         call(1, Strain::Hearts),
         Call::Pass,

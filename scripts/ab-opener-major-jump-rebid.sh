@@ -3,7 +3,7 @@
 # (`set_opener_major_jump_rebid`, docs/bba-gap-campaign.md bucket #3
 # residual: the 6+ ♥ / 6+ ♠ underbids in Constructive/book/round-2). One
 # two-arm experiment: on (shipped default = opener jumps 3M on a six-card major
-# with 16+ over 1♥-1♠ / 1M-1NT, plus responder's continuation) vs off
+# with 16+ over `1♥ - 1♠` / `1M - 1NT`, plus responder's continuation) vs off
 # (--no-ns-opener-major-jump-rebid = the minimum 2M rebid with no upper bound).
 # The minor extras ladder stays ON in both arms, so this isolates the major
 # increment. Both

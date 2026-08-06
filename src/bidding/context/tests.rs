@@ -35,7 +35,7 @@ fn test_relative_vulnerability() {
 
 #[test]
 fn test_contested_auction_facts() {
-    // We opened 1♠, LHO passed, partner bid 2♣, RHO doubled; we act next.
+    // `1♠ - 2♣ (X)`: we act next.
     let auction = [
         bid(1, Strain::Spades),
         Call::Pass,
@@ -131,7 +131,7 @@ fn test_min_level_exhausted() {
 
 #[test]
 fn test_passed_hands() {
-    // We passed, they overcalled 1♠ over partner's 1♥; we act next.
+    // `- - 1♥ (1♠)`: we act next.
     let auction = [
         Call::Pass,
         Call::Pass,

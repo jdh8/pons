@@ -14,6 +14,7 @@
 //! cargo run --release --example probe-bba-kickback-census -- [boards] [seed]
 //! ```
 
+use contract_bridge::auction::{Call, display_calls};
 use libloading::Library;
 use std::ffi::{CString, c_char, c_int, c_void};
 
@@ -82,6 +83,28 @@ fn decode(code: c_int) -> String {
             format!("{}{}", i / 5 + 1, STRAIN[(i % 5) as usize])
         }
         other => format!("?{other}"),
+    }
+}
+
+/// Render an EPBot history as an auction while retaining [`decode`] for lone calls.
+fn display_history(history: &[c_int]) -> String {
+    let calls = history
+        .iter()
+        .map(|&code| decode(code).parse::<Call>())
+        .collect::<Result<Vec<_>, _>>();
+    match calls {
+        Ok(calls) => display_calls(&calls).to_string(),
+        Err(_) => history
+            .iter()
+            .map(|&code| {
+                if code == 0 {
+                    "-".to_owned()
+                } else {
+                    decode(code)
+                }
+            })
+            .collect::<Vec<_>>()
+            .join(" "),
     }
 }
 
@@ -292,11 +315,10 @@ fn main() -> anyhow::Result<()> {
                         fired_by_trump[strain - 1] += 1;
                     }
                     if is_kickback != predicted {
-                        let auction: Vec<String> = history.iter().map(|&c| decode(c)).collect();
                         mismatches.push(format!(
                             "board {board} seat {actor}: {} labeled {label:?}, predicted {predicted} (partner_cue {partner_cue})\n  auction: {}\n  hand: ♠{} ♥{} ♦{} ♣{}",
                             decode(code),
-                            auction.join(" "),
+                            display_history(&history),
                             hands[actor].suits[0],
                             hands[actor].suits[1],
                             hands[actor].suits[2],

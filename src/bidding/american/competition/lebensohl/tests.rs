@@ -4,7 +4,7 @@ use contract_bridge::auction::Call;
 
 #[test]
 fn lebensohl_forcing_three_level_is_a_book_node() {
-    // 1NT–(2♦); responder 5 spades, game values, no diamond stopper →
+    // 1NT (2♦); responder 5 spades, game values, no diamond stopper →
     // forcing 3♠ (a jump), not a partscore.
     let auction = [call(1, Strain::Notrump), call(2, Strain::Diamonds)];
     let (c, floored) = bid(&auction, "KQT95.A43.32.J32");
@@ -41,7 +41,7 @@ fn lebensohl_weak_bids_natural_two_level() {
 
 #[test]
 fn lebensohl_cue_is_stayman() {
-    // 1NT–(2♥): a game-force with 4 spades and no 5-card suit cues 3♥ = Stayman
+    // 1NT (2♥): a game-force with 4 spades and no 5-card suit cues 3♥ = Stayman
     // (it cannot bid a forcing 3-level suit, and the cue outranks direct 3NT).
     let auction = [call(1, Strain::Notrump), call(2, Strain::Hearts)];
     let (c, floored) = bid(&auction, "AQ32.K43.A32.K32");
@@ -84,7 +84,7 @@ fn lebensohl_five_card_suit_relays_then_signs_off_at_the_three_level() {
 
 #[test]
 fn lebensohl_maximum_raises_weak_signoff_to_game() {
-    // 1NT–(2♠)–2NT–P–3♣–P–3♥–P: responder's weak heart sign-off. A maximum
+    // 1NT (2♠) 2NT - 3♣ - 3♥ -: responder's weak heart sign-off. A maximum
     // (17) opener with three-card support stretches to 4♥; a minimum passes.
     let after_signoff = [
         call(1, Strain::Notrump),

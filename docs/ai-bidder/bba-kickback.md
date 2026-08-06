@@ -64,12 +64,12 @@ T+1 (`get_kolor_kickback`, plus the retro-agreement fallback in
 1. **Natural-ambiguity guard**: *neither hand has shown 4+ cards in the
    kickback suit* (`partner.min_dlugosc[T+1] < 4 & CURRENT.min_dlugosc[T+1] < 4`).
    This is BBA's whole answer to "is 4♥ hearts or the ask?": after
-   1♦–1♥–3♦, responder's 4♥ is **natural** (the 1♥ showed 4), and the ask
+   1♦ - 1♥ - 3♦, responder's 4♥ is **natural** (the 1♥ showed 4), and the ask
    reverts to 4NT.
 2. **Opponents'-suit gate**: the kickback suit is not the opponents' shown
    suit — *unless* trumps are formally agreed (an explicit raise), or
    partner's last call wasn't a pass and (T isn't clubs or a major was
-   shown). So over (1♥), 1♦–(1♥)–3♦–…–4♥ **stays the ask**: the raise made
+   shown). So over (1♥), 1♦ (1♥) 3♦ … 4♥ **stays the ask**: the raise made
    the agreement formal.
 3. **Fit evidence**, any of:
    - the side has *shown* 8+ trumps (`zgloszone_karty ≥ 8`);
@@ -230,23 +230,23 @@ the default 5NT king ask answers at 6♦ = "one king" — still below 6♥. Plai
 against the shipped `.so`. The load-bearing rows:
 
 - **Ladder + labels**: fed asks read `"Kickback 1430, for !C/!D/!H"` after
-  1♣–3♣ / 1♦–3♦ / 1♥–3♥; answers hit the exact 1430 steps with disclosure
+  1♣ - 3♣ / 1♦ - 3♦ / 1♥ - 3♥; answers hit the exact 1430 steps with disclosure
   strings `A=1/5 or 4/5`, `A=0/5 or 3/5`, `A=2/5 or 5/5, Q(♦)=0/1`; the
   0314/0123 rows relabel and re-step accordingly (`A=1/5 or 5/5` for 0123).
 - **Flag-bites control**: same auction with the row off reads 4♥ as a
   *Splinter* and partner bids 5♣ ("surplus") — the phantom-suit failure mode
   in one row.
-- **The asker's choice moves**: after 1♦–3♦–4♣(cue)–4♦, the same monster
+- **The asker's choice moves**: after 1♦ - 3♦ - 4♣ [cue] - 4♦, the same monster
   bids **4♥ ("Kickback 1430, for !D") with the row on and 4NT
-  ("Blackwood 0314, for !D") with it off**; the club freak over 1♣–3♣ bids
+  ("Blackwood 0314, for !D") with it off**; the club freak over 1♣ - 3♣ bids
   4♦ vs 4NT. (Also visible: the engine's system-0 default Blackwood is
   **0314**, another engine-default ≠ card case.)
-- **Guards**: 1♦–1♥–3♦–4♥, 1♥–2♦–3♦–4♥, 1♥–1♠–3♥–4♠, 1♣–1♦–3♣–4♦ all read
+- **Guards**: 1♦ - 1♥ - 3♦ - 4♥, 1♥ - 2♦ - 3♦ - 4♥, 1♥ - 1♠ - 3♥ - 4♠, 1♣ - 1♦ - 3♣ - 4♦ all read
   natural ("bidable suit" / floor) — the shown-4+ guard holds on both sides.
 - **4NT residual**: with a minor agreed and kickback on, 4NT reads
   `"Blackwood 0314, for !D/!C"` and is answered on the Blackwood ladder.
 - **Cue chains do not kill the ask** when partner's intervening call wasn't a
-  recognized cue: 1♦–3♦–4♣–4♦("calculated")–4♥ still reads
+  recognized cue: 1♦ - 3♦ - 4♣ - 4♦ [calculated] - 4♥ still reads
   `"Kickback 1430, for !D"` (the suppression needs the engine's own cue flag,
   and its second arm only bites below game of the agreed suit — which
   exempts the ♥-ask 4♠ entirely).
@@ -254,7 +254,7 @@ against the shipped `.so`. The load-bearing rows:
   the cue of their suit *is* the keycard ask. Their X of the ask → **XX
   carries the step-1 meaning** (`A=1/5 or 4/5`, ROPI-flavored); their 5♥ over
   the ask → **X = parity** (`1/5 or 3/5`), exactly the collapsed ladder.
-- **Jacoby route**: 1♥–2NT–4♠ reads as the ♥ ask (no splinter collision).
+- **Jacoby route**: 1♥ - 2NT - 4♠ reads as the ♥ ask (no splinter collision).
 - **Wart** (asker/interpreter desync, one case): the club freak's chosen 4♦
   self-labels "Splinter" on the asker's own bot even though the answerer
   reads it as `"Kickback 1430, for !C"` and the auction proceeds correctly
@@ -315,7 +315,7 @@ interpretation dispatch; the classes above are the documented boundary.
 ## 7. The pons ladder: BBA's rule, adopted (the walk-up retired 2026-08-02)
 
 **We no longer differ from BBA on §1.1.** jdh8's original rule kept **walking
-up** to the first unguarded suit — after 1♦–1♥–3♦ the ♦ ask sat at 4♠ — and
+up** to the first unguarded suit — after 1♦ - 1♥ - 3♦ the ♦ ask sat at 4♠ — and
 only fell to 4NT when nothing below it was free: never worse than BBA on paper,
 sometimes a step better, and the ask never lost. It is retired, because a
 relocated ask two suits above the trump is unrecognisable to anything that has
@@ -338,10 +338,10 @@ both members provably build the same table (the same guarantee that makes a
   (2026-08-01), unless the face disproves five of them — see "the undisprovable
   major" below.
 - **set** — a suit our side named **twice**: both members (a formal raise), or
-  one member twice (1♦–1♥–**3♦**). One bid is no agreement, or `1♦ P 4♥` would
+  one member twice (1♦ - 1♥ - **3♦**). One bid is no agreement, or `1♦ - 4♥` would
   ask.
 - the **`face_trump` veto** — when the face names no trump at all (the notrump
-  dichotomy: `1♦ P 3♦ P 3NT P` is a sign-off, so that 4NT is quantitative),
+  dichotomy: `1♦ - 3♦ - 3NT -` is a sign-off, so that 4NT is quantitative),
   nothing relocates.
 
 Each set suit, **in ascending rank**, then claims **four of the next suit up,
@@ -350,15 +350,15 @@ does not relocate and asks at 4NT (BBA's §1.1 rule; the walk-up's "cheapest
 unguarded suit above" is retired, see the section head).
 
 ```text
-1♦ P 1♥ P 3♦ P     set {♦}    guarded {♦,♥}   → 4NT only (♥ guarded, no walking)
-1♦ P 1♠ P 2♦ P     set {♦}    guarded {♦,♥,♠} → 4NT only (♠ cannot deny ♥)
-1♠ P 2♦ P 3♦ P     set {♦}    guarded {♦,♠}   → 4♥ = RKCB(♦)  (5♠+4♦ = 9)
-1♥ P 2♦ P 3♦ P 3♥ P set {♦,♥} guarded {♦,♥}   → 4♠ = RKCB(♥), 4NT = RKCB(♦)
-1♣ P 2♣ P 2♥ P 3♥ P set {♣,♥} guarded {♣,♥}   → 4♦ = RKCB(♣), 4♠ = RKCB(♥)    †
-1♥ (3♦) 4♦ P 4♥ P  set {♥}    guarded {♥,♦}   → 4♠ = RKCB(♥); 4♦ stays a cue  †
-1♠ P 3♠ P          set {♠}    guarded {♠}     → 4NT only (nothing above 4♠)
-1♦ P               set {}                     → no relocation
-1♦ P 3♦ P 3NT P    face veto                  → no relocation
+1♦ - 1♥ - 3♦ -       set {♦}    guarded {♦,♥}   → 4NT only (♥ guarded, no walking)
+1♦ - 1♠ - 2♦ -       set {♦}    guarded {♦,♥,♠} → 4NT only (♠ cannot deny ♥)
+1♠ - 2♦ - 3♦ -       set {♦}    guarded {♦,♠}   → 4♥ = RKCB(♦)  (5♠+4♦ = 9)
+1♥ - 2♦ - 3♦ - 3♥ -  set {♦,♥} guarded {♦,♥}   → 4♠ = RKCB(♥), 4NT = RKCB(♦)
+1♣ - 2♣ - 2♥ - 3♥ -  set {♣,♥} guarded {♣,♥}   → 4♦ = RKCB(♣), 4♠ = RKCB(♥)    †
+1♥ (3♦) 4♦ - 4♥ -    set {♥}    guarded {♥,♦}   → 4♠ = RKCB(♥); 4♦ stays a cue  †
+1♠ - 3♠ -             set {♠}    guarded {♠}     → 4NT only (nothing above 4♠)
+1♦ -                  set {}                     → no relocation
+1♦ - 3♦ - 3NT -       face veto                  → no relocation
 ```
 
 **The undisprovable major (2026-08-01, jdh8).** The phase-5 wash's whole
@@ -369,12 +369,12 @@ a literal void). The doctrine that fixes it is longest-first with ties to the
 higher rank: **a spade bid never denies hearts**, because 5-5 majors bid spades,
 so a later 4♥ stays plausibly natural and the claim must yield. The escape is
 arithmetic: a spade bidder who named a **second** suit has shown 5+4 = 9 cards
-and can hold at most four hearts, so `1♠ P 2♦ P 3♦` (opener bid ♠ *and* raised
+and can hold at most four hearts, so `1♠ - 2♦ - 3♦` (opener bid ♠ *and* raised
 ♦) keeps its relocation. The test is therefore "some member named ♠ and named
 no other suit" — still face-only, still reading-free, so both members derive it
 identically. No converse: 1♥ *does* deny five spades under the same doctrine.
 
-The price is named and real: on `1♦ P 1♠ P 2♦ P` — a common face — ♥ and ♠ are
+The price is named and real: on `1♦ - 1♠ - 2♦ -` — a common face — ♥ and ♠ are
 both guarded, so the ♦ ask reverts to plain 4NT rather than moving. Redwood is
 lost there, not relocated.
 
@@ -478,8 +478,8 @@ Every cell's CI excludes zero. The arms are internally consistent:
 
 **The carve lift ships.** Lifting `keycard_trump`'s majors-only carve wins on
 plain DD *and* PD *and* both sd rows — not the PD-only shape that flags a
-doubling artifact. The audited boards are the mechanism exactly: `4NT P 5x P 6m`
-finding the minor slam (`1♣ P 1♠ P 2♣ P 4NT P 5♣ P 6♣`, +15) and — worth as
+doubling artifact. The audited boards are the mechanism exactly: `4NT - 5x - 6m`
+finding the minor slam (`1♣ - 1♠ - 2♣ - 4NT - 5♣ - 6♣`, +15) and — worth as
 much — the ask *declining* one, `5♦ vs 6♦` at **+44 over 4 boards** where arm A
 blasted six without the keycards. **The 2026-07-02 round-4 verdict has
 expired**: it concluded minors lost to the milestone 6NT power-blast, and on the
@@ -498,7 +498,7 @@ boards are dominated by one shape that has nothing to do with keycards:
 | 6♥ vs 4♥ | 7 | −10 |
 
 ```text
-1♦ P 1♠ P 2♦ P 4♠ P P P        → kickback plays 4♠, arm B reaches 6♠
+1♦ - 1♠ - 2♦ - 4♠ - - -        → kickback plays 4♠, arm B reaches 6♠
 ```
 
 No suit is bid twice by one side there, so `kickback_ladder` returns all-`None`
@@ -542,7 +542,7 @@ recognizers' face halves (`keycard_asked_face`, `keycard_asked_over_bid_face`,
 and the ladder claim for the three ask targets) to its ask and answer rules;
 the plain arm keeps ungated constructors and stays byte-identical (verified:
 20k-board smoke, `minors` vs `plain`, pre- and post-change binaries produce
-identical output). On the audit shape `1♦ P 1♠ P 2♦ P 4♠` the ladder is
+identical output). On the audit shape `1♦ - 1♠ - 2♦ - 4♠` the ladder is
 all-`None`, the rules are face-dead, and the natural spade floor survives —
 the regression test `kickback_face_gate_keeps_natural_four_spades_natural`
 pins it. The re-measure with the gates is §7.3.2: the poison class vanished
@@ -568,7 +568,7 @@ The build artifact is gone, by every sign at once:
   old footprint.
 - **The poison signature is extinct**: zero boards pair a four-major game
   against the same-suit slam (old audit: 4♠-vs-6♠ alone was 20 boards, −108
-  PD). The audit shape `1♦ P 1♠ P 2♦ P 4♠` no longer diverges at all.
+  PD). The audit shape `1♦ - 1♠ - 2♦ - 4♠` no longer diverges at all.
 - What remains is Redwood *itself*, and it nets to noise: grand-slam churn in
   both directions (6♦-vs-7♦ +66 against 7♦-vs-6♦ −47, 7♣-vs-6♣ +66 against
   6♣-vs-7♣ +55 the other way), the ask's extra room spent going six-over-five
@@ -587,7 +587,7 @@ met.
 printer — the divergence is deterministic in the seed): every board in the
 class is a **bidder-side agreement collision**, not partner confusion. The
 natural-walk 4♥/4♠ rules do not know the ladder has claimed the call, so a
-major-freak hand bids it naturally — board 96: `1♦ P 1♠ P 2♦ P` and North,
+major-freak hand bids it naturally — board 96: `1♦ - 1♠ - 2♦ -` and North,
 holding ♠AKQ8754 ♥AT9642 ♦— ♣—, bids 4♥ *meaning hearts* — and both seats'
 readings then follow the agreement: partner answers keycards (5♣), and the
 bidder's own decode machinery, which also consults the ladder, believes an
@@ -632,7 +632,7 @@ repairs are live in both arms of the coming re-measure.
 and are present in **every** stance, so the shipped default alerted every
 floor-classified five-level bid, double and redouble on faces with no ask
 anywhere, erasing their natural readings (regression: on
-`1♦ P 1♠ P 2♦ P 5♦` partner's diamond floor read as erased, restored by the
+`1♦ - 1♠ - 2♦ - 5♦` partner's diamond floor read as erased, restored by the
 gates). `set_keycard_answer_gates` confines those rules to their
 recognizers' face windows — the same construction as phase 5, knob-guarded.
 
@@ -696,11 +696,11 @@ under five-of-trump, so the pair can sign off — is what loses, because
 double-dummy pays for the thin slam the baseline was *forced* into:
 
 ```text
-board [1]  1♣ P 1♦ P 3♣ P    kickback 4♥ ask → 4NT (0 or 3) → signs off 5♣
+board [1]  1♣ - 1♦ - 3♣ -    kickback 4♥ ask → 4NT (0 or 3) → signs off 5♣
                              baseline 4NT ask → 5♦, so clubs cannot be played
                              at the five level → 6♣, which makes
-board [3]  1♦ P 1♥ P 3♦ P    kickback 4♠ → 5♣ → 6♦ ;  baseline 4NT → 5♦ → 7♦, making
-board [5]  1♥ … 3♥ P 4♥ P    kickback 4♠ → 5♣ → 5♥ ;  baseline 4NT → 5♦ → 6♥, making
+board [3]  1♦ - 1♥ - 3♦ -    kickback 4♠ → 5♣ → 6♦ ;  baseline 4NT → 5♦ → 7♦, making
+board [5]  1♥ … 3♥ - 4♥ -    kickback 4♠ → 5♣ → 5♥ ;  baseline 4NT → 5♦ → 6♥, making
 ```
 
 By trump: hearts **−97** (83 boards, the 4♠ ask), clubs **−62** (75), spades
@@ -734,7 +734,7 @@ reading of every 4♦/4♥/4♠ — is §7.3.1, and it is the one that mattered.
   hearts agreed 4♠ asks and 4NT is its step 1; unguarded, the asker's own
   partner reads that 4NT as a fresh ask and answers *it*, and the 1.9-weighted
   answer rung outbids the 1.82 signoff. The first smoke run passed
-  `1♥ P 2NT P 3NT P 4♥ P 4♠ P 4NT P 5♦` out for −15 IMPs. `keycard_ask_bid`
+  `1♥ - 2NT - 3NT - 4♥ - 4♠ - 4NT - 5♦` out for −15 IMPs. `keycard_ask_bid`
   carries the carve-out; a plain 4NT ask can never collide this way because all
   four of its rungs are five-level.
 - **The recognizer needs the emission's `undisturbed()` bar.** A four-level
@@ -924,7 +924,7 @@ board, and the residue localised sharply: 354 of 2090 divergent boards land in
 carrying ~58% of the loss.  Tracing them gives one auction:
 
 ```
-1♦  P  1♠  P  2♦  P  4♥  P  P  P        ← passed out, 171 boards, −551 DD IMPs
+1♦ - 1♠ - 2♦ - 4♥ - - -        ← passed out, 171 boards, −551 DD IMPs
 ```
 
 Diamonds is set, hearts is unguarded, so the ladder claims 4♥ for the diamond
@@ -933,20 +933,20 @@ ask — but the hand *bidding* 4♥ is 6-6 in the majors and **void in diamonds*
 natural continuation is face-gated off, and on 171 boards nothing fires at all.
 
 The instinct was to blame the ladder — to stop a *simple* rebid from setting the
-suit, so `1♦ P 1♠ P 2♦` claims nothing.  **The probe refutes that.**  Three cases
+suit, so `1♦ - 1♠ - 2♦` claims nothing.  **The probe refutes that.**  Three cases
 added to `probe-bba-kickback` (`collision A/B/C`) put both auctions to EPBot with
 `Kickback 1430` on:
 
 | face | BBA's label for 4♥ | BBA's answer |
 | --- | --- | --- |
-| `1♦ P 1♠ P 2♦ P 4♥` | `Kickback 1430, for !D` | 5♦ (`A=2/5 or 5/5, Q(D)=1`) |
-| `1♦ P 1♠ P 3♦ P 4♥` | `Kickback 1430, for !D` | 5♦ |
+| `1♦ - 1♠ - 2♦ - 4♥` | `Kickback 1430, for !D` | 5♦ (`A=2/5 or 5/5, Q(D)=1`) |
+| `1♦ - 1♠ - 3♦ - 4♥` | `Kickback 1430, for !D` | 5♦ |
 
 BBA claims 4♥ after a simple rebid exactly as we do; narrowing the ladder would
 have diverged from BBA in both auctions to fix a defect that is not there.
 
 BBA escapes the collision **on the emitter side**.  Handed the 6-6 hand over
-`1♦ P 1♠ P 2♦`, EPBot bids **2♥** (`bidable suit`) — the second suit cheaply, at
+`1♦ - 1♠ - 2♦`, EPBot bids **2♥** (`bidable suit`) — the second suit cheaply, at
 the two level.  It never jumps to 4♥, so 4♥ is never natural there and no
 conflict can arise.  BBA did not disambiguate the ambiguity; it structured the
 auction so the ambiguity has no instance.
@@ -961,7 +961,7 @@ a **retrained twin**, `dump-teacher --teacher bba --conv "Kickback 1430=1"`,
 selected inside `classify_bba` under `kickback_now()` exactly as
 `evaluator_v3_exclusion` is selected under `pass_exclusion_reading` — knob-off
 byte-identical.  Residual risk to watch: BBA reverts to 4NT precisely where
-jdh8's ladder *walks up* (after `1♦ P 1♥ P 3♦` we ask 4♠, BBA asks 4NT), so a
+jdh8's ladder *walks up* (after `1♦ - 1♥ - 3♦` we ask 4♠, BBA asks 4NT), so a
 BBA-taught net will call that 4♠ a cue while our reader calls it an ask — the
 same disease, in the lane the walk-up exists for.
 
@@ -976,7 +976,7 @@ for the twin and fails for it).
 
 The regime is not in the features **at the moment the call is chosen**.
 `features_v3`'s forty `Inferences` floats describe the auction *so far*, and
-`1♦ P 1♠ P 2♦` is three natural bids in either system — so both regimes present
+`1♦ - 1♠ - 2♦` is three natural bids in either system — so both regimes present
 that decision with byte-identical inputs and contradictory targets (2♥ from the
 kickback teacher, 4♥ from the plain one) and the net can only average them.  The
 readings *do* diverge, but one ply too late: only once a relocated ask has been
@@ -1490,9 +1490,9 @@ Three mechanisms, none of them a scorer question:
    PD-positive perturbation noise.
 2. **The grand-blast continuation (♣ lane).** The relocated answer decodes
    correctly; what fails is the continuation in the very room the relocation
-   wins. Exhibit (top loser in both cells): `1♣–1♠–3♣–4♦–5♣ (2+Q)–7♣` down
+   wins. Exhibit (top loser in both cells): `1♣ - 1♠ - 3♣ - 4♦ - 5♣ [2+Q] - 7♣` down
    one off the ♠K, while the baseline hears the *identical message* as
-   `4NT–5♠ (2+Q)` and signs off in 6♣ making. Below 6♣ the feature asker has
+   `4NT - 5♠ [2+Q]` and signs off in 6♣ making. Below 6♣ the feature asker has
    space its grand logic overbids into; the cramped baseline does the boring
    right thing. Heavy-tailed — three grand blasts are a third of the lane.
 3. **The ♥ lane is the residue** — no eaten-4♠ signature (3/391 boards), and

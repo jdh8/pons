@@ -153,7 +153,7 @@ fn summary_is_the_ben_gather_of_bits() {
     }
 }
 
-/// The `--auction` block, pinned on `1NT–P–2♣` (our Stayman): the
+/// The `--auction` block, pinned on `1NT - 2♣` (our Stayman): the
 /// most-recent slot carries the 2♣ bid encoding, the `STAY` tag bit, the
 /// alerted bit, and exactly one hash bucket; the Pass slot is `is_pass`
 /// with no bid present; slots past the auction's start stay all-zero.

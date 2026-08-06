@@ -113,7 +113,7 @@ two per-opener knobs (`set_suppress_4432_vs_major` / `_vs_minor`). Result:
 - **vs a major opening** — NV plain wash (+0.0077 [±0.0102]), vul plain
   +0.0269 [±0.0128] (CI>0). But tracing the worst boards, the "win" is *not* the
   takeout double: the worst recurring board is North doubling **2♥ deep in a
-  competitive auction** (`1♣(us) 1♥ P P 2♣ 2♥ X`) — the general instinct-floor
+  competitive auction** (`1♣ [us] (1♥) - - 2♣ (2♥) X`) — the general instinct-floor
   double (`instinct.rs`, `their_live_bid_at_most(3)`), *not* a takeout of their
   opening — and the real leak is our floor's *response* (`X → partner leaps to a
   bad 3NT` instead of pass-and-reopen-to-4♠). Iron-rule "over-broad trigger +
@@ -151,7 +151,7 @@ were **splinters doubled and passed out** — a splinter is game-forcing, but th
 double reroutes opener from the constructive book into the competitive book,
 where — unauthored — it fell to the floor's *pass* (a four-ace 16-count passing
 `4♣x` while the field bids `7♠`). A `FirstIs(Double)` rebase keyed at
-`[1M, P, splinter]` strips the double off the whole subtree, so opener and
+`1M - splinter` strips the double off the whole subtree, so opener and
 responder's keycard answers resolve on the undisturbed splinter tree. **A/B:
 plain +0.0059 NV / +0.0079 vul (CIs [+0.0047,+0.0071]/[+0.0063,+0.0095]), PD
 +0.0059 / +0.0079 (plain ≈ PD — removing our own doubled contracts, no
@@ -189,7 +189,7 @@ PD) in the major-opening rebid nodes. Added the jump-rebid `3M` (6+/16+, natural
 scoped to opener's own suit — no reverse/jump-shift, so no Meckstroth `3m`
 collision. **The bare rung LOST** (plain −0.0051 NV / −0.0091 vul, −1.2…−1.9
 IMPs/fired): responder passed the invitational `3M` and stranded below game
-(`1♥-1NT-3♥` passed while the slow `2♥-2NT-3NT-4♥` reached game). Authored
+(`1♥ - 1NT - 3♥` passed while the slow `2♥ - 2NT - 3NT - 4♥` reached game). Authored
 responder's continuation (`responder_after_major_jump_rebid`: `4M` on an 8-card
 fit, `3NT` no fit, pass a minimum) → re-measure (reusing the byte-identical OFF
 arm): **plain +0.0059 NV / +0.0125 vul, PD +0.0046 / +0.0104 (all CIs>0, ~0.35 %
@@ -260,12 +260,12 @@ is not grounds to change a ship decision (cf. DoubleStyle, Jordan/Truscott).
 | # | Toggle | pons status | decision | A/B | commit |
 |---|--------|-------------|----------|-----|--------|
 | 57 | Forcing 1NT | shipped | keep | — | — |
-| 125 | Two-Way NMF / XYZ | **shipped** (`set_xyz`, default on, with `set_up_the_line`) | keep; 2NT→3♣ variant unexplored | plain +0.038/+0.056 per bd NV/vul, PD +0.029/+0.041 (`ab-minor-continuations`) | — |
+| 125 | Two-Way NMF / XYZ | **shipped** (`set_xyz`, default on, with `set_up_the_line`) | keep; 2NT → 3♣ variant unexplored | plain +0.038/+0.056 per bd NV/vul, PD +0.029/+0.041 (`ab-minor-continuations`) | — |
 | 58 | Fourth suit forcing | gap (floored) | add (Batch 3) | — | — |
 | 124 | Two-way game tries | gap | add (Batch 3) | — | — |
 | 52 | Drury | gap | add (Batch 3) | — | — |
 | — | **Meckstroth adjunct** (complete, one knob): artificial 18+ GF `2NT` + `3♣`-relay shape-outs **and** invitational `3m` jumps | **shipped** (`set_meckstroth_adjunct`, default on; merged 2026-07-12 from the former `set_meckstroth_2nt` + misnomer `set_meckstroth_adjunct`, book byte-identical) | keep — plain-DD win on the `2NT` machine, sd-vindicated `3m` jumps; complements XYZ | 2NT: plain **+0.0075/+0.013**, PD +0.006/+0.011, **sd +0.010/+0.017** (`ab-meckstroth-2nt`, 200k×2 seeds, +2.7/+4.4 IMPs/div, fires 0.4%). 3m jumps: plain wash, PD −0.0036/−0.0019, **sd +0.0012/+0.0042** (SHA 22364c9) | — |
-| — | Forcing-1NT invitational major two-suiter: `1♥–1NT–2♠` reverse (5+♥4+♠) + `1♠–1NT–3♥` jump (5-5 majors), 15–17 | **shipped** (`set_forcing_nt_two_suiter`, default on) | keep — sd-vindicated (the `3m`-jump adjunct profile) | plain wash-NV/+0.001-vul (never neg), PD −0.0017/−0.0010 (over-punished), **sd-lead +0.0012/+0.0013 NV, +0.0026/+0.0029 vul** (`ab-forcing-nt-two-suiter`, 1M×2 seeds×2 vuls SHA 293ed53, all four sd cells CI-clean; +0.8/+2.1 IMPs/div; fires 0.14%) | — |
+| — | Forcing-1NT invitational major two-suiter: `1♥ - 1NT - 2♠` reverse (5+♥4+♠) + `1♠ - 1NT - 3♥` jump (5-5 majors), 15–17 | **shipped** (`set_forcing_nt_two_suiter`, default on) | keep — sd-vindicated (the `3m`-jump adjunct profile) | plain wash-NV/+0.001-vul (never neg), PD −0.0017/−0.0010 (over-punished), **sd-lead +0.0012/+0.0013 NV, +0.0026/+0.0029 vul** (`ab-forcing-nt-two-suiter`, 1M×2 seeds×2 vuls SHA 293ed53, all four sd cells CI-clean; +0.8/+2.1 IMPs/div; fires 0.14%) | — |
 
 ## Slam
 
@@ -296,7 +296,7 @@ is not grounds to change a ship decision (cf. DoubleStyle, Jordan/Truscott).
 
 **Transfer Lebensohl (80) — Rubensohl take 2, shipped as default.** The first
 Rubensohl attempt lost (−1.68/div) by stranding game hands in partscores. Larry
-Cohen's *Transfer Lebensohl* fixes that: after `1NT–(2X)` the 3-level bids are
+Cohen's *Transfer Lebensohl* fixes that: after `1NT (2X)` the 3-level bids are
 transfers up the line *through* the adverse suit (over `(2♥)`, `3♦` shows
 spades), the cue is Stayman, and a transfer to a suit above theirs is INV+ so
 opener is **driven to game** (`4M` with a fit, else `3NT`) — the anti-stranding
@@ -322,7 +322,7 @@ Standard low-Stayman
 reaches DD-worse contracts than Cohen's cue=Stayman (e.g. a 5-5 hand routes through
 Stayman→denial→`3NT`, missing the 5-3 major game Cohen's transfer-*through* finds), and
 Smolen's right-siding is DD-blind. **Reverted.** `lebensohl-ab` kept a cheap
-`--filter-dh` shape pre-filter (concentrates `1NT–(2♦/2♥)` boards ~10× so DD
+`--filter-dh` shape pre-filter (concentrates `1NT (2♦/2♥)` boards ~10× so DD
 lands on boards that can diverge) + a worst-board auction diagnostic.
 
 **TransferSmolen v2 (80, follow-up — shipped, later folded into `Transfer`).** The narrowed
@@ -352,7 +352,7 @@ double; see the after-double update below), so the default is now plain `Transfe
 **The top-step clubs transfer (80, follow-up — shipped, theory-correct, DD-marginally-negative).**
 Cohen's transfer chain runs *up the line through* the adverse suit, so the highest
 3-level step has no suit above it to transfer into and wraps back to **clubs**:
-`1NT–(2♦/2♥)–3♠` and `1NT–(2♠)–3♥` are a *forced* game-force transfer to clubs (6+♣,
+`1NT (2♦/2♥) 3♠` and `1NT (2♠) 3♥` are a *forced* game-force transfer to clubs (6+♣,
 `points(10..)`; completion `3NT` with a stopper in their suit, else `5♣` — `3♣` is
 unplayable below the top step, so game is forced). Previously these fell to the
 natural floor, leaving a 6+♣ GF hand with no call: the weak `2NT`→`3♣` relay is
@@ -405,7 +405,7 @@ delayed cue, `(2♦)` Smolen) don't port to Rubensohl anyway — its `2NT`-club-
 and two-way machinery consume the very seams those refinements exploit. Only three
 styles remain: `Off`/`Plain`/`Transfer`.
 
-**Responder's double of the overcall (`1NT–(2♦/2♥/2♠)–X`) — penalty stays
+**Responder's double of the overcall (`1NT (2♦/2♥/2♠) X`) — penalty stays
 default; verdict is measure-dependent.** The status-quo penalty double
 (`len(over,4..) & hcp(9..)`) was A/B'd against a takeout double (`≤3 & 7+`), a
 cooperative/optional double (`2-3 & 7+/8+`), and a lower-floor penalty (`4+ & 7+`,
@@ -430,7 +430,7 @@ single-dummy re-measure where takeout's competitive value might genuinely pay.
 (this commit)
 
 **Jordan/Truscott (71) — tried and rejected (DD-negative).** Authored
-`1M–(X)–2NT` = limit-raise-or-better + `3M` = preemptive, with opener's decline
+`1M (X) 2NT` = limit-raise-or-better + `3M` = preemptive, with opener's decline
 path (`2NT`→`3M` sign-off, responder pass/4M) and a sound `2NT` strength
 inference; reused the uncontested `major_responses` for every non-Jordan call;
 gated by `set_jordan`. A/B'd vs the system-on baseline (`jordan-ab`, contested
@@ -463,10 +463,10 @@ under a single-dummy / IMPs-vs-humans measure where preemption actually pays.
 | 82 | **Lebensohl after double** (advancer, weak twos; = `Plain`) | measured; opt-in, dominated | `Transfer` (#106) is the default; `Plain` worse | **`Plain` vs `off`: −0.160/−0.153 board, −1.964/−1.840 div** [a6f2206, ~8% div] — negative, and dominated by `Transfer`. Stays opt-in / A/B arm. | a6e7ab9 |
 
 **Lebensohl after a takeout double (advancer over a weak two) — measured;
-best variant (`Transfer`) PROMOTED to default.** After `(2X)–X–(P)` the flat `advance_double` ladder can't
+best variant (`Transfer`) PROMOTED to default.** After `(2X) X -` the flat `advance_double` ladder can't
 distinguish a weak long-suit hand from a constructive one, so the doubler
 can't tell when to move. Four sohl structures were authored under the
-`(2X)–X–(P)` prefix (reusing the Section-5 builders for `Plain` / `Transfer`,
+`(2X) X -` prefix (reusing the Section-5 builders for `Plain` / `Transfer`,
 plus `Pam` = `2NT` shows 5-5 minors and `Lawrence` = three-band
 weak/INV/GF strength) and A/B'd on `sohl-after-double-ab` (contested
 seat-swap, 200k filtered boards/cell). `Transfer` won (current figures in
@@ -486,7 +486,7 @@ wired.** The old "DD-neutral → keep `Off`" basis was an artifact of the optimi
 scorer; `Transfer` is positive (current figures in row #106) and is promoted from
 opt-in to the **default** advance-of-double sohl. `Plain` (#82) stays dominated, an
 opt-in / A/B arm. True `Rubensohl` (the fourth `LebensohlStyle`: `2NT` = artificial
-club transfer, the low transfers two-way) is **wired into the `(2X)–X–(P)` context
+club transfer, the low transfers two-way) is **wired into the `(2X) X -` context
 too** (a verbatim mirror of the Section-5 1NT-context wiring; `--ns rubensohl` on
 `sohl-after-double-ab`): head-to-head **`Rubensohl` vs `Transfer`: −0.007/−0.037
 board** [`PD`, ~2.5% div] — no gain, **kept opt-in** (its edge is DD-blind
@@ -497,7 +497,7 @@ right-siding, exactly the 1NT-context finding). Default is now `Transfer`; `Off`
 **Update (this session) — the `(2♦)` Smolen package now carried after the double
 too, and `TransferSmolen` folded into `Transfer`.** The `(2♦)`-only `3♣`-Stayman +
 Smolen + Jacoby-reshuffle + Leaping-Michaels package that won in the 1NT context
-(#80) was wired into the `(2X)–X–(P)` advance as well (verbatim Section-5d reuse,
+(#80) was wired into the `(2X) X -` advance as well (verbatim Section-5d reuse,
 diamond-only, ~0.8% divergence). Head-to-head vs the plain-Cohen advance
 (`sohl-after-double-ab`, 200k filtered/cell): **`Transfer` vs `Plain`:
 +0.168/+0.249 board, +3.309/+4.772 div** [a6f2206] — a clean win whose per-div edge
@@ -533,7 +533,7 @@ unchanged.
 *Recognition split from policy (kept default-on).* Because the delayed cue is a
 brand-new auction position the floor had no meaning for, the *answer* node is
 purely additive and is wired **always-on** in both the `1NT`-overcalled and
-`(2X)–X–(P)` contexts (over `(2♥)`/`(2♠)`): the bot answers a partner's delayed
+`(2X) X -` contexts (over `(2♥)`/`(2♠)`): the bot answers a partner's delayed
 cue (the other major with a fit, else `3NT`) even though it never *bids* one. The
 node is unreachable in bot-vs-bot play (the bot's advancer never produces the cue
 with the toggle off), so self-play and every A/B are byte-identical — it only
@@ -600,7 +600,7 @@ contract, which splits the results cleanly:
   is a harness artifact, not a bad convention.
 - **sohl-after-double (#106) flipped DD-POSITIVE** — see the row; its opt-in
   rationale is gone (promotion candidate, kept opt-in pending a deeper re-measure).
-- **The two-binary *constructive* conventions** (Stayman, 1NT-3♦ #14, Puppet #12,
+- **The two-binary *constructive* conventions** (Stayman, `1NT - 3♦` #14, Puppet #12,
   SAT #119, M6.1 inferences, minor keycard #75): they reach *making* contracts, so PD
   only doubles the looser baseline's failures → predicted to hold or improve, and they
   shipped with large margins. Re-validating each needs a per-feature worktree rebuild
@@ -611,7 +611,7 @@ contract, which splits the results cleanly:
   other four remain predicted-only (lowest priority; SAT #119 has the most failing-slam
   exposure).
 
-**Rich advance of a takeout double (`[1t, X, P]`, 2026-07-08, `set_rich_advance_double`,
+**Rich advance of a takeout double (`(1t) X -`, 2026-07-08, `set_rich_advance_double`,
 opt-in default-off, `bba-gen --ns-rich-advance`):** the flat `advance_double` floor
 gave the advancer only a cheapest natural suit, a `3NT`, and a penalty pass — the whole
 10+ invitational-or-better band collapsed into "bid your cheapest suit," flat, with **no
@@ -677,7 +677,7 @@ game values; jdh8 replaced it with the standard expert ladder (confirmed against
 gets doubled. **1NT = 8–10 stop**, **2NT = 11–12 balanced stop**, **3NT = limited 13–17
 stop**; **4M jump always LIMITED** — two-way `points(11..=15)` (shapely-weak *or* min-FG,
 distribution-aware) with no Rubens transfer for that major, purely preemptive (0–10) when a
-transfer carries the strong hands, so slam tries always cue and `1♠–X–4♥` stays two-way
+transfer carries the strong hands, so slam tries always cue and `1♠ (X) 4♥` stays two-way
 (hearts can't transfer over 1♠). The **cue is now INV+, forcing one round** (not GF): the
 lowest-weighted action above a weak natural suit (`hcp(10..)`, weight 1.05), so every
 specific limited bid outranks it and only the shapeless invite-or-better hand lands there.

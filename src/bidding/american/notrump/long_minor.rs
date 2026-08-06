@@ -1,4 +1,4 @@
-//! The long-minor force — `1NT – 3m` as a game force with a long minor
+//! The long-minor force — `1NT - 3m` as a game force with a long minor
 //!
 //! Opt-in ([`set_long_minor_force`]); off by default, so the `3m` slot stays
 //! with whichever minor scheme is armed.

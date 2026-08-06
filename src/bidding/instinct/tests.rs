@@ -62,7 +62,7 @@ fn opener_reopens_and_raises_a_free_notrump() {
     let bal18_open = "AQ5.AQ9.932.KQJ2"; // 18, balanced, diamonds wide open
     let flat13 = "KJ32.KJ2.Q42.QJ2"; //    13, balanced minimum
 
-    // Reopening seat 1♣ (1♦) P P: with the stopper, reopen a natural 1NT
+    // Reopening seat 1♣ (1♦) - -: with the stopper, reopen a natural 1NT
     // (the game invite a takeout double of a balanced hand cannot make);
     // without a stopper, still double; a minimum still passes.
     let reopen = [
@@ -100,7 +100,7 @@ fn opener_reopens_and_raises_a_free_notrump() {
 
 #[test]
 fn minimum_doubler_does_not_over_raise_a_forced_advance() {
-    // 1♦ (1♥) P (1♠) X (P) 2♦ (2♥): we opened and reopened with a takeout
+    // 1♦ (1♥) - (1♠) X - 2♦ (2♥): we opened and reopened with a takeout
     // double; partner's 2♦ is a *forced* advance (a possible bust).  A minimum
     // doubler that raised to 3♦ (or re-doubled) drove into a doubled game.
     let advanced = [
@@ -147,7 +147,7 @@ fn trump_stack_converts_to_penalties() {
 
 #[test]
 fn competitive_rebid_shows_the_long_suit() {
-    // 1♦ (1♥) P (2♥): opener holds a self-sufficient seven-card diamond suit
+    // 1♦ (1♥) - (2♥): opener holds a self-sufficient seven-card diamond suit
     // and a stiff in their hearts.  The floor's only competitive actions once
     // it has bid are raise-partner and takeout-double — and partner passed.
     let raised = [
@@ -246,7 +246,8 @@ fn competitive_rebid_shows_the_long_suit() {
 
 #[test]
 fn penalty_latch_doubles_the_runout_for_penalty() {
-    // (1NT) X — our penalty double — (2♦) runout; we hold a diamond stack.
+    // `(1NT) X (2♦)`: our penalty double, followed by their runout; we hold a
+    // diamond stack.
     let auction = [
         call(1, Strain::Notrump),
         Call::Double,
@@ -268,7 +269,7 @@ fn penalty_latch_doubles_the_runout_for_penalty() {
 
 #[test]
 fn penalty_latch_leaves_partner_s_double_in() {
-    // (1NT) X (2♦) X (Pass): partner doubled the runout for penalty, back to us.
+    // `(1NT) X (2♦) X -`: partner doubled the runout for penalty, back to us.
     let auction = [
         call(1, Strain::Notrump),
         Call::Double,
@@ -303,7 +304,7 @@ fn advancer_runs_from_redoubled_penalty_double() {
 
 #[test]
 fn doubler_runs_from_redoubled_penalty_double() {
-    // (1NT) X (XX) P P: the redouble ran back to the 15+ doubler.
+    // (1NT) X (XX) - -: the redouble ran back to the 15+ doubler.
     let auction = [
         call(1, Strain::Notrump),
         Call::Double,
@@ -340,7 +341,7 @@ fn optional_latch_doubles_short_and_partner_cooperates() {
     set_latch_style(LatchStyle::Optional);
     assert_eq!(best(&runout, cooperative), Call::Double);
 
-    // (1NT) X (2♦) X (Pass): partner's latched double, back to the 15+ doubler.
+    // `(1NT) X (2♦) X -`: partner's latched double, back to the 15+ doubler.
     let advance = [
         call(1, Strain::Notrump),
         Call::Double,
@@ -510,9 +511,9 @@ fn forced_to_game_picks_the_known_major_fit() {
 
 #[test]
 fn fit_sum_reads_a_four_four_major_fit() {
-    // West P, North 1♣, East P, South 1♥, West P, North 2♠ (opener's
-    // extras-ladder jump-shift = 4+ spades), East P.  South holds four
-    // spades opposite the shown four: a known 4-4 fit.  The old pair
+    // After `- 1♣ - 1♥ - 2♠ -`, opener's extras-ladder jump-shift shows 4+
+    // spades.  South holds four spades opposite the shown four: a known 4-4
+    // fit.  The old pair
     // enumeration could not see it (neither hand shows five) and settled
     // the combined-25 game force in 3NT; the fit-sum reads the eight-card
     // fit and prefers the major.
@@ -735,7 +736,7 @@ fn net_collar_vetoes_the_notrump_slam_below_thirty_three() {
 
 #[test]
 fn transfer_invite_reaches_the_floor_over_a_possible_five_two() {
-    // 1NT–2♦–2♥–3♥: partner transferred to hearts and raised.  With the six-card
+    // 1NT - 2♦ - 2♥ - 3♥: partner transferred to hearts and raised.  With the six-card
     // invite on (the default) this node is authored — so turn it off to exercise
     // the floor path this test guards: the projection reads the 2♦ transfer's
     // five-card floor (M6.1's core), but M6.2c dropped the old reader's six-card
@@ -771,7 +772,7 @@ fn transfer_invite_reaches_the_floor_over_a_possible_five_two() {
 /// (M6.4) instead of blasting the direct milestone 6♠.
 #[test]
 fn floor_asks_keycards_with_slam_values_and_a_known_fit() {
-    // 1♠–3♠: the jump raise shows three spades and 10+, so a 23-point
+    // 1♠ - 3♠: the jump raise shows three spades and 10+, so a 23-point
     // opener counts combined 33 with a decodable trump (its own shown
     // five-card spades).
     let auction = [
@@ -788,7 +789,7 @@ fn floor_asks_keycards_with_slam_values_and_a_known_fit() {
 }
 
 /// The RKCB-ask floor (`set_floor_slam_entry`) governs whether the floor
-/// enters keycarding on shape-slam values.  The same 1♠–3♠ auction with a
+/// enters keycarding on shape-slam values.  The same 1♠ - 3♠ auction with a
 /// ~30-combined opener stops in game at the old 33 yardstick but asks 4NT at
 /// the shipped 29 floor — the population-probe fix (A/B'd a plain-DD win).
 #[test]
@@ -885,7 +886,7 @@ fn floor_answers_keycards_1430() {
 /// the queen rather than betting six on four keycards blind, and partner
 /// replies on the next two rungs.
 ///
-/// `1♠ P 3♠ P 4NT P 5♣ P` — spades agreed, partner's 5♣ is one-or-four.  We
+/// `1♠ - 3♠ - 4NT - 5♣ -` — spades agreed, partner's 5♣ is one-or-four.  We
 /// hold three keycards, so the high reading (four) would put six combined on
 /// the table and the low one is meant: four combined, one missing, and the
 /// trump queen still an open question.
@@ -1288,7 +1289,7 @@ fn answerer_decodes_a_face_agreed_four_four_trump() {
 /// (non-serious), and a suit-last minor auction keeps its RKCB route.
 #[test]
 fn face_trump_steps_past_cues_and_reads_the_nt_dichotomy() {
-    // `1♥ (3♦) 4♦ P 4NT`: the 4♦ cue no longer blocks partner's
+    // `1♥ (3♦) 4♦ - 4NT`: the 4♦ cue no longer blocks partner's
     // solo-bid hearts.
     let cue_blocked = [
         call(1, Strain::Hearts),
@@ -1301,7 +1302,7 @@ fn face_trump_steps_past_cues_and_reads_the_nt_dichotomy() {
         Some(Suit::Hearts),
         "the face steps back past a cue of their suit"
     );
-    // `1NT (2♠) 3♠ P 4NT`: the cue is skipped, the walk lands on 1NT —
+    // `1NT (2♠) 3♠ - 4NT`: the cue is skipped, the walk lands on 1NT —
     // the veto stands, that 4NT is quantitative.
     let nt_stop = [
         call(1, Strain::Notrump),
@@ -1314,7 +1315,7 @@ fn face_trump_steps_past_cues_and_reads_the_nt_dichotomy() {
         None,
         "stepping past cues stops at notrump"
     );
-    // `1♦ P 3♦ P 3NT P 4NT`: the agreed minor yields to the 3NT
+    // `1♦ - 3♦ - 3NT - 4NT`: the agreed minor yields to the 3NT
     // sign-off (BBA's probed slam move here is 4♣, never 4NT-as-RKCB).
     let minor_signoff = [
         call(1, Strain::Diamonds),
@@ -1329,7 +1330,7 @@ fn face_trump_steps_past_cues_and_reads_the_nt_dichotomy() {
         None,
         "an agreed minor yields to a 3NT sign-off"
     );
-    // `1♠ P 3♠ P 3NT P 4NT`: over the agreed major the same 3NT is
+    // `1♠ - 3♠ - 3NT - 4NT`: over the agreed major the same 3NT is
     // non-serious — the fit stands.
     let major_nonserious = [
         call(1, Strain::Spades),
@@ -1344,7 +1345,7 @@ fn face_trump_steps_past_cues_and_reads_the_nt_dichotomy() {
         Some(Suit::Spades),
         "an agreed major survives a non-serious 3NT"
     );
-    // `1♦ P 3♦ P 4NT`: suit last — the minor keeps its RKCB route.
+    // `1♦ - 3♦ - 4NT`: suit last — the minor keeps its RKCB route.
     let minor_suit_last = [
         call(1, Strain::Diamonds),
         Call::Pass,
@@ -1359,7 +1360,7 @@ fn face_trump_steps_past_cues_and_reads_the_nt_dichotomy() {
 }
 
 /// A guarded kickback suit ends the relocation instead of walking past it:
-/// after `1♦ P 1♥ P 3♦`, 4♥ is natural (responder showed four), so the
+/// after `1♦ - 1♥ - 3♦`, 4♥ is natural (responder showed four), so the
 /// diamond ask goes back to 4NT.  The earlier walk-up asked 4♠ here — one
 /// step cheaper, and unrecognisable to a partner who has not built the same
 /// table.  4NT has asked keycards since long before kickback, so the
@@ -1425,7 +1426,7 @@ fn kickback_yields_the_undisprovable_major() {
         [None; 4],
         "the weak-two face reads the same way"
     );
-    // `1♠ P 2♦ P 3♦`: the spade bidder raised diamonds, so 5♠ + 4♦ leaves
+    // `1♠ - 2♦ - 3♦`: the spade bidder raised diamonds, so 5♠ + 4♦ leaves
     // at most four hearts — 4♥ is not natural and the relocation stands.
     let two_suited = [
         call(1, Strain::Spades),
@@ -1495,7 +1496,7 @@ fn kickback_refuses_without_a_set_trump() {
     assert_eq!(
         kickback_ladder(&one_bid, 2),
         [None; 4],
-        "one bid is no agreement — `1♦ P 4♥` is not an ask"
+        "one bid is no agreement — `1♦ - 4♥` is not an ask"
     );
     let spades = [
         call(1, Strain::Spades),
@@ -1508,7 +1509,7 @@ fn kickback_refuses_without_a_set_trump() {
         [None; 4],
         "nothing sits between 4♠ and 4NT"
     );
-    // `1♦ P 3♦ P 3NT P`: [`face_trump`] reads the sign-off and vetoes —
+    // `1♦ - 3♦ - 3NT -`: [`face_trump`] reads the sign-off and vetoes —
     // that 4NT is quantitative, so there is no ask to relocate either.
     let minor_signoff = [
         call(1, Strain::Diamonds),
@@ -1527,7 +1528,7 @@ fn kickback_refuses_without_a_set_trump() {
 }
 
 /// A cue of their suit shows no length, so it never becomes the ask —
-/// `1♥ (3♦) 4♦ P 4♥ P` sets hearts and relocates to 4♠, leaving 4♦ the
+/// `1♥ (3♦) 4♦ - 4♥ -` sets hearts and relocates to 4♠, leaving 4♦ the
 /// cue it was.
 #[test]
 fn kickback_never_claims_the_opponents_suit() {
@@ -1667,7 +1668,7 @@ fn kickback_answers_climb_from_four_spades() {
 }
 
 /// A 4NT that *answers* a relocated ask is an answer, not a new ask — the
-/// bug the first smoke run found (`1♥ P 2NT P 3NT P 4♥ P 4♠ P 4NT P 5♦`
+/// bug the first smoke run found (`1♥ - 2NT - 3NT - 4♥ - 4♠ - 4NT - 5♦`
 /// passed out, −15 IMPs: the asker read partner's step-1 answer as a fresh
 /// keycard ask and answered it on the 1430 ladder, whose 1.9 outbids their
 /// own 1.82 signoff).  The asker must place the contract in trumps instead.
@@ -1943,8 +1944,8 @@ fn one_notrump_lanes_stay_book_quant() {
 
 /// The keycard machinery runs in a *contested* auction — the whole-auction
 /// undisturbed gate is gone; only a bid inside the window stands it down.
-/// Anchor: the reading-drift A/B's worst board (`1♦ (2♣) 2♠ P 3♠ P 4NT`),
-/// where the net freewheeled the window into 5♣ – X – XX passed out in a
+/// Anchor: the reading-drift A/B's worst board (`1♦ (2♣) 2♠ - 3♠ - 4NT`),
+/// where the net freewheeled the window into 5♣ - X - XX passed out in a
 /// 2-2 club fit, −24 IMPs.
 #[test]
 fn contested_keycard_window_answers_and_places() {
@@ -2007,8 +2008,9 @@ fn contested_keycard_window_answers_and_places() {
 
 /// The cramped doubled answer: their X on partner's 1430 answer past
 /// five of trump is never passed out, and never played in the answer's
-/// phantom suit.  Anchor: the face-trump A/B's worst board (`1♦ P 1♥ 1♠
-/// P 3♠ 4♦ P 4NT P 5♥ X` passed out on a 4-1 heart "fit", −20), where
+/// phantom suit.  Anchor: the face-trump A/B's worst board:
+/// `1♦ - 1♥ (1♠) - (3♠) 4♦ - 4NT - 5♥ (X)` passed out on a 4-1 heart "fit"
+/// (−20), where
 /// the answer's own natural read minted a phantom heart trump for the
 /// asker — [`answer_trump`]'s pre-answer discipline — and the sit rung
 /// played the doubled answer.
@@ -2297,7 +2299,7 @@ fn keycard_conversation_is_forced_rail_territory() {
 #[test]
 fn control_bid_is_never_passed_out() {
     use crate::bidding::american::set_longer_major_response;
-    // 1♦–1♠–2♦–4♥ under the hearts-first opt-in (knob off): a 1♠ response
+    // 1♦ - 1♠ - 2♦ - 4♥ under the hearts-first opt-in (knob off): a 1♠ response
     // denies four hearts, so 4♥ cannot be long — a control bid agreeing
     // diamonds (the M6.4 reading) — and the floor returns to the agreed
     // suit instead of passing out the phantom heart contract.  (Under the
@@ -2325,7 +2327,7 @@ fn control_bid_is_never_passed_out() {
 
 #[test]
 fn transfer_jump_to_game_reaches_the_floor_and_passes() {
-    // 1NT–2♦–2♥–4♥: the jump past 3NT is off-book too.  Game is already
+    // 1NT - 2♦ - 2♥ - 4♥: the jump past 3NT is off-book too.  Game is already
     // reached and the floor has no slam machinery yet (M6.2), so it passes —
     // M6.1 derives the six-card major (length only) without over-reaching.
     let game = [
@@ -2345,7 +2347,7 @@ fn transfer_jump_to_game_reaches_the_floor_and_passes() {
 
 #[test]
 fn nine_count_five_card_major_forces_game_after_a_transfer() {
-    // 1NT–2♥–2♠: a 9-count with a single five-card spade suit transferred (it
+    // 1NT - 2♥ - 2♠: a 9-count with a single five-card spade suit transferred (it
     // cannot bid the direct 3NT, which denies a five-card major) and now forces
     // game.  The choice-of-games rule's `hcp(9..16)` mirrors the floor's
     // 9-count seam (`nt_responder_game_floor`), so the *book* authors the 3NT
@@ -2366,7 +2368,7 @@ fn nine_count_five_card_major_forces_game_after_a_transfer() {
 
 #[test]
 fn opener_corrects_choice_of_games_3nt_to_the_known_major_fit() {
-    // 1NT–2♥–2♠–3NT: responder transferred (showing five spades) then offered
+    // 1NT - 2♥ - 2♠ - 3NT: responder transferred (showing five spades) then offered
     // the choice with 3NT.  Opposite three-card support the 5-3 fit out-scores
     // notrump single-dummy *only with a ruffing doubleton*, so opener corrects
     // to 4♠ on a doubleton, but a flat 4-3-3-3 (no ruff) leaves the better game
@@ -2404,7 +2406,7 @@ fn opener_corrects_choice_of_games_3nt_to_the_known_major_fit() {
 
 #[test]
 fn strong_balanced_redoubles_a_double_of_our_1nt_not_3nt() {
-    // 1NT–(X): a strong balanced responder defends the unlimited business
+    // 1NT (X): a strong balanced responder defends the unlimited business
     // redouble rather than pulling to 3NT (the floor suppresses the game-force
     // 3NT over a double of our 1NT).
     let auction = [call(1, Strain::Notrump), Call::Double];
@@ -2514,7 +2516,7 @@ fn a_minimum_signs_off_opposite_an_established_two_over_one() {
 /// opposite an established 2/1 still blasts the grand — the 7♠ milestone
 /// (1.75) outranks the ask (1.68) in *both* regimes (knob-off its
 /// combined 39 ≥ 37; knob-on the net clears the grand break-even) — and on
-/// the natural 1♠–3♠ raise the net's [`SLAM_ENTRY_P`] entry — the one
+/// the natural 1♠ - 3♠ raise the net's [`SLAM_ENTRY_P`] entry — the one
 /// bilans gate with no forcing rail behind it — still fires the keycard
 /// ask.  The minimum's signoff moved to
 /// `a_minimum_signs_off_opposite_an_established_two_over_one`.
@@ -2568,7 +2570,7 @@ fn two_over_one_force_reads_the_right_auctions() {
     let forced = |auction: &[Call]| {
         two_over_one_game_force(&Context::new(RelativeVulnerability::NONE, auction))
     };
-    // 1♠ – 2♣ and 1♦ – 2♣: the game force, read from opener's seat.
+    // 1♠ - 2♣ and 1♦ - 2♣: the game force, read from opener's seat.
     assert!(forced(&[
         call(1, Strain::Spades),
         Call::Pass,
@@ -2581,14 +2583,14 @@ fn two_over_one_force_reads_the_right_auctions() {
         call(2, Strain::Clubs),
         Call::Pass
     ]));
-    // 1♥ – 2♠ is a jump shift, not a 2/1: the response must sit below the opening.
+    // 1♥ - 2♠ is a jump shift, not a 2/1: the response must sit below the opening.
     assert!(!forced(&[
         call(1, Strain::Hearts),
         Call::Pass,
         call(2, Strain::Spades),
         Call::Pass
     ]));
-    // 1♣ – 2♦ has no suit below clubs to answer in; the book registers no
+    // 1♣ - 2♦ has no suit below clubs to answer in; the book registers no
     // game force there either.
     assert!(!forced(&[
         call(1, Strain::Clubs),
@@ -2642,9 +2644,10 @@ fn two_over_one_force_never_passes_below_game() {
 
 #[test]
 fn forced_to_game_after_strong_two_clubs() {
-    // 2♣ (strong) – 2♦ (game-forcing waiting) – 2NT (22–24 balanced): the
-    // auction is game forcing, so a flat 7-count bids 3NT, never passing.
-    // 2♣–2♥ is the double negative, so 2♦ commits the partnership to game.
+    // `2♣ - 2♦ - 2NT -`: the strong 2♣ opening and game-forcing 2♦ waiting
+    // response reach opener's 22–24 balanced rebid.  The auction is game
+    // forcing, so a flat 7-count bids 3NT, never passing.
+    // 2♣ - 2♥ is the double negative, so 2♦ commits the partnership to game.
     let auction = [
         call(2, Strain::Clubs),
         Call::Pass,
@@ -2658,7 +2661,7 @@ fn forced_to_game_after_strong_two_clubs() {
 
 #[test]
 fn forced_two_clubs_bids_major_game() {
-    // The same forcing 2♣–2♦–2NT auction, but holding six hearts: jump to
+    // The same forcing 2♣ - 2♦ - 2NT auction, but holding six hearts: jump to
     // the major-suit game in preference to 3NT.
     let auction = [
         call(2, Strain::Clubs),
@@ -2673,7 +2676,7 @@ fn forced_two_clubs_bids_major_game() {
 
 #[test]
 fn double_negative_two_clubs_may_pass() {
-    // 2♣ – 2♥ is the double negative (0–3 HCP); after opener's 2NT the
+    // 2♣ - 2♥ is the double negative (0–3 HCP); after opener's 2NT the
     // partnership may still stop, so a yarborough passes off-book — the
     // forcing-2♣ floor must not fire once responder has shown the bust.
     let auction = [
@@ -2689,8 +2692,8 @@ fn double_negative_two_clubs_may_pass() {
 
 #[test]
 fn forced_game_steps_aside_when_penalizing() {
-    // 2♣ – 2♦ (game forcing) – 2NT, then they sacrifice in 3♦ and partner
-    // doubles for penalty.  Passing the double out is the game-forcing
+    // `2♣ - 2♦ - 2NT (3♦) X -`: after the game-forcing wait, they sacrifice
+    // and partner doubles for penalty.  Passing the double out is the
     // action, so the floor must not pull it to a stopperless 3NT; with six
     // clubs and no diamond guard, show the suit instead.
     let auction = [
@@ -2708,7 +2711,7 @@ fn forced_game_steps_aside_when_penalizing() {
 
 #[test]
 fn milestone_game_opposite_a_limited_rebid() {
-    // 1♦–1♥–1NT: opposite the 12–16 rebid a balanced 16 has 28+ combined,
+    // 1♦ - 1♥ - 1NT: opposite the 12–16 rebid a balanced 16 has 28+ combined,
     // a cold 3NT the constructive book never reached (the board that started
     // this).  The floor reads the rebid's strength and bids the game.
     let auction = [
@@ -2727,7 +2730,7 @@ fn milestone_game_opposite_a_limited_rebid() {
 
 #[test]
 fn milestone_slam_opposite_a_strong_rebid() {
-    // 1♦–1♥–2NT is the 18–19 jump rebid; a balanced 16 lifts the combined
+    // 1♦ - 1♥ - 2NT is the 18–19 jump rebid; a balanced 16 lifts the combined
     // minimum to 34, the small-slam zone, so bid 6NT instead of stranding in
     // game.  No known major fit, so notrump is the strain.
     let auction = [
@@ -2743,8 +2746,8 @@ fn milestone_slam_opposite_a_strong_rebid() {
 
 #[test]
 fn milestone_game_opposite_a_competitive_overcall() {
-    // LHO opened 3♦, partner overcalled 3♠ (the overcall reading: 5+ ♠,
-    // 8+ points), RHO passed.  A 21-count with three-card support lifts the
+    // After `(3♦) 3♠ -`, partner's overcall reads as 5+ spades and 8+ points.
+    // A 21-count with three-card support lifts the
     // combined minimum to 29 with a known eight-card spade fit, so the floor
     // bids the game it would otherwise miss off-book.
     let auction = [
@@ -2771,8 +2774,8 @@ fn milestone_game_opposite_a_competitive_overcall() {
 
 #[test]
 fn milestone_notrump_game_needs_a_stopper_in_competition() {
-    // LHO opened 3♣, partner overcalled 3♦, RHO passed.  Game values opposite
-    // the overcall, but no major fit and no diamond fit — the strain is 3NT,
+    // After `(3♣) 3♦ -`, we have game values opposite the overcall, but no
+    // major fit and no diamond fit — the strain is 3NT,
     // and the floor must hold a club guard to bid it.
     let auction = [
         call(3, Strain::Clubs),
@@ -2797,7 +2800,7 @@ fn milestone_notrump_game_needs_a_stopper_in_competition() {
 #[test]
 fn rubens_new_suit_transfer() {
     set_rubens_advances(true);
-    // (1♣) 1♠ (P): advancing partner's spade overcall with our own five-card
+    // (1♣) 1♠ -: advancing partner's spade overcall with our own five-card
     // diamond suit, we transfer — 2♣ shows diamonds (the next suit up).  The
     // floor is 10 upgraded points (a *good* 9 and all 10+), since the
     // transfer commits partner to the two-level.
@@ -2811,7 +2814,7 @@ fn rubens_new_suit_transfer() {
 #[test]
 fn rubens_limit_raise_transfer() {
     set_rubens_advances(true);
-    // (1♣) 1♠ (P): a limit raise of partner's spades goes through the
+    // (1♣) 1♠ -: a limit raise of partner's spades goes through the
     // transfer that lands in their suit — 2♥ (the bid just below 2♠).
     let auction = [call(1, Strain::Clubs), call(1, Strain::Spades), Call::Pass];
     assert_eq!(best(&auction, "K54.K32.K43.Q432"), call(2, Strain::Hearts));
@@ -2820,7 +2823,7 @@ fn rubens_limit_raise_transfer() {
 #[test]
 fn rubens_completion_is_mechanical() {
     set_rubens_advances(true);
-    // (1♣) 1♠ (P) 2♣ (P): partner transferred to diamonds; the overcaller
+    // (1♣) 1♠ - 2♣ -: partner transferred to diamonds; the overcaller
     // completes into 2♦ regardless of hand.
     let auction = [
         call(1, Strain::Clubs),
@@ -2838,7 +2841,7 @@ fn rubens_completion_is_mechanical() {
 #[test]
 fn rubens_two_level_cue_raise() {
     set_rubens_advances(true);
-    // (1♠) 2♣ (P): partner overcalled at the two level, so the cue (2♠) is
+    // (1♠) 2♣ -: partner overcalled at the two level, so the cue (2♠) is
     // the limit-plus raise of clubs — no transfer ladder where there is no room.
     let auction = [call(1, Strain::Spades), call(2, Strain::Clubs), Call::Pass];
     assert_eq!(best(&auction, "432.K32.K2.KQJ54"), call(2, Strain::Spades));
@@ -2846,7 +2849,7 @@ fn rubens_two_level_cue_raise() {
 
 #[test]
 fn rubens_skips_jump_overcalls() {
-    // (1♣) 2♠ (P): partner's 2♠ is a jump (1♠ was available), a preemptive
+    // (1♣) 2♠ -: partner's 2♠ is a jump (1♠ was available), a preemptive
     // weak jump overcall — not a simple overcall, so no Rubens.  A limit hand
     // with support raises spades naturally rather than transferring.
     let auction = [call(1, Strain::Clubs), call(2, Strain::Spades), Call::Pass];
@@ -2856,7 +2859,7 @@ fn rubens_skips_jump_overcalls() {
 #[test]
 fn rubens_completes_through_the_double() {
     set_rubens_advances(true);
-    // (1♣) 1♠ (P) 2♣ (X): opener lead-directs against the transfer; the
+    // (1♣) 1♠ - 2♣ (X): opener lead-directs against the transfer; the
     // completion still fires — otherwise the relay dies and partner plays
     // the phantom suit doubled.
     let auction = [
@@ -2875,7 +2878,7 @@ fn rubens_completes_through_the_double() {
 #[test]
 fn rubens_max_breaks_the_completion_to_game() {
     set_rubens_advances(true);
-    // (1♣) 1♠ (P) 2♥ (P): partner's transfer into our spades showed 10+
+    // (1♣) 1♠ - 2♥ -: partner's transfer into our spades showed 10+
     // with support, so a maximum places the game instead of completing.
     let auction = [
         call(1, Strain::Clubs),
@@ -2889,7 +2892,7 @@ fn rubens_max_breaks_the_completion_to_game() {
     assert_eq!(best(&auction, "AKJ52.K3.Q52.432"), call(3, Strain::Spades));
     // A minimum still completes mechanically.
     assert_eq!(best(&auction, "AKJ52.K3.952.J32"), call(2, Strain::Spades));
-    // (1♣) 1♦ (P) 2♣ (P): the diamond break is 3NT behind a club stopper…
+    // (1♣) 1♦ - 2♣ -: the diamond break is 3NT behind a club stopper…
     let minor = [
         call(1, Strain::Clubs),
         call(1, Strain::Diamonds),
@@ -2905,7 +2908,7 @@ fn rubens_max_breaks_the_completion_to_game() {
 #[test]
 fn rubens_new_suit_break_bids_what_it_would_over_natural() {
     set_rubens_advances(true);
-    // (1♣) 1♠ (P) 2♦ (P): partner shows hearts.  The completion covers the
+    // (1♣) 1♠ - 2♦ -: partner shows hearts.  The completion covers the
     // would-pass-a-natural-2♥ hands; with a fit and values the overcaller
     // bids what it would have bid over that natural 2♥.
     let auction = [
@@ -2925,7 +2928,7 @@ fn rubens_new_suit_break_bids_what_it_would_over_natural() {
 
 #[test]
 fn rubens_transferee_rebid_survives_an_out_of_band_two_spades() {
-    // (1♣) 1♦ (P) 2♠ (P) 3♣ (P): the 2♠ sits above partner's suit — no
+    // (1♣) 1♦ - 2♠ - 3♣ -: the 2♠ sits above partner's suit — no
     // transfer.  The detector must reject it by the band, not index past
     // the spade suit (this exact shape panicked a 204k-board run).
     let auction = [
@@ -2943,7 +2946,7 @@ fn rubens_transferee_rebid_survives_an_out_of_band_two_spades() {
 #[test]
 fn rubens_transferee_clarifies_with_extras() {
     set_rubens_advances(true);
-    // (1♣) 1♠ (P) 2♦ (P) 2♥ (P): the heart transfer was wide yet
+    // (1♣) 1♠ - 2♦ - 2♥ -: the heart transfer was wide yet
     // unlimited — a six-card maximum now bids the game.
     let hearts = [
         call(1, Strain::Clubs),
@@ -2957,7 +2960,7 @@ fn rubens_transferee_clarifies_with_extras() {
     assert_eq!(best(&hearts, "2.AKQT54.K32.A32"), call(4, Strain::Hearts));
     // 12–13 re-raises the suit: the invite the natural NF 2♥ never had.
     assert_eq!(best(&hearts, "2.AKJT54.Q32.Q32"), call(3, Strain::Hearts));
-    // (1♣) 1♠ (P) 2♣ (P) 2♦ (P): the diamond hand's game is 3NT behind a
+    // (1♣) 1♠ - 2♣ - 2♦ -: the diamond hand's game is 3NT behind a
     // club stopper.
     let diamonds = [
         call(1, Strain::Clubs),
@@ -2977,7 +2980,7 @@ fn rubens_transferee_clarifies_with_extras() {
 #[test]
 fn rubens_raiser_moves_with_extras_over_the_completion() {
     set_rubens_advances(true);
-    // (1♣) 1♠ (P) 2♥ (P) 2♠ (P): the mechanical completion denied extras,
+    // (1♣) 1♠ - 2♥ - 2♠ -: the mechanical completion denied extras,
     // so the raiser drives to game with 14+ and rests below it otherwise.
     let auction = [
         call(1, Strain::Clubs),
@@ -2997,7 +3000,7 @@ fn rubens_raiser_moves_with_extras_over_the_completion() {
 #[test]
 fn rubens_cue_answer_places_the_contract() {
     set_rubens_advances(true);
-    // (1♠) 2♣ (P) 2♠ (P): partner's cue-raise must never play their suit.
+    // (1♠) 2♣ - 2♠ -: partner's cue-raise must never play their suit.
     let auction = [
         call(1, Strain::Spades),
         call(2, Strain::Clubs),
@@ -3009,7 +3012,7 @@ fn rubens_cue_answer_places_the_contract() {
     assert_eq!(best(&auction, "32.K32.Q32.AQJT54"), call(3, Strain::Clubs));
     // A maximum with their suit stopped places the notrump game.
     assert_eq!(best(&auction, "A2.K32.Q2.AKQJ54"), call(3, Strain::Notrump));
-    // (1♠) 2♥ (P) 2♠ (P): a maximum with hearts places the major game.
+    // (1♠) 2♥ - 2♠ -: a maximum with hearts places the major game.
     let hearts = [
         call(1, Strain::Spades),
         call(2, Strain::Hearts),
@@ -3041,7 +3044,7 @@ fn rubens_cue_answer_fires_through_the_system() {
 
 #[test]
 fn rubens_skips_advances_of_a_double() {
-    // (1♥) X (P) 1♠: the side's first action was a double, so 1♠ advances
+    // (1♥) X - 1♠: the side's first action was a double, so 1♠ advances
     // the double — the doubler's later cue is not a Rubens structure.
     let auction = [
         call(1, Strain::Hearts),
@@ -3273,9 +3276,10 @@ fn one_nt_runout_2nt_shape_modes() {
 fn one_nt_runout_penalizes_escape_on_stack() {
     set_one_nt_runout(true);
     set_penalize_escape_values(false);
-    // 1NT-(X)-XX (business redouble); RHO runs to 2♣.  A club stack (and not
-    // short in their suit, so the floor would not take out) doubles the run
-    // for penalty.  Toggling the arm off withdraws the double.
+    // `1NT (X) XX (2♣)`: responder's business redouble shows values before RHO
+    // runs to 2♣.  A club stack (and not short in their suit, so the floor would
+    // not take out) doubles the run for penalty.  Toggling the arm off withdraws
+    // the double.
     let run = [
         call(1, Strain::Notrump),
         Call::Double,
@@ -3295,7 +3299,7 @@ fn one_nt_runout_penalizes_escape_on_stack() {
 fn one_nt_runout_leaves_in_escape_penalty() {
     set_one_nt_runout(true);
     set_penalize_escape_stack(true);
-    // 1NT-(X)-XX-(2♣)-X-(P): partner doubled their run for penalty.  We pass
+    // `1NT (X) XX (2♣) X -`: partner doubled their run for penalty.  We pass
     // to leave it in, never advancing it as if it were a takeout double.
     let doubled_run = [
         call(1, Strain::Notrump),
@@ -3336,7 +3340,7 @@ fn one_nt_runout_penalizes_escape_on_values() {
     ];
     assert_eq!(best(&again, "KQ3.K54.J632.987"), Call::Double);
     // But opener's *SOS* redouble shows no values, so the values arm stays
-    // silent there: 1NT-(X)-P-P-XX(SOS)-(2♣) is not a values double.
+    // silent there: `1NT (X) - - XX (2♣)` is not a values double.
     let sos = [
         call(1, Strain::Notrump),
         Call::Double,
@@ -3355,7 +3359,8 @@ fn one_nt_runout_penalizes_escape_on_values() {
 fn one_nt_runout_universal_opener_escapes_and_sos() {
     set_one_nt_runout(true);
     set_one_nt_runout_universal(true);
-    // Balancing seat (1NT-X-P-P): partner is broke, opener acts rather than
+    // In the balancing seat after `1NT (X) - -`, partner is broke and opener
+    // acts rather than
     // sit 1NT-X.  A minimum with five spades runs to 2♠.
     let balancing = [
         call(1, Strain::Notrump),
@@ -3389,7 +3394,7 @@ fn one_nt_runout_universal_opener_escapes_and_sos() {
 #[test]
 fn one_nt_runout_opener_passes_not_completes_phantom_transfer() {
     set_one_nt_runout(true);
-    // 1NT–(X)–2♥ is partner's *runout*, not a Jacoby transfer: opener passes
+    // `1NT (X) 2♥` is partner's *runout*, not a Jacoby transfer: opener passes
     // rather than "complete" it to 2♠ (responder's short suit).
     let after_runout = [
         call(1, Strain::Notrump),

@@ -34,7 +34,7 @@
 //! ```
 
 use clap::Parser;
-use contract_bridge::auction::{Auction, Call};
+use contract_bridge::auction::{Auction, Call, display_calls};
 use contract_bridge::{AbsoluteVulnerability, Hand, Seat};
 use std::ffi::c_int;
 use std::fmt::Write as _;
@@ -198,12 +198,7 @@ fn main() -> anyhow::Result<()> {
                 .zip(&positions)
             {
                 if now != was {
-                    let prefix = p
-                        .auction
-                        .iter()
-                        .map(ToString::to_string)
-                        .collect::<Vec<_>>()
-                        .join(" ");
+                    let prefix = display_calls(&p.auction);
                     println!(
                         "  ={value}  {:?} holding {}\n         after [{prefix}]  {was} -> {now}",
                         p.seat, p.hand,

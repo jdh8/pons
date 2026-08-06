@@ -118,7 +118,7 @@ fn test_rebase_system_on_over_double() {
         Fallback::rebase(ReplaceNext(Call::Pass)),
     );
 
-    // [1NT, X, 2♥] resolves through [1NT, P, 2♥].
+    // `1NT (X) 2♥` resolves through `1NT - 2♥`.
     let (value, provenance) =
         resolve_marker(&trie, &[one_nt, Call::Double, two_h]).expect("expected rebase");
     assert_marker_eq(value, 1.0);
@@ -152,7 +152,7 @@ fn test_rebase_cycle_hits_limit() {
 fn test_rebase_limit_is_reported() {
     let mut trie = Trie::new();
     let one_c = bid(1, Strain::Clubs);
-    // Each resolution of [1♣] rebases once onto [P], which the book covers.
+    // Each resolution of `1♣` rebases once onto `-`, which the book covers.
     trie.insert(&[Call::Pass], classifier(|_, _| marker_logits(1.0)));
     trie.fallback_at(&[], Always, Fallback::rebase(ReplaceNext(Call::Pass)));
 

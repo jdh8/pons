@@ -159,7 +159,7 @@ fn answer_high_neg_double(opening: Suit) -> Rules {
 /// ([`set_high_overcall_responses`][super::set_high_overcall_responses],
 /// default off)
 ///
-/// A guarded entry at `[1x]` — its bid range `(2NT, 3♠]` sits above the
+/// A guarded entry at `1x` — its bid range `(2NT, 3♠]` sits above the
 /// shipped per-overcall exact nodes (which stop at 2♠), so nothing races it.
 /// Their `(2NT)` and their 3-level cue of our own suit are
 /// excluded (the first is a two-suiter, the second is rare enough for the
@@ -227,7 +227,7 @@ pub(super) fn high_overcall_package_legacy() -> Package {
                 entries.extend(rows_of(
                     Pattern::guarded(
                         &key,
-                        &format!("{over} X (P)"),
+                        &format!("{over} X -"),
                         described_guard(
                             "(2NT < overcall ≤3♠) X -",
                             guard(move |_: &Context<'_>, s: &[Call]| {

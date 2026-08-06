@@ -1,5 +1,5 @@
 //! Sohl-after-a-takeout-double A/B, **contested**: the advancer's Lebensohl
-//! after partner doubles their weak two (`(2X)–X–(P)–?`).
+//! after partner doubles their weak two (`(2X) X - ?`).
 //!
 //! The baseline leaves the advancer to the flat `advance_double` ladder (a weak
 //! long-suit hand and a constructive hand both bid the same cheapest call, so the
@@ -63,7 +63,7 @@ struct Args {
     #[arg(long, default_value = "off")]
     ew: String,
 
-    /// Only count deals that can plausibly reach `(2X)–X–(P)` (a cheap shape
+    /// Only count deals that can plausibly reach `(2X) X -` (a cheap shape
     /// pre-filter), so the DD budget lands on boards that can actually diverge.
     /// `--count` is then the number of such filtered boards.
     #[arg(long, default_value = "false")]
@@ -87,7 +87,7 @@ fn is_weak_two_opener(hand: Hand) -> bool {
             .any(|&s| hand[s].len() == 6)
 }
 
-/// Cheap pre-filter (no bidding): could this deal plausibly reach `(2X)–X–(P)`?
+/// Cheap pre-filter (no bidding): could this deal plausibly reach `(2X) X -`?
 ///
 /// Some seat is a weak-two opener whose left- or right-hand opponent holds 12+
 /// HCP (takeout-double values). For an A/B that only diverges when our side
@@ -206,7 +206,7 @@ fn main() {
     );
     if args.filter {
         println!(
-            "(pre-filtered to plausible (2X)–X–(P): kept {} of {scanned} dealt, {:.1}%)",
+            "(pre-filtered to plausible (2X) X - — kept {} of {scanned} dealt, {:.1}%)",
             args.count,
             100.0 * args.count as f64 / scanned.max(1) as f64,
         );

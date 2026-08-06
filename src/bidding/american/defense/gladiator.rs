@@ -11,7 +11,7 @@ use super::*;
 thread_local! {
     /// Whether the advancer runs **systems-on** after our natural 1NT overcall:
     /// the whole opening-1NT response structure (Stayman, transfers, Smolen)
-    /// grafted below `[1t,1NT]`, so a 15–18 balanced overcall finds 4-4 major
+    /// grafted below `(1t) 1NT`, so a 15–18 balanced overcall finds 4-4 major
     /// fits and right-sides via transfers; **true by default** (measured a
     /// clean single-dummy-lead win over both minor and major openings). See
     /// [`set_nt_overcall_systems_on`].
@@ -30,10 +30,10 @@ thread_local! {
 /// books built *after* this call (thread-local, read at construction)
 ///
 /// `true` (the **default**) grafts the full opening-1NT response structure below
-/// `[1t,1NT]`, so `1♦–1NT` equals `1♣–1NT` equals an opening 1NT — Stayman,
+/// `(1t) 1NT`, so `(1♦) 1NT` equals `(1♣) 1NT` equals an opening 1NT — Stayman,
 /// Jacoby/minor transfers, and Smolen, identical over both minors, with the same
 /// structure over a major (one Stayman-found major is theirs). Transfers preserve
-/// right-siding (the strong overcaller declares). `false` leaves the `[1t,1NT,P]`
+/// right-siding (the strong overcaller declares). `false` leaves the `(1t) 1NT -`
 /// advance to the instinct floor's naturals. Off flag: `bba-gen
 /// --no-ns-nt-overcall-systems-on`.
 pub fn set_nt_overcall_systems_on(on: bool) {
@@ -86,7 +86,7 @@ pub(super) fn gladiator_package() -> Package {
             for suit in [Suit::Hearts, Suit::Spades] {
                 let theirs = Strain::from(suit);
                 let opening = Bid::new(1, theirs);
-                let base = format!("P* ({opening}) 1NT (P)");
+                let base = format!("P* ({opening}) 1NT -");
                 let os = Strain::from(other_major(suit));
                 let cue = call(2, theirs);
                 let cheap = if os > theirs { 2 } else { 3 };
@@ -98,16 +98,16 @@ pub(super) fn gladiator_package() -> Package {
                 // advancer bids are left to the floor to pass.
                 let cue_placements = |prefix: &str| {
                     let mut rows = rows_of(
-                        Pattern::node(&format!("{prefix} {} (P)", call(cheap, os))),
+                        Pattern::node(&format!("{prefix} {} -", call(cheap, os))),
                         gladiator_cue_min_fit(suit),
                     );
                     rows.extend(rows_of(
-                        Pattern::node(&format!("{prefix} 2NT (P)")),
+                        Pattern::node(&format!("{prefix} 2NT -")),
                         gladiator_cue_min_misfit(),
                     ));
                     if cheap + 1 < 4 {
                         rows.extend(rows_of(
-                            Pattern::node(&format!("{prefix} {} (P)", call(cheap + 1, os))),
+                            Pattern::node(&format!("{prefix} {} -", call(cheap + 1, os))),
                             gladiator_cue_max_fit_raise(suit),
                         ));
                     }
@@ -116,7 +116,7 @@ pub(super) fn gladiator_package() -> Package {
 
                 // Cue (Stayman for the one unbid major): overcaller answers, then
                 // advancer places.
-                let after_cue = format!("{base} {cue} (P)");
+                let after_cue = format!("{base} {cue} -");
                 entries.extend(rows_of(
                     Pattern::node(&after_cue),
                     gladiator_cue_answer(suit),
@@ -147,7 +147,7 @@ pub(super) fn gladiator_package() -> Package {
                     (call(4, theirs), gladiator_leaping_answer(suit, None)),
                 ] {
                     entries.extend(rows_of(
-                        Pattern::node(&format!("{base} {advance} (P)")),
+                        Pattern::node(&format!("{base} {advance} -")),
                         answer,
                     ));
                 }
@@ -155,34 +155,34 @@ pub(super) fn gladiator_package() -> Package {
                 // 2♣ relay → forced 2♦ → advancer's XYZ-style sort; overcaller
                 // then accepts or declines each invitational rebid.
                 entries.extend(rows_of(
-                    Pattern::node(&format!("{base} 2♣ (P)")),
+                    Pattern::node(&format!("{base} 2♣ -")),
                     gladiator_relay_rebid(),
                 ));
-                let sorted = format!("{base} 2♣ (P) 2♦ (P)");
+                let sorted = format!("{base} 2♣ - 2♦ -");
                 entries.extend(rows_of(
                     Pattern::node(&sorted),
                     gladiator_relay_continuation(suit),
                 ));
                 for inv in ["2NT", "3♣", "3♦"] {
                     entries.extend(rows_of(
-                        Pattern::node(&format!("{sorted} {inv} (P)")),
+                        Pattern::node(&format!("{sorted} {inv} -")),
                         gladiator_relay_inv_answer(),
                     ));
                 }
                 entries.extend(rows_of(
-                    Pattern::node(&format!("{sorted} {} (P)", call(3, os))),
+                    Pattern::node(&format!("{sorted} {} -", call(3, os))),
                     gladiator_relay_major_answer(suit),
                 ));
                 // The weak `2O` takeout is a signoff, not a free bid — overcaller
                 // passes it unless a max with four trumps pushes once.
                 entries.extend(rows_of(
-                    Pattern::node(&format!("{sorted} {} (P)", call(2, os))),
+                    Pattern::node(&format!("{sorted} {} -", call(2, os))),
                     gladiator_relay_signoff_answer(suit),
                 ));
                 // Delayed cue (relay → forced 2♦ → cue of their major = exactly 3
                 // `O`, INV+, not flat): overcaller shows min/max × 5-`O`-fit/misfit,
                 // then advancer places with the same logic as after the direct cue.
-                let delayed = format!("{sorted} {cue} (P)");
+                let delayed = format!("{sorted} {cue} -");
                 entries.extend(rows_of(
                     Pattern::node(&delayed),
                     gladiator_delayed_cue_answer(suit),
@@ -271,7 +271,7 @@ pub(super) fn gladiator_sohl_package() -> Package {
     }
 }
 
-/// Advancer's **Gladiator** actions after `[1M, 1NT, P]` (our 15–18 1NT overcall
+/// Advancer's **Gladiator** actions after `(1M) 1NT -` (our 15–18 1NT overcall
 /// of their major `M`); `O` is the one unbid major
 ///
 /// `2♣` = weak relay (any suit) → forced `2♦`, pass-or-correct; cue of `M` =
@@ -558,7 +558,7 @@ fn gladiator_gf_minor_answer() -> Rules {
 }
 
 /// Overcaller's reply to the weak `2O` signoff off the relay
-/// (`[2♣, P, 2♦, P, 2O]` — advancer 5+ `O`, under invitational)
+/// (`2♣ - 2♦ - 2O` — advancer 5+ `O`, under invitational)
 ///
 /// Advancer took the relay to *run*, not to invite: it has denied invitational
 /// values by not rebidding `2NT`/`3X`/the cue.  Pass, unless a maximum with real
@@ -633,7 +633,7 @@ fn gladiator_cue_min_misfit() -> Rules {
         .rule(Call::Pass, 100, hcp(0..))
 }
 
-/// Advancer's runout when RHO doubles our 1NT overcall (`[1M, 1NT, X]`)
+/// Advancer's runout when RHO doubles our 1NT overcall (`(1M) 1NT (X)`)
 ///
 /// A doubled 1NT always wants a runout.  The systems-on graft gets one for
 /// free: [`systems_on_overcall_strip`][crate::bidding] deletes their opening, the

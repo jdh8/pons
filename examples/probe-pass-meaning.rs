@@ -22,18 +22,18 @@
 //! [`auction_key`][common::auction_key]: passer status changes the published
 //! reading — an opening pass caps at 11 points
 //! ([`set_pass_reading`][pons::bidding::set_pass_reading]) — so pooling
-//! `1♣ P 1♥` with `P P 1♣ P 1♥` compares a passed hand's correct 6..=11
+//! `1♣ - 1♥` with `- - 1♣ - 1♥` compares a passed hand's correct 6..=11
 //! against an unpassed population running to 21.  That was this example's
 //! first false positive; the wider key is what keeps a row one population.
 //!
 //! No double-dummy, no solver.
 //!
 //! ```sh
-//! cargo run --release --example probe-pass-meaning -- -c 100000 --filter " P"
+//! cargo run --release --example probe-pass-meaning -- -c 100000 --filter " -"
 //! ```
 
 use clap::Parser;
-use contract_bridge::auction::Call;
+use contract_bridge::auction::{Call, display_calls};
 use contract_bridge::{AbsoluteVulnerability, Hand, Seat, Suit};
 use pons::american;
 use pons::bidding::constraint::point_count;
@@ -51,11 +51,7 @@ use common::{bid_out, seat_to_act, seeded_deals};
 // ponytail: not `common::auction_key` — its pass stripping is dealer-invariance
 // for the census worklist, and pooling passer status is unsound *here*.
 fn prefix_key(prefix: &[Call]) -> String {
-    prefix
-        .iter()
-        .map(ToString::to_string)
-        .collect::<Vec<_>>()
-        .join(" ")
+    display_calls(prefix).to_string()
 }
 
 #[derive(Parser)]
@@ -72,7 +68,7 @@ struct Args {
     #[arg(long, default_value = "40")]
     top: usize,
 
-    /// Only report keys containing this substring (e.g. " P" for passes)
+    /// Only report keys containing this substring (e.g. " -" for passes)
     #[arg(long)]
     filter: Option<String>,
 

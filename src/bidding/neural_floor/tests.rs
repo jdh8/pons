@@ -85,7 +85,7 @@ fn best(auction: &[Call], hand: &str) -> Call {
         .expect("array is never empty")
 }
 
-/// The board that priced the whole kickback campaign.  After `1♦ P 1♠ P 2♦`
+/// The board that priced the whole kickback campaign.  After `1♦ - 1♠ - 2♦`
 /// the ladder claims 4♥ as the diamond keycard ask — and responder here is
 /// 6-6 in the majors and **void in diamonds**, so a 4♥ from this hand can
 /// only mean hearts.  The kickback-blind net jumped to 4♥ anyway (it had
@@ -171,8 +171,9 @@ fn keycard_window_delegates_in_competition() {
 
 #[test]
 fn forced_to_game_never_passes_below_game() {
-    // 2♣ (strong) – 2♦ (game-forcing) – 2NT: the auction forces game, so the
-    // shell delegates to instinct and never passes below game.
+    // `2♣ - 2♦ - 2NT -`: the strong 2♣ opening and game-forcing 2♦ waiting
+    // response force game, so the shell delegates to instinct and never passes
+    // below game.
     let auction = [
         call(2, Strain::Clubs),
         Call::Pass,
@@ -200,9 +201,10 @@ fn completes_partners_transfer_over_notrump() {
 
 #[test]
 fn forced_game_steps_aside_when_penalizing() {
-    // 2♣ – 2♦ – 2NT, then they sacrifice in 3♦ and partner doubles for
-    // penalty.  The auction still forces game, so the shell delegates to
-    // instinct, which shows the six-card suit rather than a stopperless 3NT.
+    // `2♣ - 2♦ - 2NT (3♦) X -`: they sacrifice after the forcing wait and
+    // partner doubles for penalty.  The auction still forces game, so the shell
+    // delegates to instinct, which shows the six-card suit rather than a
+    // stopperless 3NT.
     let auction = [
         call(2, Strain::Clubs),
         Call::Pass,

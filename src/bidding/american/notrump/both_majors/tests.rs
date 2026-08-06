@@ -3,7 +3,7 @@ use contract_bridge::Strain;
 
 #[test]
 fn both_majors_relay_game_placement() {
-    // 1NT–2♣–2NT (max, both majors) –3♣ (responder names hearts) –3♥: responder
+    // 1NT - 2♣ - 2NT - 3♣ (responder names hearts) - 3♥: responder
     // places game on `point_count + extra trumps + a fit in the other major`.
     let relay = [
         bid(1, Strain::Notrump),

@@ -61,17 +61,17 @@ fn meckwell_two_way_double_relays_then_names() {
     let prev = super::nt_defense::notrump_defense();
     set_notrump_defense(NotrumpDefense::Meckwell);
 
-    // [1NT,X,P]: advancer relays 2♣ (pass-or-correct), from the book.
+    // `(1NT) X -`: advancer relays 2♣ (pass-or-correct), from the book.
     let (relay, relay_floored) = best_call(&[nt, Call::Double, p], "Q32.Q32.Q432.432");
-    // [1NT,X,P,2♣,P]: a diamond one-suiter doubler names 2♦ (real diamonds).
+    // `(1NT) X - 2♣ -`: a diamond one-suiter doubler names 2♦ (real diamonds).
     let (diamonds, _) = best_call(&[nt, Call::Double, p, c2, p], "32.32.AKQ876.432");
     // …a both-majors doubler bids 2♥ (4+ hearts here ⇒ both majors).
     let (majors, majors_floored) = best_call(&[nt, Call::Double, p, c2, p], "AJ32.KQ87.32.32");
     // …a club one-suiter doubler passes (plays 2♣).
     let (clubs, _) = best_call(&[nt, Call::Double, p, c2, p], "32.32.432.AKQ876");
-    // [1NT,X,XX]: their redouble — the advancer still relays 2♣, never sits 1NTxx.
+    // `(1NT) X (XX)`: their redouble — the advancer still relays 2♣, never sits 1NTxx.
     let (escape, esc_floored) = best_call(&[nt, Call::Double, Call::Redouble], "Q32.Q32.Q432.432");
-    // [1NT,X,P,2♣,X]: they double our relay — the diamond doubler still names 2♦,
+    // `(1NT) X - 2♣ (X)`: they double our relay — the diamond doubler still names 2♦,
     // never sits in the doubled 2♣x misfit.
     let (named, nd_floored) =
         best_call(&[nt, Call::Double, p, c2, Call::Double], "32.32.AKQ876.432");

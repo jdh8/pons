@@ -192,7 +192,7 @@ const RESPONSIVE: Alert = Alert("responsive-double");
 /// is a sound points floor only — the 17+ tier admits any shape).
 const TAKEOUT_DOUBLE: Alert = Alert("takeout-double");
 
-/// Landy SOS redouble — after `[1NT, 2♣, X]`, equal majors asking the overcaller to
+/// Landy SOS redouble — after `(1NT) 2♣ (X)`, equal majors asking the overcaller to
 /// name the longer one.  A "pick a suit" call, not a desire to sit, so alerted.
 const LANDY_SOS: Alert = Alert("landy:sos-redouble");
 
@@ -252,7 +252,7 @@ mod shape_guards;
 /// Build the defensive book: all our actions when the opponents open
 ///
 /// Every package leads with `P*`, the seat fan, so every seat is covered.  A
-/// defensive auction string starts from their opening, e.g. `P* (1♦) 2♦ (P)`
+/// defensive auction string starts from their opening, e.g. `P* (1♦) 2♦ -`
 /// means they opened 1♦, we cue-bid 2♦ (Michaels), opener's side passed, and we
 /// are the advancer.  The one hand-rolled site left is the systems-on graft of
 /// the whole opening-1NT book below our 1NT overcall — `compile_into` writes
@@ -263,7 +263,7 @@ pub fn defensive() -> Defensive {
 
     // Systems-on advances of our 1NT overcall: the whole 1NT-opening response
     // structure (Stayman, transfers, Smolen — reflecting the same knobs), built
-    // once and grafted below each `[their-suit, 1NT]` so the advancer plays it
+    // once and grafted below each `(their-suit) 1NT` so the advancer plays it
     // verbatim.  On by default; see `set_nt_overcall_systems_on`.
     let nt_overcall_book = nt_overcall_systems_on().then(|| {
         let mut nt = Trie::new();
@@ -282,14 +282,14 @@ pub fn defensive() -> Defensive {
         &[advance_double_package(), rich_advance_double_package()],
     );
 
-    // Advances of our 1NT overcall ([1t, 1NT, P]).  Over a MINOR the advancer
+    // Advances of our 1NT overcall (`(1t) 1NT -`).  Over a MINOR the advancer
     // plays the full opening-1NT structure (Stayman/transfers/Smolen) grafted
-    // below `[1t, 1NT]` — `1♦–1NT` equals `1♣–1NT` equals an opening 1NT,
+    // below `(1t) 1NT` — `(1♦) 1NT` equals `(1♣) 1NT` equals an opening 1NT,
     // transfers preserving right-siding.  Grafted in every seat the opening could
     // have been made (mirrors the overcall's fan).  This is the one permanently
     // imperative site: `compile_into` writes rows, not a whole subtree.
     //
-    // Advances of a *natural* overcall ([1t, overcall, Pass]) are left to the
+    // Advances of a *natural* overcall (`(1t) overcall -`) are left to the
     // instinct floor's Rubens transfers — the programmatic floor expresses the
     // transfer band for every (opening, overcall) pair in one place, where a
     // per-suit authored table cannot.
@@ -336,7 +336,7 @@ pub fn defensive() -> Defensive {
             leaping_michaels_package(),
         ],
     );
-    // Advancing partner's takeout double: [2t, X, P] — advancer to act.
+    // Advancing partner's takeout double: `(2t) X -` — advancer to act.
     compile_into(&mut d, &[advance_of_double_package()]);
 
     // Their 1NT opening and the three artificial responses we have a defense to
@@ -364,7 +364,7 @@ pub fn defensive() -> Defensive {
     // Advancing partner's both-minors 2NT over their 1NT, when on.
     compile_into(&mut d, &[unusual_notrump_advance_package()]);
 
-    // Direct-seat DONT and Meckwell advances.  Both write `[1NT, X, P]` and
+    // Direct-seat DONT and Meckwell advances.  Both write `(1NT) X -` and
     // friends; with both knobs on, Meckwell wins the shared keys exactly as it
     // did in the consecutive imperative blocks, so the package order here is
     // load-bearing.

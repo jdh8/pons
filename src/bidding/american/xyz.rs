@@ -1,7 +1,7 @@
 //! XYZ — the two-way checkback after three one-level bids
 //!
 //! In effect on the ten uncontested auctions where our side made three bids
-//! at the one level (`1x – 1y – 1z`, `z` a suit or notrump): responder's
+//! at the one level (`1x - 1y - 1z`, `z` a suit or notrump): responder's
 //! **`2♣` puppets opener to `2♦`** — either a weak hand signing off in
 //! diamonds (passes `2♦`) or any invitational hand (continues naturally) —
 //! and **`2♦` is an artificial game force**, after which bidding is natural.
@@ -82,7 +82,7 @@ fn xyz_invite_judgment() -> bool {
     XYZ_INVITE_JUDGMENT.with(Cell::get)
 }
 
-/// Responder's rebid at `1x – 1y – 1z`: the XYZ round
+/// Responder's rebid at `1x - 1y - 1z`: the XYZ round
 ///
 /// | Call | Wt | Meaning |
 /// |------|----|---------|
@@ -132,7 +132,7 @@ fn xyz_completion() -> Rules {
         .alert(XYZ_COMPLETION)
 }
 
-/// Responder's continuation after `2♣ – 2♦`: pass out the sign-off, or invite
+/// Responder's continuation after `2♣ - 2♦`: pass out the sign-off, or invite
 ///
 /// Every bid here is invitational (10–12); pass is the weak-diamond sign-off
 /// the relay promised.
@@ -202,7 +202,7 @@ fn xyz_gf_answers(opening: Suit, response: Suit, rebid: Strain) -> Rules {
     if rebid == Strain::Hearts {
         rules = rules.rule(Bid::new(2, Strain::Spades), 120, len(Suit::Spades, 4..));
     }
-    // Opener's five-card heart suit after 1♥ – 1♠ – 1NT.
+    // Opener's five-card heart suit after 1♥ - 1♠ - 1NT.
     if opening == Suit::Hearts {
         rules = rules.rule(Bid::new(2, Strain::Hearts), 120, len(Suit::Hearts, 6..));
     }
@@ -224,10 +224,10 @@ fn xyz_gf_answers(opening: Suit, response: Suit, rebid: Strain) -> Rules {
         .rule(Bid::new(2, Strain::Notrump), 10, points(0..))
 }
 
-/// The XYZ tree under one `1x – 1y – 1z` prefix
+/// The XYZ tree under one `1x - 1y - 1z` prefix
 fn rows_for_prefix(opening: Suit, response: Suit, rebid: Strain) -> Vec<Entry> {
     let prefix = format!(
-        "P* {} (P) {} (P) {} (P)",
+        "P* {} - {} - {} -",
         call(1, Strain::from(opening)),
         call(1, Strain::from(response)),
         call(1, rebid),
@@ -241,16 +241,16 @@ fn rows_for_prefix(opening: Suit, response: Suit, rebid: Strain) -> Vec<Entry> {
         xyz_responder(response, rebid),
     ));
     entries.extend(rows_of(
-        Pattern::node(&format!("{prefix} 2♣ (P)")),
+        Pattern::node(&format!("{prefix} 2♣ -")),
         xyz_completion(),
     ));
     entries.extend(rows_of(
-        Pattern::node(&format!("{prefix} 2♦ (P)")),
+        Pattern::node(&format!("{prefix} 2♦ -")),
         xyz_gf_answers(opening, response, rebid),
     ));
 
     // The invitational round after the relay, and opener's acceptances.
-    let relay = format!("{prefix} 2♣ (P) 2♦ (P)");
+    let relay = format!("{prefix} 2♣ - 2♦ -");
     entries.extend(rows_of(
         Pattern::node(&relay),
         xyz_after_relay(opening, response, rebid),
@@ -258,7 +258,7 @@ fn rows_for_prefix(opening: Suit, response: Suit, rebid: Strain) -> Vec<Entry> {
 
     let mut accept = |invite: Call, table: Rules| {
         entries.extend(rows_of(
-            Pattern::node(&format!("{relay} {invite} (P)")),
+            Pattern::node(&format!("{relay} {invite} -")),
             table,
         ));
     };
@@ -312,7 +312,7 @@ fn rows_for_prefix(opening: Suit, response: Suit, rebid: Strain) -> Vec<Entry> {
 
 /// The XYZ structure on all ten one-level prefixes (no-op when off)
 ///
-/// On the four `1m – 1M – 1NT` slots, [New Minor Forcing](super::nmf) overrides
+/// On the four `1m - 1M - 1NT` slots, [New Minor Forcing](super::nmf) overrides
 /// XYZ when its knob is on (default off) — the two conventions are mutually
 /// exclusive on that node, so this package yields those slots and
 /// [`nmf::package`][super::nmf::package] writes them instead.

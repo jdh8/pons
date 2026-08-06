@@ -16,7 +16,7 @@ fn armed() -> impl System {
     stance()
 }
 
-/// `1♠ P 3♠ P 4NT P 5♣ P` — spades agreed by the limit raise, 4NT asks, and
+/// `1♠ - 3♠ - 4NT - 5♣ -` — spades agreed by the limit raise, 4NT asks, and
 /// partner's 5♣ is one-or-four.  Three keycards of our own decodes to four
 /// combined: one keycard missing, and the trump queen still an open question.
 fn after_the_answer() -> Vec<Call> {

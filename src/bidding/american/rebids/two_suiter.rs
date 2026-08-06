@@ -1,6 +1,6 @@
 //! Opener's invitational major two-suiter rebids after the forcing `1NT`
 //!
-//! `1♥ – 1NT – 2♠` (the reverse, 5+ hearts and 4+ spades) and `1♠ – 1NT – 3♥`
+//! `1♥ - 1NT - 2♠` (the reverse, 5+ hearts and 4+ spades) and `1♠ - 1NT - 3♥`
 //! (the 5-5 jump), both 15–17 — the seam between the minimum natural rebids and
 //! the 18+ game force.  Gated by [`set_forcing_nt_two_suiter`].
 
@@ -9,8 +9,8 @@ use super::*;
 // ponytail: same construction-time toggle as the Meckstroth adjunct above.
 std::thread_local! {
     /// Whether opener shows an invitational (15–17) major two-suiter after the
-    /// forcing `1NT`: the `1♥ – 1NT – 2♠` reverse (5+ hearts, 4+ spades) and the
-    /// `1♠ – 1NT – 3♥` jump (5-5 majors).  Fills the seam between the minimum
+    /// forcing `1NT`: the `1♥ - 1NT - 2♠` reverse (5+ hearts, 4+ spades) and the
+    /// `1♠ - 1NT - 3♥` jump (5-5 majors).  Fills the seam between the minimum
     /// natural rebids and the 18+ game force (`set_meckstroth_adjunct`).  Shipped
     /// **on**, sd-vindicated (`ab-forcing-nt-two-suiter`, 1M×2 seeds×2 vuls):
     /// plain wash-NV/+0.0012-vul, PD −0.0017/−0.0010 (over-punished), sd-lead
@@ -23,8 +23,8 @@ std::thread_local! {
 ///
 /// Over the forcing 1NT, opener with 15–17 and a second major suit has no
 /// invitational rebid — a 5-4 or 5-5 hand underbids as a minimum natural call.
-/// This adds `1♥ – 1NT – 2♠` (reverse: 5+ hearts, 4+ spades) and
-/// `1♠ – 1NT – 3♥` (jump: 5-5 majors), both 15–17, with responder's
+/// This adds `1♥ - 1NT - 2♠` (reverse: 5+ hearts, 4+ spades) and
+/// `1♠ - 1NT - 3♥` (jump: 5-5 majors), both 15–17, with responder's
 /// continuations.  Read at book-construction time; set it before building the
 /// `Pair` (the `ab-forcing-nt-two-suiter` A/B builds a baseline arm with it off).
 pub fn set_forcing_nt_two_suiter(on: bool) {
@@ -38,7 +38,7 @@ fn forcing_nt_two_suiter() -> bool {
 
 /// Whether a rebid is opener's invitational major two-suiter (`set_forcing_nt_two_suiter`)
 ///
-/// `1♥ – 1NT – 2♠` (the reverse) or `1♠ – 1NT – 3♥` (the 5-5 jump); the other
+/// `1♥ - 1NT - 2♠` (the reverse) or `1♠ - 1NT - 3♥` (the 5-5 jump); the other
 /// major has no such call.
 pub(super) fn is_forcing_nt_two_suiter(major: Suit, rebid: Call) -> bool {
     match major {
@@ -80,7 +80,7 @@ pub(super) fn with_forcing_nt_two_suiter(rules: Rules, major: Suit) -> Rules {
     }
 }
 
-/// Responder's call over opener's `1♥ – 1NT – 2♠` reverse (5+ hearts, 4+ spades)
+/// Responder's call over opener's `1♥ - 1NT - 2♠` reverse (5+ hearts, 4+ spades)
 ///
 /// Opener has 15–17 and a real spade suit; responder holds ≤ 3 spades (the
 /// forcing 1NT denied four).  Forcing one round — the `2NT` fallback is the
@@ -111,7 +111,7 @@ fn responder_over_forcing_nt_reverse() -> Rules {
         .rule(Bid::new(2, Strain::Notrump), 0, points(0..))
 }
 
-/// Responder's call over opener's `1♠ – 1NT – 3♥` jump (5-5 majors, invitational)
+/// Responder's call over opener's `1♠ - 1NT - 3♥` jump (5-5 majors, invitational)
 ///
 /// Opener has 15–17 and 5-5 in the majors; responder accepts to game with a fit
 /// or values, else declines.  Non-forcing — `Pass` (heart tolerance) is the
@@ -148,11 +148,11 @@ pub(crate) fn forcing_nt_two_suiter_continuations() -> Package {
         gate: forcing_nt_two_suiter,
         entries: || {
             let mut entries = rows_of(
-                Pattern::node("P* 1♥ (P) 1NT (P) 2♠ (P)"),
+                Pattern::node("P* 1♥ - 1NT - 2♠ -"),
                 responder_over_forcing_nt_reverse(),
             );
             entries.extend(rows_of(
-                Pattern::node("P* 1♠ (P) 1NT (P) 3♥ (P)"),
+                Pattern::node("P* 1♠ - 1NT - 3♥ -"),
                 responder_over_forcing_nt_5_5(),
             ));
             entries

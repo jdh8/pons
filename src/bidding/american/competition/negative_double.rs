@@ -129,7 +129,7 @@ pub(super) fn negative_doubler_rebid(opening: Suit) -> Rules {
         .rule(Call::Pass, 20, hcp(0..))
 }
 
-/// Opener's answer after `1M – (2m) – X – P` (partner doubled a minor overcall)
+/// Opener's answer after `1M (2m) X -` (partner doubled a minor overcall)
 ///
 /// Shows four-card length in the other major or rebids the opening major on five.
 /// No Pass rule — the double is forcing.
@@ -228,7 +228,7 @@ fn cachalot_x_contested_answer(shown: Suit, last: Bid) -> Rules {
 /// Section 9 as a row package: opener's Cachalot answers
 ///
 /// The rotated calls are forcing; each gets its completion table at the deeper
-/// `[1m, <their 1-level overcall>]` key.
+/// `1m (their 1-level overcall)` key.
 pub(super) fn cachalot_package() -> Package {
     Package {
         name: "cachalot-answer",
@@ -237,15 +237,15 @@ pub(super) fn cachalot_package() -> Package {
             // (1♦) over 1♣: X shows hearts, 1♥ shows spades, 1♠ is the takeout.
             let over_diamond = "P* 1♣ (1♦)";
             let mut entries = rows_of(
-                Pattern::after(over_diamond, "X (P)"),
+                Pattern::after(over_diamond, "X -"),
                 cachalot_answer(Suit::Clubs, Suit::Diamonds, Suit::Hearts),
             );
             entries.extend(rows_of(
-                Pattern::after(over_diamond, "1♥ (P)"),
+                Pattern::after(over_diamond, "1♥ -"),
                 cachalot_answer(Suit::Clubs, Suit::Diamonds, Suit::Spades),
             ));
             entries.extend(rows_of(
-                Pattern::after(over_diamond, "1♠ (P)"),
+                Pattern::after(over_diamond, "1♠ -"),
                 cachalot_takeout_answer(Suit::Clubs, Suit::Diamonds),
             ));
 
@@ -253,11 +253,11 @@ pub(super) fn cachalot_package() -> Package {
             for opening in [Suit::Clubs, Suit::Diamonds] {
                 let key = format!("P* 1{} (1♥)", Strain::from(opening));
                 entries.extend(rows_of(
-                    Pattern::after(&key, "X (P)"),
+                    Pattern::after(&key, "X -"),
                     cachalot_answer(opening, Suit::Hearts, Suit::Spades),
                 ));
                 entries.extend(rows_of(
-                    Pattern::after(&key, "1♠ (P)"),
+                    Pattern::after(&key, "1♠ -"),
                     cachalot_takeout_answer(opening, Suit::Hearts),
                 ));
             }
@@ -267,7 +267,7 @@ pub(super) fn cachalot_package() -> Package {
             // (the measured X·wrapped leak).  Author opener's raise of the
             // shown major — hearts over (1♦), spades over (1♥) — one column
             // per intervention: their suit bid, their notrump bid, their
-            // redouble.  The [X, P] pass-out is shadowed by the completions
+            // redouble.  The `X -` pass-out is shadowed by the completions
             // above, and deeper continuations fall to the floor as before.
             if cachalot_contested_x() {
                 let contested = |key: &str, shown: Suit, overcall: Bid| {
@@ -340,25 +340,25 @@ pub(super) fn cachalot_package_legacy() -> Package {
         entries: || {
             let over_diamond = "P* 1♣ (1♦)";
             let mut entries = rows_of(
-                Pattern::after(over_diamond, "X (P)"),
+                Pattern::after(over_diamond, "X -"),
                 cachalot_answer(Suit::Clubs, Suit::Diamonds, Suit::Hearts),
             );
             entries.extend(rows_of(
-                Pattern::after(over_diamond, "1♥ (P)"),
+                Pattern::after(over_diamond, "1♥ -"),
                 cachalot_answer(Suit::Clubs, Suit::Diamonds, Suit::Spades),
             ));
             entries.extend(rows_of(
-                Pattern::after(over_diamond, "1♠ (P)"),
+                Pattern::after(over_diamond, "1♠ -"),
                 cachalot_takeout_answer(Suit::Clubs, Suit::Diamonds),
             ));
             for opening in [Suit::Clubs, Suit::Diamonds] {
                 let key = format!("P* 1{} (1♥)", Strain::from(opening));
                 entries.extend(rows_of(
-                    Pattern::after(&key, "X (P)"),
+                    Pattern::after(&key, "X -"),
                     cachalot_answer(opening, Suit::Hearts, Suit::Spades),
                 ));
                 entries.extend(rows_of(
-                    Pattern::after(&key, "1♠ (P)"),
+                    Pattern::after(&key, "1♠ -"),
                     cachalot_takeout_answer(opening, Suit::Hearts),
                 ));
             }
@@ -407,13 +407,13 @@ pub(super) fn sputnik_residual_answer_package() -> Package {
         entries: || {
             // (1♦) over 1♣: X = ≤3 in both majors — no fit to hunt.
             let mut entries = rows_of(
-                Pattern::after("P* 1♣ (1♦)", "X (P)"),
+                Pattern::after("P* 1♣ (1♦)", "X -"),
                 cachalot_takeout_answer(Suit::Clubs, Suit::Diamonds),
             );
             // (1♥) over 1♣/1♦: X = ≤3 spades.
             for opening in [Suit::Clubs, Suit::Diamonds] {
                 entries.extend(rows_of(
-                    Pattern::after(&format!("P* 1{} (1♥)", Strain::from(opening)), "X (P)"),
+                    Pattern::after(&format!("P* 1{} (1♥)", Strain::from(opening)), "X -"),
                     cachalot_takeout_answer(opening, Suit::Hearts),
                 ));
             }
@@ -452,7 +452,7 @@ pub(super) fn answer_negative_double_package_legacy() -> Package {
                     rows_of(
                         Pattern::guarded(
                             &format!("P* 1{}", Strain::from(major)),
-                            "(2♦) X (P)",
+                            "(2♦) X -",
                             described_guard(
                                 "2♣/2♦ X -",
                                 guard(|_: &Context<'_>, suffix: &[Call]| {

@@ -1,4 +1,4 @@
-//! Integration tests for the authored Stayman (1NT–2♣) continuations:
+//! Integration tests for the authored Stayman continuations after `1NT - 2♣`:
 //! responder's further bidding, the artificial 3OM slam try, Smolen, and the
 //! "ignore 2♣ ⇒ revert to notrump" rule (including the inference that lets the
 //! floor accept or decline an invitation).
@@ -8,7 +8,7 @@ use common::*;
 
 const P: Call = Call::Pass;
 
-/// `1NT P 2♣ P` plus the given tail of our-side calls (RHO passes interleaved)
+/// `1NT - 2♣ -` plus the given tail of our-side calls (RHO passes interleaved)
 fn after_stayman(tail: &[Call]) -> Vec<Call> {
     let mut auction = vec![call(1, Strain::Notrump), P, call(2, Strain::Clubs), P];
     for &c in tail {
@@ -94,7 +94,8 @@ fn opener_answers_3om_by_shape_and_strength() {
 #[test]
 fn responder_keycards_or_signs_off_over_openers_cue() {
     let system = stance();
-    // 1NT–2♣–2♥–3♠(slam try)–4♣(opener cues a max club control).
+    // `1NT - 2♣ - 2♥ - 3♠ - 4♣`: responder tries for slam, and a
+    // maximum opener cues a club control.
     let auction = after_stayman(&[
         call(2, Strain::Hearts),
         call(3, Strain::Spades),
@@ -149,7 +150,7 @@ fn opener_completes_smolen_into_the_long_major() {
 #[test]
 fn opener_accepts_the_invitational_raise_into_the_major_with_a_maximum() {
     let system = stance();
-    // 1NT P 2♣ P 2♥ P 3♥ P — responder invited with a fit.
+    // 1NT - 2♣ - 2♥ - 3♥ - — responder invited with a fit.
     let auction = after_stayman(&[call(2, Strain::Hearts), call(3, Strain::Hearts)]);
     // Maximum 17, four hearts, not flat: accept in the major game.
     assert_eq!(
@@ -195,7 +196,7 @@ fn opener_accepts_the_no_fit_quantitative_with_a_maximum() {
 #[test]
 fn smolen_works_at_the_two_notrump_level() {
     let system = stance();
-    // 2NT P 3♣ P 3♦ P — opener denied a major; responder jumps Smolen.
+    // 2NT - 3♣ - 3♦ - — opener denied a major; responder jumps Smolen.
     let auction = &[
         call(2, Strain::Notrump),
         P,

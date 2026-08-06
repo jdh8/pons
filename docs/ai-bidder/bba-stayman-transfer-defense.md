@@ -2,7 +2,7 @@
 
 How BBA/EPBot's compiled 2/1 card (system 0) competes in the **4th seat** after
 the opponents open a strong 1NT and respond with Stayman or a Jacoby transfer —
-the auctions `[1NT, P, 2♣]`, `[1NT, P, 2♦(→♥)]`, `[1NT, P, 2♥(→♠)]`. Every figure
+the auctions `1NT - 2♣`, `1NT - 2♦ [→♥]`, `1NT - 2♥ [→♠]`. Every figure
 is a *read of BBA's implementation*, distilled by driving the real EPBot engine on
 40 000 random 4th-seat hands per auction via
 [`examples/probe-bba-constraints`](../../examples/probe-bba-constraints/main.rs)
@@ -28,7 +28,7 @@ BBA plays a plain **lead-directing-double + natural** defense:
    1%; a strong balanced or both-minors hand simply passes (or bids a natural minor
    if long enough). Pass everything that fits none of the above — ~80–83% of hands.
 
-## Direct (4th) seat over Stayman `[1NT, P, 2♣]`
+## Direct (4th) seat over Stayman `1NT - 2♣`
 
 | Call | Meaning | HCP (med) | Shape |
 |------|---------|-----------|-------|
@@ -40,7 +40,7 @@ BBA plays a plain **lead-directing-double + natural** defense:
 No cue exists here: their bid suit (clubs) *is* the X, and Stayman shows no anchor
 suit to cue. 83% Pass.
 
-## Direct seat over the `2♦` transfer (→ hearts) `[1NT, P, 2♦]`
+## Direct seat over the `2♦` transfer (→ hearts) `1NT - 2♦`
 
 | Call | Meaning | HCP (med) | Shape |
 |------|---------|-----------|-------|
@@ -50,7 +50,7 @@ suit to cue. 83% Pass.
 | 3♣ / 3♦ | natural clubs / diamonds | 11–20 (14–15) | 5–6+ in the minor |
 | Pass | hearts (their shown suit) or insufficient | — | — |
 
-## Direct seat over the `2♥` transfer (→ spades) `[1NT, P, 2♥]`
+## Direct seat over the `2♥` transfer (→ spades) `1NT - 2♥`
 
 | Call | Meaning | HCP (med) | Shape |
 |------|---------|-----------|-------|

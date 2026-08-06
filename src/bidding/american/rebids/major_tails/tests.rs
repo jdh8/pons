@@ -37,7 +37,7 @@ fn fsf_trie() -> Trie {
     trie
 }
 
-/// The raw table auction `[1♥, P, 1♠, P, 2♠, P]` (opener in seat 1).
+/// The raw table auction `1♥ - 1♠ - 2♠ -` (opener in seat 1).
 const AFTER_2S: &[Call] = &[
     Call::Bid(Bid::new(1, Strain::Hearts)),
     Call::Pass,
@@ -47,7 +47,7 @@ const AFTER_2S: &[Call] = &[
     Call::Pass,
 ];
 
-/// The raw table auction `[1♥, P, 1♠, P, 2♥, P]`.
+/// The raw table auction `1♥ - 1♠ - 2♥ -`.
 const AFTER_2H: &[Call] = &[
     Call::Bid(Bid::new(1, Strain::Hearts)),
     Call::Pass,
@@ -57,7 +57,7 @@ const AFTER_2H: &[Call] = &[
     Call::Pass,
 ];
 
-/// The raw table auction `[1♥, P, 1♠, P, 2♥, P, 2NT, P]`.
+/// The raw table auction `1♥ - 1♠ - 2♥ - 2NT -`.
 const AFTER_2H_2NT: &[Call] = &[
     Call::Bid(Bid::new(1, Strain::Hearts)),
     Call::Pass,
@@ -69,7 +69,7 @@ const AFTER_2H_2NT: &[Call] = &[
     Call::Pass,
 ];
 
-/// The raw table auction `[1♥, P, 1♠, P, 2♣, P]`.
+/// The raw table auction `1♥ - 1♠ - 2♣ -`.
 const AFTER_2C: &[Call] = &[
     Call::Bid(Bid::new(1, Strain::Hearts)),
     Call::Pass,
@@ -79,7 +79,7 @@ const AFTER_2C: &[Call] = &[
     Call::Pass,
 ];
 
-/// The raw table auction `[1♥, P, 1♠, P, 2♣, P, 2♦, P]`
+/// The raw table auction `1♥ - 1♠ - 2♣ - 2♦ -`
 /// (fourth-suit-forcing).
 const AFTER_2C_2D: &[Call] = &[
     Call::Bid(Bid::new(1, Strain::Hearts)),
@@ -92,7 +92,7 @@ const AFTER_2C_2D: &[Call] = &[
     Call::Pass,
 ];
 
-/// The raw table auction `[1♥, P, 1♠, P, 2♣, P, 2♦, P, 2♠, P]`.
+/// The raw table auction `1♥ - 1♠ - 2♣ - 2♦ - 2♠ -`.
 const AFTER_2C_2D_2S: &[Call] = &[
     Call::Bid(Bid::new(1, Strain::Hearts)),
     Call::Pass,
@@ -106,7 +106,7 @@ const AFTER_2C_2D_2S: &[Call] = &[
     Call::Pass,
 ];
 
-/// The raw table auction `[1♥, P, 1♠, P, 2♣, P, 2♦, P, 2NT, P]`.
+/// The raw table auction `1♥ - 1♠ - 2♣ - 2♦ - 2NT -`.
 const AFTER_2C_2D_2NT: &[Call] = &[
     Call::Bid(Bid::new(1, Strain::Hearts)),
     Call::Pass,
@@ -331,7 +331,7 @@ fn fourth_suit_forcing_without_tails_inserts_nothing() {
 
 #[test]
 fn nt_invite_hcp_gauges_the_no_fit_rung() {
-    // 1♥ – 1♠ – 2♦ (the remnant report's 2NT-invite seam): a 9-HCP
+    // 1♥ - 1♠ - 2♦ (the remnant report's 2NT-invite seam): a 9-HCP
     // six-spade hand reads 10 points and invites 2NT by default — a
     // notrump invite priced in ruffs it will never take.  HCP-gauged it
     // takes the weak 2♠ rebid instead; a flat-ish 10-count invites on

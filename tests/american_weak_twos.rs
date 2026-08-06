@@ -12,7 +12,7 @@ use common::*;
 
 /// Opener answers 3♣ (min, bad suit) through 3NT (solid) after the Ogust ask
 ///
-/// Auction: 2♥ – (P) – 2NT – (P) – ?
+/// Auction: 2♥ - 2NT - ?
 #[test]
 fn test_ogust_answers_after_two_hearts() {
     let system = stance();
@@ -75,7 +75,7 @@ fn test_ogust_answers_after_two_hearts() {
 
 /// Responder's first-round options over 2♥
 ///
-/// Auction: 2♥ – (P) – ?
+/// Auction: 2♥ - ?
 #[test]
 fn test_responses_to_two_hearts() {
     let system = stance();
@@ -109,7 +109,7 @@ fn test_responses_to_two_hearts() {
 
 /// Opener's reply after responder's one-round-forcing 2♠ over 2♥
 ///
-/// Auction: 2♥ – (P) – 2♠ – (P) – ?
+/// Auction: 2♥ - 2♠ - ?
 #[test]
 fn test_opener_reply_to_two_spades_over_two_hearts() {
     let system = stance();

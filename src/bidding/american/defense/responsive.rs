@@ -7,15 +7,15 @@ use super::*;
 
 thread_local! {
     /// Whether the responsive double after partner's **takeout double** + their
-    /// raise (`[1t, X, raise]`) is authored; see [`set_responsive_takeout`].
+    /// raise (`(1t) X (raise)`) is authored; see [`set_responsive_takeout`].
     static RESPONSIVE_TAKEOUT: Cell<bool> = const { Cell::new(true) };
     /// Whether the responsive double after partner's **overcall** + their raise
-    /// (`[1t, overcall, raise]`) is authored; see [`set_responsive_overcall`].
+    /// (`(1t) overcall (raise)`) is authored; see [`set_responsive_overcall`].
     static RESPONSIVE_OVERCALL: Cell<bool> = const { Cell::new(false) };
 }
 
 /// Toggle the responsive double after partner's **takeout double** and their
-/// raise (`(1t)–X–(2t)–?`) for books built *after* this call (thread-local, read
+/// raise (`(1t) X (2t) ?`) for books built *after* this call (thread-local, read
 /// once at book-construction time)
 ///
 /// **On by default** (the shipped behavior): advancer's double of the raise shows
@@ -33,7 +33,7 @@ pub(crate) fn responsive_takeout_enabled() -> bool {
 }
 
 /// Toggle the responsive double after partner's **overcall** and their raise
-/// (`(1t)–overcall–(2t)–?`) for books built *after* this call (thread-local, read
+/// (`(1t) overcall (2t) ?`) for books built *after* this call (thread-local, read
 /// once at book-construction time)
 ///
 /// **Off by default** (the auction falls to the instinct floor). When on, advancer's
@@ -97,7 +97,7 @@ fn responsive_doubles(t: Suit, _raise_lvl: u8) -> Rules {
 }
 
 /// Advancer's responsive double after partner *overcalled* `overcall` over their
-/// `open`, and they raised (`(1t)–overcall–(2t)–?`)
+/// `open`, and they raised (`(1t) overcall (2t) ?`)
 ///
 /// A single-rule node: a `Call::Double` showing the two suits unbid by opener and
 /// partner (all four minus `{open, overcall}`), 4+ in each, 8+ points.  By design it

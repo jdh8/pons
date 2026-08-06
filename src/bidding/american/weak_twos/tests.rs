@@ -5,7 +5,7 @@ use crate::bidding::american::american;
 use contract_bridge::auction::Auction;
 use contract_bridge::{AbsoluteVulnerability, Hand, Seat};
 
-/// Responder's call over `open`–P, through the **production** tie-break
+/// Responder's call over `open` -, through the **production** tie-break
 ///
 /// `Table::next_call` sorts descending and takes the first legal call, so
 /// equal-weight rules resolve to the *cheapest* bid — the opposite of the

@@ -27,7 +27,7 @@ fn invitational_five_four_majors() {
     assert_eq!(best(&one_nt, s6h4), bid(4, Strain::Diamonds));
     assert_eq!(best(&one_nt, h5s4), bid(2, Strain::Diamonds));
 
-    // A: 1NT–2♣–2♦–2♠, non-forcing (opener denied a major).
+    // A: 1NT - 2♣ - 2♦ - 2♠, non-forcing (opener denied a major).
     let stayman_no_major = [
         bid(1, Strain::Notrump),
         P,
@@ -38,7 +38,7 @@ fn invitational_five_four_majors() {
     ];
     assert_eq!(best(&stayman_no_major, s5h4), bid(2, Strain::Spades));
 
-    // B: 1NT–2♣–2♥–2♠, forcing (opener showed hearts); opener with a maximum and
+    // B: 1NT - 2♣ - 2♥ - 2♠, forcing (opener showed hearts); opener with a maximum and
     // three spades accepts in 4♠.
     let stayman_hearts = [
         bid(1, Strain::Notrump),
@@ -117,7 +117,7 @@ fn invitational_five_four_majors() {
     set_invitational_5card_majors(true); // restore the default
 }
 
-/// The single-suited 5-spade invite: `1NT–2♥–2♠–2NT` (the spade mirror of the
+/// The single-suited 5-spade invite: `1NT - 2♥ - 2♠ - 2NT` (the spade mirror of the
 /// heart `2♠` relay — `2NT` is free here since 5♠4♥ Staymans), with opener's
 /// strength-and-fit placement (4♠ / 3NT / 3♠ / pass-2NT).
 #[test]
@@ -143,7 +143,7 @@ fn single_suited_spade_invite() {
         bid(2, Strain::Notrump)
     );
 
-    // Opener over 1NT–2♥–2♠–2NT, by strength and spade support:
+    // Opener over 1NT - 2♥ - 2♠ - 2NT, by strength and spade support:
     let over_invite = [
         bid(1, Strain::Notrump),
         P,

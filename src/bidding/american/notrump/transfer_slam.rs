@@ -16,7 +16,7 @@ thread_local! {
 /// Author responder's post-transfer single-suited slam try for books built
 /// *after* this call (thread-local; **on by default**).
 ///
-/// After a Jacoby transfer completes (`1NT–2♦–2♥` / `1NT–2♥–2♠`), a single-suited
+/// After a Jacoby transfer completes (`1NT - 2♦ - 2♥` / `1NT - 2♥ - 2♠`), a single-suited
 /// five-card major with slam-invitational values (16+ HCP, opposite the 15–17
 /// opener) bids the *other* major (`3♠` / `3♥`) as an artificial slam try agreeing
 /// the transfer major; opener launches RKCB with a maximum (`4NT`) or signs off in
@@ -37,7 +37,7 @@ pub(super) fn transfer_slam_try() -> bool {
 }
 
 /// Responder's artificial slam try after a Jacoby transfer completes
-/// (`1NT–2♦–2♥–3♠` / `1NT–2♥–2♠–3♥`)
+/// (`1NT - 2♦ - 2♥ - 3♠` / `1NT - 2♥ - 2♠ - 3♥`)
 ///
 /// A single-suited five-card major with 16+ HCP agrees the transfer major and bids
 /// the *other* major to ask for controls — opener cues with a maximum, else signs
@@ -96,7 +96,7 @@ pub(crate) fn heart_transfer_slam_try() -> Package {
         name: "heart-transfer-slam-try",
         gate: heart_transfer_slam_try_active,
         entries: || {
-            let path = "P* 1NT (P) 2♦ (P) 2♥ (P) 3♠ (P)".to_owned();
+            let path = "P* 1NT - 2♦ - 2♥ - 3♠ -".to_owned();
             let mut entries = rows_of(Pattern::node(&path), transfer_slam_try_answer(Suit::Hearts));
             entries.extend(slam::rkcb_rows(&path, Suit::Hearts));
             entries
@@ -110,7 +110,7 @@ pub(crate) fn spade_transfer_slam_try() -> Package {
         name: "spade-transfer-slam-try",
         gate: spade_transfer_slam_try_active,
         entries: || {
-            let path = "P* 1NT (P) 2♥ (P) 2♠ (P) 3♥ (P)".to_owned();
+            let path = "P* 1NT - 2♥ - 2♠ - 3♥ -".to_owned();
             let mut entries = rows_of(Pattern::node(&path), transfer_slam_try_answer(Suit::Spades));
             entries.extend(slam::rkcb_rows(&path, Suit::Spades));
             entries

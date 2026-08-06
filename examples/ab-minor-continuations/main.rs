@@ -1,7 +1,7 @@
 //! Minor-opening continuation A/B: baseline vs any combination of the
 //! longer-major response discipline (`--longer-major`), the up-the-line
 //! completion (`--up-the-line`), and the XYZ two-way checkback (`--xyz`).
-//! `--nmf` swaps New Minor Forcing onto the four `1m-1M-1NT` slots and is
+//! `--nmf` swaps New Minor Forcing onto the four `1m - 1M - 1NT` slots and is
 //! measured *against an XYZ baseline* (both arms run XYZ, so the divergence
 //! isolates the swap); `--dump-worst N` prints the N worst plain-DD divergent
 //! boards for the treatment (the iron rule's divergent-board trace).
@@ -66,7 +66,7 @@ struct Args {
     #[arg(long, default_value_t = false)]
     xyz: bool,
 
-    /// Treatment: New Minor Forcing in place of XYZ on the four `1m-1M-1NT`
+    /// Treatment: New Minor Forcing in place of XYZ on the four `1m - 1M - 1NT`
     /// slots (`set_new_minor_forcing`).  Measured *against XYZ*, not the floor:
     /// both arms run XYZ, the treatment arm swaps NMF onto those four slots, so
     /// the divergent boards isolate the swap.

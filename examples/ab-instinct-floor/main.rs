@@ -22,7 +22,7 @@
 //! [`Stance::classify_with_provenance`]: pons::bidding::Stance::classify_with_provenance
 
 use clap::Parser;
-use contract_bridge::auction::{Auction, Call};
+use contract_bridge::auction::{Auction, Call, display_calls};
 use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use pons::american;
@@ -73,12 +73,12 @@ struct Telemetry {
 /// Leading passes only encode the seat, which the books already fan over, so
 /// stripping them merges the four seats of one decision into one line.
 fn auction_key(auction: &[Call]) -> String {
-    auction
+    let calls = auction
         .iter()
         .skip_while(|&&call| call == Call::Pass)
-        .map(ToString::to_string)
-        .collect::<Vec<_>>()
-        .join(" ")
+        .copied()
+        .collect::<Vec<_>>();
+    display_calls(&calls).to_string()
 }
 
 // ---------------------------------------------------------------------------

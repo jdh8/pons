@@ -9,7 +9,7 @@ use super::*;
 
 thread_local! {
     /// Route slam-driving six-card-major hands through Texas + responder RKCB
-    /// instead of the opener-decides direct `1NT–4♥/4♠`; **on by default**.
+    /// instead of the opener-decides direct `1NT - 4♥/4♠`; **on by default**.
     /// See [`set_texas_slam_drive`].
     static TEXAS_SLAM_DRIVE: Cell<bool> = const { Cell::new(true) };
 }
@@ -17,7 +17,7 @@ thread_local! {
 /// Route slam-driving six-card-major hands through a Texas transfer + responder
 /// RKCB for books built *after* this call (thread-local; **on by default**).
 ///
-/// The direct `1NT–4♥/4♠` is a *non-forcing* slam try — opener moves only with a
+/// The direct `1NT - 4♥/4♠` is a *non-forcing* slam try — opener moves only with a
 /// maximum, else passes the major game.  That strands the strong responder: a
 /// 16+ six-card-major hand opposite a *minimum* 1NT (the majority) has a cold slam
 /// the opener vetoes by passing.  When on, the direct `4♥/4♠` is capped at the bare
@@ -36,8 +36,8 @@ pub(super) fn texas_slam_drive() -> bool {
     TEXAS_SLAM_DRIVE.with(Cell::get)
 }
 
-/// Responder's RKCB drive over opener's Texas completion (`1NT–4♣–4♥–4NT` /
-/// `1NT–4♦–4♠–4NT`)
+/// Responder's RKCB drive over opener's Texas completion (`1NT - 4♣ - 4♥ - 4NT` /
+/// `1NT - 4♦ - 4♠ - 4NT`)
 ///
 /// A 17+ six-card-major hand transferred at the four level and now keycards: `4NT`
 /// is RKCB, the [`slam`] 1430 ladder (installed alongside) places the slam.  Weaker
@@ -130,14 +130,11 @@ pub(crate) fn texas_transfers() -> Package {
         name: "texas-transfers",
         gate: || true,
         entries: || {
-            let heart_slam = "P* 1NT (P) 4♥ (P)";
-            let spade_slam = "P* 1NT (P) 4♠ (P)";
-            let mut entries = rows_of(
-                Pattern::node("P* 1NT (P) 4♣ (P)"),
-                complete_texas(Suit::Hearts),
-            );
+            let heart_slam = "P* 1NT - 4♥ -";
+            let spade_slam = "P* 1NT - 4♠ -";
+            let mut entries = rows_of(Pattern::node("P* 1NT - 4♣ -"), complete_texas(Suit::Hearts));
             entries.extend(rows_of(
-                Pattern::node("P* 1NT (P) 4♦ (P)"),
+                Pattern::node("P* 1NT - 4♦ -"),
                 complete_texas(Suit::Spades),
             ));
             entries.extend(rows_of(Pattern::node(heart_slam), slam_try_answer()));
@@ -155,8 +152,8 @@ pub(crate) fn texas_drive() -> Package {
         name: "texas-slam-drive",
         gate: texas_slam_drive,
         entries: || {
-            let heart_drive = "P* 1NT (P) 4♣ (P) 4♥ (P)";
-            let spade_drive = "P* 1NT (P) 4♦ (P) 4♠ (P)";
+            let heart_drive = "P* 1NT - 4♣ - 4♥ -";
+            let spade_drive = "P* 1NT - 4♦ - 4♠ -";
             let mut entries = rows_of(Pattern::node(heart_drive), texas_slam_drive_rebid());
             entries.extend(rows_of(
                 Pattern::node(spade_drive),

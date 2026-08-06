@@ -43,7 +43,7 @@ thread_local! {
     /// two-suiters split by strength: weak prefers the heart transfer (safety),
     /// invitational and minimum game force show both at once via the
     /// both-majors 3♦, and slam tries prefer the spade transfer for the
-    /// `1NT–2♥–2♠–3♥` structure.  **On by default**; off restores the legacy
+    /// `1NT - 2♥ - 2♠ - 3♥` structure.  **On by default**; off restores the legacy
     /// guards (a 6♠5♥ hand could tie into the heart transfer, and 3♦ fired on
     /// any 5-5+).  See [`set_transfer_longer_major`].
     static TRANSFER_LONGER_MAJOR: Cell<bool> = const { Cell::new(true) };
@@ -58,7 +58,7 @@ thread_local! {
 /// nothing shows the spades below it anyway), invitational and minimum game
 /// force bid the both-majors `3♦` (which this discipline also restricts to
 /// equal lengths — a 6-5 hand prefers naming its longer suit first), and a
-/// slam try (17+) transfers to *spades* for the `1NT–2♥–2♠–3♥` natural
+/// slam try (17+) transfers to *spades* for the `1NT - 2♥ - 2♠ - 3♥` natural
 /// game-force structure.  Off restores the legacy guards for the A/B.
 pub fn set_transfer_longer_major(on: bool) {
     TRANSFER_LONGER_MAJOR.with(|cell| cell.set(on));
@@ -90,7 +90,7 @@ pub(crate) fn complete_transfer(into: Suit) -> Rules {
 }
 
 /// Responder's invitational 5-4 rebid after the heart transfer completes
-/// (`1NT–2♦–2♥`, auctions C/D)
+/// (`1NT - 2♦ - 2♥`, auctions C/D)
 ///
 /// Both rebids are exactly-8 invitational with five hearts (shown by the
 /// transfer).  `2NT` adds a four-card spade suit (auction D); `2♠` is an artificial
@@ -113,7 +113,7 @@ fn transfer_heart_invite_rebid() -> Rules {
         .alert(INV_5CARD)
 }
 
-/// Opener's reply to the artificial single-suited-heart invite (`…2♥–2♠`, C)
+/// Opener's reply to the artificial single-suited-heart invite (`…2♥ - 2♠`, C)
 ///
 /// Responder is a bare-8 with five hearts and no four-card spade suit.  A maximum
 /// (17) accepts game — `4♥` on three-card support, else `3NT`; a minimum signs off
@@ -139,7 +139,7 @@ pub(super) fn answer_transfer_heart_single() -> Rules {
 }
 
 /// Opener's reply to the `2NT` invite showing five hearts and four spades
-/// (`…2♥–2NT`, D)
+/// (`…2♥ - 2NT`, D)
 ///
 /// Prefer the 5-3 heart fit, then the 4-4 spade fit, then notrump.  A maximum (17)
 /// bids game; a minimum signs off at the three level (or passes `2NT`), which
@@ -175,7 +175,7 @@ pub(super) fn answer_transfer_heart_spade() -> Rules {
 }
 
 /// Responder's invitational single-suited 5-spade rebid after the spade transfer
-/// completes (`1NT–2♥–2♠`)
+/// completes (`1NT - 2♥ - 2♠`)
 ///
 /// `2NT` shows five spades (the transfer), no four-card heart suit, and exactly-8
 /// invitational values.  Unlike the heart side — where `2NT` is taken by the 5♥4♠
@@ -193,7 +193,7 @@ fn transfer_spade_invite_rebid() -> Rules {
         .alert(INV_5CARD)
 }
 
-/// Opener's reply to the single-suited-spade invite (`…2♠–2NT`)
+/// Opener's reply to the single-suited-spade invite (`…2♠ - 2NT`)
 ///
 /// Responder is a bare-8 with five spades and no four-card heart suit.  A maximum
 /// (17) accepts game — `4♠` on three-card support, else `3NT`; a minimum signs off
@@ -272,7 +272,7 @@ pub(crate) fn heart_transfer_rebids() -> Package {
         gate: heart_transfer_rebid_active,
         entries: || {
             rows_of(
-                Pattern::node("P* 1NT (P) 2♦ (P) 2♥ (P)"),
+                Pattern::node("P* 1NT - 2♦ - 2♥ -"),
                 heart_transfer_rebid_table(),
             )
         },
@@ -286,7 +286,7 @@ pub(crate) fn spade_transfer_rebids() -> Package {
         gate: spade_transfer_rebid_active,
         entries: || {
             rows_of(
-                Pattern::node("P* 1NT (P) 2♥ (P) 2♠ (P)"),
+                Pattern::node("P* 1NT - 2♥ - 2♠ -"),
                 spade_transfer_rebid_table(),
             )
         },

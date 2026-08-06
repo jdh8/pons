@@ -55,7 +55,7 @@ fn direct_landy_double_shows_both_majors_and_runs_clean() {
     // After the ask, the doubler names its five-card major.
     let (named_xx, named_xx_floored) = best_call(&[nt, x, xx, p, p], "AJ32.KQ876.32.32");
     // After we name our major (via the undoubled relay) and they double it, SIT —
-    // play 2♥x (our 5-4+ fit), never run to 3♦.  `[1NT,X,P,2♦,X,2♥,X,P,P]`.
+    // play 2♥x (our 5-4+ fit), never run to 3♦.  `(1NT) X - 2♦ (X) 2♥ (X) - -`.
     let sit_auction = [nt, x, p, d2, x, call(2, Strain::Hearts), x, p, p];
     let (settle, settle_floored) = best_call(&sit_auction, "AJ32.KQ876.32.32");
 

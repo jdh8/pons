@@ -135,7 +135,7 @@ const PONS_SCHEMA: &[&str] = &["South African Texas", "Queen ask by available bi
 /// Panics if `name` is not in [`PONS_SCHEMA`].
 fn pons_row(name: &str) -> i32 {
     match name {
-        // 1NT–4♣/4♦ transfers to the majors (`american/notrump.rs`), always on:
+        // 1NT - 4♣/4♦ transfers to the majors (`american/notrump.rs`), always on:
         // the knobs beside it set the game-blast floor and the slam-drive
         // reroute, not whether we play it.
         "South African Texas" => 1,
@@ -433,7 +433,7 @@ fn american_row(name: &str) -> i32 {
         // Puppet-scheme rows the European variant does not reach; `2♠` is never
         // Minor Suit Stayman and `2NT` is never clubs under either scheme.
         "1N-2S Minor Suit Stayman" | "1N-2N transfer to clubs" => 0,
-        // `1NT-3♦` shows both majors (authored; the floor misreads it as natural).
+        // `1NT - 3♦` shows both majors (authored; the floor misreads it as natural).
         "1N-3D majors" => 1,
         "1N-3D minors" | "1N-3D natural" | "1N-3D splinter" => 0,
         // Our 1NT is a natural 15-17.  This pair is one mutually-exclusive radio
@@ -548,7 +548,7 @@ fn american_row(name: &str) -> i32 {
         "Shape Bergen structure" => 1,
         "Strength Lawrence structure" => 0,
         // Unresolved, and cosmetic (zero decisions moved).  EPBot's
-        // `conventions[151]` changes what `1M`–`1NT`–`2M` and a raise over RHO's
+        // `conventions[151]` changes what `1M - 1NT - 2M` and a raise over RHO's
         // double mean, which does not line up cleanly with anything we author —
         // our limit-raise-over-a-double is `Jordan Truscott 2NT`.  Carried at the
         // hand-written `1` rather than guessed at in either direction.

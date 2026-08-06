@@ -3,11 +3,11 @@
 //! Two responsive doubles, each measured against the bare instinct floor:
 //!
 //! - `--conv takeout` (the **shipped** node): after partner doubles their opening
-//!   and an opponent raises (`(1t)–X–(2t)–?`), advancer's double shows the two
+//!   and an opponent raises (`(1t) X (2t) ?`), advancer's double shows the two
 //!   unbid suits with 8+. The measured pair carries it (default on); the baseline
 //!   turns it off via [`set_responsive_takeout`], dropping the auction to the floor.
 //! - `--conv overcall` (a non-standard **extension**): after partner *overcalls*
-//!   and an opponent raises (`(1t)–overcall–(2t)–?`), advancer doubles to show the
+//!   and an opponent raises (`(1t) overcall (2t) ?`), advancer doubles to show the
 //!   two suits unbid by opener and partner. Off by default; the measured pair turns
 //!   it on via [`set_responsive_overcall`], the baseline leaves it floored.
 //!
@@ -58,14 +58,14 @@ struct Args {
     #[arg(long, default_value = "takeout")]
     conv: String,
 
-    /// Only count deals that can plausibly reach `(1t)–action–(2t)` (a cheap shape
+    /// Only count deals that can plausibly reach `(1t) action (2t)` (a cheap shape
     /// pre-filter), so the DD budget lands on boards that can actually diverge.
     /// `--count` is then the number of such filtered boards.
     #[arg(long, default_value = "false")]
     filter: bool,
 }
 
-/// Cheap pre-filter (no bidding): could this deal plausibly reach `(1t)–action–(2t)`
+/// Cheap pre-filter (no bidding): could this deal plausibly reach `(1t) action (2t)`
 /// with a responsive-double-shaped advancer?
 ///
 /// The four roles, in seat order from the opener: opener (`S0`, 11–21 HCP, opens a
@@ -190,7 +190,7 @@ fn main() {
     );
     if args.filter {
         println!(
-            "(pre-filtered to plausible (1t)-action-(2t): kept {} of {scanned} dealt, {:.1}%)",
+            "(pre-filtered to plausible (1t) action (2t): kept {} of {scanned} dealt, {:.1}%)",
             args.count,
             100.0 * args.count as f64 / scanned.max(1) as f64,
         );

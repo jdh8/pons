@@ -2,7 +2,7 @@
 //! provenance for a hand at an auction, under the default `american()` books.
 //!
 //! `cargo run --example probe-classify -- --hand "KQ8.A9762.A76.T6" \
-//!     --auction "P 1H P 3H P"`
+//!     --auction "- 1H - 3H -"`
 
 use clap::Parser;
 use contract_bridge::Hand;
@@ -18,7 +18,7 @@ struct Args {
     #[arg(long)]
     hand: String,
 
-    /// Space-separated calls from the dealer (e.g. "P 1H P 3H P")
+    /// Space-separated calls from the dealer (e.g. "- 1H - 3H -")
     #[arg(long)]
     auction: String,
 

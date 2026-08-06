@@ -306,7 +306,7 @@ fn main() -> anyhow::Result<()> {
             expect_label: None,
         },
         Case {
-            label: "cue chain: 4♣-4♦ cues then 4♥",
+            label: "cue chain: 4♣ - 4♦ cues then 4♥",
             actor: 2,
             prefix: &[B1D, P, B3D, P, B4C, P, B4D, P, B4H, P],
             hand: ("A54", "876", "QJ854", "K2"),
@@ -318,7 +318,7 @@ fn main() -> anyhow::Result<()> {
         // Our walk-up ladder claims 4♥ for diamonds after a *simple* rebid, and
         // responder's natural 6-6 4♥ was answered as an ask (or passed out).
         Case {
-            label: "collision A: 6-6 majors over 1♦-1♠-2♦ — what does BBA bid?",
+            label: "collision A: 6-6 majors over 1♦ - 1♠ - 2♦ — what does BBA bid?",
             actor: 2,
             prefix: &[B1D, P, B1S, P, B2D, P],
             hand: ("AQJT83", "QT9875", "", "6"),
@@ -327,7 +327,7 @@ fn main() -> anyhow::Result<()> {
             expect_label: None,
         },
         Case {
-            label: "collision B: 1♦-1♠-2♦-4♥ — ask or natural?",
+            label: "collision B: 1♦ - 1♠ - 2♦ - 4♥ — ask or natural?",
             actor: 0,
             prefix: &[B1D, P, B1S, P, B2D, P, B4H, P],
             hand: ("K5", "Q32", "AKQ632", "Q3"),
@@ -336,7 +336,7 @@ fn main() -> anyhow::Result<()> {
             expect_label: None,
         },
         Case {
-            label: "collision C: 1♦-1♠-3♦-4♥ (jump rebid) — ask or natural?",
+            label: "collision C: 1♦ - 1♠ - 3♦ - 4♥ (jump rebid) — ask or natural?",
             actor: 0,
             prefix: &[B1D, P, B1S, P, B3D, P, B4H, P],
             hand: ("K5", "Q3", "AKQJ63", "Q32"),
@@ -485,7 +485,7 @@ fn main() -> anyhow::Result<()> {
             expect_label: Some((8, "bidable suit")),
         },
         Case {
-            label: "Jacoby 2NT route: 4♠ fed after 1♥-2NT",
+            label: "Jacoby 2NT route: 4♠ fed after 1♥ - 2NT",
             actor: 2,
             prefix: &[B1H, P, B2N, P, B4S, P],
             hand: ("876", "QJ85", "A54", "872"),
@@ -539,7 +539,7 @@ fn main() -> anyhow::Result<()> {
             expect_label: None,
         },
         Case {
-            label: "cue chain complete, ask due: 4♣-4♦ done, KB on",
+            label: "cue chain complete, ask due: 4♣ - 4♦ done, KB on",
             actor: 0,
             prefix: &[B1D, P, B3D, P, B4C, P, B4D, P],
             hand: ("AK3", "A2", "AKQ632", "K4"),
@@ -557,7 +557,7 @@ fn main() -> anyhow::Result<()> {
             expect_label: None,
         },
         Case {
-            label: "Jacoby, opener monster, after 3♥-4♦ cue, KB on",
+            label: "Jacoby, opener monster, after 3♥ - 4♦ cue, KB on",
             actor: 0,
             prefix: &[B1H, P, B2N, P, B3H, P, B4D, P],
             hand: ("A2", "AKQJ65", "KQ4", "A3"),

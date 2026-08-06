@@ -1,4 +1,4 @@
-//! Compare flavors of the `(2♠) X (P)` decision by double-dummy simulation.
+//! Compare flavors of the `(2♠) X -` decision by double-dummy simulation.
 //!
 //! The scenario: West opens a weak 2♠ (from the real [`american`]
 //! system), North makes a takeout double, East passes, and South must choose
@@ -10,7 +10,7 @@
 //! 3. **East passes** — the system's top call over `(2♠) X`; deals where East
 //!    would raise or otherwise act never reach South's decision.
 //! 4. **South's decision is live** — the system's own advance over
-//!    `(2♠) X (P)` is Pass or 3NT; hands that would bid a suit or escape are
+//!    `(2♠) X -` is Pass or 3NT; hands that would bid a suit or escape are
 //!    not facing this choice.
 //!
 //! The experiment then sweeps two decisions:
@@ -57,7 +57,7 @@ use std::collections::HashMap;
 const TWO_SPADES: Call = Call::Bid(Bid::new(2, Strain::Spades));
 const THREE_NOTRUMP: Call = Call::Bid(Bid::new(3, Strain::Notrump));
 
-/// Compare flavors of the (2♠) X (P) defend-vs-declare decision
+/// Compare flavors of the `(2♠) X -` defend-vs-declare decision
 #[derive(Parser)]
 struct Args {
     /// Vulnerability: none, ns, ew, both
@@ -156,7 +156,7 @@ fn build_table(vul: AbsoluteVulnerability) -> Table<Stance, Stance> {
     Table::of_pairs(&pair, &pair, Seat::West, vul)
 }
 
-/// The auction seeded with `(2♠) X (P)` and South's `decision`
+/// The auction seeded with `(2♠) X -` and South's `decision`
 fn seeded_auction(decision: Call) -> Auction {
     let mut auction = Auction::new();
     auction
@@ -498,7 +498,7 @@ fn main() -> anyhow::Result<()> {
     let collected = collect_deals(&args, &table, &doubles, &mut rng);
     if collected.deals.is_empty() {
         anyhow::bail!(
-            "no deals survived the (2S) X (P) funnel in {} attempts; \
+            "no deals survived the (2S) X - funnel in {} attempts; \
              try raising --max-attempts-per-deal",
             collected.attempts,
         );

@@ -1,5 +1,5 @@
-//! Integration tests for the authored Puppet Stayman (1NT–3♣) and the
-//! minor-suit transfers (1NT–2NT diamonds, 1NT–2♠ clubs/invite): the 2♣-vs-3♣
+//! Integration tests for the authored Puppet Stayman at `1NT - 3♣` and the
+//! minor-suit transfers `1NT - 2NT` (diamonds) and `1NT - 2♠` (clubs/invite): the 2♣-vs-3♣
 //! carve, the 5-3 major hunt, the 3♦-deny Smolen 4-4 hunt, the diamond
 //! pass-or-correct, and the two-way 2♠ (max/min reply, signoff, game splinter).
 
@@ -8,7 +8,7 @@ use common::*;
 
 const P: Call = Call::Pass;
 
-/// `1NT P` plus the given tail of our-side calls (RHO passes interleaved)
+/// `1NT -` plus the given tail of our-side calls (RHO passes interleaved)
 fn after_1nt(tail: &[Call]) -> Vec<Call> {
     let mut auction = vec![call(1, Strain::Notrump), P];
     for &c in tail {
@@ -128,7 +128,7 @@ fn responder_bids_the_short_major_to_find_a_four_four() {
 #[test]
 fn opener_completes_the_four_four_spade_fit() {
     let system = stance();
-    // …3♣ 3♦ 3♥ named four spades; opener with four raises to 4♠.
+    // `1NT - 3♣ - 3♦ - 3♥ -` named four spades; opener with four raises to 4♠.
     let auction = after_1nt(&[
         call(3, Strain::Clubs),
         call(3, Strain::Diamonds),
@@ -151,7 +151,7 @@ fn responder_signs_off_in_3nt_without_a_four_card_major() {
     );
 }
 
-// --- Diamond transfer (1NT–2NT) ---------------------------------------------
+// --- Diamond transfer after 1NT - 2NT ---------------------------------------
 
 #[test]
 fn opener_completes_the_diamond_transfer_with_a_fit() {
@@ -250,7 +250,8 @@ fn game_forcing_five_four_takes_stayman_not_a_transfer() {
 #[test]
 fn five_four_smolens_over_the_stayman_denial() {
     let system = stance();
-    // 1NT 2♣ 2♦ (no major): jump 3♥ to show five spades and four hearts.
+    // `1NT - 2♣ - 2♦ -`: after the no-major denial, jump to 3♥ to show
+    // five spades and four hearts.
     let auction = after_1nt(&[call(2, Strain::Clubs), call(2, Strain::Diamonds)]);
     assert_eq!(
         best_call(&system, &auction, "AQJxx.KJxx.Kx.xx"),

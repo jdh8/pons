@@ -1,4 +1,4 @@
-//! Crawling Stayman — `1NT – 2♣ – 2♦ – 2♥`, a weak two-suiter escape
+//! Crawling Stayman — `1NT - 2♣ - 2♦ - 2♥`, a weak two-suiter escape
 //!
 //! Responder's `2♥` over the diamond denial is a *pass-or-correct* signoff on
 //! both majors rather than a natural heart bid.  Gated by
@@ -57,7 +57,7 @@ pub(crate) fn crawling_stayman() -> bool {
     CRAWLING_STAYMAN.with(Cell::get)
 }
 
-/// Opener's reply to the crawl (`1NT–2♣–2♦–2♥`): drop-dead pass-or-correct
+/// Opener's reply to the crawl (`1NT - 2♣ - 2♦ - 2♥`): drop-dead pass-or-correct
 ///
 /// Opener denied both majors (≤3 each).  Pass the 4-3 heart fit; with only two
 /// hearts correct to 2♠ (then ≥3 spades).  Short in *both* majors — only a
@@ -85,7 +85,7 @@ pub(crate) fn crawling() -> Package {
         gate: crawling_stayman,
         entries: || {
             rows_of(
-                Pattern::node("P* 1NT (P) 2♣ (P) 2♦ (P) 2♥ (P)"),
+                Pattern::node("P* 1NT - 2♣ - 2♦ - 2♥ -"),
                 answer_crawling_stayman(),
             )
         },

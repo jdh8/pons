@@ -10,15 +10,15 @@
 //!
 //! ```text
 //! cargo run --release --example probe-bba-1nt            # BBA's defense over (1NT)
-//! cargo run --release --example probe-bba-1nt responder  # BBA's Unusual-vs-Unusual: 1NT-(2NT)
-//! cargo run --release --example probe-bba-1nt doubled    # BBA's runout after 1NT-(X)
+//! cargo run --release --example probe-bba-1nt responder  # BBA's Unusual-vs-Unusual: 1NT (2NT)
+//! cargo run --release --example probe-bba-1nt doubled    # BBA's runout after 1NT (X)
 //! ```
 //!
 //! The `doubled` mode is the mirror of `responder`: BBA *opens* 1NT and gets a
 //! penalty double, so it reads BBA's runout style — natural scramble (weak hands
 //! flee to a suit), systems-on (Stayman / transfers ignore the X), or sit/redouble.
 //!
-//! The `responder` mode reads BBA's *opening-side* call after `1NT-(2NT)`, where
+//! The `responder` mode reads BBA's *opening-side* call after `1NT (2NT)`, where
 //! that `2NT` is BBA's own Multi-Landy both-minors overcall — i.e. how BBA plays
 //! "Unusual vs Unusual" over our 1NT.  Both vulnerabilities are shown because the
 //! penalty-double decision is vul-sensitive.
@@ -103,8 +103,9 @@ fn main() -> anyhow::Result<()> {
     ];
 
     if std::env::args().nth(1).as_deref() == Some("responder") {
-        // Opening-side responder over 1NT-(2NT both minors) = "Unusual vs Unusual".
-        // (label, ♠, ♥, ♦, ♣) — responder (position 2) after [1NT, (2NT)].
+        // Opening-side responder over `1NT (2NT)`, with 2NT showing both minors:
+        // "Unusual vs Unusual".
+        // (label, ♠, ♥, ♦, ♣) — responder (position 2) after `1NT (2NT)`.
         let hands: &[(&str, &str, &str, &str, &str)] = &[
             ("penalize ♦ only  ", "K54", "84", "KQJT9", "732"),
             ("penalize ♣ only  ", "K54", "84", "732", "KQJT9"),
@@ -118,7 +119,7 @@ fn main() -> anyhow::Result<()> {
             ("strong 1-suit ♦  ", "A54", "K4", "KQJT9", "732"),
             ("weak both minors ", "8432", "4", "QJT9", "QJT9"),
         ];
-        println!("BBA (system 0) responder over 1NT-(2NT both minors):\n");
+        println!("BBA (system 0) responder over 1NT (2NT), with 2NT showing both minors:\n");
         for &(label, s, h, d, c) in hands {
             let hand = suits(s, h, d, c);
             // SAFETY: fresh bot per probe; responder (position 2) holds `hand`;
@@ -148,7 +149,7 @@ fn main() -> anyhow::Result<()> {
 
     if std::env::args().nth(1).as_deref() == Some("runout") {
         // Is there a *delayed* penalty double of the opponents' 3♣ runout?
-        // After 1NT-(2NT)-P, the advancer picks a minor (3♣ here).  We probe two
+        // After 1NT (2NT) -, the advancer picks a minor (3♣ here). We probe two
         // seats with club-stacked hands: opener reopening over 3♣, and responder's
         // delayed double after opener+overcaller pass.  `prefix` is the replayed
         // auction up to (but not including) the actor; `actor` is its seat.
@@ -176,8 +177,8 @@ fn main() -> anyhow::Result<()> {
             );
         };
         // 1NT=9, 2NT=14, Pass=0, 3♣=15.
-        println!("BBA (system 0) over the opponents' 3♣ runout after 1NT-(2NT)-P-3♣:\n");
-        println!("opener reopening [1NT,(2NT),P,(3♣)]:");
+        println!("BBA (system 0) over the opponents' 3♣ runout after 1NT (2NT) - (3♣):\n");
+        println!("opener reopening 1NT (2NT) - (3♣):");
         probe(
             "16, club stack ",
             0,
@@ -196,7 +197,7 @@ fn main() -> anyhow::Result<()> {
             "KJ86",
             "Q83",
         );
-        println!("\nresponder delayed [1NT,(2NT),P,(3♣),P,P]:");
+        println!("\nresponder delayed 1NT (2NT) - (3♣) - -:");
         probe(
             "penalize ♣ only",
             2,
@@ -221,9 +222,9 @@ fn main() -> anyhow::Result<()> {
     if std::env::args().nth(1).as_deref() == Some("responses") {
         // BBA's 4th-seat call over the opponents' 1NT *response* (defense to
         // Stayman / Jacoby transfers).  Auctions probed, actor = position 3:
-        //   Stayman   [1NT, P, 2♣]      prefix [9, 0, 10]   (their 2♣ = Stayman)
-        //   xfer→♥    [1NT, P, 2♦]      prefix [9, 0, 11]   (their 2♦ = hearts)
-        //   xfer→♠    [1NT, P, 2♥]      prefix [9, 0, 12]   (their 2♥ = spades)
+        //   Stayman   `(1NT) - (2♣)`   prefix [9, 0, 10]   (their 2♣ = Stayman)
+        //   xfer→♥    `(1NT) - (2♦)`   prefix [9, 0, 11]   (their 2♦ = hearts)
+        //   xfer→♠    `(1NT) - (2♥)`   prefix [9, 0, 12]   (their 2♥ = spades)
         // Reveals what X / cue / 2NT mean: lead-direct the *bid* suit, the *shown*
         // suit, takeout, or two-suiter.
         let probe = |label: &str, prefix: &[c_int], s, h, d, c| {
@@ -277,9 +278,9 @@ fn main() -> anyhow::Result<()> {
             ("6-5 minors  ", "8", "3", "KQJT9", "KQJT98"),
         ];
         for (auction, prefix) in [
-            ("Stayman  [1NT,P,2♣]", &[9, 0, 10][..]),
-            ("xfer→♥   [1NT,P,2♦]", &[9, 0, 11][..]),
-            ("xfer→♠   [1NT,P,2♥]", &[9, 0, 12][..]),
+            ("Stayman  (1NT) - (2♣)", &[9, 0, 10][..]),
+            ("xfer→♥   (1NT) - (2♦)", &[9, 0, 11][..]),
+            ("xfer→♠   (1NT) - (2♥)", &[9, 0, 12][..]),
         ] {
             println!("\nBBA 4th-seat defense to {auction}:");
             for &(label, s, h, d, c) in battery {
@@ -291,7 +292,8 @@ fn main() -> anyhow::Result<()> {
 
     if std::env::args().nth(1).as_deref() == Some("delayed") {
         // BBA's *delayed/balancing* double after the opponents complete a transfer
-        // and subside: [1NT, P, 2♦(→♥), P, 2♥(completed), P, P] then our pass-out
+        // and subside: `(1NT) - (2♦) - (2♥) - -`, with 2♦ transferring to
+        // hearts and 2♥ completing it, then our pass-out
         // seat (position 3) acts.  Is the X takeout (short hearts, other suits) or
         // penalty (heart length/strength)?  prefix [9,0,11,0,12,0,0].
         let probe = |label: &str, s, h, d, c| {
@@ -317,7 +319,9 @@ fn main() -> anyhow::Result<()> {
                 call(3),
             );
         };
-        println!("BBA pass-out seat over 1NT-P-2♦-P-2♥-P-P-? (delayed double of their 2♥):\n");
+        println!(
+            "BBA pass-out seat over (1NT) - (2♦) - (2♥) - - ? (delayed double of their 2♥):\n"
+        );
         probe("4441 short ♥ ", "AJ97", "3", "KQ97", "KJ97");
         probe("4=1=4=4 sh ♥ ", "KQ97", "4", "AJ97", "KJ97");
         probe("bal 13 2♥    ", "KJ7", "A4", "KQ97", "Q976");
@@ -359,7 +363,7 @@ fn main() -> anyhow::Result<()> {
         // (label, ♠, ♥, ♦, ♣) — responder hands spanning weak one-/two-suiters
         // (would scramble), weak flat (sit or SOS?), invitational (transfer/Stayman
         // if systems-on?), and game-forcing (redouble business / bid game?).
-        println!("BBA (system 0) responder runout after 1NT-(X):\n");
+        println!("BBA (system 0) responder runout after 1NT (X):\n");
         probe("weak 6♣      ", "843", "84", "73", "QJT965");
         probe("weak 6♦      ", "843", "84", "QJT965", "73");
         probe("weak 5♥      ", "843", "QJT95", "732", "84");

@@ -112,7 +112,7 @@ and not disqualifying — it would confirm the wall, and the real test is SD.
 ## What already exists in the code (reuse this)
 
 DONT is implemented **only for passed hands** today
-(`[P,P,P,1NT]`), gated on `passed_hand()`:
+(`- - - (1NT)`), gated on `passed_hand()`:
 
 - `PassedHandDefense::Dont` enum + `set_passed_hand_defense(Some(Dont))` —
   [defense/nt_dont.rs](../../src/bidding/american/defense/nt_dont.rs).
@@ -130,7 +130,7 @@ DONT is implemented **only for passed hands** today
 
 1. **Direct-seat DONT** behind a knob (e.g. `set_direct_dont(bool)` or extend the
    defense-style selection). Reuse the `dont_*` shape predicates and the advance
-   functions; ungate them from `passed_hand()` for the direct `[1NT]` seat (and
+   functions; ungate them from `passed_hand()` for the direct `(1NT)` seat (and
    the balancing seat if `notrump_balancing`). The X = one-suiter / `2♣` relay
    continuation already exists — the work is mostly *re-keying* it from the
    passed-hand auction to the direct-seat auction and gating the natural

@@ -4,7 +4,7 @@ use contract_bridge::auction::Call;
 
 #[test]
 fn transfer_smolen_three_clubs_is_stayman() {
-    // 1NT–(2♦): a 4-4 majors game-force bids 3♣ Stayman (a book node).
+    // 1NT (2♦): a 4-4 majors game-force bids 3♣ Stayman (a book node).
     let auction = [call(1, Strain::Notrump), call(2, Strain::Diamonds)];
     let (c, floored) = bid_transfer(&auction, "AQ32.KJ32.A2.432");
     assert_eq!(c, call(3, Strain::Clubs));
@@ -13,7 +13,7 @@ fn transfer_smolen_three_clubs_is_stayman() {
 
 #[test]
 fn transfer_smolen_opener_answers_stayman() {
-    // 1NT–(2♦)–3♣: opener shows a 4-card major (3♥ here).
+    // 1NT (2♦) 3♣: opener shows a 4-card major (3♥ here).
     let auction = [
         call(1, Strain::Notrump),
         call(2, Strain::Diamonds),
@@ -27,7 +27,7 @@ fn transfer_smolen_opener_answers_stayman() {
 
 #[test]
 fn transfer_smolen_three_diamonds_is_the_heart_transfer() {
-    // The reshuffle: 1NT–(2♦)–3♦ shows hearts (the freed cue slot), a book node.
+    // The reshuffle: 1NT (2♦) 3♦ shows hearts (the freed cue slot), a book node.
     let auction = [call(1, Strain::Notrump), call(2, Strain::Diamonds)];
     let (c, floored) = bid_transfer(&auction, "K3.KQ976.A32.432");
     assert_eq!(c, call(3, Strain::Diamonds));
@@ -55,7 +55,7 @@ fn transfer_smolen_routes_five_four_to_stayman_not_a_transfer() {
 
 #[test]
 fn transfer_smolen_jumps_smolen_after_the_denial() {
-    // 1NT–(2♦)–3♣–P–3♦(no major)–P: responder bids Smolen 3♥ to show 5 spades.
+    // `1NT (2♦) 3♣ - 3♦ -` (no major): responder bids Smolen 3♥ to show 5 spades.
     let auction = [
         call(1, Strain::Notrump),
         call(2, Strain::Diamonds),
@@ -78,7 +78,7 @@ fn transfer_smolen_jumps_smolen_after_the_denial() {
 
 #[test]
 fn transfer_smolen_leaping_michaels_both_majors() {
-    // 1NT–(2♦)–4♦ = both majors 5-5, game-forcing.
+    // 1NT (2♦) 4♦ = both majors 5-5, game-forcing.
     let auction = [call(1, Strain::Notrump), call(2, Strain::Diamonds)];
     let (c, floored) = bid_transfer(&auction, "KQ954.AJ876.2.32");
     assert_eq!(c, call(4, Strain::Diamonds));
@@ -107,7 +107,7 @@ fn transfer_smolen_keeps_cohen_over_a_major_overcall() {
 
 #[test]
 fn transfer_lebensohl_shows_spades_through_their_hearts() {
-    // 1NT–(2♥); responder, 5 spades and game values, transfers *through*
+    // 1NT (2♥); responder, 5 spades and game values, transfers *through*
     // hearts: 3♦ shows spades (not diamonds), a book node.
     let auction = [call(1, Strain::Notrump), call(2, Strain::Hearts)];
     let (c, floored) = bid_transfer(&auction, "AKQ65.43.K32.J32");
@@ -117,7 +117,7 @@ fn transfer_lebensohl_shows_spades_through_their_hearts() {
 
 #[test]
 fn transfer_lebensohl_opener_bids_game_not_a_partscore() {
-    // After 1NT–(2♥)–3♦ (transfer to spades), opener with a fit must bid
+    // After 1NT (2♥) 3♦ (transfer to spades), opener with a fit must bid
     // the spade *game*, never a 3♠ partscore (the Rubensohl-v1 failure).
     let auction = [
         call(1, Strain::Notrump),
@@ -131,7 +131,7 @@ fn transfer_lebensohl_opener_bids_game_not_a_partscore() {
 
 #[test]
 fn transfer_lebensohl_cue_is_stayman() {
-    // 1NT–(2♥)–3♥ is the cue = Stayman; opener answers a 4-card major.
+    // 1NT (2♥) 3♥ is the cue = Stayman; opener answers a 4-card major.
     // (Over (2♦) the cue slot is freed for the Smolen 3♣-Stayman instead.)
     let auction = [
         call(1, Strain::Notrump),
@@ -196,7 +196,7 @@ fn transfer_lebensohl_top_step_is_a_clubs_transfer() {
 
 #[test]
 fn transfer_lebensohl_traps_a_too_good_stopper() {
-    // Over 1NT–(2♥) with game values, a *too-good* heart stopper (♥AQ86, 6
+    // Over 1NT (2♥) with game values, a *too-good* heart stopper (♥AQ86, 6
     // HCP in their suit) traps: pass and wait for opener's reopening takeout
     // double, then convert. A merely *adequate* stopper (♥A964, 4 HCP) is a
     // source of tricks and still declares 3NT. (Trap pass on by default.)
@@ -231,7 +231,7 @@ fn transfer_lebensohl_traps_a_too_good_stopper() {
 
 #[test]
 fn transfer_lebensohl_top_step_opener_completes_at_game() {
-    // After 1NT–(2♥)–3♠ (transfer to clubs, forced GF): opener bids 3NT with
+    // After 1NT (2♥) 3♠ (transfer to clubs, forced GF): opener bids 3NT with
     // a heart stopper, else raises to 5♣ — 3♣ is unplayable, so it reaches game.
     let auction = [
         call(1, Strain::Notrump),

@@ -34,7 +34,7 @@ use std::cell::Cell;
 
 std::thread_local! {
     /// Whether opener authors a third-call table after responder raises
-    /// opener's second suit (`1M – 2r – 2x – 3x`).  On by default — shipped
+    /// opener's second suit (`1M - 2r - 2x - 3x`).  On by default — shipped
     /// (+0.0012 plain / +0.0014 PD NV, +0.0015 / +0.0018 vul IMPs/board vs BBA);
     /// see [`set_second_suit_agreement`].  When off, that node falls through to
     /// the floor (it fell to the game backstop until that was deleted).
@@ -46,14 +46,14 @@ std::thread_local! {
     static GAME_BACKSTOP: Cell<bool> = const { Cell::new(false) };
 
     /// Whether opener authors a third-call table after trump is agreed at
-    /// `1M – 2r – R – 3M`.  On by default; the deletion measures positive but
+    /// `1M - 2r - R - 3M`.  On by default; the deletion measures positive but
     /// strands every slam at this node, see [`set_opener_third`].
     static OPENER_THIRD: Cell<bool> = const { Cell::new(true) };
 }
 
 /// Toggle opener's third call after responder agrees the second suit
 ///
-/// Read at book-construction time; `1M – 2r – 2x – 3x` gets an opener rebid
+/// Read at book-construction time; `1M - 2r - 2x - 3x` gets an opener rebid
 /// (RKCB on extras, else sign off) instead of falling to the game backstop.
 pub fn set_second_suit_agreement(on: bool) {
     SECOND_SUIT_AGREEMENT.with(|cell| cell.set(on));
@@ -63,7 +63,7 @@ fn second_suit_agreement() -> bool {
     SECOND_SUIT_AGREEMENT.with(Cell::get)
 }
 
-/// Toggle opener's third call after responder sets trump: `1M – 2r – R – 3M`
+/// Toggle opener's third call after responder sets trump: `1M - 2r - R - 3M`
 ///
 /// Read at book-construction time.  **On by default** — but see the caveat, it
 /// is a deletion candidate blocked on a floor capability, not a settled node.
@@ -226,7 +226,7 @@ fn responder_rebid(major: Suit, resp: Suit) -> Rules {
     rules
 }
 
-/// Opener's third call after 1M–2r–R–3M
+/// Opener's third call after `1M - 2r - R - 3M`
 ///
 /// Once trump has been set at three of the major, opener shows strength:
 /// the 4NT key card ask on extras or a sign-off at four of the major.
@@ -242,7 +242,7 @@ fn opener_third(major: Suit) -> Rules {
 
 /// Opener's third call after responder raises opener's second suit
 ///
-/// `1M–2r–2x–3x`: responder has agreed opener's second suit `x` as trump in a
+/// `1M - 2r - 2x - 3x`: responder has agreed opener's second suit `x` as trump in a
 /// still-forcing auction (the two-suiter's second fit).  Opener asks with 4NT
 /// RKCB on extras, else signs off in game — four of an agreed major, or `3NT`
 /// (with `5x` as the deep fallback) when `x` is a minor.  Without this the node
@@ -264,10 +264,10 @@ fn opener_third_agree(agreed: Suit) -> Rules {
 }
 
 // ---------------------------------------------------------------------------
-// Minor game force: 1♦–2♣
+// Minor game force: 1♦ - 2♣
 // ---------------------------------------------------------------------------
 
-/// Opener's rebid after 1♦–2♣
+/// Opener's rebid after 1♦ - 2♣
 ///
 /// The 1♦ opening may be as short as three cards (better-minor), so no suit
 /// rebid is guaranteed.  The 2NT rule at weight 0.2 is the safe fallback;
@@ -293,7 +293,7 @@ fn opener_rebid_1d_2c() -> Rules {
         .rule(call(2, Strain::Notrump), 20, hcp(0..))
 }
 
-/// Responder's rebid after 1♦–2♣–R
+/// Responder's rebid after `1♦ - 2♣ - R`
 ///
 /// No [`Pass`][Call::Pass] rule.
 fn responder_rebid_1d_2c() -> Rules {
@@ -375,7 +375,7 @@ pub(super) fn base() -> Package {
                         continue;
                     }
                     let prefix = format!(
-                        "P* {} (P) {} (P)",
+                        "P* {} - {} -",
                         call(1, Strain::from(major)),
                         call(2, Strain::from(resp)),
                     );
@@ -385,7 +385,7 @@ pub(super) fn base() -> Package {
 
                     let three_major = Bid::new(3, Strain::from(major));
                     for rebid_call in rebid_calls {
-                        let after_rebid = format!("{prefix} {rebid_call} (P)");
+                        let after_rebid = format!("{prefix} {rebid_call} -");
                         entries.extend(rows_of(
                             Pattern::node(&after_rebid),
                             responder_rebid(major, resp),
@@ -394,22 +394,22 @@ pub(super) fn base() -> Package {
                             && rebid_bid < three_major
                         {
                             let agreed =
-                                format!("{after_rebid} {} (P)", call(3, Strain::from(major)),);
+                                format!("{after_rebid} {} -", call(3, Strain::from(major)),);
                             entries.extend(super::slam::rkcb_rows(&agreed, major));
                         }
                     }
                 }
             }
 
-            // The 1♦–2♣ minor game force: the same table-derived call set,
+            // The 1♦ - 2♣ minor game force: the same table-derived call set,
             // with no authored third round.
-            let prefix = "P* 1♦ (P) 2♣ (P)";
+            let prefix = "P* 1♦ - 2♣ -";
             let rebid = opener_rebid_1d_2c();
             let rebid_calls = distinct_calls(&rebid);
             entries.extend(rows_of(Pattern::node(prefix), rebid));
             for rebid_call in rebid_calls {
                 entries.extend(rows_of(
-                    Pattern::node(&format!("{prefix} {rebid_call} (P)")),
+                    Pattern::node(&format!("{prefix} {rebid_call} -")),
                     responder_rebid_1d_2c(),
                 ));
             }
@@ -432,7 +432,7 @@ pub(super) fn opener_third_continuations() -> Package {
                         continue;
                     }
                     let prefix = format!(
-                        "P* {} (P) {} (P)",
+                        "P* {} - {} -",
                         call(1, Strain::from(major)),
                         call(2, Strain::from(resp)),
                     );
@@ -442,9 +442,7 @@ pub(super) fn opener_third_continuations() -> Package {
                             && rebid_bid < three_major
                         {
                             entries.extend(rows_of(
-                                Pattern::node(&format!(
-                                    "{prefix} {rebid_call} (P) {three_major} (P)"
-                                )),
+                                Pattern::node(&format!("{prefix} {rebid_call} - {three_major} -")),
                                 opener_third(major),
                             ));
                         }
@@ -469,7 +467,7 @@ pub(super) fn second_suit_agreement_continuations() -> Package {
                         continue;
                     }
                     let prefix = format!(
-                        "P* {} (P) {} (P)",
+                        "P* {} - {} -",
                         call(1, Strain::from(major)),
                         call(2, Strain::from(resp)),
                     );
@@ -487,7 +485,7 @@ pub(super) fn second_suit_agreement_continuations() -> Package {
                             continue;
                         }
                         let agreement = format!(
-                            "{prefix} {rebid_call} (P) {} (P)",
+                            "{prefix} {rebid_call} - {} -",
                             call(3, Strain::from(agreed)),
                         );
                         entries.extend(rows_of(
@@ -516,18 +514,18 @@ pub(super) fn backstops() -> Package {
                         continue;
                     }
                     let key = format!(
-                        "{} (P) {} (P)",
+                        "{} - {} -",
                         call(1, Strain::from(major)),
                         call(2, Strain::from(resp)),
                     );
                     entries.push(classified(
-                        Pattern::guarded(&key, "2NT (P)", Undisturbed).with_fan(2),
+                        Pattern::guarded(&key, "2NT -", Undisturbed).with_fan(2),
                         game_backstop(),
                     ));
                 }
             }
             entries.push(classified(
-                Pattern::guarded("1♦ (P) 2♣ (P)", "2NT (P)", Undisturbed).with_fan(2),
+                Pattern::guarded("1♦ - 2♣ -", "2NT -", Undisturbed).with_fan(2),
                 game_backstop(),
             ));
             entries

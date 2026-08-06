@@ -1,6 +1,6 @@
 //! Meckstroth-2NT A/B: natural 18-19 `2NT` rebid vs the artificial GF `2NT`.
 //!
-//! After `1M – 1NT` (the forcing notrump) opener's strong hands rebid a natural
+//! After `1M - 1NT` (the forcing notrump) opener's strong hands rebid a natural
 //! 18-19 balanced `2NT` in the baseline — an unbalanced 18+ has no game-forcing
 //! rebid and underbids as a simple two-level suit.  The **real Meckstroth
 //! adjunct** turns `2NT` into an artificial 18+ game force of *any* shape, with a

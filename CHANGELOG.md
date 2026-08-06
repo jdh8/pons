@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **The European 2♠ rebid's four artificial calls were unalerted.**  Under
   `set_notrump_minors(EUROPEAN)`, all four of responder's game-going actions
-  over `1NT–2♠–3♣` are artificial: 3♦/3♥/3♠ show a singleton with clubs agreed,
+  over `1NT - 2♠ - 3♣` are artificial: 3♦/3♥/3♠ show a singleton with clubs agreed,
   and 3NT shows the club one-suiter rather than notrump.  None carried an
   alert, though `european_two_spade_rebid`'s own doc comment says it reuses the
   two-way 2♠ machinery, whose `two_spade_over_min` alerts all four — the three
@@ -40,6 +40,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the four calls now disclose and read as what they are.
 
 ### Changed
+
+- **Human-authored auctions now use one canonical notation:** space-delimited
+  calls, `-` for every pass, and parentheses only around opponents' non-pass
+  calls (`1NT - 2♣ (X) XX -`).  Compact partnership sequences now spell their
+  implied passes (`1NT - 2♦ - 2♥`).  This migration is notation-only: legacy
+  `P`/`(P)` input still parses, external BBA/BEN and corpus encodings are
+  unchanged, and no lowered call sequence or bidding decision moves.
 
 - **The book files are being split by bidding agreement.** System notes are
   modular — polish.club is one page per agreement, BWS 2017 reads like a
@@ -100,7 +107,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     the assembly; `nt_landy`, `nt_dont`, `nt_meckwell`, `nt_woolsey` hold their
     calls and advances; `nt_their_conventions` defends their Stayman and
     transfers — which is the shape the bundle model already had: a system is a
-    set of per-call conventions, chained at `[1NT]` and gated at build time.
+    set of per-call conventions, chained at `(1NT)` and gated at build time.
     That prose, and the alert invariant it rests on, moves from a `// ---`
     banner into `nt_defense`'s module doc.  The index keeps the per-call
     `Alert` consts and `defensive()`.  Two statics crossed a module line and
@@ -149,7 +156,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     max-showing overlays, the 3♣ response, the both-majors 3♦ and the 3♥/3♠
     splinter become six packages.  This is the campaign's first **gate/anti-gate
     pair**: the Puppet arm and its European `else` wire the *same* two keys
-    (`1NT–3♣` and `1NT–3♣–3♦`) with different rules, and `compile_into`'s
+    (`1NT - 3♣` and `1NT - 3♣ - 3♦`) with different rules, and `compile_into`'s
     `group()` panics when one package redeclares a pattern, so they have to be
     two packages under complementary gates — legal because across packages a
     re-insert is last-write-wins and only one gate is ever true.  Hence
@@ -167,7 +174,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     surfaced the unalerted European splinters fixed above.
   - **N5** — `notrump.rs` 3614–3716, 10 sites, no `install_rkcb` and no gates:
     `register_two_nt_and_rebids` becomes the ungated `two-notrump-structure`
-    (the three 2NT-strength bases — the 2NT opening and the two `2♣–2x–2NT`
+    (the three 2NT-strength bases — the 2NT opening and the two `2♣ - 2x - 2NT`
     sequences — with their Stayman answers, transfer completions, Smolen tail
     and quantitative 4NT reply) and `two-notrump-rebids` (the eight prefixes
     whose 18–19 2NT rebid the existing tables already carry).  Both stay
@@ -338,7 +345,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   stay reason (opener's answer there is an unconstrained `Bid(_)`, and
   enumerating that wildcard would cost 640 columns no auction reaches).
   `converted_packages_match_legacy` gains all three, probed over every
-  `[1m/1M, ovc, cue, P]` and every intervention including the redouble.  The
+  `1m/1M (ovc) cue -` and every intervention including the redouble.  The
   seeded 20k smoke dump is **byte-identical** — the conversion lifts these
   tables from the shallowest fallback to exact nodes, and no other package's
   fallback was winning those auctions.  The A/B (SEED_BASE 1785989504,
@@ -408,10 +415,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`-` in auction strings is a pass by whoever is to act.** The
   side-agnostic spelling for the routine passes that pad constructive
   auctions (`Token.theirs` is now `Option<bool>`; `check_sides` asserts only
-  annotated tokens).  Explicit `P`/`(P)` stays for contested tails where
-  seat-tracking earns its parens; one spelling per package, since pattern
-  equality includes the source string.  No call sites restyled — the pilot
-  port picks it up.  User impact: none.
+  annotated tokens).  The later repository-wide migration made `-` the sole
+  human-authored pass spelling; pattern equality includes the source string,
+  so each package keeps one canonical spelling.  User impact: none.
 
 - **The direct-seat table is one exact node per overcall — the variable rows
   grammar's first consumer.** `over_their_overcall(opening, overcall)`
@@ -537,8 +543,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the feature's ♦ ask consumes — 90% of the ♦-relocated lane in both cells,
   plus an asymmetric −2.19/−3.32 IMPs/bd on ~800 no-ask boards per cell
   against a −1.39/−1.65 mirror control; PD-negative, so no scorer helps), and
-  **the grand-blast continuation** (♣ lane: `4♦–5♣–7♣` down one where the
-  baseline bids `4NT–5♠–6♣` making on identical information — the freed room
+  **the grand-blast continuation** (♣ lane: `4♦ - 5♣ - 7♣` down one where the
+  baseline bids `4NT - 5♠ - 6♣` making on identical information — the freed room
   is where the floor's grand logic overbids). The ♥ lane is the only
   DD-optimism candidate (NV playout is a wash, vul is not; thin n). §7.14's
   "case closed until a scorer exists" is discharged: the scorer exists, the
@@ -764,7 +770,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   *constructive* book only — so on a contested auction the learned floor is the
   sole answer and that rule never runs. The test was asserting that the net
   happened to *agree* with the ladder; the v3 net did, the v4 net does not
-  (after `1NT (2NT) X (3♣) P P` holding `K54.84.732.KQJT9` it passes, X 7.813
+  (after `1NT (2NT) X (3♣) - -` holding `K54.84.732.KQJT9` it passes, X 7.813
   against P 8.544 — a 0.73-logit margin, and the double is the better bridge
   call). Retargeted at `american_instinct()`, where the rule actually lives and
   still fires. Pinning an individual net call is what `tests/common/mod.rs`
@@ -837,7 +843,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   weak-two responses, XYZ, and New Minor Forcing are packages.** The
   constructive book keys the *undisturbed* auction — our calls with an
   opposing pass interleaved, fanned over the four seats — which the existing
-  grammar already spells as `Pattern::node("P* 2♦ (P) 2NT (P)")`, so all four
+  grammar already spells as `Pattern::node("P* 2♦ - 2NT -")`, so all four
   files ported with **no grammar addition**: `openings::package()` (the empty
   auction, one row group), `weak_twos::package()` (the three suits' first
   responses, Ogust answers and asker continuations, and opener's reply to each
@@ -847,7 +853,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`Package::entries` is a bare `fn` and cannot capture). `openings::register`
   no longer takes a `NotrumpShape`: the package reads `notrump_shape_setting()`
   itself, which is what its one caller passed. The XYZ/NMF dispatch — NMF
-  overriding XYZ on the four `1m – 1M – 1NT` slots — becomes two gated
+  overriding XYZ on the four `1m - 1M - 1NT` slots — becomes two gated
   packages writing disjoint keys instead of one interleaved loop. Byte-identical
   on the seeded 20k `smoke-default` and `render-book`, and on a four-arm
   knob-armed re-render of the constructive book (`set_new_minor_forcing`,
@@ -873,7 +879,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   armed.
 
 - **Gladiator is a declarative row package, and `defensive()` has no
-  hand-rolled wiring left.** The ~200-line imperative block under `[1M, 1NT]` —
+  hand-rolled wiring left.** The ~200-line imperative block under `(1M) 1NT` —
   the advances, the cue-Stayman and its placements, the invitational and
   game-forcing naturals, Leaping Michaels, the `2♣` relay tree with its
   invitational answers and delayed cue, the doubled runout, and the two
@@ -894,7 +900,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and keyed off a `&[Call]` prefix; it is now `sohl_rows_over`, which takes the
   prefix as an **auction string** and returns `Vec<Entry>`, so its two consumers
   become packages: `advance_of_double_package()` (advancing partner's takeout
-  double of a weak two, `P* (2X) X (P)`, the flat ladder or the `Plain`/
+  double of a weak two, `P* (2X) X -`, the flat ladder or the `Plain`/
   `Transfer` sohl per `set_advance_sohl_style`) and `gladiator_sohl_package()`
   (their 2-level action over our 1NT overcall of a major, `P* (1M) 1NT (2Y)`,
   hoisted out of the per-suit loop). `insert_advance_of_double` is gone. The
@@ -909,7 +915,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the two new packages — no gap found, but the earlier claim was unbacked.
 
 - **The Woolsey Multi-Landy continuations are a declarative row package.** The
-  ~90-line imperative `if woolsey_enabled()` block under `[1NT]` — the Multi
+  ~90-line imperative `if woolsey_enabled()` block under `(1NT)` — the Multi
   `2♦` advance over their pass or double and the overcaller's rebid after each
   of the `2♥`/`2♠` pass-or-corrects and the `2NT` game ask (each again over
   their pass or double), the Muiderberg `2♥`/`2♠` raises undoubled and doubled
@@ -925,7 +931,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **The whole Lebensohl block (§5 / 5b / 5c) is a declarative row package, and
   `competition()` has no hand-rolled wiring left.** The ~330-line imperative
-  block under `[1NT]` — the `(2♣)` systems-on rebase and its stolen-Stayman
+  block under `1NT` — the `(2♣)` systems-on rebase and its stolen-Stayman
   transplant, the penalty pass of that double, and for each of `(2♦)`/`(2♥)`/
   `(2♠)` responder's table, opener's leave-in reply, the `2NT`→`3♣` relay and
   its rebid, both sign-off raises (relay and floored-natural), the Plain cue
@@ -975,7 +981,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   once an overcall reaches the two level, every suit below it has no free bid
   and responder never produces a three-level one. The guard, which asked only
   for a cheapest-level new suit, claimed those auctions anyway, and
-  `answer_free_bid` has no legal rung there: over `1♣ (2♠) 3♦ (P)` its raise,
+  `answer_free_bid` has no legal rung there: over `1♣ (2♠) 3♦ -` its raise,
   notrump and catch-all rungs all stop at level 3, which `3♦` has already
   passed, leaving `3♥` on 16+ with four hearts as the only call. A plain
   13-count fell through — an untotal guarded table, which the row layer's
@@ -998,8 +1004,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   suffix for the redouble), and the `FreeBidStyle::Transfer` free-bid
   completions and clarifications. From `defensive()` — our defense to each
   one-of-a-suit opening together with the Michaels and Unusual-`2NT` advances
-  (lifted clean out of the per-suit loop: `[1t]`, `[1t, 2t, P]` and
-  `[1t, 2NT, P]` are written nowhere else), the Landy/Woolsey both-majors `2♣`
+  (lifted clean out of the per-suit loop: `(1t)`, `(1t) 2t -` and
+  `(1t) 2NT -` are written nowhere else), the Landy/Woolsey both-majors `2♣`
   advances, and the direct-seat both-majors `X` advances. ~320 lines of
   imperative wiring become seven packages. Byte-identical: the seeded 20k
   `smoke-default` dump and `render-book` are unchanged, and because four of the
@@ -1028,7 +1034,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   guard, a **two-call prefix with a free tail** (`X (bid) …`: they doubled our
   artificial call, we answered with a bid, and from there responder is
   systems-on). No named `Pattern` construct spells that, and `Pattern::first`
-  is not a substitute — it would also swallow the `X (P) (P)` re-ask whose own
+  is not a substitute — it would also swallow the `X - -` re-ask whose own
   table is declared just below, rebasing the re-ask instead of classifying it.
   So `Pattern::guarded` carries the guard **verbatim**, exactly as the
   imperative site wrote it, together with a sample continuation it admits;
@@ -1037,7 +1043,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   does admit it, so a sample that drifts from its guard fails rather than
   silently probing the wrong auction. Deliberately *not* a new `PrefixIs` guard
   type: a derived description would not reproduce the authored label, and the
-  Stayman block's second, three-deep wildcard (`- 2♦/2♥/2♠ X …`) needs the
+  Stayman block's second, three-deep wildcard (`- 2♦/2♥/2♠ (X) …`) needs the
   escape hatch anyway. All four packages joined the invariant test — the first
   ports whose tables are guarded *and* artificial, so their coded stopper and
   min/max answers are now machine-checked for totality and alerts — and passed
@@ -1065,7 +1071,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   remaining sections: `compile_into` writes into a `&mut Trie`, so the
   declarative and imperative idioms coexist and a port needs no total
   coverage. Package order at the shared keys is load-bearing and preserved —
-  with both knobs on, Meckwell still wins `(1NT) X (P)` and friends, exactly
+  with both knobs on, Meckwell still wins `(1NT) X -` and friends, exactly
   as when these were consecutive `insert_all_seats` blocks. All eight packages
   joined the invariant test, which checks them **regardless of their knob
   gate** — so the opt-in DONT, Meckwell, and response-defense wiring is now
@@ -1433,8 +1439,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   lane.** The post-relay placement tables (`asker_after_denial`,
   `asker_after_queen`) gated on the asker's *own* `keycards(4..)`, which means
   "all five combined" only over a one-or-four answer; installed identically on
-  the none-or-three lane they bid a grand missing a keycard (`… 4NT P 5♦ P
-  5♥ P 6♥ P` → 7♠ off the ♣A on top, book-vs-book), bid six over a flat
+  the none-or-three lane they bid a grand missing a keycard (`… 4NT - 5♦ -
+  5♥ - 6♥ -` → 7♠ off the ♣A on top, book-vs-book), bid six over a flat
   denial with a keycard *and* the queen out, and could never reach the seven
   their own relay explored on the two-keycard grand hands. Each lane now
   passes its combined-count decode into the shared tables — over 5♣ four of
@@ -1704,7 +1710,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   4-1 fit. A single net trained on both regimes was built and rejected: it is a
   better net on every aggregate (val CE 0.4004 against the twin's 0.4431 and the
   plain net's 0.4518) and it still bids the phantom 4♥, because the regime is
-  not in the features *at the moment the call is chosen* — `1♦ P 1♠ P 2♦` is
+  not in the features *at the moment the call is chosen* — `1♦ - 1♠ - 2♦` is
   three natural bids in either system, so both regimes present that decision
   with identical inputs and contradictory targets.
 
@@ -1744,7 +1750,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Kickback falls back to 4NT instead of walking up** (`set_kickback`, still
   opt-in). jdh8's ladder claimed the cheapest *unguarded* suit above the trump,
-  so 4♠ could ask in diamonds after `1♦ P 1♥ P 3♦` — one step cheaper than
+  so 4♠ could ask in diamonds after `1♦ - 1♥ - 3♦` — one step cheaper than
   BBA, which reverts to 4NT the moment four-of-(trump+1) is guarded. Each set
   suit now claims four-of-the-next-suit-up **or nothing**.
 
@@ -1755,7 +1761,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   saving is always stormed by the misunderstanding** (jdh8). 4NT cannot be
   misread, because 4NT asked keycards before kickback existed.
 
-  Two lanes are unaffected — `1♣ P 2♣ P 2♥ P 3♥` still relocates both fits (4♦
+  Two lanes are unaffected — `1♣ - 2♣ - 2♥ - 3♥` still relocates both fits (4♦
   clubs, 4♠ hearts), since each has its own next suit up free.
 
   Adopting BBA's rule also makes the floor's retrain coherent: the distilled net
@@ -1819,7 +1825,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   BBA.
 
 - **The kickback ladder no longer claims a call it cannot own.** With diamonds
-  set and spades bid — `1♦ P 1♠ P 2♦ P`, one of the commonest faces there is —
+  set and spades bid — `1♦ - 1♠ - 2♦ -`, one of the commonest faces there is —
   `kickback_ladder` claimed **4♥** as RKCB(♦). But longest-first with ties to the
   higher rank means 5-5 majors bid **spades**, so a spade bid never denies
   hearts: a hand with a big heart suit bids 4♥ *naturally*, both seats' readings
@@ -1827,11 +1833,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   void in the phase-5 audit (board 96, ♠AKQ8754 ♥AT9642 ♦— ♣—). Hearts is now
   **guarded by a spade bid**, so the ask falls back to plain 4NT there. The
   escape is arithmetic: a spade bidder who named a second suit has shown
-  5+4 = 9 cards and can hold at most four hearts, so `1♠ P 2♦ P 3♦ P` keeps its
+  5+4 = 9 cards and can hold at most four hearts, so `1♠ - 2♦ - 3♦ -` keeps its
   relocation. The test — "some member named ♠ and named no other suit" — stays
   face-only and reading-free, so both members still derive the same ladder. No
   converse: 1♥ *does* deny five spades under the same doctrine, so
-  `1♦ P 1♥ P 3♦ P → 4♠ = RKCB(♦)` is unchanged. Entirely behind `set_kickback`,
+  `1♦ - 1♥ - 3♦ - → 4♠ = RKCB(♦)` is unchanged. Entirely behind `set_kickback`,
   which is opt-in, so the default system is byte-identical (cards unchanged).
   Re-measured `kickback` (now carrying `set_keycard_answer_gates`, so the arms
   differ by exactly `set_kickback`) vs the shipped `gated` default, 1M boards,
@@ -1913,7 +1919,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   should. Roughly half of it is the ask **declining** a slam rather than
   finding one — `5♦ vs 6♦` ran +44 IMPs over four audited boards where the
   majors-only arm blasted six without the keycards, alongside the expected
-  `1♣ P 1♠ P 2♣ P 4NT P 5♣ P 6♣`. The BBA card is unchanged (`bba-card` diffs
+  `1♣ - 1♠ - 2♣ - 4NT - 5♣ - 6♣`. The BBA card is unchanged (`bba-card` diffs
   byte-identical): the `Blackwood 1430` row means "we play 1430", which was and
   remains true, and no row distinguishes which trump suits the ask reaches.
 
@@ -1944,7 +1950,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ROPI/DOPI/DEPO rules on X/XX/Pass are alerted and present in every stance,
   so the shipped default alerted every floor-classified five-level bid,
   double and redouble on faces with no keycard ask anywhere and erased their
-  natural readings (on `1♦ P 1♠ P 2♦ P 5♦` partner's diamond floor read as
+  natural readings (on `1♦ - 1♠ - 2♦ - 5♦` partner's diamond floor read as
   zero). The gates confine each rule to its recognizer's face window; the
   gates are implied by the rules' own constraints, so what the floor bids is
   untouched by construction. Measured (`ab-kickback --feature gated
@@ -1964,7 +1970,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that contaminated the kickback C − B arm: with `set_kickback` on, the
   always-alerted ask/answer rules on 4♦/4♥/4♠ unioned a ⊤ projection into
   every **natural** 4-major's box (partner's spade floor collapsed to 0 on
-  `1♦ P 1♠ P 2♦ P 4♠`, 105% of the measured −0.00222) and structurally
+  `1♦ - 1♠ - 2♦ - 4♠`, 105% of the measured −0.00222) and structurally
   suppressed the natural walk. The kickback arm now gates its ask rules on
   the ladder's face claim and its answer rules on the recognizers' face
   halves (`keycard_asked_face` / `keycard_asked_over_bid_face`); the default
@@ -2005,7 +2011,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   land on 4♦/4♥/4♠; their `pred` closures project to ⊤, `inference.rs` unions
   the projections of *every* rule sharing a call, and partner's major-suit
   length floor collapses to zero — so natural 4♠ games get passed out
-  (`1♦ P 1♠ P 2♦ P 4♠` passed, where the other arm reaches 6♠, in an auction
+  (`1♦ - 1♠ - 2♦ - 4♠` passed, where the other arm reaches 6♠, in an auction
   where `kickback_ladder` returns all-`None` and no relocated ask is even
   reachable). Splitting the audited C−B boards by whether a 4♥/4♠ contract is
   involved: 38 boards carry −158 PD, the other 22 carry **+7** — the poison
@@ -2021,12 +2027,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   why `set_kickback` gates rule *presence* at `instinct()` build time as well
   as the recognizer at classify time, which keeps the *off* arm clean; and **a
   4NT that answers a relocated ask is an answer, not a new ask**, without which
-  the asker's partner answers their own partner's answer (`1♥ P 2NT P 3NT P 4♥
-  P 4♠ P 4NT P 5♦` passed out, −15 IMPs on the first smoke run).
+  the asker's partner answers their own partner's answer (`1♥ - 2NT - 3NT - 4♥ - 4♠ - 4NT - 5♦` passed out, −15 IMPs on the first smoke run).
 - **Kickback phase 1: jdh8's walk-up ladder, resolved and tested** (no
   bidding change; `kickback_ladder` is `#[cfg(test)]` until the floor wires
   it in phase 2). Where BBA *gives up* the relocation once four-of-(T+1) is
-  guarded — after 1♦–1♥–3♦ its 4♥ is natural, so the ask reverts to 4NT — our
+  guarded — after 1♦ - 1♥ - 3♦ its 4♥ is natural, so the ask reverts to 4NT — our
   rule keeps **walking up** to the first unguarded suit and asks 4♠, falling
   to 4NT only when nothing below it is free. Never worse than BBA, and the
   ask is never lost. Face-only like `face_trump` (no hand, no readings), so
@@ -2034,7 +2039,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   member named it naturally or the opponents named it at all, *set* when our
   side named it twice, and the `face_trump` notrump veto suppresses the whole
   ladder. Set suits claim in ascending rank, so two fits can carry two
-  relocated asks (after 1♣–2♣–2♥–3♥, 4♦ asks in clubs and 4♠ in hearts).
+  relocated asks (after 1♣ - 2♣ - 2♥ - 3♥, 4♦ asks in clubs and 4♠ in hearts).
   Additive by construction — 4NT keeps its meaning, so no auction pons
   already bids changes. Rule, phase ledger, and the deliberately deferred
   question (what 4NT *should* mean once the ask relocates — it belongs to the
@@ -2106,11 +2111,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   repairs in `face_trump`, one doctrine (jdh8's): when 4NT is ambiguous it
   is RKCB if the side's last **non-cue** bid below the ask is a suit,
   quantitative if notrump. (1) A cue of their suit no longer overwrites the
-  face — `1♥ (3♦) 4♦ P 4NT` steps back past the cue and asks in partner's
+  face — `1♥ (3♦) 4♦ - 4NT` steps back past the cue and asks in partner's
   hearts (the filed cue-blocked defect: `last` was set before the cue
   check, so the rung died exactly where contested readings are vacuous).
   (2) An agreed **minor** yields when the last non-cue bid is notrump —
-  `1♦ P 3♦ P 3NT P 4NT` is quantitative (the 3NT was *sign-off*,
+  `1♦ - 3♦ - 3NT - 4NT` is quantitative (the 3NT was *sign-off*,
   re-opening the strain) — while an agreed **major** survives the same 3NT
   (non-serious, minimum game force). Both propagate to the answerer's
   ladder, the `recognizable` rail, and the ask gate. BBA, probed live,
@@ -2153,7 +2158,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   +0.0040 [±0.0027] (none/both), fired 0.30/0.32 %, **+0.74 to +1.24 IMPs
   per fired board**. Default-on, knobless. Filed: the cue-blocked face,
   minors initiation under the provable-8 bar, and the strength-silent
-  invite re-raise (`1♦ P 1♥ P 2♥ P 3♥` stamps nothing).
+  invite re-raise (`1♦ - 1♥ - 2♥ - 3♥` stamps nothing).
 
 - **Keycard trump demands proof: no fit from one hand's shown five.**
   `answer_trump`'s second rung took the *larger* of the two seats' shown
@@ -2163,7 +2168,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   fit, a provable eight (my holding completing partner's shown floor — the
   6-2/7-1 fits the first rung's three-card bar refuses), a self-sufficient
   own *seven*, or the auction's face by fiat (the ask's placement carries
-  the asker's intent: `2♥ X 4♥ 4♠ – 4NT` assumes spades). The
+  the asker's intent: `2♥ (X) 4♥ (4♠) 4NT` assumes spades). The
   `corroborated` closure mirrors the same bar — the load-bearing half,
   since the answer's natural mis-read pollutes partner's floor and lets
   rung *one* mint the phantom. Ask initiation is untouched (`keycard_trump`
@@ -2177,7 +2182,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the face yields None when our side's last bid was a cue of their suit.
 
 - **The cramped doubled answer escapes the phantom suit.** Forensics on the
-  filed −20 board (`1♦ P 1♥ 1♠ P 3♠ 4♦ P 4NT P 5♥ X` passed out) corrected
+  filed −20 board (`1♦ - 1♥ (1♠) - (3♠) 4♦ - 4NT - 5♥ (X)` passed out) corrected
   the ledger's story: the fit rule did *not* key diamonds — the asker's
   post-answer reading took the artificial 5♥ as six real hearts, minted a
   phantom heart trump, and the 1.80 sit rung (answer *is* five of trump)
@@ -2252,7 +2257,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   trump). Hand- and readings-independent and keyed on the physical ask
   index, so every seat and the `forced()` rail provably derive the same
   trump — and it works exactly where contested readings are vacuous (the
-  round-3 XX board, `2♥ X 3♥ X P 4♠ P 4NT`, becomes rail territory with
+  round-3 XX board, `2♥ (X) 3♥ (X) - (4♠) - (4NT)`, becomes rail territory with
   no coverage repair). The hand-seen-fit and shown-five rungs stay above
   it (they see through transfers and splinters, where the face mislabels
   the artificial call); `raised_major` is subsumed (the fit rule covers
@@ -2353,21 +2358,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - the systems-on **strip re-read keyless**, silently dropping every authored
     projection at stripped nodes (the alerted both-majors `3♦` read as natural
     `♦5+`, excluding its own 5-5-major bidders) — now re-keyed through the
-    attached stance, so `[1♠ 1NT P …]` reads byte-identical to the opening;
+    attached stance, so `(1♠) 1NT - …` reads byte-identical to the opening;
   - the **reader-context projection skew**: `support(...)` atoms projected
     under the reader's context landed on the wrong suit — cue raises stamped
-    the *cue* suit (`1♣ 1♦ 2♦` excluded 24/24 of its bidders), the support
+    the *cue* suit (`1♣ (1♦) 2♦` excluded 24/24 of its bidders), the support
     double stamped exactly-3 on the *opened minor* (9/9). Projection now uses
     the bidder's at-the-time context, as the table-alert and pass branches
     always did;
   - preempt raises to game carried the constructive band's `1..=11` image
-    (13/13 of `3♥ P 4♥` raisers excluded) — the band now gates on one-level
+    (13/13 of `3♥ - 4♥` raisers excluded) — the band now gates on one-level
     openings, and no support floor is stamped on a suit shown 6+;
   - delayed preferences/raises of a shown 5-card suit floor at **2** (81% of
     forcing-NT preference bidders were doubletons), with the jump guard that
     keeps the slam-sampler intact;
-  - post-transfer continuations no longer read as natural rebids (`1NT P 2♦ P
-    2♥ P 3♦` claimed ♦6+ against an actual 4) — `over_one_notrump` requires
+  - post-transfer continuations no longer read as natural rebids (`1NT - 2♦ - 2♥ - 3♦` claimed ♦6+ against an actual 4) — `over_one_notrump` requires
     the lane's first bid; and the XYZ 2M rebid reads 5+ on both routes (the
     direct sign-off was the single largest measured offender, 143/198);
   - the transfer choice-of-games 3NT gates now mirror the instinct floor's
@@ -2424,10 +2428,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `weight + eval`, so a pass proves the hand outside every sibling gate whose
   weight strictly beats every Pass rule's — the knob intersects those gates'
   complements into the pass band (single-box complements only, the shape-free
-  tiers). Census, 20k boards, seed 1785200001: `2♦/2♥/2♠ P` go **5.000 ⊤/seat,
+  tiers). Census, 20k boards, seed 1785200001: `2♦/2♥/2♠ -` go **5.000 ⊤/seat,
   100% blind → 4.000, 0.00%** (the passer now reads ≤16 points); every
-  control key is byte-unmoved (`1NT P` 90.68%, `1NT P 2♣` 74.66%, `2NT/2♣ P`,
-  the `1m (1♠) P` family). Not bid-inert (~0.06% of readings shift the floor
+  control key is byte-unmoved (`1NT -` 90.68%, `1NT - 2♣` 74.66%, `2NT/2♣ -`,
+  the `1m (1♠) -` family). Not bid-inert (~0.06% of readings shift the floor
   net), and the identical band was refuted pre-retrain as
   `weak_two_pass_gate` (C1 encoding loss) — so default-off, queued for the
   next feature retrain; guarded by the new `passes_read_within_their_table`
@@ -2447,8 +2451,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   each prior call's probed box into both overlays; empty map or knob-off is
   byte-identical (full suite green). Viability gate measured first
   (`examples/probe-pass-meaning`, 100k boards): 57.9% of decision traffic has
-  ≥100 samples; the class-C blind head is real content — `1NT P` passer mean
-  7.8 points p99 17 vs ⊤ today, `2NT P` mean 7.1 vs ⊤, `2♣ P` mean 6.2 vs ⊤.
+  ≥100 samples; the class-C blind head is real content — `1NT -` passer mean
+  7.8 points p99 17 vs ⊤ today, `2NT -` mean 7.1 vs ⊤, `2♣ -` mean 6.2 vs ⊤.
   Probed census (20k boards, `--probe 100000`, 520 keys): has-bid ⊤/seat
   **2.642 → 0.541**, passes-only **4.257 → 1.442** (blind 26.21% → 4.67%) —
   the old blind head leaves the worklist entirely, including the 1♥/1♠
@@ -2466,8 +2470,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   where the doc said it would. The census win is real and the boxes are useful
   *description*; what is refuted is feeding v1 widening (points ±2, length ±1)
   straight into a bidder that trusts its readings. Knob stays off. The
-  observed-vs-published divergences the viability example caught (`1♣ P 1♥`
-  announced 6..=11 vs observed up to 24; `1♠ P 2♠` floor 6 vs observed
+  observed-vs-published divergences the viability example caught (`1♣ - 1♥`
+  announced 6..=11 vs observed up to 24; `1♠ - 2♠` floor 6 vs observed
   4–5-point raises) are recorded in the doc as open defects.
 
 - **Windows CI: pin line endings with `.gitattributes`.** GitHub's Windows
@@ -2508,7 +2512,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Gladiator's unauthored continuations, authored.** Three nodes where the
   floor was answering a call whose meaning it could not know:
-  - `[2♣, P, 2♦, P, 2O]` — the weak `2O` takeout off the relay is a *signoff*
+  - `2♣ - 2♦ - 2O` — the weak `2O` takeout off the relay is a *signoff*
     (advancer denied invitational values by not rebidding `2NT`/`3X`/the cue).
     The floor read it as a free bid and raised on **three** trumps, or bid `3NT`
     opposite a hand that had just denied 8 points. `gladiator_relay_signoff_answer`
@@ -2631,9 +2635,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
       contested branches, led by `vs-X-escape` (50 fired, PD −4.62/fired),
       `contested-other` (78, −2.22) and `vs-X-pass` (28, −2.54). Mechanism:
       Gladiator replaces the systems-on graft, and the graft carried an
-      *authored* runout at `[1M, 1NT, X]`; Gladiator leaves that node to the
+      *authored* runout at `(1M) 1NT (X)`; Gladiator leaves that node to the
       instinct floor by design (`defense.rs`, "RHO's Double is handled by the
-      instinct-floor runout"). The floor escapes higher — after `1M 1NT X` the
+      instinct-floor runout"). The floor escapes higher — after `(1M) 1NT (X)` the
       ON arm declares at the 3-level-or-above on **17.3%** of those boards vs
       the graft's **12.6%**, at an identical 36.8%/37.0% doubled rate, so the
       extra level is paid in doubled undertricks. The remaining ~60% is thin
@@ -2675,7 +2679,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   3-level+ → on**. Pinned by
   `gladiator_keeps_the_strip_where_it_has_no_structure`; byte-identical default.
   - Worth recording separately, because it corrects the handoff's first draft:
-    this is **not** a distilled-net-only effect. At `[1♠, 1NT, 3♠]` the
+    this is **not** a distilled-net-only effect. At `(1♠) 1NT (3♠)` the
     *deterministic* `american_instinct()` floor also diverges (`P` with the
     strip off against `3NT` with it on), because `set_inference_aware` makes it
     consult the auction's interpretation. Any floor that reads is a floor a
@@ -2690,7 +2694,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     and #2. Fresh seeds, so the v5→v7 comparison is indicative, not paired.
 
 - **The doubled 1NT overcall now has an authored runout under Gladiator.**
-  `[1M, 1NT, (X)]` was left to the floor by design — and under
+  `(1M) 1NT (X)` was left to the floor by design — and under
   `american_instinct()` that is fine: the deterministic runout answers it, and
   answers it *identically* with the knob on or off. Under the shipped
   **distilled** floor it was not. Gladiator turns off
@@ -2726,9 +2730,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its price, and the proposed program are in `docs/reading-drift-handoff.md`.
 
 - **The raise readers published support-scale bands on the point-count axis
-  — the `1♠ P 2♠` divergence-meter defect, closed.** The meter re-run on
+  — the `1♠ - 2♠` divergence-meter defect, closed.** The meter re-run on
   corrected full-prefix keys (100k boards, seed 1785200001) confirmed the
-  breach survives the passer split — `1♠ P 2♠` observed points 4-10 (n=722,
+  breach survives the passer split — `1♠ - 2♠` observed points 4-10 (n=722,
   p1 5) against a published 6..=10, with every passed variant breaching too
   and the ceiling holding — refuting both candidate mechanisms on record
   (pooling, fuzz: the strength dial defaults to 0). The real mechanism is a
@@ -2755,7 +2759,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   would replay the pass-exclusion OOD loss — a reading change the net
   consumes is a retrain, not a free edit; the next feature version retires
   the fold by serving the slots as columns). **Verification**: post-fix
-  meter — every `1♠ P 2♠` passer variant reads `1..=11`, observed 4-10
+  meter — every `1♠ - 2♠` passer variant reads `1..=11`, observed 4-10
   inside, per-key traffic byte-identical; `bba-gen` dump diff (seed
   1785400000, 6400 boards) — 27/12,800 tables diverge (0.21%), 10 contract
   changes, **plain +0.0034 [±0.0088] / PD +0.0033 [±0.0088]** IMPs/board
@@ -2771,16 +2775,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `probe-pass-meaning` grouped by `common::auction_key`, which strips leading
   passes for dealer-invariance — right for the census worklist, unsound for a
   published-vs-actual comparison, because passer status changes the reading.
-  Its headline finding, "`1♣ P 1♥` announces 6..=11 while responders run past
+  Its headline finding, "`1♣ - 1♥` announces 6..=11 while responders run past
   20", was therefore **a false positive**: a new-suit response is unlimited
   (`at_least(6, POINTS_CAP)`) and an opening pass caps at 11
   (`set_pass_reading`, default on), so the key was comparing the passed-hand
   reading against the unpassed population. The example now keys on the full
-  prefix; the same seed splits it into `1♣ P 1♥` reading 6..=37 against
-  observed 6-20 and `P P 1♣ P 1♥` reading 6..=11 against observed 6-11 —
+  prefix; the same seed splits it into `1♣ - 1♥` reading 6..=37 against
+  observed 6-20 and `- - 1♣ - 1♥` reading 6..=11 against observed 6-11 —
   sound on both sides. No bidding, reading, or `src/` change; the census and
   soundness probes keep the stripped key. The second reported defect
-  (`1♠ P 2♠` announcing a floor of 6 while 4–5-point hands raise) is
+  (`1♠ - 2♠` announcing a floor of 6 while 4–5-point hands raise) is
   unaffected by this mechanism and stays open, but wants a re-run on the
   corrected keys before it is priced.
 
@@ -2802,7 +2806,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the strength band inverts (sound over a minor, 7.6% / 17.3% over a major,
   where `8..` would be sound), and the one-level transfer-into-partner's-suit
   claim is violated **93.3%** on our own partner. Root cause is not the
-  reader: over `1♣ (1♥) P` our bidder takes the `2♦` "transfer to hearts"
+  reader: over `1♣ (1♥) -` our bidder takes the `2♦` "transfer to hearts"
   0.4% of the time holding **6–7 diamonds and 1–2 hearts** — the authored rule
   is `−∞`, the floor calls anyway, and the reader decodes a natural call as an
   artificial one. `scripts/rubens-ab.sh` measures the layer itself
@@ -2829,12 +2833,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   suit-indexed support scale, `points` → PointCount all landed in between) and
   the transfers are reached roughly five times less often than when they won. Tail traced before calling it (60 worst, NV): **not** the
   doubled advance (15 boards, −182 of −650 IMPs) but plain over-reach — the
-  `1♦ 1♠ - 2♥` transfer climbing to a failing `4♠` where the natural arm stops
+  `1♦ (1♠) - (2♥)` transfer climbing to a failing `4♠` where the natural arm stops
   in 2♥ or passes out, plus wrong-strain landings (`- 4♥` where the natural arm
   reaches 4♠). Attribution is the **bidding** half: `set_rubens_transfer_reading`
   separately measured a wash. What prompted the measurement is in
   [docs/reader-retirement.md](docs/reader-retirement.md) §The Rubens layer —
-  the bidder was barely playing the convention (over `1♣ (1♥) P` it took the
+  the bidder was barely playing the convention (over `1♣ (1♥) -` it took the
   `2♦` "transfer into partner's hearts" 0.4% of the time, holding **6–7
   diamonds and 1–2 hearts**), while `rubens_reading` decoded those natural
   calls as artificial ones. **User impact:** advances of a simple overcall
@@ -2909,7 +2913,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   new `longest_unbid` condition (an exact `shapes` union: the suit strictly
   out-lengths a higher-ranking unbid rival, at least equals a lower-ranking
   one; opener's suit never competes), so under `dnf_reading` the advance
-  finally projects the relative-length claim — `1♦` over `(1♣)–X–(P)` now
+  finally projects the relative-length claim — `1♦` over `(1♣) X -` now
   pins ♥/♠ at most as long as the diamonds — while knob-off the reading stays
   the bare `len` floor, byte-identical to before. The rich book's forced
   3-card rung keeps its own rule with the **opposite tie-break**: with no
@@ -2922,7 +2926,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   1785315000, 6400 boards × both knob states): the constraint rewrite itself
   is **0 divergent auctions** (151 fired suit advances byte-identical), and
   the cheapest-forced flip diverges **1 board in 6400** (a 3-3-3 bust over
-  `(1♣)–X–(P)` now advancing `1♦`, not `1♠` — same `2♦` contract, re-sided),
+  `(1♣) X -` now advancing `1♦`, not `1♠` — same `2♦` contract, re-sided),
   far below any A/B floor; golden `.bbsa` cards unchanged. User impact:
   effectively none at the table today — this is the reading-honest substrate
   the next advance experiments (the weak-only penalty-pass yield) build on.
@@ -2932,7 +2936,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`set_advance_sit_hcp_gate` — sweep the 4-card sit's quality gate; both
   arms measured, the honor gate STANDS; opt-in.** The advancer's penalty
   pass of a takeout double
-  (`(1t)–X–(P)–P`) sits on 5+ trumps, or exactly 4 with two of the top three
+  (`(1t) X - -`) sits on 5+ trumps, or exactly 4 with two of the top three
   honors. Both prior A/Bs on this band (the strength cap, the major yield)
   were refuted *narrowings* that held the honor gate fixed; this knob is the
   first to vary the gate itself, swapping it for a per-suit HCP floor
@@ -3154,7 +3158,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   Negative in all four brackets and clearing the CI in three — a BBA that reads
   our alerts does beat us harder, as predicted, mostly by finding penalty
-  doubles it used to miss (`1NT 2♣ X 2♥` where it once blasted `3NT`). But it
+  doubles it used to miss (`1NT (2♣) X (2♥)` where it once blasted `3NT`). But it
   fires on only 1.0–1.1% of boards and moves the −1.906/−1.860 anchor by ~0.5%
   of its own size. **No anchor needs re-basing, and disclosure stays default-off**
   — it costs a measurable sliver and would make future anchors incomparable to
@@ -3178,7 +3182,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   — a blind spot, not a verdict, since the sweep replays only positions where a
   BBA seat has to act. Under `--own` BBA is the bidder, so the row's meaning
   shows up as a change in its own calls. This is what settled `Shape Bergen
-  structure`: after `[P 1♠ P 2♥ P]` holding `♠AKT76 ♥T5 ♦3 ♣QJ752` — 11 HCP, a
+  structure`: after `- 1♠ - 2♥ -` holding `♠AKT76 ♥T5 ♦3 ♣QJ752` — 11 HCP, a
   minimum — BBA bids `3♣` under Shape and `2♠` under Strength.
 
 ### Changed
@@ -3253,7 +3257,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   this pair *is* the Stayman-and-transfers switch. `0` is the honest value and
   genuinely load-bearing.
 
-- **`1NT–3♥/3♠` splinter authored and shipped default-on (`set_nt_splinter`).**
+- **`1NT - 3♥/3♠` splinter authored and shipped default-on (`set_nt_splinter`).**
   The last two empty slots in our response ladder are filled with the *Bridge
   World Standard / Polish Club* treatment: shortness in the **bid** major (void
   or a low singleton — a stiff A/K un-wastes opener's honors and is a real
@@ -3313,7 +3317,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pre-DNF legacy; the alerts are not (they gate the decode and the
   suppression, and select rule variants at build time).
 
-- **BBA's `1NT–3♥/3♠` splinter probed (investigation, no system change).** Three
+- **BBA's `1NT - 3♥/3♠` splinter probed (investigation, no system change).** Three
   `probe-bba-constraints` modes — `nt-resp` (BBA's response ladder to its own
   1NT), `nt-3h`/`nt-3s` (opener's continuation) — read the slot we leave
   unauthored and BEN's card switches on. Write-up in
@@ -3476,7 +3480,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   table (born 14/28/2/2 knob-off on HCP/length/points/suit-HCP — the worklist,
   now visible); the E0 soundness sweep extends over the same walk with **zero**
   failures (the layer was unmetered, never unsound); and the six opaque
-  `as_rules() == None` closures (seat-fanned `[1NT 2♣]` ×4 + the competitive and
+  `as_rules() == None` closures (seat-fanned `1NT (2♣)` ×4 + the competitive and
   defensive root catch-alls) are pinned by label as the conversion worklist for
   the pass-reading campaign. Ledger: `docs/dnf-migration.md` FBM row.
 
@@ -3641,7 +3645,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   | band | trims | fired | plain NV / vul | PD NV / vul |
   | --- | --- | --- | --- | --- |
   | 15–17 | 18s → double | 0.06% | +0.0009 / +0.0004 | +0.0014 / +0.0007 |
-  | 16–18 | 15s → pass | 0.09% | +0.0006 / +0.0007 | +0.0024 / +0.0018 |
+  | 16–18 | 15s → - | 0.09% | +0.0006 / +0.0007 | +0.0024 / +0.0018 |
   | **16–17** | both | 0.16% | **+0.0015 / +0.0011** | **+0.0037 / +0.0025** |
 
   IMPs/board, mean of `SEED_BASE` 1785088050 and 1785088953, 204.8k bd/arm/vul
@@ -3818,15 +3822,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   its keep — one seed's 4/4 would have shipped it.
 
   **Jump**: lost, and the trace is the classic case against strong jump
-  overcalls — `2♦ 3♥ P 4♥` where the cheap `2♦ 2♥ P 6♥` found the slam. But the
+  overcalls — `2♦ (3♥) - (4♥)` where the cheap `2♦ (2♥) - (6♥)` found the slam. But the
   authoring compounded it: `points(13..=19)` @1.1 overlaps the natural
   `points(10..=16)` @1.0, so every 13–16 six-carder jumps instead of overcalling
   cheaply. A retry wants disjoint bands before anything is concluded about jump
   overcalls as such.
 
   **Cue**: the number is not about Michaels. Continuations are wired for the
-  takeout double and Leaping Michaels only, so `[2♠, 3♠, P]` drops to the floor
-  and the floor **redoubles the cue** (`- 2♠ 3♠ X XX - - -`, playing 3♠ redoubled
+  takeout double and Leaping Michaels only, so `(2♠) 3♠ -` drops to the floor
+  and the floor **redoubles the cue** (`- (2♠) 3♠ (X) XX - - -`, playing 3♠ redoubled
   in their own suit). An incomplete convention was measured, which the iron rule
   forbids. Advancer's structure has to exist first.
 
@@ -3860,7 +3864,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   blind head is REFUTED, and the mechanism is the encoding, not the bridge.**
   The census's worst key was the direct-seat pass over their weak two, ⊤ on all
   five axes the nets read at **100%** of firings against **0.00%** for
-  `1♣/1♦/1♥/1♠ P`. The cause was one line: `defense_to_weak_two`'s Pass rule was
+  `1♣/1♦/1♥/1♠ -`. The cause was one line: `defense_to_weak_two`'s Pass rule was
   the trivial `hcp(0..)` catch-all, sitting immediately below the very same
   shape-free `points(17..)` takeout double that `defense_to_suit` already
   complements with `points(..17)`. Authoring the complement drops passes-only
@@ -3879,7 +3883,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   The trace is the interesting part. Capping the passer at 16 should make us
   **more** cautious, yet all five worst boards are the ON arm overbidding into a
-  double — `6NT-X`, `7♦-X`, `5♦-X`, twice more at the three-level. That is not a
+  double — `6NT (X)`, `7♦ (X)`, `5♦ (X)`, twice more at the three-level. That is not a
   bridge failure; it is the C1 encoding failure a third time.
   `features::push_inference` hands the net the raw `{min, max}` endpoints, so
   `max/37` moves 1.00 → 0.43 on a seat every training auction showed as ⊤, and
@@ -3895,7 +3899,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   shape conjunct, so it accepts every 17+ hand and the gate forbids nothing
   reachable. Where every rule is shaped the union has holes at every strength — a
   balanced 22 fits no Woolsey rule and genuinely passes over their 1NT — so
-  `1NT P` (90.7% blind, now the census head) is **not** a reading bug but a
+  `1NT -` (90.7% blind, now the census head) is **not** a reading bug but a
   system hole, fixable only by a bidding change. And the gate is not itself
   "too strict": the driver takes the argmax, so a 17-count already doubled
   before the gate existed. If one ever *should* pass, the fix is a shape guard on
@@ -3992,8 +3996,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   has bid, and 6.29% of those readings are ⊤ on all five.** The blindness is not
   where the 2/1 fit-split bug pointed, and it splits into two mechanisms wanting
   opposite work. *(1)* Every fully-blind key is a **pass**, and the worst are
-  passes over non-suit openings — `2♦/2♥/2♠ P` read nothing on **100%** of
-  readings, `1NT P` on 90.7%, `2NT P` 86.6%, `2♣ P` 80.3% — while `1♣/1♦/1♥/1♠ P`
+  passes over non-suit openings — `2♦/2♥/2♠ -` read nothing on **100%** of
+  readings, `1NT -` on 90.7%, `2NT -` 86.6%, `2♣ -` 80.3% — while `1♣/1♦/1♥/1♠ -`
   are 0.00% blind. Mechanism: `project_authored` projects a call only when its
   classifier answers `as_rules()`, which only `Rules` does, so every position
   wired as `Fallback::classify` has **no projection attempted at all**. That is
@@ -4171,9 +4175,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   **The smoke run below read the right divergence and drew the wrong sign.**
   Those "collar bids lower" boards are the cost: grouping the loss tail by the
-  first divergent call gives `7NT→3NT` (15 bd, −234 IMP), `7♠→4♠`/`7♥→4♥` (17,
-  −265), `4M→Pass` (22, −328). The shipped net bids those grands and they
-  **make** — `AQ9.98.AQT32.JT6` opposite `KJT4.AKQ.K96.A72` is `2NT–7NT` cold
+  first divergent call gives `7NT → 3NT` (15 bd, −234 IMP), `7♠ → 4♠`/`7♥ → 4♥` (17,
+  −265), `4M → -` (22, −328). The shipped net bids those grands and they
+  **make** — `AQ9.98.AQT32.JT6` opposite `KJT4.AKQ.K96.A72` is `2NT - 7NT` cold
   on a combined 33, and the collar rests in 3NT.
 
   Both shapes are refuted, so the three-arm design is moot. The accelerator
@@ -4217,12 +4221,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Smoke (same seed, 3200 bd/vul) diverges **2.47% non-vul / 2.78% vul**, and the
   direction is lopsided: **70/79 and 77/89 diverging boards are the collar
   bidding *lower*.** The veto does essentially all the work and the accelerator
-  is close to inert — top families are `4♠→Pass`, `6NT→Pass`, `6NT→3NT`,
-  `4♥→Pass`, `6♥→4♥`. So the three-arm design the docs proposed collapses to
+  is close to inert — top families are `4♠ → -`, `6NT → -`, `6NT → 3NT`,
+  `4♥ → -`, `6♥ → 4♥`. So the three-arm design the docs proposed collapses to
   two: collar and veto differ only in the arm that barely fires.
 
   The flagship board is chop F1's 6NT blast, reached from the other side: seed
-  20260726 board 33, `AJ843.AK7.KJ52.7` at `1NT–2♥–2♠–3♦–3NT` bids **6NT on a
+  20260726 board 33, `AJ843.AK7.KJ52.7` at `1NT - 2♥ - 2♠ - 3♦ - 3NT` bids **6NT on a
   combined 31** because `combined_hcp(33)` was masked off entirely; collared,
   `authored & net` declines and the auction rests in 3NT. F1 fixed the net's
   *inputs*; the collar restores the point floor the net was allowed to ignore.
@@ -4759,7 +4763,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`set_meckstroth_minor_jumps` — the adjunct's two halves split apart.**
   `set_meckstroth_adjunct` shipped the artificial 18+ `2NT` game force and the
-  invitational `3m` jumps (`1M – 1NT – 3m`) under one flag, and the SD-PD
+  invitational `3m` jumps (`1M - 1NT - 3m`) under one flag, and the SD-PD
   re-adjudication could only confirm the *merged* knob. The new flag drops the
   jumps while keeping the game force, and `ab-meckstroth-2nt --minor-jumps-only`
   builds the baseline arm that way, so the `3m` leg — whose only positive
@@ -4793,12 +4797,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   brackets.
 
 - `set_two_over_one_heart_light` (opt-in, default-off — **the shipped book is
-  byte-identical**) and its probe `examples/probe-heart-light-4h`. On, `1♠–2♥`
+  byte-identical**) and its probe `examples/probe-heart-light-4h`. On, `1♠ - 2♥`
   forces game on a flat 5=3=3=2 twelve (`len(♥,5..) & hcp(12..)` in place of the
   shipped `points(13..)`), banking the ensured five-card major. **Refuted**
   (`ab-point-count --fix two-over-one-heart-light`, 1.5M/vul): plain
   −0.0007/−0.0005, PD −0.0010/−0.0009 IMPs/board NV/vul. The idea is sound in
-  strain (the continuation reaches `4♥` on the 5-3 fit via the floor's `3NT→4♥`
+  strain (the continuation reaches `4♥` on the 5-3 fit via the floor's `3NT → 4♥`
   correction, no direct raise) but the floor **overshoots to `6♥`/`7♥`**: the 2/1
   response reads `0..=37` (the deferred fit-split `Or` erasure), so opener's slam
   machinery fires on 25-26 combined HCP — only 32 of 362 fit-boards settle in a
@@ -4980,14 +4984,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and `forward` selects by `dnf_reading()` per call, so the knob-off crate is
   untouched (byte-identity structural) and one binary serves both A/B arms; a
   second candle-parity fixture test pins the twin. The F1 traced board
-  (`KQ964.Q2.KQJ8.A4`, `1♠-2♣-2♦-3NT`) no longer blasts 6NT knob-on. The
+  (`KQ964.Q2.KQJ8.A4`, `1♠ - 2♣ - 2♦ - 3NT`) no longer blasts 6NT knob-on. The
   re-flip A/B (`scripts/dnf-flip2-ab.sh`, off vs dnf, plain+PD) decides the
   flip; verdict to be recorded in docs/dnf-migration.md.
 
 - **DNF chop F2b′: Jacoby 2NT's knob-on reading pinned to the opening major
   (`dnf_upgrade` one-box, the C2 fit-split idiom).** The F2b round-1 A/B
   (wash, every CI spanning 0) concentrated its whole loss in one family:
-  after `1M-2NT-…-4M`, the floor's RKCB ask fired 4NT and then **passed the
+  after `1M - 2NT - … - 4M`, the floor's RKCB ask fired 4NT and then **passed the
   5♣/5♦ keycard answer** — the `support(4..)` leg of Jacoby 2NT re-projects
   under the reader's context, and the off-book floor answer (alerted but
   invisible to the reader — instinct is not in the trie) re-targeted the
@@ -5238,14 +5242,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   representation); the default flip and a decisive A/B wait on authoring the
   constraints DNF-native, where the tightening pays.
 
-- **Major 2/1 natural per-call suit lengths + a lighter `1♠-2♥` (two opt-in
+- **Major 2/1 natural per-call suit lengths + a lighter `1♠ - 2♥` (two opt-in
   knobs, default off, book byte-identical — A/B pending).** Today every major
   2/1 shares a uniform `len(suit, 4..)`, which mis-describes two of the calls
-  the reader/sampler projects: `1♠-2♥` should promise five (a 2/1 into a major
-  is a real five-card suit) and `1♠-2♣` should allow three (the cheapest 2/1 is
+  the reader/sampler projects: `1♠ - 2♥` should promise five (a 2/1 into a major
+  is a real five-card suit) and `1♠ - 2♣` should allow three (the cheapest 2/1 is
   the catch-all). `set_two_over_one_natural_lengths` gives each 2/1 its natural
-  floor — `1♠-2♥` 5+, `1♠-2♣` 3+, the rest 4+ — sharpening the *shape* reading;
-  `set_two_over_one_major_discount` lets the five-card-major `1♠-2♥` force game
+  floor — `1♠ - 2♥` 5+, `1♠ - 2♣` 3+, the rest 4+ — sharpening the *shape* reading;
+  `set_two_over_one_major_discount` lets the five-card-major `1♠ - 2♥` force game
   one HCP light (`hcp(12..)` at the default `hcp13` gate), serving both 3NT and
   4♥. Both wired into `bba-gen` (`--ns-two-over-one-natural-lengths`,
   `--ns-two-over-one-major-discount`) to drive the three-arm head-to-head
@@ -5452,7 +5456,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   **Verdict: no change — the min-priced 2♥ raise floor (`support_points 6`) is
   correct.** Opposite an 18-20 opener the existing simple raise (sp 6-9) is
   already a 63-94% game, opener drives it (0% pass, 79% straight to game/slam
-  over `1♥-2♥`), and only 7.9% of 1♥ opens are 18-20 anyway. Lowering the raise
+  over `1♥ - 2♥`), and only 7.9% of 1♥ opens are 18-20 anyway. Lowering the raise
   floor to sp 3-5 measured **−1.63 IMPs/board NV / −2.04 vul** (40k boards) —
   the overbid trap, since the 87% non-max mass bleeds (`3♥` opposite 15-17 makes
   only 36-63%). Responder describes (2♥ = 6-9 + fit); opener re-captains the
@@ -5616,10 +5620,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   | auction | hand | v1 | v2 | partner reads |
   | --- | --- | --- | --- | --- |
-  | `1♣ 1♥ 2♠` | `JT87.AQT2.A75.86` | 4♠ | **6♠** | `18..=21`, ♠ exactly 4 |
+  | `1♣ (1♥) 2♠` | `JT87.AQT2.A75.86` | 4♠ | **6♠** | `18..=21`, ♠ exactly 4 |
   | `1♥ (3♣)` | `Q32.K53.A964.Q92` | 4♥ | **3♥** | opener |
-  | `(3♣) 3♦ (P)` | `AKQ.AQJ.32.K432` | 3NT | **6NT** | `8..=37` |
-  | `1♠ 2♣ 2♦ 3♠` | `AQJ52.32.KQ54.92` | 4♠ | **4NT** | `0..=37` |
+  | `(3♣) 3♦ -` | `AKQ.AQJ.32.K432` | 3NT | **6NT** | `8..=37` |
+  | `1♠ (2♣) 2♦ (3♠)` | `AQJ52.32.KQ54.92` | 4♠ | **4NT** | `0..=37` |
 
   The first two are v2 being *right*. The 6♠ is measured, not argued: over 2000
   layouts drawn from that auction's own read, 6♠ makes **66.3%** double-dummy
@@ -5736,7 +5740,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   it gates. The visible cost was the most common constructive auction in the
   system: the two-over-one denies four-card support (`!support(4..)`), which is
   a plain box — "at most three of partner's suit" — and yet responder's spades
-  came back `0..=13` after `1♠–(P)–2♣`. Now `0..=3`, pinned by
+  came back `0..=13` after `1♠ - 2♣`. Now `0..=3`, pinned by
   `two_over_one_denies_four_card_support`. The new fold is
   `Constraint::project_complement`, implemented on `len`, `points`, `hcp` and
   `support`, and **only for half-open bands**: `!hcp(13..=15)` is a union of
@@ -6218,7 +6222,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   keycard in **0314** and we ask in **1430**, so every learned keycard answer is
   inverted relative to the book above it — 5♣ and 5♦ mean the opposite thing.
   Next worst: the teacher played `1N-3D natural` while we author 3♦ as 5-5
-  majors, which is exactly the misread the 1NT-3♦ node was authored to shadow;
+  majors, which is exactly the misread the `1NT - 3♦` node was authored to shadow;
   and `Checkback` where we play XYZ. The card is `21GF.bbsa` plus 22 deltas,
   each traced to source before being applied. `probe-bba-conventions` binds the
   previously-unbound `epbot_get_conventions` symbol and diffs any card against
@@ -6287,7 +6291,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   was structural: an alerted call whose reading nothing replaced.
 
 - **`set_opener_third` (default on) — a knob on opener's third call at
-  `1M–2r–R–3M`; re-audit candidate #2, now CLOSED with the node standing.**
+  `1M - 2r - R - 3M`; re-audit candidate #2, now CLOSED with the node standing.**
   Deleting it measured +0.437/+0.527 plain IMPs/divergent in self-play, which
   the same run's unit tests showed came with a total capability loss (no keycard
   ask at the node at all). The cause was not the node: it was the starved
@@ -6388,7 +6392,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Ogust's "good suit" is now trump HCP ≥ 5, matching BBA exactly.** Opener's
-  answers to `2M–2NT` split on suit quality, and ours gauged that as "two of
+  answers to `2M - 2NT` split on suit quality, and ours gauged that as "two of
   A/K/Q". Probing EPBot's own Ogust (`probe-bba-constraints --mode
   weak2-{d,h,s}`, ~1300 hands per opening) shows its predicate is **HCP inside
   the trump suit ≥ 5**, which separates its good and bad rungs with *zero
@@ -6448,7 +6452,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   3. **A flat 0% replay fill has two causes and only one is a bug**:
      *infeasible* (reachable auction, a node pins the call at −∞) versus
      *unreachable* (our side never makes that call, so −∞ is correct).
-     `1♦–1♠–1NT–2NT` reads 0% purely because `xyz_responder` routes every invite
+     `1♦ - 1♠ - 1NT - 2NT` reads 0% purely because `xyz_responder` routes every invite
      through the relay; both auctions stay in `probe-replay-yield` as the
      standing example.
   4. **Run the unit tests before believing a positive A/B.** #2's deletion
@@ -6480,7 +6484,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   those calls for **every** hand (0% fill, the search silently falling back to
   range-only worlds). With no node the floor answers, `System::authored_at` is
   false, and the gate abstains; `probe-replay-yield` goes 0.0% → 100.0% on
-  `1♠–2♣–2♦–2♥–3♣` with no sampler change.
+  `1♠ - 2♣ - 2♦ - 2♥ - 3♣` with no sampler change.
 
 - **`american()` is now floored off-book by the BBA-distilled neural net** (was
   the deterministic `instinct()` ladder). The whole-floor net keeps the same
@@ -6540,7 +6544,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `2NT!` 5-5-minor rebid is unreachable in pons — 5-5 minors open 1♦ — so it is
   dropped). Transcribed from the user's **Watermelon Dutch** system book
   (`src/1C.md`, `src/1C/1D.md`). Deep relay continuations
-  (`1♣-1♦-1M/1NT/2♣/2♦`) are Phase 2.2 — until then the floor handles
+  (`1♣ - 1♦ - 1M/1NT/2♣/2♦`) are Phase 2.2 — until then the floor handles
   responder's third call. **A/B measured (SEED_BASE 1784374548): `dutch −
   american` = −0.028/bd plain, −0.010/bd PD (none); −0.031/bd plain, −0.008/bd
   PD (both); 204 800 bd/arm/vul vs BBA.** A plain-DD loss — the half-built-system
@@ -6548,7 +6552,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   balanced-only `1NT` cedes 6322/5422 15–17 hands to a minor). Not shipped; on
   plan for Phases 2.2/4. Ledger: `docs/dutch-system.md`.
 - **`dutch()` Phase 2.2 (increment 1) — responder's second call over opener's
-  minimum relay rebid**. Authors `1♣-1♦-1M` (both majors) and `1♣-1♦-2♣`, where
+  minimum relay rebid**. Authors `1♣ - 1♦ - 1M` (both majors) and `1♣ - 1♦ - 2♣`, where
   the bulk of relay auctions land (opener 11–17). Each is a natural ladder around
   three gadgets: **Reverse Flannery** (`2M!`, and `2♥!` over `2♣`) shows the
   exact 5=♠/4–5♥/7–9 two-suiter deliberately routed through the relay; the
@@ -6562,8 +6566,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   candidate, off by default); A/B pending. Ledger: `docs/dutch-system.md`.
 - **`dutch()` Phase 2.2 (increment 2) — opener's rebid after responder's natural
   `2♣` / `2♦`**. Overwrites the two continuations american built for its own
-  (different) meanings: an **inverted club raise** (`1♣-2♣`, forcing) and a **weak
-  jump shift** (`1♣-2♦`, 0–6). Under Dutch, `2♣` is invite+ (5+♣) and `2♦` is
+  (different) meanings: an **inverted club raise** (`1♣ - 2♣`, forcing) and a **weak
+  jump shift** (`1♣ - 2♦`, 0–6). Under Dutch, `2♣` is invite+ (5+♣) and `2♦` is
   game-forcing (5+♦), so american's nodes misread responder — the game force read
   as weak (dropping games and slams), the invite read as forcing (opener could not
   stop). Because 1♣ denies a 5-card major and both responses deny a 4-card major,
@@ -6700,7 +6704,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   under a compare script now hardened to check band ceilings too, full-band
   hidden seats **15,101 → 7,279 (−52 %)**, acted-seat vagueness deviation
   **24,417 → 9,740 (−60 %**; the three prior reading knobs combined moved it
-  −3 %) — every passer-seat bucket (`[P]`, `[P P]`, `[1x P]`) drains.
+  −3 %) — every passer-seat bucket (`-`, `- -`, `1x -`) drains.
   Residual pass-family vagueness sits on *unacted* seats (deal
   conservation — a joint feature the per-seat envelope cannot display; the
   layout sampler applies it automatically when dealing) and on the deferred
@@ -6709,7 +6713,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   **A/B verdict (guard vs BBA, 2026-07-17): wash by construction** — the
   same-seed divergence probe (`ab-results/reading-knobs/2026-07-17/`) found
   cue/table/pass reading **bid-inert** in the default system (0, 0, and
-  1/211,200 divergent boards; the one board a deep contested floor 3NT↔4♠),
+  1/211,200 divergent boards; the one board a deep contested floor 3NT ↔ 4♠),
   so their plain/PD IMPs cannot move and the ship gate is the probe's
   soundness numbers plus the reading-consumer surfaces (sd-lead pricing,
   search sampling, disclosure). `length_soundness` (23/6400 divergent) is
@@ -6740,13 +6744,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   calibration; per [docs/measurement.md](docs/measurement.md) no bidding
   change ships unmeasured). `set_cue_reading` — the natural walk recognises
   a bid of a suit only the *opponents* have naturally shown as a cue, never
-  a holding: kills the phantom reads (`(P 1C) 2C` Michaels read as 5 clubs
-  on a void, `(P 2D) 4D` as 6 diamonds on a void, `1H (2D) 3D` cue-raise as
+  a holding: kills the phantom reads (`- (1C) 2C` Michaels read as 5 clubs
+  on a void, `- (2D) 4D` as 6 diamonds on a void, `1H (2D) 3D` cue-raise as
   4 diamonds on two) and records the robust meanings — Michaels/Leaping
   Michaels over a minor opening (both majors), the non-jump cue-raise (3+
   support, 10+ points). `set_length_soundness` — opener's immediate
   two-level rebid of the opened suit reads 5+ not 6+, an agreed-suit
-  re-raise (`1M-2M-3M` game try) adds no phantom sixth card, and a
+  re-raise (`1M - 2M - 3M` game try) adds no phantom sixth card, and a
   doubler's later jump is never a weak six-card jump. Probe re-run, same
   seed, both knobs on: every phantom-length bucket drains (remaining: the
   XYZ-complex projection audit, preemptive-raise strength, `1S (1N) X`
@@ -6762,8 +6766,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   seat, batched, deterministic, run inside `~/ben`), and
   `scripts/ben-info-compare.py` (ranks truth violations / BEN-vs-us /
   vagueness). First 1000-board run found real reading bugs (preemptive
-  `1C-(P)-3C` jump raise read as 10+ limit; cue and two-suited calls read
-  as natural phantom suits — `(P 2D) 4D` and `(P 1C) 2C` on voids, cue-raise
+  `1C - 3C` jump raise read as 10+ limit; cue and two-suited calls read
+  as natural phantom suits — `- (2D) 4D` and `- (1C) 2C` on voids, cue-raise
   `3D` as 4+ diamonds; `1S (1N) X` read 15+ on a 9-count; opener's `2D`
   rebid shown 6+ on routine 5), BEN misreading *our* natural 1NT defense
   through its Multi-Landy prior (disclosure asymmetry, exploit-guard
@@ -6776,7 +6780,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   keycard answers. Vendored byte-identical as `vendor/ben/BEN-21GF.bbsa`
   (sha256 in [docs/ben-gap-campaign.md](docs/ben-gap-campaign.md), which
   gains a section with the full 10-toggle diff vs stock BBA 2/1 — 1430,
-  Two-Way NMF, Strength Lawrence raises, Leaping Michaels, 1NT-3M splinter,
+  Two-Way NMF, Strength Lawrence raises, Leaping Michaels, `1NT - 3M` splinter,
   Gerber NT-only, Extended Stayman off — plus provenance and the
   weights-vs-card caveat: EPBot with this card is BEN's skeleton, ≈0.35
   IMPs/bd behind BEN itself). `bba-gen` grows `--our-card`/`--their-card
@@ -6799,7 +6803,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Rules` max-weight semantics, and scores held-out fidelity against an
   exact-tuple expressiveness ceiling. Findings: brl's system is radically
   non-human (openings **anti-monotone in HCP** — 99.8% of 0–3 counts open,
-  half of 12–15 counts pass; 1C a 44% catch-all; forced-relay `1C X XX`;
+  half of 12–15 counts pass; 1C a 44% catch-all; forced-relay `1C (X) XX`;
   reinvented Stayman/transfers over its strong 1NT; vul-conditioning
   everywhere, root flip 16.6%) — validated genuine by replaying dumped
   boards through pgx's own PBN parsing. Extraction verdict: root box
@@ -6964,7 +6968,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     +0.0115 ± 0.0016 vul**, PD +0.0114/+0.0126, **sd-lead +0.0159 ± 0.0054 /
     +0.0115 ± 0.0072** — every bracket, both vuls, CIs clear.
   - `set_redouble_answer` **default-on** — opener's pass-only authored answer
-    over `1x-(X)-XX-(P)`. Unauthored, the systems-on rebase strips both the
+    over `1x (X) XX -`. Unauthored, the systems-on rebase strips both the
     double and the redouble, so the floor re-priced shaped minimums as
     game-going and blasted stopperless 3NTs (−16..−17 IMPs/board vulnerable,
     the report's worst per-board family). Pass-only is deliberate: a 2M
@@ -6980,7 +6984,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     +0.0028/+0.0036, sd-lead +0.0024 ± 0.0035 / +0.0046 ± 0.0043 (no
     weak-two-style wall inversion).
   - `set_nt_invite_hcp` **default-on** — responder's 2NT invite after
-    `1♥-1♠-2m` gauged `hcp(10..=12)`: the table's one no-fit rung was priced
+    `1♥ - 1♠ - 2m` gauged `hcp(10..=12)`: the table's one no-fit rung was priced
     in ruffs a notrump part-score never takes; the fit-showing 3♥/3m rungs
     keep `points` (the 2/1 hcp/support-points split again). Plain DD
     **+0.0018 ± 0.0003 / +0.0022 ± 0.0005**, PD +0.0028/+0.0032.
@@ -6994,7 +6998,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     verdicts in docs/archive/point-count-threshold-campaign.md: the natural-1NT-
     defense buckets (sd-tuned wall), the weak-two↔1-opener seam (the
     disclosure wall's edge), legacy's 4441 strong-tier upgrade, and the
-    doubler-side `[1M X XX P P]` sit-out node.
+    doubler-side `1M (X) XX - -` sit-out node.
 - **`set_weak_two_hcp` — weak-two opening gauged in raw HCP, opt-in (default
   byte-identical); the weak-two point-count remnant is the obstruction wall,
   not a fixable gauge.** `Some((lo, hi))` gauges every weak-two opening in
@@ -7016,7 +7020,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (sd-vul −0.0113). Retained opt-in as a single-dummy re-measure candidate; the
   `ab-point-count` harness gained a two-book path so build-time gate knobs (not
   just the eval-time point scales) can be measured fix-vs-shipped.
-- **`set_major_choice_of_games` — the `1M – 3NT` choice-of-games response,
+- **`set_major_choice_of_games` — the `1M - 3NT` choice-of-games response,
   shipped default-on** (off-switch `--no-ns-major-choice-of-games` in
   `bba-gen`, `--choice-of-games` in `ab-major-continuations`). 3NT over
   `1♥`/`1♠` shows 3-4 card support, exactly (4333) and 12-15 HCP (over `1♥`
@@ -7040,7 +7044,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (opener promised five) so shortness counts; the no-fit gauge swaps the
   shape-promoted `points(13..)` for raw `hcp(13..)`, the
   point-count-remnant report's shape-indifferent prescription (shaped
-  11-12s go back to the forcing 1NT). Minor 2/1 (`1♦–2♣`) untouched — no
+  11-12s go back to the forcing 1NT). Minor 2/1 (`1♦ - 2♣`) untouched — no
   fit is known there. Measured (1M boards/vul/arm): gates alone `hcp13`
   plain +0.0019/+0.0018 PD +0.0065/+0.0069, `hcp12` plain +0.0014/+0.0034
   PD +0.0023/+0.0038 (NV/vul); paired head-to-head `hcp12` vs `hcp13` = NV
@@ -7297,8 +7301,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Measurement only — no system-behavior change from these. Verdicts (all fresh,
   docs/bidding-options.md A6): `inference_aware`/`alert_reading`/`settle_floor`
   WIN/WIN (the last two refresh stale-PD figures); `nt_invite_inference` INERT
-  (Puppet Stayman routes the 8-9 invite through `1NT-2♠`, off the natural
-  `1NT-2NT` it reads); `rubens_transfer_reading` a bba WASH; `fuzzy_points` kept
+  (Puppet Stayman routes the 8-9 invite through `1NT - 2♠`, off the natural
+  `1NT - 2NT` it reads); `rubens_transfer_reading` a bba WASH; `fuzzy_points` kept
   default-on (plain **+0.106/+0.116** and sd-lead both win; the PD −0.04 is the
   doubling-artifact bracket).
 
@@ -7316,13 +7320,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     **+0.0014/+0.0027** IMPs/board (NV/vul) — a rare fire (~0.06%) but **+2…+6.7
     IMPs/fired**, positive on every scorer, so a genuine fix of a
     floundering-into-doubled auction, not a doubling artifact. (Also fixes the
-    systems-on graft, which read `(1M)-1NT-(X)` as a runout but bid a floor call.)
+    systems-on graft, which read `(1M) 1NT (X)` as a runout but bid a floor call.)
   - **RHO bids 2♣** → systems on, but it is Gladiator: 2♣ steals no room, so only
     the 2♣ relay is consumed and reappears as `X` (a rebase maps their 2♣ to a pass
     and our Double to the stolen relay; the transplant hands `X` the relay's logit;
     `gladiator_reading` mirrors the rebase). Opt-in (under `set_nt_overcall_gladiator`).
   - **RHO bids 2♦/2♥/2♠** → the partnership's Transfer Lebensohl, as if partner had
-    opened 1NT — reusing the Section-5 builders under `[1M,1NT,(2X)]` (the
+    opened 1NT — reusing the Section-5 builders under `(1M) 1NT (2X)` (the
     `insert_advance_of_double` idiom, factored into a shared `insert_sohl_over`).
     Reading is free via the builders' alerts. Opt-in (under the Gladiator knob).
   - Measured (opt-in halves B+C, `scripts/nt-overcall-gladiator-ab.sh`, 32×6400
@@ -7339,7 +7343,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Gladiator delayed cue + the (4333) carve on both Stayman cues**
   (`set_nt_overcall_gladiator`, still default-OFF / opt-in — byte-identical
   default). Two changes, only live when the knob is on:
-  - New **delayed cue** `(1♠) 1NT–2♣–2♦–2♠` = exactly-3-card other-major, INV+ —
+  - New **delayed cue** `(1♠) 1NT - 2♣ - 2♦ - 2♠` = exactly-3-card other-major, INV+ —
     a 5-3-fit finder for the balanced 5-card-major hand a 1NT overcall may hold
     (both sides authored: overcaller min/max × fit/misfit, alert + `DelayedCue`
     inference reading).
@@ -7456,7 +7460,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **The real Meckstroth adjunct — an artificial game-forcing `2NT`** shipped
   **default-on** (`set_meckstroth_adjunct`; the `ab-meckstroth-2nt` self-play
-  harness builds a baseline arm with it off). After `1M – 1NT` (the forcing notrump)
+  harness builds a baseline arm with it off). After `1M - 1NT` (the forcing notrump)
   opener's `2NT` is now an artificial **18+ game force of any shape** instead of
   the natural 18–19 balanced rebid, weight-ordered above the `3M` jump-rebid so
   every 18+ hand routes through it. Responder relays `3♣` ("you describe"), shows
@@ -7468,7 +7472,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   authored through to game with RKCB on the two major-fit nodes, and every
   artificial call carries an `.alert(...)` (guarded by the shipped
   `artificial_calls_are_alerted` invariant). This overrides the natural-`2NT`
-  continuation only on the two `1M – 1NT` nodes — `1♥ – 1♠ – 2NT`, `1♣ – 1♦ – 2NT`
+  continuation only on the two `1M - 1NT` nodes — `1♥ - 1♠ - 2NT`, `1♣ - 1♦ - 2NT`
   etc. keep the natural 18–19 rebid.
 
   This consolidates the Meckstroth adjunct under **one** knob. What was formerly a
@@ -7489,12 +7493,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Opener's invitational major two-suiter over the forcing `1NT`** shipped
   **default-on** (`set_forcing_nt_two_suiter`; the `ab-forcing-nt-two-suiter`
-  self-play harness builds a baseline arm with it off). After `1M – 1NT`, opener
+  self-play harness builds a baseline arm with it off). After `1M - 1NT`, opener
   with 15–17 and a second major suit previously had no invitational rebid — a 5-4
   or 5-5 hand underbid as a minimum natural call. This fills the seam between the
   minimum rebids and the 18+ game force (the Meckstroth `2NT`) with two calls:
-  `1♥ – 1NT – 2♠` (a reverse: 5+ hearts, 4+ spades, forcing one round) and
-  `1♠ – 1NT – 3♥` (a jump: 5-5 majors, invitational). Both are alerted (they floor
+  `1♥ - 1NT - 2♠` (a reverse: 5+ hearts, 4+ spades, forcing one round) and
+  `1♠ - 1NT - 3♥` (a jump: 5-5 majors, invitational). Both are alerted (they floor
   opener's first suit) and decoded by rule projection; responder's continuations
   are authored (raise a fit to game, sign off, or place `3NT`), with opener's
   natural acceptance of a below-game signoff left to the deterministic floor.
@@ -7512,7 +7516,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **New Minor Forcing as an opt-in alternative to XYZ** (`set_new_minor_forcing`,
   `bba-gen --ns-new-minor-forcing`, `ab-minor-continuations --nmf`; **default
   off** — the shipped system keeps XYZ, and the default book is byte-identical).
-  On the four `1m-1M-1NT` auctions, responder's two-of-the-unbid-minor is the
+  On the four `1m - 1M - 1NT` auctions, responder's two-of-the-unbid-minor is the
   classic one-bid checkback: invitational-or-better with a real five-card major.
   Opener shows three-card support (a minimum raise, or a maximum jump), the
   other four-card major, or a natural notrump; both sides are authored through
@@ -7723,7 +7727,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   to the floor** (`set_cachalot_contested_x`, `bba-gen
   --no-ns-cachalot-contested-x`; **shipped default-on**, Cachalot only). The
   Cachalot school's `X` is a transfer — 4+ hearts over `(1♦)`, 4+ spades over
-  `(1♥)` — and only its *pass-out* completion (`[X, P]`) was authored; when LHO
+  `(1♥)` — and only its *pass-out* completion (`X -`) was authored; when LHO
   competed over the `X`, opener fell to the instinct floor, which reads a bare
   double and leaves the fit for a values double. A forensic decomposition of
   Cachalot's −0.0073/−0.0024 IMPs/board gap to Modern (new example
@@ -7746,7 +7750,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   raise ladder raised partner's suit on *opener's own* points — correct after a
   partner *overcall* (which shows 8–16), but double-counting after we
   *doubled* an opponent's suit for takeout and partner made a **forced advance**
-  (0–8): the double already showed the values, so `1♦ (1♥) P (1♠) X (P) 2♦ (2♥)`
+  (0–8): the double already showed the values, so `1♦ (1♥) - (1♠) X - 2♦ (2♥)`
   drove on to `3♦ … 4♦X` on ~16 combined HCP. Now the 3-level-and-higher rungs
   demand 17+ points when partner merely advanced our double (a genuine maximum
   still competes; a minimum passes and defends), and the minimum's second
@@ -7777,9 +7781,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   auction** (`set_reopening_notrump`, `bba-gen --no-ns-reopening-notrump`;
   **shipped default-on**). The instinct floor had exactly one reopening action —
   a takeout double — so a suit opener's balanced 18-19 (15-17 opens 1NT, 20-21
-  opens 2NT, so its balanced hands are bimodal) was invisible: after `1X (1Y) P
-  (P)` it doubled instead of bidding a natural reopening 1NT, and after `1X (1Y)
-  1NT P` it *passed* a 6-10 response holding up to 22, missing game on both
+  opens 2NT, so its balanced hands are bimodal) was invisible: after
+  `1X (1Y) - -` it doubled instead of bidding a natural reopening 1NT, and after `1X (1Y)
+  1NT -` it *passed* a 6-10 response holding up to 22, missing game on both
   arms. Author all three (both sides): reopening **1NT** with their suit
   stopped (outranks the takeout double), **3NT** over responder's free 1NT
   (which already promised the stopper), and responder's **raise** of the
@@ -7936,7 +7940,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   --no-ns-rich-advance` / `--no-ns-longest-advance`). The **rich advance** (cue
   Stayman-ask, `1NT`/`2NT`/`3NT` stopper ladder, majors-only invitational
   `2M`/`3M` jumps, two-way `4M`, penalty pass, forced 3-card response — shipped
-  opt-in in 0.10.0) gives the advancer of `(1t)–X–(P)` the invite/force channel
+  opt-in in 0.10.0) gives the advancer of `(1t) X -` the invite/force channel
   the flat floor lacked; **longest-first** grades the natural rungs by length (a
   sub-card rank bonus breaking equal-length ties to the higher suit, via a shared
   `natural_advance` helper) so the advancer bids its **longest** suit — 5♦4♠ →
@@ -7967,7 +7971,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **The doubler now answers the advancer's invitational `2NT` instead of
   passing a game** (`set_advance_2nt_continuation`, `bba-gen
   --no-ns-advance-2nt-continuation`; **shipped default-on**). The rich advance's
-  `2NT` (`(1t)–X–(P)–2NT` = balanced 11–12 with a stopper) is default-on, but its
+  `2NT` (`(1t) X - 2NT` = balanced 11–12 with a stopper) is default-on, but its
   continuation fell to the instinct floor, which treats `2NT` as non-forcing and
   **passes even holding a game**. The authored answer accepts/declines naturally:
   **Pass** declines with a minimum, **`3NT`** accepts to play (14+ balanced), and
@@ -7982,7 +7986,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **The advancer's invitational minor jump is now the default, with a
   stopper-ask cue** (`set_advance_minor_jump`, `bba-gen
-  --no-ns-advance-minor-jump`; **shipped default-on**). `(1t)–X–(P)–3m` = a 5+
+  --no-ns-advance-minor-jump`; **shipped default-on**). `(1t) X - 3m` = a 5+
   minor, 10–12, **denying a 4-card unbid major** (a 4-card unbid major cues to
   find the fit; a stopper still bids notrump; 13+ still cues/`3NT`), weighted
   below the notrump ladder — the residual for the no-stopper shapely invite that
@@ -8139,7 +8143,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Gladiator advance of our major-opening 1NT overcall**
   (`set_nt_overcall_gladiator` / `bba-gen --ns-nt-overcall-gladiator`, default
   off; exposed on the web Settings tab as "Gladiator (1NT-overcall advance)").
-  Over `[1♥/1♠, 1NT, P]`, replaces the shipped opening-1NT graft with a
+  Over `(1♥/1♠) 1NT -`, replaces the shipped opening-1NT graft with a
   shape-based, XYZ-style Gladiator structure (Belladonna/Helms, aligned to the
   Crowborough write-up): `2♣` = a two-way relay (weak `♦`/other-major takeout
   **or** any invitational hand, forced `2♦` rebid), `2♦`/`2O` = natural exactly-5
@@ -8200,7 +8204,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   sd-lead (the swaps only trade one bad call for another; BBA's edge is the whole
   auction). The fix *adds capability* instead: the advancer now plays the full
   opening-1NT structure (2♣ Stayman, Jacoby/minor transfers, Smolen), grafted
-  verbatim below `[1t, 1NT]`, so `1♦–1NT` equals `1♣–1NT` equals an opening 1NT —
+  verbatim below `(1t) 1NT`, so `(1♦) 1NT` equals `(1♣) 1NT` equals an opening 1NT —
   4-4 major fits found, right-sided through transfers (the strong overcaller
   declares). One re-rooting `Trie::graft` shares the constructive `register_one_nt`
   subtree (classifiers by `Arc`); the reading strips their opening so the floor
@@ -8237,7 +8241,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   round-trip and no engine change.
 
 - **Opener's strength-showing rebid ladder after a minor opening (BBA-gap bucket
-  #3).** After `1m – 1M` / `1♣ – 1♦`, opener's only long-suit rebid was a
+  #3).** After `1m - 1M` / `1♣ - 1♦`, opener's only long-suit rebid was a
   minimum natural `2m` with no upper bound (weight 0.9, `len(5..)`), so a strong
   single- or two-suiter underbid and the auction died below game — the largest
   un-worked lever in the `Constructive/book/round-2` anchor bucket (−98k IMPs,
@@ -8255,7 +8259,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Opener's major jump-rebid + responder's continuation (BBA-gap bucket #3
   residual).** The extras ladder above left the major-opening rebid nodes
-  (`1♥ – 1♠` and the forcing-`1NT` rebid) capped at a minimum `2M` with no upper
+  (`1♥ - 1♠` and the forcing-`1NT` rebid) capped at a minimum `2M` with no upper
   bound, so a 16+ hand with a strong six-card major underbid — the `6+ ♥`/`6+ ♠`
   residual in the same anchor bucket (`3♥ → 4♥`, `2♥ → 3♥`, `3♠ → 4♠`, plain ≈
   PD). Added the single **jump-rebid `3M`** (6+, 16+; natural, so unalerted),
@@ -8273,7 +8277,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the book's rendered glyphs literally, so `2c` found nothing (the node holds
   `2♣`) and pass/notrump were inconsistent. A deterministic normalizer maps
   `C D H S`→`♣♦♥♠`, `P`/`-`→pass, and `N`/`NT`→notrump on both the query and a
-  per-node sequence haystack, and ignores spacing (`1c2d` matches `1♣ 2♦`). The
+  per-node sequence haystack, and ignores spacing (`1c - 2d` matches `1♣ - 2♦`). The
   existing prose (auction/rule-text) match is preserved, so search only gains
   matches. `X`/`XX` were already easy to type and are untouched.
 
@@ -8304,7 +8308,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Rich advance of a takeout double** (`set_rich_advance_double`, **opt-in,
   default-off**; `bba-gen --ns-rich-advance`). The flat advance floor gave the
-  advancer of `(1t)–X–(P)` only a cheapest natural suit, `3NT`, and a penalty
+  advancer of `(1t) X -` only a cheapest natural suit, `3NT`, and a penalty
   pass — no cue, no way to invite or force. This adds the standard expert
   advancer ladder: a **majors-only** new-suit jump = constructive at the two
   level (8–10, 4+) / invitational at the three level (10–12, 5+) — a jump in a
@@ -8379,7 +8383,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Systems-on over their double of our splinter** (`set_splinter_doubled`,
   **shipped default-on**; off-switch `bba-gen --no-ns-splinter-doubled`). A
-  splinter (`1M – (P) – double-jump`) is game-forcing, but a double reroutes
+  splinter (`1M - double-jump`) is game-forcing, but a double reroutes
   opener's rebid from the constructive book (where the splinter continuation is
   authored) to the competitive book, where it was **unauthored** and fell to
   the floor — which *passed*, leaving the game force doubled at the four level
@@ -8397,7 +8401,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Second-suit agreement in 2/1 auctions** (`set_second_suit_agreement`,
   **shipped default-on**; off-switch `bba-gen --no-ns-second-suit-agreement`).
-  After `1M – 2r – 2x – 3x` — responder raises opener's second suit `x` to the
+  After `1M - 2r - 2x - 3x` — responder raises opener's second suit `x` to the
   three level — opener now has a third-call table (4NT RKCB on extras, else a
   sign-off: four of an agreed major, or `3NT`/`5x` for a minor). Previously this
   node had no table and fell to the game backstop, which reverted to game in the
@@ -8408,7 +8412,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   both vuls** (+0.0012 NV / +0.0015 vul) and **perfect-defense confirms**
   (+0.0014 / +0.0018), all CI>0, PD ≥ plain (no doubling artifact).
 
-- **Balanced `1NT` rebid after `1m – 1M`** (`set_balanced_1nt_rebid`, **shipped
+- **Balanced `1NT` rebid after `1m - 1M`** (`set_balanced_1nt_rebid`, **shipped
   default-on**; off-switch `bba-gen --no-ns-balanced-1nt-rebid`). A balanced
   12–14 with a five-card minor now rebids `1NT` instead of the natural `2m`: the
   `2m` rebid (weight 0.9) outranked the balanced-`1NT` rebid (0.5), so a 5332
@@ -8599,7 +8603,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Opener's/overcaller's competitive long-suit rebid.** Once our side had bid,
   the keyless instinct floor could only *raise partner* or make a *takeout
-  double* in competition — so a self-sufficient one-suiter (e.g. `1♦ (1♥) P
+  double* in competition — so a self-sufficient one-suiter (e.g. `1♦ (1♥) -
   (2♥)` holding `AKJT984`) was stuck doubling, misdescribing a takeout it does
   not have and missing games the auction is cold for. Now a suit we *personally*
   bid and hold six-plus in is rebid at the cheapest legal level, outranking that
@@ -8617,7 +8621,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   exclude 0; +0.67…+1.37 IMPs/fired, 3.4 % fired). Default-on
   (`--no-ns-competitive-rebid` / `set_competitive_rebid(false)` for the off arm).
 
-- **Opener's answer to partner's cue-raise.** After `1M – (ovc) – cue – P`,
+- **Opener's answer to partner's cue-raise.** After `1M (ovc) cue -`,
   opener had no authored rebid, so the auction fell through to the keyless
   instinct floor — whose raise ladder needs partner's *named* suit (the cue) and
   *shown* suit (the major) to agree. A cue-raise decouples them (named = the
@@ -8625,7 +8629,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cuebid out**, declaring e.g. 3♣ on a four-card fit. Now opener accepts to game
   (`4M`, 13+ points) or declines by signing off in `3M` — never Pass. Majors
   only; the trigger excludes the opponents cue-bidding our *own* major (a
-  Michaels `1♠-(2♠)`, where responder's `3♠` is a natural raise, not a
+  Michaels `1♠ (2♠)`, where responder's `3♠` is a natural raise, not a
   cue-raise). No keycard ask — offering `4NT` here would strand it (the
   contested node has no authored RKCB responses), so a strong opener blasts
   game. Measured vs BBA 2/1 (409.6k boards/arm, both vulnerabilities): plain DD
@@ -8634,7 +8638,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`--no-ns-cue-raise-answer` / `set_cue_raise_answer(false)` for the off arm).
 
 - **Opener's answer to a *minor*-opening cue-raise.** The same passed-out-cue
-  bug for `1m – (ovc) – cue – P`. The minor answer differs because minor game
+  bug for `1m (ovc) cue -`. The minor answer differs because minor game
   (`5m`) is remote: opener accepts to **3NT** (14+ points *and* a stopper in
   their suit, so we are not run in the overcall suit) or signs off in our minor.
   The sign-off level floats — `3m` when it is still available, else `4m` when a
@@ -8698,7 +8702,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   **+0.0049/+0.0065**, all four CIs exclude 0; +0.5…+0.8 IMPs/fired at ~0.8%
   fired — the campaign's largest per-board win. `--no-ns-jordan-truscott` for
   the off arm). Responder's first call over
-  `1x-(X)` is re-authored at the deeper `[1x, X]` key — the shipped
+  `1x (X)` is re-authored at the deeper `1x (X)` key — the shipped
   systems-on rebase survives below it for every deeper continuation:
   Jordan/Truscott `2NT` = limit+ raise (4+ majors / 5+ minors, alerted and
   projection-decoded), value `XX` = 10+ without the fit, the jump raise
@@ -8715,7 +8719,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     0; perfect-defense +0.97/**+1.69** IMPs/fired NV/vul, vul CI > 0 — the
     plain-wash + PD-gain ship row; ~0.10% fired;
     `--no-ns-major-support-double` for the off arm): opener's support
-    double/redouble extends to `1♥-(P)-1♠` (exactly three spades), reusing the
+    double/redouble extends to `1♥ - 1♠` (exactly three spades), reusing the
     shipped minor-opening tables verbatim.
   - `set_free_bids` (**stays opt-in**, `--ns-free-bids`: plain +0.29 NV but
     **−0.30 vul** IMPs/fired, PD −0.31/−0.88, CIs exclude 0): responder's
@@ -8831,7 +8835,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   label wrappers) and both renderers walk the new `Trie::fallbacks()`
   enumeration: the competitive section goes from 0 to ~100 sections (e.g.
   `1♠ (overcall ≤2♠)` with the cue-raise and negative-double rules,
-  `1♠ X … → systems on`). Render-only — the classification behavior and the
+  `1♠ (X) … → systems on`). Render-only — the classification behavior and the
   existing nodes' render output are byte-identical; the invariant test
   `competitive_fallbacks_are_renderable` pins every future guard to stay
   self-describing. Campaign plan for the coverage gaps this exposed:
@@ -8874,7 +8878,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Stayman-then-minor slam try, default on (`set_stayman_minor_slam_try`).**
   After a Stayman answer
-  (`1NT–2♣–2♥/2♠/2♦`), responder's natural `3♣`/`3♦` shows a 5+ card minor
+  (`1NT - 2♣ - 2♥/2♠/2♦`), responder's natural `3♣`/`3♦` shows a 5+ card minor
   with slam values (14+) and no fit for opener's major — the 5-4 two-suiter
   whose four-card major (the reason for the 2♣ detour) missed. Opener
   cooperates by raising the minor with a four-card fit and a maximum (else
@@ -8947,16 +8951,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a win on both scorers at both vulnerabilities, ~4.2% divergence,
   +1.4/+2.2 IMPs per divergent board.
   - `set_major_game_tries` (off: `--no-ns-major-game-tries`): after
-    `1M – 2M`, opener's long-suit game tries (`len 4+`, 16–18, natural and
+    `1M - 2M`, opener's long-suit game tries (`len 4+`, 16–18, natural and
     unalerted so the free 4+ reading stays sound), the `3M` general re-raise
     try, direct `4M` at 19+, and a `4NT` keycard ask at 22+; responder
     accepts a suit try with a maximum, shortness, or two top honors in the
     try suit; opener may still push on with 18+ over a decline. RKCB
-    installed at `[1M, 2M]`. Alone: plain **+0.042/+0.065** NV/vul, PD
+    installed at `1M - 2M`. Alone: plain **+0.042/+0.065** NV/vul, PD
     +0.053/+0.081 — the biggest single gap closed.
   - `set_limit_raise_acceptance` (off: `--no-ns-limit-raise-acceptance`):
-    after `1M – 3M`, opener accepts with 13+, asks keycards with 19+, else
-    passes; RKCB installed at `[1M, 3M]`. The accept threshold is a measured
+    after `1M - 3M`, opener accepts with 13+, asks keycards with 19+, else
+    passes; RKCB installed at `1M - 3M`. The accept threshold is a measured
     story: the textbook 14 (and a 15 retry) **lost** −4.6/−5.2 IMPs per
     divergent board — every divergent board was the table *under-bidding*
     the floor, whose raise-partner ladder already accepts at 13+ and whose
@@ -8965,20 +8969,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     ask: **+4.4/+5.2 IMPs/divergent** (78 boards/200k, CI excludes 0, both
     scorers). Traced with the new `probe-limit-raise` example.
   - `set_major_rebid_tails` (off: `--no-ns-major-rebid-tails`): both-sides
-    continuations under `1♥ – 1♠` for opener's `2♠`/`3♠` raises (invite,
+    continuations under `1♥ - 1♠` for opener's `2♠`/`3♠` raises (invite,
     sign-off, keycards; RKCB installed below both), the `2♥` rebid
     (preference / `3♥` invite / `2NT` invite with acceptances), and the
     `2♣`/`2♦` rebids (jump `3♥` preference on three hearts, minor raise,
     `2NT` invite, weak `2♠` rebid, simple preference, `3NT`), with opener's
-    acceptance tables; `1♥–1♠–2m–2♥/2♠` deliberately stay with the floor.
+    acceptance tables; `1♥ - 1♠ - 2m - 2♥/2♠` deliberately stay with the floor.
     Alone: plain **+0.016/+0.023**, PD +0.014/+0.020.
   - `set_fourth_suit_forcing` (off: `--no-ns-fourth-suit-forcing`; rides the
-    tails knob — inert without it): at `1♥ – 1♠ – 2♣`, responder's `2♦`
+    tails knob — inert without it): at `1♥ - 1♠ - 2♣`, responder's `2♦`
     (alerted `fourth-suit-forcing`, points-only constraint so the projection
     claims no diamonds) is an artificial game force; opener answers
     naturally (three-card spade raise first, then extra hearts, a diamond
     stopper, a real second club suit), and responder places the game. The
-    `1♥–1♠–2♦` fourth suit (`3♣`, a level higher) is out of scope. Marginal
+    `1♥ - 1♠ - 2♦` fourth suit (`3♣`, a level higher) is out of scope. Marginal
     on top of the tails: **+0.002** on both scorers at both vulnerabilities.
   Out of scope this round, documented in the module docs: weak-jump-shift
   continuations (obstruction-wall class), a 12-point limit-raise accept
@@ -8989,17 +8993,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **XYZ two-way checkback + the up-the-line minor completion, default on**
   (`set_xyz`, `set_up_the_line`; off-switches `--no-ns-xyz` /
   `--no-ns-up-the-line` in `bba-gen`). XYZ (`src/bidding/american/xyz.rs`)
-  covers the ten uncontested `1x – 1y – 1z` auctions: responder's `2♣`
+  covers the ten uncontested `1x - 1y - 1z` auctions: responder's `2♣`
   (alerted `xyz-relay`) puppets opener to `2♦` (alerted `xyz-completion`) for
   a weak diamond sign-off or any invitation, `2♦` (alerted `xyz-game-force`)
   is an artificial game force answered naturally (three-card support first),
   direct two-level rebids are weak, and the invite round carries opener's
   accept/decline tables — both sides authored, readings free via
   alert-projection. The up-the-line completion fills the natural gaps the
-  structure needs: the `1♣ – 1♦` response (previously squeezed into the
-  notrump ladder or floored), opener's `1♠` rebid over `1m – 1♥` (the 4-4
+  structure needs: the `1♣ - 1♦` response (previously squeezed into the
+  notrump ladder or floored), opener's `1♠` rebid over `1m - 1♥` (the 4-4
   spade fit was lost to a 1NT rebid), and opener's natural `2♣` after
-  `1♣ – 1♦` on six clubs. Measured jointly (`ab-minor-continuations`, 300k
+  `1♣ - 1♦` on six clubs. Measured jointly (`ab-minor-continuations`, 300k
   boards, both scorers, NV/vul): **+0.038/+0.056 IMPs/board plain DD,
   +0.029/+0.041 perfect-defense**, +0.55/+0.80 per divergent board (6.96%
   divergence) — a win on both ends of the bracket. XYZ alone is
@@ -9073,7 +9077,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the vulnerability split**: Woolsey Multi-Landy is the equilibrium defense at
   *both* vulnerabilities (+0.132 IMPs/board NV, +0.071 vul-both, bootstrap
   200/200; always-passing drops to 0/200 support everywhere) — the
-  "vulnerable → pass" law of the DD brackets was, to first order, the
+  "vulnerable → -" law of the DD brackets was, to first order, the
   blind-lead bias flattering the pass-out datum. Every active defense cell
   turns positive at NV. Their counter-equilibrium also shifts from the pure
   shipped-default package to a default/soft mixture: with blind leads paying
@@ -9129,8 +9133,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   splits by strength: weak transfers to *hearts* for safety, invitational and
   minimum game force show both suits at once via the both-majors `3♦` (now
   restricted to equal lengths), and a slam try (17+) transfers to *spades*
-  for the natural game-forcing `1NT–2♥–2♠–3♥` structure.  The 2NT-strength
-  table (2NT opening and `2♣–2x–2NT`) follows the same discipline — longer
+  for the natural game-forcing `1NT - 2♥ - 2♠ - 3♥` structure.  The 2NT-strength
+  table (2NT opening and `2♣ - 2x - 2NT`) follows the same discipline — longer
   major, hearts on every tie (it has no both-majors bid or slam reroute).
   The 5♠4♥/5♥4♠ Stayman reroutes and the splinter reroute are untouched.
   Paired A/B (204.8k 1NT-filtered boards, 47 fired): plain −0.0000 ± 0.0003,
@@ -9168,12 +9172,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   --no-ns-control-bid-reading`). A four-plus-level new-suit bid in an
   undisturbed auction is a **control bid iff the bidder *bypassed* the suit** —
   it was biddable more cheaply (same level, lower strain) at their first
-  suit-showing call and they chose another suit: `1♦–1♠–2♦–4♥` had 1♥
+  suit-showing call and they chose another suit: `1♦ - 1♠ - 2♦ - 4♥` had 1♥
   available under 1♠, so hearts are short and 4♥ agrees diamonds (support and
   slam-try values recorded, the phantom hearts suppressed) — likewise
-  `1NT–2♥–2♠–4♥` through the transfer overlay. Everything else — a bidder who
-  has shown nothing (`1♦–4♥`), a suit *above* the first-shown one
-  (`1♣–1♥–2♣–4♠`, the post-transfer `1NT–2♦–2♥–4♠`) — reads **to play:
+  `1NT - 2♥ - 2♠ - 4♥` through the transfer overlay. Everything else — a bidder who
+  has shown nothing (`1♦ - 4♥`), a suit *above* the first-shown one
+  (`1♣ - 1♥ - 2♣ - 4♠`, the post-transfer `1NT - 2♦ - 2♥ - 4♠`) — reads **to play:
   suppressed, with nothing floored**.  Two A/B rounds fixed each half: the
   naive "shown another suit ⟹ can't be longest" rule bled −6.1 IMPs per fired
   board pulling natural 4♠s to the "agreed" minor (this system's response and
@@ -9235,7 +9239,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **One-level Rubens transfers now record their meaning**
   (`set_rubens_transfer_reading`, **on by default**; `bba-gen
   --no-ns-rubens-reading`). The transfers were suppress-only — after
-  `(1♣) 1♠ (P) 2♥` the overcaller read *nothing* from the limit-plus raise,
+  `(1♣) 1♠ - 2♥` the overcaller read *nothing* from the limit-plus raise,
   so game acceptance, the constrained sampler, and the neural features (whose
   `Inferences` block shifts values on these auctions — no layout change, no
   `FEATURES_VERSION` bump) were all blind to it; only the two-level cue-raise
@@ -9251,7 +9255,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   fired), perfect-defense +0.0003 ± 0.0005** — a small real win; it converts
   cue/transfer passouts into bid games.
 - **Responder's continuation after opener's Stayman slam-try cue**
-  (`set_stayman_cue_continuation`, **on by default**). After `1NT–2♣–2M–3OM`,
+  (`set_stayman_cue_continuation`, **on by default**). After `1NT - 2♣ - 2M - 3OM`,
   opener cue-bids a control (`4♣`/`4♦`/`4♥`) to accept the slam try with a maximum —
   but responder had no authored rebid, so the floor *passed the cue out*, frequently
   **below the major game**. This was the single dominant leak in our Stayman auction
@@ -9265,13 +9269,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   850 fired = 0.22%), both CIs excluding 0 — one of the largest per-fired gains in the
   Stayman structure, since it converts a below-game passout into a game or slam.
 - **A game-forcing structure after the spade transfer** (`set_transfer_gf_majors`,
-  **on by default**). After `1NT–2♥–2♠`, responder's game-forcing hands previously
+  **on by default**). After `1NT - 2♥ - 2♠`, responder's game-forcing hands previously
   fell to the floor's natural raise, with no way to show a two-suiter, a minor side
   suit, or a splinter. Against BBA (960k boards, seed-fresh) the structure gains
   **+0.0014 IMPs/board plain and +0.0016 par-doubled** (both 95% CI ±0.0003,
   +1.70/+1.90 per fired board). When on:
   - `3♥` is a natural **5-5 majors slam try** — the slam end of the both-majors hands,
-    rerouted off the direct `1NT–3♦` jump (now capped at `point_count ≤ 16`, a clean
+    rerouted off the direct `1NT - 3♦` jump (now capped at `point_count ≤ 16`, a clean
     invitational-through-minimum-game-force range). Opener agrees spades and launches
     RKCB with a maximum, or signs off in `4♠`.
   - `3♣`/`3♦` show **five spades and a four-card minor**. By default they are shown on
@@ -9292,7 +9296,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `set_transfer_gf_majors(false)` (or `bba-gen --no-ns-transfer-gf-majors`). `set_minor_min_to_3nt` (Arm B) stays **off** —
   the A/B refuted it: showing the minor beat lumping minimums into `3NT`.
 - **The game-forcing structure mirrored onto the heart transfer**
-  (`set_transfer_gf_hearts`, **on by default**). After `1NT–2♦–2♥`, responder shows a
+  (`set_transfer_gf_hearts`, **on by default**). After `1NT - 2♦ - 2♥`, responder shows a
   five-heart-plus-minor game force (`3♣`/`3♦`), a six-heart splinter (`3♠` short in
   spades — cheap, below `4♥` — or `4♣`/`4♦` short in a minor), or a single-suited
   quantitative slam invite (`4NT`, relocated off the `3♠` slam try, just as spades
@@ -9304,7 +9308,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `set_transfer_gf_majors` is also on; disable with `set_transfer_gf_hearts(false)` (or
   `bba-gen --no-ns-transfer-gf-hearts`).
 - **A Texas + responder-RKCB slam drive for six-card majors**
-  (`set_texas_slam_drive`, **on by default**). The direct `1NT–4♥/4♠` was a
+  (`set_texas_slam_drive`, **on by default**). The direct `1NT - 4♥/4♠` was a
   *non-forcing* slam try — opener moved only with a maximum, else passed the major
   game — which stranded the strong responder: a 16+ six-card-major hand opposite a
   *minimum* 1NT (the majority) held a cold slam the opener vetoed by passing, while
@@ -9319,14 +9323,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   fired, 0.04%), every CI excluding 0. Disable with `set_texas_slam_drive(false)`
   (or `bba-gen --no-ns-texas-slam-drive`).
 - **A slam try after a Jacoby transfer** (`set_transfer_slam_try`, **on by
-  default**). Once a transfer completes (`1NT–2♦–2♥` / `1NT–2♥–2♠`), a
+  default**). Once a transfer completes (`1NT - 2♦ - 2♥` / `1NT - 2♥ - 2♠`), a
   single-suited five-card major with 16+ HCP bids the *other* major (`3♠` / `3♥`,
   artificial) to agree the transfer suit and try for slam; opener launches RKCB
   with a maximum (`4NT`) or signs off in the major game, and the existing 1430
   ladder places the contract. *Why:* the transfer path had **no** slam machinery —
   a strong balanced five-card-major responder transferred and then rested in `3NT`
   while a major slam was cold. A double-dummy survey localised the bulk of our
-  1NT-opening deficit vs BBA to exactly this: of the 50 worst `1NT–2♦/2♥` boards we
+  1NT-opening deficit vs BBA to exactly this: of the 50 worst `1NT - 2♦/2♥` boards we
   played `3NT` on 43 while BBA reached a slam on 34. A paired on/off A/B (320 000
   boards, shared seed, vs the BBA reference) measured **plain +0.0012 IMPs/board
   (95% CI ±0.0004), PD +0.0012 — +1.42 IMPs/fired in both regimes** (275 fired,
@@ -9371,7 +9375,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`set_nt_responder_game_floor`, **default 9**, was 10). *Why:* the authored
   direct-3NT response already forces on `hcp(9..)`, but a 9-count holding a
   *single five-card major* cannot bid it — it must Jacoby-transfer, and after the
-  transfer completes (`1NT–2♦–2♥` / `1NT–2♥–2♠`) the authored rebid table only
+  transfer completes (`1NT - 2♦ - 2♥` / `1NT - 2♥ - 2♠`) the authored rebid table only
   covers the exactly-8 invite, so the game force fell to the instinct floor, whose
   trigger was 10. The 9-count therefore stalled in a partscore and missed game.
   Lowering the floor to 9 closes the seam; gated on an *undisturbed* auction
@@ -9380,7 +9384,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the thin 3NT). The undisturbed change measured **plain +0.0048 IMPs/board (95%
   CI ±0.0020), PD wash**.
 - **Responder no longer pulls to 3NT over a double of our 1NT** — the unlimited
-  business redouble (`1NT–(X)–XX`, "we make it") or a long-suit escape governs
+  business redouble (`1NT (X) XX`, "we make it") or a long-suit escape governs
   instead (`set_suppress_nt_game_force_over_double`, **on by default**). *Why:* the
   floor's natural-3NT game force was firing over a penalty double of our 1NT for
   every strong balanced hand, bypassing the redouble; a paired A/B isolated this
@@ -9514,7 +9518,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Single-suited 5-card-major invite completed for spades** (rides
   `set_invitational_5card_majors`, **default on**). A responder with *exactly* five
   spades, no four-card heart suit, and a bare-8 invitation now transfers (`2♥`) and
-  rebids `2NT` (`1NT–2♥–2♠–2NT`) — the spade mirror of the heart single-suiter's `2♠`
+  rebids `2NT` (`1NT - 2♥ - 2♠ - 2NT`) — the spade mirror of the heart single-suiter's `2♠`
   relay, using the free `2NT` step (5♠4♥ Staymans, so `2NT` is not needed for the 5-4
   invite). Opener places the contract by strength and fit: a maximum bids `4♠` with
   three-card support or `3NT` with a doubleton; a minimum rests in `3♠` (the 5-3 fit) or
@@ -9590,10 +9594,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   authored at an *exact* trie node (via `common_prefixes`). But every contested
   convention — Transfer-Lebensohl transfers, Leaping Michaels, the Lebensohl cue —
   is authored as a *guarded fallback*, which `common_prefixes` walks straight past.
-  So once the opponents bid again over an artificial call (e.g. `1NT-(2♠)-3♦`→♥
+  So once the opponents bid again over an artificial call (e.g. `1NT (2♠) 3♦`→♥
   followed by `(3♠)`), the floor lost the convention's meaning, read the call as a
   *natural* long suit, and raised the phantom suit into a doubled contract (the
-  BBA-match tail had `1NT-(2♠)-3♦-(3♠)-5♦x` catastrophes). `project_authored` now
+  BBA-match tail had `1NT (2♠) 3♦ (3♠) 5♦x` catastrophes). `project_authored` now
   re-resolves each prior call's *authoring* classifier through the same
   node-then-fallback chain that bid it (`Trie::authoring_classifier`), so any
   alerted convention is decoded the same way it was made. This is the general
@@ -9607,8 +9611,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Three Stayman (1NT-2♣) treatments, measured with paired same-deal A/B vs BBA
-  (vul none).** Each is a rarely firing subset of the 1NT-2♣ subtree; all three
+  - **Three Stayman (`1NT - 2♣`) treatments, measured with paired same-deal A/B vs BBA
+    (vul none).** Each is a rarely firing subset of the `1NT - 2♣` subtree; all three
   are individually DD-positive on *both* plain and perfect-defense (so not a
   doubling artifact), and they are partial **substitutes** — a treatment's
   per-fired value softens (but stays clearly positive) when another is on, as they
@@ -9624,7 +9628,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     on, so the floor doesn't misjudge a weak escaper. **+0.51 IMPs/fired plain
     (+0.0009/board, 95% CI ±0.0005, excl 0), +0.70 PD**; fires 0.17% of boards.
   - **Opener shows a maximum five-card major** (`set_stayman_5card_max`,
-    **default on**; off-switch `bba-gen --no-ns-stayman-5card-max`): over 1NT-2♣
+      **default on**; off-switch `bba-gen --no-ns-stayman-5card-max`): over `1NT - 2♣`
     holding a five-card major and a maximum, jump `3♥`/`3♠` (our balanced 1NT
     *can* hold a five-card major — a 5332 is balanced and outranks the
     one-of-a-major opening on weight), showing the 5-3/5-4 fit plus extras so
@@ -9634,7 +9638,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     +3.33 PD**, holding up at +1.47/+0.90 even with garbage on; fires 0.02%.
   - **Opener shows both four-card majors with a max-only right-siding relay**
     (`set_stayman_both_majors`, **default on**; off-switch
-    `bba-gen --no-ns-stayman-both-majors`): over 1NT-2♣ holding both majors and a
+      `bba-gen --no-ns-stayman-both-majors`): over `1NT - 2♣` holding both majors and a
     *maximum* (16-17), jump to `2NT`; a minimum (15) bids `2♥` naturally.
     Responder then names *their own longer* major — `3♣` = hearts, `3♦` = spades
     (hearts on a 4-4 tie, the lower major leaving room to escape a double) — and
@@ -9676,7 +9680,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     transfer) and bids Stayman, rebidding `2♠` over opener's `2♦` (non-forcing,
     opener passes the partscore or accepts game) or over `2♥` (forcing,
     invitational through slam — opener picks ♥/♠ and the level). With 5♠4♥ now
-    routed to `2♠`, the existing `1NT-2♣-2♥-3♠` slam try is capped to **deny five
+    routed to `2♠`, the existing `1NT - 2♣ - 2♥ - 3♠` slam try is capped to **deny five
     spades**.
   - **5♥4♠** transfers to hearts and, after the completion, rebids `2NT` (showing
     the four spades) or an artificial `2♠` (a single-suited heart invite denying
@@ -9686,7 +9690,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Doubled-2♦ escape** (general — in `competition.rs`, gated by
     `competition_over_stayman`, so flag-independent and present for the baseline
     too). When an opponent doubles opener's *artificial* Stayman answer
-    (`1NT-2♣-(2♦/2♥/2♠)-(X)`), responder's rebids are now systems-on: strip the `X`
+    (`1NT - 2♣ - 2♦/2♥/2♠ (X)`), responder's rebids are now systems-on: strip the `X`
     to a Pass and re-key onto the uncontested tree, so the 5♠4♥ runs to its real
     `2♠` and a 4-4 invite to `2NT` instead of passing the artificial bid out
     doubled. Alert-reading decodes the 2♦ for *inference*; it does not make the
@@ -9703,7 +9707,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   short-diamond 4-4 is necessarily club-heavy. The `2♣` is the existing STAYMAN
   alert; the `2♥` crawl floors only hearts (responder's spades is implied by the
   crawling `2♣`, like the invitational `2♠` sibling) so it stays unalerted
-  natural. The doubled tail `1NT-2♣-2♦-(X)-2♥` is handled for free by the
+  natural. The doubled tail `1NT - 2♣ - 2♦ (X) 2♥` is handled for free by the
   systems-on rebase above (the `X` is stripped and the auction re-keyed onto the
   uncontested crawl). The inference engine no longer assumes `2♣` shows 8+ when
   this is on. Paired same-deal A/B vs BBA (1.6M boards/arm, `--filter-1nt`, vul
@@ -9715,10 +9719,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   no four-card major but five diamonds and `3=3` majors escaping `1NT` via `2♣`
   (sound drop-dead — a 4-3 major or long-diamond fit on every answer, no pull
   needed). Measured net-negative for the same reason as above: the weak `2♣` is
-  **doubled and passed out** (`1NT P 2♣ X P P P`, a short-club `2♣x`), **−0.495
+  **doubled and passed out** (`1NT - 2♣ (X) - - -`, a short-club `2♣x`), **−0.495
   IMPs/fired plain, −0.631 PD** (320 000 boards, vul none). The loss is the
-  `(2♣)-X` tail, not the escape; with no near-term runout to author, the variant
-  was removed rather than kept as a dead knob. A runout over `(2♣)-X` is the
+  `(2♣) X` tail, not the escape; with no near-term runout to author, the variant
+  was removed rather than kept as a dead knob. A runout over `(2♣) X` is the
   prerequisite to revisit it.
 - **`examples/probe-nt-invite-eval` — does any hand evaluator beat raw HCP at the
   1NT-response invite/force boundary, per responder shape?** A double-dummy screen
@@ -9760,7 +9764,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   behavior change is deferred to the final increment that drops `artificial()`.
 
 - **The unusual 2NT overcall is now alerted** (`Alert("unusual-2nt")`). Second
-  increment of the `artificial()` retirement: the `[1♦] 2NT` / `[1♠] 2NT`
+  increment of the `artificial()` retirement: the `(1♦) 2NT` / `(1♠) 2NT`
   two-lowest-unbid-suits overcall (the suit-defense unusual notrump, distinct
   from the already-alerted defense to a 1NT opening) now carries its own alert.
   Same disclosure-only **decode no-op** as the Michaels increment; shrinks the
@@ -9768,7 +9772,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **The Leaping Michaels overcall is now alerted** (`Alert("leaping-michaels")`).
   Third increment of the `artificial()` retirement: the 4♣/4♦ jumps over a weak
-  two (`[2♥] 4♣`/`4♦`, `[2♦] 4♦`, …) — the 5-5 game-forcing two-suiter authored
+  two (`(2♥) 4♣`/`4♦`, `(2♦) 4♦`, …) — the 5-5 game-forcing two-suiter authored
   in `defense_to_weak_two` behind `leaping_michaels_enabled()` — now carry an
   alert (distinct from the responder-side `comp:leaping-michaels`). Same
   disclosure-only **decode no-op**; shrinks the worklist from 140 to 120.
@@ -9781,7 +9785,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   *opponents'* suit precisely when it wants to defend the contract on the table. The
   artificial call there is the **takeout double** (it asks partner to pick a suit),
   not the pass that sits for it.
-  - The responsive double (`[1♦ X 2♦] X` / `[1♦ X 3♦] X`, both the takeout-double and
+  - The responsive double (`(1♦) X (2♦) X` / `(1♦) X (3♦) X`, both the takeout-double and
     overcall variants) now carries `Alert("responsive-double")` — honest disclosure
     that it is artificial (a takeout call asking partner to pick a suit). An exact
     **no-op for inference**: the floor's read is identical before and after (the
@@ -9791,23 +9795,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     (responsive here), the defend-it passes by the settle floor ("pass = play the top
     bid"), the penalty doubles by their existing post-walk readers
     (`penalty_x_reading` / `penalty_latch_double_reading`). This **naturalizes the
-    trap pass** (`[1♦ X P] P`) — the one real behavior change, deferred to the
-    final-drop measurement (watch those boards and the `1NT-(2M)-P-(P)` reopening).
+    trap pass** (`(1♦) X - -`) — the one real behavior change, deferred to the
+    final-drop measurement (watch those boards and the `1NT (2M) - -` reopening).
   - Shrinks the worklist from 120 to **68**; all remaining counterexamples are bids
     (#6 transfers over 2NT, #7 puppet / two-way relay).
 
 - **`artificial()` retired — alerts now carry the decode signal exhaustively.**
   Final increments of the retirement. The last 68 counterexamples were swept:
-  - *#6 — transfers over a 2NT-strength notrump* (`[2NT] 3♦/3♥`, and the same after
-    a `2♣–2x–2NT` rebid) now carry `Alert("jacoby-transfer")`. The 3♣ Stayman beside
+  - *#6 — transfers over a 2NT-strength notrump* (`2NT - 3♦/3♥`, and the same after
+    a `2♣ - 2x - 2NT` rebid) now carry `Alert("jacoby-transfer")`. The 3♣ Stayman beside
     them is an OR-disjunction the structural witness never flagged, so it is left
     natural — alerting **exactly** the structural set keeps the drop a true no-op.
   - *#7 — puppet / two-way-relay continuations*: the club splinters under the 2♠
-    two-way relay (`[1NT 2♠ 2NT] 3♦/3♥/3♠`, `[1NT 2♠ 3♣] 3♦/3♥/3♠`) carry
+    two-way relay (`1NT - 2♠ - 2NT - 3♦/3♥/3♠`, `1NT - 2♠ - 3♣ - 3♦/3♥/3♠`) carry
     `Alert("splinter")`, the slamless 6-card-club `3NT` carries `Alert("puppet")`,
-    the Stayman 3-other-major artificial slam try (`[1NT 2♣ 2♥] 3♠`, `[1NT 2♣ 2♠]
+    the Stayman 3-other-major artificial slam try (`1NT - 2♣ - 2♥ - 3♠`, `1NT - 2♣ - 2♠ -
     3♥`) carries `Alert("slam-try")`, and the Puppet-Stayman 4-4 hunt
-    (`[1NT 3♣ 3♦] 3♥/3♠`) carries `Alert("smolen")`.
+    (`1NT - 3♣ - 3♦ - 3♥/3♠`) carries `Alert("smolen")`.
   - **The drop:** with the worklist at zero, `|| artificial(p, made)` is removed
     from the decode gate (`project_authored`) — alerts alone decide whether a call
     is read as conventional. This is a **provable bit-identical no-op** under the
@@ -9891,12 +9895,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reference cancels) measured each, and **none earns its way on by default** — so,
   unlike the contested 2♣ Stayman, all three ship opt-in:
   - *Uncontested super-accept.* With four-card support for responder's major and a
-    maximum, opener jumps to the three-level (`1NT-2♦-3♥` / `1NT-2♥-3♠`) instead of
+    maximum, opener jumps to the three-level (`1NT - 2♦ - 3♥` / `1NT - 2♥ - 3♠`) instead of
     merely completing the transfer. Measured a **DD wash leaning negative** (−0.055
     IMPs/board it fires on) — opposite a transfer that may hold nothing, committing
     to the three-level overbids. Enable with `set_transfer_super_accept(true)`
     (`bba-gen --ns-transfer-super-accept`).
-  - *Our transfer is contested.* After `1NT-(P)-2♦/2♥-(X)` opener **completes** with
+  - *Our transfer is contested.* After `1NT - 2♦/2♥ (X)` opener **completes** with
     three-card support, **jump super-accepts** with four and a maximum, **Pass**
     declines with a doubleton (responder's `XX` is then a **forcing re-ask** opener
     must answer), or `XX` shows the doubled transfer suit as its own; after a 2-/3-
@@ -9906,7 +9910,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     on; plain-DD CI excludes 0) — the super-accept and forcing re-ask drive us into
     failing contracts the floor's lower bids avoid. Enable with
     `set_competition_over_transfer(true)` (`bba-gen --ns-comp-over-transfer`).
-  - *Defending their transfer.* Over `(1NT)-P-(2♦/2♥)`: `X` = lead-directing the bid
+  - *Defending their transfer.* Over `(1NT) - (2♦/2♥)`: `X` = lead-directing the bid
     (transfer) suit (not takeout); a cue of the suit they showed = the other major +
     a minor (Michaels 5-5); natural one-suiter overcalls (six-card, `points(14..)`,
     the Stayman-defense floor); the transfer suit's own 3-level bid is a strong
@@ -9919,7 +9923,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Competition over the 2♣ Stayman, on both sides.** Two auction families that
   previously fell through to the instinct floor are now authored:
-  - *Our Stayman is contested.* After `1NT-(P)-2♣-(X)` opener answers in the
+  - *Our Stayman is contested.* After `1NT - 2♣ (X)` opener answers in the
     expert *pass-denies-stopper* coded scheme — a major or `2♦` promises a club
     stopper, **Pass denies one**, `XX` is business clubs — and when opener passes,
     responder's `XX` is a **forcing re-ask** (direct XX is business, balancing XX
@@ -9930,7 +9934,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     boards scored **+3.5 IMPs/board it fires on** (CI excludes 0). The off-switch
     `set_competition_over_stayman(false)` (`bba-gen --no-ns-comp-over-stayman`)
     isolates it for A/B.
-  - *Defending their Stayman.* A new **opt-in** defense to `(1NT)-P-(2♣)`:
+  - *Defending their Stayman.* A new **opt-in** defense to `(1NT) - (2♣)`:
     `X` = lead-directing clubs (the bid suit, not takeout); `2♦/2♥/2♠` = a natural
     **6-card** suit, `points(14..)`; `3♣` = a **strong** natural club one-suiter
     (declare, not preempt); no Michaels cue (their 2♣ is artificial). The overcall
@@ -10018,7 +10022,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   invite not a transfer; 2♠ clubs / 3♣ diamonds artificial). Covered by the new
   `tests/american_european_minors.rs`; the Puppet default is unchanged.
 
-- **A weak advancer now runs from their redoubled penalty double (`[1NT, X, XX]`).**
+- **A weak advancer now runs from their redoubled penalty double (`1NT (X) XX`).**
   After our natural penalty double of their 1NT, their redouble is business in
   every system we face (BBA and our own: "we make 1NT redoubled"), so a broke
   advancer escapes to its longest five-plus-card suit rather than sit for a making
@@ -10029,13 +10033,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   1NT-defense match, 16000 we-defend both-vulnerable boards/seed): the penalty-X
   (`X`) bucket goes −174 → −67 IMPs (−0.328 → −0.125 IMPs/X-board), **+107 IMPs**
   recovered and isolated by construction to the boards where it fires. Restricting
-  to the *immediate* `[1NT,X,XX]` is deliberate: extending the run to the balancing
-  redouble (`[1NT,X,P,P,XX]`) regresses to −202 (−135 vs immediate), because there
+  to the *immediate* `1NT (X) XX` is deliberate: extending the run to the balancing
+  redouble (`1NT (X) - - XX`) regresses to −202 (−135 vs immediate), because there
   the advancer already passed its first turn — it chose to defend, and the
   redouble's announced max does not undo that.
 
 - **The *doubler* now runs once that redouble travels back around
-  (`[1NT, X, XX, P, P]`).** The companion to the advancer runout above, two calls
+  (`1NT (X) XX - -`).** The companion to the advancer runout above, two calls
   later: after their business redouble of our 15+ penalty double, the advancer and
   opener pass it back to the doubler, who — holding a five-plus-card suit — escapes
   to it rather than defend a (usually-making) `1NTxx`; a 4-3-3-3/4-4-3-2 doubler with
@@ -10062,7 +10066,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Responder raises opener's Stayman major on adjusted points, not raw HCP.**
-  After `1NT-2♣-2M` with a fit, the invite-versus-game choice now runs through a
+  After `1NT - 2♣ - 2M` with a fit, the invite-versus-game choice now runs through a
   shared `notrump::fit_value` — point count plus a point for each trump past the
   eighth (the ninth and tenth trump, worth a trick apiece once the suit is
   agreed). A flat eight (4-3-3-3, no ruffing value) still only invites (`3M`);
@@ -10111,7 +10115,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   per-system `if`/`else if` cascade.** A defensive "system" is a bundle of per-call
   conventions — "Woolsey" is really `X` = Woolsey + `2♣` = Landy + `2♦` = Multi +
   `2♥`/`2♠` = Muiderberg — so each artificial call is now authored once as an
-  `Alert`-stamped block, all are chained at the `[1NT]` node, and `Rules::gated` ships
+  `Alert`-stamped block, all are chained at the `(1NT)` node, and `Rules::gated` ships
   only the active system's calls at book-construction time (the same build-time gate
   as the Puppet/European 1NT split). The guiding invariant: **an alert marks an
   artificial call, so only artificial calls carry one** — the penalty `X`, the four
@@ -10120,7 +10124,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   convention is pinned by its alert. Purely internal: all public setters
   (`set_woolsey`, `set_direct_dont`, `set_direct_landy_double`, `set_landy`,
   `set_unusual_notrump_defense`, the tuning knobs) and every defended auction are
-  unchanged — a new test asserts the `[1NT]` node authors at most one rule per call
+  unchanged — a new test asserts the `(1NT)` node authors at most one rule per call
   in each named config, and the existing routing/inference suites pin parity. (The
   diverged building blocks — Woolsey's `2♣` is `passed_two_suiter`, the standalone
   Landy `2♣` is `five_four` — are kept as distinct alerts, since the ≤5-major cap
@@ -10224,12 +10228,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   doubled-relay completion are all retained as the opt-in. The direct-seat 15+
   penalty double is untouched.
 - **A passed hand's both-majors `X` of their 1NT no longer strands a doubled `2♦`
-  relay.** After `[P,P,P,1NT,X,(XX),2♦]` the `2♦` is the artificial equal-majors
+  relay.** After `- - - (1NT) X (XX) 2♦` the `2♦` is the artificial equal-majors
   relay ("you pick a major"), but only the *passed*-relay continuation
-  (`…2♦,P → name the major`) was authored; when the opponents *doubled* the relay
+  (`… 2♦ - → name the major`) was authored; when the opponents *doubled* the relay
   the doubler had no rule and sat, declaring `2♦x` on a 4-2 misfit. The doubler
   now corrects to its longer major whether the relay is passed or doubled (the
-  `…2♦,X` twins, matching the direct-seat both-majors branch). Isolated DD effect
+  `… 2♦ (X)` twins, matching the direct-seat both-majors branch). Isolated DD effect
   vs BBA's 2/1 (the six affected boards/seed): the penalty/both-majors `X` bucket
   improves −1.588 → −1.448 IMPs/X-board non-vulnerable and −1.013 → −0.903
   vulnerable, no regression elsewhere.
@@ -10362,11 +10366,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Responder's double of an overcall of our 1NT is now optional by default, and
   opener cooperates with it.** `DoubleStyle`'s default flips `Takeout → Optional`:
-  over `[1NT,(2X)]`, responder's double shows 2-3 cards and values in their suit —
+  over `1NT (2X)`, responder's double shows 2-3 cards and values in their suit —
   cooperative, not pure penalty and not short-suit takeout. The documented "takeout
   is the best plain-DD double" verdict turned out to be an **artifact of opener
   mishandling responder's double** — opener had no authored continuation, so the
-  floor read `[…,X,P]` as a takeout advance and either pulled a penalty double or
+  floor read `… (X) -` as a takeout advance and either pulled a penalty double or
   ran a 3-card optional fit. Two book duals fix it: `set_penalty_double_leave_in`
   (default on) makes opener **sit** for a penalty double, and
   `opener_cooperates_optional` makes opener **stand on a fit and run only with a
@@ -10406,7 +10410,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `set_penalty_latch(false)` (the off arm of the A/B). The `ab-landy` and `bba-match`
   examples gain `--ns-penalty-latch` to sweep it. The latched second double's *style*
   is now an opt-in A/B knob, `instinct::set_latch_style(LatchStyle::Penalty|Optional)`
-  (default `Penalty`): `Optional` makes `(1NT)−X−(2Y)−X` a 2-3-card cooperative
+  (default `Penalty`): `Optional` makes `(1NT) X (2Y) X` a 2-3-card cooperative
   double (partner stands on a fit, runs when short) instead of a trump-stack penalty
   (partner sits) — the defensive mirror of `DoubleStyle`. A/B'd (`ab-landy
   --ns-latch-style`, two seeds 100k+300k): unlike the we-open side, optional is a
@@ -10517,7 +10521,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   deterministic `instinct()` floor never misreads the convention once the opponents
   intervene and the auction leaves the authored book. Without them the floor read
   our artificial `2♣`/`2♦` as *natural* clubs/diamonds and raised the phantom suit
-  into doubled disasters (`1NT 2♣ 3NT 4♣x` −1500). Added: `multi_reading` (the
+  into doubled disasters (`(1NT) 2♣ (3NT) 4♣x` −1500). Added: `multi_reading` (the
   `2♦` Multi suppresses its diamond reading + caps both minors; the `2♥`/`2♠`
   Muiderberg pins major = 5, other major ≤ 3); `landy_reading` now fires for
   Woolsey's both-majors `2♣`; the advancer's preference (`2♥`/`2♠` over `2♣`/`2♦`,
@@ -10557,7 +10561,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Two escapes (bug fixes, active only when DONT is on) keep the artificial `X` out
   of doubled misfits: a redoubled one-suiter `X` relays out of `1NTxx` rather than
   sitting, and — the dominant fix — over a **doubled `2♣` relay** the doubler now
-  names its real suit (`[1NT,X,(XX),2♣,X]`) instead of being floored into `2♣x` on
+  names its real suit (`(1NT) X (XX) 2♣ (X)`) instead of being floored into `2♣x` on
   a hand that need not hold clubs (the relay is artificial). The escape is worth
   **+0.083 IMPs/board** on the honest measure.
 - **Floor readings for the DONT artificial calls** (`Inferences::read`,
@@ -10621,8 +10625,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dominant loss was a doubled major *run into a phantom `3♦`* — the advancer's
   artificial `2♦` relay made the floor think our side held diamonds, so after we
   named our major and they doubled it the floor bolted to `3♦x` (every −17/−18 board
-  was this `… 2♦ X 2M X … 3♦`). Fixed in two layers: (a) over a **redoubled** `X`
-  (`[1NT,X,XX]`) the advancer now runs *cleanly* — **`Pass` = ask back** (the
+  was this `… 2♦ (X) 2M (X) … 3♦`). Fixed in two layers: (a) over a **redoubled** `X`
+  (`1NT (X) XX`) the advancer now runs *cleanly* — **`Pass` = ask back** (the
   redouble forces partner to bid, so the doubler names its five-card major), **a bid
   = to play** the natural suit (`2♣` sits at the two level over the redoubled `1NT`,
   giving a club one-suiter a home) — no artificial relay, no phantom diamond; (b)
@@ -10659,7 +10663,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   with no orphaned point-count (floor 16+ strands the 15-counts into a pass, which
   flatters the DD number for the wrong reason). The **penalty-pass** lets the advancer
   convert the takeout `X` to penalty (`Pass` to defend `1NTx`) with no major fit and
-  enough defense (threshold tracks the floor); the `[1NT,X,P]` node now carries a gated
+  enough defense (threshold tracks the floor); the `1NT (X) -` node now carries a gated
   `Pass`, where it had been forcing. A/B-neutral on DD (the penalty you collect when
   they sit is single-dummy, invisible here), so it ships **off** but available — sound
   bridge for the strong-`X` style. `ab-landy --ns-landy-x-floor N --ns-landy-x-penalty
@@ -10790,7 +10794,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (logit weight, default 1.3 — drop below the 1.0 overcall to make suit overcalls
   outrank the double), `set_natural_overcall_points` (overcall `points` range, default
   8–14), and `set_notrump_balancing` (extend the defense to the balancing seat
-  `(1NT) P P ?`, default off — an A/B showed it loses to the instinct floor's
+  `(1NT) - - ?`, default off — an A/B showed it loses to the instinct floor's
   passivity on DD). Surfaced in `bba-match` as `--ns-double-shape`/`--ns-double-floor`/
   `--ns-double-weight`/`--ns-overcall`/`--ns-balancing`. These exist because the DD
   isolate-defense measure cannot honestly tune the defense's *competitive* parameters —
@@ -10890,7 +10894,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the **uncontested** 1NT structure: Jacoby transfers (`2♦`→♥, `2♥`→♠), the minor
   transfers, the 2NT/3-level responses — and shows the now-unbiddable **2♣ Stayman
   with a Double** (X inherits the 2♣ rule's exact logit, so it never drifts). The
-  book reuses `notrump_responses()` by rebasing `1NT–(2♣)–…` onto the uncontested
+  book reuses `notrump_responses()` by rebasing `1NT (2♣) …` onto the uncontested
   tree (the 2♣ overcall maps to the opponent's pass; a Double maps to the stolen
   2♣). Lebensohl proper now applies only over `(2♦/2♥/2♠)`, the overcalls that
   actually take away room.
@@ -10899,8 +10903,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `lebensohl_signoff_raise`) extended to the one-level-lower direct escape, since
   they are the same weak 5-card-suit hand. A/B (floored vs unfloored, 300k
   unfiltered, perfect-defense): **+0.012/+0.016 IMPs/board (none/both)**, every
-  mechanism positive — the floor sends sub-5 hands to defend (`resp P`, the largest
-  share), opener stops overbidding a known-weak signoff (`late P`), and a maximum
+  mechanism positive — the floor sends sub-5 hands to defend (`resp -`, the largest
+  share), opener stops overbidding a known-weak signoff (`late -`), and a maximum
   with a fit reaches game (`4♥/4♠`). The level was tuned *after* `(2♣)` went
   systems-on (below), which leaves the natural escape all *majors* — every one
   game-raisable, with no raise-less minor: `5` HCP then beats the relay's `6` by
@@ -10928,7 +10932,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Multi counter-defense over our `1NT − (2♦)` (opt-in, `set_defense_to_2d_multi`).**
+- **Multi counter-defense over our `1NT (2♦)` (opt-in, `set_defense_to_2d_multi`).**
   BBA's 2/1 card defends a 1NT opening with Multi-Landy, whose `2♦` is a *Multi* —
   an unknown single-suited major (confirmed by the probe below). Our default `(2♦)`
   handling (the Transfer/Smolen package) instead reads it as **natural diamonds**,
@@ -10957,7 +10961,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   bids and interprets the `2♦` as a Multi. The distilled constraints are written up
   in `docs/ai-bidder/bba-multi-2d.md`.
 
-- **Unusual vs Unusual over our `1NT − (2NT)` (default on).** When an opponent
+- **Unusual vs Unusual over our `1NT (2NT)` (default on).** When an opponent
   overcalls our 1NT with a both-minors `2NT` (e.g. BBA's Multi-Landy), responder
   previously had no authored call and the auction fell to the instinct floor
   (Pass/guess). `competition.rs` §5d now adds a responder structure, gated by the
@@ -10983,7 +10987,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   counter-measure vs the passing floor, **`3♣` +0.67, `3♦` +0.61, `4♣` +2.6,
   `4♦` +2.4 IMPs/board** (vul none; similar at both) — DD-robust, like Transfer
   Lebensohl. Against BBA (seed-paired `bba-match`), the full structure trims the
-  `1NT-(2NT)` loss (`+35`/`+32` IMPs over 20k boards, none/both); the subset
+  `1NT (2NT)` loss (`+35`/`+32` IMPs over 20k boards, none/both); the subset
   still loses (~`−1.3` IMPs/board — the obstruction wall is single-dummy), but
   the cues recover ~`+1` IMP/board over passing. The penalty `X` is inherently
   rare over a both-minors `2NT` (you cannot stack a suit they hold 5-5), so its
@@ -10992,11 +10996,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Runout when our own both-minors `2NT` overcall is doubled (bug fix).** The
   `set_unusual_notrump_defense` `2NT` (default on) had no authored continuation
-  over `[1NT, 2NT, X]`, so a penalty double left the advancer with no escape — the
+  over `(1NT) 2NT (X)`, so a penalty double left the advancer with no escape — the
   auction fell to the floor (Pass) and we hung in a hopeless `2NT` doubled. The
   advancer now always **runs to the longer minor** (`3♣`/`3♦`); it never sits,
   because the doubler holds values behind a 15-17 1NT. This also de-biases the
-  `ab-uvu` penalty-`X` measurement: the passive baseline used to sit in `2NT-X`
+  `ab-uvu` penalty-`X` measurement: the passive baseline used to sit in `2NT (X)`
   and get slaughtered double-dummy, flattering our `X` to a flat ~`+11` IMPs/board;
   with both sides running, the `X`'s value scales with strength (~`+5`/board at the
   default floor) — the honest signal.
@@ -11007,10 +11011,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ~1–2 IMPs/board — the obstruction wall), so the default stays 6.
 
 - **`bba-match` gains `--uvu` (+ `--uvu-x-floor` / `--uvu-cue-floor`), `--seed`,
-  and a `1NT-(2NT)` focus report; `examples/ab-uvu` is new.** `--uvu` forces the
+  and a `1NT (2NT)` focus report; `examples/ab-uvu` is new.** `--uvu` forces the
   UvU structure + encircling on at the given floors; `--seed` makes the deals
   reproducible so an on/off comparison is paired (the boards UvU never touches
-  cancel). The new focus report buckets the `[1NT, (2NT)]` divergent boards by
+  cancel). The new focus report buckets the `1NT (2NT)` divergent boards by
   our response. `ab-uvu` is the Rayon self-A/B (shape-filtered for density,
   sweeps the X / cue floors, per-call attribution). `examples/probe-bba-1nt`
   gains `responder` and `runout` modes that read BBA's own Unusual-vs-Unusual
@@ -11042,7 +11046,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--count` then counts kept boards. Default off — runs without the flag are
   unchanged, and the report is purely additive.
 
-- **A natural runout when our `1NT` is doubled (`[1NT, (X)]`), on by default.**
+- **A natural runout when our `1NT` is doubled (`1NT (X)`), on by default.**
   The instinct floor had no agreement here, so responder fell to the catch-all
   **Pass** — sitting a hand that may be broke for an effectively-penalty double,
   the `−500`/`−800`/`−1100` disaster a runout exists to prevent. The floor now
@@ -11055,7 +11059,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     names the better minor;
   - **direct Redouble** = values, to play `1NT` redoubled — keyed on raw
     (defensive) HCP at or above the `set_runout_xx_min` floor (default `7`);
-  - **opener escapes too** — in the balancing seat (`1NT-X-P-P`), a minimum-ish
+  - **opener escapes too** — in the balancing seat (`1NT (X) - -`), a minimum-ish
     opener with a five-card suit runs it, or **SOS-redoubles** (the *balancing*
     redouble) with none, forcing responder to bid its longest suit (four-card
     suits included);
@@ -11096,8 +11100,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   IMPs/divergent) and stays off. Knob: `set_unusual_2nt(Unusual2nt)`.
 
 - **We now double the opponents' escape from our (re)doubled `1NT` for penalty
-  (default on).** When they run from our `1NT-X` (the advancer pulls partner's
-  penalty double) or our `1NT-X-XX` (they flee the business redouble), the floor
+  (default on).** When they run from our `1NT (X)` (the advancer pulls partner's
+  penalty double) or our `1NT (X) XX` (they flee the business redouble), the floor
   used to take the run out as if it were a takeout double. It now *doubles them*
   — and keeps doubling as they keep running (the chase recurses) — with partner
   leaving the double in rather than advancing it. Two arms, each a per-thread
@@ -11113,7 +11117,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`runout` | `escape-stack` | `escape-values` | `minors5` | `direct`) that flips
   one feature between the two tables, holding the rest at baseline.
 
-- **The Landy advancer now has responses to a doubled `2♣` (`[1NT, 2♣, X]`).**
+- **The Landy advancer now has responses to a doubled `2♣` (`1NT (2♣) X`).**
   When we overcall their `1NT` with Landy `2♣` (both majors, short clubs) and the
   opponents double — the stolen `2♣` Stayman — their opener can sit for `2♣`
   doubled with good clubs (the `set_penalty_pass` conversion shipped just above).
@@ -11152,12 +11156,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Opener can now convert the systems-on Double of a `(2♣)` overcall to penalty
   with good clubs.** Over our `1NT`, a `(2♣)` overcall is *systems on* and
   responder's Double is the stolen `2♣` Stayman — but opener was forced to *answer*
-  it (`2♥/2♠/2♦`) and could never sit, so `1NT–(2♣)–X–(P)` left a big penalty on the
+  it (`2♥/2♠/2♦`) and could never sit, so `1NT (2♣) X -` left a big penalty on the
   table when opener held length and strength in clubs behind the overcaller (our
   23+ combined HCP routinely sets a vulnerable `2♣` doubled multiple tricks). Opener
   now **passes** that Double — defending `2♣` doubled — when holding the
   `set_penalty_pass` gate, authored as a context-specific fallback at the
-  `[1NT, 2♣]` node (so it is reached before the systems-on rebase and never leaks
+  `1NT (2♣)` node (so it is reached before the systems-on rebase and never leaks
   onto the shared *uncontested* forcing Stayman, which still never passes).
   **Default `(4, 4, true)`:** 4+ clubs with 4+ club HCP (an ace or two honors),
   converting even when responder's Double promised a 4-card major (good clubs beat
@@ -11187,7 +11191,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **A passed hand now reassigns its dead penalty double of their 1NT to both
   majors (new default behavior).** A passed hand cannot hold the 15+ HCP a penalty double of
-  their 1NT needs, so over `[P,P,P,1NT]` (RHO opens 1NT in fourth seat) the
+  their 1NT needs, so over `- - - (1NT)` (RHO opens 1NT in fourth seat) the
   natural double is dead weight. `set_passed_hand_defense(Some(
   PassedHandDefense::NaturalLandyDouble))` keeps every natural overcall but
   reassigns that freed double to show both majors (≥5-4, `points(6..)`, **neither
@@ -11237,7 +11241,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   DD-blind). `examples/landy-ab --ns-passed-dbl dont`.
 
 - **An always-pass defense to their 1NT as a true do-nothing baseline.**
-  `set_always_pass_defense(true)` authors only `Pass` at the `[1NT]` node (a finite
+  `set_always_pass_defense(true)` authors only `Pass` at the `(1NT)` node (a finite
   logit for every hand shadows the instinct floor), so our side never competes
   over their 1NT — distinct from `set_natural_defense(false)`, which falls to the
   floor (and the floor still competes a little). This isolates the *full* value of
@@ -11265,7 +11269,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   len(suit, 5..)` per overcall (the net's `hcp(7)` floor matches the authored
   `points(8)` once the five-card length point is counted) — so no constants
   changed. A new `set_natural_defense(bool)` toggle (on by default) drops the
-  whole natural arm so the `[1NT]` node falls to the bare instinct floor, enabling
+  whole natural arm so the `(1NT)` node falls to the bare instinct floor, enabling
   a standalone contested A/B (`examples/landy-ab --ns-natural on --ew-natural off`,
   plain double-dummy, 200k filtered): the natural defense is a **clear win vs the
   floor — +0.744 IMPs/divergent (+0.010/raw deal) non-vul, +1.276 (+0.018/raw)
@@ -11306,7 +11310,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   New `examples/landy-ab` is the contested seat-swap A/B
   (`--ns-majors`/`--ns-minors LO[:HI]`, `--strength points|hcp`).
 
-- **Responder's double of an overcall (`1NT–(2♦/2♥/2♠)–X`) is now a takeout
+- **Responder's double of an overcall (`1NT (2♦/2♥/2♠) X`) is now a takeout
   double (`≤3` in their suit, `8+` HCP) by default**, replacing the old penalty
   double (`4+/9`). Selected via the `DoubleStyle` toggle (`set_double_style`,
   default now `Takeout`); penalty and the other meanings stay opt-in. Isolating
@@ -11359,7 +11363,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **`lebensohl-ab --diverge-diff`: per-call attribution of the A/B swing.** Buckets
   every divergent board by the measured (`--ns`) pair's *first* call the baseline
   (`--ew`) would not have made — tagged `resp` (responder's action directly over
-  `1NT–(2X)`) or `late` (e.g. opener completing a transfer) — and reports
+  `1NT (2X)`) or `late` (e.g. opener completing a transfer) — and reports
   boards/IMPs/contribution per call (the `contrib` column sums to the headline
   IMPs/board). Isolates which call drives the result. Finding (transfer vs the
   bare floor, 200k unfiltered, none-vul, perfect-defense): the penalty double is
@@ -11425,7 +11429,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Michaels keep those), versus the plain *direct* cue. Two layers, split so the
   shipped system is byte-identical in self-play:
   - **Recognition is on by default.** Over `(2♥)`/`(2♠)`, in both the `1NT`-overcalled
-    and the `(2X)–X–(P)` advance contexts, the bot now answers a delayed cue (show
+    and the `(2X) X -` advance contexts, the bot now answers a delayed cue (show
     the other major at game with a fit, else `3NT` — partner's stopper makes it
     safe), so a human partner who plays the convention gets a sensible reply. The
     bot never *bids* the delayed cue itself, so this node is dormant in bot-vs-bot
@@ -11447,7 +11451,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `1NT` (ledger #80); behavior over `(2♥)`/`(2♠)`/`(2♣)` is unchanged.** When an
   opponent overcalls our `1NT` with `2♦`, responder now plays more than bare Cohen:
   `3♣` is game-forcing Stayman with a Smolen continuation
-  (`1NT–(2♦)–3♣–P–3♦–P–3♥/3♠` shows 5-4 majors), the 3-level transfers shift down to
+  (`1NT (2♦) 3♣ - 3♦ - 3♥/3♠` shows 5-4 majors), the 3-level transfers shift down to
   direct Jacoby (`3♦`→♥, `3♥`→♠, `3♠`→♣ — the club leg a *forced* game-force, since
   its `4♣` completion leaves `3♣` unplayable), and `4♦`/`4♣` are Leaping Michaels
   (both majors 5-5 / clubs + a 5+ major). Over a `2♥`/`2♠`/`2♣` overcall it is
@@ -11463,7 +11467,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Leaping Michaels), not the DD-blind right-siding that sank the earlier attempt.
 - **Transfer Lebensohl's top step is now a forcing transfer to clubs (ledger #80).**
   Cohen's transfers run *up the line through* the adverse suit, so the highest 3-level
-  step has no suit above it and wraps back to clubs: `1NT–(2♦/2♥)–3♠` and `1NT–(2♠)–3♥`
+  step has no suit above it and wraps back to clubs: `1NT (2♦/2♥) 3♠` and `1NT (2♠) 3♥`
   are now a *forced* game-force transfer to clubs (6+♣, game values, no stopper in
   their suit; opener completes `3NT` with a stopper, else `5♣`). These previously fell
   to the natural instinct floor, leaving a 6+♣ game-forcing hand with no call — the
@@ -11481,10 +11485,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   top-step boards).
 - **Responsive double re-measured under perfect defense (ledger #100); two opt-in
   toggles, defaults unchanged.** The shipped responsive double after partner's
-  *takeout* double and their raise (`(1t)–X–(2t)–X` — the canonical convention, and
+  *takeout* double and their raise (`(1t) X (2t) X` — the canonical convention, and
   BBA's single `Responsive double` toggle, on in `21GF.bbsa`) is now gated by
   [`set_responsive_takeout`][pons::bidding::american::set_responsive_takeout]
-  (default **on**), and a non-standard *overcall* extension (`(1t)–overcall–(2t)–X`,
+  (default **on**), and a non-standard *overcall* extension (`(1t) overcall (2t) X`,
   nearest to BBA's `Snapdragon Double`, off in 21GF) by
   [`set_responsive_overcall`][pons::bidding::american::set_responsive_overcall]
   (default **off**). The new `examples/responsive-ab` A/B (200k filtered/cell,
@@ -11500,12 +11504,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   before** (takeout on, overcall off).
 
 - **The advancer after a takeout double of a weak `(2♦)` now plays Transfer's `(2♦)`
-  Smolen package (ledger #80).** After `(2♦)–X–(P)`, the default
+  Smolen package (ledger #80).** After `(2♦) X -`, the default
   [`set_advance_sohl_style(LebensohlStyle::Transfer)`][pons::bidding::american::set_advance_sohl_style]
   advance now answers with `3♣`-Stayman + Smolen, direct Jacoby transfers, and Leaping
   Michaels `4♣`/`4♦` — the same package the 1NT context plays — instead of bare Cohen
   transfers-through; `(2♥)`/`(2♠)` advances are unchanged. It reuses the Section-5d
-  builders verbatim under the `(2X)–X–(P)` prefix. Head-to-head vs the prior
+  builders verbatim under the `(2X) X -` prefix. Head-to-head vs the prior
   plain-Cohen advance (`examples/sohl-after-double-ab`, perfect-defense `ns_score`,
   200k filtered/cell): **+0.014/+0.019 IMPs/board, +1.77/+2.52 IMPs/divergent
   (none/both)** — a clean win whose per-divergent edge *rises* with vulnerability, the
@@ -11591,7 +11595,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   transfer — tried on this structure and **not adopted**: the `2NT`-role swap
   measured −0.017 / −0.046 IMPs/board (none / both, 200k each), because
   right-siding the low-suit partscore is double-dummy-blind while two-way low
-  transfers cost the auto-drive-to-game; see the ledger.) After `1NT–(2X)`,
+  transfers cost the auto-drive-to-game; see the ledger.) After `1NT (2X)`,
   responder's three-level bids are **transfers up the line, *through* the adverse
   suit** (over `(2♥)`, `3♦` shows spades — skipping their hearts), the **cue is
   Stayman**, and a transfer to a suit *above* theirs is invitational-or-better, so
@@ -11610,7 +11614,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [`docs/ai-bidder/21gf-ledger.md`](docs/ai-bidder/21gf-ledger.md).
 - **Lebensohl after a takeout double (advancer over a weak two) — measured,
   opt-in.** Plain / Transfer / Pam (pick-a-minor) / Lawrence (three-band
-  strength) sohl structures were authored over the `(2X)–X–(P)` advancer
+  strength) sohl structures were authored over the `(2X) X -` advancer
   prefix and A/B'd against the `advance_double` floor on `sohl-after-double-ab`
   (contested seat-swap, 200k filtered boards/cell). At best DD-neutral vs the
   floor (a takeout double already advertises the fit, so natural advancing
@@ -11628,8 +11632,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   signs off in 5-of-the-minor when that call is still legal (diamonds over a `5♣`
   answer), passes when partner's answer *is* 5-of-the-minor, and otherwise has no
   room and bids the small slam. Wired into the two cleanest minor-agreement
-  auctions: the **strong-`2♣` minor raise** (`2♣–2♦–3m–4m`, opener launches `4NT`
-  with 28+) and the **inverted minor raise** (`1m–2m–3NT`, responder launches
+  auctions: the **strong-`2♣` minor raise** (`2♣ - 2♦ - 3m - 4m`, opener launches `4NT`
+  with 28+) and the **inverted minor raise** (`1m - 2m - 3NT`, responder launches
   `4NT` with slam values over opener's 18–19). *Why it matters:* a cold minor slam
   the floor could never bid is a ~12-IMP swing. *Measure* (`stayman-abc`
   constructive A/B, new vs the pre-change floor, 2 000 000 boards):
@@ -11663,14 +11667,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A deeper deterministic floor — Milestone 6.1: parametric auction
   inferences.** The keyless [`instinct()`] floor now *derives* responder's
   major-suit length from a completed Jacoby transfer rather than going silent on
-  it ([`Inferences`]): `1NT–2♦–2♥` shows five-plus hearts, and a follow-up jump to
-  game (`…–4♥`, the canonical case) or raise of the suit (`…–3♥`, which also pins
+  it ([`Inferences`]): `1NT - 2♦ - 2♥` shows five-plus hearts, and a follow-up jump to
+  game (`… - 4♥`, the canonical case) or raise of the suit (`… - 3♥`, which also pins
   invitational strength) shows **six** — responder bypassed the choice-of-games
   `3NT`. A new six-two arm in the floor's `known_major_fit` lets opener act on
   that shown six-card suit opposite a doubleton — the fit the prior bidder could
   not see after a transfer (`known_major_fit` needed three-card support on one
   side). Both majors, over 1NT and 2NT; uncontested only. *Why it matters:* the
-  floor can now accept a transfer invitation with a maximum (`1NT–2♦–2♥–3♥` →
+  floor can now accept a transfer invitation with a maximum (`1NT - 2♦ - 2♥ - 3♥` →
   `4♥` on a six-two fit) instead of always passing, and the sampler behind the
   search floor deals layouts consistent with the shown six-card suit. *Measure*
   (seeded constructive A/B, baseline vs M6.1 `american()`, opponents silenced,
@@ -11757,7 +11761,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the two 4-level-transfer schemes: who declares `4M` on a 6-card-major
   game-but-not-slam hand opposite a strong 1NT — Texas (and the crate's current
   transfer-then-game) puts the **opener** in; South African Texas's direct
-  `1NT–4♥/4♠` puts **responder** in. The DD/perfect-defense scorer is blind to
+  `1NT - 4♥/4♠` puts **responder** in. The DD/perfect-defense scorer is blind to
   *concealment* — the textbook reason Texas exists — so the example isolates only
   the residual opening-lead swing, and says so. **Finding** (600k deals per
   vulnerability, ~4,300 qualifying configs each): responder declaring scores
@@ -11766,7 +11770,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   effect double-dummy cannot see, and no hand feature (responder shortness
   included) flips the sign. The current treatment already declares from opener,
   so **no system change** — South African Texas is not adopted.
-- **Both-majors response (1NT–3♦) — 5+/5+ in the majors, invitational+.** A 5-5
+- **Both-majors response (1NT - 3♦) — 5+/5+ in the majors, invitational+.** A 5-5
   major two-suiter previously had no one-bid home: it transferred and rebid the
   other major (clumsy, and game-forcing 5-5s fell through to the floor entirely).
   New nodes in [`american::notrump`]: responder bids `3♦` to show both majors
@@ -11782,8 +11786,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   **+2.17 IMPs/divergent board vul none, +2.80 vul both** (5-5 INV+ is rare, ~0.05%
   of boards diverge). The `points(8..)` floor was tuned on the A/B (beats `7..`
   on per-divergent at tied total IMPs, and `9..` on both counts).
-- **Puppet Stayman (1NT–3♣) and the minor-suit transfers (1NT–2NT diamonds,
-  1NT–2♠ clubs/invite).** Three new constructive structures fill 1NT-response
+- **Puppet Stayman (1NT - 3♣) and the minor-suit transfers (1NT - 2NT diamonds,
+  1NT - 2♠ clubs/invite).** Three new constructive structures fill 1NT-response
   slots that previously carried no precision — a weak long-minor hand just passed
   1NT, a balanced game force blasted 3NT, and a 5-3 major fit was missed. New
   nodes in [`american::notrump`]:
@@ -11820,7 +11824,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   overall), every divergent class net positive; the Smolen-reachability lever
   alone adds +0.0022 / +0.0030 IMPs/board. The `american_minor_transfers` test
   suite pins the new behaviour.
-- **Stayman (1NT–2♣) is now fully authored — further bidding, Smolen, and the
+- **Stayman (1NT - 2♣) is now fully authored — further bidding, Smolen, and the
   "ignore 2♣ ⇒ revert to notrump" rule.** Previously only opener's `2♥/2♠/2♦`
   answer was in the book; every continuation fell to the keyless floor, which
   misbid them — it reads any three-level suit response over our 1NT as
@@ -11836,12 +11840,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     are bid exactly as over a bare 1NT — so `4NT` is quantitative (16–17), opener
     accepting `6NT` with a max.
   - **Smolen:** with game-forcing 5–4 in the majors, responder jumps in the
-    four-card major to show *five* in the other (`1NT–2♣–2♦–3♥/3♠`), so the strong
+    four-card major to show *five* in the other (`1NT - 2♣ - 2♦ - 3♥/3♠`), so the strong
     notrump declares; opener completes to game in the long major. Mirrored at the
-    **2NT-strength** level (`…3♣–3♦–3♥/3♠`).
+    **2NT-strength** level (`… 3♣ - 3♦ - 3♥/3♠`).
 
   The judgement that *is* sound for the keyless floor stays there: `Inferences::read`
-  now reads the 1NT–2♣ auction (opener's answer pins a four-card major or denies
+  now reads the 1NT - 2♣ auction (opener's answer pins a four-card major or denies
   both; responder's `2♣` and invitational continuations pin strength), feeding the
   sampler behind `american_search()` and any competitive fallback, while the
   artificial `3OM`/Smolen jumps are suppressed from the natural suit reading rather
@@ -11851,12 +11855,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `nt-invite-abc`): **+1.38 IMPs/divergent board vul none, +2.03 vul both**
   (~0.9% of boards diverge, so +0.013 / +0.019 IMPs/board overall), every divergent
   board class net positive. The `american_stayman` test suite pins the new behaviour.
-- **Opener accepts a 1NT–2NT invitation — via the inference, not a node.**
-  `american()` previously *passed* a `1NT–2NT` invite even with a maximum: opener
+- **Opener accepts a 1NT - 2NT invitation — via the inference, not a node.**
+  `american()` previously *passed* a `1NT - 2NT` invite even with a maximum: opener
   was blind to responder's strength because `Inferences::read`'s notrump-raise
   reading was gated to one-of-a-suit openings, so a raise of our *own* 1NT opening
-  showed nothing. Teaching the inference that `1NT–2NT` shows an invitational ≈8 and
-  `1NT–3NT` is game-going 9+ (naturally; the artificial Stayman/transfers stay
+  showed nothing. Teaching the inference that `1NT - 2NT` shows an invitational ≈8 and
+  `1NT - 3NT` is game-going 9+ (naturally; the artificial Stayman/transfers stay
   silent) lets the **keyless floor judge game itself** — it already knew "bid game
   when the combined range suffices", it just couldn't see responder. With the fix,
   **both `american()` (the deterministic instinct floor) and `american_search()`
@@ -11889,14 +11893,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   shown range into halves and sampling layouts from each (`sample_layouts`). The
   `nt-range-split` example uses it as an *oracle*: opposite openers from each half it
   scores the best NS game against the best NS partscore double-dummy (game good
-  opposite both → FG, the upper half only → INV, neither → PASS — the meaning of an
+  opposite both → FG, the upper half only → INV, neither → - — the meaning of an
   invitation), and compares that verdict to where `american()` lands by bidding the
-  `1NT–Pass` auction out. This is what *found* the invite-acceptance gap above (the
+  `1NT -` auction out. This is what *found* the invite-acceptance gap above (the
   empty INV column); after the inference fix its disagreement drops 26.4% → 22.8%
   (the residual is the deferred transfer/Stayman continuations). Plan:
   `docs/ai-bidder/`.
 - **Meckstroth adjunct — opener's invitational `3m` jump after a forcing 1NT
-  (and `1♥–1♠`), now the default.** After `1M–1NT` or `1♥–1♠`, opener's
+  (and `1♥ - 1♠`), now the default.** After `1M - 1NT` or `1♥ - 1♠`, opener's
   medium *shapely* hands (5-5 / 6-5, ≈15–17 points) previously had no
   descriptive rebid and underbid as a natural two-level minor; opener now jumps
   to **`3♣`/`3♦` to show 5+ of the minor, invitational**, and responder accepts
@@ -12425,7 +12429,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Documentation only — no code change.
 
 - **Transfer Lebensohl after a takeout double is now the default advance (was
-  opt-in `Off`).** After `(2X)–X–(P)` the advancer now carries `Transfer`
+  opt-in `Off`).** After `(2X) X -` the advancer now carries `Transfer`
   Lebensohl by default — `set_advance_sohl_style`'s default flips from `Off` (the
   flat `advance_double` ladder) to `LebensohlStyle::Transfer`. A deeper
   perfect-defense re-measure (200k filtered boards/cell, both vulnerabilities)
@@ -12494,7 +12498,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `fifths(...)` range — the 1NT/2NT openings, opener's 1NT/2NT rebids, and the
   balanced descriptions in the game-force, Jacoby, and strong-2♣ structures —
   now bands the **average of Fifths and a companion count**, halving the 3NT
-  bias toward a real-honor scale. The notrump *raises* (1NT–2NT, 1NT–3NT,
+  bias toward a real-honor scale. The notrump *raises* (1NT - 2NT, 1NT - 3NT,
   quantitative 4NT) are unaffected; they already gauge plain `hcp`, which is
   where Fifths-alone would have been fine anyway. A new `FifthsCompanion` enum
   and `set_fifths_companion` hook (both `#[doc(hidden)]`, A/B only) pick the
@@ -12535,7 +12539,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - *Constructive flooring.* `with_floor` now attaches the deterministic instinct
     ladder to the **constructive** book as well, not just the contested books.
     Uncontested off-book auctions previously fell through to a pass — e.g.
-    `1♦–1♥–1NT` was passed out on a balanced 16 opposite the 12–14 rebid, a cold
+    `1♦ - 1♥ - 1NT` was passed out on a balanced 16 opposite the 12–14 rebid, a cold
     3NT (the learned neural/search floors don't help here: they are wired onto the
     contested books only). They now reach the milestone. `american_strawberry`
     floored the constructive book by hand for the same reason; that is now the
@@ -12681,8 +12685,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A passed hand's both-majors double of an opponent's 1NT now escapes the
   opponents' redouble instead of sitting in `1NTxx`.** The passed-hand
   `NaturalLandyDouble` is a *takeout* double (both majors, ≥5-4), advanced like
-  Landy `2♣` — but only the `[P,P,P,1NT,X,P]` advance (they pass our double) was
-  authored. When the 1NT side **redoubled** (`[P,P,P,1NT,X,XX]`) the advance fell
+  Landy `2♣` — but only the `- - - 1NT (X) -` advance (they pass our double) was
+  authored. When the 1NT side **redoubled** (`- - - 1NT (X) XX`) the advance fell
   to the floor, which passed, leaving us in `1NTxx` for a routine −760/−1000. The
   redoubled node now mirrors the pass case: the advancer runs to the longer major
   (or `2♦` relay → doubler names the major), since a takeout double must never be
@@ -12729,7 +12733,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rather than bidding a doomed notrump. Floor worth on the `instinct-floor` A/B is
   preserved (6000 boards: **+1.10 IMPs/board** vul none, **+0.40** both), and the
   telemetry confirms the floor's competitive judgement firing — milestone games
-  (`3NT  1♦ P 1♥ P 2♦ P`) and reopening takeout doubles (`X  1♦ 1♠ P P`) — in the
+  (`3NT` after `1♦ - 1♥ - 2♦ -`) and reopening takeout doubles (`X` after
+  `1♦ (1♠) - -`) — in the
   off-book tail it owns.
   openings gate on `fifths` (which downgrades quack-heavy hands), but the
   inference layer recorded their point ranges on the raw-HCP scale, so a balanced
@@ -12766,8 +12771,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the option to stop short, while the waiting 2♦ or any positive commits both
   partners to at least game. The floor now reads that force off responder's
   call (its second convention, after the strong notrump), so off-book
-  continuations such as `2♣ – 2♦ – 2NT` reach 3NT or the cheapest major game
-  instead of dying in a partscore, while `2♣ – 2♥ – 2NT` may still be passed.
+  continuations such as `2♣ - 2♦ - 2NT` reach 3NT or the cheapest major game
+  instead of dying in a partscore, while `2♣ - 2♥ - 2NT` may still be passed.
   The forced-to-game rules (for both the 2♣ and strong-notrump conventions)
   also step aside whenever we are penalizing the opponents with a double of our
   own, so a game force never pulls partner's penalty double of a partscore.
@@ -12801,7 +12806,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   dealer) until it ends; `Table::bid_out` is now this with an empty seed.
   This is the driver for forcing an auction prefix and letting the systems
   finish the board, as the `defend-2sx-or-3nt` example does with its
-  `(2♠) X (P) + decision` seeds.
+  `(2♠) X - + decision` seeds.
 - `american_strawberry()` (with its floor-less `bare_american_strawberry()`
   ablation), an opt-in variant of the 2/1 system that layers in three optional
   conventions from the author's *Strawberry Polish Club* notes
@@ -12813,7 +12818,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   even where the book stops (covered by an end-to-end test that plays full
   auctions through the stance).
   - **Strawberry Stenberg 2NT** (`stenberg`) replaces Jacoby 2NT as opener's
-    rebid after `1M – 2NT`: the cheapest step shows a minimum, every other rebid
+    rebid after `1M - 2NT`: the cheapest step shows a minimum, every other rebid
     a maximum that describes a side fragment, a five-card side suit, or a
     two-suiter, with RKCB 1430 below the agreed major.
   - **BTU responses to the strong 1NT** (`btu_notrump`) replace the baseline
@@ -12875,11 +12880,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   one gap the `defend-2sx-or-3nt` example needed. The defensive book now
   answers a `(2♦/2♥/2♠)` opening with a takeout double, a natural 15–18 2NT
   overcall, and cheapest-level suit overcalls; `advance_double` answers
-  `(opening) X (P)` for advancer with a penalty pass on a trump stack, a
+  `(opening) X -` for advancer with a penalty pass on a trump stack, a
   major-suit game jump, 3NT with a stopper, cheapest-level new suits, and a
   lebensohl-style escape to the cheapest notrump. Bid levels are derived from
   the opening, so the one advancer builder serves both one-bids and weak twos
-  (it is now also registered after `(1x) X (P)`).
+  (it is now also registered after `(1x) X -`).
 - `bidding::context`: `Context`, the mechanical auction context passed to
   classifiers and constraints — vulnerability (relative to the side to act),
   the raw table auction, and facts derived from it (bid strains per side,
@@ -13000,7 +13005,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     natural five-card positives and the 2NT balanced positive; opener's
     natural rebids (2NT = 22–24, 3NT = 25–27) and responder continuations.
   - **The 2NT machinery** at every strength: three-level Stayman and Jacoby
-    transfers over the 2NT opening *and* the 2♣–2x–2NT rebids ("system
+  transfers over the 2NT opening *and* the 2♣ - 2x - 2NT rebids ("system
     on"), plus quantitative 4NT raises over 1NT, 2NT, and the 18–19 2NT
     rebid, with opener's graded accept/decline.
   - **Weak-two continuations**: Ogust 2NT (min/max × bad/good suit, 3NT =
@@ -13019,7 +13024,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     partner's takeout double and their raise.
 
   Still left for later passes: lebensohl and reopening actions in deeper
-  competitive auctions, responder's natural rebids after `1m–1M–2m`, and
+  competitive auctions, responder's natural rebids after `1m - 1M - 2m`, and
   minor-suit keycard.
 - `bidding::constraint`: four new public primitives — `top_honors(suit,
   range)` (count of A/K/Q for suit quality), `stopper_in(suit)`,
@@ -13031,8 +13036,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Breaking** (within this release's 2/1 card, never published in an earlier
   version): raise meanings moved to the
-  modern defaults. `1m–2m` is now the strong inverted raise (10+, forcing)
-  and `1m–3m` the weak preemptive one; direct `1M–3M` limit raises promise
+  modern defaults. `1m - 2m` is now the strong inverted raise (10+, forcing)
+  and `1m - 3m` the weak preemptive one; direct `1M - 3M` limit raises promise
   four trumps, with the three-card limit raise routed through the forcing
   1NT.
 
@@ -13107,7 +13112,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Authored rules are unaffected: resolution reaches the root fallback last.
   The standalone `competition()` and `defensive()` builders stay floor-less.
 - The `defend-2sx-or-3nt` example is now a flavor-comparison harness for the
-  `(2♠) X (P)` defend-vs-declare decision. West's weak-two opening still comes
+  `(2♠) X -` defend-vs-declare decision. West's weak-two opening still comes
   from the real `american` system, while North's takeout double and South's
   Pass-vs-3NT advance are swept across alternative *flavors* — Shape / Support /
   Sound doubles and Defense / Balanced / Offense responses — each written as a
@@ -13119,7 +13124,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   opens 2♠ per the system (at the table's actual vulnerability, via `Table`),
   North doubles by a swept flavor, *East's pass over the double is the
   system's own call* (deals where East would raise never reach South), and
-  *South's decision is live* (the system's advance over `(2♠) X (P)` is Pass
+  *South's decision is live* (the system's advance over `(2♠) X -` is Pass
   or 3NT, not a suit bid or an escape). Neither branch assumes the auction
   stops at South's call: the table bids both continuations out with
   `Table::bid_out_from` — West may run from the penalty pass, East/West may
@@ -13181,7 +13186,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `defense_to_weak_two`, `defense_to_notrump`, and the advances of natural
   overcalls were keyed only at the raw opening with no leading passes, so
   they answered only when the opponents opened in *first seat*; with any
-  leading pass — `(P) 1♦`, our dealer passing first — the same decisions fell
+  leading pass — `- 1♦`, our dealer passing first — the same decisions fell
   off the book (and before the instinct floor, were silently passed). Found
   by the first run of the `instinct-floor` telemetry.
 - Broken intra-doc links in `bidding::american`: replaced the unresolvable
@@ -13194,7 +13199,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Seat-fan coverage gaps: responses and continuations now answer after
   4th-seat openings (leading-pass fan extended to three passes), and the
   defensive book answers when their opening arrives after leading passes —
-  previously `[P, 1♦]` and kin were silently off-book.
+  previously `- (1♦)` and kin were silently off-book.
 
 ## [0.8.0] — 2026-05-24
 
@@ -13331,14 +13336,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 - New `defend-2sx-or-3nt` example: compares the expected NS score from
-  defending 2♠× vs declaring 3NT after the auction `(2♠) X (P)`. The
+  defending 2♠× vs declaring 3NT after the auction `(2♠) X -`. The
   bidding system is a single `Trie` with three classifiers — West's
-  weak-two opening at `[]`, North's takeout double at `[2♠]`, and South's
-  natural call at `[2♠, X, P]` (which may be Pass, 3NT, or an
+  weak-two opening at the root, North's takeout double at `(2♠)`, and South's
+  natural call at `(2♠) X -` (which may be Pass, 3NT, or an
   out-of-scope call such as a 3-level new suit, jump in hearts, or
   Lebensohl 2NT). South's classifier is used only as an eligibility
   filter: deals are rejection-sampled so only those where West opens 2♠,
-  North doubles, *and* South naturally faces a P-or-3NT decision are
+  North doubles, *and* South naturally faces a pass-or-3NT decision are
   kept and double-dummy solved. Each accepted deal is scored under three
   strategies — always defend 2♠×, always declare 3NT, and a per-deal
   oracle that picks the higher of the two — giving an upper bound on

@@ -34,7 +34,7 @@ fn leaping_michaels_cue_shows_both_majors_over_2d() {
 
 #[test]
 fn leaping_michaels_advancer_picks_the_major_game() {
-    // (2♥)–4♣–(P): partner shows clubs + spades. With spade support the
+    // (2♥) 4♣ -: partner shows clubs + spades. With spade support the
     // advancer bids the 4♠ game; with none, the 5♣ minor game (never pass 4♣).
     let auction = [call(2, Strain::Hearts), call(4, Strain::Clubs), Call::Pass];
     let (fit, floored) = leaping(true, &auction, "KQ7.32.J865.A432");
@@ -53,7 +53,7 @@ fn leaping_michaels_advancer_picks_the_major_game() {
 
 #[test]
 fn leaping_michaels_advancer_picks_longer_major_over_2d_cue() {
-    // (2♦)–4♦–(P): the cue shows both majors; advancer picks the longer.
+    // (2♦) 4♦ -: the cue shows both majors; advancer picks the longer.
     let auction = [
         call(2, Strain::Diamonds),
         call(4, Strain::Diamonds),
@@ -66,7 +66,7 @@ fn leaping_michaels_advancer_picks_longer_major_over_2d_cue() {
 
 #[test]
 fn leaping_michaels_2d_4c_pass_or_correct() {
-    // (2♦)–4♣–(P): clubs + an unknown major → 4♥ pass-or-correct, then the
+    // (2♦) 4♣ -: clubs + an unknown major → 4♥ pass-or-correct, then the
     // overcaller with spades corrects to 4♠.
     let advance = [
         call(2, Strain::Diamonds),

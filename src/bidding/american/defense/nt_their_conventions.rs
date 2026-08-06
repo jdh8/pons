@@ -9,7 +9,7 @@ use super::*;
 
 thread_local! {
     /// Whether we author a defense to the opponents' 2♣ Stayman
-    /// (`(1NT)-P-(2♣)-?`); **off by default** (opt-in A/B).  See
+    /// (after `(1NT) - (2♣)`, before our call); **off by default** (opt-in A/B).  See
     /// [`set_stayman_defense`].
     static STAYMAN_DEFENSE: Cell<bool> = const { Cell::new(false) };
     /// `(min suit length, points floor)` for the natural `2♦/2♥/2♠` overcalls in
@@ -19,7 +19,7 @@ thread_local! {
     static STAYMAN_DEF_OVERCALL: Cell<(usize, u8)> = const { Cell::new((6, 14)) };
 }
 
-/// Author our defense to the opponents' 2♣ Stayman (`(1NT)-P-(2♣)`), for books
+/// Author our defense to the opponents' 2♣ Stayman (`(1NT) - (2♣)`), for books
 /// built *after* this call (thread-local; **off by default**).
 ///
 /// `X` = lead-directing clubs (5+ with values), `2♦/2♥/2♠` = a natural 6-card
@@ -57,12 +57,12 @@ fn stayman_defense_enabled() -> bool {
 
 thread_local! {
     /// Whether we author a defense to the opponents' Jacoby transfers
-    /// (`(1NT)-P-(2♦/2♥)-?`); **off by default** (opt-in A/B).  See
+    /// (after `(1NT) - (2♦/2♥)`, before our call); **off by default** (opt-in A/B).  See
     /// [`set_transfer_defense`].
     static TRANSFER_DEFENSE: Cell<bool> = const { Cell::new(false) };
 }
 
-/// Author our defense to the opponents' Jacoby transfers (`(1NT)-P-(2♦/2♥)`), for
+/// Author our defense to the opponents' Jacoby transfers (`(1NT) - (2♦/2♥)`), for
 /// books built *after* this call (thread-local; **off by default**).
 ///
 /// `X` = lead-directing the bid (transfer) suit — not takeout; a cue of the suit
@@ -85,13 +85,13 @@ fn transfer_defense_enabled() -> bool {
 
 thread_local! {
     /// Whether we author a defense to the opponents' two-way 2♠ minor response
-    /// (`(1NT)-P-(2♠)-?` — their clubs-or-size-ask); **off by default** (opt-in
+    /// (after `(1NT) - (2♠)`, their clubs-or-size-ask, before our call); **off by default** (opt-in
     /// A/B).  See [`set_minor_transfer_defense`].
     static MINOR_TRANSFER_DEFENSE: Cell<bool> = const { Cell::new(false) };
 }
 
 /// Author our defense to the opponents' two-way 2♠ minor response
-/// (`(1NT)-P-(2♠)`), for books built *after* this call (thread-local; **off by
+/// (`(1NT) - (2♠)`), for books built *after* this call (thread-local; **off by
 /// default**).
 ///
 /// `X` = lead-directing spades (the bid suit — not takeout); `2NT` = the two lowest
@@ -112,12 +112,12 @@ fn minor_transfer_defense_enabled() -> bool {
 
 thread_local! {
     /// Whether we author a defense to the opponents' 2NT diamond transfer
-    /// (`(1NT)-P-(2NT)-?`); **off by default** (opt-in A/B).  See
+    /// (after `(1NT) - (2NT)`, before our call); **off by default** (opt-in A/B).  See
     /// [`set_diamond_transfer_defense`].
     static DIAMOND_TRANSFER_DEFENSE: Cell<bool> = const { Cell::new(false) };
 }
 
-/// Author our defense to the opponents' 2NT diamond transfer (`(1NT)-P-(2NT)`),
+/// Author our defense to the opponents' 2NT diamond transfer (`(1NT) - (2NT)`),
 /// for books built *after* this call (thread-local; **off by default**).
 ///
 /// `X` = lead-directing diamonds (the shown suit — not takeout); `3♦` (a cue of
@@ -138,7 +138,7 @@ fn diamond_transfer_defense_enabled() -> bool {
     DIAMOND_TRANSFER_DEFENSE.with(Cell::get)
 }
 
-/// Defense to the opponents' 2♣ Stayman (`(1NT)-P-(2♣)`)
+/// Defense to the opponents' 2♣ Stayman (`(1NT) - (2♣)`)
 ///
 /// `X` = lead-directing clubs (5+ with values, the bid suit — not takeout);
 /// `2♦/2♥/2♠` = a natural **6-card** suit; `3♣` = a **strong** natural club
@@ -190,7 +190,8 @@ fn defense_to_their_stayman() -> Rules {
         .rule(Call::Pass, 50, hcp(0..))
 }
 
-/// Defense to the opponents' Jacoby transfer (`(1NT)-P-(2♦→♥)` / `(2♥→♠)`)
+/// Defense to the opponents' Jacoby transfer after `(1NT) - (2♦)` or
+/// `(1NT) - (2♥)`; their response transfers to hearts or spades, respectively
 ///
 /// `X` = lead-directing the `bid` (transfer) suit (5+ with values, not takeout);
 /// a cue of the `shown_major` (the suit they transferred into) = the **other**
@@ -241,7 +242,7 @@ fn defense_to_their_transfer(bid: Suit, shown_major: Suit) -> Rules {
     rules.rule(Call::Pass, 50, hcp(0..))
 }
 
-/// Defense to the opponents' two-way 2♠ minor response (`(1NT)-P-(2♠)`)
+/// Defense to the opponents' two-way 2♠ minor response (`(1NT) - (2♠)`)
 ///
 /// Their 2♠ names spades (the bid) but means clubs (the anchor), so: `X` =
 /// lead-directing spades (5+ with values, not takeout); `2NT` = the two lowest unbid
@@ -290,7 +291,7 @@ fn defense_to_their_minor_transfer() -> Rules {
         .rule(Call::Pass, 50, hcp(0..))
 }
 
-/// Our defense to the opponents' 2NT diamond transfer (`(1NT)-P-(2NT)-?`)
+/// Our defense after the opponents' 2NT diamond transfer (`(1NT) - (2NT)`)
 ///
 /// Their 2NT shows diamonds, so: `X` = lead-directing diamonds (5+ with values,
 /// not takeout); `3♦` (cueing their diamond anchor) = both majors (5-5, Michaels),
@@ -339,7 +340,7 @@ pub(super) fn their_stayman_defense_package() -> Package {
     Package {
         name: "their-stayman-defense",
         gate: stayman_defense_enabled,
-        entries: || rows_of(Pattern::node("P* (1NT) P (2♣)"), defense_to_their_stayman()),
+        entries: || rows_of(Pattern::node("P* (1NT) - (2♣)"), defense_to_their_stayman()),
     }
 }
 
@@ -356,7 +357,7 @@ pub(super) fn their_transfer_defense_package() -> Package {
                 .flat_map(|(resp, shown)| {
                     let response = Bid::new(2, Strain::from(resp));
                     rows_of(
-                        Pattern::node(&format!("P* (1NT) P ({response})")),
+                        Pattern::node(&format!("P* (1NT) - ({response})")),
                         defense_to_their_transfer(resp, shown),
                     )
                 })
@@ -374,7 +375,7 @@ pub(super) fn their_minor_transfer_defense_package() -> Package {
         gate: minor_transfer_defense_enabled,
         entries: || {
             rows_of(
-                Pattern::node("P* (1NT) P (2♠)"),
+                Pattern::node("P* (1NT) - (2♠)"),
                 defense_to_their_minor_transfer(),
             )
         },
@@ -390,7 +391,7 @@ pub(super) fn their_diamond_transfer_defense_package() -> Package {
         gate: diamond_transfer_defense_enabled,
         entries: || {
             rows_of(
-                Pattern::node("P* (1NT) P (2NT)"),
+                Pattern::node("P* (1NT) - (2NT)"),
                 defense_to_their_diamond_transfer(),
             )
         },

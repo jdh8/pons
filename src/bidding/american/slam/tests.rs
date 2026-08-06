@@ -13,7 +13,7 @@ fn trie_with_rkcb(prefix: &str, trump: Suit) -> Trie {
 
 /// Build a Trie with RKCB rows for the test auction
 fn rkcb_trie() -> Trie {
-    trie_with_rkcb("P* 1♠ (P) 2NT (P) 3♣ (P)", Suit::Spades)
+    trie_with_rkcb("P* 1♠ - 2NT - 3♣ -", Suit::Spades)
 }
 
 /// The rows the producer emits hold the row invariants — alerts on every
@@ -34,10 +34,10 @@ fn row_package_invariants() {
     }
 
     crate::bidding::rows::assert_package_invariants(&[
-        package("rkcb:♠", || rkcb_rows("P* 1♠ (P) 3♠ (P)", Suit::Spades)),
-        package("rkcb:♥", || rkcb_rows("P* 1♥ (P) 3♥ (P)", Suit::Hearts)),
-        package("rkcb:♦", || rkcb_rows("P* 1♦ (P) 3♦ (P)", Suit::Diamonds)),
-        package("rkcb:♣", || rkcb_rows("P* 1♣ (P) 3♣ (P)", Suit::Clubs)),
+        package("rkcb:♠", || rkcb_rows("P* 1♠ - 3♠ -", Suit::Spades)),
+        package("rkcb:♥", || rkcb_rows("P* 1♥ - 3♥ -", Suit::Hearts)),
+        package("rkcb:♦", || rkcb_rows("P* 1♦ - 3♦ -", Suit::Diamonds)),
+        package("rkcb:♣", || rkcb_rows("P* 1♣ - 3♣ -", Suit::Clubs)),
     ]);
 }
 
@@ -56,7 +56,7 @@ fn best(trie: &Trie, auction: &[Call], hand: &str) -> Call {
 
 // The raw table auction interleaves opposing passes after each of our calls.
 // Opener (our side) is in seat 1 (no leading pass), so the auction is:
-//   [1♠, P, 2NT, P, 3♣, P, 4NT, P]
+//   `1♠ - 2NT - 3♣ - 4NT -`
 const ANS_AUCTION: &[Call] = &[
     Call::Bid(Bid::new(1, Strain::Spades)),
     Call::Pass,
@@ -68,7 +68,7 @@ const ANS_AUCTION: &[Call] = &[
     Call::Pass,
 ];
 
-/// RKCB answers at [1♠, P, 2NT, P, 3♣, P, 4NT, P]
+/// RKCB answers at `1♠ - 2NT - 3♣ - 4NT -`
 #[test]
 fn answers_keycard_counts() {
     let trie = rkcb_trie();
@@ -127,7 +127,7 @@ fn answers_keycard_counts() {
 #[test]
 fn asker_after_5d_response() {
     let trie = rkcb_trie();
-    // Auction: [1♠, P, 2NT, P, 3♣, P, 4NT, P, 5♦, P]
+    // Auction: `1♠ - 2NT - 3♣ - 4NT - 5♦ -`
     let auction: Vec<Call> = ANS_AUCTION
         .iter()
         .copied()
@@ -153,7 +153,7 @@ fn asker_after_5d_response() {
 #[test]
 fn king_ask_after_5c() {
     let trie = rkcb_trie();
-    // Auction: [1♠, P, 2NT, P, 3♣, P, 4NT, P, 5♣, P]
+    // Auction: `1♠ - 2NT - 3♣ - 4NT - 5♣ -`
     let auction: Vec<Call> = ANS_AUCTION
         .iter()
         .copied()
@@ -181,7 +181,7 @@ fn king_ask_after_5c() {
 #[test]
 fn king_answer_after_5nt() {
     let trie = rkcb_trie();
-    // Auction: [1♠, P, 2NT, P, 3♣, P, 4NT, P, 5♣, P, 5NT, P]
+    // Auction: `1♠ - 2NT - 3♣ - 4NT - 5♣ - 5NT -`
     let auction: Vec<Call> = ANS_AUCTION
         .iter()
         .copied()
@@ -205,13 +205,13 @@ fn king_answer_after_5nt() {
 // Minor-suit keycard (plain 4NT)
 // -----------------------------------------------------------------------
 
-/// A trie with minor RKCB installed below `[1m, 2m, 4NT]`
+/// A trie with minor RKCB installed below `1m - 2m - 4NT -`
 fn minor_trie(trump: Suit) -> Trie {
     let m = Strain::from(trump);
-    trie_with_rkcb(&format!("P* 1{m} (P) 2{m} (P)"), trump)
+    trie_with_rkcb(&format!("P* 1{m} - 2{m} -"), trump)
 }
 
-/// The answer node auction `[1m, P, 2m, P, 4NT, P]`
+/// The answer node auction `1m - 2m - 4NT -`
 fn minor_ans_auction(trump: Suit) -> Vec<Call> {
     let m = Strain::from(trump);
     vec![
@@ -224,7 +224,7 @@ fn minor_ans_auction(trump: Suit) -> Vec<Call> {
     ]
 }
 
-/// `minor_ans_auction` extended by one keycard answer `+ [answer, P]`
+/// `minor_ans_auction` extended by one keycard answer and `-`
 fn after_minor_answer(trump: Suit, answer: Bid) -> Vec<Call> {
     let mut a = minor_ans_auction(trump);
     a.push(Call::Bid(answer));
@@ -372,7 +372,7 @@ fn minors_never_bid_5nt() {
 #[test]
 fn minor_king_ask_node_absent() {
     let trie = minor_trie(Suit::Clubs);
-    // [1♣, P, 2♣, P, 4NT, P, 5♣, P, 5NT, P] — the major king-ask path
+    // `1♣ - 2♣ - 4NT - 5♣ - 5NT -` — the major king-ask path
     let mut auction = after_minor_answer(Suit::Clubs, Bid::new(5, Strain::Clubs));
     auction.push(Call::Bid(Bid::new(5, Strain::Notrump)));
     auction.push(Call::Pass);
@@ -403,10 +403,10 @@ fn relay_trie() -> Trie {
 ///
 /// [`QUEEN_FIT`]: crate::bidding::instinct::QUEEN_FIT
 fn eight_card_relay_trie() -> Trie {
-    trie_with_rkcb("P* 1♠ (P) 3♠ (P)", Suit::Spades)
+    trie_with_rkcb("P* 1♠ - 3♠ -", Suit::Spades)
 }
 
-/// `[1♠, P, 3♠, P, 4NT, P]` — the limit-raise ask node
+/// `1♠ - 3♠ - 4NT -` — the limit-raise ask node
 const LIMIT_ANS_AUCTION: &[Call] = &[
     Call::Bid(Bid::new(1, Strain::Spades)),
     Call::Pass,

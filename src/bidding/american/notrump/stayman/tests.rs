@@ -3,7 +3,7 @@ use contract_bridge::Strain;
 
 #[test]
 fn stayman_fit_raise_by_value() {
-    // 1NT–2♣–2♥ (opener's four-card major): responder raises on `fit_value`,
+    // 1NT - 2♣ - 2♥ (opener's four-card major): responder raises on `fit_value`,
     // not raw HCP — any upgrade past a flat eight reaches game.
     let stayman = [
         bid(1, Strain::Notrump),

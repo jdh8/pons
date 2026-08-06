@@ -9,7 +9,7 @@
 //! So the accept test runs on the **raw hands, before the bidder**, and the
 //! cost gradient decides the filter order: dealing is nearly free, bidding costs
 //! a little, double dummy is expensive.  Deal → cheap hand predicate → bid the
-//! survivors → confirm the auction really reached `2M–P–?` → solve only the
+//! survivors → confirm the auction really reached `2M - ?` → solve only the
 //! deals whose contracts differ.
 //!
 //! Two modes, one per change:

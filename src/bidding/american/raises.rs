@@ -2,10 +2,10 @@
 //!
 //! Two further continuations ship default-on (measured, silenced-opponent
 //! A/B, 200k boards/vul, plain-DD + perfect-defense both winning):
-//! **major game tries** after a single raise (`1M – 2M`) — a long-suit try,
+//! **major game tries** after a single raise (`1M - 2M`) — a long-suit try,
 //! the general re-raise, or a keycard-asking maximum — gated by
 //! [`set_major_game_tries`] (+0.042/+0.065 IMPs/board NV/vul); and
-//! **limit-raise acceptance** after `1M – 3M` — accept, decline, or ask for
+//! **limit-raise acceptance** after `1M - 3M` — accept, decline, or ask for
 //! keycards — gated by [`set_limit_raise_acceptance`] (+0.002/+0.002, the
 //! whole win being the keycard ask at +4.4/+5.2 IMPs/divergent).
 
@@ -18,16 +18,16 @@ use contract_bridge::{Bid, Strain, Suit};
 use std::cell::Cell;
 
 std::thread_local! {
-    /// Whether opener's long-suit game tries after a single raise (`1M – 2M`)
+    /// Whether opener's long-suit game tries after a single raise (`1M - 2M`)
     /// are authored.  Default on (measured +0.042/+0.065 IMPs/board NV/vul).
     static MAJOR_GAME_TRIES: Cell<bool> = const { Cell::new(true) };
-    /// Whether opener's acceptance ladder after a limit raise (`1M – 3M`) is
+    /// Whether opener's acceptance ladder after a limit raise (`1M - 3M`) is
     /// authored.  Default on (the win is the keycard ask: +4.4/+5.2
     /// IMPs/divergent NV/vul).
     static LIMIT_RAISE_ACCEPTANCE: Cell<bool> = const { Cell::new(true) };
 }
 
-/// Author opener's major game tries after `1M – 2M` for books built *after*
+/// Author opener's major game tries after `1M - 2M` for books built *after*
 /// this call
 ///
 /// Read at book construction; **default on** (`--no-ns-major-game-tries` in
@@ -41,7 +41,7 @@ pub(crate) fn major_game_tries() -> bool {
     MAJOR_GAME_TRIES.with(Cell::get)
 }
 
-/// Author opener's limit-raise acceptance ladder after `1M – 3M` for books
+/// Author opener's limit-raise acceptance ladder after `1M - 3M` for books
 /// built *after* this call
 ///
 /// Read at book construction; **default on** (`--no-ns-limit-raise-acceptance`
@@ -58,7 +58,7 @@ fn limit_raise_acceptance() -> bool {
 /// Shortness — opener's `3`-of-a-side-suit singleton/void show after Jacoby 2NT
 const SHORTNESS: Alert = Alert("shortness");
 
-/// Opener's rebid after `1M – (P) – 2NT – (P)`: describe shape and strength
+/// Opener's rebid after `1M - 2NT -`: describe shape and strength
 ///
 /// Jacoby 2NT is a game-forcing raise promising four-card support and 13+ HCP,
 /// so opener can safely describe at a high level.  This node is **forcing** —
@@ -148,7 +148,7 @@ fn responder_after_jacoby(major: Suit, opener_bid: Call) -> Rules {
 }
 
 // ---------------------------------------------------------------------------
-// Major game tries after a single raise: 1M – 2M (set_major_game_tries)
+// Major game tries after a single raise: 1M - 2M (set_major_game_tries)
 // ---------------------------------------------------------------------------
 
 /// The level of the cheapest available call in `suit` over `2` of `major`
@@ -185,7 +185,7 @@ fn game_try_suits(major: Suit) -> Vec<Suit> {
     above.into_iter().chain(below).collect()
 }
 
-/// Opener's continuation after `1M – (P) – 2M – (P)`: game tries toward a
+/// Opener's continuation after `1M - 2M -`: game tries toward a
 /// non-forcing raise
 ///
 /// Responder's single raise promises three-plus trumps and 6–9 points, so
@@ -281,10 +281,10 @@ fn opener_after_decline(major: Suit) -> Rules {
 }
 
 // ---------------------------------------------------------------------------
-// Limit-raise acceptance: 1M – 3M (set_limit_raise_acceptance)
+// Limit-raise acceptance: 1M - 3M (set_limit_raise_acceptance)
 // ---------------------------------------------------------------------------
 
-/// Opener's continuation after `1M – (P) – 3M – (P)`: accept, ask, or
+/// Opener's continuation after `1M - 3M -`: accept, ask, or
 /// decline the limit raise
 ///
 /// | Call | Meaning |
@@ -326,7 +326,7 @@ pub(super) fn jacoby_continuations() -> Package {
         entries: || {
             let mut entries = Vec::new();
             for major in [Suit::Hearts, Suit::Spades] {
-                let prefix = format!("P* {} (P) 2NT (P)", call(1, Strain::from(major)),);
+                let prefix = format!("P* {} - 2NT -", call(1, Strain::from(major)),);
                 let rebids = jacoby_rebids(major);
 
                 // Derive continuation keys from the live source table while
@@ -343,7 +343,7 @@ pub(super) fn jacoby_continuations() -> Package {
 
                 entries.extend(rows_of(Pattern::node(&prefix), rebids));
                 for opener_bid in distinct {
-                    let response = format!("{prefix} {opener_bid} (P)");
+                    let response = format!("{prefix} {opener_bid} -");
                     entries.extend(rows_of(
                         Pattern::node(&response),
                         responder_after_jacoby(major, opener_bid),
@@ -356,7 +356,7 @@ pub(super) fn jacoby_continuations() -> Package {
     }
 }
 
-/// Major game tries after `1M – 2M`, with every answer and RKCB subtree
+/// Major game tries after `1M - 2M`, with every answer and RKCB subtree
 pub(super) fn major_game_try_continuations() -> Package {
     Package {
         name: "major-game-try-continuations",
@@ -365,26 +365,26 @@ pub(super) fn major_game_try_continuations() -> Package {
             let mut entries = Vec::new();
             for major in [Suit::Hearts, Suit::Spades] {
                 let trump = Strain::from(major);
-                let prefix = format!("P* {} (P) {} (P)", call(1, trump), call(2, trump));
+                let prefix = format!("P* {} - {} -", call(1, trump), call(2, trump));
                 entries.extend(rows_of(Pattern::node(&prefix), opener_after_raise(major)));
                 entries.extend(slam::rkcb_rows(&prefix, major));
 
                 for suit in game_try_suits(major) {
                     let try_call = call(try_level(major, suit), Strain::from(suit));
-                    let tried = format!("{prefix} {try_call} (P)");
+                    let tried = format!("{prefix} {try_call} -");
                     entries.extend(rows_of(
                         Pattern::node(&tried),
                         responder_after_try(major, suit),
                     ));
 
-                    let declined = format!("{tried} {} (P)", call(3, trump));
+                    let declined = format!("{tried} {} -", call(3, trump));
                     entries.extend(rows_of(
                         Pattern::node(&declined),
                         opener_after_decline(major),
                     ));
                 }
 
-                let general = format!("{prefix} {} (P)", call(3, trump));
+                let general = format!("{prefix} {} -", call(3, trump));
                 entries.extend(rows_of(
                     Pattern::node(&general),
                     responder_after_general_try(major),
@@ -395,7 +395,7 @@ pub(super) fn major_game_try_continuations() -> Package {
     }
 }
 
-/// Limit-raise acceptance after `1M – 3M`, including its RKCB subtree
+/// Limit-raise acceptance after `1M - 3M`, including its RKCB subtree
 pub(super) fn limit_raise_acceptance_continuations() -> Package {
     Package {
         name: "limit-raise-acceptance-continuations",
@@ -404,7 +404,7 @@ pub(super) fn limit_raise_acceptance_continuations() -> Package {
             let mut entries = Vec::new();
             for major in [Suit::Hearts, Suit::Spades] {
                 let trump = Strain::from(major);
-                let prefix = format!("P* {} (P) {} (P)", call(1, trump), call(3, trump));
+                let prefix = format!("P* {} - {} -", call(1, trump), call(3, trump));
                 entries.extend(rows_of(
                     Pattern::node(&prefix),
                     opener_after_limit_raise(major),

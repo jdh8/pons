@@ -7,7 +7,7 @@ use super::*;
 
 thread_local! {
     /// Whether opener's support double/redouble extends to the major-major
-    /// auction `1♥ – (P) – 1♠ – (X / overcall below 2♠)`. The minor-opening
+    /// auction `1♥ - 1♠ (X / overcall below 2♠)`. The minor-opening
     /// pairs are always on (shipped). **Default on** — measured vs BBA 2/1
     /// (204.8k boards/arm/vul): plain DD wash (−0.0004/+0.0004, CIs straddle
     /// 0), perfect-defense +0.97/+1.69 IMPs/fired NV/vul (vul CI excludes 0)
@@ -15,7 +15,7 @@ thread_local! {
     static MAJOR_SUPPORT_DOUBLE: Cell<bool> = const { Cell::new(true) };
 }
 
-/// Extend support doubles to `1♥ – (P) – 1♠` for books built *after* this
+/// Extend support doubles to `1♥ - 1♠` for books built *after* this
 /// call (thread-local)
 ///
 /// **Default on** (`--no-ns-major-support-double` in `bba-gen` for the off
@@ -44,7 +44,7 @@ fn support_rules(major: Suit) -> Rules {
 
 /// Section 3 as a row package: support doubles and redoubles
 ///
-/// The four minor-major pairs always; `1♥ – (P) – 1♠` behind
+/// The four minor-major pairs always; `1♥ - 1♠` behind
 /// [`set_major_support_double`][super::set_major_support_double] (default on).
 /// The double answers an overcall at most one step below our major
 /// ([`OvercallAtMost`]); the redouble answers their takeout double.
@@ -65,7 +65,7 @@ pub(super) fn support_double_package() -> Package {
             let mut entries = Vec::new();
             for (opening, major) in support_pairs {
                 let m = Strain::from(major);
-                let key = format!("P* 1{} (P) 1{m}", Strain::from(opening));
+                let key = format!("P* 1{} - 1{m}", Strain::from(opening));
                 let just_below = if major == Suit::Hearts {
                     Bid::new(2, Strain::Diamonds)
                 } else {

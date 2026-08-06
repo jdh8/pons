@@ -4,7 +4,8 @@ use contract_bridge::{Hand, Strain};
 
 #[test]
 fn uvu_three_clubs_is_stayman() {
-    // 1NT–(2NT both minors): a 4-4 majors hand bids 3♣ (Stayman), a book node.
+    // `1NT (2NT)`: their 2NT shows both minors; a 4-4 majors hand bids 3♣
+    // (Stayman), a book node.
     let auction = [call(1, Strain::Notrump), call(2, Strain::Notrump)];
     let (c, floored) = bid_uvu(&auction, "AQ32.KJ32.A2.432");
     assert_eq!(c, call(3, Strain::Clubs));
@@ -13,7 +14,7 @@ fn uvu_three_clubs_is_stayman() {
 
 #[test]
 fn uvu_three_diamonds_shows_hearts() {
-    // 1NT–(2NT): 5+♥ with ≤3♠ bids 3♦ (the heart cue).
+    // 1NT (2NT): 5+♥ with ≤3♠ bids 3♦ (the heart cue).
     let auction = [call(1, Strain::Notrump), call(2, Strain::Notrump)];
     let (c, _) = bid_uvu(&auction, "K3.KQ976.A32.432");
     assert_eq!(c, call(3, Strain::Diamonds));
@@ -21,7 +22,7 @@ fn uvu_three_diamonds_shows_hearts() {
 
 #[test]
 fn uvu_splinter_with_five_five() {
-    // 1NT–(2NT): 5-5 majors short a club → 4♣ splinter (FG+).
+    // 1NT (2NT): 5-5 majors short a club → 4♣ splinter (FG+).
     let auction = [call(1, Strain::Notrump), call(2, Strain::Notrump)];
     let (c, _) = bid_uvu(&auction, "AQ876.KJ987.32.A");
     assert_eq!(c, call(4, Strain::Clubs));
@@ -29,7 +30,7 @@ fn uvu_splinter_with_five_five() {
 
 #[test]
 fn uvu_penalty_double_on_values() {
-    // 1NT–(2NT): flat values, no 4-card major, no minor stopper → penalty X.
+    // 1NT (2NT): flat values, no 4-card major, no minor stopper → penalty X.
     let auction = [call(1, Strain::Notrump), call(2, Strain::Notrump)];
     let (c, floored) = bid_uvu(&auction, "KJ2.AQ2.J532.532");
     assert_eq!(c, Call::Double);
@@ -38,7 +39,8 @@ fn uvu_penalty_double_on_values() {
 
 #[test]
 fn uvu_smolen_shows_the_five_card_spade() {
-    // 1NT–(2NT)–3♣–(P)–3♦ (denial): responder's 3♥ = Smolen 5+♠ (no ♥ promise).
+    // `1NT (2NT) 3♣ - 3♦ -`: opener's 3♦ denial lets responder bid Smolen 3♥
+    // to show 5+ spades, with no heart promise.
     let auction = [
         call(1, Strain::Notrump),
         call(2, Strain::Notrump),
@@ -54,7 +56,7 @@ fn uvu_smolen_shows_the_five_card_spade() {
 
 #[test]
 fn uvu_disabled_falls_to_floor() {
-    // Disabled, 1NT–(2NT) has no book node → instinct floor (the toggle works).
+    // Disabled, 1NT (2NT) has no book node → instinct floor (the toggle works).
     super::uvu::set_uvu(false);
     let auction = [call(1, Strain::Notrump), call(2, Strain::Notrump)];
     let (_, floored) = best_call(&auction, "AQ32.KJ32.A2.432");
@@ -62,7 +64,7 @@ fn uvu_disabled_falls_to_floor() {
     assert!(floored, "without the toggle the auction is unauthored");
 }
 
-/// 1NT-(2NT)-X, opponents run to 3♣: responder with a club stack doubles
+/// `1NT (2NT) X`, opponents run to 3♣: responder with a club stack doubles
 /// (the UvU penalty chase), and partner would leave it in.
 ///
 /// Asserted against `american_instinct()`, not `american()`, because the

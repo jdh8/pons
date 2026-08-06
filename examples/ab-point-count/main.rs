@@ -32,7 +32,7 @@
 //! ```
 
 use clap::Parser;
-use contract_bridge::auction::{Auction, Call};
+use contract_bridge::auction::{Auction, Call, display_calls};
 use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Hand, Seat};
 use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
 use pons::american;
@@ -110,7 +110,7 @@ struct Args {
     /// `weak-two-nltc-ceil:X` (reals; see `probe-weak-two-eval`);
     /// `two-over-one-gate:points13|points12|hcp13|hcp12|hcp14` (the major
     /// no-fit 2/1 entry, vs the shipped `points13`); and
-    /// `two-over-one-heart-light` (`1♠–2♥` forces game on a flat twelve with
+    /// `two-over-one-heart-light` (`1♠ - 2♥` forces game on a flat twelve with
     /// five hearts, the strain-location bet).
     #[arg(long)]
     fix: Option<String>,
@@ -164,7 +164,7 @@ enum Fix {
     StrongDoubleHcp(u8),
     /// `set_two_suiter_hcp_floor(n)`: Michaels + Unusual 2NT raw-HCP floor
     TwoSuiterHcp(u8),
-    /// `set_redouble_answer(true)`: author opener over `1x-(X)-XX-(P)`
+    /// `set_redouble_answer(true)`: author opener over `1x (X) XX -`
     RedoubleAnswer,
     /// `set_nt_invite_hcp(true)`: HCP-gauge the post-two-suit 2NT invite
     NtInviteHcp,
@@ -174,7 +174,7 @@ enum Fix {
     /// `set_two_over_one_gate(gate)`: the major no-fit 2/1 entry gauge, vs
     /// the shipped `Points13`
     TwoOverOneGate(TwoOverOneGate),
-    /// `set_two_over_one_heart_light(true)`: `1♠–2♥` forces game on a flat
+    /// `set_two_over_one_heart_light(true)`: `1♠ - 2♥` forces game on a flat
     /// twelve with five hearts (`len(♥,5..) & hcp(12..)`), the strain-location
     /// bet — reach `4♥` on the 5-3 fit instead of the minor 2/1s' thin 3NT
     TwoOverOneHeartLight,
@@ -254,7 +254,7 @@ impl Fix {
                 )
             }
             Self::TwoOverOneHeartLight => {
-                "1♠–2♥ heart-light: len(♥,5..) & hcp(12..) no-fit vs shipped".to_owned()
+                "1♠ - 2♥ heart-light: len(♥,5..) & hcp(12..) no-fit vs shipped".to_owned()
             }
         }
     }
@@ -415,12 +415,7 @@ fn show_divergences(
         let split = (0..off.len().min(on.len()))
             .find(|&n| off[n] != on[n])
             .unwrap_or_else(|| off.len().min(on.len()));
-        let prefix = off
-            .iter()
-            .take(split)
-            .map(ToString::to_string)
-            .collect::<Vec<_>>()
-            .join(" ");
+        let prefix = display_calls(&off[..split]);
         let next = |auction: &Auction| {
             auction
                 .get(split)

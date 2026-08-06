@@ -15,20 +15,20 @@ fn south_african_texas_slam_try() {
     assert_eq!(best(&one_nt, "42.AKJ872.Q43.32"), bid(4, Strain::Clubs));
     assert_eq!(best(&one_nt, "42.AKJ872.KQ4.Q2"), bid(4, Strain::Hearts));
 
-    // Opener over the bare-15 direct invite (1NT–P–4♥–P): a maximum (17) launches
+    // Opener over the bare-15 direct invite (1NT - 4♥ -): a maximum (17) launches
     // RKCB, a minimum (15) signs off by passing the major game.
     let over_try = [bid(1, Strain::Notrump), P, bid(4, Strain::Hearts), P];
     assert_eq!(best(&over_try, "KQ3.K53.AQ54.K92"), bid(4, Strain::Notrump));
     assert_eq!(best(&over_try, "KQ3.K53.KQ54.Q92"), P);
 
-    // Opener completes the 4♣ transfer (1NT–P–4♣–P) → 4♥.
+    // Opener completes the 4♣ transfer (1NT - 4♣ -) → 4♥.
     let over_transfer = [bid(1, Strain::Notrump), P, bid(4, Strain::Clubs), P];
     assert_eq!(
         best(&over_transfer, "KQ3.K53.KQ54.Q92"),
         bid(4, Strain::Hearts)
     );
 
-    // Responder's drive over the completion (1NT–P–4♣–P–4♥–P): the 16-count
+    // Responder's drive over the completion (1NT - 4♣ - 4♥ -): the 16-count
     // keycards (4NT), the 10-count passes the game.
     let over_completion = [
         bid(1, Strain::Notrump),

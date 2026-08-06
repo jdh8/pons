@@ -6,8 +6,8 @@
 #
 #   strong-double-hcp:18   the overcall / double-first partition edge in HCP
 #   two-suiter-hcp:8       Michaels + Unusual 2NT raw-HCP floor
-#   redouble-answer        opener's pass-only answer over 1x-(X)-XX-(P)
-#   nt-invite-hcp          1♥-1♠-2m 2NT invite gauged in HCP
+#   redouble-answer        opener's pass-only answer over `1x (X) XX -`
+#   nt-invite-hcp          `1♥ - 1♠ - 2m - 2NT` invite gauged in HCP
 #
 # (opening-hcp-floor:10 was the fifth fix; it is now the shipped default —
 # the one-level openings carry an explicit hcp floor for systems-legality —

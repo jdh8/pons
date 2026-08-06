@@ -5,7 +5,7 @@
 //! some game is good opposite a maximum but not a minimum — the very meaning of
 //! an invitation (AI-bidder; see `docs/ai-bidder/`).
 //!
-//! The opener is North (`1NT`–`Pass`–?, South to respond, uncontested).  For each
+//! The opener is North (`1NT - ?`, South to respond uncontested). For each
 //! sampled responder hand:
 //!
 //! - **Oracle** — over openers sampled from each half ([`sample_layouts`] with the
@@ -14,7 +14,7 @@
 //!   Game good opposite both halves → **FG**, opposite the upper half only → **INV**,
 //!   neither → **PASS**.  This is steps 1–3 of the proposal, raw DD on a fixed
 //!   contract (perfect-defense doubling, as the EV evaluator uses).
-//! - **Book** — bid the full auction out under [`american`] from `1NT`–`Pass` over
+//! - **Book** — bid the full auction out under [`american`] from `1NT -` over
 //!   the *same* sampled openers; the fraction that lands in game gives the book the
 //!   same FG/INV/PASS verdict.  Bidding out (rather than reading responder's single
 //!   call) routes a 4-card-major hand through `2♣` Stayman and a 5-carder through a
@@ -24,7 +24,7 @@
 //! The output is a confusion matrix (oracle × book) per vulnerability, a
 //! disagreement breakdown by responder HCP band, and the list of *under-reaches* —
 //! hands the oracle rates above what the book reaches.  Two kinds surface: the book
-//! cannot accept a 1NT–2NT invitation (so every invitational hand plays partscore —
+//! cannot accept a 1NT - 2NT invitation (so every invitational hand plays partscore —
 //! a book-completeness gap that empties the whole INV column), and a smaller tail of
 //! shapely hands whose distributional game the HCP book passes.  If the book — or the
 //! search bidder — already reaches these, a bespoke simulation-driven rule is redundant.
@@ -198,7 +198,7 @@ fn main() {
     let seed: u64 = argv.next().and_then(|s| s.parse().ok()).unwrap_or(0);
     let min_layouts = layouts / 2;
 
-    // 1NT (North) – Pass (East) – South to respond, uncontested.
+    // `1NT - ?`: North opens, East passes, and South responds uncontested.
     let prior = [Call::Bid(Bid::new(1, Strain::Notrump)), Call::Pass];
     let context = Context::new(RelativeVulnerability::NONE, &prior);
     let inf = Inferences::read(&context);
@@ -211,7 +211,7 @@ fn main() {
     let mut seed_auction = Auction::new();
     seed_auction
         .try_extend(prior.iter().copied())
-        .expect("1NT–Pass is a legal prior auction");
+        .expect("1NT - is a legal prior auction");
     let dealer = Seat::North;
     let book: Pair = american();
 

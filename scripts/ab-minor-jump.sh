@@ -1,6 +1,6 @@
 #!/bin/sh
 # ab-minor-jump.sh — price the advancer's INVITATIONAL MINOR JUMP on the rich
-# advance of partner's takeout double ((1t)-X-(P)-3m).  The minor jump is now the
+# advance of partner's takeout double (`(1t) X - 3m`). The minor jump is now the
 # default; this A/B isolates it against the floor by turning it OFF in one arm:
 #   base      — minor jump OFF (--no-ns-advance-minor-jump); the rung falls to
 #               the floor

@@ -1,6 +1,6 @@
 #!/bin/sh
 # ab-rich-advance.sh — price making the RICH advance of partner's takeout double
-# ([1t, X, P]) the default, chasing the buried-major loss that made flat-book
+# (`(1t) X -`) the default, chasing the buried-major loss that made flat-book
 # longest-first a wash.  The flat advance_double gives the advancer only a
 # cheapest natural suit; longest-first there buries a biddable 4-card major under
 # a longer minor (5♦4♠ → 1♦, not 1♠) with nothing to rescue it.  The rich book

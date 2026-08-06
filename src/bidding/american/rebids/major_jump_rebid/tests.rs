@@ -12,7 +12,7 @@ fn major_jump_trie() -> Trie {
     trie
 }
 
-/// The raw table auction `[1♥, P, 1♠, P]` (opener to rebid).
+/// The raw table auction `1♥ - 1♠ -` (opener to rebid).
 const AFTER_1H_1S: &[Call] = &[
     Call::Bid(Bid::new(1, Strain::Hearts)),
     Call::Pass,
@@ -20,7 +20,7 @@ const AFTER_1H_1S: &[Call] = &[
     Call::Pass,
 ];
 
-/// The raw table auction `[1♠, P, 1NT, P]` (opener rebids over forcing 1NT).
+/// The raw table auction `1♠ - 1NT -` (opener rebids over forcing 1NT).
 const AFTER_1S_1NT: &[Call] = &[
     Call::Bid(Bid::new(1, Strain::Spades)),
     Call::Pass,
@@ -41,7 +41,7 @@ fn opener_major_jump_rebid_shows_strength() {
         best(&trie, AFTER_1H_1S, "A2.KQ9872.Q43.J5"),
         Call::Bid(Bid::new(2, Strain::Hearts))
     );
-    // The forcing-1NT node carries the same rung: 1♠ – 1NT – 3♠.
+    // The forcing-1NT node carries the same rung: 1♠ - 1NT - 3♠.
     assert_eq!(
         best(&trie, AFTER_1S_1NT, "AKQJ72.3.KQ5.J54"),
         Call::Bid(Bid::new(3, Strain::Spades))
@@ -61,7 +61,7 @@ fn opener_major_jump_rebid_reverts_when_off() {
     );
 }
 
-/// `[1♥, P, 1♠, P, 3♥, P]` — responder to act over opener's jump-rebid.
+/// `1♥ - 1♠ - 3♥ -` — responder to act over opener's jump-rebid.
 const AFTER_1H_1S_3H: &[Call] = &[
     Call::Bid(Bid::new(1, Strain::Hearts)),
     Call::Pass,
@@ -71,7 +71,7 @@ const AFTER_1H_1S_3H: &[Call] = &[
     Call::Pass,
 ];
 
-/// `[1♠, P, 1NT, P, 3♠, P]` — responder to act over opener's jump-rebid.
+/// `1♠ - 1NT - 3♠ -` — responder to act over opener's jump-rebid.
 const AFTER_1S_1NT_3S: &[Call] = &[
     Call::Bid(Bid::new(1, Strain::Spades)),
     Call::Pass,

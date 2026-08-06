@@ -45,7 +45,7 @@ meanings. Two mechanisms:
 
 - **Rule projection** (`set_alert_reading`, default-on) makes every alerted,
   DSL-authored artificial call self-decode by replaying its own `project` fold.
-  So Dutch's strong 2♣, Multi 2♦, Muiderberg 2M, UNT 2NT, and the 1♣–1♦ relay
+So Dutch's strong 2♣, Multi 2♦, Muiderberg 2M, UNT 2NT, and the 1♣ - 1♦ relay
   decode **for free** once authored with projecting combinators + `.alert(...)`.
 - The **hardcoded american reading** decodes the natural, unalerted openings.
   Dutch's natural openings differ by range/shape (1♣ 11–23 2+♣; 1♦ 5+/4414; 1M
@@ -65,7 +65,7 @@ the floor's transfer-completion still holds.
 | 0 | Scaffold `dutch()`, re-export, 0.000 baseline | **DONE** |
 | 1 | Dutch openings: wide 1♣, 1♦ 5+/4441, 1M 10–20, strong 2♣ | **DONE** (code; A/B pending) |
 | 2.1 | Wide-1♣ response table + opener's rebid after the `1♦` relay | **MEASURED — LOSS** (see below); on-plan for a half-built system |
-| 2.2 | Deep relay continuations (`1♣-1♦-1M/1NT/2♣/2♦`) + `[1♣,2♣]`/`[1♣,2♦]` continuations | **increments 1–2 AUTHORED** — inc.1 `1♣-1♦-1M` + `1♣-1♦-2♣`; inc.2 opener's rebid over `2♣`/`2♦` **+ responder's continuation** (opener-only cut LOST → responder side authored → **re-A/B WIN `+0.0021/bd plain both`**). Rare relay `1NT`/`2♦!` still deferred |
+| 2.2 | Deep relay continuations (`1♣ - 1♦ - 1M/1NT/2♣/2♦`) + `1♣ - 2♣` / `1♣ - 2♦` continuations | **increments 1–2 AUTHORED** — inc.1 `1♣ - 1♦ - 1M` + `1♣ - 1♦ - 2♣`; inc.2 opener's rebid over `2♣`/`2♦` **+ responder's continuation** (opener-only cut LOST → responder side authored → **re-A/B WIN `+0.0021/bd plain both`**). Rare relay `1NT`/`2♦!` still deferred |
 | 3 | 2-level openings (Multi + **BBA's Polish two-suiters**/UNT) + strong-2♣ tree | pending — **Muiderberg superseded**, see below |
 | 4 | Reader/floor reconciliation + divergent-opening competitive book | pending |
 | 5 | Iterate to champion vs BBA/BEN; promote if it wins | pending |
@@ -155,7 +155,7 @@ on:  - - 1♠ 2♠ 3♥ X XX - - -       off: - - 1♠ 2♠ 3♥ X 4♠ - -     
 
 These are american weak-two / competitive subtrees that Dutch inherits unchanged.
 The node is contested and off-book — the Ogust rows are keyed
-`[2♥, P, 2NT, P, 3♣, P]` and trie resolution is exact-depth, so a trailing
+`2♥ - 2NT - 3♣ -` and trie resolution is exact-depth, so a trailing
 `Double` has no child and falls through — so it is `NeuralFloorBba` speaking, and
 nothing in the floor path masks or penalises `XX` (only `mask_illegal`).
 
@@ -277,9 +277,9 @@ before `both` on the strength of the result. Dumps at `ab-results/dutch-wj1c/`;
 the runner, `dutch_wj_club()`, `DutchConstructiveFloor` and the `--our-floor
 dutch-wj1c` arm were removed with the routing.
 
-*The premise was right.* jdh8's argument was that a net should read `1♣-1♦` as a
+*The premise was right.* jdh8's argument was that a net should read `1♣ - 1♦` as a
 relay, not as diamonds, and that WJ is the teacher that does. Measured over
-7 077 EPBot-WJ responder rows, WJ's `1♣-1♦` is a `wildcard response` that
+7 077 EPBot-WJ responder rows, WJ's `1♣ - 1♦` is a `wildcard response` that
 discloses **nothing** — no length range, no point range — with ♦ length running
 0–8 including 58 voids, and spades as often the longest suit (2 176) as diamonds
 (1 792). EPBot's 2/1 answers 1♣ with a natural `1♦` (`bidable suit`, `D:[4,13]`,
@@ -288,7 +288,7 @@ relay and the WJ net is not. That much held up.
 
 *The slot was the surprise.* `dutch()` is `with_floors(pair, NeuralFloorBba,
 instinct())` — the net wraps only the **contested** books, so uncontested
-`1♣-P-1♦-P-…` was already floored by deterministic `instinct()`, which reads the
+`1♣ - 1♦ - …` was already floored by deterministic `instinct()`, which reads the
 alerted relay through projection and never invents diamonds. The misread the
 argument targets was therefore *not happening*; the arm is really the held-back
 constructive-floor A/B, scoped to the 1♣ subtree.
@@ -387,7 +387,7 @@ loss splits three ways, all on the roadmap:
 
 1. **Balanced-only 1NT** (`dutch/openings.rs` `hcp(15..=17) & balanced()`) vs
    american's shipped **Wide6322** — 15–17 6322/5422 hands open a *minor* in
-   Dutch, `1NT` in american. Recurs as `off: 1NT (X)(XX)` scoring while Dutch's
+   Dutch, `1NT` in american. Recurs as `off: 1NT (X) XX` scoring while Dutch's
    minor partscore does not. A Phase-1 lever (flagged below), one-line to flip,
    the cheapest isolation to run next. **FLIPPED 2026-07-18** — Dutch's 1NT now
    reuses american's `notrump_shape(NotrumpShape::Wide6322)`, the A/B-validated
@@ -410,7 +410,7 @@ notrump-shape choice vs. the genuinely unbuilt tree.
 
 Spec tables (responder's calls, opener's relay rebids, the deep continuation
 trees) live in **[dutch-spec.md](dutch-spec.md)**. Phase 2.1 authored the first
-two nodes — `[1♣]` responses and `[1♣,1♦]` opener rebids; the `2NT!` 5-5-minor
+two nodes — `1♣` responses and `1♣ - 1♦` opener rebids; the `2NT!` 5-5-minor
 rebid is dropped (unreachable in pons — 5-5 minors open 1♦). This section keeps
 only the pons-specific encoding choices and the open items.
 
@@ -440,7 +440,7 @@ projection self-decodes them (american's hardcoded reader would otherwise read
 
 ### Phase 2.2 increment 1 — responder's second call over opener's minimum
 
-Authored `1♣-1♦-1M` (both majors) and `1♣-1♦-2♣` — where the bulk of relay
+Authored `1♣ - 1♦ - 1M` (both majors) and `1♣ - 1♦ - 2♣` — where the bulk of relay
 auctions land (opener minimum, 11–17). The rare 18–20 `1NT` and 21–23 `2♦!`
 continuations are **deferred**: opener's strength there self-discloses to the
 floor through rule projection (the calls are alerted), so the floor bids toward
@@ -451,7 +451,7 @@ Encoding choices (jdh8-confirmed bridge, 2026-07-19):
 
 - **Reverse Flannery** (`2M!`, and `2♥!` over opener's `2♣`) is gated **exactly**
   on `5=♠ & 4–5♥ & 7–9` — the two-suiter deliberately routed through the relay to
-  dodge the `1♣-1♠-2♣` rebid squeeze (and to keep a direct `1♣-1♠-2♣-2♥` INV+).
+  dodge the `1♣ - 1♠ - 2♣` rebid squeeze (and to keep a direct `1♣ - 1♠ - 2♣ - 2♥` INV+).
   An ordinary invitational major-raiser never arrives (it raised/bid on round
   one), so no natural-raise row exists; such hands fall to the floor.
 - **`2OM!` = both minors** (5+/4+, 9–11 invite). A natural major is impossible
@@ -470,13 +470,13 @@ Encoding choices (jdh8-confirmed bridge, 2026-07-19):
   following it. In pons, **(xx)45 opens 1♣** (the locked `1♦ = 5+♦ | 4441`
   stands) for simplicity and as an experiment. Consequence: the `2NT!` 5-5-minor
   rebid is unreachable (5-5 minors open 1♦) and was **dropped**.
-- **Deep continuations — increment 1 authored (2026-07-19):** `1♣-1♦-1M` and
-  `1♣-1♦-2♣` (see the increment-1 section above). Still deferred: `1♣-1♦-1NT`
-  (18–20 transfer structure, reuses the 1NT machinery) and `1♣-1♦-2♦` (21–23
+- **Deep continuations — increment 1 authored (2026-07-19):** `1♣ - 1♦ - 1M` and
+  `1♣ - 1♦ - 2♣` (see the increment-1 section above). Still deferred: `1♣ - 1♦ - 1NT`
+  (18–20 transfer structure, reuses the 1NT machinery) and `1♣ - 1♦ - 2♦` (21–23
   transfer structure) — rare, and their strength self-discloses to the floor via
   projection. Opener's third call (after responder's authored second call) still
   falls to the floor — a soft misread, measured not fixed blind.
-- **✓ `[1♣,2♣]` / `[1♣,2♦]` overwritten + responder side (increment 2,
+- **✓ `1♣ - 2♣` / `1♣ - 2♦` overwritten + responder side (increment 2,
   2026-07-19)** — see the increment-2 section below. The opener-only first cut
   left responder to the floor and **measured a loss** (git-arms A/B: the floor
   dropped the game force and blasted slam blind, `−0.0029/bd plain, −1.38
@@ -489,7 +489,7 @@ Encoding choices (jdh8-confirmed bridge, 2026-07-19):
 ### Phase 2.2 increment 2 — opener's rebid after responder's natural 2♣ / 2♦
 
 Overwrites the two continuations american built for its own (different) meanings:
-american routes `1♣-2♣` to an **inverted club raise** (forcing) and `1♣-2♦` to a
+american routes `1♣ - 2♣` to an **inverted club raise** (forcing) and `1♣ - 2♦` to a
 **weak jump shift** (0–6). Under Dutch, `2♣` is invite+ (5+♣) and `2♦` is
 game-forcing (5+♦), so both american nodes misread responder — the GF is treated
 as weak (drops games/slams), the invite as forcing (opener can't stop). Authored
@@ -518,9 +518,9 @@ the floor on a shallow probe ("drives GF hands to 3NT, passes a dead minimum")
 and **it measured a loss.** A git-arms A/B (dutch@inc.2 vs dutch@inc.1, 204 800
 bd/arm, SEED_BASE 1784400427) scored `−0.0029/bd plain, −0.0027/bd PD, −1.38
 IMPs/fired` (0.21% fired), and the worst boards diagnosed why: the floor **dropped
-the game force** — passing opener's forcing `3♣` over `2♦` (`1♣-2♦-3♣` passed out,
+the game force** — passing opener's forcing `3♣` over `2♦` (`1♣ - 2♦ - 3♣` passed out,
 a making 6NT missed) — and **blasted slam blind** over opener's `3NT`/stopper-shows
-(`2♦-2♠-6NT`, `2♣-3NT-4NT-5♥X`). The probe was too shallow: it checked opener's
+(`2♦ - 2♠ - 6NT`, `2♣ - 3NT - 4NT - 5♥X`). The probe was too shallow: it checked opener's
 placement, not responder's read of the artificial rebids. Lesson re-paid: never
 ship on analysis alone; complete both sides before measuring.
 

@@ -301,13 +301,13 @@ pub(super) fn transfer_free_bid_package() -> Package {
                     let shown_strain = Strain::from(shown);
                     let comp_lvl = if shown_strain > slot { 2 } else { 3 };
                     let cue_lvl = comp_lvl + u8::from(ovc_strain < shown_strain);
-                    let completion = format!("2{slot} (P)");
+                    let completion = format!("2{slot} -");
                     entries.extend(rows_of(
                         Pattern::after(&key, &completion),
                         free_transfer_completion(shown, comp_lvl),
                     ));
                     entries.extend(rows_of(
-                        Pattern::after(&key, &format!("{completion} {comp_lvl}{shown_strain} (P)")),
+                        Pattern::after(&key, &format!("{completion} {comp_lvl}{shown_strain} -")),
                         free_transfer_clarify(shown, comp_lvl, Bid::new(cue_lvl, ovc_strain)),
                     ));
                 }
@@ -455,7 +455,7 @@ pub(super) fn free_bid_answer_package() -> Package {
                 entries.extend(rows_of(
                     Pattern::guarded(
                         &key,
-                        &format!("{over} X (P) 3♣ (P)"),
+                        &format!("{over} X - 3♣ -"),
                         described_guard(
                             "(overcall ≤2♠) X - answer -",
                             guard(move |_: &Context<'_>, suffix: &[Call]| {
@@ -480,10 +480,10 @@ pub(super) fn free_bid_answer_package() -> Package {
                 // ordinary forcing-answer table; the guard's `< 3 of the
                 // opening suit` scope keeps that table's catch-all legal.
                 let fg_sample = match opening {
-                    Suit::Clubs => "(1♥) X (P) 1♠ (P) 2♦ (P)",
-                    Suit::Diamonds => "(1♥) X (P) 1♠ (P) 2♣ (P)",
-                    Suit::Hearts => "(1♠) X (P) 2♣ (P) 2♦ (P)",
-                    Suit::Spades => "(1♥) X (P) 2♣ (P) 2♦ (P)",
+                    Suit::Clubs => "(1♥) X - 1♠ - 2♦ -",
+                    Suit::Diamonds => "(1♥) X - 1♠ - 2♣ -",
+                    Suit::Hearts => "(1♠) X - 2♣ - 2♦ -",
+                    Suit::Spades => "(1♥) X - 2♣ - 2♦ -",
                 };
                 entries.extend(rows_of(
                     Pattern::guarded(
@@ -543,10 +543,10 @@ pub(super) fn free_bid_answer_package_legacy() -> Package {
                 // high enough that the cheapest new suit already sits at the
                 // two level — and Cachalot's rotation claims the minors' too.
                 let free_sample = match (opening, rotated) {
-                    (Suit::Clubs, false) => "(1♦) 1♥ (P)",
-                    (Suit::Diamonds, false) => "(1♥) 1♠ (P)",
-                    (Suit::Diamonds | Suit::Hearts, _) => "(2♣) 2♠ (P)",
-                    _ => "(2♦) 2♥ (P)",
+                    (Suit::Clubs, false) => "(1♦) 1♥ -",
+                    (Suit::Diamonds, false) => "(1♥) 1♠ -",
+                    (Suit::Diamonds | Suit::Hearts, _) => "(2♣) 2♠ -",
+                    _ => "(2♦) 2♥ -",
                 };
                 entries.extend(rows_of(
                     Pattern::guarded(
@@ -592,9 +592,9 @@ pub(super) fn free_bid_answer_package_legacy() -> Package {
                 // free, so it rides an overcall the free bid can out-rank
                 // without stepping up a level.
                 let negative_sample = match opening {
-                    Suit::Clubs => "(2♦) 2♥ (P)",
-                    Suit::Hearts => "(2♣) 2♠ (P)",
-                    _ => "(2♣) 2♥ (P)",
+                    Suit::Clubs => "(2♦) 2♥ -",
+                    Suit::Hearts => "(2♣) 2♠ -",
+                    _ => "(2♣) 2♥ -",
                 };
                 entries.extend(rows_of(
                     Pattern::guarded(
@@ -635,7 +635,7 @@ pub(super) fn free_bid_answer_package_legacy() -> Package {
                 entries.extend(rows_of(
                     Pattern::guarded(
                         &key,
-                        &format!("{over} X (P) 3♣ (P)"),
+                        &format!("{over} X - 3♣ -"),
                         described_guard(
                             "(overcall ≤2♠) X - answer -",
                             guard(move |_: &Context<'_>, suffix: &[Call]| {
@@ -660,10 +660,10 @@ pub(super) fn free_bid_answer_package_legacy() -> Package {
                 // ordinary forcing-answer table; the guard's `< 3 of the
                 // opening suit` scope keeps that table's catch-all legal.
                 let fg_sample = match opening {
-                    Suit::Clubs => "(1♥) X (P) 1♠ (P) 2♦ (P)",
-                    Suit::Diamonds => "(1♥) X (P) 1♠ (P) 2♣ (P)",
-                    Suit::Hearts => "(1♠) X (P) 2♣ (P) 2♦ (P)",
-                    Suit::Spades => "(1♥) X (P) 2♣ (P) 2♦ (P)",
+                    Suit::Clubs => "(1♥) X - 1♠ - 2♦ -",
+                    Suit::Diamonds => "(1♥) X - 1♠ - 2♣ -",
+                    Suit::Hearts => "(1♠) X - 2♣ - 2♦ -",
+                    Suit::Spades => "(1♥) X - 2♣ - 2♦ -",
                 };
                 entries.extend(rows_of(
                     Pattern::guarded(

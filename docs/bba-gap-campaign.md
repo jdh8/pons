@@ -114,7 +114,7 @@ major-opening rebid nodes (Meckstroth `3m` collision) and the `5+ ♣`/`6+ ♠`/
 ladder folded in — pooled **−1.84 plain / −2.07 PD** (was −1.89 / −2.11).
 Re-ranked and traced the residual: bucket #1 `Defensive/book/round-1` (PD *worse*
 by 31k → obstruction wall, Pillar-C territory); #2 `opening` (light-open frontier
-+ already-refuted weak-twos); #4 `round-1` dominant leak (`1♥→1♠`, −9295) is
++ already-refuted weak-twos); #4 `round-1` dominant leak (`1♥ → 1♠`, −9295) is
 `set_longer_major_response`, an *already-measured null* (compression pays a level
 on the heart fits). The one plain-workable, un-refuted lever was #3's own
 residual — the `6+ ♥`/`6+ ♠` major single-suiter underbids — **worked**:
@@ -127,7 +127,7 @@ Source: `ab-results/anchor/2026-07-08-c864bad/report.md`.
 jump-rebid folded in — pooled **−1.827 plain / −2.056 PD** (was −1.84 / −2.07).
 The re-rank showed the DD-workable *book* buckets mined to residuals (round-2 =
 mixed RKCB slam accuracy, M6.4 territory; round-1's top lever the already-null
-`1♥→1♠`), leaving ~57% of the gap (−233k) in the two "obstruction wall" buckets
+`1♥ → 1♠`), leaving ~57% of the gap (−233k) in the two "obstruction wall" buckets
 (#1 defensive round-1, #2 opening). **Pillar C was built and used to price them
 (sd-lead, 5000 bd/vul × 16 worlds, ours-vs-BBA via synthetic dumps into
 `ab-dump-sd`).  Verdict: BOTH are REAL losses, not DD artifacts** — def-r1 sd
@@ -145,7 +145,7 @@ competition structure** — within def-r1, our own positive calls
 **First overcall slice (2-level minor overcall) — sd-wash REJECT.**  The `2♣`/`2♦`
 overcall (5+, 11+) bleeds ~−2/bd across every points/shape/vul band, so
 `set_two_level_minor_overcall_tight` raises its floor to 15 (losing 11–14
-minimums → Pass).  A/B vs BBA: plain +0.0015 NV / +0.0061 vul, PD +0.0075 /
+minimums → -).  A/B vs BBA: plain +0.0015 NV / +0.0061 vul, PD +0.0075 /
 +0.0131 — **but sd-lead washes both** (−0.0021 [±0.0031] NV, +0.0025 [±0.0040]
 vul).  For a competitive range sd is the arbiter, so the plain/PD gains are the
 obstruction-wall artifact; kept opt-in, default byte-identical.
@@ -168,15 +168,15 @@ The lesson: the
 anchor's *ours-vs-BBA* sd deficit on the overcall does not mean *suppressing* it
 helps — the actionable A/B sd (suppress-vs-keep) washed because our own pass-line
 is equally bad.  The recoverable def-r1 value, if any, is the CONSTRUCTIVE
-`1NT`-overcall slice (`1NT→X`, PD-worse −8958) or the takeout doubles (−16k,
+`1NT`-overcall slice (`1NT → X`, PD-worse −8958) or the takeout doubles (−16k,
 PD-worse), not overcall suppression.
 
 **1NT-overcall systems on — def-r1's first WIN (shipped default-on).**  The
-`[1t, 1NT, P]` advance was **unauthored** (the floor guessed), the one distinct
+`(1t) 1NT -` advance was **unauthored** (the floor guessed), the one distinct
 mechanism the three washed call-swaps could not reach — because it *adds
 capability* rather than swapping a call.  `set_nt_overcall_systems_on` grafts the
 full opening-1NT response structure (Stayman, Jacoby/minor transfers, Smolen)
-verbatim below `[1t, 1NT]`, so `1♦–1NT` = `1♣–1NT` = an opening 1NT — 4-4 major
+verbatim below `(1t) 1NT`, so `(1♦) 1NT` = `(1♣) 1NT` = an opening 1NT — 4-4 major
 fits found, right-sided through transfers.  Mechanism: one re-rooting
 `Trie::graft` shares the constructive `register_one_nt` subtree (the defensive
 book cannot rebase across to the constructive `1NT` node — the keys collide,
@@ -218,7 +218,7 @@ five-card-major discipline folded in — pooled **−1.758 plain / −1.864 PD**
 plain / −146649 PD (was −134k / −164k; the discipline pulled its targeted
 PD-heavy slice).  Re-rank: the DD-workable **book** buckets stay mined to
 residuals (`opening` = refuted light-open wall; `round-2` = RKCB slam accuracy /
-M6.4; `round-1` = the null `1♥→1♠` + splinter-slam).  The biggest **un-worked**
+M6.4; `round-1` = the null `1♥ → 1♠` + splinter-slam).  The biggest **un-worked**
 prize is now the two-sided **Competitive `fallback@1`/`fallback@2` round-1** pair
 (−41021 + −37151 plain / −35146 + −34548 PD): our opening + their interference
 where the floor's `0+ HCP` catch-all sells out — a Pillar-D classify + sd-lead
@@ -292,7 +292,7 @@ the harness was repointed to the deterministic side (`anchor.sh` generates with
 confirming the reference is bit-reproducible again.  Pooled **−1.500 plain /
 −1.683 PD** (vul none −1.300 / −1.390, both −1.700 / −1.976), from −1.684 / −1.765
 at `5b5115d`.  The **+0.184 plain / +0.082 PD** is the interim default-on batch —
-the constructive gate/eval ships (fit-split 2/1 + 1M-3NT choice of games, the
+the constructive gate/eval ships (fit-split 2/1 + `1M - 3NT` choice of games, the
 fit-sum major-game gate, points-as-rule-of-N+8 + `support_points` + the four
 point-count gate fixes, Wide6322 as the default 1NT, the forcing-1NT major
 two-suiter, the Meckstroth adjunct) plus the advance-of-`X` / passed-hand-overcall

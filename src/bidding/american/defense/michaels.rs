@@ -151,7 +151,7 @@ pub(super) fn unusual_notrump_advance_package() -> Package {
         gate: || unusual_notrump_range().is_some(),
         entries: || {
             let mut entries = rows_of(
-                Pattern::node("P* (1NT) 2NT (P)"),
+                Pattern::node("P* (1NT) 2NT -"),
                 unusual_nt_advances(Suit::Spades),
             );
             entries.extend(rows_of(

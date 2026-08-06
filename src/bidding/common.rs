@@ -74,7 +74,7 @@ pub(in crate::bidding) fn with_floor<C: Classifier + 'static>(mut pair: Pair, fl
     pair.defensive.fallback_at(&[], Always, contested);
 
     // Uncontested auctions never reach the contested floor, so an off-book
-    // constructive sequence would pass out below a cold game (e.g. `1♦–1♥–1NT`
+    // constructive sequence would pass out below a cold game (e.g. `1♦ - 1♥ - 1NT`
     // passed out on a balanced 16 opposite the 12–14 rebid).  Floor the
     // constructive book with the deterministic instinct ladder — the natural
     // milestone bidder reaches game or slam on those sequences.

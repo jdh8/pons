@@ -3,9 +3,9 @@
 mod common;
 use common::*;
 
-// --- Opener's Jacoby rebid after 1♠ – (P) – 2NT – (P) ----------------------
+// --- Opener's Jacoby rebid after 1♠ - 2NT - --------------------------------
 
-/// Opener shows a singleton club (3♣ = shortness) over 1♠–2NT
+/// Opener shows a singleton club (3♣ = shortness) over 1♠ - 2NT
 #[test]
 fn jacoby_1s_rebid_shortness_club_singleton() {
     let system = stance();
@@ -25,7 +25,7 @@ fn jacoby_1s_rebid_shortness_club_singleton() {
     );
 }
 
-/// Opener shows a good five-card diamond suit (4♦) over 1♠–2NT
+/// Opener shows a good five-card diamond suit (4♦) over 1♠ - 2NT
 #[test]
 fn jacoby_1s_rebid_second_suit_diamonds() {
     let system = stance();
@@ -45,7 +45,7 @@ fn jacoby_1s_rebid_second_suit_diamonds() {
     );
 }
 
-/// Opener shows a big balanced hand (3♠) over 1♠–2NT
+/// Opener shows a big balanced hand (3♠) over 1♠ - 2NT
 #[test]
 fn jacoby_1s_rebid_big_balanced() {
     let system = stance();
@@ -65,7 +65,7 @@ fn jacoby_1s_rebid_big_balanced() {
     );
 }
 
-/// Opener shows a medium balanced hand (3NT) over 1♠–2NT
+/// Opener shows a medium balanced hand (3NT) over 1♠ - 2NT
 #[test]
 fn jacoby_1s_rebid_medium_balanced() {
     let system = stance();
@@ -85,7 +85,7 @@ fn jacoby_1s_rebid_medium_balanced() {
     );
 }
 
-/// Opener shows a minimum hand (4♠) over 1♠–2NT
+/// Opener shows a minimum hand (4♠) over 1♠ - 2NT
 #[test]
 fn jacoby_1s_rebid_minimum() {
     let system = stance();

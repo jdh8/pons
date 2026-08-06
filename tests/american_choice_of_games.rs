@@ -1,4 +1,4 @@
-//! Integration tests for the `1M – 3NT` choice-of-games response
+//! Integration tests for the `1M - 3NT` choice-of-games response
 //! (`set_major_choice_of_games`, shipped default-on 2026-07-15)
 
 mod common;

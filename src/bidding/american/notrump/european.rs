@@ -62,7 +62,7 @@ fn european_two_spade_answer() -> Rules {
     Rules::new().rule(Bid::new(3, Strain::Clubs), 0, hcp(0..))
 }
 
-/// Responder's rebid after opener completes the European club transfer (`…2♠–3♣`)
+/// Responder's rebid after opener completes the European club transfer (`…2♠ - 3♣`)
 ///
 /// A weak six-card club one-suiter passes the partscore; a game-going hand
 /// splinters in its singleton, or bids 3NT with no shortness.  Reuses the two-way
@@ -113,18 +113,15 @@ fn european_three_club_answer() -> Rules {
     Rules::new().rule(Bid::new(3, Strain::Diamonds), 0, hcp(0..))
 }
 
-/// European 1NT–3♣ diamond transfer and responder's game decision
+/// European 1NT - 3♣ diamond transfer and responder's game decision
 pub(crate) fn european_three_club() -> Package {
     Package {
         name: "european-three-club",
         gate: european_scheme,
         entries: || {
-            let mut entries = rows_of(
-                Pattern::node("P* 1NT (P) 3♣ (P)"),
-                european_three_club_answer(),
-            );
+            let mut entries = rows_of(Pattern::node("P* 1NT - 3♣ -"), european_three_club_answer());
             entries.extend(rows_of(
-                Pattern::node("P* 1NT (P) 3♣ (P) 3♦ (P)"),
+                Pattern::node("P* 1NT - 3♣ - 3♦ -"),
                 diamond_transfer_game(8),
             ));
             entries
@@ -132,36 +129,28 @@ pub(crate) fn european_three_club() -> Package {
     }
 }
 
-/// European balanced invitation through 1NT–2NT
+/// European balanced invitation through 1NT - 2NT
 pub(crate) fn european_two_notrump() -> Package {
     Package {
         name: "european-two-notrump",
         gate: european_scheme,
-        entries: || {
-            rows_of(
-                Pattern::node("P* 1NT (P) 2NT (P)"),
-                european_two_nt_answer(),
-            )
-        },
+        entries: || rows_of(Pattern::node("P* 1NT - 2NT -"), european_two_nt_answer()),
     }
 }
 
-/// European 1NT–2♠ club transfer and club-splinter continuations
+/// European 1NT - 2♠ club transfer and club-splinter continuations
 pub(crate) fn european_two_spade() -> Package {
     Package {
         name: "european-two-spade",
         gate: european_scheme,
         entries: || {
-            let mut entries = rows_of(
-                Pattern::node("P* 1NT (P) 2♠ (P)"),
-                european_two_spade_answer(),
-            );
+            let mut entries = rows_of(Pattern::node("P* 1NT - 2♠ -"), european_two_spade_answer());
             entries.extend(rows_of(
-                Pattern::node("P* 1NT (P) 2♠ (P) 3♣ (P)"),
+                Pattern::node("P* 1NT - 2♠ - 3♣ -"),
                 european_two_spade_rebid(),
             ));
             entries.extend(expand(
-                "P* 1NT (P) 2♠ (P) 3♣ (P) 3x (P)",
+                "P* 1NT - 2♠ - 3♣ - 3x -",
                 |b| b.suit('x') != Suit::Clubs,
                 |b| pick_game_over_club_splinter(b.suit('x')),
             ));

@@ -3,7 +3,7 @@
 mod common;
 use common::*;
 
-// --- Opener's rebid after 1♠–(P)–2♣–(P) ------------------------------------
+// --- Opener's rebid after 1♠ - 2♣ - ----------------------------------------
 
 #[test]
 fn opener_rebid_1s_2c_four_diamonds() {
@@ -66,7 +66,7 @@ fn opener_rebid_1s_2c_club_support() {
     );
 }
 
-// --- Responder's rebid after 1♠–(P)–2♣–(P)–2♦–(P) -------------------------
+// --- Responder's rebid after 1♠ - 2♣ - 2♦ - -------------------------------
 
 #[test]
 fn responder_rebid_three_spades() {
@@ -102,7 +102,7 @@ fn responder_rebid_raise_diamonds() {
     );
 }
 
-// --- Opener's third call after 1♠–(P)–2♣–(P)–2♦–(P)–3♠–(P) ---------------
+// --- Opener's third call after 1♠ - 2♣ - 2♦ - 3♠ - -------------------------
 
 #[test]
 fn opener_third_sign_off() {
@@ -146,7 +146,7 @@ fn opener_third_keycard_ask() {
 
 #[test]
 fn second_suit_agreed_minimum_bids_3nt() {
-    // 1♠–(P)–2♣–(P)–2♦–(P)–3♦–(P): responder agreed opener's second suit.
+    // `1♠ - 2♣ - 2♦ - 3♦ -`: responder agreed opener's second suit.
     // A minimum opener signs off at 3NT — NOT the game backstop's 4♠, which
     // would revert to the 5-2 spade fit after the diamond fit was found.
     let auction = &[

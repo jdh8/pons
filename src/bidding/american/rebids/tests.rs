@@ -18,7 +18,7 @@ pub(super) fn best(trie: &Trie, auction: &[Call], hand: &str) -> Call {
         .expect("logits array is never empty")
 }
 
-/// After `1♦ – 1♥`, a balanced 12–14 with a five-card diamond suit rebids
+/// After `1♦ - 1♥`, a balanced 12–14 with a five-card diamond suit rebids
 /// the natural `2♦` by default but `1NT` once `set_balanced_1nt_rebid` is
 /// on — the only shape the knob moves (4333/4432 hold no five-card minor).
 #[test]

@@ -1,6 +1,6 @@
 #!/bin/sh
 # ab-advance-pass-yield.sh — price the weak advancer's pass-yield to a 4-card
-# major over partner's takeout double ([1t, X, P]).  The cap A/B
+# major over partner's takeout double (`(1t) X -`). The cap A/B
 # (ab-results/advance-penalty-pass/) refuted strength-restricting the sit
 # outright (−2 IMPs/fired, both scorers): the wide sit is a measured edge over
 # BBA's own 8.6% convert rate.  This is the surviving sliver of that idea:
@@ -11,7 +11,7 @@
 #   off   — default system (yield off; the shipped behavior)
 #   yield — --ns-advance-pass-yield (set_advance_pass_yield_major)
 # Both scorers + sd-lead.  Exposure is thin (~2 fired/6400 bd NV — the yield
-# needs a clean [1t, X, P] with a weak sit holding a 4+ major), so read the
+# needs a clean `(1t) X -` with a weak sit holding a 4+ major), so read the
 # per-fired delta, not just the per-board wash.  Modeled on
 # scripts/ab-rich-advance.sh; do NOT touch the codebase while it runs.
 #

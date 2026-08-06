@@ -66,7 +66,7 @@ pub(super) fn best_call_vul(auction: &[Call], hand: &str, vul: RelativeVulnerabi
         .expect("array is never empty")
 }
 
-/// Per-call exclusivity: in every named 1NT-defense config the `[1NT]` node
+/// Per-call exclusivity: in every named 1NT-defense config the `(1NT)` node
 /// authors at most one rule per call.  This is the invariant the alert-tag gate
 /// must preserve — two rules on one call would let a hand fire the wrong
 /// convention and a reading mis-decode it (e.g. a natural overcall leaking onto

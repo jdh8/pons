@@ -84,7 +84,7 @@ fn diamond_transfer_answer() -> Rules {
         .rule(Bid::new(3, Strain::Clubs), 50, len(Suit::Diamonds, ..3))
 }
 
-/// Responder's rebid after opener completes the diamond transfer (`…2NT–3♦`)
+/// Responder's rebid after opener completes the diamond transfer (`…2NT - 3♦`)
 ///
 /// Game values bid 3NT — a long suit bids game on fewer points (`threshold` ≈ 8,
 /// below the 9 a balanced hand needs).  Otherwise pass the diamond partscore.
@@ -94,7 +94,7 @@ pub(super) fn diamond_transfer_game(threshold: u8) -> Rules {
         .rule(Call::Pass, 0, hcp(..threshold))
 }
 
-/// Responder's rebid after opener's pass-or-correct `3♣` (`…2NT–3♣`, short ♦)
+/// Responder's rebid after opener's pass-or-correct `3♣` (`…2NT - 3♣`, short ♦)
 ///
 /// Game values bid 3NT; a six-card diamond suit retreats to `3♦` (a 6-2 fit beats
 /// the possible club misfit); otherwise (5♦4♣) pass and sit for opener's clubs.
@@ -214,26 +214,23 @@ pub(super) fn pick_game_over_club_splinter(short: Suit) -> Rules {
         .rule(Bid::new(5, Strain::Clubs), 90, hcp(0..))
 }
 
-/// Puppet-scheme 1NT–2NT diamond transfer and its continuations
+/// Puppet-scheme 1NT - 2NT diamond transfer and its continuations
 pub(crate) fn diamond_transfer() -> Package {
     Package {
         name: "diamond-transfer",
         gate: puppet_scheme,
         entries: || {
-            let mut entries = rows_of(
-                Pattern::node("P* 1NT (P) 2NT (P)"),
-                diamond_transfer_answer(),
-            );
+            let mut entries = rows_of(Pattern::node("P* 1NT - 2NT -"), diamond_transfer_answer());
             entries.extend(rows_of(
-                Pattern::node("P* 1NT (P) 2NT (P) 3♦ (P)"),
+                Pattern::node("P* 1NT - 2NT - 3♦ -"),
                 diamond_transfer_game(8),
             ));
             entries.extend(rows_of(
-                Pattern::node("P* 1NT (P) 2NT (P) 3♣ (P)"),
+                Pattern::node("P* 1NT - 2NT - 3♣ -"),
                 diamond_transfer_correct(8),
             ));
             entries.extend(rows_of(
-                Pattern::node("P* 1NT (P) 2NT (P) 3♣ (P) 3♦ (P)"),
+                Pattern::node("P* 1NT - 2NT - 3♣ - 3♦ -"),
                 pass_out(),
             ));
             entries
@@ -241,32 +238,32 @@ pub(crate) fn diamond_transfer() -> Package {
     }
 }
 
-/// Puppet-scheme two-way 1NT–2♠ structure and club-splinter continuations
+/// Puppet-scheme two-way 1NT - 2♠ structure and club-splinter continuations
 pub(crate) fn two_spade_two_way() -> Package {
     Package {
         name: "two-spade-two-way",
         gate: puppet_scheme,
         entries: || {
-            let mut entries = rows_of(Pattern::node("P* 1NT (P) 2♠ (P)"), two_spade_answer());
+            let mut entries = rows_of(Pattern::node("P* 1NT - 2♠ -"), two_spade_answer());
             entries.extend(rows_of(
-                Pattern::node("P* 1NT (P) 2♠ (P) 2NT (P)"),
+                Pattern::node("P* 1NT - 2♠ - 2NT -"),
                 two_spade_over_min(),
             ));
             entries.extend(rows_of(
-                Pattern::node("P* 1NT (P) 2♠ (P) 3♣ (P)"),
+                Pattern::node("P* 1NT - 2♠ - 3♣ -"),
                 two_spade_over_max(),
             ));
             entries.extend(rows_of(
-                Pattern::node("P* 1NT (P) 2♠ (P) 2NT (P) 3♣ (P)"),
+                Pattern::node("P* 1NT - 2♠ - 2NT - 3♣ -"),
                 pass_out(),
             ));
             entries.extend(expand(
-                "P* 1NT (P) 2♠ (P) 2NT (P) 3x (P)",
+                "P* 1NT - 2♠ - 2NT - 3x -",
                 |b| b.suit('x') != Suit::Clubs,
                 |b| pick_game_over_club_splinter(b.suit('x')),
             ));
             entries.extend(expand(
-                "P* 1NT (P) 2♠ (P) 3♣ (P) 3x (P)",
+                "P* 1NT - 2♠ - 3♣ - 3x -",
                 |b| b.suit('x') != Suit::Clubs,
                 |b| pick_game_over_club_splinter(b.suit('x')),
             ));

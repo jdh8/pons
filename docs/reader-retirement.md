@@ -51,7 +51,7 @@ chop; four of them are one missing `.alert(...)` away.
 | `penalty_latch_double_reading` | penalty doubles under the latch | reconstructs a latch by carrying `last_suit_bid` across calls, and its `penalty_x_reading` helper has an agreement contract with the floor (`instinct.rs`). Retire last, or never |
 
 Out of scope here: the FBM census's six `as_rules() == None` classifiers
-(the seat-fanned `[1NT 2♣]` closure ×4 and the two root `(always)` floors).
+(the seat-fanned `1NT (2♣)` closure ×4 and the two root `(always)` floors).
 Those are invisible to projection *entirely* — converting them is the
 [sampled-projection](ai-bidder/sampled-projection.md) campaign's ground.
 
@@ -148,7 +148,7 @@ Two things fall out.
    be sound for the major cue is `8..`, not `10..` (violation 0.1% BBA /
    3.1% ours at 8, vs 7.6% / 17.3% at 10).
 2. **The layer is largely dead where it is supposed to own the node.** Over
-   `1♣ (1♥) P`, our own bidder picks the `2♦` transfer-into-partner's-hearts
+   `1♣ (1♥) -`, our own bidder picks the `2♦` transfer-into-partner's-hearts
    **0.4%** of the time and those hands hold **6–7 diamonds and 1–2 hearts** —
    natural diamonds; the `2♣` "transfer to diamonds" holds no diamond suit
    (median 3) and is the floor cueing; and the natural `2♥` raise the transfer
@@ -241,7 +241,7 @@ is only in one with the knob on.
 
 ## The doubled overcall — the strip is load-bearing for the floor
 
-`[1M, 1NT, (X)]` had no book node under Gladiator; the comment said the
+`(1M) 1NT (X)` had no book node under Gladiator; the comment said the
 instinct-floor runout would answer it. It does — under `american_instinct()`,
 identically in both arms. Under the shipped **distilled** floor it did not:
 Gladiator turns off `systems_on_overcall_strip` (its advances differ, so the

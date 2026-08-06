@@ -28,7 +28,7 @@ fn derive_reads_doubles_by_book() {
 
 #[test]
 fn derives_american_game_force() {
-    // 1♥–P, then 2♣ is a game-forcing two-over-one.
+    // 1♥ -, then 2♣ is a game-forcing two-over-one.
     let auction = [bid(1, Strain::Hearts), Call::Pass];
     let c = ctx(&auction);
     assert_eq!(

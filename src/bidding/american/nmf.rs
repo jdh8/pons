@@ -1,6 +1,6 @@
 //! New Minor Forcing — the classic one-bid checkback after a 1NT rebid
 //!
-//! An opt-in *alternative* to [XYZ](super::xyz) on the four `1m – 1M – 1NT`
+//! An opt-in *alternative* to [XYZ](super::xyz) on the four `1m - 1M - 1NT`
 //! auctions (`opening` a minor, `response` a major).  Where XYZ splits the
 //! round into a `2♣` puppet and a `2♦` game force, NMF uses a single artificial
 //! call — **two of the unbid ("new") minor** — as an invitational-or-better
@@ -35,12 +35,12 @@ use std::cell::Cell;
 const NMF: Alert = Alert("new-minor-forcing");
 
 std::thread_local! {
-    /// Whether NMF replaces XYZ on the four `1m – 1M – 1NT` slots.  Default
+    /// Whether NMF replaces XYZ on the four `1m - 1M - 1NT` slots.  Default
     /// `false` — the shipped system uses XYZ (see the module doc).
     static NEW_MINOR_FORCING: Cell<bool> = const { Cell::new(false) };
 }
 
-/// Author New Minor Forcing in place of XYZ on the four `1m – 1M – 1NT` slots
+/// Author New Minor Forcing in place of XYZ on the four `1m - 1M - 1NT` slots
 /// for books built *after* this call (default `false`; off-switch
 /// `--no-ns-new-minor-forcing` in `bba-gen`, opt-in `--nmf` in
 /// `ab-minor-continuations`)
@@ -73,7 +73,7 @@ fn new_minor(opening: Suit) -> Suit {
     }
 }
 
-/// Responder's rebid at `1m – 1M – 1NT`: NMF, else a natural placement
+/// Responder's rebid at `1m - 1M - 1NT`: NMF, else a natural placement
 ///
 /// The table is complete over responder's hand space, so nothing here relies on
 /// floor fall-through.  Only the checkback is artificial; the rest are natural.
@@ -205,7 +205,7 @@ fn placement_over_other_major(response: Suit, other: Suit) -> Rules {
         .rule(Bid::new(2, Strain::Notrump), 20, points(10..))
 }
 
-/// NMF and its continuations under one `1m – 1M – 1NT` prefix
+/// NMF and its continuations under one `1m - 1M - 1NT` prefix
 ///
 /// Compiled by [`package`], one call per slot.  Authors both sides in full: the
 /// checkback and every opener answer, then responder's placement over each
@@ -213,13 +213,13 @@ fn placement_over_other_major(response: Suit, other: Suit) -> Rules {
 /// game — so nothing load-bearing is left to floor placement.
 fn rows_for_prefix(opening: Suit, response: Suit) -> Vec<Entry> {
     let prefix = format!(
-        "P* {} (P) {} (P) 1NT (P)",
+        "P* {} - {} - 1NT -",
         call(1, Strain::from(opening)),
         call(1, Strain::from(response)),
     );
     let major = Strain::from(response);
     let other = other_major(response);
-    let nmf = format!("{prefix} {} (P)", call(2, Strain::from(new_minor(opening))));
+    let nmf = format!("{prefix} {} -", call(2, Strain::from(new_minor(opening))));
     let after_nmf = |tail: &str| Pattern::node(&format!("{nmf} {tail}"));
 
     let mut entries = Vec::new();
@@ -233,17 +233,17 @@ fn rows_for_prefix(opening: Suit, response: Suit) -> Vec<Entry> {
 
     // Responder's placement over each answer.
     entries.extend(rows_of(
-        after_nmf(&format!("{} (P)", call(2, major))),
+        after_nmf(&format!("{} -", call(2, major))),
         placement_over_support(major, false),
     ));
     entries.extend(rows_of(
-        after_nmf(&format!("{} (P)", call(3, major))),
+        after_nmf(&format!("{} -", call(3, major))),
         placement_over_support(major, true),
     ));
-    entries.extend(rows_of(after_nmf("2NT (P)"), placement_no_fit(false)));
-    entries.extend(rows_of(after_nmf("3NT (P)"), placement_no_fit(true)));
+    entries.extend(rows_of(after_nmf("2NT -"), placement_no_fit(false)));
+    entries.extend(rows_of(after_nmf("3NT -"), placement_no_fit(true)));
     entries.extend(rows_of(
-        after_nmf(&format!("{} (P)", call(2, Strain::from(other)))),
+        after_nmf(&format!("{} -", call(2, Strain::from(other)))),
         placement_over_other_major(response, other),
     ));
 
@@ -251,32 +251,29 @@ fn rows_for_prefix(opening: Suit, response: Suit) -> Vec<Entry> {
     // invite with no five-card major to check back).  Without this the invite
     // floats to the floor, which passes a maximum instead of raising to game.
     entries.extend(rows_of(
-        Pattern::node(&format!("{prefix} 2NT (P)")),
+        Pattern::node(&format!("{prefix} 2NT -")),
         accept_or_decline(Bid::new(3, Strain::Notrump)),
     ));
 
     // Opener judges the two invitations that stop below game.
-    let over_other = format!("{} (P)", call(2, Strain::from(other)));
+    let over_other = format!("{} -", call(2, Strain::from(other)));
     entries.extend(rows_of(
-        after_nmf(&format!(
-            "{over_other} {} (P)",
-            call(3, Strain::from(other))
-        )),
+        after_nmf(&format!("{over_other} {} -", call(3, Strain::from(other)))),
         accept_or_decline(Bid::new(4, Strain::from(other))),
     ));
     entries.extend(rows_of(
-        after_nmf(&format!("{over_other} {} (P)", call(3, major))),
+        after_nmf(&format!("{over_other} {} -", call(3, major))),
         accept_or_decline(Bid::new(4, major)),
     ));
     entries.extend(rows_of(
-        after_nmf(&format!("{over_other} 2NT (P)")),
+        after_nmf(&format!("{over_other} 2NT -")),
         accept_or_decline(Bid::new(3, Strain::Notrump)),
     ));
 
     entries
 }
 
-/// New Minor Forcing on all four `1m – 1M – 1NT` slots (no-op when off)
+/// New Minor Forcing on all four `1m - 1M - 1NT` slots (no-op when off)
 pub(super) fn package() -> Package {
     Package {
         name: "new-minor-forcing",

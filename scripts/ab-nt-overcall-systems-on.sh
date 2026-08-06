@@ -1,9 +1,9 @@
 #!/bin/sh
 # ab-nt-overcall-systems-on.sh — A/B for the systems-on advances of our 1NT
 # overcall (`set_nt_overcall_systems_on`, docs/bba-gap-campaign.md def-r1
-# 1NT-overcall lever: the [1t,1NT,P] advance was unauthored). ON = shipped
+# 1NT-overcall lever: the `(1t) 1NT -` advance was unauthored). ON = shipped
 # default (the full opening-1NT structure — Stayman/transfers/Smolen — grafted
-# below [1t,1NT], finding and right-siding major fits); OFF =
+# below `(1t) 1NT`, finding and right-siding major fits); OFF =
 # --no-ns-nt-overcall-systems-on (floored advance). Scored SEPARATELY over minor
 # openings (both majors findable) and major openings (one major is theirs).
 # Both vulnerabilities, three scorers (plain+pd via ab-dump-diff, sd via

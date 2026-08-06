@@ -55,11 +55,11 @@ fn main() {
     // cannot pay for a real-routing run however crude it looks.
     let keys: &[(&str, Vec<Call>)] = &[
         (
-            "yardstick: 1S-2C (backstop anchor)",
+            "yardstick: 1S - 2C (backstop anchor)",
             vec![bid(1, Strain::Spades), bid(2, Strain::Clubs)],
         ),
         (
-            "#1 1S-2C-2D-3D opener_third_agree",
+            "#1 1S - 2C - 2D - 3D opener_third_agree",
             vec![
                 bid(1, Strain::Spades),
                 bid(2, Strain::Clubs),
@@ -68,7 +68,7 @@ fn main() {
             ],
         ),
         (
-            "#2 1S-2C-2D-3S opener_third",
+            "#2 1S - 2C - 2D - 3S opener_third",
             vec![
                 bid(1, Strain::Spades),
                 bid(2, Strain::Clubs),
@@ -77,7 +77,7 @@ fn main() {
             ],
         ),
         (
-            "#3 1D-1S-1NT-2C-2D-2NT xyz accept_or_decline",
+            "#3 1D - 1S - 1NT - 2C - 2D - 2NT xyz accept_or_decline",
             vec![
                 bid(1, Strain::Diamonds),
                 bid(1, Strain::Spades),
@@ -88,7 +88,7 @@ fn main() {
             ],
         ),
         (
-            "#5 2S-2NT-3S asker_after_max_major",
+            "#5 2S - 2NT - 3S asker_after_max_major",
             vec![
                 bid(2, Strain::Spades),
                 bid(2, Strain::Notrump),
@@ -96,7 +96,7 @@ fn main() {
             ],
         ),
         (
-            "#6 2C-2D-2S-3S opener_after_spades_raise",
+            "#6 2C - 2D - 2S - 3S opener_after_spades_raise",
             vec![
                 bid(2, Strain::Clubs),
                 bid(2, Strain::Diamonds),
@@ -105,7 +105,7 @@ fn main() {
             ],
         ),
         (
-            "#7 1NT-2NT-3C-3D pass_out",
+            "#7 1NT - 2NT - 3C - 3D pass_out",
             vec![
                 bid(1, Strain::Notrump),
                 bid(2, Strain::Notrump),

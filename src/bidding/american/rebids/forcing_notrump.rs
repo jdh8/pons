@@ -54,8 +54,8 @@ fn responder_after_forcing_notrump(major: Suit) -> Rules {
 /// balanced rebid's continuations live in the notrump module) and NOT a
 /// Meckstroth `3m` jump (handled by
 /// [`invitational_minor_continuations`](super::invitational_minor_continuations)),
-/// authors responder's table at `[1M, 1NT, rebid]` and opener's acceptances at
-/// `[1M, 1NT, rebid, 2NT]` and `[1M, 1NT, rebid, 3M]`.
+/// authors responder's table at `1M - 1NT - rebid -` and opener's acceptances at
+/// `1M - 1NT - rebid - 2NT -` and `1M - 1NT - rebid - 3M -`.
 pub(crate) fn forcing_notrump_continuations() -> Package {
     Package {
         name: "forcing-notrump-continuations",
@@ -81,20 +81,17 @@ pub(crate) fn forcing_notrump_continuations() -> Package {
                 }
 
                 for rebid in seen {
-                    let prefix = format!(
-                        "P* {} (P) 1NT (P) {rebid} (P)",
-                        call(1, Strain::from(major)),
-                    );
+                    let prefix = format!("P* {} - 1NT - {rebid} -", call(1, Strain::from(major)),);
                     entries.extend(rows_of(
                         Pattern::node(&prefix),
                         responder_after_forcing_notrump(major),
                     ));
                     entries.extend(rows_of(
-                        Pattern::node(&format!("{prefix} 2NT (P)")),
+                        Pattern::node(&format!("{prefix} 2NT -")),
                         opener_accept_notrump_invite(),
                     ));
                     entries.extend(rows_of(
-                        Pattern::node(&format!("{prefix} {} (P)", call(3, Strain::from(major)),)),
+                        Pattern::node(&format!("{prefix} {} -", call(3, Strain::from(major)),)),
                         opener_accept_limit_raise(major),
                     ));
                 }

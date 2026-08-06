@@ -6,7 +6,7 @@ use contract_bridge::auction::Call;
 
 #[test]
 fn minor_doubled_opener_shows_min_with_stopper() {
-    // 1NT-(P)-2♠-(X): minimum + spade stopper → 2NT.
+    // 1NT - 2♠ (X): minimum + spade stopper → 2NT.
     let auction = [
         call(1, Strain::Notrump),
         Call::Pass,
@@ -20,7 +20,7 @@ fn minor_doubled_opener_shows_min_with_stopper() {
 
 #[test]
 fn minor_doubled_opener_jumps_max_with_stopper() {
-    // 1NT-(P)-2♠-(X): maximum (17) + spade stopper → 3♣.
+    // 1NT - 2♠ (X): maximum (17) + spade stopper → 3♣.
     let auction = [
         call(1, Strain::Notrump),
         Call::Pass,
@@ -34,7 +34,7 @@ fn minor_doubled_opener_jumps_max_with_stopper() {
 
 #[test]
 fn minor_doubled_opener_passes_min_no_stopper() {
-    // 1NT-(P)-2♠-(X): minimum, NO spade stopper → Pass.
+    // 1NT - 2♠ (X): minimum, NO spade stopper → Pass.
     let auction = [
         call(1, Strain::Notrump),
         Call::Pass,
@@ -48,7 +48,7 @@ fn minor_doubled_opener_passes_min_no_stopper() {
 
 #[test]
 fn minor_doubled_opener_redoubles_max_no_stopper() {
-    // 1NT-(P)-2♠-(X): maximum (17), NO spade stopper → XX.
+    // 1NT - 2♠ (X): maximum (17), NO spade stopper → XX.
     let auction = [
         call(1, Strain::Notrump),
         Call::Pass,
@@ -61,7 +61,7 @@ fn minor_doubled_opener_redoubles_max_no_stopper() {
 
 #[test]
 fn minor_no_stopper_responder_signs_off_in_clubs() {
-    // 1NT-(P)-2♠-(X)-P-(P): opener denied a stopper; 6 clubs → 3♣ sign-off.
+    // 1NT - 2♠ (X) - -: opener denied a stopper; 6 clubs → 3♣ sign-off.
     let auction = [
         call(1, Strain::Notrump),
         Call::Pass,
@@ -77,7 +77,7 @@ fn minor_no_stopper_responder_signs_off_in_clubs() {
 
 #[test]
 fn minor_overcalled_high_bids_game_with_stopper() {
-    // 1NT-(P)-2♠-(2NT): maximum + spade stopper → 3NT (to play).
+    // 1NT - 2♠ (2NT): maximum + spade stopper → 3NT (to play).
     let auction = [
         call(1, Strain::Notrump),
         Call::Pass,
@@ -91,7 +91,7 @@ fn minor_overcalled_high_bids_game_with_stopper() {
 
 #[test]
 fn minor_overcalled_low_is_systems_off() {
-    // 1NT-(P)-2♠-(3♦): systems-off, length in their suit → X (cards).
+    // 1NT - 2♠ (3♦): systems-off, length in their suit → X (cards).
     let auction = [
         call(1, Strain::Notrump),
         Call::Pass,
@@ -106,7 +106,7 @@ fn minor_overcalled_low_is_systems_off() {
 
 #[test]
 fn diamond_doubled_opener_completes_with_a_fit() {
-    // 1NT-(P)-2NT-(X): three diamonds → 3♦ (accept the transfer).
+    // 1NT - 2NT (X): three diamonds → 3♦ (accept the transfer).
     let auction = [
         call(1, Strain::Notrump),
         Call::Pass,
@@ -120,7 +120,7 @@ fn diamond_doubled_opener_completes_with_a_fit() {
 
 #[test]
 fn diamond_doubled_opener_bids_natural_clubs() {
-    // 1NT-(P)-2NT-(X): doubleton ♦ but 4 clubs → 3♣ (natural, Pass is the
+    // 1NT - 2NT (X): doubleton ♦ but 4 clubs → 3♣ (natural, Pass is the
     // catch-all, so 3♣ promises real clubs).
     let auction = [
         call(1, Strain::Notrump),
@@ -135,7 +135,7 @@ fn diamond_doubled_opener_bids_natural_clubs() {
 
 #[test]
 fn diamond_doubled_opener_redoubles_max_no_fit() {
-    // 1NT-(P)-2NT-(X): maximum (18), no ♦ fit, no 4-card club → XX (values).
+    // 1NT - 2NT (X): maximum (18), no ♦ fit, no 4-card club → XX (values).
     let auction = [
         call(1, Strain::Notrump),
         Call::Pass,
@@ -149,7 +149,7 @@ fn diamond_doubled_opener_redoubles_max_no_fit() {
 
 #[test]
 fn diamond_no_fit_responder_signs_off_in_diamonds() {
-    // 1NT-(P)-2NT-(X)-P-(P): opener denied a fit; responder pulls to 3♦.
+    // 1NT - 2NT (X) - -: opener denied a fit; responder pulls to 3♦.
     let auction = [
         call(1, Strain::Notrump),
         Call::Pass,
@@ -165,7 +165,7 @@ fn diamond_no_fit_responder_signs_off_in_diamonds() {
 
 #[test]
 fn diamond_overcalled_low_still_completes() {
-    // 1NT-(P)-2NT-(3♣): 3♦ still legal, three diamonds → complete to 3♦.
+    // 1NT - 2NT (3♣): 3♦ still legal, three diamonds → complete to 3♦.
     let auction = [
         call(1, Strain::Notrump),
         Call::Pass,
@@ -179,7 +179,7 @@ fn diamond_overcalled_low_still_completes() {
 
 #[test]
 fn diamond_overcalled_high_three_notrump_with_stopper() {
-    // 1NT-(P)-2NT-(3♥): no 3♦ left; maximum (18) + heart stopper → 3NT.
+    // 1NT - 2NT (3♥): no 3♦ left; maximum (18) + heart stopper → 3NT.
     let auction = [
         call(1, Strain::Notrump),
         Call::Pass,
@@ -193,7 +193,7 @@ fn diamond_overcalled_high_three_notrump_with_stopper() {
 
 #[test]
 fn diamond_competition_disabled_falls_to_floor() {
-    // Off-switch: with the toggle off, 1NT-(P)-2NT-(X) has no Side-A node.
+    // Off-switch: with the toggle off, 1NT - 2NT (X) has no Side-A node.
     let auction = [
         call(1, Strain::Notrump),
         Call::Pass,
@@ -210,7 +210,7 @@ fn diamond_competition_disabled_falls_to_floor() {
 
 #[test]
 fn stayman_doubled_opener_bids_major_with_stopper() {
-    // 1NT-(P)-2♣-(X): 4 hearts + a club stopper → 2♥ (the major + stopper).
+    // 1NT - 2♣ (X): 4 hearts + a club stopper → 2♥ (the major + stopper).
     let auction = [
         call(1, Strain::Notrump),
         Call::Pass,
@@ -224,7 +224,7 @@ fn stayman_doubled_opener_bids_major_with_stopper() {
 
 #[test]
 fn stayman_doubled_opener_passes_without_stopper() {
-    // 1NT-(P)-2♣-(X): 4 hearts but NO club stopper → Pass (denies the stopper;
+    // 1NT - 2♣ (X): 4 hearts but NO club stopper → Pass (denies the stopper;
     // the major waits for responder's re-ask).
     let auction = [
         call(1, Strain::Notrump),
@@ -239,7 +239,7 @@ fn stayman_doubled_opener_passes_without_stopper() {
 
 #[test]
 fn stayman_doubled_opener_redoubles_with_clubs() {
-    // 1NT-(P)-2♣-(X): five good clubs → XX (business, play 2♣XX).
+    // 1NT - 2♣ (X): five good clubs → XX (business, play 2♣XX).
     let auction = [
         call(1, Strain::Notrump),
         Call::Pass,
@@ -252,7 +252,7 @@ fn stayman_doubled_opener_redoubles_with_clubs() {
 
 #[test]
 fn stayman_doubled_reask_is_forcing() {
-    // 1NT-(P)-2♣-(X)-P-(P): responder re-asks with XX (4 spades).
+    // 1NT - 2♣ (X) - -: responder re-asks with XX (4 spades).
     let reask = [
         call(1, Strain::Notrump),
         Call::Pass,
@@ -264,7 +264,7 @@ fn stayman_doubled_reask_is_forcing() {
     let (c, floored) = best_call(&reask, "KQ32.A32.A32.432");
     assert_eq!(c, Call::Redouble);
     assert!(!floored, "the re-ask must come from the book");
-    // …-XX-(P): opener is forced to answer (no Pass), 4 spades → 2♠.
+    // … XX -: opener is forced to answer (no Pass), 4 spades → 2♠.
     let answer = [
         call(1, Strain::Notrump),
         Call::Pass,
@@ -282,7 +282,7 @@ fn stayman_doubled_reask_is_forcing() {
 
 #[test]
 fn stayman_overcalled_opener_bids_major() {
-    // 1NT-(P)-2♣-(2♦): 4 hearts → 2♥ (natural, outranks diamonds).
+    // 1NT - 2♣ (2♦): 4 hearts → 2♥ (natural, outranks diamonds).
     let auction = [
         call(1, Strain::Notrump),
         Call::Pass,
@@ -296,7 +296,7 @@ fn stayman_overcalled_opener_bids_major() {
 
 #[test]
 fn stayman_overcalled_opener_doubles_their_suit() {
-    // 1NT-(P)-2♣-(2♦): no biddable major, length in diamonds → X (cards).
+    // 1NT - 2♣ (2♦): no biddable major, length in diamonds → X (cards).
     let auction = [
         call(1, Strain::Notrump),
         Call::Pass,
@@ -309,7 +309,7 @@ fn stayman_overcalled_opener_doubles_their_suit() {
 
 #[test]
 fn defense_to_their_stayman_doubles_clubs() {
-    // (1NT)-P-(2♣ Stayman): our 4th-hand X = lead-directing clubs (5+ good).
+    // (1NT) - (2♣ Stayman): our 4th-hand X = lead-directing clubs (5+ good).
     crate::bidding::american::set_stayman_defense(true);
     let auction = [call(1, Strain::Notrump), Call::Pass, call(2, Strain::Clubs)];
     let (c, floored) = best_call(&auction, "A2.K32.A32.KQ876");
@@ -325,7 +325,7 @@ fn defense_to_their_stayman_doubles_clubs() {
 
 #[test]
 fn transfer_super_accept_uncontested() {
-    // 1NT-P-2♦-P: four hearts + a maximum → 3♥ (jump super-accept).
+    // 1NT - 2♦ -: four hearts + a maximum → 3♥ (jump super-accept).
     let auction = [
         call(1, Strain::Notrump),
         Call::Pass,
@@ -339,7 +339,7 @@ fn transfer_super_accept_uncontested() {
 
 #[test]
 fn transfer_doubled_opener_completes_with_support() {
-    // 1NT-(P)-2♦-(X): three hearts, not a maximum → 2♥ (complete the transfer).
+    // 1NT - 2♦ (X): three hearts, not a maximum → 2♥ (complete the transfer).
     let auction = [
         call(1, Strain::Notrump),
         Call::Pass,
@@ -353,7 +353,7 @@ fn transfer_doubled_opener_completes_with_support() {
 
 #[test]
 fn transfer_doubled_opener_super_accepts() {
-    // 1NT-(P)-2♦-(X): four hearts + a maximum → 3♥ (the double does not suppress it).
+    // 1NT - 2♦ (X): four hearts + a maximum → 3♥ (the double does not suppress it).
     let auction = [
         call(1, Strain::Notrump),
         Call::Pass,
@@ -366,7 +366,7 @@ fn transfer_doubled_opener_super_accepts() {
 
 #[test]
 fn transfer_doubled_opener_passes_with_doubleton() {
-    // 1NT-(P)-2♦-(X): only a doubleton heart → Pass (declines; responder re-asks).
+    // 1NT - 2♦ (X): only a doubleton heart → Pass (declines; responder re-asks).
     let auction = [
         call(1, Strain::Notrump),
         Call::Pass,
@@ -380,7 +380,7 @@ fn transfer_doubled_opener_passes_with_doubleton() {
 
 #[test]
 fn transfer_doubled_opener_redoubles_with_the_transfer_suit() {
-    // 1NT-(P)-2♦-(X): the doubled diamonds are opener's own (5 to AKQ) → XX.
+    // 1NT - 2♦ (X): the doubled diamonds are opener's own (5 to AKQ) → XX.
     let auction = [
         call(1, Strain::Notrump),
         Call::Pass,
@@ -393,7 +393,7 @@ fn transfer_doubled_opener_redoubles_with_the_transfer_suit() {
 
 #[test]
 fn transfer_doubled_reask_is_forcing() {
-    // 1NT-(P)-2♦-(X)-P-(P): responder re-asks with XX (still holds five hearts).
+    // 1NT - 2♦ (X) - -: responder re-asks with XX (still holds five hearts).
     let reask = [
         call(1, Strain::Notrump),
         Call::Pass,
@@ -405,7 +405,7 @@ fn transfer_doubled_reask_is_forcing() {
     let (c, floored) = bid_xfer(&reask, "K2.QJ432.K32.432");
     assert_eq!(c, Call::Redouble);
     assert!(!floored, "the re-ask must come from the book");
-    // …-XX-(P): opener is forced to complete (no Pass) → 2♥.
+    // … XX -: opener is forced to complete (no Pass) → 2♥.
     let answer = [
         call(1, Strain::Notrump),
         Call::Pass,
@@ -423,7 +423,7 @@ fn transfer_doubled_reask_is_forcing() {
 
 #[test]
 fn transfer_overcalled_opener_super_accepts() {
-    // 1NT-(P)-2♦-(2♠): four-card heart fit → 3♥ (cheapest level above their 2♠).
+    // 1NT - 2♦ (2♠): four-card heart fit → 3♥ (cheapest level above their 2♠).
     let auction = [
         call(1, Strain::Notrump),
         Call::Pass,
@@ -437,7 +437,8 @@ fn transfer_overcalled_opener_super_accepts() {
 
 #[test]
 fn defense_to_their_transfer_doubles_the_bid_suit() {
-    // (1NT)-P-(2♦ →♥): our 4th-hand X = lead-directing diamonds (the bid suit).
+    // After `(1NT) - (2♦)`, their 2♦ transfers to hearts; our fourth-hand X is
+    // lead-directing in diamonds, the bid suit.
     crate::bidding::american::set_transfer_defense(true);
     let auction = [
         call(1, Strain::Notrump),
@@ -455,7 +456,8 @@ fn defense_to_their_transfer_doubles_the_bid_suit() {
 
 #[test]
 fn defense_to_their_transfer_cues_michaels() {
-    // (1NT)-P-(2♦ →♥): 5 spades + 5 diamonds → 2♥ cue (the other major + a minor).
+    // After `(1NT) - (2♦)`, their 2♦ transfers to hearts; 5 spades and 5
+    // diamonds cue 2♥ to show the other major plus a minor.
     crate::bidding::american::set_transfer_defense(true);
     let auction = [
         call(1, Strain::Notrump),
@@ -472,7 +474,8 @@ fn defense_to_their_transfer_cues_michaels() {
 
 #[test]
 fn defense_to_their_minor_transfer_doubles_spades() {
-    // (1NT)-P-(2♠ minor): our 4th-hand X = lead-directing spades (the bid suit).
+    // After `(1NT) - (2♠)`, their 2♠ is a minor transfer; our fourth-hand X is
+    // lead-directing in spades, the bid suit.
     crate::bidding::american::set_minor_transfer_defense(true);
     let auction = [
         call(1, Strain::Notrump),
@@ -490,7 +493,7 @@ fn defense_to_their_minor_transfer_doubles_spades() {
 
 #[test]
 fn defense_to_their_minor_transfer_cues_top_and_bottom() {
-    // (1NT)-P-(2♠): 5 spades + 5 diamonds → 3♣ cue (top-and-bottom), beating the X.
+    // (1NT) - (2♠): 5 spades + 5 diamonds → 3♣ cue (top-and-bottom), beating the X.
     crate::bidding::american::set_minor_transfer_defense(true);
     let auction = [
         call(1, Strain::Notrump),
@@ -507,7 +510,8 @@ fn defense_to_their_minor_transfer_cues_top_and_bottom() {
 
 #[test]
 fn defense_to_their_diamond_transfer_doubles_diamonds() {
-    // (1NT)-P-(2NT →♦): our 4th-hand X = lead-directing diamonds (the shown suit).
+    // After `(1NT) - (2NT)`, their 2NT transfers to diamonds; our fourth-hand X
+    // is lead-directing in diamonds, the shown suit.
     crate::bidding::american::set_diamond_transfer_defense(true);
     let auction = [
         call(1, Strain::Notrump),
@@ -525,7 +529,8 @@ fn defense_to_their_diamond_transfer_doubles_diamonds() {
 
 #[test]
 fn defense_to_their_diamond_transfer_cues_both_majors() {
-    // (1NT)-P-(2NT →♦): 5 spades + 5 hearts → 3♦ cue (both majors), beating the X.
+    // After `(1NT) - (2NT)`, their 2NT transfers to diamonds; 5 spades and 5
+    // hearts cue 3♦ to show both majors, beating the X.
     crate::bidding::american::set_diamond_transfer_defense(true);
     let auction = [
         call(1, Strain::Notrump),
@@ -540,7 +545,7 @@ fn defense_to_their_diamond_transfer_cues_both_majors() {
 
 #[test]
 fn defense_to_their_minor_transfer_two_notrump_is_reds() {
-    // (1NT)-P-(2♠): 5 diamonds + 5 hearts → 2NT (the two lowest unbid suits).
+    // (1NT) - (2♠): 5 diamonds + 5 hearts → 2NT (the two lowest unbid suits).
     crate::bidding::american::set_minor_transfer_defense(true);
     let auction = [
         call(1, Strain::Notrump),

@@ -9,7 +9,7 @@
 use super::*;
 
 thread_local! {
-    /// Whether opener's answer to partner's cue-raise (`1M – (ovc) – cue – P`)
+    /// Whether opener's answer to partner's cue-raise (`1M (ovc) cue -`)
     /// is authored. Default on — without it the cue-raise falls through to the
     /// keyless floor, which cannot act on a bid whose *named* suit (the cue)
     /// differs from its *shown* suit (the major), so opener passes and the
@@ -32,7 +32,7 @@ fn cue_raise_answer() -> bool {
 
 thread_local! {
     /// Whether opener's answer to a *minor*-opening cue-raise
-    /// (`1m – (ovc) – cue – P`) is authored. The minor twin of
+    /// (`1m (ovc) cue -`) is authored. The minor twin of
     /// [`CUE_RAISE_ANSWER`]; separate knob so the A/B can isolate the minor
     /// contribution over the already-shipped major answer. Default on.
     static CUE_MINOR_RAISE_ANSWER: Cell<bool> = const { Cell::new(true) };
@@ -76,7 +76,7 @@ pub(crate) fn delayed_cue() -> bool {
     DELAYED_CUE.with(Cell::get)
 }
 
-/// Opener's answer after `1M – (ovc) – cue – P` (partner cue-raised to a
+/// Opener's answer after `1M (ovc) cue -` (partner cue-raised to a
 /// limit-plus raise of the opening major): accept to game or decline
 ///
 /// The contested twin of [`opener_after_limit_raise`][super::raises], minus the
@@ -86,7 +86,7 @@ pub(crate) fn delayed_cue() -> bool {
 /// game rather than pass out a 4NT nobody answers; slam exploration is a later
 /// opt-in.
 ///
-/// The one difference from the uncontested `1M – 3M` version is the **decline**:
+/// The one difference from the uncontested `1M - 3M` version is the **decline**:
 /// there partner already *bid* the major, so opener passes to play it; after a
 /// cuebid partner named the *opponents'* suit, so opener must actively **sign off
 /// in 3M** — passing would leave the cuebid in as the contract (the very bug this
@@ -102,11 +102,11 @@ pub(super) fn answer_cue_raise(major: Suit) -> Rules {
         // ponytail: decline assumes 3M is legal, which holds for every cue below
         // 3M — all cues over 1♠, and cues over 1♥ except a 3♠ cue. A 3♠ cue over
         // 1♥ with a minimum opener has 3♥ illegal and falls back through to the
-        // floor (Pass); rare, revisit if the A/B surfaces it.
+        // floor pass; rare, revisit if the A/B surfaces it.
         .rule(Bid::new(3, trump), 0, hcp(0..))
 }
 
-/// Opener's answer after `1m – (ovc) – cue – P` (partner cue-raised to a
+/// Opener's answer after `1m (ovc) cue -` (partner cue-raised to a
 /// limit-plus raise of the opening minor): bid the best game or sign off
 ///
 /// The minor twin of [`answer_cue_raise`]. Two differences from the major
@@ -151,7 +151,7 @@ pub(super) fn answer_cue_minor_raise(minor: Suit) -> Rules {
 /// height is the point, not an accident.  The overcall is capped at `2♠`, the
 /// cue-raise's authored ceiling in [`over_their_overcall`], and `x` excludes
 /// our own major: when the opponents cue-bid *our* suit (a Michaels
-/// `1♠-(2♠)`), responder's `3♠` is a natural raise, not a cue-raise, and this
+/// `1♠ (2♠)`), responder's `3♠` is a natural raise, not a cue-raise, and this
 /// table must not hijack it.  Their `1NT` overcall gets the notrump twin, where
 /// the cue is `2NT` and up — `1NT` is the only NT overcall under the cap, since
 /// `2NT` outranks `2♠` (their `2NT` over our major is the UvU package's).
@@ -195,7 +195,7 @@ pub(super) fn cue_raise_answer_package() -> Package {
 /// A minor-opening cue-raise passes out the same way.  The cue may sit as high
 /// as `3♠` (a 2-level overcall forces the cue to the 3 level), so the ceiling
 /// rides the *cue* — `j·x ≤ 3♠` — rather than the overcall.  `x != minor` again
-/// excludes a cue of our own suit (`1♣-(2♣)` Michaels: responder's `3♣` is a
+/// excludes a cue of our own suit (`1♣ (2♣)` Michaels: responder's `3♣` is a
 /// raise).  Under the cue cap the notrump twin holds a single column,
 /// `(1NT) 2NT`.
 pub(super) fn cue_minor_raise_answer_package() -> Package {
@@ -244,9 +244,9 @@ fn cue_raise_legacy_rows(minors: bool) -> Vec<Entry> {
             let trump = Strain::from(our);
             // The sample's overcall must not be in our own suit.
             let sample = if our == Suit::Spades {
-                "(2♥) 3♥ (P)"
+                "(2♥) 3♥ -"
             } else {
-                "(1♠) 2♠ (P)"
+                "(1♠) 2♠ -"
             };
             rows_of(
                 Pattern::guarded(

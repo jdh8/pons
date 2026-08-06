@@ -36,7 +36,7 @@ Where pons deviates from the book it is called out inline (`pons:`).
 
 | Call | Meaning |
 | --- | --- |
-| P | 0–4, 3–5♣ (content to play 1♣) |
+| - | 0–4, 3–5♣ (content to play 1♣) |
 | **1♦!** | relay: 7–9 5=♠ 4–5♥, **or** 0–11 / 16+ with no other suitable call |
 | 1♥ / 1♠ | 7+, 4+ (up the line) |
 | 1NT | 8–10, no 4-card major |
@@ -48,12 +48,12 @@ Where pons deviates from the book it is called out inline (`pons:`).
 | 3♥ / 3♠! | 3–6 pts, 7+ (preemptive) |
 | 3NT | 11–15, no 4-card major, to play (`pons:` encoded 12–15 to dedupe 2NT/3NT at 11) |
 
-**Passed hand (P–1♣) [2.2]:** `2♣ / 2♦` = 9–11, 5–6, invite · `3♥ / 3♠` =
+**Passed hand (`- 1♣`) [2.2]:** `2♣ / 2♦` = 9–11, 5–6, invite · `3♥ / 3♠` =
 9–11, 6+, strong invite.
 
 ---
 
-## Opener's rebid after 1♣–1♦ **[2.1]**
+## Opener's rebid after 1♣ - 1♦ **[2.1]**
 
 The relay's own content: `0–7` any · `7–9` 5=♠ 4–5♥ · `8–11` unbalanced no 4M ·
 `16+` 2–3♠ 2–3♥ 3–4♦ 3–4♣.
@@ -66,7 +66,7 @@ The relay's own content: `0–7` any · `7–9` 5=♠ 4–5♥ · `8–11` unbal
 | 2♥ / 2♠ | 18–20, 4+ (reverse) |
 | 3♣ | 18–20, 6+♣ |
 | **2♦!** | 21–23, no specific shape (2–5♣, 1–4 elsewhere) — the artificial catch-all; diamond reversals abandoned |
-| **2NT!** | 21–23, 5+♦ 5+♣ — **[—]** dropped in pons: 5-5 minors open 1♦, never reach 1♣–1♦ |
+| **2NT!** | 21–23, 5+♦ 5+♣ — **[—]** dropped in pons: 5-5 minors open 1♦, never reach 1♣ - 1♦ |
 
 ---
 
@@ -123,7 +123,7 @@ dropped — a cheap accept/decline lands the same games without the extra read.
 Until authored, the instinct floor handles these — a soft misread, measured
 not fixed blind.
 
-### 1♣–1♦–1M (opener 11–17, 3+#) **[2.2 authored]**
+### 1♣ - 1♦ - 1M (opener 11–17, 3+#) **[2.2 authored]**
 
 Responder's second call. Mostly natural/non-forcing; note support = 7–9 both
 majors, 2NT = 16+ balanced (rightsides), 2OM = artificial both-minor invite.
@@ -145,7 +145,7 @@ an invite). `1♠`/`1NT`/`2♣`/`2♦`/`3♣` are natural; a weak fit passes.
 | 2NT | 16+ balanced |
 | 3♣ | 6–9, 6+♣ |
 
-### 1♣–1♦–1NT (opener balanced 18–20) **[2.2 deferred]**
+### 1♣ - 1♦ - 1NT (opener balanced 18–20) **[2.2 deferred]**
 
 As the 1NT opening minus Puppet Stayman (no 5-card major here). Reuses the 1NT
 transfer machinery. `pons:` deferred — opener's `1NT` is rare (18–20) and its
@@ -171,7 +171,7 @@ minimum-rebid continuations.
 | 4NT | stronger quantitative, to 6NT |
 | 5NT | stronger quantitative, to 7NT |
 
-### 1♣–1♦–2♣ (opener 11–17, 5+♣) **[2.2 authored]**
+### 1♣ - 1♦ - 2♣ (opener 11–17, 5+♣) **[2.2 authored]**
 
 Responder's second call; the earlier weak jump lets the major rebids turn
 artificial. `pons:` `2♥!` = the Reverse Flannery two-suiter; club support is
@@ -186,9 +186,9 @@ alerted as above.
 | 2NT | 16+ balanced |
 | 3♣ | 7–9, 4+♣ |
 
-### 1♣–1♦–2♦ (opener 21–23, artificial) **[2.2 deferred]**
+### 1♣ - 1♦ - 2♦ (opener 21–23, artificial) **[2.2 deferred]**
 
-`pons:` deferred — same reasoning as `1♣–1♦–1NT` (rare, self-disclosing).
+`pons:` deferred — same reasoning as `1♣ - 1♦ - 1NT` (rare, self-disclosing).
 
 Opener has shown 21–23 with no specific shape — the top of the 1♣ range. If
 responder has no game interest and 1♣ rates to be a fine spot, they should have
@@ -196,7 +196,7 @@ passed 1♣ originally (e.g. 0–3 HCP 3=3=2=5). A full transfer structure.
 
 | Call | Meaning |
 | --- | --- |
-| P | to play, 4+♦ |
+| - | to play, 4+♦ |
 | 2♥ | non-forcing, 4+♥ |
 | 2♠ | non-forcing, 4+♠ |
 | 2NT! | either minor, 6+ |
@@ -205,7 +205,7 @@ passed 1♣ originally (e.g. 0–3 HCP 3=3=2=5). A full transfer structure.
 | 3♥! | transfer, 5+♠ |
 | 3♠! | forced transfer to 3NT |
 | 3NT! | 5–7, 2–3♠, 2–3♥, 4–5♦, 4–5♣ |
-| 4♣! | both-minor slam try, usually 5+♦ 5+♣ · `4♣–4♦` = ♦ trump · `4♣–4♥+` = ♣ trump · `4♣–5♣♦ / 6♣♦` = to play |
+| 4♣! | both-minor slam try, usually 5+♦ 5+♣ · `4♣ - 4♦` = ♦ trump · `4♣ - 4♥+` = ♣ trump · `4♣ - 5♣♦ / 6♣♦` = to play |
 | 4♦! | transfer, usually 7+♥ |
 | 4♥! | transfer, usually 7+♠ |
 
@@ -213,6 +213,6 @@ passed 1♣ originally (e.g. 0–3 HCP 3=3=2=5). A full transfer structure.
 
 ## Not yet transcribed
 
-The book's `1♣–1M` chapter (`src/1C/1M.md`) and the 2-level openings
+The book's `1♣ - 1M` chapter (`src/1C/1M.md`) and the 2-level openings
 (Multi/Muiderberg/UNT, Phase 3) are not pulled here yet — fetch raw from the
 repo when those phases come up.

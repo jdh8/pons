@@ -92,7 +92,7 @@ fn wide_1c_responses() {
     );
 }
 
-/// Opener's rebid after the 1♣-1♦ relay (Phase 2.1).
+/// Opener's rebid after the `1♣ - 1♦` relay (Phase 2.1).
 #[test]
 fn opener_rebids() {
     const P: Call = Call::Pass;
@@ -115,7 +115,7 @@ fn relay_deep_continuations() {
     const P: Call = Call::Pass;
     let c = bid(1, Strain::Clubs);
     let d = bid(1, Strain::Diamonds);
-    // After 1♣-1♦-1♥: the 5♠/4♥ two-suiter (8 pts) is Reverse Flannery — a
+    // After `1♣ - 1♦ - 1♥`: the 5♠/4♥ two-suiter (8 pts) is Reverse Flannery — a
     // raise to 2♥, not a natural spade bid.
     let after_1h = [c, P, d, P, bid(1, Strain::Hearts), P];
     assert_eq!(
@@ -127,7 +127,7 @@ fn relay_deep_continuations() {
         responds(&after_1h, "x.xx.KQxxx.AJxx"),
         bid(2, Strain::Spades)
     );
-    // After 1♣-1♦-1♠: the same two-suiter raises spades (2♠); both-minors is 2♥.
+    // After `1♣ - 1♦ - 1♠`: the same two-suiter raises spades (2♠); both-minors is 2♥.
     let after_1s = [c, P, d, P, bid(1, Strain::Spades), P];
     assert_eq!(
         responds(&after_1s, "KQxxx.Kxxx.xx.xx"),
@@ -137,7 +137,7 @@ fn relay_deep_continuations() {
         responds(&after_1s, "x.xx.KQxxx.AJxx"),
         bid(2, Strain::Hearts)
     );
-    // After 1♣-1♦-2♣: the two-suiter shows as 2♥; an invitational club raise is 2♠.
+    // After `1♣ - 1♦ - 2♣`: the two-suiter shows as 2♥; an invitational club raise is 2♠.
     let after_2c = [c, P, d, P, bid(2, Strain::Clubs), P];
     assert_eq!(
         responds(&after_2c, "KQxxx.Kxxx.xx.xx"),

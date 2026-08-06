@@ -131,14 +131,14 @@ pub(super) fn meckwell_natural_major(major: Suit) -> Cons<impl Constraint + Clon
     len(major, 5..) & len(other, ..=3) & and([Suit::Clubs, Suit::Diamonds], ..=3)
 }
 
-/// Advancing Meckwell's two-way `X` (`[…,1NT,X,P]`): relay `2♣` (pass-or-correct) —
+/// Advancing Meckwell's two-way `X` (`… (1NT) X -`): relay `2♣` (pass-or-correct) —
 /// the doubler then names its minor or shows both majors.  A single relay resolves the
 /// two-way double's ambiguity; the advancer's own suits wait for the doubler's answer.
 fn meckwell_x_advance() -> Rules {
     Rules::new().rule(Bid::new(2, Strain::Clubs), 100, hcp(0..))
 }
 
-/// The Meckwell doubler naming its hand after the `2♣` relay (`[…,1NT,X,P,2♣,P]`):
+/// The Meckwell doubler naming its hand after the `2♣` relay (`… (1NT) X - 2♣ -`):
 /// pass with a club one-suiter, `2♦` with a diamond one-suiter (real diamonds, short
 /// majors), or `2♥` with both majors (4+ hearts — the advancer then passes or corrects
 /// to `2♠` via [`passed_dont_2h_advance`]).  Names real suits throughout, so nothing
@@ -167,25 +167,25 @@ pub(super) fn meckwell_advance_package() -> Package {
         name: "meckwell-advance",
         gate: meckwell_enabled,
         entries: || {
-            let mut entries = rows_of(Pattern::node("P* (1NT) X (P)"), meckwell_x_advance());
+            let mut entries = rows_of(Pattern::node("P* (1NT) X -"), meckwell_x_advance());
             for (key, rules) in [
-                ("P* (1NT) X (P) 2♣ (P)", meckwell_x_rebid()),
-                ("P* (1NT) X (P) 2♣ (P) 2♥ (P)", passed_dont_2h_advance()),
+                ("P* (1NT) X - 2♣ -", meckwell_x_rebid()),
+                ("P* (1NT) X - 2♣ - 2♥ -", passed_dont_2h_advance()),
                 // 2♣/2♦ minor+major: reuse the DONT pass-or-correct advances.
-                ("P* (1NT) 2♣ (P)", passed_dont_2c_advance()),
-                ("P* (1NT) 2♣ (P) 2♦ (P)", passed_dont_2c_rebid()),
-                ("P* (1NT) 2♦ (P)", passed_dont_2d_advance()),
-                ("P* (1NT) 2♦ (P) 2♥ (P)", passed_dont_2d_rebid()),
+                ("P* (1NT) 2♣ -", passed_dont_2c_advance()),
+                ("P* (1NT) 2♣ - 2♦ -", passed_dont_2c_rebid()),
+                ("P* (1NT) 2♦ -", passed_dont_2d_advance()),
+                ("P* (1NT) 2♦ - 2♥ -", passed_dont_2d_rebid()),
                 // Their redouble of our X: relay 2♣ anyway (never sit 1NTxx).
                 ("P* (1NT) X (XX)", meckwell_x_advance()),
-                ("P* (1NT) X (XX) 2♣ (P)", meckwell_x_rebid()),
+                ("P* (1NT) X (XX) 2♣ -", meckwell_x_rebid()),
                 // Their double of our artificial 2♣ relay: the doubler still names
                 // the real suit (pass only with genuine clubs), else runs.
-                ("P* (1NT) X (P) 2♣ (X)", meckwell_x_rebid()),
+                ("P* (1NT) X - 2♣ (X)", meckwell_x_rebid()),
                 ("P* (1NT) X (XX) 2♣ (X)", meckwell_x_rebid()),
                 // Their double of the doubler's both-majors 2♥ show: advancer
                 // still picks a major.
-                ("P* (1NT) X (P) 2♣ (P) 2♥ (X)", passed_dont_2h_advance()),
+                ("P* (1NT) X - 2♣ - 2♥ (X)", passed_dont_2h_advance()),
             ] {
                 entries.extend(rows_of(Pattern::node(key), rules));
             }

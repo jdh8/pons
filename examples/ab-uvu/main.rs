@@ -1,4 +1,5 @@
-//! Measure the Unusual-vs-Unusual structure over 1NT-(2NT both minors): an A/B
+//! Measure the Unusual-vs-Unusual structure over `1NT (2NT)`, where 2NT shows
+//! both minors: an A/B
 //! duplicate match.
 //!
 //! When an opponent overcalls our 1NT with a both-minors 2NT, the instinct floor
@@ -10,7 +11,7 @@
 //! Both pairs play `american`; the *environment* is fixed — every defender
 //! overcalls a 1NT with the both-minors 2NT
 //! ([`set_unusual_notrump_defense`][pons::bidding::american::set_unusual_notrump_defense]),
-//! so the `1NT-(2NT)` auction arises at both tables.  The toggled feature is the
+//! so the `1NT (2NT)` auction arises at both tables.  The toggled feature is the
 //! UvU *responder* structure: the feature pair plays it (at the `--x-floor` /
 //! `--cue-floor` swept floors), the other floors the auction.  Each board is bid
 //! twice (the feature pair NS at table A, EW at table B); boards whose contracts
@@ -43,7 +44,7 @@ use std::collections::BTreeMap;
 mod common;
 use common::{Board, next_call, seat_to_act};
 
-/// Measure the UvU structure over 1NT-(2NT both minors): an A/B duplicate match
+/// Measure the UvU structure over `1NT (2NT)`, with 2NT showing both minors
 #[derive(Parser)]
 struct Args {
     /// Number of boards in the match (dealer rotates per board)
@@ -102,7 +103,7 @@ fn is_both_minors(hand: Hand) -> bool {
 }
 
 /// One side holds a 1NT opener and the *other* holds a 5-5-minors overcaller, so
-/// the `1NT-(2NT)` auction can arise (densifies the rare divergent subset)
+/// the `1NT (2NT)` auction can arise (densifies the rare divergent subset)
 fn relevant(deal: &FullDeal) -> bool {
     let ns_opener = is_1nt_opener(deal[Seat::North]) || is_1nt_opener(deal[Seat::South]);
     let ew_opener = is_1nt_opener(deal[Seat::East]) || is_1nt_opener(deal[Seat::West]);
@@ -121,7 +122,7 @@ fn action_label(call: Call) -> String {
     }
 }
 
-/// The responder's call to `[1NT, (2NT)]`, plus whether the opener sits NS
+/// The responder's call to `1NT (2NT) ?`, plus whether the opener sits NS
 ///
 /// After an opening `1NT` (all prior calls passes) immediately overcalled with
 /// `2NT`, the next call is the opener's partner — our UvU responder. Returns that
@@ -282,7 +283,7 @@ fn main() {
     }
 
     println!(
-        "=== UvU 1NT-(2NT) A/B: x-floor {}, cue-floor {}, natural-floor {}, opp 2NT {}-{}, {} boards, vulnerability {} ===",
+        "=== UvU 1NT (2NT) A/B: x-floor {}, cue-floor {}, natural-floor {}, opp 2NT {}-{}, {} boards, vulnerability {} ===",
         args.x_floor,
         args.cue_floor,
         args.natural_floor,

@@ -46,7 +46,7 @@ fn optional_double_two_three_cards() {
 
 #[test]
 fn opener_pulls_a_takeout_double() {
-    // After 1NT–(2♦)–X–(P), opener has no authored node and falls to the
+    // After 1NT (2♦) X -, opener has no authored node and falls to the
     // floor: a maximum with a diamond stopper pulls to 3NT…
     let auction = [
         call(1, Strain::Notrump),
@@ -76,7 +76,7 @@ fn opener_leaves_in_responder_penalty_double_when_penalty_style() {
     use super::penalty_double::DoubleStyle;
     use super::penalty_double::set_double_style;
     use super::penalty_double::set_penalty_double_leave_in;
-    // [1NT,(2♥),X,(P)] — responder penalty-doubled their heart overcall.
+    // `1NT (2♥) X -` — responder penalty-doubled their heart overcall.
     let auction = [
         call(1, Strain::Notrump),
         call(2, Strain::Hearts),
@@ -117,7 +117,7 @@ fn opener_cooperates_with_responder_optional_double() {
     use super::penalty_double::DoubleStyle;
     use super::penalty_double::set_double_style;
     use super::penalty_double::set_penalty_double_leave_in;
-    // [1NT,(2♥),X,(P)] — responder's OPTIONAL double (2-3 hearts + values).
+    // `1NT (2♥) X -` — responder's OPTIONAL double (2-3 hearts + values).
     let auction = [
         call(1, Strain::Notrump),
         call(2, Strain::Hearts),

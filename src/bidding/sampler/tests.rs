@@ -45,7 +45,7 @@ fn reads_natural_penalty_double_of_their_notrump() {
 #[test]
 fn reads_latched_penalty_double_of_the_runout() {
     use crate::bidding::instinct::set_penalty_latch;
-    // (1NT) X (2♦) X (P): our penalty X, their runout, partner's penalty double.
+    // `(1NT) X (2♦) X -`: our penalty X, their runout, partner's penalty double.
     let auction = [
         bid(1, Strain::Notrump),
         Call::Double,
@@ -101,7 +101,7 @@ fn sampled_layouts_respect_ranges() {
 #[test]
 fn respects_a_developed_auction() {
     let actor = Seat::North;
-    // Partner opened 1H, then RHO overcalled 1S (5+ spades, 8+).  Inferences
+    // After `1♥ (1♠)`, RHO's overcall shows 5+ spades and 8+.  Inferences
     // reads partner's opening and RHO's overcall; we sample around them.
     let auction = [bid(1, Strain::Hearts), bid(1, Strain::Spades)];
     let inf = inferences(&auction);

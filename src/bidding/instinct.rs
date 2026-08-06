@@ -26,7 +26,7 @@
 //!
 //! # Advancing partner's double
 //!
-//! Partner's live takeout double — the auction ends `… (bid) X (Pass)` with
+//! Partner's live takeout double — the auction ends `… (bid) X -` with
 //! their suit bid at the three level or below doubled by partner — calls for an
 //! advance, but a takeout double is *not 100% forcing*.  Pass means *play the
 //! top bid*: with length behind their doubled suit the better action is to
@@ -92,10 +92,10 @@ pub enum Unusual2nt {
 }
 
 /// What a *latched* later double means after our natural penalty double of their
-/// 1NT — the `(1NT)−X−(2Y)−X` second double (A/B knob, see [`set_latch_style`])
+/// 1NT — the `(1NT) X (2Y) X` second double (A/B knob, see [`set_latch_style`])
 ///
 /// The mirror of [`DoubleStyle`][super::american::DoubleStyle] on the defensive
-/// side: the same penalty-vs-optional question the we-open `1NT−(2X)−X` faced.
+/// side: the same penalty-vs-optional question the we-open `1NT (2X) X` faced.
 #[doc(hidden)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub enum LatchStyle {
@@ -137,7 +137,7 @@ std::thread_local! {
     static PENALIZE_ESCAPE_VALUES: Cell<bool> = const { Cell::new(true) };
 
     /// Whether we encircle (penalty-double) the opponents' escape from our
-    /// `1NT-(2NT)-X` — the Unusual-vs-Unusual penalty chase. Default on (it only
+    /// `1NT (2NT) X` — the Unusual-vs-Unusual penalty chase. Default on (it only
     /// fires after our own UvU `X`, so it is dormant unless [`set_uvu`] is on).
     static UVU_ENCIRCLE: Cell<bool> = const { Cell::new(true) };
 
@@ -165,16 +165,16 @@ std::thread_local! {
     /// suit and notrump overcall rules still fire for the doubler (a double is not a
     /// bid), so a 15+ balanced doubler "competes" to 2NT/3NT/a major opposite a
     /// likely-broke partner — the dominant defense leak.  On, those pulls step aside
-    /// and the doubler defends (Pass) or latch-doubles their escape.
+    /// and the doubler defends by passing or latch-doubles their escape.
     static PENALTY_NO_PULL: Cell<bool> = const { Cell::new(true) };
 
     /// Whether a weak advancer runs from their *redoubled* penalty double
-    /// (`[1NT, X, XX]`, **on by default** — see [`set_advancer_xx_runout`]).  Their
+    /// (`(1NT) X (XX)`, **on by default** — see [`set_advancer_xx_runout`]).  Their
     /// XX is business (BBA and our own system both: "we make 1NT redoubled"), so a
     /// broke advancer escapes to its long suit rather than sit for the doom.
     static ADVANCER_XX_RUNOUT: Cell<bool> = const { Cell::new(true) };
 
-    /// Whether the *doubler* runs after `[1NT, X, XX, P, P]` comes back around
+    /// Whether the *doubler* runs after `(1NT) X (XX) - -` comes back around
     /// (**on by default** — see [`set_doubler_xx_runout`]).  Construction-gated:
     /// read once in [`instinct`] so the escape rule lands only in the on book.
     static DOUBLER_XX_RUNOUT: Cell<bool> = const { Cell::new(true) };
@@ -475,7 +475,7 @@ const COLLAR_SLACK: u8 = 2;
 ///
 /// Once our side has bid, the deterministic floor's only competitive actions are
 /// raising partner and the takeout double — so a self-sufficient one-suiter
-/// (e.g. `1♦ (1♥) P (2♥)` holding `AKJT984`) can only double, misdescribing a
+/// (e.g. `1♦ (1♥) - (2♥)` holding `AKJT984`) can only double, misdescribing a
 /// takeout shape it does not have.  With this on, a suit we already bid and hold
 /// six-plus in is rebid at the cheapest legal level, outranking that double; the
 /// existing raise ladder then carries responder to game.  The two-level rebid is
@@ -496,7 +496,7 @@ fn competitive_rebid_enabled() -> bool {
 }
 
 /// Author opener's balanced-18-19 notrump actions in a `1X (1Y) …` auction the
-/// floor otherwise passes out: the reopening 1NT (`1X (1Y) P (P)` back to
+/// floor otherwise passes out: the reopening 1NT (`1X (1Y) - -` back to
 /// opener with their suit stopped), 3NT over responder's free 1NT, and
 /// responder's raise of the reopening 1NT.  Default on; the off state restores
 /// the lone-takeout-double floor for the A/B (`bba-gen --no-ns-reopening-notrump`).
@@ -516,7 +516,7 @@ fn reopening_notrump_enabled() -> bool {
 /// After we double an opponent's suit for takeout and partner names a suit — a
 /// forced, possibly bust advance — a minimum doubler (< 17 total points) that
 /// re-doubles or raises the advance to the three level double-counts its values
-/// and drives to a doubled game (`1X (1Y) P 1Z X P 2m 2Z 3m X …`).  Default on;
+/// and drives to a doubled game (`1X (1Y) - (1Z) X - 2m (2Z) 3m (X) …`).  Default on;
 /// the off state restores the blind raise ladder for the A/B
 /// (`bba-gen --no-ns-rein-advance-raise`).  Read at book construction.
 #[doc(hidden)]
@@ -549,9 +549,9 @@ fn rein_advance_raise_enabled() -> bool {
 /// against 218/193 now on the same 204,800 boards, so the floor around it
 /// moved and the transfers are reached far less often than when they won.
 /// Kept as a knob for re-measure — the losing tail is
-/// over-reach (`1♦ 1♠ - 2♥` climbing to a failing `4♠` where the natural arm
+/// over-reach (`1♦ (1♠) - (2♥)` climbing to a failing `4♠` where the natural arm
 /// stops), not one unauthored continuation, and the transfers were mostly not
-/// reached in the first place: over `1♣ (1♥) P` the bidder took the `2♦`
+/// reached in the first place: over `1♣ (1♥) -` the bidder took the `2♦`
 /// transfer 0.4% of the time, holding six-plus *diamonds*
 /// (`probe-bba-constraints --mode rub-ch --ours`,
 /// docs/reader-retirement.md §The Rubens layer).
@@ -1185,7 +1185,7 @@ fn penalize_escape_values_enabled() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, _: &Context<'_>| PENALIZE_ESCAPE_VALUES.with(Cell::get))
 }
 
-/// Enable or disable the Unusual-vs-Unusual penalty chase after `1NT-(2NT)-X`
+/// Enable or disable the Unusual-vs-Unusual penalty chase after `1NT (2NT) X`
 ///
 /// "All our doubles are penalty from the first X on"; a pass conveys inability
 /// to punish *this* contract.  The responder `X` itself lives in the american
@@ -1357,7 +1357,7 @@ fn opener_over_free_1nt() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| opener_over_free_1nt_now(context))
 }
 
-/// Opener reopened with a natural 1NT (`1X (1Y) P (P) 1NT`, our 18-19 balanced)
+/// Opener reopened with a natural 1NT (`1X (1Y) - - 1NT`, our 18-19 balanced)
 /// and it is back to responder — the seat to raise to game with the values that
 /// could not make a free bid the first time.
 fn responder_over_reopening_1nt_now(context: &Context<'_>) -> bool {
@@ -1464,7 +1464,7 @@ fn opp_escaped_our_nt_undoubled() -> Cons<impl Constraint + Clone> {
     })
 }
 
-/// Their escape is undoubled *and* responder's business redouble (1NT-X-XX) has
+/// Their escape is undoubled *and* responder's business redouble (`1NT (X) XX`) has
 /// already shown the values — combined we hold the balance, so a values double
 /// is sound without a personal stack (see [`our_doubled_one_nt_escape`])
 fn opp_escaped_our_business_xx() -> Cons<impl Constraint + Clone> {
@@ -1485,7 +1485,7 @@ fn leave_in_escape_penalty() -> Cons<impl Constraint + Clone> {
     })
 }
 
-/// The opponents have escaped our `1NT-(2NT)-X` penalty double and it is our turn
+/// The opponents have escaped our `1NT (2NT) X` penalty double and it is our turn
 ///
 /// Our side opened 1NT, RHO overcalled a (both-minors) 2NT, our side doubled it
 /// for penalty, and since then we have only passed or doubled — so the live suit
@@ -1537,7 +1537,7 @@ fn leave_in_uvu_penalty() -> Cons<impl Constraint + Clone> {
     })
 }
 
-/// Partner's takeout double is live: the auction ends `… (bid) X (Pass)`
+/// Partner's takeout double is live: the auction ends `… (bid) X -`
 ///
 /// Mechanically: the last two calls are partner's double and RHO's pass, and
 /// the doubled contract is their suit bid at the three level or below —
@@ -1812,7 +1812,7 @@ fn below_game() -> Cons<impl Constraint + Clone> {
 /// Pair with a known eight-card major fit: a responder who transferred (showing
 /// five) then bid `3NT` offers the choice, and opposite three-card support the
 /// 5-3 fit out-scores notrump (`answer_transfer_spade_single`).  Keyed only on
-/// the `3NT`, so it fires in contested auctions too (`1NT–(2♦)–…–3NT`).
+/// the `3NT`, so it fires in contested auctions too (`1NT (2♦) … 3NT`).
 fn correct_3nt_to_major_now() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| {
         CORRECT_3NT_TO_MAJOR.with(Cell::get)
@@ -1887,10 +1887,10 @@ fn keycard_trump(hand: Hand, context: &Context<'_>) -> Option<Suit> {
 ///    below the ask, suits the opponents had named excluded (both members
 ///    bidding *their* suit is cue territory, not agreement), most recent
 ///    agreement wins.  Fit precedence is what keeps a cue or control bid
-///    on the way to 4NT from masquerading as trumps (`1♠ P 3♠ P 4♣ P 4NT`
+///    on the way to 4NT from masquerading as trumps (`1♠ - 3♠ - 4♣ - 4NT`
 ///    asks in spades, not clubs).  One carve: an agreed **minor** yields
 ///    when the side's last non-cue bid is notrump — that 3NT was a
-///    *sign-off* re-opening the strain (`1♦ P 3♦ P 3NT P 4NT` is
+///    *sign-off* re-opening the strain (`1♦ - 3♦ - 3NT - 4NT` is
 ///    quantitative), where over an agreed **major** the same 3NT is
 ///    non-serious and the fit stands.  BBA agrees the minor cell is no
 ///    keycard ask: probed, its own slam move there is 4♣ Gerber (ace
@@ -1899,9 +1899,9 @@ fn keycard_trump(hand: Hand, context: &Context<'_>) -> Option<Suit> {
 ///    dichotomy already gives minors their RKCB route through a suit-last
 ///    auction.
 /// 2. **The side's last non-cue bid is a suit** — then that suit is the
-///    trump: `2♥ X 3♥ X P 4♠ P 4NT` asks in spades, a completed transfer
-///    or Stayman answer asks in the found major, `1♦ P 4NT` asks in
-///    diamonds, and a cue of their suit is transparent — `1♥ (3♦) 4♦ P
+///    trump: `(2♥) X (3♥) X - 4♠ - 4NT` asks in spades, a completed transfer
+///    or Stayman answer asks in the found major, `1♦ - 4NT` asks in
+///    diamonds, and a cue of their suit is transparent — `1♥ (3♦) 4♦ -
 ///    4NT` steps back past the cue and asks in hearts.  A last bid in
 ///    *notrump* vetoes the rule — that 4NT is quantitative.
 ///
@@ -1955,32 +1955,32 @@ fn face_trump(auction: &[Call], ask: usize) -> Option<Suit> {
 ///
 /// - **guarded** — a suit either member of our side named naturally, or the
 ///   opponents named at all.  A guarded suit keeps its natural meaning at the
-///   four level (after `1♦ P 1♥ P 3♦`, responder's 4♥ is *hearts*), and their
+///   four level (after `1♦ - 1♥ - 3♦`, responder's 4♥ is *hearts*), and their
 ///   suit there is a cue.  Hearts is guarded by a **spade bid** too, unless the
 ///   auction disproves five of them: longest first, ties to the higher rank,
 ///   so 5-5 majors bid spades and the spade bid alone never denies hearts —
-///   after `1♦ P 1♠ P 2♦`, 4♥ is plausibly natural and the ladder must not
+///   after `1♦ - 1♠ - 2♦`, 4♥ is plausibly natural and the ladder must not
 ///   claim it (the collision that made the phase-5 re-measure a wash: the
 ///   natural walk bids 4♥ *meaning hearts* and both seats sign off in 5♦).
 ///   A member who named a **second** suit has shown 5+4 = 9 cards and can no
-///   longer hold five hearts, so `1♠ P 2♦ P 3♦` keeps its relocation.
+///   longer hold five hearts, so `1♠ - 2♦ - 3♦` keeps its relocation.
 /// - **set** — a suit our side named **twice**: both members (a formal raise)
-///   or one member twice (`1♦ P 1♥ P 3♦`).  One bid is no agreement, or
-///   `1♦ P 4♥` would ask.
+///   or one member twice (`1♦ - 1♥ - 3♦`).  One bid is no agreement, or
+///   `1♦ - 4♥` would ask.
 /// - the [`face_trump`] **veto** — when the face names no trump at all (the
-///   notrump dichotomy: `1♦ P 3♦ P 3NT P` is quantitative), nothing relocates.
+///   notrump dichotomy: `1♦ - 3♦ - 3NT -` is quantitative), nothing relocates.
 ///
 /// Each set suit claims **four of the next suit up, and nothing else**.  If
 /// that one call is guarded or already claimed, the suit does not relocate at
 /// all and asks at 4NT, whose meaning is unchanged: kickback *adds* asks, it
 /// never removes one, so no auction pons already bids changes.  Two fits can
-/// still carry two relocated asks — after `1♣ P 2♣ P 2♥ P 3♥ P`, 4♦ asks in
+/// still carry two relocated asks — after `1♣ - 2♣ - 2♥ - 3♥ -`, 4♦ asks in
 /// clubs and 4♠ in hearts.
 ///
 /// This is BBA's rule (`docs/ai-bidder/bba-kickback.md` §1.1), adopted
 /// deliberately in place of jdh8's earlier **walk-up** ladder, which kept
 /// walking to the cheapest unguarded suit above the trump — so 4♠ could ask in
-/// diamonds after `1♦ P 1♥ P 3♦`, where BBA reverts to 4NT.  The walk-up is
+/// diamonds after `1♦ - 1♥ - 3♦`, where BBA reverts to 4NT.  The walk-up is
 /// strictly cheaper when both sides read it, and that is the whole problem: a
 /// relocated ask two suits above the trump is unrecognisable to anything that
 /// has not built the same table, and one seat mistaking it for a natural bid or
@@ -2075,7 +2075,7 @@ fn kickback_ladder(auction: &[Call], ask: usize) -> [Option<Suit>; 4] {
 /// the natural walk reads that artificial five-of-a-major as a genuine long
 /// suit — partner's heart floor jumps past five and the reading rungs flip
 /// to a phantom trump the answerer never counted against, so the asker sits
-/// the answer as if it were trumps (`1♦ P 1♥ 1♠ P 3♠ 4♦ P 4NT P 5♥ X`
+/// the answer as if it were trumps (`1♦ - 1♥ (1♠) - (3♠) 4♦ - 4NT - 5♥ (X)`
 /// passed out on a 4-1 "fit", −20).  The reading rungs therefore accept the
 /// *answer's own suit* only when the reading as the **answerer** saw it —
 /// the auction through the opponent's call over the ask — already justified
@@ -2292,7 +2292,7 @@ fn kickback_trump(auction: &[Call], ask: usize) -> Option<Suit> {
 /// 4♥ asks and 4♠ is its step 1 — but 4♠ is itself the ask bid one lane over,
 /// so without the guard the *asker* sees a live ask on partner's answer and
 /// answers its own question: the 1.9-weighted answer rung outbids its own 1.82
-/// signoff and the auction walks into a phantom suit (`1♦ P 3♦ P 4♥ P 4♠ P 5♣`
+/// signoff and the auction walks into a phantom suit (`1♦ - 3♦ - 4♥ - 4♠ - 5♣`
 /// doubled, singleton ♣A opposite ♣987, −1100).  The same shape one rung higher
 /// is 4NT over a 4♠ ask, §7.4's −15 IMP smoke-run failure.  A plain 4NT ask can
 /// never collide this way: all four of its rungs are five-level, which is why
@@ -3342,7 +3342,7 @@ fn king_reply(bid: Bid, more: bool) -> Cons<impl Constraint + Clone> {
 /// [`points_and_net`] alone is not that.  With [`set_bilans_floor`] on — the
 /// default — its authored arm is dead and the net's break-even test decides by
 /// itself, and the net calls a grand plausible on hands the point count puts
-/// nowhere near one: probing the `1♠–3♠–4NT–5♣` asker, *every* hand strong
+/// nowhere near one: probing the `1♠ - 3♠ - 4NT - 5♣` asker, *every* hand strong
 /// enough to reach six also cleared it.  A gate that never says no cannot veto
 /// anything, and RKCB is a slam veto.
 ///
@@ -3906,7 +3906,7 @@ impl Interpretation {
 /// Partner answered our one-of-a-suit opening with a game-forcing two-over-one
 ///
 /// Exactly the auctions the 2/1 game-force book registers
-/// its tables over: `1♥`/`1♠` and a cheaper two-level suit, or `1♦`–`2♣`.  Both
+/// its tables over: `1♥`/`1♠` and a cheaper two-level suit, or `1♦ - 2♣`.  Both
 /// partners hold the force, so the flag is read from either seat.
 ///
 /// Uncontested only — over interference a two-level new suit is a free bid, not
@@ -4067,7 +4067,7 @@ fn latch_penalty_c() -> Cons<impl Constraint + Clone> {
 /// Enable or disable the advancer's runout from their redoubled penalty double
 ///
 /// **On by default.**  After our natural penalty double of their 1NT, their
-/// business redouble (`[1NT, X, XX]`) marks their side with the values, so a weak
+/// business redouble (`(1NT) X (XX)`) marks their side with the values, so a weak
 /// advancer escapes to its long suit rather than sit for a making `1NTxx`.  The
 /// mirror of the [responder runout][`set_one_nt_runout`] on the defensive side.
 /// Disable for the off arm of the A/B; read at classification time, per-thread.
@@ -4076,7 +4076,7 @@ pub fn set_advancer_xx_runout(enabled: bool) {
     ADVANCER_XX_RUNOUT.with(|flag| flag.set(enabled));
 }
 
-/// Their redoubled penalty double is back to a weak advancer (`[1NT, X, XX]`) and
+/// Their redoubled penalty double is back to a weak advancer (`(1NT) X (XX)`) and
 /// the runout is enabled — the defensive mirror of [`responder_one_nt_runout_now`]
 ///
 /// Keyed off [`penalty_x_reading`][super::inference::penalty_x_reading]: our side
@@ -4102,8 +4102,8 @@ fn advancer_xx_runout() -> Cons<impl Constraint + Clone> {
 
 /// Enable or disable the *doubler's* runout from their redoubled penalty double
 ///
-/// **On by default.**  After `[1NT, X, XX]` the opponents' business redouble runs
-/// back around — advancer passes, opener passes (`[1NT, X, XX, P, P]`) — to the 15+
+/// **On by default.**  After `(1NT) X (XX)` the opponents' business redouble runs
+/// back around — advancer passes, opener passes (`(1NT) X (XX) - -`) — to the 15+
 /// doubler.  On, a doubler holding a five-plus-card suit escapes to it rather than
 /// defend a likely-making `1NTxx`; off, it sits.  Read once at book construction
 /// (the escape rule is added only when on) so a duplicate A/B isolates cleanly.
@@ -4117,7 +4117,7 @@ fn doubler_xx_runout_enabled() -> bool {
     DOUBLER_XX_RUNOUT.with(Cell::get)
 }
 
-/// Their redoubled penalty double has run back to the doubler (`[1NT, X, XX, P, P]`)
+/// Their redoubled penalty double has run back to the doubler (`(1NT) X (XX) - -`)
 ///
 /// Keyed off [`penalty_x_reading`][super::inference::penalty_x_reading] like
 /// [`advancer_xx_runout_now`], but two calls later: the business redouble, then the
@@ -4349,7 +4349,7 @@ pub(crate) fn overcall_shape(auction: &[Call]) -> Option<(Suit, Suit, usize, u8)
 }
 
 /// We are advancing partner's simple overcall, RHO having passed: the auction is
-/// `(1X) Y (Pass)` to us
+/// `(1X) Y -` to us
 ///
 /// Returns `(X = the cue suit, Y = partner's overcall, overcall level)`.
 fn advance_of_overcall(context: &Context<'_>) -> Option<(Suit, Suit, u8)> {
@@ -4400,7 +4400,7 @@ fn rubens_completion(context: &Context<'_>) -> Option<Suit> {
     let len = auction.len();
     let (x, y, overcall_index, level) = overcall_shape(auction)?;
     // Only a one-level overcall carries the transfer ladder; the sequence is
-    // overcall, (pass), transfer, (pass or opener's lead-directing double), us.
+    // `overcall - transfer { - | (X) }`, then us.
     // Completing through the double matters: without it the relay dies and the
     // advancer plays the phantom suit doubled (A/B'd −14 IMPs a board).
     if level != 1
@@ -4436,7 +4436,7 @@ fn rubens_cue_answer(context: &Context<'_>) -> Option<(Suit, Suit)> {
     let auction = context.auction();
     let len = auction.len();
     let (x, y, overcall_index, level) = overcall_shape(auction)?;
-    // The sequence is overcall, (pass), cue, (pass or double), us.
+    // The sequence is `overcall - cue { - | (X) }`, then us.
     if level != 2
         || overcall_index + 4 != len
         || auction[overcall_index + 1] != Call::Pass
@@ -4471,7 +4471,7 @@ fn rubens_into_partner(y: Suit) -> Cons<impl Constraint + Clone> {
 /// Partner mechanically completed our transfer into its own suit `y` — the
 /// limit-plus raise rests at `2Y` unless we hold extras
 ///
-/// The auction is `(1X) Y (P) 2S (P|X) 2Y (P|X)` back to us: the completion
+/// The auction is `(1X) Y - 2S (-|X) 2Y (-|X)` back to us: the completion
 /// limited partner to no super-accept, so only extras beyond our shown
 /// ten-plus move again.
 fn rubens_raiser_rebid(context: &Context<'_>) -> Option<Suit> {
@@ -4507,7 +4507,7 @@ fn rubens_raiser_rebids(y: Suit) -> Cons<impl Constraint + Clone> {
 /// Partner mechanically completed our *new-suit* transfer into `target` — the
 /// wide-yet-unlimited hand clarifies now
 ///
-/// The auction is `(1X) Y (P) 2S (P|X) 2(S+1) (P|X)` back to us with
+/// The auction is `(1X) Y - 2S (-|X) 2(S+1) (-|X)` back to us with
 /// `S+1 ≠ Y`: the transfer showed the suit cheaply without settling forcing
 /// questions, so a mild hand passes the completion and extras move again.
 fn rubens_transferee_rebid(context: &Context<'_>) -> Option<Suit> {
@@ -4763,7 +4763,7 @@ pub fn instinct() -> Rules {
             );
     }
 
-    // Advancer's runout from their redoubled penalty double (`[1NT, X, XX]`,
+    // Advancer's runout from their redoubled penalty double (`(1NT) X (XX)`,
     // default on; `set_advancer_xx_runout`).  Their XX is business, so a weak
     // advancer escapes to its longest five-plus-card suit instead of sitting for a
     // making `1NTxx` — the defensive mirror of the responder runout above.  A
@@ -4790,7 +4790,7 @@ pub fn instinct() -> Rules {
             );
     }
 
-    // Doubler's runout once the redouble runs back around (`[1NT, X, XX, P, P]`,
+    // Doubler's runout once the redouble runs back around (`(1NT) X (XX) - -`,
     // on by default; `set_doubler_xx_runout`).  Unlike the advancer, the doubler is
     // the 15+ penalty hand, so there is *no* HCP cap — a doubler holding a five-plus
     // suit (a 5332 under the default balanced gate) escapes the redoubled `1NTxx`
@@ -5057,7 +5057,7 @@ pub fn instinct() -> Rules {
         penalty_latched_c() & latch_penalty_c() & advancing_a_double(),
     );
 
-    // UvU encircling: the opponents ran from our 1NT-(2NT)-X.  Double their
+    // UvU encircling: the opponents ran from our 1NT (2NT) X.  Double their
     // escape with a trump stack — and keep doubling as they keep running — by
     // agreement; partner leaves in.  Mirrors the doubled-1NT escape chase above,
     // gated on its own A/B knob ([`set_uvu_encircle`]), independent of the runout.
@@ -5652,8 +5652,8 @@ pub fn instinct() -> Rules {
             )
             // The cramped doubled answer: their X sits on partner's answer
             // past five of trump — we never play a suit we have no fit in,
-            // so the doubled artificial suit is always escaped (`… 4♦ P 4NT
-            // P 5♥ X` passed out on a 4-1, −20).  Below the true signoffs
+            // so the doubled artificial suit is always escaped (`… 4♦ - 4NT
+            // - 5♥ (X)` passed out on a 4-1, −20).  Below the true signoffs
             // (five of trump still available bids it at 1.82; the answer
             // itself our trump sits at 1.80), the rungs order the landing
             // spots by trust: the hand-seen fit, a stopped 5NT a level
@@ -6036,10 +6036,10 @@ pub fn instinct() -> Rules {
     // — 15-17 opens 1NT, 20-21 opens 2NT — so the balanced 18-19 surfaces here
     // wanting game and, until now, could only make a lone takeout double.
     //
-    //  * Reopening 1NT (`1X (1Y) P (P)`): partner passed the overcall, back to
+    //  * Reopening 1NT (`1X (1Y) - -`): partner passed the overcall, back to
     //    us — natural, their suit stopped, the invite-to-game a takeout double
     //    of a balanced hand cannot make.  Outranks the 0.9 double below.
-    //  * 3NT over responder's free 1NT (`1X (1Y) 1NT P`): responder already
+    //  * 3NT over responder's free 1NT (`1X (1Y) 1NT -`): responder already
     //    promised 6-10 with a stopper, so a balanced 18-19 raises to game.
     //  * Responder raises the reopening 1NT to game with the trapped values.
     if reopening_notrump_enabled() {

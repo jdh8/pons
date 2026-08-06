@@ -85,10 +85,10 @@ fn uvu_major_responder(major: Suit) -> Rules {
         .rule(Call::Pass, 0, hcp(0..))
 }
 
-/// Responder after our 1M and their Michaels cue of our own major (`1♥-(2♥)`
-/// / `1♠-(2♠)` — 5+ in the other major and 5+ in an unknown minor)
+/// Responder after our 1M and their Michaels cue of our own major (`1♥ (2♥)`
+/// / `1♠ (2♠)` — 5+ in the other major and 5+ in an unknown minor)
 ///
-/// The cue of their *known* suit (`2♠` over `1♥-(2♥)`, `3♥` over `1♠-(2♠)`)
+/// The cue of their *known* suit (`2♠` over `1♥ (2♥)`, `3♥` over `1♠ (2♠)`)
 /// is the limit-plus raise; `X` shows values (their runout has nowhere quiet
 /// to land); the direct raises keep their natural meaning — the guard in
 /// Section 4b always excluded their cue of our own major precisely because
@@ -121,7 +121,7 @@ fn michaels_cue_responder(major: Suit) -> Rules {
         .rule(Call::Pass, 0, hcp(0..))
 }
 
-/// Opener's answer after `1M – (2NT) – 3♦ – (P)` — partner's game force with
+/// Opener's answer after `1M (2NT) 3♦ -` — partner's game force with
 /// 5+ in the other major
 ///
 /// Raise the shown major to game with 3+, else `3NT` with both minors
@@ -175,11 +175,11 @@ pub(super) fn uvu_over_majors_package() -> Package {
                     uvu_major_responder(major),
                 ));
                 entries.extend(rows_of(
-                    Pattern::after(&unusual, "3♣ (P)"),
+                    Pattern::after(&unusual, "3♣ -"),
                     answer_cue_raise(major),
                 ));
                 entries.extend(rows_of(
-                    Pattern::after(&unusual, "3♦ (P)"),
+                    Pattern::after(&unusual, "3♦ -"),
                     uvu_fourth_suit_answer(major),
                 ));
 
@@ -190,7 +190,7 @@ pub(super) fn uvu_over_majors_package() -> Package {
                     michaels_cue_responder(major),
                 ));
                 entries.extend(rows_of(
-                    Pattern::after(&michaels, &format!("{om_cue} (P)")),
+                    Pattern::after(&michaels, &format!("{om_cue} -")),
                     answer_cue_raise(major),
                 ));
             }

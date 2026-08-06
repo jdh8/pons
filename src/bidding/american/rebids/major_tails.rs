@@ -1,4 +1,4 @@
-//! Major-rebid tails: full continuations after `1♥ – 1♠`
+//! Major-rebid tails: full continuations after `1♥ - 1♠`
 //!
 //! Below each of opener's four rebids (`2♠`, `3♠`, `2♥`, `2♣`/`2♦`) both sides
 //! are authored to game, and — for the two spade-raise auctions — to slam via
@@ -12,7 +12,7 @@ use crate::bidding::american::slam;
 // ponytail: same construction-time-toggle reasoning as `MECKSTROTH` above.
 std::thread_local! {
     /// Whether opener's rebid tables carry the **major-rebid-tails adjunct**:
-    /// full responder/opener continuations after `1♥ – 1♠` below opener's
+    /// full responder/opener continuations after `1♥ - 1♠` below opener's
     /// `2♠`/`3♠` raise, `2♥` rebid, and `2♣`/`2♦` minor rebid.  Default on
     /// (measured +0.016/+0.023 IMPs/board NV/vul plain DD).
     static MAJOR_REBID_TAILS: Cell<bool> = const { Cell::new(true) };
@@ -39,7 +39,7 @@ const FOURTH_SUIT: Alert = Alert("fourth-suit-forcing");
 // ponytail: same construction-time-toggle reasoning as `MECKSTROTH` above.
 std::thread_local! {
     /// Whether the **fourth-suit-forcing** knob is enabled: at
-    /// `1♥ – 1♠ – 2♣`, responder's `2♦` becomes an artificial game force (the
+    /// `1♥ - 1♠ - 2♣`, responder's `2♦` becomes an artificial game force (the
     /// fourth suit) instead of natural diamonds.  Default on (measured
     /// +0.002 IMPs/board on top of the tails, both scorers, both
     /// vulnerabilities).
@@ -67,14 +67,14 @@ pub(crate) fn fourth_suit_forcing() -> bool {
 
 std::thread_local! {
     /// Whether responder's natural 2NT invite after opener shows two suits
-    /// (`1♥ – 1♠ – 2m`) is gauged in raw HCP instead of `points`.  **Default
+    /// (`1♥ - 1♠ - 2m`) is gauged in raw HCP instead of `points`.  **Default
     /// on** (fix-vs-shipped, 1M boards/vul, 24.pdd 18.3M–20.3M: plain DD
     /// +0.0018 ± 0.0003 NV / +0.0022 ± 0.0005 vul, PD +0.0028/+0.0032).  See
     /// [`set_nt_invite_hcp`].
     static NT_INVITE_HCP: Cell<bool> = const { Cell::new(true) };
 }
 
-/// Gauge responder's 2NT invite after `1♥ – 1♠ – 2m` in raw HCP for books
+/// Gauge responder's 2NT invite after `1♥ - 1♠ - 2m` in raw HCP for books
 /// built *after* this call
 ///
 /// The 2NT rung is the table's one no-fit call — the hand denied a heart
@@ -94,7 +94,7 @@ fn nt_invite_hcp() -> bool {
     NT_INVITE_HCP.with(Cell::get)
 }
 
-/// Responder's second call after opener raises to `2♠` in `1♥ – 1♠`
+/// Responder's second call after opener raises to `2♠` in `1♥ - 1♠`
 ///
 /// Opener's `2♠` shows four-card support and a 12–15 point opening.  The
 /// `4NT` keycard ask is authored the same way as the 2/1 game force's
@@ -117,7 +117,7 @@ fn responder_after_spade_raise() -> Rules {
         .rule(Call::Pass, 0, hcp(0..))
 }
 
-/// Responder's second call after opener jumps to `3♠` in `1♥ – 1♠`
+/// Responder's second call after opener jumps to `3♠` in `1♥ - 1♠`
 ///
 /// Opener's `3♠` shows four-card support and a strong 16–18 point opening —
 /// game is close to guaranteed, so responder's only question is whether to
@@ -137,7 +137,7 @@ fn responder_after_spade_jump() -> Rules {
         .rule(Call::Pass, 0, hcp(0..))
 }
 
-/// Responder's second call after opener rebids `2♥` in `1♥ – 1♠`
+/// Responder's second call after opener rebids `2♥` in `1♥ - 1♠`
 ///
 /// Opener's `2♥` shows a six-card suit; responder's `1♠` did not deny three
 /// hearts, so a heart fit is common at this node.
@@ -167,7 +167,7 @@ fn responder_after_heart_rebid() -> Rules {
         .rule(Call::Pass, 0, hcp(0..))
 }
 
-/// Opener's call over responder's `2NT` notrump invite after `1♥ – 1♠ – 2♥`
+/// Opener's call over responder's `2NT` notrump invite after `1♥ - 1♠ - 2♥`
 ///
 /// Forcing: the `3♥` retreat is always legal below `2NT`, so there is no pass
 /// rule.  Accept with 14+ HCP (bid `3NT`), decline with a `3♥` retreat.
@@ -178,9 +178,9 @@ fn opener_after_heart_invite() -> Rules {
         .rule(Bid::new(3, Strain::Hearts), 50, hcp(0..))
 }
 
-/// Responder's second call after opener rebids a new minor in `1♥ – 1♠`
+/// Responder's second call after opener rebids a new minor in `1♥ - 1♠`
 ///
-/// Registered at both `1♥ – 1♠ – 2♣` and `1♥ – 1♠ – 2♦` — `minor` is the suit
+/// Registered at both `1♥ - 1♠ - 2♣` and `1♥ - 1♠ - 2♦` — `minor` is the suit
 /// opener rebid, showing 4+ cards on a minimum-ish hand.  Responder's known
 /// assets are 4+ spades and 6+ points; heart length is unknown (`1♠` never
 /// denied three hearts), so a jump preference to `3♥` outranks the minor
@@ -242,7 +242,7 @@ fn responder_after_minor_rebid(minor: Suit) -> Rules {
         .rule(Call::Pass, 0, hcp(0..))
 }
 
-/// Opener's call over responder's raise to `3m` after `1♥ – 1♠ – 2m`
+/// Opener's call over responder's raise to `3m` after `1♥ - 1♠ - 2m`
 ///
 /// Accept with 14+ points (bid `3NT`), decline with a pass.  Unlike
 /// `opener_accept_limit_raise`, game lives in notrump here — the minor is
@@ -254,7 +254,7 @@ fn opener_accept_minor_raise() -> Rules {
         .rule(Call::Pass, 0, hcp(0..))
 }
 
-/// Opener's answer at `[1♥,1♠,2♣,2♦]`, the fourth-suit-forcing game force
+/// Opener's answer at `1♥ - 1♠ - 2♣ - 2♦ -`, the fourth-suit-forcing game force
 ///
 /// Forcing — there is no pass rule; the `2♥` catch-all is always legal
 /// because opener holds 5+ hearts (guaranteed by the `1♥` opening) and `2♥`
@@ -281,8 +281,8 @@ fn opener_after_fourth_suit() -> Rules {
         .rule(Bid::new(2, Strain::Hearts), 20, len(Suit::Hearts, 5..))
 }
 
-/// Responder's placement at `[1♥,1♠,2♣,2♦,X]`, after opener answers the
-/// fourth-suit-forcing game force
+/// Responder's placement at `1♥ - 1♠ - 2♣ - 2♦ - answer -`, after opener
+/// answers the fourth-suit-forcing game force
 ///
 /// One shared table installed at every answer `X` from
 /// [`opener_after_fourth_suit`] — [`partner_suit_is`] reads which answer
@@ -313,7 +313,7 @@ fn responder_after_fourth_suit_answer() -> Rules {
         .rule(Bid::new(3, Strain::Notrump), 80, hcp(0..))
 }
 
-/// The major-rebid-tails adjunct: full continuations after `1♥ – 1♠`
+/// The major-rebid-tails adjunct: full continuations after `1♥ - 1♠`
 ///
 /// Below each of opener's four rebids this authors both sides' continuations
 /// to game, and — for the two spade-raise auctions — to slam via RKCB:
@@ -325,36 +325,36 @@ fn responder_after_fourth_suit_answer() -> Rules {
 ///   declines, or answers the `2NT` notrump-invite relay.
 /// - `2♣`/`2♦` (new minor, 4+, minimum-ish): responder chooses a preference,
 ///   an invite, or game; opener accepts or declines the invite reached.
-/// - `2♣ – 2♦` fourth-suit-forcing ([`set_fourth_suit_forcing`], an
+/// - `2♣ - 2♦` fourth-suit-forcing ([`set_fourth_suit_forcing`], an
 ///   additional gate riding this adjunct): opener answers naturally below
 ///   game; responder places the final contract at game over any answer.
 ///
-/// `1♥ – 1♠ – 2m – 2♥` and `1♥ – 1♠ – 2m – 2♠` are deliberately left to the
+/// `1♥ - 1♠ - 2m - 2♥` and `1♥ - 1♠ - 2m - 2♠` are deliberately left to the
 /// floor.
 pub(crate) fn major_rebid_tail_continuations() -> Package {
     Package {
         name: "major-rebid-tail-continuations",
         gate: major_rebid_tails,
         entries: || {
-            let base = "P* 1♥ (P) 1♠ (P)";
+            let base = "P* 1♥ - 1♠ -";
             let mut entries = Vec::new();
 
             // Opener's 2♠ raise (12–15, four-card support):
             // invite/sign-off/RKCB.
-            let after_two_spades = format!("{base} 2♠ (P)");
+            let after_two_spades = format!("{base} 2♠ -");
             entries.extend(rows_of(
                 Pattern::node(&after_two_spades),
                 responder_after_spade_raise(),
             ));
             entries.extend(rows_of(
-                Pattern::node(&format!("{after_two_spades} 3♠ (P)")),
+                Pattern::node(&format!("{after_two_spades} 3♠ -")),
                 opener_accept_limit_raise(Suit::Spades),
             ));
             entries.extend(slam::rkcb_rows(&after_two_spades, Suit::Spades));
 
             // Opener's 3♠ jump raise (16–18, four-card support): sign-off or
             // RKCB.
-            let after_three_spades = format!("{base} 3♠ (P)");
+            let after_three_spades = format!("{base} 3♠ -");
             entries.extend(rows_of(
                 Pattern::node(&after_three_spades),
                 responder_after_spade_jump(),
@@ -363,41 +363,38 @@ pub(crate) fn major_rebid_tail_continuations() -> Package {
 
             // Opener's 2♥ rebid (own suit, 6+): invite/sign-off, and the 2NT
             // relay.
-            let after_two_hearts = format!("{base} 2♥ (P)");
+            let after_two_hearts = format!("{base} 2♥ -");
             entries.extend(rows_of(
                 Pattern::node(&after_two_hearts),
                 responder_after_heart_rebid(),
             ));
             entries.extend(rows_of(
-                Pattern::node(&format!("{after_two_hearts} 3♥ (P)")),
+                Pattern::node(&format!("{after_two_hearts} 3♥ -")),
                 opener_accept_limit_raise(Suit::Hearts),
             ));
             entries.extend(rows_of(
-                Pattern::node(&format!("{after_two_hearts} 2NT (P)")),
+                Pattern::node(&format!("{after_two_hearts} 2NT -")),
                 opener_after_heart_invite(),
             ));
 
             // Opener's 2♣/2♦ new minor (4+, minimum-ish): preference, invite,
             // or game.
             for minor in [Suit::Clubs, Suit::Diamonds] {
-                let after_minor = format!("{base} {} (P)", call(2, Strain::from(minor)));
+                let after_minor = format!("{base} {} -", call(2, Strain::from(minor)));
                 entries.extend(rows_of(
                     Pattern::node(&after_minor),
                     responder_after_minor_rebid(minor),
                 ));
                 entries.extend(rows_of(
-                    Pattern::node(&format!("{after_minor} 2NT (P)")),
+                    Pattern::node(&format!("{after_minor} 2NT -")),
                     opener_accept_notrump_invite(),
                 ));
                 entries.extend(rows_of(
-                    Pattern::node(&format!(
-                        "{after_minor} {} (P)",
-                        call(3, Strain::from(minor)),
-                    )),
+                    Pattern::node(&format!("{after_minor} {} -", call(3, Strain::from(minor)),)),
                     opener_accept_minor_raise(),
                 ));
                 entries.extend(rows_of(
-                    Pattern::node(&format!("{after_minor} 3♥ (P)")),
+                    Pattern::node(&format!("{after_minor} 3♥ -")),
                     opener_accept_limit_raise(Suit::Hearts),
                 ));
             }
@@ -418,7 +415,7 @@ pub(crate) fn fourth_suit_forcing_continuations() -> Package {
         name: "fourth-suit-forcing-continuations",
         gate: fourth_suit_forcing_continuations_enabled,
         entries: || {
-            let prefix = "P* 1♥ (P) 1♠ (P) 2♣ (P) 2♦ (P)";
+            let prefix = "P* 1♥ - 1♠ - 2♣ - 2♦ -";
             let opener_rules = opener_after_fourth_suit();
             let answers: Vec<Call> = {
                 let mut seen = std::collections::HashSet::new();
@@ -438,7 +435,7 @@ pub(crate) fn fourth_suit_forcing_continuations() -> Package {
             let mut entries = rows_of(Pattern::node(prefix), opener_rules);
             for answer in answers {
                 entries.extend(rows_of(
-                    Pattern::node(&format!("{prefix} {answer} (P)")),
+                    Pattern::node(&format!("{prefix} {answer} -")),
                     responder_after_fourth_suit_answer(),
                 ));
             }

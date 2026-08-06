@@ -1,7 +1,7 @@
 //! Opener's jump-rebid of a six-card major with extras
 //!
 //! The deferred major-opening half of the [extras ladder](super::extras_ladder):
-//! `1♥ – 1♠ – 3♥` and `1M – 1NT – 3M` on a 6+ suit with 16+ points, plus
+//! `1♥ - 1♠ - 3♥` and `1M - 1NT - 3M` on a 6+ suit with 16+ points, plus
 //! responder's continuation over it.  Gated by [`set_opener_major_jump_rebid`].
 
 use super::*;
@@ -9,7 +9,7 @@ use super::*;
 // ponytail: same construction-time toggle idiom as the extras ladder above.
 std::thread_local! {
     /// Whether opener's major-opening rebid nodes carry the jump-rebid rung of
-    /// a six-card major with extras (`1♥ – 1♠ – 3♥`, `1M – 1NT – 3M`) and
+    /// a six-card major with extras (`1♥ - 1♠ - 3♥`, `1M - 1NT - 3M`) and
     /// responder's continuation over it.  Shipped **on** (BBA-gap bucket #3
     /// residual); see [`set_opener_major_jump_rebid`].
     static OPENER_MAJOR_JUMP_REBID: Cell<bool> = const { Cell::new(true) };
@@ -18,7 +18,7 @@ std::thread_local! {
 /// Enable opener's major jump-rebid rung in books built after this call
 ///
 /// The [extras ladder](super::set_opener_extras_ladder) covers only the two
-/// minor-opening rebid nodes; the major-opening nodes (`1♥ – 1♠` and the
+/// minor-opening rebid nodes; the major-opening nodes (`1♥ - 1♠` and the
 /// forcing-`1NT` rebid) still cap opener's own-major rebid at a minimum `2M`
 /// with no upper bound, so a 16+ hand with a strong six-card major underbids
 /// and misses the game BBA reaches (the `6+ ♥`/`6+ ♠` residual in the
@@ -70,7 +70,7 @@ pub(super) fn with_major_jump_rebid(rules: Rules, major: Suit, highest: Bid) -> 
 /// is usually short in the major (3+ support would have raised), so the
 /// notrump game is the common accept; a doubleton is already an eight-card fit
 /// opposite six, so the major-game raise needs only `len(major, 2..)`.  Used at
-/// `1M – 1NT – 3M` and `1♥ – 1♠ – 3♥`.
+/// `1M - 1NT - 3M` and `1♥ - 1♠ - 3♥`.
 ///
 /// | Call | Wt  | Meaning |
 /// |------|-----|---------|
@@ -87,7 +87,7 @@ fn responder_after_major_jump_rebid(major: Suit) -> Rules {
 
 /// Responder's call over opener's `3M` jump-rebid
 ///
-/// Covers `1M – 1NT – 3M` and `1♥ – 1♠ – 3♥`.  This package follows the
+/// Covers `1M - 1NT - 3M` and `1♥ - 1♠ - 3♥`.  This package follows the
 /// generic forcing-1NT package so its specialized `3M` table keeps winning the
 /// same exact-node overwrite.
 pub(crate) fn major_jump_rebid_continuations() -> Package {
@@ -96,14 +96,14 @@ pub(crate) fn major_jump_rebid_continuations() -> Package {
         gate: opener_major_jump_rebid,
         entries: || {
             let mut entries = expand(
-                "P* 1M (P) 1NT (P) 3M (P)",
+                "P* 1M - 1NT - 3M -",
                 |_| true,
                 |b| responder_after_major_jump_rebid(b.suit('M')),
             );
-            // 1♥ – 1♠ – 3♥: opener's major is hearts, responder has shown 4+
+            // 1♥ - 1♠ - 3♥: opener's major is hearts, responder has shown 4+
             // spades.
             entries.extend(rows_of(
-                Pattern::node("P* 1♥ (P) 1♠ (P) 3♥ (P)"),
+                Pattern::node("P* 1♥ - 1♠ - 3♥ -"),
                 responder_after_major_jump_rebid(Suit::Hearts),
             ));
             entries

@@ -2,19 +2,19 @@
 //!
 //! Covers three auctions for each weak-two suit M ∈ {♦, ♥, ♠}:
 //!
-//! 1. **Responder's first bid** (`2M–?`): Ogust 2NT, preemptive raises, and a
+//! 1. **Responder's first bid** (`2M - ?`): Ogust 2NT, preemptive raises, and a
 //!    one-round-forcing new suit.
-//! 2. **Opener's Ogust answers** (`2M–2NT–?`): a conventional five-rung ladder
+//! 2. **Opener's Ogust answers** (`2M - 2NT - ?`): a conventional five-rung ladder
 //!    encoding suit quality and points range.
-//! 3. **Asker's Ogust continuations** (`2M–2NT–<answer>–?`): sign-off or game
+//! 3. **Asker's Ogust continuations** (`2M - 2NT - <answer> - ?`): sign-off or game
 //!    based on what opener revealed.
-//! 4. **Opener's reply to a forcing new suit** (`2M–<new suit>–?`): raise or
+//! 4. **Opener's reply to a forcing new suit** (`2M - <new suit> - ?`): raise or
 //!    rebid.
 //!
 //! # Raises are to play (RONF)
 //!
-//! Direct raises of the weak two are non-forcing by design: `2M–3M` and
-//! `2M–4M` are both pre-emptive, not invitational.  Hands with game interest
+//! Direct raises of the weak two are non-forcing by design: `2M - 3M` and
+//! `2M - 4M` are both pre-emptive, not invitational.  Hands with game interest
 //! and fit use Ogust (2NT) instead.
 //!
 //! # Forcing by omission
@@ -346,10 +346,10 @@ fn reply_to_new_suit(our: Suit, x: Suit, response_level: u8) -> Rules {
 ///
 /// For each weak-two suit M ∈ {♦, ♥, ♠}:
 ///
-/// - First responses at `[2M]`
-/// - Ogust answers at `[2M, 2NT]`
-/// - Asker's Ogust continuations at `[2M, 2NT, <answer>]`
-/// - Opener's reply to each forcing new suit at `[2M, <new suit>]`
+/// - First responses at `2M -`
+/// - Ogust answers at `2M - 2NT -`
+/// - Asker's Ogust continuations at `2M - 2NT - <answer> -`
+/// - Opener's reply to each forcing new suit at `2M - <new suit> -`
 pub(super) fn package() -> Package {
     Package {
         name: "weak-two-responses",
@@ -358,15 +358,15 @@ pub(super) fn package() -> Package {
             // `x` is the weak-two suit; clubs is the strong 2♣, not a weak two.
             let weak_two = |bindings: &Bindings| bindings.suit('x') != Suit::Clubs;
 
-            // First responses (at [2M]).
+            // First responses (at `2M -`).
             let mut entries = expand("P* 2x -", weak_two, |b| responses(b.suit('x')));
 
-            // Ogust: opener's answers (at [2M, 2NT]).
+            // Ogust: opener's answers (at `2M - 2NT -`).
             entries.extend(expand("P* 2x - 2NT -", weak_two, |b| {
                 ogust_answers(b.suit('x'))
             }));
 
-            // Asker's Ogust continuations (at [2M, 2NT, <answer>]): the
+            // Asker's Ogust continuations (at `2M - 2NT - <answer> -`): the
             // answer suit encodes the rung — ♣/♦ a minimum with a bad/good
             // suit, ♥/♠ a maximum — and diamonds split from the majors in
             // the dispatch.  3NT (solid) has no continuation table; pass
@@ -381,7 +381,7 @@ pub(super) fn package() -> Package {
                 }
             }));
 
-            // Opener's reply to each forcing new suit (at [2M, <new suit>]):
+            // Opener's reply to each forcing new suit (at `2M - <new suit> -`):
             // ascension pins the 2-level row to suits above the weak two,
             // the domain pins the 3-level row to suits below it.
             entries.extend(expand("P* 2x - 2y -", weak_two, |b| {

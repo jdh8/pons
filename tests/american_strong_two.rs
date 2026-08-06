@@ -5,7 +5,7 @@ use common::*;
 
 // --- Responses to 2♣ --------------------------------------------------------
 
-/// At `[2♣, P]`: the right response for various hand types
+/// At `2♣ -`: the right response for various hand types
 #[test]
 fn test_responses_to_two_clubs() {
     let system = stance();
@@ -35,7 +35,7 @@ fn test_responses_to_two_clubs() {
 
 // --- Opener's rebid after 2♦ waiting ----------------------------------------
 
-/// At `[2♣, P, 2♦, P]`: opener rebids shape or notrump range
+/// At `2♣ - 2♦ -`: opener rebids shape or notrump range
 #[test]
 fn test_opener_rebid_after_waiting() {
     let system = stance();
@@ -60,7 +60,7 @@ fn test_opener_rebid_after_waiting() {
 
 // --- Responder after opener's suit rebid (waiting sequence) -----------------
 
-/// At `[2♣, P, 2♦, P, 2♠, P]`: responder supports or retreats
+/// At `2♣ - 2♦ - 2♠ -`: responder supports or retreats
 #[test]
 fn test_resp_after_waiting_spades() {
     let system = stance();
@@ -88,7 +88,7 @@ fn test_resp_after_waiting_spades() {
 
 // --- Opener after the major raise --------------------------------------------
 
-/// At `[2♣, P, 2♦, P, 2♠, P, 3♠, P]`: sign off or launch RKCB
+/// At `2♣ - 2♦ - 2♠ - 3♠ -`: sign off or launch RKCB
 #[test]
 fn test_opener_after_spades_raise() {
     let system = stance();

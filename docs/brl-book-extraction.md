@@ -40,9 +40,9 @@ noted; per-call boxes and recalls in the probe output):
   to "I have a weak-ish hand" than to clubs. 1D (13.6%) is genuinely
   multi-way (single-box recall 3.6% despite an 85–89% ceiling: at least
   two disjoint hand types share the call).
-- **It invented relays.** Over 1C–(X), partner redoubles 82.7% of the time
+- **It invented relays.** Over 1C (X), partner redoubles 82.7% of the time
   (`XX` box is near-shapeless, recall 98%) — a forced relay; the auction
-  `1C X XX` alone carries 13% of all boards. Over 1C–(P), 1D is a 67.5%
+  `1C (X) XX` alone carries 13% of all boards. Over 1C -, 1D is a 67.5%
   waiting/relay response. Over a strong 2C opening (see below), 2D is a
   64.5% negative/waiting reply (`hcp(1..=10)`).
 - **It reinvented Stayman/transfers.** Over its (rare, 2.1%) 1NT opening —
@@ -53,7 +53,7 @@ noted; per-call boxes and recalls in the probe output):
 - **Sane, extractable fragments exist**: 2C opening = strong `hcp(15..=24)`
   (recall 80%); 3C opening = natural club preempt `len(C, 6..=8)` (recall
   60%); over our 1C, opponent's X = "values with spades" (`hcp(7..=20) &
-  len(S, 3..=6)`, recall 90%); over 1D–(P), responder bids majors up the
+  len(S, 3..=6)`, recall 90%); over 1D -, responder bids majors up the
   line (1H recall 86%, 1S 69%).
 - **Vulnerability conditions everything.** Paired vul-flip (same deal,
   flipped vul bits — exact, since the policy is deterministic): root 16.6%
@@ -75,15 +75,15 @@ bias-limited).
 | (root) | 100% | 57.8% | 81.0% | 83.9% | 78.9% | 0.57 | 16.6% |
 | `1C` | 43.9% | 69.0% | 79.6% | 86.1% | 82.1% | 0.31 | 23.6% |
 | `P` | 21.7% | 54.9% | 78.6% | 82.8% | 69.6% | 0.64 | 19.1% |
-| `1C X` | 20.1% | 83.4% | 91.9% | 92.9% | 95.2% | 0.07 | 7.4% |
+| `1C (X)` | 20.1% | 83.4% | 91.9% | 92.9% | 95.2% | 0.07 | 7.4% |
 | `1D` | 13.6% | 58.4% | 84.9% | 89.0% | 58.3% | 0.09 | 16.0% |
-| `1C P` | 12.8% | 68.0% | 89.4% | 89.8% | 83.5% | 0.25 | 5.5% |
-| `P 1C` | 9.6% | 51.6% | 79.1% | 83.4% | 56.3% | 0.39 | 21.3% |
-| `1D P` | 6.8% | 68.1% | 84.3% | 84.4% | 81.8% | 0.20 | 7.9% |
+| `1C -` | 12.8% | 68.0% | 89.4% | 89.8% | 83.5% | 0.25 | 5.5% |
+| `- 1C` | 9.6% | 51.6% | 79.1% | 83.4% | 56.3% | 0.39 | 21.3% |
+| `1D -` | 6.8% | 68.1% | 84.3% | 84.4% | 81.8% | 0.20 | 7.9% |
 | `2C` | 4.0% | 84.0% | 90.9% | — | 91.8% | 0.05 | 10.3% |
-| `2C P` | 3.3% | 76.5% | 88.0% | — | 82.0% | 0.00 | 4.1% |
+| `2C -` | 3.3% | 76.5% | 88.0% | — | 82.0% | 0.00 | 4.1% |
 | `1NT` | 2.1% | 86.7% | 92.9% | — | 91.8% | 0.00 | 6.9% |
-| `1NT P` | 1.7% | 75.6% | 87.3% | — | 84.5% | 0.02 | 5.3% |
+| `1NT -` | 1.7% | 75.6% | 87.3% | — | 84.5% | 0.02 | 5.3% |
 
 Confident-row share: 38.5% of root decisions have top-1 prob ≥ 0.9, rising
 to 56.9% at depth 1 and 65.3% at depth 2 — brl mixes hard exactly where the

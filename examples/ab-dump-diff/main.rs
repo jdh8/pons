@@ -1,7 +1,7 @@
 //! Paired delta of two aligned `bba-gen` dumps — the feature value on a rare auction.
 //!
 //! When an A/B feature fires on only a sliver of boards (e.g. the doubler's runout
-//! from `[1NT, X, XX, P, P]`), scoring each whole dump against BBA and subtracting
+//! from `(1NT) X (XX) - -`), scoring each whole dump against BBA and subtracting
 //! wastes ~99% of the double-dummy budget on boards the feature never touches. But
 //! if the two dumps were generated with the **same seed** (so they share every deal
 //! and the BBA reference table), the only boards that differ are the ones the

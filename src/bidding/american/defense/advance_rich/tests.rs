@@ -4,7 +4,7 @@ use contract_bridge::{Hand, Strain};
 
 #[test]
 fn longest_first_advance_bids_the_longer_suit() {
-    // (1♣)–X–(P): 5 diamonds + 4 spades, a 7-HCP minimum.  This pins the
+    // (1♣) X -: 5 diamonds + 4 spades, a 7-HCP minimum.  This pins the
     // *flat* book (`--no-ns-rich-advance`): it scores both 4+ suits alike, so
     // the argmax bids the higher-ranking major 1♠; with the knob on, the
     // weight climbs with length and the longer diamonds win the advance.
@@ -216,7 +216,7 @@ fn longest_unbid_reads_the_relative_length() {
 /// response when broke — both absent from the flat floor.
 #[test]
 fn rich_advance_double_cues_and_forces() {
-    // (1♥) X (P) ? — advancer to act.
+    // (1♥) X - ? — advancer to act.
     let auction = [call(1, Strain::Hearts), Call::Double, Call::Pass];
 
     // 15 HCP, 4-3-3-3 with 4 spades but no heart stopper: game-forcing with
@@ -253,8 +253,8 @@ fn rich_advance_double_cues_and_forces() {
 /// doubler's minimum answer — a game force reaches game, an invite stops.
 #[test]
 fn advance_cue_rebid_forces_or_invites() {
-    // (1♥) X (P) 2♥cue (P) 2♠min (P) ? — advancer to clarify, with a known
-    // spade fit from partner's minimum cheap-major answer.
+    // `(1♥) X - 2♥ - 2♠ - ?` — advancer to clarify after the cue and
+    // partner's minimum cheap-major answer, with a known spade fit.
     let auction = [
         call(1, Strain::Hearts),
         Call::Double,
@@ -292,7 +292,7 @@ fn advance_cue_rebid_forces_or_invites() {
 /// regression: pure MIN-FG `hcp(12..=15)` missed it).
 #[test]
 fn rich_advance_weak_shapely_blasts_game() {
-    // (1♠) X (P) ? — advancer with a weak two-suiter, six hearts.
+    // (1♠) X - ? — advancer with a weak two-suiter, six hearts.
     let auction = [call(1, Strain::Spades), Call::Double, Call::Pass];
     // 8 HCP, 6-4 in hearts and clubs: too weak to invite (3♥ wants 10+), but
     // opposite a takeout double the shapely hand belongs in 4♥.
@@ -315,7 +315,7 @@ fn rich_advance_weak_shapely_blasts_game() {
 /// prefers notrump (the jump ranks below the notrump ladder).
 #[test]
 fn advance_minor_jump_shows_invitational_one_suiter() {
-    // (1♥) X (P) ? — advancer to act; the unbid major is spades.
+    // (1♥) X - ? — advancer to act; the unbid major is spades.
     let auction = [call(1, Strain::Hearts), Call::Double, Call::Pass];
     super::advance_rich::set_rich_advance_double(true);
     super::advance_rich::set_advance_minor_jump(true);
@@ -364,7 +364,7 @@ fn advance_minor_jump_shows_invitational_one_suiter() {
 /// bid `3NT` to play — then the advancer raises the shown suit with support.
 #[test]
 fn doubler_accepts_or_declines_the_minor_jump() {
-    // (1♠) X (P) 3♦ (P) ? — doubler acts over the invitational 3♦ jump; the
+    // (1♠) X - 3♦ - ? — doubler acts over the invitational 3♦ jump; the
     // unbid major is hearts.
     let jump = [
         call(1, Strain::Spades),
@@ -426,7 +426,7 @@ fn doubler_accepts_or_declines_the_minor_jump() {
 /// game.
 #[test]
 fn doubler_stopper_ask_over_the_minor_jump() {
-    // (1♠) X (P) 3♣ (P) ? — doubler acts over the invitational 3♣ jump.
+    // (1♠) X - 3♣ - ? — doubler acts over the invitational 3♣ jump.
     let jump = [
         call(1, Strain::Spades),
         Call::Double,
@@ -441,7 +441,7 @@ fn doubler_stopper_ask_over_the_minor_jump() {
     let ask = "xxx.AKx.AQx.KQxx";
     let (cue, _) = best_call(&jump, ask);
 
-    // (1♠) X (P) 3♣ (P) 3♠ (P) ? — advancer answers the stopper-ask.
+    // (1♠) X - 3♣ - 3♠ - ? — advancer answers the stopper-ask.
     let after_ask = [
         call(1, Strain::Spades),
         Call::Double,
@@ -483,7 +483,7 @@ fn doubler_stopper_ask_over_the_minor_jump() {
 /// major game-forcing — instead of the floor passing a game.
 #[test]
 fn doubler_accepts_or_declines_the_2nt_invite() {
-    // (1♠) X (P) 2NT (P) ? — doubler acts over the invitational 2NT; the
+    // (1♠) X - 2NT - ? — doubler acts over the invitational 2NT; the
     // unbid major is hearts.
     let invite = [
         call(1, Strain::Spades),

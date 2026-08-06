@@ -150,19 +150,19 @@ pub(super) fn dont_both_majors(allow_44: bool) -> Cons<impl Constraint + Clone> 
 }
 
 // ---------------------------------------------------------------------------
-// Passed-hand DONT advances.  Both partners passed in [P,P,P,1NT,...], so the
+// Passed-hand DONT advances.  Both partners passed in `- - - (1NT) …`, so the
 // advancer is capped below opening too: every response is a pass-or-correct
 // signoff at the two level — no invite/game/ask arms (they are unreachable).
 // ---------------------------------------------------------------------------
 
-/// Advancing partner's DONT one-suiter double (`[…,1NT,X,P]`): relay `2♣` to ask
+/// Advancing partner's DONT one-suiter double (`… (1NT) X -`): relay `2♣` to ask
 /// which suit.  (A passed advancer is too weak to introduce its own suit, so the
 /// single relay covers it.)
 fn passed_dont_x_advance() -> Rules {
     Rules::new().rule(Bid::new(2, Strain::Clubs), 100, hcp(0..))
 }
 
-/// Doubler naming the one-suiter after the `2♣` relay (`[…,1NT,X,P,2♣,P]`): pass
+/// Doubler naming the one-suiter after the `2♣` relay (`… (1NT) X - 2♣ -`): pass
 /// with clubs, else bid the five-or-six-card suit.
 fn passed_dont_x_rebid() -> Rules {
     Rules::new()
@@ -172,7 +172,7 @@ fn passed_dont_x_rebid() -> Rules {
         .rule(Call::Pass, 0, hcp(0..))
 }
 
-/// Advancing partner's DONT `2♣` (clubs + a higher suit, `[…,1NT,2♣,P]`): pass
+/// Advancing partner's DONT `2♣` (clubs + a higher suit, `… (1NT) 2♣ -`): pass
 /// with club tolerance, else relay `2♦` ("name your higher suit").
 pub(super) fn passed_dont_2c_advance() -> Rules {
     Rules::new()
@@ -180,7 +180,7 @@ pub(super) fn passed_dont_2c_advance() -> Rules {
         .rule(Call::Pass, 0, hcp(0..))
 }
 
-/// Doubler naming the higher suit after the `2♦` relay (`[…,1NT,2♣,P,2♦,P]`):
+/// Doubler naming the higher suit after the `2♦` relay (`… (1NT) 2♣ - 2♦ -`):
 /// pass with diamonds, else bid the major.
 pub(super) fn passed_dont_2c_rebid() -> Rules {
     Rules::new()
@@ -189,7 +189,7 @@ pub(super) fn passed_dont_2c_rebid() -> Rules {
         .rule(Call::Pass, 0, hcp(0..))
 }
 
-/// Advancing partner's DONT `2♦` (diamonds + a major, `[…,1NT,2♦,P]`): pass with
+/// Advancing partner's DONT `2♦` (diamonds + a major, `… (1NT) 2♦ -`): pass with
 /// diamond tolerance, else relay `2♥` ("name your major").
 pub(super) fn passed_dont_2d_advance() -> Rules {
     Rules::new()
@@ -197,7 +197,7 @@ pub(super) fn passed_dont_2d_advance() -> Rules {
         .rule(Call::Pass, 0, hcp(0..))
 }
 
-/// Doubler naming the major after the `2♥` relay (`[…,1NT,2♦,P,2♥,P]`): pass with
+/// Doubler naming the major after the `2♥` relay (`… (1NT) 2♦ - 2♥ -`): pass with
 /// hearts, correct to `2♠` with spades.
 pub(super) fn passed_dont_2d_rebid() -> Rules {
     Rules::new()
@@ -205,7 +205,7 @@ pub(super) fn passed_dont_2d_rebid() -> Rules {
         .rule(Call::Pass, 0, hcp(0..))
 }
 
-/// Advancing partner's DONT `2♥` (both majors, `[…,1NT,2♥,P]`): pass with hearts,
+/// Advancing partner's DONT `2♥` (both majors, `… (1NT) 2♥ -`): pass with hearts,
 /// correct to `2♠` with longer spades.
 pub(super) fn passed_dont_2h_advance() -> Rules {
     let spades_longer = longer_suit(Suit::Spades, Suit::Hearts);
@@ -217,7 +217,7 @@ pub(super) fn passed_dont_2h_advance() -> Rules {
 /// Direct-seat DONT advances: the same pass-or-correct relays, keyed at
 /// *every* seat (the `X`/`2♣`/`2♦`/`2♥` are direct-seat conventional calls)
 ///
-/// Binding `(1NT) X (P)` is correct here — with DONT on, the direct `X` is a
+/// Binding `(1NT) X -` is correct here — with DONT on, the direct `X` is a
 /// one-suiter wanting the `2♣` relay, not a penalty.  Every artificial leg
 /// carries a doubled/redoubled escape so we never sit in `1NT`-redoubled or a
 /// doubled misfit `2♣`, the dominant DONT-`X` loss in the honest measure.
@@ -226,22 +226,22 @@ pub(super) fn direct_dont_advance_package() -> Package {
         name: "direct-dont-advance",
         gate: direct_dont_enabled,
         entries: || {
-            let mut entries = rows_of(Pattern::node("P* (1NT) X (P)"), passed_dont_x_advance());
+            let mut entries = rows_of(Pattern::node("P* (1NT) X -"), passed_dont_x_advance());
             for (key, rules) in [
-                ("P* (1NT) X (P) 2♣ (P)", passed_dont_x_rebid()),
-                ("P* (1NT) 2♣ (P)", passed_dont_2c_advance()),
-                ("P* (1NT) 2♣ (P) 2♦ (P)", passed_dont_2c_rebid()),
-                ("P* (1NT) 2♦ (P)", passed_dont_2d_advance()),
-                ("P* (1NT) 2♦ (P) 2♥ (P)", passed_dont_2d_rebid()),
-                ("P* (1NT) 2♥ (P)", passed_dont_2h_advance()),
+                ("P* (1NT) X - 2♣ -", passed_dont_x_rebid()),
+                ("P* (1NT) 2♣ -", passed_dont_2c_advance()),
+                ("P* (1NT) 2♣ - 2♦ -", passed_dont_2c_rebid()),
+                ("P* (1NT) 2♦ -", passed_dont_2d_advance()),
+                ("P* (1NT) 2♦ - 2♥ -", passed_dont_2d_rebid()),
+                ("P* (1NT) 2♥ -", passed_dont_2h_advance()),
                 // Their redouble of our one-suiter X: never sit in 1NTxx — relay
                 // 2♣ just as over a pass, then the doubler names the suit.
                 ("P* (1NT) X (XX)", passed_dont_x_advance()),
-                ("P* (1NT) X (XX) 2♣ (P)", passed_dont_x_rebid()),
+                ("P* (1NT) X (XX) 2♣ -", passed_dont_x_rebid()),
                 // Their double of our artificial 2♣ relay (after our X, passed or
                 // redoubled): the relay is NOT a club fit, so the doubler must
                 // still name the real one-suiter (or pass with genuine clubs).
-                ("P* (1NT) X (P) 2♣ (X)", passed_dont_x_rebid()),
+                ("P* (1NT) X - 2♣ (X)", passed_dont_x_rebid()),
                 ("P* (1NT) X (XX) 2♣ (X)", passed_dont_x_rebid()),
             ] {
                 entries.extend(rows_of(Pattern::node(key), rules));

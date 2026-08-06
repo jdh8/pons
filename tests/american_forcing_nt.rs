@@ -9,10 +9,10 @@ use common::*;
 use pons::bidding::american::{set_forcing_nt_two_suiter, set_meckstroth_adjunct};
 
 // ---------------------------------------------------------------------------
-// Responder's second call: 1♠ – (P) – 1NT – (P) – 2♦ – (P) – ?
+// Responder's second call: 1♠ - 1NT - 2♦ - ?
 // ---------------------------------------------------------------------------
 
-/// Auction shorthand for 1♠ – (P) – 1NT – (P) – 2♦ – (P)
+/// Auction shorthand for 1♠ - 1NT - 2♦ -
 fn after_1s_1nt_2d() -> Vec<Call> {
     let p = Call::Pass;
     vec![
@@ -72,10 +72,10 @@ fn responder_favors_club_runout_over_preference_weight() {
 }
 
 // ---------------------------------------------------------------------------
-// Opener's acceptance: 1♠ – (P) – 1NT – (P) – 2♦ – (P) – 2NT – (P) – ?
+// Opener's acceptance: 1♠ - 1NT - 2♦ - 2NT - ?
 // ---------------------------------------------------------------------------
 
-/// Auction shorthand for 1♠ – (P) – 1NT – (P) – 2♦ – (P) – 2NT – (P)
+/// Auction shorthand for 1♠ - 1NT - 2♦ - 2NT -
 fn after_1s_1nt_2d_2nt() -> Vec<Call> {
     let p = Call::Pass;
     vec![
@@ -111,10 +111,10 @@ fn opener_passes_notrump_invite_with_minimum() {
 }
 
 // ---------------------------------------------------------------------------
-// Weak runout: 1♠ – (P) – 1NT – (P) – 2♣ – (P) – ?
+// Weak runout: 1♠ - 1NT - 2♣ - ?
 // ---------------------------------------------------------------------------
 
-/// Auction shorthand for 1♠ – (P) – 1NT – (P) – 2♣ – (P)
+/// Auction shorthand for 1♠ - 1NT - 2♣ -
 fn after_1s_1nt_2c() -> Vec<Call> {
     let p = Call::Pass;
     vec![
@@ -141,7 +141,7 @@ fn responder_runs_to_six_card_diamond_suit() {
 // Meckstroth adjunct: opener's invitational 3m jump after the forcing 1NT
 // ---------------------------------------------------------------------------
 
-/// Auction shorthand for 1♠ – (P) – 1NT – (P) — opener to rebid
+/// Auction shorthand for 1♠ - 1NT - — opener to rebid
 fn after_1s_1nt() -> Vec<Call> {
     let p = Call::Pass;
     vec![call(1, Strain::Spades), p, call(1, Strain::Notrump), p]
@@ -183,10 +183,10 @@ fn baseline_opener_rebids_natural_two_clubs_without_adjunct() {
 
 // ---------------------------------------------------------------------------
 // Meckstroth adjunct: responder over opener's invitational 3♦
-//   1♠ – (P) – 1NT – (P) – 3♦ – (P) – ?
+//   1♠ - 1NT - 3♦ - ?
 // ---------------------------------------------------------------------------
 
-/// Auction shorthand for 1♠ – (P) – 1NT – (P) – 3♦ – (P)
+/// Auction shorthand for 1♠ - 1NT - 3♦ -
 fn after_1s_1nt_3d() -> Vec<Call> {
     let p = Call::Pass;
     vec![
@@ -230,12 +230,12 @@ fn responder_declines_invitational_minor_with_preference() {
 }
 
 // ---------------------------------------------------------------------------
-// Meckstroth adjunct on the 1♥ – 1♠ auction
+// Meckstroth adjunct on the 1♥ - 1♠ auction
 // ---------------------------------------------------------------------------
 
 #[test]
 fn opener_jumps_to_invitational_three_clubs_over_one_spade() {
-    // 1♥ – (P) – 1♠ – (P) – ? with Q2.AK853.4.AQ976 (5-5 hearts+clubs): 3♣ INV
+    // 1♥ - 1♠ - ? with Q2.AK853.4.AQ976 (5-5 hearts+clubs): 3♣ INV
     let p = Call::Pass;
     let auction = vec![call(1, Strain::Hearts), p, call(1, Strain::Spades), p];
     let system = stance();
@@ -247,7 +247,7 @@ fn opener_jumps_to_invitational_three_clubs_over_one_spade() {
 
 #[test]
 fn responder_accepts_invitational_minor_to_heart_game() {
-    // 1♥ – (P) – 1♠ – (P) – 3♣ – (P) – ? with KJ52.Q43.A4.9762:
+    // 1♥ - 1♠ - 3♣ - ? with KJ52.Q43.A4.9762:
     // 10 HCP, 4 spades, 3 hearts → 5-3 heart game (4♥)
     let p = Call::Pass;
     let auction = vec![
@@ -267,7 +267,7 @@ fn responder_accepts_invitational_minor_to_heart_game() {
 
 // ---------------------------------------------------------------------------
 // The real Meckstroth adjunct: opener's artificial game-forcing 2NT (opt-in)
-//   1♠ – (P) – 1NT – (P) – 2NT! – (P) – …
+//   1♠ - 1NT - 2NT! - …
 // ---------------------------------------------------------------------------
 
 /// The 2/1 pair with the Meckstroth adjunct **off** — it ships on (so the default
@@ -280,7 +280,7 @@ fn meckstroth_off_stance() -> Stance {
     system
 }
 
-/// Append `[calls…, P]`-interleaved continuations to `1♠ – (P) – 1NT – (P)`.
+/// Append `[calls…, P]`-interleaved continuations to `1♠ - 1NT -`.
 fn after_1s_1nt_then(calls: &[Call]) -> Vec<Call> {
     let mut auction = after_1s_1nt();
     for &c in calls {
@@ -390,7 +390,7 @@ fn two_suiter_off_stance() -> Stance {
     system
 }
 
-/// Auction shorthand for 1♥ – (P) – 1NT – (P) — opener to rebid
+/// Auction shorthand for 1♥ - 1NT - — opener to rebid
 fn after_1h_1nt() -> Vec<Call> {
     let p = Call::Pass;
     vec![call(1, Strain::Hearts), p, call(1, Strain::Notrump), p]
@@ -398,7 +398,7 @@ fn after_1h_1nt() -> Vec<Call> {
 
 #[test]
 fn opener_reverses_into_spades_with_five_four_and_extras() {
-    // KQ54.AKJ32.K2.32 — 16 HCP, 4-5-2-2: the 1♥ – 1NT – 2♠ reverse (on),
+    // KQ54.AKJ32.K2.32 — 16 HCP, 4-5-2-2: the 1♥ - 1NT - 2♠ reverse (on),
     // a natural 2♥ rebid (off, the underbid seam this fills).
     let hand = "KQ54.AKJ32.K2.32";
     assert_eq!(
@@ -413,7 +413,7 @@ fn opener_reverses_into_spades_with_five_four_and_extras() {
 
 #[test]
 fn opener_jumps_to_show_five_five_majors() {
-    // AKQ32.KQJ32.2.32 — 15 HCP, 5-5-1-2: the 1♠ – 1NT – 3♥ jump (on),
+    // AKQ32.KQJ32.2.32 — 15 HCP, 5-5-1-2: the 1♠ - 1NT - 3♥ jump (on),
     // a natural 2♥ rebid (off).
     let hand = "AKQ32.KQJ32.2.32";
     assert_eq!(

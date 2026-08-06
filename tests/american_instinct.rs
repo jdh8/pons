@@ -8,7 +8,7 @@ use common::*;
 
 // --- The headline disaster, fixed -------------------------------------------
 
-/// (3♣) X (P): the defensive book has no 3♣ entry, but the floor still
+/// `(3♣) X -`: the defensive book has no 3♣ entry, but the floor still
 /// advances partner's takeout double instead of passing it out
 #[test]
 fn test_advance_of_takeout_double_over_preempt() {
@@ -98,7 +98,7 @@ fn test_deep_contested_auction_is_covered() {
 // these three enable it explicitly; the knob-off default is pinned by
 // `rubens_disabled_reverts_to_natural_advances` in `instinct.rs`.
 
-/// (1♣) 1♠ (P): advancing with our own five-card diamond suit and a good 9
+/// `(1♣) 1♠ -`: advancing with our own five-card diamond suit and a good 9
 /// (10+ upgraded points) transfers — 2♣ shows diamonds.  Reaches the floor now
 /// that the book authors no `advances`.
 #[test]
@@ -115,7 +115,7 @@ fn test_rubens_new_suit_transfer_through_system() {
     );
 }
 
-/// (1♣) 1♠ (P): a limit raise of spades goes through the transfer into their
+/// `(1♣) 1♠ -`: a limit raise of spades goes through the transfer into their
 /// suit — 2♥, not a direct 2♠.
 #[test]
 fn test_rubens_limit_raise_through_system() {
@@ -131,7 +131,7 @@ fn test_rubens_limit_raise_through_system() {
     );
 }
 
-/// (1♦) 1♠ (P): a weak six-card raise jumps preemptively to game.
+/// `(1♦) 1♠ -`: a weak six-card raise jumps preemptively to game.
 #[test]
 fn test_rubens_preemptive_raise_through_system() {
     let system = stance();
@@ -149,7 +149,7 @@ fn test_rubens_preemptive_raise_through_system() {
     );
 }
 
-/// (1♠) 2♣ (P): a two-level overcall has no room for the ladder, so the cue
+/// `(1♠) 2♣ -`: a two-level overcall has no room for the ladder, so the cue
 /// (2♠) is the limit-plus club raise.
 #[test]
 fn test_rubens_cue_raise_through_system() {

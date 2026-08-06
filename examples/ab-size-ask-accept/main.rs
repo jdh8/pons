@@ -129,7 +129,7 @@ fn is_size_ask(hand: Hand) -> bool {
 }
 
 /// The 1NT opener's seat: the seat that made the first (opening) bid.  On a
-/// divergent board that opening is always 1NT (only `1NT–2♠` auctions feel the
+/// divergent board that opening is always 1NT (only `1NT - 2♠` auctions feel the
 /// accept floor), and the opener holds 15 or 16 — the two strengths where floor 15
 /// and floor 17 split.  The auction may sit on either axis, so this is *not*
 /// restricted to North/South; `ns_score_*` prices the contract NS-relative anyway.

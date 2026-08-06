@@ -9,7 +9,7 @@ use super::*;
 
 thread_local! {
     /// Responder's continuation after opener cue-bids in cooperation with the `3OM`
-    /// slam try (`1NT-2♣-2M-3OM-4x`).  Opener's [`stayman_slam_try_answer`] cues a
+    /// slam try (`1NT - 2♣ - 2M - 3OM - 4x`).  Opener's [`stayman_slam_try_answer`] cues a
     /// control below the trump major with a maximum; without a responder node the
     /// floor *passed the cue* — often below game.  On, responder keycards (`4NT`
     /// RKCB) with slam values or signs off in the major game.  **On by default** —
@@ -57,7 +57,7 @@ pub(super) fn stayman_minor_slam_try() -> bool {
     STAYMAN_MINOR_SLAM_TRY.with(Cell::get)
 }
 
-/// Opener's answer to a direct four-of-a-major slam try (`1NT–4♥/4♠`)
+/// Opener's answer to a direct four-of-a-major slam try (`1NT - 4♥/4♠`)
 ///
 /// Non-forcing: a **maximum** (17) accepts by launching RKCB (`4NT`); a minimum
 /// signs off by passing the major game.  The 1430 ladder ([`slam`]) then exchanges
@@ -142,7 +142,7 @@ fn stayman_minor_answer(minor: Suit) -> Rules {
 }
 
 /// Responder's keycard ask after opener raises the Stayman-then-minor slam try
-/// (`…3m–4m`)
+/// (`…3m - 4m`)
 ///
 /// Opener confirmed a four-card fit and a maximum, so responder — who opened the
 /// slam try with 14+ — keycards (`4NT` RKCB, the [`slam`] 1430 ladder placing the
@@ -177,7 +177,7 @@ pub(crate) fn cue() -> Package {
                         continue;
                     }
                     let path = format!(
-                        "P* 1NT (P) 2♣ (P) {answer} (P) {three_om} (P) {} (P)",
+                        "P* 1NT - 2♣ - {answer} - {three_om} - {} -",
                         call(4, Strain::from(cue_suit)),
                     );
                     entries.extend(rows_of(Pattern::node(&path), stayman_cue_rebid(major)));
@@ -205,10 +205,10 @@ pub(crate) fn minor_slam() -> Package {
 
             for answer in [two_h, two_s, two_d] {
                 for (three_m, minor) in [(three_c, Suit::Clubs), (three_d, Suit::Diamonds)] {
-                    let prefix = format!("P* 1NT (P) 2♣ (P) {answer} (P) {three_m} (P)");
+                    let prefix = format!("P* 1NT - 2♣ - {answer} - {three_m} -");
                     entries.extend(rows_of(Pattern::node(&prefix), stayman_minor_answer(minor)));
 
-                    let path = format!("{prefix} {} (P)", call(4, Strain::from(minor)));
+                    let path = format!("{prefix} {} -", call(4, Strain::from(minor)));
                     entries.extend(rows_of(Pattern::node(&path), stayman_minor_slam_rkcb()));
                     entries.extend(slam::rkcb_rows(&path, minor));
                 }

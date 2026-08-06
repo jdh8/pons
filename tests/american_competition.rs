@@ -4,12 +4,12 @@ mod common;
 use common::*;
 
 // ---------------------------------------------------------------------------
-// Section 1: direct-seat response to their overcall (1♥ – 2♣)
+// Section 1: direct-seat response to their overcall, 1♥ (2♣)
 // ---------------------------------------------------------------------------
 
 #[test]
 fn test_cue_bid_limit_raise() {
-    // 1♥ – (2♣) – ?: 12 HCP, four hearts → 3♣ (cue bid = limit-plus raise)
+    // 1♥ (2♣) ?: 12 HCP, four hearts → 3♣ (cue bid = limit-plus raise)
     let system = stance();
     assert_eq!(
         best_call(
@@ -23,7 +23,7 @@ fn test_cue_bid_limit_raise() {
 
 #[test]
 fn test_preemptive_jump_raise() {
-    // 1♥ – (2♣) – ?: 6 HCP, four hearts → 3♥ (preemptive jump raise)
+    // 1♥ (2♣) ?: 6 HCP, four hearts → 3♥ (preemptive jump raise)
     let system = stance();
     assert_eq!(
         best_call(
@@ -37,7 +37,7 @@ fn test_preemptive_jump_raise() {
 
 #[test]
 fn test_competitive_single_raise() {
-    // 1♥ – (2♣) – ?: 8 HCP, three hearts → 2♥ (single raise)
+    // 1♥ (2♣) ?: 8 HCP, three hearts → 2♥ (single raise)
     let system = stance();
     assert_eq!(
         best_call(
@@ -51,7 +51,7 @@ fn test_competitive_single_raise() {
 
 #[test]
 fn test_negative_double_over_overcall() {
-    // 1♥ – (2♣) – ?: 10 HCP, four spades → Double (negative double)
+    // 1♥ (2♣) ?: 10 HCP, four spades → Double (negative double)
     let system = stance();
     assert_eq!(
         best_call(
@@ -64,12 +64,12 @@ fn test_negative_double_over_overcall() {
 }
 
 // ---------------------------------------------------------------------------
-// Section 3: support doubles and redoubles (1♦ – P – 1♠ – ?)
+// Section 3: support doubles and redoubles after 1♦ - 1♠ (2♣/X) ?
 // ---------------------------------------------------------------------------
 
 #[test]
 fn test_support_double() {
-    // 1♦ – P – 1♠ – (2♣): 13 HCP, exactly 3 spades → Double (support double)
+    // 1♦ - 1♠ (2♣): 13 HCP, exactly 3 spades → Double (support double)
     let system = stance();
     assert_eq!(
         best_call(
@@ -88,7 +88,7 @@ fn test_support_double() {
 
 #[test]
 fn test_support_raise() {
-    // 1♦ – P – 1♠ – (2♣): 13 HCP, four spades → 2♠ (natural raise)
+    // 1♦ - 1♠ (2♣): 13 HCP, four spades → 2♠ (natural raise)
     let system = stance();
     assert_eq!(
         best_call(
@@ -107,7 +107,7 @@ fn test_support_raise() {
 
 #[test]
 fn test_support_redouble() {
-    // 1♦ – P – 1♠ – (X): 13 HCP, exactly 3 spades → Redouble (support redouble)
+    // 1♦ - 1♠ (X): 13 HCP, exactly 3 spades → Redouble (support redouble)
     let system = stance();
     assert_eq!(
         best_call(
@@ -130,7 +130,7 @@ fn test_support_redouble() {
 
 #[test]
 fn test_answer_negative_double_bids_other_major() {
-    // 1♥ – (2♣) – X – P: 12 HCP, four spades → 2♠ (answering the negative double)
+    // `1♥ (2♣) X -`: 12 HCP, four spades → 2♠ (answering the negative double)
     let system = stance();
     assert_eq!(
         best_call(
@@ -153,7 +153,7 @@ fn test_answer_negative_double_bids_other_major() {
 
 #[test]
 fn test_multi_2d_double_is_values() {
-    // 1NT – (2♦) – ?: 9 HCP, no five-card suit, four diamonds. Default (off) reads
+    // 1NT (2♦) ?: 9 HCP, no five-card suit, four diamonds. Default (off) reads
     // 2♦ as natural diamonds; the default Optional double needs 2-3 of them, so a
     // four-diamond hand cannot fire and responder does not double. With the Multi
     // counter-defense on, 2♦ shows an unknown major and this values hand takes the
@@ -183,7 +183,7 @@ fn test_multi_2d_double_is_values() {
 
 #[test]
 fn competitive_4333_knob_gates_the_cue_stayman() {
-    // 1NT-(2♥): a flat 4-3-3-3 with four spades and game values cues 3♥ (Stayman)
+    // 1NT (2♥): a flat 4-3-3-3 with four spades and game values cues 3♥ (Stayman)
     // to dig out the 4-4 spade fit.  The competitive-4333 knob governs whether that
     // flat hand still cues, or is diverted to 3NT (the constructive 4333 rule).  The
     // toggle is read at book construction, so set it before building each stance,
@@ -231,7 +231,7 @@ fn competitive_4333_knob_gates_the_cue_stayman() {
 
 #[test]
 fn competitive_rebid_reaches_the_missed_game() {
-    // Dealer West, 1♦ (1♥) P (2♥): West holds a self-sufficient AKJT984 and by
+    // Dealer West, 1♦ (1♥) - (2♥): West holds a self-sufficient AKJT984 and by
     // default can only make a takeout double it does not have the shape for.
     // With the competitive rebid on, West shows the suit — and the *existing*
     // raise ladder then carries East (14 opposite a shown 6+) to the cold
@@ -292,7 +292,7 @@ fn competitive_rebid_reaches_the_missed_game() {
 fn doubled_splinter_runs_systems_on() {
     use pons::bidding::american::set_splinter_doubled;
     // Anchor board 2448 (Constructive/book/round-1 bucket #4 tail): opener holds
-    // 16 HCP with four aces and five spades. 1♠ – (P) – 4♣ (splinter) – (X): with
+    // 16 HCP with four aces and five spades. After the `1♠ - 4♣ (X)` splinter,
     // the knob off the double reroutes opener to the competitive book and the
     // floor decides.  That floor once *passed* the doubled game force — its
     // reading of the splinter was broken (the projection stamped the support

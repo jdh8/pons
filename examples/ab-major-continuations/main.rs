@@ -1,6 +1,6 @@
 //! Major-opening continuation A/B: baseline vs any combination of the major
 //! game tries (`--game-tries`), the limit-raise acceptance (`--limit-raise`),
-//! the `1♥ – 1♠` rebid tails (`--tails`), and fourth-suit forcing (`--fsf`,
+//! the `1♥ - 1♠` rebid tails (`--tails`), and fourth-suit forcing (`--fsf`,
 //! rides `--tails`).
 //!
 //! Both arms run the same 2/1 system over the same deals; the only difference
@@ -65,17 +65,17 @@ struct Args {
     #[arg(short, long)]
     seed: Option<u64>,
 
-    /// Treatment: opener's major game tries after a single raise, `1M – 2M`
+    /// Treatment: opener's major game tries after a single raise, `1M - 2M`
     /// (`set_major_game_tries`)
     #[arg(long, default_value_t = false)]
     game_tries: bool,
 
-    /// Treatment: opener's limit-raise acceptance ladder, `1M – 3M`
+    /// Treatment: opener's limit-raise acceptance ladder, `1M - 3M`
     /// (`set_limit_raise_acceptance`)
     #[arg(long, default_value_t = false)]
     limit_raise: bool,
 
-    /// Treatment: the `1♥ – 1♠` rebid tails (`set_major_rebid_tails`)
+    /// Treatment: the `1♥ - 1♠` rebid tails (`set_major_rebid_tails`)
     #[arg(long, default_value_t = false)]
     tails: bool,
 
@@ -83,7 +83,7 @@ struct Args {
     #[arg(long, default_value_t = false)]
     fsf: bool,
 
-    /// Treatment: the 1M-3NT choice-of-games response — 3-4 card support,
+    /// Treatment: the 1M - 3NT choice-of-games response — 3-4 card support,
     /// exactly (4333), 12-15 HCP (`set_major_choice_of_games`)
     #[arg(long, default_value_t = false)]
     choice_of_games: bool,
@@ -115,14 +115,14 @@ struct Args {
     no_two_over_one_force: bool,
 
     /// Treatment: *drop* opener's third call after trump is agreed at
-    /// `1M–2r–R–3M`, so the node falls to the floor (`set_opener_third`,
+    /// `1M - 2r - R - 3M`, so the node falls to the floor (`set_opener_third`,
     /// shipped on).  Re-audit candidate #2 — measures positive but strands
     /// every slam at the node; not shipped.
     #[arg(long, default_value_t = false)]
     no_opener_third: bool,
 
     /// Treatment: *drop* opener's third call after responder agrees the second
-    /// suit at `1M–2r–2x–3x` (`set_second_suit_agreement`, shipped on).
+    /// suit at `1M - 2r - 2x - 3x` (`set_second_suit_agreement`, shipped on).
     /// Constructive book re-audit candidate #1.
     #[arg(long, default_value_t = false)]
     no_second_suit_agreement: bool,

@@ -1,4 +1,4 @@
-//! Does the `1♠–2♥` heart-light gate (`set_two_over_one_heart_light`) route the
+//! Does the `1♠ - 2♥` heart-light gate (`set_two_over_one_heart_light`) route the
 //! flat-twelve, five-heart hands it admits into a **`4♥` on the 5-3 fit** rather
 //! than a thin 3NT — the strain-location bet behind lightening the gate on the
 //! ensured five-card major?
@@ -41,7 +41,7 @@ fn enters_two_over_one(auction: &Auction) -> bool {
     )
 }
 
-/// Opener's rebid as a display string — index 4 (`1♠ .P. 2♥ .P. ?`): the
+/// Opener's rebid as a display string — index 4 (`1♠ - 2♥ - ?`): the
 /// uncontested auction carries the opponents' passes, so opener's second call
 /// sits four slots in, not three.
 fn opener_rebid(auction: &Auction) -> String {
@@ -197,7 +197,7 @@ fn main() {
         );
         let mut rebids: Vec<(&String, &usize)> = s.rebids.iter().collect();
         rebids.sort_by_key(|&(_, &n)| std::cmp::Reverse(n));
-        print!("  opener's rebid (1♠-2♥-?):");
+        print!("  opener's rebid after 1♠ - 2♥ - ?:");
         for (call, n) in rebids {
             print!("  {call}×{n}");
         }
