@@ -1,6 +1,6 @@
 //! Opener's rebids (one round) and the forcing-1NT continuations
 
-use super::{call, insert_uncontested};
+use super::{call, insert_uncontested, other_major};
 use crate::bidding::constraint::{
     balanced, fifths, hcp, len, partner_suit_is, points, stopper_in, support,
 };
@@ -878,14 +878,6 @@ fn register_forcing_nt_two_suiter_continuations(book: &mut Trie) {
 // ---------------------------------------------------------------------------
 // The real Meckstroth adjunct: opener's artificial game-forcing 2NT (opt-in)
 // ---------------------------------------------------------------------------
-
-/// The major responder could not have opened — mirrors the 2NT machine
-fn other_major(major: Suit) -> Suit {
-    match major {
-        Suit::Hearts => Suit::Spades,
-        _ => Suit::Hearts,
-    }
-}
 
 /// Responder's call over opener's artificial game-forcing `2NT`
 ///

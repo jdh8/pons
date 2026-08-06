@@ -61,7 +61,8 @@
 //! the weights order them so the more descriptive bid wins.
 
 use super::common::{
-    call, fallback_all_seats, insert_uncontested, uncontested, with_floor, with_instinct_floor,
+    call, fallback_all_seats, insert_uncontested, other_major, uncontested, with_floor,
+    with_instinct_floor,
 };
 use super::{Competitive, Constructive, Defensive, Pair};
 

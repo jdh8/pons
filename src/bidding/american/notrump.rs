@@ -13,7 +13,7 @@
 //! The public surface is [`register`], called once by
 //! [`american`][super::american] during system assembly.
 
-use super::{call, insert_uncontested, slam};
+use super::{call, insert_uncontested, other_major, slam};
 use crate::bidding::constraint::{
     Cons, Constraint, balanced, described, envelope_union_upgrade, equal_length, hcp, len,
     long_suit_box, longer_suit, point_count, points, pred, reads_as, stopper_in,
@@ -1628,14 +1628,6 @@ fn slam_try_answer() -> Rules {
         .rule(Bid::new(4, Strain::Notrump), 100, hcp(17..))
         .alert(slam::RKCB)
         .rule(Call::Pass, 0, hcp(..17))
-}
-
-/// The other major
-const fn other_major(major: Suit) -> Suit {
-    match major {
-        Suit::Hearts => Suit::Spades,
-        _ => Suit::Hearts,
-    }
 }
 
 /// Opener holds a first- or second-round honour control (an ace or king) in `suit`

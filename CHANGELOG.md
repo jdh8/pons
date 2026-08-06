@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **One `other_major`.** The four per-file copies (notrump.rs, nmf.rs,
+  rebids.rs, defense.rs) now point at `common::other_major`, the helper the
+  variable-rows `OM`/`om` keywords ride.  nmf.rs's `new_minor` stays — it
+  names the NMF concept, not the derived strain.  Pure refactor; the
+  defense.rs copy's majors-only `debug_assert` retires with it (the shared
+  form is total and agrees on majors).  User impact: none.
+
 ### Added
 
 - **The direct-seat table is one exact node per overcall — the variable rows

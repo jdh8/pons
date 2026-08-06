@@ -19,7 +19,6 @@ use super::super::inference::Range;
 use super::super::rows::{Entry, Package, Pattern, classified, compile_into, rebase, rows_of};
 use super::super::trie::{Classifier, classifier};
 use super::super::{Alert, Defensive, Rules, Trie};
-use super::call;
 use super::competition::{
     LebensohlStyle, clubs_transfer_completion, complete_lebensohl_relay, cue_stayman_answer,
     cue_stayman_answer_no_stopper, delayed_cue, lebensohl_relay_rebid, lebensohl_responder,
@@ -29,6 +28,7 @@ use super::competition::{
 };
 use super::notrump::{flat_4333, smolen_at_three, smolen_completion};
 use super::openings::two_notrump_wide_shape;
+use super::{call, other_major};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Hand, Strain, Suit};
 use std::cell::Cell;
@@ -4534,16 +4534,6 @@ fn gladiator_sohl_package() -> Package {
             }
             entries
         },
-    }
-}
-
-/// The other major (Gladiator applies only over a major opening)
-fn other_major(major: Suit) -> Suit {
-    debug_assert!(matches!(major, Suit::Hearts | Suit::Spades));
-    if major == Suit::Hearts {
-        Suit::Spades
-    } else {
-        Suit::Hearts
     }
 }
 

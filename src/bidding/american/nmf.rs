@@ -23,7 +23,7 @@
 //! floor's `combined_points` and an invitational responder under-reaches game.
 //! So both sides are authored in full through to game.
 
-use super::call;
+use super::{call, other_major};
 use crate::bidding::constraint::{len, points};
 use crate::bidding::rows::{Entry, Package, Pattern, rows_of};
 use crate::bidding::{Alert, Rules};
@@ -70,14 +70,6 @@ fn new_minor(opening: Suit) -> Suit {
     match opening {
         Suit::Clubs => Suit::Diamonds,
         _ => Suit::Clubs,
-    }
-}
-
-/// The major responder did *not* bid — the one opener may show four of
-fn other_major(response: Suit) -> Suit {
-    match response {
-        Suit::Hearts => Suit::Spades,
-        _ => Suit::Hearts,
     }
 }
 
