@@ -9617,8 +9617,11 @@ mod tests {
             // `partner_last_suit()` is `None`, sniffing no support atom) onto
             // exact `[1x (overcall)]` nodes where the support axis is live.
             // The knob-on column stays 0: the envelope union projects support
-            // exactly.  Ledger row in docs/dnf-migration.md.
-            ("support", 107, 0),
+            // exactly.  107 → 115 when the C6 batch (negX answer, strong-two
+            // competition, high-overcall, free-bid answer) followed the same
+            // guard-to-exact path: eight raise rules of the answer tables
+            // surface identically.  Ledger rows in docs/dnf-migration.md.
+            ("support", 115, 0),
             ("support points", 18, 0),
         ];
         let count = |leaks: &std::collections::BTreeMap<&str, Vec<String>>, column| {

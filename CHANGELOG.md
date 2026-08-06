@@ -18,6 +18,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Escape hatches, batch 1: four guarded sections become exact per-column
+  nodes.** The negX-of-minor answer (`"P* 1M (2m) X -"` — the first `M`/`m`
+  keyword consumer), the high-overcall pair (`"(3x)"` and its double), the
+  contested strong 2♣ (level-variable `"(jx)"` suit columns plus the
+  `"(jN)"` notrump twins, reopening via dashes), and the free-bid answers
+  (`"(ix) jy -"`, whose domain closure spells the free-bid grammar the
+  guard used to check, plus the `(1NT)`-overcall twins and 4d′) — seven
+  `guarded(` call sites retired; 4d″/4d‴ and the rebase carriers stay, with
+  reasons.  Resolution equivalence is pinned by
+  `converted_packages_match_legacy`: retained legacy wirings probed over a
+  superset of legal auctions (equal `Option<Logits>` catches over- and
+  under-expansion), across the negative-double-shape × free-bid-style grid.
+  Unlike the direct-seat conversion, no arms are pruned, so projections are
+  unchanged and the seeded 20k smoke dump is **byte-identical**; the one
+  semantic delta is the documented exact-node reject-to-floor path (a
+  guarded table that rejected a hand was re-found massless on fall-through;
+  now the floor answers), plus eight raise rules surfacing to the support
+  census (107 → 115, re-pinned, dnf-migration ledger row).  The A/B
+  (SEED_BASE 1785982661, 204 800 boards per arm per vulnerability) measured
+  **0 divergent boards** in all four cells — the reject-to-floor tail never
+  fired in 819 200 boards, so the conversion is behaviourally inert at
+  measurable scale.  User impact: none.
+
 - **Pilot port: the weak-two-responses package speaks variable rows.** The
   `for our in [♦,♥,♠]` + `format!` wiring becomes five `expand` templates:
   `"P* 2x -"` (first responses), `"P* 2x - 2NT -"` (Ogust answers),

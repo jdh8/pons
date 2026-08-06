@@ -215,6 +215,7 @@ toward 0. Cells are knob-off/knob-on; knob-off never moved during the wave.
 | G | 17/**0** | 59/**0** | 3/**0** | 84/**0** | 18/**0** |
 | Points13 (2/1 gate, 2026-07-25) | **11**/0 | 59/0 | **9**/0 | 84/0 | 18/0 |
 | Direct-seat per-overcall (2026-08-06) | 11/0 | 59/0 | 9/0 | **107**/0 | 18/0 |
+| C6 escape-hatch batch (2026-08-06) | 11/0 | 59/0 | 9/0 | **115**/0 | 18/0 |
 
 The `Points13` row is **not a chop** — it is the shipped default flip of the
 major no-fit 2/1 gate (`hcp(13..)` → `points(13..)`, docs/bidding-options.md).
@@ -224,6 +225,14 @@ fit leg's `support_points(13..)` bounds points to ⊤, exactly as it bounded HCP
 to ⊤ before). Knob-on stays **0/0** on both — the `dnf_upgrade` fit-split box
 pins `points(13..)` on the no-fit box exactly, so the shipped DNF-on reading
 never leaked. Re-pinned in the same commit per the ratchet's re-pin rule.
+
+The `C6 escape-hatch batch` row is the same mechanism one batch later: the
+negX-answer, strong-two-competition, high-overcall, and free-bid-answer
+guards became exact per-column nodes (resolution-equivalence pinned by
+`converted_packages_match_legacy`), surfacing eight more raise rules to the
+support sniff — authored knob-off support 107 → **115**, knob-on still 0,
+every other column unmoved (the retired guards contributed no fallback-walk
+leaks: the guard-key context sniffs no support atom).
 
 The SHCP chop adds a sixth pinned column, `suit HCP`, born **0/0** ("HCP in
 ♠" atoms against the per-suit HCP axis; the length column's "… in ♠"
