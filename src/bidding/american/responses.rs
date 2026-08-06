@@ -10,6 +10,7 @@ use super::super::constraint::{
 use super::notrump::flat_4333;
 use crate::bidding::context::Context;
 use crate::bidding::inference::{Envelope, EnvelopeUnion, Range, Strength};
+use crate::bidding::rows::{Package, Pattern, compile_into, expand, rows_of};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Hand, Strain, Suit};
 use std::cell::Cell;
@@ -788,154 +789,193 @@ pub fn minor_responses(minor: Suit) -> Rules {
     rules
 }
 
-/// Register the first responses and their response-level continuations
+/// Opener's choice after responder's choice-of-games `3NT`
 ///
-/// Inserts the response tables to every one-of-a-suit opening, then opener's
-/// rebids after splinters and inverted raises.
+/// Correct to `4M` with an unbalanced hand (the alerted reading pins 3+
+/// support, so the 5-3 fit is known); pass balanced — including 5332, which
+/// the floor's ruffing-shortness correction would wrongly pull.
+fn opener_after_choice_of_games(major: Suit) -> Rules {
+    Rules::new()
+        .rule(Bid::new(4, Strain::from(major)), 100, !balanced())
+        .rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Opener's rebid after responder splinters in support of `major`
+fn opener_after_splinter(major: Suit) -> Rules {
+    Rules::new()
+        // Opener's seat: the trump is the own five-card major, +5.
+        .rule(
+            Bid::new(4, Strain::Notrump),
+            100,
+            support_points(major, 16..),
+        )
+        .alert(super::slam::RKCB)
+        .rule(Bid::new(4, Strain::from(major)), 50, hcp(0..))
+}
+
+/// Opener's forcing rebid after an inverted minor raise
+fn opener_after_inverted_raise(minor: Suit) -> Rules {
+    Rules::new()
+        .rule(Bid::new(2, Strain::Notrump), 100, hcp(12..=14) & balanced())
+        .rule(Bid::new(3, Strain::Notrump), 100, hcp(18..=19))
+        .rule(
+            Bid::new(2, Strain::Hearts),
+            80,
+            stopper_in(Suit::Hearts) & hcp(15..),
+        )
+        .rule(
+            Bid::new(2, Strain::Spades),
+            80,
+            stopper_in(Suit::Spades) & hcp(15..),
+        )
+        .rule(Bid::new(3, Strain::from(minor)), 50, hcp(0..))
+}
+
+/// Responder's third call after opener rebids `2NT` over an inverted raise
+fn responder_after_inverted_raise_two_notrump(minor: Suit) -> Rules {
+    Rules::new()
+        .rule(Bid::new(3, Strain::Notrump), 100, hcp(13..))
+        .rule(Bid::new(3, Strain::from(minor)), 50, hcp(0..))
+}
+
+/// Responder's third call after opener's 18–19 jump to `3NT`
+///
+/// With slam values (~32+ combined and 5+-card support), launch minor RKCB;
+/// otherwise play the cold 3NT.
+fn responder_after_inverted_raise_three_notrump(minor: Suit) -> Rules {
+    Rules::new()
+        // Responder's seat: the inverted raise promised 5+ trumps, +5.
+        .rule(
+            Bid::new(4, Strain::Notrump),
+            100,
+            support_points(minor, 14..),
+        )
+        .alert(super::slam::RKCB)
+        .rule(Call::Pass, 50, hcp(0..))
+}
+
+/// Responder's third call after opener shows a major-suit stopper
+fn responder_after_inverted_raise_major(minor: Suit) -> Rules {
+    Rules::new()
+        .rule(Bid::new(3, Strain::Notrump), 100, hcp(13..))
+        .rule(Bid::new(2, Strain::Notrump), 80, hcp(10..=12))
+        .rule(Bid::new(3, Strain::from(minor)), 50, hcp(0..))
+}
+
+/// Opener places the contract after responder's `2NT` continuation
+fn opener_after_inverted_raise_two_notrump() -> Rules {
+    Rules::new().rule(Bid::new(3, Strain::Notrump), 50, hcp(0..))
+}
+
+/// First responses, splinter continuations, and the ungated inverted-minor tree
+pub(super) fn package() -> Package {
+    Package {
+        name: "suit-opening-responses",
+        gate: || true,
+        entries: || {
+            let mut entries = expand("P* 1M (P)", |_| true, |b| major_responses(b.suit('M')));
+            entries.extend(expand(
+                "P* 1m (P)",
+                |_| true,
+                |b| minor_responses(b.suit('m')),
+            ));
+
+            // Splinter continuations and their major-suit RKCB answer trees.
+            for major in [Suit::Hearts, Suit::Spades] {
+                let splinter_suits: &[Suit] = if major == Suit::Hearts {
+                    &[Suit::Spades, Suit::Clubs, Suit::Diamonds]
+                } else {
+                    &[Suit::Clubs, Suit::Diamonds, Suit::Hearts]
+                };
+                for &shortness in splinter_suits {
+                    let (level, strain) = splinter_bid(major, shortness);
+                    let prefix = format!(
+                        "P* {} (P) {} (P)",
+                        super::call(1, Strain::from(major)),
+                        super::call(level, strain),
+                    );
+                    entries.extend(rows_of(
+                        Pattern::node(&prefix),
+                        opener_after_splinter(major),
+                    ));
+                    entries.extend(super::slam::rkcb_rows(&prefix, major));
+                }
+            }
+
+            entries.extend(expand(
+                "P* 1m (P) 2m (P)",
+                |_| true,
+                |b| opener_after_inverted_raise(b.suit('m')),
+            ));
+            entries.extend(expand(
+                "P* 1m (P) 2m (P) 2NT (P)",
+                |_| true,
+                |b| responder_after_inverted_raise_two_notrump(b.suit('m')),
+            ));
+            entries.extend(expand(
+                "P* 1m (P) 2m (P) 2M (P)",
+                |_| true,
+                |b| responder_after_inverted_raise_major(b.suit('m')),
+            ));
+            entries.extend(expand(
+                "P* 1m (P) 2m (P) 2M (P) 2NT (P)",
+                |_| true,
+                |_| opener_after_inverted_raise_two_notrump(),
+            ));
+            entries
+        },
+    }
+}
+
+/// Opener's continuations after responder offers a choice of games
+pub(super) fn choice_of_games_continuations() -> Package {
+    Package {
+        name: "major-choice-of-games-continuations",
+        gate: major_choice_of_games,
+        entries: || {
+            expand(
+                "P* 1M (P) 3NT (P)",
+                |_| true,
+                |b| opener_after_choice_of_games(b.suit('M')),
+            )
+        },
+    }
+}
+
+/// Minor-suit RKCB asks and answers after an inverted raise and `3NT` rebid
+pub(super) fn minor_keycard_continuations() -> Package {
+    Package {
+        name: "inverted-minor-keycard",
+        gate: super::slam::minor_keycard,
+        entries: || {
+            let mut entries = Vec::new();
+            for minor in [Suit::Clubs, Suit::Diamonds] {
+                let prefix = format!(
+                    "P* {} (P) {} (P) 3NT (P)",
+                    super::call(1, Strain::from(minor)),
+                    super::call(2, Strain::from(minor)),
+                );
+                entries.extend(rows_of(
+                    Pattern::node(&prefix),
+                    responder_after_inverted_raise_three_notrump(minor),
+                ));
+                entries.extend(super::slam::rkcb_rows(&prefix, minor));
+            }
+            entries
+        },
+    }
+}
+
+/// Register the first responses and their response-level continuations
 pub(super) fn register(book: &mut Trie) {
-    // --- First responses to every one-of-a-suit opening ---
-    for major in [Suit::Hearts, Suit::Spades] {
-        let m_strain = Strain::from(major);
-        super::insert_uncontested(book, &[super::call(1, m_strain)], major_responses(major));
-
-        // Opener's choice after the choice-of-games 3NT: correct to 4M with
-        // an unbalanced hand (the alerted reading pins 3+ support, so the
-        // 5-3 fit is known), pass balanced — including 5332, which the
-        // floor's ruffing-shortness correction would wrongly pull.
-        if major_choice_of_games() {
-            super::insert_uncontested(
-                book,
-                &[super::call(1, m_strain), super::call(3, Strain::Notrump)],
-                Rules::new()
-                    .rule(Bid::new(4, m_strain), 100, !balanced())
-                    .rule(Call::Pass, 0, hcp(0..)),
-            );
-        }
-    }
-    for minor in [Suit::Clubs, Suit::Diamonds] {
-        super::insert_uncontested(
-            book,
-            &[super::call(1, Strain::from(minor))],
-            minor_responses(minor),
-        );
-    }
-
-    // --- Splinter continuations (opener's rebid after a splinter) ---
-    for major in [Suit::Hearts, Suit::Spades] {
-        let m_strain = Strain::from(major);
-        let splinter_suits: &[Suit] = if major == Suit::Hearts {
-            &[Suit::Spades, Suit::Clubs, Suit::Diamonds]
-        } else {
-            &[Suit::Clubs, Suit::Diamonds, Suit::Hearts]
-        };
-
-        for &x in splinter_suits {
-            let (level, strain) = splinter_bid(major, x);
-            let splinter = super::call(level, strain);
-            let our_calls = &[super::call(1, m_strain), splinter];
-
-            let after_splinter = Rules::new()
-                // Opener's seat: the trump is the own five-card major, +5.
-                .rule(
-                    Bid::new(4, Strain::Notrump),
-                    100,
-                    support_points(major, 16..),
-                )
-                .alert(super::slam::RKCB)
-                .rule(Bid::new(4, m_strain), 50, hcp(0..));
-
-            super::insert_uncontested(book, our_calls, after_splinter);
-            super::slam::install_rkcb(book, our_calls, major);
-        }
-    }
-
-    // --- Inverted minor raise continuations (opener's rebid) ---
-    for minor in [Suit::Clubs, Suit::Diamonds] {
-        let m_strain = Strain::from(minor);
-        let our_calls = &[super::call(1, m_strain), super::call(2, m_strain)];
-
-        // Opener's rebid after the inverted raise: no Pass (forcing).
-        let after_inv_raise = Rules::new()
-            .rule(Bid::new(2, Strain::Notrump), 100, hcp(12..=14) & balanced())
-            .rule(Bid::new(3, Strain::Notrump), 100, hcp(18..=19))
-            .rule(
-                Bid::new(2, Strain::Hearts),
-                80,
-                stopper_in(Suit::Hearts) & hcp(15..),
-            )
-            .rule(
-                Bid::new(2, Strain::Spades),
-                80,
-                stopper_in(Suit::Spades) & hcp(15..),
-            )
-            .rule(Bid::new(3, m_strain), 50, hcp(0..));
-
-        super::insert_uncontested(book, our_calls, after_inv_raise);
-
-        // Responder's third call after opener bids 2NT.
-        let after_2nt = Rules::new()
-            .rule(Bid::new(3, Strain::Notrump), 100, hcp(13..))
-            .rule(Bid::new(3, m_strain), 50, hcp(0..));
-
-        let our_calls_2nt = &[
-            super::call(1, m_strain),
-            super::call(2, m_strain),
-            super::call(2, Strain::Notrump),
-        ];
-        super::insert_uncontested(book, our_calls_2nt, after_2nt);
-
-        // Responder's third call after opener's 18–19 jump to 3NT: with slam
-        // values (~32+ combined and 5+-card support) launch minor RKCB; else
-        // play the cold 3NT.  4NT is keycard here by construction — install_rkcb
-        // registers the answers below this node.  Rides the minor-keycard knob
-        // (off = no authored node, the pre-keycard book where inverted raises
-        // topped out at 3NT).
-        if super::slam::minor_keycard() {
-            let after_3nt = Rules::new()
-                // Responder's seat: the inverted raise promised 5+ trumps, +5.
-                .rule(
-                    Bid::new(4, Strain::Notrump),
-                    100,
-                    support_points(minor, 14..),
-                )
-                .alert(super::slam::RKCB)
-                .rule(Call::Pass, 50, hcp(0..));
-            let our_calls_3nt = &[
-                super::call(1, m_strain),
-                super::call(2, m_strain),
-                super::call(3, Strain::Notrump),
-            ];
-            super::insert_uncontested(book, our_calls_3nt, after_3nt);
-            super::slam::install_rkcb(book, our_calls_3nt, minor);
-        }
-
-        // Responder's third call after opener bids 2♥ or 2♠.
-        for major in [Suit::Hearts, Suit::Spades] {
-            let major_strain = Strain::from(major);
-            let after_major = Rules::new()
-                .rule(Bid::new(3, Strain::Notrump), 100, hcp(13..))
-                .rule(Bid::new(2, Strain::Notrump), 80, hcp(10..=12))
-                .rule(Bid::new(3, m_strain), 50, hcp(0..));
-
-            let our_calls_major = &[
-                super::call(1, m_strain),
-                super::call(2, m_strain),
-                super::call(2, major_strain),
-            ];
-            super::insert_uncontested(book, our_calls_major, after_major);
-
-            // Fourth call: after [1m, 2m, 2M, 2NT].
-            let after_2nt_4th = Rules::new().rule(Bid::new(3, Strain::Notrump), 50, hcp(0..));
-
-            let our_calls_2nt_4th = &[
-                super::call(1, m_strain),
-                super::call(2, m_strain),
-                super::call(2, major_strain),
-                super::call(2, Strain::Notrump),
-            ];
-            super::insert_uncontested(book, our_calls_2nt_4th, after_2nt_4th);
-        }
-    }
+    compile_into(
+        book,
+        &[
+            package(),
+            choice_of_games_continuations(),
+            minor_keycard_continuations(),
+        ],
+    );
 }
 
 #[cfg(test)]

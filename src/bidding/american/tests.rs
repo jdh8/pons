@@ -162,6 +162,9 @@ fn row_package_invariants() {
     crate::bidding::rows::assert_package_invariants(&[
         openings::package(),
         weak_twos::package(),
+        responses::package(),
+        responses::choice_of_games_continuations(),
+        responses::minor_keycard_continuations(),
         xyz::package(),
         nmf::package(),
         notrump::base(),

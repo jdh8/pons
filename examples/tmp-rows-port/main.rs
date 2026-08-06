@@ -133,6 +133,11 @@ const ARMS: &[(&str, fn())] = &[
     ("no-minor-keycard", || {
         pons::bidding::instinct::set_rkcb_minors(false)
     }),
+    // P1 — responses.rs.  The other translated gate is the choice-of-games
+    // continuation after 1M–3NT; its off arm must remove both major nodes.
+    ("no-major-choice-of-games", || {
+        pons::bidding::american::set_major_choice_of_games(false)
+    }),
 ];
 
 /// Dump one table, **including each rule's alert**

@@ -117,8 +117,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the one that *never moves*: at every batch the seeded `smoke-default`
   (20 000 boards, seed 1) hashes `59a27d7f…` and `render-book` hashes
   `01bf875f…`, both the values at `367dc2c`.  The reusable knob-armed sweep
-  (`examples/tmp-rows-port`) grew from 14 arms for N1–N5 to 24 for R1 and 25
-  for S1; each batch's then-current arms were pairwise distinct and
+  (`examples/tmp-rows-port`) grew from 14 arms for N1–N5 to 24 for R1, 25 for
+  S1, and 26 for P1; each batch's then-current arms were pairwise distinct and
   byte-identical across it.  User impact: none.
   - **N1** — `notrump.rs` 3096–3238, 24 sites (22 `insert_uncontested` + 2
     `install_rkcb`) become four packages: the ungated `one-nt-base` (18 sites)
@@ -203,6 +203,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `compile_into` call.  All 25 sweep arms are pairwise distinct before and
     after the port and byte-identical across it; `smoke-default` remains
     `59a27d7f…` and `render-book` remains `01bf875f…`.  User impact: none.
+  - **P1** — `responses.rs`'s nine `insert_uncontested` sites and two
+    `install_rkcb` sites become three packages.  The ungated
+    `suit-opening-responses` package carries the four first-response nodes, all
+    six splinter continuations and their major RKCB tails, and the ungated
+    inverted-minor tree; `major-choice-of-games-continuations` and
+    `inverted-minor-keycard` preserve the two construction-time gates.  Seven
+    inline rule tables become named builders without changing their contents,
+    every exact node keeps the legacy `P*` fan of 0–3 leading passes, and
+    `register` is one `compile_into` call.  All 26 sweep arms are pairwise
+    distinct before and after the port and byte-identical across it;
+    `smoke-default` remains `59a27d7f…` and `render-book` remains `01bf875f…`.
+    User impact: none.
   - **The Stayman `2♣` weight tie is a partition, and is now allowlisted.**
     Putting `notrump_responses()` under `assert_package_invariants` for the
     first time surfaced four rules claiming `2♣` at weight 150: constructive
