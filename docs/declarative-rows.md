@@ -10,8 +10,8 @@ package lists.
 doc.** Do not restate them here; if this file and that one disagree, that one is
 right. **The per-batch log is `CHANGELOG.md`** (newest first, the campaign spans
 roughly the "RKCB is a row producer" entry back to "Book assembly is becoming
-declarative"). This file is the map: what is ported, what is not, and what the
-two open phases are.
+declarative"). This file is the map: what is ported and what the two open
+phases are.
 
 ## Status
 
@@ -19,8 +19,7 @@ two open phases are.
 | --- | --- |
 | Contested — `competition()` | **Done.** Nothing but `compile_into` over 21 packages; zero hand-rolled wiring. |
 | Contested — `defensive()` | **Done bar one site.** 22 packages, plus the 1NT-overcall systems-on graft, which is *permanently* imperative: `compile_into` writes rows, not a whole subtree. |
-| Constructive — ported | `openings.rs`, `weak_twos.rs`, `xyz.rs`, `nmf.rs`, the `notrump` and `rebids` module trees, `strong_two.rs`, `responses.rs`, `game_force.rs`, and `raises.rs`, guarded by `row_package_invariants` in `american/tests.rs`. |
-| Constructive — **not** ported | `dutch.rs`: 10 exact verb sites, sequenced below. |
+| Constructive — ported | The American `openings.rs`, `weak_twos.rs`, `xyz.rs`, `nmf.rs`, `notrump` and `rebids` module trees, `strong_two.rs`, `responses.rs`, `game_force.rs`, and `raises.rs`, plus both Dutch override packages. American and Dutch each have a `row_package_invariants` test. |
 | RKCB | A row **producer**: `slam::rkcb_rows(prefix, trump) -> Vec<Entry>`. All 25 production callers and the three test fixtures use it directly; `install_rkcb` is retired. |
 | Phase 1.5 (floating agreements) | **Cancelled, not deferred** — see below. |
 | Phase 2 (cross-side assembly) | **Open**, restated below. Nothing exists: no `defense_vs`, no `competitive_vs`, no `Table::compose`. |
@@ -60,9 +59,9 @@ through trie mutation, graft, merge and floor, and consumes it at
 first-call guards into dispatch.
 
 Everything that is *not* a row falls to the legacy slow path — the opaque
-guards, the 1NT graft, and every unported constructive file. So **the fast
-path's coverage is this campaign's port coverage.** The remaining imperative
-constructive wiring is confined to `raises.rs` and `dutch.rs`.
+guards and the 1NT graft. So **the fast path's coverage is this campaign's port
+coverage.** All constructive book assembly, including the Dutch overrides, is
+now declarative.
 
 ## The floor coupling (read before touching knobs)
 
@@ -83,8 +82,8 @@ misdisclosure to the net, and nothing checks it.
 
 One consequence worth stating for scheduling: `with_floor` hardwires `instinct()`
 on the constructive book regardless of the floor passed, so the configured floor
-covers competitive + defensive only — and the entire remaining port tail is
-constructive. The floor work and the port work do not block each other.
+covers competitive + defensive only. The completed port was constructive, and
+did not change floor attachment.
 
 ## Phase 2 — cross-side assembly (open)
 
@@ -162,20 +161,19 @@ does not decide anything:
 
 ## Port checklist
 
-Scoped 2026-08-06: the original tail was six American constructive files plus
-`dutch.rs`; phases 2/3 remain untouched. N1–N5, R1, S1, P1, G0, G1, Z1, T1,
-and D0 are complete. The remaining batch is D1. One batch = one commit = one
-inertness proof under the porting rule above. Site counts are the
-reproducible greps — `insert_uncontested|insert_all_seats|fallback_all_seats`
-per file, plus
+Scoped 2026-08-06 and completed 2026-08-07: the tail was six American
+constructive files plus `dutch.rs`; phases 2/3 remain untouched. N1–N5, R1,
+S1, P1, G0, G1, Z1, T1, D0, and D1 are complete. One batch = one commit = one
+inertness proof under the porting rule above. The original site counts came
+from `insert_uncontested|insert_all_seats|fallback_all_seats` per file, plus
 `install_rkcb(` counted separately.
 
 **Conversion policy.** A site that resists transparent rows converts only when
 the conversion prunes no arms (parts 1–2 of the conversion gate above); a
 pruning conversion is *out of this campaign* — hatch it and mark it here as a
-candidate for a later measured campaign. No batch is a bidding change. The
-policy is dormant for the remaining tail: every Dutch verb site is an exact
-`insert_uncontested` node. G1's two non-exact backstops landed as hatches.
+candidate for a later measured campaign. No batch was a bidding change. D1's
+ten Dutch verb sites were exact `insert_uncontested` nodes. G1's two non-exact
+backstops landed as hatches.
 
 **What the batches rest on** (verified at 7facdd3):
 
@@ -191,9 +189,10 @@ policy is dormant for the remaining tail: every Dutch verb site is an exact
   computed `entries` closures in `rebids/`, `game_force.rs`, and `raises.rs`,
   never `expand` templates with duplicated filters that could drift from their
   knob-gated source tables.
-- Every port adds its package(s) to `row_package_invariants`
-  (`american/tests.rs:161`). The list is hand-edited; a port not listed there is
-  not gated.
+- Every American port adds its package(s) to `row_package_invariants` in
+  `american/tests.rs`; Dutch has the same invariant over its own two-package
+  list in `dutch/tests.rs`. The lists are hand-edited; an unlisted port is not
+  gated.
 - `smoke-dutch` and `render-dutch-book` now provide D1's deterministic parent
   proof over the shipped `dutch()` and public floorless `dutch_book()`.
   `dutch_book()` overwrites american nodes by re-insert — legal across
@@ -220,11 +219,11 @@ policy is dormant for the remaining tail: every Dutch verb site is an exact
 | Z1 | **Done** | `raises.rs` | 7 + 3 rkcb | game-try + limit-raise gates | three packages; one table-derived key set |
 | T1 | **Done** | retire `install_rkcb` (`slam.rs`) | — | — | three test fixtures use the row producer directly |
 | D0 | **Done** | Dutch inertness harness | — | — | deterministic, non-vacuous Dutch twins of smoke and render |
-| D1 | **Next** | `dutch.rs::dutch_book()` | 10 | — | own package list, compiled after American's |
+| D1 | **Done** | `dutch.rs::dutch_book()` | 10 | — | two-package list compiled after American's; 8 replacements + 9 additions |
 
-Completed: N1→N5, R1, S1, P1, G0, G1, Z1, T1, D0. Remaining: D1. The
-remaining production anchors are the ten exact Dutch sites;
-`install_rkcb` has no callers because the shim no longer exists.
+Completed: N1→N5, R1, S1, P1, G0, G1, Z1, T1, D0, D1. Phase 1 of the rows
+campaign is complete. The exact-node imperative helpers and `install_rkcb`
+have no callers and no longer exist.
 Completed notrump/rebid locations in the table are historical; commit `1c0ef51`
 subsequently split them into agreement modules.
 
@@ -246,7 +245,7 @@ subsequently split them into agreement modules.
    American batches through T1 also used the reusable `tmp-rows-port` sweep:
    every translated gate had a non-vacuous arm, all arm outputs were pairwise
    distinct, and matching before/after outputs byte-diffed empty. T1 retired
-   that harness after its final 31-arm proof. D0 supplies the analogous Dutch
+   that harness after its final 31-arm proof. D0 supplied the analogous Dutch
    dumps for D1. Never straddle a behavioural commit.
 7. CHANGELOG entry carrying the shas; propose the commit message.
 
@@ -254,4 +253,5 @@ subsequently split them into agreement modules.
 resolution touches the reading and may not be inert; escalate rather than
 nudge. Any dump delta is a translation bug: fix it, never re-bless.
 
-Delegation: D1 remains a mechanical re-spelling with this recipe as the spec.
+The port campaign is complete. Phase 2 cross-side assembly and Phase 3 knob
+migration remain open above.

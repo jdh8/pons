@@ -1,7 +1,7 @@
 //! System-independent build helpers shared across bidding systems
 //!
-//! Trie-authoring mechanics (seat fan-out, undisturbed-key shaping) and
-//! floor-attachment wiring that have nothing to do with any one system.
+//! Call/suit helpers, guarded seat fan-out, and floor-attachment wiring that
+//! have nothing to do with any one system.
 //! [`american`][super::american] and [`dutch`][super::dutch] — and any future
 //! system — import these from here rather than from each other.
 
@@ -32,57 +32,6 @@ pub(in crate::bidding) const fn other_minor(minor: Suit) -> Suit {
         Suit::Clubs => Suit::Diamonds,
         _ => Suit::Clubs,
     }
-}
-
-// ---------------------------------------------------------------------------
-// Seat-fan helpers
-// ---------------------------------------------------------------------------
-
-/// Insert one classifier at `suffix` under every leading-pass prefix
-///
-/// For each `n` in `0..=max_passes` the classifier is keyed at `[P; n] ++
-/// suffix`, sharing one [`Arc`] across all of them (pointer-cheap, see
-/// [`insert_arc`][super::Trie::insert_arc]).  This authors a table once and
-/// makes it answer in every seat that could have reached it.
-pub(in crate::bidding) fn insert_all_seats(
-    book: &mut Trie,
-    suffix: &[Call],
-    max_passes: usize,
-    rules: impl Classifier + 'static,
-) {
-    let shared: Arc<dyn Classifier> = Arc::new(rules);
-    for n in 0..=max_passes {
-        let key: Vec<Call> = core::iter::repeat_n(Call::Pass, n)
-            .chain(suffix.iter().copied())
-            .collect();
-        book.insert_arc(&key, Arc::clone(&shared));
-    }
-}
-
-/// Interleave one opposing pass after each of our calls
-///
-/// The constructive book keys the *raw table auction*, so an undisturbed
-/// sequence of our calls `[1♥, 1♠]` lives at `[1♥, P, 1♠, P]` (plus leading
-/// passes for the opener's seat).  This is the one place that spells out the
-/// interleaving; author keys through it, never by hand.
-pub(in crate::bidding) fn uncontested(our_calls: &[Call]) -> Vec<Call> {
-    our_calls
-        .iter()
-        .flat_map(|&call| [call, Call::Pass])
-        .collect()
-}
-
-/// Insert a continuation table after our undisturbed `our_calls`, every seat
-///
-/// Keys at `uncontested(our_calls)` under every leading-pass prefix
-/// (`0..=3`), so the table answers regardless of which seat opened.  An empty
-/// `our_calls` registers an opening table.
-pub(in crate::bidding) fn insert_uncontested(
-    book: &mut Trie,
-    our_calls: &[Call],
-    rules: impl Classifier + 'static,
-) {
-    insert_all_seats(book, &uncontested(our_calls), 3, rules);
 }
 
 /// Attach a guarded fallback at `suffix` under every leading-pass prefix

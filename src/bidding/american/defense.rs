@@ -366,8 +366,8 @@ pub fn defensive() -> Defensive {
 
     // Direct-seat DONT and Meckwell advances.  Both write `[1NT, X, P]` and
     // friends; with both knobs on, Meckwell wins the shared keys exactly as it
-    // did when these were consecutive `insert_all_seats` blocks, so the package
-    // order here is load-bearing.
+    // did in the consecutive imperative blocks, so the package order here is
+    // load-bearing.
     compile_into(
         &mut d,
         &[direct_dont_advance_package(), meckwell_advance_package()],

@@ -281,6 +281,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `c1bf4a1519d5028c0039c5f88d70d14cbaae20c2e060b89dcf449f3f4f430bdd`
     with 4 587 authored nodes, 129 guarded sections, and no opaque rules or
     unlabeled guards. User impact: a new public floorless Dutch-book factory.
+  - **D1** — `dutch_book()` now compiles two ungated row packages after
+    `american_book()`: `dutch-openings` replaces the opening table, and
+    `dutch-wide-one-club` carries the remaining 16 exact pattern groups in the
+    legacy rebid-list order. Across their `P*` seat fans, eight nodes replace
+    inherited American classifiers and nine are Dutch-only additions; every
+    rule-table builder, alert, ordering decision, and fan is unchanged. A
+    Dutch-specific package invariant covers both packages, and the last dead
+    imperative seat-fan helpers are retired. Against D0, `smoke-dutch` remains
+    `956b99de8e6aee96a66f1235d5aa30e8a06c48e5b3856c9643900509755b79b4`
+    and `render-dutch-book` remains
+    `c1bf4a1519d5028c0039c5f88d70d14cbaae20c2e060b89dcf449f3f4f430bdd`
+    with the same 4 587/129/0/0 census. The declarative-row port campaign is
+    complete; cross-side assembly and knob migration remain open. User impact:
+    none.
   - **The Stayman `2♣` weight tie is a partition, and is now allowlisted.**
     Putting `notrump_responses()` under `assert_package_invariants` for the
     first time surfaced four rules claiming `2♣` at weight 150: constructive

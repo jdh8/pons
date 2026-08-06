@@ -21,6 +21,15 @@ fn bid(level: u8, strain: Strain) -> Call {
     Call::Bid(Bid::new(level, strain))
 }
 
+/// Both Dutch override packages preserve the declarative row invariants.
+#[test]
+fn row_package_invariants() {
+    crate::bidding::rows::assert_package_invariants(&[
+        super::openings::package(),
+        super::responses::package(),
+    ]);
+}
+
 /// The wide-1♣ opening partition (Phase 1): the load-bearing cases.
 #[test]
 fn opening_partition() {

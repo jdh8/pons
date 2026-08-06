@@ -21,6 +21,7 @@
 //!   repurposing of the "other major", and inverted club raises.
 
 use crate::bidding::constraint::{balanced, hcp, len, points, stopper_in};
+use crate::bidding::rows::{Entry, Package, Pattern, rows_of};
 use crate::bidding::{Alert, Rules};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
@@ -461,4 +462,66 @@ pub(super) fn responder_after_two_clubs(opener_rebid: Bid) -> Rules {
     Rules::new()
         .rule(Bid::new(3, Strain::Notrump), 100, points(12..))
         .rule(Call::Pass, 0, hcp(0..))
+}
+
+/// The wide-1♣ response structure as one ungated row package
+pub(super) fn package() -> Package {
+    Package {
+        name: "dutch-wide-one-club",
+        gate: || true,
+        entries: || {
+            let mut entries: Vec<Entry> = rows_of(Pattern::node("P* 1♣ (P)"), one_club_responses());
+            entries.extend(rows_of(
+                Pattern::node("P* 1♣ (P) 1♦ (P)"),
+                opener_rebids_after_relay(),
+            ));
+            entries.extend(rows_of(
+                Pattern::node("P* 1♣ (P) 1♦ (P) 1♥ (P)"),
+                relay_responses_after_major(Suit::Hearts),
+            ));
+            entries.extend(rows_of(
+                Pattern::node("P* 1♣ (P) 1♦ (P) 1♠ (P)"),
+                relay_responses_after_major(Suit::Spades),
+            ));
+            entries.extend(rows_of(
+                Pattern::node("P* 1♣ (P) 1♦ (P) 2♣ (P)"),
+                relay_responses_after_club(),
+            ));
+            entries.extend(rows_of(
+                Pattern::node("P* 1♣ (P) 2♦ (P)"),
+                opener_rebids_after_two_diamonds(),
+            ));
+            entries.extend(rows_of(
+                Pattern::node("P* 1♣ (P) 2♣ (P)"),
+                opener_rebids_after_two_clubs(),
+            ));
+
+            // Preserve the legacy rebid-list order exactly. These are distinct
+            // tables keyed by the rebid, not one template expansion.
+            for (pattern, rebid) in [
+                ("P* 1♣ (P) 2♦ (P) 3♦ (P)", Bid::new(3, Strain::Diamonds)),
+                ("P* 1♣ (P) 2♦ (P) 3♣ (P)", Bid::new(3, Strain::Clubs)),
+                ("P* 1♣ (P) 2♦ (P) 3NT (P)", Bid::new(3, Strain::Notrump)),
+                ("P* 1♣ (P) 2♦ (P) 2♥ (P)", Bid::new(2, Strain::Hearts)),
+                ("P* 1♣ (P) 2♦ (P) 2♠ (P)", Bid::new(2, Strain::Spades)),
+                ("P* 1♣ (P) 2♦ (P) 2NT (P)", Bid::new(2, Strain::Notrump)),
+            ] {
+                entries.extend(rows_of(
+                    Pattern::node(pattern),
+                    responder_after_two_diamonds(rebid),
+                ));
+            }
+            for (pattern, rebid) in [
+                ("P* 1♣ (P) 2♣ (P) 3NT (P)", Bid::new(3, Strain::Notrump)),
+                ("P* 1♣ (P) 2♣ (P) 3♣ (P)", Bid::new(3, Strain::Clubs)),
+                ("P* 1♣ (P) 2♣ (P) 2NT (P)", Bid::new(2, Strain::Notrump)),
+            ] {
+                entries.extend(rows_of(
+                    Pattern::node(pattern),
+                    responder_after_two_clubs(rebid),
+                ));
+            }
+            entries
+        },
+    }
 }

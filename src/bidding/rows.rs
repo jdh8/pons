@@ -5,7 +5,7 @@
 //! turns a book section into data: a [`Package`] (name, knob gate, entries), a
 //! list of [`Entry`] rows each tying an auction [`Pattern`] to one rule or one
 //! rebase, and one fold — [`compile_into`] — that lowers them onto a [`Trie`]
-//! through the existing verbs ([`insert_all_seats`], [`fallback_all_seats`]).
+//! through exact inserts and the existing [`fallback_all_seats`] guard helper.
 //!
 //! Every pattern construct **lowers** to an existing expander or guard; a
 //! construct with no lowering does not enter the grammar, so resolution

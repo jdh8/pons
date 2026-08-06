@@ -100,7 +100,7 @@ A chop qualifies as a **no-op** when all four hold:
 1. Every axis the reader narrows is at least as narrow in `hull(overlay)` —
    check the authoring rule's projection, not its prose.
 2. The authoring node exists for every auction the reader fires on, including
-   the leading-pass seat fan (`insert_all_seats`).
+   the declarative leading-pass seat fan (`P*`).
 3. No sibling rule shares the call unalerted — `project_call` unions all rules
    sharing the made call, so an unalerted catch-all would hull the floor away.
 4. Every seat that reads it is covered: the opponents' call via the table-alert

@@ -70,7 +70,7 @@ the floor's transfer-completion still holds.
 | 4 | Reader/floor reconciliation + divergent-opening competitive book | pending |
 | 5 | Iterate to champion vs BBA/BEN; promote if it wins | pending |
 | WJ-floor | Distil BBA-WJ as the floor over Dutch's divergent minors | **A/B A WON** (floor swap, +0.18/+0.28 plain, shipped); **A/B B LOST** (WJ over 1♦, −0.005/−0.017 PD — inherited overbid); **A/B C LOST** (WJ as *constructive* floor under 1♣, −0.012/−0.029 — nets have no settle rail); both routings removed, net kept; Phase 3's two-level rows are the remaining arm |
-| rows | Port `dutch_book()` to declarative rows — batches D0 (dutch inertness harness) and D1 | pending, tracked in [declarative-rows.md's port checklist](declarative-rows.md#port-checklist) |
+| rows | Port `dutch_book()` to declarative rows — batches D0 (Dutch inertness harness) and D1 | **DONE** — byte-identical smoke (`956b99de…`) and full-book render (`c1bf4a15…`); [campaign checklist](declarative-rows.md#port-checklist) complete |
 
 Each phase gates on a paired-seed A/B via `examples/bba-gen` (dutch arm vs
 american arm), dual-scored (`ns_score_pd` + `ns_score_contract`), fresh
@@ -554,11 +554,11 @@ fix.
 
 ### Phase 1 notes
 
-`bare_dutch()` takes a full `bare_american()` pair and **overwrites only the
-opening node** (`Trie::insert_arc` replaces the classifier at the opening key)
-with `dutch::openings::dutch_openings()`; every american continuation is reused
-verbatim. Widening was minimal: `insert_uncontested` and `with_instinct_floor`
-in `american.rs` → `pub(in crate::bidding)`. Openings live in
+Phase 1 originally took the floorless American pair and **overwrote only the
+opening node** with `dutch::openings::dutch_openings()`; every American
+continuation was reused verbatim. D1 now spells that override as the
+`dutch-openings` row package, compiled after American alongside the later
+`dutch-wide-one-club` package. Openings live in
 `src/bidding/dutch/openings.rs`.
 
 Design choices to validate in the A/B (each defensible from the spec, cheap to

@@ -677,8 +677,8 @@ pub(super) fn rkcb_rows(prefix: &str, trump: Suit) -> Vec<Entry> {
     let ans_5h = Bid::new(5, Strain::Hearts);
     let ans_5s = Bid::new(5, Strain::Spades);
 
-    // Every key hangs off our 4NT; the trailing `(P)` is the opposing pass
-    // `uncontested` used to interleave by hand.
+    // Every key hangs off our 4NT; the trailing `(P)` is the opposing pass the
+    // retired imperative helper used to interleave by hand.
     let ask = format!("{prefix} 4NT (P)");
     let node = |tail: &str| Pattern::node(format!("{ask} {tail}").trim_end());
 

@@ -160,7 +160,7 @@ fn weak_two_jump_overcall() -> bool {
 /// carry a major, and 4♦ Leaping Michaels covers the strong both-majors hand.
 ///
 /// **Default off, and its A/B is VOID** — not a verdict on Michaels.  The
-/// advancer has no node: `insert_all_seats` wires continuations for the
+/// advancer has no node: the seat-fanned rows wire continuations for the
 /// takeout double and Leaping Michaels only, so `[2♠, 3♠, P]` drops to the
 /// floor, which *redoubles the cue* — the phantom-suit disaster in the flesh.
 ///

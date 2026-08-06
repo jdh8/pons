@@ -7,6 +7,7 @@
 
 use crate::bidding::american::{NotrumpShape, notrump_shape};
 use crate::bidding::constraint::{balanced, fifths, hcp, len, nth_seat, or, points};
+use crate::bidding::rows::{Package, Pattern, rows_of};
 use crate::bidding::{Alert, Rules};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
@@ -117,4 +118,13 @@ pub(super) fn dutch_openings() -> Rules {
     }
     // Finite, total catch-all.
     rules.rule(Call::Pass, 0, hcp(0..))
+}
+
+/// The Dutch opening override as an ungated row package
+pub(super) fn package() -> Package {
+    Package {
+        name: "dutch-openings",
+        gate: || true,
+        entries: || rows_of(Pattern::node("P*"), dutch_openings()),
+    }
 }
