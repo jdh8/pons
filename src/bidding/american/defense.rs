@@ -11,7 +11,12 @@
 //! | [`michaels`], [`leaping_michaels`] | our two-suited overcalls |
 //! | [`weak_two_defense`] | defending their weak two |
 //! | [`weak_two_nt_advance`] | advancing our `2NT` overcall of their weak two |
-//! | [`advance_double`], [`advance_rich`], [`advance_sohl`] | advancing partner's double |
+//! | [`advance_2nt`] | the invitational `2NT` continuation after partner's double |
+//! | [`advance_double`] | the base advance of partner's double |
+//! | [`advance_minor_jump`] | invitational minor jumps after partner's double |
+//! | [`advance_rich`] | the core cue ladder after partner's double |
+//! | [`advance_rubens`] | jump-cue Rubens transfers after partner's double |
+//! | [`advance_sohl`] | sohl advances after partner's double |
 //! | [`responsive`] | the responsive double when they raise |
 //! | [`gladiator`] | the relay structure after our `1NT` overcall |
 //! | [`nt_defense`] | defending their `1NT` — the bundle and the natural chain |
@@ -44,8 +49,11 @@ use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Hand, Strain, Suit};
 use std::cell::Cell;
 
+mod advance_2nt;
 mod advance_double;
+mod advance_minor_jump;
 mod advance_rich;
+mod advance_rubens;
 mod advance_sohl;
 mod gladiator;
 mod leaping_michaels;
@@ -80,12 +88,11 @@ use responsive::{responsive_double_package, responsive_overcall_package};
 use weak_two_defense::weak_two_defense_package;
 use weak_two_nt_advance::weak_two_notrump_advance_package;
 
+pub use advance_2nt::set_advance_2nt_continuation;
 pub use advance_double::advance_double;
-pub use advance_rich::{
-    set_advance_2nt_continuation, set_advance_minor_jump, set_advance_pass_yield_major,
-    set_advance_rubens, set_advance_sit_hcp_gate, set_longest_first_advance,
-    set_rich_advance_double,
-};
+pub use advance_minor_jump::set_advance_minor_jump;
+pub use advance_rich::{set_advance_sit_hcp_gate, set_rich_advance_double};
+pub use advance_rubens::set_advance_rubens;
 pub use advance_sohl::set_advance_sohl_style;
 pub(crate) use gladiator::{nt_overcall_gladiator, nt_overcall_systems_on};
 pub use gladiator::{set_nt_overcall_gladiator, set_nt_overcall_systems_on};
@@ -129,6 +136,62 @@ pub use weak_two_defense::{
     set_weak_two_pass_gate,
 };
 pub use weak_two_nt_advance::set_weak_two_notrump_advances;
+
+thread_local! {
+    /// Whether the advance of partner's takeout double bids the **longest** suit
+    /// (weight climbing with length) rather than the highest-ranking 4+ suit;
+    /// see [`set_longest_first_advance`].
+    static LONGEST_FIRST_ADVANCE: Cell<bool> = const { Cell::new(true) };
+}
+
+thread_local! {
+    /// Whether the advancer's **weak** penalty pass yields to a 4+ unbid major
+    /// (below the cue band the hand bids the ladder instead of sitting); see
+    /// [`set_advance_pass_yield_major`].
+    static ADVANCE_PASS_YIELD_MAJOR: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Toggle the **longest-first** suit discipline for the flat advance of partner's
+/// takeout double of a one-of-a-suit opening (`(1t) X - ?`) for books built
+/// *after* this call (thread-local, read at book-construction time)
+///
+/// **On by default** (the shipped behavior); pass `false` (`bba-gen
+/// --no-ns-longest-advance`) to score every eligible 4+ suit alike, whereupon
+/// the argmax tie-break bids the **highest-ranking** one regardless of length —
+/// holding five clubs and four spades it advances `1♠`, not `2♣`. On, the
+/// natural-advance weight climbs with suit length, so the advancer bids the
+/// **longest** suit and breaks equal-length ties toward the higher-ranking suit
+/// (a major over a minor, spades over hearts) — standard takeout-double
+/// advancing.
+pub fn set_longest_first_advance(on: bool) {
+    LONGEST_FIRST_ADVANCE.with(|cell| cell.set(on));
+}
+
+/// Whether the longest-first advance discipline is currently authored
+pub(crate) fn longest_first_advance_enabled() -> bool {
+    LONGEST_FIRST_ADVANCE.with(Cell::get)
+}
+
+/// Toggle the weak advancer's **pass-yield to a 4-card major** over partner's
+/// takeout double (`(1t) X - ?`) for books built *after* this call
+/// (thread-local, read at book-construction time)
+///
+/// **Off by default.**  On (`bba-gen --ns-advance-pass-yield`), the penalty
+/// pass's trump-stack legs yield when the hand is *below the cue band*
+/// (`hcp ≤ 9`) **and** holds a 4+ unbid major: instead of converting the
+/// double to penalty, the hand advances on the normal longest-first ladder
+/// (which may still land in a longer minor).  Strong sits (10+) stand
+/// regardless — restricting *them* is the refuted cap migration
+/// (`ab-results/advance-penalty-pass/`, −2 IMPs/fired on both scorers).  The
+/// A/B knob for `scripts/ab-advance-pass-yield.sh`.
+pub fn set_advance_pass_yield_major(on: bool) {
+    ADVANCE_PASS_YIELD_MAJOR.with(|cell| cell.set(on));
+}
+
+/// Whether the weak penalty pass yields to a 4-card unbid major
+pub(crate) fn advance_pass_yield_major_enabled() -> bool {
+    ADVANCE_PASS_YIELD_MAJOR.with(Cell::get)
+}
 
 /// At least 5-4 (or 4-5) in the two named suits — the Landy two-suiter shape
 pub(crate) fn five_four(a: Suit, b: Suit) -> Cons<impl Constraint + Clone> {

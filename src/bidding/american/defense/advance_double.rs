@@ -4,10 +4,7 @@
 //! (transfers, the `2NT` relay, minor jumps) is [`super::advance_rich`]; the
 //! weak-two case is [`super::advance_sohl`].
 
-use super::advance_rich::{
-    advance_double_rich, advance_pass_yield_major_enabled, longest_first_advance_enabled,
-    rich_advance_double_enabled,
-};
+use super::advance_rich::{advance_double_rich, rich_advance_double_enabled};
 use super::advance_sohl::{advance_sohl_style, sohl_rows_over};
 use super::*;
 

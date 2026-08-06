@@ -169,6 +169,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `distinct_calls`, since all three children derive their key sets from them.
     All three knobs already had sweep arms; both campaign shas hold and all 37
     arms are byte-identical.
+  - **advance_rich** — 821 lines become 443 plus three agreement modules:
+    `advance_rubens` (110), `advance_minor_jump` (175) and `advance_2nt` (101).
+    This is the campaign's first structural cut rather than a pure move.  The
+    single `rich_advance_double_package` stays in the parent, and its `entries`
+    closure keeps the cue ladder inline while its other three blocks — each
+    already wrapped in its own `if …_enabled()` — become row producers called
+    at exactly the positions the blocks occupied.  Position is not cosmetic:
+    `project_pass` folds the complements of stronger siblings into the Pass
+    band in authored order, so a producer called one line earlier would move a
+    real reading.
+    Two knobs also stop living in the wrong file.  `LONGEST_FIRST_ADVANCE` and
+    `ADVANCE_PASS_YIELD_MAJOR` are read by *both* advance ladders — the rich
+    one and the flat `advance_double` — so they hoist to `defense.rs` and each
+    ladder picks them up through its own `use super::*;`; previously the flat
+    ladder imported its own gates from the rich one, which is backwards.
+    `ADVANCE_SIT_HCP_GATE` stays put, its only reader being the rich core.
+    Seven new sweep arms, three of them for agreements that ship **off**
+    (`advance_rubens`, the pass-yield, the sit gate) and so appear in no
+    unarmed dump at all; 44 arms, all pairwise distinct and byte-identical,
+    both campaign shas held.
 
 - **Tests now live in dedicated module files.** All inline cfg-test module
   bodies moved to naturally resolved files, with directory crate roots for the

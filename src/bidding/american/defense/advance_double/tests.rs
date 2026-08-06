@@ -10,7 +10,7 @@ fn forced_three_card_advance_bids_the_cheapest() {
     let over_1s = [call(1, Strain::Spades), Call::Double, Call::Pass];
     let over_1c = [call(1, Strain::Clubs), Call::Double, Call::Pass];
     super::advance_rich::set_rich_advance_double(true);
-    super::advance_rich::set_longest_first_advance(true);
+    super::set_longest_first_advance(true);
 
     // Broke with four small of their spades and 3-3-3 outside: no sit (no
     // top honors), no 4-card rung — the forced rung bids 2♣, not 2♥.

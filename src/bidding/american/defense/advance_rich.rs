@@ -6,7 +6,10 @@
 //! [`set_advance_pass_yield_major`], [`set_advance_sit_hcp_gate`] and
 //! [`set_advance_minor_jump`] each tune one rung.
 
+use super::advance_2nt::advance_2nt_rows;
 use super::advance_double::{cheapest_forced, natural_advance, no_unbid_major};
+use super::advance_minor_jump::{advance_minor_jump_enabled, advance_minor_jump_rows};
+use super::advance_rubens::{advance_major_transfers, advance_rubens_enabled, advance_rubens_rows};
 use super::*;
 
 thread_local! {
@@ -14,32 +17,10 @@ thread_local! {
     /// (`(1t) X -`) is authored — the cue + notrump ladder that gives the
     /// advancer an invite/force channel; see [`set_rich_advance_double`].
     static RICH_ADVANCE_DOUBLE: Cell<bool> = const { Cell::new(true) };
-    /// Whether the **jump-cue Rubens transfer** layer sits on top of the rich
-    /// advance — a jump-cue transfer to a 5+ unbid major; see
-    /// [`set_advance_rubens`].  No effect unless [`RICH_ADVANCE_DOUBLE`] is on.
-    static ADVANCE_RUBENS: Cell<bool> = const { Cell::new(false) };
-    /// Whether the advance of partner's takeout double bids the **longest** suit
-    /// (weight climbing with length) rather than the highest-ranking 4+ suit;
-    /// see [`set_longest_first_advance`].
-    static LONGEST_FIRST_ADVANCE: Cell<bool> = const { Cell::new(true) };
-    /// Whether the advancer's three-level jump in a **minor** shows an
-    /// invitational one-suiter (5+, 10–12, denying a 4-card unbid major); see
-    /// [`set_advance_minor_jump`].  No effect unless [`RICH_ADVANCE_DOUBLE`] is on.
-    static ADVANCE_MINOR_JUMP: Cell<bool> = const { Cell::new(true) };
-    /// Whether the advancer's **weak** penalty pass yields to a 4+ unbid major
-    /// (below the cue band the hand bids the ladder instead of sitting); see
-    /// [`set_advance_pass_yield_major`].
-    static ADVANCE_PASS_YIELD_MAJOR: Cell<bool> = const { Cell::new(false) };
     /// The advancer's 4-card penalty-pass quality gate as a `suit_hcp` floor —
     /// `None` keeps the shipped `top_honors(t, 2..)`; see
     /// [`set_advance_sit_hcp_gate`].
     static ADVANCE_SIT_HCP_GATE: Cell<Option<u8>> = const { Cell::new(None) };
-    /// Whether the doubler answers the advancer's invitational `2NT` with an
-    /// authored accept/decline instead of falling to the instinct floor (which
-    /// passes even game-going hands); see [`set_advance_2nt_continuation`].  **On
-    /// by default** — a wash-positive A/B fix to a strict floor-pass in the
-    /// default-on rich advance.  No effect unless [`RICH_ADVANCE_DOUBLE`] is on.
-    static ADVANCE_2NT_CONTINUATION: Cell<bool> = const { Cell::new(true) };
 }
 
 /// Toggle the **rich advance** of partner's takeout double of a one-of-a-suit
@@ -61,68 +42,6 @@ pub fn set_rich_advance_double(on: bool) {
 /// Whether the rich advance of a takeout double is currently authored
 pub(super) fn rich_advance_double_enabled() -> bool {
     RICH_ADVANCE_DOUBLE.with(Cell::get)
-}
-
-/// Toggle the **jump-cue Rubens transfer** layer on top of the rich advance for
-/// books built *after* this call (thread-local, read at book-construction time)
-///
-/// **Off by default**, and a no-op unless [`set_rich_advance_double`] is also on.
-/// When on, the advancer's jump-cue (and, over `(1♠)`, a natural `3♥`) becomes a
-/// **transfer to a 5+ unbid major** (invitational-or-better) — the doubler
-/// completes and *declares*, right-siding the strong hand.  Right-siding is
-/// invisible to double-dummy (the trick count is the same whoever declares), so
-/// its value shows up under the single-dummy lead scorer, not the DD A/B; this
-/// knob (`bba-gen --ns-advance-rubens`) exists to confirm no DD *regression* and
-/// as an sd-lead re-measure candidate.  See `docs/ai-bidder/21gf-ledger.md`.
-pub fn set_advance_rubens(on: bool) {
-    ADVANCE_RUBENS.with(|cell| cell.set(on));
-}
-
-/// Whether the jump-cue Rubens transfer layer is currently authored
-fn advance_rubens_enabled() -> bool {
-    ADVANCE_RUBENS.with(Cell::get)
-}
-
-/// Toggle the **longest-first** suit discipline for the flat advance of partner's
-/// takeout double of a one-of-a-suit opening (`(1t) X - ?`) for books built
-/// *after* this call (thread-local, read at book-construction time)
-///
-/// **On by default** (the shipped behavior); pass `false` (`bba-gen
-/// --no-ns-longest-advance`) to score every eligible 4+ suit alike, whereupon
-/// the argmax tie-break bids the **highest-ranking** one regardless of length —
-/// holding five clubs and four spades it advances `1♠`, not `2♣`. On, the
-/// natural-advance weight climbs with suit length, so the advancer bids the
-/// **longest** suit and breaks equal-length ties toward the higher-ranking suit
-/// (a major over a minor, spades over hearts) — standard takeout-double
-/// advancing.
-pub fn set_longest_first_advance(on: bool) {
-    LONGEST_FIRST_ADVANCE.with(|cell| cell.set(on));
-}
-
-/// Whether the longest-first advance discipline is currently authored
-pub(super) fn longest_first_advance_enabled() -> bool {
-    LONGEST_FIRST_ADVANCE.with(Cell::get)
-}
-
-/// Toggle the weak advancer's **pass-yield to a 4-card major** over partner's
-/// takeout double (`(1t) X - ?`) for books built *after* this call
-/// (thread-local, read at book-construction time)
-///
-/// **Off by default.**  On (`bba-gen --ns-advance-pass-yield`), the penalty
-/// pass's trump-stack legs yield when the hand is *below the cue band*
-/// (`hcp ≤ 9`) **and** holds a 4+ unbid major: instead of converting the
-/// double to penalty, the hand advances on the normal longest-first ladder
-/// (which may still land in a longer minor).  Strong sits (10+) stand
-/// regardless — restricting *them* is the refuted cap migration
-/// (`ab-results/advance-penalty-pass/`, −2 IMPs/fired on both scorers).  The
-/// A/B knob for `scripts/ab-advance-pass-yield.sh`.
-pub fn set_advance_pass_yield_major(on: bool) {
-    ADVANCE_PASS_YIELD_MAJOR.with(|cell| cell.set(on));
-}
-
-/// Whether the weak penalty pass yields to a 4-card unbid major
-pub(super) fn advance_pass_yield_major_enabled() -> bool {
-    ADVANCE_PASS_YIELD_MAJOR.with(Cell::get)
 }
 
 /// Swap the advancer's **4-card penalty-pass quality gate** over partner's
@@ -152,54 +71,6 @@ pub fn set_advance_sit_hcp_gate(gate: Option<u8>) {
 /// The advancer's 4-card sit quality gate override, if any
 fn advance_sit_hcp_gate() -> Option<u8> {
     ADVANCE_SIT_HCP_GATE.with(Cell::get)
-}
-
-/// Toggle the advancer's **invitational minor jump** on the rich advance of a
-/// takeout double for books built *after* this call (thread-local, read at
-/// book-construction time)
-///
-/// **On by default**, and a no-op unless [`set_rich_advance_double`] is on. When
-/// on, a three-level jump in a *minor* (`(1♥) X - 3♣`, `(1♠) X - 3♦`, …)
-/// shows an invitational one-suiter — a real 5-card suit, 10–12, **denying a
-/// 4-card unbid major** (with one the advancer cues opener's suit to find the
-/// 4-4 major fit).  It ranks *below* the notrump ladder, so a stopper still
-/// prefers `1NT`/`2NT`/`3NT`; the jump is the residual for the no-stopper shapely
-/// invite that would otherwise have to cue.  Game-forcing minors (13+) are capped
-/// out and still cue or bid a stopped `3NT`.  The doubler, strong but stopperless,
-/// re-asks for a stopper by cueing their suit (a Western cue); the advancer bids
-/// the right-sided `3NT` with a stopper, else the minor game.  Two-seed A/B: SIG+
-/// in all four cells (plain ≥ PD → constructive).  Turn off with
-/// `bba-gen --no-ns-advance-minor-jump`.
-pub fn set_advance_minor_jump(on: bool) {
-    ADVANCE_MINOR_JUMP.with(|cell| cell.set(on));
-}
-
-/// Whether the invitational minor jump is currently authored
-fn advance_minor_jump_enabled() -> bool {
-    ADVANCE_MINOR_JUMP.with(Cell::get)
-}
-
-/// Toggle the doubler's **accept/decline of the advancer's invitational `2NT`**
-/// on the rich advance of a takeout double for books built *after* this call
-/// (thread-local, read at book-construction time)
-///
-/// **On by default**, and a no-op unless [`set_rich_advance_double`] is on. The
-/// advancer's `2NT` (`(1t) X - 2NT`) is a limited balanced 11–12 invite with a
-/// stopper, but with no authored continuation the doubler falls to the instinct
-/// floor, which treats `2NT` as non-forcing and *passes it even holding a game*.
-/// When on, the doubler answers the invite naturally: **Pass** declines with a
-/// minimum, **`3NT`** accepts to play, and a **new 5-card major** accepts
-/// game-forcing so the advancer can pick the 4-4/5-3 major game.  Fixing this
-/// floor-pass measured wash-positive on all four cells (NV/vul × plain/PD),
-/// which earns the default-on flip.  Off-switch `bba-gen
-/// --no-ns-advance-2nt-continuation`.
-pub fn set_advance_2nt_continuation(on: bool) {
-    ADVANCE_2NT_CONTINUATION.with(|cell| cell.set(on));
-}
-
-/// Whether the doubler's answer to the advancer's `2NT` invite is authored
-fn advance_2nt_continuation_enabled() -> bool {
-    ADVANCE_2NT_CONTINUATION.with(Cell::get)
 }
 
 /// Rich advance of partner's takeout double of a one-of-a-suit `their_opening`
@@ -415,59 +286,6 @@ pub(super) fn advance_double_rich(their_opening: Bid) -> Rules {
     rules
 }
 
-/// The advancer's jump-cue major transfers over a one-of-`theirs` opening:
-/// `(transfer bid, the 5+ unbid major it shows)`.  A transfer is the rank
-/// immediately below its target major, at the three level.  Over `(1♠)` the sole
-/// unbid major (hearts, `3♥`) is below the jump-cue (`3♠`), so it is shown by the
-/// natural invitational `3♥` jump in [`advance_double_rich`] instead and is not
-/// returned here.
-fn advance_major_transfers(theirs: Strain) -> Vec<(Bid, Suit)> {
-    if theirs == Strain::Spades {
-        return Vec::new();
-    }
-    let mut out = Vec::new();
-    for target in [Suit::Hearts, Suit::Spades] {
-        if Strain::from(target) == theirs {
-            continue;
-        }
-        let below = match target {
-            Suit::Hearts => Suit::Diamonds,
-            Suit::Spades => Suit::Hearts,
-            _ => unreachable!("only hearts and spades are majors"),
-        };
-        out.push((Bid::new(3, Strain::from(below)), target));
-    }
-    out
-}
-
-/// Doubler's completion of the advancer's Rubens transfer
-/// (`(1t) X - transfer { - | (X) } ?`, gated by [`set_advance_rubens`])
-///
-/// The transfer promised a 5+ `target` major; the doubler bids it (declaring —
-/// the right-siding point), jumping to game (`4M`) with a maximum and support.
-/// The completion is a finite catch-all so the artificial transfer is never
-/// passed out.  Both bids are natural (`target`), so neither is alerted.
-fn complete_advance_transfer(target: Suit) -> Rules {
-    let strain = Strain::from(target);
-    Rules::new()
-        // Super-accept: maximum with support jumps to game.
-        .rule(Bid::new(4, strain), 130, len(target, 4..) & points(15..))
-        // Complete the transfer (always) — never pass the artificial call.
-        .rule(Bid::new(3, strain), 100, hcp(0..))
-}
-
-/// Advancer's rebid after the doubler completed the transfer
-/// (`(1t) X - transfer { - | (X) } 3M - ?`)
-///
-/// The transfer was invitational-or-better; opposite the doubler's minimum
-/// completion a game-forcing advancer (12+) raises to game, an invitational one
-/// (10–11) rests in the three-level partscore.
-fn advance_transfer_rebid(target: Suit) -> Rules {
-    Rules::new()
-        .rule(Bid::new(4, Strain::from(target)), 100, hcp(12..))
-        .rule(Call::Pass, 0, hcp(0..))
-}
-
 /// Doubler's answer to the advancer's cue (`(1t) X - cue - ?`, gated by
 /// [`set_rich_advance_double`])
 ///
@@ -559,123 +377,6 @@ fn advance_cue_rebid(answer: Bid) -> Rules {
         .rule(Call::Pass, 0, hcp(0..))
 }
 
-/// Doubler's accept-or-decline of the advancer's invitational minor jump
-/// (`(1t) X - 3m { - | (X) } ?`, gated by [`set_advance_minor_jump`])
-///
-/// The jump is a *limited* natural invite (10–12, 5+ `minor`, no 4-card unbid
-/// major) that does **not** promise a stopper, so — unlike the forcing cue,
-/// which the doubler may never pass — the continuation is a natural-invite
-/// accept/decline: **Pass** declines (too weak for game), a **new 5+ suit**
-/// accepts game-forcing (the advancer places it — [`advance_minor_jump_rebid`]),
-/// and **`3NT`** accepts to play *with the doubler's own stopper*.  With game
-/// values but **no** stopper and no biddable side suit the doubler instead
-/// **cues their suit** — a Western stopper-ask; the advancer supplies the
-/// notrump from its side ([`advance_minor_stopper_ask_answer`]), right-siding
-/// `3NT` when it holds the stopper.  The cue is the only artificial call here
-/// (`ADVANCE_CUE`); the rest are natural.
-fn answer_advance_minor_jump(their_opening: Bid, minor: Suit) -> Rules {
-    let theirs = their_opening.strain;
-    let m = Strain::from(minor);
-    let mut rules = Rules::new()
-        // Accept to play: 3NT with values and a stopper.
-        .rule(
-            Bid::new(3, Strain::Notrump),
-            120,
-            hcp(15..) & stopper_in_their_suits(),
-        )
-        // Too weak for game: decline (the invite is limited, so Pass is safe).
-        .rule(Call::Pass, 0, hcp(0..));
-    // Accept by showing a new 5+ suit (game-forcing) — any unbid suit above the
-    // jump, biddable at the three level.
-    for suit in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
-        let s = Strain::from(suit);
-        if s == theirs || s <= m {
-            continue;
-        }
-        rules = rules.rule(Bid::new(3, s), 130, points(15..) & len(suit, 5..));
-    }
-    // Game values but no stopper and no 5-card side suit: cue their suit to ask
-    // the advancer for the stopper (a Western cue).  Lowest-weighted of the game
-    // tries, so a hand with its own stopper (`3NT`) or a biddable side suit (a
-    // new suit) is routed there first; only the shapeless stopperless 15+ lands
-    // here.  Always legal — the minor jump exists only *below* their suit, so
-    // 3-of-their-suit sits above `3m` and below `3NT`.  Artificial → `ADVANCE_CUE`.
-    rules = rules
-        .rule(Bid::new(3, theirs), 100, hcp(15..))
-        .alert(ADVANCE_CUE);
-    rules
-}
-
-/// Advancer's placement after the doubler accepts the minor jump with a forcing
-/// new suit (`(1t) X - 3m { - | (X) } 3S { - | (X) } ?`, gated by
-/// [`set_advance_minor_jump`])
-///
-/// The doubler forced to game showing a 5+ `shown` suit; the advancer (already
-/// limited to 10–12) places it: raise to game with three-card support, else
-/// `3NT` (a stopper preferred, but the game is on either way).
-fn advance_minor_jump_rebid(shown: Suit) -> Rules {
-    let s = Strain::from(shown);
-    let game = if matches!(shown, Suit::Hearts | Suit::Spades) {
-        4
-    } else {
-        5
-    };
-    Rules::new()
-        // Support: raise the doubler's suit to game.
-        .rule(Bid::new(game, s), 100, len(shown, 3..))
-        // No support: notrump game (stopper preferred, else forced — game is on).
-        .rule(Bid::new(3, Strain::Notrump), 60, stopper_in_their_suits())
-        .rule(Bid::new(3, Strain::Notrump), 20, hcp(0..))
-}
-
-/// Advancer's answer to the doubler's stopper-ask cue after the minor jump
-/// (`(1t) X - 3m { - | (X) } 3t { - | (X) } ?`, gated by [`set_advance_minor_jump`])
-///
-/// The doubler cued their suit holding game values but no stopper (and no 5-card
-/// side suit); the advancer supplies the notrump decision.  With a stopper the
-/// advancer bids **`3NT`** — right-siding it, so the opening lead runs up to the
-/// advancer's tenace — otherwise no stopper sits on either side, so the advancer
-/// signs off in the **minor game** (both hands have shown game values).  Natural;
-/// nothing to alert.
-fn advance_minor_stopper_ask_answer(minor: Suit) -> Rules {
-    let m = Strain::from(minor);
-    Rules::new()
-        // Stopper: the right-sided notrump game (the lead comes up to us).
-        .rule(Bid::new(3, Strain::Notrump), 130, stopper_in_their_suits())
-        // No stopper anywhere: play the minor game (game values are established).
-        .rule(Bid::new(5, m), 50, hcp(0..))
-}
-
-/// Doubler's accept-or-decline of the advancer's invitational `2NT`
-/// (`(1t) X - 2NT { - | (X) } ?`, gated by [`set_advance_2nt_continuation`])
-///
-/// The `2NT` invite is a limited balanced 11–12 with a stopper (the advancer
-/// supplies the notrump stopper), so the doubler — sitting on the wide takeout
-/// range — simply answers a natural invite: **Pass** declines with a minimum,
-/// **`3NT`** accepts to play, and a **new 5-card major** accepts game-forcing so
-/// the advancer can choose the 4-4/5-3 major game over `3NT` (the advancer places
-/// it — [`advance_minor_jump_rebid`], the same accept-a-forcing-suit logic).  A
-/// 5-card *minor* is not shown: with the advancer's stopper `3NT` is almost
-/// always right, so only the fit-seeking majors are worth the detour.  All
-/// natural; nothing artificial to alert.
-fn answer_advance_2nt(their_opening: Bid) -> Rules {
-    let theirs = their_opening.strain;
-    let mut rules = Rules::new()
-        // Accept to play: 3NT with a maximum (the advancer holds the stopper).
-        .rule(Bid::new(3, Strain::Notrump), 120, hcp(14..))
-        // Minimum: decline the invite, play 2NT.
-        .rule(Call::Pass, 0, hcp(0..));
-    // Accept game-forcing by showing a 5-card major to seek the fit.
-    for major in [Suit::Hearts, Suit::Spades] {
-        let s = Strain::from(major);
-        if s == theirs {
-            continue;
-        }
-        rules = rules.rule(Bid::new(3, s), 130, points(14..) & len(major, 5..));
-    }
-    rules
-}
-
 /// Continuations of the rich advance of partner's takeout double
 ///
 /// Four sub-ladders, each authored for both RHO branches — RHO may pass *or*
@@ -724,93 +425,14 @@ pub(super) fn rich_advance_double_package() -> Package {
                 // Rubens transfers: the doubler completes the transfer
                 // (declaring), and the advancer raises to game or rests over the
                 // completion — so the artificial transfer is never left in.
-                if advance_rubens_enabled() {
-                    for (bid, target) in advance_major_transfers(theirs) {
-                        let completion = Bid::new(3, Strain::from(target));
-                        for rho in ["-", "(X)"] {
-                            let after_xfer = format!("{base} {bid} {rho}");
-                            entries.extend(rows_of(
-                                Pattern::node(&after_xfer),
-                                complete_advance_transfer(target),
-                            ));
-                            entries.extend(rows_of(
-                                Pattern::node(&format!("{after_xfer} {completion} -")),
-                                advance_transfer_rebid(target),
-                            ));
-                        }
-                    }
-                }
+                entries.extend(advance_rubens_rows(&base, theirs));
 
                 // The natural jump is limited, so — like a `2NT` invite — the
                 // doubler passes to decline; only the accepting branches (and the
                 // advancer's rebid over them) need authoring.
-                if advance_minor_jump_enabled() {
-                    for minor in [Suit::Clubs, Suit::Diamonds] {
-                        let m = Strain::from(minor);
-                        // A three-level minor jump exists only below their suit.
-                        if m >= theirs {
-                            continue;
-                        }
-                        let jump = Bid::new(3, m);
-                        for rho in ["-", "(X)"] {
-                            let after_jump = format!("{base} {jump} {rho}");
-                            entries.extend(rows_of(
-                                Pattern::node(&after_jump),
-                                answer_advance_minor_jump(opening, minor),
-                            ));
-                            // The advancer places game over each forcing new suit
-                            // the doubler can show (any unbid suit above the jump).
-                            for shown in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
-                                let s = Strain::from(shown);
-                                if s == theirs || s <= m {
-                                    continue;
-                                }
-                                let bid = Bid::new(3, s);
-                                for rho2 in ["-", "(X)"] {
-                                    entries.extend(rows_of(
-                                        Pattern::node(&format!("{after_jump} {bid} {rho2}")),
-                                        advance_minor_jump_rebid(shown),
-                                    ));
-                                }
-                            }
-                            // The advancer answers the doubler's stopper-ask cue
-                            // (3 of their suit): 3NT with a stopper (right-sided),
-                            // else the minor game.
-                            let ask = Bid::new(3, theirs);
-                            for rho2 in ["-", "(X)"] {
-                                entries.extend(rows_of(
-                                    Pattern::node(&format!("{after_jump} {ask} {rho2}")),
-                                    advance_minor_stopper_ask_answer(minor),
-                                ));
-                            }
-                        }
-                    }
-                }
+                entries.extend(advance_minor_jump_rows(&base, theirs, opening));
 
-                if advance_2nt_continuation_enabled() {
-                    for rho in ["-", "(X)"] {
-                        let after_2nt = format!("{base} 2NT {rho}");
-                        entries.extend(rows_of(
-                            Pattern::node(&after_2nt),
-                            answer_advance_2nt(opening),
-                        ));
-                        // The advancer places game over each forcing major the
-                        // doubler can show (an unbid major at the three level).
-                        for major in [Suit::Hearts, Suit::Spades] {
-                            let s = Strain::from(major);
-                            if s == theirs {
-                                continue;
-                            }
-                            let bid = Bid::new(3, s);
-                            for rho2 in ["-", "(X)"] {
-                                entries.extend(rows_of(
-                                    Pattern::node(&format!("{after_2nt} {bid} {rho2}")),
-                                    advance_minor_jump_rebid(major),
-                                ));
-                            }
-                        }
-                    }
-                }
+                entries.extend(advance_2nt_rows(&base, theirs, opening));
             }
             entries
         },
