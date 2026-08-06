@@ -19,14 +19,14 @@ two open phases are.
 | --- | --- |
 | Contested — `competition()` | **Done.** Nothing but `compile_into` over 21 packages; zero hand-rolled wiring. |
 | Contested — `defensive()` | **Done bar one site.** 22 packages, plus the 1NT-overcall systems-on graft, which is *permanently* imperative: `compile_into` writes rows, not a whole subtree. |
-| Constructive — ported | `openings.rs`, `weak_twos.rs`, `xyz.rs`, `nmf.rs`, the `notrump` and `rebids` module trees, `strong_two.rs`, and `responses.rs`, guarded by `row_package_invariants` in `american/tests.rs`. |
-| Constructive — **not** ported | Two American files (`game_force.rs`, `raises.rs`) plus `dutch.rs`: 25 verb sites + 5 production `install_rkcb` calls, sequenced below. |
-| RKCB | A row **producer**: `slam::rkcb_rows(prefix, trump) -> Vec<Entry>`. The same-signature `install_rkcb` shim remains for five production sites; three test-only callers in `slam/tests.rs` must also move before T1 deletes it. |
+| Constructive — ported | `openings.rs`, `weak_twos.rs`, `xyz.rs`, `nmf.rs`, the `notrump` and `rebids` module trees, `strong_two.rs`, `responses.rs`, and `game_force.rs`, guarded by `row_package_invariants` in `american/tests.rs`. |
+| Constructive — **not** ported | One American file (`raises.rs`) plus `dutch.rs`: 17 verb sites + 3 production `install_rkcb` calls, sequenced below. |
+| RKCB | A row **producer**: `slam::rkcb_rows(prefix, trump) -> Vec<Entry>`. The same-signature `install_rkcb` shim remains for three production sites; three test-only callers in `slam/tests.rs` must also move before T1 deletes it. |
 | Phase 1.5 (floating agreements) | **Cancelled, not deferred** — see below. |
 | Phase 2 (cross-side assembly) | **Open**, restated below. Nothing exists: no `defense_vs`, no `competitive_vs`, no `Table::compose`. |
 | Phase 3 (knob migration) | **Open**, restated below. Thread-locals untouched: 27 across `competition/`, 19 across `defense/`, 12 in `inference.rs`, 9 each across `notrump/` / `rebids/`. The by-agreement file split makes this *easier*: each agreement module's thread-locals are exactly the contents of its config struct. |
 
-**Escape hatches: 7, and the convertible set is empty.** A `guarded` row carries
+**Escape hatches: 9, and the convertible set is empty.** A `guarded` row carries
 a hand-written `Guard` verbatim; a `classified` row a table computed at classify
 time. Both are legal, both are opaque, and the variable-row grammar retired the
 thirteen that were templates in disguise. What is left is not a backlog — each
@@ -35,7 +35,7 @@ survivor is a shape a template cannot spell:
 | Kind | Sites | Why it cannot be a template |
 | --- | --- | --- |
 | Rebase carriers | 3 (`systems_on_over_double`, the doubled-Stayman runout, the 2NT lebensohl reroute) | A rebase re-points a whole *subtree*; `expand` emits leaf nodes. The wildcard tail is the guard's native shape. |
-| Wildcard tails | 2 (free-bid answers `4d″`, `4d‴`) | The middle call is an unconstrained `Bid(_)`. Enumerating it costs 640 and several thousand columns respectively, nearly all unreachable, and every one would land on the rendered card. |
+| Wildcard tails | 4 (free-bid answers `4d″`, `4d‴`; two 2/1 game backstops) | The free-bid middle is an unconstrained `Bid(_)`; the game backstops cover any undisturbed tail. Enumerating them produces hundreds or thousands of mostly unreachable columns and lands every one on the rendered card. |
 | Logit transplants | 2 (stolen Stayman, gladiator advance) | They read *another table's* logits at classify time. That is not a rule table, so `Rules` cannot express it. |
 
 Plus the 1NT graft, permanently imperative for the same subtree reason.
@@ -62,7 +62,7 @@ first-call guards into dispatch.
 Everything that is *not* a row falls to the legacy slow path — the opaque
 guards, the 1NT graft, and every unported constructive file. So **the fast
 path's coverage is this campaign's port coverage.** The remaining imperative
-constructive wiring is confined to `game_force.rs`, `raises.rs`, and `dutch.rs`.
+constructive wiring is confined to `raises.rs` and `dutch.rs`.
 
 ## The floor coupling (read before touching knobs)
 
@@ -163,8 +163,8 @@ does not decide anything:
 ## Port checklist
 
 Scoped 2026-08-06: the original tail was six American constructive files plus
-`dutch.rs`; phases 2/3 remain untouched. N1–N5, R1, S1, P1, and G0 are
-complete. The remaining sequence is G1, Z1, T1, D0, D1. One batch = one
+`dutch.rs`; phases 2/3 remain untouched. N1–N5, R1, S1, P1, G0, and G1 are
+complete. The remaining sequence is Z1, T1, D0, D1. One batch = one
 commit = one inertness proof under the porting rule above. Site counts are the
 reproducible greps — `insert_uncontested|insert_all_seats|fallback_all_seats`
 per file, plus
@@ -173,26 +173,25 @@ per file, plus
 **Conversion policy.** A site that resists transparent rows converts only when
 the conversion prunes no arms (parts 1–2 of the conversion gate above); a
 pruning conversion is *out of this campaign* — hatch it and mark it here as a
-candidate for a later measured campaign. No batch is a bidding change. Today
-the policy is dormant: every verb site in the tail is an exact
-`insert_uncontested` node except the two backstops below.
+candidate for a later measured campaign. No batch is a bidding change. The
+policy is dormant for the remaining tail: every remaining verb site is an
+exact `insert_uncontested` node. G1's two non-exact backstops landed as hatches.
 
 **What the batches rest on** (verified at 7facdd3):
 
-- The two `Undisturbed` game backstops (`game_force.rs:437`, `:476`) are
-  wildcard tails; `classified(Pattern::guarded(…))` spells them — no new entry
-  kind. **Hatch census 7 → 9 when G1 lands.**
-- They fan `0..=2` leading passes, and `Pattern.fan` is only ever 0 or 3, so
-  G0 adds a builder-level fan setter. No auction-string syntax grows.
+- The two `Undisturbed` game backstops are wildcard tails;
+  `classified(Pattern::guarded(…))` now spells them — no new entry kind.
+  **The hatch census is 9.**
+- They fan `0..=2` leading passes. Before G0, `Pattern.fan` was only ever 0 or
+  3, so G0 added a builder-level fan setter. No auction-string syntax grew.
 - `defense.rs:270` builds the 1NT-overcall graft through
   `notrump::register_one_nt(&mut Trie)`. Its signature remains load-bearing;
   its body is now `compile_into` over the 1NT packages.
-- Five key sets derive from another table's `.rules()`
-  (`rebids/forcing_notrump.rs:72`, `rebids/major_tails.rs:426`, `raises.rs:380`,
-  `game_force.rs:378`, `:455`). Spell them
-  as computed `entries` closures (the `nmf.rs:230` idiom), never as `expand`
-  templates with a duplicated filter — the copy would drift from the
-  knob-gated source table.
+- Five key sets derive from another table's `.rules()`. The four already ported
+  in `rebids/` and `game_force.rs` are computed `entries` closures; the one in
+  `raises.rs` must follow the same `nmf.rs` idiom, never an `expand` template
+  with a duplicated filter — the copy would drift from the knob-gated source
+  table.
 - Every port adds its package(s) to `row_package_invariants`
   (`american/tests.rs:161`). The list is hand-edited; a port not listed there is
   not gated.
@@ -201,8 +200,8 @@ the policy is dormant: every verb site in the tail is an exact
   overwrites american nodes by re-insert — legal across `compile_into` calls,
   a `group()` panic within one package — so dutch is its own package list,
   compiled after american's.
-- Of the original 25 production `install_rkcb` sites, 20 now inline
-  `rkcb_rows(prefix, trump)` and five remain in G1/Z1. Three additional
+- Of the original 25 production `install_rkcb` sites, 22 now inline
+  `rkcb_rows(prefix, trump)` and three remain in Z1. Three additional
   test-only calls in `slam/tests.rs` are outside those anchors; T1 converts
   them before deleting the shim.
 
@@ -219,15 +218,15 @@ the policy is dormant: every verb site in the tail is an exact
 | S1 | **Done** | `strong_two.rs` | 15 + 4 rkcb | `slam::minor_keycard` | ported at fan 3; corrected the stale 0–2 comment |
 | P1 | **Done** | `responses.rs` | 9 + 2 rkcb | `major_choice_of_games`, `slam::minor_keycard` | three packages; seven inline tables hoisted |
 | G0 | **Done** | `rows.rs`: builder-level fan = 2 | — | — | `Pattern::with_fan(2)`; no string syntax added |
-| G1 | **Next** | `game_force.rs` | 8 + 2 rkcb | `game_backstop_enabled` | two backstop hatches; two table-derived key sets |
-| Z1 | Open | `raises.rs` | 7 + 3 rkcb | game-try + limit-raise gates | one table-derived key set |
+| G1 | **Done** | `game_force.rs` | 8 + 2 rkcb | `opener_third_enabled`, `second_suit_agreement`, `game_backstop_enabled` | four packages; two backstop hatches; two table-derived key sets |
+| Z1 | **Next** | `raises.rs` | 7 + 3 rkcb | game-try + limit-raise gates | one table-derived key set |
 | T1 | Open | retire `install_rkcb` (`slam.rs`) | — | — | also convert its three test-only callers |
 | D0 | Open | Dutch inertness harness | — | — | Dutch twins of smoke and render |
 | D1 | Open | `dutch.rs::dutch_book()` | 10 | — | own package list, compiled after American's |
 
-Completed: N1→N5, R1, S1, P1, G0. Remaining sequence:
-G1→Z1→T1→D0→D1. The remaining anchors are exact: 8+2,
-7+3, and Dutch 10+0 — 25 verb sites and five production RKCB calls in total.
+Completed: N1→N5, R1, S1, P1, G0, G1. Remaining sequence:
+Z1→T1→D0→D1. The remaining anchors are exact: 7+3 and Dutch 10+0 —
+17 verb sites and three production RKCB calls in total.
 Completed notrump/rebid locations in the table are historical; commit `1c0ef51`
 subsequently split them into agreement modules.
 
@@ -260,4 +259,4 @@ resolution touches the reading and may not be inert; escalate rather than
 nudge. Any dump delta is a translation bug: fix it, never re-bless.
 
 Delegation: Z1 and D1 remain mechanical re-spellings with this recipe as the
-spec; G0, G1, T1, and D0 stay in the main loop.
+spec; T1 and D0 stay in the main loop.

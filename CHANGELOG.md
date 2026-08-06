@@ -118,8 +118,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (20 000 boards, seed 1) hashes `59a27d7f…` and `render-book` hashes
   `01bf875f…`, both the values at `367dc2c`.  The reusable knob-armed sweep
   (`examples/tmp-rows-port`) grew from 14 arms for N1–N5 to 24 for R1, 25 for
-  S1, and 26 for P1; each batch's then-current arms were pairwise distinct and
-  byte-identical across it.  User impact: none.
+  S1, 26 for P1/G0, and 29 for G1; each batch's then-current arms were pairwise
+  distinct and byte-identical across it.  User impact: none.
   - **N1** — `notrump.rs` 3096–3238, 24 sites (22 `insert_uncontested` + 2
     `install_rkcb`) become four packages: the ungated `one-nt-base` (18 sites)
     plus `stayman-cue-continuation`, `stayman-minor-slam-try` and
@@ -216,12 +216,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `smoke-default` remains `59a27d7f…` and `render-book` remains `01bf875f…`.
     User impact: none.
   - **G0** — the row pattern builder gains `Pattern::with_fan`, the narrow
-    escape hatch G1 needs to preserve its two legacy backstop sites' `0..=2`
+    escape hatch G1 uses to preserve its two legacy backstop sites' `0..=2`
     leading-pass fan without growing the auction-string grammar.  The builder
     rejects ceilings above the table's three possible leading passes, with
     tests for the partial fan and the bound.  All 26 sweep arms remain pairwise
     distinct and byte-identical across the batch; `smoke-default` remains
     `59a27d7f…` and `render-book` remains `01bf875f…`.  User impact: none.
+  - **G1** — `game_force.rs`'s six `insert_uncontested` sites, two
+    `fallback_all_seats` sites, and two `install_rkcb` sites become four
+    packages.  The ungated `two-over-one-continuations` carries both source
+    tables, every responder table derived from their distinct calls, and the
+    major RKCB tails; `two-over-one-opener-third` gates only opener's table, so
+    its legacy-ungated RKCB answers stay in the base package;
+    `two-over-one-second-suit-agreement` moves its table and RKCB tail together;
+    and `two-over-one-game-backstop` preserves the two retired `Undisturbed`
+    wildcard sites as `classified` guarded entries at their exact `0..=2`
+    leading-pass fan.  Both call sets are still derived from the live source
+    `Rules` in first-declaration order, and `register` is one `compile_into`
+    call.  G1 also exposed a test-profile mismatch: the package alert probe
+    claimed to extend the whole-book invariant but ran under union reading,
+    where a context-dead generic `partner_suit_is(x) & support(4..)` arm can
+    replay support against another live suit and look artificially unalerted.
+    It now uses the same legacy-hull profile as the whole-book detector, saving
+    and restoring the caller's profile; no rule or allowlist changed.  All 29
+    sweep arms are pairwise distinct before and after the port and
+    byte-identical across it;
+    `smoke-default` remains `59a27d7f…` and `render-book` remains `01bf875f…`.
+    User impact: none.
   - **The Stayman `2♣` weight tie is a partition, and is now allowlisted.**
     Putting `notrump_responses()` under `assert_package_invariants` for the
     first time surfaced four rules claiming `2♣` at weight 150: constructive

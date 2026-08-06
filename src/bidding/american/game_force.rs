@@ -22,17 +22,15 @@
 
 use super::super::Trie;
 use super::call;
-use super::fallback_all_seats;
-use super::uncontested;
 use crate::bidding::Rules;
 use crate::bidding::constraint::{
     balanced, described, fifths, hcp, len, partner_suit_is, points, support,
 };
-use crate::bidding::fallback::{Fallback, Undisturbed};
+use crate::bidding::fallback::Undisturbed;
+use crate::bidding::rows::{Package, Pattern, classified, compile_into, rows_of};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Level, Strain, Suit};
 use std::cell::Cell;
-use std::sync::Arc;
 
 std::thread_local! {
     /// Whether opener authors a third-call table after responder raises
@@ -342,142 +340,210 @@ fn game_backstop() -> Rules {
 // Registration
 // ---------------------------------------------------------------------------
 
-/// Register all 2/1 game-forcing continuations into `book`
+/// Distinct calls from a source table, preserving first-rule order
 ///
-/// Iterates over the five major 2/1 pairs (♠–♣, ♠–♦, ♠–♥, ♥–♣, ♥–♦), the
-/// 1♦–2♣ minor game force, and installs three rounds of decision tables plus a
-/// game backstop at each.
+/// Continuation keys stay derived from the live, knob-built source table.  A
+/// `HashSet` is only the membership test; iterating the rules themselves keeps
+/// the legacy declaration order.
+fn distinct_calls(rules: &Rules) -> Vec<Call> {
+    let mut seen = std::collections::HashSet::new();
+    rules
+        .rules()
+        .iter()
+        .filter_map(|rule| {
+            let call = rule.call();
+            seen.insert(call).then_some(call)
+        })
+        .collect()
+}
+
+/// The ungated 2/1 decision rounds and major-suit RKCB answer trees
+pub(super) fn base() -> Package {
+    Package {
+        name: "two-over-one-continuations",
+        gate: || true,
+        entries: || {
+            let mut entries = Vec::new();
+
+            // Five major 2/1 sequences: opener's rebid, responder's rebid
+            // after every distinct source-table call, and the RKCB answers
+            // below each possible 3M agreement.  The answers deliberately do
+            // not ride the `opener_third_enabled` gate.
+            for major in [Suit::Spades, Suit::Hearts] {
+                for resp in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
+                    if Strain::from(resp) >= Strain::from(major) {
+                        continue;
+                    }
+                    let prefix = format!(
+                        "P* {} (P) {} (P)",
+                        call(1, Strain::from(major)),
+                        call(2, Strain::from(resp)),
+                    );
+                    let rebid = opener_rebid(major, resp);
+                    let rebid_calls = distinct_calls(&rebid);
+                    entries.extend(rows_of(Pattern::node(&prefix), rebid));
+
+                    let three_major = Bid::new(3, Strain::from(major));
+                    for rebid_call in rebid_calls {
+                        let after_rebid = format!("{prefix} {rebid_call} (P)");
+                        entries.extend(rows_of(
+                            Pattern::node(&after_rebid),
+                            responder_rebid(major, resp),
+                        ));
+                        if let Call::Bid(rebid_bid) = rebid_call
+                            && rebid_bid < three_major
+                        {
+                            let agreed =
+                                format!("{after_rebid} {} (P)", call(3, Strain::from(major)),);
+                            entries.extend(super::slam::rkcb_rows(&agreed, major));
+                        }
+                    }
+                }
+            }
+
+            // The 1♦–2♣ minor game force: the same table-derived call set,
+            // with no authored third round.
+            let prefix = "P* 1♦ (P) 2♣ (P)";
+            let rebid = opener_rebid_1d_2c();
+            let rebid_calls = distinct_calls(&rebid);
+            entries.extend(rows_of(Pattern::node(prefix), rebid));
+            for rebid_call in rebid_calls {
+                entries.extend(rows_of(
+                    Pattern::node(&format!("{prefix} {rebid_call} (P)")),
+                    responder_rebid_1d_2c(),
+                ));
+            }
+
+            entries
+        },
+    }
+}
+
+/// Opener's third-call table after responder agrees the opening major
+pub(super) fn opener_third_continuations() -> Package {
+    Package {
+        name: "two-over-one-opener-third",
+        gate: opener_third_enabled,
+        entries: || {
+            let mut entries = Vec::new();
+            for major in [Suit::Spades, Suit::Hearts] {
+                for resp in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
+                    if Strain::from(resp) >= Strain::from(major) {
+                        continue;
+                    }
+                    let prefix = format!(
+                        "P* {} (P) {} (P)",
+                        call(1, Strain::from(major)),
+                        call(2, Strain::from(resp)),
+                    );
+                    let three_major = Bid::new(3, Strain::from(major));
+                    for rebid_call in distinct_calls(&opener_rebid(major, resp)) {
+                        if let Call::Bid(rebid_bid) = rebid_call
+                            && rebid_bid < three_major
+                        {
+                            entries.extend(rows_of(
+                                Pattern::node(&format!(
+                                    "{prefix} {rebid_call} (P) {three_major} (P)"
+                                )),
+                                opener_third(major),
+                            ));
+                        }
+                    }
+                }
+            }
+            entries
+        },
+    }
+}
+
+/// Opener's third-call table and RKCB tails after the second suit is agreed
+pub(super) fn second_suit_agreement_continuations() -> Package {
+    Package {
+        name: "two-over-one-second-suit-agreement",
+        gate: second_suit_agreement,
+        entries: || {
+            let mut entries = Vec::new();
+            for major in [Suit::Spades, Suit::Hearts] {
+                for resp in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
+                    if Strain::from(resp) >= Strain::from(major) {
+                        continue;
+                    }
+                    let prefix = format!(
+                        "P* {} (P) {} (P)",
+                        call(1, Strain::from(major)),
+                        call(2, Strain::from(resp)),
+                    );
+                    for rebid_call in distinct_calls(&opener_rebid(major, resp)) {
+                        let Call::Bid(rebid_bid) = rebid_call else {
+                            continue;
+                        };
+                        if rebid_bid.level != Level::new(2) {
+                            continue;
+                        }
+                        let Ok(agreed) = Suit::try_from(rebid_bid.strain) else {
+                            continue;
+                        };
+                        if agreed == major || agreed == resp {
+                            continue;
+                        }
+                        let agreement = format!(
+                            "{prefix} {rebid_call} (P) {} (P)",
+                            call(3, Strain::from(agreed)),
+                        );
+                        entries.extend(rows_of(
+                            Pattern::node(&agreement),
+                            opener_third_agree(agreed),
+                        ));
+                        entries.extend(super::slam::rkcb_rows(&agreement, agreed));
+                    }
+                }
+            }
+            entries
+        },
+    }
+}
+
+/// The retired wildcard game backstops, preserved verbatim behind their knob
+pub(super) fn backstops() -> Package {
+    Package {
+        name: "two-over-one-game-backstop",
+        gate: game_backstop_enabled,
+        entries: || {
+            let mut entries = Vec::new();
+            for major in [Suit::Spades, Suit::Hearts] {
+                for resp in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
+                    if Strain::from(resp) >= Strain::from(major) {
+                        continue;
+                    }
+                    let key = format!(
+                        "{} (P) {} (P)",
+                        call(1, Strain::from(major)),
+                        call(2, Strain::from(resp)),
+                    );
+                    entries.push(classified(
+                        Pattern::guarded(&key, "2NT (P)", Undisturbed).with_fan(2),
+                        game_backstop(),
+                    ));
+                }
+            }
+            entries.push(classified(
+                Pattern::guarded("1♦ (P) 2♣ (P)", "2NT (P)", Undisturbed).with_fan(2),
+                game_backstop(),
+            ));
+            entries
+        },
+    }
+}
+
+/// Register all 2/1 game-forcing continuations into `book`
 pub(super) fn register(book: &mut Trie) {
-    // Five major 2/1 sequences.
-    for &major in &[Suit::Spades, Suit::Hearts] {
-        for &resp in &[Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
-            if Strain::from(resp) >= Strain::from(major) {
-                // resp must be below major to be a 2/1 response.
-                continue;
-            }
-            register_major(book, major, resp);
-        }
-    }
-
-    // Minor game force: 1♦–2♣.
-    register_minor(book);
-}
-
-/// Register tables for one major 2/1 pair
-fn register_major(book: &mut Trie, major: Suit, resp: Suit) {
-    let major_strain = Strain::from(major);
-    let resp_strain = Strain::from(resp);
-
-    let opener_calls = &[call(1, major_strain), call(2, resp_strain)];
-
-    // Round 1: opener's rebid.
-    let rebid = opener_rebid(major, resp);
-    let rebid_calls: Vec<Call> = {
-        let mut seen = std::collections::HashSet::new();
-        rebid
-            .rules()
-            .iter()
-            .filter_map(|r| {
-                let c = r.call();
-                if seen.insert(c) { Some(c) } else { None }
-            })
-            .collect()
-    };
-    super::insert_uncontested(book, opener_calls, rebid);
-
-    let three_m_bid = Bid::new(3, major_strain);
-
-    // Round 2: responder's rebid after each distinct opener bid R.
-    for &r_call in &rebid_calls {
-        let resp_calls = &[call(1, major_strain), call(2, resp_strain), r_call];
-        super::insert_uncontested(book, resp_calls, responder_rebid(major, resp));
-
-        // Round 3: opener's third call after 3M (only when R is a bid below 3M).
-        if let Call::Bid(r_bid) = r_call
-            && r_bid < three_m_bid
-        {
-            let third_calls = &[
-                call(1, major_strain),
-                call(2, resp_strain),
-                r_call,
-                call(3, major_strain),
-            ];
-            if opener_third_enabled() {
-                super::insert_uncontested(book, third_calls, opener_third(major));
-            }
-            super::slam::install_rkcb(book, third_calls, major);
-        }
-
-        // Round 3b: responder raised opener's second suit x to 3x (the
-        // two-suiter's second fit).  Only a 2-level new suit is reachable by a
-        // single raise; 3-level new suits skip straight to game.
-        if second_suit_agreement()
-            && let Call::Bid(r_bid) = r_call
-            && r_bid.level == Level::new(2)
-            && let Ok(x) = Suit::try_from(r_bid.strain)
-            && x != major
-            && x != resp
-        {
-            let agree_calls = &[
-                call(1, major_strain),
-                call(2, resp_strain),
-                r_call,
-                call(3, Strain::from(x)),
-            ];
-            super::insert_uncontested(book, agree_calls, opener_third_agree(x));
-            super::slam::install_rkcb(book, agree_calls, x);
-        }
-    }
-
-    // Game backstop: anchor at the 2/1 response node, guard = Undisturbed.
-    if !game_backstop_enabled() {
-        return;
-    }
-    let anchor = uncontested(opener_calls);
-    fallback_all_seats(
+    compile_into(
         book,
-        &anchor,
-        2,
-        Arc::new(Undisturbed),
-        Fallback::classify(game_backstop()),
-    );
-}
-
-/// Register tables for the 1♦–2♣ minor game force
-fn register_minor(book: &mut Trie) {
-    let opener_calls = &[call(1, Strain::Diamonds), call(2, Strain::Clubs)];
-
-    // Opener's rebid.
-    let rebid = opener_rebid_1d_2c();
-    let rebid_calls: Vec<Call> = {
-        let mut seen = std::collections::HashSet::new();
-        rebid
-            .rules()
-            .iter()
-            .filter_map(|r| {
-                let c = r.call();
-                if seen.insert(c) { Some(c) } else { None }
-            })
-            .collect()
-    };
-    super::insert_uncontested(book, opener_calls, rebid);
-
-    // Responder's rebid after each distinct opener bid R.
-    for &r_call in &rebid_calls {
-        let resp_calls = &[call(1, Strain::Diamonds), call(2, Strain::Clubs), r_call];
-        super::insert_uncontested(book, resp_calls, responder_rebid_1d_2c());
-    }
-
-    // Game backstop.
-    if !game_backstop_enabled() {
-        return;
-    }
-    let anchor = uncontested(opener_calls);
-    fallback_all_seats(
-        book,
-        &anchor,
-        2,
-        Arc::new(Undisturbed),
-        Fallback::classify(game_backstop()),
+        &[
+            base(),
+            opener_third_continuations(),
+            second_suit_agreement_continuations(),
+            backstops(),
+        ],
     );
 }

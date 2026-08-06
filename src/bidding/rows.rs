@@ -521,7 +521,6 @@ impl Pattern {
     /// `0..=3`.  This builder carries the exceptional legacy ceiling that is
     /// neither zero nor three without adding another auction-string token.
     #[must_use]
-    #[allow(dead_code)] // G0: the first production consumer lands in the following G1 batch
     pub(crate) fn with_fan(mut self, fan: usize) -> Self {
         assert!(
             fan <= 3,
@@ -1377,9 +1376,12 @@ pub(crate) fn compile_entries(book: &mut Trie, name: &str, entries: Vec<Entry>) 
 /// * **Alerts**, authored tables only: an artificial call (witness: a
 ///   projection flooring 4+ in a suit the call did not name) must carry an
 ///   alert — the fallback-row extension of `artificial_calls_are_alerted`,
-///   which walks exact trie nodes only.  A [`classified`] entry has no
-///   readable rules and goes unchecked here; its alerts ride on the tables it
-///   computes from.
+///   which walks exact trie nodes only.  The probe uses the same legacy hull
+///   reading as that invariant: union-profile boxes can legitimately carry
+///   another suit's information, and context-dead generic-table arms can replay
+///   `support` against a different live partner suit.  A [`classified`] entry
+///   has no readable rules and goes unchecked here; its alerts ride on the
+///   tables it computes from.
 ///
 /// The weight ties tolerated by [`assert_package_invariants`]
 ///
@@ -1502,7 +1504,7 @@ pub(crate) fn assert_package_invariants(packages: &[Package]) {
     );
 
     use super::context::Context;
-    use super::inference::artificial;
+    use super::inference::{artificial, envelope_union_reading};
     use super::trie::Classifier;
     use contract_bridge::auction::RelativeVulnerability;
 
@@ -1557,17 +1559,27 @@ pub(crate) fn assert_package_invariants(packages: &[Package]) {
                 Call::Bid(bid) => Some(bid.strain),
                 _ => None,
             });
-            for rule in rules.rules() {
-                if artificial(&rule.project(&context), rule.call(), doubled) {
-                    assert!(
-                        rule.alert().is_some(),
-                        "{}: artificial call {} at {:?} has no alert",
-                        package.name,
-                        rule.call(),
-                        pattern.source,
-                    );
-                }
-            }
+            // Match `artificial_calls_are_alerted`'s legacy-hull definition.
+            // Restore the thread-local before asserting so a failed invariant
+            // cannot leak its profile into another test on this worker.
+            let prior_union_reading = envelope_union_reading();
+            super::set_envelope_union_reading(false);
+            let unalerted = rules
+                .rules()
+                .iter()
+                .find(|rule| {
+                    artificial(&rule.project(&context), rule.call(), doubled)
+                        && rule.alert().is_none()
+                })
+                .map(super::rules::Rule::call);
+            super::set_envelope_union_reading(prior_union_reading);
+            assert!(
+                unalerted.is_none(),
+                "{}: artificial call {} at {:?} has no alert",
+                package.name,
+                unalerted.expect("checked above"),
+                pattern.source,
+            );
         }
     }
 }

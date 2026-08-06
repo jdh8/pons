@@ -138,6 +138,19 @@ const ARMS: &[(&str, fn())] = &[
     ("no-major-choice-of-games", || {
         pons::bidding::american::set_major_choice_of_games(false)
     }),
+    // G1 — game_force.rs.  The opener-third table and its RKCB answer tree
+    // deliberately have different gates, while the second-suit agreement
+    // moves its table and answer tree together.  The retired backstop is the
+    // positive arm because it defaults off.
+    ("no-opener-third", || {
+        pons::bidding::american::set_opener_third(false)
+    }),
+    ("no-second-suit-agreement", || {
+        pons::bidding::american::set_second_suit_agreement(false)
+    }),
+    ("game-backstop", || {
+        pons::bidding::american::set_game_backstop(true)
+    }),
 ];
 
 /// Dump one table, **including each rule's alert**

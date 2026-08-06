@@ -202,6 +202,10 @@ fn row_package_invariants() {
         rebids::major_rebid_tail_continuations(),
         rebids::fourth_suit_forcing_continuations(),
         rebids::remaining_rebid_bases(),
+        game_force::base(),
+        game_force::opener_third_continuations(),
+        game_force::second_suit_agreement_continuations(),
+        game_force::backstops(),
         strong_two::package(),
         strong_two::minor_keycard_continuations(),
     ]);
