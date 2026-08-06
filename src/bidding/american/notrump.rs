@@ -95,6 +95,11 @@ fn puppet_scheme() -> bool {
     notrump_minors() == PUPPET
 }
 
+/// The anti-gate of [`puppet_scheme`], for the European packages
+fn european_scheme() -> bool {
+    !puppet_scheme()
+}
+
 /// How a balanced eight with no four-card major responds to our 1NT — the
 /// *size ask* class (`hcp(8) & balanced() & no four-card major`).
 ///
@@ -3472,6 +3477,135 @@ pub(super) fn sixcard_invite() -> Package {
     }
 }
 
+/// Stayman maximum showing both four-card majors, with a right-siding relay
+pub(super) fn both_majors_relay() -> Package {
+    Package {
+        name: "stayman-both-majors-relay",
+        gate: stayman_both_majors,
+        entries: || {
+            let mut entries = rows_of(
+                Pattern::node("P* 1NT (P) 2♣ (P) 2NT (P)"),
+                both_majors_max_responder(),
+            );
+            entries.extend(rows_of(
+                Pattern::node("P* 1NT (P) 2♣ (P) 2NT (P) 3♣ (P)"),
+                both_majors_relay_complete(Suit::Hearts),
+            ));
+            entries.extend(rows_of(
+                Pattern::node("P* 1NT (P) 2♣ (P) 2NT (P) 3♦ (P)"),
+                both_majors_relay_complete(Suit::Spades),
+            ));
+            entries.extend(rows_of(
+                Pattern::node("P* 1NT (P) 2♣ (P) 2NT (P) 3♣ (P) 3♥ (P)"),
+                both_majors_relay_placement(Suit::Hearts),
+            ));
+            entries.extend(rows_of(
+                Pattern::node("P* 1NT (P) 2♣ (P) 2NT (P) 3♦ (P) 3♠ (P)"),
+                both_majors_relay_placement(Suit::Spades),
+            ));
+            entries
+        },
+    }
+}
+
+/// Stayman maximum showing a five-card major
+pub(super) fn five_card_max() -> Package {
+    Package {
+        name: "stayman-five-card-max",
+        gate: stayman_5card_max,
+        entries: || {
+            expand(
+                "P* 1NT (P) 2♣ (P) 3M (P)",
+                |_| true,
+                |b| five_card_max_rebid(b.suit('M')),
+            )
+        },
+    }
+}
+
+/// Puppet Stayman responses and continuations after the 1NT–3♣ ask
+pub(super) fn puppet() -> Package {
+    Package {
+        name: "puppet-stayman",
+        gate: puppet_scheme,
+        entries: || {
+            let mut entries = rows_of(Pattern::node("P* 1NT (P) 3♣ (P)"), puppet_answers());
+            entries.extend(expand(
+                "P* 1NT (P) 3♣ (P) 3M (P)",
+                |_| true,
+                |b| puppet_major_rebid(b.suit('M')),
+            ));
+            entries.extend(rows_of(
+                Pattern::node("P* 1NT (P) 3♣ (P) 3♦ (P)"),
+                puppet_deny_rebid(),
+            ));
+
+            // The shorter-major bid shows four cards in the other major, so
+            // these derived-suit completions stay literal.
+            entries.extend(rows_of(
+                Pattern::node("P* 1NT (P) 3♣ (P) 3♦ (P) 3♥ (P)"),
+                puppet_smolen_completion(Suit::Spades),
+            ));
+            entries.extend(rows_of(
+                Pattern::node("P* 1NT (P) 3♣ (P) 3♦ (P) 3♠ (P)"),
+                puppet_smolen_completion(Suit::Hearts),
+            ));
+            entries
+        },
+    }
+}
+
+/// European 1NT–3♣ diamond transfer and responder's game decision
+pub(super) fn european_three_club() -> Package {
+    Package {
+        name: "european-three-club",
+        gate: european_scheme,
+        entries: || {
+            let mut entries = rows_of(
+                Pattern::node("P* 1NT (P) 3♣ (P)"),
+                european_three_club_answer(),
+            );
+            entries.extend(rows_of(
+                Pattern::node("P* 1NT (P) 3♣ (P) 3♦ (P)"),
+                diamond_transfer_game(8),
+            ));
+            entries
+        },
+    }
+}
+
+/// Both-majors 1NT–3♦ answer and responder's decision over a minimum
+pub(super) fn both_majors_three_diamond() -> Package {
+    Package {
+        name: "both-majors-three-diamond",
+        gate: || true,
+        entries: || {
+            let mut entries = rows_of(Pattern::node("P* 1NT (P) 3♦ (P)"), five_five_major_answer());
+            entries.extend(expand(
+                "P* 1NT (P) 3♦ (P) 3M (P)",
+                |_| true,
+                |b| five_five_min_rebid(b.suit('M')),
+            ));
+            entries
+        },
+    }
+}
+
+/// Opener's game placement after responder's opt-in 1NT–3M splinter
+pub(super) fn notrump_splinter() -> Package {
+    Package {
+        name: "nt-splinter",
+        gate: nt_splinter,
+        entries: || {
+            expand(
+                "P* 1NT (P) 3M (P)",
+                |_| true,
+                |b| nt_splinter_answer(b.suit('M')),
+            )
+        },
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Registration
 // ---------------------------------------------------------------------------
@@ -3497,10 +3631,9 @@ pub(super) fn register_one_nt(book: &mut Trie) {
     let one_nt = call(1, Strain::Notrump);
     let two_nt = call(2, Strain::Notrump);
 
-    let two_c = call(2, Strain::Clubs);
     let two_s = call(2, Strain::Spades);
-    let three_h = call(3, Strain::Hearts);
-    let three_s = call(3, Strain::Spades);
+    let three_c = call(3, Strain::Clubs);
+    let three_d = call(3, Strain::Diamonds);
 
     compile_into(
         book,
@@ -3517,113 +3650,14 @@ pub(super) fn register_one_nt(book: &mut Trie) {
             spade_transfer_game_force(),
             heart_transfer_game_force(),
             sixcard_invite(),
+            both_majors_relay(),
+            five_card_max(),
+            puppet(),
+            european_three_club(),
+            both_majors_three_diamond(),
+            notrump_splinter(),
         ],
     );
-
-    // --- Opt-in max-showing overlays (both-majors min/max, max five-card jump) -
-    //
-    // Responder's placement over opener's artificial 2NT/3♣ (both four-card
-    // majors) and natural 3♥/3♠ jump (max five-card major).  Opener has limited
-    // itself, so its follow-up is the floor's pass.
-    if stayman_both_majors() {
-        // Max-only, right-siding relay: opener's 2NT shows both four-card majors
-        // with a maximum (17); responder names their major (3♣ = hearts, 3♦ =
-        // spades); opener completes (3♥/3♠) so the strong hand declares; responder
-        // places game.  A minimum opener bids 2♥ naturally (no node needed).
-        // ponytail: slam below game left to the floor; author a node if it underbids.
-        insert_uncontested(book, &[one_nt, two_c, two_nt], both_majors_max_responder());
-        insert_uncontested(
-            book,
-            &[one_nt, two_c, two_nt, call(3, Strain::Clubs)],
-            both_majors_relay_complete(Suit::Hearts),
-        );
-        insert_uncontested(
-            book,
-            &[one_nt, two_c, two_nt, call(3, Strain::Diamonds)],
-            both_majors_relay_complete(Suit::Spades),
-        );
-        insert_uncontested(
-            book,
-            &[one_nt, two_c, two_nt, call(3, Strain::Clubs), three_h],
-            both_majors_relay_placement(Suit::Hearts),
-        );
-        insert_uncontested(
-            book,
-            &[one_nt, two_c, two_nt, call(3, Strain::Diamonds), three_s],
-            both_majors_relay_placement(Suit::Spades),
-        );
-    }
-    if stayman_5card_max() {
-        insert_uncontested(
-            book,
-            &[one_nt, two_c, three_h],
-            five_card_max_rebid(Suit::Hearts),
-        );
-        insert_uncontested(
-            book,
-            &[one_nt, two_c, three_s],
-            five_card_max_rebid(Suit::Spades),
-        );
-    }
-
-    // --- 3♣ response (Puppet Stayman, or European diamond transfer) -----------
-    let three_c = call(3, Strain::Clubs);
-    let three_d = call(3, Strain::Diamonds);
-    if puppet_scheme() {
-        // Puppet Stayman: opener shows a five-card major (3♥/3♠) or denies with
-        // 3♦; responder raises a 5-3 fit, or — Smolen-style after 3♦ — bids the
-        // shorter major to find a 4-4 with opener declaring.
-        insert_uncontested(book, &[one_nt, three_c], puppet_answers());
-        insert_uncontested(
-            book,
-            &[one_nt, three_c, three_h],
-            puppet_major_rebid(Suit::Hearts),
-        );
-        insert_uncontested(
-            book,
-            &[one_nt, three_c, three_s],
-            puppet_major_rebid(Suit::Spades),
-        );
-        insert_uncontested(book, &[one_nt, three_c, three_d], puppet_deny_rebid());
-        // Responder's shorter-major bid named four cards in the *other* major.
-        insert_uncontested(
-            book,
-            &[one_nt, three_c, three_d, three_h],
-            puppet_smolen_completion(Suit::Spades),
-        );
-        insert_uncontested(
-            book,
-            &[one_nt, three_c, three_d, three_s],
-            puppet_smolen_completion(Suit::Hearts),
-        );
-    } else {
-        // European: 3♣ is a transfer to diamonds — opener completes 3♦, responder
-        // bids 3NT with game values or passes the diamond partscore.
-        insert_uncontested(book, &[one_nt, three_c], european_three_club_answer());
-        insert_uncontested(book, &[one_nt, three_c, three_d], diamond_transfer_game(8));
-    }
-
-    // --- Both-majors 3♦ (1NT–3♦) ----------------------------------------------
-    //
-    // Opener signs off in 3M with a minimum or jumps to game (4M / 3NT) with a
-    // maximum; over a minimum signoff responder passes an invitation or raises.
-    insert_uncontested(book, &[one_nt, three_d], five_five_major_answer());
-    insert_uncontested(
-        book,
-        &[one_nt, three_d, three_h],
-        five_five_min_rebid(Suit::Hearts),
-    );
-    insert_uncontested(
-        book,
-        &[one_nt, three_d, three_s],
-        five_five_min_rebid(Suit::Spades),
-    );
-
-    // --- 3♥/3♠ splinter (opt-in): opener places the game -----------------------
-    if nt_splinter() {
-        insert_uncontested(book, &[one_nt, three_h], nt_splinter_answer(Suit::Hearts));
-        insert_uncontested(book, &[one_nt, three_s], nt_splinter_answer(Suit::Spades));
-    }
 
     // --- South African Texas (1NT–4♣/4♦ transfers, 1NT–4♥/4♠ slam tries) ------
     //

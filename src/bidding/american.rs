@@ -488,6 +488,12 @@ mod tests {
             notrump::spade_transfer_game_force(),
             notrump::heart_transfer_game_force(),
             notrump::sixcard_invite(),
+            notrump::both_majors_relay(),
+            notrump::five_card_max(),
+            notrump::puppet(),
+            notrump::european_three_club(),
+            notrump::both_majors_three_diamond(),
+            notrump::notrump_splinter(),
         ]);
     }
 

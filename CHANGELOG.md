@@ -40,6 +40,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `set_transfer_slam_try` triple; between them those five arms flip all eight
     gates, including both polarities of `transfer_slam_try() &&
     !transfer_gf_hearts()`.
+  - **N3** — `notrump.rs` 3430–3534, 20 sites, no `install_rkcb`: the
+    max-showing overlays, the 3♣ response, the both-majors 3♦ and the 3♥/3♠
+    splinter become six packages.  This is the campaign's first **gate/anti-gate
+    pair**: the Puppet arm and its European `else` wire the *same* two keys
+    (`1NT–3♣` and `1NT–3♣–3♦`) with different rules, and `compile_into`'s
+    `group()` panics when one package redeclares a pattern, so they have to be
+    two packages under complementary gates — legal because across packages a
+    re-insert is last-write-wins and only one gate is ever true.  Hence
+    `fn european_scheme()`, defined as `!puppet_scheme()`; N4's two further
+    `else` arms reuse it.  Armed under `set_stayman_both_majors`,
+    `set_stayman_5card_max`, `set_nt_splinter` and `set_notrump_minors(EUROPEAN)`.
   - **The Stayman `2♣` weight tie is a partition, and is now allowlisted.**
     Putting `notrump_responses()` under `assert_package_invariants` for the
     first time surfaced four rules claiming `2♣` at weight 150: constructive
