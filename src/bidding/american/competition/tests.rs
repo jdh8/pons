@@ -79,10 +79,10 @@ pub(super) fn bid_uvu(auction: &[Call], hand: &str) -> (Call, bool) {
 /// enabled (both opt-in/default-off after the DD-negative A/B); restores the
 /// defaults so a thread reused by a later test sees them off again.
 pub(super) fn bid_xfer(auction: &[Call], hand: &str) -> (Call, bool) {
-    super::over_our_notrump_calls::set_competition_over_transfer(true);
+    super::over_our_jacoby::set_competition_over_transfer(true);
     crate::bidding::american::set_transfer_super_accept(true);
     let result = best_call(auction, hand);
-    super::over_our_notrump_calls::set_competition_over_transfer(false);
+    super::over_our_jacoby::set_competition_over_transfer(false);
     crate::bidding::american::set_transfer_super_accept(false);
     result
 }
@@ -91,9 +91,9 @@ pub(super) fn bid_xfer(auction: &[Call], hand: &str) -> (Call, bool) {
 /// (it is also the default, but pin it so a thread that another test left off
 /// still sees it); restores the on default afterward.
 pub(super) fn bid_minor(auction: &[Call], hand: &str) -> (Call, bool) {
-    super::over_our_notrump_calls::set_competition_over_minor_transfer(true);
+    super::over_our_minor_transfer::set_competition_over_minor_transfer(true);
     let result = best_call(auction, hand);
-    super::over_our_notrump_calls::set_competition_over_minor_transfer(true);
+    super::over_our_minor_transfer::set_competition_over_minor_transfer(true);
     result
 }
 
@@ -101,9 +101,9 @@ pub(super) fn bid_minor(auction: &[Call], hand: &str) -> (Call, bool) {
 /// on (it is also the default, but pin it so a thread that another test left off
 /// still sees it); restores the on default afterward.
 pub(super) fn bid_diamond(auction: &[Call], hand: &str) -> (Call, bool) {
-    super::over_our_notrump_calls::set_competition_over_diamond_transfer(true);
+    super::over_our_diamond_transfer::set_competition_over_diamond_transfer(true);
     let result = best_call(auction, hand);
-    super::over_our_notrump_calls::set_competition_over_diamond_transfer(true);
+    super::over_our_diamond_transfer::set_competition_over_diamond_transfer(true);
     result
 }
 

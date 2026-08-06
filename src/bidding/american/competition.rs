@@ -17,7 +17,10 @@
 //! | [`two_suiters`] | Michaels / unusual `2NT` over our `1M` |
 //! | [`our_preempts`] | our contested weak twos and strong `2♣` |
 //! | [`lebensohl`], [`rubensohl`], [`uvu`] | over their overcall of our `1NT` |
-//! | [`over_our_notrump_calls`] | when they compete over our Stayman or transfer |
+//! | [`over_our_stayman`] | when they compete over our `2♣` Stayman |
+//! | [`over_our_jacoby`] | when they compete over our Jacoby transfer |
+//! | [`over_our_minor_transfer`] | when they compete over our two-way `2♠` minor response |
+//! | [`over_our_diamond_transfer`] | when they compete over our `2NT` diamond transfer |
 
 use super::super::constraint::{
     Cons, Constraint, balanced, described, has_stopper, hcp, len, min_level_is, partner_suit_is,
@@ -47,7 +50,10 @@ mod high_overcall;
 mod lebensohl;
 mod negative_double;
 mod our_preempts;
-mod over_our_notrump_calls;
+mod over_our_diamond_transfer;
+mod over_our_jacoby;
+mod over_our_minor_transfer;
+mod over_our_stayman;
 mod over_overcall;
 mod over_their_double;
 mod penalty_double;
@@ -64,10 +70,10 @@ use negative_double::{
     answer_negative_double_package, cachalot_package, sputnik_residual_answer_package,
 };
 use our_preempts::{strong_two_competition_package, weak_two_competition_package};
-use over_our_notrump_calls::{
-    competition_over_diamond_transfer_package, competition_over_minor_transfer_package,
-    competition_over_stayman_package, competition_over_transfer_package,
-};
+use over_our_diamond_transfer::competition_over_diamond_transfer_package;
+use over_our_jacoby::competition_over_transfer_package;
+use over_our_minor_transfer::competition_over_minor_transfer_package;
+use over_our_stayman::competition_over_stayman_package;
 use over_overcall::direct_seat_package;
 use over_their_double::{jordan_truscott_package, splinter_doubled_package};
 use support_double::support_double_package;
@@ -88,10 +94,10 @@ pub use negative_double::{
     NegativeDoubleShape, set_cachalot_contested_x, set_negative_double_shape,
 };
 pub use our_preempts::{set_strong_two_competition, set_weak_two_competition};
-pub use over_our_notrump_calls::{
-    set_competition_over_diamond_transfer, set_competition_over_minor_transfer,
-    set_competition_over_stayman, set_competition_over_transfer,
-};
+pub use over_our_diamond_transfer::set_competition_over_diamond_transfer;
+pub use over_our_jacoby::set_competition_over_transfer;
+pub use over_our_minor_transfer::set_competition_over_minor_transfer;
+pub use over_our_stayman::set_competition_over_stayman;
 pub use over_overcall::{set_direct_3nt_stopper, set_natural_floor};
 pub(crate) use over_their_double::jordan_truscott;
 pub use over_their_double::{set_jordan_truscott, set_redouble_answer, set_splinter_doubled};
@@ -188,6 +194,45 @@ const JORDAN: Alert = Alert("comp:jordan");
 /// Value redouble over their takeout double — 10+ without the Jordan fit
 /// (redoubles are natural-by-default; the alert buys the points-floor decode).
 const VALUE_REDOUBLE: Alert = Alert("comp:value-redouble");
+
+/// The `X (bid) …` systems-on rebase, shared by the four
+/// competition-over-our-own-convention packages
+///
+/// They doubled our artificial call and we answered with a bid; from there
+/// responder's rebids are the *uncontested* tree, so strip the double to a
+/// Pass and re-key.  `bid` is one answer the guard admits — the sample the
+/// row layer seat-checks and probes with.
+///
+/// The guard is a two-call prefix with a free tail, which no named [`Pattern`]
+/// construct spells: `Pattern::first("…", "X")` would also swallow the
+/// `X - -` re-ask whose own table is declared just below it, rebasing the
+/// re-ask instead of classifying it.  So it rides in verbatim through
+/// [`Pattern::guarded`].
+fn systems_on_over_double(key: &str, bid: &str) -> Entry {
+    rebase(
+        Pattern::guarded(
+            key,
+            &format!("(X) {bid}"),
+            described_guard(
+                "X (bid) …",
+                guard(|_: &Context<'_>, s: &[Call]| {
+                    s.first() == Some(&Call::Double) && matches!(s.get(1), Some(Call::Bid(_)))
+                }),
+            ),
+        ),
+        described_rewrite(
+            "systems on: their X is stripped to a pass",
+            rewriter(|auction: &[Call], depth: usize| {
+                if auction.get(depth) != Some(&Call::Double) {
+                    return None;
+                }
+                let mut rewritten = auction.to_vec();
+                rewritten[depth] = Call::Pass; // strip the X → systems on
+                Some(rewritten)
+            }),
+        ),
+    )
+}
 
 /// The competitive package over our openings: cue-bid raises, preemptive raises,
 /// negative doubles for all four openings, support doubles/redoubles, and

@@ -127,6 +127,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     children.  Proven inert three ways: both campaign shas hold, and the
     resurrected 31-arm `tmp-rows-port` sweep is pairwise distinct and
     byte-identical across the split.
+  - **over_our_notrump_calls** — the 655-line file held four fully independent
+    agreements: four `thread_local!` blocks, four knobs, four `Package`s
+    compiled side by side, four disjoint auction families.  It is gone, and its
+    four agreements are now flat `competition/` siblings —
+    `over_our_stayman` (187), `over_our_jacoby` (145),
+    `over_our_minor_transfer` (157) and `over_our_diamond_transfer` (152) —
+    since a two-level nest inside `competition/` would have earned nothing the
+    directory does not already give.  The one shared item,
+    `systems_on_over_double`, moves up to `competition.rs`: a rebase carrier is
+    index vocabulary.  The 559-line `tests.rs` splits four ways along its own
+    `stayman_*` / `transfer_*` / `minor_*` / `diamond_*` name prefixes, keeping
+    the four `bid_*` arming helpers in the parent.  The sweep gains four arms
+    for these knobs — including the default-**off**
+    `set_competition_over_transfer`, whose rows no unarmed dump can see at all —
+    and all 35 arms are pairwise distinct and byte-identical across the split.
+    Both campaign shas unchanged.
 
 - **Tests now live in dedicated module files.** All inline cfg-test module
   bodies moved to naturally resolved files, with directory crate roots for the
