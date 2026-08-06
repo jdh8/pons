@@ -10,6 +10,7 @@
 //! | [`overcall`] | natural overcalls, the `1NT` overcall, the takeout double |
 //! | [`michaels`], [`leaping_michaels`] | our two-suited overcalls |
 //! | [`weak_two_defense`] | defending their weak two |
+//! | [`weak_two_nt_advance`] | advancing our `2NT` overcall of their weak two |
 //! | [`advance_double`], [`advance_rich`], [`advance_sohl`] | advancing partner's double |
 //! | [`responsive`] | the responsive double when they raise |
 //! | [`gladiator`] | the relay structure after our `1NT` overcall |
@@ -58,6 +59,7 @@ mod nt_woolsey;
 mod overcall;
 mod responsive;
 mod weak_two_defense;
+mod weak_two_nt_advance;
 
 use advance_double::{advance_double_package, advance_of_double_package};
 use advance_rich::rich_advance_double_package;
@@ -75,7 +77,8 @@ use nt_their_conventions::{
 use nt_woolsey::woolsey_package;
 use overcall::suit_defense_package;
 use responsive::{responsive_double_package, responsive_overcall_package};
-use weak_two_defense::{weak_two_defense_package, weak_two_notrump_advance_package};
+use weak_two_defense::weak_two_defense_package;
+use weak_two_nt_advance::weak_two_notrump_advance_package;
 
 pub use advance_double::advance_double;
 pub use advance_rich::{
@@ -121,10 +124,26 @@ pub(crate) use overcall::{natural_double_floor, natural_overcall_points};
 pub(crate) use responsive::responsive_takeout_enabled;
 pub use responsive::{set_responsive_overcall, set_responsive_takeout};
 pub use weak_two_defense::{
-    defense_to_weak_two, set_weak_two_cue, set_weak_two_jump_overcall,
-    set_weak_two_notrump_advances, set_weak_two_notrump_points, set_weak_two_notrump_shape,
-    set_weak_two_overcall_discipline, set_weak_two_overcall_points, set_weak_two_pass_gate,
+    defense_to_weak_two, set_weak_two_cue, set_weak_two_jump_overcall, set_weak_two_notrump_points,
+    set_weak_two_notrump_shape, set_weak_two_overcall_discipline, set_weak_two_overcall_points,
+    set_weak_two_pass_gate,
 };
+pub use weak_two_nt_advance::set_weak_two_notrump_advances;
+
+/// At least 5-4 (or 4-5) in the two named suits — the Landy two-suiter shape
+pub(crate) fn five_four(a: Suit, b: Suit) -> Cons<impl Constraint + Clone> {
+    (len(a, 5..) & len(b, 4..)) | (len(a, 4..) & len(b, 5..))
+}
+
+/// A *passed-hand* two-suiter in `a`+`b`: at least 5-4, but with neither suit
+/// six-plus.  A passed hand holding a six-card suit would have opened a weak two
+/// or a three-level preempt in first seat (see `openings.rs`), so those openable
+/// shapes are excluded from the passed-hand 1NT defense — leaving the genuine
+/// two-suiters that had no first-seat voice.  (A 5-4 two-suiter has at most four
+/// cards in any third suit, so capping `a`/`b` at five bars every six-card suit.)
+pub(crate) fn passed_two_suiter(a: Suit, b: Suit) -> Cons<impl Constraint + Clone> {
+    five_four(a, b) & len(a, ..=5) & len(b, ..=5)
+}
 
 /// Michaels cue-bid — 2 of their suit, 5-5, 8+ HCP (a two-suiter)
 const MICHAELS: Alert = Alert("michaels");

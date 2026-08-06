@@ -143,6 +143,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `set_competition_over_transfer`, whose rows no unarmed dump can see at all —
     and all 35 arms are pairwise distinct and byte-identical across the split.
     Both campaign shas unchanged.
+  - **weak_two_defense** — 704 lines become 522 plus a 181-line
+    `weak_two_nt_advance`, splitting *defending* their weak two from
+    *advancing* our `2NT` overcall of it.  `weak_two_notrump_points` stays
+    behind and the new module sibling-imports it, because that cell is read on
+    both sides on purpose: it is the `2NT` overcall's own band *and* advancer's
+    game threshold, so widening the overcall has to move the threshold with it.
+    The import line is now where that coupling is stated.  `five_four` and
+    `passed_two_suiter` go the other way — up into `defense.rs`, since they are
+    two-suiter vocabulary rather than weak-two vocabulary and `nt_woolsey` and
+    `nt_landy` already reached across the directory for them; both now pick
+    them up through their own `use super::*;`.  The advance ships **off**, so
+    one of the sweep's two new arms exists solely to make its rows appear in a
+    dump at all, and the other arms the shared points cell on top of it; all
+    37 arms stay pairwise distinct and byte-identical, and both campaign shas
+    hold.
 
 - **Tests now live in dedicated module files.** All inline cfg-test module
   bodies moved to naturally resolved files, with directory crate roots for the

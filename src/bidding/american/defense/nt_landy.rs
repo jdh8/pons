@@ -8,7 +8,6 @@
 
 use super::nt_defense::{NotrumpDefense, notrump_defense, set_notrump_defense};
 use super::nt_woolsey::{set_woolsey_points, woolsey_enabled, woolsey_points};
-use super::weak_two_defense::five_four;
 use super::*;
 
 thread_local! {

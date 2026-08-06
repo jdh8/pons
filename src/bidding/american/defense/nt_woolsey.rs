@@ -6,7 +6,6 @@
 //! doubled and redoubled escape — so the structure never bleeds to the floor.
 
 use super::nt_defense::{NotrumpDefense, notrump_defense};
-use super::weak_two_defense::passed_two_suiter;
 use super::*;
 
 thread_local! {
