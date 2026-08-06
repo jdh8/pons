@@ -19,7 +19,7 @@ phases are.
 | --- | --- |
 | Contested — `competition()` | **Done.** Nothing but `compile_into` over 21 packages; zero hand-rolled wiring. |
 | Contested — `defensive()` | **Done bar one site.** 22 packages, plus the 1NT-overcall systems-on graft, which is *permanently* imperative: `compile_into` writes rows, not a whole subtree. |
-| Constructive — ported | The American `openings.rs`, `weak_twos.rs`, `xyz.rs`, `nmf.rs`, `notrump` and `rebids` module trees, `strong_two.rs`, `responses.rs`, `game_force.rs`, and `raises.rs`, plus both Dutch override packages. American and Dutch each have a `row_package_invariants` test. |
+| Constructive — ported | The American `openings.rs`, `weak_twos.rs`, `xyz.rs`, `nmf.rs`, `notrump`, `rebids` and `raises` module trees, `strong_two.rs`, `responses.rs`, and `game_force.rs`, plus both Dutch override packages. American and Dutch each have a `row_package_invariants` test. |
 | RKCB | A row **producer**: `slam::rkcb_rows(prefix, trump) -> Vec<Entry>`. All 25 production callers and the three test fixtures use it directly; `install_rkcb` is retired. |
 | Phase 1.5 (floating agreements) | **Cancelled, not deferred** — see below. |
 | Phase 2 (cross-side assembly) | **Open**, restated below. Nothing exists: no `defense_vs`, no `competitive_vs`, no `Table::compose`. |
@@ -225,7 +225,9 @@ Completed: N1→N5, R1, S1, P1, G0, G1, Z1, T1, D0, D1. Phase 1 of the rows
 campaign is complete. The exact-node imperative helpers and `install_rkcb`
 have no callers and no longer exist.
 Completed notrump/rebid locations in the table are historical; commit `1c0ef51`
-subsequently split them into agreement modules.
+subsequently split them into agreement modules, and a follow-up campaign is
+splitting the rest of the book the same way (`raises` first). A file named here
+as `<name>.rs` may now be a `<name>/` module tree; the parent keeps its path.
 
 ### The batch recipe
 

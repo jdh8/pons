@@ -114,6 +114,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     moved with their reader (`DIRECT_LANDY_FOUR_FOUR` to `nt_landy`); the
     2 297-line `tests.rs` splits to a 157-line parent plus thirteen agreement
     test modules.  Both campaign shas unchanged.
+  - **raises** — 436 lines become a 59-line index plus three agreement modules:
+    `jacoby` (138, opener's descriptive rebid after `1M - 2NT` and responder's
+    slam try — the one raise agreement with no knob), `game_try` (200, the
+    long-suit and general tries after `1M - 2M`) and `limit_raise` (86, the
+    acceptance ladder after `1M - 3M`).  Each knobbed module now holds its own
+    `thread_local!`, so the shared two-cell block becomes one cell per
+    agreement.  The 164-line `tests.rs` splits to a 74-line parent keeping
+    `best`, the two auction consts
+    and the two `*_absent_when_off` tests — they arm both knobs and exercise
+    the whole `register` — and hands the other seven tests to the two knobbed
+    children.  Proven inert three ways: both campaign shas hold, and the
+    resurrected 31-arm `tmp-rows-port` sweep is pairwise distinct and
+    byte-identical across the split.
 
 - **Tests now live in dedicated module files.** All inline cfg-test module
   bodies moved to naturally resolved files, with directory crate roots for the
