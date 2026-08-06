@@ -5,6 +5,12 @@
 //! The 4NT ask is installed by the caller; this module registers the responses,
 //! the asker's continuations, and the 5NT king-ask sequence.
 //!
+//! | Module | Agreement |
+//! | --- | --- |
+//! | [`queen_relay`] | the 5♣/5♦ queen relay and its replies |
+//! | [`minor_lane`] | minor-trump asker continuations (cramped signoff, no king ask) |
+//! | [`king_ask`] | the 5NT king ask and the asker's placements |
+//!
 //! Responses encode the five *keycards* — the four aces plus the trump king:
 //!
 //! | answer | keycards    |
@@ -86,6 +92,17 @@ use crate::bidding::instinct::{
 };
 use crate::bidding::rows::{Entry, Pattern, rows_of};
 use contract_bridge::Hand;
+
+mod king_ask;
+mod minor_lane;
+mod queen_relay;
+
+use king_ask::{asker_after_6c, asker_after_6d, asker_after_6h, king_answers};
+use minor_lane::{asker_after_5c_minor, asker_after_5d_minor, no_room_six};
+use queen_relay::{
+    asker_after_denial, asker_after_queen, asker_after_relay_kings, king_replies, queen_replies,
+    relay_first,
+};
 
 // ---------------------------------------------------------------------------
 // Keycard constraint helpers
@@ -176,49 +193,6 @@ fn has_trump_queen(
             hand[trump].contains(Rank::Q)
                 || hand[trump].len() + usize::from(context.inferences().partner().length(trump).min)
                     >= long_fit_counts
-        },
-    )
-}
-
-/// The queen cannot change what the asker bids: we hold it, or the fit alone
-/// carries the small slam
-///
-/// The asker's test, and deliberately a rung below the answerer's
-/// [`has_trump_queen`]: a nine-card fit is not a queen, but hearing "no queen"
-/// over one changes nothing — six is bid anyway — so the round is not worth
-/// spending.  Threshold `QUEEN_BUFF_FIT`.
-fn queen_moot(
-    trump: Suit,
-) -> crate::bidding::constraint::Cons<impl crate::bidding::constraint::Constraint + Clone> {
-    let threshold = usize::from(crate::bidding::instinct::queen_buff_fit());
-    described(
-        format!("the {trump} queen cannot change the call"),
-        move |hand: Hand, context: &crate::bidding::context::Context<'_>| {
-            hand[trump].contains(Rank::Q)
-                || hand[trump].len() + usize::from(context.inferences().partner().length(trump).min)
-                    >= threshold
-        },
-    )
-}
-
-/// A ninth trump or a side-suit void — the values RKCB has no rung for
-///
-/// Paired with `!has_trump_queen` at the buff jump: partner asked for the queen
-/// holding four keycards and will pass five over a denial, never learning that
-/// the fit is a card longer than promised or that a suit is stopped by a void.
-/// The threshold is `QUEEN_BUFF_FIT`.
-fn trump_buff(
-    trump: Suit,
-) -> crate::bidding::constraint::Cons<impl crate::bidding::constraint::Constraint + Clone> {
-    let threshold = usize::from(crate::bidding::instinct::queen_buff_fit());
-    described(
-        format!("a ninth {trump} or a void"),
-        move |hand: Hand, context: &crate::bidding::context::Context<'_>| {
-            hand[trump].len() + usize::from(context.inferences().partner().length(trump).min)
-                >= threshold
-                || Suit::ASC
-                    .into_iter()
-                    .any(|suit| suit != trump && hand[suit].is_empty())
         },
     )
 }
@@ -330,181 +304,6 @@ fn asker_after_5d(trump: Suit) -> Rules {
     .rule(Bid::new(5, t), 50, hcp(0..))
 }
 
-// ---------------------------------------------------------------------------
-// The queen relay
-// ---------------------------------------------------------------------------
-//
-// The book's 5♣ and 5♦ answers say nothing about the trump queen, so the asker
-// has been betting six on four keycards blind.  The relay is one step above the
-// answer, partner's two replies the next two rungs, and — on the queen-shown
-// branch only — a king ask above that.  Geometry is shared with the floor
-// ([`queen_ask_room`], [`relay_map`], [`king_relay`]) so the two ladders
-// cannot drift.
-
-/// Open an asker table with the queen relay, when the lane has room and
-/// `interested` says the queen is what the placement turns on
-///
-/// Weighted above every placement in the table it opens, so a queenless asker
-/// relays instead of guessing; holding the queen (or the ten-card fit) the rule
-/// is dead and the table below is exactly what shipped.
-fn relay_first(
-    trump: Suit,
-    answer: Bid,
-    interested: crate::bidding::constraint::Cons<
-        impl crate::bidding::constraint::Constraint + Clone + 'static,
-    >,
-) -> Rules {
-    let rules = Rules::new();
-    match queen_ask_room(answer, trump) {
-        Some(relay) => rules
-            .rule(relay, 160, interested & !queen_moot(trump))
-            .alert(RKCB),
-        None => rules,
-    }
-}
-
-/// Holds the king of `suit` and of none of the suits on `cheaper` rungs — the
-/// "skipped steps deny" half of a king rung
-fn cheapest_king(
-    suit: Suit,
-    cheaper: Vec<Suit>,
-) -> crate::bidding::constraint::Cons<impl crate::bidding::constraint::Constraint + Clone> {
-    described(
-        format!("holds the {suit} king and no cheaper side king"),
-        move |hand: Hand, _: &crate::bidding::context::Context<'_>| {
-            hand[suit].contains(Rank::K) && cheaper.iter().all(|&s| !hand[s].contains(Rank::K))
-        },
-    )
-}
-
-/// Partner's merged reply to the queen relay
-///
-/// One round carries the queen and a king both: each side suit's rung shows the
-/// queen plus that king and denies every king on a cheaper rung, 5NT shows the
-/// queen with no side king at all, and the two denials are five and six of the
-/// agreed trump — contracts rather than codes, so neither is alerted.  Six is
-/// the *stronger* denial, the ninth trump or the void the ladder has no rung
-/// for.
-fn queen_replies(trump: Suit, map: &RelayMap) -> Rules {
-    let mut rules = Rules::new();
-    for (index, &(suit, call)) in map.kings.iter().enumerate() {
-        let cheaper = map.kings[..index].iter().map(|&(s, _)| s).collect();
-        rules = rules
-            .rule(
-                call,
-                100,
-                has_trump_queen(trump) & cheapest_king(suit, cheaper),
-            )
-            .alert(RKCB);
-    }
-    rules = rules
-        .rule(
-            map.no_king,
-            100,
-            has_trump_queen(trump) & kings_outside(trump, 0..=0),
-        )
-        .alert(RKCB)
-        .rule(map.deny, 60, !has_trump_queen(trump) & trump_buff(trump));
-    rules.rule(map.weak, 50, hcp(0..))
-}
-
-/// Asker's placement over a denied queen
-///
-/// Both denials are the agreed trump, so both are already a contract: five of
-/// it stops there unless all five keycards are on the table, and six of it —
-/// the ninth trump or the void — is passed.
-///
-/// `five` is the **combined**-count decode, which the answer lane owns: over a
-/// one-or-four answer four of our own is all five, while over a none-or-three
-/// answer four of our own is exactly four — the caller passes the right test
-/// because only it knows which answer was heard.
-fn asker_after_denial(
-    trump: Suit,
-    denial: Bid,
-    five: crate::bidding::constraint::Cons<
-        impl crate::bidding::constraint::Constraint + Clone + 'static,
-    >,
-) -> Rules {
-    let t = Strain::from(trump);
-    if denial == Bid::new(6, t) {
-        return Rules::new().rule(Call::Pass, 50, hcp(0..));
-    }
-    Rules::new()
-        .rule(Bid::new(6, t), 100, five)
-        .rule(Call::Pass, 50, hcp(0..))
-}
-
-/// Asker's placement over a queen-and-king reply
-///
-/// Seven needs two side kings between the hands.  Partner named its cheapest,
-/// so one of our own already makes two; with none, the **second relay** asks
-/// for one more — and that is where kickback pays a second time, because the
-/// relay is a step above partner's reply rather than an absolute 5NT.
-///
-/// Both ride the grand-zone **strength** gate on top of the combined count —
-/// RKCB is a slam veto, not a slam seeker, so a partnership short of the grand
-/// zone never spends the round.  `hcp(19..)` is the book's available proxy at
-/// this node, and `five` is the lane's combined-count decode (see
-/// [`asker_after_denial`]): a grand is never touched with a keycard out.
-///
-/// ponytail: raw HCP, because the book carries no combined-point machinery
-/// here; the upgrade path is the floor's `points_and_net(combined_points(37))`
-/// once the book's asker tables can see partner's shown strength.
-fn asker_after_queen(
-    trump: Suit,
-    partner_king: bool,
-    relay: Option<KingRelay>,
-    five: crate::bidding::constraint::Cons<
-        impl crate::bidding::constraint::Constraint + Clone + 'static,
-    >,
-) -> Rules {
-    let t = Strain::from(trump);
-    let mut rules = Rules::new();
-    if partner_king {
-        rules = rules.rule(
-            Bid::new(7, t),
-            150,
-            five.clone() & kings_outside(trump, 1..) & hcp(19..),
-        );
-        if let Some(relay) = relay {
-            rules = rules
-                .rule(
-                    relay.ask,
-                    140,
-                    five & kings_outside(trump, 0..=0) & hcp(19..),
-                )
-                .alert(RKCB);
-        }
-    } else {
-        rules = rules.rule(
-            Bid::new(7, t),
-            150,
-            five & kings_outside(trump, 2..) & hcp(19..),
-        );
-    }
-    rules.rule(Bid::new(6, t), 100, hcp(0..))
-}
-
-/// Partner's reply to the second relay: one more king, or six of trumps
-fn king_replies(trump: Suit, relay: KingRelay) -> Rules {
-    Rules::new()
-        .rule(relay.more, 100, kings_outside(trump, 2..))
-        .alert(RKCB)
-        // Six of the agreed trump is a contract, not a code.
-        .rule(relay.none, 50, hcp(0..))
-}
-
-/// Asker's placement over the second relay's reply: seven on the second king,
-/// and passing partner's six otherwise
-fn asker_after_relay_kings(trump: Suit, more: bool) -> Rules {
-    let rules = Rules::new();
-    if more {
-        rules.rule(Bid::new(7, Strain::from(trump)), 100, hcp(0..))
-    } else {
-        rules.rule(Call::Pass, 50, hcp(0..))
-    }
-}
-
 /// Asker's continuation after a 5♥ response (2 keycards, no trump queen)
 fn asker_after_5h(trump: Suit) -> Rules {
     let t = Strain::from(trump);
@@ -542,119 +341,6 @@ fn asker_after_5s(trump: Suit) -> Rules {
         rules = rules.rule(Bid::new(6, t), 30, hcp(0..));
     }
     rules
-}
-
-// ---------------------------------------------------------------------------
-// Minor-trump asker continuations (plain 4NT; cramped signoff; no king ask)
-// ---------------------------------------------------------------------------
-//
-// The keycard counts mirror the major tables; only the signoff differs, because
-// the answers overshoot 5-of-a-minor.  Every table keeps a legal finite call for
-// every hand (a `6m` or `Pass` catch-all): a node whose only finite logits are
-// *illegal* calls would not fall through to the floor — `Table::next_call` would
-// filter them and silently pass, stranding a bad contract.
-
-/// Asker after a 5♣ answer when trumps are a minor
-///
-/// 3+ keycards (≥5 total) drive to 6-of-the-minor.  To stop: diamonds can sign
-/// off in 5♦ (legal over 5♣); clubs must Pass to play partner's 5♣.
-fn asker_after_5c_minor(trump: Suit) -> Rules {
-    let t = Strain::from(trump);
-    let rules = Rules::new().rule(Bid::new(6, t), 100, keycards(trump, 3..));
-    if trump == Suit::Diamonds {
-        rules.rule(Bid::new(5, t), 50, hcp(0..))
-    } else {
-        rules.rule(Call::Pass, 50, hcp(0..))
-    }
-}
-
-/// Asker after a 5♦ answer when trumps are a minor
-///
-/// Diamonds: slam set mirrors the major `asker_after_5d` (≤2 assume partner 3,
-/// or 4+); to stop, Pass to play partner's 5♦.  Clubs: no room below 6♣.
-fn asker_after_5d_minor(trump: Suit) -> Rules {
-    let t = Strain::from(trump);
-    if trump == Suit::Diamonds {
-        Rules::new()
-            .rule(
-                Bid::new(6, t),
-                100,
-                keycards(trump, 2..=2) | keycards(trump, 4..),
-            )
-            .rule(Call::Pass, 50, hcp(0..))
-    } else {
-        no_room_six(trump)
-    }
-}
-
-/// Asker with no room to stop below slam: bid 6-of-the-minor
-///
-/// Used for the 5♥/5♠ answers (both minors) and the clubs 5♦ answer — all sit
-/// above 5-of-either-minor, so signing off below slam is impossible.
-fn no_room_six(trump: Suit) -> Rules {
-    Rules::new().rule(Bid::new(6, Strain::from(trump)), 100, hcp(0..))
-}
-
-/// King answers at the 5NT node (for all answer paths — shared table)
-///
-/// 5NT promises all five keycards; this asks for kings outside trumps.
-///
-/// For spades: 6♣ (0), 6♦ (1), 6♥ (2), 6♠ signoff (3 kings).
-/// For hearts: 6♣ (0), 6♦ (1), 6♥ catch-all signoff (2+).
-fn king_answers(trump: Suit) -> Rules {
-    let mut rules = Rules::new()
-        .rule(Bid::new(6, Strain::Clubs), 100, kings_outside(trump, 0..=0))
-        .alert(RKCB)
-        .rule(
-            Bid::new(6, Strain::Diamonds),
-            100,
-            kings_outside(trump, 1..=1),
-        )
-        .alert(RKCB);
-
-    match trump {
-        Suit::Spades => {
-            rules = rules
-                .rule(
-                    Bid::new(6, Strain::Hearts),
-                    100,
-                    kings_outside(trump, 2..=2),
-                )
-                .alert(RKCB)
-                // 3 outside kings → 6♠ signoff (counting stops below 7)
-                .rule(Bid::new(6, Strain::Spades), 50, hcp(0..));
-        }
-        Suit::Hearts => {
-            // 6♥ is a catch-all signoff for 2+ outside kings
-            rules = rules.rule(Bid::new(6, Strain::Hearts), 50, hcp(0..));
-        }
-        _ => unreachable!("the 5NT king ask is major-only; minors never install it"),
-    }
-    rules
-}
-
-/// Asker's call after a 6♣ king answer (0 outside kings)
-fn asker_after_6c(trump: Suit) -> Rules {
-    let t = Strain::from(trump);
-    Rules::new()
-        .rule(Bid::new(7, t), 100, kings_outside(trump, 3..))
-        .rule(Bid::new(6, t), 50, hcp(0..))
-}
-
-/// Asker's call after a 6♦ king answer (1 outside king)
-fn asker_after_6d(trump: Suit) -> Rules {
-    let t = Strain::from(trump);
-    Rules::new()
-        .rule(Bid::new(7, t), 100, kings_outside(trump, 2..))
-        .rule(Bid::new(6, t), 50, hcp(0..))
-}
-
-/// Asker's call after a 6♥ king answer (2 outside kings; only when trump == Spades)
-fn asker_after_6h(trump: Suit) -> Rules {
-    let t = Strain::from(trump);
-    Rules::new()
-        .rule(Bid::new(7, t), 100, kings_outside(trump, 1..))
-        .rule(Bid::new(6, t), 50, hcp(0..))
 }
 
 // ---------------------------------------------------------------------------

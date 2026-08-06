@@ -189,6 +189,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     (`advance_rubens`, the pass-yield, the sit gate) and so appear in no
     unarmed dump at all; 44 arms, all pairwise distinct and byte-identical,
     both campaign shas held.
+  - **slam** — 823 lines become a 509-line index plus `queen_relay` (219),
+    `minor_lane` (52) and `king_ask` (63), split by RKCB rung.  This one is
+    shaped unlike the rest: a row producer whose `rkcb_rows` and `RKCB` alert
+    are named by a dozen files across `notrump/`, `raises/`, `game_force/` and
+    `rebids/`, so the parent keeps every one of those paths and no external
+    caller changes.  Which helpers moved was decided by counting call sites,
+    not by the banners: `queen_moot` and `trump_buff` have exactly one caller
+    each and go down with the relay, while `has_trump_queen` and
+    `kings_outside` are read from three of the four regions and stay in the
+    index.  `asker_after_5h` and `asker_after_5s` sit *inside* the queen-relay
+    banner but are two of the four major asker tables, so they stay with their
+    set — taking the banner at face value would have orphaned it.  Both
+    campaign shas hold and all 44 sweep arms are byte-identical.
 
 - **Tests now live in dedicated module files.** All inline cfg-test module
   bodies moved to naturally resolved files, with directory crate roots for the
