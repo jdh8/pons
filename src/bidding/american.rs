@@ -480,6 +480,14 @@ mod tests {
             notrump::cue(),
             notrump::minor_slam(),
             notrump::crawling(),
+            notrump::invitational_majors(),
+            notrump::heart_transfer_rebids(),
+            notrump::spade_transfer_rebids(),
+            notrump::heart_transfer_slam_try(),
+            notrump::spade_transfer_slam_try(),
+            notrump::spade_transfer_game_force(),
+            notrump::heart_transfer_game_force(),
+            notrump::sixcard_invite(),
         ]);
     }
 

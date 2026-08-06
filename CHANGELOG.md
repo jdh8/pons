@@ -26,6 +26,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     bare `fn` pointers and N3/N4 read it as a gate.  Armed under
     `set_stayman_cue_continuation`, `set_stayman_minor_slam_try` and
     `set_crawling_stayman`, all off.
+  - **N2** — `notrump.rs` 3239–3429, 23 sites (19 `insert_uncontested` + 4
+    `install_rkcb`) become eight packages, one per gated block and in the
+    original order: `invitational-5-4-majors`, the two transfer-rebid tables,
+    the two transfer slam tries, the two transfer game forces, and
+    `sixcard-invite`.  Two inline `Rules` become `fn heart_transfer_rebid_table`
+    / `fn spade_transfer_rebid_table` — a package's `entries` is a bare `fn`
+    pointer, so a table built from a local cannot ride along — and the four
+    compound gates (`a || b || c || d`, `a && !b`, `a || b`) become named
+    predicates so the `Package` can name one.  Armed under
+    `set_invitational_5card_majors`, `set_transfer_gf_majors`,
+    `set_transfer_gf_hearts`, `set_sixcard_invite_floor(14)` and the
+    `set_transfer_slam_try` triple; between them those five arms flip all eight
+    gates, including both polarities of `transfer_slam_try() &&
+    !transfer_gf_hearts()`.
   - **The Stayman `2♣` weight tie is a partition, and is now allowlisted.**
     Putting `notrump_responses()` under `assert_package_invariants` for the
     first time surfaced four rules claiming `2♣` at weight 150: constructive

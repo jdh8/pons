@@ -3068,6 +3068,60 @@ fn accept_quantitative_nineteen() -> Rules {
         .rule(Call::Pass, 0, hcp(0..))
 }
 
+/// Chain the heart-transfer rebids into their shared table
+///
+/// The package gate and this table deliberately read the knobs at different arities.
+fn heart_transfer_rebid_table() -> Rules {
+    let mut heart_rebid = Rules::new();
+    if invitational_5card_majors() {
+        heart_rebid = heart_rebid.chain(transfer_heart_invite_rebid());
+    }
+    heart_rebid = heart_rebid.chain(sixcard_invite_rebid(Suit::Hearts));
+    heart_rebid = heart_rebid.chain(transfer_slam_try_rebid(Suit::Hearts));
+    heart_rebid = heart_rebid.chain(transfer_heart_gf_rebid());
+    heart_rebid
+}
+
+/// Chain the spade-transfer rebids into their shared table
+///
+/// The package gate and this table deliberately read the knobs at different arities.
+fn spade_transfer_rebid_table() -> Rules {
+    let mut spade_rebid = Rules::new();
+    if invitational_5card_majors() {
+        spade_rebid = spade_rebid.chain(transfer_spade_invite_rebid());
+    }
+    spade_rebid = spade_rebid.chain(sixcard_invite_rebid(Suit::Spades));
+    spade_rebid = spade_rebid.chain(transfer_slam_try_rebid(Suit::Spades));
+    spade_rebid = spade_rebid.chain(transfer_spade_gf_rebid());
+    spade_rebid
+}
+
+/// Whether any treatment contributes to the heart-transfer rebid table
+fn heart_transfer_rebid_active() -> bool {
+    invitational_5card_majors()
+        || sixcard_invite_active()
+        || transfer_slam_try()
+        || transfer_gf_hearts()
+}
+
+/// Whether any treatment contributes to the spade-transfer rebid table
+fn spade_transfer_rebid_active() -> bool {
+    invitational_5card_majors()
+        || sixcard_invite_active()
+        || transfer_slam_try()
+        || transfer_gf_majors()
+}
+
+/// Whether the original heart-agreeing transfer slam-try node owns its path
+fn heart_transfer_slam_try_active() -> bool {
+    transfer_slam_try() && !transfer_gf_hearts()
+}
+
+/// Whether either treatment uses the spade-agreeing transfer slam-try node
+fn spade_transfer_slam_try_active() -> bool {
+    transfer_slam_try() || transfer_gf_majors()
+}
+
 // ---------------------------------------------------------------------------
 // Declarative 1NT packages
 // ---------------------------------------------------------------------------
@@ -3244,6 +3298,180 @@ pub(super) fn crawling() -> Package {
     }
 }
 
+/// Invitational five-card-major continuations after Stayman and transfers
+pub(super) fn invitational_majors() -> Package {
+    Package {
+        name: "invitational-five-card-majors",
+        gate: invitational_5card_majors,
+        entries: || {
+            let mut entries = rows_of(
+                Pattern::node("P* 1NT (P) 2♣ (P) 2♦ (P) 2♠ (P)"),
+                answer_inv_5card_spades(),
+            );
+            entries.extend(rows_of(
+                Pattern::node("P* 1NT (P) 2♣ (P) 2♥ (P) 2♠ (P)"),
+                answer_inv_5card_both(),
+            ));
+            entries.extend(rows_of(
+                Pattern::node("P* 1NT (P) 2♣ (P) 2♥ (P) 2♠ (P) 3♥ (P)"),
+                inv_5card_raise(Strain::Hearts),
+            ));
+            entries.extend(rows_of(
+                Pattern::node("P* 1NT (P) 2♣ (P) 2♥ (P) 2♠ (P) 3♠ (P)"),
+                inv_5card_raise(Strain::Spades),
+            ));
+            entries.extend(rows_of(
+                Pattern::node("P* 1NT (P) 2♦ (P) 2♥ (P) 2♠ (P)"),
+                answer_transfer_heart_single(),
+            ));
+            entries.extend(rows_of(
+                Pattern::node("P* 1NT (P) 2♦ (P) 2♥ (P) 2NT (P)"),
+                answer_transfer_heart_spade(),
+            ));
+            entries.extend(rows_of(
+                Pattern::node("P* 1NT (P) 2♥ (P) 2♠ (P) 2NT (P)"),
+                answer_transfer_spade_single(),
+            ));
+            entries
+        },
+    }
+}
+
+/// Responder's chained rebids after transferring to hearts
+pub(super) fn heart_transfer_rebids() -> Package {
+    Package {
+        name: "heart-transfer-rebids",
+        gate: heart_transfer_rebid_active,
+        entries: || {
+            rows_of(
+                Pattern::node("P* 1NT (P) 2♦ (P) 2♥ (P)"),
+                heart_transfer_rebid_table(),
+            )
+        },
+    }
+}
+
+/// Responder's chained rebids after transferring to spades
+pub(super) fn spade_transfer_rebids() -> Package {
+    Package {
+        name: "spade-transfer-rebids",
+        gate: spade_transfer_rebid_active,
+        entries: || {
+            rows_of(
+                Pattern::node("P* 1NT (P) 2♥ (P) 2♠ (P)"),
+                spade_transfer_rebid_table(),
+            )
+        },
+    }
+}
+
+/// Opener's heart-agreeing transfer slam-try answer and RKCB subtree
+pub(super) fn heart_transfer_slam_try() -> Package {
+    Package {
+        name: "heart-transfer-slam-try",
+        gate: heart_transfer_slam_try_active,
+        entries: || {
+            let path = "P* 1NT (P) 2♦ (P) 2♥ (P) 3♠ (P)".to_owned();
+            let mut entries = rows_of(Pattern::node(&path), transfer_slam_try_answer(Suit::Hearts));
+            entries.extend(slam::rkcb_rows(&path, Suit::Hearts));
+            entries
+        },
+    }
+}
+
+/// Opener's spade-agreeing transfer slam-try answer and RKCB subtree
+pub(super) fn spade_transfer_slam_try() -> Package {
+    Package {
+        name: "spade-transfer-slam-try",
+        gate: spade_transfer_slam_try_active,
+        entries: || {
+            let path = "P* 1NT (P) 2♥ (P) 2♠ (P) 3♥ (P)".to_owned();
+            let mut entries = rows_of(Pattern::node(&path), transfer_slam_try_answer(Suit::Spades));
+            entries.extend(slam::rkcb_rows(&path, Suit::Spades));
+            entries
+        },
+    }
+}
+
+/// Game-forcing spade-transfer continuations and their RKCB subtrees
+pub(super) fn spade_transfer_game_force() -> Package {
+    Package {
+        name: "spade-transfer-game-force",
+        gate: transfer_gf_majors,
+        entries: || {
+            let mut entries = rows_of(
+                Pattern::node("P* 1NT (P) 2♥ (P) 2♠ (P) 4NT (P)"),
+                gf_quant_answer(Suit::Spades),
+            );
+            entries.extend(expand(
+                "P* 1NT (P) 2♥ (P) 2♠ (P) 3m (P)",
+                |_| true,
+                |_| gf_minor_answer(Suit::Spades),
+            ));
+            for short in [Strain::Clubs, Strain::Diamonds, Strain::Hearts] {
+                let path = format!("P* 1NT (P) 2♥ (P) 2♠ (P) {} (P)", call(4, short),);
+                entries.extend(rows_of(
+                    Pattern::node(&path),
+                    gf_splinter_answer(Suit::Spades),
+                ));
+                entries.extend(slam::rkcb_rows(&path, Suit::Spades));
+            }
+            entries
+        },
+    }
+}
+
+/// Game-forcing heart-transfer continuations and their RKCB subtrees
+pub(super) fn heart_transfer_game_force() -> Package {
+    Package {
+        name: "heart-transfer-game-force",
+        gate: transfer_gf_hearts,
+        entries: || {
+            let mut entries = rows_of(
+                Pattern::node("P* 1NT (P) 2♦ (P) 2♥ (P) 4NT (P)"),
+                gf_quant_answer(Suit::Hearts),
+            );
+            entries.extend(expand(
+                "P* 1NT (P) 2♦ (P) 2♥ (P) 3m (P)",
+                |_| true,
+                |_| gf_minor_answer(Suit::Hearts),
+            ));
+            for splinter in [
+                call(3, Strain::Spades),
+                call(4, Strain::Clubs),
+                call(4, Strain::Diamonds),
+            ] {
+                let path = format!("P* 1NT (P) 2♦ (P) 2♥ (P) {splinter} (P)");
+                entries.extend(rows_of(
+                    Pattern::node(&path),
+                    gf_splinter_answer(Suit::Hearts),
+                ));
+                entries.extend(slam::rkcb_rows(&path, Suit::Hearts));
+            }
+            entries
+        },
+    }
+}
+
+/// Opener's accept-or-decline tables for six-card-major invitations
+pub(super) fn sixcard_invite() -> Package {
+    Package {
+        name: "six-card-major-invite",
+        gate: sixcard_invite_active,
+        entries: || {
+            let mut entries = rows_of(
+                Pattern::node("P* 1NT (P) 2♦ (P) 2♥ (P) 3♥ (P)"),
+                accept_sixcard_invitation(Suit::Hearts),
+            );
+            entries.extend(rows_of(
+                Pattern::node("P* 1NT (P) 2♥ (P) 2♠ (P) 3♠ (P)"),
+                accept_sixcard_invitation(Suit::Spades),
+            ));
+            entries
+        },
+    }
+}
+
 // ---------------------------------------------------------------------------
 // Registration
 // ---------------------------------------------------------------------------
@@ -3270,204 +3498,27 @@ pub(super) fn register_one_nt(book: &mut Trie) {
     let two_nt = call(2, Strain::Notrump);
 
     let two_c = call(2, Strain::Clubs);
-    let two_d = call(2, Strain::Diamonds);
-    let two_h = call(2, Strain::Hearts);
     let two_s = call(2, Strain::Spades);
     let three_h = call(3, Strain::Hearts);
     let three_s = call(3, Strain::Spades);
 
-    compile_into(book, &[base(), cue(), minor_slam(), crawling()]);
-
-    // --- Invitational 5-4 majors (gated; see `set_invitational_5card_majors`) ---
-    //
-    // 5♠4♥ Staymans and rebids `2♠` over opener's 2♦ (non-forcing) or 2♥ (forcing,
-    // through slam); 5♥4♠ transfers to hearts and rebids `2NT` (showing the spades)
-    // or an artificial `2♠` (denying them).  Opener's accept/decline is authored —
-    // the floor cannot decline an invitation — and the remaining tail (responder
-    // passing a chosen partscore) falls to the floor.
-    if invitational_5card_majors() {
-        // A: opener over the non-forcing 2♠ (1NT–2♣–2♦–2♠).
-        insert_uncontested(
-            book,
-            &[one_nt, two_c, two_d, two_s],
-            answer_inv_5card_spades(),
-        );
-        // B: opener over the forcing 2♠ (1NT–2♣–2♥–2♠), then responder's pass/raise
-        // of a minimum's three-level invite-back.
-        insert_uncontested(
-            book,
-            &[one_nt, two_c, two_h, two_s],
-            answer_inv_5card_both(),
-        );
-        insert_uncontested(
-            book,
-            &[one_nt, two_c, two_h, two_s, three_h],
-            inv_5card_raise(Strain::Hearts),
-        );
-        insert_uncontested(
-            book,
-            &[one_nt, two_c, two_h, two_s, three_s],
-            inv_5card_raise(Strain::Spades),
-        );
-        // C/D: opener's two replies to responder's invitational heart-transfer
-        // rebid (the single-suited `2♠` relay, and the 5♥4♠-showing `2NT`).  The
-        // responder rebid itself is inserted below, chained with the six-card
-        // invite (both share the `1NT–2♦–2♥` node).
-        insert_uncontested(
-            book,
-            &[one_nt, two_d, two_h, two_s],
-            answer_transfer_heart_single(),
-        );
-        insert_uncontested(
-            book,
-            &[one_nt, two_d, two_h, two_nt],
-            answer_transfer_heart_spade(),
-        );
-        // E: opener's reply to the single-suited spade invite (`1NT–2♥–2♠–2NT`); the
-        // responder rebid itself is inserted below, chained with the six-card invite.
-        insert_uncontested(
-            book,
-            &[one_nt, two_h, two_s, two_nt],
-            answer_transfer_spade_single(),
-        );
-    }
-
-    // --- Six-card-major game invite (gated; see `set_sixcard_invite_floor`) -----
-    //
-    // Just below the Texas blast floor, responder transfers and jumps to `3M` (a
-    // natural invite); opener accepts game or passes `3M` on `point_count + trump
-    // length`.  The heart responder node coexists with the 5-4 structure's `2♠`/`2NT`
-    // relays — disjoint by HCP (an 8-count 6-bagger has `point_count + length ≥ 14`
-    // and blasts `4♣`, never transferring), so the node chains both features.
-    if invitational_5card_majors()
-        || sixcard_invite_active()
-        || transfer_slam_try()
-        || transfer_gf_hearts()
-    {
-        let mut heart_rebid = Rules::new();
-        if invitational_5card_majors() {
-            heart_rebid = heart_rebid.chain(transfer_heart_invite_rebid());
-        }
-        heart_rebid = heart_rebid.chain(sixcard_invite_rebid(Suit::Hearts));
-        heart_rebid = heart_rebid.chain(transfer_slam_try_rebid(Suit::Hearts));
-        heart_rebid = heart_rebid.chain(transfer_heart_gf_rebid());
-        insert_uncontested(book, &[one_nt, two_d, two_h], heart_rebid);
-    }
-    // The spade-transfer rebid node carries the single-suited 5♠ invite (`2NT` — the
-    // spade mirror of the heart `2♠` relay; `2NT` is free here because 5♠4♥ Staymans)
-    // and the six-card spade invite (`3♠`), disjoint by strength — exactly like the
-    // heart node above.
-    if invitational_5card_majors()
-        || sixcard_invite_active()
-        || transfer_slam_try()
-        || transfer_gf_majors()
-    {
-        let mut spade_rebid = Rules::new();
-        if invitational_5card_majors() {
-            spade_rebid = spade_rebid.chain(transfer_spade_invite_rebid());
-        }
-        spade_rebid = spade_rebid.chain(sixcard_invite_rebid(Suit::Spades));
-        spade_rebid = spade_rebid.chain(transfer_slam_try_rebid(Suit::Spades));
-        spade_rebid = spade_rebid.chain(transfer_spade_gf_rebid());
-        insert_uncontested(book, &[one_nt, two_h, two_s], spade_rebid);
-    }
-    // Opener's RKCB-or-sign-off over the post-transfer slam try (`3♠` agrees hearts,
-    // `3♥` agrees spades), plus the keycard ladder rooted at each — the same proven
-    // machinery as the direct four-major slam try, so the auction never dangles.  The
-    // heart `3♠` node yields to the GF mirror (which reuses it as the spade splinter,
-    // still agreeing hearts) when that structure is on.
-    if transfer_slam_try() && !transfer_gf_hearts() {
-        insert_uncontested(
-            book,
-            &[one_nt, two_d, two_h, three_s],
-            transfer_slam_try_answer(Suit::Hearts),
-        );
-        slam::install_rkcb(book, &[one_nt, two_d, two_h, three_s], Suit::Hearts);
-    }
-    // The spade-agreeing `3♥` node serves both the single-suited slam try and the
-    // GF-majors natural 5-5 slam try — opener's max RKCBs spades, a minimum signs off
-    // in `4♠` — so it installs under either gate.  The GF structure also relocates the
-    // single-suiter to a quantitative `4NT` (opener accepts `6♠`/`6NT`, or passes).
-    if transfer_slam_try() || transfer_gf_majors() {
-        insert_uncontested(
-            book,
-            &[one_nt, two_h, two_s, three_h],
-            transfer_slam_try_answer(Suit::Spades),
-        );
-        slam::install_rkcb(book, &[one_nt, two_h, two_s, three_h], Suit::Spades);
-    }
-    if transfer_gf_majors() {
-        insert_uncontested(
-            book,
-            &[one_nt, two_h, two_s, call(4, Strain::Notrump)],
-            gf_quant_answer(Suit::Spades),
-        );
-        // Five-spade-plus-minor (`3♣`/`3♦`): opener anchors the five-three spade fit,
-        // RKCB in spades over a maximum (the keycard ladder rooted at each).
-        for minor in [Strain::Clubs, Strain::Diamonds] {
-            let three_m = call(3, minor);
-            insert_uncontested(
-                book,
-                &[one_nt, two_h, two_s, three_m],
-                gf_minor_answer(Suit::Spades),
-            );
-        }
-        // Six-card-spade splinters (`4♣`/`4♦`/`4♥`): spades agreed, opener RKCBs over a
-        // maximum or signs off in `4♠`, the keycard ladder rooted at each.
-        for short in [Strain::Clubs, Strain::Diamonds, Strain::Hearts] {
-            let four_short = call(4, short);
-            insert_uncontested(
-                book,
-                &[one_nt, two_h, two_s, four_short],
-                gf_splinter_answer(Suit::Spades),
-            );
-            slam::install_rkcb(book, &[one_nt, two_h, two_s, four_short], Suit::Spades);
-        }
-    }
-    if transfer_gf_hearts() {
-        // The heart mirror (`set_transfer_gf_hearts`): quantitative `4NT`, the
-        // five-heart-plus-minor `3♣`/`3♦` (opener places game on the 5-3 heart fit),
-        // and the splinters — spade shortness at the cheap `3♠`, minors at `4♣`/`4♦` —
-        // all agreeing hearts for the keycard ladder rooted at each.
-        insert_uncontested(
-            book,
-            &[one_nt, two_d, two_h, call(4, Strain::Notrump)],
-            gf_quant_answer(Suit::Hearts),
-        );
-        for minor in [Strain::Clubs, Strain::Diamonds] {
-            let three_m = call(3, minor);
-            insert_uncontested(
-                book,
-                &[one_nt, two_d, two_h, three_m],
-                gf_minor_answer(Suit::Hearts),
-            );
-        }
-        for splinter in [
-            call(3, Strain::Spades),
-            call(4, Strain::Clubs),
-            call(4, Strain::Diamonds),
-        ] {
-            insert_uncontested(
-                book,
-                &[one_nt, two_d, two_h, splinter],
-                gf_splinter_answer(Suit::Hearts),
-            );
-            slam::install_rkcb(book, &[one_nt, two_d, two_h, splinter], Suit::Hearts);
-        }
-    }
-    if sixcard_invite_active() {
-        // Opener's accept/decline of the six-card invite for both majors.
-        insert_uncontested(
-            book,
-            &[one_nt, two_d, two_h, three_h],
-            accept_sixcard_invitation(Suit::Hearts),
-        );
-        insert_uncontested(
-            book,
-            &[one_nt, two_h, two_s, three_s],
-            accept_sixcard_invitation(Suit::Spades),
-        );
-    }
+    compile_into(
+        book,
+        &[
+            base(),
+            cue(),
+            minor_slam(),
+            crawling(),
+            invitational_majors(),
+            heart_transfer_rebids(),
+            spade_transfer_rebids(),
+            heart_transfer_slam_try(),
+            spade_transfer_slam_try(),
+            spade_transfer_game_force(),
+            heart_transfer_game_force(),
+            sixcard_invite(),
+        ],
+    );
 
     // --- Opt-in max-showing overlays (both-majors min/max, max five-card jump) -
     //
