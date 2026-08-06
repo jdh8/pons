@@ -99,7 +99,7 @@ fn nt_invite_hcp() -> bool {
 /// Opener's `2♠` shows four-card support and a 12–15 point opening.  The
 /// `4NT` keycard ask is authored the same way as the 2/1 game force's
 /// opener-third rule: the call itself carries the RKCB alert, and
-/// `slam::install_rkcb` installs everything below it.
+/// `slam::rkcb_rows` authors everything below it.
 ///
 /// | Call | Wt  | Meaning |
 /// |------|-----|---------|

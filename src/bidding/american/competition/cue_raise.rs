@@ -81,8 +81,8 @@ pub(crate) fn delayed_cue() -> bool {
 ///
 /// The contested twin of [`opener_after_limit_raise`][super::raises], minus the
 /// keycard ask — offering `4NT` RKCB here would strand it, because the contested
-/// node has no authored keycard *responses* (the uncontested tree installs them
-/// via `slam::install_rkcb`; this one does not). So a strong opener blasts `4M`
+/// node has no authored keycard *responses* (the uncontested package includes
+/// `slam::rkcb_rows`; this one does not). So a strong opener blasts `4M`
 /// game rather than pass out a 4NT nobody answers; slam exploration is a later
 /// opt-in.
 ///

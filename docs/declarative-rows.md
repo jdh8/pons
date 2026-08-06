@@ -21,7 +21,7 @@ two open phases are.
 | Contested — `defensive()` | **Done bar one site.** 22 packages, plus the 1NT-overcall systems-on graft, which is *permanently* imperative: `compile_into` writes rows, not a whole subtree. |
 | Constructive — ported | `openings.rs`, `weak_twos.rs`, `xyz.rs`, `nmf.rs`, the `notrump` and `rebids` module trees, `strong_two.rs`, `responses.rs`, `game_force.rs`, and `raises.rs`, guarded by `row_package_invariants` in `american/tests.rs`. |
 | Constructive — **not** ported | `dutch.rs`: 10 exact verb sites, sequenced below. |
-| RKCB | A row **producer**: `slam::rkcb_rows(prefix, trump) -> Vec<Entry>`. All 25 production callers use it directly; the `install_rkcb` shim is test-only for three fixtures in `slam/tests.rs`, which T1 converts before deleting it. |
+| RKCB | A row **producer**: `slam::rkcb_rows(prefix, trump) -> Vec<Entry>`. All 25 production callers and the three test fixtures use it directly; `install_rkcb` is retired. |
 | Phase 1.5 (floating agreements) | **Cancelled, not deferred** — see below. |
 | Phase 2 (cross-side assembly) | **Open**, restated below. Nothing exists: no `defense_vs`, no `competitive_vs`, no `Table::compose`. |
 | Phase 3 (knob migration) | **Open**, restated below. Thread-locals untouched: 27 across `competition/`, 19 across `defense/`, 12 in `inference.rs`, 9 each across `notrump/` / `rebids/`. The by-agreement file split makes this *easier*: each agreement module's thread-locals are exactly the contents of its config struct. |
@@ -163,8 +163,8 @@ does not decide anything:
 ## Port checklist
 
 Scoped 2026-08-06: the original tail was six American constructive files plus
-`dutch.rs`; phases 2/3 remain untouched. N1–N5, R1, S1, P1, G0, G1, and Z1
-are complete. The remaining sequence is T1, D0, D1. One batch = one
+`dutch.rs`; phases 2/3 remain untouched. N1–N5, R1, S1, P1, G0, G1, Z1, and
+T1 are complete. The remaining sequence is D0, D1. One batch = one
 commit = one inertness proof under the porting rule above. Site counts are the
 reproducible greps — `insert_uncontested|insert_all_seats|fallback_all_seats`
 per file, plus
@@ -200,8 +200,8 @@ policy is dormant for the remaining tail: every Dutch verb site is an exact
   a `group()` panic within one package — so dutch is its own package list,
   compiled after american's.
 - All 25 original production `install_rkcb` sites now inline
-  `rkcb_rows(prefix, trump)`. Three test-only calls in `slam/tests.rs` are
-  outside those anchors; T1 converts them before deleting the shim.
+  `rkcb_rows(prefix, trump)`. The three test fixtures compile the same producer
+  through `compile_entries`; the shim is gone.
 
 ### Batches
 
@@ -218,13 +218,13 @@ policy is dormant for the remaining tail: every Dutch verb site is an exact
 | G0 | **Done** | `rows.rs`: builder-level fan = 2 | — | — | `Pattern::with_fan(2)`; no string syntax added |
 | G1 | **Done** | `game_force.rs` | 8 + 2 rkcb | `opener_third_enabled`, `second_suit_agreement`, `game_backstop_enabled` | four packages; two backstop hatches; two table-derived key sets |
 | Z1 | **Done** | `raises.rs` | 7 + 3 rkcb | game-try + limit-raise gates | three packages; one table-derived key set |
-| T1 | **Next** | retire `install_rkcb` (`slam.rs`) | — | — | also convert its three test-only callers |
-| D0 | Open | Dutch inertness harness | — | — | Dutch twins of smoke and render |
+| T1 | **Done** | retire `install_rkcb` (`slam.rs`) | — | — | three test fixtures use the row producer directly |
+| D0 | **Next** | Dutch inertness harness | — | — | Dutch twins of smoke and render |
 | D1 | Open | `dutch.rs::dutch_book()` | 10 | — | own package list, compiled after American's |
 
-Completed: N1→N5, R1, S1, P1, G0, G1, Z1. Remaining sequence:
-T1→D0→D1. The remaining production anchors are the ten exact Dutch sites;
-the only `install_rkcb` callers are T1's three test fixtures.
+Completed: N1→N5, R1, S1, P1, G0, G1, Z1, T1. Remaining sequence:
+D0→D1. The remaining production anchors are the ten exact Dutch sites;
+`install_rkcb` has no callers because the shim no longer exists.
 Completed notrump/rebid locations in the table are historical; commit `1c0ef51`
 subsequently split them into agreement modules.
 
@@ -242,14 +242,12 @@ subsequently split them into agreement modules.
 5. `cargo fmt`, `cargo test --all-features`, `cargo +nightly clippy
    --all-targets --all-features -- -D warnings`, `RUSTDOCFLAGS="-D warnings"
    cargo doc --no-deps --all-features`.
-6. Sha-compare `smoke-default` (20 000 boards, seed 1) and `render-book`
-   against the parent commit. Extend the reusable `examples/tmp-rows-port`
-   harness so every translated gate is exercised by at least one non-vacuous
-   arm; its no-argument output is the arm list. Capture every arm before and
-   after the batch, require all arms to have pairwise-distinct outputs, and
-   byte-diff matching outputs. Keep this harness through T1; do not create a
-   per-batch temporary example. D0 supplies the analogous Dutch dumps. Never
-   straddle a behavioural commit.
+6. Sha-compare the batch's smoke and book render against its parent. The
+   American batches through T1 also used the reusable `tmp-rows-port` sweep:
+   every translated gate had a non-vacuous arm, all arm outputs were pairwise
+   distinct, and matching before/after outputs byte-diffed empty. T1 retired
+   that harness after its final 31-arm proof. D0 supplies the analogous Dutch
+   dumps for D1. Never straddle a behavioural commit.
 7. CHANGELOG entry carrying the shas; propose the commit message.
 
 **Stops.** A weight tie surfaced by the invariant probe stops the batch —
@@ -257,4 +255,4 @@ resolution touches the reading and may not be inert; escalate rather than
 nudge. Any dump delta is a translation bug: fix it, never re-bless.
 
 Delegation: D1 remains a mechanical re-spelling with this recipe as the spec;
-T1 and D0 stay in the main loop.
+D0 stays in the main loop.

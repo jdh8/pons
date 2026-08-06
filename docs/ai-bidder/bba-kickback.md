@@ -751,8 +751,8 @@ The price becomes real only in the deferred control-bid session.
 
 ### 7.5 Phase 4 — the book, competition, disclosure
 
-**The book.** `install_rkcb` is absolute-bid across 27 sites; relocating there
-means parameterizing it by an `ask: Call` and making `rkcb_answers` /
+**The book.** `rkcb_rows` is absolute-bid across 25 production sites;
+relocating there means parameterizing it by an `ask: Call` and making `rkcb_answers` /
 `asker_after_*` / `king_answers` step-relative — mechanical but wide. Until
 then a book node shadows the floor wherever one exists, so the relocation only
 reaches un-booked auctions. Note pons has **no queen ask at all** (the queen is

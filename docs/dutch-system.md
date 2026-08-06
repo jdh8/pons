@@ -546,7 +546,7 @@ the redo's vul split is real.)
 Slam beyond game is **deferred**: the A/B's dominant loss was blind slam *blasts*,
 not missed keycard slams, so the disciplined first cut lands the game cleanly. The
 `3♦` diamond-fit branch is the home for a later RKCB reuse (widening
-`american::slam::install_rkcb` past `pub(super)`), pending a re-A/B that shows the
+`american::slam::rkcb_rows` past `pub(super)`), pending a re-A/B that shows the
 game cap leaking slams. Everything responder bids here is natural (notrump / pass,
 projecting no suit), so no alert is carried and `dutch_artificial_calls_are_alerted`
 passes untouched. The `responder_continues_after_opener_rebid` test locks in the

@@ -91,7 +91,7 @@ fn second_suit_agreement() -> bool {
 /// arms. Only the raw point threshold is obviously wrong; the ask itself is
 /// load-bearing.
 ///
-/// The RKCB install (`slam::install_rkcb`) is independent of this knob.
+/// The RKCB answer rows (`slam::rkcb_rows`) are independent of this knob.
 pub fn set_opener_third(on: bool) {
     OPENER_THIRD.with(|cell| cell.set(on));
 }

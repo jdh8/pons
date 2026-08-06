@@ -1,20 +1,19 @@
 use super::*;
-use crate::bidding::System;
+use crate::bidding::rows::compile_entries;
+use crate::bidding::{System, Trie};
 use contract_bridge::auction::RelativeVulnerability;
 use contract_bridge::{Hand, Strain};
 
-/// Build a Trie with RKCB installed for the test auction
-fn rkcb_trie() -> Trie {
+/// Build a trie from the RKCB row producer at one row-native prefix
+fn trie_with_rkcb(prefix: &str, trump: Suit) -> Trie {
     let mut trie = Trie::new();
-    // Our calls: 1♠ – 2NT – 3♣ (the context before 4NT is asked;
-    // install_rkcb appends the 4NT ask itself)
-    let our_calls = [
-        Call::Bid(Bid::new(1, Strain::Spades)),
-        Call::Bid(Bid::new(2, Strain::Notrump)),
-        Call::Bid(Bid::new(3, Strain::Clubs)),
-    ];
-    install_rkcb(&mut trie, &our_calls, Suit::Spades);
+    compile_entries(&mut trie, "rkcb", rkcb_rows(prefix, trump));
     trie
+}
+
+/// Build a Trie with RKCB rows for the test auction
+fn rkcb_trie() -> Trie {
+    trie_with_rkcb("P* 1♠ (P) 2NT (P) 3♣ (P)", Suit::Spades)
 }
 
 /// The rows the producer emits hold the row invariants — alerts on every
@@ -208,11 +207,8 @@ fn king_answer_after_5nt() {
 
 /// A trie with minor RKCB installed below `[1m, 2m, 4NT]`
 fn minor_trie(trump: Suit) -> Trie {
-    let mut trie = Trie::new();
     let m = Strain::from(trump);
-    let our_calls = [Call::Bid(Bid::new(1, m)), Call::Bid(Bid::new(2, m))];
-    install_rkcb(&mut trie, &our_calls, trump);
-    trie
+    trie_with_rkcb(&format!("P* 1{m} (P) 2{m} (P)"), trump)
 }
 
 /// The answer node auction `[1m, P, 2m, P, 4NT, P]`
@@ -407,13 +403,7 @@ fn relay_trie() -> Trie {
 ///
 /// [`QUEEN_FIT`]: crate::bidding::instinct::QUEEN_FIT
 fn eight_card_relay_trie() -> Trie {
-    let mut trie = Trie::new();
-    let our_calls = [
-        Call::Bid(Bid::new(1, Strain::Spades)),
-        Call::Bid(Bid::new(3, Strain::Spades)),
-    ];
-    install_rkcb(&mut trie, &our_calls, Suit::Spades);
-    trie
+    trie_with_rkcb("P* 1♠ (P) 3♠ (P)", Suit::Spades)
 }
 
 /// `[1♠, P, 3♠, P, 4NT, P]` — the limit-raise ask node

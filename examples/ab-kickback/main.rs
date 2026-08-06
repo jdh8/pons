@@ -337,8 +337,8 @@ fn card(arm: Arm) -> Card {
 }
 
 /// Build one stance per arm.  `set_rkcb_variant` is read at build time for rule
-/// presence, and `set_rkcb_minors` by the book's `install_rkcb`, so the arms
-/// cannot share a book.
+/// presence, and `set_rkcb_minors` by the book's RKCB row packages, so the
+/// arms cannot share a book.
 ///
 /// Every arm captures the cell at build time: its own card and `opponent`'s,
 /// which is the mixed table these two arms will play.  Bare [`american`] would

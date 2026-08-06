@@ -112,7 +112,7 @@ honour the force and cap at the right game:
 Slam beyond game is deferred: the A/B's dominant loss was blind slam *blasts*,
 not missed keycard slams, so the first correct cut lands the game cleanly. The
 `3♦` diamond-fit branch is the natural home for a later RKCB reuse (widening
-`american::slam::install_rkcb` past `pub(super)`) — pending a re-A/B that shows
+`american::slam::rkcb_rows` past `pub(super)`) — pending a re-A/B that shows
 the game cap leaking slams. The help-suit game try (`2♥`/`2♠` after `2♣`) stays
 dropped — a cheap accept/decline lands the same games without the extra read.
 

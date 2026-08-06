@@ -48,8 +48,6 @@
 //! grand-slam exploration in a minor is not supported.  Kickback (4♣/4♦), the
 //! usual remedy, is out of scope.
 
-#[cfg(test)]
-use crate::bidding::Trie;
 use crate::bidding::{Alert, Rules};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Rank, Strain, Suit};
@@ -86,8 +84,6 @@ use crate::bidding::constraint::{described, hcp};
 use crate::bidding::instinct::{
     KingRelay, RelayMap, king_relay, queen_ask_room, queen_fit, relay_map,
 };
-#[cfg(test)]
-use crate::bidding::rows::compile_entries;
 use crate::bidding::rows::{Entry, Pattern, rows_of};
 use contract_bridge::Hand;
 
@@ -667,12 +663,11 @@ fn asker_after_6h(trump: Suit) -> Rules {
 
 /// The RKCB 1430 subtree as rows, below the auction `prefix`
 ///
-/// `prefix` is an auction string ending just before **our 4NT ask** — the row
-/// layer's spelling of the undisturbed sequence
-/// [`install_rkcb`] takes as `&[Call]` (`"P* 1♠ (P) 3♠ (P)"`).  The ask, its
-/// answers and every continuation are keyed below it.  Both majors and minors
-/// are supported; for minors the asker's signoff is cramped (see the module
-/// docs) and the 5NT king ask is skipped.
+/// `prefix` is the row layer's auction string ending just before **our 4NT
+/// ask**, for example `"P* 1♠ (P) 3♠ (P)"`.  The ask, its answers and every
+/// continuation are keyed below it.  Both majors and minors are supported; for
+/// minors the asker's signoff is cramped (see the module docs) and the 5NT king
+/// ask is skipped.
 ///
 /// The 4NT bid itself must already be in the caller's table; this produces
 /// everything that comes *after* 4NT.
@@ -818,21 +813,6 @@ pub(super) fn rkcb_rows(prefix: &str, trump: Suit) -> Vec<Entry> {
     }
 
     entries
-}
-
-/// Install RKCB 1430 below an agreed trump suit
-///
-/// `our_calls` is the undisturbed sequence of our side's calls so far (the
-/// same form [`uncontested`][super::uncontested] takes); the 4NT ask and its
-/// answers are inserted below it.  A thin test-only shim over [`rkcb_rows`],
-/// kept for the three fixtures that T1 converts before deleting it.
-#[cfg(test)]
-pub(super) fn install_rkcb(book: &mut Trie, our_calls: &[Call], trump: Suit) {
-    let prefix = core::iter::once("P*".to_owned())
-        .chain(our_calls.iter().map(|call| format!("{call} (P)")))
-        .collect::<Vec<_>>()
-        .join(" ");
-    compile_entries(book, "rkcb", rkcb_rows(&prefix, trump));
 }
 
 // ---------------------------------------------------------------------------

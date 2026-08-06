@@ -348,11 +348,11 @@ pub(super) fn relay_responses_after_club() -> Rules {
 /// would be blasted — so this increment caps every branch at the right game.
 ///
 /// Slam beyond 3NT / 5m is deferred to a later increment that reuses
-/// `american::slam` (widening `slam::install_rkcb` past `pub(super)`): the
+/// `american::slam` (widening `slam::rkcb_rows` past `pub(super)`): the
 /// A/B's dominant loss was blind slam blasts, not missed keycard slams, so the
 /// disciplined first cut lands the game cleanly and prices the slam tail after.
-// ponytail: caps at game; add RKCB (widen `slam::install_rkcb` to pub(crate),
-// install on the 3♦ diamond-fit branch) if the re-A/B shows the slam tail losing.
+// ponytail: caps at game; add RKCB (widen `slam::rkcb_rows` to pub(crate), append
+// it on the 3♦ diamond-fit branch) if the re-A/B shows the slam tail losing.
 pub(super) fn opener_rebids_after_two_diamonds() -> Rules {
     Rules::new()
         // 3♦ — four-card diamond support: a known nine-card fit, the best news.
