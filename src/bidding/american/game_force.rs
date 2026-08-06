@@ -3,10 +3,15 @@
 //! After a two-over-one response, the auction is game forcing: neither player
 //! may pass below game.  This module registers the decision tables for the
 //! three rounds of the game-forcing auction (opener's rebid, responder's rebid,
-//! opener's third call).  A game backstop fallback used to answer everything
-//! those three rounds miss; it is retired ([`set_game_backstop`], off by
-//! default) — `instinct()`, which floors the constructive book, bids those
-//! positions better than the table did.
+//! opener's third call).
+//!
+//! This module is the **index** for the base tables and three gated agreements:
+//!
+//! | Module | Agreement | Knob |
+//! | --- | --- | --- |
+//! | [`backstop`] | the retired wildcard game backstop, default off | [`set_game_backstop`] |
+//! | [`opener_third`] | opener's third call after responder sets trump at `1M - 2r - R - 3M` | [`set_opener_third`] |
+//! | [`second_suit`] | opener's third call plus RKCB after responder raises opener's second suit | [`set_second_suit_agreement`] |
 //!
 //! # Forcing by omission
 //!
@@ -26,108 +31,24 @@ use crate::bidding::Rules;
 use crate::bidding::constraint::{
     balanced, described, fifths, hcp, len, partner_suit_is, points, support,
 };
-use crate::bidding::fallback::Undisturbed;
 use crate::bidding::rows::{Package, Pattern, classified, compile_into, rows_of};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Level, Strain, Suit};
 use std::cell::Cell;
 
-std::thread_local! {
-    /// Whether opener authors a third-call table after responder raises
-    /// opener's second suit (`1M - 2r - 2x - 3x`).  On by default — shipped
-    /// (+0.0012 plain / +0.0014 PD NV, +0.0015 / +0.0018 vul IMPs/board vs BBA);
-    /// see [`set_second_suit_agreement`].  When off, that node falls through to
-    /// the floor (it fell to the game backstop until that was deleted).
-    static SECOND_SUIT_AGREEMENT: Cell<bool> = const { Cell::new(true) };
+mod backstop;
+mod opener_third;
+mod second_suit;
 
-    /// Whether the game backstop ([`game_backstop`]) is registered at all.
-    /// **Off by default** since 2026-07-20 — the floor answers these nodes
-    /// better than the table did; see [`set_game_backstop`].
-    static GAME_BACKSTOP: Cell<bool> = const { Cell::new(false) };
+pub use backstop::set_game_backstop;
+pub use opener_third::set_opener_third;
+pub use second_suit::set_second_suit_agreement;
 
-    /// Whether opener authors a third-call table after trump is agreed at
-    /// `1M - 2r - R - 3M`.  On by default; the deletion measures positive but
-    /// strands every slam at this node, see [`set_opener_third`].
-    static OPENER_THIRD: Cell<bool> = const { Cell::new(true) };
-}
-
-/// Toggle opener's third call after responder agrees the second suit
-///
-/// Read at book-construction time; `1M - 2r - 2x - 3x` gets an opener rebid
-/// (RKCB on extras, else sign off) instead of falling to the game backstop.
-pub fn set_second_suit_agreement(on: bool) {
-    SECOND_SUIT_AGREEMENT.with(|cell| cell.set(on));
-}
-
-fn second_suit_agreement() -> bool {
-    SECOND_SUIT_AGREEMENT.with(Cell::get)
-}
-
-/// Toggle opener's third call after responder sets trump: `1M - 2r - R - 3M`
-///
-/// Read at book-construction time.  **On by default** — but see the caveat, it
-/// is a deletion candidate blocked on a floor capability, not a settled node.
-///
-/// Two rules — 4NT RKCB on `points(15..)`, else an unconditional `4M` — the
-/// retired game backstop's signature: a raw point threshold, no shape or
-/// control term, and every cue-bid and five-level call at −∞ at depth 4.
-///
-/// Deleting it *measures* **+0.437/+0.527 plain, +0.524/+0.637 PD** IMPs per
-/// divergent board NV/vul (`ab-major-continuations`, 2,000,000 boards per arm
-/// per vulnerability, seed 1784484826, 971 divergent = 0.05%) — +0.0002/+0.0003
-/// per board, the same sign on all four arms.
-///
-/// **It is not shipped anyway.** With the node gone the floor never asks
-/// keycards here at all: it signs off in `4M` on a 26-count opposite a
-/// game-forcing two-over-one, so slam becomes unreachable at this node. That is
-/// the backstop lesson again — deleting a node deletes the invariant it held by
-/// omission, and here the invariant is "opener can still try for slam". A
-/// +0.0003 IMPs/board gain does not buy a total capability loss.
-///
-/// The architecturally correct fix, if this is ever resumed, is the
-/// [`set_two_over_one_force`][crate::bidding::instinct::set_two_over_one_force]
-/// pattern: delete the node *and* teach `instinct()` to ask keycards on a
-/// controls-and-fit test at an agreed-trump game force, which should beat both
-/// arms. Only the raw point threshold is obviously wrong; the ask itself is
-/// load-bearing.
-///
-/// The RKCB answer rows (`slam::rkcb_rows`) are independent of this knob.
-pub fn set_opener_third(on: bool) {
-    OPENER_THIRD.with(|cell| cell.set(on));
-}
-
-fn opener_third_enabled() -> bool {
-    OPENER_THIRD.with(Cell::get)
-}
-
-/// Re-register the game backstop over uncovered game-forcing continuations
-///
-/// Read at book-construction time.  **Off by default**: every 2/1 continuation
-/// the three authored rounds do not cover falls through to the floor rather
-/// than to this table's three crude rules.
-///
-/// The backstop was authored against the deterministic `instinct()` ladder; the
-/// floor became the BBA-distilled net on 2026-07-19, and the table stopped
-/// earning its keep.  Deleting it measures **+0.0117/+0.0142 plain,
-/// +0.0132/+0.0160 PD** IMPs/board NV/vul vs BBA (409,600×2, all CI>0) *paired
-/// with* [`set_two_over_one_force`][crate::bidding::instinct::set_two_over_one_force],
-/// which restores by rule the game force this node used to hold by omission.
-/// On alone the deletion is worth only +0.005, because the floor then abandons
-/// partner's 2/1 on 24% of the boards it touches.
-///
-/// Deleting it also cures a replay-sampler starvation: the table is *partial*,
-/// so every call it does not name sat at −∞ while its unconditional 3NT kept the
-/// node's best finite, and the gate rejected those calls for every hand
-/// (`sample_layouts_replay` returned 0%).  With no node the floor answers,
-/// `authored_at` is false, and the gate abstains.  Kept as a knob so the table
-/// can be re-measured if the floor changes again.
-pub fn set_game_backstop(on: bool) {
-    GAME_BACKSTOP.with(|cell| cell.set(on));
-}
-
-fn game_backstop_enabled() -> bool {
-    GAME_BACKSTOP.with(Cell::get)
-}
+// The packages, re-exported so `american::tests::row_package_invariants` and
+// `register` below name them at one path.
+pub(super) use backstop::backstops;
+pub(super) use opener_third::opener_third_continuations;
+pub(super) use second_suit::second_suit_agreement_continuations;
 
 // ---------------------------------------------------------------------------
 // Major 2/1 sequences
@@ -142,7 +63,7 @@ fn game_backstop_enabled() -> bool {
 /// always holds five of the major so the bid is always available.
 ///
 /// No [`Pass`][Call::Pass] rule: the auction is game forcing.
-fn opener_rebid(major: Suit, resp: Suit) -> Rules {
+pub(super) fn opener_rebid(major: Suit, resp: Suit) -> Rules {
     let major_strain = Strain::from(major);
     let resp_strain = Strain::from(resp);
 
@@ -226,43 +147,6 @@ fn responder_rebid(major: Suit, resp: Suit) -> Rules {
     rules
 }
 
-/// Opener's third call after `1M - 2r - R - 3M`
-///
-/// Once trump has been set at three of the major, opener shows strength:
-/// the 4NT key card ask on extras or a sign-off at four of the major.
-///
-/// No [`Pass`][Call::Pass] rule.
-fn opener_third(major: Suit) -> Rules {
-    let major_strain = Strain::from(major);
-    Rules::new()
-        .rule(call(4, Strain::Notrump), 100, points(15..))
-        .alert(super::slam::RKCB)
-        .rule(call(4, major_strain), 50, hcp(0..))
-}
-
-/// Opener's third call after responder raises opener's second suit
-///
-/// `1M - 2r - 2x - 3x`: responder has agreed opener's second suit `x` as trump in a
-/// still-forcing auction (the two-suiter's second fit).  Opener asks with 4NT
-/// RKCB on extras, else signs off in game — four of an agreed major, or `3NT`
-/// (with `5x` as the deep fallback) when `x` is a minor.  Without this the node
-/// falls to [`game_backstop`], which reverts to `4M` after `x` was agreed.
-///
-/// No [`Pass`][Call::Pass] rule.
-fn opener_third_agree(agreed: Suit) -> Rules {
-    let strain = Strain::from(agreed);
-    let rules = Rules::new()
-        .rule(call(4, Strain::Notrump), 100, points(15..))
-        .alert(super::slam::RKCB);
-    if matches!(agreed, Suit::Hearts | Suit::Spades) {
-        rules.rule(call(4, strain), 50, hcp(0..))
-    } else {
-        rules
-            .rule(call(3, Strain::Notrump), 50, hcp(0..))
-            .rule(call(5, strain), 30, hcp(0..))
-    }
-}
-
 // ---------------------------------------------------------------------------
 // Minor game force: 1♦ - 2♣
 // ---------------------------------------------------------------------------
@@ -311,32 +195,6 @@ fn responder_rebid_1d_2c() -> Rules {
 }
 
 // ---------------------------------------------------------------------------
-// Game backstop
-// ---------------------------------------------------------------------------
-
-/// Default game bid for any uncovered game-forcing continuation
-///
-/// When the auction is already in the trump suit we play game there; otherwise
-/// 3NT is the default.  No [`Pass`][Call::Pass] rule — at nodes where every
-/// rule is illegal (game already bid) the driver passes, which is correct.
-fn game_backstop() -> Rules {
-    Rules::new()
-        .rule(
-            call(4, Strain::Hearts),
-            70,
-            described("our side bid ♥", |_, ctx| ctx.we_bid(Strain::Hearts))
-                & len(Suit::Hearts, 3..),
-        )
-        .rule(
-            call(4, Strain::Spades),
-            70,
-            described("our side bid ♠", |_, ctx| ctx.we_bid(Strain::Spades))
-                & len(Suit::Spades, 3..),
-        )
-        .rule(call(3, Strain::Notrump), 50, hcp(0..))
-}
-
-// ---------------------------------------------------------------------------
 // Registration
 // ---------------------------------------------------------------------------
 
@@ -345,7 +203,7 @@ fn game_backstop() -> Rules {
 /// Continuation keys stay derived from the live, knob-built source table.  A
 /// `HashSet` is only the membership test; iterating the rules themselves keeps
 /// the legacy declaration order.
-fn distinct_calls(rules: &Rules) -> Vec<Call> {
+pub(super) fn distinct_calls(rules: &Rules) -> Vec<Call> {
     let mut seen = std::collections::HashSet::new();
     rules
         .rules()
@@ -414,120 +272,6 @@ pub(super) fn base() -> Package {
                 ));
             }
 
-            entries
-        },
-    }
-}
-
-/// Opener's third-call table after responder agrees the opening major
-pub(super) fn opener_third_continuations() -> Package {
-    Package {
-        name: "two-over-one-opener-third",
-        gate: opener_third_enabled,
-        entries: || {
-            let mut entries = Vec::new();
-            for major in [Suit::Spades, Suit::Hearts] {
-                for resp in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
-                    if Strain::from(resp) >= Strain::from(major) {
-                        continue;
-                    }
-                    let prefix = format!(
-                        "P* {} - {} -",
-                        call(1, Strain::from(major)),
-                        call(2, Strain::from(resp)),
-                    );
-                    let three_major = Bid::new(3, Strain::from(major));
-                    for rebid_call in distinct_calls(&opener_rebid(major, resp)) {
-                        if let Call::Bid(rebid_bid) = rebid_call
-                            && rebid_bid < three_major
-                        {
-                            entries.extend(rows_of(
-                                Pattern::node(&format!("{prefix} {rebid_call} - {three_major} -")),
-                                opener_third(major),
-                            ));
-                        }
-                    }
-                }
-            }
-            entries
-        },
-    }
-}
-
-/// Opener's third-call table and RKCB tails after the second suit is agreed
-pub(super) fn second_suit_agreement_continuations() -> Package {
-    Package {
-        name: "two-over-one-second-suit-agreement",
-        gate: second_suit_agreement,
-        entries: || {
-            let mut entries = Vec::new();
-            for major in [Suit::Spades, Suit::Hearts] {
-                for resp in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
-                    if Strain::from(resp) >= Strain::from(major) {
-                        continue;
-                    }
-                    let prefix = format!(
-                        "P* {} - {} -",
-                        call(1, Strain::from(major)),
-                        call(2, Strain::from(resp)),
-                    );
-                    for rebid_call in distinct_calls(&opener_rebid(major, resp)) {
-                        let Call::Bid(rebid_bid) = rebid_call else {
-                            continue;
-                        };
-                        if rebid_bid.level != Level::new(2) {
-                            continue;
-                        }
-                        let Ok(agreed) = Suit::try_from(rebid_bid.strain) else {
-                            continue;
-                        };
-                        if agreed == major || agreed == resp {
-                            continue;
-                        }
-                        let agreement = format!(
-                            "{prefix} {rebid_call} - {} -",
-                            call(3, Strain::from(agreed)),
-                        );
-                        entries.extend(rows_of(
-                            Pattern::node(&agreement),
-                            opener_third_agree(agreed),
-                        ));
-                        entries.extend(super::slam::rkcb_rows(&agreement, agreed));
-                    }
-                }
-            }
-            entries
-        },
-    }
-}
-
-/// The retired wildcard game backstops, preserved verbatim behind their knob
-pub(super) fn backstops() -> Package {
-    Package {
-        name: "two-over-one-game-backstop",
-        gate: game_backstop_enabled,
-        entries: || {
-            let mut entries = Vec::new();
-            for major in [Suit::Spades, Suit::Hearts] {
-                for resp in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
-                    if Strain::from(resp) >= Strain::from(major) {
-                        continue;
-                    }
-                    let key = format!(
-                        "{} - {} -",
-                        call(1, Strain::from(major)),
-                        call(2, Strain::from(resp)),
-                    );
-                    entries.push(classified(
-                        Pattern::guarded(&key, "2NT -", Undisturbed).with_fan(2),
-                        game_backstop(),
-                    ));
-                }
-            }
-            entries.push(classified(
-                Pattern::guarded("1♦ - 2♣ -", "2NT -", Undisturbed).with_fan(2),
-                game_backstop(),
-            ));
             entries
         },
     }

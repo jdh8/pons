@@ -158,6 +158,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     dump at all, and the other arms the shared points cell on top of it; all
     37 arms stay pairwise distinct and byte-identical, and both campaign shas
     hold.
+  - **game_force** — 547 lines become a 291-line index plus three agreement
+    modules: `opener_third` (101), `second_suit` (99) and `backstop` (102, the
+    retired wildcard, default off).  One `thread_local!` held all three knobs
+    with no cross-reads, so it becomes three.  `base()` is deliberately **not**
+    carved: it emits the major 2/1 rows and the `1♦ - 2♣` rows into one vec, so
+    splitting it would change the package list `american::tests` pins, and the
+    minor game force is part of the base table rather than an agreement of its
+    own.  The parent likewise keeps `opener_rebid`, `responder_rebid` and
+    `distinct_calls`, since all three children derive their key sets from them.
+    All three knobs already had sweep arms; both campaign shas hold and all 37
+    arms are byte-identical.
 
 - **Tests now live in dedicated module files.** All inline cfg-test module
   bodies moved to naturally resolved files, with directory crate roots for the
