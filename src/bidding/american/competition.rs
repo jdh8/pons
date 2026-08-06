@@ -2512,32 +2512,36 @@ fn cachalot_takeout_answer(opening: Suit, over: Suit) -> Rules {
 /// `X·wrapped` leak): a rebase to the natural auction can't help because the
 /// natural continuation is itself floored, so opener's raise is authored
 /// directly here.  Opener knows partner holds 4+ `shown`, so it raises the fit
-/// at the level the competition forces — `last_bid` fixes the cheapest legal
-/// naming of the major, four-card support jumps a level — else passes to defend.
-/// The gain is reaching the major games Modern's natural response finds and the
+/// at the level the competition forces — `last` fixes the cheapest legal naming
+/// of the major, four-card support jumps a level — else passes to defend.  The
+/// gain is reaching the major games Modern's natural response finds and the
 /// bare double misses.
-fn cachalot_x_contested_answer(shown: Suit) -> impl Classifier {
+///
+/// Their intervention is a row column, so `last` is known when the book is
+/// built; a redouble leaves their overcall as the last bid.  These rules
+/// deliberately carry no `.alert(…)`: the raise is natural on real support, and
+/// `authored_effect` publishes a reading only for an *alerted* rule under the
+/// shipped [`ReadingScope`][super::super::inference::ReadingScope].  That is
+/// what let this table stop being a `classified(` closure without opening a
+/// reading channel — adding an alert here is a reading change, so measure it.
+fn cachalot_x_contested_answer(shown: Suit, last: Bid) -> Rules {
     let m = Strain::from(shown);
-    classifier(move |hand, context| {
-        let mut rules = Rules::new();
-        if let Some(bid) = context.last_bid() {
-            // The cheapest legal level to name our major above their last bid;
-            // when they bid our major the `+1` raises past it, still gated on
-            // real support by `len` below.
-            let level = if m > bid.strain {
-                bid.level.get()
-            } else {
-                bid.level.get() + 1
-            };
-            if level < 7 {
-                rules = rules.rule(Bid::new(level + 1, m), 130, len(shown, 4..));
-            }
-            if level <= 7 {
-                rules = rules.rule(Bid::new(level, m), 120, len(shown, 3..));
-            }
-        }
-        rules.rule(Call::Pass, 20, hcp(0..)).classify(hand, context)
-    })
+    // The cheapest legal level to name our major above their last bid; when
+    // they bid our major the `+1` raises past it, still gated on real support
+    // by `len` below.
+    let level = if m > last.strain {
+        last.level.get()
+    } else {
+        last.level.get() + 1
+    };
+    let mut rules = Rules::new();
+    if level < 7 {
+        rules = rules.rule(Bid::new(level + 1, m), 130, len(shown, 4..));
+    }
+    if level <= 7 {
+        rules = rules.rule(Bid::new(level, m), 120, len(shown, 3..));
+    }
+    rules.rule(Call::Pass, 20, hcp(0..))
 }
 
 // ---------------------------------------------------------------------------
@@ -4162,12 +4166,103 @@ fn cachalot_package() -> Package {
             // Contested X: LHO competed over the transfer, so the pass-out
             // completions above don't fire and opener would fall to the floor
             // (the measured X·wrapped leak).  Author opener's raise of the
-            // shown major — hearts over (1♦), spades over (1♥).  The guard
-            // admits exactly opener's immediate answer,
-            // [X, <their non-pass intervention>]: the [X, P] pass-out is
-            // shadowed above, and deeper continuations fall to the floor as
-            // before.  The answer reads the intervention off the context, so
-            // it is a computed table, not authored rules.
+            // shown major — hearts over (1♦), spades over (1♥) — one column
+            // per intervention: their suit bid, their notrump bid, their
+            // redouble.  The [X, P] pass-out is shadowed by the completions
+            // above, and deeper continuations fall to the floor as before.
+            if cachalot_contested_x() {
+                let contested = |key: &str, shown: Suit, overcall: Bid| {
+                    let mut rows = expand(
+                        &format!("{key} X (jz)"),
+                        |_: &Bindings| true,
+                        move |b: &Bindings| {
+                            cachalot_x_contested_answer(
+                                shown,
+                                Bid::new(b.level('j').get(), b.suit('z').into()),
+                            )
+                        },
+                    );
+                    rows.extend(expand(
+                        &format!("{key} X (jN)"),
+                        |_: &Bindings| true,
+                        move |b: &Bindings| {
+                            cachalot_x_contested_answer(
+                                shown,
+                                Bid::new(b.level('j').get(), Strain::Notrump),
+                            )
+                        },
+                    ));
+                    rows.extend(rows_of(
+                        Pattern::node(&format!("{key} X (XX)")),
+                        cachalot_x_contested_answer(shown, overcall),
+                    ));
+                    rows
+                };
+                entries.extend(contested(
+                    over_diamond,
+                    Suit::Hearts,
+                    Bid::new(1, Strain::Diamonds),
+                ));
+                for opening in [Suit::Clubs, Suit::Diamonds] {
+                    entries.extend(contested(
+                        &format!("P* 1{} (1♥)", Strain::from(opening)),
+                        Suit::Spades,
+                        Bid::new(1, Strain::Hearts),
+                    ));
+                }
+            }
+            entries
+        },
+    }
+}
+
+/// The retired guarded wiring of [`cachalot_package`]'s contested-`X` answers,
+/// kept as the resolution-equivalence oracle for `converted_packages_match_legacy`
+///
+/// The pass-out completions ride along verbatim so the two packages are
+/// comparable as wholes.
+#[cfg(test)]
+fn cachalot_package_legacy() -> Package {
+    /// The context-reading twin of [`cachalot_x_contested_answer`], which used
+    /// to compute the raise level from `last_bid` at classification time
+    fn contested_answer(shown: Suit) -> impl Classifier {
+        classifier(move |hand, context| {
+            let rules = match context.last_bid() {
+                Some(bid) => cachalot_x_contested_answer(shown, bid),
+                None => Rules::new(),
+            };
+            rules.classify(hand, context)
+        })
+    }
+
+    Package {
+        name: "cachalot-answer",
+        gate: || negative_double_shape() == NegativeDoubleShape::Cachalot,
+        entries: || {
+            let over_diamond = "P* 1♣ (1♦)";
+            let mut entries = rows_of(
+                Pattern::after(over_diamond, "X (P)"),
+                cachalot_answer(Suit::Clubs, Suit::Diamonds, Suit::Hearts),
+            );
+            entries.extend(rows_of(
+                Pattern::after(over_diamond, "1♥ (P)"),
+                cachalot_answer(Suit::Clubs, Suit::Diamonds, Suit::Spades),
+            ));
+            entries.extend(rows_of(
+                Pattern::after(over_diamond, "1♠ (P)"),
+                cachalot_takeout_answer(Suit::Clubs, Suit::Diamonds),
+            ));
+            for opening in [Suit::Clubs, Suit::Diamonds] {
+                let key = format!("P* 1{} (1♥)", Strain::from(opening));
+                entries.extend(rows_of(
+                    Pattern::after(&key, "X (P)"),
+                    cachalot_answer(opening, Suit::Hearts, Suit::Spades),
+                ));
+                entries.extend(rows_of(
+                    Pattern::after(&key, "1♠ (P)"),
+                    cachalot_takeout_answer(opening, Suit::Hearts),
+                ));
+            }
             if cachalot_contested_x() {
                 let x_intervention = || {
                     described_guard(
@@ -4179,7 +4274,7 @@ fn cachalot_package() -> Package {
                 };
                 entries.push(classified(
                     Pattern::guarded(over_diamond, "X (2♦)", x_intervention()),
-                    cachalot_x_contested_answer(Suit::Hearts),
+                    contested_answer(Suit::Hearts),
                 ));
                 for opening in [Suit::Clubs, Suit::Diamonds] {
                     entries.push(classified(
@@ -4188,7 +4283,7 @@ fn cachalot_package() -> Package {
                             "X (2♦)",
                             x_intervention(),
                         ),
-                        cachalot_x_contested_answer(Suit::Spades),
+                        contested_answer(Suit::Spades),
                     ));
                 }
             }
@@ -4707,12 +4802,17 @@ fn answer_negative_double_package_legacy() -> Package {
 /// Section 4b as a row package: opener answers partner's cue-raise of the
 /// opening major ([`set_cue_raise_answer`][super::set_cue_raise_answer])
 ///
-/// The guard checks the calls after the opening are `[ovc, cue, P]` where the
-/// cue bids the overcaller's suit (higher than the overcall) and the overcall
-/// is at most `2♠` — the cue-raise's authored ceiling in
-/// [`over_their_overcall`].  The `ovc.strain != trump` clause excludes the
-/// opponents cue-bidding *our* major (a Michaels `1♠-(2♠)`): there responder's
-/// `3♠` is a natural raise, not a cue-raise, and this table must not hijack it.
+/// The columns after the opening are their overcall at level `i` in suit `x`,
+/// our cue *of that suit* at level `j`, their pass.  The shared letter is what
+/// makes it a cue, and ascension supplies `j > i` — enumerating every legal cue
+/// height is the point, not an accident.  The overcall is capped at `2♠`, the
+/// cue-raise's authored ceiling in [`over_their_overcall`], and `x` excludes
+/// our own major: when the opponents cue-bid *our* suit (a Michaels
+/// `1♠-(2♠)`), responder's `3♠` is a natural raise, not a cue-raise, and this
+/// table must not hijack it.  Their `1NT` overcall gets the notrump twin, where
+/// the cue is `2NT` and up — `1NT` is the only NT overcall under the cap, since
+/// `2NT` outranks `2♠` (their `2NT` over our major is the UvU package's).
+///
 /// Without the node the cue-raise falls through to the keyless floor — whose
 /// raise ladder needs partner's *named* and *shown* suit to agree, which a cue
 /// decouples — so opener passes and the cuebid is left in as the contract.
@@ -4724,33 +4824,22 @@ fn cue_raise_answer_package() -> Package {
             [Suit::Hearts, Suit::Spades]
                 .into_iter()
                 .flat_map(|major| {
-                    let trump = Strain::from(major);
-                    // The sample's overcall must not be in our own major.
-                    let sample = if major == Suit::Hearts {
-                        "(1♠) 2♠ (P)"
-                    } else {
-                        "(2♥) 3♥ (P)"
-                    };
-                    rows_of(
-                        Pattern::guarded(
-                            &format!("P* 1{trump}"),
-                            sample,
-                            described_guard(
-                                "(overcall ≤2♠) cue -",
-                                guard(move |_: &Context<'_>, suffix: &[Call]| {
-                                    matches!(
-                                        suffix,
-                                        [Call::Bid(ovc), Call::Bid(cue), Call::Pass]
-                                            if cue.strain == ovc.strain
-                                                && cue > ovc
-                                                && *ovc <= Bid::new(2, Strain::Spades)
-                                                && ovc.strain != trump
-                                    )
-                                }),
-                            ),
-                        ),
-                        answer_cue_raise(major),
-                    )
+                    let key = format!("P* 1{}", Strain::from(major));
+                    let capped = Bid::new(2, Strain::Spades);
+                    let mut entries = expand(
+                        &format!("{key} (ix) jx -"),
+                        move |b: &Bindings| {
+                            Bid::new(b.level('i').get(), b.suit('x').into()) <= capped
+                                && b.suit('x') != major
+                        },
+                        move |_: &Bindings| answer_cue_raise(major),
+                    );
+                    entries.extend(expand(
+                        &format!("{key} (iN) jN -"),
+                        move |b: &Bindings| Bid::new(b.level('i').get(), Strain::Notrump) <= capped,
+                        move |_: &Bindings| answer_cue_raise(major),
+                    ));
+                    entries
                 })
                 .collect()
         },
@@ -4762,8 +4851,10 @@ fn cue_raise_answer_package() -> Package {
 ///
 /// A minor-opening cue-raise passes out the same way.  The cue may sit as high
 /// as `3♠` (a 2-level overcall forces the cue to the 3 level), so the ceiling
-/// is `cue ≤ 3♠` rather than `ovc ≤ 2♠`.  `ovc.strain != trump` again excludes
-/// a cue of our own minor (`1♣-(2♣)` Michaels — responder's `3♣` is a raise).
+/// rides the *cue* — `j·x ≤ 3♠` — rather than the overcall.  `x != minor` again
+/// excludes a cue of our own suit (`1♣-(2♣)` Michaels: responder's `3♣` is a
+/// raise).  Under the cue cap the notrump twin holds a single column,
+/// `(1NT) 2NT`.
 fn cue_minor_raise_answer_package() -> Package {
     Package {
         name: "cue-minor-raise-answer",
@@ -4772,30 +4863,95 @@ fn cue_minor_raise_answer_package() -> Package {
             [Suit::Clubs, Suit::Diamonds]
                 .into_iter()
                 .flat_map(|minor| {
-                    let trump = Strain::from(minor);
-                    rows_of(
-                        Pattern::guarded(
-                            &format!("P* 1{trump}"),
-                            "(1♠) 2♠ (P)",
-                            described_guard(
-                                "(overcall) (cue ≤3♠) -",
-                                guard(move |_: &Context<'_>, suffix: &[Call]| {
-                                    matches!(
-                                        suffix,
-                                        [Call::Bid(ovc), Call::Bid(cue), Call::Pass]
-                                            if cue.strain == ovc.strain
-                                                && cue > ovc
-                                                && *cue <= Bid::new(3, Strain::Spades)
-                                                && ovc.strain != trump
-                                    )
-                                }),
-                            ),
-                        ),
-                        answer_cue_minor_raise(minor),
-                    )
+                    let key = format!("P* 1{}", Strain::from(minor));
+                    let capped = Bid::new(3, Strain::Spades);
+                    let mut entries = expand(
+                        &format!("{key} (ix) jx -"),
+                        move |b: &Bindings| {
+                            Bid::new(b.level('j').get(), b.suit('x').into()) <= capped
+                                && b.suit('x') != minor
+                        },
+                        move |_: &Bindings| answer_cue_minor_raise(minor),
+                    );
+                    entries.extend(expand(
+                        &format!("{key} (iN) jN -"),
+                        move |b: &Bindings| Bid::new(b.level('j').get(), Strain::Notrump) <= capped,
+                        move |_: &Bindings| answer_cue_minor_raise(minor),
+                    ));
+                    entries
                 })
                 .collect()
         },
+    }
+}
+
+/// The retired guarded wirings of [`cue_raise_answer_package`] and
+/// [`cue_minor_raise_answer_package`], kept as the resolution-equivalence
+/// oracles for `converted_packages_match_legacy`
+#[cfg(test)]
+fn cue_raise_legacy_rows(minors: bool) -> Vec<Entry> {
+    let trumps: [Suit; 2] = if minors {
+        [Suit::Clubs, Suit::Diamonds]
+    } else {
+        [Suit::Hearts, Suit::Spades]
+    };
+    trumps
+        .into_iter()
+        .flat_map(|our| {
+            let trump = Strain::from(our);
+            // The sample's overcall must not be in our own suit.
+            let sample = if our == Suit::Spades {
+                "(2♥) 3♥ (P)"
+            } else {
+                "(1♠) 2♠ (P)"
+            };
+            rows_of(
+                Pattern::guarded(
+                    &format!("P* 1{trump}"),
+                    sample,
+                    described_guard(
+                        "(overcall) cue -",
+                        guard(move |_: &Context<'_>, suffix: &[Call]| {
+                            matches!(
+                                suffix,
+                                [Call::Bid(ovc), Call::Bid(cue), Call::Pass]
+                                    if cue.strain == ovc.strain
+                                        && cue > ovc
+                                        && (if minors {
+                                            *cue <= Bid::new(3, Strain::Spades)
+                                        } else {
+                                            *ovc <= Bid::new(2, Strain::Spades)
+                                        })
+                                        && ovc.strain != trump
+                            )
+                        }),
+                    ),
+                ),
+                if minors {
+                    answer_cue_minor_raise(our)
+                } else {
+                    answer_cue_raise(our)
+                },
+            )
+        })
+        .collect()
+}
+
+#[cfg(test)]
+fn cue_raise_answer_package_legacy() -> Package {
+    Package {
+        name: "cue-raise-answer",
+        gate: cue_raise_answer,
+        entries: || cue_raise_legacy_rows(false),
+    }
+}
+
+#[cfg(test)]
+fn cue_minor_raise_answer_package_legacy() -> Package {
+    Package {
+        name: "cue-minor-raise-answer",
+        gate: cue_minor_raise_answer,
+        entries: || cue_raise_legacy_rows(true),
     }
 }
 
@@ -4922,6 +5078,13 @@ fn free_bid_answer_package() -> Package {
                 // forcing to game.  This node also claims the ordinary
                 // doubler's second turn (previously floored — bucket
                 // X-then-Pass vs X-then-suit in the forensics).
+                //
+                // Stays guarded, with 4d‴ and the rebase carriers: opener's
+                // answer is an unconstrained `Bid(_)` — a wildcard, which is
+                // the guard verbs' native shape.  Enumerating it costs 640
+                // exact nodes (every legal answer above every in-scope
+                // overcall, four openings), nearly all of them columns no
+                // auction reaches and every one of them a row on the card.
                 let over = if opening == Suit::Spades {
                     "(2♥)"
                 } else {
@@ -8079,8 +8242,8 @@ mod tests {
             .collect()
     }
 
-    /// The four C6 conversions resolve and classify exactly as their retired
-    /// guarded wirings, over a superset of the guards' auction spaces.
+    /// Every converted package resolves and classifies exactly as its retired
+    /// guarded wiring, over a superset of the guard's auction space.
     #[test]
     fn converted_packages_match_legacy() {
         use super::{FreeBidStyle, NegativeDoubleShape};
@@ -8197,5 +8360,71 @@ mod tests {
         }
         super::set_negative_double_shape(NegativeDoubleShape::Modern);
         super::set_free_bid_style(FreeBidStyle::Forcing);
+
+        // Section 4b/4c: opener answers the cue-raise, majors and minors.  One
+        // auction space serves both — each package's own ceiling decides which
+        // columns it claims.
+        let mut auctions = Vec::new();
+        for opening in [
+            Strain::Clubs,
+            Strain::Diamonds,
+            Strain::Hearts,
+            Strain::Spades,
+        ] {
+            for ovc in all_bids() {
+                for cue in all_bids() {
+                    auctions.push(vec![
+                        call(1, opening),
+                        Call::Bid(ovc),
+                        Call::Bid(cue),
+                        Call::Pass,
+                    ]);
+                }
+            }
+        }
+        auctions.retain(|auction| ascending(auction));
+        assert_wirings_match(
+            super::cue_raise_answer_package_legacy(),
+            super::cue_raise_answer_package(),
+            &auctions,
+            "cue-raise-answer",
+        );
+        assert_wirings_match(
+            super::cue_minor_raise_answer_package_legacy(),
+            super::cue_minor_raise_answer_package(),
+            &auctions,
+            "cue-minor-raise-answer",
+        );
+
+        // Section 9: the Cachalot contested X — every intervention, plus the
+        // pass-out the completions shadow.
+        let mut auctions = Vec::new();
+        for (opening, overcall) in [
+            (Strain::Clubs, Strain::Diamonds),
+            (Strain::Clubs, Strain::Hearts),
+            (Strain::Diamonds, Strain::Hearts),
+        ] {
+            for intervention in all_bids()
+                .into_iter()
+                .map(Call::Bid)
+                .chain([Call::Pass, Call::Redouble])
+            {
+                auctions.push(vec![
+                    call(1, opening),
+                    call(1, overcall),
+                    Call::Double,
+                    intervention,
+                ]);
+            }
+        }
+        auctions.retain(|auction| ascending(auction));
+        super::set_negative_double_shape(NegativeDoubleShape::Cachalot);
+        assert_wirings_match(
+            super::cachalot_package_legacy(),
+            super::cachalot_package(),
+            &auctions,
+            "cachalot-answer",
+        );
+        super::set_negative_double_shape(NegativeDoubleShape::Modern);
     }
 }

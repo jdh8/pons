@@ -1030,7 +1030,6 @@ fn substitute(words: &[TemplateWord], assignment: &Assignment) -> (String, Bindi
 /// On a malformed template (see [`lex_word`] and [`Variables::of`]), and when
 /// no assignment survives the filters — an empty expansion is an authoring
 /// bug, not a package.
-#[allow(dead_code)] // the grammar lands one commit before its first consumer
 pub(crate) fn expand(
     source: &str,
     domain: impl Fn(&Bindings) -> bool,

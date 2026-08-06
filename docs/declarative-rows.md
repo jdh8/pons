@@ -26,10 +26,19 @@ two open phases are.
 | Phase 2 (cross-side assembly) | **Open**, restated below. Nothing exists: no `defense_vs`, no `competitive_vs`, no `Table::compose`. |
 | Phase 3 (knob migration) | **Open**, restated below. Thread-locals untouched: 27 in `competition.rs`, 19 in `defense.rs`, 12 in `inference.rs`, 9 each in `notrump.rs` / `rebids.rs`. |
 
-**Escape hatches still open: ~20** `guarded(` / `classified(` sites (19 in
-`competition.rs`, 1 in `defense.rs`), plus the 1NT graft. A `guarded` row carries
+**Escape hatches: 7, and the convertible set is empty.** A `guarded` row carries
 a hand-written `Guard` verbatim; a `classified` row a table computed at classify
-time. Both are legal, both are opaque.
+time. Both are legal, both are opaque, and the variable-row grammar retired the
+thirteen that were templates in disguise. What is left is not a backlog — each
+survivor is a shape a template cannot spell:
+
+| Kind | Sites | Why it cannot be a template |
+| --- | --- | --- |
+| Rebase carriers | 3 (`systems_on_over_double`, the doubled-Stayman runout, the 2NT lebensohl reroute) | A rebase re-points a whole *subtree*; `expand` emits leaf nodes. The wildcard tail is the guard's native shape. |
+| Wildcard tails | 2 (free-bid answers `4d″`, `4d‴`) | The middle call is an unconstrained `Bid(_)`. Enumerating it costs 640 and several thousand columns respectively, nearly all unreachable, and every one would land on the rendered card. |
+| Logit transplants | 2 (stolen Stayman, gladiator advance) | They read *another table's* logits at classify time. That is not a rule table, so `Rules` cannot express it. |
+
+Plus the 1NT graft, permanently imperative for the same subtree reason.
 
 ### Why 1.5 was cancelled
 
@@ -126,3 +135,27 @@ dump and `render-book` output both diff empty across the port commit and its
 parent. Knob defaults are not an argument — re-render under the knobs the ported
 package gates. Diffs that straddle a behavioural commit (a floor swap, a shipped
 convention) prove nothing; rebase the port off it.
+
+### And the rule's one exception, paid for in C1
+
+A re-spelling of exact rows is inert. A **`guarded` → exact conversion that
+prunes arms is a bidding change**, even though nothing about the intended
+semantics moved. The guard answered from a table built for every overcall; the
+expansion builds a table per column, so arms that were dead in a given auction
+disappear — which *tightens the projection*, which feeds the configured floor's
+features, which moves calls **downstream** of the converted node. C1 moved 558
+of 20 000 boards with zero divergence at the node itself.
+
+So the gate for a conversion is three-part, and the render diff being non-empty
+does not decide anything:
+
+1. **Eval equivalence** — the retired wiring kept as a `#[cfg(test)]` oracle and
+   probed over a superset of the guard's auction space (`Option<Logits>` equality
+   catches over- *and* under-expansion). Note that a guarded table which
+   *rejects* a hand is re-found massless on fall-through, while an exact node
+   rejects to the floor; normalize massless to unanswered and say so.
+2. **First divergence never at the converted node** — anything at the node is a
+   translation bug; anything downstream is the reading channel above.
+3. **A full [measurement.md](measurement.md) A/B** when arms were pruned. C6 and
+   C7 pruned none and their dumps came back byte-identical; C6's A/B then
+   measured 0 divergent boards in 819 200, which is what byte-identity predicts.

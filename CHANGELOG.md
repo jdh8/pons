@@ -9,14 +9,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Escape hatches, batch 2: the cue-raise answers and the contested Cachalot
+  `X`.** Opener's answer to a cue-raise (majors and minors) becomes
+  `"P* 1M (ix) jx -"` — the *shared* strain letter is what makes the middle
+  call a cue, and ascension supplies every legal cue height, so enumerating
+  the ladder is the grammar's job rather than a `cue > ovc` clause.  Each
+  package keeps its own ceiling in the domain closure (`ovc ≤ 2♠` for the
+  majors, `cue ≤ 3♠` for the minors, whose 2-level overcalls push the cue to
+  the 3 level), and their `1NT` overcall gets the `(iN) jN` twin.  The
+  Cachalot contested-`X` answers lose their `classified(` wrapper: with their
+  intervention as a column, opener's raise level is known when the book is
+  built, so `cachalot_x_contested_answer` returns authored `Rules` — visible
+  to alert checking, where a context-reading classifier was opaque.  Four
+  `guarded(` and two `classified(` call sites retired; `4d″` now carries its
+  stay reason (opener's answer there is an unconstrained `Bid(_)`, and
+  enumerating that wildcard would cost 640 columns no auction reaches).
+  `converted_packages_match_legacy` gains all three, probed over every
+  `[1m/1M, ovc, cue, P]` and every intervention including the redouble.  The
+  seeded 20k smoke dump is **byte-identical** — the conversion lifts these
+  tables from the shallowest fallback to exact nodes, and no other package's
+  fallback was winning those auctions.  The A/B (SEED_BASE 1785989504,
+  204 800 boards per arm per vulnerability) agrees: **0 divergent boards** in
+  all four cells.  Both of those run the default system, where the Cachalot
+  rows do not compile at all, so that third of the batch rests on the oracle
+  alone; what makes it safe is that the authored rules carry no `.alert(…)`,
+  and `authored_effect` publishes a reading only for an *alerted* rule under
+  the shipped `ReadingScope` — so the classifier's opacity was never load
+  bearing.  User impact: none.
+
 - **One `other_major`.** The four per-file copies (notrump.rs, nmf.rs,
   rebids.rs, defense.rs) now point at `common::other_major`, the helper the
   variable-rows `OM`/`om` keywords ride.  nmf.rs's `new_minor` stays — it
   names the NMF concept, not the derived strain.  Pure refactor; the
   defense.rs copy's majors-only `debug_assert` retires with it (the shared
   form is total and agrees on majors).  User impact: none.
-
-### Changed
 
 - **Escape hatches, batch 1: four guarded sections become exact per-column
   nodes.** The negX-of-minor answer (`"P* 1M (2m) X -"` — the first `M`/`m`
