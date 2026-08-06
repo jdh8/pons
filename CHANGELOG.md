@@ -41,6 +41,73 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The book files are being split by bidding agreement.** System notes are
+  modular — polish.club is one page per agreement, BWS 2017 reads like a
+  textbook — and the code was not: four rows-ported files in
+  `src/bidding/american/` held 17 297 lines, and `competition.rs`'s own section
+  banners run 1, 3, 4, 6, 11, 10, 7, 8, 5, 5b, 5c.  Each becomes a directory of
+  agreement modules: one agreement = one file = its knob, its `Rules` builders,
+  its `Package`, its tests.  The parent keeps the shared vocabulary, the
+  `Alert` consts, the base tables, and the assembly function, and re-exports the
+  children so no path outside the directory changes.  The rows port is what made
+  this cheap — a `Package` *is* the module boundary, already drawn.
+  User impact: none; each batch is a verbatim move proven inert.
+  - **rebids** — 1 612 lines become a 358-line index plus six agreement
+    modules: `extras_ladder` (121), `major_jump_rebid` (115), `meckstroth` (410,
+    both halves of the adjunct — the GF `2NT` and the invitational `3m` jumps),
+    `two_suiter` (161), `forcing_notrump` (105) and `major_tails` (451, with
+    4SF and the HCP-gauged invite riding it).  `tests.rs` splits the same way,
+    sharing one `best()` helper from the parent.  The only non-move edits are
+    path fixes (`super::slam::` → an explicit `use`), visibility bumps
+    (`pub(super)` for the `with_*` combinators, `pub(crate)` for the nine
+    packages the parent re-exports) and doc-link qualification.  `smoke-default`
+    still hashes `59a27d7f…` and `render-book` `01bf875f…` — the same values the
+    port campaign has held since `367dc2c`.
+  - **notrump** — 3 949 lines become a 586-line index plus seventeen agreement
+    modules, the largest 497 (`transfer_gf`).  The index keeps what every
+    notrump agreement shares: the scheme tag, the per-call alerts, the trunk
+    table `notrump_responses`, the `base()` package and the three `register`
+    entry points; `register_one_nt` keeps its signature, since `defense.rs`
+    grafts through it.  One structural edit beyond the move: a single
+    `thread_local! { … }` block held twelve statics for twelve *different*
+    agreements, so it becomes twelve blocks — each static and its doc comment
+    verbatim, only the braces duplicated.  Three modules are named for the
+    convention rather than the package fn they export (`puppet_stayman`,
+    `crawling_stayman`, `sixcard_invitation`) so a module never shadows a
+    function.  Tests split the same way, sharing `P`/`bid`/`best` from the
+    parent; the two that exercise `competition.rs`'s systems-on rebase stay
+    there.  Both campaign shas unchanged.
+  - **competition** — 5 921 lines become a 302-line index plus fourteen
+    agreement modules; the section banners that ran 1, 3, 4, 6, 11, 10, 7, 8,
+    5, 5b, 5c are gone, each having become a module doc that names the
+    agreement and its knob.  The index keeps the twenty-odd per-call `Alert`
+    consts and `competition()`.  Two cuts go beyond the banners: responder's
+    `X`/`Pass` options over an overcall leave the base table for
+    `penalty_double` (236) — `DoubleStyle`, the leave-in, opener's two answers,
+    the penalty pass and the trap pass — and the delayed cue joins `cue_raise`,
+    where the direct cue already lived.  `over_overcall` is still the biggest
+    at 1 005, but 433 of those are `over_their_overcall_legacy`, the retired
+    imperative oracle that is dead in production and reachable only from
+    `per_overcall_tables_match_legacy`.  The 2 503-line `tests.rs` splits to a
+    566-line parent — the shared `call`/`bid*`/`best_call` helpers, the row and
+    fallback invariants, and the two conversion oracles that compare every
+    agreement's rows against its retired table — plus thirteen agreement test
+    modules.  Both campaign shas unchanged.
+  - **defense** — 5 815 lines become a 382-line index plus fifteen agreement
+    modules (joining `shape_guards`, which was already split out), the largest
+    821 (`advance_rich`).  The five 1NT-defense systems get one module each —
+    `nt_defense` holds the [`NotrumpDefense`] selector, the natural chain and
+    the assembly; `nt_landy`, `nt_dont`, `nt_meckwell`, `nt_woolsey` hold their
+    calls and advances; `nt_their_conventions` defends their Stayman and
+    transfers — which is the shape the bundle model already had: a system is a
+    set of per-call conventions, chained at `[1NT]` and gated at build time.
+    That prose, and the alert invariant it rests on, moves from a `// ---`
+    banner into `nt_defense`'s module doc.  The index keeps the per-call
+    `Alert` consts and `defensive()`.  Two statics crossed a module line and
+    moved with their reader (`DIRECT_LANDY_FOUR_FOUR` to `nt_landy`); the
+    2 297-line `tests.rs` splits to a 157-line parent plus thirteen agreement
+    test modules.  Both campaign shas unchanged.
+
 - **Tests now live in dedicated module files.** All inline cfg-test module
   bodies moved to naturally resolved files, with directory crate roots for the
   exceptional example and trainer binary. User impact: none.

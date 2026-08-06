@@ -1,3 +1,7 @@
+use super::nt_dont::{dont_both_majors, dont_minor_major, dont_one_suiter_direct};
+use super::nt_landy::both_majors_shape;
+use super::nt_meckwell::{meckwell_double_shape, meckwell_natural_major};
+use super::nt_woolsey::{woolsey_double_shape, woolsey_muiderberg, woolsey_multi};
 use super::*;
 use crate::bidding::verify::{accepts, compare, empty_context};
 use contract_bridge::Hand;

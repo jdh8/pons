@@ -34,9 +34,13 @@ Come back here only if the fix means authoring new nodes — then steps 3–11 a
    as losses, and re-litigating a measured verdict needs new evidence, not new
    enthusiasm.
 2. **Find the home.** Constructive structures live in the module for their
-   opening (`src/bidding/american/notrump.rs`, `responses.rs`, …); competition
-   over our openings in `competition.rs`; defenses to their openings in
-   `defense.rs`. Reuse existing builders/nodes before writing new ones.
+   opening (`src/bidding/american/notrump/`, `responses.rs`, …); competition
+   over our openings in `competition/`; defenses to their openings in
+   `defense/`. Those directories hold **one agreement per file** — its knob,
+   its `Rules` builders, its `Package` and its tests — with the parent `.rs` as
+   an index; a new convention is normally a new module there, and its module
+   doc says what the agreement is and which knob gates it. Reuse existing
+   builders/nodes before writing new ones.
 3. **Author the WHOLE convention, both sides.** The bid, partner's advances and
    continuations, opener/overcaller rebids, and the contested tails (they
    double it, they overcall it). A relay whose saved space is never spent — or

@@ -274,10 +274,10 @@ continuation-inference only. Caveat: BBA/BEN's natural `2♥` shows only *one* b
 so it teaches at most half the union.
 
 **Authoring seam** (competitive book, ~1 day): the 2-level free-bid region of
-`over_their_overcall(opening)` (`competition.rs:1227`, region `:1532-1608`), gated
-by `set_free_bid_style` / `FreeBidStyle` (`:675`). Copyable templates —
+`over_their_overcall(opening)` (`competition/over_overcall.rs:120`), gated
+by `set_free_bid_style` / `FreeBidStyle` (`competition/free_bids.rs`). Copyable templates —
 transfer-Lebensohl / Cachalot. Author **both sides first** (opener completion
-`Rules` fn modeled on `transfer_completion` `:2962`; responder clarify fn for the
+`Rules` fn modeled on `transfer_completion` in `competition/rubensohl.rs`; responder clarify fn for the
 round-3 F/NF split) before measuring — the P3f ledger shows bare structure loses.
 Floor the *target* suit + `.alert(...)` so `project_authored` auto-decodes; add a
 manual alert check for the new fallback node (the `artificial_calls_are_alerted`

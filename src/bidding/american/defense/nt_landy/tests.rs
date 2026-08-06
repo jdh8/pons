@@ -1,0 +1,135 @@
+use super::super::tests::{best_call, call};
+use crate::bidding::american::{set_direct_landy_double, set_woolsey_points};
+use contract_bridge::Strain;
+use contract_bridge::auction::Call;
+
+/// Coupling: a Landy range feeds the one shared two-suiter band, so Landy's and
+/// Woolsey's identical both-majors `2♣` can never carry divergent strengths.
+#[test]
+fn landy_range_feeds_the_shared_woolsey_band() {
+    super::nt_landy::set_landy(Some((9, 16)));
+    assert_eq!(
+        super::nt_woolsey::woolsey_points(),
+        (9, 16),
+        "a Landy range sets the shared band"
+    );
+    // Turning Landy off must not clobber an explicit Woolsey band.
+    set_woolsey_points(7, 18);
+    super::nt_landy::set_landy(None);
+    assert_eq!(
+        super::nt_woolsey::woolsey_points(),
+        (7, 18),
+        "set_landy(None) leaves the band alone"
+    );
+    // Restore the default for any sibling test sharing this thread.
+    set_woolsey_points(8, 19);
+}
+
+#[test]
+fn direct_landy_double_shows_both_majors_and_runs_clean() {
+    let nt = call(1, Strain::Notrump);
+    let p = Call::Pass;
+    let x = Call::Double;
+    let xx = Call::Redouble;
+    let d2 = call(2, Strain::Diamonds);
+    let prev = super::nt_landy::direct_landy_double();
+    let prev_floor = super::nt_landy::direct_landy_double_floor();
+    set_direct_landy_double(Some(false)); // 5-4
+    super::nt_landy::set_direct_landy_double_floor(8); // low floor so these 10-14 hands fire the X
+
+    // Both majors 5-4 → X (the both-majors takeout double), from the book.
+    let (dbl, floored) = best_call(&[nt], "AJ32.KQ876.32.32");
+    // 15+ balanced has no penalty double now → Pass.
+    let (pass, _) = best_call(&[nt], "AKQ2.KQ2.KJ2.432");
+    // Advancer, equal majors and weak → 2♦ relay ("pick a major").
+    let (relay, relay_floored) = best_call(&[nt, x, p], "Q32.Q43.J432.432");
+    // They double the artificial relay → doubler still names the longer major
+    // (5-4 hearts → 2♥), never sits in the short-diamond 2♦x misfit.
+    let (named, named_floored) = best_call(&[nt, x, p, d2, x], "AJ32.KQ876.32.32");
+    // They redouble our X.  Clean runout: equal majors / no suit → Pass = ask back
+    // (the doubler will name its major), never the phantom 2♦ relay.
+    let (ask, ask_floored) = best_call(&[nt, x, xx], "Q32.Q43.J432.432");
+    // …and a long-club, short-major advancer escapes to its own 2♣ (to play) —
+    // the club rung the two-level 2♣ over the redoubled 1NT gives us.
+    let (clubs, _) = best_call(&[nt, x, xx], "32.43.432.AKQ876");
+    // After the ask, the doubler names its five-card major.
+    let (named_xx, named_xx_floored) = best_call(&[nt, x, xx, p, p], "AJ32.KQ876.32.32");
+    // After we name our major (via the undoubled relay) and they double it, SIT —
+    // play 2♥x (our 5-4+ fit), never run to 3♦.  `[1NT,X,P,2♦,X,2♥,X,P,P]`.
+    let sit_auction = [nt, x, p, d2, x, call(2, Strain::Hearts), x, p, p];
+    let (settle, settle_floored) = best_call(&sit_auction, "AJ32.KQ876.32.32");
+
+    set_direct_landy_double(prev);
+    super::nt_landy::set_direct_landy_double_floor(prev_floor);
+    assert_eq!(ask, Call::Pass, "equal majors over XX → Pass = ask back");
+    assert!(!ask_floored, "the ask-Pass must come from the book");
+    assert_eq!(
+        clubs,
+        call(2, Strain::Clubs),
+        "long clubs over XX → 2♣ to play"
+    );
+    assert_eq!(
+        named_xx,
+        call(2, Strain::Hearts),
+        "doubler names its major after the ask"
+    );
+    assert!(!named_xx_floored, "the named major must come from the book");
+    assert_eq!(
+        settle,
+        Call::Pass,
+        "must sit in our doubled major, not run to 3♦"
+    );
+    assert!(!settle_floored, "the settle-Pass must come from the book");
+    assert_eq!(dbl, Call::Double);
+    assert!(!floored, "the both-majors X must come from the book node");
+    assert_eq!(pass, Call::Pass, "no penalty double when it is replaced");
+    assert_eq!(relay, d2, "weak equal majors relays 2♦");
+    assert!(!relay_floored, "the relay must come from the book");
+    assert_eq!(
+        named,
+        call(2, Strain::Hearts),
+        "must pull from the doubled 2♦ relay"
+    );
+    assert!(
+        !named_floored,
+        "the doubled-relay escape must come from the book"
+    );
+}
+
+#[test]
+fn direct_landy_penalty_pass_defends_1ntx() {
+    let nt = call(1, Strain::Notrump);
+    let p = Call::Pass;
+    let x = Call::Double;
+    let prev = super::nt_landy::direct_landy_double();
+    let prev_pen = super::nt_landy::direct_landy_penalty_pass();
+    let prev_floor = super::nt_landy::direct_landy_double_floor();
+    set_direct_landy_double(Some(false)); // 5-4
+    super::nt_landy::set_direct_landy_double_floor(8); // floor 8 → penalty needs 22-8 = 14+
+
+    // No major fit (2-2) + defensive values: with the knob OFF the advancer is
+    // forced to bid (no Pass rule); with it ON it passes to defend 1NTx.
+    let defensive = "AQ.KQ.QJ876.K432"; // 14 HCP, 2♠-2♥
+    super::nt_landy::set_direct_landy_penalty_pass(false);
+    let (forced, _) = best_call(&[nt, x, p], defensive);
+    super::nt_landy::set_direct_landy_penalty_pass(true);
+    let (penalty, pen_floored) = best_call(&[nt, x, p], defensive);
+    // A hand WITH a major fit still bids even with the knob on (not a penalty pass).
+    let (with_fit, _) = best_call(&[nt, x, p], "QJ32.K.QJ876.K43"); // 4 spades
+
+    set_direct_landy_double(prev);
+    super::nt_landy::set_direct_landy_penalty_pass(prev_pen);
+    super::nt_landy::set_direct_landy_double_floor(prev_floor);
+    assert_ne!(forced, Call::Pass, "knob off: advancer is forced to bid");
+    assert_eq!(
+        penalty,
+        Call::Pass,
+        "knob on, no fit + values → pass for penalty"
+    );
+    assert!(!pen_floored, "the penalty pass must come from the book");
+    assert_ne!(
+        with_fit,
+        Call::Pass,
+        "a major fit still bids, never penalty-passes"
+    );
+}

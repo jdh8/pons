@@ -38,7 +38,7 @@ continuation); most "best range of a new defense" work is axis 1.
 
 Every tunable already has a thread-local `set_*` read at book construction and
 a harness flag. Sweeping is `for v in range { set_x(v); build; score }` on
-paired seeds. The 1NT-defense range knobs (`src/bidding/american/defense.rs`):
+paired seeds. The 1NT-defense range knobs (`src/bidding/american/defense/`, one module per system):
 
 | knob | tunes | default |
 | --- | --- | --- |

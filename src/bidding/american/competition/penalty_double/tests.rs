@@ -1,0 +1,147 @@
+use super::super::tests::{best_call, bid_transfer_dbl, call};
+use contract_bridge::Strain;
+use contract_bridge::auction::Call;
+
+#[test]
+fn takeout_authored_double() {
+    // Takeout: short in their suit (2♦) with values doubles from the book —
+    // a hand the `Penalty` style (4+ ♦) would never double.
+    let auction = [call(1, Strain::Notrump), call(2, Strain::Diamonds)];
+    let (c, floored) = bid_transfer_dbl(
+        super::penalty_double::DoubleStyle::Takeout,
+        &auction,
+        "K432.K432.32.Q43",
+    );
+    assert_eq!(c, Call::Double);
+    assert!(
+        !floored,
+        "the authored takeout double must come from the book"
+    );
+}
+
+#[test]
+fn optional_double_two_three_cards() {
+    // Optional: exactly 3 cards in their suit (♦) with values doubles…
+    let auction = [call(1, Strain::Notrump), call(2, Strain::Diamonds)];
+    let (c, floored) = bid_transfer_dbl(
+        super::penalty_double::DoubleStyle::Optional,
+        &auction,
+        "K43.K43.432.Q43",
+    );
+    assert_eq!(c, Call::Double);
+    assert!(!floored, "the optional double must come from the book");
+
+    // …but a singleton in their suit does NOT double (it routes elsewhere).
+    let (c, _) = bid_transfer_dbl(
+        super::penalty_double::DoubleStyle::Optional,
+        &auction,
+        "K432.K432.2.Q432",
+    );
+    assert_ne!(
+        c,
+        Call::Double,
+        "short-in-their-suit must not make an optional double"
+    );
+}
+
+#[test]
+fn opener_pulls_a_takeout_double() {
+    // After 1NT–(2♦)–X–(P), opener has no authored node and falls to the
+    // floor: a maximum with a diamond stopper pulls to 3NT…
+    let auction = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Diamonds),
+        Call::Double,
+        Call::Pass,
+    ];
+    let (c, floored) = bid_transfer_dbl(
+        super::penalty_double::DoubleStyle::Takeout,
+        &auction,
+        "AQ2.AQ2.A32.Q432",
+    );
+    assert_eq!(c, call(3, Strain::Notrump));
+    assert!(floored, "opener's pull comes from the instinct floor");
+
+    // …while a diamond stack sits for penalty (passes the double).
+    let (c, _) = bid_transfer_dbl(
+        super::penalty_double::DoubleStyle::Takeout,
+        &auction,
+        "K32.A32.AKQ2.J32",
+    );
+    assert_eq!(c, Call::Pass, "a trump stack converts to penalty");
+}
+
+#[test]
+fn opener_leaves_in_responder_penalty_double_when_penalty_style() {
+    use super::penalty_double::DoubleStyle;
+    use super::penalty_double::set_double_style;
+    use super::penalty_double::set_penalty_double_leave_in;
+    // [1NT,(2♥),X,(P)] — responder penalty-doubled their heart overcall.
+    let auction = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Hearts),
+        Call::Double,
+        Call::Pass,
+    ];
+    super::lebensohl::set_lebensohl_style(super::lebensohl::LebensohlStyle::Plain);
+    // Penalty style + leave-in on: opener SITS, and it is an authored node.
+    set_double_style(DoubleStyle::Penalty);
+    set_penalty_double_leave_in(true);
+    let (c_on, floored_on) = best_call(&auction, "AQ5.J42.KQ3.K842"); // flat 15, no ♥ stop
+    assert_eq!(c_on, Call::Pass, "penalty double left in");
+    assert!(
+        !floored_on,
+        "the leave-in must be a book node, not the floor"
+    );
+    // Leave-in off: the floor reads the double as takeout and pulls — not a Pass.
+    set_penalty_double_leave_in(false);
+    let (c_off, floored_off) = best_call(&auction, "AQ5.J42.KQ3.K842");
+    assert!(
+        floored_off,
+        "off → the node is gone, opener falls to the floor"
+    );
+    assert_ne!(
+        c_off,
+        Call::Pass,
+        "the floor advances the double instead of sitting"
+    );
+    // Restore the defaults for other tests sharing this thread.
+    set_penalty_double_leave_in(true);
+    set_double_style(DoubleStyle::Penalty);
+    super::lebensohl::set_lebensohl_style(super::lebensohl::LebensohlStyle::Transfer);
+    set_double_style(DoubleStyle::Optional);
+}
+
+#[test]
+fn opener_cooperates_with_responder_optional_double() {
+    use super::penalty_double::DoubleStyle;
+    use super::penalty_double::set_double_style;
+    use super::penalty_double::set_penalty_double_leave_in;
+    // [1NT,(2♥),X,(P)] — responder's OPTIONAL double (2-3 hearts + values).
+    let auction = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Hearts),
+        Call::Double,
+        Call::Pass,
+    ];
+    super::lebensohl::set_lebensohl_style(super::lebensohl::LebensohlStyle::Plain);
+    set_double_style(DoubleStyle::Optional);
+    set_penalty_double_leave_in(true);
+    // Three-card fit (♥Q93): stand and defend the doubled overcall.
+    let (fit, floored) = best_call(&auction, "AK5.Q93.KJ54.Q5");
+    assert_eq!(fit, Call::Pass, "a three-card fit stands");
+    assert!(!floored, "the cooperation must be an authored node");
+    // Doubleton in their suit + a five-card suit (♣AKQ76): run with xx.
+    let (run, _) = best_call(&auction, "A52.93.KJ5.AKQ76");
+    assert_eq!(
+        run,
+        call(3, Strain::Clubs),
+        "a doubleton runs to the five-card suit"
+    );
+    // Doubleton but no five-card suit: nowhere to run, so stand.
+    let (stuck, _) = best_call(&auction, "A52.93.KJ54.AKQ6");
+    assert_eq!(stuck, Call::Pass, "a doubleton with no suit stands");
+    set_double_style(DoubleStyle::Penalty); // restore the default
+    super::lebensohl::set_lebensohl_style(super::lebensohl::LebensohlStyle::Transfer);
+    set_double_style(DoubleStyle::Optional);
+}

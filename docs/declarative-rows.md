@@ -24,7 +24,7 @@ two open phases are.
 | RKCB | A row **producer**: `slam::rkcb_rows(prefix, trump) -> Vec<Entry>`, with `install_rkcb` kept as a same-signature shim for the ~25 call sites in unported files. |
 | Phase 1.5 (floating agreements) | **Cancelled, not deferred** — see below. |
 | Phase 2 (cross-side assembly) | **Open**, restated below. Nothing exists: no `defense_vs`, no `competitive_vs`, no `Table::compose`. |
-| Phase 3 (knob migration) | **Open**, restated below. Thread-locals untouched: 27 in `competition.rs`, 19 in `defense.rs`, 12 in `inference.rs`, 9 each in `notrump.rs` / `rebids.rs`. |
+| Phase 3 (knob migration) | **Open**, restated below. Thread-locals untouched: 27 across `competition/`, 19 across `defense/`, 12 in `inference.rs`, 9 each across `notrump/` / `rebids/`. The by-agreement file split makes this *easier*: each agreement module's thread-locals are exactly the contents of its config struct. |
 
 **Escape hatches: 7, and the convertible set is empty.** A `guarded` row carries
 a hand-written `Guard` verbatim; a `classified` row a table computed at classify
@@ -183,11 +183,12 @@ the policy is dormant: every verb site in the tail is an exact
   kind. **Hatch census 7 → 9 when G1 lands.**
 - They fan `0..=2` leading passes, and `Pattern.fan` is only ever 0 or 3, so
   G0 adds a builder-level fan setter. No auction-string syntax grows.
-- `defense.rs:5844` builds the 1NT-overcall graft through
+- `defense.rs:270` builds the 1NT-overcall graft through
   `notrump::register_one_nt(&mut Trie)`. The port keeps that signature; the
   body becomes `compile_into` over the 1NT packages.
-- Five key sets derive from another table's `.rules()` (`rebids.rs:690`,
-  `rebids.rs:1524`, `raises.rs:380`, `game_force.rs:378`, `:455`). Spell them
+- Five key sets derive from another table's `.rules()`
+  (`rebids/forcing_notrump.rs:72`, `rebids/major_tails.rs:426`, `raises.rs:380`,
+  `game_force.rs:378`, `:455`). Spell them
   as computed `entries` closures (the `nmf.rs:230` idiom), never as `expand`
   templates with a duplicated filter — the copy would drift from the
   knob-gated source table.

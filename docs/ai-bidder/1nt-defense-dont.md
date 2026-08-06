@@ -115,20 +115,16 @@ DONT is implemented **only for passed hands** today
 (`[P,P,P,1NT]`), gated on `passed_hand()`:
 
 - `PassedHandDefense::Dont` enum + `set_passed_hand_defense(Some(Dont))` —
-  [src/bidding/american/defense.rs:354](../../src/bidding/american/defense.rs#L354),
-  [:386](../../src/bidding/american/defense.rs#L386).
+  [defense/nt_dont.rs](../../src/bidding/american/defense/nt_dont.rs).
 - DONT **shape predicates** (directly reusable):
-  `dont_two_clubs` / `dont_two_diamonds` / `dont_double` (one-suiter) —
-  [:784](../../src/bidding/american/defense.rs#L784),
-  [:801](../../src/bidding/american/defense.rs#L801),
-  [:814](../../src/bidding/american/defense.rs#L814).
+  `dont_2c` / `dont_2d` / `dont_x` (one-suiter) —
+  [defense/nt_dont.rs](../../src/bidding/american/defense/nt_dont.rs).
 - DONT **advances** (relay `2♣` over `X`, pass/correct over `2♣`/`2♦`/`2♥`) —
-  [:1028-1083](../../src/bidding/american/defense.rs#L1028-L1083). These are
-  keyed at the passed-hand `[P,P,P,1NT,...]` seat (`insert` site near
-  [:1835](../../src/bidding/american/defense.rs#L1835)).
+  the `passed_dont_*` fns in [defense/nt_dont.rs](../../src/bidding/american/defense/nt_dont.rs).  These are
+  keyed at the passed-hand `P* (1NT) …` rows in the same module's package.
 - The natural (penalty-X) defense lives in `defense_to_notrump()` —
-  [:672](../../src/bidding/american/defense.rs#L672) — wired at all seats via
-  `insert_all_seats(&mut d, &[notrump], 3, defense_to_notrump())` (~`:1685`).
+  [defense/nt_defense.rs](../../src/bidding/american/defense/nt_defense.rs) — wired at all seats from the
+  same module's package.
 
 ## What to build next session
 
