@@ -9,9 +9,9 @@
 
 use super::super::constraint::{
     Cons, Constraint, and, at_least_as_long, balanced, equal_length, hcp, len, length_box,
-    long_suit_box, longer_suit, longest_unbid, min_level_is, or, passed_hand, points, shapes,
-    short_in_their_suits, stopper_in_their_suits, suit_hcp, takeout_double_shape_ok, top_honors,
-    unbid_support, vulnerable,
+    long_suit_box, longer_suit, longest_unbid, min_level_is, or, passed_hand, points,
+    points_by_vul, shapes, short_in_their_suits, stopper_in_their_suits, suit_hcp,
+    takeout_double_shape_ok, top_honors, unbid_support, vulnerable,
 };
 use super::super::context::Context;
 use super::super::fallback::{described_rewrite, rewriter};
@@ -1991,9 +1991,7 @@ pub fn defense_to_weak_two(their_opening: Bid) -> Rules {
                 rules.rule(
                     Bid::new(overcall_level, strain),
                     100,
-                    len(suit, 5..)
-                        & ((points(lo..=hi) & !vulnerable())
-                            | (points(vul_lo..=vul_hi) & vulnerable())),
+                    len(suit, 5..) & points_by_vul(lo..=hi, vul_lo..=vul_hi),
                 )
             } else {
                 rules.rule(

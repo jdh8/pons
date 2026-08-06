@@ -3363,6 +3363,20 @@ pub fn vulnerable() -> Cons<impl Constraint + Clone> {
     Cons(Vulnerable)
 }
 
+/// Two [`points`] bands split by our vulnerability: `nv` white, `vul` red
+///
+/// Pure sugar for the two-range idiom, expanding to exactly
+/// `(points(nv) & !vulnerable()) | (points(vul) & vulnerable())` — the same
+/// combinator tree, so eval, the DNF boxes, and the rendered `Description`
+/// are byte-for-byte what the long-hand spelling produced.
+#[must_use]
+pub fn points_by_vul(
+    nv: impl RangeBounds<u8> + Clone + Send + Sync,
+    vul: impl RangeBounds<u8> + Clone + Send + Sync,
+) -> Cons<impl Constraint + Clone> {
+    (points(nv) & !vulnerable()) | (points(vul) & vulnerable())
+}
+
 /// The opponents are vulnerable (the [`they_vulnerable`] constraint)
 #[derive(Clone)]
 struct TheyVulnerable;

@@ -18,6 +18,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`points_by_vul(nv, vul)`: the two-band vulnerability split as one
+  constraint.** Pure sugar expanding to exactly
+  `(points(nv) & !vulnerable()) | (points(vul) & vulnerable())`, so eval, the
+  DNF boxes, and the rendered description are byte-for-byte the long-hand
+  form's.  One site migrated — the weak-two overcall discipline bands in
+  defense.rs; other `!vulnerable()` conjuncts are not the two-range idiom and
+  stay.  Seeded smoke-default and render-book byte-identical.  User impact:
+  none.
+
 - **`-` in auction strings is a pass by whoever is to act.** The
   side-agnostic spelling for the routine passes that pad constructive
   auctions (`Token.theirs` is now `Option<bool>`; `check_sides` asserts only
