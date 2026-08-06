@@ -94,6 +94,39 @@ const ARMS: &[(&str, fn())] = &[
         pons::bidding::american::set_texas_slam_drive(false)
     }),
     // N5 — `register_two_nt_and_rebids` reads no gate at all.
+    // R1 — rebids.rs.  All ten translated knobs ship on, so their off arms
+    // exercise the construction-time gates.  The Meckstroth adjunct and
+    // major-rebid tails remain on while isolating their respective child knobs.
+    ("no-meckstroth", || {
+        pons::bidding::american::set_meckstroth_adjunct(false)
+    }),
+    ("no-meckstroth-minor-jumps", || {
+        pons::bidding::american::set_meckstroth_minor_jumps(false)
+    }),
+    ("no-forcing-nt-two-suiter", || {
+        pons::bidding::american::set_forcing_nt_two_suiter(false)
+    }),
+    ("no-balanced-1nt-rebid", || {
+        pons::bidding::american::set_balanced_1nt_rebid(false)
+    }),
+    ("no-opener-extras-ladder", || {
+        pons::bidding::american::set_opener_extras_ladder(false)
+    }),
+    ("no-opener-major-jump-rebid", || {
+        pons::bidding::american::set_opener_major_jump_rebid(false)
+    }),
+    ("no-major-rebid-tails", || {
+        pons::bidding::american::set_major_rebid_tails(false)
+    }),
+    ("no-fourth-suit-forcing", || {
+        pons::bidding::american::set_fourth_suit_forcing(false)
+    }),
+    ("no-nt-invite-hcp", || {
+        pons::bidding::american::set_nt_invite_hcp(false)
+    }),
+    ("no-up-the-line", || {
+        pons::bidding::american::set_up_the_line(false)
+    }),
 ];
 
 /// Dump one table, **including each rule's alert**

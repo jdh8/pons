@@ -190,6 +190,15 @@ fn row_package_invariants() {
         notrump::european_two_spade(),
         notrump::two_notrump_structure(),
         notrump::two_notrump_rebids(),
+        rebids::forcing_notrump_continuations(),
+        rebids::invitational_minor_continuations(),
+        rebids::major_jump_rebid_continuations(),
+        rebids::forcing_nt_two_suiter_continuations(),
+        rebids::meckstroth_two_notrump_continuations(),
+        rebids::one_heart_one_spade_rebid(),
+        rebids::major_rebid_tail_continuations(),
+        rebids::fourth_suit_forcing_continuations(),
+        rebids::remaining_rebid_bases(),
     ]);
 }
 

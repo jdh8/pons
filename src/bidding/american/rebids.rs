@@ -1,9 +1,10 @@
 //! Opener's rebids (one round) and the forcing-1NT continuations
 
-use super::{call, insert_uncontested, other_major};
+use super::{call, other_major};
 use crate::bidding::constraint::{
     balanced, fifths, hcp, len, partner_suit_is, points, stopper_in, support,
 };
+use crate::bidding::rows::{Package, Pattern, compile_into, expand, rows_of};
 use crate::bidding::{Alert, Rules, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
@@ -671,119 +672,124 @@ fn opener_accept_limit_raise(major: Suit) -> Rules {
         .rule(Call::Pass, 0, hcp(0..))
 }
 
-/// Register responder's second call and opener's acceptance in the
-/// forcing-1NT structure
+/// Responder's second call and opener's acceptance in the forcing-1NT structure
 ///
 /// For each major and each distinct opener rebid that is NOT 2NT (the 18–19
 /// balanced rebid's continuations live in the notrump module) and NOT a
-/// Meckstroth `3m` jump (handled by `register_invitational_minor_continuations`),
-/// inserts responder's table at `[1M, 1NT, rebid]` and opener's acceptances at
+/// Meckstroth `3m` jump (handled by [`invitational_minor_continuations`]),
+/// authors responder's table at `[1M, 1NT, rebid]` and opener's acceptances at
 /// `[1M, 1NT, rebid, 2NT]` and `[1M, 1NT, rebid, 3M]`.
-fn register_forcing_notrump_continuations(book: &mut Trie) {
-    for major in [Suit::Hearts, Suit::Spades] {
-        let one_major = call(1, Strain::from(major));
-        let one_nt = call(1, Strain::Notrump);
+pub(super) fn forcing_notrump_continuations() -> Package {
+    Package {
+        name: "forcing-notrump-continuations",
+        gate: || true,
+        entries: || {
+            let mut entries = Vec::new();
+            for major in [Suit::Hearts, Suit::Spades] {
+                // Collect distinct rebid calls that take the shared two-level
+                // continuation: everything except the 2NT rebid, the `3m`
+                // jumps and the two-suiter calls.  This must stay derived from
+                // the knob-built source table rather than duplicating its
+                // filters in a row template.
+                let mut seen: Vec<Call> = Vec::new();
+                for rule in rebid_after_forcing_notrump(major).rules() {
+                    let rebid = rule.call();
+                    if rebid != call(2, Strain::Notrump)
+                        && !is_invitational_minor_jump(rebid)
+                        && !is_forcing_nt_two_suiter(major, rebid)
+                        && !seen.contains(&rebid)
+                    {
+                        seen.push(rebid);
+                    }
+                }
 
-        // Collect distinct rebid calls that take the shared two-level
-        // continuation: everything except the 2NT rebid and the `3m` jumps.
-        let mut seen: Vec<Call> = Vec::new();
-        for rule in rebid_after_forcing_notrump(major).rules() {
-            let rebid = rule.call();
-            if rebid != call(2, Strain::Notrump)
-                && !is_invitational_minor_jump(rebid)
-                && !is_forcing_nt_two_suiter(major, rebid)
-                && !seen.contains(&rebid)
-            {
-                seen.push(rebid);
+                for rebid in seen {
+                    let prefix = format!(
+                        "P* {} (P) 1NT (P) {rebid} (P)",
+                        call(1, Strain::from(major)),
+                    );
+                    entries.extend(rows_of(
+                        Pattern::node(&prefix),
+                        responder_after_forcing_notrump(major),
+                    ));
+                    entries.extend(rows_of(
+                        Pattern::node(&format!("{prefix} 2NT (P)")),
+                        opener_accept_notrump_invite(),
+                    ));
+                    entries.extend(rows_of(
+                        Pattern::node(&format!("{prefix} {} (P)", call(3, Strain::from(major)),)),
+                        opener_accept_limit_raise(major),
+                    ));
+                }
             }
-        }
-
-        for rebid in seen {
-            insert_uncontested(
-                book,
-                &[one_major, one_nt, rebid],
-                responder_after_forcing_notrump(major),
-            );
-            insert_uncontested(
-                book,
-                &[one_major, one_nt, rebid, call(2, Strain::Notrump)],
-                opener_accept_notrump_invite(),
-            );
-            insert_uncontested(
-                book,
-                &[one_major, one_nt, rebid, call(3, Strain::from(major))],
-                opener_accept_limit_raise(major),
-            );
-        }
+            entries
+        },
     }
-
-    register_invitational_minor_continuations(book);
 }
 
-/// Register responder's call over opener's invitational `3m` (Meckstroth adjunct)
+/// Responder's call over opener's invitational `3m` (Meckstroth adjunct)
 ///
 /// Covers both the forcing-1NT auctions (`1M – 1NT – 3m`) and the `1♥ – 1♠`
-/// auction (`1♥ – 1♠ – 3m`, where opener's major is hearts).  A no-op when the
-/// adjunct is disabled — opener's tables then carry no `3m` jump to continue.
-fn register_invitational_minor_continuations(book: &mut Trie) {
-    if !meckstroth() {
-        return;
-    }
-    let three_minors = [call(3, Strain::Clubs), call(3, Strain::Diamonds)];
+/// auction (`1♥ – 1♠ – 3m`, where opener's major is hearts).  The package gate
+/// deliberately follows only the parent Meckstroth knob: with the minor-jump
+/// subknob off these continuation nodes remain authored but unreachable, just
+/// as they were before the rows port.
+pub(super) fn invitational_minor_continuations() -> Package {
+    Package {
+        name: "invitational-minor-continuations",
+        gate: meckstroth,
+        entries: || {
+            let three_minors = [call(3, Strain::Clubs), call(3, Strain::Diamonds)];
+            let mut entries = Vec::new();
 
-    // Forcing 1NT: 1M – 1NT – 3m, responder's major support unknown.
-    for major in [Suit::Hearts, Suit::Spades] {
-        let prefix = [call(1, Strain::from(major)), call(1, Strain::Notrump)];
-        for three_m in three_minors {
-            insert_uncontested(
-                book,
-                &[prefix[0], prefix[1], three_m],
-                responder_after_invitational_minor(major),
-            );
-        }
-    }
+            // Forcing 1NT: 1M – 1NT – 3m, responder's major support unknown.
+            for major in [Suit::Hearts, Suit::Spades] {
+                let prefix = format!("P* {} (P) 1NT (P)", call(1, Strain::from(major)));
+                for three_m in three_minors {
+                    entries.extend(rows_of(
+                        Pattern::node(&format!("{prefix} {three_m} (P)")),
+                        responder_after_invitational_minor(major),
+                    ));
+                }
+            }
 
-    // 1♥ – 1♠ – 3m: opener's major is hearts, responder has shown 4+ spades.
-    let one_heart = call(1, Strain::Hearts);
-    let one_spade = call(1, Strain::Spades);
-    for three_m in three_minors {
-        insert_uncontested(
-            book,
-            &[one_heart, one_spade, three_m],
-            responder_after_invitational_minor(Suit::Hearts),
-        );
+            // 1♥ – 1♠ – 3m: opener's major is hearts, responder has shown 4+
+            // spades.
+            for three_m in three_minors {
+                entries.extend(rows_of(
+                    Pattern::node(&format!("P* 1♥ (P) 1♠ (P) {three_m} (P)")),
+                    responder_after_invitational_minor(Suit::Hearts),
+                ));
+            }
+            entries
+        },
     }
 }
 
-/// Register responder's call over opener's `3M` jump-rebid
+/// Responder's call over opener's `3M` jump-rebid
 ///
-/// Covers `1M – 1NT – 3M` and `1♥ – 1♠ – 3♥`.  A no-op when the rung is
-/// disabled — opener's tables then carry no `3M` jump to continue.
-fn register_major_jump_rebid_continuations(book: &mut Trie) {
-    if !opener_major_jump_rebid() {
-        return;
+/// Covers `1M – 1NT – 3M` and `1♥ – 1♠ – 3♥`.  This package follows the
+/// generic forcing-1NT package so its specialized `3M` table keeps winning the
+/// same exact-node overwrite.
+pub(super) fn major_jump_rebid_continuations() -> Package {
+    Package {
+        name: "major-jump-rebid-continuations",
+        gate: opener_major_jump_rebid,
+        entries: || {
+            let mut entries = expand(
+                "P* 1M (P) 1NT (P) 3M (P)",
+                |_| true,
+                |b| responder_after_major_jump_rebid(b.suit('M')),
+            );
+            // 1♥ – 1♠ – 3♥: opener's major is hearts, responder has shown 4+
+            // spades.
+            entries.extend(rows_of(
+                Pattern::node("P* 1♥ (P) 1♠ (P) 3♥ (P)"),
+                responder_after_major_jump_rebid(Suit::Hearts),
+            ));
+            entries
+        },
     }
-    for major in [Suit::Hearts, Suit::Spades] {
-        insert_uncontested(
-            book,
-            &[
-                call(1, Strain::from(major)),
-                call(1, Strain::Notrump),
-                call(3, Strain::from(major)),
-            ],
-            responder_after_major_jump_rebid(major),
-        );
-    }
-    // 1♥ – 1♠ – 3♥: opener's major is hearts, responder has shown 4+ spades.
-    insert_uncontested(
-        book,
-        &[
-            call(1, Strain::Hearts),
-            call(1, Strain::Spades),
-            call(3, Strain::Hearts),
-        ],
-        responder_after_major_jump_rebid(Suit::Hearts),
-    );
 }
 
 /// Responder's call over opener's `1♥ – 1NT – 2♠` reverse (5+ hearts, 4+ spades)
@@ -847,32 +853,23 @@ fn responder_over_forcing_nt_5_5() -> Rules {
         .rule(Call::Pass, 0, points(0..))
 }
 
-/// Register responder's continuations over opener's invitational major
-/// two-suiter rebids (no-op unless [`set_forcing_nt_two_suiter`] enabled them)
-fn register_forcing_nt_two_suiter_continuations(book: &mut Trie) {
-    if !forcing_nt_two_suiter() {
-        return;
+/// Responder's continuations over opener's invitational major two-suiter rebids
+pub(super) fn forcing_nt_two_suiter_continuations() -> Package {
+    Package {
+        name: "forcing-nt-two-suiter-continuations",
+        gate: forcing_nt_two_suiter,
+        entries: || {
+            let mut entries = rows_of(
+                Pattern::node("P* 1♥ (P) 1NT (P) 2♠ (P)"),
+                responder_over_forcing_nt_reverse(),
+            );
+            entries.extend(rows_of(
+                Pattern::node("P* 1♠ (P) 1NT (P) 3♥ (P)"),
+                responder_over_forcing_nt_5_5(),
+            ));
+            entries
+        },
     }
-    // 1♥ – 1NT – 2♠ (reverse).
-    insert_uncontested(
-        book,
-        &[
-            call(1, Strain::Hearts),
-            call(1, Strain::Notrump),
-            call(2, Strain::Spades),
-        ],
-        responder_over_forcing_nt_reverse(),
-    );
-    // 1♠ – 1NT – 3♥ (5-5 jump).
-    insert_uncontested(
-        book,
-        &[
-            call(1, Strain::Spades),
-            call(1, Strain::Notrump),
-            call(3, Strain::Hearts),
-        ],
-        responder_over_forcing_nt_5_5(),
-    );
 }
 
 // ---------------------------------------------------------------------------
@@ -1031,8 +1028,7 @@ fn opener_over_resp_clubs(major: Suit) -> Rules {
         .rule(Call::Pass, 0, points(0..))
 }
 
-/// Register the artificial game-forcing `2NT` adjunct (no-op unless
-/// [`set_meckstroth_adjunct`] enabled it)
+/// The artificial game-forcing `2NT` adjunct
 ///
 /// Authors both sides below `1M – 1NT – 2NT!`: responder's relay round, opener's
 /// shape-out over `3♣`, responder's placement over each shape-out (with RKCB on
@@ -1041,73 +1037,71 @@ fn opener_over_resp_clubs(major: Suit) -> Rules {
 /// `[1M, 1NT, 2NT]` — `rebids::register` runs after `notrump::register`, so the
 /// on-knob insert wins; with the knob off nothing is authored and the natural
 /// handling stands.
-fn register_meckstroth_2nt_continuations(book: &mut Trie) {
-    if !meckstroth() {
-        return;
-    }
-    for major in [Suit::Hearts, Suit::Spades] {
-        let m = Strain::from(major);
-        let one_m = call(1, m);
-        let one_nt = call(1, Strain::Notrump);
-        let two_nt = call(2, Strain::Notrump);
-        let three_c = call(3, Strain::Clubs);
-        let three_d = call(3, Strain::Diamonds);
-        let three_m = call(3, m);
-        let three_o = call(3, Strain::from(other_major(major)));
-        let three_nt = call(3, Strain::Notrump);
-        let base = [one_m, one_nt, two_nt];
+pub(super) fn meckstroth_two_notrump_continuations() -> Package {
+    Package {
+        name: "meckstroth-two-notrump-continuations",
+        gate: meckstroth,
+        entries: || {
+            let mut entries = Vec::new();
+            for major in [Suit::Hearts, Suit::Spades] {
+                let m = Strain::from(major);
+                let base = format!("P* {} (P) 1NT (P) 2NT (P)", call(1, Strain::from(major)),);
 
-        // Responder's relay round over the game-forcing 2NT.
-        insert_uncontested(book, &base, responder_over_gf_2nt(major));
+                // Responder's relay round over the game-forcing 2NT.
+                entries.extend(rows_of(Pattern::node(&base), responder_over_gf_2nt(major)));
 
-        // Opener's shape-out over the 3♣ relay, and responder's placement over
-        // each of opener's four shape-outs.
-        insert_uncontested(
-            book,
-            &[one_m, one_nt, two_nt, three_c],
-            opener_shapeout(major),
-        );
-        insert_uncontested(
-            book,
-            &[one_m, one_nt, two_nt, three_c, three_d],
-            resp_place_over_default(major),
-        );
-        insert_uncontested(
-            book,
-            &[one_m, one_nt, two_nt, three_c, three_o],
-            resp_place_over_other_major(major),
-        );
-        let six_node = [one_m, one_nt, two_nt, three_c, three_m];
-        insert_uncontested(book, &six_node, resp_place_over_six(major));
-        super::slam::install_rkcb(book, &six_node, major);
-        insert_uncontested(
-            book,
-            &[one_m, one_nt, two_nt, three_c, three_nt],
-            resp_place_over_minor(major),
-        );
+                // Opener's shape-out over the 3♣ relay, and responder's
+                // placement over each of opener's four shape-outs.
+                let relay = format!("{base} 3♣ (P)");
+                entries.extend(rows_of(Pattern::node(&relay), opener_shapeout(major)));
+                entries.extend(rows_of(
+                    Pattern::node(&format!("{relay} 3♦ (P)")),
+                    resp_place_over_default(major),
+                ));
+                entries.extend(rows_of(
+                    Pattern::node(&format!(
+                        "{relay} {} (P)",
+                        call(3, Strain::from(other_major(major))),
+                    )),
+                    resp_place_over_other_major(major),
+                ));
+                let six_node = format!("{relay} {} (P)", call(3, m));
+                entries.extend(rows_of(
+                    Pattern::node(&six_node),
+                    resp_place_over_six(major),
+                ));
+                entries.extend(super::slam::rkcb_rows(&six_node, major));
+                entries.extend(rows_of(
+                    Pattern::node(&format!("{relay} 3NT (P)")),
+                    resp_place_over_minor(major),
+                ));
 
-        // Responder's direct fit slam-try, then RKCB.
-        let fit_node = [one_m, one_nt, two_nt, three_m];
-        insert_uncontested(book, &fit_node, opener_over_fit_slamtry(major));
-        super::slam::install_rkcb(book, &fit_node, major);
+                // Responder's direct fit slam-try, then RKCB.
+                let fit_node = format!("{base} {} (P)", call(3, m));
+                entries.extend(rows_of(
+                    Pattern::node(&fit_node),
+                    opener_over_fit_slamtry(major),
+                ));
+                entries.extend(super::slam::rkcb_rows(&fit_node, major));
 
-        // Opener's placement over responder's natural red suits.
-        for red in [Suit::Diamonds, Suit::Hearts] {
-            if red != major {
-                insert_uncontested(
-                    book,
-                    &[one_m, one_nt, two_nt, call(3, Strain::from(red))],
-                    opener_over_resp_red(major, red),
-                );
+                // Opener's placement over responder's natural red suits.
+                for red in [Suit::Diamonds, Suit::Hearts] {
+                    if red != major {
+                        entries.extend(rows_of(
+                            Pattern::node(&format!("{base} {} (P)", call(3, Strain::from(red)),)),
+                            opener_over_resp_red(major, red),
+                        ));
+                    }
+                }
+
+                // Opener's placement over responder's 3NT clubs (non-forcing).
+                entries.extend(rows_of(
+                    Pattern::node(&format!("{base} 3NT (P)")),
+                    opener_over_resp_clubs(major),
+                ));
             }
-        }
-
-        // Opener's placement over responder's 3NT clubs (non-forcing).
-        insert_uncontested(
-            book,
-            &[one_m, one_nt, two_nt, three_nt],
-            opener_over_resp_clubs(major),
-        );
+            entries
+        },
     }
 }
 
@@ -1419,8 +1413,7 @@ fn responder_after_fourth_suit_answer() -> Rules {
         .rule(Bid::new(3, Strain::Notrump), 80, hcp(0..))
 }
 
-/// Register the major-rebid-tails adjunct: full continuations after
-/// `1♥ – 1♠` (no-op unless [`set_major_rebid_tails`] enabled it)
+/// The major-rebid-tails adjunct: full continuations after `1♥ – 1♠`
 ///
 /// Below each of opener's four rebids this authors both sides' continuations
 /// to game, and — for the two spade-raise auctions — to slam via RKCB:
@@ -1438,143 +1431,177 @@ fn responder_after_fourth_suit_answer() -> Rules {
 ///
 /// `1♥ – 1♠ – 2m – 2♥` and `1♥ – 1♠ – 2m – 2♠` are deliberately left to the
 /// floor.
-fn register_major_rebid_tails(book: &mut Trie) {
-    if !major_rebid_tails() {
-        return;
+pub(super) fn major_rebid_tail_continuations() -> Package {
+    Package {
+        name: "major-rebid-tail-continuations",
+        gate: major_rebid_tails,
+        entries: || {
+            let base = "P* 1♥ (P) 1♠ (P)";
+            let mut entries = Vec::new();
+
+            // Opener's 2♠ raise (12–15, four-card support):
+            // invite/sign-off/RKCB.
+            let after_two_spades = format!("{base} 2♠ (P)");
+            entries.extend(rows_of(
+                Pattern::node(&after_two_spades),
+                responder_after_spade_raise(),
+            ));
+            entries.extend(rows_of(
+                Pattern::node(&format!("{after_two_spades} 3♠ (P)")),
+                opener_accept_limit_raise(Suit::Spades),
+            ));
+            entries.extend(super::slam::rkcb_rows(&after_two_spades, Suit::Spades));
+
+            // Opener's 3♠ jump raise (16–18, four-card support): sign-off or
+            // RKCB.
+            let after_three_spades = format!("{base} 3♠ (P)");
+            entries.extend(rows_of(
+                Pattern::node(&after_three_spades),
+                responder_after_spade_jump(),
+            ));
+            entries.extend(super::slam::rkcb_rows(&after_three_spades, Suit::Spades));
+
+            // Opener's 2♥ rebid (own suit, 6+): invite/sign-off, and the 2NT
+            // relay.
+            let after_two_hearts = format!("{base} 2♥ (P)");
+            entries.extend(rows_of(
+                Pattern::node(&after_two_hearts),
+                responder_after_heart_rebid(),
+            ));
+            entries.extend(rows_of(
+                Pattern::node(&format!("{after_two_hearts} 3♥ (P)")),
+                opener_accept_limit_raise(Suit::Hearts),
+            ));
+            entries.extend(rows_of(
+                Pattern::node(&format!("{after_two_hearts} 2NT (P)")),
+                opener_after_heart_invite(),
+            ));
+
+            // Opener's 2♣/2♦ new minor (4+, minimum-ish): preference, invite,
+            // or game.
+            for minor in [Suit::Clubs, Suit::Diamonds] {
+                let after_minor = format!("{base} {} (P)", call(2, Strain::from(minor)));
+                entries.extend(rows_of(
+                    Pattern::node(&after_minor),
+                    responder_after_minor_rebid(minor),
+                ));
+                entries.extend(rows_of(
+                    Pattern::node(&format!("{after_minor} 2NT (P)")),
+                    opener_accept_notrump_invite(),
+                ));
+                entries.extend(rows_of(
+                    Pattern::node(&format!(
+                        "{after_minor} {} (P)",
+                        call(3, Strain::from(minor)),
+                    )),
+                    opener_accept_minor_raise(),
+                ));
+                entries.extend(rows_of(
+                    Pattern::node(&format!("{after_minor} 3♥ (P)")),
+                    opener_accept_limit_raise(Suit::Hearts),
+                ));
+            }
+
+            entries
+        },
     }
+}
 
-    let one_heart = call(1, Strain::Hearts);
-    let one_spade = call(1, Strain::Spades);
-    let two_spades = call(2, Strain::Spades);
-    let three_spades = call(3, Strain::Spades);
-    let two_hearts = call(2, Strain::Hearts);
-    let three_hearts = call(3, Strain::Hearts);
-    let two_nt = call(2, Strain::Notrump);
+/// Whether the fourth-suit tail's nested pair of construction-time gates is on
+fn fourth_suit_forcing_continuations_enabled() -> bool {
+    major_rebid_tails() && fourth_suit_forcing()
+}
 
-    // Opener's 2♠ raise (12–15, four-card support): invite/sign-off/RKCB.
-    let after_two_spades = [one_heart, one_spade, two_spades];
-    insert_uncontested(book, &after_two_spades, responder_after_spade_raise());
-    insert_uncontested(
-        book,
-        &[one_heart, one_spade, two_spades, three_spades],
-        opener_accept_limit_raise(Suit::Spades),
-    );
-    super::slam::install_rkcb(book, &after_two_spades, Suit::Spades);
-
-    // Opener's 3♠ jump raise (16–18, four-card support): sign-off or RKCB.
-    let after_three_spades = [one_heart, one_spade, three_spades];
-    insert_uncontested(book, &after_three_spades, responder_after_spade_jump());
-    super::slam::install_rkcb(book, &after_three_spades, Suit::Spades);
-
-    // Opener's 2♥ rebid (own suit, 6+): invite/sign-off, and the 2NT relay.
-    insert_uncontested(
-        book,
-        &[one_heart, one_spade, two_hearts],
-        responder_after_heart_rebid(),
-    );
-    insert_uncontested(
-        book,
-        &[one_heart, one_spade, two_hearts, three_hearts],
-        opener_accept_limit_raise(Suit::Hearts),
-    );
-    insert_uncontested(
-        book,
-        &[one_heart, one_spade, two_hearts, two_nt],
-        opener_after_heart_invite(),
-    );
-
-    // Opener's 2♣/2♦ new minor (4+, minimum-ish): preference, invite, or game.
-    for minor in [Suit::Clubs, Suit::Diamonds] {
-        let two_m = call(2, Strain::from(minor));
-        let three_m = call(3, Strain::from(minor));
-        insert_uncontested(
-            book,
-            &[one_heart, one_spade, two_m],
-            responder_after_minor_rebid(minor),
-        );
-        insert_uncontested(
-            book,
-            &[one_heart, one_spade, two_m, two_nt],
-            opener_accept_notrump_invite(),
-        );
-        insert_uncontested(
-            book,
-            &[one_heart, one_spade, two_m, three_m],
-            opener_accept_minor_raise(),
-        );
-        insert_uncontested(
-            book,
-            &[one_heart, one_spade, two_m, three_hearts],
-            opener_accept_limit_raise(Suit::Hearts),
-        );
+/// Opener's answers and responder's placements after fourth-suit forcing
+pub(super) fn fourth_suit_forcing_continuations() -> Package {
+    Package {
+        name: "fourth-suit-forcing-continuations",
+        gate: fourth_suit_forcing_continuations_enabled,
+        entries: || {
+            let prefix = "P* 1♥ (P) 1♠ (P) 2♣ (P) 2♦ (P)";
+            let opener_rules = opener_after_fourth_suit();
+            let answers: Vec<Call> = {
+                let mut seen = std::collections::HashSet::new();
+                opener_rules
+                    .rules()
+                    .iter()
+                    .filter_map(|rule| {
+                        let answer = rule.call();
+                        if seen.insert(answer) {
+                            Some(answer)
+                        } else {
+                            None
+                        }
+                    })
+                    .collect()
+            };
+            let mut entries = rows_of(Pattern::node(prefix), opener_rules);
+            for answer in answers {
+                entries.extend(rows_of(
+                    Pattern::node(&format!("{prefix} {answer} (P)")),
+                    responder_after_fourth_suit_answer(),
+                ));
+            }
+            entries
+        },
     }
+}
 
-    // Fourth suit forcing (opt-in, rides this adjunct): `2♦` at
-    // `1♥ – 1♠ – 2♣` is an artificial game force; opener answers naturally
-    // below game, and responder places the final contract over any answer.
-    if fourth_suit_forcing() {
-        let two_clubs = call(2, Strain::Clubs);
-        let two_diamonds = call(2, Strain::Diamonds);
-        let after_fourth_suit = [one_heart, one_spade, two_clubs, two_diamonds];
-        insert_uncontested(book, &after_fourth_suit, opener_after_fourth_suit());
+/// Opener's base rebid after `1♥ – 1♠`
+pub(super) fn one_heart_one_spade_rebid() -> Package {
+    Package {
+        name: "one-heart-one-spade-rebid",
+        gate: || true,
+        entries: || {
+            rows_of(
+                Pattern::node("P* 1♥ (P) 1♠ (P)"),
+                rebid_one_heart_one_spade(),
+            )
+        },
+    }
+}
 
-        let answers: Vec<Call> = {
-            let mut seen = std::collections::HashSet::new();
-            opener_after_fourth_suit()
-                .rules()
-                .iter()
-                .filter_map(|r| {
-                    let c = r.call();
-                    if seen.insert(c) { Some(c) } else { None }
-                })
-                .collect()
-        };
-        for answer in answers {
-            insert_uncontested(
-                book,
-                &[one_heart, one_spade, two_clubs, two_diamonds, answer],
-                responder_after_fourth_suit_answer(),
+/// The remaining base rebid nodes after one-level responses
+pub(super) fn remaining_rebid_bases() -> Package {
+    Package {
+        name: "remaining-rebid-bases",
+        gate: || true,
+        entries: || {
+            let mut entries = expand(
+                "P* 1M (P) 1NT (P)",
+                |_| true,
+                |b| rebid_after_forcing_notrump(b.suit('M')),
             );
-        }
+            entries.extend(rows_of(
+                Pattern::node("P* 1♣ (P) 1♦ (P)"),
+                rebid_one_club_one_diamond(),
+            ));
+            entries.extend(expand(
+                "P* 1m (P) 1M (P)",
+                |_| true,
+                |b| rebid_raise_major(b.suit('M'), b.suit('m')),
+            ));
+            entries
+        },
     }
 }
 
 /// Register opener's rebids after a one-level new suit and the forcing 1NT
 pub(super) fn register(book: &mut Trie) {
-    register_forcing_notrump_continuations(book);
-    register_major_jump_rebid_continuations(book);
-    register_forcing_nt_two_suiter_continuations(book);
-    register_meckstroth_2nt_continuations(book);
-    insert_uncontested(
+    compile_into(
         book,
-        &[call(1, Strain::Hearts), call(1, Strain::Spades)],
-        rebid_one_heart_one_spade(),
+        &[
+            forcing_notrump_continuations(),
+            invitational_minor_continuations(),
+            major_jump_rebid_continuations(),
+            forcing_nt_two_suiter_continuations(),
+            meckstroth_two_notrump_continuations(),
+            one_heart_one_spade_rebid(),
+            major_rebid_tail_continuations(),
+            fourth_suit_forcing_continuations(),
+            remaining_rebid_bases(),
+        ],
     );
-    register_major_rebid_tails(book);
-    for major in [Suit::Hearts, Suit::Spades] {
-        insert_uncontested(
-            book,
-            &[call(1, Strain::from(major)), call(1, Strain::Notrump)],
-            rebid_after_forcing_notrump(major),
-        );
-    }
-    insert_uncontested(
-        book,
-        &[call(1, Strain::Clubs), call(1, Strain::Diamonds)],
-        rebid_one_club_one_diamond(),
-    );
-    for minor in [Suit::Clubs, Suit::Diamonds] {
-        for responder_major in [Suit::Hearts, Suit::Spades] {
-            insert_uncontested(
-                book,
-                &[
-                    call(1, Strain::from(minor)),
-                    call(1, Strain::from(responder_major)),
-                ],
-                rebid_raise_major(responder_major, minor),
-            );
-        }
-    }
 }
 
 // ---------------------------------------------------------------------------

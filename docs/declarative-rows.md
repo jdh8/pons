@@ -19,7 +19,7 @@ two open phases are.
 | --- | --- |
 | Contested — `competition()` | **Done.** Nothing but `compile_into` over 21 packages; zero hand-rolled wiring. |
 | Contested — `defensive()` | **Done bar one site.** 22 packages, plus the 1NT-overcall systems-on graft, which is *permanently* imperative: `compile_into` writes rows, not a whole subtree. |
-| Constructive — ported | `openings.rs`, `weak_twos.rs`, `xyz.rs`, `nmf.rs`, guarded by `row_package_invariants` in `american.rs`. |
+| Constructive — ported | `openings.rs`, `weak_twos.rs`, `xyz.rs`, `nmf.rs`, guarded by `row_package_invariants` in `american/tests.rs`. |
 | Constructive — **not** ported | Six American files + `dutch.rs`: 174 verb sites + 25 `install_rkcb`, batched and sequenced in [the port checklist](#port-checklist) below. |
 | RKCB | A row **producer**: `slam::rkcb_rows(prefix, trump) -> Vec<Entry>`, with `install_rkcb` kept as a same-signature shim for the ~25 call sites in unported files. |
 | Phase 1.5 (floating agreements) | **Cancelled, not deferred** — see below. |
@@ -192,7 +192,7 @@ the policy is dormant: every verb site in the tail is an exact
   templates with a duplicated filter — the copy would drift from the
   knob-gated source table.
 - Every port adds its `package()` to `row_package_invariants`
-  (`american.rs:474`). The list is hand-edited; a port not listed there is
+  (`american/tests.rs:161`). The list is hand-edited; a port not listed there is
   not gated.
 - `smoke-default` and `render-book` hardwire the shipped `american()`, so a
   dutch port is unprovable until D0 builds the dutch twins. And `dutch_book()`
@@ -211,7 +211,7 @@ the policy is dormant: every verb site in the tail is an exact
 | N3 | 3430–3534: max overlays, 3♣ Puppet/European, both-majors 3♦, NT splinter | ≈20 | `stayman_both_majors`, `stayman_5card_max`, `puppet`, `nt_splinter` | |
 | N4 | 3535–3612: Texas, 2NT response, 2♠ response | ≈23 | `texas_slam_drive`, `puppet` (minor structures) | |
 | N5 | 3614–3716: `register_two_nt_and_rebids` | 10 | — | two loops over literal prefixes |
-| R1 | `rebids.rs`, 7 register fns | 35 + 4 rkcb | Meckstroth, forcing-NT two-suiter, invitational-minor | may split the Meckstroth ladder out; 2 table-derived key sets |
+| R1 | `rebids.rs`, 7 register fns | 34 + 4 rkcb production; 1 test fixture | `meckstroth`, `meckstroth && MECKSTROTH_MINOR_JUMPS`, `forcing_nt_two_suiter`, `balanced_1nt_rebid`, `opener_extras_ladder`, `opener_major_jump_rebid`, `major_rebid_tails`, `major_rebid_tails && fourth_suit_forcing`, `nt_invite_hcp`, `responses::up_the_line` | may split the Meckstroth ladder out; 2 table-derived key sets |
 | S1 | `strong_two.rs` | 15 + 4 rkcb | `slam::minor_keycard` | line 258's doc comment claims a 0–2 fan but `insert_uncontested` fans 0–3: port verbatim at 3, fix the comment |
 | P1 | `responses.rs` | 9 + 2 rkcb | splinter / inverted-minor gates | hoist the inline `Rules` at 823–939 to named builders first |
 | G0 | `rows.rs`: builder-level fan = 2 | — | — | the grammar grows with its consumer, G1 |
@@ -224,8 +224,8 @@ the policy is dormant: every verb site in the tail is an exact
 Sequence: N1→N5, R1, S1, P1, G0, G1, Z1, T1, D0, D1. Batch boundaries inside
 `notrump.rs` and R1's split may flex at execution; the counts keep drift
 visible. The `notrump.rs` per-batch counts include that batch's rkcb sites;
-the per-file anchors are exact (90+10, 35+4, 15+4, 9+2, 8+2, 7+3, dutch
-10+0).
+the per-file anchors are exact (90+10, 34+4 production plus 1 test fixture,
+15+4, 9+2, 8+2, 7+3, dutch 10+0).
 
 ### The batch recipe
 

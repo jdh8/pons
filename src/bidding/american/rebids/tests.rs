@@ -3,6 +3,17 @@ use crate::bidding::System;
 use contract_bridge::Hand;
 use contract_bridge::auction::RelativeVulnerability;
 
+/// Compile the major-rebid tail packages under the current knob settings.
+fn register_major_rebid_packages(trie: &mut Trie) {
+    crate::bidding::rows::compile_into(
+        trie,
+        &[
+            major_rebid_tail_continuations(),
+            fourth_suit_forcing_continuations(),
+        ],
+    );
+}
+
 /// Build a Trie with the major-rebid-tails adjunct on but
 /// fourth-suit-forcing off, then restore both knobs to their (on)
 /// defaults (mirrors `slam::tests::rkcb_trie`).
@@ -10,7 +21,7 @@ fn tails_trie() -> Trie {
     set_major_rebid_tails(true);
     set_fourth_suit_forcing(false);
     let mut trie = Trie::new();
-    register_major_rebid_tails(&mut trie);
+    register_major_rebid_packages(&mut trie);
     set_fourth_suit_forcing(true);
     trie
 }
@@ -21,7 +32,7 @@ fn fsf_trie() -> Trie {
     set_major_rebid_tails(true);
     set_fourth_suit_forcing(true);
     let mut trie = Trie::new();
-    register_major_rebid_tails(&mut trie);
+    register_major_rebid_packages(&mut trie);
     trie
 }
 
@@ -279,7 +290,7 @@ const AFTER_2C_2D_2NT: &[Call] = &[
 fn off_state_inserts_nothing() {
     set_major_rebid_tails(false);
     let mut trie = Trie::new();
-    register_major_rebid_tails(&mut trie);
+    register_major_rebid_packages(&mut trie);
     set_major_rebid_tails(true); // restore the shipped default
     let hand: Hand = "K432.AQ5.432.Q32".parse().expect("valid test hand");
     assert!(
@@ -472,7 +483,7 @@ fn fourth_suit_forcing_without_tails_inserts_nothing() {
     set_major_rebid_tails(false);
     set_fourth_suit_forcing(true);
     let mut trie = Trie::new();
-    register_major_rebid_tails(&mut trie);
+    register_major_rebid_packages(&mut trie);
     set_major_rebid_tails(true); // restore the shipped defaults
 
     let hand: Hand = "K432.AQ5.432.Q32".parse().expect("valid test hand");
@@ -557,11 +568,7 @@ fn balanced_1nt_rebid_knob_flips_2m_to_1nt() {
     let hand = "KQ4.Q3.AK762.853";
     let build = || {
         let mut trie = Trie::new();
-        insert_uncontested(
-            &mut trie,
-            &[call(1, Strain::Diamonds), call(1, Strain::Hearts)],
-            rebid_raise_major(Suit::Hearts, Suit::Diamonds),
-        );
+        crate::bidding::rows::compile_into(&mut trie, &[remaining_rebid_bases()]);
         trie
     };
 

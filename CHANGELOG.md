@@ -108,6 +108,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     this batch `notrump.rs` has no imperative wiring left**: 90
     `insert_uncontested` and 10 `install_rkcb` become 26 packages, and
     `insert_uncontested` drops out of the file's import list.
+  - **R1** — `rebids.rs`'s 34 production `insert_uncontested` sites and four
+    `install_rkcb` sites become nine packages in the original assembly order;
+    the test-only insert moved out of the production file by the preceding test
+    refactor now compiles `remaining-rebid-bases` instead.  The two key sets
+    derived from live rule tables stay computed entry closures, all four
+    keycard tails inline `slam::rkcb_rows`, the specialized `3M` continuation
+    still overwrites the generic forcing-1NT table, and the Meckstroth `2NT`
+    package still overwrites the natural continuation only while its parent
+    gate is on.  The fourth-suit tail keeps its nested
+    `major_rebid_tails && fourth_suit_forcing` gate; Meckstroth's invitational
+    minor continuations deliberately remain authored-but-unreachable when only
+    its minor-jump subknob is off.  `register` is now one `compile_into` call,
+    and `rebids.rs` has no imperative wiring left.  All 24 arms of the expanded
+    knob sweep are pairwise distinct before the port and byte-identical across
+    it; the campaign's `smoke-default` and `render-book` hashes remain
+    unchanged.  User impact: none.
   - **The Stayman `2♣` weight tie is a partition, and is now allowlisted.**
     Putting `notrump_responses()` under `assert_package_invariants` for the
     first time surfaced four rules claiming `2♣` at weight 150: constructive
