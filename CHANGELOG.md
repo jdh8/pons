@@ -9,6 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The port checklist, batch by batch.** One rolling entry for the campaign —
+  the `notrump.rs` batches are inert re-spellings, so the interesting number is
+  the one that *never moves*: at every batch the seeded `smoke-default`
+  (20 000 boards, seed 1) hashes `59a27d7f…` and `render-book` hashes
+  `01bf875f…`, both the values at `367dc2c`.  A knob-armed sweep
+  (`examples/tmp-rows-port`, 14 arms, verified pairwise distinct so none is
+  vacuous) is byte-identical across every batch too.  User impact: none.
+  - **N1** — `notrump.rs` 3096–3238, 24 sites (22 `insert_uncontested` + 2
+    `install_rkcb`) become four packages: the ungated `one-nt-base` (18 sites)
+    plus `stayman-cue-continuation`, `stayman-minor-slam-try` and
+    `crawling-stayman` under their own gates.  The two RKCB tails inline
+    `slam::rkcb_rows` rather than templating — `expand`'s closure returns one
+    `Rules`, and a keycard tail needs *extra entries*.  The `puppet` local
+    becomes `fn puppet_scheme()`, hoisted early because `Package`'s fields are
+    bare `fn` pointers and N3/N4 read it as a gate.  Armed under
+    `set_stayman_cue_continuation`, `set_stayman_minor_slam_try` and
+    `set_crawling_stayman`, all off.
+  - **The Stayman `2♣` weight tie is a partition, and is now allowlisted.**
+    Putting `notrump_responses()` under `assert_package_invariants` for the
+    first time surfaced four rules claiming `2♣` at weight 150: constructive
+    Stayman, garbage Stayman's broke and weak tiers, and crawling Stayman.  The
+    detector cannot tell a redundancy from a partition; this is provably the
+    latter — every pair separates on the HCP band or on diamond length, so at
+    most one ever matches and `Rules::explain`'s strict `>` never chooses, and
+    all four carry `STAYMAN` regardless.  `KNOWN_WEIGHT_TIES` goes from empty
+    to one entry carrying the rule count, so a *fifth* claimant still fails the
+    build.  Splitting the weights instead would move the reading, which is a
+    bidding change and not this campaign's.
+
 - **The rows port has its checklist.**
   [docs/declarative-rows.md](docs/declarative-rows.md) gains a
   `## Port checklist` section scoping the whole remaining tail — the six

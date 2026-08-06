@@ -476,6 +476,10 @@ mod tests {
             weak_twos::package(),
             xyz::package(),
             nmf::package(),
+            notrump::base(),
+            notrump::cue(),
+            notrump::minor_slam(),
+            notrump::crawling(),
         ]);
     }
 

@@ -21,6 +21,7 @@ use crate::bidding::constraint::{
 };
 use crate::bidding::inference::{EnvelopeUnion, Range};
 use crate::bidding::instinct::net_break_even_gate;
+use crate::bidding::rows::{Package, Pattern, compile_into, expand, rows_of};
 use crate::bidding::{Alert, Context, Rules, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Hand, Holding, Rank, Strain, Suit};
@@ -84,6 +85,14 @@ pub fn set_notrump_minors(variant: Alert) {
 /// continuations) and by the inference engine (to read the artificial calls).
 pub(crate) fn notrump_minors() -> Alert {
     NOTRUMP_MINORS.with(Cell::get)
+}
+
+/// Whether book construction uses the Puppet minor scheme
+///
+/// This is a function because declarative [`Package`] gates are bare function
+/// pointers and cannot capture a local from [`register_one_nt`].
+fn puppet_scheme() -> bool {
+    notrump_minors() == PUPPET
 }
 
 /// How a balanced eight with no four-card major responds to our 1NT — the
@@ -3060,6 +3069,182 @@ fn accept_quantitative_nineteen() -> Rules {
 }
 
 // ---------------------------------------------------------------------------
+// Declarative 1NT packages
+// ---------------------------------------------------------------------------
+
+/// Ungated 1NT responses and Stayman continuations
+pub(super) fn base() -> Package {
+    Package {
+        name: "one-nt-base",
+        gate: || true,
+        entries: || {
+            let mut entries = rows_of(Pattern::node("P* 1NT (P)"), notrump_responses());
+
+            // Stayman answers and transfer completions.  The uncontested table
+            // folds in the opt-in max-showing overlays.
+            entries.extend(rows_of(
+                Pattern::node("P* 1NT (P) 2♣ (P)"),
+                stayman_answers_uncontested(),
+            ));
+            entries.extend(rows_of(
+                Pattern::node("P* 1NT (P) 2♦ (P)"),
+                complete_transfer(Suit::Hearts),
+            ));
+            entries.extend(rows_of(
+                Pattern::node("P* 1NT (P) 2♥ (P)"),
+                complete_transfer(Suit::Spades),
+            ));
+            entries.extend(rows_of(
+                Pattern::node("P* 1NT (P) 4NT (P)"),
+                quantitative_answer(17),
+            ));
+
+            // Responder's rebid after opener shows a major, and opener's reply
+            // to the artificial 3OM slam try.
+            entries.extend(rows_of(
+                Pattern::node("P* 1NT (P) 2♣ (P) 2♥ (P)"),
+                stayman_major_rebid(Suit::Hearts),
+            ));
+            entries.extend(rows_of(
+                Pattern::node("P* 1NT (P) 2♣ (P) 2♠ (P)"),
+                stayman_major_rebid(Suit::Spades),
+            ));
+            entries.extend(rows_of(
+                Pattern::node("P* 1NT (P) 2♣ (P) 2♥ (P) 3♠ (P)"),
+                stayman_slam_try_answer(Suit::Hearts),
+            ));
+            entries.extend(rows_of(
+                Pattern::node("P* 1NT (P) 2♣ (P) 2♠ (P) 3♥ (P)"),
+                stayman_slam_try_answer(Suit::Spades),
+            ));
+
+            // Responder's rebid after opener denies a major, and opener's
+            // Smolen completion in responder's five-card major.
+            entries.extend(rows_of(
+                Pattern::node("P* 1NT (P) 2♣ (P) 2♦ (P)"),
+                stayman_no_major_rebid(),
+            ));
+            entries.extend(rows_of(
+                Pattern::node("P* 1NT (P) 2♣ (P) 2♦ (P) 3♥ (P)"),
+                smolen_completion(Suit::Spades),
+            ));
+            entries.extend(rows_of(
+                Pattern::node("P* 1NT (P) 2♣ (P) 2♦ (P) 3♠ (P)"),
+                smolen_completion(Suit::Hearts),
+            ));
+
+            // Opener accepts or declines responder's invitations.
+            entries.extend(rows_of(
+                Pattern::node("P* 1NT (P) 2♣ (P) 2♥ (P) 3♥ (P)"),
+                accept_major_invitation(Suit::Hearts),
+            ));
+            entries.extend(rows_of(
+                Pattern::node("P* 1NT (P) 2♣ (P) 2♠ (P) 3♠ (P)"),
+                accept_major_invitation(Suit::Spades),
+            ));
+            entries.extend(expand(
+                "P* 1NT (P) 2♣ (P) 2x (P) 2NT (P)",
+                |_| true,
+                |_| accept_invitation(Bid::new(3, Strain::Notrump)),
+            ));
+
+            // Opener's quantitative accept after a no-fit revert to 4NT.
+            entries.extend(rows_of(
+                Pattern::node("P* 1NT (P) 2♣ (P) 2♥ (P) 4NT (P)"),
+                quantitative_answer(17),
+            ));
+            entries.extend(rows_of(
+                Pattern::node("P* 1NT (P) 2♣ (P) 2♠ (P) 4NT (P)"),
+                quantitative_answer(17),
+            ));
+            entries.extend(rows_of(
+                Pattern::node("P* 1NT (P) 2♣ (P) 2♦ (P) 4NT (P)"),
+                quantitative_answer(17),
+            ));
+
+            entries
+        },
+    }
+}
+
+/// Stayman cue-bid continuations and their RKCB subtrees
+pub(super) fn cue() -> Package {
+    Package {
+        name: "stayman-cue-continuation",
+        gate: stayman_cue_continuation,
+        entries: || {
+            let two_h = call(2, Strain::Hearts);
+            let two_s = call(2, Strain::Spades);
+            let three_h = call(3, Strain::Hearts);
+            let three_s = call(3, Strain::Spades);
+            let mut entries = Vec::new();
+
+            for (answer, three_om, major) in [
+                (two_h, three_s, Suit::Hearts),
+                (two_s, three_h, Suit::Spades),
+            ] {
+                for cue_suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
+                    if Strain::from(cue_suit) >= Strain::from(major) {
+                        continue;
+                    }
+                    let path = format!(
+                        "P* 1NT (P) 2♣ (P) {answer} (P) {three_om} (P) {} (P)",
+                        call(4, Strain::from(cue_suit)),
+                    );
+                    entries.extend(rows_of(Pattern::node(&path), stayman_cue_rebid(major)));
+                    entries.extend(slam::rkcb_rows(&path, major));
+                }
+            }
+
+            entries
+        },
+    }
+}
+
+/// Stayman minor slam tries and their RKCB subtrees
+pub(super) fn minor_slam() -> Package {
+    Package {
+        name: "stayman-minor-slam-try",
+        gate: stayman_minor_slam_try,
+        entries: || {
+            let two_d = call(2, Strain::Diamonds);
+            let two_h = call(2, Strain::Hearts);
+            let two_s = call(2, Strain::Spades);
+            let three_c = call(3, Strain::Clubs);
+            let three_d = call(3, Strain::Diamonds);
+            let mut entries = Vec::new();
+
+            for answer in [two_h, two_s, two_d] {
+                for (three_m, minor) in [(three_c, Suit::Clubs), (three_d, Suit::Diamonds)] {
+                    let prefix = format!("P* 1NT (P) 2♣ (P) {answer} (P) {three_m} (P)");
+                    entries.extend(rows_of(Pattern::node(&prefix), stayman_minor_answer(minor)));
+
+                    let path = format!("{prefix} {} (P)", call(4, Strain::from(minor)));
+                    entries.extend(rows_of(Pattern::node(&path), stayman_minor_slam_rkcb()));
+                    entries.extend(slam::rkcb_rows(&path, minor));
+                }
+            }
+
+            entries
+        },
+    }
+}
+
+/// Crawling Stayman pass-or-correct continuation
+pub(super) fn crawling() -> Package {
+    Package {
+        name: "crawling-stayman",
+        gate: crawling_stayman,
+        entries: || {
+            rows_of(
+                Pattern::node("P* 1NT (P) 2♣ (P) 2♦ (P) 2♥ (P)"),
+                answer_crawling_stayman(),
+            )
+        },
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Registration
 // ---------------------------------------------------------------------------
 
@@ -3082,159 +3267,16 @@ pub(super) fn register(book: &mut Trie) {
 /// alternative 1NT scheme could replace just this part.
 pub(super) fn register_one_nt(book: &mut Trie) {
     let one_nt = call(1, Strain::Notrump);
-    let four_nt = call(4, Strain::Notrump);
+    let two_nt = call(2, Strain::Notrump);
 
     let two_c = call(2, Strain::Clubs);
     let two_d = call(2, Strain::Diamonds);
     let two_h = call(2, Strain::Hearts);
     let two_s = call(2, Strain::Spades);
-    let three_c = call(3, Strain::Clubs);
-    let three_d = call(3, Strain::Diamonds);
     let three_h = call(3, Strain::Hearts);
     let three_s = call(3, Strain::Spades);
 
-    // The 2♠/2NT/3♣ continuations diverge by minor scheme; the response node
-    // itself self-gates inside `notrump_responses`.
-    let puppet = notrump_minors() == PUPPET;
-
-    insert_uncontested(book, &[one_nt], notrump_responses());
-    // Stayman answers and transfer completions.  The uncontested wrapper folds in
-    // the opt-in max-showing overlays (both-majors min/max, max five-card jump).
-    insert_uncontested(book, &[one_nt, two_c], stayman_answers_uncontested());
-    insert_uncontested(book, &[one_nt, two_d], complete_transfer(Suit::Hearts));
-    insert_uncontested(book, &[one_nt, two_h], complete_transfer(Suit::Spades));
-    // Quantitative 4NT answer.
-    insert_uncontested(book, &[one_nt, four_nt], quantitative_answer(17));
-
-    // --- Stayman continuations ------------------------------------------------
-    //
-    // Responder's rebid after opener shows a major, and opener's reply to the
-    // artificial 3OM slam try.
-    insert_uncontested(
-        book,
-        &[one_nt, two_c, two_h],
-        stayman_major_rebid(Suit::Hearts),
-    );
-    insert_uncontested(
-        book,
-        &[one_nt, two_c, two_s],
-        stayman_major_rebid(Suit::Spades),
-    );
-    insert_uncontested(
-        book,
-        &[one_nt, two_c, two_h, three_s],
-        stayman_slam_try_answer(Suit::Hearts),
-    );
-    insert_uncontested(
-        book,
-        &[one_nt, two_c, two_s, three_h],
-        stayman_slam_try_answer(Suit::Spades),
-    );
-    // Responder's continuation after opener cue-bids in cooperation with the 3OM
-    // slam try: over each control opener could cue (a suit below the trump major),
-    // responder keycards (`4NT`) or signs off in the major game, with the 1430
-    // ladder rooted at the keycard bid.  Without this the cue was passed out —
-    // frequently below game (the dominant Stayman leak vs BBA).
-    if stayman_cue_continuation() {
-        for (answer, three_om, major) in [
-            (two_h, three_s, Suit::Hearts),
-            (two_s, three_h, Suit::Spades),
-        ] {
-            for cue_suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
-                if Strain::from(cue_suit) >= Strain::from(major) {
-                    continue; // only controls ranking below the trump major are cued
-                }
-                let path = [
-                    one_nt,
-                    two_c,
-                    answer,
-                    three_om,
-                    call(4, Strain::from(cue_suit)),
-                ];
-                insert_uncontested(book, &path, stayman_cue_rebid(major));
-                slam::install_rkcb(book, &path, major);
-            }
-        }
-    }
-    // Stayman-then-minor slam try: opener's reply to responder's natural 3m (5+
-    // minor, slam values, no major fit) over each Stayman answer, and — when opener
-    // raises with a fit + maximum — responder's minor keycard ask (the 1430 ladder
-    // rooted at 4NT).  Responder's 3m rules self-gate inside the rebid tables above.
-    if stayman_minor_slam_try() {
-        for answer in [two_h, two_s, two_d] {
-            for (three_m, minor) in [(three_c, Suit::Clubs), (three_d, Suit::Diamonds)] {
-                insert_uncontested(
-                    book,
-                    &[one_nt, two_c, answer, three_m],
-                    stayman_minor_answer(minor),
-                );
-                let path = [one_nt, two_c, answer, three_m, call(4, Strain::from(minor))];
-                insert_uncontested(book, &path, stayman_minor_slam_rkcb());
-                slam::install_rkcb(book, &path, minor);
-            }
-        }
-    }
-    // Responder's rebid after opener denies a major (Smolen, else revert to NT),
-    // and opener's Smolen completion (game in responder's five-card major).
-    insert_uncontested(book, &[one_nt, two_c, two_d], stayman_no_major_rebid());
-    insert_uncontested(
-        book,
-        &[one_nt, two_c, two_d, three_h],
-        smolen_completion(Suit::Spades),
-    );
-    insert_uncontested(
-        book,
-        &[one_nt, two_c, two_d, three_s],
-        smolen_completion(Suit::Hearts),
-    );
-    // Opener accepts or declines responder's invitation (major raise, or the
-    // no-fit 2NT) — authored, since the floor reads the three-level raise as
-    // forcing and could not decline.
-    let two_nt = call(2, Strain::Notrump);
-    insert_uncontested(
-        book,
-        &[one_nt, two_c, two_h, three_h],
-        accept_major_invitation(Suit::Hearts),
-    );
-    insert_uncontested(
-        book,
-        &[one_nt, two_c, two_s, three_s],
-        accept_major_invitation(Suit::Spades),
-    );
-    for major_answer in [two_h, two_s, two_d] {
-        insert_uncontested(
-            book,
-            &[one_nt, two_c, major_answer, two_nt],
-            accept_invitation(Bid::new(3, Strain::Notrump)),
-        );
-    }
-    // Opener's quantitative accept after a no-fit revert to 4NT.
-    insert_uncontested(
-        book,
-        &[one_nt, two_c, two_h, four_nt],
-        quantitative_answer(17),
-    );
-    insert_uncontested(
-        book,
-        &[one_nt, two_c, two_s, four_nt],
-        quantitative_answer(17),
-    );
-    insert_uncontested(
-        book,
-        &[one_nt, two_c, two_d, four_nt],
-        quantitative_answer(17),
-    );
-
-    // Crawling Stayman: opener's pass-or-correct reply to the 2♥ crawl
-    // (`1NT–2♣–2♦–2♥`).  The doubled tail `1NT–2♣–2♦–(X)–2♥` is systems-on via the
-    // rebase in `competition.rs`.
-    if crawling_stayman() {
-        insert_uncontested(
-            book,
-            &[one_nt, two_c, two_d, two_h],
-            answer_crawling_stayman(),
-        );
-    }
+    compile_into(book, &[base(), cue(), minor_slam(), crawling()]);
 
     // --- Invitational 5-4 majors (gated; see `set_invitational_5card_majors`) ---
     //
@@ -3476,7 +3518,7 @@ pub(super) fn register_one_nt(book: &mut Trie) {
     // --- 3♣ response (Puppet Stayman, or European diamond transfer) -----------
     let three_c = call(3, Strain::Clubs);
     let three_d = call(3, Strain::Diamonds);
-    if puppet {
+    if puppet_scheme() {
         // Puppet Stayman: opener shows a five-card major (3♥/3♠) or denies with
         // 3♦; responder raises a 5-3 fit, or — Smolen-style after 3♦ — bids the
         // shorter major to find a 4-4 with opener declaring.
@@ -3558,7 +3600,7 @@ pub(super) fn register_one_nt(book: &mut Trie) {
     }
 
     // --- 2NT response (diamond transfer, or European balanced invite) ---------
-    if puppet {
+    if puppet_scheme() {
         // Transfer to diamonds: opener completes 3♦ with a fit, else pass-or-correct
         // 3♣; a weak retreat to 3♦ over that 3♣ must be passed.
         insert_uncontested(book, &[one_nt, two_nt], diamond_transfer_answer());
@@ -3575,7 +3617,7 @@ pub(super) fn register_one_nt(book: &mut Trie) {
     }
 
     // --- 2♠ response (two-way clubs/invite, or European club transfer) --------
-    if puppet {
+    if puppet_scheme() {
         insert_uncontested(book, &[one_nt, two_s], two_spade_answer());
         insert_uncontested(book, &[one_nt, two_s, two_nt], two_spade_over_min());
         insert_uncontested(book, &[one_nt, two_s, three_c], two_spade_over_max());

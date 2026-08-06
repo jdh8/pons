@@ -1363,17 +1363,31 @@ pub(crate) fn compile_entries(book: &mut Trie, name: &str, entries: Vec<Entry>) 
 ///
 /// The weight ties tolerated by [`assert_package_invariants`]
 ///
-/// Empty since the per-overcall direct-seat conversion: the two clusters the
+/// It emptied at the per-overcall direct-seat conversion: the two clusters the
 /// census launched with — the Modern negative double's four
 /// `min_level_is`/`they_bid` arms and the invitational `2NT`'s cheapest/jump
 /// pair, both long-hand forms of one generic row partitioned across the
 /// `(≤2♠)` guard's auction cases — dissolved when that guard became one exact
 /// table per overcall, each column keeping a single arm.  Any new tie fails
 /// the build; a deliberate one enters here as a substring of its report line.
+///
+/// The one entry is the Stayman `2♣` partition, surfaced (not created) by the
+/// N1 port, which put [`notrump_responses`][super::american::notrump_responses]
+/// under this probe for the first time.  Four rules claim `2♣` at weight 150 —
+/// the constructive Stayman (`notrump.rs:382`), garbage Stayman's broke and
+/// weak tiers (`:468`, `:481`) and crawling Stayman (`:508`) — and the report
+/// cannot tell a redundancy from a partition, but this one is provably the
+/// latter: every pair separates on the HCP band (`8..` against `..5`, `5..8`,
+/// `..8`; `..5` against `5..8`) or on diamond length (`3+`/`4+` against `..=1`).
+/// At most one ever matches, so `Rules::explain`'s strict `>` never chooses,
+/// and all four carry `STAYMAN` in any case.  Splitting the weights instead
+/// would move the reading, which is a bidding change and not this campaign's.
 // ponytail: substring match, not a structured key — a new tie differing in
-// call, weight, or arity still fails, which is the whole job.
+// call, weight, or arity still fails, which is the whole job.  The arity is in
+// the entry deliberately: a *fifth* `2♣` rule at 150 is a new claim on the
+// partition and must come back for its own disjointness argument.
 #[cfg(test)]
-const KNOWN_WEIGHT_TIES: [&str; 0] = [];
+const KNOWN_WEIGHT_TIES: [&str; 1] = ["one-nt-base: \"P* 1NT (P)\" — 2♣ at weight 150, 4 rules"];
 
 /// Every pair of rules in one table justifying the same call at the same weight
 ///
