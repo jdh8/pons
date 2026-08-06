@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The rows port has its checklist.**
+  [docs/declarative-rows.md](docs/declarative-rows.md) gains a
+  `## Port checklist` section scoping the whole remaining tail — the six
+  American constructive files (164 verb sites + 25 `install_rkcb`) and
+  `dutch.rs` (10) — into fourteen batches N1→D1, one commit and one inertness
+  proof each.  Recorded findings: the two `Undisturbed` game backstops are the
+  tail's only non-exact sites (hatch census 7 → 9 when G1 lands) and need a
+  fan-2 builder first (G0); `defense.rs:5844` pins
+  `notrump::register_one_nt(&mut Trie)` for the 1NT-overcall graft; five key
+  sets derive from other tables' `.rules()` and stay computed `entries`
+  closures; `dutch_book()` needs its own inertness harness (D0) before its
+  port (D1).  Conversion policy: prune-free only — a pruning conversion is
+  hatched and deferred to a measured campaign.  Docs only, no code moved.
+  User impact: none.
+
 - **Escape hatches, batch 2: the cue-raise answers and the contested Cachalot
   `X`.** Opener's answer to a cue-raise (majors and minors) becomes
   `"P* 1M (ix) jx -"` — the *shared* strain letter is what makes the middle

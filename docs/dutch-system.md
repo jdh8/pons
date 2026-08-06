@@ -70,6 +70,7 @@ the floor's transfer-completion still holds.
 | 4 | Reader/floor reconciliation + divergent-opening competitive book | pending |
 | 5 | Iterate to champion vs BBA/BEN; promote if it wins | pending |
 | WJ-floor | Distil BBA-WJ as the floor over Dutch's divergent minors | **A/B A WON** (floor swap, +0.18/+0.28 plain, shipped); **A/B B LOST** (WJ over 1♦, −0.005/−0.017 PD — inherited overbid); **A/B C LOST** (WJ as *constructive* floor under 1♣, −0.012/−0.029 — nets have no settle rail); both routings removed, net kept; Phase 3's two-level rows are the remaining arm |
+| rows | Port `dutch_book()` to declarative rows — batches D0 (dutch inertness harness) and D1 | pending, tracked in [declarative-rows.md's port checklist](declarative-rows.md#port-checklist) |
 
 Each phase gates on a paired-seed A/B via `examples/bba-gen` (dutch arm vs
 american arm), dual-scored (`ns_score_pd` + `ns_score_contract`), fresh
