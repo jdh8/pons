@@ -2,10 +2,12 @@
 advance-cue 56
 both-majors 120
 choice-of-games-3nt 8
+comp:cue-raise 72
 comp:leaping-michaels 8
 comp:lebensohl-cue 8
 comp:lebensohl-relay 12
 comp:lebensohl-transfer 36
+comp:negative-double 80
 comp:stayman 4
 fourth-suit-forcing 4
 game-force 24

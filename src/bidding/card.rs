@@ -118,6 +118,14 @@ const fn not_defined() -> usize {
 /// transcription of EPBot's list, and `pons_rows_do_not_shadow_the_schema`
 /// enforces disjointness from it; there is no EPBot in `cargo test` to check
 /// against directly.
+// Alert slugs with **no possible row** (recorded per
+// `alerted_call_sites_match_the_disclosure_fixture`): `comp:negative-double`
+// and `comp:cue-raise`, the per-overcall direct-seat tables.  EPBot's schema
+// toggles *optional* conventions only; the negative double and the limit-plus
+// cue raise of their overcall are its unconditional baseline — the same
+// agreements we author — so no row exists to set and none is missing.  The
+// schema's double rows (Snapdragon, Responsive, Maximal, Support) and its
+// `Cue bid` (keycard interference) are different conventions.
 const PONS_SCHEMA: &[&str] = &["South African Texas", "Queen ask by available bid"];
 
 /// The value of a [`PONS_SCHEMA`] row under the live knob state

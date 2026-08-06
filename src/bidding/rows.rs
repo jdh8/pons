@@ -1341,32 +1341,19 @@ pub(crate) fn compile_entries(book: &mut Trie, name: &str, entries: Vec<Entry>) 
 ///   readable rules and goes unchecked here; its alerts ride on the tables it
 ///   computes from.
 ///
-/// The weight ties standing when [`weight_tie_report`] was introduced
+/// The weight ties tolerated by [`assert_package_invariants`]
 ///
-/// Two clusters, each one convention partitioned across the auction cases its
-/// row pattern spans — the long-hand form of a generic row, not a precedence
-/// bug:
-///
-/// * the Modern negative double (`competition.rs`, four arms keyed on
-///   `min_level_is`/`they_bid`, HCP floors 6/6/8/8 — the arms genuinely differ,
-///   so a merge would lose the per-overcall reading);
-/// * the invitational `2NT` (`competition.rs`, two arms with the *same* hand
-///   gate `hcp(11..=12) & stopper_in_their_suits()`, split only on whether the
-///   bid is cheapest or a jump).
-///
-/// Both clusters recur under every opening the `direct-seat` rows span, so each
-/// entry keys on the shared pattern tail and the tie's shape rather than on one
-/// opening — and on substrings, so the entries survive the line-number drift an
-/// origin-keyed list would not.  Retiring either cluster is a bidding change and
-/// wants the A/B; until then this list keeps them visible while any *new* tie
-/// fails the build.
+/// Empty since the per-overcall direct-seat conversion: the two clusters the
+/// census launched with — the Modern negative double's four
+/// `min_level_is`/`they_bid` arms and the invitational `2NT`'s cheapest/jump
+/// pair, both long-hand forms of one generic row partitioned across the
+/// `(≤2♠)` guard's auction cases — dissolved when that guard became one exact
+/// table per overcall, each column keeping a single arm.  Any new tie fails
+/// the build; a deliberate one enters here as a substring of its report line.
 // ponytail: substring match, not a structured key — a new tie differing in
 // call, weight, or arity still fails, which is the whole job.
 #[cfg(test)]
-const KNOWN_WEIGHT_TIES: [&str; 2] = [
-    "(≤2♠)\" — X at weight 100, 4 rules",
-    "(≤2♠)\" — 2NT at weight 95, 2 rules",
-];
+const KNOWN_WEIGHT_TIES: [&str; 0] = [];
 
 /// Every pair of rules in one table justifying the same call at the same weight
 ///

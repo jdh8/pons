@@ -214,6 +214,7 @@ toward 0. Cells are knob-off/knob-on; knob-off never moved during the wave.
 | D2 (wave tip) | 17/7 | 71/47 | 3/3 | 84/0 | 18/12 |
 | G | 17/**0** | 59/**0** | 3/**0** | 84/**0** | 18/**0** |
 | Points13 (2/1 gate, 2026-07-25) | **11**/0 | 59/0 | **9**/0 | 84/0 | 18/0 |
+| Direct-seat per-overcall (2026-08-06) | 11/0 | 59/0 | 9/0 | **107**/0 | 18/0 |
 
 The `Points13` row is **not a chop** — it is the shipped default flip of the
 major no-fit 2/1 gate (`hcp(13..)` → `points(13..)`, docs/bidding-options.md).
@@ -228,6 +229,19 @@ The SHCP chop adds a sixth pinned column, `suit HCP`, born **0/0** ("HCP in
 ♠" atoms against the per-suit HCP axis; the length column's "… in ♠"
 exclusion stands). Knob-off 0 is genuine but scoped: see the SHCP row's
 fallback blind spot.
+
+The `Direct-seat per-overcall` row is likewise **not a chop** — the
+`(≤2♠)` direct-seat guard became one exact table per overcall (the
+variable-rows campaign's first consumer), eval-equivalence pinned by
+`per_overcall_tables_match_legacy`.  Its 23 cue/raise rules moved from the
+fallback layer onto exact `[1x (overcall)]` nodes, where
+`partner_last_suit()` is the opening and the support-axis sniff is live:
+authored knob-off support 84 → 107, same rules, same hulls.  The mirror in
+the **fallback** census: length 28/19 → **9/0** — the retired guard's
+negative-double/free-bid arms were 19 of the knob-off leaks and the entire
+knob-on residue (the named OR-projection wall), and per column each exact
+table keeps a single arm, so the wall dissolves rather than moving.
+Re-pinned in the same commit per the ratchet's re-pin rule.
 
 G's knob-off `length` 71 → 59 is **sniffer precision, not a reading change**
 (dump diff clean): the twelve dropped entries are the eight "partner's last

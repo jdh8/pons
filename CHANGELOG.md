@@ -9,6 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The direct-seat table is one exact node per overcall — the variable rows
+  grammar's first consumer.** `over_their_overcall(opening, overcall)`
+  replaces the `(≤2♠)` `OvercallAtMost` guard: `expand("P* 1x (.x)")` emits
+  an exact table per (opening, suit overcall ≤ 2♠), plus the explicit `(1NT)`
+  column the guard also admitted; the uvu-over-majors Michaels columns are
+  yielded by the domain closure whenever that package is engaged (an exact
+  node would out-rank its same-key fallback).  The legality-anchored
+  conditions (`min_level_is`, `they_bid`) are decided at build time by
+  `cheapest`, so each column keeps a single arm and the projections tighten —
+  the retired guard's four-arm negative-double OR-wall dissolves (fallback
+  census length 28/19 → 9/0; authored support 84 → 107 as the same rules
+  become exact-walk-visible; both re-pinned with a docs/dnf-migration.md
+  ledger row), the two standing `KNOWN_WEIGHT_TIES` clusters collapse to one
+  rule per column (list now empty), and the census-exposed
+  `comp:negative-double`/`comp:cue-raise` slugs are recorded in card.rs as
+  EPBot-baseline (no schema row exists to set).  Eval-equivalence with the
+  guarded form is pinned by the retained `#[cfg(test)]` oracle
+  (`per_overcall_tables_match_legacy`: exact logit equality over the
+  shape × style × free-bids × quality knob grid, every admitted column, both
+  vulnerabilities).  **Not self-play-inert, by mechanism**: 558/20 000 seeded
+  boards move, every first divergence *downstream* of the converted node —
+  tightened readings shift the configured floor's features
+  (docs/reading-drift-handoff.md).  Measured vs BBA
+  (ab-results/rows-direct-seat, SEED_BASE 1785974772, 204 800 bd/arm/vul,
+  dual-scored): plain DD **+0.0005 ± 0.0029** (NV) / **−0.0009 ± 0.0037**
+  (vul) — wash; PD **+0.0035 ± 0.0035** (NV) / **+0.0008 ± 0.0043** (vul) —
+  a non-loss with an NV-PD lean, which ships a structural conversion.
+
 - **Variable rows: a slot-typed template grammar for the declarative book
   layer.** `rows::expand` turns one template auction string into many exact
   rows: each word is a level slot (`1`–`7` literal, `[ijkln]` binding a

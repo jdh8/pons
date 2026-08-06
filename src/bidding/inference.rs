@@ -9609,7 +9609,16 @@ mod tests {
             // never sees them — a pre-existing meter blind spot on EVERY
             // column, recorded in docs/dnf-migration.md.
             ("suit HCP", 0, 0),
-            ("support", 84, 0),
+            // 84 → 107 when the direct-seat `(≤2♠)` guard became one exact
+            // table per overcall (2026-08-06): its 23 cue/raise rules — the
+            // same rules, the same hulls — moved from the fallback layer
+            // (where this walk never saw them, and where the fallback sibling
+            // metered them under the guard-key context whose
+            // `partner_last_suit()` is `None`, sniffing no support atom) onto
+            // exact `[1x (overcall)]` nodes where the support axis is live.
+            // The knob-on column stays 0: the envelope union projects support
+            // exactly.  Ledger row in docs/dnf-migration.md.
+            ("support", 107, 0),
             ("support points", 18, 0),
         ];
         let count = |leaks: &std::collections::BTreeMap<&str, Vec<String>>, column| {
@@ -9693,7 +9702,14 @@ mod tests {
         // sibling's nine HCP-axis leaks.
         let pinned: [(&str, usize, usize); 6] = [
             ("HCP", 14, 14),
-            ("length", 28, 19),
+            // 28/19 → 9/0 when the direct-seat `(≤2♠)` guard became exact
+            // per-overcall nodes (2026-08-06) and left this walk: 19 of the
+            // knob-off leaks and the *entire* knob-on residue were its
+            // negative-double/free-bid arms — the named OR-projection wall.
+            // Per column each table keeps a single arm, so the wall does not
+            // reappear in the exact-node sibling's length row (59 holds).
+            // Ledger row in docs/dnf-migration.md.
+            ("length", 9, 0),
             ("points", 0, 0),
             ("suit HCP", 2, 0),
             ("support", 0, 0),
