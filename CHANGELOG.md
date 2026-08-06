@@ -18,6 +18,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`-` in auction strings is a pass by whoever is to act.** The
+  side-agnostic spelling for the routine passes that pad constructive
+  auctions (`Token.theirs` is now `Option<bool>`; `check_sides` asserts only
+  annotated tokens).  Explicit `P`/`(P)` stays for contested tails where
+  seat-tracking earns its parens; one spelling per package, since pattern
+  equality includes the source string.  No call sites restyled — the pilot
+  port picks it up.  User impact: none.
+
 - **The direct-seat table is one exact node per overcall — the variable rows
   grammar's first consumer.** `over_their_overcall(opening, overcall)`
   replaces the `(≤2♠)` `OvercallAtMost` guard: `expand("P* 1x (.x)")` emits

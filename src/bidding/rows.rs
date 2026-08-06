@@ -29,7 +29,12 @@
 //! Auction strings write our calls bare and their calls in parentheses —
 //! `"P* 1♥ (X)"` — and the parser checks that parenthesisation against seat
 //! alternation, so a row authored on the wrong side of the table fails at
-//! build time rather than bidding for the opponents.
+//! build time rather than bidding for the opponents.  `-` is a **pass by
+//! whoever is to act** — side-agnostic, for the routine passes that pad a
+//! constructive auction; explicit `P`/`(P)` stays worthwhile in contested
+//! tails where seat-tracking earns its parens.  Pick one spelling per
+//! package: [`Pattern`] equality includes the source string, and two
+//! spellings of one key regroup as two patterns.
 //!
 //! ## Variable rows
 //!
@@ -420,9 +425,12 @@ impl GuardSpec {
 }
 
 /// One parsed auction token: the call and whether it is theirs
+///
+/// `theirs` is [`None`] for `-`, the side-agnostic pass — it takes whichever
+/// seat its position implies and [`check_sides`] does not second-guess it.
 struct Token {
     call: Call,
-    theirs: bool,
+    theirs: Option<bool>,
 }
 
 /// Parse an auction string into tokens plus the leading `P*` fan
@@ -444,12 +452,22 @@ fn parse(source: &str) -> (Vec<Token>, usize) {
             assert_eq!(index, 0, "pattern {source:?}: P+ is only valid leading");
             panic!("pattern {source:?}: P+ is recognized but deferred — it has no consumer yet");
         }
+        if word == "-" {
+            tokens.push(Token {
+                call: Call::Pass,
+                theirs: None,
+            });
+            continue;
+        }
         let (theirs, text) = match word.strip_prefix('(').and_then(|w| w.strip_suffix(')')) {
             Some(inner) => (true, inner),
             None => (false, word),
         };
         let call = parse_call(source, word, text);
-        tokens.push(Token { call, theirs });
+        tokens.push(Token {
+            call,
+            theirs: Some(theirs),
+        });
     }
     (tokens, fan)
 }
@@ -478,9 +496,12 @@ fn parse_call(source: &str, word: &str, text: &str) -> Call {
 /// leading-pass fan shifts every index equally and cancels out.
 fn check_sides(source: &str, tokens: &[Token], our_index: usize) {
     for (index, token) in tokens.iter().enumerate() {
+        let Some(annotated) = token.theirs else {
+            continue;
+        };
         let theirs = (our_index - index) % 2 == 1;
         assert_eq!(
-            token.theirs,
+            annotated,
             theirs,
             "pattern {source:?}: call {} is {} — write theirs in parentheses, ours bare",
             token.call,
@@ -2310,5 +2331,29 @@ mod tests {
     #[should_panic(expected = "no assignment survives")]
     fn empty_expansion_panics() {
         let _ = expand("1x (P)", |_| false, |_| two_rule_table());
+    }
+
+    /// `-` is a pass by whoever is to act: the same key as the explicit
+    /// spelling, in either seat.
+    #[test]
+    fn dash_matches_either_seat() {
+        for source in ["1♥ (P)", "1♥ -"] {
+            let mut book = Trie::new();
+            compile_entries(
+                &mut book,
+                "t",
+                rows_of(Pattern::node(source), two_rule_table()),
+            );
+            assert!(book.get(&calls("1♥ P")).is_some(), "{source}");
+        }
+        for source in ["1♥ (1♠) P (P)", "1♥ (1♠) - -"] {
+            let mut book = Trie::new();
+            compile_entries(
+                &mut book,
+                "t",
+                rows_of(Pattern::node(source), two_rule_table()),
+            );
+            assert!(book.get(&calls("1♥ 1♠ P P")).is_some(), "{source}");
+        }
     }
 }
