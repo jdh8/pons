@@ -145,6 +145,27 @@ struct Args {
     #[arg(long)]
     their_wild_weak_two: bool,
 
+    /// The opponent seat's **own** `--ns-*` flags, as one quoted string, e.g.
+    /// `--their-ns "--no-ns-garbage-stayman"`
+    ///
+    /// Parsed as a second `bba-gen` command line and applied with the same
+    /// `arm_knobs` that arms ours, so the whole `--ns-*` surface is available
+    /// to the opposing seat without a mirrored flag per knob.  Requires
+    /// `--their-floor` (only a pons book has knobs), and the opponent's card is
+    /// read under these, so `--declare-opponents` discloses what they really
+    /// play.
+    #[arg(long, value_name = "FLAGS", allow_hyphen_values = true)]
+    their_ns: Option<String>,
+
+    /// Declare the opponents as playing *this* command line rather than what
+    /// `--their-ns` actually gives them — the wrong-declared arm
+    ///
+    /// Separates "reading them correctly helps" from "reading them as anything
+    /// other than ourselves helps": their book is unchanged, only the card our
+    /// net is handed moves.  Requires `--declare-opponents`.
+    #[arg(long, value_name = "FLAGS", allow_hyphen_values = true)]
+    declare_as: Option<String>,
+
     /// Blank the two opponent seats' readings on **our** side — the `blind`
     /// arm of the deviation panel.  The paired `seen − blind` score is what
     /// reading their calls is worth against one perturbed opponent.
@@ -1392,82 +1413,40 @@ fn opening_1nt(auction: &[Call], dealer: Seat) -> Option<(usize, bool)> {
     Some((index, opener_ns))
 }
 
-#[allow(clippy::too_many_lines)]
-fn main() -> anyhow::Result<()> {
-    let args = Args::parse();
-    let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());
-    // A full `.bbsa` card expands to convention overrides applied before the
-    // explicit `--*-conv` singles, so singles override the card.
-    let their_conv = match &args.their_card {
-        Some(file) => {
-            let card = load_bbsa(file)?;
-            anyhow::ensure!(
-                card.system == args.system,
-                "`{file}` is system {}; pass `--system {}` to match",
-                card.system,
-                card.system,
-            );
-            let mut conv = card.toggles;
-            conv.extend(args.their_conv.iter().cloned());
-            conv
-        }
-        None => args.their_conv.clone(),
-    };
-    let (our_system, our_conv) = match &args.our_card {
-        Some(file) => {
-            let card = load_bbsa(file)?;
-            if let Some(system) = args.our_system {
-                anyhow::ensure!(
-                    card.system == system,
-                    "`{file}` is system {}, but --our-system says {system}",
-                    card.system,
-                );
-            }
-            let mut conv = card.toggles;
-            conv.extend(args.our_conv.iter().cloned());
-            (Some(card.system), conv)
-        }
-        None => (args.our_system, args.our_conv.clone()),
-    };
-    let bba = match BbaOracle::load(&path, args.system, their_conv.clone()) {
-        Ok(bba) => bba,
-        Err(error) => {
-            eprintln!(
-                "could not load EPBot native lib at `{path}`: {error}\n\
-                 Fetch it with `git submodule update --init vendor/bba`, or set BBA_LIB."
-            );
-            std::process::exit(1);
-        }
-    };
-    // When advertising natural, the opponent bot at *our* table reads our 1NT
-    // overcalls naturally: disable its 1NT-defense conventions on top of
-    // `--their-conv`.  Used only where `ours` defends; the all-BBA reference keeps
-    // the plain `bba` (BBA's genuine Multi-Landy).
+/// Parse a `--their-ns` / `--declare-as` string as a second `bba-gen` command
+/// line
+///
+/// Whitespace-split, no quoting: every `--ns-*` flag is a bare word or a
+/// `LO:HI`-style value, so a shell-grade splitter would buy nothing.  Nesting is
+/// refused — one level of "and the opponents play…" is the whole feature.
+fn seat_args(spec: &str) -> anyhow::Result<Args> {
+    let args = Args::try_parse_from(core::iter::once("bba-gen").chain(spec.split_whitespace()))?;
     anyhow::ensure!(
-        !(args.advertise_natural && args.advertise_landy),
-        "--advertise-natural and --advertise-landy are mutually exclusive"
+        args.their_ns.is_none() && args.declare_as.is_none(),
+        "--their-ns / --declare-as do not nest"
     );
-    let bba_vs_natural = if args.advertise_natural || args.advertise_landy {
-        let mut conv = their_conv.clone();
-        // Disclose our defense by setting how the opponent bot reads us: drop every
-        // 1NT-defense convention, then (for Landy) re-enable just `Landy` so our `2♣`
-        // reads as both majors and the rest natural.
-        for name in ["Multi-Landy", "Cappelletti", "Landy"] {
-            let on = (name == "Landy" && args.advertise_landy) as c_int;
-            conv.push((CString::new(name).expect("a literal name has no NUL"), on));
-        }
-        Some(BbaOracle::load(&path, args.system, conv)?)
-    } else {
-        None
-    };
+    Ok(args)
+}
+
+/// Arm every knob one seat's `--ns-*` (and friends) describe
+///
+/// Factored out of `main` so a *second* seat can be armed the same way:
+/// `--their-ns` parses its own `Args` and this applies it, then `main`
+/// re-applies its own to restore.  Every knob here is read at book-build
+/// time, so "arm, build, re-arm" is the whole discipline.
+#[allow(clippy::too_many_lines)]
+fn arm_knobs(args: &Args) -> anyhow::Result<()> {
     // Our side: the authored floor by default, or a second EPBot card when
     // `--our-system` is given (the BBA-vs-BBA experiment).
+    // Written on both arms, not just when on: `--their-ns` arms a second seat
+    // through this function and then re-arms ours to restore, which only works
+    // if every knob here is *assigned*, never merely set.
+    pons::bidding::american::set_uvu(args.uvu);
     if args.uvu {
-        pons::bidding::american::set_uvu(true);
         pons::bidding::american::set_uvu_x_floor(args.uvu_x_floor);
         pons::bidding::american::set_uvu_cue_floor(args.uvu_cue_floor);
-        pons::bidding::instinct::set_uvu_encircle(true);
     }
+    pons::bidding::instinct::set_uvu_encircle(args.uvu);
     pons::bidding::american::set_defense_to_2d_multi(args.defense_2d_multi);
     pons::bidding::instinct::set_settle_floor(!args.no_settle_floor);
     pons::bidding::instinct::set_nt_responder_game_floor(args.ns_nt_responder_game_floor);
@@ -1721,14 +1700,26 @@ fn main() -> anyhow::Result<()> {
     // selecting a family already deselects the rest.
     let ns_defense = pons::bidding::american::NotrumpDefense::from(args.ns_notrump_defense);
     pons::bidding::american::set_notrump_defense(ns_defense);
+    // Written on every family, not only the two that widen it: this cell is
+    // shared, so leaving it alone would carry a `--their-ns` seat's widening
+    // into ours when the arm is re-armed.  `(8, 13)` is the crate default.
+    pons::bidding::american::set_unusual_notrump_defense(Some(
+        if matches!(
+            ns_defense,
+            pons::bidding::american::NotrumpDefense::DirectDont
+                | pons::bidding::american::NotrumpDefense::Meckwell
+        ) {
+            (8, 14)
+        } else {
+            (8, 13)
+        },
+    ));
     match ns_defense {
         pons::bidding::american::NotrumpDefense::DirectDont => {
-            pons::bidding::american::set_unusual_notrump_defense(Some((8, 14)));
             pons::bidding::american::set_direct_dont_one_suiter_min(args.ns_dont_one_suiter_min);
             pons::bidding::american::set_direct_dont_four_four(args.ns_dont_four_four);
         }
         pons::bidding::american::NotrumpDefense::Meckwell => {
-            pons::bidding::american::set_unusual_notrump_defense(Some((8, 14)));
             pons::bidding::american::set_meckwell_minor_major_44(args.ns_meckwell_minor_major_44);
             pons::bidding::american::set_meckwell_x_four_four(!args.ns_meckwell_x_five_four);
         }
@@ -1756,12 +1747,120 @@ fn main() -> anyhow::Result<()> {
             .and_then(|(lo, hi)| Some((lo.parse::<u8>().ok()?, hi.parse::<u8>().ok()?)))
             .ok_or_else(|| anyhow::anyhow!("--ns-landy must be LO:HI, got {spec:?}"))?;
         pons::bidding::american::set_landy(Some((lo, hi)));
+    } else {
+        pons::bidding::american::set_landy(None);
     }
     // Disclosure last: every `--ns-*` knob above moves the system, and a
     // generated card reads them.  Built here rather than beside the oracle so
     // the card cannot describe a system the run then reconfigures.
-    let bba = bba.with_opponents(disclosure(&args)?);
     pons::bidding::set_pass_exclusion_reading(args.ns_pass_exclusion);
+    Ok(())
+}
+
+#[allow(clippy::too_many_lines)]
+fn main() -> anyhow::Result<()> {
+    let args = Args::parse();
+    let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());
+    // A full `.bbsa` card expands to convention overrides applied before the
+    // explicit `--*-conv` singles, so singles override the card.
+    let their_conv = match &args.their_card {
+        Some(file) => {
+            let card = load_bbsa(file)?;
+            anyhow::ensure!(
+                card.system == args.system,
+                "`{file}` is system {}; pass `--system {}` to match",
+                card.system,
+                card.system,
+            );
+            let mut conv = card.toggles;
+            conv.extend(args.their_conv.iter().cloned());
+            conv
+        }
+        None => args.their_conv.clone(),
+    };
+    let (our_system, our_conv) = match &args.our_card {
+        Some(file) => {
+            let card = load_bbsa(file)?;
+            if let Some(system) = args.our_system {
+                anyhow::ensure!(
+                    card.system == system,
+                    "`{file}` is system {}, but --our-system says {system}",
+                    card.system,
+                );
+            }
+            let mut conv = card.toggles;
+            conv.extend(args.our_conv.iter().cloned());
+            (Some(card.system), conv)
+        }
+        None => (args.our_system, args.our_conv.clone()),
+    };
+    let bba = match BbaOracle::load(&path, args.system, their_conv.clone()) {
+        Ok(bba) => bba,
+        Err(error) => {
+            eprintln!(
+                "could not load EPBot native lib at `{path}`: {error}\n\
+                 Fetch it with `git submodule update --init vendor/bba`, or set BBA_LIB."
+            );
+            std::process::exit(1);
+        }
+    };
+    // When advertising natural, the opponent bot at *our* table reads our 1NT
+    // overcalls naturally: disable its 1NT-defense conventions on top of
+    // `--their-conv`.  Used only where `ours` defends; the all-BBA reference keeps
+    // the plain `bba` (BBA's genuine Multi-Landy).
+    anyhow::ensure!(
+        !(args.advertise_natural && args.advertise_landy),
+        "--advertise-natural and --advertise-landy are mutually exclusive"
+    );
+    let bba_vs_natural = if args.advertise_natural || args.advertise_landy {
+        let mut conv = their_conv.clone();
+        // Disclose our defense by setting how the opponent bot reads us: drop every
+        // 1NT-defense convention, then (for Landy) re-enable just `Landy` so our `2♣`
+        // reads as both majors and the rest natural.
+        for name in ["Multi-Landy", "Cappelletti", "Landy"] {
+            let on = (name == "Landy" && args.advertise_landy) as c_int;
+            conv.push((CString::new(name).expect("a literal name has no NUL"), on));
+        }
+        Some(BbaOracle::load(&path, args.system, conv)?)
+    } else {
+        None
+    };
+    arm_knobs(&args)?;
+    let bba = bba.with_opponents(disclosure(&args)?);
+    // Read under *our* armed knobs, before the opponent seat borrows the
+    // thread: this is the card whoever faces `--their-floor` is playing.
+    let our_card = floor_card(&args.our_floor)?;
+    // The opponent seat's own command line, and the one we *say* it is playing.
+    let their_ns = args.their_ns.as_deref().map(seat_args).transpose()?;
+    let declared_as = args.declare_as.as_deref().map(seat_args).transpose()?;
+    anyhow::ensure!(
+        their_ns.is_none() || args.their_floor.is_some(),
+        "--their-ns needs --their-floor: EPBot has no pons knobs to arm"
+    );
+    anyhow::ensure!(
+        declared_as.is_none() || args.declare_opponents,
+        "--declare-as moves the card handed to our net; it needs --declare-opponents"
+    );
+    /// Arm one seat's knobs, run `read`, and re-arm `restore`'s
+    ///
+    /// The `ab-kickback` idiom: every knob below is read at build time, so a
+    /// scoped set → read → reset is what lets two differently-configured books
+    /// (or cards) coexist on one thread.
+    fn under<T>(
+        seat: Option<&Args>,
+        restore: &Args,
+        read: impl FnOnce() -> anyhow::Result<T>,
+    ) -> anyhow::Result<T> {
+        match seat {
+            None => read(),
+            Some(seat) => {
+                arm_knobs(seat)?;
+                let out = read();
+                arm_knobs(restore)?;
+                out
+            }
+        }
+    }
     // Our stance reads the live knobs for both its rules and its own card, so it
     // is built here, under the same "every `--ns-*` first" rule as `disclosure`.
     // The opponents' card is a property of *their* engine, so it comes off the
@@ -1776,21 +1875,34 @@ fn main() -> anyhow::Result<()> {
         );
         let theirs = match &args.their_floor {
             // A pons opponent declares the card its own name generates — the
-            // american-vs-dutch mixed table.  Not when it is *perturbed*: no row
-            // expresses `--their-dial` or the shape-indiscipline flags, so the
-            // card would claim a system they are not playing, which is the one
-            // error the net cannot see.
+            // american-vs-dutch mixed table, and (read under `--their-ns`) any
+            // agreement the knobs can express.  What is refused is the
+            // *inexpressible* half of the deviation panel: no card row carries
+            // `--their-dial`'s strength shift, a four-card overcall style, or
+            // undisciplined weak twos, so declaring those would claim a system
+            // they are not playing — the one error the net cannot see.
+            // `--their-offshape-1nt` is expressible (two 1NT shape rows), so it
+            // rides `--their-ns`'s transaction below instead of being refused.
             Some(name) => {
                 anyhow::ensure!(
                     args.their_dial == 0
                         && !args.their_overcall_four_card
-                        && !args.their_offshape_1nt
                         && !args.their_wild_weak_two,
                     "--declare-opponents cannot describe a deviant --their-floor: \
                      no card row expresses --their-dial / --their-overcall-four-card \
-                     / --their-offshape-1nt / --their-wild-weak-two"
+                     / --their-wild-weak-two"
                 );
-                floor_card(name)?
+                // A `--declare-as` arm replaces the reading wholesale, so the
+                // real deviation rides only the honest one.  No `--ns-*` knob
+                // touches the off-shape cell, so resetting it to the crate
+                // default is exact.
+                let offshape = declared_as.is_none() && args.their_offshape_1nt;
+                under(declared_as.as_ref().or(their_ns.as_ref()), &args, || {
+                    pons::bidding::american::set_one_notrump_offshape(offshape);
+                    let card = floor_card(name);
+                    pons::bidding::american::set_one_notrump_offshape(false);
+                    card
+                })?
             }
             None => bba_vs_natural.as_ref().unwrap_or(&bba).card(),
         };
@@ -1815,19 +1927,20 @@ fn main() -> anyhow::Result<()> {
     }
     let our_floor = our_floor;
     // The deviation panel's opponent: a second pons book built under the
-    // `--their-*` deviation knobs, which are reset immediately afterwards so
-    // only this book carries them (they are read at book construction, the
-    // same discipline `--ns-*` follows above).
+    // `--their-*` deviation knobs (and its own `--ns-*`), all reset afterwards
+    // so only this book carries them — they are read at book construction, the
+    // same discipline `--ns-*` follows above.
     let their_floor = match &args.their_floor {
-        Some(name) => Some(deviant_floor(
-            name,
-            // Read under our armed knobs: the card the deviating seat faces.
-            &floor_card(&args.our_floor)?,
-            args.their_dial,
-            args.their_overcall_four_card,
-            args.their_offshape_1nt,
-            args.their_wild_weak_two,
-        )?),
+        Some(name) => Some(under(their_ns.as_ref(), &args, || {
+            deviant_floor(
+                name,
+                &our_card,
+                args.their_dial,
+                args.their_overcall_four_card,
+                args.their_offshape_1nt,
+                args.their_wild_weak_two,
+            )
+        })?),
         None => None,
     };
     // The reading channel (Phase 2b), attached here because it needs the
@@ -1885,6 +1998,9 @@ fn main() -> anyhow::Result<()> {
             if args.declare_their_book {
                 label += " [their books]";
             }
+            if let Some(spec) = &args.declare_as {
+                label += &format!(" [declared as {spec}]");
+            }
             label
         }
     };
@@ -1901,6 +2017,9 @@ fn main() -> anyhow::Result<()> {
             if on {
                 label += &format!(" [{tag}]");
             }
+        }
+        if let Some(spec) = &args.their_ns {
+            label += &format!(" [{spec}]");
         }
         label
     } else {

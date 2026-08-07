@@ -92,6 +92,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   moves for `--their-floor dutch` against an american seat (the two cards really
   do differ) and for `--their-offshape-1nt`.
 
+- **`bba-gen` can declare an opponent that plays a different agreement.**  The
+  `--declare-opponents` guard refused *any* `--their-*` deviation on the grounds
+  that no card row expresses one.  True for `--their-dial`,
+  `--their-overcall-four-card` and `--their-wild-weak-two`, which the guard still
+  refuses; false for `--their-offshape-1nt`, which owns two rows, so that one now
+  rides a scoped set → read → reset instead.  Two new flags open the rest of the
+  surface: `--their-ns "<flags>"` parses a second `bba-gen` command line and arms
+  it for the opponent seat alone (the `--ns-*` block is now `arm_knobs`, called
+  once per seat and once more to restore, so no mirrored flag per knob is
+  needed), and `--declare-as "<flags>"` hands our net a card read under a
+  *different* command line — the wrong-declared arm that separates "reading them
+  correctly helps" from "reading them as anything other than ourselves helps".
+  Three knob writes inside `arm_knobs` were non-total and are now assignments, so
+  re-arming a seat restores exactly: `set_uvu`/`set_uvu_encircle`, `set_landy`,
+  and the shared both-minors `2NT` cell (`(8, 14)` under DONT/Meckwell, the
+  crate-default `(8, 13)` otherwise).  Both new flags are inert when unset.
+
 - **Human-authored auctions now use one canonical notation:** space-delimited
   calls, `-` for every pass, and parentheses only around opponents' non-pass
   calls (`1NT - 2♣ (X) XX -`).  Compact partnership sequences now spell their
