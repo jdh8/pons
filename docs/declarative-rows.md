@@ -80,10 +80,23 @@ the test `the_default_floor_reads_the_live_card` pins. `american_with_config`
 cannot even do that much: a card claiming an agreement the rules do not play is a
 misdisclosure to the net, and nothing checks it.
 
-One consequence worth stating for scheduling: `with_floor` hardwires `instinct()`
+One consequence worth stating for scheduling: `with_floor` puts `instinct()`
 on the constructive book regardless of the floor passed, so the configured floor
 covers competitive + defensive only. The completed port was constructive, and
 did not change floor attachment.
+
+`instinct()` is itself a knob reader — `relocating_now()` picks the kickback
+answer table over the plain one, `hcp()` captures `strength_dial()` — so the
+ladder is a *third* artifact that has to be built under the same knob state as
+the book and the card. It used to be a process-wide `LazyLock` in
+`neural_floor`, frozen at the first forced classification anywhere, while
+`with_floor` gave the constructive book a fresh one; the two floors of a single
+`Pair` could therefore disagree. Since 2026-08-07 `with_floor` builds one
+`Arc<Rules>` and hands it to both, and `ConfiguredFloorBba::new` takes it. The
+scheduling point stands: **anything Phase 3 threads a config into must reach
+`instinct()` as well as `american_book()` and `american_card()`** — three
+readers, one knob state, and nothing but call-site discipline joining them until
+the config struct exists.
 
 ## Phase 2 — cross-side assembly (open)
 

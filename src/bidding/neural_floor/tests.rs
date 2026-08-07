@@ -12,7 +12,10 @@ const fn call(level: u8, strain: Strain) -> Call {
 /// knob and re-shell to assert the logits moved.
 fn shelled(auction: &[Call], hand: &str) -> Logits {
     let hand: Hand = hand.parse().expect("valid test hand");
-    let floor = ConfiguredFloorBba::new(Config::symmetric(&crate::bidding::card::american_card()));
+    let floor = ConfiguredFloorBba::new(
+        Config::symmetric(&crate::bidding::card::american_card()),
+        Arc::new(crate::bidding::instinct()),
+    );
     let context = Context::new(RelativeVulnerability::NONE, auction);
     floor.classify(hand, &context)
 }
@@ -45,13 +48,76 @@ fn the_configured_floor_reads_its_card() {
     assert_ne!(off, on, "the kickback row must reach the feature vector");
 }
 
+/// The forced rail answers off **this shell's** ladder, not a process-global
+/// one
+///
+/// [`instinct()`][crate::bidding::instinct()] reads build-time knobs of its own:
+/// `relocating_now()` installs the kickback answer table instead of the plain
+/// one.  While the ladder was a `LazyLock` static, the whole process shared
+/// whichever arm happened to classify first — so `ab-kickback`, which holds
+/// both arms at once under rayon, could answer a relocated `4♠` ask off a plain
+/// ladder, nondeterministically.  Both shells here are built in one process and
+/// must disagree.
+///
+/// `4♠` over agreed hearts asks in hearts (`kickback_answers_climb_from_four_spades`);
+/// the ambient knob stays on so `forced` opens the window for both.
+#[test]
+fn the_configured_floor_answers_off_its_own_ladder() {
+    use crate::bidding::instinct::{RkcbVariant, instinct, set_rkcb_variant};
+
+    let auction = [
+        call(1, Strain::Hearts),
+        Call::Pass,
+        call(3, Strain::Hearts),
+        Call::Pass,
+        call(4, Strain::Spades),
+        Call::Pass,
+    ];
+    let hand: Hand = "432.K765.5432.3".parse().expect("valid test hand");
+    let card = Config::symmetric(&crate::bidding::card::american_card());
+
+    set_rkcb_variant(RkcbVariant::Kickback);
+    let relocated = Arc::new(instinct());
+    set_rkcb_variant(RkcbVariant::Plain);
+    let plain = Arc::new(instinct());
+
+    // Ambient on: `forced` recognizes the relocated ask for both shells, so the
+    // only difference left is the ladder each was handed.
+    set_rkcb_variant(RkcbVariant::Kickback);
+    let context = Context::new(RelativeVulnerability::NONE, &auction);
+    let answer = |ladder: Arc<Rules>| {
+        let logits = ConfiguredFloorBba::new(card.clone(), ladder).classify(hand, &context);
+        (&logits.0)
+            .into_iter()
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))
+            .map(|(call, _)| call)
+            .expect("array is never empty")
+    };
+    let on_relocated = answer(relocated);
+    let on_plain = answer(plain);
+    set_rkcb_variant(RkcbVariant::Plain);
+
+    assert_eq!(
+        on_relocated,
+        call(4, Strain::Notrump),
+        "one keycard is step 2 above the 4♠ ask"
+    );
+    assert_ne!(
+        on_plain, on_relocated,
+        "a plain ladder has no rule on the relocated rungs"
+    );
+}
+
 /// Attaching the configured floor's card clones Context, but must retain
 /// the decision scope shared by the surrounding trie resolution.
 #[test]
 fn configured_floor_clone_reuses_the_decision_cache() {
     let auction = [call(1, Strain::Spades), Call::Pass];
     let hand: Hand = "AQ32.K53.QJ4.A92".parse().expect("valid test hand");
-    let floor = ConfiguredFloorBba::new(Config::symmetric(&crate::bidding::card::american_card()));
+    let floor = ConfiguredFloorBba::new(
+        Config::symmetric(&crate::bidding::card::american_card()),
+        Arc::new(crate::bidding::instinct()),
+    );
     let context = Context::new(RelativeVulnerability::NONE, &auction).with_decision_cache(hand);
 
     let first = floor.classify(hand, &context);

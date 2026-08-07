@@ -38,15 +38,12 @@ use super::Rules;
 use super::array::Logits;
 use super::context::Context;
 use super::features::Config;
-use super::instinct::{forced, instinct};
+use super::instinct::forced;
 use super::trie::Classifier;
 use super::{features, neural};
 use contract_bridge::Hand;
 use contract_bridge::auction::{Auction, Call};
-use std::sync::LazyLock;
-
-/// The deterministic ladder, built once; the forced path reuses it per board.
-static LADDER: LazyLock<Rules> = LazyLock::new(instinct);
+use std::sync::Arc;
 
 /// The **configured** BBA-distilled floor — the shipped floor
 ///
@@ -72,15 +69,24 @@ static LADDER: LazyLock<Rules> = LazyLock::new(instinct);
 /// this is the right granularity — and it keeps the per-decision path from
 /// reading ambient state that could silently change what a feature vector
 /// means.
+///
+/// The deterministic ladder the forced path delegates to is captured the same
+/// way, as a constructor argument rather than a process-wide `LazyLock`:
+/// [`instinct()`][super::instinct::instinct] reads build-time knobs too
+/// (`relocating_now()` picks the kickback keycard ladder over the plain one), so
+/// a process that builds two differently-knobbed pairs must not share one ladder
+/// frozen at whichever came first.
+/// `common::with_floor` builds it once per pair and gives the same `Arc` to the
+/// constructive book.
 #[derive(Clone, Debug)]
-pub struct ConfiguredFloorBba(Config);
+pub struct ConfiguredFloorBba(Config, Arc<Rules>);
 
 impl ConfiguredFloorBba {
     /// Attach the floor to one configuration cell — what each side is declared
-    /// to play
+    /// to play — over one deterministic ladder for the forced rails
     #[must_use]
-    pub const fn new(config: Config) -> Self {
-        Self(config)
+    pub const fn new(config: Config, ladder: Arc<Rules>) -> Self {
+        Self(config, ladder)
     }
 }
 
@@ -88,7 +94,7 @@ impl Classifier for ConfiguredFloorBba {
     fn classify(&self, hand: Hand, context: &Context<'_>) -> Logits {
         if forced(context) {
             // Rails: trust the deterministic floor, never the net.
-            return LADDER.classify(hand, context);
+            return self.1.classify(hand, context);
         }
         // The context arrives from the trie without a config — only this floor
         // knows the cell — so attach ours for the extractor to read.  The clone

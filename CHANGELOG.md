@@ -9,6 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The distilled floor's forced rail was frozen process-wide, not per pair.**
+  `neural_floor` held the deterministic ladder in a `static LADDER:
+  LazyLock<Rules>`, so the first forced classification anywhere in the process
+  built it — and every later `ConfiguredFloorBba`, whatever knobs *it* was built
+  under, answered forced situations from that one.  `instinct()` reads build-time
+  knobs of its own (`relocating_now()` installs `KICKBACK_ANSWERS` instead of
+  `PLAIN_ANSWERS`; `hcp()` captures `strength_dial()`), and meanwhile
+  `common::with_floor` gave the *constructive* book a fresh `instinct()` built at
+  the caller's moment — so the two floors of a single `Pair` could disagree, with
+  nothing asserting they agree.  The ladder is now an `Arc<Rules>` built once per
+  `with_floor` call and shared by the shell and the constructive book, which
+  makes the invariant structural rather than merely intended.  It bit any process
+  holding two build-time knob states at once: `ab-kickback`,
+  `probe-kickback-lane`, `dump-teacher`, `bba-gen --their-dial`/`--their-floor`,
+  and the test binary — and under rayon the winner of the race varied run to run.
+  `bba-gen` with no `--their-*` was never affected (one process per shard, all
+  `--ns-*` armed before the first classification), so the `--ns-*` A/B ledger
+  stands.  **`ConfiguredFloorBba::new` now takes the ladder** (breaking, inside
+  the `0.11.0-dev` window).  Zero extra build cost — the ladder that used to be
+  built twice is now built once.  Default system unchanged: `smoke-default`
+  still hashes `59a27d7f…`, `smoke-dutch` `956b99de…`, `render-book`
+  `01bf875f…`, `render-dutch-book` `c1bf4a15…`.  Regression guard:
+  `the_configured_floor_answers_off_its_own_ladder` builds a kickback ladder and
+  a plain one in one process and requires the two shells to answer a relocated
+  `4♠` ask differently.  Note for the kickback ledger: `ab-kickback`'s recorded
+  numbers were taken under this race, so a reopening wants a re-measure as well
+  as the claim guard and grand discipline (`docs/ai-bidder/bba-kickback.md`
+  §7.15).
+
 - **`web/` builds again, and its stale book test with it.** Two breaks, both
   from the separate workspace: `Rule::weight` became `i16` centinats and the
   browser's `RuleJson` still declared `f32`, which failed the `web` job and the

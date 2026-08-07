@@ -1521,6 +1521,22 @@ past DD, and the relocation still loses, for *named* reasons.
   §7.9's tool) is **held** until those fixes exist — probing the current
   build would measure two defects this section already names.
 
+**A third precondition, found 2026-08-07: the numbers in §7 were taken under a
+ladder race.** `neural_floor` kept the deterministic ladder in a process-wide
+`static LADDER: LazyLock<Rules>`, built at the first forced classification
+anywhere in the process — but `relocating_now()` is read at *build* time and
+selects `KICKBACK_ANSWERS` over `PLAIN_ANSWERS`. `examples/ab-kickback` holds
+both arms in one process and re-arms the knob per call, so which arm's ladder
+won the race varied run to run, and the loser's stance answered relocated asks
+off the other arm's answer table. Every other `ab-kickback`-family harness
+(`probe-kickback-lane`, `probe-kickback-yield`, `dump-teacher`) is affected the
+same way; `bba-gen` is not, since it is one process per arm with all `--ns-*`
+armed before the first classification. Fixed by making the ladder an `Arc<Rules>`
+built once per `with_floor` call and shared with the constructive book. The
+diagnosis above is not thereby overturned — the ♦ lane's eaten 4♥ and the ♣
+lane's grand blasts are mechanism findings, and the fair-cell rescore ran on
+`bba-gen` dumps — but any reopening must **re-measure**, not merely rescore.
+
 The no-ask bucket's −0.19/bd (PD-positive) remains the headline's bulk and is
 the card row perturbing the net — part of the knob's price under the
 configured-net design, but not evidence about relocation mechanics. Artifacts:

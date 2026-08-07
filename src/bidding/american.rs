@@ -225,10 +225,7 @@ pub fn american() -> Pair {
 /// cannot describe.
 #[must_use]
 pub fn american_with_config(config: super::features::Config) -> Pair {
-    with_floor(
-        american_book(),
-        super::neural_floor::ConfiguredFloorBba::new(config),
-    )
+    with_floor(american_book(), config)
 }
 
 /// The 2/1 pair with the deterministic **instinct** floor (the pre-BBA default)
@@ -269,9 +266,7 @@ pub fn american_instinct() -> Pair {
 pub fn american_floor() -> Pair {
     with_floor(
         Pair::new(Constructive::new(), Competitive::new(), Defensive::new()),
-        super::neural_floor::ConfiguredFloorBba::new(super::features::Config::symmetric(
-            &super::card::american_card(),
-        )),
+        super::features::Config::symmetric(&super::card::american_card()),
     )
 }
 

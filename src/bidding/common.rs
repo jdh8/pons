@@ -6,9 +6,10 @@
 //! system — import these from here rather than from each other.
 
 use super::fallback::{Always, Fallback, Guard};
+use super::features::Config;
 use super::instinct::instinct;
-use super::trie::Classifier;
-use super::{Pair, Trie};
+use super::neural_floor::ConfiguredFloorBba;
+use super::{Pair, Rules, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
 use std::sync::Arc;
@@ -59,31 +60,47 @@ pub(in crate::bidding) fn fallback_all_seats(
 // Floor attachment
 // ---------------------------------------------------------------------------
 
-/// Attach any classifier as the floor on a pair's contested books
+/// Attach one ladder and one contested floor to a pair's three books
 ///
 /// A root `Always` fallback on both contested books, shared through the
 /// `Fallback`'s `Arc`.  Resolution reaches the root last, so the floor never
 /// overrides an authored rule — it only catches the auctions that fall past all
-/// of them.  Generic over the floor so [`american`][super::american::american]
-/// (the BBA-distilled net) and
-/// [`american_instinct`][super::american::american_instinct] (the deterministic
-/// [`instinct`][crate::bidding::instinct()] ladder) share one wiring.
-pub(in crate::bidding) fn with_floor<C: Classifier + 'static>(mut pair: Pair, floor: C) -> Pair {
-    let contested = Fallback::classify(floor);
+/// of them.
+///
+/// Uncontested auctions never reach the contested floor, so an off-book
+/// constructive sequence would pass out below a cold game (e.g. `1♦ - 1♥ - 1NT`
+/// passed out on a balanced 16 opposite the 12–14 rebid).  The constructive
+/// book therefore gets `ladder` — the natural milestone bidder reaches game or
+/// slam on those sequences.
+///
+/// `ladder` is a parameter rather than a fresh [`instinct()`] because the
+/// contested floor needs the *same* one: [`ConfiguredFloorBba`] delegates forced
+/// situations to it, and [`instinct()`] itself reads build-time knobs
+/// (`relocating_now()` picks the kickback keycard ladder over the plain one).
+/// Two independent builds could disagree; one `Arc` cannot.
+fn with_floors(mut pair: Pair, ladder: &Arc<Rules>, contested: Fallback) -> Pair {
     pair.competitive.fallback_at(&[], Always, contested.clone());
     pair.defensive.fallback_at(&[], Always, contested);
-
-    // Uncontested auctions never reach the contested floor, so an off-book
-    // constructive sequence would pass out below a cold game (e.g. `1♦ - 1♥ - 1NT`
-    // passed out on a balanced 16 opposite the 12–14 rebid).  Floor the
-    // constructive book with the deterministic instinct ladder — the natural
-    // milestone bidder reaches game or slam on those sequences.
     pair.constructive
-        .fallback_at(&[], Always, Fallback::classify(instinct()));
+        .fallback_at(&[], Always, Fallback::Classify(ladder.clone()));
     pair
 }
 
+/// Attach the configured BBA-distilled floor to a pair's contested books
+///
+/// The shipped wiring, shared by [`american`][super::american::american] and
+/// [`dutch`][super::dutch::dutch].
+pub(in crate::bidding) fn with_floor(pair: Pair, config: Config) -> Pair {
+    let ladder = Arc::new(instinct());
+    let contested = Fallback::classify(ConfiguredFloorBba::new(config, Arc::clone(&ladder)));
+    with_floors(pair, &ladder, contested)
+}
+
 /// Attach the deterministic instinct floor to a pair's contested books
+///
+/// The fully-disclosable reference wiring: one ladder on all three books.
 pub(in crate::bidding) fn with_instinct_floor(pair: Pair) -> Pair {
-    with_floor(pair, instinct())
+    let ladder = Arc::new(instinct());
+    let contested = Fallback::Classify(ladder.clone());
+    with_floors(pair, &ladder, contested)
 }
