@@ -229,6 +229,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `set_two_over_one_major_discount` hashes identical to the default, because
     the discount is applied as `gate.hcp_floor() - discount` and the `Points*`
     limbs never evaluate it.  That arm now pairs the knob with an `Hcp` gate.
+  - **openings** — 490 lines become a 180-line index plus `one_notrump` (184),
+    `weak_two` (137) and `two_notrump` (76).  Eight cells for three agreements
+    become one block per static, each in the child that reads it; the statics
+    read *inline* through `X.with(Cell::get)` keep that form and simply move
+    with their block.  `two_notrump` is small but earns its file — it is the
+    one place the knob, the wide-minor shape and the matching `inference.rs`
+    reading are named together, and it has two out-of-directory consumers its
+    module doc now states.
+    `with_weak_twos` lifts the two `let`s, the whole `for suit` loop, the
+    per-iteration `six` closure *and* the wild arm's `continue` — the per-suit
+    combinator everyone reaches for first has nowhere to put that `continue`
+    and would change the emitted sequence.  Thirteen new sweep arms: both
+    non-default `NotrumpShape` variants, all four `WeakTwoEval` variants, and
+    the `(fifths, offshape)` corner, since `with_one_notrump` is a four-arm
+    `if / else if / else if / else` that two renders would leave half
+    untranslated.  All four hashes hold across 67 pairwise-distinct arms.
+    Two intra-doc links needed re-qualifying, both from items whose scope
+    changed under them: `openings_with` named from a child, and `fifths` named
+    from the parent, whose import left when its last two uses moved down.
 
 - **Tests now live in dedicated module files.** All inline cfg-test module
   bodies moved to naturally resolved files, with directory crate roots for the
