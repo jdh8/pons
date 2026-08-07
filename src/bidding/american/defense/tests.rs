@@ -1,3 +1,5 @@
+use super::super::tests::best;
+use super::defense_to_suit;
 use crate::bidding::american::{NotrumpDefense, american};
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::{Bid, Hand, Strain};
@@ -154,4 +156,14 @@ fn semi_balanced_boxes_match_closure() {
             "semi_balanced disagrees at {lengths:?}",
         );
     });
+}
+
+#[test]
+fn defense_doubles_with_strength() {
+    let r = defense_to_suit(Bid::new(1, Strain::Diamonds));
+    let a = [call(1, Strain::Diamonds)];
+    // 18 HCP with length in their suit still doubles (planning to bid again).
+    assert_eq!(best(&r, &a, "A.Q6.KJ852.AKJ42"), Call::Double);
+    // A light five-card major overcalls.
+    assert_eq!(best(&r, &a, "AQJ32.853.42.K92"), call(1, Strain::Spades));
 }

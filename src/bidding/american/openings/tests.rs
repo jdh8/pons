@@ -1,3 +1,5 @@
+use super::super::call;
+use super::super::tests::best;
 use super::*;
 use crate::bidding::context::Context;
 use crate::bidding::trie::Classifier;
@@ -309,4 +311,22 @@ fn two_notrump_wide_shape_drops_five_card_majors() {
             "G0 shape disagrees at {lengths:?}",
         );
     });
+}
+
+#[test]
+fn openings_pick_the_descriptive_bid() {
+    let o = openings();
+    // 16 balanced -> 1NT; 22 -> 2♣; five hearts -> 1♥; six spades, weak -> 2♠.
+    assert_eq!(best(&o, &[], "AQ32.K53.QJ4.A92"), call(1, Strain::Notrump));
+    assert_eq!(best(&o, &[], "AKQ2.AKJ.KQ4.932"), call(2, Strain::Clubs));
+    assert_eq!(best(&o, &[], "A2.KQJ53.Q42.J92"), call(1, Strain::Hearts));
+    assert_eq!(best(&o, &[], "KQJ732.53.842.92"), call(2, Strain::Spades));
+}
+
+#[test]
+fn openings_suppress_weak_twos_in_fourth_seat() {
+    // The same six-spade 6-count opens 2♠ in first seat but passes in fourth.
+    let o = openings();
+    assert_eq!(best(&o, &[], "KQJ732.53.842.92"), call(2, Strain::Spades));
+    assert_eq!(best(&o, &[Call::Pass; 3], "KQJ732.53.842.92"), Call::Pass,);
 }

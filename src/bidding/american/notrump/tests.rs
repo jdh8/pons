@@ -120,3 +120,11 @@ fn penalty_pass_over_two_clubs() {
     set_penalty_pass(None);
     assert_eq!(best(&over_dbl, opener), bid(2, Strain::Diamonds));
 }
+
+#[test]
+fn notrump_responses_transfer_and_stayman() {
+    let a = [bid(1, Strain::Notrump), Call::Pass];
+    assert_eq!(best(&a, "KJ542.Q32.K43.92"), bid(2, Strain::Hearts));
+    // Four-four in the majors takes Stayman; a 4-3 hand would Puppet (3♣).
+    assert_eq!(best(&a, "KJ54.KQ32.43.Q92"), bid(2, Strain::Clubs));
+}
