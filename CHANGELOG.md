@@ -202,6 +202,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     banner but are two of the four major asker tables, so they stay with their
     set — taking the banner at face value would have orphaned it.  Both
     campaign shas hold and all 44 sweep arms are byte-identical.
+  - **responses** — 982 lines become a 351-line index plus `two_over_one`
+    (363), `longer_major` (180), `inverted_minor` (108) and `choice_of_games`
+    (90).  Seven thread-local cells for four agreements become one cell per
+    agreement, which is the precondition
+    [docs/declarative-rows.md](docs/declarative-rows.md) records for the knob
+    migration.  Four blocks lift into `with_*` combinators and one into a row
+    producer, each called at exactly the index its block occupied.
+    Three things deliberately did **not** move.  `jacoby_box` sits between
+    `fit_split_gate` and `fit_split_boxes` but reads Jacoby `2NT`, which stays
+    in the parent — taking the three as a block would have moved a reading away
+    from its only caller.  The inverted minor raises stay welded mid-chain:
+    they carry no knob, so a combinator there would be an unconditional splice
+    buying risk and nothing else, and the child takes the continuations
+    instead.  And `with_two_over_one` owns its whole `for` loop, because the
+    heart-light branch `continue`s out of it and the weight decrement is
+    loop-carried — the per-suit shape can express neither.
+    Package count stays exactly 3, so `row_package_invariants` and the Dutch
+    book see an identical list.  This is the first batch to owe **four** hashes
+    rather than two: `dutch_book()` calls `american_book()` and overwrites only
+    eight nodes, so it inherits both tables.  All four held, plus 54
+    pairwise-distinct sweep arms byte-identical.  Ten arms are new, covering
+    every `TwoOverOneGate` variant — the lifted combinator `match`es on it, so
+    two renders would have left three limbs untranslated — and the sweep's
+    non-vacuity gate earned its keep by catching an eleventh: armed alone,
+    `set_two_over_one_major_discount` hashes identical to the default, because
+    the discount is applied as `gate.hcp_floor() - discount` and the `Points*`
+    limbs never evaluate it.  That arm now pairs the knob with an `Hcp` gate.
 
 - **Tests now live in dedicated module files.** All inline cfg-test module
   bodies moved to naturally resolved files, with directory crate roots for the
