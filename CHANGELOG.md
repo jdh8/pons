@@ -38,6 +38,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   as the claim guard and grand discipline (`docs/ai-bidder/bba-kickback.md`
   §7.15).
 
+- **The generated card never disclosed the off-shape 1NT.**  `"1NT opening shape
+  4441"` was hardcoded `0` and `"1NT opening shape 5422"` read the shape ladder
+  alone, but `set_one_notrump_offshape` admits *any* 5422 plus 4441/5431 with a
+  singleton queen or jack — so the moment that knob was armed the card claimed a
+  1NT range the rules do not play, which is the one error the net cannot see.
+  Both rows now read the knob.  `5422` is already `1` at the shipped
+  `Wide6322`, so only a `Balanced` arm moves it; the checked-in `cards/*.bbsa`
+  are unchanged and `the_checked_in_cards_match_the_generator` still passes.
+
 - **`web/` builds again, and its stale book test with it.** Two breaks, both
   from the separate workspace: `Rule::weight` became `i16` centinats and the
   browser's `RuleJson` still declared `f32`, which failed the `web` job and the

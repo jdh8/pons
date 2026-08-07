@@ -48,7 +48,8 @@ use super::american::{
     EUROPEAN, LebensohlStyle, NotrumpDefense, NotrumpShape, fourth_suit_forcing, garbage_stayman,
     jordan_truscott, landy_range, leaping_michaels_enabled, lebensohl_style, major_game_tries,
     major_support_double, new_minor_forcing, notrump_defense, notrump_minors,
-    notrump_shape_setting, nt_splinter, responsive_takeout_enabled, transfer_super_accept, xyz,
+    notrump_shape_setting, nt_splinter, one_notrump_offshape, responsive_takeout_enabled,
+    transfer_super_accept, xyz,
 };
 use super::instinct::relocating_now;
 use core::fmt;
@@ -417,7 +418,12 @@ fn american_row(name: &str) -> i32 {
         "1N-3C transfer to diamonds" => i32::from(european),
         "1N-3C Puppet Stayman" => i32::from(!european),
         "1N-3M splinter" => i32::from(nt_splinter()),
-        "1NT opening shape 5422" => i32::from(notrump_shape_setting() != NotrumpShape::Balanced),
+        // Either policy can admit the 5422: the shape ladder from `Wide` up, or
+        // the off-shape treatment on its own (which admits *any* 5422, not just
+        // the five-card-minor ones).
+        "1NT opening shape 5422" => i32::from(
+            notrump_shape_setting() != NotrumpShape::Balanced || one_notrump_offshape(),
+        ),
         "1NT opening shape 6 minor" => i32::from(notrump_shape_setting() == NotrumpShape::Wide6322),
         "Checkback" => i32::from(new_minor_forcing()),
         // `set_transfer_super_accept` is **off by default**, so we do not jump
@@ -471,8 +477,9 @@ fn american_row(name: &str) -> i32 {
         "1NT opening NT style" => 1,
         "1NT opening range 15-17" => 1,
         "1NT opening range 12-14" | "1NT opening range 13-15" | "1NT opening range 14-16" => 0,
-        // The wide shapes are 5422/6322 minors, never 4441.
-        "1NT opening shape 4441" => 0,
+        // The shape ladder's wide arms are 5422/6322 *minors*, never 4441; the
+        // off-shape treatment is what admits a 4441 (with a singleton Q/J).
+        "1NT opening shape 4441" => i32::from(one_notrump_offshape()),
         // Free bids are forcing (one round at the two level).
         "1X-(Y)-2Z forcing" => 1,
         "1X-(1Y)-2Z strong" | "1X-(1Y)-2Z weak" => 0,

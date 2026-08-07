@@ -136,13 +136,13 @@ pub(crate) use notrump::{
     crawling_stayman, garbage_stayman, notrump_minors, nt_splinter, transfer_super_accept,
 };
 pub(crate) use openings::notrump_shape;
-pub(crate) use openings::notrump_shape_setting;
 pub(crate) use openings::two_notrump_wide;
 pub use openings::{
     NotrumpShape, WeakTwoEval, openings, openings_with, set_notrump_shape, set_one_notrump_fifths,
     set_one_notrump_offshape, set_open_one_notrump, set_two_notrump_wide, set_weak_two_eval,
     set_weak_two_hcp, set_weak_two_wild,
 };
+pub(crate) use openings::{notrump_shape_setting, one_notrump_offshape};
 pub use weak_twos::{set_weak_two_longest_first, set_weak_two_major_priority};
 
 pub(crate) use raises::major_game_tries;

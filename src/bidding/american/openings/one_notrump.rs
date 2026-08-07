@@ -67,7 +67,10 @@ pub fn set_one_notrump_offshape(on: bool) {
     ONE_NOTRUMP_OFFSHAPE.with(|cell| cell.set(on));
 }
 
-fn one_notrump_offshape() -> bool {
+/// Whether the 1NT opening currently admits the off-shape hands
+/// ([`set_one_notrump_offshape`]) — read by the generated convention card as
+/// well as by the rules.
+pub(crate) fn one_notrump_offshape() -> bool {
     ONE_NOTRUMP_OFFSHAPE.with(Cell::get)
 }
 

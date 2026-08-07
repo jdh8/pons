@@ -1,5 +1,7 @@
 use super::*;
-use crate::bidding::american::{set_notrump_minors, set_nt_splinter, set_xyz};
+use crate::bidding::american::{
+    set_notrump_minors, set_notrump_shape, set_nt_splinter, set_one_notrump_offshape, set_xyz,
+};
 
 /// The checked-in cards are current
 ///
@@ -118,6 +120,24 @@ fn a_knob_moves_its_row() {
     assert_eq!(card.row("1N-3C transfer to diamonds"), Some(1));
     assert_eq!(card.row("1N-2N transfer to diamonds"), Some(0));
     set_notrump_minors(crate::bidding::american::PUPPET);
+
+    // The off-shape treatment admits *any* 5422 plus 4441/5431 with a singleton
+    // honour, so it owns two shape rows of its own — the shape ladder alone
+    // never reaches 4441.
+    set_one_notrump_offshape(false);
+    assert_eq!(american_card().row("1NT opening shape 4441"), Some(0));
+    set_one_notrump_offshape(true);
+    assert_eq!(american_card().row("1NT opening shape 4441"), Some(1));
+    set_one_notrump_offshape(false);
+
+    // 5422 is already on at the shipped `Wide6322`, so the off-shape half of
+    // that row is only visible from `Balanced`.
+    set_notrump_shape(NotrumpShape::Balanced);
+    assert_eq!(american_card().row("1NT opening shape 5422"), Some(0));
+    set_one_notrump_offshape(true);
+    assert_eq!(american_card().row("1NT opening shape 5422"), Some(1));
+    set_one_notrump_offshape(false);
+    set_notrump_shape(NotrumpShape::Wide6322);
 }
 
 #[test]
