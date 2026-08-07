@@ -19,7 +19,7 @@ phases are.
 | --- | --- |
 | Contested — `competition()` | **Done.** Nothing but `compile_into` over 21 packages; zero hand-rolled wiring. |
 | Contested — `defensive()` | **Done bar one site.** 22 packages, plus the 1NT-overcall systems-on graft, which is *permanently* imperative: `compile_into` writes rows, not a whole subtree. |
-| Constructive — ported | The American `openings.rs`, `weak_twos.rs`, `xyz.rs`, `nmf.rs`, `notrump`, `rebids` and `raises` module trees, `strong_two.rs`, `responses.rs`, and `game_force.rs`, plus both Dutch override packages. American and Dutch each have a `row_package_invariants` test. |
+| Constructive — ported | The American `weak_twos.rs`, `xyz.rs`, `nmf.rs`, `strong_two.rs`, and the `openings`, `notrump`, `rebids`, `raises`, `responses`, `game_force` and `slam` module trees, plus both Dutch override packages. American and Dutch each have a `row_package_invariants` test. |
 | RKCB | A row **producer**: `slam::rkcb_rows(prefix, trump) -> Vec<Entry>`. All 25 production callers and the three test fixtures use it directly; `install_rkcb` is retired. |
 | Phase 1.5 (floating agreements) | **Cancelled, not deferred** — see below. |
 | Phase 2 (cross-side assembly) | **Open**, restated below. Nothing exists: no `defense_vs`, no `competitive_vs`, no `Table::compose`. |
@@ -224,10 +224,21 @@ backstops landed as hatches.
 Completed: N1→N5, R1, S1, P1, G0, G1, Z1, T1, D0, D1. Phase 1 of the rows
 campaign is complete. The exact-node imperative helpers and `install_rkcb`
 have no callers and no longer exist.
-Completed notrump/rebid locations in the table are historical; commit `1c0ef51`
-subsequently split them into agreement modules, and a follow-up campaign is
-splitting the rest of the book the same way (`raises` first). A file named here
-as `<name>.rs` may now be a `<name>/` module tree; the parent keeps its path.
+All file locations in the table are historical. Commit `1c0ef51` split
+`rebids`, `notrump`, `competition` and `defense` into agreement modules, and a
+follow-up campaign finished the job for `raises`, `over_our_notrump_calls`
+(which is gone, promoted to four flat `competition/` siblings),
+`weak_two_defense`, `game_force`, `advance_rich`, `slam`, `responses` and
+`openings`. A file named here as `<name>.rs` is now usually a `<name>/` module
+tree; the parent keeps its path, so every reference above still resolves, but a
+*line* anchor into one of them does not.
+
+That campaign is the precondition for Phase 3 below: each agreement module's
+thread-locals are now exactly the contents of its config struct. It also grew
+the knob sweep from 31 arms to 67 — the extra arms are almost all
+default-**off** packages, whose rows no unarmed dump can see at all, plus one
+per variant of the three multi-arm enums (`TwoOverOneGate`, `WeakTwoEval`,
+`NotrumpShape`) that a lifted combinator `match`es on.
 
 ### The batch recipe
 

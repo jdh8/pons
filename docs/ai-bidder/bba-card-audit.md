@@ -26,20 +26,20 @@ row was flipped, summed over both values.
 | Cappelletti | 0 | 38 | natural defense to their 1NT — penalty `X` (15+ balanced) + natural two-level overcalls | `defense.rs:106` | ✅ |
 | Weak natural 2M | 1 | 36 | weak twos in both majors | `weak_twos.rs` | ✅ |
 | Raptor 1NT | 0 | 21 | natural 1NT overcall, not 4M+longer-minor | `defense.rs:8` | ✅ |
-| 1NT opening natural | 0 | 16 | our 1NT *is* natural, 15-17 balanced | `openings.rs:236` | ✅ (see below) |
+| 1NT opening natural | 0 | 16 | our 1NT *is* natural, 15-17 balanced | `openings/one_notrump.rs` | ✅ (see below) |
 | 1NT opening NT style | 1 | 16 | — paired with the row above | — | ✅ (see below) |
 | Ghestem | 0 | 14 | not authored | — | ✅ |
-| 1NT opening range 12-14 | 0 | 13 | 15-17 (that row is set, and cosmetic) | `openings.rs:236` | ✅ |
+| 1NT opening range 12-14 | 0 | 13 | 15-17 (that row is set, and cosmetic) | `openings/one_notrump.rs` | ✅ |
 | 1NT opening range 13-15 | 0 | 13 | ” | ” | ✅ |
 | 1NT opening range 14-16 | 0 | 13 | ” | ” | ✅ |
 | Michaels Cuebid | 1 | 12 | authored | `competition.rs` | ✅ |
-| 1D opening with 5 cards | 0 | 10 | better minor — `1♦` can be three cards | `openings.rs:222-231` | ✅ |
+| 1D opening with 5 cards | 0 | 10 | better minor — `1♦` can be three cards | `openings.rs` (better-minor selector) | ✅ |
 | Benjamin 2D | 0 | 10 | not authored | — | ✅ |
 | French 2D | 0 | 10 | not authored | — | ✅ |
 | Multi-Landy | 0 | 10 | `set_landy` defaults to `None` | `defense.rs:97` | ✅ |
 | Polish two suiters | 0 | 10 | not authored | — | ✅ |
 | Landy | 0 | 6 | ” | `defense.rs:97` | ✅ |
-| 1D opening with 4 cards | 0 | 4 | better minor, minimum three | `openings.rs:222-231` | ✅ |
+| 1D opening with 4 cards | 0 | 4 | better minor, minimum three | `openings.rs` (better-minor selector) | ✅ |
 | Checkback | 0 | 4 | XYZ, declared by `Two Way New Minor Forcing = 1` | `xyz.rs:1` | ✅ |
 | Garbage Stayman | 1 | 3 | on | `notrump.rs` | ✅ |
 | 1N-2N transfer to clubs | 0 | 2 | `2NT` transfers to **diamonds** | `notrump.rs` | ✅ |

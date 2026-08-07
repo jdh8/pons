@@ -248,6 +248,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     Two intra-doc links needed re-qualifying, both from items whose scope
     changed under them: `openings_with` named from a child, and `fifths` named
     from the parent, whose import left when its last two uses moved down.
+  - **over_overcall** — one agreement, but misfiled and padded.  The
+    `set_direct_3nt_stopper` and `set_natural_floor` families move to
+    `lebensohl.rs`, where their readers actually are: inside `over_overcall.rs`
+    the stopper knob was read only by `author_direct_3nt`, and that function had
+    no caller in its own file — its three call sites are in `lebensohl.rs` and
+    `rubensohl.rs`.  `over_their_overcall_legacy`, the retired 434-line oracle
+    that is `#[cfg(test)]`-only and dead in production, moves to
+    `over_overcall/legacy.rs`, taking the live file from 1 005 lines to 491.
+    The module also gains its own `tests.rs`, so the last child whose tests
+    still sat upstairs no longer does.
+  - **free_bids** — left whole (one agreement family, three styles); only the
+    retired `free_bid_answer_package_legacy` moves to `free_bids/legacy.rs`,
+    705 lines down to 530.
+  - **american/tests.rs** — 267 lines down to 120.  Seven of nine tests were
+    child-local and every destination `tests.rs` already existed, so two go to
+    `openings/`, four to `responses/`, one to `notrump/` and one to
+    `defense/`, sharing `best()` from the parent.  What stays is what is
+    genuinely cross-cutting: `row_package_invariants` and
+    `the_default_floor_reads_the_live_card`.
+
+  The campaign is complete: every book file above 500 lines is now an index
+  over agreement modules, and no agreement's knob, tables, package and tests
+  live in different places.  The measurable payoff is the precondition
+  [docs/declarative-rows.md](docs/declarative-rows.md) names for its Phase 3
+  knob migration — each module's thread-locals are now exactly the contents of
+  its config struct, where `responses.rs` alone had been holding seven cells
+  for four agreements and `openings.rs` eight for three.
+
+  The inertness harness (`examples/tmp-rows-port`) was resurrected from the
+  rows campaign for this work and is deleted again now.  It grew from 31 arms
+  to 67, and the growth was not bookkeeping: `render-book` and `smoke-default`
+  are blind to any package that ships **off**, so `set_competition_over_transfer`,
+  `set_weak_two_notrump_advances`, `set_advance_rubens`, the advance pass-yield
+  and sit gate, `set_game_backstop` and `set_weak_two_wild` each needed an
+  armed render before "both shas held" meant anything about them.  Its
+  non-vacuity gate also caught an arm that proved nothing —
+  `set_two_over_one_major_discount`, armed alone, hashes identical to the
+  default, because the discount is applied as `gate.hcp_floor() - discount` and
+  the shipped `Points13` limb never evaluates that expression.
 
 - **Tests now live in dedicated module files.** All inline cfg-test module
   bodies moved to naturally resolved files, with directory crate roots for the
