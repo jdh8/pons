@@ -65,7 +65,8 @@ pub fn set_nt_invite_inference(on: bool) {
     NT_INVITE_INFERENCE.with(|cell| cell.set(on));
 }
 
-fn nt_invite_inference() -> bool {
+/// Whether the [`set_nt_invite_inference`] knob is on
+pub fn nt_invite_inference() -> bool {
     NT_INVITE_INFERENCE.with(Cell::get)
 }
 
@@ -88,7 +89,8 @@ pub fn set_rubens_transfer_reading(on: bool) {
     RUBENS_TRANSFER_READING.with(|cell| cell.set(on));
 }
 
-fn rubens_transfer_reading() -> bool {
+/// Whether the [`set_rubens_transfer_reading`] knob is on
+pub fn rubens_transfer_reading() -> bool {
     RUBENS_TRANSFER_READING.with(Cell::get)
 }
 
@@ -396,7 +398,7 @@ pub fn set_control_bid_reading(on: bool) {
 /// Whether the control-bid reading is enabled (default on); shared with the
 /// instinct floor so the reader and the signoff rules flip together
 #[must_use]
-pub(super) fn control_bid_reading() -> bool {
+pub fn control_bid_reading() -> bool {
     CONTROL_BID_READING.with(Cell::get)
 }
 

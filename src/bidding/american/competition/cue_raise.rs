@@ -26,7 +26,7 @@ pub fn set_cue_raise_answer(on: bool) {
 }
 
 /// Whether opener's answer to a cue-raise is currently authored
-fn cue_raise_answer() -> bool {
+pub fn cue_raise_answer() -> bool {
     CUE_RAISE_ANSWER.with(Cell::get)
 }
 
@@ -48,7 +48,7 @@ pub fn set_cue_minor_raise_answer(on: bool) {
 }
 
 /// Whether opener's answer to a minor-opening cue-raise is currently authored
-fn cue_minor_raise_answer() -> bool {
+pub fn cue_minor_raise_answer() -> bool {
     CUE_MINOR_RAISE_ANSWER.with(Cell::get)
 }
 
@@ -72,7 +72,7 @@ pub fn set_delayed_cue(on: bool) {
 }
 
 /// Whether the stopper-split cue is enabled
-pub(crate) fn delayed_cue() -> bool {
+pub fn delayed_cue() -> bool {
     DELAYED_CUE.with(Cell::get)
 }
 

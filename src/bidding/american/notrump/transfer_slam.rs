@@ -32,7 +32,7 @@ pub fn set_transfer_slam_try(on: bool) {
 }
 
 /// Whether the post-transfer slam try is currently authored
-pub(super) fn transfer_slam_try() -> bool {
+pub fn transfer_slam_try() -> bool {
     TRANSFER_SLAM_TRY.with(Cell::get)
 }
 

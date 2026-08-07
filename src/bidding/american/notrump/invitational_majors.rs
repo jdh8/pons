@@ -37,7 +37,7 @@ pub fn set_invitational_5card_majors(on: bool) {
 /// Whether the invitational 5-4-majors structure is currently authored (read at
 /// book construction to gate the reroute, the Stayman 2♠ rebids, and the
 /// heart-transfer invitational node)
-pub(super) fn invitational_5card_majors() -> bool {
+pub fn invitational_5card_majors() -> bool {
     INVITATIONAL_5CARD_MAJORS.with(Cell::get)
 }
 

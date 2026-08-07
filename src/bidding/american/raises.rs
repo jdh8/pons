@@ -57,3 +57,4 @@ pub(super) fn register(book: &mut Trie) {
 
 #[cfg(test)]
 mod tests;
+pub use limit_raise::limit_raise_acceptance;

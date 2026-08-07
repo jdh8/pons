@@ -32,7 +32,7 @@ pub fn set_texas_slam_drive(on: bool) {
 }
 
 /// Whether the Texas slam-drive reroute is currently authored
-pub(super) fn texas_slam_drive() -> bool {
+pub fn texas_slam_drive() -> bool {
     TEXAS_SLAM_DRIVE.with(Cell::get)
 }
 

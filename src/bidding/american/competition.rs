@@ -80,14 +80,14 @@ use support_double::support_double_package;
 use two_suiters::uvu_over_majors_package;
 use uvu::uvu_package;
 
-pub(super) use cue_raise::delayed_cue;
+pub use cue_raise::delayed_cue;
 pub use cue_raise::{set_cue_minor_raise_answer, set_cue_raise_answer, set_delayed_cue};
 pub use free_bids::{
     FreeBidStyle, set_free_1nt_floor, set_free_bid_floor, set_free_bid_quality, set_free_bid_style,
     set_free_bids,
 };
 pub use high_overcall::set_high_overcall_responses;
-pub(crate) use lebensohl::lebensohl_style;
+pub use lebensohl::lebensohl_style;
 pub use lebensohl::{
     LebensohlStyle, set_defense_to_2d_multi, set_direct_3nt_stopper, set_lebensohl_style,
     set_natural_floor,
@@ -101,7 +101,7 @@ pub use over_our_diamond_transfer::set_competition_over_diamond_transfer;
 pub use over_our_jacoby::set_competition_over_transfer;
 pub use over_our_minor_transfer::set_competition_over_minor_transfer;
 pub use over_our_stayman::set_competition_over_stayman;
-pub(crate) use over_their_double::jordan_truscott;
+pub use over_their_double::jordan_truscott;
 pub use over_their_double::{set_jordan_truscott, set_redouble_answer, set_splinter_doubled};
 pub use penalty_double::{
     DoubleStyle, set_double_override, set_double_style, set_penalty_double_leave_in,
@@ -114,7 +114,7 @@ pub(super) use rubensohl::{
     stayman_2d_fit_rebid, transfer_completion, transfer_lebensohl_responder,
     transfer_stayman_2d_responder, transfer_target,
 };
-pub(crate) use support_double::major_support_double;
+pub use support_double::major_support_double;
 pub use support_double::set_major_support_double;
 pub use two_suiters::set_uvu_over_majors;
 pub use uvu::{set_uvu, set_uvu_cue_floor, set_uvu_natural_floor, set_uvu_x_floor};
@@ -347,3 +347,15 @@ pub fn competition() -> Competitive {
 
 #[cfg(test)]
 mod tests;
+pub use cue_raise::cue_minor_raise_answer;
+pub use cue_raise::cue_raise_answer;
+pub use high_overcall::high_overcall_responses;
+pub use lebensohl::defense_to_2d_multi;
+pub use lebensohl::direct_3nt_stopper;
+pub use negative_double::negative_double_shape;
+pub use over_our_diamond_transfer::competition_over_diamond_transfer;
+pub use over_our_minor_transfer::competition_over_minor_transfer;
+pub use over_our_stayman::competition_over_stayman;
+pub use over_their_double::splinter_doubled;
+pub use two_suiters::uvu_over_majors;
+pub use uvu::uvu;

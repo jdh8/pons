@@ -28,7 +28,7 @@ pub fn set_leaping_michaels(on: bool) {
 ///
 /// Crate-visible so the inference projection pass can condition partner's hand on
 /// the two-suiter when the search bidder samples (see `inference::authored_reading`).
-pub(crate) fn leaping_michaels_enabled() -> bool {
+pub fn leaping_michaels_enabled() -> bool {
     LEAPING_MICHAELS.with(Cell::get)
 }
 

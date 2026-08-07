@@ -65,7 +65,8 @@ fn direct_dont_x_floor() -> u8 {
     }
 }
 
-fn direct_dont_four_four() -> bool {
+/// Whether the [`set_direct_dont_four_four`] knob is on
+pub fn direct_dont_four_four() -> bool {
     DIRECT_DONT_FOUR_FOUR.with(Cell::get)
 }
 

@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **A public reader for every knob the web UI can set** — 69 registry-backed
+  getters are now `pub` (`american::garbage_stayman`, `instinct::floor_rkcb`,
+  `inference::rule_accept_enabled`, …).  221 `pub set_*` with no readers made
+  the knob API write-only: a library caller could set a knob and never ask what
+  it held, and every harness wanting to log its own configuration had to track
+  it out-of-band.  50 of the 69 already had a reader and only needed widening;
+  12 had none at all — their cell was read inline at the use site — and were
+  written.  Where the plain name was already taken by a rule *builder*
+  (`settle_floor()` returns a `Cons`, not a `bool`), the reader takes the
+  `_enabled` suffix the `defense/` module already used, so
+  `instinct::settle_floor_enabled` reads the knob and `settle_floor` still
+  builds the rule.  Inert: `smoke-default` (20 000 boards) and `render-book`
+  both byte-identical vs `230209d`.
+
+- `registry_defaults_match_the_engine` and
+  `every_registry_getter_observes_its_own_setter` in `web` — the first asserts
+  each `SETTINGS` row's `default` equals the engine's `Cell::new(...)`, the
+  second that each row's getter moves when *its own* setter is written.  The
+  web registry had no automatic sync to the engine and three defaults had
+  silently contradicted it (`rich_advance_double`, `rubens_advances`,
+  `fuzzy_fifths`); `app.js` stores only deltas against these values and the
+  reset button pushes them into the engine, so a drifted row rebids the board.
+  The second test exists because the first cannot see a getter wired to the
+  wrong cell — the getters were generated mechanically against a cell name, and
+  `penalize_escape_stack`/`penalize_escape_values` are adjacent, identically
+  defaulted and one letter apart.  Both run in under a millisecond.
+
+  A sampling form was built first and **rejected on measurement**: bidding 400
+  boards and diffing the auctions before and after pushing every default.
+  Flipping each row in turn, **32 of 69 never moved an auction in 600 boards** —
+  the slam tries, the runouts, the Stayman follow-ups and the whole inference
+  block need a specific auction that random deals rarely produce.  It missed
+  `rubens_advances`, one of the three real drifts, and cost 210 s of CI to miss
+  it.  Reading the cell back is exact, total, and instant.
+
 ### Measured
 
 - **Correcting a card row we get wrong costs −0.015 IMPs/board, so the fix is a

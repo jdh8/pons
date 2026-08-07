@@ -27,7 +27,7 @@ pub fn set_advance_rubens(on: bool) {
 }
 
 /// Whether the jump-cue Rubens transfer layer is currently authored
-pub(super) fn advance_rubens_enabled() -> bool {
+pub fn advance_rubens_enabled() -> bool {
     ADVANCE_RUBENS.with(Cell::get)
 }
 

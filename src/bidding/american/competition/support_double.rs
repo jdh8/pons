@@ -25,7 +25,7 @@ pub fn set_major_support_double(on: bool) {
 }
 
 /// Whether the major-major support double is engaged
-pub(crate) fn major_support_double() -> bool {
+pub fn major_support_double() -> bool {
     MAJOR_SUPPORT_DOUBLE.with(Cell::get)
 }
 

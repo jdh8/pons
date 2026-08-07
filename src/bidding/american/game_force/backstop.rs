@@ -39,7 +39,8 @@ pub fn set_game_backstop(on: bool) {
     GAME_BACKSTOP.with(|cell| cell.set(on));
 }
 
-fn game_backstop_enabled() -> bool {
+/// Whether the [`set_game_backstop`] knob is on
+pub fn game_backstop_enabled() -> bool {
     GAME_BACKSTOP.with(Cell::get)
 }
 

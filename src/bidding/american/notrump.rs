@@ -53,7 +53,7 @@ mod two_notrump;
 
 use crawling_stayman::crawling_stayman_rule;
 use european::european_minors;
-use invitational_majors::invitational_5card_majors;
+pub use invitational_majors::invitational_5card_majors;
 use long_minor::long_minor_force_rule;
 use minor_transfers::puppet_minors;
 use size_ask::size_ask_eight_pass;
@@ -63,18 +63,17 @@ use stayman::{
     stayman_major_rebid, stayman_no_major_rebid,
 };
 use stayman_slam::stayman_slam_try_answer;
-use texas::{texas_slam_drive, texas_strength_gate};
+use texas::texas_strength_gate;
 use transfer_gf::{
     equal_majors, longer_major, major_splinter_reroute, not_major_splinter_slam, slam_55_reroute,
-    transfer_gf_majors,
 };
-use transfers::transfer_longer_major;
+pub use transfers::transfer_longer_major;
 use two_notrump::quantitative_answer;
 
 pub(super) use both_majors::{both_majors_relay, both_majors_three_diamond, five_card_max};
 pub use both_majors::{set_stayman_5card_max, set_stayman_both_majors};
 pub(super) use crawling_stayman::crawling;
-pub(crate) use crawling_stayman::crawling_stayman;
+pub use crawling_stayman::crawling_stayman;
 pub use crawling_stayman::set_crawling_stayman;
 pub(super) use european::{european_three_club, european_two_notrump, european_two_spade};
 pub(super) use invitational_majors::invitational_majors;
@@ -86,9 +85,9 @@ pub(super) use sixcard_invitation::sixcard_invite;
 pub use sixcard_invitation::{set_sixcard_accept_floor, set_sixcard_invite_floor};
 pub use size_ask::{SizeAskEight, set_size_ask_accept_floor, set_size_ask_eight};
 pub(super) use splinter::notrump_splinter;
-pub(crate) use splinter::nt_splinter;
+pub use splinter::nt_splinter;
 pub use splinter::{set_nt_splinter, set_nt_splinter_floor};
-pub(crate) use stayman::garbage_stayman;
+pub use stayman::garbage_stayman;
 pub use stayman::{set_garbage_stayman, set_stayman_net_force};
 pub(super) use stayman::{smolen_at_three, smolen_completion, stayman_answers};
 pub(super) use stayman_slam::{cue, minor_slam};
@@ -99,7 +98,7 @@ pub(super) use transfer_gf::{heart_transfer_game_force, spade_transfer_game_forc
 pub use transfer_gf::{set_minor_min_to_3nt, set_transfer_gf_hearts, set_transfer_gf_majors};
 pub use transfer_slam::set_transfer_slam_try;
 pub(super) use transfer_slam::{heart_transfer_slam_try, spade_transfer_slam_try};
-pub(crate) use transfers::transfer_super_accept;
+pub use transfers::transfer_super_accept;
 pub(super) use transfers::{complete_transfer, heart_transfer_rebids, spade_transfer_rebids};
 pub use transfers::{set_transfer_longer_major, set_transfer_super_accept};
 pub(super) use two_notrump::{two_notrump_rebids, two_notrump_structure};
@@ -156,7 +155,7 @@ pub fn set_notrump_minors(variant: Alert) {
 ///
 /// Read both at book construction (to gate `2♠`/`2NT`/`3♣` and their
 /// continuations) and by the inference engine (to read the artificial calls).
-pub(crate) fn notrump_minors() -> Alert {
+pub fn notrump_minors() -> Alert {
     NOTRUMP_MINORS.with(Cell::get)
 }
 
@@ -584,3 +583,11 @@ pub(super) fn register_two_nt_and_rebids(book: &mut Trie) {
 
 #[cfg(test)]
 mod tests;
+pub use both_majors::stayman_5card_max;
+pub use both_majors::stayman_both_majors;
+pub use stayman_slam::stayman_cue_continuation;
+pub use stayman_slam::stayman_minor_slam_try;
+pub use texas::texas_slam_drive;
+pub use transfer_gf::transfer_gf_hearts;
+pub use transfer_gf::transfer_gf_majors;
+pub use transfer_slam::transfer_slam_try;

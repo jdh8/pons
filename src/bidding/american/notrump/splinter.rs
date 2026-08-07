@@ -170,7 +170,7 @@ pub fn set_nt_splinter_floor(floor: u8) {
 
 /// Whether responder's `3♥`/`3♠` splinter over 1NT is currently authored (read
 /// by the inference engine too, to decode the call off its alert)
-pub(crate) fn nt_splinter() -> bool {
+pub fn nt_splinter() -> bool {
     NT_SPLINTER.with(Cell::get)
 }
 

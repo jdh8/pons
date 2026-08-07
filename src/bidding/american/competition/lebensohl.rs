@@ -88,7 +88,7 @@ pub fn set_direct_3nt_stopper(on: bool) {
 }
 
 /// Whether a direct `3NT` requires responder's own stopper in their suit
-fn direct_3nt_stopper() -> bool {
+pub fn direct_3nt_stopper() -> bool {
     DIRECT_3NT_STOPPER.with(Cell::get)
 }
 
@@ -168,7 +168,7 @@ pub fn set_lebensohl_style(style: LebensohlStyle) {
 }
 
 /// The currently selected Lebensohl package
-pub(crate) fn lebensohl_style() -> LebensohlStyle {
+pub fn lebensohl_style() -> LebensohlStyle {
     LEBENSOHL_STYLE.with(Cell::get)
 }
 
@@ -191,6 +191,11 @@ thread_local! {
 /// against BBA, whose `2♦` over our `1NT` is always a Multi.
 pub fn set_defense_to_2d_multi(on: bool) {
     DEFENSE_2D_MULTI.with(|cell| cell.set(on));
+}
+
+/// Whether the [`set_defense_to_2d_multi`] knob is on
+pub fn defense_to_2d_multi() -> bool {
+    DEFENSE_2D_MULTI.with(Cell::get)
 }
 
 /// Whether the `(2♦)`-as-Multi counter-defense is engaged

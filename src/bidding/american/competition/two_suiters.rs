@@ -36,7 +36,7 @@ pub fn set_uvu_over_majors(on: bool) {
 }
 
 /// Whether the two-suiters-over-our-1M package is authored (book construction)
-pub(crate) fn uvu_over_majors() -> bool {
+pub fn uvu_over_majors() -> bool {
     UVU_OVER_MAJORS.with(Cell::get)
 }
 

@@ -289,3 +289,5 @@ pub(super) fn register(book: &mut Trie) {
         ],
     );
 }
+pub use backstop::game_backstop_enabled;
+pub use second_suit::second_suit_agreement;

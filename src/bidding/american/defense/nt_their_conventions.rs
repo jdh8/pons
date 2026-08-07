@@ -51,7 +51,7 @@ fn stayman_defense_overcall() -> (usize, u8) {
 }
 
 /// Whether the defense to their 2♣ Stayman is currently authored
-fn stayman_defense_enabled() -> bool {
+pub fn stayman_defense_enabled() -> bool {
     STAYMAN_DEFENSE.with(Cell::get)
 }
 
@@ -79,7 +79,7 @@ pub fn set_transfer_defense(on: bool) {
 }
 
 /// Whether the defense to their Jacoby transfers is currently authored
-fn transfer_defense_enabled() -> bool {
+pub fn transfer_defense_enabled() -> bool {
     TRANSFER_DEFENSE.with(Cell::get)
 }
 
@@ -106,7 +106,7 @@ pub fn set_minor_transfer_defense(on: bool) {
 }
 
 /// Whether the defense to their two-way 2♠ minor response is currently authored
-fn minor_transfer_defense_enabled() -> bool {
+pub fn minor_transfer_defense_enabled() -> bool {
     MINOR_TRANSFER_DEFENSE.with(Cell::get)
 }
 

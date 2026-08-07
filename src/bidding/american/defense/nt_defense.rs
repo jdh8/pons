@@ -87,7 +87,7 @@ pub fn set_notrump_defense(system: NotrumpDefense) {
 }
 
 /// The mutually-exclusive 1NT defense currently selected
-pub(crate) fn notrump_defense() -> NotrumpDefense {
+pub fn notrump_defense() -> NotrumpDefense {
     NOTRUMP_DEFENSE.with(Cell::get)
 }
 

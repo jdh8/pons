@@ -94,13 +94,13 @@ pub use advance_minor_jump::set_advance_minor_jump;
 pub use advance_rich::{set_advance_sit_hcp_gate, set_rich_advance_double};
 pub use advance_rubens::set_advance_rubens;
 pub use advance_sohl::set_advance_sohl_style;
-pub(crate) use gladiator::{nt_overcall_gladiator, nt_overcall_systems_on};
+pub(crate) use gladiator::nt_overcall_systems_on;
 pub use gladiator::{set_nt_overcall_gladiator, set_nt_overcall_systems_on};
-pub(crate) use leaping_michaels::leaping_michaels_enabled;
+pub use leaping_michaels::leaping_michaels_enabled;
 pub use leaping_michaels::set_leaping_michaels;
 pub use michaels::{set_two_suiter_hcp_floor, set_unusual_notrump_defense};
+pub(crate) use nt_defense::natural_defense_enabled;
 pub use nt_defense::{NotrumpDefense, set_notrump_balancing, set_notrump_defense};
-pub(crate) use nt_defense::{natural_defense_enabled, notrump_defense};
 pub(crate) use nt_dont::direct_dont_enabled;
 pub use nt_dont::{
     set_direct_dont_four_four, set_direct_dont_one_suiter_min, set_direct_dont_x_floor,
@@ -128,7 +128,7 @@ pub use overcall::{
     set_two_level_minor_overcall_tight,
 };
 pub(crate) use overcall::{natural_double_floor, natural_overcall_points};
-pub(crate) use responsive::responsive_takeout_enabled;
+pub use responsive::responsive_takeout_enabled;
 pub use responsive::{set_responsive_overcall, set_responsive_takeout};
 pub use weak_two_defense::{
     defense_to_weak_two, set_weak_two_cue, set_weak_two_jump_overcall, set_weak_two_notrump_points,
@@ -462,3 +462,13 @@ pub fn defensive() -> Defensive {
 
 #[cfg(test)]
 mod tests;
+pub use advance_rich::rich_advance_double_enabled;
+pub use advance_rubens::advance_rubens_enabled;
+pub use advance_sohl::advance_sohl_style;
+pub use gladiator::nt_overcall_gladiator;
+pub use nt_defense::notrump_defense;
+pub use nt_dont::direct_dont_four_four;
+pub use nt_their_conventions::minor_transfer_defense_enabled;
+pub use nt_their_conventions::stayman_defense_enabled;
+pub use nt_their_conventions::transfer_defense_enabled;
+pub use overcall::passed_hand_overcall;

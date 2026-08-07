@@ -41,7 +41,7 @@ pub fn set_competition_over_diamond_transfer(on: bool) {
 }
 
 /// Whether competition over our 2NT diamond transfer is currently authored
-fn competition_over_diamond_transfer() -> bool {
+pub fn competition_over_diamond_transfer() -> bool {
     COMPETITION_OVER_DIAMOND_TRANSFER.with(Cell::get)
 }
 

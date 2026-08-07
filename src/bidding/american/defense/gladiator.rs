@@ -61,7 +61,7 @@ pub fn set_nt_overcall_gladiator(on: bool) {
 }
 
 /// Whether Gladiator advances replace the major-opening systems-on graft
-pub(crate) fn nt_overcall_gladiator() -> bool {
+pub fn nt_overcall_gladiator() -> bool {
     NT_OVERCALL_GLADIATOR.with(Cell::get)
 }
 

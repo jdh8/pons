@@ -31,7 +31,7 @@ pub use one_notrump::{
 pub use two_notrump::set_two_notrump_wide;
 pub use weak_two::{WeakTwoEval, set_weak_two_eval, set_weak_two_hcp, set_weak_two_wild};
 
-pub(crate) use one_notrump::{notrump_shape, notrump_shape_setting, one_notrump_offshape};
+pub(crate) use one_notrump::{notrump_shape, one_notrump_offshape};
 pub(crate) use two_notrump::{two_notrump_wide, two_notrump_wide_shape};
 
 /// The strong, artificial `2♣` opening (22+) — the only artificial opening
@@ -179,3 +179,5 @@ pub(super) fn register(book: &mut Trie) {
 
 #[cfg(test)]
 mod tests;
+pub use one_notrump::notrump_shape_setting;
+pub use one_notrump::open_one_notrump;

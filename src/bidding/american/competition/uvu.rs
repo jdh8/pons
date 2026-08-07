@@ -38,7 +38,7 @@ pub fn set_uvu(on: bool) {
 }
 
 /// Whether the Unusual-vs-Unusual `(2NT)` structure is enabled
-pub(super) fn uvu() -> bool {
+pub fn uvu() -> bool {
     UVU.with(Cell::get)
 }
 

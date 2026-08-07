@@ -2,7 +2,7 @@ use super::super::tests::{P, best, bid};
 use contract_bridge::Strain;
 
 #[test]
-fn stayman_minor_slam_try() {
+pub fn stayman_minor_slam_try() {
     use crate::bidding::american::set_stayman_minor_slam_try;
     set_stayman_minor_slam_try(true);
 

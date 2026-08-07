@@ -53,7 +53,7 @@ pub fn set_crawling_stayman(on: bool) {
 
 /// Whether Crawling Stayman is currently authored (read by the inference engine
 /// too, to widen the 2♣ point range it reads)
-pub(crate) fn crawling_stayman() -> bool {
+pub fn crawling_stayman() -> bool {
     CRAWLING_STAYMAN.with(Cell::get)
 }
 

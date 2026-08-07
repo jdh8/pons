@@ -135,7 +135,7 @@ pub fn set_garbage_stayman(on: bool) {
 
 /// Whether garbage Stayman is currently authored (read by the inference engine
 /// too, to widen the 2♣ point range it reads)
-pub(crate) fn garbage_stayman() -> bool {
+pub fn garbage_stayman() -> bool {
     GARBAGE_STAYMAN.with(Cell::get)
 }
 

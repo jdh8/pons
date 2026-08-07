@@ -127,12 +127,12 @@ pub fn set_stayman_5card_max(on: bool) {
 }
 
 /// Whether opener's both-majors max-only relay is currently authored
-pub(super) fn stayman_both_majors() -> bool {
+pub fn stayman_both_majors() -> bool {
     STAYMAN_BOTH_MAJORS.with(Cell::get)
 }
 
 /// Whether opener's max five-card-major jump is currently authored
-pub(super) fn stayman_5card_max() -> bool {
+pub fn stayman_5card_max() -> bool {
     STAYMAN_5CARD_MAX.with(Cell::get)
 }
 

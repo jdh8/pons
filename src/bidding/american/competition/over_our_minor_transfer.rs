@@ -38,7 +38,7 @@ pub fn set_competition_over_minor_transfer(on: bool) {
 }
 
 /// Whether competition over our two-way 2♠ minor response is currently authored
-fn competition_over_minor_transfer() -> bool {
+pub fn competition_over_minor_transfer() -> bool {
     COMPETITION_OVER_MINOR_TRANSFER.with(Cell::get)
 }
 

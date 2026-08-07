@@ -24,7 +24,7 @@ pub fn set_high_overcall_responses(on: bool) {
 }
 
 /// Whether the 3-level-overcall package is engaged
-fn high_overcall_responses() -> bool {
+pub fn high_overcall_responses() -> bool {
     HIGH_OVERCALL_RESPONSES.with(Cell::get)
 }
 

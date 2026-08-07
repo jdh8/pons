@@ -41,6 +41,11 @@ pub fn set_open_one_notrump(on: bool) {
     OPEN_ONE_NOTRUMP.with(|cell| cell.set(on));
 }
 
+/// Whether the [`set_open_one_notrump`] knob is on
+pub fn open_one_notrump() -> bool {
+    OPEN_ONE_NOTRUMP.with(Cell::get)
+}
+
 /// Restore the legacy fifths strength gauge for the 1NT opening (`true`); the
 /// default (`false`) gauges plain HCP 15-17, which opens 1NT a touch more often.
 pub fn set_one_notrump_fifths(on: bool) {
@@ -57,7 +62,7 @@ pub fn set_notrump_shape(shape: NotrumpShape) {
 }
 
 /// The 1NT opening shape currently selected by [`set_notrump_shape`].
-pub(crate) fn notrump_shape_setting() -> NotrumpShape {
+pub fn notrump_shape_setting() -> NotrumpShape {
     NOTRUMP_SHAPE.with(Cell::get)
 }
 

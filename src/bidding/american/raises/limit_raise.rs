@@ -23,7 +23,7 @@ pub fn set_limit_raise_acceptance(on: bool) {
 }
 
 /// Whether limit-raise acceptance is currently authored
-fn limit_raise_acceptance() -> bool {
+pub fn limit_raise_acceptance() -> bool {
     LIMIT_RAISE_ACCEPTANCE.with(Cell::get)
 }
 

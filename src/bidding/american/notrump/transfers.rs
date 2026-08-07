@@ -34,7 +34,7 @@ pub fn set_transfer_super_accept(on: bool) {
 }
 
 /// Whether the jump super-accept is currently authored
-pub(crate) fn transfer_super_accept() -> bool {
+pub fn transfer_super_accept() -> bool {
     TRANSFER_SUPER_ACCEPT.with(Cell::get)
 }
 
@@ -66,7 +66,7 @@ pub fn set_transfer_longer_major(on: bool) {
 
 /// Whether the longer-major transfer discipline is currently authored (read at
 /// book construction)
-pub(super) fn transfer_longer_major() -> bool {
+pub fn transfer_longer_major() -> bool {
     TRANSFER_LONGER_MAJOR.with(Cell::get)
 }
 

@@ -38,7 +38,7 @@ pub fn set_stayman_cue_continuation(on: bool) {
 }
 
 /// Whether responder's `3OM`-cue continuation is currently authored
-fn stayman_cue_continuation() -> bool {
+pub fn stayman_cue_continuation() -> bool {
     STAYMAN_CUE_CONTINUATION.with(Cell::get)
 }
 
@@ -53,7 +53,7 @@ pub fn set_stayman_minor_slam_try(on: bool) {
 }
 
 /// Whether the Stayman-then-minor slam try is currently authored
-pub(super) fn stayman_minor_slam_try() -> bool {
+pub fn stayman_minor_slam_try() -> bool {
     STAYMAN_MINOR_SLAM_TRY.with(Cell::get)
 }
 

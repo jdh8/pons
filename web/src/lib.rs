@@ -861,6 +861,10 @@ enum Setting {
         requires: Requires,
         #[serde(skip)]
         set: fn(bool),
+        /// Reads the engine cell `set` writes, so a test can prove `default`
+        /// still mirrors it.  See `registry_defaults_match_the_engine`.
+        #[serde(skip)]
+        get: fn() -> bool,
     },
     /// A mutually-exclusive family, rendered as radio buttons.  Exactly one variant
     /// is active; the engine backs it with a single enum (e.g. [`NotrumpDefense`]).
@@ -877,6 +881,10 @@ enum Setting {
         requires: Requires,
         #[serde(skip)]
         set: fn(&str),
+        /// The `value` of the variant the engine currently holds.  See
+        /// [`Setting::Toggle::get`].
+        #[serde(skip)]
+        get: fn() -> &'static str,
     },
 }
 
@@ -910,6 +918,7 @@ const fn toggle(
     label: &'static str,
     default: bool,
     set: fn(bool),
+    get: fn() -> bool,
 ) -> Setting {
     Setting::Toggle {
         key,
@@ -918,6 +927,7 @@ const fn toggle(
         default,
         requires: None,
         set,
+        get,
     }
 }
 
@@ -929,6 +939,7 @@ const fn gated(
     label: &'static str,
     default: bool,
     set: fn(bool),
+    get: fn() -> bool,
     requires: &'static str,
 ) -> Setting {
     Setting::Toggle {
@@ -938,6 +949,7 @@ const fn gated(
         default,
         requires: Some(requires),
         set,
+        get,
     }
 }
 
@@ -990,6 +1002,23 @@ fn set_notrump_defense_choice(value: &str) {
     });
 }
 
+/// The 1NT defense the engine currently holds, as its registry `value`.
+///
+/// `DirectLandy` round-trips even though `set_notrump_defense_choice` reaches it
+/// through `set_direct_landy_double` — that setter selects the variant too, so
+/// the one cell answers for both.  Variants with no registry row read as the
+/// default, which is what the radio group can display.
+fn get_notrump_defense_choice() -> &'static str {
+    use american::NotrumpDefense;
+    match american::notrump_defense() {
+        NotrumpDefense::DirectDont => "direct_dont",
+        NotrumpDefense::Woolsey => "woolsey",
+        NotrumpDefense::AlwaysPass => "always_pass",
+        NotrumpDefense::DirectLandy => "direct_landy",
+        _ => "natural",
+    }
+}
+
 /// The 1NT opening shape family — variants map onto `american::NotrumpShape`.
 /// Each widens the one before it: balanced only, then also a 5422 with a
 /// five-card minor, then also a 6322 with a six-card minor (the shipped default).
@@ -1016,6 +1045,16 @@ fn set_notrump_shape_choice(value: &str) {
         "wide" => NotrumpShape::Wide,
         _ => NotrumpShape::Wide6322,
     });
+}
+
+/// The 1NT opening shape the engine currently holds, as its registry `value`.
+fn get_notrump_shape_choice() -> &'static str {
+    use american::NotrumpShape;
+    match american::notrump_shape_setting() {
+        NotrumpShape::Balanced => "balanced",
+        NotrumpShape::Wide => "wide",
+        _ => "wide6322",
+    }
 }
 
 /// The negative-double school over their overcall — variants map onto
@@ -1046,6 +1085,17 @@ fn set_negative_double_choice(value: &str) {
     });
 }
 
+/// The negative-double school the engine currently holds, as its registry
+/// `value`.  The unoffered pre-Modern `BothMajors` reads as `modern`.
+fn get_negative_double_choice() -> &'static str {
+    use american::NegativeDoubleShape;
+    match american::negative_double_shape() {
+        NegativeDoubleShape::Sputnik => "sputnik",
+        NegativeDoubleShape::Cachalot => "cachalot",
+        _ => "modern",
+    }
+}
+
 /// The keycard ask's relocation stance — variants map onto
 /// `instinct::RkcbVariant`.  Each widens the one before it: plain 4NT, then
 /// the minor asks relocate (Redwood), then hearts relocate to 4♠ as well.
@@ -1074,6 +1124,17 @@ fn set_rkcb_variant_choice(value: &str) {
     });
 }
 
+/// The keycard relocation stance the engine currently holds, as its registry
+/// `value`.
+fn get_rkcb_variant_choice() -> &'static str {
+    use instinct::RkcbVariant;
+    match instinct::rkcb_variant_now() {
+        RkcbVariant::Redwood => "redwood",
+        RkcbVariant::Kickback => "kickback",
+        _ => "plain",
+    }
+}
+
 /// Lebensohl as an on/off toggle: on = Transfer Lebensohl (the shipped package),
 /// off = none.  `LebensohlStyle::Plain` is deliberately unreachable here — it is a
 /// measured-worse arm, kept for A/B only.
@@ -1084,6 +1145,11 @@ fn set_lebensohl_toggle(on: bool) {
     } else {
         LebensohlStyle::Off
     });
+}
+
+/// Whether Lebensohl is live.  See [`advance_sohl_toggle`] on `Plain`.
+fn lebensohl_toggle() -> bool {
+    american::lebensohl_style() != american::LebensohlStyle::Off
 }
 
 /// Advancer's Lebensohl (after partner's takeout double is overcalled) as an on/off
@@ -1097,6 +1163,12 @@ fn set_advance_sohl_toggle(on: bool) {
     });
 }
 
+/// Whether advancer's Lebensohl is live.  `Plain` is unreachable from the UI but
+/// counts as on, so an A/B that selected it is not reported as "off".
+fn advance_sohl_toggle() -> bool {
+    american::advance_sohl_style() != american::LebensohlStyle::Off
+}
+
 /// Puppet Stayman as an on/off toggle: on = Puppet (the shipped default, 3♣ Puppet
 /// Stayman), off = European transfers (2♠ club transfer, 2NT natural, 3♣ diamond).
 fn set_puppet_stayman(on: bool) {
@@ -1105,6 +1177,11 @@ fn set_puppet_stayman(on: bool) {
     } else {
         american::EUROPEAN
     });
+}
+
+/// Whether the 1NT minor scheme is Puppet rather than European transfers.
+fn puppet_stayman() -> bool {
+    american::notrump_minors() == american::PUPPET
 }
 
 /// The registry.  Each `default` mirrors its engine `Cell::new(...)` — keep the two
@@ -1116,47 +1193,47 @@ fn set_puppet_stayman(on: bool) {
 #[rustfmt::skip]
 static SETTINGS: &[Setting] = &[
     // Openings
-    toggle("open_one_notrump", OPENINGS, "Open 1NT (15–17)", true, american::set_open_one_notrump),
-    Setting::Choice { key: "notrump_shape", section: OPENINGS, label: "1NT opening shape", variants: NOTRUMP_SHAPE_VARIANTS, default: "wide6322", requires: None, set: set_notrump_shape_choice },
+    toggle("open_one_notrump", OPENINGS, "Open 1NT (15–17)", true, american::set_open_one_notrump, american::open_one_notrump),
+    Setting::Choice { key: "notrump_shape", section: OPENINGS, label: "1NT opening shape", variants: NOTRUMP_SHAPE_VARIANTS, default: "wide6322", requires: None, set: set_notrump_shape_choice, get: get_notrump_shape_choice },
     // Notrump
-    toggle("puppet_stayman", NOTRUMP, "Puppet Stayman (3♣)", true, set_puppet_stayman),
-    toggle("garbage_stayman", NOTRUMP, "Garbage Stayman", true, american::set_garbage_stayman),
-    toggle("transfer_super_accept", NOTRUMP, "", false, american::set_transfer_super_accept),
-    toggle("transfer_slam_try", NOTRUMP, "", true, american::set_transfer_slam_try),
-    toggle("texas_slam_drive", NOTRUMP, "", true, american::set_texas_slam_drive),
-    toggle("transfer_gf_majors", NOTRUMP, "", true, american::set_transfer_gf_majors),
-    gated("transfer_gf_hearts", NOTRUMP, "", true, american::set_transfer_gf_hearts, "transfer_gf_majors"),
-    toggle("stayman_both_majors", NOTRUMP, "", true, american::set_stayman_both_majors),
-    toggle("stayman_5card_max", NOTRUMP, "", true, american::set_stayman_5card_max),
-    toggle("invitational_5card_majors", NOTRUMP, "", true, american::set_invitational_5card_majors),
-    toggle("transfer_longer_major", NOTRUMP, "", true, american::set_transfer_longer_major),
-    toggle("crawling_stayman", NOTRUMP, "", true, american::set_crawling_stayman),
-    toggle("stayman_cue_continuation", NOTRUMP, "", true, american::set_stayman_cue_continuation),
-    toggle("stayman_minor_slam_try", NOTRUMP, "", true, american::set_stayman_minor_slam_try),
-    toggle("nt_splinter", NOTRUMP, "1NT - 3M splinter (short major, ♦4, ♣5–6)", true, american::set_nt_splinter),
+    toggle("puppet_stayman", NOTRUMP, "Puppet Stayman (3♣)", true, set_puppet_stayman, puppet_stayman),
+    toggle("garbage_stayman", NOTRUMP, "Garbage Stayman", true, american::set_garbage_stayman, american::garbage_stayman),
+    toggle("transfer_super_accept", NOTRUMP, "", false, american::set_transfer_super_accept, american::transfer_super_accept),
+    toggle("transfer_slam_try", NOTRUMP, "", true, american::set_transfer_slam_try, american::transfer_slam_try),
+    toggle("texas_slam_drive", NOTRUMP, "", true, american::set_texas_slam_drive, american::texas_slam_drive),
+    toggle("transfer_gf_majors", NOTRUMP, "", true, american::set_transfer_gf_majors, american::transfer_gf_majors),
+    gated("transfer_gf_hearts", NOTRUMP, "", true, american::set_transfer_gf_hearts, american::transfer_gf_hearts, "transfer_gf_majors"),
+    toggle("stayman_both_majors", NOTRUMP, "", true, american::set_stayman_both_majors, american::stayman_both_majors),
+    toggle("stayman_5card_max", NOTRUMP, "", true, american::set_stayman_5card_max, american::stayman_5card_max),
+    toggle("invitational_5card_majors", NOTRUMP, "", true, american::set_invitational_5card_majors, american::invitational_5card_majors),
+    toggle("transfer_longer_major", NOTRUMP, "", true, american::set_transfer_longer_major, american::transfer_longer_major),
+    toggle("crawling_stayman", NOTRUMP, "", true, american::set_crawling_stayman, american::crawling_stayman),
+    toggle("stayman_cue_continuation", NOTRUMP, "", true, american::set_stayman_cue_continuation, american::stayman_cue_continuation),
+    toggle("stayman_minor_slam_try", NOTRUMP, "", true, american::set_stayman_minor_slam_try, american::stayman_minor_slam_try),
+    toggle("nt_splinter", NOTRUMP, "1NT - 3M splinter (short major, ♦4, ♣5–6)", true, american::set_nt_splinter, american::nt_splinter),
     // Competition
-    toggle("lebensohl", COMPETITION, "Lebensohl (over 1NT interference)", true, set_lebensohl_toggle),
-    toggle("advance_lebensohl", COMPETITION, "Lebensohl advancing a double", true, set_advance_sohl_toggle),
-    toggle("splinter_doubled", COMPETITION, "", true, american::set_splinter_doubled),
-    toggle("passed_hand_overcall", COMPETITION, "", true, american::set_passed_hand_overcall),
-    toggle("uvu", COMPETITION, "Unusual vs Unusual", true, american::set_uvu),
-    toggle("uvu_over_majors", COMPETITION, "Unusual vs Unusual (over majors)", true, american::set_uvu_over_majors),
-    toggle("direct_3nt_stopper", COMPETITION, "", true, american::set_direct_3nt_stopper),
-    toggle("cue_raise_answer", COMPETITION, "", true, american::set_cue_raise_answer),
-    toggle("cue_minor_raise_answer", COMPETITION, "", true, american::set_cue_minor_raise_answer),
-    toggle("major_support_double", COMPETITION, "", true, american::set_major_support_double),
-    toggle("high_overcall_responses", COMPETITION, "", false, american::set_high_overcall_responses),
-    toggle("jordan_truscott", COMPETITION, "Jordan / Truscott 2NT", true, american::set_jordan_truscott),
-    toggle("delayed_cue", COMPETITION, "", false, american::set_delayed_cue),
-    toggle("competition_over_stayman", COMPETITION, "", true, american::set_competition_over_stayman),
-    gated("competition_over_minor_transfer", COMPETITION, "", true, american::set_competition_over_minor_transfer, "puppet_stayman"),
-    gated("competition_over_diamond_transfer", COMPETITION, "", true, american::set_competition_over_diamond_transfer, "puppet_stayman"),
-    toggle("defense_to_2d_multi", COMPETITION, "", false, american::set_defense_to_2d_multi),
-    toggle("leaping_michaels", COMPETITION, "Leaping Michaels", true, american::set_leaping_michaels),
-    toggle("responsive_takeout", COMPETITION, "Responsive doubles", true, american::set_responsive_takeout),
-    toggle("rich_advance_double", COMPETITION, "", true, american::set_rich_advance_double),
-    gated("advance_rubens", COMPETITION, "Rubens advances", false, american::set_advance_rubens, "rich_advance_double"),
-    toggle("nt_overcall_gladiator", COMPETITION, "Gladiator (1NT-overcall advance)", false, american::set_nt_overcall_gladiator),
+    toggle("lebensohl", COMPETITION, "Lebensohl (over 1NT interference)", true, set_lebensohl_toggle, lebensohl_toggle),
+    toggle("advance_lebensohl", COMPETITION, "Lebensohl advancing a double", true, set_advance_sohl_toggle, advance_sohl_toggle),
+    toggle("splinter_doubled", COMPETITION, "", true, american::set_splinter_doubled, american::splinter_doubled),
+    toggle("passed_hand_overcall", COMPETITION, "", true, american::set_passed_hand_overcall, american::passed_hand_overcall),
+    toggle("uvu", COMPETITION, "Unusual vs Unusual", true, american::set_uvu, american::uvu),
+    toggle("uvu_over_majors", COMPETITION, "Unusual vs Unusual (over majors)", true, american::set_uvu_over_majors, american::uvu_over_majors),
+    toggle("direct_3nt_stopper", COMPETITION, "", true, american::set_direct_3nt_stopper, american::direct_3nt_stopper),
+    toggle("cue_raise_answer", COMPETITION, "", true, american::set_cue_raise_answer, american::cue_raise_answer),
+    toggle("cue_minor_raise_answer", COMPETITION, "", true, american::set_cue_minor_raise_answer, american::cue_minor_raise_answer),
+    toggle("major_support_double", COMPETITION, "", true, american::set_major_support_double, american::major_support_double),
+    toggle("high_overcall_responses", COMPETITION, "", false, american::set_high_overcall_responses, american::high_overcall_responses),
+    toggle("jordan_truscott", COMPETITION, "Jordan / Truscott 2NT", true, american::set_jordan_truscott, american::jordan_truscott),
+    toggle("delayed_cue", COMPETITION, "", false, american::set_delayed_cue, american::delayed_cue),
+    toggle("competition_over_stayman", COMPETITION, "", true, american::set_competition_over_stayman, american::competition_over_stayman),
+    gated("competition_over_minor_transfer", COMPETITION, "", true, american::set_competition_over_minor_transfer, american::competition_over_minor_transfer, "puppet_stayman"),
+    gated("competition_over_diamond_transfer", COMPETITION, "", true, american::set_competition_over_diamond_transfer, american::competition_over_diamond_transfer, "puppet_stayman"),
+    toggle("defense_to_2d_multi", COMPETITION, "", false, american::set_defense_to_2d_multi, american::defense_to_2d_multi),
+    toggle("leaping_michaels", COMPETITION, "Leaping Michaels", true, american::set_leaping_michaels, american::leaping_michaels_enabled),
+    toggle("responsive_takeout", COMPETITION, "Responsive doubles", true, american::set_responsive_takeout, american::responsive_takeout_enabled),
+    toggle("rich_advance_double", COMPETITION, "", true, american::set_rich_advance_double, american::rich_advance_double_enabled),
+    gated("advance_rubens", COMPETITION, "Rubens advances", false, american::set_advance_rubens, american::advance_rubens_enabled, "rich_advance_double"),
+    toggle("nt_overcall_gladiator", COMPETITION, "Gladiator (1NT-overcall advance)", false, american::set_nt_overcall_gladiator, american::nt_overcall_gladiator),
     // Negative-double school over their overcall — the enum-backed radio family
     Setting::Choice {
         key: "negative_double_shape",
@@ -1166,6 +1243,7 @@ static SETTINGS: &[Setting] = &[
         default: "modern",
         requires: None,
         set: set_negative_double_choice,
+        get: get_negative_double_choice,
     },
     // Defense to their 1NT — the radio family is the enum-backed choice
     Setting::Choice {
@@ -1176,43 +1254,44 @@ static SETTINGS: &[Setting] = &[
         default: "natural",
         requires: None,
         set: set_notrump_defense_choice,
+        get: get_notrump_defense_choice,
     },
-    gated("direct_dont_four_four", DEFENSE, "", true, american::set_direct_dont_four_four, "notrump_defense=direct_dont"),
-    toggle("stayman_defense", DEFENSE, "", false, american::set_stayman_defense),
-    toggle("transfer_defense", DEFENSE, "", false, american::set_transfer_defense),
-    toggle("minor_transfer_defense", DEFENSE, "", false, american::set_minor_transfer_defense),
+    gated("direct_dont_four_four", DEFENSE, "", true, american::set_direct_dont_four_four, american::direct_dont_four_four, "notrump_defense=direct_dont"),
+    toggle("stayman_defense", DEFENSE, "", false, american::set_stayman_defense, american::stayman_defense_enabled),
+    toggle("transfer_defense", DEFENSE, "", false, american::set_transfer_defense, american::transfer_defense_enabled),
+    toggle("minor_transfer_defense", DEFENSE, "", false, american::set_minor_transfer_defense, american::minor_transfer_defense_enabled),
     // Rebids & responses
-    toggle("second_suit_agreement", REBIDS, "", true, american::set_second_suit_agreement),
-    toggle("game_backstop", REBIDS, "2/1 game backstop (retired)", false, american::set_game_backstop),
-    toggle("fourth_suit_forcing", REBIDS, "Fourth suit forcing", true, american::set_fourth_suit_forcing),
-    toggle("meckstroth_adjunct", REBIDS, "Meckstroth adjunct", true, american::set_meckstroth_adjunct),
-    toggle("limit_raise_acceptance", REBIDS, "", true, american::set_limit_raise_acceptance),
+    toggle("second_suit_agreement", REBIDS, "", true, american::set_second_suit_agreement, american::second_suit_agreement),
+    toggle("game_backstop", REBIDS, "2/1 game backstop (retired)", false, american::set_game_backstop, american::game_backstop_enabled),
+    toggle("fourth_suit_forcing", REBIDS, "Fourth suit forcing", true, american::set_fourth_suit_forcing, american::fourth_suit_forcing),
+    toggle("meckstroth_adjunct", REBIDS, "Meckstroth adjunct", true, american::set_meckstroth_adjunct, american::meckstroth_adjunct),
+    toggle("limit_raise_acceptance", REBIDS, "", true, american::set_limit_raise_acceptance, american::limit_raise_acceptance),
     // Floor (instinct)
-    toggle("one_nt_runout", FLOOR, "", true, instinct::set_one_nt_runout),
-    gated("one_nt_runout_universal", FLOOR, "", true, instinct::set_one_nt_runout_universal, "one_nt_runout"),
-    toggle("settle_floor", FLOOR, "", true, instinct::set_settle_floor),
-    toggle("rubens_advances", FLOOR, "", false, instinct::set_rubens_advances),
-    toggle("floor_rkcb", FLOOR, "", true, instinct::set_floor_rkcb),
+    toggle("one_nt_runout", FLOOR, "", true, instinct::set_one_nt_runout, instinct::one_nt_runout),
+    gated("one_nt_runout_universal", FLOOR, "", true, instinct::set_one_nt_runout_universal, instinct::one_nt_runout_universal_enabled, "one_nt_runout"),
+    toggle("settle_floor", FLOOR, "", true, instinct::set_settle_floor, instinct::settle_floor_enabled),
+    toggle("rubens_advances", FLOOR, "", false, instinct::set_rubens_advances, instinct::rubens_advances_enabled),
+    toggle("floor_rkcb", FLOOR, "", true, instinct::set_floor_rkcb, instinct::floor_rkcb),
     // One radio family, not two checkboxes: the old redwood/kickback toggles let
     // the UI show both checked, a state the engine cannot play.  `rkcb_minors`
     // used to sit here too and was dropped for the same reason — either
     // relocation implies the minors' reach (`minor_asks_now`), so the checkbox
     // was inert on two of its six cells.
-    Setting::Choice { key: "rkcb_variant", section: FLOOR, label: "Keycard ask relocation", variants: RKCB_VARIANT_VARIANTS, default: "plain", requires: Some("floor_rkcb"), set: set_rkcb_variant_choice },
-    toggle("two_over_one_force", FLOOR, "2/1 forces game", true, instinct::set_two_over_one_force),
-    gated("penalize_escape_stack", FLOOR, "", true, instinct::set_penalize_escape_stack, "one_nt_runout"),
-    gated("penalize_escape_values", FLOOR, "", true, instinct::set_penalize_escape_values, "one_nt_runout"),
-    gated("uvu_encircle", FLOOR, "UVU penalty procedure", true, instinct::set_uvu_encircle, "uvu"),
-    gated("penalty_latch", FLOOR, "", true, instinct::set_penalty_latch, "notrump_defense=natural"),
-    gated("penalty_no_pull", FLOOR, "", true, instinct::set_penalty_no_pull, "penalty_latch"),
-    toggle("advancer_xx_runout", FLOOR, "", true, instinct::set_advancer_xx_runout),
-    toggle("doubler_xx_runout", FLOOR, "", true, instinct::set_doubler_xx_runout),
+    Setting::Choice { key: "rkcb_variant", section: FLOOR, label: "Keycard ask relocation", variants: RKCB_VARIANT_VARIANTS, default: "plain", requires: Some("floor_rkcb"), set: set_rkcb_variant_choice, get: get_rkcb_variant_choice },
+    toggle("two_over_one_force", FLOOR, "2/1 forces game", true, instinct::set_two_over_one_force, instinct::two_over_one_force),
+    gated("penalize_escape_stack", FLOOR, "", true, instinct::set_penalize_escape_stack, instinct::penalize_escape_stack, "one_nt_runout"),
+    gated("penalize_escape_values", FLOOR, "", true, instinct::set_penalize_escape_values, instinct::penalize_escape_values, "one_nt_runout"),
+    gated("uvu_encircle", FLOOR, "UVU penalty procedure", true, instinct::set_uvu_encircle, instinct::uvu_encircle, "uvu"),
+    gated("penalty_latch", FLOOR, "", true, instinct::set_penalty_latch, instinct::penalty_latch_enabled, "notrump_defense=natural"),
+    gated("penalty_no_pull", FLOOR, "", true, instinct::set_penalty_no_pull, instinct::penalty_no_pull, "penalty_latch"),
+    toggle("advancer_xx_runout", FLOOR, "", true, instinct::set_advancer_xx_runout, instinct::advancer_xx_runout_enabled),
+    toggle("doubler_xx_runout", FLOOR, "", true, instinct::set_doubler_xx_runout, instinct::doubler_xx_runout_enabled),
     // Inference (auction reading)
-    toggle("nt_invite_inference", INFERENCE, "", true, inference::set_nt_invite_inference),
-    gated("rubens_transfer_reading", INFERENCE, "", true, inference::set_rubens_transfer_reading, "rubens_advances"),
-    toggle("fallback_projection", INFERENCE, "", true, inference::set_fallback_projection),
-    toggle("control_bid_reading", INFERENCE, "", true, inference::set_control_bid_reading),
-    toggle("rule_accept", INFERENCE, "", true, inference::set_rule_accept),
+    toggle("nt_invite_inference", INFERENCE, "", true, inference::set_nt_invite_inference, inference::nt_invite_inference),
+    gated("rubens_transfer_reading", INFERENCE, "", true, inference::set_rubens_transfer_reading, inference::rubens_transfer_reading, "rubens_advances"),
+    toggle("fallback_projection", INFERENCE, "", true, inference::set_fallback_projection, inference::fallback_projection_enabled),
+    toggle("control_bid_reading", INFERENCE, "", true, inference::set_control_bid_reading, inference::control_bid_reading),
+    toggle("rule_accept", INFERENCE, "", true, inference::set_rule_accept, inference::rule_accept_enabled),
 ];
 
 /// The in-browser half of `examples/binky`'s benchmark: fix N-S, reshuffle E-W.

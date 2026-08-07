@@ -357,6 +357,11 @@ pub fn set_one_nt_runout(enabled: bool) {
     ONE_NT_RUNOUT.with(|flag| flag.set(enabled));
 }
 
+/// Whether the [`set_one_nt_runout`] knob is on
+pub fn one_nt_runout() -> bool {
+    ONE_NT_RUNOUT.with(Cell::get)
+}
+
 /// The doubled-1NT runout is enabled (see [`set_one_nt_runout`])
 fn one_nt_runout_enabled() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, _: &Context<'_>| ONE_NT_RUNOUT.with(Cell::get))
@@ -374,6 +379,11 @@ fn one_nt_runout_enabled() -> Cons<impl Constraint + Clone> {
 #[doc(hidden)]
 pub fn set_settle_floor(enabled: bool) {
     SETTLE_FLOOR.with(|flag| flag.set(enabled));
+}
+
+/// Whether the [`set_settle_floor`] knob is on
+pub fn settle_floor_enabled() -> bool {
+    SETTLE_FLOOR.with(Cell::get)
 }
 
 /// The "settle" view of Pass is enabled (see [`set_settle_floor`])
@@ -567,9 +577,9 @@ pub fn set_rubens_advances(enabled: bool) {
 }
 
 /// Rubens advances are enabled (see [`set_rubens_advances`]); shared with the
-/// [`Inferences`](super::inference::Inferences) reading so the bidder and the
+/// [`Inferences`] reading so the bidder and the
 /// reader flip together
-pub(super) fn rubens_advances_enabled() -> bool {
+pub fn rubens_advances_enabled() -> bool {
     RUBENS_ADVANCES.with(Cell::get)
 }
 
@@ -643,7 +653,8 @@ pub fn set_two_over_one_force(on: bool) {
     TWO_OVER_ONE_FORCE.with(|cell| cell.set(on));
 }
 
-pub(super) fn two_over_one_force() -> bool {
+/// Whether the [`set_two_over_one_force`] knob is on
+pub fn two_over_one_force() -> bool {
     TWO_OVER_ONE_FORCE.with(Cell::get)
 }
 
@@ -709,6 +720,11 @@ fn partner_slam_strength(context: &Context<'_>) -> u8 {
 #[doc(hidden)]
 pub fn set_floor_rkcb(enabled: bool) {
     FLOOR_RKCB.with(|flag| flag.set(enabled));
+}
+
+/// Whether the [`set_floor_rkcb`] knob is on
+pub fn floor_rkcb() -> bool {
+    FLOOR_RKCB.with(Cell::get)
 }
 
 /// The floor RKCB is enabled (see [`set_floor_rkcb`])
@@ -844,7 +860,7 @@ pub fn set_rkcb_variant(variant: RkcbVariant) {
 }
 
 /// The keycard ask's relocation stance (see [`set_rkcb_variant`])
-pub(in crate::bidding) fn rkcb_variant_now() -> RkcbVariant {
+pub fn rkcb_variant_now() -> RkcbVariant {
     RKCB_VARIANT.with(Cell::get)
 }
 
@@ -1138,6 +1154,11 @@ pub fn set_one_nt_runout_universal(enabled: bool) {
     ONE_NT_RUNOUT_UNIVERSAL.with(|flag| flag.set(enabled));
 }
 
+/// Whether the [`set_one_nt_runout_universal`] knob is on
+pub fn one_nt_runout_universal_enabled() -> bool {
+    ONE_NT_RUNOUT_UNIVERSAL.with(Cell::get)
+}
+
 /// The universal runout is enabled (see [`set_one_nt_runout_universal`])
 fn one_nt_runout_universal() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, _: &Context<'_>| ONE_NT_RUNOUT_UNIVERSAL.with(Cell::get))
@@ -1166,6 +1187,11 @@ pub fn set_penalize_escape_stack(enabled: bool) {
     PENALIZE_ESCAPE_STACK.with(|flag| flag.set(enabled));
 }
 
+/// Whether the [`set_penalize_escape_stack`] knob is on
+pub fn penalize_escape_stack() -> bool {
+    PENALIZE_ESCAPE_STACK.with(Cell::get)
+}
+
 /// The trump-stack escape penalty is enabled (see [`set_penalize_escape_stack`])
 fn penalize_escape_stack_enabled() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, _: &Context<'_>| PENALIZE_ESCAPE_STACK.with(Cell::get))
@@ -1178,6 +1204,11 @@ fn penalize_escape_stack_enabled() -> Cons<impl Constraint + Clone> {
 #[doc(hidden)]
 pub fn set_penalize_escape_values(enabled: bool) {
     PENALIZE_ESCAPE_VALUES.with(|flag| flag.set(enabled));
+}
+
+/// Whether the [`set_penalize_escape_values`] knob is on
+pub fn penalize_escape_values() -> bool {
+    PENALIZE_ESCAPE_VALUES.with(Cell::get)
 }
 
 /// The values escape penalty is enabled (see [`set_penalize_escape_values`])
@@ -1195,6 +1226,11 @@ fn penalize_escape_values_enabled() -> Cons<impl Constraint + Clone> {
 #[doc(hidden)]
 pub fn set_uvu_encircle(enabled: bool) {
     UVU_ENCIRCLE.with(|flag| flag.set(enabled));
+}
+
+/// Whether the [`set_uvu_encircle`] knob is on
+pub fn uvu_encircle() -> bool {
+    UVU_ENCIRCLE.with(Cell::get)
 }
 
 /// The UvU penalty chase is enabled (see [`set_uvu_encircle`])
@@ -4001,7 +4037,7 @@ fn penalty_latched(context: &Context<'_>) -> bool {
 /// Exposed for the inference walk's matching reading
 /// ([`penalty_latch_double_reading`][super::inference]), which must agree with the
 /// floor on when a later double is penalty rather than takeout.
-pub(super) fn penalty_latch_enabled() -> bool {
+pub fn penalty_latch_enabled() -> bool {
     PENALTY_LATCH.with(Cell::get)
 }
 
@@ -4027,6 +4063,11 @@ fn penalty_latched_c() -> Cons<impl Constraint + Clone> {
 #[doc(hidden)]
 pub fn set_penalty_no_pull(enabled: bool) {
     PENALTY_NO_PULL.with(|flag| flag.set(enabled));
+}
+
+/// Whether the [`set_penalty_no_pull`] knob is on
+pub fn penalty_no_pull() -> bool {
+    PENALTY_NO_PULL.with(Cell::get)
 }
 
 /// The doubler may make a constructive overcall: either the no-pull knob is off,
@@ -4076,6 +4117,11 @@ pub fn set_advancer_xx_runout(enabled: bool) {
     ADVANCER_XX_RUNOUT.with(|flag| flag.set(enabled));
 }
 
+/// Whether the [`set_advancer_xx_runout`] knob is on
+pub fn advancer_xx_runout_enabled() -> bool {
+    ADVANCER_XX_RUNOUT.with(Cell::get)
+}
+
 /// Their redoubled penalty double is back to a weak advancer (`(1NT) X (XX)`) and
 /// the runout is enabled — the defensive mirror of [`responder_one_nt_runout_now`]
 ///
@@ -4113,7 +4159,7 @@ pub fn set_doubler_xx_runout(enabled: bool) {
 }
 
 /// Whether the doubler's runout rule is authored into the current book
-fn doubler_xx_runout_enabled() -> bool {
+pub fn doubler_xx_runout_enabled() -> bool {
     DOUBLER_XX_RUNOUT.with(Cell::get)
 }
 

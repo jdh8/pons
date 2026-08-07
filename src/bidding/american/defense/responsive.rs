@@ -28,7 +28,7 @@ pub fn set_responsive_takeout(on: bool) {
 }
 
 /// Whether the takeout-double responsive double is currently authored
-pub(crate) fn responsive_takeout_enabled() -> bool {
+pub fn responsive_takeout_enabled() -> bool {
     RESPONSIVE_TAKEOUT.with(Cell::get)
 }
 

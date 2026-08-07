@@ -188,7 +188,7 @@ pub fn set_passed_hand_overcall(on: bool) {
 }
 
 /// Whether a passed hand's lighter 2-level overcall is currently authored
-fn passed_hand_overcall() -> bool {
+pub fn passed_hand_overcall() -> bool {
     PASSED_HAND_OVERCALL.with(Cell::get)
 }
 

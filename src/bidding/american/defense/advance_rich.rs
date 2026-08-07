@@ -40,7 +40,7 @@ pub fn set_rich_advance_double(on: bool) {
 }
 
 /// Whether the rich advance of a takeout double is currently authored
-pub(super) fn rich_advance_double_enabled() -> bool {
+pub fn rich_advance_double_enabled() -> bool {
     RICH_ADVANCE_DOUBLE.with(Cell::get)
 }
 

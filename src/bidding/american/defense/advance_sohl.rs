@@ -31,7 +31,7 @@ pub fn set_advance_sohl_style(style: LebensohlStyle) {
 }
 
 /// The currently selected advance-of-double sohl package
-pub(super) fn advance_sohl_style() -> LebensohlStyle {
+pub fn advance_sohl_style() -> LebensohlStyle {
     ADVANCE_SOHL.with(Cell::get)
 }
 

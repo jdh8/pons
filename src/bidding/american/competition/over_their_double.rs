@@ -29,7 +29,7 @@ pub fn set_jordan_truscott(on: bool) {
 }
 
 /// Whether the over-their-double package is engaged
-pub(crate) fn jordan_truscott() -> bool {
+pub fn jordan_truscott() -> bool {
     JORDAN_TRUSCOTT.with(Cell::get)
 }
 
@@ -87,7 +87,7 @@ pub fn set_splinter_doubled(on: bool) {
 }
 
 /// Whether the doubled-splinter systems-on rebase is engaged
-fn splinter_doubled() -> bool {
+pub fn splinter_doubled() -> bool {
     SPLINTER_DOUBLED.with(Cell::get)
 }
 

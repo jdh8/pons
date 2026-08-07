@@ -232,6 +232,86 @@ fn registry_is_well_formed() {
     }
 }
 
+/// Every registry `default` must mirror the engine's `Cell::new(...)`.
+///
+/// Not cosmetic: `app.js` stores only *deltas* against these values, and the
+/// Settings reset button pushes them into the engine — so a drifted row rebids
+/// the board for anyone who touches the panel. `rich_advance_double`,
+/// `rubens_advances` and `fuzzy_fifths` all contradicted the engine for weeks
+/// (see `docs/bidding-options.md`); nothing but CI's absence hid them.
+///
+/// Runs on its own thread because the knobs are thread-locals: that reads a
+/// virgin engine whatever order the suite ran in, and dirties nothing for
+/// whichever test the runner schedules next on this one.
+///
+/// Reads each cell back rather than bidding boards and diffing the auctions.
+/// The sampling form was built first and measured: flipping each row in turn,
+/// 32 of 69 never moved an auction in 600 boards — the slam tries, the runouts,
+/// the Stayman follow-ups and the whole inference block need a specific auction
+/// that random deals rarely deal. It missed `rubens_advances`, one of the three
+/// bugs above, and cost 210 s of CI to miss it. This is exact and instant; the
+/// price was widening those getters to `pub`, which is arguably a fix in its own
+/// right, since the paired `set_*` were public already.
+#[test]
+fn registry_defaults_match_the_engine() {
+    std::thread::spawn(|| {
+        for setting in SETTINGS {
+            match setting {
+                Setting::Toggle {
+                    key, default, get, ..
+                } => assert_eq!(get(), *default, "toggle {key} contradicts the engine"),
+                Setting::Choice {
+                    key, default, get, ..
+                } => assert_eq!(get(), *default, "choice {key} contradicts the engine"),
+            }
+        }
+    })
+    .join()
+    .expect("the registry-drift thread reads a pristine engine");
+}
+
+/// Each row's `get` must observe its own `set` — not a neighbour's cell.
+///
+/// `registry_defaults_match_the_engine` cannot see this: a getter wired to the
+/// wrong knob still agrees with `default` whenever the two knobs share one. The
+/// getters were generated mechanically against a cell name, so that is exactly
+/// the mistake to expect, and `penalize_escape_stack` / `penalize_escape_values`
+/// are the type case — adjacent, identically defaulted, one letter apart.
+#[test]
+fn every_registry_getter_observes_its_own_setter() {
+    std::thread::spawn(|| {
+        for setting in SETTINGS {
+            match setting {
+                Setting::Toggle {
+                    key, default, get, ..
+                } => {
+                    set_option(key, !*default);
+                    assert_eq!(get(), !*default, "toggle {key} does not read its own cell");
+                    set_option(key, *default);
+                }
+                Setting::Choice {
+                    key,
+                    default,
+                    variants,
+                    get,
+                    ..
+                } => {
+                    let other = variants
+                        .iter()
+                        .map(|v| v.value)
+                        .find(|v| v != default)
+                        .expect("a choice has a second variant");
+                    set_choice(key, other);
+                    assert_eq!(get(), other, "choice {key} does not read its own cell");
+                    set_choice(key, default);
+                }
+            }
+        }
+    })
+    .join()
+    .expect("the getter-wiring thread runs clean");
+}
+
 #[test]
 fn set_choice_reroutes_the_defense() {
     // North opens 1NT; East (19 HCP) acts over it — doubles under the natural

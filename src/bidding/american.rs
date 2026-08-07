@@ -91,7 +91,6 @@ pub use competition::{
     set_uvu_natural_floor, set_uvu_over_majors, set_uvu_x_floor, set_weak_two_competition,
 };
 // Knobs the inference walk reads at classify time.
-pub(crate) use competition::{jordan_truscott, lebensohl_style, major_support_double};
 pub use defense::{
     DoubleShape, NotrumpDefense, TakeoutSupport, advance_double, defense_to_suit,
     defense_to_weak_two, set_advance_2nt_continuation, set_advance_minor_jump,
@@ -115,10 +114,9 @@ pub use defense::{
     set_woolsey_points,
 };
 pub(crate) use defense::{
-    direct_dont_enabled, landy_range, leaping_michaels_enabled, meckwell_enabled,
-    natural_defense_enabled, natural_double_floor, natural_overcall_points, notrump_defense,
-    nt_overcall_gladiator, nt_overcall_systems_on, responsive_takeout_enabled,
-    woolsey_double_floor, woolsey_enabled, woolsey_points,
+    direct_dont_enabled, landy_range, meckwell_enabled, natural_defense_enabled,
+    natural_double_floor, natural_overcall_points, nt_overcall_systems_on, woolsey_double_floor,
+    woolsey_enabled, woolsey_points,
 };
 pub use game_force::{set_game_backstop, set_opener_third, set_second_suit_agreement};
 pub(crate) use nmf::new_minor_forcing;
@@ -132,22 +130,19 @@ pub use notrump::{
     set_texas_game_floor, set_texas_slam_drive, set_transfer_gf_hearts, set_transfer_gf_majors,
     set_transfer_longer_major, set_transfer_slam_try, set_transfer_super_accept,
 };
-pub(crate) use notrump::{
-    crawling_stayman, garbage_stayman, notrump_minors, nt_splinter, transfer_super_accept,
-};
 pub(crate) use openings::notrump_shape;
+pub(crate) use openings::one_notrump_offshape;
 pub(crate) use openings::two_notrump_wide;
 pub use openings::{
     NotrumpShape, WeakTwoEval, openings, openings_with, set_notrump_shape, set_one_notrump_fifths,
     set_one_notrump_offshape, set_open_one_notrump, set_two_notrump_wide, set_weak_two_eval,
     set_weak_two_hcp, set_weak_two_wild,
 };
-pub(crate) use openings::{notrump_shape_setting, one_notrump_offshape};
 pub use weak_twos::{set_weak_two_longest_first, set_weak_two_major_priority};
 
 pub(crate) use raises::major_game_tries;
 pub use raises::{set_limit_raise_acceptance, set_major_game_tries};
-pub(crate) use rebids::{fourth_suit_forcing, opener_extras_ladder, opener_major_jump_rebid};
+pub(crate) use rebids::{opener_extras_ladder, opener_major_jump_rebid};
 pub use rebids::{
     set_balanced_1nt_rebid, set_forcing_nt_two_suiter, set_fourth_suit_forcing,
     set_major_rebid_tails, set_meckstroth_adjunct, set_meckstroth_minor_jumps, set_nt_invite_hcp,
@@ -302,3 +297,53 @@ pub fn american_book() -> Pair {
 
 #[cfg(test)]
 mod tests;
+pub use competition::competition_over_diamond_transfer;
+pub use competition::competition_over_minor_transfer;
+pub use competition::competition_over_stayman;
+pub use competition::cue_minor_raise_answer;
+pub use competition::cue_raise_answer;
+pub use competition::defense_to_2d_multi;
+pub use competition::delayed_cue;
+pub use competition::direct_3nt_stopper;
+pub use competition::high_overcall_responses;
+pub use competition::jordan_truscott;
+pub use competition::lebensohl_style;
+pub use competition::major_support_double;
+pub use competition::negative_double_shape;
+pub use competition::splinter_doubled;
+pub use competition::uvu;
+pub use competition::uvu_over_majors;
+pub use defense::advance_rubens_enabled;
+pub use defense::advance_sohl_style;
+pub use defense::direct_dont_four_four;
+pub use defense::leaping_michaels_enabled;
+pub use defense::minor_transfer_defense_enabled;
+pub use defense::notrump_defense;
+pub use defense::nt_overcall_gladiator;
+pub use defense::passed_hand_overcall;
+pub use defense::responsive_takeout_enabled;
+pub use defense::rich_advance_double_enabled;
+pub use defense::stayman_defense_enabled;
+pub use defense::transfer_defense_enabled;
+pub use game_force::game_backstop_enabled;
+pub use game_force::second_suit_agreement;
+pub use notrump::crawling_stayman;
+pub use notrump::garbage_stayman;
+pub use notrump::invitational_5card_majors;
+pub use notrump::notrump_minors;
+pub use notrump::nt_splinter;
+pub use notrump::stayman_5card_max;
+pub use notrump::stayman_both_majors;
+pub use notrump::stayman_cue_continuation;
+pub use notrump::stayman_minor_slam_try;
+pub use notrump::texas_slam_drive;
+pub use notrump::transfer_gf_hearts;
+pub use notrump::transfer_gf_majors;
+pub use notrump::transfer_longer_major;
+pub use notrump::transfer_slam_try;
+pub use notrump::transfer_super_accept;
+pub use openings::notrump_shape_setting;
+pub use openings::open_one_notrump;
+pub use raises::limit_raise_acceptance;
+pub use rebids::fourth_suit_forcing;
+pub use rebids::meckstroth_adjunct;

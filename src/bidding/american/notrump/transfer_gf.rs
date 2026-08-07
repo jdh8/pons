@@ -42,7 +42,7 @@ pub fn set_transfer_gf_majors(on: bool) {
 }
 
 /// Whether the post-transfer game-forcing structure is currently authored
-pub(super) fn transfer_gf_majors() -> bool {
+pub fn transfer_gf_majors() -> bool {
     TRANSFER_GF_MAJORS.with(Cell::get)
 }
 
@@ -71,7 +71,7 @@ pub fn set_transfer_gf_hearts(on: bool) {
 }
 
 /// Whether the heart-transfer mirror is authored (requires the master gate too)
-pub(super) fn transfer_gf_hearts() -> bool {
+pub fn transfer_gf_hearts() -> bool {
     transfer_gf_majors() && TRANSFER_GF_HEARTS.with(Cell::get)
 }
 

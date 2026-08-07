@@ -25,7 +25,7 @@ pub fn set_competition_over_stayman(on: bool) {
 }
 
 /// Whether competition over our 2♣ Stayman is currently authored
-fn competition_over_stayman() -> bool {
+pub fn competition_over_stayman() -> bool {
     COMPETITION_OVER_STAYMAN.with(Cell::get)
 }
 

@@ -46,7 +46,7 @@ pub use two_suiter::set_forcing_nt_two_suiter;
 // Knobs the inference walk reads at classify time.
 pub(crate) use extras_ladder::opener_extras_ladder;
 pub(crate) use major_jump_rebid::opener_major_jump_rebid;
-pub(crate) use major_tails::fourth_suit_forcing;
+pub use major_tails::fourth_suit_forcing;
 
 // The packages, re-exported so `american::tests::row_package_invariants` and
 // `register` below name them at one path.
@@ -351,3 +351,4 @@ pub(super) fn register(book: &mut Trie) {
 
 #[cfg(test)]
 mod tests;
+pub use meckstroth::meckstroth_adjunct;

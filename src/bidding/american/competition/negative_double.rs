@@ -57,7 +57,7 @@ pub fn set_negative_double_shape(shape: NegativeDoubleShape) {
 }
 
 /// The negative-double school in effect
-pub(super) fn negative_double_shape() -> NegativeDoubleShape {
+pub fn negative_double_shape() -> NegativeDoubleShape {
     NEGATIVE_DOUBLE_SHAPE.with(Cell::get)
 }
 

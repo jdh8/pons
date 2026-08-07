@@ -43,6 +43,11 @@ pub fn set_meckstroth_adjunct(on: bool) {
     MECKSTROTH.with(|cell| cell.set(on));
 }
 
+/// Whether the [`set_meckstroth_adjunct`] knob is on
+pub fn meckstroth_adjunct() -> bool {
+    MECKSTROTH.with(Cell::get)
+}
+
 /// Whether the Meckstroth adjunct is currently enabled
 pub(super) fn meckstroth() -> bool {
     MECKSTROTH.with(Cell::get)

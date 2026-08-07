@@ -24,7 +24,8 @@ pub fn set_second_suit_agreement(on: bool) {
     SECOND_SUIT_AGREEMENT.with(|cell| cell.set(on));
 }
 
-fn second_suit_agreement() -> bool {
+/// Whether the [`set_second_suit_agreement`] knob is on
+pub fn second_suit_agreement() -> bool {
     SECOND_SUIT_AGREEMENT.with(Cell::get)
 }
 
