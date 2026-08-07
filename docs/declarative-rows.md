@@ -371,7 +371,21 @@ could still have made it a *bidding* win: the declaration channel it exists to
 serve. The run built for that gate (above) turned out to perturb frozen card
 coordinates rather than trained ones, so **it does not decide the gate either
 way** — it prices the off-manifold penalty at one bit and leaves the channel's
-value unmeasured. The gate is cell B at scale, and it is still owed.
+value unmeasured. Cell B at scale is still owed, and is still the cheap next run.
+
+**But cell B is not the gate.** [card-manifold.md](ai-bidder/card-manifold.md)
+restates it: only **four of 140 card slots per side** move anywhere in the v4
+corpus, so 272 of the net's 368 inputs are constant, their weights unidentified
+and left at initialisation by `wd = 0`. The real question is therefore *whether
+the card block is a trained input at all*, and cell B is the cheap go/no-go for
+spending a corpus on making it one.
+
+That file also splits the problem in a way this campaign did not: an **exact
+bias-fold** — a constant input contributes `cᵢwᵢ` to every hidden
+pre-activation, which is algebraically the bias — removes the tax with no
+retrain and no measurement, making card rows *safe*; only the retrain makes them
+*meaningful*. `Card::from(&config)` is structurally inert at defaults either way.
+So Phase 3 is blocked on neither, and unrewarding until the second.
 
 Either way the migration is not urgent, because nothing about it is on the
 critical path of a measured win. What is worth doing on its own terms,

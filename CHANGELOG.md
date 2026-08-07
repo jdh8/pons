@@ -126,6 +126,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The frozen-coordinate tax has a mechanism and an exact remedy, both written
+  down: `docs/ai-bidder/card-manifold.md`.**  `classify_bba_v4` is a bare
+  `Linear(368,256) → ReLU → Linear(256,256) → ReLU → Linear(256,38)` over raw
+  0/1 features — no normalisation between `features_v4` and `W₁x + b₁` — and the
+  v4 corpus moves exactly **four of the 140 card slots per side** (one-hot bits 0
+  and 2, `1D opening with 5 cards`, `Kickback 1430`), so **272 of the net's 368
+  inputs are constant**.  A constant input contributes `cᵢwᵢ` to every hidden
+  pre-activation, which is algebraically indistinguishable from the bias: no
+  gradient separates the two, and at `wd = 0.0` nothing shrinks them either, so
+  those 272 columns sit at their `--init-seed 1` draw.  Flipping one injects a
+  *random* init-magnitude vector, which is the ≈ −0.015 IMPs/board already
+  measured on both card blocks, and why 43 bits at once (cell A) cost −0.70 plain
+  / −1.16 PD.  The remedy follows from the same algebra and needs no retrain:
+  fold `Σ cᵢwᵢ` into `b₁` and zero the columns, which is **exact on the training
+  distribution** and takes the tax to zero rather than down.  The doc carries the
+  fold's arithmetic and its gate, three cheap experiments that decide it (E1 a
+  deterministic 0-of-20 000 assertion, E2 cell A collapsing from −0.70, E3 the
+  still-owed cell B at scale), and the v5 corpus design — whose key property is
+  that with the fold in the pipeline **partial coverage is safe**: un-thawed rows
+  become inert instead of landmines, so a retrain never has to reach all 280.
+  Nothing is built.  `configured-net.md` gains the ⚠ note it lacked (a reader of
+  it alone concludes the card block is a general-purpose input trained over eight
+  cells), and `declarative-rows.md`'s Phase 3 gate is corrected: cell B is the
+  cheap go/no-go, but the gate is whether the card block is a trained input at
+  all.
+
 - **A deviating opponent no longer tells its own net that the whole table
   deviates.**  `examples/common`'s `deviant_floor` built its book through
   `seat_floor`, which is `american()`/`dutch()`, which take

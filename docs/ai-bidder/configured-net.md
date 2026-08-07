@@ -505,6 +505,29 @@ If gate 1 shows v4 is a *worse* American bidder than the shipped net, split
 capacity is the first suspect and the fallback is American-only cells with a
 widened hidden layer.
 
+### ⚠ Six table configs move four slots per side, and the other 272 cost money
+
+Read [card-manifold.md](card-manifold.md) before treating the card block as a
+general-purpose input. Eight ordered cells drawn from two cards sounds broad; in
+the encoded vector it is not. Across the whole shipped corpus exactly **four of
+the 140 slots per side ever move** — one-hot bits 0 and 2, `1D opening with 5
+cards`, and `Kickback 1430` — so **272 of the 368 inputs are constant**. A
+constant input's weight is unidentified (it is a bias duplicate, and no gradient
+separates the two), and this net trained at `wd = 0.0`, so those 272 columns sit
+at their `--init-seed 1` draw.
+
+Consequence, measured three times on 2026-08-07 and recorded in
+[declarative-rows.md](../declarative-rows.md): flipping a frozen row injects a
+*random* init-magnitude vector into layer 1, costing **≈ −0.015 IMPs/board per
+bit** — and 43 bits at once (cell A, our card against BBA's real 2/1 card) cost
+−0.70 plain / −1.16 PD, about the whole BBA gap.
+
+`card-manifold.md` carries the mechanism, an **exact** bias-fold that removes the
+tax without retraining, and the v5 corpus design that would give chosen rows
+meaning. The reserved-slots note above is the same argument seen from the other
+side: a slot the corpus never varies is not merely unused, it is *live noise*
+until something zeroes it.
+
 ### ⚠ Settle the bare/prefixed skew before dumping millions of rows
 
 `dump-teacher` builds features from a bare `Context::new`, which has **no trie

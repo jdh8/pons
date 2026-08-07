@@ -20,6 +20,7 @@ played a long time and read a lot. For 5-card major systems, see my
 | Closing the gap vs BBA (the anchor, floor roadmap, sd-lead) | [docs/bba-gap-campaign.md](docs/bba-gap-campaign.md) — the campaign plan; run `scripts/anchor.sh`, work the report's buckets |
 | Closing the gap vs BEN (the new north star; BBA = exploit guard) | [docs/ben-gap-campaign.md](docs/ben-gap-campaign.md), harness in [docs/ben-gen-design.md](docs/ben-gen-design.md) — design only, no code yet; how BEN bids in [docs/ben-architecture.md](docs/ben-architecture.md) |
 | Disclosing our system to BBA (`.bbsa` cards) | [src/bidding/card.rs](src/bidding/card.rs) — cards are **generated** from the live knob state; `cards/*.bbsa` are golden snapshots, re-blessed with `cargo run --example bba-card` |
+| A card-row change measures a loss, or a knob A/B moves a card row | [docs/ai-bidder/card-manifold.md](docs/ai-bidder/card-manifold.md) — 272 of the net's 368 inputs are frozen at initialisation and cost ≈ −0.015 IMPs/board per bit when disturbed; the exact bias-fold that removes the tax, and the v5 corpus that would give card rows meaning |
 | Measuring or shipping a bidding change | [docs/measurement.md](docs/measurement.md) — the A/B playbook. **No bidding change ships without it.** |
 | Tuning an existing convention's range, or fixing which call leaks | [docs/convention-tuning.md](docs/convention-tuning.md) — sweep vs forensic; classify constructive/competitive first |
 | Neural/AI bidder work | `.claude/skills/ai-bidder` + [docs/ai-bidder/](docs/ai-bidder/) (`README.md` then `plan.md`) |
