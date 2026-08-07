@@ -77,6 +77,7 @@ pub struct Context<'a> {
     partner_passed_hand: bool,
     opening_index: Option<usize>,
     prefixes: Option<CommonPrefixes<'a, 'a>>,
+    own_system: Option<&'a Stance>,
     their_system: Option<&'a Stance>,
     config: Option<&'a Config>,
     authored_projection: Option<&'a AuthoredProjection>,
@@ -175,6 +176,7 @@ impl ContextCursor {
                 && matches!(auction[(self.depth - 2) % 4], Call::Pass),
             opening_index: self.opening_index,
             prefixes: None,
+            own_system: None,
             their_system: None,
             config: None,
             authored_projection: None,
@@ -296,6 +298,7 @@ impl fmt::Debug for Context<'_> {
             .field("partner_passed_hand", &self.partner_passed_hand)
             .field("opening_index", &self.opening_index)
             .field("prefixes", &self.prefixes)
+            .field("own_system", &self.own_system)
             .field("their_system", &self.their_system)
             .field("config", &self.config)
             .finish()
@@ -323,6 +326,7 @@ impl<'a> Context<'a> {
             partner_passed_hand: len >= 2 && matches!(auction[(len - 2) % 4], Call::Pass),
             opening_index: auction.iter().position(|&call| call != Call::Pass),
             prefixes: None,
+            own_system: None,
             their_system: None,
             config: None,
             authored_projection: None,
@@ -403,23 +407,32 @@ impl<'a> Context<'a> {
         self
     }
 
-    /// Attach a model of the *opponents'* system for table-wide alert reading
+    /// Attach the reader's books, and with them a model of the *opponents'*
     ///
-    /// Alerts are disclosure to the whole table, so the reading layer may
-    /// decode the opponents' alerted calls off their authoring rules — when it
-    /// has a model of their books.  [`Stance::prefixed_context`] attaches the
-    /// stance itself: the opponents are modeled as playing our own books,
-    /// which is exact in self-play and an approximation against other
-    /// natural-family engines.  Consumed by `project_authored` behind
-    /// [`set_table_alert_reading`][super::inference::set_table_alert_reading].
+    /// Two channels from one argument, because they must not disagree: the
+    /// reader's own calls resolve in `ours`, and the opponents' in
+    /// [`Stance::opponents`] — which is `ours` again unless the stance was
+    /// built against a declared opponent ([`Stance::with_opponents`]). Alerts are
+    /// disclosure to the whole table, so the reading layer may decode the
+    /// opponents' alerted calls off their authoring rules; modeling them as
+    /// playing our own books is exact in self-play and an approximation
+    /// against other natural-family engines. Consumed by `project_authored`
+    /// behind [`set_table_alert_reading`][super::inference::set_table_alert_reading].
     #[must_use]
-    pub(crate) const fn with_their_system(mut self, them: &'a Stance) -> Self {
-        self.their_system = Some(them);
+    pub(crate) fn with_system(mut self, ours: &'a Stance) -> Self {
+        self.own_system = Some(ours);
+        self.their_system = Some(ours.opponents());
         self.revision = self.revision.wrapping_add(1);
         self
     }
 
-    /// The opponents' modeled system, if attached ([`Self::with_their_system`])
+    /// The reader's own books, if attached ([`Self::with_system`])
+    #[must_use]
+    pub(crate) const fn own_system(&self) -> Option<&'a Stance> {
+        self.own_system
+    }
+
+    /// The opponents' modeled system, if attached ([`Self::with_system`])
     #[must_use]
     pub(crate) const fn their_system(&self) -> Option<&'a Stance> {
         self.their_system

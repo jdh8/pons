@@ -129,7 +129,7 @@ pub fn classify_instinct_scoped(
     let trie = stance.trie_for(auction);
     let context = Context::new(vul, auction)
         .with_prefixes(trie.common_prefixes(auction))
-        .with_their_system(stance)
+        .with_system(stance)
         .with_decision_cache(hand);
     ladder.classify(hand, &context)
 }
@@ -146,6 +146,6 @@ pub fn classify_instinct_uncached(
     let trie = stance.trie_for(auction);
     let context = Context::new(vul, auction)
         .with_prefixes(trie.common_prefixes(auction))
-        .with_their_system(stance);
+        .with_system(stance);
     ladder.classify(hand, &context)
 }

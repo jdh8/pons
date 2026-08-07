@@ -988,3 +988,46 @@ fn cached_and_uncached_match_over_twenty_thousand_deals() {
         "unexpectedly shallow corpus: {decisions}"
     );
 }
+
+/// Rows Phase 2b: the opponents' calls read off *their* books
+///
+/// `1♣ - - 2♦`, seen from the 4th seat: both opponents' calls are theirs to
+/// disclose.  American reads the 2♦ response as its own jump shift (6+♦, no
+/// strength floor); the Dutch book that actually bid it shows 5+♦, no 4-card
+/// major, game-forcing.  Declaring the opponent must move the reading of RHO
+/// and leave our own side alone.
+#[test]
+fn a_declared_opponent_reads_their_calls_in_their_books() {
+    use crate::bidding::american::american_book;
+    use crate::bidding::dutch::dutch_book;
+    use crate::bidding::inference::Relative;
+    use contract_bridge::auction::RelativeVulnerability;
+
+    let auction = [bid(1, Strain::Clubs), Call::Pass, bid(2, Strain::Diamonds)];
+    let ours = american_book().against();
+    let dutch = dutch_book().against();
+
+    let read = |stance: &super::Stance| {
+        *stance
+            .infer(RelativeVulnerability::NONE, &auction)
+            .get(Relative::Rho)
+    };
+    let undeclared = read(&ours);
+    let declared = read(&american_book().against().with_opponents(&dutch));
+
+    assert_eq!(undeclared.lengths[Suit::Diamonds as usize].min, 6);
+    assert_eq!(undeclared.strength.points.min, 0);
+    assert_eq!(declared.lengths[Suit::Diamonds as usize].min, 5);
+    assert_eq!(declared.lengths[Suit::Hearts as usize].max, 3);
+    assert_eq!(declared.strength.points.min, 13);
+
+    // Declaring our own books changes nothing: that is the shipped default,
+    // spelled out.
+    assert_eq!(
+        format!(
+            "{:?}",
+            read(&american_book().against().with_opponents(&ours))
+        ),
+        format!("{undeclared:?}"),
+    );
+}

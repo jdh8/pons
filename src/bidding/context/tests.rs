@@ -246,7 +246,7 @@ fn structural_builders_reject_an_attached_cache() {
         &cache,
     ));
 
-    let opposed = context.with_their_system(&stance);
+    let opposed = context.with_system(&stance);
     assert_eq!(opposed.revision, cache.revision + 1);
     assert!(opposed.active_decision_cache().is_none());
 }

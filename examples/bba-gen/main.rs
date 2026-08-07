@@ -104,6 +104,20 @@ struct Args {
     #[arg(long)]
     declare_opponents: bool,
 
+    /// Read the opponents' calls off **their** books, not ours — the reading
+    /// half of a declared opponent (`Stance::with_opponents`, rows Phase 2b)
+    ///
+    /// The reader's twin of `--declare-opponents`, and deliberately separate:
+    /// that one moves the net's card inputs, this one moves the deterministic
+    /// reading of their alerted calls and passes.  Requires `--their-floor` —
+    /// a pons book is the only opponent we have books *for*, so this cannot be
+    /// run against EPBot.
+    ///
+    /// Asymmetric on purpose: only our side reads better, so a paired A/B
+    /// attributes its IMPs to our decisions alone.
+    #[arg(long)]
+    declare_their_book: bool,
+
     /// Seat a **pons** book as the opponents instead of EPBot — the deviation
     /// panel's B/C axes (docs/deviation-panel.md).  Takes the same names as
     /// `--our-floor`; the `--their-dial` / `--their-overcall-four-card` /
@@ -1814,6 +1828,22 @@ fn main() -> anyhow::Result<()> {
         )?),
         None => None,
     };
+    // The reading channel (Phase 2b), attached here because it needs the
+    // opponents' *stance*, which only exists once their deviation knobs have
+    // been applied and reset.  Probing above ran on our own books, which is
+    // right: the probe measures what we bid, and our bidding table is what
+    // this leaves alone.
+    let our_floor = if args.declare_their_book {
+        let Some(them) = their_floor.as_ref() else {
+            anyhow::bail!(
+                "--declare-their-book reads their calls off their books, so it \
+                 needs a pons --their-floor to read"
+            );
+        };
+        our_floor.with_opponents(them)
+    } else {
+        our_floor
+    };
     let our_oracle = match our_system {
         Some(system) => Some(BbaOracle::load(&path, system, our_conv.clone())?),
         None => None,
@@ -1845,10 +1875,16 @@ fn main() -> anyhow::Result<()> {
             label_card(&args.our_card),
             label_overrides(&args.our_conv)
         ),
-        None if args.declare_opponents => {
-            format!("our {} floor [declared opponents]", args.our_floor)
+        None => {
+            let mut label = format!("our {} floor", args.our_floor);
+            if args.declare_opponents {
+                label += " [declared opponents]";
+            }
+            if args.declare_their_book {
+                label += " [their books]";
+            }
+            label
         }
-        None => format!("our {} floor", args.our_floor),
     };
     let their_label = if let Some(name) = &args.their_floor {
         let mut label = format!("their {name} floor");

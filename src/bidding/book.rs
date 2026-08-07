@@ -323,6 +323,7 @@ impl Pair {
             competitive,
             defensive,
             probed: HashMap::new(),
+            opponents: None,
             cache_identity: Arc::new(StanceCacheIdentity::default()),
         }
     }
@@ -504,6 +505,10 @@ pub struct Stance {
     /// until [`probe`][Self::probe] runs; consumed by the projection pass
     /// under [`set_probed_reading`][super::set_probed_reading].
     probed: HashMap<Vec<Call>, Envelope>,
+    /// The books the *opponents* are declared to play, for reading their
+    /// calls ([`with_opponents`][Self::with_opponents]).  [`None`] — the default — models them as
+    /// playing ours, which is exact in self-play.
+    opponents: Option<Arc<Stance>>,
     /// Stable across clones, replaced whenever stance-local reading data
     /// changes. Deal caches retain this small token, so an allocator cannot
     /// recycle a raw address into a false identity match.
@@ -517,6 +522,7 @@ impl core::fmt::Debug for Stance {
             .field("competitive", &self.competitive.trie)
             .field("defensive", &self.defensive.trie)
             .field("probed", &self.probed)
+            .field("declared_opponents", &self.opponents.is_some())
             .finish()
     }
 }
@@ -524,6 +530,31 @@ impl core::fmt::Debug for Stance {
 impl Stance {
     pub(crate) fn cache_identity(&self) -> &Arc<StanceCacheIdentity> {
         &self.cache_identity
+    }
+
+    /// Read the opponents' calls off `them` instead of off our own books
+    ///
+    /// The reading half of a declared opponent (rows Phase 2b): their alerted
+    /// calls and passes decode in *their* phase-routed books, so a mixed table
+    /// stops reading their 1♣ as ours.  It changes reading only — our own
+    /// calls keep resolving in our books, and neither side's *bidding* table
+    /// moves.  Nesting is ignored: only `them`'s own books are consulted, not
+    /// whatever `them` in turn declares.
+    ///
+    /// The net's twin channel is
+    /// [`Config`][super::features::Config], attached separately; the two are
+    /// deliberately not wired together, because declaring a foreign card to
+    /// the net measured as a loss (`docs/declarative-rows.md` §2a).
+    #[must_use]
+    pub fn with_opponents(mut self, them: &Self) -> Self {
+        self.opponents = Some(Arc::new(them.clone()));
+        self.invalidate_cache_identity();
+        self
+    }
+
+    /// The books modeling the opponents — declared ([`with_opponents`][Self::with_opponents]) or ours
+    pub(crate) fn opponents(&self) -> &Self {
+        self.opponents.as_deref().unwrap_or(self)
     }
 
     fn invalidate_cache_identity(&mut self) {
@@ -585,7 +616,7 @@ impl Stance {
         let bound = self.bound_for(auction);
         Context::new(vul, auction)
             .with_prefixes(bound.trie.common_prefixes(auction))
-            .with_their_system(self)
+            .with_system(self)
             .with_compiled_decision_cache(hand, bound.compiled_rules.face_slots)
     }
 
@@ -611,7 +642,7 @@ impl Stance {
         let projection = cache.prepare(self, vul, auction);
         let mut context = Context::new(vul, auction)
             .with_prefixes(bound.trie.common_prefixes(auction))
-            .with_their_system(self);
+            .with_system(self);
         if let Some(projection) = projection {
             context = context.with_authored_projection(projection);
         }
@@ -659,7 +690,7 @@ impl Stance {
         let trie = self.trie_for(auction);
         let context = Context::new(vul, auction)
             .with_prefixes(trie.common_prefixes(auction))
-            .with_their_system(self);
+            .with_system(self);
         trie.classify_floored(hand, &context, auction)
     }
 
@@ -730,7 +761,7 @@ impl Stance {
         let trie = self.trie_for(auction);
         let context = Context::new(vul, auction)
             .with_prefixes(trie.common_prefixes(auction))
-            .with_their_system(self);
+            .with_system(self);
         let (classifier, _, provenance) = trie.resolve_floored(hand, &context, auction)?;
         let rule = classifier.as_rules().and_then(|rules| {
             let &(index, _) = rules.explain(hand, &context).get(call)?;
@@ -784,7 +815,7 @@ impl Stance {
         let trie = self.trie_for(auction);
         Context::new(vul, auction)
             .with_prefixes(trie.common_prefixes(auction))
-            .with_their_system(self)
+            .with_system(self)
     }
 
     /// Read what an auction has shown, exactly as this stance would at the table

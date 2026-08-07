@@ -620,6 +620,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   feeds `Inferences`, not the card block, and the inference block varies
   enormously in training.  User impact: none by default.
 
+- **`Stance::with_opponents(them)`: read the opponents' calls off *their*
+  books (rows Phase 2b) — measured, REFUTED, default off.**  The reader's
+  twin of the card channel above, and it needed a real split first:
+  `Context::their_system` was serving two masters.  Five of its eight
+  consumers resolve the reader's *own* prior calls, one resolves the
+  opponents' alerted calls, and two — the pass walk and the probed overlay —
+  do both by index parity.  The field is now `own_system` (always ours) plus
+  `their_system` (declared, else ours), set together by one builder
+  `Context::with_system(ours)` so they cannot disagree; the routed decode
+  carries six cursors (`[side][phase]`) instead of three; and the incremental
+  reader `AuthoringStepCache::prepare` declines a declared opponent, falling
+  back to the full walk that already routes by side.
+
+  A/B (`scripts/ab-declared-book.sh`): our american floor against a pons dutch
+  book in both arms, `--declare-their-book` the only difference — asymmetric on
+  purpose, so the dutch side reads us identically either way and every IMP is
+  ours.  204800 boards/arm/vul, seed 1786091527, 1.8–1.9% of boards moved.
+  Plain DD **+0.0038** ±0.0035 (none) / **−0.0050** ±0.0043 (both); perfect
+  defense −0.0019 ±0.0043 / **−0.0120** ±0.0053.  Pooled: plain a wash
+  (−0.0006), PD a loss (−0.0070) — the decision table's do-not-ship row.
+
+  The mechanism is legible rather than mysterious: Dutch's 1♣ is wide and
+  non-forcing, so an honest reading makes us compete where the control arm
+  passes (`- - 1♣ - 1♥ 2NT`).  That is right non-vulnerable, the one cell that
+  gains, and wrong vulnerable, where the extra auctions outrun what the books
+  author.  Unlike Phase 2a this is not a coverage artifact — the reading is
+  *correct*; it simply is not what was costing us IMPs.
+
+  Kept as an opt-in constructor per the house rule.  The default system is
+  byte-identical: `--their-floor american --declare-their-book` reproduces the
+  no-flag dump board for board, and seeded `smoke-default` / `render-book` are
+  unchanged.  User impact: none by default.
+
 - **`points_by_vul(nv, vul)`: the two-band vulnerability split as one
   constraint.** Pure sugar expanding to exactly
   `(points(nv) & !vulnerable()) | (points(vul) & vulnerable())`, so eval, the

@@ -1947,7 +1947,7 @@ impl Inferences {
         // bidder`).  The stripped opening is 1NT, which the strip never fires
         // on, so this recurses at most once.
         if let Some(stripped) = systems_on_overcall_strip(context.auction()) {
-            return match context.their_system() {
+            return match context.own_system() {
                 Some(stance) => Self::read(&stance.prefixed_context(context.vul(), &stripped)),
                 None => Self::read(&Context::new(context.vul(), &stripped)),
             };
@@ -2872,7 +2872,7 @@ impl Inferences {
         // already folded unmasked.
         if probed_vacuous_reading()
             && !probed_reading()
-            && let Some(them) = context.their_system()
+            && let Some(them) = context.own_system()
         {
             // The first index at which both sides have acted: keys through a
             // call before it read purely constructive traffic — not the hole.
@@ -3650,6 +3650,14 @@ impl AuthoringStepCache {
         if self.disabled {
             return None;
         }
+        // ponytail: a declared opponent ([`Stance::with_opponents`]) falls back to the
+        // full-auction reader, which already routes each call to the books of
+        // the side that made it.  Splitting this incremental walk's `routed`
+        // cursors the same way is straightforward — six slots instead of
+        // three — but a mixed table is an A/B instrument, not a hot path.
+        if !std::ptr::eq(stance.opponents(), stance) {
+            return self.disable();
+        }
         match &self.stance_identity {
             None => self.stance_identity = Some(std::sync::Arc::clone(stance.cache_identity())),
             Some(identity) if std::sync::Arc::ptr_eq(identity, stance.cache_identity()) => {}
@@ -4135,7 +4143,11 @@ fn project_authored_with(
             })
             .collect()
     };
-    let stance = compiled_reader.then(|| context.their_system()).flatten();
+    let stance = compiled_reader.then(|| context.own_system()).flatten();
+    // The opponents' books — ours unless the stance declares an opponent
+    // ([`Stance::with_opponents`]).  Every decode below picks by the *side that made the
+    // call*: our own calls resolve in `stance`, theirs in `their_stance`.
+    let their_stance = compiled_reader.then(|| context.their_system()).flatten();
 
     let decoded_own = if fallback_projection {
         if let Some(stance) = stance {
@@ -4159,16 +4171,20 @@ fn project_authored_with(
     };
     let decode_routed = table_alerts || read_passes;
     let decoded_routed = if decode_routed {
-        if let Some(stance) = stance {
-            let mut constructive = stance
-                .decoder_for_phase(super::book::Phase::Constructive)
-                .cursor_with_capacity(len);
-            let mut competitive = stance
-                .decoder_for_phase(super::book::Phase::Competitive)
-                .cursor_with_capacity(len);
-            let mut defensive = stance
-                .decoder_for_phase(super::book::Phase::Defensive)
-                .cursor_with_capacity(len);
+        if let (Some(stance), Some(their_stance)) = (stance, their_stance) {
+            // Six cursors, `[side][phase]`: a declared opponent decodes their
+            // calls in their own books, so the routed walk cannot share one
+            // cursor set across the table.  Each already sees a *subsequence*
+            // of the prefixes (the `!needed` skip below), so splitting one
+            // more way costs nothing but the slots.
+            let mut cursors = [stance, their_stance].map(|books| {
+                [
+                    super::book::Phase::Constructive,
+                    super::book::Phase::Competitive,
+                    super::book::Phase::Defensive,
+                ]
+                .map(|phase| books.decoder_for_phase(phase).cursor_with_capacity(len))
+            });
             let mut routed = Vec::with_capacity(len);
             for index in 0..len {
                 let prefix = &auction[..index];
@@ -4179,17 +4195,13 @@ fn project_authored_with(
                     routed.push(None);
                     continue;
                 }
-                let resolution = match super::book::Phase::of(prefix) {
-                    super::book::Phase::Constructive => {
-                        constructive.resolve_checked(&at_times[index], prefix)
-                    }
-                    super::book::Phase::Competitive => {
-                        competitive.resolve_checked(&at_times[index], prefix)
-                    }
-                    super::book::Phase::Defensive => {
-                        defensive.resolve_checked(&at_times[index], prefix)
-                    }
+                let phase = match super::book::Phase::of(prefix) {
+                    super::book::Phase::Constructive => 0,
+                    super::book::Phase::Competitive => 1,
+                    super::book::Phase::Defensive => 2,
                 };
+                let resolution =
+                    cursors[usize::from(opponent)][phase].resolve_checked(&at_times[index], prefix);
                 match resolution {
                     super::decoder::CheckedResolution::Decoded(answer) => routed.push(answer),
                     super::decoder::CheckedResolution::Opaque => {
@@ -4214,7 +4226,7 @@ fn project_authored_with(
                 let Some(answer) = answer else { continue };
                 let classifier = answer.classifier;
                 let compiled = context
-                    .their_system()
+                    .own_system()
                     .and_then(|stance| stance.compiled_rules_for(auction, classifier, profile));
                 project_call(&at_times[index], index, classifier, compiled, false);
             }
@@ -4232,7 +4244,7 @@ fn project_authored_with(
         // then read by the hand-written readers in [`Inferences::read`].
         for (prefix, classifier) in prefixes.clone() {
             let compiled = compiled_reader
-                .then(|| context.their_system())
+                .then(|| context.own_system())
                 .flatten()
                 .and_then(|stance| stance.compiled_rules_for(auction, classifier, profile));
             project_call(
@@ -4247,9 +4259,10 @@ fn project_authored_with(
 
     // Alerts are table-wide disclosure: the opponents' alerted calls are
     // explained to us, so decode them too — each resolved in *their*
-    // phase-routed book (the attached stance models them as playing our own
-    // books) under their at-the-time context, exactly as it was classified
-    // when made.  Their unalerted (natural) calls keep the natural walk.
+    // phase-routed book (declared with [`Stance::with_opponents`], else our own books
+    // model them) under their at-the-time context, exactly as it was
+    // classified when made.  Their unalerted (natural) calls keep the natural
+    // walk.
     if table_alerts && let Some(them) = context.their_system() {
         for index in ((len + 1) % 2..len).step_by(2) {
             let prefix = &auction[..index];
@@ -4273,10 +4286,12 @@ fn project_authored_with(
     // even after the auction goes defensive), so each resolves via the
     // slice-relative `trie_for` on the auction cut at its index, under its
     // at-the-time context — the reader's own side always, the opponents' only
-    // under table-wide disclosure.  The attached stance models both sides with
-    // the same books (`their_system` is the reader's own stance), so it serves
-    // own-side resolution too.
-    if read_passes && let Some(them) = context.their_system() {
+    // under table-wide disclosure.  Each pass resolves in the books of the
+    // side that *made* it, which are the same books twice unless the stance
+    // declares an opponent ([`Stance::with_opponents`]).
+    if read_passes
+        && let (Some(ours), Some(theirs)) = (context.own_system(), context.their_system())
+    {
         for index in 0..len {
             if auction[index] != Call::Pass {
                 continue;
@@ -4285,6 +4300,7 @@ fn project_authored_with(
             if !own_side && !table_alerts {
                 continue;
             }
+            let them = if own_side { ours } else { theirs };
             let prefix = &auction[..index];
             let answer = decoded_routed.as_ref().and_then(|routed| routed[index]);
             if let Some(answer) = answer {
@@ -4309,9 +4325,10 @@ fn project_authored_with(
     // the *complete* symbolic reading, and the natural walk stamps after this
     // returns.
     if probed_reading()
-        && let Some(them) = context.their_system()
+        && let (Some(ours), Some(theirs)) = (context.own_system(), context.their_system())
     {
         for index in 0..len {
+            let them = if index % 2 == len % 2 { ours } else { theirs };
             if let Some(&box_) = them.probed_box(&auction[..=index]) {
                 let who = relative_of(len, index) as usize;
                 let union = EnvelopeUnion::from(box_);
