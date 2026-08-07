@@ -1821,6 +1821,8 @@ fn main() -> anyhow::Result<()> {
     let their_floor = match &args.their_floor {
         Some(name) => Some(deviant_floor(
             name,
+            // Read under our armed knobs: the card the deviating seat faces.
+            &floor_card(&args.our_floor)?,
             args.their_dial,
             args.their_overcall_four_card,
             args.their_offshape_1nt,

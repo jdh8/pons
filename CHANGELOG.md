@@ -79,6 +79,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **A deviating opponent no longer tells its own net that the whole table
+  deviates.**  `examples/common`'s `deviant_floor` built its book through
+  `seat_floor`, which is `american()`/`dutch()`, which take
+  `Config::symmetric` — so the perturbed opponent's net was handed *its own*
+  card for both seats.  Harmless while no deviation knob moved a card row;
+  a live misdisclosure the moment one did, which `--their-offshape-1nt` now
+  does.  It takes the facing seat's card as a parameter and builds through
+  `seat_floor_vs`, reading its own card inside the same knob transaction that
+  builds its book.  Confined to the opponent seat: `bba-gen` is board-for-board
+  identical with no `--their-*` flags and with `--their-floor american`; it
+  moves for `--their-floor dutch` against an american seat (the two cards really
+  do differ) and for `--their-offshape-1nt`.
+
 - **Human-authored auctions now use one canonical notation:** space-delimited
   calls, `-` for every pass, and parentheses only around opponents' non-pass
   calls (`1NT - 2♣ (X) XX -`).  Compact partnership sequences now spell their

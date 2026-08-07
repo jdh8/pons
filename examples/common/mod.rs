@@ -638,8 +638,17 @@ pub fn seat_floor_vs(name: &str, theirs: &Card) -> anyhow::Result<Stance> {
 /// The B/C axes of docs/deviation-panel.md: `dial` is the antisymmetric
 /// strength dial, the three flags are the shape-indiscipline knobs.  Only the
 /// returned book carries them.
+///
+/// A deviation is *theirs alone*, so `theirs` — the card played by the seat
+/// this book faces — is passed in from outside the transaction, while its own
+/// card is read inside [`seat_floor_vs`].  [`seat_floor`] would have taken
+/// [`Config::symmetric`][pons::bidding::features::Config::symmetric] and told
+/// this net the whole table deviates — a misdisclosure the moment a deviation
+/// knob moves a card row, which `offshape_1nt` does.  The other three move no
+/// row, so with `theirs` equal to this book's own card this is byte-identical.
 pub fn deviant_floor(
     name: &str,
+    theirs: &Card,
     dial: u8,
     overcall_four_card: bool,
     offshape_1nt: bool,
@@ -649,7 +658,12 @@ pub fn deviant_floor(
     pons::bidding::american::set_overcall_four_card(overcall_four_card);
     pons::bidding::american::set_one_notrump_offshape(offshape_1nt);
     pons::bidding::american::set_weak_two_wild(wild_weak_two);
-    let book = seat_floor(name);
+    // Only the net-floored names take a config; the instinct and book-only
+    // floors have no net to declare anything to.
+    let book = match name {
+        "american" | "dutch" => seat_floor_vs(name, theirs),
+        _ => seat_floor(name),
+    };
     pons::bidding::constraint::set_strength_dial(0);
     pons::bidding::american::set_overcall_four_card(false);
     pons::bidding::american::set_one_notrump_offshape(false);

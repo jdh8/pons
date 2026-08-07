@@ -239,6 +239,8 @@ fn main() -> anyhow::Result<()> {
     let their_floor = match &args.their_floor {
         Some(name) => Some(deviant_floor(
             name,
+            // Our seat is bare `american()`, so that is the card they face.
+            &pons::bidding::card::american_card(),
             args.their_dial,
             args.their_overcall_four_card,
             args.their_offshape_1nt,
