@@ -447,6 +447,18 @@ fn american_row(name: &str) -> i32 {
         "Two Way New Minor Forcing" => i32::from(xyz()),
         "Responsive double" => i32::from(responsive_takeout_enabled()),
         "Support double redouble" => i32::from(major_support_double()),
+        // A **misdisclosure**, held deliberately.  EPBot pairs the long-suit try
+        // with an artificial "shortness somewhere" try (its comment 2483,
+        // `!Unspecified shortness, game try`); `set_major_game_tries` authors
+        // only the long-suit half plus the general `3M` re-raise, so the second
+        // way does not exist however the knob is set and the honest value is a
+        // constant `0` — the 21GF ledger books row 124 as a gap, not as shipped.
+        // Correcting it is cosmetic to BBA (0 of 8406 replayed decisions move)
+        // but the v4 corpus froze this row at `1` and the configured net reads
+        // it: the honest `0` measured **plain −0.0174/−0.0130 per board NV/vul,
+        // CI-clear both** (PD a wash), moving 2647 of 20000 smoke boards on
+        // auctions with no game try in them.  It is a retrain fix, not a code
+        // fix; see docs/declarative-rows.md.
         "Two way game tries" => i32::from(major_game_tries()),
 
         // Systems on when RHO overcalls our 1NT with 2♣ — EPBot's

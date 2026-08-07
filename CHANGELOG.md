@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Measured
 
+- **Correcting a card row we get wrong costs −0.015 IMPs/board, so the fix is a
+  retrain rather than a commit.**  `"Two way game tries"` reads
+  `major_game_tries()`, but EPBot's row pairs the long-suit try with an
+  artificial *unspecified-shortness* try (its comment 2483) and we author only
+  the long-suit half plus the general `3M` re-raise — the 21GF ledger books row
+  124 as a gap, not as shipped, so the honest value is a constant `0`.  Setting
+  it is cosmetic to BBA (the disclosure sweep moves 0 of 8406 decisions) but the
+  configured net reads all 135 rows and the v4 corpus froze this one at `1`:
+  the honest `0` moved **2647 of 20 000** `smoke-default` boards and measured
+  **plain −0.0174 ±0.0064 NV / −0.0130 ±0.0077 vul, CI-clear negative both**,
+  PD a wash (−0.0057 ±0.0077 / −0.0005 ±0.0090).  204 800 bd/arm/vul, both vuls,
+  `SEED_BASE=1786109782`, two binaries paired on one seed because the row has no
+  knob (`ab-results/game-tries-card`).  The worst boards are `1♣ - P - 1♠ - 4NT`
+  and a left-in `X` — auctions with no game try anywhere in them, which is the
+  tell: what moved is the frozen coordinate, not the row's meaning.  So the
+  frozen-coordinate tax now has a number on our **own** card block too, ≈ −0.015
+  plain per board per bit.  Rolled back; `card.rs` carries the defect in a
+  comment instead of in the value, and the next corpus should draw the row at
+  `0`.
+
 - **A one-bit perturbation of the net's `theirs` card block costs ≈ −0.01 plain
   / −0.02 PD per board — and it is *not* the in-distribution test it was built
   to be.**  Both sides pons `american`, the opponents genuinely playing one

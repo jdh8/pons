@@ -245,11 +245,28 @@ section above stands.
 
 **Second defect, found the same day and independent of the manifold problem:**
 `"Two way game tries"` on our card is `major_game_tries()`, but that BBA row
-names an *artificial* relay scheme and ours is a natural long-suit try plus the
-`3M` re-raise — a gap the 21GF ledger already lists (row 124, "add (Batch 3)").
-So the game-tries experiment's `truth` arm declared a row that was never true
-for either side. That experiment is void on its own terms; fix the row before
-reusing it.
+pairs the long-suit try with an artificial *unspecified-shortness* try (EPBot's
+comment 2483) and we author only the long-suit half plus the `3M` re-raise — a
+gap the 21GF ledger already lists (row 124, "add (Batch 3)"). So the game-tries
+experiment's `truth` arm declared a row that was never true for either side, and
+that experiment is void on its own terms.
+
+The correction was built, measured and **rolled back**, which is the sharper
+result. Setting the row to its honest `0` is cosmetic to BBA — the disclosure
+sweep moves 0 of 8406 decisions — but it moved **2647 of 20 000**
+`smoke-default` boards and measured **plain −0.0174 ±0.0064 / −0.0130 ±0.0077
+per board NV/vul, CI-clear negative both**, PD a wash (−0.0057 ±0.0077 /
+−0.0005 ±0.0090; 204 800 bd/arm/vul, both vuls, `SEED_BASE=1786109782`, two
+binaries paired on one seed because the row has no knob). The worst boards are
+`1♣ - P - 1♠ - 4NT` and a left-in `X` — auctions with no game try anywhere in
+them, which is the tell: the row's *meaning* is not what moved, the frozen
+coordinate is.
+
+So the frozen-coordinate tax now has a number on our **own** card block, not
+just the opponents': ≈ −0.015 plain per board for one bit. Honesty here is a
+**retrain fix, not a code fix** — the next corpus should draw the row at `0`
+and the card can follow. Until then `card.rs` carries the defect in a comment
+rather than in the value.
 
 **What is still owed is the original prescription:** cell B — American vs Dutch
 — at ~200k bd/arm/vul. `1D opening with 5 cards` is a genuinely trained
