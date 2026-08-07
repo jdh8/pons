@@ -53,10 +53,23 @@ use super::rows::compile_into;
 /// ```
 #[must_use]
 pub fn dutch() -> Pair {
-    with_floor(
-        dutch_book(),
-        ConfiguredFloorBba::new(Config::symmetric(&dutch_card())),
-    )
+    dutch_with_config(Config::symmetric(&dutch_card()))
+}
+
+/// [`dutch`] against a **declared** opponent — the mixed table
+///
+/// The Dutch twin of
+/// [`american_with_config`][super::american::american_with_config], and it
+/// carries the same caveat: `config` is taken verbatim while the **book still
+/// comes from the live knobs**, so a card claiming an agreement the rules do not
+/// play is a misdisclosure to the net that nothing checks.
+///
+/// This is what an american-vs-dutch table needs.  Seating bare [`dutch`]
+/// against bare `american()` declares *both* sides symmetric, so each net is
+/// told the opposition plays its own system — false at every seat.
+#[must_use]
+pub fn dutch_with_config(config: Config) -> Pair {
+    with_floor(dutch_book(), ConfiguredFloorBba::new(config))
 }
 
 /// The Dutch pair with the deterministic **instinct** floor (the pre-swap default)

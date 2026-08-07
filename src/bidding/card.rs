@@ -343,6 +343,33 @@ pub fn dutch_card() -> Card {
     card
 }
 
+/// The card a **foreign** bidder holds, read one row at a time
+///
+/// [`american_card`] describes *us* from our own knobs.  This describes someone
+/// else — an EPBot seat, say — by asking `read` for every schema row in order,
+/// so the caller supplies the engine and this supplies the schema.  Keeping the
+/// schema private is the point: a caller enumerating it itself could drift in
+/// order or length, and every feature after the drift would shift.
+///
+/// The pons-only rows are **not** read; they are forced to `0`.  They name
+/// conventions EPBot has no row for, deliberately parked on filler slots, so
+/// `read` would be answering for a name the engine does not know — and a foreign
+/// engine does not play them regardless.
+///
+/// The result is a full [`LEN_CARD_ROWS`][super::features::LEN_CARD_ROWS]-row
+/// card, ready for [`Config::new`][super::features::Config::new].
+#[must_use]
+pub fn foreign_card(system: i32, mut read: impl FnMut(&str) -> i32) -> Card {
+    Card {
+        system,
+        rows: SCHEMA
+            .iter()
+            .map(|name| (*name, read(name)))
+            .chain(PONS_SCHEMA.iter().map(|name| (*name, 0)))
+            .collect(),
+    }
+}
+
 impl Card {
     /// The value of one row, or [`None`] if the schema has no such row
     #[must_use]

@@ -14,6 +14,7 @@ use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Hand, Level, Seat, S
 use libloading::Library;
 use pons::bidding::System;
 use pons::bidding::array::{Array, Logits};
+use pons::bidding::card::{Card, foreign_card};
 use pons::bidding::context::relative;
 use std::ffi::{CString, c_char, c_int, c_void};
 
@@ -294,6 +295,48 @@ impl BbaOracle {
             bad.join("\n"),
         );
         Ok(())
+    }
+
+    /// The card **this oracle's own seats actually hold**, as EPBot reports it
+    ///
+    /// The read side of [`verify_card`][Self::verify_card], and the inverse of
+    /// `bba-gen`'s `--disclose`: that tells BBA what *we* play, this asks BBA
+    /// what *it* plays.  A scratch bot is configured exactly as
+    /// [`with_bot`][Self::with_bot] configures the real ones — `set_system`
+    /// loads the system's compiled-in defaults, then `overrides` are applied on
+    /// top — and then every schema row is read back.
+    ///
+    /// It has to be read off a bot rather than assembled from `overrides`:
+    /// `overrides` is a *diff* against defaults nothing in this crate knows.
+    ///
+    /// This is what a mixed table hands the net as the opponents' half of a
+    /// [`Config`][pons::bidding::features::Config].  Without it our nets are
+    /// told the opposition plays our own card, which against EPBot is simply
+    /// false.
+    ///
+    /// # Panics
+    ///
+    /// If EPBot cannot allocate a bot.
+    #[must_use]
+    pub fn card(&self) -> Card {
+        // SAFETY: a scratch bot, created and destroyed here; side 0 is in range.
+        unsafe {
+            let bot = (self.create)();
+            assert!(
+                !bot.is_null(),
+                "EPBot failed to allocate a bot to read its card from"
+            );
+            (self.set_system)(bot, 0, self.system);
+            for (name, value) in &self.overrides {
+                (self.set_conv)(bot, 0, name.as_ptr(), *value);
+            }
+            let card = foreign_card(self.system, |name| {
+                let name = CString::new(name).expect("a schema name has no NUL");
+                (self.get_conv)(bot, 0, name.as_ptr())
+            });
+            (self.destroy)(bot);
+            card
+        }
     }
 
     /// Force a scoring form on every fresh bot (see [`BbaState::scoring`])

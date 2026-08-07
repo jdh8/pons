@@ -22,7 +22,7 @@ phases are.
 | Constructive — ported | The American `weak_twos.rs`, `xyz.rs`, `nmf.rs`, `strong_two.rs`, and the `openings`, `notrump`, `rebids`, `raises`, `responses`, `game_force` and `slam` module trees, plus both Dutch override packages. American and Dutch each have a `row_package_invariants` test. |
 | RKCB | A row **producer**: `slam::rkcb_rows(prefix, trump) -> Vec<Entry>`. All 25 production callers and the three test fixtures use it directly; `install_rkcb` is retired. |
 | Phase 1.5 (floating agreements) | **Cancelled, not deferred** — see below. |
-| Phase 2 (cross-side assembly) | **Open**, restated below. Nothing exists: no `defense_vs`, no `competitive_vs`, no `Table::compose`. |
+| Phase 2 (cross-side assembly) | **2a built and REFUTED** 2026-08-07 (`--declare-opponents`, default off — the net's card block is near-diagonal, see below). **2b blocked** on the same retrain: no `defense_vs`, no `competitive_vs`, no `Table::compose`. |
 | Phase 3 (knob migration) | **Open**, restated below. Thread-locals untouched: 27 across `competition/`, 19 across `defense/`, 12 in `inference.rs`, 9 each across `notrump/` / `rebids/`. The by-agreement file split makes this *easier*: each agreement module's thread-locals are exactly the contents of its config struct. |
 
 **Escape hatches: 9, and the convertible set is empty.** A `guarded` row carries
@@ -109,12 +109,61 @@ opening rules; it duplicates a value the floor already consumes.
 **This is a bidding change, and its A/B must split**, because a mixed table moves
 the net's inputs and the book rows at once:
 
-- **2a — floor only.** Mixed `Config`, books unchanged. Zero new code, measurable
-  now.
+- **2a — floor only.** Mixed `Config`, books unchanged. **Built and measured
+  2026-08-07 — REFUTED at the current net; the knob stays, default off.**
 - **2b — books.** `defense_vs` / `competitive_vs` on top, baselined on 2a.
+  **Blocked**, see below.
 
-Full [measurement.md](measurement.md) discipline, both DD brackets. First
-consumer: the american-vs-dutch mixed table.
+### 2a measured: the card block is a near-diagonal input
+
+`bba-gen --declare-opponents` (default off) replaces `Config::symmetric` with
+`Config::new(&our_card, &theirs)`, where `theirs` is read off the opponents
+themselves — `BbaOracle::card()` for an EPBot seat, `floor_card(name)` for a
+pons `--their-floor`. Books are untouched; only the net's input moves. 2000
+boards/arm/vul, seed 424242, paired:
+
+| cell | `theirs` differs from ours | fired | plain DD | perfect defense |
+| --- | --- | --- | --- | --- |
+| **A** — vs BBA's real 2/1 card, vul none | **43 of 135 rows** | 31.4% | **−0.7015** ±0.1622 | **−1.1615** ±0.1950 |
+| **A** — vul both | | 26.8% | **−0.7410** ±0.1923 | **−1.1075** ±0.2262 |
+| **B** — american vs dutch, vul none | 1 row + the system one-hot | 1.4% | −0.0085 ±0.0345 | −0.0070 ±0.0418 |
+| **B** — vul both | | 1.2% | +0.0155 ±0.0390 | +0.0240 ±0.0467 |
+
+Cell A loses about **the whole BBA gap**, four-sigma, at both vuls and under
+both brackets. It is not a plumbing bug: the card reads back 135 rows, all in
+`{0, 1}`, and its 43 disagreements with `american_card()` reproduce
+`probe-bba-conventions`' independent diff exactly.
+
+The cause is corpus coverage. `docs/ai-bidder/configured-net.md` §"The cells"
+draws every v4 cell from `{American, Dutch} × {kickback off, on}` — **four
+pons-generated cards, pairwise differing in at most one row plus the base-system
+one-hot.** Cell B is one of those trained cells and washes; cell A is a
+20×-wider `theirs` block than anything in training, and the net degrades off the
+manifold. So `theirs` is not the general "who is across the table" input its
+name suggests — it is a near-diagonal one, and truthfulness is out of
+distribution.
+
+**Reopen after a retrain whose corpus carries BBA's own card as a `theirs`
+cell**, not before; the harness is already in place and the re-measure is two
+`--declare-opponents` arms.
+
+But price the ceiling before paying for one. Cell B is a pure *label* test —
+the opponents were a pons Dutch book in **both** arms, and only the declared
+`theirs` moved, across the widest in-distribution variation that exists (the
+corpus has exactly two base systems). It moved 1.2–1.4% of boards and scored a
+wash. So within its trained range the card block is nearly inert; the cell-A
+blowup is unregularized weights off-manifold, not a feature the net leans on.
+A retrain would be buying a channel whose only honest measurement is zero.
+The cheap next step is therefore **cell B at full A/B scale**, which needs no
+retrain and no new corpus: if a truthful, in-distribution `theirs` is still a
+wash at ~200k bd/arm/vul, the retrain is dead and so is 2a.
+
+**This does not block 2b's reader half.** `their_system` does not touch the
+card block — it feeds the deterministic reader, whose `Inferences` the net
+consumes through a block that varies enormously in training, so a different
+inference is not off-manifold the way a novel card bitvector is. What is
+blocked is 2b *as the doc specs it above* — "one declared-opponent value
+feeding all three channels" — because the third channel is the config.
 
 ## Phase 3 — knob migration (open)
 

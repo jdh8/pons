@@ -14,7 +14,9 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::eval::hcp as holding_hcp;
 use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Hand, Seat, Suit};
 use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
+use pons::bidding::card::{Card, american_card, dutch_card};
 use pons::bidding::context::relative;
+use pons::bidding::features::Config;
 use pons::bidding::{Stance, System};
 use pons::scoring::{
     final_contract, imps, ns_score_contract, ns_score_pd, ns_score_pd_tricks, ns_score_tricks,
@@ -580,6 +582,53 @@ pub fn seat_floor(name: &str) -> anyhow::Result<Stance> {
         "american-floor" => pons::american_floor().against(),
         other => anyhow::bail!(
             "floor must be american|american-book|american-instinct|american-floor|dutch|dutch-instinct, got {other:?}"
+        ),
+    })
+}
+
+/// The card a `--our-floor` / `--their-floor` name declares
+///
+/// Split on `-` like `bba-gen`'s `disclosure`: the `-instinct` / `-book` /
+/// `-floor` variants differ only in the floor, which no card row expresses, so
+/// they all declare their base system's card.
+pub fn floor_card(name: &str) -> anyhow::Result<Card> {
+    Ok(match name.split('-').next().unwrap_or_default() {
+        "american" => american_card(),
+        "dutch" => dutch_card(),
+        other => anyhow::bail!(
+            "no card generator for system `{other}` (known: american, dutch).  \
+             Write one in `src/bidding/card.rs` rather than declaring another \
+             system's card."
+        ),
+    })
+}
+
+/// [`seat_floor`], but with the opponents **declared** to the net
+///
+/// The books are identical — this moves only the net's
+/// [`Config`][pons::bidding::features::Config], whose `theirs` half every other
+/// entry point fills with our own card (`Config::symmetric`).  Phase 2a of
+/// docs/declarative-rows.md: the floor channel alone, so a measurement cannot
+/// confound a mixed net input with mixed book rows.
+///
+/// Our own card is read **here**, from the live knobs, exactly as `american()`
+/// reads it — so the same "set every `--ns-*` first" rule applies to this call
+/// as to `bba-gen`'s `disclosure()`.
+///
+/// Only the two net-floored systems accept a declared opponent.  The other
+/// floors are refused rather than silently ignored: an arm that quietly kept
+/// `Config::symmetric` would be incomparable to its sibling with nothing in the
+/// output saying so.
+pub fn seat_floor_vs(name: &str, theirs: &Card) -> anyhow::Result<Stance> {
+    Ok(match name {
+        "american" => {
+            pons::bidding::american::american_with_config(Config::new(&american_card(), theirs))
+                .against()
+        }
+        "dutch" => pons::dutch_with_config(Config::new(&dutch_card(), theirs)).against(),
+        other => anyhow::bail!(
+            "--declare-opponents needs a net floor to declare them to: \
+             floor must be american|dutch, got {other:?}"
         ),
     })
 }

@@ -131,6 +131,31 @@ fn dutch_differs_from_american_in_the_diamond_opening() {
     assert_eq!(moved, [&"1D opening with 5 cards"]);
 }
 
+/// [`foreign_card`] reproduces the schema half and zeroes the pons-only half
+///
+/// Fed our own values it must rebuild our own card everywhere EPBot has a row,
+/// and differ *only* on [`PONS_SCHEMA`] — the two rows no foreign engine holds.
+/// That pins both halves of the contract: same names in the same order (a drift
+/// would shift every later feature of `features_v4`), and no pons row smuggled
+/// into a description of somebody else's system.
+#[test]
+fn a_foreign_card_mirrors_the_schema_and_zeroes_the_pons_rows() {
+    let ours = american_card();
+    let mirrored = foreign_card(ours.system, |name| {
+        ours.row(name)
+            .expect("`read` is called with schema names only")
+    });
+
+    assert_eq!(mirrored.rows.len(), ours.rows.len());
+    for name in SCHEMA {
+        assert_eq!(mirrored.row(name), ours.row(name), "schema row `{name}`");
+    }
+    for name in PONS_SCHEMA {
+        assert_eq!(mirrored.row(name), Some(0), "pons-only row `{name}`");
+        assert_eq!(ours.row(name), Some(1), "the fixture needs a nonzero row");
+    }
+}
+
 #[test]
 #[should_panic(expected = "not a row of the .bbsa schema")]
 fn setting_an_unknown_row_panics() {

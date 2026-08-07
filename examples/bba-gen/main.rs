@@ -47,8 +47,8 @@ use std::ffi::{CString, c_int};
 mod common;
 use common::oracle::{BbaOracle, ConventionCard, DEFAULT_LIB, SYSTEM_2_OVER_1, bid_out, load_bbsa};
 use common::{
-    Blinded, Board, Dump, NtDefenseArg, ReadingScopeArg, deviant_floor, hand_hcp, seat_floor,
-    seat_to_act,
+    Blinded, Board, Dump, NtDefenseArg, ReadingScopeArg, deviant_floor, floor_card, hand_hcp,
+    seat_floor, seat_floor_vs, seat_to_act,
 };
 
 /// Bid our 2/1 floor against BBA's 2/1 and write the boards (the generation half
@@ -85,6 +85,24 @@ struct Args {
     /// feature).  Ignored when `--our-system` selects an EPBot card.
     #[arg(long, default_value = "american")]
     our_floor: String,
+
+    /// Tell our net the card the **opponents actually hold**, instead of our own
+    ///
+    /// Phase 2a of docs/declarative-rows.md.  Off (the default) our stance is
+    /// built by `american()`/`dutch()`, whose `Config::symmetric` declares that
+    /// the opposition plays our card — against EPBot, simply false.  On, the
+    /// opponents' half of the config is read back off their own bot
+    /// (`BbaOracle::card`), so this is a **bidding change**: it moves the net's
+    /// inputs on every board and wants a full A/B, not a spot check.
+    ///
+    /// Books are untouched either way — this is the floor channel alone.
+    /// Requires `--our-floor american|dutch` (the two with a net to declare to).
+    /// With `--their-floor` the opponents are a pons book, so their card is the
+    /// one that name generates — the american-vs-dutch mixed table; the
+    /// `--their-dial`/`--their-*` perturbations are refused, since no card row
+    /// expresses them.
+    #[arg(long)]
+    declare_opponents: bool,
 
     /// Seat a **pons** book as the opponents instead of EPBot — the deviation
     /// panel's B/C axes (docs/deviation-panel.md).  Takes the same names as
@@ -1730,7 +1748,42 @@ fn main() -> anyhow::Result<()> {
     // the card cannot describe a system the run then reconfigures.
     let bba = bba.with_opponents(disclosure(&args)?);
     pons::bidding::set_pass_exclusion_reading(args.ns_pass_exclusion);
-    let mut our_floor = seat_floor(&args.our_floor)?;
+    // Our stance reads the live knobs for both its rules and its own card, so it
+    // is built here, under the same "every `--ns-*` first" rule as `disclosure`.
+    // The opponents' card is a property of *their* engine, so it comes off the
+    // oracle actually seated opposite us — `--advertise-natural` swaps that
+    // oracle for one with the 1NT defenses dropped, and the net should be told
+    // about the seat it faces, not the one it does not.
+    let mut our_floor = if args.declare_opponents {
+        anyhow::ensure!(
+            args.our_system.is_none(),
+            "--declare-opponents declares them to *our net*; --our-system \
+             replaces our side with EPBot, which has no net to declare to"
+        );
+        let theirs = match &args.their_floor {
+            // A pons opponent declares the card its own name generates — the
+            // american-vs-dutch mixed table.  Not when it is *perturbed*: no row
+            // expresses `--their-dial` or the shape-indiscipline flags, so the
+            // card would claim a system they are not playing, which is the one
+            // error the net cannot see.
+            Some(name) => {
+                anyhow::ensure!(
+                    args.their_dial == 0
+                        && !args.their_overcall_four_card
+                        && !args.their_offshape_1nt
+                        && !args.their_wild_weak_two,
+                    "--declare-opponents cannot describe a deviant --their-floor: \
+                     no card row expresses --their-dial / --their-overcall-four-card \
+                     / --their-offshape-1nt / --their-wild-weak-two"
+                );
+                floor_card(name)?
+            }
+            None => bba_vs_natural.as_ref().unwrap_or(&bba).card(),
+        };
+        seat_floor_vs(&args.our_floor, &theirs)?
+    } else {
+        seat_floor(&args.our_floor)?
+    };
     if args.ns_probe > 0 {
         // Fixed seed: every shard of an arm probes the identical map, so the
         // arm's readings are consistent across its shards.
@@ -1792,6 +1845,9 @@ fn main() -> anyhow::Result<()> {
             label_card(&args.our_card),
             label_overrides(&args.our_conv)
         ),
+        None if args.declare_opponents => {
+            format!("our {} floor [declared opponents]", args.our_floor)
+        }
         None => format!("our {} floor", args.our_floor),
     };
     let their_label = if let Some(name) = &args.their_floor {

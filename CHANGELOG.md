@@ -576,6 +576,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Phase 2a of the rows campaign: a declared opponent for the net —
+  built, measured, and REFUTED at the current net.  Default off.**
+  `bba-gen --declare-opponents` swaps `Config::symmetric` (which tells our net
+  the opposition plays *our* card) for `Config::new(&our_card, &theirs)`, with
+  `theirs` read off the opponents themselves: `BbaOracle::card()` drives a
+  scratch bot and reads every schema row back for an EPBot seat, `floor_card`
+  names the card for a pons `--their-floor`.  New library surface:
+  `card::foreign_card(system, read)` builds a full 135-row `Card` from a
+  callback so the schema stays private (a caller enumerating it could drift in
+  order or length, shifting every later `features_v4` slot), and
+  `dutch_with_config` mirrors `american_with_config` so a mixed table can seat
+  the Dutch side.  Books are untouched throughout — this is the floor channel
+  alone, which is why 2a is split from 2b.
+
+  **Measured 2000 boards/arm/vul, seed 424242, paired.**  Against BBA's real
+  2/1 card (43 of 135 rows differ from ours): **−0.7015 ±0.1622 plain /
+  −1.1615 ±0.1950 PD** at vul none, **−0.7410 ±0.1923 / −1.1075 ±0.2262** at
+  both, 27–31% of boards diverging — about the size of the entire BBA gap, four
+  sigma, same sign in every cell.  Against a pons `--their-floor dutch` (one row
+  plus the base-system one-hot): a wash, 1.2–1.4% fired, all four cells inside
+  the CI.
+
+  **The mechanism is right and the corpus is not.**  The card reads back
+  cleanly — 135 rows, every value in `{0, 1}`, and its 43 disagreements with
+  `american_card()` reproduce `probe-bba-conventions`' independent diff exactly.
+  But `docs/ai-bidder/configured-net.md` draws every v4 cell from
+  `{American, Dutch} × {kickback off, on}`: four pons cards differing pairwise
+  in at most one row plus the system one-hot.  The Dutch cell is one of those
+  and washes; BBA's true card is a 20×-wider `theirs` block than anything in
+  training, and the net degrades off the manifold.  So the card block is a
+  **near-diagonal** input, not the general "who is across the table" its name
+  suggests, and telling it the truth is out of distribution.
+
+  Kept as an opt-in knob per the house rule for rejected-but-interesting
+  treatments; the control arm is byte-identical to its parent over 2000 seeded
+  boards.  Reopen after a retrain whose corpus carries BBA's own card as a
+  `theirs` cell — the re-measure is then two `--declare-opponents` arms.  Note
+  the ceiling first: cell B varied only the *label* (a pons Dutch opponent in
+  both arms) across the widest in-distribution range there is, and moved 1.2–1.4%
+  of boards for a wash, so within its trained range the card block is nearly
+  inert.  Phase 2b's reader half is **not** blocked by this — `their_system`
+  feeds `Inferences`, not the card block, and the inference block varies
+  enormously in training.  User impact: none by default.
+
 - **`points_by_vul(nv, vul)`: the two-band vulnerability split as one
   constraint.** Pure sugar expanding to exactly
   `(points(nv) & !vulnerable()) | (points(vul) & vulnerable())`, so eval, the
