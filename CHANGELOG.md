@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Measured
+
+- **A one-bit perturbation of the net's `theirs` card block costs ≈ −0.01 plain
+  / −0.02 PD per board — and it is *not* the in-distribution test it was built
+  to be.**  Both sides pons `american`, the opponents genuinely playing one
+  agreement differently (`--their-ns "--no-ns-garbage-stayman"`, then
+  `--no-ns-major-game-tries`), which moves exactly one card row.  Three arms with
+  the opponents' book byte-identical across all of them: `symmetric` (today's
+  default), `wrong` (declared differing on the *other* row), `truth`.  204 800
+  bd/arm/vul, both vuls, seeds 1786103953 / 1786103961, ~4.4% divergent,
+  `scripts/ab-declared-agreement.sh`.  Fourteen of sixteen cells negative, twelve
+  CI-clear; every `truth` cell ≤ 0 plain and CI-clear negative under PD
+  (garbage-stayman plain −0.0003/−0.0062, PD −0.0252/−0.0328; game-tries plain
+  −0.0124/−0.0105, PD −0.0125/−0.0130).  **Caveat, and it governs the reading:
+  neither row varies in the v4 corpus.**  `dump-teacher` arms one knob
+  (`set_rkcb_variant`) and takes `--system american|dutch`, so the card moves in
+  three coordinates across all eight ordered cells — the base-system one-hot,
+  `1D opening with 5 cards`, and `Kickback 1430`.  Flipping a *frozen* coordinate
+  is rows Phase 2a's cell-A failure mode at one bit instead of forty-three, so
+  this prices the off-manifold penalty and says nothing about whether an honest
+  declaration pays; the near-tie between `truth` and `wrong` is the same
+  statement, since both perturb weights that sit near initialisation.  It is
+  therefore evidence *for* the corpus-coverage explanation, and the retrain
+  reopen path stands.  The prescribed in-distribution test — cell B, American vs
+  Dutch, where `1D opening with 5 cards` is genuinely trained — is still owed.
+  `--declare-opponents` stays default-off.
+
 ### Fixed
 
 - **The distilled floor's forced rail was frozen process-wide, not per pair.**

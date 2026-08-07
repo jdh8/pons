@@ -22,8 +22,8 @@ phases are.
 | Constructive — ported | The American `weak_twos.rs`, `xyz.rs`, `nmf.rs`, `strong_two.rs`, and the `openings`, `notrump`, `rebids`, `raises`, `responses`, `game_force` and `slam` module trees, plus both Dutch override packages. American and Dutch each have a `row_package_invariants` test. |
 | RKCB | A row **producer**: `slam::rkcb_rows(prefix, trump) -> Vec<Entry>`. All 25 production callers and the three test fixtures use it directly; `install_rkcb` is retired. |
 | Phase 1.5 (floating agreements) | **Cancelled, not deferred** — see below. |
-| Phase 2 (cross-side assembly) | **Both halves built and REFUTED** 2026-08-07, both default off. 2a — the net's card channel (`--declare-opponents`); 2b — the reader's (`Stance::with_opponents`, `--declare-their-book`). See below. The book-selection third leg (`defense_vs`, `competitive_vs`, `Table::compose`) is **not built and not wanted**: `defensive_vs` already existed, had zero production consumers, and went out with `Family`. |
-| Phase 3 (knob migration) | **Open**, restated below. Thread-locals untouched: 27 across `competition/`, 19 across `defense/`, 12 in `inference.rs`, 9 each across `notrump/` / `rebids/`. The by-agreement file split makes this *easier*: each agreement module's thread-locals are exactly the contents of its config struct. |
+| Phase 2 (cross-side assembly) | **Both halves built and REFUTED** 2026-08-07, both default off. 2a — the net's card channel (`--declare-opponents`). A follow-up run the same day priced a **one-bit off-manifold** `theirs` perturbation at −0.01 plain / −0.02 PD per board; it was *meant* to be the in-distribution cell-B test and is not one, so the retrain reopen path stands and **cell B at scale is still owed**. 2b — the reader's (`Stance::with_opponents`, `--declare-their-book`). See below. The book-selection third leg (`defense_vs`, `competitive_vs`, `Table::compose`) is **not built and not wanted**: `defensive_vs` already existed, had zero production consumers, and went out with `Family`. |
+| Phase 3 (knob migration) | **Open; its gate has not actually run** (the 2026-08-07 attempt perturbed frozen card rows — see Phase 2). Not on the critical path either way; the knob field table is the piece worth doing regardless. It does not depend on Phase 2 — restated below. Thread-locals untouched: **221 across 74 files** — the earlier figures here (27 `competition/`, 19 `defense/`, 12 `inference.rs`, 9 each `notrump/` / `rebids/`) were a stale undercount by ~3× (`defense/` is 53, `notrump/` 23). Reproduce with `rg -c --no-heading '^\s+static\s+[A-Z0-9_]+:' -g '*.rs' src` and the same over `'^pub fn set_'`; both total 221, so statics and public setters match 1:1. The by-agreement file split makes this *easier*: each agreement module's thread-locals are exactly the contents of its config struct. |
 
 **Escape hatches: 9, and the convertible set is empty.** A `guarded` row carries
 a hand-written `Guard` verbatim; a `classified` row a table computed at classify
@@ -80,8 +80,8 @@ the test `the_default_floor_reads_the_live_card` pins. `american_with_config`
 cannot even do that much: a card claiming an agreement the rules do not play is a
 misdisclosure to the net, and nothing checks it.
 
-One consequence worth stating for scheduling: `with_floor` puts `instinct()`
-on the constructive book regardless of the floor passed, so the configured floor
+One consequence worth stating for scheduling: `with_floor` puts `instinct()` on
+the constructive book regardless of the floor passed, so the configured floor
 covers competitive + defensive only. The completed port was constructive, and
 did not change floor attachment.
 
@@ -180,6 +180,86 @@ inference is not off-manifold the way a novel card bitvector is. What is
 blocked is 2b *as the doc specs it above* — "one declared-opponent value
 feeding all three channels" — because the third channel is the config.
 
+### A one-bit `theirs` perturbation costs −0.01/−0.02 — but it is *not* cell B
+
+> **Read the caveat before the table.** This run was designed as "cell B at full
+> A/B scale" and **it is not that**. It perturbs one card row, but not one of the
+> rows the corpus varies, so it measures the off-manifold penalty at 1 bit rather
+> than the value of an honest declaration. Cell B at scale is still unrun.
+
+Both sides are pons `american`, and the opponents really do play one agreement
+differently (`--their-ns "--no-ns-garbage-stayman"`, then
+`--no-ns-major-game-tries`), which moves exactly one card row. Three arms, their
+book byte-identical across all three so their side reads us the same way and
+every IMP is ours:
+
+| arm | what our net is told they play |
+| --- | --- |
+| `symmetric` | our own card (today's default) |
+| `wrong` | a card differing on the *other* experiment's row |
+| `truth` | the row they actually differ on |
+
+`wrong` is the arm the two-arm 2a design could not spend: without it, a `truth`
+result cannot separate "reading them **correctly** helps" from "reading them as
+**anything other than ourselves** helps". 204 800 bd/arm/vul, both vuls, fresh
+seed per experiment (1786103953 / 1786103961), `scripts/ab-declared-agreement.sh`,
+dual scoring, ~4.4% of boards divergent — the channel is live, not inert.
+
+| experiment | arm | vul | plain DD | perfect defense |
+| --- | --- | --- | --- | --- |
+| garbage stayman | truth | none | −0.0003 ±0.0051 | **−0.0252** ±0.0065 |
+| | truth | both | −0.0062 ±0.0062 | **−0.0328** ±0.0076 |
+| | wrong | none | **−0.0115** ±0.0051 | **−0.0119** ±0.0065 |
+| | wrong | both | **−0.0106** ±0.0062 | **−0.0120** ±0.0077 |
+| major game tries | truth | none | **−0.0124** ±0.0052 | **−0.0125** ±0.0065 |
+| | truth | both | **−0.0105** ±0.0064 | **−0.0130** ±0.0078 |
+| | wrong | none | +0.0028 ±0.0052 | **−0.0206** ±0.0065 |
+| | wrong | both | **+0.0070** ±0.0063 | **−0.0195** ±0.0077 |
+
+Fourteen of sixteen cells are negative and twelve are CI-clear negative. Every
+`truth` cell is ≤ 0 on plain and CI-clear negative under PD. The two positives
+are one arm's plain half, whose PD half is −0.020. `truth` does not consistently
+beat `wrong` — it wins on plain and loses under PD in the garbage experiment,
+loses on both in the game-tries one.
+
+#### Why this is not the in-distribution test it was built to be
+
+**Neither row varies in the corpus.** `dump-teacher` arms exactly one knob
+(`set_rkcb_variant`) and takes `--system american|dutch`, so across all eight
+ordered cells the card moves in **three coordinates only**: the base-system
+one-hot, `1D opening with 5 cards`, and `Kickback 1430`. `diff
+cards/American.bbsa cards/Dutch.bbsa` is two lines. `Garbage Stayman` and
+`Two way game tries` are frozen at `1` in every training card on both sides.
+
+So flipping one of them is cell A's failure mode at one bit instead of
+forty-three, not a walk along the manifold. Their weights sit near
+initialisation, and the measurement says what unregularized weights predict:
+*perturbing a frozen `theirs` coordinate costs ≈ −0.01 plain / −0.02 PD per
+board.* That the `wrong` control loses the same amount is the same statement —
+it also flips a frozen coordinate — so the two arms carry no information the net
+could rank, and their near-tie is **not** evidence that declaring is worthless.
+
+This is therefore **evidence for the corpus-coverage explanation, not against
+it**, and it prices what a retrain would be buying back. The reopen path in the
+section above stands.
+
+**Second defect, found the same day and independent of the manifold problem:**
+`"Two way game tries"` on our card is `major_game_tries()`, but that BBA row
+names an *artificial* relay scheme and ours is a natural long-suit try plus the
+`3M` re-raise — a gap the 21GF ledger already lists (row 124, "add (Batch 3)").
+So the game-tries experiment's `truth` arm declared a row that was never true
+for either side. That experiment is void on its own terms; fix the row before
+reusing it.
+
+**What is still owed is the original prescription:** cell B — American vs Dutch
+— at ~200k bd/arm/vul. `1D opening with 5 cards` is a genuinely trained
+coordinate, so that arm alone tests an honest, in-distribution declaration. The
+harness for it now exists (`--their-floor dutch --declare-opponents`), and 0c
+made the Dutch seat's own config truthful, which it was not before.
+
+*Repro:* `PER_SHARD=6400 scripts/idle-run.sh scripts/ab-declared-agreement.sh
+ab-results/declared-agreement`.
+
 ### 2b measured: an honest reading is worth about zero
 
 The reader's channel was a genuine `Context` change, because `their_system` was
@@ -233,6 +313,65 @@ migrate one at a time; thread-locals retire last. Byte-identity at every stage.
 `american_card()` has no source. Migrate `the_default_floor_reads_the_live_card`
 alongside it. Skipping this freezes every card at its default, and the only
 symptom is that every future card-row A/B measures zero.
+
+### It does not depend on Phase 2
+
+The whole Phase-2 surface is knob-free — `Config` / `Config::new` /
+`Config::symmetric` / `encode_card` ([features.rs](../src/bidding/features.rs)),
+`Card::row` / `foreign_card` ([card.rs](../src/bidding/card.rs)),
+`BbaOracle::card()`, `ConfiguredFloorBba`, `Stance::with_opponents`, and
+`Context::{own_system, their_system, config}`. Exactly one function in that path
+reads a thread-local, `american_row()`, and that is Phase 3's own terminal step.
+Phase 3 can start whenever.
+
+### Two justifications that do not survive contact
+
+Recorded so nobody re-derives them:
+
+1. **Phase 3 cannot widen Phase 2a's cell B.** `dutch_book()` sets no knobs at
+   all (`rg 'set_' src/bidding/dutch.rs src/bidding/dutch/` is empty), so a
+   `DutchConfig::from_ambient()` would be byte-identical to the American one.
+   The single-row american/dutch card diff is *structural* and pinned by
+   `card/tests.rs`'s `dutch_differs_from_american_in_the_diamond_opening`. The
+   real limit is that the Dutch book has authored exactly one schema-nameable
+   divergence; authoring Multi 2♦ and the Polish two-suiters (the Dutch
+   campaign's own Phase 3) moves four rows for zero knob work.
+2. **Phase 3 does not unblock the mixed-knob cell either.** `ab-kickback`'s
+   `build(arm, opponent)` already hands the net two independently-carded arms
+   through a set → snapshot → restore transaction, and `Config::new` is public
+   and validates nothing. What blocked `bba-gen` was a CLI guard, since
+   narrowed — see the `--their-ns` / `--declare-as` entry in the changelog.
+
+So the payoff is **structural, not measured**: no ambient state, a total and
+cheap card read, generated CLI/UI/doc surfaces that cannot drift, and the
+thread-local hazard class gone. The hazards are real and have cost twice —
+the `LADDER` freeze above, and the off-shape card rows that silently lied.
+
+### The gate has not run yet
+
+Because the payoff is structural, the migration was gated on the one thing that
+could still have made it a *bidding* win: the declaration channel it exists to
+serve. The run built for that gate (above) turned out to perturb frozen card
+coordinates rather than trained ones, so **it does not decide the gate either
+way** — it prices the off-manifold penalty at one bit and leaves the channel's
+value unmeasured. The gate is cell B at scale, and it is still owed.
+
+Either way the migration is not urgent, because nothing about it is on the
+critical path of a measured win. What is worth doing on its own terms,
+independent of the gate:
+
+- **the knob field table** — one row per knob generating the config structs,
+  `bba-gen`'s clap surface, `web`'s `SETTINGS` and this repo's option index, so
+  the four cannot drift. That drift is a live defect class with its own CI job
+  (`.github/workflows/rust.yml`'s `web`) and its own abort mode (stale `--ns-*`
+  flags killing scripts). It needs no threading and no measurement.
+- **the hazard repairs**, which are cheap and independent — the two above were
+  found and fixed while auditing for this campaign.
+
+The full call-site migration (three config structs threaded to ~1500 sites,
+`set_*` deleted, `Card::from(&config)`) is **not scheduled**. Reopen it if the
+declaration channel is ever revived, or if the ambient state causes a third
+defect.
 
 ## The one porting rule
 
