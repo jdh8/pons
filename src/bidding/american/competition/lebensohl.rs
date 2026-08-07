@@ -6,12 +6,9 @@
 //! between them.
 
 use super::cue_raise::delayed_cue;
-use super::over_overcall::{
-    author_direct_3nt, natural_floor_hcp, natural_floor_on, natural_floor_pts,
-};
 use super::penalty_double::{
     DoubleStyle, double_style, opener_cooperates_optional, opener_leaves_in_penalty_double,
-    penalty_double_leave_in, penalty_pass, responder_double,
+    penalty_double_leave_in, penalty_pass, responder_double, trap_pass,
 };
 use super::rubensohl::{
     clubs_transfer_completion, cue_stayman_answer, lm_2d_both_majors_advance, lm_2d_clubs_ask,
@@ -71,6 +68,92 @@ pub enum LebensohlStyle {
     /// over `(2♦)` it adds `3♣`-Stayman + Smolen, Jacoby transfers
     /// (`3♦`→♥/`3♥`→♠/`3♠`→♣), and Leaping Michaels `4♣`/`4♦`
     Transfer,
+}
+
+thread_local! {
+    /// Whether responder's *direct* `3NT` over the overcall requires its own
+    /// stopper in their suit (the default, `true`) or may be bid on game values
+    /// alone, trusting opener's `1NT` for the stop (`false`). See
+    /// [`set_direct_3nt_stopper`].
+    static DIRECT_3NT_STOPPER: Cell<bool> = const { Cell::new(true) };
+}
+
+/// Require (or drop) responder's own stopper for a direct `3NT` over the overcall
+/// (for books built *after* this call; thread-local, read once at construction).
+/// Default `true` (status quo). With `false`, a game-values hand bids `3NT`
+/// without a guaranteed stopper, leaning on opener's `1NT` — the A/B knob for
+/// "does direct 3NT really need a stopper, or does X show it?".
+pub fn set_direct_3nt_stopper(on: bool) {
+    DIRECT_3NT_STOPPER.with(|cell| cell.set(on));
+}
+
+/// Whether a direct `3NT` requires responder's own stopper in their suit
+fn direct_3nt_stopper() -> bool {
+    DIRECT_3NT_STOPPER.with(Cell::get)
+}
+
+/// Author responder's direct `3NT` over the overcall at `weight`, honoring the
+/// stopper ([`direct_3nt_stopper`]) and trap-pass ([`trap_pass`]) toggles. The
+/// trap denies a too-good stopper (`suit_hcp(over, ..=4)`). The `&`-chained
+/// constraints have distinct types, so each combination is authored in its own arm.
+pub(super) fn author_direct_3nt(rules: Rules, weight: i16, over: Suit) -> Rules {
+    let nt = Bid::new(3, Strain::Notrump);
+    match (direct_3nt_stopper(), trap_pass()) {
+        (true, true) => rules.rule(
+            nt,
+            weight,
+            points(10..) & stopper_in(over) & suit_hcp(over, ..=4),
+        ),
+        (true, false) => rules.rule(nt, weight, points(10..) & stopper_in(over)),
+        (false, true) => rules.rule(nt, weight, points(10..) & suit_hcp(over, ..=4)),
+        (false, false) => rules.rule(nt, weight, points(10..)),
+    }
+}
+
+thread_local! {
+    /// The weak natural `2♦/2♥/2♠` escape's strength floor as
+    /// `(hcp_floor, points_floor)` — one is `0`; `(0, 0)` = no floor (see
+    /// [`set_natural_floor`]). Defaults to a **`5`-HCP** floor (with opener's
+    /// game-raise): a floor of any kind beats none by `+0.012`/`+0.016` IMPs/board
+    /// (none/both), and — once `(2♣)` went systems-on, leaving the natural escape
+    /// all *majors* (every one game-raisable, no raise-less minor) — `5` HCP beats
+    /// the relay's `6` by `+2.5`/`+2.3` IMPs/divergent (none/both), all-positive.
+    /// `4` HCP is too loose: the raises turn negative (overbidding). One lower than
+    /// the relay's `6`, matching the 2X sitting one level lower.
+    static NATURAL_FLOOR: Cell<(u8, u8)> = const { Cell::new((5, 0)) };
+}
+
+/// Floor responder's weak natural 2-level escape (for books built *after* this
+/// call; thread-local, read once at book-construction time)
+///
+/// The direct natural `2♦/2♥/2♠` over the overcall is the same weak 5-card-suit
+/// hand as the relay-then-correct sign-off (`2NT`→`3♣`→`3M`), one level lower —
+/// but unlike that sign-off it currently has no strength floor and opener cannot
+/// raise it. A non-zero floor makes the two symmetric: it adds the floor to the
+/// natural (an HCP floor *or* a total-points floor — being a level lower than the
+/// relay, the 2X floor can be lower or playing-strength oriented), and registers
+/// opener's `lebensohl_signoff_raise` over a natural *major* sign-off so a
+/// maximum with a fit stretches to game. Pass `(hcp, 0)` for an HCP floor,
+/// `(0, points)` for a points floor, `(0, 0)` to disable. Off by default.
+pub fn set_natural_floor(hcp_floor: u8, points_floor: u8) {
+    NATURAL_FLOOR.with(|cell| cell.set((hcp_floor, points_floor)));
+}
+
+/// Whether the weak natural escape is floored (and opener may raise it)
+pub(super) fn natural_floor_on() -> bool {
+    let (hcp, points) = NATURAL_FLOOR.with(Cell::get);
+    hcp > 0 || points > 0
+}
+
+/// The HCP floor on the weak natural escape (`0` = none) — a bound, so the
+/// constraint type stays stable whether or not the floor is engaged.
+pub(super) fn natural_floor_hcp() -> u8 {
+    NATURAL_FLOOR.with(Cell::get).0
+}
+
+/// The total-points floor on the weak natural escape (`0` = none)
+pub(super) fn natural_floor_pts() -> u8 {
+    NATURAL_FLOOR.with(Cell::get).1
 }
 
 thread_local! {

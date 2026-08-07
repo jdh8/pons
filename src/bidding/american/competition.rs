@@ -88,7 +88,10 @@ pub use free_bids::{
 };
 pub use high_overcall::set_high_overcall_responses;
 pub(crate) use lebensohl::lebensohl_style;
-pub use lebensohl::{LebensohlStyle, set_defense_to_2d_multi, set_lebensohl_style};
+pub use lebensohl::{
+    LebensohlStyle, set_defense_to_2d_multi, set_direct_3nt_stopper, set_lebensohl_style,
+    set_natural_floor,
+};
 pub(super) use lebensohl::{complete_lebensohl_relay, lebensohl_relay_rebid, lebensohl_responder};
 pub use negative_double::{
     NegativeDoubleShape, set_cachalot_contested_x, set_negative_double_shape,
@@ -98,7 +101,6 @@ pub use over_our_diamond_transfer::set_competition_over_diamond_transfer;
 pub use over_our_jacoby::set_competition_over_transfer;
 pub use over_our_minor_transfer::set_competition_over_minor_transfer;
 pub use over_our_stayman::set_competition_over_stayman;
-pub use over_overcall::{set_direct_3nt_stopper, set_natural_floor};
 pub(crate) use over_their_double::jordan_truscott;
 pub use over_their_double::{set_jordan_truscott, set_redouble_answer, set_splinter_doubled};
 pub use penalty_double::{
