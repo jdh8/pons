@@ -34,6 +34,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   on **0 of 2000 boards at either vul** — all 43 differing rows sit on zeroed
   columns, so the whole deficit was the tax.
 
+- **The compact-config extractor (`features_v5`, 144 features)** — the card
+  manifold pivot: pons will not implement every BBA convention, so the net's
+  config input stops being the raw 280-float card block and becomes a 28-dim
+  per-side vector over the axes pons actually owns (`Agreements` — base
+  system, kickback relocation, 11 boolean convention knobs, and one-hot blocks
+  for `NotrumpShape`/`NotrumpDefense`/`LebensohlStyle`, plus the minor-scheme
+  and Landy bits).  Every dim maps to a live knob a corpus can vary, so the
+  frozen-coordinate disease cannot be reintroduced structurally;
+  `Agreements::from_card` projects a foreign card onto the axes (lossy by
+  design — unmodeled rows drop out, whose inertness E2 measured).  The
+  `.bbsa` disclosure channel is unchanged.  `Context::with_compact` mirrors
+  `with_config`; the v4 extractor and artifact stay untouched and default.
+
+- **`dump-teacher` grows per-side knob axes and v5 emission** —
+  `SideConfig.flips: u16` (bit table pinned in the source, matching
+  `probe-card-axes`), `a-off+HEX` cell syntax, assignment-discipline
+  `arm_flips` at every side-arming site, `--feature-version 4|5` (4 default,
+  byte-identical), and a startup guard that diffs each flipped side's
+  *generated* card against `KNOWN_UNSTICKY`.  `scripts/dump-v5.sh` draws the
+  registered `22.pdd` window (rows 3.25M..4.16M): v4-shaped bulk + 8 axis
+  shards (top-8 probe survivors, 2-cell `--replay` so both sides' dims train
+  from the mixed table).  Gate-2 pre-check passed 8/8 — EPBot accepts every
+  flipped row.  `fold-constant-inputs.py` grew **scan mode** (`--data`,
+  streamed min/max over any layout), the standard last step of any train.
+
 - `scripts/ab-declared-opponents.sh` — cell B at full A/B scale, the v5
   retrain's go/no-go (E3 of `card-manifold.md`): american vs a pons dutch book,
   arms differing only in `--declare-opponents`, so the declared card moves

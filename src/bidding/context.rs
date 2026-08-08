@@ -11,7 +11,7 @@
 
 use super::book::Stance;
 use super::evaluator::{TrickEstimates, trick_estimates_with_auction};
-use super::features::Config;
+use super::features::{CompactConfig, Config};
 use super::inference::{AuthoredProjection, Inferences, ReadingProfile, reading_profile};
 use super::instinct::Interpretation;
 use super::trie::CommonPrefixes;
@@ -80,6 +80,7 @@ pub struct Context<'a> {
     own_system: Option<&'a Stance>,
     their_system: Option<&'a Stance>,
     config: Option<&'a Config>,
+    compact: Option<&'a CompactConfig>,
     authored_projection: Option<&'a AuthoredProjection>,
     revision: u64,
     decision_cache: Option<Arc<DecisionCache>>,
@@ -179,6 +180,7 @@ impl ContextCursor {
             own_system: None,
             their_system: None,
             config: None,
+            compact: None,
             authored_projection: None,
             revision: 0,
             decision_cache: None,
@@ -301,6 +303,7 @@ impl fmt::Debug for Context<'_> {
             .field("own_system", &self.own_system)
             .field("their_system", &self.their_system)
             .field("config", &self.config)
+            .field("compact", &self.compact)
             .finish()
     }
 }
@@ -329,6 +332,7 @@ impl<'a> Context<'a> {
             own_system: None,
             their_system: None,
             config: None,
+            compact: None,
             authored_projection: None,
             revision: 0,
             decision_cache: None,
@@ -453,6 +457,19 @@ impl<'a> Context<'a> {
     #[must_use]
     pub const fn with_config(mut self, config: &'a Config) -> Self {
         self.config = Some(config);
+        self
+    }
+
+    /// Attach both partnerships' compact agreements, for
+    /// [`features_v5`][super::features::features_v5]
+    ///
+    /// The v5 sibling of [`Self::with_config`]: the same seam with a narrower
+    /// payload — the axes pons owns instead of the whole `.bbsa` card.
+    /// Carried by reference and encoded once per configuration cell, so the
+    /// per-decision path neither allocates nor reads ambient knob state.
+    #[must_use]
+    pub const fn with_compact(mut self, compact: &'a CompactConfig) -> Self {
+        self.compact = Some(compact);
         self
     }
 
@@ -620,6 +637,12 @@ impl<'a> Context<'a> {
     #[must_use]
     pub const fn config(&self) -> Option<&'a Config> {
         self.config
+    }
+
+    /// The attached compact agreements, if any ([`Self::with_compact`])
+    #[must_use]
+    pub const fn compact(&self) -> Option<&'a CompactConfig> {
+        self.compact
     }
 
     /// Vulnerability relative to the side to act

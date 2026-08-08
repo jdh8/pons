@@ -207,6 +207,22 @@ read the verdict off `measurement.md`'s decision table. E2 reuses
 
 ## The retrain: v5, conditional on E3
 
+> **Pivot, 2026-08-08 (supersedes the thaw-8 design below):** pons will not
+> implement every BBA convention, so v5 **compacts the config instead of
+> thawing card rows** — `features_v5` (144 floats) replaces the 280-float card
+> block with a 28-dim per-side `Agreements` vector over the axes pons owns
+> (`features.rs` §"The compact-config extractor"; slot table pinned there).
+> Every dim maps to a live knob, so a corpus can cover the whole input space
+> and the frozen-coordinate disease cannot recur structurally; the export-time
+> scan fold still zeroes any dim a particular corpus leaves unvaried.
+> `Agreements::from_card` projects a foreign card onto the axes — lossy by
+> design, and E2 above is the measurement of why the dropped rows cost
+> nothing. The `.bbsa` disclosure channel is untouched. Corpus:
+> `scripts/dump-v5.sh` (v4-shaped bulk + 8 axis shards over the probe's top-8,
+> 2-cell `--replay` mixed tables), window registered in the bank ledger.
+> The sections below stand as the axis-selection method and the gate stack;
+> read "thaw axis" as "vary the corresponding compact dim".
+
 **The central design claim, and the reason the fold comes first:** with the fold
 in the pipeline, **partial coverage is safe**. A v5 net that thaws eight axes has
 eight trained coordinates and 264 zeroed ones; the un-thawed rows are *inert*,

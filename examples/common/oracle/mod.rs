@@ -70,7 +70,7 @@ type GetConvFn = unsafe extern "C" fn(*mut c_void, c_int, *const c_char) -> c_in
 ///   absorbed by the system bit rather than confusing a row.  Were Multi ever
 ///   made a knob, this entry would have to go and the card be reconciled
 ///   against read-back instead.
-const KNOWN_UNSTICKY: [&str; 4] = [
+pub const KNOWN_UNSTICKY: [&str; 4] = [
     "South African Texas",
     "Queen ask by available bid",
     "Reverse Bergen",

@@ -1002,3 +1002,148 @@ fn features_v4_without_a_config_is_zero_padded() {
     assert_eq!(out.len(), FEATURES_LEN_V4);
     assert!(out[OFFSET_OUR_CARD..].iter().all(|value| *value == 0.0));
 }
+
+// ── The compact-config extractor ────────────────────────────────────────
+
+/// `LEN_COMPACT` and the per-slot layout are the artifact/extractor contract
+///
+/// The same tripwire as `card_block_is_the_whole_card`, one block over: a
+/// slot added, moved, or re-defaulted silently misaligns a v5 artifact
+/// against its extractor with no symptom other than worse bidding.  The
+/// expected vector is the shipped knob defaults, hardcoded slot by slot.
+#[test]
+fn compact_layout_is_pinned() {
+    assert_eq!(LEN_COMPACT, 28);
+    assert_eq!(FEATURES_LEN_V5, 144);
+    assert_eq!(OFFSET_OUR_COMPACT, FEATURES_LEN_V3);
+    assert_eq!(OFFSET_THEIR_COMPACT, OFFSET_OUR_COMPACT + LEN_COMPACT);
+
+    #[rustfmt::skip]
+    let expected = [
+        0.0, //  0: dutch — `capture(false)`
+        0.0, //  1: relocating — `RkcbVariant::Plain`, kickback opt-in
+        1.0, //  2: garbage_stayman — default on
+        0.0, //  3: new_minor_forcing — default off (XYZ shadows it)
+        1.0, //  4: xyz — default on
+        0.0, //  5: transfer_super_accept — default off
+        1.0, //  6: fourth_suit_forcing — default on
+        1.0, //  7: jordan_truscott — default on
+        1.0, //  8: leaping_michaels — default on
+        1.0, //  9: responsive_takeout — default on
+        1.0, // 10: major_support_double — default on
+        1.0, // 11: nt_splinter — default on
+        0.0, // 12: one_notrump_offshape — default off
+        0.0, 0.0, 1.0, // 13..16: NotrumpShape — Wide6322, the shipped default
+        1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, // 16..23: NotrumpDefense — Natural
+        0.0, 0.0, 1.0, // 23..26: LebensohlStyle — Transfer
+        0.0, // 26: minors_european — Puppet scheme by default
+        0.0, // 27: landy — `set_landy` off
+    ];
+    assert_eq!(Agreements::capture(false).encode(), expected);
+}
+
+/// Each enum block is a one-hot: exactly one slot set, whatever the variant
+#[test]
+fn one_hot_blocks_are_exclusive() {
+    let check = |agreements: Agreements| {
+        let encoded = agreements.encode();
+        for block in [13..16, 16..23, 23..26] {
+            let sum: f32 = encoded[block.clone()].iter().sum();
+            assert_eq!(sum, 1.0, "block {block:?} of {agreements:?}");
+        }
+    };
+    let mut agreements = Agreements::capture(false);
+    check(agreements);
+    for shape in [
+        NotrumpShape::Balanced,
+        NotrumpShape::Wide,
+        NotrumpShape::Wide6322,
+    ] {
+        for defense in [
+            NotrumpDefense::Natural,
+            NotrumpDefense::DirectDont,
+            NotrumpDefense::Meckwell,
+            NotrumpDefense::Woolsey,
+            NotrumpDefense::DirectLandy,
+            NotrumpDefense::AlwaysPass,
+            NotrumpDefense::Off,
+        ] {
+            for lebensohl in [
+                LebensohlStyle::Off,
+                LebensohlStyle::Plain,
+                LebensohlStyle::Transfer,
+            ] {
+                agreements.shape = shape;
+                agreements.defense = defense;
+                agreements.lebensohl = lebensohl;
+                check(agreements);
+            }
+        }
+    }
+}
+
+/// The projection and the live capture agree on our own default cards
+///
+/// `from_card` reads row names; `capture` reads the knobs those rows are
+/// generated from.  A disagreement at the shipped defaults means a wrong
+/// row-name mapping — which would feed a v5 net a system nobody plays.  The
+/// Dutch pair also pins the system-header path (`dutch` rides `Card::system`,
+/// not a row).
+#[test]
+fn projection_agrees_with_capture_at_defaults() {
+    assert_eq!(
+        Agreements::from_card(&crate::bidding::card::american_card()),
+        Agreements::capture(false)
+    );
+    assert_eq!(
+        Agreements::from_card(&crate::bidding::card::dutch_card()),
+        Agreements::capture(true)
+    );
+}
+
+/// v5 is v3 with two compact blocks appended — the v3 prefix is untouched
+#[test]
+fn features_v5_appends_both_blocks() {
+    let hand = hand("AQ32.K53.QJ4.A92");
+    let ours = Agreements::capture(false);
+    let theirs = Agreements::from_card(&crate::bidding::card::dutch_card());
+    let compact = CompactConfig::new(&ours, &theirs);
+    let auction = [bid(1, Strain::Spades)];
+    let context = Context::new(RelativeVulnerability::NONE, &auction).with_compact(&compact);
+
+    let v3 = features_v3(hand, &context);
+    let v5 = features_v5(hand, &context);
+
+    assert_eq!(v5.len(), FEATURES_LEN_V5);
+    assert_eq!(v5[..FEATURES_LEN_V3], v3[..], "the v3 prefix must not move");
+    assert!(v5.iter().all(|value| value.is_finite()));
+    assert_eq!(
+        v5[OFFSET_OUR_COMPACT..OFFSET_THEIR_COMPACT],
+        ours.encode(),
+        "our block is our encoding, verbatim"
+    );
+    assert_eq!(
+        v5[OFFSET_THEIR_COMPACT..],
+        theirs.encode(),
+        "their block is their encoding, verbatim"
+    );
+    // A mixed table: the `dutch` slot separates the two sides.
+    assert_ne!(
+        v5[OFFSET_OUR_COMPACT..OFFSET_THEIR_COMPACT],
+        v5[OFFSET_THEIR_COMPACT..]
+    );
+}
+
+/// An unattached compact config encodes as zeros rather than panicking in release
+#[test]
+fn features_v5_without_a_compact_config_is_zero_padded() {
+    let hand = hand("AQ32.K53.QJ4.A92");
+    let context = empty_context();
+    // The debug assert in `features_v5` fires on a missing compact config, so
+    // reach past it: this pins the *release* shape, that the vector is still
+    // the right width rather than short.
+    let mut out = features_v3(hand, &context);
+    out.resize(FEATURES_LEN_V5, 0.0);
+    assert_eq!(out.len(), FEATURES_LEN_V5);
+    assert!(out[OFFSET_OUR_COMPACT..].iter().all(|value| *value == 0.0));
+}

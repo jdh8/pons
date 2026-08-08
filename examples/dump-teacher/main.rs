@@ -47,11 +47,22 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use ddss::TrickCountTable;
 use pons::bidding::Stance;
+use pons::bidding::american::{
+    EUROPEAN, LebensohlStyle, NotrumpDefense, NotrumpShape, PUPPET, fourth_suit_forcing,
+    garbage_stayman, jordan_truscott, leaping_michaels_enabled, lebensohl_style,
+    major_support_double, notrump_defense, notrump_minors, notrump_shape_setting, nt_splinter,
+    responsive_takeout_enabled, set_fourth_suit_forcing, set_garbage_stayman, set_jordan_truscott,
+    set_landy, set_leaping_michaels, set_lebensohl_style, set_major_support_double,
+    set_new_minor_forcing, set_notrump_defense, set_notrump_minors, set_notrump_shape,
+    set_nt_splinter, set_one_notrump_offshape, set_responsive_takeout, set_transfer_super_accept,
+    set_xyz, transfer_super_accept,
+};
 use pons::bidding::card::{american_card, dutch_card};
 use pons::bidding::context::{Context, relative};
 use pons::bidding::features::{
-    Config, FEATURES_LEN_V3, FEATURES_LEN_V4, FEATURES_VERSION_V3, FEATURES_VERSION_V4,
-    features_v3, features_v4,
+    Agreements, CompactConfig, Config, FEATURES_LEN_V3, FEATURES_LEN_V4, FEATURES_LEN_V5,
+    FEATURES_VERSION_V3, FEATURES_VERSION_V4, FEATURES_VERSION_V5, features_v3, features_v4,
+    features_v5,
 };
 use pons::bidding::{Phase, System};
 use pons::gib;
@@ -62,11 +73,14 @@ use std::collections::BTreeMap;
 use std::ffi::CString;
 use std::io::{BufWriter, Write};
 use std::os::raw::c_int;
+use std::sync::OnceLock;
 
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::oracle::{BbaOracle, ConventionCard, DEFAULT_LIB, SYSTEM_2_OVER_1, load_bbsa};
+use common::oracle::{
+    BbaOracle, ConventionCard, DEFAULT_LIB, KNOWN_UNSTICKY, SYSTEM_2_OVER_1, load_bbsa,
+};
 use common::slam_ish;
 
 /// Number of calls in a `Logits` array (the softmax width).
@@ -176,6 +190,18 @@ struct Args {
     /// Opt-in, so every existing v3 corpus recipe keeps its exact meaning.
     #[arg(long)]
     configured: bool,
+    /// Feature extractor generation
+    ///
+    /// `4` (the default) keeps today's meaning exactly — [`features_v4`] under
+    /// `--configured`, [`features_v3`] otherwise — so every existing invocation
+    /// stays byte-identical.  `5` emits the card-manifold retrain vector
+    /// ([`features_v5`]): the compact per-axis config of
+    /// [docs/ai-bidder/card-manifold.md](../../docs/ai-bidder/card-manifold.md)
+    /// §"The retrain" replaces the frozen 280-row card blocks, and the varied
+    /// axes come from each `--cell` side's `+HEX` flips.  Requires
+    /// `--configured`.
+    #[arg(long, default_value_t = 4)]
+    feature_version: u8,
     /// `--configured` only: which system *we* are declared to play
     #[arg(long, default_value = "american", value_name = "american|dutch")]
     system: String,
@@ -249,25 +275,38 @@ fn parse_enrich(spec: &str) -> Result<(u8, u8), String> {
     ))
 }
 
-/// What one partnership is declared to play: a base system and a convention
+/// What one partnership is declared to play: a base system, a convention, and
+/// a set of card-axis flips
 ///
-/// The two axes that exist today.  `SCHEMA` can express roughly 26 of the 222
-/// `set_*` knobs, and a corpus may only vary configuration the card can express
-/// — otherwise two cells collide into identical vectors with contradictory
-/// targets, which is the mixed-net failure this whole design exists to fix.
+/// `SCHEMA` can express roughly 26 of the 222 `set_*` knobs, and a corpus may
+/// only vary configuration the card can express — otherwise two cells collide
+/// into identical vectors with contradictory targets, which is the mixed-net
+/// failure this whole design exists to fix.  `flips` covers the 16
+/// card-expressible axes of [`AXES`]; `kickback` predates it and keeps its own
+/// field because it arms a different knob (the recognizer, not a book toggle).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 struct SideConfig {
     dutch: bool,
     kickback: bool,
+    /// Bit i moves [`AXES`]\[i\] away from its shipped default; `0` (the
+    /// default) is the shipped card.  Armed by [`arm_flips`].
+    flips: u16,
 }
 
 impl SideConfig {
     fn label(self) -> String {
-        format!(
+        let mut label = format!(
             "{}-{}",
             if self.dutch { "dutch" } else { "american" },
             if self.kickback { "on" } else { "off" }
-        )
+        );
+        // Labels key the per-side/per-pair maps and name corpus shards, so a
+        // flipped side must stay distinct and stable; fixed-width hex keeps
+        // the naming contract of `AXES` readable in a shard list.
+        if self.flips != 0 {
+            label.push_str(&format!("+{:04x}", self.flips));
+        }
+        label
     }
 
     fn system(self) -> &'static str {
@@ -286,11 +325,200 @@ fn arm_kickback(on: bool) {
     });
 }
 
-/// `a-on`, `d-off`, `american-on`, `dutch-off` — a side's declared system
+/// The shipped default of every flippable knob, captured off the untouched
+/// process state so a default drift can never silently invert a flip
+/// (`probe-card-axes`'s `Defaults`, copied verbatim)
+#[derive(Clone, Copy)]
+struct Defaults {
+    garbage: bool,
+    nmf: bool,
+    xyz: bool,
+    super_accept: bool,
+    fsf: bool,
+    jordan: bool,
+    leaping: bool,
+    responsive: bool,
+    support_x: bool,
+    splinter: bool,
+    offshape: bool,
+    shape: NotrumpShape,
+    defense: NotrumpDefense,
+    leb: LebensohlStyle,
+    minors_european: bool,
+    landy: Option<(u8, u8)>,
+}
+
+impl Defaults {
+    fn capture() -> Self {
+        Self {
+            garbage: garbage_stayman(),
+            // These four have crate-private readers (not web-settable), so
+            // their shipped defaults are transcribed from the `Cell::new`
+            // literals: nmf.rs:40, xyz.rs:41, one_notrump.rs:32, nt_landy.rs:17.
+            nmf: false,
+            xyz: true,
+            offshape: false,
+            landy: None,
+            super_accept: transfer_super_accept(),
+            fsf: fourth_suit_forcing(),
+            jordan: jordan_truscott(),
+            leaping: leaping_michaels_enabled(),
+            responsive: responsive_takeout_enabled(),
+            support_x: major_support_double(),
+            splinter: nt_splinter(),
+            shape: notrump_shape_setting(),
+            defense: notrump_defense(),
+            leb: lebensohl_style(),
+            minors_european: notrump_minors() == EUROPEAN,
+        }
+    }
+
+    fn apply(&self) {
+        set_garbage_stayman(self.garbage);
+        set_new_minor_forcing(self.nmf);
+        set_xyz(self.xyz);
+        set_transfer_super_accept(self.super_accept);
+        set_fourth_suit_forcing(self.fsf);
+        set_jordan_truscott(self.jordan);
+        set_leaping_michaels(self.leaping);
+        set_responsive_takeout(self.responsive);
+        set_major_support_double(self.support_x);
+        set_nt_splinter(self.splinter);
+        set_one_notrump_offshape(self.offshape);
+        set_notrump_shape(self.shape);
+        set_notrump_defense(self.defense);
+        set_lebensohl_style(self.leb);
+        set_notrump_minors(if self.minors_european {
+            EUROPEAN
+        } else {
+            PUPPET
+        });
+        set_landy(self.landy);
+    }
+}
+
+/// A knob flip away from the shipped defaults, applied on the bidding thread.
+type Flip = fn(&Defaults);
+
+/// Every flippable axis, **in bit order**: bit i of `SideConfig::flips` (the
+/// `+HEX` cell-label suffix) applies entry i
+///
+/// ⚠ This order is the **shard-naming contract** — a corpus shard is named by
+/// its cell labels, and a label's `+HEX` means these bits.  It matches
+/// `examples/probe-card-axes.rs`'s `AXES` (whose measured move-frequencies
+/// rank the thaw set, [docs/ai-bidder/card-manifold.md] §"Axis selection")
+/// and must never be reordered.  A set bit moves the knob from its shipped
+/// default (captured at startup) to the other pole, so the table below cannot
+/// invert on a default drift:
+///
+/// | bit | knob | poles |
+/// | --: | --- | --- |
+/// |  0 | `garbage_stayman` | on/off |
+/// |  1 | `new_minor_forcing` (Checkback) | on/off |
+/// |  2 | `xyz` | on/off |
+/// |  3 | `transfer_super_accept` | on/off |
+/// |  4 | `fourth_suit_forcing` | on/off |
+/// |  5 | `jordan_truscott` | on/off |
+/// |  6 | `leaping_michaels` | on/off |
+/// |  7 | `responsive_takeout` | on/off |
+/// |  8 | `major_support_double` | on/off |
+/// |  9 | `nt_splinter` | on/off |
+/// | 10 | `one_notrump_offshape` | on/off |
+/// | 11 | `notrump_shape` | Wide6322/Balanced |
+/// | 12 | `notrump_defense` | Natural/Woolsey |
+/// | 13 | `lebensohl_style` | Transfer/Off |
+/// | 14 | `notrump_minors` | PUPPET/EUROPEAN |
+/// | 15 | `landy_range` | None/Some((8, 14)) |
+///
+/// [docs/ai-bidder/card-manifold.md]: ../../docs/ai-bidder/card-manifold.md
+const AXES: [(&str, Flip); 16] = [
+    ("Garbage Stayman", |d| set_garbage_stayman(!d.garbage)),
+    ("Checkback (NMF)", |d| set_new_minor_forcing(!d.nmf)),
+    ("Two Way NMF (XYZ)", |d| set_xyz(!d.xyz)),
+    ("Super acceptance", |d| {
+        set_transfer_super_accept(!d.super_accept);
+    }),
+    ("Fourth suit forcing", |d| set_fourth_suit_forcing(!d.fsf)),
+    ("Jordan Truscott 2NT", |d| set_jordan_truscott(!d.jordan)),
+    ("Leaping Michaels", |d| set_leaping_michaels(!d.leaping)),
+    ("Responsive double", |d| {
+        set_responsive_takeout(!d.responsive)
+    }),
+    ("Support double/redouble", |d| {
+        set_major_support_double(!d.support_x);
+    }),
+    ("1N-3M splinter", |d| set_nt_splinter(!d.splinter)),
+    ("1NT offshape 4441/5422", |d| {
+        set_one_notrump_offshape(!d.offshape);
+    }),
+    ("1NT shape ladder", |d| {
+        set_notrump_shape(match d.shape {
+            NotrumpShape::Balanced => NotrumpShape::Wide6322,
+            _ => NotrumpShape::Balanced,
+        });
+    }),
+    ("NT defense (Landy rows)", |d| {
+        set_notrump_defense(if d.defense == NotrumpDefense::Woolsey {
+            NotrumpDefense::Natural
+        } else {
+            NotrumpDefense::Woolsey
+        });
+    }),
+    ("Lebensohl rows", |d| {
+        set_lebensohl_style(if d.leb == LebensohlStyle::Off {
+            LebensohlStyle::Transfer
+        } else {
+            LebensohlStyle::Off
+        });
+    }),
+    ("1NT minor scheme", |d| {
+        set_notrump_minors(if d.minors_european { PUPPET } else { EUROPEAN });
+    }),
+    ("Landy range", |d| {
+        set_landy(if d.landy.is_some() {
+            None
+        } else {
+            Some((8, 14))
+        });
+    }),
+];
+
+/// The shipped axis defaults, captured once before any arming so every later
+/// [`arm_flips`] re-assigns from the same untouched baseline.
+static AXIS_DEFAULTS: OnceLock<Defaults> = OnceLock::new();
+
+/// Arm a side's flip axes: re-assign **all** 16 defaults, then apply the set
+/// bits
+///
+/// Assignment discipline, exactly as `probe-card-axes` arms a rayon task:
+/// a mixed `--cell` re-arms per acting seat, so a knob merely set-when-on
+/// would leak the previous side's state into this side's book, card and
+/// reading.  Call it wherever [`arm_kickback`] is called for a side.
+fn arm_flips(flips: u16) {
+    let defaults = AXIS_DEFAULTS.get_or_init(Defaults::capture);
+    defaults.apply();
+    for (bit, (_, flip)) in AXES.iter().enumerate() {
+        if flips & (1u16 << bit) != 0 {
+            flip(defaults);
+        }
+    }
+}
+
+/// `a-on`, `d-off`, `american-on`, `dutch-off` — a side's declared system,
+/// with an optional `+HEX` suffix of [`AXES`] flips: `a-off+8003` is american,
+/// kickback off, axes 0, 1 and 15 moved off their shipped defaults
 fn parse_side(spec: &str) -> Result<SideConfig, String> {
+    let (spec, flips) = match spec.split_once('+') {
+        Some((head, hex)) => (
+            head,
+            u16::from_str_radix(hex, 16)
+                .map_err(|_| format!("flips must be up to 4 hex digits, got {hex:?}"))?,
+        ),
+        None => (spec, 0),
+    };
     let (system, kickback) = spec
         .rsplit_once('-')
-        .ok_or("expected SYSTEM-on|off, e.g. `a-on` or `dutch-off`")?;
+        .ok_or("expected SYSTEM-on|off[+HEX], e.g. `a-on` or `dutch-off+8003`")?;
     let dutch = match system {
         "a" | "american" => false,
         "d" | "dutch" => true,
@@ -301,7 +529,11 @@ fn parse_side(spec: &str) -> Result<SideConfig, String> {
         "off" => false,
         other => return Err(format!("kickback must be on|off, got {other:?}")),
     };
-    Ok(SideConfig { dutch, kickback })
+    Ok(SideConfig {
+        dutch,
+        kickback,
+        flips,
+    })
 }
 
 /// `OURS/THEIRS`, one table's seating — e.g. `a-on/a-off` for the mixed table
@@ -330,18 +562,22 @@ const DEFAULT_CELLS: [(SideConfig, SideConfig); 6] = [
 const A_OFF: SideConfig = SideConfig {
     dutch: false,
     kickback: false,
+    flips: 0,
 };
 const A_ON: SideConfig = SideConfig {
     dutch: false,
     kickback: true,
+    flips: 0,
 };
 const D_OFF: SideConfig = SideConfig {
     dutch: true,
     kickback: false,
+    flips: 0,
 };
 const D_ON: SideConfig = SideConfig {
     dutch: true,
     kickback: true,
+    flips: 0,
 };
 
 /// A generated card as EPBot overrides, so a teacher plays what we disclose
@@ -393,10 +629,20 @@ const VULS: [AbsoluteVulnerability; 4] = [
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
-    let (feature_version, features_len) = if args.configured {
-        (FEATURES_VERSION_V4, FEATURES_LEN_V4)
-    } else {
-        (FEATURES_VERSION_V3, FEATURES_LEN_V3)
+    // Capture the axis defaults off the still-untouched knob state, before any
+    // arming can perturb what "default" means.
+    AXIS_DEFAULTS.get_or_init(Defaults::capture);
+    let (feature_version, features_len) = match (args.feature_version, args.configured) {
+        // `4` is "today's meaning", not a forced v4: a bare (v3) invocation
+        // under the default flag value must stay byte-identical.
+        (4, true) => (FEATURES_VERSION_V4, FEATURES_LEN_V4),
+        (4, false) => (FEATURES_VERSION_V3, FEATURES_LEN_V3),
+        (5, true) => (FEATURES_VERSION_V5, FEATURES_LEN_V5),
+        (5, false) => anyhow::bail!(
+            "--feature-version 5 varies table configuration, which only the \
+             configured context can express — pass --configured"
+        ),
+        (other, _) => anyhow::bail!("--feature-version must be 4 or 5, got {other}"),
     };
     // DD label only exists when deals come from a GIB file (cached, no solving).
     let dd_len = if args.deals.is_some() { 20 } else { 0 };
@@ -482,13 +728,58 @@ fn main() -> anyhow::Result<()> {
         );
     }
     let mut sides: Vec<SideConfig> = cells.iter().flat_map(|(a, b)| [*a, *b]).collect();
-    sides.sort_by_key(|side| (side.dutch, side.kickback));
+    sides.sort_by_key(|side| (side.dutch, side.kickback, side.flips));
     sides.dedup();
+    // Gate 2 of card-manifold.md §"Axis selection", enforced at startup: an
+    // axis whose card row EPBot silently refuses (`KNOWN_UNSTICKY`) must never
+    // be *varied* under a BBA teacher — the teacher would keep bidding the
+    // default while the row claims the flip, contradictory targets with no
+    // symptom but a worse net.  Today no live arm is unsticky, so this is
+    // cheap future-proofing.  The moved rows are read off the generated card
+    // itself (default vs flipped diff), so the check tracks `american_row`
+    // instead of a hand-maintained list.
+    if args.teacher == "bba" {
+        for side in sides.iter().filter(|side| side.flips != 0) {
+            arm_flips(0);
+            let default = card_for(side.system())?;
+            arm_flips(side.flips);
+            let flipped = card_for(side.system())?;
+            let unsticky: Vec<&str> = default
+                .rows
+                .iter()
+                .zip(&flipped.rows)
+                .filter(|(default, flipped)| default.1 != flipped.1)
+                .map(|(row, _)| row.0)
+                .filter(|name| KNOWN_UNSTICKY.contains(name))
+                .collect();
+            if !unsticky.is_empty() {
+                anyhow::bail!(
+                    "cell side {} flips card rows EPBot does not honour: {} \
+                     (KNOWN_UNSTICKY; card-manifold.md §\"Axis selection\" gate 2)",
+                    side.label(),
+                    unsticky.join(", "),
+                );
+            }
+        }
+        arm_flips(0);
+    }
+    let v5 = feature_version == FEATURES_VERSION_V5;
     // Per side: its card and the stance that reads its auctions.
     let mut per_side: BTreeMap<String, (pons::bidding::card::Card, Stance)> = BTreeMap::new();
+    // v5 only: the same knob state [`Agreements`]-shaped.  Captured at the
+    // exact point the card is rendered — same arming — so card, compact block
+    // and book cannot drift.
+    let mut per_side_agreements: BTreeMap<String, Agreements> = BTreeMap::new();
     for side in &sides {
+        // The side's *full* arming — recognizer and flip axes — so its card,
+        // stance and (per pair, below) teacher are all built under the same
+        // knob state the auction loop re-arms per acting seat.
         arm_kickback(side.kickback);
+        arm_flips(side.flips);
         let card = card_for(side.system())?;
+        if v5 {
+            per_side_agreements.insert(side.label(), Agreements::capture(side.dutch));
+        }
         let stance = if side.dutch {
             dutch().against()
         } else {
@@ -498,6 +789,9 @@ fn main() -> anyhow::Result<()> {
     }
     // Per ordered pair: the feature-side config, and the teacher that plays it.
     let mut per_pair: BTreeMap<(String, String), (Config, Box<dyn System>)> = BTreeMap::new();
+    // v5 only: the compact config the extractor reads instead of the card
+    // blocks, from the same per-side captures the cards came from.
+    let mut per_pair_compact: BTreeMap<(String, String), CompactConfig> = BTreeMap::new();
     for (a, b) in cells.iter().flat_map(|(a, b)| [(*a, *b), (*b, *a)]) {
         let key = (a.label(), b.label());
         if per_pair.contains_key(&key) {
@@ -506,7 +800,19 @@ fn main() -> anyhow::Result<()> {
         let ours = per_side[&a.label()].0.clone();
         let theirs = per_side[&b.label()].0.clone();
         let config = Config::new(&ours, &theirs);
+        if v5 {
+            let compact = CompactConfig::new(
+                &per_side_agreements[&a.label()],
+                &per_side_agreements[&b.label()],
+            );
+            per_pair_compact.insert(key.clone(), compact);
+        }
+        // The teacher plays *our* side's configuration: the `american` branch
+        // builds its instinct book under this arming, and the flipped rows the
+        // `bba` branch pushes as overrides were already rendered into `ours`
+        // under the same arming in the per-side loop.
         arm_kickback(a.kickback);
+        arm_flips(a.flips);
         let teacher: Box<dyn System> = match args.teacher.as_str() {
             "american" if a.dutch => Box::new(dutch_instinct().against()),
             "american" => Box::new(american_instinct().against()),
@@ -637,11 +943,15 @@ fn main() -> anyhow::Result<()> {
                         (others, dealers_side)
                     }
                 });
-                // Arm the recognizer for the *acting* side before anything reads or
-                // classifies: in a mixed table the two sides disagree, and the row
-                // must be extracted under the configuration that produced it.
+                // Arm the recognizer *and* the flip axes for the acting side
+                // before anything reads or classifies: in a mixed table the two
+                // sides disagree, and the row must be extracted under the
+                // configuration that produced it.  Both arms assign every knob
+                // (never merely set-when-on), so the previous seat's arming
+                // cannot leak through.
                 if let Some((ours, _)) = acting {
                     arm_kickback(ours.kickback);
+                    arm_flips(ours.flips);
                 }
                 let cell_artifacts =
                     acting.map(|(ours, theirs)| &per_pair[&(ours.label(), theirs.label())]);
@@ -682,7 +992,15 @@ fn main() -> anyhow::Result<()> {
                 if let Some(config) = cell_artifacts.map(|(config, _)| config).or(config.as_ref()) {
                     context = context.with_config(config);
                 }
-                let feats = if args.configured {
+                let feats = if v5 {
+                    // `--feature-version 5` implies `--configured`, which
+                    // implies cell tables, so the acting pair — and its
+                    // compact config — always exist on a v5 row.
+                    let (ours, theirs) = acting.expect("v5 rows are cell rows");
+                    context =
+                        context.with_compact(&per_pair_compact[&(ours.label(), theirs.label())]);
+                    features_v5(hand, &context)
+                } else if args.configured {
                     features_v4(hand, &context)
                 } else {
                     features_v3(hand, &context)

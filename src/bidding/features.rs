@@ -16,9 +16,16 @@
 //! | Vulnerability        |    86 |   2 |
 //! | **Total**            |       | **88** |
 
+use super::american::{
+    EUROPEAN, LebensohlStyle, NotrumpDefense, NotrumpShape, fourth_suit_forcing, garbage_stayman,
+    jordan_truscott, landy_range, leaping_michaels_enabled, lebensohl_style, major_support_double,
+    new_minor_forcing, notrump_defense, notrump_minors, notrump_shape_setting, nt_splinter,
+    one_notrump_offshape, responsive_takeout_enabled, transfer_super_accept, xyz,
+};
 use super::card::Card;
 use super::context::Context;
 use super::inference::{Envelope, EnvelopeUnion, Inferences, Range, Relative};
+use super::instinct::relocating_now;
 use crate::bidding::constraint::{upgrade, upgrade_ceiling};
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::eval::{self, HandEvaluator, SimpleEvaluator};
@@ -990,6 +997,307 @@ pub fn features_v4(hand: Hand, context: &Context<'_>) -> Vec<f32> {
         None => out.resize(FEATURES_LEN_V4, 0.0),
     }
     debug_assert_eq!(out.len(), FEATURES_LEN_V4);
+    out
+}
+
+// ── The compact-config extractor (docs/ai-bidder/card-manifold.md) ───────────
+
+/// Layout version tag for the compact-config extractor [`features_v5`]
+pub const FEATURES_VERSION_V5: u32 = 5;
+
+/// One side's compact agreements vector: the axes pons owns, and nothing else
+///
+/// Where [`LEN_CARD`] carries all 140 card values (of which four ever moved in
+/// the v4 corpus, leaving 272 of 368 inputs frozen at their initialisation
+/// draw — the ≈ −0.015 IMP/board/bit tax priced in
+/// `docs/ai-bidder/card-manifold.md`), this block carries only the axes a pons
+/// knob can genuinely vary.  A v5 corpus can therefore reach *every*
+/// coordinate, so no slot has to be folded away to become safe.
+///
+/// Pinned by `compact_layout_is_pinned`: a slot added or moved silently
+/// misaligns an artifact against its extractor with no symptom other than
+/// worse bidding.
+pub const LEN_COMPACT: usize = 28;
+
+/// Number of `f32` values returned by [`features_v5`]: every value
+/// [`features_v3`] produces, then both partnerships' compact agreements.
+pub const FEATURES_LEN_V5: usize = FEATURES_LEN_V3 + 2 * LEN_COMPACT;
+
+/// Offset of our own compact block in [`features_v5`]
+pub const OFFSET_OUR_COMPACT: usize = FEATURES_LEN_V3;
+
+/// Offset of the opponents' compact block in [`features_v5`]
+pub const OFFSET_THEIR_COMPACT: usize = OFFSET_OUR_COMPACT + LEN_COMPACT;
+
+/// One side's agreements over the axes pons owns
+///
+/// The semantic domain behind one [`LEN_COMPACT`] block: which book, plus every
+/// knob-driven agreement the compact layout encodes.  Two constructors, two
+/// directions: [`capture`][Self::capture] reads the live thread-local knobs
+/// (the same state [`american_card`][super::card::american_card] reads row by
+/// row), and [`from_card`][Self::from_card] projects a card — possibly a
+/// foreign engine's — back onto these axes.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Agreements {
+    /// The Dutch book (wide non-forcing 1♣) rather than 2/1 — a *book*
+    /// choice, not a knob, so [`capture`][Self::capture] takes it as a
+    /// parameter
+    pub dutch: bool,
+    /// The keycard ask is relocated below 4NT (`set_rkcb_variant`)
+    pub relocating: bool,
+    /// Garbage Stayman (`set_garbage_stayman`)
+    pub garbage_stayman: bool,
+    /// New Minor Forcing (`set_new_minor_forcing`)
+    pub new_minor_forcing: bool,
+    /// Two-way checkback (`set_xyz`; shadows plain NMF when on)
+    pub xyz: bool,
+    /// Jump super-accept of a Jacoby transfer (`set_transfer_super_accept`)
+    pub transfer_super_accept: bool,
+    /// Fourth suit forcing (`set_fourth_suit_forcing`)
+    pub fourth_suit_forcing: bool,
+    /// Jordan/Truscott 2NT over their takeout double (`set_jordan_truscott`)
+    pub jordan_truscott: bool,
+    /// Leaping Michaels over their weak two (`set_leaping_michaels`)
+    pub leaping_michaels: bool,
+    /// Responsive doubles (`set_responsive_takeout`)
+    pub responsive_takeout: bool,
+    /// Support doubles and redoubles (`set_major_support_double`)
+    pub major_support_double: bool,
+    /// `1NT - 3M` splinter (`set_nt_splinter`)
+    pub nt_splinter: bool,
+    /// Off-shape 1NT openings — 4441 and any 5422 (`set_one_notrump_offshape`)
+    pub one_notrump_offshape: bool,
+    /// Which shapes open 1NT (`set_notrump_shape`)
+    pub shape: NotrumpShape,
+    /// The direct-seat defense to their 1NT (`set_notrump_defense`)
+    pub defense: NotrumpDefense,
+    /// Responder's machinery over their overcall of our 1NT
+    /// (`set_lebensohl_style`)
+    pub lebensohl: LebensohlStyle,
+    /// The European 1NT minor scheme (`3♣` = diamonds) rather than Puppet
+    /// (`set_notrump_minors`)
+    pub minors_european: bool,
+    /// The balancing Landy 2♣ two-suiter (`set_landy`)
+    pub landy: bool,
+}
+
+impl Agreements {
+    /// Read the live thread-local knob state, as
+    /// [`american_card`][super::card::american_card] does row by row
+    ///
+    /// `dutch` is a parameter because it selects a *book*, not a knob:
+    /// [`dutch`][crate::dutch()] overlays `american_book()` and inherits every
+    /// knob below, so nothing thread-local can answer which book is in play.
+    #[must_use]
+    pub fn capture(dutch: bool) -> Self {
+        Self {
+            dutch,
+            relocating: relocating_now(),
+            garbage_stayman: garbage_stayman(),
+            new_minor_forcing: new_minor_forcing(),
+            xyz: xyz(),
+            transfer_super_accept: transfer_super_accept(),
+            fourth_suit_forcing: fourth_suit_forcing(),
+            jordan_truscott: jordan_truscott(),
+            leaping_michaels: leaping_michaels_enabled(),
+            responsive_takeout: responsive_takeout_enabled(),
+            major_support_double: major_support_double(),
+            nt_splinter: nt_splinter(),
+            one_notrump_offshape: one_notrump_offshape(),
+            shape: notrump_shape_setting(),
+            defense: notrump_defense(),
+            lebensohl: lebensohl_style(),
+            minors_european: notrump_minors() == EUROPEAN,
+            landy: landy_range().is_some(),
+        }
+    }
+
+    /// Project a card — possibly a foreign engine's — onto our axes, **lossily**
+    ///
+    /// The other direction from [`capture`][Self::capture]: instead of reading
+    /// the knobs a card is generated from, read a [`Card`] (ours, or a foreign
+    /// one such as BBA's, for declared-opponent experiments) back into the axes
+    /// pons owns.  Rows we do not model simply drop out — an inertness that is
+    /// measured, not assumed (E2 in `docs/ai-bidder/card-manifold.md`) — and a
+    /// row name the card lacks reads as `0`.  Within the axes it is lossy too:
+    /// the wide 1NT rungs collapse upward (a bare 5422 row reads as
+    /// [`Wide6322`][NotrumpShape::Wide6322]), and a defense that is neither
+    /// Multi-Landy nor Landy reads as [`Natural`][NotrumpDefense::Natural].
+    ///
+    /// `projection_agrees_with_capture_at_defaults` pins the round trip on our
+    /// own cards: whatever the projection cannot see, it must agree with
+    /// [`capture`][Self::capture] on the system we actually generate.
+    #[must_use]
+    pub fn from_card(card: &Card) -> Self {
+        let row = |name: &str| card.row(name).unwrap_or(0) != 0;
+        Self {
+            // The WJ header: the only channel for the wide non-forcing 1♣,
+            // which is exactly how `dutch_card` declares itself.
+            dutch: card.system == 2,
+            relocating: row("Kickback 1430"),
+            garbage_stayman: row("Garbage Stayman"),
+            new_minor_forcing: row("Checkback"),
+            xyz: row("Two Way New Minor Forcing"),
+            transfer_super_accept: row("Super acceptance after NT"),
+            fourth_suit_forcing: row("Fourth suit") || row("Fourth suit game force"),
+            jordan_truscott: row("Jordan Truscott 2NT"),
+            leaping_michaels: row("Leaping Michaels"),
+            responsive_takeout: row("Responsive double"),
+            major_support_double: row("Support double redouble"),
+            nt_splinter: row("1N-3M splinter"),
+            one_notrump_offshape: row("1NT opening shape 4441"),
+            // Any wide rung reads as the widest: `american_row` sets the 5422
+            // row for `Wide` and `Wide6322` alike (and for the off-shape
+            // treatment), so plain `Wide` is not recoverable from a card.
+            shape: if row("1NT opening shape 5422") || row("1NT opening shape 6 minor") {
+                NotrumpShape::Wide6322
+            } else {
+                NotrumpShape::Balanced
+            },
+            defense: if row("Multi-Landy") {
+                NotrumpDefense::Woolsey
+            } else if row("Landy") {
+                // The `Landy` row also rides `set_landy`'s balancing range, so
+                // a balancing-only Landy projects onto the direct-seat system.
+                NotrumpDefense::DirectLandy
+            } else {
+                NotrumpDefense::Natural
+            },
+            lebensohl: if !row("Lebensohl after 1NT") {
+                LebensohlStyle::Off
+            } else if row("Rubensohl after double") {
+                LebensohlStyle::Transfer
+            } else {
+                LebensohlStyle::Plain
+            },
+            // Of the six mutually-exclusive minor-scheme rows, this is the one
+            // set *iff* the scheme is European (`american_row` writes it as
+            // `i32::from(european)`).
+            minors_european: row("1N-3C transfer to diamonds"),
+            landy: row("Landy"),
+        }
+    }
+
+    /// One side as `0.0`/`1.0` slots — **the slot contract** of [`LEN_COMPACT`]
+    ///
+    /// Booleans occupy one slot each; the three enums are one-hot blocks in
+    /// declaration order.  `compact_layout_is_pinned` holds the expected vector
+    /// at the shipped defaults, so a reordering here fails a test rather than
+    /// silently retargeting every artifact.
+    fn encode(&self) -> [f32; LEN_COMPACT] {
+        let mut out = [0.0; LEN_COMPACT];
+        out[0] = f32::from(self.dutch);
+        out[1] = f32::from(self.relocating);
+        out[2] = f32::from(self.garbage_stayman);
+        out[3] = f32::from(self.new_minor_forcing);
+        out[4] = f32::from(self.xyz);
+        out[5] = f32::from(self.transfer_super_accept);
+        out[6] = f32::from(self.fourth_suit_forcing);
+        out[7] = f32::from(self.jordan_truscott);
+        out[8] = f32::from(self.leaping_michaels);
+        out[9] = f32::from(self.responsive_takeout);
+        out[10] = f32::from(self.major_support_double);
+        out[11] = f32::from(self.nt_splinter);
+        out[12] = f32::from(self.one_notrump_offshape);
+        // 13..16: `NotrumpShape` one-hot [Balanced, Wide, Wide6322].
+        out[13
+            + match self.shape {
+                NotrumpShape::Balanced => 0,
+                NotrumpShape::Wide => 1,
+                NotrumpShape::Wide6322 => 2,
+            }] = 1.0;
+        // 16..23: `NotrumpDefense` one-hot [Natural, DirectDont, Meckwell,
+        // Woolsey, DirectLandy, AlwaysPass, Off].
+        out[16
+            + match self.defense {
+                NotrumpDefense::Natural => 0,
+                NotrumpDefense::DirectDont => 1,
+                NotrumpDefense::Meckwell => 2,
+                NotrumpDefense::Woolsey => 3,
+                NotrumpDefense::DirectLandy => 4,
+                NotrumpDefense::AlwaysPass => 5,
+                NotrumpDefense::Off => 6,
+            }] = 1.0;
+        // 23..26: `LebensohlStyle` one-hot [Off, Plain, Transfer].
+        out[23
+            + match self.lebensohl {
+                LebensohlStyle::Off => 0,
+                LebensohlStyle::Plain => 1,
+                LebensohlStyle::Transfer => 2,
+            }] = 1.0;
+        out[26] = f32::from(self.minors_european);
+        out[27] = f32::from(self.landy);
+        out
+    }
+}
+
+/// Both partnerships' compact agreements, encoded once per configuration cell
+///
+/// The v5 sibling of [`Config`]: the same both-sides seam — a mixed table is
+/// the normal case in an A/B, so a net blind to the opposition's agreements is
+/// out of distribution on exactly the boards a measurement is about — carrying
+/// [`LEN_COMPACT`]-slot [`Agreements`] blocks instead of whole `.bbsa` cards.
+///
+/// Encoded once per cell and attached to a [`Context`] by reference, so the
+/// per-decision path neither allocates nor consults ambient knob state.
+#[derive(Clone, Debug, PartialEq)]
+pub struct CompactConfig {
+    ours: [f32; LEN_COMPACT],
+    theirs: [f32; LEN_COMPACT],
+}
+
+impl CompactConfig {
+    /// Encode what each side is agreed to play
+    #[must_use]
+    pub fn new(ours: &Agreements, theirs: &Agreements) -> Self {
+        Self {
+            ours: ours.encode(),
+            theirs: theirs.encode(),
+        }
+    }
+
+    /// Both sides agreed on the same system
+    ///
+    /// The default reading everywhere else in the crate, exactly as
+    /// [`Config::symmetric`] models an undeclared opposition as playing our
+    /// own system.
+    #[must_use]
+    pub fn symmetric(side: &Agreements) -> Self {
+        Self::new(side, side)
+    }
+}
+
+/// [`features_v3`] plus both partnerships' compact agreements
+///
+/// Returns exactly [`FEATURES_LEN_V5`] finite values.  The compact blocks are
+/// verbatim `0.0`/`1.0` slots, so the feature vector remains the disclosure —
+/// a configured net cannot learn from an agreement it would not show an
+/// opponent.  Unlike [`features_v4`]'s card blocks, every slot here is an axis
+/// a v5 corpus can vary, so none need the constant-input fold to be safe.
+///
+/// With no [`CompactConfig`] attached the compact blocks are zero, which is why
+/// [`Context::with_compact`] belongs on every dump and serving path.
+#[must_use]
+pub fn features_v5(hand: Hand, context: &Context<'_>) -> Vec<f32> {
+    let mut out = features_v3(hand, context);
+    out.reserve_exact(2 * LEN_COMPACT);
+    // ponytail: an absent compact config encodes as zeros, which is
+    // indistinguishable from a side that genuinely plays no conventions.
+    // Harmless while every caller attaches one (the assert below catches a
+    // miss in tests); if an undeclared side ever becomes a real state, give it
+    // its own flag column rather than overloading the all-zero block.
+    debug_assert!(
+        context.compact().is_some(),
+        "features_v5 wants a CompactConfig attached; see Context::with_compact"
+    );
+    match context.compact() {
+        Some(compact) => {
+            out.extend_from_slice(&compact.ours);
+            out.extend_from_slice(&compact.theirs);
+        }
+        None => out.resize(FEATURES_LEN_V5, 0.0),
+    }
+    debug_assert_eq!(out.len(), FEATURES_LEN_V5);
     out
 }
 
