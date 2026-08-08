@@ -149,6 +149,13 @@ both brackets. It is not a plumbing bug: the card reads back 135 rows, all in
 `{0, 1}`, and its 43 disagreements with `american_card()` reproduce
 `probe-bba-conventions`' independent diff exactly.
 
+> **Post-fold re-measure (E2, 2026-08-08):** cell A re-run on its original
+> deals (seed 424242, both arms at HEAD) after the bias fold
+> ([card-manifold.md](ai-bidder/card-manifold.md)) — **0 of 2000 boards fired
+> at either vul**. All 43 differing rows sit on zeroed columns, so the entire
+> deficit below was the frozen-coordinate tax, and declaring BBA's card is now
+> a no-op until a retrain thaws axes.
+
 The cause is corpus coverage. `docs/ai-bidder/configured-net.md` §"The cells"
 draws every v4 cell from `{American, Dutch} × {kickback off, on}` — **four
 pons-generated cards, pairwise differing in at most one row plus the base-system
@@ -263,16 +270,19 @@ them, which is the tell: the row's *meaning* is not what moved, the frozen
 coordinate is.
 
 So the frozen-coordinate tax now has a number on our **own** card block, not
-just the opponents': ≈ −0.015 plain per board for one bit. Honesty here is a
-**retrain fix, not a code fix** — the next corpus should draw the row at `0`
-and the card can follow. Until then `card.rs` carries the defect in a comment
-rather than in the value.
+just the opponents': ≈ −0.015 plain per board for one bit. Honesty here was
+called a **retrain fix, not a code fix** — superseded 2026-08-08: the bias fold
+([card-manifold.md](ai-bidder/card-manifold.md)) zeroed the row's frozen
+column, the honest `0` re-measured as **0 of 20 000** smoke boards moved
+(E1, sha `59a27d7f…`), and `card.rs` now ships it in the value.
 
-**What is still owed is the original prescription:** cell B — American vs Dutch
-— at ~200k bd/arm/vul. `1D opening with 5 cards` is a genuinely trained
-coordinate, so that arm alone tests an honest, in-distribution declaration. The
-harness for it now exists (`--their-floor dutch --declare-opponents`), and 0c
-made the Dutch seat's own config truthful, which it was not before.
+**The original prescription ran 2026-08-08** — cell B at 204 800 bd/arm/vul,
+both vuls (`scripts/ab-declared-opponents.sh`, `ab-results/card-fold-e3`):
+plain **wash** (−0.0021 ±0.0033 NV / +0.0003 ±0.0039 vul), PD **positive**
+(+0.0024 ±0.0042 NV / **+0.0062 ±0.0048 vul**, CI-clear), fired 1.8/1.5%.
+The trained card channel is real but ≈ +0.004 PD/board at the widest trained
+axis; the v5 corpus-spend verdict lives in
+[card-manifold.md](ai-bidder/card-manifold.md).
 
 *Repro:* `PER_SHARD=6400 scripts/idle-run.sh scripts/ab-declared-agreement.sh
 ab-results/declared-agreement`.

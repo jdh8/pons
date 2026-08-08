@@ -186,8 +186,8 @@ Ordered. None needs a retrain, and E1 needs no A/B at all.
 | # | run | cost | what it decides |
 | --- | --- | --- | --- |
 | **E1** | fold, then set `"Two way game tries"` to its honest `0` and dump `smoke-default` | seconds, deterministic | **the fold works.** The row is frozen, therefore zeroed, therefore flipping it must move **0 of 20 000** boards. Converts a −0.015/board A/B into an assertion. **✓ PASSED 2026-08-08**: sha `59a27d7f…` identical across baseline, fold, and honest-0 (2647 boards moved pre-fold). |
-  step. The shipped run was `lr = 1e-3` over 300 epochs × ⌈3 026 601/4096⌉ = 221 700
-  steps, so meaningful decay needs `lr·wd·steps ≳ 5`, i.e. **`wd ≳ 0.02`** —
+| **E2** | folded vs unfolded `--declare-opponents` cell A (vs BBA's real 2/1 card, 43 rows differing) | 2000 bd/arm/vul, harness exists | **the diagnosis, experimentally.** −0.70/−1.16 must collapse to ~0. The cheapest possible test of everything above: if cell A does *not* collapse, the frozen-coordinate story is wrong. **✓ PASSED 2026-08-08**: on the original deals (seed 424242, both arms at HEAD), **0 of 2000 boards fired at either vul** — all 43 differing rows sit on zeroed columns, so the whole −0.70/−1.16 was the tax. Declaring BBA's card is a no-op until a retrain thaws axes. |
+| **E3** | **cell B at scale** — `--their-floor dutch --declare-opponents`, 204 800 bd/arm/vul, both vuls, dual scoring | minutes | **the retrain's go/no-go.** Cell B moves slots {0, 2, 7}, all genuinely *trained*. A wash here says the trained coordinates are worth ~0 too, and the retrain is dead. **Run 2026-08-08** (`scripts/ab-declared-opponents.sh`, `ab-results/card-fold-e3`): plain **wash** both vuls (−0.0021 ±0.0033 NV / +0.0003 ±0.0039), PD **+0.0024 ±0.0042 NV / +0.0062 ±0.0048 vul** — CI-clear positive in one of two PD cells, fired 1.8/1.5%, +0.41 PD IMPs/fired at vul. By the decision table this is the *plain-wash + PD-win* row, not the killing wash — the trained channel is real but worth ≈ +0.004 PD/board at the **widest** trained axis, which brackets what any single thawed axis could add. |
 
 E3 is not a new gate: it is the run
 [declarative-rows.md](../declarative-rows.md) §"2a measured" already books as
@@ -238,6 +238,35 @@ here.
    deciding ~0.05% of boards leaves its weight near initialisation, so a
    high-frequency axis has to carve the pathway that rare bits then ride. Start
    with axes that move many boards.
+
+**Probed 2026-08-08** (`examples/probe-card-axes.rs`, 20 000 seeded boards per
+axis, all four seats the default system, flip vs shipped defaults, auctions
+diffed). Every axis moves auctions, so gate 1's book half passes everywhere;
+gate 2 is enforced at dump time (none of the 24 rows is in `KNOWN_UNSTICKY`
+today). The gate-3 ranking:
+
+| axis | moved of 20 000 | % |
+| --- | ---: | ---: |
+| Two Way NMF (XYZ) | 1202 | 6.01 |
+| NT defense (Landy rows) | 1102 | 5.51 |
+| Lebensohl rows | 731 | 3.65 |
+| Checkback (NMF) | 458 | 2.29 |
+| 1NT minor scheme | 406 | 2.03 |
+| 1NT shape ladder | 403 | 2.02 |
+| Landy range | 338 | 1.69 |
+| Jordan Truscott 2NT | 338 | 1.69 |
+| 1NT offshape 4441/5422 | 146 | 0.73 |
+| Garbage Stayman | 67 | 0.34 |
+| Support double/redouble | 59 | 0.29 |
+| Fourth suit forcing | 48 | 0.24 |
+| Responsive double | 44 | 0.22 |
+| Leaping Michaels | 38 | 0.19 |
+| Super acceptance | 27 | 0.14 |
+| 1N-3M splinter | 8 | **0.04** — fails the bar above |
+
+The natural thaw set is the top eight (≥ 1.69%, at or above cell B's own
+1.5–1.8% fired rate); the sub-0.5% tail waits for the pathway those eight
+carve.
 
 ### Corpus shape
 

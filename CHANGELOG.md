@@ -34,6 +34,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   on **0 of 2000 boards at either vul** — all 43 differing rows sit on zeroed
   columns, so the whole deficit was the tax.
 
+- `scripts/ab-declared-opponents.sh` — cell B at full A/B scale, the v5
+  retrain's go/no-go (E3 of `card-manifold.md`): american vs a pons dutch book,
+  arms differing only in `--declare-opponents`, so the declared card moves
+  exactly the genuinely trained coordinates.  And
+  `examples/probe-card-axes.rs` — the axis probe's frequency gate: flips each
+  of the 16 card-expressible knobs on 20 000 seeded boards and ranks by moved
+  auctions (top: XYZ 6.0%, NT-defense rows 5.5%, Lebensohl rows 3.7%; floor:
+  1N-3M splinter 0.04%, failing the ~0.05% weight-formation bar).
+
 - **A public reader for every knob the web UI can set** — 69 registry-backed
   getters are now `pub` (`american::garbage_stayman`, `instinct::floor_rkcb`,
   `inference::rule_accept_enabled`, …).  221 `pub set_*` with no readers made
@@ -84,6 +93,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the knob, its setter, and the book it gates are untouched.
 
 ### Measured
+
+- **Cell B at scale (E3): the trained card channel is real, small, and
+  PD-shaped.**  `--their-floor dutch --declare-opponents` vs the same table
+  undeclared, 204 800 bd/arm/vul both vuls, dual scoring
+  (`scripts/ab-declared-opponents.sh`, `ab-results/card-fold-e3`): plain a
+  wash at both vuls (−0.0021 ±0.0033 NV / +0.0003 ±0.0039 vul), PD +0.0024
+  ±0.0042 NV / **+0.0062 ±0.0048 vul (CI-clear)**, 1.8/1.5% fired, +0.41 PD
+  IMPs/fired at vul.  Decision-table row: plain-wash + PD-win.  This was the
+  v5 retrain's go/no-go: not the wash that kills it, but the payoff ceiling it
+  prices — ≈ +0.004 PD/board on the *widest* trained axis — is what a corpus
+  and a train would be buying more of.
 
 - **Correcting a card row we get wrong costs −0.015 IMPs/board, so the fix is a
   retrain rather than a commit.**  `"Two way game tries"` reads
