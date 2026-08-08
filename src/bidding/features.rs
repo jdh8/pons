@@ -195,18 +195,18 @@ pub(crate) fn blind_inference() -> bool {
 
 /// The reading the nets are fed: the seat's agreement, or nothing under
 /// [`set_blind_inference`].
-fn shown(player: &Envelope) -> &Envelope {
+fn shown(blind: bool, player: &Envelope) -> &Envelope {
     // ponytail: one shared `unknown` rather than a per-call temporary — the
     // envelope is immutable and `Envelope::unknown` is `const`.
     const NOTHING: Envelope = Envelope::unknown();
-    if blind_inference() { &NOTHING } else { player }
+    if blind { &NOTHING } else { player }
 }
 
 /// Push one player's shown ranges ([`LEN_INFERENCE`] values): per suit
 /// `{min, max}` length ÷ 13, then `{min, max}` points ÷ 37.  Nothing shown is
 /// the `[0, 1]` pattern (`Envelope::unknown`), *not* zeros.
-fn push_inference(out: &mut impl FeatureSink, player: &Envelope) {
-    let player = shown(player);
+fn push_inference(out: &mut impl FeatureSink, blind: bool, player: &Envelope) {
+    let player = shown(blind, player);
     for suit in Suit::ASC {
         let range = player.length(suit);
         out.push(range.min as f32 / 13.0);
@@ -475,8 +475,8 @@ fn push_shape_dist(out: &mut impl FeatureSink, shape: &Shape) {
 
 /// The boxes the nets are fed: the seat's agreement union, or nothing under
 /// [`set_blind_inference`].  `None` means "shows nothing", the ⊤ reading.
-fn shown_boxes(union: &EnvelopeUnion) -> Option<&[Envelope]> {
-    (!BLIND_INFERENCE.with(std::cell::Cell::get)).then(|| union.boxes())
+fn shown_boxes(blind: bool, union: &EnvelopeUnion) -> Option<&[Envelope]> {
+    (!blind).then(|| union.boxes())
 }
 
 // ── The HCP-distribution reading ──────────────────────────────────────────────
@@ -582,7 +582,13 @@ fn band_mask(lo: u8, hi: u8) -> u64 {
 fn box_hcp_mask(envelope: &Envelope) -> u64 {
     let hcp = envelope.strength.hcp;
     let (mut lo, mut hi) = (hcp.min, hcp.max);
-    if let Some(ceiling) = upgrade_ceiling(&envelope.lengths) {
+    // ponytail: the thread's scale, not a pinned one — this lattice walk is
+    // reached only from `features_eval_points`, a corpus extractor
+    // (`dump-evaluator`), never from a classify-time decision.  Give it the
+    // pinned scale the day something on the bidding path reads it.
+    if let Some(ceiling) =
+        upgrade_ceiling(crate::bidding::constraint::point_scale(), &envelope.lengths)
+    {
         let points = envelope.strength.points;
         lo = lo.max(points.min.saturating_sub(ceiling));
         hi = hi.min(points.max);
@@ -809,7 +815,11 @@ fn push_context(out: &mut impl FeatureSink, context: &Context<'_>) {
         // the partnership announces, and that is what a reasoning seat should be
         // fed.  Identical to `get` unless `set_announced_reading` is on and some
         // rule split the two — a net-decided call, whose sound projection is ⊤.
-        push_inference(out, inf.announced(who));
+        push_inference(
+            out,
+            context.decision_profile().blind_inference,
+            inf.announced(who),
+        );
     }
 
     // ── Vulnerability (2 values) ────────────────────────────────────────────
@@ -1316,10 +1326,10 @@ pub const LEN_HAND_EVAL: usize = 24;
 /// hand block ([`LEN_HAND_EVAL`]) plus the three *hidden* seats' range blocks.
 pub const FEATURES_LEN_EVAL: usize = LEN_HAND_EVAL + 3 * LEN_INFERENCE;
 
-fn push_eval_base(out: &mut impl FeatureSink, hand: Hand, inferences: &Inferences) {
+fn push_eval_base(out: &mut impl FeatureSink, blind: bool, hand: Hand, inferences: &Inferences) {
     push_hand_eval(out, hand);
     for who in [Relative::Lho, Relative::Partner, Relative::Rho] {
-        push_inference(out, inferences.announced(who));
+        push_inference(out, blind, inferences.announced(who));
     }
 }
 
@@ -1357,8 +1367,20 @@ fn push_eval_base(out: &mut impl FeatureSink, hand: Hand, inferences: &Inference
 /// rules.
 #[must_use]
 pub fn features_eval(hand: Hand, inferences: &Inferences) -> [f32; FEATURES_LEN_EVAL] {
+    features_eval_on(blind_inference(), hand, inferences)
+}
+
+/// [`features_eval`] on an explicit blinding flag — what the classify-time
+/// evaluator extracts through, so the vector a stance is scored on does not
+/// depend on the scoring thread.
+#[must_use]
+pub(crate) fn features_eval_on(
+    blind: bool,
+    hand: Hand,
+    inferences: &Inferences,
+) -> [f32; FEATURES_LEN_EVAL] {
     let mut out = FixedFeatures::new();
-    push_eval_base(&mut out, hand, inferences);
+    push_eval_base(&mut out, blind, hand, inferences);
     out.finish()
 }
 
@@ -1422,8 +1444,19 @@ pub fn features_eval_v3(
     inferences: &Inferences,
     auction: &[Call],
 ) -> [f32; FEATURES_LEN_EVAL_V3] {
+    features_eval_v3_on(blind_inference(), hand, inferences, auction)
+}
+
+/// [`features_eval_v3`] on an explicit blinding flag (see [`features_eval_on`])
+#[must_use]
+pub(crate) fn features_eval_v3_on(
+    blind: bool,
+    hand: Hand,
+    inferences: &Inferences,
+    auction: &[Call],
+) -> [f32; FEATURES_LEN_EVAL_V3] {
     let mut out = FixedFeatures::new();
-    push_eval_base(&mut out, hand, inferences);
+    push_eval_base(&mut out, blind, hand, inferences);
     for age in 1..=CALLS_EVAL_V3 {
         let call = auction.len().checked_sub(age).map(|j| auction[j]);
         push_call_identity(&mut out, call);
@@ -1482,12 +1515,23 @@ pub fn features_eval_v4(
     inferences: &Inferences,
     auction: &[Call],
 ) -> [f32; FEATURES_LEN_EVAL_V4] {
+    features_eval_v4_on(blind_inference(), hand, inferences, auction)
+}
+
+/// [`features_eval_v4`] on an explicit blinding flag (see [`features_eval_on`])
+#[must_use]
+pub(crate) fn features_eval_v4_on(
+    blind: bool,
+    hand: Hand,
+    inferences: &Inferences,
+    auction: &[Call],
+) -> [f32; FEATURES_LEN_EVAL_V4] {
     let mut out = FixedFeatures::new();
     push_hand_eval(&mut out, hand);
     let unseen = Unseen::new(hand);
     for who in [Relative::Lho, Relative::Partner, Relative::Rho] {
-        push_points(&mut out, shown(inferences.announced(who)));
-        let boxes = shown_boxes(inferences.announced_union(who));
+        push_points(&mut out, shown(blind, inferences.announced(who)));
+        let boxes = shown_boxes(blind, inferences.announced_union(who));
         push_shape_gauss(&mut out, &shape_of(&unseen, boxes));
     }
     for age in 1..=CALLS_EVAL_V3 {
@@ -1535,9 +1579,12 @@ pub fn features_eval_shape(
     let mut out = FixedFeatures::new();
     push_hand_eval(&mut out, hand);
     let unseen = Unseen::new(hand);
+    // ponytail: the thread's flag, not a pinned one — a corpus extractor
+    // (`dump-evaluator`), never a classify-time decision.
+    let blind = blind_inference();
     for who in [Relative::Lho, Relative::Partner, Relative::Rho] {
-        push_inference(&mut out, inferences.announced(who));
-        let boxes = shown_boxes(inferences.announced_union(who));
+        push_inference(&mut out, blind, inferences.announced(who));
+        let boxes = shown_boxes(blind, inferences.announced_union(who));
         push_shape_dist(&mut out, &shape_of(&unseen, boxes));
     }
     for age in 1..=CALLS_EVAL_V3 {
@@ -1600,11 +1647,13 @@ pub fn features_eval_points(
     push_hand_eval(&mut out, hand);
     let unseen = Unseen::new(hand);
     let honours = UnseenHonours::new(hand);
+    // ponytail: as `features_eval_shape` — corpus extraction only.
+    let blind = blind_inference();
     for who in [Relative::Lho, Relative::Partner, Relative::Rho] {
-        push_inference(&mut out, inferences.announced(who));
-        let boxes = shown_boxes(inferences.announced_union(who));
+        push_inference(&mut out, blind, inferences.announced(who));
+        let boxes = shown_boxes(blind, inferences.announced_union(who));
         push_shape_gauss(&mut out, &shape_of(&unseen, boxes));
-        push_hcp_ends(&mut out, shown(inferences.announced(who)));
+        push_hcp_ends(&mut out, shown(blind, inferences.announced(who)));
         push_hcp_gauss(&mut out, &hcp_of(&honours, boxes));
     }
     for age in 1..=CALLS_EVAL_V3 {

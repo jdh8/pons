@@ -105,6 +105,17 @@ pub struct Inferences {
     /// (serialization skips it).
     #[cfg_attr(feature = "serde", serde(skip))]
     control_bid: Option<(u8, Suit)>,
+    /// The reading settings this reading was produced under — the gauges and
+    /// membership rule [`admits`][Self::admits] tests on.  Carried on the value
+    /// so the sampler's acceptance test runs on the stance's pinned settings
+    /// without every sampler entry point growing a profile argument.  Skipped
+    /// by serde and refilled from the thread on deserialize, matching how a
+    /// reading loaded from a corpus has always been gauged.
+    #[cfg_attr(
+        feature = "serde",
+        serde(skip, default = "super::knobs::reading_profile")
+    )]
+    profile: ReadingProfile,
 }
 
 /// The sound legacy-`points` image of a fit-known support-scale band
@@ -192,6 +203,7 @@ impl Inferences {
             announced_unions,
             players,
             control_bid,
+            profile,
         };
         if profile.blind_opponents {
             for who in [Relative::Lho, Relative::Rho] {
@@ -213,10 +225,10 @@ impl Inferences {
     /// test.
     #[must_use]
     pub fn admits(&self, who: Relative, hand: Hand) -> bool {
-        if envelope_union_reading() {
-            self.unions[who as usize].contains(hand)
+        if self.profile.envelope_union() {
+            self.unions[who as usize].contains_on(hand, self.profile)
         } else {
-            self.players[who as usize].admits(hand)
+            self.players[who as usize].admits_on(hand, self.profile)
         }
     }
 
@@ -361,7 +373,7 @@ impl Inferences {
         let opening_artificial =
             opening_bid.strain == Strain::Notrump || opening_bid == Bid::new(2, Strain::Clubs);
         let defending_parity = (opener_lane + 1) % 2;
-        let read_nt_invite = nt_invite_inference();
+        let read_nt_invite = profile.nt_invite;
         // A 1NT - 2♣ Stayman auction (opponents silent): opener's major answer and
         // responder's strength are read below so the floor judges the fit and
         // accepts or declines invitations.  The artificial 3OM / Smolen jumps are
@@ -384,7 +396,7 @@ impl Inferences {
         let mut side_acted = [false; 2];
         let mut highest: Option<Bid> = None;
         let read_cues = profile.cue;
-        let sound_lengths = length_soundness();
+        let sound_lengths = profile.length_soundness;
 
         // Every hand-written convention reader, run once over the auction: which
         // calls name a suit their bidder need not hold, and what each really
@@ -1080,6 +1092,7 @@ pub(crate) fn authored_reading(context: &Context<'_>) -> Inferences {
         unions,
         announced_unions,
         control_bid: None,
+        profile: context.reading_profile(),
     }
 }
 

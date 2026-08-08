@@ -4,8 +4,9 @@
 //! a [`Strength`].  An [`EnvelopeUnion`] is a disjunction of such boxes, the
 //! reading a rule's `project` fold produces when its meaning is not a single box.
 
-use super::knobs::{ReadingProfile, gauge_membership, reading_profile};
+use super::knobs::{ReadingProfile, reading_profile};
 use super::{LENGTH_CAP, POINTS_CAP, SUIT_HCP_CAP};
+use crate::bidding::constraint::PointScale;
 use contract_bridge::{Hand, Suit};
 
 impl ReadingProfile {
@@ -192,9 +193,11 @@ impl Strength {
     /// the floor coupling manufactures exactly the containment that lets
     /// [`EnvelopeUnion::tidy`]'s correct dedup swallow the arm carrying the suit
     /// knowledge (the `points(22..) | hcp(22..)` lesson, in reverse).
-    fn canonicalize(&mut self) {
-        let slack = crate::bidding::constraint::flat_hcp_slack();
-        let floor = self.hcp.min.saturating_sub(slack);
+    fn canonicalize(&mut self, scale: PointScale) {
+        let floor = self
+            .hcp
+            .min
+            .saturating_sub(crate::bidding::constraint::flat_hcp_slack(scale));
         for slot in &mut self.support_points {
             slot.min = slot.min.max(floor);
         }
@@ -202,13 +205,13 @@ impl Strength {
 
     /// Field-by-field [`Range::intersect`], then [`canonicalize`][Self::canonicalize]
     #[must_use]
-    fn intersect(mut self, other: Self) -> Self {
+    fn intersect(mut self, other: Self, scale: PointScale) -> Self {
         self.hcp = self.hcp.intersect(other.hcp);
         self.points = self.points.intersect(other.points);
         self.support_points =
             core::array::from_fn(|i| self.support_points[i].intersect(other.support_points[i]));
         self.suit_hcp = core::array::from_fn(|i| self.suit_hcp[i].intersect(other.suit_hcp[i]));
-        self.canonicalize();
+        self.canonicalize(scale);
         self
     }
 
@@ -232,7 +235,7 @@ impl Strength {
     /// so they never drop a box a `points`/length reading would have kept — they
     /// are inert until Edits 1/2, and must not perturb the [`EnvelopeUnion`] the sampler
     /// reads through `admits` (which reads `points` only).
-    fn intersect_nonempty(self, other: Self) -> Option<Self> {
+    fn intersect_nonempty(self, other: Self, scale: PointScale) -> Option<Self> {
         let mut out = Self {
             hcp: self.hcp.intersect(other.hcp),
             points: self.points.intersect_nonempty(other.points)?,
@@ -241,7 +244,7 @@ impl Strength {
             }),
             suit_hcp: core::array::from_fn(|i| self.suit_hcp[i].intersect(other.suit_hcp[i])),
         };
-        out.canonicalize();
+        out.canonicalize(scale);
         Some(out)
     }
 
@@ -333,9 +336,9 @@ impl Envelope {
     }
 
     /// Narrow the shown raw HCP by intersecting in `range`, then propagate
-    pub(super) fn narrow_hcp(&mut self, range: Range) {
+    pub(super) fn narrow_hcp(&mut self, range: Range, scale: PointScale) {
         self.strength.hcp = self.strength.hcp.intersect(range);
-        self.strength.canonicalize();
+        self.strength.canonicalize(scale);
     }
 
     /// Pointwise intersection — the `&` projection (both sets of bounds hold)
@@ -345,11 +348,19 @@ impl Envelope {
     /// ([`Range::intersect`]).
     #[must_use]
     pub fn intersect(&self, other: &Self) -> Self {
+        self.intersect_on(other, crate::bidding::constraint::point_scale())
+    }
+
+    /// [`intersect`][Self::intersect] on an explicit point scale — what every
+    /// classify-time caller uses, so the fold runs on the scale pinned into the
+    /// stance rather than the classifying thread's.
+    #[must_use]
+    pub(crate) fn intersect_on(&self, other: &Self, scale: PointScale) -> Self {
         let mut out = *self;
         for suit in Suit::ASC {
             out.narrow_length(suit, other.length(suit));
         }
-        out.strength = out.strength.intersect(other.strength);
+        out.strength = out.strength.intersect(other.strength, scale);
         out
     }
 
@@ -376,7 +387,7 @@ impl Envelope {
     /// a union still cover every hand, so the union stays sound while getting
     /// tighter (e.g. `1NT ∩ 4-5♥` drops the balanced-diamond box whose hearts
     /// cannot reach four).
-    fn intersect_nonempty(&self, other: &Self) -> Option<Self> {
+    fn intersect_nonempty(&self, other: &Self, scale: PointScale) -> Option<Self> {
         let mut lengths = [Range::FULL_LENGTH; 4];
         for suit in Suit::ASC {
             let (a, b) = (self.length(suit), other.length(suit));
@@ -386,7 +397,7 @@ impl Envelope {
             }
             lengths[suit as usize] = Range::new(min, max);
         }
-        let strength = self.strength.intersect_nonempty(other.strength)?;
+        let strength = self.strength.intersect_nonempty(other.strength, scale)?;
         Some(Self { lengths, strength })
     }
 
@@ -398,6 +409,14 @@ impl Envelope {
     /// and support-points bands membership teeth.
     #[must_use]
     pub fn admits(&self, hand: Hand) -> bool {
+        self.admits_on(hand, reading_profile())
+    }
+
+    /// [`admits`][Self::admits] on an explicit reading profile — what the
+    /// sampler tests through, so acceptance runs on the settings pinned into
+    /// the stance rather than the sampling thread's.
+    #[must_use]
+    pub(crate) fn admits_on(&self, hand: Hand, profile: ReadingProfile) -> bool {
         Suit::ASC.into_iter().all(|suit| {
             // SAFETY: a suit length is at most 13, so the cast cannot truncate.
             #[allow(clippy::cast_possible_truncation)]
@@ -406,13 +425,16 @@ impl Envelope {
         }) && self
             .strength
             .points
-            .contains(crate::bidding::constraint::point_count(hand))
-            && (!gauge_membership()
+            .contains(crate::bidding::constraint::point_count_on(
+                profile.point_scale(),
+                hand,
+            ))
+            && (!profile.gauge_membership()
                 || (self
                     .strength
                     .hcp
                     .contains(crate::bidding::constraint::raw_hcp(hand))
-                    && self.supports(hand)
+                    && self.supports(hand, profile)
                     && self.suit_hcps(hand)))
     }
 
@@ -420,9 +442,14 @@ impl Envelope {
     /// [`support_point_count_in`][crate::bidding::constraint::support_point_count_in]
     /// with that suit as trump (clamped at the scale cap, whose ceiling means
     /// "unbounded")
-    fn supports(&self, hand: Hand) -> bool {
+    fn supports(&self, hand: Hand, profile: ReadingProfile) -> bool {
         Suit::ASC.into_iter().all(|suit| {
-            let value = crate::bidding::constraint::support_point_count_in(hand, suit);
+            let value = crate::bidding::constraint::support_point_count_in_on(
+                profile.support_points(),
+                profile.point_scale(),
+                hand,
+                suit,
+            );
             self.strength.support_points[suit as usize].contains(value.min(Range::FULL_POINTS.max))
         })
     }
@@ -494,8 +521,9 @@ impl Envelope {
     /// claim teeth through `points`, and the sampler *does* move
     /// (`upgrade_closure_gives_hcp_teeth`).  A no-op on scales whose upgrade a
     /// length box cannot bound (see `crate::bidding::constraint::upgrade_ceiling`).
-    fn narrow_to_upgrade(&mut self) {
-        let Some(ceiling) = crate::bidding::constraint::upgrade_ceiling(&self.lengths) else {
+    fn narrow_to_upgrade(&mut self, scale: PointScale) {
+        let Some(ceiling) = crate::bidding::constraint::upgrade_ceiling(scale, &self.lengths)
+        else {
             return;
         };
         // The floor of `points − hcp` is 0 on every closable scale (a wasted
@@ -512,7 +540,7 @@ impl Envelope {
             .min
             .max(strength.points.min.saturating_sub(ceiling));
         // A raised `hcp` floor owes the support gauge its floor back.
-        strength.canonicalize();
+        strength.canonicalize(scale);
     }
 
     /// Whether every hand in this box also lies in `other` — axis-wise
@@ -546,12 +574,13 @@ impl Envelope {
     /// hands always satisfy the eval-within-projection soundness sweep.
     #[must_use]
     pub fn accepts(&self, hand: Hand) -> bool {
-        self.admits(hand)
+        let profile = reading_profile();
+        self.admits_on(hand, profile)
             && self
                 .strength
                 .hcp
                 .contains(crate::bidding::constraint::raw_hcp(hand))
-            && self.supports(hand)
+            && self.supports(hand, profile)
             && self.suit_hcps(hand)
     }
 }
@@ -642,7 +671,14 @@ impl EnvelopeUnion {
     /// Whether **some** box admits the hand — tighter than `hull().admits()`
     #[must_use]
     pub fn contains(&self, hand: Hand) -> bool {
-        self.boxes().iter().any(|b| b.admits(hand))
+        self.contains_on(hand, reading_profile())
+    }
+
+    /// [`contains`][Self::contains] on an explicit reading profile (see
+    /// [`Envelope::admits_on`])
+    #[must_use]
+    pub(crate) fn contains_on(&self, hand: Hand, profile: ReadingProfile) -> bool {
+        self.boxes().iter().any(|b| b.admits_on(hand, profile))
     }
 
     /// The disjoined boxes — non-empty (`len >= 1`) by invariant
@@ -712,15 +748,16 @@ impl EnvelopeUnion {
 
     /// Consuming intersection used by append-only projection accumulators.
     pub(crate) fn intersect_owned(self, other: &Self, profile: ReadingProfile) -> Self {
-        let fallback = self.hull().intersect(&other.hull());
+        let scale = profile.point_scale();
+        let fallback = self.hull().intersect_on(&other.hull(), scale);
         match (self.0, &other.0) {
             (EnvelopeBoxes::One(one), EnvelopeBoxes::One(two)) => Self(EnvelopeBoxes::One(
-                one.intersect_nonempty(two).unwrap_or(fallback),
+                one.intersect_nonempty(two, scale).unwrap_or(fallback),
             ))
             .tidy(profile),
             (EnvelopeBoxes::Many(mut boxes), EnvelopeBoxes::One(one)) => {
                 boxes.retain_mut(|box_| {
-                    let Some(product) = box_.intersect_nonempty(one) else {
+                    let Some(product) = box_.intersect_nonempty(one, scale) else {
                         return false;
                     };
                     *box_ = product;
@@ -737,7 +774,7 @@ impl EnvelopeUnion {
                 let mut out = Vec::new();
                 for a in left.boxes() {
                     for b in other.boxes() {
-                        if let Some(product) = a.intersect_nonempty(b) {
+                        if let Some(product) = a.intersect_nonempty(b, scale) {
                             out.push(product);
                         }
                     }
@@ -792,7 +829,7 @@ impl EnvelopeUnion {
                     box_.narrow_to_sum();
                 }
                 if profile.upgrade_closure {
-                    box_.narrow_to_upgrade();
+                    box_.narrow_to_upgrade(profile.point_scale());
                 }
                 return Self(EnvelopeBoxes::One(box_));
             }
@@ -809,7 +846,7 @@ impl EnvelopeUnion {
                     box_.narrow_to_sum();
                 }
                 if profile.upgrade_closure {
-                    box_.narrow_to_upgrade();
+                    box_.narrow_to_upgrade(profile.point_scale());
                 }
             }
         }

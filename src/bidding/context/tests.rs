@@ -197,8 +197,12 @@ fn decision_values_initialize_once() {
     assert!(matches!(context.inferences(), Cow::Borrowed(_)));
     let first = context.trick_estimates(hand);
     let second = context.trick_estimates(hand);
-    let uncached_tricks =
-        trick_estimates_with_auction(hand, &Inferences::read(&context), context.auction());
+    let uncached_tricks = trick_estimates_with_auction_on(
+        &context.decision_profile(),
+        hand,
+        &Inferences::read(&context),
+        context.auction(),
+    );
     assert_eq!(first.bit_pattern(), second.bit_pattern());
     assert_eq!(first.bit_pattern(), uncached_tricks.bit_pattern());
     let first_interpretation = context.interpretation();

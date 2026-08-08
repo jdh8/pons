@@ -90,12 +90,21 @@ pub(super) fn sixcard_invite_rebid(major: Suit) -> Rules {
         130,
         len(major, 6..)
             & len(other_major(major), ..5)
-            & described("six-card invitational value", move |hand: Hand, _| {
-                // Fit-known: 6-card major opposite 1NT's 2+ is an 8-card fit.
-                // Side-suit shortness counts; the length term is explicit.
-                let support = usize::from(support_point_count_in(hand, major));
-                support + hand[major].len() >= floor
-            }),
+            & described(
+                "six-card invitational value",
+                move |hand: Hand, context: &Context<'_>| {
+                    // Fit-known: 6-card major opposite 1NT's 2+ is an 8-card fit.
+                    // Side-suit shortness counts; the length term is explicit.
+                    let profile = context.reading_profile();
+                    let support = usize::from(support_point_count_in_on(
+                        profile.support_points(),
+                        profile.point_scale(),
+                        hand,
+                        major,
+                    ));
+                    support + hand[major].len() >= floor
+                },
+            ),
     )
 }
 
@@ -111,13 +120,22 @@ fn accept_sixcard_invitation(major: Suit) -> Rules {
         .rule(
             Bid::new(4, Strain::from(major)),
             100,
-            described("accept six-card invite", move |hand: Hand, _| {
-                // Fit-known: responder showed six, opener has 2+ — an 8-card fit.
-                // A doubleton trump holding earns no phantom ruffing value —
-                // the corner where the suit-indexed scale measurably won.
-                let support = usize::from(support_point_count_in(hand, major));
-                support + hand[major].len() >= floor
-            }),
+            described(
+                "accept six-card invite",
+                move |hand: Hand, context: &Context<'_>| {
+                    // Fit-known: responder showed six, opener has 2+ — an 8-card fit.
+                    // A doubleton trump holding earns no phantom ruffing value —
+                    // the corner where the suit-indexed scale measurably won.
+                    let profile = context.reading_profile();
+                    let support = usize::from(support_point_count_in_on(
+                        profile.support_points(),
+                        profile.point_scale(),
+                        hand,
+                        major,
+                    ));
+                    support + hand[major].len() >= floor
+                },
+            ),
         )
         .rule(Call::Pass, 0, hcp(0..))
 }

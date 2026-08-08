@@ -668,7 +668,7 @@ pub fn rule_accept_enabled() -> bool {
 /// Kept as a value rather than a hash so cache validation cannot collide.  It
 /// is captured once when a decision scope is entered and compared only by
 /// debug assertions on the cached path.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct ReadingProfile {
     pub(super) nt_invite: bool,
     pub(super) rubens_transfer: bool,
@@ -690,6 +690,7 @@ pub(crate) struct ReadingProfile {
     pub(super) table_alerts: bool,
     pub(super) rule_accept: bool,
     pub(super) point_scale: crate::bidding::constraint::PointScale,
+    pub(super) support_points: bool,
     pub(super) rubens_advances: bool,
     pub(super) penalty_latch: bool,
     pub(super) nt_overcall_systems_on: bool,
@@ -762,11 +763,44 @@ impl ReadingProfile {
         self.probed_vacuous
     }
 
-    // The four cells the [instinct floor][crate::bidding::instinct()] shares
+    pub(crate) const fn gauge_membership(self) -> bool {
+        self.gauge_membership
+    }
+
+    /// Only [`ev`][crate::bidding::ev] gauges on this, so it follows that
+    /// module's feature gate.
+    #[cfg(feature = "dd")]
+    pub(crate) const fn rule_accept(self) -> bool {
+        self.rule_accept
+    }
+
+    /// The point scale every strength gauge counts on — [`point_count`] and the
+    /// slack its projections owe raw HCP.
+    ///
+    /// [`point_count`]: crate::bidding::constraint::point_count
+    pub(crate) const fn point_scale(self) -> crate::bidding::constraint::PointScale {
+        self.point_scale
+    }
+
+    /// Whether the fit-known shortness scale gauges `support_points`.  Lives
+    /// here beside [`point_scale`][Self::point_scale] rather than in
+    /// `DecisionProfile`, because the reading layer gauges box membership on it
+    /// too (`Envelope::supports`) — one cell, one home.
+    pub(crate) const fn support_points(self) -> bool {
+        self.support_points
+    }
+
+    // The five cells the [instinct floor][crate::bidding::instinct()] shares
     // with the reading layer.  They live here, not in
     // [`InstinctProfile`][crate::bidding::instinct::InstinctProfile]: one cell,
     // one home, so the two halves of a decision profile cannot disagree about
     // what the partnership plays.
+
+    /// Whether control bids are read.  The floor's `partner_control_bid`
+    /// witness is the reading's own, so it must gate on the same cell.
+    pub(crate) const fn control_bid(self) -> bool {
+        self.control_bid
+    }
 
     pub(crate) const fn floor_rkcb(self) -> bool {
         self.floor_rkcb
@@ -816,6 +850,7 @@ pub(crate) fn reading_profile() -> ReadingProfile {
         table_alerts: table_alert_reading(),
         rule_accept: rule_accept_enabled(),
         point_scale: crate::bidding::constraint::point_scale(),
+        support_points: crate::bidding::constraint::support_points_now(),
         rubens_advances: crate::bidding::instinct::rubens_advances_enabled(),
         penalty_latch: crate::bidding::instinct::penalty_latch_enabled(),
         nt_overcall_systems_on: crate::bidding::american::nt_overcall_systems_on(),

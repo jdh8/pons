@@ -63,10 +63,13 @@ fn both_majors_relay_placement(major: Suit) -> Rules {
     Rules::new().rule(
         Bid::new(4, Strain::from(major)),
         130,
-        described("game values for the agreed major", move |hand: Hand, _| {
-            let double_fit = usize::from(hand[other].len() >= 4);
-            fit_value(hand, major) + double_fit >= 8
-        }),
+        described(
+            "game values for the agreed major",
+            move |hand: Hand, context: &Context<'_>| {
+                let double_fit = usize::from(hand[other].len() >= 4);
+                fit_value(context, hand, major) + double_fit >= 8
+            },
+        ),
     )
 }
 
@@ -77,11 +80,17 @@ fn both_majors_relay_placement(major: Suit) -> Rules {
 /// at a plain Stayman answer opener showed only the one major, so a second fit
 /// is unknowable.  ([`both_majors_relay_placement`] adds it back where opener
 /// *did* show both majors.)
-pub(super) fn fit_value(hand: Hand, major: Suit) -> usize {
+pub(super) fn fit_value(context: &Context<'_>, hand: Hand, major: Suit) -> usize {
     // Fit-known (the major is agreed), so count shortness as support value —
     // in the side suits only, never in trump itself; the
     // length-beyond-the-eighth term is explicit.
-    let support = usize::from(support_point_count_in(hand, major));
+    let profile = context.reading_profile();
+    let support = usize::from(support_point_count_in_on(
+        profile.support_points(),
+        profile.point_scale(),
+        hand,
+        major,
+    ));
     support + hand[major].len().saturating_sub(4)
 }
 

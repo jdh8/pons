@@ -1,4 +1,5 @@
 use super::*;
+use crate::bidding::constraint::point_scale;
 use crate::bidding::context::Context;
 use crate::bidding::inference::knobs::*;
 use crate::bidding::inference::{Envelope, EnvelopeUnion, Range, Strength};
@@ -38,7 +39,7 @@ impl VecEnvelopeUnion {
         let mut out = Vec::new();
         for a in &self.0 {
             for b in &other.0 {
-                if let Some(product) = a.intersect_nonempty(b) {
+                if let Some(product) = a.intersect_nonempty(b, point_scale()) {
                     out.push(product);
                 }
             }
@@ -60,7 +61,7 @@ impl VecEnvelopeUnion {
                     box_.narrow_to_sum();
                 }
                 if upgrade_closure() {
-                    box_.narrow_to_upgrade();
+                    box_.narrow_to_upgrade(point_scale());
                 }
             }
         }

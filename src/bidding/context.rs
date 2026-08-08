@@ -11,7 +11,7 @@
 
 use super::book::Stance;
 use super::constraint::FifthsCompanion;
-use super::evaluator::{TrickEstimates, trick_estimates_with_auction};
+use super::evaluator::{TrickEstimates, trick_estimates_with_auction_on};
 use super::features::{CompactConfig, Config};
 use super::inference::{AuthoredProjection, Inferences, ReadingProfile, reading_profile};
 use super::instinct::{InstinctProfile, Interpretation};
@@ -102,10 +102,15 @@ pub(crate) struct DecisionProfile {
     pub(crate) eval_shape: bool,
     pub(crate) blind_inference: bool,
     pub(crate) two_over_one_force: bool,
-    pub(crate) support_points: bool,
     pub(crate) fuzzy_fifths: bool,
     pub(crate) fifths_companion: FifthsCompanion,
     pub(crate) stayman_net_force: bool,
+    /// The GF-majors transfer structure, master flag and heart arm.  Both are
+    /// also read at book construction to *place* their rules; these copies
+    /// serve the four classify-time guards that cap or reroute a hand once the
+    /// structure is on.
+    pub(crate) transfer_gf_majors: bool,
+    pub(crate) transfer_gf_hearts: bool,
 }
 
 impl DecisionProfile {
@@ -118,10 +123,11 @@ impl DecisionProfile {
             eval_shape: super::evaluator::eval_shape(),
             blind_inference: super::features::blind_inference(),
             two_over_one_force: super::instinct::two_over_one_force(),
-            support_points: super::constraint::support_points_now(),
             fuzzy_fifths: super::constraint::fuzzy_fifths_now(),
             fifths_companion: super::constraint::fifths_companion_now(),
             stayman_net_force: super::american::stayman_net_force(),
+            transfer_gf_majors: super::american::transfer_gf_majors(),
+            transfer_gf_hearts: super::american::transfer_gf_hearts(),
         }
     }
 }
@@ -652,19 +658,20 @@ impl<'a> Context<'a> {
     /// Evaluate tricks once for the hand that owns this decision scope
     #[must_use]
     pub(crate) fn trick_estimates(&self, hand: Hand) -> TrickEstimates {
+        let profile = self.decision_profile();
         let Some(cache) = self.active_decision_cache() else {
             let inferences = self.inferences();
-            return trick_estimates_with_auction(hand, &inferences, self.auction());
+            return trick_estimates_with_auction_on(&profile, hand, &inferences, self.auction());
         };
         if cache.hand != hand {
             let inferences = self.inferences();
-            return trick_estimates_with_auction(hand, &inferences, self.auction());
+            return trick_estimates_with_auction_on(&profile, hand, &inferences, self.auction());
         }
         *cache.trick_estimates.get_or_init(|| {
             #[cfg(test)]
             cache.trick_estimate_inits.fetch_add(1, Ordering::Relaxed);
             let inferences = self.inferences();
-            trick_estimates_with_auction(hand, &inferences, self.auction())
+            trick_estimates_with_auction_on(&profile, hand, &inferences, self.auction())
         })
     }
 

@@ -31,11 +31,12 @@
 //! default off pending its A/B); the module itself is ungated and always
 //! builds.
 
+use super::context::DecisionProfile;
 use super::features::{
-    FEATURES_LEN_EVAL, FEATURES_LEN_EVAL_V3, FEATURES_LEN_EVAL_V4, features_eval, features_eval_v3,
-    features_eval_v4,
+    FEATURES_LEN_EVAL, FEATURES_LEN_EVAL_V3, FEATURES_LEN_EVAL_V4, features_eval, features_eval_on,
+    features_eval_v3_on, features_eval_v4_on,
 };
-use super::inference::{Inferences, Relative, envelope_union_reading, pass_exclusion_reading};
+use super::inference::{Inferences, Relative, envelope_union_reading};
 use super::neural::{affine, decode, relu};
 use contract_bridge::auction::Call;
 use contract_bridge::{Hand, Strain};
@@ -108,7 +109,7 @@ static WEIGHTS_V3_UNION_READING: LazyLock<Vec<f32>> =
 /// The pass-exclusion twin of the v3 artifact — same architecture and recipe,
 /// corpus regenerated with `set_pass_exclusion_reading(true)` on top of the
 /// envelope-union regime (val NLL −1.55010 vs the union-reading twin's −1.54872 on its own
-/// regime).  Selected per call by [`pass_exclusion_reading`] inside the v3
+/// regime).  Selected per call by [`pass_exclusion_reading`][super::inference::pass_exclusion_reading] inside the v3
 /// path; knob-off never touches it.
 static RAW_V3_EXCLUSION: &[u8] = include_bytes!("weights/evaluator_v3_exclusion.f32");
 const _: () = assert!(
@@ -150,7 +151,7 @@ std::thread_local! {
 
 /// Serve the v3 calls-tail evaluator (default **on**, shipped 2026-07-27)
 ///
-/// On, [`trick_estimates_with_auction`] feeds [`features_eval_v3`] — the hull
+/// On, [`trick_estimates_with_auction`] feeds [`features_eval_v3`][super::features::features_eval_v3] — the hull
 /// vector plus the last four call identities — to the v3 artifact, which the
 /// 2026-07-27 NLL ablation priced at 0.038 over the hull-only vector (bare
 /// calls; docs/ai-bidder/evaluator-net.md §auction-input ablation).  The A/B
@@ -174,7 +175,7 @@ pub fn eval_auction() -> bool {
 
 /// Serve the v4 shape-reading evaluator (default **off**, pending its A/B)
 ///
-/// On, [`trick_estimates_with_auction`] feeds [`features_eval_v4`] to the v4
+/// On, [`trick_estimates_with_auction`] feeds [`features_eval_v4`][super::features::features_eval_v4] to the v4
 /// artifact: v3's vector with each hidden seat's four length `{min, max}` pairs
 /// replaced by its **shape distribution** — `E[len]` and `sd[len]` per suit over
 /// the 560-shape lattice, plus one column for how much the reading pins the seat
@@ -312,14 +313,27 @@ pub fn trick_estimates(hand: Hand, inferences: &Inferences) -> TrickEstimates {
     reshape(forward(&x))
 }
 
+/// [`trick_estimates`] on an explicit decision profile — the classify-time
+/// entry point, so a stance scores a hand the same way on any thread.
+#[must_use]
+fn trick_estimates_on(
+    profile: &DecisionProfile,
+    hand: Hand,
+    inferences: &Inferences,
+) -> TrickEstimates {
+    let x = features_eval_on(profile.blind_inference, hand, inferences);
+    debug_assert_eq!(x.len(), IN);
+    reshape(forward_on(profile.reading.envelope_union(), &x))
+}
+
 /// [`trick_estimates`], with the raw auction available for the v3 calls-tail
 /// artifact.
 ///
 /// Under [`set_eval_auction`] **and** the [`envelope_union_reading`] regime the v3 twin
-/// was trained on, this serves [`features_eval_v3`] — the same vector plus the
+/// was trained on, this serves [`features_eval_v3`][super::features::features_eval_v3] — the same vector plus the
 /// last four call identities — from the weight set matching the calling
-/// thread's [`pass_exclusion_reading`] regime.  Under [`set_eval_shape`] it
-/// serves [`features_eval_v4`] instead, which carries that tail and reads each
+/// thread's [`pass_exclusion_reading`][super::inference::pass_exclusion_reading] regime.  Under [`set_eval_shape`] it
+/// serves [`features_eval_v4`][super::features::features_eval_v4] instead, which carries that tail and reads each
 /// hidden seat as a shape distribution rather than a bounding box.  Anywhere
 /// else it is exactly [`trick_estimates`], byte for byte, so call sites can
 /// migrate to this signature unconditionally.
@@ -329,24 +343,37 @@ pub fn trick_estimates_with_auction(
     inferences: &Inferences,
     calls: &[Call],
 ) -> TrickEstimates {
+    trick_estimates_with_auction_on(&DecisionProfile::current(), hand, inferences, calls)
+}
+
+/// [`trick_estimates_with_auction`] on an explicit decision profile — what
+/// [`Context::trick_estimates`][super::Context::trick_estimates] serves, so the
+/// twin and weight set a stance selects are the ones pinned into it at build.
+#[must_use]
+pub(crate) fn trick_estimates_with_auction_on(
+    profile: &DecisionProfile,
+    hand: Hand,
+    inferences: &Inferences,
+    calls: &[Call],
+) -> TrickEstimates {
     // Both twins were fit on the tightened prefixed readings a knob-on bidder
     // serves, and v4's shape block conditions on the box union itself.
-    if !envelope_union_reading() {
-        return trick_estimates(hand, inferences);
+    if !profile.reading.envelope_union() {
+        return trick_estimates_on(profile, hand, inferences);
     }
-    if eval_shape() {
-        let x = features_eval_v4(hand, inferences, calls);
+    if profile.eval_shape {
+        let x = features_eval_v4_on(profile.blind_inference, hand, inferences, calls);
         debug_assert_eq!(x.len(), IN_V4);
         return reshape(forward_with::<IN_V4>(&WEIGHTS_V4_UNION_READING, &x));
     }
-    if !eval_auction() {
-        return trick_estimates(hand, inferences);
+    if !profile.eval_auction {
+        return trick_estimates_on(profile, hand, inferences);
     }
-    let x = features_eval_v3(hand, inferences, calls);
+    let x = features_eval_v3_on(profile.blind_inference, hand, inferences, calls);
     debug_assert_eq!(x.len(), IN_V3);
     // The exclusion twin was fit on readings carrying the pass-exclusion caps;
     // serving it only under its knob keeps knob-off byte-identical.
-    let weights = if pass_exclusion_reading() {
+    let weights = if profile.reading.pass_exclusion_reading() {
         &WEIGHTS_V3_EXCLUSION
     } else {
         &WEIGHTS_V3_UNION_READING
@@ -372,7 +399,12 @@ fn reshape(z: [f32; OUT]) -> TrickEstimates {
 /// fit on the reading regime the calling thread is actually in: the knob-on
 /// twin under [`envelope_union_reading`], the shipped artifact otherwise.
 pub(super) fn forward(x: &[f32]) -> [f32; OUT] {
-    let weights = if envelope_union_reading() {
+    forward_on(envelope_union_reading(), x)
+}
+
+/// [`forward`] on an explicit reading regime (see [`trick_estimates_on`])
+fn forward_on(union_reading: bool, x: &[f32]) -> [f32; OUT] {
+    let weights = if union_reading {
         WEIGHTS_UNION_READING.as_slice()
     } else {
         WEIGHTS.as_slice()
@@ -384,7 +416,7 @@ pub(super) fn forward(x: &[f32]) -> [f32; OUT] {
 #[cfg(feature = "bench-internals")]
 pub(super) fn forward_v3(x: &[f32]) -> [f32; OUT] {
     assert_eq!(x.len(), IN_V3, "v3 evaluator feature width");
-    let weights = if pass_exclusion_reading() {
+    let weights = if super::inference::pass_exclusion_reading() {
         &WEIGHTS_V3_EXCLUSION
     } else {
         &WEIGHTS_V3_UNION_READING

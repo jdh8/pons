@@ -264,9 +264,10 @@ pub(super) fn stayman_major_rebid(major: Suit) -> Rules {
             130,
             stayman_net_seam(
                 len(major, 4..) & spade_cap.clone(),
-                described("game value for the fit", move |hand: Hand, _| {
-                    fit_value(hand, major) >= 9
-                }),
+                described(
+                    "game value for the fit",
+                    move |hand: Hand, context: &Context<'_>| fit_value(context, hand, major) >= 9,
+                ),
                 true,
                 strain,
                 10,
@@ -279,9 +280,10 @@ pub(super) fn stayman_major_rebid(major: Suit) -> Rules {
             120,
             stayman_net_seam(
                 len(major, 4..) & spade_cap.clone(),
-                described("invitational value for the fit", move |hand: Hand, _| {
-                    fit_value(hand, major) == 8
-                }),
+                described(
+                    "invitational value for the fit",
+                    move |hand: Hand, context: &Context<'_>| fit_value(context, hand, major) == 8,
+                ),
                 false,
                 strain,
                 10,

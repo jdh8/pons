@@ -15,14 +15,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of inheriting whatever knobs the caller's thread was left holding; the
   caller's own knob state is untouched.  `Stance::repin` re-captures the
   thread's knob state into an already-built stance, the deliberate escape
-  hatch for setting a knob *after* `Pair::against`.  The inference and instinct
-  layers now read that pinned profile rather than the thread, so a stance
-  decides identically on any thread — and a reading or floor knob set *after*
-  `Pair::against` is inert until the next build or `repin`.  Knobs consumed at
-  book construction keep their old timing, and a bare context with no stance
-  attached (unit tests, `resolve`, rows `verify`) still consults the thread.
-  Seeded `smoke-default` / `smoke-dutch` dumps (20 000 boards) are
-  byte-identical across the change.
+  hatch for setting a knob *after* `Pair::against`.  The inference, instinct,
+  evaluator and point-scale layers now read that pinned profile rather than the
+  thread, as do the book's own classify-time guards (the GF-majors transfer
+  structure caps and reroutes), so a stance decides identically on any thread —
+  and a reading, floor, evaluator, scale or classify-time book knob set *after*
+  `Pair::against` is inert until the next build or `repin`.  A reading also carries the settings it was
+  gauged under, so the layout sampler's acceptance test (`Inferences::admits`)
+  runs on the stance's scale rather than the sampling thread's.  Knobs consumed
+  at book construction keep their old timing; a bare context with no stance
+  attached (unit tests, `resolve`, rows `verify`) still consults the thread;
+  and the two corpus-only feature extractors (`features_eval_shape`,
+  `features_eval_points`, both reached from `dump-evaluator` alone) keep
+  reading it too.  Seeded `smoke-default` / `smoke-dutch` dumps (20 000 boards)
+  are byte-identical across the change.
 
 - **The bias fold: the frozen-coordinate tax is now zero by construction.**
   `scripts/fold-constant-inputs.py` folds every card column the v4 corpus never

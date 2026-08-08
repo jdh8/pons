@@ -168,7 +168,7 @@ fn empty_candidates_is_empty() {
 #[test]
 fn rule_replay_is_the_default() {
     assert!(
-        rule_accept_enabled(),
+        crate::bidding::inference::rule_accept_enabled(),
         "the search EV samples its rollout worlds by rule-replay by default"
     );
 }

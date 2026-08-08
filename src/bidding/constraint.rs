@@ -1173,7 +1173,7 @@ pub enum FifthsCompanion {
 /// scale — the gates-vs-sampler confound of swapping [`points`] alone cannot
 /// arise.  Authored ranges are untouched; only their gauge moves.
 #[doc(hidden)]
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PointScale {
     /// Legacy raw HCP + [`upgrade`] (the deposed incumbent, kept opt-in)
     PointCount,
@@ -1412,14 +1412,14 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Hcp<R> {
         describe_int_range(&self.range, "HCP")
     }
 
-    fn project(&self, _: &Context<'_>) -> EnvelopeUnion {
+    fn project(&self, context: &Context<'_>) -> EnvelopeUnion {
         // ponytail: floor only — points = raw HCP + upgrade ≥ raw HCP, so an
         // HCP *ceiling* is unsound on the upgraded-points scale an `Envelope`
         // records; the floor is exact.  Rule of N+8 reads a flat 4-3-3-3 one
         // under its HCP, so that scale gives the floor back 1.  The ceiling
         // returns in [`project_band`][Constraint::project_band], widened by
         // [`hcp_ceiling_slack`].
-        let slack = flat_hcp_slack();
+        let slack = flat_hcp_slack(context.reading_profile().point_scale());
         let floor = bound_range(&self.range, Range::FULL_POINTS.max).min;
         let mut inference = Envelope::unknown();
         inference.strength.points = Range::new(floor.saturating_sub(slack), Range::FULL_POINTS.max);
@@ -1428,8 +1428,11 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Hcp<R> {
         EnvelopeUnion::from(inference)
     }
 
-    fn project_band(&self, _: &Context<'_>) -> EnvelopeUnion {
-        EnvelopeUnion::from(hcp_band(bound_range(&self.range, Range::FULL_POINTS.max)))
+    fn project_band(&self, context: &Context<'_>) -> EnvelopeUnion {
+        EnvelopeUnion::from(hcp_band(
+            context.reading_profile().point_scale(),
+            bound_range(&self.range, Range::FULL_POINTS.max),
+        ))
     }
 
     fn project_complement(&self, context: &Context<'_>) -> EnvelopeUnion {
@@ -1443,7 +1446,7 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Hcp<R> {
             bound_range(&self.range, Range::FULL_POINTS.max),
             Range::FULL_POINTS.max,
         )
-        .map(|half| EnvelopeUnion::from(hcp_band(half)))
+        .map(|half| EnvelopeUnion::from(hcp_band(profile.point_scale(), half)))
         .reduce(|a, b| a.disjoin_with(b, profile))
         .unwrap_or_else(EnvelopeUnion::unknown)
     }
@@ -1452,12 +1455,12 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Hcp<R> {
 /// The upgraded-points envelope a *raw HCP* band implies: slacked down by
 /// [`flat_hcp_slack`] (rule of N+8 reads a flat 4-3-3-3 one under its HCP) and
 /// up by [`hcp_ceiling_slack`] (the scale's maximum upgrade).
-fn hcp_band(raw: Range) -> Envelope {
+fn hcp_band(scale: PointScale, raw: Range) -> Envelope {
     let mut inference = Envelope::unknown();
     inference.strength.points = Range::new(
-        raw.min.saturating_sub(flat_hcp_slack()),
+        raw.min.saturating_sub(flat_hcp_slack(scale)),
         raw.max
-            .saturating_add(hcp_ceiling_slack())
+            .saturating_add(hcp_ceiling_slack(scale))
             .min(Range::FULL_POINTS.max),
     );
     // The `hcp` gauge keeps the crisp raw band, unslacked (notrump valuation).
@@ -1474,20 +1477,19 @@ pub fn hcp(range: impl RangeBounds<u8> + Clone + Send + Sync) -> Cons<impl Const
     })
 }
 
-/// The slack an HCP-gated point envelope owes the current scale: rule of N+8
-/// reads a flat 4-3-3-3 one under its HCP; the other scales never read under.
-/// Shared by [`hcp`]'s projection and the hand-authored NT-opening readings.
-pub(crate) fn flat_hcp_slack() -> u8 {
-    u8::from(POINT_SCALE.with(Cell::get) == PointScale::RuleOfN)
+/// The slack an HCP-gated point envelope owes `scale`: rule of N+8 reads a flat
+/// 4-3-3-3 one under its HCP; the other scales never read under.  Shared by
+/// [`hcp`]'s projection and the hand-authored NT-opening readings.
+pub(crate) const fn flat_hcp_slack(scale: PointScale) -> u8 {
+    matches!(scale, PointScale::RuleOfN) as u8
 }
 
-/// The most the active scale's [`point_count`] can exceed raw HCP — the
-/// ceiling dual of [`flat_hcp_slack`]: rule of N+8 adds up to
-/// `longest_two_suits − 8` ≤ 5, the legacy upgrade at most 2, plain HCP
-/// nothing.  Widens an HCP gate's ceiling in
+/// The most `scale`'s [`point_count`] can exceed raw HCP — the ceiling dual of
+/// [`flat_hcp_slack`]: rule of N+8 adds up to `longest_two_suits − 8` ≤ 5, the
+/// legacy upgrade at most 2, plain HCP nothing.  Widens an HCP gate's ceiling in
 /// [`project_band`][Constraint::project_band].
-fn hcp_ceiling_slack() -> u8 {
-    match POINT_SCALE.with(Cell::get) {
+const fn hcp_ceiling_slack(scale: PointScale) -> u8 {
+    match scale {
         PointScale::Hcp => 0,
         PointScale::PointCount => 2,
         PointScale::RuleOfN | PointScale::RuleOfNFloored => 5,
@@ -1508,8 +1510,8 @@ fn hcp_ceiling_slack() -> u8 {
 /// Rule-of-N+8 returns `None`: its count can fall *below* raw HCP (a flat
 /// 4-3-3-3 reads one under), so the closure's `points >= hcp` leg does not hold
 /// and the scale is not worth its own case — nothing measures on it today.
-pub(crate) fn upgrade_ceiling(lengths: &[Range; 4]) -> Option<u8> {
-    match POINT_SCALE.with(Cell::get) {
+pub(crate) fn upgrade_ceiling(scale: PointScale, lengths: &[Range; 4]) -> Option<u8> {
+    match scale {
         PointScale::Hcp => Some(0),
         PointScale::PointCount => Some(if forces_balanced(lengths) { 0 } else { 2 }),
         PointScale::RuleOfN | PointScale::RuleOfNFloored => None,
@@ -1599,7 +1601,14 @@ fn longest_two_suits(hand: Hand) -> u8 {
 /// [`Inferences`]: super::inference::Inferences
 #[must_use]
 pub fn point_count(hand: Hand) -> u8 {
-    match POINT_SCALE.with(Cell::get) {
+    point_count_on(point_scale(), hand)
+}
+
+/// [`point_count`] on an explicit scale — what every classify-time caller uses,
+/// so the count a stance gauges with is the one pinned into it at build rather
+/// than whatever the classifying thread happens to hold.
+pub(crate) fn point_count_on(scale: PointScale, hand: Hand) -> u8 {
+    match scale {
         PointScale::PointCount => raw_hcp(hand) + upgrade(hand),
         PointScale::Hcp => raw_hcp(hand),
         PointScale::RuleOfN => (raw_hcp(hand) + longest_two_suits(hand)).saturating_sub(8),
@@ -1630,7 +1639,7 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Points<R> {
         // Always the shared scalar, whatever scale it is set to — the
         // sampler's soundness invariant (it measures the same number) holds
         // on every arm of the point-scale A/B.
-        let value = point_count(hand);
+        let value = point_count_on(context.reading_profile().point_scale(), hand);
         if self.dial == 0 {
             return crisp(self.range.contains(&value));
         }
@@ -1670,7 +1679,7 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Points<R> {
             // whose HCP box the points box (correctly) swallows loses its HCP
             // knowledge entirely.  New precision — knob-gated.
             inference.strength.hcp = Range::new(
-                floor.saturating_sub(hcp_ceiling_slack()),
+                floor.saturating_sub(hcp_ceiling_slack(profile.point_scale())),
                 Range::FULL_POINTS.max,
             );
         }
@@ -1689,9 +1698,10 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Points<R> {
             // maximum upgrade, up by its flat-hand under-read (rule of N+8
             // reads a flat 4-3-3-3 one under its HCP).  Knob-gated as above.
             inference.strength.hcp = Range::new(
-                band.min.saturating_sub(hcp_ceiling_slack()),
+                band.min
+                    .saturating_sub(hcp_ceiling_slack(profile.point_scale())),
                 band.max
-                    .saturating_add(flat_hcp_slack())
+                    .saturating_add(flat_hcp_slack(profile.point_scale()))
                     .min(Range::FULL_POINTS.max),
             );
         }
@@ -1741,10 +1751,15 @@ pub fn points(range: impl RangeBounds<u8> + Clone + Send + Sync) -> Cons<impl Co
 /// diagnostic probes.
 #[must_use]
 pub fn support_point_count(hand: Hand) -> u8 {
-    if SUPPORT_POINTS.with(Cell::get) {
+    support_point_count_on(support_points_now(), point_scale(), hand)
+}
+
+/// [`support_point_count`] on explicit scales (see [`point_count_on`])
+pub(crate) fn support_point_count_on(support: bool, scale: PointScale, hand: Hand) -> u8 {
+    if support {
         new_point_count(hand)
     } else {
-        point_count(hand)
+        point_count_on(scale, hand)
     }
 }
 
@@ -1765,8 +1780,18 @@ pub fn support_point_count(hand: Hand) -> u8 {
 /// to legacy [`point_count`], which counts no shortness anywhere.
 #[must_use]
 pub fn support_point_count_in(hand: Hand, trump: Suit) -> u8 {
-    if !SUPPORT_POINTS.with(Cell::get) {
-        return point_count(hand);
+    support_point_count_in_on(support_points_now(), point_scale(), hand, trump)
+}
+
+/// [`support_point_count_in`] on explicit scales (see [`point_count_on`])
+pub(crate) fn support_point_count_in_on(
+    support: bool,
+    scale: PointScale,
+    hand: Hand,
+    trump: Suit,
+) -> u8 {
+    if !support {
+        return point_count_on(scale, hand);
     }
     let holdings = Suit::ASC.map(|suit| {
         if suit == trump {
@@ -1807,7 +1832,13 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for SupportPoints<R> {
         // Clamp the measured value at the scale cap: a capped ceiling means
         // "unbounded", so the clamp keeps a freak hand inside every
         // floor-only band.
-        let value = support_point_count_in(hand, self.suit);
+        let profile = context.reading_profile();
+        let value = support_point_count_in_on(
+            profile.support_points(),
+            profile.point_scale(),
+            hand,
+            self.suit,
+        );
         if self.dial == 0 {
             return crisp(self.band().contains(value.min(Range::FULL_POINTS.max)));
         }
@@ -1904,11 +1935,12 @@ pub fn support_points(
 struct Fifths<R>(R);
 
 impl<R: RangeBounds<f64> + Clone + Send + Sync> Constraint for Fifths<R> {
-    fn eval(&self, hand: Hand, _: &Context<'_>) -> f32 {
-        let value = if FUZZY_FIFTHS.with(Cell::get) {
+    fn eval(&self, hand: Hand, context: &Context<'_>) -> f32 {
+        let profile = context.decision_profile();
+        let value = if profile.fuzzy_fifths {
             // Never Fifths alone: average it with a real-honor count so the
             // 3NT-tuned tens/aces bias is halved toward Milton Work / BUM-RAP.
-            let companion = match FIFTHS_COMPANION.with(Cell::get) {
+            let companion = match profile.fifths_companion {
                 FifthsCompanion::Hcp => f64::from(raw_hcp(hand)),
                 FifthsCompanion::Bumrap => eval::BUMRAP.eval(hand),
             };
@@ -2065,14 +2097,15 @@ impl<const N: usize, R: RangeBounds<usize> + Clone + Send + Sync> Constraint for
             .unwrap_or(Description::Opaque)
     }
 
-    fn project(&self, _: &Context<'_>) -> EnvelopeUnion {
+    fn project(&self, context: &Context<'_>) -> EnvelopeUnion {
         // Every named suit is floored to `range` (the same exact `len` check), so
         // the projection intersects each suit's bound — sound *and* tight.
+        let scale = context.reading_profile().point_scale();
         EnvelopeUnion::from(
             self.suits
                 .iter()
                 .map(|&suit| len_projection(suit, &self.range))
-                .reduce(|acc, inf| acc.intersect(&inf))
+                .reduce(|acc, inf| acc.intersect_on(&inf, scale))
                 .unwrap_or_else(Envelope::unknown),
         )
     }

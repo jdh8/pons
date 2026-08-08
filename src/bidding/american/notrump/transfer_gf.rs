@@ -329,10 +329,11 @@ pub(super) fn equal_majors() -> Cons<impl Constraint + Clone> {
 pub(super) fn slam_55_reroute() -> Cons<impl Constraint + Clone> {
     let legacy = described(
         "5-5 slam reroute to the spade transfer",
-        |hand: Hand, _: &Context<'_>| {
-            transfer_gf_majors()
+        |hand: Hand, context: &Context<'_>| {
+            let profile = context.decision_profile();
+            profile.transfer_gf_majors
                 && hand[Suit::Hearts].len() >= 5
-                && usize::from(point_count(hand)) >= 17
+                && usize::from(point_count_on(profile.reading.point_scale(), hand)) >= 17
         },
     );
     // Whenever the gate accepts at all it requires 5+ hearts and 17+ points
@@ -376,11 +377,13 @@ pub(super) fn splinter_short(suit: Suit) -> Cons<impl Constraint + Clone> {
 /// direct game-jump onto the Jacoby transfer, where it splinters (spades at the four
 /// level, hearts as low as `3♠`).  Gated per major — spades by the master flag, hearts
 /// by [`transfer_gf_hearts`] — so each side is false until its own structure is on.
-fn is_major_splinter_slam(hand: Hand, major: Suit) -> bool {
+fn is_major_splinter_slam(context: &Context<'_>, hand: Hand, major: Suit) -> bool {
+    let decision = context.decision_profile();
+    let profile = decision.reading;
     let active = if major == Suit::Hearts {
-        transfer_gf_hearts()
+        decision.transfer_gf_hearts
     } else {
-        transfer_gf_majors()
+        decision.transfer_gf_majors
     };
     active
         && hand[major].len() >= 6
@@ -388,7 +391,12 @@ fn is_major_splinter_slam(hand: Hand, major: Suit) -> bool {
         // hand has a side-suit splinter — count the shortness as support
         // value, in lockstep with the splinter gates'
         // `support_points(major, 16..)` and the reroute boxes.
-        && usize::from(support_point_count_in(hand, major)) >= 16
+        && usize::from(support_point_count_in_on(
+            profile.support_points(),
+            profile.point_scale(),
+            hand,
+            major,
+        )) >= 16
         && Suit::ASC
             .into_iter()
             .filter(|&suit| suit != major)
@@ -399,7 +407,7 @@ fn is_major_splinter_slam(hand: Hand, major: Suit) -> bool {
 pub(super) fn major_splinter_reroute(major: Suit) -> Cons<impl Constraint + Clone> {
     let legacy = described(
         "6-card-major splinter reroute to the transfer",
-        move |hand: Hand, _: &Context<'_>| is_major_splinter_slam(hand, major),
+        move |hand: Hand, context: &Context<'_>| is_major_splinter_slam(context, hand, major),
     );
     // One box per short side suit: 6+ in the major, 16+ support points, that
     // side suit at most one card (the singleton-honor exclusion is
@@ -429,7 +437,7 @@ pub(super) fn major_splinter_reroute(major: Suit) -> Cons<impl Constraint + Clon
 pub(super) fn not_major_splinter_slam(major: Suit) -> Cons<impl Constraint + Clone> {
     described(
         "not a describable 6-card-major splinter slam",
-        move |hand: Hand, _: &Context<'_>| !is_major_splinter_slam(hand, major),
+        move |hand: Hand, context: &Context<'_>| !is_major_splinter_slam(context, hand, major),
     )
 }
 

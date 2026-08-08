@@ -41,6 +41,7 @@
 
 use super::System;
 use super::array::Logits;
+use super::constraint::PointScale;
 use super::context::{Context, DecisionProfile};
 use super::decoder::AuthoringDecoder;
 use super::inference::{
@@ -938,13 +939,16 @@ impl Observed {
         }
     }
 
-    fn add(&mut self, hand: Hand) {
+    fn add(&mut self, scale: PointScale, hand: Hand) {
         fn widen(range: &mut Range, value: u8) {
             range.min = range.min.min(value);
             range.max = range.max.max(value);
         }
         self.count += 1;
-        widen(&mut self.points, super::constraint::point_count(hand));
+        widen(
+            &mut self.points,
+            super::constraint::point_count_on(scale, hand),
+        );
         for suit in Suit::ASC {
             widen(&mut self.lengths[suit as usize], {
                 #[allow(clippy::cast_possible_truncation)]
@@ -1101,6 +1105,9 @@ impl Stance {
 
     /// One self-play board's harvest: `(stripped key → actor's hand)` per call
     fn harvest_board(&self, board: usize, deal: &FullDeal) -> HashMap<Vec<Call>, Observed> {
+        // The stance's own pinned scale, so a harvest gauges the same points on
+        // any thread — `probe` is the one bidding loop meant to fan out.
+        let scale = self.profile().reading.point_scale();
         let mut auction = Auction::new();
         let mut keys: HashMap<Vec<Call>, Observed> = HashMap::new();
         while !auction.has_ended() {
@@ -1124,7 +1131,7 @@ impl Stance {
             if let Some(key) = stripped(&auction) {
                 keys.entry(key.to_vec())
                     .or_insert_with(Observed::new)
-                    .add(deal[seat]);
+                    .add(scale, deal[seat]);
             }
         }
         keys

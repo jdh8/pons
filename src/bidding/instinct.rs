@@ -51,8 +51,8 @@
 use super::Rules;
 use super::constraint::{
     Cons, Constraint, balanced, described, hcp, len, min_level_is, partner_shown_len,
-    partner_suit_is, point_count, points, pred, short_in_their_suits, stopper_in_their_suits,
-    support, support_point_count, support_point_count_in, takeout_double_shape_ok, they_bid,
+    partner_suit_is, point_count_on, points, pred, short_in_their_suits, stopper_in_their_suits,
+    support, support_point_count_in_on, support_point_count_on, takeout_double_shape_ok, they_bid,
     top_honors,
 };
 use super::context::{Context, DecisionProfile};
@@ -827,7 +827,7 @@ pub fn two_over_one_force() -> bool {
 /// 26-count opposite the force counts `26 + 0 < 29` and signs off in game.
 ///
 /// On, partner's shown minimum is floored at the 13 points the two-over-one
-/// promised — the same scale our own [`support_point_count`] term already uses,
+/// promised — the same scale our own [`support_point_count`][super::constraint::support_point_count] term already uses,
 /// so the sum stays consistent.  Only when *partner* made the two-over-one:
 /// opener's one-level opening is read naturally and needs no floor.
 ///
@@ -3686,7 +3686,7 @@ fn respect_keycard_signoff() -> Cons<impl Constraint + Clone> {
 /// [`Inferences`]: super::inference::Inferences
 fn partner_control_bid(trump: Suit) -> Cons<impl Constraint + Clone> {
     pred(move |_: Hand, context: &Context<'_>| {
-        if !super::inference::control_bid_reading() || !context.undisturbed() {
+        if !context.reading_profile().control_bid() || !context.undisturbed() {
             return false;
         }
         let n = context.auction().len();
@@ -3745,7 +3745,8 @@ fn bare_four_four_own_flat(hand: Hand, suit: Suit, partner_min: usize) -> bool {
 fn combined_points(threshold: u8) -> Cons<impl Constraint + Clone> {
     pred(move |hand: Hand, context: &Context<'_>| {
         let partner_min = context.inferences().partner().strength.shown_floor();
-        u16::from(point_count(hand)) + u16::from(partner_min) >= u16::from(threshold)
+        let own = point_count_on(context.reading_profile().point_scale(), hand);
+        u16::from(own) + u16::from(partner_min) >= u16::from(threshold)
     })
 }
 
@@ -3776,7 +3777,10 @@ fn combined_hcp(threshold: u8) -> Cons<impl Constraint + Clone> {
                     .unwrap_or_else(|| partner.strength.shown_floor()),
             )
         } else {
-            (point_count(hand), partner.strength.shown_floor())
+            (
+                point_count_on(context.reading_profile().point_scale(), hand),
+                partner.strength.shown_floor(),
+            )
         };
         u16::from(own) + u16::from(partner_min) >= u16::from(threshold)
     })
@@ -3807,8 +3811,9 @@ fn slam_entry_reached() -> Cons<impl Constraint + Clone> {
         // `support_point_count_in` is a ledger follow-up with its own
         // FLOOR_SLAM_ENTRY resweep.
         let partner_min = partner_slam_strength(context);
-        u16::from(support_point_count(hand)) + u16::from(partner_min)
-            >= u16::from(pinned(context).floor_slam_entry)
+        let reading = context.reading_profile();
+        let own = support_point_count_on(reading.support_points(), reading.point_scale(), hand);
+        u16::from(own) + u16::from(partner_min) >= u16::from(pinned(context).floor_slam_entry)
     })
 }
 
@@ -3842,7 +3847,9 @@ fn fit_sum_game(suit: Suit, slack: u8) -> Cons<impl Constraint + Clone> {
             .then(|| partner.strength.support_floor(suit))
             .flatten()
             .unwrap_or_else(|| partner.strength.shown_floor());
-        let own = support_point_count_in(hand, suit);
+        let reading = context.reading_profile();
+        let own =
+            support_point_count_in_on(reading.support_points(), reading.point_scale(), hand, suit);
         let fit = hand[suit].len() as u16 + u16::from(partner.length(suit).min);
         u16::from(own) + u16::from(partner_pts) + fit
             >= u16::from(pinned(context).fit_sum_game.saturating_sub(slack))

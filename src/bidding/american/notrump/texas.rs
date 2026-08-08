@@ -108,12 +108,21 @@ pub(super) fn texas_game_floor() -> usize {
 /// just the strength term.
 pub(super) fn texas_strength_gate(major: Suit) -> Cons<impl Constraint + Clone> {
     let floor = texas_game_floor();
-    described("six-card-major game blast", move |hand: Hand, _| {
-        // Fit-known: a 6-card major opposite 1NT's 2+ is an 8-card fit.
-        // Side-suit shortness counts; the length term is explicit.
-        let support = usize::from(support_point_count_in(hand, major));
-        support + hand[major].len() >= floor
-    })
+    described(
+        "six-card-major game blast",
+        move |hand: Hand, context: &Context<'_>| {
+            // Fit-known: a 6-card major opposite 1NT's 2+ is an 8-card fit.
+            // Side-suit shortness counts; the length term is explicit.
+            let profile = context.reading_profile();
+            let support = usize::from(support_point_count_in_on(
+                profile.support_points(),
+                profile.point_scale(),
+                hand,
+                major,
+            ));
+            support + hand[major].len() >= floor
+        },
+    )
 }
 
 /// Complete a four-level Texas transfer by bidding game in the anchor major

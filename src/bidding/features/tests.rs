@@ -36,7 +36,7 @@ fn fixed_evaluator_extractors_match_the_vec_reference_bit_for_bit() {
     let inferences = Inferences::read(&context);
 
     let mut v2 = Vec::with_capacity(FEATURES_LEN_EVAL);
-    push_eval_base(&mut v2, cards, &inferences);
+    push_eval_base(&mut v2, blind_inference(), cards, &inferences);
     assert_feature_bits(features_eval(cards, &inferences), v2.clone());
 
     let mut v3 = v2;
@@ -53,10 +53,13 @@ fn fixed_evaluator_extractors_match_the_vec_reference_bit_for_bit() {
     let mut v4 = Vec::with_capacity(FEATURES_LEN_EVAL_V4);
     push_hand_eval(&mut v4, cards);
     for who in [Relative::Lho, Relative::Partner, Relative::Rho] {
-        push_points(&mut v4, shown(inferences.announced(who)));
+        push_points(&mut v4, shown(blind_inference(), inferences.announced(who)));
         push_shape_gauss(
             &mut v4,
-            &shape_of(&unseen, shown_boxes(inferences.announced_union(who))),
+            &shape_of(
+                &unseen,
+                shown_boxes(blind_inference(), inferences.announced_union(who)),
+            ),
         );
     }
     for age in 1..=CALLS_EVAL_V3 {
@@ -70,10 +73,13 @@ fn fixed_evaluator_extractors_match_the_vec_reference_bit_for_bit() {
     let mut shape = Vec::with_capacity(FEATURES_LEN_EVAL_SHAPE);
     push_hand_eval(&mut shape, cards);
     for who in [Relative::Lho, Relative::Partner, Relative::Rho] {
-        push_inference(&mut shape, inferences.announced(who));
+        push_inference(&mut shape, blind_inference(), inferences.announced(who));
         push_shape_dist(
             &mut shape,
-            &shape_of(&unseen, shown_boxes(inferences.announced_union(who))),
+            &shape_of(
+                &unseen,
+                shown_boxes(blind_inference(), inferences.announced_union(who)),
+            ),
         );
     }
     for age in 1..=CALLS_EVAL_V3 {
@@ -88,10 +94,13 @@ fn fixed_evaluator_extractors_match_the_vec_reference_bit_for_bit() {
     let mut points = Vec::with_capacity(FEATURES_LEN_EVAL_POINTS);
     push_hand_eval(&mut points, cards);
     for who in [Relative::Lho, Relative::Partner, Relative::Rho] {
-        push_inference(&mut points, inferences.announced(who));
-        let boxes = shown_boxes(inferences.announced_union(who));
+        push_inference(&mut points, blind_inference(), inferences.announced(who));
+        let boxes = shown_boxes(blind_inference(), inferences.announced_union(who));
         push_shape_gauss(&mut points, &shape_of(&unseen, boxes));
-        push_hcp_ends(&mut points, shown(inferences.announced(who)));
+        push_hcp_ends(
+            &mut points,
+            shown(blind_inference(), inferences.announced(who)),
+        );
         push_hcp_gauss(&mut points, &hcp_of(&honours, boxes));
     }
     for age in 1..=CALLS_EVAL_V3 {
@@ -169,8 +178,8 @@ fn shape_block_is_invariant_to_the_sum_closure() {
     let closed = lengths([(0, 3), (0, 3), (5, 8), (5, 8)]);
 
     let mut endpoints = (Vec::new(), Vec::new());
-    push_inference(&mut endpoints.0, &open);
-    push_inference(&mut endpoints.1, &closed);
+    push_inference(&mut endpoints.0, blind_inference(), &open);
+    push_inference(&mut endpoints.1, blind_inference(), &closed);
     assert_ne!(endpoints.0, endpoints.1, "the closure moves the endpoints");
 
     for cards in [SPREAD_HAND, "AQ32.K53.QJ4.A92"] {

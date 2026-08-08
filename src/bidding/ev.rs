@@ -32,7 +32,6 @@
 
 use super::System;
 use super::context::Context;
-use super::inference::rule_accept_enabled;
 use super::sampler::{sample_layouts, sample_layouts_replay};
 use super::table::Table;
 use crate::scoring::{final_contract, ns_score_bid};
@@ -82,7 +81,7 @@ pub fn ev_all(
     }
 
     let inferences = context.inferences();
-    let deals = if rule_accept_enabled() {
+    let deals = if context.reading_profile().rule_accept() {
         // Read each authored prior bid by replaying the rule that authored it
         // (frozen at its node); unauthored nodes fall back to the range reading.
         let mut deals = sample_layouts_replay(

@@ -22,8 +22,8 @@
 use super::{call, other_major, slam};
 use crate::bidding::constraint::{
     Cons, Constraint, balanced, described, envelope_union_upgrade, equal_length, hcp, len,
-    long_suit_box, longer_suit, point_count, points, pred, reads_as, stopper_in,
-    support_point_count_in, support_points, top_honors,
+    long_suit_box, longer_suit, point_count_on, points, pred, reads_as, stopper_in,
+    support_point_count_in_on, support_points, top_honors,
 };
 use crate::bidding::inference::{EnvelopeUnion, Range};
 use crate::bidding::instinct::net_break_even_gate;
@@ -285,8 +285,11 @@ pub fn notrump_responses() -> Rules {
                 )
                 & described(
                     "both-majors 3♦ capped at minimum game force when the slam reroute is on",
-                    |hand: Hand, _: &Context<'_>| {
-                        !transfer_gf_majors() || usize::from(point_count(hand)) <= 16
+                    |hand: Hand, context: &Context<'_>| {
+                        let profile = context.decision_profile();
+                        !profile.transfer_gf_majors
+                            || usize::from(point_count_on(profile.reading.point_scale(), hand))
+                                <= 16
                     },
                 ),
         )

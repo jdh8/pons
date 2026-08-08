@@ -883,11 +883,11 @@ pub(super) fn apply_opening(inf: &mut Envelope, bid: Bid, seat: u8, profile: Rea
             // exact for the shipped plain-HCP gauge; the archived
             // `set_one_notrump_fifths` knob, if ever revived, would re-widen
             // this to 14–19.
-            let slack = crate::bidding::constraint::flat_hcp_slack();
+            let slack = crate::bidding::constraint::flat_hcp_slack(profile.point_scale());
             inf.narrow_points(Range::new(15 - slack, 18));
             // The `hcp` gauge is crisp raw HCP — 15–17 gates the opening, with
             // no upgrade slack (notrump valuation, read behind Edit 2's knob).
-            inf.narrow_hcp(Range::new(15, 17));
+            inf.narrow_hcp(Range::new(15, 17), profile.point_scale());
         }
         (2, Strain::Clubs) => {
             // Strong and artificial: 22+ points, but nothing about shape.
@@ -910,7 +910,7 @@ pub(super) fn apply_opening(inf: &mut Envelope, bid: Bid, seat: u8, profile: Rea
             // (fifths within 1.6 of raw HCP), so the sound point envelope is
             // 19–23, not 19–22 — and the plain rule-of-N+8 opt-in gives a
             // flat 4-3-3-3 floor another point back.
-            let slack = crate::bidding::constraint::flat_hcp_slack();
+            let slack = crate::bidding::constraint::flat_hcp_slack(profile.point_scale());
             inf.narrow_points(Range::new(19 - slack, 23));
         }
         (2, strain) if strain.is_suit() => {
