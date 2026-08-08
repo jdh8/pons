@@ -353,6 +353,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The ten hand-written convention readings are one `Readings` bundle, and the
+  fold-ordering invariant now lives in the code that depends on it.**
+  `Inferences::read` was 980 lines.  The ten reader calls, the seven-way
+  suppression disjunction buried in the walk's `chain` expression, and the
+  208-line post-walk recording sequence collapse to three calls —
+  `Readings::read(auction, len)`, `readings.suppresses(index)`, and
+  `readings.apply(&mut players, &overlay, len)` — with all three living in
+  `inference/readers.rs`.  Retiring a reader is now a **single-file** edit:
+  delete the reader, its field, its arm in `suppresses`, and its block in
+  `apply`.  `read()` drops to 739 lines.  `apply`'s doc comment carries the
+  ordering invariant in the same place as the code it constrains: the two Rubens
+  blocks run before the overlay fold and the other nine after, load-bearing
+  because `Range::intersect` widens to the span on disjoint bounds instead of
+  going empty.  `smoke-default` (20 000 boards, seed 1) **byte-identical**
+  (`f2dab512…`), which also clears the one reordering this does perform — all
+  ten readers now run *before* `project_authored` rather than nine after.
+
+  **Deliberately not done: the planned `Walk` struct.**  Per-phase use counts
+  settled it — the seven lane arrays (`lane_suits`, `natural_lane_suits`,
+  `rebid_lane_suits`, `lane_bids`, `lane_doubled`, `side_acted`, `highest`) and
+  every opening fact are *loop-scoped*, with zero uses after the loop, and the
+  walk loop is ~580 of the original 980 lines: one interwoven computation over
+  `players` and those arrays.  A `Walk` struct could absorb setup, post-walk and
+  assembly but could not shorten the dense part; it would only convert
+  well-scoped locals into ~30 fields of shared mutable state.  The loop stays
+  whole.
+
 - **`src/bidding/inference.rs` is now five submodules instead of one 5383-line
   file.**  The reading layer — the inverse of the bidder, turning an auction
   into per-seat [`Envelope`]s — had grown to ~10k lines counting its tests, all

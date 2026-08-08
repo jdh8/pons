@@ -5,8 +5,9 @@
 //! the ledger; every function here is a chop candidate, and the tail helpers
 //! below serve the natural walk in [`super::read`].
 
-use super::envelope::{Envelope, Range};
+use super::envelope::{Envelope, Range, Relative, relative_of};
 use super::knobs::rubens_transfer_reading;
+use super::read::support_band_to_points;
 use super::{LENGTH_CAP, POINTS_CAP};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
@@ -938,6 +939,307 @@ fn is_american(opening: Bid, response: Bid) -> bool {
             Strain::Diamonds => response.strain == Strain::Clubs,
             _ => false,
         }
+}
+
+/// The ten hand-written convention readings of one auction, taken together
+///
+/// Each field is one reader's verdict, and `docs/reader-retirement.md` is the
+/// ledger of which are still owed a chop.  Bundling them here makes a
+/// retirement a single-file edit: delete the reader, its field, its arm in
+/// [`Readings::suppresses`], and its block in [`Readings::apply`].
+pub(super) struct Readings {
+    rubens_suppress: [Option<usize>; 2],
+    rubens_cue: Option<(usize, Suit)>,
+    rubens_transfer: Option<(usize, Suit, u8)>,
+    landy_relay: Option<usize>,
+    multi: Option<MultiReading>,
+    woolsey_x: Option<WoolseyXReading>,
+    dont: Option<DontReading>,
+    meckwell: Option<MeckwellReading>,
+    penalty_x: Option<usize>,
+    penalty_latch_doubles: Vec<(usize, Suit)>,
+    overcall_double: Option<usize>,
+    gladiator: Option<GladiatorReading>,
+}
+
+impl Readings {
+    /// Run every hand-written reader over `auction`
+    pub(super) fn read(auction: &[Call], len: usize) -> Self {
+        // Rubens advances name relay suits; identify them so the natural reading
+        // skips them, and capture a cue-raise's strength to apply afterwards.
+        let (rubens_suppress, rubens_cue, rubens_transfer) = rubens_reading(auction);
+        Self {
+            rubens_suppress,
+            rubens_cue,
+            rubens_transfer,
+            // The one suppression the projection cannot see: the advancer's 2♦ relay /
+            // `2♥ - 2♠` preference over a Landy/Woolsey both-majors 2♣ names no length of its
+            // own, so its rule projects nothing — suppress it by hand (the doc's stub).
+            landy_relay: landy_advance_suppress(auction),
+            // The Woolsey Multi family: 2♦ (a single 6+ major — its diamond reading
+            // suppressed) and the 2♥/2♠ Muiderberg, recorded post-walk.
+            multi: multi_reading(auction),
+            // The Woolsey takeout double of their 1NT: the doubler's points are recorded
+            // post-walk and the advancer's 2♣ minor relay is suppressed.
+            woolsey_x: woolsey_x_reading(auction),
+            // The DONT defense of their 1NT: the artificial X/2♣/2♦/2♥ and the advancer's
+            // relay are suppressed; what each genuinely shows is recorded post-walk.
+            dont: dont_reading(auction),
+            // The Meckwell defense of their 1NT: the two-way X (single minor OR both
+            // majors) records points only; the 2♣/2♦ minor + major and the advancer's
+            // relay are suppressed like DONT's.
+            meckwell: meckwell_reading(auction),
+            // Our natural penalty double of their 1NT (15+): a double names no suit, so the
+            // generic walk reads it as nothing — the points floor is recorded post-walk.
+            penalty_x: penalty_x_reading(auction),
+            // The latch's subsequent penalty doubles: each promises four-plus in the suit
+            // it doubles, recorded post-walk so the sampler does not read them as takeout.
+            penalty_latch_doubles: penalty_latch_double_reading(auction),
+            // Responder's double of an overcall of our 1NT shows 8+ (every DoubleStyle),
+            // recorded post-walk so opener does not undercount the partnership's strength.
+            overcall_double: responder_overcall_double_reading(auction, len),
+            // Our Gladiator advance of a 1NT overcall of their major: the 2♣ relay (and
+            // its forced 2♦), the cue-Stayman, the 3M splinter, and the 4M both-minor
+            // Leaping Michaels are bids of a suit the caller lacks — suppressed here,
+            // real shape recorded post-walk.
+            gladiator: gladiator_reading(auction),
+        }
+    }
+
+    /// Whether the call at `index` names a suit its bidder need not hold
+    ///
+    /// The natural walk must skip these: reading the named suit as length would
+    /// assert a phantom holding.  What each call genuinely shows is recorded
+    /// afterwards by [`Readings::apply`].
+    pub(super) fn suppresses(&self, index: usize) -> bool {
+        self.rubens_suppress.contains(&Some(index))
+            || self.landy_relay == Some(index)
+            || self.multi.is_some_and(|m| m.suppresses(index))
+            || self.woolsey_x.is_some_and(|w| w.suppresses(index))
+            || self.dont.is_some_and(|d| d.suppresses(index))
+            || self.meckwell.is_some_and(|m| m.suppresses(index))
+            || self.gladiator.is_some_and(|g| g.suppresses(index))
+    }
+
+    /// Record, after the walk, what the suppressed calls genuinely showed
+    ///
+    /// **The order of the blocks below is load-bearing.**  `Range::intersect`
+    /// widens to the span on disjoint bounds rather than going empty, so it is
+    /// not a meet and these narrowings do not commute.  The two Rubens blocks
+    /// run *before* `overlay` is folded into `players`; the other nine run
+    /// after.  `docs/reader-retirement.md` turns that ordering into the fifth
+    /// condition of its subset escape — a reader ahead of the fold can widen an
+    /// axis that the same narrowing applied after the fold would not.
+    pub(super) fn apply(&self, players: &mut [Envelope; 4], overlay: &[Envelope; 4], len: usize) {
+        // A two-level cue-raise shows a limit-plus raise: three-plus cards in
+        // partner's overcall and opening values.  Recorded after the walk (the
+        // cue itself named the opponents' suit, suppressed above).
+        if let Some((cue_index, overcall_suit)) = self.rubens_cue {
+            let who = relative_of(len, cue_index) as usize;
+            players[who].narrow_length(overcall_suit, Range::at_least(3, LENGTH_CAP));
+            // Fit agreed (cue of partner's overcall), a support-scale promise;
+            // the legacy axis takes only its sound image.
+            let band = Range::at_least(10, POINTS_CAP);
+            players[who].narrow_points(support_band_to_points(band));
+            players[who].narrow_support_points(overcall_suit, band);
+        }
+
+        // A one-level Rubens transfer records its meaning likewise (see
+        // [`set_rubens_transfer_reading`]) — but only for the advancer's own
+        // side: the transfer semantics are *our* agreement, and an opponent's
+        // in-band advance may be a genuine suit (asserting length in the suit
+        // above would poison the sampler).  Suppression above stays side-blind:
+        // it only loses information, never asserts any.
+        if let Some((transfer_index, suit, min_len)) = self.rubens_transfer {
+            let who = relative_of(len, transfer_index);
+            if matches!(who, Relative::Me | Relative::Partner) {
+                let who = who as usize;
+                players[who].narrow_length(suit, Range::at_least(min_len, LENGTH_CAP));
+                players[who].narrow_points(Range::at_least(10, POINTS_CAP));
+            }
+        }
+
+        // The three declarative conventions (Jacoby transfers over our notrump,
+        // Leaping Michaels, Landy's 2♣) are recorded from their authored rule's
+        // projection — the `overlay` computed above — not a hand-written decoder
+        // (M6.2c).  Sound but looser than the old readers: it pins the 2♦ transfer's
+        // five-card floor, not the six-card jump upgrade the reader inferred from a
+        // later call.  The DONT/Woolsey/Multi conventions below are now transparent
+        // `or`/`and` shapes too (M6.2d), so the both-majors family (DONT `2♥`, the
+        // direct-Landy `X`) also surfaces in `overlay` here — redundant with, and
+        // identical to, the per-suit floors recorded by hand below (an idempotent
+        // intersect).  The hand recordings stay: they carry the one-suiter/disjunction
+        // floors the `or`-union washes out, which the projection cannot pin.
+        for (seat, projected) in overlay.iter().enumerate() {
+            players[seat] = players[seat].intersect(projected);
+        }
+
+        // A Woolsey Multi-family overcall.  The "6+ major" (2♦) and "4+ minor"
+        // (2♥/2♠) are disjunctions the per-suit framework cannot pin to one suit, so
+        // they are captured by the *residual*: capping the other three suits forces
+        // the sampler to deal the length into the long suit (the same loose handling
+        // Landy uses for its 5-4).
+        if let Some(multi) = self.multi {
+            let who = relative_of(len, multi.overcall_index) as usize;
+            match multi.kind {
+                // 2♦ Multi: a true one-suiter, so both minors ≤ 4 (the natural ≥5
+                // diamond reading was suppressed above; clubs narrows from full).
+                MultiKind::Major => {
+                    players[who].narrow_length(Suit::Clubs, Range::new(0, 4));
+                    players[who].narrow_length(Suit::Diamonds, Range::new(0, 4));
+                }
+                // 2♥/2♠ Muiderberg: exactly 5 in the major, ≤ 3 in the other major
+                // (refining the natural ≥5 reading); the 4+ minor falls out of the
+                // residual.
+                MultiKind::Muiderberg(major) => {
+                    let other = if major == Suit::Hearts {
+                        Suit::Spades
+                    } else {
+                        Suit::Hearts
+                    };
+                    players[who].narrow_length(major, Range::new(5, 5));
+                    players[who].narrow_length(other, Range::new(0, 3));
+                }
+            }
+            let floor = crate::bidding::american::woolsey_points().0;
+            players[who].narrow_points(Range::at_least(floor, POINTS_CAP));
+        }
+
+        // A Woolsey takeout double of their 1NT (4-card major + 5-6 card minor).  The
+        // shape is a double disjunction the per-suit framework cannot pin, so only the
+        // points floor is recorded — enough to stop the floor sampling the doubler as a
+        // random weak hand (a double of 1NT is otherwise read as nothing).
+        if let Some(woolsey_x) = self.woolsey_x {
+            let who = relative_of(len, woolsey_x.double_index) as usize;
+            let floor = crate::bidding::american::woolsey_double_floor();
+            players[who].narrow_points(Range::at_least(floor, POINTS_CAP));
+        }
+
+        // A DONT overcall of their 1NT.  The X one-suiter and the 2♣/2♦ minor are
+        // disjunctions (the long suit / the unknown major) the per-suit framework
+        // cannot pin, so only the sound per-suit fact is recorded; the residual carries
+        // the rest.  The 2♥ both-majors pins both like Landy.  In each case the points
+        // floor stops the floor sampling the overcaller as a random hand.
+        if let Some(dont) = self.dont {
+            let who = relative_of(len, dont.overcall_index) as usize;
+            match dont.kind {
+                // One-suiter in ♣/♦/♥ (spades excluded); the long suit falls out of the
+                // residual, only spades ≤ 3 is certain.
+                DontKind::OneSuiter => players[who].narrow_length(Suit::Spades, Range::new(0, 3)),
+                // 2♣/2♦: a real ≥ 4 minor (the natural ≥ 5 reading was suppressed); the
+                // unknown major surfaces naturally if later named, else the residual.
+                DontKind::ClubsMajor => {
+                    players[who].narrow_length(Suit::Clubs, Range::at_least(4, LENGTH_CAP));
+                }
+                DontKind::DiamondsMajor => {
+                    players[who].narrow_length(Suit::Diamonds, Range::at_least(4, LENGTH_CAP));
+                }
+                // 2♥: both majors, ≥ 4-4 (the natural ≥ 5 heart reading was suppressed).
+                DontKind::BothMajors => {
+                    players[who].narrow_length(Suit::Hearts, Range::at_least(4, LENGTH_CAP));
+                    players[who].narrow_length(Suit::Spades, Range::at_least(4, LENGTH_CAP));
+                }
+            }
+            players[who].narrow_points(Range::at_least(dont.floor, POINTS_CAP));
+        }
+
+        // A Meckwell overcall of their 1NT.  The two-way X (single 6+ minor OR both
+        // majors) is a disjunction that shares no sound per-suit fact — the one-suiter
+        // arm holds short majors, the both-majors arm long majors — so only the points
+        // floor is recorded (as the Woolsey / penalty double).  The 2♣/2♦ pin the real
+        // ≥4 minor (the natural ≥5 reading was suppressed); the unknown major surfaces
+        // from the residual.  Natural 2♥/2♠ and the 2NT both-minors are read elsewhere.
+        if let Some(meckwell) = self.meckwell {
+            let who = relative_of(len, meckwell.overcall_index) as usize;
+            match meckwell.kind {
+                MeckwellKind::TwoWayDouble => {}
+                MeckwellKind::ClubsMajor => {
+                    players[who].narrow_length(Suit::Clubs, Range::at_least(4, LENGTH_CAP));
+                }
+                MeckwellKind::DiamondsMajor => {
+                    players[who].narrow_length(Suit::Diamonds, Range::at_least(4, LENGTH_CAP));
+                }
+            }
+            players[who].narrow_points(Range::at_least(meckwell.floor, POINTS_CAP));
+        }
+
+        // Our Gladiator advance: record the real shape the suppressed call hid.
+        // Guarded to our own side (the advance is our agreement) — an opponent's
+        // in-band call must never be narrowed to the phantom suit.
+        if let Some(gladiator) = self.gladiator {
+            let who = relative_of(len, gladiator.index);
+            if matches!(who, Relative::Me | Relative::Partner) {
+                let who = who as usize;
+                match gladiator.advance {
+                    // No band: the relay is a *three-way* disjunction — a weak
+                    // ♦/`o` takeout, any invitational hand, **or a game-forcing
+                    // balanced hand with exactly three `o`** heading for the
+                    // delayed cue (`gladiator_advances`, the 2♣ rule; its
+                    // continuation authors the delayed cue `points(inv..)`,
+                    // unbounded).  A `0..=9` cap here was intersected into the
+                    // projection's game-forcing box and emptied it — a wrong
+                    // box, not a loose one.  The strength reading is the
+                    // authored rule's own union of boxes, and the suit stays
+                    // unread (the XYZ-style rebid over 2♦ reveals it, read
+                    // naturally).
+                    GladiatorAdvance::Relay => {}
+                    GladiatorAdvance::Cue { o } => {
+                        players[who].narrow_length(o, Range::at_least(4, LENGTH_CAP));
+                        players[who].narrow_points(Range::at_least(8, POINTS_CAP));
+                    }
+                    // Delayed cue: exactly 3 in the unbid major, INV+ (checks the
+                    // 5-3 fit an exactly-5-major overcall can hold).
+                    GladiatorAdvance::DelayedCue { o } => {
+                        players[who].narrow_length(o, Range::new(3, 3));
+                        players[who].narrow_points(Range::at_least(8, POINTS_CAP));
+                    }
+                    GladiatorAdvance::Splinter { o, m } => {
+                        players[who].narrow_length(o, Range::at_least(4, LENGTH_CAP));
+                        players[who].narrow_length(m, Range::new(0, 1));
+                        players[who].narrow_points(Range::at_least(10, POINTS_CAP));
+                    }
+                    GladiatorAdvance::BothMinors => {
+                        players[who].narrow_length(Suit::Clubs, Range::at_least(5, LENGTH_CAP));
+                        players[who].narrow_length(Suit::Diamonds, Range::at_least(5, LENGTH_CAP));
+                        players[who].narrow_points(Range::at_least(10, POINTS_CAP));
+                    }
+                    GladiatorAdvance::Minor { o, minor } => {
+                        players[who].narrow_length(o, Range::at_least(5, LENGTH_CAP));
+                        players[who].narrow_length(minor, Range::at_least(5, LENGTH_CAP));
+                        players[who].narrow_points(Range::at_least(10, POINTS_CAP));
+                    }
+                    // 2NT = weak transfer to clubs: 6+ clubs, sub-invitational.
+                    GladiatorAdvance::ClubTransfer => {
+                        players[who].narrow_length(Suit::Clubs, Range::at_least(6, LENGTH_CAP));
+                        players[who].narrow_points(Range::new(0, 7));
+                    }
+                }
+            }
+        }
+
+        // Our natural penalty double of their 1NT.  The shape gate only widens *which*
+        // 15+ hands double, so only the points floor is a sound per-call fact; recording
+        // it stops the floor sampling the doubler as a random weak hand and the advancer
+        // pulling a phantom suit (cf. the Woolsey double, which records points alone too).
+        if let Some(double_index) = self.penalty_x {
+            let who = relative_of(len, double_index) as usize;
+            let floor = crate::bidding::american::natural_double_floor();
+            players[who].narrow_points(Range::at_least(floor, POINTS_CAP));
+        }
+
+        // The latch's later penalty doubles: four-plus in the doubled suit (the
+        // floor makes them only on a trump stack), so partner reads them as penalty.
+        for &(double_index, suit) in &self.penalty_latch_doubles {
+            let who = relative_of(len, double_index) as usize;
+            players[who].narrow_length(suit, Range::at_least(4, LENGTH_CAP));
+        }
+
+        // Responder's double of an overcall of our 1NT: 8+ values (every DoubleStyle).
+        if let Some(double_index) = self.overcall_double {
+            let who = relative_of(len, double_index) as usize;
+            players[who].narrow_points(Range::at_least(8, POINTS_CAP));
+        }
+    }
 }
 
 #[cfg(test)]
