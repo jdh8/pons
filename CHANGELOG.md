@@ -69,6 +69,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `rubens_advances`, one of the three real drifts, and cost 210 s of CI to miss
   it.  Reading the cell back is exact, total, and instant.
 
+### Fixed
+
+- **`"Two way game tries"` now discloses its honest `0`** — the fold made the
+  correction free.  The row was held at the dishonest `1` because its frozen
+  column taxed the flip at plain −0.0174 ±0.0064 NV / −0.0130 ±0.0077 vul (the
+  "Measured" entry below), moving 2647 of 20 000 smoke boards on auctions with
+  no game try in them.  Post-fold the same flip moves **0 of 20 000**
+  (`smoke-default` sha unchanged, `59a27d7f…`) — the measured loss converted
+  into an assertion, which is E1 of `docs/ai-bidder/card-manifold.md`.  Both
+  `cards/*.bbsa` goldens re-blessed (row 124 flips `1 → 0`, the only diff);
+  cosmetic to BBA itself (0 of 8406 replayed decisions move).  The
+  `major_game_tries` crate-internal re-exports died with their last reader —
+  the knob, its setter, and the book it gates are untouched.
+
 ### Measured
 
 - **Correcting a card row we get wrong costs −0.015 IMPs/board, so the fix is a

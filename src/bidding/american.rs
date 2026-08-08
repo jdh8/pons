@@ -140,7 +140,6 @@ pub use openings::{
 };
 pub use weak_twos::{set_weak_two_longest_first, set_weak_two_major_priority};
 
-pub(crate) use raises::major_game_tries;
 pub use raises::{set_limit_raise_acceptance, set_major_game_tries};
 pub(crate) use rebids::{opener_extras_ladder, opener_major_jump_rebid};
 pub use rebids::{

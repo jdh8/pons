@@ -186,8 +186,8 @@ Ordered. None needs a retrain, and E1 needs no A/B at all.
 | # | run | cost | what it decides |
 | --- | --- | --- | --- |
 | **E1** | fold, then set `"Two way game tries"` to its honest `0` and dump `smoke-default` | seconds, deterministic | **the fold works.** The row is frozen, therefore zeroed, therefore flipping it must move **0 of 20 000** boards. Converts a −0.015/board A/B into an assertion. **✓ PASSED 2026-08-08**: sha `59a27d7f…` identical across baseline, fold, and honest-0 (2647 boards moved pre-fold). |
-| **E2** | folded vs unfolded `--declare-opponents` cell A (vs BBA's real 2/1 card, 43 rows differing) | 2000 bd/arm/vul, harness exists | **the diagnosis, experimentally.** −0.70/−1.16 must collapse to ~0. The cheapest possible test of everything above: if cell A does *not* collapse, the frozen-coordinate story is wrong. |
-| **E3** | **cell B at scale** — `--their-floor dutch --declare-opponents`, 204 800 bd/arm/vul, both vuls, dual scoring | minutes | **the retrain's go/no-go.** Cell B moves slots {0, 2, 7}, all genuinely *trained*. A wash here says the trained coordinates are worth ~0 too, and the retrain is dead. |
+  step. The shipped run was `lr = 1e-3` over 300 epochs × ⌈3 026 601/4096⌉ = 221 700
+  steps, so meaningful decay needs `lr·wd·steps ≳ 5`, i.e. **`wd ≳ 0.02`** —
 
 E3 is not a new gate: it is the run
 [declarative-rows.md](../declarative-rows.md) §"2a measured" already books as
@@ -299,16 +299,18 @@ file supplies the missing *why*, plus one correction:
 
 ### The standing consequence for measurement
 
-Until the fold lands, **any knob A/B that moves one of the 24 card-expressible
-rows measures its own effect plus the tax**, and the tax is larger than most
-conventions' real effect. Two live instances:
+Until the fold landed, **any knob A/B that moved one of the 24 card-expressible
+rows measured its own effect plus the tax**, and the tax was larger than most
+conventions' real effect. Both live instances are resolved (2026-08-08):
 
-- `"Two way game tries"` ships a known misdisclosure in a comment rather than in
-  the value, because correcting it costs −0.015/board of pure noise.
-- Commit `b750a4e` made the `1NT opening shape 4441` row read
-  `one_notrump_offshape()`. The knob is default-off, so the shipped system is
-  unaffected — but its future A/B inherits the tax, and will not be clean until
-  the fold lands.
+- `"Two way game tries"` now ships its honest `0` in the value — E1's flip
+  moved 0 of 20 000 boards, so the correction that used to cost −0.015/board of
+  pure noise was free. (The row also leaves the retrain's axis-candidate list:
+  its honest value is knob-independent until the shortness try is authored.)
+- Commit `b750a4e`'s `1NT opening shape 4441` row (reads
+  `one_notrump_offshape()`, default-off): its future A/B no longer inherits the
+  tax — the row's column is zeroed, so arming the knob moves the *bidding*
+  only, not a random vector through the card.
 
-Neither is a reason to un-fix the disclosure. Both are reasons the fold is worth
-doing before the next card-row A/B, independently of anything in the retrain.
+The general statement survives for any **future** unfolded export, which is
+what `folded_card_columns_are_exactly_zero` exists to catch.

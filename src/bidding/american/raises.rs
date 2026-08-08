@@ -30,9 +30,6 @@ mod limit_raise;
 pub use game_try::set_major_game_tries;
 pub use limit_raise::set_limit_raise_acceptance;
 
-// Knobs the disclosure card reads at build time.
-pub(crate) use game_try::major_game_tries;
-
 // The packages, re-exported so `american::tests::row_package_invariants` and
 // `register` below name them at one path.
 pub(super) use game_try::major_game_try_continuations;
