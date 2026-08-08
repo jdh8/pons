@@ -81,28 +81,22 @@ fn next_call(
 /// Bid out one deal, switching the Fifths companion per acting side
 ///
 /// Both teams keep the shipped fuzzy gauges; only the companion differs.  The
-/// companion flag is thread-local and set just before each classification, so
-/// this stays correct whether it runs on the main thread or a rayon worker
-/// (each board bids on a single thread).
+/// companion is pinned into a stance at build, so the two sides bid off two
+/// pre-built stances (`[Bumrap, Hcp]`) rather than one stance and a flag set
+/// per call.  Both are plain values, so a board still bids on any thread.
 fn bid_out(
-    stance: &Stance,
+    stances: &[Stance; 2],
     hcp_is_ns: bool,
     dealer: Seat,
     vul: AbsoluteVulnerability,
     deal: &FullDeal,
 ) -> Auction {
     let mut auction = Auction::new();
-    set_point_scale(PointScale::PointCount);
-    set_fuzzy_fifths(true);
 
     while !auction.has_ended() {
         let seat = seat_to_act(dealer, auction.len());
         let seat_is_ns = matches!(seat, Seat::North | Seat::South);
-        set_fifths_companion(if seat_is_ns == hcp_is_ns {
-            FifthsCompanion::Hcp
-        } else {
-            FifthsCompanion::Bumrap
-        });
+        let stance = &stances[usize::from(seat_is_ns == hcp_is_ns)];
         auction.push(next_call(stance, deal[seat], dealer, vul, &auction));
     }
     auction
@@ -113,19 +107,26 @@ fn main() {
     let args = Args::parse();
     let base = args.seed.unwrap_or_else(rand::random);
     let vul = args.vulnerability;
-    let stance = american().against();
+    // Both stances keep the shipped fuzzy gauges; `[Bumrap, Hcp]` differ only in
+    // the companion, indexed by the acting side.
+    set_point_scale(PointScale::PointCount);
+    set_fuzzy_fifths(true);
+    set_fifths_companion(FifthsCompanion::Bumrap);
+    let bumrap = american().against();
+    set_fifths_companion(FifthsCompanion::Hcp);
+    let stances = [bumrap, american().against()];
 
     // Deals are seeded per board (base + index) so every arm/vul replays the
-    // identical stream.  Each bid_out sets its own thread-local per call, so
-    // board bidding parallelizes; the DD solver stays on the main thread below.
+    // identical stream.  Both stances are plain values, so board bidding
+    // parallelizes; the DD solver stays on the main thread below.
     let deals = seeded_deals(base, args.count);
     let contracts: Vec<[_; 2]> = deals
         .par_iter()
         .enumerate()
         .map(|(index, deal)| {
             let dealer = Seat::ALL[index % 4];
-            let table_a = bid_out(&stance, true, dealer, vul, deal);
-            let table_b = bid_out(&stance, false, dealer, vul, deal);
+            let table_a = bid_out(&stances, true, dealer, vul, deal);
+            let table_b = bid_out(&stances, false, dealer, vul, deal);
             // Credit the HCP team: [off = table_b (HCP EW), on = table_a
             // (HCP NS)], matching report_brackets' on − off (positive = HCP
             // beats BUM-RAP).

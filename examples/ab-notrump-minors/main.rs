@@ -95,9 +95,11 @@ fn main() {
     let args = Args::parse();
     let mut rng = rand::rng();
     // arm 0 = European (the opt-in alternative), arm 1 = Puppet (the shipped
-    // default).  Both keep every other shipped default.  The scheme is read at
-    // book-construction time, so build each arm under its own setting; the baked
-    // tries are independent thereafter.
+    // default).  Both keep every other shipped default.  The scheme is read both
+    // at book construction *and* per decision, so build each arm under its own
+    // setting: the baked tries and the stance's pinned profile are then
+    // independent, and the European arm no longer classifies under whatever the
+    // thread was left holding.
     set_notrump_minors(EUROPEAN);
     let european = american().against();
     set_notrump_minors(PUPPET); // restore the shipped default

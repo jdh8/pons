@@ -51,7 +51,11 @@ enum Policy {
 }
 
 impl Policy {
-    fn apply(self, enabled: bool) {
+    /// Build a stance with this policy's gauges armed as `enabled`
+    ///
+    /// Both gauges are pinned into the stance at build, so an arm is a whole
+    /// stance rather than a pair of flags set per call.
+    fn stance(self, enabled: bool) -> Stance {
         let (points, fifths) = match self {
             Self::Points => (enabled, false),
             Self::Fifths => (false, enabled),
@@ -63,6 +67,7 @@ impl Policy {
             PointScale::Hcp
         });
         set_fuzzy_fifths(fifths);
+        american().against()
     }
 }
 
@@ -129,12 +134,11 @@ fn next_call(
 
 /// Bid out one deal, switching the strength gauge per acting side
 ///
-/// The fuzzy flags are thread-local and set just before each classification, so
-/// this stays correct whether it runs on the main thread or a rayon worker
-/// (each board bids on a single thread).
+/// The fuzzy flags are pinned into a stance at build, so the two sides bid off
+/// two pre-built stances (`[off, on]`) rather than one stance and flags set per
+/// call.  Both are plain values, so a board still bids on any thread.
 fn bid_out(
-    stance: &Stance,
-    policy: Policy,
+    stances: &[Stance; 2],
     fuzzy_is_ns: bool,
     dealer: Seat,
     vul: AbsoluteVulnerability,
@@ -145,7 +149,7 @@ fn bid_out(
     while !auction.has_ended() {
         let seat = seat_to_act(dealer, auction.len());
         let seat_is_ns = matches!(seat, Seat::North | Seat::South);
-        policy.apply(seat_is_ns == fuzzy_is_ns);
+        let stance = &stances[usize::from(seat_is_ns == fuzzy_is_ns)];
         auction.push(next_call(stance, deal[seat], dealer, vul, &auction));
     }
     auction
@@ -184,16 +188,18 @@ fn main() {
     let base = args.seed.unwrap_or_else(rand::random);
     let vul = args.vulnerability;
     let policy = args.policy;
-    let stance = american().against();
     // One default-flag book reads the leader's view for the blind-lead pass: the
     // fuzzy upgrade barely shifts disclosed meaning, so a single reading serves
     // both arms (a deliberate simplification — we do not flip the fuzzy flags for
-    // inference, unlike per-call bidding above).
+    // inference, unlike per-call bidding above).  Built first, before either arm
+    // arms a gauge, so it stays the default-flag book it has always been.
     let infer_stance = american().against();
+    // `[off, on]` for this policy's gauges, indexed by the acting side.
+    let stances = [policy.stance(false), policy.stance(true)];
 
     // Deals are seeded per board (base + index) so every arm/vul replays the
-    // identical stream.  Each bid_out sets its own thread-local per call, so
-    // board bidding parallelizes; the DD solver stays on the main thread below.
+    // identical stream.  Both stances are plain values, so board bidding
+    // parallelizes; the DD solver stays on the main thread below.
     // Retain both tables' auctions (index 0 = table_b/off, 1 = table_a/on — the
     // same order as `contracts`) so the single-dummy pass can read each auction
     // from the leader's view.
@@ -203,8 +209,8 @@ fn main() {
         .enumerate()
         .map(|(index, deal)| {
             let dealer = Seat::ALL[index % 4];
-            let table_a = bid_out(&stance, policy, true, dealer, vul, deal);
-            let table_b = bid_out(&stance, policy, false, dealer, vul, deal);
+            let table_a = bid_out(&stances, true, dealer, vul, deal);
+            let table_b = bid_out(&stances, false, dealer, vul, deal);
             // Credit the fuzzy team: [off = table_b (fuzzy EW),
             // on = table_a (fuzzy NS)], matching report_brackets' on − off.
             let contracts = [

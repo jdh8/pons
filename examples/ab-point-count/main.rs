@@ -279,7 +279,7 @@ enum Arms {
 }
 
 impl Arms {
-    /// Arm the acting side's knob (thread-local, set just before classifying)
+    /// Arm this side's knob, to be read by the `american()` build that follows
     fn apply(self, is_candidate: bool) {
         match self {
             Self::SupportPoints => set_support_points(is_candidate),
@@ -322,16 +322,14 @@ fn next_call(
 
 /// Bid out one deal, arming the candidate side per acting seat
 ///
-/// `stances` is `[baseline_book, candidate_book]`.  Eval-time arms (the point
-/// scales) build the two identically and rely on the thread-local knob
-/// [`Arms::apply`] flips per call; the build-time [`Arms::WeakTwoHcp`] gate bakes
-/// the difference into the two books, and `apply` is then a no-op.  Either way,
-/// each seat classifies with the book for its side and the knob set to match, so
-/// this stays correct on the main thread or a rayon worker (one board, one
-/// thread).
+/// `stances` is `[baseline_book, candidate_book]`.  Every arm — the eval-time
+/// point scales as much as the build-time [`Arms::WeakTwoHcp`] gate — is baked
+/// into its own book by [`Arms::apply`] *before* the build, because the scale
+/// knobs are pinned into a stance and no longer read per call.  Each seat
+/// classifies with the book for its side, so this stays correct on the main
+/// thread or a rayon worker (one board, one thread).
 fn bid_out(
     stances: &[Stance; 2],
-    arms: Arms,
     candidate_is_ns: bool,
     dealer: Seat,
     vul: AbsoluteVulnerability,
@@ -343,7 +341,6 @@ fn bid_out(
         let seat = seat_to_act(dealer, auction.len());
         let seat_is_ns = matches!(seat, Seat::North | Seat::South);
         let is_candidate = seat_is_ns == candidate_is_ns;
-        arms.apply(is_candidate);
         auction.push(next_call(
             &stances[usize::from(is_candidate)],
             deal[seat],
@@ -488,9 +485,16 @@ fn main() {
         }
     };
 
-    // Two books, `[baseline, candidate]`.  The build-time WeakTwoHcp gate bakes
-    // the difference in (knob off vs on); the eval-time scale arms build both
-    // identically and let the per-call thread-local (`Arms::apply`) do the work.
+    // One default-flag book reads the leader's view for the blind-lead pass:
+    // neither the scale nor the weak-two gate shifts disclosed meaning enough to
+    // matter, so a single reading serves both arms (a deliberate simplification —
+    // we do not flip the knob for inference, unlike the per-arm books below).
+    // Built first, before any arm is armed, so it is the default-flag book.
+    let infer_stance = american().against();
+
+    // Two books, `[baseline, candidate]`.  Every arm bakes its difference in at
+    // build — the scale knobs are pinned into a stance, so a per-call flip would
+    // be inert.
     let stances = match arms {
         Arms::WeakTwoHcp { band } => {
             set_weak_two_hcp(None);
@@ -508,13 +512,21 @@ fn main() {
             fix.set(false);
             [baseline, candidate]
         }
-        _ => [american().against(), american().against()],
+        // The scale arms are *eval-time*: both books are built on the shipped
+        // defaults and only the classify-time gauge differs, so the measurement
+        // prices the scale rather than the whole system it would also rebuild.
+        // `repin` is what keeps that expressible — it re-captures the knob state
+        // into a built stance without touching the book underneath.
+        _ => {
+            let mut baseline = american().against();
+            let mut candidate = american().against();
+            arms.apply(false);
+            baseline.repin();
+            arms.apply(true);
+            candidate.repin();
+            [baseline, candidate]
+        }
     };
-    // One default-flag book reads the leader's view for the blind-lead pass:
-    // neither the scale nor the weak-two gate shifts disclosed meaning enough to
-    // matter, so a single reading serves both arms (a deliberate simplification —
-    // we do not flip the knob for inference, unlike per-call bidding above).
-    let infer_stance = american().against();
 
     // Deal source: the seeded stream (base + index) so every arm/vul replays
     // the identical stream, or a slice of a pre-solved .pdd deal bank whose
@@ -547,8 +559,8 @@ fn main() {
         .enumerate()
         .map(|(index, deal)| {
             let dealer = Seat::ALL[index % 4];
-            let table_a = bid_out(&stances, arms, true, dealer, vul, deal);
-            let table_b = bid_out(&stances, arms, false, dealer, vul, deal);
+            let table_a = bid_out(&stances, true, dealer, vul, deal);
+            let table_b = bid_out(&stances, false, dealer, vul, deal);
             // Credit the candidate team: [off = table_b (candidate EW),
             // on = table_a (candidate NS)], matching report_brackets' on − off.
             let contracts = [

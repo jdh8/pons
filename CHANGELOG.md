@@ -181,6 +181,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Six A/B harnesses that the pin-at-build campaign had silently turned into
+  no-ops.**  Each armed its candidate side by setting a knob just before every
+  classification, off a single stance built once — an idiom the pin made inert,
+  so both sides bid identically and the run reported a clean wash on every board
+  and meant nothing by it.  Measured against the campaign parent at 1500 deals,
+  seed 7: `ab-fuzzy-strength` 245 → 0 divergent boards, `ab-inference-floor`
+  39 → 0, `ab-point-count` 30 → 0, `ab-settle-floor` 29 → 0,
+  `ab-fifths-companion` 7 → 0, `ab-stayman-net-force` 2 → 0.  Five share one
+  shape — self-play with the knob flipped per acting seat — and now hold a
+  `[Stance; 2]` built one arm at a time, restoring the parent's exact divergent
+  count in every case.  `ab-point-count`'s scale arms are *eval-time* by design
+  (both books on the shipped defaults, only the classify-time gauge differing,
+  so the run prices the scale rather than the whole system a rebuild would move),
+  so it uses `Stance::repin` rather than a rebuild; its counts shift a little
+  because at the parent an arm reached some readers and not others, and those
+  numbers priced a half-armed system.  `ab-notrump-minors` needed no code change
+  — only its comment was wrong about *when* the minor scheme is read, which had
+  left its European arm classifying under the shipped Puppet default.  No
+  default-knob behaviour moved: the seeded smoke dumps stay byte-identical.
+
 - **The `web` CI job, which the inference split would have turned red.**  The
   split demoted six `pub` reading-knob getters to `pub(crate)` on the finding
   that nothing outside the module read them.  That finding was produced by a

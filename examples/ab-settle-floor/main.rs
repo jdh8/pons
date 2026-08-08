@@ -64,10 +64,10 @@ struct Args {
 
 /// Bid out one deal, enabling the settle floor only for the feature side
 ///
-/// The thread-local is set just before each classification, so this is safe under
-/// rayon: the worker sets and reads it on its own thread.
+/// The flag is pinned into a stance at build, so the two sides bid off two
+/// pre-built stances rather than one stance and a per-call flag.
 fn bid_out(
-    stance: &Stance,
+    stances: &[Stance; 2],
     args: &Args,
     feature_is_ns: bool,
     dealer: Seat,
@@ -77,7 +77,7 @@ fn bid_out(
     while !auction.has_ended() {
         let seat = seat_to_act(dealer, auction.len());
         let seat_is_ns = matches!(seat, Seat::North | Seat::South);
-        set_settle_floor(seat_is_ns == feature_is_ns);
+        let stance = &stances[usize::from(seat_is_ns == feature_is_ns)];
         auction.push(next_call(
             stance,
             deal[seat],
@@ -92,7 +92,10 @@ fn bid_out(
 #[allow(clippy::cast_precision_loss)]
 fn main() {
     let args = Args::parse();
-    let stance = american().against();
+    set_settle_floor(false);
+    let plain = american().against();
+    set_settle_floor(true);
+    let stances = [plain, american().against()];
 
     // Deal sequentially (seeded, reproducible); bid both tables in parallel.
     let mut rng = StdRng::seed_from_u64(args.seed);
@@ -104,8 +107,8 @@ fn main() {
         .map(|&(dealer, deal)| Board {
             deal,
             dealer,
-            table_a: bid_out(&stance, &args, true, dealer, &deal),
-            table_b: bid_out(&stance, &args, false, dealer, &deal),
+            table_a: bid_out(&stances, &args, true, dealer, &deal),
+            table_b: bid_out(&stances, &args, false, dealer, &deal),
         })
         .collect();
 
