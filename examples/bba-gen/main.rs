@@ -80,9 +80,12 @@ struct Args {
     /// Which of our authored systems to seat: `american` (default), `dutch`
     /// (the wide-1♣ champion candidate), the deterministic `american-instinct` /
     /// `dutch-instinct` pre-swap baselines, `bba-constructive` (`american` with
-    /// the BBA net flooring the constructive book too), or `neural-v3` (the
+    /// the BBA net flooring the constructive book too), `neural-v3` (the
     /// restrictive disclosable distilled floor; requires the `neural-floor`
-    /// feature).  Ignored when `--our-system` selects an EPBot card.
+    /// feature), or `american-v5` (alias of `american` since the 2026-08-08
+    /// floor swap) / `dutch-v5` (the still-ungated compact-config Dutch cell;
+    /// docs/ai-bidder/card-manifold.md).  Ignored when `--our-system` selects
+    /// an EPBot card.
     #[arg(long, default_value = "american")]
     our_floor: String,
 

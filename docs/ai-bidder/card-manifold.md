@@ -1,6 +1,21 @@
 # The card manifold — four trained coordinates out of 280
 
-**Status: diagnosed, nothing built.** The configured net reads a 280-float
+**Status: the fold is SHIPPED, all three experiments ran, and the v5 retrain
+is TRAINED and WIRED (2026-08-08). E1 ✓ E2 ✓ (cell A → 0 fired); E3 = plain
+wash + PD win, marginal → user chose GO, then pivoted to the compact config.
+`american_bba_v5` (val top-1 89.3% vs v4's 87.0%) **is the default floor of
+`american()` since 2026-08-08**: the gate A/B won plain DD CI-clear at both
+vuls (+0.0353/+0.0262) with PD wash, and the user shipped on 3-of-4 positive
+cells. `dutch()` stays on v4 (its v5 cell is ungated)
+(§[The retrain, measured](#the-retrain-measured)).** `scripts/fold-constant-inputs.py` rewrote
+`american_bba_v4.f32` in place (geometry mode — see the deviation note in §[The
+fold](#the-fold-exact-free-unbuilt)); `smoke-default` byte-identical across the
+fold **and** across the now-free honest `"Two way game tries" = 0`
+(sha `59a27d7f…`, 20 000 boards, vs 2647 moved pre-fold);
+`matches_candle_fixture_bba_v4` passed un-re-blessed;
+`folded_card_columns_are_exactly_zero` is the permanent export gate.
+
+The configured net reads a 280-float
 convention-card block, 76% of its 368 inputs. Across the entire v4 corpus
 **four slots per side move**; the other 272 coordinates are constant, and the
 trainer ran `wd = 0`, so their weights sit at their initialisation draw.
@@ -323,6 +338,91 @@ Then the two A/B gates from [measurement.md](../measurement.md): v5 at defaults
 must not regress against shipped v4, and — the point of the exercise — each
 thawed axis's own knob A/B becomes interpretable for the first time, because its
 result is no longer its effect plus a random vector.
+
+### The retrain, measured
+
+Ran 2026-08-08, all on the `scripts/dump-v5.sh` corpus (6,768,279 rows,
+`22.pdd` rows 3.25M–4.16M, EPBot 2/1 teacher, v4 hyperparameters,
+`--init-seed 1`):
+
+- **Train:** `american_bba_v5` reached **val top-1 89.3%** (constructive
+  88.8%, contested 89.5%) vs v4's 87.0% overall — the input shrank 368 → 144
+  and accuracy *rose*. 112,678 floats (450 KB vs v4's 680 KB).
+- **Scan fold at export:** 30 of 144 columns were corpus-constant and folded —
+  exactly the predicted set: per side, the 8 unprobed bools + `garbage` and
+  the untouched one-hot lanes. The live set is **13 dims per side**: `dutch`
+  (the `DEFAULT_CELLS` rotation), `relocating`, `nmf`, `xyz`, `jordan`, both
+  poles of the flipped `shape`/`defense`/`lebensohl` one-hots, `minors`,
+  `landy`. `folded_compact_columns_are_exactly_zero` pins it.
+- **Pair-flip diagnostics** (bar: v4 slot 77's 45.3% argmax-move on held-out
+  teacher-moving pairs):
+
+  | axis | teacher-moving pairs | net argmax moves |
+  | --- | ---: | ---: |
+  | kickback (enriched, held-out) | 517 | **42.0%** — at the v4 bar |
+  | 1NT minor scheme | 165 | **45.5%** |
+  | 1NT shape ladder | 109 | **39.4%** |
+  | Two Way NMF (XYZ) | 262 | 17.6% |
+  | Jordan Truscott 2NT | 18 | 11.1% |
+  | Lebensohl rows | 105 | 7.6% |
+  | NT defense (Landy rows) | 131 | 3.8% |
+  | Landy range | 80 | 1.2% |
+  | Checkback (NMF) | **0** | — |
+
+  (Axis rows are whole-dump — held-out tails held only 1–24 pairs each; the
+  kickback row is the honest held-out read.)
+
+  ⚠ **The probe ranked axes by *our* book's move frequency, but the teacher
+  is BBA — and BBA barely responds to several of those rows.** `Checkback`
+  is the extreme: sticky in EPBot (`verify_card` round-trips), our book moves
+  2.29% of auctions on the flip, yet across 109,883 matched pairs the
+  teacher's call **never once differed**. The row is disclosure-honest but
+  behaviorally inert in EPBot at this sample size, so the corpus contains no
+  signal for the net to learn — dim 3 varies, gets gradient, and correctly
+  trains toward no-effect. The same at smaller degree for jordan/leb/
+  defense/landy: tens-to-low-hundreds of moving pairs is too few to teach a
+  meaning. Only kickback, minors, shape and (weakly) xyz have real teaching
+  signal in this corpus. **A future axis shard should be sized by BBA's
+  response rate, not ours** — or accept that the weak dims stay near-inert
+  until their knob A/B day comes.
+- **Serving wiring:** `classify_bba_v5` (in-crate, `include_bytes!`),
+  `ConfiguredFloorV5` (same rails/mask as v4's shell, fed
+  `CompactConfig` → `features_v5`), `with_floor_v5`, factories
+  `american_v5()` / `dutch_v5()` (both cells in distribution), harness names
+  `--our-floor american-v5|dutch-v5`. `matches_candle_fixture_bba_v5` passes
+  on the folded blob. v4 stays the default floor.
+- **The shipping gate — ran 2026-08-08** (`scripts/ab-v5-floor.sh`,
+  204,800 bd/arm/vul both vuls, seed 1786137947, v5-at-defaults vs shipped
+  v4, both vs BBA, dual scoring):
+
+  | vul | plain DD | PD |
+  | --- | --- | --- |
+  | none | **+0.0353** [±0.0099] | +0.0039 [±0.0118] wash |
+  | both | **+0.0262** [±0.0118] | −0.0009 [±0.0139] wash |
+
+  Two verdicts, one per claim:
+  - **Gate purpose — "v5 must not regress at defaults" — PASSED.** No cell
+    loses on either scorer; the plain cells are CI-clear wins. v5 is a valid
+    platform for the per-axis knob A/Bs.
+  - **Default-floor swap — strictly read, decision-table row 3** (PD erases
+    a plain win, the doubling-artifact row), **but the user shipped it**: 3
+    of 4 cells positive and the one negative (−0.0009) deep inside its
+    ±0.0139 CI. Trace, for the record (all 819,200 tables): on diverged
+    tables v5 lands in a **higher final contract 29.9% vs v4's 26.4%** (mean
+    level +0.037) — a systematically more aggressive floor whose undoubled
+    sell-outs plain DD prices generously and PD's synthetic X reprices to a
+    wash. A smaller genuine defect rides along: v5 redoubles more (net +435
+    XX tables at none / +209 at both, of 409,600; 86/69 play out in the
+    XX'd contract, the −20 IMP worst boards) — an XX rail or logit collar is
+    the first post-ship polish candidate, though it explains only a few
+    hundred of the ~6,400-IMP plain→PD gap.
+
+  **Shipped 2026-08-08:** `american()` builds the v5 floor;
+  `american_v5()` is an alias kept for harness continuity; the card-input v4
+  floor remains reachable through `american_with_config` (its
+  declared-opponent role needs the card-based net regardless).  `dutch()`
+  stays on v4 — the Dutch v5 cell is in distribution but **ungated**;
+  `dutch_v5()` stays opt-in until its own `ab-v5-floor.sh` clone runs.
 
 ## What this revives
 

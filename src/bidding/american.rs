@@ -60,7 +60,7 @@
 //! Constraints are kept disjoint where practical; where calls can both apply,
 //! the weights order them so the more descriptive bid wins.
 
-use super::common::{call, other_major, with_floor, with_instinct_floor};
+use super::common::{call, other_major, with_floor, with_floor_v5, with_instinct_floor};
 use super::{Competitive, Constructive, Defensive, Pair};
 
 mod competition;
@@ -168,16 +168,20 @@ pub use xyz::{set_xyz, set_xyz_invite_judgment};
 /// table.
 ///
 /// The contested books stand on
-/// [`ConfiguredFloorBba`][crate::bidding::neural_floor::ConfiguredFloorBba] —
-/// one artifact that takes both partnerships' convention cards as inputs, so
-/// the convention regime is a card *row* rather than a separately trained net.
-/// **The card is read here, at build time**, from whatever the `set_*` knobs say
-/// when this is called, in the same expression that reads them for
-/// [`american_book`].  That is what keeps card and rules from disagreeing: an
-/// A/B arm builds its stance with its own knobs armed, exactly as it already
-/// does for rule presence, and gets a matching card for free.  Opponents are
-/// modeled as playing our own card, matching every other undeclared-opposition
-/// default in the crate; a genuinely mixed table wants [`american_with_config`].
+/// [`ConfiguredFloorV5`][crate::bidding::neural_floor::ConfiguredFloorV5] —
+/// one artifact whose convention-regime input is both partnerships'
+/// [`Agreements`][super::features::Agreements], **captured here, at build
+/// time**, from whatever the `set_*` knobs say when this is called, in the
+/// same expression that reads them for [`american_book`].  That is what keeps
+/// regime and rules from disagreeing: an A/B arm builds its stance with its
+/// own knobs armed, exactly as it already does for rule presence, and gets a
+/// matching regime vector for free.  Opponents are modeled as playing our own
+/// agreements, matching every other undeclared-opposition default in the
+/// crate; a genuinely mixed table wants [`american_with_config`], which also
+/// remains the card-input v4 floor's entry point.  The v5 floor became the
+/// default 2026-08-08 on its gate A/B (+0.0353/+0.0262 plain DD per board at
+/// none/both vul, PD wash — `docs/ai-bidder/card-manifold.md` §"The retrain,
+/// measured").
 ///
 /// ```
 /// use pons::american;
@@ -199,9 +203,10 @@ pub use xyz::{set_xyz, set_xyz_invite_judgment};
 /// ```
 #[must_use]
 pub fn american() -> Pair {
-    american_with_config(super::features::Config::symmetric(
-        &super::card::american_card(),
-    ))
+    with_floor_v5(
+        american_book(),
+        super::features::CompactConfig::symmetric(&super::features::Agreements::capture(false)),
+    )
 }
 
 /// [`american`] against a **declared** opponent — the mixed table
@@ -214,12 +219,29 @@ pub fn american() -> Pair {
 /// `config` is taken verbatim and the **book still comes from the live knobs**,
 /// so set them to match — a card claiming an agreement the rules do not play is
 /// a misdisclosure to the net, and nothing checks it.  [`american`] cannot make
-/// that mistake (it reads card and book from one knob state in one expression);
-/// this entry point can, which is the price of declaring an opponent the knobs
-/// cannot describe.
+/// that mistake (it reads regime and book from one knob state in one
+/// expression); this entry point can, which is the price of declaring an
+/// opponent the knobs cannot describe.
+///
+/// Since the 2026-08-08 default-floor swap this is also the only entry point
+/// that still builds the 2/1 book over the card-input **v4** floor
+/// ([`ConfiguredFloorBba`][crate::bidding::neural_floor::ConfiguredFloorBba]);
+/// `american_with_config(Config::symmetric(&american_card()))` reproduces the
+/// pre-swap [`american`] exactly.
 #[must_use]
 pub fn american_with_config(config: super::features::Config) -> Pair {
     with_floor(american_book(), config)
+}
+
+/// Alias of [`american`] — the v5 floor is the default since 2026-08-08
+///
+/// This was the retrain candidate's entry point while the v5-vs-v4 gate A/B
+/// ran (`docs/ai-bidder/card-manifold.md` §"The retrain, measured"); the gate
+/// shipped it, so the name is kept only so harnesses and scripts written
+/// against `--our-floor american-v5` keep meaning what they measured.
+#[must_use]
+pub fn american_v5() -> Pair {
+    american()
 }
 
 /// The 2/1 pair with the deterministic **instinct** floor (the pre-BBA default)

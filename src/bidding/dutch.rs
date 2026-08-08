@@ -17,8 +17,8 @@ mod responses;
 use super::Pair;
 use super::american::american_book;
 use super::card::dutch_card;
-use super::common::{with_floor, with_instinct_floor};
-use super::features::Config;
+use super::common::{with_floor, with_floor_v5, with_instinct_floor};
+use super::features::{Agreements, CompactConfig, Config};
 use super::rows::compile_into;
 
 /// Build the Dutch system as one side's [`Pair`]
@@ -70,6 +70,21 @@ pub fn dutch() -> Pair {
 #[must_use]
 pub fn dutch_with_config(config: Config) -> Pair {
     with_floor(dutch_book(), config)
+}
+
+/// [`dutch`] on the **compact-config (v5)** floor — opt-in, ungated
+///
+/// The Dutch twin of [`american_v5`][super::american::american_v5]; the
+/// `dutch` dim is live in the v5 corpus (the `DEFAULT_CELLS` rotation), so
+/// this cell is in distribution.  Unlike the American twin, this cell has
+/// **no gate A/B of its own** — [`dutch`] stays on the v4 floor until one
+/// runs (clone `scripts/ab-v5-floor.sh` with the dutch pair).
+#[must_use]
+pub fn dutch_v5() -> Pair {
+    with_floor_v5(
+        dutch_book(),
+        CompactConfig::symmetric(&Agreements::capture(true)),
+    )
 }
 
 /// The Dutch pair with the deterministic **instinct** floor (the pre-swap default)

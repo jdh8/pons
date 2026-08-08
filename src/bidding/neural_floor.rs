@@ -37,7 +37,7 @@
 use super::Rules;
 use super::array::Logits;
 use super::context::Context;
-use super::features::Config;
+use super::features::{CompactConfig, Config};
 use super::instinct::forced;
 use super::trie::Classifier;
 use super::{features, neural};
@@ -101,6 +101,41 @@ impl Classifier for ConfiguredFloorBba {
         // copies scalars and borrows; the auction and prefixes are not copied.
         let configured = context.clone().with_config(&self.0);
         let mut logits = neural::classify_bba_v4(&features::features_v4(hand, &configured));
+        mask_illegal(&mut logits, context.auction());
+        logits
+    }
+}
+
+/// The **compact-config** BBA-distilled floor — the v5 candidate
+///
+/// Exactly [`ConfiguredFloorBba`] but for the regime input: a
+/// [`CompactConfig`] (both sides' [`Agreements`][features::Agreements], 28
+/// slots each) instead of a 280-float card pair, feeding
+/// [`neural::classify_bba_v5`] through
+/// [`features_v5`][features::features_v5].  Same rails, same mask, same
+/// build-time capture granularity.  Gated behind
+/// [`american_v5`][super::american::american_v5] until the v5-vs-v4 A/B
+/// verdict; `american()` keeps the v4 floor.
+#[derive(Clone, Debug)]
+pub struct ConfiguredFloorV5(CompactConfig, Arc<Rules>);
+
+impl ConfiguredFloorV5 {
+    /// Attach the floor to one configuration cell over one deterministic
+    /// ladder for the forced rails
+    #[must_use]
+    pub const fn new(compact: CompactConfig, ladder: Arc<Rules>) -> Self {
+        Self(compact, ladder)
+    }
+}
+
+impl Classifier for ConfiguredFloorV5 {
+    fn classify(&self, hand: Hand, context: &Context<'_>) -> Logits {
+        if forced(context) {
+            // Rails: trust the deterministic floor, never the net.
+            return self.1.classify(hand, context);
+        }
+        let configured = context.clone().with_compact(&self.0);
+        let mut logits = neural::classify_bba_v5(&features::features_v5(hand, &configured));
         mask_illegal(&mut logits, context.auction());
         logits
     }

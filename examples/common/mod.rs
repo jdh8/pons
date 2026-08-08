@@ -580,8 +580,12 @@ pub fn seat_floor(name: &str) -> anyhow::Result<Stance> {
         // The book ablation: no authored book at all, the same floor wiring
         // `american` uses.  `american` − `american-floor` prices the book.
         "american-floor" => pons::american_floor().against(),
+        // The compact-config (v5) candidates: same books, the regime reaches
+        // the net as both sides' `Agreements` instead of the card blocks.
+        "american-v5" => pons::bidding::american::american_v5().against(),
+        "dutch-v5" => pons::bidding::dutch::dutch_v5().against(),
         other => anyhow::bail!(
-            "floor must be american|american-book|american-instinct|american-floor|dutch|dutch-instinct, got {other:?}"
+            "floor must be american|american-book|american-instinct|american-floor|american-v5|dutch|dutch-instinct|dutch-v5, got {other:?}"
         ),
     })
 }

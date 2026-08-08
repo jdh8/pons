@@ -68,6 +68,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   auctions (top: XYZ 6.0%, NT-defense rows 5.5%, Lebensohl rows 3.7%; floor:
   1N-3M splinter 0.04%, failing the ~0.05% weight-formation bar).
 
+- **`american_bba_v5`, the compact-config net — trained, folded, and wired**
+  (`docs/ai-bidder/card-manifold.md` §"The retrain, measured").  Trained on
+  the `dump-v5.sh` corpus (6,768,279 rows, `22.pdd` rows 3.25M–4.16M, EPBot
+  2/1 teacher, v4 hyperparameters): **val top-1 89.3%** vs the v4 floor's
+  87.0%, with the input at 144 floats instead of 368 (450 KB vs 680 KB
+  in-crate).  The scan fold zeroed the 30 corpus-constant columns, leaving 13
+  live `Agreements` dims per side;
+  `folded_compact_columns_are_exactly_zero` and
+  `matches_candle_fixture_bba_v5` pin the artifact.  Serving path:
+  `neural::classify_bba_v5`, `ConfiguredFloorV5` (same forced rails and
+  legality mask as the v4 shell), `common::with_floor_v5`, and factories
+  `american_v5()` / `dutch_v5()`, reachable in every harness as
+  `--our-floor american-v5|dutch-v5`.  **The shipping gate ran and the swap
+  shipped** (`scripts/ab-v5-floor.sh`, 204,800 bd/arm/vul both vuls, seed
+  1786137947): plain DD **+0.0353** [±0.0099] (none) / **+0.0262** [±0.0118]
+  (both), PD +0.0039 [±0.0118] / −0.0009 [±0.0139] — 3 of 4 cells positive,
+  the negative deep in-CI.  Strictly read that is decision-table row 3 (PD
+  erases a plain win — the trace shows v5 is a systematically more
+  aggressive floor, higher final contract on 29.9% vs 26.4% of diverged
+  tables, plus a small XX-accident tail of net +435/+209 redoubled tables
+  with 86/69 played out); the user shipped on the 3+/1− read, so
+  **`american()` now builds the v5 floor**, `american_v5()` is an alias, and
+  the card-input v4 floor stays reachable via `american_with_config`.
+  `dutch()` keeps the v4 floor — its v5 cell never got a gate of its own;
+  `dutch_v5()` stays opt-in.  An XX rail/collar is the first post-ship
+  polish candidate.  Pair-flip diagnostics: kickback reads at the v4 bar
+  (42.0% held-out argmax-move), minor-scheme 45.5% and 1NT-shape 39.4%
+  (whole-dump); ⚠ the `Checkback` card row proved **behaviorally inert in
+  EPBot** — 0 teacher-moving pairs in 109,883 matched pairs — so its dim (and
+  the other sub-hundred-pair axes) trained toward no-effect: future axis
+  shards should be sized by BBA's response rate, not our book's.
+  `pair-flip-diagnostic.py` generalized to v5 (`GEOMETRY` per version,
+  `--slot` takes comma-separated dims for one-hot axes, and a latent missing
+  `indices` argument fixed).
+
 - **A public reader for every knob the web UI can set** — 69 registry-backed
   getters are now `pub` (`american::garbage_stayman`, `instinct::floor_rkcb`,
   `inference::rule_accept_enabled`, …).  221 `pub set_*` with no readers made

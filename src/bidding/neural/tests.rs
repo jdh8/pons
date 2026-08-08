@@ -58,6 +58,15 @@ fn matches_candle_fixture_bba_v4() {
     );
 }
 
+/// The compact-config net clears the same parity bar at its narrower input.
+#[test]
+fn matches_candle_fixture_bba_v5() {
+    check_fixture(
+        include_str!("../weights/american_bba_v5.fixture.json"),
+        |x| classify_bba_v5(x).iter().map(|(_, l)| *l).collect(),
+    );
+}
+
 /// The shipped blob is folded (`scripts/fold-constant-inputs.py`): every card
 /// column the v4 corpus never varied is bit-exactly zero in `W1`, its constant
 /// contribution absorbed into `b1`, so a frozen card row is inert at serving
@@ -87,6 +96,40 @@ fn folded_card_columns_are_exactly_zero() {
             assert!(
                 column_zero,
                 "frozen card slot {i} has weight: unfolded blob"
+            );
+        }
+    }
+}
+
+/// The v5 sibling of the fold gate, on the compact blocks: the scan-mode fold
+/// zeroed every `Agreements` dim the v5 corpus held constant.  The live set is
+/// the 13 dims per side the dump varied — the six flipped bools, both poles of
+/// each flipped one-hot, and `dutch` (the `DEFAULT_CELLS` rotation).
+#[test]
+fn folded_compact_columns_are_exactly_zero() {
+    use crate::bidding::features::{FEATURES_LEN_V3, LEN_COMPACT};
+    // dutch, relocating, nmf, xyz, jordan, shape {Balanced, Wide6322},
+    // defense {Natural, Woolsey}, lebensohl {Off, Transfer}, minors, landy.
+    let live: Vec<usize> = [FEATURES_LEN_V3, FEATURES_LEN_V3 + LEN_COMPACT]
+        .into_iter()
+        .flat_map(|base| {
+            [0, 1, 3, 4, 7, 13, 15, 16, 19, 23, 25, 26, 27]
+                .into_iter()
+                .map(move |slot| base + slot)
+        })
+        .collect();
+    let w1 = &WEIGHTS_BBA_V5[..HID * IN_V5];
+    for i in FEATURES_LEN_V3..IN_V5 {
+        let column_zero = (0..HID).all(|h| w1[h * IN_V5 + i].to_bits() == 0);
+        if live.contains(&i) {
+            assert!(
+                !column_zero,
+                "live compact slot {i} is all-zero: wrong live set"
+            );
+        } else {
+            assert!(
+                column_zero,
+                "frozen compact slot {i} has weight: unfolded blob"
             );
         }
     }

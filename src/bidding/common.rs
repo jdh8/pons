@@ -6,9 +6,9 @@
 //! system — import these from here rather than from each other.
 
 use super::fallback::{Always, Fallback, Guard};
-use super::features::Config;
+use super::features::{CompactConfig, Config};
 use super::instinct::instinct;
-use super::neural_floor::ConfiguredFloorBba;
+use super::neural_floor::{ConfiguredFloorBba, ConfiguredFloorV5};
 use super::{Pair, Rules, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
@@ -86,13 +86,26 @@ fn with_floors(mut pair: Pair, ladder: &Arc<Rules>, contested: Fallback) -> Pair
     pair
 }
 
-/// Attach the configured BBA-distilled floor to a pair's contested books
+/// Attach the card-input (v4) BBA-distilled floor to a pair's contested books
 ///
-/// The shipped wiring, shared by [`american`][super::american::american] and
-/// [`dutch`][super::dutch::dutch].
+/// Since the 2026-08-08 swap this backs [`dutch`][super::dutch::dutch] (whose
+/// v5 twin is ungated) and the declared-opponent entry point
+/// [`american_with_config`][super::american::american_with_config];
+/// [`american`][super::american::american] moved to [`with_floor_v5`].
 pub(in crate::bidding) fn with_floor(pair: Pair, config: Config) -> Pair {
     let ladder = Arc::new(instinct());
     let contested = Fallback::classify(ConfiguredFloorBba::new(config, Arc::clone(&ladder)));
+    with_floors(pair, &ladder, contested)
+}
+
+/// Attach the compact-config (v5) BBA-distilled floor to a pair's contested books
+///
+/// [`with_floor`]'s v5 sibling — the shipped default for
+/// [`american`][super::american::american] since its 2026-08-08 gate A/B, and
+/// the opt-in behind [`dutch_v5`][super::dutch::dutch_v5].
+pub(in crate::bidding) fn with_floor_v5(pair: Pair, compact: CompactConfig) -> Pair {
+    let ladder = Arc::new(instinct());
+    let contested = Fallback::classify(ConfiguredFloorV5::new(compact, Arc::clone(&ladder)));
     with_floors(pair, &ladder, contested)
 }
 

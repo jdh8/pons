@@ -28,15 +28,17 @@ import sys
 
 import numpy as np
 
-# `Kickback 1430` = SCHEMA[72], offset 77 within each 140-wide card block.
-OFFSET_OUR_CARD, OFFSET_THEIR_CARD, CARD_SLOT = 88, 228, 77
-KICKBACK_INDICES = (OFFSET_OUR_CARD + CARD_SLOT, OFFSET_THEIR_CARD + CARD_SLOT)
+# Block geometry per feature version: (our offset, their offset, default slot).
+# v4: the 140-wide card blocks, default slot 77 = `Kickback 1430` (SCHEMA[72]).
+# v5: the 28-wide compact blocks (`features.rs` §"The compact-config
+# extractor"); no default — pass the axis dim under test via --slot.
+GEOMETRY = {4: (88, 228, 77), 5: (88, 116, None)}
 
 
 def load_dump(stem):
     meta = json.load(open(f"{stem}.json"))
-    if meta["feature_version"] != 4:
-        sys.exit(f"{stem} is feature v{meta['feature_version']}; this needs v4")
+    if meta["feature_version"] not in GEOMETRY:
+        sys.exit(f"{stem} is feature v{meta['feature_version']}; this needs v4 or v5")
     rows = np.fromfile(f"{stem}.f32", dtype="<f4").reshape(-1, meta["row_len"])
     n = meta["features_len"]
     return meta, rows[:, :n], rows[:, n : n + meta["softmax_len"]]
@@ -56,17 +58,17 @@ def forward(weights, x):
     return h @ params["l3.weight"].T + params["l3.bias"]
 
 
-def matched_pairs(feats, targets, lo):
-    """Pairs among rows `>= lo`, keyed on everything but the two kickback slots."""
-    keyed = np.delete(feats[lo:], KICKBACK_INDICES, axis=1)
+def matched_pairs(feats, targets, lo, indices):
+    """Pairs among rows `>= lo`, keyed on everything but the probed slots."""
+    keyed = np.delete(feats[lo:], indices, axis=1)
     seen, pairs = {}, []
     for i, key in enumerate(map(lambda r: r.tobytes(), keyed)):
         if (j := seen.pop(key, None)) is not None:
             a, b = lo + j, lo + i
-            # Order the pair (kickback off, kickback on) so the flip has a sign.
-            if feats[a][KICKBACK_INDICES[0]] > feats[b][KICKBACK_INDICES[0]]:
+            # Order the pair (bit off, bit on) so the flip has a sign.
+            if feats[a][indices[0]] > feats[b][indices[0]]:
                 a, b = b, a
-            if feats[a][KICKBACK_INDICES[0]] != feats[b][KICKBACK_INDICES[0]]:
+            if feats[a][indices[0]] != feats[b][indices[0]]:
                 pairs.append((a, b))
         else:
             seen[key] = i
@@ -81,11 +83,26 @@ def main():
         "--val-frac",
         type=float,
         default=0.10,
-        help="held-out tail the trainer kept back; 0 to scan the whole dump",
+        help="held-out tail the trainer kept back; 1 to scan the whole dump",
+    )
+    ap.add_argument(
+        "--slot",
+        default=None,
+        help="in-block slot(s) under test, comma-separated for one-hot axes "
+        "whose flip moves two dims — list the flip-target dim FIRST (it orders "
+        "the pair). v4 default: 77 = Kickback 1430; v5: the compact axis dims, "
+        "see features.rs",
     )
     args = ap.parse_args()
 
     meta, feats, targets = load_dump(args.data)
+    ours, theirs, default_slot = GEOMETRY[meta["feature_version"]]
+    slots = (
+        [int(s) for s in args.slot.split(",")] if args.slot is not None else [default_slot]
+    )
+    if slots == [None]:
+        sys.exit("this dump's feature version has no default slot; pass --slot")
+    indices = [ours + s for s in slots] + [theirs + s for s in slots]
     weights = json.load(open(f"{args.weights}.json"))
     weights["_stem"] = args.weights
     if weights["features_len"] != feats.shape[1]:
@@ -93,7 +110,7 @@ def main():
 
     # The trainer's split is the contiguous tail of each dump; mirror it exactly.
     lo = feats.shape[0] - round(feats.shape[0] * args.val_frac)
-    moving = matched_pairs(feats, targets, lo)
+    moving = matched_pairs(feats, targets, lo, indices)
     print(f"{meta['rows']} rows, held-out tail from {lo}: {len(moving)} moving pairs")
     if not moving:
         sys.exit("no moving pairs held out — enrich harder or widen --val-frac")
