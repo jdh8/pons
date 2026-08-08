@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`bidding::scoped` and `Stance::repin`** — the two authoring hooks of the
+  pin-at-build campaign.  `scoped(|| { set_…(); american().against() })` runs
+  the build on a fresh thread, so it starts from the shipped defaults instead
+  of inheriting whatever knobs the caller's thread was left holding; the
+  caller's own knob state is untouched.  `Stance::repin` re-captures the
+  thread's knob state into an already-built stance, the deliberate escape
+  hatch for setting a knob *after* `Pair::against`.  Groundwork only so far:
+  the stance now carries the captured profile, but no reader consults it yet,
+  so seeded `smoke-default` / `smoke-dutch` dumps (20 000 boards) are
+  byte-identical across the change.
+
 - **The bias fold: the frozen-coordinate tax is now zero by construction.**
   `scripts/fold-constant-inputs.py` folds every card column the v4 corpus never
   varied into the first-layer bias (`b1 += cᵢ·wᵢ` in f64, then `wᵢ = 0`) and

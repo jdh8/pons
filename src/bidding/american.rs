@@ -386,6 +386,7 @@ pub use notrump::stayman_5card_max;
 pub use notrump::stayman_both_majors;
 pub use notrump::stayman_cue_continuation;
 pub use notrump::stayman_minor_slam_try;
+pub(crate) use notrump::stayman_net_force;
 pub use notrump::texas_slam_drive;
 pub use notrump::transfer_gf_hearts;
 pub use notrump::transfer_gf_majors;

@@ -10,10 +10,11 @@
 //! not live here — it belongs to classifiers, which know their system.
 
 use super::book::Stance;
+use super::constraint::FifthsCompanion;
 use super::evaluator::{TrickEstimates, trick_estimates_with_auction};
 use super::features::{CompactConfig, Config};
 use super::inference::{AuthoredProjection, Inferences, ReadingProfile, reading_profile};
-use super::instinct::Interpretation;
+use super::instinct::{InstinctProfile, Interpretation};
 use super::trie::CommonPrefixes;
 use contract_bridge::auction::{AbsoluteVulnerability, Call, RelativeVulnerability};
 use contract_bridge::{Bid, Hand, Level, Penalty, Seat, Strain, Suit};
@@ -86,24 +87,41 @@ pub struct Context<'a> {
     decision_cache: Option<Arc<DecisionCache>>,
 }
 
-/// The thread-local inputs whose values must stay fixed during one decision
+/// The knob inputs whose values must stay fixed during one decision
+///
+/// Captured from the thread-locals when a [`Stance`] is built
+/// ([`Pair::against`][super::book::Pair::against]) and pinned there: every
+/// classify-time knob read serves off the stance's copy, so a built stance is
+/// a pure value that any thread can classify through.  A bare context with no
+/// attached system falls back to capturing the current thread's state.
 #[derive(Clone, Copy, PartialEq, Eq)]
-struct DecisionProfile {
-    reading: ReadingProfile,
-    eval_auction: bool,
-    eval_shape: bool,
-    blind_inference: bool,
-    two_over_one_force: bool,
+pub(crate) struct DecisionProfile {
+    pub(crate) reading: ReadingProfile,
+    pub(crate) instinct: InstinctProfile,
+    pub(crate) eval_auction: bool,
+    pub(crate) eval_shape: bool,
+    pub(crate) blind_inference: bool,
+    pub(crate) two_over_one_force: bool,
+    pub(crate) support_points: bool,
+    pub(crate) fuzzy_fifths: bool,
+    pub(crate) fifths_companion: FifthsCompanion,
+    pub(crate) stayman_net_force: bool,
 }
 
 impl DecisionProfile {
-    fn current() -> Self {
+    /// Snapshot the knob state active on this thread
+    pub(crate) fn current() -> Self {
         Self {
             reading: reading_profile(),
+            instinct: InstinctProfile::capture(),
             eval_auction: super::evaluator::eval_auction(),
             eval_shape: super::evaluator::eval_shape(),
             blind_inference: super::features::blind_inference(),
             two_over_one_force: super::instinct::two_over_one_force(),
+            support_points: super::constraint::support_points_now(),
+            fuzzy_fifths: super::constraint::fuzzy_fifths_now(),
+            fifths_companion: super::constraint::fifths_companion_now(),
+            stayman_net_force: super::american::stayman_net_force(),
         }
     }
 }
@@ -114,6 +132,9 @@ struct DecisionCache {
     revision: u64,
     thread: ThreadId,
     profile: DecisionProfile,
+    /// Whether `profile` came pinned off a [`Stance`] (immune to later setter
+    /// calls) rather than captured from this thread's mutable state
+    pinned: bool,
     inferences: OnceLock<Inferences>,
     trick_estimates: OnceLock<TrickEstimates>,
     interpretation: OnceLock<Interpretation>,
@@ -234,6 +255,7 @@ impl DecisionCache {
         revision: u64,
         thread: ThreadId,
         profile: DecisionProfile,
+        pinned: bool,
         rule_face_slots: usize,
     ) -> Self {
         Self {
@@ -241,6 +263,7 @@ impl DecisionCache {
             revision,
             thread,
             profile,
+            pinned,
             inferences: OnceLock::new(),
             trick_estimates: OnceLock::new(),
             interpretation: OnceLock::new(),
@@ -276,8 +299,10 @@ impl DecisionCache {
             self.thread == thread::current().id(),
             "a decision cache crossed its creating thread"
         );
+        // A pinned profile is immune to setter calls by construction; only a
+        // capture off the thread's mutable state can drift mid-decision.
         debug_assert!(
-            self.profile == DecisionProfile::current(),
+            self.pinned || self.profile == DecisionProfile::current(),
             "a reading or evaluator setting changed during one decision"
         );
     }
@@ -519,7 +544,12 @@ impl<'a> Context<'a> {
 
     fn install_decision_cache(&mut self, hand: Hand, rule_face_slots: usize) {
         let thread = thread::current().id();
-        let profile = DecisionProfile::current();
+        // The profile pinned into the serving stance at its build, falling
+        // back to the thread's live state for a bare (diagnostic) context.
+        let (profile, pinned) = match self.own_system {
+            Some(system) => (system.profile(), true),
+            None => (DecisionProfile::current(), false),
+        };
         let reusable = self.decision_cache.as_deref().is_some_and(|cache| {
             cache.reusable(hand, self.revision, thread, profile, rule_face_slots)
         });
@@ -529,6 +559,7 @@ impl<'a> Context<'a> {
                 self.revision,
                 thread,
                 profile,
+                pinned,
                 rule_face_slots,
             )));
         }
@@ -544,11 +575,26 @@ impl<'a> Context<'a> {
         Some(cache)
     }
 
-    /// Reading profile already captured at decision entry, or the current
-    /// thread profile for an uncached diagnostic context.
+    /// Reading profile already captured at decision entry, or pinned in the
+    /// attached system, or the current thread profile for a bare context.
     pub(crate) fn reading_profile(&self) -> ReadingProfile {
-        self.active_decision_cache()
-            .map_or_else(reading_profile, |cache| cache.profile.reading)
+        self.decision_profile().reading
+    }
+
+    /// The knob profile governing this decision
+    ///
+    /// Chain: the profile captured at decision entry, else the one pinned in
+    /// the attached system ([`Stance::infer`] attaches a system but enters no
+    /// decision scope), else — for a bare diagnostic context — the current
+    /// thread's live knob state.
+    pub(crate) fn decision_profile(&self) -> DecisionProfile {
+        self.active_decision_cache().map_or_else(
+            || {
+                self.own_system
+                    .map_or_else(DecisionProfile::current, Stance::profile)
+            },
+            |cache| cache.profile,
+        )
     }
 
     /// Evaluate one explicitly pure compiled face gate at most once in this

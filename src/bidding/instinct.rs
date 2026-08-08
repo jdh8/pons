@@ -324,6 +324,124 @@ std::thread_local! {
     static NT_HCP_READ: Cell<bool> = const { Cell::new(false) };
 }
 
+/// The classify-time instinct knobs, snapshotted into a
+/// [`DecisionProfile`][super::context::DecisionProfile] when a stance is built
+///
+/// One field per cell the floor reads *during* classification.  Build-time
+/// cells (`COMPETITIVE_REBID`, `REOPENING_NOTRUMP`, `REIN_ADVANCE_RAISE`,
+/// `DOUBLER_XX_RUNOUT`) are deliberately absent — they are baked into the
+/// rules [`instinct`] returns.  Knobs the reading layer already snapshots
+/// ([`ReadingProfile`][super::inference::ReadingProfile]: `penalty_latch`,
+/// `rubens_advances`, `floor_rkcb`, `rkcb_variant`) are not duplicated here.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) struct InstinctProfile {
+    pub(crate) inference_aware: bool,
+    pub(crate) one_nt_runout: bool,
+    pub(crate) runout_xx_min: u8,
+    pub(crate) one_nt_runout_universal: bool,
+    pub(crate) unusual_2nt: Unusual2nt,
+    pub(crate) penalize_escape_stack: bool,
+    pub(crate) penalize_escape_values: bool,
+    pub(crate) uvu_encircle: bool,
+    pub(crate) settle_floor: bool,
+    pub(crate) latch_style: LatchStyle,
+    pub(crate) penalty_no_pull: bool,
+    pub(crate) advancer_xx_runout: bool,
+    pub(crate) nt_responder_game_floor: u8,
+    pub(crate) suppress_nt_gf_over_double: bool,
+    pub(crate) correct_3nt_to_major: bool,
+    pub(crate) gambling_3nt_over_double: bool,
+    pub(crate) gambling_3nt_top_honors: u8,
+    pub(crate) gambling_3nt_require_ace: bool,
+    pub(crate) preempt_4m_over_double: bool,
+    pub(crate) preempt_4m_floor: u8,
+    pub(crate) preempt_4m_top_honors: u8,
+    pub(crate) preempt_4m_require_ace: bool,
+    pub(crate) floor_slam_entry: u8,
+    pub(crate) fit_sum_game: u8,
+    pub(crate) bilans_floor: bool,
+    pub(crate) net_collar: bool,
+    pub(crate) fit_sum_support_read: bool,
+    pub(crate) nt_hcp_read: bool,
+    pub(crate) two_over_one_slam_strength: bool,
+    pub(crate) keycard_minors: bool,
+}
+
+impl InstinctProfile {
+    /// Snapshot the instinct knobs active on this thread
+    pub(crate) fn capture() -> Self {
+        Self {
+            inference_aware: INFERENCE_AWARE.with(Cell::get),
+            one_nt_runout: ONE_NT_RUNOUT.with(Cell::get),
+            runout_xx_min: RUNOUT_XX_MIN.with(Cell::get),
+            one_nt_runout_universal: ONE_NT_RUNOUT_UNIVERSAL.with(Cell::get),
+            unusual_2nt: UNUSUAL_2NT.with(Cell::get),
+            penalize_escape_stack: PENALIZE_ESCAPE_STACK.with(Cell::get),
+            penalize_escape_values: PENALIZE_ESCAPE_VALUES.with(Cell::get),
+            uvu_encircle: UVU_ENCIRCLE.with(Cell::get),
+            settle_floor: SETTLE_FLOOR.with(Cell::get),
+            latch_style: LATCH_STYLE.with(Cell::get),
+            penalty_no_pull: PENALTY_NO_PULL.with(Cell::get),
+            advancer_xx_runout: ADVANCER_XX_RUNOUT.with(Cell::get),
+            nt_responder_game_floor: NT_RESPONDER_GAME_FLOOR.with(Cell::get),
+            suppress_nt_gf_over_double: SUPPRESS_NT_GF_OVER_DOUBLE.with(Cell::get),
+            correct_3nt_to_major: CORRECT_3NT_TO_MAJOR.with(Cell::get),
+            gambling_3nt_over_double: GAMBLING_3NT_OVER_DOUBLE.with(Cell::get),
+            gambling_3nt_top_honors: GAMBLING_3NT_TOP_HONORS.with(Cell::get),
+            gambling_3nt_require_ace: GAMBLING_3NT_REQUIRE_ACE.with(Cell::get),
+            preempt_4m_over_double: PREEMPT_4M_OVER_DOUBLE.with(Cell::get),
+            preempt_4m_floor: PREEMPT_4M_FLOOR.with(Cell::get),
+            preempt_4m_top_honors: PREEMPT_4M_TOP_HONORS.with(Cell::get),
+            preempt_4m_require_ace: PREEMPT_4M_REQUIRE_ACE.with(Cell::get),
+            floor_slam_entry: FLOOR_SLAM_ENTRY.with(Cell::get),
+            fit_sum_game: FIT_SUM_GAME.with(Cell::get),
+            bilans_floor: BILANS_FLOOR.with(Cell::get),
+            net_collar: NET_COLLAR.with(Cell::get),
+            fit_sum_support_read: FIT_SUM_SUPPORT_READ.with(Cell::get),
+            nt_hcp_read: NT_HCP_READ.with(Cell::get),
+            two_over_one_slam_strength: TWO_OVER_ONE_SLAM_STRENGTH.with(Cell::get),
+            keycard_minors: KEYCARD_MINORS.with(Cell::get),
+        }
+    }
+
+    /// Drive every captured cell off its shipped default, for the keystone
+    /// pinning test (`stance_pins_knobs_across_threads`): a classify-time read
+    /// that bypasses the pinned profile then diverges on a virgin thread.
+    #[cfg(test)]
+    pub(crate) fn arm_all_nondefault() {
+        INFERENCE_AWARE.with(|cell| cell.set(false));
+        ONE_NT_RUNOUT.with(|cell| cell.set(false));
+        RUNOUT_XX_MIN.with(|cell| cell.set(8));
+        ONE_NT_RUNOUT_UNIVERSAL.with(|cell| cell.set(false));
+        UNUSUAL_2NT.with(|cell| cell.set(Unusual2nt::FourFour));
+        PENALIZE_ESCAPE_STACK.with(|cell| cell.set(false));
+        PENALIZE_ESCAPE_VALUES.with(|cell| cell.set(false));
+        UVU_ENCIRCLE.with(|cell| cell.set(false));
+        SETTLE_FLOOR.with(|cell| cell.set(false));
+        LATCH_STYLE.with(|cell| cell.set(LatchStyle::Optional));
+        PENALTY_NO_PULL.with(|cell| cell.set(false));
+        ADVANCER_XX_RUNOUT.with(|cell| cell.set(false));
+        NT_RESPONDER_GAME_FLOOR.with(|cell| cell.set(10));
+        SUPPRESS_NT_GF_OVER_DOUBLE.with(|cell| cell.set(false));
+        CORRECT_3NT_TO_MAJOR.with(|cell| cell.set(false));
+        GAMBLING_3NT_OVER_DOUBLE.with(|cell| cell.set(true));
+        GAMBLING_3NT_TOP_HONORS.with(|cell| cell.set(3));
+        GAMBLING_3NT_REQUIRE_ACE.with(|cell| cell.set(false));
+        PREEMPT_4M_OVER_DOUBLE.with(|cell| cell.set(true));
+        PREEMPT_4M_FLOOR.with(|cell| cell.set(6));
+        PREEMPT_4M_TOP_HONORS.with(|cell| cell.set(3));
+        PREEMPT_4M_REQUIRE_ACE.with(|cell| cell.set(false));
+        FLOOR_SLAM_ENTRY.with(|cell| cell.set(30));
+        FIT_SUM_GAME.with(|cell| cell.set(32));
+        BILANS_FLOOR.with(|cell| cell.set(false));
+        NET_COLLAR.with(|cell| cell.set(true));
+        FIT_SUM_SUPPORT_READ.with(|cell| cell.set(true));
+        NT_HCP_READ.with(|cell| cell.set(true));
+        TWO_OVER_ONE_SLAM_STRENGTH.with(|cell| cell.set(false));
+        KEYCARD_MINORS.with(|cell| cell.set(false));
+    }
+}
+
 /// Responder runs from a doubled 1NT below this many HCP; with more, 1NT-X
 /// rates to make opposite a 15–17 opener, so sit (or redouble — see
 /// [`set_runout_xx_min`]).  A named knob for A/B tuning.

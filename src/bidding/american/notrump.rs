@@ -88,6 +88,7 @@ pub(super) use splinter::notrump_splinter;
 pub use splinter::nt_splinter;
 pub use splinter::{set_nt_splinter, set_nt_splinter_floor};
 pub use stayman::garbage_stayman;
+pub(crate) use stayman::stayman_net_force;
 pub use stayman::{set_garbage_stayman, set_stayman_net_force};
 pub(super) use stayman::{smolen_at_three, smolen_completion, stayman_answers};
 pub(super) use stayman_slam::{cue, minor_slam};

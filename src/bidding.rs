@@ -59,7 +59,7 @@ pub use american::{
 };
 pub use array::Array;
 pub use book::{
-    Competitive, Constructive, Defensive, ExplainedRule, Pair, Phase, ProbeReport, Stance,
+    Competitive, Constructive, Defensive, ExplainedRule, Pair, Phase, ProbeReport, Stance, scoped,
 };
 pub use compose::{OrElse, Versus};
 pub use context::Context;

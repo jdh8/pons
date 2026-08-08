@@ -182,7 +182,7 @@ pub fn set_stayman_net_force(on: bool) {
 }
 
 /// Plain-bool read of the Stayman net-force knob (see [`set_stayman_net_force`])
-fn stayman_net_force() -> bool {
+pub(crate) fn stayman_net_force() -> bool {
     STAYMAN_NET_FORCE.with(Cell::get)
 }
 

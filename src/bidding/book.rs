@@ -41,7 +41,7 @@
 
 use super::System;
 use super::array::Logits;
-use super::context::Context;
+use super::context::{Context, DecisionProfile};
 use super::decoder::AuthoringDecoder;
 use super::inference::{
     AuthoringStepCache, Envelope, Inferences, Range, ReadingProfile, reading_profile,
@@ -307,6 +307,11 @@ impl Pair {
             competitive_decoder.as_ref(),
             defensive_decoder.as_ref(),
         ]));
+        let profile = DecisionProfile::current();
+        debug_assert!(
+            compiled_rules.profile == profile.reading,
+            "the compiled-rule sidecar and the stance captured different reading profiles"
+        );
         let constructive = BoundBook::new(
             constructive_trie,
             constructive_decoder,
@@ -325,7 +330,35 @@ impl Pair {
             probed: HashMap::new(),
             opponents: None,
             cache_identity: Arc::new(StanceCacheIdentity::default()),
+            profile,
         }
+    }
+}
+
+/// Build under a scratch knob state, without touching this thread's
+///
+/// Runs `build` on a fresh scoped thread, whose thread-local knobs start at
+/// the shipped defaults, and returns its value; the closure's `set_*` calls
+/// die with the thread.  Because a [`Stance`] pins the knob state it is built
+/// under, the returned value keeps the armed behavior wherever it later
+/// classifies:
+///
+/// ```
+/// use pons::bidding::{american, scoped};
+///
+/// let stance = scoped(|| {
+///     pons::american::set_garbage_stayman(false);
+///     american().against()
+/// });
+/// ```
+///
+/// The caller's own knob state is never read and never modified — arming for
+/// a *derived* baseline (defaults plus the caller's prior tweaks) needs the
+/// plain set-then-build flow instead.
+pub fn scoped<T: Send>(build: impl FnOnce() -> T + Send) -> T {
+    match std::thread::scope(|scope| scope.spawn(build).join()) {
+        Ok(value) => value,
+        Err(panic) => std::panic::resume_unwind(panic),
     }
 }
 
@@ -495,7 +528,7 @@ pub(crate) struct StanceCacheIdentity {
 /// trie answers when they open.  Constructive-phase queries use the *unmerged*
 /// constructive trie, so no competitive fallback can leak into undisturbed
 /// auctions.
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct Stance {
     constructive: BoundBook,
     competitive: BoundBook,
@@ -513,6 +546,25 @@ pub struct Stance {
     /// changes. Deal caches retain this small token, so an allocator cannot
     /// recycle a raw address into a false identity match.
     cache_identity: Arc<StanceCacheIdentity>,
+    /// The knob state pinned at build ([`Pair::against`]): classify-time knob
+    /// reads serve off this copy, so the stance answers identically on every
+    /// thread.  Re-captured only by [`repin`][Self::repin].
+    profile: DecisionProfile,
+}
+
+impl Default for Stance {
+    /// An empty stance pinned to the building thread's current knob state
+    fn default() -> Self {
+        Self {
+            constructive: BoundBook::default(),
+            competitive: BoundBook::default(),
+            defensive: BoundBook::default(),
+            probed: HashMap::new(),
+            opponents: None,
+            cache_identity: Arc::new(StanceCacheIdentity::default()),
+            profile: DecisionProfile::current(),
+        }
+    }
 }
 
 impl core::fmt::Debug for Stance {
@@ -530,6 +582,24 @@ impl core::fmt::Debug for Stance {
 impl Stance {
     pub(crate) fn cache_identity(&self) -> &Arc<StanceCacheIdentity> {
         &self.cache_identity
+    }
+
+    /// The knob state pinned into this stance at build
+    pub(crate) fn profile(&self) -> DecisionProfile {
+        self.profile
+    }
+
+    /// Re-capture this thread's knob state into the stance
+    ///
+    /// A stance pins the classify-time knob state when it is built
+    /// ([`Pair::against`]); later `set_*` calls do not move it.  This is the
+    /// deliberate escape hatch for a set-*after*-build flow: call the setters,
+    /// then `repin` the stance they should govern.  Prefer rebuilding when the
+    /// changed knob also shapes the books — repinning moves only the
+    /// classify-time reads.
+    pub fn repin(&mut self) {
+        self.profile = DecisionProfile::current();
+        self.invalidate_cache_identity();
     }
 
     /// Read the opponents' calls off `them` instead of off our own books

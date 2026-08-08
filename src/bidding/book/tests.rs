@@ -1031,3 +1031,55 @@ fn a_declared_opponent_reads_their_calls_in_their_books() {
         format!("{undeclared:?}"),
     );
 }
+
+/// The keystone of the pin-at-build campaign: a stance built under armed
+/// knobs answers identically on a virgin thread whose thread-locals hold the
+/// shipped defaults.  Any classify-time read that bypasses the pinned
+/// [`DecisionProfile`][super::DecisionProfile] diverges here.
+///
+/// Ignored until the reader migrations land: stage 2 pins the inference
+/// layer, stage 3 instinct, stage 4 the evaluator/scale family; each stage
+/// extends the arming below with its own layer and this test goes live with
+/// stage 5.
+#[test]
+#[ignore = "armed by stages 2-4 of the pin-at-build campaign"]
+fn stance_pins_knobs_across_threads() {
+    use crate::bidding::table::Table;
+    use crate::bidding::{american, scoped};
+    use contract_bridge::auction::AbsoluteVulnerability;
+    use contract_bridge::{FullDeal, Seat};
+    use rand::SeedableRng as _;
+
+    // The whole test runs on a scratch thread, so the arming dies with it and
+    // reused libtest workers stay clean.
+    scoped(|| {
+        crate::bidding::instinct::InstinctProfile::arm_all_nondefault();
+        // Stages 2 and 4 add their layers' arming here.
+
+        let ns = american();
+        let ew = american();
+        let table = Table::of_pairs(&ns, &ew, Seat::North, AbsoluteVulnerability::NONE);
+        let deals: Vec<FullDeal> = (0..24)
+            .map(|seed| {
+                contract_bridge::deck::full_deal(&mut rand::rngs::StdRng::seed_from_u64(seed))
+            })
+            .collect();
+
+        let armed: Vec<String> = deals
+            .iter()
+            .map(|deal| table.bid_out(deal).to_string())
+            .collect();
+        let virgin: Vec<String> = std::thread::scope(|scope| {
+            scope
+                .spawn(|| {
+                    deals
+                        .iter()
+                        .map(|deal| table.bid_out(deal).to_string())
+                        .collect()
+                })
+                .join()
+                .expect("virgin bidding thread panicked")
+        });
+        assert_eq!(armed, virgin, "a classify-time knob read escaped the pin");
+    });
+}

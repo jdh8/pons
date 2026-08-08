@@ -1268,6 +1268,21 @@ pub fn set_support_points(enabled: bool) {
     SUPPORT_POINTS.with(|flag| flag.set(enabled));
 }
 
+/// The [`set_fuzzy_fifths`] knob active on this thread
+pub(crate) fn fuzzy_fifths_now() -> bool {
+    FUZZY_FIFTHS.with(Cell::get)
+}
+
+/// The [`set_fifths_companion`] choice active on this thread
+pub(crate) fn fifths_companion_now() -> FifthsCompanion {
+    FIFTHS_COMPANION.with(Cell::get)
+}
+
+/// The [`set_support_points`] knob active on this thread
+pub(crate) fn support_points_now() -> bool {
+    SUPPORT_POINTS.with(Cell::get)
+}
+
 /// Set the antisymmetric strength adjustment for books subsequently built on
 /// the current thread (**default 0**, measurement only)
 ///
