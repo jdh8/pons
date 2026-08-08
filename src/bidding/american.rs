@@ -227,10 +227,35 @@ pub fn american() -> Pair {
 /// that still builds the 2/1 book over the card-input **v4** floor
 /// ([`ConfiguredFloorBba`][crate::bidding::neural_floor::ConfiguredFloorBba]);
 /// `american_with_config(Config::symmetric(&american_card()))` reproduces the
-/// pre-swap [`american`] exactly.
+/// pre-swap [`american`] exactly.  A declared opponent on the *shipped* floor
+/// wants [`american_with_agreements`] instead — an arm built here and compared
+/// against one built by [`american`] measures the two nets, not the declaration.
 #[must_use]
 pub fn american_with_config(config: super::features::Config) -> Pair {
     with_floor(american_book(), config)
+}
+
+/// [`american`] against a **declared** opponent, on the shipped v5 floor
+///
+/// The v5 twin of [`american_with_config`], and a strictly narrower seam: only
+/// `theirs` is declared, while our own half is captured from the live knobs in
+/// the same expression as the book.  So unlike the v4 entry point this *cannot*
+/// misdisclose our own side — the mistake it warns about is unavailable here —
+/// and the only judgement left to the caller is what the opposition plays.
+///
+/// Build `theirs` with [`Agreements::capture`][super::features::Agreements::capture]
+/// under their armed knobs when they are a pons book, or with
+/// [`Agreements::from_card`][super::features::Agreements::from_card] when they
+/// are a foreign engine and a card is all there is.  At our own defaults the two
+/// agree (`projection_agrees_with_capture_at_defaults`), so declaring an
+/// undeviating pons opponent reproduces [`american`] board for board — the
+/// inertness gate for this channel.
+#[must_use]
+pub fn american_with_agreements(theirs: &super::features::Agreements) -> Pair {
+    with_floor_v5(
+        american_book(),
+        super::features::CompactConfig::new(&super::features::Agreements::capture(false), theirs),
+    )
 }
 
 /// Alias of [`american`] — the v5 floor is the default since 2026-08-08
@@ -263,26 +288,30 @@ pub fn american_instinct() -> Pair {
 ///
 /// Exactly [`american`] but for the books: all three are empty, so every
 /// auction falls straight through to the same floor wiring [`american`] uses —
-/// [`ConfiguredFloorBba`][crate::bidding::neural_floor::ConfiguredFloorBba] on
+/// [`ConfiguredFloorV5`][crate::bidding::neural_floor::ConfiguredFloorV5] on
 /// the contested books, the deterministic [`instinct`][crate::bidding::instinct()]
 /// ladder on the constructive one.  The ablation handle that prices the
 /// authored book: `american` − `american_floor` is what [`american_book`] is
 /// worth.
 ///
-/// The floor takes the **same** card [`american`] would, even though there is no
-/// book behind it to play those agreements: the ablation isolates the book only
-/// if the floor's inputs are identical on both arms.
+/// The floor takes the **same** agreements [`american`] would, even though there
+/// is no book behind it to play them: the ablation isolates the book only if the
+/// floor's inputs are identical on both arms — which means this function has to
+/// follow [`american`] onto every future floor, in the same commit.  It did not
+/// follow the 2026-08-08 v5 swap, and for one commit `scripts/ab-book-value.sh`
+/// priced the book plus a whole net swap (+0.0353 plain DD per board, 3.5× the
+/// run's own CI).
 ///
 /// Note it prices the book's *total* contribution.  An empty book also stops
 /// projecting authored constraints into
 /// [`Inferences`][crate::bidding::inference::Inferences], so the net's
-/// `features_v4` inference block collapses to unknown — the measured gap is the
+/// `features_v3` inference block collapses to unknown — the measured gap is the
 /// book as authored calls **and** as disclosure, not the calls alone.
 #[must_use]
 pub fn american_floor() -> Pair {
-    with_floor(
+    with_floor_v5(
         Pair::new(Constructive::new(), Competitive::new(), Defensive::new()),
-        super::features::Config::symmetric(&super::card::american_card()),
+        super::features::CompactConfig::symmetric(&super::features::Agreements::capture(false)),
     )
 }
 

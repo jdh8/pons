@@ -23,7 +23,7 @@ phases are.
 | RKCB | A row **producer**: `slam::rkcb_rows(prefix, trump) -> Vec<Entry>`. All 25 production callers and the three test fixtures use it directly; `install_rkcb` is retired. |
 | Phase 1.5 (floating agreements) | **Cancelled, not deferred** — see below. |
 | Phase 2 (cross-side assembly) | **Both halves built and REFUTED** 2026-08-07, both default off. 2a — the net's card channel (`--declare-opponents`). A follow-up run the same day priced a **one-bit off-manifold** `theirs` perturbation at −0.01 plain / −0.02 PD per board; it was *meant* to be the in-distribution cell-B test and is not one, so the retrain reopen path stands and **cell B at scale is still owed**. 2b — the reader's (`Stance::with_opponents`, `--declare-their-book`). See below. The book-selection third leg (`defense_vs`, `competitive_vs`, `Table::compose`) is **not built and not wanted**: `defensive_vs` already existed, had zero production consumers, and went out with `Family`. |
-| Phase 3 (knob migration) | **Open; its gate has not actually run** (the 2026-08-07 attempt perturbed frozen card rows — see Phase 2). Not on the critical path either way; the knob field table is the piece worth doing regardless. It does not depend on Phase 2 — restated below. Thread-locals untouched: **221 across 74 files** — the earlier figures here (27 `competition/`, 19 `defense/`, 12 `inference.rs`, 9 each `notrump/` / `rebids/`) were a stale undercount by ~3× (`defense/` is 53, `notrump/` 23). Reproduce with `rg -c --no-heading '^\s+static\s+[A-Z0-9_]+:' -g '*.rs' src` and the same over `'^pub fn set_'`; both total 221, so statics and public setters match 1:1. The by-agreement file split makes this *easier*: each agreement module's thread-locals are exactly the contents of its config struct. |
+| Phase 3 (knob migration) | **Gate ran 2026-08-08 and answered yes — but v5 collected the payoff without the migration**, so it stays *not scheduled*, and so does the knob field table. See below for both. It does not depend on Phase 2 — restated below. Thread-locals untouched: **221 across 74 files** — the earlier figures here (27 `competition/`, 19 `defense/`, 12 `inference.rs`, 9 each `notrump/` / `rebids/`) were a stale undercount by ~3× (`defense/` is 53, `notrump/` 23). Reproduce with `rg -c --no-heading '^\s+static\s+[A-Z0-9_]+:' -g '*.rs' src` and the same over `'^pub fn set_'`; both total 221, so statics and public setters match 1:1. The by-agreement file split makes this *easier*: each agreement module's thread-locals are exactly the contents of its config struct. |
 
 **Escape hatches: 9, and the convertible set is empty.** A `guarded` row carries
 a hand-written `Guard` verbatim; a `classified` row a table computed at classify
@@ -72,13 +72,28 @@ and `AuthoringDecoder`.
 
 The floor's **kind** changed when the configured net became the default.
 `NeuralFloorBba` was a unit struct — knob-independent, order-independent.
-`ConfiguredFloorBba(Config)` carries a convention card built by `american_card()`
-from the *same* thread-locals that a `Package`'s `gate` and `entries` read at
-`compile_into`. So `american()` is two knob readers producing one artifact,
-joined only by being called in one expression — which its doc comment asserts and
-the test `the_default_floor_reads_the_live_card` pins. `american_with_config`
-cannot even do that much: a card claiming an agreement the rules do not play is a
-misdisclosure to the net, and nothing checks it.
+`ConfiguredFloorV5(CompactConfig)` carries both sides' `Agreements`, built by
+`Agreements::capture(false)` from the *same* thread-locals that a `Package`'s
+`gate` and `entries` read at `compile_into` — 17 knob getters, replacing the
+v4 shape's `american_card()` row-by-row read of the same state. So `american()`
+is two knob readers producing one artifact, joined only by being called in one
+expression — which its doc comment asserts and the test
+`the_default_floor_reads_the_live_agreements` pins, with
+`each_compact_axis_moves_its_slots_and_only_live_ones_move_the_net` pinning the
+per-axis chain underneath it. `american_with_config` (the surviving v4 entry
+point) cannot do that much: a card claiming an agreement the rules do not play is
+a misdisclosure to the net, and nothing checks it. Its v5 successor
+`american_with_agreements` narrows the seam to the opponents' half, so our own
+side cannot be misdeclared at all.
+
+**A sibling that does not follow the floor is a fabricated verdict.** The
+2026-08-08 v5 swap moved `american()` and left `american_floor()` and
+`american_with_config()` on v4, so for one commit `ab-book-value.sh`,
+`ab-declared-opponents.sh` and `ab-declared-agreement.sh` each paired a v5 arm
+against a v4 one — the swap itself is worth +0.0353 plain DD per board, 3.5×
+`ab-declared-opponents.sh`'s own CI half-width, enough to invert E3's sign. The
+invariant, now stated at `seat_floor_vs`: *a system name reaches the same net on
+its declared and undeclared paths.*
 
 One consequence worth stating for scheduling: `with_floor` puts `instinct()` on
 the constructive book regardless of the floor passed, so the configured floor
@@ -94,9 +109,13 @@ the book and the card. It used to be a process-wide `LazyLock` in
 `Pair` could therefore disagree. Since 2026-08-07 `with_floor` builds one
 `Arc<Rules>` and hands it to both, and `ConfiguredFloorBba::new` takes it. The
 scheduling point stands: **anything Phase 3 threads a config into must reach
-`instinct()` as well as `american_book()` and `american_card()`** — three
-readers, one knob state, and nothing but call-site discipline joining them until
-the config struct exists.
+`instinct()` as well as `american_book()` and `Agreements::capture()`** — and
+that is **four** readers, not three, because `inference.rs`'s
+`reading_profile()` is a fourth, with 35 fields spanning `american` / `instinct`
+/ `inference` / `constraint` and a different *scope*: it is snapshotted **per
+decision** through `DecisionProfile::current()`, not once per build. One knob
+state, four readers, and nothing but call-site discipline joining them until the
+config struct exists.
 
 ## Phase 2 — cross-side assembly (open)
 
@@ -336,20 +355,29 @@ Per-book config structs replacing thread-locals, constructed `::from_ambient()`
 at first so every call site and `bba-gen --ns-*` switch keeps working; harnesses
 migrate one at a time; thread-locals retire last. Byte-identity at every stage.
 
-**Terminal step: `Card::from(&config)`.** When the thread-locals go,
-`american_card()` has no source. Migrate `the_default_floor_reads_the_live_card`
-alongside it. Skipping this freezes every card at its default, and the only
-symptom is that every future card-row A/B measures zero.
+**Terminal step: `Card::from(&config)` — demoted 2026-08-08.** It was justified
+by "when the thread-locals go, `american_card()` has no source; skipping this
+freezes every card at its default, and the only symptom is that every future
+card-row A/B measures zero." Both halves lapsed the same day: the bias fold
+zeroed the card columns, and then the v5 swap left `american()` reading **no card
+at all**. The card is now a disclosure artifact (`.bbsa`, `american_with_config`,
+`floor_card`), so this is a tidy-up on the disclosure generator rather than the
+step the migration turns on.
 
 ### It does not depend on Phase 2
 
 The whole Phase-2 surface is knob-free — `Config` / `Config::new` /
-`Config::symmetric` / `encode_card` ([features.rs](../src/bidding/features.rs)),
+`Config::symmetric` / `encode_card` and their v5 siblings `CompactConfig` /
+`Agreements::from_card` ([features.rs](../src/bidding/features.rs)),
 `Card::row` / `foreign_card` ([card.rs](../src/bidding/card.rs)),
-`BbaOracle::card()`, `ConfiguredFloorBba`, `Stance::with_opponents`, and
-`Context::{own_system, their_system, config}`. Exactly one function in that path
-reads a thread-local, `american_row()`, and that is Phase 3's own terminal step.
-Phase 3 can start whenever.
+`BbaOracle::card()`, `ConfiguredFloorBba`, `ConfiguredFloorV5`,
+`Stance::with_opponents`, and `Context::{own_system, their_system, config,
+compact}`. Phase 3 can start whenever.
+
+⚠ This section used to end "exactly one function in that path reads a
+thread-local, `american_row()`, and that is Phase 3's own terminal step." That
+is now **false and inverted**: `Agreements::capture()` reads 17 knob getters and
+sits on the **default serving path**, while `american_row()` no longer does.
 
 ### Two justifications that do not survive contact
 
@@ -374,45 +402,58 @@ cheap card read, generated CLI/UI/doc surfaces that cannot drift, and the
 thread-local hazard class gone. The hazards are real and have cost twice —
 the `LADDER` freeze above, and the off-shape card rows that silently lied.
 
-### The gate has not run yet
+### The gate ran, and answered yes — for a channel Phase 3 no longer owns
 
-Because the payoff is structural, the migration was gated on the one thing that
-could still have made it a *bidding* win: the declaration channel it exists to
-serve. The run built for that gate (above) turned out to perturb frozen card
-coordinates rather than trained ones, so **it does not decide the gate either
-way** — it prices the off-manifold penalty at one bit and leaves the channel's
-value unmeasured. Cell B at scale is still owed, and is still the cheap next run.
+The migration was gated on the one thing that could have made it a *bidding*
+win: whether the regime block is a trained input at all.
+[card-manifold.md](ai-bidder/card-manifold.md) put the v4 answer at **four of
+140 card slots per side**, leaving 272 of 368 inputs constant with weights
+unidentified at initialisation. Two things then happened on 2026-08-08, and
+between them they closed the question:
 
-**But cell B is not the gate.** [card-manifold.md](ai-bidder/card-manifold.md)
-restates it: only **four of 140 card slots per side** move anywhere in the v4
-corpus, so 272 of the net's 368 inputs are constant, their weights unidentified
-and left at initialisation by `wd = 0`. The real question is therefore *whether
-the card block is a trained input at all*, and cell B is the cheap go/no-go for
-spending a corpus on making it one.
+- The **exact bias-fold** — a constant input contributes `cᵢwᵢ` to every hidden
+  pre-activation, which is algebraically the bias — zeroed those columns with no
+  retrain and no measurement, making card rows *safe*.
+- The **v5 retrain** replaced the card block outright with a 28-slot-per-side
+  `Agreements` vector over the axes pons owns, of which **13 per side carry
+  trained weights**, and won its gate A/B. The gate reads **yes**.
 
-That file also splits the problem in a way this campaign did not: an **exact
-bias-fold** — a constant input contributes `cᵢwᵢ` to every hidden
-pre-activation, which is algebraically the bias — removes the tax with no
-retrain and no measurement, making card rows *safe*; only the retrain makes them
-*meaningful*. `Card::from(&config)` is structurally inert at defaults either way.
-So Phase 3 is blocked on neither, and unrewarding until the second.
+**But v5 collected that payoff without Phase 3.** `Agreements::capture()` is not
+`from_ambient()` — the arrow points the other way: the thread-locals stay the
+source of truth and `Agreements` is a derived view of 18 of them. So the
+migration's remaining surface is 203 knobs that are not net inputs at all, plus
+the 152 of 221 that have no getter and therefore cannot be captured. Threading
+them changes nothing a board can see; by [measurement.md](measurement.md)'s rule
+the migration would still owe an A/B, and that A/B would measure a wash.
+
+Nor is the perf case there: `forward` is ~112k MACs per decision against
+`reading_profile()`'s ~40 thread-local reads, well under 1%.
 
 Either way the migration is not urgent, because nothing about it is on the
 critical path of a measured win. What is worth doing on its own terms,
 independent of the gate:
 
-- **the knob field table** — one row per knob generating the config structs,
-  `bba-gen`'s clap surface, `web`'s `SETTINGS` and this repo's option index, so
-  the four cannot drift. That drift is a live defect class with its own CI job
-  (`.github/workflows/rust.yml`'s `web`) and its own abort mode (stale `--ns-*`
-  flags killing scripts). It needs no threading and no measurement.
-- **the hazard repairs**, which are cheap and independent — the two above were
-  found and fixed while auditing for this campaign.
+- **the hazard repairs**, which are cheap and independent — the three so far
+  were all found while auditing for this campaign (the `LADDER` freeze, the
+  off-shape card rows, and the 2026-08-08 sibling-factory split above).
 
 The full call-site migration (three config structs threaded to ~1500 sites,
 `set_*` deleted, `Card::from(&config)`) is **not scheduled**. Reopen it if the
-declaration channel is ever revived, or if the ambient state causes a third
+declaration channel is ever revived, or if the ambient state causes a fourth
 defect.
+
+**The knob field table is not scheduled either** — one row per knob generating
+the config structs, `bba-gen`'s clap surface, `web`'s `SETTINGS` and this repo's
+option index. The drift it targets is real and has its own CI job
+(`.github/workflows/rust.yml`'s `web`) and abort mode (stale `--ns-*` flags
+killing scripts), but the four surfaces are 180 clap fields plus a 132-call
+`arm_knobs`, 69 `SETTINGS` rows, ~189 markdown rows, and structs that do not
+exist — and this repo has **no `macro_rules!`, no `build.rs`, no `include!` and
+no codegen script anywhere**. Standing up the first codegen mechanism in the
+crate to cover a class already caught by that CI job and by
+`web/src/tests.rs`'s `registry_defaults_match_the_engine` /
+`every_registry_getter_observes_its_own_setter` is the wrong trade. If it drifts
+again, add a third test.
 
 ## The one porting rule
 

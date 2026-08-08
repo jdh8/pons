@@ -459,3 +459,47 @@ conventions' real effect. Both live instances are resolved (2026-08-08):
 
 The general statement survives for any **future** unfolded export, which is
 what `folded_card_columns_are_exactly_zero` exists to catch.
+
+### And the v5 swap's own measurement defect, found and fixed 2026-08-08
+
+The ship moved `american()` to the v5 floor and left its siblings on v4:
+`american_floor()` (the book-ablation handle) and `american_with_config()`
+(which every `--declare-opponents` arm reached through `seat_floor_vs`). Since
+`seat_floor("american")` had moved and `seat_floor_vs("american", …)` had not,
+three checked-in scripts each paired a **v5 arm against a v4 one**:
+
+| script | arms | what it would have measured |
+| --- | --- | --- |
+| `ab-book-value.sh` | `american-floor` vs `american` | the book **plus the net swap** |
+| `ab-declared-opponents.sh` | `symmetric` vs `declared` | E3's channel **plus the swap, sign inverted** |
+| `ab-declared-agreement.sh` | `symmetric` vs `wrong`/`truth` | both diffs carry the swap |
+
+The gate A/B prices the swap at **+0.0353 plain DD per board**, against
+`ab-declared-opponents.sh`'s ±0.0099 half-width — **3.5 CI widths**, an order of
+magnitude over E3's real +0.0024/+0.0062 PD signal. Every recorded result is
+safe (E3, 2b and book-value all ran at or before `e23a54e`, when both arms were
+v4); only re-runs were affected, and none ran.
+
+The size is measured, not inferred. At `8993d76`, `bba-gen --their-floor
+american --declare-opponents` against an *identical* pons opponent — a
+declaration that says nothing, and must therefore be a no-op — moved **379 of
+2000** table-A auctions (19.0%, seed 424242, `--count 2000`). At HEAD the same
+two runs are byte-identical on their boards (0 of 2000, `jq -cS '.boards'` sha
+`004bfd74…`). That pair is the channel's standing inertness gate, and it is the
+cheapest possible acceptance test for the seam: `Agreements::from_card(
+american_card()) == Agreements::capture(false)` end to end through the harness,
+which is `projection_agrees_with_capture_at_defaults` under load.
+
+Fixed by putting `american_floor()` on v5 and adding
+`american_with_agreements(theirs)` — the v5 declared-opponent seam, which
+narrows the v4 shape by capturing our own half from the live knobs in the same
+expression as the book, so only the opposition is declarable. `seat_floor_vs`
+routes through it, projecting the opponents' card with `Agreements::from_card`
+— that function's first production caller. The invariant to hold going forward:
+**a system name reaches the same net on its declared and undeclared paths**, and
+a floor swap moves every sibling in the same commit.
+
+One consequence for the declared-agreement design: its garbage-Stayman
+experiment is now **provably vacuous** under v5, since `garbage_stayman` is
+compact slot 2 and folded. Declared-agreement arms can only move the 13 trained
+slots.

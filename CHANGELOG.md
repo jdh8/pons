@@ -138,7 +138,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `rubens_advances`, one of the three real drifts, and cost 210 s of CI to miss
   it.  Reading the cell back is exact, total, and instant.
 
+- **`each_compact_axis_moves_its_slots_and_only_live_ones_move_the_net`** — the
+  two-sided contract every per-axis knob A/B stands on, one table row per
+  `Agreements` axis (17 knobs plus the `dutch` book parameter).  It asserts that
+  flipping an axis moves *exactly* its own `encode` slots, that the 10 trained
+  axes move `ConfiguredFloorV5`'s logits, and that the 8 folded ones leave them
+  **bit-identical** — the serving-side form of "the frozen-coordinate tax is
+  zero", which `folded_compact_columns_are_exactly_zero` had pinned only in the
+  weights.  Neither `compact_layout_is_pinned` nor
+  `projection_agrees_with_capture_at_defaults` could see the first half: both
+  test only at the shipped defaults, so crossing two getters that share one
+  default inside `Agreements::capture` passed every existing test.  Verified by
+  mutation — swapping `garbage_stayman`/`xyz` (both default-on) leaves all 40
+  other `features` tests green and fails this one alone.  Order inside the loop
+  is load-bearing (arm, capture, restore, *then* classify, under one empty
+  shared ladder), so both arms share an ambient world and the `features_v3`
+  prefix cannot move: five of the axes reach the vector a second way through the
+  classify-time inference walk.  `the_default_floor_reads_the_live_card` is
+  renamed `..._reads_the_live_agreements` and keeps its distinct job — it is the
+  only cover for `american()`'s own capture expression and `with_floor_v5`.
+
 ### Fixed
+
+- **The v5 ship's siblings, which had turned three A/B scripts into fabricated
+  verdicts.**  `american()` moved to the compact-config floor; `american_floor()`
+  (the book-ablation handle) and `american_with_config()` (which every
+  `--declare-opponents` arm reached through `seat_floor_vs`) stayed on v4.  So
+  `ab-book-value.sh` paired `american-floor` (v4) against `american` (v5),
+  `ab-declared-opponents.sh` paired `symmetric` (v5) against `declared` (v4), and
+  `ab-declared-agreement.sh` carried the same split into both of its diffs — each
+  measuring its own question **plus the whole net swap**, worth +0.0353 plain DD
+  per board, or **3.5×** `ab-declared-opponents.sh`'s own ±0.0099 half-width,
+  enough to invert E3's sign.  Demonstrated rather than argued: at `8993d76`,
+  `--declare-opponents` against an *identical* pons american opponent — a
+  semantic no-op — moved **379 of 2000** table-A auctions (19.0%, seed 424242);
+  at HEAD the same pair of runs is byte-identical (0 of 2000, boards-only sha
+  `004bfd74…`), which is this channel's standing inertness gate.  Every recorded
+  number is safe: E3, Phase 2b and book-value all ran at or before `e23a54e`,
+  when both arms were v4; only re-runs were affected and none ran.
+  `american_floor()` is now v5 — the one dump that *must* move, and does, at
+  679 of 2000 auctions (34.0%) — and the new
+  `american_with_agreements(theirs)` is the v5 declared-opponent seam —
+  *narrower* than the v4 one, since our own half is captured from the live knobs
+  in the same expression as the book, so unlike `american_with_config` it cannot
+  misdisclose our own side; only the opposition is declarable.  `seat_floor_vs`
+  routes through it, projecting the opponents' card with `Agreements::from_card`
+  (that function's first production caller), and `deviant_floor`'s confound
+  against its `seat_floor` baseline dies with it; `probe-bba-bilans` inherits v5
+  through `american_floor()`.  The invariant is now stated at both sites: **a
+  system name reaches the same net on its declared and undeclared paths**, and a
+  floor swap moves every sibling in the same commit.  `dutch` stays v4 on both
+  paths until its own gate A/B runs.  Two consequences recorded in
+  `docs/ai-bidder/card-manifold.md`: `ab-declared-agreement.sh`'s garbage-Stayman
+  experiment is provably vacuous under v5 (slot 2 is folded), and the deviation
+  panel's honest-disclosure routing is now inert at the net on *both* floors
+  (`one_notrump_offshape` is folded in each).
 
 - **`"Two way game tries"` now discloses its honest `0`** — the fold made the
   correction free.  The row was held at the dishonest `1` because its frozen

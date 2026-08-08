@@ -1134,6 +1134,227 @@ fn features_v5_appends_both_blocks() {
     );
 }
 
+/// Every axis moves its own slots, and only the **trained** ones reach the net
+///
+/// The two-sided contract the per-axis knob A/Bs stand on, and neither half is
+/// covered elsewhere:
+///
+/// 1. `compact_layout_is_pinned` and `projection_agrees_with_capture_at_defaults`
+///    both test only **at the shipped defaults**, so a crossed getter inside
+///    [`Agreements::capture`] between two knobs that share a default — say
+///    `garbage_stayman`/`xyz` (both on) or `new_minor_forcing`/
+///    `transfer_super_accept`/`one_notrump_offshape` (all off) — passes every
+///    existing test while feeding the net a regime nobody plays.  Its only
+///    symptom would be that the axis A/B measures nothing.
+/// 2. `folded_compact_columns_are_exactly_zero` pins the fold in the *weights*.
+///    This is the same claim where measurement actually needs it: flipping a
+///    frozen axis moves no logit at all, so its A/B prices the book alone,
+///    rather than the book plus a random init-draw vector (the ≈ −0.015
+///    IMPs/board/bit tax, `docs/ai-bidder/card-manifold.md`).
+///
+/// The order inside the loop is load-bearing: **arm, capture, restore, and only
+/// then classify.**  [`Agreements`] is `Copy`, so both arms can be captured up
+/// front and run under one ambient world — which makes the `features_v3` prefix
+/// bit-identical by construction.  Without that, `garbage_stayman`,
+/// `nt_splinter`, `notrump_defense`, `landy_range` and `notrump_minors` reach
+/// the vector a second way, through the classify-time inference walk, and two of
+/// those are frozen axes whose inertness assertion would become
+/// auction-dependent.
+#[test]
+fn each_compact_axis_moves_its_slots_and_only_live_ones_move_the_net() {
+    use crate::bidding::Rules;
+    use crate::bidding::american::{
+        PUPPET, set_fourth_suit_forcing, set_garbage_stayman, set_jordan_truscott, set_landy,
+        set_leaping_michaels, set_lebensohl_style, set_major_support_double, set_new_minor_forcing,
+        set_notrump_defense, set_notrump_minors, set_notrump_shape, set_nt_splinter,
+        set_one_notrump_offshape, set_responsive_takeout, set_transfer_super_accept,
+        set_woolsey_points, set_xyz,
+    };
+    use crate::bidding::instinct::{RkcbVariant, forced, set_rkcb_variant};
+    use crate::bidding::neural_floor::ConfiguredFloorV5;
+    use crate::bidding::trie::Classifier;
+    use std::sync::Arc;
+
+    // The trained columns of the shipped `american_bba_v5` blob, one side.
+    // Deliberately restated rather than shared with
+    // `neural::tests::folded_compact_columns_are_exactly_zero`: that one pins
+    // the weights, this one pins the behaviour, and a thaw that updates only
+    // one of them must fail both.
+    const LIVE: [usize; 13] = [0, 1, 3, 4, 7, 13, 15, 16, 19, 23, 25, 26, 27];
+
+    let seat = hand("92.K53.AQJ42.962");
+    let auction = [
+        bid(1, Strain::Hearts),
+        bid(1, Strain::Spades),
+        Call::Pass,
+        bid(2, Strain::Spades),
+        Call::Pass,
+    ];
+    let context = Context::new(RelativeVulnerability::NONE, &auction);
+    assert!(
+        !forced(&context),
+        "the net must answer here — a forced auction would pass every row vacuously"
+    );
+
+    // One empty ladder for every arm.  `instinct()` reads `relocating_now()` at
+    // build time, so a per-arm ladder would move the `relocating` row for two
+    // reasons at once; empty is safe because the auction is not forced, and the
+    // assert above keeps it that way.
+    let ladder = Arc::new(Rules::new());
+    let logits = |agreements: &Agreements| {
+        ConfiguredFloorV5::new(CompactConfig::symmetric(agreements), Arc::clone(&ladder))
+            .classify(seat, &context)
+            .iter()
+            .map(|(_, logit)| logit.to_bits())
+            .collect::<Vec<u32>>()
+    };
+
+    let base = Agreements::capture(false);
+    let base_slots = base.encode();
+    let baseline = logits(&base);
+
+    let check = |name: &str, flipped: Agreements, expect: &[usize]| {
+        let moved: Vec<usize> = (0..LEN_COMPACT)
+            .filter(|&slot| flipped.encode()[slot] != base_slots[slot])
+            .collect();
+        assert_eq!(moved, expect, "{name}: wrong slots moved");
+
+        let after = logits(&flipped);
+        if expect.iter().any(|slot| LIVE.contains(slot)) {
+            assert_ne!(baseline, after, "{name}: a trained slot must move the net");
+        } else {
+            assert_eq!(baseline, after, "{name}: a folded slot must be inert");
+        }
+    };
+
+    // `dutch` selects a book, not a knob, so it is the one axis with nothing to
+    // arm — `capture` takes it as a parameter.
+    check("dutch", Agreements::capture(true), &[0]);
+
+    // Enum targets leave a trained lane deliberately: `Wide` (14), `Plain` (24)
+    // and the five non-{Natural, Woolsey} defenses are folded, and `Wide` is
+    // additionally unreachable through `from_card`.  These are the poles
+    // `examples/dump-teacher`'s axis shards rotate.
+    /// Name, arm the flip, restore the shipped default, the slots it must move.
+    type Axis = (&'static str, fn(), fn(), &'static [usize]);
+    let rows: &[Axis] = &[
+        (
+            "relocating",
+            || set_rkcb_variant(RkcbVariant::Kickback),
+            || set_rkcb_variant(RkcbVariant::Plain),
+            &[1],
+        ),
+        (
+            "garbage_stayman",
+            || set_garbage_stayman(false),
+            || set_garbage_stayman(true),
+            &[2],
+        ),
+        (
+            "new_minor_forcing",
+            || set_new_minor_forcing(true),
+            || set_new_minor_forcing(false),
+            &[3],
+        ),
+        ("xyz", || set_xyz(false), || set_xyz(true), &[4]),
+        (
+            "transfer_super_accept",
+            || set_transfer_super_accept(true),
+            || set_transfer_super_accept(false),
+            &[5],
+        ),
+        (
+            "fourth_suit_forcing",
+            || set_fourth_suit_forcing(false),
+            || set_fourth_suit_forcing(true),
+            &[6],
+        ),
+        (
+            "jordan_truscott",
+            || set_jordan_truscott(false),
+            || set_jordan_truscott(true),
+            &[7],
+        ),
+        (
+            "leaping_michaels",
+            || set_leaping_michaels(false),
+            || set_leaping_michaels(true),
+            &[8],
+        ),
+        (
+            "responsive_takeout",
+            || set_responsive_takeout(false),
+            || set_responsive_takeout(true),
+            &[9],
+        ),
+        (
+            "major_support_double",
+            || set_major_support_double(false),
+            || set_major_support_double(true),
+            &[10],
+        ),
+        (
+            "nt_splinter",
+            || set_nt_splinter(false),
+            || set_nt_splinter(true),
+            &[11],
+        ),
+        (
+            "one_notrump_offshape",
+            || set_one_notrump_offshape(true),
+            || set_one_notrump_offshape(false),
+            &[12],
+        ),
+        (
+            "shape",
+            || set_notrump_shape(NotrumpShape::Balanced),
+            || set_notrump_shape(NotrumpShape::Wide6322),
+            &[13, 15],
+        ),
+        (
+            "defense",
+            || set_notrump_defense(NotrumpDefense::Woolsey),
+            || set_notrump_defense(NotrumpDefense::Natural),
+            &[16, 19],
+        ),
+        (
+            "lebensohl",
+            || set_lebensohl_style(LebensohlStyle::Off),
+            || set_lebensohl_style(LebensohlStyle::Transfer),
+            &[23, 25],
+        ),
+        (
+            "minors_european",
+            || set_notrump_minors(EUROPEAN),
+            || set_notrump_minors(PUPPET),
+            &[26],
+        ),
+        (
+            "landy",
+            || set_landy(Some((8, 14))),
+            // `set_landy(Some(..))` also writes the shared Woolsey band and
+            // `set_landy(None)` deliberately leaves it — so restore both, and
+            // note that the leak guard below cannot see the miss: `woolsey_points`
+            // is not an `Agreements` field.
+            || {
+                set_landy(None);
+                set_woolsey_points(8, 19);
+            },
+            &[27],
+        ),
+    ];
+
+    for (name, arm, restore, expect) in rows {
+        arm();
+        let flipped = Agreements::capture(false);
+        restore();
+        // Restored before a single assertion can panic, so a failing row cannot
+        // strand a flipped knob for the next test on this thread.
+        assert_eq!(Agreements::capture(false), base, "{name} did not restore");
+        check(name, flipped, expect);
+    }
+}
+
 /// An unattached compact config encodes as zeros rather than panicking in release
 #[test]
 fn features_v5_without_a_compact_config_is_zero_padded() {

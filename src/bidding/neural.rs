@@ -161,10 +161,9 @@ static WEIGHTS_BBA_V5: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_BBA_V5))
 
 /// Evaluate the **compact-config** BBA-distilled floor: 144 features → 38 logits.
 ///
-/// The v5 sibling of [`classify_bba_v4`], gated behind
-/// [`american_v5`][super::american::american_v5] until the v5-vs-v4 A/B
-/// verdict.  Deterministic — fixed weights, no RNG.  Legality masking and the
-/// forced rails belong to the shell
+/// The v5 sibling of [`classify_bba_v4`], and the shipped floor's net since
+/// the 2026-08-08 gate A/B.  Deterministic — fixed weights, no RNG.  Legality
+/// masking and the forced rails belong to the shell
 /// ([`ConfiguredFloorV5`][super::neural_floor::ConfiguredFloorV5]).
 ///
 /// # Panics

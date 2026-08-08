@@ -78,17 +78,23 @@ fn row_package_invariants() {
 }
 
 /// The shipped-path twin of
-/// [`the_configured_floor_reads_its_card`][crate::bidding::neural_floor]:
-/// [`american`] must build its card from the *live* knobs, so a knob that
-/// moves a card row moves the default floor's inputs.
+/// [`each_compact_axis_moves_its_slots_and_only_live_ones_move_the_net`][crate::bidding::features]:
+/// [`american`] must build its [`Agreements`][crate::bidding::features::Agreements]
+/// from the *live* knobs, so a knob that moves a compact slot moves the default
+/// floor's inputs.
 ///
-/// Asserts on the logit vector, never on the chosen call — the
-/// `Kickback 1430` row decides roughly one auction in seven hundred, so a
-/// call-level assertion would be asserting noise.  What this catches is
-/// someone hoisting the card into a `LazyLock`: the only symptom would be
-/// every future card-row A/B measuring zero.
+/// That test shells [`ConfiguredFloorV5`][crate::bidding::neural_floor::ConfiguredFloorV5]
+/// directly, to isolate the net from the book; this one deliberately does not,
+/// so it is the only cover for `american()`'s own capture expression and
+/// `common::with_floor_v5`.
+///
+/// Asserts on the logit vector, never on the chosen call — `relocating`
+/// (compact slot 1) decides roughly one auction in seven hundred, so a
+/// call-level assertion would be asserting noise.  What this catches is someone
+/// hoisting the capture into a `LazyLock`: the only symptom would be every
+/// future axis A/B measuring zero.
 #[test]
-fn the_default_floor_reads_the_live_card() {
+fn the_default_floor_reads_the_live_agreements() {
     use crate::bidding::System as _;
     use crate::bidding::instinct::{RkcbVariant, set_rkcb_variant};
 
@@ -115,6 +121,6 @@ fn the_default_floor_reads_the_live_card() {
     assert_ne!(
         plain.0.into_iter().collect::<Vec<_>>(),
         relocated.0.into_iter().collect::<Vec<_>>(),
-        "the default floor must read the card the live knobs describe"
+        "the default floor must read the agreements the live knobs describe"
     );
 }

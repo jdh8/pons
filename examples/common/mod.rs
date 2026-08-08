@@ -16,7 +16,7 @@ use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Hand, Seat, Sui
 use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
 use pons::bidding::card::{Card, american_card, dutch_card};
 use pons::bidding::context::relative;
-use pons::bidding::features::Config;
+use pons::bidding::features::{Agreements, Config};
 use pons::bidding::{Stance, System};
 use pons::scoring::{
     final_contract, imps, ns_score_contract, ns_score_pd, ns_score_pd_tricks, ns_score_tricks,
@@ -609,26 +609,36 @@ pub fn floor_card(name: &str) -> anyhow::Result<Card> {
 
 /// [`seat_floor`], but with the opponents **declared** to the net
 ///
-/// The books are identical — this moves only the net's
-/// [`Config`][pons::bidding::features::Config], whose `theirs` half every other
-/// entry point fills with our own card (`Config::symmetric`).  Phase 2a of
-/// docs/declarative-rows.md: the floor channel alone, so a measurement cannot
-/// confound a mixed net input with mixed book rows.
+/// The books are identical — this moves only the net's regime input, whose
+/// `theirs` half every other entry point fills with our own agreements
+/// (`symmetric`).  Phase 2a of docs/declarative-rows.md: the floor channel
+/// alone, so a measurement cannot confound a mixed net input with mixed book
+/// rows.
 ///
-/// Our own card is read **here**, from the live knobs, exactly as `american()`
-/// reads it — so the same "set every `--ns-*` first" rule applies to this call
-/// as to `bba-gen`'s `disclosure()`.
+/// **Each name must reach the same net here as in [`seat_floor`]**, or the arms
+/// of a `--declare-opponents` A/B measure the net swap rather than the
+/// declaration — which is exactly what happened for one commit after the
+/// 2026-08-08 v5 ship, at 3.5× `scripts/ab-declared-opponents.sh`'s own CI.  So
+/// `american` is the compact-config v5 floor on both paths, and `dutch` is the
+/// card-input v4 floor on both, until `dutch()`'s own gate A/B runs.
+///
+/// Our own half is read from the live knobs *inside* the American seam, exactly
+/// as `american()` reads it — so the same "set every `--ns-*` first" rule
+/// applies to this call as to `bba-gen`'s `disclosure()`.  Theirs is projected
+/// off the card with
+/// [`Agreements::from_card`][pons::bidding::features::Agreements::from_card],
+/// the only channel a foreign engine's card has; it is lossy exactly where that
+/// function documents — the wide 1NT rungs collapse upward and a defense that is
+/// neither Multi-Landy nor Landy reads as `Natural` — so a `--their-ns` arm on
+/// one of those axes declares an approximation, not the row it armed.
 ///
 /// Only the two net-floored systems accept a declared opponent.  The other
-/// floors are refused rather than silently ignored: an arm that quietly kept
-/// `Config::symmetric` would be incomparable to its sibling with nothing in the
+/// floors are refused rather than silently ignored: an arm that quietly kept a
+/// symmetric config would be incomparable to its sibling with nothing in the
 /// output saying so.
 pub fn seat_floor_vs(name: &str, theirs: &Card) -> anyhow::Result<Stance> {
     Ok(match name {
-        "american" => {
-            pons::bidding::american::american_with_config(Config::new(&american_card(), theirs))
-                .against()
-        }
+        "american" => pons::american_with_agreements(&Agreements::from_card(theirs)).against(),
         "dutch" => pons::dutch_with_config(Config::new(&dutch_card(), theirs)).against(),
         other => anyhow::bail!(
             "--declare-opponents needs a net floor to declare them to: \
@@ -645,11 +655,17 @@ pub fn seat_floor_vs(name: &str, theirs: &Card) -> anyhow::Result<Stance> {
 ///
 /// A deviation is *theirs alone*, so `theirs` — the card played by the seat
 /// this book faces — is passed in from outside the transaction, while its own
-/// card is read inside [`seat_floor_vs`].  [`seat_floor`] would have taken
-/// [`Config::symmetric`][pons::bidding::features::Config::symmetric] and told
-/// this net the whole table deviates — a misdisclosure the moment a deviation
-/// knob moves a card row, which `offshape_1nt` does.  The other three move no
-/// row, so with `theirs` equal to this book's own card this is byte-identical.
+/// half is read inside [`seat_floor_vs`].  [`seat_floor`] would have taken a
+/// symmetric config and told this net the whole table deviates — a
+/// misdisclosure the moment a deviation knob moves a disclosed row, which
+/// `offshape_1nt` does.  The other three move no row, so with `theirs` equal to
+/// this book's own card this is byte-identical.
+///
+/// Since the constant-input folds that honesty is **inert at the net on both
+/// floors**: `one_notrump_offshape` is compact slot 12 under v5 and the
+/// `1NT opening shape 4441` card column under v4, and both are folded to zero
+/// (`docs/ai-bidder/card-manifold.md`).  The routing stays because honest
+/// disclosure is the invariant, not because it currently moves a logit.
 pub fn deviant_floor(
     name: &str,
     theirs: &Card,

@@ -32,7 +32,8 @@ pub mod stats;
 pub use bidding::{
     Alert, Competitive, Constructive, Context, Defensive, OrElse, Pair, Phase, Rules, Stance,
     System, Table, Trie, Versus, american, american_book, american_floor, american_instinct,
-    american_with_config, dutch, dutch_book, dutch_instinct, dutch_with_config, instinct,
+    american_with_agreements, american_with_config, dutch, dutch_book, dutch_instinct,
+    dutch_with_config, instinct,
 };
 #[cfg(feature = "dd")]
 pub use single_dummy::{

@@ -45,7 +45,12 @@ use contract_bridge::Hand;
 use contract_bridge::auction::{Auction, Call};
 use std::sync::Arc;
 
-/// The **configured** BBA-distilled floor — the shipped floor
+/// The **configured** BBA-distilled floor — the card-input (v4) floor
+///
+/// The shipped default until 2026-08-08, when [`ConfiguredFloorV5`] won its
+/// gate A/B.  It stays reachable through
+/// [`american_with_config`][super::american::american_with_config] and
+/// [`dutch`][crate::dutch()], whose own gate has not run.
 ///
 /// A [`Classifier`] drop-in for [`instinct()`][super::instinct::instinct]: the
 /// learned net in the judgement middle, the deterministic rails preserved by
@@ -113,9 +118,17 @@ impl Classifier for ConfiguredFloorBba {
 /// slots each) instead of a 280-float card pair, feeding
 /// [`neural::classify_bba_v5`] through
 /// [`features_v5`][features::features_v5].  Same rails, same mask, same
-/// build-time capture granularity.  Gated behind
-/// [`american_v5`][super::american::american_v5] until the v5-vs-v4 A/B
-/// verdict; `american()` keeps the v4 floor.
+/// build-time capture granularity.
+///
+/// **The shipped floor** since its 2026-08-08 gate A/B (+0.0353/+0.0262 plain
+/// DD per board at none/both vul, PD wash): it floors
+/// [`american`][super::american::american],
+/// [`american_with_agreements`][super::american::american_with_agreements] and
+/// the [`american_floor`][super::american::american_floor] ablation.  Unlike
+/// v4's card blocks, every slot it reads is an axis a corpus varied, so the
+/// 13 trained ones per side move the logits and the rest are folded to zero —
+/// `each_compact_axis_moves_its_slots_and_only_live_ones_move_the_net` pins
+/// both halves.
 #[derive(Clone, Debug)]
 pub struct ConfiguredFloorV5(CompactConfig, Arc<Rules>);
 
