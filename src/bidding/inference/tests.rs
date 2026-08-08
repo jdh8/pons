@@ -839,9 +839,12 @@ fn passes_read_within_their_table() {
                      auction: &[Call],
                      context: &Context<'_>,
                      rules: &crate::bidding::rules::Rules| {
-        let Some(projection) =
-            crate::bidding::inference::projection::project_pass(rules, None, context)
-        else {
+        let Some(projection) = crate::bidding::inference::projection::project_pass(
+            rules,
+            None,
+            context,
+            context.reading_profile(),
+        ) else {
             return;
         };
         for &hand in &hands {

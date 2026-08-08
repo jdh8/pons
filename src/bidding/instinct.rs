@@ -55,8 +55,8 @@ use super::constraint::{
     support, support_point_count, support_point_count_in, takeout_double_shape_ok, they_bid,
     top_honors,
 };
-use super::context::Context;
-use super::inference::{Inferences, Relative, relative_of};
+use super::context::{Context, DecisionProfile};
+use super::inference::{Inferences, ReadingProfile, Relative, relative_of};
 use super::rules::{Alert, FaceId};
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::eval::hcp as holding_hcp;
@@ -328,11 +328,16 @@ std::thread_local! {
 /// [`DecisionProfile`][super::context::DecisionProfile] when a stance is built
 ///
 /// One field per cell the floor reads *during* classification.  Build-time
-/// cells (`COMPETITIVE_REBID`, `REOPENING_NOTRUMP`, `REIN_ADVANCE_RAISE`,
-/// `DOUBLER_XX_RUNOUT`) are deliberately absent — they are baked into the
-/// rules [`instinct`] returns.  Knobs the reading layer already snapshots
-/// ([`ReadingProfile`][super::inference::ReadingProfile]: `penalty_latch`,
-/// `rubens_advances`, `floor_rkcb`, `rkcb_variant`) are not duplicated here.
+/// cells (`COMPETITIVE_REBID`, `REOPENING_NOTRUMP`, `DOUBLER_XX_RUNOUT`) are
+/// deliberately absent — each is read only inside [`instinct`]'s table
+/// builder, so it is baked into the rules that come back.  Knobs the reading
+/// layer already snapshots ([`ReadingProfile`][super::inference::ReadingProfile]:
+/// `penalty_latch`, `rubens_advances`, `floor_rkcb`, `rkcb_variant`) are not
+/// duplicated here.
+///
+/// Membership is decided by *where the cell is read*, not by what it
+/// configures: `REIN_ADVANCE_RAISE` shapes the table at one site and is read
+/// again inside a `pred` closure at another, which puts it here.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) struct InstinctProfile {
     pub(crate) inference_aware: bool,
@@ -365,6 +370,7 @@ pub(crate) struct InstinctProfile {
     pub(crate) nt_hcp_read: bool,
     pub(crate) two_over_one_slam_strength: bool,
     pub(crate) keycard_minors: bool,
+    pub(crate) rein_advance_raise: bool,
 }
 
 impl InstinctProfile {
@@ -395,12 +401,13 @@ impl InstinctProfile {
             preempt_4m_require_ace: PREEMPT_4M_REQUIRE_ACE.with(Cell::get),
             floor_slam_entry: FLOOR_SLAM_ENTRY.with(Cell::get),
             fit_sum_game: FIT_SUM_GAME.with(Cell::get),
-            bilans_floor: BILANS_FLOOR.with(Cell::get),
+            bilans_floor: bilans_enabled(),
             net_collar: NET_COLLAR.with(Cell::get),
             fit_sum_support_read: FIT_SUM_SUPPORT_READ.with(Cell::get),
             nt_hcp_read: NT_HCP_READ.with(Cell::get),
             two_over_one_slam_strength: TWO_OVER_ONE_SLAM_STRENGTH.with(Cell::get),
             keycard_minors: KEYCARD_MINORS.with(Cell::get),
+            rein_advance_raise: REIN_ADVANCE_RAISE.with(Cell::get),
         }
     }
 
@@ -439,6 +446,32 @@ impl InstinctProfile {
         NT_HCP_READ.with(|cell| cell.set(true));
         TWO_OVER_ONE_SLAM_STRENGTH.with(|cell| cell.set(false));
         KEYCARD_MINORS.with(|cell| cell.set(false));
+        REIN_ADVANCE_RAISE.with(|cell| cell.set(false));
+    }
+}
+
+/// The floor's knobs as pinned for this decision
+///
+/// Every classify-time knob read in this module goes through here, so the
+/// floor's answer depends only on the [`Stance`][super::Stance] serving the
+/// decision — never on which thread is asking.  A bare context (a rule table
+/// classified without a stance) still falls back to the thread's live state,
+/// which is what keeps the diagnostic and single-table tests working.
+fn pinned(context: &Context<'_>) -> InstinctProfile {
+    context.decision_profile().instinct
+}
+
+/// The relocation stance in force under `profile`
+///
+/// [`RkcbVariant::Plain`] unless the floor both makes a keycard ask and
+/// relocates it — the pinned twin of [`relocating_now`], and what the
+/// auction-only ladder helpers ([`kickback_ladder`], [`kickback_trump`],
+/// [`keycard_ask_bid`]) take in place of a live knob read.
+fn relocation(profile: ReadingProfile) -> RkcbVariant {
+    if profile.floor_rkcb() {
+        profile.rkcb_variant()
+    } else {
+        RkcbVariant::Plain
     }
 }
 
@@ -460,7 +493,7 @@ pub fn set_inference_aware(enabled: bool) {
 
 /// The floor is consulting the auction interpretation (see [`set_inference_aware`])
 fn inference_aware() -> Cons<impl Constraint + Clone> {
-    pred(|_: Hand, _: &Context<'_>| INFERENCE_AWARE.with(Cell::get))
+    pred(|_: Hand, context: &Context<'_>| pinned(context).inference_aware)
 }
 
 /// Enable or disable the doubled-1NT runout on the current thread
@@ -482,7 +515,7 @@ pub fn one_nt_runout() -> bool {
 
 /// The doubled-1NT runout is enabled (see [`set_one_nt_runout`])
 fn one_nt_runout_enabled() -> Cons<impl Constraint + Clone> {
-    pred(|_: Hand, _: &Context<'_>| ONE_NT_RUNOUT.with(Cell::get))
+    pred(|_: Hand, context: &Context<'_>| pinned(context).one_nt_runout)
 }
 
 /// Enable or disable the "settle" view of Pass on the current thread
@@ -506,7 +539,7 @@ pub fn settle_floor_enabled() -> bool {
 
 /// The "settle" view of Pass is enabled (see [`set_settle_floor`])
 fn settle_floor() -> Cons<impl Constraint + Clone> {
-    pred(|_: Hand, _: &Context<'_>| SETTLE_FLOOR.with(Cell::get))
+    pred(|_: Hand, context: &Context<'_>| pinned(context).settle_floor)
 }
 
 /// Enable the *bilans* floor on the current thread: the game/slam boundary
@@ -550,13 +583,19 @@ pub fn set_bilans_floor(enabled: bool) {
 
 /// The bilans floor is enabled (see [`set_bilans_floor`])
 fn bilans_floor() -> Cons<impl Constraint + Clone> {
-    pred(|_: Hand, _: &Context<'_>| bilans_enabled())
+    pred(|_: Hand, context: &Context<'_>| pinned(context).bilans_floor)
 }
 
 /// Plain-bool read of the bilans knob, for gates that must short-circuit ahead
 /// of a net forward pass (see [`net_break_even_gate`])
 fn bilans_enabled() -> bool {
     BILANS_FLOOR.with(Cell::get)
+}
+
+/// [`bilans_enabled`] off a pinned profile — [`net_break_even_gate`]'s selector
+/// runs *inside* a predicate, where the thread's live state is the wrong source
+fn bilans_pinned(profile: &DecisionProfile) -> bool {
+    profile.instinct.bilans_floor
 }
 
 /// Collar the bilans net instead of letting it replace the point arithmetic
@@ -590,7 +629,7 @@ pub fn set_net_collar(enabled: bool) {
 
 /// The net collar is enabled (see [`set_net_collar`])
 fn net_collar() -> Cons<impl Constraint + Clone> {
-    pred(|_: Hand, _: &Context<'_>| NET_COLLAR.with(Cell::get))
+    pred(|_: Hand, context: &Context<'_>| pinned(context).net_collar)
 }
 
 /// How far below an authored game threshold the collared net may reach — the
@@ -809,7 +848,7 @@ pub fn set_two_over_one_slam_strength(on: bool) {
 /// [`set_two_over_one_slam_strength`])
 fn partner_slam_strength(context: &Context<'_>) -> u8 {
     let shown = context.inferences().partner().strength.shown_floor();
-    if !TWO_OVER_ONE_SLAM_STRENGTH.with(Cell::get) || !two_over_one_game_force(context) {
+    if !pinned(context).two_over_one_slam_strength || !two_over_one_game_force(context) {
         return shown;
     }
     // Partner made the two-over-one exactly when we are the opener: the opening
@@ -996,16 +1035,33 @@ pub fn rkcb_variant_now() -> RkcbVariant {
 /// on the generated card and served the kickback twin while the floor made no
 /// relocated ask at all.  A knob cross-product has to name a stance a
 /// partnership could play; that one disclosed a convention we did not.
+///
+/// The **build-time** reader — the book, the card and the net selection all run
+/// before a decision exists.  A predicate wants the pinned twin [`relocation`].
 pub(in crate::bidding) fn relocating_now() -> bool {
-    floor_rkcb_now() && rkcb_variant_now() != RkcbVariant::Plain
+    relocation_now() != RkcbVariant::Plain
+}
+
+/// [`relocation`] off this thread's live knobs, for the build-time and
+/// public-diagnostic readers that have no decision to read from
+fn relocation_now() -> RkcbVariant {
+    relocation(crate::bidding::inference::reading_profile())
 }
 
 /// The keycard ask reaches agreed minors — carved in by [`set_rkcb_minors`],
 /// or implied by a live relocation ([`relocating_now`]): a ladder whose payoff
 /// is the minor lanes with no minor to ask in would be "kickback only hearts",
 /// a stance nobody plays.
+///
+/// Build-time, like [`relocating_now`] (`american::slam` reads it while
+/// wiring the minor keycard lanes); [`minor_asks`] is the pinned twin.
 pub(in crate::bidding) fn minor_asks_now() -> bool {
     rkcb_minors_now() || relocating_now()
+}
+
+/// [`minor_asks_now`] off a pinned profile
+fn minor_asks(profile: &DecisionProfile) -> bool {
+    profile.instinct.keycard_minors || relocation(profile.reading) != RkcbVariant::Plain
 }
 
 /// The combined trump length at which the fit itself stands in for the trump
@@ -1130,19 +1186,19 @@ pub fn set_correct_3nt_to_major(correct: bool) {
 /// the opponents are not penalizing).
 fn nt_game_force_3nt_allowed() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| {
-        !(SUPPRESS_NT_GF_OVER_DOUBLE.with(Cell::get) && responder_one_nt_runout_now(context))
+        !(pinned(context).suppress_nt_gf_over_double && responder_one_nt_runout_now(context))
     })
 }
 
 /// Responder holds redouble values: raw HCP at or above the [`RUNOUT_XX_MIN`]
 /// floor (see [`set_runout_xx_min`])
 fn responder_has_xx_values() -> Cons<impl Constraint + Clone> {
-    pred(|hand: Hand, _: &Context<'_>| {
+    pred(|hand: Hand, context: &Context<'_>| {
         let hcp: u8 = Suit::ASC
             .iter()
             .map(|&suit| holding_hcp::<u8>(hand[suit]))
             .sum();
-        hcp >= RUNOUT_XX_MIN.with(Cell::get)
+        hcp >= pinned(context).runout_xx_min
     })
 }
 
@@ -1197,7 +1253,7 @@ pub fn set_preempt_4m_require_ace(on: bool) {
 
 /// The gambling long-minor 3NT is armed (see [`set_gambling_3nt_over_double`])
 fn gambling_3nt_authored() -> Cons<impl Constraint + Clone> {
-    pred(|_: Hand, _: &Context<'_>| GAMBLING_3NT_OVER_DOUBLE.with(Cell::get))
+    pred(|_: Hand, context: &Context<'_>| pinned(context).gambling_3nt_over_double)
 }
 
 /// The gambling 3NT's long minor is semi-solid: it holds at least
@@ -1205,37 +1261,40 @@ fn gambling_3nt_authored() -> Cons<impl Constraint + Clone> {
 /// knob (not the build-time [`top_honors`][super::constraint::top_honors]) so the
 /// A/B can flip length-only vs semi-solid per board without rebuilding.
 fn gambling_3nt_semisolid(minor: Suit) -> Cons<impl Constraint + Clone> {
-    described("a semi-solid suit", move |hand: Hand, _: &Context<'_>| {
-        let top = [Rank::A, Rank::K, Rank::Q]
-            .into_iter()
-            .filter(|&rank| hand[minor].contains(rank))
-            .count() as u8;
-        top >= GAMBLING_3NT_TOP_HONORS.with(Cell::get)
-    })
+    described(
+        "a semi-solid suit",
+        move |hand: Hand, context: &Context<'_>| {
+            let top = [Rank::A, Rank::K, Rank::Q]
+                .into_iter()
+                .filter(|&rank| hand[minor].contains(rank))
+                .count() as u8;
+            top >= pinned(context).gambling_3nt_top_honors
+        },
+    )
 }
 
 /// The gambling 3NT's long minor is headed by its own ace — the suit ace cashes
 /// and buffs total tricks (the running suit loses no top trick to a missing ace).
 /// Vacuously satisfied when the ace requirement is off.
 fn gambling_3nt_suit_ace(minor: Suit) -> Cons<impl Constraint + Clone> {
-    described("the suit ace", move |hand: Hand, _: &Context<'_>| {
-        !GAMBLING_3NT_REQUIRE_ACE.with(Cell::get) || hand[minor].contains(Rank::A)
+    described("the suit ace", move |hand: Hand, context: &Context<'_>| {
+        !pinned(context).gambling_3nt_require_ace || hand[minor].contains(Rank::A)
     })
 }
 
 /// The preemptive long-major 4M is armed (see [`set_preempt_4m_over_double`])
 fn preempt_4m_authored() -> Cons<impl Constraint + Clone> {
-    pred(|_: Hand, _: &Context<'_>| PREEMPT_4M_OVER_DOUBLE.with(Cell::get))
+    pred(|_: Hand, context: &Context<'_>| pinned(context).preempt_4m_over_double)
 }
 
 /// Responder holds at least the preemptive-4M HCP floor (see [`PREEMPT_4M_FLOOR`])
 fn preempt_4m_values() -> Cons<impl Constraint + Clone> {
-    described("a modest opening", |hand: Hand, _: &Context<'_>| {
+    described("a modest opening", |hand: Hand, context: &Context<'_>| {
         let hcp: u8 = Suit::ASC
             .iter()
             .map(|&suit| holding_hcp::<u8>(hand[suit]))
             .sum();
-        hcp >= PREEMPT_4M_FLOOR.with(Cell::get)
+        hcp >= pinned(context).preempt_4m_floor
     })
 }
 
@@ -1243,20 +1302,23 @@ fn preempt_4m_values() -> Cons<impl Constraint + Clone> {
 /// [`PREEMPT_4M_TOP_HONORS`] of the top three honors (A/K/Q).  The major's mirror
 /// of [`gambling_3nt_semisolid`].
 fn preempt_4m_semisolid(major: Suit) -> Cons<impl Constraint + Clone> {
-    described("a semi-solid major", move |hand: Hand, _: &Context<'_>| {
-        let top = [Rank::A, Rank::K, Rank::Q]
-            .into_iter()
-            .filter(|&rank| hand[major].contains(rank))
-            .count() as u8;
-        top >= PREEMPT_4M_TOP_HONORS.with(Cell::get)
-    })
+    described(
+        "a semi-solid major",
+        move |hand: Hand, context: &Context<'_>| {
+            let top = [Rank::A, Rank::K, Rank::Q]
+                .into_iter()
+                .filter(|&rank| hand[major].contains(rank))
+                .count() as u8;
+            top >= pinned(context).preempt_4m_top_honors
+        },
+    )
 }
 
 /// The preemptive 4M's long major is headed by the trump ace — a sure trump trick
 /// and control that buffs total tricks.  Vacuously satisfied when off.
 fn preempt_4m_trump_ace(major: Suit) -> Cons<impl Constraint + Clone> {
-    described("the trump ace", move |hand: Hand, _: &Context<'_>| {
-        !PREEMPT_4M_REQUIRE_ACE.with(Cell::get) || hand[major].contains(Rank::A)
+    described("the trump ace", move |hand: Hand, context: &Context<'_>| {
+        !pinned(context).preempt_4m_require_ace || hand[major].contains(Rank::A)
     })
 }
 
@@ -1279,7 +1341,7 @@ pub fn one_nt_runout_universal_enabled() -> bool {
 
 /// The universal runout is enabled (see [`set_one_nt_runout_universal`])
 fn one_nt_runout_universal() -> Cons<impl Constraint + Clone> {
-    pred(|_: Hand, _: &Context<'_>| ONE_NT_RUNOUT_UNIVERSAL.with(Cell::get))
+    pred(|_: Hand, context: &Context<'_>| pinned(context).one_nt_runout_universal)
 }
 
 /// Set what responder's `2NT` shows in the doubled-1NT runout
@@ -1293,7 +1355,7 @@ pub fn set_unusual_2nt(mode: Unusual2nt) {
 
 /// Responder's `2NT` is configured to `mode` (see [`set_unusual_2nt`])
 fn unusual_2nt_is(mode: Unusual2nt) -> Cons<impl Constraint + Clone> {
-    pred(move |_: Hand, _: &Context<'_>| UNUSUAL_2NT.with(Cell::get) == mode)
+    pred(move |_: Hand, context: &Context<'_>| pinned(context).unusual_2nt == mode)
 }
 
 /// Enable or disable the trump-stack penalty double of the opponents' escape
@@ -1312,7 +1374,7 @@ pub fn penalize_escape_stack() -> bool {
 
 /// The trump-stack escape penalty is enabled (see [`set_penalize_escape_stack`])
 fn penalize_escape_stack_enabled() -> Cons<impl Constraint + Clone> {
-    pred(|_: Hand, _: &Context<'_>| PENALIZE_ESCAPE_STACK.with(Cell::get))
+    pred(|_: Hand, context: &Context<'_>| pinned(context).penalize_escape_stack)
 }
 
 /// Enable or disable the values penalty double of their escape from our 1NT-XX
@@ -1331,7 +1393,7 @@ pub fn penalize_escape_values() -> bool {
 
 /// The values escape penalty is enabled (see [`set_penalize_escape_values`])
 fn penalize_escape_values_enabled() -> Cons<impl Constraint + Clone> {
-    pred(|_: Hand, _: &Context<'_>| PENALIZE_ESCAPE_VALUES.with(Cell::get))
+    pred(|_: Hand, context: &Context<'_>| pinned(context).penalize_escape_values)
 }
 
 /// Enable or disable the Unusual-vs-Unusual penalty chase after `1NT (2NT) X`
@@ -1353,7 +1415,7 @@ pub fn uvu_encircle() -> bool {
 
 /// The UvU penalty chase is enabled (see [`set_uvu_encircle`])
 fn uvu_encircle_enabled() -> Cons<impl Constraint + Clone> {
-    pred(|_: Hand, _: &Context<'_>| UVU_ENCIRCLE.with(Cell::get))
+    pred(|_: Hand, context: &Context<'_>| pinned(context).uvu_encircle)
 }
 
 /// The index and bid of our side's natural 1NT that anchors a runout — either
@@ -1760,7 +1822,7 @@ fn partner_advanced_our_double() -> Cons<impl Constraint + Clone> {
 /// the takeout-double rule (the separate 17+ rule keeps the maximum doubling).
 fn minimum_reraise_blocked() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| {
-        rein_advance_raise_enabled() && partner_advanced_our_double_now(context)
+        pinned(context).rein_advance_raise && partner_advanced_our_double_now(context)
     })
 }
 
@@ -1798,7 +1860,7 @@ fn free_bid_gate(level: u8) -> Cons<impl Constraint + Clone> {
             .iter()
             .map(|&suit| holding_hcp::<u8>(hand[suit]))
             .sum();
-        level < 4 || !SETTLE_FLOOR.with(Cell::get) || (raw_hcp >= 11 && !has_fit(hand, context))
+        level < 4 || !pinned(context).settle_floor || (raw_hcp >= 11 && !has_fit(hand, context))
     })
 }
 
@@ -1969,7 +2031,7 @@ fn below_game() -> Cons<impl Constraint + Clone> {
 /// the `3NT`, so it fires in contested auctions too (`1NT (2♦) … 3NT`).
 fn correct_3nt_to_major_now() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| {
-        CORRECT_3NT_TO_MAJOR.with(Cell::get)
+        pinned(context).correct_3nt_to_major
             && context.last_bid() == Some(Bid::new(3, Strain::Notrump))
     })
 }
@@ -2014,7 +2076,7 @@ fn below_slam() -> Cons<impl Constraint + Clone> {
 fn keycard_trump(hand: Hand, context: &Context<'_>) -> Option<Suit> {
     let inferences = context.inferences();
     let partner = inferences.partner();
-    let candidates: &[Suit] = if minor_asks_now() {
+    let candidates: &[Suit] = if minor_asks(&context.decision_profile()) {
         &Suit::ASC
     } else {
         &[Suit::Hearts, Suit::Spades]
@@ -2153,7 +2215,7 @@ fn face_trump(auction: &[Call], ask: usize) -> Option<Suit> {
 /// [`set_rkcb_variant`]'s two-regimes note) — and scoping *here* means every
 /// recognizer and rule downstream inherits one claim table instead of
 /// re-deriving the stance.
-fn kickback_ladder(auction: &[Call], ask: usize) -> [Option<Suit>; 4] {
+fn kickback_ladder(auction: &[Call], ask: usize, variant: RkcbVariant) -> [Option<Suit>; 4] {
     let mut ladder = [None; 4];
     if face_trump(auction, ask).is_none() {
         return ladder;
@@ -2194,7 +2256,7 @@ fn kickback_ladder(auction: &[Call], ask: usize) -> [Option<Suit>; 4] {
         // The stance scopes the claim per trump: the full ladder relocates
         // everything, Redwood only the minors, and no stance is a hearts-only
         // ladder.
-        let claims = match rkcb_variant_now() {
+        let claims = match variant {
             RkcbVariant::Kickback => true,
             RkcbVariant::Redwood => trump < Suit::Hearts,
             RkcbVariant::Plain => false,
@@ -2243,13 +2305,14 @@ fn answer_trump(hand: Hand, context: &Context<'_>, ask: usize) -> Option<Suit> {
     // A relocated ask carries its own trump on the face ([`kickback_trump`]),
     // so none of the derivation below runs: the ladder already pinned the suit
     // for both members, and re-deriving it from a hand could only disagree.
-    if let Some(trump) = kickback_trump(auction, ask) {
+    let variant = relocation(context.reading_profile());
+    if let Some(trump) = kickback_trump(auction, ask, variant) {
         return Some(trump);
     }
     // The in-window answer, present once the auction extends past the
     // answerer's turn (the asker decoding it, or the answerer back on the
     // respect path).
-    let ask_bid = keycard_ask_bid(auction, ask);
+    let ask_bid = keycard_ask_bid(auction, ask, variant);
     let answer = auction.get(ask + 2).and_then(|call| match *call {
         Call::Bid(bid) if answer_step(ask_bid?, bid).is_some() => bid.strain.suit(),
         _ => None,
@@ -2329,12 +2392,16 @@ fn keycard_asked(hand: Hand, context: &Context<'_>) -> Option<(Suit, Bid)> {
 /// (the inference consult sites skip face-dead rules) share one predicate and
 /// cannot drift — the phase-5 fix for the §7.3.1 union poison.
 fn keycard_asked_face(context: &Context<'_>) -> Option<Bid> {
-    if !floor_rkcb_now() {
+    if !context.reading_profile().floor_rkcb() {
         return None;
     }
     let auction = context.auction();
     let n = auction.len();
-    let ask = keycard_ask_bid(auction, n.checked_sub(2)?)?;
+    let ask = keycard_ask_bid(
+        auction,
+        n.checked_sub(2)?,
+        relocation(context.reading_profile()),
+    )?;
     if !opponents_quiet_since(auction, n - 2) {
         return None;
     }
@@ -2411,8 +2478,8 @@ fn bid_successor(bid: Bid) -> Option<Bid> {
 /// alert exists to prevent.  (4NT's own recognizer is looser — a contested 4NT
 /// with an agreed suit is still keycard — but it has no natural meaning to
 /// lose.)
-fn kickback_trump(auction: &[Call], ask: usize) -> Option<Suit> {
-    if !relocating_now() {
+fn kickback_trump(auction: &[Call], ask: usize, variant: RkcbVariant) -> Option<Suit> {
+    if variant == RkcbVariant::Plain {
         return None;
     }
     let Some(&Call::Bid(bid)) = auction.get(ask) else {
@@ -2429,7 +2496,7 @@ fn kickback_trump(auction: &[Call], ask: usize) -> Option<Suit> {
     {
         return None;
     }
-    kickback_ladder(auction, ask)[bid.strain.suit()? as usize]
+    kickback_ladder(auction, ask, variant)[bid.strain.suit()? as usize]
 }
 
 /// The keycard ask made at `ask`, if any: 4NT always, plus the kickback
@@ -2451,16 +2518,16 @@ fn kickback_trump(auction: &[Call], ask: usize) -> Option<Suit> {
 /// is 4NT over a 4♠ ask, §7.4's −15 IMP smoke-run failure.  A plain 4NT ask can
 /// never collide this way: all four of its rungs are five-level, which is why
 /// the kickback-off system is untouched by any of this.
-fn keycard_ask_bid(auction: &[Call], ask: usize) -> Option<Bid> {
+fn keycard_ask_bid(auction: &[Call], ask: usize, variant: RkcbVariant) -> Option<Bid> {
     let &Call::Bid(bid) = auction.get(ask)? else {
         return None;
     };
     // An answer is an answer, never a re-ask — and neither is any later rung.
     // [`conversation_rung`] owns that judgement whole.
-    if conversation_rung(auction, ask) {
+    if conversation_rung(auction, ask, variant) {
         return None;
     }
-    if kickback_trump(auction, ask).is_some() {
+    if kickback_trump(auction, ask, variant).is_some() {
         return Some(bid);
     }
     (bid == Bid::new(4, Strain::Notrump)).then_some(bid)
@@ -2488,7 +2555,9 @@ fn keycard_ask_bid(auction: &[Call], ask: usize) -> Option<Bid> {
 #[doc(hidden)]
 #[must_use]
 pub fn kickback_offered_at(auction: &[Call], index: usize, trump: Suit) -> bool {
-    relocating_now() && kickback_ladder(auction, index)[trump as usize].is_some()
+    let variant = relocation_now();
+    variant != RkcbVariant::Plain
+        && kickback_ladder(auction, index, variant)[trump as usize].is_some()
 }
 
 /// The keycard ask made at `index`, if the call there is one: the asking bid
@@ -2508,8 +2577,9 @@ pub fn kickback_offered_at(auction: &[Call], index: usize, trump: Suit) -> bool 
 #[doc(hidden)]
 #[must_use]
 pub fn keycard_ask_at(auction: &[Call], index: usize) -> Option<(Bid, Suit, bool)> {
-    let ask = keycard_ask_bid(auction, index)?;
-    match kickback_trump(auction, index) {
+    let variant = relocation_now();
+    let ask = keycard_ask_bid(auction, index, variant)?;
+    match kickback_trump(auction, index, variant) {
         Some(trump) => Some((ask, trump, true)),
         None => Some((ask, face_trump(auction, index)?, false)),
     }
@@ -2682,11 +2752,12 @@ pub(in crate::bidding) fn king_relay(reply: Bid, trump: Suit) -> Option<KingRela
 /// Deliberately looser than [`keycard_ask_bid`] — it exists to *veto* reading a
 /// relay rung as a fresh ask, so over-matching costs nothing while
 /// under-matching would let the phantom through.
-fn plausible_ask(auction: &[Call], index: usize) -> Option<Bid> {
+fn plausible_ask(auction: &[Call], index: usize, variant: RkcbVariant) -> Option<Bid> {
     let &Call::Bid(bid) = auction.get(index)? else {
         return None;
     };
-    (bid == Bid::new(4, Strain::Notrump) || kickback_trump(auction, index).is_some()).then_some(bid)
+    (bid == Bid::new(4, Strain::Notrump) || kickback_trump(auction, index, variant).is_some())
+        .then_some(bid)
 }
 
 /// The call at `index` belongs to a keycard conversation already in motion —
@@ -2722,13 +2793,13 @@ fn plausible_ask(auction: &[Call], index: usize) -> Option<Bid> {
 ///
 /// Face-only and non-recursive: each arm walks *forward* from a candidate
 /// anchor and consults [`plausible_ask`] rather than [`keycard_ask_bid`].
-fn conversation_rung(auction: &[Call], index: usize) -> bool {
+fn conversation_rung(auction: &[Call], index: usize, variant: RkcbVariant) -> bool {
     let Some(&Call::Bid(made)) = auction.get(index) else {
         return false;
     };
     let answers_partners_ask = index
         .checked_sub(2)
-        .and_then(|anchor| plausible_ask(auction, anchor))
+        .and_then(|anchor| plausible_ask(auction, anchor, variant))
         .is_some_and(|ask| answer_step(ask, made).is_some());
     if answers_partners_ask {
         return true;
@@ -2737,7 +2808,7 @@ fn conversation_rung(auction: &[Call], index: usize) -> bool {
         index
             .checked_sub(back)
             .and_then(|anchor| {
-                let ask = plausible_ask(auction, anchor)?;
+                let ask = plausible_ask(auction, anchor, variant)?;
                 opponents_quiet_since(auction, anchor).then_some(())?;
                 let Call::Bid(answer) = *auction.get(anchor + 2)? else {
                     return None;
@@ -2887,12 +2958,16 @@ fn dopi_window_face(context: &Context<'_>) -> bool {
 
 /// The face half of [`keycard_asked_over_bid`] — see [`keycard_asked_face`]
 fn keycard_asked_over_bid_face(context: &Context<'_>) -> Option<Bid> {
-    if !floor_rkcb_now() {
+    if !context.reading_profile().floor_rkcb() {
         return None;
     }
     let auction = context.auction();
     let n = auction.len();
-    keycard_ask_bid(auction, n.checked_sub(2)?)?;
+    keycard_ask_bid(
+        auction,
+        n.checked_sub(2)?,
+        relocation(context.reading_profile()),
+    )?;
     let Call::Bid(their) = auction[n - 1] else {
         return None;
     };
@@ -3004,12 +3079,16 @@ fn depo_answer(even: bool) -> Cons<impl Constraint + Clone> {
 /// decode had to guess, driving six off two keycards on every high guess.
 fn keycard_answered(hand: Hand, context: &Context<'_>) -> Option<(Suit, usize)> {
     use super::american::slam::count_keycards;
-    if !floor_rkcb_now() {
+    if !context.reading_profile().floor_rkcb() {
         return None;
     }
     let auction = context.auction();
     let n = auction.len();
-    let ask = keycard_ask_bid(auction, n.checked_sub(4)?)?;
+    let ask = keycard_ask_bid(
+        auction,
+        n.checked_sub(4)?,
+        relocation(context.reading_profile()),
+    )?;
     if matches!(auction[n - 1], Call::Bid(_)) {
         return None;
     }
@@ -3121,7 +3200,7 @@ fn relay_window(hand: Hand, context: &Context<'_>, back: usize) -> Option<(Suit,
     }
     let auction = context.auction();
     let anchor = auction.len() - back;
-    let ask = keycard_ask_bid(auction, anchor)?;
+    let ask = keycard_ask_bid(auction, anchor, relocation(context.reading_profile()))?;
     let Call::Bid(answer) = auction[anchor + 2] else {
         return None;
     };
@@ -3142,14 +3221,14 @@ fn relay_window(hand: Hand, context: &Context<'_>, back: usize) -> Option<(Suit,
 /// the constraint (it cannot derive the trump), which is the right direction:
 /// the gate must be *implied by* the constraint for exclusion to stay sound.
 fn relay_window_face(context: &Context<'_>, back: usize) -> bool {
-    if !floor_rkcb_now() {
+    if !context.reading_profile().floor_rkcb() {
         return false;
     }
     let auction = context.auction();
     let Some(anchor) = auction.len().checked_sub(back) else {
         return false;
     };
-    let Some(ask) = keycard_ask_bid(auction, anchor) else {
+    let Some(ask) = keycard_ask_bid(auction, anchor, relocation(context.reading_profile())) else {
         return false;
     };
     if !opponents_quiet_since(auction, anchor) {
@@ -3274,7 +3353,11 @@ fn queen_settled(hand: Hand, context: &Context<'_>, trump: Suit) -> Option<bool>
     }
     let auction = context.auction();
     let n = auction.len();
-    let ask = keycard_ask_bid(auction, n.checked_sub(4)?)?;
+    let ask = keycard_ask_bid(
+        auction,
+        n.checked_sub(4)?,
+        relocation(context.reading_profile()),
+    )?;
     let Call::Bid(answer) = auction[n - 2] else {
         return None;
     };
@@ -3549,12 +3632,15 @@ fn answer_doubled() -> Cons<impl Constraint + Clone> {
 fn respect_keycard_signoff() -> Cons<impl Constraint + Clone> {
     use super::american::slam::count_keycards;
     pred(|hand: Hand, context: &Context<'_>| {
-        if !floor_rkcb_now() {
+        if !context.reading_profile().floor_rkcb() {
             return false;
         }
         let auction = context.auction();
         let n = auction.len();
-        let Some(ask) = n.checked_sub(6).and_then(|i| keycard_ask_bid(auction, i)) else {
+        let Some(ask) = n
+            .checked_sub(6)
+            .and_then(|i| keycard_ask_bid(auction, i, relocation(context.reading_profile())))
+        else {
             return false;
         };
         if !opponents_quiet_since(auction, n - 6) {
@@ -3681,7 +3767,7 @@ fn combined_hcp(threshold: u8) -> Cons<impl Constraint + Clone> {
     pred(move |hand: Hand, context: &Context<'_>| {
         let inferences = context.inferences();
         let partner = inferences.partner();
-        let (own, partner_min) = if NT_HCP_READ.with(Cell::get) {
+        let (own, partner_min) = if pinned(context).nt_hcp_read {
             (
                 raw_hcp(hand),
                 partner
@@ -3703,7 +3789,7 @@ fn slam_entry_reached() -> Cons<impl Constraint + Clone> {
     pred(|hand: Hand, context: &Context<'_>| {
         // Bilans mode: enter keycarding once the small slam clears the entry
         // probability — the net analogue of the support-point floor below.
-        if BILANS_FLOOR.with(Cell::get) {
+        if pinned(context).bilans_floor {
             return keycard_trump(hand, context).is_some_and(|trump| {
                 let strain = Strain::from(trump);
                 bilans_accepts(
@@ -3722,7 +3808,7 @@ fn slam_entry_reached() -> Cons<impl Constraint + Clone> {
         // FLOOR_SLAM_ENTRY resweep.
         let partner_min = partner_slam_strength(context);
         u16::from(support_point_count(hand)) + u16::from(partner_min)
-            >= u16::from(FLOOR_SLAM_ENTRY.with(Cell::get))
+            >= u16::from(pinned(context).floor_slam_entry)
     })
 }
 
@@ -3751,15 +3837,15 @@ fn fit_sum_game(suit: Suit, slack: u8) -> Cons<impl Constraint + Clone> {
         let partner = inferences.partner();
         // Edit 1: partner's raise valued on the support scale when that gauge is
         // populated (a fit-showing raise fired), else the length-scale floor.
-        let partner_pts = FIT_SUM_SUPPORT_READ
-            .with(Cell::get)
+        let partner_pts = pinned(context)
+            .fit_sum_support_read
             .then(|| partner.strength.support_floor(suit))
             .flatten()
             .unwrap_or_else(|| partner.strength.shown_floor());
         let own = support_point_count_in(hand, suit);
         let fit = hand[suit].len() as u16 + u16::from(partner.length(suit).min);
         u16::from(own) + u16::from(partner_pts) + fit
-            >= u16::from(FIT_SUM_GAME.with(Cell::get).saturating_sub(slack))
+            >= u16::from(pinned(context).fit_sum_game.saturating_sub(slack))
     })
 }
 
@@ -3869,14 +3955,15 @@ fn bilans_accepts(
 /// historical short-circuit behavior even though surrounding `And`/`Or`
 /// constraints are eager.
 fn bilans_trick_gate(
-    knob: fn() -> bool,
+    knob: fn(&DecisionProfile) -> bool,
     want: bool,
     strain: Strain,
     tricks: u8,
     threshold: BilansThreshold,
 ) -> Cons<impl Constraint + Clone> {
     pred(move |hand: Hand, context: &Context<'_>| {
-        knob() && want == bilans_accepts(hand, context, strain, tricks, threshold)
+        knob(&context.decision_profile())
+            && want == bilans_accepts(hand, context, strain, tricks, threshold)
     })
 }
 
@@ -3887,7 +3974,7 @@ fn bilans_trick_gate(
 /// that exists *only* knob-on, for a decision the point sums never priced.
 fn net_makes(strain: Strain, tricks: u8) -> Cons<impl Constraint + Clone> {
     bilans_trick_gate(
-        bilans_enabled,
+        bilans_pinned,
         true,
         strain,
         tricks,
@@ -3926,7 +4013,7 @@ fn points_or_net(
     // ponytail: the `!net_collar()` legs are the legacy mask, byte-identical to
     // the shipped wiring; they die with the knob flip whichever way it lands.
     (authored & (net_collar() | !bilans_floor()))
-        | ((!net_collar() | collar) & net_break_even_gate(bilans_enabled, true, strain, tricks))
+        | ((!net_collar() | collar) & net_break_even_gate(bilans_pinned, true, strain, tricks))
 }
 
 /// A **slam** milestone's authored point arithmetic, which the evaluator net may
@@ -3946,10 +4033,10 @@ fn points_and_net(
     debug_assert!(tricks >= 12, "a slam milestone, per break_even's own key");
     // ponytail: as in `points_or_net`, the first two arms are the legacy mask.
     (!net_collar() & !bilans_floor() & authored.clone())
-        | (!net_collar() & net_break_even_gate(bilans_enabled, true, strain, tricks))
+        | (!net_collar() & net_break_even_gate(bilans_pinned, true, strain, tricks))
         | (net_collar()
             & authored
-            & (!bilans_floor() | net_break_even_gate(bilans_enabled, true, strain, tricks)))
+            & (!bilans_floor() | net_break_even_gate(bilans_pinned, true, strain, tricks)))
 }
 
 /// The evaluator net's verdict on `tricks` of ours in `strain`, as a
@@ -3962,7 +4049,7 @@ fn points_and_net(
 /// partition.  The knob check short-circuits ahead of the forward pass (And/Or
 /// constraints do not short-circuit), so knob-off never touches the net.
 pub(crate) fn net_break_even_gate(
-    knob: fn() -> bool,
+    knob: fn(&DecisionProfile) -> bool,
     want: bool,
     strain: Strain,
     tricks: u8,
@@ -4069,7 +4156,7 @@ impl Interpretation {
 /// happily passes partner's 2/1 in a partscore ([`set_two_over_one_force`]).
 fn two_over_one_game_force(context: &Context<'_>) -> bool {
     let auction = context.auction();
-    if !two_over_one_force() || !context.undisturbed() {
+    if !context.decision_profile().two_over_one_force || !context.undisturbed() {
         return false;
     }
     let Some((index, opening)) = opening_bid(auction) else {
@@ -4139,7 +4226,7 @@ pub fn set_penalty_latch(enabled: bool) {
 /// penalty" — even after our side bids a suit of its own.  Gated on
 /// [`set_penalty_latch`], so it is dormant by default.
 fn penalty_latched(context: &Context<'_>) -> bool {
-    if !PENALTY_LATCH.with(Cell::get) {
+    if !context.reading_profile().penalty_latch() {
         return false;
     }
     let auction = context.auction();
@@ -4193,7 +4280,7 @@ pub fn penalty_no_pull() -> bool {
 /// overcall-shaped rules that fire off [`we_have_not_bid`] (a double is not a bid).
 fn may_pull_penalty() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| {
-        !(PENALTY_NO_PULL.with(Cell::get) && penalty_latched(context))
+        !(pinned(context).penalty_no_pull && penalty_latched(context))
     })
 }
 
@@ -4215,12 +4302,12 @@ pub fn set_latch_style(style: LatchStyle) {
 
 /// The latched double is the cooperative *optional* style (see [`LatchStyle`])
 fn latch_optional_c() -> Cons<impl Constraint + Clone> {
-    pred(|_: Hand, _: &Context<'_>| LATCH_STYLE.with(Cell::get) == LatchStyle::Optional)
+    pred(|_: Hand, context: &Context<'_>| pinned(context).latch_style == LatchStyle::Optional)
 }
 
 /// The latched double is the pure *penalty* style (the default; see [`LatchStyle`])
 fn latch_penalty_c() -> Cons<impl Constraint + Clone> {
-    pred(|_: Hand, _: &Context<'_>| LATCH_STYLE.with(Cell::get) == LatchStyle::Penalty)
+    pred(|_: Hand, context: &Context<'_>| pinned(context).latch_style == LatchStyle::Penalty)
 }
 
 /// Enable or disable the advancer's runout from their redoubled penalty double
@@ -4247,7 +4334,7 @@ pub fn advancer_xx_runout_enabled() -> bool {
 /// penalty-doubled their 1NT, their next call was the redouble, and it is now the
 /// doubler's partner (the advancer) to act for the first time.
 fn advancer_xx_runout_now(context: &Context<'_>) -> bool {
-    if !ADVANCER_XX_RUNOUT.with(Cell::get) {
+    if !pinned(context).advancer_xx_runout {
         return false;
     }
     let auction = context.auction();
@@ -4376,7 +4463,7 @@ pub(crate) fn forced(context: &Context<'_>) -> bool {
 /// passed out in 5♥.  Shares [`opponents_quiet_since`] with the machinery's
 /// own gates so the two never disagree.
 pub(crate) fn keycard_conversation_now(context: &Context<'_>) -> bool {
-    if !floor_rkcb_now() {
+    if !context.reading_profile().floor_rkcb() {
         return false;
     }
     let auction = context.auction();
@@ -4385,8 +4472,9 @@ pub(crate) fn keycard_conversation_now(context: &Context<'_>) -> bool {
     // Over a plain 4NT ask the rungs are exactly the four five-level suits this
     // rail has always matched, so kickback-off behaviour is unchanged.
     let ask_at = |k: usize| {
-        n.checked_sub(k)
-            .and_then(|index| keycard_ask_bid(auction, index))
+        n.checked_sub(k).and_then(|index| {
+            keycard_ask_bid(auction, index, relocation(context.reading_profile()))
+        })
     };
     let rung =
         |ask: Bid, call: Call| matches!(call, Call::Bid(bid) if answer_step(ask, bid).is_some());
@@ -4530,7 +4618,7 @@ fn advance_of_overcall(context: &Context<'_>) -> Option<(Suit, Suit, u8)> {
 /// limit-plus raise) over a new-suit transfer (advancer's own five-card suit).
 fn rubens_transfer(source: Suit, into_partner: bool) -> Cons<impl Constraint + Clone> {
     pred(move |_: Hand, context: &Context<'_>| {
-        rubens_advances_enabled()
+        context.reading_profile().rubens_advances()
             && advance_of_overcall(context).is_some_and(|(x, y, level)| {
                 level == 1
                     && (x as u8) <= (source as u8)
@@ -4544,7 +4632,7 @@ fn rubens_transfer(source: Suit, into_partner: bool) -> Cons<impl Constraint + C
 /// a limit-plus raise, the cue being the opponents' suit `X`
 fn rubens_cue_raise(cue: Suit) -> Cons<impl Constraint + Clone> {
     pred(move |_: Hand, context: &Context<'_>| {
-        rubens_advances_enabled()
+        context.reading_profile().rubens_advances()
             && advance_of_overcall(context)
                 .is_some_and(|(x, _, level)| level == 2 && x as u8 == cue as u8)
     })
@@ -4557,7 +4645,7 @@ fn rubens_cue_raise(cue: Suit) -> Cons<impl Constraint + Clone> {
 /// Mechanical (hand-independent), like completing a transfer over our own
 /// notrump — see [`TRANSFERS`].
 fn rubens_completion(context: &Context<'_>) -> Option<Suit> {
-    if !rubens_advances_enabled() {
+    if !context.reading_profile().rubens_advances() {
         return None;
     }
     let auction = context.auction();
@@ -4594,7 +4682,7 @@ fn rubens_completes(target: Suit) -> Cons<impl Constraint + Clone> {
 /// the two level (A/B'd the dominant Rubens leak: a quarter of the divergent
 /// boards died in this passout).  Returns `(X = their suit, Y = our suit)`.
 fn rubens_cue_answer(context: &Context<'_>) -> Option<(Suit, Suit)> {
-    if !rubens_advances_enabled() {
+    if !context.reading_profile().rubens_advances() {
         return None;
     }
     let auction = context.auction();
@@ -4639,7 +4727,7 @@ fn rubens_into_partner(y: Suit) -> Cons<impl Constraint + Clone> {
 /// limited partner to no super-accept, so only extras beyond our shown
 /// ten-plus move again.
 fn rubens_raiser_rebid(context: &Context<'_>) -> Option<Suit> {
-    if !rubens_advances_enabled() {
+    if !context.reading_profile().rubens_advances() {
         return None;
     }
     let auction = context.auction();
@@ -4675,7 +4763,7 @@ fn rubens_raiser_rebids(y: Suit) -> Cons<impl Constraint + Clone> {
 /// `S+1 ≠ Y`: the transfer showed the suit cheaply without settling forcing
 /// questions, so a mild hand passes the completion and extras move again.
 fn rubens_transferee_rebid(context: &Context<'_>) -> Option<Suit> {
-    if !rubens_advances_enabled() {
+    if !context.reading_profile().rubens_advances() {
         return None;
     }
     let auction = context.auction();
@@ -4731,7 +4819,7 @@ fn rubens_new_suit_completion(target: Suit) -> Cons<impl Constraint + Clone> {
 /// [`rubens_transfer`], at the same weight.
 fn natural_new_suit_advance(target: Suit) -> Cons<impl Constraint + Clone> {
     pred(move |_: Hand, context: &Context<'_>| {
-        !rubens_advances_enabled()
+        !context.reading_profile().rubens_advances()
             && advance_of_overcall(context).is_some_and(|(x, y, level)| {
                 level == 1 && (x as u8) < (target as u8) && (target as u8) < (y as u8)
             })
@@ -5509,7 +5597,7 @@ pub fn instinct() -> Rules {
             Bid::new(4, Strain::Notrump),
             168,
             pred(|hand: Hand, context: &Context<'_>| {
-                floor_rkcb_now()
+                context.reading_profile().floor_rkcb()
                     && context.undisturbed()
                     && keycard_trump(hand, context).is_some_and(|trump| {
                         let inferences = context.inferences();
@@ -5729,7 +5817,12 @@ pub fn instinct() -> Rules {
                             let inferences = context.inferences();
                             let partner = inferences.partner().length(trump).min;
                             let on_table = inferences.me().length(trump).min + partner;
-                            kickback_ladder(auction, auction.len())[target as usize] == Some(trump)
+                            kickback_ladder(
+                                auction,
+                                auction.len(),
+                                relocation(context.reading_profile()),
+                            )[target as usize]
+                                == Some(trump)
                                 && !bare_four_four_own_flat(hand, trump, usize::from(partner))
                                 && (on_table >= 8
                                     || face_trump(auction, auction.len()) == Some(trump))
@@ -5746,9 +5839,14 @@ pub fn instinct() -> Rules {
                     rkcb_relocated_ask_face(target),
                     move |context: &Context<'_>| {
                         let auction = context.auction();
-                        relocating_now()
+                        relocation(context.reading_profile()) != RkcbVariant::Plain
                             && context.undisturbed()
-                            && kickback_ladder(auction, auction.len())[target as usize].is_some()
+                            && kickback_ladder(
+                                auction,
+                                auction.len(),
+                                relocation(context.reading_profile()),
+                            )[target as usize]
+                                .is_some()
                             && partner_last_call(auction)
                                 .is_none_or(|bid| bid.strain != Strain::Notrump)
                     },

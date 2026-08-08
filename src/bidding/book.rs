@@ -602,6 +602,12 @@ impl Stance {
         self.invalidate_cache_identity();
     }
 
+    /// Move this stance's probed-overlay bit — [`probe`][Self::probe]'s driver
+    fn set_probed_reading(&mut self, on: bool) {
+        self.profile.reading.set_probed(on);
+        self.invalidate_cache_identity();
+    }
+
     /// Read the opponents' calls off `them` instead of off our own books
     ///
     /// The reading half of a declared opponent (rows Phase 2b): their alerted
@@ -1031,16 +1037,7 @@ impl Stance {
         // building for wasm (`default-features = false`).  ~2 ms/board, so an
         // A/B-scale probe is minutes once per arm; add an optional rayon
         // feature only if probe time ever dominates a harness.
-        let harvest = |stance: &Self, probed_on: bool| -> HashMap<Vec<Call>, Observed> {
-            // The second pass must serve the first pass's boxes through the
-            // fold consumption will use: arm `set_probed_vacuous_reading`
-            // *before* probing and the fixed point runs under the vacuous
-            // scope (the full-fold toggle stays off); otherwise the full fold
-            // serves, as before.  A re-probe of a stance with a stale map
-            // under an armed vacuous knob would serve that map in its first
-            // pass — probe fresh stances.
-            let vacuous = super::inference::probed_vacuous_reading();
-            super::inference::set_probed_reading(probed_on && !vacuous);
+        let harvest = |stance: &Self| -> HashMap<Vec<Call>, Observed> {
             let mut into: HashMap<Vec<Call>, Observed> = HashMap::new();
             for board in 0..boards {
                 let deal = contract_bridge::deck::full_deal(&mut {
@@ -1063,12 +1060,24 @@ impl Stance {
                 .collect()
         };
 
-        let was = super::inference::probed_reading();
-        let first = boxed(harvest(self, false));
+        // The two passes differ only in whether the stance reads its own
+        // probed map, which is now a bit of its pinned profile rather than a
+        // thread-local — so the fixed point is driven by mutating this stance,
+        // and a probe on one thread no longer leaks into another's readings.
+        // The second pass must serve the first pass's boxes through the fold
+        // consumption will use: build under `set_probed_vacuous_reading` and
+        // the fixed point runs under the vacuous scope (the full-fold toggle
+        // stays off); otherwise the full fold serves, as before.  A re-probe
+        // of a stance with a stale map would serve that map in its first pass
+        // — probe fresh stances.
+        let was = self.profile.reading.probed_reading();
+        let vacuous = self.profile.reading.probed_vacuous_reading();
+        self.set_probed_reading(false);
+        let first = boxed(harvest(self));
         self.probed = first;
-        self.invalidate_cache_identity();
-        let second = boxed(harvest(self, true));
-        super::inference::set_probed_reading(was);
+        self.set_probed_reading(!vacuous);
+        let second = boxed(harvest(self));
+        self.set_probed_reading(was);
 
         let drifted = second
             .iter()

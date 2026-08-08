@@ -30,7 +30,7 @@
 //! ```
 
 use super::context::Context;
-use super::inference::{Envelope, EnvelopeUnion, Range, envelope_union_reading};
+use super::inference::{Envelope, EnvelopeUnion, Range, ReadingProfile};
 use contract_bridge::auction::Call;
 use contract_bridge::eval::{self, HandEvaluator, SimpleEvaluator};
 use contract_bridge::{Hand, Holding, Level, Rank, Strain, Suit};
@@ -485,11 +485,12 @@ impl Constraint for EnvelopeUnion {
         }
     }
 
-    fn project(&self, _: &Context<'_>) -> EnvelopeUnion {
+    fn project(&self, context: &Context<'_>) -> EnvelopeUnion {
+        let profile = context.reading_profile();
         self.boxes()
             .iter()
             .map(|&envelope| EnvelopeUnion::from(envelope))
-            .reduce(EnvelopeUnion::disjoin)
+            .reduce(|a, b| a.disjoin_with(b, profile))
             .unwrap_or_else(EnvelopeUnion::unknown)
     }
 }
@@ -569,34 +570,38 @@ impl<A: Constraint, B: Constraint> Constraint for And<A, B> {
     }
 
     fn project(&self, context: &Context<'_>) -> EnvelopeUnion {
+        let profile = context.reading_profile();
         self.0
             .project(context)
-            .intersect_owned(&self.1.project(context))
+            .intersect_owned(&self.1.project(context), profile)
     }
 
     fn project_band(&self, context: &Context<'_>) -> EnvelopeUnion {
+        let profile = context.reading_profile();
         self.0
             .project_band(context)
-            .intersect_owned(&self.1.project_band(context))
+            .intersect_owned(&self.1.project_band(context), profile)
     }
 
     fn project_complement(&self, context: &Context<'_>) -> EnvelopeUnion {
+        let profile = context.reading_profile();
         // De Morgan: `!(A & B)` = `!A | !B`, the disjunction of the arm
         // complements.  New precision (the default was ⊤), so the whole
         // reading sits behind the knob — knob-off stays ⊤, today's hull.
-        if envelope_union_reading() {
+        if profile.envelope_union() {
             self.0
                 .project_complement(context)
-                .disjoin(self.1.project_complement(context))
+                .disjoin_with(self.1.project_complement(context), profile)
         } else {
             EnvelopeUnion::unknown()
         }
     }
 
     fn announce(&self, context: &Context<'_>) -> EnvelopeUnion {
+        let profile = context.reading_profile();
         self.0
             .announce(context)
-            .intersect_owned(&self.1.announce(context))
+            .intersect_owned(&self.1.announce(context), profile)
     }
 }
 
@@ -631,30 +636,38 @@ impl<A: Constraint, B: Constraint> Constraint for Or<A, B> {
     }
 
     fn project(&self, context: &Context<'_>) -> EnvelopeUnion {
-        self.0.project(context).disjoin(self.1.project(context))
+        let profile = context.reading_profile();
+        self.0
+            .project(context)
+            .disjoin_with(self.1.project(context), profile)
     }
 
     fn project_band(&self, context: &Context<'_>) -> EnvelopeUnion {
+        let profile = context.reading_profile();
         self.0
             .project_band(context)
-            .disjoin(self.1.project_band(context))
+            .disjoin_with(self.1.project_band(context), profile)
     }
 
     fn project_complement(&self, context: &Context<'_>) -> EnvelopeUnion {
+        let profile = context.reading_profile();
         // De Morgan: `!(A | B)` = `!A & !B` — an *intersection*, which always
         // tightens, so the whole reading sits behind the knob (knob-off stays
         // ⊤, today's hull; `EnvelopeUnion::intersect` never consults the knob itself).
-        if envelope_union_reading() {
+        if profile.envelope_union() {
             self.0
                 .project_complement(context)
-                .intersect_owned(&self.1.project_complement(context))
+                .intersect_owned(&self.1.project_complement(context), profile)
         } else {
             EnvelopeUnion::unknown()
         }
     }
 
     fn announce(&self, context: &Context<'_>) -> EnvelopeUnion {
-        self.0.announce(context).disjoin(self.1.announce(context))
+        let profile = context.reading_profile();
+        self.0
+            .announce(context)
+            .disjoin_with(self.1.announce(context), profile)
     }
 }
 
@@ -694,10 +707,11 @@ impl<T: Constraint> Constraint for Flip<T> {
     }
 
     fn project_complement(&self, context: &Context<'_>) -> EnvelopeUnion {
+        let profile = context.reading_profile();
         // `!!A = A`: the double negation accepts exactly `A`'s hands, so the
         // sound (and tight) reading is `A`'s two-sided band.  New precision —
         // knob-gated; knob-off keeps today's ⊤.
-        if envelope_union_reading() {
+        if profile.envelope_union() {
             self.0.project_band(context)
         } else {
             EnvelopeUnion::unknown()
@@ -1418,7 +1432,8 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Hcp<R> {
         EnvelopeUnion::from(hcp_band(bound_range(&self.range, Range::FULL_POINTS.max)))
     }
 
-    fn project_complement(&self, _: &Context<'_>) -> EnvelopeUnion {
+    fn project_complement(&self, context: &Context<'_>) -> EnvelopeUnion {
+        let profile = context.reading_profile();
         // `!hcp(13..)` is "at most twelve raw HCP", which the upgraded scale
         // then widens upward by the same slack `project_band` owes it.  A
         // two-sided band complements to its two outer halves through
@@ -1429,7 +1444,7 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Hcp<R> {
             Range::FULL_POINTS.max,
         )
         .map(|half| EnvelopeUnion::from(hcp_band(half)))
-        .reduce(EnvelopeUnion::disjoin)
+        .reduce(|a, b| a.disjoin_with(b, profile))
         .unwrap_or_else(EnvelopeUnion::unknown)
     }
 }
@@ -1640,14 +1655,15 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Points<R> {
         describe_int_range(&self.range, "points")
     }
 
-    fn project(&self, _: &Context<'_>) -> EnvelopeUnion {
+    fn project(&self, context: &Context<'_>) -> EnvelopeUnion {
+        let profile = context.reading_profile();
         // Floor only, matching every hand-written reader (`at_least(floor,
         // CAP)`): sound whether or not the fuzzy-strength upgrade is on, since
         // the upgraded point count is never below the band's floor.
         let floor = bound_range(&self.range, Range::FULL_POINTS.max).min;
         let mut inference = Envelope::unknown();
         inference.strength.points = Range::new(floor, Range::FULL_POINTS.max);
-        if envelope_union_reading() {
+        if profile.envelope_union() {
             // `point_count` exceeds raw HCP by at most `hcp_ceiling_slack`,
             // so a points floor implies an HCP floor slacked by the scale's
             // maximum upgrade — without this, a `points | hcp` disjunction
@@ -1661,13 +1677,14 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Points<R> {
         EnvelopeUnion::from(inference)
     }
 
-    fn project_band(&self, _: &Context<'_>) -> EnvelopeUnion {
+    fn project_band(&self, context: &Context<'_>) -> EnvelopeUnion {
+        let profile = context.reading_profile();
         // Both bounds exact: `points` gauges the shared `point_count` scalar
         // the `Envelope` scale records, whatever scale it is set to.
         let mut inference = Envelope::unknown();
         let band = bound_range(&self.range, Range::FULL_POINTS.max);
         inference.strength.points = band;
-        if envelope_union_reading() {
+        if profile.envelope_union() {
             // The two-sided HCP image of a points band: down by the scale's
             // maximum upgrade, up by its flat-hand under-read (rule of N+8
             // reads a flat 4-3-3-3 one under its HCP).  Knob-gated as above.
@@ -1681,7 +1698,8 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Points<R> {
         EnvelopeUnion::from(inference)
     }
 
-    fn project_complement(&self, _: &Context<'_>) -> EnvelopeUnion {
+    fn project_complement(&self, context: &Context<'_>) -> EnvelopeUnion {
+        let profile = context.reading_profile();
         // Exact on the same scale, so the complement halves are exact too;
         // `disjoin` keeps knob-off hulled to the full range (the legacy
         // single-envelope reading), knob-on both boxes.
@@ -1694,7 +1712,7 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Points<R> {
             inference.strength.points = half;
             EnvelopeUnion::from(inference)
         })
-        .reduce(EnvelopeUnion::disjoin)
+        .reduce(|a, b| a.disjoin_with(b, profile))
         .unwrap_or_else(EnvelopeUnion::unknown)
     }
 }
@@ -1838,11 +1856,12 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for SupportPoints<R> {
         EnvelopeUnion::from(inference)
     }
 
-    fn project_complement(&self, _: &Context<'_>) -> EnvelopeUnion {
+    fn project_complement(&self, context: &Context<'_>) -> EnvelopeUnion {
+        let profile = context.reading_profile();
         // Exact on the dedicated gauge.  No complement existed before the
         // envelope-union wave (even one-sided reads were ⊤), so the whole reading is new
         // precision and sits behind the knob — knob-off stays ⊤.
-        if !envelope_union_reading() {
+        if !profile.envelope_union() {
             return EnvelopeUnion::unknown();
         }
         complement_halves(self.band(), Range::FULL_POINTS.max)
@@ -1851,7 +1870,7 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for SupportPoints<R> {
                 inference.strength.support_points = support_slots(self.suit, half);
                 EnvelopeUnion::from(inference)
             })
-            .reduce(EnvelopeUnion::disjoin)
+            .reduce(|a, b| a.disjoin_with(b, profile))
             .unwrap_or_else(EnvelopeUnion::unknown)
     }
 }
@@ -1967,8 +1986,9 @@ impl<R: RangeBounds<usize> + Clone + Send + Sync> Constraint for Len<R> {
         EnvelopeUnion::from(len_projection(self.suit, &self.range))
     }
 
-    fn project_complement(&self, _: &Context<'_>) -> EnvelopeUnion {
-        len_complement(self.suit, &self.range)
+    fn project_complement(&self, context: &Context<'_>) -> EnvelopeUnion {
+        let profile = context.reading_profile();
+        len_complement(self.suit, &self.range, profile)
     }
 }
 
@@ -1978,7 +1998,11 @@ impl<R: RangeBounds<usize> + Clone + Send + Sync> Constraint for Len<R> {
 /// the full suit (the legacy single-envelope reading, byte-identical); knob-on
 /// both boxes survive.
 /// Shared with [`Support`], whose suit comes from the auction.
-fn len_complement<R: RangeBounds<usize>>(suit: Suit, range: &R) -> EnvelopeUnion {
+fn len_complement<R: RangeBounds<usize>>(
+    suit: Suit,
+    range: &R,
+    profile: ReadingProfile,
+) -> EnvelopeUnion {
     complement_halves(
         bound_range(range, Range::FULL_LENGTH.max),
         Range::FULL_LENGTH.max,
@@ -1988,7 +2012,7 @@ fn len_complement<R: RangeBounds<usize>>(suit: Suit, range: &R) -> EnvelopeUnion
         inference.lengths[suit as usize] = half;
         EnvelopeUnion::from(inference)
     })
-    .reduce(EnvelopeUnion::disjoin)
+    .reduce(|a, b| a.disjoin_with(b, profile))
     .unwrap_or_else(EnvelopeUnion::unknown)
 }
 
@@ -2105,7 +2129,8 @@ impl<const N: usize, R: RangeBounds<usize> + Clone + Send + Sync> Constraint for
             .unwrap_or(Description::Opaque)
     }
 
-    fn project(&self, _: &Context<'_>) -> EnvelopeUnion {
+    fn project(&self, context: &Context<'_>) -> EnvelopeUnion {
+        let profile = context.reading_profile();
         // At least one named suit lies in `range`, but not which — the sound
         // envelope is the union of the arms, which widens every suit back to full
         // unless exactly one suit is named (then it floors exactly, like `len`).
@@ -2116,7 +2141,7 @@ impl<const N: usize, R: RangeBounds<usize> + Clone + Send + Sync> Constraint for
         self.suits
             .iter()
             .map(|&suit| EnvelopeUnion::from(len_projection(suit, &self.range)))
-            .reduce(EnvelopeUnion::disjoin)
+            .reduce(|a, b| a.disjoin_with(b, profile))
             .unwrap_or_else(EnvelopeUnion::unknown)
     }
 }
@@ -2179,13 +2204,14 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for SuitHcp<R> {
         self.project(context)
     }
 
-    fn project_complement(&self, _: &Context<'_>) -> EnvelopeUnion {
+    fn project_complement(&self, context: &Context<'_>) -> EnvelopeUnion {
+        let profile = context.reading_profile();
         // A two-sided band complements to its two outer halves through
         // `disjoin`: knob-off they hull back to the full range (the legacy
         // single-envelope reading, byte-identical); knob-on both boxes survive.
         complement_halves(bound_range(&self.range, SUIT_HCP_CAP), SUIT_HCP_CAP)
             .map(|half| EnvelopeUnion::from(suit_hcp_box(self.suit, half)))
-            .reduce(EnvelopeUnion::disjoin)
+            .reduce(|a, b| a.disjoin_with(b, profile))
             .unwrap_or_else(EnvelopeUnion::unknown)
     }
 }
@@ -2241,31 +2267,34 @@ impl Constraint for Balanced {
         Description::atom("balanced")
     }
 
-    fn project(&self, _: &Context<'_>) -> EnvelopeUnion {
+    fn project(&self, context: &Context<'_>) -> EnvelopeUnion {
+        let profile = context.reading_profile();
         // The forward reading was historically ⊤ (only the band was boxed), so
         // the exact union is new precision — knob-gated; knob-off stays ⊤.
-        if envelope_union_reading() {
-            balanced_union()
+        if profile.envelope_union() {
+            balanced_union(profile)
         } else {
             EnvelopeUnion::unknown()
         }
     }
 
-    fn project_band(&self, _: &Context<'_>) -> EnvelopeUnion {
+    fn project_band(&self, context: &Context<'_>) -> EnvelopeUnion {
+        let profile = context.reading_profile();
         // 4333, 4432, or 5332 — exactly: the {2..=4}⁴ cube (4333/4432, the
         // 13-card sum excludes the rest) plus four 5(332) pan-handles, born
         // via `disjoin` so knob-off they hull to the historical
         // every-suit-2..=5 box, byte-identically.
-        balanced_union()
+        balanced_union(profile)
     }
 
-    fn project_complement(&self, _: &Context<'_>) -> EnvelopeUnion {
+    fn project_complement(&self, context: &Context<'_>) -> EnvelopeUnion {
+        let profile = context.reading_profile();
         // Unbalanced, exactly: a singleton-or-void suit, a six-plus suit, or
         // two suits of 5+/4+ (5422 and the 5-4/5-5 family the first two boxes
         // miss) — 4 + 4 + 12 boxes, pinned exhaustively against
         // `!is_balanced` over the length lattice.  New precision (the default
         // was ⊤), so the whole reading sits behind the knob.
-        if !envelope_union_reading() {
+        if !profile.envelope_union() {
             return EnvelopeUnion::unknown();
         }
         let extremes = Suit::ASC.into_iter().flat_map(|suit| {
@@ -2292,7 +2321,7 @@ impl Constraint for Balanced {
         extremes
             .chain(two_suiters)
             .map(EnvelopeUnion::from)
-            .reduce(EnvelopeUnion::disjoin)
+            .reduce(|a, b| a.disjoin_with(b, profile))
             .unwrap_or_else(EnvelopeUnion::unknown)
     }
 }
@@ -2309,11 +2338,11 @@ fn balanced_boxes() -> [Envelope; 5] {
 
 /// [`balanced_boxes`] folded through [`EnvelopeUnion::disjoin`]: knob-off the single
 /// 2..=5 hull, knob-on the exact 5-box union
-fn balanced_union() -> EnvelopeUnion {
+fn balanced_union(profile: ReadingProfile) -> EnvelopeUnion {
     balanced_boxes()
         .into_iter()
         .map(EnvelopeUnion::from)
-        .reduce(EnvelopeUnion::disjoin)
+        .reduce(|a, b| a.disjoin_with(b, profile))
         .unwrap_or_else(EnvelopeUnion::unknown)
 }
 
@@ -2369,11 +2398,12 @@ impl Constraint for Shapes {
         Description::atom(self.label.clone())
     }
 
-    fn project(&self, _: &Context<'_>) -> EnvelopeUnion {
+    fn project(&self, context: &Context<'_>) -> EnvelopeUnion {
+        let profile = context.reading_profile();
         // New precision over the `described` closures this replaces (their
         // projection was ⊤), so the union sits behind the knob — knob-off
         // reads ⊤ exactly as the closure arm did.
-        if envelope_union_reading() {
+        if profile.envelope_union() {
             self.boxes
                 .iter()
                 .map(|&envelope| EnvelopeUnion::from(envelope))
@@ -2538,7 +2568,8 @@ impl<T: Constraint> Constraint for EnvelopeUnionUpgrade<T> {
     }
 
     fn project(&self, context: &Context<'_>) -> EnvelopeUnion {
-        if envelope_union_reading() {
+        let profile = context.reading_profile();
+        if profile.envelope_union() {
             self.boxes.project(context)
         } else {
             self.legacy.project(context)
@@ -2546,7 +2577,8 @@ impl<T: Constraint> Constraint for EnvelopeUnionUpgrade<T> {
     }
 
     fn project_band(&self, context: &Context<'_>) -> EnvelopeUnion {
-        if envelope_union_reading() {
+        let profile = context.reading_profile();
+        if profile.envelope_union() {
             self.boxes.project_band(context)
         } else {
             self.legacy.project_band(context)
@@ -2671,12 +2703,13 @@ impl<R: RangeBounds<usize> + Clone + Send + Sync> Constraint for Support<R> {
     }
 
     fn project(&self, context: &Context<'_>) -> EnvelopeUnion {
+        let profile = context.reading_profile();
         // `support(3..)` is a plain length bound on partner's suit once the
         // auction names it — the same box `len` projects.  The forward reading
         // was historically ⊤, so resolving the suit is new precision and sits
         // behind the knob; knob-off stays ⊤.  With no suit named, `eval`
         // rejects every hand, so ⊤ is (loosely) sound there too.
-        if envelope_union_reading() {
+        if profile.envelope_union() {
             context
                 .partner_last_suit()
                 .map_or_else(EnvelopeUnion::unknown, |suit| {
@@ -2688,12 +2721,15 @@ impl<R: RangeBounds<usize> + Clone + Send + Sync> Constraint for Support<R> {
     }
 
     fn project_complement(&self, context: &Context<'_>) -> EnvelopeUnion {
+        let profile = context.reading_profile();
         // `!support(4..)` is "at most three of partner's suit" — a box once the
         // auction names the suit.  With no suit named, `eval` rejects every
         // hand, so the negation accepts every hand and ⊤ is the exact reading.
         context
             .partner_last_suit()
-            .map_or_else(EnvelopeUnion::unknown, |suit| len_complement(suit, &self.0))
+            .map_or_else(EnvelopeUnion::unknown, |suit| {
+                len_complement(suit, &self.0, profile)
+            })
     }
 }
 
@@ -2820,7 +2856,8 @@ impl<R: RangeBounds<usize> + Clone + Send + Sync> Constraint for TopHonors<R> {
         describe_int_range(&self.range, &format!("of the top honors in {}", self.suit))
     }
 
-    fn project(&self, _: &Context<'_>) -> EnvelopeUnion {
+    fn project(&self, context: &Context<'_>) -> EnvelopeUnion {
+        let profile = context.reading_profile();
         // `n` of A/K/Q needs `n` cards in the suit and at least the cheapest
         // `n` honors — Q, then +K, then +A: HCP floors 2/5/9, on both the
         // whole-hand gauge and the suit's own `suit_hcp` axis.  Still an
@@ -2829,7 +2866,7 @@ impl<R: RangeBounds<usize> + Clone + Send + Sync> Constraint for TopHonors<R> {
         // asks of a projection.  A top-honor ceiling pins nothing, so the
         // default `project_band` (= this) is already the band.  New precision
         // (the default was ⊤) — knob-gated.
-        if !envelope_union_reading() {
+        if !profile.envelope_union() {
             return EnvelopeUnion::unknown();
         }
         let n = bound_range(&self.range, 3).min;

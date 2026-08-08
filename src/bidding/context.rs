@@ -575,18 +575,31 @@ impl<'a> Context<'a> {
         Some(cache)
     }
 
-    /// Reading profile already captured at decision entry, or pinned in the
-    /// attached system, or the current thread profile for a bare context.
-    pub(crate) fn reading_profile(&self) -> ReadingProfile {
-        self.decision_profile().reading
-    }
-
-    /// The knob profile governing this decision
+    /// The reading knobs governing this decision
     ///
     /// Chain: the profile captured at decision entry, else the one pinned in
     /// the attached system ([`Stance::infer`] attaches a system but enters no
     /// decision scope), else — for a bare diagnostic context — the current
-    /// thread's live knob state.
+    /// thread's live knob state.  The bare arm snapshots only the reading
+    /// cells: constraint projection calls this per node, and a bare context
+    /// (rows verify, `probe`) should not pay for the instinct half of a
+    /// [`DecisionProfile`] it never looks at.
+    pub(crate) fn reading_profile(&self) -> ReadingProfile {
+        self.active_decision_cache().map_or_else(
+            || {
+                self.own_system
+                    .map_or_else(reading_profile, |system| system.profile().reading)
+            },
+            |cache| cache.profile.reading,
+        )
+    }
+
+    /// Every knob governing this decision — [`reading_profile`][Self::reading_profile]'s
+    /// chain, over the whole profile
+    ///
+    /// What the [instinct floor][super::instinct()] reads from inside a
+    /// predicate: the closures run per decision, so a live thread-local read
+    /// there is exactly what pinning removes.
     pub(crate) fn decision_profile(&self) -> DecisionProfile {
         self.active_decision_cache().map_or_else(
             || {

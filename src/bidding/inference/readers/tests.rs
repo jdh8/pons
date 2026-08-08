@@ -801,7 +801,11 @@ fn gladiator_keeps_the_strip_where_it_has_no_structure() {
             .into_iter()
             .chain(tail.iter().copied())
             .collect();
-        let got = crate::bidding::inference::read::systems_on_overcall_strip(&auction).is_some();
+        let got = crate::bidding::inference::read::systems_on_overcall_strip(
+            &auction,
+            crate::bidding::inference::knobs::reading_profile(),
+        )
+        .is_some();
         if got != want {
             failures.push(format!("{what}: stripped = {got}, wanted {want}"));
         }

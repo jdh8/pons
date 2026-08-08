@@ -25,8 +25,11 @@ use contract_bridge::{Bid, Hand, Strain, Suit};
 /// their opening — their own natural suit — is lost, which the opponents' system
 /// discloses anyway).  [`None`] (the fast path) unless the graft is on and the
 /// shape is their 1-suit opening immediately overcalled `1NT`.
-pub(super) fn systems_on_overcall_strip(auction: &[Call]) -> Option<Vec<Call>> {
-    if !crate::bidding::american::nt_overcall_systems_on() {
+pub(super) fn systems_on_overcall_strip(
+    auction: &[Call],
+    profile: ReadingProfile,
+) -> Option<Vec<Call>> {
+    if !profile.nt_overcall_systems_on {
         return None;
     }
     let open = auction.iter().position(|&c| c != Call::Pass)?;
@@ -57,9 +60,7 @@ pub(super) fn systems_on_overcall_strip(auction: &[Call]) -> Option<Vec<Call>> {
     // was distilled on changes *calls*, not just readings.  That was ~40% of the
     // treatment's measured loss (`vs-X-*` and `contested-other`); see
     // `docs/reading-drift-handoff.md`.
-    if crate::bidding::american::nt_overcall_gladiator()
-        && matches!(opening.strain, Strain::Hearts | Strain::Spades)
-    {
+    if profile.nt_overcall_gladiator && matches!(opening.strain, Strain::Hearts | Strain::Spades) {
         let gladiator_owns_it = match auction.get(open + 2) {
             None | Some(&Call::Pass) => true,
             Some(&Call::Bid(rho)) => rho.level.get() == 2,
@@ -182,16 +183,17 @@ impl Inferences {
         overlay: &[EnvelopeUnion; 4],
         agreement: &[EnvelopeUnion; 4],
         control_bid: Option<(u8, Suit)>,
+        profile: ReadingProfile,
     ) -> Self {
-        let announced_unions = intersect_overlay(&players, agreement);
+        let announced_unions = intersect_overlay(&players, agreement, profile);
         let mut this = Self {
-            unions: intersect_overlay(&players, overlay),
+            unions: intersect_overlay(&players, overlay, profile),
             announced_players: std::array::from_fn(|i| announced_unions[i].hull()),
             announced_unions,
             players,
             control_bid,
         };
-        if blind_opponent_reading() {
+        if profile.blind_opponents {
             for who in [Relative::Lho, Relative::Rho] {
                 let i = who as usize;
                 this.players[i] = Envelope::unknown();
@@ -251,6 +253,7 @@ impl Inferences {
     /// Intersects (never widens), so the result stays within what was shown.
     #[must_use]
     pub fn narrowed_points(&self, who: Relative, points: Range) -> Self {
+        let profile = reading_profile();
         let mut copy = self.clone();
         let i = who as usize;
         copy.players[i].strength.points = copy.players[i].strength.points.intersect(points);
@@ -263,13 +266,13 @@ impl Inferences {
             },
             ..Envelope::unknown()
         };
-        copy.unions[i].intersect_assign(&slab.into());
+        copy.unions[i].intersect_assign(&slab.into(), profile);
         // An externally-imposed points slice is a fact about the hand, not a
         // reading of a call, so it narrows the agreement side identically —
         // otherwise the two drift apart on the one axis the caller sliced.
         copy.announced_players[i].strength.points =
             copy.announced_players[i].strength.points.intersect(points);
-        copy.announced_unions[i].intersect_assign(&slab.into());
+        copy.announced_unions[i].intersect_assign(&slab.into(), profile);
         copy
     }
 
@@ -298,12 +301,15 @@ impl Inferences {
         // natural `♦ 5..`) excluded their own bidders (`readings_admit_the_
         // bidder`).  The stripped opening is 1NT, which the strip never fires
         // on, so this recurses at most once.
-        if let Some(stripped) = systems_on_overcall_strip(context.auction()) {
+        if let Some(stripped) =
+            systems_on_overcall_strip(context.auction(), context.reading_profile())
+        {
             return match context.own_system() {
                 Some(stance) => Self::read(&stance.prefixed_context(context.vul(), &stripped)),
                 None => Self::read(&Context::new(context.vul(), &stripped)),
             };
         }
+        let profile = context.reading_profile();
         let auction = context.auction();
         let len = auction.len();
         let mut players = [Envelope::unknown(); 4];
@@ -323,7 +329,7 @@ impl Inferences {
             // projection pass off the table's own Pass gate (`points(..12)` —
             // see [`set_pass_reading`]).  The walk below needs an opening, so
             // apply the overlay here and return.
-            if pass_reading() {
+            if profile.pass_reading() {
                 let (overlay, agreement, _) = project_authored(context);
                 for (player, projected) in players.iter_mut().zip(&overlay) {
                     *player = player.intersect(&projected.hull());
@@ -331,10 +337,22 @@ impl Inferences {
                 overlay_unions = overlay;
                 agreement_unions = agreement;
             }
-            return Self::assemble(players, &overlay_unions, &agreement_unions, control_bid);
+            return Self::assemble(
+                players,
+                &overlay_unions,
+                &agreement_unions,
+                control_bid,
+                profile,
+            );
         };
         let Call::Bid(opening_bid) = auction[opening_index] else {
-            return Self::assemble(players, &overlay_unions, &agreement_unions, control_bid);
+            return Self::assemble(
+                players,
+                &overlay_unions,
+                &agreement_unions,
+                control_bid,
+                profile,
+            );
         };
         let opener_lane = opening_index % 4;
         // SAFETY: at most three passes precede the opening, so the cast is safe.
@@ -365,13 +383,13 @@ impl Inferences {
         let mut lane_doubled = [false; 4];
         let mut side_acted = [false; 2];
         let mut highest: Option<Bid> = None;
-        let read_cues = cue_reading();
+        let read_cues = profile.cue;
         let sound_lengths = length_soundness();
 
         // Every hand-written convention reader, run once over the auction: which
         // calls name a suit their bidder need not hold, and what each really
         // showed (recorded post-walk).  `docs/reader-retirement.md` is the ledger.
-        let readings = Readings::read(auction, len);
+        let readings = Readings::read(auction, len, profile);
 
         // The three declarative conventions — Jacoby transfers over our notrump,
         // Leaping Michaels, and Landy's 2♣ — are read straight off their authored
@@ -414,7 +432,7 @@ impl Inferences {
                 }
                 Call::Bid(bid) => {
                     if index == opening_index {
-                        apply_opening(&mut players[who], bid, opener_seat);
+                        apply_opening(&mut players[who], bid, opener_seat, profile);
                     } else if let Some(suit) = bid.strain.suit() {
                         // A three-level suit bid over our 1NT is off-book and
                         // forcing — the instinct reading takes it as natural,
@@ -465,7 +483,7 @@ impl Inferences {
                         // through `nt_structure_artificial`, whose `entered` set
                         // marks the whole continuation subtree) leaves opener's
                         // natural `3♠`/`4♣`/`4♦` rebids reading off the walk.
-                        let nt_splinter_artificial = crate::bidding::american::nt_splinter()
+                        let nt_splinter_artificial = profile.nt_splinter
                             && is_opening_side
                             && opening_bid == Bid::new(1, Strain::Notrump)
                             && index == opening_index + 2
@@ -474,7 +492,7 @@ impl Inferences {
                         let nt_blanket = is_opening_side && opening_artificial && !over_one_notrump;
                         let chain = stayman_artificial
                             || nt_splinter_artificial
-                            || nt_structure_artificial(auction, index, opening_index)
+                            || nt_structure_artificial(auction, index, opening_index, profile)
                             || (index < 64 && suppressed >> index & 1 != 0)
                             || readings.suppresses(index);
 
@@ -485,7 +503,7 @@ impl Inferences {
                         // post-transfer 4♠ control) — but only when the
                         // projection is present to have claimed the genuinely
                         // artificial calls (Texas transfers) first.
-                        let slam = if control_bid_reading()
+                        let slam = if profile.control_bid
                             && index != opening_index
                             && is_opening_side
                             && !side_acted[defending_parity]
@@ -502,6 +520,7 @@ impl Inferences {
                                 &players,
                                 &overlay,
                                 suppressed_so_far,
+                                profile,
                             )
                         } else {
                             HighBid::Unclaimed
@@ -541,7 +560,7 @@ impl Inferences {
                         // first rebid, opponents silent.  The jump-shift and
                         // reverse rungs name a real 4-card second suit and show
                         // extras — read below, not as a weak jump.
-                        let opener_ladder_rebid = crate::bidding::american::opener_extras_ladder()
+                        let opener_ladder_rebid = profile.opener_extras_ladder
                             && !side_acted[defending_parity]
                             && is_opening_side
                             && lane == opener_lane
@@ -584,7 +603,7 @@ impl Inferences {
                                 // 2♣ relay (`xyz_responder`/`xyz_after_relay`).
                                 // Reading a sixth card excluded every five-card
                                 // responder from their own box.
-                                let xyz_rebid = crate::bidding::american::xyz()
+                                let xyz_rebid = profile.xyz
                                     && !side_acted[defending_parity]
                                     && is_opening_side
                                     && lane != opener_lane
@@ -761,8 +780,7 @@ impl Inferences {
                             // the search floor) judge responder.
                             match bid.level.get() {
                                 2 => {
-                                    if crate::bidding::american::notrump_minors()
-                                        == crate::bidding::american::EUROPEAN
+                                    if profile.notrump_minors == crate::bidding::american::EUROPEAN
                                     {
                                         players[who].narrow_points(Range::new(8, 9));
                                     } else {
@@ -833,7 +851,7 @@ impl Inferences {
                     // Opener's extras-ladder rebid shows extras and — for a
                     // new-suit rung — a five-card opened suit.  Sound floors: the
                     // jump-rebid is 16+, the reverse 17+, the jump-shift 18+.
-                    if crate::bidding::american::opener_extras_ladder()
+                    if profile.opener_extras_ladder
                         && !side_acted[defending_parity]
                         && is_opening_side
                         && lane == opener_lane
@@ -873,7 +891,7 @@ impl Inferences {
                     // a 3M jump in opener's own opened major over `1♥ - 1♠` / `1M - 1NT`
                     // shows 16+.  Natural, so the six-card length is read above
                     // (the `i_bid_it` branch); add the strength floor here.
-                    if crate::bidding::american::opener_major_jump_rebid()
+                    if profile.opener_major_jump_rebid
                         && !side_acted[defending_parity]
                         && is_opening_side
                         && lane == opener_lane
@@ -900,9 +918,7 @@ impl Inferences {
                             // unless garbage or crawling Stayman is on, where a weak
                             // hand may bid 2♣ to escape, so the floor must not assume
                             // 8+.
-                            if !crate::bidding::american::garbage_stayman()
-                                && !crate::bidding::american::crawling_stayman()
-                            {
+                            if !profile.garbage_stayman && !profile.crawling_stayman {
                                 players[who].narrow_points(Range::at_least(8, POINTS_CAP));
                             }
                         } else if index == opening_index + 4 && lane == opener_lane {
@@ -965,7 +981,7 @@ impl Inferences {
 
         // Record what the suppressed conventional calls genuinely showed.  The
         // block order inside `apply` is load-bearing — see its doc comment.
-        readings.apply(&mut players, &overlay, len);
+        readings.apply(&mut players, &overlay, len, profile);
 
         // The vacuous-scoped probed overlay ([`set_probed_vacuous_reading`]):
         // own-side calls in *contested* prefixes only, folded onto axes every
@@ -981,8 +997,8 @@ impl Inferences {
         // all net-OOD grand blasts — the σ-shrink signature of the exclusion
         // retrain.  Under the full fold this is redundant — every probed box
         // already folded unmasked.
-        if probed_vacuous_reading()
-            && !probed_reading()
+        if profile.probed_vacuous
+            && !profile.probed
             && let Some(them) = context.own_system()
         {
             // The first index at which both sides have acted: keys through a
@@ -1022,7 +1038,13 @@ impl Inferences {
             }
         }
 
-        Self::assemble(players, &overlay_unions, &agreement_unions, control_bid)
+        Self::assemble(
+            players,
+            &overlay_unions,
+            &agreement_unions,
+            control_bid,
+            profile,
+        )
     }
 
     /// The last call the M6.4 classifier read as a control bid: its auction
@@ -1105,6 +1127,7 @@ fn classify_high_bid(
     players: &[Envelope; 4],
     overlay: &[Envelope; 4],
     suppressed_so_far: u64,
+    profile: ReadingProfile,
 ) -> HighBid {
     let Some(suit) = bid.strain.suit() else {
         return HighBid::Unclaimed;
@@ -1172,8 +1195,7 @@ fn classify_high_bid(
         && matches!(auction[opening_index], Call::Bid(opening)
             if opening.level.get() == 1
                 && matches!(opening.strain.suit(), Some(Suit::Clubs | Suit::Diamonds)));
-    let discipline =
-        response_to_partners_minor && crate::bidding::american::longer_major_response();
+    let discipline = response_to_partners_minor && profile.longer_major_response;
 
     // Bypassed: the bid suit sat below the first-shown suit at the same level
     // and the bidder skipped it — it cannot be long, so this is a control bid.
@@ -1250,8 +1272,12 @@ fn classify_high_bid(
 /// contradicts.  With [`envelope_union_reading`] off each overlay is one box,
 /// so the result is the single box `players[i]` and
 /// `unions[i].hull() == players[i]` (byte-identical).
-fn intersect_overlay(players: &[Envelope; 4], overlay: &[EnvelopeUnion; 4]) -> [EnvelopeUnion; 4] {
-    std::array::from_fn(|i| EnvelopeUnion::from(players[i]).intersect_owned(&overlay[i]))
+fn intersect_overlay(
+    players: &[Envelope; 4],
+    overlay: &[EnvelopeUnion; 4],
+    profile: ReadingProfile,
+) -> [EnvelopeUnion; 4] {
+    std::array::from_fn(|i| EnvelopeUnion::from(players[i]).intersect_owned(&overlay[i], profile))
 }
 
 /// Whether the call at `index` is an artificial relay/puppet/splinter in the
@@ -1271,10 +1297,15 @@ fn intersect_overlay(players: &[Envelope; 4], overlay: &[EnvelopeUnion; 4]) -> [
 ///
 /// Positions assume the standard uncontested auction; a contested one shifts them
 /// and matches none.
-fn nt_structure_artificial(auction: &[Call], index: usize, opening_index: usize) -> bool {
+fn nt_structure_artificial(
+    auction: &[Call],
+    index: usize,
+    opening_index: usize,
+    profile: ReadingProfile,
+) -> bool {
     let resp_first = auction.get(opening_index + 2);
 
-    if crate::bidding::american::notrump_minors() == crate::bidding::american::EUROPEAN {
+    if profile.notrump_minors == crate::bidding::american::EUROPEAN {
         // European: 2♠ (clubs) and 3♣ (diamonds) are transfers; every suit bid in
         // their continuations is a relay, never a natural suit.
         return matches!(

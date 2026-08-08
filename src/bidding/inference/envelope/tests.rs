@@ -112,7 +112,7 @@ fn inline_union_matches_the_vec_oracle_in_every_closure_profile() {
                 let reference_right = VecEnvelopeUnion(right.clone());
 
                 assert_eq!(
-                    actual_left.clone().tidy().boxes(),
+                    actual_left.clone().tidy(reading_profile()).boxes(),
                     reference_left.clone().tidy().0
                 );
                 assert_eq!(
@@ -346,9 +346,9 @@ fn upgrade_closure_gives_hcp_teeth() {
     let context = Context::new(RelativeVulnerability::NONE, &[]);
     let reading = (balanced() & hcp(..=8)).project_band(&context);
 
-    assert!(reading.clone().tidy().contains(hand));
+    assert!(reading.clone().tidy(reading_profile()).contains(hand));
     set_upgrade_closure(true);
-    assert!(!reading.tidy().contains(hand));
+    assert!(!reading.tidy(reading_profile()).contains(hand));
     set_upgrade_closure(false);
 }
 

@@ -581,8 +581,9 @@ impl<'a> ProjectedUnion<'a> {
         }
     }
 
-    pub(crate) fn disjoin(self, other: Self) -> Self {
-        Self::Owned(self.into_owned().disjoin(other.into_owned()))
+    /// Fold two projections under the stance's pinned reading profile.
+    pub(crate) fn disjoin(self, other: Self, profile: ReadingProfile) -> Self {
+        Self::Owned(self.into_owned().disjoin_with(other.into_owned(), profile))
     }
 }
 

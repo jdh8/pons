@@ -1384,10 +1384,12 @@ proptest! {
         ];
 
         for reading in readings {
-            let loose = reading.clone().tidy();
+            let loose = reading
+                .clone()
+                .tidy(crate::bidding::inference::knobs::reading_profile());
             set_sum_closure(true);
             set_upgrade_closure(true);
-            let closed = reading.tidy();
+            let closed = reading.tidy(crate::bidding::inference::knobs::reading_profile());
             set_sum_closure(false);
             set_upgrade_closure(false);
 

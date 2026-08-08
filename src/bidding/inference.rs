@@ -74,7 +74,7 @@ pub use knobs::{
 pub use read::Inferences;
 
 pub(crate) use envelope::relative_of;
-pub(crate) use knobs::{ReadingProfile, probed_reading, probed_vacuous_reading, reading_profile};
+pub(crate) use knobs::{ReadingProfile, reading_profile};
 pub(crate) use projection::{AuthoredProjection, AuthoringStepCache};
 pub(in crate::bidding) use readers::penalty_x_reading;
 

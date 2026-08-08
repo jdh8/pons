@@ -169,13 +169,18 @@ fn append_only_step_cache_matches_from_scratch_frozen_prefixes() {
     );
 }
 
+/// A stance pins its reading profile, so a mid-deal knob flip reaches this
+/// cache only through [`Stance::repin`] — which invalidates the stance's cache
+/// identity, and with it the deal cache.  The profile arm of `prepare`'s guard
+/// is therefore belt-and-braces: no path moves a pinned profile without also
+/// bumping the identity checked just before it.
 #[test]
-fn step_cache_drops_to_legacy_after_middeal_profile_change() {
+fn step_cache_drops_to_legacy_after_middeal_repin() {
     use crate::bidding::american::american_book;
     use crate::bidding::inference::{AuthoringStepCache, set_envelope_union_reading};
     use contract_bridge::auction::RelativeVulnerability;
 
-    let stance = american_book().against();
+    let mut stance = american_book().against();
     let auction = [bid(1, Strain::Notrump), Call::Pass];
     let mut cache = AuthoringStepCache::new();
     assert!(
@@ -187,8 +192,15 @@ fn step_cache_drops_to_legacy_after_middeal_profile_change() {
     assert!(
         cache
             .prepare(&stance, RelativeVulnerability::NONE, &auction)
+            .is_some(),
+        "an unpinned knob flip must not disturb this deal cache"
+    );
+    stance.repin();
+    assert!(
+        cache
+            .prepare(&stance, RelativeVulnerability::NONE, &auction)
             .is_none(),
-        "profile change must disable this deal cache"
+        "repinning must disable this deal cache"
     );
     set_envelope_union_reading(true);
 }
@@ -271,6 +283,7 @@ fn probe_stores_and_reads_high_traffic_keys() {
     assert_eq!(off.rho(), unprobed.rho());
 
     crate::bidding::set_probed_reading(true);
+    stance.repin();
     let on = stance.infer(RelativeVulnerability::NONE, &auction);
     crate::bidding::set_probed_reading(false);
     // The probed box only tightens the symbolic band — and it reads suit
@@ -323,6 +336,7 @@ fn probed_vacuous_fills_only_open_axes_on_contested_own_calls() {
     let auction = [ONE_DIAMOND, TWO_CLUBS, TWO_SPADES, P];
     let off = stance.infer(RelativeVulnerability::NONE, &auction);
     crate::bidding::set_probed_vacuous_reading(true);
+    stance.repin();
     let on = stance.infer(RelativeVulnerability::NONE, &auction);
     crate::bidding::set_probed_vacuous_reading(false);
 

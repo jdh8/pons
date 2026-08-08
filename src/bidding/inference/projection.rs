@@ -27,13 +27,14 @@ pub(super) fn project_pass<'a>(
     rules: &crate::bidding::rules::Rules,
     compiled: Option<&'a crate::bidding::rules::CompiledRules>,
     ctx: &Context<'_>,
+    profile: ReadingProfile,
 ) -> Option<crate::bidding::rules::ProjectedUnion<'a>> {
     let band = if let Some(compiled) = compiled {
         compiled
             .pass_rule_indices()
             .iter()
             .map(|&index| compiled.project_band_union_matched(rules, index, ctx))
-            .reduce(crate::bidding::rules::ProjectedUnion::disjoin)?
+            .reduce(|a, b| a.disjoin(b, profile))?
     } else {
         crate::bidding::rules::ProjectedUnion::Owned(
             rules
@@ -41,10 +42,10 @@ pub(super) fn project_pass<'a>(
                 .iter()
                 .filter(|rule| rule.call() == Call::Pass)
                 .map(|rule| rule.project_band_union(ctx))
-                .reduce(EnvelopeUnion::disjoin)?,
+                .reduce(|a, b| a.disjoin_with(b, profile))?,
         )
     };
-    if !pass_exclusion_reading() {
+    if !profile.pass_exclusion_reading() {
         return Some(band);
     }
     if let Some(compiled) = compiled {
@@ -60,7 +61,7 @@ pub(super) fn project_pass<'a>(
                         && complement.as_union().boxes()[0] != Envelope::unknown()
                 })
                 .fold(band.into_owned(), |acc, complement| {
-                    acc.intersect_owned(complement.as_union())
+                    acc.intersect_owned(complement.as_union(), profile)
                 }),
         ));
     }
@@ -81,7 +82,7 @@ pub(super) fn project_pass<'a>(
                 complement.boxes().len() == 1 && complement.boxes()[0] != Envelope::unknown()
             })
             .fold(band.into_owned(), |acc, complement| {
-                acc.intersect_owned(&complement)
+                acc.intersect_owned(&complement, profile)
             }),
     ))
 }
@@ -102,10 +103,16 @@ impl AuthoredProjection {
         }
     }
 
-    fn apply(&mut self, len: usize, index: usize, effect: AuthoredEffect<'_>) {
+    fn apply(
+        &mut self,
+        len: usize,
+        index: usize,
+        effect: AuthoredEffect<'_>,
+        profile: ReadingProfile,
+    ) {
         let who = relative_of(len, index) as usize;
-        self.announced_unions[who].intersect_assign(effect.agreement());
-        self.unions[who].intersect_assign(effect.projection.as_union());
+        self.announced_unions[who].intersect_assign(effect.agreement(), profile);
+        self.unions[who].intersect_assign(effect.projection.as_union(), profile);
         if effect.suppresses_natural && index < 64 {
             self.suppressed |= 1 << index;
         }
@@ -149,8 +156,9 @@ fn authored_effect<'a>(
     announce_split: bool,
 ) -> Option<AuthoredEffect<'a>> {
     let rules = classifier.as_rules()?;
+    let profile = ctx.reading_profile();
     let is_pass = made == Call::Pass;
-    let scope = (!is_pass).then(reading_scope);
+    let scope = (!is_pass).then_some(profile.scope);
     let mut face_memo = crate::bidding::rules::FaceMemo::new();
 
     // A compiled call plan can reject structurally unreadable groups before
@@ -160,7 +168,7 @@ fn authored_effect<'a>(
     // non-compiled oracle's evaluation order intact for opaque public hooks.
     if let Some(compiled) = compiled {
         if is_pass {
-            if !decode_pass && compiled.can_skip_pass_effect(pass_exclusion_reading()) {
+            if !decode_pass && compiled.can_skip_pass_effect(profile.pass_exclusion_reading()) {
                 return None;
             }
         } else {
@@ -178,21 +186,21 @@ fn authored_effect<'a>(
     }
 
     let projection = if is_pass {
-        project_pass(rules, compiled, ctx)
+        project_pass(rules, compiled, ctx, profile)
     } else if let Some(compiled) = compiled {
         compiled
             .rule_indices(made)
             .iter()
             .filter(|&&index| compiled.face_live_memoized(rules, index, ctx, &mut face_memo))
             .map(|&index| compiled.project_union_matched(rules, index, ctx))
-            .reduce(crate::bidding::rules::ProjectedUnion::disjoin)
+            .reduce(|a, b| a.disjoin(b, profile))
     } else {
         rules
             .rules()
             .iter()
             .filter(|rule| rule.call() == made && rule.face_live(ctx))
             .map(|rule| crate::bidding::rules::ProjectedUnion::Owned(rule.project_union(ctx)))
-            .reduce(crate::bidding::rules::ProjectedUnion::disjoin)
+            .reduce(|a, b| a.disjoin(b, profile))
     }?;
 
     let alerted = !is_pass
@@ -227,14 +235,14 @@ fn authored_effect<'a>(
                 .iter()
                 .filter(|&&index| compiled.face_live_memoized(rules, index, ctx, &mut face_memo))
                 .map(|&index| compiled.announce_union_matched(rules, index, ctx))
-                .reduce(crate::bidding::rules::ProjectedUnion::disjoin)
+                .reduce(|a, b| a.disjoin(b, profile))
         } else {
             rules
                 .rules()
                 .iter()
                 .filter(|rule| rule.call() == made && rule.alert().is_some() && rule.face_live(ctx))
                 .map(|rule| crate::bidding::rules::ProjectedUnion::Owned(rule.announce_union(ctx)))
-                .reduce(crate::bidding::rules::ProjectedUnion::disjoin)
+                .reduce(|a, b| a.disjoin(b, profile))
         }
     } else {
         None
@@ -262,10 +270,10 @@ impl AbsoluteProjection {
         }
     }
 
-    fn push(&mut self, index: usize, effect: AuthoredEffect<'_>) {
+    fn push(&mut self, index: usize, effect: AuthoredEffect<'_>, profile: ReadingProfile) {
         let seat = index % 4;
-        self.unions[seat].intersect_assign(effect.projection.as_union());
-        self.announced_unions[seat].intersect_assign(effect.agreement());
+        self.unions[seat].intersect_assign(effect.projection.as_union(), profile);
+        self.announced_unions[seat].intersect_assign(effect.agreement(), profile);
         if effect.suppresses_natural && index < 64 {
             self.suppressed |= 1 << index;
         }
@@ -544,7 +552,10 @@ impl AuthoringStepCache {
             Some(identity) if std::sync::Arc::ptr_eq(identity, stance.cache_identity()) => {}
             Some(_) => return self.disable(),
         }
-        let profile = reading_profile();
+        // The stance's pinned reading, not the thread's live one: this walk
+        // serves that stance, and `Stance::repin` invalidates the cache
+        // identity checked just above, so a deliberate re-pin still resets it.
+        let profile = stance.profile().reading;
         let reader_parity = auction.len() % 2;
         match (self.profile, self.vul, self.reader_parity) {
             (None, None, None) => {
@@ -573,10 +584,10 @@ impl AuthoringStepCache {
             }
         }
         let full_context = full_cursor.context(vul, auction);
-        let announce_split = announced_reading();
-        let read_passes = pass_reading();
-        let table_alerts = table_alert_reading();
-        let fallback_projection = fallback_projection_enabled();
+        let announce_split = profile.announced_reading();
+        let read_passes = profile.pass_reading();
+        let table_alerts = profile.table_alerts;
+        let fallback_projection = profile.fallback_projection;
 
         // Route the whole append before consulting any authored projection.
         // An opaque route at the second (normally opponent) call must not make
@@ -719,7 +730,7 @@ impl AuthoringStepCache {
                     false,
                     announce_split,
                 ) {
-                    self.own.push(index, effect);
+                    self.own.push(index, effect, profile);
                 }
             } else if !fallback_projection
                 && let Some(classifier) = pending.own_exact
@@ -732,7 +743,7 @@ impl AuthoringStepCache {
                     announce_split,
                 )
             {
-                self.own.push(index, effect);
+                self.own.push(index, effect, profile);
             }
 
             let opponent = index % 2 != reader_parity;
@@ -749,7 +760,7 @@ impl AuthoringStepCache {
                         announce_split,
                     )
                 {
-                    self.opponents.push(index, effect);
+                    self.opponents.push(index, effect, profile);
                 }
                 if read_passes
                     && made == Call::Pass
@@ -763,11 +774,11 @@ impl AuthoringStepCache {
                         announce_split,
                     )
                 {
-                    self.passes.push(index, effect);
+                    self.passes.push(index, effect, profile);
                 }
             }
 
-            if probed_reading()
+            if profile.probed
                 && let Some(&box_) = stance.probed_box(&auction[..=index])
             {
                 let union = EnvelopeUnion::from(box_);
@@ -778,6 +789,7 @@ impl AuthoringStepCache {
                         agreement: None,
                         suppresses_natural: false,
                     },
+                    profile,
                 );
             }
             self.records.push(AuthoringStepRecord {
@@ -799,9 +811,9 @@ impl AuthoringStepCache {
         for absolute in 0..4 {
             let relative = (absolute + 4 - auction.len() % 4) % 4;
             for category in [&self.own, &self.opponents, &self.passes, &self.probed] {
-                snapshot.unions[relative].intersect_assign(&category.unions[absolute]);
+                snapshot.unions[relative].intersect_assign(&category.unions[absolute], profile);
                 snapshot.announced_unions[relative]
-                    .intersect_assign(&category.announced_unions[absolute]);
+                    .intersect_assign(&category.announced_unions[absolute], profile);
                 snapshot.suppressed |= category.suppressed;
             }
         }
@@ -962,11 +974,11 @@ fn project_authored_with(
         return projection.into_parts();
     };
 
-    let read_passes = pass_reading();
-    let table_alerts = table_alert_reading();
-    let fallback_projection = fallback_projection_enabled();
-    let announce_split = announced_reading();
     let profile = context.reading_profile();
+    let read_passes = profile.pass_reading();
+    let table_alerts = profile.table_alerts;
+    let fallback_projection = profile.fallback_projection;
+    let announce_split = profile.announced_reading();
 
     // Project the call made at `index`, authored by `classifier`, into the
     // overlay, evaluating its rules under `ctx` — always the bidder's
@@ -989,7 +1001,7 @@ fn project_authored_with(
         if let Some(effect) =
             authored_effect(made, ctx, classifier, compiled, decode_pass, announce_split)
         {
-            projection.apply(len, index, effect);
+            projection.apply(len, index, effect, profile);
         }
     };
 
@@ -1209,7 +1221,7 @@ fn project_authored_with(
     // [`Inferences::read`] instead: its fill-only mask must be judged against
     // the *complete* symbolic reading, and the natural walk stamps after this
     // returns.
-    if probed_reading()
+    if profile.probed
         && let (Some(ours), Some(theirs)) = (context.own_system(), context.their_system())
     {
         for index in 0..len {
@@ -1217,8 +1229,8 @@ fn project_authored_with(
             if let Some(&box_) = them.probed_box(&auction[..=index]) {
                 let who = relative_of(len, index) as usize;
                 let union = EnvelopeUnion::from(box_);
-                projection.unions[who].intersect_assign(&union);
-                projection.announced_unions[who].intersect_assign(&union);
+                projection.unions[who].intersect_assign(&union, profile);
+                projection.announced_unions[who].intersect_assign(&union, profile);
             }
         }
     }

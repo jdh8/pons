@@ -6,11 +6,20 @@
 //! below serve the natural walk in [`super::read`].
 
 use super::envelope::{Envelope, Range, Relative, relative_of};
-use super::knobs::rubens_transfer_reading;
+use super::knobs::ReadingProfile;
 use super::read::support_band_to_points;
 use super::{LENGTH_CAP, POINTS_CAP};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
+
+// Keep the getter re-exports used by the unchanged intra-doc links now that
+// classification reads their pinned profile equivalents instead of calling them.
+const _: [fn() -> bool; 4] = [
+    crate::bidding::american::woolsey_enabled,
+    crate::bidding::american::meckwell_enabled,
+    crate::bidding::american::direct_dont_enabled,
+    crate::bidding::american::natural_defense_enabled,
+];
 
 /// The Rubens-artificial calls of an advance, and the advance's strength reading
 ///
@@ -34,6 +43,7 @@ use contract_bridge::{Bid, Strain, Suit};
 #[allow(clippy::type_complexity)]
 pub(super) fn rubens_reading(
     auction: &[Call],
+    profile: ReadingProfile,
 ) -> (
     [Option<usize>; 2],
     Option<(usize, Suit)>,
@@ -42,7 +52,7 @@ pub(super) fn rubens_reading(
     let none = ([None, None], None, None);
     // The bidder's knob governs the reading too: with Rubens advances off, an
     // advance in the band is a genuine suit and must be read naturally.
-    if !crate::bidding::instinct::rubens_advances_enabled() {
+    if !profile.rubens_advances {
         return none;
     }
     let Some((x, y, overcall_index, level)) = crate::bidding::instinct::overcall_shape(auction)
@@ -85,7 +95,7 @@ pub(super) fn rubens_reading(
     // The transfer's meaning, fixed the moment it is made (the completion is
     // not required): into partner's suit = the limit-plus raise, a new suit =
     // the advancer's own five-card target.
-    let transfer = rubens_transfer_reading().then_some(if target_suit == y {
+    let transfer = profile.rubens_transfer.then_some(if target_suit == y {
         (advance_index, y, 3)
     } else {
         (advance_index, target_suit, 5)
@@ -106,9 +116,8 @@ pub(super) fn rubens_reading(
 /// their `1NT` was the both-majors `2♣`, so a natural `2♣` is never mistaken for it.
 // ponytail: a relay projects no info, so suppress it by hand; the upgrade path is to
 // author the relay's rule with the negated lengths so the detector catches it too.
-pub(super) fn landy_advance_suppress(auction: &[Call]) -> Option<usize> {
-    let on = crate::bidding::american::landy_range().is_some()
-        || crate::bidding::american::woolsey_enabled();
+pub(super) fn landy_advance_suppress(auction: &[Call], profile: ReadingProfile) -> Option<usize> {
+    let on = profile.landy_range.is_some() || profile.woolsey_enabled();
     if !on {
         return None;
     }
@@ -215,8 +224,8 @@ impl MultiReading {
 ///
 /// ponytail: kept separate so this Multi reading is reusable for a future Multi `2♦`
 /// *opening* (an unknown-major weak two) — same shape, no 1NT prefix.
-pub(super) fn multi_reading(auction: &[Call]) -> Option<MultiReading> {
-    if !crate::bidding::american::woolsey_enabled() {
+pub(super) fn multi_reading(auction: &[Call], profile: ReadingProfile) -> Option<MultiReading> {
+    if !profile.woolsey_enabled() {
         return None;
     }
     let opening_index = auction.iter().position(|&c| c != Call::Pass)?;
@@ -310,8 +319,11 @@ impl GladiatorReading {
     }
 }
 
-pub(super) fn gladiator_reading(auction: &[Call]) -> Option<GladiatorReading> {
-    if !crate::bidding::american::nt_overcall_gladiator() {
+pub(super) fn gladiator_reading(
+    auction: &[Call],
+    profile: ReadingProfile,
+) -> Option<GladiatorReading> {
+    if !profile.nt_overcall_gladiator {
         return None;
     }
     let open = auction.iter().position(|&c| c != Call::Pass)?;
@@ -337,7 +349,7 @@ pub(super) fn gladiator_reading(auction: &[Call]) -> Option<GladiatorReading> {
         if auction.get(open + 3) == Some(&Call::Double) {
             stripped[open + 3] = Call::Bid(Bid::new(2, Strain::Clubs));
         }
-        return gladiator_reading(&stripped);
+        return gladiator_reading(&stripped, profile);
     }
     if auction.get(open + 2) != Some(&Call::Pass) {
         return None;
@@ -436,8 +448,11 @@ impl WoolseyXReading {
     }
 }
 
-pub(super) fn woolsey_x_reading(auction: &[Call]) -> Option<WoolseyXReading> {
-    if !crate::bidding::american::woolsey_enabled() {
+pub(super) fn woolsey_x_reading(
+    auction: &[Call],
+    profile: ReadingProfile,
+) -> Option<WoolseyXReading> {
+    if !profile.woolsey_enabled() {
         return None;
     }
     let opening_index = auction.iter().position(|&c| c != Call::Pass)?;
@@ -495,12 +510,15 @@ pub(super) fn woolsey_x_reading(auction: &[Call]) -> Option<WoolseyXReading> {
 /// call, not penalty; an unpassed doubler is identified by lane (a seat that passed
 /// before the opening occupies a lane below `opening_index`).
 pub(in crate::bidding) fn penalty_x_reading(auction: &[Call]) -> Option<usize> {
-    use crate::bidding::american as a;
+    penalty_x_reading_with_profile(auction, super::knobs::reading_profile())
+}
+
+fn penalty_x_reading_with_profile(auction: &[Call], profile: ReadingProfile) -> Option<usize> {
     // One `Cell<NotrumpDefense>` holds one system, so "Natural is active" is the
     // whole test: the four "…but not DONT/Meckwell/direct-Landy/Woolsey"
     // disjuncts this used to carry were the pre-fold precedence cascade, and
     // every one of them was unreachable once the enum landed.
-    if !a::natural_defense_enabled() {
+    if !profile.natural_defense_enabled() {
         return None;
     }
     let opening_index = auction.iter().position(|&c| c != Call::Pass)?;
@@ -565,11 +583,14 @@ pub(super) fn responder_overcall_double_reading(auction: &[Call], len: usize) ->
 /// Once we penalty-double their 1NT the penalty stance holds for the rest of the
 /// auction (mirrors `penalty_latched`) — a bid of our own does *not* un-latch it,
 /// it only updates the suit a later penalty double refers to.
-pub(super) fn penalty_latch_double_reading(auction: &[Call]) -> Vec<(usize, Suit)> {
-    if !crate::bidding::instinct::penalty_latch_enabled() {
+pub(super) fn penalty_latch_double_reading(
+    auction: &[Call],
+    profile: ReadingProfile,
+) -> Vec<(usize, Suit)> {
+    if !profile.penalty_latch {
         return Vec::new();
     }
-    let Some(x_index) = penalty_x_reading(auction) else {
+    let Some(x_index) = penalty_x_reading_with_profile(auction, profile) else {
         return Vec::new();
     };
     let our_parity = x_index % 2;
@@ -642,8 +663,8 @@ impl DontReading {
 /// Read a DONT overcall of their 1NT, gated on
 /// [`direct_dont_enabled`][crate::bidding::american::direct_dont_enabled] and the
 /// auction being `1NT` then the defending side's first action being a DONT call
-pub(super) fn dont_reading(auction: &[Call]) -> Option<DontReading> {
-    if !crate::bidding::american::direct_dont_enabled() {
+pub(super) fn dont_reading(auction: &[Call], profile: ReadingProfile) -> Option<DontReading> {
+    if !profile.direct_dont_enabled() {
         return None;
     }
     let opening_index = auction.iter().position(|&c| c != Call::Pass)?;
@@ -651,7 +672,7 @@ pub(super) fn dont_reading(auction: &[Call]) -> Option<DontReading> {
         return None;
     }
     let opener_parity = opening_index % 2;
-    let floor = crate::bidding::american::natural_overcall_points().0;
+    let floor = profile.natural_overcall_points.0;
 
     // The defending side's FIRST action — a DONT `X`/`2♣`/`2♦`/`2♥` (the natural `2♠`
     // and anything else fall through to the generic reading).
@@ -746,8 +767,11 @@ impl MeckwellReading {
 /// Read a Meckwell overcall of their 1NT, gated on
 /// [`meckwell_enabled`][crate::bidding::american::meckwell_enabled] and the auction
 /// being `1NT` then the defending side's first action being a Meckwell call
-pub(super) fn meckwell_reading(auction: &[Call]) -> Option<MeckwellReading> {
-    if !crate::bidding::american::meckwell_enabled() {
+pub(super) fn meckwell_reading(
+    auction: &[Call],
+    profile: ReadingProfile,
+) -> Option<MeckwellReading> {
+    if !profile.meckwell_enabled() {
         return None;
     }
     let opening_index = auction.iter().position(|&c| c != Call::Pass)?;
@@ -755,7 +779,7 @@ pub(super) fn meckwell_reading(auction: &[Call]) -> Option<MeckwellReading> {
         return None;
     }
     let opener_parity = opening_index % 2;
-    let floor = crate::bidding::american::natural_overcall_points().0;
+    let floor = profile.natural_overcall_points.0;
 
     // The defending side's FIRST action — a Meckwell `X`/`2♣`/`2♦` (natural `2♥`/`2♠`
     // and anything else fall through to the generic reading).
@@ -811,7 +835,7 @@ pub(super) fn meckwell_reading(auction: &[Call]) -> Option<MeckwellReading> {
 }
 
 /// Apply the meaning of the opening bid (the first non-pass call)
-pub(super) fn apply_opening(inf: &mut Envelope, bid: Bid, seat: u8) {
+pub(super) fn apply_opening(inf: &mut Envelope, bid: Bid, seat: u8, profile: ReadingProfile) {
     // A one-level suit opening reads 10, not 12: `points(12..)` on the shipped
     // rule-of-N+8 scale is the Rule of 20, which admits sound 10-11 counts, and
     // the reading has to stay loose enough for a floor arm or an opponent whose
@@ -870,7 +894,7 @@ pub(super) fn apply_opening(inf: &mut Envelope, bid: Bid, seat: u8) {
             inf.narrow_points(Range::at_least(20, POINTS_CAP));
         }
         (2, Strain::Notrump) => {
-            if crate::bidding::american::two_notrump_wide() {
+            if profile.two_notrump_wide {
                 // Chop G0: the wide-minor 2NT (`set_two_notrump_wide`) caps
                 // majors at four (5M(332) opens one-of-a-major) and runs minors
                 // to six (5m422/6m322).  `narrow_length` only intersects, so set
@@ -964,10 +988,10 @@ pub(super) struct Readings {
 
 impl Readings {
     /// Run every hand-written reader over `auction`
-    pub(super) fn read(auction: &[Call], len: usize) -> Self {
+    pub(super) fn read(auction: &[Call], len: usize, profile: ReadingProfile) -> Self {
         // Rubens advances name relay suits; identify them so the natural reading
         // skips them, and capture a cue-raise's strength to apply afterwards.
-        let (rubens_suppress, rubens_cue, rubens_transfer) = rubens_reading(auction);
+        let (rubens_suppress, rubens_cue, rubens_transfer) = rubens_reading(auction, profile);
         Self {
             rubens_suppress,
             rubens_cue,
@@ -975,26 +999,26 @@ impl Readings {
             // The one suppression the projection cannot see: the advancer's 2♦ relay /
             // `2♥ - 2♠` preference over a Landy/Woolsey both-majors 2♣ names no length of its
             // own, so its rule projects nothing — suppress it by hand (the doc's stub).
-            landy_relay: landy_advance_suppress(auction),
+            landy_relay: landy_advance_suppress(auction, profile),
             // The Woolsey Multi family: 2♦ (a single 6+ major — its diamond reading
             // suppressed) and the 2♥/2♠ Muiderberg, recorded post-walk.
-            multi: multi_reading(auction),
+            multi: multi_reading(auction, profile),
             // The Woolsey takeout double of their 1NT: the doubler's points are recorded
             // post-walk and the advancer's 2♣ minor relay is suppressed.
-            woolsey_x: woolsey_x_reading(auction),
+            woolsey_x: woolsey_x_reading(auction, profile),
             // The DONT defense of their 1NT: the artificial X/2♣/2♦/2♥ and the advancer's
             // relay are suppressed; what each genuinely shows is recorded post-walk.
-            dont: dont_reading(auction),
+            dont: dont_reading(auction, profile),
             // The Meckwell defense of their 1NT: the two-way X (single minor OR both
             // majors) records points only; the 2♣/2♦ minor + major and the advancer's
             // relay are suppressed like DONT's.
-            meckwell: meckwell_reading(auction),
+            meckwell: meckwell_reading(auction, profile),
             // Our natural penalty double of their 1NT (15+): a double names no suit, so the
             // generic walk reads it as nothing — the points floor is recorded post-walk.
-            penalty_x: penalty_x_reading(auction),
+            penalty_x: penalty_x_reading_with_profile(auction, profile),
             // The latch's subsequent penalty doubles: each promises four-plus in the suit
             // it doubles, recorded post-walk so the sampler does not read them as takeout.
-            penalty_latch_doubles: penalty_latch_double_reading(auction),
+            penalty_latch_doubles: penalty_latch_double_reading(auction, profile),
             // Responder's double of an overcall of our 1NT shows 8+ (every DoubleStyle),
             // recorded post-walk so opener does not undercount the partnership's strength.
             overcall_double: responder_overcall_double_reading(auction, len),
@@ -1002,7 +1026,7 @@ impl Readings {
             // its forced 2♦), the cue-Stayman, the 3M splinter, and the 4M both-minor
             // Leaping Michaels are bids of a suit the caller lacks — suppressed here,
             // real shape recorded post-walk.
-            gladiator: gladiator_reading(auction),
+            gladiator: gladiator_reading(auction, profile),
         }
     }
 
@@ -1030,7 +1054,13 @@ impl Readings {
     /// after.  `docs/reader-retirement.md` turns that ordering into the fifth
     /// condition of its subset escape — a reader ahead of the fold can widen an
     /// axis that the same narrowing applied after the fold would not.
-    pub(super) fn apply(&self, players: &mut [Envelope; 4], overlay: &[Envelope; 4], len: usize) {
+    pub(super) fn apply(
+        &self,
+        players: &mut [Envelope; 4],
+        overlay: &[Envelope; 4],
+        len: usize,
+        profile: ReadingProfile,
+    ) {
         // A two-level cue-raise shows a limit-plus raise: three-plus cards in
         // partner's overcall and opening values.  Recorded after the walk (the
         // cue itself named the opponents' suit, suppressed above).
@@ -1101,7 +1131,7 @@ impl Readings {
                     players[who].narrow_length(other, Range::new(0, 3));
                 }
             }
-            let floor = crate::bidding::american::woolsey_points().0;
+            let floor = profile.woolsey_points.0;
             players[who].narrow_points(Range::at_least(floor, POINTS_CAP));
         }
 
@@ -1111,7 +1141,7 @@ impl Readings {
         // random weak hand (a double of 1NT is otherwise read as nothing).
         if let Some(woolsey_x) = self.woolsey_x {
             let who = relative_of(len, woolsey_x.double_index) as usize;
-            let floor = crate::bidding::american::woolsey_double_floor();
+            let floor = profile.woolsey_double_floor;
             players[who].narrow_points(Range::at_least(floor, POINTS_CAP));
         }
 
@@ -1223,7 +1253,7 @@ impl Readings {
         // pulling a phantom suit (cf. the Woolsey double, which records points alone too).
         if let Some(double_index) = self.penalty_x {
             let who = relative_of(len, double_index) as usize;
-            let floor = crate::bidding::american::natural_double_floor();
+            let floor = profile.natural_double_floor;
             players[who].narrow_points(Range::at_least(floor, POINTS_CAP));
         }
 

@@ -1379,7 +1379,7 @@ fn a_guarded_rung_falls_back_to_notrump() {
         Call::Pass,
     ];
     assert_eq!(
-        kickback_ladder(&jump_rebid, 6),
+        kickback_ladder(&jump_rebid, 6, rkcb_variant_now()),
         [None; 4],
         "hearts are guarded, so diamonds do not relocate at all"
     );
@@ -1407,7 +1407,7 @@ fn kickback_yields_the_undisprovable_major() {
         Call::Pass,
     ];
     assert_eq!(
-        kickback_ladder(&response, 6),
+        kickback_ladder(&response, 6, rkcb_variant_now()),
         [None; 4],
         "responder's spades leave 4♥ natural, so the diamond ask stays 4NT"
     );
@@ -1422,7 +1422,7 @@ fn kickback_yields_the_undisprovable_major() {
         Call::Pass,
     ];
     assert_eq!(
-        kickback_ladder(&weak_two, 6),
+        kickback_ladder(&weak_two, 6, rkcb_variant_now()),
         [None; 4],
         "the weak-two face reads the same way"
     );
@@ -1437,7 +1437,7 @@ fn kickback_yields_the_undisprovable_major() {
         Call::Pass,
     ];
     assert_eq!(
-        kickback_ladder(&two_suited, 6),
+        kickback_ladder(&two_suited, 6, rkcb_variant_now()),
         [None, None, Some(Suit::Diamonds), None],
         "a second named suit disproves five hearts, so 4♥ asks in diamonds"
     );
@@ -1460,7 +1460,7 @@ fn kickback_serves_both_fits_when_it_can() {
         Call::Pass,
     ];
     assert_eq!(
-        kickback_ladder(&two_fits, 8),
+        kickback_ladder(&two_fits, 8, rkcb_variant_now()),
         [None, Some(Suit::Clubs), None, Some(Suit::Hearts)],
         "clubs claim 4♦, hearts claim 4♠"
     );
@@ -1478,7 +1478,7 @@ fn kickback_serves_both_fits_when_it_can() {
         Call::Pass,
     ];
     assert_eq!(
-        kickback_ladder(&one_free, 8),
+        kickback_ladder(&one_free, 8, rkcb_variant_now()),
         [None, None, None, Some(Suit::Hearts)],
         "diamonds revert to 4NT; hearts keep 4♠"
     );
@@ -1494,7 +1494,7 @@ fn kickback_refuses_without_a_set_trump() {
     set_rkcb_variant(RkcbVariant::Kickback);
     let one_bid = [call(1, Strain::Diamonds), Call::Pass];
     assert_eq!(
-        kickback_ladder(&one_bid, 2),
+        kickback_ladder(&one_bid, 2, rkcb_variant_now()),
         [None; 4],
         "one bid is no agreement — `1♦ - 4♥` is not an ask"
     );
@@ -1505,7 +1505,7 @@ fn kickback_refuses_without_a_set_trump() {
         Call::Pass,
     ];
     assert_eq!(
-        kickback_ladder(&spades, 4),
+        kickback_ladder(&spades, 4, rkcb_variant_now()),
         [None; 4],
         "nothing sits between 4♠ and 4NT"
     );
@@ -1520,7 +1520,7 @@ fn kickback_refuses_without_a_set_trump() {
         Call::Pass,
     ];
     assert_eq!(
-        kickback_ladder(&minor_signoff, 6),
+        kickback_ladder(&minor_signoff, 6, rkcb_variant_now()),
         [None; 4],
         "the notrump veto carries to the ladder"
     );
@@ -1542,7 +1542,7 @@ fn kickback_never_claims_the_opponents_suit() {
         Call::Pass,
     ];
     assert_eq!(
-        kickback_ladder(&cued, 6),
+        kickback_ladder(&cued, 6, rkcb_variant_now()),
         [None, None, None, Some(Suit::Hearts)],
         "their diamonds are guarded; the heart ask takes 4♠"
     );
@@ -1644,7 +1644,7 @@ fn kickback_answers_climb_from_four_spades() {
         Call::Pass,
     ];
     assert_eq!(
-        kickback_ladder(&auction, 4)[Suit::Spades as usize],
+        kickback_ladder(&auction, 4, rkcb_variant_now())[Suit::Spades as usize],
         Some(Suit::Hearts),
         "hearts are set and spades unguarded, so 4♠ asks in hearts"
     );
@@ -1686,12 +1686,12 @@ fn a_four_notrump_answering_the_relocation_is_not_a_new_ask() {
         Call::Pass,
     ];
     assert_eq!(
-        keycard_ask_bid(&auction, 6),
+        keycard_ask_bid(&auction, 6, relocation_now()),
         None,
         "4NT is step 1 over the 4♠ ask, so it asks nothing"
     );
     assert_eq!(
-        keycard_ask_bid(&auction, 4),
+        keycard_ask_bid(&auction, 4, relocation_now()),
         Some(Bid::new(4, Strain::Spades)),
         "the ask is still the 4♠ two calls before it"
     );
@@ -1729,12 +1729,12 @@ fn a_suit_answering_the_relocation_is_not_a_new_ask() {
         Call::Pass,
     ];
     assert_eq!(
-        keycard_ask_bid(&auction, 6),
+        keycard_ask_bid(&auction, 6, relocation_now()),
         None,
         "4♠ is step 1 over the 4♥ ask, so it asks nothing"
     );
     assert_eq!(
-        keycard_ask_bid(&auction, 4),
+        keycard_ask_bid(&auction, 4, relocation_now()),
         Some(Bid::new(4, Strain::Hearts)),
         "the ask is still the 4♥ two calls before it"
     );
@@ -1766,8 +1766,8 @@ fn the_answer_is_not_an_ask() {
         call(4, Strain::Spades),
         Call::Pass,
     ];
-    let answer = keycard_ask_bid(&auction, 6);
-    let ask = keycard_ask_bid(&auction, 4);
+    let answer = keycard_ask_bid(&auction, 6, relocation_now());
+    let ask = keycard_ask_bid(&auction, 4, relocation_now());
     set_rkcb_variant(RkcbVariant::Plain); // restore the default (off) for the rest of the suite
     assert_eq!(answer, None, "4♠ answers the 4♥ ask; it asks nothing");
     assert_eq!(
@@ -1799,7 +1799,7 @@ fn redwood_keeps_the_trump_five_reachable() {
         .chain([call(4, Strain::Hearts), Call::Pass])
         .collect();
     assert_eq!(
-        kickback_ladder(&relocated, 4)[Suit::Hearts as usize],
+        kickback_ladder(&relocated, 4, rkcb_variant_now())[Suit::Hearts as usize],
         Some(Suit::Diamonds),
         "diamonds are set and hearts unguarded, so 4♥ asks in diamonds"
     );
@@ -1844,7 +1844,7 @@ fn redwood_scopes_the_ladder_and_implies_the_minors() {
         call(3, Strain::Hearts),
         Call::Pass,
     ];
-    let claims = |auction: &[Call]| kickback_ladder(auction, 4);
+    let claims = |auction: &[Call]| kickback_ladder(auction, 4, rkcb_variant_now());
 
     set_rkcb_minors(false);
     set_rkcb_variant(RkcbVariant::Redwood);

@@ -15,9 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   of inheriting whatever knobs the caller's thread was left holding; the
   caller's own knob state is untouched.  `Stance::repin` re-captures the
   thread's knob state into an already-built stance, the deliberate escape
-  hatch for setting a knob *after* `Pair::against`.  Groundwork only so far:
-  the stance now carries the captured profile, but no reader consults it yet,
-  so seeded `smoke-default` / `smoke-dutch` dumps (20 000 boards) are
+  hatch for setting a knob *after* `Pair::against`.  The inference and instinct
+  layers now read that pinned profile rather than the thread, so a stance
+  decides identically on any thread — and a reading or floor knob set *after*
+  `Pair::against` is inert until the next build or `repin`.  Knobs consumed at
+  book construction keep their old timing, and a bare context with no stance
+  attached (unit tests, `resolve`, rows `verify`) still consults the thread.
+  Seeded `smoke-default` / `smoke-dutch` dumps (20 000 boards) are
   byte-identical across the change.
 
 - **The bias fold: the frozen-coordinate tax is now zero by construction.**

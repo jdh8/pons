@@ -4,9 +4,16 @@
 //! a [`Strength`].  An [`EnvelopeUnion`] is a disjunction of such boxes, the
 //! reading a rule's `project` fold produces when its meaning is not a single box.
 
-use super::knobs::{envelope_union_reading, gauge_membership, sum_closure, upgrade_closure};
+use super::knobs::{ReadingProfile, gauge_membership, reading_profile};
 use super::{LENGTH_CAP, POINTS_CAP, SUIT_HCP_CAP};
 use contract_bridge::{Hand, Suit};
+
+impl ReadingProfile {
+    /// Whether envelope-union projection is enabled in this pinned profile.
+    pub(crate) const fn envelope_union(self) -> bool {
+        self.envelope_union
+    }
+}
 
 /// An inclusive `[min, max]` range of a shown quantity — a length or points
 ///
@@ -669,16 +676,22 @@ impl EnvelopeUnion {
         }
     }
 
+    /// The same projection fold under the calling thread's live knobs.
+    #[must_use]
+    pub fn disjoin(self, other: Self) -> Self {
+        self.disjoin_with(other, reading_profile())
+    }
+
     /// The `|` combine the projection fold uses: separate boxes under
-    /// [`envelope_union_reading`], else the single bounding-box hull
+    /// [`envelope_union_reading`][super::envelope_union_reading], else the single bounding-box hull
     ///
     /// Off, reproduces [`Envelope::span`] exactly, so the hull
     /// path stays byte-identical; on, keeps the arms so an enclosing `&`
     /// distributes and the sampler pins the disjunction.
     #[must_use]
-    pub fn disjoin(self, other: Self) -> Self {
-        if envelope_union_reading() {
-            self.union(other).tidy()
+    pub(crate) fn disjoin_with(self, other: Self, profile: ReadingProfile) -> Self {
+        if profile.envelope_union {
+            self.union(other).tidy(profile)
         } else {
             Self::from(self.hull().span(&other.hull()))
         }
@@ -694,17 +707,17 @@ impl EnvelopeUnion {
     /// — sound and loose, never an empty (unsound) `EnvelopeUnion`.
     #[must_use]
     pub fn intersect(&self, other: &Self) -> Self {
-        self.clone().intersect_owned(other)
+        self.clone().intersect_owned(other, reading_profile())
     }
 
     /// Consuming intersection used by append-only projection accumulators.
-    pub(crate) fn intersect_owned(self, other: &Self) -> Self {
+    pub(crate) fn intersect_owned(self, other: &Self, profile: ReadingProfile) -> Self {
         let fallback = self.hull().intersect(&other.hull());
         match (self.0, &other.0) {
             (EnvelopeBoxes::One(one), EnvelopeBoxes::One(two)) => Self(EnvelopeBoxes::One(
                 one.intersect_nonempty(two).unwrap_or(fallback),
             ))
-            .tidy(),
+            .tidy(profile),
             (EnvelopeBoxes::Many(mut boxes), EnvelopeBoxes::One(one)) => {
                 boxes.retain_mut(|box_| {
                     let Some(product) = box_.intersect_nonempty(one) else {
@@ -714,9 +727,9 @@ impl EnvelopeUnion {
                     true
                 });
                 if boxes.is_empty() {
-                    Self(EnvelopeBoxes::One(fallback)).tidy()
+                    Self(EnvelopeBoxes::One(fallback)).tidy(profile)
                 } else {
-                    Self::from_boxes(boxes).tidy()
+                    Self::from_boxes(boxes).tidy(profile)
                 }
             }
             (left, _) => {
@@ -736,7 +749,7 @@ impl EnvelopeUnion {
                 // rare, so the Vec stays short on the real book.  The assert fires
                 // loudly if some auction blows up; add sound exact-merge (containment +
                 // axis-adjacency) only then.
-                let out = Self::from_boxes(out).tidy();
+                let out = Self::from_boxes(out).tidy(profile);
                 debug_assert!(
                     out.boxes().len() < 64,
                     "envelope union term explosion: {} boxes",
@@ -747,9 +760,9 @@ impl EnvelopeUnion {
         }
     }
 
-    pub(super) fn intersect_assign(&mut self, other: &Self) {
+    pub(super) fn intersect_assign(&mut self, other: &Self, profile: ReadingProfile) {
         let owned = core::mem::replace(self, Self::unknown());
-        *self = owned.intersect_owned(other);
+        *self = owned.intersect_owned(other, profile);
     }
 
     /// Knob-on box hygiene — drop what changes nothing, keep the union exact
@@ -766,8 +779,8 @@ impl EnvelopeUnion {
     /// the knob-off hull path must stay byte-identical — and restores the
     /// non-empty invariant with ⊤ if every box was a ghost (an unsatisfiable
     /// conjunction; sound, loose, rare).
-    pub(super) fn tidy(self) -> Self {
-        if !envelope_union_reading() {
+    pub(super) fn tidy(self, profile: ReadingProfile) -> Self {
+        if !profile.envelope_union {
             return self;
         }
         let mut boxes = match self.0 {
@@ -775,10 +788,10 @@ impl EnvelopeUnion {
                 if !box_.sum_feasible() {
                     return Self::unknown();
                 }
-                if sum_closure() {
+                if profile.sum_closure {
                     box_.narrow_to_sum();
                 }
-                if upgrade_closure() {
+                if profile.upgrade_closure {
                     box_.narrow_to_upgrade();
                 }
                 return Self(EnvelopeBoxes::One(box_));
@@ -786,16 +799,16 @@ impl EnvelopeUnion {
             EnvelopeBoxes::Many(boxes) => boxes,
         };
         boxes.retain(Envelope::sum_feasible);
-        if sum_closure() || upgrade_closure() {
+        if profile.sum_closure || profile.upgrade_closure {
             // Exact and membership-inert, so running it *before* the dedup is
             // safe: every containment it exposes is a real one.  Sum first —
             // it can force a box balanced, which is what the upgrade closure
             // reads.
             for box_ in &mut boxes {
-                if sum_closure() {
+                if profile.sum_closure {
                     box_.narrow_to_sum();
                 }
-                if upgrade_closure() {
+                if profile.upgrade_closure {
                     box_.narrow_to_upgrade();
                 }
             }

@@ -714,6 +714,26 @@ pub(crate) struct ReadingProfile {
 }
 
 impl ReadingProfile {
+    /// Whether the Woolsey defense is the active notrump defense.
+    pub(crate) fn woolsey_enabled(self) -> bool {
+        self.notrump_defense == crate::bidding::american::NotrumpDefense::Woolsey
+    }
+
+    /// Whether the Meckwell defense is the active notrump defense.
+    pub(crate) fn meckwell_enabled(self) -> bool {
+        self.notrump_defense == crate::bidding::american::NotrumpDefense::Meckwell
+    }
+
+    /// Whether direct-seat DONT is the active notrump defense.
+    pub(crate) fn direct_dont_enabled(self) -> bool {
+        self.notrump_defense == crate::bidding::american::NotrumpDefense::DirectDont
+    }
+
+    /// Whether the natural defense is the active notrump defense.
+    pub(crate) fn natural_defense_enabled(self) -> bool {
+        self.notrump_defense == crate::bidding::american::NotrumpDefense::Natural
+    }
+
     pub(crate) const fn decodes_nonpass(self, alerted: bool) -> bool {
         match self.scope {
             ReadingScope::None => false,
@@ -732,6 +752,44 @@ impl ReadingProfile {
 
     pub(crate) const fn announced_reading(self) -> bool {
         self.announced
+    }
+
+    pub(crate) const fn probed_reading(self) -> bool {
+        self.probed
+    }
+
+    pub(crate) const fn probed_vacuous_reading(self) -> bool {
+        self.probed_vacuous
+    }
+
+    // The four cells the [instinct floor][crate::bidding::instinct()] shares
+    // with the reading layer.  They live here, not in
+    // [`InstinctProfile`][crate::bidding::instinct::InstinctProfile]: one cell,
+    // one home, so the two halves of a decision profile cannot disagree about
+    // what the partnership plays.
+
+    pub(crate) const fn floor_rkcb(self) -> bool {
+        self.floor_rkcb
+    }
+
+    pub(crate) const fn rkcb_variant(self) -> crate::bidding::instinct::RkcbVariant {
+        self.rkcb_variant
+    }
+
+    pub(crate) const fn rubens_advances(self) -> bool {
+        self.rubens_advances
+    }
+
+    pub(crate) const fn penalty_latch(self) -> bool {
+        self.penalty_latch
+    }
+
+    /// Drive the probed-overlay bit — [`Stance::probe`]'s fixed point runs by
+    /// mutating the stance it probes, not the thread.
+    ///
+    /// [`Stance::probe`]: crate::bidding::Stance::probe
+    pub(crate) const fn set_probed(&mut self, on: bool) {
+        self.probed = on;
     }
 }
 

@@ -200,9 +200,10 @@ fn stayman_net_seam(
     strain: Strain,
     tricks: u8,
 ) -> Cons<impl Constraint + Clone> {
-    let off = pred(|_: Hand, _: &Context<'_>| !stayman_net_force());
+    let off = pred(|_: Hand, context: &Context<'_>| !context.decision_profile().stayman_net_force);
     let evaluated = shape.clone()
-        & ((off & points.clone()) | net_break_even_gate(stayman_net_force, want, strain, tricks));
+        & ((off & points.clone())
+            | net_break_even_gate(|profile| profile.stayman_net_force, want, strain, tricks));
     reads_as(evaluated, shape & points)
 }
 
