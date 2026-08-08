@@ -160,6 +160,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The reader-retirement subset escape claimed a fold ordering that two of the
+  eleven post-walk blocks violate.**  `docs/reader-retirement.md` justified
+  skipping the knob and the A/B on the grounds that `project_authored`'s overlay
+  hull is folded into `players` "before *any* reader's post-walk recording
+  block", making a subsumed reader an idempotent intersect.  It is not: the
+  `rubens_cue` and `rubens_transfer` blocks run **before** the fold, the other
+  nine after.  That is load-bearing rather than pedantic, because
+  `Range::intersect` is not a meet — on disjoint bounds it *widens to the span*
+  instead of going empty, so it is non-associative in exactly the conflict case
+  the subset argument reasons about, and a reader narrowing ahead of the fold can
+  widen a range that the same narrowing applied after the fold would not.  The
+  escape's condition list grows a fifth item (the block must run after the fold)
+  and a table giving each block's position, so a Rubens chop is now correctly
+  routed to the normal knob + A/B path.  No code changes: today's Rubens chop is
+  deferred on its own measurement anyway, so nothing shipped was resting on the
+  bad justification — but a new reader wired ahead of the fold would have been.
+
 - **The v5 ship's siblings, which had turned three A/B scripts into fabricated
   verdicts.**  `american()` moved to the compact-config floor; `american_floor()`
   (the book-ablation handle) and `american_with_config()` (which every
@@ -335,6 +352,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the four calls now disclose and read as what they are.
 
 ### Changed
+
+- **`src/bidding/inference.rs` is now five submodules instead of one 5383-line
+  file.**  The reading layer — the inverse of the bidder, turning an auction
+  into per-seat [`Envelope`]s — had grown to ~10k lines counting its tests, all
+  behind a single `use super::*`.  It splits by role, 2018-edition style, into
+  `inference/{knobs,envelope,read,projection,readers}.rs` with the root reduced
+  to a module doc, three caps, and re-exports, so every existing path (the
+  `bidding.rs` facade, four out-of-crate `pons::bidding::inference::` sites, ~30
+  intra-doc links) resolves unchanged.  Largest impl file 5383 → 1567
+  (`read.rs`); largest test file 4583 → 1405.  The payoff is
+  `readers.rs`: the ten hand-written convention readers — the entire worklist of
+  `docs/reader-retirement.md` — now sit in one 944-line file with their own
+  `readers/tests.rs`, so retiring one is a file-local edit and eventually a file
+  deletion.  Tests split by code location to match, 112 before and 112 after
+  with no function dropped.  **`smoke-default` (20 000 boards, seed 1) is
+  byte-identical** (`f2dab512…`): this is a pure motion, no behaviour moves.
+  Cost, and it is a real one: 173 call sites reach across the new `envelope.rs`
+  boundary, so `Range::at_least`, `Envelope::{narrow_length, narrow_points,
+  narrow_hcp}` and `EnvelopeUnion::intersect_assign` widen from private to
+  `pub(super)` — the price of putting the box types and the walk in different
+  files.  Paid for in the other direction by six `pub` getters with no consumer
+  outside the module (`nt_invite_inference`, `rubens_transfer_reading`,
+  `fallback_projection_enabled`, `gauge_membership`, `sum_closure`,
+  `upgrade_closure`) demoting to `pub(crate)`.  Two structs the source called
+  "retained for future reuse" — `CachedRoute` and `AuthoringStepRecord` — turned
+  out to be load-bearing after all: both are read by the `#[cfg(test)]`
+  route-parity audit, and their `#[allow(dead_code)]` covers the release build
+  alone.  They keep their place and now say so honestly.
 
 - **The frozen-coordinate tax has a mechanism and an exact remedy, both written
   down: `docs/ai-bidder/card-manifold.md`.**  `classify_bba_v4` is a bare

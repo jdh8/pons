@@ -1,7 +1,7 @@
 # Retiring the hand-written disjunction readers
 
 Campaign: replace each hand-written convention reader in
-`src/bidding/inference.rs` with the authored rules' own envelope-union projection,
+`src/bidding/inference/readers.rs` with the authored rules' own envelope-union projection,
 one measured chop at a time. This is the correctly-aimed half of "envelope-union
 reading obsoletes the special cases" — the *readers* are the pre-campaign legacy, not the
 alerts (the alert is what makes projection decoding sound: it gates the
@@ -32,7 +32,8 @@ phantom-suit class of bug).
 
 ## Inventory
 
-All in `src/bidding/inference.rs` (grep the names; line numbers drift). Each
+All in `src/bidding/inference/readers.rs`, with their tests in
+`src/bidding/inference/readers/tests.rs` (grep the names; line numbers drift). Each
 is gated by its convention's own enable knob — confirm the exact wiring when
 its chop starts. The `blocker` column is what stands between the reader and its
 chop; four of them are one missing `.alert(...)` away.
@@ -89,21 +90,44 @@ Steps 3 and 4 (knob, then A/B) buy protection against a *changed* shipped
 reading. Some readers change nothing, and then the knob is a switch whose two
 positions are indistinguishable and the A/B is a run that prints zero. The
 reason is structural: `project_authored`'s overlay hull is folded into
-`players` **before** any reader's post-walk recording block (`inference.rs`,
-the `for (seat, projected) in overlay.iter().enumerate()` loop), and
-`Envelope::narrow_length` / `narrow_points` are plain per-axis
-`Range::intersect`. So a reader whose every narrowing is already implied by
-`hull(overlay)` is running an idempotent intersect.
+`players` by the `for (seat, projected) in overlay.iter().enumerate()` loop in
+`inference/read.rs`, and `Envelope::narrow_length` / `narrow_points` are plain
+per-axis `Range::intersect`. So a reader whose every narrowing is already
+implied by `hull(overlay)` is running an idempotent intersect.
 
-A chop qualifies as a **no-op** when all four hold:
+**Order matters, because `Range::intersect` is not a meet.** On disjoint
+bounds it *widens to the span* rather than going empty (`inference/envelope.rs`,
+`Range::intersect`), so the operation is non-associative exactly in the case the
+subset argument is about. A reader that narrows *before* the fold can therefore
+see a range the fold has not yet tightened, conflict with it, and widen — and
+the same narrowing applied after the fold would not. The post-walk blocks run in
+this order:
 
-1. Every axis the reader narrows is at least as narrow in `hull(overlay)` —
+| # | Block | Relative to the fold |
+| --- | --- | --- |
+| 1 | `rubens_cue` | **before** |
+| 2 | `rubens_transfer` | **before** |
+| 3 | the overlay fold | — |
+| 4–8 | `multi`, `woolsey_x`, `dont`, `meckwell`, `gladiator` | after |
+| 9–11 | `penalty_x`, `penalty_latch_doubles`, `overcall_double` | after |
+
+So the escape covers the nine blocks after the fold. The two Rubens blocks are
+**not** eligible for it: chop them the normal way (knob, A/B, steps 3-5)
+regardless of how the subset analysis comes out. That is moot today — the
+Rubens chop is deferred on its own measurement (below) — but it binds if it is
+ever reopened, and it binds for any new reader wired ahead of the fold.
+
+A chop qualifies as a **no-op** when all five hold:
+
+1. The reader's recording block runs **after** the overlay fold — see the table
+   above.
+2. Every axis the reader narrows is at least as narrow in `hull(overlay)` —
    check the authoring rule's projection, not its prose.
-2. The authoring node exists for every auction the reader fires on, including
+3. The authoring node exists for every auction the reader fires on, including
    the declarative leading-pass seat fan (`P*`).
-3. No sibling rule shares the call unalerted — `project_call` unions all rules
+4. No sibling rule shares the call unalerted — `project_call` unions all rules
    sharing the made call, so an unalerted catch-all would hull the floor away.
-4. Every seat that reads it is covered: the opponents' call via the table-alert
+5. Every seat that reads it is covered: the opponents' call via the table-alert
    walk, the same call own-side via the exact-node/fallback walk. Both use the
    same `relative_of`, so attribution matches.
 
@@ -114,7 +138,7 @@ divergent set was empty *on those seeds*), and diff
 DDS cost. If that diff moves, the analysis is wrong — stop and escalate to the
 knob and the full A/B.
 
-Anything that fails one of the four is a normal chop: knob, A/B, steps 3-5.
+Anything that fails one of the five is a normal chop: knob, A/B, steps 3-5.
 
 ## The Rubens layer — measured, chop deferred
 

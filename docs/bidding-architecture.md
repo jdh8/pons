@@ -174,14 +174,14 @@ seat-carrying `project` or the sampled projection.
 - `Alert("kebab-slug")` (`rules.rs`) marks a call artificial. The system-wide
   identity: **a rule that floors a suit its bid didn't name is artificial, and
   every artificial bid must be alerted** — enforced by the unit invariant test
-  `artificial_calls_are_alerted` (`src/bidding/inference.rs`). Passes and
+  `artificial_calls_are_alerted` (`src/bidding/inference/tests.rs`). Passes and
   doubles are natural-by-default (they defend the contract on the table);
   artificiality is bid-only. A pass still *reads*: its general meaning is
   negative inference — excluding every other call its table offered — decoded
   from the table's own Pass gate via `project_band` (`set_pass_reading`,
   default on), each pass resolved in the trie of its own turn.
 - Alerted calls are decoded by **rule projection** (`project_authored` in
-  `inference.rs`, master switch `set_alert_reading`, default on): the reader
+  `inference/projection.rs`, master switch `set_alert_reading`, default on): the reader
   replays the authoring rule's `project` fold. Unalerted = natural =
   floor-safe.
 - Projection reaches only calls the reader's own book authored — the
@@ -193,7 +193,7 @@ seat-carrying `project` or the sampled projection.
   falls out) under their at-the-time context, and decoded when alerted. The
   stance models the opponents as playing our own books: exact in self-play,
   an approximation against other natural-family engines.
-- `Inferences::read` (`inference.rs`) accumulates per-player `Envelope`
+- `Inferences::read` (`inference/read.rs`) accumulates per-player `Envelope`
   (per-suit length ranges + points) from the auction — design law **soundness
   over tightness** (never claim more than the calls promise). Convention
   readings suppress the literal natural reading at the artificial bid's index
@@ -238,15 +238,15 @@ seat-carrying `project` or the sampled projection.
 ## Knobs
 
 ~100 `set_*` free functions on thread-locals, clustered in `instinct.rs`,
-`constraint.rs`, `inference.rs`, and `american/{openings,rebids,notrump,competition,defense}.rs`.
+`constraint.rs`, `inference/knobs.rs`, and `american/{openings,rebids,notrump,competition,defense}.rs`.
 Conventions:
 
 - The default encodes the measured verdict ([measurement.md](measurement.md)
   ship rules); the non-default state of a shipped knob keeps an off-switch in
   `bba-gen` (`--no-ns-*` for default-on knobs).
 - Most knobs are read at **book construction** — baked into the books, safe
-  under rayon. The `inference.rs` knobs are read at **classify time** — set
-  them inside worker closures in parallel harnesses.
+  under rayon. The `inference/knobs.rs` knobs are read at **classify time** —
+  set them inside worker closures in parallel harnesses.
 - A knob's off-state must leave the default system byte-identical while the
   treatment is unshipped.
 
