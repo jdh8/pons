@@ -51,9 +51,15 @@ treatment) and `measure-ab` (running and interpreting an A/B). Use them.
      `-D warnings`, often newer than the local toolchain, so use the strictest
      available: `cargo +nightly clippy --all-targets --all-features -- -D warnings`
      and `RUSTDOCFLAGS="-D warnings" cargo doc --no-deps --all-features`.
-  4. Update [CHANGELOG.md](CHANGELOG.md) with the change and its user impact
+  4. **If the change touches the public API, `cd web && cargo test`.**  `web/` is
+     its own workspace, so *nothing* above compiles it — not `--all-targets`, not
+     `--all-features` — and it links pons with `default-features = false`.  CI's
+     `web` job catches a break; no local command will unless you run this one.
+     It consumes each reading knob as a **setter/getter pair**, so narrowing a
+     `pub` getter that `src/` never reads still breaks the build.
+  5. Update [CHANGELOG.md](CHANGELOG.md) with the change and its user impact
      (measured IMPs where applicable).
-  5. Propose a clear, descriptive commit message.
+  6. Propose a clear, descriptive commit message.
 
 ## Iron rules
 

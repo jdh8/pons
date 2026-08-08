@@ -160,6 +160,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **The `web` CI job, which the inference split would have turned red.**  The
+  split demoted six `pub` reading-knob getters to `pub(crate)` on the finding
+  that nothing outside the module read them.  That finding was produced by a
+  search over `src/`, and it was wrong: `web/` is **its own workspace**, so no
+  command in the parent compiles it — not `cargo test --all-features`, not
+  `cargo clippy --all-targets` — and `web/src/lib.rs` builds its settings table
+  out of setter/**getter** pairs, consuming `nt_invite_inference`,
+  `rubens_transfer_reading` and `fallback_projection_enabled` by their full
+  paths.  All six getters are `pub` again and re-exported from the `inference`
+  root; the remaining three had no consumer but are the getter halves of public
+  setters, and an asymmetric pair is exactly the trap that produced this bug.
+  A name-by-name diff of every `pub` item against the pre-split file now reports
+  nothing missing and nothing added.  `CLAUDE.md`'s gate list grows the step that
+  would have caught it — `cd web && cargo test` whenever the public API moves —
+  since this is the second time that workspace boundary has hidden a drift from
+  every local check (the first cost three `SETTINGS` defaults, which is why the
+  `web` job exists at all).
+
 - **The reader-retirement subset escape claimed a fold ordering that two of the
   eleven post-walk blocks violate.**  `docs/reader-retirement.md` justified
   skipping the knob and the A/B on the grounds that `project_authored`'s overlay
@@ -399,10 +417,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   boundary, so `Range::at_least`, `Envelope::{narrow_length, narrow_points,
   narrow_hcp}` and `EnvelopeUnion::intersect_assign` widen from private to
   `pub(super)` — the price of putting the box types and the walk in different
-  files.  Paid for in the other direction by six `pub` getters with no consumer
-  outside the module (`nt_invite_inference`, `rubens_transfer_reading`,
-  `fallback_projection_enabled`, `gauge_membership`, `sum_closure`,
-  `upgrade_closure`) demoting to `pub(crate)`.  Two structs the source called
+  files.  The crate's public surface is unchanged: a name-by-name diff of every
+  `pub` item against the pre-split file reports nothing missing and nothing
+  added.  Two structs the source called
   "retained for future reuse" — `CachedRoute` and `AuthoringStepRecord` — turned
   out to be load-bearing after all: both are read by the `#[cfg(test)]`
   route-parity audit, and their `#[allow(dead_code)]` covers the release build

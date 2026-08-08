@@ -56,14 +56,20 @@ mod read;
 mod readers;
 
 pub use envelope::{Envelope, EnvelopeUnion, Range, Relative, Strength};
+// Every knob is a setter/getter *pair*: `web/src/lib.rs` builds its settings
+// table out of both halves, so demoting a getter breaks a build no gate in this
+// workspace reaches (`web/` is its own workspace — see the `web` CI job).  Keep
+// the pair public even where nothing in `src/` reads the getter.
 pub use knobs::{
     ReadingScope, blind_opponent_reading, control_bid_reading, envelope_union_reading,
-    pass_exclusion_reading, rule_accept_enabled, set_announced_reading, set_blind_opponent_reading,
-    set_control_bid_reading, set_cue_reading, set_envelope_union_reading, set_fallback_projection,
-    set_gauge_membership, set_length_soundness, set_nt_invite_inference,
-    set_pass_exclusion_reading, set_pass_reading, set_probed_reading, set_probed_vacuous_reading,
-    set_reading_scope, set_rubens_transfer_reading, set_rule_accept, set_sum_closure,
-    set_table_alert_reading, set_upgrade_closure,
+    fallback_projection_enabled, gauge_membership, nt_invite_inference, pass_exclusion_reading,
+    rubens_transfer_reading, rule_accept_enabled, set_announced_reading,
+    set_blind_opponent_reading, set_control_bid_reading, set_cue_reading,
+    set_envelope_union_reading, set_fallback_projection, set_gauge_membership,
+    set_length_soundness, set_nt_invite_inference, set_pass_exclusion_reading, set_pass_reading,
+    set_probed_reading, set_probed_vacuous_reading, set_reading_scope, set_rubens_transfer_reading,
+    set_rule_accept, set_sum_closure, set_table_alert_reading, set_upgrade_closure, sum_closure,
+    upgrade_closure,
 };
 pub use read::Inferences;
 

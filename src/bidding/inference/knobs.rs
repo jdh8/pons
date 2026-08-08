@@ -26,7 +26,7 @@ pub fn set_nt_invite_inference(on: bool) {
 }
 
 /// Whether the [`set_nt_invite_inference`] knob is on
-pub(crate) fn nt_invite_inference() -> bool {
+pub fn nt_invite_inference() -> bool {
     NT_INVITE_INFERENCE.with(Cell::get)
 }
 
@@ -50,7 +50,7 @@ pub fn set_rubens_transfer_reading(on: bool) {
 }
 
 /// Whether the [`set_rubens_transfer_reading`] knob is on
-pub(crate) fn rubens_transfer_reading() -> bool {
+pub fn rubens_transfer_reading() -> bool {
     RUBENS_TRANSFER_READING.with(Cell::get)
 }
 
@@ -172,7 +172,7 @@ pub fn set_fallback_projection(on: bool) {
 
 /// Whether fallback-authored projection is enabled (default on)
 #[must_use]
-pub(crate) fn fallback_projection_enabled() -> bool {
+pub fn fallback_projection_enabled() -> bool {
     FALLBACK_PROJECTION.with(Cell::get)
 }
 
@@ -280,7 +280,7 @@ pub fn set_gauge_membership(on: bool) {
 
 /// Whether gauge membership is enabled (default off)
 #[must_use]
-pub(crate) fn gauge_membership() -> bool {
+pub fn gauge_membership() -> bool {
     GAUGE_MEMBERSHIP.with(Cell::get)
 }
 
@@ -314,7 +314,7 @@ pub fn set_sum_closure(on: bool) {
 
 /// Whether the `Σ len = 13` closure is enabled (default off)
 #[must_use]
-pub(crate) fn sum_closure() -> bool {
+pub fn sum_closure() -> bool {
     SUM_CLOSURE.with(Cell::get)
 }
 
@@ -337,7 +337,7 @@ pub fn set_upgrade_closure(on: bool) {
 
 /// Whether the shape-upgrade closure is enabled (default off)
 #[must_use]
-pub(crate) fn upgrade_closure() -> bool {
+pub fn upgrade_closure() -> bool {
     UPGRADE_CLOSURE.with(Cell::get)
 }
 
