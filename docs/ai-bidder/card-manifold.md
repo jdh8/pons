@@ -135,6 +135,21 @@ miss a rare variation and zero a live column, which would be a silent bidding
 change. `np.memmap` in chunks. Scan all 368, not just the card block: any
 constant v3 coordinate folds by the same argument.
 
+**⚠ Deviation, as shipped (2026-08-08).** The scan had no input: the v4 corpus
+(`target/corpus-v4/`, 12 stems, ~5.7 GB) no longer exists on disk — the sidecar
+records the draw exactly, but regenerating it costs ≈5M EPBot calls, roughly a
+v5 dump. The shipped script therefore runs in **geometry mode**: the fold set
+is the card block minus the eight live slots hardcoded from the cell geometry
+(`{88, 228} + {0, 2, 7, 77}`, the derivation in §"How many coordinates are
+frozen"), and the fixture's 8 stored feature rows supply only the constant
+*values* (exact 0/1 bits, all rows agree — asserted). The fixture **cannot**
+substitute for the scan: six of the eight live slots are constant across its 8
+rows, so a constancy-derived set would wrongly fold them. In exchange, v3
+coordinates (0..88) stay unfolded, and the certificate moved from ex-ante scan
+to the gates below — all three held: fixture un-re-blessed, smoke
+byte-identical, E1's flip 0 of 20 000. Scan mode is owed at the v5 export,
+where a corpus is on disk by construction.
+
 The rewritten blob must keep all 170 022 floats —
 [neural.rs](../../src/bidding/neural.rs) has a compile-time size assert.
 
@@ -170,7 +185,7 @@ Ordered. None needs a retrain, and E1 needs no A/B at all.
 
 | # | run | cost | what it decides |
 | --- | --- | --- | --- |
-| **E1** | fold, then set `"Two way game tries"` to its honest `0` and dump `smoke-default` | seconds, deterministic | **the fold works.** The row is frozen, therefore zeroed, therefore flipping it must move **0 of 20 000** boards. Converts a −0.015/board A/B into an assertion. |
+| **E1** | fold, then set `"Two way game tries"` to its honest `0` and dump `smoke-default` | seconds, deterministic | **the fold works.** The row is frozen, therefore zeroed, therefore flipping it must move **0 of 20 000** boards. Converts a −0.015/board A/B into an assertion. **✓ PASSED 2026-08-08**: sha `59a27d7f…` identical across baseline, fold, and honest-0 (2647 boards moved pre-fold). |
 | **E2** | folded vs unfolded `--declare-opponents` cell A (vs BBA's real 2/1 card, 43 rows differing) | 2000 bd/arm/vul, harness exists | **the diagnosis, experimentally.** −0.70/−1.16 must collapse to ~0. The cheapest possible test of everything above: if cell A does *not* collapse, the frozen-coordinate story is wrong. |
 | **E3** | **cell B at scale** — `--their-floor dutch --declare-opponents`, 204 800 bd/arm/vul, both vuls, dual scoring | minutes | **the retrain's go/no-go.** Cell B moves slots {0, 2, 7}, all genuinely *trained*. A wash here says the trained coordinates are worth ~0 too, and the retrain is dead. |
 

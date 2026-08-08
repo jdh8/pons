@@ -57,3 +57,37 @@ fn matches_candle_fixture_bba_v4() {
         |x| classify_bba_v4(x).iter().map(|(_, l)| *l).collect(),
     );
 }
+
+/// The shipped blob is folded (`scripts/fold-constant-inputs.py`): every card
+/// column the v4 corpus never varied is bit-exactly zero in `W1`, its constant
+/// contribution absorbed into `b1`, so a frozen card row is inert at serving
+/// instead of a random hidden-layer vector — the frozen-coordinate tax of
+/// `docs/ai-bidder/card-manifold.md`.  This is the export gate: a freshly
+/// trained blob fails here until the fold is re-run, and a future net that
+/// thaws more card axes updates the live set below to match its corpus.
+#[test]
+fn folded_card_columns_are_exactly_zero() {
+    use crate::bidding::features::{FEATURES_LEN_V3, LEN_CARD};
+    // The four in-block slots the v4 corpus varied per side: base-system
+    // one-hot bits 0 (2/1 GF) and 2 (WJ), `1D opening with 5 cards`, and
+    // `Kickback 1430`.
+    let live: Vec<usize> = [FEATURES_LEN_V3, FEATURES_LEN_V3 + LEN_CARD]
+        .into_iter()
+        .flat_map(|base| [0, 2, 7, 77].into_iter().map(move |slot| base + slot))
+        .collect();
+    let w1 = &WEIGHTS_BBA_V4[..HID * IN_V4];
+    for i in FEATURES_LEN_V3..IN_V4 {
+        let column_zero = (0..HID).all(|h| w1[h * IN_V4 + i].to_bits() == 0);
+        if live.contains(&i) {
+            assert!(
+                !column_zero,
+                "live card slot {i} is all-zero: wrong live set"
+            );
+        } else {
+            assert!(
+                column_zero,
+                "frozen card slot {i} has weight: unfolded blob"
+            );
+        }
+    }
+}

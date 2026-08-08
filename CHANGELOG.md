@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The bias fold: the frozen-coordinate tax is now zero by construction.**
+  `scripts/fold-constant-inputs.py` folds every card column the v4 corpus never
+  varied into the first-layer bias (`b1 += cᵢ·wᵢ` in f64, then `wᵢ = 0`) and
+  rewrote `american_bba_v4.f32` in place — 272 of the 280 card inputs, all
+  nonzero before, bit-zero after; the 8 live slots ({0, 2, 7, 77} in each
+  side's block) keep their trained weights.  A constant input is algebraically
+  a bias term, so the fold is exact on the training distribution: flipping a
+  frozen card row at serving now adds nothing instead of a random init-draw
+  vector (the measured ≈ −0.015 IMPs/board/bit tax,
+  `docs/ai-bidder/card-manifold.md`).  The corpus is gone from disk, so the
+  fold set is **hardcoded cell geometry, not scanned constancy** — the fixture
+  would even mislead a scan, six of the eight live slots being constant across
+  its 8 rows — and the fixture supplies only the constant values (exact 0/1
+  bits, all rows agree, asserted by the script).  Certified from three sides:
+  `matches_candle_fixture_bba_v4` passes **without re-blessing** (fold drift
+  ~1e-7 against its 1e-3 bar), `smoke-default` (20 000 boards) is
+  **byte-identical** (`59a27d7f…`) across the rewrite, and the new
+  `folded_card_columns_are_exactly_zero` asserts the 272 columns are bit-exact
+  `+0.0` and the 8 live ones are not — the permanent export gate: a freshly
+  trained blob fails it until the fold is re-run.  E2 then confirmed the
+  diagnosis experimentally: cell A (`--declare-opponents` vs BBA's real 2/1
+  card, the −0.70 plain / −1.16 PD blowup) re-run on its original deals fired
+  on **0 of 2000 boards at either vul** — all 43 differing rows sit on zeroed
+  columns, so the whole deficit was the tax.
+
 - **A public reader for every knob the web UI can set** — 69 registry-backed
   getters are now `pub` (`american::garbage_stayman`, `instinct::floor_rkcb`,
   `inference::rule_accept_enabled`, …).  221 `pub set_*` with no readers made

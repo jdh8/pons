@@ -28,6 +28,21 @@
   "epochs": 300,
   "feature_version": 4,
   "features_len": 368,
+  "folded": {
+    "c_source": "fixture.json features row 0 (all rows agree; exact 0/1 bits)",
+    "live_slots": [
+      88,
+      90,
+      95,
+      165,
+      228,
+      230,
+      235,
+      305
+    ],
+    "script": "scripts/fold-constant-inputs.py",
+    "zeroed_columns": 272
+  },
   "git_sha": "0815eda22fb3bcb78350593e988edcaf9e7ee974",
   "hidden": 256,
   "init_seed": 1,
