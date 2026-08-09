@@ -552,6 +552,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Default users see nothing change (both campaign shas hold); under `EUROPEAN`
   the four calls now disclose and read as what they are.
 
+### Fixed
+
+- **Twelve knobs had been given two homes; they are back to one, and a test
+  now says so.**  The defensive and notrump captures had copied twelve cells
+  into `DefenseKnobs`/`NotrumpKnobs` that the pinned `ReadingProfile` already
+  holds — `notrump_defense`, `notrump_minors`, `landy_range`, the two Woolsey
+  floors, the two natural-defense floors, the two notrump-overcall knobs,
+  `nt_splinter`, and garbage/crawling Stayman.  Harmless while the
+  `thread_local!` cells still back both captures (both read the same cell
+  microseconds apart), but the moment the cells go the two fields become
+  independently settable and the rules a book is built from can disagree with
+  the readings taken against it — the exact failure this campaign removes.  The
+  twelve fields are deleted; their 41 build sites read the pinned profile
+  through new `ReadingProfile` accessors.  Field names are invisible to the type
+  system, so the new `no_knob_lives_in_two_homes` scans the sources and fails if
+  any `*Knobs` field name reappears in `ReadingProfile`, `InstinctProfile` or
+  `DecisionProfile`.  Byte-identical.
+
 ### Changed
 
 - **The rebid book's nine build-time knobs are carried, not fetched.**

@@ -136,22 +136,22 @@ pub use weak_two_defense::{
 pub use weak_two_nt_advance::set_weak_two_notrump_advances;
 
 // Compatibility getters used outside the defensive book. The book itself uses
-// the captured fields and the agreement-taking derived helpers in the owning
-// modules.
+// the pinned reading profile and the agreement-taking derived helpers in the
+// owning modules.
 pub(crate) fn natural_defense_enabled() -> bool {
-    capture().notrump_defense == NotrumpDefense::Natural
+    nt_defense::notrump_defense() == NotrumpDefense::Natural
 }
 
 pub(crate) fn direct_dont_enabled() -> bool {
-    capture().notrump_defense == NotrumpDefense::DirectDont
+    nt_defense::notrump_defense() == NotrumpDefense::DirectDont
 }
 
 pub(crate) fn meckwell_enabled() -> bool {
-    capture().notrump_defense == NotrumpDefense::Meckwell
+    nt_defense::notrump_defense() == NotrumpDefense::Meckwell
 }
 
 pub(crate) fn woolsey_enabled() -> bool {
-    capture().notrump_defense == NotrumpDefense::Woolsey
+    nt_defense::notrump_defense() == NotrumpDefense::Woolsey
 }
 
 /// Capture this thread's defensive build-time knobs
@@ -164,9 +164,7 @@ pub(in crate::bidding) fn capture() -> DefenseKnobs {
         longest_first_advance_enabled: longest_first_advance_enabled(),
         advance_pass_yield_major_enabled: advance_pass_yield_major_enabled(),
         natural_double_shape: overcall::natural_double_shape(),
-        natural_double_floor: overcall::natural_double_floor(),
         natural_double_weight: overcall::natural_double_weight(),
-        natural_overcall_points: overcall::natural_overcall_points(),
         takeout_support: overcall::takeout_support(),
         overcall_discipline: overcall::overcall_discipline(),
         overcall_four_card: overcall::overcall_four_card(),
@@ -177,11 +175,8 @@ pub(in crate::bidding) fn capture() -> DefenseKnobs {
         direct_dont_one_suiter_min: nt_dont::direct_dont_one_suiter_min_raw(),
         direct_dont_four_four: nt_dont::direct_dont_four_four(),
         direct_dont_x_floor: nt_dont::direct_dont_x_floor_raw(),
-        woolsey_points: nt_woolsey::woolsey_points(),
-        woolsey_double_floor: nt_woolsey::woolsey_double_floor(),
         weak_two_notrump_advances_enabled: weak_two_nt_advance::weak_two_notrump_advances_enabled(),
         advance_minor_jump_enabled: advance_minor_jump::advance_minor_jump_enabled(),
-        notrump_defense: nt_defense::notrump_defense(),
         notrump_balancing_enabled: nt_defense::notrump_balancing_enabled(),
         leaping_michaels_enabled: leaping_michaels::leaping_michaels_enabled(),
         weak_two_pass_gate: weak_two_defense::weak_two_pass_gate(),
@@ -192,7 +187,6 @@ pub(in crate::bidding) fn capture() -> DefenseKnobs {
         weak_two_notrump_points: weak_two_defense::weak_two_notrump_points(),
         weak_two_overcall_points: weak_two_defense::weak_two_overcall_points(),
         advance_rubens_enabled: advance_rubens::advance_rubens_enabled(),
-        landy_range: nt_landy::landy_range(),
         doubled_landy_escape: nt_landy::doubled_landy_escape(),
         landy_use_hcp: nt_landy::landy_use_hcp(),
         direct_landy_four_four: nt_landy::direct_landy_four_four(),
@@ -210,8 +204,6 @@ pub(in crate::bidding) fn capture() -> DefenseKnobs {
         transfer_defense_enabled: nt_their_conventions::transfer_defense_enabled(),
         minor_transfer_defense_enabled: nt_their_conventions::minor_transfer_defense_enabled(),
         diamond_transfer_defense_enabled: nt_their_conventions::diamond_transfer_defense_enabled(),
-        nt_overcall_systems_on: gladiator::nt_overcall_systems_on(),
-        nt_overcall_gladiator: gladiator::nt_overcall_gladiator(),
         rich_advance_double_enabled: advance_rich::rich_advance_double_enabled(),
         advance_sit_hcp_gate: advance_rich::advance_sit_hcp_gate(),
         responsive_takeout_enabled: responsive::responsive_takeout_enabled(),
@@ -429,11 +421,15 @@ pub fn defensive(agreements: &Agreements) -> Defensive {
     // structure (Stayman, transfers, Smolen — reflecting the same knobs), built
     // once and grafted below each `(their-suit) 1NT` so the advancer plays it
     // verbatim.  On by default; see `set_nt_overcall_systems_on`.
-    let nt_overcall_book = agreements.build.defense.nt_overcall_systems_on.then(|| {
-        let mut nt = Trie::new();
-        super::notrump::register_one_nt(&mut nt, agreements);
-        nt
-    });
+    let nt_overcall_book = agreements
+        .decision
+        .reading
+        .nt_overcall_systems_on()
+        .then(|| {
+            let mut nt = Trie::new();
+            super::notrump::register_one_nt(&mut nt, agreements);
+            nt
+        });
 
     // Over each one-of-a-suit opening: our direct defense, and the advances of
     // partner's Michaels cue and Unusual 2NT.
@@ -464,7 +460,7 @@ pub fn defensive(agreements: &Agreements) -> Defensive {
             // Over a major the graft's Stayman would look for a major they own;
             // `gladiator_package` replaces it with the geometry that fits.
             if matches!(suit, Suit::Hearts | Suit::Spades)
-                && agreements.build.defense.nt_overcall_gladiator
+                && agreements.decision.reading.nt_overcall_gladiator()
             {
                 continue;
             }

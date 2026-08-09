@@ -157,7 +157,7 @@ pub fn set_direct_landy_double(shape: Option<bool>) {
 
 /// The configured direct-seat both-majors double shape, or `None` when off
 pub(crate) fn direct_landy_double(agreements: &Agreements) -> Option<bool> {
-    (agreements.build.defense.notrump_defense == NotrumpDefense::DirectLandy)
+    (agreements.decision.reading.notrump_defense() == NotrumpDefense::DirectLandy)
         .then_some(agreements.build.defense.direct_landy_four_four)
 }
 
@@ -235,7 +235,7 @@ pub(super) fn landy_x(agreements: &Agreements) -> Rules {
 /// ([`set_woolsey_points`], coupled with Woolsey's identical `2♣`; see [`set_landy`]),
 /// gauged as raw HCP or upgraded points per [`set_landy_hcp`].
 pub(super) fn landy_2c(agreements: &Agreements) -> Rules {
-    let (lo, hi) = agreements.build.defense.woolsey_points;
+    let (lo, hi) = agreements.decision.reading.woolsey_points();
     let shape = five_four(Suit::Hearts, Suit::Spades);
     if agreements.build.defense.landy_use_hcp {
         Rules::new().rule(Bid::new(2, Strain::Clubs), 190, shape & hcp(lo..=hi))
@@ -515,10 +515,10 @@ pub(super) fn landy_advance_package() -> Package {
     Package {
         name: "landy-advance",
         gate: |agreements| {
-            agreements.build.defense.landy_range.is_some() || woolsey_enabled(agreements)
+            agreements.decision.reading.landy_range().is_some() || woolsey_enabled(agreements)
         },
         entries: |agreements| {
-            let (lo, hi) = agreements.build.defense.woolsey_points;
+            let (lo, hi) = agreements.decision.reading.woolsey_points();
             [
                 ("P* (1NT) 2♣ -", landy_advances(lo)),
                 ("P* (1NT) 2♣ - 2♦ -", landy_2d_rebid()),

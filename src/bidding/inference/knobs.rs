@@ -883,6 +883,72 @@ impl ReadingProfile {
         self.xyz
     }
 
+    // The twelve dual cells the defensive and notrump books also build from.
+    // They were briefly duplicated into `DefenseKnobs`/`NotrumpKnobs`, which
+    // put one cell in two homes: harmless while the cells still back both
+    // captures, silently divergent the moment the cells are deleted and the two
+    // fields become independently settable.  The books read them from here.
+
+    /// Which notrump defense we play against their `1NT`
+    pub(crate) const fn notrump_defense(self) -> crate::bidding::american::NotrumpDefense {
+        self.notrump_defense
+    }
+
+    /// Optional `(min, max)` HCP band overriding the Landy `2♣` overcall
+    pub(crate) const fn landy_range(self) -> Option<(u8, u8)> {
+        self.landy_range
+    }
+
+    /// `(min, max)` HCP band on the Woolsey defense's overcalls
+    pub(crate) const fn woolsey_points(self) -> (u8, u8) {
+        self.woolsey_points
+    }
+
+    /// HCP floor on the Woolsey defense's double
+    pub(crate) const fn woolsey_double_floor(self) -> u8 {
+        self.woolsey_double_floor
+    }
+
+    /// HCP floor on the natural defense's double
+    pub(crate) const fn natural_double_floor(self) -> u8 {
+        self.natural_double_floor
+    }
+
+    /// `(min, max)` HCP band on the natural defense's overcalls
+    pub(crate) const fn natural_overcall_points(self) -> (u8, u8) {
+        self.natural_overcall_points
+    }
+
+    /// Whether our structure stays on over their notrump overcall
+    pub(crate) const fn nt_overcall_systems_on(self) -> bool {
+        self.nt_overcall_systems_on
+    }
+
+    /// Whether the Gladiator major overcall of their `1NT` is authored
+    pub(crate) const fn nt_overcall_gladiator(self) -> bool {
+        self.nt_overcall_gladiator
+    }
+
+    /// Whether the `1NT - 3M` splinter is authored
+    pub(crate) const fn nt_splinter(self) -> bool {
+        self.nt_splinter
+    }
+
+    /// Which minor scheme our `1NT` plays — the alert the `2♠`/`3♣` calls carry
+    pub(crate) const fn notrump_minors(self) -> crate::bidding::rules::Alert {
+        self.notrump_minors
+    }
+
+    /// Whether garbage Stayman is authored
+    pub(crate) const fn garbage_stayman(self) -> bool {
+        self.garbage_stayman
+    }
+
+    /// Whether crawling Stayman is authored
+    pub(crate) const fn crawling_stayman(self) -> bool {
+        self.crawling_stayman
+    }
+
     // The five cells the [instinct floor][crate::bidding::instinct()] shares
     // with the reading layer.  They live here, not in
     // [`InstinctProfile`][crate::bidding::instinct::InstinctProfile]: one cell,

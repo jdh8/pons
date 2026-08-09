@@ -35,7 +35,7 @@
 
 use super::american::{
     Competitive4333, DoubleShape, DoubleStyle, FreeBidStyle, LebensohlStyle, NegativeDoubleShape,
-    NotrumpDefense, NotrumpShape, TakeoutSupport, TwoOverOneGate, WeakTwoEval,
+    NotrumpShape, TakeoutSupport, TwoOverOneGate, WeakTwoEval,
 };
 use super::context::DecisionProfile;
 
@@ -205,12 +205,8 @@ pub struct DefenseKnobs {
     // --- defense/overcall.rs
     /// Shape gate for the natural penalty double of their `1NT`
     pub natural_double_shape: DoubleShape,
-    /// HCP floor for the natural penalty double of their `1NT`
-    pub natural_double_floor: u8,
     /// Logit weight of the natural penalty double of their `1NT`
     pub natural_double_weight: i16,
-    /// Inclusive points band for natural overcalls of their `1NT`
-    pub natural_overcall_points: (u8, u8),
     /// Support gate on the takeout double's 12+ tier
     pub takeout_support: TakeoutSupport,
     /// Use disciplined strength bands for natural suit overcalls
@@ -233,10 +229,6 @@ pub struct DefenseKnobs {
     /// Raw points-floor cell for direct DONT's double
     pub direct_dont_x_floor: u8,
     // --- defense/nt_woolsey.rs
-    /// Inclusive points band for Woolsey's suit actions
-    pub woolsey_points: (u8, u8),
-    /// Points floor for Woolsey's double
-    pub woolsey_double_floor: u8,
     // --- defense/weak_two_nt_advance.rs
     /// Author advances of our `2NT` overcall of their weak two
     pub weak_two_notrump_advances_enabled: bool,
@@ -244,8 +236,6 @@ pub struct DefenseKnobs {
     /// Author invitational minor jumps after partner's takeout double
     pub advance_minor_jump_enabled: bool,
     // --- defense/nt_defense.rs
-    /// Which defense we play over their `1NT`
-    pub notrump_defense: NotrumpDefense,
     /// Extend the notrump defense to the balancing seat
     pub notrump_balancing_enabled: bool,
     // --- defense/leaping_michaels.rs
@@ -270,8 +260,6 @@ pub struct DefenseKnobs {
     /// Author Rubens advances of partner's takeout double
     pub advance_rubens_enabled: bool,
     // --- defense/nt_landy.rs
-    /// Optional natural-plus-Landy strength band
-    pub landy_range: Option<(u8, u8)>,
     /// Escape thresholds after their double of Landy `2♣`
     pub doubled_landy_escape: (usize, usize),
     /// Gauge the Landy band in HCP rather than points
@@ -312,10 +300,6 @@ pub struct DefenseKnobs {
     /// Defend their diamond transfer
     pub diamond_transfer_defense_enabled: bool,
     // --- defense/gladiator.rs
-    /// Graft systems-on advances below our `1NT` overcall
-    pub nt_overcall_systems_on: bool,
-    /// Replace the major-opening graft with Gladiator
-    pub nt_overcall_gladiator: bool,
     // --- defense/advance_rich.rs
     /// Author the rich advance of partner's takeout double
     pub rich_advance_double_enabled: bool,
@@ -351,8 +335,6 @@ impl DefenseKnobs {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct NotrumpKnobs {
     // --- notrump.rs
-    /// Which minor-suit response scheme we play over our `1NT`
-    pub notrump_minors: super::rules::Alert,
     // --- notrump/size_ask.rs
     /// How a balanced eight with no four-card major handles the size ask
     pub size_ask_eight: super::american::SizeAskEight,
@@ -372,8 +354,6 @@ pub struct NotrumpKnobs {
     /// Prefer the longer major when both majors can transfer
     pub transfer_longer_major: bool,
     // --- notrump/crawling_stayman.rs
-    /// Author Crawling Stayman
-    pub crawling_stayman: bool,
     // --- notrump/sixcard_invitation.rs
     /// Raw strength floor for inviting with a six-card major
     pub sixcard_invite_floor: u8,
@@ -391,11 +371,7 @@ pub struct NotrumpKnobs {
     /// Raw strength floor for the Texas game transfer
     pub texas_game_floor: u8,
     // --- notrump/stayman.rs
-    /// Author Garbage Stayman
-    pub garbage_stayman: bool,
     // --- notrump/splinter.rs
-    /// Author the `1NT` splinter
-    pub nt_splinter: bool,
     /// Responder's HCP floor for the `1NT` splinter
     pub nt_splinter_floor: u8,
     // --- notrump/stayman_slam.rs
@@ -589,6 +565,80 @@ impl Agreements {
         Self {
             decision: DecisionProfile::current(),
             build: Build::current(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    /// The `pub`-ish field names of `struct name` in `src`
+    ///
+    /// A crude line scanner, not a parser: every knob struct in this crate is
+    /// one field per line with a leading visibility, which is all this needs to
+    /// see.  Field names are invisible to the type system, so a source scan is
+    /// the only mechanism that can check the invariant below at all.
+    fn fields(src: &str, name: &str) -> Vec<String> {
+        let body = src
+            .split_once(&format!("struct {name} {{"))
+            .unwrap_or_else(|| panic!("{name} is declared"))
+            .1
+            .split_once("\n}")
+            .expect("the struct body is closed")
+            .0;
+        body.lines()
+            .filter_map(|line| {
+                let line = line.trim_start().strip_prefix("pub")?;
+                let line = line.strip_prefix(')').map_or(line, |rest| rest);
+                let line = line.trim_start_matches(|c| c != ' ').trim_start();
+                let (ident, _) = line.split_once(':')?;
+                ident
+                    .chars()
+                    .all(|c| c.is_ascii_lowercase() || c == '_' || c.is_ascii_digit())
+                    .then(|| ident.to_owned())
+            })
+            .collect()
+    }
+
+    /// One cell, one home: no knob is a field of both halves of `Agreements`
+    ///
+    /// A cell read at build time *and* at classify time must live in the
+    /// classify-time profile alone, with the book reading it from there — see
+    /// `two_notrump_wide`, `longer_major_response`, `xyz`.  Duplicating it into
+    /// a `*Knobs` struct is invisible while the `thread_local!` cells still back
+    /// both captures, since both read the same cell microseconds apart; it turns
+    /// into a silent divergence the moment the cells go and the two fields
+    /// become independently settable.  Twelve cells were duplicated exactly that
+    /// way before this test existed.
+    #[test]
+    fn no_knob_lives_in_two_homes() {
+        let agreements = include_str!("agreements.rs");
+        let build: Vec<String> = [
+            "CompetitionKnobs",
+            "DefenseKnobs",
+            "NotrumpKnobs",
+            "OpeningKnobs",
+            "ResponseKnobs",
+            "RebidKnobs",
+        ]
+        .iter()
+        .flat_map(|name| fields(agreements, name))
+        .collect();
+        assert!(build.len() > 100, "the Build half was found: {build:?}");
+
+        for (src, name) in [
+            (include_str!("inference/knobs.rs"), "ReadingProfile"),
+            (include_str!("instinct.rs"), "InstinctProfile"),
+            (include_str!("context.rs"), "DecisionProfile"),
+        ] {
+            let classify = fields(src, name);
+            assert!(!classify.is_empty(), "{name} was found");
+            let both: Vec<&String> = build.iter().filter(|f| classify.contains(f)).collect();
+            assert!(
+                both.is_empty(),
+                "{name} and Build share {} cell(s): {both:?} — a dual cell belongs \
+                 to {name} alone, and the book should read it from the pinned profile",
+                both.len(),
+            );
         }
     }
 }

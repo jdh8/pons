@@ -46,7 +46,7 @@ use super::*;
 /// On by default since 2026-07-28, its A/B (`examples/ab-nt-splinter`) having
 /// won in all four cells; see [`set_nt_splinter`] for the measured numbers.
 pub(super) fn nt_splinter_rules(agreements: &Agreements) -> Rules {
-    if !agreements.build.notrump.nt_splinter {
+    if !agreements.decision.reading.nt_splinter() {
         return Rules::new();
     }
     let floor = agreements.build.notrump.nt_splinter_floor;
@@ -183,7 +183,7 @@ pub(super) fn nt_splinter_floor() -> u8 {
 pub(crate) fn notrump_splinter() -> Package {
     Package {
         name: "nt-splinter",
-        gate: |agreements| agreements.build.notrump.nt_splinter,
+        gate: |agreements| agreements.decision.reading.nt_splinter(),
         entries: |_| {
             expand(
                 "P* 1NT - 3M -",

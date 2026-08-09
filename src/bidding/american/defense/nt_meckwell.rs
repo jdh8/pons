@@ -31,7 +31,7 @@ thread_local! {
 
 /// Whether the direct-seat Meckwell defense is the active system
 pub(super) fn meckwell_enabled(agreements: &Agreements) -> bool {
-    agreements.build.defense.notrump_defense == NotrumpDefense::Meckwell
+    agreements.decision.reading.notrump_defense() == NotrumpDefense::Meckwell
 }
 
 /// Whether Meckwell's `2♣`/`2♦` accept a flat 4-4 (default `false` = 5-4+).  A
@@ -70,7 +70,7 @@ pub(super) fn meckwell_x_floor_raw() -> u8 {
 /// overcall floor.
 fn meckwell_x_floor(agreements: &Agreements) -> u8 {
     match agreements.build.defense.meckwell_x_floor {
-        0 => agreements.build.defense.natural_overcall_points.0,
+        0 => agreements.decision.reading.natural_overcall_points().0,
         floor => floor,
     }
 }
@@ -92,7 +92,7 @@ pub(super) fn meckwell_x(agreements: &Agreements) -> Rules {
 /// [`set_meckwell_minor_major_44`]).  Shares [`dont_minor_major`]'s shape on the
 /// Meckwell knob so the two conventions can diverge.
 pub(super) fn meckwell_2c(agreements: &Agreements) -> Rules {
-    let lo = agreements.build.defense.natural_overcall_points.0;
+    let lo = agreements.decision.reading.natural_overcall_points().0;
     Rules::new().rule(
         Bid::new(2, Strain::Clubs),
         200,
@@ -105,7 +105,7 @@ pub(super) fn meckwell_2c(agreements: &Agreements) -> Rules {
 
 /// Meckwell `2♦`: diamonds + a major, 5-4 either way (or flat 4-4 per the probe knob).
 pub(super) fn meckwell_2d(agreements: &Agreements) -> Rules {
-    let lo = agreements.build.defense.natural_overcall_points.0;
+    let lo = agreements.decision.reading.natural_overcall_points().0;
     Rules::new().rule(
         Bid::new(2, Strain::Diamonds),
         200,

@@ -113,7 +113,6 @@ pub(super) use two_notrump::{two_notrump_rebids, two_notrump_structure};
 /// only in `DecisionProfile` and are deliberately absent here.
 pub(in crate::bidding) fn capture() -> NotrumpKnobs {
     NotrumpKnobs {
-        notrump_minors: notrump_minors(),
         size_ask_eight: size_ask::size_ask_eight(),
         size_ask_accept_floor: size_ask::size_ask_accept_floor(),
         stayman_both_majors: both_majors::stayman_both_majors(),
@@ -121,15 +120,12 @@ pub(in crate::bidding) fn capture() -> NotrumpKnobs {
         minor_min_to_3nt: transfer_gf::minor_min_to_3nt(),
         transfer_super_accept: transfers::transfer_super_accept(),
         transfer_longer_major: transfers::transfer_longer_major(),
-        crawling_stayman: crawling_stayman::crawling_stayman(),
         sixcard_invite_floor: sixcard_invitation::sixcard_invite_floor_raw(),
         sixcard_accept_floor: sixcard_invitation::sixcard_accept_floor_raw(),
         transfer_slam_try: transfer_slam::transfer_slam_try(),
         invitational_5card_majors: invitational_majors::invitational_5card_majors(),
         texas_slam_drive: texas::texas_slam_drive(),
         texas_game_floor: texas::texas_game_floor_raw(),
-        garbage_stayman: stayman::garbage_stayman(),
-        nt_splinter: splinter::nt_splinter(),
         nt_splinter_floor: splinter::nt_splinter_floor(),
         stayman_cue_continuation: stayman_slam::stayman_cue_continuation(),
         stayman_minor_slam_try: stayman_slam::stayman_minor_slam_try(),
@@ -198,7 +194,7 @@ pub fn notrump_minors() -> Alert {
 /// This is a function because declarative [`Package`] gates are bare function
 /// pointers and cannot capture a local from [`register_one_nt`].
 fn puppet_scheme(agreements: &Agreements) -> bool {
-    agreements.build.notrump.notrump_minors == PUPPET
+    agreements.decision.reading.notrump_minors() == PUPPET
 }
 
 /// The anti-gate of [`puppet_scheme`], for the European packages
@@ -458,7 +454,7 @@ pub fn notrump_responses(agreements: &Agreements) -> Rules {
 
 /// The minor scheme *not* selected — the one [`notrump_responses`] gates out
 fn dormant_minors(agreements: &Agreements) -> Alert {
-    if agreements.build.notrump.notrump_minors == PUPPET {
+    if agreements.decision.reading.notrump_minors() == PUPPET {
         EUROPEAN
     } else {
         PUPPET

@@ -98,7 +98,7 @@ thread_local! {
 /// Whether the natural one-suiter defense is currently the active system
 #[allow(dead_code)]
 pub(super) fn natural_defense_enabled(agreements: &Agreements) -> bool {
-    agreements.build.defense.notrump_defense == NotrumpDefense::Natural
+    agreements.decision.reading.notrump_defense() == NotrumpDefense::Natural
 }
 
 /// Extend the natural 1NT defense to the *balancing* seat `(1NT) - - ?` for books
@@ -137,7 +137,7 @@ fn unusual_2nt(agreements: &Agreements) -> Rules {
 /// The four natural two-level suit overcalls (five-card suit, `points(8..=14)`),
 /// optionally skipping `2♣` when the Landy `2♣` overlay owns that slot.
 fn chain_natural_overcalls(mut rules: Rules, skip_clubs: bool, agreements: &Agreements) -> Rules {
-    let (oc_lo, oc_hi) = agreements.build.defense.natural_overcall_points;
+    let (oc_lo, oc_hi) = agreements.decision.reading.natural_overcall_points();
     for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         if suit == Suit::Clubs && skip_clubs {
             continue;
@@ -161,7 +161,7 @@ fn chain_natural_base(rules: Rules, agreements: &Agreements) -> Rules {
     // One active system — the enum makes the old "two families at once" state (which
     // the read-time cascade precedence Woolsey > DONT > Meckwell > direct-Landy >
     // natural used to arbitrate) unrepresentable.
-    match agreements.build.defense.notrump_defense {
+    match agreements.decision.reading.notrump_defense() {
         // Woolsey owns X and every overcall; `Pass` is the only natural call.  Always-
         // pass is the same finite `Pass` logit — it shadows the floor so our side never
         // competes.
@@ -169,7 +169,7 @@ fn chain_natural_base(rules: Rules, agreements: &Agreements) -> Rules {
         NotrumpDefense::DirectDont => {
             // DONT keeps the natural `2♠` one-suiter (open-top, length-gated so the
             // one-suiter `X` can exclude spades) below its two-suiters, plus `Pass`.
-            let lo = agreements.build.defense.natural_overcall_points.0;
+            let lo = agreements.decision.reading.natural_overcall_points().0;
             let one_min = direct_dont_one_suiter_min(agreements);
             rules
                 .rule(
@@ -183,7 +183,7 @@ fn chain_natural_base(rules: Rules, agreements: &Agreements) -> Rules {
             // Meckwell keeps the natural 5+ single-suited majors (2♥/2♠, disjoint from
             // its two-suiters) below the alerts, plus Pass.  The two-way X / minor+major
             // 2♣/2♦ / both-minors 2NT are the artificial calls.
-            let lo = agreements.build.defense.natural_overcall_points.0;
+            let lo = agreements.decision.reading.natural_overcall_points().0;
             rules
                 .rule(
                     Bid::new(2, Strain::Hearts),
@@ -206,7 +206,7 @@ fn chain_natural_base(rules: Rules, agreements: &Agreements) -> Rules {
             // Penalty `X` (HCP floor fixed; shape gate per `set_natural_double_shape` —
             // each arm reissues `.rule()` so the differing constraint types unify), the
             // owning `Pass`, and the natural overcalls (ceding `2♣` to a Landy overlay).
-            let floor = agreements.build.defense.natural_double_floor;
+            let floor = agreements.decision.reading.natural_double_floor();
             let w = agreements.build.defense.natural_double_weight;
             let rules = match agreements.build.defense.natural_double_shape {
                 DoubleShape::Balanced => rules.rule(Call::Double, w, hcp(floor..) & balanced()),
@@ -217,7 +217,7 @@ fn chain_natural_base(rules: Rules, agreements: &Agreements) -> Rules {
             };
             chain_natural_overcalls(
                 rules.rule(Call::Pass, 0, hcp(0..)),
-                agreements.build.defense.landy_range.is_some(),
+                agreements.decision.reading.landy_range().is_some(),
                 agreements,
             )
         }
@@ -231,7 +231,7 @@ fn chain_natural_base(rules: Rules, agreements: &Agreements) -> Rules {
 /// book-construction time.
 fn active_alerts(agreements: &Agreements) -> Vec<Alert> {
     let mut alerts = Vec::new();
-    let system = agreements.build.defense.notrump_defense;
+    let system = agreements.decision.reading.notrump_defense();
     match system {
         // Always-pass authors only `Pass` — no alerts, no overlays.
         NotrumpDefense::AlwaysPass => return alerts,
@@ -253,7 +253,7 @@ fn active_alerts(agreements: &Agreements) -> Vec<Alert> {
     // The Landy `2♣` overlay is the natural family's one convention, incompatible with
     // DONT / Meckwell / direct-Landy-X / Woolsey (each repurposes the `2♣` slot) — so
     // it rides only on the non-convention arms.
-    if agreements.build.defense.landy_range.is_some()
+    if agreements.decision.reading.landy_range().is_some()
         && matches!(system, NotrumpDefense::Natural | NotrumpDefense::Off)
     {
         alerts.push(LANDY_2C);
