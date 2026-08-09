@@ -528,116 +528,774 @@ impl Default for CompetitionKnobs {
 pub struct DefenseKnobs {
     // --- defense.rs
     /// Prefer the longest suit when advancing partner's takeout double
+    ///
+    /// The suit discipline of the flat advance of partner's takeout double of a
+    /// one-of-a-suit opening (`(1t) X - ?`).  **On by default** (the shipped
+    /// behavior): the natural-advance weight climbs with suit length, so the
+    /// advancer bids the **longest** suit and breaks equal-length ties toward
+    /// the higher-ranking one (a major over a minor, spades over hearts) —
+    /// standard takeout-double advancing.
+    ///
+    /// Off (`bba-gen --no-ns-longest-advance`) every eligible 4+ suit scores
+    /// alike, so the advance is a single flat rule and the classifier's argmax
+    /// tie-break bids the **highest-ranking** suit regardless of length —
+    /// holding five clubs and four spades it advances `1♠`, not `2♣`.
     pub longest_first_advance_enabled: bool,
     /// Let a weak penalty pass yield to a four-card unbid major
+    ///
+    /// **Off by default.**  On (`bba-gen --ns-advance-pass-yield`), the penalty
+    /// pass's trump-stack legs yield when the hand is *below the cue band*
+    /// (`hcp ≤ 9`) **and** holds a 4+ unbid major: a weak advancer with a major
+    /// has a constructive home the penalty conversion would bury, so instead of
+    /// converting the double it advances on the normal longest-first ladder
+    /// (which may still land in a longer minor).
+    ///
+    /// Strong sits (10+) stand regardless — restricting *them* is the refuted
+    /// cap migration (`ab-results/advance-penalty-pass/`, −2 IMPs/fired on both
+    /// scorers).  The A/B knob for `scripts/ab-advance-pass-yield.sh`.
     pub advance_pass_yield_major_enabled: bool,
     // --- defense/overcall.rs
     /// Shape gate for the natural penalty double of their `1NT`
+    ///
+    /// Which shapes earn the natural penalty double of their `1NT`.
+    /// **[`DoubleShape::Balanced`] by default** — a flat 15+; shapely hands
+    /// would rather declare.  [`DoubleShape::SemiBalanced`] adds 5422/6322/7222
+    /// and [`DoubleShape::Any`] doubles every 15+ hand regardless of shape; the
+    /// HCP floor is untouched (it lives in
+    /// [`set_natural_double_floor`][crate::bidding::american::set_natural_double_floor],
+    /// 15), so this only widens the *shape* gate.  An A/B knob
+    /// (`examples/ab-landy --ns-double-shape balanced|semibal|any`).
     pub natural_double_shape: DoubleShape,
     /// Logit weight of the natural penalty double of their `1NT`
+    ///
+    /// In centinats; **130 by default** — 1.3, above the 1.0 suit overcall, so a
+    /// strong one-suiter doubles.  Drop it below 100 to make suit overcalls
+    /// outrank the double: the realistic "strong suit vs `X`" test.  An A/B knob
+    /// (`bba-match --ns-double-weight`).
     pub natural_double_weight: i16,
     /// Support gate on the takeout double's 12+ tier
+    ///
+    /// **[`TakeoutSupport::Strict`] by default** (the shipped fix — the
+    /// takeout-support A/B, see `docs/ai-bidder/21gf-ledger.md`): 3+ cards in
+    /// every unbid suit, so off-shape one-suiters overcall — or wait for the
+    /// shape-free 17+ tier — instead of doubling and pulling to the three level.
+    /// [`TakeoutSupport::Off`] reproduces the historical book;
+    /// [`TakeoutSupport::Lenient`] tolerates one doubleton.  An A/B knob
+    /// (`bba-gen --ns-takeout-support off|lenient|strict`).
     pub takeout_support: TakeoutSupport,
     /// Use disciplined strength bands for natural suit overcalls
+    ///
+    /// `true` (the **default**, the shipped fix) raises the 1-level cap to 17
+    /// and sets the 2-level band to `points(11..=17)` — opening values before a
+    /// below-their-suit 2-level overcall, the standard discipline.  `false`
+    /// reproduces the flat `points(8..=16)` at both levels.  An A/B knob
+    /// (`bba-gen --ns-overcall-discipline on|off`).
     pub overcall_discipline: bool,
     /// Allow a good four-card natural overcall
+    ///
+    /// A natural direct overcall on exactly four cards when the suit holds at
+    /// least five HCP.  Opt-in; the default `false` is byte-identical.
     pub overcall_four_card: bool,
     /// Let a passed hand make the disciplined two-level overcall lighter
+    ///
+    /// `true` (the **default**, folded into base in the A5 pass) relaxes the
+    /// floor to 9+ for a passed hand only: it cannot hold opening values anyway,
+    /// so the 11+ floor would all but forbid the safe, useful light overcall
+    /// (partner is a limited captain).  Wash-positive on every scorer.  `false`
+    /// applies the opening-values 11+ floor to every seat.
+    ///
+    /// Only affects the disciplined 2-level overcall
+    /// ([`overcall_discipline`][Self::overcall_discipline] on); the 1-level
+    /// floor is untouched.  An A/B knob
+    /// (`bba-gen --no-ns-passed-hand-overcall` to disable).
     pub passed_hand_overcall: bool,
     /// Demand extra strength for a two-level minor overcall
+    ///
+    /// `false` (the **default**) keeps the disciplined 11+ 2-level band for
+    /// minors.  `true` raises it to `15..=17` — a strong single-suiter —
+    /// stranding the losing 11–14 single-suited minor overcalls into Pass
+    /// (partner reopens); majors and the 1-level are untouched.
+    ///
+    /// An A/B candidate: the anchor bleeds on the 2-level minor overcall across
+    /// every points/shape/vul band, and sd-lead confirms the loss is real, not
+    /// obstruction the blind lead recovers.  `bba-gen
+    /// --ns-two-level-minor-overcall-tight`.
     pub two_level_minor_overcall_tight: bool,
     /// Bar a five-card major from the natural `1NT` overcall
+    ///
+    /// `false` (the **default**) lets a 15–18 balanced hand with a five-card
+    /// major overcall `1NT`, burying the suit.  `true` requires both majors ≤4
+    /// for the `1NT` overcall, so a five-card major overcalls naturally
+    /// (`1♥`/`1♠`) and partner can raise the fit.
+    ///
+    /// An A/B candidate: the anchor shows 5-card majors buried in the `1NT`
+    /// overcall missing the major game BBA reaches.  `bba-gen
+    /// --ns-nt-overcall-no-major`.
     pub nt_overcall_no_major: bool,
     /// Optional HCP seam between natural overcalls and the strong double
+    ///
+    /// When `Some(n)`, the "too strong to overcall" partition edge is gauged in
+    /// raw HCP: the strong-tier double of their suit opening becomes `hcp(n..)`
+    /// and every natural-overcall band trades its `points` top for `hcp(..n)`,
+    /// so no strength is orphaned between "overcall" and "double first, then
+    /// bid".  `None` restores the legacy `points(17..)` tier and
+    /// `points(..=17)` tops.
+    ///
+    /// The strong tier exists to promise partner *defensive tricks* — a
+    /// high-card statement.  Its legacy `points(17..)` was HCP-flavored under
+    /// the legacy scale, but rule-of-N+8 reads a 5-4 fourteen-count 17+: the
+    /// shaped 14–16 HCP hands then double first (or overflow the overcall band
+    /// top into the tier) and lose to the natural overcall — the point-count
+    /// remnant's X↔bid seam, both mirror directions CI-clear.  `Some(18)` keeps
+    /// 17-HCP shaped hands overcalling, the forensic winners.
+    ///
+    /// **Default `Some(18)`** (fix-vs-shipped, 1M boards/vul + 50k sd/vul,
+    /// 24.pdd 12.3M–14.3M + 22.3M: plain DD +0.0105 ± 0.0012 NV / +0.0115 ±
+    /// 0.0016 vul, PD +0.0114/+0.0126, **sd-lead +0.0159 ± 0.0054 / +0.0115 ±
+    /// 0.0072** — every bracket, both vuls, CIs clear).
     pub strong_double_hcp: Option<u8>,
     // --- defense/nt_dont.rs
-    /// Raw minimum length cell for direct DONT's one-suiter
+    /// Minimum length for direct DONT's one-suiter
+    ///
+    /// The `X` for ♣/♦/♥ and the natural `2♠` for spades; **5 by default**.  Set
+    /// it to 6 to bid only with a six-card suit, passing five-card one-suiters —
+    /// the `X` bucket is the DD loser, so insisting only with real shape trades
+    /// action for safety, toward the always-pass optimum.  An A/B knob; no
+    /// effect unless
+    /// [`NotrumpDefense::DirectDont`][crate::bidding::american::NotrumpDefense::DirectDont]
+    /// is the active system.
     pub direct_dont_one_suiter_min: u8,
     /// Allow four-four two-suiters in direct DONT
+    ///
+    /// Whether DONT's two-suiters (`2♣`/`2♦`/`2♥`) accept a flat 4-4, else 5-4+;
+    /// **on by default** — DONT is traditionally a 4-4 method (M6.2d).  Off,
+    /// only 5-4+ two-suiters compete: tighter, fewer auctions.  An A/B knob, no
+    /// effect unless DONT is on.
     pub direct_dont_four_four: bool,
     /// Raw points-floor cell for direct DONT's double
+    ///
+    /// **This is the raw cell, not the effective floor**: `0` is a sentinel the
+    /// module resolves to the natural-overcall floor
+    /// ([`set_natural_overcall_points`][crate::bidding::american::set_natural_overcall_points],
+    /// 8).  **0 by default**, therefore byte-identical to inheriting 8.
+    ///
+    /// Raise it so only strong one-suiters double and 8–11 hands pass — the `X`
+    /// bucket is the DD loser, so this trades action for safety exactly as
+    /// [`direct_dont_one_suiter_min`][Self::direct_dont_one_suiter_min] does for
+    /// length.  An A/B knob, no effect unless DONT is on.
     pub direct_dont_x_floor: u8,
     // --- defense/nt_woolsey.rs
     // --- defense/weak_two_nt_advance.rs
     /// Author advances of our `2NT` overcall of their weak two
+    ///
+    /// Advancer's Gladiator structure over our `2NT` overcall of their weak two
+    /// in a **major**.  **Off by default** — measured null and faintly negative.
+    ///
+    /// Before this, the `2NT` overcall had **no continuations at all**: the book
+    /// authors advances of the takeout double and of Leaping Michaels, but
+    /// nothing at `(2M) 2NT - ?`, so advancer dropped to the instinct floor.
+    /// That is the same structural hole that voided the
+    /// [`weak_two_cue`][Self::weak_two_cue] measurement, except this call is a
+    /// shipped default rather than an opt-in.
+    ///
+    /// The scheme is Gladiator lifted one level, minus its invitational tier —
+    /// at 16–17 opposite there is no room to invite, so it is `3♣` or game:
+    ///
+    /// ```text
+    /// (2♥) 2NT - 3♣    relay: weak, 5+ ♦, wants a 3-level partscore
+    /// (2♥) 2NT - 3♦    game-forcing, 5+ ♦
+    /// (2♥) 2NT - 3♥    cue = Stayman: exactly 4 ♠, game values, not flat
+    /// (2♥) 2NT - 3♠    game-forcing, 5+ ♠
+    /// (2♥) 2NT - 3NT   balanced game, to play
+    ///
+    /// (2♥) 2NT - 3♣ - 3♦        forced, pass-or-correct, says nothing about diamonds
+    /// (2♥) 2NT - 3♣ - 3♦ - 3♥  cue = 6+ ♦, long enough that 4♦ is safe
+    /// (2♥) 2NT - 3♣ - 3♦ - -   play 3♦
+    /// ```
+    ///
+    /// Two deliberate gaps, both `for now`.  Advancer's `3♠` and above in the
+    /// relay auction are unauthored, which means a *weak* hand with the other
+    /// major has no landing spot and passes `2NT` — its correction would be
+    /// exactly that `3♠`.  And over their `2♠` the delayed cue *is* `3♠`, so
+    /// that whole rebid node is omitted rather than half-authored.
+    ///
+    /// The structure's game threshold tracks
+    /// [`weak_two_notrump_points`][Self::weak_two_notrump_points]'s floor, so a
+    /// widened band raises it instead of silently keeping a tierless structure
+    /// calibrated for 16.  A/B knob (`bba-gen --ns-weak-two-nt-advances`).
     pub weak_two_notrump_advances_enabled: bool,
     // --- defense/advance_minor_jump.rs
     /// Author invitational minor jumps after partner's takeout double
+    ///
+    /// **On by default**, and a no-op unless
+    /// [`rich_advance_double_enabled`][Self::rich_advance_double_enabled] is on.
+    /// A three-level jump in a *minor* (`(1♥) X - 3♣`, `(1♠) X - 3♦`, …) shows
+    /// an invitational one-suiter — a real 5-card suit, 10–12, **denying a
+    /// 4-card unbid major** (with one the advancer cues opener's suit to find
+    /// the 4-4 major fit).
+    ///
+    /// It ranks *below* the notrump ladder, so a stopper still prefers
+    /// `1NT`/`2NT`/`3NT`; the jump is the residual for the no-stopper shapely
+    /// invite that would otherwise have to cue.  Game-forcing minors (13+) are
+    /// capped out and still cue or bid a stopped `3NT`.  The doubler, strong but
+    /// stopperless, re-asks for a stopper by cueing their suit (a Western cue);
+    /// the advancer bids the right-sided `3NT` with a stopper, else the minor
+    /// game.
+    ///
+    /// Two-seed A/B: SIG+ in all four cells (plain ≥ PD → constructive).  Turn
+    /// off with `bba-gen --no-ns-advance-minor-jump`.
     pub advance_minor_jump_enabled: bool,
     // --- defense/nt_defense.rs
     /// Extend the notrump defense to the balancing seat
+    ///
+    /// Whether the natural defense to their `1NT` is also authored in the
+    /// *balancing* seat, `(1NT) - - ?`.  **Off by default** (opt-in A/B): off
+    /// leaves the balancing seat to the instinct floor — the source of the toxic
+    /// balancing doubles.  On, the balancing seat reuses `defense_to_notrump`
+    /// instead.  An A/B knob (`bba-match --ns-balancing`).
     pub notrump_balancing_enabled: bool,
     // --- defense/leaping_michaels.rs
     /// Author Leaping Michaels over their weak two
+    ///
+    /// Over their weak two, a jump to `4♣`/`4♦` names a 5-5 two-suiter with
+    /// game-forcing values: over a major it is a minor plus the *other* major;
+    /// over `2♦` the `4♦` cue shows both majors and `4♣` shows clubs plus a
+    /// major.
+    ///
+    /// **On by default** — the authored advances make it a clear DD win
+    /// (+1.090/+1.452 IMPs/board, none/both), and the inference reading lets the
+    /// live-search bidder price the advance (and reach slam) on top; see
+    /// `docs/ai-bidder/21gf-ledger.md`.  Off recovers the pre-Leaping-Michaels
+    /// weak-two defense.
     pub leaping_michaels_enabled: bool,
     // --- defense/weak_two_defense.rs
     /// Author the weak-two pass as the complement of stronger actions
+    ///
+    /// On, `defense_to_weak_two`'s Pass rule reads `points(..17)` — the negative
+    /// inference of declining the shape-free `points(17..)` takeout double,
+    /// exactly as `defense_to_suit` already documents its own tier.  Off
+    /// restores the `hcp(0..)` catch-all, which projects ⊤ on all five axes the
+    /// nets read.
+    ///
+    /// Argmax-inert at the node itself (a 17+ hand already scored 1.2 for the
+    /// double against 0.0 for the pass), but the reading feeds
+    /// [`push_inference`][crate::bidding::features], so the neural floor sees
+    /// different inputs downstream.  The ceiling is sound only because that tier
+    /// is **shape-free**: it accepts every 17+ hand, so no hand that could have
+    /// passed is excluded.  A shaped tier would leave holes at every strength
+    /// and no ceiling would be authorable — which is why the analogous `1NT -`
+    /// (90.7% ⊤ on all five axes in the census) cannot be fixed this way.
+    ///
+    /// **Default off — REFUTED** (204.8k bd/vul, `SEED_BASE` 1785083246: plain
+    /// DD **−0.0028 ± 0.0017** NV / −0.0012 ± 0.0022 vul, PD +0.0005 ± 0.0022 /
+    /// +0.0015 ± 0.0026, 0.45%/0.38% fired).  A sounder reading that bids worse:
+    /// plain DD loses NV with a CI clear of zero and PD washes, and
+    /// `loss | wash` never ships default-on.  The mechanism is the C1 encoding
+    /// failure, not the bridge — capping the passer should make us *more*
+    /// cautious, yet every one of the five worst boards is the ON arm
+    /// overbidding into a double (6NT-X, 7♦-X, 5♦-X).  `push_inference` hands
+    /// the net the raw `{min, max}` pair, so `max/37` moves 1.00 → 0.43 on a
+    /// seat it was trained to see as ⊤ and it answers out of distribution.
+    ///
+    /// Kept opt-in as a single-dummy and post-retrain **re-measure candidate**:
+    /// the reading itself is strictly sounder, and an F2b-style evaluator twin
+    /// selected on this knob would price it fairly.
     pub weak_two_pass_gate: bool,
     /// Require the `2NT` overcall to have the wide-notrump shape
+    ///
+    /// Widens the `2NT` overcall of their weak two from strict `balanced()`
+    /// shape to `two_notrump_wide_shape` (2–4 majors, 2–6 minors).
+    /// `balanced()` in this crate is exactly 4333/4432/5332, so today a 6322
+    /// with a solid six-card minor and their suit stopped has **no** `2NT` — it
+    /// doubles or passes.  BBA's own `2NT` bucket is 88–94% balanced with minors
+    /// running to five, so the rejected tail is real hands.
+    ///
+    /// **Default off — WASH over two seeds** (204.8k bd/arm/vul; seed 1785085719
+    /// plain +0.0008 ± 0.0008 NV / +0.0008 ± 0.0009 vul, PD +0.0010/+0.0011;
+    /// seed 1785086925 plain +0.0002 ± 0.0008 / −0.0001 ± 0.0008, PD
+    /// +0.0005/+0.0002).  Seed 1 came back positive in all four cells (+0.77 to
+    /// +1.63 IMPs/fired) and seed 2 did not replicate it (one cell mildly
+    /// negative); pooled, every CI still straddles zero.  The `wash | wash`
+    /// tiebreak is naturalness, and it argues the *other* way here: Cohen,
+    /// kwbridge and the St Andrews notes all specify **balanced** for this bid,
+    /// so the narrow rule is the textbook one and this widening is the trial.
+    /// Opt-in.
     pub weak_two_notrump_shape: bool,
     /// Author jump overcalls over their weak two
+    ///
+    /// A jump in a new suit below `3NT`: one trick higher than the cheapest
+    /// overcall, so one trick more of hand — **six-plus cards and three more
+    /// points** than the natural band, natural, non-forcing, strongly
+    /// invitational.  Only three such calls exist below `3NT` (`3♥`/`3♠` over
+    /// `2♦`, `3♠` over `2♥`); BBA authors none of them, so this is an addition
+    /// rather than a catch-up.
+    ///
+    /// **Default off — LOST 4/4** (204.8k bd/vul, seed 1785085719: plain
+    /// −0.0008 ± 0.0007 NV / −0.0010 ± 0.0008 vul, PD −0.0012/−0.0011; −1.05 to
+    /// −1.61 IMPs/fired).  The trace is the classic case against *strong* jump
+    /// overcalls: the jump eats the room the strength wanted.
+    ///
+    /// ```text
+    /// on:  (2♦) 3♥ - 4♦ - 4♥ - - -     off: (2♦) 2♥ - 6♥ - - -
+    /// on:  (2♦) 3♥ - 4♥ - - -          off: (2♦) 2♥ - 3♣ - 3♥ - 5♣ - - -
+    /// ```
+    ///
+    /// The authoring makes it worse than it needs to be: `points(13..=19)` at
+    /// weight 1.1 **overlaps** the natural `points(10..=16)` at weight 1.0, so
+    /// every 13–16 six-carder stops overcalling cheaply and jumps — precisely
+    /// the hands that wanted advancer to have room.  A retry should make the
+    /// bands disjoint (jump 17+, or cap the natural at 12 on six-card hands)
+    /// before concluding anything about jump overcalls as such.
     pub weak_two_jump_overcall: bool,
     /// Use disciplined bands for suit overcalls of their weak two
+    ///
+    /// On, the natural suit overcall of their weak two demands more when **we**
+    /// are vulnerable: 12–17 at the two level and 15–17 at the three.
+    /// Non-vulnerable keeps the flat band
+    /// ([`weak_two_overcall_points`][Self::weak_two_overcall_points], default
+    /// 10–16); off, the flat band applies at every vulnerability.
+    ///
+    /// **Default on**, shipped on a `win | win`, 8/8 cells over two seeds
+    /// (`SEED_BASE` 1785092622 / 1785093604, 204.8k bd/arm/vul vs BBA 2/1),
+    /// pooled:
+    ///
+    /// | `-v` | fired | plain DD | PD |
+    /// | --- | --- | --- | --- |
+    /// | none | 0.00% | **0.0000 ± 0.0000** | 0.0000 ± 0.0000 |
+    /// | ns | 0.62% | **+0.0026 ± 0.0018** | +0.0136 ± 0.0022 |
+    /// | both | 0.67% | **+0.0029 ± 0.0020** | +0.0182 ± 0.0024 |
+    ///
+    /// The `none` row is a free null control rather than a result: with nobody
+    /// vulnerable the rule reduces to the same `points(lo..=hi)` it replaced, so
+    /// it *must* read exactly zero on zero divergences, and a non-zero there
+    /// would have meant the vulnerability conjunct was miswired and the other
+    /// two rows meaningless.
+    ///
+    /// The vulnerability conjunct is not a guess — it is what separated the
+    /// earlier exploratory measurement.  Run flat at 12:17:15:17 against the
+    /// shipped band, two seeds, 204.8k bd/arm/vul (`SEED_BASE` 1785088050 /
+    /// 1785088953):
+    ///
+    /// | `-v` | we vulnerable? | plain DD | PD |
+    /// | --- | --- | --- | --- |
+    /// | none | no | −0.0024 / −0.0029 | +0.0136 / +0.0132 |
+    /// | ns | **yes** | **+0.0048 / +0.0026** | +0.0165 / +0.0137 |
+    /// | both | **yes** | **+0.0063 / +0.0032** | +0.0223 / +0.0172 |
+    ///
+    /// `none` and `both` are symmetric vulnerabilities and cannot tell our risk
+    /// from theirs; `ns` (we vulnerable, they not) is the cell that can, and
+    /// plain DD splits monotonically on **our** vulnerability with nothing left
+    /// over — so `vulnerable()` is the predicate and `they_vulnerable()` is
+    /// refuted.
+    ///
+    /// Note the PD column wins everywhere, including the cell plain DD loses.
+    /// That is PD doing what PD does to a light overcall the field would never
+    /// double, and on its own it is the doubling artifact; the plain-DD half is
+    /// the one that flips, and it flips the way bridge says it should.  A/B knob
+    /// (`bba-gen --ns-weak-two-overcall-discipline`).
     pub weak_two_overcall_discipline: bool,
     /// Author the natural cue-bid over their weak two
+    ///
+    /// The direct cue of their *major* weak two as Michaels: `3♥` over `2♥` /
+    /// `3♠` over `2♠` = the other major plus an unspecified minor, 5-5.  This is
+    /// what BBA bids there (`probe-bba-constraints --mode def2-h`: ♠ 5–6,
+    /// longest minor 5–6, ♥ 0–2, 0% balanced) and what
+    /// [`set_cue_reading`][crate::bidding::set_cue_reading] already *reads* a
+    /// direct cue as — so knob-off the book authors a call the reader is waiting
+    /// for.
+    ///
+    /// Deliberately **not** extended to `3♦` over their `2♦`: BBA never bids it
+    /// (no `3♦` bucket at all in `--mode def2-d`), the cheap `2♥`/`2♠` overcalls
+    /// already carry a major, and `4♦` Leaping Michaels covers the strong
+    /// both-majors hand.
+    ///
+    /// **Default off, and its A/B is VOID** — not a verdict on Michaels.  The
+    /// advancer has no node: the seat-fanned rows wire continuations for the
+    /// takeout double and Leaping Michaels only, so `(2♠) 3♠ -` drops to the
+    /// floor, which *redoubles the cue* — the phantom-suit disaster in the
+    /// flesh.
+    ///
+    /// ```text
+    /// on:  - (2♠) 3♠ (X) XX - - -
+    ///      (playing 3♠ redoubled — in their suit)
+    /// on:  (2♠) 3♠ (X) 4♥ (4♠) - - X (XX) - - 4NT (X) 5♦ - 5♥ - 6♥ (X) - - -
+    /// ```
+    ///
+    /// Measured −0.78 to −2.63 IMPs/fired, which is the missing continuation
+    /// talking.  Author advancer's structure (pick the major, relay for the
+    /// minor, and an SOS/pass-or-correct after their double) before
+    /// re-measuring.
     pub weak_two_cue: bool,
-    /// Inclusive points band for the `2NT` overcall of their weak two
+    /// Inclusive HCP band for the `2NT` overcall of their weak two
+    ///
+    /// **(16, 17) by default** — 15-counts pass and 18-counts double, two
+    /// disjoint wins that compose.  The literature splits — Cohen and the Bridge
+    /// Bulletin say 15–18, kwbridge 14–18, the St Andrews notes 16–18 — and
+    /// BBA's own direct-seat bucket is **15–17, median 16**
+    /// (`probe-bba-constraints --mode def2-h`).  Measurement says both edges of
+    /// the old 15–18 were wrong, and *independently* so.  The two one-point
+    /// trims act on disjoint hand classes, so each diverges from 15–18 only at
+    /// its own end — and a 15-count is some three times as common as an
+    /// 18-count, which is why trimming the floor moves twice the mass:
+    ///
+    /// | band | trims | fired | plain NV/vul | PD NV/vul |
+    /// | --- | --- | --- | --- | --- |
+    /// | 15–17 | 18s → double | 0.06% | +0.0009 / +0.0004 | +0.0014 / +0.0007 |
+    /// | 16–18 | 15s → pass | 0.09% | +0.0006 / +0.0007 | +0.0024 / +0.0018 |
+    /// | **16–17** | both | 0.16% | **+0.0015 / +0.0011** | **+0.0037 / +0.0025** |
+    ///
+    /// (IMPs/board, mean of seeds 1785088050 and 1785088953, 204.8k bd/arm/vul
+    /// vs BBA 2/1; pooled CI ±0.0008 plain, ±0.0009 PD.)  The 16–17 row is the
+    /// sum of the two above it to within noise on every cell, which is the tell
+    /// that they compose rather than compete.
+    ///
+    /// The hands land where the system already wants them: an 18-count meets the
+    /// takeout double's `points(17..)`, and *that* is the classic
+    /// double-then-notrump auction.  A balanced 15 with a stopper has no home
+    /// and passes — facing a preempt with a partner who has not spoken, `2NT`
+    /// was buying a bad `3NT`.  A/B knob
+    /// (`bba-gen --ns-weak-two-nt-points LO:HI`).
     pub weak_two_notrump_points: (u8, u8),
     /// Points bands for two- and three-level overcalls of their weak two
+    ///
+    /// Inclusive `points` bands of the natural suit overcall, by the level the
+    /// call lands on: `(two_lo, two_hi, three_lo, three_hi)`.  **(10, 16, 10,
+    /// 16) by default** — the shipped flat band at both levels.
+    ///
+    /// A weak two leaves an overcall at either level depending on rank: over
+    /// `2♥` a spade overcall is `2♠` but a club overcall is `3♣`, and the flat
+    /// band charges both the same.  The one-opening defense already grades by
+    /// level ([`overcall_discipline`][Self::overcall_discipline]: 1-level 8–17,
+    /// 2-level 11–17), and the extra trick has to be paid for somewhere.  BBA
+    /// grades only slightly (10–16 at the two level, 11–16 at the three).  A/B
+    /// knob (`bba-gen --ns-weak-two-overcall LO2:HI2:LO3:HI3`).
     pub weak_two_overcall_points: (u8, u8, u8, u8),
     // --- defense/advance_rubens.rs
     /// Author Rubens advances of partner's takeout double
+    ///
+    /// The **jump-cue Rubens transfer** layer on top of the rich advance.  **Off
+    /// by default**, and a no-op unless
+    /// [`rich_advance_double_enabled`][Self::rich_advance_double_enabled] is
+    /// also on.  When on, the advancer's jump-cue (and, over `(1♠)`, a natural
+    /// `3♥`) becomes a **transfer to a 5+ unbid major**
+    /// (invitational-or-better) — the doubler completes and *declares*,
+    /// right-siding the strong hand.
+    ///
+    /// Right-siding is invisible to double-dummy (the trick count is the same
+    /// whoever declares), so its value shows up under the single-dummy lead
+    /// scorer, not the DD A/B; this knob (`bba-gen --ns-advance-rubens`) exists
+    /// to confirm no DD *regression* and as an **sd-lead re-measure candidate**.
+    /// See `docs/ai-bidder/21gf-ledger.md`.
     pub advance_rubens_enabled: bool,
     // --- defense/nt_landy.rs
     /// Escape thresholds after their double of Landy `2♣`
+    ///
+    /// `(min_minor, max_major)`.  After `(1NT) 2♣ (X)` the advancer may run to a
+    /// long minor — `Pass` to play `2♣` doubled with clubs, `2♦` to play
+    /// diamonds — but only with `min_minor`+ in that minor and at most
+    /// `max_major` in *each* major (a longer major has an 8-card fit opposite
+    /// the overcaller's 5-carder worth more than a doubled minor).
+    ///
+    /// **Default `(6, 2)`**, the A/B-tuned shipped gate; the knob is
+    /// `examples/landy-ab --ns-doubled-escape MIN:MAJ`.  Only reachable when
+    /// Landy is on ([`set_landy`][crate::bidding::american::set_landy]), so the
+    /// convention stays opt-in.
     pub doubled_landy_escape: (usize, usize),
     /// Gauge the Landy band in HCP rather than points
+    ///
+    /// A 5-4/5-5 two-suiter earns a distributional bonus, so `points` runs ~2
+    /// above HCP — letting thin hands clear the floor.  `true` gauges the
+    /// `2♣`/`2NT` range on raw `hcp` (tighter); `false` (the **default**) keeps
+    /// `points`.  An A/B knob (`examples/landy-ab --strength hcp`).
     pub landy_use_hcp: bool,
     /// Raw four-four-shape cell for direct Landy's double
+    ///
+    /// Whether the direct-Landy both-majors `X` accepts a flat 4-4, else 5-4+.
+    /// **This is the raw cell**: it is the payload of the former
+    /// `set_direct_landy_double(Option<bool>)`, and the module reads it only
+    /// when the active system is
+    /// [`NotrumpDefense::DirectLandy`][crate::bidding::american::NotrumpDefense::DirectLandy]
+    /// (selected via
+    /// [`set_notrump_defense`][crate::bidding::american::set_notrump_defense]) —
+    /// under any other system it has no meaning at all.  **Default `false`**
+    /// (5-4+).
+    ///
+    /// Under `DirectLandy` the penalty double is dropped entirely (a 15+
+    /// balanced hand passes or overcalls), the four natural two-level suit
+    /// overcalls are kept, and the advancer answers through the Landy machinery.
+    /// It covers the passed seat too, and is mutually exclusive with the natural
+    /// penalty-`X` arm and the Landy `2♣` overlay.  The A/B knob is
+    /// `examples/ab-landy --ns-landy-x`.
     pub direct_landy_four_four: bool,
     /// Points floor for direct Landy's double
+    ///
+    /// The `points` floor for the direct-seat both-majors double; **15 by
+    /// default** — the clean partition just above the natural-overcall ceiling
+    /// (14), so an intermediate both-majors hand overcalls a major (8–14) and
+    /// the `X` is reserved for the strong hands too good to overcall (15+).
+    ///
+    /// Competing less (fewer thin doubles to be punished) and carrying more
+    /// defense when we act both helped on the A/B sweep, which peaked near
+    /// 15–16; 15 captures it with no orphaned point-count.  The advancer's
+    /// invite/game thresholds track it.  No effect unless the active system is
+    /// `DirectLandy`.  The A/B knob is `examples/ab-landy --ns-landy-x-floor`.
     pub direct_landy_double_floor: u8,
     /// Author the direct-Landy penalty pass
+    ///
+    /// Whether the advancer may **pass the both-majors `X` for penalty** (defend
+    /// `1NTx`) at `(1NT) X -`; **off by default**.  On, a hand with no major fit
+    /// (both majors ≤2) and enough defense — gauged as raw HCP or upgraded
+    /// points per [`landy_use_hcp`][Self::landy_use_hcp] — converts the takeout
+    /// double to penalties rather than running to a 5-2 major; the threshold
+    /// tracks the `X` floor (a stronger `X` needs less from the advancer).
+    ///
+    /// No effect unless the active system is `DirectLandy`.  The A/B knob is
+    /// `examples/ab-landy --ns-landy-x-penalty`.
     pub direct_landy_penalty_pass: bool,
     // --- defense/michaels.rs
     /// Optional strength band for the unusual `2NT`
+    ///
+    /// The both-minors `2NT` overcall of their `1NT`: `None` = off (the floor's
+    /// natural — and near-useless — `2NT`); `Some((lo, hi))` = both minors (5-5)
+    /// on `points(lo..=hi)`.  Independent of
+    /// [`set_landy`][crate::bidding::american::set_landy]: a natural `2NT` over
+    /// their strong `1NT` is nearly worthless, so this repurposes the bid as a
+    /// two-suiter — purely additive, it sacrifices no natural call.
+    ///
+    /// **On by default at `Some((8, 13))`**: A/B'd vs the floor
+    /// (`examples/landy-ab --ns-minors`) it is a vulnerability-dependent wash on
+    /// plain double-dummy (≈+0.0001 IMPs/board non-vul, ≈−0.0001 vul), shipped
+    /// on because it is additive and its obstruction/lead-direction value is
+    /// invisible to the DD measure.  The `8`-floor `13`-ceiling and the 5-5
+    /// shape were the best-measured settings — capping strong hands and
+    /// requiring 5-5 both helped.
     pub unusual_notrump_range: Option<(u8, u8)>,
     /// Optional HCP floor for defensive two-suiters
+    ///
+    /// When `Some(n)`, the Michaels cue-bid and the Unusual `2NT` require
+    /// `hcp(n..)` on top of the shipped `points(8..)`; `None` restores the bare
+    /// `points(8..)` gate.
+    ///
+    /// Both rules are documented "8+ HCP" but were gauged in `points`;
+    /// rule-of-N+8 reads a 5-HCP 6-5 freak 8–9, and those garbage two-suiters
+    /// cue at weight 2.0 straight into −800 penalty doubles (the point-count
+    /// remnant's Michaels family, −17..−21 IMPs a board).  `Some(8)` restores
+    /// the documented floor.
+    ///
+    /// **Default `Some(8)`** (fix-vs-shipped, 1M boards/vul + 50k sd/vul, 24.pdd
+    /// 14.3M–16.3M + 22.4M: plain DD +0.0023 ± 0.0008 NV / +0.0031 ± 0.0010 vul,
+    /// PD +0.0028/+0.0036, sd-lead +0.0024 ± 0.0035 / +0.0046 ± 0.0043 — no wall
+    /// inversion).
     pub two_suiter_hcp_floor: Option<u8>,
     // --- defense/advance_sohl.rs
     /// Which sohl advance structure partner's takeout double uses
+    ///
+    /// The package the **advancer** carries after partner's takeout double of a
+    /// weak two (`(2X) X -`), reusing [`LebensohlStyle`]: `Off` keeps the flat
+    /// [`advance_double`][crate::bidding::american::advance_double] ladder;
+    /// `Plain` adds the weak `2NT` relay vs a forcing 3-level suit; `Transfer`
+    /// (the **default**) adds Larry Cohen's transfers-through + cue-Stayman,
+    /// plus, over `(2♦)`, `3♣`-Stayman + Smolen + Leaping Michaels.
+    ///
+    /// The geometry matches Lebensohl after our overcalled `1NT` (the opponents'
+    /// suit is at the two level in both), so the Section-5 builders are reused
+    /// verbatim under the `(2X) X -` prefix.  `Transfer` is the default because
+    /// it is a clear perfect-defense win over the flat ladder (+0.145/+0.227
+    /// IMPs/board none/both, 200k filtered); see `docs/ai-bidder/21gf-ledger.md`
+    /// for the full A/B numbers.
     pub advance_sohl_style: LebensohlStyle,
     // --- defense/nt_meckwell.rs
     /// Allow four-four in Meckwell's minor-major calls
+    ///
+    /// Whether Meckwell's `2♣`/`2♦` (a minor plus a major) accept a flat 4-4,
+    /// else 5-4+; **off by default** (5-4).  A **probe** knob — the 5-4-vs-4-4
+    /// boundary is measured, not fixed by theory.  No effect unless Meckwell is
+    /// the active system.
     pub meckwell_minor_major_44: bool,
     /// Allow a four-four two-suiter in Meckwell's double
+    ///
+    /// Whether Meckwell's both-majors `X` accepts a flat 4-4, else 5-4+; **on by
+    /// default** (4-4, the standard weak Meckwell takeout double).  A **probe**
+    /// knob.  No effect unless Meckwell is the active system.
     pub meckwell_x_four_four: bool,
     /// Raw points floor cell for Meckwell's double
+    ///
+    /// **This is the raw cell, not the effective floor**: `0` is a sentinel the
+    /// module resolves to the natural-overcall floor
+    /// ([`set_natural_overcall_points`][crate::bidding::american::set_natural_overcall_points],
+    /// 8).  **0 by default**, therefore byte-identical to inheriting 8.
+    ///
+    /// Raise it — e.g. 12, the Woolsey `X` floor
+    /// ([`set_woolsey_double_floor`][crate::bidding::american::set_woolsey_double_floor])
+    /// — so only strong hands make the broad two-way double and 8–11
+    /// both-majors / single-minor hands pass: fewer sacrificial doubles over a
+    /// strong `1NT`.  A **probe** knob, and the tournament's dominant Meckwell
+    /// loss is exactly the low-floor `X`.  No effect unless Meckwell is the
+    /// active system.
     pub meckwell_x_floor: u8,
     // --- defense/advance_2nt.rs
     /// Author the continuation after advancer's invitational `2NT`
+    ///
+    /// **On by default**, and a no-op unless
+    /// [`rich_advance_double_enabled`][Self::rich_advance_double_enabled] is on.
+    /// The advancer's `2NT` (`(1t) X - 2NT`) is a limited balanced 11–12 invite
+    /// with a stopper, but with no authored continuation the doubler falls to
+    /// the instinct floor, which treats `2NT` as non-forcing and *passes it even
+    /// holding a game*.
+    ///
+    /// On, the doubler answers the invite naturally: **Pass** declines with a
+    /// minimum, **`3NT`** accepts to play, and a **new 5-card major** accepts
+    /// game-forcing so the advancer can pick the 4-4/5-3 major game.  Fixing
+    /// this floor-pass measured wash-positive on all four cells (NV/vul ×
+    /// plain/PD), which earns the default-on flip.  Off-switch `bba-gen
+    /// --no-ns-advance-2nt-continuation`.
     pub advance_2nt_continuation_enabled: bool,
     // --- defense/nt_their_conventions.rs
     /// Defend their Stayman convention
+    ///
+    /// Our defense to the opponents' `2♣` Stayman — after `(1NT) - (2♣)`, before
+    /// our call.  **Off by default** (opt-in A/B).  `X` = lead-directing clubs
+    /// (5+ with values), `2♦`/`2♥`/`2♠` = a natural 6-card suit
+    /// (`points(14..)`), `3♣` = a strong natural club one-suiter; the floor
+    /// passes everything else (~80%).  No Michaels cue — their `2♣` is
+    /// artificial, so a cue would be natural.  The overcall length and strength
+    /// were A/B-searched; see
+    /// [`stayman_defense_overcall`][Self::stayman_defense_overcall].
     pub stayman_defense_enabled: bool,
-    /// Shape and strength floor for the natural call over their Stayman
+    /// Length and strength floor for the natural call over their Stayman
+    ///
+    /// `(min suit length, points floor)` for the natural `2♦`/`2♥`/`2♠`
+    /// overcalls in the Stayman defense; the `3♣` jump tracks the same points
+    /// floor at a fixed 6-card length.  No effect unless
+    /// [`stayman_defense_enabled`][Self::stayman_defense_enabled] is on.
+    ///
+    /// **Default `(6, 14)`**, the A/B-searched setting: a paired PD sweep
+    /// (`bba-gen --ns-staydef-overcall LEN:FLOOR`, 1M boards/setting) found
+    /// length-6 beats length-5 (the 5-card overcalls' plain-DD edge is the
+    /// light-sacrifice artifact PD prices away) and the points floor is best
+    /// near 14 — below it the overcalls are perfect-defense-negative, at it they
+    /// turn DD-harmless; tighter still gains only within-noise DD while deleting
+    /// the sound overcalls that carry the convention's (DD-invisible)
+    /// competitive value.
     pub stayman_defense_overcall: (usize, u8),
     /// Defend their major-suit transfers
+    ///
+    /// Our defense to the opponents' Jacoby transfers — after `(1NT) - (2♦/2♥)`,
+    /// before our call.  **Off by default.**  `X` = lead-directing the bid
+    /// (transfer) suit, *not* takeout; a cue of the suit they showed = the other
+    /// major + a minor (Michaels 5-5); natural one-suiter overcalls (six-card,
+    /// `points(14..)`, the A/B-searched Stayman-defense floor); the floor passes
+    /// everything else.  Matches BBA's distilled defense (probe modes
+    /// `xfer-h`/`xfer-s`).
+    ///
+    /// Opt-in: like the Stayman defense its value is mostly lead-directing
+    /// (invisible to the double-dummy harness), and a paired A/B vs BBA over
+    /// 640 000 boards confirms a PD **wash** (+0.006 IMPs/board it fires on, CI
+    /// straddles 0); the plain-DD loss is the light-sacrifice artifact PD prices
+    /// away.
     pub transfer_defense_enabled: bool,
     /// Defend their minor-suit transfer
+    ///
+    /// Our defense to the opponents' two-way `2♠` minor response — their
+    /// clubs-or-size-ask, after `(1NT) - (2♠)`, before our call.  **Off by
+    /// default.**  `X` = lead-directing spades (the bid suit — not takeout);
+    /// `2NT` = the two lowest unbid suits (diamonds + hearts, 5-5); `3♣` (a cue
+    /// of their shown-clubs anchor) = the top-and-bottom two-suiter (spades +
+    /// diamonds, 5-5), weighted above the `X` so the two-suiter shows rather
+    /// than lead-directs; natural `3♦`/`3♥` one-suiters; the floor passes
+    /// everything else.
+    ///
+    /// Opt-in like the Stayman/transfer defenses: the value is mostly
+    /// lead-directing (invisible to the double-dummy harness), so it ships off
+    /// for A/B measurement.
     pub minor_transfer_defense_enabled: bool,
     /// Defend their diamond transfer
+    ///
+    /// Our defense to the opponents' `2NT` diamond transfer — after
+    /// `(1NT) - (2NT)`, before our call.  **Off by default.**  `X` =
+    /// lead-directing diamonds (the shown suit — not takeout); `3♦` (a cue of
+    /// their diamond anchor) = both majors (5-5, Michaels), weighted **above**
+    /// the `X` so a genuine two-suiter shows rather than lead-directs; natural
+    /// `3♣`/`3♥`/`3♠` six-card one-suiters (`points(14..)`); the floor passes
+    /// everything else.
+    ///
+    /// Like the Stayman/transfer defenses the value is mostly lead-directing
+    /// (invisible to the double-dummy harness), but here it is not merely
+    /// unmeasurable: a paired A/B vs BBA over 1 000 000 `--filter-1nt` boards
+    /// (387 fired, 0.04 %) measured a clear **loss** on both scorers (−1.91
+    /// IMPs/board it fires on plain, −2.32 PD) — the light-sacrifice cost of
+    /// doubling/cueing into a strong-`1NT` auction — so it ships off.
     pub diamond_transfer_defense_enabled: bool,
     // --- defense/gladiator.rs
     // --- defense/advance_rich.rs
     /// Author the rich advance of partner's takeout double
+    ///
+    /// The advance of partner's takeout double of a one-of-a-suit opening
+    /// (`(1t) X - ?`).  **On by default** (the shipped behavior); off (`bba-gen
+    /// --no-ns-rich-advance`) drops back to the flat
+    /// [`advance_double`][crate::bidding::american::advance_double] ladder.
+    ///
+    /// The advancer gets a rich ladder: a cue of opener's suit asking for a
+    /// 4-card major (invitational 10–11 — the Stayman-ask; game hands blast
+    /// `4M`), a notrump ladder (`1NT` 7–10 / `2NT` 11–12 / `3NT` 13+), weak
+    /// shapely game jumps, and a forced 3-card-suit response when broke —
+    /// filling the invite/force gap the flat floor leaves.  Measured a
+    /// constructive win vs the flat book (see `docs/ai-bidder/21gf-ledger.md`).
+    ///
+    /// It is the gate the rest of the advance layer hangs off:
+    /// [`advance_rubens_enabled`][Self::advance_rubens_enabled],
+    /// [`advance_minor_jump_enabled`][Self::advance_minor_jump_enabled] and
+    /// [`advance_2nt_continuation_enabled`][Self::advance_2nt_continuation_enabled]
+    /// are all no-ops without it.
     pub rich_advance_double_enabled: bool,
     /// Optional HCP gate on advancer's penalty pass
+    ///
+    /// Swaps the advancer's **4-card penalty-pass quality gate** over partner's
+    /// takeout double (`(1t) X - ?`) to a per-suit HCP floor.  **`None` by
+    /// default** (the shipped behavior): a 4-card trump stack sits with two of
+    /// the top three honors.  `Some(n)` (`bba-gen --ns-advance-sit-hcp N`)
+    /// replaces that gate with `suit_hcp(t, n..)` in the **rich** advance only —
+    /// the flat book, which is also the weak-two advance node, keeps the honor
+    /// gate.
+    ///
+    /// The candidate gates nest, {6+} ⊂ {top2} ⊂ {5+}:
+    /// - `Some(5)` admits exactly one new class, **AJxx** — KQ = 5 is the
+    ///   cheapest two of A/K/Q, so nothing is removed (the same subset relation
+    ///   probed for BBA's Ogust "good suit"; see
+    ///   [`suit_hcp`][crate::bidding::constraint::suit_hcp]);
+    /// - `Some(6)` instead drops exactly **bare KQxx** (no jack ⇒ 5) while
+    ///   keeping KQJx/AKxx/AQxx; AJxx stays out (5 is the most a single top
+    ///   honor can carry).
+    ///
+    /// Composes with
+    /// [`advance_pass_yield_major_enabled`][Self::advance_pass_yield_major_enabled]:
+    /// the yield wraps whichever sit gate is live (both default-off, so the
+    /// default system is untouched).  The sweep knob for
+    /// `scripts/ab-advance-sit-hcp.sh`.
     pub advance_sit_hcp_gate: Option<u8>,
     // --- defense/responsive.rs
     /// Author responsive doubles after partner's takeout double
+    ///
+    /// The responsive double after partner's **takeout double** and their raise
+    /// (`(1t) X (2t) ?`): advancer's double of the raise shows the two unbid
+    /// suits with 8+.  **On by default** (the shipped behavior); off drops the
+    /// node to the instinct floor — the A/B knob for `examples/responsive-ab
+    /// --conv takeout`.  This is the canonical "responsive double" (BBA's single
+    /// `Responsive double` toggle, on in `21GF.bbsa`); see
+    /// `docs/ai-bidder/21gf-ledger.md`.
     pub responsive_takeout_enabled: bool,
     /// Author responsive doubles after partner's natural overcall
+    ///
+    /// The responsive double after partner's **overcall** and their raise
+    /// (`(1t) overcall (2t) ?`): advancer's double of the raise shows the two
+    /// suits unbid by opener and partner with 8+.  **Off by default** — the
+    /// auction falls to the instinct floor.
+    ///
+    /// A non-standard extension of our own: BBA's `Responsive double` is only
+    /// the takeout version, and the nearest overcall toggle, `Snapdragon
+    /// Double`, is off in `21GF.bbsa` and over a *new suit*, not a raise.  The
+    /// A/B knob for `examples/responsive-ab --conv overcall`; see
+    /// `docs/ai-bidder/21gf-ledger.md`.
     pub responsive_overcall_enabled: bool,
 }
 
@@ -692,14 +1350,6 @@ impl Default for DefenseKnobs {
             responsive_takeout_enabled: true,
             responsive_overcall_enabled: false,
         }
-    }
-}
-
-impl DefenseKnobs {
-    /// Capture this thread's defensive build-time knob state
-    #[must_use]
-    pub fn current() -> Self {
-        super::american::defense::capture()
     }
 }
 
@@ -1602,7 +2252,7 @@ impl Agreements {
         Self {
             decision: DecisionProfile::current(),
             competition: CompetitionKnobs::default(),
-            defense: super::american::defense::capture(),
+            defense: DefenseKnobs::default(),
             notrump: NotrumpKnobs::default(),
             opening: OpeningKnobs::default(),
             response: ResponseKnobs::default(),

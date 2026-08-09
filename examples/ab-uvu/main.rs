@@ -10,7 +10,7 @@
 //!
 //! Both pairs play `american`; the *environment* is fixed — every defender
 //! overcalls a 1NT with the both-minors 2NT
-//! ([`set_unusual_notrump_defense`][pons::bidding::american::set_unusual_notrump_defense]),
+//! (`Agreements::defense.unusual_notrump_range`),
 //! so the `1NT (2NT)` auction arises at both tables.  The toggled feature is the
 //! UvU *responder* structure: the feature pair plays it (at the `--x-floor` /
 //! `--cue-floor` swept floors), the other floors the auction.  Each board is bid
@@ -30,7 +30,6 @@ use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Hand, Seat, Strain, 
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::Stance;
-use pons::bidding::american::set_unusual_notrump_defense;
 use pons::scoring::{final_contract, imps, ns_score_contract};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -175,11 +174,10 @@ fn main() {
     // both-minors 2NT overcall (the environment that creates the auction) is on
     // for both, so the divergence isolates the UvU response.
     let range = Some((args.opp_lo, args.opp_hi));
-    set_unusual_notrump_defense(range);
     let mut arm = pons::bidding::agreements::Agreements::current();
+    arm.defense.unusual_notrump_range = range;
     arm.competition.uvu = false;
     let baseline = american(&arm).against();
-    set_unusual_notrump_defense(range);
     arm.competition.uvu = true;
     arm.competition.uvu_x_floor = args.x_floor;
     arm.competition.uvu_cue_floor = args.cue_floor;

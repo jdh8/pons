@@ -1,4 +1,5 @@
-use super::super::tests::{best_call, call};
+use super::super::tests::{best_call_with, call};
+use crate::bidding::agreements::Agreements;
 use contract_bridge::Strain;
 use contract_bridge::auction::Call;
 
@@ -7,15 +8,16 @@ use contract_bridge::auction::Call;
 /// the transfer is a genuine jump-cue (`1♣`/`1♦`/`1♥`).
 #[test]
 fn rubens_transfer_completes_into_the_major() {
-    super::advance_rich::set_rich_advance_double(true);
-    super::advance_rubens::set_advance_rubens(true);
+    let mut arm = Agreements::current();
+    arm.defense.rich_advance_double_enabled = true;
+    arm.defense.advance_rubens_enabled = true;
 
     // Advancer with 5 spades, 10 HCP: transfer via 3♥ (the rank below spades)
     // over each opening; the doubler completes to spades and declares.
     let advancer = "KQJ42.xx.KJx.xxx"; // 5 spades, 10 HCP
     for open in [Strain::Clubs, Strain::Diamonds, Strain::Hearts] {
         let start = [call(1, open), Call::Double, Call::Pass];
-        let (xfer, _) = best_call(&start, advancer);
+        let (xfer, _) = best_call_with(&arm, &start, advancer);
         assert_eq!(
             xfer,
             call(3, Strain::Hearts),
@@ -28,7 +30,7 @@ fn rubens_transfer_completes_into_the_major() {
             call(3, Strain::Hearts),
             Call::Pass,
         ];
-        let (complete, floored) = best_call(&after, "AKx.xxx.Axxx.xxx");
+        let (complete, floored) = best_call_with(&arm, &after, "AKx.xxx.Axxx.xxx");
         assert_eq!(
             complete,
             call(3, Strain::Spades),
@@ -39,7 +41,4 @@ fn rubens_transfer_completes_into_the_major() {
             "the completion must come from the book, not the floor"
         );
     }
-
-    super::advance_rubens::set_advance_rubens(false);
-    super::advance_rich::set_rich_advance_double(true); // restore default
 }

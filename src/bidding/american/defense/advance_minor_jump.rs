@@ -1,43 +1,13 @@
 //! Invitational minor jumps in the rich advance of partner's takeout double
 //!
-//! The jump and its continuations are gated by [`set_advance_minor_jump`].
+//! The jump and its continuations are gated by
+//! `agreements.defense.advance_minor_jump_enabled`.
 
 use super::*;
 
-thread_local! {
-    /// Whether the advancer's three-level jump in a **minor** shows an
-    /// invitational one-suiter (5+, 10–12, denying a 4-card unbid major); see
-    /// [`set_advance_minor_jump`].  No effect unless [`RICH_ADVANCE_DOUBLE`] is on.
-    static ADVANCE_MINOR_JUMP: Cell<bool> = const { Cell::new(true) };
-}
-
-/// Toggle the advancer's **invitational minor jump** on the rich advance of a
-/// takeout double for books built *after* this call (thread-local, read at
-/// book-construction time)
-///
-/// **On by default**, and a no-op unless [`set_rich_advance_double`] is on. When
-/// on, a three-level jump in a *minor* (`(1♥) X - 3♣`, `(1♠) X - 3♦`, …)
-/// shows an invitational one-suiter — a real 5-card suit, 10–12, **denying a
-/// 4-card unbid major** (with one the advancer cues opener's suit to find the
-/// 4-4 major fit).  It ranks *below* the notrump ladder, so a stopper still
-/// prefers `1NT`/`2NT`/`3NT`; the jump is the residual for the no-stopper shapely
-/// invite that would otherwise have to cue.  Game-forcing minors (13+) are capped
-/// out and still cue or bid a stopped `3NT`.  The doubler, strong but stopperless,
-/// re-asks for a stopper by cueing their suit (a Western cue); the advancer bids
-/// the right-sided `3NT` with a stopper, else the minor game.  Two-seed A/B: SIG+
-/// in all four cells (plain ≥ PD → constructive).  Turn off with
-/// `bba-gen --no-ns-advance-minor-jump`.
-pub fn set_advance_minor_jump(on: bool) {
-    ADVANCE_MINOR_JUMP.with(|cell| cell.set(on));
-}
-
-/// Whether the invitational minor jump is currently authored
-pub(super) fn advance_minor_jump_enabled() -> bool {
-    ADVANCE_MINOR_JUMP.with(Cell::get)
-}
-
 /// Doubler's accept-or-decline of the advancer's invitational minor jump
-/// (`(1t) X - 3m { - | (X) } ?`, gated by [`set_advance_minor_jump`])
+/// (`(1t) X - 3m { - | (X) } ?`, gated by
+/// `agreements.defense.advance_minor_jump_enabled`)
 ///
 /// The jump is a *limited* natural invite (10–12, 5+ `minor`, no 4-card unbid
 /// major) that does **not** promise a stopper, so — unlike the forcing cue,
@@ -85,7 +55,7 @@ fn answer_advance_minor_jump(their_opening: Bid, minor: Suit) -> Rules {
 
 /// Advancer's placement after the doubler accepts the minor jump with a forcing
 /// new suit (`(1t) X - 3m { - | (X) } 3S { - | (X) } ?`, gated by
-/// [`set_advance_minor_jump`])
+/// `agreements.defense.advance_minor_jump_enabled`)
 ///
 /// The doubler forced to game showing a 5+ `shown` suit; the advancer (already
 /// limited to 10–12) places it: raise to game with three-card support, else
@@ -106,7 +76,8 @@ pub(super) fn advance_minor_jump_rebid(shown: Suit) -> Rules {
 }
 
 /// Advancer's answer to the doubler's stopper-ask cue after the minor jump
-/// (`(1t) X - 3m { - | (X) } 3t { - | (X) } ?`, gated by [`set_advance_minor_jump`])
+/// (`(1t) X - 3m { - | (X) } 3t { - | (X) } ?`, gated by
+/// `agreements.defense.advance_minor_jump_enabled`)
 ///
 /// The doubler cued their suit holding game values but no stopper (and no 5-card
 /// side suit); the advancer supplies the notrump decision.  With a stopper the

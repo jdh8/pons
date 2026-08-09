@@ -1,6 +1,6 @@
 use crate::bidding::context::Context;
 use crate::bidding::inference::knobs::*;
-use crate::bidding::inference::tests::{bid, chosen_call, read, read_booked};
+use crate::bidding::inference::tests::{bid, chosen_call, read, read_booked, read_booked_with};
 use crate::bidding::inference::{EnvelopeUnion, Range, Relative};
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::{Hand, Strain, Suit};
@@ -48,94 +48,122 @@ fn envelope_union_reading_pins_the_two_suiter() {
 
 #[test]
 fn leaping_michaels_conditions_partner() {
-    use crate::bidding::american::set_leaping_michaels;
+    use crate::bidding::agreements::Agreements;
 
     // (2♥) 4♣ -: the advancer reads partner's two-suiter — five-plus clubs
     // AND five-plus spades, game-forcing — so the search sampler deals partner
     // the right shape rather than a natural club one-suiter.
-    set_leaping_michaels(true);
-    let advance = read_booked(&[bid(2, Strain::Hearts), bid(4, Strain::Clubs), Call::Pass]);
+    let mut on = Agreements::current();
+    on.defense.leaping_michaels_enabled = true;
+    let advance = read_booked_with(
+        &on,
+        &[bid(2, Strain::Hearts), bid(4, Strain::Clubs), Call::Pass],
+    );
     assert_eq!(advance.partner().length(Suit::Clubs), Range::new(5, 13));
     assert_eq!(advance.partner().length(Suit::Spades), Range::new(5, 13));
     assert_eq!(advance.partner().strength.points, Range::new(14, 37));
 
     // Over 2♦, the 4♦ cue shows both majors; 4♣ shows clubs + an unknown
     // major, so only clubs is pinned.
-    let cue = read_booked(&[
-        bid(2, Strain::Diamonds),
-        bid(4, Strain::Diamonds),
-        Call::Pass,
-    ]);
+    let cue = read_booked_with(
+        &on,
+        &[
+            bid(2, Strain::Diamonds),
+            bid(4, Strain::Diamonds),
+            Call::Pass,
+        ],
+    );
     assert_eq!(cue.partner().length(Suit::Hearts), Range::new(5, 13));
     assert_eq!(cue.partner().length(Suit::Spades), Range::new(5, 13));
 
-    // Disabled (the default): a 4♣ jump reads as a natural one-suiter, so
-    // spades stay unconstrained — the convention must not leak when off.
-    set_leaping_michaels(false);
-    let off = read_booked(&[bid(2, Strain::Hearts), bid(4, Strain::Clubs), Call::Pass]);
+    // Disabled (the convention ships on): a 4♣ jump reads as a natural
+    // one-suiter, so spades stay unconstrained — it must not leak when off.
+    let mut disabled = Agreements::current();
+    disabled.defense.leaping_michaels_enabled = false;
+    let off = read_booked_with(
+        &disabled,
+        &[bid(2, Strain::Hearts), bid(4, Strain::Clubs), Call::Pass],
+    );
     assert_eq!(off.partner().length(Suit::Spades), Range::FULL_LENGTH);
-    set_leaping_michaels(true);
 }
 
 #[test]
 fn landy_conditions_partner() {
-    use crate::bidding::american::{set_landy, set_unusual_notrump_defense};
+    use crate::bidding::agreements::Agreements;
+    use crate::bidding::american::set_landy;
 
     // (1NT) 2♣ -: the advancer reads partner's both-majors two-suiter (at
     // least 4-4 in the majors, 8+ points) rather than a natural club suit.
     set_landy(Some((8, 15)));
-    set_unusual_notrump_defense(Some((8, 15)));
-    let advance = read_booked(&[bid(1, Strain::Notrump), bid(2, Strain::Clubs), Call::Pass]);
+    let mut on = Agreements::current();
+    on.defense.unusual_notrump_range = Some((8, 15));
+    let advance = read_booked_with(
+        &on,
+        &[bid(1, Strain::Notrump), bid(2, Strain::Clubs), Call::Pass],
+    );
     assert_eq!(advance.partner().length(Suit::Hearts), Range::new(4, 13));
     assert_eq!(advance.partner().length(Suit::Spades), Range::new(4, 13));
     assert_eq!(advance.partner().length(Suit::Clubs), Range::FULL_LENGTH);
     assert_eq!(advance.partner().strength.points, Range::new(8, 37));
 
     // (1NT) 2NT -: both minors, 5-5 (the independent unusual-2NT toggle).
-    let minors = read_booked(&[bid(1, Strain::Notrump), bid(2, Strain::Notrump), Call::Pass]);
+    let minors = read_booked_with(
+        &on,
+        &[bid(1, Strain::Notrump), bid(2, Strain::Notrump), Call::Pass],
+    );
     assert_eq!(minors.partner().length(Suit::Clubs), Range::new(5, 13));
     assert_eq!(minors.partner().length(Suit::Diamonds), Range::new(5, 13));
 
     // The advancer's 2♦ relay is artificial — read from the overcaller's seat,
     // partner's (the relayer's) diamonds stay unconstrained.
-    let relay = read_booked(&[
-        bid(1, Strain::Notrump),
-        bid(2, Strain::Clubs),
-        Call::Pass,
-        bid(2, Strain::Diamonds),
-        Call::Pass,
-    ]);
+    let relay = read_booked_with(
+        &on,
+        &[
+            bid(1, Strain::Notrump),
+            bid(2, Strain::Clubs),
+            Call::Pass,
+            bid(2, Strain::Diamonds),
+            Call::Pass,
+        ],
+    );
     assert_eq!(relay.partner().length(Suit::Diamonds), Range::FULL_LENGTH);
 
     // Disabled: 2♣ reads as a natural club one-suiter, so spades stay
-    // unconstrained — the convention must not leak when off.
+    // unconstrained — the convention must not leak when off.  Landy is still a
+    // cell, so restore it for sibling tests on this thread (it ships off); the
+    // unusual-2NT range rides on the agreements and needs no restore.
     set_landy(None);
-    set_unusual_notrump_defense(None);
-    let off = read_booked(&[bid(1, Strain::Notrump), bid(2, Strain::Clubs), Call::Pass]);
+    let mut disabled = Agreements::current();
+    disabled.defense.unusual_notrump_range = None;
+    let off = read_booked_with(
+        &disabled,
+        &[bid(1, Strain::Notrump), bid(2, Strain::Clubs), Call::Pass],
+    );
     assert_eq!(off.partner().length(Suit::Spades), Range::FULL_LENGTH);
-
-    // Restore the shipped defaults so sibling tests on this thread are unaffected
-    // (unusual 2NT ships on; Landy 2♣ ships off).
-    set_unusual_notrump_defense(Some((8, 13)));
 }
 
 #[test]
 fn woolsey_conditions_partner() {
+    use crate::bidding::agreements::Agreements;
     use crate::bidding::american::{
-        NotrumpDefense, set_landy, set_notrump_defense, set_unusual_notrump_defense,
-        set_woolsey_points,
+        NotrumpDefense, set_landy, set_notrump_defense, set_woolsey_points,
     };
     // Landy off, Woolsey on: the 2♣ must read through the Woolsey path.
     set_landy(None);
-    set_unusual_notrump_defense(None);
     set_notrump_defense(NotrumpDefense::Woolsey);
     set_woolsey_points(10, 19);
+    // Captured after the cells above, so the book sees both.
+    let mut arm = Agreements::current();
+    arm.defense.unusual_notrump_range = None;
 
     // (1NT) 2♣ -: Woolsey's 2♣ is both majors, 10+, never a natural club suit.
     // Read off the authored rule's projection (on a prefixed/booked context),
     // which pins each major to 4-5 exactly — Woolsey sends a six-card major to
     // the Multi/Muiderberg calls, a distinction the old loose reader missed.
-    let two_c = read_booked(&[bid(1, Strain::Notrump), bid(2, Strain::Clubs), Call::Pass]);
+    let two_c = read_booked_with(
+        &arm,
+        &[bid(1, Strain::Notrump), bid(2, Strain::Clubs), Call::Pass],
+    );
     assert_eq!(two_c.partner().length(Suit::Hearts), Range::new(4, 5));
     assert_eq!(two_c.partner().length(Suit::Spades), Range::new(4, 5));
     assert_eq!(two_c.partner().length(Suit::Clubs), Range::FULL_LENGTH);
@@ -188,19 +216,17 @@ fn woolsey_conditions_partner() {
     ]);
     assert_eq!(off.partner().length(Suit::Diamonds), Range::new(5, 13));
 
-    // Restore the shipped default (unusual 2NT ships on).
-    set_unusual_notrump_defense(Some((8, 13)));
+    // Restore the shipped default of the one knob that is still a cell.
     set_woolsey_points(8, 19);
 }
 
 #[test]
 fn woolsey_double_and_advances_read() {
     use crate::bidding::american::{
-        NotrumpDefense, set_landy, set_notrump_defense, set_unusual_notrump_defense,
-        set_woolsey_double_floor, set_woolsey_points,
+        NotrumpDefense, set_landy, set_notrump_defense, set_woolsey_double_floor,
+        set_woolsey_points,
     };
     set_landy(None);
-    set_unusual_notrump_defense(None);
     set_notrump_defense(NotrumpDefense::Woolsey);
     set_woolsey_points(10, 19);
     set_woolsey_double_floor(12);
@@ -240,17 +266,13 @@ fn woolsey_double_and_advances_read() {
     let off = read(&[bid(1, Strain::Notrump), Call::Double, Call::Pass]);
     assert_eq!(off.partner().strength.points, Range::new(15, 37));
 
-    set_unusual_notrump_defense(Some((8, 13)));
     set_woolsey_points(8, 19);
 }
 
 #[test]
 fn dont_overcalls_and_advances_read() {
-    use crate::bidding::american::{
-        NotrumpDefense, set_landy, set_notrump_defense, set_unusual_notrump_defense,
-    };
+    use crate::bidding::american::{NotrumpDefense, set_landy, set_notrump_defense};
     set_landy(None);
-    set_unusual_notrump_defense(None);
     set_notrump_defense(NotrumpDefense::DirectDont);
 
     // (1NT) X -: a one-suiter in ♣/♦/♥ — spades short (≤3, the one sound fact),
@@ -301,11 +323,8 @@ fn dont_overcalls_and_advances_read() {
 
 #[test]
 fn meckwell_overcalls_and_advances_read() {
-    use crate::bidding::american::{
-        NotrumpDefense, set_landy, set_notrump_defense, set_unusual_notrump_defense,
-    };
+    use crate::bidding::american::{NotrumpDefense, set_landy, set_notrump_defense};
     set_landy(None);
-    set_unusual_notrump_defense(None);
     set_notrump_defense(NotrumpDefense::Meckwell);
 
     // (1NT) X -: the two-way double (single 6+ minor OR both majors) shares no
@@ -354,8 +373,6 @@ fn meckwell_overcalls_and_advances_read() {
     set_notrump_defense(NotrumpDefense::Natural);
     let off = read(&[bid(1, Strain::Notrump), bid(2, Strain::Clubs), Call::Pass]);
     assert_eq!(off.partner().length(Suit::Clubs), Range::new(5, 13));
-
-    set_unusual_notrump_defense(Some((8, 13)));
 }
 
 #[test]

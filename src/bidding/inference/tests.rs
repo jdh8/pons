@@ -19,7 +19,17 @@ pub(super) fn read(auction: &[Call]) -> Inferences {
 /// hands `Inferences::read` (cf. `Stance::prefixed_context`).  The plain `read`
 /// above is keyless, so it sees no convention overlay.
 pub(super) fn read_booked(auction: &[Call]) -> Inferences {
-    let stance = crate::american(&crate::bidding::agreements::Agreements::current()).against();
+    read_booked_with(&crate::bidding::agreements::Agreements::current(), auction)
+}
+
+/// [`read_booked`], but under an explicit set of agreements — the shape a knob
+/// that lives on [`Agreements`][crate::bidding::agreements::Agreements] rather
+/// than in a thread-local cell has to be armed in.
+pub(super) fn read_booked_with(
+    agreements: &crate::bidding::agreements::Agreements,
+    auction: &[Call],
+) -> Inferences {
+    let stance = crate::american(agreements).against();
     Inferences::read(&stance.prefixed_context(RelativeVulnerability::NONE, auction))
 }
 
@@ -559,14 +569,13 @@ fn artificial_calls_are_alerted() {
 
 #[test]
 fn deviation_knobs_preserve_alert_invariant() {
-    use crate::bidding::american::{american, set_overcall_four_card};
+    use crate::bidding::american::american;
 
-    set_overcall_four_card(true);
     let mut agreements = crate::bidding::agreements::Agreements::current();
     agreements.opening.one_notrump_offshape = true;
     agreements.opening.weak_two_wild = true;
+    agreements.defense.overcall_four_card = true;
     let pair = american(&agreements);
-    set_overcall_four_card(false);
 
     let mut worklist = Vec::new();
     for (phase, trie) in [

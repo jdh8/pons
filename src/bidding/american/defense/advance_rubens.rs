@@ -1,35 +1,9 @@
 //! Rubens transfers in the rich advance of partner's takeout double
 //!
-//! The jump-cue transfer and its continuations are gated by [`set_advance_rubens`].
+//! The jump-cue transfer and its continuations are gated by
+//! `agreements.defense.advance_rubens_enabled`.
 
 use super::*;
-
-thread_local! {
-    /// Whether the **jump-cue Rubens transfer** layer sits on top of the rich
-    /// advance — a jump-cue transfer to a 5+ unbid major; see
-    /// [`set_advance_rubens`].  No effect unless [`RICH_ADVANCE_DOUBLE`] is on.
-    static ADVANCE_RUBENS: Cell<bool> = const { Cell::new(false) };
-}
-
-/// Toggle the **jump-cue Rubens transfer** layer on top of the rich advance for
-/// books built *after* this call (thread-local, read at book-construction time)
-///
-/// **Off by default**, and a no-op unless [`set_rich_advance_double`] is also on.
-/// When on, the advancer's jump-cue (and, over `(1♠)`, a natural `3♥`) becomes a
-/// **transfer to a 5+ unbid major** (invitational-or-better) — the doubler
-/// completes and *declares*, right-siding the strong hand.  Right-siding is
-/// invisible to double-dummy (the trick count is the same whoever declares), so
-/// its value shows up under the single-dummy lead scorer, not the DD A/B; this
-/// knob (`bba-gen --ns-advance-rubens`) exists to confirm no DD *regression* and
-/// as an sd-lead re-measure candidate.  See `docs/ai-bidder/21gf-ledger.md`.
-pub fn set_advance_rubens(on: bool) {
-    ADVANCE_RUBENS.with(|cell| cell.set(on));
-}
-
-/// Whether the jump-cue Rubens transfer layer is currently authored
-pub fn advance_rubens_enabled() -> bool {
-    ADVANCE_RUBENS.with(Cell::get)
-}
 
 /// The advancer's jump-cue major transfers over a one-of-`theirs` opening:
 /// `(transfer bid, the 5+ unbid major it shows)`.  A transfer is the rank
@@ -57,7 +31,7 @@ pub(super) fn advance_major_transfers(theirs: Strain) -> Vec<(Bid, Suit)> {
 }
 
 /// Doubler's completion of the advancer's Rubens transfer
-/// (`(1t) X - transfer { - | (X) } ?`, gated by [`set_advance_rubens`])
+/// (`(1t) X - transfer { - | (X) } ?`, gated by `agreements.defense.advance_rubens_enabled`)
 ///
 /// The transfer promised a 5+ `target` major; the doubler bids it (declaring —
 /// the right-siding point), jumping to game (`4M`) with a maximum and support.

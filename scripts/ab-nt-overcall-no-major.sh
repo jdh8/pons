@@ -1,6 +1,6 @@
 #!/bin/sh
 # ab-nt-overcall-no-major.sh — A/B for the opt-in tight 2-level minor
-# overcall (`set_nt_overcall_no_major`, docs/bba-gap-campaign.md
+# overcall (`defense.nt_overcall_no_major`, docs/bba-gap-campaign.md
 # def-r1 overcall lever). OFF arm = shipped default (5-card major overcalls 1NT);
 # ON arm = --ns-nt-overcall-no-major (bar 5-card majors so the suit is
 # overcalled naturally to find the fit). Both vulnerabilities, THREE scorers (plain + pd via

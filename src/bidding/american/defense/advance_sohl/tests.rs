@@ -1,13 +1,14 @@
-use super::super::tests::{best_call, call};
-use crate::bidding::american::{LebensohlStyle, set_advance_sohl_style};
+use super::super::tests::{best_call_with, call};
+use crate::bidding::agreements::Agreements;
+use crate::bidding::american::LebensohlStyle;
 use contract_bridge::Strain;
 use contract_bridge::auction::Call;
 
-/// Best call with the advance-of-double sohl forced to `style` (independent of
-/// any other test on this thread having changed it)
+/// Best call with the advance-of-double sohl pinned to `style`
 fn advance(style: LebensohlStyle, auction: &[Call], hand: &str) -> (Call, bool) {
-    set_advance_sohl_style(style);
-    best_call(auction, hand)
+    let mut arm = Agreements::current();
+    arm.defense.advance_sohl_style = style;
+    best_call_with(&arm, auction, hand)
 }
 
 /// `(2♦) X -` — partner doubled their weak two, advancer to act

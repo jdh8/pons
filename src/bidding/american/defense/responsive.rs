@@ -1,55 +1,9 @@
 //! Responsive doubles — when partner doubles (or overcalls) and they raise
 //!
 //! Their raise removes the room to bid two suits, so the second double is
-//! takeout of the remaining ones.  [`set_responsive_takeout`] covers the
-//! doubled auction, [`set_responsive_overcall`] the overcalled one.
+//! takeout of the remaining ones.  `agreements.defense.responsive_takeout_enabled` covers the
+//! doubled auction, `agreements.defense.responsive_overcall_enabled` the overcalled one.
 use super::*;
-
-thread_local! {
-    /// Whether the responsive double after partner's **takeout double** + their
-    /// raise (`(1t) X (raise)`) is authored; see [`set_responsive_takeout`].
-    static RESPONSIVE_TAKEOUT: Cell<bool> = const { Cell::new(true) };
-    /// Whether the responsive double after partner's **overcall** + their raise
-    /// (`(1t) overcall (raise)`) is authored; see [`set_responsive_overcall`].
-    static RESPONSIVE_OVERCALL: Cell<bool> = const { Cell::new(false) };
-}
-
-/// Toggle the responsive double after partner's **takeout double** and their
-/// raise (`(1t) X (2t) ?`) for books built *after* this call (thread-local, read
-/// once at book-construction time)
-///
-/// **On by default** (the shipped behavior): advancer's double of the raise shows
-/// the two unbid suits with 8+. Turn it off to drop the node to the instinct
-/// floor — the A/B knob for `examples/responsive-ab --conv takeout`. This is the
-/// canonical "responsive double" (BBA's single `Responsive double` toggle, on in
-/// `21GF.bbsa`); see `docs/ai-bidder/21gf-ledger.md`.
-pub fn set_responsive_takeout(on: bool) {
-    RESPONSIVE_TAKEOUT.with(|cell| cell.set(on));
-}
-
-/// Whether the takeout-double responsive double is currently authored
-pub fn responsive_takeout_enabled() -> bool {
-    RESPONSIVE_TAKEOUT.with(Cell::get)
-}
-
-/// Toggle the responsive double after partner's **overcall** and their raise
-/// (`(1t) overcall (2t) ?`) for books built *after* this call (thread-local, read
-/// once at book-construction time)
-///
-/// **Off by default** (the auction falls to the instinct floor). When on, advancer's
-/// double of the raise shows the two suits unbid by opener and partner with 8+ — a
-/// non-standard extension of our own (BBA's `Responsive double` is only the takeout
-/// version; the nearest overcall toggle, `Snapdragon Double`, is off in `21GF.bbsa`
-/// and over a *new suit*, not a raise). The A/B knob for
-/// `examples/responsive-ab --conv overcall`; see `docs/ai-bidder/21gf-ledger.md`.
-pub fn set_responsive_overcall(on: bool) {
-    RESPONSIVE_OVERCALL.with(|cell| cell.set(on));
-}
-
-/// Whether the overcall responsive double is currently authored
-pub(super) fn responsive_overcall_enabled() -> bool {
-    RESPONSIVE_OVERCALL.with(Cell::get)
-}
 
 /// Advancer's action when partner made a takeout double and they raised `t` to `raise_lvl`
 ///
@@ -149,7 +103,7 @@ pub(super) fn responsive_double_package() -> Package {
 /// Responsive double after partner's *overcall* and their raise
 ///
 /// Off by default: the auction is otherwise floored.  The A/B knob
-/// (`--conv overcall`) turns it on; see [`set_responsive_overcall`].
+/// (`--conv overcall`) turns it on; see `agreements.defense.responsive_overcall_enabled`.
 pub(super) fn responsive_overcall_package() -> Package {
     Package {
         name: "responsive-double-over-overcall",

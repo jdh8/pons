@@ -722,13 +722,13 @@ struct Args {
 
     /// Disable the **rich advance** of partner's takeout double of a one-opening
     /// (`(1t) X - ?`) — revert to the flat advance without the cue + notrump
-    /// invite/force ladder (shipped default-on; see `set_rich_advance_double`).
+    /// invite/force ladder (shipped default-on; see `defense.rich_advance_double_enabled`).
     #[arg(long, default_value_t = false)]
     no_ns_rich_advance: bool,
 
     /// Add the **jump-cue Rubens transfer** layer on top of the rich advance (a
     /// transfer to a 5+ unbid major; no-op unless `--ns-rich-advance`; opt-in,
-    /// see `set_advance_rubens`).
+    /// see `defense.advance_rubens_enabled`).
     #[arg(long, default_value_t = false)]
     ns_advance_rubens: bool,
 
@@ -736,7 +736,7 @@ struct Args {
     /// three-level minor jump = 5+ one-suiter, 10–12, denying a 4-card unbid major
     /// (with the doubler's stopper-ask cue continuation) — revert that rung to the
     /// floor (shipped default-on; no-op unless `--ns-rich-advance`; see
-    /// `set_advance_minor_jump`).
+    /// `defense.advance_minor_jump_enabled`).
     #[arg(long, default_value_t = false)]
     no_ns_advance_minor_jump: bool,
 
@@ -744,28 +744,28 @@ struct Args {
     /// the rich advance (Pass = decline, 3NT = accept to play, new 5-card major =
     /// game-forcing) — revert to the floor, which passes `2NT` even holding a game
     /// (shipped default-on; no-op unless the rich advance is on; see
-    /// `set_advance_2nt_continuation`).
+    /// `defense.advance_2nt_continuation_enabled`).
     #[arg(long, default_value_t = false)]
     no_ns_advance_2nt_continuation: bool,
 
     /// Advance partner's takeout double with the **highest-ranking** eligible
     /// suit rather than the **longest** (higher-ranking on a tie); also governs
     /// the rich advance's weak natural and forced-suit picks (shipped default-on
-    /// = longest; see `set_longest_first_advance`).
+    /// = longest; see `defense.longest_first_advance_enabled`).
     #[arg(long, default_value_t = false)]
     no_ns_longest_advance: bool,
 
     /// The advancer's **weak** penalty pass of partner's takeout double yields
     /// to a 4+ unbid major: below the 10+ cue band the hand bids the ladder
     /// instead of sitting; strong sits stand (default off; see
-    /// `set_advance_pass_yield_major`).
+    /// `defense.advance_pass_yield_major_enabled`).
     #[arg(long, default_value_t = false)]
     ns_advance_pass_yield: bool,
 
     /// Swap the advancer's 4-card penalty-pass quality gate from two top
     /// honors to a per-suit HCP floor N — 5 admits exactly AJxx, 6 instead
     /// drops bare KQxx — rich advance only (default: the honor gate; see
-    /// `set_advance_sit_hcp_gate`).
+    /// `defense.advance_sit_hcp_gate`).
     #[arg(long, value_name = "N")]
     ns_advance_sit_hcp: Option<u8>,
 
@@ -964,7 +964,7 @@ struct Args {
     ns_overcall_discipline: String,
 
     /// Disable a passed hand's lighter (9+ not 11+) disciplined 2-level overcall
-    /// (folded into base default-on in the A5 pass; see `set_passed_hand_overcall`).
+    /// (folded into base default-on in the A5 pass; see `defense.passed_hand_overcall`).
     #[arg(long, default_value_t = false)]
     no_ns_passed_hand_overcall: bool,
 
@@ -1168,36 +1168,36 @@ struct Args {
     /// Document the shape-free 17+ tier's complement (`points(..17)`) on the
     /// direct-seat pass over their weak two, so it projects a band instead of ⊤
     /// on all five axes the nets read (default off — REFUTED, plain DD −0.0028
-    /// ± 0.0017 NV; see `set_weak_two_pass_gate`).
+    /// ± 0.0017 NV; see `defense.weak_two_pass_gate`).
     #[arg(long, default_value_t = false)]
     ns_weak_two_pass_gate: bool,
 
     /// Widen our 2NT overcall of their weak two from strict `balanced()`
     /// (4333/4432/5332 only) to 2-4 majors / 2-6 minors, so a 6322 with a
     /// stopper and a long minor can bid it (default off; see
-    /// `set_weak_two_notrump_shape`).
+    /// `defense.weak_two_notrump_shape`).
     #[arg(long, default_value_t = false)]
     ns_weak_two_notrump_shape: bool,
 
     /// Author our jump in a new suit below 3NT over their weak two — 6+ cards
     /// and three more points than the natural overcall (default off; see
-    /// `set_weak_two_jump_overcall`).
+    /// `defense.weak_two_jump_overcall`).
     #[arg(long, default_value_t = false)]
     ns_weak_two_jump_overcall: bool,
 
     /// Author our direct cue of their *major* weak two as Michaels — the other
-    /// major plus a minor, 5-5 (default off; see `set_weak_two_cue`).
+    /// major plus a minor, 5-5 (default off; see `defense.weak_two_cue`).
     #[arg(long, default_value_t = false)]
     ns_weak_two_cue: bool,
 
     /// Author advancer's Gladiator structure over our 2NT overcall of their
     /// weak two in a major — 3♣ relay, cue = Stayman, 3♦+ game-forcing
-    /// (default off; see `set_weak_two_notrump_advances`).
+    /// (default off; see `defense.weak_two_notrump_advances_enabled`).
     #[arg(long, default_value_t = false)]
     ns_weak_two_nt_advances: bool,
 
     /// Turn OFF the *vulnerable* discipline on our suit overcall of their weak
-    /// two (`set_weak_two_overcall_discipline`, crate default ON): let the flat
+    /// two (`defense.weak_two_overcall_discipline`, crate default ON): let the flat
     /// band apply at every vulnerability instead of demanding 12–17 at the two
     /// level and 15–17 at the three.  This is the A/B off-arm.
     #[arg(long, default_value_t = false)]
@@ -1317,22 +1317,21 @@ fn parse_override(spec: &str) -> Result<(CString, c_int), String> {
 ///
 /// Call **after** every `--ns-*` knob is set: a generated card is a function of
 /// the live thread-local state, so building it early would describe a system
-/// this run then reconfigures.  `competition` carries the half of that state
-/// that is a field of the [`Agreements`] rather than a cell, so the card keeps
-/// describing the `--ns-*` competitive knobs it described when they were cells.
+/// this run then reconfigures.  `armed` carries the halves of that state that
+/// are fields of the [`Agreements`] rather than cells, so the card keeps
+/// describing the `--ns-*` competitive and defensive knobs it described when
+/// they were cells.
 ///
 /// A `--our-floor` with no card generator is a hard error rather than a fall
 /// back to American's card or to silence — disclosing the wrong card
 /// misdescribes us to BBA far more damagingly than disclosing nothing, and
 /// silently reverting to blind would make the two arms of a cross-system A/B
 /// incomparable.
-fn disclosure(
-    args: &Args,
-    competition: pons::bidding::agreements::CompetitionKnobs,
-) -> anyhow::Result<Option<EpbotCard>> {
+fn disclosure(args: &Args, armed: &Agreements) -> anyhow::Result<Option<EpbotCard>> {
     let armed = || {
         let mut agreements = Agreements::current();
-        agreements.competition = competition;
+        agreements.competition = armed.competition;
+        agreements.defense = armed.defense;
         agreements
     };
     let mut card = match args.disclose.as_str() {
@@ -1486,46 +1485,6 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     pons::bidding::set_length_soundness(!args.no_ns_length_soundness);
     pons::bidding::set_table_alert_reading(!args.no_ns_table_alert_reading);
     pons::bidding::set_pass_reading(!args.no_ns_pass_reading);
-    pons::bidding::american::set_weak_two_pass_gate(args.ns_weak_two_pass_gate);
-    pons::bidding::american::set_weak_two_notrump_shape(args.ns_weak_two_notrump_shape);
-    pons::bidding::american::set_weak_two_jump_overcall(args.ns_weak_two_jump_overcall);
-    pons::bidding::american::set_weak_two_cue(args.ns_weak_two_cue);
-    pons::bidding::american::set_weak_two_notrump_advances(args.ns_weak_two_nt_advances);
-    pons::bidding::american::set_weak_two_overcall_discipline(
-        !args.no_ns_weak_two_overcall_discipline,
-    );
-    {
-        let (lo, hi) = args
-            .ns_weak_two_nt_points
-            .split_once(':')
-            .and_then(|(l, h)| Some((l.parse::<u8>().ok()?, h.parse::<u8>().ok()?)))
-            .ok_or_else(|| {
-                anyhow::anyhow!(
-                    "--ns-weak-two-nt-points must be LO:HI, got {:?}",
-                    args.ns_weak_two_nt_points
-                )
-            })?;
-        pons::bidding::american::set_weak_two_notrump_points(lo, hi);
-
-        let band: Vec<u8> = args
-            .ns_weak_two_overcall
-            .split(':')
-            .map(|n| n.parse::<u8>())
-            .collect::<Result<_, _>>()
-            .map_err(|_| {
-                anyhow::anyhow!(
-                    "--ns-weak-two-overcall must be LO2:HI2:LO3:HI3, got {:?}",
-                    args.ns_weak_two_overcall
-                )
-            })?;
-        let [two_lo, two_hi, three_lo, three_hi] = band[..].try_into().map_err(|_| {
-            anyhow::anyhow!(
-                "--ns-weak-two-overcall must be LO2:HI2:LO3:HI3, got {:?}",
-                args.ns_weak_two_overcall
-            )
-        })?;
-        pons::bidding::american::set_weak_two_overcall_points(two_lo, two_hi, three_lo, three_hi);
-    }
     pons::bidding::set_fallback_projection(!args.no_ns_fallback_projection);
     pons::bidding::set_envelope_union_reading(!args.no_ns_envelope_union);
     pons::bidding::set_gauge_membership(args.ns_gauge_membership);
@@ -1539,33 +1498,9 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     pons::bidding::set_sum_closure(args.ns_sum_closure);
     pons::bidding::set_upgrade_closure(args.ns_upgrade_closure);
     pons::bidding::american::set_two_notrump_wide(args.ns_two_nt_wide);
-    pons::bidding::american::set_natural_double_shape(match args.ns_double_shape.as_str() {
-        "any" => DoubleShape::Any,
-        "semi" => DoubleShape::SemiBalanced,
-        "balanced" => DoubleShape::Balanced,
-        other => anyhow::bail!("--ns-double-shape must be any|semi|balanced, got {other:?}"),
-    });
     pons::bidding::american::set_natural_double_floor(args.ns_double_floor);
-    pons::bidding::american::set_natural_double_weight(args.ns_double_weight);
-    pons::bidding::american::set_takeout_support(match args.ns_takeout_support.as_str() {
-        "off" => pons::bidding::american::TakeoutSupport::Off,
-        "lenient" => pons::bidding::american::TakeoutSupport::Lenient,
-        "strict" => pons::bidding::american::TakeoutSupport::Strict,
-        other => anyhow::bail!("--ns-takeout-support must be off|lenient|strict, got {other:?}"),
-    });
-    pons::bidding::american::set_overcall_discipline(match args.ns_overcall_discipline.as_str() {
-        "on" => true,
-        "off" => false,
-        other => anyhow::bail!("--ns-overcall-discipline must be on|off, got {other:?}"),
-    });
-    pons::bidding::american::set_passed_hand_overcall(!args.no_ns_passed_hand_overcall);
-    pons::bidding::american::set_two_level_minor_overcall_tight(
-        args.ns_two_level_minor_overcall_tight,
-    );
-    pons::bidding::american::set_nt_overcall_no_major(args.ns_nt_overcall_no_major);
     pons::bidding::american::set_nt_overcall_systems_on(!args.no_ns_nt_overcall_systems_on);
     pons::bidding::american::set_nt_overcall_gladiator(args.ns_nt_overcall_gladiator);
-    pons::bidding::american::set_notrump_balancing(args.ns_balancing);
     let (oc_lo, oc_hi) = args
         .ns_overcall
         .split_once(':')
@@ -1574,7 +1509,6 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
             anyhow::anyhow!("--ns-overcall must be LO:HI, got {:?}", args.ns_overcall)
         })?;
     pons::bidding::american::set_natural_overcall_points(oc_lo, oc_hi);
-    pons::bidding::american::set_stayman_defense(args.ns_defense_to_their_stayman);
     pons::bidding::american::set_transfer_gf_majors(!args.no_ns_transfer_gf_majors);
     pons::bidding::american::set_transfer_gf_hearts(!args.no_ns_transfer_gf_hearts);
     pons::bidding::american::set_garbage_stayman(!args.no_ns_garbage_stayman);
@@ -1590,13 +1524,6 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     pons::bidding::constraint::set_suppress_5card_major_takeout(
         !args.no_ns_suppress_5card_major_takeout,
     );
-    pons::bidding::american::set_rich_advance_double(!args.no_ns_rich_advance);
-    pons::bidding::american::set_advance_rubens(args.ns_advance_rubens);
-    pons::bidding::american::set_advance_minor_jump(!args.no_ns_advance_minor_jump);
-    pons::bidding::american::set_advance_2nt_continuation(!args.no_ns_advance_2nt_continuation);
-    pons::bidding::american::set_longest_first_advance(!args.no_ns_longest_advance);
-    pons::bidding::american::set_advance_pass_yield_major(args.ns_advance_pass_yield);
-    pons::bidding::american::set_advance_sit_hcp_gate(args.ns_advance_sit_hcp);
     pons::bidding::american::set_opener_extras_ladder(!args.no_ns_opener_extras_ladder);
     pons::bidding::american::set_opener_major_jump_rebid(!args.no_ns_opener_major_jump_rebid);
     pons::bidding::instinct::set_two_over_one_force(!args.no_ns_two_over_one_force);
@@ -1604,65 +1531,25 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     pons::bidding::instinct::set_competitive_rebid(!args.no_ns_competitive_rebid);
     pons::bidding::instinct::set_reopening_notrump(!args.no_ns_reopening_notrump);
     pons::bidding::instinct::set_rein_advance_raise(!args.no_ns_rein_advance_raise);
-    pons::bidding::american::set_transfer_defense(args.ns_transfer_defense);
-    pons::bidding::american::set_minor_transfer_defense(args.ns_minor_transfer_defense);
-    pons::bidding::american::set_diamond_transfer_defense(args.ns_diamond_transfer_defense);
-    {
-        let (lo, hi) = args
-            .ns_staydef_overcall
-            .split_once(':')
-            .and_then(|(l, f)| Some((l.parse::<usize>().ok()?, f.parse::<u8>().ok()?)))
-            .ok_or_else(|| {
-                anyhow::anyhow!(
-                    "--ns-staydef-overcall must be LEN:FLOOR, got {:?}",
-                    args.ns_staydef_overcall
-                )
-            })?;
-        pons::bidding::american::set_stayman_defense_overcall(lo, hi);
-    }
     // One system, one write — the payloads then apply to whichever family owns
     // them.  No forced-off block: the cell holds exactly one variant, so
     // selecting a family already deselects the rest.
     let ns_defense = pons::bidding::american::NotrumpDefense::from(args.ns_notrump_defense);
     pons::bidding::american::set_notrump_defense(ns_defense);
-    // Written on every family, not only the two that widen it: this cell is
-    // shared, so leaving it alone would carry a `--their-ns` seat's widening
-    // into ours when the arm is re-armed.  `(8, 13)` is the crate default.
-    pons::bidding::american::set_unusual_notrump_defense(Some(
-        if matches!(
-            ns_defense,
-            pons::bidding::american::NotrumpDefense::DirectDont
-                | pons::bidding::american::NotrumpDefense::Meckwell
-        ) {
-            (8, 14)
-        } else {
-            (8, 13)
-        },
-    ));
-    match ns_defense {
-        pons::bidding::american::NotrumpDefense::DirectDont => {
-            pons::bidding::american::set_direct_dont_one_suiter_min(args.ns_dont_one_suiter_min);
-            pons::bidding::american::set_direct_dont_four_four(args.ns_dont_four_four);
-        }
-        pons::bidding::american::NotrumpDefense::Meckwell => {
-            pons::bidding::american::set_meckwell_minor_major_44(args.ns_meckwell_minor_major_44);
-            pons::bidding::american::set_meckwell_x_four_four(!args.ns_meckwell_x_five_four);
-        }
-        pons::bidding::american::NotrumpDefense::Woolsey => {
-            let (wlo, whi) = args
-                .ns_woolsey_range
-                .split_once(':')
-                .and_then(|(lo, hi)| Some((lo.parse::<u8>().ok()?, hi.parse::<u8>().ok()?)))
-                .ok_or_else(|| {
-                    anyhow::anyhow!(
-                        "--ns-woolsey-range must be LO:HI, got {:?}",
-                        args.ns_woolsey_range
-                    )
-                })?;
-            pons::bidding::american::set_woolsey_points(wlo, whi);
-            pons::bidding::american::set_woolsey_double_floor(args.ns_woolsey_x_floor);
-        }
-        _ => {}
+    // Woolsey is the one family whose payload is still a pair of cells.
+    if ns_defense == pons::bidding::american::NotrumpDefense::Woolsey {
+        let (wlo, whi) = args
+            .ns_woolsey_range
+            .split_once(':')
+            .and_then(|(lo, hi)| Some((lo.parse::<u8>().ok()?, hi.parse::<u8>().ok()?)))
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "--ns-woolsey-range must be LO:HI, got {:?}",
+                    args.ns_woolsey_range
+                )
+            })?;
+        pons::bidding::american::set_woolsey_points(wlo, whi);
+        pons::bidding::american::set_woolsey_double_floor(args.ns_woolsey_x_floor);
     }
     // The Landy overlay rides its own cell and the engine honours it only under
     // `natural`/`off`, so it needs no ordering against the family above.
@@ -1738,6 +1625,116 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.competition.competition_over_minor_transfer = !args.no_ns_comp_over_minor_transfer;
     agreements.competition.competition_over_diamond_transfer =
         !args.no_ns_comp_over_diamond_transfer;
+    // The defensive book — what we play when they open.  Every field is
+    // assigned, never merely set, for the same "arm, build, re-arm" reason the
+    // cells were; the per-family payloads at the end now stay at the shipped
+    // default when their family is not selected, instead of keeping whatever
+    // the last-armed seat left on the thread.
+    agreements.defense.weak_two_pass_gate = args.ns_weak_two_pass_gate;
+    agreements.defense.weak_two_notrump_shape = args.ns_weak_two_notrump_shape;
+    agreements.defense.weak_two_jump_overcall = args.ns_weak_two_jump_overcall;
+    agreements.defense.weak_two_cue = args.ns_weak_two_cue;
+    agreements.defense.weak_two_notrump_advances_enabled = args.ns_weak_two_nt_advances;
+    agreements.defense.weak_two_overcall_discipline = !args.no_ns_weak_two_overcall_discipline;
+    agreements.defense.weak_two_notrump_points = args
+        .ns_weak_two_nt_points
+        .split_once(':')
+        .and_then(|(l, h)| Some((l.parse::<u8>().ok()?, h.parse::<u8>().ok()?)))
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "--ns-weak-two-nt-points must be LO:HI, got {:?}",
+                args.ns_weak_two_nt_points
+            )
+        })?;
+    agreements.defense.weak_two_overcall_points = {
+        let band: Vec<u8> = args
+            .ns_weak_two_overcall
+            .split(':')
+            .map(|n| n.parse::<u8>())
+            .collect::<Result<_, _>>()
+            .map_err(|_| {
+                anyhow::anyhow!(
+                    "--ns-weak-two-overcall must be LO2:HI2:LO3:HI3, got {:?}",
+                    args.ns_weak_two_overcall
+                )
+            })?;
+        let [two_lo, two_hi, three_lo, three_hi]: [u8; 4] = band[..].try_into().map_err(|_| {
+            anyhow::anyhow!(
+                "--ns-weak-two-overcall must be LO2:HI2:LO3:HI3, got {:?}",
+                args.ns_weak_two_overcall
+            )
+        })?;
+        (two_lo, two_hi, three_lo, three_hi)
+    };
+    agreements.defense.natural_double_shape = match args.ns_double_shape.as_str() {
+        "any" => DoubleShape::Any,
+        "semi" => DoubleShape::SemiBalanced,
+        "balanced" => DoubleShape::Balanced,
+        other => anyhow::bail!("--ns-double-shape must be any|semi|balanced, got {other:?}"),
+    };
+    agreements.defense.natural_double_weight = args.ns_double_weight;
+    agreements.defense.takeout_support = match args.ns_takeout_support.as_str() {
+        "off" => pons::bidding::american::TakeoutSupport::Off,
+        "lenient" => pons::bidding::american::TakeoutSupport::Lenient,
+        "strict" => pons::bidding::american::TakeoutSupport::Strict,
+        other => anyhow::bail!("--ns-takeout-support must be off|lenient|strict, got {other:?}"),
+    };
+    agreements.defense.overcall_discipline = match args.ns_overcall_discipline.as_str() {
+        "on" => true,
+        "off" => false,
+        other => anyhow::bail!("--ns-overcall-discipline must be on|off, got {other:?}"),
+    };
+    agreements.defense.passed_hand_overcall = !args.no_ns_passed_hand_overcall;
+    agreements.defense.two_level_minor_overcall_tight = args.ns_two_level_minor_overcall_tight;
+    agreements.defense.nt_overcall_no_major = args.ns_nt_overcall_no_major;
+    agreements.defense.notrump_balancing_enabled = args.ns_balancing;
+    agreements.defense.stayman_defense_enabled = args.ns_defense_to_their_stayman;
+    agreements.defense.rich_advance_double_enabled = !args.no_ns_rich_advance;
+    agreements.defense.advance_rubens_enabled = args.ns_advance_rubens;
+    agreements.defense.advance_minor_jump_enabled = !args.no_ns_advance_minor_jump;
+    agreements.defense.advance_2nt_continuation_enabled = !args.no_ns_advance_2nt_continuation;
+    agreements.defense.longest_first_advance_enabled = !args.no_ns_longest_advance;
+    agreements.defense.advance_pass_yield_major_enabled = args.ns_advance_pass_yield;
+    agreements.defense.advance_sit_hcp_gate = args.ns_advance_sit_hcp;
+    agreements.defense.transfer_defense_enabled = args.ns_transfer_defense;
+    agreements.defense.minor_transfer_defense_enabled = args.ns_minor_transfer_defense;
+    agreements.defense.diamond_transfer_defense_enabled = args.ns_diamond_transfer_defense;
+    agreements.defense.stayman_defense_overcall = args
+        .ns_staydef_overcall
+        .split_once(':')
+        .and_then(|(l, f)| Some((l.parse::<usize>().ok()?, f.parse::<u8>().ok()?)))
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "--ns-staydef-overcall must be LEN:FLOOR, got {:?}",
+                args.ns_staydef_overcall
+            )
+        })?;
+    // Written on every family, not only the two that widen it: one value serves
+    // both the conventional families and the natural overlay, so leaving it
+    // alone would carry a widening into a family that never asked for one.
+    // `(8, 13)` is the crate default.
+    agreements.defense.unusual_notrump_range = Some(
+        if matches!(
+            ns_defense,
+            pons::bidding::american::NotrumpDefense::DirectDont
+                | pons::bidding::american::NotrumpDefense::Meckwell
+        ) {
+            (8, 14)
+        } else {
+            (8, 13)
+        },
+    );
+    match ns_defense {
+        pons::bidding::american::NotrumpDefense::DirectDont => {
+            agreements.defense.direct_dont_one_suiter_min = args.ns_dont_one_suiter_min;
+            agreements.defense.direct_dont_four_four = args.ns_dont_four_four;
+        }
+        pons::bidding::american::NotrumpDefense::Meckwell => {
+            agreements.defense.meckwell_minor_major_44 = args.ns_meckwell_minor_major_44;
+            agreements.defense.meckwell_x_four_four = !args.ns_meckwell_x_five_four;
+        }
+        _ => {}
+    }
     agreements.opening.open_one_notrump = !args.no_our_1nt;
     agreements.opening.one_notrump_fifths = args.nt_fifths;
     agreements.response.up_the_line = !args.no_ns_up_the_line;
@@ -1846,7 +1843,7 @@ fn main() -> anyhow::Result<()> {
         None
     };
     let agreements = arm_knobs(&args)?;
-    let bba = bba.with_opponents(disclosure(&args, agreements.competition)?);
+    let bba = bba.with_opponents(disclosure(&args, &agreements)?);
     // Read under *our* armed knobs, before the opponent seat borrows the
     // thread: this is the card whoever faces `--their-floor` is playing.
     let our_card = floor_card(&args.our_floor, &agreements)?;
@@ -1873,15 +1870,16 @@ fn main() -> anyhow::Result<()> {
     ) -> anyhow::Result<T> {
         match seat {
             // No second seat: read under the ambient arming, which is
-            // `restore`'s.  The competitive knobs were ambient cells until this
-            // refactor, so they are pasted back explicitly to keep this branch
-            // byte-identical; the other value-borne halves (opening, response,
-            // rebid, notrump, game_force) were *not* carried here before and
-            // still are not.
+            // `restore`'s.  The competitive and defensive knobs were ambient
+            // cells until this refactor, so they are pasted back explicitly to
+            // keep this branch byte-identical; the other value-borne halves
+            // (opening, response, rebid, notrump, game_force) were *not* carried
+            // here before and still are not.
             None => {
-                let competition = arm_knobs(restore)?.competition;
+                let armed = arm_knobs(restore)?;
                 let mut ambient = Agreements::current();
-                ambient.competition = competition;
+                ambient.competition = armed.competition;
+                ambient.defense = armed.defense;
                 read(ambient)
             }
             Some(seat) => {

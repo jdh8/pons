@@ -1,8 +1,9 @@
-use super::super::tests::{best_call, call};
+use super::super::tests::{best_call_with, call};
+use crate::bidding::agreements::Agreements;
 use contract_bridge::Strain;
 use contract_bridge::auction::Call;
 
-/// The invitational minor jump (`set_advance_minor_jump`): a three-level
+/// The invitational minor jump (`agreements.defense.advance_minor_jump_enabled`): a three-level
 /// minor jump shows a 5+ one-suiter (10–12) denying a 4-card unbid major.
 /// With a 4-card major the advancer cues to find the fit; with a stopper it
 /// prefers notrump (the jump ranks below the notrump ladder).
@@ -10,28 +11,28 @@ use contract_bridge::auction::Call;
 fn advance_minor_jump_shows_invitational_one_suiter() {
     // (1♥) X - ? — advancer to act; the unbid major is spades.
     let auction = [call(1, Strain::Hearts), Call::Double, Call::Pass];
-    super::advance_rich::set_rich_advance_double(true);
-    super::advance_minor_jump::set_advance_minor_jump(true);
+    let mut arm = Agreements::current();
+    arm.defense.rich_advance_double_enabled = true;
+    arm.defense.advance_minor_jump_enabled = true;
+    let mut without_jump = arm;
+    without_jump.defense.advance_minor_jump_enabled = false;
 
     // 11 HCP, 5 diamonds, 3 spades (no 4-card major), no heart stopper: an
     // invitational one-suiter → jump 3♦.
     let one_suiter = "xxx.xx.AQJxx.KJx";
-    let (jump, _) = best_call(&auction, one_suiter);
+    let (jump, _) = best_call_with(&arm, &auction, one_suiter);
     // 11 HCP, 4 spades + 5 diamonds, no heart stopper: a 4-card unbid major →
     // cue 2♥ to find the fit, not the minor jump.
     let with_major = "KQxx.xx.AQxxx.xx";
-    let (cued, _) = best_call(&auction, with_major);
+    let (cued, _) = best_call_with(&arm, &auction, with_major);
     // 11 HCP, 5 diamonds, heart stopper, balanced: a minor needs eleven
     // tricks, so it prefers 2NT — the jump ranks below the notrump ladder.
     let stopped = "Qxx.KJx.AJxxx.xx";
-    let (notrump, _) = best_call(&auction, stopped);
+    let (notrump, _) = best_call_with(&arm, &auction, stopped);
 
-    super::advance_minor_jump::set_advance_minor_jump(false);
     // Knob off: the same one-suiter has no minor jump, so it cues instead of
     // jumping.
-    let (off, _) = best_call(&auction, one_suiter);
-    super::advance_minor_jump::set_advance_minor_jump(true); // restore default-on
-    super::advance_rich::set_rich_advance_double(true); // restore rich default
+    let (off, _) = best_call_with(&without_jump, &auction, one_suiter);
 
     assert_eq!(
         jump,
@@ -66,18 +67,19 @@ fn doubler_accepts_or_declines_the_minor_jump() {
         call(3, Strain::Diamonds),
         Call::Pass,
     ];
-    super::advance_rich::set_rich_advance_double(true);
-    super::advance_minor_jump::set_advance_minor_jump(true);
+    let mut arm = Agreements::current();
+    arm.defense.rich_advance_double_enabled = true;
+    arm.defense.advance_minor_jump_enabled = true;
 
     // Maximum with a 5-card heart suit: accept by showing it, game-forcing.
     let max_major = "x.AKQxx.Kxx.AQxx"; // 18 HCP, 5♥, no spade stopper
-    let (accept, _) = best_call(&jump, max_major);
+    let (accept, _) = best_call_with(&arm, &jump, max_major);
     // Balanced maximum with a spade stopper, no 5-card suit: 3NT to play.
     let max_flat = "KQx.AJx.Qxx.KQxx"; // 17 HCP, spade stopper
-    let (notrump, _) = best_call(&jump, max_flat);
+    let (notrump, _) = best_call_with(&arm, &jump, max_flat);
     // Minimum takeout double: decline the limited invitation.
     let minimum = "Kxxx.Qxx.xx.Kxxx"; // ~8 HCP, minimum
-    let (decline, _) = best_call(&jump, minimum);
+    let (decline, _) = best_call_with(&arm, &jump, minimum);
 
     // Advancer places game over the doubler's forcing 3♥: raise with support.
     let after_major = [
@@ -90,10 +92,7 @@ fn doubler_accepts_or_declines_the_minor_jump() {
         Call::Pass,
     ];
     let with_fit = "xx.Kxx.AQJxx.xxx"; // 10 HCP, 5♦, 3♥ support (a valid 3♦ jump)
-    let (raise, _) = best_call(&after_major, with_fit);
-
-    super::advance_minor_jump::set_advance_minor_jump(true); // restore default-on
-    super::advance_rich::set_rich_advance_double(true); // restore rich default
+    let (raise, _) = best_call_with(&arm, &after_major, with_fit);
 
     assert_eq!(
         accept,
@@ -127,12 +126,13 @@ fn doubler_stopper_ask_over_the_minor_jump() {
         call(3, Strain::Clubs),
         Call::Pass,
     ];
-    super::advance_rich::set_rich_advance_double(true);
-    super::advance_minor_jump::set_advance_minor_jump(true);
+    let mut arm = Agreements::current();
+    arm.defense.rich_advance_double_enabled = true;
+    arm.defense.advance_minor_jump_enabled = true;
 
     // 18 HCP, no spade stopper, no 5-card side suit: cue 3♠ to ask.
     let ask = "xxx.AKx.AQx.KQxx";
-    let (cue, _) = best_call(&jump, ask);
+    let (cue, _) = best_call_with(&arm, &jump, ask);
 
     // (1♠) X - 3♣ - 3♠ - ? — advancer answers the stopper-ask.
     let after_ask = [
@@ -146,13 +146,10 @@ fn doubler_stopper_ask_over_the_minor_jump() {
     ];
     // A spade stopper: right-side the notrump game.
     let stopped = "Kx.xxx.xxx.AQJxx";
-    let (notrump, _) = best_call(&after_ask, stopped);
+    let (notrump, _) = best_call_with(&arm, &after_ask, stopped);
     // No stopper anywhere: play the minor game.
     let no_stop = "xx.xxx.xxx.AKJxx";
-    let (minor, _) = best_call(&after_ask, no_stop);
-
-    super::advance_minor_jump::set_advance_minor_jump(true); // restore default-on
-    super::advance_rich::set_rich_advance_double(true); // restore rich default
+    let (minor, _) = best_call_with(&arm, &after_ask, no_stop);
 
     assert_eq!(
         cue,

@@ -13,58 +13,9 @@ pub(super) fn direct_dont_enabled(agreements: &Agreements) -> bool {
     agreements.decision.reading.notrump_defense() == NotrumpDefense::DirectDont
 }
 
-thread_local! {
-    /// Minimum length to insist on a DONT one-suiter (the `X` for ♣/♦/♥, the
-    /// natural `2♠` for spades); **5 by default**.  Set to 6 to bid only with a
-    /// six-card suit, passing five-card one-suiters (the X bucket is the DD loser,
-    /// so insisting only with real shape trades action for safety — toward the
-    /// always-pass optimum).  An A/B knob, no effect unless DONT is on.
-    static DIRECT_DONT_ONE_SUITER_MIN: Cell<u8> = const { Cell::new(5) };
-    /// Whether DONT two-suiters (`2♣`/`2♦`/`2♥`) accept a flat 4-4 (else 5-4+);
-    /// **on by default** — DONT is traditionally a 4-4 method (M6.2d).  Off, only
-    /// 5-4+ two-suiters compete (tighter, fewer auctions).  An A/B knob, no effect
-    /// unless DONT is on.
-    static DIRECT_DONT_FOUR_FOUR: Cell<bool> = const { Cell::new(true) };
-    /// `points` floor for the DONT one-suiter `X`; **0 by default = inherit the natural
-    /// overcall floor (8)**, byte-identical.  Raise it so only strong one-suiters
-    /// double and 8-11 hands pass (the `X` bucket is the DD loser — trade action for
-    /// safety, as [`DIRECT_DONT_ONE_SUITER_MIN`] does for length).  A/B knob, no effect
-    /// unless DONT is on.
-    static DIRECT_DONT_X_FLOOR: Cell<u8> = const { Cell::new(0) };
-}
-
-/// Minimum one-suiter length for the DONT `X`/`2♠` (default 5; set 6 to pass
-/// five-card one-suiters).  See [`NotrumpDefense::DirectDont`].
-pub fn set_direct_dont_one_suiter_min(min: u8) {
-    DIRECT_DONT_ONE_SUITER_MIN.with(|cell| cell.set(min));
-}
-
-/// The raw minimum-length knob for direct DONT's one-suiter
-pub(super) fn direct_dont_one_suiter_min_raw() -> u8 {
-    DIRECT_DONT_ONE_SUITER_MIN.with(Cell::get)
-}
-
 /// Minimum one-suiter length, widened to the constraint DSL's length type
 pub(super) fn direct_dont_one_suiter_min(agreements: &Agreements) -> usize {
     usize::from(agreements.defense.direct_dont_one_suiter_min)
-}
-
-/// Whether DONT two-suiters accept a flat 4-4 (default true = traditional 4-4; false =
-/// 5-4+).  See [`NotrumpDefense::DirectDont`].
-pub fn set_direct_dont_four_four(on: bool) {
-    DIRECT_DONT_FOUR_FOUR.with(|cell| cell.set(on));
-}
-
-/// Set the `points` floor for the DONT one-suiter `X` (default 0 = inherit the natural
-/// overcall floor of 8; raise it to double only with strong one-suiters).  See
-/// [`NotrumpDefense::DirectDont`].
-pub fn set_direct_dont_x_floor(floor: u8) {
-    DIRECT_DONT_X_FLOOR.with(|cell| cell.set(floor));
-}
-
-/// The raw configured DONT `X` floor before resolving the zero sentinel
-pub(super) fn direct_dont_x_floor_raw() -> u8 {
-    DIRECT_DONT_X_FLOOR.with(Cell::get)
 }
 
 /// The configured DONT `X` floor, resolving the zero sentinel to the natural overcall floor.
@@ -73,11 +24,6 @@ fn direct_dont_x_floor(agreements: &Agreements) -> u8 {
         0 => agreements.decision.reading.natural_overcall_points().0,
         floor => floor,
     }
-}
-
-/// Whether the [`set_direct_dont_four_four`] knob is on
-pub fn direct_dont_four_four() -> bool {
-    DIRECT_DONT_FOUR_FOUR.with(Cell::get)
 }
 
 /// DONT `X`: a one-suiter (♣/♦/♥), `points(direct-dont-x-floor..)`.
@@ -131,7 +77,7 @@ pub(super) fn dont_2h(agreements: &Agreements) -> Rules {
 /// Direct-seat DONT `X`: a one-suiter (a `min`+ suit, no second four-card suit) whose
 /// long suit is a minor or hearts.  A spade one-suiter bids the natural `2♠`, so the
 /// spade-long arm is omitted; each arm caps the other three suits at three, so exactly
-/// one suit is long.  `min` (5 or 6) is [`set_direct_dont_one_suiter_min`].
+/// one suit is long.  `min` (5 or 6) is `agreements.defense.direct_dont_one_suiter_min`.
 pub(super) fn dont_one_suiter_direct(min: usize) -> Cons<impl Constraint + Clone> {
     use Suit::{Clubs, Diamonds, Hearts, Spades};
     (len(Clubs, min..) & and([Diamonds, Hearts, Spades], ..=3))
@@ -142,7 +88,7 @@ pub(super) fn dont_one_suiter_direct(min: usize) -> Cons<impl Constraint + Clone
 /// Direct-seat DONT `2♣`/`2♦`: a minor + a *major*, 5-4 either way (or a flat 4-4
 /// when `allow_44`).  The higher suit is ♥/♠ only — a minor + the other minor is
 /// shown as `2NT` (both minors), not here.  `allow_44` is
-/// [`set_direct_dont_four_four`].
+/// `agreements.defense.direct_dont_four_four`.
 pub(super) fn dont_minor_major(minor: Suit, allow_44: bool) -> Cons<impl Constraint + Clone> {
     let longer = if allow_44 { 4 } else { 5 };
     // The minor (4+) plus a higher major (4+), one of the two at least `longer` — 5-4

@@ -1,6 +1,6 @@
 #!/bin/sh
 # ab-two-level-minor-overcall.sh — A/B for the opt-in tight 2-level minor
-# overcall (`set_two_level_minor_overcall_tight`, docs/bba-gap-campaign.md
+# overcall (`defense.two_level_minor_overcall_tight`, docs/bba-gap-campaign.md
 # def-r1 overcall lever). OFF arm = shipped default (2♣/2♦ overcall at 11+);
 # ON arm = --ns-two-level-minor-overcall-tight (demand 15+, strand the losing
 # 11–14 minimums into Pass). Both vulnerabilities, THREE scorers (plain + pd via

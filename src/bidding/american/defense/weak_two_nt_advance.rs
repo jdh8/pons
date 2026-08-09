@@ -1,67 +1,22 @@
 //! Advancing our `2NT` overcall of their weak two
 //!
 //! Advancer's Gladiator structure over our `2NT` overcall of their weak two in
-//! a **major** is gated by [`set_weak_two_notrump_advances`]. Its game threshold
-//! tracks [`set_weak_two_notrump_points`]'s floor, so a widened band raises it
-//! instead of silently keeping a tierless structure calibrated for 16.
+//! a **major** is gated by
+//! `agreements.defense.weak_two_notrump_advances_enabled`.  Its game threshold
+//! tracks `agreements.defense.weak_two_notrump_points`'s floor, so a widened
+//! band raises it instead of silently keeping a tierless structure calibrated for 16.
 
 use super::*;
 
-thread_local! {
-    /// Whether advancer's Gladiator structure over our 2NT overcall of their
-    /// weak two in a major is authored.  **Off by default** — measured null and
-    /// faintly negative; see [`set_weak_two_notrump_advances`].
-    static WEAK_TWO_NOTRUMP_ADVANCES: Cell<bool> = const { Cell::new(false) };
-}
-
-/// Author advancer's Gladiator structure over our 2NT overcall of their weak
-/// two in a **major** (default **off**) for books built *after* this call
-///
-/// Before this, the 2NT overcall had **no continuations at all** — the book
-/// authors advances of the takeout double and of Leaping Michaels, but nothing
-/// at `(2M) 2NT - ?`, so advancer dropped to the instinct floor.  That is
-/// the same structural hole that voided the `set_weak_two_cue` measurement,
-/// except this call is a shipped default rather than an opt-in.
-///
-/// The scheme is Gladiator lifted one level, minus its invitational tier — at
-/// 16–17 opposite there is no room to invite, so it is `3♣` or game:
-///
-/// ```text
-/// (2♥) 2NT - 3♣    relay: weak, 5+ ♦, wants a 3-level partscore
-/// (2♥) 2NT - 3♦    game-forcing, 5+ ♦
-/// (2♥) 2NT - 3♥    cue = Stayman: exactly 4 ♠, game values, not flat
-/// (2♥) 2NT - 3♠    game-forcing, 5+ ♠
-/// (2♥) 2NT - 3NT   balanced game, to play
-///
-/// (2♥) 2NT - 3♣ - 3♦        forced, pass-or-correct, says nothing about diamonds
-/// (2♥) 2NT - 3♣ - 3♦ - 3♥  cue = 6+ ♦, long enough that 4♦ is safe
-/// (2♥) 2NT - 3♣ - 3♦ - -   play 3♦
-/// ```
-///
-/// Two deliberate gaps, both `for now`.  Advancer's `3♠` and above in the relay
-/// auction are unauthored, which means a *weak* hand with the other major has
-/// no landing spot and passes 2NT — its correction would be exactly that `3♠`.
-/// And over their `2♠` the delayed cue *is* `3♠`, so that whole rebid node is
-/// omitted rather than half-authored.
-///
-/// A/B knob (`bba-gen --ns-weak-two-nt-advances`).
-pub fn set_weak_two_notrump_advances(on: bool) {
-    WEAK_TWO_NOTRUMP_ADVANCES.with(|cell| cell.set(on));
-}
-
-pub(super) fn weak_two_notrump_advances_enabled() -> bool {
-    WEAK_TWO_NOTRUMP_ADVANCES.with(Cell::get)
-}
-
 /// Advancer's Gladiator structure over our `2NT` overcall of their weak two in
-/// a **major** ([`set_weak_two_notrump_advances`])
+/// a **major** (`agreements.defense.weak_two_notrump_advances_enabled`)
 ///
 /// The 1NT-level Gladiator ([`gladiator_advances`]) needs an invitational tier
 /// and spends the two level on it.  Here the overcall is narrow — 16–17 by
 /// default — so eight points opposite is already game values and the tier
 /// vanishes: `3♣` is the weak relay, everything above it is game-forcing, and
 /// the cue is Stayman.  The threshold tracks
-/// [`set_weak_two_notrump_points`]'s floor, so a widened band raises it
+/// `agreements.defense.weak_two_notrump_points`'s floor, so a widened band raises it
 /// instead of silently keeping a tierless structure calibrated for 16.
 ///
 /// Every artificial call states its true meaning in its own rule text, so the
@@ -75,7 +30,7 @@ fn weak_two_notrump_advances(their_major: Suit, agreements: &Agreements) -> Rule
     let os = Strain::from(o);
     // Game values opposite the band's *minimum*: at the default 16–17 that is
     // eight (16 + 8 = 24).  Keyed to the band rather than frozen at 8, so
-    // widening it with [`set_weak_two_notrump_points`] cannot leave advancer
+    // widening it with `agreements.defense.weak_two_notrump_points` cannot leave advancer
     // driving to game on a 23-count — the bias would fall on exactly the hands
     // the widening adds.
     let game = 24u8.saturating_sub(agreements.defense.weak_two_notrump_points.0);
@@ -141,7 +96,8 @@ fn weak_two_notrump_relay_rebid(their_major: Suit) -> Rules {
         .rule(Call::Pass, 50, hcp(0..))
 }
 
-/// Advancing our `2NT` overcall of their weak two ([`set_weak_two_notrump_advances`])
+/// Advancing our `2NT` overcall of their weak two
+/// (`agreements.defense.weak_two_notrump_advances_enabled`)
 ///
 /// Majors only — over `2♦` both majors are unbid, so the cue has no Stayman to
 /// be.

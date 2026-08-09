@@ -1,4 +1,5 @@
-use super::super::tests::{best_call, bid_xfer, call};
+use super::super::tests::{best_call_with, bid_xfer, call};
+use crate::bidding::agreements::Agreements;
 use contract_bridge::Strain;
 use contract_bridge::auction::Call;
 
@@ -120,14 +121,14 @@ fn transfer_overcalled_opener_super_accepts() {
 fn defense_to_their_transfer_doubles_the_bid_suit() {
     // After `(1NT) - (2♦)`, their 2♦ transfers to hearts; our fourth-hand X is
     // lead-directing in diamonds, the bid suit.
-    crate::bidding::american::set_transfer_defense(true);
+    let mut arm = Agreements::current();
+    arm.defense.transfer_defense_enabled = true;
     let auction = [
         call(1, Strain::Notrump),
         Call::Pass,
         call(2, Strain::Diamonds),
     ];
-    let (c, floored) = best_call(&auction, "K2.A32.KQ1054.432");
-    crate::bidding::american::set_transfer_defense(false); // restore default
+    let (c, floored) = best_call_with(&arm, &auction, "K2.A32.KQ1054.432");
     assert_eq!(c, Call::Double);
     assert!(
         !floored,
@@ -139,14 +140,14 @@ fn defense_to_their_transfer_doubles_the_bid_suit() {
 fn defense_to_their_transfer_cues_michaels() {
     // After `(1NT) - (2♦)`, their 2♦ transfers to hearts; 5 spades and 5
     // diamonds cue 2♥ to show the other major plus a minor.
-    crate::bidding::american::set_transfer_defense(true);
+    let mut arm = Agreements::current();
+    arm.defense.transfer_defense_enabled = true;
     let auction = [
         call(1, Strain::Notrump),
         Call::Pass,
         call(2, Strain::Diamonds),
     ];
-    let (c, floored) = best_call(&auction, "AQ1054.3.KJ1054.32");
-    crate::bidding::american::set_transfer_defense(false); // restore default
+    let (c, floored) = best_call_with(&arm, &auction, "AQ1054.3.KJ1054.32");
     assert_eq!(c, call(2, Strain::Hearts));
     assert!(!floored, "the Michaels cue must come from the defense book");
 }

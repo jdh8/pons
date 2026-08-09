@@ -1,36 +1,8 @@
 //! Leaping Michaels — the `4♣`/`4♦` jumps over their preempt
 //!
 //! A jump to four of a minor names a 5-5 game-forcing two-suiter: the minor
-//! plus the unbid major.  Gated by [`set_leaping_michaels`].
+//! plus the unbid major.  Gated by `agreements.defense.leaping_michaels_enabled`.
 use super::*;
-
-thread_local! {
-    /// Whether Leaping Michaels (4♣/4♦ strong two-suiters over their weak two)
-    /// is active; see [`set_leaping_michaels`].
-    static LEAPING_MICHAELS: Cell<bool> = const { Cell::new(true) };
-}
-
-/// Toggle Leaping Michaels for books built *after* this call (thread-local, read
-/// once at book-construction time)
-///
-/// Over their weak two, a jump to `4♣`/`4♦` names a 5-5 two-suiter with
-/// game-forcing values: over a major it is a minor plus the *other* major; over
-/// `2♦` the `4♦` cue shows both majors and `4♣` shows clubs plus a major.  **On by
-/// default** — the authored advances make it a clear DD win (+1.090/+1.452
-/// IMPs/board, none/both), and the inference reader lets the live-search bidder
-/// price the advance (and reach slam) on top; see `docs/ai-bidder/21gf-ledger.md`.
-/// Turn it off to recover the pre-Leaping-Michaels weak-two defense.
-pub fn set_leaping_michaels(on: bool) {
-    LEAPING_MICHAELS.with(|cell| cell.set(on));
-}
-
-/// Whether Leaping Michaels is currently enabled
-///
-/// Crate-visible so the inference projection pass can condition partner's hand on
-/// the two-suiter when the search bidder samples (see `inference::authored_reading`).
-pub fn leaping_michaels_enabled() -> bool {
-    LEAPING_MICHAELS.with(Cell::get)
-}
 
 /// Advancer's response to partner's Leaping Michaels jump over their weak two
 ///

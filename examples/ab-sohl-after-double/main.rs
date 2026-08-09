@@ -12,7 +12,7 @@
 //! Both arms run the same 2/1 system; the only difference is the
 //! [`LebensohlStyle`] each pair carries for the advance of a takeout double
 //! (`--ns` / `--ew`: off / plain / transfer), read once at book-construction
-//! time via [`set_advance_sohl_style`]. The convention only fires when the
+//! time via `Agreements::defense.advance_sohl_style`. The convention only fires when the
 //! *opponents* open a weak two and our side doubles, so — like `lebensohl-ab` —
 //! the opponents must bid. This uses the contested seat-swap duplicate match
 //! (the `nt-shape-contested` template): at table A the measured (`--ns`) pair
@@ -35,7 +35,7 @@ use contract_bridge::auction::Auction;
 use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat, Suit};
 use pons::american;
-use pons::bidding::american::{LebensohlStyle, set_advance_sohl_style};
+use pons::bidding::american::LebensohlStyle;
 use pons::scoring::{final_contract, ns_score_contract};
 use rayon::prelude::*;
 
@@ -120,12 +120,12 @@ fn main() {
     let args = Args::parse();
     let mut rng = rand::rng();
 
-    set_advance_sohl_style(style_from(&args.ew));
     let mut ew = pons::bidding::agreements::Agreements::current();
+    ew.defense.advance_sohl_style = style_from(&args.ew);
     ew.competition.delayed_cue = false;
     let baseline = american(&ew).against();
-    set_advance_sohl_style(style_from(&args.ns));
     let mut ns = pons::bidding::agreements::Agreements::current();
+    ns.defense.advance_sohl_style = style_from(&args.ns);
     ns.competition.delayed_cue = args.delayed_cue;
     let sohl = american(&ns).against();
 

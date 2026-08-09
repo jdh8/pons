@@ -2,11 +2,11 @@
 //!
 //! The both-majors `2♣` and everything below it: advancer's preference, the
 //! `2NT` game-force ask, the doubled runout and the SOS redouble.
-//! [`set_landy`] sets its band; [`set_direct_landy_double`] adds the
-//! direct-seat `X`.  Woolsey reuses the same `2♣` call, so the both-majors
-//! shapes live here.
+//! [`set_landy`] sets its band; [`NotrumpDefense::DirectLandy`] (with the shape
+//! flag `agreements.defense.direct_landy_four_four`) adds the direct-seat `X`.
+//! Woolsey reuses the same `2♣` call, so the both-majors shapes live here.
 
-use super::nt_defense::{NotrumpDefense, notrump_defense, set_notrump_defense};
+use super::nt_defense::NotrumpDefense;
 use super::nt_woolsey::{set_woolsey_points, woolsey_enabled};
 use super::*;
 
@@ -50,148 +50,17 @@ pub(crate) fn landy_range() -> Option<(u8, u8)> {
     LANDY.with(Cell::get)
 }
 
-thread_local! {
-    /// The `(min minor length, max length in each major)` gate for the doubled-Landy
-    /// minor escapes (`Pass` = clubs, `2♦` = diamonds).  **Default `(6, 2)`**.  See
-    /// [`set_doubled_landy_escape`].
-    static DOUBLED_LANDY_ESCAPE: Cell<(usize, usize)> = const { Cell::new((6, 2)) };
-}
-
-/// Tune the doubled-Landy minor-escape gate for books built *after* this call
-/// (thread-local, read once at book-construction time)
-///
-/// After `(1NT) 2♣ (X)` the advancer may run to a long minor — `Pass` to play `2♣`
-/// doubled with clubs, `2♦` to play diamonds — but only with `min_minor`+ in that
-/// minor and at most `max_major` in *each* major (a longer major has an 8-card fit
-/// opposite the overcaller's 5-carder worth more than a doubled minor).  **The
-/// default `(6, 2)`** is the A/B-tuned shipped gate; the knob is
-/// `examples/landy-ab --ns-doubled-escape MIN:MAJ`.  Only reachable when Landy is
-/// on ([`set_landy`]), so the convention stays opt-in.
-pub fn set_doubled_landy_escape(gate: (usize, usize)) {
-    DOUBLED_LANDY_ESCAPE.with(|cell| cell.set(gate));
-}
-
-/// The configured doubled-Landy minor-escape gate
-pub(super) fn doubled_landy_escape() -> (usize, usize) {
-    DOUBLED_LANDY_ESCAPE.with(Cell::get)
-}
-
-thread_local! {
-    /// Whether the Landy `2♣` / unusual `2NT` strength range gauges raw [`hcp`]
-    /// rather than the default shape-upgraded [`points`]; see [`set_landy_hcp`].
-    static LANDY_HCP: Cell<bool> = const { Cell::new(false) };
-}
-
-/// Gauge the two-suiter overcall strength on raw HCP instead of upgraded points,
-/// for books built *after* this call (thread-local, read once at book-construction)
-///
-/// A 5-4/5-5 two-suiter earns a distributional bonus, so [`points`] runs ~2 above
-/// HCP — letting thin hands clear the floor.  `true` gauges the `2♣`/`2NT` range on
-/// raw [`hcp`] (tighter); `false` (the **default**) keeps [`points`].  An A/B knob
-/// (`examples/landy-ab --strength hcp`).
-pub fn set_landy_hcp(on: bool) {
-    LANDY_HCP.with(|cell| cell.set(on));
-}
-
-/// Whether the two-suiter strength range gauges raw HCP
-pub(super) fn landy_use_hcp() -> bool {
-    LANDY_HCP.with(Cell::get)
-}
-
-thread_local! {
-    /// Whether the direct-Landy both-majors `X` accepts a flat 4-4 (else 5-4+) — the
-    /// payload of the former `DIRECT_LANDY_DOUBLE` `Option`.  No effect unless the
-    /// active system is [`NotrumpDefense::DirectLandy`].
-    static DIRECT_LANDY_FOUR_FOUR: Cell<bool> = const { Cell::new(false) };
-}
-
-/// Whether direct Landy's double accepts a flat four-four in the majors
-pub(super) fn direct_landy_four_four() -> bool {
-    DIRECT_LANDY_FOUR_FOUR.with(Cell::get)
-}
-
-thread_local! {
-    /// The `points` floor for the direct-seat both-majors double; **15 by default**
-    /// — the clean partition just above the natural-overcall ceiling (14), so an
-    /// intermediate both-majors hand overcalls a major (8–14) and the `X` is reserved
-    /// for the strong hands too good to overcall (15+).  Competing less (fewer thin
-    /// doubles to be punished) and carrying more defense when we act both helped on the
-    /// A/B sweep, which peaked near 15–16; 15 captures it with no orphaned point-count.
-    /// The advancer's invite/game thresholds track it.  See [`set_direct_landy_double_floor`].
-    static DIRECT_LANDY_DOUBLE_FLOOR: Cell<u8> = const { Cell::new(15) };
-    /// Whether the advancer may **pass the both-majors `X` for penalty** (defend
-    /// `1NTx`) at `(1NT) X -`; **off by default**.  On, a hand with no major fit
-    /// (both majors ≤2) and enough defense converts the takeout double to penalties
-    /// rather than running to a 5-2 major; the threshold tracks the X floor (a
-    /// stronger X needs less from the advancer).  See [`set_direct_landy_penalty_pass`].
-    static DIRECT_LANDY_PENALTY_PASS: Cell<bool> = const { Cell::new(false) };
-}
-
-/// Replace the direct-seat 15+ penalty double of their 1NT with a both-majors
-/// takeout double, for books built *after* this call (thread-local, read once at
-/// book-construction time)
-///
-/// `None` (the **default**) keeps the natural penalty-X defense.  `Some(false)`
-/// makes `X` show at least 5-4 in the majors at every seat; `Some(true)` accepts a
-/// flat 4-4.  The penalty double is dropped entirely (a 15+ balanced hand passes or
-/// overcalls), the four natural two-level suit overcalls are kept, and the advancer
-/// answers through the Landy machinery (`landy_advances`).  Mutually exclusive
-/// with the natural penalty-X arm and the Landy `2♣` overlay (this covers the
-/// passed seat too).  The A/B knob for `examples/ab-landy --ns-landy-x`.
-///
-/// A back-compat shim over [`set_notrump_defense`]: `Some(four_four)` selects
-/// [`NotrumpDefense::DirectLandy`] and stores the shape flag; `None` reverts to
-/// [`NotrumpDefense::Natural`] when direct-Landy is the active system (else a no-op).
-pub fn set_direct_landy_double(shape: Option<bool>) {
-    match shape {
-        Some(four_four) => {
-            set_notrump_defense(NotrumpDefense::DirectLandy);
-            DIRECT_LANDY_FOUR_FOUR.with(|cell| cell.set(four_four));
-        }
-        None if notrump_defense() == NotrumpDefense::DirectLandy => {
-            set_notrump_defense(NotrumpDefense::Natural);
-        }
-        None => {}
-    }
-}
-
 /// The configured direct-seat both-majors double shape, or `None` when off
 pub(crate) fn direct_landy_double(agreements: &Agreements) -> Option<bool> {
     (agreements.decision.reading.notrump_defense() == NotrumpDefense::DirectLandy)
         .then_some(agreements.defense.direct_landy_four_four)
 }
 
-/// Set the `points` floor for the direct-seat both-majors double (default 8), for
-/// books built *after* this call.  A higher floor reserves the `X` for stronger
-/// hands (lighter both-majors hands overcall a major naturally) — competing less
-/// and penalizing more.  The advancer's invite/game thresholds track it.  No effect
-/// unless [`set_direct_landy_double`] is on.  The A/B knob for `examples/ab-landy
-/// --ns-landy-x-floor`.
-pub fn set_direct_landy_double_floor(floor: u8) {
-    DIRECT_LANDY_DOUBLE_FLOOR.with(|cell| cell.set(floor));
-}
-
-/// The configured both-majors double `points` floor
-pub(super) fn direct_landy_double_floor() -> u8 {
-    DIRECT_LANDY_DOUBLE_FLOOR.with(Cell::get)
-}
-
-/// Allow the advancer to pass the both-majors `X` for penalty (defend `1NTx`) when it
-/// has no major fit and enough defense, for books built *after* this call (default
-/// off).  No effect unless [`set_direct_landy_double`] is on.  The A/B knob for
-/// `examples/ab-landy --ns-landy-x-penalty`.
-pub fn set_direct_landy_penalty_pass(on: bool) {
-    DIRECT_LANDY_PENALTY_PASS.with(|cell| cell.set(on));
-}
-
-pub(super) fn direct_landy_penalty_pass() -> bool {
-    DIRECT_LANDY_PENALTY_PASS.with(Cell::get)
-}
-
 /// The advancer's action over partner's both-majors `X` (RHO passing, `(1NT) X -`)
 ///
-/// The Landy advance ([`landy_advances`]) plus — when [`set_direct_landy_penalty_pass`]
-/// is on — a **penalty pass**: with no major fit (both majors ≤2) and enough defense
+/// The Landy advance ([`landy_advances`]) plus — when
+/// `agreements.defense.direct_landy_penalty_pass` is on — a **penalty pass**:
+/// with no major fit (both majors ≤2) and enough defense
 /// (`points(22 - lo ..)`, so a stronger `X` asks less), pass and defend `1NTx` rather
 /// than run to a 5-2 major.  Weight 1.25 beats the `2NT` game-ask (1.2) and the weak
 /// signoffs for exactly these no-fit hands.  After the advancer's pass it is the
@@ -233,7 +102,7 @@ pub(super) fn landy_x(agreements: &Agreements) -> Rules {
 
 /// Landy `2♣`: both majors, at least 5-4, on the shared two-suiter band
 /// ([`set_woolsey_points`], coupled with Woolsey's identical `2♣`; see [`set_landy`]),
-/// gauged as raw HCP or upgraded points per [`set_landy_hcp`].
+/// gauged as raw HCP or upgraded points per `agreements.defense.landy_use_hcp`.
 pub(super) fn landy_2c(agreements: &Agreements) -> Rules {
     let (lo, hi) = agreements.decision.reading.woolsey_points();
     let shape = five_four(Suit::Hearts, Suit::Spades);
@@ -536,8 +405,7 @@ pub(super) fn landy_advance_package() -> Package {
     }
 }
 
-/// Direct-seat both-majors `X` advances
-/// ([`set_direct_landy_double`][super::set_direct_landy_double])
+/// Direct-seat both-majors `X` advances ([`NotrumpDefense::DirectLandy`])
 ///
 /// The `X` is a Landy-style both-majors takeout double at every seat, so the
 /// advancer answers exactly as over a Landy `2♣` — binding `(1NT) X -` is

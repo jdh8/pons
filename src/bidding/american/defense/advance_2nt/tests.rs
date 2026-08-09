@@ -1,4 +1,5 @@
-use super::super::tests::{best_call, call};
+use super::super::tests::{best_call_with, call};
+use crate::bidding::agreements::Agreements;
 use contract_bridge::Strain;
 use contract_bridge::auction::Call;
 
@@ -16,18 +17,19 @@ fn doubler_accepts_or_declines_the_2nt_invite() {
         call(2, Strain::Notrump),
         Call::Pass,
     ];
-    super::advance_rich::set_rich_advance_double(true);
-    super::advance_2nt::set_advance_2nt_continuation(true);
+    let mut arm = Agreements::current();
+    arm.defense.rich_advance_double_enabled = true;
+    arm.defense.advance_2nt_continuation_enabled = true;
 
     // Maximum with a 5-card heart suit: accept by showing it, game-forcing.
     let max_major = "x.AKQxx.Kxx.AQxx"; // 18 HCP, 5♥
-    let (accept, _) = best_call(&invite, max_major);
+    let (accept, _) = best_call_with(&arm, &invite, max_major);
     // Balanced maximum, no 5-card major: 3NT to play.
     let max_flat = "KQx.AJx.Qxx.KQxx"; // 17 HCP, balanced
-    let (notrump, _) = best_call(&invite, max_flat);
+    let (notrump, _) = best_call_with(&arm, &invite, max_flat);
     // Minimum takeout double: decline the limited invite, pass 2NT.
     let minimum = "KQxx.Qxx.xx.KQxx"; // 12 HCP, minimum
-    let (decline, _) = best_call(&invite, minimum);
+    let (decline, _) = best_call_with(&arm, &invite, minimum);
 
     // Advancer places game over the doubler's forcing 3♥: raise with support.
     let after_major = [
@@ -40,10 +42,7 @@ fn doubler_accepts_or_declines_the_2nt_invite() {
         Call::Pass,
     ];
     let with_fit = "Axx.Kxx.Qxx.QJxx"; // 12 HCP, 3♥ support, spade stopper
-    let (raise, _) = best_call(&after_major, with_fit);
-
-    super::advance_2nt::set_advance_2nt_continuation(true); // restore default
-    super::advance_rich::set_rich_advance_double(true); // restore rich default
+    let (raise, _) = best_call_with(&arm, &after_major, with_fit);
 
     assert_eq!(
         accept,

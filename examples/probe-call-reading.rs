@@ -36,7 +36,7 @@ struct Args {
     /// Auctions to read, e.g. `"2H -"` or `"2H (X)"`; the last call of each is read
     auctions: Vec<String>,
 
-    /// Author the weak-two pass gate (`set_weak_two_pass_gate`, default off)
+    /// Author the weak-two pass gate (`defense.weak_two_pass_gate`, default off)
     #[arg(long, default_value_t = false)]
     weak_two_pass_gate: bool,
 
@@ -56,12 +56,13 @@ fn render(shown: &Envelope) -> String {
 
 fn main() {
     let args = Args::parse();
-    pons::bidding::american::set_weak_two_pass_gate(args.weak_two_pass_gate);
-    pons::bidding::american::set_weak_two_notrump_shape(args.weak_two_v2);
-    pons::bidding::american::set_weak_two_jump_overcall(args.weak_two_v2);
-    pons::bidding::american::set_weak_two_cue(args.weak_two_v2);
+    let mut agreements = pons::bidding::agreements::Agreements::current();
+    agreements.defense.weak_two_pass_gate = args.weak_two_pass_gate;
+    agreements.defense.weak_two_notrump_shape = args.weak_two_v2;
+    agreements.defense.weak_two_jump_overcall = args.weak_two_v2;
+    agreements.defense.weak_two_cue = args.weak_two_v2;
     let vul = AbsoluteVulnerability::NONE;
-    let stance = american(&pons::bidding::agreements::Agreements::current()).against();
+    let stance = american(&agreements).against();
 
     for text in &args.auctions {
         let auction: Vec<Call> = text

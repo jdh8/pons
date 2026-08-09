@@ -3,140 +3,10 @@
 //! Once they open `1NT` and their partner bids a convention, our double and
 //! cue change meaning: the double shows the suit their call is *really* about.
 //! Four independent agreements, one per convention
-//! ([`set_stayman_defense`], [`set_transfer_defense`],
-//! [`set_minor_transfer_defense`], [`set_diamond_transfer_defense`]).
+//! (`stayman_defense_enabled`, `transfer_defense_enabled`,
+//! `minor_transfer_defense_enabled`, `diamond_transfer_defense_enabled`, all on
+//! `agreements.defense`).
 use super::*;
-
-thread_local! {
-    /// Whether we author a defense to the opponents' 2♣ Stayman
-    /// (after `(1NT) - (2♣)`, before our call); **off by default** (opt-in A/B).  See
-    /// [`set_stayman_defense`].
-    static STAYMAN_DEFENSE: Cell<bool> = const { Cell::new(false) };
-    /// `(min suit length, points floor)` for the natural `2♦/2♥/2♠` overcalls in
-    /// the Stayman defense (the `3♣` jump tracks the same points floor at a fixed
-    /// 6-card length).  **Default `(6, 14)`** — the A/B-searched setting (see
-    /// [`set_stayman_defense_overcall`]).
-    static STAYMAN_DEF_OVERCALL: Cell<(usize, u8)> = const { Cell::new((6, 14)) };
-}
-
-/// Author our defense to the opponents' 2♣ Stayman (`(1NT) - (2♣)`), for books
-/// built *after* this call (thread-local; **off by default**).
-///
-/// `X` = lead-directing clubs (5+ with values), `2♦/2♥/2♠` = a natural 6-card
-/// suit (`points(14..)`), `3♣` = a strong natural club one-suiter; the floor
-/// passes everything else (~80%).  No Michaels cue — their 2♣ is artificial, so
-/// a cue would be natural.  The overcall length and strength were A/B-searched
-/// (see [`set_stayman_defense_overcall`]).
-pub fn set_stayman_defense(on: bool) {
-    STAYMAN_DEFENSE.with(|cell| cell.set(on));
-}
-
-/// Tune the natural `2♦/2♥/2♠` overcall `(min length, points floor)` in the
-/// Stayman defense, for books built *after* this call (the `3♣` jump tracks the
-/// same points floor).  **Default `(6, 14)`**, the A/B-searched setting: a paired
-/// PD sweep (`bba-gen --ns-staydef-overcall LEN:FLOOR`, 1M boards/setting) found
-/// length-6 beats length-5 (the 5-card overcalls' plain-DD edge is the
-/// light-sacrifice artifact PD prices away) and the points floor is best near 14
-/// — below it the overcalls are perfect-defense-negative, at it they turn
-/// DD-harmless; tighter still gains only within-noise DD while deleting the sound
-/// overcalls that carry the convention's (DD-invisible) competitive value.  No
-/// effect unless [`set_stayman_defense`] is on.
-pub fn set_stayman_defense_overcall(min_len: usize, points_floor: u8) {
-    STAYMAN_DEF_OVERCALL.with(|cell| cell.set((min_len, points_floor)));
-}
-
-/// The configured Stayman-defense overcall `(min length, points floor)`
-pub(super) fn stayman_defense_overcall() -> (usize, u8) {
-    STAYMAN_DEF_OVERCALL.with(Cell::get)
-}
-
-/// Whether the defense to their 2♣ Stayman is currently authored
-pub fn stayman_defense_enabled() -> bool {
-    STAYMAN_DEFENSE.with(Cell::get)
-}
-
-thread_local! {
-    /// Whether we author a defense to the opponents' Jacoby transfers
-    /// (after `(1NT) - (2♦/2♥)`, before our call); **off by default** (opt-in A/B).  See
-    /// [`set_transfer_defense`].
-    static TRANSFER_DEFENSE: Cell<bool> = const { Cell::new(false) };
-}
-
-/// Author our defense to the opponents' Jacoby transfers (`(1NT) - (2♦/2♥)`), for
-/// books built *after* this call (thread-local; **off by default**).
-///
-/// `X` = lead-directing the bid (transfer) suit — not takeout; a cue of the suit
-/// they showed = the other major + a minor (Michaels 5-5); natural one-suiter
-/// overcalls (six-card, `points(14..)`, the A/B-searched Stayman-defense floor);
-/// the floor passes everything else.  Matches BBA's distilled defense (probe
-/// modes `xfer-h`/`xfer-s`).  Opt-in: like the Stayman defense its value is
-/// mostly lead-directing (invisible to the double-dummy harness), and a paired
-/// A/B vs BBA over 640 000 boards confirms a PD wash (+0.006 IMPs/board it fires
-/// on, CI straddles 0); the plain-DD loss is the light-sacrifice artifact PD
-/// prices away.
-pub fn set_transfer_defense(on: bool) {
-    TRANSFER_DEFENSE.with(|cell| cell.set(on));
-}
-
-/// Whether the defense to their Jacoby transfers is currently authored
-pub fn transfer_defense_enabled() -> bool {
-    TRANSFER_DEFENSE.with(Cell::get)
-}
-
-thread_local! {
-    /// Whether we author a defense to the opponents' two-way 2♠ minor response
-    /// (after `(1NT) - (2♠)`, their clubs-or-size-ask, before our call); **off by default** (opt-in
-    /// A/B).  See [`set_minor_transfer_defense`].
-    static MINOR_TRANSFER_DEFENSE: Cell<bool> = const { Cell::new(false) };
-}
-
-/// Author our defense to the opponents' two-way 2♠ minor response
-/// (`(1NT) - (2♠)`), for books built *after* this call (thread-local; **off by
-/// default**).
-///
-/// `X` = lead-directing spades (the bid suit — not takeout); `2NT` = the two lowest
-/// unbid suits (diamonds + hearts, 5-5); `3♣` (a cue of their shown-clubs anchor) =
-/// the top-and-bottom two-suiter (spades + diamonds, 5-5), weighted above the `X` so
-/// the two-suiter shows rather than lead-directs; natural `3♦`/`3♥` one-suiters; the
-/// floor passes everything else.  Opt-in like the Stayman/transfer defenses: the
-/// value is mostly lead-directing (invisible to the double-dummy harness), so it
-/// ships off for A/B measurement.
-pub fn set_minor_transfer_defense(on: bool) {
-    MINOR_TRANSFER_DEFENSE.with(|cell| cell.set(on));
-}
-
-/// Whether the defense to their two-way 2♠ minor response is currently authored
-pub fn minor_transfer_defense_enabled() -> bool {
-    MINOR_TRANSFER_DEFENSE.with(Cell::get)
-}
-
-thread_local! {
-    /// Whether we author a defense to the opponents' 2NT diamond transfer
-    /// (after `(1NT) - (2NT)`, before our call); **off by default** (opt-in A/B).  See
-    /// [`set_diamond_transfer_defense`].
-    static DIAMOND_TRANSFER_DEFENSE: Cell<bool> = const { Cell::new(false) };
-}
-
-/// Author our defense to the opponents' 2NT diamond transfer (`(1NT) - (2NT)`),
-/// for books built *after* this call (thread-local; **off by default**).
-///
-/// `X` = lead-directing diamonds (the shown suit — not takeout); `3♦` (a cue of
-/// their diamond anchor) = both majors (5-5, Michaels), weighted **above** the `X`
-/// so a genuine two-suiter shows rather than lead-directs; natural `3♣`/`3♥`/`3♠`
-/// six-card one-suiters (`points(14..)`); the floor passes everything else.
-/// Opt-in like the Stayman/transfer defenses: the value is mostly lead-directing
-/// (invisible to the double-dummy harness).  A paired A/B vs BBA over 1 000 000
-/// `--filter-1nt` boards (387 fired, 0.04 %) measured a clear **loss** on both
-/// scorers (−1.91 IMPs/board it fires on plain, −2.32 PD), the light-sacrifice cost
-/// of doubling/cueing into a strong-1NT auction — so it ships off.
-pub fn set_diamond_transfer_defense(on: bool) {
-    DIAMOND_TRANSFER_DEFENSE.with(|cell| cell.set(on));
-}
-
-/// Whether the defense to their 2NT diamond transfer is currently authored
-pub(super) fn diamond_transfer_defense_enabled() -> bool {
-    DIAMOND_TRANSFER_DEFENSE.with(Cell::get)
-}
 
 /// Defense to the opponents' 2♣ Stayman (`(1NT) - (2♣)`)
 ///
@@ -149,7 +19,7 @@ pub(super) fn diamond_transfer_defense_enabled() -> bool {
 /// balancing calls out.
 ///
 /// The overcall length and points floor were **A/B-searched**, not copied from
-/// BBA: a paired perfect-defense (PD) sweep ([`set_stayman_defense_overcall`])
+/// BBA: a paired perfect-defense (PD) sweep (`agreements.defense.stayman_defense_overcall`)
 /// settled on a six-card suit at `points(14..)`.  Over a *strong* 1NT the bidding
 /// side holds the points, so a natural overcall into their auction is PD-negative
 /// when light — the sweep is monotone in the floor (the 8–13 overcalls lose, 14

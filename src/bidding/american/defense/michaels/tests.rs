@@ -1,4 +1,5 @@
-use super::super::tests::{best_call, call};
+use super::super::tests::{best_call, best_call_with, call};
+use crate::bidding::agreements::Agreements;
 use contract_bridge::Strain;
 use contract_bridge::auction::Call;
 
@@ -29,9 +30,9 @@ fn two_suiter_hcp_floor_bars_garbage_michaels() {
         "a sound 5-5 still cues Michaels"
     );
 
-    super::michaels::set_two_suiter_hcp_floor(None);
-    let (legacy_call, _) = best_call(&over_1h, garbage);
-    super::michaels::set_two_suiter_hcp_floor(Some(8));
+    let mut no_floor = Agreements::current();
+    no_floor.defense.two_suiter_hcp_floor = None;
+    let (legacy_call, _) = best_call_with(&no_floor, &over_1h, garbage);
     assert_eq!(
         legacy_call,
         call(2, Strain::Hearts),

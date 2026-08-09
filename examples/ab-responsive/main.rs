@@ -5,11 +5,13 @@
 //! - `--conv takeout` (the **shipped** node): after partner doubles their opening
 //!   and an opponent raises (`(1t) X (2t) ?`), advancer's double shows the two
 //!   unbid suits with 8+. The measured pair carries it (default on); the baseline
-//!   turns it off via [`set_responsive_takeout`], dropping the auction to the floor.
+//!   turns it off via `Agreements::defense.responsive_takeout_enabled`, dropping the
+//!   auction to the floor.
 //! - `--conv overcall` (a non-standard **extension**): after partner *overcalls*
 //!   and an opponent raises (`(1t) overcall (2t) ?`), advancer doubles to show the
 //!   two suits unbid by opener and partner. Off by default; the measured pair turns
-//!   it on via [`set_responsive_overcall`], the baseline leaves it floored.
+//!   it on via `Agreements::defense.responsive_overcall_enabled`, the baseline leaves
+//!   it floored.
 //!
 //! Both arms run the same 2/1 system, differing only in the one measured toggle,
 //! read once at book-construction time. The convention fires only when the
@@ -34,7 +36,7 @@ use contract_bridge::auction::Auction;
 use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat, Suit};
 use pons::american;
-use pons::bidding::american::{set_responsive_overcall, set_responsive_takeout};
+use pons::bidding::agreements::Agreements;
 use pons::scoring::{final_contract, ns_score_contract};
 use rayon::prelude::*;
 
@@ -98,13 +100,13 @@ fn could_reach_overcalled_raise(deal: &FullDeal) -> bool {
 /// Set both responsive toggles for the next book build: `measured` carries the
 /// `conv` convention, the baseline (`measured == false`) drops it to the floor while
 /// keeping the other toggle at its shipped default.
-fn configure(conv: &str, measured: bool) {
+fn configure(agreements: &mut Agreements, conv: &str, measured: bool) {
     // Shipped defaults: takeout on, overcall off.
-    set_responsive_takeout(true);
-    set_responsive_overcall(false);
+    agreements.defense.responsive_takeout_enabled = true;
+    agreements.defense.responsive_overcall_enabled = false;
     match conv {
-        "takeout" => set_responsive_takeout(measured),
-        "overcall" => set_responsive_overcall(measured),
+        "takeout" => agreements.defense.responsive_takeout_enabled = measured,
+        "overcall" => agreements.defense.responsive_overcall_enabled = measured,
         other => panic!("unknown --conv {other:?} (use takeout or overcall)"),
     }
 }
@@ -114,10 +116,11 @@ fn main() {
     let args = Args::parse();
     let mut rng = rand::rng();
 
-    configure(&args.conv, false);
-    let baseline = american(&pons::bidding::agreements::Agreements::current()).against();
-    configure(&args.conv, true);
-    let conv = american(&pons::bidding::agreements::Agreements::current()).against();
+    let mut arm = Agreements::current();
+    configure(&mut arm, &args.conv, false);
+    let baseline = american(&arm).against();
+    configure(&mut arm, &args.conv, true);
+    let conv = american(&arm).against();
 
     // Phase 1 (sequential, cheap): deal + the shape-only filter until `count`
     // boards pass. The RNG stays single-threaded so a seed reproduces a run.

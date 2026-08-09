@@ -8,7 +8,7 @@
 #   weak       — base + --ns-weak-two-comp   (competition.weak_two_competition: our
 #                contested weak twos — business XX + systems-on Ogust over their
 #                double, Ogust/values-X/preemptive raises over their overcall)
-#   balancing  — base + --ns-balancing       (set_notrump_balancing: extend our
+#   balancing  — base + --ns-balancing       (defense.notrump_balancing_enabled: extend our
 #                1NT defense to the balancing seat, `(1NT) - - ?`)
 #
 # Each feature arm sets ONLY its own flag, so the paired per-shard diff vs base

@@ -911,6 +911,16 @@ knob!(set_competition_over_diamond_transfer, competition_over_diamond_transfer, 
 knob!(set_defense_to_2d_multi, defense_to_2d_multi, competition.defense_2d_multi: bool);
 knob!(set_negative_double_shape, negative_double_shape, competition.negative_double_shape: american::NegativeDoubleShape);
 knob!(set_lebensohl_style, lebensohl_style, competition.lebensohl_style: american::LebensohlStyle);
+knob!(set_passed_hand_overcall, passed_hand_overcall, defense.passed_hand_overcall: bool);
+knob!(set_leaping_michaels, leaping_michaels, defense.leaping_michaels_enabled: bool);
+knob!(set_responsive_takeout, responsive_takeout, defense.responsive_takeout_enabled: bool);
+knob!(set_rich_advance_double, rich_advance_double, defense.rich_advance_double_enabled: bool);
+knob!(set_advance_rubens, advance_rubens, defense.advance_rubens_enabled: bool);
+knob!(set_direct_dont_four_four, direct_dont_four_four, defense.direct_dont_four_four: bool);
+knob!(set_stayman_defense, stayman_defense, defense.stayman_defense_enabled: bool);
+knob!(set_transfer_defense, transfer_defense, defense.transfer_defense_enabled: bool);
+knob!(set_minor_transfer_defense, minor_transfer_defense, defense.minor_transfer_defense_enabled: bool);
+knob!(set_advance_sohl_style, advance_sohl_style, defense.advance_sohl_style: american::LebensohlStyle);
 
 /// The Settings-tab registry: one row per user-facing bidding knob
 ///
@@ -1077,7 +1087,8 @@ fn set_notrump_defense_choice(value: &str) {
     use american::NotrumpDefense;
     // DirectLandy carries a shape flag; select the measured-winning 5-4 form.
     if value == "direct_landy" {
-        american::set_direct_landy_double(Some(false));
+        amend(|a| a.defense.direct_landy_four_four = false);
+        american::set_notrump_defense(NotrumpDefense::DirectLandy);
         return;
     }
     american::set_notrump_defense(match value {
@@ -1091,9 +1102,10 @@ fn set_notrump_defense_choice(value: &str) {
 /// The 1NT defense the engine currently holds, as its registry `value`.
 ///
 /// `DirectLandy` round-trips even though `set_notrump_defense_choice` reaches it
-/// through `set_direct_landy_double` — that setter selects the variant too, so
-/// the one cell answers for both.  Variants with no registry row read as the
-/// default, which is what the radio group can display.
+/// by pinning `defense.direct_landy_four_four` alongside the variant — the shape
+/// flag rides on the agreements, the variant on the one cell that answers here.
+/// Variants with no registry row read as the default, which is what the radio
+/// group can display.
 fn get_notrump_defense_choice() -> &'static str {
     use american::NotrumpDefense;
     match american::notrump_defense() {
@@ -1242,7 +1254,7 @@ fn lebensohl_toggle() -> bool {
 /// toggle: on = Transfer Lebensohl (the shipped default), off = none.
 fn set_advance_sohl_toggle(on: bool) {
     use american::LebensohlStyle;
-    american::set_advance_sohl_style(if on {
+    set_advance_sohl_style(if on {
         LebensohlStyle::Transfer
     } else {
         LebensohlStyle::Off
@@ -1252,7 +1264,7 @@ fn set_advance_sohl_toggle(on: bool) {
 /// Whether advancer's Lebensohl is live.  `Plain` is unreachable from the UI but
 /// counts as on, so an A/B that selected it is not reported as "off".
 fn advance_sohl_toggle() -> bool {
-    american::advance_sohl_style() != american::LebensohlStyle::Off
+    advance_sohl_style() != american::LebensohlStyle::Off
 }
 
 /// Puppet Stayman as an on/off toggle: on = Puppet (the shipped default, 3♣ Puppet
@@ -1301,7 +1313,7 @@ static SETTINGS: &[Setting] = &[
     toggle("lebensohl", COMPETITION, "Lebensohl (over 1NT interference)", true, set_lebensohl_toggle, lebensohl_toggle),
     toggle("advance_lebensohl", COMPETITION, "Lebensohl advancing a double", true, set_advance_sohl_toggle, advance_sohl_toggle),
     toggle("splinter_doubled", COMPETITION, "", true, set_splinter_doubled, splinter_doubled),
-    toggle("passed_hand_overcall", COMPETITION, "", true, american::set_passed_hand_overcall, american::passed_hand_overcall),
+    toggle("passed_hand_overcall", COMPETITION, "", true, set_passed_hand_overcall, passed_hand_overcall),
     toggle("uvu", COMPETITION, "Unusual vs Unusual", true, set_uvu, uvu),
     toggle("uvu_over_majors", COMPETITION, "Unusual vs Unusual (over majors)", true, set_uvu_over_majors, uvu_over_majors),
     toggle("direct_3nt_stopper", COMPETITION, "", true, set_direct_3nt_stopper, direct_3nt_stopper),
@@ -1315,10 +1327,10 @@ static SETTINGS: &[Setting] = &[
     gated("competition_over_minor_transfer", COMPETITION, "", true, set_competition_over_minor_transfer, competition_over_minor_transfer, "puppet_stayman"),
     gated("competition_over_diamond_transfer", COMPETITION, "", true, set_competition_over_diamond_transfer, competition_over_diamond_transfer, "puppet_stayman"),
     toggle("defense_to_2d_multi", COMPETITION, "", false, set_defense_to_2d_multi, defense_to_2d_multi),
-    toggle("leaping_michaels", COMPETITION, "Leaping Michaels", true, american::set_leaping_michaels, american::leaping_michaels_enabled),
-    toggle("responsive_takeout", COMPETITION, "Responsive doubles", true, american::set_responsive_takeout, american::responsive_takeout_enabled),
-    toggle("rich_advance_double", COMPETITION, "", true, american::set_rich_advance_double, american::rich_advance_double_enabled),
-    gated("advance_rubens", COMPETITION, "Rubens advances", false, american::set_advance_rubens, american::advance_rubens_enabled, "rich_advance_double"),
+    toggle("leaping_michaels", COMPETITION, "Leaping Michaels", true, set_leaping_michaels, leaping_michaels),
+    toggle("responsive_takeout", COMPETITION, "Responsive doubles", true, set_responsive_takeout, responsive_takeout),
+    toggle("rich_advance_double", COMPETITION, "", true, set_rich_advance_double, rich_advance_double),
+    gated("advance_rubens", COMPETITION, "Rubens advances", false, set_advance_rubens, advance_rubens, "rich_advance_double"),
     toggle("nt_overcall_gladiator", COMPETITION, "Gladiator (1NT-overcall advance)", false, american::set_nt_overcall_gladiator, american::nt_overcall_gladiator),
     // Negative-double school over their overcall — the enum-backed radio family
     Setting::Choice {
@@ -1342,10 +1354,10 @@ static SETTINGS: &[Setting] = &[
         set: set_notrump_defense_choice,
         get: get_notrump_defense_choice,
     },
-    gated("direct_dont_four_four", DEFENSE, "", true, american::set_direct_dont_four_four, american::direct_dont_four_four, "notrump_defense=direct_dont"),
-    toggle("stayman_defense", DEFENSE, "", false, american::set_stayman_defense, american::stayman_defense_enabled),
-    toggle("transfer_defense", DEFENSE, "", false, american::set_transfer_defense, american::transfer_defense_enabled),
-    toggle("minor_transfer_defense", DEFENSE, "", false, american::set_minor_transfer_defense, american::minor_transfer_defense_enabled),
+    gated("direct_dont_four_four", DEFENSE, "", true, set_direct_dont_four_four, direct_dont_four_four, "notrump_defense=direct_dont"),
+    toggle("stayman_defense", DEFENSE, "", false, set_stayman_defense, stayman_defense),
+    toggle("transfer_defense", DEFENSE, "", false, set_transfer_defense, transfer_defense),
+    toggle("minor_transfer_defense", DEFENSE, "", false, set_minor_transfer_defense, minor_transfer_defense),
     // Rebids & responses
     toggle("second_suit_agreement", REBIDS, "", true, set_second_suit_agreement, second_suit_agreement),
     toggle("game_backstop", REBIDS, "2/1 game backstop (retired)", false, set_game_backstop, game_backstop_enabled),

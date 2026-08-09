@@ -596,6 +596,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Seeded `smoke-default` / `smoke-dutch` dumps (20 000 boards each) are
   byte-identical to `4c3dce2`, and `cards/*.bbsa` regenerate unchanged.
 
+- **The forty-seven defensive knobs are fields, not thread-locals.**  The
+  `DefenseKnobs` area finishes the build-time half of the campaign: the
+  natural-overcall discipline and its strong-double seam, the takeout-double
+  support gate, DONT / Landy / Meckwell and their floors, the defence to
+  their Stayman and their three transfers, Michaels and the Unusual `2NT`
+  band, Leaping Michaels, the whole weak-two defence with its two point
+  bands, the responsive double and cue, and the five advance packages.
+  Setting one is `a.defense.overcall_four_card = true` before the build.
+  Four cells in these files stay behind on purpose — `NATURAL_DOUBLE_FLOOR`,
+  `NATURAL_OVERCALL_POINTS`, `NOTRUMP_DEFENSE` and `LANDY` are read at
+  classify time as well, so they move with the classify half.
+
+  The measured record moved onto the `DefenseKnobs` fields: the strong
+  double's `+0.0105`/`+0.0115` plain and `+0.0159 ± 0.0054` sd-lead, the
+  two-suiter floor's `−17..−21` IMPs/board Michaels-garbage story, the weak-two
+  pass gate's REFUTED verdict and its C1 out-of-distribution mechanism, the
+  weak-two cue's **VOID** A/B and what must be authored before re-measuring,
+  the diamond-transfer defence's `−1.91`/`−2.32` loss, and the advance-pass
+  cap migration that measured `−2` IMPs/fired.  Three summary lines that
+  contradicted their own rules were corrected: `weak_two_notrump_points` is an
+  HCP band (the rule is `hcp(lo..=hi)`), `stayman_defense_overcall` is
+  `(length, strength)`, and `direct_dont_one_suiter_min` has no derived
+  reading despite its `_raw` getter.  Two fields that *do* store a sentinel —
+  `direct_dont_x_floor` and `meckwell_x_floor`, where `0` means "inherit the
+  natural-overcall floor" — now say so.
+
+  Ten more web Settings rows move onto `pons-web`'s own `Agreements`.  The
+  `set_direct_landy_double` compound setter, which wrote a surviving cell
+  *and* a migrated one, is spelled out at both its call sites.
+
+  Seeded `smoke-default` / `smoke-dutch` dumps (20 000 boards each) are
+  byte-identical to `4c3dce2`, and `cards/*.bbsa` regenerate unchanged.
+  `bba-gen`'s two-seat runs do change: a per-family payload armed for one
+  seat (`--ns-dont-one-suiter-min`, the Meckwell floors) no longer leaks into
+  the other seat's family, which is what `arm_knobs`'s own "assigned, never
+  merely set" contract always asked for.
+
 - **The thirty-six competitive knobs are fields, not thread-locals.**  The
   whole `CompetitionKnobs` area follows, and with it the last of the
   competitive book's hidden state: every `Cell` under

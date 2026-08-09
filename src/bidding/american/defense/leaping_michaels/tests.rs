@@ -1,14 +1,16 @@
-use super::super::tests::{best_call, call};
-use crate::bidding::american::{LebensohlStyle, set_advance_sohl_style, set_leaping_michaels};
+use super::super::tests::{best_call_with, call};
+use crate::bidding::agreements::Agreements;
+use crate::bidding::american::LebensohlStyle;
 use contract_bridge::Strain;
 use contract_bridge::auction::Call;
 
-/// Best call with Leaping Michaels forced to `on` (and the sohl toggles reset,
-/// independent of any other test on this thread)
+/// Best call with Leaping Michaels pinned to `on` and the sohl advance pinned
+/// off, so only the jump under test is authored
 fn leaping(on: bool, auction: &[Call], hand: &str) -> (Call, bool) {
-    set_advance_sohl_style(LebensohlStyle::Off);
-    set_leaping_michaels(on);
-    best_call(auction, hand)
+    let mut arm = Agreements::current();
+    arm.defense.advance_sohl_style = LebensohlStyle::Off;
+    arm.defense.leaping_michaels_enabled = on;
+    best_call_with(&arm, auction, hand)
 }
 
 #[test]

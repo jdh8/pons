@@ -1,10 +1,12 @@
 //! The rich advance of a takeout double — transfers, cues, and minor jumps
 //!
-//! Opt-in ([`set_rich_advance_double`]): advancer transfers so the doubler
+//! Opt-in (`agreements.defense.rich_advance_double_enabled`): advancer
+//! transfers so the doubler
 //! declares, cues to force, and jumps in a minor with a stopper ask above it.
-//! [`set_advance_rubens`], [`set_longest_first_advance`],
-//! [`set_advance_pass_yield_major`], [`set_advance_sit_hcp_gate`] and
-//! [`set_advance_minor_jump`] each tune one rung.
+//! `advance_rubens_enabled`, `longest_first_advance_enabled`,
+//! `advance_pass_yield_major_enabled`, `advance_sit_hcp_gate` and
+//! `advance_minor_jump_enabled` (all on `agreements.defense`) each tune one
+//! rung.
 
 use super::advance_2nt::advance_2nt_rows;
 use super::advance_double::{cheapest_forced, natural_advance, no_unbid_major};
@@ -12,69 +14,8 @@ use super::advance_minor_jump::advance_minor_jump_rows;
 use super::advance_rubens::{advance_major_transfers, advance_rubens_rows};
 use super::*;
 
-thread_local! {
-    /// Whether the *rich* advance of partner's takeout double of a one-opening
-    /// (`(1t) X -`) is authored — the cue + notrump ladder that gives the
-    /// advancer an invite/force channel; see [`set_rich_advance_double`].
-    static RICH_ADVANCE_DOUBLE: Cell<bool> = const { Cell::new(true) };
-    /// The advancer's 4-card penalty-pass quality gate as a `suit_hcp` floor —
-    /// `None` keeps the shipped `top_honors(t, 2..)`; see
-    /// [`set_advance_sit_hcp_gate`].
-    static ADVANCE_SIT_HCP_GATE: Cell<Option<u8>> = const { Cell::new(None) };
-}
-
-/// Toggle the **rich advance** of partner's takeout double of a one-of-a-suit
-/// opening (`(1t) X - ?`) for books built *after* this call (thread-local,
-/// read once at book-construction time)
-///
-/// **On by default** (the shipped behavior); pass `false` (`bba-gen
-/// --no-ns-rich-advance`) to drop back to the flat [`advance_double`] ladder.
-/// The advancer gets a rich ladder: a cue of opener's suit asking for a 4-card
-/// major (invitational 10–11 — the Stayman-ask; game hands blast 4M), a notrump
-/// ladder (`1NT` 7–10 / `2NT` 11–12 / `3NT` 13+), weak shapely game jumps, and a
-/// forced 3-card-suit response when broke — filling the invite/force gap the
-/// flat floor leaves. Measured a constructive win vs the flat book (see
-/// `docs/ai-bidder/21gf-ledger.md`).
-pub fn set_rich_advance_double(on: bool) {
-    RICH_ADVANCE_DOUBLE.with(|cell| cell.set(on));
-}
-
-/// Whether the rich advance of a takeout double is currently authored
-pub fn rich_advance_double_enabled() -> bool {
-    RICH_ADVANCE_DOUBLE.with(Cell::get)
-}
-
-/// Swap the advancer's **4-card penalty-pass quality gate** over partner's
-/// takeout double (`(1t) X - ?`) to a per-suit HCP floor for books built
-/// *after* this call (thread-local, read at book-construction time)
-///
-/// **`None` by default** (the shipped behavior): a 4-card trump stack sits
-/// with two of the top three honors.  `Some(n)` (`bba-gen
-/// --ns-advance-sit-hcp N`) replaces that gate with `suit_hcp(t, n..)` in the
-/// **rich** advance only — the flat book, which is also the weak-two advance
-/// node, keeps the honor gate.  The candidate gates nest,
-/// {6+} ⊂ {top2} ⊂ {5+}:
-/// - `Some(5)` admits exactly one new class, **AJxx** — KQ = 5 is the
-///   cheapest two of A/K/Q, so nothing is removed (the same subset relation
-///   probed for BBA's Ogust "good suit"; see [`suit_hcp`]);
-/// - `Some(6)` instead drops exactly **bare KQxx** (no jack ⇒ 5) while
-///   keeping KQJx/AKxx/AQxx; AJxx stays out (5 is the most a single top
-///   honor can carry).
-///
-/// Composes with [`set_advance_pass_yield_major`]: the yield wraps whichever
-/// sit gate is live (both default-off, so the default system is untouched).
-/// The sweep knob for `scripts/ab-advance-sit-hcp.sh`.
-pub fn set_advance_sit_hcp_gate(gate: Option<u8>) {
-    ADVANCE_SIT_HCP_GATE.with(|cell| cell.set(gate));
-}
-
-/// The advancer's 4-card sit quality gate override, if any
-pub(super) fn advance_sit_hcp_gate() -> Option<u8> {
-    ADVANCE_SIT_HCP_GATE.with(Cell::get)
-}
-
 /// Rich advance of partner's takeout double of a one-of-a-suit `their_opening`
-/// (`(1t) X - ?`), gated by [`set_rich_advance_double`]
+/// (`(1t) X - ?`), gated by `agreements.defense.rich_advance_double_enabled`
 ///
 /// The flat [`advance_double`] ladder gives the advancer only a cheapest natural
 /// suit, a `3NT`, and a penalty pass — so the whole 10+ invitational-and-up
@@ -90,9 +31,9 @@ pub(super) fn advance_sit_hcp_gate() -> Option<u8> {
 ///   limited 13–17, each with a stopper in their suit.
 /// - **new-suit jumps** — a *major* two-level jump is *constructive* (8–10, 4+)
 ///   and a three-level jump is *invitational* (10–12, 5+); a *minor* three-level
-///   jump (only under [`set_advance_minor_jump`]) is an invitational one-suiter
-///   (10–12, 5+) ranked below the notrump ladder and denying a 4-card unbid
-///   major.  The cheapest new suit is natural weak (0–7, 4+).
+///   jump (only under `agreements.defense.advance_minor_jump_enabled`) is an
+///   invitational one-suiter (10–12, 5+) ranked below the notrump ladder and
+///   denying a 4-card unbid major.  The cheapest new suit is natural weak (0–7, 4+).
 /// - **major game jump** (`4M`, 5+) — always *limited* (slam tries cue):
 ///   two-way (shapely-weak or minimum game force, 11–15 points) when no Rubens
 ///   transfer exists, or purely preemptive (0–10) when a transfer carries the
@@ -101,7 +42,7 @@ pub(super) fn advance_sit_hcp_gate() -> Option<u8> {
 ///   a takeout double cannot be passed for want of a bid; the cheapest such
 ///   bid, keeping the forced auction low.
 /// - **penalty pass** with a trump stack (5+ of their suit, or 4 with two top
-///   honors — a swept `suit_hcp` floor under [`set_advance_sit_hcp_gate`]).
+///   honors — a swept `suit_hcp` floor under `agreements.defense.advance_sit_hcp_gate`).
 #[must_use]
 pub(super) fn advance_double_rich(their_opening: Bid, agreements: &Agreements) -> Rules {
     let theirs = their_opening.strain;
@@ -291,7 +232,7 @@ pub(super) fn advance_double_rich(their_opening: Bid, agreements: &Agreements) -
 }
 
 /// Doubler's answer to the advancer's cue (`(1t) X - cue - ?`, gated by
-/// [`set_rich_advance_double`])
+/// `agreements.defense.rich_advance_double_enabled`)
 ///
 /// The cue ([`advance_double_rich`]) is invitational-or-better and forcing for
 /// one round, asking the doubler to describe.  With a minimum the doubler bids
@@ -353,7 +294,7 @@ fn advance_cue_answers(their_opening: Bid) -> Vec<Bid> {
 
 /// Advancer's clarifying rebid after the cue and the doubler's minimum `answer`
 /// (`(1t) X - cue { - | (X) } answer { - | (X) } ?`, gated by
-/// [`set_rich_advance_double`])
+/// `agreements.defense.rich_advance_double_enabled`)
 ///
 /// The cue was invitational-or-better ([`advance_double_rich`]); here the
 /// advancer resolves it against the doubler's minimum.  A *game-forcing* advancer
@@ -391,13 +332,13 @@ fn advance_cue_rebid(answer: Bid) -> Rules {
 /// * the doubler's answer to the advancer's cue, then the advancer's
 ///   invite-vs-force clarification over each minimum answer,
 /// * the Rubens transfer completion and the advancer's rebid over it
-///   ([`set_advance_rubens`]),
+///   (`agreements.defense.advance_rubens_enabled`),
 /// * the doubler's accept/decline of the invitational minor jump, the
 ///   advancer's placement over the forcing new suit, and the answer to the
-///   stopper-ask cue ([`set_advance_minor_jump`]),
+///   stopper-ask cue (`agreements.defense.advance_minor_jump_enabled`),
 /// * the same accept/decline over the invitational `2NT`
-///   ([`set_advance_2nt_continuation`]) — without it the doubler falls to the
-///   floor, which passes `2NT` holding a game.
+///   (`agreements.defense.advance_2nt_continuation_enabled`) — without it the
+///   doubler falls to the floor, which passes `2NT` holding a game.
 pub(super) fn rich_advance_double_package() -> Package {
     Package {
         name: "rich-advance-of-double",

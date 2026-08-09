@@ -1,4 +1,4 @@
-use super::super::tests::{best_call, call};
+use super::super::tests::{best_call, best_call_with, call};
 use crate::bidding::agreements::Agreements;
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::{Bid, Hand, Strain};
@@ -51,10 +51,9 @@ fn direct_pass_gate_is_the_strong_tiers_complement() {
         &hcp(18..),
     );
     // Legacy gauge: points(17..).
-    super::overcall::set_strong_double_hcp(None);
-    let agreements = Agreements::current();
-    let legacy = super::overcall::defense_to_suit(Bid::new(1, Strain::Clubs), &agreements);
-    super::overcall::set_strong_double_hcp(Some(18));
+    let mut legacy_gauge = Agreements::current();
+    legacy_gauge.defense.strong_double_hcp = None;
+    let legacy = super::overcall::defense_to_suit(Bid::new(1, Strain::Clubs), &legacy_gauge);
     certify(&legacy, &points(17..));
 }
 
@@ -72,9 +71,9 @@ fn four_card_overcall_is_opt_in() {
     let context = Context::new(RelativeVulnerability::NONE, &auction);
     let agreements = Agreements::current();
     let baseline = super::overcall::defense_to_suit(their_opening, &agreements);
-    super::overcall::set_overcall_four_card(false);
-    let agreements = Agreements::current();
-    let explicit_off = super::overcall::defense_to_suit(their_opening, &agreements);
+    let mut off_arm = agreements;
+    off_arm.defense.overcall_four_card = false;
+    let explicit_off = super::overcall::defense_to_suit(their_opening, &off_arm);
     let mut rng = StdRng::seed_from_u64(0x4CA4_D0C1);
     for _ in 0..64 {
         let deal = full_deal(&mut rng);
@@ -97,10 +96,9 @@ fn four_card_overcall_is_opt_in() {
             .expect("array is never empty")
     };
     assert_ne!(best(&off.0), one_s);
-    super::overcall::set_overcall_four_card(true);
-    let agreements = Agreements::current();
-    let on = super::overcall::defense_to_suit(their_opening, &agreements).classify(hand, &context);
-    super::overcall::set_overcall_four_card(false);
+    let mut on_arm = agreements;
+    on_arm.defense.overcall_four_card = true;
+    let on = super::overcall::defense_to_suit(their_opening, &on_arm).classify(hand, &context);
     assert_eq!(best(&on.0), one_s);
 }
 
@@ -116,11 +114,11 @@ fn two_level_minor_overcall_tight_gates_the_minimum() {
     assert_eq!(default_call, call(2, Strain::Clubs), "default overcalls 2♣");
     assert!(!floored, "the 2♣ overcall is a book node");
 
-    super::overcall::set_two_level_minor_overcall_tight(true);
-    let (tight_call, _) = best_call(&over_1s, minimum);
+    let mut tight = Agreements::current();
+    tight.defense.two_level_minor_overcall_tight = true;
+    let (tight_call, _) = best_call_with(&tight, &over_1s, minimum);
     // A 17-count is not silenced by the knob — it competes (a takeout X first).
-    let (strong_call, _) = best_call(&over_1s, "A2.K2.Q432.AKJ87"); // 17 HCP
-    super::overcall::set_two_level_minor_overcall_tight(false);
+    let (strong_call, _) = best_call_with(&tight, &over_1s, "A2.K2.Q432.AKJ87"); // 17 HCP
     assert_eq!(
         tight_call,
         Call::Pass,
@@ -158,9 +156,9 @@ fn strong_double_hcp_repartitions_overcall_vs_double() {
     let (strong_call, _) = best_call(&over_1h, flat);
     assert_eq!(strong_call, Call::Double, "19 HCP still doubles first");
 
-    super::overcall::set_strong_double_hcp(None);
-    let (legacy_call, _) = best_call(&over_1h, shaped);
-    super::overcall::set_strong_double_hcp(Some(18));
+    let mut legacy_gauge = Agreements::current();
+    legacy_gauge.defense.strong_double_hcp = None;
+    let (legacy_call, _) = best_call_with(&legacy_gauge, &over_1h, shaped);
     assert_eq!(
         legacy_call,
         Call::Double,
@@ -183,10 +181,11 @@ fn nt_overcall_no_major_routes_five_card_major_to_the_suit() {
         "default buries the major in 1NT"
     );
 
-    super::overcall::set_nt_overcall_no_major(true);
-    let (gated_call, _) = best_call(&over_1d, five_heart);
-    let (flat_call, _) = best_call(&over_1d, "A32.KQ4.KQ4.J432"); // 15 HCP 4333, no 5M
-    super::overcall::set_nt_overcall_no_major(false);
+    let mut no_major = Agreements::current();
+    no_major.defense.nt_overcall_no_major = true;
+    let (gated_call, _) = best_call_with(&no_major, &over_1d, five_heart);
+    // 15 HCP 4333, no 5M
+    let (flat_call, _) = best_call_with(&no_major, &over_1d, "A32.KQ4.KQ4.J432");
     assert_eq!(
         gated_call,
         call(1, Strain::Hearts),

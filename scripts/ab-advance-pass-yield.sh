@@ -9,7 +9,7 @@
 # per vul (penalty conversions are vul-sensitive; the cap run was NV-only),
 # one shared SEED_BASE, arms strictly sequential:
 #   off   — default system (yield off; the shipped behavior)
-#   yield — --ns-advance-pass-yield (set_advance_pass_yield_major)
+#   yield — --ns-advance-pass-yield (defense.advance_pass_yield_major_enabled)
 # Both scorers + sd-lead.  Exposure is thin (~2 fired/6400 bd NV — the yield
 # needs a clean `(1t) X -` with a weak sit holding a 4+ major), so read the
 # per-fired delta, not just the per-board wash.  Modeled on

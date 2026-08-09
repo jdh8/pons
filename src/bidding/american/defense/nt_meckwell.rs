@@ -2,7 +2,7 @@
 //!
 //! `X` = a minor, or both majors; `2♣`/`2♦` = that minor plus a major.  The
 //! `X` is the two-way call that makes it Meckwell rather than DONT
-//! ([`set_meckwell_x_four_four`], [`set_meckwell_x_floor`]).
+//! (`agreements.defense.meckwell_x_four_four`, `agreements.defense.meckwell_x_floor`).
 
 use super::nt_defense::NotrumpDefense;
 use super::nt_dont::{
@@ -12,58 +12,9 @@ use super::nt_dont::{
 use super::nt_landy::both_majors_shape;
 use super::*;
 
-thread_local! {
-    /// Whether Meckwell's `2♣`/`2♦` (minor + a major) accept a flat 4-4 (else 5-4+);
-    /// **off by default** (5-4).  A **probe** knob — the 5-4-vs-4-4 boundary is
-    /// measured, not fixed by theory.  No effect unless Meckwell is on.
-    static MECKWELL_MINOR_MAJOR_44: Cell<bool> = const { Cell::new(false) };
-    /// Whether Meckwell's both-majors `X` accepts a flat 4-4 (else 5-4+); **on by
-    /// default** (4-4, the standard weak Meckwell takeout double).  A **probe** knob.
-    /// No effect unless Meckwell is on.
-    static MECKWELL_X_FOUR_FOUR: Cell<bool> = const { Cell::new(true) };
-    /// `points` floor for Meckwell's two-way `X`; **0 by default = inherit the natural
-    /// overcall floor (8)**, byte-identical.  Raise it (e.g. 12, the Woolsey `X` floor)
-    /// so only strong hands make the broad two-way double and 8-11 both-majors /
-    /// single-minor hands pass — fewer sacrificial doubles over a strong 1NT.  A
-    /// **probe** knob (the tournament's dominant Meckwell loss is the low-floor `X`).
-    static MECKWELL_X_FLOOR: Cell<u8> = const { Cell::new(0) };
-}
-
 /// Whether the direct-seat Meckwell defense is the active system
 pub(super) fn meckwell_enabled(agreements: &Agreements) -> bool {
     agreements.decision.reading.notrump_defense() == NotrumpDefense::Meckwell
-}
-
-/// Whether Meckwell's `2♣`/`2♦` accept a flat 4-4 (default `false` = 5-4+).  A
-/// **probe** knob.  See [`NotrumpDefense::Meckwell`].
-pub fn set_meckwell_minor_major_44(on: bool) {
-    MECKWELL_MINOR_MAJOR_44.with(|cell| cell.set(on));
-}
-
-pub(super) fn meckwell_minor_major_44() -> bool {
-    MECKWELL_MINOR_MAJOR_44.with(Cell::get)
-}
-
-/// Whether Meckwell's both-majors `X` accepts a flat 4-4 (default `true` = 4-4).  A
-/// **probe** knob.  See [`NotrumpDefense::Meckwell`].
-pub fn set_meckwell_x_four_four(on: bool) {
-    MECKWELL_X_FOUR_FOUR.with(|cell| cell.set(on));
-}
-
-pub(super) fn meckwell_x_four_four() -> bool {
-    MECKWELL_X_FOUR_FOUR.with(Cell::get)
-}
-
-/// Set the `points` floor for Meckwell's two-way `X` (default 0 = inherit the natural
-/// overcall floor of 8; set e.g. 12 for a Woolsey-strength double).  A **probe** knob.
-/// See [`NotrumpDefense::Meckwell`].
-pub fn set_meckwell_x_floor(floor: u8) {
-    MECKWELL_X_FLOOR.with(|cell| cell.set(floor));
-}
-
-/// The raw configured Meckwell `X` floor before resolving the zero sentinel
-pub(super) fn meckwell_x_floor_raw() -> u8 {
-    MECKWELL_X_FLOOR.with(Cell::get)
 }
 
 /// The configured Meckwell `X` floor, resolving the zero sentinel to the natural
@@ -77,8 +28,8 @@ fn meckwell_x_floor(agreements: &Agreements) -> u8 {
 
 /// Meckwell two-way `X`: a single 6+ minor OR both majors,
 /// `points(meckwell-x-floor..)`.  The both-majors shape is the probe knob
-/// [`set_meckwell_x_four_four`], the floor is [`set_meckwell_x_floor`]; the
-/// single-minor length is a fixed 6.
+/// `agreements.defense.meckwell_x_four_four`, the floor is
+/// `agreements.defense.meckwell_x_floor`; the single-minor length is a fixed 6.
 pub(super) fn meckwell_x(agreements: &Agreements) -> Rules {
     let lo = meckwell_x_floor(agreements);
     Rules::new().rule(
@@ -89,7 +40,7 @@ pub(super) fn meckwell_x(agreements: &Agreements) -> Rules {
 }
 
 /// Meckwell `2♣`: clubs + a major, 5-4 either way (or flat 4-4 per the probe knob
-/// [`set_meckwell_minor_major_44`]).  Shares [`dont_minor_major`]'s shape on the
+/// `agreements.defense.meckwell_minor_major_44`).  Shares [`dont_minor_major`]'s shape on the
 /// Meckwell knob so the two conventions can diverge.
 pub(super) fn meckwell_2c(agreements: &Agreements) -> Rules {
     let lo = agreements.decision.reading.natural_overcall_points().0;

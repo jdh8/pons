@@ -540,7 +540,7 @@ fn american_row(name: &str, a: &Agreements) -> i32 {
         // beside it, because that is the row BBA acts on and dropping it
         // would tell them we have no king ask at all.
         "King ask by available bid" => 1,
-        // Michaels and Unusual 2NT we author outright; `set_unusual_notrump_defense`
+        // Michaels and Unusual 2NT we author outright; `defense.unusual_notrump_range`
         // gates only our *defense* to theirs, not our own two-suiter bids.
         "Michaels Cuebid" | "Unusual 2NT" => 1,
         // Floor territory, and the reason this module documents that limitation.

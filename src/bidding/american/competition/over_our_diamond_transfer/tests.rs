@@ -1,4 +1,4 @@
-use super::super::tests::{best_call, best_call_with, bid_diamond, call};
+use super::super::tests::{best_call_with, bid_diamond, call};
 use crate::bidding::agreements::Agreements;
 use contract_bridge::Strain;
 use contract_bridge::auction::Call;
@@ -113,14 +113,14 @@ fn diamond_competition_disabled_falls_to_floor() {
 fn defense_to_their_diamond_transfer_doubles_diamonds() {
     // After `(1NT) - (2NT)`, their 2NT transfers to diamonds; our fourth-hand X
     // is lead-directing in diamonds, the shown suit.
-    crate::bidding::american::set_diamond_transfer_defense(true);
+    let mut arm = Agreements::current();
+    arm.defense.diamond_transfer_defense_enabled = true;
     let auction = [
         call(1, Strain::Notrump),
         Call::Pass,
         call(2, Strain::Notrump),
     ];
-    let (c, floored) = best_call(&auction, "A32.32.KQJ54.432");
-    crate::bidding::american::set_diamond_transfer_defense(false); // restore default
+    let (c, floored) = best_call_with(&arm, &auction, "A32.32.KQJ54.432");
     assert_eq!(c, Call::Double);
     assert!(
         !floored,
@@ -132,14 +132,14 @@ fn defense_to_their_diamond_transfer_doubles_diamonds() {
 fn defense_to_their_diamond_transfer_cues_both_majors() {
     // After `(1NT) - (2NT)`, their 2NT transfers to diamonds; 5 spades and 5
     // hearts cue 3♦ to show both majors, beating the X.
-    crate::bidding::american::set_diamond_transfer_defense(true);
+    let mut arm = Agreements::current();
+    arm.defense.diamond_transfer_defense_enabled = true;
     let auction = [
         call(1, Strain::Notrump),
         Call::Pass,
         call(2, Strain::Notrump),
     ];
-    let (c, floored) = best_call(&auction, "KQ1054.KJ1054.3.32");
-    crate::bidding::american::set_diamond_transfer_defense(false); // restore default
+    let (c, floored) = best_call_with(&arm, &auction, "KQ1054.KJ1054.3.32");
     assert_eq!(c, call(3, Strain::Diamonds));
     assert!(!floored, "the both-majors cue must come from the book");
 }

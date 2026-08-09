@@ -1,4 +1,5 @@
-use super::super::tests::{best_call, call};
+use super::super::tests::{best_call, best_call_with, call};
+use crate::bidding::agreements::Agreements;
 use contract_bridge::Strain;
 use contract_bridge::auction::Call;
 
@@ -106,10 +107,10 @@ fn stayman_overcalled_opener_doubles_their_suit() {
 #[test]
 fn defense_to_their_stayman_doubles_clubs() {
     // (1NT) - (2♣ Stayman): our 4th-hand X = lead-directing clubs (5+ good).
-    crate::bidding::american::set_stayman_defense(true);
+    let mut arm = Agreements::current();
+    arm.defense.stayman_defense_enabled = true;
     let auction = [call(1, Strain::Notrump), Call::Pass, call(2, Strain::Clubs)];
-    let (c, floored) = best_call(&auction, "A2.K32.A32.KQ876");
-    crate::bidding::american::set_stayman_defense(false); // restore default
+    let (c, floored) = best_call_with(&arm, &auction, "A2.K32.A32.KQ876");
     assert_eq!(c, Call::Double);
     assert!(
         !floored,

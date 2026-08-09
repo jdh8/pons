@@ -1063,9 +1063,9 @@ pub struct ConventionCard {
     pub fourth_suit_forcing: bool,
     /// Jordan/Truscott 2NT over their takeout double (`competition.jordan_truscott`)
     pub jordan_truscott: bool,
-    /// Leaping Michaels over their weak two (`set_leaping_michaels`)
+    /// Leaping Michaels over their weak two (`defense.leaping_michaels_enabled`)
     pub leaping_michaels: bool,
-    /// Responsive doubles (`set_responsive_takeout`)
+    /// Responsive doubles (`defense.responsive_takeout_enabled`)
     pub responsive_takeout: bool,
     /// Support doubles and redoubles (`competition.major_support_double`)
     pub major_support_double: bool,

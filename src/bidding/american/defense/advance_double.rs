@@ -73,8 +73,9 @@ pub fn advance_double(their_opening: Bid, agreements: &Agreements) -> Rules {
 /// Append the natural-suit advance of a takeout double: `suit`, bid at
 /// `bid_level`, with weight `base` and minimum length `min_len`.
 ///
-/// Off the [`set_longest_first_advance`] knob this is a single flat rule, so the
-/// classifier's argmax tie-break advances the highest-ranking eligible suit.  On
+/// Off the `agreements.defense.longest_first_advance_enabled` knob this is a
+/// single flat rule, so the classifier's argmax tie-break advances the
+/// highest-ranking eligible suit.  On
 /// it, the rule gains the [`longest_unbid`] condition, so the **longest** unbid
 /// suit advances, an equal-length tie going to the higher rank (5♦4♠ → `1♦`,
 /// 4-4 majors → `1♠`) — the same choice the retired weight ladder
@@ -145,8 +146,9 @@ pub(super) fn cheapest_forced(
 
 /// No 4-card major outside `theirs` — the weak sit's license to convert
 ///
-/// The [`set_advance_pass_yield_major`] yield: a weak advancer holding a 4+
-/// unbid major has a constructive home the penalty conversion would bury, so
+/// The `agreements.defense.advance_pass_yield_major_enabled` yield: a weak
+/// advancer holding a 4+ unbid major has a constructive home the penalty
+/// conversion would bury, so
 /// the sit is reserved for hands with none (or with cue-band strength, where
 /// the conversion is a choice, not a default).  One box capping each unbid
 /// major at three; knob-off the reading stays ⊤.
@@ -164,7 +166,7 @@ pub(super) fn no_unbid_major(theirs: Suit) -> Cons<impl Constraint + Clone> {
 }
 
 /// Advancing partner's takeout double of a weak two, honoring the selected
-/// [`set_advance_sohl_style`]
+/// `agreements.defense.advance_sohl_style`
 ///
 /// `Off` keeps the flat [`advance_double`] ladder.  `Plain`/`Transfer` shadow it
 /// with the reused Section-5 sohl builders under the `P* (2X) X -` prefix — the
@@ -202,8 +204,9 @@ pub(super) fn advance_of_double_package() -> Package {
 
 /// Advancing partner's takeout double of a one-of-a-suit opening
 ///
-/// The rich cue + notrump ladder when [`set_rich_advance_double`] is on, else
-/// the flat floor ladder; the continuations of the rich ladder's artificial
+/// The rich cue + notrump ladder when
+/// `agreements.defense.rich_advance_double_enabled` is on, else the flat floor
+/// ladder; the continuations of the rich ladder's artificial
 /// calls live in [`rich_advance_double_package`].
 pub(super) fn advance_double_package() -> Package {
     Package {

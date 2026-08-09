@@ -48,13 +48,12 @@ use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use ddss::TrickCountTable;
 use pons::bidding::Stance;
 use pons::bidding::agreements::{
-    Agreements, CompetitionKnobs, NotrumpKnobs, OpeningKnobs, RebidKnobs,
+    Agreements, CompetitionKnobs, DefenseKnobs, NotrumpKnobs, OpeningKnobs, RebidKnobs,
 };
 use pons::bidding::american::{
     EUROPEAN, LebensohlStyle, NotrumpDefense, NotrumpShape, PUPPET, garbage_stayman,
-    leaping_michaels_enabled, notrump_defense, notrump_minors, nt_splinter,
-    responsive_takeout_enabled, set_garbage_stayman, set_landy, set_leaping_michaels,
-    set_notrump_defense, set_notrump_minors, set_nt_splinter, set_responsive_takeout, set_xyz,
+    notrump_defense, notrump_minors, nt_splinter, set_garbage_stayman, set_landy,
+    set_notrump_defense, set_notrump_minors, set_nt_splinter, set_xyz,
 };
 use pons::bidding::card::{american_card, dutch_card};
 use pons::bidding::context::{Context, relative};
@@ -362,8 +361,8 @@ impl Defaults {
             super_accept: NotrumpKnobs::default().transfer_super_accept,
             fsf: RebidKnobs::default().fourth_suit_forcing,
             jordan: CompetitionKnobs::default().jordan_truscott,
-            leaping: leaping_michaels_enabled(),
-            responsive: responsive_takeout_enabled(),
+            leaping: DefenseKnobs::default().leaping_michaels_enabled,
+            responsive: DefenseKnobs::default().responsive_takeout_enabled,
             support_x: CompetitionKnobs::default().major_support_double,
             splinter: nt_splinter(),
             shape: OpeningKnobs::default().notrump_shape,
@@ -376,8 +375,6 @@ impl Defaults {
     fn apply(&self) {
         set_garbage_stayman(self.garbage);
         set_xyz(self.xyz);
-        set_leaping_michaels(self.leaping);
-        set_responsive_takeout(self.responsive);
         set_nt_splinter(self.splinter);
         set_notrump_defense(self.defense);
         set_notrump_minors(if self.minors_european {
@@ -411,6 +408,11 @@ impl Defaults {
                 lebensohl_style: self.leb,
                 ..CompetitionKnobs::default()
             },
+            defense: DefenseKnobs {
+                leaping_michaels_enabled: self.leaping,
+                responsive_takeout_enabled: self.responsive,
+                ..DefenseKnobs::default()
+            },
         }
     }
 }
@@ -422,6 +424,7 @@ struct Knobs {
     rebid: RebidKnobs,
     notrump: NotrumpKnobs,
     competition: CompetitionKnobs,
+    defense: DefenseKnobs,
 }
 
 impl Knobs {
@@ -432,6 +435,7 @@ impl Knobs {
         agreements.rebid = self.rebid;
         agreements.notrump = self.notrump;
         agreements.competition = self.competition;
+        agreements.defense = self.defense;
         agreements
     }
 }
@@ -489,9 +493,11 @@ const AXES: [(&str, Flip); 16] = [
     ("Jordan Truscott 2NT", |d, k| {
         k.competition.jordan_truscott = !d.jordan;
     }),
-    ("Leaping Michaels", |d, _| set_leaping_michaels(!d.leaping)),
-    ("Responsive double", |d, _| {
-        set_responsive_takeout(!d.responsive)
+    ("Leaping Michaels", |d, k| {
+        k.defense.leaping_michaels_enabled = !d.leaping;
+    }),
+    ("Responsive double", |d, k| {
+        k.defense.responsive_takeout_enabled = !d.responsive;
     }),
     ("Support double/redouble", |d, k| {
         k.competition.major_support_double = !d.support_x;

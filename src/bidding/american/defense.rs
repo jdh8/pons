@@ -23,7 +23,7 @@
 //! | [`nt_landy`], [`nt_dont`], [`nt_meckwell`], [`nt_woolsey`] | the four systems' calls and advances |
 //! | [`nt_their_conventions`] | defending their Stayman and transfers |
 
-use super::super::agreements::{Agreements, DefenseKnobs};
+use super::super::agreements::Agreements;
 use super::super::constraint::{
     Cons, Constraint, and, at_least_as_long, balanced, equal_length, hcp, len, length_box,
     long_suit_box, longer_suit, longest_unbid, min_level_is, or, passed_hand, points,
@@ -89,51 +89,20 @@ use responsive::{responsive_double_package, responsive_overcall_package};
 use weak_two_defense::weak_two_defense_package;
 use weak_two_nt_advance::weak_two_notrump_advance_package;
 
-pub use advance_2nt::set_advance_2nt_continuation;
 pub use advance_double::advance_double;
-pub use advance_minor_jump::set_advance_minor_jump;
-pub use advance_rich::{set_advance_sit_hcp_gate, set_rich_advance_double};
-pub use advance_rubens::set_advance_rubens;
-pub use advance_sohl::set_advance_sohl_style;
 pub(crate) use gladiator::nt_overcall_systems_on;
 pub use gladiator::{set_nt_overcall_gladiator, set_nt_overcall_systems_on};
-pub use leaping_michaels::leaping_michaels_enabled;
-pub use leaping_michaels::set_leaping_michaels;
-pub use michaels::{set_two_suiter_hcp_floor, set_unusual_notrump_defense};
-pub use nt_defense::{NotrumpDefense, set_notrump_balancing, set_notrump_defense};
-pub use nt_dont::{
-    set_direct_dont_four_four, set_direct_dont_one_suiter_min, set_direct_dont_x_floor,
-};
+pub use nt_defense::{NotrumpDefense, set_notrump_defense};
 pub(crate) use nt_landy::landy_range;
-pub use nt_landy::{
-    set_direct_landy_double, set_direct_landy_double_floor, set_direct_landy_penalty_pass,
-    set_doubled_landy_escape, set_landy, set_landy_hcp,
-};
-pub use nt_meckwell::{
-    set_meckwell_minor_major_44, set_meckwell_x_floor, set_meckwell_x_four_four,
-};
-pub use nt_their_conventions::{
-    set_diamond_transfer_defense, set_minor_transfer_defense, set_stayman_defense,
-    set_stayman_defense_overcall, set_transfer_defense,
-};
+pub use nt_landy::set_landy;
 pub use nt_woolsey::{set_woolsey_double_floor, set_woolsey_points};
 pub(crate) use nt_woolsey::{woolsey_double_floor, woolsey_points};
 pub use overcall::{
     DoubleShape, TakeoutSupport, defense_to_suit, set_natural_double_floor,
-    set_natural_double_shape, set_natural_double_weight, set_natural_overcall_points,
-    set_nt_overcall_no_major, set_overcall_discipline, set_overcall_four_card,
-    set_passed_hand_overcall, set_strong_double_hcp, set_takeout_support,
-    set_two_level_minor_overcall_tight,
+    set_natural_overcall_points,
 };
 pub(crate) use overcall::{natural_double_floor, natural_overcall_points};
-pub use responsive::responsive_takeout_enabled;
-pub use responsive::{set_responsive_overcall, set_responsive_takeout};
-pub use weak_two_defense::{
-    defense_to_weak_two, set_weak_two_cue, set_weak_two_jump_overcall, set_weak_two_notrump_points,
-    set_weak_two_notrump_shape, set_weak_two_overcall_discipline, set_weak_two_overcall_points,
-    set_weak_two_pass_gate,
-};
-pub use weak_two_nt_advance::set_weak_two_notrump_advances;
+pub use weak_two_defense::defense_to_weak_two;
 
 // Compatibility getters used outside the defensive book. The book itself uses
 // the pinned reading profile and the agreement-taking derived helpers in the
@@ -152,119 +121,6 @@ pub(crate) fn meckwell_enabled() -> bool {
 
 pub(crate) fn woolsey_enabled() -> bool {
     nt_defense::notrump_defense() == NotrumpDefense::Woolsey
-}
-
-/// Capture this thread's defensive build-time knobs
-///
-/// The one place the defensive cells are read. Everything downstream takes
-/// the captured value, so a `set_*` between this call and the rules being built
-/// cannot split the book against itself.
-pub(in crate::bidding) fn capture() -> DefenseKnobs {
-    DefenseKnobs {
-        longest_first_advance_enabled: longest_first_advance_enabled(),
-        advance_pass_yield_major_enabled: advance_pass_yield_major_enabled(),
-        natural_double_shape: overcall::natural_double_shape(),
-        natural_double_weight: overcall::natural_double_weight(),
-        takeout_support: overcall::takeout_support(),
-        overcall_discipline: overcall::overcall_discipline(),
-        overcall_four_card: overcall::overcall_four_card(),
-        passed_hand_overcall: overcall::passed_hand_overcall(),
-        two_level_minor_overcall_tight: overcall::two_level_minor_overcall_tight(),
-        nt_overcall_no_major: overcall::nt_overcall_no_major(),
-        strong_double_hcp: overcall::strong_double_hcp(),
-        direct_dont_one_suiter_min: nt_dont::direct_dont_one_suiter_min_raw(),
-        direct_dont_four_four: nt_dont::direct_dont_four_four(),
-        direct_dont_x_floor: nt_dont::direct_dont_x_floor_raw(),
-        weak_two_notrump_advances_enabled: weak_two_nt_advance::weak_two_notrump_advances_enabled(),
-        advance_minor_jump_enabled: advance_minor_jump::advance_minor_jump_enabled(),
-        notrump_balancing_enabled: nt_defense::notrump_balancing_enabled(),
-        leaping_michaels_enabled: leaping_michaels::leaping_michaels_enabled(),
-        weak_two_pass_gate: weak_two_defense::weak_two_pass_gate(),
-        weak_two_notrump_shape: weak_two_defense::weak_two_notrump_shape(),
-        weak_two_jump_overcall: weak_two_defense::weak_two_jump_overcall(),
-        weak_two_overcall_discipline: weak_two_defense::weak_two_overcall_discipline(),
-        weak_two_cue: weak_two_defense::weak_two_cue(),
-        weak_two_notrump_points: weak_two_defense::weak_two_notrump_points(),
-        weak_two_overcall_points: weak_two_defense::weak_two_overcall_points(),
-        advance_rubens_enabled: advance_rubens::advance_rubens_enabled(),
-        doubled_landy_escape: nt_landy::doubled_landy_escape(),
-        landy_use_hcp: nt_landy::landy_use_hcp(),
-        direct_landy_four_four: nt_landy::direct_landy_four_four(),
-        direct_landy_double_floor: nt_landy::direct_landy_double_floor(),
-        direct_landy_penalty_pass: nt_landy::direct_landy_penalty_pass(),
-        unusual_notrump_range: michaels::unusual_notrump_range(),
-        two_suiter_hcp_floor: michaels::two_suiter_hcp_floor(),
-        advance_sohl_style: advance_sohl::advance_sohl_style(),
-        meckwell_minor_major_44: nt_meckwell::meckwell_minor_major_44(),
-        meckwell_x_four_four: nt_meckwell::meckwell_x_four_four(),
-        meckwell_x_floor: nt_meckwell::meckwell_x_floor_raw(),
-        advance_2nt_continuation_enabled: advance_2nt::advance_2nt_continuation_enabled(),
-        stayman_defense_enabled: nt_their_conventions::stayman_defense_enabled(),
-        stayman_defense_overcall: nt_their_conventions::stayman_defense_overcall(),
-        transfer_defense_enabled: nt_their_conventions::transfer_defense_enabled(),
-        minor_transfer_defense_enabled: nt_their_conventions::minor_transfer_defense_enabled(),
-        diamond_transfer_defense_enabled: nt_their_conventions::diamond_transfer_defense_enabled(),
-        rich_advance_double_enabled: advance_rich::rich_advance_double_enabled(),
-        advance_sit_hcp_gate: advance_rich::advance_sit_hcp_gate(),
-        responsive_takeout_enabled: responsive::responsive_takeout_enabled(),
-        responsive_overcall_enabled: responsive::responsive_overcall_enabled(),
-    }
-}
-
-thread_local! {
-    /// Whether the advance of partner's takeout double bids the **longest** suit
-    /// (weight climbing with length) rather than the highest-ranking 4+ suit;
-    /// see [`set_longest_first_advance`].
-    static LONGEST_FIRST_ADVANCE: Cell<bool> = const { Cell::new(true) };
-}
-
-thread_local! {
-    /// Whether the advancer's **weak** penalty pass yields to a 4+ unbid major
-    /// (below the cue band the hand bids the ladder instead of sitting); see
-    /// [`set_advance_pass_yield_major`].
-    static ADVANCE_PASS_YIELD_MAJOR: Cell<bool> = const { Cell::new(false) };
-}
-
-/// Toggle the **longest-first** suit discipline for the flat advance of partner's
-/// takeout double of a one-of-a-suit opening (`(1t) X - ?`) for books built
-/// *after* this call (thread-local, read at book-construction time)
-///
-/// **On by default** (the shipped behavior); pass `false` (`bba-gen
-/// --no-ns-longest-advance`) to score every eligible 4+ suit alike, whereupon
-/// the argmax tie-break bids the **highest-ranking** one regardless of length —
-/// holding five clubs and four spades it advances `1♠`, not `2♣`. On, the
-/// natural-advance weight climbs with suit length, so the advancer bids the
-/// **longest** suit and breaks equal-length ties toward the higher-ranking suit
-/// (a major over a minor, spades over hearts) — standard takeout-double
-/// advancing.
-pub fn set_longest_first_advance(on: bool) {
-    LONGEST_FIRST_ADVANCE.with(|cell| cell.set(on));
-}
-
-/// Whether the longest-first advance discipline is currently authored
-pub(crate) fn longest_first_advance_enabled() -> bool {
-    LONGEST_FIRST_ADVANCE.with(Cell::get)
-}
-
-/// Toggle the weak advancer's **pass-yield to a 4-card major** over partner's
-/// takeout double (`(1t) X - ?`) for books built *after* this call
-/// (thread-local, read at book-construction time)
-///
-/// **Off by default.**  On (`bba-gen --ns-advance-pass-yield`), the penalty
-/// pass's trump-stack legs yield when the hand is *below the cue band*
-/// (`hcp ≤ 9`) **and** holds a 4+ unbid major: instead of converting the
-/// double to penalty, the hand advances on the normal longest-first ladder
-/// (which may still land in a longer minor).  Strong sits (10+) stand
-/// regardless — restricting *them* is the refuted cap migration
-/// (`ab-results/advance-penalty-pass/`, −2 IMPs/fired on both scorers).  The
-/// A/B knob for `scripts/ab-advance-pass-yield.sh`.
-pub fn set_advance_pass_yield_major(on: bool) {
-    ADVANCE_PASS_YIELD_MAJOR.with(|cell| cell.set(on));
-}
-
-/// Whether the weak penalty pass yields to a 4-card unbid major
-pub(crate) fn advance_pass_yield_major_enabled() -> bool {
-    ADVANCE_PASS_YIELD_MAJOR.with(Cell::get)
 }
 
 /// At least 5-4 (or 4-5) in the two named suits — the Landy two-suiter shape
@@ -551,13 +407,5 @@ pub fn defensive(agreements: &Agreements) -> Defensive {
 
 #[cfg(test)]
 mod tests;
-pub use advance_rich::rich_advance_double_enabled;
-pub use advance_rubens::advance_rubens_enabled;
-pub use advance_sohl::advance_sohl_style;
 pub use gladiator::nt_overcall_gladiator;
 pub use nt_defense::notrump_defense;
-pub use nt_dont::direct_dont_four_four;
-pub use nt_their_conventions::minor_transfer_defense_enabled;
-pub use nt_their_conventions::stayman_defense_enabled;
-pub use nt_their_conventions::transfer_defense_enabled;
-pub use overcall::passed_hand_overcall;

@@ -35,9 +35,7 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, Bid, Contract, FullDeal, Hand, Seat, Strain, Suit};
 use pons::american;
 use pons::bidding::american::{
-    DoubleShape, NotrumpDefense, set_direct_landy_double, set_direct_landy_double_floor,
-    set_direct_landy_penalty_pass, set_doubled_landy_escape, set_landy, set_landy_hcp,
-    set_natural_double_shape, set_notrump_defense, set_unusual_notrump_defense,
+    DoubleShape, NotrumpDefense, notrump_defense, set_landy, set_notrump_defense,
     set_woolsey_double_floor, set_woolsey_points,
 };
 use pons::bidding::instinct::{
@@ -446,15 +444,18 @@ fn main() {
     set_penalty_latch(ns_penalty_latch);
     set_latch_style(ns_latch_style);
     set_landy(None);
-    set_unusual_notrump_defense(None);
-    set_landy_hcp(false);
     set_notrump_defense(ew_defense);
-    set_natural_double_shape(ew_double_shape);
-    set_direct_landy_double_floor(15);
-    set_direct_landy_penalty_pass(false);
     set_doubler_xx_runout(false);
+    // The defensive knobs are fields of the value now; the Landy range, the
+    // notrump-defense family and the Woolsey band are still ambient cells, so
+    // each arm captures *after* its own writes and spells its fields out.
     let mut baseline_arm = pons::bidding::agreements::Agreements::current();
     baseline_arm.competition.penalty_pass = ew_penalty_pass;
+    baseline_arm.defense.unusual_notrump_range = None;
+    baseline_arm.defense.landy_use_hcp = false;
+    baseline_arm.defense.natural_double_shape = ew_double_shape;
+    baseline_arm.defense.direct_landy_double_floor = 15;
+    baseline_arm.defense.direct_landy_penalty_pass = false;
     let baseline = american(&baseline_arm).against();
     // One write picks the measured system; the two forced-off blocks this
     // replaced ("DONT owns 2♣/2NT", "Woolsey owns every direct call") were the
@@ -463,26 +464,37 @@ fn main() {
     // `natural`/`off`, so a conventional family leaves them inert by itself.
     set_notrump_defense(ns_defense);
     set_landy(majors);
-    set_unusual_notrump_defense(if ns_defense == NotrumpDefense::DirectDont {
-        // DONT's own both-minors 2NT band, not the overlay's.
-        Some((8, 14))
-    } else {
-        minors
-    });
-    set_landy_hcp(use_hcp);
-    set_natural_double_shape(double_shape);
-    set_direct_landy_double(ns_landy_x);
-    set_direct_landy_double_floor(args.ns_landy_x_floor);
-    set_direct_landy_penalty_pass(parse_on_off(
-        &args.ns_landy_x_penalty,
-        "--ns-landy-x-penalty",
-    ));
-    set_doubled_landy_escape(ns_doubled_escape);
+    // The family half of `--ns-landy-x-four-four`: a `Some` payload picks Direct
+    // Landy, a `None` drops a Direct-Landy selection back to natural and leaves
+    // every other family alone.  Its shape half is the
+    // `defense.direct_landy_four_four` field written onto the capture below.
+    match ns_landy_x {
+        Some(_) => set_notrump_defense(NotrumpDefense::DirectLandy),
+        None if notrump_defense() == NotrumpDefense::DirectLandy => {
+            set_notrump_defense(NotrumpDefense::Natural);
+        }
+        None => {}
+    }
     set_doubler_xx_runout(ns_doubler_run);
     set_woolsey_points(woolsey_range.0, woolsey_range.1);
     set_woolsey_double_floor(args.ns_woolsey_x_floor);
     let mut measured_arm = pons::bidding::agreements::Agreements::current();
     measured_arm.competition.penalty_pass = ns_penalty_pass;
+    measured_arm.defense.unusual_notrump_range = if ns_defense == NotrumpDefense::DirectDont {
+        // DONT's own both-minors 2NT band, not the overlay's.
+        Some((8, 14))
+    } else {
+        minors
+    };
+    measured_arm.defense.landy_use_hcp = use_hcp;
+    measured_arm.defense.natural_double_shape = double_shape;
+    if let Some(four_four) = ns_landy_x {
+        measured_arm.defense.direct_landy_four_four = four_four;
+    }
+    measured_arm.defense.direct_landy_double_floor = args.ns_landy_x_floor;
+    measured_arm.defense.direct_landy_penalty_pass =
+        parse_on_off(&args.ns_landy_x_penalty, "--ns-landy-x-penalty");
+    measured_arm.defense.doubled_landy_escape = ns_doubled_escape;
     let measured = american(&measured_arm).against();
 
     // Each board at both tables (Landy NS at A, EW at B), dealer rotating.

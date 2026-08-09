@@ -57,6 +57,27 @@ pub(super) fn best_call(auction: &[Call], hand: &str) -> (Call, bool) {
     (best, prov.depth == 0 && prov.fallback.is_some())
 }
 
+/// [`best_call`] against a chosen set of agreements — how a test arms a knob
+/// now that the defensive cells are gone: build an [`Agreements`], set the
+/// field, pass it here.
+pub(super) fn best_call_with(
+    agreements: &Agreements,
+    auction: &[Call],
+    hand: &str,
+) -> (Call, bool) {
+    let hand: Hand = hand.parse().expect("valid test hand");
+    let (logits, prov) = american(agreements)
+        .against()
+        .classify_with_provenance(hand, RelativeVulnerability::NONE, auction)
+        .expect("a legal auction classifies");
+    let best = (&logits.0)
+        .into_iter()
+        .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))
+        .map(|(call, _)| call)
+        .expect("array is never empty");
+    (best, prov.depth == 0 && prov.fallback.is_some())
+}
+
 /// [`best_call`] at a chosen vulnerability, for the rules that read one.
 pub(super) fn best_call_vul(auction: &[Call], hand: &str, vul: RelativeVulnerability) -> Call {
     let hand: Hand = hand.parse().expect("valid test hand");
@@ -79,10 +100,12 @@ pub(super) fn best_call_vul(auction: &[Call], hand: &str, vul: RelativeVulnerabi
 /// own the auction).
 #[test]
 fn defense_to_notrump_authors_one_rule_per_call() {
+    // The two cells this test still drives; `unusual_notrump_range` is now a
+    // `DefenseKnobs` field, and `Agreements::current()` always hands back its
+    // `Some((8, 13))` default, so the old third reset line has no work to do.
     fn reset() {
         super::nt_defense::set_notrump_defense(NotrumpDefense::Natural);
         super::nt_landy::set_landy(None);
-        super::michaels::set_unusual_notrump_defense(Some((8, 13)));
     }
 
     let configs: [(&str, fn()); 7] = [
@@ -99,8 +122,10 @@ fn defense_to_notrump_authors_one_rule_per_call() {
         ("meckwell", || {
             super::nt_defense::set_notrump_defense(NotrumpDefense::Meckwell)
         }),
+        // `set_direct_landy_double(Some(false))` selected `DirectLandy` and
+        // stored `direct_landy_four_four = false`, which is the field's default.
         ("direct-landy-x", || {
-            super::nt_landy::set_direct_landy_double(Some(false))
+            super::nt_defense::set_notrump_defense(NotrumpDefense::DirectLandy)
         }),
         ("always-pass", || {
             super::nt_defense::set_notrump_defense(NotrumpDefense::AlwaysPass)

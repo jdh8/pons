@@ -1201,8 +1201,8 @@ fn features_v5_appends_both_blocks() {
 fn each_compact_axis_moves_its_slots_and_only_live_ones_move_the_net() {
     use crate::bidding::Rules;
     use crate::bidding::american::{
-        PUPPET, set_garbage_stayman, set_landy, set_leaping_michaels, set_notrump_defense,
-        set_notrump_minors, set_nt_splinter, set_responsive_takeout, set_woolsey_points, set_xyz,
+        PUPPET, set_garbage_stayman, set_landy, set_notrump_defense, set_notrump_minors,
+        set_nt_splinter, set_woolsey_points, set_xyz,
     };
     use crate::bidding::instinct::{RkcbVariant, forced, set_rkcb_variant};
     use crate::bidding::neural_floor::ConfiguredFloorV5;
@@ -1269,7 +1269,7 @@ fn each_compact_axis_moves_its_slots_and_only_live_ones_move_the_net() {
         &[0],
     );
 
-    // Eight axes are fields of `Agreements` rather than ambient cells, so they arm
+    // Ten axes are fields of `Agreements` rather than ambient cells, so they arm
     // the captured value directly.  Nothing global moves, so they need no
     // restore and cannot strand a flipped knob for the next test on this thread.
     let mut offshape = crate::bidding::agreements::Agreements::current();
@@ -1324,6 +1324,20 @@ fn each_compact_axis_moves_its_slots_and_only_live_ones_move_the_net() {
         ConventionCard::capture(&lebensohl, false),
         &[23, 25],
     );
+    let mut leaping = crate::bidding::agreements::Agreements::current();
+    leaping.defense.leaping_michaels_enabled = false;
+    check(
+        "leaping_michaels",
+        ConventionCard::capture(&leaping, false),
+        &[8],
+    );
+    let mut responsive = crate::bidding::agreements::Agreements::current();
+    responsive.defense.responsive_takeout_enabled = false;
+    check(
+        "responsive_takeout",
+        ConventionCard::capture(&responsive, false),
+        &[9],
+    );
 
     // Enum targets leave a trained lane deliberately: `Wide` (14), `Plain` (24)
     // and the five non-{Natural, Woolsey} defenses are folded, and `Wide` is
@@ -1345,18 +1359,6 @@ fn each_compact_axis_moves_its_slots_and_only_live_ones_move_the_net() {
             &[2],
         ),
         ("xyz", || set_xyz(false), || set_xyz(true), &[4]),
-        (
-            "leaping_michaels",
-            || set_leaping_michaels(false),
-            || set_leaping_michaels(true),
-            &[8],
-        ),
-        (
-            "responsive_takeout",
-            || set_responsive_takeout(false),
-            || set_responsive_takeout(true),
-            &[9],
-        ),
         (
             "nt_splinter",
             || set_nt_splinter(false),

@@ -37,9 +37,7 @@ use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Hand, Seat};
 use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
 use pons::american;
 use pons::bidding::agreements::Agreements;
-use pons::bidding::american::{
-    TwoOverOneGate, WeakTwoEval, set_strong_double_hcp, set_two_suiter_hcp_floor,
-};
+use pons::bidding::american::{TwoOverOneGate, WeakTwoEval};
 use pons::bidding::constraint::{PointScale, set_point_scale, set_support_points};
 use pons::bidding::context::relative;
 use pons::bidding::{Inferences, Stance, System};
@@ -159,9 +157,9 @@ impl From<Scale> for PointScale {
 /// (`--fix`); all are build-time knobs, shipped-default-off
 #[derive(Clone, Copy)]
 enum Fix {
-    /// `set_strong_double_hcp(n)`: the overcall/double-first partition edge
+    /// `defense.strong_double_hcp = Some(n)`: the overcall/double-first partition edge
     StrongDoubleHcp(u8),
-    /// `set_two_suiter_hcp_floor(n)`: Michaels + Unusual 2NT raw-HCP floor
+    /// `defense.two_suiter_hcp_floor = Some(n)`: Michaels + Unusual 2NT raw-HCP floor
     TwoSuiterHcp(u8),
     /// `competition.redouble_answer = true`: author opener over `1x (X) XX -`
     RedoubleAnswer,
@@ -219,21 +217,13 @@ impl Fix {
     /// Arm (or restore to shipped) this fix, and capture the agreements a book
     /// built now would carry
     ///
-    /// Two fixes are still thread cells; the rest are fields of the value, so
-    /// the capture happens after the cells are written and the fields are set
-    /// on top of it.
+    /// Every fix is a field of the value now; the capture picks up whatever
+    /// cells remain ambient and the fields are set on top of it.
     fn set(self, on: bool) -> Agreements {
-        match self {
-            Self::StrongDoubleHcp(n) => set_strong_double_hcp(on.then_some(n)),
-            Self::TwoSuiterHcp(n) => set_two_suiter_hcp_floor(on.then_some(n)),
-            Self::RedoubleAnswer
-            | Self::NtInviteHcp
-            | Self::WeakTwoEval(_)
-            | Self::TwoOverOneGate(_)
-            | Self::TwoOverOneHeartLight => {}
-        }
         let mut agreements = Agreements::current();
         match self {
+            Self::StrongDoubleHcp(n) => agreements.defense.strong_double_hcp = on.then_some(n),
+            Self::TwoSuiterHcp(n) => agreements.defense.two_suiter_hcp_floor = on.then_some(n),
             Self::RedoubleAnswer => agreements.competition.redouble_answer = on,
             Self::NtInviteHcp => agreements.rebid.nt_invite_hcp = on,
             Self::WeakTwoEval(gauge) => agreements.opening.weak_two_eval = on.then_some(gauge),
@@ -242,7 +232,6 @@ impl Fix {
                     if on { gate } else { TwoOverOneGate::default() };
             }
             Self::TwoOverOneHeartLight => agreements.response.two_over_one_heart_light = on,
-            Self::StrongDoubleHcp(_) | Self::TwoSuiterHcp(_) => {}
         }
         agreements
     }

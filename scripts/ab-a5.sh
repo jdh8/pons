@@ -10,7 +10,7 @@
 # passed-seat obstruction / lead-directing transfer), so they add an sd-lead read
 # (sddiff): ab-dump-sd reads the two natural ones correctly, but has no disclosure
 # flag for the artificial minor-transfer, so THAT sd figure is a floor, not a
-# verdict. The fifth knob, set_responsive_overcall, has no bba-gen flag → self-play
+# verdict. The fifth knob, defense.responsive_overcall_enabled, has no bba-gen flag → self-play
 # ab-responsive (a3 template), scored perfect-defense vs the passing floor.
 #
 #   JOBS=12 setsid nohup scripts/idle-run.sh scripts/ab-a5.sh ab-results/a5 \

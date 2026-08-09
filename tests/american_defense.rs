@@ -5,7 +5,7 @@ mod common;
 use common::*;
 
 use contract_bridge::auction::Auction;
-use pons::bidding::american::set_responsive_overcall;
+use pons::bidding::agreements::Agreements;
 
 /// The single highest-logit *legal* call the system assigns the hand
 ///
@@ -102,11 +102,19 @@ fn test_responsive_overcall_double_toggle() {
     ];
     let hand = "KQ54.32.KQ54.932";
 
-    set_responsive_overcall(true);
-    assert_eq!(best_call(&stance(), &auction, hand), Call::Double);
+    let mut on = Agreements::current();
+    on.defense.responsive_overcall_enabled = true;
+    assert_eq!(
+        best_call(&american(&on).against(), &auction, hand),
+        Call::Double
+    );
 
-    set_responsive_overcall(false);
-    assert_ne!(best_call(&stance(), &auction, hand), Call::Double);
+    let mut off = Agreements::current();
+    off.defense.responsive_overcall_enabled = false;
+    assert_ne!(
+        best_call(&american(&off).against(), &auction, hand),
+        Call::Double
+    );
 }
 
 // --- Unusual 2NT advance ----------------------------------------------------

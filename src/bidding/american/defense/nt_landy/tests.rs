@@ -1,6 +1,8 @@
-use super::super::tests::{best_call, call};
+use super::super::tests::{best_call_with, call};
 use crate::bidding::agreements::Agreements;
-use crate::bidding::american::{set_direct_landy_double, set_woolsey_points};
+use crate::bidding::american::{
+    NotrumpDefense, notrump_defense, set_notrump_defense, set_woolsey_points,
+};
 use contract_bridge::Strain;
 use contract_bridge::auction::Call;
 
@@ -33,36 +35,37 @@ fn direct_landy_double_shows_both_majors_and_runs_clean() {
     let x = Call::Double;
     let xx = Call::Redouble;
     let d2 = call(2, Strain::Diamonds);
-    let agreements = Agreements::current();
-    let prev = super::nt_landy::direct_landy_double(&agreements);
-    let prev_floor = super::nt_landy::direct_landy_double_floor();
-    set_direct_landy_double(Some(false)); // 5-4
-    super::nt_landy::set_direct_landy_double_floor(8); // low floor so these 10-14 hands fire the X
+    // `set_direct_landy_double(Some(false))` was two writes: select the
+    // `DirectLandy` system (still a cell) and store `direct_landy_four_four`.
+    let prev = notrump_defense();
+    set_notrump_defense(NotrumpDefense::DirectLandy);
+    let mut arm = Agreements::current();
+    arm.defense.direct_landy_four_four = false; // 5-4
+    arm.defense.direct_landy_double_floor = 8; // low floor so these 10-14 hands fire the X
 
     // Both majors 5-4 → X (the both-majors takeout double), from the book.
-    let (dbl, floored) = best_call(&[nt], "AJ32.KQ876.32.32");
+    let (dbl, floored) = best_call_with(&arm, &[nt], "AJ32.KQ876.32.32");
     // 15+ balanced has no penalty double now → Pass.
-    let (pass, _) = best_call(&[nt], "AKQ2.KQ2.KJ2.432");
+    let (pass, _) = best_call_with(&arm, &[nt], "AKQ2.KQ2.KJ2.432");
     // Advancer, equal majors and weak → 2♦ relay ("pick a major").
-    let (relay, relay_floored) = best_call(&[nt, x, p], "Q32.Q43.J432.432");
+    let (relay, relay_floored) = best_call_with(&arm, &[nt, x, p], "Q32.Q43.J432.432");
     // They double the artificial relay → doubler still names the longer major
     // (5-4 hearts → 2♥), never sits in the short-diamond 2♦x misfit.
-    let (named, named_floored) = best_call(&[nt, x, p, d2, x], "AJ32.KQ876.32.32");
+    let (named, named_floored) = best_call_with(&arm, &[nt, x, p, d2, x], "AJ32.KQ876.32.32");
     // They redouble our X.  Clean runout: equal majors / no suit → Pass = ask back
     // (the doubler will name its major), never the phantom 2♦ relay.
-    let (ask, ask_floored) = best_call(&[nt, x, xx], "Q32.Q43.J432.432");
+    let (ask, ask_floored) = best_call_with(&arm, &[nt, x, xx], "Q32.Q43.J432.432");
     // …and a long-club, short-major advancer escapes to its own 2♣ (to play) —
     // the club rung the two-level 2♣ over the redoubled 1NT gives us.
-    let (clubs, _) = best_call(&[nt, x, xx], "32.43.432.AKQ876");
+    let (clubs, _) = best_call_with(&arm, &[nt, x, xx], "32.43.432.AKQ876");
     // After the ask, the doubler names its five-card major.
-    let (named_xx, named_xx_floored) = best_call(&[nt, x, xx, p, p], "AJ32.KQ876.32.32");
+    let (named_xx, named_xx_floored) = best_call_with(&arm, &[nt, x, xx, p, p], "AJ32.KQ876.32.32");
     // After we name our major (via the undoubled relay) and they double it, SIT —
     // play 2♥x (our 5-4+ fit), never run to 3♦.  `(1NT) X - 2♦ (X) 2♥ (X) - -`.
     let sit_auction = [nt, x, p, d2, x, call(2, Strain::Hearts), x, p, p];
-    let (settle, settle_floored) = best_call(&sit_auction, "AJ32.KQ876.32.32");
+    let (settle, settle_floored) = best_call_with(&arm, &sit_auction, "AJ32.KQ876.32.32");
 
-    set_direct_landy_double(prev);
-    super::nt_landy::set_direct_landy_double_floor(prev_floor);
+    set_notrump_defense(prev);
     assert_eq!(ask, Call::Pass, "equal majors over XX → Pass = ask back");
     assert!(!ask_floored, "the ask-Pass must come from the book");
     assert_eq!(
@@ -103,26 +106,23 @@ fn direct_landy_penalty_pass_defends_1ntx() {
     let nt = call(1, Strain::Notrump);
     let p = Call::Pass;
     let x = Call::Double;
-    let agreements = Agreements::current();
-    let prev = super::nt_landy::direct_landy_double(&agreements);
-    let prev_pen = super::nt_landy::direct_landy_penalty_pass();
-    let prev_floor = super::nt_landy::direct_landy_double_floor();
-    set_direct_landy_double(Some(false)); // 5-4
-    super::nt_landy::set_direct_landy_double_floor(8); // floor 8 → penalty needs 22-8 = 14+
+    let prev = notrump_defense();
+    set_notrump_defense(NotrumpDefense::DirectLandy);
+    let mut without_pass = Agreements::current();
+    without_pass.defense.direct_landy_four_four = false; // 5-4
+    without_pass.defense.direct_landy_double_floor = 8; // floor 8 → penalty needs 22-8 = 14+
+    let mut with_pass = without_pass;
+    with_pass.defense.direct_landy_penalty_pass = true;
 
     // No major fit (2-2) + defensive values: with the knob OFF the advancer is
     // forced to bid (no Pass rule); with it ON it passes to defend 1NTx.
     let defensive = "AQ.KQ.QJ876.K432"; // 14 HCP, 2♠-2♥
-    super::nt_landy::set_direct_landy_penalty_pass(false);
-    let (forced, _) = best_call(&[nt, x, p], defensive);
-    super::nt_landy::set_direct_landy_penalty_pass(true);
-    let (penalty, pen_floored) = best_call(&[nt, x, p], defensive);
+    let (forced, _) = best_call_with(&without_pass, &[nt, x, p], defensive);
+    let (penalty, pen_floored) = best_call_with(&with_pass, &[nt, x, p], defensive);
     // A hand WITH a major fit still bids even with the knob on (not a penalty pass).
-    let (with_fit, _) = best_call(&[nt, x, p], "QJ32.K.QJ876.K43"); // 4 spades
+    let (with_fit, _) = best_call_with(&with_pass, &[nt, x, p], "QJ32.K.QJ876.K43"); // 4 spades
 
-    set_direct_landy_double(prev);
-    super::nt_landy::set_direct_landy_penalty_pass(prev_pen);
-    super::nt_landy::set_direct_landy_double_floor(prev_floor);
+    set_notrump_defense(prev);
     assert_ne!(forced, Call::Pass, "knob off: advancer is forced to bid");
     assert_eq!(
         penalty,

@@ -1,39 +1,11 @@
 //! Sohl after a takeout double — advancing partner's double of a weak two
 //!
 //! Their weak two steals the room a normal advance needs, so the `2NT` relay
-//! comes back: [`set_advance_sohl_style`] picks plain or transfer Sohl, and
+//! comes back: `agreements.defense.advance_sohl_style` picks plain or transfer Sohl, and
 //! [`sohl_rows_over`] emits the rows for whichever style is armed.  Shared by
 //! [`super::advance_double`] and [`super::gladiator`].
 
 use super::*;
-
-thread_local! {
-    /// Which sohl package the advancer carries after partner's takeout double of
-    /// a weak two (`(2X) X -`); see [`set_advance_sohl_style`].
-    static ADVANCE_SOHL: Cell<LebensohlStyle> = const { Cell::new(LebensohlStyle::Transfer) };
-}
-
-/// Select the sohl package the **advancer** carries after partner's takeout
-/// double of a weak two, for books built *after* this call (thread-local, read
-/// once at book-construction time)
-///
-/// Reuses [`LebensohlStyle`]: `Off` keeps the flat [`advance_double`] ladder;
-/// `Plain` adds the weak `2NT` relay vs a forcing 3-level suit; `Transfer` (the
-/// **default**) adds Larry Cohen's transfers-through + cue-Stayman, plus, over
-/// `(2♦)`, `3♣`-Stayman + Smolen + Leaping Michaels. The geometry matches Lebensohl
-/// after our overcalled `1NT` (the opponents' suit is at the two level in both),
-/// so the Section-5 builders are reused verbatim under the `(2X) X -` prefix.
-/// `Transfer` is the default because it is a clear perfect-defense win over the
-/// flat ladder (+0.145/+0.227 IMPs/board none/both, 200k filtered).
-/// See `docs/ai-bidder/21gf-ledger.md` for the full A/B numbers.
-pub fn set_advance_sohl_style(style: LebensohlStyle) {
-    ADVANCE_SOHL.with(|cell| cell.set(style));
-}
-
-/// The currently selected advance-of-double sohl package
-pub fn advance_sohl_style() -> LebensohlStyle {
-    ADVANCE_SOHL.with(Cell::get)
-}
 
 /// A Section-5 sohl structure for our side's advancer over a single
 /// interfering suit `over`, hung off the auction-string `base` (a three-call

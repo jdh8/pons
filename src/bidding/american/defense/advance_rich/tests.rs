@@ -1,4 +1,5 @@
-use super::super::tests::{best_call, call};
+use super::super::tests::{best_call_with, call};
+use crate::bidding::agreements::Agreements;
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::{Hand, Strain};
 
@@ -10,22 +11,22 @@ fn longest_first_advance_bids_the_longer_suit() {
     // weight climbs with length and the longer diamonds win the advance.
     let over_1c = [call(1, Strain::Clubs), Call::Double, Call::Pass];
     let hand = "KJ32.32.K8765.32"; // 4 spades, 5 diamonds
-    super::advance_rich::set_rich_advance_double(false);
-    super::set_longest_first_advance(false);
-    let (flat, _) = best_call(&over_1c, hand);
+    let mut flat_book = Agreements::current();
+    flat_book.defense.rich_advance_double_enabled = false;
+    flat_book.defense.longest_first_advance_enabled = false;
+    let (flat, _) = best_call_with(&flat_book, &over_1c, hand);
     assert_eq!(
         flat,
         call(1, Strain::Spades),
         "flat advance bids the higher-ranking 4-card major",
     );
 
-    super::set_longest_first_advance(true);
-    let (longest, floored) = best_call(&over_1c, hand);
+    let mut longest_book = flat_book;
+    longest_book.defense.longest_first_advance_enabled = true;
+    let (longest, floored) = best_call_with(&longest_book, &over_1c, hand);
     // Equal-length ties still break to the higher-ranking suit: 4-4 majors → 1♠
     // (the flat book has no invitational jump; the rich book would jump to 2M).
-    let (tie, _) = best_call(&over_1c, "KJ32.KQ32.543.32");
-    super::set_longest_first_advance(true); // restore defaults
-    super::advance_rich::set_rich_advance_double(true);
+    let (tie, _) = best_call_with(&longest_book, &over_1c, "KJ32.KQ32.543.32");
 
     assert_eq!(
         longest,
@@ -49,27 +50,24 @@ fn longest_first_advance_governs_the_rich_book() {
     // weak natural suit and the forced-when-broke suit both go longest-first.
     let over_1c = [call(1, Strain::Clubs), Call::Double, Call::Pass];
     let over_1h = [call(1, Strain::Hearts), Call::Double, Call::Pass];
-    super::advance_rich::set_rich_advance_double(true);
-    super::set_longest_first_advance(false);
+    let mut flat = Agreements::current();
+    flat.defense.rich_advance_double_enabled = true;
+    flat.defense.longest_first_advance_enabled = false;
+    let mut longest = flat;
+    longest.defense.longest_first_advance_enabled = true;
 
     // Weak two-suiter (7 HCP, 4 spades + 5 diamonds): flat rich advances the
     // higher-ranking 1♠, longest-first advances the longer 1♦.
     let two_suiter = "KJ32.32.K8765.32";
-    let (flat_weak, _) = best_call(&over_1c, two_suiter);
-    super::set_longest_first_advance(true);
-    let (longest_weak, _) = best_call(&over_1c, two_suiter);
-    super::set_longest_first_advance(false);
+    let (flat_weak, _) = best_call_with(&flat, &over_1c, two_suiter);
+    let (longest_weak, _) = best_call_with(&longest, &over_1c, two_suiter);
 
     // Forced bust (0 HCP, no 4-card suit outside their hearts): flat rich is
     // forced by the argmax into the higher-level 2♦; longest-first prefers the
     // higher-ranking — and cheaper — 1♠ among the equal 3-card suits.
     let bust = "432.5432.432.432";
-    let (flat_forced, _) = best_call(&over_1h, bust);
-    super::set_longest_first_advance(true);
-    let (longest_forced, floored) = best_call(&over_1h, bust);
-
-    super::set_longest_first_advance(true); // restore defaults
-    super::advance_rich::set_rich_advance_double(true);
+    let (flat_forced, _) = best_call_with(&flat, &over_1h, bust);
+    let (longest_forced, floored) = best_call_with(&longest, &over_1h, bust);
 
     assert_eq!(
         flat_weak,
@@ -98,77 +96,81 @@ fn longest_first_advance_governs_the_rich_book() {
 }
 
 /// The weak sit yields to a 4-card unbid major under
-/// [`set_advance_pass_yield_major`]: below the cue band the trump stack
-/// bids the ladder; a 10+ hand or a majorless one sits as before.
+/// `agreements.defense.advance_pass_yield_major_enabled`: below the cue band
+/// the trump stack bids the ladder; a 10+ hand or a majorless one sits as
+/// before.
 #[test]
 fn advance_pass_yields_to_a_major_only_when_weak() {
     let over_1c = [call(1, Strain::Clubs), Call::Double, Call::Pass];
-    super::advance_rich::set_rich_advance_double(true);
-    super::set_longest_first_advance(true);
+    let mut base = Agreements::current();
+    base.defense.rich_advance_double_enabled = true;
+    base.defense.longest_first_advance_enabled = true;
 
     // 4 HCP, five clubs, four spades: sits by default...
     let stack = "KJ32.32.32.87654";
-    let (sit, _) = best_call(&over_1c, stack);
+    let (sit, _) = best_call_with(&base, &over_1c, stack);
     assert_eq!(sit, Call::Pass, "default: the weak stack sits");
 
-    super::set_advance_pass_yield_major(true);
+    let mut yield_major = base;
+    yield_major.defense.advance_pass_yield_major_enabled = true;
     // ...but yields to the spade major under the knob.
-    let (yielded, _) = best_call(&over_1c, stack);
+    let (yielded, _) = best_call_with(&yield_major, &over_1c, stack);
     assert_eq!(yielded, call(1, Strain::Spades), "yield: bid the major");
 
     // A cue-band sit (10 HCP) stands...
-    let (strong, _) = best_call(&over_1c, "QJ32.Q32.2.KQ654");
+    let (strong, _) = best_call_with(&yield_major, &over_1c, "QJ32.Q32.2.KQ654");
     assert_eq!(strong, Call::Pass, "strong sit stands");
 
     // ...and so does a weak sit with no 4-card major.
-    let (majorless, _) = best_call(&over_1c, "32.432.32.KJ8765");
+    let (majorless, _) = best_call_with(&yield_major, &over_1c, "32.432.32.KJ8765");
     assert_eq!(majorless, Call::Pass, "majorless sit stands");
 
     // The flat book folds the same yield.
-    super::advance_rich::set_rich_advance_double(false);
-    let (flat, _) = best_call(&over_1c, "J432.32.32.KQ654");
+    let mut flat_yield = yield_major;
+    flat_yield.defense.rich_advance_double_enabled = false;
+    let (flat, _) = best_call_with(&flat_yield, &over_1c, "J432.32.32.KQ654");
     assert_eq!(flat, call(1, Strain::Spades), "flat book yields too");
-
-    super::advance_rich::set_rich_advance_double(true);
-    super::set_advance_pass_yield_major(false);
 }
 
-/// The 4-card sit's quality gate under [`set_advance_sit_hcp_gate`]:
-/// `Some(5)` admits exactly AJxx (KJTx still advances), `Some(6)` drops
-/// bare KQxx but keeps KQJx, and `None` keeps the shipped honor gate.
+/// The 4-card sit's quality gate under
+/// `agreements.defense.advance_sit_hcp_gate`: `Some(5)` admits exactly AJxx
+/// (KJTx still advances), `Some(6)` drops bare KQxx but keeps KQJx, and `None`
+/// keeps the shipped honor gate.
 #[test]
 fn advance_sit_hcp_gate_reshapes_the_4card_sit() {
     let over_1c = [call(1, Strain::Clubs), Call::Double, Call::Pass];
-    super::advance_rich::set_rich_advance_double(true);
+    let mut honor_gate = Agreements::current();
+    honor_gate.defense.rich_advance_double_enabled = true;
 
     // AJxx: 5 suit HCP but one top honor — forced 1♦ by default...
     let ajxx = "432.432.432.AJ32";
-    let (default, _) = best_call(&over_1c, ajxx);
+    let (default, _) = best_call_with(&honor_gate, &over_1c, ajxx);
     assert_eq!(default, call(1, Strain::Diamonds), "default: AJxx advances");
 
     // ...sits under the 5+ floor...
-    super::advance_rich::set_advance_sit_hcp_gate(Some(5));
-    let (sits, _) = best_call(&over_1c, ajxx);
+    let mut five = honor_gate;
+    five.defense.advance_sit_hcp_gate = Some(5);
+    let (sits, _) = best_call_with(&five, &over_1c, ajxx);
     assert_eq!(sits, Call::Pass, "5+ floor: AJxx sits");
 
     // ...while KJTx (4) still advances.
-    let (kjtx, _) = best_call(&over_1c, "432.432.432.KJT2");
+    let (kjtx, _) = best_call_with(&five, &over_1c, "432.432.432.KJT2");
     assert_eq!(kjtx, call(1, Strain::Diamonds), "5+ floor: KJTx advances");
 
     // The 6+ floor drops bare KQxx (5) but keeps KQJx (6).
-    super::advance_rich::set_advance_sit_hcp_gate(Some(6));
-    let (kqxx, _) = best_call(&over_1c, "432.432.432.KQ32");
+    let mut six = honor_gate;
+    six.defense.advance_sit_hcp_gate = Some(6);
+    let (kqxx, _) = best_call_with(&six, &over_1c, "432.432.432.KQ32");
     assert_eq!(
         kqxx,
         call(1, Strain::Diamonds),
         "6+ floor: bare KQxx advances"
     );
-    let (kqjx, _) = best_call(&over_1c, "432.432.432.KQJ2");
+    let (kqjx, _) = best_call_with(&six, &over_1c, "432.432.432.KQJ2");
     assert_eq!(kqjx, Call::Pass, "6+ floor: KQJx sits");
 
-    // Back to the honor gate: bare KQxx sits as shipped.
-    super::advance_rich::set_advance_sit_hcp_gate(None);
-    let (shipped, _) = best_call(&over_1c, "432.432.432.KQ32");
+    // Back to the honor gate (`None`): bare KQxx sits as shipped.
+    let (shipped, _) = best_call_with(&honor_gate, &over_1c, "432.432.432.KQ32");
     assert_eq!(shipped, Call::Pass, "honor gate: KQxx sits");
 }
 
@@ -226,12 +228,13 @@ fn rich_advance_double_cues_and_forces() {
     // still bid (a takeout double cannot be passed for want of a call).
     let broke = "xxx.xxxx.xxx.xxx";
 
-    super::advance_rich::set_rich_advance_double(true);
-    let (cued, _) = best_call(&auction, force);
-    let (forced, _) = best_call(&auction, broke);
-    super::advance_rich::set_rich_advance_double(false);
-    let (flat_force, _) = best_call(&auction, force);
-    super::advance_rich::set_rich_advance_double(true); // restore default
+    let mut rich = Agreements::current();
+    rich.defense.rich_advance_double_enabled = true;
+    let mut flat = rich;
+    flat.defense.rich_advance_double_enabled = false;
+    let (cued, _) = best_call_with(&rich, &auction, force);
+    let (forced, _) = best_call_with(&rich, &auction, broke);
+    let (flat_force, _) = best_call_with(&flat, &auction, force);
 
     assert_eq!(
         cued,
@@ -269,10 +272,10 @@ fn advance_cue_rebid_forces_or_invites() {
     // 10 HCP with 3 spades: mere invite — partner showed a minimum, so stop.
     let invite = "Axx.xxx.AJxx.xxx";
 
-    super::advance_rich::set_rich_advance_double(true);
-    let (driven, _) = best_call(&auction, force);
-    let (rested, _) = best_call(&auction, invite);
-    super::advance_rich::set_rich_advance_double(true); // restore default
+    let mut rich = Agreements::current();
+    rich.defense.rich_advance_double_enabled = true;
+    let (driven, _) = best_call_with(&rich, &auction, force);
+    let (rested, _) = best_call_with(&rich, &auction, invite);
 
     assert_eq!(
         driven,
@@ -298,9 +301,9 @@ fn rich_advance_weak_shapely_blasts_game() {
     // opposite a takeout double the shapely hand belongs in 4♥.
     let weak = "T3.AT9753.5.KQT7";
 
-    super::advance_rich::set_rich_advance_double(true);
-    let (blast, _) = best_call(&auction, weak);
-    super::advance_rich::set_rich_advance_double(true); // restore default
+    let mut rich = Agreements::current();
+    rich.defense.rich_advance_double_enabled = true;
+    let (blast, _) = best_call_with(&rich, &auction, weak);
 
     assert_eq!(
         blast,

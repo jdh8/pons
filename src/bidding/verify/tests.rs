@@ -229,7 +229,8 @@ fn projection_contains_every_accepted_hand() {
 #[test]
 fn projection_reproduces_the_declarative_readers() {
     use crate::american;
-    use crate::bidding::american::{set_landy, set_leaping_michaels};
+    use crate::bidding::agreements::Agreements;
+    use crate::bidding::american::set_landy;
     use crate::bidding::inference::{Inferences, Range, Relative, authored_reading};
     use contract_bridge::auction::{Call, RelativeVulnerability};
     use contract_bridge::{Bid, Level, Strain};
@@ -244,8 +245,12 @@ fn projection_reproduces_the_declarative_readers() {
 
     // Project and read on the same prefixed context; assert the projection pass
     // pins the reader's exact ranges on the convention's signature seat.
-    let agree = |auction: &[Call], who: Relative, suits: &[(Suit, Range)], points: Range| {
-        let stance = american(&crate::bidding::agreements::Agreements::current()).against();
+    let agree = |agreements: &Agreements,
+                 auction: &[Call],
+                 who: Relative,
+                 suits: &[(Suit, Range)],
+                 points: Range| {
+        let stance = american(agreements).against();
         let ctx = stance.prefixed_context(RelativeVulnerability::NONE, auction);
         let reader = *Inferences::read(&ctx).get(who);
         let projected = *authored_reading(&ctx).get(who);
@@ -274,6 +279,7 @@ fn projection_reproduces_the_declarative_readers() {
     // Jacoby transfer to hearts (on by default): `1NT - 2♦ - 2♥ -`, the
     // responder is Me at length 6; the 2♦ rule is `len(♥,5..) & …`.
     agree(
+        &Agreements::current(),
         &[
             bid(1, Strain::Notrump),
             Call::Pass,
@@ -289,8 +295,10 @@ fn projection_reproduces_the_declarative_readers() {
 
     // Leaping Michaels: (2♥) 4♣ - = clubs + the other major (spades), 14+;
     // partner at length 3.  `len(♣,5..) & len(♠,5..) & points(14..)`.
-    set_leaping_michaels(true);
+    let mut leaping = Agreements::current();
+    leaping.defense.leaping_michaels_enabled = true;
     agree(
+        &leaping,
         &[bid(2, Strain::Hearts), bid(4, Strain::Clubs), Call::Pass],
         Relative::Partner,
         &[
@@ -299,12 +307,14 @@ fn projection_reproduces_the_declarative_readers() {
         ],
         Range::new(14, 37),
     );
-    set_leaping_michaels(false);
 
     // Landy: (1NT) 2♣ - = both majors, at least 4-4, 8+; partner at length 3.
     // `((len(♥,5..)&len(♠,4..)) | (len(♥,4..)&len(♠,5..))) & points(8..)`.
     set_landy(Some((8, 15)));
+    let mut landy = Agreements::current();
+    landy.defense.leaping_michaels_enabled = false;
     agree(
+        &landy,
         &[bid(1, Strain::Notrump), bid(2, Strain::Clubs), Call::Pass],
         Relative::Partner,
         &[
@@ -314,5 +324,4 @@ fn projection_reproduces_the_declarative_readers() {
         Range::new(8, 37),
     );
     set_landy(None);
-    set_leaping_michaels(true);
 }

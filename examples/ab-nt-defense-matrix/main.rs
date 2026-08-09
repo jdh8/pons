@@ -52,12 +52,8 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, Bid, Contract, FullDeal, Hand, Seat, Strain, Suit};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::agreements::{Agreements, CompetitionKnobs};
-use pons::bidding::american::{
-    DoubleStyle, NotrumpDefense, set_direct_dont_one_suiter_min, set_direct_dont_x_floor,
-    set_direct_landy_double, set_landy, set_meckwell_minor_major_44, set_meckwell_x_floor,
-    set_meckwell_x_four_four, set_notrump_defense, set_unusual_notrump_defense,
-};
+use pons::bidding::agreements::{Agreements, CompetitionKnobs, DefenseKnobs};
+use pons::bidding::american::{DoubleStyle, NotrumpDefense, set_landy, set_notrump_defense};
 use pons::bidding::context::relative;
 use pons::bidding::instinct::{set_one_nt_runout, set_one_nt_runout_universal};
 use pons::bidding::{Inferences, Stance};
@@ -124,61 +120,71 @@ struct Args {
     sd_worlds: usize,
 }
 
-/// Reset every defense knob (row axis) to the shipped default, so a book build
-/// never inherits a previous build's setting.
+/// The two knob areas the matrix moves that are fields of the [`Agreements`]
+/// rather than cells: our defense over their 1NT (rows) and their counters
+/// (columns).  Each build starts them from `default()`, so nothing leaks between
+/// builds and a `configure` closure edits only what its cell names.
+struct Knobs {
+    competition: CompetitionKnobs,
+    defense: DefenseKnobs,
+}
+
+/// Reset every ambient defense cell (row axis) to the shipped default, so a book
+/// build never inherits a previous build's setting.
 ///
-/// The column axis (their counters) lives in [`CompetitionKnobs`], which each
-/// build starts from `default()` — nothing to reset there.
+/// The per-family payloads live in [`DefenseKnobs`] now and the column axis in
+/// [`CompetitionKnobs`]; both start each build from `default()`, so only the
+/// cells need resetting here.
 fn reset_knobs() {
     // Row axis — our defense over their 1NT.  One cell holds the system, so one
-    // write resets the whole family; only the per-family payloads need their own.
+    // write resets the whole family, Direct Landy included; its four-four shape
+    // payload is `defense.direct_landy_four_four`, reset with the rest of the
+    // value below.
     set_notrump_defense(NotrumpDefense::Natural);
-    set_direct_dont_one_suiter_min(5);
-    set_direct_dont_x_floor(0);
-    set_meckwell_minor_major_44(false);
-    set_meckwell_x_four_four(true);
-    set_meckwell_x_floor(0);
     set_landy(None);
-    set_unusual_notrump_defense(Some((8, 13)));
-    set_direct_landy_double(None);
     set_column_flags(0);
 }
 
 /// Build the four row books (our defense menu) and four column books (their
-/// counter menu).  The row knobs are still thread-local and read at
-/// book-construction time, so each build resets them first; the column knobs are
-/// fields of the [`Agreements`] the build is handed, edited from `default()`.
+/// counter menu).  The family and runout knobs are still thread-local and read
+/// at book-construction time, so each build resets them first and captures after
+/// `configure`; the rest are fields of the [`Agreements`] the build is handed,
+/// edited from `default()`.
 fn build_books() -> (Vec<Stance>, Vec<Stance>) {
-    let build = |configure: &dyn Fn(&mut CompetitionKnobs)| {
+    let build = |configure: &dyn Fn(&mut Knobs)| {
         reset_knobs();
-        let mut competition = CompetitionKnobs::default();
-        configure(&mut competition);
+        let mut knobs = Knobs {
+            competition: CompetitionKnobs::default(),
+            defense: DefenseKnobs::default(),
+        };
+        configure(&mut knobs);
         // The cells `configure` may have written are read here, after the write.
         let mut agreements = Agreements::current();
-        agreements.competition = competition;
+        agreements.competition = knobs.competition;
+        agreements.defense = knobs.defense;
         american(&agreements).against()
     };
     // The DONT parity config (docs/ai-bidder/1nt-defense-dont.md): 6+ one-suiter
     // minimum; DONT owns 2♣/2NT, so it carries its own both-minors band.  The
     // `x_floor` variant raises only the one-suiter X floor (strong doubles only).
     let dont = |x_floor: u8| {
-        move |_: &mut CompetitionKnobs| {
+        move |k: &mut Knobs| {
             set_notrump_defense(NotrumpDefense::DirectDont);
-            set_direct_dont_one_suiter_min(6);
-            set_direct_dont_x_floor(x_floor);
-            set_unusual_notrump_defense(Some((8, 14)));
+            k.defense.direct_dont_one_suiter_min = 6;
+            k.defense.direct_dont_x_floor = x_floor;
+            k.defense.unusual_notrump_range = Some((8, 14));
         }
     };
     // Meckwell: two-way X (single 6+ minor OR both majors), 2♣/2♦ = minor + a major,
     // 2♥/2♠ natural, 2NT = both minors.  Default probe config (5-4 minor+major, 4-4
     // X); the `x_floor` variant raises only the broad two-way X floor.
     let meckwell = |x_floor: u8| {
-        move |_: &mut CompetitionKnobs| {
+        move |k: &mut Knobs| {
             set_notrump_defense(NotrumpDefense::Meckwell);
-            set_unusual_notrump_defense(Some((8, 14)));
-            set_meckwell_minor_major_44(false);
-            set_meckwell_x_four_four(true);
-            set_meckwell_x_floor(x_floor);
+            k.defense.unusual_notrump_range = Some((8, 14));
+            k.defense.meckwell_minor_major_44 = false;
+            k.defense.meckwell_x_four_four = true;
+            k.defense.meckwell_x_floor = x_floor;
         }
     };
     let rows = vec![
@@ -186,10 +192,10 @@ fn build_books() -> (Vec<Stance>, Vec<Stance>) {
         build(&|_| ()),   // natural: the shipped default defense
         build(&dont(0)),  // DONT(6+): X floor inherits the natural 8
         build(&dont(12)), // DONT(6+,X12): strong one-suiter doubles only
-        build(&|_| {
+        build(&|k| {
             // Woolsey owns every direct call over their 1NT.
             set_notrump_defense(NotrumpDefense::Woolsey);
-            set_unusual_notrump_defense(None);
+            k.defense.unusual_notrump_range = None;
         }),
         build(&meckwell(0)),  // Meckwell: X floor inherits the natural 8
         build(&meckwell(12)), // Meck(X12): Woolsey-strength two-way double
@@ -197,12 +203,12 @@ fn build_books() -> (Vec<Stance>, Vec<Stance>) {
     ];
     let cols = vec![
         build(&|_| ()),
-        build(&|c| c.double_style = DoubleStyle::Penalty),
-        build(&|c| {
+        build(&|k| k.competition.double_style = DoubleStyle::Penalty),
+        build(&|k| {
             // Soft: never penalizes our interference.
-            c.double_style = DoubleStyle::Takeout;
-            c.trap_pass = false;
-            c.penalty_pass = None;
+            k.competition.double_style = DoubleStyle::Takeout;
+            k.competition.trap_pass = false;
+            k.competition.penalty_pass = None;
         }),
         // Sit: the runout flags are the only difference, and they are captured
         // into the stance at build like every other knob.

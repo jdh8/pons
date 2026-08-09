@@ -45,9 +45,9 @@ use super::*;
 /// reverted to Natural *only if that system was the active one*, so a harness
 /// resetting by calling every `set_*(false)` got an order-dependent result — and
 /// keeping them let `bba-gen` and `ab-landy` re-implement the very cascade this
-/// cell deleted.  The `DirectLandy` payload keeps a setter
-/// ([`set_direct_landy_double`]) because the flat-4-4 flag has no meaning
-/// without the double it configures.
+/// cell deleted.  The `DirectLandy` payload rides on
+/// `agreements.defense.direct_landy_four_four`, since the flat-4-4 flag has no
+/// meaning without the double it configures.
 #[derive(Clone, Copy, PartialEq, Eq, Default, Debug)]
 pub enum NotrumpDefense {
     /// Natural one-suiter defense: penalty `X` + the four natural two-level overcalls
@@ -62,7 +62,7 @@ pub enum NotrumpDefense {
     /// `2♦` = Multi, `2♥`/`2♠` = Muiderberg).
     Woolsey,
     /// Direct-seat both-majors takeout `X` (Landy-style); the 5-4-vs-4-4 shape flag
-    /// lives in `DIRECT_LANDY_FOUR_FOUR`.
+    /// lives in `agreements.defense.direct_landy_four_four`.
     DirectLandy,
     /// Author only `Pass` for every hand — our side never competes.
     AlwaysPass,
@@ -88,29 +88,10 @@ pub fn notrump_defense() -> NotrumpDefense {
     NOTRUMP_DEFENSE.with(Cell::get)
 }
 
-thread_local! {
-    /// Whether to also author the natural defense in the *balancing* seat
-    /// `(1NT) - - ?`; **off by default** (opt-in A/B). Off leaves the balancing
-    /// seat to the instinct floor — the source of the toxic balancing doubles.
-    static NOTRUMP_BALANCING: Cell<bool> = const { Cell::new(false) };
-}
-
 /// Whether the natural one-suiter defense is currently the active system
 #[allow(dead_code)]
 pub(super) fn natural_defense_enabled(agreements: &Agreements) -> bool {
     agreements.decision.reading.notrump_defense() == NotrumpDefense::Natural
-}
-
-/// Extend the natural 1NT defense to the *balancing* seat `(1NT) - - ?` for books
-/// built *after* this call (thread-local; **off by default**). On, the balancing
-/// seat reuses `defense_to_notrump` instead of falling to the instinct floor's
-/// undisciplined balancing doubles. An A/B knob (`bba-match --ns-balancing`).
-pub fn set_notrump_balancing(on: bool) {
-    NOTRUMP_BALANCING.with(|cell| cell.set(on));
-}
-
-pub(super) fn notrump_balancing_enabled() -> bool {
-    NOTRUMP_BALANCING.with(Cell::get)
 }
 
 // Each artificial block is a one-rule `Rules` lifting today's cascade verbatim
@@ -119,7 +100,7 @@ pub(super) fn notrump_balancing_enabled() -> bool {
 // band on a gated-out block never reaches the trie).
 
 /// Unusual `2NT`: both minors, 5-5, on its own range (raw HCP or points per
-/// [`set_landy_hcp`]).  Additive — compatible with every system.
+/// `agreements.defense.landy_use_hcp`).  Additive — compatible with every system.
 fn unusual_2nt(agreements: &Agreements) -> Rules {
     let (lo, hi) = agreements.defense.unusual_notrump_range.unwrap_or((0, 37));
     let shape = len(Suit::Clubs, 5..) & len(Suit::Diamonds, 5..);

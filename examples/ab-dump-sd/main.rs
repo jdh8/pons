@@ -32,10 +32,7 @@ use clap::Parser;
 use contract_bridge::auction::Auction;
 use contract_bridge::{AbsoluteVulnerability, Contract, Seat};
 use pons::american;
-use pons::bidding::american::{
-    FreeBidStyle, NegativeDoubleShape, set_natural_overcall_points,
-    set_two_level_minor_overcall_tight, set_weak_two_notrump_advances, set_weak_two_notrump_points,
-};
+use pons::bidding::american::{FreeBidStyle, NegativeDoubleShape, set_natural_overcall_points};
 use pons::bidding::context::relative;
 use pons::bidding::{Inferences, Stance};
 use pons::scoring::{final_contract, imps, ns_score_pd_tricks, ns_score_tricks};
@@ -93,7 +90,7 @@ struct Args {
     #[arg(long, default_value_t = 6)]
     on_ns_free_1nt_floor: u8,
     /// Read the ON arm's auctions with the 2-level minor overcall tightened to
-    /// 15+ (`set_two_level_minor_overcall_tight`)
+    /// 15+ (`defense.two_level_minor_overcall_tight`)
     #[arg(long, default_value_t = false)]
     on_ns_two_level_minor_overcall_tight: bool,
     /// Read the ON arm's auctions with this natural 1NT-defense suit-overcall
@@ -105,7 +102,7 @@ struct Args {
     #[arg(long, default_value = "8:14")]
     off_ns_overcall: String,
     /// Read the ON arm's auctions with this `hcp` band `LO:HI` on the 2NT
-    /// overcall of their weak two (`set_weak_two_notrump_points`; same reason
+    /// overcall of their weak two (`defense.weak_two_notrump_points`; same reason
     /// as `--on-ns-overcall` — the leader must know which band bid 2NT)
     #[arg(long, default_value = "16:17")]
     on_ns_weak_two_nt_points: String,
@@ -113,7 +110,7 @@ struct Args {
     #[arg(long, default_value = "16:17")]
     off_ns_weak_two_nt_points: String,
     /// Read the ON arm's auctions with the Gladiator advances of that 2NT
-    /// authored (`set_weak_two_notrump_advances`), which is what makes `3♣`
+    /// authored (`defense.weak_two_notrump_advances_enabled`), which is what makes `3♣`
     /// a relay rather than natural to the leader
     #[arg(long, default_value_t = false)]
     on_ns_weak_two_nt_advances: bool,
@@ -173,7 +170,6 @@ fn main() {
         "transfer" => FreeBidStyle::Transfer,
         other => panic!("unknown free-bid style {other}"),
     };
-    set_two_level_minor_overcall_tight(args.on_ns_two_level_minor_overcall_tight);
     let band = |spec: &str| -> (u8, u8) {
         spec.split_once(':')
             .and_then(|(lo, hi)| Some((lo.parse().ok()?, hi.parse().ok()?)))
@@ -181,29 +177,29 @@ fn main() {
     };
     let (lo, hi) = band(&args.on_ns_overcall);
     set_natural_overcall_points(lo, hi);
-    let (lo, hi) = band(&args.on_ns_weak_two_nt_points);
-    set_weak_two_notrump_points(lo, hi);
-    set_weak_two_notrump_advances(args.on_ns_weak_two_nt_advances);
-    // The competitive knobs are fields of the value now; the cells above are
-    // still ambient, so each arm captures *after* its own writes.
+    // The competitive and defensive knobs are fields of the value now; the
+    // natural-overcall band is still an ambient cell, so each arm captures
+    // *after* its own write.
     let mut on_arm = pons::bidding::agreements::Agreements::current();
     on_arm.competition.free_bids = args.on_ns_free_bids;
     on_arm.competition.negative_double_shape = shape(&args.on_ns_negative_double_shape);
     on_arm.competition.free_bid_style = style(&args.on_ns_free_bid_style);
     on_arm.competition.free_1nt_floor = args.on_ns_free_1nt_floor;
+    on_arm.defense.two_level_minor_overcall_tight = args.on_ns_two_level_minor_overcall_tight;
+    on_arm.defense.weak_two_notrump_points = band(&args.on_ns_weak_two_nt_points);
+    on_arm.defense.weak_two_notrump_advances_enabled = args.on_ns_weak_two_nt_advances;
     let stance_on = american(&on_arm).against();
-    set_two_level_minor_overcall_tight(false);
     let (lo, hi) = band(&args.off_ns_overcall);
     set_natural_overcall_points(lo, hi);
-    let (lo, hi) = band(&args.off_ns_weak_two_nt_points);
-    set_weak_two_notrump_points(lo, hi);
-    set_weak_two_notrump_advances(args.off_ns_weak_two_nt_advances);
     // The OFF arm is the shipped pole, spelled out rather than inherited.
     let mut off_arm = pons::bidding::agreements::Agreements::current();
     off_arm.competition.free_bids = false;
     off_arm.competition.negative_double_shape = NegativeDoubleShape::Modern;
     off_arm.competition.free_bid_style = FreeBidStyle::Forcing;
     off_arm.competition.free_1nt_floor = 6;
+    off_arm.defense.two_level_minor_overcall_tight = false;
+    off_arm.defense.weak_two_notrump_points = band(&args.off_ns_weak_two_nt_points);
+    off_arm.defense.weak_two_notrump_advances_enabled = args.off_ns_weak_two_nt_advances;
     let stance_off = american(&off_arm).against();
 
     let mut rng = StdRng::seed_from_u64(args.sd_seed);

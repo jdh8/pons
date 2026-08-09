@@ -84,25 +84,9 @@ pub use competition::{
 // Knobs the inference walk reads at classify time.
 pub use defense::{
     DoubleShape, NotrumpDefense, TakeoutSupport, advance_double, defense_to_suit,
-    defense_to_weak_two, set_advance_2nt_continuation, set_advance_minor_jump,
-    set_advance_pass_yield_major, set_advance_rubens, set_advance_sit_hcp_gate,
-    set_advance_sohl_style, set_diamond_transfer_defense, set_direct_dont_four_four,
-    set_direct_dont_one_suiter_min, set_direct_dont_x_floor, set_direct_landy_double,
-    set_direct_landy_double_floor, set_direct_landy_penalty_pass, set_doubled_landy_escape,
-    set_landy, set_landy_hcp, set_leaping_michaels, set_longest_first_advance,
-    set_meckwell_minor_major_44, set_meckwell_x_floor, set_meckwell_x_four_four,
-    set_minor_transfer_defense, set_natural_double_floor, set_natural_double_shape,
-    set_natural_double_weight, set_natural_overcall_points, set_notrump_balancing,
-    set_notrump_defense, set_nt_overcall_gladiator, set_nt_overcall_no_major,
-    set_nt_overcall_systems_on, set_overcall_discipline, set_overcall_four_card,
-    set_passed_hand_overcall, set_responsive_overcall, set_responsive_takeout,
-    set_rich_advance_double, set_stayman_defense, set_stayman_defense_overcall,
-    set_strong_double_hcp, set_takeout_support, set_transfer_defense,
-    set_two_level_minor_overcall_tight, set_two_suiter_hcp_floor, set_unusual_notrump_defense,
-    set_weak_two_cue, set_weak_two_jump_overcall, set_weak_two_notrump_advances,
-    set_weak_two_notrump_points, set_weak_two_notrump_shape, set_weak_two_overcall_discipline,
-    set_weak_two_overcall_points, set_weak_two_pass_gate, set_woolsey_double_floor,
-    set_woolsey_points,
+    defense_to_weak_two, set_landy, set_natural_double_floor, set_natural_overcall_points,
+    set_notrump_defense, set_nt_overcall_gladiator, set_nt_overcall_systems_on,
+    set_woolsey_double_floor, set_woolsey_points,
 };
 pub(crate) use defense::{
     direct_dont_enabled, landy_range, meckwell_enabled, natural_defense_enabled,
@@ -368,18 +352,8 @@ pub(in crate::bidding) fn book(agreements: &Agreements) -> Pair {
 
 #[cfg(test)]
 mod tests;
-pub use defense::advance_rubens_enabled;
-pub use defense::advance_sohl_style;
-pub use defense::direct_dont_four_four;
-pub use defense::leaping_michaels_enabled;
-pub use defense::minor_transfer_defense_enabled;
 pub use defense::notrump_defense;
 pub use defense::nt_overcall_gladiator;
-pub use defense::passed_hand_overcall;
-pub use defense::responsive_takeout_enabled;
-pub use defense::rich_advance_double_enabled;
-pub use defense::stayman_defense_enabled;
-pub use defense::transfer_defense_enabled;
 pub use notrump::crawling_stayman;
 pub use notrump::garbage_stayman;
 pub use notrump::notrump_minors;

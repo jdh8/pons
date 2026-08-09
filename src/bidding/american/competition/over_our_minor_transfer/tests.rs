@@ -1,4 +1,5 @@
-use super::super::tests::{best_call, bid_minor, call};
+use super::super::tests::{best_call_with, bid_minor, call};
+use crate::bidding::agreements::Agreements;
 use contract_bridge::Strain;
 use contract_bridge::auction::Call;
 
@@ -108,14 +109,14 @@ fn minor_overcalled_low_is_systems_off() {
 fn defense_to_their_minor_transfer_doubles_spades() {
     // After `(1NT) - (2♠)`, their 2♠ is a minor transfer; our fourth-hand X is
     // lead-directing in spades, the bid suit.
-    crate::bidding::american::set_minor_transfer_defense(true);
+    let mut arm = Agreements::current();
+    arm.defense.minor_transfer_defense_enabled = true;
     let auction = [
         call(1, Strain::Notrump),
         Call::Pass,
         call(2, Strain::Spades),
     ];
-    let (c, floored) = best_call(&auction, "KQJ54.A32.432.32");
-    crate::bidding::american::set_minor_transfer_defense(false); // restore default
+    let (c, floored) = best_call_with(&arm, &auction, "KQJ54.A32.432.32");
     assert_eq!(c, Call::Double);
     assert!(
         !floored,
@@ -126,14 +127,14 @@ fn defense_to_their_minor_transfer_doubles_spades() {
 #[test]
 fn defense_to_their_minor_transfer_cues_top_and_bottom() {
     // (1NT) - (2♠): 5 spades + 5 diamonds → 3♣ cue (top-and-bottom), beating the X.
-    crate::bidding::american::set_minor_transfer_defense(true);
+    let mut arm = Agreements::current();
+    arm.defense.minor_transfer_defense_enabled = true;
     let auction = [
         call(1, Strain::Notrump),
         Call::Pass,
         call(2, Strain::Spades),
     ];
-    let (c, floored) = best_call(&auction, "KQ1054.3.KJ1054.32");
-    crate::bidding::american::set_minor_transfer_defense(false); // restore default
+    let (c, floored) = best_call_with(&arm, &auction, "KQ1054.3.KJ1054.32");
     assert_eq!(c, call(3, Strain::Clubs));
     assert!(!floored, "the top-and-bottom cue must come from the book");
 }
@@ -141,14 +142,14 @@ fn defense_to_their_minor_transfer_cues_top_and_bottom() {
 #[test]
 fn defense_to_their_minor_transfer_two_notrump_is_reds() {
     // (1NT) - (2♠): 5 diamonds + 5 hearts → 2NT (the two lowest unbid suits).
-    crate::bidding::american::set_minor_transfer_defense(true);
+    let mut arm = Agreements::current();
+    arm.defense.minor_transfer_defense_enabled = true;
     let auction = [
         call(1, Strain::Notrump),
         Call::Pass,
         call(2, Strain::Spades),
     ];
-    let (c, floored) = best_call(&auction, "3.KQ1054.KJ1054.32");
-    crate::bidding::american::set_minor_transfer_defense(false); // restore default
+    let (c, floored) = best_call_with(&arm, &auction, "3.KQ1054.KJ1054.32");
     assert_eq!(c, call(2, Strain::Notrump));
     assert!(!floored, "the red two-suiter must come from the book");
 }
