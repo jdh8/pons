@@ -60,7 +60,7 @@ pub(crate) fn forcing_notrump_continuations() -> Package {
     Package {
         name: "forcing-notrump-continuations",
         gate: |_| true,
-        entries: |_| {
+        entries: |agreements| {
             let mut entries = Vec::new();
             for major in [Suit::Hearts, Suit::Spades] {
                 // Collect distinct rebid calls that take the shared two-level
@@ -69,7 +69,7 @@ pub(crate) fn forcing_notrump_continuations() -> Package {
                 // the knob-built source table rather than duplicating its
                 // filters in a row template.
                 let mut seen: Vec<Call> = Vec::new();
-                for rule in rebid_after_forcing_notrump(major).rules() {
+                for rule in rebid_after_forcing_notrump(major, agreements).rules() {
                     let rebid = rule.call();
                     if rebid != call(2, Strain::Notrump)
                         && !is_invitational_minor_jump(rebid)

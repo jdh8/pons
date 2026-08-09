@@ -55,8 +55,13 @@ pub(crate) fn opener_major_jump_rebid() -> bool {
 /// `major` is opener's opened suit and `highest` responder's call.  The jump
 /// `3M` sits above the `2M` minimum by weight, so only a 16+ hand takes it.
 /// Gated on [`set_opener_major_jump_rebid`].
-pub(super) fn with_major_jump_rebid(rules: Rules, major: Suit, highest: Bid) -> Rules {
-    if !opener_major_jump_rebid() {
+pub(super) fn with_major_jump_rebid(
+    rules: Rules,
+    major: Suit,
+    highest: Bid,
+    agreements: &Agreements,
+) -> Rules {
+    if !agreements.decision.reading.opener_major_jump_rebid() {
         return rules;
     }
     let trump = Strain::from(major);
@@ -93,7 +98,7 @@ fn responder_after_major_jump_rebid(major: Suit) -> Rules {
 pub(crate) fn major_jump_rebid_continuations() -> Package {
     Package {
         name: "major-jump-rebid-continuations",
-        gate: |_| opener_major_jump_rebid(),
+        gate: |a| a.decision.reading.opener_major_jump_rebid(),
         entries: |_| {
             let mut entries = expand(
                 "P* 1M - 1NT - 3M -",

@@ -21,7 +21,7 @@
 //! carries no phantom club suit, so the floor defends sanely.
 
 use super::call;
-use crate::bidding::agreements::Agreements;
+use crate::bidding::agreements::{Agreements, RebidKnobs};
 use crate::bidding::constraint::{balanced, len, points};
 use crate::bidding::rows::{Entry, Package, Pattern, compile_into, rows_of};
 use crate::bidding::{Alert, Rules, Trie};
@@ -79,7 +79,7 @@ pub fn set_xyz_invite_judgment(on: bool) {
     XYZ_INVITE_JUDGMENT.with(|cell| cell.set(on));
 }
 
-fn xyz_invite_judgment() -> bool {
+pub(super) fn xyz_invite_judgment() -> bool {
     XYZ_INVITE_JUDGMENT.with(Cell::get)
 }
 
@@ -180,8 +180,8 @@ fn xyz_after_relay(opening: Suit, response: Suit, rebid: Strain) -> Rules {
 /// Empty when [`set_xyz_invite_judgment`] is off: an all-−∞ table is the
 /// documented fall-through, so the node lands on the floor without the
 /// registration sites needing to know.
-fn accept_or_decline(game: Bid) -> Rules {
-    if !xyz_invite_judgment() {
+fn accept_or_decline(game: Bid, knobs: &RebidKnobs) -> Rules {
+    if !knobs.xyz_invite_judgment {
         return Rules::new();
     }
     Rules::new()
@@ -226,7 +226,7 @@ fn xyz_gf_answers(opening: Suit, response: Suit, rebid: Strain) -> Rules {
 }
 
 /// The XYZ tree under one `1x - 1y - 1z` prefix
-fn rows_for_prefix(opening: Suit, response: Suit, rebid: Strain) -> Vec<Entry> {
+fn rows_for_prefix(opening: Suit, response: Suit, rebid: Strain, knobs: &RebidKnobs) -> Vec<Entry> {
     let prefix = format!(
         "P* {} - {} - {} -",
         call(1, Strain::from(opening)),
@@ -265,7 +265,7 @@ fn rows_for_prefix(opening: Suit, response: Suit, rebid: Strain) -> Vec<Entry> {
     };
     if rebid.suit().is_some() {
         // Raise of opener's second-suit major → game in it.
-        accept(call(2, rebid), accept_or_decline(Bid::new(4, rebid)));
+        accept(call(2, rebid), accept_or_decline(Bid::new(4, rebid), knobs));
     }
     if response != Suit::Diamonds {
         // Responder's own-major invite → game with a third trump, else 3NT.
@@ -300,12 +300,12 @@ fn rows_for_prefix(opening: Suit, response: Suit, rebid: Strain) -> Vec<Entry> {
     for minor in [Suit::Clubs, Suit::Diamonds] {
         accept(
             call(3, Strain::from(minor)),
-            accept_or_decline(Bid::new(3, Strain::Notrump)),
+            accept_or_decline(Bid::new(3, Strain::Notrump), knobs),
         );
     }
     accept(
         call(2, Strain::Notrump),
-        accept_or_decline(Bid::new(3, Strain::Notrump)),
+        accept_or_decline(Bid::new(3, Strain::Notrump), knobs),
     );
 
     entries
@@ -320,9 +320,10 @@ fn rows_for_prefix(opening: Suit, response: Suit, rebid: Strain) -> Vec<Entry> {
 pub(super) fn package() -> Package {
     Package {
         name: "xyz",
-        gate: |_| xyz(),
-        entries: |_| {
-            let nmf = super::nmf::new_minor_forcing();
+        gate: |a| a.decision.reading.xyz(),
+        entries: |agreements| {
+            let knobs = &agreements.build.rebid;
+            let nmf = knobs.new_minor_forcing;
             let mut entries = Vec::new();
             for opening in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
                 for response in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
@@ -335,13 +336,14 @@ pub(super) fn package() -> Package {
                                 opening,
                                 response,
                                 Strain::from(higher),
+                                knobs,
                             ));
                         }
                     }
                     // The 1NT rebid: NMF claims the four minor-opening/
                     // major-response slots when on, otherwise XYZ as before.
                     if !(nmf && super::nmf::is_nmf_slot(opening, response)) {
-                        entries.extend(rows_for_prefix(opening, response, Strain::Notrump));
+                        entries.extend(rows_for_prefix(opening, response, Strain::Notrump, knobs));
                     }
                 }
             }

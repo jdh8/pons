@@ -376,7 +376,7 @@ fn nt_invite_hcp_gauges_the_no_fit_rung() {
 #[test]
 fn fourth_suit_forcing_rule_is_alerted() {
     set_fourth_suit_forcing(true);
-    let rules = responder_after_minor_rebid(Suit::Clubs);
+    let rules = responder_after_minor_rebid(Suit::Clubs, &RebidKnobs::current());
 
     let fsf_rule = rules
         .rules()

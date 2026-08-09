@@ -56,6 +56,8 @@ pub struct Build {
     pub opening: OpeningKnobs,
     /// How partner answers our one-level opening, and how the raises continue
     pub response: ResponseKnobs,
+    /// What opener rebids, and the checkback machinery over it
+    pub rebid: RebidKnobs,
 }
 
 impl Default for Build {
@@ -74,6 +76,7 @@ impl Build {
             notrump: super::american::notrump::capture(),
             opening: super::american::openings::capture(),
             response: super::american::responses::capture(),
+            rebid: super::american::rebids::capture(),
         }
     }
 }
@@ -511,6 +514,56 @@ impl ResponseKnobs {
     #[must_use]
     pub fn current() -> Self {
         super::american::responses::capture()
+    }
+}
+
+/// The rebid book's build-time knobs
+///
+/// Each field is one cell, named for the getter it replaces; *derived* readings
+/// stay functions of the module that owns them rather than becoming fields, so
+/// the "one cell, one home" invariant survives the move.  Three of the area's
+/// twelve cells are read at classify time as well — `opener_extras_ladder`,
+/// `opener_major_jump_rebid` and `xyz` — and so live only in `DecisionProfile`,
+/// deliberately absent here.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct RebidKnobs {
+    // --- rebids.rs
+    /// Rebid `1NT` rather than a natural `2m` on a balanced 12-14
+    pub balanced_1nt_rebid: bool,
+    // --- rebids/major_tails.rs
+    /// Author the full continuations after `1♥ - 1♠`
+    pub major_rebid_tails: bool,
+    /// Author fourth-suit forcing in the `1♥ - 1♠` tail
+    pub fourth_suit_forcing: bool,
+    /// Gauge responder's notrump invitation in raw HCP
+    pub nt_invite_hcp: bool,
+    // --- rebids/meckstroth.rs
+    /// Author the complete Meckstroth adjunct
+    pub meckstroth_adjunct: bool,
+    /// Author the adjunct's invitational `3m` jumps
+    pub meckstroth_minor_jumps: bool,
+    // --- rebids/two_suiter.rs
+    /// Author opener's two-suiter rebids over the forcing `1NT`
+    pub forcing_nt_two_suiter: bool,
+    // --- xyz.rs
+    /// Let opener judge the checkback invitation rather than falling to the floor
+    pub xyz_invite_judgment: bool,
+    // --- nmf.rs
+    /// Author New Minor Forcing on the four `1m - 1M - 1NT` slots
+    pub new_minor_forcing: bool,
+}
+
+impl Default for RebidKnobs {
+    fn default() -> Self {
+        Self::current()
+    }
+}
+
+impl RebidKnobs {
+    /// Capture this thread's rebid build-time knob state
+    #[must_use]
+    pub fn current() -> Self {
+        super::american::rebids::capture()
     }
 }
 

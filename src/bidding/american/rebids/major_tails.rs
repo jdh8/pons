@@ -29,7 +29,7 @@ pub fn set_major_rebid_tails(on: bool) {
 }
 
 /// Whether the major-rebid-tails adjunct is currently enabled
-fn major_rebid_tails() -> bool {
+pub(super) fn major_rebid_tails() -> bool {
     MAJOR_REBID_TAILS.with(Cell::get)
 }
 
@@ -90,7 +90,7 @@ pub fn set_nt_invite_hcp(on: bool) {
 }
 
 /// Whether the post-two-suit 2NT invite is HCP-gauged
-fn nt_invite_hcp() -> bool {
+pub(super) fn nt_invite_hcp() -> bool {
     NT_INVITE_HCP.with(Cell::get)
 }
 
@@ -203,10 +203,10 @@ fn opener_after_heart_invite() -> Rules {
 /// | 3NT  | 0.9  | Game with no fit found (13+) |
 /// | Pass | 0.0  | Minimum, nothing further |
 #[must_use]
-fn responder_after_minor_rebid(minor: Suit) -> Rules {
+fn responder_after_minor_rebid(minor: Suit, knobs: &RebidKnobs) -> Rules {
     let m = Strain::from(minor);
     let mut rules = Rules::new();
-    if minor == Suit::Clubs && fourth_suit_forcing() {
+    if minor == Suit::Clubs && knobs.fourth_suit_forcing {
         // Fourth-suit-forcing: an artificial game force.  Points-only on
         // purpose — the projection must claim nothing about diamond length.
         rules = rules
@@ -222,7 +222,7 @@ fn responder_after_minor_rebid(minor: Suit) -> Rules {
         .rule(Bid::new(3, m), 125, len(minor, 5..) & points(10..=12));
     // The one no-fit rung: HCP-gauged when `set_nt_invite_hcp` is armed (a
     // notrump invite takes no ruffs), else the shipped `points`.
-    rules = if nt_invite_hcp() {
+    rules = if knobs.nt_invite_hcp {
         rules.rule(Bid::new(2, Strain::Notrump), 120, hcp(10..=12))
     } else {
         rules.rule(Bid::new(2, Strain::Notrump), 120, points(10..=12))
@@ -334,8 +334,9 @@ fn responder_after_fourth_suit_answer() -> Rules {
 pub(crate) fn major_rebid_tail_continuations() -> Package {
     Package {
         name: "major-rebid-tail-continuations",
-        gate: |_| major_rebid_tails(),
-        entries: |_| {
+        gate: |a| a.build.rebid.major_rebid_tails,
+        entries: |agreements| {
+            let knobs = &agreements.build.rebid;
             let base = "P* 1♥ - 1♠ -";
             let mut entries = Vec::new();
 
@@ -383,7 +384,7 @@ pub(crate) fn major_rebid_tail_continuations() -> Package {
                 let after_minor = format!("{base} {} -", call(2, Strain::from(minor)));
                 entries.extend(rows_of(
                     Pattern::node(&after_minor),
-                    responder_after_minor_rebid(minor),
+                    responder_after_minor_rebid(minor, knobs),
                 ));
                 entries.extend(rows_of(
                     Pattern::node(&format!("{after_minor} 2NT -")),
@@ -405,15 +406,15 @@ pub(crate) fn major_rebid_tail_continuations() -> Package {
 }
 
 /// Whether the fourth-suit tail's nested pair of construction-time gates is on
-fn fourth_suit_forcing_continuations_enabled() -> bool {
-    major_rebid_tails() && fourth_suit_forcing()
+fn fourth_suit_forcing_continuations_enabled(knobs: &RebidKnobs) -> bool {
+    knobs.major_rebid_tails && knobs.fourth_suit_forcing
 }
 
 /// Opener's answers and responder's placements after fourth-suit forcing
 pub(crate) fn fourth_suit_forcing_continuations() -> Package {
     Package {
         name: "fourth-suit-forcing-continuations",
-        gate: |_| fourth_suit_forcing_continuations_enabled(),
+        gate: |a| fourth_suit_forcing_continuations_enabled(&a.build.rebid),
         entries: |_| {
             let prefix = "P* 1♥ - 1♠ - 2♣ - 2♦ -";
             let opener_rules = opener_after_fourth_suit();

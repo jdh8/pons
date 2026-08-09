@@ -66,8 +66,9 @@ pub(super) fn with_extras_ladder(
     opener: Suit,
     highest: Bid,
     responder: Option<Suit>,
+    agreements: &Agreements,
 ) -> Rules {
-    if !opener_extras_ladder() {
+    if !agreements.decision.reading.opener_extras_ladder() {
         return rules;
     }
     let opener_strain = Strain::from(opener);

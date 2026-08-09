@@ -862,6 +862,27 @@ impl ReadingProfile {
         self.longer_major_response
     }
 
+    /// Whether opener's strength-showing ladder is authored.  Read at build
+    /// time too (`american/rebids/extras_ladder.rs`), so the rebid book takes
+    /// it from here — one cell, one home.
+    pub(crate) const fn opener_extras_ladder(self) -> bool {
+        self.opener_extras_ladder
+    }
+
+    /// Whether opener's `3M` jump rebid is authored.  Read at build time too
+    /// (`american/rebids/major_jump_rebid.rs`), so the rebid book takes it from
+    /// here — one cell, one home.
+    pub(crate) const fn opener_major_jump_rebid(self) -> bool {
+        self.opener_major_jump_rebid
+    }
+
+    /// Whether two-way checkback (XYZ) is authored.  Read at build time too
+    /// (`american/xyz.rs` gates the whole package on it), so the rebid book
+    /// takes it from here — one cell, one home.
+    pub(crate) const fn xyz(self) -> bool {
+        self.xyz
+    }
+
     // The five cells the [instinct floor][crate::bidding::instinct()] shares
     // with the reading layer.  They live here, not in
     // [`InstinctProfile`][crate::bidding::instinct::InstinctProfile]: one cell,

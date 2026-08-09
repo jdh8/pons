@@ -16,7 +16,7 @@
 //! | [`major_tails`] | full continuations after `1♥ - 1♠` (with 4SF) | [`set_major_rebid_tails`] |
 
 use super::{call, other_major};
-use crate::bidding::agreements::Agreements;
+use crate::bidding::agreements::{Agreements, RebidKnobs};
 use crate::bidding::constraint::{
     balanced, fifths, hcp, len, partner_suit_is, points, stopper_in, support,
 };
@@ -35,7 +35,7 @@ mod two_suiter;
 
 use extras_ladder::with_extras_ladder;
 use major_jump_rebid::with_major_jump_rebid;
-use meckstroth::{meckstroth, with_invitational_minors};
+use meckstroth::with_invitational_minors;
 use two_suiter::with_forcing_nt_two_suiter;
 
 pub use extras_ladder::set_opener_extras_ladder;
@@ -58,6 +58,30 @@ pub(super) use meckstroth::{
     invitational_minor_continuations, meckstroth_two_notrump_continuations,
 };
 pub(super) use two_suiter::forcing_nt_two_suiter_continuations;
+
+/// Capture this thread's rebid build-time knobs
+///
+/// The one place these cells are read. Everything downstream takes the captured
+/// value, so a `set_*` between this call and the rules being built cannot split
+/// the book against itself. The two checkback conventions live in
+/// `american/{xyz,nmf}.rs` rather than under this module, but they are opener's
+/// rebid machinery and share `RebidKnobs` — one struct per book area is the
+/// granularity `Build` keeps. `opener_extras_ladder`, `opener_major_jump_rebid`
+/// and `xyz` are read at classify time too and live only in `DecisionProfile`,
+/// so they are absent.
+pub(in crate::bidding) fn capture() -> RebidKnobs {
+    RebidKnobs {
+        balanced_1nt_rebid: balanced_1nt_rebid(),
+        major_rebid_tails: major_tails::major_rebid_tails(),
+        fourth_suit_forcing: major_tails::fourth_suit_forcing(),
+        nt_invite_hcp: major_tails::nt_invite_hcp(),
+        meckstroth_adjunct: meckstroth::meckstroth_adjunct(),
+        meckstroth_minor_jumps: meckstroth::meckstroth_minor_jumps(),
+        forcing_nt_two_suiter: two_suiter::forcing_nt_two_suiter(),
+        xyz_invite_judgment: super::xyz::xyz_invite_judgment(),
+        new_minor_forcing: super::nmf::new_minor_forcing(),
+    }
+}
 
 // ponytail: same construction-time toggle as the Meckstroth adjunct — read
 // during `register()`, so set it before building the `Pair`.
@@ -107,7 +131,7 @@ const OPENER_JUMP_SHIFT: Alert = Alert("opener-jump-shift");
 /// Opener's rebid after `1♥ - 1♠`: raise spades, rebid hearts, or show shape
 ///
 /// Forcing on opener — there is no pass rule.
-fn rebid_one_heart_one_spade() -> Rules {
+fn rebid_one_heart_one_spade(agreements: &Agreements) -> Rules {
     let mut rules = Rules::new()
         .rule(
             Bid::new(4, Strain::Spades),
@@ -131,9 +155,9 @@ fn rebid_one_heart_one_spade() -> Rules {
             fifths(18.0..20.0) & balanced(),
         );
     // Meckstroth adjunct: invitational 3♣/3♦ jumps with a five-card minor.
-    rules = with_invitational_minors(rules);
+    rules = with_invitational_minors(rules, &agreements.build.rebid);
     // Major jump-rebid: 1♥ - 1♠ - 3♥ on a six-card major with extras.
-    rules = with_major_jump_rebid(rules, Suit::Hearts, Bid::new(1, Strain::Spades));
+    rules = with_major_jump_rebid(rules, Suit::Hearts, Bid::new(1, Strain::Spades), agreements);
     rules
         .rule(Bid::new(2, Strain::Clubs), 90, len(Suit::Clubs, 4..))
         .rule(Bid::new(2, Strain::Diamonds), 90, len(Suit::Diamonds, 4..))
@@ -146,14 +170,14 @@ fn rebid_one_heart_one_spade() -> Rules {
 ///
 /// Forcing on opener.  A five-card-major rebid is the guaranteed-legal
 /// fallback when nothing more descriptive fits — a basic simplification.
-fn rebid_after_forcing_notrump(major: Suit) -> Rules {
+fn rebid_after_forcing_notrump(major: Suit, agreements: &Agreements) -> Rules {
     let trump = Strain::from(major);
     let mut rules = Rules::new();
     // 2NT: the Meckstroth adjunct's artificial 18+ game force (any shape) when
     // enabled, otherwise the natural 18–19 balanced rebid.  Weight 1.6 to outrank
     // the 3M major jump-rebid (1.5), so every 18+ hand routes through the game
     // force while the invitational 3m jumps stay 15–17.
-    if meckstroth() {
+    if agreements.build.rebid.meckstroth_adjunct {
         rules = rules
             .rule(Bid::new(2, Strain::Notrump), 160, points(18..))
             .alert(meckstroth::OPENER_GF_2NT);
@@ -166,11 +190,11 @@ fn rebid_after_forcing_notrump(major: Suit) -> Rules {
     }
     rules = rules.rule(Bid::new(2, trump), 100, len(major, 6..));
     // Meckstroth adjunct: invitational 3♣/3♦ jumps with a five-card minor.
-    rules = with_invitational_minors(rules);
+    rules = with_invitational_minors(rules, &agreements.build.rebid);
     // Major jump-rebid: 1M - 1NT - 3M on a six-card major with extras.
-    rules = with_major_jump_rebid(rules, major, Bid::new(1, Strain::Notrump));
+    rules = with_major_jump_rebid(rules, major, Bid::new(1, Strain::Notrump), agreements);
     // Invitational two-suiter: 1♥ - 1NT - 2♠ reverse / 1♠ - 1NT - 3♥ jump.
-    rules = with_forcing_nt_two_suiter(rules, major);
+    rules = with_forcing_nt_two_suiter(rules, major, &agreements.build.rebid);
     for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
         if Strain::from(suit) < trump {
             rules = rules.rule(Bid::new(2, Strain::from(suit)), 90, len(suit, 4..));
@@ -200,7 +224,7 @@ fn rebid_raise_major(responder_major: Suit, opener_minor: Suit, agreements: &Agr
     // Balanced 12–14 with a five-card minor: rebid 1NT rather than the natural
     // 2m below it (weight 0.92 — above the 2m rebid, below the up-the-line 1♠
     // so a 4-4 spade fit is still found).  Shipped default-on.
-    if balanced_1nt_rebid() {
+    if agreements.build.rebid.balanced_1nt_rebid {
         rules = rules.rule(
             Bid::new(1, Strain::Notrump),
             92,
@@ -214,7 +238,13 @@ fn rebid_raise_major(responder_major: Suit, opener_minor: Suit, agreements: &Agr
         rules = rules.rule(Bid::new(1, Strain::Spades), 95, len(Suit::Spades, 4..));
     }
     // Strength-showing ladder: jump-rebid, reverse, jump-shift (default off).
-    rules = with_extras_ladder(rules, opener_minor, Bid::new(1, m), Some(responder_major));
+    rules = with_extras_ladder(
+        rules,
+        opener_minor,
+        Bid::new(1, m),
+        Some(responder_major),
+        agreements,
+    );
     rules
         .rule(
             Bid::new(2, Strain::from(opener_minor)),
@@ -266,6 +296,7 @@ fn rebid_one_club_one_diamond(agreements: &Agreements) -> Rules {
         Suit::Clubs,
         Bid::new(1, Strain::Diamonds),
         Some(Suit::Diamonds),
+        agreements,
     );
     rules
         .rule(
@@ -299,7 +330,12 @@ pub(super) fn one_heart_one_spade_rebid() -> Package {
     Package {
         name: "one-heart-one-spade-rebid",
         gate: |_| true,
-        entries: |_| rows_of(Pattern::node("P* 1♥ - 1♠ -"), rebid_one_heart_one_spade()),
+        entries: |agreements| {
+            rows_of(
+                Pattern::node("P* 1♥ - 1♠ -"),
+                rebid_one_heart_one_spade(agreements),
+            )
+        },
     }
 }
 
@@ -312,7 +348,7 @@ pub(super) fn remaining_rebid_bases() -> Package {
             let mut entries = expand(
                 "P* 1M - 1NT -",
                 |_| true,
-                |b| rebid_after_forcing_notrump(b.suit('M')),
+                |b| rebid_after_forcing_notrump(b.suit('M'), agreements),
             );
             entries.extend(rows_of(
                 Pattern::node("P* 1♣ - 1♦ -"),

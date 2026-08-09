@@ -71,7 +71,7 @@ mod nmf;
 pub(in crate::bidding) mod notrump;
 pub(in crate::bidding) mod openings;
 mod raises;
-mod rebids;
+pub(in crate::bidding) mod rebids;
 pub(in crate::bidding) mod responses;
 pub(in crate::bidding) mod slam;
 mod strong_two;

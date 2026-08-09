@@ -32,7 +32,7 @@ pub fn set_forcing_nt_two_suiter(on: bool) {
 }
 
 /// Whether opener's invitational major two-suiter rebids are enabled
-fn forcing_nt_two_suiter() -> bool {
+pub(super) fn forcing_nt_two_suiter() -> bool {
     FORCING_NT_TWO_SUITER.with(Cell::get)
 }
 
@@ -57,8 +57,8 @@ pub(super) fn is_forcing_nt_two_suiter(major: Suit, rebid: Call) -> bool {
 /// rule projection.  Weights sit above the natural minimum rebids (0.9/1.0) but
 /// below the `3M` major jump-rebid (1.5) and the 18+ `2NT` (1.6), so the crisp
 /// `points(15..=17)` band keeps 18+ hands in the game force.
-pub(super) fn with_forcing_nt_two_suiter(rules: Rules, major: Suit) -> Rules {
-    if !forcing_nt_two_suiter() {
+pub(super) fn with_forcing_nt_two_suiter(rules: Rules, major: Suit, knobs: &RebidKnobs) -> Rules {
+    if !knobs.forcing_nt_two_suiter {
         return rules;
     }
     match major {
@@ -145,7 +145,7 @@ fn responder_over_forcing_nt_5_5() -> Rules {
 pub(crate) fn forcing_nt_two_suiter_continuations() -> Package {
     Package {
         name: "forcing-nt-two-suiter-continuations",
-        gate: |_| forcing_nt_two_suiter(),
+        gate: |a| a.build.rebid.forcing_nt_two_suiter,
         entries: |_| {
             let mut entries = rows_of(
                 Pattern::node("P* 1♥ - 1NT - 2♠ -"),

@@ -554,6 +554,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The rebid book's nine build-time knobs are carried, not fetched.**
+  `Build::rebid` captures them once through `rebids::capture()`: the balanced
+  `1NT` rebid, the `1♥ - 1♠` tails with fourth-suit forcing and the notrump-
+  invite gauge, the Meckstroth adjunct and its `3m` jumps, the forcing-`1NT`
+  two-suiter, checkback invite judgment, and New Minor Forcing.  The two
+  checkback conventions live in `american/{xyz,nmf}.rs` rather than under
+  `rebids`, but they are opener's rebid machinery and share `RebidKnobs`.
+  Three of the area's twelve cells are **not** among the nine —
+  `OPENER_EXTRAS_LADDER`, `OPENER_MAJOR_JUMP_REBID` and `XYZ` are read at
+  classify time too, so they keep their single home in the `Stance`-pinned
+  `DecisionProfile` and their build sites read that through three new
+  `ReadingProfile` accessors.  `MECKSTROTH_MINOR_JUMPS` had only a setter and a
+  raw `Cell::get` at its use site; it gained a getter.  `meckstroth()`, a second
+  getter for the cell `meckstroth_adjunct()` already reads, is deleted — the
+  field replaces both.  No `thread_local!` block and no `set_*` setter was
+  touched.  Byte-identical: seeded `smoke-default` / `smoke-dutch` (20 000
+  boards each) and both `cards/*.bbsa` are unchanged.
+
 - **The response and raise books' nine build-time knobs are carried, not
   fetched.**  `Build::response` captures them once through
   `responses::capture()`: the major 2/1's fit leg, entry gate, natural suit

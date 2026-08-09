@@ -48,11 +48,6 @@ pub fn meckstroth_adjunct() -> bool {
     MECKSTROTH.with(Cell::get)
 }
 
-/// Whether the Meckstroth adjunct is currently enabled
-pub(super) fn meckstroth() -> bool {
-    MECKSTROTH.with(Cell::get)
-}
-
 // ponytail: a second gate on the *same* adjunct, so its two halves can be
 // measured apart.  One flag shipped both, and the SD-PD re-adjudication
 // confirmed only the merged knob — the `3m` leg's own verdict (plain wash, PD
@@ -74,6 +69,11 @@ std::thread_local! {
 /// Read at book-construction time, like [`set_meckstroth_adjunct`].
 pub fn set_meckstroth_minor_jumps(on: bool) {
     MECKSTROTH_MINOR_JUMPS.with(|cell| cell.set(on));
+}
+
+/// Whether the [`set_meckstroth_minor_jumps`] knob is on
+pub(super) fn meckstroth_minor_jumps() -> bool {
+    MECKSTROTH_MINOR_JUMPS.with(Cell::get)
 }
 
 /// Opener's artificial game-forcing `2NT` — 18+, any shape (real Meckstroth adjunct)
@@ -103,8 +103,8 @@ pub(super) fn is_invitational_minor_jump(rebid: Call) -> bool {
 /// above the natural minor (0.9) and the six-card-major rebid (1.0) but below
 /// the strong 2NT (1.2), so disjointness is by strength: 18–19 balanced → 2NT;
 /// 15–17 with a five-card minor → `3m`; a minimum → the natural two level.
-pub(super) fn with_invitational_minors(mut rules: Rules) -> Rules {
-    if meckstroth() && MECKSTROTH_MINOR_JUMPS.with(Cell::get) {
+pub(super) fn with_invitational_minors(mut rules: Rules, knobs: &RebidKnobs) -> Rules {
+    if knobs.meckstroth_adjunct && knobs.meckstroth_minor_jumps {
         for minor in [Suit::Clubs, Suit::Diamonds] {
             rules = rules.rule(
                 Bid::new(3, Strain::from(minor)),
@@ -156,7 +156,7 @@ fn responder_after_invitational_minor(major: Suit) -> Rules {
 pub(crate) fn invitational_minor_continuations() -> Package {
     Package {
         name: "invitational-minor-continuations",
-        gate: |_| meckstroth(),
+        gate: |a| a.build.rebid.meckstroth_adjunct,
         entries: |_| {
             let three_minors = [call(3, Strain::Clubs), call(3, Strain::Diamonds)];
             let mut entries = Vec::new();
@@ -349,7 +349,7 @@ fn opener_over_resp_clubs(major: Suit) -> Rules {
 pub(crate) fn meckstroth_two_notrump_continuations() -> Package {
     Package {
         name: "meckstroth-two-notrump-continuations",
-        gate: |_| meckstroth(),
+        gate: |a| a.build.rebid.meckstroth_adjunct,
         entries: |_| {
             let mut entries = Vec::new();
             for major in [Suit::Hearts, Suit::Spades] {
