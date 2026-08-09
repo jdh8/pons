@@ -53,9 +53,16 @@ pub fn set_transfer_gf_hearts(on: bool) {
     TRANSFER_GF_HEARTS.with(|cell| cell.set(on));
 }
 
-/// Whether the heart-transfer mirror is authored (requires the master gate too)
+/// Whether the heart-transfer mirror is asked for, ignoring the master gate
+///
+/// The mirror is a no-op unless [`set_transfer_gf_majors`] is also on; the
+/// conjunction lives in
+/// [`transfer_gf_heart_mirror`](crate::bidding::context::DecisionProfile::transfer_gf_heart_mirror),
+/// which is what the book gates on.  This getter returns the raw setting, so
+/// arming the mirror under a closed master gate and reading it back gives what
+/// was armed.
 pub fn transfer_gf_hearts() -> bool {
-    transfer_gf_majors() && TRANSFER_GF_HEARTS.with(Cell::get)
+    TRANSFER_GF_HEARTS.with(Cell::get)
 }
 
 /// Responder's game-forcing rebid after the spade transfer completes
@@ -182,7 +189,7 @@ pub(super) fn transfer_spade_gf_rebid(agreements: &Agreements) -> Rules {
 ///
 /// Empty off the heart gate.
 pub(super) fn transfer_heart_gf_rebid(agreements: &Agreements) -> Rules {
-    if !agreements.decision.transfer_gf_hearts {
+    if !agreements.decision.transfer_gf_heart_mirror() {
         return Rules::new();
     }
     let minor_floor: u8 = if agreements.notrump.minor_min_to_3nt {
@@ -367,12 +374,12 @@ pub(super) fn splinter_short(suit: Suit) -> Cons<impl Constraint + Clone> {
 /// Under the GF-majors gate this hand is carved off the direct Texas transfer and
 /// direct game-jump onto the Jacoby transfer, where it splinters (spades at the four
 /// level, hearts as low as `3♠`).  Gated per major — spades by the master flag, hearts
-/// by [`transfer_gf_hearts`] — so each side is false until its own structure is on.
+/// by the heart mirror — so each side is false until its own structure is on.
 fn is_major_splinter_slam(context: &Context<'_>, hand: Hand, major: Suit) -> bool {
     let decision = context.decision_profile();
     let profile = decision.reading;
     let active = if major == Suit::Hearts {
-        decision.transfer_gf_hearts
+        decision.transfer_gf_heart_mirror()
     } else {
         decision.transfer_gf_majors
     };
@@ -464,7 +471,7 @@ pub(crate) fn spade_transfer_game_force() -> Package {
 pub(crate) fn heart_transfer_game_force() -> Package {
     Package {
         name: "heart-transfer-game-force",
-        gate: |agreements| agreements.decision.transfer_gf_hearts,
+        gate: |agreements| agreements.decision.transfer_gf_heart_mirror(),
         entries: |_| {
             let mut entries = rows_of(
                 Pattern::node("P* 1NT - 2♦ - 2♥ - 4NT -"),

@@ -1155,7 +1155,6 @@ pub fn announced(
 /// Fifths and a quack-heavy hand isn't shut out of it.  BUM-RAP is the
 /// default — it edged HCP across every vulnerability in the
 /// `fifths-companion` A/B match.
-#[doc(hidden)]
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum FifthsCompanion {
     /// Milton Work 4-3-2-1 HCP

@@ -596,6 +596,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Seeded `smoke-default` / `smoke-dutch` dumps (20 000 boards each) are
   byte-identical to `4c3dce2`, and `cards/*.bbsa` regenerate unchanged.
 
+- **The three classify-time profiles are public, and documented.**
+  `DecisionProfile`, `ReadingProfile` and `InstinctProfile` — the `Copy`
+  snapshots pinned into a `Stance` at `Pair::against`, so a stance classifies
+  identically on any thread — are now `pub` with `pub` fields, and
+  `bidding::inference::knobs` is a `pub mod`.  That is what lets the classify
+  half of the campaign follow the build-time half: `pons-web` has to reach
+  these fields.  All 85 of them gained doc comments carrying the measured
+  record from the setters they replace, ahead of those setters' deletion.
+  `FifthsCompanion` lost its `#[doc(hidden)]`, since it is now the type of a
+  documented public field.
+
+  One invariant was repaired on the way.  `transfer_gf_hearts` was not a
+  stored setting at all — the getter returned `transfer_gf_majors() && CELL`,
+  and `DecisionProfile` stored that *conjunction*.  While a setter was the
+  only writer, "hearts implies majors" held for free; a `pub` field makes
+  `transfer_gf_hearts = true` with `transfer_gf_majors = false` representable,
+  and that state has no authored heart-transfer rebid.  The field now stores
+  the raw setting, the conjunction lives in
+  `DecisionProfile::transfer_gf_heart_mirror()`, and the four sites that need
+  the effective value call it.  `american::transfer_gf_hearts()` changes
+  meaning to match: arming the mirror under a closed master gate and reading
+  it back now returns what was armed, which is what `pons-web`'s
+  `gated(…, "transfer_gf_majors")` row always assumed.
+
 - **The forty-seven defensive knobs are fields, not thread-locals.**  The
   `DefenseKnobs` area finishes the build-time half of the campaign: the
   natural-overcall discipline and its strong-double seam, the takeout-double

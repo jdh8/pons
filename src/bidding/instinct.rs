@@ -327,13 +327,13 @@ std::thread_local! {
 }
 
 /// The classify-time instinct knobs, snapshotted into a
-/// [`DecisionProfile`][super::context::DecisionProfile] when a stance is built
+/// [`DecisionProfile`] when a stance is built
 ///
 /// One field per cell the floor reads *during* classification.  Build-time
 /// cells (`COMPETITIVE_REBID`, `REOPENING_NOTRUMP`, `DOUBLER_XX_RUNOUT`) are
 /// deliberately absent — each is read only inside [`instinct`]'s table
 /// builder, so it is baked into the rules that come back.  Knobs the reading
-/// layer already snapshots ([`ReadingProfile`][super::inference::ReadingProfile]:
+/// layer already snapshots ([`ReadingProfile`]:
 /// `penalty_latch`, `rubens_advances`, `floor_rkcb`, `rkcb_variant`) are not
 /// duplicated here.
 ///
@@ -341,38 +341,348 @@ std::thread_local! {
 /// configures: `REIN_ADVANCE_RAISE` shapes the table at one site and is read
 /// again inside a `pred` closure at another, which puts it here.
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub(crate) struct InstinctProfile {
-    pub(crate) inference_aware: bool,
-    pub(crate) one_nt_runout: bool,
-    pub(crate) runout_xx_min: u8,
-    pub(crate) one_nt_runout_universal: bool,
-    pub(crate) unusual_2nt: Unusual2nt,
-    pub(crate) penalize_escape_stack: bool,
-    pub(crate) penalize_escape_values: bool,
-    pub(crate) uvu_encircle: bool,
-    pub(crate) settle_floor: bool,
-    pub(crate) latch_style: LatchStyle,
-    pub(crate) penalty_no_pull: bool,
-    pub(crate) advancer_xx_runout: bool,
-    pub(crate) nt_responder_game_floor: u8,
-    pub(crate) suppress_nt_gf_over_double: bool,
-    pub(crate) correct_3nt_to_major: bool,
-    pub(crate) gambling_3nt_over_double: bool,
-    pub(crate) gambling_3nt_top_honors: u8,
-    pub(crate) gambling_3nt_require_ace: bool,
-    pub(crate) preempt_4m_over_double: bool,
-    pub(crate) preempt_4m_floor: u8,
-    pub(crate) preempt_4m_top_honors: u8,
-    pub(crate) preempt_4m_require_ace: bool,
-    pub(crate) floor_slam_entry: u8,
-    pub(crate) fit_sum_game: u8,
-    pub(crate) bilans_floor: bool,
-    pub(crate) net_collar: bool,
-    pub(crate) fit_sum_support_read: bool,
-    pub(crate) nt_hcp_read: bool,
-    pub(crate) two_over_one_slam_strength: bool,
-    pub(crate) keycard_minors: bool,
-    pub(crate) rein_advance_raise: bool,
+pub struct InstinctProfile {
+    /// Consult the auction interpretation for known fits
+    ///
+    /// **Default on.**  Off, the floor ignores partner's shown shape and falls
+    /// back to the shape-blind `3NT` / six-card-major game selection — the off
+    /// arm of the `inference-floor` measurement, kept for A/B only.
+    pub inference_aware: bool,
+    /// A weak responder runs from our doubled `1NT`
+    ///
+    /// **Default on.**  When our `1NT` is doubled a weak responder escapes to
+    /// its longest five-plus-card suit instead of sitting for the penalty, and
+    /// opener passes that escape.  Off, the auction falls back to the natural
+    /// floor — Pass.  The A/B is the `ab-one-nt-runout` example.
+    pub one_nt_runout: bool,
+    /// HCP floor at which responder redoubles a doubled `1NT` to play
+    ///
+    /// **Default 7.**  `XX` shows values and suggests defending `1NT`
+    /// redoubled.  It is keyed on raw HCP — defensive strength — not the
+    /// shape-upgraded point count, because a shapely weak hand should run
+    /// rather than sit.  Responder considers running at all only below
+    /// `RUNOUT_MAX_HCP` (8); with more, `1NT` doubled rates to make opposite a
+    /// 15–17 opener.  Swept by `ab-one-nt-runout --xx-min`.
+    pub runout_xx_min: u8,
+    /// The runout is universal, not just responder's direct seat
+    ///
+    /// **Default on.**  Opener too escapes its own five-plus-card suit, and
+    /// SOS-redoubles (the balancing redouble) when it has none, in the seat
+    /// where the double comes back to it with a weak partner.  Off restricts
+    /// the runout to the weak responder's direct seat.
+    pub one_nt_runout_universal: bool,
+    /// What responder's `2NT` shows in the doubled-`1NT` runout
+    ///
+    /// Governs only the weak, no-five-card-suit responder's both-minor action:
+    /// a hand with a five-card suit escapes naturally in every mode.
+    /// **Default [`Unusual2nt::Direct`]** — no relay, a four-four bust bids its
+    /// longer minor at the two level.  It A/B'd a win over the
+    /// [`FourFour`][Unusual2nt::FourFour] relay: the relay's second
+    /// double-exposure and higher landing level cost more than the better minor
+    /// it finds.
+    pub unusual_2nt: Unusual2nt,
+    /// Double the opponents' escape from our doubled `1NT` on a trump stack
+    ///
+    /// **Default on** — A/B'd +5..+7 IMPs per divergent board.  We hold a stack
+    /// in the suit they ran to, so the escape is punished instead of played
+    /// undisturbed.
+    pub penalize_escape_stack: bool,
+    /// Double their escape from our `1NT` XX on values
+    ///
+    /// **Default on** (A/B'd a win).  Once responder's business redouble has
+    /// shown the values, the double of their escape is made on strength rather
+    /// than on a trump stack.
+    pub penalize_escape_values: bool,
+    /// Encircle the opponents' escape from our `1NT (2NT) X`
+    ///
+    /// The Unusual-vs-Unusual penalty chase — "all our doubles are penalty from
+    /// the first `X` on", and a pass conveys inability to punish *this*
+    /// contract.  The responder `X` itself lives in the american book
+    /// (`agreements.competition.uvu`); this adds only the follow-up chase, so
+    /// it is dormant unless that convention is armed.  **Default on.**
+    pub uvu_encircle: bool,
+    /// The "settle" view of Pass — partner's takeout double is not 100% forcing
+    ///
+    /// **Default on**, an A/B win on `ab-settle-floor`'s perfect-defense
+    /// measure: **+0.26 IMPs/board vul none, +0.37 vul both**.  Pass means
+    /// *play the top bid*, so a hand with length behind their doubled suit
+    /// defends instead of advancing, and a four-level advance becomes a *free
+    /// bid* that shows values.  Off recovers the old always-advance floor.
+    pub settle_floor: bool,
+    /// What a *latched* later double means after our penalty double of their `1NT`
+    ///
+    /// The second double of `(1NT) X (2Y) X`.  **[`LatchStyle::Penalty`] by
+    /// default** — a trump stack (four-plus with two top honors) and partner
+    /// sits, the human "once penalty, always penalty" rule — against
+    /// [`LatchStyle::Optional`], which shows only 2-3 cards in their suit with
+    /// values and lets partner cooperate through the general advance-a-double
+    /// machinery.  The defensive mirror of
+    /// [`DoubleStyle`][super::american::DoubleStyle].
+    pub latch_style: LatchStyle,
+    /// Suppress the doubler's constructive pulls of its own penalty double
+    ///
+    /// **Default on.**  While the penalty latch holds, the natural suit and
+    /// notrump overcall rules still fire for the doubler (a double is not a
+    /// bid), so a 15+ balanced doubler "competes" to `2NT`/`3NT`/a major
+    /// opposite a likely-broke partner — the dominant defense leak.  On, those
+    /// pulls step aside and the doubler defends by passing or latch-doubles
+    /// their escape.  It is independent of the latch's double-handling (this
+    /// stops only the *bids*) and a no-op unless the latch itself is on.
+    ///
+    /// DD-measured against BBA's 2/1 on the isolated 1NT-defense match (8000
+    /// we-defend boards per seed): the penalty-`X` bucket goes **−2.312 →
+    /// −1.013 IMPs per X-board vulnerable** (paired +0.058 IMPs/board overall,
+    /// 95% CI [+0.030, +0.085]) and is neutral non-vulnerable (+0.007, CI
+    /// straddles 0); the swing is isolated to the `X` bucket.
+    pub penalty_no_pull: bool,
+    /// A weak advancer runs from their redoubled penalty double
+    ///
+    /// **Default on.**  After our natural penalty double of their `1NT`, their
+    /// business redouble (`(1NT) X (XX)`) marks their side with the values —
+    /// BBA and our own system both read it as "we make `1NT` redoubled" — so a
+    /// broke advancer escapes to its long suit rather than sit for the doom.
+    /// The defensive mirror of the responder runout
+    /// ([`one_nt_runout`][Self::one_nt_runout]).
+    pub advancer_xx_runout: bool,
+    /// HCP floor at which a strong-`1NT` responder forces game off the floor
+    ///
+    /// **Default 9**, an A/B win: plain **+0.0048 IMPs/board** vs BBA, PD wash.
+    /// The authored direct-`3NT` game force is already 9, but a 9-count
+    /// *five-card-major* hand cannot bid it (it must transfer) and matches no
+    /// authored game-forcing transfer rebid, so it lands on the floor; 9 here
+    /// closes that post-transfer seam symmetrically.
+    ///
+    /// Undisturbed auctions only.  Forcing a thin 9 over a suit overcall
+    /// measured a DD loss — the enemy lead and shape beat the thin `3NT` — and
+    /// over a double the business `XX` governs
+    /// ([`suppress_nt_gf_over_double`][Self::suppress_nt_gf_over_double]).
+    pub nt_responder_game_floor: u8,
+    /// Suppress that game force at responder's first turn over a double of `1NT`
+    ///
+    /// **Default on.**  The business redouble is unlimited, so over the double
+    /// we defend `1NT` redoubled (or escape a long suit) rather than pull to
+    /// `3NT`.  Isolated A/B win of **+5.6 IMPs per fired board on both plain DD
+    /// and perfect defense**, on a rare trigger (~0.03%).
+    pub suppress_nt_gf_over_double: bool,
+    /// Opener corrects a choice-of-games `3NT` to `4M` on a known eight-card fit
+    ///
+    /// **Default on**, and gated twice: *undisturbed*, and holding a ruffing
+    /// doubleton.  The 5-3 ruffing edge is single-dummy lore that double dummy
+    /// shares only when the trump-short hand can ruff — a flat 4-3-3-3 has no
+    /// ruff, and `3NT` keeps its ninth trick against `4M`'s tenth — while a
+    /// contested pull walks into a penalty double.  Ungated the correction lost
+    /// **−0.037 IMPs/board**; gated on both conditions it wins **+0.0062 plain
+    /// / +0.0068 PD** (CI ±0.0005, two seeds).
+    pub correct_3nt_to_major: bool,
+    /// Responder's `3NT` over a double of our `1NT` is the gambling long-minor game
+    ///
+    /// **Default off — an opt-in A/B knob.**  On, `1NT (X) 3NT` shows a
+    /// six-plus-card club or diamond run, semi-solid, instead of the suppressed
+    /// game force / business-`XX` baseline.  The minor length floor is fixed at
+    /// six — it must be a build-time `len` so the reader can project the suit —
+    /// while the quality and ace gates below stay runtime knobs.
+    pub gambling_3nt_over_double: bool,
+    /// Top-honor floor (count of A/K/Q) the gambling `3NT`'s long minor must hold
+    ///
+    /// The "semi-solid" gate.  **Default 2**; `0` disables it and leaves the
+    /// length requirement alone.
+    pub gambling_3nt_top_honors: u8,
+    /// The gambling `3NT` requires the ace of its own long minor
+    ///
+    /// **On by default when the package is armed**: with the suit ace the run
+    /// starts from the top and buffs total tricks.
+    pub gambling_3nt_require_ace: bool,
+    /// Responder's `4M` over a double of our `1NT` is a preemptive long-major game
+    ///
+    /// **Default off — an opt-in A/B knob.**  On, `1NT (X) 4M` is loosened from
+    /// full game values to a six-plus-card major plus a modest HCP floor.  It
+    /// only adds a rule inside the doubled-`1NT` runout: the undisturbed `4M`
+    /// and the one over an overcall are unchanged.
+    pub preempt_4m_over_double: bool,
+    /// HCP floor for the preemptive `4M`
+    ///
+    /// **Default 5** — a source of tricks, not a bust.
+    pub preempt_4m_floor: u8,
+    /// Top-honor floor (count of A/K/Q) the preemptive `4M`'s long major must hold
+    ///
+    /// The same "semi-solid" gate the gambling `3NT` uses, so `4M` is a
+    /// *quality* long major and not any six-bagger (`0` = length only).
+    /// **Default 2**: a ragged six-card major jumping to game fails double
+    /// dummy exactly as a ragged minor `3NT` does.
+    pub preempt_4m_top_honors: u8,
+    /// The preemptive `4M` requires the trump ace
+    ///
+    /// **On by default when the package is armed** — the ace of the long major
+    /// is a sure trump trick and a control, both of which buff total tricks.
+    pub preempt_4m_require_ace: bool,
+    /// Combined-points floor at which the floor's RKCB ask (`4NT`) fires on a
+    /// known five-plus-card fit
+    ///
+    /// **Default 29**, lowered from the 33 notrump small-slam yardstick to
+    /// enter keycarding on the shape-slam band a population probe found: 5-3
+    /// and 5-4 fits at ~29 combined points make a small slam more than half the
+    /// time double-dummy within genuine eight-plus fits.  The ask's own
+    /// five-plus decodability gate keeps it off bare 4-4 fits, which would
+    /// blast the uncontrolled direct milestone, so the lower floor only ever
+    /// routes through RKCB's keycard check.  A/B'd a **plain-DD win at both
+    /// vulnerabilities (~+0.005 IMPs/board, PD in lockstep)**; 29 beat 28,
+    /// whose marginal fires overreach and dilute, and 33 restores the pre-knob
+    /// gate.
+    ///
+    /// Bypassed while [`bilans_floor`][Self::bilans_floor] is on: the ask then
+    /// enters on the net's make probability instead of this point sum.
+    pub floor_slam_entry: u8,
+    /// Combined-points floor for a major game on a known eight-plus fit,
+    /// counting the trump length as points
+    ///
+    /// The total-tricks yardstick where a ninth trump ≈ a point.  Game once
+    /// `own_points + partner_shown_floor + (own_len + partner_shown_len) >= t`,
+    /// so an eight-card fit games at `t - 8` combined, a nine-card fit at
+    /// `t - 9`, a ten-card fit at `t - 10` — strictly lighter as the fit
+    /// lengthens.  Proven default-on, so there is no off state; the threshold
+    /// is always armed.
+    ///
+    /// **Default 31**, the dual-metric peak of a swept boundary: 34→31 was each
+    /// step a CI-clean plain-DD gain with perfect defense tracking, and at 30
+    /// the non-vulnerable perfect-defense line turns negative — a doubling
+    /// artifact.  31 also holds under the default-on `support_point_count`
+    /// scale: re-probed 2026-07-14 (`ab-fit-sum-game --support-points`,
+    /// 200k×2 vul), 32-vs-31 is NV PD +0.004 but **vul PD −0.004
+    /// (parity/behind)** — not a bump.  The gate re-adds `own_len`, which the
+    /// scale's own long-suit term already counts, so the hotness self-cancels
+    /// and the peak stays at 31.  (An earlier, broader re-probe under the
+    /// since-deleted global scale had suggested 32; the fit-known-only scale
+    /// that shipped is narrower and refuted it.)
+    pub fit_sum_game: u8,
+    /// The *bilans* floor — price the game/slam boundary gates with the learned
+    /// trick evaluator instead of point arithmetic
+    ///
+    /// **Shipped default-on 2026-07-21.**  The `ab-bilans-floor` duplicate
+    /// match over 200 000 boards per arm put it ahead on *both* scorers at
+    /// *both* vulnerabilities — non-vul **+0.036 IMPs/board plain DD** (95% CI
+    /// [+0.030, +0.042]) and **+0.009 PD** ([+0.002, +0.016]); vulnerable
+    /// **+0.065 plain DD** ([+0.057, +0.073]) and **+0.013 PD** ([+0.003,
+    /// +0.022]).  Both arms clear the decision table's win/win row, and the
+    /// gain is larger vulnerable than non-vul (as is the divergence rate, 4.29%
+    /// vs 3.52%) — the vulnerability axis the point gates were blind to, moving
+    /// the direction the design predicts.  Off recovers the point-gate
+    /// arithmetic.
+    ///
+    /// On, each converted gate asks
+    /// [`trick_estimates`][super::evaluator::trick_estimates] for the
+    /// contract's make probability and compares it against the IMP break-even
+    /// for that decision at the live vulnerability: partscore→game at even
+    /// money non-vul / 44.4% vul (our failing branch priced *doubled*, per the
+    /// bid-scoring split), small slam at even money, grand at ~56–58%.  The
+    /// RKCB ask enters there instead of at the
+    /// [`floor_slam_entry`][Self::floor_slam_entry] point floor.
+    ///
+    /// The net was fit on trie-prefixed readings, so it wants a real
+    /// [`Stance`][super::Stance] behind the decision; a bare [`Context`] hands
+    /// it the looser projection-less ranges it was not trained on.
+    ///
+    /// The name tips the hat to Edward Piwowar: *bilans* (Polish for "balance")
+    /// is his term for the always-running deal evaluator inside EPBot, the
+    /// engine behind BBA, whose reverse-engineering
+    /// (`docs/ai-bidder/bba-floor.md` §5) inspired this floor.  His is analytic
+    /// winner/loser arithmetic on reconstructed hands; ours is the session-C
+    /// learned net over the same question.
+    pub bilans_floor: bool,
+    /// Collar the bilans net instead of letting it replace the point arithmetic
+    ///
+    /// [`bilans_floor`][Self::bilans_floor] as shipped masks the authored
+    /// arithmetic *off* and hands the net the whole criterion — an unbounded
+    /// veto over hands the point sums accept, and an unbounded reach below
+    /// them.  With the collar on, the arithmetic is the criterion again and the
+    /// net rules on it in one direction only, chosen by the decision's own IMP
+    /// economics:
+    ///
+    /// | decision | `tricks` | break-even, both vuls | net's licence |
+    /// | --- | --- | --- | --- |
+    /// | game | ≤ 11 | never *above* even money | accelerate |
+    /// | slam | ≥ 12 | never *below* even money | veto |
+    ///
+    /// A game is taken at or below even money, so the cheap direction is to
+    /// *add* hands the point sums decline, bounded by a collar (`COLLAR_SLACK`,
+    /// two points below the authored threshold — the invitational band, where a
+    /// human already calls it judgment).  A slam needs at or above even money,
+    /// so the net may only *decline*.  The two boundary rows sit exactly on 0.5
+    /// (non-vul game under the bid-scoring doubling premium, and the small slam
+    /// on every convention — its bonus is symmetric), where the economics give
+    /// no direction; the tie-break there is structural, since a veto keeps the
+    /// authored reading and an accelerator does not
+    /// (`docs/ai-bidder/evaluator-net.md`, "The reach ceiling").
+    ///
+    /// **Default off** — byte-identical to the shipped mask in every
+    /// [`bilans_floor`][Self::bilans_floor] state.
+    pub net_collar: bool,
+    /// Edit 1 — read partner's fit-known strength off the `support_points` gauge
+    ///
+    /// In the fit-sum game gate, take partner's shown strength from the
+    /// dedicated `support_points` gauge, falling back to the length-scale
+    /// `points` when it is unpopulated.  **Default off** — byte-identical to
+    /// reading `points`.  The on arm of `ab-fit-sum-game`.
+    pub fit_sum_support_read: bool,
+    /// Edit 2 — value the notrump milestones on raw HCP
+    ///
+    /// Price the notrump game and slam milestones on raw HCP — our own hand
+    /// plus partner's crisp `hcp` gauge — instead of the length-upgraded
+    /// `point_count`.  **Default off**, in which state the combined-HCP read is
+    /// the combined-points read verbatim.  An A/B knob.
+    pub nt_hcp_read: bool,
+    /// A live 2/1 floors partner's shown strength for the slam-entry gate
+    ///
+    /// **Default on since 2026-07-20.**  The 2/1 response is alerted, so the
+    /// inference walk skips its natural reading and takes the rule's projection
+    /// instead — and the rule gates on `points(13..)`, which on the rule-of-N+8
+    /// scale soundly projects to *no* high-card floor at all (a 13-point hand
+    /// can be an eight-count with a six-card suit).  Partner therefore reads as
+    /// **zero** through an established game force and the slam-entry gate never
+    /// fires: opener holding a 26-count opposite the force counts `26 + 0 < 29`
+    /// and signs off in game.  On, partner's shown minimum is floored at the 13
+    /// points the two-over-one promised — the same scale our own
+    /// [`support_point_count`][super::constraint::support_point_count] term
+    /// uses, so the sum stays consistent.  Only when *partner* made the
+    /// two-over-one; opener's one-level opening is read naturally and needs no
+    /// floor.
+    ///
+    /// Measured vs BBA (409,600×2, both scorers): **+0.0032/+0.0042 plain,
+    /// +0.0031/+0.0041 PD** IMPs/board NV/vul, all CI>0, firing on 0.08%/0.09%
+    /// of boards at +3.8/+4.8 IMPs each.  The same run priced deleting
+    /// [`opener_third`][super::agreements::GameForceKnobs::opener_third] *on
+    /// top of* this floor at +0.0003/+0.0004 with the CI straddling zero, so
+    /// that node stays: the constructive re-audit's candidate #2 was starved of
+    /// a reading, not shadowing a better call.
+    pub two_over_one_slam_strength: bool,
+    /// The floor's keycard ask reaches agreed **minors** as well as majors
+    ///
+    /// **Default on since 2026-08-01**, reversing an earlier measured verdict.
+    /// The ask was majors-only because round 4 of the M6.4 A/B lost to the
+    /// milestone 6NT power-blast on minor and thin 6-2 asks, and **that verdict
+    /// expired on the 2026-08 system**.  Arm B of the three-arm kickback A/B
+    /// (`ab-kickback`, 1M boards a cell, seed 1785546026) re-priced it and the
+    /// ask now beats the blast on every scoring row at both vulnerabilities:
+    /// **+0.00394 PD / +0.00375 plain DD** per board vul none (1840 divergent)
+    /// and **+0.00502 / +0.00471** vul both (1753), every 95% CI clear of zero.
+    /// Half the gain is the ask *declining* a slam — `5♦ vs 6♦` ran +44 IMPs
+    /// over four audited boards where the majors-only arm blasted six without
+    /// the keycards.
+    ///
+    /// Off, the ask reverts to majors-only — the plain-`4NT` carve this field
+    /// owns.  A live relocation implies the minors' reach regardless:
+    /// [`RkcbVariant::Redwood`] and [`RkcbVariant::Kickback`] bring their own
+    /// minor lanes.  The tie-break still prefers the higher suit either way, so
+    /// a major fit of equal length keeps winning.
+    pub keycard_minors: bool,
+    /// Rein in a minimum takeout doubler that over-raises partner's forced advance
+    ///
+    /// **Default on.**  After we double an opponent's suit for takeout and
+    /// partner names a suit — a forced, possibly bust advance — a minimum
+    /// doubler (under 17 total points) that redoubles or raises the advance to
+    /// the three level double-counts the values its double already showed, and
+    /// drives to a doubled game (`1X (1Y) - (1Z) X - 2m (2Z) 3m (X) …`).  Off
+    /// restores the blind raise ladder for the A/B.
+    pub rein_advance_raise: bool,
 }
 
 impl Default for InstinctProfile {

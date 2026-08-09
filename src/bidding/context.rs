@@ -101,22 +101,183 @@ pub struct Context<'a> {
 /// a pure value that any thread can classify through.  A bare context with no
 /// attached system falls back to capturing the current thread's state.
 #[derive(Clone, Copy, PartialEq, Eq)]
-pub(crate) struct DecisionProfile {
-    pub(crate) reading: ReadingProfile,
-    pub(crate) instinct: InstinctProfile,
-    pub(crate) eval_auction: bool,
-    pub(crate) eval_shape: bool,
-    pub(crate) blind_inference: bool,
-    pub(crate) two_over_one_force: bool,
-    pub(crate) fuzzy_fifths: bool,
-    pub(crate) fifths_companion: FifthsCompanion,
-    pub(crate) stayman_net_force: bool,
-    /// The GF-majors transfer structure, master flag and heart arm.  Both are
-    /// also read at book construction to *place* their rules; these copies
-    /// serve the four classify-time guards that cap or reroute a hand once the
-    /// structure is on.
-    pub(crate) transfer_gf_majors: bool,
-    pub(crate) transfer_gf_hearts: bool,
+pub struct DecisionProfile {
+    /// The settings that can change a full-auction reading
+    ///
+    /// One field per cell the reading walk consults while turning the auction
+    /// into [`Inferences`]; see [`ReadingProfile`] for the membership rule.
+    pub reading: ReadingProfile,
+    /// The settings the deterministic floor consults *during* classification
+    ///
+    /// Build-time cells are deliberately absent: each is read only inside
+    /// [`instinct`][super::instinct()]'s table builder, so it is already baked
+    /// into the rules that come back and needs no pin.  See
+    /// [`InstinctProfile`].
+    pub instinct: InstinctProfile,
+    /// Serve the v3 calls-tail evaluator (**default on**, shipped 2026-07-27)
+    ///
+    /// On, [`trick_estimates_with_auction`][super::evaluator::trick_estimates_with_auction]
+    /// feeds [`features_eval_v3`][super::features::features_eval_v3] — the
+    /// hull vector plus the last four call identities — to the v3 artifact,
+    /// which the 2026-07-27 NLL ablation priced at 0.038 over the hull-only
+    /// vector (bare calls; docs/ai-bidder/evaluator-net.md §auction-input
+    /// ablation).  The A/B shipped it default-on with a `win | win` verdict:
+    /// plain DD +0.0180 ± 0.0042 (none) / +0.0284 ± 0.0056 (both), PD +0.0222
+    /// / +0.0360, on 204,800 boards/arm/vul at `SEED_BASE` 1785138816 — fired
+    /// 1.3–1.6%, +1.3 to +2.3 IMPs per fired board at the bilans game/slam
+    /// gates.
+    ///
+    /// The v3 twin was trained on the envelope-union reading regime only, so
+    /// the knob is honoured only there; anywhere else the v2 path serves as
+    /// before.
+    pub eval_auction: bool,
+    /// Serve the v4 shape-reading evaluator (**default off**, pending its A/B)
+    ///
+    /// On, the evaluator is fed
+    /// [`features_eval_v4`][super::features::features_eval_v4]: v3's vector
+    /// with each hidden seat's four length `{min, max}` pairs replaced by its
+    /// **shape distribution** — `E[len]` and `sd[len]` per suit over the
+    /// 560-shape lattice, plus one column for how much the reading pins the
+    /// seat down.  Three columns wider than v3, and worth nothing in NLL: the
+    /// round-two ablation scored the encoding at +0.00004 against a matched
+    /// control on 8.15M rows, inside a 0.0006 seed spread.
+    ///
+    /// The prize is **invariance**, not accuracy.  A hull is not a
+    /// well-defined function of a reading — `♥5..13` and `♥5..8` are the same
+    /// claim yet differ by a third of the column's range — so
+    /// `set_sum_closure`, which provably rejects no hand, still displaces the
+    /// endpoint columns at 81% of nodes by up to 4.19σ and has to buy a
+    /// retrain before it can be judged on merit.  The shape columns move at
+    /// 0.11% of nodes by up to 0.07σ, and that 0.11% is where the reading
+    /// genuinely changed.  Under this knob the reading-fidelity chops become
+    /// measurable on their own terms.
+    ///
+    /// Supersedes [`eval_auction`](Self::eval_auction) when both are on — v4
+    /// carries the calls tail verbatim.  Like the v3 twin it was trained on
+    /// the envelope-union reading regime only, and its shape block reads the
+    /// *union* of announced boxes, so it is honoured only there.
+    pub eval_shape: bool,
+    /// Blank every inference block the nets see — the reading program's
+    /// *negative control*
+    ///
+    /// Every generator of readings (authored `project`, the agreement overlay
+    /// behind the announced-reading knob, and any future sampled projection)
+    /// competes for one prize: the IMPs that flow from the nets reasoning
+    /// about what the other three seats have shown.  Tightening a reading
+    /// measures the *derivative* of that prize and lands in the noise.  This
+    /// knob measures its **level** — on, all four seats read as
+    /// `Envelope::unknown` and the nets reason from the auction alone.
+    ///
+    /// The A/B against the shipped default is therefore a ceiling on the whole
+    /// program: no reading, however well generated, can be worth more than
+    /// what deleting every reading costs.  Nothing else consumes it — the
+    /// sampler's containment test, `admits`, and the opening-lead sampling all
+    /// read the [`Inferences`] directly and are untouched.
+    ///
+    /// Diagnostic only, **off by default**; never ship it on.
+    pub blind_inference: bool,
+    /// The floor's two-over-one game force (**on by default**)
+    ///
+    /// The authored book has always held this invariant by *omission* — no
+    /// table in the 2/1 game-force book carries a `Pass` rule, so pass scores
+    /// −∞ and a 2/1 auction cannot die below game.  The floor never learned
+    /// it, which did not matter while the game backstop covered every
+    /// uncovered continuation.  Deleting that node
+    /// ([`game_backstop`][super::agreements::GameForceKnobs::game_backstop],
+    /// now the default) exposed the gap: against BBA, 24% of the affected
+    /// boards had our side settling below game in an established 2/1 — opener
+    /// passing responder's 3♣ out in a partscore.
+    ///
+    /// On, an uncontested 2/1 sets `Interpretation::forced_to_game`, so the
+    /// floor takes the cheapest game milestone instead of passing.  Measured
+    /// on top of the deletion: **+0.0067/+0.0102 plain, +0.0060/+0.0094 PD**
+    /// IMPs/board NV/vul vs BBA (409,600×2, all CI>0), firing on 606/622
+    /// boards — exactly the set that abandoned the force — at +4.5/+6.7 IMPs
+    /// each.  It costs routing those nodes through the deterministic ladder
+    /// rather than the learned net, since the [shell][super::neural_floor]
+    /// delegates wholesale on a forced auction; that price is inside the
+    /// measurement.
+    ///
+    /// Uncontested only, matching the `Undisturbed` guard the deleted node
+    /// carried: over interference a two-level new suit is a free bid, not a
+    /// game force.
+    pub two_over_one_force: bool,
+    /// Evaluate Fifths, rather than raw HCP, in the `fifths` gauge
+    ///
+    /// **Default off**: the Fifths NT-gauge measured a clean net loss vs raw
+    /// HCP in the A6 audit (self-play plain −0.012/−0.018 NV/vul, PD alike,
+    /// CIs excluding 0), and it dragged the `points` upgrade — points-only
+    /// beat points+fifths on both scorers.  See docs/bidding-options.md A6.
+    ///
+    /// The `points` half of the old "fuzzy strength" umbrella is the separate
+    /// point-scale setting.  That umbrella and its bool `points` wrapper were
+    /// deleted 2026-08-03: one wrote *two* sibling cells (so flipping it
+    /// silently moved a knob the caller never named), and the other was a bool
+    /// over a three-valued scale, unable to name `PointScale::RuleOfNFloored`
+    /// and destroying it on write.
+    pub fuzzy_fifths: bool,
+    /// The honor count averaged with Fifths in the `fifths` gauge
+    ///
+    /// Fifths is tuned for 3NT — it rewards aces and tens and discounts kings
+    /// and queens — so on its own it misjudges a hand headed for a suit
+    /// contract.  A notrump-defining range never gauges Fifths alone; it
+    /// averages Fifths with one of these honor counts, so a tens-rich hand
+    /// can't reach the band on Fifths and a quack-heavy hand isn't shut out of
+    /// it.
+    ///
+    /// **Default BUM-RAP** — it edged HCP across every vulnerability in the
+    /// `fifths-companion` A/B match.
+    pub fifths_companion: FifthsCompanion,
+    /// Price responder's Stayman-rebid invite/force seams with the evaluator
+    /// net instead of the point tests (**off by default — measured a loss**,
+    /// kept for re-measurement)
+    ///
+    /// The `probe-nt-invite-eval` screen (30 000 deals per class, seed
+    /// 1784718391) found the net's game make-probability is the first
+    /// evaluator to out-rank raw HCP at the `1NT` invite/force boundary — but
+    /// only on the Stayman class (+0.030 ±0.017 IMPs/board vul none, +0.044
+    /// ±0.025 vul both, rising to +0.048/+0.069 opposite exactly-15 openers);
+    /// the balanced no-major seam stays HCP (net ≈ 0, third evaluator family
+    /// to fail there).  On, exactly the Stayman-rebid seams convert: with a
+    /// fit the `4M`/`3M`/`3OM` split, without one the `3NT`/`2NT` revert —
+    /// each force arm becomes "the net clears the game's IMP break-even at the
+    /// live vulnerability", its invite twin the declined half.  The `2♣`
+    /// entry, Smolen, garbage/crawling and the quantitative `4NT` are
+    /// untouched.
+    ///
+    /// **The live A/B refuted it** (`ab-stayman-net-force --slice`, 200k
+    /// sliced boards per vul, seed 1784719896): vul none −0.022 plain DD /
+    /// +0.003 PD, vul both −0.021 plain / −0.027 PD.  The forensic split
+    /// explains the screen-vs-live reversal: at the *fit* seam the incumbent
+    /// is not raw HCP but `fit_value` — already an upgrade evaluator, and the
+    /// net loses to it on both scorers in both directions; at the *no-fit NT*
+    /// seam the net's flips are plain-DD-positive (matching the screen, which
+    /// scored plain DD) but PD-negative — the DD-trained net promotes `3NT`s
+    /// that die against perfect defense, the decision table's "doubling
+    /// artifact, don't ship" row.  A frequency-matched NT-seam-only gate
+    /// re-scored under `single_dummy_leads` is the remaining open refinement.
+    pub stayman_net_force: bool,
+    /// The GF-majors transfer structure's master flag
+    ///
+    /// Also read at book construction to *place* its rules; this copy serves
+    /// the classify-time guards that cap or reroute a hand once the structure
+    /// is on.
+    pub transfer_gf_majors: bool,
+    /// Whether the structure is mirrored onto the heart transfer — the **raw**
+    /// setting, meaningless on its own
+    ///
+    /// The mirror is a no-op unless `transfer_gf_majors` is on too, so the book
+    /// gates on [`transfer_gf_heart_mirror`](Self::transfer_gf_heart_mirror),
+    /// never on this field.
+    pub transfer_gf_hearts: bool,
+}
+
+impl DecisionProfile {
+    /// Whether the heart-transfer mirror is authored — both gates open
+    #[must_use]
+    pub const fn transfer_gf_heart_mirror(&self) -> bool {
+        self.transfer_gf_majors && self.transfer_gf_hearts
+    }
 }
 
 impl Default for DecisionProfile {

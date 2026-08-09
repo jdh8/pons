@@ -194,7 +194,7 @@ fn heart_transfer_rebid_active(agreements: &Agreements) -> bool {
     agreements.notrump.invitational_5card_majors
         || sixcard_invite_active(agreements)
         || agreements.notrump.transfer_slam_try
-        || agreements.decision.transfer_gf_hearts
+        || agreements.decision.transfer_gf_heart_mirror()
 }
 
 /// Whether any treatment contributes to the spade-transfer rebid table

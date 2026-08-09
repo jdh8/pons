@@ -50,7 +50,7 @@
 //! | `readers` | the hand-written convention readers still awaiting retirement |
 
 mod envelope;
-mod knobs;
+pub mod knobs;
 mod projection;
 mod read;
 mod readers;
@@ -74,7 +74,8 @@ pub use knobs::{
 pub use read::Inferences;
 
 pub(crate) use envelope::relative_of;
-pub(crate) use knobs::{ReadingProfile, reading_profile};
+pub use knobs::ReadingProfile;
+pub(crate) use knobs::reading_profile;
 pub(crate) use projection::{AuthoredProjection, AuthoringStepCache};
 pub(in crate::bidding) use readers::penalty_x_reading;
 
