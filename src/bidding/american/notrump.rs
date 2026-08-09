@@ -20,7 +20,7 @@
 //! [`american`][super::american] during system assembly.
 
 use super::{call, other_major, slam};
-use crate::bidding::agreements::{Agreements, NotrumpKnobs};
+use crate::bidding::agreements::Agreements;
 use crate::bidding::constraint::{
     Cons, Constraint, balanced, described, envelope_union_upgrade, equal_length, hcp, len,
     long_suit_box, longer_suit, point_count_on, points, pred, reads_as, stopper_in,
@@ -54,7 +54,6 @@ mod two_notrump;
 
 use crawling_stayman::crawling_stayman_rule;
 use european::european_minors;
-pub use invitational_majors::invitational_5card_majors;
 use long_minor::long_minor_force_rule;
 use minor_transfers::puppet_minors;
 use size_ask::size_ask_eight_pass;
@@ -68,70 +67,32 @@ use texas::texas_strength_gate;
 use transfer_gf::{
     equal_majors, longer_major, major_splinter_reroute, not_major_splinter_slam, slam_55_reroute,
 };
-pub use transfers::transfer_longer_major;
 use two_notrump::quantitative_answer;
 
 pub(super) use both_majors::{both_majors_relay, both_majors_three_diamond, five_card_max};
-pub use both_majors::{set_stayman_5card_max, set_stayman_both_majors};
 pub(super) use crawling_stayman::crawling;
 pub use crawling_stayman::crawling_stayman;
 pub use crawling_stayman::set_crawling_stayman;
 pub(super) use european::{european_three_club, european_two_notrump, european_two_spade};
 pub(super) use invitational_majors::invitational_majors;
-pub use invitational_majors::set_invitational_5card_majors;
-pub use long_minor::set_long_minor_force;
 pub(super) use minor_transfers::{diamond_transfer, two_spade_two_way};
 pub(super) use puppet_stayman::puppet;
 pub(super) use sixcard_invitation::sixcard_invite;
-pub use sixcard_invitation::{set_sixcard_accept_floor, set_sixcard_invite_floor};
-pub use size_ask::{SizeAskEight, set_size_ask_accept_floor, set_size_ask_eight};
+pub use size_ask::SizeAskEight;
 pub(super) use splinter::notrump_splinter;
 pub use splinter::nt_splinter;
-pub use splinter::{set_nt_splinter, set_nt_splinter_floor};
+pub use splinter::set_nt_splinter;
 pub use stayman::garbage_stayman;
 pub(crate) use stayman::stayman_net_force;
 pub use stayman::{set_garbage_stayman, set_stayman_net_force};
 pub(super) use stayman::{smolen_at_three, smolen_completion, stayman_answers};
 pub(super) use stayman_slam::{cue, minor_slam};
-pub use stayman_slam::{set_stayman_cue_continuation, set_stayman_minor_slam_try};
-pub use texas::{set_texas_game_floor, set_texas_slam_drive};
 pub(super) use texas::{texas_drive, texas_transfers};
 pub(super) use transfer_gf::{heart_transfer_game_force, spade_transfer_game_force};
-pub use transfer_gf::{set_minor_min_to_3nt, set_transfer_gf_hearts, set_transfer_gf_majors};
-pub use transfer_slam::set_transfer_slam_try;
+pub use transfer_gf::{set_transfer_gf_hearts, set_transfer_gf_majors};
 pub(super) use transfer_slam::{heart_transfer_slam_try, spade_transfer_slam_try};
-pub use transfers::transfer_super_accept;
 pub(super) use transfers::{complete_transfer, heart_transfer_rebids, spade_transfer_rebids};
-pub use transfers::{set_transfer_longer_major, set_transfer_super_accept};
 pub(super) use two_notrump::{two_notrump_rebids, two_notrump_structure};
-
-/// Capture this thread's notrump build-time knobs
-///
-/// The one place the build-only notrump cells are read. Everything downstream
-/// takes the captured value, so a `set_*` between this call and the rules being
-/// built cannot split the book against itself. The three dual-read cells live
-/// only in `DecisionProfile` and are deliberately absent here.
-pub(in crate::bidding) fn capture() -> NotrumpKnobs {
-    NotrumpKnobs {
-        size_ask_eight: size_ask::size_ask_eight(),
-        size_ask_accept_floor: size_ask::size_ask_accept_floor(),
-        stayman_both_majors: both_majors::stayman_both_majors(),
-        stayman_5card_max: both_majors::stayman_5card_max(),
-        minor_min_to_3nt: transfer_gf::minor_min_to_3nt(),
-        transfer_super_accept: transfers::transfer_super_accept(),
-        transfer_longer_major: transfers::transfer_longer_major(),
-        sixcard_invite_floor: sixcard_invitation::sixcard_invite_floor_raw(),
-        sixcard_accept_floor: sixcard_invitation::sixcard_accept_floor_raw(),
-        transfer_slam_try: transfer_slam::transfer_slam_try(),
-        invitational_5card_majors: invitational_majors::invitational_5card_majors(),
-        texas_slam_drive: texas::texas_slam_drive(),
-        texas_game_floor: texas::texas_game_floor_raw(),
-        nt_splinter_floor: splinter::nt_splinter_floor(),
-        stayman_cue_continuation: stayman_slam::stayman_cue_continuation(),
-        stayman_minor_slam_try: stayman_slam::stayman_minor_slam_try(),
-        long_minor_force: long_minor::long_minor_force(),
-    }
-}
 
 /// The **Puppet** 1NT minor scheme — the shipped default
 ///
@@ -219,7 +180,7 @@ pub fn notrump_responses(agreements: &Agreements) -> Rules {
     let dormant = dormant_minors(agreements);
     // Direct `4♥/4♠` is the opener-decides slam try; with the Texas slam-drive
     // reroute on it caps at the 15–16 invitational band (17+ Texas-transfers and
-    // drives its own RKCB instead — see [`set_texas_slam_drive`]).
+    // drives its own RKCB instead — see `notrump.texas_slam_drive`).
     let direct_4m_max: u8 = if agreements.notrump.texas_slam_drive {
         15
     } else {
@@ -229,7 +190,7 @@ pub fn notrump_responses(agreements: &Agreements) -> Rules {
     // (its weak-only arm denies it): that hand keeps off the transfer and takes
     // the 2♣ Stayman/Smolen route, which right-sides game to the strong notrump.
     // A plain 5-3 still transfers.  Under the longer-major discipline (default;
-    // see [`set_transfer_longer_major`]) a two-suiter (both majors 5+) always
+    // see `notrump.transfer_longer_major`) a two-suiter (both majors 5+) always
     // transfers to the LONGER major, and equal lengths split by strength: weak
     // → hearts (safety), invitational / minimum game force → the both-majors
     // 3♦, slam try → spades (the `1NT - 2♥ - 2♠ - 3♥` structure).  2♦ (to hearts) is
@@ -338,7 +299,7 @@ pub fn notrump_responses(agreements: &Agreements) -> Rules {
         // major, ..5)` guard keeps a 5-5+ two-suiter on the both-majors 3♦, and
         // the strength gate ([`texas_strength_gate`]) routes game-no-slam to the
         // blast (`point_count + length ≥ 14`, lowered from the inherited raw-HCP 9
-        // to capture the invitational 7-8 hands — see [`set_texas_game_floor`]) and
+        // to capture the invitational 7-8 hands — see `notrump.texas_game_floor`) and
         // slam-invitational (15–18) to the direct slam try.
         .rule(
             Bid::new(4, Strain::Clubs),
@@ -626,11 +587,5 @@ pub(super) fn register_two_nt_and_rebids(book: &mut Trie, agreements: &Agreement
 
 #[cfg(test)]
 mod tests;
-pub use both_majors::stayman_5card_max;
-pub use both_majors::stayman_both_majors;
-pub use stayman_slam::stayman_cue_continuation;
-pub use stayman_slam::stayman_minor_slam_try;
-pub use texas::texas_slam_drive;
 pub use transfer_gf::transfer_gf_hearts;
 pub use transfer_gf::transfer_gf_majors;
-pub use transfer_slam::transfer_slam_try;

@@ -1,7 +1,7 @@
 //! Jacoby transfers — `2♦`/`2♥`, completion, super-accept, and the invite round
 //!
 //! Responder transfers, opener completes (or super-accepts under
-//! [`set_transfer_super_accept`]), and responder invites or signs off.  The
+//! [`NotrumpKnobs::transfer_super_accept`][crate::bidding::agreements::NotrumpKnobs::transfer_super_accept]), and responder invites or signs off.  The
 //! game-forcing and slam-try continuations live in [`super::transfer_gf`] and
 //! [`super::transfer_slam`].
 
@@ -10,67 +10,10 @@ use super::transfer_gf::{transfer_heart_gf_rebid, transfer_spade_gf_rebid};
 use super::transfer_slam::transfer_slam_try_rebid;
 use super::*;
 
-thread_local! {
-    /// Whether opener jump super-accepts a Jacoby transfer with four-card support
-    /// and a maximum; **off by default** (opt-in A/B).  See
-    /// [`set_transfer_super_accept`].
-    static TRANSFER_SUPER_ACCEPT: Cell<bool> = const { Cell::new(false) };
-}
-
-/// Author opener's jump super-accept of a Jacoby transfer for books built *after*
-/// this call (thread-local; **off by default**).
-///
-/// With four-card support for responder's major and a maximum (17), opener jumps
-/// to the three-level instead of merely completing the transfer, so the
-/// nine-card fit and the extra values are shown in one call.  Opt-in: a paired
-/// double-dummy A/B vs BBA over 640 000 boards found the jump a DD wash leaning
-/// negative (−0.055 IMPs/board it fires on) — opposite a transfer that may hold
-/// nothing, committing to the three-level overbids — so it stays off by default.
-pub fn set_transfer_super_accept(on: bool) {
-    TRANSFER_SUPER_ACCEPT.with(|cell| cell.set(on));
-}
-
-/// Whether the jump super-accept is currently authored
-pub fn transfer_super_accept() -> bool {
-    TRANSFER_SUPER_ACCEPT.with(Cell::get)
-}
-
-thread_local! {
-    /// The Jacoby transfer names the **longer** major, and equal-length
-    /// two-suiters split by strength: weak prefers the heart transfer (safety),
-    /// invitational and minimum game force show both at once via the
-    /// both-majors 3♦, and slam tries prefer the spade transfer for the
-    /// `1NT - 2♥ - 2♠ - 3♥` structure.  **On by default**; off restores the legacy
-    /// guards (a 6♠5♥ hand could tie into the heart transfer, and 3♦ fired on
-    /// any 5-5+).  See [`set_transfer_longer_major`].
-    static TRANSFER_LONGER_MAJOR: Cell<bool> = const { Cell::new(true) };
-}
-
-/// Author the longer-major transfer discipline for books built *after* this
-/// call (thread-local; **on by default**).
-///
-/// The Jacoby transfer names the longer major (a 6♠5♥ hand transfers to
-/// spades, whatever its strength).  With **equal** lengths (5-5, 6-6) the
-/// route splits by strength: weak transfers to *hearts* (the safe partscore —
-/// nothing shows the spades below it anyway), invitational and minimum game
-/// force bid the both-majors `3♦` (which this discipline also restricts to
-/// equal lengths — a 6-5 hand prefers naming its longer suit first), and a
-/// slam try (17+) transfers to *spades* for the `1NT - 2♥ - 2♠ - 3♥` natural
-/// game-force structure.  Off restores the legacy guards for the A/B.
-pub fn set_transfer_longer_major(on: bool) {
-    TRANSFER_LONGER_MAJOR.with(|cell| cell.set(on));
-}
-
-/// Whether the longer-major transfer discipline is currently authored (read at
-/// book construction)
-pub fn transfer_longer_major() -> bool {
-    TRANSFER_LONGER_MAJOR.with(Cell::get)
-}
-
 /// Complete a Jacoby transfer by bidding the anchor suit
 ///
 /// With four-card support and a maximum opener instead jumps to the three-level
-/// (the super-accept, gated by [`set_transfer_super_accept`]); otherwise it
+/// (the super-accept, gated by [`NotrumpKnobs::transfer_super_accept`][crate::bidding::agreements::NotrumpKnobs::transfer_super_accept]); otherwise it
 /// simply names the anchor suit.
 // ponytail: a plain jump super-accept; fit-/shortness-showing super-accepts are
 // the upgrade path if the A/B asks for them.

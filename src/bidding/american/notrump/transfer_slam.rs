@@ -1,39 +1,10 @@
 //! The non-forcing slam try after a Jacoby transfer
 //!
 //! Responder's jump to `4`-of-a-minor asks opener to co-operate below game.
-//! Gated by [`set_transfer_slam_try`], and inert while the game-forcing
+//! Gated by [`NotrumpKnobs::transfer_slam_try`][crate::bidding::agreements::NotrumpKnobs::transfer_slam_try], and inert while the game-forcing
 //! structure in [`super::transfer_gf`] owns the same slot.
 
 use super::*;
-
-thread_local! {
-    /// Responder's single-suited slam try after a Jacoby transfer completes;
-    /// **on by default**.  See [`set_transfer_slam_try`].
-    static TRANSFER_SLAM_TRY: Cell<bool> = const { Cell::new(true) };
-}
-
-/// Author responder's post-transfer single-suited slam try for books built
-/// *after* this call (thread-local; **on by default**).
-///
-/// After a Jacoby transfer completes (`1NT - 2♦ - 2♥` / `1NT - 2♥ - 2♠`), a single-suited
-/// five-card major with slam-invitational values (16+ HCP, opposite the 15–17
-/// opener) bids the *other* major (`3♠` / `3♥`) as an artificial slam try agreeing
-/// the transfer major; opener launches RKCB with a maximum (`4NT`) or signs off in
-/// the major game (`4M`), and the `slam` 1430 ladder places the slam.  Mirrors
-/// the Stayman `3OM` slam try, which the transfer path lacked — so a strong
-/// balanced five-card-major responder used to rest in `3NT` while a major slam was
-/// cold (the dominant double-dummy leak in our 1NT opening vs BBA).  A paired
-/// on/off A/B (320k boards, shared seed, vs the BBA reference) measured **plain
-/// +0.0012 IMPs/board (95% CI ±0.0004), PD +0.0012 — +1.42 IMPs/fired in both
-/// regimes** (275 fired, 0.09%), every CI excluding 0.
-pub fn set_transfer_slam_try(on: bool) {
-    TRANSFER_SLAM_TRY.with(|cell| cell.set(on));
-}
-
-/// Whether the post-transfer slam try is currently authored
-pub fn transfer_slam_try() -> bool {
-    TRANSFER_SLAM_TRY.with(Cell::get)
-}
 
 /// Responder's artificial slam try after a Jacoby transfer completes
 /// (`1NT - 2♦ - 2♥ - 3♠` / `1NT - 2♥ - 2♠ - 3♥`)
@@ -43,7 +14,7 @@ pub fn transfer_slam_try() -> bool {
 /// off in game ([`stayman_slam_try_answer`]).  Denies a four-card other major (a
 /// 5-4 hand shows its second suit instead).  Artificial — the bid is *not* that
 /// major — so it carries the [`SLAM_TRY`] alert (the artificial-alert invariant).
-/// Empty unless the slam try is on ([`set_transfer_slam_try`]).
+/// Empty unless the slam try is on ([`NotrumpKnobs::transfer_slam_try`][crate::bidding::agreements::NotrumpKnobs::transfer_slam_try]).
 pub(super) fn transfer_slam_try_rebid(major: Suit, agreements: &Agreements) -> Rules {
     if !agreements.notrump.transfer_slam_try {
         return Rules::new();

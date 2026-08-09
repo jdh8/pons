@@ -1,4 +1,5 @@
-use super::super::tests::{P, best, bid};
+use super::super::tests::{P, best, best_with, bid};
+use crate::bidding::agreements::Agreements;
 use contract_bridge::Strain;
 use contract_bridge::auction::Call;
 
@@ -6,8 +7,6 @@ use contract_bridge::auction::Call;
 /// rebids 2♠; 5♥4♠ transfers and rebids 2NT (with spades) or 2♠ (without).
 #[test]
 fn invitational_five_four_majors() {
-    use crate::bidding::american::set_invitational_5card_majors;
-
     let one_nt = [bid(1, Strain::Notrump), P];
     // 5♠4♥, a bare 8 (♠KQ + ♥Q + ♦J).
     let s5h4 = "KQ864.Q1043.J2.32";
@@ -18,8 +17,6 @@ fn invitational_five_four_majors() {
     let h5s4 = "Q1043.KQ864.J2.32";
     // 5 hearts, no four-card spade suit, a bare 8 (the single-suited invite).
     let h5 = "Q3.KQ864.J32.432";
-
-    set_invitational_5card_majors(true);
 
     // Routing: 5♠4♥/8 now Staymans; 6♠4♥/8 blasts game via Texas (4♦, a six-card
     // major); 5♥4♠/8 still takes the heart transfer (2♦).
@@ -106,15 +103,15 @@ fn invitational_five_four_majors() {
     assert_eq!(best(&two_d_doubled, s5h4), bid(2, Strain::Spades));
 
     // With the structure off, the same 5♠4♥/8 takes the spade transfer instead.
-    set_invitational_5card_majors(false);
-    assert_eq!(best(&one_nt, s5h4), bid(2, Strain::Hearts));
+    let mut off = Agreements::current();
+    off.notrump.invitational_5card_majors = false;
+    assert_eq!(best_with(&off, &one_nt, s5h4), bid(2, Strain::Hearts));
     // The doubled-2♦ escape is general (competition-over-Stayman, not the flag):
     // a 4-4 invite runs to 2NT rather than passing the artificial 2♦ doubled.
     assert_eq!(
-        best(&two_d_doubled, "KQ32.Q943.J32.43"),
+        best_with(&off, &two_d_doubled, "KQ32.Q943.J32.43"),
         bid(2, Strain::Notrump)
     );
-    set_invitational_5card_majors(true); // restore the default
 }
 
 /// The single-suited 5-spade invite: `1NT - 2♥ - 2♠ - 2NT` (the spade mirror of the

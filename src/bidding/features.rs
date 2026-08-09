@@ -1057,7 +1057,7 @@ pub struct ConventionCard {
     pub new_minor_forcing: bool,
     /// Two-way checkback (`set_xyz`; shadows plain NMF when on)
     pub xyz: bool,
-    /// Jump super-accept of a Jacoby transfer (`set_transfer_super_accept`)
+    /// Jump super-accept of a Jacoby transfer (`notrump.transfer_super_accept`)
     pub transfer_super_accept: bool,
     /// Fourth suit forcing (`RebidKnobs::fourth_suit_forcing`)
     pub fourth_suit_forcing: bool,

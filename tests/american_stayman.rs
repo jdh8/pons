@@ -213,20 +213,20 @@ fn smolen_works_at_the_two_notrump_level() {
 
 // --- Stayman treatments (garbage, opener's max-showing answers) --------------
 //
-// All three toggles are thread-local and read at book-construction time, so each
-// test sets them, builds the stance, then restores the library defaults before
-// asserting (the book is already captured) so a reused worker thread cannot leak
-// into a `stance()` test that expects the defaults. Defaults: garbage on,
-// both-majors on, five-card-max on.
+// Garbage Stayman is still a thread-local read at book-construction time, so it
+// is set here and restored to the library default before asserting (the book is
+// already captured) so a reused worker thread cannot leak into a `stance()` test
+// that expects the defaults.  The two max-showing answers are fields of the
+// captured agreements and need no restore.  Defaults: garbage on, both-majors
+// on, five-card-max on.
 
 fn stance_with(garbage: bool, both_majors: bool, five_card_max: bool) -> Stance {
     pons::bidding::american::set_garbage_stayman(garbage);
-    pons::bidding::american::set_stayman_both_majors(both_majors);
-    pons::bidding::american::set_stayman_5card_max(five_card_max);
-    let system = american(&pons::bidding::agreements::Agreements::current()).against();
+    let mut agreements = pons::bidding::agreements::Agreements::current();
+    agreements.notrump.stayman_both_majors = both_majors;
+    agreements.notrump.stayman_5card_max = five_card_max;
+    let system = american(&agreements).against();
     pons::bidding::american::set_garbage_stayman(true);
-    pons::bidding::american::set_stayman_both_majors(true);
-    pons::bidding::american::set_stayman_5card_max(true);
     system
 }
 

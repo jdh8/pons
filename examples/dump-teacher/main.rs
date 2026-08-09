@@ -47,14 +47,14 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use ddss::TrickCountTable;
 use pons::bidding::Stance;
-use pons::bidding::agreements::{Agreements, OpeningKnobs, RebidKnobs};
+use pons::bidding::agreements::{Agreements, NotrumpKnobs, OpeningKnobs, RebidKnobs};
 use pons::bidding::american::{
     EUROPEAN, LebensohlStyle, NotrumpDefense, NotrumpShape, PUPPET, garbage_stayman,
     jordan_truscott, leaping_michaels_enabled, lebensohl_style, major_support_double,
     notrump_defense, notrump_minors, nt_splinter, responsive_takeout_enabled, set_garbage_stayman,
     set_jordan_truscott, set_landy, set_leaping_michaels, set_lebensohl_style,
     set_major_support_double, set_notrump_defense, set_notrump_minors, set_nt_splinter,
-    set_responsive_takeout, set_transfer_super_accept, set_xyz, transfer_super_accept,
+    set_responsive_takeout, set_xyz,
 };
 use pons::bidding::card::{american_card, dutch_card};
 use pons::bidding::context::{Context, relative};
@@ -359,7 +359,7 @@ impl Defaults {
             landy: None,
             nmf: RebidKnobs::default().new_minor_forcing,
             offshape: OpeningKnobs::default().one_notrump_offshape,
-            super_accept: transfer_super_accept(),
+            super_accept: NotrumpKnobs::default().transfer_super_accept,
             fsf: RebidKnobs::default().fourth_suit_forcing,
             jordan: jordan_truscott(),
             leaping: leaping_michaels_enabled(),
@@ -376,7 +376,6 @@ impl Defaults {
     fn apply(&self) {
         set_garbage_stayman(self.garbage);
         set_xyz(self.xyz);
-        set_transfer_super_accept(self.super_accept);
         set_jordan_truscott(self.jordan);
         set_leaping_michaels(self.leaping);
         set_responsive_takeout(self.responsive);
@@ -405,6 +404,10 @@ impl Defaults {
                 fourth_suit_forcing: self.fsf,
                 ..RebidKnobs::default()
             },
+            notrump: NotrumpKnobs {
+                transfer_super_accept: self.super_accept,
+                ..NotrumpKnobs::default()
+            },
         }
     }
 }
@@ -414,6 +417,7 @@ impl Defaults {
 struct Knobs {
     opening: OpeningKnobs,
     rebid: RebidKnobs,
+    notrump: NotrumpKnobs,
 }
 
 impl Knobs {
@@ -422,6 +426,7 @@ impl Knobs {
         let mut agreements = Agreements::current();
         agreements.opening = self.opening;
         agreements.rebid = self.rebid;
+        agreements.notrump = self.notrump;
         agreements
     }
 }
@@ -470,8 +475,8 @@ const AXES: [(&str, Flip); 16] = [
         k.rebid.new_minor_forcing = !d.nmf;
     }),
     ("Two Way NMF (XYZ)", |d, _| set_xyz(!d.xyz)),
-    ("Super acceptance", |d, _| {
-        set_transfer_super_accept(!d.super_accept);
+    ("Super acceptance", |d, k| {
+        k.notrump.transfer_super_accept = !d.super_accept;
     }),
     ("Fourth suit forcing", |d, k| {
         k.rebid.fourth_suit_forcing = !d.fsf;

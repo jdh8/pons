@@ -1,61 +1,11 @@
 //! Slam machinery over Stayman — the cue continuation and the minor slam try
 //!
 //! Two agreements above the game level once opener has answered:
-//! [`set_stayman_cue_continuation`] (responder cue-bids toward a major slam)
-//! and [`set_stayman_minor_slam_try`] (the `2♦` denial's minor-fit route into
+//! [`NotrumpKnobs::stayman_cue_continuation`][crate::bidding::agreements::NotrumpKnobs::stayman_cue_continuation] (responder cue-bids toward a major slam)
+//! and [`NotrumpKnobs::stayman_minor_slam_try`][crate::bidding::agreements::NotrumpKnobs::stayman_minor_slam_try] (the `2♦` denial's minor-fit route into
 //! keycard).
 
 use super::*;
-
-thread_local! {
-    /// Responder's continuation after opener cue-bids in cooperation with the `3OM`
-    /// slam try (`1NT - 2♣ - 2M - 3OM - 4x`).  Opener's [`stayman_slam_try_answer`] cues a
-    /// control below the trump major with a maximum; without a responder node the
-    /// floor *passed the cue* — often below game.  On, responder keycards (`4NT`
-    /// RKCB) with slam values or signs off in the major game.  **On by default** —
-    /// the cue dead-end was the dominant Stayman leak vs BBA (≈20% of the tail-loss
-    /// IMPs, `bba-gen --isolate-opening bba`).  See [`set_stayman_cue_continuation`].
-    static STAYMAN_CUE_CONTINUATION: Cell<bool> = const { Cell::new(true) };
-    /// Stayman-then-minor slam try: over opener's Stayman answer, responder's
-    /// jump-free `3♣`/`3♦` shows a *natural* 5+ minor with slam values (14+) and no
-    /// fit for opener's major — the 5-4 two-suiter whose four-card major (the reason
-    /// for the 2♣ detour) missed.  Opener cooperates by raising the minor with a
-    /// fit + maximum (else `3NT`), and responder keycards.  **On by default** —
-    /// the A/B landed +3.29/+4.02 IMPs/fired (none/both, plain DD; PD identical,
-    /// no doubling artifact) across 151 fired boards, zero losses.  See
-    /// [`set_stayman_minor_slam_try`].
-    static STAYMAN_MINOR_SLAM_TRY: Cell<bool> = const { Cell::new(true) };
-}
-
-/// Author responder's continuation over opener's `3OM`-slam-try cue for books built
-/// *after* this call (thread-local; **on by default**).
-///
-/// Over opener's cue (a control below the trump major, showing a maximum) responder
-/// keycards with slam values or signs off in the major game — closing the dead-end
-/// where the cue was otherwise passed out below game.  See `stayman_cue_rebid`.
-pub fn set_stayman_cue_continuation(on: bool) {
-    STAYMAN_CUE_CONTINUATION.with(|cell| cell.set(on));
-}
-
-/// Whether responder's `3OM`-cue continuation is currently authored
-pub fn stayman_cue_continuation() -> bool {
-    STAYMAN_CUE_CONTINUATION.with(Cell::get)
-}
-
-/// Author the Stayman-then-minor slam try for books built *after* this call
-/// (thread-local; **on by default** — pass `false` to disable).
-///
-/// Over opener's Stayman answer, a natural `3♣`/`3♦` shows a 5+ minor with slam
-/// values and no major fit; opener raises the minor with a fit + maximum (else
-/// `3NT`), and responder keycards over the raise.
-pub fn set_stayman_minor_slam_try(on: bool) {
-    STAYMAN_MINOR_SLAM_TRY.with(|cell| cell.set(on));
-}
-
-/// Whether the Stayman-then-minor slam try is currently authored
-pub fn stayman_minor_slam_try() -> bool {
-    STAYMAN_MINOR_SLAM_TRY.with(Cell::get)
-}
 
 /// Opener's answer to a direct four-of-a-major slam try (`1NT - 4♥/4♠`)
 ///
@@ -112,7 +62,7 @@ pub(super) fn stayman_slam_try_answer(major: Suit) -> Rules {
 /// hand keycards (`4NT` RKCB, the [`slam`] 1430 ladder placing the contract),
 /// everything else signs off in the major game.  Without this node opener's cue was
 /// passed out — often *below* game — the dominant Stayman leak this fixes.  Gated by
-/// [`set_stayman_cue_continuation`] (on by default).
+/// [`NotrumpKnobs::stayman_cue_continuation`][crate::bidding::agreements::NotrumpKnobs::stayman_cue_continuation] (on by default).
 fn stayman_cue_rebid(major: Suit) -> Rules {
     Rules::new()
         // Slam values opposite a known maximum plus the shown control: keycard.

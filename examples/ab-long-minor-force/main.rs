@@ -5,7 +5,7 @@
 //! invite/pass looked worth +0.2 to +0.5 IMPs/board.  But that baseline is a
 //! fiction: these hands do not stop in notrump, they **transfer**, and the transfer
 //! reaches the suit game.  This A/B measures the truth by bidding every qualifying
-//! board with [`set_long_minor_force`] **off** (the shipped transfer routing) and
+//! board with `long_minor_force` **off** (the shipped transfer routing) and
 //! **on** (the 3NT force) and scoring the *real* contracts each arm reaches.
 //!
 //! Result (8M deals, plain DD, vul none): **−7.12 IMPs/fired.**  Club source
@@ -28,7 +28,6 @@ use contract_bridge::{
 };
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::american::set_long_minor_force;
 use pons::scoring::{final_contract, imps, ns_score_contract};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -95,11 +94,12 @@ fn main() {
     let base = args.seed.unwrap_or_else(rand::random);
     let vul = args.vulnerability;
 
-    // Two systems: the knob is read when the book is built, so build one each way.
-    set_long_minor_force(false);
-    let sys_off = american(&pons::bidding::agreements::Agreements::current()).against();
-    set_long_minor_force(true);
-    let sys_on = american(&pons::bidding::agreements::Agreements::current()).against();
+    // Two systems: the knob is baked into the book, so build one each way.
+    let mut arm = pons::bidding::agreements::Agreements::current();
+    arm.notrump.long_minor_force = false;
+    let sys_off = american(&arm).against();
+    arm.notrump.long_minor_force = true;
+    let sys_on = american(&arm).against();
 
     // Scan for a qualifying eight opposite partner's 1NT, bid both arms, keep the
     // deal plus each arm's final contract when they diverge.

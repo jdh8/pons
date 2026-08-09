@@ -13,7 +13,7 @@ use super::*;
 /// Used after both the direct 2NT opening (20–21 balanced) and opener's 2NT
 /// rebid after 2♣ (22–24 balanced).
 fn two_notrump_responses(agreements: &Agreements) -> Rules {
-    // The longer-major discipline (see [`set_transfer_longer_major`]): a
+    // The longer-major discipline (see `notrump.transfer_longer_major`): a
     // two-suiter transfers to the longer major, equal lengths to hearts —
     // there is no both-majors bid or slam reroute at this level, so hearts
     // takes every tie.  Off, the old guards tie at 2.0 and the pick between

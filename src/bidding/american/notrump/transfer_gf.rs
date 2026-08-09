@@ -14,11 +14,6 @@ thread_local! {
     /// plain +0.0014, PD +0.0016 IMPs/board, both CI ±0.0003, +1.70/+1.90 per fired).
     /// See [`set_transfer_gf_majors`].
     static TRANSFER_GF_MAJORS: Cell<bool> = const { Cell::new(true) };
-    /// Within the GF structure, route a minimum five-card-spade game-force holding a
-    /// four-card minor into the choice-of-games `3NT` (the floor) rather than showing
-    /// the minor, so `3♣`/`3♦` are reserved for slam tries; **off by default**.  See
-    /// [`set_minor_min_to_3nt`].
-    static MINOR_MIN_TO_3NT: Cell<bool> = const { Cell::new(false) };
     /// Mirror the GF structure onto the *heart* transfer (`1NT - 2♦ - 2♥`): minor
     /// side-suits (`3♣`/`3♦`), the `3♠` spade splinter (plus `4♣`/`4♦`), and the
     /// quantitative `4NT` — the single-suited slam try relocating off `3♠`, just as
@@ -44,18 +39,6 @@ pub fn set_transfer_gf_majors(on: bool) {
 /// Whether the post-transfer game-forcing structure is currently authored
 pub fn transfer_gf_majors() -> bool {
     TRANSFER_GF_MAJORS.with(Cell::get)
-}
-
-/// Route minimum five-card-spade game-forces with a four-card minor into the
-/// choice-of-games `3NT` instead of showing the minor (thread-local; **off by
-/// default**; the E1 A/B arm).  No-op unless [`set_transfer_gf_majors`] is on.
-pub fn set_minor_min_to_3nt(on: bool) {
-    MINOR_MIN_TO_3NT.with(|cell| cell.set(on));
-}
-
-/// Whether minimum five-card-spade game-forces with a minor bid `3NT` (Arm B)
-pub(super) fn minor_min_to_3nt() -> bool {
-    MINOR_MIN_TO_3NT.with(Cell::get)
 }
 
 /// Mirror the post-transfer game-forcing structure onto the heart transfer for books
@@ -318,7 +301,7 @@ fn gf_splinter_answer(major: Suit) -> Rules {
 }
 
 /// The `longer` major strictly outnumbers `shorter` — the transfer names the
-/// longer major (see [`set_transfer_longer_major`])
+/// longer major (see [`NotrumpKnobs::transfer_longer_major`][crate::bidding::agreements::NotrumpKnobs::transfer_longer_major])
 pub(super) fn longer_major(longer: Suit, shorter: Suit) -> Cons<impl Constraint + Clone> {
     longer_suit(longer, shorter)
 }

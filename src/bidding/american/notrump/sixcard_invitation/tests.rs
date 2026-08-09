@@ -1,4 +1,5 @@
-use super::super::tests::{P, best, bid};
+use super::super::tests::{P, best_with, bid};
+use crate::bidding::agreements::Agreements;
 use contract_bridge::Strain;
 
 /// The opt-in six-card-major game invite: just below the Texas blast floor,
@@ -6,7 +7,6 @@ use contract_bridge::Strain;
 /// on `point_count + trump length`.
 #[test]
 fn sixcard_major_invite() {
-    use crate::bidding::american::set_sixcard_invite_floor;
     use crate::bidding::constraint::set_support_points;
 
     // This exercises the invite *mechanism* (transfer → 3M invite → accept
@@ -17,6 +17,13 @@ fn sixcard_major_invite() {
     // so pin the legacy scale here to test the ladder in isolation.
     set_support_points(false);
 
+    // The shipped floor (13, the invite on) and the off pole (14 == the blast
+    // floor).  Captured *after* the `support_points` pin, which is a reading
+    // knob the capture reads.
+    let on = Agreements::current();
+    let mut off = on;
+    off.notrump.sixcard_invite_floor = 14;
+
     let one_nt = [bid(1, Strain::Notrump), P];
     // 6 hearts, ♥KQ + ♠J = 6 HCP, 6-3-2-2: point_count 7 (+1 unbalanced),
     // point_count + length = 13 — one below the blast floor (14), so it invites.
@@ -26,7 +33,6 @@ fn sixcard_major_invite() {
 
     // Turned off (floor 14 == blast floor): the invite hand transfers and the
     // floor handles the rebid — no authored 3♥ invite.
-    set_sixcard_invite_floor(14);
     let after_transfer = [
         bid(1, Strain::Notrump),
         P,
@@ -35,14 +41,19 @@ fn sixcard_major_invite() {
         bid(2, Strain::Hearts),
         P,
     ];
-    assert_ne!(best(&after_transfer, inv), bid(3, Strain::Hearts));
+    assert_ne!(
+        best_with(&off, &after_transfer, inv),
+        bid(3, Strain::Hearts)
+    );
 
     // On by default (floor 13): the invite hand transfers (2♦) then jumps to 3♥;
     // the weak hand stays out of the invite.
-    set_sixcard_invite_floor(13);
-    assert_eq!(best(&one_nt, inv), bid(2, Strain::Diamonds));
-    assert_eq!(best(&after_transfer, inv), bid(3, Strain::Hearts));
-    assert_ne!(best(&after_transfer, weak), bid(3, Strain::Hearts));
+    assert_eq!(best_with(&on, &one_nt, inv), bid(2, Strain::Diamonds));
+    assert_eq!(best_with(&on, &after_transfer, inv), bid(3, Strain::Hearts));
+    assert_ne!(
+        best_with(&on, &after_transfer, weak),
+        bid(3, Strain::Hearts)
+    );
 
     // Opener over 1NT - 2♦ - 2♥ - 3♥: accept (4♥) on point_count + trump length ≥ 18,
     // else pass.  16 with a doubleton (16+2) accepts; a flat 15 with a doubleton
@@ -58,18 +69,18 @@ fn sixcard_major_invite() {
         P,
     ];
     assert_eq!(
-        best(&over_invite, "AK5.32.AQ74.K963"),
+        best_with(&on, &over_invite, "AK5.32.AQ74.K963"),
         bid(4, Strain::Hearts)
     ); // 16, ♥xx
-    assert_eq!(best(&over_invite, "AK5.32.AQ74.Q963"), P); // 15, ♥xx
+    assert_eq!(best_with(&on, &over_invite, "AK5.32.AQ74.Q963"), P); // 15, ♥xx
     assert_eq!(
-        best(&over_invite, "AK52.432.AQ74.Q9"),
+        best_with(&on, &over_invite, "AK52.432.AQ74.Q9"),
         bid(4, Strain::Hearts)
     ); // 15, ♥xxx (4-3-4-2 — a flat 4333 would read 14 and rightly pass)
 
     // Spade side: 6 spades, ♠KQ + ♥J = 6 HCP transfers (2♥) then jumps to 3♠.
     let spade_inv = "KQ8765.J43.32.32";
-    assert_eq!(best(&one_nt, spade_inv), bid(2, Strain::Hearts));
+    assert_eq!(best_with(&on, &one_nt, spade_inv), bid(2, Strain::Hearts));
     let after_spade = [
         bid(1, Strain::Notrump),
         P,
@@ -78,8 +89,10 @@ fn sixcard_major_invite() {
         bid(2, Strain::Spades),
         P,
     ];
-    assert_eq!(best(&after_spade, spade_inv), bid(3, Strain::Spades));
+    assert_eq!(
+        best_with(&on, &after_spade, spade_inv),
+        bid(3, Strain::Spades)
+    );
 
-    set_sixcard_invite_floor(13); // restore the default (on)
     set_support_points(true); // restore the shipped default
 }

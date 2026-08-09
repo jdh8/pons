@@ -2,7 +2,7 @@
 //!
 //! Responder jumps to the *short* major, agreeing clubs or diamonds with slam
 //! interest.  Gated by [`set_nt_splinter`], with its own HCP floor
-//! ([`set_nt_splinter_floor`]).
+//! ([`NotrumpKnobs::nt_splinter_floor`][crate::bidding::agreements::NotrumpKnobs::nt_splinter_floor]).
 
 use super::transfer_gf::splinter_short;
 use super::*;
@@ -125,11 +125,6 @@ thread_local! {
     /// all four cells (+0.56/+0.67 IMPs per fired board at none, +0.69/+0.81 at
     /// both; plain/PD).  See [`set_nt_splinter`].
     static NT_SPLINTER: Cell<bool> = const { Cell::new(true) };
-
-    /// Responder's HCP floor for the `3♥`/`3♠` splinter, read once at
-    /// book-construction time.  `9` by default — BBA's measured floor for the
-    /// same slot, and BWS's "strong".  See [`set_nt_splinter_floor`].
-    static NT_SPLINTER_FLOOR: Cell<u8> = const { Cell::new(9) };
 }
 
 /// Author responder's `3♥`/`3♠` splinter over 1NT for books built *after* this
@@ -158,25 +153,10 @@ pub fn set_nt_splinter(on: bool) {
     NT_SPLINTER.with(|cell| cell.set(on));
 }
 
-/// Set responder's HCP floor for the `3♥`/`3♠` splinter for books built *after*
-/// this call (thread-local; **default 9**)
-///
-/// Exists so the 8-versus-9 sweep is a flag rather than a rebuild.  The default
-/// matches both BBA's measured floor for the same slot and BWS's "strong"; the
-/// eight is the marginal case, since a `3-1-4-5` eight currently *passes* 1NT.
-pub fn set_nt_splinter_floor(floor: u8) {
-    NT_SPLINTER_FLOOR.with(|cell| cell.set(floor));
-}
-
 /// Whether responder's `3♥`/`3♠` splinter over 1NT is currently authored (read
 /// by the inference engine too, to decode the call off its alert)
 pub fn nt_splinter() -> bool {
     NT_SPLINTER.with(Cell::get)
-}
-
-/// Responder's current HCP floor for the `3♥`/`3♠` splinter
-pub(super) fn nt_splinter_floor() -> u8 {
-    NT_SPLINTER_FLOOR.with(Cell::get)
 }
 
 /// Opener's game placement after responder's opt-in 1NT - 3M splinter

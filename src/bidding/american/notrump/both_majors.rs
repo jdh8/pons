@@ -1,8 +1,8 @@
 //! Both-major agreements — the Stayman `2NT` relay, the five-card max, and `1NT - 3♦`
 //!
 //! Three ways a both-majors hand is shown: opener's max-only relay over Stayman
-//! ([`set_stayman_both_majors`]), the five-card-major maximum jump
-//! ([`set_stayman_5card_max`]), and responder's direct `3♦` on 5-5 majors,
+//! ([`NotrumpKnobs::stayman_both_majors`][crate::bidding::agreements::NotrumpKnobs::stayman_both_majors]), the five-card-major maximum jump
+//! ([`NotrumpKnobs::stayman_5card_max`][crate::bidding::agreements::NotrumpKnobs::stayman_5card_max]), and responder's direct `3♦` on 5-5 majors,
 //! invitational or better.
 use super::*;
 
@@ -102,47 +102,6 @@ fn five_card_max_rebid(major: Suit) -> Rules {
     Rules::new()
         .rule(Bid::new(4, Strain::from(major)), 130, len(major, 3..))
         .rule(Bid::new(3, Strain::Notrump), 100, hcp(0..))
-}
-
-thread_local! {
-    /// Opener jumps to `2NT` over `1NT - 2♣` holding *both* four-card majors and a
-    /// *maximum* (16-17); a minimum (15) bids 2♥ naturally.  Responder then names own
-    /// major (`3♣` = hearts, `3♦` = spades) and opener completes (`3♥`/`3♠`), so the
-    /// strong concealed hand declares the known 4-4 fit (right-siding) instead of
-    /// responder declaring after a direct raise.  **On by default** — a paired DD
-    /// A/B vs BBA (320k boards/arm, vul none) measured +2.18 IMPs/fired plain
-    /// (+0.0035/board, 95% CI excl 0) and +2.29 PD *with garbage on*, +2.68/+2.87
-    /// with garbage off — a win in every regime, unlike the earlier strength-step
-    /// scheme it replaces.  See [`set_stayman_both_majors`].
-    static STAYMAN_BOTH_MAJORS: Cell<bool> = const { Cell::new(true) };
-    /// Opener jumps `3♥`/`3♠` over `1NT - 2♣` holding a *five-card* major and a
-    /// maximum (16-17), showing the 5-3/5-4 fit plus extras.  **On by default** —
-    /// the cleanest of the three: +3.45 IMPs/fired plain (+0.0007/board, 95% CI
-    /// excl 0) and +3.33 PD, holding up at +1.47/+0.90 even with garbage on.  See
-    /// [`set_stayman_5card_max`].
-    static STAYMAN_5CARD_MAX: Cell<bool> = const { Cell::new(true) };
-}
-
-/// Author opener's max-only right-siding relay over `1NT - 2♣` with both four-card
-/// majors for books built *after* this call (thread-local; **on by default**).
-pub fn set_stayman_both_majors(on: bool) {
-    STAYMAN_BOTH_MAJORS.with(|cell| cell.set(on));
-}
-
-/// Author opener's max five-card-major jump over `1NT - 2♣` for books built *after*
-/// this call (thread-local; **on by default**).
-pub fn set_stayman_5card_max(on: bool) {
-    STAYMAN_5CARD_MAX.with(|cell| cell.set(on));
-}
-
-/// Whether opener's both-majors max-only relay is currently authored
-pub fn stayman_both_majors() -> bool {
-    STAYMAN_BOTH_MAJORS.with(Cell::get)
-}
-
-/// Whether opener's max five-card-major jump is currently authored
-pub fn stayman_5card_max() -> bool {
-    STAYMAN_5CARD_MAX.with(Cell::get)
 }
 
 /// Opener's answer to the both-majors 3♦: pick the strain by strength

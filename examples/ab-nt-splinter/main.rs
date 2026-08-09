@@ -40,7 +40,7 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Seat, Strain};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::american::{set_nt_splinter, set_nt_splinter_floor};
+use pons::bidding::american::set_nt_splinter;
 use pons::bidding::context::relative;
 use pons::bidding::{Inferences, Stance};
 use pons::scoring::{
@@ -144,9 +144,10 @@ fn main() {
     // tries are independent thereafter.
     set_nt_splinter(false);
     let off = american(&pons::bidding::agreements::Agreements::current()).against();
-    set_nt_splinter_floor(args.floor);
     set_nt_splinter(true);
-    let on = american(&pons::bidding::agreements::Agreements::current()).against();
+    let mut armed = pons::bidding::agreements::Agreements::current();
+    armed.notrump.nt_splinter_floor = args.floor;
+    let on = american(&armed).against();
     set_nt_splinter(false); // restore the shipped default for anything downstream
     let stances = [off, on];
 

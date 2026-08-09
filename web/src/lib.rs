@@ -832,14 +832,14 @@ fn rule_json(rules: &pons::bidding::Rules) -> Vec<RuleJson> {
 // ---------------------------------------------------------------------------
 
 // What the user has selected in the Settings tab
-// 
+//
 // The engine used to hold every knob in a `thread_local!` cell of its own, and
 // this crate's registry wrote them through `set_*` functions.  Those cells are
 // being deleted in favour of one `Agreements` value threaded into
 // `american()`, which leaves the *UI's* settings state with nowhere to live —
 // so it lives here, where it belongs: a web app holding what the user picked
 // is app state, not a hidden configuration channel.
-// 
+//
 // Wasm is single-threaded, so this cell is effectively a global.  It seeds
 // from [`Agreements::current`] rather than `default()` while the engine still
 // has cells of its own, so a knob this crate has not yet migrated still reads
@@ -886,6 +886,15 @@ knob!(set_game_backstop, game_backstop_enabled, game_force.game_backstop: bool);
 knob!(set_fourth_suit_forcing, fourth_suit_forcing, rebid.fourth_suit_forcing: bool);
 knob!(set_meckstroth_adjunct, meckstroth_adjunct, rebid.meckstroth_adjunct: bool);
 knob!(set_limit_raise_acceptance, limit_raise_acceptance, response.limit_raise_acceptance: bool);
+knob!(set_transfer_super_accept, transfer_super_accept, notrump.transfer_super_accept: bool);
+knob!(set_transfer_slam_try, transfer_slam_try, notrump.transfer_slam_try: bool);
+knob!(set_texas_slam_drive, texas_slam_drive, notrump.texas_slam_drive: bool);
+knob!(set_stayman_both_majors, stayman_both_majors, notrump.stayman_both_majors: bool);
+knob!(set_stayman_5card_max, stayman_5card_max, notrump.stayman_5card_max: bool);
+knob!(set_invitational_5card_majors, invitational_5card_majors, notrump.invitational_5card_majors: bool);
+knob!(set_transfer_longer_major, transfer_longer_major, notrump.transfer_longer_major: bool);
+knob!(set_stayman_cue_continuation, stayman_cue_continuation, notrump.stayman_cue_continuation: bool);
+knob!(set_stayman_minor_slam_try, stayman_minor_slam_try, notrump.stayman_minor_slam_try: bool);
 
 /// The Settings-tab registry: one row per user-facing bidding knob
 ///
@@ -1259,18 +1268,18 @@ static SETTINGS: &[Setting] = &[
     // Notrump
     toggle("puppet_stayman", NOTRUMP, "Puppet Stayman (3♣)", true, set_puppet_stayman, puppet_stayman),
     toggle("garbage_stayman", NOTRUMP, "Garbage Stayman", true, american::set_garbage_stayman, american::garbage_stayman),
-    toggle("transfer_super_accept", NOTRUMP, "", false, american::set_transfer_super_accept, american::transfer_super_accept),
-    toggle("transfer_slam_try", NOTRUMP, "", true, american::set_transfer_slam_try, american::transfer_slam_try),
-    toggle("texas_slam_drive", NOTRUMP, "", true, american::set_texas_slam_drive, american::texas_slam_drive),
+    toggle("transfer_super_accept", NOTRUMP, "", false, set_transfer_super_accept, transfer_super_accept),
+    toggle("transfer_slam_try", NOTRUMP, "", true, set_transfer_slam_try, transfer_slam_try),
+    toggle("texas_slam_drive", NOTRUMP, "", true, set_texas_slam_drive, texas_slam_drive),
     toggle("transfer_gf_majors", NOTRUMP, "", true, american::set_transfer_gf_majors, american::transfer_gf_majors),
     gated("transfer_gf_hearts", NOTRUMP, "", true, american::set_transfer_gf_hearts, american::transfer_gf_hearts, "transfer_gf_majors"),
-    toggle("stayman_both_majors", NOTRUMP, "", true, american::set_stayman_both_majors, american::stayman_both_majors),
-    toggle("stayman_5card_max", NOTRUMP, "", true, american::set_stayman_5card_max, american::stayman_5card_max),
-    toggle("invitational_5card_majors", NOTRUMP, "", true, american::set_invitational_5card_majors, american::invitational_5card_majors),
-    toggle("transfer_longer_major", NOTRUMP, "", true, american::set_transfer_longer_major, american::transfer_longer_major),
+    toggle("stayman_both_majors", NOTRUMP, "", true, set_stayman_both_majors, stayman_both_majors),
+    toggle("stayman_5card_max", NOTRUMP, "", true, set_stayman_5card_max, stayman_5card_max),
+    toggle("invitational_5card_majors", NOTRUMP, "", true, set_invitational_5card_majors, invitational_5card_majors),
+    toggle("transfer_longer_major", NOTRUMP, "", true, set_transfer_longer_major, transfer_longer_major),
     toggle("crawling_stayman", NOTRUMP, "", true, american::set_crawling_stayman, american::crawling_stayman),
-    toggle("stayman_cue_continuation", NOTRUMP, "", true, american::set_stayman_cue_continuation, american::stayman_cue_continuation),
-    toggle("stayman_minor_slam_try", NOTRUMP, "", true, american::set_stayman_minor_slam_try, american::stayman_minor_slam_try),
+    toggle("stayman_cue_continuation", NOTRUMP, "", true, set_stayman_cue_continuation, stayman_cue_continuation),
+    toggle("stayman_minor_slam_try", NOTRUMP, "", true, set_stayman_minor_slam_try, stayman_minor_slam_try),
     toggle("nt_splinter", NOTRUMP, "1NT - 3M splinter (short major, ♦4, ♣5–6)", true, american::set_nt_splinter, american::nt_splinter),
     // Competition
     toggle("lebensohl", COMPETITION, "Lebensohl (over 1NT interference)", true, set_lebensohl_toggle, lebensohl_toggle),

@@ -43,8 +43,21 @@ fn row_package_invariants() {
 /// `american()`'s best call for a hand in an auction, and whether the instinct
 /// floor (not a book node) produced it
 pub(super) fn best_call(auction: &[Call], hand: &str) -> (Call, bool) {
+    best_call_with(
+        &crate::bidding::agreements::Agreements::current(),
+        auction,
+        hand,
+    )
+}
+
+/// [`best_call`], but under an explicit set of agreements
+pub(super) fn best_call_with(
+    agreements: &crate::bidding::agreements::Agreements,
+    auction: &[Call],
+    hand: &str,
+) -> (Call, bool) {
     let hand: Hand = hand.parse().expect("valid test hand");
-    let (logits, prov) = american(&crate::bidding::agreements::Agreements::current())
+    let (logits, prov) = american(agreements)
         .against()
         .classify_with_provenance(hand, RelativeVulnerability::NONE, auction)
         .expect("a legal auction classifies");
@@ -80,13 +93,13 @@ pub(super) fn bid_uvu(auction: &[Call], hand: &str) -> (Call, bool) {
 
 /// As [`best_call`], with our Jacoby-transfer competition + jump super-accept
 /// enabled (both opt-in/default-off after the DD-negative A/B); restores the
-/// defaults so a thread reused by a later test sees them off again.
+/// competition cell so a thread reused by a later test sees it off again.
 pub(super) fn bid_xfer(auction: &[Call], hand: &str) -> (Call, bool) {
     super::over_our_jacoby::set_competition_over_transfer(true);
-    crate::bidding::american::set_transfer_super_accept(true);
-    let result = best_call(auction, hand);
+    let mut agreements = crate::bidding::agreements::Agreements::current();
+    agreements.notrump.transfer_super_accept = true;
+    let result = best_call_with(&agreements, auction, hand);
     super::over_our_jacoby::set_competition_over_transfer(false);
-    crate::bidding::american::set_transfer_super_accept(false);
     result
 }
 

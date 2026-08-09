@@ -121,12 +121,8 @@ pub(crate) use defense::{
 };
 pub use notrump::{
     EUROPEAN, PUPPET, SizeAskEight, notrump_responses, set_crawling_stayman, set_garbage_stayman,
-    set_invitational_5card_majors, set_long_minor_force, set_minor_min_to_3nt, set_notrump_minors,
-    set_nt_splinter, set_nt_splinter_floor, set_sixcard_accept_floor, set_sixcard_invite_floor,
-    set_size_ask_accept_floor, set_size_ask_eight, set_stayman_5card_max, set_stayman_both_majors,
-    set_stayman_cue_continuation, set_stayman_minor_slam_try, set_stayman_net_force,
-    set_texas_game_floor, set_texas_slam_drive, set_transfer_gf_hearts, set_transfer_gf_majors,
-    set_transfer_longer_major, set_transfer_slam_try, set_transfer_super_accept,
+    set_notrump_minors, set_nt_splinter, set_stayman_net_force, set_transfer_gf_hearts,
+    set_transfer_gf_majors,
 };
 pub(crate) use openings::notrump_shape;
 pub(crate) use openings::two_notrump_wide;
@@ -412,17 +408,8 @@ pub use defense::stayman_defense_enabled;
 pub use defense::transfer_defense_enabled;
 pub use notrump::crawling_stayman;
 pub use notrump::garbage_stayman;
-pub use notrump::invitational_5card_majors;
 pub use notrump::notrump_minors;
 pub use notrump::nt_splinter;
-pub use notrump::stayman_5card_max;
-pub use notrump::stayman_both_majors;
-pub use notrump::stayman_cue_continuation;
-pub use notrump::stayman_minor_slam_try;
 pub(crate) use notrump::stayman_net_force;
-pub use notrump::texas_slam_drive;
 pub use notrump::transfer_gf_hearts;
 pub use notrump::transfer_gf_majors;
-pub use notrump::transfer_longer_major;
-pub use notrump::transfer_slam_try;
-pub use notrump::transfer_super_accept;

@@ -428,7 +428,7 @@ fn american_row(name: &str, a: &Agreements) -> i32 {
         ),
         "1NT opening shape 6 minor" => i32::from(a.opening.notrump_shape == NotrumpShape::Wide6322),
         "Checkback" => i32::from(a.rebid.new_minor_forcing),
-        // `set_transfer_super_accept` is **off by default**, so we do not jump
+        // `NotrumpKnobs::transfer_super_accept` is **off by default**, so we do not jump
         // super-accept a Jacoby transfer with four-card support and a maximum.
         // The hand-written card declared `= 1` here; that was a claim to a
         // convention we do not play, and generating it fixes the disclosure.
@@ -510,7 +510,7 @@ fn american_row(name: &str, a: &Agreements) -> i32 {
         // 4+ support with a doubleton or shorter somewhere).  `notrump.rs` only
         // ever authors the plain jump — the fit-/shortness-showing forms are a
         // deliberate omission there — so this row is 0 whatever
-        // `set_transfer_super_accept` says.
+        // `NotrumpKnobs::transfer_super_accept` says.
         "Extended acceptance after NT" => 0,
         // Cue bids, DOPI/ROPI/DEPO over their interference in a keycard
         // auction (the floor's authored rungs in `instinct.rs` — DOPI below

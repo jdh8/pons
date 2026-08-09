@@ -39,7 +39,7 @@ use contract_bridge::auction::Auction;
 use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Hand, Seat, Suit};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::american::{SizeAskEight, set_size_ask_eight};
+use pons::bidding::american::SizeAskEight;
 use pons::bidding::context::relative;
 use pons::bidding::{Inferences, Stance};
 use pons::scoring::{
@@ -154,13 +154,13 @@ fn main() {
     let vul = args.vulnerability;
 
     // arm 0 = invite the whole class, arm 1 = pass the whole class.  The routing is
-    // read at book-construction time, so build each arm under its own setting; the
-    // baked tries are independent thereafter.  Restore the shipped default after.
-    set_size_ask_eight(SizeAskEight::Invite);
-    let invite = american(&pons::bidding::agreements::Agreements::current()).against();
-    set_size_ask_eight(SizeAskEight::Pass);
-    let pass = american(&pons::bidding::agreements::Agreements::current()).against();
-    set_size_ask_eight(SizeAskEight::Shipped);
+    // baked into the book, so build each arm from its own agreements; the tries are
+    // independent thereafter.
+    let mut arm = pons::bidding::agreements::Agreements::current();
+    arm.notrump.size_ask_eight = SizeAskEight::Invite;
+    let invite = american(&arm).against();
+    arm.notrump.size_ask_eight = SizeAskEight::Pass;
+    let pass = american(&arm).against();
     let stances = [invite, pass];
 
     let deals = seeded_deals(base, args.count);

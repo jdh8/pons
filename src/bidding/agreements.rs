@@ -379,50 +379,272 @@ pub struct NotrumpKnobs {
     // --- notrump.rs
     // --- notrump/size_ask.rs
     /// How a balanced eight with no four-card major handles the size ask
+    ///
+    /// **Default [`SizeAskEight::Shipped`]** — the flat 4-3-3-3 subset passes
+    /// (a shape with no ruff and no long suit is its high cards and nothing
+    /// more, so it plays a level too high) and the shapelier eights invite via
+    /// the `2♠`/`2NT` size ask.
+    ///
+    /// A throwaway measurement knob: [`Invite`][SizeAskEight::Invite]
+    /// un-suppresses the flat 4-3-3-3 eight so the whole class size-asks,
+    /// [`Pass`][SizeAskEight::Pass] sends the whole class to Pass.  Comparing
+    /// the two poles under the single-dummy perfect-defense scorer
+    /// ([`ns_score_pd_tricks`][crate::scoring::ns_score_pd_tricks]) re-prices
+    /// the flat-4333 carve — decided on plain double dummy, which is
+    /// level-dependently pessimistic on the low contracts in play (very on
+    /// `1NT`, slightly on `3NT`) — and the still-live shapelier eights with
+    /// realistic tricks.  The default is byte-identical to the shipped system.
     pub size_ask_eight: super::american::SizeAskEight,
     /// Opener's HCP floor for accepting the balanced-eight size ask
+    ///
+    /// Over the size ask (`2♠` Puppet max-signal `3♣`, or European `2NT`→`3NT`),
+    /// a maximum accepts game and a minimum declines to `2NT`.  Shipped floor is
+    /// **16** (accept the 24-HCP game): the earlier double-dummy probe rejected
+    /// accept-16, but DD over-punishes the accepted `3NT` with doubled failures
+    /// a realistic blind lead dodges.  Re-priced under the single-dummy
+    /// perfect-defense scorer
+    /// ([`ns_score_pd_tricks`][crate::scoring::ns_score_pd_tricks]) accept-16
+    /// wins both vulnerabilities (SD-PD −0.85 NV / −2.16 vul IMPs/divergent,
+    /// plain-DD non-negative), so 16 is default-on.  In the Puppet scheme this
+    /// signal is shared with the club one-suiter; the club buckets measured
+    /// benign.  Raise to 17 to restore the pre-2026-07-25 conservative accept.
+    ///
+    /// The meaningful sweep is `{15, 16, 17}` (opener's `1NT` range).  Floor 15
+    /// is a **falsification control**, not a shippable setting: accepting on
+    /// `15 + 8 = 23` turns the invite into a game force, so 15 *should* decline
+    /// — the harness is expected to price accept-15 as a clear loss, and a
+    /// measured *win* there is a warning that the scorer (not the treatment) is
+    /// wrong.  It priced accept-15 at SD-PD +1.11 NV / +0.99 vul (a clear
+    /// decline), validating the scorer.
     pub size_ask_accept_floor: u8,
     // --- notrump/both_majors.rs
     /// Show both four-card majors in response to Stayman
+    ///
+    /// Opener jumps to `2NT` over `1NT - 2♣` holding *both* four-card majors and
+    /// a *maximum* (16-17); a minimum (15) bids `2♥` naturally.  Responder then
+    /// names own major (`3♣` = hearts, `3♦` = spades) and opener completes
+    /// (`3♥`/`3♠`), so the strong concealed hand declares the known 4-4 fit
+    /// (right-siding) instead of responder declaring after a direct raise.
+    ///
+    /// **On by default** — a paired DD A/B vs BBA (320k boards/arm, vul none)
+    /// measured +2.18 IMPs/fired plain (+0.0035/board, 95% CI excl 0) and +2.29
+    /// PD *with garbage on*, +2.68/+2.87 with garbage off — a win in every
+    /// regime, unlike the earlier strength-step scheme it replaces.
     pub stayman_both_majors: bool,
     /// Show a five-card major when answering Stayman with a maximum
+    ///
+    /// Opener jumps `3♥`/`3♠` over `1NT - 2♣` holding a *five-card* major and a
+    /// maximum (16-17), showing the 5-3/5-4 fit plus extras.  **On by default**
+    /// — the cleanest of the three: +3.45 IMPs/fired plain (+0.0007/board, 95%
+    /// CI excl 0) and +3.33 PD, holding up at +1.47/+0.90 even with garbage on.
     pub stayman_5card_max: bool,
     // --- notrump/transfer_gf.rs
     /// Route minimum game-forcing minor side suits directly to `3NT`
+    ///
+    /// Within the GF structure, a minimum five-card-spade game force holding a
+    /// four-card minor takes the choice-of-games `3NT` (the floor) rather than
+    /// showing the minor, so `3♣`/`3♦` are reserved for slam tries.  **Off by
+    /// default** — the losing arm B of the gf-majors A/B; the show-the-minor
+    /// default beat it.  No-op unless `transfer_gf_majors` is on.
     pub minor_min_to_3nt: bool,
     // --- notrump/transfers.rs
     /// Author super-accepts of Jacoby transfers
+    ///
+    /// With four-card support for responder's major and a maximum (17), opener
+    /// jumps to the three-level instead of merely completing the transfer, so
+    /// the nine-card fit and the extra values are shown in one call.
+    ///
+    /// **Opt-in, off by default**: a paired double-dummy A/B vs BBA over 640 000
+    /// boards found the jump a DD wash leaning negative (−0.055 IMPs/board it
+    /// fires on) — opposite a transfer that may hold nothing, committing to the
+    /// three-level overbids.
     pub transfer_super_accept: bool,
     /// Prefer the longer major when both majors can transfer
+    ///
+    /// The Jacoby transfer names the longer major (a 6♠5♥ hand transfers to
+    /// spades, whatever its strength).  With **equal** lengths (5-5, 6-6) the
+    /// route splits by strength: weak transfers to *hearts* (the safe partscore
+    /// — nothing shows the spades below it anyway), invitational and minimum
+    /// game force bid the both-majors `3♦` (which this discipline also restricts
+    /// to equal lengths — a 6-5 hand prefers naming its longer suit first), and
+    /// a slam try (17+) transfers to *spades* for the `1NT - 2♥ - 2♠ - 3♥`
+    /// natural game-force structure.
+    ///
+    /// **On by default**; off restores the legacy guards for the A/B (a 6♠5♥
+    /// hand could tie into the heart transfer, and `3♦` fired on any 5-5+).
     pub transfer_longer_major: bool,
     // --- notrump/crawling_stayman.rs
     // --- notrump/sixcard_invitation.rs
     /// Raw strength floor for inviting with a six-card major
+    ///
+    /// The `point_count + trump length` floor at which a six-card-major
+    /// responder *invites* game — transfer at the two level, then jump to `3M` —
+    /// instead of resting in the passed two-level partscore.  **Default 13**
+    /// (on): the invitational band is
+    /// `[13, `[`texas_game_floor`][Self::texas_game_floor]`)`, i.e. the
+    /// just-below-blast sixes route through a `3M` invite; opener accepts on
+    /// [`sixcard_accept_floor`][Self::sixcard_accept_floor].  Raise it to
+    /// [`texas_game_floor`][Self::texas_game_floor] (14) to empty the band and
+    /// turn the invite *off*.
+    ///
+    /// On by default as standard, expected major-suit bidding.  A paired A/B vs
+    /// BBA (1.536M boards/arm, `--filter-1nt`, floor 13 over 14, accept floor
+    /// 18; 1607 fired, 0.10%) measured **plain +0.619 IMPs/fired vul none,
+    /// +1.820 both (CI excl 0); PD −0.211 / +0.561** — perfect-defense doubling
+    /// trims the vul-none edge (the 3-level tax: the decline branch rests in
+    /// `3M`), but a 6-card-fit `3M` partscore is not realistically doubled into a
+    /// penalty at IMPs, so the PD-none figure overstates the downside.
+    /// Double-dummy can't see the invite's real edge anyway — the `3M` brake on
+    /// the thin games real defenders beat — so the conventional invite is kept
+    /// on.  `probe-jacoby-invite-eval` experiment I has the opener-threshold
+    /// sweep.
     pub sixcard_invite_floor: u8,
     /// Raw strength floor for accepting a six-card-major invitation
+    ///
+    /// Opener's accept floor for the six-card-major invite (`…3M → 4M`) on
+    /// `point_count + trump length`; below it opener passes `3M`.  **Default
+    /// 18**: a flat 15 with a doubleton in the major (15 + 2) declines, a 15 with
+    /// three-card support (15 + 3) or any 16+ accepts — the ≈15% decline the
+    /// probe's opener sweep found optimal.  Consulted only when the invite is on
+    /// ([`sixcard_invite_floor`][Self::sixcard_invite_floor] <
+    /// [`texas_game_floor`][Self::texas_game_floor]).
     pub sixcard_accept_floor: u8,
     // --- notrump/transfer_slam.rs
     /// Author the transfer slam-try structure
+    ///
+    /// After a Jacoby transfer completes (`1NT - 2♦ - 2♥` / `1NT - 2♥ - 2♠`), a
+    /// single-suited five-card major with slam-invitational values (16+ HCP,
+    /// opposite the 15–17 opener) bids the *other* major (`3♠` / `3♥`) as an
+    /// artificial slam try agreeing the transfer major; opener launches RKCB with
+    /// a maximum (`4NT`) or signs off in the major game (`4M`), and the `slam`
+    /// 1430 ladder places the slam.  Mirrors the Stayman `3OM` slam try, which
+    /// the transfer path lacked — so a strong balanced five-card-major responder
+    /// used to rest in `3NT` while a major slam was cold (the dominant
+    /// double-dummy leak in our `1NT` opening vs BBA).
+    ///
+    /// **On by default** — a paired on/off A/B (320k boards, shared seed, vs the
+    /// BBA reference) measured **plain +0.0012 IMPs/board (95% CI ±0.0004), PD
+    /// +0.0012 — +1.42 IMPs/fired in both regimes** (275 fired, 0.09%), every CI
+    /// excluding 0.  Inert while the default-on GF-majors structure owns the same
+    /// slot; it is that structure's fallback.
     pub transfer_slam_try: bool,
     // --- notrump/invitational_majors.rs
     /// Author the invitational five-card-major structure
+    ///
+    /// 5♠4♥ at invitational+ values keeps off the spade transfer and bids
+    /// Stayman, inviting with a `2♠` rebid over opener's `2♦` (non-forcing) or
+    /// `2♥` (forcing); 5♥4♠ transfers to hearts and rebids `2NT` (showing the
+    /// four spades) or `2♠` (an artificial relay denying them).  A Muppet-style
+    /// swap brought down to the two-level over `1NT`.
+    ///
+    /// **On by default** — a paired A/B vs BBA (1.28M boards/arm, `--filter-1nt`,
+    /// vul none) measured **+0.375 IMPs/fired plain (+0.0020/board, 95% CI
+    /// ±0.0004) and +0.134 PD (+0.0007/board, 95% CI ±0.0005)**, both excl 0.
+    /// The win needed the doubled-`2♦` escape (`1NT - 2♣ - 2♦ (X)` systems-on
+    /// rebase in `competition.rs`): without it the reroute walked 5♠4♥ into a
+    /// doubled artificial `2♦` it passed out, and PD was a wash (−0.0001).
     pub invitational_5card_majors: bool,
     // --- notrump/texas.rs
     /// Route strong Texas hands through the slam-drive continuations
+    ///
+    /// The direct `1NT - 4♥/4♠` is a *non-forcing* slam try — opener moves only
+    /// with a maximum, else passes the major game.  That strands the strong
+    /// responder: a 16+ six-card-major hand opposite a *minimum* `1NT` (the
+    /// majority) has a cold slam the opener vetoes by passing.  When on, the
+    /// direct `4♥/4♠` is capped at the bare 15 invitational cusp (opener-decides
+    /// is right there), and a 16+ hand instead Texas-transfers (`4♣/4♦`) and,
+    /// over opener's completion, drives its own RKCB (`4NT`) — reaching the slam
+    /// regardless of opener's minimum, exactly as the reference bidder does.
+    ///
+    /// **On by default** — a paired on/off A/B (320k boards, shared seed, vs the
+    /// BBA reference) measured **plain +0.0024 IMPs/board (95% CI ±0.0006), PD
+    /// +0.0024 — +5.87 IMPs/fired in both regimes** (131 fired, 0.04%), every CI
+    /// excluding 0.
     pub texas_slam_drive: bool,
     /// Raw strength floor for the Texas game transfer
+    ///
+    /// The `point_count + trump length` floor at which a 6-card-major responder
+    /// blasts game via South African Texas (`4♣/4♦`) instead of transferring at
+    /// the two level.  **Default 14** (a 6-bagger needs 8 points, a 7-bagger 7).
+    /// Below the floor the hand transfers at the two level (and passes the
+    /// partscore).  No explicit upper cap: the slam-try `4♥/4♠` (weight 2.6)
+    /// outranks the game blast (2.5) for the 15-18 band, so a slam-interested
+    /// hand takes the direct slam try regardless.
+    ///
+    /// The book inherited a *raw-HCP* floor of **9** verbatim from the old
+    /// transfer-then-game route (only the 15-18 slam edge was ever measured).  A
+    /// double-dummy screen (`probe-jacoby-invite-eval`) found that 7-8 HCP 6-card
+    /// hands score far better in `4M` than the partscore they stop in, that
+    /// opener should *never decline* (so an invite degenerates to a blast), and
+    /// that the `3M` invite-landing is a *worse* contract than `2M` at every
+    /// strength (these one-suiters make 8 or 10 tricks, rarely 9) — so the choice
+    /// is binary, pass-`2M` or blast-`4M`, with no invitational band.  At this
+    /// *fit-rich* boundary distribution is a real trick (the 6th trump, ruffs),
+    /// so the screen (experiments F/G) ranked `point_count + length` > CCCC >
+    /// points > raw HCP for the blast decision — unlike the no-fit invite line
+    /// (`probe-nt-invite-eval`) and the slam edge (`probe-texas-slam-eval`) where
+    /// honors dominate and HCP won.
+    ///
+    /// Paired A/Bs vs BBA (1.024M boards/arm, `--filter-1nt`):
+    /// `point_count+len≥14` over the old HCP-9 baseline measured **plain
+    /// +0.0102/board vul none, +0.0171 both; PD +0.0082 / +0.0141**, and over a
+    /// raw-HCP≥7 floor (the same aggressiveness) **plain +0.0013 / +0.0018; PD
+    /// +0.0014 / +0.0019** — every regime a win, all 95% CI excl 0.  `14` matches
+    /// the HCP≥7 blast rate while promoting shapely sixes (a 6-4 makes the cut at
+    /// a bare 6) and demoting wasted-honor sevens.
     pub texas_game_floor: u8,
     // --- notrump/stayman.rs
     // --- notrump/splinter.rs
     /// Responder's HCP floor for the `1NT` splinter
+    ///
+    /// **Default 9** — BBA's measured floor for the same slot, and BWS's
+    /// "strong".  Exists so the 8-versus-9 sweep is a flag rather than a rebuild;
+    /// the eight is the marginal case, since a `3-1-4-5` eight currently *passes*
+    /// `1NT`.  Consulted only while the splinter itself is authored
+    /// (`nt_splinter`).
     pub nt_splinter_floor: u8,
     // --- notrump/stayman_slam.rs
     /// Author the Stayman cue-bid continuation
+    ///
+    /// Responder's continuation after opener cue-bids in cooperation with the
+    /// `3OM` slam try (`1NT - 2♣ - 2M - 3OM - 4x`).  Opener's cue shows a control
+    /// below the trump major with a maximum; without a responder node the floor
+    /// *passed the cue* — often below game.  On, responder keycards (`4NT` RKCB)
+    /// with slam values or signs off in the major game.
+    ///
+    /// **On by default** — the cue dead-end was the dominant Stayman leak vs BBA
+    /// (≈20% of the tail-loss IMPs, `bba-gen --isolate-opening bba`).
     pub stayman_cue_continuation: bool,
     /// Author the Stayman minor-slam try
+    ///
+    /// Over opener's Stayman answer, responder's jump-free `3♣`/`3♦` shows a
+    /// *natural* 5+ minor with slam values (14+) and no fit for opener's major —
+    /// the 5-4 two-suiter whose four-card major (the reason for the `2♣` detour)
+    /// missed.  Opener cooperates by raising the minor with a fit + maximum (else
+    /// `3NT`), and responder keycards over the raise.
+    ///
+    /// **On by default** — the A/B landed +3.29/+4.02 IMPs/fired (none/both,
+    /// plain DD; PD identical, no doubling artifact) across 151 fired boards,
+    /// zero losses.
     pub stayman_minor_slam_try: bool,
     // --- notrump/long_minor.rs
     /// Author the source-of-tricks-eight long-minor force
+    ///
+    /// Whether a *source-of-tricks eight* forces `3NT` over `1NT` instead of
+    /// transferring.  The hand: 8 HCP, no four- or five-card major (so it uses
+    /// neither Stayman nor Jacoby), and a long minor that runs — a **7+ card
+    /// minor**, or a **6-card minor headed by two of the top three honors**.
+    ///
+    /// **Off by default — measured a LOSS and kept only as an A/B instrument.**
+    /// An analytic screen (`probe-force-eight`, 16M deals) looked positive —
+    /// forcing `3NT` beat a *notrump* invite/pass by +0.2 to +0.5 IMPs/board —
+    /// but that baseline is a fiction: these hands do not stop in notrump, they
+    /// *transfer*, and the transfer reaches the suit game.  The live A/B against
+    /// the real routing (`ab-long-minor-force`, 8M deals, plain DD, vul none)
+    /// measured **−7.12 IMPs/fired** (club source −7.07: the `2♠` transfer drives
+    /// to a *making 5♣* that `3NT` throws away; diamond source is a wash — the
+    /// `2NT` transfer already reaches `3NT`).  So no shape forces; the transfer
+    /// machinery bids these hands strictly better.
     pub long_minor_force: bool,
 }
 
@@ -447,14 +669,6 @@ impl Default for NotrumpKnobs {
             stayman_minor_slam_try: true,
             long_minor_force: false,
         }
-    }
-}
-
-impl NotrumpKnobs {
-    /// Capture this thread's notrump build-time knob state
-    #[must_use]
-    pub fn current() -> Self {
-        super::american::notrump::capture()
     }
 }
 
@@ -1054,7 +1268,7 @@ impl Agreements {
             decision: DecisionProfile::current(),
             competition: super::american::competition::capture(),
             defense: super::american::defense::capture(),
-            notrump: super::american::notrump::capture(),
+            notrump: NotrumpKnobs::default(),
             opening: OpeningKnobs::default(),
             response: ResponseKnobs::default(),
             rebid: RebidKnobs::default(),

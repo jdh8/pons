@@ -261,16 +261,15 @@ fn five_four_smolens_over_the_stayman_denial() {
 
 // --- Source-of-tricks eight 3NT force (opt-in, OFF by default) ---------------
 //
-// `set_long_minor_force` is a thread-local, build-time knob left OFF by default
-// because forcing 3NT loses to the transfer's suit game (see the numbers in
-// `examples/ab-long-minor-force`).  Set it, build the stance, then restore the
-// default before asserting so a reused worker thread cannot leak.
+// `long_minor_force` is a build-time knob left OFF by default because forcing
+// 3NT loses to the transfer's suit game (see the numbers in
+// `examples/ab-long-minor-force`).  It is a field of the captured agreements,
+// so arming it touches nothing global.
 
 fn stance_forcing_long_minors() -> Stance {
-    pons::bidding::american::set_long_minor_force(true);
-    let system = american(&pons::bidding::agreements::Agreements::current()).against();
-    pons::bidding::american::set_long_minor_force(false);
-    system
+    let mut agreements = pons::bidding::agreements::Agreements::current();
+    agreements.notrump.long_minor_force = true;
+    american(&agreements).against()
 }
 
 #[test]

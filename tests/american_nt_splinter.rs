@@ -13,7 +13,7 @@
 mod common;
 use common::*;
 
-use pons::american::{set_nt_splinter, set_nt_splinter_floor};
+use pons::american::set_nt_splinter;
 
 /// The 2/1 stance with the splinter authored
 ///
@@ -205,7 +205,6 @@ fn the_eight_count_passes_at_the_default_floor() {
     // ♠Jxx ♥x ♦AQxx ♣Jxxxx — the shape at 8 HCP, one under the floor.  It still
     // passes 1NT holding a singleton opposite 15-17; whether that is right is
     // the 8-versus-9 sweep, not the shipped default.
-    set_nt_splinter_floor(9);
     let system = stance();
     assert_eq!(best_call(&system, &after_1nt(), "Jxx.x.AQxx.Jxxxx"), P);
 }
@@ -213,9 +212,10 @@ fn the_eight_count_passes_at_the_default_floor() {
 #[test]
 fn lowering_the_floor_catches_the_eight() {
     // The same hand with the floor at 8 — the sweep arm.
-    set_nt_splinter_floor(8);
-    let system = stance();
+    set_nt_splinter(true);
+    let mut agreements = pons::bidding::agreements::Agreements::current();
+    agreements.notrump.nt_splinter_floor = 8;
+    let system = american(&agreements).against();
     let bid = best_call(&system, &after_1nt(), "Jxx.x.AQxx.Jxxxx");
-    set_nt_splinter_floor(9);
     assert_eq!(bid, call(3, Strain::Hearts));
 }

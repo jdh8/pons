@@ -11,8 +11,21 @@ pub(super) fn bid(level: u8, strain: Strain) -> Call {
 
 /// The highest-logit call `american()` assigns the hand at the auction
 pub(super) fn best(auction: &[Call], hand: &str) -> Call {
+    best_with(
+        &crate::bidding::agreements::Agreements::current(),
+        auction,
+        hand,
+    )
+}
+
+/// [`best`], but under an explicit set of agreements
+pub(super) fn best_with(
+    agreements: &crate::bidding::agreements::Agreements,
+    auction: &[Call],
+    hand: &str,
+) -> Call {
     let hand = hand.parse().expect("valid test hand");
-    let logits = american(&crate::bidding::agreements::Agreements::current())
+    let logits = american(agreements)
         .against()
         .classify(hand, RelativeVulnerability::NONE, auction)
         .expect("a decision");

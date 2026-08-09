@@ -753,7 +753,8 @@ fn transfer_invite_reaches_the_floor_over_a_possible_five_two() {
     // natural-suit raise is out of the overlay's artificial-only scope).  With
     // only a five-card major shown and our own doubleton, the floor prefers 3NT
     // over a possible 5-2 game.
-    crate::bidding::american::set_sixcard_invite_floor(14);
+    let mut agreements = Agreements::current();
+    agreements.notrump.sixcard_invite_floor = 14;
     let invite = [
         call(1, Strain::Notrump),
         Call::Pass,
@@ -764,13 +765,12 @@ fn transfer_invite_reaches_the_floor_over_a_possible_five_two() {
         call(3, Strain::Hearts),
         Call::Pass,
     ];
-    let (bid, from_floor) = american_floored(&invite, "AKQ2.J5.AQ52.K42");
+    let (bid, from_floor) = american_floored_with(&agreements, &invite, "AKQ2.J5.AQ52.K42");
     assert!(
         from_floor,
         "the transfer invite is off-book, the floor decides"
     );
     assert_eq!(bid, call(3, Strain::Notrump));
-    crate::bidding::american::set_sixcard_invite_floor(13); // restore default
 }
 
 // -----------------------------------------------------------------------

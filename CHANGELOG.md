@@ -596,6 +596,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Seeded `smoke-default` / `smoke-dutch` dumps (20 000 boards each) are
   byte-identical to `4c3dce2`, and `cards/*.bbsa` regenerate unchanged.
 
+- **The seventeen notrump knobs are fields, not thread-locals.**  The whole
+  `NotrumpKnobs` area goes the same way, with its `set_*`/getter pairs and
+  `notrump::capture()`: `set_stayman_both_majors`, `set_stayman_5card_max`,
+  `set_invitational_5card_majors`, `set_long_minor_force`,
+  `set_sixcard_invite_floor`, `set_sixcard_accept_floor`, `set_size_ask_eight`,
+  `set_size_ask_accept_floor`, `set_nt_splinter_floor`,
+  `set_stayman_cue_continuation`, `set_stayman_minor_slam_try`,
+  `set_texas_slam_drive`, `set_texas_game_floor`, `set_minor_min_to_3nt`,
+  `set_transfer_slam_try`, `set_transfer_super_accept` and
+  `set_transfer_longer_major`.  Setting one is
+  `a.notrump.texas_slam_drive = false` before the build.  The classify-time
+  half of these files stays where it was — `set_nt_splinter`,
+  `set_notrump_minors`, `set_garbage_stayman`, `set_crawling_stayman`,
+  `set_stayman_net_force`, `set_transfer_gf_majors` and
+  `set_transfer_gf_hearts` are still cells, because they are read per decision
+  as well as at build time.
+
+  The setter docs held this area's measured record, and it moved onto the
+  `NotrumpKnobs` fields rather than dying with the setters: the Texas
+  `point_count + length` floor's rejection of the inherited raw-HCP 9, the
+  size-ask accept floor's 17→16 flip and its accept-15 falsification control,
+  the six-card invite's PD-vul-none caveat, and the long-minor force's −7.12
+  IMPs/fired refutation.  Nine more web Settings rows move onto `pons-web`'s
+  own `Agreements` through the `knob!` macro; the 65-row table is unchanged.
+
+  Seeded `smoke-default` / `smoke-dutch` dumps (20 000 boards each) are
+  byte-identical to the pre-campaign commit, and `cards/*.bbsa` regenerate
+  unchanged.
+
 - **The response, rebid and game-force knobs are fields, not thread-locals.**
   Twenty-one more cells go, with their `set_*`/getter pairs and the three
   areas' `capture()`: `set_game_backstop`, `set_opener_third`,

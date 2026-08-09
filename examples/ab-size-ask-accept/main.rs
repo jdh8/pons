@@ -49,7 +49,6 @@ use contract_bridge::auction::{Auction, Call};
 use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Hand, Seat, Suit};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::american::set_size_ask_accept_floor;
 use pons::bidding::context::relative;
 use pons::bidding::{Inferences, Stance};
 use pons::scoring::{
@@ -203,13 +202,14 @@ fn main() {
     // arm 0 = accept (floor 15: accept every 15-17 minimum), arm 1 = decline
     // (floor 17, shipped).  Divergent boards then split by opener HCP: 15 (the
     // falsification control — accept-15 should lose) and 16 (the live question).
-    // 17 accepts in both arms, so never diverges.  The floor is read at
-    // book-construction time; build each arm under its own setting, the baked tries
-    // are independent thereafter.  Restore the shipped default.
-    set_size_ask_accept_floor(15);
-    let accept = american(&pons::bidding::agreements::Agreements::current()).against();
-    set_size_ask_accept_floor(17);
-    let decline = american(&pons::bidding::agreements::Agreements::current()).against();
+    // 17 accepts in both arms, so never diverges.  The floor is baked into the
+    // book, so build each arm from its own agreements; the tries are independent
+    // thereafter.
+    let mut arm = pons::bidding::agreements::Agreements::current();
+    arm.notrump.size_ask_accept_floor = 15;
+    let accept = american(&arm).against();
+    arm.notrump.size_ask_accept_floor = 17;
+    let decline = american(&arm).against();
     let stances = [accept, decline];
 
     let deals = seeded_deals(base, args.count);

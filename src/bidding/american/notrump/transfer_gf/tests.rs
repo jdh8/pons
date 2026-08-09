@@ -1,4 +1,5 @@
-use super::super::tests::{P, best, bid};
+use super::super::tests::{P, best, best_with, bid};
+use crate::bidding::agreements::Agreements;
 use contract_bridge::Strain;
 
 /// The opt-in GF-majors structure after the spade transfer: a 5-5 slam try
@@ -79,11 +80,11 @@ fn transfer_gf_majors_five_five_and_quantitative() {
 }
 
 /// The GF-majors minor side-suits: `3♣`/`3♦` show five spades and a four-card
-/// minor.  Arm A shows them on any game force; Arm B (`set_minor_min_to_3nt`)
+/// minor.  Arm A shows them on any game force; Arm B (`minor_min_to_3nt`)
 /// reserves them for slam tries, the minimums resting in the floor's `3NT`.
 #[test]
 fn transfer_gf_majors_minor_side_suits() {
-    use crate::bidding::american::{set_minor_min_to_3nt, set_transfer_gf_majors};
+    use crate::bidding::american::set_transfer_gf_majors;
 
     let after = [
         bid(1, Strain::Notrump),
@@ -103,15 +104,18 @@ fn transfer_gf_majors_minor_side_suits() {
     set_transfer_gf_majors(true);
 
     // --- Arm A (default): the minor shows on any game force ------------
-    set_minor_min_to_3nt(false);
-    assert_eq!(best(&after, min_club), bid(3, Strain::Clubs));
-    assert_eq!(best(&after, min_diamond), bid(3, Strain::Diamonds));
+    let arm_a = Agreements::current();
+    assert_eq!(best_with(&arm_a, &after, min_club), bid(3, Strain::Clubs));
+    assert_eq!(
+        best_with(&arm_a, &after, min_diamond),
+        bid(3, Strain::Diamonds)
+    );
 
     // --- Arm B: minimums lump into the floor's 3NT, slam shows the minor
-    set_minor_min_to_3nt(true);
-    assert_eq!(best(&after, min_club), bid(3, Strain::Notrump));
-    assert_eq!(best(&after, slam_club), bid(3, Strain::Clubs));
-    set_minor_min_to_3nt(false);
+    let mut arm_b = arm_a;
+    arm_b.notrump.minor_min_to_3nt = true;
+    assert_eq!(best_with(&arm_b, &after, min_club), bid(3, Strain::Notrump));
+    assert_eq!(best_with(&arm_b, &after, slam_club), bid(3, Strain::Clubs));
 
     // Opener's reply to the minor places game on the 5-3 spade fit: with support
     // 4♠ (the ruffing value beats an un-pulled 3NT), without support 3NT. No RKCB
@@ -127,11 +131,11 @@ fn transfer_gf_majors_minor_side_suits() {
         P,
     ];
     assert_eq!(
-        best(&over_minor, "AQ4.KQ3.KQJ2.Q32"),
+        best_with(&arm_a, &over_minor, "AQ4.KQ3.KQJ2.Q32"),
         bid(4, Strain::Spades)
     );
     assert_eq!(
-        best(&over_minor, "A4.KQ32.KQJ2.Q32"),
+        best_with(&arm_a, &over_minor, "A4.KQ32.KQJ2.Q32"),
         bid(3, Strain::Notrump)
     );
 

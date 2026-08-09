@@ -1526,7 +1526,6 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
         })?;
         pons::bidding::american::set_weak_two_overcall_points(two_lo, two_hi, three_lo, three_hi);
     }
-    pons::bidding::american::set_transfer_longer_major(!args.no_ns_transfer_longer);
     pons::bidding::set_fallback_projection(!args.no_ns_fallback_projection);
     pons::bidding::set_envelope_union_reading(!args.no_ns_envelope_union);
     pons::bidding::set_gauge_membership(args.ns_gauge_membership);
@@ -1588,18 +1587,10 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     });
     pons::bidding::american::set_stayman_defense(args.ns_defense_to_their_stayman);
     pons::bidding::american::set_competition_over_transfer(args.ns_comp_over_transfer);
-    pons::bidding::american::set_transfer_super_accept(args.ns_transfer_super_accept);
-    pons::bidding::american::set_transfer_slam_try(!args.no_ns_transfer_slam_try);
-    pons::bidding::american::set_texas_slam_drive(!args.no_ns_texas_slam_drive);
     pons::bidding::american::set_transfer_gf_majors(!args.no_ns_transfer_gf_majors);
-    pons::bidding::american::set_minor_min_to_3nt(args.ns_minor_min_to_3nt);
     pons::bidding::american::set_transfer_gf_hearts(!args.no_ns_transfer_gf_hearts);
     pons::bidding::american::set_garbage_stayman(!args.no_ns_garbage_stayman);
-    pons::bidding::american::set_stayman_both_majors(!args.no_ns_stayman_both_majors);
-    pons::bidding::american::set_stayman_5card_max(!args.no_ns_stayman_5card_max);
-    pons::bidding::american::set_invitational_5card_majors(!args.no_ns_invitational_5card_majors);
     pons::bidding::american::set_crawling_stayman(!args.no_ns_crawling_stayman);
-    pons::bidding::american::set_stayman_cue_continuation(!args.no_ns_stayman_cue_continuation);
     pons::bidding::american::set_longer_major_response(!args.no_ns_longer_major_response);
     pons::bidding::american::set_xyz(!args.no_ns_xyz);
     pons::bidding::american::set_cue_raise_answer(!args.no_ns_cue_raise_answer);
@@ -1658,9 +1649,6 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     pons::bidding::instinct::set_rein_advance_raise(!args.no_ns_rein_advance_raise);
     pons::bidding::american::set_jordan_truscott(!args.no_ns_jordan_truscott);
     pons::bidding::american::set_splinter_doubled(!args.no_ns_splinter_doubled);
-    pons::bidding::american::set_texas_game_floor(args.ns_texas_game_floor);
-    pons::bidding::american::set_sixcard_invite_floor(args.ns_sixcard_invite_floor);
-    pons::bidding::american::set_sixcard_accept_floor(args.ns_sixcard_accept_floor);
     pons::bidding::american::set_transfer_defense(args.ns_transfer_defense);
     pons::bidding::american::set_competition_over_minor_transfer(
         !args.no_ns_comp_over_minor_transfer,
@@ -1769,6 +1757,18 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.game_force.second_suit_agreement = !args.no_ns_second_suit_agreement;
     agreements.game_force.opener_third = !args.no_ns_opener_third;
     agreements.game_force.game_backstop = args.ns_game_backstop;
+    agreements.notrump.transfer_longer_major = !args.no_ns_transfer_longer;
+    agreements.notrump.transfer_super_accept = args.ns_transfer_super_accept;
+    agreements.notrump.transfer_slam_try = !args.no_ns_transfer_slam_try;
+    agreements.notrump.texas_slam_drive = !args.no_ns_texas_slam_drive;
+    agreements.notrump.minor_min_to_3nt = args.ns_minor_min_to_3nt;
+    agreements.notrump.stayman_both_majors = !args.no_ns_stayman_both_majors;
+    agreements.notrump.stayman_5card_max = !args.no_ns_stayman_5card_max;
+    agreements.notrump.invitational_5card_majors = !args.no_ns_invitational_5card_majors;
+    agreements.notrump.stayman_cue_continuation = !args.no_ns_stayman_cue_continuation;
+    agreements.notrump.texas_game_floor = args.ns_texas_game_floor;
+    agreements.notrump.sixcard_invite_floor = args.ns_sixcard_invite_floor;
+    agreements.notrump.sixcard_accept_floor = args.ns_sixcard_accept_floor;
     Ok(agreements)
 }
 

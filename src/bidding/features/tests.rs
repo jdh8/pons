@@ -1203,8 +1203,7 @@ fn each_compact_axis_moves_its_slots_and_only_live_ones_move_the_net() {
     use crate::bidding::american::{
         PUPPET, set_garbage_stayman, set_jordan_truscott, set_landy, set_leaping_michaels,
         set_lebensohl_style, set_major_support_double, set_notrump_defense, set_notrump_minors,
-        set_nt_splinter, set_responsive_takeout, set_transfer_super_accept, set_woolsey_points,
-        set_xyz,
+        set_nt_splinter, set_responsive_takeout, set_woolsey_points, set_xyz,
     };
     use crate::bidding::instinct::{RkcbVariant, forced, set_rkcb_variant};
     use crate::bidding::neural_floor::ConfiguredFloorV5;
@@ -1271,7 +1270,7 @@ fn each_compact_axis_moves_its_slots_and_only_live_ones_move_the_net() {
         &[0],
     );
 
-    // Four axes are fields of `Agreements` rather than ambient cells, so they arm
+    // Five axes are fields of `Agreements` rather than ambient cells, so they arm
     // the captured value directly.  Nothing global moves, so they need no
     // restore and cannot strand a flipped knob for the next test on this thread.
     let mut offshape = crate::bidding::agreements::Agreements::current();
@@ -1298,6 +1297,13 @@ fn each_compact_axis_moves_its_slots_and_only_live_ones_move_the_net() {
         ConventionCard::capture(&fsf, false),
         &[6],
     );
+    let mut super_accept = crate::bidding::agreements::Agreements::current();
+    super_accept.notrump.transfer_super_accept = true;
+    check(
+        "transfer_super_accept",
+        ConventionCard::capture(&super_accept, false),
+        &[5],
+    );
 
     // Enum targets leave a trained lane deliberately: `Wide` (14), `Plain` (24)
     // and the five non-{Natural, Woolsey} defenses are folded, and `Wide` is
@@ -1319,12 +1325,6 @@ fn each_compact_axis_moves_its_slots_and_only_live_ones_move_the_net() {
             &[2],
         ),
         ("xyz", || set_xyz(false), || set_xyz(true), &[4]),
-        (
-            "transfer_super_accept",
-            || set_transfer_super_accept(true),
-            || set_transfer_super_accept(false),
-            &[5],
-        ),
         (
             "jordan_truscott",
             || set_jordan_truscott(false),
