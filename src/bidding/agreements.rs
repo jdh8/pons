@@ -35,7 +35,7 @@
 
 use super::american::{
     Competitive4333, DoubleShape, DoubleStyle, FreeBidStyle, LebensohlStyle, NegativeDoubleShape,
-    NotrumpShape, TakeoutSupport, TwoOverOneGate, WeakTwoEval,
+    NotrumpShape, SizeAskEight, TakeoutSupport, TwoOverOneGate, WeakTwoEval,
 };
 use super::context::DecisionProfile;
 
@@ -65,8 +65,23 @@ pub struct Build {
 }
 
 impl Default for Build {
+    /// The shipped agreements — every field's own `Default`
+    ///
+    /// The literals the `thread_local!` cells were initialised with, lifted to
+    /// where a value can carry them.  `build_defaults_match_the_cells` holds
+    /// this equal to [`Build::current`] on a virgin thread for as long as both
+    /// exist, which is what makes deleting the cells a refactor.
     fn default() -> Self {
-        Self::current()
+        Self {
+            competition: CompetitionKnobs::default(),
+            defense: DefenseKnobs::default(),
+            notrump: NotrumpKnobs::default(),
+            opening: OpeningKnobs::default(),
+            response: ResponseKnobs::default(),
+            rebid: RebidKnobs::default(),
+            game_force: GameForceKnobs::default(),
+            instinct: InstinctKnobs::default(),
+        }
     }
 }
 
@@ -184,7 +199,44 @@ pub struct CompetitionKnobs {
 
 impl Default for CompetitionKnobs {
     fn default() -> Self {
-        Self::current()
+        Self {
+            cue_raise_answer: true,
+            cue_minor_raise_answer: true,
+            delayed_cue: false,
+            free_bids: false,
+            free_bid_floor: 6,
+            free_1nt_floor: 6,
+            free_bid_quality: false,
+            free_bid_style: FreeBidStyle::Forcing,
+            high_overcall_responses: false,
+            direct_3nt_stopper: true,
+            natural_floor: (5, 0),
+            lebensohl_style: LebensohlStyle::Transfer,
+            defense_2d_multi: false,
+            negative_double_shape: NegativeDoubleShape::Modern,
+            cachalot_contested_x: true,
+            weak_two_competition: false,
+            strong_two_competition: true,
+            competition_over_diamond_transfer: true,
+            competition_over_transfer: false,
+            competition_over_minor_transfer: true,
+            competition_over_stayman: true,
+            jordan_truscott: true,
+            redouble_answer: true,
+            splinter_doubled: true,
+            double_style: DoubleStyle::Optional,
+            penalty_double_leave_in: true,
+            double_override: None,
+            penalty_pass: Some((4, 4, true)),
+            trap_pass: true,
+            competitive_4333: Competitive4333::Suppress,
+            major_support_double: true,
+            uvu_over_majors: true,
+            uvu: true,
+            uvu_x_floor: 9,
+            uvu_cue_floor: 8,
+            uvu_natural_floor: 6,
+        }
     }
 }
 
@@ -320,7 +372,55 @@ pub struct DefenseKnobs {
 
 impl Default for DefenseKnobs {
     fn default() -> Self {
-        Self::current()
+        Self {
+            longest_first_advance_enabled: true,
+            advance_pass_yield_major_enabled: false,
+            natural_double_shape: DoubleShape::Balanced,
+            natural_double_weight: 130,
+            takeout_support: TakeoutSupport::Strict,
+            overcall_discipline: true,
+            overcall_four_card: false,
+            passed_hand_overcall: true,
+            two_level_minor_overcall_tight: false,
+            nt_overcall_no_major: false,
+            strong_double_hcp: Some(18),
+            direct_dont_one_suiter_min: 5,
+            direct_dont_four_four: true,
+            direct_dont_x_floor: 0,
+            weak_two_notrump_advances_enabled: false,
+            advance_minor_jump_enabled: true,
+            notrump_balancing_enabled: false,
+            leaping_michaels_enabled: true,
+            weak_two_pass_gate: false,
+            weak_two_notrump_shape: false,
+            weak_two_jump_overcall: false,
+            weak_two_overcall_discipline: true,
+            weak_two_cue: false,
+            weak_two_notrump_points: (16, 17),
+            weak_two_overcall_points: (10, 16, 10, 16),
+            advance_rubens_enabled: false,
+            doubled_landy_escape: (6, 2),
+            landy_use_hcp: false,
+            direct_landy_four_four: false,
+            direct_landy_double_floor: 15,
+            direct_landy_penalty_pass: false,
+            unusual_notrump_range: Some((8, 13)),
+            two_suiter_hcp_floor: Some(8),
+            advance_sohl_style: LebensohlStyle::Transfer,
+            meckwell_minor_major_44: false,
+            meckwell_x_four_four: true,
+            meckwell_x_floor: 0,
+            advance_2nt_continuation_enabled: true,
+            stayman_defense_enabled: false,
+            stayman_defense_overcall: (6, 14),
+            transfer_defense_enabled: false,
+            minor_transfer_defense_enabled: false,
+            diamond_transfer_defense_enabled: false,
+            rich_advance_double_enabled: true,
+            advance_sit_hcp_gate: None,
+            responsive_takeout_enabled: true,
+            responsive_overcall_enabled: false,
+        }
     }
 }
 
@@ -392,7 +492,25 @@ pub struct NotrumpKnobs {
 
 impl Default for NotrumpKnobs {
     fn default() -> Self {
-        Self::current()
+        Self {
+            size_ask_eight: SizeAskEight::Shipped,
+            size_ask_accept_floor: 16,
+            stayman_both_majors: true,
+            stayman_5card_max: true,
+            minor_min_to_3nt: false,
+            transfer_super_accept: false,
+            transfer_longer_major: true,
+            sixcard_invite_floor: 13,
+            sixcard_accept_floor: 18,
+            transfer_slam_try: true,
+            invitational_5card_majors: true,
+            texas_slam_drive: true,
+            texas_game_floor: 14,
+            nt_splinter_floor: 9,
+            stayman_cue_continuation: true,
+            stayman_minor_slam_try: true,
+            long_minor_force: false,
+        }
     }
 }
 
@@ -438,7 +556,17 @@ pub struct OpeningKnobs {
 
 impl Default for OpeningKnobs {
     fn default() -> Self {
-        Self::current()
+        Self {
+            open_one_notrump: true,
+            one_notrump_fifths: false,
+            notrump_shape: NotrumpShape::Wide6322,
+            one_notrump_offshape: false,
+            weak_two_hcp: None,
+            weak_two_eval: None,
+            weak_two_wild: false,
+            weak_two_major_priority: true,
+            weak_two_longest_first: true,
+        }
     }
 }
 
@@ -487,7 +615,17 @@ pub struct ResponseKnobs {
 
 impl Default for ResponseKnobs {
     fn default() -> Self {
-        Self::current()
+        Self {
+            two_over_one_fit: true,
+            two_over_one_gate: TwoOverOneGate::Points13,
+            two_over_one_natural_lengths: false,
+            two_over_one_major_discount: false,
+            two_over_one_heart_light: false,
+            up_the_line: true,
+            major_choice_of_games: true,
+            major_game_tries: true,
+            limit_raise_acceptance: true,
+        }
     }
 }
 
@@ -537,7 +675,17 @@ pub struct RebidKnobs {
 
 impl Default for RebidKnobs {
     fn default() -> Self {
-        Self::current()
+        Self {
+            balanced_1nt_rebid: true,
+            major_rebid_tails: true,
+            fourth_suit_forcing: true,
+            nt_invite_hcp: true,
+            meckstroth_adjunct: true,
+            meckstroth_minor_jumps: true,
+            forcing_nt_two_suiter: true,
+            xyz_invite_judgment: true,
+            new_minor_forcing: false,
+        }
     }
 }
 
@@ -569,7 +717,11 @@ pub struct GameForceKnobs {
 
 impl Default for GameForceKnobs {
     fn default() -> Self {
-        Self::current()
+        Self {
+            game_backstop: false,
+            opener_third: true,
+            second_suit_agreement: true,
+        }
     }
 }
 
@@ -600,7 +752,11 @@ pub struct InstinctKnobs {
 
 impl Default for InstinctKnobs {
     fn default() -> Self {
-        Self::current()
+        Self {
+            competitive_rebid: true,
+            reopening_notrump: true,
+            doubler_xx_runout: true,
+        }
     }
 }
 
@@ -624,6 +780,20 @@ pub struct Agreements {
     pub(crate) build: Build,
 }
 
+impl Default for Agreements {
+    /// The shipped system — what `american()` plays with nothing armed
+    ///
+    /// Equal to [`Agreements::current`] on a virgin thread
+    /// (`build_defaults_match_the_cells`, `decision_defaults_match_the_cells`),
+    /// which is what lets the cells be deleted without moving a bid.
+    fn default() -> Self {
+        Self {
+            decision: DecisionProfile::default(),
+            build: Build::default(),
+        }
+    }
+}
+
 impl Agreements {
     /// Capture this thread's knob state — the one read a build performs
     ///
@@ -640,6 +810,29 @@ impl Agreements {
 
 #[cfg(test)]
 mod tests {
+    use super::Build;
+
+    /// The literal defaults equal what a virgin thread's cells hold
+    ///
+    /// The safety net for deleting the cells: `Build::default()` transcribes
+    /// 133 `Cell::new` initialisers into one value, and a transcription error
+    /// would silently ship a different system.  libtest gives every test its
+    /// own thread, so `current()` here reads cells nothing has armed.
+    #[test]
+    fn build_defaults_match_the_cells() {
+        assert_eq!(Build::default(), Build::current());
+    }
+
+    /// The classify half's literal defaults equal its cells
+    ///
+    /// The twin of `build_defaults_match_the_cells` over the other 85 cells:
+    /// `ReadingProfile`, `InstinctProfile` and the nine loose members of
+    /// `DecisionProfile`.
+    #[test]
+    fn decision_defaults_match_the_cells() {
+        assert!(super::DecisionProfile::default() == super::DecisionProfile::current());
+    }
+
     /// The `pub`-ish field names of `struct name` in `src`
     ///
     /// A crude line scanner, not a parser: every knob struct in this crate is

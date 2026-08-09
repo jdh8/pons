@@ -119,6 +119,24 @@ pub(crate) struct DecisionProfile {
     pub(crate) transfer_gf_hearts: bool,
 }
 
+impl Default for DecisionProfile {
+    /// The shipped classify-time agreements — see [`ReadingProfile::default`]
+    fn default() -> Self {
+        Self {
+            reading: ReadingProfile::default(),
+            instinct: InstinctProfile::default(),
+            eval_auction: true,
+            eval_shape: false,
+            blind_inference: false,
+            two_over_one_force: true,
+            fuzzy_fifths: false,
+            fifths_companion: FifthsCompanion::Bumrap,
+            stayman_net_force: false,
+            transfer_gf_majors: true,
+            transfer_gf_hearts: true,
+        }
+    }
+}
 impl DecisionProfile {
     /// Snapshot the knob state active on this thread
     pub(crate) fn current() -> Self {

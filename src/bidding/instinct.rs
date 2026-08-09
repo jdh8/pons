@@ -374,6 +374,44 @@ pub(crate) struct InstinctProfile {
     pub(crate) rein_advance_raise: bool,
 }
 
+impl Default for InstinctProfile {
+    /// The shipped floor agreements — see [`ReadingProfile::default`]
+    fn default() -> Self {
+        Self {
+            inference_aware: true,
+            one_nt_runout: true,
+            runout_xx_min: 7,
+            one_nt_runout_universal: true,
+            unusual_2nt: Unusual2nt::Direct,
+            penalize_escape_stack: true,
+            penalize_escape_values: true,
+            uvu_encircle: true,
+            settle_floor: true,
+            latch_style: LatchStyle::Penalty,
+            penalty_no_pull: true,
+            advancer_xx_runout: true,
+            nt_responder_game_floor: 9,
+            suppress_nt_gf_over_double: true,
+            correct_3nt_to_major: true,
+            gambling_3nt_over_double: false,
+            gambling_3nt_top_honors: 2,
+            gambling_3nt_require_ace: true,
+            preempt_4m_over_double: false,
+            preempt_4m_floor: 5,
+            preempt_4m_top_honors: 2,
+            preempt_4m_require_ace: true,
+            floor_slam_entry: 29,
+            fit_sum_game: 31,
+            bilans_floor: true,
+            net_collar: false,
+            fit_sum_support_read: false,
+            nt_hcp_read: false,
+            two_over_one_slam_strength: true,
+            keycard_minors: true,
+            rein_advance_raise: true,
+        }
+    }
+}
 impl InstinctProfile {
     /// Snapshot the instinct knobs active on this thread
     pub(crate) fn capture() -> Self {

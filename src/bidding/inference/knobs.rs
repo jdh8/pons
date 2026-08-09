@@ -1003,6 +1003,56 @@ impl ReadingProfile {
     }
 }
 
+impl Default for ReadingProfile {
+    fn default() -> Self {
+        Self {
+            nt_invite: true,
+            rubens_transfer: true,
+            scope: ReadingScope::Alerted,
+            fallback_projection: true,
+            envelope_union: true,
+            blind_opponents: false,
+            gauge_membership: false,
+            sum_closure: false,
+            upgrade_closure: false,
+            control_bid: true,
+            cue: true,
+            length_soundness: true,
+            pass: true,
+            pass_exclusion: false,
+            probed: false,
+            probed_vacuous: false,
+            announced: false,
+            table_alerts: true,
+            rule_accept: true,
+            point_scale: crate::bidding::constraint::PointScale::PointCount,
+            support_points: true,
+            strength_dial: 0,
+            rubens_advances: false,
+            penalty_latch: true,
+            nt_overcall_systems_on: true,
+            nt_overcall_gladiator: false,
+            nt_splinter: true,
+            opener_extras_ladder: true,
+            xyz: true,
+            notrump_minors: crate::bidding::american::notrump::PUPPET,
+            opener_major_jump_rebid: true,
+            garbage_stayman: true,
+            crawling_stayman: true,
+            woolsey_points: (8, 19),
+            woolsey_double_floor: 12,
+            natural_double_floor: 15,
+            longer_major_response: true,
+            landy_range: None,
+            notrump_defense: crate::bidding::american::NotrumpDefense::Natural,
+            natural_overcall_points: (8, 14),
+            two_notrump_wide: false,
+            floor_rkcb: true,
+            rkcb_variant: crate::bidding::instinct::RkcbVariant::Plain,
+        }
+    }
+}
+
 /// Snapshot the reading settings active on this thread
 pub(crate) fn reading_profile() -> ReadingProfile {
     ReadingProfile {
