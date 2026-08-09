@@ -691,6 +691,7 @@ pub(crate) struct ReadingProfile {
     pub(super) rule_accept: bool,
     pub(super) point_scale: crate::bidding::constraint::PointScale,
     pub(super) support_points: bool,
+    pub(super) strength_dial: u8,
     pub(super) rubens_advances: bool,
     pub(super) penalty_latch: bool,
     pub(super) nt_overcall_systems_on: bool,
@@ -768,6 +769,7 @@ impl ReadingProfile {
         set_rule_accept(false);
         crate::bidding::constraint::set_point_scale(crate::bidding::constraint::PointScale::Hcp);
         crate::bidding::constraint::set_support_points(false);
+        crate::bidding::constraint::set_strength_dial(1);
         instinct::set_rubens_advances(true);
         instinct::set_penalty_latch(false);
         instinct::set_floor_rkcb(false);
@@ -844,6 +846,21 @@ impl ReadingProfile {
     /// too (`Envelope::supports`) — one cell, one home.
     pub(crate) const fn support_points(self) -> bool {
         self.support_points
+    }
+
+    /// The deviation panel's antisymmetric strength adjustment
+    /// ([`set_strength_dial`][crate::bidding::constraint::set_strength_dial],
+    /// **default 0**, measurement only).  The magnitude only: the direction is
+    /// chosen per decision from the auction (`dial_shift`).
+    ///
+    /// It used to be baked into each gauge as the constraint was *built*, on
+    /// the grounds that a classify-time read would leak the dial into the book
+    /// seated opposite on the same thread.  Pinning removed that leak — the
+    /// deviant stance carries its own profile — so the dial reads from here
+    /// like every other gauge setting, and no longer needs an `&Agreements` at
+    /// 1431 `.rule()` sites to reach the three constructors.
+    pub(crate) const fn strength_dial(self) -> u8 {
+        self.strength_dial
     }
 
     /// Whether the strong `2NT` opening carries the wide-minor shape.  Read at
@@ -1010,6 +1027,7 @@ pub(crate) fn reading_profile() -> ReadingProfile {
         rule_accept: rule_accept_enabled(),
         point_scale: crate::bidding::constraint::point_scale(),
         support_points: crate::bidding::constraint::support_points_now(),
+        strength_dial: crate::bidding::constraint::strength_dial(),
         rubens_advances: crate::bidding::instinct::rubens_advances_enabled(),
         penalty_latch: crate::bidding::instinct::penalty_latch_enabled(),
         nt_overcall_systems_on: crate::bidding::american::nt_overcall_systems_on(),

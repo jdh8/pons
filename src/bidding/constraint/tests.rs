@@ -167,12 +167,57 @@ fn strength_dial_two_moves_points_antisymmetrically() {
     let opener = empty_context();
     let responder = Context::new(RelativeVulnerability::NONE, &responder_auction);
 
-    set_strength_dial(2);
     let gate = points(13..);
+
+    // The dial is read when the gate is *evaluated*, not when it is built, so
+    // it stays armed across both classifications.  An 11-count opens as though
+    // it were 13 and responds as though it were 9.
+    set_strength_dial(2);
+    let opener_verdict = gate.eval(test_hand, &opener);
+    let responder_verdict = gate.eval(test_hand, &responder);
     set_strength_dial(0);
 
-    assert_pass(gate.eval(test_hand, &opener));
+    assert_pass(opener_verdict);
+    assert_reject(responder_verdict);
+
+    // And with the dial back at rest the same gate rejects in both roles —
+    // proof the constraint carries no baked-in dial of its own.
+    assert_reject(gate.eval(test_hand, &opener));
     assert_reject(gate.eval(test_hand, &responder));
+}
+
+/// A stance pins the dial it was built under, so the deviation panel's deviant
+/// seat keeps its calibration after the harness resets the thread
+/// (`examples/common/mod.rs`'s `deviant_floor` arms, builds, and resets).
+#[test]
+fn strength_dial_survives_on_a_pinned_stance() {
+    use crate::bidding::System;
+    use crate::bidding::american::american_book;
+
+    let hand = hand("KQ765.A8765.32.2"); // 11 points
+
+    set_strength_dial(2);
+    let deviant = american_book().against();
+    set_strength_dial(0);
+    let plain = american_book().against();
+
+    // An 11-count opens 1♥ only on the dialled stance; the plain one passes.
+    let opened = |stance: &crate::bidding::book::Stance| {
+        stance
+            .classify(hand, RelativeVulnerability::NONE, &[])
+            .map(|logits| {
+                (&logits.0)
+                    .into_iter()
+                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("comparable logits"))
+                    .map(|(call, _)| call)
+                    .expect("a decision")
+            })
+    };
+    assert_ne!(
+        opened(&deviant),
+        opened(&plain),
+        "the dial the deviant stance pinned must outlive the thread's reset"
+    );
 }
 
 #[test]

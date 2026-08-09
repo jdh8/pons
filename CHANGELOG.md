@@ -572,6 +572,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The strength dial moved from build time to classify time — Phase 3's last
+  cell.**  `STRENGTH_DIAL` (the deviation panel's axis B, default 0,
+  measurement only) was baked into every `Hcp` / `Points` / `SupportPoints` as
+  the constraint was *constructed*, which put it out of reach of an
+  `&Agreements`: `hcp`, `points` and `support_points` are called at ~1400
+  `.rule()` sites with no capture in scope.  It is now a `ReadingProfile` field,
+  pinned into the stance at `Pair::against` like every other gauge setting.
+  Only the magnitude moved — the antisymmetric direction was already chosen per
+  decision from the auction (`dial_shift`).  The harness idiom is unchanged
+  (arm, build the deviant pair, reset), and a new test
+  `strength_dial_survives_on_a_pinned_stance` pins that a deviant stance keeps
+  its dial after the thread resets.  The build-time capture existed because a
+  classify-time read would once have leaked the dial into the book seated
+  opposite on the same thread; the pin campaign removed that leak, and the docs
+  said so at `docs/deviation-panel.md` — both are updated.  Projections stay
+  undialled either way (the dial appears only in `eval`, never in a reading
+  fold), so the deviation panel measures the same thing.  `Hcp` gains a
+  `PROFILE` entry in `dependencies()`, which is inert: only
+  `projection_dependencies` gates the eager projection bake, and `Hcp` already
+  declared `PROFILE` there.  No measurable cost — 1.765s either way, mean of six
+  200 000-board `smoke-default` runs.  Byte-identical: seeded `smoke-default` /
+  `smoke-dutch` (20 000 boards each) and both `cards/*.bbsa` are unchanged.
+
 - **The convention card joins too — all four readers now share one capture.**
   `card::american_card()` read sixteen live getters row by row and
   `ConventionCard::capture` read seventeen more, each independently of the

@@ -1297,7 +1297,7 @@ pub(crate) fn support_points_now() -> bool {
     SUPPORT_POINTS.with(Cell::get)
 }
 
-/// Set the antisymmetric strength adjustment for books subsequently built on
+/// Set the antisymmetric strength adjustment for stances subsequently pinned on
 /// the current thread (**default 0**, measurement only)
 ///
 /// The deviation panel's B axis (docs/deviation-panel.md): a simulated natural
@@ -1306,16 +1306,24 @@ pub(crate) fn support_points_now() -> bool {
 /// point — pair-level calibration is preserved, so the partnership still stops
 /// in the same places and every authored continuation stays coherent.
 ///
-/// Captured when a gauge is *built*, so set it, build the deviant book, and
-/// reset — a classify-time read would leak the dial into the book seated
-/// opposite on the same thread.  Projections stay undialled: the deviant
-/// opponent keeps disclosing the authored meanings, and that mismatch is the
-/// deviation being measured.
+/// Pinned into the stance at [`Pair::against`][super::Pair::against] like every
+/// other gauge setting, so the idiom is unchanged: set it, build the deviant
+/// pair, reset.  It used to be captured when each *gauge* was built, because
+/// before the pin campaign a classify-time read would have leaked the dial into
+/// the book seated opposite on the same thread; a stance now carries its own
+/// `ReadingProfile`, so the two seats
+/// cannot see each other's dial.  The magnitude is all that is read here — the
+/// direction is chosen per decision from the auction (`dial_shift`).
+///
+/// Projections stay undialled either way: the dial appears only in
+/// [`Constraint::eval`], never in the reading folds, so the deviant opponent
+/// keeps disclosing the authored meanings and that mismatch is the deviation
+/// being measured.
 pub fn set_strength_dial(dial: u8) {
     STRENGTH_DIAL.with(|cell| cell.set(dial));
 }
 
-fn strength_dial() -> u8 {
+pub(crate) fn strength_dial() -> u8 {
     STRENGTH_DIAL.with(Cell::get)
 }
 
@@ -1384,16 +1392,16 @@ fn bound_range<T: ToU64>(range: &impl RangeBounds<T>, cap: u8) -> Range {
 #[derive(Clone)]
 struct Hcp<R> {
     range: R,
-    dial: u8,
 }
 
 impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Hcp<R> {
     fn eval(&self, hand: Hand, context: &Context<'_>) -> f32 {
         let value = raw_hcp(hand);
-        if self.dial == 0 {
+        let dial = context.reading_profile().strength_dial();
+        if dial == 0 {
             return crisp(self.range.contains(&value));
         }
-        let value = match dial_shift(self.dial, context) {
+        let value = match dial_shift(dial, context) {
             DialShift::Add(dial) => value.saturating_add(dial),
             DialShift::Subtract(dial) => value.saturating_sub(dial),
         };
@@ -1401,7 +1409,12 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Hcp<R> {
     }
 
     fn dependencies(&self) -> ConstraintDependencies {
-        ConstraintDependencies::HAND | ConstraintDependencies::CONTEXT
+        // `PROFILE` since the strength dial moved off the constructor: the
+        // gauge is still raw HCP, but which band it checks depends on the
+        // classifying stance.
+        ConstraintDependencies::HAND
+            | ConstraintDependencies::CONTEXT
+            | ConstraintDependencies::PROFILE
     }
 
     fn projection_dependencies(&self) -> ProjectionDependencies {
@@ -1471,10 +1484,7 @@ fn hcp_band(scale: PointScale, raw: Range) -> Envelope {
 /// Total high card points in the given range
 #[must_use]
 pub fn hcp(range: impl RangeBounds<u8> + Clone + Send + Sync) -> Cons<impl Constraint + Clone> {
-    Cons(Hcp {
-        range,
-        dial: strength_dial(),
-    })
+    Cons(Hcp { range })
 }
 
 /// The slack an HCP-gated point envelope owes `scale`: rule of N+8 reads a flat
@@ -1631,7 +1641,6 @@ fn new_point_count(hand: Hand) -> u8 {
 #[derive(Clone)]
 struct Points<R> {
     range: R,
-    dial: u8,
 }
 
 impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Points<R> {
@@ -1639,11 +1648,13 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Points<R> {
         // Always the shared scalar, whatever scale it is set to — the
         // sampler's soundness invariant (it measures the same number) holds
         // on every arm of the point-scale A/B.
-        let value = point_count_on(context.reading_profile().point_scale(), hand);
-        if self.dial == 0 {
+        let profile = context.reading_profile();
+        let value = point_count_on(profile.point_scale(), hand);
+        let dial = profile.strength_dial();
+        if dial == 0 {
             return crisp(self.range.contains(&value));
         }
-        let value = match dial_shift(self.dial, context) {
+        let value = match dial_shift(dial, context) {
             DialShift::Add(dial) => value.saturating_add(dial),
             DialShift::Subtract(dial) => value.saturating_sub(dial),
         };
@@ -1733,10 +1744,7 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Points<R> {
 /// [`fifths`] instead, and ranges indifferent to shape keep [`hcp`].
 #[must_use]
 pub fn points(range: impl RangeBounds<u8> + Clone + Send + Sync) -> Cons<impl Constraint + Clone> {
-    Cons(Points {
-        range,
-        dial: strength_dial(),
-    })
+    Cons(Points { range })
 }
 
 /// The **suit-blind** support scalar: [`point_count`] on the fit-known
@@ -1817,7 +1825,6 @@ fn support_slots(trump: Suit, band: Range) -> [Range; 4] {
 struct SupportPoints<R> {
     suit: Suit,
     range: R,
-    dial: u8,
 }
 
 impl<R: RangeBounds<u8> + Clone + Send + Sync> SupportPoints<R> {
@@ -1839,10 +1846,11 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for SupportPoints<R> {
             hand,
             self.suit,
         );
-        if self.dial == 0 {
+        let dial = profile.strength_dial();
+        if dial == 0 {
             return crisp(self.band().contains(value.min(Range::FULL_POINTS.max)));
         }
-        let value = match dial_shift(self.dial, context) {
+        let value = match dial_shift(dial, context) {
             DialShift::Add(dial) => value.saturating_add(dial),
             DialShift::Subtract(dial) => value.saturating_sub(dial),
         }
@@ -1923,11 +1931,7 @@ pub fn support_points(
     suit: Suit,
     range: impl RangeBounds<u8> + Clone + Send + Sync,
 ) -> Cons<impl Constraint + Clone> {
-    Cons(SupportPoints {
-        suit,
-        range,
-        dial: strength_dial(),
-    })
+    Cons(SupportPoints { suit, range })
 }
 
 /// Fifths in a range (the [`fifths`] constraint)
