@@ -87,8 +87,8 @@ pub(super) fn inverted_minor_rows() -> Vec<Entry> {
 pub(crate) fn minor_keycard_continuations() -> Package {
     Package {
         name: "inverted-minor-keycard",
-        gate: super::super::slam::minor_keycard,
-        entries: || {
+        gate: |_| super::super::slam::minor_keycard(),
+        entries: |_| {
             let mut entries = Vec::new();
             for minor in [Suit::Clubs, Suit::Diamonds] {
                 let prefix = format!(

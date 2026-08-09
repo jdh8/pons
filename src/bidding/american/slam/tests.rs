@@ -1,4 +1,5 @@
 use super::*;
+use crate::bidding::agreements::Agreements;
 use crate::bidding::rows::compile_entries;
 use crate::bidding::{System, Trie};
 use contract_bridge::auction::RelativeVulnerability;
@@ -25,20 +26,23 @@ fn rkcb_trie() -> Trie {
 fn row_package_invariants() {
     use crate::bidding::rows::Package;
 
-    const fn package(name: &'static str, entries: fn() -> Vec<Entry>) -> Package {
+    const fn package(name: &'static str, entries: fn(&Agreements) -> Vec<Entry>) -> Package {
         Package {
             name,
-            gate: || true,
+            gate: |_| true,
             entries,
         }
     }
 
-    crate::bidding::rows::assert_package_invariants(&[
-        package("rkcb:♠", || rkcb_rows("P* 1♠ - 3♠ -", Suit::Spades)),
-        package("rkcb:♥", || rkcb_rows("P* 1♥ - 3♥ -", Suit::Hearts)),
-        package("rkcb:♦", || rkcb_rows("P* 1♦ - 3♦ -", Suit::Diamonds)),
-        package("rkcb:♣", || rkcb_rows("P* 1♣ - 3♣ -", Suit::Clubs)),
-    ]);
+    crate::bidding::rows::assert_package_invariants(
+        &Agreements::current(),
+        &[
+            package("rkcb:♠", |_| rkcb_rows("P* 1♠ - 3♠ -", Suit::Spades)),
+            package("rkcb:♥", |_| rkcb_rows("P* 1♥ - 3♥ -", Suit::Hearts)),
+            package("rkcb:♦", |_| rkcb_rows("P* 1♦ - 3♦ -", Suit::Diamonds)),
+            package("rkcb:♣", |_| rkcb_rows("P* 1♣ - 3♣ -", Suit::Clubs)),
+        ],
+    );
 }
 
 /// The best call made by the trie for the given hand at the given auction

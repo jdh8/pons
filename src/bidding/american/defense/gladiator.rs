@@ -80,8 +80,8 @@ pub fn nt_overcall_gladiator() -> bool {
 pub(super) fn gladiator_package() -> Package {
     Package {
         name: "gladiator",
-        gate: nt_overcall_gladiator,
-        entries: || {
+        gate: |_| nt_overcall_gladiator(),
+        entries: |_| {
             let mut entries = Vec::new();
             for suit in [Suit::Hearts, Suit::Spades] {
                 let theirs = Strain::from(suit);
@@ -251,8 +251,8 @@ pub(super) fn gladiator_package() -> Package {
 pub(super) fn gladiator_sohl_package() -> Package {
     Package {
         name: "gladiator-sohl",
-        gate: nt_overcall_gladiator,
-        entries: || {
+        gate: |_| nt_overcall_gladiator(),
+        entries: |_| {
             let mut entries = Vec::new();
             for major in [Suit::Hearts, Suit::Spades] {
                 let opening = Bid::new(1, Strain::from(major));

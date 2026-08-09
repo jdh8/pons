@@ -103,8 +103,8 @@ fn responder_after_jacoby(major: Suit, opener_bid: Call) -> Rules {
 pub(crate) fn jacoby_continuations() -> Package {
     Package {
         name: "jacoby-two-notrump-continuations",
-        gate: || true,
-        entries: || {
+        gate: |_| true,
+        entries: |_| {
             let mut entries = Vec::new();
             for major in [Suit::Hearts, Suit::Spades] {
                 let prefix = format!("P* {} - 2NT -", call(1, Strain::from(major)),);

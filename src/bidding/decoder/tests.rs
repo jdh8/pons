@@ -484,10 +484,11 @@ fn streaming_ledger_compile_matches_catalog_with_grafts_and_overwrites() {
     let mut source = Trie::new();
     compile_into(
         &mut source,
+        &crate::bidding::agreements::Agreements::current(),
         &[Package {
             name: "decoder-streaming-test",
-            gate: || true,
-            entries,
+            gate: |_| true,
+            entries: |_| entries(),
         }],
     );
     let mut trie = source.clone();

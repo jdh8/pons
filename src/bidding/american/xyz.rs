@@ -21,6 +21,7 @@
 //! carries no phantom club suit, so the floor defends sanely.
 
 use super::call;
+use crate::bidding::agreements::Agreements;
 use crate::bidding::constraint::{balanced, len, points};
 use crate::bidding::rows::{Entry, Package, Pattern, compile_into, rows_of};
 use crate::bidding::{Alert, Rules, Trie};
@@ -319,8 +320,8 @@ fn rows_for_prefix(opening: Suit, response: Suit, rebid: Strain) -> Vec<Entry> {
 pub(super) fn package() -> Package {
     Package {
         name: "xyz",
-        gate: xyz,
-        entries: || {
+        gate: |_| xyz(),
+        entries: |_| {
             let nmf = super::nmf::new_minor_forcing();
             let mut entries = Vec::new();
             for opening in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
@@ -351,6 +352,6 @@ pub(super) fn package() -> Package {
 
 /// Register both checkback conventions; each package is a no-op when its knob
 /// is off, and their keys are disjoint by construction
-pub(super) fn register(book: &mut Trie) {
-    compile_into(book, &[package(), super::nmf::package()]);
+pub(super) fn register(book: &mut Trie, agreements: &Agreements) {
+    compile_into(book, agreements, &[package(), super::nmf::package()]);
 }

@@ -116,8 +116,8 @@ fn diamond_overcalled_high(over: Suit) -> Rules {
 pub(super) fn competition_over_diamond_transfer_package() -> Package {
     Package {
         name: "competition-over-diamond-transfer",
-        gate: || competition_over_diamond_transfer() && notrump_minors() == PUPPET,
-        entries: || {
+        gate: |_| competition_over_diamond_transfer() && notrump_minors() == PUPPET,
+        entries: |_| {
             const TWO_NT: &str = "P* 1NT - 2NT";
             // Our 2NT doubled: opener's 3♦-fit / 3♣-clubs / XX-values / Pass
             // reply, then the systems-on rebase off his fit-showing bid.

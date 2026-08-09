@@ -145,8 +145,8 @@ fn responder_over_forcing_nt_5_5() -> Rules {
 pub(crate) fn forcing_nt_two_suiter_continuations() -> Package {
     Package {
         name: "forcing-nt-two-suiter-continuations",
-        gate: forcing_nt_two_suiter,
-        entries: || {
+        gate: |_| forcing_nt_two_suiter(),
+        entries: |_| {
             let mut entries = rows_of(
                 Pattern::node("P* 1♥ - 1NT - 2♠ -"),
                 responder_over_forcing_nt_reverse(),

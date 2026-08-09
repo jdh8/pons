@@ -162,8 +162,8 @@ pub(super) fn answer_cue_minor_raise(minor: Suit) -> Rules {
 pub(super) fn cue_raise_answer_package() -> Package {
     Package {
         name: "cue-raise-answer",
-        gate: cue_raise_answer,
-        entries: || {
+        gate: |_| cue_raise_answer(),
+        entries: |_| {
             [Suit::Hearts, Suit::Spades]
                 .into_iter()
                 .flat_map(|major| {
@@ -201,8 +201,8 @@ pub(super) fn cue_raise_answer_package() -> Package {
 pub(super) fn cue_minor_raise_answer_package() -> Package {
     Package {
         name: "cue-minor-raise-answer",
-        gate: cue_minor_raise_answer,
-        entries: || {
+        gate: |_| cue_minor_raise_answer(),
+        entries: |_| {
             [Suit::Clubs, Suit::Diamonds]
                 .into_iter()
                 .flat_map(|minor| {
@@ -284,8 +284,8 @@ fn cue_raise_legacy_rows(minors: bool) -> Vec<Entry> {
 pub(super) fn cue_raise_answer_package_legacy() -> Package {
     Package {
         name: "cue-raise-answer",
-        gate: cue_raise_answer,
-        entries: || cue_raise_legacy_rows(false),
+        gate: |_| cue_raise_answer(),
+        entries: |_| cue_raise_legacy_rows(false),
     }
 }
 
@@ -293,8 +293,8 @@ pub(super) fn cue_raise_answer_package_legacy() -> Package {
 pub(super) fn cue_minor_raise_answer_package_legacy() -> Package {
     Package {
         name: "cue-minor-raise-answer",
-        gate: cue_minor_raise_answer,
-        entries: || cue_raise_legacy_rows(true),
+        gate: |_| cue_minor_raise_answer(),
+        entries: |_| cue_raise_legacy_rows(true),
     }
 }
 

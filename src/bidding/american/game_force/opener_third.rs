@@ -69,8 +69,8 @@ fn opener_third(major: Suit) -> Rules {
 pub(crate) fn opener_third_continuations() -> Package {
     Package {
         name: "two-over-one-opener-third",
-        gate: opener_third_enabled,
-        entries: || {
+        gate: |_| opener_third_enabled(),
+        entries: |_| {
             let mut entries = Vec::new();
             for major in [Suit::Spades, Suit::Hearts] {
                 for resp in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {

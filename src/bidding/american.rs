@@ -60,6 +60,7 @@
 //! Constraints are kept disjoint where practical; where calls can both apply,
 //! the weights order them so the more descriptive bid wins.
 
+use super::agreements::Agreements;
 use super::common::{call, other_major, with_floor, with_floor_v5, with_instinct_floor};
 use super::{Competitive, Constructive, Defensive, Pair};
 
@@ -333,19 +334,24 @@ pub fn american_floor() -> Pair {
 /// 1NT).
 #[must_use]
 pub fn american_book() -> Pair {
+    let agreements = Agreements::current();
     let mut c = Constructive::new();
 
-    openings::register(&mut c);
-    responses::register(&mut c);
-    notrump::register(&mut c);
-    rebids::register(&mut c);
-    xyz::register(&mut c);
-    game_force::register(&mut c);
-    raises::register(&mut c);
-    strong_two::register(&mut c);
-    weak_twos::register(&mut c);
+    openings::register(&mut c, &agreements);
+    responses::register(&mut c, &agreements);
+    notrump::register(&mut c, &agreements);
+    rebids::register(&mut c, &agreements);
+    xyz::register(&mut c, &agreements);
+    game_force::register(&mut c, &agreements);
+    raises::register(&mut c, &agreements);
+    strong_two::register(&mut c, &agreements);
+    weak_twos::register(&mut c, &agreements);
 
-    Pair::new(c, competition::competition(), defense::defensive())
+    Pair::new(
+        c,
+        competition::competition(&agreements),
+        defense::defensive(&agreements),
+    )
 }
 
 #[cfg(test)]

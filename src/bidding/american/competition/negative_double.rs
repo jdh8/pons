@@ -232,8 +232,8 @@ fn cachalot_x_contested_answer(shown: Suit, last: Bid) -> Rules {
 pub(super) fn cachalot_package() -> Package {
     Package {
         name: "cachalot-answer",
-        gate: || negative_double_shape() == NegativeDoubleShape::Cachalot,
-        entries: || {
+        gate: |_| negative_double_shape() == NegativeDoubleShape::Cachalot,
+        entries: |_| {
             // (1♦) over 1♣: X shows hearts, 1♥ shows spades, 1♠ is the takeout.
             let over_diamond = "P* 1♣ (1♦)";
             let mut entries = rows_of(
@@ -336,8 +336,8 @@ pub(super) fn cachalot_package_legacy() -> Package {
 
     Package {
         name: "cachalot-answer",
-        gate: || negative_double_shape() == NegativeDoubleShape::Cachalot,
-        entries: || {
+        gate: |_| negative_double_shape() == NegativeDoubleShape::Cachalot,
+        entries: |_| {
             let over_diamond = "P* 1♣ (1♦)";
             let mut entries = rows_of(
                 Pattern::after(over_diamond, "X -"),
@@ -403,8 +403,8 @@ pub(super) fn cachalot_package_legacy() -> Package {
 pub(super) fn sputnik_residual_answer_package() -> Package {
     Package {
         name: "sputnik-residual-answer",
-        gate: || negative_double_shape() == NegativeDoubleShape::Sputnik,
-        entries: || {
+        gate: |_| negative_double_shape() == NegativeDoubleShape::Sputnik,
+        entries: |_| {
             // (1♦) over 1♣: X = ≤3 in both majors — no fit to hunt.
             let mut entries = rows_of(
                 Pattern::after("P* 1♣ (1♦)", "X -"),
@@ -427,8 +427,8 @@ pub(super) fn sputnik_residual_answer_package() -> Package {
 pub(super) fn answer_negative_double_package() -> Package {
     Package {
         name: "answer-negative-double-of-minor",
-        gate: || true,
-        entries: || {
+        gate: |_| true,
+        entries: |_| {
             expand(
                 "P* 1M (2m) X -",
                 |_| true,
@@ -444,8 +444,8 @@ pub(super) fn answer_negative_double_package() -> Package {
 pub(super) fn answer_negative_double_package_legacy() -> Package {
     Package {
         name: "answer-negative-double-of-minor",
-        gate: || true,
-        entries: || {
+        gate: |_| true,
+        entries: |_| {
             [Suit::Hearts, Suit::Spades]
                 .into_iter()
                 .flat_map(|major| {

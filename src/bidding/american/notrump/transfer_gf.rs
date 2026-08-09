@@ -445,8 +445,8 @@ pub(super) fn not_major_splinter_slam(major: Suit) -> Cons<impl Constraint + Clo
 pub(crate) fn spade_transfer_game_force() -> Package {
     Package {
         name: "spade-transfer-game-force",
-        gate: transfer_gf_majors,
-        entries: || {
+        gate: |_| transfer_gf_majors(),
+        entries: |_| {
             let mut entries = rows_of(
                 Pattern::node("P* 1NT - 2♥ - 2♠ - 4NT -"),
                 gf_quant_answer(Suit::Spades),
@@ -473,8 +473,8 @@ pub(crate) fn spade_transfer_game_force() -> Package {
 pub(crate) fn heart_transfer_game_force() -> Package {
     Package {
         name: "heart-transfer-game-force",
-        gate: transfer_gf_hearts,
-        entries: || {
+        gate: |_| transfer_gf_hearts(),
+        entries: |_| {
             let mut entries = rows_of(
                 Pattern::node("P* 1NT - 2♦ - 2♥ - 4NT -"),
                 gf_quant_answer(Suit::Hearts),

@@ -28,6 +28,7 @@
 use super::super::Trie;
 use super::call;
 use crate::bidding::Rules;
+use crate::bidding::agreements::Agreements;
 use crate::bidding::constraint::{
     balanced, described, fifths, hcp, len, partner_suit_is, points, support,
 };
@@ -219,8 +220,8 @@ pub(super) fn distinct_calls(rules: &Rules) -> Vec<Call> {
 pub(super) fn base() -> Package {
     Package {
         name: "two-over-one-continuations",
-        gate: || true,
-        entries: || {
+        gate: |_| true,
+        entries: |_| {
             let mut entries = Vec::new();
 
             // Five major 2/1 sequences: opener's rebid, responder's rebid
@@ -278,9 +279,10 @@ pub(super) fn base() -> Package {
 }
 
 /// Register all 2/1 game-forcing continuations into `book`
-pub(super) fn register(book: &mut Trie) {
+pub(super) fn register(book: &mut Trie, agreements: &Agreements) {
     compile_into(
         book,
+        agreements,
         &[
             base(),
             opener_third_continuations(),

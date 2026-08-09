@@ -9,6 +9,7 @@
 //! | [`two_notrump`] | the strong `2NT` opening and wide-minor shape treatment | [`set_two_notrump_wide`] |
 //! | [`weak_two`] | weak-two strength gauges and wild five-card treatment | [`set_weak_two_hcp`], [`set_weak_two_eval`], [`set_weak_two_wild`] |
 
+use crate::bidding::agreements::Agreements;
 use crate::bidding::constraint::{Cons, Constraint, described, hcp, len, nth_seat, points};
 use crate::bidding::context::Context;
 use crate::bidding::rows::{Package, Pattern, compile_into, rows_of};
@@ -167,14 +168,14 @@ pub fn openings_with(shape: NotrumpShape) -> Rules {
 pub(super) fn package() -> Package {
     Package {
         name: "openings",
-        gate: || true,
-        entries: || rows_of(Pattern::node("P*"), openings_with(notrump_shape_setting())),
+        gate: |_| true,
+        entries: |_| rows_of(Pattern::node("P*"), openings_with(notrump_shape_setting())),
     }
 }
 
 /// Register the opening table in the constructive book
-pub(super) fn register(book: &mut Trie) {
-    compile_into(book, &[package()]);
+pub(super) fn register(book: &mut Trie, agreements: &Agreements) {
+    compile_into(book, agreements, &[package()]);
 }
 
 #[cfg(test)]

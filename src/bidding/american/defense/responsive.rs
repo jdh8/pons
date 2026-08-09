@@ -127,8 +127,8 @@ fn responsive_overcall_doubles(open: Suit, overcall: Suit, _raise_lvl: u8) -> Ru
 pub(super) fn responsive_double_package() -> Package {
     Package {
         name: "responsive-double",
-        gate: responsive_takeout_enabled,
-        entries: || {
+        gate: |_| responsive_takeout_enabled(),
+        entries: |_| {
             let mut entries = Vec::new();
             for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
                 let theirs = Strain::from(suit);
@@ -153,8 +153,8 @@ pub(super) fn responsive_double_package() -> Package {
 pub(super) fn responsive_overcall_package() -> Package {
     Package {
         name: "responsive-double-over-overcall",
-        gate: responsive_overcall_enabled,
-        entries: || {
+        gate: |_| responsive_overcall_enabled(),
+        entries: |_| {
             let mut entries = Vec::new();
             for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
                 let theirs = Strain::from(suit);

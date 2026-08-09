@@ -160,8 +160,8 @@ fn stayman_minor_slam_rkcb() -> Rules {
 pub(crate) fn cue() -> Package {
     Package {
         name: "stayman-cue-continuation",
-        gate: stayman_cue_continuation,
-        entries: || {
+        gate: |_| stayman_cue_continuation(),
+        entries: |_| {
             let two_h = call(2, Strain::Hearts);
             let two_s = call(2, Strain::Spades);
             let three_h = call(3, Strain::Hearts);
@@ -194,8 +194,8 @@ pub(crate) fn cue() -> Package {
 pub(crate) fn minor_slam() -> Package {
     Package {
         name: "stayman-minor-slam-try",
-        gate: stayman_minor_slam_try,
-        entries: || {
+        gate: |_| stayman_minor_slam_try(),
+        entries: |_| {
             let two_d = call(2, Strain::Diamonds);
             let two_h = call(2, Strain::Hearts);
             let two_s = call(2, Strain::Spades);

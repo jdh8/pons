@@ -22,6 +22,7 @@
 //! | [`over_our_minor_transfer`] | when they compete over our two-way `2♠` minor response |
 //! | [`over_our_diamond_transfer`] | when they compete over our `2NT` diamond transfer |
 
+use super::super::agreements::Agreements;
 use super::super::constraint::{
     Cons, Constraint, balanced, described, has_stopper, hcp, len, min_level_is, partner_suit_is,
     points, stopper_in, stopper_in_their_suits, suit_hcp, support, they_bid, top_honors,
@@ -244,17 +245,18 @@ fn systems_on_over_double(key: &str, bid: &str) -> Entry {
 /// [`Pair::against`][crate::bidding::Pair::against] (as [`american`][super::american] is meant to be
 /// used) so it resolves into the uncontested core.
 #[must_use]
-pub fn competition() -> Competitive {
+pub fn competition(agreements: &Agreements) -> Competitive {
     let mut book = Competitive::new();
 
     // Section 1 & 2: over all four openings, attach direct-seat response rules
     // and system-on over their double.
-    compile_into(&mut book, &[direct_seat_package()]);
+    compile_into(&mut book, agreements, &[direct_seat_package()]);
 
     // Section 2b: systems-on over their double of our splinter.
     // Section 3: support doubles and redoubles for each (opening, major) pair.
     compile_into(
         &mut book,
+        agreements,
         &[splinter_doubled_package(), support_double_package()],
     );
 
@@ -262,6 +264,7 @@ pub fn competition() -> Competitive {
     // Section 4b/4c: opener answers partner's cue-raise of the opening suit.
     compile_into(
         &mut book,
+        agreements,
         &[
             answer_negative_double_package(),
             cue_raise_answer_package(),
@@ -271,23 +274,23 @@ pub fn competition() -> Competitive {
 
     // Section 4d/4d′/4d″/4d‴: opener answers responder's natural free bid,
     // and the Negative style's capped-free-bid continuations.
-    compile_into(&mut book, &[free_bid_answer_package()]);
+    compile_into(&mut book, agreements, &[free_bid_answer_package()]);
 
     // Section 4f (`FreeBidStyle::Transfer`): opener completes the 2-level
     // free-bid transfer and responder clarifies. The swap contexts are a
     // closed enumeration — (opening, their overcall, lower slot → shown,
     // wrap slot → shown, completing a level higher on the wrap):
-    compile_into(&mut book, &[transfer_free_bid_package()]);
+    compile_into(&mut book, agreements, &[transfer_free_bid_package()]);
 
     // Section 6: their two-suiters over our 1M.
-    compile_into(&mut book, &[uvu_over_majors_package()]);
+    compile_into(&mut book, agreements, &[uvu_over_majors_package()]);
 
     // Section 11: over their takeout double (`set_jordan_truscott`, default
     // on). Responder's first call at the deeper `1x (X)` key — it wins over
     // the `1x` FirstIs(X) systems-on rebase structurally, and the rebase
     // survives untouched below it for every deeper suffix the package's
     // exact-suffix guards don't claim.
-    compile_into(&mut book, &[jordan_truscott_package()]);
+    compile_into(&mut book, agreements, &[jordan_truscott_package()]);
 
     // Section 10: their jump / 3-level suit overcalls
     // (`set_high_overcall_responses`, default off). A guarded entry at `1x` —
@@ -295,12 +298,13 @@ pub fn competition() -> Competitive {
     // (which stop at 2♠), so nothing races it. Their (2NT) and their 3-level
     // cue of our own suit are excluded (the first is a two-suiter, the second
     // is rare enough for the floor).
-    compile_into(&mut book, &[high_overcall_package()]);
+    compile_into(&mut book, agreements, &[high_overcall_package()]);
 
     // Section 9: opener's Cachalot answers (`NegativeDoubleShape::Cachalot`
     // only). Section 9b: opener's answers to the Sputnik residual double.
     compile_into(
         &mut book,
+        agreements,
         &[cachalot_package(), sputnik_residual_answer_package()],
     );
 
@@ -310,19 +314,19 @@ pub fn competition() -> Competitive {
     // systems-on. Their overcall (≤ 3♠): responder's direct action, and a
     // targeted rebase so an Ogust 2NT bid over the overcall still gets
     // opener's undisturbed five-rung answer.
-    compile_into(&mut book, &[weak_two_competition_package()]);
+    compile_into(&mut book, agreements, &[weak_two_competition_package()]);
 
     // Section 8: our contested strong 2♣ (`set_strong_two_competition`,
     // default on). Their double steals no room → systems on wholesale; their
     // overcall gets responder's natural-GF / values-X / waiting-pass table,
     // backed by opener's forced reopening in the pass-out seat.
-    compile_into(&mut book, &[strong_two_competition_package()]);
+    compile_into(&mut book, agreements, &[strong_two_competition_package()]);
 
     // Section 5 / 5b / 5c: Lebensohl after our 1NT is overcalled at the 2
     // level. Purely additive — nothing else lands at `1NT` in the competitive
     // book. Plain or Transfer Lebensohl per [`LebensohlStyle`]; both keep the
     // weak 2NT relay, and (2♣) gets the systems-on rebase instead.
-    compile_into(&mut book, &[lebensohl_package()]);
+    compile_into(&mut book, agreements, &[lebensohl_package()]);
 
     // Competition over our own conventions: the opponents double or overcall
     // our Stayman, our Jacoby transfer, our two-way 2♠, or our 2NT diamond
@@ -331,6 +335,7 @@ pub fn competition() -> Competitive {
     // sits at depth 1 — and each shares the `X (bid) …` systems-on rebase.
     compile_into(
         &mut book,
+        agreements,
         &[
             competition_over_stayman_package(),
             competition_over_transfer_package(),
@@ -340,7 +345,7 @@ pub fn competition() -> Competitive {
     );
 
     // Section 5d: Unusual vs Unusual over their (2NT) overcall of our 1NT.
-    compile_into(&mut book, &[uvu_package()]);
+    compile_into(&mut book, agreements, &[uvu_package()]);
 
     book
 }

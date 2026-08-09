@@ -74,8 +74,8 @@ fn game_backstop() -> Rules {
 pub(crate) fn backstops() -> Package {
     Package {
         name: "two-over-one-game-backstop",
-        gate: game_backstop_enabled,
-        entries: || {
+        gate: |_| game_backstop_enabled(),
+        entries: |_| {
             let mut entries = Vec::new();
             for major in [Suit::Spades, Suit::Hearts] {
                 for resp in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {

@@ -23,6 +23,7 @@
 //! | [`nt_landy`], [`nt_dont`], [`nt_meckwell`], [`nt_woolsey`] | the four systems' calls and advances |
 //! | [`nt_their_conventions`] | defending their Stayman and transfers |
 
+use super::super::agreements::Agreements;
 use super::super::constraint::{
     Cons, Constraint, and, at_least_as_long, balanced, equal_length, hcp, len, length_box,
     long_suit_box, longer_suit, longest_unbid, min_level_is, or, passed_hand, points,
@@ -340,7 +341,7 @@ mod shape_guards;
 /// the whole opening-1NT book below our 1NT overcall — `compile_into` writes
 /// rows, not a subtree.
 #[must_use]
-pub fn defensive() -> Defensive {
+pub fn defensive(agreements: &Agreements) -> Defensive {
     let mut d = Defensive::new();
 
     // Systems-on advances of our 1NT overcall: the whole 1NT-opening response
@@ -349,18 +350,19 @@ pub fn defensive() -> Defensive {
     // verbatim.  On by default; see `set_nt_overcall_systems_on`.
     let nt_overcall_book = nt_overcall_systems_on().then(|| {
         let mut nt = Trie::new();
-        super::notrump::register_one_nt(&mut nt);
+        super::notrump::register_one_nt(&mut nt, agreements);
         nt
     });
 
     // Over each one-of-a-suit opening: our direct defense, and the advances of
     // partner's Michaels cue and Unusual 2NT.
-    compile_into(&mut d, &[suit_defense_package()]);
+    compile_into(&mut d, agreements, &[suit_defense_package()]);
 
     // Advancing partner's takeout double of a one-of-a-suit opening, and — when
     // the rich ladder is on — the continuations of its artificial calls.
     compile_into(
         &mut d,
+        agreements,
         &[advance_double_package(), rich_advance_double_package()],
     );
 
@@ -399,11 +401,16 @@ pub fn defensive() -> Defensive {
 
     // Gladiator, when on: the advances of our 1NT overcall of their major, then
     // the tail for their 2-level action over it.
-    compile_into(&mut d, &[gladiator_package(), gladiator_sohl_package()]);
+    compile_into(
+        &mut d,
+        agreements,
+        &[gladiator_package(), gladiator_sohl_package()],
+    );
 
     // Responsive doubles: partner acted (double or overcall) and they raised.
     compile_into(
         &mut d,
+        agreements,
         &[responsive_double_package(), responsive_overcall_package()],
     );
 
@@ -412,6 +419,7 @@ pub fn defensive() -> Defensive {
     // Michaels.
     compile_into(
         &mut d,
+        agreements,
         &[
             weak_two_defense_package(),
             weak_two_notrump_advance_package(),
@@ -419,13 +427,14 @@ pub fn defensive() -> Defensive {
         ],
     );
     // Advancing partner's takeout double: `(2t) X -` — advancer to act.
-    compile_into(&mut d, &[advance_of_double_package()]);
+    compile_into(&mut d, agreements, &[advance_of_double_package()]);
 
     // Their 1NT opening and the three artificial responses we have a defense to
     // (Stayman, Jacoby, the two-way 2♠ and the 2NT diamond transfer); all three
     // response defenses are opt-in, default off.
     compile_into(
         &mut d,
+        agreements,
         &[
             notrump_defense_package(),
             their_stayman_defense_package(),
@@ -438,13 +447,13 @@ pub fn defensive() -> Defensive {
     // Advancing partner's Landy 2♣ (both majors) over their 1NT, when on.  Woolsey's
     // 2♣ is the identical both-majors call on the same shared band, so it reuses this
     // same advance wiring.
-    compile_into(&mut d, &[landy_advance_package()]);
+    compile_into(&mut d, agreements, &[landy_advance_package()]);
 
     // Woolsey "Multi-Landy" continuations, when on.
-    compile_into(&mut d, &[woolsey_package()]);
+    compile_into(&mut d, agreements, &[woolsey_package()]);
 
     // Advancing partner's both-minors 2NT over their 1NT, when on.
-    compile_into(&mut d, &[unusual_notrump_advance_package()]);
+    compile_into(&mut d, agreements, &[unusual_notrump_advance_package()]);
 
     // Direct-seat DONT and Meckwell advances.  Both write `(1NT) X -` and
     // friends; with both knobs on, Meckwell wins the shared keys exactly as it
@@ -452,11 +461,12 @@ pub fn defensive() -> Defensive {
     // load-bearing.
     compile_into(
         &mut d,
+        agreements,
         &[direct_dont_advance_package(), meckwell_advance_package()],
     );
 
     // Direct-seat both-majors X advances.
-    compile_into(&mut d, &[both_majors_double_package()]);
+    compile_into(&mut d, agreements, &[both_majors_double_package()]);
     d
 }
 

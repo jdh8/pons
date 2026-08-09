@@ -16,6 +16,7 @@
 //! +4.4/+5.2 IMPs/divergent.
 
 use super::{call, slam};
+use crate::bidding::agreements::Agreements;
 use crate::bidding::constraint::{fifths, hcp, len, support_points, top_honors};
 use crate::bidding::rows::{Package, Pattern, compile_into, rows_of};
 use crate::bidding::{Alert, Rules, Trie};
@@ -37,9 +38,10 @@ pub(super) use jacoby::jacoby_continuations;
 pub(super) use limit_raise::limit_raise_acceptance_continuations;
 
 /// Register all strong-raise continuations into the constructive book
-pub(super) fn register(book: &mut Trie) {
+pub(super) fn register(book: &mut Trie, agreements: &Agreements) {
     compile_into(
         book,
+        agreements,
         &[
             jacoby_continuations(),
             major_game_try_continuations(),

@@ -276,8 +276,8 @@ fn woolsey_x_2nt_rebid() -> Rules {
 pub(super) fn woolsey_package() -> Package {
     Package {
         name: "woolsey",
-        gate: woolsey_enabled,
-        entries: || {
+        gate: |_| woolsey_enabled(),
+        entries: |_| {
             let lo = woolsey_points().0;
             let mut entries = Vec::new();
 

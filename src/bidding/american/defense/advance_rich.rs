@@ -397,8 +397,8 @@ fn advance_cue_rebid(answer: Bid) -> Rules {
 pub(super) fn rich_advance_double_package() -> Package {
     Package {
         name: "rich-advance-of-double",
-        gate: rich_advance_double_enabled,
-        entries: || {
+        gate: |_| rich_advance_double_enabled(),
+        entries: |_| {
             let mut entries = Vec::new();
             for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
                 let theirs = Strain::from(suit);

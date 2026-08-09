@@ -15,6 +15,7 @@ mod openings;
 mod responses;
 
 use super::Pair;
+use super::agreements::Agreements;
 use super::american::american_book;
 use super::card::dutch_card;
 use super::common::{with_floor, with_floor_v5, with_instinct_floor};
@@ -114,11 +115,13 @@ pub fn dutch_instinct() -> Pair {
 /// strength; see `docs/dutch-system.md`.
 #[must_use]
 pub fn dutch_book() -> Pair {
+    let agreements = Agreements::current();
     let mut pair = american_book();
     // Compile after American: these packages intentionally replace eight
     // inherited exact nodes and add nine Dutch-only continuations.
     compile_into(
         &mut pair.constructive.0,
+        &agreements,
         &[openings::package(), responses::package()],
     );
     pair

@@ -15,6 +15,7 @@ use super::super::Trie;
 use super::super::constraint::{
     balanced, envelope_union_upgrade, hcp, len, points, support, support_points,
 };
+use crate::bidding::agreements::Agreements;
 use crate::bidding::inference::{Envelope, EnvelopeUnion, Range};
 use crate::bidding::rows::{Package, Pattern, compile_into, expand, rows_of};
 use contract_bridge::auction::Call;
@@ -298,8 +299,8 @@ fn opener_after_splinter(major: Suit) -> Rules {
 pub(super) fn package() -> Package {
     Package {
         name: "suit-opening-responses",
-        gate: || true,
-        entries: || {
+        gate: |_| true,
+        entries: |_| {
             let mut entries = expand("P* 1M -", |_| true, |b| major_responses(b.suit('M')));
             entries.extend(expand(
                 "P* 1m -",
@@ -336,9 +337,10 @@ pub(super) fn package() -> Package {
 }
 
 /// Register the first responses and their response-level continuations
-pub(super) fn register(book: &mut Trie) {
+pub(super) fn register(book: &mut Trie, agreements: &Agreements) {
     compile_into(
         book,
+        agreements,
         &[
             package(),
             choice_of_games_continuations(),

@@ -165,8 +165,8 @@ fn meckwell_x_rebid() -> Rules {
 pub(super) fn meckwell_advance_package() -> Package {
     Package {
         name: "meckwell-advance",
-        gate: meckwell_enabled,
-        entries: || {
+        gate: |_| meckwell_enabled(),
+        entries: |_| {
             let mut entries = rows_of(Pattern::node("P* (1NT) X -"), meckwell_x_advance());
             for (key, rules) in [
                 ("P* (1NT) X - 2♣ -", meckwell_x_rebid()),

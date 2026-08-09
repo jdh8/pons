@@ -17,6 +17,7 @@
 
 use super::super::constraint::{balanced, fifths, hcp, len, points, support, top_honors};
 use super::super::{Alert, Rules, Trie};
+use crate::bidding::agreements::Agreements;
 use crate::bidding::rows::{Package, Pattern, compile_into, rows_of};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
@@ -258,8 +259,8 @@ fn opener_after_diamonds_raise() -> Rules {
 pub(super) fn package() -> Package {
     Package {
         name: "strong-two-continuations",
-        gate: || true,
-        entries: || {
+        gate: |_| true,
+        entries: |_| {
             // Responses to 2♣ and opener's first rebid.
             let mut entries = rows_of(Pattern::node("P* 2♣ -"), responses());
             entries.extend(rows_of(
@@ -344,8 +345,8 @@ pub(super) fn package() -> Package {
 pub(super) fn minor_keycard_continuations() -> Package {
     Package {
         name: "strong-two-minor-keycard",
-        gate: super::slam::minor_keycard,
-        entries: || {
+        gate: |_| super::slam::minor_keycard(),
+        entries: |_| {
             let mut entries = super::slam::rkcb_rows("P* 2♣ - 2♦ - 3♣ - 4♣ -", Suit::Clubs);
             entries.extend(super::slam::rkcb_rows(
                 "P* 2♣ - 2♦ - 3♦ - 4♦ -",
@@ -357,6 +358,10 @@ pub(super) fn minor_keycard_continuations() -> Package {
 }
 
 /// Register all strong 2♣ continuations into the constructive book
-pub(super) fn register(book: &mut Trie) {
-    compile_into(book, &[package(), minor_keycard_continuations()]);
+pub(super) fn register(book: &mut Trie, agreements: &Agreements) {
+    compile_into(
+        book,
+        agreements,
+        &[package(), minor_keycard_continuations()],
+    );
 }

@@ -483,7 +483,8 @@ fn test_strong_two_system_on_transfer() {
 #[test]
 fn test_competition_book_needs_binding() {
     // The unbound competitive book answers the negative double directly...
-    let book = pons::bidding::american::competition();
+    let book =
+        pons::bidding::american::competition(&pons::bidding::agreements::Agreements::current());
     let one_h = call(1, Strain::Hearts);
 
     assert_eq!(

@@ -51,8 +51,8 @@ fn support_rules(major: Suit) -> Rules {
 pub(super) fn support_double_package() -> Package {
     Package {
         name: "support-double",
-        gate: || true,
-        entries: || {
+        gate: |_| true,
+        entries: |_| {
             let mut support_pairs = vec![
                 (Suit::Clubs, Suit::Hearts),
                 (Suit::Clubs, Suit::Spades),

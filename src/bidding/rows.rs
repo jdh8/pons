@@ -85,6 +85,7 @@
 //! the fall-through pass and therefore must stay total — keep a finite
 //! catch-all in every guarded table.
 
+use super::agreements::Agreements;
 use super::common::{fallback_all_seats, other_major, other_minor};
 use super::constraint::Constraint;
 use super::fallback::{Fallback, FirstIs, Guard, OvercallAtMost, Rewrite, SuffixIs};
@@ -1201,11 +1202,12 @@ impl From<Row> for Entry {
 pub(crate) struct Package {
     /// Ledger name (`P4:jordan-truscott`, …), used in diagnostics
     pub name: &'static str,
-    /// The `set_*` knob, read at book build exactly as the `if` blocks it
-    /// replaces; `|| true` for shipped base sections
-    pub gate: fn() -> bool,
-    /// The rows; a `fn` rather than a value because rows read range knobs
-    pub entries: fn() -> Vec<Entry>,
+    /// The `set_*` knob state, supplied in the build agreements parameter rather
+    /// than read from the thread; `|_| true` for shipped base sections
+    pub gate: fn(&Agreements) -> bool,
+    /// The rows; a `fn` rather than a value because range-knob state arrives in
+    /// the build agreements parameter rather than being read from the thread
+    pub entries: fn(&Agreements) -> Vec<Entry>,
 }
 
 /// One lowered unit at one pattern: a regrouped rule table, or a fallback
@@ -1267,10 +1269,10 @@ fn group(name: &str, entries: Vec<Entry>) -> Vec<(Pattern, Lowered)> {
 /// # Panics
 ///
 /// See [`group`].
-pub(crate) fn compile_into(book: &mut Trie, packages: &[Package]) {
+pub(crate) fn compile_into(book: &mut Trie, agreements: &Agreements, packages: &[Package]) {
     for package in packages {
-        if (package.gate)() {
-            compile_entries(book, package.name, (package.entries)());
+        if (package.gate)(agreements) {
+            compile_entries(book, package.name, (package.entries)(agreements));
         }
     }
 }
@@ -1436,10 +1438,10 @@ const KNOWN_WEIGHT_TIES: [&str; 1] = ["one-nt-base: \"P* 1NT -\" — 2♣ at wei
 /// as `both labeled` — merging it into a union would fold the two
 /// [`Rules::note`] labels into one, the only content such a pair actually has.
 #[cfg(test)]
-fn weight_tie_report(packages: &[Package]) -> Vec<String> {
+fn weight_tie_report(agreements: &Agreements, packages: &[Package]) -> Vec<String> {
     let mut report = Vec::new();
     for package in packages {
-        for (pattern, lowered) in group(package.name, (package.entries)()) {
+        for (pattern, lowered) in group(package.name, (package.entries)(agreements)) {
             let Lowered::Table(rules) = lowered else {
                 continue;
             };
@@ -1490,8 +1492,8 @@ fn weight_tie_report(packages: &[Package]) -> Vec<String> {
 ///
 /// Gates are ignored: opt-in packages must satisfy the invariants too.
 #[cfg(test)]
-pub(crate) fn assert_package_invariants(packages: &[Package]) {
-    let ties: Vec<String> = weight_tie_report(packages)
+pub(crate) fn assert_package_invariants(agreements: &Agreements, packages: &[Package]) {
+    let ties: Vec<String> = weight_tie_report(agreements, packages)
         .into_iter()
         .filter(|tie| !KNOWN_WEIGHT_TIES.iter().any(|known| tie.contains(known)))
         .collect();
@@ -1522,7 +1524,7 @@ pub(crate) fn assert_package_invariants(packages: &[Package]) {
     .collect();
 
     for package in packages {
-        for (pattern, lowered) in group(package.name, (package.entries)()) {
+        for (pattern, lowered) in group(package.name, (package.entries)(agreements)) {
             let auction = pattern.probe_auction();
             let context = Context::new(RelativeVulnerability::NONE, &auction);
             if let Some(spec @ GuardSpec::Opaque { sample, .. }) = &pattern.guard {

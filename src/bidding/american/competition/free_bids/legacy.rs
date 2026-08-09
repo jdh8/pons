@@ -7,8 +7,8 @@ use super::*;
 pub(crate) fn free_bid_answer_package_legacy() -> Package {
     Package {
         name: "free-bid-answer",
-        gate: free_bids_engaged,
-        entries: || {
+        gate: |_| free_bids_engaged(),
+        entries: |_| {
             let cachalot = negative_double_shape() == NegativeDoubleShape::Cachalot;
             let negative = free_bid_style() == FreeBidStyle::Negative;
             let transfer = free_bid_style() == FreeBidStyle::Transfer;

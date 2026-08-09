@@ -123,8 +123,8 @@ fn accept_quantitative_nineteen() -> Rules {
 pub(crate) fn two_notrump_structure() -> Package {
     Package {
         name: "two-notrump-structure",
-        gate: || true,
-        entries: || {
+        gate: |_| true,
+        entries: |_| {
             let two_nt = call(2, Strain::Notrump);
             let four_nt = call(4, Strain::Notrump);
             let bases: &[(&[Call], u8)] = &[
@@ -200,8 +200,8 @@ pub(crate) fn two_notrump_structure() -> Package {
 pub(crate) fn two_notrump_rebids() -> Package {
     Package {
         name: "two-notrump-rebids",
-        gate: || true,
-        entries: || {
+        gate: |_| true,
+        entries: |_| {
             let one_nt = call(1, Strain::Notrump);
             let two_nt = call(2, Strain::Notrump);
             let four_nt = call(4, Strain::Notrump);

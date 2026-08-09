@@ -12,30 +12,33 @@ pub(super) const fn call(level: u8, strain: Strain) -> Call {
 /// exact-node-exempt).
 #[test]
 fn row_package_invariants() {
-    crate::bidding::rows::assert_package_invariants(&[
-        super::weak_two_defense_package(),
-        super::suit_defense_package(),
-        super::notrump_defense_package(),
-        super::landy_advance_package(),
-        super::both_majors_double_package(),
-        super::their_stayman_defense_package(),
-        super::their_transfer_defense_package(),
-        super::their_minor_transfer_defense_package(),
-        super::their_diamond_transfer_defense_package(),
-        super::unusual_notrump_advance_package(),
-        super::direct_dont_advance_package(),
-        super::meckwell_advance_package(),
-        super::advance_double_package(),
-        super::rich_advance_double_package(),
-        super::responsive_double_package(),
-        super::responsive_overcall_package(),
-        super::weak_two_notrump_advance_package(),
-        super::leaping_michaels_package(),
-        super::woolsey_package(),
-        super::advance_of_double_package(),
-        super::gladiator_package(),
-        super::gladiator_sohl_package(),
-    ]);
+    crate::bidding::rows::assert_package_invariants(
+        &crate::bidding::agreements::Agreements::current(),
+        &[
+            super::weak_two_defense_package(),
+            super::suit_defense_package(),
+            super::notrump_defense_package(),
+            super::landy_advance_package(),
+            super::both_majors_double_package(),
+            super::their_stayman_defense_package(),
+            super::their_transfer_defense_package(),
+            super::their_minor_transfer_defense_package(),
+            super::their_diamond_transfer_defense_package(),
+            super::unusual_notrump_advance_package(),
+            super::direct_dont_advance_package(),
+            super::meckwell_advance_package(),
+            super::advance_double_package(),
+            super::rich_advance_double_package(),
+            super::responsive_double_package(),
+            super::responsive_overcall_package(),
+            super::weak_two_notrump_advance_package(),
+            super::leaping_michaels_package(),
+            super::woolsey_package(),
+            super::advance_of_double_package(),
+            super::gladiator_package(),
+            super::gladiator_sohl_package(),
+        ],
+    );
 }
 
 /// `american()`'s best call for a hand in an auction, and whether the instinct

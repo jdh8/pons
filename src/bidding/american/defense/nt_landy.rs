@@ -509,8 +509,8 @@ fn landy_2nt_rebid(lo: u8, hi: u8) -> Rules {
 pub(super) fn landy_advance_package() -> Package {
     Package {
         name: "landy-advance",
-        gate: || landy_range().is_some() || woolsey_enabled(),
-        entries: || {
+        gate: |_| landy_range().is_some() || woolsey_enabled(),
+        entries: |_| {
             let (lo, hi) = woolsey_points();
             [
                 ("P* (1NT) 2♣ -", landy_advances(lo)),
@@ -540,8 +540,8 @@ pub(super) fn landy_advance_package() -> Package {
 pub(super) fn both_majors_double_package() -> Package {
     Package {
         name: "both-majors-double",
-        gate: || direct_landy_double().is_some(),
-        entries: || {
+        gate: |_| direct_landy_double().is_some(),
+        entries: |_| {
             // The advancer's invite/game thresholds track the X floor (a
             // stronger X asks less of the advancer), so read it here too.
             let (lo, hi) = (direct_landy_double_floor(), 37u8);

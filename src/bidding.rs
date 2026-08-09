@@ -1,3 +1,5 @@
+/// What the partnership has agreed to play — the value a book is built from
+pub mod agreements;
 /// The basic 2/1 game-forcing system
 pub mod american;
 /// [`Call`]-indexed array

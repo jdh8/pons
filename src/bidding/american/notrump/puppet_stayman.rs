@@ -77,8 +77,8 @@ fn puppet_smolen_completion(shown_major: Suit) -> Rules {
 pub(crate) fn puppet() -> Package {
     Package {
         name: "puppet-stayman",
-        gate: puppet_scheme,
-        entries: || {
+        gate: |_| puppet_scheme(),
+        entries: |_| {
             let mut entries = rows_of(Pattern::node("P* 1NT - 3♣ -"), puppet_answers());
             entries.extend(expand(
                 "P* 1NT - 3♣ - 3M -",

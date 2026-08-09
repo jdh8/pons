@@ -12,29 +12,32 @@ pub(super) const fn call(level: u8, strain: Strain) -> Call {
 /// `artificial_calls_are_alerted`).
 #[test]
 fn row_package_invariants() {
-    crate::bidding::rows::assert_package_invariants(&[
-        super::direct_seat_package(),
-        super::splinter_doubled_package(),
-        super::support_double_package(),
-        super::transfer_free_bid_package(),
-        super::answer_negative_double_package(),
-        super::cue_raise_answer_package(),
-        super::cue_minor_raise_answer_package(),
-        super::free_bid_answer_package(),
-        super::high_overcall_package(),
-        super::weak_two_competition_package(),
-        super::strong_two_competition_package(),
-        super::jordan_truscott_package(),
-        super::uvu_over_majors_package(),
-        super::cachalot_package(),
-        super::sputnik_residual_answer_package(),
-        super::uvu_package(),
-        super::lebensohl_package(),
-        super::competition_over_stayman_package(),
-        super::competition_over_transfer_package(),
-        super::competition_over_minor_transfer_package(),
-        super::competition_over_diamond_transfer_package(),
-    ]);
+    crate::bidding::rows::assert_package_invariants(
+        &crate::bidding::agreements::Agreements::current(),
+        &[
+            super::direct_seat_package(),
+            super::splinter_doubled_package(),
+            super::support_double_package(),
+            super::transfer_free_bid_package(),
+            super::answer_negative_double_package(),
+            super::cue_raise_answer_package(),
+            super::cue_minor_raise_answer_package(),
+            super::free_bid_answer_package(),
+            super::high_overcall_package(),
+            super::weak_two_competition_package(),
+            super::strong_two_competition_package(),
+            super::jordan_truscott_package(),
+            super::uvu_over_majors_package(),
+            super::cachalot_package(),
+            super::sputnik_residual_answer_package(),
+            super::uvu_package(),
+            super::lebensohl_package(),
+            super::competition_over_stayman_package(),
+            super::competition_over_transfer_package(),
+            super::competition_over_minor_transfer_package(),
+            super::competition_over_diamond_transfer_package(),
+        ],
+    );
 }
 
 /// `american()`'s best call for a hand in an auction, and whether the instinct
@@ -130,7 +133,7 @@ pub(super) fn bid_transfer_dbl(
 fn competitive_fallbacks_are_renderable() {
     use crate::bidding::fallback::Fallback;
 
-    let book = super::competition();
+    let book = super::competition(&crate::bidding::agreements::Agreements::current());
     let all = book.0.fallbacks();
     assert!(
         all.len() > 30,
@@ -184,7 +187,11 @@ fn competitive_fallbacks_are_renderable() {
 /// Build one package into a fresh trie.
 fn compiled_package(package: super::Package) -> crate::bidding::Trie {
     let mut book = crate::bidding::Trie::new();
-    super::compile_into(&mut book, &[package]);
+    super::compile_into(
+        &mut book,
+        &crate::bidding::agreements::Agreements::current(),
+        &[package],
+    );
     book
 }
 

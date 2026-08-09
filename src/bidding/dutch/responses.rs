@@ -468,8 +468,8 @@ pub(super) fn responder_after_two_clubs(opener_rebid: Bid) -> Rules {
 pub(super) fn package() -> Package {
     Package {
         name: "dutch-wide-one-club",
-        gate: || true,
-        entries: || {
+        gate: |_| true,
+        entries: |_| {
             let mut entries: Vec<Entry> = rows_of(Pattern::node("P* 1♣ -"), one_club_responses());
             entries.extend(rows_of(
                 Pattern::node("P* 1♣ - 1♦ -"),

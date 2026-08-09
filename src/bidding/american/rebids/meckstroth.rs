@@ -156,8 +156,8 @@ fn responder_after_invitational_minor(major: Suit) -> Rules {
 pub(crate) fn invitational_minor_continuations() -> Package {
     Package {
         name: "invitational-minor-continuations",
-        gate: meckstroth,
-        entries: || {
+        gate: |_| meckstroth(),
+        entries: |_| {
             let three_minors = [call(3, Strain::Clubs), call(3, Strain::Diamonds)];
             let mut entries = Vec::new();
 
@@ -349,8 +349,8 @@ fn opener_over_resp_clubs(major: Suit) -> Rules {
 pub(crate) fn meckstroth_two_notrump_continuations() -> Package {
     Package {
         name: "meckstroth-two-notrump-continuations",
-        gate: meckstroth,
-        entries: || {
+        gate: |_| meckstroth(),
+        entries: |_| {
             let mut entries = Vec::new();
             for major in [Suit::Hearts, Suit::Spades] {
                 let m = Strain::from(major);

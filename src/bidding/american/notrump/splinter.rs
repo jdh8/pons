@@ -183,8 +183,8 @@ fn nt_splinter_floor() -> u8 {
 pub(crate) fn notrump_splinter() -> Package {
     Package {
         name: "nt-splinter",
-        gate: nt_splinter,
-        entries: || {
+        gate: |_| nt_splinter(),
+        entries: |_| {
             expand(
                 "P* 1NT - 3M -",
                 |_| true,

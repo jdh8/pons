@@ -124,7 +124,7 @@ pub(super) fn dutch_openings() -> Rules {
 pub(super) fn package() -> Package {
     Package {
         name: "dutch-openings",
-        gate: || true,
-        entries: || rows_of(Pattern::node("P*"), dutch_openings()),
+        gate: |_| true,
+        entries: |_| rows_of(Pattern::node("P*"), dutch_openings()),
     }
 }

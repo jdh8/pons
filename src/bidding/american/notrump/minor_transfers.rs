@@ -218,8 +218,8 @@ pub(super) fn pick_game_over_club_splinter(short: Suit) -> Rules {
 pub(crate) fn diamond_transfer() -> Package {
     Package {
         name: "diamond-transfer",
-        gate: puppet_scheme,
-        entries: || {
+        gate: |_| puppet_scheme(),
+        entries: |_| {
             let mut entries = rows_of(Pattern::node("P* 1NT - 2NT -"), diamond_transfer_answer());
             entries.extend(rows_of(
                 Pattern::node("P* 1NT - 2NT - 3♦ -"),
@@ -242,8 +242,8 @@ pub(crate) fn diamond_transfer() -> Package {
 pub(crate) fn two_spade_two_way() -> Package {
     Package {
         name: "two-spade-two-way",
-        gate: puppet_scheme,
-        entries: || {
+        gate: |_| puppet_scheme(),
+        entries: |_| {
             let mut entries = rows_of(Pattern::node("P* 1NT - 2♠ -"), two_spade_answer());
             entries.extend(rows_of(
                 Pattern::node("P* 1NT - 2♠ - 2NT -"),

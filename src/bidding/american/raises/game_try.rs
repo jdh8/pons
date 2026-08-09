@@ -161,8 +161,8 @@ fn opener_after_decline(major: Suit) -> Rules {
 pub(crate) fn major_game_try_continuations() -> Package {
     Package {
         name: "major-game-try-continuations",
-        gate: major_game_tries,
-        entries: || {
+        gate: |_| major_game_tries(),
+        entries: |_| {
             let mut entries = Vec::new();
             for major in [Suit::Hearts, Suit::Spades] {
                 let trump = Strain::from(major);

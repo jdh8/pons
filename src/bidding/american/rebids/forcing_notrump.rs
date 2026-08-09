@@ -59,8 +59,8 @@ fn responder_after_forcing_notrump(major: Suit) -> Rules {
 pub(crate) fn forcing_notrump_continuations() -> Package {
     Package {
         name: "forcing-notrump-continuations",
-        gate: || true,
-        entries: || {
+        gate: |_| true,
+        entries: |_| {
             let mut entries = Vec::new();
             for major in [Suit::Hearts, Suit::Spades] {
                 // Collect distinct rebid calls that take the shared two-level

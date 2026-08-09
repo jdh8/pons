@@ -8,7 +8,10 @@ use crate::bidding::Trie;
 fn ladder_trie() -> Trie {
     set_opener_extras_ladder(true);
     let mut trie = Trie::new();
-    register(&mut trie);
+    register(
+        &mut trie,
+        &crate::bidding::agreements::Agreements::current(),
+    );
     trie
 }
 
@@ -47,7 +50,10 @@ fn opener_extras_ladder_shows_strength() {
 fn opener_extras_ladder_reverts_when_off() {
     set_opener_extras_ladder(false);
     let mut trie = Trie::new();
-    register(&mut trie);
+    register(
+        &mut trie,
+        &crate::bidding::agreements::Agreements::current(),
+    );
     set_opener_extras_ladder(true);
     // Knob off: the 16-count monster reverts to the minimum 2♦ rebid.
     assert_eq!(

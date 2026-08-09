@@ -281,8 +281,8 @@ fn free_transfer_clarify(shown: Suit, comp_lvl: u8, cue: Bid) -> Rules {
 pub(super) fn transfer_free_bid_package() -> Package {
     Package {
         name: "transfer-free-bid",
-        gate: || free_bids_engaged() && free_bid_style() == FreeBidStyle::Transfer,
-        entries: || {
+        gate: |_| free_bids_engaged() && free_bid_style() == FreeBidStyle::Transfer,
+        entries: |_| {
             #[allow(clippy::type_complexity)]
             #[rustfmt::skip]
             let swaps: [(Strain, u8, Strain, [(Strain, Suit); 2]); 7] = [
@@ -352,8 +352,8 @@ pub(super) fn transfer_free_bid_package() -> Package {
 pub(super) fn free_bid_answer_package() -> Package {
     Package {
         name: "free-bid-answer",
-        gate: free_bids_engaged,
-        entries: || {
+        gate: |_| free_bids_engaged(),
+        entries: |_| {
             let cachalot = negative_double_shape() == NegativeDoubleShape::Cachalot;
             let negative = free_bid_style() == FreeBidStyle::Negative;
             let transfer = free_bid_style() == FreeBidStyle::Transfer;

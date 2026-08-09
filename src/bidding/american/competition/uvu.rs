@@ -201,8 +201,8 @@ pub(super) fn uvu_rebid_over_3h() -> Rules {
 pub(super) fn uvu_package() -> Package {
     Package {
         name: "uvu-over-1nt",
-        gate: uvu,
-        entries: || {
+        gate: |_| uvu(),
+        entries: |_| {
             // Responder's first action: the uncovered suffix is exactly their 2NT.
             let mut entries = rows_of(Pattern::after("P* 1NT", "(2NT)"), uvu_responder());
             for (suffix, rules) in [

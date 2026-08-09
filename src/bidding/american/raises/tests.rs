@@ -40,7 +40,10 @@ fn game_tries_absent_when_off() {
     set_major_game_tries(false);
     set_limit_raise_acceptance(false);
     let mut trie = Trie::new();
-    register(&mut trie);
+    register(
+        &mut trie,
+        &crate::bidding::agreements::Agreements::current(),
+    );
     set_major_game_tries(true); // restore the shipped defaults
     set_limit_raise_acceptance(true);
     assert!(
@@ -59,7 +62,10 @@ fn limit_raise_acceptance_absent_when_off() {
     set_major_game_tries(false);
     set_limit_raise_acceptance(false);
     let mut trie = Trie::new();
-    register(&mut trie);
+    register(
+        &mut trie,
+        &crate::bidding::agreements::Agreements::current(),
+    );
     set_major_game_tries(true); // restore the shipped defaults
     set_limit_raise_acceptance(true);
     assert!(

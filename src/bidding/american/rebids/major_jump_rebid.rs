@@ -93,8 +93,8 @@ fn responder_after_major_jump_rebid(major: Suit) -> Rules {
 pub(crate) fn major_jump_rebid_continuations() -> Package {
     Package {
         name: "major-jump-rebid-continuations",
-        gate: opener_major_jump_rebid,
-        entries: || {
+        gate: |_| opener_major_jump_rebid(),
+        entries: |_| {
             let mut entries = expand(
                 "P* 1M - 1NT - 3M -",
                 |_| true,

@@ -156,8 +156,8 @@ fn uvu_fourth_suit_answer(major: Suit) -> Rules {
 pub(super) fn uvu_over_majors_package() -> Package {
     Package {
         name: "uvu-over-majors",
-        gate: uvu_over_majors,
-        entries: || {
+        gate: |_| uvu_over_majors(),
+        entries: |_| {
             let mut entries = Vec::new();
             for major in [Suit::Hearts, Suit::Spades] {
                 let trump = Strain::from(major);

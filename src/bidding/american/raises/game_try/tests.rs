@@ -5,7 +5,10 @@ use super::*;
 fn game_tries_trie() -> Trie {
     set_major_game_tries(true);
     let mut trie = Trie::new();
-    super::super::register(&mut trie);
+    super::super::register(
+        &mut trie,
+        &crate::bidding::agreements::Agreements::current(),
+    );
     trie
 }
 

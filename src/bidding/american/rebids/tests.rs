@@ -33,7 +33,11 @@ fn balanced_1nt_rebid_knob_flips_2m_to_1nt() {
     let hand = "KQ4.Q3.AK762.853";
     let build = || {
         let mut trie = Trie::new();
-        crate::bidding::rows::compile_into(&mut trie, &[remaining_rebid_bases()]);
+        crate::bidding::rows::compile_into(
+            &mut trie,
+            &crate::bidding::agreements::Agreements::current(),
+            &[remaining_rebid_bases()],
+        );
         trie
     };
 

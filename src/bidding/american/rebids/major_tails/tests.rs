@@ -8,6 +8,7 @@ use contract_bridge::auction::RelativeVulnerability;
 fn register_major_rebid_packages(trie: &mut Trie) {
     crate::bidding::rows::compile_into(
         trie,
+        &crate::bidding::agreements::Agreements::current(),
         &[
             major_rebid_tail_continuations(),
             fourth_suit_forcing_continuations(),

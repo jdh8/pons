@@ -26,6 +26,7 @@
 
 use std::cell::Cell;
 
+use crate::bidding::agreements::Agreements;
 use crate::bidding::constraint::{hcp, len, longest_unbid, points, suit_hcp, support, top_honors};
 use crate::bidding::rows::{Bindings, Package, compile_into, expand};
 use crate::bidding::{Rules, Trie};
@@ -353,8 +354,8 @@ fn reply_to_new_suit(our: Suit, x: Suit, response_level: u8) -> Rules {
 pub(super) fn package() -> Package {
     Package {
         name: "weak-two-responses",
-        gate: || true,
-        entries: || {
+        gate: |_| true,
+        entries: |_| {
             // `x` is the weak-two suit; clubs is the strong 2♣, not a weak two.
             let weak_two = |bindings: &Bindings| bindings.suit('x') != Suit::Clubs;
 
@@ -398,8 +399,8 @@ pub(super) fn package() -> Package {
 }
 
 /// Register all weak-two response machinery into the constructive book
-pub(super) fn register(book: &mut Trie) {
-    compile_into(book, &[package()]);
+pub(super) fn register(book: &mut Trie, agreements: &Agreements) {
+    compile_into(book, agreements, &[package()]);
 }
 
 #[cfg(test)]

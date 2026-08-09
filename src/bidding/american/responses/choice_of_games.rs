@@ -78,8 +78,8 @@ fn opener_after_choice_of_games(major: Suit) -> Rules {
 pub(crate) fn choice_of_games_continuations() -> Package {
     Package {
         name: "major-choice-of-games-continuations",
-        gate: major_choice_of_games,
-        entries: || {
+        gate: |_| major_choice_of_games(),
+        entries: |_| {
             expand(
                 "P* 1M - 3NT -",
                 |_| true,

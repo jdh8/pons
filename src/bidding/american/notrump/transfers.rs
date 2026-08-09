@@ -269,8 +269,8 @@ fn spade_transfer_rebid_active() -> bool {
 pub(crate) fn heart_transfer_rebids() -> Package {
     Package {
         name: "heart-transfer-rebids",
-        gate: heart_transfer_rebid_active,
-        entries: || {
+        gate: |_| heart_transfer_rebid_active(),
+        entries: |_| {
             rows_of(
                 Pattern::node("P* 1NT - 2♦ - 2♥ -"),
                 heart_transfer_rebid_table(),
@@ -283,8 +283,8 @@ pub(crate) fn heart_transfer_rebids() -> Package {
 pub(crate) fn spade_transfer_rebids() -> Package {
     Package {
         name: "spade-transfer-rebids",
-        gate: spade_transfer_rebid_active,
-        entries: || {
+        gate: |_| spade_transfer_rebid_active(),
+        entries: |_| {
             rows_of(
                 Pattern::node("P* 1NT - 2♥ - 2♠ -"),
                 spade_transfer_rebid_table(),

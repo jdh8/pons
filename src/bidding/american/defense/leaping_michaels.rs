@@ -99,8 +99,8 @@ fn leaping_michaels_2d_4c_rebid() -> Rules {
 pub(super) fn leaping_michaels_package() -> Package {
     Package {
         name: "leaping-michaels-advance",
-        gate: leaping_michaels_enabled,
-        entries: || {
+        gate: |_| leaping_michaels_enabled(),
+        entries: |_| {
             let mut entries = Vec::new();
             for suit in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
                 let opening = Bid::new(2, Strain::from(suit));

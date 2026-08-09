@@ -455,8 +455,8 @@ pub(super) fn lebensohl_signoff_raise(signoff: Suit, resp_floor: u8) -> Rules {
 pub(super) fn lebensohl_package() -> Package {
     Package {
         name: "lebensohl",
-        gate: || lebensohl_style() != LebensohlStyle::Off,
-        entries: || {
+        gate: |_| lebensohl_style() != LebensohlStyle::Off,
+        entries: |_| {
             const NT: &str = "P* 1NT";
             let style = lebensohl_style();
 

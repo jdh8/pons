@@ -19,7 +19,7 @@ fn two_rule_table() -> Rules {
 
 fn compiled(packages: &[Package]) -> Trie {
     let mut book = Trie::new();
-    compile_into(&mut book, packages);
+    compile_into(&mut book, &Agreements::current(), packages);
     book
 }
 
@@ -29,15 +29,15 @@ fn compiled(packages: &[Package]) -> Trie {
 /// pairs it decomposes into, and not once per member.
 #[test]
 fn weight_ties_report_once_per_rung() {
-    fn package(entries: fn() -> Vec<Entry>) -> Package {
+    fn package(entries: fn(&Agreements) -> Vec<Entry>) -> Package {
         Package {
             name: "probe",
-            gate: || true,
+            gate: |_| true,
             entries,
         }
     }
 
-    let distinct = package(|| {
+    let distinct = package(|_| {
         rows_of(
             Pattern::node("1♥ -"),
             Rules::new()
@@ -46,9 +46,9 @@ fn weight_ties_report_once_per_rung() {
                 .rule(Call::Pass, 0, hcp(0..)),
         )
     });
-    assert!(weight_tie_report(&[distinct]).is_empty());
+    assert!(weight_tie_report(&Agreements::current(), &[distinct]).is_empty());
 
-    let tied = package(|| {
+    let tied = package(|_| {
         rows_of(
             Pattern::node("1♥ -"),
             Rules::new()
@@ -60,7 +60,7 @@ fn weight_ties_report_once_per_rung() {
                 .rule(Call::Pass, 0, hcp(0..)),
         )
     });
-    let report = weight_tie_report(&[tied]);
+    let report = weight_tie_report(&Agreements::current(), &[tied]);
     assert_eq!(report.len(), 1, "one rung, one line: {report:?}");
     assert!(
         report[0].contains("2♥ at weight 100, 3 rules"),
@@ -74,8 +74,8 @@ fn weight_ties_report_once_per_rung() {
 fn rows_regroup_and_fan() {
     let book = compiled(&[Package {
         name: "test",
-        gate: || true,
-        entries: || rows_of(Pattern::up_to("P* 1♥", "2♠"), two_rule_table()),
+        gate: |_| true,
+        entries: |_| rows_of(Pattern::up_to("P* 1♥", "2♠"), two_rule_table()),
     }]);
 
     let entries = book.fallbacks();
@@ -142,8 +142,8 @@ fn rows_regroup_and_fan() {
 fn builder_sets_a_partial_fan() {
     let book = compiled(&[Package {
         name: "test",
-        gate: || true,
-        entries: || rows_of(Pattern::up_to("1♥", "2♠").with_fan(2), two_rule_table()),
+        gate: |_| true,
+        entries: |_| rows_of(Pattern::up_to("1♥", "2♠").with_fan(2), two_rule_table()),
     }]);
 
     let entries = book.fallbacks();
@@ -164,8 +164,8 @@ fn builder_rejects_an_impossible_fan() {
 fn rebase_lowers_and_reresolves() {
     let mut book = compiled(&[Package {
         name: "test",
-        gate: || true,
-        entries: || {
+        gate: |_| true,
+        entries: |_| {
             vec![rebase(
                 Pattern::first("P* 1♥", "X"),
                 ReplaceNext(Call::Pass),
@@ -189,8 +189,8 @@ fn rebase_lowers_and_reresolves() {
 fn after_splits_key_and_suffix() {
     let book = compiled(&[Package {
         name: "test",
-        gate: || true,
-        entries: || {
+        gate: |_| true,
+        entries: |_| {
             vec![
                 row(
                     Pattern::after("P* 1♥ (X)", "2NT -"),
@@ -236,8 +236,8 @@ fn after_splits_key_and_suffix() {
 fn guarded_carries_the_guard_verbatim() {
     let book = compiled(&[Package {
         name: "test",
-        gate: || true,
-        entries: || {
+        gate: |_| true,
+        entries: |_| {
             vec![rebase(
                 Pattern::guarded(
                     "P* 1NT - 2♣",
@@ -280,8 +280,8 @@ fn guarded_carries_the_guard_verbatim() {
 fn gate_off_compiles_nothing() {
     let book = compiled(&[Package {
         name: "test",
-        gate: || false,
-        entries: || rows_of(Pattern::up_to("P* 1♥", "2♠"), two_rule_table()),
+        gate: |_| false,
+        entries: |_| rows_of(Pattern::up_to("P* 1♥", "2♠"), two_rule_table()),
     }]);
     assert!(book.fallbacks().is_empty());
     assert_eq!(book.iter().count(), 0);
@@ -294,8 +294,8 @@ fn gate_off_compiles_nothing() {
 fn clone_and_graft_preserve_pattern_identity() {
     let source = compiled(&[Package {
         name: "test",
-        gate: || true,
-        entries: || rows_of(Pattern::node("1NT - 2♣ -"), two_rule_table()),
+        gate: |_| true,
+        entries: |_| rows_of(Pattern::node("1NT - 2♣ -"), two_rule_table()),
     }]);
     let original = source.authoring().patterns()[0].id;
     assert_eq!(source.clone().authoring().patterns()[0].id, original);
@@ -318,8 +318,8 @@ fn clone_and_graft_preserve_pattern_identity() {
 fn exact_overwrite_drops_displaced_metadata() {
     let mut book = compiled(&[Package {
         name: "test",
-        gate: || true,
-        entries: || rows_of(Pattern::node("1♥ -"), two_rule_table()),
+        gate: |_| true,
+        entries: |_| rows_of(Pattern::node("1♥ -"), two_rule_table()),
     }]);
     assert_eq!(book.finalize_authoring().patterns().len(), 1);
     book.insert(&calls("1♥ -"), Rules::new().rule(Call::Pass, 0, hcp(0..)));
@@ -332,15 +332,15 @@ fn exact_overwrite_drops_displaced_metadata() {
 fn merge_filters_exact_collision_and_keeps_disjoint_metadata() {
     let mut book = compiled(&[Package {
         name: "receiver",
-        gate: || true,
-        entries: || rows_of(Pattern::node("1♥ -"), two_rule_table()),
+        gate: |_| true,
+        entries: |_| rows_of(Pattern::node("1♥ -"), two_rule_table()),
     }]);
     let receiver_id = book.authoring().patterns()[0].id;
 
     let other = compiled(&[Package {
         name: "other",
-        gate: || true,
-        entries: || {
+        gate: |_| true,
+        entries: |_| {
             let mut entries = rows_of(Pattern::node("1♥ -"), two_rule_table());
             entries.extend(rows_of(Pattern::node("1♠ -"), two_rule_table()));
             entries
@@ -393,14 +393,14 @@ fn merge_filters_exact_collision_and_keeps_disjoint_metadata() {
 fn merge_preserves_fallback_order_in_catalog_and_runtime() {
     let mut book = compiled(&[Package {
         name: "receiver",
-        gate: || true,
-        entries: || rows_of(Pattern::first("1♥", "X"), two_rule_table()),
+        gate: |_| true,
+        entries: |_| rows_of(Pattern::first("1♥", "X"), two_rule_table()),
     }]);
     let receiver_id = book.authoring().patterns()[0].id;
     let other = compiled(&[Package {
         name: "other",
-        gate: || true,
-        entries: || rows_of(Pattern::first("1♥", "X"), two_rule_table()),
+        gate: |_| true,
+        entries: |_| rows_of(Pattern::first("1♥", "X"), two_rule_table()),
     }]);
     let other_id = other.authoring().patterns()[0].id;
     assert!(book.merge(other).is_empty());
@@ -436,8 +436,8 @@ fn merge_preserves_fallback_order_in_catalog_and_runtime() {
 fn duplicate_live_fallback_slots_are_all_cataloged() {
     let mut book = compiled(&[Package {
         name: "test",
-        gate: || true,
-        entries: || rows_of(Pattern::first("1♥", "X"), two_rule_table()),
+        gate: |_| true,
+        entries: |_| rows_of(Pattern::first("1♥", "X"), two_rule_table()),
     }]);
     let id = book.authoring().patterns()[0].id;
     assert!(book.merge(book.clone()).is_empty());
@@ -473,8 +473,8 @@ fn duplicate_live_fallback_slots_are_all_cataloged() {
 fn graft_preserves_rebase_metadata_and_behavior() {
     let mut source = compiled(&[Package {
         name: "systems-on",
-        gate: || true,
-        entries: || vec![rebase(Pattern::first("1NT", "X"), ReplaceNext(Call::Pass))],
+        gate: |_| true,
+        entries: |_| vec![rebase(Pattern::first("1NT", "X"), ReplaceNext(Call::Pass))],
     }]);
     source.insert(&calls("1NT - 2♣"), two_rule_table());
     let id = source.authoring().patterns()[0].id;
@@ -510,8 +510,8 @@ fn graft_preserves_rebase_metadata_and_behavior() {
 fn floor_is_not_cataloged_or_confused_with_row_fallback() {
     let mut book = compiled(&[Package {
         name: "row",
-        gate: || true,
-        entries: || rows_of(Pattern::first("", "1♣"), two_rule_table()),
+        gate: |_| true,
+        entries: |_| rows_of(Pattern::first("", "1♣"), two_rule_table()),
     }]);
     book.fallback_at(
         &[],
@@ -550,8 +550,8 @@ fn floor_is_not_cataloged_or_confused_with_row_fallback() {
 fn consuming_finalization_drains_ledger_and_retains_package() {
     let mut book = compiled(&[Package {
         name: "P3:inventory-regression",
-        gate: || true,
-        entries: || rows_of(Pattern::node("1♥ -"), two_rule_table()),
+        gate: |_| true,
+        entries: |_| rows_of(Pattern::node("1♥ -"), two_rule_table()),
     }]);
     assert_eq!(book.authoring().patterns().len(), 1);
 
@@ -579,8 +579,8 @@ fn consuming_finalization_drains_ledger_and_retains_package() {
 fn non_consecutive_pattern_panics() {
     compiled(&[Package {
         name: "test",
-        gate: || true,
-        entries: || {
+        gate: |_| true,
+        entries: |_| {
             let mut entries = rows_of(Pattern::up_to("P* 1♥", "2♠"), two_rule_table());
             entries.push(rebase(
                 Pattern::first("P* 1♥", "X"),

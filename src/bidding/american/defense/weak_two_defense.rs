@@ -502,8 +502,8 @@ pub fn defense_to_weak_two(their_opening: Bid) -> Rules {
 pub(super) fn weak_two_defense_package() -> Package {
     Package {
         name: "weak-two-defense",
-        gate: || true,
-        entries: || {
+        gate: |_| true,
+        entries: |_| {
             [Suit::Diamonds, Suit::Hearts, Suit::Spades]
                 .into_iter()
                 .flat_map(|suit| {

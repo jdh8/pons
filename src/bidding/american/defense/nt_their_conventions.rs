@@ -339,8 +339,8 @@ fn defense_to_their_diamond_transfer() -> Rules {
 pub(super) fn their_stayman_defense_package() -> Package {
     Package {
         name: "their-stayman-defense",
-        gate: stayman_defense_enabled,
-        entries: || rows_of(Pattern::node("P* (1NT) - (2♣)"), defense_to_their_stayman()),
+        gate: |_| stayman_defense_enabled(),
+        entries: |_| rows_of(Pattern::node("P* (1NT) - (2♣)"), defense_to_their_stayman()),
     }
 }
 
@@ -350,8 +350,8 @@ pub(super) fn their_stayman_defense_package() -> Package {
 pub(super) fn their_transfer_defense_package() -> Package {
     Package {
         name: "their-transfer-defense",
-        gate: transfer_defense_enabled,
-        entries: || {
+        gate: |_| transfer_defense_enabled(),
+        entries: |_| {
             [(Suit::Diamonds, Suit::Hearts), (Suit::Hearts, Suit::Spades)]
                 .into_iter()
                 .flat_map(|(resp, shown)| {
@@ -372,8 +372,8 @@ pub(super) fn their_transfer_defense_package() -> Package {
 pub(super) fn their_minor_transfer_defense_package() -> Package {
     Package {
         name: "their-minor-transfer-defense",
-        gate: minor_transfer_defense_enabled,
-        entries: || {
+        gate: |_| minor_transfer_defense_enabled(),
+        entries: |_| {
             rows_of(
                 Pattern::node("P* (1NT) - (2♠)"),
                 defense_to_their_minor_transfer(),
@@ -388,8 +388,8 @@ pub(super) fn their_minor_transfer_defense_package() -> Package {
 pub(super) fn their_diamond_transfer_defense_package() -> Package {
     Package {
         name: "their-diamond-transfer-defense",
-        gate: diamond_transfer_defense_enabled,
-        entries: || {
+        gate: |_| diamond_transfer_defense_enabled(),
+        entries: |_| {
             rows_of(
                 Pattern::node("P* (1NT) - (2NT)"),
                 defense_to_their_diamond_transfer(),

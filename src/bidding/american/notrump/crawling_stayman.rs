@@ -82,8 +82,8 @@ fn answer_crawling_stayman() -> Rules {
 pub(crate) fn crawling() -> Package {
     Package {
         name: "crawling-stayman",
-        gate: crawling_stayman,
-        entries: || {
+        gate: |_| crawling_stayman(),
+        entries: |_| {
             rows_of(
                 Pattern::node("P* 1NT - 2♣ - 2♦ - 2♥ -"),
                 answer_crawling_stayman(),

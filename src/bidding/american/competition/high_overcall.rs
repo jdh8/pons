@@ -167,8 +167,8 @@ fn answer_high_neg_double(opening: Suit) -> Rules {
 pub(super) fn high_overcall_package() -> Package {
     Package {
         name: "high-overcall-responses",
-        gate: high_overcall_responses,
-        entries: || {
+        gate: |_| high_overcall_responses(),
+        entries: |_| {
             let mut entries = Vec::new();
             for opening in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
                 let key = format!("P* 1{}", Strain::from(opening));
@@ -193,8 +193,8 @@ pub(super) fn high_overcall_package() -> Package {
 pub(super) fn high_overcall_package_legacy() -> Package {
     Package {
         name: "high-overcall-responses",
-        gate: high_overcall_responses,
-        entries: || {
+        gate: |_| high_overcall_responses(),
+        entries: |_| {
             let mut entries = Vec::new();
             for opening in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
                 let o_strain = Strain::from(opening);

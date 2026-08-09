@@ -459,8 +459,8 @@ pub(super) fn two_level_slots(o_strain: Strain, ovc: Bid) -> usize {
 pub(super) fn direct_seat_package() -> Package {
     Package {
         name: "direct-seat",
-        gate: || true,
-        entries: || {
+        gate: |_| true,
+        entries: |_| {
             let mut entries = Vec::new();
             for opening in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
                 let key = format!("P* 1{}", Strain::from(opening));

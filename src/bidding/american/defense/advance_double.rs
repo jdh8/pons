@@ -176,8 +176,8 @@ pub(super) fn no_unbid_major(theirs: Suit) -> Cons<impl Constraint + Clone> {
 pub(super) fn advance_of_double_package() -> Package {
     Package {
         name: "advance-of-weak-two-double",
-        gate: || true,
-        entries: || {
+        gate: |_| true,
+        entries: |_| {
             let style = advance_sohl_style();
             [Suit::Diamonds, Suit::Hearts, Suit::Spades]
                 .into_iter()
@@ -207,8 +207,8 @@ pub(super) fn advance_of_double_package() -> Package {
 pub(super) fn advance_double_package() -> Package {
     Package {
         name: "advance-of-double",
-        gate: || true,
-        entries: || {
+        gate: |_| true,
+        entries: |_| {
             [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades]
                 .into_iter()
                 .flat_map(|suit| {

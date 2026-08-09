@@ -16,6 +16,7 @@
 //! | [`major_tails`] | full continuations after `1♥ - 1♠` (with 4SF) | [`set_major_rebid_tails`] |
 
 use super::{call, other_major};
+use crate::bidding::agreements::Agreements;
 use crate::bidding::constraint::{
     balanced, fifths, hcp, len, partner_suit_is, points, stopper_in, support,
 };
@@ -297,8 +298,8 @@ fn opener_accept_limit_raise(major: Suit) -> Rules {
 pub(super) fn one_heart_one_spade_rebid() -> Package {
     Package {
         name: "one-heart-one-spade-rebid",
-        gate: || true,
-        entries: || rows_of(Pattern::node("P* 1♥ - 1♠ -"), rebid_one_heart_one_spade()),
+        gate: |_| true,
+        entries: |_| rows_of(Pattern::node("P* 1♥ - 1♠ -"), rebid_one_heart_one_spade()),
     }
 }
 
@@ -306,8 +307,8 @@ pub(super) fn one_heart_one_spade_rebid() -> Package {
 pub(super) fn remaining_rebid_bases() -> Package {
     Package {
         name: "remaining-rebid-bases",
-        gate: || true,
-        entries: || {
+        gate: |_| true,
+        entries: |_| {
             let mut entries = expand(
                 "P* 1M - 1NT -",
                 |_| true,
@@ -328,9 +329,10 @@ pub(super) fn remaining_rebid_bases() -> Package {
 }
 
 /// Register opener's rebids after a one-level new suit and the forcing 1NT
-pub(super) fn register(book: &mut Trie) {
+pub(super) fn register(book: &mut Trie, agreements: &Agreements) {
     compile_into(
         book,
+        agreements,
         &[
             forcing_notrump_continuations(),
             invitational_minor_continuations(),

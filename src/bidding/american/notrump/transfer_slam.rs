@@ -94,8 +94,8 @@ fn spade_transfer_slam_try_active() -> bool {
 pub(crate) fn heart_transfer_slam_try() -> Package {
     Package {
         name: "heart-transfer-slam-try",
-        gate: heart_transfer_slam_try_active,
-        entries: || {
+        gate: |_| heart_transfer_slam_try_active(),
+        entries: |_| {
             let path = "P* 1NT - 2♦ - 2♥ - 3♠ -".to_owned();
             let mut entries = rows_of(Pattern::node(&path), transfer_slam_try_answer(Suit::Hearts));
             entries.extend(slam::rkcb_rows(&path, Suit::Hearts));
@@ -108,8 +108,8 @@ pub(crate) fn heart_transfer_slam_try() -> Package {
 pub(crate) fn spade_transfer_slam_try() -> Package {
     Package {
         name: "spade-transfer-slam-try",
-        gate: spade_transfer_slam_try_active,
-        entries: || {
+        gate: |_| spade_transfer_slam_try_active(),
+        entries: |_| {
             let path = "P* 1NT - 2♥ - 2♠ - 3♥ -".to_owned();
             let mut entries = rows_of(Pattern::node(&path), transfer_slam_try_answer(Suit::Spades));
             entries.extend(slam::rkcb_rows(&path, Suit::Spades));

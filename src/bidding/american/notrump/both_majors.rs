@@ -193,8 +193,8 @@ fn five_five_min_rebid(major: Suit) -> Rules {
 pub(crate) fn both_majors_relay() -> Package {
     Package {
         name: "stayman-both-majors-relay",
-        gate: stayman_both_majors,
-        entries: || {
+        gate: |_| stayman_both_majors(),
+        entries: |_| {
             let mut entries = rows_of(
                 Pattern::node("P* 1NT - 2♣ - 2NT -"),
                 both_majors_max_responder(),
@@ -224,8 +224,8 @@ pub(crate) fn both_majors_relay() -> Package {
 pub(crate) fn five_card_max() -> Package {
     Package {
         name: "stayman-five-card-max",
-        gate: stayman_5card_max,
-        entries: || {
+        gate: |_| stayman_5card_max(),
+        entries: |_| {
             expand(
                 "P* 1NT - 2♣ - 3M -",
                 |_| true,
@@ -239,8 +239,8 @@ pub(crate) fn five_card_max() -> Package {
 pub(crate) fn both_majors_three_diamond() -> Package {
     Package {
         name: "both-majors-three-diamond",
-        gate: || true,
-        entries: || {
+        gate: |_| true,
+        entries: |_| {
             let mut entries = rows_of(Pattern::node("P* 1NT - 3♦ -"), five_five_major_answer());
             entries.extend(expand(
                 "P* 1NT - 3♦ - 3M -",

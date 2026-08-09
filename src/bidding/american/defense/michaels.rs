@@ -148,8 +148,8 @@ pub(super) fn unusual_nt_advances(t: Suit) -> Rules {
 pub(super) fn unusual_notrump_advance_package() -> Package {
     Package {
         name: "unusual-notrump-advance",
-        gate: || unusual_notrump_range().is_some(),
-        entries: || {
+        gate: |_| unusual_notrump_range().is_some(),
+        entries: |_| {
             let mut entries = rows_of(
                 Pattern::node("P* (1NT) 2NT -"),
                 unusual_nt_advances(Suit::Spades),

@@ -294,8 +294,8 @@ pub fn defense_to_notrump() -> Rules {
 pub(super) fn notrump_defense_package() -> Package {
     Package {
         name: "notrump-defense",
-        gate: || true,
-        entries: || {
+        gate: |_| true,
+        entries: |_| {
             let mut entries = rows_of(Pattern::node("P* (1NT)"), defense_to_notrump());
             if notrump_balancing_enabled() {
                 entries.extend(rows_of(Pattern::node("P* (1NT) - -"), defense_to_notrump()));

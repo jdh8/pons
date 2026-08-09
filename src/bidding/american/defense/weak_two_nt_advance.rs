@@ -149,8 +149,8 @@ fn weak_two_notrump_relay_rebid(their_major: Suit) -> Rules {
 pub(super) fn weak_two_notrump_advance_package() -> Package {
     Package {
         name: "weak-two-notrump-advance",
-        gate: weak_two_notrump_advances_enabled,
-        entries: || {
+        gate: |_| weak_two_notrump_advances_enabled(),
+        entries: |_| {
             let mut entries = Vec::new();
             for suit in [Suit::Hearts, Suit::Spades] {
                 let opening = Bid::new(2, Strain::from(suit));

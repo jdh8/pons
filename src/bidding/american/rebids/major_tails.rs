@@ -334,8 +334,8 @@ fn responder_after_fourth_suit_answer() -> Rules {
 pub(crate) fn major_rebid_tail_continuations() -> Package {
     Package {
         name: "major-rebid-tail-continuations",
-        gate: major_rebid_tails,
-        entries: || {
+        gate: |_| major_rebid_tails(),
+        entries: |_| {
             let base = "P* 1♥ - 1♠ -";
             let mut entries = Vec::new();
 
@@ -413,8 +413,8 @@ fn fourth_suit_forcing_continuations_enabled() -> bool {
 pub(crate) fn fourth_suit_forcing_continuations() -> Package {
     Package {
         name: "fourth-suit-forcing-continuations",
-        gate: fourth_suit_forcing_continuations_enabled,
-        entries: || {
+        gate: |_| fourth_suit_forcing_continuations_enabled(),
+        entries: |_| {
             let prefix = "P* 1♥ - 1♠ - 2♣ - 2♦ -";
             let opener_rules = opener_after_fourth_suit();
             let answers: Vec<Call> = {

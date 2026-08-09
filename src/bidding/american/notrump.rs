@@ -20,6 +20,7 @@
 //! [`american`][super::american] during system assembly.
 
 use super::{call, other_major, slam};
+use crate::bidding::agreements::Agreements;
 use crate::bidding::constraint::{
     Cons, Constraint, balanced, described, envelope_union_upgrade, equal_length, hcp, len,
     long_suit_box, longer_suit, point_count_on, points, pred, reads_as, stopper_in,
@@ -437,8 +438,8 @@ pub(super) fn flat_4333() -> Cons<impl Constraint + Clone> {
 pub(super) fn base() -> Package {
     Package {
         name: "one-nt-base",
-        gate: || true,
-        entries: || {
+        gate: |_| true,
+        entries: |_| {
             let mut entries = rows_of(Pattern::node("P* 1NT -"), notrump_responses());
 
             // Stayman answers and transfer completions.  The uncontested table
@@ -534,9 +535,9 @@ pub(super) fn base() -> Package {
 /// 2NT-strength structure (3-level Stayman/transfers, 4NT invite) under three
 /// base prefixes (direct 2NT opening and the two 2♣ - 2x - 2NT auctions), and
 /// simple responses after opener's 18–19 2NT rebid.
-pub(super) fn register(book: &mut Trie) {
-    register_one_nt(book);
-    register_two_nt_and_rebids(book);
+pub(super) fn register(book: &mut Trie, agreements: &Agreements) {
+    register_one_nt(book, agreements);
+    register_two_nt_and_rebids(book, agreements);
 }
 
 /// Register the standard 1NT-opening response structure
@@ -545,9 +546,10 @@ pub(super) fn register(book: &mut Trie) {
 /// 4NT invite — the baseline 2/1 treatment.  Factored from the
 /// 2NT-strength/18–19-rebid block ([`register_two_nt_and_rebids`]) so an
 /// alternative 1NT scheme could replace just this part.
-pub(super) fn register_one_nt(book: &mut Trie) {
+pub(super) fn register_one_nt(book: &mut Trie, agreements: &Agreements) {
     compile_into(
         book,
+        agreements,
         &[
             base(),
             cue(),
@@ -581,8 +583,12 @@ pub(super) fn register_one_nt(book: &mut Trie) {
 ///
 /// The half of the notrump book that an alternative 1NT-opening scheme would
 /// keep unchanged — only [`register_one_nt`] varies.
-pub(super) fn register_two_nt_and_rebids(book: &mut Trie) {
-    compile_into(book, &[two_notrump_structure(), two_notrump_rebids()]);
+pub(super) fn register_two_nt_and_rebids(book: &mut Trie, agreements: &Agreements) {
+    compile_into(
+        book,
+        agreements,
+        &[two_notrump_structure(), two_notrump_rebids()],
+    );
 }
 
 #[cfg(test)]

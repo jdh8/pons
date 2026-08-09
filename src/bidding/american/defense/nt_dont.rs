@@ -225,8 +225,8 @@ pub(super) fn passed_dont_2h_advance() -> Rules {
 pub(super) fn direct_dont_advance_package() -> Package {
     Package {
         name: "direct-dont-advance",
-        gate: direct_dont_enabled,
-        entries: || {
+        gate: |_| direct_dont_enabled(),
+        entries: |_| {
             let mut entries = rows_of(Pattern::node("P* (1NT) X -"), passed_dont_x_advance());
             for (key, rules) in [
                 ("P* (1NT) X - 2♣ -", passed_dont_x_rebid()),

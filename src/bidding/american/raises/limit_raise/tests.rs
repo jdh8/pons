@@ -6,7 +6,10 @@ use super::*;
 fn limit_raise_trie() -> Trie {
     set_limit_raise_acceptance(true);
     let mut trie = Trie::new();
-    super::super::register(&mut trie);
+    super::super::register(
+        &mut trie,
+        &crate::bidding::agreements::Agreements::current(),
+    );
     trie
 }
 

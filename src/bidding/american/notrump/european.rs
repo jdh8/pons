@@ -117,8 +117,8 @@ fn european_three_club_answer() -> Rules {
 pub(crate) fn european_three_club() -> Package {
     Package {
         name: "european-three-club",
-        gate: european_scheme,
-        entries: || {
+        gate: |_| european_scheme(),
+        entries: |_| {
             let mut entries = rows_of(Pattern::node("P* 1NT - 3♣ -"), european_three_club_answer());
             entries.extend(rows_of(
                 Pattern::node("P* 1NT - 3♣ - 3♦ -"),
@@ -133,8 +133,8 @@ pub(crate) fn european_three_club() -> Package {
 pub(crate) fn european_two_notrump() -> Package {
     Package {
         name: "european-two-notrump",
-        gate: european_scheme,
-        entries: || rows_of(Pattern::node("P* 1NT - 2NT -"), european_two_nt_answer()),
+        gate: |_| european_scheme(),
+        entries: |_| rows_of(Pattern::node("P* 1NT - 2NT -"), european_two_nt_answer()),
     }
 }
 
@@ -142,8 +142,8 @@ pub(crate) fn european_two_notrump() -> Package {
 pub(crate) fn european_two_spade() -> Package {
     Package {
         name: "european-two-spade",
-        gate: european_scheme,
-        entries: || {
+        gate: |_| european_scheme(),
+        entries: |_| {
             let mut entries = rows_of(Pattern::node("P* 1NT - 2♠ -"), european_two_spade_answer());
             entries.extend(rows_of(
                 Pattern::node("P* 1NT - 2♠ - 3♣ -"),

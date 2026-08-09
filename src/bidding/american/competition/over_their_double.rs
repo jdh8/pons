@@ -123,8 +123,8 @@ pub fn splinter_doubled() -> bool {
 pub(super) fn jordan_truscott_package() -> Package {
     Package {
         name: "P4:jordan-truscott",
-        gate: jordan_truscott,
-        entries: || {
+        gate: |_| jordan_truscott(),
+        entries: |_| {
             let mut entries = Vec::new();
             for o in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
                 let o_strain = Strain::from(o);
@@ -256,8 +256,8 @@ pub(super) fn jordan_truscott_package() -> Package {
 pub(super) fn splinter_doubled_package() -> Package {
     Package {
         name: "splinter-doubled",
-        gate: splinter_doubled,
-        entries: || {
+        gate: |_| splinter_doubled(),
+        entries: |_| {
             let mut entries = Vec::new();
             for major in [Suit::Hearts, Suit::Spades] {
                 let m_strain = Strain::from(major);

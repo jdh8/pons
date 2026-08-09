@@ -521,8 +521,8 @@ pub fn defense_to_suit(their_opening: Bid) -> Rules {
 pub(super) fn suit_defense_package() -> Package {
     Package {
         name: "suit-defense",
-        gate: || true,
-        entries: || {
+        gate: |_| true,
+        entries: |_| {
             let mut entries = Vec::new();
             for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
                 let theirs = Strain::from(suit);

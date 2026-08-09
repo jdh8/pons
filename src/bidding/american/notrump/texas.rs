@@ -137,8 +137,8 @@ fn complete_texas(into: Suit) -> Rules {
 pub(crate) fn texas_transfers() -> Package {
     Package {
         name: "texas-transfers",
-        gate: || true,
-        entries: || {
+        gate: |_| true,
+        entries: |_| {
             let heart_slam = "P* 1NT - 4♥ -";
             let spade_slam = "P* 1NT - 4♠ -";
             let mut entries = rows_of(Pattern::node("P* 1NT - 4♣ -"), complete_texas(Suit::Hearts));
@@ -159,8 +159,8 @@ pub(crate) fn texas_transfers() -> Package {
 pub(crate) fn texas_drive() -> Package {
     Package {
         name: "texas-slam-drive",
-        gate: texas_slam_drive,
-        entries: || {
+        gate: |_| texas_slam_drive(),
+        entries: |_| {
             let heart_drive = "P* 1NT - 4♣ - 4♥ -";
             let spade_drive = "P* 1NT - 4♦ - 4♠ -";
             let mut entries = rows_of(Pattern::node(heart_drive), texas_slam_drive_rebid());

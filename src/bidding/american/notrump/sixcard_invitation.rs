@@ -144,8 +144,8 @@ fn accept_sixcard_invitation(major: Suit) -> Rules {
 pub(crate) fn sixcard_invite() -> Package {
     Package {
         name: "six-card-major-invite",
-        gate: sixcard_invite_active,
-        entries: || {
+        gate: |_| sixcard_invite_active(),
+        entries: |_| {
             let mut entries = rows_of(
                 Pattern::node("P* 1NT - 2♦ - 2♥ - 3♥ -"),
                 accept_sixcard_invitation(Suit::Hearts),
