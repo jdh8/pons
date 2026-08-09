@@ -283,8 +283,14 @@ fn main() -> anyhow::Result<()> {
         .systems
         .split(',')
         .map(|name| match name.trim() {
-            "american" => Ok(("american", american().against())),
-            "dutch" => Ok(("dutch", dutch().against())),
+            "american" => Ok((
+                "american",
+                american(&pons::bidding::agreements::Agreements::current()).against(),
+            )),
+            "dutch" => Ok((
+                "dutch",
+                dutch(&pons::bidding::agreements::Agreements::current()).against(),
+            )),
             other => anyhow::bail!("--systems entries must be american|dutch, got {other:?}"),
         })
         .collect::<anyhow::Result<_>>()?;
@@ -302,9 +308,9 @@ fn main() -> anyhow::Result<()> {
         .iter()
         .map(|(name, _)| {
             if *name == "dutch" {
-                dutch().against()
+                dutch(&pons::bidding::agreements::Agreements::current()).against()
             } else {
-                american().against()
+                american(&pons::bidding::agreements::Agreements::current()).against()
             }
         })
         .collect();

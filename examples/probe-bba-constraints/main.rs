@@ -572,7 +572,9 @@ fn main() -> Result<()> {
     if args.ours && support.is_none() {
         bail!("--ours is only meaningful for the ucb-* modes");
     }
-    let ours = args.ours.then(|| american().against());
+    let ours = args
+        .ours
+        .then(|| american(&pons::bidding::agreements::Agreements::current()).against());
 
     let overrides = parse_conv(&args.conv)?;
     let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());

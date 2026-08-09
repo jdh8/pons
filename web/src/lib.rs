@@ -664,8 +664,8 @@ impl WebTable {
     ) -> String {
         let dealer = dealer.parse().unwrap_or(Seat::North);
         let vul = vul.parse().unwrap_or(AbsoluteVulnerability::NONE);
-        let ns = pons::american();
-        let ew = pons::american();
+        let ns = pons::american(&pons::bidding::agreements::Agreements::current());
+        let ew = pons::american(&pons::bidding::agreements::Agreements::current());
         let mut board = Board {
             table: Table::of_pairs(&ns, &ew, dealer, vul),
             deal,
@@ -714,7 +714,7 @@ struct RuleJson {
 #[wasm_bindgen]
 #[must_use]
 pub fn book() -> String {
-    let pair = american_book();
+    let pair = american_book(&pons::bidding::agreements::Agreements::current());
     let books: [(&str, &pons::Trie); 3] = [
         ("constructive", &pair.constructive.0),
         ("competitive", &pair.competitive.0),

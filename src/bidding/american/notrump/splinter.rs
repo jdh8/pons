@@ -49,7 +49,7 @@ pub(super) fn nt_splinter_rules(agreements: &Agreements) -> Rules {
     if !agreements.decision.reading.nt_splinter() {
         return Rules::new();
     }
-    let floor = agreements.build.notrump.nt_splinter_floor;
+    let floor = agreements.notrump.nt_splinter_floor;
     let mut rules = Rules::new();
     for (short, other) in [(Suit::Hearts, Suit::Spades), (Suit::Spades, Suit::Hearts)] {
         rules = rules

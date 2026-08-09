@@ -179,13 +179,13 @@ fn main() {
     let range = Some((args.opp_lo, args.opp_hi));
     set_unusual_notrump_defense(range);
     set_uvu(false);
-    let baseline = american().against();
+    let baseline = american(&pons::bidding::agreements::Agreements::current()).against();
     set_unusual_notrump_defense(range);
     set_uvu(true);
     set_uvu_x_floor(args.x_floor);
     set_uvu_cue_floor(args.cue_floor);
     set_uvu_natural_floor(args.natural_floor);
-    let feature = american().against();
+    let feature = american(&pons::bidding::agreements::Agreements::current()).against();
 
     // Deal sequentially (seeded, reproducible); keep only deals where the
     // auction can arise, until `count` pass; bid both tables in parallel.

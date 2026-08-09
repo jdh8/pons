@@ -727,7 +727,7 @@ fn systems_on_stripped_read_is_separate_from_the_full_decision_cache() {
         Call::Pass,
     ];
     let hand: Hand = "AQ32.K53.QJ4.A92".parse().expect("valid test hand");
-    let stance = crate::american().against();
+    let stance = crate::american(&crate::bidding::agreements::Agreements::current()).against();
     let uncached = stance.infer(RelativeVulnerability::NONE, &auction);
     let context = stance
         .prefixed_context(RelativeVulnerability::NONE, &auction)
@@ -1293,7 +1293,7 @@ fn choice_of_games_three_notrump_reads_support() {
     use crate::bidding::american::set_major_choice_of_games;
 
     set_major_choice_of_games(true);
-    let stance = crate::american().against();
+    let stance = crate::american(&crate::bidding::agreements::Agreements::current()).against();
     set_major_choice_of_games(false);
 
     let auction = [

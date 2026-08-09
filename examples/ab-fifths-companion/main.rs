@@ -112,9 +112,12 @@ fn main() {
     set_point_scale(PointScale::PointCount);
     set_fuzzy_fifths(true);
     set_fifths_companion(FifthsCompanion::Bumrap);
-    let bumrap = american().against();
+    let bumrap = american(&pons::bidding::agreements::Agreements::current()).against();
     set_fifths_companion(FifthsCompanion::Hcp);
-    let stances = [bumrap, american().against()];
+    let stances = [
+        bumrap,
+        american(&pons::bidding::agreements::Agreements::current()).against(),
+    ];
 
     // Deals are seeded per board (base + index) so every arm/vul replays the
     // identical stream.  Both stances are plain values, so board bidding

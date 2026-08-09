@@ -18,89 +18,25 @@
 //!
 //! # Layout
 //!
-//! Two halves, split by *when* a cell is read, with no cell in both — the
-//! "one cell, one home" invariant the profile structs already keep:
+//! One field per area of the system — `competition`, `defense`, `notrump`,
+//! `opening`, `response`, `rebid`, `game_force`, `instinct` — plus `decision`.
+//! No cell appears twice; that is the "one cell, one home" invariant, and
+//! `no_knob_lives_in_two_homes` enforces it by scanning this source.
 //!
-//! - `DecisionProfile` (crate-private until the cells are gone) — the cells
-//!   read per decision, at classify time.  Already snapshot-shaped, and
-//!   already pinned into a [`Stance`][crate::bidding::Stance] at
-//!   [`Pair::against`][crate::bidding::Pair::against], so a stance decides
-//!   identically on any thread.
-//! - [`Build`][crate::bidding::agreements::Build] — the cells read only while
-//!   the books are being built, and therefore baked into the rules that come
-//!   back.
-//!
-//! A cell read at *both* times (there are 24) lives in `DecisionProfile` and is
-//! read from there at build time too; it is never duplicated here.
+//! `decision` (crate-private until the cells are gone) holds the cells read
+//! **per decision**, at classify time, rather than while the books are built.
+//! It is split out only because it is the snapshot a
+//! [`Stance`][crate::bidding::Stance] pins at
+//! [`Pair::against`][crate::bidding::Pair::against], so a stance decides
+//! identically on any thread; the eight build-time areas are baked into the
+//! rules a build returns and need no such pin.  A cell read at *both* times
+//! (there are 24) lives in `decision` and is read from there at build time too.
 
 use super::american::{
     Competitive4333, DoubleShape, DoubleStyle, FreeBidStyle, LebensohlStyle, NegativeDoubleShape,
     NotrumpShape, SizeAskEight, TakeoutSupport, TwoOverOneGate, WeakTwoEval,
 };
 use super::context::DecisionProfile;
-
-/// The knobs read only at book construction
-///
-/// One field per area, each captured by the module that owns its cells; areas
-/// move in one at a time as their read sites convert from a thread-local getter
-/// to a field of this value, and `docs/declarative-rows.md` holds the ledger.
-#[derive(Clone, Copy, PartialEq, Debug)]
-pub struct Build {
-    /// What we play when they contest our auction
-    pub competition: CompetitionKnobs,
-    /// What we play when they open the auction
-    pub defense: DefenseKnobs,
-    /// What we play after our notrump openings and rebids
-    pub notrump: NotrumpKnobs,
-    /// What we open, and how partner answers a weak two
-    pub opening: OpeningKnobs,
-    /// How partner answers our one-level opening, and how the raises continue
-    pub response: ResponseKnobs,
-    /// What opener rebids, and the checkback machinery over it
-    pub rebid: RebidKnobs,
-    /// Which continuations the game-forcing auction authors past round two
-    pub game_force: GameForceKnobs,
-    /// Which rules the deterministic floor's ladder authors
-    pub instinct: InstinctKnobs,
-}
-
-impl Default for Build {
-    /// The shipped agreements — every field's own `Default`
-    ///
-    /// The literals the `thread_local!` cells were initialised with, lifted to
-    /// where a value can carry them.  `build_defaults_match_the_cells` holds
-    /// this equal to [`Build::current`] on a virgin thread for as long as both
-    /// exist, which is what makes deleting the cells a refactor.
-    fn default() -> Self {
-        Self {
-            competition: CompetitionKnobs::default(),
-            defense: DefenseKnobs::default(),
-            notrump: NotrumpKnobs::default(),
-            opening: OpeningKnobs::default(),
-            response: ResponseKnobs::default(),
-            rebid: RebidKnobs::default(),
-            game_force: GameForceKnobs::default(),
-            instinct: InstinctKnobs::default(),
-        }
-    }
-}
-
-impl Build {
-    /// Capture this thread's build-time knob state
-    #[must_use]
-    pub fn current() -> Self {
-        Self {
-            competition: super::american::competition::capture(),
-            defense: super::american::defense::capture(),
-            notrump: super::american::notrump::capture(),
-            opening: super::american::openings::capture(),
-            response: super::american::responses::capture(),
-            rebid: super::american::rebids::capture(),
-            game_force: super::american::game_force::capture(),
-            instinct: super::instinct::capture_build(),
-        }
-    }
-}
 
 /// The competitive book's build-time knobs
 ///
@@ -772,16 +708,36 @@ impl InstinctKnobs {
 ///
 /// Constructed once per build and threaded down by reference. Cloning is cheap
 /// but pointless: the whole design is that one capture serves a whole build.
+///
+/// One field per area of the system, plus `decision` for the cells read while
+/// classifying rather than while building.  That last split is by *when* a
+/// value is read, not by what it means — a build-time area and `decision` are
+/// equally "what we agreed" — so it buys the `Stance` a small `Copy` snapshot
+/// to pin and nothing else.
 #[derive(Clone, Copy, PartialEq)]
 pub struct Agreements {
     /// The classify-time cells, pinned into the stance at `Pair::against`
     pub(crate) decision: DecisionProfile,
-    /// The build-time cells, baked into the rules this build produces
-    pub(crate) build: Build,
+    /// What we play when they contest our auction
+    pub competition: CompetitionKnobs,
+    /// What we play when they open the auction
+    pub defense: DefenseKnobs,
+    /// What we play after our notrump openings and rebids
+    pub notrump: NotrumpKnobs,
+    /// What we open, and how partner answers a weak two
+    pub opening: OpeningKnobs,
+    /// How partner answers our one-level opening, and how the raises continue
+    pub response: ResponseKnobs,
+    /// What opener rebids, and the checkback machinery over it
+    pub rebid: RebidKnobs,
+    /// Which continuations the game-forcing auction authors past round two
+    pub game_force: GameForceKnobs,
+    /// Which rules the deterministic floor's ladder authors
+    pub instinct: InstinctKnobs,
 }
 
 impl Default for Agreements {
-    /// The shipped system — what `american()` plays with nothing armed
+    /// The shipped system — what `american_default()` plays
     ///
     /// Equal to [`Agreements::current`] on a virgin thread
     /// (`build_defaults_match_the_cells`, `decision_defaults_match_the_cells`),
@@ -789,7 +745,14 @@ impl Default for Agreements {
     fn default() -> Self {
         Self {
             decision: DecisionProfile::default(),
-            build: Build::default(),
+            competition: CompetitionKnobs::default(),
+            defense: DefenseKnobs::default(),
+            notrump: NotrumpKnobs::default(),
+            opening: OpeningKnobs::default(),
+            response: ResponseKnobs::default(),
+            rebid: RebidKnobs::default(),
+            game_force: GameForceKnobs::default(),
+            instinct: InstinctKnobs::default(),
         }
     }
 }
@@ -803,34 +766,42 @@ impl Agreements {
     pub fn current() -> Self {
         Self {
             decision: DecisionProfile::current(),
-            build: Build::current(),
+            competition: super::american::competition::capture(),
+            defense: super::american::defense::capture(),
+            notrump: super::american::notrump::capture(),
+            opening: super::american::openings::capture(),
+            response: super::american::responses::capture(),
+            rebid: super::american::rebids::capture(),
+            game_force: super::american::game_force::capture(),
+            instinct: super::instinct::capture_build(),
         }
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::Build;
+    use super::Agreements;
 
     /// The literal defaults equal what a virgin thread's cells hold
     ///
-    /// The safety net for deleting the cells: `Build::default()` transcribes
-    /// 133 `Cell::new` initialisers into one value, and a transcription error
-    /// would silently ship a different system.  libtest gives every test its
-    /// own thread, so `current()` here reads cells nothing has armed.
+    /// The safety net for deleting the cells: `Agreements::default()`
+    /// transcribes 218 `Cell::new` initialisers into one value, and a
+    /// transcription error would silently ship a different system.  libtest
+    /// gives every test its own thread, so `current()` here reads cells nothing
+    /// has armed.
     #[test]
     fn build_defaults_match_the_cells() {
-        assert_eq!(Build::default(), Build::current());
-    }
-
-    /// The classify half's literal defaults equal its cells
-    ///
-    /// The twin of `build_defaults_match_the_cells` over the other 85 cells:
-    /// `ReadingProfile`, `InstinctProfile` and the nine loose members of
-    /// `DecisionProfile`.
-    #[test]
-    fn decision_defaults_match_the_cells() {
-        assert!(super::DecisionProfile::default() == super::DecisionProfile::current());
+        let (d, c) = (Agreements::default(), Agreements::current());
+        assert_eq!(d.competition, c.competition);
+        assert_eq!(d.defense, c.defense);
+        assert_eq!(d.notrump, c.notrump);
+        assert_eq!(d.opening, c.opening);
+        assert_eq!(d.response, c.response);
+        assert_eq!(d.rebid, c.rebid);
+        assert_eq!(d.game_force, c.game_force);
+        assert_eq!(d.instinct, c.instinct);
+        assert!(d.decision == c.decision, "the classify half diverged");
+        assert!(d == c);
     }
 
     /// The `pub`-ish field names of `struct name` in `src`
@@ -885,7 +856,10 @@ mod tests {
         .iter()
         .flat_map(|name| fields(agreements, name))
         .collect();
-        assert!(build.len() > 100, "the Build half was found: {build:?}");
+        assert!(
+            build.len() > 100,
+            "the build-time areas were found: {build:?}"
+        );
 
         for (src, name) in [
             (include_str!("inference/knobs.rs"), "ReadingProfile"),
@@ -897,8 +871,9 @@ mod tests {
             let both: Vec<&String> = build.iter().filter(|f| classify.contains(f)).collect();
             assert!(
                 both.is_empty(),
-                "{name} and Build share {} cell(s): {both:?} — a dual cell belongs \
-                 to {name} alone, and the book should read it from the pinned profile",
+                "{name} and the build-time areas share {} cell(s): {both:?} — a dual \
+                 cell belongs to {name} alone, and the book should read it from \
+                 the pinned profile",
                 both.len(),
             );
         }

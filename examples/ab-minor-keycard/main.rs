@@ -73,9 +73,9 @@ fn main() {
     // build one stance per arm (a per-call thread-local flip would be a
     // no-op on an already-built book).
     set_rkcb_minors(true);
-    let feature = american().against();
+    let feature = american(&pons::bidding::agreements::Agreements::current()).against();
     set_rkcb_minors(false);
-    let baseline = american().against();
+    let baseline = american(&pons::bidding::agreements::Agreements::current()).against();
     set_rkcb_minors(true);
 
     let deals: Vec<(Seat, FullDeal)> = seeded_deals(args.seed, args.count)

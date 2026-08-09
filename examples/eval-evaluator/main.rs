@@ -138,8 +138,8 @@ impl Mean {
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let stance: Stance = match args.system.as_str() {
-        "american" => american().against(),
-        "dutch" => dutch().against(),
+        "american" => american(&pons::bidding::agreements::Agreements::current()).against(),
+        "dutch" => dutch(&pons::bidding::agreements::Agreements::current()).against(),
         other => anyhow::bail!("--system must be american|dutch, got {other:?}"),
     };
     let deals = pons::pdd::load_slice(&args.deals, args.skip, args.boards)?;

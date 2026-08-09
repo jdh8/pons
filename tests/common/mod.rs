@@ -29,7 +29,7 @@ pub const fn call(level: u8, strain: Strain) -> Call {
 /// The 2/1 pair bound against natural opponents (the deterministic instinct
 /// floor — see the `american` re-export note above).
 pub fn stance() -> Stance {
-    american().against()
+    american(&pons::bidding::agreements::Agreements::current()).against()
 }
 
 /// The single highest-logit call the system assigns the hand for the auction.

@@ -158,7 +158,7 @@ pub fn set_direct_landy_double(shape: Option<bool>) {
 /// The configured direct-seat both-majors double shape, or `None` when off
 pub(crate) fn direct_landy_double(agreements: &Agreements) -> Option<bool> {
     (agreements.decision.reading.notrump_defense() == NotrumpDefense::DirectLandy)
-        .then_some(agreements.build.defense.direct_landy_four_four)
+        .then_some(agreements.defense.direct_landy_four_four)
 }
 
 /// Set the `points` floor for the direct-seat both-majors double (default 8), for
@@ -199,7 +199,7 @@ pub(super) fn direct_landy_penalty_pass() -> bool {
 /// them, defended by us) — no doubler node is needed.
 fn both_majors_x_advance(lo: u8, agreements: &Agreements) -> Rules {
     let base = landy_advances(lo);
-    if agreements.build.defense.direct_landy_penalty_pass {
+    if agreements.defense.direct_landy_penalty_pass {
         let penalty = 22u8.saturating_sub(lo);
         base.rule(
             Call::Pass,
@@ -227,7 +227,7 @@ pub(super) fn landy_x(agreements: &Agreements) -> Rules {
     Rules::new().rule(
         Call::Double,
         190,
-        both_majors_shape(four_four) & points(agreements.build.defense.direct_landy_double_floor..),
+        both_majors_shape(four_four) & points(agreements.defense.direct_landy_double_floor..),
     )
 }
 
@@ -237,7 +237,7 @@ pub(super) fn landy_x(agreements: &Agreements) -> Rules {
 pub(super) fn landy_2c(agreements: &Agreements) -> Rules {
     let (lo, hi) = agreements.decision.reading.woolsey_points();
     let shape = five_four(Suit::Hearts, Suit::Spades);
-    if agreements.build.defense.landy_use_hcp {
+    if agreements.defense.landy_use_hcp {
         Rules::new().rule(Bid::new(2, Strain::Clubs), 190, shape & hcp(lo..=hi))
     } else {
         Rules::new().rule(Bid::new(2, Strain::Clubs), 190, shape & points(lo..=hi))
@@ -332,7 +332,7 @@ fn landy_advances_over_double(lo: u8, agreements: &Agreements) -> Rules {
     let equal_majors = equal_length("equal majors", Suit::Hearts, Suit::Spades);
     // A long minor with both majors short (no 8-card fit opposite the overcaller's
     // 5-carder) outranks a major signoff. Gate A/B-tuned via set_doubled_landy_escape.
-    let (min_minor, max_major) = agreements.build.defense.doubled_landy_escape;
+    let (min_minor, max_major) = agreements.defense.doubled_landy_escape;
     let short_majors = len(Suit::Hearts, ..=max_major) & len(Suit::Spades, ..=max_major);
 
     Rules::new()
@@ -554,7 +554,7 @@ pub(super) fn both_majors_double_package() -> Package {
         entries: |agreements| {
             // The advancer's invite/game thresholds track the X floor (a
             // stronger X asks less of the advancer), so read it here too.
-            let (lo, hi) = (agreements.build.defense.direct_landy_double_floor, 37u8);
+            let (lo, hi) = (agreements.defense.direct_landy_double_floor, 37u8);
             let mut entries = Vec::new();
             for (key, rules) in [
                 ("P* (1NT) X -", both_majors_x_advance(lo, agreements)),

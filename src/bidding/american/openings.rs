@@ -103,7 +103,7 @@ pub fn openings_with(shape: NotrumpShape, agreements: &Agreements) -> Rules {
         // union adds nothing else — it's redundant-but-exact by default).
         .rule(Bid::new(2, Strain::Clubs), 300, points(22..) | hcp(22..))
         .alert(STRONG_2C);
-    rules = with_one_notrump(rules, shape, &agreements.build.opening);
+    rules = with_one_notrump(rules, shape, &agreements.opening);
     rules = with_two_notrump(rules, agreements);
     // One-level suit openings.  Every band carries an explicit `hcp` floor.
     // On the default PointCount scale the shape [`upgrade`] caps at 2, so
@@ -167,7 +167,7 @@ pub fn openings_with(shape: NotrumpShape, agreements: &Agreements) -> Rules {
                 & len(Suit::Spades, ..5),
         );
 
-    rules = with_weak_twos(rules, &agreements.build.opening);
+    rules = with_weak_twos(rules, &agreements.opening);
     // Three-level preempts (seven-card suit, not in fourth seat).
     for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         rules = rules.rule(
@@ -192,7 +192,7 @@ pub(super) fn package() -> Package {
         entries: |agreements| {
             rows_of(
                 Pattern::node("P*"),
-                openings_with(agreements.build.opening.notrump_shape, agreements),
+                openings_with(agreements.opening.notrump_shape, agreements),
             )
         },
     }

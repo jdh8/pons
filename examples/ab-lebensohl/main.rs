@@ -563,7 +563,7 @@ fn main() {
     set_trap_pass(args.ew_trap == "on");
     let (ew_h, ew_p) = floor_from(&args.ew_floor);
     set_natural_floor(ew_h, ew_p);
-    let baseline = american().against();
+    let baseline = american(&pons::bidding::agreements::Agreements::current()).against();
     set_lebensohl_style(style_from(&args.ns));
     apply_double(&args.ns_dbl);
     set_direct_3nt_stopper(args.ns_3nt_stopper != "off");
@@ -571,7 +571,7 @@ fn main() {
     set_penalty_double_leave_in(args.ns_penalty_leave_in != "off");
     let (ns_h, ns_p) = floor_from(&args.ns_floor);
     set_natural_floor(ns_h, ns_p);
-    let lebensohl = american().against();
+    let lebensohl = american(&pons::bidding::agreements::Agreements::current()).against();
 
     // Phase 1 (sequential, cheap): deal + the shape-only filter until `count`
     // boards pass. The RNG stays single-threaded so a seed reproduces a run.

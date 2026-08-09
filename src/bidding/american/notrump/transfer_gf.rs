@@ -95,7 +95,7 @@ pub(super) fn transfer_spade_gf_rebid(agreements: &Agreements) -> Rules {
     }
     // Arm A shows the minor on any game force; Arm B reserves it for slam tries,
     // routing minimum game-forces to the floor's `3NT` (the `minor_min_to_3nt` A/B).
-    let minor_floor: u8 = if agreements.build.notrump.minor_min_to_3nt {
+    let minor_floor: u8 = if agreements.notrump.minor_min_to_3nt {
         17
     } else {
         10
@@ -202,7 +202,7 @@ pub(super) fn transfer_heart_gf_rebid(agreements: &Agreements) -> Rules {
     if !agreements.decision.transfer_gf_hearts {
         return Rules::new();
     }
-    let minor_floor: u8 = if agreements.build.notrump.minor_min_to_3nt {
+    let minor_floor: u8 = if agreements.notrump.minor_min_to_3nt {
         17
     } else {
         10

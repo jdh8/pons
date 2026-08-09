@@ -19,7 +19,7 @@ fn stance_with(longer_major: bool, up_the_line: bool, xyz: bool) -> Stance {
     set_longer_major_response(longer_major);
     set_up_the_line(up_the_line);
     set_xyz(xyz);
-    let stance = american().against();
+    let stance = american(&pons::bidding::agreements::Agreements::current()).against();
     set_longer_major_response(true); // restore the shipped default (longer-major is now on)
     set_up_the_line(false);
     set_xyz(false);
@@ -237,7 +237,7 @@ fn nmf_stance() -> Stance {
     set_up_the_line(false);
     set_xyz(false);
     set_new_minor_forcing(true);
-    let stance = american().against();
+    let stance = american(&pons::bidding::agreements::Agreements::current()).against();
     set_longer_major_response(true);
     set_up_the_line(false);
     set_xyz(false);

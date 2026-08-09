@@ -84,7 +84,7 @@ pub(super) fn over_their_overcall(opening: Suit, overcall: Bid, agreements: &Agr
     // Negative double. The major-opening double is common to every school;
     // the minor-opening shape follows [`NegativeDoubleShape`], each column
     // keeping only the arm its overcall selects.
-    let shape = agreements.build.competition.negative_double_shape;
+    let shape = agreements.competition.negative_double_shape;
     let over_one_diamond = cheapest(Strain::Hearts) == 1;
     let over_one_heart = overcall == Bid::new(1, Strain::Hearts);
     let over_spades = overcall.strain == Strain::Spades;
@@ -147,7 +147,7 @@ pub(super) fn over_their_overcall(opening: Suit, overcall: Bid, agreements: &Agr
                             Call::Double,
                             100,
                             len(Suit::Hearts, 4..)
-                                & points(agreements.build.competition.free_bid_floor..),
+                                & points(agreements.competition.free_bid_floor..),
                         )
                         .alert(CACHALOT_X)
                 } else if over_one_heart {
@@ -157,7 +157,7 @@ pub(super) fn over_their_overcall(opening: Suit, overcall: Bid, agreements: &Agr
                             Call::Double,
                             100,
                             len(Suit::Spades, 4..)
-                                & points(agreements.build.competition.free_bid_floor..),
+                                & points(agreements.competition.free_bid_floor..),
                         )
                         .alert(CACHALOT_X)
                 } else if over_spades {
@@ -222,7 +222,7 @@ pub(super) fn over_their_overcall(opening: Suit, overcall: Bid, agreements: &Agr
     // double floors at or below 12) but the suit floors collapse to zero:
     // the named OR-projection wall, priced by the Stage-B A/B. Weight below
     // the cue (2.0) and the free bids (1.45) so a biddable hand still bids.
-    if agreements.build.competition.free_bid_style == FreeBidStyle::Negative {
+    if agreements.competition.free_bid_style == FreeBidStyle::Negative {
         rules = rules
             .rule(Call::Double, 90, points(12..))
             .alert(NEGATIVE_DOUBLE);
@@ -243,7 +243,7 @@ pub(super) fn over_their_overcall(opening: Suit, overcall: Bid, agreements: &Agr
                     145,
                     len(Suit::Spades, 4..)
                         & len(Suit::Hearts, ..=3)
-                        & points(agreements.build.competition.free_bid_floor..),
+                        & points(agreements.competition.free_bid_floor..),
                 )
                 .alert(CACHALOT_TRANSFER)
                 // Over (1♦): 1♠ = the takeout hand, ≤3 in both majors. Sits
@@ -274,14 +274,14 @@ pub(super) fn over_their_overcall(opening: Suit, overcall: Bid, agreements: &Agr
             rules = rules.rule(
                 Bid::new(1, Strain::Hearts),
                 145,
-                len(Suit::Hearts, 4..) & points(agreements.build.competition.free_bid_floor..),
+                len(Suit::Hearts, 4..) & points(agreements.competition.free_bid_floor..),
             );
         }
         if cheapest(Strain::Spades) == 1 {
             rules = rules.rule(
                 Bid::new(1, Strain::Spades),
                 145,
-                len(Suit::Spades, 4..) & points(agreements.build.competition.free_bid_floor..),
+                len(Suit::Spades, 4..) & points(agreements.competition.free_bid_floor..),
             );
         }
     }
@@ -305,8 +305,8 @@ pub(super) fn over_their_overcall(opening: Suit, overcall: Bid, agreements: &Agr
             }
             let xs = Strain::from(x);
             if cheapest(xs) == 1 && !(rotate && matches!(x, Suit::Hearts | Suit::Spades)) {
-                let one_level = len(x, 5..) & points(agreements.build.competition.free_bid_floor..);
-                rules = if agreements.build.competition.free_bid_quality {
+                let one_level = len(x, 5..) & points(agreements.competition.free_bid_floor..);
+                rules = if agreements.competition.free_bid_quality {
                     rules.rule(
                         Bid::new(1, xs),
                         145,
@@ -317,7 +317,7 @@ pub(super) fn over_their_overcall(opening: Suit, overcall: Bid, agreements: &Agr
                 };
             }
             if cheapest(xs) == 2 && xs != overcall.strain {
-                match agreements.build.competition.free_bid_style {
+                match agreements.competition.free_bid_style {
                     // Forcing one round (the shipped default), answered by 4d.
                     FreeBidStyle::Forcing => {
                         rules = rules.rule(Bid::new(2, xs), 145, len(x, 5..) & points(10..));
@@ -344,7 +344,7 @@ pub(super) fn over_their_overcall(opening: Suit, overcall: Bid, agreements: &Agr
         // higher. A lone slot — or all three over a (1NT) overcall — stays
         // natural-forcing. Unlimited at 6+: the weak hand passes the
         // completion, strength clarifies a round later.
-        if agreements.build.competition.free_bid_style == FreeBidStyle::Transfer {
+        if agreements.competition.free_bid_style == FreeBidStyle::Transfer {
             let others: Vec<Suit> = [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades]
                 .into_iter()
                 .filter(|&x| x != o)
@@ -384,8 +384,8 @@ pub(super) fn over_their_overcall(opening: Suit, overcall: Bid, agreements: &Agr
         }
         if cheapest(Strain::Notrump) == 1 {
             let one_notrump =
-                hcp(agreements.build.competition.free_1nt_floor..=10) & stopper_in_their_suits();
-            rules = if agreements.build.competition.free_bid_quality {
+                hcp(agreements.competition.free_1nt_floor..=10) & stopper_in_their_suits();
+            rules = if agreements.competition.free_bid_quality {
                 rules.rule(
                     Bid::new(1, Strain::Notrump),
                     90,
@@ -472,7 +472,7 @@ pub(super) fn direct_seat_package() -> Package {
                         overcall <= Bid::new(2, Strain::Spades)
                             && !(matches!(opening, Suit::Hearts | Suit::Spades)
                                 && overcall == Bid::new(2, Strain::from(opening))
-                                && agreements.build.competition.uvu_over_majors)
+                                && agreements.competition.uvu_over_majors)
                     },
                     move |bindings| over_their_overcall(opening, bindings.bid('x'), agreements),
                 ));

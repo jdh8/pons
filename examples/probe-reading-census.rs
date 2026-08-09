@@ -290,7 +290,7 @@ fn main() {
     let vul = AbsoluteVulnerability::NONE;
     // Reading knobs are captured into the stance at build, so arm this one first.
     pons::bidding::set_pass_exclusion_reading(args.exclusion);
-    let mut stance = american().against();
+    let mut stance = american(&pons::bidding::agreements::Agreements::current()).against();
     if args.probe > 0 {
         let report = stance.probe(args.probe, base.wrapping_add(0x9B0BE));
         eprintln!(

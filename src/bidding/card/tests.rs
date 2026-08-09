@@ -13,12 +13,12 @@ use crate::bidding::american::{
 #[test]
 fn the_checked_in_cards_match_the_generator() {
     assert_eq!(
-        american_card().to_string(),
+        american_card(&crate::bidding::agreements::Agreements::current()).to_string(),
         include_str!("../../../cards/American.bbsa"),
         "cards/American.bbsa is stale — re-bless it (see this test's doc)",
     );
     assert_eq!(
-        dutch_card().to_string(),
+        dutch_card(&crate::bidding::agreements::Agreements::current()).to_string(),
         include_str!("../../../cards/Dutch.bbsa"),
         "cards/Dutch.bbsa is stale — re-bless it (see this test's doc)",
     );
@@ -38,7 +38,12 @@ fn the_checked_in_cards_match_the_generator() {
 fn the_card_discloses_kickback_only_when_the_floor_can_ask() {
     use crate::bidding::instinct::{RkcbVariant, set_floor_rkcb, set_rkcb_variant};
 
-    let row = |name: &str| american_card().to_string().lines().any(|l| l == name);
+    let row = |name: &str| {
+        american_card(&crate::bidding::agreements::Agreements::current())
+            .to_string()
+            .lines()
+            .any(|l| l == name)
+    };
     let claims_kickback = || row("Kickback 1430 = 1");
     assert!(row("Kickback 1430 = 0"), "the shipped default is plain 4NT");
 
@@ -88,7 +93,7 @@ fn pons_rows_do_not_shadow_the_schema() {
 fn the_rendered_card_has_the_cards_full_length() {
     // Header + named rows + filler + `Opponent type`, as BBA writes it.  The
     // pons-only rows spend filler slots, so the total is unmoved.
-    let text = american_card().to_string();
+    let text = american_card(&crate::bidding::agreements::Agreements::current()).to_string();
     assert_eq!(text.lines().count(), 1 + SCHEMA.len() + NOT_DEFINED + 1);
     assert_eq!(
         text.lines()
@@ -103,19 +108,33 @@ fn the_rendered_card_has_the_cards_full_length() {
 #[test]
 fn a_knob_moves_its_row() {
     set_nt_splinter(false);
-    assert_eq!(american_card().row("1N-3M splinter"), Some(0));
+    assert_eq!(
+        american_card(&crate::bidding::agreements::Agreements::current()).row("1N-3M splinter"),
+        Some(0)
+    );
     set_nt_splinter(true);
-    assert_eq!(american_card().row("1N-3M splinter"), Some(1));
+    assert_eq!(
+        american_card(&crate::bidding::agreements::Agreements::current()).row("1N-3M splinter"),
+        Some(1)
+    );
 
     set_xyz(false);
-    assert_eq!(american_card().row("Two Way New Minor Forcing"), Some(0));
+    assert_eq!(
+        american_card(&crate::bidding::agreements::Agreements::current())
+            .row("Two Way New Minor Forcing"),
+        Some(0)
+    );
     set_xyz(true);
-    assert_eq!(american_card().row("Two Way New Minor Forcing"), Some(1));
+    assert_eq!(
+        american_card(&crate::bidding::agreements::Agreements::current())
+            .row("Two Way New Minor Forcing"),
+        Some(1)
+    );
 
     // The minor scheme is a radio group: exactly one of Puppet `3♣` and the
     // European `3♣`-diamond transfer is ever live.
     set_notrump_minors(EUROPEAN);
-    let card = american_card();
+    let card = american_card(&crate::bidding::agreements::Agreements::current());
     assert_eq!(card.row("1N-3C Puppet Stayman"), Some(0));
     assert_eq!(card.row("1N-3C transfer to diamonds"), Some(1));
     assert_eq!(card.row("1N-2N transfer to diamonds"), Some(0));
@@ -125,24 +144,43 @@ fn a_knob_moves_its_row() {
     // honour, so it owns two shape rows of its own — the shape ladder alone
     // never reaches 4441.
     set_one_notrump_offshape(false);
-    assert_eq!(american_card().row("1NT opening shape 4441"), Some(0));
+    assert_eq!(
+        american_card(&crate::bidding::agreements::Agreements::current())
+            .row("1NT opening shape 4441"),
+        Some(0)
+    );
     set_one_notrump_offshape(true);
-    assert_eq!(american_card().row("1NT opening shape 4441"), Some(1));
+    assert_eq!(
+        american_card(&crate::bidding::agreements::Agreements::current())
+            .row("1NT opening shape 4441"),
+        Some(1)
+    );
     set_one_notrump_offshape(false);
 
     // 5422 is already on at the shipped `Wide6322`, so the off-shape half of
     // that row is only visible from `Balanced`.
     set_notrump_shape(NotrumpShape::Balanced);
-    assert_eq!(american_card().row("1NT opening shape 5422"), Some(0));
+    assert_eq!(
+        american_card(&crate::bidding::agreements::Agreements::current())
+            .row("1NT opening shape 5422"),
+        Some(0)
+    );
     set_one_notrump_offshape(true);
-    assert_eq!(american_card().row("1NT opening shape 5422"), Some(1));
+    assert_eq!(
+        american_card(&crate::bidding::agreements::Agreements::current())
+            .row("1NT opening shape 5422"),
+        Some(1)
+    );
     set_one_notrump_offshape(false);
     set_notrump_shape(NotrumpShape::Wide6322);
 }
 
 #[test]
 fn dutch_differs_from_american_in_the_diamond_opening() {
-    let (american, dutch) = (american_card(), dutch_card());
+    let (american, dutch) = (
+        american_card(&crate::bidding::agreements::Agreements::current()),
+        dutch_card(&crate::bidding::agreements::Agreements::current()),
+    );
     assert_eq!(dutch.system, 2, "Dutch declares the WJ base");
     let moved: Vec<_> = SCHEMA
         .iter()
@@ -160,7 +198,7 @@ fn dutch_differs_from_american_in_the_diamond_opening() {
 /// into a description of somebody else's system.
 #[test]
 fn a_foreign_card_mirrors_the_schema_and_zeroes_the_pons_rows() {
-    let ours = american_card();
+    let ours = american_card(&crate::bidding::agreements::Agreements::current());
     let mirrored = foreign_card(ours.system, |name| {
         ours.row(name)
             .expect("`read` is called with schema names only")
@@ -179,5 +217,5 @@ fn a_foreign_card_mirrors_the_schema_and_zeroes_the_pons_rows() {
 #[test]
 #[should_panic(expected = "not a row of the .bbsa schema")]
 fn setting_an_unknown_row_panics() {
-    american_card().set("Ghestem Cuebid", 1);
+    american_card(&crate::bidding::agreements::Agreements::current()).set("Ghestem Cuebid", 1);
 }

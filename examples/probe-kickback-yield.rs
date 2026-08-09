@@ -157,7 +157,7 @@ fn main() {
     // built with it on would carry alerted rungs that erase natural readings.
     let arm = |kickback| {
         arm_kickback(kickback);
-        let built = american_instinct().against();
+        let built = american_instinct(&pons::bidding::agreements::Agreements::current()).against();
         arm_kickback(true);
         built
     };

@@ -14,7 +14,9 @@ const fn call(level: u8, strain: Strain) -> Call {
 fn shelled(auction: &[Call], hand: &str) -> Logits {
     let hand: Hand = hand.parse().expect("valid test hand");
     let floor = ConfiguredFloorBba::new(
-        Config::symmetric(&crate::bidding::card::american_card()),
+        Config::symmetric(&crate::bidding::card::american_card(
+            &crate::bidding::agreements::Agreements::current(),
+        )),
         Arc::new(crate::bidding::instinct(&Agreements::current())),
     );
     let context = Context::new(RelativeVulnerability::NONE, auction);
@@ -75,7 +77,9 @@ fn the_configured_floor_answers_off_its_own_ladder() {
         Call::Pass,
     ];
     let hand: Hand = "432.K765.5432.3".parse().expect("valid test hand");
-    let card = Config::symmetric(&crate::bidding::card::american_card());
+    let card = Config::symmetric(&crate::bidding::card::american_card(
+        &crate::bidding::agreements::Agreements::current(),
+    ));
 
     set_rkcb_variant(RkcbVariant::Kickback);
     let relocated = Arc::new(instinct(&Agreements::current()));
@@ -116,7 +120,9 @@ fn configured_floor_clone_reuses_the_decision_cache() {
     let auction = [call(1, Strain::Spades), Call::Pass];
     let hand: Hand = "AQ32.K53.QJ4.A92".parse().expect("valid test hand");
     let floor = ConfiguredFloorBba::new(
-        Config::symmetric(&crate::bidding::card::american_card()),
+        Config::symmetric(&crate::bidding::card::american_card(
+            &crate::bidding::agreements::Agreements::current(),
+        )),
         Arc::new(crate::bidding::instinct(&Agreements::current())),
     );
     let context = Context::new(RelativeVulnerability::NONE, &auction).with_decision_cache(hand);

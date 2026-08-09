@@ -61,7 +61,7 @@ fn main() {
     pons::bidding::american::set_weak_two_jump_overcall(args.weak_two_v2);
     pons::bidding::american::set_weak_two_cue(args.weak_two_v2);
     let vul = AbsoluteVulnerability::NONE;
-    let stance = american().against();
+    let stance = american(&pons::bidding::agreements::Agreements::current()).against();
 
     for text in &args.auctions {
         let auction: Vec<Call> = text

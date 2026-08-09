@@ -51,7 +51,7 @@ fn main() {
     let kickback = !args.baseline;
     let stance: Stance = {
         knobs(kickback);
-        let built = american().against();
+        let built = american(&pons::bidding::agreements::Agreements::current()).against();
         knobs(false);
         built
     };

@@ -113,10 +113,10 @@ fn main() {
     // the tell was divergence landing on the merged knob's 0.6%.
     set_meckstroth_adjunct(args.minor_jumps_only);
     set_meckstroth_minor_jumps(false);
-    let baseline = american().against();
+    let baseline = american(&pons::bidding::agreements::Agreements::current()).against();
     set_meckstroth_adjunct(true); // restore the shipped default (on)
     set_meckstroth_minor_jumps(true);
-    let adjunct = american().against();
+    let adjunct = american(&pons::bidding::agreements::Agreements::current()).against();
     let stances = [baseline, adjunct];
 
     // Both arms bid the same deal; the only difference is opener's rebid table.

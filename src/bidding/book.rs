@@ -345,11 +345,11 @@ impl Pair {
 /// classifies:
 ///
 /// ```
-/// use pons::bidding::{american, scoped};
+/// use pons::bidding::{agreements::Agreements, american, scoped};
 ///
 /// let stance = scoped(|| {
 ///     pons::american::set_garbage_stayman(false);
-///     american().against()
+///     american(&Agreements::current()).against()
 /// });
 /// ```
 ///

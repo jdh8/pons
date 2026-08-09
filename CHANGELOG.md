@@ -572,6 +572,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`Agreements` carries the shipped defaults, and the entry points take one —
+  Phase 4's first half.**  Every one of the 218 knob cells now has its literal
+  default in a `Default` impl (`Agreements::default()`) rather than only in a
+  `thread_local!` initialiser, and `build_defaults_match_the_cells` holds that
+  value equal to `Agreements::current()` on a virgin thread — the transcription
+  check that makes deleting the cells a refactor rather than a system change.
+  `Build` folded into `Agreements`, so the nine areas (`competition`,
+  `defense`, `notrump`, `opening`, `response`, `rebid`, `game_force`,
+  `instinct`, plus `decision` for the pinned classify-time half) are fields of
+  one value: `a.competition.cue_raise_answer`, not `a.build.competition…`.
+
+  **Breaking:** the system constructors take `&Agreements` —
+  `american`, `american_book`, `american_instinct`, `american_floor`,
+  `american_v5`, `american_with_config`, `american_with_card`, `american_card`,
+  and the `dutch` twins, plus `ConventionCard::capture`.  Each that configures
+  from a `Default` type gains a `_default()` twin (`american_default()`,
+  `dutch_book_default()`, …) — the shipped agreements spelled once, not a
+  second way to configure the system.  `dutch()` used to capture the knobs
+  twice, once for its book and once for the card it discloses; it now passes
+  one value to both.
+
+  Seeded `smoke-default` / `smoke-dutch` dumps (20 000 boards each) are
+  byte-identical to `4c3dce2`, and `cards/*.bbsa` regenerate unchanged.
+
 - **The strength dial moved from build time to classify time — Phase 3's last
   cell.**  `STRENGTH_DIAL` (the deviation panel's axis B, default 0,
   measurement only) was baked into every `Hcp` / `Points` / `SupportPoints` as

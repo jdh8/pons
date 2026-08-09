@@ -116,9 +116,9 @@ fn the_default_floor_reads_the_live_agreements() {
             .expect("the floor always answers")
     };
 
-    let plain = logits(&american().against());
+    let plain = logits(&american(&crate::bidding::agreements::Agreements::current()).against());
     set_rkcb_variant(RkcbVariant::Kickback);
-    let relocated = logits(&american().against());
+    let relocated = logits(&american(&crate::bidding::agreements::Agreements::current()).against());
     set_rkcb_variant(RkcbVariant::Plain);
 
     assert_ne!(

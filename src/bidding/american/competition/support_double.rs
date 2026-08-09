@@ -59,7 +59,7 @@ pub(super) fn support_double_package() -> Package {
                 (Suit::Diamonds, Suit::Hearts),
                 (Suit::Diamonds, Suit::Spades),
             ];
-            if agreements.build.competition.major_support_double {
+            if agreements.competition.major_support_double {
                 support_pairs.push((Suit::Hearts, Suit::Spades));
             }
             let mut entries = Vec::new();

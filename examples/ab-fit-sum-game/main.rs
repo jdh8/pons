@@ -138,11 +138,14 @@ fn main() {
     set_bilans_floor(!args.no_bilans);
     set_fit_sum_game(args.baseline);
     set_fit_sum_support_read(false);
-    let plain = american().against();
+    let plain = american(&pons::bidding::agreements::Agreements::current()).against();
     // Edit 1 treatment: the support-gauge read fires only for the feature side.
     set_fit_sum_game(args.threshold);
     set_fit_sum_support_read(args.support_read);
-    let stances = [plain, american().against()];
+    let stances = [
+        plain,
+        american(&pons::bidding::agreements::Agreements::current()).against(),
+    ];
 
     // Deal sequentially (seeded, reproducible); bid both tables in parallel.
     let mut rng = StdRng::seed_from_u64(args.seed);

@@ -207,9 +207,9 @@ fn main() {
     // book-construction time; build each arm under its own setting, the baked tries
     // are independent thereafter.  Restore the shipped default.
     set_size_ask_accept_floor(15);
-    let accept = american().against();
+    let accept = american(&pons::bidding::agreements::Agreements::current()).against();
     set_size_ask_accept_floor(17);
-    let decline = american().against();
+    let decline = american(&pons::bidding::agreements::Agreements::current()).against();
     let stances = [accept, decline];
 
     let deals = seeded_deals(base, args.count);

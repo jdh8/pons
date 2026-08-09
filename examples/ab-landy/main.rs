@@ -454,7 +454,7 @@ fn main() {
     set_direct_landy_penalty_pass(false);
     set_penalty_pass(ew_penalty_pass);
     set_doubler_xx_runout(false);
-    let baseline = american().against();
+    let baseline = american(&pons::bidding::agreements::Agreements::current()).against();
     // One write picks the measured system; the two forced-off blocks this
     // replaced ("DONT owns 2♣/2NT", "Woolsey owns every direct call") were the
     // read-time precedence cascade the `NotrumpDefense` cell exists to delete.
@@ -481,7 +481,7 @@ fn main() {
     set_doubler_xx_runout(ns_doubler_run);
     set_woolsey_points(woolsey_range.0, woolsey_range.1);
     set_woolsey_double_floor(args.ns_woolsey_x_floor);
-    let measured = american().against();
+    let measured = american(&pons::bidding::agreements::Agreements::current()).against();
 
     // Each board at both tables (Landy NS at A, EW at B), dealer rotating.
     // Any system difference between the two pairs makes every hand with a

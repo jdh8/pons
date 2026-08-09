@@ -34,12 +34,12 @@ use super::rows::compile_into;
 /// invented a diamond suit over the `1♦` relay.
 ///
 /// ```
-/// use pons::dutch;
+/// use pons::dutch_default;
 /// use pons::bidding::System;
 /// use contract_bridge::auction::{Call, RelativeVulnerability};
 /// use contract_bridge::{Bid, Strain};
 ///
-/// let stance = dutch().against();
+/// let stance = dutch_default().against();
 /// let hand = "AQ32.K53.QJ4.A92".parse().unwrap(); // 16 HCP, balanced
 /// let logits = stance
 ///     .classify(hand, RelativeVulnerability::NONE, &[])
@@ -52,8 +52,15 @@ use super::rows::compile_into;
 /// assert_eq!(best, Call::Bid(Bid::new(1, Strain::Notrump)));
 /// ```
 #[must_use]
-pub fn dutch() -> Pair {
-    dutch_with_config(Config::symmetric(&dutch_card()))
+pub fn dutch(agreements: &Agreements) -> Pair {
+    dutch_with_config(agreements, Config::symmetric(&dutch_card(agreements)))
+}
+
+/// [`dutch`] on the shipped agreements — see
+/// [`american_default`][super::american::american_default]
+#[must_use]
+pub fn dutch_default() -> Pair {
+    dutch(&Agreements::default())
 }
 
 /// [`dutch`] against a **declared** opponent — the mixed table
@@ -68,9 +75,8 @@ pub fn dutch() -> Pair {
 /// against bare `american()` declares *both* sides symmetric, so each net is
 /// told the opposition plays its own system — false at every seat.
 #[must_use]
-pub fn dutch_with_config(config: Config) -> Pair {
-    let agreements = Agreements::current();
-    with_floor(book(&agreements), config, &agreements)
+pub fn dutch_with_config(agreements: &Agreements, config: Config) -> Pair {
+    with_floor(book(agreements), config, agreements)
 }
 
 /// [`dutch`] on the **compact-config (v5)** floor — opt-in, ungated
@@ -81,12 +87,11 @@ pub fn dutch_with_config(config: Config) -> Pair {
 /// **no gate A/B of its own** — [`dutch`] stays on the v4 floor until one
 /// runs (clone `scripts/ab-v5-floor.sh` with the dutch pair).
 #[must_use]
-pub fn dutch_v5() -> Pair {
-    let agreements = Agreements::current();
+pub fn dutch_v5(agreements: &Agreements) -> Pair {
     with_floor_v5(
-        book(&agreements),
-        CompactConfig::symmetric(&ConventionCard::of(&agreements, true)),
-        &agreements,
+        book(agreements),
+        CompactConfig::symmetric(&ConventionCard::capture(agreements, true)),
+        agreements,
     )
 }
 
@@ -101,9 +106,15 @@ pub fn dutch_v5() -> Pair {
 ///
 /// The floor is the *only* difference; both share the same authored books.
 #[must_use]
-pub fn dutch_instinct() -> Pair {
-    let agreements = Agreements::current();
-    with_instinct_floor(book(&agreements), &agreements)
+pub fn dutch_instinct(agreements: &Agreements) -> Pair {
+    with_instinct_floor(book(agreements), agreements)
+}
+
+/// [`dutch_instinct`] on the shipped agreements — see
+/// [`american_default`][super::american::american_default]
+#[must_use]
+pub fn dutch_instinct_default() -> Pair {
+    dutch_instinct(&Agreements::default())
 }
 
 /// Build the Dutch pair as the authored books alone, with no floor
@@ -117,8 +128,15 @@ pub fn dutch_instinct() -> Pair {
 /// / 21–23 `2♦!` continuations stay American's — projection discloses their
 /// strength; see `docs/dutch-system.md`.
 #[must_use]
-pub fn dutch_book() -> Pair {
-    book(&Agreements::current())
+pub fn dutch_book(agreements: &Agreements) -> Pair {
+    book(agreements)
+}
+
+/// [`dutch_book`] on the shipped agreements — see
+/// [`american_default`][super::american::american_default]
+#[must_use]
+pub fn dutch_book_default() -> Pair {
+    dutch_book(&Agreements::default())
 }
 
 /// [`dutch_book`] on an explicit capture — see [`american::book`][super::american::book]

@@ -44,7 +44,7 @@ fn row_package_invariants() {
 /// floor (not a book node) produced it
 pub(super) fn best_call(auction: &[Call], hand: &str) -> (Call, bool) {
     let hand: Hand = hand.parse().expect("valid test hand");
-    let (logits, prov) = american()
+    let (logits, prov) = american(&crate::bidding::agreements::Agreements::current())
         .against()
         .classify_with_provenance(hand, RelativeVulnerability::NONE, auction)
         .expect("a legal auction classifies");

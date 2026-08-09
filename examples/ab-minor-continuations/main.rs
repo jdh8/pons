@@ -107,14 +107,14 @@ fn main() {
     // both arms; every other treatment is measured against the bare floor.
     let baseline_xyz = args.nmf;
     set_knobs(false, false, baseline_xyz, false);
-    let baseline = american().against();
+    let baseline = american(&pons::bidding::agreements::Agreements::current()).against();
     set_knobs(
         args.longer_major,
         args.up_the_line,
         args.xyz || args.nmf,
         args.nmf,
     );
-    let treatment = american().against();
+    let treatment = american(&pons::bidding::agreements::Agreements::current()).against();
     set_knobs(false, false, false, false);
     let stances = [baseline, treatment];
 

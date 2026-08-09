@@ -77,9 +77,9 @@ fn main() {
     // Two books, built once — `set_two_over_one_gate` is read at book
     // construction, never at classify time.
     set_two_over_one_gate(TwoOverOneGate::Hcp13);
-    let baseline_stance = american().against();
+    let baseline_stance = american(&pons::bidding::agreements::Agreements::current()).against();
     set_two_over_one_gate(TwoOverOneGate::Hcp12);
-    let candidate_stance = american().against();
+    let candidate_stance = american(&pons::bidding::agreements::Agreements::current()).against();
     set_two_over_one_gate(TwoOverOneGate::Hcp13);
 
     let deals = seeded_deals(seed, count);

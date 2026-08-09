@@ -85,7 +85,7 @@ const GAME_FORCE: Alert = Alert("game-force");
 /// in a new suit) and weak jump shifts round out the response set.
 #[must_use]
 pub fn major_responses(major: Suit, agreements: &Agreements) -> Rules {
-    let knobs = &agreements.build.response;
+    let knobs = &agreements.response;
     let trump = Strain::from(major);
     let mut rules = Rules::new()
         // Jacoby 2NT: game-forcing raise with four-card support.  The
@@ -239,7 +239,7 @@ pub fn minor_responses(minor: Suit, agreements: &Agreements) -> Rules {
     let trump = Strain::from(minor);
     let mut rules = Rules::new();
     rules = with_major_selection(rules, agreements);
-    rules = with_up_the_line(rules, minor, &agreements.build.response);
+    rules = with_up_the_line(rules, minor, &agreements.response);
     rules = rules
         // Notrump ladder without a four-card major (3NT open-ended for game-plus).
         .rule(

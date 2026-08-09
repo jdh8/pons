@@ -105,7 +105,7 @@ fn main() {
     let args = Args::parse();
     let base = args.seed.unwrap_or_else(rand::random);
     let vul = args.vulnerability;
-    let stance = american().against();
+    let stance = american(&pons::bidding::agreements::Agreements::current()).against();
     let deals = seeded_deals(base, args.count);
 
     // Bidding is knob-independent (the floor+net bidder never samples), so bid
@@ -128,7 +128,7 @@ fn main() {
             set_gauge_membership(gauge);
         };
         set_knobs();
-        let reader = american().against();
+        let reader = american(&pons::bidding::agreements::Agreements::current()).against();
         let mut pending: Vec<(usize, Contract, Seat)> = Vec::new();
         let mut questions: Vec<LeadQuestion> = Vec::new();
         for (i, auction) in auctions.iter().enumerate() {

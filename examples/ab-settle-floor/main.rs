@@ -94,9 +94,12 @@ fn bid_out(
 fn main() {
     let args = Args::parse();
     set_settle_floor(false);
-    let plain = american().against();
+    let plain = american(&pons::bidding::agreements::Agreements::current()).against();
     set_settle_floor(true);
-    let stances = [plain, american().against()];
+    let stances = [
+        plain,
+        american(&pons::bidding::agreements::Agreements::current()).against(),
+    ];
 
     // Deal sequentially (seeded, reproducible); bid both tables in parallel.
     let mut rng = StdRng::seed_from_u64(args.seed);

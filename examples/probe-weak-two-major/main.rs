@@ -189,11 +189,11 @@ fn main() {
     let feature = match args.mode {
         Mode::Tie => {
             set_weak_two_longest_first(true);
-            american().against()
+            american(&pons::bidding::agreements::Agreements::current()).against()
         }
         Mode::Ogust => {
             set_weak_two_major_priority(true);
-            let stance = american().against();
+            let stance = american(&pons::bidding::agreements::Agreements::current()).against();
             set_weak_two_major_priority(false);
             stance
         }
@@ -201,11 +201,11 @@ fn main() {
     let baseline = match args.mode {
         Mode::Tie => {
             set_weak_two_longest_first(false);
-            let stance = american().against();
+            let stance = american(&pons::bidding::agreements::Agreements::current()).against();
             set_weak_two_longest_first(true);
             stance
         }
-        Mode::Ogust => american().against(),
+        Mode::Ogust => american(&pons::bidding::agreements::Agreements::current()).against(),
     };
 
     // Stage 1: deal and reject on the raw hands.  Dealing is the cheapest thing

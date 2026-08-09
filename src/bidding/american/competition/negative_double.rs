@@ -233,7 +233,7 @@ pub(super) fn cachalot_package() -> Package {
     Package {
         name: "cachalot-answer",
         gate: |agreements| {
-            agreements.build.competition.negative_double_shape == NegativeDoubleShape::Cachalot
+            agreements.competition.negative_double_shape == NegativeDoubleShape::Cachalot
         },
         entries: |agreements| {
             // (1♦) over 1♣: X shows hearts, 1♥ shows spades, 1♠ is the takeout.
@@ -271,7 +271,7 @@ pub(super) fn cachalot_package() -> Package {
             // per intervention: their suit bid, their notrump bid, their
             // redouble.  The `X -` pass-out is shadowed by the completions
             // above, and deeper continuations fall to the floor as before.
-            if agreements.build.competition.cachalot_contested_x {
+            if agreements.competition.cachalot_contested_x {
                 let contested = |key: &str, shown: Suit, overcall: Bid| {
                     let mut rows = expand(
                         &format!("{key} X (jz)"),
@@ -339,7 +339,7 @@ pub(super) fn cachalot_package_legacy() -> Package {
     Package {
         name: "cachalot-answer",
         gate: |agreements| {
-            agreements.build.competition.negative_double_shape == NegativeDoubleShape::Cachalot
+            agreements.competition.negative_double_shape == NegativeDoubleShape::Cachalot
         },
         entries: |agreements| {
             let over_diamond = "P* 1♣ (1♦)";
@@ -366,7 +366,7 @@ pub(super) fn cachalot_package_legacy() -> Package {
                     cachalot_takeout_answer(opening, Suit::Hearts),
                 ));
             }
-            if agreements.build.competition.cachalot_contested_x {
+            if agreements.competition.cachalot_contested_x {
                 let x_intervention = || {
                     described_guard(
                         "X (their intervention) -",
@@ -408,7 +408,7 @@ pub(super) fn sputnik_residual_answer_package() -> Package {
     Package {
         name: "sputnik-residual-answer",
         gate: |agreements| {
-            agreements.build.competition.negative_double_shape == NegativeDoubleShape::Sputnik
+            agreements.competition.negative_double_shape == NegativeDoubleShape::Sputnik
         },
         entries: |_| {
             // (1♦) over 1♣: X = ≤3 in both majors — no fit to hunt.

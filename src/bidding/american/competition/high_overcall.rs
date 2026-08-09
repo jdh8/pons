@@ -167,7 +167,7 @@ fn answer_high_neg_double(opening: Suit) -> Rules {
 pub(super) fn high_overcall_package() -> Package {
     Package {
         name: "high-overcall-responses",
-        gate: |agreements| agreements.build.competition.high_overcall_responses,
+        gate: |agreements| agreements.competition.high_overcall_responses,
         entries: |_| {
             let mut entries = Vec::new();
             for opening in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
@@ -193,7 +193,7 @@ pub(super) fn high_overcall_package() -> Package {
 pub(super) fn high_overcall_package_legacy() -> Package {
     Package {
         name: "high-overcall-responses",
-        gate: |agreements| agreements.build.competition.high_overcall_responses,
+        gate: |agreements| agreements.competition.high_overcall_responses,
         entries: |_| {
             let mut entries = Vec::new();
             for opening in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {

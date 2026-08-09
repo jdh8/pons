@@ -92,8 +92,8 @@ pub(super) fn free_bids() -> bool {
 /// Whether the free bids are authored — directly, or implied by a
 /// negative-double shape whose tighter double needs the natural outlet
 pub(super) fn free_bids_engaged(agreements: &Agreements) -> bool {
-    agreements.build.competition.free_bids
-        || agreements.build.competition.negative_double_shape != NegativeDoubleShape::BothMajors
+    agreements.competition.free_bids
+        || agreements.competition.negative_double_shape != NegativeDoubleShape::BothMajors
 }
 
 /// Set the minimum points/HCP for the 1-level free bids (thread-local)
@@ -160,7 +160,7 @@ pub(super) fn answer_free_bid(opening: Suit, agreements: &Agreements) -> Rules {
     // four — raising on three would be a Moysian at the two level, so that
     // rung demands four; 2-level frees promise five in every school.
     let two_level_support: usize =
-        if agreements.build.competition.negative_double_shape == NegativeDoubleShape::Sputnik {
+        if agreements.competition.negative_double_shape == NegativeDoubleShape::Sputnik {
             4
         } else {
             3
@@ -290,7 +290,7 @@ pub(super) fn transfer_free_bid_package() -> Package {
         name: "transfer-free-bid",
         gate: |agreements| {
             free_bids_engaged(agreements)
-                && agreements.build.competition.free_bid_style == FreeBidStyle::Transfer
+                && agreements.competition.free_bid_style == FreeBidStyle::Transfer
         },
         entries: |_| {
             #[allow(clippy::type_complexity)]
@@ -365,9 +365,9 @@ pub(super) fn free_bid_answer_package() -> Package {
         gate: free_bids_engaged,
         entries: |agreements| {
             let cachalot =
-                agreements.build.competition.negative_double_shape == NegativeDoubleShape::Cachalot;
-            let negative = agreements.build.competition.free_bid_style == FreeBidStyle::Negative;
-            let transfer = agreements.build.competition.free_bid_style == FreeBidStyle::Transfer;
+                agreements.competition.negative_double_shape == NegativeDoubleShape::Cachalot;
+            let negative = agreements.competition.free_bid_style == FreeBidStyle::Negative;
+            let transfer = agreements.competition.free_bid_style == FreeBidStyle::Transfer;
             let mut entries = Vec::new();
             for opening in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
                 let o_strain = Strain::from(opening);

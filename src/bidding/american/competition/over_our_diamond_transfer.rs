@@ -117,10 +117,7 @@ pub(super) fn competition_over_diamond_transfer_package() -> Package {
     Package {
         name: "competition-over-diamond-transfer",
         gate: |agreements| {
-            agreements
-                .build
-                .competition
-                .competition_over_diamond_transfer
+            agreements.competition.competition_over_diamond_transfer
                 && agreements.decision.reading.notrump_minors() == PUPPET
         },
         entries: |_| {

@@ -277,7 +277,7 @@ fn rows_for_prefix(opening: Suit, response: Suit) -> Vec<Entry> {
 pub(super) fn package() -> Package {
     Package {
         name: "new-minor-forcing",
-        gate: |a| a.build.rebid.new_minor_forcing,
+        gate: |a| a.rebid.new_minor_forcing,
         entries: |_| {
             let mut entries = Vec::new();
             for opening in [Suit::Clubs, Suit::Diamonds] {

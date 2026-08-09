@@ -67,7 +67,7 @@ impl Policy {
             PointScale::Hcp
         });
         set_fuzzy_fifths(fifths);
-        american().against()
+        american(&pons::bidding::agreements::Agreements::current()).against()
     }
 }
 
@@ -193,7 +193,7 @@ fn main() {
     // both arms (a deliberate simplification — we do not flip the fuzzy flags for
     // inference, unlike per-call bidding above).  Built first, before either arm
     // arms a gauge, so it stays the default-flag book it has always been.
-    let infer_stance = american().against();
+    let infer_stance = american(&pons::bidding::agreements::Agreements::current()).against();
     // `[off, on]` for this policy's gauges, indexed by the acting side.
     let stances = [policy.stance(false), policy.stance(true)];
 

@@ -149,7 +149,7 @@ pub(super) fn responses(our: Suit, agreements: &Agreements) -> Rules {
         let level: u8 = if Strain::from(x) > trump { 2 } else { 3 };
         // Over 2♦ only, and only for the majors, the knob lifts the new suit
         // above the 2.0 Ogust ask.
-        let weight = if agreements.build.opening.weak_two_major_priority
+        let weight = if agreements.opening.weak_two_major_priority
             && our == Suit::Diamonds
             && Strain::from(x) > trump
         {
@@ -158,7 +158,7 @@ pub(super) fn responses(our: Suit, agreements: &Agreements) -> Rules {
             150
         };
         let gate = len(x, 5..) & top_honors(x, 2..) & points(14..);
-        rules = if agreements.build.opening.weak_two_longest_first {
+        rules = if agreements.opening.weak_two_longest_first {
             rules.rule(
                 Bid::new(level, Strain::from(x)),
                 weight,

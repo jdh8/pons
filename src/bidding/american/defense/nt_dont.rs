@@ -46,7 +46,7 @@ pub(super) fn direct_dont_one_suiter_min_raw() -> u8 {
 
 /// Minimum one-suiter length, widened to the constraint DSL's length type
 pub(super) fn direct_dont_one_suiter_min(agreements: &Agreements) -> usize {
-    usize::from(agreements.build.defense.direct_dont_one_suiter_min)
+    usize::from(agreements.defense.direct_dont_one_suiter_min)
 }
 
 /// Whether DONT two-suiters accept a flat 4-4 (default true = traditional 4-4; false =
@@ -69,7 +69,7 @@ pub(super) fn direct_dont_x_floor_raw() -> u8 {
 
 /// The configured DONT `X` floor, resolving the zero sentinel to the natural overcall floor.
 fn direct_dont_x_floor(agreements: &Agreements) -> u8 {
-    match agreements.build.defense.direct_dont_x_floor {
+    match agreements.defense.direct_dont_x_floor {
         0 => agreements.decision.reading.natural_overcall_points().0,
         floor => floor,
     }
@@ -94,7 +94,7 @@ pub(super) fn dont_x(agreements: &Agreements) -> Rules {
 /// DONT `2♣`: clubs + a higher major, 5-4 (or 4-4 when configured).
 pub(super) fn dont_2c(agreements: &Agreements) -> Rules {
     let lo = agreements.decision.reading.natural_overcall_points().0;
-    let ff = agreements.build.defense.direct_dont_four_four;
+    let ff = agreements.defense.direct_dont_four_four;
     Rules::new().rule(
         Bid::new(2, Strain::Clubs),
         200,
@@ -105,7 +105,7 @@ pub(super) fn dont_2c(agreements: &Agreements) -> Rules {
 /// DONT `2♦`: diamonds + a higher major, 5-4 (or 4-4 when configured).
 pub(super) fn dont_2d(agreements: &Agreements) -> Rules {
     let lo = agreements.decision.reading.natural_overcall_points().0;
-    let ff = agreements.build.defense.direct_dont_four_four;
+    let ff = agreements.defense.direct_dont_four_four;
     Rules::new().rule(
         Bid::new(2, Strain::Diamonds),
         200,
@@ -116,7 +116,7 @@ pub(super) fn dont_2d(agreements: &Agreements) -> Rules {
 /// DONT `2♥`: both majors, 5-4 (or 4-4 when configured).
 pub(super) fn dont_2h(agreements: &Agreements) -> Rules {
     let lo = agreements.decision.reading.natural_overcall_points().0;
-    let ff = agreements.build.defense.direct_dont_four_four;
+    let ff = agreements.defense.direct_dont_four_four;
     Rules::new().rule(
         Bid::new(2, Strain::Hearts),
         200,

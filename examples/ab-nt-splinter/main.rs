@@ -143,10 +143,10 @@ fn main() {
     // construction time, so build each arm under its own setting; the baked
     // tries are independent thereafter.
     set_nt_splinter(false);
-    let off = american().against();
+    let off = american(&pons::bidding::agreements::Agreements::current()).against();
     set_nt_splinter_floor(args.floor);
     set_nt_splinter(true);
-    let on = american().against();
+    let on = american(&pons::bidding::agreements::Agreements::current()).against();
     set_nt_splinter(false); // restore the shipped default for anything downstream
     let stances = [off, on];
 

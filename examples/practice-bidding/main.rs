@@ -107,8 +107,8 @@ enum Floor {
 /// Build a fresh 2/1 pair for the chosen floor
 fn build_pair(floor: Floor) -> Pair {
     match floor {
-        Floor::American => american(),
-        Floor::Instinct => american_instinct(),
+        Floor::American => american(&pons::bidding::agreements::Agreements::current()),
+        Floor::Instinct => american_instinct(&pons::bidding::agreements::Agreements::current()),
     }
 }
 

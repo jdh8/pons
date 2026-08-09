@@ -101,9 +101,9 @@ fn main() {
     // independent, and the European arm no longer classifies under whatever the
     // thread was left holding.
     set_notrump_minors(EUROPEAN);
-    let european = american().against();
+    let european = american(&pons::bidding::agreements::Agreements::current()).against();
     set_notrump_minors(PUPPET); // restore the shipped default
-    let puppet = american().against();
+    let puppet = american(&pons::bidding::agreements::Agreements::current()).against();
     let stances = [european, puppet];
 
     // Both arms bid the same deal; the only difference is the 1NT minor table.

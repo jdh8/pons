@@ -322,7 +322,7 @@ pub(super) fn package() -> Package {
         name: "xyz",
         gate: |a| a.decision.reading.xyz(),
         entries: |agreements| {
-            let knobs = &agreements.build.rebid;
+            let knobs = &agreements.rebid;
             let nmf = knobs.new_minor_forcing;
             let mut entries = Vec::new();
             for opening in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {

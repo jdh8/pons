@@ -18,7 +18,7 @@ use pons::american::{EUROPEAN, set_notrump_minors};
 /// set here on every call — each test thread builds a European book.
 fn stance() -> Stance {
     set_notrump_minors(EUROPEAN);
-    american().against()
+    american(&pons::bidding::agreements::Agreements::current()).against()
 }
 
 const P: Call = Call::Pass;

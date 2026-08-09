@@ -155,7 +155,7 @@ fn rebid_one_heart_one_spade(agreements: &Agreements) -> Rules {
             fifths(18.0..20.0) & balanced(),
         );
     // Meckstroth adjunct: invitational 3♣/3♦ jumps with a five-card minor.
-    rules = with_invitational_minors(rules, &agreements.build.rebid);
+    rules = with_invitational_minors(rules, &agreements.rebid);
     // Major jump-rebid: 1♥ - 1♠ - 3♥ on a six-card major with extras.
     rules = with_major_jump_rebid(rules, Suit::Hearts, Bid::new(1, Strain::Spades), agreements);
     rules
@@ -177,7 +177,7 @@ fn rebid_after_forcing_notrump(major: Suit, agreements: &Agreements) -> Rules {
     // enabled, otherwise the natural 18–19 balanced rebid.  Weight 1.6 to outrank
     // the 3M major jump-rebid (1.5), so every 18+ hand routes through the game
     // force while the invitational 3m jumps stay 15–17.
-    if agreements.build.rebid.meckstroth_adjunct {
+    if agreements.rebid.meckstroth_adjunct {
         rules = rules
             .rule(Bid::new(2, Strain::Notrump), 160, points(18..))
             .alert(meckstroth::OPENER_GF_2NT);
@@ -190,11 +190,11 @@ fn rebid_after_forcing_notrump(major: Suit, agreements: &Agreements) -> Rules {
     }
     rules = rules.rule(Bid::new(2, trump), 100, len(major, 6..));
     // Meckstroth adjunct: invitational 3♣/3♦ jumps with a five-card minor.
-    rules = with_invitational_minors(rules, &agreements.build.rebid);
+    rules = with_invitational_minors(rules, &agreements.rebid);
     // Major jump-rebid: 1M - 1NT - 3M on a six-card major with extras.
     rules = with_major_jump_rebid(rules, major, Bid::new(1, Strain::Notrump), agreements);
     // Invitational two-suiter: 1♥ - 1NT - 2♠ reverse / 1♠ - 1NT - 3♥ jump.
-    rules = with_forcing_nt_two_suiter(rules, major, &agreements.build.rebid);
+    rules = with_forcing_nt_two_suiter(rules, major, &agreements.rebid);
     for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
         if Strain::from(suit) < trump {
             rules = rules.rule(Bid::new(2, Strain::from(suit)), 90, len(suit, 4..));
@@ -224,7 +224,7 @@ fn rebid_raise_major(responder_major: Suit, opener_minor: Suit, agreements: &Agr
     // Balanced 12–14 with a five-card minor: rebid 1NT rather than the natural
     // 2m below it (weight 0.92 — above the 2m rebid, below the up-the-line 1♠
     // so a 4-4 spade fit is still found).  Shipped default-on.
-    if agreements.build.rebid.balanced_1nt_rebid {
+    if agreements.rebid.balanced_1nt_rebid {
         rules = rules.rule(
             Bid::new(1, Strain::Notrump),
             92,
@@ -234,7 +234,7 @@ fn rebid_raise_major(responder_major: Suit, opener_minor: Suit, agreements: &Agr
     // Up the line: four spades over a 1♥ response, ahead of the minor rebid
     // and the notrump fallbacks (a heart raise with four-card support still
     // wins on weight).
-    if responder_major == Suit::Hearts && agreements.build.response.up_the_line {
+    if responder_major == Suit::Hearts && agreements.response.up_the_line {
         rules = rules.rule(Bid::new(1, Strain::Spades), 95, len(Suit::Spades, 4..));
     }
     // Strength-showing ladder: jump-rebid, reverse, jump-shift (default off).
@@ -287,7 +287,7 @@ fn rebid_one_club_one_diamond(agreements: &Agreements) -> Rules {
             110,
             fifths(18.0..20.0) & balanced(),
         );
-    if agreements.build.response.up_the_line {
+    if agreements.response.up_the_line {
         rules = rules.rule(Bid::new(2, Strain::Clubs), 90, len(Suit::Clubs, 6..));
     }
     // Strength-showing ladder: jump-rebid, reverse, jump-shift (default off).

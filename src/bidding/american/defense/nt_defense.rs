@@ -121,13 +121,9 @@ pub(super) fn notrump_balancing_enabled() -> bool {
 /// Unusual `2NT`: both minors, 5-5, on its own range (raw HCP or points per
 /// [`set_landy_hcp`]).  Additive — compatible with every system.
 fn unusual_2nt(agreements: &Agreements) -> Rules {
-    let (lo, hi) = agreements
-        .build
-        .defense
-        .unusual_notrump_range
-        .unwrap_or((0, 37));
+    let (lo, hi) = agreements.defense.unusual_notrump_range.unwrap_or((0, 37));
     let shape = len(Suit::Clubs, 5..) & len(Suit::Diamonds, 5..);
-    if agreements.build.defense.landy_use_hcp {
+    if agreements.defense.landy_use_hcp {
         Rules::new().rule(Bid::new(2, Strain::Notrump), 180, shape & hcp(lo..=hi))
     } else {
         Rules::new().rule(Bid::new(2, Strain::Notrump), 180, shape & points(lo..=hi))
@@ -207,8 +203,8 @@ fn chain_natural_base(rules: Rules, agreements: &Agreements) -> Rules {
             // each arm reissues `.rule()` so the differing constraint types unify), the
             // owning `Pass`, and the natural overcalls (ceding `2♣` to a Landy overlay).
             let floor = agreements.decision.reading.natural_double_floor();
-            let w = agreements.build.defense.natural_double_weight;
-            let rules = match agreements.build.defense.natural_double_shape {
+            let w = agreements.defense.natural_double_weight;
+            let rules = match agreements.defense.natural_double_shape {
                 DoubleShape::Balanced => rules.rule(Call::Double, w, hcp(floor..) & balanced()),
                 DoubleShape::SemiBalanced => {
                     rules.rule(Call::Double, w, hcp(floor..) & semi_balanced())
@@ -259,7 +255,7 @@ fn active_alerts(agreements: &Agreements) -> Vec<Alert> {
         alerts.push(LANDY_2C);
     }
     // Unusual `2NT` is additive — every non-always-pass system.
-    if agreements.build.defense.unusual_notrump_range.is_some() {
+    if agreements.defense.unusual_notrump_range.is_some() {
         alerts.push(UNUSUAL_2NT);
     }
     alerts
@@ -305,7 +301,7 @@ pub(super) fn notrump_defense_package() -> Package {
         gate: |_| true,
         entries: |agreements| {
             let mut entries = rows_of(Pattern::node("P* (1NT)"), defense_to_notrump(agreements));
-            if agreements.build.defense.notrump_balancing_enabled {
+            if agreements.defense.notrump_balancing_enabled {
                 entries.extend(rows_of(
                     Pattern::node("P* (1NT) - -"),
                     defense_to_notrump(agreements),

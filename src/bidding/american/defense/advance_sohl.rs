@@ -82,7 +82,7 @@ pub(super) fn sohl_rows_over(
         // makes the bot *bid* the convention and read the direct cue as denying a
         // stopper (so it is answered without a free 3NT).
         let recognize = matches!(over, Suit::Hearts | Suit::Spades);
-        let split = agreements.build.competition.delayed_cue && recognize;
+        let split = agreements.competition.delayed_cue && recognize;
         for bid_suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
             let resp = call(3, Strain::from(bid_suit));
             let reply = if bid_suit == over {

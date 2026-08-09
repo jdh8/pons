@@ -97,9 +97,9 @@ fn main() {
     // on).  The toggle is read at book-construction time, so build each arm under
     // its own setting; the baked tries are independent thereafter.
     set_forcing_nt_two_suiter(false);
-    let baseline = american().against();
+    let baseline = american(&pons::bidding::agreements::Agreements::current()).against();
     set_forcing_nt_two_suiter(true); // restore the shipped default (on)
-    let treatment = american().against();
+    let treatment = american(&pons::bidding::agreements::Agreements::current()).against();
     let stances = [baseline, treatment];
 
     // Both arms bid the same deal; the only difference is opener's rebid table.

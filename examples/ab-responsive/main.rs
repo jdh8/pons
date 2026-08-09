@@ -115,9 +115,9 @@ fn main() {
     let mut rng = rand::rng();
 
     configure(&args.conv, false);
-    let baseline = american().against();
+    let baseline = american(&pons::bidding::agreements::Agreements::current()).against();
     configure(&args.conv, true);
-    let conv = american().against();
+    let conv = american(&pons::bidding::agreements::Agreements::current()).against();
 
     // Phase 1 (sequential, cheap): deal + the shape-only filter until `count`
     // boards pass. The RNG stays single-threaded so a seed reproduces a run.

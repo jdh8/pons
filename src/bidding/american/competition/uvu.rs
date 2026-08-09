@@ -81,8 +81,8 @@ pub(super) fn uvu_natural_floor() -> u8 {
 /// `3NT` is to play. The [`set_uvu_x_floor`] / [`set_uvu_cue_floor`]
 /// knobs sweep the strength ranges. Pass is the finite catch-all.
 pub(super) fn uvu_responder(agreements: &Agreements) -> Rules {
-    let x_floor = agreements.build.competition.uvu_x_floor;
-    let cue_floor = agreements.build.competition.uvu_cue_floor;
+    let x_floor = agreements.competition.uvu_x_floor;
+    let cue_floor = agreements.competition.uvu_cue_floor;
     let weak = cue_floor.saturating_sub(1); // points cap for the weak naturals
     let both_majors_55 = len(Suit::Spades, 5..) & len(Suit::Hearts, 5..);
 
@@ -149,7 +149,7 @@ pub(super) fn uvu_responder(agreements: &Agreements) -> Rules {
     // Weak natural sign-offs: a long major below INV values, to play. The length
     // floor (default 6) drops to 5 to let a five-card major escape when defending
     // the both-minors overcall looks bad (the A/B sweep knob).
-    let nat = usize::from(agreements.build.competition.uvu_natural_floor);
+    let nat = usize::from(agreements.competition.uvu_natural_floor);
     rules = rules
         .rule(
             Bid::new(3, Strain::Hearts),
@@ -201,7 +201,7 @@ pub(super) fn uvu_rebid_over_3h() -> Rules {
 pub(super) fn uvu_package() -> Package {
     Package {
         name: "uvu-over-1nt",
-        gate: |agreements| agreements.build.competition.uvu,
+        gate: |agreements| agreements.competition.uvu,
         entries: |agreements| {
             // Responder's first action: the uncovered suffix is exactly their 2NT.
             let mut entries = rows_of(Pattern::after("P* 1NT", "(2NT)"), uvu_responder(agreements));

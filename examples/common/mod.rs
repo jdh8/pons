@@ -568,22 +568,37 @@ pub fn report_sd_brackets(
 /// then coexist on one thread.
 pub fn seat_floor(name: &str) -> anyhow::Result<Stance> {
     Ok(match name {
-        "american" => pons::american().against(),
+        "american" => pons::american(&pons::bidding::agreements::Agreements::current()).against(),
         // The authored books with no floor at all: a driver seating this passes
         // whenever the books run out.  The floor ablation's other end.
-        "american-book" => pons::bidding::american::american_book().against(),
-        "dutch" => pons::dutch().against(),
+        "american-book" => pons::bidding::american::american_book(
+            &pons::bidding::agreements::Agreements::current(),
+        )
+        .against(),
+        "dutch" => pons::dutch(&pons::bidding::agreements::Agreements::current()).against(),
         // The deterministic pre-swap floors: the fixed baselines now that
         // `american` and `dutch` both ship the BBA net.
-        "american-instinct" => pons::american_instinct().against(),
-        "dutch-instinct" => pons::dutch_instinct().against(),
+        "american-instinct" => {
+            pons::american_instinct(&pons::bidding::agreements::Agreements::current()).against()
+        }
+        "dutch-instinct" => {
+            pons::dutch_instinct(&pons::bidding::agreements::Agreements::current()).against()
+        }
         // The book ablation: no authored book at all, the same floor wiring
         // `american` uses.  `american` − `american-floor` prices the book.
-        "american-floor" => pons::american_floor().against(),
+        "american-floor" => {
+            pons::american_floor(&pons::bidding::agreements::Agreements::current()).against()
+        }
         // The compact-config (v5) candidates: same books, the regime reaches
         // the net as both sides' `ConventionCard` instead of the card blocks.
-        "american-v5" => pons::bidding::american::american_v5().against(),
-        "dutch-v5" => pons::bidding::dutch::dutch_v5().against(),
+        "american-v5" => {
+            pons::bidding::american::american_v5(&pons::bidding::agreements::Agreements::current())
+                .against()
+        }
+        "dutch-v5" => {
+            pons::bidding::dutch::dutch_v5(&pons::bidding::agreements::Agreements::current())
+                .against()
+        }
         other => anyhow::bail!(
             "floor must be american|american-book|american-instinct|american-floor|american-v5|dutch|dutch-instinct|dutch-v5, got {other:?}"
         ),
@@ -597,8 +612,8 @@ pub fn seat_floor(name: &str) -> anyhow::Result<Stance> {
 /// they all declare their base system's card.
 pub fn floor_card(name: &str) -> anyhow::Result<Card> {
     Ok(match name.split('-').next().unwrap_or_default() {
-        "american" => american_card(),
-        "dutch" => dutch_card(),
+        "american" => american_card(&pons::bidding::agreements::Agreements::current()),
+        "dutch" => dutch_card(&pons::bidding::agreements::Agreements::current()),
         other => anyhow::bail!(
             "no card generator for system `{other}` (known: american, dutch).  \
              Write one in `src/bidding/card.rs` rather than declaring another \
@@ -638,8 +653,19 @@ pub fn floor_card(name: &str) -> anyhow::Result<Card> {
 /// output saying so.
 pub fn seat_floor_vs(name: &str, theirs: &Card) -> anyhow::Result<Stance> {
     Ok(match name {
-        "american" => pons::american_with_card(&ConventionCard::from_card(theirs)).against(),
-        "dutch" => pons::dutch_with_config(Config::new(&dutch_card(), theirs)).against(),
+        "american" => pons::american_with_card(
+            &pons::bidding::agreements::Agreements::current(),
+            &ConventionCard::from_card(theirs),
+        )
+        .against(),
+        "dutch" => pons::dutch_with_config(
+            &pons::bidding::agreements::Agreements::current(),
+            Config::new(
+                &dutch_card(&pons::bidding::agreements::Agreements::current()),
+                theirs,
+            ),
+        )
+        .against(),
         other => anyhow::bail!(
             "--declare-opponents needs a net floor to declare them to: \
              floor must be american|dutch, got {other:?}"

@@ -69,7 +69,7 @@ fn opener_third(major: Suit) -> Rules {
 pub(crate) fn opener_third_continuations() -> Package {
     Package {
         name: "two-over-one-opener-third",
-        gate: |agreements| agreements.build.game_force.opener_third,
+        gate: |agreements| agreements.game_force.opener_third,
         entries: |_| {
             let mut entries = Vec::new();
             for major in [Suit::Spades, Suit::Hearts] {

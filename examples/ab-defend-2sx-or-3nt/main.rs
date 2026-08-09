@@ -152,7 +152,7 @@ fn response_flavors() -> Vec<Flavor> {
 
 /// Both pairs play 2/1 at a table with West dealing, at the CLI vulnerability
 fn build_table(vul: AbsoluteVulnerability) -> Table<Stance, Stance> {
-    let pair = american();
+    let pair = american(&pons::bidding::agreements::Agreements::current());
     Table::of_pairs(&pair, &pair, Seat::West, vul)
 }
 

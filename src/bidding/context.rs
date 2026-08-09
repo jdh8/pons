@@ -137,6 +137,7 @@ impl Default for DecisionProfile {
         }
     }
 }
+
 impl DecisionProfile {
     /// Snapshot the knob state active on this thread
     pub(crate) fn current() -> Self {

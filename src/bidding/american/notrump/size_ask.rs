@@ -68,7 +68,7 @@ pub(super) fn size_ask_eight_class() -> Cons<impl Constraint + Clone> {
 /// non-flat eights, whose size-ask rule is dropped, have a home.
 pub(super) fn size_ask_eight_pass(agreements: &Agreements) -> Rules {
     let base = hcp(..8) & len(Suit::Hearts, ..5) & len(Suit::Spades, ..5);
-    match agreements.build.notrump.size_ask_eight {
+    match agreements.notrump.size_ask_eight {
         SizeAskEight::Shipped | SizeAskEight::Invite => {
             Rules::new().rule(Call::Pass, 0, base | (hcp(8..=8) & flat_4333()))
         }

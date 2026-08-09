@@ -58,9 +58,12 @@ fn main() {
     // The flag is captured into a stance when it is built, so each arm gets its
     // own book: `[off, on]`, indexed by the arm's flag.
     set_nt_invite_inference(false);
-    let off = american().against();
+    let off = american(&pons::bidding::agreements::Agreements::current()).against();
     set_nt_invite_inference(true);
-    let sys = [off, american().against()];
+    let sys = [
+        off,
+        american(&pons::bidding::agreements::Agreements::current()).against(),
+    ];
 
     // Deals are seeded per board (base + index) so every arm/vul of the
     // experiment replays the identical stream.

@@ -31,10 +31,11 @@ fn best(auction: &[Call], hand: &str) -> Call {
 fn american_floored(auction: &[Call], hand: &str) -> (Call, bool) {
     use crate::bidding::american::american_instinct;
     let hand: Hand = hand.parse().expect("valid test hand");
-    let (logits, provenance) = american_instinct()
-        .against()
-        .classify_with_provenance(hand, RelativeVulnerability::NONE, auction)
-        .expect("a legal auction classifies");
+    let (logits, provenance) =
+        american_instinct(&crate::bidding::agreements::Agreements::current())
+            .against()
+            .classify_with_provenance(hand, RelativeVulnerability::NONE, auction)
+            .expect("a legal auction classifies");
     let call = (&logits.0)
         .into_iter()
         .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))
@@ -2111,7 +2112,7 @@ fn rkcb_historical_prefix_does_not_reuse_the_full_auction_reading() {
         Call::Double,
     ];
     let hand: Hand = "KQ.9.AQ9875.T764".parse().expect("valid test hand");
-    let stance = american_instinct().against();
+    let stance = american_instinct(&crate::bidding::agreements::Agreements::current()).against();
     let uncached_context = stance.prefixed_context(RelativeVulnerability::NONE, &auction);
     let reference = answer_trump(hand, &uncached_context, 8);
 

@@ -19,7 +19,7 @@ pub(super) fn read(auction: &[Call]) -> Inferences {
 /// hands `Inferences::read` (cf. `Stance::prefixed_context`).  The plain `read`
 /// above is keyless, so it sees no convention overlay.
 pub(super) fn read_booked(auction: &[Call]) -> Inferences {
-    let stance = crate::american().against();
+    let stance = crate::american(&crate::bidding::agreements::Agreements::current()).against();
     Inferences::read(&stance.prefixed_context(RelativeVulnerability::NONE, auction))
 }
 
@@ -51,7 +51,7 @@ fn gladiator_readings_admit_the_bidder() {
 
     crate::bidding::american::set_nt_overcall_gladiator(true);
     set_envelope_union_reading(true);
-    let stance = crate::american().against();
+    let stance = crate::american(&crate::bidding::agreements::Agreements::current()).against();
     let node = [bid(1, Strain::Spades), bid(1, Strain::Notrump), Call::Pass];
 
     let mut rng = rand::rngs::StdRng::seed_from_u64(0x61AD);
@@ -153,7 +153,7 @@ fn readings_admit_the_bidder() {
     use rand::SeedableRng as _;
 
     set_envelope_union_reading(true);
-    let stance = crate::american().against();
+    let stance = crate::american(&crate::bidding::agreements::Agreements::current()).against();
 
     // (what the node is, the auction up to the seat replayed).  Multi-call
     // seats are route-filtered below: a hand counts only when replaying
@@ -397,7 +397,7 @@ fn node_context_memoises_the_uncached_read() {
     use crate::bidding::american::american;
 
     set_envelope_union_reading(true);
-    let american = american();
+    let american = american(&crate::bidding::agreements::Agreements::current());
     let trie = &american.constructive.0;
     let mut checked = 0usize;
     for (auction, classifier) in trie {
@@ -545,7 +545,7 @@ fn assert_all_alerted(what: &str, mut worklist: Vec<String>) {
 fn artificial_calls_are_alerted() {
     use crate::bidding::american::american;
 
-    let pair = american();
+    let pair = american(&crate::bidding::agreements::Agreements::current());
     let mut worklist = Vec::new();
     for (phase, trie) in [
         ("constructive", &pair.constructive.0),
@@ -566,7 +566,7 @@ fn deviation_knobs_preserve_alert_invariant() {
     set_one_notrump_offshape(true);
     set_overcall_four_card(true);
     set_weak_two_wild(true);
-    let pair = american();
+    let pair = american(&crate::bidding::agreements::Agreements::current());
     set_one_notrump_offshape(false);
     set_overcall_four_card(false);
     set_weak_two_wild(false);
@@ -603,7 +603,7 @@ fn alerted_call_sites_match_the_disclosure_fixture() {
     use crate::bidding::american::american;
     use std::collections::BTreeMap;
 
-    let pair = american();
+    let pair = american(&crate::bidding::agreements::Agreements::current());
     let mut counts: BTreeMap<&str, usize> = BTreeMap::new();
     for trie in [&pair.constructive.0, &pair.competitive.0, &pair.defensive.0] {
         for_each_authored_rule(trie, |_auction, _context, rule| {
@@ -810,8 +810,8 @@ fn authored_rules_eval_within_projection() {
     );
 
     set_envelope_union_reading(true);
-    let american = american();
-    let dutch = dutch();
+    let american = american(&crate::bidding::agreements::Agreements::current());
+    let dutch = dutch(&crate::bidding::agreements::Agreements::current());
     let tries: [(&str, &crate::bidding::trie::Trie); 4] = [
         ("american constructive", &american.constructive.0),
         ("american competitive", &american.competitive.0),
@@ -899,8 +899,8 @@ fn passes_read_within_their_table() {
 
     set_envelope_union_reading(true);
     set_pass_exclusion_reading(true);
-    let american = american();
-    let dutch = dutch();
+    let american = american(&crate::bidding::agreements::Agreements::current());
+    let dutch = dutch(&crate::bidding::agreements::Agreements::current());
     let tries: [(&str, &crate::bidding::trie::Trie); 4] = [
         ("american constructive", &american.constructive.0),
         ("american competitive", &american.competitive.0),
@@ -1008,8 +1008,8 @@ fn authored_calls_read_what_they_gate() {
     use crate::bidding::american::american;
     use crate::bidding::dutch::dutch;
 
-    let american = american();
-    let dutch = dutch();
+    let american = american(&crate::bidding::agreements::Agreements::current());
+    let dutch = dutch(&crate::bidding::agreements::Agreements::current());
     let tries: [(&str, &crate::bidding::trie::Trie); 4] = [
         ("american constructive", &american.constructive.0),
         ("american competitive", &american.competitive.0),
@@ -1118,8 +1118,8 @@ fn fallback_rules_read_what_they_gate() {
     use crate::bidding::american::american;
     use crate::bidding::dutch::dutch;
 
-    let american = american();
-    let dutch = dutch();
+    let american = american(&crate::bidding::agreements::Agreements::current());
+    let dutch = dutch(&crate::bidding::agreements::Agreements::current());
     let tries: [(&str, &crate::bidding::trie::Trie); 4] = [
         ("american constructive", &american.constructive.0),
         ("american competitive", &american.competitive.0),
@@ -1233,7 +1233,7 @@ fn gladiator_artificial_calls_are_alerted() {
     use crate::bidding::american::{american, set_nt_overcall_gladiator};
 
     set_nt_overcall_gladiator(true);
-    let pair = american();
+    let pair = american(&crate::bidding::agreements::Agreements::current());
     set_nt_overcall_gladiator(false);
 
     assert_all_alerted(
@@ -1251,7 +1251,7 @@ fn gladiator_artificial_calls_are_alerted() {
 fn dutch_artificial_calls_are_alerted() {
     use crate::bidding::dutch::dutch;
 
-    let pair = dutch();
+    let pair = dutch(&crate::bidding::agreements::Agreements::current());
     assert_all_alerted(
         "Dutch",
         unalerted_artificial("constructive", &pair.constructive.0),
@@ -1267,7 +1267,7 @@ fn new_minor_forcing_artificial_calls_are_alerted() {
     use crate::bidding::american::{american, set_new_minor_forcing};
 
     set_new_minor_forcing(true);
-    let pair = american();
+    let pair = american(&crate::bidding::agreements::Agreements::current());
     set_new_minor_forcing(false);
 
     assert_all_alerted(
@@ -1286,7 +1286,7 @@ fn choice_of_games_artificial_calls_are_alerted() {
     // ponytail: `two_over_one_fit` now defaults on, so the old set/restore
     // pair here was stale (and restored to the *non*-default).
     set_major_choice_of_games(true);
-    let pair = american();
+    let pair = american(&crate::bidding::agreements::Agreements::current());
     set_major_choice_of_games(false);
 
     assert_all_alerted(

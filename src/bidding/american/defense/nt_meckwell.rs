@@ -69,7 +69,7 @@ pub(super) fn meckwell_x_floor_raw() -> u8 {
 /// The configured Meckwell `X` floor, resolving the zero sentinel to the natural
 /// overcall floor.
 fn meckwell_x_floor(agreements: &Agreements) -> u8 {
-    match agreements.build.defense.meckwell_x_floor {
+    match agreements.defense.meckwell_x_floor {
         0 => agreements.decision.reading.natural_overcall_points().0,
         floor => floor,
     }
@@ -84,7 +84,7 @@ pub(super) fn meckwell_x(agreements: &Agreements) -> Rules {
     Rules::new().rule(
         Call::Double,
         190,
-        meckwell_double_shape(6, agreements.build.defense.meckwell_x_four_four) & points(lo..),
+        meckwell_double_shape(6, agreements.defense.meckwell_x_four_four) & points(lo..),
     )
 }
 
@@ -96,10 +96,7 @@ pub(super) fn meckwell_2c(agreements: &Agreements) -> Rules {
     Rules::new().rule(
         Bid::new(2, Strain::Clubs),
         200,
-        dont_minor_major(
-            Suit::Clubs,
-            agreements.build.defense.meckwell_minor_major_44,
-        ) & points(lo..),
+        dont_minor_major(Suit::Clubs, agreements.defense.meckwell_minor_major_44) & points(lo..),
     )
 }
 
@@ -109,10 +106,7 @@ pub(super) fn meckwell_2d(agreements: &Agreements) -> Rules {
     Rules::new().rule(
         Bid::new(2, Strain::Diamonds),
         200,
-        dont_minor_major(
-            Suit::Diamonds,
-            agreements.build.defense.meckwell_minor_major_44,
-        ) & points(lo..),
+        dont_minor_major(Suit::Diamonds, agreements.defense.meckwell_minor_major_44) & points(lo..),
     )
 }
 

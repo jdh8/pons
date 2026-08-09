@@ -21,13 +21,13 @@ use pons::american::{set_nt_splinter, set_nt_splinter_floor};
 /// set here on every call — each test thread builds a splinter book.
 fn stance() -> Stance {
     set_nt_splinter(true);
-    american().against()
+    american(&pons::bidding::agreements::Agreements::current()).against()
 }
 
 /// The 2/1 stance with the splinter *not* authored — the pre-2026-07-28 ladder
 fn without() -> Stance {
     set_nt_splinter(false);
-    american().against()
+    american(&pons::bidding::agreements::Agreements::current()).against()
 }
 
 const P: Call = Call::Pass;

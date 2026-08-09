@@ -1335,8 +1335,12 @@ fn disclosure(args: &Args) -> anyhow::Result<Option<EpbotCard>> {
             // The floor names the system; `-book`/`-instinct`/`-floor` variants
             // differ only in the floor, which no card row can express.
             let card = match args.our_floor.split('-').next().unwrap_or_default() {
-                "american" => pons::bidding::card::american_card(),
-                "dutch" => pons::bidding::card::dutch_card(),
+                "american" => pons::bidding::card::american_card(
+                    &pons::bidding::agreements::Agreements::current(),
+                ),
+                "dutch" => pons::bidding::card::dutch_card(
+                    &pons::bidding::agreements::Agreements::current(),
+                ),
                 other => anyhow::bail!(
                     "--disclose generated: no card generator for system `{other}` \
                      (known: american, dutch).  Write one in `src/bidding/card.rs` \

@@ -173,7 +173,7 @@ fn baseline_opener_rebids_natural_two_clubs_without_adjunct() {
     // the adjunct fills).  The toggle is read at construction time, so build the
     // baseline arm with it off, then restore the default.
     set_meckstroth_adjunct(false);
-    let base = american().against();
+    let base = american(&pons::bidding::agreements::Agreements::current()).against();
     set_meckstroth_adjunct(true);
     assert_eq!(
         best_call(&base, &after_1s_1nt(), "AK853.Q2.4.AQ976"),
@@ -275,7 +275,7 @@ fn responder_accepts_invitational_minor_to_heart_game() {
 /// restore the shipped default.
 fn meckstroth_off_stance() -> Stance {
     set_meckstroth_adjunct(false);
-    let system = american().against();
+    let system = american(&pons::bidding::agreements::Agreements::current()).against();
     set_meckstroth_adjunct(true); // restore the shipped default
     system
 }
@@ -385,7 +385,7 @@ fn opener_pulls_club_showing_3nt_to_the_major() {
 /// The baseline arm with the two-suiter rebids off; restore the shipped default.
 fn two_suiter_off_stance() -> Stance {
     set_forcing_nt_two_suiter(false);
-    let system = american().against();
+    let system = american(&pons::bidding::agreements::Agreements::current()).against();
     set_forcing_nt_two_suiter(true); // restore the shipped default (on)
     system
 }

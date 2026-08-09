@@ -183,12 +183,12 @@ pub use xyz::{set_xyz, set_xyz_invite_judgment};
 /// measured").
 ///
 /// ```
-/// use pons::american;
+/// use pons::american_default;
 /// use pons::bidding::System;
 /// use contract_bridge::auction::{Call, RelativeVulnerability};
 /// use contract_bridge::{Bid, Strain};
 ///
-/// let stance = american().against();
+/// let stance = american_default().against();
 /// let hand = "AQ32.K53.QJ4.A92".parse().unwrap(); // 16 HCP, balanced
 /// let logits = stance
 ///     .classify(hand, RelativeVulnerability::NONE, &[])
@@ -201,15 +201,13 @@ pub use xyz::{set_xyz, set_xyz_invite_judgment};
 /// assert_eq!(best, Call::Bid(Bid::new(1, Strain::Notrump)));
 /// ```
 #[must_use]
-pub fn american() -> Pair {
-    let agreements = Agreements::current();
+pub fn american(agreements: &Agreements) -> Pair {
     with_floor_v5(
-        book(&agreements),
-        super::features::CompactConfig::symmetric(&super::features::ConventionCard::of(
-            &agreements,
-            false,
+        book(agreements),
+        super::features::CompactConfig::symmetric(&super::features::ConventionCard::capture(
+            agreements, false,
         )),
-        &agreements,
+        agreements,
     )
 }
 
@@ -235,9 +233,8 @@ pub fn american() -> Pair {
 /// wants [`american_with_card`] instead — an arm built here and compared
 /// against one built by [`american`] measures the two nets, not the declaration.
 #[must_use]
-pub fn american_with_config(config: super::features::Config) -> Pair {
-    let agreements = Agreements::current();
-    with_floor(book(&agreements), config, &agreements)
+pub fn american_with_config(agreements: &Agreements, config: super::features::Config) -> Pair {
+    with_floor(book(agreements), config, agreements)
 }
 
 /// [`american`] against a **declared** opponent, on the shipped v5 floor
@@ -256,15 +253,17 @@ pub fn american_with_config(config: super::features::Config) -> Pair {
 /// undeviating pons opponent reproduces [`american`] board for board — the
 /// inertness gate for this channel.
 #[must_use]
-pub fn american_with_card(theirs: &super::features::ConventionCard) -> Pair {
-    let agreements = Agreements::current();
+pub fn american_with_card(
+    agreements: &Agreements,
+    theirs: &super::features::ConventionCard,
+) -> Pair {
     with_floor_v5(
-        book(&agreements),
+        book(agreements),
         super::features::CompactConfig::new(
-            &super::features::ConventionCard::of(&agreements, false),
+            &super::features::ConventionCard::capture(agreements, false),
             theirs,
         ),
-        &agreements,
+        agreements,
     )
 }
 
@@ -275,8 +274,8 @@ pub fn american_with_card(theirs: &super::features::ConventionCard) -> Pair {
 /// shipped it, so the name is kept only so harnesses and scripts written
 /// against `--our-floor american-v5` keep meaning what they measured.
 #[must_use]
-pub fn american_v5() -> Pair {
-    american()
+pub fn american_v5(agreements: &Agreements) -> Pair {
+    american(agreements)
 }
 
 /// The 2/1 pair with the deterministic **instinct** floor (the pre-BBA default)
@@ -290,9 +289,8 @@ pub fn american_v5() -> Pair {
 /// on.  It is also the distillation teacher: the nets clone *this*, never the
 /// net-floored [`american`].
 #[must_use]
-pub fn american_instinct() -> Pair {
-    let agreements = Agreements::current();
-    with_instinct_floor(book(&agreements), &agreements)
+pub fn american_instinct(agreements: &Agreements) -> Pair {
+    with_instinct_floor(book(agreements), agreements)
 }
 
 /// The 2/1 pair with **no authored book** — every call comes from the floor
@@ -319,15 +317,13 @@ pub fn american_instinct() -> Pair {
 /// `features_v3` inference block collapses to unknown — the measured gap is the
 /// book as authored calls **and** as disclosure, not the calls alone.
 #[must_use]
-pub fn american_floor() -> Pair {
-    let agreements = Agreements::current();
+pub fn american_floor(agreements: &Agreements) -> Pair {
     with_floor_v5(
         Pair::new(Constructive::new(), Competitive::new(), Defensive::new()),
-        super::features::CompactConfig::symmetric(&super::features::ConventionCard::of(
-            &agreements,
-            false,
+        super::features::CompactConfig::symmetric(&super::features::ConventionCard::capture(
+            agreements, false,
         )),
-        &agreements,
+        agreements,
     )
 }
 
@@ -345,8 +341,35 @@ pub fn american_floor() -> Pair {
 /// [`NotrumpShape::Wide6322`] — a 5422 or 6322 with a long minor also opens
 /// 1NT).
 #[must_use]
-pub fn american_book() -> Pair {
-    book(&Agreements::current())
+pub fn american_book(agreements: &Agreements) -> Pair {
+    book(agreements)
+}
+
+/// [`american`] on the shipped agreements
+///
+/// The `_default()` twin exists because [`Agreements`] implements [`Default`];
+/// it is that call spelled once, not a second way to configure the system.
+#[must_use]
+pub fn american_default() -> Pair {
+    american(&Agreements::default())
+}
+
+/// [`american_book`] on the shipped agreements — see [`american_default`]
+#[must_use]
+pub fn american_book_default() -> Pair {
+    american_book(&Agreements::default())
+}
+
+/// [`american_instinct`] on the shipped agreements — see [`american_default`]
+#[must_use]
+pub fn american_instinct_default() -> Pair {
+    american_instinct(&Agreements::default())
+}
+
+/// [`american_floor`] on the shipped agreements — see [`american_default`]
+#[must_use]
+pub fn american_floor_default() -> Pair {
+    american_floor(&Agreements::default())
 }
 
 /// [`american_book`] on an explicit capture

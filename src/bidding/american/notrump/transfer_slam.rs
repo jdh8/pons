@@ -45,7 +45,7 @@ pub fn transfer_slam_try() -> bool {
 /// major — so it carries the [`SLAM_TRY`] alert (the artificial-alert invariant).
 /// Empty unless the slam try is on ([`set_transfer_slam_try`]).
 pub(super) fn transfer_slam_try_rebid(major: Suit, agreements: &Agreements) -> Rules {
-    if !agreements.build.notrump.transfer_slam_try {
+    if !agreements.notrump.transfer_slam_try {
         return Rules::new();
     }
     // The GF-majors structure repurposes the spade `3♥` (natural 5-5 slam try) and —
@@ -81,12 +81,12 @@ fn transfer_slam_try_answer(major: Suit) -> Rules {
 
 /// Whether the original heart-agreeing transfer slam-try node owns its path
 fn heart_transfer_slam_try_active(agreements: &Agreements) -> bool {
-    agreements.build.notrump.transfer_slam_try && !agreements.decision.transfer_gf_hearts
+    agreements.notrump.transfer_slam_try && !agreements.decision.transfer_gf_hearts
 }
 
 /// Whether either treatment uses the spade-agreeing transfer slam-try node
 fn spade_transfer_slam_try_active(agreements: &Agreements) -> bool {
-    agreements.build.notrump.transfer_slam_try || agreements.decision.transfer_gf_majors
+    agreements.notrump.transfer_slam_try || agreements.decision.transfer_gf_majors
 }
 
 /// Opener's heart-agreeing transfer slam-try answer and RKCB subtree

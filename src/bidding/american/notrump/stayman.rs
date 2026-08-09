@@ -81,7 +81,7 @@ pub(crate) fn stayman_answers() -> Rules {
 /// remaining case (single major, no major, a *minimum* five-card major).
 pub(super) fn stayman_answers_uncontested(agreements: &Agreements) -> Rules {
     let mut rules = Rules::new();
-    if agreements.build.notrump.stayman_both_majors {
+    if agreements.notrump.stayman_both_majors {
         // Both four-card majors with a *maximum* (16-17, the invite-accepting
         // range): jump to 2NT.  Responder then names their own major (3♣ = hearts,
         // 3♦ = spades) so opener — the strong, concealed hand — declares it
@@ -92,7 +92,7 @@ pub(super) fn stayman_answers_uncontested(agreements: &Agreements) -> Rules {
             .rule(Bid::new(2, Strain::Notrump), 110, both & hcp(16..))
             .alert(BOTH_MAJORS);
     }
-    if agreements.build.notrump.stayman_5card_max {
+    if agreements.notrump.stayman_5card_max {
         // Five-card major, maximum (16-17): jump.  Natural (names and shows its
         // own suit), so unalerted — alerting would make alert-reading suppress it.
         rules = rules
@@ -221,7 +221,7 @@ pub(super) fn stayman_major_rebid(major: Suit, agreements: &Agreements) -> Rules
     // hand to 2♠ and sharpening `3♠` into a balanced slam try that *denies* five
     // spades.  Off the flag (or over a 2♠ answer, where 5♥4♠ transfers and never
     // reaches here) the cap `len(♠,..14)` is a no-op.
-    let reroute = agreements.build.notrump.invitational_5card_majors && major == Suit::Hearts;
+    let reroute = agreements.notrump.invitational_5card_majors && major == Suit::Hearts;
     let spade_cap = if reroute {
         len(Suit::Spades, ..5)
     } else {
@@ -322,7 +322,7 @@ pub(super) fn stayman_major_rebid(major: Suit, agreements: &Agreements) -> Rules
     // two-suiter shows its second suit instead of guessing notrump.  Empty off the
     // gate; the minor is real, so each rule floors only its own strain and stays
     // unalerted (the artificial-alert invariant).
-    if agreements.build.notrump.stayman_minor_slam_try {
+    if agreements.notrump.stayman_minor_slam_try {
         rules
             .rule(
                 Bid::new(3, Strain::Clubs),
@@ -386,7 +386,7 @@ pub(super) fn stayman_no_major_rebid(agreements: &Agreements) -> Rules {
     } else {
         rules
     };
-    let rules = if agreements.build.notrump.invitational_5card_majors {
+    let rules = if agreements.notrump.invitational_5card_majors {
         // 5♠4♥, non-forcing invitational: opener denied hearts, so name the
         // five-card spade suit (natural, outranks the 2NT fallback).  Opener passes
         // a minimum or raises to game (see `answer_inv_5card_spades`).  A 5♠4♥
@@ -405,7 +405,7 @@ pub(super) fn stayman_no_major_rebid(agreements: &Agreements) -> Rules {
     // Weight 1.25 outranks the `3NT`/`4NT` reverts; the minor is real, so it floors
     // only its own strain and stays unalerted.  Empty off the gate.  (Smolen owns
     // `3♥`/`3♠`, so `3♣`/`3♦` are free here.)
-    if agreements.build.notrump.stayman_minor_slam_try {
+    if agreements.notrump.stayman_minor_slam_try {
         rules
             .rule(
                 Bid::new(3, Strain::Clubs),

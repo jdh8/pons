@@ -65,7 +65,7 @@ fn competitive_4333_ok(
     agreements: &Agreements,
 ) -> Cons<impl Constraint + Clone + use<>> {
     let mode = if gate {
-        agreements.build.competition.competitive_4333
+        agreements.competition.competitive_4333
     } else {
         Competitive4333::Allow
     };
@@ -128,7 +128,7 @@ pub(crate) fn transfer_lebensohl_responder(
             // stopper hands relay through 2NT to the delayed cue (the broadened
             // 2NT below + [`lebensohl_relay_rebid`]).
             let cue = Bid::new(3, strain);
-            let split = agreements.build.competition.delayed_cue && unbid_major(over).is_some();
+            let split = agreements.competition.delayed_cue && unbid_major(over).is_some();
             rules = match (over, split) {
                 (Suit::Hearts, true) => rules
                     .rule(
@@ -217,7 +217,7 @@ pub(crate) fn transfer_lebensohl_responder(
     // major relays through 2NT to bid the cue *slowly* (Stayman with a stopper,
     // see [`lebensohl_relay_rebid`]) — outweighing direct 3NT (1.5) so the 4-4
     // major fit is still found. Denies a 5-card major (Smolen / Leaping Michaels).
-    if let (true, Some(major)) = (agreements.build.competition.delayed_cue, unbid_major(over)) {
+    if let (true, Some(major)) = (agreements.competition.delayed_cue, unbid_major(over)) {
         rules = rules
             .rule(
                 Bid::new(2, Strain::Notrump),

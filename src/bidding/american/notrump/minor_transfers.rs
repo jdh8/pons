@@ -23,7 +23,7 @@ pub(super) fn puppet_minors(agreements: &Agreements) -> Rules {
     // 2♠ = six-card clubs, plus the bare-8 balanced size ask (no four-card major),
     // gated on `size_ask_eight`: `Shipped` excludes the flat 4-3-3-3 (it passes),
     // `Invite` size-asks the whole class, `Pass` drops the invite (clubs only).
-    let two_spades = match agreements.build.notrump.size_ask_eight {
+    let two_spades = match agreements.notrump.size_ask_eight {
         SizeAskEight::Shipped => Rules::new().rule(
             Bid::new(2, Strain::Spades),
             130,
@@ -133,7 +133,7 @@ fn two_spade_answer(agreements: &Agreements) -> Rules {
         .rule(
             Bid::new(3, Strain::Clubs),
             100,
-            hcp(agreements.build.notrump.size_ask_accept_floor..),
+            hcp(agreements.notrump.size_ask_accept_floor..),
         )
         .rule(Bid::new(2, Strain::Notrump), 90, hcp(0..))
 }

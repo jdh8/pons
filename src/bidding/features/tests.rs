@@ -831,10 +831,17 @@ fn penalty_one_hot() {
 #[test]
 fn card_block_is_the_whole_card() {
     assert_eq!(
-        crate::bidding::card::american_card().rows.len(),
+        crate::bidding::card::american_card(&crate::bidding::agreements::Agreements::current())
+            .rows
+            .len(),
         LEN_CARD_ROWS
     );
-    assert_eq!(crate::bidding::card::dutch_card().rows.len(), LEN_CARD_ROWS);
+    assert_eq!(
+        crate::bidding::card::dutch_card(&crate::bidding::agreements::Agreements::current())
+            .rows
+            .len(),
+        LEN_CARD_ROWS
+    );
     assert_eq!(LEN_CARD, LEN_SYSTEM + LEN_CARD_ROWS);
     assert_eq!(FEATURES_LEN_V4, FEATURES_LEN_V3 + 2 * LEN_CARD);
     assert_eq!(FEATURES_LEN_V4, 368);
@@ -848,8 +855,12 @@ fn card_block_is_the_whole_card() {
 /// indistinguishable from a 2/1 one.
 #[test]
 fn the_base_system_is_encoded() {
-    let american = Config::symmetric(&crate::bidding::card::american_card());
-    let dutch = Config::symmetric(&crate::bidding::card::dutch_card());
+    let american = Config::symmetric(&crate::bidding::card::american_card(
+        &crate::bidding::agreements::Agreements::current(),
+    ));
+    let dutch = Config::symmetric(&crate::bidding::card::dutch_card(
+        &crate::bidding::agreements::Agreements::current(),
+    ));
 
     assert_eq!(american.ours[..LEN_SYSTEM], [1.0, 0.0, 0.0, 0.0, 0.0]);
     assert_eq!(dutch.ours[..LEN_SYSTEM], [0.0, 0.0, 1.0, 0.0, 0.0]);
@@ -875,8 +886,8 @@ fn the_base_system_is_encoded() {
 #[test]
 fn the_two_sides_are_independent() {
     let mixed = Config::new(
-        &crate::bidding::card::american_card(),
-        &crate::bidding::card::dutch_card(),
+        &crate::bidding::card::american_card(&crate::bidding::agreements::Agreements::current()),
+        &crate::bidding::card::dutch_card(&crate::bidding::agreements::Agreements::current()),
     );
     assert_eq!(mixed.ours[..LEN_SYSTEM], [1.0, 0.0, 0.0, 0.0, 0.0]);
     assert_eq!(mixed.theirs[..LEN_SYSTEM], [0.0, 0.0, 1.0, 0.0, 0.0]);
@@ -887,7 +898,9 @@ fn the_two_sides_are_independent() {
 #[test]
 fn features_v4_extends_v3_in_place() {
     let hand = hand("AQ32.K53.QJ4.A92");
-    let config = Config::symmetric(&crate::bidding::card::american_card());
+    let config = Config::symmetric(&crate::bidding::card::american_card(
+        &crate::bidding::agreements::Agreements::current(),
+    ));
     let auction = [bid(1, Strain::Spades)];
     let context = Context::new(RelativeVulnerability::NONE, &auction).with_config(&config);
 
@@ -919,11 +932,15 @@ fn a_convention_knob_moves_the_card_block() {
 
     let plain = {
         set_rkcb_variant(RkcbVariant::Plain);
-        Config::symmetric(&crate::bidding::card::american_card())
+        Config::symmetric(&crate::bidding::card::american_card(
+            &crate::bidding::agreements::Agreements::current(),
+        ))
     };
     let relocated = {
         set_rkcb_variant(RkcbVariant::Kickback);
-        Config::symmetric(&crate::bidding::card::american_card())
+        Config::symmetric(&crate::bidding::card::american_card(
+            &crate::bidding::agreements::Agreements::current(),
+        ))
     };
     set_rkcb_variant(RkcbVariant::Plain); // restore the shipped default (off)
     assert_ne!(
@@ -959,7 +976,8 @@ fn a_convention_knob_moves_the_card_block() {
 /// this test fails and the skew note should come out of both docs.
 #[test]
 fn bare_and_prefixed_contexts_disagree() {
-    let stance = crate::bidding::american().against();
+    let stance =
+        crate::bidding::american(&crate::bidding::agreements::Agreements::current()).against();
     // An artificial call whose meaning lives in its authoring rule: the
     // Jacoby 2NT game-forcing raise.  A bare context cannot project it.
     let auction = [
@@ -1048,7 +1066,10 @@ fn compact_layout_is_pinned() {
         0.0, // 26: minors_european — Puppet scheme by default
         0.0, // 27: landy — `set_landy` off
     ];
-    assert_eq!(ConventionCard::capture(false).encode(), expected);
+    assert_eq!(
+        ConventionCard::capture(&crate::bidding::agreements::Agreements::current(), false).encode(),
+        expected
+    );
 }
 
 /// Each enum block is a one-hot: exactly one slot set, whatever the variant
@@ -1061,7 +1082,8 @@ fn one_hot_blocks_are_exclusive() {
             assert_eq!(sum, 1.0, "block {block:?} of {agreements:?}");
         }
     };
-    let mut agreements = ConventionCard::capture(false);
+    let mut agreements =
+        ConventionCard::capture(&crate::bidding::agreements::Agreements::current(), false);
     check(agreements);
     for shape in [
         NotrumpShape::Balanced,
@@ -1101,12 +1123,16 @@ fn one_hot_blocks_are_exclusive() {
 #[test]
 fn projection_agrees_with_capture_at_defaults() {
     assert_eq!(
-        ConventionCard::from_card(&crate::bidding::card::american_card()),
-        ConventionCard::capture(false)
+        ConventionCard::from_card(&crate::bidding::card::american_card(
+            &crate::bidding::agreements::Agreements::current()
+        )),
+        ConventionCard::capture(&crate::bidding::agreements::Agreements::current(), false)
     );
     assert_eq!(
-        ConventionCard::from_card(&crate::bidding::card::dutch_card()),
-        ConventionCard::capture(true)
+        ConventionCard::from_card(&crate::bidding::card::dutch_card(
+            &crate::bidding::agreements::Agreements::current()
+        )),
+        ConventionCard::capture(&crate::bidding::agreements::Agreements::current(), true)
     );
 }
 
@@ -1114,8 +1140,10 @@ fn projection_agrees_with_capture_at_defaults() {
 #[test]
 fn features_v5_appends_both_blocks() {
     let hand = hand("AQ32.K53.QJ4.A92");
-    let ours = ConventionCard::capture(false);
-    let theirs = ConventionCard::from_card(&crate::bidding::card::dutch_card());
+    let ours = ConventionCard::capture(&crate::bidding::agreements::Agreements::current(), false);
+    let theirs = ConventionCard::from_card(&crate::bidding::card::dutch_card(
+        &crate::bidding::agreements::Agreements::current(),
+    ));
     let compact = CompactConfig::new(&ours, &theirs);
     let auction = [bid(1, Strain::Spades)];
     let context = Context::new(RelativeVulnerability::NONE, &auction).with_compact(&compact);
@@ -1218,7 +1246,7 @@ fn each_compact_axis_moves_its_slots_and_only_live_ones_move_the_net() {
             .collect::<Vec<u32>>()
     };
 
-    let base = ConventionCard::capture(false);
+    let base = ConventionCard::capture(&crate::bidding::agreements::Agreements::current(), false);
     let base_slots = base.encode();
     let baseline = logits(&base);
 
@@ -1238,7 +1266,11 @@ fn each_compact_axis_moves_its_slots_and_only_live_ones_move_the_net() {
 
     // `dutch` selects a book, not a knob, so it is the one axis with nothing to
     // arm — `capture` takes it as a parameter.
-    check("dutch", ConventionCard::capture(true), &[0]);
+    check(
+        "dutch",
+        ConventionCard::capture(&crate::bidding::agreements::Agreements::current(), true),
+        &[0],
+    );
 
     // Enum targets leave a trained lane deliberately: `Wide` (14), `Plain` (24)
     // and the five non-{Natural, Woolsey} defenses are folded, and `Wide` is
@@ -1355,12 +1387,13 @@ fn each_compact_axis_moves_its_slots_and_only_live_ones_move_the_net() {
 
     for (name, arm, restore, expect) in rows {
         arm();
-        let flipped = ConventionCard::capture(false);
+        let flipped =
+            ConventionCard::capture(&crate::bidding::agreements::Agreements::current(), false);
         restore();
         // Restored before a single assertion can panic, so a failing row cannot
         // strand a flipped knob for the next test on this thread.
         assert_eq!(
-            ConventionCard::capture(false),
+            ConventionCard::capture(&crate::bidding::agreements::Agreements::current(), false),
             base,
             "{name} did not restore"
         );

@@ -78,7 +78,7 @@ fn weak_two_notrump_advances(their_major: Suit, agreements: &Agreements) -> Rule
     // widening it with [`set_weak_two_notrump_points`] cannot leave advancer
     // driving to game on a 23-count — the bias would fall on exactly the hands
     // the widening adds.
-    let game = 24u8.saturating_sub(agreements.build.defense.weak_two_notrump_points.0);
+    let game = 24u8.saturating_sub(agreements.defense.weak_two_notrump_points.0);
 
     Rules::new()
         // Cue = Stayman for the *one* unbid major.  A flat (4333) is barred —
@@ -148,7 +148,7 @@ fn weak_two_notrump_relay_rebid(their_major: Suit) -> Rules {
 pub(super) fn weak_two_notrump_advance_package() -> Package {
     Package {
         name: "weak-two-notrump-advance",
-        gate: |agreements| agreements.build.defense.weak_two_notrump_advances_enabled,
+        gate: |agreements| agreements.defense.weak_two_notrump_advances_enabled,
         entries: |agreements| {
             let mut entries = Vec::new();
             for suit in [Suit::Hearts, Suit::Spades] {

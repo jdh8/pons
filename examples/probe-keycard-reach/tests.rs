@@ -10,7 +10,7 @@ fn calls(strs: &[&str]) -> Vec<Call> {
 /// The winning rule's prose for `call` at this point of a North-dealt
 /// auction, `""` when no authored rule serves it.
 fn describe(auction: &[&str], hand: &str, call: &str) -> String {
-    let stance = american().against();
+    let stance = american(&pons::bidding::agreements::Agreements::current()).against();
     let auction = calls(auction);
     let hand: Hand = hand.parse().expect("valid test hand");
     let seat = Seat::ALL[auction.len() % 4];
@@ -38,7 +38,7 @@ fn splinter_shows_shortness() {
         "shortness prose not found in {desc:?}"
     );
 
-    let stance = american().against();
+    let stance = american(&pons::bidding::agreements::Agreements::current()).against();
     let auction = calls(&["1S", "P", "4C", "P"]);
     let rel = relative(AbsoluteVulnerability::NONE, Seat::North);
     // Envelope realization is a legacy-hull-walk property: the splinter's

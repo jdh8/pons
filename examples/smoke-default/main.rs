@@ -11,7 +11,7 @@
 use clap::Parser;
 use contract_bridge::auction::Auction;
 use contract_bridge::{AbsoluteVulnerability, Seat};
-use pons::american;
+use pons::american_default;
 use rayon::prelude::*;
 use std::io::{BufWriter, Write};
 
@@ -33,7 +33,7 @@ struct Args {
 
 fn main() {
     let args = Args::parse();
-    let stance = american().against();
+    let stance = american_default().against();
     // Rayon is safe here because a built stance pins the knob state it was
     // built under: the workers read the stance, never their own thread-locals.
     // A harness that arms a *non*-default knob does the same — arm, build,

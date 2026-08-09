@@ -15,7 +15,7 @@ use super::*;
 /// never collides with the balanced-only size-ask or Puppet Stayman.  Natural 3NT —
 /// no alert.  Empty when off, which is the default.
 pub(super) fn long_minor_force_rule(agreements: &Agreements) -> Rules {
-    if !agreements.build.notrump.long_minor_force {
+    if !agreements.notrump.long_minor_force {
         return Rules::new();
     }
     Rules::new().rule(

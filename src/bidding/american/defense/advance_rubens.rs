@@ -91,7 +91,7 @@ pub(super) fn advance_rubens_rows(
     agreements: &Agreements,
 ) -> Vec<Entry> {
     let mut entries = Vec::new();
-    if agreements.build.defense.advance_rubens_enabled {
+    if agreements.defense.advance_rubens_enabled {
         for (bid, target) in advance_major_transfers(theirs) {
             let completion = Bid::new(3, Strain::from(target));
             for rho in ["-", "(X)"] {

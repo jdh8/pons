@@ -157,9 +157,9 @@ fn main() {
     // read at book-construction time, so build each arm under its own setting; the
     // baked tries are independent thereafter.  Restore the shipped default after.
     set_size_ask_eight(SizeAskEight::Invite);
-    let invite = american().against();
+    let invite = american(&pons::bidding::agreements::Agreements::current()).against();
     set_size_ask_eight(SizeAskEight::Pass);
-    let pass = american().against();
+    let pass = american(&pons::bidding::agreements::Agreements::current()).against();
     set_size_ask_eight(SizeAskEight::Shipped);
     let stances = [invite, pass];
 

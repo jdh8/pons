@@ -184,7 +184,7 @@ const AXES: [(&str, Flip); 16] = [
 
 /// Bid every deal sequentially on the current thread under the armed knobs.
 fn bid_all(deals: &[FullDeal]) -> Vec<String> {
-    let stance = american().against();
+    let stance = american(&pons::bidding::agreements::Agreements::current()).against();
     deals
         .iter()
         .enumerate()

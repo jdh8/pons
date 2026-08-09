@@ -19,7 +19,7 @@ fn two_notrump_responses(agreements: &Agreements) -> Rules {
     // takes every tie.  Off, the old guards tie at 2.0 and the pick between
     // the transfers is arbitrary (a weak 6♠5♥ could transfer to hearts and
     // scramble — the M6.4 A/B caught exactly that board).
-    let prefer_longer = agreements.build.notrump.transfer_longer_major;
+    let prefer_longer = agreements.notrump.transfer_longer_major;
     Rules::new()
         // 3-level Jacoby transfers.
         .rule(

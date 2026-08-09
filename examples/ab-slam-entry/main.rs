@@ -132,9 +132,12 @@ fn main() {
     // net floor is off (`slam_entry_reached`, src/bidding/instinct.rs).
     set_bilans_floor(!args.no_bilans);
     set_floor_slam_entry(BASELINE);
-    let plain = american().against();
+    let plain = american(&pons::bidding::agreements::Agreements::current()).against();
     set_floor_slam_entry(args.threshold);
-    let stances = [plain, american().against()];
+    let stances = [
+        plain,
+        american(&pons::bidding::agreements::Agreements::current()).against(),
+    ];
 
     // Deal sequentially (seeded, reproducible); bid both tables in parallel.
     let mut rng = StdRng::seed_from_u64(args.seed);

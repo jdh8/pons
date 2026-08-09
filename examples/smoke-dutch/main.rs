@@ -11,7 +11,7 @@
 use clap::Parser;
 use contract_bridge::auction::Auction;
 use contract_bridge::{AbsoluteVulnerability, Seat};
-use pons::dutch;
+use pons::dutch_default;
 use rayon::prelude::*;
 use std::io::{BufWriter, Write};
 
@@ -33,7 +33,7 @@ struct Args {
 
 fn main() {
     let args = Args::parse();
-    let stance = dutch().against();
+    let stance = dutch_default().against();
     // Rayon is safe here precisely because this dump takes no knobs: the
     // thread-locals are `const`-initialised to the shipped defaults, so a
     // worker thread starts out holding exactly the system under test.  A

@@ -108,9 +108,9 @@ fn main() {
     let mut rng = rand::rng();
 
     set_leaping_michaels(on_from(&args.ew));
-    let baseline = american().against();
+    let baseline = american(&pons::bidding::agreements::Agreements::current()).against();
     set_leaping_michaels(on_from(&args.ns));
-    let lm = american().against();
+    let lm = american(&pons::bidding::agreements::Agreements::current()).against();
 
     // Phase 1 (sequential, cheap): deal + the shape-only filter until `count`
     // boards pass. The RNG stays single-threaded so a seed reproduces a run.

@@ -412,6 +412,7 @@ impl Default for InstinctProfile {
         }
     }
 }
+
 impl InstinctProfile {
     /// Snapshot the instinct knobs active on this thread
     pub(crate) fn capture() -> Self {
@@ -5100,7 +5101,7 @@ pub fn instinct(agreements: &Agreements) -> Rules {
     // suit (a 5332 under the default balanced gate) escapes the redoubled `1NTxx`
     // rather than defend it; a 4-3-3-3/4-4-3-2 bust has nowhere to run and sits.
     // Construction-gated so the off arm of a duplicate A/B never carries the rule.
-    if agreements.build.instinct.doubler_xx_runout {
+    if agreements.instinct.doubler_xx_runout {
         for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
             let strain = Strain::from(suit);
             let major_bonus = if matches!(suit, Suit::Hearts | Suit::Spades) {
@@ -6318,7 +6319,7 @@ pub fn instinct(agreements: &Agreements) -> Rules {
     // now demands a genuine source of tricks: seven cards, or a good six (two of
     // the top three honors).  A ragged six-bagger competing to the three level
     // stays home (double or pass).
-    if agreements.build.instinct.competitive_rebid {
+    if agreements.instinct.competitive_rebid {
         for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
             let strain = Strain::from(suit);
             rules = rules.rule(
@@ -6356,7 +6357,7 @@ pub fn instinct(agreements: &Agreements) -> Rules {
     //  * 3NT over responder's free 1NT (`1X (1Y) 1NT -`): responder already
     //    promised 6-10 with a stopper, so a balanced 18-19 raises to game.
     //  * Responder raises the reopening 1NT to game with the trapped values.
-    if agreements.build.instinct.reopening_notrump {
+    if agreements.instinct.reopening_notrump {
         rules = rules
             .rule(
                 Bid::new(1, Strain::Notrump),

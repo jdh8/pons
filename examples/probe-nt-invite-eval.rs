@@ -136,7 +136,7 @@ static NT_INF: LazyLock<Inferences> =
 /// [`NT_INF`] verbatim: they are the pinned control that reproduces the
 /// 2026-07-22 verdict, and moving their input would forfeit the comparison.
 static NT_INF_PREFIXED: LazyLock<Inferences> = LazyLock::new(|| {
-    american()
+    american(&pons::bidding::agreements::Agreements::current())
         .against()
         .infer(RelativeVulnerability::NONE, &PRIOR)
 });

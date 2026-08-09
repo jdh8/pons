@@ -102,8 +102,8 @@ pub(super) fn author_direct_3nt(
 ) -> Rules {
     let nt = Bid::new(3, Strain::Notrump);
     match (
-        agreements.build.competition.direct_3nt_stopper,
-        agreements.build.competition.trap_pass,
+        agreements.competition.direct_3nt_stopper,
+        agreements.competition.trap_pass,
     ) {
         (true, true) => rules.rule(
             nt,
@@ -152,19 +152,19 @@ pub(super) fn natural_floor() -> (u8, u8) {
 
 /// Whether the weak natural escape is floored (and opener may raise it)
 pub(super) fn natural_floor_on(agreements: &Agreements) -> bool {
-    let natural_floor = agreements.build.competition.natural_floor;
+    let natural_floor = agreements.competition.natural_floor;
     natural_floor.0 > 0 || natural_floor.1 > 0
 }
 
 /// The HCP floor on the weak natural escape (`0` = none) — a bound, so the
 /// constraint type stays stable whether or not the floor is engaged.
 pub(super) fn natural_floor_hcp(agreements: &Agreements) -> u8 {
-    agreements.build.competition.natural_floor.0
+    agreements.competition.natural_floor.0
 }
 
 /// The total-points floor on the weak natural escape (`0` = none)
 pub(super) fn natural_floor_pts(agreements: &Agreements) -> u8 {
-    agreements.build.competition.natural_floor.1
+    agreements.competition.natural_floor.1
 }
 
 thread_local! {
@@ -211,7 +211,7 @@ pub fn defense_to_2d_multi() -> bool {
 
 /// Whether the `(2♦)`-as-Multi counter-defense is engaged
 fn defense_2d_multi(agreements: &Agreements) -> bool {
-    agreements.build.competition.defense_2d_multi
+    agreements.competition.defense_2d_multi
 }
 
 /// The single unbid major when `over` is itself a major (the other major)
@@ -417,7 +417,7 @@ pub(crate) fn lebensohl_relay_rebid(over: Suit, agreements: &Agreements) -> Rule
     // Stopper-split on: the *delayed* cue of their suit — Stayman with a stopper,
     // game-forcing, exactly a 4-card unbid major (denies 5). Answered by
     // [`cue_stayman_answer`] (the stopper is guaranteed, so 3NT is safe).
-    if let (true, Some(major)) = (agreements.build.competition.delayed_cue, unbid_major(over)) {
+    if let (true, Some(major)) = (agreements.competition.delayed_cue, unbid_major(over)) {
         rules = rules
             .rule(
                 Bid::new(3, Strain::from(over)),
@@ -469,10 +469,10 @@ pub(super) fn lebensohl_signoff_raise(signoff: Suit, resp_floor: u8) -> Rules {
 pub(super) fn lebensohl_package() -> Package {
     Package {
         name: "lebensohl",
-        gate: |agreements| agreements.build.competition.lebensohl_style != LebensohlStyle::Off,
+        gate: |agreements| agreements.competition.lebensohl_style != LebensohlStyle::Off,
         entries: |agreements| {
             const NT: &str = "P* 1NT";
-            let style = agreements.build.competition.lebensohl_style;
+            let style = agreements.competition.lebensohl_style;
 
             // Over a natural (2♣) overcall we play *systems on*, not Lebensohl:
             // 2♣ steals no room (every transfer/relay still sits above it), so
@@ -531,8 +531,7 @@ pub(super) fn lebensohl_package() -> Package {
             // colliding.  `stayman_answers()` rides along as the always-mass
             // catch-all, so a hand failing the club gate just answers Stayman
             // exactly as the rebase would (no silent pass).
-            if let Some((min_len, min_hcp, over_major)) = agreements.build.competition.penalty_pass
-            {
+            if let Some((min_len, min_hcp, over_major)) = agreements.competition.penalty_pass {
                 let pass_logit = if over_major { 150 } else { 75 };
                 entries.extend(rows_of(
                     Pattern::after("P* 1NT (2♣)", "X -"),
@@ -574,17 +573,16 @@ pub(super) fn lebensohl_package() -> Package {
                 // advance and pulls — the documented leak); the optional style
                 // cooperates (stand on a fit, run with a doubleton); takeout
                 // keeps the floor's advance.  Gated on the leave-in knob.
-                let opener_reply = match agreements.build.competition.double_style {
+                let opener_reply = match agreements.competition.double_style {
                     DoubleStyle::Penalty | DoubleStyle::PenaltyLight => {
                         Some(opener_leaves_in_penalty_double())
                     }
                     DoubleStyle::Optional => Some(opener_cooperates_optional(over)),
                     DoubleStyle::Takeout => None,
                 };
-                if let (true, Some(reply)) = (
-                    agreements.build.competition.penalty_double_leave_in,
-                    opener_reply,
-                ) {
+                if let (true, Some(reply)) =
+                    (agreements.competition.penalty_double_leave_in, opener_reply)
+                {
                     entries.extend(rows_of(Pattern::after(NT, &format!("{their} X -")), reply));
                 }
 

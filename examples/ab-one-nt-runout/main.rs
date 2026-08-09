@@ -224,7 +224,7 @@ fn arm(args: &Args, on: bool) -> Stance {
     set_preempt_4m_top_honors(p4_honors);
     set_preempt_4m_require_ace(p4_ace);
 
-    american().against()
+    american(&pons::bidding::agreements::Agreements::current()).against()
 }
 
 /// Bid out one deal, flipping the measured feature per acting side
@@ -292,7 +292,7 @@ fn arm_coverage(args: &Args) -> Stance {
     set_gambling_3nt_top_honors(2);
     set_gambling_3nt_require_ace(true);
     set_preempt_4m_over_double(true);
-    american().against()
+    american(&pons::bidding::agreements::Agreements::current()).against()
 }
 
 /// Bid one deal with the full gambling package on for every seat (coverage mode)

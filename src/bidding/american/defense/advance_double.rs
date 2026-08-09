@@ -37,7 +37,7 @@ pub fn advance_double(their_opening: Bid, agreements: &Agreements) -> Rules {
     // Convert for penalty: a trump stack sits for the double — yielding, under
     // `set_advance_pass_yield_major`, to a weak hand's 4+ unbid major.
     let sit = len(t, 4..) & top_honors(t, 2..) & hcp(6..);
-    let mut rules = if agreements.build.defense.advance_pass_yield_major_enabled {
+    let mut rules = if agreements.defense.advance_pass_yield_major_enabled {
         Rules::new().rule(Call::Pass, 150, sit & (hcp(10..) | no_unbid_major(t)))
     } else {
         Rules::new().rule(Call::Pass, 150, sit)
@@ -90,7 +90,7 @@ pub(super) fn natural_advance(
     agreements: &Agreements,
 ) -> Rules {
     let bid = Bid::new(bid_level, Strain::from(suit));
-    if agreements.build.defense.longest_first_advance_enabled {
+    if agreements.defense.longest_first_advance_enabled {
         rules.rule(
             bid,
             base,
@@ -179,7 +179,7 @@ pub(super) fn advance_of_double_package() -> Package {
         name: "advance-of-weak-two-double",
         gate: |_| true,
         entries: |agreements| {
-            let style = agreements.build.defense.advance_sohl_style;
+            let style = agreements.defense.advance_sohl_style;
             [Suit::Diamonds, Suit::Hearts, Suit::Spades]
                 .into_iter()
                 .flat_map(|suit| {
@@ -214,7 +214,7 @@ pub(super) fn advance_double_package() -> Package {
                 .into_iter()
                 .flat_map(|suit| {
                     let opening = Bid::new(1, Strain::from(suit));
-                    let advances = if agreements.build.defense.rich_advance_double_enabled {
+                    let advances = if agreements.defense.rich_advance_double_enabled {
                         advance_double_rich(opening, agreements)
                     } else {
                         advance_double(opening, agreements)

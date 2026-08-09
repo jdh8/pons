@@ -364,7 +364,10 @@ fn main() -> anyhow::Result<()> {
     let deals = pons::pdd::load_slice(&args.deals, args.skip, args.count)?;
     eprintln!("axis-reach: {} deals × 2 systems", deals.len());
 
-    let systems = [american().against(), dutch().against()];
+    let systems = [
+        american(&pons::bidding::agreements::Agreements::current()).against(),
+        dutch(&pons::bidding::agreements::Agreements::current()).against(),
+    ];
     let rkcb = [
         Call::Bid(Bid::new(5, Strain::Clubs)),
         Call::Bid(Bid::new(5, Strain::Diamonds)),

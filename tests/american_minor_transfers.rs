@@ -268,7 +268,7 @@ fn five_four_smolens_over_the_stayman_denial() {
 
 fn stance_forcing_long_minors() -> Stance {
     pons::bidding::american::set_long_minor_force(true);
-    let system = american().against();
+    let system = american(&pons::bidding::agreements::Agreements::current()).against();
     pons::bidding::american::set_long_minor_force(false);
     system
 }

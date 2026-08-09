@@ -131,7 +131,7 @@ pub(super) fn advance_minor_jump_rows(
     agreements: &Agreements,
 ) -> Vec<Entry> {
     let mut entries = Vec::new();
-    if agreements.build.defense.advance_minor_jump_enabled {
+    if agreements.defense.advance_minor_jump_enabled {
         for minor in [Suit::Clubs, Suit::Diamonds] {
             let m = Strain::from(minor);
             // A three-level minor jump exists only below their suit.

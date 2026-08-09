@@ -122,10 +122,10 @@ fn main() {
 
     set_delayed_cue(false);
     set_advance_sohl_style(style_from(&args.ew));
-    let baseline = american().against();
+    let baseline = american(&pons::bidding::agreements::Agreements::current()).against();
     set_delayed_cue(args.delayed_cue);
     set_advance_sohl_style(style_from(&args.ns));
-    let sohl = american().against();
+    let sohl = american(&pons::bidding::agreements::Agreements::current()).against();
     set_delayed_cue(false);
 
     // Phase 1 (sequential, cheap): deal + the shape-only filter until `count`

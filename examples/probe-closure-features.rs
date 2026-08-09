@@ -161,9 +161,12 @@ fn main() {
     // per setting: `stances[0]` knob-off (it also does the bidding), `[1]` on.
     set_gauge_membership(args.gauge);
     knob(false);
-    let off = american().against();
+    let off = american(&pons::bidding::agreements::Agreements::current()).against();
     knob(true);
-    let stances = [off, american().against()];
+    let stances = [
+        off,
+        american(&pons::bidding::agreements::Agreements::current()).against(),
+    ];
     knob(false);
     let stance = &stances[0];
 

@@ -459,7 +459,7 @@ fn gladiator_stolen_relay_double_is_read_as_the_relay() {
 #[test]
 fn gladiator_advances_follow_the_card() {
     crate::bidding::american::set_nt_overcall_gladiator(true);
-    let stance = crate::american().against();
+    let stance = crate::american(&crate::bidding::agreements::Agreements::current()).against();
     let node = [bid(1, Strain::Spades), bid(1, Strain::Notrump), Call::Pass];
     // After the relay and its forced 2♦ puppet: the XYZ-style sort.
     let sorted: Vec<Call> = node
@@ -589,7 +589,7 @@ fn gladiator_advances_follow_the_card() {
 #[test]
 fn gladiator_runs_out_of_the_doubled_overcall() {
     crate::bidding::american::set_nt_overcall_gladiator(true);
-    let stance = crate::american().against();
+    let stance = crate::american(&crate::bidding::agreements::Agreements::current()).against();
     let node = [
         bid(1, Strain::Spades),
         bid(1, Strain::Notrump),
@@ -644,7 +644,7 @@ fn gladiator_runs_out_of_the_doubled_overcall() {
 #[test]
 fn gladiator_continuations_are_authored_to_the_leaf() {
     crate::bidding::american::set_nt_overcall_gladiator(true);
-    let stance = crate::american().against();
+    let stance = crate::american(&crate::bidding::agreements::Agreements::current()).against();
     let p = Call::Pass;
     let base = [bid(1, Strain::Spades), bid(1, Strain::Notrump), p];
     let seq =

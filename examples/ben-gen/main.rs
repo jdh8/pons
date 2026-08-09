@@ -429,7 +429,7 @@ fn main() -> anyhow::Result<()> {
     // american() = the shipped net floor, by design: measure the real us vs BEN.
     // The gap lives off-book/contested, exactly where the net floor differs from
     // american_instinct(); the -1.906 Tier-S anchor (119675f) predates the swap.
-    let our_floor = american().against();
+    let our_floor = american(&pons::bidding::agreements::Agreements::current()).against();
     let epbot = if args.calibrate_epbot {
         let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());
         Some(BbaOracle::load(&path, SYSTEM_2_OVER_1, Vec::new())?)

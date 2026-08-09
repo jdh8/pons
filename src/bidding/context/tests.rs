@@ -217,7 +217,9 @@ fn decision_values_initialize_once() {
 fn configured_clone_preserves_decision_cache() {
     let context = Context::new(RelativeVulnerability::NONE, &[]).with_decision_cache(test_hand());
     let cache = Arc::clone(context.decision_cache.as_ref().expect("attached cache"));
-    let config = Config::symmetric(&american_card());
+    let config = Config::symmetric(&american_card(
+        &crate::bidding::agreements::Agreements::current(),
+    ));
     let configured = context.with_config(&config);
 
     assert_eq!(configured.revision, cache.revision);

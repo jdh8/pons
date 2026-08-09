@@ -159,7 +159,7 @@ pub(super) fn diamond_transfer_defense_enabled() -> bool {
 /// obstruction bid; the strong `3♣` (tracking the same floor) is weighted above
 /// the `X` so a real club hand declares rather than lead-directs.
 fn defense_to_their_stayman(agreements: &Agreements) -> Rules {
-    let (min_len, floor) = agreements.build.defense.stayman_defense_overcall;
+    let (min_len, floor) = agreements.defense.stayman_defense_overcall;
     Rules::new()
         .rule(
             Call::Double,
@@ -339,7 +339,7 @@ fn defense_to_their_diamond_transfer() -> Rules {
 pub(super) fn their_stayman_defense_package() -> Package {
     Package {
         name: "their-stayman-defense",
-        gate: |agreements| agreements.build.defense.stayman_defense_enabled,
+        gate: |agreements| agreements.defense.stayman_defense_enabled,
         entries: |agreements| {
             rows_of(
                 Pattern::node("P* (1NT) - (2♣)"),
@@ -355,7 +355,7 @@ pub(super) fn their_stayman_defense_package() -> Package {
 pub(super) fn their_transfer_defense_package() -> Package {
     Package {
         name: "their-transfer-defense",
-        gate: |agreements| agreements.build.defense.transfer_defense_enabled,
+        gate: |agreements| agreements.defense.transfer_defense_enabled,
         entries: |_| {
             [(Suit::Diamonds, Suit::Hearts), (Suit::Hearts, Suit::Spades)]
                 .into_iter()
@@ -377,7 +377,7 @@ pub(super) fn their_transfer_defense_package() -> Package {
 pub(super) fn their_minor_transfer_defense_package() -> Package {
     Package {
         name: "their-minor-transfer-defense",
-        gate: |agreements| agreements.build.defense.minor_transfer_defense_enabled,
+        gate: |agreements| agreements.defense.minor_transfer_defense_enabled,
         entries: |_| {
             rows_of(
                 Pattern::node("P* (1NT) - (2♠)"),
@@ -393,7 +393,7 @@ pub(super) fn their_minor_transfer_defense_package() -> Package {
 pub(super) fn their_diamond_transfer_defense_package() -> Package {
     Package {
         name: "their-diamond-transfer-defense",
-        gate: |agreements| agreements.build.defense.diamond_transfer_defense_enabled,
+        gate: |agreements| agreements.defense.diamond_transfer_defense_enabled,
         entries: |_| {
             rows_of(
                 Pattern::node("P* (1NT) - (2NT)"),

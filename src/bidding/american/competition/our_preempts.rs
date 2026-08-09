@@ -168,7 +168,7 @@ fn strong_two_reopening() -> Rules {
 pub(super) fn weak_two_competition_package() -> Package {
     Package {
         name: "weak-two-competition",
-        gate: |agreements| agreements.build.competition.weak_two_competition,
+        gate: |agreements| agreements.competition.weak_two_competition,
         entries: |agreements| {
             let two_nt = call(2, Strain::Notrump);
             let mut entries = Vec::new();
@@ -224,7 +224,7 @@ pub(super) fn weak_two_competition_package() -> Package {
 pub(super) fn strong_two_competition_package() -> Package {
     Package {
         name: "strong-two-competition",
-        gate: |agreements| agreements.build.competition.strong_two_competition,
+        gate: |agreements| agreements.competition.strong_two_competition,
         entries: |_| {
             const OPEN: &str = "P* 2♣";
             let mut entries = vec![rebase(Pattern::first(OPEN, "X"), ReplaceNext(Call::Pass))];
@@ -256,7 +256,7 @@ pub(super) fn strong_two_competition_package() -> Package {
 pub(super) fn strong_two_competition_package_legacy() -> Package {
     Package {
         name: "strong-two-competition",
-        gate: |agreements| agreements.build.competition.strong_two_competition,
+        gate: |agreements| agreements.competition.strong_two_competition,
         entries: |_| {
             const OPEN: &str = "P* 2♣";
             let mut entries = vec![rebase(Pattern::first(OPEN, "X"), ReplaceNext(Call::Pass))];

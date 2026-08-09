@@ -12,7 +12,7 @@ pub(super) fn bid(level: u8, strain: Strain) -> Call {
 /// The highest-logit call `american()` assigns the hand at the auction
 pub(super) fn best(auction: &[Call], hand: &str) -> Call {
     let hand = hand.parse().expect("valid test hand");
-    let logits = american()
+    let logits = american(&crate::bidding::agreements::Agreements::current())
         .against()
         .classify(hand, RelativeVulnerability::NONE, auction)
         .expect("a decision");
@@ -35,7 +35,7 @@ fn systems_on_over_two_clubs() {
     // `best` helper ignores legality, so it can't drop the now-illegal 2♣).
     let best_legal = |auction: &[Call], hand: &str| -> Call {
         let hand = hand.parse().expect("valid test hand");
-        let logits = american()
+        let logits = american(&crate::bidding::agreements::Agreements::current())
             .against()
             .classify(hand, RelativeVulnerability::NONE, auction)
             .expect("a decision");

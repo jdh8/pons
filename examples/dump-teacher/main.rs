@@ -86,7 +86,9 @@ use common::slam_ish;
 const SOFTMAX_LEN: usize = 38;
 
 #[derive(Parser)]
-#[command(about = "Dump (features, teacher_softmax) training rows from american()")]
+#[command(
+    about = "Dump (features, teacher_softmax) training rows from american(&pons::bidding::agreements::Agreements::current())"
+)]
 struct Args {
     /// Number of boards to bid out
     ///
@@ -598,8 +600,8 @@ fn to_convention_card(card: &pons::bidding::card::Card) -> anyhow::Result<EpbotC
 /// them, which is precisely what keeps the card, the code and the net in sync.
 fn card_for(system: &str) -> anyhow::Result<pons::bidding::card::Card> {
     Ok(match system {
-        "american" => american_card(),
-        "dutch" => dutch_card(),
+        "american" => american_card(&pons::bidding::agreements::Agreements::current()),
+        "dutch" => dutch_card(&pons::bidding::agreements::Agreements::current()),
         other => anyhow::bail!("--system must be american|dutch, got {other:?}"),
     })
 }
@@ -672,8 +674,12 @@ fn main() -> anyhow::Result<()> {
             // Letting them drift apart writes rows labelled with a system the
             // teacher was not playing -- the mislabeling that `verify_card`
             // guards against for BBA, one level up and just as invisible.
-            "american" if args.system == "dutch" => Box::new(dutch_instinct().against()),
-            "american" => Box::new(american_instinct().against()),
+            "american" if args.system == "dutch" => Box::new(
+                dutch_instinct(&pons::bidding::agreements::Agreements::current()).against(),
+            ),
+            "american" => Box::new(
+                american_instinct(&pons::bidding::agreements::Agreements::current()).against(),
+            ),
             "bba" => {
                 let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());
                 let card = args.card.as_deref().map(load_bbsa).transpose()?;
@@ -780,13 +786,16 @@ fn main() -> anyhow::Result<()> {
         if v5 {
             per_side_agreements.insert(
                 side.label(),
-                pons::bidding::features::ConventionCard::capture(side.dutch),
+                pons::bidding::features::ConventionCard::capture(
+                    &pons::bidding::agreements::Agreements::current(),
+                    side.dutch,
+                ),
             );
         }
         let stance = if side.dutch {
-            dutch().against()
+            dutch(&pons::bidding::agreements::Agreements::current()).against()
         } else {
-            american().against()
+            american(&pons::bidding::agreements::Agreements::current()).against()
         };
         per_side.insert(side.label(), (card, stance));
     }
@@ -817,8 +826,12 @@ fn main() -> anyhow::Result<()> {
         arm_kickback(a.kickback);
         arm_flips(a.flips);
         let teacher: Box<dyn System> = match args.teacher.as_str() {
-            "american" if a.dutch => Box::new(dutch_instinct().against()),
-            "american" => Box::new(american_instinct().against()),
+            "american" if a.dutch => Box::new(
+                dutch_instinct(&pons::bidding::agreements::Agreements::current()).against(),
+            ),
+            "american" => Box::new(
+                american_instinct(&pons::bidding::agreements::Agreements::current()).against(),
+            ),
             "bba" => {
                 let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());
                 let ours = to_convention_card(&ours)?;
@@ -892,8 +905,8 @@ fn main() -> anyhow::Result<()> {
         let reader: Option<Stance> = (args.configured && cells.is_empty() && !args.bare_context)
             .then(|| -> anyhow::Result<Stance> {
                 Ok(match args.system.as_str() {
-                    "dutch" => dutch().against(),
-                    _ => american().against(),
+                    "dutch" => dutch(&pons::bidding::agreements::Agreements::current()).against(),
+                    _ => american(&pons::bidding::agreements::Agreements::current()).against(),
                 })
             })
             .transpose()?;

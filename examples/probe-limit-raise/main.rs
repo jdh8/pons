@@ -45,9 +45,9 @@ fn main() {
     let vul = args.vulnerability;
 
     set_limit_raise_acceptance(false);
-    let baseline = american().against();
+    let baseline = american(&pons::bidding::agreements::Agreements::current()).against();
     set_limit_raise_acceptance(true);
-    let treatment = american().against();
+    let treatment = american(&pons::bidding::agreements::Agreements::current()).against();
     set_limit_raise_acceptance(false);
     let stances = [baseline, treatment];
 

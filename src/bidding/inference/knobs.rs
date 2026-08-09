@@ -1003,6 +1003,12 @@ impl ReadingProfile {
     }
 }
 
+/// The shipped reading agreements
+///
+/// The literals the `thread_local!` cells above were initialised with, lifted
+/// to where a value can carry them.  Held equal to
+/// [`reading_profile`] on a virgin thread by
+/// `decision_defaults_match_the_cells`.
 impl Default for ReadingProfile {
     fn default() -> Self {
         Self {

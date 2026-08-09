@@ -189,7 +189,7 @@ fn main() {
     let (lo, hi) = band(&args.on_ns_weak_two_nt_points);
     set_weak_two_notrump_points(lo, hi);
     set_weak_two_notrump_advances(args.on_ns_weak_two_nt_advances);
-    let stance_on = american().against();
+    let stance_on = american(&pons::bidding::agreements::Agreements::current()).against();
     set_free_bids(false);
     set_negative_double_shape(NegativeDoubleShape::Modern);
     set_free_bid_style(FreeBidStyle::Forcing);
@@ -200,7 +200,7 @@ fn main() {
     set_weak_two_notrump_points(lo, hi);
     set_weak_two_notrump_advances(args.off_ns_weak_two_nt_advances);
     set_free_1nt_floor(6);
-    let stance_off = american().against();
+    let stance_off = american(&pons::bidding::agreements::Agreements::current()).against();
 
     let mut rng = StdRng::seed_from_u64(args.sd_seed);
     // Each entry is that board's `[plain, perfect-defense]` SD price — one

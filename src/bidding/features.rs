@@ -1094,35 +1094,29 @@ impl ConventionCard {
     /// `dutch` is a parameter because it selects a *book*, not a knob:
     /// [`dutch`][crate::dutch()] overlays `american_book()` and inherits every
     /// knob below, so no knob can answer which book is in play.
-    #[must_use]
-    pub fn capture(dutch: bool) -> Self {
-        Self::of(&Agreements::current(), dutch)
-    }
-
-    /// [`capture`][Self::capture] on an explicit capture
     ///
     /// The disclosable subset of what we agreed, taken off the same value the
     /// book and the floor were built from — so the card cannot declare a
     /// convention the rules are not playing.
     #[must_use]
-    pub(in crate::bidding) fn of(a: &Agreements, dutch: bool) -> Self {
+    pub fn capture(a: &Agreements, dutch: bool) -> Self {
         Self {
             dutch,
             relocating: relocating(&a.decision),
             garbage_stayman: a.decision.reading.garbage_stayman(),
-            new_minor_forcing: a.build.rebid.new_minor_forcing,
+            new_minor_forcing: a.rebid.new_minor_forcing,
             xyz: a.decision.reading.xyz(),
-            transfer_super_accept: a.build.notrump.transfer_super_accept,
-            fourth_suit_forcing: a.build.rebid.fourth_suit_forcing,
-            jordan_truscott: a.build.competition.jordan_truscott,
-            leaping_michaels: a.build.defense.leaping_michaels_enabled,
-            responsive_takeout: a.build.defense.responsive_takeout_enabled,
-            major_support_double: a.build.competition.major_support_double,
+            transfer_super_accept: a.notrump.transfer_super_accept,
+            fourth_suit_forcing: a.rebid.fourth_suit_forcing,
+            jordan_truscott: a.competition.jordan_truscott,
+            leaping_michaels: a.defense.leaping_michaels_enabled,
+            responsive_takeout: a.defense.responsive_takeout_enabled,
+            major_support_double: a.competition.major_support_double,
             nt_splinter: a.decision.reading.nt_splinter(),
-            one_notrump_offshape: a.build.opening.one_notrump_offshape,
-            shape: a.build.opening.notrump_shape,
+            one_notrump_offshape: a.opening.one_notrump_offshape,
+            shape: a.opening.notrump_shape,
             defense: a.decision.reading.notrump_defense(),
-            lebensohl: a.build.competition.lebensohl_style,
+            lebensohl: a.competition.lebensohl_style,
             minors_european: a.decision.reading.notrump_minors() == EUROPEAN,
             landy: a.decision.reading.landy_range().is_some(),
         }

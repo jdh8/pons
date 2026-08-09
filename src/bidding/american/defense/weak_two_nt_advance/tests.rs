@@ -129,15 +129,17 @@ fn weak_two_notrump_relay_reads_as_diamonds_not_clubs() {
     use contract_bridge::Suit;
 
     super::weak_two_nt_advance::set_weak_two_notrump_advances(true);
-    let read = american().against().infer(
-        RelativeVulnerability::NONE,
-        &[
-            call(2, Strain::Hearts),
-            call(2, Strain::Notrump),
-            Call::Pass,
-            call(3, Strain::Clubs),
-        ],
-    );
+    let read = american(&crate::bidding::agreements::Agreements::current())
+        .against()
+        .infer(
+            RelativeVulnerability::NONE,
+            &[
+                call(2, Strain::Hearts),
+                call(2, Strain::Notrump),
+                Call::Pass,
+                call(3, Strain::Clubs),
+            ],
+        );
     let shown = read.announced(Relative::Rho);
     super::weak_two_nt_advance::set_weak_two_notrump_advances(false);
 

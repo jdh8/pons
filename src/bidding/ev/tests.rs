@@ -21,7 +21,7 @@ fn balanced_twenty() -> Hand {
 
 /// The deterministic continuation policy used throughout these tests.
 fn deterministic() -> impl System {
-    american().against()
+    american(&crate::bidding::agreements::Agreements::current()).against()
 }
 
 /// Sanity: the evaluator prefers the obviously-right call.  As dealer with a

@@ -104,9 +104,12 @@ fn main() {
     // milestone by disabling the net floor that otherwise shadows it.
     set_bilans_floor(!args.no_bilans);
     set_nt_hcp_read(false);
-    let plain = american().against();
+    let plain = american(&pons::bidding::agreements::Agreements::current()).against();
     set_nt_hcp_read(true);
-    let stances = [plain, american().against()];
+    let stances = [
+        plain,
+        american(&pons::bidding::agreements::Agreements::current()).against(),
+    ];
 
     // Deal sequentially (seeded, reproducible); bid both tables in parallel.
     let mut rng = StdRng::seed_from_u64(args.seed);

@@ -10,9 +10,9 @@ pub(crate) fn free_bid_answer_package_legacy() -> Package {
         gate: free_bids_engaged,
         entries: |agreements| {
             let cachalot =
-                agreements.build.competition.negative_double_shape == NegativeDoubleShape::Cachalot;
-            let negative = agreements.build.competition.free_bid_style == FreeBidStyle::Negative;
-            let transfer = agreements.build.competition.free_bid_style == FreeBidStyle::Transfer;
+                agreements.competition.negative_double_shape == NegativeDoubleShape::Cachalot;
+            let negative = agreements.competition.free_bid_style == FreeBidStyle::Negative;
+            let transfer = agreements.competition.free_bid_style == FreeBidStyle::Transfer;
             let mut entries = Vec::new();
             for opening in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
                 let o_strain = Strain::from(opening);

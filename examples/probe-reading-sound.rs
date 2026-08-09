@@ -171,7 +171,8 @@ fn parse_override(spec: &str) -> anyhow::Result<(CString, c_int)> {
 
 /// Our generated card, so BBA reads our calls the way `bba-gen` has it read them
 fn our_card() -> EpbotCard {
-    let card = pons::bidding::card::american_card();
+    let card =
+        pons::bidding::card::american_card(&pons::bidding::agreements::Agreements::current());
     EpbotCard {
         system: card.system,
         toggles: card
@@ -232,7 +233,7 @@ fn main() -> anyhow::Result<()> {
     } else {
         pons::bidding::ReadingScope::Alerted
     });
-    let stance = american().against();
+    let stance = american(&pons::bidding::agreements::Agreements::current()).against();
 
     // The opponents: a perturbed pons book (deviation panel axes B/C) or, by
     // default, EPBot on whichever card `--system`/`--their-card` names (axis A).
@@ -240,7 +241,7 @@ fn main() -> anyhow::Result<()> {
         Some(name) => Some(deviant_floor(
             name,
             // Our seat is bare `american()`, so that is the card they face.
-            &pons::bidding::card::american_card(),
+            &pons::bidding::card::american_card(&pons::bidding::agreements::Agreements::current()),
             args.their_dial,
             args.their_overcall_four_card,
             args.their_offshape_1nt,

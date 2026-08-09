@@ -44,7 +44,7 @@ pub(super) fn competition_over_transfer() -> bool {
 fn transfer_doubled_opener(major: Suit, bid: Suit, agreements: &Agreements) -> Rules {
     let strain = Strain::from(major);
     let mut rules = Rules::new();
-    if agreements.build.notrump.transfer_super_accept {
+    if agreements.notrump.transfer_super_accept {
         rules = rules.rule(Bid::new(3, strain), 150, len(major, 4..) & hcp(17..));
     }
     rules
@@ -99,7 +99,7 @@ fn transfer_overcalled_opener(major: Suit, over_suit: Suit, over_level: u8) -> R
 pub(super) fn competition_over_transfer_package() -> Package {
     Package {
         name: "competition-over-transfer",
-        gate: |agreements| agreements.build.competition.competition_over_transfer,
+        gate: |agreements| agreements.competition.competition_over_transfer,
         entries: |agreements| {
             let mut entries = Vec::new();
             for (resp, major) in [(Suit::Diamonds, Suit::Hearts), (Suit::Hearts, Suit::Spades)] {

@@ -56,7 +56,8 @@ pub mod trie;
 pub mod verify;
 
 pub use american::{
-    american, american_book, american_floor, american_instinct, american_with_card,
+    american, american_book, american_book_default, american_default, american_floor,
+    american_floor_default, american_instinct, american_instinct_default, american_with_card,
     american_with_config, set_one_notrump_offshape, set_overcall_four_card, set_weak_two_wild,
 };
 pub use array::Array;
@@ -65,7 +66,10 @@ pub use book::{
 };
 pub use compose::{OrElse, Versus};
 pub use context::Context;
-pub use dutch::{dutch, dutch_book, dutch_instinct, dutch_with_config};
+pub use dutch::{
+    dutch, dutch_book, dutch_book_default, dutch_default, dutch_instinct, dutch_instinct_default,
+    dutch_with_config,
+};
 #[cfg(feature = "dd")]
 pub use ev::ev_all;
 pub use features::{

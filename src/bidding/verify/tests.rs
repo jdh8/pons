@@ -245,7 +245,7 @@ fn projection_reproduces_the_declarative_readers() {
     // Project and read on the same prefixed context; assert the projection pass
     // pins the reader's exact ranges on the convention's signature seat.
     let agree = |auction: &[Call], who: Relative, suits: &[(Suit, Range)], points: Range| {
-        let stance = american().against();
+        let stance = american(&crate::bidding::agreements::Agreements::current()).against();
         let ctx = stance.prefixed_context(RelativeVulnerability::NONE, auction);
         let reader = *Inferences::read(&ctx).get(who);
         let projected = *authored_reading(&ctx).get(who);

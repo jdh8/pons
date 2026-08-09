@@ -106,9 +106,12 @@ fn main() {
     let vul = args.vulnerability;
     // `[plain, aware]`, indexed by the acting side's flag.
     set_inference_aware(false);
-    let plain = american().against();
+    let plain = american(&pons::bidding::agreements::Agreements::current()).against();
     set_inference_aware(true);
-    let stances = [plain, american().against()];
+    let stances = [
+        plain,
+        american(&pons::bidding::agreements::Agreements::current()).against(),
+    ];
 
     // Deals are seeded per board (base + index) so every arm/vul replays the
     // identical stream.  Both stances are plain values, so board bidding

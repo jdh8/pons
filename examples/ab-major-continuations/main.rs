@@ -210,9 +210,9 @@ fn main() {
     // own books; `two_over_one_force` is the exception — a classify-time read,
     // re-set per arm inside the worker below.
     set_knobs(&args, false);
-    let baseline = american().against();
+    let baseline = american(&pons::bidding::agreements::Agreements::current()).against();
     set_knobs(&args, true);
-    let treatment = american().against();
+    let treatment = american(&pons::bidding::agreements::Agreements::current()).against();
     set_knobs(&args, false);
     let stances = [baseline, treatment];
 

@@ -90,10 +90,12 @@ fn uvu_encircling_doubles_the_runout() {
         Call::Pass,
     ];
     let hand: Hand = "K54.84.732.KQJT9".parse().expect("valid test hand");
-    let (logits, _) = crate::bidding::american::american_instinct()
-        .against()
-        .classify_with_provenance(hand, RelativeVulnerability::NONE, &auction)
-        .expect("a legal auction classifies");
+    let (logits, _) = crate::bidding::american::american_instinct(
+        &crate::bidding::agreements::Agreements::current(),
+    )
+    .against()
+    .classify_with_provenance(hand, RelativeVulnerability::NONE, &auction)
+    .expect("a legal auction classifies");
     let c = (&logits.0)
         .into_iter()
         .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))

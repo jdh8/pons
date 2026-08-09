@@ -75,7 +75,7 @@ pub(super) fn advance_2nt_rows(
     agreements: &Agreements,
 ) -> Vec<Entry> {
     let mut entries = Vec::new();
-    if agreements.build.defense.advance_2nt_continuation_enabled {
+    if agreements.defense.advance_2nt_continuation_enabled {
         for rho in ["-", "(X)"] {
             let after_2nt = format!("{base} 2NT {rho}");
             entries.extend(rows_of(

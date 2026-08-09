@@ -60,9 +60,12 @@ fn main() {
     // The reading scope is captured into a stance when it is built, so each arm
     // gets its own book: `[off, on]`, indexed by the arm's flag.
     set_reading_scope(ReadingScope::None);
-    let off = american().against();
+    let off = american(&pons::bidding::agreements::Agreements::current()).against();
     set_reading_scope(ReadingScope::Alerted);
-    let sys = [off, american().against()];
+    let sys = [
+        off,
+        american(&pons::bidding::agreements::Agreements::current()).against(),
+    ];
 
     // Deals are seeded per board (base + index) so every arm/vul of the
     // experiment replays the identical stream.

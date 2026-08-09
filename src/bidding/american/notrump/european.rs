@@ -23,7 +23,7 @@ pub(super) fn european_minors(agreements: &Agreements) -> Rules {
     // 2NT = the bare-8 size ask (no four-card major), gated on `size_ask_eight`:
     // `Shipped` excludes the flat 4-3-3-3 (it passes), `Invite` size-asks the whole
     // class, `Pass` drops the 2NT size ask entirely.
-    let size_ask = match agreements.build.notrump.size_ask_eight {
+    let size_ask = match agreements.notrump.size_ask_eight {
         SizeAskEight::Shipped => Rules::new()
             .rule(
                 Bid::new(2, Strain::Notrump),
@@ -102,7 +102,7 @@ fn european_two_spade_rebid() -> Rules {
 /// The 2NT bidder is a balanced eight; opposite a 17 (`25` combined) opener accepts
 /// game, otherwise passes and plays 2NT — reproducing the natural-2NT outcome.
 fn european_two_nt_answer(agreements: &Agreements) -> Rules {
-    let floor = agreements.build.notrump.size_ask_accept_floor;
+    let floor = agreements.notrump.size_ask_accept_floor;
     Rules::new()
         .rule(Bid::new(3, Strain::Notrump), 100, hcp(floor..))
         .rule(Call::Pass, 0, hcp(..floor))

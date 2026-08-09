@@ -148,7 +148,7 @@ fn main() -> anyhow::Result<()> {
         pons::bidding::set_table_alert_reading(true);
         pons::bidding::set_pass_reading(true);
     }
-    let stance = american().against();
+    let stance = american(&pons::bidding::agreements::Agreements::current()).against();
     let seed = args.seed.unwrap_or_else(rand::random);
     let mut rng = StdRng::seed_from_u64(seed);
     let vul = args.vulnerability;

@@ -127,7 +127,7 @@ fn responsive_overcall_doubles(open: Suit, overcall: Suit, _raise_lvl: u8) -> Ru
 pub(super) fn responsive_double_package() -> Package {
     Package {
         name: "responsive-double",
-        gate: |agreements| agreements.build.defense.responsive_takeout_enabled,
+        gate: |agreements| agreements.defense.responsive_takeout_enabled,
         entries: |_| {
             let mut entries = Vec::new();
             for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
@@ -153,7 +153,7 @@ pub(super) fn responsive_double_package() -> Package {
 pub(super) fn responsive_overcall_package() -> Package {
     Package {
         name: "responsive-double-over-overcall",
-        gate: |agreements| agreements.build.defense.responsive_overcall_enabled,
+        gate: |agreements| agreements.defense.responsive_overcall_enabled,
         entries: |_| {
             let mut entries = Vec::new();
             for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {

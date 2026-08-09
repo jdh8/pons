@@ -380,9 +380,9 @@ fn test_full_board_smoke() {
 
 #[test]
 fn strength_dial_zero_preserves_american_logits() {
-    let baseline = pons::american().against();
+    let baseline = pons::american(&pons::bidding::agreements::Agreements::current()).against();
     set_strength_dial(0);
-    let dial_zero = pons::american().against();
+    let dial_zero = pons::american(&pons::bidding::agreements::Agreements::current()).against();
     let mut rng = StdRng::seed_from_u64(0x5_7EED);
 
     for _ in 0..8 {

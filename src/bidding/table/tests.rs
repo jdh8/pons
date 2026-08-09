@@ -183,7 +183,7 @@ fn assert_same_classification(
 }
 
 fn assert_deal_cache_parity(count: usize, seed: u64) -> DealCacheCoverage {
-    let stance = american_book().against();
+    let stance = american_book(&crate::bidding::agreements::Agreements::current()).against();
     let vulnerabilities = [
         AbsoluteVulnerability::NONE,
         AbsoluteVulnerability::NS,

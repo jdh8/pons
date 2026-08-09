@@ -95,7 +95,7 @@ fn the_escape_hatch_blind_spot(ctx: &Context<'_>, rng: &mut StdRng) {
 
 /// Find a rule in the constructive opening node by its rendered gloss.
 fn opening_rule(gloss: &str) -> Option<Rule> {
-    let pair = american_book();
+    let pair = american_book(&pons::bidding::agreements::Agreements::current());
     let opening = find_node(&pair.constructive.0, &[])?;
     opening
         .rules()

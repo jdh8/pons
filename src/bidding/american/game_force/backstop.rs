@@ -74,7 +74,7 @@ fn game_backstop() -> Rules {
 pub(crate) fn backstops() -> Package {
     Package {
         name: "two-over-one-game-backstop",
-        gate: |agreements| agreements.build.game_force.game_backstop,
+        gate: |agreements| agreements.game_force.game_backstop,
         entries: |_| {
             let mut entries = Vec::new();
             for major in [Suit::Spades, Suit::Hearts] {

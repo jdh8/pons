@@ -48,7 +48,7 @@ fn main() {
         auction.push(call);
     }
 
-    let stance = american().against();
+    let stance = american(&pons::bidding::agreements::Agreements::current()).against();
     let seat = Seat::ALL[auction.len() % 4];
     let vul = relative(args.vulnerability, seat);
     // The prefixed reading — what the bidder actually sees (a bare

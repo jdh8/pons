@@ -220,7 +220,7 @@ pub fn notrump_responses(agreements: &Agreements) -> Rules {
     // Direct `4♥/4♠` is the opener-decides slam try; with the Texas slam-drive
     // reroute on it caps at the 15–16 invitational band (17+ Texas-transfers and
     // drives its own RKCB instead — see [`set_texas_slam_drive`]).
-    let direct_4m_max: u8 = if agreements.build.notrump.texas_slam_drive {
+    let direct_4m_max: u8 = if agreements.notrump.texas_slam_drive {
         15
     } else {
         18
@@ -235,7 +235,7 @@ pub fn notrump_responses(agreements: &Agreements) -> Rules {
     // 3♦, slam try → spades (the `1NT - 2♥ - 2♠ - 3♥` structure).  2♦ (to hearts) is
     // UNCHANGED by the invitational-5-4 reroute — a 5♥4♠ invite keeps
     // transferring and shows the spades with a later 2NT/2♠.
-    let prefer_longer = agreements.build.notrump.transfer_longer_major;
+    let prefer_longer = agreements.notrump.transfer_longer_major;
     let head = if prefer_longer {
         Rules::new().rule(
             Bid::new(2, Strain::Diamonds),
@@ -260,10 +260,7 @@ pub fn notrump_responses(agreements: &Agreements) -> Rules {
     // invitational+ values OFF the transfer so it Staymans; a six-card spade suit
     // (`len(♠,6..)`) and a weaker 5♠4♥ (`hcp(..8)`) still transfer.  Off the flag,
     // the classic any-strength-but-GF-5-4 gate.
-    let head = match (
-        prefer_longer,
-        agreements.build.notrump.invitational_5card_majors,
-    ) {
+    let head = match (prefer_longer, agreements.notrump.invitational_5card_majors) {
         (true, true) => head.rule(
             Bid::new(2, Strain::Hearts),
             200,

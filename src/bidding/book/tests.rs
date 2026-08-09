@@ -12,7 +12,7 @@ fn table_deal_state_activates_the_causal_cache_at_deep_prefixes() {
     use crate::bidding::american::american_book;
     use contract_bridge::auction::RelativeVulnerability;
 
-    let stance = american_book().against();
+    let stance = american_book(&crate::bidding::agreements::Agreements::current()).against();
     let hand = "AKQ2.K53.QJ4.T92".parse().expect("valid hand");
     let mut state = stance.new_deal_state().expect("stance deal state");
     assert!(
@@ -61,7 +61,7 @@ fn finalized_decoder_matches_legacy_resolution_on_frozen_corpus() {
     use crate::bidding::american::american_book;
     use crate::bidding::context::{Context, flipped};
 
-    let stance = american_book().against();
+    let stance = american_book(&crate::bidding::agreements::Agreements::current()).against();
     let corpus = performance_support::parse_corpus().expect("valid frozen corpus");
     for position in corpus {
         for depth in 0..=position.auction.len() {
@@ -122,7 +122,7 @@ fn compiled_authored_projection_matches_legacy_on_frozen_corpus() {
         set_pass_exclusion_reading(exclusion);
         set_announced_reading(announced);
         set_table_alert_reading(table);
-        let stance = american_book().against();
+        let stance = american_book(&crate::bidding::agreements::Agreements::current()).against();
         for position in &corpus {
             let context = stance.prefixed_context(position.vul, &position.auction);
             assert_compiled_authoring_projection_parity(&context);
@@ -144,7 +144,7 @@ fn append_only_step_cache_matches_from_scratch_frozen_prefixes() {
     use crate::bidding::context::flipped;
     use crate::bidding::inference::{AuthoringStepCache, assert_step_cache_projection_parity};
 
-    let stance = american_book().against();
+    let stance = american_book(&crate::bidding::agreements::Agreements::current()).against();
     let corpus = performance_support::parse_corpus().expect("valid frozen corpus");
     let mut cache_hits = 0usize;
     for position in corpus {
@@ -180,7 +180,7 @@ fn step_cache_drops_to_legacy_after_middeal_repin() {
     use crate::bidding::inference::{AuthoringStepCache, set_envelope_union_reading};
     use contract_bridge::auction::RelativeVulnerability;
 
-    let mut stance = american_book().against();
+    let mut stance = american_book(&crate::bidding::agreements::Agreements::current()).against();
     let auction = [bid(1, Strain::Notrump), Call::Pass];
     let mut cache = AuthoringStepCache::new();
     assert!(
@@ -211,7 +211,7 @@ fn step_cache_is_bound_to_stance_identity_and_probe_revision() {
     use crate::bidding::inference::AuthoringStepCache;
     use contract_bridge::auction::RelativeVulnerability;
 
-    let stance = american_book().against();
+    let stance = american_book(&crate::bidding::agreements::Agreements::current()).against();
     let clone = stance.clone();
     let mut clone_cache = AuthoringStepCache::new();
     assert!(
@@ -230,7 +230,7 @@ fn step_cache_is_bound_to_stance_identity_and_probe_revision() {
         "a clone preserves the stance cache identity"
     );
 
-    let other = american_book().against();
+    let other = american_book(&crate::bidding::agreements::Agreements::current()).against();
     let mut other_cache = AuthoringStepCache::new();
     assert!(
         other_cache
@@ -270,8 +270,12 @@ fn step_cache_is_bound_to_stance_identity_and_probe_revision() {
 fn probe_stores_and_reads_high_traffic_keys() {
     use contract_bridge::auction::RelativeVulnerability;
 
-    let mut stance = crate::bidding::american::american_book().against();
-    let plain = crate::bidding::american::american_book().against();
+    let mut stance =
+        crate::bidding::american::american_book(&crate::bidding::agreements::Agreements::current())
+            .against();
+    let plain =
+        crate::bidding::american::american_book(&crate::bidding::agreements::Agreements::current())
+            .against();
     let report = stance.probe(2000, 0x9B0BE);
     assert!(report.keys > 0, "probe stored nothing");
     assert!(report.drifted <= report.keys);
@@ -346,7 +350,9 @@ fn probed_vacuous_fills_only_open_axes_on_contested_own_calls() {
 
     use crate::bidding::{Envelope, Range};
 
-    let mut stance = crate::bidding::american::american_book().against();
+    let mut stance =
+        crate::bidding::american::american_book(&crate::bidding::agreements::Agreements::current())
+            .against();
     let boxed = |spades: Range, points: Range| {
         let mut envelope = Envelope::unknown();
         envelope.lengths[Suit::Spades as usize] = spades;
@@ -455,7 +461,7 @@ fn explain_call_names_book_and_floor_rules() {
     use contract_bridge::Hand;
     use contract_bridge::auction::RelativeVulnerability;
 
-    let stance = american_instinct().against();
+    let stance = american_instinct(&crate::bidding::agreements::Agreements::current()).against();
 
     // A book decision: the routine 1♠ opening resolves at the exact root
     // node (no fallback taken) and names the rule that produced it.
@@ -499,7 +505,7 @@ fn explanation_reuses_decision_initializers() {
     use contract_bridge::Hand;
     use contract_bridge::auction::RelativeVulnerability;
 
-    let stance = american_instinct().against();
+    let stance = american_instinct(&crate::bidding::agreements::Agreements::current()).against();
     let auction = [bid(1, Strain::Diamonds), ONE_HEART, P, TWO_HEARTS];
     let hand: Hand = "765.A.AKJT984.63".parse().expect("valid test hand");
     let context = stance.decision_context(hand, RelativeVulnerability::NONE, &auction);
@@ -543,7 +549,7 @@ fn public_paths_match_uncached_reference_bit_for_bit() {
     use contract_bridge::Hand;
     use contract_bridge::auction::RelativeVulnerability;
 
-    let stance = american_instinct().against();
+    let stance = american_instinct(&crate::bidding::agreements::Agreements::current()).against();
     let assert_classification = |hand: Hand, auction: &[Call]| {
         let (actual, actual_provenance) = stance
             .classify_with_provenance(hand, RelativeVulnerability::NONE, auction)
@@ -713,9 +719,9 @@ fn cached_reference_parity_across_reading_and_evaluator_profiles() {
         crate::bidding::instinct::set_net_collar(profile.collar);
 
         let stance = if profile.configured {
-            american().against()
+            american(&crate::bidding::agreements::Agreements::current()).against()
         } else {
-            american_instinct().against()
+            american_instinct(&crate::bidding::agreements::Agreements::current()).against()
         };
         let vul = vulnerabilities[index % vulnerabilities.len()];
         let cached = stance
@@ -864,7 +870,7 @@ fn cached_and_uncached_match_frozen_performance_corpus() {
     set_shipped_profile();
     let positions = performance_support::parse_corpus().expect("valid frozen corpus");
     assert_eq!(positions.len(), performance_support::POSITION_COUNT);
-    let stance = american().against();
+    let stance = american(&crate::bidding::agreements::Agreements::current()).against();
 
     for position in positions {
         let id = position.id;
@@ -983,7 +989,7 @@ fn cached_and_uncached_match_over_twenty_thousand_deals() {
             .unwrap_or(Call::Pass)
     }
 
-    let stance = american().against();
+    let stance = american(&crate::bidding::agreements::Agreements::current()).against();
     let vulnerabilities = [
         AbsoluteVulnerability::NONE,
         AbsoluteVulnerability::NS,
@@ -1054,8 +1060,8 @@ fn a_declared_opponent_reads_their_calls_in_their_books() {
     use contract_bridge::auction::RelativeVulnerability;
 
     let auction = [bid(1, Strain::Clubs), Call::Pass, bid(2, Strain::Diamonds)];
-    let ours = american_book().against();
-    let dutch = dutch_book().against();
+    let ours = american_book(&crate::bidding::agreements::Agreements::current()).against();
+    let dutch = dutch_book(&crate::bidding::agreements::Agreements::current()).against();
 
     let read = |stance: &super::Stance| {
         *stance
@@ -1063,7 +1069,11 @@ fn a_declared_opponent_reads_their_calls_in_their_books() {
             .get(Relative::Rho)
     };
     let undeclared = read(&ours);
-    let declared = read(&american_book().against().with_opponents(&dutch));
+    let declared = read(
+        &american_book(&crate::bidding::agreements::Agreements::current())
+            .against()
+            .with_opponents(&dutch),
+    );
 
     assert_eq!(undeclared.lengths[Suit::Diamonds as usize].min, 6);
     assert_eq!(undeclared.strength.points.min, 0);
@@ -1076,7 +1086,11 @@ fn a_declared_opponent_reads_their_calls_in_their_books() {
     assert_eq!(
         format!(
             "{:?}",
-            read(&american_book().against().with_opponents(&ours))
+            read(
+                &american_book(&crate::bidding::agreements::Agreements::current())
+                    .against()
+                    .with_opponents(&ours)
+            )
         ),
         format!("{undeclared:?}"),
     );
@@ -1118,8 +1132,8 @@ fn stance_pins_knobs_across_threads() {
         crate::bidding::american::set_transfer_gf_majors(false);
         crate::bidding::american::set_transfer_gf_hearts(false);
 
-        let ns = american();
-        let ew = american();
+        let ns = american(&crate::bidding::agreements::Agreements::current());
+        let ew = american(&crate::bidding::agreements::Agreements::current());
         let table = Table::of_pairs(&ns, &ew, Seat::North, AbsoluteVulnerability::NONE);
         let deals: Vec<FullDeal> = (0..24)
             .map(|seed| {

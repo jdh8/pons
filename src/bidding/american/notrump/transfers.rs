@@ -76,7 +76,7 @@ pub fn transfer_longer_major() -> bool {
 // the upgrade path if the A/B asks for them.
 pub(crate) fn complete_transfer(into: Suit, agreements: &Agreements) -> Rules {
     let mut rules = Rules::new();
-    if agreements.build.notrump.transfer_super_accept {
+    if agreements.notrump.transfer_super_accept {
         rules = rules.rule(
             Bid::new(3, Strain::from(into)),
             150,
@@ -223,7 +223,7 @@ pub(super) fn answer_transfer_spade_single() -> Rules {
 /// The package gate and this table deliberately read the knobs at different arities.
 fn heart_transfer_rebid_table(agreements: &Agreements) -> Rules {
     let mut heart_rebid = Rules::new();
-    if agreements.build.notrump.invitational_5card_majors {
+    if agreements.notrump.invitational_5card_majors {
         heart_rebid = heart_rebid.chain(transfer_heart_invite_rebid());
     }
     heart_rebid = heart_rebid.chain(sixcard_invite_rebid(Suit::Hearts, agreements));
@@ -237,7 +237,7 @@ fn heart_transfer_rebid_table(agreements: &Agreements) -> Rules {
 /// The package gate and this table deliberately read the knobs at different arities.
 fn spade_transfer_rebid_table(agreements: &Agreements) -> Rules {
     let mut spade_rebid = Rules::new();
-    if agreements.build.notrump.invitational_5card_majors {
+    if agreements.notrump.invitational_5card_majors {
         spade_rebid = spade_rebid.chain(transfer_spade_invite_rebid());
     }
     spade_rebid = spade_rebid.chain(sixcard_invite_rebid(Suit::Spades, agreements));
@@ -248,17 +248,17 @@ fn spade_transfer_rebid_table(agreements: &Agreements) -> Rules {
 
 /// Whether any treatment contributes to the heart-transfer rebid table
 fn heart_transfer_rebid_active(agreements: &Agreements) -> bool {
-    agreements.build.notrump.invitational_5card_majors
+    agreements.notrump.invitational_5card_majors
         || sixcard_invite_active(agreements)
-        || agreements.build.notrump.transfer_slam_try
+        || agreements.notrump.transfer_slam_try
         || agreements.decision.transfer_gf_hearts
 }
 
 /// Whether any treatment contributes to the spade-transfer rebid table
 fn spade_transfer_rebid_active(agreements: &Agreements) -> bool {
-    agreements.build.notrump.invitational_5card_majors
+    agreements.notrump.invitational_5card_majors
         || sixcard_invite_active(agreements)
-        || agreements.build.notrump.transfer_slam_try
+        || agreements.notrump.transfer_slam_try
         || agreements.decision.transfer_gf_majors
 }
 

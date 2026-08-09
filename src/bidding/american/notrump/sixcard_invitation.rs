@@ -60,7 +60,7 @@ pub(super) fn sixcard_invite_floor_raw() -> u8 {
 
 /// The current six-card-major game-invite floor, widened to the DSL's length type
 fn sixcard_invite_floor(agreements: &Agreements) -> usize {
-    usize::from(agreements.build.notrump.sixcard_invite_floor)
+    usize::from(agreements.notrump.sixcard_invite_floor)
 }
 
 /// The raw accept-floor knob for the six-card-major invite
@@ -70,7 +70,7 @@ pub(super) fn sixcard_accept_floor_raw() -> u8 {
 
 /// Opener's current accept floor, widened to the DSL's length type
 fn sixcard_accept_floor(agreements: &Agreements) -> usize {
-    usize::from(agreements.build.notrump.sixcard_accept_floor)
+    usize::from(agreements.notrump.sixcard_accept_floor)
 }
 
 /// Whether the six-card-major invite is authored: its floor sits below the Texas

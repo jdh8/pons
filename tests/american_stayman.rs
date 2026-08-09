@@ -223,7 +223,7 @@ fn stance_with(garbage: bool, both_majors: bool, five_card_max: bool) -> Stance 
     pons::bidding::american::set_garbage_stayman(garbage);
     pons::bidding::american::set_stayman_both_majors(both_majors);
     pons::bidding::american::set_stayman_5card_max(five_card_max);
-    let system = american().against();
+    let system = american(&pons::bidding::agreements::Agreements::current()).against();
     pons::bidding::american::set_garbage_stayman(true);
     pons::bidding::american::set_stayman_both_majors(true);
     pons::bidding::american::set_stayman_5card_max(true);

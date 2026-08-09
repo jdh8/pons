@@ -44,7 +44,7 @@ pub fn texas_slam_drive() -> bool {
 /// (game-only) transfers match no rule and pass opener's `4M`.  Empty unless the
 /// reroute is on ([`set_texas_slam_drive`]).
 fn texas_slam_drive_rebid(agreements: &Agreements) -> Rules {
-    if !agreements.build.notrump.texas_slam_drive {
+    if !agreements.notrump.texas_slam_drive {
         return Rules::new();
     }
     Rules::new()
@@ -99,7 +99,7 @@ pub(super) fn texas_game_floor_raw() -> u8 {
 
 /// The current game-blast floor, widened to the DSL's length type
 pub(super) fn texas_game_floor(agreements: &Agreements) -> usize {
-    usize::from(agreements.build.notrump.texas_game_floor)
+    usize::from(agreements.notrump.texas_game_floor)
 }
 
 /// The South African Texas game-blast strength gate for `major`:
@@ -167,7 +167,7 @@ pub(crate) fn texas_transfers() -> Package {
 pub(crate) fn texas_drive() -> Package {
     Package {
         name: "texas-slam-drive",
-        gate: |agreements| agreements.build.notrump.texas_slam_drive,
+        gate: |agreements| agreements.notrump.texas_slam_drive,
         entries: |agreements| {
             let heart_drive = "P* 1NT - 4♣ - 4♥ -";
             let spade_drive = "P* 1NT - 4♦ - 4♠ -";

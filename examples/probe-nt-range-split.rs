@@ -213,7 +213,7 @@ fn main() {
         .try_extend(prior.iter().copied())
         .expect("1NT - is a legal prior auction");
     let dealer = Seat::North;
-    let book: Pair = american();
+    let book: Pair = american(&pons::bidding::agreements::Agreements::current());
 
     let vuls = [
         ("none", AbsoluteVulnerability::NONE),

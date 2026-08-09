@@ -490,7 +490,7 @@ fn main() {
     // matter, so a single reading serves both arms (a deliberate simplification —
     // we do not flip the knob for inference, unlike the per-arm books below).
     // Built first, before any arm is armed, so it is the default-flag book.
-    let infer_stance = american().against();
+    let infer_stance = american(&pons::bidding::agreements::Agreements::current()).against();
 
     // Two books, `[baseline, candidate]`.  Every arm bakes its difference in at
     // build — the scale knobs are pinned into a stance, so a per-call flip would
@@ -498,17 +498,17 @@ fn main() {
     let stances = match arms {
         Arms::WeakTwoHcp { band } => {
             set_weak_two_hcp(None);
-            let baseline = american().against();
+            let baseline = american(&pons::bidding::agreements::Agreements::current()).against();
             set_weak_two_hcp(Some(band));
-            let candidate = american().against();
+            let candidate = american(&pons::bidding::agreements::Agreements::current()).against();
             set_weak_two_hcp(None);
             [baseline, candidate]
         }
         Arms::GateFix { fix } => {
             fix.set(false);
-            let baseline = american().against();
+            let baseline = american(&pons::bidding::agreements::Agreements::current()).against();
             fix.set(true);
-            let candidate = american().against();
+            let candidate = american(&pons::bidding::agreements::Agreements::current()).against();
             fix.set(false);
             [baseline, candidate]
         }
@@ -529,8 +529,10 @@ fn main() {
         //     are `pub(crate)`, and hardcoding the defaults here is the drift
         //     that rotted `probe-card-axes`'s `Defaults::capture`.
         _ => {
-            let mut baseline = american().against();
-            let mut candidate = american().against();
+            let mut baseline =
+                american(&pons::bidding::agreements::Agreements::current()).against();
+            let mut candidate =
+                american(&pons::bidding::agreements::Agreements::current()).against();
             arms.apply(false);
             baseline.repin();
             arms.apply(true);

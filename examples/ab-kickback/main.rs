@@ -331,7 +331,7 @@ fn per_trump_census(
 /// The convention card `arm` discloses — its knobs, read through `card.rs`
 fn card(arm: Arm) -> Card {
     arm_knobs(arm);
-    let card = american_card();
+    let card = american_card(&pons::bidding::agreements::Agreements::current());
     arm_knobs(Arm::Plain);
     card
 }
@@ -349,7 +349,8 @@ fn card(arm: Arm) -> Card {
 fn build(arm: Arm, opponent: Arm) -> Stance {
     let cell = Config::new(&card(arm), &card(opponent));
     arm_knobs(arm);
-    let stance = american_with_config(cell).against();
+    let stance =
+        american_with_config(&pons::bidding::agreements::Agreements::current(), cell).against();
     arm_knobs(Arm::Plain);
     stance
 }

@@ -120,7 +120,7 @@ pub(super) fn competition_over_minor_transfer_package() -> Package {
     Package {
         name: "competition-over-minor-transfer",
         gate: |agreements| {
-            agreements.build.competition.competition_over_minor_transfer
+            agreements.competition.competition_over_minor_transfer
                 && agreements.decision.reading.notrump_minors() == PUPPET
         },
         entries: |_| {

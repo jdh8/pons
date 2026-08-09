@@ -112,7 +112,7 @@ fn stayman_overcalled_opener(over: Suit) -> Rules {
 pub(super) fn competition_over_stayman_package() -> Package {
     Package {
         name: "competition-over-stayman",
-        gate: |agreements| agreements.build.competition.competition_over_stayman,
+        gate: |agreements| agreements.competition.competition_over_stayman,
         entries: |_| {
             const STAYMAN: &str = "P* 1NT - 2♣";
             // A.1 — our Stayman doubled.  Opener's coded reply, then the

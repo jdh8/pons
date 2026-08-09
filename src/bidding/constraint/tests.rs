@@ -197,9 +197,9 @@ fn strength_dial_survives_on_a_pinned_stance() {
     let hand = hand("KQ765.A8765.32.2"); // 11 points
 
     set_strength_dial(2);
-    let deviant = american_book().against();
+    let deviant = american_book(&crate::bidding::agreements::Agreements::current()).against();
     set_strength_dial(0);
-    let plain = american_book().against();
+    let plain = american_book(&crate::bidding::agreements::Agreements::current()).against();
 
     // An 11-count opens 1♥ only on the dialled stance; the plain one passes.
     let opened = |stance: &crate::bidding::book::Stance| {

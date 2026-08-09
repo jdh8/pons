@@ -279,9 +279,10 @@ fn allocation_report(
 
 fn bidding(c: &mut Criterion) {
     let positions = support::parse_corpus().expect("valid frozen bidding corpus");
-    let pair = american();
+    let pair = american(&pons::bidding::agreements::Agreements::current());
     let stance = pair.against();
-    let deterministic = american_instinct().against();
+    let deterministic =
+        american_instinct(&pons::bidding::agreements::Agreements::current()).against();
     validate_categories(&stance, &deterministic, &positions);
     let hot_instinct: Vec<_> = positions
         .iter()

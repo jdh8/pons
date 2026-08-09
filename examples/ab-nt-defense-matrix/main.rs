@@ -152,7 +152,7 @@ fn build_books() -> (Vec<Stance>, Vec<Stance>) {
     let build = |configure: &dyn Fn()| {
         reset_knobs();
         configure();
-        american().against()
+        american(&pons::bidding::agreements::Agreements::current()).against()
     };
     // The DONT parity config (docs/ai-bidder/1nt-defense-dont.md): 6+ one-suiter
     // minimum; DONT owns 2♣/2NT, so it carries its own both-minors band.  The

@@ -97,9 +97,9 @@ fn main() {
 
     // Two systems: the knob is read when the book is built, so build one each way.
     set_long_minor_force(false);
-    let sys_off = american().against();
+    let sys_off = american(&pons::bidding::agreements::Agreements::current()).against();
     set_long_minor_force(true);
-    let sys_on = american().against();
+    let sys_on = american(&pons::bidding::agreements::Agreements::current()).against();
 
     // Scan for a qualifying eight opposite partner's 1NT, bid both arms, keep the
     // deal plus each arm's final contract when they diverge.

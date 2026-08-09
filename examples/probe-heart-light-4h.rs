@@ -82,9 +82,9 @@ fn main() {
 
     // Two books, built once — the knob is read at construction, not classify time.
     set_two_over_one_heart_light(false);
-    let baseline = american().against();
+    let baseline = american(&pons::bidding::agreements::Agreements::current()).against();
     set_two_over_one_heart_light(true);
-    let candidate = american().against();
+    let candidate = american(&pons::bidding::agreements::Agreements::current()).against();
     set_two_over_one_heart_light(false);
 
     let deals = seeded_deals(seed, count);

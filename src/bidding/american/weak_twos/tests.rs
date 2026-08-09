@@ -12,7 +12,7 @@ use contract_bridge::{AbsoluteVulnerability, Hand, Seat};
 /// `max_by` argmax the module tests elsewhere use.  The 2♥/2♠ collision is
 /// only visible on this path.
 fn responds(open: Call, hand: &str) -> Call {
-    let stance = american().against();
+    let stance = american(&crate::bidding::agreements::Agreements::current()).against();
     let table = Table::new(
         stance.clone(),
         stance,
