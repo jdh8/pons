@@ -1,4 +1,5 @@
-use super::super::tests::{best_call, bid_diamond, call};
+use super::super::tests::{best_call, best_call_with, bid_diamond, call};
+use crate::bidding::agreements::Agreements;
 use contract_bridge::Strain;
 use contract_bridge::auction::Call;
 
@@ -100,9 +101,9 @@ fn diamond_competition_disabled_falls_to_floor() {
         call(2, Strain::Notrump),
         Call::Double,
     ];
-    super::set_competition_over_diamond_transfer(false);
-    let (_, floored) = best_call(&auction, "Axx.Kxx.Qxx.AKxx");
-    super::set_competition_over_diamond_transfer(true); // restore the on default
+    let mut off = Agreements::current();
+    off.competition.competition_over_diamond_transfer = false;
+    let (_, floored) = best_call_with(&off, &auction, "Axx.Kxx.Qxx.AKxx");
     assert!(floored, "with the toggle off opener falls to the floor");
 }
 

@@ -1,80 +1,12 @@
 //! The cue-bid raise, and opener's answer to it
 //!
 //! Responder's cue of their suit is a limit-plus raise of our opening.  Opener
-//! answers under [`set_cue_raise_answer`] for a major and
-//! [`set_cue_minor_raise_answer`] for a minor — different agreements, because a
+//! answers under `agreements.competition.cue_raise_answer` for a major and
+//! `agreements.competition.cue_minor_raise_answer` for a minor — different agreements, because a
 //! minor cue-raise looks for `3NT` and a major one for `4M`.  The *delayed* cue
-//! ([`set_delayed_cue`]) is the same raise one round later.
+//! (`agreements.competition.delayed_cue`) is the same raise one round later.
 
 use super::*;
-
-thread_local! {
-    /// Whether opener's answer to partner's cue-raise (`1M (ovc) cue -`)
-    /// is authored. Default on — without it the cue-raise falls through to the
-    /// keyless floor, which cannot act on a bid whose *named* suit (the cue)
-    /// differs from its *shown* suit (the major), so opener passes and the
-    /// cuebid is left in as the contract.
-    static CUE_RAISE_ANSWER: Cell<bool> = const { Cell::new(true) };
-}
-
-/// Author opener's answer to partner's cue-raise for books built *after* this
-/// call (thread-local)
-///
-/// **Default on** (`--no-ns-cue-raise-answer` in `bba-gen` for the off arm).
-pub fn set_cue_raise_answer(on: bool) {
-    CUE_RAISE_ANSWER.with(|cell| cell.set(on));
-}
-
-/// Whether opener's answer to a cue-raise is currently authored
-pub fn cue_raise_answer() -> bool {
-    CUE_RAISE_ANSWER.with(Cell::get)
-}
-
-thread_local! {
-    /// Whether opener's answer to a *minor*-opening cue-raise
-    /// (`1m (ovc) cue -`) is authored. The minor twin of
-    /// [`CUE_RAISE_ANSWER`]; separate knob so the A/B can isolate the minor
-    /// contribution over the already-shipped major answer. Default on.
-    static CUE_MINOR_RAISE_ANSWER: Cell<bool> = const { Cell::new(true) };
-}
-
-/// Author opener's answer to a minor-opening cue-raise for books built *after*
-/// this call (thread-local)
-///
-/// **Default on** (`--no-ns-cue-minor-raise-answer` in `bba-gen` for the off
-/// arm). Independent of [`set_cue_raise_answer`], which governs the majors.
-pub fn set_cue_minor_raise_answer(on: bool) {
-    CUE_MINOR_RAISE_ANSWER.with(|cell| cell.set(on));
-}
-
-/// Whether opener's answer to a minor-opening cue-raise is currently authored
-pub fn cue_minor_raise_answer() -> bool {
-    CUE_MINOR_RAISE_ANSWER.with(Cell::get)
-}
-
-thread_local! {
-    /// Whether the Transfer-Lebensohl cue is split by stopper (see
-    /// [`set_delayed_cue`]).
-    static DELAYED_CUE: Cell<bool> = const { Cell::new(false) };
-}
-
-/// Enable the stopper-split cue for books built *after* this call (thread-local,
-/// read once at book-construction time)
-///
-/// Larry Cohen's fast-denies / slow-shows, adapted to our Transfer Lebensohl:
-/// the *direct* cue of their suit denies a stopper, while a *delayed* cue (relay
-/// through `2NT`, then their suit) is Stayman *with* a stopper. It also denies a
-/// 5-card unbid major (Smolen / Leaping Michaels handle those). Only the
-/// single-unbid-major contexts — over `(2♥)` and `(2♠)` — are affected. Off by
-/// default; gated behind this toggle for A/B measurement.
-pub fn set_delayed_cue(on: bool) {
-    DELAYED_CUE.with(|cell| cell.set(on));
-}
-
-/// Whether the stopper-split cue is enabled
-pub fn delayed_cue() -> bool {
-    DELAYED_CUE.with(Cell::get)
-}
 
 /// Opener's answer after `1M (ovc) cue -` (partner cue-raised to a
 /// limit-plus raise of the opening major): accept to game or decline
@@ -143,7 +75,7 @@ pub(super) fn answer_cue_minor_raise(minor: Suit) -> Rules {
 }
 
 /// Section 4b as a row package: opener answers partner's cue-raise of the
-/// opening major ([`set_cue_raise_answer`][super::set_cue_raise_answer])
+/// opening major (`agreements.competition.cue_raise_answer`)
 ///
 /// The columns after the opening are their overcall at level `i` in suit `x`,
 /// our cue *of that suit* at level `j`, their pass.  The shared letter is what
@@ -190,7 +122,7 @@ pub(super) fn cue_raise_answer_package() -> Package {
 }
 
 /// Section 4c as a row package: the minor twin of
-/// [`cue_raise_answer_package`] ([`set_cue_minor_raise_answer`][super::set_cue_minor_raise_answer])
+/// [`cue_raise_answer_package`] (`agreements.competition.cue_minor_raise_answer`)
 ///
 /// A minor-opening cue-raise passes out the same way.  The cue may sit as high
 /// as `3♠` (a 2-level overcall forces the cue to the 3 level), so the ceiling

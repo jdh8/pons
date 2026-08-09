@@ -1,13 +1,13 @@
 //! The negative double — Sputnik, Cachalot, and opener's answers
 //!
 //! [`NegativeDoubleShape`] picks what the double promises.  Cachalot adds the
-//! transfer answers and the contested `X` ([`set_cachalot_contested_x`]); the
+//! transfer answers and the contested `X` (`agreements.competition.cachalot_contested_x`); the
 //! Sputnik residual is the leftover shape opener must still answer.
 
 use super::*;
 
 /// The negative-double school over our **minor** openings
-/// ([`set_negative_double_shape`]; the major-opening double — 4+ in the other
+/// (`agreements.competition.negative_double_shape`; the major-opening double — 4+ in the other
 /// major, 8+ — is common to all three)
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum NegativeDoubleShape {
@@ -35,50 +35,6 @@ pub enum NegativeDoubleShape {
     /// 2-level minor the Modern rules apply (no 1-level major to deny). Implies
     /// the free bids.
     Sputnik,
-}
-
-thread_local! {
-    /// Which negative-double school the minor openings play. Default
-    /// `Modern` — **shipped default-on 2026-07-10** with the forcing free-bid
-    /// answers: plain +0.0213 NV / +0.0074 vul (CI>0), sd arbiter +0.42/+0.29
-    /// per divergent board (CI>0, sd>plain, disclosure-corrected); the vul-PD
-    /// −0.026 is the perfect-defense doubling artifact on thin vul games.
-    static NEGATIVE_DOUBLE_SHAPE: Cell<NegativeDoubleShape> =
-        const { Cell::new(NegativeDoubleShape::Modern) };
-}
-
-/// Choose the negative-double school for books built *after* this call
-/// (thread-local)
-///
-/// Default [`NegativeDoubleShape::Modern`] — shipped default-on; pass
-/// `--ns-negative-double-shape both-majors` in `bba-gen` for the old rule.
-pub fn set_negative_double_shape(shape: NegativeDoubleShape) {
-    NEGATIVE_DOUBLE_SHAPE.with(|cell| cell.set(shape));
-}
-
-/// The negative-double school in effect
-pub fn negative_double_shape() -> NegativeDoubleShape {
-    NEGATIVE_DOUBLE_SHAPE.with(Cell::get)
-}
-
-thread_local! {
-    /// Whether opener's contested-X answer is authored (Cachalot only). Default
-    /// on; the off state restores the floored continuation for the A/B.
-    static CACHALOT_CONTESTED_X: Cell<bool> = const { Cell::new(true) };
-}
-
-/// Author opener's raise of a Cachalot `X` transfer when LHO competes over it
-/// (thread-local, Cachalot only)
-///
-/// Default on — `--no-ns-cachalot-contested-x` in `bba-gen` restores the old
-/// floored continuation.
-pub fn set_cachalot_contested_x(on: bool) {
-    CACHALOT_CONTESTED_X.with(|cell| cell.set(on));
-}
-
-/// Whether opener's contested-X answer is engaged
-pub(super) fn cachalot_contested_x() -> bool {
-    CACHALOT_CONTESTED_X.with(Cell::get)
 }
 
 /// The negative doubler's rebid after opener answers (`FreeBidStyle::

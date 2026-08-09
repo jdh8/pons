@@ -2,32 +2,8 @@
 //!
 //! After a minor opening and a major response, opener's `X`/`XX` promises
 //! exactly three of responder's major.  Gated by
-//! [`set_major_support_double`].
+//! `agreements.competition.major_support_double`.
 use super::*;
-
-thread_local! {
-    /// Whether opener's support double/redouble extends to the major-major
-    /// auction `1♥ - 1♠ (X / overcall below 2♠)`. The minor-opening
-    /// pairs are always on (shipped). **Default on** — measured vs BBA 2/1
-    /// (204.8k boards/arm/vul): plain DD wash (−0.0004/+0.0004, CIs straddle
-    /// 0), perfect-defense +0.97/+1.69 IMPs/fired NV/vul (vul CI excludes 0)
-    /// — the plain-wash + PD-gain ship row (~0.10% fired).
-    static MAJOR_SUPPORT_DOUBLE: Cell<bool> = const { Cell::new(true) };
-}
-
-/// Extend support doubles to `1♥ - 1♠` for books built *after* this
-/// call (thread-local)
-///
-/// **Default on** (`--no-ns-major-support-double` in `bba-gen` for the off
-/// arm).
-pub fn set_major_support_double(on: bool) {
-    MAJOR_SUPPORT_DOUBLE.with(|cell| cell.set(on));
-}
-
-/// Whether the major-major support double is engaged
-pub fn major_support_double() -> bool {
-    MAJOR_SUPPORT_DOUBLE.with(Cell::get)
-}
 
 /// Opener's support double/redouble rules showing three-card support for major M
 ///
@@ -45,7 +21,7 @@ fn support_rules(major: Suit) -> Rules {
 /// Section 3 as a row package: support doubles and redoubles
 ///
 /// The four minor-major pairs always; `1♥ - 1♠` behind
-/// [`set_major_support_double`][super::set_major_support_double] (default on).
+/// `agreements.competition.major_support_double` (default on).
 /// The double answers an overcall at most one step below our major
 /// ([`OvercallAtMost`]); the redouble answers their takeout double.
 pub(super) fn support_double_package() -> Package {

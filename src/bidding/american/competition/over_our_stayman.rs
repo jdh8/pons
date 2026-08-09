@@ -1,33 +1,9 @@
 //! Competition over our 2♣ Stayman
 //!
 //! Opener's replies after the opponents double or overcall our 2♣ Stayman are
-//! authored under [`set_competition_over_stayman`].
+//! authored under `agreements.competition.competition_over_stayman`.
 
 use super::*;
-
-thread_local! {
-    /// Whether opener authors continuations after the opponents contest our 2♣
-    /// Stayman (`1NT - 2♣ (X)` or a `2♦`/`2♥`/`2♠` overcall); **on by default**, with an
-    /// off-switch for A/B measurement.  See [`set_competition_over_stayman`].
-    static COMPETITION_OVER_STAYMAN: Cell<bool> = const { Cell::new(true) };
-}
-
-/// Author opener's replies after the opponents double or overcall our 2♣ Stayman,
-/// for books built *after* this call (thread-local; **on by default**).
-///
-/// Over a `(X)` (lead-directing clubs) opener answers in the *pass-denies-stopper*
-/// coded scheme: a major or `2♦` promises a club stopper, Pass denies one, `XX` is
-/// business clubs; responder's `XX` after opener's pass re-asks Stayman (forcing).
-/// Over a `(2♦/2♥/2♠)` overcall opener bids a 4-card major naturally if it
-/// outranks their suit, doubles for cards, else passes.
-pub fn set_competition_over_stayman(on: bool) {
-    COMPETITION_OVER_STAYMAN.with(|cell| cell.set(on));
-}
-
-/// Whether competition over our 2♣ Stayman is currently authored
-pub fn competition_over_stayman() -> bool {
-    COMPETITION_OVER_STAYMAN.with(Cell::get)
-}
 
 /// Opener's coded reply after the opponents double our 2♣ Stayman
 /// (`1NT - 2♣ (X)`)
@@ -104,7 +80,7 @@ fn stayman_overcalled_opener(over: Suit) -> Rules {
 }
 
 /// Competition over our own `2♣` Stayman as a row package
-/// ([`set_competition_over_stayman`], default on)
+/// (`agreements.competition.competition_over_stayman`, default on)
 ///
 /// Opener's replies after they double `1NT - 2♣ (X)` or overcall it.  Keyed
 /// at the `1NT - 2♣` node — a distinct trie path from the systems-on

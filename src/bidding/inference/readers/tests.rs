@@ -1041,9 +1041,9 @@ fn rubens_transfer_is_not_read_for_the_opponents() {
 /// The reading now comes from the authored `.alert(MICHAELS)` rule's own
 /// projection, so the auction must be read **keyed** (`read_booked`) and
 /// the knob that owns the reading is `set_table_alert_reading`, not
-/// `set_uvu_over_majors` (which kept only its book half).  The projection
-/// also carries the rule's strength floor, which the retired reader never
-/// did.
+/// `agreements.competition.uvu_over_majors` (which kept only its book
+/// half).  The projection also carries the rule's strength floor, which
+/// the retired reader never did.
 #[test]
 fn michaels_cue_over_our_major_reads_the_other_major() {
     // `1♥ (2♥)`: their direct cue of our opened major is Michaels — 5+
@@ -1166,12 +1166,12 @@ fn retired_two_suiter_reader_is_subsumed_by_the_projection() {
 
 #[test]
 fn uvu_major_cue_projects_the_raise() {
-    use crate::bidding::american::set_uvu_over_majors;
-
     // `1♥ (2NT) 3♣ -` from opener's seat: partner's cheap cue is the
     // alerted limit-plus raise — decoded off its authored rule's
-    // projection (3+ hearts, 10+), not as natural clubs.
-    set_uvu_over_majors(true);
+    // projection (3+ hearts, 10+), not as natural clubs.  `read_booked`
+    // builds under `Agreements::current()`, whose
+    // `competition.uvu_over_majors` is on by default — the arming this
+    // test needs.
     let inf = read_booked(&[
         bid(1, Strain::Hearts),
         bid(2, Strain::Notrump),

@@ -78,7 +78,7 @@ pub(super) fn sohl_rows_over(
         // Over (2♥)/(2♠) the delayed cue (2NT relay, then their suit) is always
         // *recognized* — answered as Stayman with a stopper — even when the bot
         // never bids it itself, so a human partner who plays it gets a sensible
-        // reply. `split` (the default-off `set_delayed_cue` toggle) additionally
+        // reply. `split` (the default-off `competition.delayed_cue` toggle) additionally
         // makes the bot *bid* the convention and read the direct cue as denying a
         // stopper (so it is answered without a free 3NT).
         let recognize = matches!(over, Suit::Hearts | Suit::Spades);

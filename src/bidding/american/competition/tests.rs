@@ -1,3 +1,4 @@
+use crate::bidding::agreements::Agreements;
 use crate::bidding::american::american;
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::{Bid, Hand, Strain};
@@ -69,73 +70,65 @@ pub(super) fn best_call_with(
     (best, prov.depth == 0 && prov.fallback.is_some())
 }
 
-/// As [`best_call`], with plain Lebensohl forced on (independent of any other
-/// test on this thread having changed the style)
+/// As [`best_call`], with plain Lebensohl pinned on
 pub(super) fn bid(auction: &[Call], hand: &str) -> (Call, bool) {
-    super::lebensohl::set_lebensohl_style(super::lebensohl::LebensohlStyle::Plain);
-    best_call(auction, hand)
+    let mut arm = Agreements::current();
+    arm.competition.lebensohl_style = super::lebensohl::LebensohlStyle::Plain;
+    best_call_with(&arm, auction, hand)
 }
 
-/// As [`best_call`], with Transfer Lebensohl forced on
+/// As [`best_call`], with Transfer Lebensohl pinned on
 pub(super) fn bid_transfer(auction: &[Call], hand: &str) -> (Call, bool) {
-    super::lebensohl::set_lebensohl_style(super::lebensohl::LebensohlStyle::Transfer);
-    best_call(auction, hand)
+    let mut arm = Agreements::current();
+    arm.competition.lebensohl_style = super::lebensohl::LebensohlStyle::Transfer;
+    best_call_with(&arm, auction, hand)
 }
 
-/// As [`best_call`], with the Unusual-vs-Unusual `(2NT)` structure forced on
+/// As [`best_call`], with the Unusual-vs-Unusual `(2NT)` structure pinned on
 /// at the default A/B floors
 pub(super) fn bid_uvu(auction: &[Call], hand: &str) -> (Call, bool) {
-    super::uvu::set_uvu(true);
-    super::uvu::set_uvu_x_floor(9);
-    super::uvu::set_uvu_cue_floor(8);
-    best_call(auction, hand)
+    let mut arm = Agreements::current();
+    arm.competition.uvu = true;
+    arm.competition.uvu_x_floor = 9;
+    arm.competition.uvu_cue_floor = 8;
+    best_call_with(&arm, auction, hand)
 }
 
 /// As [`best_call`], with our Jacoby-transfer competition + jump super-accept
-/// enabled (both opt-in/default-off after the DD-negative A/B); restores the
-/// competition cell so a thread reused by a later test sees it off again.
+/// enabled (both opt-in/default-off after the DD-negative A/B)
 pub(super) fn bid_xfer(auction: &[Call], hand: &str) -> (Call, bool) {
-    super::over_our_jacoby::set_competition_over_transfer(true);
-    let mut agreements = crate::bidding::agreements::Agreements::current();
-    agreements.notrump.transfer_super_accept = true;
-    let result = best_call_with(&agreements, auction, hand);
-    super::over_our_jacoby::set_competition_over_transfer(false);
-    result
+    let mut arm = Agreements::current();
+    arm.competition.competition_over_transfer = true;
+    arm.notrump.transfer_super_accept = true;
+    best_call_with(&arm, auction, hand)
 }
 
-/// As [`best_call`], with our 2♠ minor-transfer competition (Side A) forced on
-/// (it is also the default, but pin it so a thread that another test left off
-/// still sees it); restores the on default afterward.
+/// As [`best_call`], with our 2♠ minor-transfer competition (Side A) pinned on
+/// (it is also the default, but pin it so the arm is explicit)
 pub(super) fn bid_minor(auction: &[Call], hand: &str) -> (Call, bool) {
-    super::over_our_minor_transfer::set_competition_over_minor_transfer(true);
-    let result = best_call(auction, hand);
-    super::over_our_minor_transfer::set_competition_over_minor_transfer(true);
-    result
+    let mut arm = Agreements::current();
+    arm.competition.competition_over_minor_transfer = true;
+    best_call_with(&arm, auction, hand)
 }
 
-/// As [`best_call`], with our 2NT diamond-transfer competition (Side A) forced
-/// on (it is also the default, but pin it so a thread that another test left off
-/// still sees it); restores the on default afterward.
+/// As [`best_call`], with our 2NT diamond-transfer competition (Side A) pinned
+/// on (it is also the default, but pin it so the arm is explicit)
 pub(super) fn bid_diamond(auction: &[Call], hand: &str) -> (Call, bool) {
-    super::over_our_diamond_transfer::set_competition_over_diamond_transfer(true);
-    let result = best_call(auction, hand);
-    super::over_our_diamond_transfer::set_competition_over_diamond_transfer(true);
-    result
+    let mut arm = Agreements::current();
+    arm.competition.competition_over_diamond_transfer = true;
+    best_call_with(&arm, auction, hand)
 }
 
-/// As [`bid_transfer`], with the given double meaning forced on; resets the
-/// double style to the default afterward so it cannot leak across tests on
-/// the same thread.
+/// As [`bid_transfer`], with the given double meaning pinned on
 pub(super) fn bid_transfer_dbl(
     style: super::penalty_double::DoubleStyle,
     auction: &[Call],
     hand: &str,
 ) -> (Call, bool) {
-    super::lebensohl::set_lebensohl_style(super::lebensohl::LebensohlStyle::Transfer);
-    super::penalty_double::set_double_style(style);
-    let result = best_call(auction, hand);
-    super::penalty_double::set_double_style(super::penalty_double::DoubleStyle::default());
-    result
+    let mut arm = Agreements::current();
+    arm.competition.lebensohl_style = super::lebensohl::LebensohlStyle::Transfer;
+    arm.competition.double_style = style;
+    best_call_with(&arm, auction, hand)
 }
 
 /// Renderability invariant: every guarded fallback in the competitive book
@@ -197,14 +190,10 @@ fn competitive_fallbacks_are_renderable() {
     );
 }
 
-/// Build one package into a fresh trie.
-fn compiled_package(package: super::Package) -> crate::bidding::Trie {
+/// Build one package into a fresh trie under the given agreements.
+fn compiled_package(agreements: &Agreements, package: super::Package) -> crate::bidding::Trie {
     let mut book = crate::bidding::Trie::new();
-    super::compile_into(
-        &mut book,
-        &crate::bidding::agreements::Agreements::current(),
-        &[package],
-    );
+    super::compile_into(&mut book, agreements, &[package]);
     book
 }
 
@@ -213,6 +202,7 @@ fn compiled_package(package: super::Package) -> crate::bidding::Trie {
 /// catches both over- and under-expansion (an auction only one wiring
 /// answers shows up as `Some` vs `None`).
 fn assert_wirings_match(
+    agreements: &Agreements,
     legacy: super::Package,
     current: super::Package,
     auctions: &[Vec<Call>],
@@ -236,8 +226,8 @@ fn assert_wirings_match(
     .map(|hand| hand.parse().expect("valid probe hand"))
     .collect();
 
-    let old_book = compiled_package(legacy);
-    let new_book = compiled_package(current);
+    let old_book = compiled_package(agreements, legacy);
+    let new_book = compiled_package(agreements, current);
     for auction in auctions {
         let context = Context::new(RelativeVulnerability::NONE, auction);
         for &hand in &hands {
@@ -299,6 +289,8 @@ fn converted_packages_match_legacy() {
     use super::free_bids::FreeBidStyle;
     use super::negative_double::NegativeDoubleShape;
 
+    let shipped = Agreements::current();
+
     // Section 4: opener answers the negative double of a 2-level minor.
     let mut auctions = Vec::new();
     for major in [Strain::Hearts, Strain::Spades] {
@@ -313,6 +305,7 @@ fn converted_packages_match_legacy() {
     }
     auctions.retain(|auction| ascending(auction));
     assert_wirings_match(
+        &shipped,
         super::negative_double::answer_negative_double_package_legacy(),
         super::answer_negative_double_package(),
         &auctions,
@@ -339,6 +332,7 @@ fn converted_packages_match_legacy() {
     }
     auctions.retain(|auction| ascending(auction));
     assert_wirings_match(
+        &shipped,
         super::high_overcall::high_overcall_package_legacy(),
         super::high_overcall_package(),
         &auctions,
@@ -358,6 +352,7 @@ fn converted_packages_match_legacy() {
     }
     auctions.retain(|auction| ascending(auction));
     assert_wirings_match(
+        &shipped,
         super::our_preempts::strong_two_competition_package_legacy(),
         super::strong_two_competition_package(),
         &auctions,
@@ -394,14 +389,16 @@ fn converted_packages_match_legacy() {
         NegativeDoubleShape::Cachalot,
         NegativeDoubleShape::Sputnik,
     ] {
-        super::negative_double::set_negative_double_shape(shape);
         for style in [
             FreeBidStyle::Forcing,
             FreeBidStyle::Negative,
             FreeBidStyle::Transfer,
         ] {
-            super::free_bids::set_free_bid_style(style);
+            let mut arm = shipped;
+            arm.competition.negative_double_shape = shape;
+            arm.competition.free_bid_style = style;
             assert_wirings_match(
+                &arm,
                 super::free_bids::free_bid_answer_package_legacy(),
                 super::free_bid_answer_package(),
                 &auctions,
@@ -409,8 +406,6 @@ fn converted_packages_match_legacy() {
             );
         }
     }
-    super::negative_double::set_negative_double_shape(NegativeDoubleShape::Modern);
-    super::free_bids::set_free_bid_style(FreeBidStyle::Forcing);
 
     // Section 4b/4c: opener answers the cue-raise, majors and minors.  One
     // auction space serves both — each package's own ceiling decides which
@@ -435,12 +430,14 @@ fn converted_packages_match_legacy() {
     }
     auctions.retain(|auction| ascending(auction));
     assert_wirings_match(
+        &shipped,
         super::cue_raise::cue_raise_answer_package_legacy(),
         super::cue_raise_answer_package(),
         &auctions,
         "cue-raise-answer",
     );
     assert_wirings_match(
+        &shipped,
         super::cue_raise::cue_minor_raise_answer_package_legacy(),
         super::cue_minor_raise_answer_package(),
         &auctions,
@@ -469,12 +466,13 @@ fn converted_packages_match_legacy() {
         }
     }
     auctions.retain(|auction| ascending(auction));
-    super::negative_double::set_negative_double_shape(NegativeDoubleShape::Cachalot);
+    let mut cachalot = shipped;
+    cachalot.competition.negative_double_shape = NegativeDoubleShape::Cachalot;
     assert_wirings_match(
+        &cachalot,
         super::negative_double::cachalot_package_legacy(),
         super::cachalot_package(),
         &auctions,
         "cachalot-answer",
     );
-    super::negative_double::set_negative_double_shape(NegativeDoubleShape::Modern);
 }

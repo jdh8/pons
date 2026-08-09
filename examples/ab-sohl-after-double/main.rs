@@ -35,7 +35,7 @@ use contract_bridge::auction::Auction;
 use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat, Suit};
 use pons::american;
-use pons::bidding::american::{LebensohlStyle, set_advance_sohl_style, set_delayed_cue};
+use pons::bidding::american::{LebensohlStyle, set_advance_sohl_style};
 use pons::scoring::{final_contract, ns_score_contract};
 use rayon::prelude::*;
 
@@ -120,13 +120,14 @@ fn main() {
     let args = Args::parse();
     let mut rng = rand::rng();
 
-    set_delayed_cue(false);
     set_advance_sohl_style(style_from(&args.ew));
-    let baseline = american(&pons::bidding::agreements::Agreements::current()).against();
-    set_delayed_cue(args.delayed_cue);
+    let mut ew = pons::bidding::agreements::Agreements::current();
+    ew.competition.delayed_cue = false;
+    let baseline = american(&ew).against();
     set_advance_sohl_style(style_from(&args.ns));
-    let sohl = american(&pons::bidding::agreements::Agreements::current()).against();
-    set_delayed_cue(false);
+    let mut ns = pons::bidding::agreements::Agreements::current();
+    ns.competition.delayed_cue = args.delayed_cue;
+    let sohl = american(&ns).against();
 
     // Phase 1 (sequential, cheap): deal + the shape-only filter until `count`
     // boards pass. The RNG stays single-threaded so a seed reproduces a run.

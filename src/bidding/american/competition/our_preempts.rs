@@ -1,54 +1,10 @@
 //! Our contested weak twos and our contested strong `2♣`
 //!
 //! Two agreements sharing a shape: they interfere over *our* preemptive or
-//! strong opening.  [`set_weak_two_competition`] covers the weak two (business
-//! redouble, contested Ogust); [`set_strong_two_competition`] the `2♣` (systems
+//! strong opening.  `agreements.competition.weak_two_competition` covers the weak two (business
+//! redouble, contested Ogust); `agreements.competition.strong_two_competition` the `2♣` (systems
 //! on over their double, opener's forced reopening over their overcall).
 use super::*;
-
-thread_local! {
-    /// Whether our contested weak twos are authored: responder over their
-    /// takeout double (business `XX`, systems-on Ogust) and over their
-    /// overcall (Ogust-when-legal, values `X`, preemptive raises). Default
-    /// off while the A/B runs.
-    static WEAK_TWO_COMPETITION: Cell<bool> = const { Cell::new(false) };
-
-    /// Whether our contested strong 2♣ is authored: systems-on over their
-    /// double, and over their overcall a natural-GF / values-`X` / waiting-
-    /// pass structure backed by opener's forced reopening. Without it
-    /// responder's `X` falls to the floor's *takeout* reading — with a 22+
-    /// opener behind it. **Default on** — measured vs BBA 2/1 (204.8k
-    /// boards/arm/vul): plain DD +1.86/+2.79 IMPs/fired NV/vul,
-    /// perfect-defense +2.00/+2.93; all four cells' CIs exclude 0 (~0.05%
-    /// fired).
-    static STRONG_TWO_COMPETITION: Cell<bool> = const { Cell::new(true) };
-}
-
-/// Author our contested weak twos for books built *after* this call
-/// (thread-local)
-///
-/// Default off (`--ns-weak-two-comp` in `bba-gen` for the on arm).
-pub fn set_weak_two_competition(on: bool) {
-    WEAK_TWO_COMPETITION.with(|cell| cell.set(on));
-}
-
-/// Whether the contested weak-two package is engaged
-pub(super) fn weak_two_competition() -> bool {
-    WEAK_TWO_COMPETITION.with(Cell::get)
-}
-
-/// Author our contested strong 2♣ for books built *after* this call
-/// (thread-local)
-///
-/// **Default on** (`--no-ns-strong-two-comp` in `bba-gen` for the off arm).
-pub fn set_strong_two_competition(on: bool) {
-    STRONG_TWO_COMPETITION.with(|cell| cell.set(on));
-}
-
-/// Whether the contested strong-2♣ package is engaged
-pub(super) fn strong_two_competition() -> bool {
-    STRONG_TWO_COMPETITION.with(Cell::get)
-}
 
 /// Responder after our weak two in `our` and their takeout double
 ///
@@ -88,7 +44,7 @@ fn weak_two_overcalled_responder(our: Suit) -> Rules {
 }
 
 // ---------------------------------------------------------------------------
-// Section 8: our contested strong 2♣ (`set_strong_two_competition`)
+// Section 8: our contested strong 2♣ (`agreements.competition.strong_two_competition`)
 // ---------------------------------------------------------------------------
 
 /// Responder after our strong 2♣ and their overcall
@@ -158,7 +114,7 @@ fn strong_two_reopening() -> Rules {
 }
 
 /// Section 7 as a row package: our contested weak twos
-/// ([`set_weak_two_competition`][super::set_weak_two_competition], default off)
+/// (`agreements.competition.weak_two_competition`, default off)
 ///
 /// Their double: responder's first call at the deeper `2M (X)` node (business
 /// `XX` riding on the uncontested responses), everything deeper systems-on.
@@ -215,7 +171,7 @@ pub(super) fn weak_two_competition_package() -> Package {
 }
 
 /// Section 8 as a row package: our contested strong `2♣`
-/// ([`set_strong_two_competition`][super::set_strong_two_competition], default
+/// (`agreements.competition.strong_two_competition`, default
 /// on)
 ///
 /// Their double steals no room → systems on wholesale; their overcall gets

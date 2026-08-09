@@ -1,5 +1,5 @@
 #!/bin/sh
-# ab-free-bid-floor.sh — sweep the 1-level free-bid floor (set_free_bid_floor /
+# ab-free-bid-floor.sh — sweep the 1-level free-bid floor (competition.free_bid_floor /
 # --ns-free-bid-floor) to trim the vulnerable-PD leak the whole free-bid family
 # (free bids, Modern, Cachalot, Sputnik) inherits. Prior campaign: free6 and
 # Modern6 both lose vs off on the vul cells to the 6-count 1-level/1NT floor.

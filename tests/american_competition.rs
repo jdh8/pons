@@ -148,8 +148,15 @@ fn test_answer_negative_double_bids_other_major() {
 }
 
 // ---------------------------------------------------------------------------
-// Section 5: the (2♦)-as-Multi counter-defense toggle (set_defense_to_2d_multi)
+// Section 5: the (2♦)-as-Multi counter-defense toggle (`defense_2d_multi`)
 // ---------------------------------------------------------------------------
+
+/// A stance whose competitive book reads their `(2♦)` over our `1NT` as a Multi
+fn stance_with_2d_multi(on: bool) -> Stance {
+    let mut arm = pons::bidding::agreements::Agreements::current();
+    arm.competition.defense_2d_multi = on;
+    american(&arm).against()
+}
 
 #[test]
 fn test_multi_2d_double_is_values() {
@@ -157,21 +164,15 @@ fn test_multi_2d_double_is_values() {
     // 2♦ as natural diamonds; the default Optional double needs 2-3 of them, so a
     // four-diamond hand cannot fire and responder does not double. With the Multi
     // counter-defense on, 2♦ shows an unknown major and this values hand takes the
-    // workhorse double. The toggle is read at book construction, so set it before
-    // building each stance. (Four diamonds, not three: under the default Optional
+    // workhorse double. The field is read at book construction, so each arm builds
+    // its own stance. (Four diamonds, not three: under the default Optional
     // style — 2-3 cards — a three-diamond hand would optional-double in *both* arms,
     // erasing the contrast.)
     let auction = &[call(1, Strain::Notrump), call(2, Strain::Diamonds)];
     let hand = "KJ4.Q73.J762.Q53";
 
-    pons::bidding::american::set_defense_to_2d_multi(false);
-    let off = best_call(&stance(), auction, hand);
-
-    pons::bidding::american::set_defense_to_2d_multi(true);
-    let on = best_call(&stance(), auction, hand);
-
-    // Restore the default so the toggle never leaks to another test on this thread.
-    pons::bidding::american::set_defense_to_2d_multi(false);
+    let off = best_call(&stance_with_2d_multi(false), auction, hand);
+    let on = best_call(&stance_with_2d_multi(true), auction, hand);
 
     assert_eq!(
         on,
@@ -186,9 +187,13 @@ fn competitive_4333_knob_gates_the_cue_stayman() {
     // 1NT (2♥): a flat 4-3-3-3 with four spades and game values cues 3♥ (Stayman)
     // to dig out the 4-4 spade fit.  The competitive-4333 knob governs whether that
     // flat hand still cues, or is diverted to 3NT (the constructive 4333 rule).  The
-    // toggle is read at book construction, so set it before building each stance,
-    // then restore the default so it never leaks to another test on this thread.
-    use pons::bidding::american::{Competitive4333, set_competitive_4333};
+    // field is read at book construction, so each arm builds its own stance.
+    use pons::bidding::american::Competitive4333;
+    let arm = |school| {
+        let mut agreements = pons::bidding::agreements::Agreements::current();
+        agreements.competition.competitive_4333 = school;
+        american(&agreements).against()
+    };
     let auction = &[call(1, Strain::Notrump), call(2, Strain::Hearts)];
     let cue = call(3, Strain::Hearts);
     // Flat 4333, four spades, game values.  The no-stopper hand cannot bid 3NT
@@ -196,33 +201,29 @@ fn competitive_4333_knob_gates_the_cue_stayman() {
     let no_stopper = "KQJ5.432.KQ3.Q43"; // 13 HCP, ♥432 unguarded
     let with_stopper = "KQJ5.K32.Q43.J43"; // 12 HCP, ♥K32 a stopper
 
-    set_competitive_4333(Competitive4333::Allow);
     assert_eq!(
-        best_call(&stance(), auction, no_stopper),
+        best_call(&arm(Competitive4333::Allow), auction, no_stopper),
         cue,
         "Allow: a flat 4333 cues as usual"
     );
 
-    set_competitive_4333(Competitive4333::Suppress);
     assert_ne!(
-        best_call(&stance(), auction, no_stopper),
+        best_call(&arm(Competitive4333::Suppress), auction, no_stopper),
         cue,
         "Suppress: a flat 4333 never cues"
     );
 
-    set_competitive_4333(Competitive4333::SuppressWithStopper);
+    let with_stopper_arm = arm(Competitive4333::SuppressWithStopper);
     assert_ne!(
-        best_call(&stance(), auction, with_stopper),
+        best_call(&with_stopper_arm, auction, with_stopper),
         cue,
         "SuppressWithStopper: a flat 4333 *with* a stopper is diverted to 3NT"
     );
     assert_eq!(
-        best_call(&stance(), auction, no_stopper),
+        best_call(&with_stopper_arm, auction, no_stopper),
         cue,
         "SuppressWithStopper: a stopperless flat 4333 still cues to find the fit"
     );
-
-    set_competitive_4333(Competitive4333::Suppress); // restore the default
 }
 
 // ---------------------------------------------------------------------------
@@ -290,7 +291,6 @@ fn competitive_rebid_reaches_the_missed_game() {
 
 #[test]
 fn doubled_splinter_runs_systems_on() {
-    use pons::bidding::american::set_splinter_doubled;
     // Anchor board 2448 (Constructive/book/round-1 bucket #4 tail): opener holds
     // 16 HCP with four aces and five spades. After the `1♠ - 4♣ (X)` splinter,
     // the knob off the double reroutes opener to the competitive book and the
@@ -311,13 +311,13 @@ fn doubled_splinter_runs_systems_on() {
     ];
     let hand = "A9543.AT75.A2.A4";
 
-    set_splinter_doubled(false);
-    let off = best_call(&stance(), &auction, hand);
-
-    set_splinter_doubled(true);
-    let on = best_call(&stance(), &auction, hand);
-
-    set_splinter_doubled(true); // restore the shipped default (on)
+    let arm = |systems_on| {
+        let mut agreements = pons::bidding::agreements::Agreements::current();
+        agreements.competition.splinter_doubled = systems_on;
+        american(&agreements).against()
+    };
+    let off = best_call(&arm(false), &auction, hand);
+    let on = best_call(&arm(true), &auction, hand);
 
     assert_eq!(
         off,

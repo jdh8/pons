@@ -1,49 +1,9 @@
 //! Competition over our 2NT diamond transfer
 //!
 //! Opener's replies after the opponents double or overcall our 2NT diamond transfer
-//! are authored under [`set_competition_over_diamond_transfer`].
+//! are authored under `agreements.competition.competition_over_diamond_transfer`.
 
 use super::*;
-
-thread_local! {
-    /// Whether opener authors continuations after the opponents contest our 2NT
-    /// diamond transfer (`1NT - 2NT (X)` or an overcall); **on by default**,
-    /// with an off-switch for A/B measurement.  See
-    /// [`set_competition_over_diamond_transfer`].
-    static COMPETITION_OVER_DIAMOND_TRANSFER: Cell<bool> = const { Cell::new(true) };
-}
-
-/// Author opener's replies after the opponents double or overcall our 2NT diamond
-/// transfer (6+♦, or 5♦-4♣), for books built *after* this call (thread-local;
-/// **on by default**).
-///
-/// Only the PUPPET scheme (the default) plays 2NT as the diamond transfer, so the
-/// block no-ops under EUROPEAN (where 2NT is the balanced size-ask).  Their `(X)`
-/// is lead-directing diamonds; the double frees `Pass` to be the catch-all
-/// "no fit" call, which lets opener's `3♣` shed its uncontested
-/// relay-denies-a-fit meaning and become **natural** (4+♣, finding responder's
-/// 5♦-4♣ club fit): `3♦` = accept with a diamond fit (3+♦), `3♣` = no fit but
-/// 4+♣, `XX` = maximum values without a fit (penalty-oriented), `Pass` = minimum
-/// catch-all.  After a fit-showing `3♦`/`3♣` responder's rebids match the
-/// uncontested tree (strip the `X` to a Pass); after `Pass`/`XX` (no fit)
-/// responder always holds 5+♦ and signs off in `3♦`.  An overcall is handled
-/// naturally: `3♣` leaves room to complete `3♦` with a fit (else `X` = penalty,
-/// Pass = minimum); a higher overcall keeps `3NT` (max + stopper) / `X` (their
-/// suit) / Pass.  **On by default** (off-switch `bba-gen
-/// --no-ns-comp-over-diamond-transfer`): a paired A/B vs BBA over 1 000 000
-/// `--filter-1nt` boards (410 fired, 0.04 %) measured a plain-DD **wash** (+0.24
-/// IMPs/board it fires on, CI straddling 0) and a clear perfect-defense gain (+3.40
-/// PD).  Unlike the 2♠ minor (which won on *both* scorers), the honest-DD signal is
-/// a wash — but it never *loses* on plain DD, and the PD gain is real value the day
-/// the opponents punish the floor's `X`-then-pull-to-`3NT` overreach, so it ships on.
-pub fn set_competition_over_diamond_transfer(on: bool) {
-    COMPETITION_OVER_DIAMOND_TRANSFER.with(|cell| cell.set(on));
-}
-
-/// Whether competition over our 2NT diamond transfer is currently authored
-pub fn competition_over_diamond_transfer() -> bool {
-    COMPETITION_OVER_DIAMOND_TRANSFER.with(Cell::get)
-}
 
 /// Opener's reply after the opponents double our 2NT diamond transfer
 /// (`1NT - 2NT (X)`)
@@ -108,7 +68,7 @@ fn diamond_overcalled_high(over: Suit) -> Rules {
 }
 
 /// Competition over our own `2NT` diamond transfer as a row package
-/// ([`set_competition_over_diamond_transfer`], default on)
+/// (`agreements.competition.competition_over_diamond_transfer`, default on)
 ///
 /// Opener's replies after they double `1NT - 2NT (X)` or overcall it.  Only
 /// the PUPPET scheme plays `2NT` as the diamond transfer, so the package

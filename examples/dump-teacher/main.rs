@@ -47,14 +47,14 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use ddss::TrickCountTable;
 use pons::bidding::Stance;
-use pons::bidding::agreements::{Agreements, NotrumpKnobs, OpeningKnobs, RebidKnobs};
+use pons::bidding::agreements::{
+    Agreements, CompetitionKnobs, NotrumpKnobs, OpeningKnobs, RebidKnobs,
+};
 use pons::bidding::american::{
     EUROPEAN, LebensohlStyle, NotrumpDefense, NotrumpShape, PUPPET, garbage_stayman,
-    jordan_truscott, leaping_michaels_enabled, lebensohl_style, major_support_double,
-    notrump_defense, notrump_minors, nt_splinter, responsive_takeout_enabled, set_garbage_stayman,
-    set_jordan_truscott, set_landy, set_leaping_michaels, set_lebensohl_style,
-    set_major_support_double, set_notrump_defense, set_notrump_minors, set_nt_splinter,
-    set_responsive_takeout, set_xyz,
+    leaping_michaels_enabled, notrump_defense, notrump_minors, nt_splinter,
+    responsive_takeout_enabled, set_garbage_stayman, set_landy, set_leaping_michaels,
+    set_notrump_defense, set_notrump_minors, set_nt_splinter, set_responsive_takeout, set_xyz,
 };
 use pons::bidding::card::{american_card, dutch_card};
 use pons::bidding::context::{Context, relative};
@@ -361,14 +361,14 @@ impl Defaults {
             offshape: OpeningKnobs::default().one_notrump_offshape,
             super_accept: NotrumpKnobs::default().transfer_super_accept,
             fsf: RebidKnobs::default().fourth_suit_forcing,
-            jordan: jordan_truscott(),
+            jordan: CompetitionKnobs::default().jordan_truscott,
             leaping: leaping_michaels_enabled(),
             responsive: responsive_takeout_enabled(),
-            support_x: major_support_double(),
+            support_x: CompetitionKnobs::default().major_support_double,
             splinter: nt_splinter(),
             shape: OpeningKnobs::default().notrump_shape,
             defense: notrump_defense(),
-            leb: lebensohl_style(),
+            leb: CompetitionKnobs::default().lebensohl_style,
             minors_european: notrump_minors() == EUROPEAN,
         }
     }
@@ -376,13 +376,10 @@ impl Defaults {
     fn apply(&self) {
         set_garbage_stayman(self.garbage);
         set_xyz(self.xyz);
-        set_jordan_truscott(self.jordan);
         set_leaping_michaels(self.leaping);
         set_responsive_takeout(self.responsive);
-        set_major_support_double(self.support_x);
         set_nt_splinter(self.splinter);
         set_notrump_defense(self.defense);
-        set_lebensohl_style(self.leb);
         set_notrump_minors(if self.minors_european {
             EUROPEAN
         } else {
@@ -408,6 +405,12 @@ impl Defaults {
                 transfer_super_accept: self.super_accept,
                 ..NotrumpKnobs::default()
             },
+            competition: CompetitionKnobs {
+                jordan_truscott: self.jordan,
+                major_support_double: self.support_x,
+                lebensohl_style: self.leb,
+                ..CompetitionKnobs::default()
+            },
         }
     }
 }
@@ -418,6 +421,7 @@ struct Knobs {
     opening: OpeningKnobs,
     rebid: RebidKnobs,
     notrump: NotrumpKnobs,
+    competition: CompetitionKnobs,
 }
 
 impl Knobs {
@@ -427,6 +431,7 @@ impl Knobs {
         agreements.opening = self.opening;
         agreements.rebid = self.rebid;
         agreements.notrump = self.notrump;
+        agreements.competition = self.competition;
         agreements
     }
 }
@@ -481,13 +486,15 @@ const AXES: [(&str, Flip); 16] = [
     ("Fourth suit forcing", |d, k| {
         k.rebid.fourth_suit_forcing = !d.fsf;
     }),
-    ("Jordan Truscott 2NT", |d, _| set_jordan_truscott(!d.jordan)),
+    ("Jordan Truscott 2NT", |d, k| {
+        k.competition.jordan_truscott = !d.jordan;
+    }),
     ("Leaping Michaels", |d, _| set_leaping_michaels(!d.leaping)),
     ("Responsive double", |d, _| {
         set_responsive_takeout(!d.responsive)
     }),
-    ("Support double/redouble", |d, _| {
-        set_major_support_double(!d.support_x);
+    ("Support double/redouble", |d, k| {
+        k.competition.major_support_double = !d.support_x;
     }),
     ("1N-3M splinter", |d, _| set_nt_splinter(!d.splinter)),
     ("1NT offshape 4441/5422", |d, k| {
@@ -506,12 +513,12 @@ const AXES: [(&str, Flip); 16] = [
             NotrumpDefense::Woolsey
         });
     }),
-    ("Lebensohl rows", |d, _| {
-        set_lebensohl_style(if d.leb == LebensohlStyle::Off {
+    ("Lebensohl rows", |d, k| {
+        k.competition.lebensohl_style = if d.leb == LebensohlStyle::Off {
             LebensohlStyle::Transfer
         } else {
             LebensohlStyle::Off
-        });
+        };
     }),
     ("1NT minor scheme", |d, _| {
         set_notrump_minors(if d.minors_european { PUPPET } else { EUROPEAN });
@@ -538,7 +545,7 @@ static AXIS_DEFAULTS: OnceLock<Defaults> = OnceLock::new();
 /// reading.  Call it wherever [`arm_kickback`] is called for a side.
 ///
 /// Returns the [`Agreements`] the side plays — every build under this arming
-/// must be handed *this*, not a fresh `Agreements::current()`, or the four
+/// must be handed *this*, not a fresh `Agreements::current()`, or the
 /// value-borne axes silently revert to their shipped poles.
 fn arm_flips(flips: u16) -> Agreements {
     let defaults = AXIS_DEFAULTS.get_or_init(Defaults::capture);

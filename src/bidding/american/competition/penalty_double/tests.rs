@@ -1,4 +1,5 @@
-use super::super::tests::{best_call, bid_transfer_dbl, call};
+use super::super::tests::{best_call_with, bid_transfer_dbl, call};
+use crate::bidding::agreements::Agreements;
 use contract_bridge::Strain;
 use contract_bridge::auction::Call;
 
@@ -74,8 +75,6 @@ fn opener_pulls_a_takeout_double() {
 #[test]
 fn opener_leaves_in_responder_penalty_double_when_penalty_style() {
     use super::penalty_double::DoubleStyle;
-    use super::penalty_double::set_double_style;
-    use super::penalty_double::set_penalty_double_leave_in;
     // `1NT (2♥) X -` — responder penalty-doubled their heart overcall.
     let auction = [
         call(1, Strain::Notrump),
@@ -83,19 +82,21 @@ fn opener_leaves_in_responder_penalty_double_when_penalty_style() {
         Call::Double,
         Call::Pass,
     ];
-    super::lebensohl::set_lebensohl_style(super::lebensohl::LebensohlStyle::Plain);
     // Penalty style + leave-in on: opener SITS, and it is an authored node.
-    set_double_style(DoubleStyle::Penalty);
-    set_penalty_double_leave_in(true);
-    let (c_on, floored_on) = best_call(&auction, "AQ5.J42.KQ3.K842"); // flat 15, no ♥ stop
+    let mut on = Agreements::current();
+    on.competition.lebensohl_style = super::lebensohl::LebensohlStyle::Plain;
+    on.competition.double_style = DoubleStyle::Penalty;
+    on.competition.penalty_double_leave_in = true;
+    let (c_on, floored_on) = best_call_with(&on, &auction, "AQ5.J42.KQ3.K842"); // flat 15, no ♥ stop
     assert_eq!(c_on, Call::Pass, "penalty double left in");
     assert!(
         !floored_on,
         "the leave-in must be a book node, not the floor"
     );
     // Leave-in off: the floor reads the double as takeout and pulls — not a Pass.
-    set_penalty_double_leave_in(false);
-    let (c_off, floored_off) = best_call(&auction, "AQ5.J42.KQ3.K842");
+    let mut off = on;
+    off.competition.penalty_double_leave_in = false;
+    let (c_off, floored_off) = best_call_with(&off, &auction, "AQ5.J42.KQ3.K842");
     assert!(
         floored_off,
         "off → the node is gone, opener falls to the floor"
@@ -105,18 +106,11 @@ fn opener_leaves_in_responder_penalty_double_when_penalty_style() {
         Call::Pass,
         "the floor advances the double instead of sitting"
     );
-    // Restore the defaults for other tests sharing this thread.
-    set_penalty_double_leave_in(true);
-    set_double_style(DoubleStyle::Penalty);
-    super::lebensohl::set_lebensohl_style(super::lebensohl::LebensohlStyle::Transfer);
-    set_double_style(DoubleStyle::Optional);
 }
 
 #[test]
 fn opener_cooperates_with_responder_optional_double() {
     use super::penalty_double::DoubleStyle;
-    use super::penalty_double::set_double_style;
-    use super::penalty_double::set_penalty_double_leave_in;
     // `1NT (2♥) X -` — responder's OPTIONAL double (2-3 hearts + values).
     let auction = [
         call(1, Strain::Notrump),
@@ -124,24 +118,22 @@ fn opener_cooperates_with_responder_optional_double() {
         Call::Double,
         Call::Pass,
     ];
-    super::lebensohl::set_lebensohl_style(super::lebensohl::LebensohlStyle::Plain);
-    set_double_style(DoubleStyle::Optional);
-    set_penalty_double_leave_in(true);
+    let mut arm = Agreements::current();
+    arm.competition.lebensohl_style = super::lebensohl::LebensohlStyle::Plain;
+    arm.competition.double_style = DoubleStyle::Optional;
+    arm.competition.penalty_double_leave_in = true;
     // Three-card fit (♥Q93): stand and defend the doubled overcall.
-    let (fit, floored) = best_call(&auction, "AK5.Q93.KJ54.Q5");
+    let (fit, floored) = best_call_with(&arm, &auction, "AK5.Q93.KJ54.Q5");
     assert_eq!(fit, Call::Pass, "a three-card fit stands");
     assert!(!floored, "the cooperation must be an authored node");
     // Doubleton in their suit + a five-card suit (♣AKQ76): run with xx.
-    let (run, _) = best_call(&auction, "A52.93.KJ5.AKQ76");
+    let (run, _) = best_call_with(&arm, &auction, "A52.93.KJ5.AKQ76");
     assert_eq!(
         run,
         call(3, Strain::Clubs),
         "a doubleton runs to the five-card suit"
     );
     // Doubleton but no five-card suit: nowhere to run, so stand.
-    let (stuck, _) = best_call(&auction, "A52.93.KJ54.AKQ6");
+    let (stuck, _) = best_call_with(&arm, &auction, "A52.93.KJ54.AKQ6");
     assert_eq!(stuck, Call::Pass, "a doubleton with no suit stands");
-    set_double_style(DoubleStyle::Penalty); // restore the default
-    super::lebensohl::set_lebensohl_style(super::lebensohl::LebensohlStyle::Transfer);
-    set_double_style(DoubleStyle::Optional);
 }

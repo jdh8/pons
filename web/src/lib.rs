@@ -895,6 +895,22 @@ knob!(set_invitational_5card_majors, invitational_5card_majors, notrump.invitati
 knob!(set_transfer_longer_major, transfer_longer_major, notrump.transfer_longer_major: bool);
 knob!(set_stayman_cue_continuation, stayman_cue_continuation, notrump.stayman_cue_continuation: bool);
 knob!(set_stayman_minor_slam_try, stayman_minor_slam_try, notrump.stayman_minor_slam_try: bool);
+knob!(set_splinter_doubled, splinter_doubled, competition.splinter_doubled: bool);
+knob!(set_uvu, uvu, competition.uvu: bool);
+knob!(set_uvu_over_majors, uvu_over_majors, competition.uvu_over_majors: bool);
+knob!(set_direct_3nt_stopper, direct_3nt_stopper, competition.direct_3nt_stopper: bool);
+knob!(set_cue_raise_answer, cue_raise_answer, competition.cue_raise_answer: bool);
+knob!(set_cue_minor_raise_answer, cue_minor_raise_answer, competition.cue_minor_raise_answer: bool);
+knob!(set_major_support_double, major_support_double, competition.major_support_double: bool);
+knob!(set_high_overcall_responses, high_overcall_responses, competition.high_overcall_responses: bool);
+knob!(set_jordan_truscott, jordan_truscott, competition.jordan_truscott: bool);
+knob!(set_delayed_cue, delayed_cue, competition.delayed_cue: bool);
+knob!(set_competition_over_stayman, competition_over_stayman, competition.competition_over_stayman: bool);
+knob!(set_competition_over_minor_transfer, competition_over_minor_transfer, competition.competition_over_minor_transfer: bool);
+knob!(set_competition_over_diamond_transfer, competition_over_diamond_transfer, competition.competition_over_diamond_transfer: bool);
+knob!(set_defense_to_2d_multi, defense_to_2d_multi, competition.defense_2d_multi: bool);
+knob!(set_negative_double_shape, negative_double_shape, competition.negative_double_shape: american::NegativeDoubleShape);
+knob!(set_lebensohl_style, lebensohl_style, competition.lebensohl_style: american::LebensohlStyle);
 
 /// The Settings-tab registry: one row per user-facing bidding knob
 ///
@@ -1148,7 +1164,7 @@ static NEGATIVE_DOUBLE_VARIANTS: &[Variant] = &[
 /// Select the negative-double school from its registry `value`.
 fn set_negative_double_choice(value: &str) {
     use american::NegativeDoubleShape;
-    american::set_negative_double_shape(match value {
+    set_negative_double_shape(match value {
         "sputnik" => NegativeDoubleShape::Sputnik,
         "cachalot" => NegativeDoubleShape::Cachalot,
         _ => NegativeDoubleShape::Modern,
@@ -1159,7 +1175,7 @@ fn set_negative_double_choice(value: &str) {
 /// `value`.  The unoffered pre-Modern `BothMajors` reads as `modern`.
 fn get_negative_double_choice() -> &'static str {
     use american::NegativeDoubleShape;
-    match american::negative_double_shape() {
+    match negative_double_shape() {
         NegativeDoubleShape::Sputnik => "sputnik",
         NegativeDoubleShape::Cachalot => "cachalot",
         _ => "modern",
@@ -1210,7 +1226,7 @@ fn get_rkcb_variant_choice() -> &'static str {
 /// measured-worse arm, kept for A/B only.
 fn set_lebensohl_toggle(on: bool) {
     use american::LebensohlStyle;
-    american::set_lebensohl_style(if on {
+    set_lebensohl_style(if on {
         LebensohlStyle::Transfer
     } else {
         LebensohlStyle::Off
@@ -1219,7 +1235,7 @@ fn set_lebensohl_toggle(on: bool) {
 
 /// Whether Lebensohl is live.  See [`advance_sohl_toggle`] on `Plain`.
 fn lebensohl_toggle() -> bool {
-    american::lebensohl_style() != american::LebensohlStyle::Off
+    lebensohl_style() != american::LebensohlStyle::Off
 }
 
 /// Advancer's Lebensohl (after partner's takeout double is overcalled) as an on/off
@@ -1284,21 +1300,21 @@ static SETTINGS: &[Setting] = &[
     // Competition
     toggle("lebensohl", COMPETITION, "Lebensohl (over 1NT interference)", true, set_lebensohl_toggle, lebensohl_toggle),
     toggle("advance_lebensohl", COMPETITION, "Lebensohl advancing a double", true, set_advance_sohl_toggle, advance_sohl_toggle),
-    toggle("splinter_doubled", COMPETITION, "", true, american::set_splinter_doubled, american::splinter_doubled),
+    toggle("splinter_doubled", COMPETITION, "", true, set_splinter_doubled, splinter_doubled),
     toggle("passed_hand_overcall", COMPETITION, "", true, american::set_passed_hand_overcall, american::passed_hand_overcall),
-    toggle("uvu", COMPETITION, "Unusual vs Unusual", true, american::set_uvu, american::uvu),
-    toggle("uvu_over_majors", COMPETITION, "Unusual vs Unusual (over majors)", true, american::set_uvu_over_majors, american::uvu_over_majors),
-    toggle("direct_3nt_stopper", COMPETITION, "", true, american::set_direct_3nt_stopper, american::direct_3nt_stopper),
-    toggle("cue_raise_answer", COMPETITION, "", true, american::set_cue_raise_answer, american::cue_raise_answer),
-    toggle("cue_minor_raise_answer", COMPETITION, "", true, american::set_cue_minor_raise_answer, american::cue_minor_raise_answer),
-    toggle("major_support_double", COMPETITION, "", true, american::set_major_support_double, american::major_support_double),
-    toggle("high_overcall_responses", COMPETITION, "", false, american::set_high_overcall_responses, american::high_overcall_responses),
-    toggle("jordan_truscott", COMPETITION, "Jordan / Truscott 2NT", true, american::set_jordan_truscott, american::jordan_truscott),
-    toggle("delayed_cue", COMPETITION, "", false, american::set_delayed_cue, american::delayed_cue),
-    toggle("competition_over_stayman", COMPETITION, "", true, american::set_competition_over_stayman, american::competition_over_stayman),
-    gated("competition_over_minor_transfer", COMPETITION, "", true, american::set_competition_over_minor_transfer, american::competition_over_minor_transfer, "puppet_stayman"),
-    gated("competition_over_diamond_transfer", COMPETITION, "", true, american::set_competition_over_diamond_transfer, american::competition_over_diamond_transfer, "puppet_stayman"),
-    toggle("defense_to_2d_multi", COMPETITION, "", false, american::set_defense_to_2d_multi, american::defense_to_2d_multi),
+    toggle("uvu", COMPETITION, "Unusual vs Unusual", true, set_uvu, uvu),
+    toggle("uvu_over_majors", COMPETITION, "Unusual vs Unusual (over majors)", true, set_uvu_over_majors, uvu_over_majors),
+    toggle("direct_3nt_stopper", COMPETITION, "", true, set_direct_3nt_stopper, direct_3nt_stopper),
+    toggle("cue_raise_answer", COMPETITION, "", true, set_cue_raise_answer, cue_raise_answer),
+    toggle("cue_minor_raise_answer", COMPETITION, "", true, set_cue_minor_raise_answer, cue_minor_raise_answer),
+    toggle("major_support_double", COMPETITION, "", true, set_major_support_double, major_support_double),
+    toggle("high_overcall_responses", COMPETITION, "", false, set_high_overcall_responses, high_overcall_responses),
+    toggle("jordan_truscott", COMPETITION, "Jordan / Truscott 2NT", true, set_jordan_truscott, jordan_truscott),
+    toggle("delayed_cue", COMPETITION, "", false, set_delayed_cue, delayed_cue),
+    toggle("competition_over_stayman", COMPETITION, "", true, set_competition_over_stayman, competition_over_stayman),
+    gated("competition_over_minor_transfer", COMPETITION, "", true, set_competition_over_minor_transfer, competition_over_minor_transfer, "puppet_stayman"),
+    gated("competition_over_diamond_transfer", COMPETITION, "", true, set_competition_over_diamond_transfer, competition_over_diamond_transfer, "puppet_stayman"),
+    toggle("defense_to_2d_multi", COMPETITION, "", false, set_defense_to_2d_multi, defense_to_2d_multi),
     toggle("leaping_michaels", COMPETITION, "Leaping Michaels", true, american::set_leaping_michaels, american::leaping_michaels_enabled),
     toggle("responsive_takeout", COMPETITION, "Responsive doubles", true, american::set_responsive_takeout, american::responsive_takeout_enabled),
     toggle("rich_advance_double", COMPETITION, "", true, american::set_rich_advance_double, american::rich_advance_double_enabled),

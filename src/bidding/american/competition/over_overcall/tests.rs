@@ -30,11 +30,7 @@ fn admitted_overcalls(opening: Strain) -> Vec<Bid> {
 #[test]
 fn per_overcall_tables_match_legacy() {
     use super::super::free_bids::FreeBidStyle;
-    use super::super::free_bids::set_free_bid_quality;
-    use super::super::free_bids::set_free_bid_style;
-    use super::super::free_bids::set_free_bids;
     use super::super::negative_double::NegativeDoubleShape;
-    use super::super::negative_double::set_negative_double_shape;
     use super::over_their_overcall;
     use super::over_their_overcall_legacy;
     use crate::bidding::context::Context;
@@ -69,18 +65,18 @@ fn per_overcall_tables_match_legacy() {
         NegativeDoubleShape::Cachalot,
         NegativeDoubleShape::Sputnik,
     ] {
-        set_negative_double_shape(shape);
         for style in [
             FreeBidStyle::Forcing,
             FreeBidStyle::Negative,
             FreeBidStyle::Transfer,
         ] {
-            set_free_bid_style(style);
             for engaged in [false, true] {
-                set_free_bids(engaged);
                 for quality in [false, true] {
-                    set_free_bid_quality(quality);
-                    let agreements = Agreements::current();
+                    let mut agreements = Agreements::current();
+                    agreements.competition.negative_double_shape = shape;
+                    agreements.competition.free_bid_style = style;
+                    agreements.competition.free_bids = engaged;
+                    agreements.competition.free_bid_quality = quality;
                     for opening in Suit::ASC {
                         let legacy = over_their_overcall_legacy(opening, &agreements);
                         for overcall in admitted_overcalls(Strain::from(opening)) {
@@ -104,8 +100,4 @@ fn per_overcall_tables_match_legacy() {
             }
         }
     }
-    set_negative_double_shape(NegativeDoubleShape::Modern);
-    set_free_bid_style(FreeBidStyle::Forcing);
-    set_free_bids(false);
-    set_free_bid_quality(false);
 }

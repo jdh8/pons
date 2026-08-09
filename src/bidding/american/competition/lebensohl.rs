@@ -68,28 +68,6 @@ pub enum LebensohlStyle {
     Transfer,
 }
 
-thread_local! {
-    /// Whether responder's *direct* `3NT` over the overcall requires its own
-    /// stopper in their suit (the default, `true`) or may be bid on game values
-    /// alone, trusting opener's `1NT` for the stop (`false`). See
-    /// [`set_direct_3nt_stopper`].
-    static DIRECT_3NT_STOPPER: Cell<bool> = const { Cell::new(true) };
-}
-
-/// Require (or drop) responder's own stopper for a direct `3NT` over the overcall
-/// (for books built *after* this call; thread-local, read once at construction).
-/// Default `true` (status quo). With `false`, a game-values hand bids `3NT`
-/// without a guaranteed stopper, leaning on opener's `1NT` — the A/B knob for
-/// "does direct 3NT really need a stopper, or does X show it?".
-pub fn set_direct_3nt_stopper(on: bool) {
-    DIRECT_3NT_STOPPER.with(|cell| cell.set(on));
-}
-
-/// Whether a direct `3NT` requires responder's own stopper in their suit
-pub fn direct_3nt_stopper() -> bool {
-    DIRECT_3NT_STOPPER.with(Cell::get)
-}
-
 /// Author responder's direct `3NT` over the overcall at `weight`, honoring the
 /// stopper ([`direct_3nt_stopper`]) and trap-pass ([`trap_pass`]) toggles. The
 /// trap denies a too-good stopper (`suit_hcp(over, ..=4)`). The `&`-chained
@@ -116,40 +94,6 @@ pub(super) fn author_direct_3nt(
     }
 }
 
-thread_local! {
-    /// The weak natural `2♦/2♥/2♠` escape's strength floor as
-    /// `(hcp_floor, points_floor)` — one is `0`; `(0, 0)` = no floor (see
-    /// [`set_natural_floor`]). Defaults to a **`5`-HCP** floor (with opener's
-    /// game-raise): a floor of any kind beats none by `+0.012`/`+0.016` IMPs/board
-    /// (none/both), and — once `(2♣)` went systems-on, leaving the natural escape
-    /// all *majors* (every one game-raisable, no raise-less minor) — `5` HCP beats
-    /// the relay's `6` by `+2.5`/`+2.3` IMPs/divergent (none/both), all-positive.
-    /// `4` HCP is too loose: the raises turn negative (overbidding). One lower than
-    /// the relay's `6`, matching the 2X sitting one level lower.
-    static NATURAL_FLOOR: Cell<(u8, u8)> = const { Cell::new((5, 0)) };
-}
-
-/// Floor responder's weak natural 2-level escape (for books built *after* this
-/// call; thread-local, read once at book-construction time)
-///
-/// The direct natural `2♦/2♥/2♠` over the overcall is the same weak 5-card-suit
-/// hand as the relay-then-correct sign-off (`2NT`→`3♣`→`3M`), one level lower —
-/// but unlike that sign-off it currently has no strength floor and opener cannot
-/// raise it. A non-zero floor makes the two symmetric: it adds the floor to the
-/// natural (an HCP floor *or* a total-points floor — being a level lower than the
-/// relay, the 2X floor can be lower or playing-strength oriented), and registers
-/// opener's `lebensohl_signoff_raise` over a natural *major* sign-off so a
-/// maximum with a fit stretches to game. Pass `(hcp, 0)` for an HCP floor,
-/// `(0, points)` for a points floor, `(0, 0)` to disable. Off by default.
-pub fn set_natural_floor(hcp_floor: u8, points_floor: u8) {
-    NATURAL_FLOOR.with(|cell| cell.set((hcp_floor, points_floor)));
-}
-
-/// `(hcp_floor, points_floor)` on the weak natural escape (the raw knob)
-pub(super) fn natural_floor() -> (u8, u8) {
-    NATURAL_FLOOR.with(Cell::get)
-}
-
 /// Whether the weak natural escape is floored (and opener may raise it)
 pub(super) fn natural_floor_on(agreements: &Agreements) -> bool {
     let natural_floor = agreements.competition.natural_floor;
@@ -165,48 +109,6 @@ pub(super) fn natural_floor_hcp(agreements: &Agreements) -> u8 {
 /// The total-points floor on the weak natural escape (`0` = none)
 pub(super) fn natural_floor_pts(agreements: &Agreements) -> u8 {
     agreements.competition.natural_floor.1
-}
-
-thread_local! {
-    /// Which Lebensohl package the competitive book carries (Section 5).
-    static LEBENSOHL_STYLE: Cell<LebensohlStyle> = const { Cell::new(LebensohlStyle::Transfer) };
-}
-
-/// Select the Lebensohl package for books built *after* this call (thread-local,
-/// read once at book-construction time)
-pub fn set_lebensohl_style(style: LebensohlStyle) {
-    LEBENSOHL_STYLE.with(|cell| cell.set(style));
-}
-
-/// The currently selected Lebensohl package
-pub fn lebensohl_style() -> LebensohlStyle {
-    LEBENSOHL_STYLE.with(Cell::get)
-}
-
-thread_local! {
-    /// Whether responder reads a `(2♦)` overcall of our `1NT` as a **Multi** (an
-    /// unknown single-suited major) and answers with the Multi counter-defense
-    /// ([`multi_responder`]) instead of the natural-diamond Transfer/Lebensohl
-    /// package. Off by default — opt-in pending the A/B. It overrides only the
-    /// `(2♦)` responder node; the shared `2NT` relay machinery is unchanged. See
-    /// `docs/ai-bidder/bba-multi-2d.md`.
-    static DEFENSE_2D_MULTI: Cell<bool> = const { Cell::new(false) };
-}
-
-/// Read a `(2♦)` overcall of our `1NT` as a **Multi** (an unknown single-suited
-/// major) and answer with the Multi counter-defense, for books built *after*
-/// this call (thread-local, read once at book-construction time)
-///
-/// Distilled from BBA's Multi-Landy counter (`docs/ai-bidder/bba-multi-2d.md`):
-/// double = values, everything else natural. Off by default; faithful for the A/B
-/// against BBA, whose `2♦` over our `1NT` is always a Multi.
-pub fn set_defense_to_2d_multi(on: bool) {
-    DEFENSE_2D_MULTI.with(|cell| cell.set(on));
-}
-
-/// Whether the [`set_defense_to_2d_multi`] knob is on
-pub fn defense_to_2d_multi() -> bool {
-    DEFENSE_2D_MULTI.with(Cell::get)
 }
 
 /// Whether the `(2♦)`-as-Multi counter-defense is engaged
@@ -341,7 +243,7 @@ pub(crate) fn lebensohl_responder(over: Suit, agreements: &Agreements) -> Rules 
 
 /// Responder's counter-defense after `1NT (2♦)` when the `2♦` is read as a
 /// **Multi** (an unknown single-suited major), engaged by
-/// [`set_defense_to_2d_multi`]
+/// `agreements.competition.defense_2d_multi`
 ///
 /// Distilled from BBA's Multi-Landy counter (`docs/ai-bidder/bba-multi-2d.md`):
 /// **double = values / takeout** of the unknown major (BBA's 41% workhorse), and
@@ -433,7 +335,7 @@ pub(crate) fn lebensohl_relay_rebid(over: Suit, agreements: &Agreements) -> Rule
 ///
 /// Responder's sign-off is a known weak hand with a 5+ suit, floored at
 /// `resp_floor` points (the relay's PD-distilled 6, or the direct natural
-/// escape's lower 5 — see [`lebensohl_relay_shape`] and [`set_natural_floor`]).
+/// escape's lower 5 — see [`lebensohl_relay_shape`] and `agreements.competition.natural_floor`).
 /// A *maximum* 1NT opener with a fit stretches to game: the combined floor is
 /// then high enough to reach the 4M zone with a long-trump dummy.
 ///
@@ -459,7 +361,7 @@ pub(super) fn lebensohl_signoff_raise(signoff: Suit, resp_floor: u8) -> Rules {
 }
 
 /// Sections 5 / 5b / 5c as a row package: Lebensohl after our `1NT` is
-/// overcalled at the 2 level ([`set_lebensohl_style`])
+/// overcalled at the 2 level (`agreements.competition.lebensohl_style`)
 ///
 /// Purely additive — nothing else lands at `1NT` in the competitive book.
 /// Plain or Transfer Lebensohl per [`LebensohlStyle`]; both keep the weak `2NT`
@@ -613,7 +515,7 @@ pub(super) fn lebensohl_package() -> Package {
                     ));
                 }
 
-                // Floored natural escape (only under [`set_natural_floor`]):
+                // Floored natural escape (only under `agreements.competition.natural_floor`):
                 // opener's reply to a *direct* natural major sign-off — the
                 // one-level-lower mirror of the relay sign-off raise above,
                 // where 2M is a major *above* the overcall (a weak 5-card-suit
@@ -667,7 +569,7 @@ pub(super) fn lebensohl_package() -> Package {
                 // (2♥)/(2♠): Stayman with a stopper, answered like the direct
                 // cue but with 3NT safe.  Always wired so a human partner who
                 // plays it gets a sensible reply, even though the bot only
-                // *bids* it under `set_delayed_cue`.
+                // *bids* it under `agreements.competition.delayed_cue`.
                 if style == LebensohlStyle::Transfer && unbid_major(over).is_some() {
                     entries.extend(rows_of(
                         Pattern::after(NT, &format!("{relay} 3{o} -")),

@@ -1061,13 +1061,13 @@ pub struct ConventionCard {
     pub transfer_super_accept: bool,
     /// Fourth suit forcing (`RebidKnobs::fourth_suit_forcing`)
     pub fourth_suit_forcing: bool,
-    /// Jordan/Truscott 2NT over their takeout double (`set_jordan_truscott`)
+    /// Jordan/Truscott 2NT over their takeout double (`competition.jordan_truscott`)
     pub jordan_truscott: bool,
     /// Leaping Michaels over their weak two (`set_leaping_michaels`)
     pub leaping_michaels: bool,
     /// Responsive doubles (`set_responsive_takeout`)
     pub responsive_takeout: bool,
-    /// Support doubles and redoubles (`set_major_support_double`)
+    /// Support doubles and redoubles (`competition.major_support_double`)
     pub major_support_double: bool,
     /// `1NT - 3M` splinter (`set_nt_splinter`)
     pub nt_splinter: bool,
@@ -1078,7 +1078,7 @@ pub struct ConventionCard {
     /// The direct-seat defense to their 1NT (`set_notrump_defense`)
     pub defense: NotrumpDefense,
     /// Responder's machinery over their overcall of our 1NT
-    /// (`set_lebensohl_style`)
+    /// (`competition.lebensohl_style`)
     pub lebensohl: LebensohlStyle,
     /// The European 1NT minor scheme (`3♣` = diamonds) rather than Puppet
     /// (`set_notrump_minors`)

@@ -34,22 +34,6 @@ pub enum Competitive4333 {
     SuppressWithStopper,
 }
 
-thread_local! {
-    static COMPETITIVE_4333: Cell<Competitive4333> =
-        const { Cell::new(Competitive4333::Suppress) };
-}
-
-/// Set how a flat 4-3-3-3 cue-Staymans when our 1NT is overcalled, for books
-/// built *after* this call (thread-local; default [`Competitive4333::Suppress`]).
-pub fn set_competitive_4333(mode: Competitive4333) {
-    COMPETITIVE_4333.with(|cell| cell.set(mode));
-}
-
-/// The active [`Competitive4333`] mode
-pub(super) fn competitive_4333() -> Competitive4333 {
-    COMPETITIVE_4333.with(Cell::get)
-}
-
 /// Gate ANDed into each competitive cue-Stayman rule: satisfied unless the active
 /// [`Competitive4333`] mode diverts this flat 4-3-3-3 to 3NT.  Four suits all 3
 /// or 4 cards long sum to 13 only as a 4-3-3-3, so that test *is* "flat 4333".

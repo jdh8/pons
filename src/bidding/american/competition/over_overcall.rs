@@ -1,7 +1,7 @@
 //! Responder's direct-seat action over their overcall of our one-level opening
 //!
 //! The base contested table every other agreement in this directory hangs off:
-//! the raises, the natural bids and their floor ([`super::lebensohl::set_natural_floor`]), the
+//! the raises, the natural bids and their floor (`agreements.competition.natural_floor`), the
 //! stopper-gated direct `3NT`, and the slot arithmetic the transfer free bids
 //! use.  Responder's `X`/`Pass` options are [`super::penalty_double`]; the
 //! free-bid and negative-double *answers* are [`super::free_bids`] and
@@ -286,7 +286,7 @@ pub(super) fn over_their_overcall(opening: Suit, overcall: Bid, agreements: &Agr
         }
     }
 
-    // Natural free bids (`set_free_bids`; implied by the Modern/Cachalot
+    // Natural free bids (`agreements.competition.free_bids`; implied by the Modern/Cachalot
     // shapes, whose tighter doubles need the natural outlet). A free bid of
     // their suit is the cue above; the 1-level majors stay out of the
     // Cachalot rotation's way (a 5-card major routes through its transfer).

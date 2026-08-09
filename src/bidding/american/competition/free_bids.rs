@@ -2,15 +2,16 @@
 //!
 //! [`FreeBidStyle`] picks the treatment: `Natural`, `Negative` (capped, with
 //! its own continuation), or `Transfer` (responder bids the suit below).  The
-//! floors are knobs — [`set_free_bid_floor`] for a suit, [`set_free_1nt_floor`]
-//! for the free notrump, [`set_free_bid_quality`] for the suit-quality gate.
+//! floors are knobs — `agreements.competition.free_bid_floor` for a suit,
+//! `agreements.competition.free_1nt_floor` for the free notrump,
+//! `agreements.competition.free_bid_quality` for the suit-quality gate.
 
 use super::negative_double::{NegativeDoubleShape, negative_doubler_rebid};
 use super::over_overcall::two_level_slots;
 use super::*;
 
 /// The meaning of responder's non-jump 2-level new suit over their overcall
-/// (`set_free_bid_style`)
+/// (`agreements.competition.free_bid_style`)
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FreeBidStyle {
     /// Forcing one round — the shipped default (the Fix 1 ruling: 1-level
@@ -30,114 +31,11 @@ pub enum FreeBidStyle {
     Transfer,
 }
 
-thread_local! {
-    /// Whether responder's natural free bids over an overcall are authored
-    /// (1-level new suit 5+ & 6+, 2-level non-jump 5+ & 10+, 1NT 6–10 / 2NT
-    /// 11–12 with a stopper). Default off as a *direct* toggle, but the
-    /// shipped `Modern` shape implies them (with opener's forcing answers) —
-    /// the default system plays free bids.
-    static FREE_BIDS: Cell<bool> = const { Cell::new(false) };
-
-    /// Minimum points/HCP for the 1-level free *suit* bids (new-suit 5+, plus
-    /// the Sputnik natural 4+ majors). Default 6 — the shipped floor. The vul-PD
-    /// leak of the whole free-bid family lives here; sweep to 8+ and re-measure.
-    /// The free 1NT has its own floor (`FREE_1NT_FLOOR`): a forcing suit bid
-    /// finds a fit cheaply and is safe light, a limited non-forcing 1NT is not.
-    static FREE_BID_FLOOR: Cell<u8> = const { Cell::new(6) };
-
-    /// Minimum HCP for the free 1NT (`1X (1Y) 1NT`), decoupled from the suit
-    /// floor above. Default 6 — byte-identical to the historical shared value.
-    static FREE_1NT_FLOOR: Cell<u8> = const { Cell::new(6) };
-
-    /// Whether the vulnerable free bids demand quality: a vulnerable 1-level
-    /// new suit needs two of the top three honors, and the free 1NT is not
-    /// authored vulnerable. The P3b′ floor sweep named the family's vulnerable
-    /// leak as plain-DD-visible and strength-independent — a suit-quality
-    /// gate, not a floor. Default off while the A/B runs.
-    static FREE_BID_QUALITY: Cell<bool> = const { Cell::new(false) };
-
-    /// The 2-level free-bid style — forcing (shipped default), classic
-    /// negative free bids, or Cachalot-style transfers. The 1-level free
-    /// bids stay forcing in every style.
-    static FREE_BID_STYLE: Cell<FreeBidStyle> = const { Cell::new(FreeBidStyle::Forcing) };
-}
-
-/// Choose the 2-level free-bid style for books built *after* this call
-/// (thread-local)
-///
-/// Default [`FreeBidStyle::Forcing`] (`--ns-free-bid-style` in `bba-gen` for
-/// the other arms).
-pub fn set_free_bid_style(style: FreeBidStyle) {
-    FREE_BID_STYLE.with(|cell| cell.set(style));
-}
-
-/// The 2-level free-bid style in effect
-pub(super) fn free_bid_style() -> FreeBidStyle {
-    FREE_BID_STYLE.with(Cell::get)
-}
-
-/// Author responder's natural free bids over an overcall for books built
-/// *after* this call (thread-local)
-///
-/// Default off (`--ns-free-bids` in `bba-gen` for the on arm).
-pub fn set_free_bids(on: bool) {
-    FREE_BIDS.with(|cell| cell.set(on));
-}
-
-/// Whether the free bids are authored *directly* (the raw knob)
-pub(super) fn free_bids() -> bool {
-    FREE_BIDS.with(Cell::get)
-}
-
 /// Whether the free bids are authored — directly, or implied by a
 /// negative-double shape whose tighter double needs the natural outlet
 pub(super) fn free_bids_engaged(agreements: &Agreements) -> bool {
     agreements.competition.free_bids
         || agreements.competition.negative_double_shape != NegativeDoubleShape::BothMajors
-}
-
-/// Set the minimum points/HCP for the 1-level free bids (thread-local)
-///
-/// Default 6 (`--ns-free-bid-floor` in `bba-gen`). Raising it trims the
-/// vulnerable-PD leak the free-bid family inherits.
-pub fn set_free_bid_floor(min: u8) {
-    FREE_BID_FLOOR.with(|cell| cell.set(min));
-}
-
-/// The minimum points/HCP for the 1-level free bids
-pub(super) fn free_bid_floor() -> u8 {
-    FREE_BID_FLOOR.with(Cell::get)
-}
-
-/// Set the minimum HCP for the free 1NT (`1X (1Y) 1NT`), decoupled from the
-/// suit floor (thread-local)
-///
-/// Default 6 (`--ns-free-1nt-floor` in `bba-gen`). The free 1NT is a limited,
-/// non-forcing commitment to notrump values; raising this trims light 1NTs
-/// without touching the forcing 1-level suit bids.
-pub fn set_free_1nt_floor(min: u8) {
-    FREE_1NT_FLOOR.with(|cell| cell.set(min));
-}
-
-/// The minimum HCP for the free 1NT
-pub(super) fn free_1nt_floor() -> u8 {
-    FREE_1NT_FLOOR.with(Cell::get)
-}
-
-/// Gate the vulnerable free bids on suit quality for books built *after* this
-/// call (thread-local)
-///
-/// Default off (`--ns-free-bid-quality` in `bba-gen` for the on arm). When
-/// on, a vulnerable 1-level free bid demands two of the top three honors in
-/// the bid suit and the free 1NT is not authored vulnerable; non-vulnerable
-/// rules and the 2-level/2NT free bids are unchanged.
-pub fn set_free_bid_quality(on: bool) {
-    FREE_BID_QUALITY.with(|cell| cell.set(on));
-}
-
-/// Whether the vulnerable free-bid quality gate is on
-pub(super) fn free_bid_quality() -> bool {
-    FREE_BID_QUALITY.with(Cell::get)
 }
 
 /// Opener's answer to responder's natural free bid — a new suit over their

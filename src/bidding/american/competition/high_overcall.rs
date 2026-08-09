@@ -2,31 +2,10 @@
 //!
 //! The shipped exact tables stop at `2♠`; this guarded agreement covers
 //! everything above, where responder has one round and no room.  Opt-in via
-//! [`set_high_overcall_responses`].
+//! `agreements.competition.high_overcall_responses`.
 
 use super::lebensohl::unbid_major;
 use super::*;
-
-thread_local! {
-    /// Whether responder's structure over their jump / 3-level overcalls
-    /// (`2NT < bid ≤ 3♠`) is authored — the shipped direct-seat package stops
-    /// at 2♠ (one exact table per overcall through there, plus their 1NT) and
-    /// everything higher falls to the floor.  Default off while the A/B runs.
-    static HIGH_OVERCALL_RESPONSES: Cell<bool> = const { Cell::new(false) };
-}
-
-/// Author responder's structure over their 3-level overcalls for books built
-/// *after* this call (thread-local)
-///
-/// Default off (`--ns-high-overcall` in `bba-gen` for the on arm).
-pub fn set_high_overcall_responses(on: bool) {
-    HIGH_OVERCALL_RESPONSES.with(|cell| cell.set(on));
-}
-
-/// Whether the 3-level-overcall package is engaged
-pub fn high_overcall_responses() -> bool {
-    HIGH_OVERCALL_RESPONSES.with(Cell::get)
-}
 
 /// Responder after our opening `o` and their suit overcall in `2NT < bid ≤ 3♠`
 ///
@@ -156,7 +135,7 @@ fn answer_high_neg_double(opening: Suit) -> Rules {
 }
 
 /// Section 10 as a row package: their jump / 3-level suit overcalls
-/// ([`set_high_overcall_responses`][super::set_high_overcall_responses],
+/// (`agreements.competition.high_overcall_responses`,
 /// default off)
 ///
 /// A guarded entry at `1x` — its bid range `(2NT, 3♠]` sits above the

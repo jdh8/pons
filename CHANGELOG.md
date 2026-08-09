@@ -596,6 +596,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Seeded `smoke-default` / `smoke-dutch` dumps (20 000 boards each) are
   byte-identical to `4c3dce2`, and `cards/*.bbsa` regenerate unchanged.
 
+- **The thirty-six competitive knobs are fields, not thread-locals.**  The
+  whole `CompetitionKnobs` area follows, and with it the last of the
+  competitive book's hidden state: every `Cell` under
+  `src/bidding/american/competition/` is gone, along with its `set_*`/getter
+  pair and `competition::capture()`.  Setting one is
+  `a.competition.free_bid_floor = 8` before the build.  The area covers the
+  cue-raise answers, the free-bid family, the Lebensohl package and its
+  floors, both negative-double schools, the four "they contested our
+  convention" packages, Jordan/Truscott and the splinter-doubled rebase, the
+  penalty-double style with its override and trap-pass gates, the support
+  double, and the whole Unusual-vs-Unusual structure with its three floors.
+
+  The setter docs were this area's institutional memory, and the measured
+  record moved onto the `CompetitionKnobs` fields rather than dying with them
+  — the redouble answer's `+0.0056`/`+0.0078` and the `−16..−17` IMPs/board
+  vulnerable failure mode when off, the splinter-doubled rebase's
+  `+15.4`/`+17.6` IMPs/fired, `competition_over_transfer`'s **loss** that
+  keeps it off, the support double's plain-wash-plus-PD-gain row, the
+  trap-pass DD-oracle distillation, and the free-bid floor's still-owed
+  sweep to 8+.  Three summary lines that contradicted their own modules were
+  corrected in the move: `high_overcall_responses` covers *their* jump and
+  three-level overcalls, `uvu_cue_floor` is a points floor, and
+  `uvu_natural_floor` is a length floor.
+
+  Sixteen more web Settings rows move onto `pons-web`'s own `Agreements`
+  through the `knob!` macro; the 65-row table is unchanged.  `bba-gen` gained
+  two fixes the move exposed: `--disclose generated` now builds the card from
+  the same agreements as the book (it read a bare capture, so
+  `--no-ns-jordan-truscott` could disclose a card contradicting the book),
+  and a `--their-floor` seat built without `--their-ns` no longer reverts the
+  competitive arming.
+
+  Seeded `smoke-default` / `smoke-dutch` dumps (20 000 boards each) are
+  byte-identical to `4c3dce2`, and `cards/*.bbsa` regenerate unchanged.
+
 - **The seventeen notrump knobs are fields, not thread-locals.**  The whole
   `NotrumpKnobs` area goes the same way, with its `set_*`/getter pairs and
   `notrump::capture()`: `set_stayman_both_majors`, `set_stayman_5card_max`,

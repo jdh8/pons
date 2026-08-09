@@ -48,88 +48,431 @@ use super::context::DecisionProfile;
 pub struct CompetitionKnobs {
     // --- competition/cue_raise.rs
     /// Answer partner's cue-raise of their major overcall
+    ///
+    /// **Default on** (`--no-ns-cue-raise-answer` in `bba-gen` for the off
+    /// arm).  Without it the cue-raise (`1M (ovc) cue -`) falls through to the
+    /// keyless floor, which cannot act on a bid whose *named* suit (the cue)
+    /// differs from its *shown* suit (the major), so opener passes and the
+    /// cuebid is left in as the contract.
     pub cue_raise_answer: bool,
     /// Answer partner's cue-raise of their minor overcall
+    ///
+    /// The minor twin of [`cue_raise_answer`][Self::cue_raise_answer]
+    /// (`1m (ovc) cue -`), kept as its own cell so the A/B can isolate the
+    /// minor contribution over the already-shipped major answer.  **Default
+    /// on** (`--no-ns-cue-minor-raise-answer` in `bba-gen` for the off arm).
     pub cue_minor_raise_answer: bool,
     /// Bid (not merely recognize) the delayed cue — 2NT relay, then their suit
+    ///
+    /// Larry Cohen's fast-denies / slow-shows, adapted to our Transfer
+    /// Lebensohl: the *direct* cue of their suit denies a stopper, while a
+    /// *delayed* cue (relay through `2NT`, then their suit) is Stayman *with* a
+    /// stopper.  It also denies a 5-card unbid major (Smolen / Leaping Michaels
+    /// handle those).  Only the single-unbid-major contexts — over `(2♥)` and
+    /// `(2♠)` — are affected.  **Off by default**, gated for A/B measurement.
     pub delayed_cue: bool,
     // --- competition/free_bids.rs
     /// Author the free bids directly, rather than only as a negative-double outlet
+    ///
+    /// Responder's natural free bids over an overcall: 1-level new suit 5+ &
+    /// 6+, 2-level non-jump 5+ & 10+, `1NT` 6–10 / `2NT` 11–12 with a stopper.
+    /// **Default off** as a *direct* toggle (`--ns-free-bids` in `bba-gen` for
+    /// the on arm), but the shipped [`NegativeDoubleShape::Modern`] shape
+    /// implies them (with opener's forcing answers) — the default system plays
+    /// free bids.
     pub free_bids: bool,
     /// Minimum points/HCP for the 1-level free bids
+    ///
+    /// Gates the 1-level free *suit* bids (new-suit 5+, plus the Sputnik
+    /// natural 4+ majors).  **Default 6** — the shipped floor
+    /// (`--ns-free-bid-floor` in `bba-gen`).  The vul-PD leak of the whole
+    /// free-bid family lives here; raising it trims that leak — sweep to 8+ and
+    /// re-measure.  The free `1NT` has its own floor
+    /// ([`free_1nt_floor`][Self::free_1nt_floor]): a forcing suit bid finds a
+    /// fit cheaply and is safe light, a limited non-forcing `1NT` is not.
     pub free_bid_floor: u8,
     /// Minimum HCP for the free `1NT`, decoupled from the suit floor
+    ///
+    /// The free `1NT` of `1X (1Y) 1NT` is a limited, non-forcing commitment to
+    /// notrump values; raising this trims light `1NT`s without touching the
+    /// forcing 1-level suit bids.  **Default 6**
+    /// (`--ns-free-1nt-floor` in `bba-gen`) — byte-identical to the historical
+    /// value shared with [`free_bid_floor`][Self::free_bid_floor].
     pub free_1nt_floor: u8,
     /// Require a quality suit for a free bid
+    ///
+    /// On, a *vulnerable* 1-level free bid demands two of the top three honors
+    /// in the bid suit and the free `1NT` is not authored vulnerable;
+    /// non-vulnerable rules and the 2-level/`2NT` free bids are unchanged.  The
+    /// P3b′ floor sweep named the family's vulnerable leak as plain-DD-visible
+    /// and strength-independent — a suit-quality gate, not a floor.  **Default
+    /// off** while the A/B runs (`--ns-free-bid-quality` in `bba-gen` for the
+    /// on arm).
     pub free_bid_quality: bool,
     /// Whether a free bid is forcing, one-round forcing, or a transfer
+    ///
+    /// The **2-level** free-bid style — [`FreeBidStyle::Forcing`] (the shipped
+    /// default), classic negative free bids, or Cachalot-style transfers.  The
+    /// 1-level free bids stay forcing in every style.  `--ns-free-bid-style` in
+    /// `bba-gen` for the other arms.
     pub free_bid_style: FreeBidStyle,
     // --- competition/high_overcall.rs
-    /// Author responses to our high-level overcalls
+    /// Author responder's structure over their jump / 3-level overcalls
+    ///
+    /// Covers `2NT < bid ≤ 3♠`, where responder has one round and no room: the
+    /// shipped direct-seat package stops at `2♠` (one exact table per overcall
+    /// through there, plus their `1NT`) and everything higher falls to the
+    /// floor.  **Default off** while the A/B runs (`--ns-high-overcall` in
+    /// `bba-gen` for the on arm).
     pub high_overcall_responses: bool,
     // --- competition/lebensohl.rs
     /// Require a stopper for the direct `3NT` over their overcall
+    ///
+    /// **Default `true`** (status quo): responder's *direct* `3NT` over the
+    /// overcall needs its own stopper in their suit.  With `false` a
+    /// game-values hand bids `3NT` without a guaranteed stopper, leaning on
+    /// opener's `1NT` for the stop — the A/B knob for "does direct `3NT` really
+    /// need a stopper, or does `X` show it?".
     pub direct_3nt_stopper: bool,
     /// `(hcp_floor, points_floor)` on responder's weak natural 2-level escape
+    ///
+    /// The direct natural `2♦`/`2♥`/`2♠` over the overcall is the same weak
+    /// 5-card-suit hand as the relay-then-correct sign-off (`2NT`→`3♣`→`3M`),
+    /// one level lower — but with no floor it carries no strength gate and
+    /// opener cannot raise it.  A non-zero floor makes the two symmetric: it
+    /// gates the natural escape (an HCP floor *or* a total-points floor — being
+    /// a level lower than the relay, the 2X floor can be lower or
+    /// playing-strength oriented) and registers opener's sign-off raise over a
+    /// natural *major* escape, so a maximum with a fit stretches to game.
+    /// `(hcp, 0)` is an HCP floor, `(0, points)` a points floor, `(0, 0)` no
+    /// floor.
+    ///
+    /// **Default `(5, 0)`** — a 5-HCP floor, with opener's game-raise.  A floor
+    /// of any kind beats none by `+0.012`/`+0.016` IMPs/board (none/both), and
+    /// — once `(2♣)` went systems-on, leaving the natural escape all *majors*
+    /// (every one game-raisable, no raise-less minor) — `5` HCP beats the
+    /// relay's `6` by `+2.5`/`+2.3` IMPs/divergent (none/both), all-positive.
+    /// `4` HCP is too loose: the raises turn negative (overbidding).  One lower
+    /// than the relay's `6`, matching the 2X sitting one level lower.
     pub natural_floor: (u8, u8),
     /// Which Lebensohl package the competitive book carries
+    ///
+    /// Section 5 of the competitive book; default [`LebensohlStyle::Transfer`].
     pub lebensohl_style: LebensohlStyle,
     /// Read a `(2♦)` overcall of our `1NT` as a Multi
+    ///
+    /// Responder treats their `2♦` as an unknown single-suited major and
+    /// answers with the Multi counter-defense — double = values, everything
+    /// else natural, distilled from BBA's Multi-Landy counter
+    /// (`docs/ai-bidder/bba-multi-2d.md`) — instead of the natural-diamond
+    /// Transfer/Lebensohl package.  It overrides only the `(2♦)` responder
+    /// node; the shared `2NT` relay machinery is unchanged.
+    ///
+    /// **Off by default**, opt-in pending the A/B; faithful for the A/B against
+    /// BBA, whose `2♦` over our `1NT` is always a Multi.
     pub defense_2d_multi: bool,
     // --- competition/negative_double.rs
     /// Which negative-double school the minor openings play
+    ///
+    /// The **minor** openings only — the major-opening double (4+ in the other
+    /// major, 8+) is common to all three schools.
+    ///
+    /// **Default [`NegativeDoubleShape::Modern`]** — shipped default-on
+    /// 2026-07-10 together with the forcing free-bid answers: plain +0.0213 NV
+    /// / +0.0074 vul (CI>0), sd arbiter +0.42/+0.29 per divergent board (CI>0,
+    /// sd>plain, disclosure-corrected); the vul-PD −0.026 is the
+    /// perfect-defense doubling artifact on thin vul games.  Pass
+    /// `--ns-negative-double-shape both-majors` in `bba-gen` for the old rule.
     pub negative_double_shape: NegativeDoubleShape,
     /// Author the Cachalot answers when the auction is contested
+    ///
+    /// Opener's raise of a Cachalot `X` transfer when LHO competes over it
+    /// ([`NegativeDoubleShape::Cachalot`] only).  **Default on**; off restores
+    /// the floored continuation for the A/B (`--no-ns-cachalot-contested-x` in
+    /// `bba-gen`).
     pub cachalot_contested_x: bool,
     // --- competition/our_preempts.rs
     /// Author continuations when they contest our weak two
+    ///
+    /// Responder over their takeout double (business `XX`, systems-on Ogust)
+    /// and over their overcall (Ogust-when-legal, values `X`, preemptive
+    /// raises).  **Default off** while the A/B runs (`--ns-weak-two-comp` in
+    /// `bba-gen` for the on arm).
     pub weak_two_competition: bool,
     /// Author continuations when they contest our strong two
+    ///
+    /// Our contested `2♣`: systems-on over their double, and over their
+    /// overcall a natural-GF / values-`X` / waiting-pass structure backed by
+    /// opener's forced reopening.  Without it responder's `X` falls to the
+    /// floor's *takeout* reading — with a 22+ opener behind it.
+    ///
+    /// **Default on** — measured vs BBA 2/1 (204.8k boards/arm/vul): plain DD
+    /// +1.86/+2.79 IMPs/fired NV/vul, perfect-defense +2.00/+2.93; all four
+    /// cells' CIs exclude 0 (~0.05% fired).  `--no-ns-strong-two-comp` in
+    /// `bba-gen` for the off arm.
     pub strong_two_competition: bool,
     // --- competition/over_our_*.rs
     /// Author continuations when they contest our `2NT` diamond transfer
+    ///
+    /// Opener's replies after they double or overcall `1NT - 2NT` (6+♦, or
+    /// 5♦-4♣).  Only the Puppet scheme (the default) plays `2NT` as the diamond
+    /// transfer, so the block no-ops under European, where `2NT` is the
+    /// balanced size-ask.
+    ///
+    /// Their `(X)` is lead-directing diamonds; the double frees `Pass` to be
+    /// the catch-all "no fit" call, which lets opener's `3♣` shed its
+    /// uncontested relay-denies-a-fit meaning and become **natural** (4+♣,
+    /// finding responder's 5♦-4♣ club fit): `3♦` = accept with a diamond fit
+    /// (3+♦), `3♣` = no fit but 4+♣, `XX` = maximum values without a fit
+    /// (penalty-oriented), `Pass` = minimum catch-all.  After a fit-showing
+    /// `3♦`/`3♣` responder's rebids match the uncontested tree (strip the `X`
+    /// to a Pass); after `Pass`/`XX` (no fit) responder always holds 5+♦ and
+    /// signs off in `3♦`.  An overcall is handled naturally: `3♣` leaves room
+    /// to complete `3♦` with a fit (else `X` = penalty, Pass = minimum); a
+    /// higher overcall keeps `3NT` (max + stopper) / `X` (their suit) / Pass.
+    ///
+    /// **On by default** (off-switch `--no-ns-comp-over-diamond-transfer` in
+    /// `bba-gen`): a paired A/B vs BBA over 1 000 000 `--filter-1nt` boards
+    /// (410 fired, 0.04 %) measured a plain-DD **wash** (+0.24 IMPs/board it
+    /// fires on, CI straddling 0) and a clear perfect-defense gain (+3.40 PD).
+    /// Unlike the `2♠` minor (which won on *both* scorers), the honest-DD
+    /// signal is a wash — but it never *loses* on plain DD, and the PD gain is
+    /// real value the day the opponents punish the floor's
+    /// `X`-then-pull-to-`3NT` overreach, so it ships on.
     pub competition_over_diamond_transfer: bool,
     /// Author continuations when they contest our Jacoby transfer
+    ///
+    /// Over a `(X)` opener completes the transfer with three-card support, jump
+    /// super-accepts with four and a maximum, passes with a doubleton
+    /// (declining — responder's `XX` then re-asks, forcing), or redoubles with
+    /// the doubled transfer suit as its own.  Over an overcall opener
+    /// super-accepts the major with a fit, doubles for cards, else passes.
+    ///
+    /// **Off by default** (`--ns-comp-over-transfer` in `bba-gen` for the on
+    /// arm): unlike the contested `2♣` Stayman, which won +3.5 IMPs/fired, a
+    /// paired A/B vs BBA over 640 000 boards found these continuations a DD
+    /// **loss** (plain −0.94, PD −0.33 IMPs/board it fires on) — the
+    /// super-accept and forcing re-ask drive us into failing contracts the
+    /// floor's lower bids avoid.
     pub competition_over_transfer: bool,
     /// Author continuations when they contest our `2♠` minor transfer
+    ///
+    /// Opener's replies after they double or overcall the two-way `2♠`
+    /// (clubs-or-balanced-invite) response.  Only the Puppet `2♠` — a club
+    /// one-suiter *or* the balanced invite that asks opener's size — has a
+    /// min/max answer to protect, so the block no-ops under the European
+    /// pure-transfer scheme.
+    ///
+    /// Their `(X)` of `2♠` is lead-directing spades, so opener re-encodes its
+    /// size-ask answer *and* a spade stopper across four calls: `2NT` = minimum
+    /// **with** a stopper, `3♣` = maximum **with** one, `Pass` = minimum **no**
+    /// stopper, `XX` = maximum **no** stopper.  After a stopper-showing bid
+    /// responder's rebids match the uncontested tree (strip the `X` to a Pass);
+    /// after a no-stopper reply responder signs off in `3♣` with clubs.  A
+    /// `(2NT)`/`(3♣)` overcall (which steals the size-ask steps) keeps the
+    /// signal alive — `3NT` = maximum + stopper, `X` = maximum no stopper, Pass
+    /// = minimum; any higher overcall is systems-off (a `X` showing their suit,
+    /// else Pass).
+    ///
+    /// **On by default** (off-switch `--no-ns-comp-over-minor-transfer`).  Like
+    /// the contested `2♣` Stayman this is a **constructive** win: a paired A/B
+    /// vs BBA over 640 000 boards measured **+4.80 IMPs/board it fires on** on
+    /// plain double-dummy (+5.63 under perfect-defense — *higher*, so it is a
+    /// sound contract-finding gain, not a doubling artifact), CI excluding 0.
+    /// Rare (it fired on 0.03 %): BBA seldom contests our `2♠`.
     pub competition_over_minor_transfer: bool,
     /// Author continuations when they contest our Stayman
+    ///
+    /// Opener's replies after they double or overcall `1NT - 2♣`.  Over a `(X)`
+    /// (lead-directing clubs) opener answers in the *pass-denies-stopper* coded
+    /// scheme: a major or `2♦` promises a club stopper, Pass denies one, `XX`
+    /// is business clubs; responder's `XX` after opener's pass re-asks Stayman
+    /// (forcing).  Over a `(2♦)`/`(2♥)`/`(2♠)` overcall opener bids a 4-card
+    /// major naturally if it outranks their suit, doubles for cards, else
+    /// passes.
+    ///
+    /// **On by default** (off-switch `--no-ns-comp-over-stayman`); recorded in
+    /// the Jacoby-transfer A/B as winning +3.5 IMPs/fired.
     pub competition_over_stayman: bool,
     // --- competition/over_their_double.rs
     /// Jordan/Truscott `2NT` over their takeout double
+    ///
+    /// The whole of responder's structure over their takeout double of our
+    /// 1-suit opening: Jordan/Truscott `2NT`, the value redouble, the
+    /// preemptive jump-raise flip, and weak non-forcing 2-level suits — with
+    /// the shipped systems-on rebase surviving below it as the catch-all for
+    /// every deeper continuation.
+    ///
+    /// **Default on** — the campaign's largest per-board win vs BBA 2/1 (204.8k
+    /// boards/arm/vul): plain DD +0.0041/+0.0067 IMPs/board NV/vul,
+    /// perfect-defense +0.0049/+0.0065; all four cells' CIs exclude 0
+    /// (+0.5…+0.8 IMPs/fired, ~0.8% fired).  `--no-ns-jordan-truscott` in
+    /// `bba-gen` for the off arm.
     pub jordan_truscott: bool,
     /// Author answers to partner's redouble
+    ///
+    /// Opener's rebid over the value redouble, `1x (X) XX -`; a no-op unless
+    /// [`jordan_truscott`][Self::jordan_truscott] is on, since that authors the
+    /// redouble itself.  The authored node is pass-only — a long-suit minimum
+    /// sits for the redoubled make, and a `2M` escape rung measured −11
+    /// IMPs/fired before deletion.
+    ///
+    /// **Default on** (fix-vs-shipped, 1M boards/vul, 24.pdd 16.3M–18.3M: plain
+    /// DD +0.0056 ± 0.0005 NV / +0.0078 ± 0.0007 vul, PD +0.0058/+0.0080,
+    /// ≈ +11..+14 IMPs per divergent board).  Off, the systems-on rebase strips
+    /// both the double and the redouble, so opener replays onto the uncontested
+    /// tree with responder's shown 10+ unseen, and the floor blasts stopperless
+    /// `3NT`s / thin games off shaped minimums — the point-count remnant's
+    /// single worst per-board family (−16..−17 IMPs/board vulnerable).
     pub redouble_answer: bool,
     /// Rebase to systems-on when they double our splinter
+    ///
+    /// A splinter (`1M - double-jump`) is game-forcing, but the double reroutes
+    /// opener's rebid to the competitive book, where — unauthored — it fell to
+    /// the floor and *passed*, leaving the game force doubled at the four level
+    /// (the anchor's Constructive/book/round-1 bucket #4 tail: our monster
+    /// opener passing a doubled `4♣` splinter while the field bids `7♠`).  This
+    /// rebases the double back onto the undisturbed splinter continuation (`4M`
+    /// sign-off floor, RKCB with slam values).
+    ///
+    /// **Default on** — measured vs BBA 2/1 (204.8k bd/arm/vul, SEED_BASE
+    /// 1783439089): plain DD +0.0059/+0.0079 IMPs/board NV/vul, perfect-defense
+    /// +0.0059/+0.0079, all four CIs exclude 0, +15.4/+17.6 IMPs/fired (0.04%
+    /// fired).  Off-switch `--no-ns-splinter-doubled`.
     pub splinter_doubled: bool,
     // --- competition/penalty_double.rs
     /// Whether a double of their overcall is takeout, optional, or penalty
+    ///
+    /// Default [`DoubleStyle::Optional`] (2-3 in their suit, 8+); the A/B
+    /// verdict that ranks **Optional > Penalty > Takeout** is recorded on
+    /// [`DoubleStyle`] itself.
     pub double_style: DoubleStyle,
     /// Opener may leave in responder's penalty double
+    ///
+    /// Opener sits for `1NT (2X) X -`, defending the doubled natural overcall,
+    /// rather than letting the floor read `… X -` as a takeout advance and pull
+    /// it — responder's penalty double promised the trumps.  Off restores the
+    /// bare floor.
+    ///
+    /// **On by default**, but a no-op unless the active [`DoubleStyle`] is
+    /// `Penalty`/`PenaltyLight`: this is the A/B knob for the "opener pulls
+    /// responder's penalty double" leak, the book dual of the penalty latch.
     pub penalty_double_leave_in: bool,
     /// `(min_len, max_len, hcp_floor)` override on responder's penalty double
+    ///
+    /// An explicit `(min_len, max_len, min_hcp)` in their suit, superseding
+    /// [`DoubleStyle`] so an A/B can sweep the penalty/takeout boundary as a
+    /// continuum instead of the four discrete styles.  `None` (the default)
+    /// uses the named [`DoubleStyle`].
     pub double_override: Option<(usize, usize, u8)>,
     /// `(min_club_len, min_club_hcp, convert_over_major)` on the stolen-Stayman pass
+    ///
+    /// After `1NT (2♣) X -` — where the systems-on double is the stolen `2♣`
+    /// Stayman — opener with this club holding *passes*, defending `2♣` doubled
+    /// instead of answering Stayman.  `convert_over_major` decides whether good
+    /// clubs outrank a `2♥`/`2♠` major fit (`true`) or yield to it (`false`);
+    /// `None` restores the prior flaw, where opener could never convert.
+    ///
+    /// **Default `Some((4, 4, true))`:** 4+ clubs with 4+ club HCP (an ace or
+    /// two honors sitting over the overcaller), converting even with a major
+    /// fit.  A/B'd a clear win at every gate tested (`ab-landy`, 2M, Landy off
+    /// both arms): **+5.35/+7.28 IMPs/divergent (none/both) on plain DD,
+    /// +5.32/+7.09 under perfect defense** — the conversion is a pure penalty
+    /// decision, so the two scorers agree.  A looser gate captures more total
+    /// IMPs (every gate down to `(4, 0, true)`, and even 3-card clubs, stays
+    /// net positive on DD) at lower per-conversion quality; the default trades
+    /// a little frequency for a genuine "good clubs" holding.  The A/B knob is
+    /// `ab-landy --ns-penalty-pass LEN:HCP[:major]`.
     pub penalty_pass: Option<(usize, u8, bool)>,
     /// Author the trap pass
+    ///
+    /// Responder *traps* with a too-good stopper: a direct `3NT` additionally
+    /// denies **5+ HCP in the overcall suit**, so a strong holding (AQ, KQ,
+    /// AKJ…) passes instead — waiting for opener to reopen with a takeout
+    /// double and converting it to penalty.  Strong honors in the overcaller's
+    /// suit defend better than they declare.
+    ///
+    /// The `5`-HCP threshold is **distilled from a per-board double-dummy
+    /// oracle** (`ab-lebensohl --pd-3nt --log-relay`): comparing `3NT` against
+    /// trapping over sampled layouts, the trap rate rises monotonically with
+    /// HCP *in their suit* (hcp 4 → 53%, 5 → 77%, 6+ → ~100%) and is
+    /// **independent of length** — a long weak holding (e.g. ♠A9642, 4 HCP) is
+    /// a running source that wants `3NT`, while a short strong one (♥AQ, 6 HCP)
+    /// defends.  The earlier length-based gate (4+ cards) got this backwards
+    /// and lost; this honor gate is the fix.
+    ///
+    /// **On by default** (A/B vs off, isolated, 200k plain DD: the
+    /// `1NT`-Lebensohl responder gains `+172`/`+185` IMPs — the original
+    /// `resp 3NT` losers, −22/−20, are erased — at a near-wash in the shared
+    /// advance-of-takeout-double context; net `+155`/`+230`).
     pub trap_pass: bool,
     // --- competition/rubensohl.rs
     /// How a flat 4-3-3-3 cue-Staymans when our `1NT` is overcalled
+    ///
+    /// Default [`Competitive4333::Suppress`]; `--ns-competitive-4333` in
+    /// `bba-gen` for the other arms.
     pub competitive_4333: Competitive4333,
     // --- competition/support_double.rs
     /// Support doubles/redoubles for the majors
+    ///
+    /// Extends opener's support double/redouble to the major-major auction
+    /// `1♥ - 1♠ (X)` — or an overcall below `2♠`.  The minor-opening pairs are
+    /// always on (shipped).
+    ///
+    /// **Default on** — measured vs BBA 2/1 (204.8k boards/arm/vul): plain DD
+    /// wash (−0.0004/+0.0004, CIs straddle 0), perfect-defense +0.97/+1.69
+    /// IMPs/fired NV/vul (vul CI excludes 0) — the plain-wash + PD-gain ship
+    /// row (~0.10% fired).  `--no-ns-major-support-double` in `bba-gen` for the
+    /// off arm.
     pub major_support_double: bool,
     // --- competition/two_suiters.rs
     /// Unusual-vs-unusual over their two-suiter showing both majors
+    ///
+    /// Responder's structure over the opponents' two-suiters over our `1♥`/`1♠`
+    /// opening — their both-minors `(2NT)` and their Michaels cue of our own
+    /// major.
+    ///
+    /// **Default on** — measured vs BBA 2/1 (204.8k boards/arm/vul): plain DD
+    /// +0.0019/+0.0018 IMPs/board NV/vul (both CIs exclude 0; +1.43/+1.58
+    /// IMPs/fired, ~0.12% fired), perfect-defense the same sign.
+    /// `--no-ns-uvu-over-majors` in `bba-gen` for the off arm.
+    ///
+    /// Book construction only.  This cell once *also* gated the inference
+    /// walk's hand-written two-suiter reading; that reader was retired in
+    /// favour of the authored rules' own projection (chop 1 of
+    /// `docs/reader-retirement.md`), so the reading is now owned by
+    /// [`set_table_alert_reading`][crate::bidding::set_table_alert_reading].
     pub uvu_over_majors: bool,
     // --- competition/uvu.rs
     /// Author unusual-vs-unusual at all
+    ///
+    /// The Unusual-vs-Unusual structure over our `1NT` when an opponent
+    /// overcalls a both-minors `2NT` (Section 5d).  Responder's `X` is penalty
+    /// ("I can beat ≥1 of their suits"); the constructive answers are cue-bids
+    /// — `3♣` = INV+ Stayman or 5+♠, `3♦` = INV+ 5+♥, `4♣`/`4♦` = FG+
+    /// 5-5-majors splinters — with symmetric Smolen after the `3♣`→`3♦` denial.
+    /// `3NT` is to play, and Pass is the finite catch-all.
+    ///
+    /// **Default on**: the constructive cues are DD-robust (A/B +0.6–2.6
+    /// IMPs/board per call vs the passing floor) and the auction was previously
+    /// unauthored.
     pub uvu: bool,
     /// HCP floor on the unusual-vs-unusual double
+    ///
+    /// Responder's penalty-double HCP floor over `1NT (2NT)` — the A/B sweep
+    /// knob for "I can penalize one of their suits".  **Default 9**, the A/B
+    /// best.
     pub uvu_x_floor: u8,
-    /// HCP floor on the unusual-vs-unusual cue
+    /// Points floor on the unusual-vs-unusual cue
+    ///
+    /// Responder's INV+ cue-bid floor over `1NT (2NT)`, in points.  **Default
+    /// 8**, the A/B best.
     pub uvu_cue_floor: u8,
-    /// HCP floor on the natural call over their two-suiter
+    /// Length floor on the natural escape over their two-suiter
+    ///
+    /// Responder's weak natural `3♥`/`3♠` escape over `1NT (2NT)`.  **Default
+    /// 6** — a clean six-bagger; `5` lets a five-card major escape when
+    /// defending the both-minors overcall looks bad, and is the A/B sweep knob.
     pub uvu_natural_floor: u8,
 }
 
@@ -173,14 +516,6 @@ impl Default for CompetitionKnobs {
             uvu_cue_floor: 8,
             uvu_natural_floor: 6,
         }
-    }
-}
-
-impl CompetitionKnobs {
-    /// Capture this thread's competitive build-time knob state
-    #[must_use]
-    pub fn current() -> Self {
-        super::american::competition::capture()
     }
 }
 
@@ -1266,7 +1601,7 @@ impl Agreements {
     pub fn current() -> Self {
         Self {
             decision: DecisionProfile::current(),
-            competition: super::american::competition::capture(),
+            competition: CompetitionKnobs::default(),
             defense: super::american::defense::capture(),
             notrump: NotrumpKnobs::default(),
             opening: OpeningKnobs::default(),
@@ -1279,103 +1614,4 @@ impl Agreements {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::Agreements;
-
-    /// The literal defaults equal what a virgin thread's cells hold
-    ///
-    /// The safety net for deleting the cells: `Agreements::default()`
-    /// transcribes 218 `Cell::new` initialisers into one value, and a
-    /// transcription error would silently ship a different system.  libtest
-    /// gives every test its own thread, so `current()` here reads cells nothing
-    /// has armed.
-    #[test]
-    fn build_defaults_match_the_cells() {
-        let (d, c) = (Agreements::default(), Agreements::current());
-        assert_eq!(d.competition, c.competition);
-        assert_eq!(d.defense, c.defense);
-        assert_eq!(d.notrump, c.notrump);
-        assert_eq!(d.opening, c.opening);
-        assert_eq!(d.response, c.response);
-        assert_eq!(d.rebid, c.rebid);
-        assert_eq!(d.game_force, c.game_force);
-        assert_eq!(d.instinct, c.instinct);
-        assert!(d.decision == c.decision, "the classify half diverged");
-        assert!(d == c);
-    }
-
-    /// The `pub`-ish field names of `struct name` in `src`
-    ///
-    /// A crude line scanner, not a parser: every knob struct in this crate is
-    /// one field per line with a leading visibility, which is all this needs to
-    /// see.  Field names are invisible to the type system, so a source scan is
-    /// the only mechanism that can check the invariant below at all.
-    fn fields(src: &str, name: &str) -> Vec<String> {
-        let body = src
-            .split_once(&format!("struct {name} {{"))
-            .unwrap_or_else(|| panic!("{name} is declared"))
-            .1
-            .split_once("\n}")
-            .expect("the struct body is closed")
-            .0;
-        body.lines()
-            .filter_map(|line| {
-                let line = line.trim_start().strip_prefix("pub")?;
-                let line = line.strip_prefix(')').map_or(line, |rest| rest);
-                let line = line.trim_start_matches(|c| c != ' ').trim_start();
-                let (ident, _) = line.split_once(':')?;
-                ident
-                    .chars()
-                    .all(|c| c.is_ascii_lowercase() || c == '_' || c.is_ascii_digit())
-                    .then(|| ident.to_owned())
-            })
-            .collect()
-    }
-
-    /// One cell, one home: no knob is a field of both halves of `Agreements`
-    ///
-    /// A cell read at build time *and* at classify time must live in the
-    /// classify-time profile alone, with the book reading it from there — see
-    /// `two_notrump_wide`, `longer_major_response`, `xyz`.  Duplicating it into
-    /// a `*Knobs` struct is invisible while the `thread_local!` cells still back
-    /// both captures, since both read the same cell microseconds apart; it turns
-    /// into a silent divergence the moment the cells go and the two fields
-    /// become independently settable.  Twelve cells were duplicated exactly that
-    /// way before this test existed.
-    #[test]
-    fn no_knob_lives_in_two_homes() {
-        let agreements = include_str!("agreements.rs");
-        let build: Vec<String> = [
-            "CompetitionKnobs",
-            "DefenseKnobs",
-            "NotrumpKnobs",
-            "OpeningKnobs",
-            "ResponseKnobs",
-            "RebidKnobs",
-        ]
-        .iter()
-        .flat_map(|name| fields(agreements, name))
-        .collect();
-        assert!(
-            build.len() > 100,
-            "the build-time areas were found: {build:?}"
-        );
-
-        for (src, name) in [
-            (include_str!("inference/knobs.rs"), "ReadingProfile"),
-            (include_str!("instinct.rs"), "InstinctProfile"),
-            (include_str!("context.rs"), "DecisionProfile"),
-        ] {
-            let classify = fields(src, name);
-            assert!(!classify.is_empty(), "{name} was found");
-            let both: Vec<&String> = build.iter().filter(|f| classify.contains(f)).collect();
-            assert!(
-                both.is_empty(),
-                "{name} and the build-time areas share {} cell(s): {both:?} — a dual \
-                 cell belongs to {name} alone, and the book should read it from \
-                 the pinned profile",
-                both.len(),
-            );
-        }
-    }
-}
+mod tests;

@@ -1,4 +1,5 @@
-use super::super::tests::{best_call, bid_uvu, call};
+use super::super::tests::{best_call_with, bid_uvu, call};
+use crate::bidding::agreements::Agreements;
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::{Hand, Strain};
 
@@ -57,10 +58,10 @@ fn uvu_smolen_shows_the_five_card_spade() {
 #[test]
 fn uvu_disabled_falls_to_floor() {
     // Disabled, 1NT (2NT) has no book node → instinct floor (the toggle works).
-    super::uvu::set_uvu(false);
+    let mut off = Agreements::current();
+    off.competition.uvu = false;
     let auction = [call(1, Strain::Notrump), call(2, Strain::Notrump)];
-    let (_, floored) = best_call(&auction, "AQ32.KJ32.A2.432");
-    super::uvu::set_uvu(true); // restore the default for sibling tests on this thread
+    let (_, floored) = best_call_with(&off, &auction, "AQ32.KJ32.A2.432");
     assert!(floored, "without the toggle the auction is unauthored");
 }
 
@@ -79,7 +80,8 @@ fn uvu_disabled_falls_to_floor() {
 /// net is validated in aggregate by the `ab-*` harnesses.
 #[test]
 fn uvu_encircling_doubles_the_runout() {
-    super::uvu::set_uvu(true);
+    let mut arm = Agreements::current();
+    arm.competition.uvu = true;
     crate::bidding::instinct::set_uvu_encircle(true);
     let auction = [
         call(1, Strain::Notrump),
@@ -90,12 +92,10 @@ fn uvu_encircling_doubles_the_runout() {
         Call::Pass,
     ];
     let hand: Hand = "K54.84.732.KQJT9".parse().expect("valid test hand");
-    let (logits, _) = crate::bidding::american::american_instinct(
-        &crate::bidding::agreements::Agreements::current(),
-    )
-    .against()
-    .classify_with_provenance(hand, RelativeVulnerability::NONE, &auction)
-    .expect("a legal auction classifies");
+    let (logits, _) = crate::bidding::american::american_instinct(&arm)
+        .against()
+        .classify_with_provenance(hand, RelativeVulnerability::NONE, &auction)
+        .expect("a legal auction classifies");
     let c = (&logits.0)
         .into_iter()
         .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))

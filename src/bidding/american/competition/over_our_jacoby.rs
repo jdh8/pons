@@ -1,37 +1,9 @@
 //! Competition over our Jacoby transfer
 //!
 //! Opener's replies after the opponents double or overcall our Jacoby transfer are
-//! authored under [`set_competition_over_transfer`].
+//! authored under `agreements.competition.competition_over_transfer`.
 
 use super::*;
-
-thread_local! {
-    /// Whether opener authors continuations after the opponents contest our Jacoby
-    /// transfer (`1NT - 2♦/2♥ (X)` or an overcall); **off by default** (opt-in
-    /// A/B).  See [`set_competition_over_transfer`].
-    static COMPETITION_OVER_TRANSFER: Cell<bool> = const { Cell::new(false) };
-}
-
-/// Author opener's replies after the opponents double or overcall our Jacoby
-/// transfer, for books built *after* this call (thread-local; **off by default**).
-///
-/// Over a `(X)` opener completes the transfer with three-card support, jump
-/// super-accepts with four and a maximum, passes with a doubleton (declining —
-/// responder's `XX` then re-asks, forcing), or redoubles with the doubled
-/// transfer suit as its own.  Over an overcall opener super-accepts the major
-/// with a fit, doubles for cards, else passes.  Opt-in: unlike the contested 2♣
-/// Stayman (which won +3.5 IMPs/fired), a paired A/B vs BBA over 640 000 boards
-/// found these continuations a DD **loss** (plain −0.94, PD −0.33 IMPs/board it
-/// fires on) — the super-accept and forcing re-ask drive us into failing
-/// contracts the floor's lower bids avoid — so it stays off by default.
-pub fn set_competition_over_transfer(on: bool) {
-    COMPETITION_OVER_TRANSFER.with(|cell| cell.set(on));
-}
-
-/// Whether competition over our Jacoby transfer is currently authored
-pub(super) fn competition_over_transfer() -> bool {
-    COMPETITION_OVER_TRANSFER.with(Cell::get)
-}
 
 /// Opener's reply after the opponents double our Jacoby transfer
 /// (`1NT - 2♦/2♥ (X)`)
@@ -90,7 +62,7 @@ fn transfer_overcalled_opener(major: Suit, over_suit: Suit, over_level: u8) -> R
 }
 
 /// Competition over our own Jacoby transfers as a row package
-/// ([`set_competition_over_transfer`], default off)
+/// (`agreements.competition.competition_over_transfer`, default off)
 ///
 /// Opener's replies after they double `1NT - 2♦/2♥ (X)` or overcall it.
 /// Keyed at the `1NT - 2♦` / `1NT - 2♥` nodes — distinct trie paths

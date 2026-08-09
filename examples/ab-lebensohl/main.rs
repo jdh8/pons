@@ -37,10 +37,8 @@ use contract_bridge::eval::{hcp as holding_hcp, nltc};
 use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Hand, Seat, Strain, Suit};
 use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
 use pons::american;
-use pons::bidding::american::{
-    DoubleStyle, LebensohlStyle, set_direct_3nt_stopper, set_double_override, set_double_style,
-    set_lebensohl_style, set_natural_floor, set_penalty_double_leave_in, set_trap_pass,
-};
+use pons::bidding::agreements::CompetitionKnobs;
+use pons::bidding::american::{DoubleStyle, LebensohlStyle};
 use pons::bidding::constraint::point_count;
 use pons::bidding::context::{Context, relative};
 use pons::bidding::ev::ev_all;
@@ -374,7 +372,7 @@ fn could_reach_1nt_dh(deal: &FullDeal) -> bool {
 }
 
 /// Parse a weak-natural floor spec into `(hcp_floor, points_floor)` for
-/// [`set_natural_floor`]: `off`→`(0,0)`, `Nhcp`→`(N,0)`, `Npts`→`(0,N)`.
+/// `competition.natural_floor`: `off`→`(0,0)`, `Nhcp`→`(N,0)`, `Npts`→`(0,N)`.
 fn floor_from(spec: &str) -> (u8, u8) {
     if spec == "off" {
         return (0, 0);
@@ -418,13 +416,13 @@ fn dbl_from(name: &str) -> DoubleStyle {
     }
 }
 
-/// Select responder's double for books built *after* this call: a named style
-/// (clears any override) or a parametric `LEN:HCP` spec (sets the override). `LEN`
-/// is `LO-HI`, `LO+` (open top, capped at 13), or `LO` (exact); `HCP` is the floor.
-fn apply_double(spec: &str) {
+/// Select responder's double in `competition`: a named style (clears any
+/// override) or a parametric `LEN:HCP` spec (sets the override). `LEN` is
+/// `LO-HI`, `LO+` (open top, capped at 13), or `LO` (exact); `HCP` is the floor.
+fn apply_double(competition: &mut CompetitionKnobs, spec: &str) {
     if matches!(spec, "penalty" | "penalty-light" | "takeout" | "optional") {
-        set_double_override(None);
-        set_double_style(dbl_from(spec));
+        competition.double_override = None;
+        competition.double_style = dbl_from(spec);
         return;
     }
     let (len_part, hcp_part) = spec
@@ -441,7 +439,7 @@ fn apply_double(spec: &str) {
         let n = parse_len(len_part, spec);
         (n, n)
     };
-    set_double_override(Some((lo, hi, floor)));
+    competition.double_override = Some((lo, hi, floor));
 }
 
 /// Parse one suit-length component of a `--ns-dbl` spec
@@ -557,21 +555,26 @@ fn main() {
     let args = Args::parse();
     let mut rng = StdRng::seed_from_u64(args.seed);
 
-    set_lebensohl_style(style_from(&args.ew));
-    apply_double(&args.ew_dbl);
-    set_direct_3nt_stopper(args.ew_3nt_stopper != "off");
-    set_trap_pass(args.ew_trap == "on");
+    // One mutable capture, edited in place between the two builds: each arm sees
+    // exactly the knobs its `set_*` calls used to leave behind.  `penalty_double_leave_in`
+    // is written only for the NS arm, as it always was — the baseline keeps the shipped
+    // default.
+    let mut arm = pons::bidding::agreements::Agreements::current();
+    arm.competition.lebensohl_style = style_from(&args.ew);
+    apply_double(&mut arm.competition, &args.ew_dbl);
+    arm.competition.direct_3nt_stopper = args.ew_3nt_stopper != "off";
+    arm.competition.trap_pass = args.ew_trap == "on";
     let (ew_h, ew_p) = floor_from(&args.ew_floor);
-    set_natural_floor(ew_h, ew_p);
-    let baseline = american(&pons::bidding::agreements::Agreements::current()).against();
-    set_lebensohl_style(style_from(&args.ns));
-    apply_double(&args.ns_dbl);
-    set_direct_3nt_stopper(args.ns_3nt_stopper != "off");
-    set_trap_pass(args.ns_trap == "on");
-    set_penalty_double_leave_in(args.ns_penalty_leave_in != "off");
+    arm.competition.natural_floor = (ew_h, ew_p);
+    let baseline = american(&arm).against();
+    arm.competition.lebensohl_style = style_from(&args.ns);
+    apply_double(&mut arm.competition, &args.ns_dbl);
+    arm.competition.direct_3nt_stopper = args.ns_3nt_stopper != "off";
+    arm.competition.trap_pass = args.ns_trap == "on";
+    arm.competition.penalty_double_leave_in = args.ns_penalty_leave_in != "off";
     let (ns_h, ns_p) = floor_from(&args.ns_floor);
-    set_natural_floor(ns_h, ns_p);
-    let lebensohl = american(&pons::bidding::agreements::Agreements::current()).against();
+    arm.competition.natural_floor = (ns_h, ns_p);
+    let lebensohl = american(&arm).against();
 
     // Phase 1 (sequential, cheap): deal + the shape-only filter until `count`
     // boards pass. The RNG stays single-threaded so a seed reproduces a run.

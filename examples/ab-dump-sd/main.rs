@@ -33,9 +33,8 @@ use contract_bridge::auction::Auction;
 use contract_bridge::{AbsoluteVulnerability, Contract, Seat};
 use pons::american;
 use pons::bidding::american::{
-    FreeBidStyle, NegativeDoubleShape, set_free_1nt_floor, set_free_bid_style, set_free_bids,
-    set_natural_overcall_points, set_negative_double_shape, set_two_level_minor_overcall_tight,
-    set_weak_two_notrump_advances, set_weak_two_notrump_points,
+    FreeBidStyle, NegativeDoubleShape, set_natural_overcall_points,
+    set_two_level_minor_overcall_tight, set_weak_two_notrump_advances, set_weak_two_notrump_points,
 };
 use pons::bidding::context::relative;
 use pons::bidding::{Inferences, Stance};
@@ -77,19 +76,19 @@ struct Args {
     #[arg(long, default_value_t = 16)]
     declarer_worlds: usize,
     /// Read the ON arm's auctions with responder's free bids authored
-    /// (`set_free_bids`; opener's answers ride along)
+    /// (`competition.free_bids`; opener's answers ride along)
     #[arg(long, default_value_t = false)]
     on_ns_free_bids: bool,
     /// Read the ON arm's auctions under this negative-double school:
     /// modern (shipped default) | both-majors | cachalot | sputnik
-    /// (`set_negative_double_shape`; all but both-majors imply the free bids)
+    /// (`competition.negative_double_shape`; all but both-majors imply the free bids)
     #[arg(long, default_value = "modern")]
     on_ns_negative_double_shape: String,
     /// Read the ON arm's auctions under this 2-level free-bid style:
-    /// forcing (shipped default) | negative | transfer (`set_free_bid_style`)
+    /// forcing (shipped default) | negative | transfer (`competition.free_bid_style`)
     #[arg(long, default_value = "forcing")]
     on_ns_free_bid_style: String,
-    /// Read the ON arm's auctions with this free-1NT floor (`set_free_1nt_floor`;
+    /// Read the ON arm's auctions with this free-1NT floor (`competition.free_1nt_floor`;
     /// discloses a tightened `1X (1Y) 1NT` band to the blind leader)
     #[arg(long, default_value_t = 6)]
     on_ns_free_1nt_floor: u8,
@@ -174,10 +173,6 @@ fn main() {
         "transfer" => FreeBidStyle::Transfer,
         other => panic!("unknown free-bid style {other}"),
     };
-    set_free_bids(args.on_ns_free_bids);
-    set_negative_double_shape(shape(&args.on_ns_negative_double_shape));
-    set_free_bid_style(style(&args.on_ns_free_bid_style));
-    set_free_1nt_floor(args.on_ns_free_1nt_floor);
     set_two_level_minor_overcall_tight(args.on_ns_two_level_minor_overcall_tight);
     let band = |spec: &str| -> (u8, u8) {
         spec.split_once(':')
@@ -189,18 +184,27 @@ fn main() {
     let (lo, hi) = band(&args.on_ns_weak_two_nt_points);
     set_weak_two_notrump_points(lo, hi);
     set_weak_two_notrump_advances(args.on_ns_weak_two_nt_advances);
-    let stance_on = american(&pons::bidding::agreements::Agreements::current()).against();
-    set_free_bids(false);
-    set_negative_double_shape(NegativeDoubleShape::Modern);
-    set_free_bid_style(FreeBidStyle::Forcing);
+    // The competitive knobs are fields of the value now; the cells above are
+    // still ambient, so each arm captures *after* its own writes.
+    let mut on_arm = pons::bidding::agreements::Agreements::current();
+    on_arm.competition.free_bids = args.on_ns_free_bids;
+    on_arm.competition.negative_double_shape = shape(&args.on_ns_negative_double_shape);
+    on_arm.competition.free_bid_style = style(&args.on_ns_free_bid_style);
+    on_arm.competition.free_1nt_floor = args.on_ns_free_1nt_floor;
+    let stance_on = american(&on_arm).against();
     set_two_level_minor_overcall_tight(false);
     let (lo, hi) = band(&args.off_ns_overcall);
     set_natural_overcall_points(lo, hi);
     let (lo, hi) = band(&args.off_ns_weak_two_nt_points);
     set_weak_two_notrump_points(lo, hi);
     set_weak_two_notrump_advances(args.off_ns_weak_two_nt_advances);
-    set_free_1nt_floor(6);
-    let stance_off = american(&pons::bidding::agreements::Agreements::current()).against();
+    // The OFF arm is the shipped pole, spelled out rather than inherited.
+    let mut off_arm = pons::bidding::agreements::Agreements::current();
+    off_arm.competition.free_bids = false;
+    off_arm.competition.negative_double_shape = NegativeDoubleShape::Modern;
+    off_arm.competition.free_bid_style = FreeBidStyle::Forcing;
+    off_arm.competition.free_1nt_floor = 6;
+    let stance_off = american(&off_arm).against();
 
     let mut rng = StdRng::seed_from_u64(args.sd_seed);
     // Each entry is that board's `[plain, perfect-defense]` SD price — one

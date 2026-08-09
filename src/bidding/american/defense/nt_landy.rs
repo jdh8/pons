@@ -307,7 +307,7 @@ fn landy_advances(lo: u8) -> Rules {
 /// Advancer's response to a *doubled* Landy `2♣` (`(1NT) 2♣ (X)`)
 ///
 /// The opponents' Double is the stolen `2♣` Stayman, and their opener can sit for
-/// `2♣` doubled with good clubs (the [`set_penalty_pass`] conversion) — a disaster
+/// `2♣` doubled with good clubs (the `competition.penalty_pass` conversion) — a disaster
 /// for us, since the Landy overcaller is both-majors / short-club.  The Double also
 /// hands us an extra step (the Redouble), so we run a richer escape than over a pass:
 ///
@@ -321,8 +321,6 @@ fn landy_advances(lo: u8) -> Rules {
 /// A minor one-suiter (Pass / `2♦`) needs *both majors ≤2*: opposite the overcaller's
 /// guaranteed 5-card major a 3-card major has an 8-card fit worth more than a doubled
 /// minor, so those hands relay (Redouble) or sign off into the major instead.
-///
-/// [`set_penalty_pass`]: super::set_penalty_pass
 fn landy_advances_over_double(lo: u8, agreements: &Agreements) -> Rules {
     let invite = 20u8.saturating_sub(lo);
     let game = 22u8.saturating_sub(lo);

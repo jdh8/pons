@@ -22,7 +22,7 @@
 //! | [`over_our_minor_transfer`] | when they compete over our two-way `2♠` minor response |
 //! | [`over_our_diamond_transfer`] | when they compete over our `2NT` diamond transfer |
 
-use super::super::agreements::{Agreements, CompetitionKnobs};
+use super::super::agreements::Agreements;
 use super::super::constraint::{
     Cons, Constraint, balanced, described, has_stopper, hcp, len, min_level_is, partner_suit_is,
     points, stopper_in, stopper_in_their_suits, suit_hcp, support, they_bid, top_honors,
@@ -43,7 +43,6 @@ use super::notrump::{
 use super::weak_twos;
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Hand, Strain, Suit};
-use std::cell::Cell;
 
 mod cue_raise;
 mod free_bids;
@@ -81,91 +80,18 @@ use support_double::support_double_package;
 use two_suiters::uvu_over_majors_package;
 use uvu::uvu_package;
 
-pub use cue_raise::delayed_cue;
-pub use cue_raise::{set_cue_minor_raise_answer, set_cue_raise_answer, set_delayed_cue};
-pub use free_bids::{
-    FreeBidStyle, set_free_1nt_floor, set_free_bid_floor, set_free_bid_quality, set_free_bid_style,
-    set_free_bids,
-};
-pub use high_overcall::set_high_overcall_responses;
-pub use lebensohl::lebensohl_style;
-pub use lebensohl::{
-    LebensohlStyle, set_defense_to_2d_multi, set_direct_3nt_stopper, set_lebensohl_style,
-    set_natural_floor,
-};
+pub use free_bids::FreeBidStyle;
+pub use lebensohl::LebensohlStyle;
 pub(super) use lebensohl::{complete_lebensohl_relay, lebensohl_relay_rebid, lebensohl_responder};
-pub use negative_double::{
-    NegativeDoubleShape, set_cachalot_contested_x, set_negative_double_shape,
-};
-pub use our_preempts::{set_strong_two_competition, set_weak_two_competition};
-pub use over_our_diamond_transfer::set_competition_over_diamond_transfer;
-pub use over_our_jacoby::set_competition_over_transfer;
-pub use over_our_minor_transfer::set_competition_over_minor_transfer;
-pub use over_our_stayman::set_competition_over_stayman;
-pub use over_their_double::jordan_truscott;
-pub use over_their_double::{set_jordan_truscott, set_redouble_answer, set_splinter_doubled};
-pub use penalty_double::{
-    DoubleStyle, set_double_override, set_double_style, set_penalty_double_leave_in,
-    set_penalty_pass, set_trap_pass,
-};
-pub use rubensohl::{Competitive4333, set_competitive_4333};
+pub use negative_double::NegativeDoubleShape;
+pub use penalty_double::DoubleStyle;
+pub use rubensohl::Competitive4333;
 pub(super) use rubensohl::{
     clubs_transfer_completion, cue_stayman_answer, cue_stayman_answer_no_stopper,
     lm_2d_both_majors_advance, lm_2d_clubs_ask, lm_2d_clubs_major, stayman_2d_answer,
     stayman_2d_fit_rebid, transfer_completion, transfer_lebensohl_responder,
     transfer_stayman_2d_responder, transfer_target,
 };
-pub use support_double::major_support_double;
-pub use support_double::set_major_support_double;
-pub use two_suiters::set_uvu_over_majors;
-pub use uvu::{set_uvu, set_uvu_cue_floor, set_uvu_natural_floor, set_uvu_x_floor};
-
-/// Capture this thread's competitive build-time knobs
-///
-/// The one place the competitive cells are read.  Everything downstream takes
-/// the captured value, so a `set_*` between this call and the rules being built
-/// cannot split the book against itself.
-pub(in crate::bidding) fn capture() -> CompetitionKnobs {
-    CompetitionKnobs {
-        cue_raise_answer: cue_raise::cue_raise_answer(),
-        cue_minor_raise_answer: cue_raise::cue_minor_raise_answer(),
-        delayed_cue: cue_raise::delayed_cue(),
-        free_bids: free_bids::free_bids(),
-        free_bid_floor: free_bids::free_bid_floor(),
-        free_1nt_floor: free_bids::free_1nt_floor(),
-        free_bid_quality: free_bids::free_bid_quality(),
-        free_bid_style: free_bids::free_bid_style(),
-        high_overcall_responses: high_overcall::high_overcall_responses(),
-        direct_3nt_stopper: lebensohl::direct_3nt_stopper(),
-        natural_floor: lebensohl::natural_floor(),
-        lebensohl_style: lebensohl::lebensohl_style(),
-        defense_2d_multi: lebensohl::defense_to_2d_multi(),
-        negative_double_shape: negative_double::negative_double_shape(),
-        cachalot_contested_x: negative_double::cachalot_contested_x(),
-        weak_two_competition: our_preempts::weak_two_competition(),
-        strong_two_competition: our_preempts::strong_two_competition(),
-        competition_over_diamond_transfer:
-            over_our_diamond_transfer::competition_over_diamond_transfer(),
-        competition_over_transfer: over_our_jacoby::competition_over_transfer(),
-        competition_over_minor_transfer: over_our_minor_transfer::competition_over_minor_transfer(),
-        competition_over_stayman: over_our_stayman::competition_over_stayman(),
-        jordan_truscott: over_their_double::jordan_truscott(),
-        redouble_answer: over_their_double::redouble_answer(),
-        splinter_doubled: over_their_double::splinter_doubled(),
-        double_style: penalty_double::double_style(),
-        penalty_double_leave_in: penalty_double::penalty_double_leave_in(),
-        double_override: penalty_double::double_override(),
-        penalty_pass: penalty_double::penalty_pass(),
-        trap_pass: penalty_double::trap_pass(),
-        competitive_4333: rubensohl::competitive_4333(),
-        major_support_double: support_double::major_support_double(),
-        uvu_over_majors: two_suiters::uvu_over_majors(),
-        uvu: uvu::uvu(),
-        uvu_x_floor: uvu::uvu_x_floor(),
-        uvu_cue_floor: uvu::uvu_cue_floor(),
-        uvu_natural_floor: uvu::uvu_natural_floor(),
-    }
-}
 
 // Per-call alerts for the competitive book's artificial calls.  An [`Alert`] marks
 // a call as *conventional*: the inference reader decodes it as the convention
@@ -332,7 +258,7 @@ pub fn competition(agreements: &Agreements) -> Competitive {
     // Section 6: their two-suiters over our 1M.
     compile_into(&mut book, agreements, &[uvu_over_majors_package()]);
 
-    // Section 11: over their takeout double (`set_jordan_truscott`, default
+    // Section 11: over their takeout double (`agreements.competition.jordan_truscott`, default
     // on). Responder's first call at the deeper `1x (X)` key — it wins over
     // the `1x` FirstIs(X) systems-on rebase structurally, and the rebase
     // survives untouched below it for every deeper suffix the package's
@@ -340,7 +266,7 @@ pub fn competition(agreements: &Agreements) -> Competitive {
     compile_into(&mut book, agreements, &[jordan_truscott_package()]);
 
     // Section 10: their jump / 3-level suit overcalls
-    // (`set_high_overcall_responses`, default off). A guarded entry at `1x` —
+    // (`agreements.competition.high_overcall_responses`, default off). A guarded entry at `1x` —
     // its bid range (2NT, 3♠] sits above the shipped per-overcall exact nodes
     // (which stop at 2♠), so nothing races it. Their (2NT) and their 3-level
     // cue of our own suit are excluded (the first is a two-suiter, the second
@@ -355,7 +281,7 @@ pub fn competition(agreements: &Agreements) -> Competitive {
         &[cachalot_package(), sputnik_residual_answer_package()],
     );
 
-    // Section 7: our contested weak twos (`set_weak_two_competition`, default
+    // Section 7: our contested weak twos (`agreements.competition.weak_two_competition`, default
     // off). Their double: responder's first call at the deeper `2M (X)` node
     // (business XX riding on the uncontested responses), everything deeper
     // systems-on. Their overcall (≤ 3♠): responder's direct action, and a
@@ -363,7 +289,7 @@ pub fn competition(agreements: &Agreements) -> Competitive {
     // opener's undisturbed five-rung answer.
     compile_into(&mut book, agreements, &[weak_two_competition_package()]);
 
-    // Section 8: our contested strong 2♣ (`set_strong_two_competition`,
+    // Section 8: our contested strong 2♣ (`agreements.competition.strong_two_competition`,
     // default on). Their double steals no room → systems on wholesale; their
     // overcall gets responder's natural-GF / values-X / waiting-pass table,
     // backed by opener's forced reopening in the pass-out seat.
@@ -399,15 +325,3 @@ pub fn competition(agreements: &Agreements) -> Competitive {
 
 #[cfg(test)]
 mod tests;
-pub use cue_raise::cue_minor_raise_answer;
-pub use cue_raise::cue_raise_answer;
-pub use high_overcall::high_overcall_responses;
-pub use lebensohl::defense_to_2d_multi;
-pub use lebensohl::direct_3nt_stopper;
-pub use negative_double::negative_double_shape;
-pub use over_our_diamond_transfer::competition_over_diamond_transfer;
-pub use over_our_minor_transfer::competition_over_minor_transfer;
-pub use over_our_stayman::competition_over_stayman;
-pub use over_their_double::splinter_doubled;
-pub use two_suiters::uvu_over_majors;
-pub use uvu::uvu;

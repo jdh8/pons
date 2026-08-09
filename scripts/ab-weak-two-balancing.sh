@@ -5,7 +5,7 @@
 # obstructed). One three-arm experiment on shared deals:
 #
 #   base       — neither knob (shipped default)
-#   weak       — base + --ns-weak-two-comp   (set_weak_two_competition: our
+#   weak       — base + --ns-weak-two-comp   (competition.weak_two_competition: our
 #                contested weak twos — business XX + systems-on Ogust over their
 #                double, Ogust/values-X/preemptive raises over their overcall)
 #   balancing  — base + --ns-balancing       (set_notrump_balancing: extend our

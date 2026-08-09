@@ -1,46 +1,9 @@
 //! Competition over our two-way 2♠ minor response
 //!
 //! Opener's replies after the opponents double or overcall our two-way 2♠ minor
-//! response are authored under [`set_competition_over_minor_transfer`].
+//! response are authored under `agreements.competition.competition_over_minor_transfer`.
 
 use super::*;
-
-thread_local! {
-    /// Whether opener authors continuations after the opponents contest our two-way
-    /// 2♠ minor response (`1NT - 2♠ (X)` or an overcall); **on by default**,
-    /// with an off-switch for A/B measurement.  See
-    /// [`set_competition_over_minor_transfer`].
-    static COMPETITION_OVER_MINOR_TRANSFER: Cell<bool> = const { Cell::new(true) };
-}
-
-/// Author opener's replies after the opponents double or overcall our two-way 2♠
-/// (clubs-or-balanced-invite) response, for books built *after* this call
-/// (thread-local; **on by default**).
-///
-/// Only the PUPPET 2♠ (the default — a club one-suiter *or* the balanced
-/// invite that asks opener's size) has a min/max answer to protect, so the block
-/// no-ops under the EUROPEAN pure-transfer scheme.  Their `(X)` of 2♠ is
-/// lead-directing spades, so opener re-encodes its size-ask answer *and* a spade
-/// stopper across four calls: `2NT` = minimum **with** a stopper, `3♣` = maximum
-/// **with** one, `Pass` = minimum **no** stopper, `XX` = maximum **no** stopper.
-/// After a stopper-showing bid responder's rebids match the uncontested tree
-/// (strip the `X` to a Pass); after a no-stopper reply responder signs off in `3♣`
-/// with clubs.  A `(2NT)`/`(3♣)` overcall (which steals the size-ask steps) keeps
-/// the signal alive — `3NT` = maximum + stopper, `X` = maximum no stopper, Pass =
-/// minimum; any higher overcall is systems-off (a `X` showing their suit, else
-/// Pass).  Like the contested 2♣ Stayman this is a **constructive** win: a paired
-/// A/B vs BBA over 640 000 boards measured **+4.80 IMPs/board it fires on** on plain
-/// double-dummy (+5.63 under perfect-defense — *higher*, so it is a sound
-/// contract-finding gain, not a doubling artifact), CI excluding 0, so it ships on.
-/// Rare (it fired on 0.03 %): BBA seldom contests our 2♠.
-pub fn set_competition_over_minor_transfer(on: bool) {
-    COMPETITION_OVER_MINOR_TRANSFER.with(|cell| cell.set(on));
-}
-
-/// Whether competition over our two-way 2♠ minor response is currently authored
-pub fn competition_over_minor_transfer() -> bool {
-    COMPETITION_OVER_MINOR_TRANSFER.with(Cell::get)
-}
 
 /// Opener's coded reply after the opponents double our two-way 2♠
 /// (`1NT - 2♠ (X)`)
@@ -111,7 +74,7 @@ fn minor_overcalled_low(over: Suit) -> Rules {
 }
 
 /// Competition over our own two-way `2♠` minor response as a row package
-/// ([`set_competition_over_minor_transfer`], default on)
+/// (`agreements.competition.competition_over_minor_transfer`, default on)
 ///
 /// Opener's replies after they double `1NT - 2♠ (X)` or overcall it.  Only
 /// the PUPPET `2♠` (clubs *or* the balanced size-ask) has a min/max answer to

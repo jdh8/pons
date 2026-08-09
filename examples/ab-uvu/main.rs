@@ -4,9 +4,9 @@
 //!
 //! When an opponent overcalls our 1NT with a both-minors 2NT, the instinct floor
 //! has nothing to say — responder passes or guesses.  The UvU structure
-//! ([`set_uvu`][pons::bidding::american::set_uvu]) gives responder a penalty `X`,
-//! INV+ Stayman/transfer cues (`3♣`/`3♦`), FG+ 5-5-majors splinters (`4♣`/`4♦`)
-//! and symmetric Smolen.  Is it worth points, and at what strength floors?
+//! (`Agreements::competition.uvu`) gives responder a penalty `X`, INV+
+//! Stayman/transfer cues (`3♣`/`3♦`), FG+ 5-5-majors splinters (`4♣`/`4♦`) and
+//! symmetric Smolen.  Is it worth points, and at what strength floors?
 //!
 //! Both pairs play `american`; the *environment* is fixed — every defender
 //! overcalls a 1NT with the both-minors 2NT
@@ -30,9 +30,7 @@ use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Hand, Seat, Strain, 
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::Stance;
-use pons::bidding::american::{
-    set_unusual_notrump_defense, set_uvu, set_uvu_cue_floor, set_uvu_natural_floor, set_uvu_x_floor,
-};
+use pons::bidding::american::set_unusual_notrump_defense;
 use pons::scoring::{final_contract, imps, ns_score_contract};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -178,14 +176,15 @@ fn main() {
     // for both, so the divergence isolates the UvU response.
     let range = Some((args.opp_lo, args.opp_hi));
     set_unusual_notrump_defense(range);
-    set_uvu(false);
-    let baseline = american(&pons::bidding::agreements::Agreements::current()).against();
+    let mut arm = pons::bidding::agreements::Agreements::current();
+    arm.competition.uvu = false;
+    let baseline = american(&arm).against();
     set_unusual_notrump_defense(range);
-    set_uvu(true);
-    set_uvu_x_floor(args.x_floor);
-    set_uvu_cue_floor(args.cue_floor);
-    set_uvu_natural_floor(args.natural_floor);
-    let feature = american(&pons::bidding::agreements::Agreements::current()).against();
+    arm.competition.uvu = true;
+    arm.competition.uvu_x_floor = args.x_floor;
+    arm.competition.uvu_cue_floor = args.cue_floor;
+    arm.competition.uvu_natural_floor = args.natural_floor;
+    let feature = american(&arm).against();
 
     // Deal sequentially (seeded, reproducible); keep only deals where the
     // auction can arise, until `count` pass; bid both tables in parallel.

@@ -613,65 +613,65 @@ struct Args {
     no_ns_limit_raise_acceptance: bool,
 
     /// Disable opener's answer to partner's cue-raise (`1M (ovc) cue -`)
-    /// (shipped default-on; see `set_cue_raise_answer`).
+    /// (shipped default-on; see `competition.cue_raise_answer`).
     #[arg(long, default_value_t = false)]
     no_ns_cue_raise_answer: bool,
 
     /// Disable opener's answer to a *minor*-opening cue-raise
-    /// (`1m (ovc) cue -`) (default-on; see `set_cue_minor_raise_answer`).
+    /// (`1m (ovc) cue -`) (default-on; see `competition.cue_minor_raise_answer`).
     #[arg(long, default_value_t = false)]
     no_ns_cue_minor_raise_answer: bool,
 
     /// Disable responder's structure over their two-suiters over our 1M — UvU
     /// over their both-minors `(2NT)`, the raise structure over their Michaels
     /// cue, and the two-suiter inference reading (shipped default-on; see
-    /// `set_uvu_over_majors`).
+    /// `competition.uvu_over_majors`).
     #[arg(long, default_value_t = false)]
     no_ns_uvu_over_majors: bool,
 
     /// Author our contested weak twos — business XX + systems-on Ogust over
     /// their double, Ogust-when-legal / values-X / preemptive raises over
-    /// their overcall (default off; see `set_weak_two_competition`).
+    /// their overcall (default off; see `competition.weak_two_competition`).
     #[arg(long, default_value_t = false)]
     ns_weak_two_comp: bool,
 
     /// Disable our contested strong 2♣ — systems-on over their double,
     /// natural GF / values-X / waiting-pass + forced reopening over their
-    /// overcall (shipped default-on; see `set_strong_two_competition`).
+    /// overcall (shipped default-on; see `competition.strong_two_competition`).
     #[arg(long, default_value_t = false)]
     no_ns_strong_two_comp: bool,
 
     /// Disable opener's support double/redouble on `1♥ - 1♠` (shipped
-    /// default-on; see `set_major_support_double`).
+    /// default-on; see `competition.major_support_double`).
     #[arg(long, default_value_t = false)]
     no_ns_major_support_double: bool,
 
     /// Author responder's natural free bids over an overcall — 1-level new
     /// suit 5+ & 6+, 2-level non-jump 5+ & 10+, 1NT/2NT with a stopper
     /// (default off; implied by --ns-negative-double-shape modern|cachalot;
-    /// see `set_free_bids`).
+    /// see `competition.free_bids`).
     #[arg(long, default_value_t = false)]
     ns_free_bids: bool,
 
     /// Minimum points/HCP for the 1-level free bids (default 6; sweep to 8+ to
-    /// trim the free-bid family's vulnerable-PD leak; see `set_free_bid_floor`).
+    /// trim the free-bid family's vulnerable-PD leak; see `competition.free_bid_floor`).
     #[arg(long, default_value_t = 6)]
     ns_free_bid_floor: u8,
 
     /// Minimum HCP for the free 1NT (`1X (1Y) 1NT`), decoupled from the suit
-    /// floor above (default 6; see `set_free_1nt_floor`).
+    /// floor above (default 6; see `competition.free_1nt_floor`).
     #[arg(long, default_value_t = 6)]
     ns_free_1nt_floor: u8,
 
     /// Gate the vulnerable free bids on quality: a vulnerable 1-level new suit
     /// needs two of the top three honors, and the free 1NT is not authored
-    /// vulnerable (default off; see `set_free_bid_quality`).
+    /// vulnerable (default off; see `competition.free_bid_quality`).
     #[arg(long, default_value_t = false)]
     ns_free_bid_quality: bool,
 
     /// The negative-double school over our minor openings:
     /// modern (shipped default) | both-majors | cachalot | sputnik
-    /// (see `set_negative_double_shape`; all but both-majors imply the free
+    /// (see `competition.negative_double_shape`; all but both-majors imply the free
     /// bids and opener's forcing answers to them).
     #[arg(long, default_value = "modern")]
     ns_negative_double_shape: String,
@@ -680,13 +680,13 @@ struct Args {
     /// forcing (shipped default — forcing one round) | negative (classic NFB:
     /// non-forcing 5-11 with a 6+ suit or strong 5-carder; stronger long-suit
     /// hands double then bid, forcing to game) | transfer (2-level slots swap
-    /// and opener completes; see `set_free_bid_style`).
+    /// and opener completes; see `competition.free_bid_style`).
     #[arg(long, default_value = "forcing")]
     ns_free_bid_style: String,
 
     /// Author responder's structure over their jump / 3-level overcalls
     /// (2NT < bid ≤ 3♠): negative X through 3♠, forcing new suits, 3NT with a
-    /// stopper (default off; see `set_high_overcall_responses`).
+    /// stopper (default off; see `competition.high_overcall_responses`).
     #[arg(long, default_value_t = false)]
     ns_high_overcall: bool,
 
@@ -850,19 +850,19 @@ struct Args {
 
     /// Disable opener's authored raise of a Cachalot X transfer when LHO
     /// competes over it (default-on; Cachalot only; see
-    /// `set_cachalot_contested_x`).
+    /// `competition.cachalot_contested_x`).
     #[arg(long, default_value_t = false)]
     no_ns_cachalot_contested_x: bool,
 
     /// Disable responder's structure over their takeout double of our 1-suit
     /// opening: Jordan/Truscott 2NT, value XX, preemptive jump-raise flip,
-    /// weak NF 2-level suits (shipped default-on; see `set_jordan_truscott`).
+    /// weak NF 2-level suits (shipped default-on; see `competition.jordan_truscott`).
     #[arg(long, default_value_t = false)]
     no_ns_jordan_truscott: bool,
 
     /// Disable systems-on over their double of our splinter — revert to letting
     /// opener's rebid fall to the floor, which passes the doubled game force
-    /// (shipped default-on; see `set_splinter_doubled`).
+    /// (shipped default-on; see `competition.splinter_doubled`).
     #[arg(long, default_value_t = false)]
     no_ns_splinter_doubled: bool,
 
@@ -1317,14 +1317,24 @@ fn parse_override(spec: &str) -> Result<(CString, c_int), String> {
 ///
 /// Call **after** every `--ns-*` knob is set: a generated card is a function of
 /// the live thread-local state, so building it early would describe a system
-/// this run then reconfigures.
+/// this run then reconfigures.  `competition` carries the half of that state
+/// that is a field of the [`Agreements`] rather than a cell, so the card keeps
+/// describing the `--ns-*` competitive knobs it described when they were cells.
 ///
 /// A `--our-floor` with no card generator is a hard error rather than a fall
 /// back to American's card or to silence — disclosing the wrong card
 /// misdescribes us to BBA far more damagingly than disclosing nothing, and
 /// silently reverting to blind would make the two arms of a cross-system A/B
 /// incomparable.
-fn disclosure(args: &Args) -> anyhow::Result<Option<EpbotCard>> {
+fn disclosure(
+    args: &Args,
+    competition: pons::bidding::agreements::CompetitionKnobs,
+) -> anyhow::Result<Option<EpbotCard>> {
+    let armed = || {
+        let mut agreements = Agreements::current();
+        agreements.competition = competition;
+        agreements
+    };
     let mut card = match args.disclose.as_str() {
         "off" => return Ok(None),
         // A BBA-vs-BBA arm does not play our authored system at all, so the
@@ -1336,12 +1346,8 @@ fn disclosure(args: &Args) -> anyhow::Result<Option<EpbotCard>> {
             // The floor names the system; `-book`/`-instinct`/`-floor` variants
             // differ only in the floor, which no card row can express.
             let card = match args.our_floor.split('-').next().unwrap_or_default() {
-                "american" => pons::bidding::card::american_card(
-                    &pons::bidding::agreements::Agreements::current(),
-                ),
-                "dutch" => pons::bidding::card::dutch_card(
-                    &pons::bidding::agreements::Agreements::current(),
-                ),
+                "american" => pons::bidding::card::american_card(&armed()),
+                "dutch" => pons::bidding::card::dutch_card(&armed()),
                 other => anyhow::bail!(
                     "--disclose generated: no card generator for system `{other}` \
                      (known: american, dutch).  Write one in `src/bidding/card.rs` \
@@ -1453,13 +1459,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     // Written on both arms, not just when on: `--their-ns` arms a second seat
     // through this function and then re-arms ours to restore, which only works
     // if every knob here is *assigned*, never merely set.
-    pons::bidding::american::set_uvu(args.uvu);
-    if args.uvu {
-        pons::bidding::american::set_uvu_x_floor(args.uvu_x_floor);
-        pons::bidding::american::set_uvu_cue_floor(args.uvu_cue_floor);
-    }
     pons::bidding::instinct::set_uvu_encircle(args.uvu);
-    pons::bidding::american::set_defense_to_2d_multi(args.defense_2d_multi);
     pons::bidding::instinct::set_settle_floor(!args.no_settle_floor);
     pons::bidding::instinct::set_nt_responder_game_floor(args.ns_nt_responder_game_floor);
     pons::bidding::instinct::set_suppress_nt_game_force_over_double(
@@ -1574,55 +1574,13 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
             anyhow::anyhow!("--ns-overcall must be LO:HI, got {:?}", args.ns_overcall)
         })?;
     pons::bidding::american::set_natural_overcall_points(oc_lo, oc_hi);
-    pons::bidding::american::set_competition_over_stayman(!args.no_ns_comp_over_stayman);
-    pons::bidding::american::set_competitive_4333(match args.ns_competitive_4333.as_str() {
-        "allow" => pons::bidding::american::Competitive4333::Allow,
-        "suppress" => pons::bidding::american::Competitive4333::Suppress,
-        "suppress-stopper" => pons::bidding::american::Competitive4333::SuppressWithStopper,
-        other => {
-            anyhow::bail!(
-                "--ns-competitive-4333 must be allow|suppress|suppress-stopper, got {other:?}"
-            )
-        }
-    });
     pons::bidding::american::set_stayman_defense(args.ns_defense_to_their_stayman);
-    pons::bidding::american::set_competition_over_transfer(args.ns_comp_over_transfer);
     pons::bidding::american::set_transfer_gf_majors(!args.no_ns_transfer_gf_majors);
     pons::bidding::american::set_transfer_gf_hearts(!args.no_ns_transfer_gf_hearts);
     pons::bidding::american::set_garbage_stayman(!args.no_ns_garbage_stayman);
     pons::bidding::american::set_crawling_stayman(!args.no_ns_crawling_stayman);
     pons::bidding::american::set_longer_major_response(!args.no_ns_longer_major_response);
     pons::bidding::american::set_xyz(!args.no_ns_xyz);
-    pons::bidding::american::set_cue_raise_answer(!args.no_ns_cue_raise_answer);
-    pons::bidding::american::set_cue_minor_raise_answer(!args.no_ns_cue_minor_raise_answer);
-    pons::bidding::american::set_uvu_over_majors(!args.no_ns_uvu_over_majors);
-    pons::bidding::american::set_weak_two_competition(args.ns_weak_two_comp);
-    pons::bidding::american::set_strong_two_competition(!args.no_ns_strong_two_comp);
-    pons::bidding::american::set_major_support_double(!args.no_ns_major_support_double);
-    pons::bidding::american::set_free_bids(args.ns_free_bids);
-    pons::bidding::american::set_free_bid_floor(args.ns_free_bid_floor);
-    pons::bidding::american::set_free_1nt_floor(args.ns_free_1nt_floor);
-    pons::bidding::american::set_free_bid_quality(args.ns_free_bid_quality);
-    pons::bidding::american::set_negative_double_shape(
-        match args.ns_negative_double_shape.as_str() {
-            "both-majors" => pons::bidding::american::NegativeDoubleShape::BothMajors,
-            "modern" => pons::bidding::american::NegativeDoubleShape::Modern,
-            "cachalot" => pons::bidding::american::NegativeDoubleShape::Cachalot,
-            "sputnik" => pons::bidding::american::NegativeDoubleShape::Sputnik,
-            other => anyhow::bail!(
-                "--ns-negative-double-shape must be both-majors|modern|cachalot|sputnik, got {other:?}"
-            ),
-        },
-    );
-    pons::bidding::american::set_free_bid_style(match args.ns_free_bid_style.as_str() {
-        "forcing" => pons::bidding::american::FreeBidStyle::Forcing,
-        "negative" => pons::bidding::american::FreeBidStyle::Negative,
-        "transfer" => pons::bidding::american::FreeBidStyle::Transfer,
-        other => {
-            anyhow::bail!("--ns-free-bid-style must be forcing|negative|transfer, got {other:?}")
-        }
-    });
-    pons::bidding::american::set_high_overcall_responses(args.ns_high_overcall);
     pons::bidding::constraint::set_suppress_flat_4333_takeout(
         !args.no_ns_suppress_flat_4333_takeout,
     );
@@ -1639,7 +1597,6 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     pons::bidding::american::set_longest_first_advance(!args.no_ns_longest_advance);
     pons::bidding::american::set_advance_pass_yield_major(args.ns_advance_pass_yield);
     pons::bidding::american::set_advance_sit_hcp_gate(args.ns_advance_sit_hcp);
-    pons::bidding::american::set_cachalot_contested_x(!args.no_ns_cachalot_contested_x);
     pons::bidding::american::set_opener_extras_ladder(!args.no_ns_opener_extras_ladder);
     pons::bidding::american::set_opener_major_jump_rebid(!args.no_ns_opener_major_jump_rebid);
     pons::bidding::instinct::set_two_over_one_force(!args.no_ns_two_over_one_force);
@@ -1647,16 +1604,8 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     pons::bidding::instinct::set_competitive_rebid(!args.no_ns_competitive_rebid);
     pons::bidding::instinct::set_reopening_notrump(!args.no_ns_reopening_notrump);
     pons::bidding::instinct::set_rein_advance_raise(!args.no_ns_rein_advance_raise);
-    pons::bidding::american::set_jordan_truscott(!args.no_ns_jordan_truscott);
-    pons::bidding::american::set_splinter_doubled(!args.no_ns_splinter_doubled);
     pons::bidding::american::set_transfer_defense(args.ns_transfer_defense);
-    pons::bidding::american::set_competition_over_minor_transfer(
-        !args.no_ns_comp_over_minor_transfer,
-    );
     pons::bidding::american::set_minor_transfer_defense(args.ns_minor_transfer_defense);
-    pons::bidding::american::set_competition_over_diamond_transfer(
-        !args.no_ns_comp_over_diamond_transfer,
-    );
     pons::bidding::american::set_diamond_transfer_defense(args.ns_diamond_transfer_defense);
     {
         let (lo, hi) = args
@@ -1733,6 +1682,62 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     // Captured after every ambient cell above, then the knobs that are fields
     // of the value rather than cells of the thread.
     let mut agreements = Agreements::current();
+    // The competitive book.  `--uvu-x-floor` / `--uvu-cue-floor` still ride
+    // inside the `--uvu` gate, as they did as cells; the difference is that a
+    // gated-off floor now stays at the shipped default instead of keeping
+    // whatever the last-armed seat left on the thread.
+    agreements.competition.uvu = args.uvu;
+    if args.uvu {
+        agreements.competition.uvu_x_floor = args.uvu_x_floor;
+        agreements.competition.uvu_cue_floor = args.uvu_cue_floor;
+    }
+    agreements.competition.defense_2d_multi = args.defense_2d_multi;
+    agreements.competition.competition_over_stayman = !args.no_ns_comp_over_stayman;
+    agreements.competition.competitive_4333 = match args.ns_competitive_4333.as_str() {
+        "allow" => pons::bidding::american::Competitive4333::Allow,
+        "suppress" => pons::bidding::american::Competitive4333::Suppress,
+        "suppress-stopper" => pons::bidding::american::Competitive4333::SuppressWithStopper,
+        other => {
+            anyhow::bail!(
+                "--ns-competitive-4333 must be allow|suppress|suppress-stopper, got {other:?}"
+            )
+        }
+    };
+    agreements.competition.competition_over_transfer = args.ns_comp_over_transfer;
+    agreements.competition.cue_raise_answer = !args.no_ns_cue_raise_answer;
+    agreements.competition.cue_minor_raise_answer = !args.no_ns_cue_minor_raise_answer;
+    agreements.competition.uvu_over_majors = !args.no_ns_uvu_over_majors;
+    agreements.competition.weak_two_competition = args.ns_weak_two_comp;
+    agreements.competition.strong_two_competition = !args.no_ns_strong_two_comp;
+    agreements.competition.major_support_double = !args.no_ns_major_support_double;
+    agreements.competition.free_bids = args.ns_free_bids;
+    agreements.competition.free_bid_floor = args.ns_free_bid_floor;
+    agreements.competition.free_1nt_floor = args.ns_free_1nt_floor;
+    agreements.competition.free_bid_quality = args.ns_free_bid_quality;
+    agreements.competition.negative_double_shape = match args.ns_negative_double_shape.as_str() {
+        "both-majors" => pons::bidding::american::NegativeDoubleShape::BothMajors,
+        "modern" => pons::bidding::american::NegativeDoubleShape::Modern,
+        "cachalot" => pons::bidding::american::NegativeDoubleShape::Cachalot,
+        "sputnik" => pons::bidding::american::NegativeDoubleShape::Sputnik,
+        other => anyhow::bail!(
+            "--ns-negative-double-shape must be both-majors|modern|cachalot|sputnik, got {other:?}"
+        ),
+    };
+    agreements.competition.free_bid_style = match args.ns_free_bid_style.as_str() {
+        "forcing" => pons::bidding::american::FreeBidStyle::Forcing,
+        "negative" => pons::bidding::american::FreeBidStyle::Negative,
+        "transfer" => pons::bidding::american::FreeBidStyle::Transfer,
+        other => {
+            anyhow::bail!("--ns-free-bid-style must be forcing|negative|transfer, got {other:?}")
+        }
+    };
+    agreements.competition.high_overcall_responses = args.ns_high_overcall;
+    agreements.competition.cachalot_contested_x = !args.no_ns_cachalot_contested_x;
+    agreements.competition.jordan_truscott = !args.no_ns_jordan_truscott;
+    agreements.competition.splinter_doubled = !args.no_ns_splinter_doubled;
+    agreements.competition.competition_over_minor_transfer = !args.no_ns_comp_over_minor_transfer;
+    agreements.competition.competition_over_diamond_transfer =
+        !args.no_ns_comp_over_diamond_transfer;
     agreements.opening.open_one_notrump = !args.no_our_1nt;
     agreements.opening.one_notrump_fifths = args.nt_fifths;
     agreements.response.up_the_line = !args.no_ns_up_the_line;
@@ -1841,7 +1846,7 @@ fn main() -> anyhow::Result<()> {
         None
     };
     let agreements = arm_knobs(&args)?;
-    let bba = bba.with_opponents(disclosure(&args)?);
+    let bba = bba.with_opponents(disclosure(&args, agreements.competition)?);
     // Read under *our* armed knobs, before the opponent seat borrows the
     // thread: this is the card whoever faces `--their-floor` is playing.
     let our_card = floor_card(&args.our_floor, &agreements)?;
@@ -1867,7 +1872,18 @@ fn main() -> anyhow::Result<()> {
         read: impl FnOnce(Agreements) -> anyhow::Result<T>,
     ) -> anyhow::Result<T> {
         match seat {
-            None => read(Agreements::current()),
+            // No second seat: read under the ambient arming, which is
+            // `restore`'s.  The competitive knobs were ambient cells until this
+            // refactor, so they are pasted back explicitly to keep this branch
+            // byte-identical; the other value-borne halves (opening, response,
+            // rebid, notrump, game_force) were *not* carried here before and
+            // still are not.
+            None => {
+                let competition = arm_knobs(restore)?.competition;
+                let mut ambient = Agreements::current();
+                ambient.competition = competition;
+                read(ambient)
+            }
             Some(seat) => {
                 let agreements = arm_knobs(seat)?;
                 let out = read(agreements);

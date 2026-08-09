@@ -229,7 +229,7 @@ fn test_advance_double_major_cue() {
     );
 }
 
-/// Recognition (default, no `set_delayed_cue`): a partner who plays the delayed
+/// Recognition (default, `agreements.competition.delayed_cue` off): a partner who plays the delayed
 /// cue — `(2♠) X - 2NT - 3♣ - 3♠` = Stayman with a spade stopper — is answered
 /// even though the bot never bids it itself. With four hearts the answerer shows
 /// the fit (4♥, since 3♥ is below the 3♠ cue).

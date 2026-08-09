@@ -110,7 +110,11 @@ fn systems_on_over_two_clubs() {
 /// *only* in the contested context — uncontested forcing Stayman never passes.
 #[test]
 fn penalty_pass_over_two_clubs() {
-    use crate::bidding::american::set_penalty_pass;
+    let arm = |spec| {
+        let mut agreements = crate::bidding::agreements::Agreements::current();
+        agreements.competition.penalty_pass = spec;
+        agreements
+    };
 
     // 16 HCP, 5332 with AK-fifth of clubs (5 clubs, 7 club HCP), no 4-card major.
     let opener = "A2.K3.Q42.AK432";
@@ -122,16 +126,20 @@ fn penalty_pass_over_two_clubs() {
     ];
     let uncontested_stayman = [bid(1, Strain::Notrump), P, bid(2, Strain::Clubs), P];
 
-    // With the penalty pass enabled, opener sits to defend 2♣ doubled.
-    set_penalty_pass(Some((4, 4, true)));
-    assert_eq!(best(&over_dbl, opener), Call::Pass);
+    // With the penalty pass enabled (the shipped default), opener sits to defend
+    // 2♣ doubled.
+    let on = arm(Some((4, 4, true)));
+    assert_eq!(best_with(&on, &over_dbl, opener), Call::Pass);
     // Context-specific: the same hand still answers forcing Stayman (2♦) in the
     // *uncontested* auction — the conversion must not leak onto that shared node.
-    assert_eq!(best(&uncontested_stayman, opener), bid(2, Strain::Diamonds));
+    assert_eq!(
+        best_with(&on, &uncontested_stayman, opener),
+        bid(2, Strain::Diamonds)
+    );
 
-    // With it off (the default), opener can never convert: answers Stayman 2♦.
-    set_penalty_pass(None);
-    assert_eq!(best(&over_dbl, opener), bid(2, Strain::Diamonds));
+    // With it off, opener can never convert: answers Stayman 2♦.
+    let off = arm(None);
+    assert_eq!(best_with(&off, &over_dbl, opener), bid(2, Strain::Diamonds));
 }
 
 #[test]

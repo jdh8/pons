@@ -279,7 +279,7 @@ pub(crate) fn over_their_overcall_legacy(opening: Suit, agreements: &Agreements)
             );
     }
 
-    // Natural free bids (`set_free_bids`; implied by the Modern/Cachalot
+    // Natural free bids (`agreements.competition.free_bids`; implied by the Modern/Cachalot
     // shapes, whose tighter doubles need the natural outlet). A free bid of
     // their suit is the cue above; the 1-level majors stay out of the
     // Cachalot rotation's way (a 5-card major routes through its transfer).

@@ -37,7 +37,7 @@ use pons::american;
 use pons::bidding::american::{
     DoubleShape, NotrumpDefense, set_direct_landy_double, set_direct_landy_double_floor,
     set_direct_landy_penalty_pass, set_doubled_landy_escape, set_landy, set_landy_hcp,
-    set_natural_double_shape, set_notrump_defense, set_penalty_pass, set_unusual_notrump_defense,
+    set_natural_double_shape, set_notrump_defense, set_unusual_notrump_defense,
     set_woolsey_double_floor, set_woolsey_points,
 };
 use pons::bidding::instinct::{
@@ -452,9 +452,10 @@ fn main() {
     set_natural_double_shape(ew_double_shape);
     set_direct_landy_double_floor(15);
     set_direct_landy_penalty_pass(false);
-    set_penalty_pass(ew_penalty_pass);
     set_doubler_xx_runout(false);
-    let baseline = american(&pons::bidding::agreements::Agreements::current()).against();
+    let mut baseline_arm = pons::bidding::agreements::Agreements::current();
+    baseline_arm.competition.penalty_pass = ew_penalty_pass;
+    let baseline = american(&baseline_arm).against();
     // One write picks the measured system; the two forced-off blocks this
     // replaced ("DONT owns 2♣/2NT", "Woolsey owns every direct call") were the
     // read-time precedence cascade the `NotrumpDefense` cell exists to delete.
@@ -476,12 +477,13 @@ fn main() {
         &args.ns_landy_x_penalty,
         "--ns-landy-x-penalty",
     ));
-    set_penalty_pass(ns_penalty_pass);
     set_doubled_landy_escape(ns_doubled_escape);
     set_doubler_xx_runout(ns_doubler_run);
     set_woolsey_points(woolsey_range.0, woolsey_range.1);
     set_woolsey_double_floor(args.ns_woolsey_x_floor);
-    let measured = american(&pons::bidding::agreements::Agreements::current()).against();
+    let mut measured_arm = pons::bidding::agreements::Agreements::current();
+    measured_arm.competition.penalty_pass = ns_penalty_pass;
+    let measured = american(&measured_arm).against();
 
     // Each board at both tables (Landy NS at A, EW at B), dealer rotating.
     // Any system difference between the two pairs makes every hand with a

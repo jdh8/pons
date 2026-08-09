@@ -139,7 +139,8 @@ std::thread_local! {
 
     /// Whether we encircle (penalty-double) the opponents' escape from our
     /// `1NT (2NT) X` — the Unusual-vs-Unusual penalty chase. Default on (it only
-    /// fires after our own UvU `X`, so it is dormant unless [`set_uvu`] is on).
+    /// fires after our own UvU `X`, so it is dormant unless
+    /// `agreements.competition.uvu` is on).
     static UVU_ENCIRCLE: Cell<bool> = const { Cell::new(true) };
 
     /// Whether the "settle" view of Pass is in force (**default on** — see
@@ -1448,7 +1449,7 @@ fn penalize_escape_values_enabled() -> Cons<impl Constraint + Clone> {
 ///
 /// "All our doubles are penalty from the first X on"; a pass conveys inability
 /// to punish *this* contract.  The responder `X` itself lives in the american
-/// book ([`set_uvu`][crate::bidding::american::set_uvu]); this only adds the
+/// book (`agreements.competition.uvu`); this only adds the
 /// follow-up chase of the opponents' escape.  Read at classification time,
 /// per-thread.  On by default — but dormant unless our UvU `X` was bid.
 #[doc(hidden)]

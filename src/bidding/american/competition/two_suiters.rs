@@ -2,43 +2,11 @@
 //!
 //! When they name two suits over our major opening, responder's raises and
 //! fourth-suit answers all change meaning.  Gated by
-//! [`set_uvu_over_majors`].
+//! `agreements.competition.uvu_over_majors`.
 
 use super::cue_raise::answer_cue_raise;
 use super::lebensohl::unbid_major;
 use super::*;
-
-thread_local! {
-    /// Whether responder's structure over the opponents' two-suiters over our
-    /// 1♥/1♠ opening — their both-minors `(2NT)` and their Michaels cue of our
-    /// own major — is authored. **Default on** — measured vs BBA 2/1 (204.8k
-    /// boards/arm/vul): plain DD +0.0019/+0.0018 IMPs/board NV/vul (both CIs
-    /// exclude 0; +1.43/+1.58 IMPs/fired, ~0.12% fired), perfect-defense the
-    /// same sign.
-    ///
-    /// Book construction only.  This knob once *also* gated the inference
-    /// walk's hand-written two-suiter reading; that reader was retired in
-    /// favour of the authored rules' own projection (chop 1 of
-    /// `docs/reader-retirement.md`), so the reading is now owned by
-    /// [`set_table_alert_reading`][crate::bidding::set_table_alert_reading].
-    static UVU_OVER_MAJORS: Cell<bool> = const { Cell::new(true) };
-}
-
-/// Author responder's structure over their two-suiters over our 1M for books
-/// built *after* this call (thread-local)
-///
-/// Read at book construction. Reading *their* cue / `(2NT)` as a two-suiter is
-/// no longer this knob's business — the alerted rules project themselves (see
-/// the thread-local's doc).
-/// **Default on** (`--no-ns-uvu-over-majors` in `bba-gen` for the off arm).
-pub fn set_uvu_over_majors(on: bool) {
-    UVU_OVER_MAJORS.with(|cell| cell.set(on));
-}
-
-/// Whether the two-suiters-over-our-1M package is authored (book construction)
-pub fn uvu_over_majors() -> bool {
-    UVU_OVER_MAJORS.with(Cell::get)
-}
 
 /// Responder after our 1M and their both-minors `(2NT)` — unusual vs unusual
 ///
@@ -145,7 +113,7 @@ fn uvu_fourth_suit_answer(major: Suit) -> Rules {
 }
 
 /// Section 6 as a row package: their two-suiters over our `1M`
-/// ([`set_uvu_over_majors`][super::set_uvu_over_majors])
+/// (`agreements.competition.uvu_over_majors`)
 ///
 /// Unusual-vs-unusual over their both-minors `2NT`, and a raise structure over
 /// their Michaels cue of our own major.  Keyed at the deeper `1M (their call)`

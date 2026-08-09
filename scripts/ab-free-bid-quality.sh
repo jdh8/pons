@@ -1,6 +1,6 @@
 #!/bin/sh
 # ab-free-bid-quality.sh — P3b″: the suit-quality gate the P3b′ floor sweep
-# asked for (set_free_bid_quality / --ns-free-bid-quality). The free-bid
+# asked for (competition.free_bid_quality / --ns-free-bid-quality). The free-bid
 # family's vulnerable leak is plain-DD-visible and strength-independent; the
 # gate demands two of the top three honors for a vulnerable 1-level free bid
 # and drops the vulnerable free 1NT. Measured on Modern (the family

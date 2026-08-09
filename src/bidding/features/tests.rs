@@ -1201,9 +1201,8 @@ fn features_v5_appends_both_blocks() {
 fn each_compact_axis_moves_its_slots_and_only_live_ones_move_the_net() {
     use crate::bidding::Rules;
     use crate::bidding::american::{
-        PUPPET, set_garbage_stayman, set_jordan_truscott, set_landy, set_leaping_michaels,
-        set_lebensohl_style, set_major_support_double, set_notrump_defense, set_notrump_minors,
-        set_nt_splinter, set_responsive_takeout, set_woolsey_points, set_xyz,
+        PUPPET, set_garbage_stayman, set_landy, set_leaping_michaels, set_notrump_defense,
+        set_notrump_minors, set_nt_splinter, set_responsive_takeout, set_woolsey_points, set_xyz,
     };
     use crate::bidding::instinct::{RkcbVariant, forced, set_rkcb_variant};
     use crate::bidding::neural_floor::ConfiguredFloorV5;
@@ -1270,7 +1269,7 @@ fn each_compact_axis_moves_its_slots_and_only_live_ones_move_the_net() {
         &[0],
     );
 
-    // Five axes are fields of `Agreements` rather than ambient cells, so they arm
+    // Eight axes are fields of `Agreements` rather than ambient cells, so they arm
     // the captured value directly.  Nothing global moves, so they need no
     // restore and cannot strand a flipped knob for the next test on this thread.
     let mut offshape = crate::bidding::agreements::Agreements::current();
@@ -1304,6 +1303,27 @@ fn each_compact_axis_moves_its_slots_and_only_live_ones_move_the_net() {
         ConventionCard::capture(&super_accept, false),
         &[5],
     );
+    let mut jordan = crate::bidding::agreements::Agreements::current();
+    jordan.competition.jordan_truscott = false;
+    check(
+        "jordan_truscott",
+        ConventionCard::capture(&jordan, false),
+        &[7],
+    );
+    let mut support_double = crate::bidding::agreements::Agreements::current();
+    support_double.competition.major_support_double = false;
+    check(
+        "major_support_double",
+        ConventionCard::capture(&support_double, false),
+        &[10],
+    );
+    let mut lebensohl = crate::bidding::agreements::Agreements::current();
+    lebensohl.competition.lebensohl_style = LebensohlStyle::Off;
+    check(
+        "lebensohl",
+        ConventionCard::capture(&lebensohl, false),
+        &[23, 25],
+    );
 
     // Enum targets leave a trained lane deliberately: `Wide` (14), `Plain` (24)
     // and the five non-{Natural, Woolsey} defenses are folded, and `Wide` is
@@ -1326,12 +1346,6 @@ fn each_compact_axis_moves_its_slots_and_only_live_ones_move_the_net() {
         ),
         ("xyz", || set_xyz(false), || set_xyz(true), &[4]),
         (
-            "jordan_truscott",
-            || set_jordan_truscott(false),
-            || set_jordan_truscott(true),
-            &[7],
-        ),
-        (
             "leaping_michaels",
             || set_leaping_michaels(false),
             || set_leaping_michaels(true),
@@ -1344,12 +1358,6 @@ fn each_compact_axis_moves_its_slots_and_only_live_ones_move_the_net() {
             &[9],
         ),
         (
-            "major_support_double",
-            || set_major_support_double(false),
-            || set_major_support_double(true),
-            &[10],
-        ),
-        (
             "nt_splinter",
             || set_nt_splinter(false),
             || set_nt_splinter(true),
@@ -1360,12 +1368,6 @@ fn each_compact_axis_moves_its_slots_and_only_live_ones_move_the_net() {
             || set_notrump_defense(NotrumpDefense::Woolsey),
             || set_notrump_defense(NotrumpDefense::Natural),
             &[16, 19],
-        ),
-        (
-            "lebensohl",
-            || set_lebensohl_style(LebensohlStyle::Off),
-            || set_lebensohl_style(LebensohlStyle::Transfer),
-            &[23, 25],
         ),
         (
             "minors_european",

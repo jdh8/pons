@@ -1,20 +1,22 @@
-use super::super::tests::{best_call, call};
+use super::super::tests::{best_call, best_call_with, call};
+use crate::bidding::agreements::Agreements;
 use contract_bridge::Strain;
 use contract_bridge::auction::Call;
 
 #[test]
 fn jordan_truscott_over_their_double() {
-    super::over_their_double::set_jordan_truscott(true);
+    let mut arm = Agreements::current();
+    arm.competition.jordan_truscott = true;
     let auction = [call(1, Strain::Spades), Call::Double];
     // Jordan 2NT: 4 trumps, limit+.
-    let (jordan, floored) = best_call(&auction, "Q542.A5.K964.Q32");
+    let (jordan, floored) = best_call_with(&arm, &auction, "Q542.A5.K964.Q32");
     assert_eq!(jordan, call(2, Strain::Notrump), "Jordan/Truscott");
     assert!(!floored, "an authored node, not the floor");
     // Value redouble: 10+ without the fit.
-    let (xx, _) = best_call(&auction, "K2.A54.K964.Q532");
+    let (xx, _) = best_call_with(&arm, &auction, "K2.A54.K964.Q532");
     assert_eq!(xx, Call::Redouble, "the value redouble");
     // The jump raise flips preemptive.
-    let (preempt, _) = best_call(&auction, "Q542.9.96432.Q32");
+    let (preempt, _) = best_call_with(&arm, &auction, "Q542.9.96432.Q32");
     assert_eq!(preempt, call(3, Strain::Spades), "preemptive jump raise");
     // A weak 2-level new suit is non-forcing — opener passes a minimum.
     let weak = [
@@ -23,7 +25,7 @@ fn jordan_truscott_over_their_double() {
         call(2, Strain::Clubs),
         Call::Pass,
     ];
-    let (pass, weak_floored) = best_call(&weak, "AQ542.K54.96.432");
+    let (pass, weak_floored) = best_call_with(&arm, &weak, "AQ542.K54.96.432");
     assert_eq!(pass, Call::Pass, "the weak new suit is dropped");
     assert!(!weak_floored, "an authored node, not the floor");
     // Opener answers Jordan with the cue-raise ladder (not Jacoby 2NT,
@@ -34,11 +36,10 @@ fn jordan_truscott_over_their_double() {
         call(2, Strain::Notrump),
         Call::Pass,
     ];
-    let (accept, _) = best_call(&answer, "AKQ54.K54.96.A32");
+    let (accept, _) = best_call_with(&arm, &answer, "AKQ54.K54.96.A32");
     assert_eq!(accept, call(4, Strain::Spades), "a maximum accepts");
-    let (decline, _) = best_call(&answer, "AQ542.954.96.A32");
+    let (decline, _) = best_call_with(&arm, &answer, "AQ542.954.96.A32");
     assert_eq!(decline, call(3, Strain::Spades), "a minimum declines");
-    super::over_their_double::set_jordan_truscott(true);
 }
 
 #[test]
@@ -69,9 +70,9 @@ fn redouble_answer_shadows_the_rebase_blast() {
     );
     assert!(!long_floored, "the sit is authored too");
 
-    super::over_their_double::set_redouble_answer(false);
-    let (off_call, _) = best_call(&auction, opener);
-    super::over_their_double::set_redouble_answer(true);
+    let mut off = Agreements::current();
+    off.competition.redouble_answer = false;
+    let (off_call, _) = best_call_with(&off, &auction, opener);
     assert_ne!(
         off_call,
         Call::Pass,

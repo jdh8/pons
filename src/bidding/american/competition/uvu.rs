@@ -2,74 +2,11 @@
 //!
 //! Their `2NT` shows both minors and steals the whole two level, so responder's
 //! answers are re-keyed: the cue, the splinter, and the natural bids each get
-//! their own floor ([`set_uvu_cue_floor`], [`set_uvu_x_floor`],
-//! [`set_uvu_natural_floor`]).  Gated by [`set_uvu`].
+//! their own floor (`agreements.competition.uvu_cue_floor`, `agreements.competition.uvu_x_floor`,
+//! `agreements.competition.uvu_natural_floor`).  Gated by `agreements.competition.uvu`.
 
 use super::rubensohl::{lm_2d_both_majors_advance, stayman_2d_answer, stayman_2d_fit_rebid};
 use super::*;
-
-thread_local! {
-    /// Whether the competitive book carries the Unusual-vs-Unusual structure over
-    /// our `1NT` when an opponent overcalls a both-minors `2NT` (Section 5d).
-    /// Default on: the constructive cues are DD-robust (A/B +0.6–2.6 IMPs/board
-    /// per call vs the passing floor) and the auction was previously unauthored.
-    static UVU: Cell<bool> = const { Cell::new(true) };
-    /// Responder's penalty-double HCP floor over `1NT (2NT)`.
-    static UVU_X_FLOOR: Cell<u8> = const { Cell::new(9) };
-    /// Responder's INV+ cue-bid points floor over `1NT (2NT)`.
-    static UVU_CUE_FLOOR: Cell<u8> = const { Cell::new(8) };
-    /// Length floor for responder's weak natural `3♥`/`3♠` escape over `1NT (2NT)`
-    /// (`6` = a clean six-bagger; `5` lets a five-card major escape when defending
-    /// the both-minors overcall looks bad — the A/B sweep knob).
-    static UVU_NATURAL_FLOOR: Cell<u8> = const { Cell::new(6) };
-}
-
-/// Enable the Unusual-vs-Unusual structure over `1NT (2NT)` when their 2NT
-/// shows both minors, for books built *after* this call (thread-local, read once
-/// at construction).
-///
-/// Responder's `X` is penalty ("I can beat ≥1 of their suits"); the constructive
-/// answers are cue-bids — `3♣` = INV+ Stayman or 5+♠, `3♦` = INV+ 5+♥, `4♣`/`4♦`
-/// = FG+ 5-5-majors splinters — with symmetric Smolen after the `3♣`→`3♦` denial.
-/// Default **on** ([`set_uvu_x_floor`] / [`set_uvu_cue_floor`] tune the strength
-/// ranges; the A/B best is `9` HCP / `8` points).
-pub fn set_uvu(on: bool) {
-    UVU.with(|cell| cell.set(on));
-}
-
-/// Whether the Unusual-vs-Unusual `(2NT)` structure is enabled
-pub fn uvu() -> bool {
-    UVU.with(Cell::get)
-}
-
-/// Set responder's penalty-double HCP floor over `1NT (2NT)` — the A/B sweep
-/// knob for "I can penalize one of their suits" (default `9`)
-pub fn set_uvu_x_floor(floor: u8) {
-    UVU_X_FLOOR.with(|cell| cell.set(floor));
-}
-
-pub(super) fn uvu_x_floor() -> u8 {
-    UVU_X_FLOOR.with(Cell::get)
-}
-
-/// Set responder's INV+ cue-bid points floor over `1NT (2NT)` (default `8`)
-pub fn set_uvu_cue_floor(floor: u8) {
-    UVU_CUE_FLOOR.with(|cell| cell.set(floor));
-}
-
-pub(super) fn uvu_cue_floor() -> u8 {
-    UVU_CUE_FLOOR.with(Cell::get)
-}
-
-/// Set the length floor for responder's weak natural `3♥`/`3♠` escape over
-/// `1NT (2NT)` (default `6`; `5` lets a five-card major escape a bad defence)
-pub fn set_uvu_natural_floor(floor: u8) {
-    UVU_NATURAL_FLOOR.with(|cell| cell.set(floor));
-}
-
-pub(super) fn uvu_natural_floor() -> u8 {
-    UVU_NATURAL_FLOOR.with(Cell::get)
-}
 
 /// Responder's first call over `1NT (2NT)` — their 2NT shows both minors
 ///
@@ -78,8 +15,9 @@ pub(super) fn uvu_natural_floor() -> u8 {
 /// 5+♥. `4♣`/`4♦` are FG+ 5-5-majors splinters into the short minor (every 5-5
 /// hand is short in exactly one minor, so they cover all of them — 5-5 never goes
 /// through Stayman). `3♥`/`3♠` are weak natural sign-offs (a clean 6-card major);
-/// `3NT` is to play. The [`set_uvu_x_floor`] / [`set_uvu_cue_floor`]
-/// knobs sweep the strength ranges. Pass is the finite catch-all.
+/// `3NT` is to play. The `agreements.competition.uvu_x_floor` /
+/// `agreements.competition.uvu_cue_floor` knobs sweep the strength ranges.
+/// Pass is the finite catch-all.
 pub(super) fn uvu_responder(agreements: &Agreements) -> Rules {
     let x_floor = agreements.competition.uvu_x_floor;
     let cue_floor = agreements.competition.uvu_cue_floor;
@@ -192,7 +130,7 @@ pub(super) fn uvu_rebid_over_3h() -> Rules {
 }
 
 /// Section 5d as a row package: Unusual vs Unusual over a both-minors `(2NT)`
-/// overcall of our `1NT` ([`set_uvu`][super::set_uvu])
+/// overcall of our `1NT` (`agreements.competition.uvu`)
 ///
 /// Responder's `X` is penalty; `3♣`/`3♦` are INV+ cues (Stayman/5+♠, 5+♥);
 /// `4♣`/`4♦` are FG+ 5-5-majors splinters; the `3♣`→`3♦` denial runs symmetric
