@@ -362,6 +362,77 @@ fn readings_admit_the_bidder() {
     );
 }
 
+/// Arm the node context's decision cache so one `Inferences::read` serves the
+/// whole node
+///
+/// [`Inferences::read`] is hand-independent, but a bare [`Context`] has no
+/// decision scope, so every `rule.eval(hand, context)` and every projection
+/// re-derived the identical read — 1.26M of them across the book walks, ~91%
+/// of the suite's wall clock.  Arming the scope at the node makes it one read
+/// per node, shared by every rule and every probe hand.
+///
+/// [`Hand::EMPTY`] on purpose: the hand key gates only
+/// `Context::trick_estimates`, and no 13-card probe hand equals it, so that
+/// slot keeps computing live exactly as it did uncached.  The knob snapshot
+/// the cache takes is likewise inert — every walker below flips knobs
+/// *around* the walk, never inside it, and `assert_fixed_call` fails loudly in
+/// debug if that ever stops being true.
+fn node_context<'a>(trie: &'a crate::bidding::trie::Trie, auction: &'a [Call]) -> Context<'a> {
+    Context::new(RelativeVulnerability::NONE, auction)
+        .with_prefixes(trie.common_prefixes(auction))
+        .with_decision_cache(Hand::EMPTY)
+}
+
+/// The memoised node read is the uncached read, and it happens once
+///
+/// [`node_context`]'s whole saving rests on two claims that no other test
+/// would notice breaking: the memoised [`Inferences`] equals what the
+/// uncached path derives (else every soundness net above goes *silently*
+/// green against a stale reading), and the decision scope actually stays live
+/// across the node's rules (else the walk quietly falls back to 1.26M reads
+/// and the suite is back to twelve minutes).  Equality catches the first,
+/// the init count catches the second.
+#[test]
+fn node_context_memoises_the_uncached_read() {
+    use crate::bidding::american::american;
+
+    set_envelope_union_reading(true);
+    let american = american();
+    let trie = &american.constructive.0;
+    let mut checked = 0usize;
+    for (auction, classifier) in trie {
+        let auction: &[Call] = &auction;
+        if classifier.as_rules().is_none() {
+            continue;
+        }
+        let bare = Context::new(RelativeVulnerability::NONE, auction)
+            .with_prefixes(trie.common_prefixes(auction));
+        let cached = node_context(trie, auction);
+        let where_ = || contract_bridge::auction::display_calls(auction);
+        assert_eq!(
+            *cached.inferences(),
+            Inferences::read(&bare),
+            "the memoised node read differs from the uncached read at [{}]",
+            where_(),
+        );
+        // Second touch: the scope must serve, not re-derive.
+        let _ = cached.inferences();
+        assert_eq!(
+            cached.decision_cache_init_counts().map(|counts| counts.0),
+            Some(1),
+            "the node decision scope stopped memoising at [{}]",
+            where_(),
+        );
+        checked += 1;
+        // ponytail: a prefix of the trie is plenty — the claim is structural,
+        // not node-specific, and this test must stay off the critical path.
+        if checked >= 256 {
+            break;
+        }
+    }
+    assert!(checked > 0, "the walk found no authored rule nodes");
+}
+
 /// Walk every authored rule of a book trie under its authoring-time context
 ///
 /// The shared chassis of the book-wide invariant tests below: iterate the
@@ -376,8 +447,7 @@ fn for_each_authored_rule(
         let Some(rules) = classifier.as_rules() else {
             continue;
         };
-        let context = Context::new(RelativeVulnerability::NONE, auction)
-            .with_prefixes(trie.common_prefixes(auction));
+        let context = node_context(trie, auction);
         for rule in rules.rules() {
             visit(auction, &context, rule);
         }
@@ -411,8 +481,7 @@ fn for_each_fallback_rule(
             opaque(auction, guard.describe());
             continue;
         };
-        let context = Context::new(RelativeVulnerability::NONE, auction)
-            .with_prefixes(trie.common_prefixes(auction));
+        let context = node_context(trie, auction);
         for rule in rules.rules() {
             visit(auction, &context, rule);
         }
@@ -718,9 +787,14 @@ fn authored_rules_eval_within_projection() {
     use crate::bidding::dutch::dutch;
     use rand::SeedableRng as _;
 
-    // ponytail: 128 hands keeps the sweep under ~10s in the default test
-    // run; the deep-auction rules re-walk `Inferences::read` per eval and
-    // dominate the cost.  Crank the pool when hunting a specific leak.
+    // ponytail: 128 hands is the whole cost dial.  The sweep is ~72s, and
+    // measured, that is 110 368 (auction, rule) pairs × 132 hands: ~41s in
+    // `Envelope::accepts` (13.9M calls, of which ~6s is re-reading the
+    // reading profile out of thread-locals per box), ~29s in `Rule::eval`,
+    // and under 1s each in projection and in `Inferences::read` — the reads
+    // are memoised per node by `node_context` above, 5 042 of them rather
+    // than 1.26M.  So the pool scales the sweep almost linearly and nothing
+    // else here is cacheable.  Crank it when hunting a specific leak.
     let mut rng = rand::rngs::StdRng::seed_from_u64(0xE0);
     let mut hands: Vec<Hand> = crate::bidding::verify::random_hands(&mut rng)
         .take(128)

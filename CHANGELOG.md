@@ -215,6 +215,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`cargo test --all-features` back from 704 s to 100 s** (7×), with no
+  shipped behaviour touched — the change lives entirely inside the crate's
+  test module.  Nearly the whole suite was one test:
+  `authored_rules_eval_within_projection` (the book-wide projection-soundness
+  net) took 685 s, of which 91 % was **1 261 746 uncached
+  `Inferences::read`** calls at ~0.5 ms each.  The reads are
+  hand-independent, but the book-rule walkers built each trie node's context
+  with a bare `Context::new`, which has no decision scope to memoise into, so
+  every one of the 110 368 `(auction, rule)` pairs re-derived the identical
+  reading once per projection *and* once per probe hand.  Arming the node
+  context's decision scope (`with_decision_cache(Hand::EMPTY)`) makes it one
+  read per node, shared by every rule and every hand: the test now runs in
+  ~72 s standalone, 81 s under suite contention.  `Hand::EMPTY` is the key on
+  purpose — the hand gates only `Context::trick_estimates`, and no 13-card
+  probe hand equals it, so that slot keeps computing live exactly as it did
+  uncached; face gates likewise stay live (zero compiled slots).
+  The other two slow tests are left alone, both deliberately.
+  `passes_read_within_their_table` open-codes the same node context, but
+  arming it there measured a wash (28.08 s → 28.41 s standalone) — it calls
+  `project_pass` once per node and `Rules::classify` once per hand, so its
+  reads were already amortised and its cost is elsewhere.
+  `deal_cache_preserves_whole_auction` is the cache-parity test: its uncached
+  oracles have to stay uncached.
+  The regression traced to a one-bit diff — the `QUEEN_ASK` default flip that
+  shipped the merged queen relay — which put relay rungs in the keycard ladder
+  and made deep-prefix reads project keycard constraints; it cost ~590 s and
+  nothing metered it.  `node_context_memoises_the_uncached_read` is the cover:
+  it asserts the memoised reading equals the uncached one and that the scope
+  stays live across a node's rules.  Both halves matter — a *stale* reading
+  would leave the soundness nets silently green (verified: poisoning the memo
+  leaves the projection test passing, because eval and projection consult the
+  same read), while a scope that quietly stopped memoising would put the suite
+  back at twelve minutes.  The net itself is still red-capable: an unsound
+  narrowing of `Rule::project_union` fails it.
+
 - **Six A/B harnesses that the pin-at-build campaign had silently turned into
   no-ops.**  Each armed its candidate side by setting a knob just before every
   classification, off a single stance built once — an idiom the pin made inert,
