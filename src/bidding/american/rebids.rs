@@ -10,10 +10,10 @@
 //! | --- | --- | --- |
 //! | [`extras_ladder`] | jump-rebid / reverse / jump-shift after a minor opening | [`set_opener_extras_ladder`] |
 //! | [`major_jump_rebid`] | `3M` on a six-card major with extras | [`set_opener_major_jump_rebid`] |
-//! | [`meckstroth`] | the artificial GF `2NT` and the invitational `3m` jumps | [`set_meckstroth_adjunct`] |
-//! | [`two_suiter`] | `1♥ - 1NT - 2♠` / `1♠ - 1NT - 3♥`, 15–17 | [`set_forcing_nt_two_suiter`] |
+//! | [`meckstroth`] | the artificial GF `2NT` and the invitational `3m` jumps | [`RebidKnobs::meckstroth_adjunct`] |
+//! | [`two_suiter`] | `1♥ - 1NT - 2♠` / `1♠ - 1NT - 3♥`, 15–17 | [`RebidKnobs::forcing_nt_two_suiter`] |
 //! | [`forcing_notrump`] | responder's second call after the forcing `1NT` | always on |
-//! | [`major_tails`] | full continuations after `1♥ - 1♠` (with 4SF) | [`set_major_rebid_tails`] |
+//! | [`major_tails`] | full continuations after `1♥ - 1♠` (with 4SF) | [`RebidKnobs::major_rebid_tails`] |
 
 use super::{call, other_major};
 use crate::bidding::agreements::{Agreements, RebidKnobs};
@@ -40,14 +40,10 @@ use two_suiter::with_forcing_nt_two_suiter;
 
 pub use extras_ladder::set_opener_extras_ladder;
 pub use major_jump_rebid::set_opener_major_jump_rebid;
-pub use major_tails::{set_fourth_suit_forcing, set_major_rebid_tails, set_nt_invite_hcp};
-pub use meckstroth::{set_meckstroth_adjunct, set_meckstroth_minor_jumps};
-pub use two_suiter::set_forcing_nt_two_suiter;
 
 // Knobs the inference walk reads at classify time.
 pub(crate) use extras_ladder::opener_extras_ladder;
 pub(crate) use major_jump_rebid::opener_major_jump_rebid;
-pub use major_tails::fourth_suit_forcing;
 
 // The packages, re-exported so `american::tests::row_package_invariants` and
 // `register` below name them at one path.
@@ -59,61 +55,8 @@ pub(super) use meckstroth::{
 };
 pub(super) use two_suiter::forcing_nt_two_suiter_continuations;
 
-/// Capture this thread's rebid build-time knobs
-///
-/// The one place these cells are read. Everything downstream takes the captured
-/// value, so a `set_*` between this call and the rules being built cannot split
-/// the book against itself. The two checkback conventions live in
-/// `american/{xyz,nmf}.rs` rather than under this module, but they are opener's
-/// rebid machinery and share `RebidKnobs` — one struct per book area is the
-/// granularity `Build` keeps. `opener_extras_ladder`, `opener_major_jump_rebid`
-/// and `xyz` are read at classify time too and live only in `DecisionProfile`,
-/// so they are absent.
-pub(in crate::bidding) fn capture() -> RebidKnobs {
-    RebidKnobs {
-        balanced_1nt_rebid: balanced_1nt_rebid(),
-        major_rebid_tails: major_tails::major_rebid_tails(),
-        fourth_suit_forcing: major_tails::fourth_suit_forcing(),
-        nt_invite_hcp: major_tails::nt_invite_hcp(),
-        meckstroth_adjunct: meckstroth::meckstroth_adjunct(),
-        meckstroth_minor_jumps: meckstroth::meckstroth_minor_jumps(),
-        forcing_nt_two_suiter: two_suiter::forcing_nt_two_suiter(),
-        xyz_invite_judgment: super::xyz::xyz_invite_judgment(),
-        new_minor_forcing: super::nmf::new_minor_forcing(),
-    }
-}
-
 // ponytail: same construction-time toggle as the Meckstroth adjunct — read
 // during `register()`, so set it before building the `Pair`.
-std::thread_local! {
-    /// Whether opener rebids `1NT` (not `2m`) with a balanced 12–14 and a
-    /// five-card minor after `1m - 1M`.  On by default (shipped);
-    /// see [`set_balanced_1nt_rebid`].
-    static BALANCED_1NT_REBID: Cell<bool> = const { Cell::new(true) };
-}
-
-/// Prefer opener's `1NT` rebid over `2m` on a balanced 12–14 in books built
-/// *after* this call
-///
-/// After `1m - 1M`, a 5332 balanced minimum with the five-card minor otherwise
-/// rebids a natural `2m` (weight 0.9) that outranks the balanced `1NT` (0.5),
-/// misdescribing the hand and losing the `1NT`-based game placement BBA finds
-/// (the largest lever in the Constructive/book/round-2 anchor bucket).  Read at
-/// book-construction time; shipped default-on (+0.0093 plain / +0.0101 PD
-/// IMPs/board vs BBA, both vuls).
-///
-/// Natural and folded into base per [docs/bidding-options.md]; retained only
-/// as a measurement off-switch, not a user-facing toggle (dropped from the
-/// `web` settings registry).
-pub fn set_balanced_1nt_rebid(on: bool) {
-    BALANCED_1NT_REBID.with(|cell| cell.set(on));
-}
-
-/// Whether the balanced-`1NT`-rebid preference is currently enabled
-fn balanced_1nt_rebid() -> bool {
-    BALANCED_1NT_REBID.with(Cell::get)
-}
-
 /// The cheapest level at which `strain` may be bid over `highest`
 fn cheapest_level_over(highest: Bid, strain: Strain) -> u8 {
     if strain > highest.strain {
@@ -207,7 +150,7 @@ fn rebid_after_forcing_notrump(major: Suit, agreements: &Agreements) -> Rules {
 /// Opener's rebid raising responder's new major after a minor opening
 ///
 /// Used at `1m - 1M`.  Forcing on opener; a 1NT rebid is the guaranteed-legal
-/// fallback.  Under the up-the-line completion (`set_up_the_line`) opener
+/// fallback.  Under the up-the-line completion (`up_the_line`) opener
 /// also shows four spades over a `1♥` response — without it the 4-4 spade
 /// fit is lost to the 1NT rebid.
 fn rebid_raise_major(responder_major: Suit, opener_minor: Suit, agreements: &Agreements) -> Rules {
@@ -261,7 +204,7 @@ fn rebid_raise_major(responder_major: Suit, opener_minor: Suit, agreements: &Agr
 
 /// Opener's rebid after `1♣ - 1♦`
 ///
-/// Under the up-the-line completion (`set_up_the_line`) a six-plus club suit
+/// Under the up-the-line completion (`up_the_line`) a six-plus club suit
 /// rebids a natural `2♣` — without it those hands land in the misdescribed
 /// 1NT catch-all.
 fn rebid_one_club_one_diamond(agreements: &Agreements) -> Rules {
@@ -389,4 +332,3 @@ pub(super) fn register(book: &mut Trie, agreements: &Agreements) {
 
 #[cfg(test)]
 mod tests;
-pub use meckstroth::meckstroth_adjunct;

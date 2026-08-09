@@ -1,10 +1,11 @@
 //! Integration tests for the major-suit continuation knobs: opener's game
-//! tries after a single raise (`set_major_game_tries`), opener's acceptance
-//! ladder after a limit raise (`set_limit_raise_acceptance`), the full
-//! continuations after `1♥ - 1♠` (`set_major_rebid_tails`), and fourth-suit-
-//! forcing riding that adjunct (`set_fourth_suit_forcing`).  Each test builds
-//! its own stance with the knobs it needs and restores the defaults, so the
-//! rest of the suite keeps measuring the shipped system.
+//! tries after a single raise (`ResponseKnobs::major_game_tries`), opener's
+//! acceptance ladder after a limit raise
+//! (`ResponseKnobs::limit_raise_acceptance`), the full continuations after
+//! `1♥ - 1♠` (`RebidKnobs::major_rebid_tails`), and fourth-suit-forcing riding
+//! that adjunct (`RebidKnobs::fourth_suit_forcing`).  Each test builds its own
+//! stance with the knobs it needs, so the rest of the suite keeps measuring the
+//! shipped system.
 //!
 //! Every test plays a *whole* auction through the real stance — the opening
 //! bid through the final contract — rather than probing a bare rule table in
@@ -14,25 +15,18 @@
 mod common;
 use common::*;
 
-use pons::bidding::american::{
-    set_fourth_suit_forcing, set_limit_raise_acceptance, set_major_game_tries,
-    set_major_rebid_tails,
-};
+use pons::bidding::agreements::Agreements;
 
 const P: Call = Call::Pass;
 
-/// A stance built with the given knobs, the (on) defaults restored afterwards
+/// A stance built with the given knobs
 fn stance_with(tries: bool, limit: bool, tails: bool, fsf: bool) -> Stance {
-    set_major_game_tries(tries);
-    set_limit_raise_acceptance(limit);
-    set_major_rebid_tails(tails);
-    set_fourth_suit_forcing(fsf);
-    let stance = american(&pons::bidding::agreements::Agreements::current()).against();
-    set_major_game_tries(true);
-    set_limit_raise_acceptance(true);
-    set_major_rebid_tails(true);
-    set_fourth_suit_forcing(true);
-    stance
+    let mut agreements = Agreements::current();
+    agreements.response.major_game_tries = tries;
+    agreements.response.limit_raise_acceptance = limit;
+    agreements.rebid.major_rebid_tails = tails;
+    agreements.rebid.fourth_suit_forcing = fsf;
+    american(&agreements).against()
 }
 
 /// Append our call and the opponent's pass — the uncontested interleaving
@@ -45,7 +39,7 @@ fn extend(auction: &[Call], next: Call) -> Vec<Call> {
 }
 
 // =============================================================================
-// Major game tries: 1M - 2M - (set_major_game_tries)
+// Major game tries: 1M - 2M - (major_game_tries)
 // =============================================================================
 
 #[test]
@@ -159,7 +153,7 @@ fn single_raise_passed_without_extras() {
 }
 
 // =============================================================================
-// Limit-raise acceptance: 1M - 3M - (set_limit_raise_acceptance)
+// Limit-raise acceptance: 1M - 3M - (limit_raise_acceptance)
 // =============================================================================
 
 #[test]
@@ -251,7 +245,7 @@ fn limit_raise_keycard_ladder() {
 }
 
 // =============================================================================
-// Major-rebid tails: full continuations after 1♥ - 1♠ (set_major_rebid_tails)
+// Major-rebid tails: full continuations after 1♥ - 1♠ (major_rebid_tails)
 // =============================================================================
 
 #[test]
@@ -354,7 +348,7 @@ fn heart_rebid_preference_structure() {
 }
 
 // =============================================================================
-// Fourth-suit-forcing: 1♥ - 1♠ - 2♣ - 2♦ (set_fourth_suit_forcing)
+// Fourth-suit-forcing: 1♥ - 1♠ - 2♣ - 2♦ (fourth_suit_forcing)
 // =============================================================================
 
 #[test]

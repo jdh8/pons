@@ -6,7 +6,7 @@
 mod common;
 use common::*;
 
-use pons::bidding::american::{set_forcing_nt_two_suiter, set_meckstroth_adjunct};
+use pons::bidding::agreements::Agreements;
 
 // ---------------------------------------------------------------------------
 // Responder's second call: 1♠ - 1NT - 2♦ - ?
@@ -170,11 +170,8 @@ fn opener_jumps_to_invitational_three_diamonds() {
 #[test]
 fn baseline_opener_rebids_natural_two_clubs_without_adjunct() {
     // Same 5-5 hand, adjunct off: opener underbids with a natural 2♣ (the gap
-    // the adjunct fills).  The toggle is read at construction time, so build the
-    // baseline arm with it off, then restore the default.
-    set_meckstroth_adjunct(false);
-    let base = american(&pons::bidding::agreements::Agreements::current()).against();
-    set_meckstroth_adjunct(true);
+    // the adjunct fills).
+    let base = meckstroth_off_stance();
     assert_eq!(
         best_call(&base, &after_1s_1nt(), "AK853.Q2.4.AQ976"),
         call(2, Strain::Clubs),
@@ -271,13 +268,11 @@ fn responder_accepts_invitational_minor_to_heart_game() {
 // ---------------------------------------------------------------------------
 
 /// The 2/1 pair with the Meckstroth adjunct **off** — it ships on (so the default
-/// `stance()` already carries it), so build the baseline arm under the toggle then
-/// restore the shipped default.
+/// `stance()` already carries it), so build the baseline arm with the knob off.
 fn meckstroth_off_stance() -> Stance {
-    set_meckstroth_adjunct(false);
-    let system = american(&pons::bidding::agreements::Agreements::current()).against();
-    set_meckstroth_adjunct(true); // restore the shipped default
-    system
+    let mut agreements = Agreements::current();
+    agreements.rebid.meckstroth_adjunct = false;
+    american(&agreements).against()
 }
 
 /// Append `[calls…, P]`-interleaved continuations to `1♠ - 1NT -`.
@@ -378,16 +373,16 @@ fn opener_pulls_club_showing_3nt_to_the_major() {
 }
 
 // ---------------------------------------------------------------------------
-// Phase 2: opener's invitational major two-suiter (`set_forcing_nt_two_suiter`,
-// shipped on — the default `stance()` carries it; build the baseline explicitly)
+// Phase 2: opener's invitational major two-suiter
+// (`RebidKnobs::forcing_nt_two_suiter`, shipped on — the default `stance()`
+// carries it; build the baseline explicitly)
 // ---------------------------------------------------------------------------
 
-/// The baseline arm with the two-suiter rebids off; restore the shipped default.
+/// The baseline arm with the two-suiter rebids off.
 fn two_suiter_off_stance() -> Stance {
-    set_forcing_nt_two_suiter(false);
-    let system = american(&pons::bidding::agreements::Agreements::current()).against();
-    set_forcing_nt_two_suiter(true); // restore the shipped default (on)
-    system
+    let mut agreements = Agreements::current();
+    agreements.rebid.forcing_nt_two_suiter = false;
+    american(&agreements).against()
 }
 
 /// Auction shorthand for 1♥ - 1NT - — opener to rebid

@@ -1,31 +1,10 @@
 //! Limit-raise acceptance: `1M - 3M`
 //!
 //! Opener accepts, asks for keycards, or declines.  Gated by
-//! [`set_limit_raise_acceptance`], default on (+0.002/+0.002 IMPs/board
+//! [`ResponseKnobs::limit_raise_acceptance`], default on (+0.002/+0.002 IMPs/board
 //! NV/vul — the whole win being the keycard ask at +4.4/+5.2 IMPs/divergent).
 
 use super::*;
-
-std::thread_local! {
-    /// Whether opener's acceptance ladder after a limit raise (`1M - 3M`) is
-    /// authored.  Default on (the win is the keycard ask: +4.4/+5.2
-    /// IMPs/divergent NV/vul).
-    static LIMIT_RAISE_ACCEPTANCE: Cell<bool> = const { Cell::new(true) };
-}
-
-/// Author opener's limit-raise acceptance ladder after `1M - 3M` for books
-/// built *after* this call
-///
-/// Read at book construction; **default on** (`--no-ns-limit-raise-acceptance`
-/// in `bba-gen` for the off arm).
-pub fn set_limit_raise_acceptance(on: bool) {
-    LIMIT_RAISE_ACCEPTANCE.with(|cell| cell.set(on));
-}
-
-/// Whether limit-raise acceptance is currently authored
-pub fn limit_raise_acceptance() -> bool {
-    LIMIT_RAISE_ACCEPTANCE.with(Cell::get)
-}
 
 /// Opener's continuation after `1M - 3M -`: accept, ask, or
 /// decline the limit raise

@@ -4,9 +4,9 @@
 //!
 //! | Module | Agreement | Knob |
 //! | --- | --- | --- |
-//! | [`two_over_one`] | major-suit 2/1 fit split, entry gate, and suit-length treatments | [`set_two_over_one_fit`], [`set_two_over_one_gate`], [`set_two_over_one_natural_lengths`], [`set_two_over_one_major_discount`], [`set_two_over_one_heart_light`] |
-//! | [`longer_major`] | longer-major selection and the up-the-line minor-opening tree | [`set_longer_major_response`], [`set_up_the_line`] |
-//! | [`choice_of_games`] | `1M - 3NT` choice of games | [`set_major_choice_of_games`] |
+//! | [`two_over_one`] | major-suit 2/1 fit split, entry gate, and suit-length treatments | [`ResponseKnobs::two_over_one_fit`], [`ResponseKnobs::two_over_one_gate`], [`ResponseKnobs::two_over_one_natural_lengths`], [`ResponseKnobs::two_over_one_major_discount`], [`ResponseKnobs::two_over_one_heart_light`] |
+//! | [`longer_major`] | longer-major selection and the up-the-line minor-opening tree | [`set_longer_major_response`], [`ResponseKnobs::up_the_line`] |
+//! | [`choice_of_games`] | `1M - 3NT` choice of games | [`ResponseKnobs::major_choice_of_games`] |
 //! | [`inverted_minor`] | inverted-minor continuation tree | always on |
 
 use super::super::Alert;
@@ -15,7 +15,7 @@ use super::super::Trie;
 use super::super::constraint::{
     balanced, envelope_union_upgrade, hcp, len, points, support, support_points,
 };
-use crate::bidding::agreements::{Agreements, ResponseKnobs};
+use crate::bidding::agreements::Agreements;
 use crate::bidding::inference::{Envelope, EnvelopeUnion, Range};
 use crate::bidding::rows::{Package, Pattern, compile_into, expand, rows_of};
 use contract_bridge::auction::Call;
@@ -32,38 +32,10 @@ use longer_major::{with_major_selection, with_up_the_line};
 use two_over_one::with_two_over_one;
 
 pub(super) use choice_of_games::choice_of_games_continuations;
-pub use choice_of_games::set_major_choice_of_games;
 pub(super) use inverted_minor::minor_keycard_continuations;
 pub(crate) use longer_major::longer_major_response;
-pub use longer_major::{set_longer_major_response, set_up_the_line};
+pub use longer_major::set_longer_major_response;
 pub use two_over_one::TwoOverOneGate;
-pub use two_over_one::{
-    set_two_over_one_fit, set_two_over_one_gate, set_two_over_one_heart_light,
-    set_two_over_one_major_discount, set_two_over_one_natural_lengths,
-};
-
-/// Capture this thread's response and raise build-time knobs
-///
-/// The one place these cells are read. Everything downstream takes the captured
-/// value, so a `set_*` between this call and the rules being built cannot split
-/// the book against itself. The two raise cells are here rather than in a
-/// `raises::capture()` of their own — a raise *is* a response, and one struct
-/// per book area is the granularity `Build` keeps. `longer_major_response` is
-/// read at classify time too and lives only in `DecisionProfile`, so it is
-/// absent.
-pub(in crate::bidding) fn capture() -> ResponseKnobs {
-    ResponseKnobs {
-        two_over_one_fit: two_over_one::two_over_one_fit(),
-        two_over_one_gate: two_over_one::two_over_one_gate(),
-        two_over_one_natural_lengths: two_over_one::two_over_one_natural_lengths(),
-        two_over_one_major_discount: two_over_one::two_over_one_major_discount(),
-        two_over_one_heart_light: two_over_one::two_over_one_heart_light(),
-        up_the_line: longer_major::up_the_line(),
-        major_choice_of_games: choice_of_games::major_choice_of_games(),
-        major_game_tries: super::raises::major_game_tries(),
-        limit_raise_acceptance: super::raises::limit_raise_acceptance(),
-    }
-}
 
 /// Jacoby 2NT — the game-forcing major raise with four-card support
 const JACOBY_2NT: Alert = Alert("jacoby-2nt");

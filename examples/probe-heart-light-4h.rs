@@ -1,4 +1,4 @@
-//! Does the `1♠ - 2♥` heart-light gate (`set_two_over_one_heart_light`) route the
+//! Does the `1♠ - 2♥` heart-light gate (`two_over_one_heart_light`) route the
 //! flat-twelve, five-heart hands it admits into a **`4♥` on the 5-3 fit** rather
 //! than a thin 3NT — the strain-location bet behind lightening the gate on the
 //! ensured five-card major?
@@ -23,7 +23,7 @@ use contract_bridge::auction::{Auction, Call};
 use contract_bridge::{AbsoluteVulnerability, Bid, Contract, FullDeal, Hand, Seat, Strain, Suit};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::american::set_two_over_one_heart_light;
+use pons::bidding::agreements::Agreements;
 use pons::bidding::constraint::point_count;
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
 
@@ -81,11 +81,10 @@ fn main() {
     let vul = AbsoluteVulnerability::NONE;
 
     // Two books, built once — the knob is read at construction, not classify time.
-    set_two_over_one_heart_light(false);
-    let baseline = american(&pons::bidding::agreements::Agreements::current()).against();
-    set_two_over_one_heart_light(true);
-    let candidate = american(&pons::bidding::agreements::Agreements::current()).against();
-    set_two_over_one_heart_light(false);
+    let baseline = american(&Agreements::current()).against();
+    let mut light = Agreements::current();
+    light.response.two_over_one_heart_light = true;
+    let candidate = american(&light).against();
 
     let deals = seeded_deals(seed, count);
     let mut qualifying: Vec<Board> = Vec::new();

@@ -5,7 +5,7 @@
 //! as a minimum natural call.  The treatment adds `1♥ - 1NT - 2♠` (reverse: 5+
 //! hearts, 4+ spades) and `1♠ - 1NT - 3♥` (jump: 5-5 majors), both 15–17, with
 //! responder's continuations.  Both arms run the same shipped 2/1 system
-//! (Meckstroth-2NT on); the only difference is the [`set_forcing_nt_two_suiter`]
+//! (Meckstroth-2NT on); the only difference is the `forcing_nt_two_suiter`
 //! toggle, read once at book-construction time.
 //!
 //! Opponents are silenced (East/West always pass), so every auction is
@@ -24,7 +24,7 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::american::set_forcing_nt_two_suiter;
+use pons::bidding::agreements::Agreements;
 use pons::bidding::context::relative;
 use pons::bidding::{Inferences, Stance};
 use pons::scoring::{
@@ -96,10 +96,11 @@ fn main() {
     // shipped default).  Both keep every other shipped default (Meckstroth-2NT
     // on).  The toggle is read at book-construction time, so build each arm under
     // its own setting; the baked tries are independent thereafter.
-    set_forcing_nt_two_suiter(false);
-    let baseline = american(&pons::bidding::agreements::Agreements::current()).against();
-    set_forcing_nt_two_suiter(true); // restore the shipped default (on)
-    let treatment = american(&pons::bidding::agreements::Agreements::current()).against();
+    let mut off = Agreements::current();
+    off.rebid.forcing_nt_two_suiter = false;
+    let baseline = american(&off).against();
+    // The shipped default (on).
+    let treatment = american(&Agreements::current()).against();
     let stances = [baseline, treatment];
 
     // Both arms bid the same deal; the only difference is opener's rebid table.

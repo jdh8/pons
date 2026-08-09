@@ -19,18 +19,6 @@ std::thread_local! {
     static LONGER_MAJOR_RESPONSE: Cell<bool> = const { Cell::new(true) };
 }
 
-std::thread_local! {
-    /// Whether the natural minor-opening tree is completed **up the line**:
-    /// the `1♣ - 1♦` response, opener's `1♠` rebid over `1m - 1♥`, and
-    /// opener's natural `2♣` rebid after `1♣ - 1♦`.  Default `true`, shipped
-    /// **jointly with XYZ** (`ab-minor-continuations`, 300k boards, with
-    /// `set_xyz`: plain +0.0382/+0.0559 IMPs/board NV/vul, PD
-    /// +0.0289/+0.0407).  Alone it is a measured **loss** (plain
-    /// −0.91/−1.28 per divergent) — the 1♦ response reroutes hands into
-    /// auctions only the XYZ round continues; don't enable it with XYZ off.
-    static UP_THE_LINE: Cell<bool> = const { Cell::new(true) };
-}
-
 /// Author the longer-major response discipline for books built *after* this
 /// call (default `true`; off-switch `--no-ns-longer-major-response` in
 /// `bba-gen`)
@@ -52,28 +40,6 @@ pub fn set_longer_major_response(on: bool) {
 /// inference engine at classify time)
 pub(crate) fn longer_major_response() -> bool {
     LONGER_MAJOR_RESPONSE.with(Cell::get)
-}
-
-/// Author the up-the-line completion of the natural minor tree for books
-/// built *after* this call (default `true`; off-switch `--no-ns-up-the-line`
-/// in `bba-gen`)
-///
-/// On: responder bids `1♦` over `1♣` on four-plus diamonds without a
-/// four-card major (off, those hands squeeze into the notrump ladder or fall
-/// to the floor), opener rebids `1♠` over `1m - 1♥` on four spades (off, the
-/// 4-4 spade fit is lost to a 1NT rebid), and opener rebids a natural `2♣`
-/// after `1♣ - 1♦` on six-plus clubs (off, a misdescribed 1NT catch-all).
-///
-/// Shipped **jointly with [`set_xyz`][super::super::set_xyz]**: the 1♦ response only
-/// pays once responder's second round has the XYZ machinery (alone it
-/// measured plain −0.91/−1.28 per divergent).
-pub fn set_up_the_line(on: bool) {
-    UP_THE_LINE.with(|cell| cell.set(on));
-}
-
-/// Whether the up-the-line completion is currently authored
-pub(crate) fn up_the_line() -> bool {
-    UP_THE_LINE.with(Cell::get)
 }
 
 /// Spades take the first response: strictly longer, or equal length five-plus
@@ -159,7 +125,7 @@ pub(super) fn with_major_selection(rules: Rules, agreements: &Agreements) -> Rul
 
 pub(super) fn with_up_the_line(rules: Rules, minor: Suit, knobs: &ResponseKnobs) -> Rules {
     let mut rules = rules;
-    // Up-the-line completion (`set_up_the_line`): a natural 1♦ over 1♣ on
+    // Up-the-line completion (`up_the_line`): a natural 1♦ over 1♣ on
     // four-plus diamonds without a four-card major.  Weight 1.2 sits below
     // the majors (1.5/1.4) and the inverted raise (1.25), above the notrump
     // ladder (1.0) — so diamond hands stop mislabeling themselves as

@@ -1,16 +1,15 @@
 //! Integration tests for the `1M - 3NT` choice-of-games response
-//! (`set_major_choice_of_games`, shipped default-on 2026-07-15)
+//! (`ResponseKnobs::major_choice_of_games`, shipped default-on 2026-07-15)
 
 mod common;
 use common::*;
-use pons::bidding::american::set_major_choice_of_games;
+use pons::bidding::agreements::Agreements;
 
-/// The opt-out 2/1 pair; the shipped default is restored before use.
+/// The opt-out 2/1 pair.
 fn no_cog_stance() -> Stance {
-    set_major_choice_of_games(false);
-    let system = stance();
-    set_major_choice_of_games(true);
-    system
+    let mut agreements = Agreements::current();
+    agreements.response.major_choice_of_games = false;
+    american(&agreements).against()
 }
 
 /// A flat (4333) 13-count with three hearts offers 3NT over 1♥

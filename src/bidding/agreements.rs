@@ -594,26 +594,124 @@ impl Default for OpeningKnobs {
 pub struct ResponseKnobs {
     // --- responses/two_over_one.rs
     /// Author the fit leg of the major 2/1 game force
+    ///
+    /// **Default on** — shipped 2026-07-15 jointly with the `Hcp13` gate
+    /// (alone a vul-only plain win; the pair plain +0.0033/+0.0048, PD
+    /// +0.0070/+0.0087 NV/vul — the fit leg re-admits with support what the
+    /// hcp gate demotes).  Off-switch `--no-ns-two-over-one-fit` in `bba-gen`.
+    ///
+    /// On: a hand with exactly three-card support and a biddable side suit
+    /// enters the 2/1 on `support_points(13..)` — the 2/1 is a preparation for
+    /// `4M`, and the fit is privately known (opener promised five), so
+    /// shortness counts.  Off: every 2/1 is gauged by the no-fit gate alone.
     pub two_over_one_fit: bool,
     /// The gauge for the no-fit leg of the major 2/1 game force
+    ///
+    /// **Default [`TwoOverOneGate::Points13`]** — shipped 2026-07-25 under the
+    /// PointCount scale (277059f): `points(13..)` re-admits the shapely 11-12
+    /// HCP hands that the raw-HCP `Hcp13` gate demoted to a forcing 1NT.
+    /// `Hcp13` (shipped 2026-07-15) is the shape-indifferent opt-out.
+    /// `--ns-two-over-one-gate` in `bba-gen`.
     pub two_over_one_gate: TwoOverOneGate,
     /// Name natural per-call suit lengths in the major 2/1 game force
+    ///
+    /// **Default off** (uniform four, book byte-identical); A/B pending.
+    /// `--ns-two-over-one-natural-lengths` in `bba-gen`.
+    ///
+    /// On: `1♠ - 2♥` promises five (a 2/1 into a major is a real five-card
+    /// suit) and `1♠ - 2♣` allows three (the cheapest 2/1 is the catch-all);
+    /// every other 2/1 keeps its 4+ floor.
     pub two_over_one_natural_lengths: bool,
     /// Force game one HCP light on `1♠ - 2♥`
+    ///
+    /// **Default off** (book byte-identical); A/B pending.
+    /// `--ns-two-over-one-major-discount` in `bba-gen`.
+    ///
+    /// On: the no-fit leg of `1♠ - 2♥` (the five-card-major 2/1) drops its
+    /// `Hcp*` floor by one — `hcp(12..)` at the default `Hcp13` gate — because
+    /// the five-card major is worth a game force a shade light, serving both
+    /// 3NT and `4♥`.  No effect on the `Points*` gates or on any other 2/1.
     pub two_over_one_major_discount: bool,
     /// Force game on a flat twelve with five hearts on `1♠ - 2♥`
+    ///
+    /// **Default off**; measured via `ab-point-count --fix
+    /// two-over-one-heart-light`.
+    ///
+    /// On: the no-fit leg of `1♠ - 2♥` becomes `len(♥,5..) & hcp(12..)` (from
+    /// the default `points(13..)` at `min_len` four), banking its **ensured
+    /// five-card heart suit** — admitting the flat 5=3=3=2 twelve-counts the
+    /// `points` scale leaves at a forcing 1NT (they carry no `upgrade`).  The
+    /// bet: unlike the minor 2/1s' thin 3NT, a five-card major finds a `4♥`
+    /// landing whenever opener holds three — the strain-location fix, not the
+    /// upgrade.  The fit leg (exactly-three-card spade support on
+    /// `support_points(13..)`) is unchanged.  Unlike
+    /// [`two_over_one_major_discount`][Self::two_over_one_major_discount]
+    /// (which threads only the `Hcp*` gates), this overrides the `Points*`
+    /// default directly.
+    ///
+    /// **Refuted 2026-07-25** (default stays off): the admitted flat twelves do
+    /// not settle in the intended `4♥` on the 5-3 fit — the floor's slam
+    /// machinery overshoots to `6♥`/`7♥` because the 2/1 response reads
+    /// `0..=37` (the deferred fit-split `Or` erasure; see
+    /// `docs/ai-bidder/sampled-projection.md`), so opener cannot see responder
+    /// is a minimum.  A/B `ab-point-count --fix`: plain −0.0007/−0.0005, PD
+    /// −0.0010/−0.0009 IMPs/board NV/vul.  A **reading-cap** re-measure
+    /// candidate — capping the 2/1 reading (a ceiling, not just
+    /// `set_two_over_one_slam_strength`'s floor) is the prerequisite.
     pub two_over_one_heart_light: bool,
     // --- responses/longer_major.rs
     /// Complete the natural minor tree up the line
+    ///
+    /// **Default on**, shipped **jointly with
+    /// [`set_xyz`][crate::bidding::american::set_xyz]**
+    /// (`ab-minor-continuations`, 300k boards: plain +0.0382/+0.0559
+    /// IMPs/board NV/vul, PD +0.0289/+0.0407).  Alone it is a measured **loss**
+    /// (plain −0.91/−1.28 per divergent) — the `1♦` response reroutes hands
+    /// into auctions only the XYZ round continues; don't enable it with XYZ
+    /// off.  Off-switch `--no-ns-up-the-line` in `bba-gen`.
+    ///
+    /// On: responder bids `1♦` over `1♣` on four-plus diamonds without a
+    /// four-card major (off, those hands squeeze into the notrump ladder or
+    /// fall to the floor), opener rebids `1♠` over `1m - 1♥` on four spades
+    /// (off, the 4-4 spade fit is lost to a 1NT rebid), and opener rebids a
+    /// natural `2♣` after `1♣ - 1♦` on six-plus clubs (off, a misdescribed 1NT
+    /// catch-all).
     pub up_the_line: bool,
     // --- responses/choice_of_games.rs
     /// Author `1M - 3NT` as a choice of games
+    ///
+    /// **Default on** — shipped default-on 2026-07-15 (isolated: plain
+    /// +0.0006/+0.0011 NV/vul, PD +0.0005/+0.0010, all CIs clear; perfectly
+    /// additive atop the 2/1 fit-split, full-package numbers on that knob).
+    /// Off-switch `--no-ns-major-choice-of-games` in `bba-gen`.
+    ///
+    /// On: `3NT` over `1♥`/`1♠` shows 3-4 card support, exactly (4333) and
+    /// 12-15 HCP (over `1♥` it also denies four spades — that hand bids `1♠`
+    /// first).  Opener passes with a balanced hand and corrects to `4M` with
+    /// shape; the alerted reading pins responder's three-card support so later
+    /// floor decisions know the fit.  Off: the flat hand routes through its
+    /// lone four-card suit as a 2/1 (or Jacoby 2NT / limit raise with four
+    /// trumps).
     pub major_choice_of_games: bool,
     // --- raises/game_try.rs
     /// Author the long-suit and general game tries after `1M - 2M`
+    ///
+    /// **Default on** (+0.042/+0.065 IMPs/board NV/vul, silenced-opponent A/B,
+    /// 200k boards/vul, plain-DD + perfect-defense both winning).
+    /// `--no-ns-major-game-tries` in `bba-gen` for the off arm.
+    ///
+    /// Responder's single raise promises three-plus trumps and 6–9 points, so
+    /// opener needs real extras to move: a long-suit try, the general re-raise,
+    /// or a keycard-asking maximum.
     pub major_game_tries: bool,
     // --- raises/limit_raise.rs
     /// Author opener's acceptance ladder after `1M - 3M`
+    ///
+    /// **Default on** (+0.002/+0.002 IMPs/board NV/vul — the whole win being
+    /// the keycard ask at +4.4/+5.2 IMPs/divergent).
+    /// `--no-ns-limit-raise-acceptance` in `bba-gen` for the off arm.
+    ///
+    /// Opener accepts, asks for keycards, or declines.
     pub limit_raise_acceptance: bool,
 }
 
@@ -633,14 +731,6 @@ impl Default for ResponseKnobs {
     }
 }
 
-impl ResponseKnobs {
-    /// Capture this thread's response build-time knob state
-    #[must_use]
-    pub fn current() -> Self {
-        super::american::responses::capture()
-    }
-}
-
 /// The rebid book's build-time knobs
 ///
 /// Each field is one cell, named for the getter it replaces; *derived* readings
@@ -653,27 +743,115 @@ impl ResponseKnobs {
 pub struct RebidKnobs {
     // --- rebids.rs
     /// Rebid `1NT` rather than a natural `2m` on a balanced 12-14
+    ///
+    /// **Default on** (shipped: +0.0093 plain / +0.0101 PD IMPs/board vs BBA,
+    /// both vuls).  After `1m - 1M`, a 5332 balanced minimum with the five-card
+    /// minor otherwise rebids a natural `2m` (weight 0.9) that outranks the
+    /// balanced `1NT` (0.5), misdescribing the hand and losing the `1NT`-based
+    /// game placement BBA finds (the largest lever in the
+    /// Constructive/book/round-2 anchor bucket).
+    ///
+    /// Natural and folded into base per `docs/bidding-options.md`; retained
+    /// only as a measurement off-switch, not a user-facing toggle (dropped from
+    /// the `web` settings registry).
     pub balanced_1nt_rebid: bool,
     // --- rebids/major_tails.rs
     /// Author the full continuations after `1♥ - 1♠`
+    ///
+    /// **Default on** (measured +0.016/+0.023 IMPs/board NV/vul plain DD;
+    /// `--no-ns-major-rebid-tails` in `bba-gen` for the off arm).  Below each
+    /// of opener's four rebids (`2♠`, `3♠`, `2♥`, `2♣`/`2♦`) both sides are
+    /// authored to game, and — for the two spade-raise auctions — to slam via
+    /// RKCB.  Two sub-agreements ride it:
+    /// [`fourth_suit_forcing`][Self::fourth_suit_forcing] and
+    /// [`nt_invite_hcp`][Self::nt_invite_hcp].
     pub major_rebid_tails: bool,
     /// Author fourth-suit forcing in the `1♥ - 1♠` tail
+    ///
+    /// **Default on** (measured +0.002 IMPs/board on top of the tails, both
+    /// scorers, both vulnerabilities; `--no-ns-fourth-suit-forcing` in
+    /// `bba-gen` for the off arm).  At `1♥ - 1♠ - 2♣`, responder's `2♦` becomes
+    /// an artificial game force (the fourth suit) instead of natural diamonds.
+    ///
+    /// This continuation *rides* the major-rebid-tails adjunct — with
+    /// [`major_rebid_tails`][Self::major_rebid_tails] off, enabling this knob
+    /// registers nothing.
     pub fourth_suit_forcing: bool,
     /// Gauge responder's notrump invitation in raw HCP
+    ///
+    /// **Default on** (fix-vs-shipped, 1M boards/vul, 24.pdd 18.3M–20.3M:
+    /// plain DD +0.0018 ± 0.0003 NV / +0.0022 ± 0.0005 vul, PD
+    /// +0.0028/+0.0032); `false` restores the shipped `points` gauge.
+    ///
+    /// The 2NT rung after opener shows two suits (`1♥ - 1♠ - 2m`) is the
+    /// table's one no-fit call — the hand denied a heart preference and a minor
+    /// raise, so its long-suit `points` credit prices ruffs that a notrump
+    /// part-score never takes (the quantitative-6NT reasoning one level down).
+    /// Rule-of-N+8 reads a shaped 9-count 10+, invites, and loses both mirror
+    /// directions (the point-count remnant's 2NT-invite seam).  The
+    /// fit-showing rungs (`3♥`/`3m` invites) keep `points`, mirroring the 2/1
+    /// hcp/support-points split.
     pub nt_invite_hcp: bool,
     // --- rebids/meckstroth.rs
     /// Author the complete Meckstroth adjunct
+    ///
+    /// **Default on.**  After `1M - 1NT` (the forcing notrump), opener's `2NT`
+    /// is an artificial 18+ game force of *any* shape (responder relays `3♣`,
+    /// opener shape-describes toward game or slam) instead of the natural 18–19
+    /// balanced rebid; opener also has the invitational `3m` jumps (5+ minor,
+    /// 15–17).  The `ab-meckstroth-2nt` A/B builds a baseline arm with it off.
+    ///
+    /// The artificial `2NT` measured a plain-DD win (`ab-meckstroth-2nt`,
+    /// 200k×2 seeds: plain +0.0075/+0.013, PD +0.006/+0.011, sd-lead
+    /// +0.010/+0.017 NV/vul, all CI-clean); the `3m` jumps are sd-vindicated
+    /// (plain wash, PD over-punished, sd-lead +0.0012/+0.0042 NV/vul).
     pub meckstroth_adjunct: bool,
     /// Author the adjunct's invitational `3m` jumps
+    ///
+    /// **Default on**; ignored when
+    /// [`meckstroth_adjunct`][Self::meckstroth_adjunct] is off — the jumps live
+    /// inside the adjunct.  Turn this off to keep the game force and drop the
+    /// jumps — the arm that isolates the `3m` leg, whose only positive bracket
+    /// was plain SD.  One flag shipped both halves, and the SD-PD
+    /// re-adjudication confirmed only the merged knob.
     pub meckstroth_minor_jumps: bool,
     // --- rebids/two_suiter.rs
     /// Author opener's two-suiter rebids over the forcing `1NT`
+    ///
+    /// **Default on**, sd-vindicated (`ab-forcing-nt-two-suiter`, 1M×2 seeds×2
+    /// vuls): plain wash-NV/+0.0012-vul, PD −0.0017/−0.0010 (over-punished),
+    /// sd-lead **+0.0012/+0.0028** NV/vul — all four sd cells CI-clean
+    /// positive.  The A/B builds a baseline arm with it off.
+    ///
+    /// Over the forcing 1NT, opener with 15–17 and a second major suit has no
+    /// invitational rebid — a 5-4 or 5-5 hand underbids as a minimum natural
+    /// call.  This adds `1♥ - 1NT - 2♠` (reverse: 5+ hearts, 4+ spades) and
+    /// `1♠ - 1NT - 3♥` (jump: 5-5 majors), both 15–17, with responder's
+    /// continuations — the seam between the minimum natural rebids and the 18+
+    /// game force ([`meckstroth_adjunct`][Self::meckstroth_adjunct]).
     pub forcing_nt_two_suiter: bool,
     // --- xyz.rs
     /// Let opener judge the checkback invitation rather than falling to the floor
+    ///
+    /// **Default on** (the shipped behavior).  The table is two rules —
+    /// `points(14..)` bids the game, else `Pass` — with no shape, fit or
+    /// vulnerability term, the same signature as the retired 2/1 game backstop.
+    /// Off, it becomes an empty table, which is all-−∞ and so falls through to
+    /// `instinct()` by the documented escape hatch.
+    ///
+    /// The most-*reached* candidate of the constructive book re-audit
+    /// (`probe-node-reach`: 0.114% on one key, and the table is registered once
+    /// per invite per prefix).  Only the crude `accept_or_decline` copies are
+    /// gated; the shaped acceptances (three-card support, the 5♠4♥ hand) always
+    /// author.
     pub xyz_invite_judgment: bool,
     // --- nmf.rs
     /// Author New Minor Forcing on the four `1m - 1M - 1NT` slots
+    ///
+    /// **Default off** — the shipped system uses XYZ.  Off-switch
+    /// `--no-ns-new-minor-forcing` in `bba-gen`, opt-in `--nmf` in
+    /// `ab-minor-continuations`.  When on it overrides XYZ on those four
+    /// prefixes only — XYZ still owns the other six one-level auctions.
     pub new_minor_forcing: bool,
 }
 
@@ -693,14 +871,6 @@ impl Default for RebidKnobs {
     }
 }
 
-impl RebidKnobs {
-    /// Capture this thread's rebid build-time knob state
-    #[must_use]
-    pub fn current() -> Self {
-        super::american::rebids::capture()
-    }
-}
-
 /// The game-forcing book's build-time knobs
 ///
 /// All three gate a *whole table* past round two of a two-over-one auction, and
@@ -710,12 +880,68 @@ impl RebidKnobs {
 pub struct GameForceKnobs {
     // --- game_force/backstop.rs
     /// Re-register the retired wildcard game backstop over uncovered nodes
+    ///
+    /// **Off by default**: every 2/1 continuation the three authored rounds do
+    /// not cover falls through to the floor rather than to this table's three
+    /// crude rules.
+    ///
+    /// The backstop was authored against the deterministic `instinct()` ladder;
+    /// the floor became the BBA-distilled net on 2026-07-19, and the table
+    /// stopped earning its keep.  Deleting it measures **+0.0117/+0.0142 plain,
+    /// +0.0132/+0.0160 PD** IMPs/board NV/vul vs BBA (409,600×2, all CI>0)
+    /// *paired with*
+    /// [`set_two_over_one_force`][crate::bidding::instinct::set_two_over_one_force],
+    /// which restores by rule the game force this node used to hold by
+    /// omission.  On alone the deletion is worth only +0.005, because the floor
+    /// then abandons partner's 2/1 on 24% of the boards it touches.
+    ///
+    /// Deleting it also cured a replay-sampler starvation: the table is
+    /// *partial*, so every call it does not name sat at −∞ while its
+    /// unconditional 3NT kept the node's best finite, and the gate rejected
+    /// those calls for every hand (`sample_layouts_replay` returned 0%).  With
+    /// no node the floor answers, `authored_at` is false, and the gate
+    /// abstains.  Kept as a knob so the table can be re-measured if the floor
+    /// changes again.
     pub game_backstop: bool,
     // --- game_force/opener_third.rs
     /// Author opener's third call after responder sets trump at `1M - 2r - R - 3M`
+    ///
+    /// **On by default** — but see the caveat, it is a deletion candidate
+    /// blocked on a floor capability, not a settled node.
+    ///
+    /// Two rules — 4NT RKCB on `points(15..)`, else an unconditional `4M` — the
+    /// retired game backstop's signature: a raw point threshold, no shape or
+    /// control term, and every cue-bid and five-level call at −∞ at depth 4.
+    ///
+    /// Deleting it *measures* **+0.437/+0.527 plain, +0.524/+0.637 PD** IMPs
+    /// per divergent board NV/vul (`ab-major-continuations`, 2,000,000 boards
+    /// per arm per vulnerability, seed 1784484826, 971 divergent = 0.05%) —
+    /// +0.0002/+0.0003 per board, the same sign on all four arms.
+    ///
+    /// **It is not shipped anyway.** With the node gone the floor never asks
+    /// keycards here at all: it signs off in `4M` on a 26-count opposite a
+    /// game-forcing two-over-one, so slam becomes unreachable at this node.
+    /// That is the backstop lesson again — deleting a node deletes the
+    /// invariant it held by omission, and here the invariant is "opener can
+    /// still try for slam". A +0.0003 IMPs/board gain does not buy a total
+    /// capability loss.
+    ///
+    /// The architecturally correct fix, if this is ever resumed, is the
+    /// [`set_two_over_one_force`][crate::bidding::instinct::set_two_over_one_force]
+    /// pattern: delete the node *and* teach `instinct()` to ask keycards on a
+    /// controls-and-fit test at an agreed-trump game force, which should beat
+    /// both arms. Only the raw point threshold is obviously wrong; the ask
+    /// itself is load-bearing.
+    ///
+    /// The RKCB answer rows (`slam::rkcb_rows`) are independent of this knob.
     pub opener_third: bool,
     // --- game_force/second_suit.rs
     /// Author opener's third call after responder raises opener's second suit
+    ///
+    /// **On by default** — shipped (+0.0012 plain / +0.0014 PD NV, +0.0015 /
+    /// +0.0018 vul IMPs/board vs BBA).  `1M - 2r - 2x - 3x` gets an opener
+    /// rebid (RKCB on extras, else sign off) instead of falling through to the
+    /// floor (it fell to the game backstop until that was deleted).
     pub second_suit_agreement: bool,
 }
 
@@ -726,14 +952,6 @@ impl Default for GameForceKnobs {
             opener_third: true,
             second_suit_agreement: true,
         }
-    }
-}
-
-impl GameForceKnobs {
-    /// Capture this thread's game-forcing build-time knob state
-    #[must_use]
-    pub fn current() -> Self {
-        super::american::game_force::capture()
     }
 }
 
@@ -838,9 +1056,9 @@ impl Agreements {
             defense: super::american::defense::capture(),
             notrump: super::american::notrump::capture(),
             opening: OpeningKnobs::default(),
-            response: super::american::responses::capture(),
-            rebid: super::american::rebids::capture(),
-            game_force: super::american::game_force::capture(),
+            response: ResponseKnobs::default(),
+            rebid: RebidKnobs::default(),
+            game_force: GameForceKnobs::default(),
             instinct: super::instinct::capture_build(),
         }
     }

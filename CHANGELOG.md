@@ -596,6 +596,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Seeded `smoke-default` / `smoke-dutch` dumps (20 000 boards each) are
   byte-identical to `4c3dce2`, and `cards/*.bbsa` regenerate unchanged.
 
+- **The response, rebid and game-force knobs are fields, not thread-locals.**
+  Twenty-one more cells go, with their `set_*`/getter pairs and the three
+  areas' `capture()`: `set_game_backstop`, `set_opener_third`,
+  `set_second_suit_agreement` (now `Agreements::game_force`);
+  `set_two_over_one_fit`, `set_two_over_one_gate`,
+  `set_two_over_one_natural_lengths`, `set_two_over_one_major_discount`,
+  `set_two_over_one_heart_light`, `set_up_the_line`,
+  `set_major_choice_of_games`, `set_major_game_tries`,
+  `set_limit_raise_acceptance` (now `Agreements::response`); and
+  `set_balanced_1nt_rebid`, `set_major_rebid_tails`, `set_fourth_suit_forcing`,
+  `set_nt_invite_hcp`, `set_meckstroth_adjunct`, `set_meckstroth_minor_jumps`,
+  `set_forcing_nt_two_suiter`, `set_xyz_invite_judgment`,
+  `set_new_minor_forcing` (now `Agreements::rebid`).  Setting one is
+  `a.rebid.new_minor_forcing = true` before the build; the `set_X(default)`
+  lines that existed only to undo global mutation are gone with the globals.
+
+  What the setter docs recorded moved onto the `ResponseKnobs`, `RebidKnobs`
+  and `GameForceKnobs` fields rather than dying with the setters — why the
+  retired game backstop stays a knob, why deleting `opener_third` measures
+  positive and still is not shipped, the refuted heart-light gate's
+  reading-cap prerequisite, up-the-line's joint-with-XYZ verdict, and the
+  Meckstroth adjunct's two half-verdicts.  Four more web Settings rows
+  (`second_suit_agreement`, `game_backstop`, `fourth_suit_forcing`,
+  `meckstroth_adjunct`, `limit_raise_acceptance`) move onto `pons-web`'s own
+  `Agreements` through the `knob!` macro; the 65-row table is unchanged.
+
+  Seeded `smoke-default` / `smoke-dutch` dumps (20 000 boards each) are
+  byte-identical to the pre-campaign commit, and `cards/*.bbsa` regenerate
+  unchanged.
+
 - **The nine opening knobs are fields, not thread-locals.**  `set_open_one_notrump`,
   `set_one_notrump_fifths`, `set_notrump_shape`, `set_one_notrump_offshape`,
   `set_weak_two_hcp`, `set_weak_two_eval`, `set_weak_two_wild`,

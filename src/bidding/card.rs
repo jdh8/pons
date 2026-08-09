@@ -589,7 +589,7 @@ fn american_row(name: &str, a: &Agreements) -> i32 {
         "Support 1NT" => 1,
         // EPBot pairs the long-suit try with an artificial "shortness
         // somewhere" try (its comment 2483, `!Unspecified shortness, game
-        // try`); `set_major_game_tries` authors only the long-suit half plus
+        // try`); `major_game_tries` authors only the long-suit half plus
         // the general `3M` re-raise, so the second way does not exist however
         // the knob is set and `0` is the honest value whatever it says — the
         // 21GF ledger books row 124 as a gap, not as shipped.  Cosmetic to BBA

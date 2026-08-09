@@ -38,8 +38,8 @@ use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
 use pons::american;
 use pons::bidding::agreements::Agreements;
 use pons::bidding::american::{
-    TwoOverOneGate, WeakTwoEval, set_nt_invite_hcp, set_redouble_answer, set_strong_double_hcp,
-    set_two_over_one_gate, set_two_over_one_heart_light, set_two_suiter_hcp_floor,
+    TwoOverOneGate, WeakTwoEval, set_redouble_answer, set_strong_double_hcp,
+    set_two_suiter_hcp_floor,
 };
 use pons::bidding::constraint::{PointScale, set_point_scale, set_support_points};
 use pons::bidding::context::relative;
@@ -166,15 +166,15 @@ enum Fix {
     TwoSuiterHcp(u8),
     /// `set_redouble_answer(true)`: author opener over `1x (X) XX -`
     RedoubleAnswer,
-    /// `set_nt_invite_hcp(true)`: HCP-gauge the post-two-suit 2NT invite
+    /// `rebid.nt_invite_hcp = true`: HCP-gauge the post-two-suit 2NT invite
     NtInviteHcp,
     /// `opening.weak_two_eval = Some(gauge)`: an honor-location evaluator (CCCC / NLTC)
     /// gauges the weak-two opening — the disclosure-wall follow-up
     WeakTwoEval(WeakTwoEval),
-    /// `set_two_over_one_gate(gate)`: the major no-fit 2/1 entry gauge, vs
-    /// the shipped `Points13`
+    /// `response.two_over_one_gate = gate`: the major no-fit 2/1 entry gauge,
+    /// vs the shipped `Points13`
     TwoOverOneGate(TwoOverOneGate),
-    /// `set_two_over_one_heart_light(true)`: `1♠ - 2♥` forces game on a flat
+    /// `response.two_over_one_heart_light = true`: `1♠ - 2♥` forces game on a flat
     /// twelve with five hearts (`len(♥,5..) & hcp(12..)`), the strain-location
     /// bet — reach `4♥` on the 5-3 fit instead of the minor 2/1s' thin 3NT
     TwoOverOneHeartLight,
@@ -220,24 +220,29 @@ impl Fix {
     /// Arm (or restore to shipped) this fix, and capture the agreements a book
     /// built now would carry
     ///
-    /// Most fixes are thread cells; `WeakTwoEval` is a field of the value, so
-    /// the capture happens after the cells are written and the field is set on
-    /// top of it.
+    /// Three fixes are still thread cells; the rest are fields of the value, so
+    /// the capture happens after the cells are written and the fields are set
+    /// on top of it.
     fn set(self, on: bool) -> Agreements {
         match self {
             Self::StrongDoubleHcp(n) => set_strong_double_hcp(on.then_some(n)),
             Self::TwoSuiterHcp(n) => set_two_suiter_hcp_floor(on.then_some(n)),
             Self::RedoubleAnswer => set_redouble_answer(on),
-            Self::NtInviteHcp => set_nt_invite_hcp(on),
-            Self::WeakTwoEval(_) => {}
-            Self::TwoOverOneGate(gate) => {
-                set_two_over_one_gate(if on { gate } else { TwoOverOneGate::default() });
-            }
-            Self::TwoOverOneHeartLight => set_two_over_one_heart_light(on),
+            Self::NtInviteHcp
+            | Self::WeakTwoEval(_)
+            | Self::TwoOverOneGate(_)
+            | Self::TwoOverOneHeartLight => {}
         }
         let mut agreements = Agreements::current();
-        if let Self::WeakTwoEval(gauge) = self {
-            agreements.opening.weak_two_eval = on.then_some(gauge);
+        match self {
+            Self::NtInviteHcp => agreements.rebid.nt_invite_hcp = on,
+            Self::WeakTwoEval(gauge) => agreements.opening.weak_two_eval = on.then_some(gauge),
+            Self::TwoOverOneGate(gate) => {
+                agreements.response.two_over_one_gate =
+                    if on { gate } else { TwoOverOneGate::default() };
+            }
+            Self::TwoOverOneHeartLight => agreements.response.two_over_one_heart_light = on,
+            Self::StrongDoubleHcp(_) | Self::TwoSuiterHcp(_) | Self::RedoubleAnswer => {}
         }
         agreements
     }

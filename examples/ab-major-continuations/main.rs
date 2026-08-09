@@ -13,7 +13,7 @@
 //!
 //! **Its baseline is not the shipped system.**  `set_knobs(.., false)` drives
 //! *every* knob here to its off state, including the ones that ship on
-//! (`set_two_over_one_fit`, `set_opener_third`, `set_two_over_one_force`, …), so
+//! (`two_over_one_fit`, `opener_third`, `set_two_over_one_force`, …), so
 //! arm 0 is a stripped system and arm 1 is that system plus the treatments.  For
 //! a knob whose value depends on machinery the stripping removes, this harness
 //! can read a flat zero where the real routing shows a win — the two-over-one
@@ -34,12 +34,8 @@ use clap::Parser;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::american::{
-    TwoOverOneGate, set_fourth_suit_forcing, set_game_backstop, set_limit_raise_acceptance,
-    set_major_choice_of_games, set_major_game_tries, set_major_rebid_tails, set_opener_third,
-    set_second_suit_agreement, set_two_over_one_fit, set_two_over_one_gate,
-    set_xyz_invite_judgment,
-};
+use pons::bidding::agreements::Agreements;
+use pons::bidding::american::TwoOverOneGate;
 use pons::bidding::instinct::{set_two_over_one_force, set_two_over_one_slam_strength};
 use pons::scoring::final_contract;
 use rayon::prelude::*;
@@ -66,35 +62,35 @@ struct Args {
     seed: Option<u64>,
 
     /// Treatment: opener's major game tries after a single raise, `1M - 2M`
-    /// (`set_major_game_tries`)
+    /// (`ResponseKnobs::major_game_tries`)
     #[arg(long, default_value_t = false)]
     game_tries: bool,
 
     /// Treatment: opener's limit-raise acceptance ladder, `1M - 3M`
-    /// (`set_limit_raise_acceptance`)
+    /// (`ResponseKnobs::limit_raise_acceptance`)
     #[arg(long, default_value_t = false)]
     limit_raise: bool,
 
-    /// Treatment: the `1♥ - 1♠` rebid tails (`set_major_rebid_tails`)
+    /// Treatment: the `1♥ - 1♠` rebid tails (`RebidKnobs::major_rebid_tails`)
     #[arg(long, default_value_t = false)]
     tails: bool,
 
-    /// Treatment: fourth-suit forcing, rides `--tails` (`set_fourth_suit_forcing`)
+    /// Treatment: fourth-suit forcing, rides `--tails` (`RebidKnobs::fourth_suit_forcing`)
     #[arg(long, default_value_t = false)]
     fsf: bool,
 
     /// Treatment: the 1M - 3NT choice-of-games response — 3-4 card support,
-    /// exactly (4333), 12-15 HCP (`set_major_choice_of_games`)
+    /// exactly (4333), 12-15 HCP (`ResponseKnobs::major_choice_of_games`)
     #[arg(long, default_value_t = false)]
     choice_of_games: bool,
 
     /// Treatment: the 2/1 fit leg — exactly 3-card support enters on
-    /// `support_points(13..)` (`set_two_over_one_fit`)
+    /// `support_points(13..)` (`ResponseKnobs::two_over_one_fit`)
     #[arg(long, default_value_t = false)]
     two_over_one_fit: bool,
 
     /// Treatment: the no-fit 2/1 gauge — points13 (baseline) | points12 |
-    /// hcp13 | hcp12 | hcp14 (`set_two_over_one_gate`)
+    /// hcp13 | hcp12 | hcp14 (`ResponseKnobs::two_over_one_gate`)
     #[arg(long, default_value = "points13")]
     two_over_one_gate: String,
 
@@ -105,7 +101,7 @@ struct Args {
 
     /// Treatment: *restore* the retired 2/1 game backstop, so uncovered
     /// game-forcing continuations answer from its three rules instead of the
-    /// floor (`set_game_backstop`, shipped off)
+    /// floor (`GameForceKnobs::game_backstop`, shipped off)
     #[arg(long, default_value_t = false)]
     game_backstop: bool,
 
@@ -115,20 +111,20 @@ struct Args {
     no_two_over_one_force: bool,
 
     /// Treatment: *drop* opener's third call after trump is agreed at
-    /// `1M - 2r - R - 3M`, so the node falls to the floor (`set_opener_third`,
+    /// `1M - 2r - R - 3M`, so the node falls to the floor (`GameForceKnobs::opener_third`,
     /// shipped on).  Re-audit candidate #2 — measures positive but strands
     /// every slam at the node; not shipped.
     #[arg(long, default_value_t = false)]
     no_opener_third: bool,
 
     /// Treatment: *drop* opener's third call after responder agrees the second
-    /// suit at `1M - 2r - 2x - 3x` (`set_second_suit_agreement`, shipped on).
+    /// suit at `1M - 2r - 2x - 3x` (`GameForceKnobs::second_suit_agreement`, shipped on).
     /// Constructive book re-audit candidate #1.
     #[arg(long, default_value_t = false)]
     no_second_suit_agreement: bool,
 
     /// Treatment: *drop* opener's judgment of the XYZ invitations that stop
-    /// below game (`set_xyz_invite_judgment`, shipped on).  Constructive book
+    /// below game (`RebidKnobs::xyz_invite_judgment`, shipped on).  Constructive book
     /// re-audit candidate #3 — the most-reached one.
     #[arg(long, default_value_t = false)]
     no_xyz_invite_judgment: bool,
@@ -155,27 +151,34 @@ fn parse_gate(s: &str) -> TwoOverOneGate {
     }
 }
 
-/// Set every knob at once; `treatment` false = the all-off baseline arm
-fn set_knobs(args: &Args, treatment: bool) {
-    set_major_game_tries(treatment && args.game_tries);
-    set_limit_raise_acceptance(treatment && args.limit_raise);
-    set_major_rebid_tails(treatment && args.tails);
-    set_fourth_suit_forcing(treatment && args.fsf);
-    set_major_choice_of_games(treatment && args.choice_of_games);
-    set_two_over_one_fit(treatment && args.two_over_one_fit);
-    set_two_over_one_gate(if treatment {
+/// Arm every knob at once and capture the arm's agreements; `treatment` false
+/// = the all-off baseline arm
+///
+/// The two `instinct` knobs are still thread cells, so they are written before
+/// the capture; the rest are fields of the value.
+fn arm_knobs(args: &Args, treatment: bool) -> Agreements {
+    // These ship the other way round (backstop retired, force on), so the
+    // treatment *restores* the old behaviour rather than adding a new one.
+    set_two_over_one_force(!(treatment && args.no_two_over_one_force));
+    set_two_over_one_slam_strength(!(treatment && args.no_two_over_one_slam_strength));
+
+    let mut agreements = Agreements::current();
+    agreements.response.major_game_tries = treatment && args.game_tries;
+    agreements.response.limit_raise_acceptance = treatment && args.limit_raise;
+    agreements.rebid.major_rebid_tails = treatment && args.tails;
+    agreements.rebid.fourth_suit_forcing = treatment && args.fsf;
+    agreements.response.major_choice_of_games = treatment && args.choice_of_games;
+    agreements.response.two_over_one_fit = treatment && args.two_over_one_fit;
+    agreements.response.two_over_one_gate = if treatment {
         parse_gate(&args.two_over_one_gate)
     } else {
         parse_gate(&args.baseline_gate)
-    });
-    // These two ship the other way round (backstop retired, force on), so the
-    // treatment *restores* the old behaviour rather than adding a new one.
-    set_game_backstop(treatment && args.game_backstop);
-    set_two_over_one_force(!(treatment && args.no_two_over_one_force));
-    set_opener_third(!(treatment && args.no_opener_third));
-    set_second_suit_agreement(!(treatment && args.no_second_suit_agreement));
-    set_xyz_invite_judgment(!(treatment && args.no_xyz_invite_judgment));
-    set_two_over_one_slam_strength(!(treatment && args.no_two_over_one_slam_strength));
+    };
+    agreements.game_force.game_backstop = treatment && args.game_backstop;
+    agreements.game_force.opener_third = !(treatment && args.no_opener_third);
+    agreements.game_force.second_suit_agreement = !(treatment && args.no_second_suit_agreement);
+    agreements.rebid.xyz_invite_judgment = !(treatment && args.no_xyz_invite_judgment);
+    agreements
 }
 
 #[allow(clippy::cast_precision_loss)]
@@ -209,11 +212,9 @@ fn main() {
     // the knobs are read only at book-construction time, so each arm bakes its
     // own books; `two_over_one_force` is the exception — a classify-time read,
     // re-set per arm inside the worker below.
-    set_knobs(&args, false);
-    let baseline = american(&pons::bidding::agreements::Agreements::current()).against();
-    set_knobs(&args, true);
-    let treatment = american(&pons::bidding::agreements::Agreements::current()).against();
-    set_knobs(&args, false);
+    let baseline = american(&arm_knobs(&args, false)).against();
+    let treatment = american(&arm_knobs(&args, true)).against();
+    arm_knobs(&args, false);
     let stances = [baseline, treatment];
 
     // Deals are seeded per board (base + index) so any arm of the experiment

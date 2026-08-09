@@ -19,7 +19,7 @@ pub(super) fn best(trie: &Trie, auction: &[Call], hand: &str) -> Call {
 }
 
 /// After `1♦ - 1♥`, a balanced 12–14 with a five-card diamond suit rebids
-/// the natural `2♦` by default but `1NT` once `set_balanced_1nt_rebid` is
+/// the natural `2♦` by default but `1NT` once `balanced_1nt_rebid` is
 /// on — the only shape the knob moves (4333/4432 hold no five-card minor).
 #[test]
 fn balanced_1nt_rebid_knob_flips_2m_to_1nt() {
@@ -31,20 +31,20 @@ fn balanced_1nt_rebid_knob_flips_2m_to_1nt() {
     ];
     // ♠KQ4 ♥Q3 ♦AK762 ♣853 — 3=2=5=3, 14 HCP, no four-card heart support.
     let hand = "KQ4.Q3.AK762.853";
-    let build = || {
+    let build = |balanced_1nt_rebid: bool| {
+        let mut agreements = crate::bidding::agreements::Agreements::current();
+        agreements.rebid.balanced_1nt_rebid = balanced_1nt_rebid;
         let mut trie = Trie::new();
-        crate::bidding::rows::compile_into(
-            &mut trie,
-            &crate::bidding::agreements::Agreements::current(),
-            &[remaining_rebid_bases()],
-        );
+        crate::bidding::rows::compile_into(&mut trie, &agreements, &[remaining_rebid_bases()]);
         trie
     };
 
-    set_balanced_1nt_rebid(false);
-    assert_eq!(best(&build(), one_d_one_h, hand), call(2, Strain::Diamonds));
+    assert_eq!(
+        best(&build(false), one_d_one_h, hand),
+        call(2, Strain::Diamonds)
+    );
 
-    set_balanced_1nt_rebid(true); // the shipped default
-    let on = build();
+    // The shipped default.
+    let on = build(true);
     assert_eq!(best(&on, one_d_one_h, hand), call(1, Strain::Notrump));
 }

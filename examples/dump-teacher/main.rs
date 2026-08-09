@@ -47,15 +47,14 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use ddss::TrickCountTable;
 use pons::bidding::Stance;
-use pons::bidding::agreements::{Agreements, OpeningKnobs};
+use pons::bidding::agreements::{Agreements, OpeningKnobs, RebidKnobs};
 use pons::bidding::american::{
-    EUROPEAN, LebensohlStyle, NotrumpDefense, NotrumpShape, PUPPET, fourth_suit_forcing,
-    garbage_stayman, jordan_truscott, leaping_michaels_enabled, lebensohl_style,
-    major_support_double, notrump_defense, notrump_minors, nt_splinter, responsive_takeout_enabled,
-    set_fourth_suit_forcing, set_garbage_stayman, set_jordan_truscott, set_landy,
-    set_leaping_michaels, set_lebensohl_style, set_major_support_double, set_new_minor_forcing,
-    set_notrump_defense, set_notrump_minors, set_nt_splinter, set_responsive_takeout,
-    set_transfer_super_accept, set_xyz, transfer_super_accept,
+    EUROPEAN, LebensohlStyle, NotrumpDefense, NotrumpShape, PUPPET, garbage_stayman,
+    jordan_truscott, leaping_michaels_enabled, lebensohl_style, major_support_double,
+    notrump_defense, notrump_minors, nt_splinter, responsive_takeout_enabled, set_garbage_stayman,
+    set_jordan_truscott, set_landy, set_leaping_michaels, set_lebensohl_style,
+    set_major_support_double, set_notrump_defense, set_notrump_minors, set_nt_splinter,
+    set_responsive_takeout, set_transfer_super_accept, set_xyz, transfer_super_accept,
 };
 use pons::bidding::card::{american_card, dutch_card};
 use pons::bidding::context::{Context, relative};
@@ -353,15 +352,15 @@ impl Defaults {
     fn capture() -> Self {
         Self {
             garbage: garbage_stayman(),
-            // These four have crate-private readers (not web-settable), so
+            // These two have crate-private readers (not web-settable), so
             // their shipped defaults are transcribed from the `Cell::new`
-            // literals: nmf.rs:40, xyz.rs:41, one_notrump.rs:32, nt_landy.rs:17.
-            nmf: false,
+            // literals: xyz.rs:42, nt_landy.rs:17.
             xyz: true,
-            offshape: false,
             landy: None,
+            nmf: RebidKnobs::default().new_minor_forcing,
+            offshape: OpeningKnobs::default().one_notrump_offshape,
             super_accept: transfer_super_accept(),
-            fsf: fourth_suit_forcing(),
+            fsf: RebidKnobs::default().fourth_suit_forcing,
             jordan: jordan_truscott(),
             leaping: leaping_michaels_enabled(),
             responsive: responsive_takeout_enabled(),
@@ -376,10 +375,8 @@ impl Defaults {
 
     fn apply(&self) {
         set_garbage_stayman(self.garbage);
-        set_new_minor_forcing(self.nmf);
         set_xyz(self.xyz);
         set_transfer_super_accept(self.super_accept);
-        set_fourth_suit_forcing(self.fsf);
         set_jordan_truscott(self.jordan);
         set_leaping_michaels(self.leaping);
         set_responsive_takeout(self.responsive);
@@ -395,22 +392,46 @@ impl Defaults {
         set_landy(self.landy);
     }
 
-    /// The two axes that are fields of [`Agreements`] rather than thread cells
-    fn opening(&self) -> OpeningKnobs {
-        OpeningKnobs {
-            one_notrump_offshape: self.offshape,
-            notrump_shape: self.shape,
-            ..OpeningKnobs::default()
+    /// The axes that are fields of [`Agreements`] rather than thread cells
+    fn knobs(&self) -> Knobs {
+        Knobs {
+            opening: OpeningKnobs {
+                one_notrump_offshape: self.offshape,
+                notrump_shape: self.shape,
+                ..OpeningKnobs::default()
+            },
+            rebid: RebidKnobs {
+                new_minor_forcing: self.nmf,
+                fourth_suit_forcing: self.fsf,
+                ..RebidKnobs::default()
+            },
         }
+    }
+}
+
+/// The axes that live in the captured [`Agreements`] rather than in a cell
+#[derive(Clone, Copy)]
+struct Knobs {
+    opening: OpeningKnobs,
+    rebid: RebidKnobs,
+}
+
+impl Knobs {
+    /// Paste these onto a fresh capture of the ambient cells
+    fn onto_current(self) -> Agreements {
+        let mut agreements = Agreements::current();
+        agreements.opening = self.opening;
+        agreements.rebid = self.rebid;
+        agreements
     }
 }
 
 /// A knob flip away from the shipped defaults, applied on the bidding thread.
 ///
-/// Most axes are thread cells, flipped in place; the two opening axes live in
-/// the [`Agreements`] value, so the flip is handed the [`OpeningKnobs`] the
-/// build will carry.
-type Flip = fn(&Defaults, &mut OpeningKnobs);
+/// Most axes are thread cells, flipped in place; the rest live in the
+/// [`Agreements`] value, so the flip is also handed the [`Knobs`] the build
+/// will carry.  The cells are re-read after the flips, so a flip may do either.
+type Flip = fn(&Defaults, &mut Knobs);
 
 /// Every flippable axis, **in bit order**: bit i of `SideConfig::flips` (the
 /// `+HEX` cell-label suffix) applies entry i
@@ -445,13 +466,15 @@ type Flip = fn(&Defaults, &mut OpeningKnobs);
 /// [docs/ai-bidder/card-manifold.md]: ../../docs/ai-bidder/card-manifold.md
 const AXES: [(&str, Flip); 16] = [
     ("Garbage Stayman", |d, _| set_garbage_stayman(!d.garbage)),
-    ("Checkback (NMF)", |d, _| set_new_minor_forcing(!d.nmf)),
+    ("Checkback (NMF)", |d, k| {
+        k.rebid.new_minor_forcing = !d.nmf;
+    }),
     ("Two Way NMF (XYZ)", |d, _| set_xyz(!d.xyz)),
     ("Super acceptance", |d, _| {
         set_transfer_super_accept(!d.super_accept);
     }),
-    ("Fourth suit forcing", |d, _| {
-        set_fourth_suit_forcing(!d.fsf)
+    ("Fourth suit forcing", |d, k| {
+        k.rebid.fourth_suit_forcing = !d.fsf;
     }),
     ("Jordan Truscott 2NT", |d, _| set_jordan_truscott(!d.jordan)),
     ("Leaping Michaels", |d, _| set_leaping_michaels(!d.leaping)),
@@ -462,11 +485,11 @@ const AXES: [(&str, Flip); 16] = [
         set_major_support_double(!d.support_x);
     }),
     ("1N-3M splinter", |d, _| set_nt_splinter(!d.splinter)),
-    ("1NT offshape 4441/5422", |d, opening| {
-        opening.one_notrump_offshape = !d.offshape;
+    ("1NT offshape 4441/5422", |d, k| {
+        k.opening.one_notrump_offshape = !d.offshape;
     }),
-    ("1NT shape ladder", |d, opening| {
-        opening.notrump_shape = match d.shape {
+    ("1NT shape ladder", |d, k| {
+        k.opening.notrump_shape = match d.shape {
             NotrumpShape::Balanced => NotrumpShape::Wide6322,
             _ => NotrumpShape::Balanced,
         };
@@ -510,22 +533,20 @@ static AXIS_DEFAULTS: OnceLock<Defaults> = OnceLock::new();
 /// reading.  Call it wherever [`arm_kickback`] is called for a side.
 ///
 /// Returns the [`Agreements`] the side plays — every build under this arming
-/// must be handed *this*, not a fresh `Agreements::current()`, or the two
-/// opening axes silently revert to their shipped poles.
+/// must be handed *this*, not a fresh `Agreements::current()`, or the four
+/// value-borne axes silently revert to their shipped poles.
 fn arm_flips(flips: u16) -> Agreements {
     let defaults = AXIS_DEFAULTS.get_or_init(Defaults::capture);
     defaults.apply();
-    let mut opening = defaults.opening();
+    let mut knobs = defaults.knobs();
     for (bit, (_, flip)) in AXES.iter().enumerate() {
         if flips & (1u16 << bit) != 0 {
-            flip(defaults, &mut opening);
+            flip(defaults, &mut knobs);
         }
     }
     // The ambient half is read *after* the flips, which may have written a
-    // cell; the opening half is the value they just edited.
-    let mut agreements = Agreements::current();
-    agreements.opening = opening;
-    agreements
+    // cell; the value half is what they just edited.
+    knobs.onto_current()
 }
 
 /// `a-on`, `d-off`, `american-on`, `dutch-off` — a side's declared system,

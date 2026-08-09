@@ -9,7 +9,7 @@
 //! `2♣` sign-off becomes an orphan.
 //!
 //! Everything is gated on [`set_xyz`] — default **on**, shipped with
-//! `set_up_the_line` (`ab-minor-continuations`, 300k boards: the pair is
+//! `up_the_line` (`ab-minor-continuations`, 300k boards: the pair is
 //! plain +0.0382/+0.0559 IMPs/board NV/vul, PD +0.0289/+0.0407; XYZ alone is
 //! plain +0.504/+0.795 per divergent, PD +0.332/+0.472 — a win on both
 //! scorers).  With the knob off, `register` authors nothing.
@@ -40,11 +40,6 @@ std::thread_local! {
     /// Whether the XYZ structure is authored.  Default `true` (see the
     /// module doc for the measured verdict).
     static XYZ: Cell<bool> = const { Cell::new(true) };
-
-    /// Whether opener judges the invitations that stop below game
-    /// ([`accept_or_decline`]).  Default `true`; see
-    /// [`set_xyz_invite_judgment`].
-    static XYZ_INVITE_JUDGMENT: Cell<bool> = const { Cell::new(true) };
 }
 
 /// Author XYZ for books built *after* this call (default `true`; off-switch
@@ -61,26 +56,6 @@ pub fn set_xyz(on: bool) {
 /// Whether XYZ is currently authored
 pub(crate) fn xyz() -> bool {
     XYZ.with(Cell::get)
-}
-
-/// Author opener's judgment of the invitations that stop below game
-///
-/// Read at book-construction time; default `true` (the shipped behavior).
-/// The table is two rules — `points(14..)` bids the game, else `Pass` — with
-/// no shape, fit or vulnerability term, the same signature as the retired 2/1
-/// game backstop.  Off, it becomes an empty table, which is all-−∞ and so
-/// falls through to `instinct()` by the documented escape hatch.
-///
-/// The most-*reached* candidate of the constructive book re-audit
-/// (`probe-node-reach`: 0.114% on one key, and the table is registered once per
-/// invite per prefix).  Only the crude `accept_or_decline` copies are gated;
-/// the shaped acceptances (three-card support, the 5♠4♥ hand) always author.
-pub fn set_xyz_invite_judgment(on: bool) {
-    XYZ_INVITE_JUDGMENT.with(|cell| cell.set(on));
-}
-
-pub(super) fn xyz_invite_judgment() -> bool {
-    XYZ_INVITE_JUDGMENT.with(Cell::get)
 }
 
 /// Responder's rebid at `1x - 1y - 1z`: the XYZ round
@@ -177,7 +152,7 @@ fn xyz_after_relay(opening: Suit, response: Suit, rebid: Strain) -> Rules {
 
 /// Opener accepts (14+) or declines an invitation reached through the relay
 ///
-/// Empty when [`set_xyz_invite_judgment`] is off: an all-−∞ table is the
+/// Empty when [`RebidKnobs::xyz_invite_judgment`] is off: an all-−∞ table is the
 /// documented fall-through, so the node lands on the floor without the
 /// registration sites needing to know.
 fn accept_or_decline(game: Bid, knobs: &RebidKnobs) -> Rules {

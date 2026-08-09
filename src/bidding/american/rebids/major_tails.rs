@@ -2,98 +2,18 @@
 //!
 //! Below each of opener's four rebids (`2♠`, `3♠`, `2♥`, `2♣`/`2♦`) both sides
 //! are authored to game, and — for the two spade-raise auctions — to slam via
-//! RKCB.  Gated by [`set_major_rebid_tails`].  Two sub-agreements ride it:
-//! fourth-suit forcing ([`set_fourth_suit_forcing`]) and the HCP gauge on the
-//! one no-fit rung ([`set_nt_invite_hcp`]).
+//! RKCB.  Gated by [`RebidKnobs::major_rebid_tails`].  Two sub-agreements ride
+//! it: fourth-suit forcing ([`RebidKnobs::fourth_suit_forcing`]) and the HCP
+//! gauge on the one no-fit rung ([`RebidKnobs::nt_invite_hcp`]).
 
 use super::*;
 use crate::bidding::american::slam;
 
 // ponytail: same construction-time-toggle reasoning as `MECKSTROTH` above.
-std::thread_local! {
-    /// Whether opener's rebid tables carry the **major-rebid-tails adjunct**:
-    /// full responder/opener continuations after `1♥ - 1♠` below opener's
-    /// `2♠`/`3♠` raise, `2♥` rebid, and `2♣`/`2♦` minor rebid.  Default on
-    /// (measured +0.016/+0.023 IMPs/board NV/vul plain DD).
-    static MAJOR_REBID_TAILS: Cell<bool> = const { Cell::new(true) };
-}
-
-/// Enable or disable the major-rebid-tails adjunct in books built *after*
-/// this call
-///
-/// Read at book-construction time (during `register`); set it before
-/// building the `Pair`.  **Default on** (`--no-ns-major-rebid-tails` in
-/// `bba-gen` for the off arm).
-pub fn set_major_rebid_tails(on: bool) {
-    MAJOR_REBID_TAILS.with(|cell| cell.set(on));
-}
-
-/// Whether the major-rebid-tails adjunct is currently enabled
-pub(super) fn major_rebid_tails() -> bool {
-    MAJOR_REBID_TAILS.with(Cell::get)
-}
-
 /// Fourth suit forcing — the fourth suit is an artificial game force
 const FOURTH_SUIT: Alert = Alert("fourth-suit-forcing");
 
 // ponytail: same construction-time-toggle reasoning as `MECKSTROTH` above.
-std::thread_local! {
-    /// Whether the **fourth-suit-forcing** knob is enabled: at
-    /// `1♥ - 1♠ - 2♣`, responder's `2♦` becomes an artificial game force (the
-    /// fourth suit) instead of natural diamonds.  Default on (measured
-    /// +0.002 IMPs/board on top of the tails, both scorers, both
-    /// vulnerabilities).
-    ///
-    /// This continuation *rides* the major-rebid-tails adjunct — with
-    /// [`set_major_rebid_tails`] off, enabling this knob registers nothing.
-    static FOURTH_SUIT_FORCING: Cell<bool> = const { Cell::new(true) };
-}
-
-/// Enable or disable fourth-suit-forcing in books built *after* this call
-///
-/// Read at book-construction time (during `register`); set it before
-/// building the `Pair`.  **Default on** (`--no-ns-fourth-suit-forcing` in
-/// `bba-gen` for the off arm).  This continuation rides the
-/// major-rebid-tails adjunct — with [`set_major_rebid_tails`] off, enabling
-/// this knob registers nothing.
-pub fn set_fourth_suit_forcing(on: bool) {
-    FOURTH_SUIT_FORCING.with(|cell| cell.set(on));
-}
-
-/// Whether fourth-suit-forcing is currently enabled
-pub fn fourth_suit_forcing() -> bool {
-    FOURTH_SUIT_FORCING.with(Cell::get)
-}
-
-std::thread_local! {
-    /// Whether responder's natural 2NT invite after opener shows two suits
-    /// (`1♥ - 1♠ - 2m`) is gauged in raw HCP instead of `points`.  **Default
-    /// on** (fix-vs-shipped, 1M boards/vul, 24.pdd 18.3M–20.3M: plain DD
-    /// +0.0018 ± 0.0003 NV / +0.0022 ± 0.0005 vul, PD +0.0028/+0.0032).  See
-    /// [`set_nt_invite_hcp`].
-    static NT_INVITE_HCP: Cell<bool> = const { Cell::new(true) };
-}
-
-/// Gauge responder's 2NT invite after `1♥ - 1♠ - 2m` in raw HCP for books
-/// built *after* this call
-///
-/// The 2NT rung is the table's one no-fit call — the hand denied a heart
-/// preference and a minor raise, so its long-suit `points` credit prices ruffs
-/// that a notrump part-score never takes (the quantitative-6NT reasoning one
-/// level down).  Rule-of-N+8 reads a shaped 9-count 10+, invites, and loses
-/// both mirror directions (the point-count remnant's 2NT-invite seam).  The
-/// fit-showing rungs (`3♥`/`3m` invites) keep `points`, mirroring the 2/1
-/// hcp/support-points split.  **Default on** (measured; see the thread-local
-/// above); `false` restores the shipped `points` gauge.
-pub fn set_nt_invite_hcp(on: bool) {
-    NT_INVITE_HCP.with(|cell| cell.set(on));
-}
-
-/// Whether the post-two-suit 2NT invite is HCP-gauged
-pub(super) fn nt_invite_hcp() -> bool {
-    NT_INVITE_HCP.with(Cell::get)
-}
-
 /// Responder's second call after opener raises to `2♠` in `1♥ - 1♠`
 ///
 /// Opener's `2♠` shows four-card support and a 12–15 point opening.  The
@@ -186,7 +106,7 @@ fn opener_after_heart_invite() -> Rules {
 /// denied three hearts), so a jump preference to `3♥` outranks the minor
 /// raise.
 ///
-/// Fourth-suit-forcing ([`set_fourth_suit_forcing`], riding the
+/// Fourth-suit-forcing ([`RebidKnobs::fourth_suit_forcing`], riding the
 /// major-rebid-tails adjunct) extends this table for `minor == Suit::Clubs`
 /// only: a `2♦` response becomes an artificial game force (the fourth suit
 /// below `2♣`) instead of natural diamonds.  `minor == Suit::Diamonds` is
@@ -220,7 +140,7 @@ fn responder_after_minor_rebid(minor: Suit, knobs: &RebidKnobs) -> Rules {
             len(Suit::Hearts, 3..) & points(10..=12),
         )
         .rule(Bid::new(3, m), 125, len(minor, 5..) & points(10..=12));
-    // The one no-fit rung: HCP-gauged when `set_nt_invite_hcp` is armed (a
+    // The one no-fit rung: HCP-gauged when `nt_invite_hcp` is armed (a
     // notrump invite takes no ruffs), else the shipped `points`.
     rules = if knobs.nt_invite_hcp {
         rules.rule(Bid::new(2, Strain::Notrump), 120, hcp(10..=12))
@@ -325,7 +245,7 @@ fn responder_after_fourth_suit_answer() -> Rules {
 ///   declines, or answers the `2NT` notrump-invite relay.
 /// - `2♣`/`2♦` (new minor, 4+, minimum-ish): responder chooses a preference,
 ///   an invite, or game; opener accepts or declines the invite reached.
-/// - `2♣ - 2♦` fourth-suit-forcing ([`set_fourth_suit_forcing`], an
+/// - `2♣ - 2♦` fourth-suit-forcing ([`RebidKnobs::fourth_suit_forcing`], an
 ///   additional gate riding this adjunct): opener answers naturally below
 ///   game; responder places the final contract at game over any answer.
 ///

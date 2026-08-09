@@ -5,7 +5,7 @@
 //! rebid and underbids as a simple two-level suit.  The **real Meckstroth
 //! adjunct** turns `2NT` into an artificial 18+ game force of *any* shape, with a
 //! `3♣` relay and shape-out continuations toward the right game or slam.  Both
-//! arms run the same 2/1 system; the only difference is the [`set_meckstroth_adjunct`]
+//! arms run the same 2/1 system; the only difference is the `meckstroth_adjunct`
 //! toggle, read once at book-construction time.  (That knob now carries the whole
 //! adjunct — the artificial `2NT` *and* the invitational `3m` jumps — so the
 //! baseline arm drops both; the `2NT` machine dominates the divergent boards.)
@@ -28,7 +28,7 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::american::{set_meckstroth_adjunct, set_meckstroth_minor_jumps};
+use pons::bidding::agreements::Agreements;
 use pons::bidding::context::relative;
 use pons::bidding::{Inferences, Stance};
 use pons::scoring::{
@@ -111,12 +111,12 @@ fn main() {
     // force (so only the jumps move); without it the baseline drops the whole
     // adjunct.  An inverted `!` here silently re-ran the merged A/B instead —
     // the tell was divergence landing on the merged knob's 0.6%.
-    set_meckstroth_adjunct(args.minor_jumps_only);
-    set_meckstroth_minor_jumps(false);
-    let baseline = american(&pons::bidding::agreements::Agreements::current()).against();
-    set_meckstroth_adjunct(true); // restore the shipped default (on)
-    set_meckstroth_minor_jumps(true);
-    let adjunct = american(&pons::bidding::agreements::Agreements::current()).against();
+    let mut base = Agreements::current();
+    base.rebid.meckstroth_adjunct = args.minor_jumps_only;
+    base.rebid.meckstroth_minor_jumps = false;
+    let baseline = american(&base).against();
+    // The shipped default (both on).
+    let adjunct = american(&Agreements::current()).against();
     let stances = [baseline, adjunct];
 
     // Both arms bid the same deal; the only difference is opener's rebid table.

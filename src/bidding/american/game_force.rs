@@ -9,9 +9,9 @@
 //!
 //! | Module | Agreement | Knob |
 //! | --- | --- | --- |
-//! | [`backstop`] | the retired wildcard game backstop, default off | [`set_game_backstop`] |
-//! | [`opener_third`] | opener's third call after responder sets trump at `1M - 2r - R - 3M` | [`set_opener_third`] |
-//! | [`second_suit`] | opener's third call plus RKCB after responder raises opener's second suit | [`set_second_suit_agreement`] |
+//! | [`backstop`] | the retired wildcard game backstop, default off | [`GameForceKnobs::game_backstop`] |
+//! | [`opener_third`] | opener's third call after responder sets trump at `1M - 2r - R - 3M` | [`GameForceKnobs::opener_third`] |
+//! | [`second_suit`] | opener's third call plus RKCB after responder raises opener's second suit | [`GameForceKnobs::second_suit_agreement`] |
 //!
 //! # Forcing by omission
 //!
@@ -28,37 +28,23 @@
 use super::super::Trie;
 use super::call;
 use crate::bidding::Rules;
-use crate::bidding::agreements::{Agreements, GameForceKnobs};
+use crate::bidding::agreements::Agreements;
 use crate::bidding::constraint::{
     balanced, described, fifths, hcp, len, partner_suit_is, points, support,
 };
 use crate::bidding::rows::{Package, Pattern, classified, compile_into, rows_of};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Level, Strain, Suit};
-use std::cell::Cell;
 
 mod backstop;
 mod opener_third;
 mod second_suit;
-
-pub use backstop::set_game_backstop;
-pub use opener_third::set_opener_third;
-pub use second_suit::set_second_suit_agreement;
 
 // The packages, re-exported so `american::tests::row_package_invariants` and
 // `register` below name them at one path.
 pub(super) use backstop::backstops;
 pub(super) use opener_third::opener_third_continuations;
 pub(super) use second_suit::second_suit_agreement_continuations;
-
-/// Capture this area's build-time cells into [`GameForceKnobs`]
-pub(in crate::bidding) fn capture() -> GameForceKnobs {
-    GameForceKnobs {
-        game_backstop: backstop::game_backstop_enabled(),
-        opener_third: opener_third::opener_third_enabled(),
-        second_suit_agreement: second_suit::second_suit_agreement(),
-    }
-}
 
 // ---------------------------------------------------------------------------
 // Major 2/1 sequences
@@ -300,5 +286,3 @@ pub(super) fn register(book: &mut Trie, agreements: &Agreements) {
         ],
     );
 }
-pub use backstop::game_backstop_enabled;
-pub use second_suit::second_suit_agreement;

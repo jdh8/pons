@@ -1,27 +1,25 @@
 //! Integration tests for the minor-opening continuation knobs: the
 //! longer-major response discipline (`set_longer_major_response`), the
-//! up-the-line completion (`set_up_the_line`), and the XYZ two-way checkback
-//! (`set_xyz`).  Each test builds its own stance with the knobs it needs and
-//! restores the defaults, so the rest of the suite keeps measuring the
-//! shipped system.
+//! up-the-line completion (`ResponseKnobs::up_the_line`), and the XYZ two-way
+//! checkback (`set_xyz`).  Each test builds its own stance with the knobs it
+//! needs, so the rest of the suite keeps measuring the shipped system.
 
 mod common;
 use common::*;
 
-use pons::bidding::american::{
-    set_longer_major_response, set_new_minor_forcing, set_up_the_line, set_xyz,
-};
+use pons::bidding::agreements::Agreements;
+use pons::bidding::american::{set_longer_major_response, set_xyz};
 
 const P: Call = Call::Pass;
 
-/// A stance built with the given knobs, defaults restored afterwards
+/// A stance built with the given knobs; the ambient cells are restored
 fn stance_with(longer_major: bool, up_the_line: bool, xyz: bool) -> Stance {
     set_longer_major_response(longer_major);
-    set_up_the_line(up_the_line);
     set_xyz(xyz);
-    let stance = american(&pons::bidding::agreements::Agreements::current()).against();
+    let mut agreements = Agreements::current();
+    agreements.response.up_the_line = up_the_line;
+    let stance = american(&agreements).against();
     set_longer_major_response(true); // restore the shipped default (longer-major is now on)
-    set_up_the_line(false);
     set_xyz(false);
     stance
 }
@@ -234,14 +232,13 @@ fn xyz_invitation_accepted_to_game() {
 /// those, so `set_xyz` is left off to isolate the convention purely.
 fn nmf_stance() -> Stance {
     set_longer_major_response(false);
-    set_up_the_line(false);
     set_xyz(false);
-    set_new_minor_forcing(true);
-    let stance = american(&pons::bidding::agreements::Agreements::current()).against();
+    let mut agreements = Agreements::current();
+    agreements.response.up_the_line = false;
+    agreements.rebid.new_minor_forcing = true;
+    let stance = american(&agreements).against();
     set_longer_major_response(true);
-    set_up_the_line(false);
     set_xyz(false);
-    set_new_minor_forcing(false);
     stance
 }
 

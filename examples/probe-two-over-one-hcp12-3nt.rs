@@ -23,7 +23,8 @@ use contract_bridge::auction::Auction;
 use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Hand, Seat, Strain, Suit};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::american::{TwoOverOneGate, set_two_over_one_gate};
+use pons::bidding::agreements::Agreements;
+use pons::bidding::american::TwoOverOneGate;
 use pons::bidding::constraint::point_count;
 use pons::scoring::final_contract;
 
@@ -74,13 +75,15 @@ fn main() {
     let seed: u64 = argv.next().and_then(|s| s.parse().ok()).unwrap_or(0);
     let vul = AbsoluteVulnerability::NONE;
 
-    // Two books, built once — `set_two_over_one_gate` is read at book
+    // Two books, built once — `two_over_one_gate` is read at book
     // construction, never at classify time.
-    set_two_over_one_gate(TwoOverOneGate::Hcp13);
-    let baseline_stance = american(&pons::bidding::agreements::Agreements::current()).against();
-    set_two_over_one_gate(TwoOverOneGate::Hcp12);
-    let candidate_stance = american(&pons::bidding::agreements::Agreements::current()).against();
-    set_two_over_one_gate(TwoOverOneGate::Hcp13);
+    let gated = |gate| {
+        let mut agreements = Agreements::current();
+        agreements.response.two_over_one_gate = gate;
+        american(&agreements).against()
+    };
+    let baseline_stance = gated(TwoOverOneGate::Hcp13);
+    let candidate_stance = gated(TwoOverOneGate::Hcp12);
 
     let deals = seeded_deals(seed, count);
     let mut qualifying: Vec<Board> = Vec::new();

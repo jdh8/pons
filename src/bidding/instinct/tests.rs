@@ -29,13 +29,20 @@ fn best(auction: &[Call], hand: &str) -> Call {
 /// Uses [`american_instinct`] (not the net-floored [`american`]) so these
 /// tests exercise the deterministic instinct ladder they assert against.
 fn american_floored(auction: &[Call], hand: &str) -> (Call, bool) {
+    american_floored_with(&Agreements::current(), auction, hand)
+}
+
+/// The same, built from an explicit [`Agreements`] rather than this thread's
+///
+/// The tests that delete a book node to hand the position to the floor arm the
+/// captured value here instead of a global.
+fn american_floored_with(agreements: &Agreements, auction: &[Call], hand: &str) -> (Call, bool) {
     use crate::bidding::american::american_instinct;
     let hand: Hand = hand.parse().expect("valid test hand");
-    let (logits, provenance) =
-        american_instinct(&crate::bidding::agreements::Agreements::current())
-            .against()
-            .classify_with_provenance(hand, RelativeVulnerability::NONE, auction)
-            .expect("a legal auction classifies");
+    let (logits, provenance) = american_instinct(agreements)
+        .against()
+        .classify_with_provenance(hand, RelativeVulnerability::NONE, auction)
+        .expect("a legal auction classifies");
     let call = (&logits.0)
         .into_iter()
         .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))
@@ -2443,7 +2450,6 @@ fn keeps_passing_with_a_weak_responder() {
 /// `4♠` holding a 26-count opposite the force.
 #[test]
 fn two_over_one_slam_strength_unblocks_the_ask() {
-    use crate::bidding::american::set_opener_third;
     let auction = [
         call(1, Strain::Spades),
         Call::Pass,
@@ -2454,10 +2460,11 @@ fn two_over_one_slam_strength_unblocks_the_ask() {
         call(3, Strain::Spades),
         Call::Pass,
     ];
-    // Delete the book node so the floor owns the position.
-    set_opener_third(false);
     set_two_over_one_slam_strength(false);
-    let (chosen, floored) = american_floored(&auction, "AKQJ2.AKQ.AQJ4.9");
+    // Delete the book node so the floor owns the position.
+    let mut agreements = Agreements::current();
+    agreements.game_force.opener_third = false;
+    let (chosen, floored) = american_floored_with(&agreements, &auction, "AKQJ2.AKQ.AQJ4.9");
     assert!(floored, "the deleted node leaves this to the floor");
     // Was `4♠`, and the comment called it "the defect: a 26-count game".
     // The bilans floor (default-on) resolves it: 26 opposite a game-forcing
@@ -2466,7 +2473,9 @@ fn two_over_one_slam_strength_unblocks_the_ask() {
     assert_eq!(chosen, call(7, Strain::Spades), "the net finds the grand");
 
     set_two_over_one_slam_strength(true);
-    let (chosen, _) = american_floored(&auction, "AKQJ2.AKQ.AQJ4.9");
+    let mut agreements = Agreements::current();
+    agreements.game_force.opener_third = false;
+    let (chosen, _) = american_floored_with(&agreements, &auction, "AKQJ2.AKQ.AQJ4.9");
     assert_ne!(
         chosen,
         call(4, Strain::Spades),
@@ -2476,8 +2485,7 @@ fn two_over_one_slam_strength_unblocks_the_ask() {
     // `a_minimum_signs_off_opposite_an_established_two_over_one`, which is
     // ignored pending the 2/1 projection fix.
 
-    set_two_over_one_slam_strength(true); // restore the defaults
-    set_opener_third(true);
+    set_two_over_one_slam_strength(true); // restore the default
 }
 
 /// A minimum opener signs off in game opposite an established 2/1 — the
@@ -2498,7 +2506,6 @@ fn two_over_one_slam_strength_unblocks_the_ask() {
 #[test]
 #[ignore = "the 2/1 game force reads points 0..=37, which inflates the slam gate"]
 fn a_minimum_signs_off_opposite_an_established_two_over_one() {
-    use crate::bidding::american::set_opener_third;
     let auction = [
         call(1, Strain::Spades),
         Call::Pass,
@@ -2510,9 +2517,9 @@ fn a_minimum_signs_off_opposite_an_established_two_over_one() {
         Call::Pass,
     ];
     // Delete the book node so the floor owns the position.
-    set_opener_third(false);
-    let (minimum, floored) = american_floored(&auction, "AQJ52.32.KQ54.92");
-    set_opener_third(true);
+    let mut agreements = Agreements::current();
+    agreements.game_force.opener_third = false;
+    let (minimum, floored) = american_floored_with(&agreements, &auction, "AQJ52.32.KQ54.92");
     assert!(floored, "the deleted node leaves this to the floor");
     assert_eq!(minimum, call(4, Strain::Spades));
 }
@@ -2527,7 +2534,6 @@ fn a_minimum_signs_off_opposite_an_established_two_over_one() {
 /// `a_minimum_signs_off_opposite_an_established_two_over_one`.
 #[test]
 fn bilans_floor_still_explores_the_rock_crusher_slam() {
-    use crate::bidding::american::set_opener_third;
     let auction = [
         call(1, Strain::Spades),
         Call::Pass,
@@ -2538,10 +2544,11 @@ fn bilans_floor_still_explores_the_rock_crusher_slam() {
         call(3, Strain::Spades),
         Call::Pass,
     ];
-    // Delete the book node so the floor owns the position.
-    set_opener_third(false);
     set_bilans_floor(true);
-    let (crusher, floored) = american_floored(&auction, "AKQJ2.AKQ.AQJ4.9");
+    // Delete the book node so the floor owns the position.
+    let mut agreements = Agreements::current();
+    agreements.game_force.opener_third = false;
+    let (crusher, floored) = american_floored_with(&agreements, &auction, "AKQJ2.AKQ.AQJ4.9");
     // The natural jump raise (cf. `floor_asks_keycards_with_slam_values_
     // and_a_known_fit`): a 23-count opener in the entry band asks, not
     // blasts.  Natural calls read alike bare or prefixed, so `best` is
@@ -2554,7 +2561,6 @@ fn bilans_floor_still_explores_the_rock_crusher_slam() {
     ];
     let ask = best(&raise, "AKQJ7.AKQ.A32.32");
     set_bilans_floor(true); // restore the default (bilans is on) before any assert
-    set_opener_third(true);
     assert!(floored, "the deleted node leaves this to the floor");
     assert_eq!(
         crusher,
@@ -2625,7 +2631,6 @@ fn two_over_one_force_reads_the_right_auctions() {
 /// deletion A/B exposed (opener passing 3♣ out in an established 2/1).
 #[test]
 fn two_over_one_force_never_passes_below_game() {
-    use crate::bidding::american::set_game_backstop;
     let auction = [
         call(1, Strain::Spades),
         Call::Pass,
@@ -2636,15 +2641,13 @@ fn two_over_one_force_never_passes_below_game() {
         call(3, Strain::Clubs),
         Call::Pass,
     ];
-    set_game_backstop(false);
     set_two_over_one_force(true);
     for hand in ["AQ9876.K3.K95.76", "KQJ876.43.K95.A6", "AKJ976.Q2.J54.83"] {
         let (chosen, floored) = american_floored(&auction, hand);
         assert!(floored, "the deleted backstop leaves {hand} to the floor");
         assert_ne!(chosen, Call::Pass, "{hand} must not pass a live game force");
     }
-    set_two_over_one_force(true); // restore the defaults
-    set_game_backstop(false);
+    set_two_over_one_force(true); // restore the default
 }
 
 #[test]

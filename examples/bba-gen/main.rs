@@ -556,20 +556,20 @@ struct Args {
 
     /// Disable the 1M - 3NT choice-of-games response (3-4 card support, exactly
     /// (4333), 12-15 HCP; opener passes balanced, corrects to 4M with shape);
-    /// on by default. Off-switch for the A/B (see `set_major_choice_of_games`).
+    /// on by default. Off-switch for the A/B (see `response.major_choice_of_games`).
     #[arg(long, default_value_t = false)]
     no_ns_major_choice_of_games: bool,
 
     /// Disable the fit leg of the major 2/1 game force (exactly 3-card
     /// support enters on `support_points(13..)` — the 2/1 as a preparation
     /// for 4M); on by default. Off-switch for the A/B (see
-    /// `set_two_over_one_fit`).
+    /// `response.two_over_one_fit`).
     #[arg(long, default_value_t = false)]
     no_ns_two_over_one_fit: bool,
 
     /// The no-fit gauge of the major 2/1 game force:
     /// points13 (shipped default since `39a5eb6`) | hcp13 (superseded) | hcp12
-    /// (see `set_two_over_one_gate`).  Must track the crate default: an
+    /// (see `response.two_over_one_gate`).  Must track the crate default: an
     /// unflagged run is the shipped system, and `bba-decompose` replays on
     /// crate defaults, so a stale value here shows up as a replay-verification
     /// miss and silently measures a system we do not ship.
@@ -579,13 +579,13 @@ struct Args {
     /// Natural per-call 2/1 suit lengths: `1♠ - 2♥` promises 5+ hearts, `1♠ - 2♣`
     /// allows 3+ clubs (the cheapest 2/1 catch-all); every other 2/1 keeps 4+.
     /// Off by default (uniform 4+) — on-switch for the A/B (see
-    /// `set_two_over_one_natural_lengths`).
+    /// `response.two_over_one_natural_lengths`).
     #[arg(long, default_value_t = false)]
     ns_two_over_one_natural_lengths: bool,
 
     /// Lighten `1♠ - 2♥` by one HCP on its no-fit leg (`hcp(12..)` at the default
     /// hcp13 gate), the five-card major worth a shade-light game force. Off by
-    /// default — on-switch for the A/B (see `set_two_over_one_major_discount`).
+    /// default — on-switch for the A/B (see `response.two_over_one_major_discount`).
     #[arg(long, default_value_t = false)]
     ns_two_over_one_major_discount: bool,
 
@@ -603,12 +603,12 @@ struct Args {
 
     /// Author opener's major game tries after a single raise (`1M - 2M`): a
     /// long-suit try, the general re-raise, or a keycard-asking maximum
-    /// (shipped default-on; see `set_major_game_tries`).
+    /// (shipped default-on; see `response.major_game_tries`).
     #[arg(long, default_value_t = false)]
     no_ns_major_game_tries: bool,
 
     /// Disable opener's limit-raise acceptance ladder after `1M - 3M`
-    /// (shipped default-on; see `set_limit_raise_acceptance`).
+    /// (shipped default-on; see `response.limit_raise_acceptance`).
     #[arg(long, default_value_t = false)]
     no_ns_limit_raise_acceptance: bool,
 
@@ -771,7 +771,7 @@ struct Args {
 
     /// Disable opener's balanced `1NT` rebid after `1m - 1M` — revert a balanced
     /// 12–14 with a five-card minor to the natural `2m` (shipped default-on; see
-    /// `set_balanced_1nt_rebid`).
+    /// `rebid.balanced_1nt_rebid`).
     #[arg(long, default_value_t = false)]
     no_ns_balanced_1nt_rebid: bool,
 
@@ -791,7 +791,7 @@ struct Args {
 
     /// Disable opener's third-call table after responder raises opener's second
     /// suit in a 2/1 auction (`1M - 2r - 2x - 3x`) — drop that node to the floor
-    /// (shipped default-on; see `set_second_suit_agreement`).  Constructive
+    /// (shipped default-on; see `game_force.second_suit_agreement`).  Constructive
     /// book re-audit candidate #1: two rules, `points(15..)` RKCB else an
     /// unconditional sign-off, the retired backstop's signature.
     #[arg(long, default_value_t = false)]
@@ -799,7 +799,7 @@ struct Args {
 
     /// Disable opener's third call after trump is agreed at `1M - 2r - R - 3M`
     /// — drop that node to the floor (shipped default-on; see
-    /// `set_opener_third`).  Re-audit candidate #2: the deletion measures
+    /// `game_force.opener_third`).  Re-audit candidate #2: the deletion measures
     /// +0.437/+0.527 plain per divergent but leaves the floor unable to ask
     /// keycards at all here, so it is *not* shipped.
     #[arg(long, default_value_t = false)]
@@ -808,7 +808,7 @@ struct Args {
     /// Restore the retired 2/1 game backstop — the three-rule table (4♥/4♠/3NT)
     /// that used to answer every game-forcing continuation the authored rounds
     /// miss.  Shipped off since 2026-07-20; those nodes now fall to the
-    /// BBA-distilled floor (see `set_game_backstop`).
+    /// BBA-distilled floor (see `game_force.game_backstop`).
     #[arg(long, default_value_t = false)]
     ns_game_backstop: bool,
 
@@ -868,14 +868,14 @@ struct Args {
 
     /// Disable the major-rebid-tails adjunct — the full continuations after
     /// `1♥ - 1♠` below opener's `2♠`/`3♠` raise, `2♥` rebid, and `2♣`/`2♦`
-    /// minor rebid (shipped default-on; see `set_major_rebid_tails`).
+    /// minor rebid (shipped default-on; see `rebid.major_rebid_tails`).
     #[arg(long, default_value_t = false)]
     no_ns_major_rebid_tails: bool,
 
     /// Disable fourth-suit-forcing — at `1♥ - 1♠ - 2♣`, responder's `2♦`
     /// reverts to the natural-tail reading (shipped default-on; rides the
     /// tails adjunct, so `--no-ns-major-rebid-tails` also silences it — see
-    /// `set_fourth_suit_forcing`).
+    /// `rebid.fourth_suit_forcing`).
     #[arg(long, default_value_t = false)]
     no_ns_fourth_suit_forcing: bool,
 
@@ -1601,23 +1601,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     pons::bidding::american::set_crawling_stayman(!args.no_ns_crawling_stayman);
     pons::bidding::american::set_stayman_cue_continuation(!args.no_ns_stayman_cue_continuation);
     pons::bidding::american::set_longer_major_response(!args.no_ns_longer_major_response);
-    pons::bidding::american::set_up_the_line(!args.no_ns_up_the_line);
-    pons::bidding::american::set_major_choice_of_games(!args.no_ns_major_choice_of_games);
-    pons::bidding::american::set_two_over_one_fit(!args.no_ns_two_over_one_fit);
-    pons::bidding::american::set_two_over_one_gate(match args.ns_two_over_one_gate.as_str() {
-        "points13" => pons::bidding::american::TwoOverOneGate::Points13,
-        "hcp13" => pons::bidding::american::TwoOverOneGate::Hcp13,
-        "hcp12" => pons::bidding::american::TwoOverOneGate::Hcp12,
-        other => {
-            anyhow::bail!("--ns-two-over-one-gate must be points13|hcp13|hcp12, got {other:?}")
-        }
-    });
-    pons::bidding::american::set_two_over_one_natural_lengths(args.ns_two_over_one_natural_lengths);
-    pons::bidding::american::set_two_over_one_major_discount(args.ns_two_over_one_major_discount);
     pons::bidding::american::set_xyz(!args.no_ns_xyz);
-    pons::bidding::american::set_new_minor_forcing(args.ns_new_minor_forcing);
-    pons::bidding::american::set_major_game_tries(!args.no_ns_major_game_tries);
-    pons::bidding::american::set_limit_raise_acceptance(!args.no_ns_limit_raise_acceptance);
     pons::bidding::american::set_cue_raise_answer(!args.no_ns_cue_raise_answer);
     pons::bidding::american::set_cue_minor_raise_answer(!args.no_ns_cue_minor_raise_answer);
     pons::bidding::american::set_uvu_over_majors(!args.no_ns_uvu_over_majors);
@@ -1665,12 +1649,8 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     pons::bidding::american::set_advance_pass_yield_major(args.ns_advance_pass_yield);
     pons::bidding::american::set_advance_sit_hcp_gate(args.ns_advance_sit_hcp);
     pons::bidding::american::set_cachalot_contested_x(!args.no_ns_cachalot_contested_x);
-    pons::bidding::american::set_balanced_1nt_rebid(!args.no_ns_balanced_1nt_rebid);
     pons::bidding::american::set_opener_extras_ladder(!args.no_ns_opener_extras_ladder);
     pons::bidding::american::set_opener_major_jump_rebid(!args.no_ns_opener_major_jump_rebid);
-    pons::bidding::american::set_second_suit_agreement(!args.no_ns_second_suit_agreement);
-    pons::bidding::american::set_opener_third(!args.no_ns_opener_third);
-    pons::bidding::american::set_game_backstop(args.ns_game_backstop);
     pons::bidding::instinct::set_two_over_one_force(!args.no_ns_two_over_one_force);
     pons::bidding::instinct::set_two_over_one_slam_strength(!args.no_ns_two_over_one_slam_strength);
     pons::bidding::instinct::set_competitive_rebid(!args.no_ns_competitive_rebid);
@@ -1678,8 +1658,6 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     pons::bidding::instinct::set_rein_advance_raise(!args.no_ns_rein_advance_raise);
     pons::bidding::american::set_jordan_truscott(!args.no_ns_jordan_truscott);
     pons::bidding::american::set_splinter_doubled(!args.no_ns_splinter_doubled);
-    pons::bidding::american::set_major_rebid_tails(!args.no_ns_major_rebid_tails);
-    pons::bidding::american::set_fourth_suit_forcing(!args.no_ns_fourth_suit_forcing);
     pons::bidding::american::set_texas_game_floor(args.ns_texas_game_floor);
     pons::bidding::american::set_sixcard_invite_floor(args.ns_sixcard_invite_floor);
     pons::bidding::american::set_sixcard_accept_floor(args.ns_sixcard_accept_floor);
@@ -1764,11 +1742,33 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     // generated card reads them.  Built here rather than beside the oracle so
     // the card cannot describe a system the run then reconfigures.
     pons::bidding::set_pass_exclusion_reading(args.ns_pass_exclusion);
-    // Captured after every ambient cell above, then the two opening cells that
-    // are fields of the value rather than cells of the thread.
+    // Captured after every ambient cell above, then the knobs that are fields
+    // of the value rather than cells of the thread.
     let mut agreements = Agreements::current();
     agreements.opening.open_one_notrump = !args.no_our_1nt;
     agreements.opening.one_notrump_fifths = args.nt_fifths;
+    agreements.response.up_the_line = !args.no_ns_up_the_line;
+    agreements.response.major_choice_of_games = !args.no_ns_major_choice_of_games;
+    agreements.response.two_over_one_fit = !args.no_ns_two_over_one_fit;
+    agreements.response.two_over_one_gate = match args.ns_two_over_one_gate.as_str() {
+        "points13" => pons::bidding::american::TwoOverOneGate::Points13,
+        "hcp13" => pons::bidding::american::TwoOverOneGate::Hcp13,
+        "hcp12" => pons::bidding::american::TwoOverOneGate::Hcp12,
+        other => {
+            anyhow::bail!("--ns-two-over-one-gate must be points13|hcp13|hcp12, got {other:?}")
+        }
+    };
+    agreements.response.two_over_one_natural_lengths = args.ns_two_over_one_natural_lengths;
+    agreements.response.two_over_one_major_discount = args.ns_two_over_one_major_discount;
+    agreements.response.major_game_tries = !args.no_ns_major_game_tries;
+    agreements.response.limit_raise_acceptance = !args.no_ns_limit_raise_acceptance;
+    agreements.rebid.new_minor_forcing = args.ns_new_minor_forcing;
+    agreements.rebid.balanced_1nt_rebid = !args.no_ns_balanced_1nt_rebid;
+    agreements.rebid.major_rebid_tails = !args.no_ns_major_rebid_tails;
+    agreements.rebid.fourth_suit_forcing = !args.no_ns_fourth_suit_forcing;
+    agreements.game_force.second_suit_agreement = !args.no_ns_second_suit_agreement;
+    agreements.game_force.opener_third = !args.no_ns_opener_third;
+    agreements.game_force.game_backstop = args.ns_game_backstop;
     Ok(agreements)
 }
 

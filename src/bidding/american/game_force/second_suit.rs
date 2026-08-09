@@ -1,33 +1,11 @@
 //! Opener's third call after responder raises opener's second suit
 //!
-//! Gated by [`set_second_suit_agreement`].  Read at book-construction time;
+//! Gated by [`GameForceKnobs::second_suit_agreement`];
 //! `1M - 2r - 2x - 3x` gets an opener rebid (RKCB on extras, else sign off)
 //! instead of falling to the game backstop.
 
 use super::*;
 use crate::bidding::american::slam;
-
-std::thread_local! {
-    /// Whether opener authors a third-call table after responder raises
-    /// opener's second suit (`1M - 2r - 2x - 3x`).  On by default — shipped
-    /// (+0.0012 plain / +0.0014 PD NV, +0.0015 / +0.0018 vul IMPs/board vs BBA);
-    /// see [`set_second_suit_agreement`].  When off, that node falls through to
-    /// the floor (it fell to the game backstop until that was deleted).
-    static SECOND_SUIT_AGREEMENT: Cell<bool> = const { Cell::new(true) };
-}
-
-/// Toggle opener's third call after responder agrees the second suit
-///
-/// Read at book-construction time; `1M - 2r - 2x - 3x` gets an opener rebid
-/// (RKCB on extras, else sign off) instead of falling to the game backstop.
-pub fn set_second_suit_agreement(on: bool) {
-    SECOND_SUIT_AGREEMENT.with(|cell| cell.set(on));
-}
-
-/// Whether the [`set_second_suit_agreement`] knob is on
-pub fn second_suit_agreement() -> bool {
-    SECOND_SUIT_AGREEMENT.with(Cell::get)
-}
 
 /// Opener's third call after responder raises opener's second suit
 ///

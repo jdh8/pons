@@ -4,11 +4,11 @@ use crate::bidding::{System, Trie};
 use contract_bridge::Hand;
 use contract_bridge::auction::RelativeVulnerability;
 
-/// Compile the major-rebid tail packages under the current knob settings.
-fn register_major_rebid_packages(trie: &mut Trie) {
+/// Compile the major-rebid tail packages under `agreements`.
+fn register_major_rebid_packages(trie: &mut Trie, agreements: &Agreements) {
     crate::bidding::rows::compile_into(
         trie,
-        &crate::bidding::agreements::Agreements::current(),
+        agreements,
         &[
             major_rebid_tail_continuations(),
             fourth_suit_forcing_continuations(),
@@ -16,26 +16,31 @@ fn register_major_rebid_packages(trie: &mut Trie) {
     );
 }
 
-/// Build a Trie with the major-rebid-tails adjunct on but
-/// fourth-suit-forcing off, then restore both knobs to their (on)
-/// defaults (mirrors `slam::tests::rkcb_trie`).
-fn tails_trie() -> Trie {
-    set_major_rebid_tails(true);
-    set_fourth_suit_forcing(false);
+/// The shipped agreements with the two tail knobs pinned.
+fn tail_agreements(major_rebid_tails: bool, fourth_suit_forcing: bool) -> Agreements {
+    let mut agreements = Agreements::current();
+    agreements.rebid.major_rebid_tails = major_rebid_tails;
+    agreements.rebid.fourth_suit_forcing = fourth_suit_forcing;
+    agreements
+}
+
+/// Build a Trie of the tail packages under `agreements`.
+fn trie_of(agreements: &Agreements) -> Trie {
     let mut trie = Trie::new();
-    register_major_rebid_packages(&mut trie);
-    set_fourth_suit_forcing(true);
+    register_major_rebid_packages(&mut trie, agreements);
     trie
+}
+
+/// Build a Trie with the major-rebid-tails adjunct on but
+/// fourth-suit-forcing off (mirrors `slam::tests::rkcb_trie`).
+fn tails_trie() -> Trie {
+    trie_of(&tail_agreements(true, false))
 }
 
 /// Build a Trie with both the major-rebid-tails and fourth-suit-forcing
 /// knobs on (the shipped defaults).
 fn fsf_trie() -> Trie {
-    set_major_rebid_tails(true);
-    set_fourth_suit_forcing(true);
-    let mut trie = Trie::new();
-    register_major_rebid_packages(&mut trie);
-    trie
+    trie_of(&tail_agreements(true, true))
 }
 
 /// The raw table auction `1♥ - 1♠ - 2♠ -` (opener in seat 1).
@@ -124,10 +129,7 @@ const AFTER_2C_2D_2NT: &[Call] = &[
 /// The off state: `register` inserts nothing with the knob off.
 #[test]
 fn off_state_inserts_nothing() {
-    set_major_rebid_tails(false);
-    let mut trie = Trie::new();
-    register_major_rebid_packages(&mut trie);
-    set_major_rebid_tails(true); // restore the shipped default
+    let trie = trie_of(&tail_agreements(false, true));
     let hand: Hand = "K432.AQ5.432.Q32".parse().expect("valid test hand");
     assert!(
         trie.classify(hand, RelativeVulnerability::NONE, AFTER_2S)
@@ -316,11 +318,7 @@ fn fourth_suit_forcing_responder_places_the_contract() {
 /// just FSF's own nodes — is gated by `major_rebid_tails()` first).
 #[test]
 fn fourth_suit_forcing_without_tails_inserts_nothing() {
-    set_major_rebid_tails(false);
-    set_fourth_suit_forcing(true);
-    let mut trie = Trie::new();
-    register_major_rebid_packages(&mut trie);
-    set_major_rebid_tails(true); // restore the shipped defaults
+    let trie = trie_of(&tail_agreements(false, true));
 
     let hand: Hand = "K432.AQ5.432.Q32".parse().expect("valid test hand");
     assert!(
@@ -361,9 +359,9 @@ fn nt_invite_hcp_gauges_the_no_fit_rung() {
         "a real 10-count still invites"
     );
 
-    set_nt_invite_hcp(false);
-    let legacy_trie = fsf_trie();
-    set_nt_invite_hcp(true);
+    let mut legacy = tail_agreements(true, true);
+    legacy.rebid.nt_invite_hcp = false;
+    let legacy_trie = trie_of(&legacy);
     assert_eq!(
         best(&legacy_trie, after_2d, shaped),
         two_nt,
@@ -375,8 +373,7 @@ fn nt_invite_hcp_gauges_the_no_fit_rung() {
 /// The fourth-suit-forcing `2♦` rule carries the alert.
 #[test]
 fn fourth_suit_forcing_rule_is_alerted() {
-    set_fourth_suit_forcing(true);
-    let rules = responder_after_minor_rebid(Suit::Clubs, &RebidKnobs::current());
+    let rules = responder_after_minor_rebid(Suit::Clubs, &tail_agreements(true, true).rebid);
 
     let fsf_rule = rules
         .rules()

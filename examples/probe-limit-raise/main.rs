@@ -1,5 +1,5 @@
 //! Worst-board trace for the limit-raise acceptance arm
-//! (`set_limit_raise_acceptance`): replays the A/B's seeded deals, keeps the
+//! (`ResponseKnobs::limit_raise_acceptance`): replays the A/B's seeded deals, keeps the
 //! divergent boards, and splits them by divergence class — a plain `4M`
 //! accept the baseline declined, or a `4NT` keycard auction — with per-class
 //! swing means and the worst boards printed in full (hands, both auctions,
@@ -11,7 +11,7 @@ use contract_bridge::auction::display_calls;
 use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Seat, Strain};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::american::set_limit_raise_acceptance;
+use pons::bidding::agreements::Agreements;
 use pons::scoring::{final_contract, imps, ns_score_contract};
 use rayon::prelude::*;
 
@@ -44,11 +44,10 @@ fn main() {
     let args = Args::parse();
     let vul = args.vulnerability;
 
-    set_limit_raise_acceptance(false);
-    let baseline = american(&pons::bidding::agreements::Agreements::current()).against();
-    set_limit_raise_acceptance(true);
-    let treatment = american(&pons::bidding::agreements::Agreements::current()).against();
-    set_limit_raise_acceptance(false);
+    let mut off = Agreements::current();
+    off.response.limit_raise_acceptance = false;
+    let baseline = american(&off).against();
+    let treatment = american(&Agreements::current()).against();
     let stances = [baseline, treatment];
 
     let deals = seeded_deals(args.seed, args.count);

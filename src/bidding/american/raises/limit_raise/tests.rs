@@ -4,12 +4,10 @@ use super::*;
 /// A fresh trie with limit-raise acceptance authored (the shipped
 /// default).
 fn limit_raise_trie() -> Trie {
-    set_limit_raise_acceptance(true);
+    let mut agreements = crate::bidding::agreements::Agreements::current();
+    agreements.response.limit_raise_acceptance = true;
     let mut trie = Trie::new();
-    super::super::register(
-        &mut trie,
-        &crate::bidding::agreements::Agreements::current(),
-    );
+    super::super::register(&mut trie, &agreements);
     trie
 }
 

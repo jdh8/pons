@@ -1053,13 +1053,13 @@ pub struct ConventionCard {
     pub relocating: bool,
     /// Garbage Stayman (`set_garbage_stayman`)
     pub garbage_stayman: bool,
-    /// New Minor Forcing (`set_new_minor_forcing`)
+    /// New Minor Forcing (`RebidKnobs::new_minor_forcing`)
     pub new_minor_forcing: bool,
     /// Two-way checkback (`set_xyz`; shadows plain NMF when on)
     pub xyz: bool,
     /// Jump super-accept of a Jacoby transfer (`set_transfer_super_accept`)
     pub transfer_super_accept: bool,
-    /// Fourth suit forcing (`set_fourth_suit_forcing`)
+    /// Fourth suit forcing (`RebidKnobs::fourth_suit_forcing`)
     pub fourth_suit_forcing: bool,
     /// Jordan/Truscott 2NT over their takeout double (`set_jordan_truscott`)
     pub jordan_truscott: bool,

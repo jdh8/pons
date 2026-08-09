@@ -3,12 +3,10 @@ use super::*;
 
 /// A fresh trie with the major game tries authored (the shipped default).
 fn game_tries_trie() -> Trie {
-    set_major_game_tries(true);
+    let mut agreements = crate::bidding::agreements::Agreements::current();
+    agreements.response.major_game_tries = true;
     let mut trie = Trie::new();
-    super::super::register(
-        &mut trie,
-        &crate::bidding::agreements::Agreements::current(),
-    );
+    super::super::register(&mut trie, &agreements);
     trie
 }
 

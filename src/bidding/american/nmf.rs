@@ -8,7 +8,7 @@
 //! majors: three-card support first, then the other four-card major, else a
 //! natural notrump.  Every other rebid stays natural.
 //!
-//! Gated on [`set_new_minor_forcing`] — default **off**.  When on it
+//! Gated on [`RebidKnobs::new_minor_forcing`] — default **off**.  When on it
 //! *overrides* XYZ on exactly those four slots (the dispatch lives in
 //! [`super::xyz::package`]); the other six XYZ auctions are untouched, so an
 //! A/B differs only in the four-slot treatment.
@@ -29,35 +29,9 @@ use crate::bidding::rows::{Entry, Package, Pattern, rows_of};
 use crate::bidding::{Alert, Rules};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
-use std::cell::Cell;
 
 /// NMF — two of the unbid minor: invitational-or-better with a 5-card major
 const NMF: Alert = Alert("new-minor-forcing");
-
-std::thread_local! {
-    /// Whether NMF replaces XYZ on the four `1m - 1M - 1NT` slots.  Default
-    /// `false` — the shipped system uses XYZ (see the module doc).
-    static NEW_MINOR_FORCING: Cell<bool> = const { Cell::new(false) };
-}
-
-/// Author New Minor Forcing in place of XYZ on the four `1m - 1M - 1NT` slots
-/// for books built *after* this call (default `false`; off-switch
-/// `--no-ns-new-minor-forcing` in `bba-gen`, opt-in `--nmf` in
-/// `ab-minor-continuations`)
-///
-/// Read at book-construction time; set it before building the [`Pair`].  When
-/// on it overrides XYZ on those four prefixes only — XYZ still owns the other
-/// six one-level auctions.
-///
-/// [`Pair`]: crate::bidding::Pair
-pub fn set_new_minor_forcing(on: bool) {
-    NEW_MINOR_FORCING.with(|cell| cell.set(on));
-}
-
-/// Whether NMF is currently authored (read by [`super::xyz::package`])
-pub(crate) fn new_minor_forcing() -> bool {
-    NEW_MINOR_FORCING.with(Cell::get)
-}
 
 /// The four NMF-eligible slots: a minor opening and a major response
 pub(super) fn is_nmf_slot(opening: Suit, response: Suit) -> bool {

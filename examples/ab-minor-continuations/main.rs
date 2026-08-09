@@ -26,9 +26,8 @@ use clap::Parser;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::american::{
-    set_longer_major_response, set_new_minor_forcing, set_up_the_line, set_xyz,
-};
+use pons::bidding::agreements::Agreements;
+use pons::bidding::american::{set_longer_major_response, set_xyz};
 use pons::scoring::{final_contract, imps, ns_score_contract};
 use rayon::prelude::*;
 
@@ -58,7 +57,7 @@ struct Args {
     #[arg(long, default_value_t = false)]
     longer_major: bool,
 
-    /// Treatment: the up-the-line completion (`set_up_the_line`)
+    /// Treatment: the up-the-line completion (`ResponseKnobs::up_the_line`)
     #[arg(long, default_value_t = false)]
     up_the_line: bool,
 
@@ -67,7 +66,8 @@ struct Args {
     xyz: bool,
 
     /// Treatment: New Minor Forcing in place of XYZ on the four `1m - 1M - 1NT`
-    /// slots (`set_new_minor_forcing`).  Measured *against XYZ*, not the floor:
+    /// slots (`RebidKnobs::new_minor_forcing`).  Measured *against XYZ*, not the
+    /// floor:
     /// both arms run XYZ, the treatment arm swaps NMF onto those four slots, so
     /// the divergent boards isolate the swap.
     #[arg(long, default_value_t = false)]
@@ -80,12 +80,17 @@ struct Args {
     dump_worst: usize,
 }
 
-/// Set all four knobs at once
-fn set_knobs(longer_major: bool, up_the_line: bool, xyz: bool, nmf: bool) {
+/// Arm all four knobs at once and capture the agreements they describe
+///
+/// Two are still ambient cells (`longer_major_response` is read at classify
+/// time as well); the other two are fields of the captured value.
+fn agreements_for(longer_major: bool, up_the_line: bool, xyz: bool, nmf: bool) -> Agreements {
     set_longer_major_response(longer_major);
-    set_up_the_line(up_the_line);
     set_xyz(xyz);
-    set_new_minor_forcing(nmf);
+    let mut agreements = Agreements::current();
+    agreements.response.up_the_line = up_the_line;
+    agreements.rebid.new_minor_forcing = nmf;
+    agreements
 }
 
 #[allow(clippy::cast_precision_loss)]
@@ -106,16 +111,16 @@ fn main() {
     // baseline (it *replaces* XYZ on four slots), so `--nmf` turns XYZ on in
     // both arms; every other treatment is measured against the bare floor.
     let baseline_xyz = args.nmf;
-    set_knobs(false, false, baseline_xyz, false);
-    let baseline = american(&pons::bidding::agreements::Agreements::current()).against();
-    set_knobs(
+    let baseline = american(&agreements_for(false, false, baseline_xyz, false)).against();
+    let treatment = american(&agreements_for(
         args.longer_major,
         args.up_the_line,
         args.xyz || args.nmf,
         args.nmf,
-    );
-    let treatment = american(&pons::bidding::agreements::Agreements::current()).against();
-    set_knobs(false, false, false, false);
+    ))
+    .against();
+    set_longer_major_response(false);
+    set_xyz(false);
     let stances = [baseline, treatment];
 
     // Deals are seeded per board (base + index) so any arm of the experiment
@@ -129,7 +134,7 @@ fn main() {
             let dealer = Seat::ALL[index % 4];
             std::array::from_fn(|arm| {
                 // Every knob, construction-time or classify-time, is already
-                // captured into `stances[arm]` by `set_knobs` above.
+                // captured into `stances[arm]` by `agreements_for` above.
                 let auction = bid_uncontested(&stances[arm], dealer, vul, deal);
                 final_contract(&auction, dealer)
             })

@@ -2,31 +2,11 @@
 //!
 //! Responder's single raise promises three-plus trumps and 6–9 points, so
 //! opener needs real extras to move: a long-suit try, the general re-raise, or
-//! a keycard-asking maximum.  Gated by [`set_major_game_tries`], default on
+//! a keycard-asking maximum.  Gated by [`ResponseKnobs::major_game_tries`], default on
 //! (+0.042/+0.065 IMPs/board NV/vul, silenced-opponent A/B, 200k boards/vul,
 //! plain-DD + perfect-defense both winning).
 
 use super::*;
-
-std::thread_local! {
-    /// Whether opener's long-suit game tries after a single raise (`1M - 2M`)
-    /// are authored.  Default on (measured +0.042/+0.065 IMPs/board NV/vul).
-    static MAJOR_GAME_TRIES: Cell<bool> = const { Cell::new(true) };
-}
-
-/// Author opener's major game tries after `1M - 2M` for books built *after*
-/// this call
-///
-/// Read at book construction; **default on** (`--no-ns-major-game-tries` in
-/// `bba-gen` for the off arm).
-pub fn set_major_game_tries(on: bool) {
-    MAJOR_GAME_TRIES.with(|cell| cell.set(on));
-}
-
-/// Whether major game tries are currently authored
-pub(crate) fn major_game_tries() -> bool {
-    MAJOR_GAME_TRIES.with(Cell::get)
-}
 
 /// The level of the cheapest available call in `suit` over `2` of `major`
 ///

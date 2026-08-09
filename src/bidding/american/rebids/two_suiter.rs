@@ -2,41 +2,12 @@
 //!
 //! `1♥ - 1NT - 2♠` (the reverse, 5+ hearts and 4+ spades) and `1♠ - 1NT - 3♥`
 //! (the 5-5 jump), both 15–17 — the seam between the minimum natural rebids and
-//! the 18+ game force.  Gated by [`set_forcing_nt_two_suiter`].
+//! the 18+ game force.  Gated by [`RebidKnobs::forcing_nt_two_suiter`].
 
 use super::*;
 
 // ponytail: same construction-time toggle as the Meckstroth adjunct above.
-std::thread_local! {
-    /// Whether opener shows an invitational (15–17) major two-suiter after the
-    /// forcing `1NT`: the `1♥ - 1NT - 2♠` reverse (5+ hearts, 4+ spades) and the
-    /// `1♠ - 1NT - 3♥` jump (5-5 majors).  Fills the seam between the minimum
-    /// natural rebids and the 18+ game force (`set_meckstroth_adjunct`).  Shipped
-    /// **on**, sd-vindicated (`ab-forcing-nt-two-suiter`, 1M×2 seeds×2 vuls):
-    /// plain wash-NV/+0.0012-vul, PD −0.0017/−0.0010 (over-punished), sd-lead
-    /// **+0.0012/+0.0028** NV/vul — all four sd cells CI-clean positive.
-    static FORCING_NT_TWO_SUITER: Cell<bool> = const { Cell::new(true) };
-}
-
-/// Enable opener's invitational major two-suiter rebids after the forcing `1NT`
-/// in books built after this call (default **on**)
-///
-/// Over the forcing 1NT, opener with 15–17 and a second major suit has no
-/// invitational rebid — a 5-4 or 5-5 hand underbids as a minimum natural call.
-/// This adds `1♥ - 1NT - 2♠` (reverse: 5+ hearts, 4+ spades) and
-/// `1♠ - 1NT - 3♥` (jump: 5-5 majors), both 15–17, with responder's
-/// continuations.  Read at book-construction time; set it before building the
-/// `Pair` (the `ab-forcing-nt-two-suiter` A/B builds a baseline arm with it off).
-pub fn set_forcing_nt_two_suiter(on: bool) {
-    FORCING_NT_TWO_SUITER.with(|cell| cell.set(on));
-}
-
-/// Whether opener's invitational major two-suiter rebids are enabled
-pub(super) fn forcing_nt_two_suiter() -> bool {
-    FORCING_NT_TWO_SUITER.with(Cell::get)
-}
-
-/// Whether a rebid is opener's invitational major two-suiter (`set_forcing_nt_two_suiter`)
+/// Whether a rebid is opener's invitational major two-suiter (`forcing_nt_two_suiter`)
 ///
 /// `1♥ - 1NT - 2♠` (the reverse) or `1♠ - 1NT - 3♥` (the 5-5 jump); the other
 /// major has no such call.

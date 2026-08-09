@@ -1290,11 +1290,9 @@ fn their_checkback_is_disclosed_to_the_table() {
 /// three spades over 1♥, and 12+ points.
 #[test]
 fn choice_of_games_three_notrump_reads_support() {
-    use crate::bidding::american::set_major_choice_of_games;
-
-    set_major_choice_of_games(true);
-    let stance = crate::american(&crate::bidding::agreements::Agreements::current()).against();
-    set_major_choice_of_games(false);
+    let mut agreements = crate::bidding::agreements::Agreements::current();
+    agreements.response.major_choice_of_games = true;
+    let stance = crate::american(&agreements).against();
 
     let auction = [
         bid(1, Strain::Hearts),
@@ -1308,7 +1306,6 @@ fn choice_of_games_three_notrump_reads_support() {
     assert!(read.partner().length(Suit::Clubs).min >= 3);
     assert_eq!(read.partner().length(Suit::Spades), Range::new(3, 3));
     assert!(read.partner().strength.points.min >= 12);
-    set_major_choice_of_games(true);
 }
 
 proptest! {

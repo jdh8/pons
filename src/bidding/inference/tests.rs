@@ -1261,11 +1261,11 @@ fn dutch_artificial_calls_are_alerted() {
 /// against losing its `.alert(...)` and reading as a phantom minor suit.
 #[test]
 fn new_minor_forcing_artificial_calls_are_alerted() {
-    use crate::bidding::american::{american, set_new_minor_forcing};
+    use crate::bidding::american::american;
 
-    set_new_minor_forcing(true);
-    let pair = american(&crate::bidding::agreements::Agreements::current());
-    set_new_minor_forcing(false);
+    let mut agreements = crate::bidding::agreements::Agreements::current();
+    agreements.rebid.new_minor_forcing = true;
+    let pair = american(&agreements);
 
     assert_all_alerted(
         "New Minor Forcing",
@@ -1278,17 +1278,14 @@ fn new_minor_forcing_artificial_calls_are_alerted() {
 /// them).
 #[test]
 fn choice_of_games_artificial_calls_are_alerted() {
-    use crate::bidding::american::{american, set_major_choice_of_games};
+    use crate::bidding::american::american;
 
-    // ponytail: `two_over_one_fit` now defaults on, so the old set/restore
-    // pair here was stale (and restored to the *non*-default).
-    set_major_choice_of_games(true);
-    let pair = american(&crate::bidding::agreements::Agreements::current());
-    set_major_choice_of_games(false);
+    let mut agreements = crate::bidding::agreements::Agreements::current();
+    agreements.response.major_choice_of_games = true;
+    let pair = american(&agreements);
 
     assert_all_alerted(
         "choice-of-games",
         unalerted_artificial("constructive", &pair.constructive.0),
     );
-    set_major_choice_of_games(true);
 }

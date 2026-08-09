@@ -844,7 +844,8 @@ std::thread_local! {
 /// scores −∞ and a 2/1 auction cannot die below game.  The floor never learned
 /// it, which did not matter while the game backstop covered every uncovered
 /// continuation.  Deleting that node
-/// ([`set_game_backstop`][super::american::set_game_backstop], now the default)
+/// ([`game_backstop`][super::agreements::GameForceKnobs::game_backstop], now the
+/// default)
 /// exposed the gap: against BBA, 24% of the affected boards had our side
 /// settling below game in an established 2/1 — opener passing responder's 3♣ out
 /// in a partscore.
@@ -888,7 +889,8 @@ pub fn two_over_one_force() -> bool {
 /// Measured vs BBA (409,600×2, both scorers): **+0.0032/+0.0042 plain,
 /// +0.0031/+0.0041 PD** IMPs/board NV/vul, all CI>0, firing on 0.08%/0.09% of
 /// boards at +3.8/+4.8 IMPs each.  The same run priced deleting
-/// [`opener_third`][super::american::set_opener_third] *on top of* this floor at
+/// [`opener_third`][super::agreements::GameForceKnobs::opener_third] *on top of*
+/// this floor at
 /// +0.0003/+0.0004 with the CI straddling zero, so that node stays: the
 /// constructive re-audit's candidate #2 was starved of a reading, not shadowing
 /// a better call.

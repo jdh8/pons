@@ -148,7 +148,7 @@ fn main() {
                 bid(2, Strain::Notrump),
             ]),
         ),
-        // The next two are NMF-only keys (`set_new_minor_forcing`, default
+        // The next two are NMF-only keys (`rebid.new_minor_forcing`, default
         // off).  Under the shipped XYZ they read a flat 0% for a *different*
         // reason than the game backstop did: `xyz_responder` names only
         // 2♣/2♦/2M/Pass, so responder's 2NT and the 3M jump are −∞ — our side

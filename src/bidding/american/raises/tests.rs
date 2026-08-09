@@ -37,15 +37,11 @@ pub(super) const LIMIT_RAISE_AUCTION: &[Call] = &[
 
 #[test]
 fn game_tries_absent_when_off() {
-    set_major_game_tries(false);
-    set_limit_raise_acceptance(false);
+    let mut agreements = crate::bidding::agreements::Agreements::current();
+    agreements.response.major_game_tries = false;
+    agreements.response.limit_raise_acceptance = false;
     let mut trie = Trie::new();
-    register(
-        &mut trie,
-        &crate::bidding::agreements::Agreements::current(),
-    );
-    set_major_game_tries(true); // restore the shipped defaults
-    set_limit_raise_acceptance(true);
+    register(&mut trie, &agreements);
     assert!(
         trie.classify(
             hand("K52.AK974.3.AQ65"),
@@ -59,15 +55,11 @@ fn game_tries_absent_when_off() {
 
 #[test]
 fn limit_raise_acceptance_absent_when_off() {
-    set_major_game_tries(false);
-    set_limit_raise_acceptance(false);
+    let mut agreements = crate::bidding::agreements::Agreements::current();
+    agreements.response.major_game_tries = false;
+    agreements.response.limit_raise_acceptance = false;
     let mut trie = Trie::new();
-    register(
-        &mut trie,
-        &crate::bidding::agreements::Agreements::current(),
-    );
-    set_major_game_tries(true); // restore the shipped defaults
-    set_limit_raise_acceptance(true);
+    register(&mut trie, &agreements);
     assert!(
         trie.classify(
             hand("A63.AK975.QJ3.83"),

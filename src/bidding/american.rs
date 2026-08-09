@@ -119,8 +119,6 @@ pub(crate) use defense::{
     natural_double_floor, natural_overcall_points, nt_overcall_systems_on, woolsey_double_floor,
     woolsey_enabled, woolsey_points,
 };
-pub use game_force::{set_game_backstop, set_opener_third, set_second_suit_agreement};
-pub use nmf::set_new_minor_forcing;
 pub use notrump::{
     EUROPEAN, PUPPET, SizeAskEight, notrump_responses, set_crawling_stayman, set_garbage_stayman,
     set_invitational_5card_majors, set_long_minor_force, set_minor_min_to_3nt, set_notrump_minors,
@@ -134,22 +132,12 @@ pub(crate) use openings::notrump_shape;
 pub(crate) use openings::two_notrump_wide;
 pub use openings::{NotrumpShape, WeakTwoEval, openings, openings_with, set_two_notrump_wide};
 
-pub use raises::{set_limit_raise_acceptance, set_major_game_tries};
 pub(crate) use rebids::{opener_extras_ladder, opener_major_jump_rebid};
-pub use rebids::{
-    set_balanced_1nt_rebid, set_forcing_nt_two_suiter, set_fourth_suit_forcing,
-    set_major_rebid_tails, set_meckstroth_adjunct, set_meckstroth_minor_jumps, set_nt_invite_hcp,
-    set_opener_extras_ladder, set_opener_major_jump_rebid,
-};
+pub use rebids::{set_opener_extras_ladder, set_opener_major_jump_rebid};
 pub(crate) use responses::longer_major_response;
-pub use responses::{
-    TwoOverOneGate, major_responses, minor_responses, set_longer_major_response,
-    set_major_choice_of_games, set_two_over_one_fit, set_two_over_one_gate,
-    set_two_over_one_heart_light, set_two_over_one_major_discount,
-    set_two_over_one_natural_lengths, set_up_the_line,
-};
+pub use responses::{TwoOverOneGate, major_responses, minor_responses, set_longer_major_response};
+pub use xyz::set_xyz;
 pub(crate) use xyz::xyz;
-pub use xyz::{set_xyz, set_xyz_invite_judgment};
 
 // ---------------------------------------------------------------------------
 // Assembly
@@ -422,8 +410,6 @@ pub use defense::responsive_takeout_enabled;
 pub use defense::rich_advance_double_enabled;
 pub use defense::stayman_defense_enabled;
 pub use defense::transfer_defense_enabled;
-pub use game_force::game_backstop_enabled;
-pub use game_force::second_suit_agreement;
 pub use notrump::crawling_stayman;
 pub use notrump::garbage_stayman;
 pub use notrump::invitational_5card_majors;
@@ -440,6 +426,3 @@ pub use notrump::transfer_gf_majors;
 pub use notrump::transfer_longer_major;
 pub use notrump::transfer_slam_try;
 pub use notrump::transfer_super_accept;
-pub use raises::limit_raise_acceptance;
-pub use rebids::fourth_suit_forcing;
-pub use rebids::meckstroth_adjunct;

@@ -295,8 +295,9 @@ fn game_backstop_rejects_every_hand_until_deleted() {
     let mut rng = StdRng::seed_from_u64(11);
     let hands: Vec<Hand> = (0..16).map(|_| full_deal(&mut rng)[Seat::South]).collect();
     let policy = |on| {
-        crate::bidding::american::set_game_backstop(on);
-        crate::american(&crate::bidding::agreements::Agreements::current()).against()
+        let mut agreements = crate::bidding::agreements::Agreements::current();
+        agreements.game_force.game_backstop = on;
+        crate::american(&agreements).against()
     };
 
     let with = policy(true);
@@ -314,5 +315,4 @@ fn game_backstop_rejects_every_hand_until_deleted() {
             .all(|&hand| made_plausibly(hand, &without, vul, &prefix, made)),
         "with no node the floor answers and the gate abstains"
     );
-    crate::bidding::american::set_game_backstop(false); // restore the default
 }

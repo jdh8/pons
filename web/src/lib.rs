@@ -881,6 +881,11 @@ macro_rules! knob {
 
 knob!(set_open_one_notrump, open_one_notrump, opening.open_one_notrump: bool);
 knob!(set_notrump_shape, notrump_shape_setting, opening.notrump_shape: american::NotrumpShape);
+knob!(set_second_suit_agreement, second_suit_agreement, game_force.second_suit_agreement: bool);
+knob!(set_game_backstop, game_backstop_enabled, game_force.game_backstop: bool);
+knob!(set_fourth_suit_forcing, fourth_suit_forcing, rebid.fourth_suit_forcing: bool);
+knob!(set_meckstroth_adjunct, meckstroth_adjunct, rebid.meckstroth_adjunct: bool);
+knob!(set_limit_raise_acceptance, limit_raise_acceptance, response.limit_raise_acceptance: bool);
 
 /// The Settings-tab registry: one row per user-facing bidding knob
 ///
@@ -1317,11 +1322,11 @@ static SETTINGS: &[Setting] = &[
     toggle("transfer_defense", DEFENSE, "", false, american::set_transfer_defense, american::transfer_defense_enabled),
     toggle("minor_transfer_defense", DEFENSE, "", false, american::set_minor_transfer_defense, american::minor_transfer_defense_enabled),
     // Rebids & responses
-    toggle("second_suit_agreement", REBIDS, "", true, american::set_second_suit_agreement, american::second_suit_agreement),
-    toggle("game_backstop", REBIDS, "2/1 game backstop (retired)", false, american::set_game_backstop, american::game_backstop_enabled),
-    toggle("fourth_suit_forcing", REBIDS, "Fourth suit forcing", true, american::set_fourth_suit_forcing, american::fourth_suit_forcing),
-    toggle("meckstroth_adjunct", REBIDS, "Meckstroth adjunct", true, american::set_meckstroth_adjunct, american::meckstroth_adjunct),
-    toggle("limit_raise_acceptance", REBIDS, "", true, american::set_limit_raise_acceptance, american::limit_raise_acceptance),
+    toggle("second_suit_agreement", REBIDS, "", true, set_second_suit_agreement, second_suit_agreement),
+    toggle("game_backstop", REBIDS, "2/1 game backstop (retired)", false, set_game_backstop, game_backstop_enabled),
+    toggle("fourth_suit_forcing", REBIDS, "Fourth suit forcing", true, set_fourth_suit_forcing, fourth_suit_forcing),
+    toggle("meckstroth_adjunct", REBIDS, "Meckstroth adjunct", true, set_meckstroth_adjunct, meckstroth_adjunct),
+    toggle("limit_raise_acceptance", REBIDS, "", true, set_limit_raise_acceptance, limit_raise_acceptance),
     // Floor (instinct)
     toggle("one_nt_runout", FLOOR, "", true, instinct::set_one_nt_runout, instinct::one_nt_runout),
     gated("one_nt_runout_universal", FLOOR, "", true, instinct::set_one_nt_runout_universal, instinct::one_nt_runout_universal_enabled, "one_nt_runout"),

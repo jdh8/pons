@@ -6,61 +6,9 @@ use crate::bidding::constraint::{
 };
 use crate::bidding::inference::{Envelope, EnvelopeUnion, Range, Strength};
 use contract_bridge::{Bid, Strain, Suit};
-use std::cell::Cell;
-
-std::thread_local! {
-    /// Whether the major 2/1 game-force entry gains the **fit leg**: with
-    /// exactly three-card support the 2/1 is a preparation for `4M`, so the
-    /// hand is gauged in `support_points` (the fit is privately known —
-    /// opener promised five).  Default `true` — **shipped default-on
-    /// 2026-07-15** jointly with the `Hcp13` gate (alone a vul-only plain
-    /// win; the pair plain +0.0033/+0.0048, PD +0.0070/+0.0087 NV/vul —
-    /// the fit leg re-admits with support what the hcp gate demotes).
-    static TWO_OVER_ONE_FIT: Cell<bool> = const { Cell::new(true) };
-}
-
-std::thread_local! {
-    /// The gauge for the **no-fit** leg of the major 2/1 game-force entry.
-    /// Default [`TwoOverOneGate::Points13`] — **shipped 2026-07-25** under the
-    /// PointCount scale (277059f): `points(13..)` re-admits the shapely
-    /// 11-12 HCP hands that the raw-HCP `Hcp13` gate demoted to a forcing 1NT.
-    /// `Hcp13` (shipped 2026-07-15) is the shape-indifferent opt-out.
-    static TWO_OVER_ONE_GATE: Cell<TwoOverOneGate> =
-        const { Cell::new(TwoOverOneGate::Points13) };
-}
-
-std::thread_local! {
-    /// Whether the major 2/1 game force names **natural per-call suit lengths**
-    /// instead of a uniform four: `1♠ - 2♥` promises five (a 2/1 into a major is
-    /// a real five-card suit), `1♠ - 2♣` allows three (the cheapest 2/1 is the
-    /// catch-all), and the rest keep four.  Default `false` (uniform four,
-    /// book byte-identical); A/B pending.
-    static TWO_OVER_ONE_NATURAL_LENGTHS: Cell<bool> = const { Cell::new(false) };
-}
-
-std::thread_local! {
-    /// Whether `1♠ - 2♥` (the five-card-major 2/1) forces game a shade light: its
-    /// no-fit `Hcp*` floor drops by one — `hcp(12..)` at the default `Hcp13`
-    /// gate — serving both 3NT and `4♥`.  Default `false` (book byte-identical);
-    /// A/B pending.
-    static TWO_OVER_ONE_MAJOR_DISCOUNT: Cell<bool> = const { Cell::new(false) };
-}
-
-std::thread_local! {
-    /// Whether `1♠ - 2♥` forces game on a flat twelve, banking its **ensured
-    /// five-card heart suit**: the no-fit leg becomes `len(♥,5..) & hcp(12..)`
-    /// (from the default `points(13..)` at `min_len` four), admitting the flat
-    /// 5=3=3=2 twelve-counts that the `points` scale leaves at a forcing 1NT
-    /// (they carry no `upgrade`).  The bet: unlike the minor 2/1s' thin 3NT, a
-    /// five-card major finds a `4♥` landing whenever opener holds three — the
-    /// strain-location fix, not the upgrade.  The fit leg (exactly-three-card
-    /// spade support on `support_points(13..)`) is unchanged.  Default `false`
-    /// (book byte-identical); A/B pending.
-    static TWO_OVER_ONE_HEART_LIGHT: Cell<bool> = const { Cell::new(false) };
-}
 
 /// The gauge for the no-fit leg of the major 2/1 game force
-/// (`set_two_over_one_gate`)
+/// ([`ResponseKnobs::two_over_one_gate`])
 ///
 /// Under the default PointCount scale (277059f: raw HCP + a linearised
 /// `upgrade`), the default is [`Points13`][Self::Points13] — `points(13..)`
@@ -104,101 +52,13 @@ impl TwoOverOneGate {
     }
 }
 
-/// Author the fit leg of the major 2/1 game force for books built after this
-/// call (default `true`; off-switch `--no-ns-two-over-one-fit` in `bba-gen`)
-///
-/// On: a hand with exactly three-card support and a biddable side suit enters
-/// the 2/1 on `support_points(13..)` — the 2/1 is a preparation for `4M`, and
-/// the fit is privately known (opener promised five), so shortness counts.
-/// Off: every 2/1 is gauged by the no-fit gate alone.
-pub fn set_two_over_one_fit(on: bool) {
-    TWO_OVER_ONE_FIT.with(|cell| cell.set(on));
-}
-
-/// Whether the 2/1 fit leg is currently authored
-pub(super) fn two_over_one_fit() -> bool {
-    TWO_OVER_ONE_FIT.with(Cell::get)
-}
-
-/// Set the no-fit gauge of the major 2/1 game force for books built after
-/// this call (default [`TwoOverOneGate::Points13`];
-/// `--ns-two-over-one-gate` in `bba-gen`)
-pub fn set_two_over_one_gate(gate: TwoOverOneGate) {
-    TWO_OVER_ONE_GATE.with(|cell| cell.set(gate));
-}
-
-/// The currently authored no-fit 2/1 gauge
-pub(super) fn two_over_one_gate() -> TwoOverOneGate {
-    TWO_OVER_ONE_GATE.with(Cell::get)
-}
-
-/// Author natural per-call suit lengths for the major 2/1 game force for books
-/// built after this call (default `false`;
-/// `--ns-two-over-one-natural-lengths` in `bba-gen`)
-///
-/// On: `1♠ - 2♥` promises 5+ hearts and `1♠ - 2♣` allows 3+ clubs (the cheapest
-/// 2/1 is the catch-all); every other 2/1 keeps its 4+ floor.  Off: a uniform
-/// 4+ in every 2/1 suit.
-pub fn set_two_over_one_natural_lengths(on: bool) {
-    TWO_OVER_ONE_NATURAL_LENGTHS.with(|cell| cell.set(on));
-}
-
-/// Whether natural per-call 2/1 suit lengths are currently authored
-pub(super) fn two_over_one_natural_lengths() -> bool {
-    TWO_OVER_ONE_NATURAL_LENGTHS.with(Cell::get)
-}
-
-/// Lighten the `1♠ - 2♥` game force by one HCP for books built after this call
-/// (default `false`; `--ns-two-over-one-major-discount` in `bba-gen`)
-///
-/// On: the no-fit leg of `1♠ - 2♥` drops its `Hcp*` floor by one — `hcp(12..)`
-/// at the default `Hcp13` gate — because the five-card major is worth a game
-/// force a shade light.  Off: the full gate floor.  No effect on the `Points*`
-/// gates or on any other 2/1.
-pub fn set_two_over_one_major_discount(on: bool) {
-    TWO_OVER_ONE_MAJOR_DISCOUNT.with(|cell| cell.set(on));
-}
-
-/// Whether the `1♠ - 2♥` HCP discount is currently authored
-pub(super) fn two_over_one_major_discount() -> bool {
-    TWO_OVER_ONE_MAJOR_DISCOUNT.with(Cell::get)
-}
-
-/// Force `1♠ - 2♥` game on a flat twelve with five hearts for books built after
-/// this call (default `false`; measured via `ab-point-count --fix
-/// two-over-one-heart-light`)
-///
-/// On: the no-fit leg of `1♠ - 2♥` becomes `len(♥,5..) & hcp(12..)` — the ensured
-/// five-card major forces game a full HCP light, admitting the flat 5=3=3=2
-/// twelve-counts the `points` scale leaves at a forcing 1NT.  Off: the shipped
-/// `points(13..)` no-fit gate at `min_len` four.  No effect on any other 2/1 or
-/// on the fit leg.  Unlike [`set_two_over_one_major_discount`] (which threads
-/// only the `Hcp*` gates), this overrides the `Points*` default directly.
-///
-/// **Refuted 2026-07-25** (default stays off): the admitted flat twelves do not
-/// settle in the intended `4♥` on the 5-3 fit — the floor's slam machinery
-/// overshoots to `6♥`/`7♥` because the 2/1 response reads `0..=37` (the deferred
-/// fit-split `Or` erasure; see `docs/ai-bidder/sampled-projection.md`), so opener
-/// cannot see responder is a minimum.  A/B `ab-point-count --fix`: plain
-/// −0.0007/−0.0005, PD −0.0010/−0.0009 IMPs/board NV/vul.  A **reading-cap**
-/// re-measure candidate — capping the 2/1 reading (a ceiling, not just
-/// `set_two_over_one_slam_strength`'s floor) is the prerequisite.
-pub fn set_two_over_one_heart_light(on: bool) {
-    TWO_OVER_ONE_HEART_LIGHT.with(|cell| cell.set(on));
-}
-
-/// Whether the `1♠ - 2♥` flat-twelve heart-light gate is currently authored
-pub(super) fn two_over_one_heart_light() -> bool {
-    TWO_OVER_ONE_HEART_LIGHT.with(Cell::get)
-}
-
 pub(super) fn with_two_over_one(rules: Rules, major: Suit, knobs: &ResponseKnobs) -> Rules {
     let mut rules = rules;
     let trump = Strain::from(major);
     // 2/1 game-forcing new suits: cheaper suits, ranked up the line.  The
     // entry gate splits per the knobs: the no-fit gauge is `points` or raw
-    // `hcp` (`set_two_over_one_gate`), and the fit leg
-    // (`set_two_over_one_fit`) admits exactly-three-card support on
+    // `hcp` (`two_over_one_gate`), and the fit leg
+    // (`two_over_one_fit`) admits exactly-three-card support on
     // `support_points` — fit-known, so shortness counts.  The default is
     // `(true, Points13)` (shipped 2026-07-25); the `(off, Points13)` arm
     // reproduces the pre-knob legacy book byte-identically.
@@ -226,7 +86,7 @@ pub(super) fn with_two_over_one(rules: Rules, major: Suit, knobs: &ResponseKnobs
             // hcp(12..)`), reaching `4♥` on the 5-3 fit — the strain-location
             // bet.  Fit leg (exactly-three-card spade support) unchanged; an
             // early-out keeps the gate match below byte-identical.  ponytail:
-            // pairs with the shipped fit-split, never `set_two_over_one_fit(false)`.
+            // pairs with the shipped fit-split, never `two_over_one_fit: false`.
             if knobs.two_over_one_heart_light && suit == Suit::Hearts {
                 rules = rules
                     .rule(
