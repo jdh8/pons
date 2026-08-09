@@ -1,6 +1,7 @@
 //! Weak-two opening strength and suit-length agreements
 
 use crate::bidding::Rules;
+use crate::bidding::agreements::OpeningKnobs;
 use crate::bidding::constraint::{cccc, hcp, len, nltc, nth_seat, points};
 use contract_bridge::{Bid, Strain, Suit};
 use std::cell::Cell;
@@ -51,6 +52,11 @@ pub fn set_weak_two_hcp(band: Option<(u8, u8)>) {
     WEAK_TWO_HCP.with(|cell| cell.set(band));
 }
 
+/// The configured raw-HCP weak-two band, or `None` when off
+pub(super) fn weak_two_hcp() -> Option<(u8, u8)> {
+    WEAK_TWO_HCP.with(Cell::get)
+}
+
 /// An honor-location evaluator gauge for the weak-two openings
 /// ([`set_weak_two_eval`])
 ///
@@ -90,29 +96,34 @@ pub fn set_weak_two_eval(gauge: Option<WeakTwoEval>) {
     WEAK_TWO_EVAL.with(|cell| cell.set(gauge));
 }
 
+/// The configured honour-location weak-two gauge, or `None` when off
+pub(super) fn weak_two_eval() -> Option<WeakTwoEval> {
+    WEAK_TWO_EVAL.with(Cell::get)
+}
+
 /// Admit five-card suits and `points(3..=12)` to weak-two openings (opt-in;
 /// the default `false` is byte-identical).
 pub fn set_weak_two_wild(on: bool) {
     WEAK_TWO_WILD.with(|cell| cell.set(on));
 }
 
-fn weak_two_wild() -> bool {
+pub(super) fn weak_two_wild() -> bool {
     WEAK_TWO_WILD.with(Cell::get)
 }
 
-pub(super) fn with_weak_twos(rules: Rules) -> Rules {
+pub(super) fn with_weak_twos(rules: Rules, knobs: &OpeningKnobs) -> Rules {
     let mut rules = rules;
     // Weak twos (six-card suit, not in fourth seat).  Strength gauged by an
     // honor-location evaluator when `set_weak_two_eval` is armed, in raw HCP
     // when `set_weak_two_hcp` is armed (the Root-A preempt-discipline fix —
     // sound bridge, but it measured a wash on the honest sd-lead scorer, so it
     // stays opt-in), else the default rule-of-N+8 `points(5..=10)`.
-    let weak_two_eval = WEAK_TWO_EVAL.with(Cell::get);
-    let weak_two_band = WEAK_TWO_HCP.with(Cell::get);
+    let weak_two_eval = knobs.weak_two_eval;
+    let weak_two_band = knobs.weak_two_hcp;
     for suit in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         let bid = Bid::new(2, Strain::from(suit));
         let six = move || len(suit, 6..=6);
-        if weak_two_wild() {
+        if knobs.weak_two_wild {
             rules = rules.rule(bid, 100, len(suit, 5..=6) & points(3..=12) & !nth_seat(4));
             continue;
         }

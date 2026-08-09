@@ -9,7 +9,7 @@
 //! | [`two_notrump`] | the strong `2NT` opening and wide-minor shape treatment | [`set_two_notrump_wide`] |
 //! | [`weak_two`] | weak-two strength gauges and wild five-card treatment | [`set_weak_two_hcp`], [`set_weak_two_eval`], [`set_weak_two_wild`] |
 
-use crate::bidding::agreements::Agreements;
+use crate::bidding::agreements::{Agreements, OpeningKnobs};
 use crate::bidding::constraint::{Cons, Constraint, described, hcp, len, nth_seat, points};
 use crate::bidding::context::Context;
 use crate::bidding::rows::{Package, Pattern, compile_into, rows_of};
@@ -34,6 +34,26 @@ pub use weak_two::{WeakTwoEval, set_weak_two_eval, set_weak_two_hcp, set_weak_tw
 
 pub(crate) use one_notrump::{notrump_shape, one_notrump_offshape};
 pub(crate) use two_notrump::{two_notrump_wide, two_notrump_wide_shape};
+
+/// Capture this thread's opening build-time knobs
+///
+/// The one place the build-only opening cells are read. Everything downstream
+/// takes the captured value, so a `set_*` between this call and the rules being
+/// built cannot split the book against itself. `two_notrump_wide` is read at
+/// classify time too and lives only in `DecisionProfile`, so it is absent here.
+pub(in crate::bidding) fn capture() -> OpeningKnobs {
+    OpeningKnobs {
+        open_one_notrump: one_notrump::open_one_notrump(),
+        one_notrump_fifths: one_notrump::one_notrump_fifths(),
+        notrump_shape: one_notrump::notrump_shape_setting(),
+        one_notrump_offshape: one_notrump::one_notrump_offshape(),
+        weak_two_hcp: weak_two::weak_two_hcp(),
+        weak_two_eval: weak_two::weak_two_eval(),
+        weak_two_wild: weak_two::weak_two_wild(),
+        weak_two_major_priority: super::weak_twos::weak_two_major_priority(),
+        weak_two_longest_first: super::weak_twos::weak_two_longest_first(),
+    }
+}
 
 /// The strong, artificial `2♣` opening (22+) — the only artificial opening
 const STRONG_2C: Alert = Alert("strong-2c");
@@ -63,8 +83,8 @@ fn prefers_diamonds() -> Cons<impl Constraint + Clone> {
 /// A clean shapely maximum
 /// upgrades out of a weak two — it is too good for one.
 #[must_use]
-pub fn openings() -> Rules {
-    openings_with(NotrumpShape::Wide6322)
+pub fn openings(agreements: &Agreements) -> Rules {
+    openings_with(NotrumpShape::Wide6322, agreements)
 }
 
 /// [`openings`] with the 1NT [`NotrumpShape`] policy selectable
@@ -73,7 +93,7 @@ pub fn openings() -> Rules {
 /// opens 1NT); [`NotrumpShape::Balanced`] is the classic baseline and
 /// [`NotrumpShape::Wide6322`] the experimental superset.
 #[must_use]
-pub fn openings_with(shape: NotrumpShape) -> Rules {
+pub fn openings_with(shape: NotrumpShape, agreements: &Agreements) -> Rules {
     let mut rules = Rules::new()
         // Strong, artificial 2♣ — top priority.  The `hcp` leg is exact cover
         // for the plain rule-of-N+8 opt-in scale's flat hole: a 4-3-3-3
@@ -83,8 +103,8 @@ pub fn openings_with(shape: NotrumpShape) -> Rules {
         // union adds nothing else — it's redundant-but-exact by default).
         .rule(Bid::new(2, Strain::Clubs), 300, points(22..) | hcp(22..))
         .alert(STRONG_2C);
-    rules = with_one_notrump(rules, shape);
-    rules = with_two_notrump(rules);
+    rules = with_one_notrump(rules, shape, &agreements.build.opening);
+    rules = with_two_notrump(rules, agreements);
     // One-level suit openings.  Every band carries an explicit `hcp` floor.
     // On the default PointCount scale the shape [`upgrade`] caps at 2, so
     // `points(N..)` already implies `hcp(N−2..)` and the floor is redundant —
@@ -147,7 +167,7 @@ pub fn openings_with(shape: NotrumpShape) -> Rules {
                 & len(Suit::Spades, ..5),
         );
 
-    rules = with_weak_twos(rules);
+    rules = with_weak_twos(rules, &agreements.build.opening);
     // Three-level preempts (seven-card suit, not in fourth seat).
     for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         rules = rules.rule(
@@ -162,14 +182,19 @@ pub fn openings_with(shape: NotrumpShape) -> Rules {
 /// The opening table as a row package
 ///
 /// The whole file is one node — the empty auction, fanned over the four seats
-/// — so the package is a single row group.  The 1NT shape policy is read from
-/// [`notrump_shape_setting`] here rather than passed in: [`Package::entries`]
-/// is a bare `fn` and cannot capture, and the one caller passed exactly that.
+/// — so the package is a single row group.  The 1NT shape policy now rides the
+/// captured value like every other opening knob, so [`Package::entries`] reads
+/// it off `agreements` instead of fetching it from the thread.
 pub(super) fn package() -> Package {
     Package {
         name: "openings",
         gate: |_| true,
-        entries: |_| rows_of(Pattern::node("P*"), openings_with(notrump_shape_setting())),
+        entries: |agreements| {
+            rows_of(
+                Pattern::node("P*"),
+                openings_with(agreements.build.opening.notrump_shape, agreements),
+            )
+        },
     }
 }
 

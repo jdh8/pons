@@ -35,7 +35,7 @@
 
 use super::american::{
     Competitive4333, DoubleShape, DoubleStyle, FreeBidStyle, LebensohlStyle, NegativeDoubleShape,
-    NotrumpDefense, TakeoutSupport,
+    NotrumpDefense, NotrumpShape, TakeoutSupport, WeakTwoEval,
 };
 use super::context::DecisionProfile;
 
@@ -45,7 +45,7 @@ use super::context::DecisionProfile;
 /// [`CompetitionKnobs`], [`DefenseKnobs`], and [`NotrumpKnobs`]); areas move in
 /// one at a time as their read sites convert from a thread-local getter to a
 /// field of this value, and `docs/declarative-rows.md` holds the ledger.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub struct Build {
     /// What we play when they contest our auction
     pub competition: CompetitionKnobs,
@@ -53,6 +53,8 @@ pub struct Build {
     pub defense: DefenseKnobs,
     /// What we play after our notrump openings and rebids
     pub notrump: NotrumpKnobs,
+    /// What we open, and how partner answers a weak two
+    pub opening: OpeningKnobs,
 }
 
 impl Default for Build {
@@ -69,6 +71,7 @@ impl Build {
             competition: super::american::competition::capture(),
             defense: super::american::defense::capture(),
             notrump: super::american::notrump::capture(),
+            opening: super::american::openings::capture(),
         }
     }
 }
@@ -414,11 +417,57 @@ impl NotrumpKnobs {
     }
 }
 
+/// The opening book's build-time knobs
+///
+/// Each field is one cell, named for the getter it replaces; *derived* readings
+/// stay functions of the module that owns them rather than becoming fields, so
+/// the "one cell, one home" invariant survives the move.  `two_notrump_wide` is
+/// read at classify time as well and so lives only in `DecisionProfile`,
+/// deliberately absent here.
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub struct OpeningKnobs {
+    // --- openings/one_notrump.rs
+    /// Open our strong `1NT` at all
+    pub open_one_notrump: bool,
+    /// Gauge the `1NT` range in Andrews' fifths rather than plain HCP
+    pub one_notrump_fifths: bool,
+    /// Which balanced shapes the strong `1NT` opening admits
+    pub notrump_shape: NotrumpShape,
+    /// Admit the off-shape `1NT` (a singleton honour in 4441/5431)
+    pub one_notrump_offshape: bool,
+    // --- openings/weak_two.rs
+    /// Optional raw-HCP band gauging the weak-two opening
+    pub weak_two_hcp: Option<(u8, u8)>,
+    /// Optional honour-location evaluator gauging the weak-two opening
+    pub weak_two_eval: Option<WeakTwoEval>,
+    /// Open wild weak twos (five- or six-card suit, `points(3..=12)`)
+    pub weak_two_wild: bool,
+    // --- weak_twos.rs
+    /// Prefer a major when answering partner's weak two
+    pub weak_two_major_priority: bool,
+    /// Answer partner's weak two with the longest suit first
+    pub weak_two_longest_first: bool,
+}
+
+impl Default for OpeningKnobs {
+    fn default() -> Self {
+        Self::current()
+    }
+}
+
+impl OpeningKnobs {
+    /// Capture this thread's opening build-time knob state
+    #[must_use]
+    pub fn current() -> Self {
+        super::american::openings::capture()
+    }
+}
+
 /// Everything the partnership has agreed to play
 ///
 /// Constructed once per build and threaded down by reference. Cloning is cheap
 /// but pointless: the whole design is that one capture serves a whole build.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq)]
 pub struct Agreements {
     /// The classify-time cells, pinned into the stance at `Pair::against`
     pub(crate) decision: DecisionProfile,

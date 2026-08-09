@@ -1,4 +1,5 @@
 use super::*;
+use crate::bidding::agreements::Agreements;
 use crate::bidding::constraint::point_count;
 use crate::bidding::context::Context;
 use crate::bidding::inference::tests::{bid, read, read_booked};
@@ -1325,7 +1326,7 @@ proptest! {
         let hand: Hand = deal[contract_bridge::Seat::North];
 
         let context = Context::new(RelativeVulnerability::NONE, &[]);
-        let logits = openings().classify(hand, &context);
+        let logits = openings(&Agreements::current()).classify(hand, &context);
         let Some((call, _)) = (&logits.0)
             .into_iter()
             .filter(|(_, l)| l.is_finite())

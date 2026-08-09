@@ -1,6 +1,7 @@
 //! The strong 1NT opening and its shape and strength agreements
 
 use crate::bidding::Rules;
+use crate::bidding::agreements::OpeningKnobs;
 use crate::bidding::constraint::{
     Cons, Constraint, described, fifths, hcp, length_box, long_suit_box, shapes,
 };
@@ -50,6 +51,11 @@ pub fn open_one_notrump() -> bool {
 /// default (`false`) gauges plain HCP 15-17, which opens 1NT a touch more often.
 pub fn set_one_notrump_fifths(on: bool) {
     ONE_NOTRUMP_FIFTHS.with(|cell| cell.set(on));
+}
+
+/// Whether the [`set_one_notrump_fifths`] knob is on
+pub(super) fn one_notrump_fifths() -> bool {
+    ONE_NOTRUMP_FIFTHS.with(Cell::get)
 }
 
 /// Select the 1NT opening [`NotrumpShape`] for the next rebuild of
@@ -151,21 +157,22 @@ fn one_notrump_offshape_gate() -> Cons<impl Constraint + Clone> {
         )
 }
 
-pub(super) fn with_one_notrump(rules: Rules, shape: NotrumpShape) -> Rules {
+pub(super) fn with_one_notrump(rules: Rules, shape: NotrumpShape, knobs: &OpeningKnobs) -> Rules {
     let mut rules = rules;
+    let one_notrump_offshape = knobs.one_notrump_offshape;
     // Strong 1NT — gated so a diagnostic can suppress our own 1NT opening
     // (`set_open_one_notrump`); the 15-17 balanced hands then open a minor.
-    if OPEN_ONE_NOTRUMP.with(Cell::get) {
+    if knobs.open_one_notrump {
         // Strength gauged by plain HCP 15-17 by default; `set_one_notrump_fifths`
         // restores the legacy Andrews' fifths gauge.  Each arm reissues `.rule()`
         // so the differing constraint types unify to `Rules`.
-        rules = if (ONE_NOTRUMP_FIFTHS.with(Cell::get), one_notrump_offshape()) == (true, true) {
+        rules = if (knobs.one_notrump_fifths, one_notrump_offshape) == (true, true) {
             rules.rule(
                 Bid::new(1, Strain::Notrump),
                 200,
                 fifths(14.5..17.5) & (notrump_shape(shape) | one_notrump_offshape_gate()),
             )
-        } else if ONE_NOTRUMP_FIFTHS.with(Cell::get) {
+        } else if knobs.one_notrump_fifths {
             // 14.5..17.5 (centre 16), not 15..18 (centre 16.5): fifths sums to 40
             // over the deck like HCP, so an unbiased "15-17 HCP" gate shares the
             // plain-HCP band's centre — the old 15..18 was half a point too high.
@@ -174,7 +181,7 @@ pub(super) fn with_one_notrump(rules: Rules, shape: NotrumpShape) -> Rules {
                 200,
                 fifths(14.5..17.5) & notrump_shape(shape),
             )
-        } else if one_notrump_offshape() {
+        } else if one_notrump_offshape {
             rules.rule(
                 Bid::new(1, Strain::Notrump),
                 200,

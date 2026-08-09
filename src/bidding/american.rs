@@ -69,7 +69,7 @@ pub(in crate::bidding) mod defense;
 mod game_force;
 mod nmf;
 pub(in crate::bidding) mod notrump;
-mod openings;
+pub(in crate::bidding) mod openings;
 mod raises;
 mod rebids;
 mod responses;

@@ -63,7 +63,7 @@ pub fn set_weak_two_longest_first(on: bool) {
     WEAK_TWO_LONGEST_FIRST.with(|cell| cell.set(on));
 }
 
-fn weak_two_longest_first() -> bool {
+pub(super) fn weak_two_longest_first() -> bool {
     WEAK_TWO_LONGEST_FIRST.with(Cell::get)
 }
 
@@ -93,7 +93,7 @@ pub fn set_weak_two_major_priority(on: bool) {
     WEAK_TWO_MAJOR_PRIORITY.with(|cell| cell.set(on));
 }
 
-fn weak_two_major_priority() -> bool {
+pub(super) fn weak_two_major_priority() -> bool {
     WEAK_TWO_MAJOR_PRIORITY.with(Cell::get)
 }
 

@@ -554,6 +554,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The opening book's nine build-time knobs are carried, not fetched.**
+  `Build::opening` captures them once through `openings::capture()`: whether we
+  open `1NT` at all, its shape policy, fifths gauge and off-shape treatment;
+  the weak two's raw-HCP band, honour-location gauge and wild variant; and the
+  two cells governing how partner answers a weak two.  `openings` and
+  `openings_with` take a trailing `&Agreements` like `defensive`,
+  `defense_to_suit` and `notrump_responses` before them.
+  `TWO_NOTRUMP_WIDE` is **not** among the nine — `inference/readers.rs` caps
+  the `2NT` opener's minor length on it at classify time, so it keeps its
+  single home in the `Stance`-pinned `DecisionProfile` and the shape gate reads
+  it from there through a new `ReadingProfile::two_notrump_wide` accessor.
+  Three cells that had only a setter (`ONE_NOTRUMP_FIFTHS`, `WEAK_TWO_HCP`,
+  `WEAK_TWO_EVAL`) gained a raw getter so `capture()` could reach them, and
+  three private ones were promoted to `pub(super)`.  `OpeningKnobs` carries
+  `WeakTwoEval`, whose evaluator bands are `f64`, so it — and `Build` and
+  `Agreements` with it — derive `PartialEq` without `Eq`.  No `thread_local!`
+  block and no `set_*` setter was touched.
+
 - **The 1NT book's 21 build-only knobs are carried, not fetched.**
   `Build::notrump` captures every build-only cell in
   `american/notrump{,/**}.rs` once through `notrump::capture()`, and the rule

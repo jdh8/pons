@@ -846,6 +846,14 @@ impl ReadingProfile {
         self.support_points
     }
 
+    /// Whether the strong `2NT` opening carries the wide-minor shape.  Read at
+    /// build time too (`american/openings/two_notrump.rs` picks the shape gate
+    /// off it), which is why the opening book takes it from here rather than
+    /// keeping a cell of its own — one cell, one home.
+    pub(crate) const fn two_notrump_wide(self) -> bool {
+        self.two_notrump_wide
+    }
+
     // The five cells the [instinct floor][crate::bidding::instinct()] shares
     // with the reading layer.  They live here, not in
     // [`InstinctProfile`][crate::bidding::instinct::InstinctProfile]: one cell,
