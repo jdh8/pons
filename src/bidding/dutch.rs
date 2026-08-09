@@ -85,7 +85,7 @@ pub fn dutch_v5() -> Pair {
     let agreements = Agreements::current();
     with_floor_v5(
         book(&agreements),
-        CompactConfig::symmetric(&ConventionCard::capture(true)),
+        CompactConfig::symmetric(&ConventionCard::of(&agreements, true)),
         &agreements,
     )
 }

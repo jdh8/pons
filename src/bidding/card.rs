@@ -44,13 +44,9 @@
 //! `--our-floor` swap is not disclosed.  BBA's own defaults approximate the
 //! distilled floor; no row exists for it.
 
-use super::american::{
-    EUROPEAN, LebensohlStyle, NotrumpDefense, NotrumpShape, fourth_suit_forcing, garbage_stayman,
-    jordan_truscott, landy_range, leaping_michaels_enabled, lebensohl_style, major_support_double,
-    new_minor_forcing, notrump_defense, notrump_minors, notrump_shape_setting, nt_splinter,
-    one_notrump_offshape, responsive_takeout_enabled, transfer_super_accept, xyz,
-};
-use super::instinct::relocating_now;
+use super::agreements::Agreements;
+use super::american::{EUROPEAN, LebensohlStyle, NotrumpDefense, NotrumpShape};
+use super::instinct::relocating;
 use core::fmt;
 
 /// A generated `.bbsa` convention card
@@ -307,12 +303,22 @@ const SCHEMA: &[&str] = &[
 /// ```
 #[must_use]
 pub fn american_card() -> Card {
+    card(&Agreements::current())
+}
+
+/// [`american_card`] on an explicit capture
+///
+/// The card is the fourth reader of the knob state, and it must agree with the
+/// book and the floor about what we play — a card that discloses a row the
+/// rules are not playing is a lie told to the opponents.  One capture feeds
+/// all of them.
+pub(in crate::bidding) fn card(a: &Agreements) -> Card {
     Card {
         // 2/1 game forcing.
         system: 0,
         rows: SCHEMA
             .iter()
-            .map(|name| (*name, american_row(name)))
+            .map(|name| (*name, american_row(name, a)))
             .chain(PONS_SCHEMA.iter().map(|name| (*name, pons_row(name))))
             .collect(),
     }
@@ -333,7 +339,12 @@ pub fn american_card() -> Card {
 /// every row not listed below keeps its American value.
 #[must_use]
 pub fn dutch_card() -> Card {
-    let mut card = american_card();
+    dutch_card_of(&Agreements::current())
+}
+
+/// [`dutch_card`] on an explicit capture — see [`card`]
+pub(in crate::bidding) fn dutch_card_of(a: &Agreements) -> Card {
+    let mut card = card(a);
     card.system = 2;
     // Dutch's 1♦ is 5+♦, or exactly the singleton-club 4=4=4=1 (`dutch::openings`);
     // the wide 1♣ soaks up every other four-diamond hand.  American's better-minor
@@ -404,9 +415,9 @@ impl Card {
     clippy::too_many_lines,
     reason = "one arm per card row is the mapping; splitting it hides it"
 )]
-fn american_row(name: &str) -> i32 {
+fn american_row(name: &str, a: &Agreements) -> i32 {
     // The 1NT minor scheme drives six mutually-exclusive rows at once.
-    let european = notrump_minors() == EUROPEAN;
+    let european = a.decision.reading.notrump_minors() == EUROPEAN;
     match name {
         // ---- computed: a knob or a book fact moves these ----
         //
@@ -416,41 +427,41 @@ fn american_row(name: &str) -> i32 {
         "1N-2N transfer to diamonds" => i32::from(!european),
         "1N-3C transfer to diamonds" => i32::from(european),
         "1N-3C Puppet Stayman" => i32::from(!european),
-        "1N-3M splinter" => i32::from(nt_splinter()),
+        "1N-3M splinter" => i32::from(a.decision.reading.nt_splinter()),
         // Either policy can admit the 5422: the shape ladder from `Wide` up, or
         // the off-shape treatment on its own (which admits *any* 5422, not just
         // the five-card-minor ones).
         "1NT opening shape 5422" => i32::from(
-            notrump_shape_setting() != NotrumpShape::Balanced || one_notrump_offshape(),
+            a.build.opening.notrump_shape != NotrumpShape::Balanced || a.build.opening.one_notrump_offshape,
         ),
-        "1NT opening shape 6 minor" => i32::from(notrump_shape_setting() == NotrumpShape::Wide6322),
-        "Checkback" => i32::from(new_minor_forcing()),
+        "1NT opening shape 6 minor" => i32::from(a.build.opening.notrump_shape == NotrumpShape::Wide6322),
+        "Checkback" => i32::from(a.build.rebid.new_minor_forcing),
         // `set_transfer_super_accept` is **off by default**, so we do not jump
         // super-accept a Jacoby transfer with four-card support and a maximum.
         // The hand-written card declared `= 1` here; that was a claim to a
         // convention we do not play, and generating it fixes the disclosure.
-        "Super acceptance after NT" => i32::from(transfer_super_accept()),
-        "Fourth suit" | "Fourth suit game force" => i32::from(fourth_suit_forcing()),
-        "Garbage Stayman" => i32::from(garbage_stayman()),
-        "Jordan Truscott 2NT" => i32::from(jordan_truscott()),
+        "Super acceptance after NT" => i32::from(a.build.notrump.transfer_super_accept),
+        "Fourth suit" | "Fourth suit game force" => i32::from(a.build.rebid.fourth_suit_forcing),
+        "Garbage Stayman" => i32::from(a.decision.reading.garbage_stayman()),
+        "Jordan Truscott 2NT" => i32::from(a.build.competition.jordan_truscott),
         // `set_landy` carries the (min, max) two-suiter range when on; the
         // mutually-exclusive direct-seat system lives in `NotrumpDefense`.
         "Landy" => {
-            i32::from(landy_range().is_some() || notrump_defense() == NotrumpDefense::DirectLandy)
+            i32::from(a.decision.reading.landy_range().is_some() || a.decision.reading.notrump_defense() == NotrumpDefense::DirectLandy)
         }
-        "Multi-Landy" => i32::from(notrump_defense() == NotrumpDefense::Woolsey),
-        "Leaping Michaels" => i32::from(leaping_michaels_enabled()),
-        "Lebensohl after 1NT" => i32::from(lebensohl_style() != LebensohlStyle::Off),
-        "Rubensohl after double" => i32::from(lebensohl_style() == LebensohlStyle::Transfer),
-        "New Minor Forcing" => i32::from(new_minor_forcing() && !xyz()),
-        "Two Way New Minor Forcing" => i32::from(xyz()),
-        "Responsive double" => i32::from(responsive_takeout_enabled()),
-        "Support double redouble" => i32::from(major_support_double()),
+        "Multi-Landy" => i32::from(a.decision.reading.notrump_defense() == NotrumpDefense::Woolsey),
+        "Leaping Michaels" => i32::from(a.build.defense.leaping_michaels_enabled),
+        "Lebensohl after 1NT" => i32::from(a.build.competition.lebensohl_style != LebensohlStyle::Off),
+        "Rubensohl after double" => i32::from(a.build.competition.lebensohl_style == LebensohlStyle::Transfer),
+        "New Minor Forcing" => i32::from(a.build.rebid.new_minor_forcing && !a.decision.reading.xyz()),
+        "Two Way New Minor Forcing" => i32::from(a.decision.reading.xyz()),
+        "Responsive double" => i32::from(a.build.defense.responsive_takeout_enabled),
+        "Support double redouble" => i32::from(a.build.competition.major_support_double),
         // Systems on when RHO overcalls our 1NT with 2♣ — EPBot's
         // `conventions[156]` is one of the three flags feeding
         // `accepted_LHO_BID_TO_STAYMAN_AND_TRANSFERS`, and the (2♣) systems-on
         // rebase in `competition.rs` rides the same gate as Lebensohl itself.
-        "Transfers if RHO bids clubs" => i32::from(lebensohl_style() != LebensohlStyle::Off),
+        "Transfers if RHO bids clubs" => i32::from(a.build.competition.lebensohl_style != LebensohlStyle::Off),
 
         // ---- constant: we author these (or pointedly do not), and no knob moves them ----
         //
@@ -476,7 +487,7 @@ fn american_row(name: &str) -> i32 {
         "1NT opening range 12-14" | "1NT opening range 13-15" | "1NT opening range 14-16" => 0,
         // The shape ladder's wide arms are 5422/6322 *minors*, never 4441; the
         // off-shape treatment is what admits a 4441 (with a singleton Q/J).
-        "1NT opening shape 4441" => i32::from(one_notrump_offshape()),
+        "1NT opening shape 4441" => i32::from(a.build.opening.one_notrump_offshape),
         // Free bids are forcing (one round at the two level).
         "1X-(Y)-2Z forcing" => 1,
         "1X-(1Y)-2Z strong" | "1X-(1Y)-2Z weak" => 0,
@@ -501,7 +512,7 @@ fn american_row(name: &str) -> i32 {
         // anchor.  Redwood rides the same row: BBA's card has no minors-only
         // relocation, so the nearest disclosure over-claims the hearts lane —
         // a lane where we then bid a plain 4NT it also reads.
-        "Kickback 1430" => i32::from(relocating_now()),
+        "Kickback 1430" => i32::from(relocating(&a.decision)),
         // EPBot's `conventions[58]` is the *side-suit* super-accept: after a
         // transfer, opener bids a feature above the completion (its gate wants
         // 4+ support with a doubleton or shorter somewhere).  `notrump.rs` only

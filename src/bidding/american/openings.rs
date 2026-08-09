@@ -32,7 +32,7 @@ pub use one_notrump::{
 pub use two_notrump::set_two_notrump_wide;
 pub use weak_two::{WeakTwoEval, set_weak_two_eval, set_weak_two_hcp, set_weak_two_wild};
 
-pub(crate) use one_notrump::{notrump_shape, one_notrump_offshape};
+pub(crate) use one_notrump::notrump_shape;
 pub(crate) use two_notrump::{two_notrump_wide, two_notrump_wide_shape};
 
 /// Capture this thread's opening build-time knobs

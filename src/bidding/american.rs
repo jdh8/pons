@@ -120,7 +120,6 @@ pub(crate) use defense::{
     woolsey_enabled, woolsey_points,
 };
 pub use game_force::{set_game_backstop, set_opener_third, set_second_suit_agreement};
-pub(crate) use nmf::new_minor_forcing;
 pub use nmf::set_new_minor_forcing;
 pub use notrump::{
     EUROPEAN, PUPPET, SizeAskEight, notrump_responses, set_crawling_stayman, set_garbage_stayman,
@@ -132,7 +131,6 @@ pub use notrump::{
     set_transfer_longer_major, set_transfer_slam_try, set_transfer_super_accept,
 };
 pub(crate) use openings::notrump_shape;
-pub(crate) use openings::one_notrump_offshape;
 pub(crate) use openings::two_notrump_wide;
 pub use openings::{
     NotrumpShape, WeakTwoEval, openings, openings_with, set_notrump_shape, set_one_notrump_fifths,
@@ -207,7 +205,10 @@ pub fn american() -> Pair {
     let agreements = Agreements::current();
     with_floor_v5(
         book(&agreements),
-        super::features::CompactConfig::symmetric(&super::features::ConventionCard::capture(false)),
+        super::features::CompactConfig::symmetric(&super::features::ConventionCard::of(
+            &agreements,
+            false,
+        )),
         &agreements,
     )
 }
@@ -260,7 +261,7 @@ pub fn american_with_card(theirs: &super::features::ConventionCard) -> Pair {
     with_floor_v5(
         book(&agreements),
         super::features::CompactConfig::new(
-            &super::features::ConventionCard::capture(false),
+            &super::features::ConventionCard::of(&agreements, false),
             theirs,
         ),
         &agreements,
@@ -319,10 +320,14 @@ pub fn american_instinct() -> Pair {
 /// book as authored calls **and** as disclosure, not the calls alone.
 #[must_use]
 pub fn american_floor() -> Pair {
+    let agreements = Agreements::current();
     with_floor_v5(
         Pair::new(Constructive::new(), Competitive::new(), Defensive::new()),
-        super::features::CompactConfig::symmetric(&super::features::ConventionCard::capture(false)),
-        &Agreements::current(),
+        super::features::CompactConfig::symmetric(&super::features::ConventionCard::of(
+            &agreements,
+            false,
+        )),
+        &agreements,
     )
 }
 

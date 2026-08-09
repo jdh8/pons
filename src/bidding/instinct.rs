@@ -476,6 +476,11 @@ fn relocation(profile: ReadingProfile) -> RkcbVariant {
     }
 }
 
+/// [`relocating_now`] off a pinned profile — the card's and the book's reading
+pub(in crate::bidding) fn relocating(profile: &DecisionProfile) -> bool {
+    relocation(profile.reading) != RkcbVariant::Plain
+}
+
 /// Responder runs from a doubled 1NT below this many HCP; with more, 1NT-X
 /// rates to make opposite a 15–17 opener, so sit (or redouble — see
 /// [`set_runout_xx_min`]).  A named knob for A/B tuning.

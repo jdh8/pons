@@ -572,6 +572,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The convention card joins too — all four readers now share one capture.**
+  `card::american_card()` read sixteen live getters row by row and
+  `ConventionCard::capture` read seventeen more, each independently of the
+  book and the floor.  Both now derive from an `&Agreements`:
+  `american_row(name, &Agreements)` behind a new crate-internal
+  `card(&Agreements)`, and `ConventionCard::of(&Agreements, dutch)` behind the
+  unchanged `capture(dutch)`.  `american()`, `american_with_card`,
+  `american_floor` and `dutch_v5` hand the *same* value to the book, the floor
+  and the card, so the four readers the campaign set out to join are joined:
+  a card can no longer disclose a convention the rules are not playing, which
+  is the defect that produced the off-shape card rows.  `relocating_now()`
+  gains a pinned twin `relocating(&DecisionProfile)`, the reading both the card
+  and the book now use.  Byte-identical: seeded `smoke-default` /
+  `smoke-dutch` (20 000 boards each) and both `cards/*.bbsa` are unchanged.
+
 - **The deterministic floor joins the book's capture — `instinct` takes an
   `&Agreements`.**  The floor was the third independent reader of the knob
   cells: `american()` captured `Agreements::current()` for the book, then

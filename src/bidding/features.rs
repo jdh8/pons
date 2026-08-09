@@ -16,16 +16,12 @@
 //! | Vulnerability        |    86 |   2 |
 //! | **Total**            |       | **88** |
 
-use super::american::{
-    EUROPEAN, LebensohlStyle, NotrumpDefense, NotrumpShape, fourth_suit_forcing, garbage_stayman,
-    jordan_truscott, landy_range, leaping_michaels_enabled, lebensohl_style, major_support_double,
-    new_minor_forcing, notrump_defense, notrump_minors, notrump_shape_setting, nt_splinter,
-    one_notrump_offshape, responsive_takeout_enabled, transfer_super_accept, xyz,
-};
+use super::agreements::Agreements;
+use super::american::{EUROPEAN, LebensohlStyle, NotrumpDefense, NotrumpShape};
 use super::card::Card;
 use super::context::Context;
 use super::inference::{Envelope, EnvelopeUnion, Inferences, Range, Relative};
-use super::instinct::relocating_now;
+use super::instinct::relocating;
 use crate::bidding::constraint::{upgrade, upgrade_ceiling};
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::eval::{self, HandEvaluator, SimpleEvaluator};
@@ -1092,33 +1088,43 @@ pub struct ConventionCard {
 }
 
 impl ConventionCard {
-    /// Read the live thread-local knob state, as
+    /// Read this thread's knob state, as
     /// [`american_card`][super::card::american_card] does row by row
     ///
     /// `dutch` is a parameter because it selects a *book*, not a knob:
     /// [`dutch`][crate::dutch()] overlays `american_book()` and inherits every
-    /// knob below, so nothing thread-local can answer which book is in play.
+    /// knob below, so no knob can answer which book is in play.
     #[must_use]
     pub fn capture(dutch: bool) -> Self {
+        Self::of(&Agreements::current(), dutch)
+    }
+
+    /// [`capture`][Self::capture] on an explicit capture
+    ///
+    /// The disclosable subset of what we agreed, taken off the same value the
+    /// book and the floor were built from — so the card cannot declare a
+    /// convention the rules are not playing.
+    #[must_use]
+    pub(in crate::bidding) fn of(a: &Agreements, dutch: bool) -> Self {
         Self {
             dutch,
-            relocating: relocating_now(),
-            garbage_stayman: garbage_stayman(),
-            new_minor_forcing: new_minor_forcing(),
-            xyz: xyz(),
-            transfer_super_accept: transfer_super_accept(),
-            fourth_suit_forcing: fourth_suit_forcing(),
-            jordan_truscott: jordan_truscott(),
-            leaping_michaels: leaping_michaels_enabled(),
-            responsive_takeout: responsive_takeout_enabled(),
-            major_support_double: major_support_double(),
-            nt_splinter: nt_splinter(),
-            one_notrump_offshape: one_notrump_offshape(),
-            shape: notrump_shape_setting(),
-            defense: notrump_defense(),
-            lebensohl: lebensohl_style(),
-            minors_european: notrump_minors() == EUROPEAN,
-            landy: landy_range().is_some(),
+            relocating: relocating(&a.decision),
+            garbage_stayman: a.decision.reading.garbage_stayman(),
+            new_minor_forcing: a.build.rebid.new_minor_forcing,
+            xyz: a.decision.reading.xyz(),
+            transfer_super_accept: a.build.notrump.transfer_super_accept,
+            fourth_suit_forcing: a.build.rebid.fourth_suit_forcing,
+            jordan_truscott: a.build.competition.jordan_truscott,
+            leaping_michaels: a.build.defense.leaping_michaels_enabled,
+            responsive_takeout: a.build.defense.responsive_takeout_enabled,
+            major_support_double: a.build.competition.major_support_double,
+            nt_splinter: a.decision.reading.nt_splinter(),
+            one_notrump_offshape: a.build.opening.one_notrump_offshape,
+            shape: a.build.opening.notrump_shape,
+            defense: a.decision.reading.notrump_defense(),
+            lebensohl: a.build.competition.lebensohl_style,
+            minors_european: a.decision.reading.notrump_minors() == EUROPEAN,
+            landy: a.decision.reading.landy_range().is_some(),
         }
     }
 
