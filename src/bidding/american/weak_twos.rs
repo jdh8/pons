@@ -118,7 +118,7 @@ pub(super) fn weak_two_major_priority() -> bool {
 /// - **Simple raise** (weight 1.2): three-plus-card support, preemptive.
 /// - **Pass** (weight 0.0): catch-all.
 #[must_use]
-pub(super) fn responses(our: Suit) -> Rules {
+pub(super) fn responses(our: Suit, agreements: &Agreements) -> Rules {
     let trump = Strain::from(our);
     let mut rules = Rules::new()
         // Ogust 2NT: at least two-card support and opening values.
@@ -149,14 +149,16 @@ pub(super) fn responses(our: Suit) -> Rules {
         let level: u8 = if Strain::from(x) > trump { 2 } else { 3 };
         // Over 2♦ only, and only for the majors, the knob lifts the new suit
         // above the 2.0 Ogust ask.
-        let weight =
-            if weak_two_major_priority() && our == Suit::Diamonds && Strain::from(x) > trump {
-                210
-            } else {
-                150
-            };
+        let weight = if agreements.build.opening.weak_two_major_priority
+            && our == Suit::Diamonds
+            && Strain::from(x) > trump
+        {
+            210
+        } else {
+            150
+        };
         let gate = len(x, 5..) & top_honors(x, 2..) & points(14..);
-        rules = if weak_two_longest_first() {
+        rules = if agreements.build.opening.weak_two_longest_first {
             rules.rule(
                 Bid::new(level, Strain::from(x)),
                 weight,
@@ -355,12 +357,12 @@ pub(super) fn package() -> Package {
     Package {
         name: "weak-two-responses",
         gate: |_| true,
-        entries: |_| {
+        entries: |agreements| {
             // `x` is the weak-two suit; clubs is the strong 2♣, not a weak two.
             let weak_two = |bindings: &Bindings| bindings.suit('x') != Suit::Clubs;
 
             // First responses (at `2M -`).
-            let mut entries = expand("P* 2x -", weak_two, |b| responses(b.suit('x')));
+            let mut entries = expand("P* 2x -", weak_two, |b| responses(b.suit('x'), agreements));
 
             // Ogust: opener's answers (at `2M - 2NT -`).
             entries.extend(expand("P* 2x - 2NT -", weak_two, |b| {

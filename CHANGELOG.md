@@ -572,6 +572,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The deterministic floor joins the book's capture — `instinct` takes an
+  `&Agreements`.**  The floor was the third independent reader of the knob
+  cells: `american()` captured `Agreements::current()` for the book, then
+  `instinct()` consulted the thread again for its own three build-time cells
+  (`COMPETITIVE_REBID`, `REOPENING_NOTRUMP`, `DOUBLER_XX_RUNOUT`, now
+  `Build::instinct`).  Every shipped entry point — `american`,
+  `american_with_config`, `american_with_card`, `american_instinct`,
+  `dutch_with_config`, `dutch_v5`, `dutch_instinct` — now captures **once** and
+  hands the same value to both, so a book and the ladder underneath it can no
+  longer come from two different reads.  `dutch_book()` captured twice on its
+  own (once for the Dutch packages, once inside `american_book()`); both halves
+  now share one value.  **API break** (0.11.0-dev): `pub fn instinct()` is
+  `pub fn instinct(&Agreements)`.  `american_book()` and `dutch_book()` keep
+  their signatures, delegating to new crate-internal `book(&Agreements)`
+  workers.  `minor_asks_now()` and `rkcb_minors_now()` are deleted — the build
+  now reads the pinned `minor_asks()` the floor already used, so the
+  derived minor-keycard reach has one reading instead of a live-cell twin.
+
+- **The game-forcing book's three build-time knobs are carried, not fetched.**
+  `Build::game_force` captures the retired wildcard backstop, opener's third
+  call after responder sets trump, and opener's third call after responder
+  raises the second suit.  Seven straggler read sites elsewhere in the American
+  book that still fetched a live cell now read the captured or pinned value:
+  the two weak-two response knobs (already `OpeningKnobs` fields since the
+  opening area moved — an incomplete conversion), `transfer_super_accept` in
+  the contested-Jacoby table, `notrump_minors` in both minor-transfer
+  competition packages, and the two minor-keycard gates.  No `thread_local!`
+  block and no `set_*` setter was touched.  Byte-identical: seeded
+  `smoke-default` / `smoke-dutch` (20 000 boards each) and both `cards/*.bbsa`
+  are unchanged.
+
 - **The rebid book's nine build-time knobs are carried, not fetched.**
   `Build::rebid` captures them once through `rebids::capture()`: the balanced
   `1NT` rebid, the `1♥ - 1♠` tails with fourth-suit forcing and the notrump-

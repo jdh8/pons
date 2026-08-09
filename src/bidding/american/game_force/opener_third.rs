@@ -47,7 +47,7 @@ pub fn set_opener_third(on: bool) {
     OPENER_THIRD.with(|cell| cell.set(on));
 }
 
-fn opener_third_enabled() -> bool {
+pub(super) fn opener_third_enabled() -> bool {
     OPENER_THIRD.with(Cell::get)
 }
 
@@ -69,7 +69,7 @@ fn opener_third(major: Suit) -> Rules {
 pub(crate) fn opener_third_continuations() -> Package {
     Package {
         name: "two-over-one-opener-third",
-        gate: |_| opener_third_enabled(),
+        gate: |agreements| agreements.build.game_force.opener_third,
         entries: |_| {
             let mut entries = Vec::new();
             for major in [Suit::Spades, Suit::Hearts] {

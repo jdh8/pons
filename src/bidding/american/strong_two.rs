@@ -219,8 +219,8 @@ fn opener_after_spades_raise() -> Rules {
 /// With 28+ HCP, launch minor RKCB (4NT); otherwise sign off in 5♣.  With the
 /// minor keycard off ([`set_rkcb_minors`][crate::bidding::instinct::set_rkcb_minors]),
 /// the pre-keycard blind jump to 6♣ on 27+ instead.
-fn opener_after_clubs_raise() -> Rules {
-    if !super::slam::minor_keycard() {
+fn opener_after_clubs_raise(agreements: &Agreements) -> Rules {
+    if !super::slam::minor_keycard(agreements) {
         return Rules::new()
             .rule(Bid::new(6, Strain::Clubs), 100, hcp(27..))
             .rule(Bid::new(5, Strain::Clubs), 50, hcp(0..));
@@ -236,8 +236,8 @@ fn opener_after_clubs_raise() -> Rules {
 /// With 28+ HCP, launch minor RKCB (4NT); otherwise sign off in 5♦.  With the
 /// minor keycard off ([`set_rkcb_minors`][crate::bidding::instinct::set_rkcb_minors]),
 /// the pre-keycard blind jump to 6♦ on 27+ instead.
-fn opener_after_diamonds_raise() -> Rules {
-    if !super::slam::minor_keycard() {
+fn opener_after_diamonds_raise(agreements: &Agreements) -> Rules {
+    if !super::slam::minor_keycard(agreements) {
         return Rules::new()
             .rule(Bid::new(6, Strain::Diamonds), 100, hcp(27..))
             .rule(Bid::new(5, Strain::Diamonds), 50, hcp(0..));
@@ -260,7 +260,7 @@ pub(super) fn package() -> Package {
     Package {
         name: "strong-two-continuations",
         gate: |_| true,
-        entries: |_| {
+        entries: |agreements| {
             // Responses to 2♣ and opener's first rebid.
             let mut entries = rows_of(Pattern::node("P* 2♣ -"), responses());
             entries.extend(rows_of(
@@ -329,11 +329,11 @@ pub(super) fn package() -> Package {
             // gated answer subtrees below, so a 4NT ask can never be stranded.
             entries.extend(rows_of(
                 Pattern::node("P* 2♣ - 2♦ - 3♣ - 4♣ -"),
-                opener_after_clubs_raise(),
+                opener_after_clubs_raise(agreements),
             ));
             entries.extend(rows_of(
                 Pattern::node("P* 2♣ - 2♦ - 3♦ - 4♦ -"),
-                opener_after_diamonds_raise(),
+                opener_after_diamonds_raise(agreements),
             ));
 
             entries
@@ -345,7 +345,7 @@ pub(super) fn package() -> Package {
 pub(super) fn minor_keycard_continuations() -> Package {
     Package {
         name: "strong-two-minor-keycard",
-        gate: |_| super::slam::minor_keycard(),
+        gate: |agreements| super::slam::minor_keycard(agreements),
         entries: |_| {
             let mut entries = super::slam::rkcb_rows("P* 2♣ - 2♦ - 3♣ - 4♣ -", Suit::Clubs);
             entries.extend(super::slam::rkcb_rows(

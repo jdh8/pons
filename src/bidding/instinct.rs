@@ -49,6 +49,7 @@
 //! the most-hit auctions are the next nodes worth authoring properly.
 
 use super::Rules;
+use super::agreements::{Agreements, InstinctKnobs};
 use super::constraint::{
     Cons, Constraint, balanced, described, hcp, len, min_level_is, partner_shown_len,
     partner_suit_is, point_count_on, points, pred, short_in_their_suits, stopper_in_their_suits,
@@ -657,6 +658,15 @@ pub fn set_competitive_rebid(enabled: bool) {
     COMPETITIVE_REBID.with(|flag| flag.set(enabled));
 }
 
+/// Capture the floor's build-time cells into [`InstinctKnobs`]
+pub(in crate::bidding) fn capture_build() -> InstinctKnobs {
+    InstinctKnobs {
+        competitive_rebid: competitive_rebid_enabled(),
+        reopening_notrump: reopening_notrump_enabled(),
+        doubler_xx_runout: doubler_xx_runout_enabled(),
+    }
+}
+
 /// The competitive long-suit rebid is enabled (see [`set_competitive_rebid`])
 fn competitive_rebid_enabled() -> bool {
     COMPETITIVE_REBID.with(Cell::get)
@@ -912,11 +922,6 @@ pub fn set_rkcb_minors(enabled: bool) {
     KEYCARD_MINORS.with(|flag| flag.set(enabled));
 }
 
-/// The keycard ask reaches minors (see [`set_rkcb_minors`])
-pub(in crate::bidding) fn rkcb_minors_now() -> bool {
-    KEYCARD_MINORS.with(Cell::get)
-}
-
 /// Where the keycard ask lives — the relocation stance of the 1430 machinery
 ///
 /// The variants are the *playable* cells of what used to be two independent
@@ -1049,18 +1054,15 @@ fn relocation_now() -> RkcbVariant {
 }
 
 /// The keycard ask reaches agreed minors — carved in by [`set_rkcb_minors`],
-/// or implied by a live relocation ([`relocating_now`]): a ladder whose payoff
-/// is the minor lanes with no minor to ask in would be "kickback only hearts",
-/// a stance nobody plays.
+/// or implied by a live relocation ([`RkcbVariant`]): a ladder whose payoff is
+/// the minor lanes with no minor to ask in would be "kickback only hearts", a
+/// stance nobody plays.
 ///
-/// Build-time, like [`relocating_now`] (`american::slam` reads it while
-/// wiring the minor keycard lanes); [`minor_asks`] is the pinned twin.
-pub(in crate::bidding) fn minor_asks_now() -> bool {
-    rkcb_minors_now() || relocating_now()
-}
-
-/// [`minor_asks_now`] off a pinned profile
-fn minor_asks(profile: &DecisionProfile) -> bool {
+/// Read off the pinned profile by *both* layers — the floor while choosing its
+/// ask, and `american::slam` while wiring the minor keycard lanes.  It used to
+/// have a live-cell twin for the build; the build now carries an `Agreements`,
+/// so one reading serves both and the two can no longer disagree.
+pub(in crate::bidding) fn minor_asks(profile: &DecisionProfile) -> bool {
     profile.instinct.keycard_minors || relocation(profile.reading) != RkcbVariant::Plain
 }
 
@@ -4850,7 +4852,7 @@ fn natural_new_suit_advance(target: Suit) -> Cons<impl Constraint + Clone> {
 /// enough below every forced action (≥ 3 nats) that sampling drivers never
 /// pass a forced auction by accident.
 #[must_use]
-pub fn instinct() -> Rules {
+pub fn instinct(agreements: &Agreements) -> Rules {
     let mut rules = Rules::new()
         // Forced: a trump stack sits for partner's takeout double.
         .rule(Call::Pass, 150, advancing_a_double() & doubled_suit_stack())
@@ -5055,7 +5057,7 @@ pub fn instinct() -> Rules {
     // suit (a 5332 under the default balanced gate) escapes the redoubled `1NTxx`
     // rather than defend it; a 4-3-3-3/4-4-3-2 bust has nowhere to run and sits.
     // Construction-gated so the off arm of a duplicate A/B never carries the rule.
-    if doubler_xx_runout_enabled() {
+    if agreements.build.instinct.doubler_xx_runout {
         for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
             let strain = Strain::from(suit);
             let major_bonus = if matches!(suit, Suit::Hearts | Suit::Spades) {
@@ -6273,7 +6275,7 @@ pub fn instinct() -> Rules {
     // now demands a genuine source of tricks: seven cards, or a good six (two of
     // the top three honors).  A ragged six-bagger competing to the three level
     // stays home (double or pass).
-    if competitive_rebid_enabled() {
+    if agreements.build.instinct.competitive_rebid {
         for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
             let strain = Strain::from(suit);
             rules = rules.rule(
@@ -6311,7 +6313,7 @@ pub fn instinct() -> Rules {
     //  * 3NT over responder's free 1NT (`1X (1Y) 1NT -`): responder already
     //    promised 6-10 with a stopper, so a balanced 18-19 raises to game.
     //  * Responder raises the reopening 1NT to game with the trapped values.
-    if reopening_notrump_enabled() {
+    if agreements.build.instinct.reopening_notrump {
         rules = rules
             .rule(
                 Bid::new(1, Strain::Notrump),

@@ -1,4 +1,5 @@
 use super::*;
+use crate::bidding::context::DecisionProfile;
 use crate::bidding::inference::set_envelope_union_reading;
 use crate::bidding::trie::Classifier;
 use contract_bridge::auction::RelativeVulnerability;
@@ -11,7 +12,7 @@ const fn call(level: u8, strain: Strain) -> Call {
 fn best(auction: &[Call], hand: &str) -> Call {
     let hand: Hand = hand.parse().expect("valid test hand");
     let context = Context::new(RelativeVulnerability::NONE, auction);
-    let logits = instinct().classify(hand, &context);
+    let logits = instinct(&Agreements::current()).classify(hand, &context);
     (&logits.0)
         .into_iter()
         .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))
@@ -404,7 +405,7 @@ fn doubles_only_their_live_bids() {
     ];
     let hand: Hand = "92.K53.AQJ42.962".parse().expect("valid test hand");
     let context = Context::new(RelativeVulnerability::NONE, &auction);
-    let logits = instinct().classify(hand, &context);
+    let logits = instinct(&Agreements::current()).classify(hand, &context);
     assert_eq!(*logits.0.get(Call::Double), f32::NEG_INFINITY);
 }
 
@@ -1845,6 +1846,9 @@ fn redwood_scopes_the_ladder_and_implies_the_minors() {
         Call::Pass,
     ];
     let claims = |auction: &[Call]| kickback_ladder(auction, 4, rkcb_variant_now());
+    // Captured fresh on every call — the arms below re-set the cells between
+    // reads, so a hoisted snapshot would answer for the wrong arm.
+    let minor_asks_now = || minor_asks(&DecisionProfile::current());
 
     set_rkcb_minors(false);
     set_rkcb_variant(RkcbVariant::Redwood);

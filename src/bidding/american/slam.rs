@@ -54,6 +54,7 @@
 //! grand-slam exploration in a minor is not supported.  Kickback (4♣/4♦), the
 //! usual remedy, is out of scope.
 
+use crate::bidding::agreements::Agreements;
 use crate::bidding::{Alert, Rules};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Rank, Strain, Suit};
@@ -82,8 +83,14 @@ pub(super) const RKCB: Alert = Alert("rkcb");
 /// Measured against the pre-keycard book: **+6.80/+8.76 IMPs/divergent**
 /// (none/both, 2M boards), PD re-measure **+5.41/+7.05 IMPs/divergent** (10M
 /// boards, 202 divergent, ~1 in 49.5k) — rare but decisively positive per fire.
-pub(super) fn minor_keycard() -> bool {
-    crate::bidding::instinct::minor_asks_now()
+///
+/// A *derived* reading, so it stays a function of the two cells it is made of
+/// rather than becoming a `Build` field — the same rule the competitive book's
+/// `free_bids_engaged` follows.  Both cells are pinned classify-time state, so
+/// the build reads them back off the stance's [`DecisionProfile`], which is
+/// exactly what [`minor_asks`][crate::bidding::instinct] does for the floor.
+pub(super) fn minor_keycard(agreements: &Agreements) -> bool {
+    crate::bidding::instinct::minor_asks(&agreements.decision)
 }
 
 use crate::bidding::constraint::{described, hcp};

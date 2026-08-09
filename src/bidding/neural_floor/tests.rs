@@ -1,4 +1,5 @@
 use super::*;
+use crate::bidding::agreements::Agreements;
 use contract_bridge::auction::RelativeVulnerability;
 use contract_bridge::{Bid, Strain};
 
@@ -14,7 +15,7 @@ fn shelled(auction: &[Call], hand: &str) -> Logits {
     let hand: Hand = hand.parse().expect("valid test hand");
     let floor = ConfiguredFloorBba::new(
         Config::symmetric(&crate::bidding::card::american_card()),
-        Arc::new(crate::bidding::instinct()),
+        Arc::new(crate::bidding::instinct(&Agreements::current())),
     );
     let context = Context::new(RelativeVulnerability::NONE, auction);
     floor.classify(hand, &context)
@@ -51,7 +52,7 @@ fn the_configured_floor_reads_its_card() {
 /// The forced rail answers off **this shell's** ladder, not a process-global
 /// one
 ///
-/// [`instinct()`][crate::bidding::instinct()] reads build-time knobs of its own:
+/// [`instinct`][crate::bidding::instinct] reads build-time knobs of its own:
 /// `relocating_now()` installs the kickback answer table instead of the plain
 /// one.  While the ladder was a `LazyLock` static, the whole process shared
 /// whichever arm happened to classify first — so `ab-kickback`, which holds
@@ -77,9 +78,9 @@ fn the_configured_floor_answers_off_its_own_ladder() {
     let card = Config::symmetric(&crate::bidding::card::american_card());
 
     set_rkcb_variant(RkcbVariant::Kickback);
-    let relocated = Arc::new(instinct());
+    let relocated = Arc::new(instinct(&Agreements::current()));
     set_rkcb_variant(RkcbVariant::Plain);
-    let plain = Arc::new(instinct());
+    let plain = Arc::new(instinct(&Agreements::current()));
 
     // Ambient on: `forced` recognizes the relocated ask for both shells, so the
     // only difference left is the ladder each was handed.
@@ -116,7 +117,7 @@ fn configured_floor_clone_reuses_the_decision_cache() {
     let hand: Hand = "AQ32.K53.QJ4.A92".parse().expect("valid test hand");
     let floor = ConfiguredFloorBba::new(
         Config::symmetric(&crate::bidding::card::american_card()),
-        Arc::new(crate::bidding::instinct()),
+        Arc::new(crate::bidding::instinct(&Agreements::current())),
     );
     let context = Context::new(RelativeVulnerability::NONE, &auction).with_decision_cache(hand);
 
@@ -184,7 +185,7 @@ fn the_six_six_hand_stops_jumping_into_the_relocated_ask() {
 }
 
 // The five §0.4 safety properties, enforced by the shell against the learned
-// net.  The four forced rails delegate to `instinct()`, so they reproduce
+// net.  The four forced rails delegate to `instinct`, so they reproduce
 // its tested calls exactly; the legality rail exercises the net + mask.
 
 #[test]

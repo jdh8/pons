@@ -121,7 +121,7 @@ pub(super) fn competition_over_diamond_transfer_package() -> Package {
                 .build
                 .competition
                 .competition_over_diamond_transfer
-                && notrump_minors() == PUPPET
+                && agreements.decision.reading.notrump_minors() == PUPPET
         },
         entries: |_| {
             const TWO_NT: &str = "P* 1NT - 2NT";

@@ -16,7 +16,6 @@ mod responses;
 
 use super::Pair;
 use super::agreements::Agreements;
-use super::american::american_book;
 use super::card::dutch_card;
 use super::common::{with_floor, with_floor_v5, with_instinct_floor};
 use super::features::{CompactConfig, Config, ConventionCard};
@@ -70,7 +69,8 @@ pub fn dutch() -> Pair {
 /// told the opposition plays its own system — false at every seat.
 #[must_use]
 pub fn dutch_with_config(config: Config) -> Pair {
-    with_floor(dutch_book(), config)
+    let agreements = Agreements::current();
+    with_floor(book(&agreements), config, &agreements)
 }
 
 /// [`dutch`] on the **compact-config (v5)** floor — opt-in, ungated
@@ -82,9 +82,11 @@ pub fn dutch_with_config(config: Config) -> Pair {
 /// runs (clone `scripts/ab-v5-floor.sh` with the dutch pair).
 #[must_use]
 pub fn dutch_v5() -> Pair {
+    let agreements = Agreements::current();
     with_floor_v5(
-        dutch_book(),
+        book(&agreements),
         CompactConfig::symmetric(&ConventionCard::capture(true)),
+        &agreements,
     )
 }
 
@@ -100,12 +102,13 @@ pub fn dutch_v5() -> Pair {
 /// The floor is the *only* difference; both share the same authored books.
 #[must_use]
 pub fn dutch_instinct() -> Pair {
-    with_instinct_floor(dutch_book())
+    let agreements = Agreements::current();
+    with_instinct_floor(book(&agreements), &agreements)
 }
 
 /// Build the Dutch pair as the authored books alone, with no floor
 ///
-/// Takes a full [`american_book`] pair and compiles two ungated row packages
+/// Takes a full [`american_book`][super::american::american_book] pair and compiles two ungated row packages
 /// onto its constructive trie. `dutch-openings` replaces the opening table;
 /// `dutch-wide-one-club` carries the wide-1♣ responses, relay continuations,
 /// and both natural minor-response structures. Across their 17 exact patterns,
@@ -115,8 +118,13 @@ pub fn dutch_instinct() -> Pair {
 /// strength; see `docs/dutch-system.md`.
 #[must_use]
 pub fn dutch_book() -> Pair {
-    let agreements = Agreements::current();
-    let mut pair = american_book();
+    book(&Agreements::current())
+}
+
+/// [`dutch_book`] on an explicit capture — see [`american::book`][super::american::book]
+pub(in crate::bidding) fn book(agreements: &Agreements) -> Pair {
+    let agreements = *agreements;
+    let mut pair = super::american::book(&agreements);
     // Compile after American: these packages intentionally replace eight
     // inherited exact nodes and add nine Dutch-only continuations.
     compile_into(

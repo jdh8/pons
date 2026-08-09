@@ -5,6 +5,7 @@
 //! [`american`][super::american] and [`dutch`][super::dutch] — and any future
 //! system — import these from here rather than from each other.
 
+use super::agreements::Agreements;
 use super::fallback::{Always, Fallback, Guard};
 use super::features::{CompactConfig, Config};
 use super::instinct::instinct;
@@ -92,8 +93,8 @@ fn with_floors(mut pair: Pair, ladder: &Arc<Rules>, contested: Fallback) -> Pair
 /// v5 twin is ungated) and the declared-opponent entry point
 /// [`american_with_config`][super::american::american_with_config];
 /// [`american`][super::american::american] moved to [`with_floor_v5`].
-pub(in crate::bidding) fn with_floor(pair: Pair, config: Config) -> Pair {
-    let ladder = Arc::new(instinct());
+pub(in crate::bidding) fn with_floor(pair: Pair, config: Config, agreements: &Agreements) -> Pair {
+    let ladder = Arc::new(instinct(agreements));
     let contested = Fallback::classify(ConfiguredFloorBba::new(config, Arc::clone(&ladder)));
     with_floors(pair, &ladder, contested)
 }
@@ -103,8 +104,12 @@ pub(in crate::bidding) fn with_floor(pair: Pair, config: Config) -> Pair {
 /// [`with_floor`]'s v5 sibling — the shipped default for
 /// [`american`][super::american::american] since its 2026-08-08 gate A/B, and
 /// the opt-in behind [`dutch_v5`][super::dutch::dutch_v5].
-pub(in crate::bidding) fn with_floor_v5(pair: Pair, compact: CompactConfig) -> Pair {
-    let ladder = Arc::new(instinct());
+pub(in crate::bidding) fn with_floor_v5(
+    pair: Pair,
+    compact: CompactConfig,
+    agreements: &Agreements,
+) -> Pair {
+    let ladder = Arc::new(instinct(agreements));
     let contested = Fallback::classify(ConfiguredFloorV5::new(compact, Arc::clone(&ladder)));
     with_floors(pair, &ladder, contested)
 }
@@ -112,8 +117,8 @@ pub(in crate::bidding) fn with_floor_v5(pair: Pair, compact: CompactConfig) -> P
 /// Attach the deterministic instinct floor to a pair's contested books
 ///
 /// The fully-disclosable reference wiring: one ladder on all three books.
-pub(in crate::bidding) fn with_instinct_floor(pair: Pair) -> Pair {
-    let ladder = Arc::new(instinct());
+pub(in crate::bidding) fn with_instinct_floor(pair: Pair, agreements: &Agreements) -> Pair {
+    let ladder = Arc::new(instinct(agreements));
     let contested = Fallback::Classify(ladder.clone());
     with_floors(pair, &ladder, contested)
 }

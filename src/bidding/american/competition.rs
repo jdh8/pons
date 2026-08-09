@@ -37,8 +37,8 @@ use super::super::trie::{Classifier, classifier};
 use super::super::{Alert, Competitive, Rules};
 use super::call;
 use super::notrump::{
-    PUPPET, complete_transfer, notrump_minors, notrump_responses, smolen_at_three,
-    smolen_completion, stayman_answers, transfer_super_accept,
+    PUPPET, complete_transfer, notrump_responses, smolen_at_three, smolen_completion,
+    stayman_answers,
 };
 use super::weak_twos;
 use contract_bridge::auction::Call;

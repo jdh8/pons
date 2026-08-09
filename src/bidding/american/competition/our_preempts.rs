@@ -56,8 +56,8 @@ pub(super) fn strong_two_competition() -> bool {
 /// stay preemptive (RONF), the forcing new suits survive — plus a business
 /// redouble: 13+ values without the 2-card fit Ogust wants (a fit-and-values
 /// hand still prefers the ask, whose weight sits above).
-fn weak_two_doubled_responder(our: Suit) -> Rules {
-    weak_twos::responses(our)
+fn weak_two_doubled_responder(our: Suit, agreements: &Agreements) -> Rules {
+    weak_twos::responses(our, agreements)
         .rule(Call::Redouble, 180, hcp(13..))
         .alert(WEAK_TWO_XX)
 }
@@ -169,7 +169,7 @@ pub(super) fn weak_two_competition_package() -> Package {
     Package {
         name: "weak-two-competition",
         gate: |agreements| agreements.build.competition.weak_two_competition,
-        entries: |_| {
+        entries: |agreements| {
             let two_nt = call(2, Strain::Notrump);
             let mut entries = Vec::new();
             for our in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
@@ -178,7 +178,7 @@ pub(super) fn weak_two_competition_package() -> Package {
 
                 entries.extend(rows_of(
                     Pattern::table(&format!("{key} (X)")),
-                    weak_two_doubled_responder(our),
+                    weak_two_doubled_responder(our, agreements),
                 ));
                 entries.push(rebase(Pattern::first(&key, "X"), ReplaceNext(Call::Pass)));
 

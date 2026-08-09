@@ -363,7 +363,7 @@ fn bidding(c: &mut Criterion) {
         &inferences[0],
         &positions[0].auction,
     ));
-    let ladder = instinct();
+    let ladder = instinct(&pons::bidding::agreements::Agreements::current());
     black_box(classify_instinct_scoped(
         &stance,
         &ladder,

@@ -56,7 +56,7 @@ fn opener_third_agree(agreed: Suit) -> Rules {
 pub(crate) fn second_suit_agreement_continuations() -> Package {
     Package {
         name: "two-over-one-second-suit-agreement",
-        gate: |_| second_suit_agreement(),
+        gate: |agreements| agreements.build.game_force.second_suit_agreement,
         entries: |_| {
             let mut entries = Vec::new();
             for major in [Suit::Spades, Suit::Hearts] {

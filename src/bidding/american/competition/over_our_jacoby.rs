@@ -41,10 +41,10 @@ pub(super) fn competition_over_transfer() -> bool {
 /// (`3-major`) with four and a maximum, **Pass** with a doubleton (declines —
 /// responder re-asks below), or `XX` when the doubled transfer suit (`bid`) is
 /// opener's own and it wants to defend.
-fn transfer_doubled_opener(major: Suit, bid: Suit) -> Rules {
+fn transfer_doubled_opener(major: Suit, bid: Suit, agreements: &Agreements) -> Rules {
     let strain = Strain::from(major);
     let mut rules = Rules::new();
-    if transfer_super_accept() {
+    if agreements.build.notrump.transfer_super_accept {
         rules = rules.rule(Bid::new(3, strain), 150, len(major, 4..) & hcp(17..));
     }
     rules
@@ -110,7 +110,7 @@ pub(super) fn competition_over_transfer_package() -> Package {
                 // rebase off his completion or super-accept.
                 entries.extend(rows_of(
                     Pattern::after(&key, "(X)"),
-                    transfer_doubled_opener(major, resp),
+                    transfer_doubled_opener(major, resp, agreements),
                 ));
                 entries.push(systems_on_over_double(&key, &completion));
                 // Opener passed to decline; responder re-asks, and opener's

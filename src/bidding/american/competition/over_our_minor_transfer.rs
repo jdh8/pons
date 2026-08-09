@@ -121,7 +121,7 @@ pub(super) fn competition_over_minor_transfer_package() -> Package {
         name: "competition-over-minor-transfer",
         gate: |agreements| {
             agreements.build.competition.competition_over_minor_transfer
-                && notrump_minors() == PUPPET
+                && agreements.decision.reading.notrump_minors() == PUPPET
         },
         entries: |_| {
             const TWO_SPADE: &str = "P* 1NT - 2♠";

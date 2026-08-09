@@ -66,7 +66,7 @@ use super::{Competitive, Constructive, Defensive, Pair};
 
 pub(in crate::bidding) mod competition;
 pub(in crate::bidding) mod defense;
-mod game_force;
+pub(in crate::bidding) mod game_force;
 mod nmf;
 pub(in crate::bidding) mod notrump;
 pub(in crate::bidding) mod openings;
@@ -204,9 +204,11 @@ pub use xyz::{set_xyz, set_xyz_invite_judgment};
 /// ```
 #[must_use]
 pub fn american() -> Pair {
+    let agreements = Agreements::current();
     with_floor_v5(
-        american_book(),
+        book(&agreements),
         super::features::CompactConfig::symmetric(&super::features::ConventionCard::capture(false)),
+        &agreements,
     )
 }
 
@@ -233,7 +235,8 @@ pub fn american() -> Pair {
 /// against one built by [`american`] measures the two nets, not the declaration.
 #[must_use]
 pub fn american_with_config(config: super::features::Config) -> Pair {
-    with_floor(american_book(), config)
+    let agreements = Agreements::current();
+    with_floor(book(&agreements), config, &agreements)
 }
 
 /// [`american`] against a **declared** opponent, on the shipped v5 floor
@@ -253,12 +256,14 @@ pub fn american_with_config(config: super::features::Config) -> Pair {
 /// inertness gate for this channel.
 #[must_use]
 pub fn american_with_card(theirs: &super::features::ConventionCard) -> Pair {
+    let agreements = Agreements::current();
     with_floor_v5(
-        american_book(),
+        book(&agreements),
         super::features::CompactConfig::new(
             &super::features::ConventionCard::capture(false),
             theirs,
         ),
+        &agreements,
     )
 }
 
@@ -285,7 +290,8 @@ pub fn american_v5() -> Pair {
 /// net-floored [`american`].
 #[must_use]
 pub fn american_instinct() -> Pair {
-    with_instinct_floor(american_book())
+    let agreements = Agreements::current();
+    with_instinct_floor(book(&agreements), &agreements)
 }
 
 /// The 2/1 pair with **no authored book** — every call comes from the floor
@@ -316,6 +322,7 @@ pub fn american_floor() -> Pair {
     with_floor_v5(
         Pair::new(Constructive::new(), Competitive::new(), Defensive::new()),
         super::features::CompactConfig::symmetric(&super::features::ConventionCard::capture(false)),
+        &Agreements::current(),
     )
 }
 
@@ -334,7 +341,15 @@ pub fn american_floor() -> Pair {
 /// 1NT).
 #[must_use]
 pub fn american_book() -> Pair {
-    let agreements = Agreements::current();
+    book(&Agreements::current())
+}
+
+/// [`american_book`] on an explicit capture
+///
+/// The floor is built from the same value, so a book and the ladder under it
+/// can never come from two different reads of the knobs.
+pub(in crate::bidding) fn book(agreements: &Agreements) -> Pair {
+    let agreements = *agreements;
     let mut c = Constructive::new();
 
     openings::register(&mut c, &agreements);

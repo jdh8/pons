@@ -28,7 +28,7 @@
 use super::super::Trie;
 use super::call;
 use crate::bidding::Rules;
-use crate::bidding::agreements::Agreements;
+use crate::bidding::agreements::{Agreements, GameForceKnobs};
 use crate::bidding::constraint::{
     balanced, described, fifths, hcp, len, partner_suit_is, points, support,
 };
@@ -50,6 +50,15 @@ pub use second_suit::set_second_suit_agreement;
 pub(super) use backstop::backstops;
 pub(super) use opener_third::opener_third_continuations;
 pub(super) use second_suit::second_suit_agreement_continuations;
+
+/// Capture this area's build-time cells into [`GameForceKnobs`]
+pub(in crate::bidding) fn capture() -> GameForceKnobs {
+    GameForceKnobs {
+        game_backstop: backstop::game_backstop_enabled(),
+        opener_third: opener_third::opener_third_enabled(),
+        second_suit_agreement: second_suit::second_suit_agreement(),
+    }
+}
 
 // ---------------------------------------------------------------------------
 // Major 2/1 sequences

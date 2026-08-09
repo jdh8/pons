@@ -58,6 +58,10 @@ pub struct Build {
     pub response: ResponseKnobs,
     /// What opener rebids, and the checkback machinery over it
     pub rebid: RebidKnobs,
+    /// Which continuations the game-forcing auction authors past round two
+    pub game_force: GameForceKnobs,
+    /// Which rules the deterministic floor's ladder authors
+    pub instinct: InstinctKnobs,
 }
 
 impl Default for Build {
@@ -77,6 +81,8 @@ impl Build {
             opening: super::american::openings::capture(),
             response: super::american::responses::capture(),
             rebid: super::american::rebids::capture(),
+            game_force: super::american::game_force::capture(),
+            instinct: super::instinct::capture_build(),
         }
     }
 }
@@ -540,6 +546,69 @@ impl RebidKnobs {
     #[must_use]
     pub fn current() -> Self {
         super::american::rebids::capture()
+    }
+}
+
+/// The game-forcing book's build-time knobs
+///
+/// All three gate a *whole table* past round two of a two-over-one auction, and
+/// all three trade against the floor rather than against another agreement: off
+/// means the node falls through, not that a different rule fires.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct GameForceKnobs {
+    // --- game_force/backstop.rs
+    /// Re-register the retired wildcard game backstop over uncovered nodes
+    pub game_backstop: bool,
+    // --- game_force/opener_third.rs
+    /// Author opener's third call after responder sets trump at `1M - 2r - R - 3M`
+    pub opener_third: bool,
+    // --- game_force/second_suit.rs
+    /// Author opener's third call after responder raises opener's second suit
+    pub second_suit_agreement: bool,
+}
+
+impl Default for GameForceKnobs {
+    fn default() -> Self {
+        Self::current()
+    }
+}
+
+impl GameForceKnobs {
+    /// Capture this thread's game-forcing build-time knob state
+    #[must_use]
+    pub fn current() -> Self {
+        super::american::game_force::capture()
+    }
+}
+
+/// The deterministic floor's build-time knobs
+///
+/// The floor's *other* knobs are read while it classifies and live in
+/// `InstinctProfile` alongside the rest of the decision half; these three are
+/// read inside [`instinct`][crate::bidding::instinct()]'s table builder, so
+/// they are baked into the ladder that comes back.  Membership is decided by
+/// where the cell is read, not by what it configures.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct InstinctKnobs {
+    /// Author the competitive long-suit rebid
+    pub competitive_rebid: bool,
+    /// Author opener's balanced-18-19 notrump actions in a contested auction
+    pub reopening_notrump: bool,
+    /// Author the doubler's runout after their redoubled penalty double
+    pub doubler_xx_runout: bool,
+}
+
+impl Default for InstinctKnobs {
+    fn default() -> Self {
+        Self::current()
+    }
+}
+
+impl InstinctKnobs {
+    /// Capture this thread's floor build-time knob state
+    #[must_use]
+    pub fn current() -> Self {
+        super::instinct::capture_build()
     }
 }
 
