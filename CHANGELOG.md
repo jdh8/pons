@@ -215,6 +215,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Five more A/B harnesses the pin-at-build sweeps had missed**, the same
+  idiom a third time: one stance built in `main`, the knob set inside the
+  per-call bidding loop, where the cell is a pinned `InstinctProfile` /
+  `ReadingProfile` member — so both sides bid identically and the run reported
+  a wash it had not measured.  `ab-nt-hcp` (`BILANS_FLOOR`, `NT_HCP_READ`),
+  `ab-fit-sum-game` (`FIT_SUM_GAME`, `SUPPORT_POINTS`, `FIT_SUM_SUPPORT_READ`),
+  `ab-bilans-floor` (`BILANS_FLOOR`), `ab-slam-entry` (`FLOOR_SLAM_ENTRY`) and
+  `ab-one-nt-runout` (13 runout/gambling cells) now hold a `[Stance; 2]` built
+  one arm at a time, indexed `stances[usize::from(seat_is_ns == feature_is_ns)]`
+  like their repaired siblings.  Measured at 3 000 deals, seed 0, against the
+  unfixed parent: `ab-bilans-floor` 0 → 125 divergent boards, `ab-slam-entry`
+  0 → 25, `ab-nt-hcp` 0 → 19, `ab-one-nt-runout` 0 → 8 (`--filter-1nt`),
+  `ab-fit-sum-game` 0 → 3.  The library is untouched, so the seeded smoke dumps
+  are byte-identical by construction.
+
+  Three of the five needed a second repair to measure anything at all: their
+  knob is *point arithmetic the net floor shadows by default*.
+  `slam_entry_reached` returns out of the bilans branch before reaching the
+  `FLOOR_SLAM_ENTRY` floor, and `points_or_net` masks its authored leg to
+  `authored & false` while `bilans_floor` is on and `net_collar` off — both
+  shipped defaults.  `ab-nt-hcp` already carried a `--no-bilans` escape for
+  exactly this; `ab-slam-entry` and `ab-fit-sum-game` now carry one too, and
+  the counts above for those two are with it.  Without it they read a clean
+  zero no matter how far apart the arms are set (`--threshold 40 --baseline 20`
+  still moved nothing), which is correct behaviour and not a measurement.
+
+  Also repaired: `bba-gen` armed `set_probed_reading(true)` after probing our
+  own floor and never reset it, so `--their-floor`'s deviation book — which
+  never probes — was built with a probed reading against an *empty* box map.
+  The bits are now off for that build alone and restored afterwards, since
+  `blinded()` further down repins off the armed thread and still needs them.
+  Two costs in `ab-point-count` are left recorded rather than patched, both
+  inert for that binary: `SUPPORT_POINTS` defaults *on*, so its baseline arm
+  mismatches the compiled rule registry while the candidate matches (same
+  answer, different code path), and the scale knobs stay armed on exit because
+  restoring them would mean hardcoding defaults that can drift.  Both close
+  structurally with the knob-to-value migration.
+
 - **`cargo test --all-features` back from 704 s to 100 s** (7×), with no
   shipped behaviour touched — the change lives entirely inside the crate's
   test module.  Nearly the whole suite was one test:

@@ -517,6 +517,17 @@ fn main() {
         // prices the scale rather than the whole system it would also rebuild.
         // `repin` is what keeps that expressible — it re-captures the knob state
         // into a built stance without touching the book underneath.
+        // ponytail: two known costs here, both inert for this binary and both
+        // closed structurally by the `Agreements` migration rather than patched:
+        //   - `SUPPORT_POINTS` defaults *on*, so `apply(false)` leaves the
+        //     baseline mismatching the compiled rule registry while the
+        //     candidate matches: the arms run different code paths (same answer,
+        //     different cost).  Narrowing the registry guard to the four cells
+        //     that actually drive the projection bake is the fix.
+        //   - the scale knobs are left at the candidate value on exit; restoring
+        //     them needs `constraint::{point_scale, support_points_now}`, which
+        //     are `pub(crate)`, and hardcoding the defaults here is the drift
+        //     that rotted `probe-card-axes`'s `Defaults::capture`.
         _ => {
             let mut baseline = american().against();
             let mut candidate = american().against();

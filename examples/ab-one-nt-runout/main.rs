@@ -9,8 +9,9 @@
 //!
 //! Each board is bid twice, duplicate style: at table A the feature pair sits
 //! North/South against a pair without it; at table B the teams swap seats.
-//! Both pairs play the very same books — the per-call thread-local flip serves
-//! both from one stance.  Boards whose two auctions reach different contracts
+//! Both pairs play the very same books; the knob is pinned into a stance at
+//! build, so each side bids off its own pre-built stance.  Boards whose two
+//! auctions reach different contracts
 //! are scored double dummy ([`ns_score_contract`], the actual penalty as bid),
 //! and the swing is credited to the feature team.
 //!
@@ -170,15 +171,68 @@ struct Args {
     show: usize,
 }
 
+/// Arm the measured configuration for one side, then build that side's stance
+///
+/// Every knob here is an [`InstinctProfile`] member, pinned into the stance at
+/// build — so this runs once per arm, not once per call.  For the `Runout` axis
+/// the base runout itself toggles per side (the original measure); for every
+/// other axis the base runout is on for both sides and only the named
+/// sub-feature flips, isolating its marginal value.
+///
+/// [`InstinctProfile`]: pons::bidding::instinct
+fn arm(args: &Args, on: bool) -> Stance {
+    set_runout_xx_min(args.xx_min);
+    set_one_nt_runout_universal(!args.no_universal);
+    // Baseline: runout on (except the Runout axis flips it), sub-features off.
+    set_one_nt_runout(args.compare != Compare::Runout || on);
+    set_unusual_2nt(Unusual2nt::FourFour);
+    set_penalize_escape_stack(false);
+    set_penalize_escape_values(false);
+    // Flip only the measured sub-feature on the feature side.
+    match args.compare {
+        Compare::EscapeStack => set_penalize_escape_stack(on),
+        Compare::EscapeValues => set_penalize_escape_values(on),
+        Compare::Minors5 if on => set_unusual_2nt(Unusual2nt::FiveFiveAdd),
+        Compare::Direct if on => set_unusual_2nt(Unusual2nt::Direct),
+        _ => {}
+    }
+
+    // Gambling 3NT / preemptive 4M over a double of our 1NT: configure the
+    // feature side (`on`) and its control as `(3NT armed, top-honor floor,
+    // outside ace, 4M armed)`.  Every non-gambling axis leaves the package off
+    // — the shipped suppress baseline.
+    let (g3_on, g3_honors, g3_ace, p4_on, p4_honors, p4_ace) = match (args.compare, on) {
+        // 3NT long-minor gamble arms (preempt 4M off both sides)
+        (Compare::GamblingLen, true) => (true, 0, false, false, 0, false),
+        (Compare::GamblingSemisolid, true) => (true, 2, false, false, 0, false),
+        (Compare::GamblingSemisolid, false) => (true, 0, false, false, 0, false),
+        (Compare::GamblingAce, true) => (true, 2, true, false, 0, false),
+        (Compare::GamblingAce, false) => (true, 2, false, false, 0, false),
+        (Compare::Gambling3nt, true) => (true, 2, true, false, 0, false),
+        // 4M long-major arms (3NT off both sides)
+        (Compare::Preempt4mLen, true) => (false, 2, true, true, 0, false),
+        (Compare::Preempt4mQuality, true) => (false, 2, true, true, 2, true),
+        // full package
+        (Compare::Gambling, true) => (true, 2, true, true, 2, true),
+        // every baseline / non-gambling axis: suppress (both games off)
+        _ => (false, 2, true, false, 2, true),
+    };
+    set_gambling_3nt_over_double(g3_on);
+    set_gambling_3nt_top_honors(g3_honors);
+    set_gambling_3nt_require_ace(g3_ace);
+    set_preempt_4m_over_double(p4_on);
+    set_preempt_4m_top_honors(p4_honors);
+    set_preempt_4m_require_ace(p4_ace);
+
+    american().against()
+}
+
 /// Bid out one deal, flipping the measured feature per acting side
 ///
-/// The thread-locals are set just before each classification, so this is safe
-/// under rayon: the worker sets and reads them on its own thread.  For the
-/// `Runout` axis the base runout itself toggles per side (the original measure);
-/// for every other axis the base runout is on for both sides and only the named
-/// sub-feature flips, isolating its marginal value.
+/// `stances` is `[baseline, feature]`; each side bids off its own pre-built
+/// stance rather than one stance and a per-call flag.
 fn bid_out(
-    stance: &Stance,
+    stances: &[Stance; 2],
     args: &Args,
     feature_is_ns: bool,
     dealer: Seat,
@@ -188,51 +242,7 @@ fn bid_out(
     while !auction.has_ended() {
         let seat = seat_to_act(dealer, auction.len());
         let seat_is_ns = matches!(seat, Seat::North | Seat::South);
-        let on = seat_is_ns == feature_is_ns;
-
-        set_runout_xx_min(args.xx_min);
-        set_one_nt_runout_universal(!args.no_universal);
-        // Baseline: runout on (except the Runout axis flips it), sub-features off.
-        set_one_nt_runout(args.compare != Compare::Runout || on);
-        set_unusual_2nt(Unusual2nt::FourFour);
-        set_penalize_escape_stack(false);
-        set_penalize_escape_values(false);
-        // Flip only the measured sub-feature on the feature side.
-        match args.compare {
-            Compare::EscapeStack => set_penalize_escape_stack(on),
-            Compare::EscapeValues => set_penalize_escape_values(on),
-            Compare::Minors5 if on => set_unusual_2nt(Unusual2nt::FiveFiveAdd),
-            Compare::Direct if on => set_unusual_2nt(Unusual2nt::Direct),
-            _ => {}
-        }
-
-        // Gambling 3NT / preemptive 4M over a double of our 1NT: configure the
-        // feature side (`on`) and its control as `(3NT armed, top-honor floor,
-        // outside ace, 4M armed)`.  Every non-gambling axis leaves the package off
-        // — the shipped suppress baseline.
-        let (g3_on, g3_honors, g3_ace, p4_on, p4_honors, p4_ace) = match (args.compare, on) {
-            // 3NT long-minor gamble arms (preempt 4M off both sides)
-            (Compare::GamblingLen, true) => (true, 0, false, false, 0, false),
-            (Compare::GamblingSemisolid, true) => (true, 2, false, false, 0, false),
-            (Compare::GamblingSemisolid, false) => (true, 0, false, false, 0, false),
-            (Compare::GamblingAce, true) => (true, 2, true, false, 0, false),
-            (Compare::GamblingAce, false) => (true, 2, false, false, 0, false),
-            (Compare::Gambling3nt, true) => (true, 2, true, false, 0, false),
-            // 4M long-major arms (3NT off both sides)
-            (Compare::Preempt4mLen, true) => (false, 2, true, true, 0, false),
-            (Compare::Preempt4mQuality, true) => (false, 2, true, true, 2, true),
-            // full package
-            (Compare::Gambling, true) => (true, 2, true, true, 2, true),
-            // every baseline / non-gambling axis: suppress (both games off)
-            _ => (false, 2, true, false, 2, true),
-        };
-        set_gambling_3nt_over_double(g3_on);
-        set_gambling_3nt_top_honors(g3_honors);
-        set_gambling_3nt_require_ace(g3_ace);
-        set_preempt_4m_over_double(p4_on);
-        set_preempt_4m_top_honors(p4_honors);
-        set_preempt_4m_require_ace(p4_ace);
-
+        let stance = &stances[usize::from(seat_is_ns == feature_is_ns)];
         auction.push(next_call(
             stance,
             deal[seat],
@@ -270,21 +280,26 @@ fn responder_over_double(auction: &Auction, dealer: Seat) -> Option<(Call, Seat)
     Some((responder_call, seat_to_act(dealer, nt + 2)))
 }
 
+/// Build the coverage stance: the full gambling package on for every seat
+fn arm_coverage(args: &Args) -> Stance {
+    set_runout_xx_min(args.xx_min);
+    set_one_nt_runout(true);
+    set_one_nt_runout_universal(!args.no_universal);
+    set_unusual_2nt(Unusual2nt::FourFour);
+    set_penalize_escape_stack(false);
+    set_penalize_escape_values(false);
+    set_gambling_3nt_over_double(true);
+    set_gambling_3nt_top_honors(2);
+    set_gambling_3nt_require_ace(true);
+    set_preempt_4m_over_double(true);
+    american().against()
+}
+
 /// Bid one deal with the full gambling package on for every seat (coverage mode)
 fn bid_coverage(stance: &Stance, args: &Args, dealer: Seat, deal: &FullDeal) -> Auction {
     let mut auction = Auction::new();
     while !auction.has_ended() {
         let seat = seat_to_act(dealer, auction.len());
-        set_runout_xx_min(args.xx_min);
-        set_one_nt_runout(true);
-        set_one_nt_runout_universal(!args.no_universal);
-        set_unusual_2nt(Unusual2nt::FourFour);
-        set_penalize_escape_stack(false);
-        set_penalize_escape_values(false);
-        set_gambling_3nt_over_double(true);
-        set_gambling_3nt_top_honors(2);
-        set_gambling_3nt_require_ace(true);
-        set_preempt_4m_over_double(true);
         auction.push(next_call(
             stance,
             deal[seat],
@@ -373,7 +388,6 @@ fn lead_inputs(
 
 fn main() {
     let args = Args::parse();
-    let stance = american().against();
 
     // Deal sequentially (seeded, reproducible); bid both tables in parallel.  With
     // --filter-1nt keep only deals holding a 1NT-opener candidate, to raise the
@@ -388,17 +402,20 @@ fn main() {
     }
 
     if args.coverage {
-        run_coverage(&stance, &args, &deals);
+        run_coverage(&arm_coverage(&args), &args, &deals);
         return;
     }
+
+    // `[baseline, feature]`, each armed and built once.
+    let stances = [arm(&args, false), arm(&args, true)];
 
     let boards: Vec<Board> = deals
         .par_iter()
         .map(|&(dealer, deal)| Board {
             deal,
             dealer,
-            table_a: bid_out(&stance, &args, true, dealer, &deal),
-            table_b: bid_out(&stance, &args, false, dealer, &deal),
+            table_a: bid_out(&stances, &args, true, dealer, &deal),
+            table_b: bid_out(&stances, &args, false, dealer, &deal),
         })
         .collect();
 
@@ -486,7 +503,10 @@ fn main() {
             let board = &boards[index];
             for (is_a, auction) in [(true, &board.table_a), (false, &board.table_b)] {
                 if let Some((contract, declarer, inferences)) =
-                    lead_inputs(auction, &stance, board.dealer, vul)
+                    // Every flipped knob is an `InstinctProfile` (floor) member;
+                    // `infer` reads the `ReadingProfile`, so both stances read
+                    // this auction identically and either serves.
+                    lead_inputs(auction, &stances[0], board.dealer, vul)
                 {
                     pending.push((index, is_a, contract, declarer));
                     questions.push(LeadQuestion {

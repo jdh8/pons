@@ -12,8 +12,9 @@
 //!
 //! Each board is bid twice, duplicate style: at table A the settle pair sits
 //! North/South against a pair without it; at table B the teams swap seats.  Both
-//! pairs play the very same books — the per-call thread-local flip serves both from
-//! one stance.  Boards whose two auctions reach different contracts are scored with
+//! pairs play the very same books; the knob is pinned into a stance at build, so
+//! each side bids off its own pre-built stance.  Boards whose two auctions reach
+//! different contracts are scored with
 //! [`ns_score_pd`] — **perfect defense, carrying the actual `X`/`XX`** — because the
 //! settle floor puts real doubled contracts on the table (it passes to defend), and
 //! those cannot be taken back.

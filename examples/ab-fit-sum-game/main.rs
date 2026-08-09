@@ -21,8 +21,9 @@
 //! The feature side runs the armed `--threshold`; the baseline side runs
 //! `--baseline` (the shipped `31` by default).  Each board is bid twice, duplicate style: at
 //! table A the feature pair sits North/South against a baseline pair, at table B
-//! the teams swap seats.  The per-call thread-local flip serves both stances from
-//! one book.  Divergent boards are scored two ways from the same DD table:
+//! the teams swap seats.  Both sides play the same book; the threshold is pinned
+//! into a stance at build, so each side bids off its own pre-built stance.
+//! Divergent boards are scored two ways from the same DD table:
 //! [`ns_score_contract`] (plain DD) and [`ns_score_pd`] (perfect defense, which
 //! prices a failing game as doubled) — a looser game gate can bid a game that
 //! goes down, so the PD column is where an over-loose threshold shows its cost.
@@ -42,7 +43,7 @@ use pons::Accumulator;
 use pons::american;
 use pons::bidding::Stance;
 use pons::bidding::constraint::set_support_points;
-use pons::bidding::instinct::{set_fit_sum_game, set_fit_sum_support_read};
+use pons::bidding::instinct::{set_bilans_floor, set_fit_sum_game, set_fit_sum_support_read};
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -79,6 +80,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     support_read: bool,
 
+    /// Disable the bilans net floor on both sides (the ambient environment): the
+    /// authored `fit_sum_game` leg of `points_or_net` is masked off while the net
+    /// floor is on, so the threshold only bites with it off.
+    #[arg(long, default_value_t = false)]
+    no_bilans: bool,
+
     /// Vulnerability: none, ns, ew, both
     #[arg(short, long, default_value = "none")]
     vulnerability: AbsoluteVulnerability,
@@ -94,10 +101,10 @@ struct Args {
 
 /// Bid out one deal, arming the fit-sum game gate only for the feature side
 ///
-/// The thread-local is set just before each classification, so this is safe under
-/// rayon: the worker sets and reads it on its own thread.
+/// All three knobs are pinned into a stance at build, so the two sides bid off
+/// two pre-built stances rather than one stance and a per-call flag.
 fn bid_out(
-    stance: &Stance,
+    stances: &[Stance; 2],
     args: &Args,
     feature_is_ns: bool,
     dealer: Seat,
@@ -107,18 +114,7 @@ fn bid_out(
     while !auction.has_ended() {
         let seat = seat_to_act(dealer, auction.len());
         let seat_is_ns = matches!(seat, Seat::North | Seat::South);
-        let feature_side = seat_is_ns == feature_is_ns;
-        let threshold = if feature_side {
-            args.threshold
-        } else {
-            args.baseline
-        };
-        set_fit_sum_game(threshold);
-        // The point-count scale is the shared environment, not the treatment:
-        // arm it identically for both sides so only the threshold differs.
-        set_support_points(args.support_points);
-        // Edit 1 treatment: the support-gauge read fires only for the feature side.
-        set_fit_sum_support_read(args.support_read && feature_side);
+        let stance = &stances[usize::from(seat_is_ns == feature_is_ns)];
         auction.push(next_call(
             stance,
             deal[seat],
@@ -133,7 +129,20 @@ fn bid_out(
 #[allow(clippy::cast_precision_loss)]
 fn main() {
     let args = Args::parse();
-    let stance = american().against();
+    // The point-count scale is the shared environment, not the treatment:
+    // arm it identically for both sides so only the threshold differs.
+    set_support_points(args.support_points);
+    // Likewise ambient: `points_or_net` masks the authored `fit_sum_game` leg to
+    // `authored & false` while the net floor is on, so the threshold only bites
+    // with it off (src/bidding/instinct.rs, `points_or_net`).
+    set_bilans_floor(!args.no_bilans);
+    set_fit_sum_game(args.baseline);
+    set_fit_sum_support_read(false);
+    let plain = american().against();
+    // Edit 1 treatment: the support-gauge read fires only for the feature side.
+    set_fit_sum_game(args.threshold);
+    set_fit_sum_support_read(args.support_read);
+    let stances = [plain, american().against()];
 
     // Deal sequentially (seeded, reproducible); bid both tables in parallel.
     let mut rng = StdRng::seed_from_u64(args.seed);
@@ -145,8 +154,8 @@ fn main() {
         .map(|&(dealer, deal)| Board {
             deal,
             dealer,
-            table_a: bid_out(&stance, &args, true, dealer, &deal),
-            table_b: bid_out(&stance, &args, false, dealer, &deal),
+            table_a: bid_out(&stances, &args, true, dealer, &deal),
+            table_b: bid_out(&stances, &args, false, dealer, &deal),
         })
         .collect();
 

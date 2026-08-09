@@ -20,8 +20,9 @@
 //!
 //! Each board is bid twice, duplicate style: at table A the net pair sits
 //! North/South against a pair without it; at table B the teams swap seats.  Both
-//! pairs play the very same books — the per-call thread-local flip serves both
-//! from one stance.  Divergent boards are scored two ways from one DD table:
+//! pairs play the very same books; the knob is pinned into a stance at build, so
+//! each side bids off its own pre-built stance.  Divergent boards are scored two
+//! ways from one DD table:
 //! [`ns_score_pd`] (perfect defense, prices the road-not-taken as doubled) and
 //! [`ns_score_contract`] (plain DD) — the standard bracket; read the verdict
 //! from the decision table in `docs/measurement.md`.

@@ -1938,16 +1938,30 @@ fn main() -> anyhow::Result<()> {
     // so only this book carries them — they are read at book construction, the
     // same discipline `--ns-*` follows above.
     let their_floor = match &args.their_floor {
-        Some(name) => Some(under(their_ns.as_ref(), &args, || {
-            deviant_floor(
-                name,
-                &our_card,
-                args.their_dial,
-                args.their_overcall_four_card,
-                args.their_offshape_1nt,
-                args.their_wild_weak_two,
-            )
-        })?),
+        Some(name) => {
+            // `--ns-probe` above pinned the probed overlay into `our_floor` and
+            // left the bits armed on this thread.  Their book never probed, so
+            // building it armed would fold a probed reading against an *empty*
+            // box map.  Off for this build only, then restored — `blinded` below
+            // repins off the armed thread and still needs them.
+            pons::bidding::set_probed_reading(false);
+            pons::bidding::set_probed_vacuous_reading(false);
+            let built = under(their_ns.as_ref(), &args, || {
+                deviant_floor(
+                    name,
+                    &our_card,
+                    args.their_dial,
+                    args.their_overcall_four_card,
+                    args.their_offshape_1nt,
+                    args.their_wild_weak_two,
+                )
+            })?;
+            if args.ns_probe > 0 {
+                pons::bidding::set_probed_vacuous_reading(args.ns_probe_vacuous);
+                pons::bidding::set_probed_reading(!args.ns_probe_vacuous);
+            }
+            Some(built)
+        }
         None => None,
     };
     // The reading channel (Phase 2b), attached here because it needs the

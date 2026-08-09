@@ -14,8 +14,9 @@
 //!
 //! Each board is bid twice, duplicate style: at table A the feature pair sits
 //! North/South against a pair at 33; at table B the teams swap seats.  Both pairs
-//! play the same books — the per-call thread-local flip serves both from one
-//! stance.  Divergent boards are scored two ways from the same DD table:
+//! play the same books; the knob is pinned into a stance at build, so each side
+//! bids off its own pre-built stance.  Divergent boards are scored two ways from
+//! the same DD table:
 //! [`ns_score_contract`] (plain DD) and [`ns_score_pd`] (perfect defense, which
 //! prices a failing slam as doubled) — a lowered slam gate can reach a slam that
 //! goes down, so the PD column is where an over-loose threshold shows its cost.
@@ -39,7 +40,7 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::Accumulator;
 use pons::american;
 use pons::bidding::Stance;
-use pons::bidding::instinct::set_floor_slam_entry;
+use pons::bidding::instinct::{set_bilans_floor, set_floor_slam_entry};
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -63,6 +64,12 @@ struct Args {
     /// The lowered RKCB-ask combined-points floor for the feature side
     #[arg(short, long, default_value = "28")]
     threshold: u8,
+
+    /// Disable the bilans net floor on both sides (the ambient environment):
+    /// `slam_entry_reached` short-circuits into the bilans branch when the net
+    /// floor is on, so this threshold only bites with it off.
+    #[arg(long, default_value_t = false)]
+    no_bilans: bool,
 
     /// Vulnerability: none, ns, ew, both
     #[arg(short, long, default_value = "none")]
@@ -96,7 +103,7 @@ struct Args {
 /// The thread-local is set just before each classification, so this is safe under
 /// rayon: the worker sets and reads it on its own thread.
 fn bid_out(
-    stance: &Stance,
+    stances: &[Stance; 2],
     args: &Args,
     feature_is_ns: bool,
     dealer: Seat,
@@ -106,12 +113,7 @@ fn bid_out(
     while !auction.has_ended() {
         let seat = seat_to_act(dealer, auction.len());
         let seat_is_ns = matches!(seat, Seat::North | Seat::South);
-        let threshold = if seat_is_ns == feature_is_ns {
-            args.threshold
-        } else {
-            BASELINE
-        };
-        set_floor_slam_entry(threshold);
+        let stance = &stances[usize::from(seat_is_ns == feature_is_ns)];
         auction.push(next_call(
             stance,
             deal[seat],
@@ -126,7 +128,13 @@ fn bid_out(
 #[allow(clippy::cast_precision_loss)]
 fn main() {
     let args = Args::parse();
-    let stance = american().against();
+    // Ambient environment (both sides): the point floor is shadowed unless the
+    // net floor is off (`slam_entry_reached`, src/bidding/instinct.rs).
+    set_bilans_floor(!args.no_bilans);
+    set_floor_slam_entry(BASELINE);
+    let plain = american().against();
+    set_floor_slam_entry(args.threshold);
+    let stances = [plain, american().against()];
 
     // Deal sequentially (seeded, reproducible); bid both tables in parallel.
     let mut rng = StdRng::seed_from_u64(args.seed);
@@ -138,8 +146,8 @@ fn main() {
         .map(|&(dealer, deal)| Board {
             deal,
             dealer,
-            table_a: bid_out(&stance, &args, true, dealer, &deal),
-            table_b: bid_out(&stance, &args, false, dealer, &deal),
+            table_a: bid_out(&stances, &args, true, dealer, &deal),
+            table_b: bid_out(&stances, &args, false, dealer, &deal),
         })
         .collect();
 
@@ -201,7 +209,10 @@ fn main() {
                     auction,
                     board.dealer,
                     &board.deal,
-                    &stance,
+                    // The flipped knob is an `InstinctProfile` (floor) member and
+                    // the playout only calls `infer`, which reads the
+                    // `ReadingProfile` — so either stance reads identically.
+                    &stances[0],
                     args.vulnerability,
                     &mut rng,
                     args.sd_worlds,
