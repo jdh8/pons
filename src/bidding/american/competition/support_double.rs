@@ -52,14 +52,14 @@ pub(super) fn support_double_package() -> Package {
     Package {
         name: "support-double",
         gate: |_| true,
-        entries: |_| {
+        entries: |agreements| {
             let mut support_pairs = vec![
                 (Suit::Clubs, Suit::Hearts),
                 (Suit::Clubs, Suit::Spades),
                 (Suit::Diamonds, Suit::Hearts),
                 (Suit::Diamonds, Suit::Spades),
             ];
-            if major_support_double() {
+            if agreements.build.competition.major_support_double {
                 support_pairs.push((Suit::Hearts, Suit::Spades));
             }
             let mut entries = Vec::new();

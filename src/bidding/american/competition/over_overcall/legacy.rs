@@ -5,7 +5,7 @@ use super::*;
 /// its legality-anchored constraints (`min_level_is`, `they_bid`) resolve
 /// per context exactly as the guard consulted it
 #[cfg(test)]
-pub(crate) fn over_their_overcall_legacy(opening: Suit) -> Rules {
+pub(crate) fn over_their_overcall_legacy(opening: Suit, agreements: &Agreements) -> Rules {
     let o = opening;
     let o_strain = Strain::from(o);
 
@@ -67,7 +67,7 @@ pub(crate) fn over_their_overcall_legacy(opening: Suit) -> Rules {
     // "which overcall" conditions are legality-anchored: `min_level_is(1, ♥)`
     // holds exactly over a (1♦) overcall, `they_bid(♥) & min_level_is(1, ♠)`
     // exactly over (1♥).
-    let shape = negative_double_shape();
+    let shape = agreements.build.competition.negative_double_shape;
     rules = if is_major {
         // Other major, 4+ cards, 8+ HCP
         rules
@@ -130,7 +130,7 @@ pub(crate) fn over_their_overcall_legacy(opening: Suit) -> Rules {
                     100,
                     min_level_is(1, Strain::Hearts)
                         & len(Suit::Hearts, 4..)
-                        & points(free_bid_floor()..),
+                        & points(agreements.build.competition.free_bid_floor..),
                 )
                 .alert(CACHALOT_X)
                 // Over (1♥): X transfers — 4+ spades.
@@ -140,7 +140,7 @@ pub(crate) fn over_their_overcall_legacy(opening: Suit) -> Rules {
                     they_bid(Strain::Hearts)
                         & min_level_is(1, Strain::Spades)
                         & len(Suit::Spades, 4..)
-                        & points(free_bid_floor()..),
+                        & points(agreements.build.competition.free_bid_floor..),
                 )
                 .alert(CACHALOT_X)
                 // Natural from (1♠) up: the Modern rules apply.
@@ -211,7 +211,7 @@ pub(crate) fn over_their_overcall_legacy(opening: Suit) -> Rules {
     // double floors at or below 12) but the suit floors collapse to zero:
     // the named OR-projection wall, priced by the Stage-B A/B. Weight below
     // the cue (2.0) and the free bids (1.45) so a biddable hand still bids.
-    if free_bid_style() == FreeBidStyle::Negative {
+    if agreements.build.competition.free_bid_style == FreeBidStyle::Negative {
         rules = rules
             .rule(Call::Double, 90, points(12..))
             .alert(NEGATIVE_DOUBLE);
@@ -232,7 +232,7 @@ pub(crate) fn over_their_overcall_legacy(opening: Suit) -> Rules {
                 min_level_is(1, Strain::Hearts)
                     & len(Suit::Spades, 4..)
                     & len(Suit::Hearts, ..=3)
-                    & points(free_bid_floor()..),
+                    & points(agreements.build.competition.free_bid_floor..),
             )
             .alert(CACHALOT_TRANSFER)
             // Over (1♦): 1♠ = the takeout hand, ≤3 in both majors. Sits below
@@ -268,14 +268,14 @@ pub(crate) fn over_their_overcall_legacy(opening: Suit) -> Rules {
                 145,
                 min_level_is(1, Strain::Hearts)
                     & len(Suit::Hearts, 4..)
-                    & points(free_bid_floor()..),
+                    & points(agreements.build.competition.free_bid_floor..),
             )
             .rule(
                 Bid::new(1, Strain::Spades),
                 145,
                 min_level_is(1, Strain::Spades)
                     & len(Suit::Spades, 4..)
-                    & points(free_bid_floor()..),
+                    & points(agreements.build.competition.free_bid_floor..),
             );
     }
 
@@ -283,7 +283,7 @@ pub(crate) fn over_their_overcall_legacy(opening: Suit) -> Rules {
     // shapes, whose tighter doubles need the natural outlet). A free bid of
     // their suit is the cue above; the 1-level majors stay out of the
     // Cachalot rotation's way (a 5-card major routes through its transfer).
-    if free_bids_engaged() {
+    if free_bids_engaged(agreements) {
         // Cachalot and Sputnik both author their own 1-level majors above, so
         // skip the shared 5+ rule for them (Cachalot rotates, Sputnik lowers to
         // 4+).
@@ -298,9 +298,11 @@ pub(crate) fn over_their_overcall_legacy(opening: Suit) -> Rules {
             }
             let xs = Strain::from(x);
             if !(rotate && matches!(x, Suit::Hearts | Suit::Spades)) {
-                let one_level =
-                    min_level_is(1, xs) & len(x, 5..) & points(free_bid_floor()..) & !they_bid(xs);
-                rules = if free_bid_quality() {
+                let one_level = min_level_is(1, xs)
+                    & len(x, 5..)
+                    & points(agreements.build.competition.free_bid_floor..)
+                    & !they_bid(xs);
+                rules = if agreements.build.competition.free_bid_quality {
                     rules.rule(
                         Bid::new(1, xs),
                         145,
@@ -310,7 +312,7 @@ pub(crate) fn over_their_overcall_legacy(opening: Suit) -> Rules {
                     rules.rule(Bid::new(1, xs), 145, one_level)
                 };
             }
-            match free_bid_style() {
+            match agreements.build.competition.free_bid_style {
                 // Forcing one round (the shipped default), answered by 4d.
                 FreeBidStyle::Forcing => {
                     rules = rules.rule(
@@ -343,7 +345,7 @@ pub(crate) fn over_their_overcall_legacy(opening: Suit) -> Rules {
         // higher. A lone slot — or all three over a (1NT) overcall — stays
         // natural-forcing. Unlimited at 6+: the weak hand passes the
         // completion, strength clarifies a round later.
-        if free_bid_style() == FreeBidStyle::Transfer {
+        if agreements.build.competition.free_bid_style == FreeBidStyle::Transfer {
             let others: Vec<Suit> = [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades]
                 .into_iter()
                 .filter(|&x| x != o)
@@ -389,9 +391,9 @@ pub(crate) fn over_their_overcall_legacy(opening: Suit) -> Rules {
             }
         }
         let one_notrump = min_level_is(1, Strain::Notrump)
-            & hcp(free_1nt_floor()..=10)
+            & hcp(agreements.build.competition.free_1nt_floor..=10)
             & stopper_in_their_suits();
-        rules = if free_bid_quality() {
+        rules = if agreements.build.competition.free_bid_quality {
             rules.rule(
                 Bid::new(1, Strain::Notrump),
                 90,

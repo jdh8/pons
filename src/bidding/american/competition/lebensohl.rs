@@ -5,10 +5,8 @@
 //! ("Rubensohl") variant is [`super::rubensohl`]; [`LebensohlStyle`] picks
 //! between them.
 
-use super::cue_raise::delayed_cue;
 use super::penalty_double::{
-    DoubleStyle, double_style, opener_cooperates_optional, opener_leaves_in_penalty_double,
-    penalty_double_leave_in, penalty_pass, responder_double, trap_pass,
+    DoubleStyle, opener_cooperates_optional, opener_leaves_in_penalty_double, responder_double,
 };
 use super::rubensohl::{
     clubs_transfer_completion, cue_stayman_answer, lm_2d_both_majors_advance, lm_2d_clubs_ask,
@@ -96,9 +94,17 @@ pub fn direct_3nt_stopper() -> bool {
 /// stopper ([`direct_3nt_stopper`]) and trap-pass ([`trap_pass`]) toggles. The
 /// trap denies a too-good stopper (`suit_hcp(over, ..=4)`). The `&`-chained
 /// constraints have distinct types, so each combination is authored in its own arm.
-pub(super) fn author_direct_3nt(rules: Rules, weight: i16, over: Suit) -> Rules {
+pub(super) fn author_direct_3nt(
+    rules: Rules,
+    weight: i16,
+    over: Suit,
+    agreements: &Agreements,
+) -> Rules {
     let nt = Bid::new(3, Strain::Notrump);
-    match (direct_3nt_stopper(), trap_pass()) {
+    match (
+        agreements.build.competition.direct_3nt_stopper,
+        agreements.build.competition.trap_pass,
+    ) {
         (true, true) => rules.rule(
             nt,
             weight,
@@ -139,21 +145,26 @@ pub fn set_natural_floor(hcp_floor: u8, points_floor: u8) {
     NATURAL_FLOOR.with(|cell| cell.set((hcp_floor, points_floor)));
 }
 
+/// `(hcp_floor, points_floor)` on the weak natural escape (the raw knob)
+pub(super) fn natural_floor() -> (u8, u8) {
+    NATURAL_FLOOR.with(Cell::get)
+}
+
 /// Whether the weak natural escape is floored (and opener may raise it)
-pub(super) fn natural_floor_on() -> bool {
-    let (hcp, points) = NATURAL_FLOOR.with(Cell::get);
-    hcp > 0 || points > 0
+pub(super) fn natural_floor_on(agreements: &Agreements) -> bool {
+    let natural_floor = agreements.build.competition.natural_floor;
+    natural_floor.0 > 0 || natural_floor.1 > 0
 }
 
 /// The HCP floor on the weak natural escape (`0` = none) — a bound, so the
 /// constraint type stays stable whether or not the floor is engaged.
-pub(super) fn natural_floor_hcp() -> u8 {
-    NATURAL_FLOOR.with(Cell::get).0
+pub(super) fn natural_floor_hcp(agreements: &Agreements) -> u8 {
+    agreements.build.competition.natural_floor.0
 }
 
 /// The total-points floor on the weak natural escape (`0` = none)
-pub(super) fn natural_floor_pts() -> u8 {
-    NATURAL_FLOOR.with(Cell::get).1
+pub(super) fn natural_floor_pts(agreements: &Agreements) -> u8 {
+    agreements.build.competition.natural_floor.1
 }
 
 thread_local! {
@@ -199,8 +210,8 @@ pub fn defense_to_2d_multi() -> bool {
 }
 
 /// Whether the `(2♦)`-as-Multi counter-defense is engaged
-fn defense_2d_multi() -> bool {
-    DEFENSE_2D_MULTI.with(Cell::get)
+fn defense_2d_multi(agreements: &Agreements) -> bool {
+    agreements.build.competition.defense_2d_multi
 }
 
 /// The single unbid major when `over` is itself a major (the other major)
@@ -253,7 +264,7 @@ pub(super) fn lebensohl_relay_shape(over: Suit) -> Cons<impl Constraint + Clone>
 // prefix and the bidder's identity never enter — so `american/defense.rs` reuses
 // them verbatim for "sohl after a takeout double" (advancing partner's takeout
 // double of a weak two), where the opponents' suit is likewise at the two level.
-pub(crate) fn lebensohl_responder(over: Suit) -> Rules {
+pub(crate) fn lebensohl_responder(over: Suit, agreements: &Agreements) -> Rules {
     let mut rules = Rules::new();
 
     // Forcing 3-level new suit: game-forcing, 5+ cards. A jump (when the 2-level
@@ -290,10 +301,10 @@ pub(crate) fn lebensohl_responder(over: Suit) -> Rules {
 
     // Direct 3NT to play: game values with their suit stopped (toggles: drop the
     // stopper requirement, and/or trap-pass with 4+ in their suit).
-    rules = author_direct_3nt(rules, 170, over);
+    rules = author_direct_3nt(rules, 170, over, agreements);
 
     // Responder's double of their overcall (penalty by default; see [`DoubleStyle`]).
-    rules = responder_double(rules, over);
+    rules = responder_double(rules, over, agreements);
 
     // Natural new suit at the 2 level (above the overcall, below 2NT): weak,
     // competitive, to play.
@@ -308,8 +319,8 @@ pub(crate) fn lebensohl_responder(over: Suit) -> Rules {
             min_level_is(2, strain)
                 & len(s, 5..)
                 & points(..=9)
-                & hcp(natural_floor_hcp()..)
-                & points(natural_floor_pts()..),
+                & hcp(natural_floor_hcp(agreements)..)
+                & points(natural_floor_pts(agreements)..),
         );
     }
 
@@ -340,7 +351,7 @@ pub(crate) fn lebensohl_responder(over: Suit) -> Rules {
 /// diamonds. The `2NT` relay and its `3♣` completion are the shared Lebensohl
 /// machinery (registered for `(2♦)` regardless of this toggle), so weak
 /// club/diamond one-suiters keep their sign-off.
-fn multi_responder() -> Rules {
+fn multi_responder(agreements: &Agreements) -> Rules {
     let over = Suit::Diamonds; // the call we sit over; their real suit is a major
     let mut rules = Rules::new();
 
@@ -358,7 +369,7 @@ fn multi_responder() -> Rules {
     }
 
     // Direct 3NT to play (default toggles → plain game values).
-    rules = author_direct_3nt(rules, 170, over);
+    rules = author_direct_3nt(rules, 170, over, agreements);
 
     // Natural weak 2-level major — both majors clear the `2♦` overcall.
     for s in [Suit::Hearts, Suit::Spades] {
@@ -366,7 +377,10 @@ fn multi_responder() -> Rules {
         rules = rules.rule(
             Bid::new(2, strain),
             150,
-            len(s, 5..) & points(..=9) & hcp(natural_floor_hcp()..) & points(natural_floor_pts()..),
+            len(s, 5..)
+                & points(..=9)
+                & hcp(natural_floor_hcp(agreements)..)
+                & points(natural_floor_pts(agreements)..),
         );
     }
 
@@ -387,7 +401,7 @@ pub(crate) fn complete_lebensohl_relay() -> Rules {
 /// Responder's rebid after the `2NT` relay is completed at `3♣`
 ///
 /// Pass to play clubs, or correct to the six-card suit (still a weak sign-off).
-pub(crate) fn lebensohl_relay_rebid(over: Suit) -> Rules {
+pub(crate) fn lebensohl_relay_rebid(over: Suit, agreements: &Agreements) -> Rules {
     let mut rules = Rules::new();
     for s in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         if s == over {
@@ -403,7 +417,7 @@ pub(crate) fn lebensohl_relay_rebid(over: Suit) -> Rules {
     // Stopper-split on: the *delayed* cue of their suit — Stayman with a stopper,
     // game-forcing, exactly a 4-card unbid major (denies 5). Answered by
     // [`cue_stayman_answer`] (the stopper is guaranteed, so 3NT is safe).
-    if let (true, Some(major)) = (delayed_cue(), unbid_major(over)) {
+    if let (true, Some(major)) = (agreements.build.competition.delayed_cue, unbid_major(over)) {
         rules = rules
             .rule(
                 Bid::new(3, Strain::from(over)),
@@ -455,10 +469,10 @@ pub(super) fn lebensohl_signoff_raise(signoff: Suit, resp_floor: u8) -> Rules {
 pub(super) fn lebensohl_package() -> Package {
     Package {
         name: "lebensohl",
-        gate: |_| lebensohl_style() != LebensohlStyle::Off,
-        entries: |_| {
+        gate: |agreements| agreements.build.competition.lebensohl_style != LebensohlStyle::Off,
+        entries: |agreements| {
             const NT: &str = "P* 1NT";
-            let style = lebensohl_style();
+            let style = agreements.build.competition.lebensohl_style;
 
             // Over a natural (2♣) overcall we play *systems on*, not Lebensohl:
             // 2♣ steals no room (every transfer/relay still sits above it), so
@@ -517,7 +531,8 @@ pub(super) fn lebensohl_package() -> Package {
             // colliding.  `stayman_answers()` rides along as the always-mass
             // catch-all, so a hand failing the club gate just answers Stayman
             // exactly as the rebase would (no silent pass).
-            if let Some((min_len, min_hcp, over_major)) = penalty_pass() {
+            if let Some((min_len, min_hcp, over_major)) = agreements.build.competition.penalty_pass
+            {
                 let pass_logit = if over_major { 150 } else { 75 };
                 entries.extend(rows_of(
                     Pattern::after("P* 1NT (2♣)", "X -"),
@@ -540,13 +555,17 @@ pub(super) fn lebensohl_package() -> Package {
                 entries.extend(rows_of(
                     Pattern::after(NT, &their),
                     match style {
-                        _ if over == Suit::Diamonds && defense_2d_multi() => multi_responder(),
+                        _ if over == Suit::Diamonds && defense_2d_multi(agreements) => {
+                            multi_responder(agreements)
+                        }
                         LebensohlStyle::Transfer if over == Suit::Diamonds => {
                             // gate_4333 = true: our 1NT overcalled, partner is balanced.
-                            transfer_stayman_2d_responder(true)
+                            transfer_stayman_2d_responder(true, agreements)
                         }
-                        LebensohlStyle::Transfer => transfer_lebensohl_responder(over, true),
-                        _ => lebensohl_responder(over),
+                        LebensohlStyle::Transfer => {
+                            transfer_lebensohl_responder(over, true, agreements)
+                        }
+                        _ => lebensohl_responder(over, agreements),
                     },
                 ));
 
@@ -555,14 +574,17 @@ pub(super) fn lebensohl_package() -> Package {
                 // advance and pulls — the documented leak); the optional style
                 // cooperates (stand on a fit, run with a doubleton); takeout
                 // keeps the floor's advance.  Gated on the leave-in knob.
-                let opener_reply = match double_style() {
+                let opener_reply = match agreements.build.competition.double_style {
                     DoubleStyle::Penalty | DoubleStyle::PenaltyLight => {
                         Some(opener_leaves_in_penalty_double())
                     }
                     DoubleStyle::Optional => Some(opener_cooperates_optional(over)),
                     DoubleStyle::Takeout => None,
                 };
-                if let (true, Some(reply)) = (penalty_double_leave_in(), opener_reply) {
+                if let (true, Some(reply)) = (
+                    agreements.build.competition.penalty_double_leave_in,
+                    opener_reply,
+                ) {
                     entries.extend(rows_of(Pattern::after(NT, &format!("{their} X -")), reply));
                 }
 
@@ -575,7 +597,7 @@ pub(super) fn lebensohl_package() -> Package {
                 let relay = format!("{their} 2NT - 3♣ -");
                 entries.extend(rows_of(
                     Pattern::after(NT, &relay),
-                    lebensohl_relay_rebid(over),
+                    lebensohl_relay_rebid(over, agreements),
                 ));
 
                 // Opener's reply to a weak major sign-off: pass, or stretch to
@@ -601,14 +623,14 @@ pub(super) fn lebensohl_package() -> Package {
                 // [`lebensohl_signoff_raise`], but fed the natural floor (5, not
                 // the relay's 6) so opener's game bar is one point higher to
                 // compensate.
-                if natural_floor_on() {
+                if natural_floor_on(agreements) {
                     for signoff in [Suit::Hearts, Suit::Spades] {
                         if (signoff as u8) <= (over as u8) {
                             continue; // not above the overcall — no 2-level natural
                         }
                         entries.extend(rows_of(
                             Pattern::after(NT, &format!("{their} 2{} -", Strain::from(signoff))),
-                            lebensohl_signoff_raise(signoff, natural_floor_hcp()),
+                            lebensohl_signoff_raise(signoff, natural_floor_hcp(agreements)),
                         ));
                     }
                 }

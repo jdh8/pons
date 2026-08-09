@@ -59,7 +59,7 @@ pub fn set_redouble_answer(on: bool) {
 }
 
 /// Whether opener's answer over the value redouble is authored
-fn redouble_answer() -> bool {
+pub(super) fn redouble_answer() -> bool {
     REDOUBLE_ANSWER.with(Cell::get)
 }
 
@@ -123,8 +123,8 @@ pub fn splinter_doubled() -> bool {
 pub(super) fn jordan_truscott_package() -> Package {
     Package {
         name: "P4:jordan-truscott",
-        gate: |_| jordan_truscott(),
-        entries: |_| {
+        gate: |agreements| agreements.build.competition.jordan_truscott,
+        entries: |agreements| {
             let mut entries = Vec::new();
             for o in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
                 let o_strain = Strain::from(o);
@@ -218,7 +218,7 @@ pub(super) fn jordan_truscott_package() -> Package {
                         .push(row(preempt.clone(), Bid::new(5, o_strain), 90, points(19..)).into());
                 }
                 entries.push(row(preempt, Call::Pass, 0, hcp(0..)).into());
-                if redouble_answer() {
+                if agreements.build.competition.redouble_answer {
                     entries
                         .push(row(Pattern::after(&key, "XX -"), Call::Pass, 60, hcp(0..)).into());
                 }
@@ -256,7 +256,7 @@ pub(super) fn jordan_truscott_package() -> Package {
 pub(super) fn splinter_doubled_package() -> Package {
     Package {
         name: "splinter-doubled",
-        gate: |_| splinter_doubled(),
+        gate: |agreements| agreements.build.competition.splinter_doubled,
         entries: |_| {
             let mut entries = Vec::new();
             for major in [Suit::Hearts, Suit::Spades] {

@@ -177,7 +177,7 @@ pub(super) fn advance_of_double_package() -> Package {
     Package {
         name: "advance-of-weak-two-double",
         gate: |_| true,
-        entries: |_| {
+        entries: |agreements| {
             let style = advance_sohl_style();
             [Suit::Diamonds, Suit::Hearts, Suit::Spades]
                 .into_iter()
@@ -191,7 +191,7 @@ pub(super) fn advance_of_double_package() -> Package {
                         // partner is short in their suit, so the 4-4 fit keeps its
                         // ruffing value (the 4333 curse does not apply here, and
                         // that A/B was never run).
-                        sohl_rows_over(&base, suit, style, false)
+                        sohl_rows_over(&base, suit, style, false, agreements)
                     }
                 })
                 .collect()

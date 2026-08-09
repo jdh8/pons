@@ -5,7 +5,6 @@
 //! with Smolen behind it, and the Leaping Michaels advances.
 //! [`Competitive4333`] gates whether a flat 4333 takes the transfer.
 
-use super::cue_raise::delayed_cue;
 use super::lebensohl::{author_direct_3nt, natural_floor_hcp, natural_floor_pts};
 use super::lebensohl::{lebensohl_relay_shape, unbid_major};
 use super::penalty_double::responder_double;
@@ -47,7 +46,7 @@ pub fn set_competitive_4333(mode: Competitive4333) {
 }
 
 /// The active [`Competitive4333`] mode
-fn competitive_4333() -> Competitive4333 {
+pub(super) fn competitive_4333() -> Competitive4333 {
     COMPETITIVE_4333.with(Cell::get)
 }
 
@@ -60,9 +59,13 @@ fn competitive_4333() -> Competitive4333 {
 /// takeout double (`gate = false`) partner is *short* in their suit, so the 4-4
 /// fit keeps its ruffing value and the cue is never diverted — the curse does not
 /// apply, and that A/B was never run.
-fn competitive_4333_ok(over: Suit, gate: bool) -> Cons<impl Constraint + Clone> {
+fn competitive_4333_ok(
+    over: Suit,
+    gate: bool,
+    agreements: &Agreements,
+) -> Cons<impl Constraint + Clone + use<>> {
     let mode = if gate {
-        competitive_4333()
+        agreements.build.competition.competitive_4333
     } else {
         Competitive4333::Allow
     };
@@ -108,7 +111,11 @@ pub(crate) fn transfer_target(bid_suit: Suit, over: Suit) -> Option<Suit> {
 /// natural 2-level call, a 3-level transfer to a suit above theirs is INV+ — so
 /// opener is driven to game (see [`transfer_completion`]) and a game is never
 /// stranded in a partscore (the Rubensohl-v1 failure).
-pub(crate) fn transfer_lebensohl_responder(over: Suit, gate_4333: bool) -> Rules {
+pub(crate) fn transfer_lebensohl_responder(
+    over: Suit,
+    gate_4333: bool,
+    agreements: &Agreements,
+) -> Rules {
     let mut rules = Rules::new();
 
     // 3-level transfers (INV+, 5+ in the target) and the cue (Stayman, GF).
@@ -121,7 +128,7 @@ pub(crate) fn transfer_lebensohl_responder(over: Suit, gate_4333: bool) -> Rules
             // stopper hands relay through 2NT to the delayed cue (the broadened
             // 2NT below + [`lebensohl_relay_rebid`]).
             let cue = Bid::new(3, strain);
-            let split = delayed_cue() && unbid_major(over).is_some();
+            let split = agreements.build.competition.delayed_cue && unbid_major(over).is_some();
             rules = match (over, split) {
                 (Suit::Hearts, true) => rules
                     .rule(
@@ -130,7 +137,7 @@ pub(crate) fn transfer_lebensohl_responder(over: Suit, gate_4333: bool) -> Rules
                         len(Suit::Spades, 4..)
                             & points(10..)
                             & !stopper_in(over)
-                            & competitive_4333_ok(over, gate_4333),
+                            & competitive_4333_ok(over, gate_4333, agreements),
                     )
                     .alert(LEBENSOHL_CUE),
                 (Suit::Spades, true) => rules
@@ -140,7 +147,7 @@ pub(crate) fn transfer_lebensohl_responder(over: Suit, gate_4333: bool) -> Rules
                         len(Suit::Hearts, 4..)
                             & points(10..)
                             & !stopper_in(over)
-                            & competitive_4333_ok(over, gate_4333),
+                            & competitive_4333_ok(over, gate_4333, agreements),
                     )
                     .alert(LEBENSOHL_CUE),
                 (Suit::Hearts, false) => rules
@@ -149,7 +156,7 @@ pub(crate) fn transfer_lebensohl_responder(over: Suit, gate_4333: bool) -> Rules
                         170,
                         len(Suit::Spades, 4..)
                             & points(10..)
-                            & competitive_4333_ok(over, gate_4333),
+                            & competitive_4333_ok(over, gate_4333, agreements),
                     )
                     .alert(LEBENSOHL_CUE),
                 (Suit::Spades, false) => rules
@@ -158,7 +165,7 @@ pub(crate) fn transfer_lebensohl_responder(over: Suit, gate_4333: bool) -> Rules
                         170,
                         len(Suit::Hearts, 4..)
                             & points(10..)
-                            & competitive_4333_ok(over, gate_4333),
+                            & competitive_4333_ok(over, gate_4333, agreements),
                     )
                     .alert(LEBENSOHL_CUE),
                 _ => rules
@@ -167,7 +174,7 @@ pub(crate) fn transfer_lebensohl_responder(over: Suit, gate_4333: bool) -> Rules
                         170,
                         (len(Suit::Hearts, 4..) | len(Suit::Spades, 4..))
                             & points(10..)
-                            & competitive_4333_ok(over, gate_4333),
+                            & competitive_4333_ok(over, gate_4333, agreements),
                     )
                     .alert(LEBENSOHL_CUE),
             };
@@ -204,13 +211,13 @@ pub(crate) fn transfer_lebensohl_responder(over: Suit, gate_4333: bool) -> Rules
     // Direct 3NT to play: game values with their suit stopped, no major to show
     // (toggles: drop the stopper requirement, and/or trap-pass with 4+ in their
     // suit — long-in-their-suit defends better than it declares).
-    rules = author_direct_3nt(rules, 150, over);
+    rules = author_direct_3nt(rules, 150, over, agreements);
 
     // Stopper-split on: a GF hand with a stopper *and* exactly a 4-card unbid
     // major relays through 2NT to bid the cue *slowly* (Stayman with a stopper,
     // see [`lebensohl_relay_rebid`]) — outweighing direct 3NT (1.5) so the 4-4
     // major fit is still found. Denies a 5-card major (Smolen / Leaping Michaels).
-    if let (true, Some(major)) = (delayed_cue(), unbid_major(over)) {
+    if let (true, Some(major)) = (agreements.build.competition.delayed_cue, unbid_major(over)) {
         rules = rules
             .rule(
                 Bid::new(2, Strain::Notrump),
@@ -223,7 +230,7 @@ pub(crate) fn transfer_lebensohl_responder(over: Suit, gate_4333: bool) -> Rules
     // Responder's double of their overcall (penalty by default; see
     // [`DoubleStyle`]). Authoring it is also what kept the floor's penalty
     // doubles — the Rubensohl-v1 attempt lost them by shadowing with no double.
-    rules = responder_double(rules, over);
+    rules = responder_double(rules, over, agreements);
 
     // Natural new suit at the 2 level (above the overcall, below 2NT): weak.
     for s in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
@@ -237,8 +244,8 @@ pub(crate) fn transfer_lebensohl_responder(over: Suit, gate_4333: bool) -> Rules
             min_level_is(2, strain)
                 & len(s, 5..)
                 & points(..=8)
-                & hcp(natural_floor_hcp()..)
-                & points(natural_floor_pts()..),
+                & hcp(natural_floor_hcp(agreements)..)
+                & points(natural_floor_pts(agreements)..),
         );
     }
 
@@ -338,7 +345,7 @@ pub(crate) fn cue_stayman_answer_no_stopper(over: Suit) -> Rules {
 /// `points(10..)` (≈ 8 HCP after the 5-5 upgrade) already forces game. The weak
 /// outlets (natural 2-level, `2NT` relay, penalty double, direct `3NT`) match
 /// `Transfer` so the A/B isolates the constructive change.
-pub(crate) fn transfer_stayman_2d_responder(gate_4333: bool) -> Rules {
+pub(crate) fn transfer_stayman_2d_responder(gate_4333: bool, agreements: &Agreements) -> Rules {
     let mut rules = Rules::new();
 
     // 3♣ = Stayman: game-forcing with *exactly* a 4-card major. A single 5-card
@@ -350,7 +357,7 @@ pub(crate) fn transfer_stayman_2d_responder(gate_4333: bool) -> Rules {
             185,
             (len(Suit::Hearts, 4..=4) | len(Suit::Spades, 4..=4))
                 & points(10..)
-                & competitive_4333_ok(Suit::Diamonds, gate_4333),
+                & competitive_4333_ok(Suit::Diamonds, gate_4333, agreements),
         )
         .alert(STAYMAN);
 
@@ -403,7 +410,7 @@ pub(crate) fn transfer_stayman_2d_responder(gate_4333: bool) -> Rules {
         150,
         points(10..) & stopper_in(Suit::Diamonds),
     );
-    rules = responder_double(rules, Suit::Diamonds);
+    rules = responder_double(rules, Suit::Diamonds, agreements);
     for s in [Suit::Hearts, Suit::Spades] {
         let strain = Strain::from(s);
         rules = rules.rule(
@@ -412,8 +419,8 @@ pub(crate) fn transfer_stayman_2d_responder(gate_4333: bool) -> Rules {
             min_level_is(2, strain)
                 & len(s, 5..)
                 & points(..=8)
-                & hcp(natural_floor_hcp()..)
-                & points(natural_floor_pts()..),
+                & hcp(natural_floor_hcp(agreements)..)
+                & points(natural_floor_pts(agreements)..),
         );
     }
     // Relay shape: 6+ suit, or a 5-carder with the PD-distilled 6-HCP floor,

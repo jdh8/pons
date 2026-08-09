@@ -7,11 +7,12 @@ use super::*;
 pub(crate) fn free_bid_answer_package_legacy() -> Package {
     Package {
         name: "free-bid-answer",
-        gate: |_| free_bids_engaged(),
-        entries: |_| {
-            let cachalot = negative_double_shape() == NegativeDoubleShape::Cachalot;
-            let negative = free_bid_style() == FreeBidStyle::Negative;
-            let transfer = free_bid_style() == FreeBidStyle::Transfer;
+        gate: free_bids_engaged,
+        entries: |agreements| {
+            let cachalot =
+                agreements.build.competition.negative_double_shape == NegativeDoubleShape::Cachalot;
+            let negative = agreements.build.competition.free_bid_style == FreeBidStyle::Negative;
+            let transfer = agreements.build.competition.free_bid_style == FreeBidStyle::Transfer;
             let mut entries = Vec::new();
             for opening in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
                 let o_strain = Strain::from(opening);
@@ -59,7 +60,7 @@ pub(crate) fn free_bid_answer_package_legacy() -> Package {
                             }),
                         ),
                     ),
-                    answer_free_bid(opening),
+                    answer_free_bid(opening, agreements),
                 ));
 
                 if !negative {
@@ -172,7 +173,7 @@ pub(crate) fn free_bid_answer_package_legacy() -> Package {
                             }),
                         ),
                     ),
-                    answer_free_bid(opening),
+                    answer_free_bid(opening, agreements),
                 ));
             }
             entries

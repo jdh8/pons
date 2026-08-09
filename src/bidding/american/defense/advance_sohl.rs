@@ -49,6 +49,7 @@ pub(super) fn sohl_rows_over(
     over: Suit,
     style: LebensohlStyle,
     gate_4333: bool,
+    agreements: &Agreements,
 ) -> Vec<Entry> {
     let mut entries = Vec::new();
 
@@ -56,10 +57,10 @@ pub(super) fn sohl_rows_over(
     // which covers the weak and penalty-pass hands).
     let advancer = match style {
         LebensohlStyle::Transfer if over == Suit::Diamonds => {
-            transfer_stayman_2d_responder(gate_4333)
+            transfer_stayman_2d_responder(gate_4333, agreements)
         }
-        LebensohlStyle::Transfer => transfer_lebensohl_responder(over, gate_4333),
-        _ => lebensohl_responder(over),
+        LebensohlStyle::Transfer => transfer_lebensohl_responder(over, gate_4333, agreements),
+        _ => lebensohl_responder(over, agreements),
     };
     entries.extend(rows_of(Pattern::node(base), advancer));
 
@@ -68,7 +69,7 @@ pub(super) fn sohl_rows_over(
     entries.extend(rows_of(Pattern::node(&relay), complete_lebensohl_relay()));
     entries.extend(rows_of(
         Pattern::node(&format!("{relay} 3♣ -")),
-        lebensohl_relay_rebid(over),
+        lebensohl_relay_rebid(over, agreements),
     ));
 
     // Transfer style: partner answers each 3-level transfer / cue. Over (2♦) the
@@ -81,7 +82,7 @@ pub(super) fn sohl_rows_over(
         // makes the bot *bid* the convention and read the direct cue as denying a
         // stopper (so it is answered without a free 3NT).
         let recognize = matches!(over, Suit::Hearts | Suit::Spades);
-        let split = delayed_cue() && recognize;
+        let split = agreements.build.competition.delayed_cue && recognize;
         for bid_suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
             let resp = call(3, Strain::from(bid_suit));
             let reply = if bid_suit == over {

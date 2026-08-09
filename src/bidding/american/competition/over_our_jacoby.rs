@@ -29,7 +29,7 @@ pub fn set_competition_over_transfer(on: bool) {
 }
 
 /// Whether competition over our Jacoby transfer is currently authored
-fn competition_over_transfer() -> bool {
+pub(super) fn competition_over_transfer() -> bool {
     COMPETITION_OVER_TRANSFER.with(Cell::get)
 }
 
@@ -99,7 +99,7 @@ fn transfer_overcalled_opener(major: Suit, over_suit: Suit, over_level: u8) -> R
 pub(super) fn competition_over_transfer_package() -> Package {
     Package {
         name: "competition-over-transfer",
-        gate: |_| competition_over_transfer(),
+        gate: |agreements| agreements.build.competition.competition_over_transfer,
         entries: |_| {
             let mut entries = Vec::new();
             for (resp, major) in [(Suit::Diamonds, Suit::Hearts), (Suit::Hearts, Suit::Spades)] {

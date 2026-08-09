@@ -77,7 +77,7 @@ pub fn set_cachalot_contested_x(on: bool) {
 }
 
 /// Whether opener's contested-X answer is engaged
-fn cachalot_contested_x() -> bool {
+pub(super) fn cachalot_contested_x() -> bool {
     CACHALOT_CONTESTED_X.with(Cell::get)
 }
 
@@ -232,8 +232,10 @@ fn cachalot_x_contested_answer(shown: Suit, last: Bid) -> Rules {
 pub(super) fn cachalot_package() -> Package {
     Package {
         name: "cachalot-answer",
-        gate: |_| negative_double_shape() == NegativeDoubleShape::Cachalot,
-        entries: |_| {
+        gate: |agreements| {
+            agreements.build.competition.negative_double_shape == NegativeDoubleShape::Cachalot
+        },
+        entries: |agreements| {
             // (1♦) over 1♣: X shows hearts, 1♥ shows spades, 1♠ is the takeout.
             let over_diamond = "P* 1♣ (1♦)";
             let mut entries = rows_of(
@@ -269,7 +271,7 @@ pub(super) fn cachalot_package() -> Package {
             // per intervention: their suit bid, their notrump bid, their
             // redouble.  The `X -` pass-out is shadowed by the completions
             // above, and deeper continuations fall to the floor as before.
-            if cachalot_contested_x() {
+            if agreements.build.competition.cachalot_contested_x {
                 let contested = |key: &str, shown: Suit, overcall: Bid| {
                     let mut rows = expand(
                         &format!("{key} X (jz)"),
@@ -336,8 +338,10 @@ pub(super) fn cachalot_package_legacy() -> Package {
 
     Package {
         name: "cachalot-answer",
-        gate: |_| negative_double_shape() == NegativeDoubleShape::Cachalot,
-        entries: |_| {
+        gate: |agreements| {
+            agreements.build.competition.negative_double_shape == NegativeDoubleShape::Cachalot
+        },
+        entries: |agreements| {
             let over_diamond = "P* 1♣ (1♦)";
             let mut entries = rows_of(
                 Pattern::after(over_diamond, "X -"),
@@ -362,7 +366,7 @@ pub(super) fn cachalot_package_legacy() -> Package {
                     cachalot_takeout_answer(opening, Suit::Hearts),
                 ));
             }
-            if cachalot_contested_x() {
+            if agreements.build.competition.cachalot_contested_x {
                 let x_intervention = || {
                     described_guard(
                         "X (their intervention) -",
@@ -403,7 +407,9 @@ pub(super) fn cachalot_package_legacy() -> Package {
 pub(super) fn sputnik_residual_answer_package() -> Package {
     Package {
         name: "sputnik-residual-answer",
-        gate: |_| negative_double_shape() == NegativeDoubleShape::Sputnik,
+        gate: |agreements| {
+            agreements.build.competition.negative_double_shape == NegativeDoubleShape::Sputnik
+        },
         entries: |_| {
             // (1♦) over 1♣: X = ≤3 in both majors — no fit to hunt.
             let mut entries = rows_of(

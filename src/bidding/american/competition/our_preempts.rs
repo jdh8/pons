@@ -33,7 +33,7 @@ pub fn set_weak_two_competition(on: bool) {
 }
 
 /// Whether the contested weak-two package is engaged
-fn weak_two_competition() -> bool {
+pub(super) fn weak_two_competition() -> bool {
     WEAK_TWO_COMPETITION.with(Cell::get)
 }
 
@@ -46,7 +46,7 @@ pub fn set_strong_two_competition(on: bool) {
 }
 
 /// Whether the contested strong-2♣ package is engaged
-fn strong_two_competition() -> bool {
+pub(super) fn strong_two_competition() -> bool {
     STRONG_TWO_COMPETITION.with(Cell::get)
 }
 
@@ -168,7 +168,7 @@ fn strong_two_reopening() -> Rules {
 pub(super) fn weak_two_competition_package() -> Package {
     Package {
         name: "weak-two-competition",
-        gate: |_| weak_two_competition(),
+        gate: |agreements| agreements.build.competition.weak_two_competition,
         entries: |_| {
             let two_nt = call(2, Strain::Notrump);
             let mut entries = Vec::new();
@@ -224,7 +224,7 @@ pub(super) fn weak_two_competition_package() -> Package {
 pub(super) fn strong_two_competition_package() -> Package {
     Package {
         name: "strong-two-competition",
-        gate: |_| strong_two_competition(),
+        gate: |agreements| agreements.build.competition.strong_two_competition,
         entries: |_| {
             const OPEN: &str = "P* 2♣";
             let mut entries = vec![rebase(Pattern::first(OPEN, "X"), ReplaceNext(Call::Pass))];
@@ -256,7 +256,7 @@ pub(super) fn strong_two_competition_package() -> Package {
 pub(super) fn strong_two_competition_package_legacy() -> Package {
     Package {
         name: "strong-two-competition",
-        gate: |_| strong_two_competition(),
+        gate: |agreements| agreements.build.competition.strong_two_competition,
         entries: |_| {
             const OPEN: &str = "P* 2♣";
             let mut entries = vec![rebase(Pattern::first(OPEN, "X"), ReplaceNext(Call::Pass))];

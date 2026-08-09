@@ -252,7 +252,7 @@ pub(super) fn gladiator_sohl_package() -> Package {
     Package {
         name: "gladiator-sohl",
         gate: |_| nt_overcall_gladiator(),
-        entries: |_| {
+        entries: |agreements| {
             let mut entries = Vec::new();
             for major in [Suit::Hearts, Suit::Spades] {
                 let opening = Bid::new(1, Strain::from(major));
@@ -263,6 +263,7 @@ pub(super) fn gladiator_sohl_package() -> Package {
                         over,
                         LebensohlStyle::Transfer,
                         true,
+                        agreements,
                     ));
                 }
             }

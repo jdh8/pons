@@ -119,7 +119,10 @@ fn minor_overcalled_low(over: Suit) -> Rules {
 pub(super) fn competition_over_minor_transfer_package() -> Package {
     Package {
         name: "competition-over-minor-transfer",
-        gate: |_| competition_over_minor_transfer() && notrump_minors() == PUPPET,
+        gate: |agreements| {
+            agreements.build.competition.competition_over_minor_transfer
+                && notrump_minors() == PUPPET
+        },
         entries: |_| {
             const TWO_SPADE: &str = "P* 1NT - 2♠";
             // A.1 — our 2♠ doubled.  Opener's coded min/max + stopper reply,

@@ -38,7 +38,7 @@ use super::super::trie::{Classifier, classifier};
 use super::super::{Alert, Defensive, Rules, Trie};
 use super::competition::{
     LebensohlStyle, clubs_transfer_completion, complete_lebensohl_relay, cue_stayman_answer,
-    cue_stayman_answer_no_stopper, delayed_cue, lebensohl_relay_rebid, lebensohl_responder,
+    cue_stayman_answer_no_stopper, lebensohl_relay_rebid, lebensohl_responder,
     lm_2d_both_majors_advance, lm_2d_clubs_ask, lm_2d_clubs_major, stayman_2d_answer,
     stayman_2d_fit_rebid, transfer_completion, transfer_lebensohl_responder,
     transfer_stayman_2d_responder, transfer_target,

@@ -5,7 +5,7 @@
 //! floors are knobs — [`set_free_bid_floor`] for a suit, [`set_free_1nt_floor`]
 //! for the free notrump, [`set_free_bid_quality`] for the suit-quality gate.
 
-use super::negative_double::{NegativeDoubleShape, negative_double_shape, negative_doubler_rebid};
+use super::negative_double::{NegativeDoubleShape, negative_doubler_rebid};
 use super::over_overcall::two_level_slots;
 use super::*;
 
@@ -84,10 +84,16 @@ pub fn set_free_bids(on: bool) {
     FREE_BIDS.with(|cell| cell.set(on));
 }
 
+/// Whether the free bids are authored *directly* (the raw knob)
+pub(super) fn free_bids() -> bool {
+    FREE_BIDS.with(Cell::get)
+}
+
 /// Whether the free bids are authored — directly, or implied by a
 /// negative-double shape whose tighter double needs the natural outlet
-pub(super) fn free_bids_engaged() -> bool {
-    FREE_BIDS.with(Cell::get) || negative_double_shape() != NegativeDoubleShape::BothMajors
+pub(super) fn free_bids_engaged(agreements: &Agreements) -> bool {
+    agreements.build.competition.free_bids
+        || agreements.build.competition.negative_double_shape != NegativeDoubleShape::BothMajors
 }
 
 /// Set the minimum points/HCP for the 1-level free bids (thread-local)
@@ -142,7 +148,7 @@ pub(super) fn free_bid_quality() -> bool {
 /// their suit, show a natural second suit (reverses and 3-level suits need
 /// 16+), else rebid the opening suit as the catch-all. No `Pass` rule — the
 /// free bid forces by omission; the table is total via the rebid.
-pub(super) fn answer_free_bid(opening: Suit) -> Rules {
+pub(super) fn answer_free_bid(opening: Suit, agreements: &Agreements) -> Rules {
     let o = opening;
     let o_strain = Strain::from(o);
     let mut rules = Rules::new();
@@ -153,11 +159,12 @@ pub(super) fn answer_free_bid(opening: Suit) -> Rules {
     // raise sits there), and Sputnik's natural 1-level majors promise only
     // four — raising on three would be a Moysian at the two level, so that
     // rung demands four; 2-level frees promise five in every school.
-    let two_level_support: usize = if negative_double_shape() == NegativeDoubleShape::Sputnik {
-        4
-    } else {
-        3
-    };
+    let two_level_support: usize =
+        if agreements.build.competition.negative_double_shape == NegativeDoubleShape::Sputnik {
+            4
+        } else {
+            3
+        };
     for y in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         if y == o {
             continue;
@@ -281,7 +288,10 @@ fn free_transfer_clarify(shown: Suit, comp_lvl: u8, cue: Bid) -> Rules {
 pub(super) fn transfer_free_bid_package() -> Package {
     Package {
         name: "transfer-free-bid",
-        gate: |_| free_bids_engaged() && free_bid_style() == FreeBidStyle::Transfer,
+        gate: |agreements| {
+            free_bids_engaged(agreements)
+                && agreements.build.competition.free_bid_style == FreeBidStyle::Transfer
+        },
         entries: |_| {
             #[allow(clippy::type_complexity)]
             #[rustfmt::skip]
@@ -352,11 +362,12 @@ pub(super) fn transfer_free_bid_package() -> Package {
 pub(super) fn free_bid_answer_package() -> Package {
     Package {
         name: "free-bid-answer",
-        gate: |_| free_bids_engaged(),
-        entries: |_| {
-            let cachalot = negative_double_shape() == NegativeDoubleShape::Cachalot;
-            let negative = free_bid_style() == FreeBidStyle::Negative;
-            let transfer = free_bid_style() == FreeBidStyle::Transfer;
+        gate: free_bids_engaged,
+        entries: |agreements| {
+            let cachalot =
+                agreements.build.competition.negative_double_shape == NegativeDoubleShape::Cachalot;
+            let negative = agreements.build.competition.free_bid_style == FreeBidStyle::Negative;
+            let transfer = agreements.build.competition.free_bid_style == FreeBidStyle::Transfer;
             let mut entries = Vec::new();
             for opening in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
                 let o_strain = Strain::from(opening);
@@ -391,7 +402,7 @@ pub(super) fn free_bid_answer_package() -> Package {
                                     && free.level.get() == 2
                                     && two_level_slots(o_strain, ovc) == 2)
                         },
-                        move |_| answer_free_bid(opening),
+                        move |_| answer_free_bid(opening, agreements),
                     ));
                 }
                 // The guard admitted their 1NT overcall too (1NT ≤ 2♠); every
@@ -404,7 +415,7 @@ pub(super) fn free_bid_answer_package() -> Package {
                                 && !(transfer
                                     && two_level_slots(o_strain, Bid::new(1, Strain::Notrump)) == 2)
                         },
-                        move |_| answer_free_bid(opening),
+                        move |_| answer_free_bid(opening, agreements),
                     ));
                 }
 
@@ -513,7 +524,7 @@ pub(super) fn free_bid_answer_package() -> Package {
                             }),
                         ),
                     ),
-                    answer_free_bid(opening),
+                    answer_free_bid(opening, agreements),
                 ));
             }
             entries

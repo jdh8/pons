@@ -554,6 +554,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The competitive book's 36 build-time knobs are carried, not fetched.**
+  `Agreements` gained a `build: Build` half, and `Build::competition` is the
+  first area to move into it: the competitive package's cells are read exactly
+  once per build, by `competition::capture()`, and every rule that used to call
+  a thread-local getter now reads the captured field it was handed.  The rules
+  a book is built from can no longer disagree with the knobs it was built
+  under, because there is only one read.  Thirty-four builder functions across
+  `competition/**` and `defense/advance_sohl.rs` gained an `agreements`
+  parameter to carry it; `Package::gate`/`entries` already took one.  Derived
+  readings (`free_bids_engaged`, the three natural-floor projections) stay
+  functions rather than becoming fields, so each cell keeps one home.  The
+  `set_*` setters and the cells themselves are untouched and still work exactly
+  as before — a knob set before the build still reaches it.  No user-visible
+  behaviour change: seeded `smoke-default` and `smoke-dutch` dumps (20 000
+  boards each) are byte-identical across the change, and `cards/American.bbsa`
+  / `cards/Dutch.bbsa` regenerate byte-for-byte.
+
+### Changed
+
 - **The ten hand-written convention readings are one `Readings` bundle, and the
   fold-ordering invariant now lives in the code that depends on it.**
   `Inferences::read` was 980 lines.  The ten reader calls, the seven-way

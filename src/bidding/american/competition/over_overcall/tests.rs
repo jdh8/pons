@@ -1,4 +1,5 @@
 use super::super::tests::call;
+use crate::bidding::agreements::Agreements;
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::{Bid, Hand, Strain};
 
@@ -79,10 +80,11 @@ fn per_overcall_tables_match_legacy() {
                 set_free_bids(engaged);
                 for quality in [false, true] {
                     set_free_bid_quality(quality);
+                    let agreements = Agreements::current();
                     for opening in Suit::ASC {
-                        let legacy = over_their_overcall_legacy(opening);
+                        let legacy = over_their_overcall_legacy(opening, &agreements);
                         for overcall in admitted_overcalls(Strain::from(opening)) {
-                            let table = over_their_overcall(opening, overcall);
+                            let table = over_their_overcall(opening, overcall, &agreements);
                             let auction = [call(1, Strain::from(opening)), Call::Bid(overcall)];
                             for vul in [RelativeVulnerability::NONE, RelativeVulnerability::ALL] {
                                 let context = Context::new(vul, &auction);

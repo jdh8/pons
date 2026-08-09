@@ -64,7 +64,7 @@ use super::agreements::Agreements;
 use super::common::{call, other_major, with_floor, with_floor_v5, with_instinct_floor};
 use super::{Competitive, Constructive, Defensive, Pair};
 
-mod competition;
+pub(in crate::bidding) mod competition;
 mod defense;
 mod game_force;
 mod nmf;

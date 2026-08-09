@@ -148,15 +148,20 @@ pub fn set_double_override(spec: Option<(usize, usize, u8)>) {
     DOUBLE_OVERRIDE.with(|cell| cell.set(spec));
 }
 
+/// The `(min_len, max_len, hcp_floor)` override on responder's double, if any
+pub(super) fn double_override() -> Option<(usize, usize, u8)> {
+    DOUBLE_OVERRIDE.with(Cell::get)
+}
+
 /// Author responder's double of their `over` overcall per the active
 /// [`DoubleStyle`] (or the [`set_double_override`] spec). Shadows the instinct
 /// floor's takeout double so the threshold is the one chosen here.
-pub(super) fn responder_double(rules: Rules, over: Suit) -> Rules {
-    if let Some((lo, hi, floor)) = DOUBLE_OVERRIDE.with(Cell::get) {
+pub(super) fn responder_double(rules: Rules, over: Suit, agreements: &Agreements) -> Rules {
+    if let Some((lo, hi, floor)) = agreements.build.competition.double_override {
         return rules.rule(Call::Double, 155, len(over, lo..=hi) & hcp(floor..));
     }
     // The `len` ranges have distinct types, so author inside each arm.
-    match double_style() {
+    match agreements.build.competition.double_style {
         DoubleStyle::Takeout => rules.rule(Call::Double, 155, len(over, ..=3) & hcp(8..)),
         DoubleStyle::Penalty => rules.rule(Call::Double, 155, len(over, 4..) & hcp(9..)),
         DoubleStyle::PenaltyLight => rules.rule(Call::Double, 155, len(over, 4..) & hcp(7..)),
