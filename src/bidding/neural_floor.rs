@@ -114,7 +114,7 @@ impl Classifier for ConfiguredFloorBba {
 /// The **compact-config** BBA-distilled floor — the v5 candidate
 ///
 /// Exactly [`ConfiguredFloorBba`] but for the regime input: a
-/// [`CompactConfig`] (both sides' [`Agreements`][features::Agreements], 28
+/// [`CompactConfig`] (both sides' [`ConventionCard`][features::ConventionCard], 28
 /// slots each) instead of a 280-float card pair, feeding
 /// [`neural::classify_bba_v5`] through
 /// [`features_v5`][features::features_v5].  Same rails, same mask, same
@@ -123,7 +123,7 @@ impl Classifier for ConfiguredFloorBba {
 /// **The shipped floor** since its 2026-08-08 gate A/B (+0.0353/+0.0262 plain
 /// DD per board at none/both vul, PD wash): it floors
 /// [`american`][super::american::american],
-/// [`american_with_agreements`][super::american::american_with_agreements] and
+/// [`american_with_card`][super::american::american_with_card] and
 /// the [`american_floor`][super::american::american_floor] ablation.  Unlike
 /// v4's card blocks, every slot it reads is an axis a corpus varied, so the
 /// 13 trained ones per side move the logits and the rest are folded to zero —

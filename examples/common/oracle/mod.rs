@@ -368,7 +368,7 @@ impl BbaOracle {
     /// A card that does not stick is a startup misconfiguration, and every later
     /// number would be quietly attributed to the wrong system.
     #[must_use]
-    pub fn with_opponents(mut self, opponents: Option<ConventionCard>) -> Self {
+    pub fn with_opponents(mut self, opponents: Option<EpbotCard>) -> Self {
         self.opponents = opponents.map(|card| {
             self.verify_card(card.system, &card.toggles)
                 .expect("the opponents' declared card must take effect on EPBot");
@@ -380,7 +380,7 @@ impl BbaOracle {
 
 /// A BBA `.bbsa` convention card: the EPBot system id from its `System type`
 /// header plus every remaining line as a convention toggle.
-pub struct ConventionCard {
+pub struct EpbotCard {
     pub system: c_int,
     pub toggles: Vec<(CString, c_int)>,
 }
@@ -392,7 +392,7 @@ pub struct ConventionCard {
 /// `System type = N` selects the system; every other `Name = value` line —
 /// including the `Opponent type` / `Not defined` meta rows — is passed to
 /// `epbot_set_conventions` verbatim.
-pub fn load_bbsa(path: &str) -> anyhow::Result<ConventionCard> {
+pub fn load_bbsa(path: &str) -> anyhow::Result<EpbotCard> {
     let text = std::fs::read_to_string(path)
         .map_err(|error| anyhow::anyhow!("reading card `{path}`: {error}"))?;
     let mut system = None;
@@ -419,7 +419,7 @@ pub fn load_bbsa(path: &str) -> anyhow::Result<ConventionCard> {
     }
     let system = system
         .ok_or_else(|| anyhow::anyhow!("{path}: missing the `System type = N` header line"))?;
-    Ok(ConventionCard { system, toggles })
+    Ok(EpbotCard { system, toggles })
 }
 
 impl BbaOracle {

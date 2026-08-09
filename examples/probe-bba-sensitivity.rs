@@ -42,7 +42,7 @@ use std::fmt::Write as _;
 #[path = "common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::oracle::{BbaOracle, ConventionCard, DEFAULT_LIB, load_bbsa, next_call};
+use common::oracle::{BbaOracle, DEFAULT_LIB, EpbotCard, load_bbsa, next_call};
 use common::{load_dump, seat_to_act};
 
 /// Partition a convention card into rows that move BBA's calls and rows that do not
@@ -187,7 +187,7 @@ fn main() -> anyhow::Result<()> {
             bba = if args.own {
                 BbaOracle::load(&lib, args.system, vec![(name.clone(), value)])?
             } else {
-                bba.with_opponents(Some(ConventionCard {
+                bba.with_opponents(Some(EpbotCard {
                     system: card.system,
                     toggles: vec![(name.clone(), value)],
                 }))
@@ -215,7 +215,7 @@ fn main() -> anyhow::Result<()> {
     for (name, card_value) in &card.toggles {
         let mut moved = 0;
         for value in [0, 1] {
-            bba = bba.with_opponents(Some(ConventionCard {
+            bba = bba.with_opponents(Some(EpbotCard {
                 system: card.system,
                 toggles: vec![(name.clone(), value)],
             }));

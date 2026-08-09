@@ -79,7 +79,7 @@ fn row_package_invariants() {
 
 /// The shipped-path twin of
 /// [`each_compact_axis_moves_its_slots_and_only_live_ones_move_the_net`][crate::bidding::features]:
-/// [`american`] must build its [`Agreements`][crate::bidding::features::Agreements]
+/// [`american`] must build its [`ConventionCard`][crate::bidding::features::ConventionCard]
 /// from the *live* knobs, so a knob that moves a compact slot moves the default
 /// floor's inputs.
 ///

@@ -518,7 +518,7 @@ fn main() {
         // `repin` is what keeps that expressible — it re-captures the knob state
         // into a built stance without touching the book underneath.
         // ponytail: two known costs here, both inert for this binary and both
-        // closed structurally by the `Agreements` migration rather than patched:
+        // closed structurally by the `ConventionCard` migration rather than patched:
         //   - `SUPPORT_POINTS` defaults *on*, so `apply(false)` leaves the
         //     baseline mismatching the compiled rule registry while the
         //     candidate matches: the arms run different code paths (same answer,

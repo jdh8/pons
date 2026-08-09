@@ -1048,20 +1048,20 @@ fn compact_layout_is_pinned() {
         0.0, // 26: minors_european — Puppet scheme by default
         0.0, // 27: landy — `set_landy` off
     ];
-    assert_eq!(Agreements::capture(false).encode(), expected);
+    assert_eq!(ConventionCard::capture(false).encode(), expected);
 }
 
 /// Each enum block is a one-hot: exactly one slot set, whatever the variant
 #[test]
 fn one_hot_blocks_are_exclusive() {
-    let check = |agreements: Agreements| {
+    let check = |agreements: ConventionCard| {
         let encoded = agreements.encode();
         for block in [13..16, 16..23, 23..26] {
             let sum: f32 = encoded[block.clone()].iter().sum();
             assert_eq!(sum, 1.0, "block {block:?} of {agreements:?}");
         }
     };
-    let mut agreements = Agreements::capture(false);
+    let mut agreements = ConventionCard::capture(false);
     check(agreements);
     for shape in [
         NotrumpShape::Balanced,
@@ -1101,12 +1101,12 @@ fn one_hot_blocks_are_exclusive() {
 #[test]
 fn projection_agrees_with_capture_at_defaults() {
     assert_eq!(
-        Agreements::from_card(&crate::bidding::card::american_card()),
-        Agreements::capture(false)
+        ConventionCard::from_card(&crate::bidding::card::american_card()),
+        ConventionCard::capture(false)
     );
     assert_eq!(
-        Agreements::from_card(&crate::bidding::card::dutch_card()),
-        Agreements::capture(true)
+        ConventionCard::from_card(&crate::bidding::card::dutch_card()),
+        ConventionCard::capture(true)
     );
 }
 
@@ -1114,8 +1114,8 @@ fn projection_agrees_with_capture_at_defaults() {
 #[test]
 fn features_v5_appends_both_blocks() {
     let hand = hand("AQ32.K53.QJ4.A92");
-    let ours = Agreements::capture(false);
-    let theirs = Agreements::from_card(&crate::bidding::card::dutch_card());
+    let ours = ConventionCard::capture(false);
+    let theirs = ConventionCard::from_card(&crate::bidding::card::dutch_card());
     let compact = CompactConfig::new(&ours, &theirs);
     let auction = [bid(1, Strain::Spades)];
     let context = Context::new(RelativeVulnerability::NONE, &auction).with_compact(&compact);
@@ -1150,7 +1150,7 @@ fn features_v5_appends_both_blocks() {
 ///
 /// 1. `compact_layout_is_pinned` and `projection_agrees_with_capture_at_defaults`
 ///    both test only **at the shipped defaults**, so a crossed getter inside
-///    [`Agreements::capture`] between two knobs that share a default — say
+///    [`ConventionCard::capture`] between two knobs that share a default — say
 ///    `garbage_stayman`/`xyz` (both on) or `new_minor_forcing`/
 ///    `transfer_super_accept`/`one_notrump_offshape` (all off) — passes every
 ///    existing test while feeding the net a regime nobody plays.  Its only
@@ -1162,7 +1162,7 @@ fn features_v5_appends_both_blocks() {
 ///    IMPs/board/bit tax, `docs/ai-bidder/card-manifold.md`).
 ///
 /// The order inside the loop is load-bearing: **arm, capture, restore, and only
-/// then classify.**  [`Agreements`] is `Copy`, so both arms can be captured up
+/// then classify.**  [`ConventionCard`] is `Copy`, so both arms can be captured up
 /// front and run under one ambient world — which makes the `features_v3` prefix
 /// bit-identical by construction.  Without that, `garbage_stayman`,
 /// `nt_splinter`, `notrump_defense`, `landy_range` and `notrump_minors` reach
@@ -1210,7 +1210,7 @@ fn each_compact_axis_moves_its_slots_and_only_live_ones_move_the_net() {
     // reasons at once; empty is safe because the auction is not forced, and the
     // assert above keeps it that way.
     let ladder = Arc::new(Rules::new());
-    let logits = |agreements: &Agreements| {
+    let logits = |agreements: &ConventionCard| {
         ConfiguredFloorV5::new(CompactConfig::symmetric(agreements), Arc::clone(&ladder))
             .classify(seat, &context)
             .iter()
@@ -1218,11 +1218,11 @@ fn each_compact_axis_moves_its_slots_and_only_live_ones_move_the_net() {
             .collect::<Vec<u32>>()
     };
 
-    let base = Agreements::capture(false);
+    let base = ConventionCard::capture(false);
     let base_slots = base.encode();
     let baseline = logits(&base);
 
-    let check = |name: &str, flipped: Agreements, expect: &[usize]| {
+    let check = |name: &str, flipped: ConventionCard, expect: &[usize]| {
         let moved: Vec<usize> = (0..LEN_COMPACT)
             .filter(|&slot| flipped.encode()[slot] != base_slots[slot])
             .collect();
@@ -1238,7 +1238,7 @@ fn each_compact_axis_moves_its_slots_and_only_live_ones_move_the_net() {
 
     // `dutch` selects a book, not a knob, so it is the one axis with nothing to
     // arm — `capture` takes it as a parameter.
-    check("dutch", Agreements::capture(true), &[0]);
+    check("dutch", ConventionCard::capture(true), &[0]);
 
     // Enum targets leave a trained lane deliberately: `Wide` (14), `Plain` (24)
     // and the five non-{Natural, Woolsey} defenses are folded, and `Wide` is
@@ -1344,7 +1344,7 @@ fn each_compact_axis_moves_its_slots_and_only_live_ones_move_the_net() {
             // `set_landy(Some(..))` also writes the shared Woolsey band and
             // `set_landy(None)` deliberately leaves it — so restore both, and
             // note that the leak guard below cannot see the miss: `woolsey_points`
-            // is not an `Agreements` field.
+            // is not a `ConventionCard` field.
             || {
                 set_landy(None);
                 set_woolsey_points(8, 19);
@@ -1355,11 +1355,15 @@ fn each_compact_axis_moves_its_slots_and_only_live_ones_move_the_net() {
 
     for (name, arm, restore, expect) in rows {
         arm();
-        let flipped = Agreements::capture(false);
+        let flipped = ConventionCard::capture(false);
         restore();
         // Restored before a single assertion can panic, so a failing row cannot
         // strand a flipped knob for the next test on this thread.
-        assert_eq!(Agreements::capture(false), base, "{name} did not restore");
+        assert_eq!(
+            ConventionCard::capture(false),
+            base,
+            "{name} did not restore"
+        );
         check(name, flipped, expect);
     }
 }

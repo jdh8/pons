@@ -50,7 +50,7 @@ use std::ffi::{CString, c_int};
 #[path = "common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::oracle::{BbaOracle, ConventionCard, DEFAULT_LIB, SYSTEM_2_OVER_1, bid_out, load_bbsa};
+use common::oracle::{BbaOracle, DEFAULT_LIB, EpbotCard, SYSTEM_2_OVER_1, bid_out, load_bbsa};
 use common::{auction_key, deviant_floor, seat_to_act, seeded_deals};
 
 /// The hidden seats, in report order, with how far back each one last acted
@@ -170,9 +170,9 @@ fn parse_override(spec: &str) -> anyhow::Result<(CString, c_int)> {
 }
 
 /// Our generated card, so BBA reads our calls the way `bba-gen` has it read them
-fn our_card() -> ConventionCard {
+fn our_card() -> EpbotCard {
     let card = pons::bidding::card::american_card();
-    ConventionCard {
+    EpbotCard {
         system: card.system,
         toggles: card
             .rows

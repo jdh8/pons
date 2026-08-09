@@ -138,7 +138,7 @@ pub fn classify_bba_v4(features: &[f32]) -> Logits {
 
 // ── The compact-config floor: v5 features ────────────────────────────────────
 // `docs/ai-bidder/card-manifold.md` §"The retrain".  The 280-float card blocks
-// gave way to two 28-slot `Agreements` vectors: every input is an axis the
+// gave way to two 28-slot `ConventionCard` vectors: every input is an axis the
 // corpus can vary, so the frozen-coordinate disease that motivated the fold is
 // structurally impossible here.  Disclosure (`.bbsa`) is untouched — only the
 // net's input stops being the card.
@@ -147,7 +147,7 @@ pub fn classify_bba_v4(features: &[f32]) -> Logits {
 const IN_V5: usize = FEATURES_LEN_V5;
 
 /// Embedded compact-config weights: v5 layout (88 disclosable inputs + both
-/// sides' [`Agreements`][super::features::Agreements]), EPBot 2/1 teacher,
+/// sides' [`ConventionCard`][super::features::ConventionCard]), EPBot 2/1 teacher,
 /// corpus = the six `{American, Dutch} × {kickback}` cells plus an enriched
 /// slam slice and eight single-axis flip shards (22.pdd rows 3.25M–4.16M).
 static RAW_BBA_V5: &[u8] = include_bytes!("weights/american_bba_v5.f32");

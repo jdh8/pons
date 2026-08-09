@@ -102,7 +102,7 @@ fn folded_card_columns_are_exactly_zero() {
 }
 
 /// The v5 sibling of the fold gate, on the compact blocks: the scan-mode fold
-/// zeroed every `Agreements` dim the v5 corpus held constant.  The live set is
+/// zeroed every `ConventionCard` dim the v5 corpus held constant.  The live set is
 /// the 13 dims per side the dump varied — the six flipped bools, both poles of
 /// each flipped one-hot, and `dutch` (the `DEFAULT_CELLS` rotation).
 #[test]

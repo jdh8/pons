@@ -60,9 +60,8 @@ use pons::bidding::american::{
 use pons::bidding::card::{american_card, dutch_card};
 use pons::bidding::context::{Context, relative};
 use pons::bidding::features::{
-    Agreements, CompactConfig, Config, FEATURES_LEN_V3, FEATURES_LEN_V4, FEATURES_LEN_V5,
-    FEATURES_VERSION_V3, FEATURES_VERSION_V4, FEATURES_VERSION_V5, features_v3, features_v4,
-    features_v5,
+    CompactConfig, Config, FEATURES_LEN_V3, FEATURES_LEN_V4, FEATURES_LEN_V5, FEATURES_VERSION_V3,
+    FEATURES_VERSION_V4, FEATURES_VERSION_V5, features_v3, features_v4, features_v5,
 };
 use pons::bidding::{Phase, System};
 use pons::gib;
@@ -79,7 +78,7 @@ use std::sync::OnceLock;
 #[allow(dead_code)]
 mod common;
 use common::oracle::{
-    BbaOracle, ConventionCard, DEFAULT_LIB, KNOWN_UNSTICKY, SYSTEM_2_OVER_1, load_bbsa,
+    BbaOracle, DEFAULT_LIB, EpbotCard, KNOWN_UNSTICKY, SYSTEM_2_OVER_1, load_bbsa,
 };
 use common::slam_ish;
 
@@ -581,13 +580,13 @@ const D_ON: SideConfig = SideConfig {
 };
 
 /// A generated card as EPBot overrides, so a teacher plays what we disclose
-fn to_convention_card(card: &pons::bidding::card::Card) -> anyhow::Result<ConventionCard> {
+fn to_convention_card(card: &pons::bidding::card::Card) -> anyhow::Result<EpbotCard> {
     let toggles = card
         .rows
         .iter()
         .map(|(name, value)| Ok((CString::new(*name)?, c_int::from(*value != 0))))
         .collect::<anyhow::Result<Vec<_>>>()?;
-    Ok(ConventionCard {
+    Ok(EpbotCard {
         system: card.system,
         toggles,
     })
@@ -766,10 +765,11 @@ fn main() -> anyhow::Result<()> {
     let v5 = feature_version == FEATURES_VERSION_V5;
     // Per side: its card and the stance that reads its auctions.
     let mut per_side: BTreeMap<String, (pons::bidding::card::Card, Stance)> = BTreeMap::new();
-    // v5 only: the same knob state [`Agreements`]-shaped.  Captured at the
+    // v5 only: the same knob state [`pons::bidding::features::ConventionCard`]-shaped.  Captured at the
     // exact point the card is rendered — same arming — so card, compact block
     // and book cannot drift.
-    let mut per_side_agreements: BTreeMap<String, Agreements> = BTreeMap::new();
+    let mut per_side_agreements: BTreeMap<String, pons::bidding::features::ConventionCard> =
+        BTreeMap::new();
     for side in &sides {
         // The side's *full* arming — recognizer and flip axes — so its card,
         // stance and (per pair, below) teacher are all built under the same
@@ -778,7 +778,10 @@ fn main() -> anyhow::Result<()> {
         arm_flips(side.flips);
         let card = card_for(side.system())?;
         if v5 {
-            per_side_agreements.insert(side.label(), Agreements::capture(side.dutch));
+            per_side_agreements.insert(
+                side.label(),
+                pons::bidding::features::ConventionCard::capture(side.dutch),
+            );
         }
         let stance = if side.dutch {
             dutch().against()

@@ -1048,7 +1048,7 @@ pub const OFFSET_THEIR_COMPACT: usize = OFFSET_OUR_COMPACT + LEN_COMPACT;
 /// row), and [`from_card`][Self::from_card] projects a card — possibly a
 /// foreign engine's — back onto these axes.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct Agreements {
+pub struct ConventionCard {
     /// The Dutch book (wide non-forcing 1♣) rather than 2/1 — a *book*
     /// choice, not a knob, so [`capture`][Self::capture] takes it as a
     /// parameter
@@ -1091,7 +1091,7 @@ pub struct Agreements {
     pub landy: bool,
 }
 
-impl Agreements {
+impl ConventionCard {
     /// Read the live thread-local knob state, as
     /// [`american_card`][super::card::american_card] does row by row
     ///
@@ -1246,7 +1246,7 @@ impl Agreements {
 /// The v5 sibling of [`Config`]: the same both-sides seam — a mixed table is
 /// the normal case in an A/B, so a net blind to the opposition's agreements is
 /// out of distribution on exactly the boards a measurement is about — carrying
-/// [`LEN_COMPACT`]-slot [`Agreements`] blocks instead of whole `.bbsa` cards.
+/// [`LEN_COMPACT`]-slot [`ConventionCard`] blocks instead of whole `.bbsa` cards.
 ///
 /// Encoded once per cell and attached to a [`Context`] by reference, so the
 /// per-decision path neither allocates nor consults ambient knob state.
@@ -1259,7 +1259,7 @@ pub struct CompactConfig {
 impl CompactConfig {
     /// Encode what each side is agreed to play
     #[must_use]
-    pub fn new(ours: &Agreements, theirs: &Agreements) -> Self {
+    pub fn new(ours: &ConventionCard, theirs: &ConventionCard) -> Self {
         Self {
             ours: ours.encode(),
             theirs: theirs.encode(),
@@ -1272,7 +1272,7 @@ impl CompactConfig {
     /// [`Config::symmetric`] models an undeclared opposition as playing our
     /// own system.
     #[must_use]
-    pub fn symmetric(side: &Agreements) -> Self {
+    pub fn symmetric(side: &ConventionCard) -> Self {
         Self::new(side, side)
     }
 }

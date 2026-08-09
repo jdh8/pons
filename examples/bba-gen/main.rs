@@ -45,7 +45,7 @@ use std::ffi::{CString, c_int};
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::oracle::{BbaOracle, ConventionCard, DEFAULT_LIB, SYSTEM_2_OVER_1, bid_out, load_bbsa};
+use common::oracle::{BbaOracle, DEFAULT_LIB, EpbotCard, SYSTEM_2_OVER_1, bid_out, load_bbsa};
 use common::{
     Board, Dump, NtDefenseArg, ReadingScopeArg, blinded, deviant_floor, floor_card, hand_hcp,
     seat_floor, seat_floor_vs, seat_to_act,
@@ -1323,7 +1323,7 @@ fn parse_override(spec: &str) -> Result<(CString, c_int), String> {
 /// misdescribes us to BBA far more damagingly than disclosing nothing, and
 /// silently reverting to blind would make the two arms of a cross-system A/B
 /// incomparable.
-fn disclosure(args: &Args) -> anyhow::Result<Option<ConventionCard>> {
+fn disclosure(args: &Args) -> anyhow::Result<Option<EpbotCard>> {
     let mut card = match args.disclose.as_str() {
         "off" => return Ok(None),
         // A BBA-vs-BBA arm does not play our authored system at all, so the
@@ -1343,7 +1343,7 @@ fn disclosure(args: &Args) -> anyhow::Result<Option<ConventionCard>> {
                      rather than disclosing another system's card."
                 ),
             };
-            ConventionCard {
+            EpbotCard {
                 system: card.system,
                 toggles: card
                     .rows

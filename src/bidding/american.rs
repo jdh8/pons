@@ -170,7 +170,7 @@ pub use xyz::{set_xyz, set_xyz_invite_judgment};
 /// The contested books stand on
 /// [`ConfiguredFloorV5`][crate::bidding::neural_floor::ConfiguredFloorV5] —
 /// one artifact whose convention-regime input is both partnerships'
-/// [`Agreements`][super::features::Agreements], **captured here, at build
+/// [`ConventionCard`][super::features::ConventionCard], **captured here, at build
 /// time**, from whatever the `set_*` knobs say when this is called, in the
 /// same expression that reads them for [`american_book`].  That is what keeps
 /// regime and rules from disagreeing: an A/B arm builds its stance with its
@@ -205,7 +205,7 @@ pub use xyz::{set_xyz, set_xyz_invite_judgment};
 pub fn american() -> Pair {
     with_floor_v5(
         american_book(),
-        super::features::CompactConfig::symmetric(&super::features::Agreements::capture(false)),
+        super::features::CompactConfig::symmetric(&super::features::ConventionCard::capture(false)),
     )
 }
 
@@ -228,7 +228,7 @@ pub fn american() -> Pair {
 /// ([`ConfiguredFloorBba`][crate::bidding::neural_floor::ConfiguredFloorBba]);
 /// `american_with_config(Config::symmetric(&american_card()))` reproduces the
 /// pre-swap [`american`] exactly.  A declared opponent on the *shipped* floor
-/// wants [`american_with_agreements`] instead — an arm built here and compared
+/// wants [`american_with_card`] instead — an arm built here and compared
 /// against one built by [`american`] measures the two nets, not the declaration.
 #[must_use]
 pub fn american_with_config(config: super::features::Config) -> Pair {
@@ -243,18 +243,21 @@ pub fn american_with_config(config: super::features::Config) -> Pair {
 /// misdisclose our own side — the mistake it warns about is unavailable here —
 /// and the only judgement left to the caller is what the opposition plays.
 ///
-/// Build `theirs` with [`Agreements::capture`][super::features::Agreements::capture]
+/// Build `theirs` with [`ConventionCard::capture`][super::features::ConventionCard::capture]
 /// under their armed knobs when they are a pons book, or with
-/// [`Agreements::from_card`][super::features::Agreements::from_card] when they
+/// [`ConventionCard::from_card`][super::features::ConventionCard::from_card] when they
 /// are a foreign engine and a card is all there is.  At our own defaults the two
 /// agree (`projection_agrees_with_capture_at_defaults`), so declaring an
 /// undeviating pons opponent reproduces [`american`] board for board — the
 /// inertness gate for this channel.
 #[must_use]
-pub fn american_with_agreements(theirs: &super::features::Agreements) -> Pair {
+pub fn american_with_card(theirs: &super::features::ConventionCard) -> Pair {
     with_floor_v5(
         american_book(),
-        super::features::CompactConfig::new(&super::features::Agreements::capture(false), theirs),
+        super::features::CompactConfig::new(
+            &super::features::ConventionCard::capture(false),
+            theirs,
+        ),
     )
 }
 
@@ -311,7 +314,7 @@ pub fn american_instinct() -> Pair {
 pub fn american_floor() -> Pair {
     with_floor_v5(
         Pair::new(Constructive::new(), Competitive::new(), Defensive::new()),
-        super::features::CompactConfig::symmetric(&super::features::Agreements::capture(false)),
+        super::features::CompactConfig::symmetric(&super::features::ConventionCard::capture(false)),
     )
 }
 

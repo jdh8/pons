@@ -16,7 +16,7 @@ use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Hand, Seat, Sui
 use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
 use pons::bidding::card::{Card, american_card, dutch_card};
 use pons::bidding::context::relative;
-use pons::bidding::features::{Agreements, Config};
+use pons::bidding::features::{Config, ConventionCard};
 use pons::bidding::{Stance, System};
 use pons::scoring::{
     final_contract, imps, ns_score_contract, ns_score_pd, ns_score_pd_tricks, ns_score_tricks,
@@ -581,7 +581,7 @@ pub fn seat_floor(name: &str) -> anyhow::Result<Stance> {
         // `american` uses.  `american` − `american-floor` prices the book.
         "american-floor" => pons::american_floor().against(),
         // The compact-config (v5) candidates: same books, the regime reaches
-        // the net as both sides' `Agreements` instead of the card blocks.
+        // the net as both sides' `ConventionCard` instead of the card blocks.
         "american-v5" => pons::bidding::american::american_v5().against(),
         "dutch-v5" => pons::bidding::dutch::dutch_v5().against(),
         other => anyhow::bail!(
@@ -626,7 +626,7 @@ pub fn floor_card(name: &str) -> anyhow::Result<Card> {
 /// as `american()` reads it — so the same "set every `--ns-*` first" rule
 /// applies to this call as to `bba-gen`'s `disclosure()`.  Theirs is projected
 /// off the card with
-/// [`Agreements::from_card`][pons::bidding::features::Agreements::from_card],
+/// [`ConventionCard::from_card`][pons::bidding::features::ConventionCard::from_card],
 /// the only channel a foreign engine's card has; it is lossy exactly where that
 /// function documents — the wide 1NT rungs collapse upward and a defense that is
 /// neither Multi-Landy nor Landy reads as `Natural` — so a `--their-ns` arm on
@@ -638,7 +638,7 @@ pub fn floor_card(name: &str) -> anyhow::Result<Card> {
 /// output saying so.
 pub fn seat_floor_vs(name: &str, theirs: &Card) -> anyhow::Result<Stance> {
     Ok(match name {
-        "american" => pons::american_with_agreements(&Agreements::from_card(theirs)).against(),
+        "american" => pons::american_with_card(&ConventionCard::from_card(theirs)).against(),
         "dutch" => pons::dutch_with_config(Config::new(&dutch_card(), theirs)).against(),
         other => anyhow::bail!(
             "--declare-opponents needs a net floor to declare them to: \

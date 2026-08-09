@@ -29,7 +29,7 @@ use std::ffi::c_int;
 #[path = "common/mod.rs"]
 #[allow(dead_code)]
 mod common;
-use common::oracle::{BbaOracle, ConventionCard, DEFAULT_LIB, load_bbsa};
+use common::oracle::{BbaOracle, DEFAULT_LIB, EpbotCard, load_bbsa};
 use common::{hand_hcp, seeded_deals};
 
 /// Read BBA's deduced band for a disclosed 1NT opening under each card setting
@@ -101,7 +101,7 @@ fn main() -> anyhow::Result<()> {
                     _ => {}
                 }
             }
-            bba = bba.with_opponents(Some(ConventionCard {
+            bba = bba.with_opponents(Some(EpbotCard {
                 system: card.system,
                 toggles,
             }));

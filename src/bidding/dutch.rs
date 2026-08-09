@@ -18,7 +18,7 @@ use super::Pair;
 use super::american::american_book;
 use super::card::dutch_card;
 use super::common::{with_floor, with_floor_v5, with_instinct_floor};
-use super::features::{Agreements, CompactConfig, Config};
+use super::features::{CompactConfig, Config, ConventionCard};
 use super::rows::compile_into;
 
 /// Build the Dutch system as one side's [`Pair`]
@@ -83,7 +83,7 @@ pub fn dutch_with_config(config: Config) -> Pair {
 pub fn dutch_v5() -> Pair {
     with_floor_v5(
         dutch_book(),
-        CompactConfig::symmetric(&Agreements::capture(true)),
+        CompactConfig::symmetric(&ConventionCard::capture(true)),
     )
 }
 
