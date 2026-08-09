@@ -1,7 +1,7 @@
 //! Measure a point-count scale change: an A/B duplicate match.  Each board is
 //! bid twice, duplicate style: at table A the candidate pair sits North/South
-//! against a baseline pair (table B swaps seats), the per-seat knob flipped
-//! just before each call.  Boards whose two auctions reach different
+//! against a baseline pair (table B swaps seats), each side bidding off its own
+//! pinned stance.  Boards whose two auctions reach different
 //! contracts are solved double dummy once and scored with plain DD and
 //! perfect defense; `--sd` adds the blind-lead single-dummy bracket that sits
 //! between the two (DD is too pessimistic on part-scores), crediting the
@@ -560,8 +560,8 @@ fn main() {
         None => (seeded_deals(base, args.count), None),
     };
 
-    // Each bid_out sets its own thread-local per call, so board bidding
-    // parallelizes; the DD solver stays on the main thread below.  Retain both
+    // Each side bids off its own pinned stance, so board bidding parallelizes;
+    // the DD solver stays on the main thread below.  Retain both
     // tables' auctions (index 0 = table_b/off, 1 = table_a/on — the same order
     // as `contracts`) so the single-dummy pass can read each auction from the
     // leader's view.

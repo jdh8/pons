@@ -12,10 +12,11 @@
 //! moves no auction fails truthfulness); gate 2 (EPBot stickiness) is enforced
 //! at dump time by `verify_card`.
 //!
-//! One rayon task per arm, each arming on its own thread: knobs are
-//! thread-local and read at book construction *and* at call time, and rayon
-//! reuses pool threads across tasks, so every task first restores the captured
-//! defaults, then applies its own flip, then builds its stance.
+//! One rayon task per arm, each arming on its own thread: the knobs it flips
+//! are thread-local and read at book construction, and rayon reuses pool
+//! threads across tasks, so every task first restores the captured defaults,
+//! then applies its own flip, then builds its stance — which pins the
+//! classify-time state, so nothing is read off the thread after that.
 //!
 //! ```text
 //! cargo run --release --example probe-card-axes -- --count 20000 --seed 1

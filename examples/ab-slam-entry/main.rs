@@ -100,8 +100,8 @@ struct Args {
 
 /// Bid out one deal, lowering the slam-entry gate only for the feature side
 ///
-/// The thread-local is set just before each classification, so this is safe under
-/// rayon: the worker sets and reads it on its own thread.
+/// The gate is pinned into a stance at build, so the two sides bid off two
+/// pre-built stances rather than one stance and a per-call flag.
 fn bid_out(
     stances: &[Stance; 2],
     args: &Args,
