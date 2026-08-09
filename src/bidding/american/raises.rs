@@ -34,6 +34,9 @@ pub use limit_raise::set_limit_raise_acceptance;
 // The packages, re-exported so `american::tests::row_package_invariants` and
 // `register` below name them at one path.
 pub(super) use game_try::major_game_try_continuations;
+// The two raise cells, reached by `responses::capture` — the raise auctions
+// are responses to our opening, so they share `Build::response`.
+pub(crate) use game_try::major_game_tries;
 pub(super) use jacoby::jacoby_continuations;
 pub(super) use limit_raise::limit_raise_acceptance_continuations;
 

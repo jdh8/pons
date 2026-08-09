@@ -1,5 +1,6 @@
 use super::GAME_FORCE;
 use crate::bidding::Rules;
+use crate::bidding::agreements::ResponseKnobs;
 use crate::bidding::constraint::{
     Cons, Constraint, envelope_union_upgrade, hcp, len, points, support, support_points,
 };
@@ -115,7 +116,7 @@ pub fn set_two_over_one_fit(on: bool) {
 }
 
 /// Whether the 2/1 fit leg is currently authored
-fn two_over_one_fit() -> bool {
+pub(super) fn two_over_one_fit() -> bool {
     TWO_OVER_ONE_FIT.with(Cell::get)
 }
 
@@ -143,7 +144,7 @@ pub fn set_two_over_one_natural_lengths(on: bool) {
 }
 
 /// Whether natural per-call 2/1 suit lengths are currently authored
-fn two_over_one_natural_lengths() -> bool {
+pub(super) fn two_over_one_natural_lengths() -> bool {
     TWO_OVER_ONE_NATURAL_LENGTHS.with(Cell::get)
 }
 
@@ -159,7 +160,7 @@ pub fn set_two_over_one_major_discount(on: bool) {
 }
 
 /// Whether the `1♠ - 2♥` HCP discount is currently authored
-fn two_over_one_major_discount() -> bool {
+pub(super) fn two_over_one_major_discount() -> bool {
     TWO_OVER_ONE_MAJOR_DISCOUNT.with(Cell::get)
 }
 
@@ -187,11 +188,11 @@ pub fn set_two_over_one_heart_light(on: bool) {
 }
 
 /// Whether the `1♠ - 2♥` flat-twelve heart-light gate is currently authored
-fn two_over_one_heart_light() -> bool {
+pub(super) fn two_over_one_heart_light() -> bool {
     TWO_OVER_ONE_HEART_LIGHT.with(Cell::get)
 }
 
-pub(super) fn with_two_over_one(rules: Rules, major: Suit) -> Rules {
+pub(super) fn with_two_over_one(rules: Rules, major: Suit, knobs: &ResponseKnobs) -> Rules {
     let mut rules = rules;
     let trump = Strain::from(major);
     // 2/1 game-forcing new suits: cheaper suits, ranked up the line.  The
@@ -209,7 +210,7 @@ pub(super) fn with_two_over_one(rules: Rules, major: Suit) -> Rules {
             // and the cheapest 2/1 (2♣ over 1♠) is the catch-all and can be
             // three; every other 2/1 stays four.  Hearts only reaches this loop
             // over 1♠ (`Strain < trump` bars it over 1♥), so it needs no guard.
-            let min_len = if two_over_one_natural_lengths() {
+            let min_len = if knobs.two_over_one_natural_lengths {
                 match suit {
                     Suit::Hearts => 5,
                     Suit::Clubs if major == Suit::Spades => 3,
@@ -219,14 +220,14 @@ pub(super) fn with_two_over_one(rules: Rules, major: Suit) -> Rules {
                 4
             };
             // 2♥ over 1♠ (the five-card major) may force game one HCP light.
-            let discount = u8::from(two_over_one_major_discount() && suit == Suit::Hearts);
+            let discount = u8::from(knobs.two_over_one_major_discount && suit == Suit::Hearts);
             // Heart-light overrides the gate on `1♠ - 2♥` alone: the ensured
             // five-card suit forces game on a flat twelve (`len(♥,5..) &
             // hcp(12..)`), reaching `4♥` on the 5-3 fit — the strain-location
             // bet.  Fit leg (exactly-three-card spade support) unchanged; an
             // early-out keeps the gate match below byte-identical.  ponytail:
             // pairs with the shipped fit-split, never `set_two_over_one_fit(false)`.
-            if two_over_one_heart_light() && suit == Suit::Hearts {
+            if knobs.two_over_one_heart_light && suit == Suit::Hearts {
                 rules = rules
                     .rule(
                         bid,
@@ -237,7 +238,7 @@ pub(super) fn with_two_over_one(rules: Rules, major: Suit) -> Rules {
                 weight -= 5;
                 continue;
             }
-            rules = match (two_over_one_fit(), two_over_one_gate()) {
+            rules = match (knobs.two_over_one_fit, knobs.two_over_one_gate) {
                 (false, TwoOverOneGate::Points13) => rules.rule(
                     bid,
                     weight,

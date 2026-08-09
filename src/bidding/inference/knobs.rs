@@ -854,6 +854,14 @@ impl ReadingProfile {
         self.two_notrump_wide
     }
 
+    /// Whether a response to our minor names the longer major.  Read at build
+    /// time too (`american/responses/longer_major.rs` picks the selector pair
+    /// off it), which is why the response book takes it from here rather than
+    /// keeping a cell of its own — one cell, one home.
+    pub(crate) const fn longer_major_response(self) -> bool {
+        self.longer_major_response
+    }
+
     // The five cells the [instinct floor][crate::bidding::instinct()] shares
     // with the reading layer.  They live here, not in
     // [`InstinctProfile`][crate::bidding::instinct::InstinctProfile]: one cell,

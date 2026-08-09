@@ -1,6 +1,7 @@
 use super::super::call;
 use super::super::tests::best;
 use super::*;
+use crate::bidding::agreements::Agreements;
 use crate::bidding::constraint::Constraint;
 
 /// C2 pilot invariant: the native-[`EnvelopeUnion`] fit-split gate accepts exactly
@@ -45,7 +46,7 @@ fn jacoby_union_matches_composite() {
 
 #[test]
 fn major_responses_run_the_2_over_1_ladder() {
-    let r = major_responses(Suit::Hearts);
+    let r = major_responses(Suit::Hearts, &Agreements::current());
     let a = [call(1, Strain::Hearts), Call::Pass];
     assert_eq!(best(&r, &a, "K2.KQ54.A964.Q92"), call(2, Strain::Notrump));
     assert_eq!(best(&r, &a, "Q32.J53.A964.Q92"), call(2, Strain::Hearts));
@@ -55,9 +56,9 @@ fn major_responses_run_the_2_over_1_ladder() {
 #[test]
 fn choice_of_games_three_notrump() {
     let a = [call(1, Strain::Hearts), Call::Pass];
-    let on = major_responses(Suit::Hearts);
+    let on = major_responses(Suit::Hearts, &Agreements::current());
     set_major_choice_of_games(false);
-    let off = major_responses(Suit::Hearts);
+    let off = major_responses(Suit::Hearts, &Agreements::current());
     set_major_choice_of_games(true);
 
     // Flat (4333) with four trumps, 13 HCP: 3NT outranks Jacoby 2NT.
@@ -82,14 +83,14 @@ fn two_over_one_fit_leg_and_gates() {
     // fit + Points13 (the `fit` arm below; restored at the end).
     set_two_over_one_fit(false);
     set_two_over_one_gate(TwoOverOneGate::Points13);
-    let baseline = major_responses(Suit::Hearts);
+    let baseline = major_responses(Suit::Hearts, &Agreements::current());
     set_two_over_one_fit(true);
-    let fit = major_responses(Suit::Hearts);
+    let fit = major_responses(Suit::Hearts, &Agreements::current());
     set_two_over_one_fit(false);
     set_two_over_one_gate(TwoOverOneGate::Hcp13);
-    let hcp13 = major_responses(Suit::Hearts);
+    let hcp13 = major_responses(Suit::Hearts, &Agreements::current());
     set_two_over_one_gate(TwoOverOneGate::Hcp12);
-    let hcp12 = major_responses(Suit::Hearts);
+    let hcp12 = major_responses(Suit::Hearts, &Agreements::current());
     set_two_over_one_fit(true);
     set_two_over_one_gate(TwoOverOneGate::Points13);
 
@@ -126,12 +127,12 @@ fn two_over_one_natural_lengths_and_light_major() {
     // ignores it, so pin the raw-HCP gate this knob was designed against.
     set_two_over_one_gate(TwoOverOneGate::Hcp13);
     set_two_over_one_natural_lengths(true);
-    let nat = major_responses(Suit::Spades);
+    let nat = major_responses(Suit::Spades, &Agreements::current());
     set_two_over_one_major_discount(true);
-    let nat_light = major_responses(Suit::Spades);
+    let nat_light = major_responses(Suit::Spades, &Agreements::current());
     set_two_over_one_natural_lengths(false);
     set_two_over_one_major_discount(false);
-    let baseline = major_responses(Suit::Spades);
+    let baseline = major_responses(Suit::Spades, &Agreements::current());
 
     // 1♠ - 2♣ is the catch-all and may be three: a 2=4=4=3 game force bids
     // the cheaper club (weight 1.1) once three qualifies; on the uniform

@@ -15,7 +15,7 @@ use super::super::Trie;
 use super::super::constraint::{
     balanced, envelope_union_upgrade, hcp, len, points, support, support_points,
 };
-use crate::bidding::agreements::Agreements;
+use crate::bidding::agreements::{Agreements, ResponseKnobs};
 use crate::bidding::inference::{Envelope, EnvelopeUnion, Range};
 use crate::bidding::rows::{Package, Pattern, compile_into, expand, rows_of};
 use contract_bridge::auction::Call;
@@ -29,18 +29,41 @@ mod two_over_one;
 use choice_of_games::with_choice_of_games;
 use inverted_minor::inverted_minor_rows;
 use longer_major::{with_major_selection, with_up_the_line};
-use two_over_one::{two_over_one_gate, with_two_over_one};
+use two_over_one::with_two_over_one;
 
 pub(super) use choice_of_games::choice_of_games_continuations;
 pub use choice_of_games::set_major_choice_of_games;
 pub(super) use inverted_minor::minor_keycard_continuations;
-pub(crate) use longer_major::{longer_major_response, up_the_line};
+pub(crate) use longer_major::longer_major_response;
 pub use longer_major::{set_longer_major_response, set_up_the_line};
 pub use two_over_one::TwoOverOneGate;
 pub use two_over_one::{
     set_two_over_one_fit, set_two_over_one_gate, set_two_over_one_heart_light,
     set_two_over_one_major_discount, set_two_over_one_natural_lengths,
 };
+
+/// Capture this thread's response and raise build-time knobs
+///
+/// The one place these cells are read. Everything downstream takes the captured
+/// value, so a `set_*` between this call and the rules being built cannot split
+/// the book against itself. The two raise cells are here rather than in a
+/// `raises::capture()` of their own — a raise *is* a response, and one struct
+/// per book area is the granularity `Build` keeps. `longer_major_response` is
+/// read at classify time too and lives only in `DecisionProfile`, so it is
+/// absent.
+pub(in crate::bidding) fn capture() -> ResponseKnobs {
+    ResponseKnobs {
+        two_over_one_fit: two_over_one::two_over_one_fit(),
+        two_over_one_gate: two_over_one::two_over_one_gate(),
+        two_over_one_natural_lengths: two_over_one::two_over_one_natural_lengths(),
+        two_over_one_major_discount: two_over_one::two_over_one_major_discount(),
+        two_over_one_heart_light: two_over_one::two_over_one_heart_light(),
+        up_the_line: longer_major::up_the_line(),
+        major_choice_of_games: choice_of_games::major_choice_of_games(),
+        major_game_tries: super::raises::major_game_tries(),
+        limit_raise_acceptance: super::raises::limit_raise_acceptance(),
+    }
+}
 
 /// Jacoby 2NT — the game-forcing major raise with four-card support
 const JACOBY_2NT: Alert = Alert("jacoby-2nt");
@@ -61,7 +84,8 @@ const GAME_FORCE: Alert = Alert("game-force");
 /// over 1♥ a four-card spade suit takes the one level.  Splinters (double jump
 /// in a new suit) and weak jump shifts round out the response set.
 #[must_use]
-pub fn major_responses(major: Suit) -> Rules {
+pub fn major_responses(major: Suit, agreements: &Agreements) -> Rules {
+    let knobs = &agreements.build.response;
     let trump = Strain::from(major);
     let mut rules = Rules::new()
         // Jacoby 2NT: game-forcing raise with four-card support.  The
@@ -107,7 +131,7 @@ pub fn major_responses(major: Suit) -> Rules {
         .rule(
             Bid::new(1, Strain::Notrump),
             50,
-            hcp(6..=(two_over_one_gate().hcp_floor().max(13) - 1)),
+            hcp(6..=(knobs.two_over_one_gate.hcp_floor().max(13) - 1)),
         )
         .rule(Call::Pass, 0, hcp(..6));
 
@@ -120,7 +144,7 @@ pub fn major_responses(major: Suit) -> Rules {
         );
     }
 
-    rules = with_choice_of_games(rules, major);
+    rules = with_choice_of_games(rules, major, knobs);
 
     // Splinters: double jump in a new suit — four-card support, 10–13 HCP,
     // singleton or void in the splinter suit.
@@ -155,7 +179,7 @@ pub fn major_responses(major: Suit) -> Rules {
             .alert(WEAK_JUMP_SHIFT);
     }
 
-    rules = with_two_over_one(rules, major);
+    rules = with_two_over_one(rules, major, knobs);
     rules
 }
 
@@ -211,11 +235,11 @@ fn wjs_bid(major: Suit, x: Suit) -> (u8, Strain) {
 /// ladder when no major fits, and inverted minor raises promising five-card
 /// support (strong 2-of-minor forcing, weak preemptive 3-of-minor).
 #[must_use]
-pub fn minor_responses(minor: Suit) -> Rules {
+pub fn minor_responses(minor: Suit, agreements: &Agreements) -> Rules {
     let trump = Strain::from(minor);
     let mut rules = Rules::new();
-    rules = with_major_selection(rules);
-    rules = with_up_the_line(rules, minor);
+    rules = with_major_selection(rules, agreements);
+    rules = with_up_the_line(rules, minor, &agreements.build.response);
     rules = rules
         // Notrump ladder without a four-card major (3NT open-ended for game-plus).
         .rule(
@@ -300,12 +324,16 @@ pub(super) fn package() -> Package {
     Package {
         name: "suit-opening-responses",
         gate: |_| true,
-        entries: |_| {
-            let mut entries = expand("P* 1M -", |_| true, |b| major_responses(b.suit('M')));
+        entries: |agreements| {
+            let mut entries = expand(
+                "P* 1M -",
+                |_| true,
+                |b| major_responses(b.suit('M'), agreements),
+            );
             entries.extend(expand(
                 "P* 1m -",
                 |_| true,
-                |b| minor_responses(b.suit('m')),
+                |b| minor_responses(b.suit('m'), agreements),
             ));
 
             // Splinter continuations and their major-suit RKCB answer trees.

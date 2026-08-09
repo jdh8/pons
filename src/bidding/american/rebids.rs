@@ -186,7 +186,7 @@ fn rebid_after_forcing_notrump(major: Suit) -> Rules {
 /// fallback.  Under the up-the-line completion (`set_up_the_line`) opener
 /// also shows four spades over a `1♥` response — without it the 4-4 spade
 /// fit is lost to the 1NT rebid.
-fn rebid_raise_major(responder_major: Suit, opener_minor: Suit) -> Rules {
+fn rebid_raise_major(responder_major: Suit, opener_minor: Suit, agreements: &Agreements) -> Rules {
     let m = Strain::from(responder_major);
     let mut rules = Rules::new()
         .rule(Bid::new(4, m), 260, support(4..) & points(19..))
@@ -210,7 +210,7 @@ fn rebid_raise_major(responder_major: Suit, opener_minor: Suit) -> Rules {
     // Up the line: four spades over a 1♥ response, ahead of the minor rebid
     // and the notrump fallbacks (a heart raise with four-card support still
     // wins on weight).
-    if responder_major == Suit::Hearts && super::responses::up_the_line() {
+    if responder_major == Suit::Hearts && agreements.build.response.up_the_line {
         rules = rules.rule(Bid::new(1, Strain::Spades), 95, len(Suit::Spades, 4..));
     }
     // Strength-showing ladder: jump-rebid, reverse, jump-shift (default off).
@@ -234,7 +234,7 @@ fn rebid_raise_major(responder_major: Suit, opener_minor: Suit) -> Rules {
 /// Under the up-the-line completion (`set_up_the_line`) a six-plus club suit
 /// rebids a natural `2♣` — without it those hands land in the misdescribed
 /// 1NT catch-all.
-fn rebid_one_club_one_diamond() -> Rules {
+fn rebid_one_club_one_diamond(agreements: &Agreements) -> Rules {
     let mut rules = Rules::new()
         .rule(Bid::new(1, Strain::Hearts), 130, len(Suit::Hearts, 4..))
         .rule(
@@ -257,7 +257,7 @@ fn rebid_one_club_one_diamond() -> Rules {
             110,
             fifths(18.0..20.0) & balanced(),
         );
-    if super::responses::up_the_line() {
+    if agreements.build.response.up_the_line {
         rules = rules.rule(Bid::new(2, Strain::Clubs), 90, len(Suit::Clubs, 6..));
     }
     // Strength-showing ladder: jump-rebid, reverse, jump-shift (default off).
@@ -308,7 +308,7 @@ pub(super) fn remaining_rebid_bases() -> Package {
     Package {
         name: "remaining-rebid-bases",
         gate: |_| true,
-        entries: |_| {
+        entries: |agreements| {
             let mut entries = expand(
                 "P* 1M - 1NT -",
                 |_| true,
@@ -316,12 +316,12 @@ pub(super) fn remaining_rebid_bases() -> Package {
             );
             entries.extend(rows_of(
                 Pattern::node("P* 1♣ - 1♦ -"),
-                rebid_one_club_one_diamond(),
+                rebid_one_club_one_diamond(agreements),
             ));
             entries.extend(expand(
                 "P* 1m - 1M -",
                 |_| true,
-                |b| rebid_raise_major(b.suit('M'), b.suit('m')),
+                |b| rebid_raise_major(b.suit('M'), b.suit('m'), agreements),
             ));
             entries
         },

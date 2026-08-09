@@ -65,7 +65,7 @@ fn opener_after_limit_raise(major: Suit) -> Rules {
 pub(crate) fn limit_raise_acceptance_continuations() -> Package {
     Package {
         name: "limit-raise-acceptance-continuations",
-        gate: |_| limit_raise_acceptance(),
+        gate: |a| a.build.response.limit_raise_acceptance,
         entries: |_| {
             let mut entries = Vec::new();
             for major in [Suit::Hearts, Suit::Spades] {

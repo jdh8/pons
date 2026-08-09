@@ -35,16 +35,15 @@
 
 use super::american::{
     Competitive4333, DoubleShape, DoubleStyle, FreeBidStyle, LebensohlStyle, NegativeDoubleShape,
-    NotrumpDefense, NotrumpShape, TakeoutSupport, WeakTwoEval,
+    NotrumpDefense, NotrumpShape, TakeoutSupport, TwoOverOneGate, WeakTwoEval,
 };
 use super::context::DecisionProfile;
 
 /// The knobs read only at book construction
 ///
-/// One field per area, each captured by the module that owns its cells (see
-/// [`CompetitionKnobs`], [`DefenseKnobs`], and [`NotrumpKnobs`]); areas move in
-/// one at a time as their read sites convert from a thread-local getter to a
-/// field of this value, and `docs/declarative-rows.md` holds the ledger.
+/// One field per area, each captured by the module that owns its cells; areas
+/// move in one at a time as their read sites convert from a thread-local getter
+/// to a field of this value, and `docs/declarative-rows.md` holds the ledger.
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct Build {
     /// What we play when they contest our auction
@@ -55,6 +54,8 @@ pub struct Build {
     pub notrump: NotrumpKnobs,
     /// What we open, and how partner answers a weak two
     pub opening: OpeningKnobs,
+    /// How partner answers our one-level opening, and how the raises continue
+    pub response: ResponseKnobs,
 }
 
 impl Default for Build {
@@ -72,6 +73,7 @@ impl Build {
             defense: super::american::defense::capture(),
             notrump: super::american::notrump::capture(),
             opening: super::american::openings::capture(),
+            response: super::american::responses::capture(),
         }
     }
 }
@@ -460,6 +462,55 @@ impl OpeningKnobs {
     #[must_use]
     pub fn current() -> Self {
         super::american::openings::capture()
+    }
+}
+
+/// The response and raise books' build-time knobs
+///
+/// Each field is one cell, named for the getter it replaces; *derived* readings
+/// stay functions of the module that owns them rather than becoming fields, so
+/// the "one cell, one home" invariant survives the move.
+/// `longer_major_response` is read at classify time as well — the M6.4
+/// control-bid classifier reads the same discipline the response rule authors —
+/// and so lives only in `DecisionProfile`, deliberately absent here.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct ResponseKnobs {
+    // --- responses/two_over_one.rs
+    /// Author the fit leg of the major 2/1 game force
+    pub two_over_one_fit: bool,
+    /// The gauge for the no-fit leg of the major 2/1 game force
+    pub two_over_one_gate: TwoOverOneGate,
+    /// Name natural per-call suit lengths in the major 2/1 game force
+    pub two_over_one_natural_lengths: bool,
+    /// Force game one HCP light on `1♠ - 2♥`
+    pub two_over_one_major_discount: bool,
+    /// Force game on a flat twelve with five hearts on `1♠ - 2♥`
+    pub two_over_one_heart_light: bool,
+    // --- responses/longer_major.rs
+    /// Complete the natural minor tree up the line
+    pub up_the_line: bool,
+    // --- responses/choice_of_games.rs
+    /// Author `1M - 3NT` as a choice of games
+    pub major_choice_of_games: bool,
+    // --- raises/game_try.rs
+    /// Author the long-suit and general game tries after `1M - 2M`
+    pub major_game_tries: bool,
+    // --- raises/limit_raise.rs
+    /// Author opener's acceptance ladder after `1M - 3M`
+    pub limit_raise_acceptance: bool,
+}
+
+impl Default for ResponseKnobs {
+    fn default() -> Self {
+        Self::current()
+    }
+}
+
+impl ResponseKnobs {
+    /// Capture this thread's response build-time knob state
+    #[must_use]
+    pub fn current() -> Self {
+        super::american::responses::capture()
     }
 }
 

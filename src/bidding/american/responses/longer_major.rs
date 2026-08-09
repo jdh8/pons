@@ -1,4 +1,5 @@
 use crate::bidding::Rules;
+use crate::bidding::agreements::{Agreements, ResponseKnobs};
 use crate::bidding::constraint::{Cons, Constraint, described, len, points};
 use crate::bidding::context::Context;
 use contract_bridge::{Bid, Hand, Strain, Suit};
@@ -112,10 +113,10 @@ fn hearts_take_first(spades: usize, hearts: usize) -> bool {
     hearts > spades || (hearts == spades && spades < 5)
 }
 
-pub(super) fn with_major_selection(rules: Rules) -> Rules {
+pub(super) fn with_major_selection(rules: Rules, agreements: &Agreements) -> Rules {
     let mut rules = rules;
     // Major selection between 4+ majors, per the longer-major knob (default on).
-    rules = if longer_major_response() {
+    rules = if agreements.decision.reading.longer_major_response() {
         // Longer-major discipline (the default, `set_longer_major_response`): the response
         // names the longer major — 1♠ on 5♠4♥/6♠5♥ or any 5-5+, 1♥ up the
         // line only on 4-4 — so 1♥ denies longer spades and the M6.4
@@ -156,14 +157,14 @@ pub(super) fn with_major_selection(rules: Rules) -> Rules {
     rules
 }
 
-pub(super) fn with_up_the_line(rules: Rules, minor: Suit) -> Rules {
+pub(super) fn with_up_the_line(rules: Rules, minor: Suit, knobs: &ResponseKnobs) -> Rules {
     let mut rules = rules;
     // Up-the-line completion (`set_up_the_line`): a natural 1♦ over 1♣ on
     // four-plus diamonds without a four-card major.  Weight 1.2 sits below
     // the majors (1.5/1.4) and the inverted raise (1.25), above the notrump
     // ladder (1.0) — so diamond hands stop mislabeling themselves as
     // balanced notrump responses or falling to the floor.
-    if minor == Suit::Clubs && up_the_line() {
+    if minor == Suit::Clubs && knobs.up_the_line {
         rules = rules.rule(
             Bid::new(1, Strain::Diamonds),
             120,

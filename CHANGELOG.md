@@ -554,6 +554,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The response and raise books' nine build-time knobs are carried, not
+  fetched.**  `Build::response` captures them once through
+  `responses::capture()`: the major 2/1's fit leg, entry gate, natural suit
+  lengths, major discount and heart-light gate; the up-the-line completion of
+  the minor tree; the `1M - 3NT` choice of games; and the two raise
+  continuations (game tries, limit-raise acceptance).  The raise cells share
+  `ResponseKnobs` rather than getting a `raises::capture()` of their own — a
+  raise *is* a response, and one struct per book area is the granularity
+  `Build` keeps.  `major_responses` and `minor_responses` take a trailing
+  `&Agreements` like `openings`, `defensive` and `notrump_responses` before
+  them.  `LONGER_MAJOR_RESPONSE` is **not** among the nine — the M6.4
+  control-bid classifier reads the same discipline at classify time, so it
+  keeps its single home in the `Stance`-pinned `DecisionProfile` and the
+  selector pair reads it from there through a new
+  `ReadingProfile::longer_major_response` accessor.  `up_the_line` is read
+  across the area boundary by two of opener's rebid tables, which now take an
+  `&Agreements` to reach it.  No `thread_local!` block and no `set_*` setter was
+  touched.  Byte-identical: seeded `smoke-default` / `smoke-dutch` (20 000
+  boards each) and both `cards/*.bbsa` are unchanged.
+
 - **The opening book's nine build-time knobs are carried, not fetched.**
   `Build::opening` captures them once through `openings::capture()`: whether we
   open `1NT` at all, its shape policy, fifths gauge and off-shape treatment;
