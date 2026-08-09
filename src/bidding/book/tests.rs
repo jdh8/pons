@@ -296,6 +296,42 @@ fn probe_stores_and_reads_high_traffic_keys() {
     );
 }
 
+/// The per-key harvest fold is a count sum and a per-axis span, so the order
+/// boards arrive in cannot move it.  That is the whole licence for the
+/// `rayon` feature reducing in whatever order its pool finishes: break this
+/// and a parallel probe stops matching a sequential one.
+#[test]
+fn observed_merge_is_order_insensitive() {
+    use super::Observed;
+    use crate::bidding::constraint::PointScale;
+
+    let hands: Vec<contract_bridge::Hand> = [
+        "AKQ2.K53.QJ4.T92",
+        "5.AQJT98.K7.A543",
+        "QJT98.4.A65432.7",
+        "A2.K3.QJ54.J8765",
+    ]
+    .iter()
+    .map(|hand| hand.parse().expect("valid hand"))
+    .collect();
+
+    // One board's contribution, then folded in two unrelated orders — the
+    // seed is empty, exactly as a fresh shard's accumulator is.
+    let fold = |order: &[usize]| {
+        order.iter().fold(Observed::new(), |mut acc, &index| {
+            let mut one = Observed::new();
+            one.add(PointScale::Hcp, hands[index]);
+            acc.merge(&one);
+            acc
+        })
+    };
+    let straight = fold(&[0, 1, 2, 3]);
+    assert!(straight.boxed().is_some(), "nothing widened to compare");
+    assert_eq!(straight.count, fold(&[3, 1, 0, 2]).count);
+    assert_eq!(straight.boxed(), fold(&[3, 1, 0, 2]).boxed());
+    assert_eq!(straight.boxed(), fold(&[2, 0, 3, 1]).boxed());
+}
+
 /// The vacuous-scoped fold serves coverage and nothing else, on the
 /// ledger's own hole (`1♦ (2♣) 2♠` read partner ♠ `0..13`,
 /// docs/reading-drift-handoff.md): partner's contested free bid fills

@@ -599,6 +599,12 @@ fixed-point number: probed readings materially move the bidder's own
 auctions, so a consumer that retrains on probed features must retrain on the
 *post-probe* auction distribution.
 
+A `--probe 100000` sweep is 200k self-play boards (two iterations). Build with
+`--features rayon` and the harvest fans across the pool — a stance is pinned at
+build, so a worker bids exactly as the main thread does, and the per-key merge
+is order-insensitive. Measured identical, report and census both, at
+`--probe 20000 --count 2000 --seed 424242`: 5.40 s → 0.53 s on 32 cores.
+
 The same example doubles as a **published-vs-actual divergence meter**, and
 its first run reported two candidate defects. One was the meter's own:
 `1♣ - 1♥` appeared to announce 6..=11 against responders running past 20.

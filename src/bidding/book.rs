@@ -1036,25 +1036,45 @@ impl Stance {
     /// ranges (the weak-two bands) are pooled, which the widening slack
     /// absorbs.  Reading-affecting knobs must not change between this call
     /// and consumption — the boxes bake in the knob state at probe time.
+    ///
+    /// Under the non-default `rayon` feature the per-board harvest fans across
+    /// rayon's pool.  The stance answers off its pinned profile, so a worker
+    /// thread bids exactly as this one does and the report is unchanged.
     pub fn probe(&mut self, boards: usize, seed: u64) -> ProbeReport {
-        // ponytail: sequential — rayon is dev-only and the library must keep
-        // building for wasm (`default-features = false`).  ~2 ms/board, so an
-        // A/B-scale probe is minutes once per arm; add an optional rayon
-        // feature only if probe time ever dominates a harness.
+        // Each board is seeded on its own and harvested through `&self`, so the
+        // only shared state is the fold — and `Observed::merge` is a count sum
+        // and per-axis span, order-insensitive.  Hence the `rayon` feature can
+        // reduce in whatever order the pool finishes and still land on the same
+        // map, byte for byte, as the sequential fold.
+        let absorb = |mut into: HashMap<Vec<Call>, Observed>,
+                      from: HashMap<Vec<Call>, Observed>| {
+            for (key, agg) in from {
+                into.entry(key)
+                    .and_modify(|existing| existing.merge(&agg))
+                    .or_insert(agg);
+            }
+            into
+        };
         let harvest = |stance: &Self| -> HashMap<Vec<Call>, Observed> {
-            let mut into: HashMap<Vec<Call>, Observed> = HashMap::new();
-            for board in 0..boards {
+            let one = |board: usize| {
                 let deal = contract_bridge::deck::full_deal(&mut {
                     use rand::SeedableRng as _;
                     rand::rngs::StdRng::seed_from_u64(seed.wrapping_add(board as u64))
                 });
-                for (key, agg) in stance.harvest_board(board, &deal) {
-                    into.entry(key)
-                        .and_modify(|existing| existing.merge(&agg))
-                        .or_insert(agg);
-                }
+                stance.harvest_board(board, &deal)
+            };
+            #[cfg(feature = "rayon")]
+            {
+                use rayon::iter::{IntoParallelIterator as _, ParallelIterator as _};
+                (0..boards)
+                    .into_par_iter()
+                    .map(one)
+                    .reduce(HashMap::new, absorb)
             }
-            into
+            #[cfg(not(feature = "rayon"))]
+            {
+                (0..boards).map(one).fold(HashMap::new(), absorb)
+            }
         };
         let boxed = |observed: HashMap<Vec<Call>, Observed>| -> HashMap<Vec<Call>, Envelope> {
             observed

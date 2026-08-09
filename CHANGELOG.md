@@ -49,6 +49,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   thread-locals hold the shipped defaults.  It is the cover for the derived-
   context gap above — with that one line reverted it fails on 2 of the 24.
 
+- **A non-default `rayon` feature fans `Stance::probe` across the pool.** The
+  pin's first dividend, and the reason it was worth doing: a built stance is a
+  pure `Send + Sync` value, so the probe's self-play harvest is just a
+  `par_iter` now.  Every board is seeded on its own
+  (`seed.wrapping_add(board)`) and the per-key merge is a count sum and a
+  per-axis span, so the pool may reduce in whatever order it finishes and
+  still land on the same boxes — `observed_merge_is_order_insensitive` is that
+  invariant's cover.  Gated end to end rather than on the report alone:
+  `probe-reading-census --probe 20000 --count 2000 --seed 424242` censuses
+  *through* the probed store, and its 81 lines are byte-identical with and
+  without the feature (63 keys stored, 13 drifted, both arms), **5.40 s →
+  0.53 s** on 32 cores.  Off by default: the wasm front end builds
+  `default-features = false`, and a caller that owns its own threads should
+  keep the choice.
+
 - **The bias fold: the frozen-coordinate tax is now zero by construction.**
   `scripts/fold-constant-inputs.py` folds every card column the v4 corpus never
   varied into the first-layer bias (`b1 += cᵢ·wᵢ` in f64, then `wᵢ = 0`) and
