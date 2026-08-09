@@ -150,7 +150,6 @@ fn main() {
     let args = Args::parse();
     let base = args.seed.unwrap_or_else(rand::random);
     let vul = AbsoluteVulnerability::NONE;
-    let stance = american().against();
     let (knob, name): (fn(bool), &str) = if args.pass_exclusion {
         (set_pass_exclusion_reading, "pass-exclusion")
     } else if args.upgrade {
@@ -158,7 +157,15 @@ fn main() {
     } else {
         (set_sum_closure, "C1 sum")
     };
+    // The knob is captured into a stance at build, so the probe needs one book
+    // per setting: `stances[0]` knob-off (it also does the bidding), `[1]` on.
     set_gauge_membership(args.gauge);
+    knob(false);
+    let off = american().against();
+    knob(true);
+    let stances = [off, american().against()];
+    knob(false);
+    let stance = &stances[0];
 
     // Per column kind: every |Δ| that was nonzero, plus every value seen
     // knob-off (for the corpus σ that puts the movement on the net's scale).
@@ -173,18 +180,14 @@ fn main() {
         let dealer = Seat::ALL[board % 4];
         // Bid under the baseline in both arms: the corpus of readings is fixed,
         // so this isolates the encoding perturbation from any bidding change.
-        knob(false);
-        let auction = bid_out(&stance, &stance, true, dealer, vul, &deal);
+        let auction = bid_out(stance, stance, true, dealer, vul, &deal);
 
         for cut in 1..=auction.len() {
             let seat = seat_to_act(dealer, cut);
             let prefix = &auction[..cut];
             let rel = relative(vul, seat);
 
-            let read = |on: bool| {
-                knob(on);
-                stance.infer(rel, prefix)
-            };
+            let read = |on: bool| stances[usize::from(on)].infer(rel, prefix);
             let (off, on) = (read(false), read(true));
             let (a, b) = (
                 features_eval_shape(deal[seat], &off, prefix),
@@ -270,7 +273,6 @@ fn main() {
         }
     }
 
-    knob(false);
     let pct = |x: u64| 100.0 * x as f64 / nodes as f64;
     println!(
         "{name}: {} boards, {nodes} nodes, seed {base}\n\

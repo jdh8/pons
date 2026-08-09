@@ -142,6 +142,7 @@ fn reset_knobs() {
     set_double_style(DoubleStyle::Optional);
     set_trap_pass(true);
     set_penalty_pass(Some((4, 4, true)));
+    set_column_flags(0);
 }
 
 /// Build the four row books (our defense menu) and four column books (their
@@ -199,15 +200,16 @@ fn build_books() -> (Vec<Stance>, Vec<Stance>) {
             set_trap_pass(false);
             set_penalty_pass(None);
         }),
-        // Sit: the book is the default one — the difference is the
-        // classification-time runout flags, set per cell in the worker.
-        build(&|| ()),
+        // Sit: the runout flags are the only difference, and they are captured
+        // into the stance at build like every other knob.
+        build(&|| set_column_flags(3)),
     ];
     (rows, cols)
 }
 
-/// The "sit" column disables the doubled-1NT runout (a classification-time,
-/// per-thread flag), so it must be set in the worker before every cell's bid.
+/// The "sit" column disables the doubled-1NT runout.  The flags are read at
+/// classification time but captured into the stance at build, so this runs
+/// inside [`build_books`] rather than per cell.
 fn set_column_flags(col: usize) {
     let runout = col != 3;
     set_one_nt_runout(runout);
@@ -310,7 +312,6 @@ fn bid_board(
     vul: AbsoluteVulnerability,
     deal: FullDeal,
 ) -> Option<BoardOut> {
-    set_column_flags(0);
     let datum_auction = bid_out(&rows[0], &cols[0], true, dealer, vul, &deal);
     if !ew_opened_1nt(&datum_auction, dealer) {
         return None;
@@ -323,7 +324,6 @@ fn bid_board(
     let mut cell_auction = [[0u8; COLS]; ROWS];
     for row in 1..ROWS {
         for col in 0..COLS {
-            set_column_flags(col);
             let auction = bid_out(&rows[row], &cols[col], true, dealer, vul, &deal);
             contracts[row][col] = final_contract(&auction, dealer);
             if col == 0 {

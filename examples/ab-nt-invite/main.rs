@@ -54,22 +54,26 @@ fn main() {
     let args = Args::parse();
     let base = args.seed.unwrap_or_else(rand::random);
     let vul = args.vulnerability;
-    let sys = american().against();
+
+    // The flag is captured into a stance when it is built, so each arm gets its
+    // own book: `[off, on]`, indexed by the arm's flag.
+    set_nt_invite_inference(false);
+    let off = american().against();
+    set_nt_invite_inference(true);
+    let sys = [off, american().against()];
 
     // Deals are seeded per board (base + index) so every arm/vul of the
     // experiment replays the identical stream.
     let deals = seeded_deals(base, args.count);
 
-    // The flag is thread-local, so each par_iter worker sets it for its own
-    // thread. The two passes stay sequential so the flag is stable within each.
     let bid_pass = |on: bool| {
+        let sys = &sys[usize::from(on)];
         deals
             .par_iter()
             .enumerate()
             .map(|(i, deal)| {
                 let dealer = Seat::ALL[i % 4];
-                set_nt_invite_inference(on);
-                final_contract(&bid_uncontested(&sys, dealer, vul, deal), dealer)
+                final_contract(&bid_uncontested(sys, dealer, vul, deal), dealer)
             })
             .collect::<Vec<_>>()
     };

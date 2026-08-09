@@ -558,8 +558,12 @@ New-harness rules (the Rayon pattern, commits `8f549ed`/`eadb654`):
   with `rayon::par_iter` (classify is pure; `Stance` is `Sync`).
 - The ddss `Solver` stays on the **main thread** — `Solver::lock(None).solve_deals`
   batches and parallelizes internally; never call it inside a worker.
-- Thread-local knobs read at *book construction* are baked in; knobs read at
-  *classify time* must be set inside the worker closure.
+- **Arm the knobs, then build; one stance per arm.** Both kinds of knob —
+  book-construction and classify-time — are captured into the `Stance` at
+  build, so a `set_*` inside a worker closure reaches nothing and both arms
+  bid identically (a clean wash on every board, meaning nothing by it). If an
+  arm must differ only at eval time, build both on the defaults and
+  `Stance::repin` each under its own setting.
 - Solve only the **divergent** boards; score both plain and PD from the same
   solved table (near-free — loop the summary over both swing vectors).
 - Verify determinism: same seed twice → bit-identical summary.

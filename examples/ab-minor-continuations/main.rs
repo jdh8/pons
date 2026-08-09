@@ -128,9 +128,9 @@ fn main() {
         .map(|(index, deal)| {
             let dealer = Seat::ALL[index % 4];
             std::array::from_fn(|arm| {
-                set_longer_major_response(arm == 1 && args.longer_major);
+                // Every knob, construction-time or classify-time, is already
+                // captured into `stances[arm]` by `set_knobs` above.
                 let auction = bid_uncontested(&stances[arm], dealer, vul, deal);
-                set_longer_major_response(false);
                 final_contract(&auction, dealer)
             })
         })

@@ -123,20 +123,12 @@ impl Tally {
 /// Bid the deal out with `kickback` armed on every seat.
 ///
 /// The knob gates rule *presence* at build time and the recognizers at
-/// classification time, so both halves have to be armed together: the caller
-/// passes the stance built for this arm, and the flag is re-set per call
-/// because thread-locals do not cross into rayon workers on their own.
-fn bid_out(
-    stance: &Stance,
-    kickback: bool,
-    deal: &FullDeal,
-    dealer: Seat,
-    vul: AbsoluteVulnerability,
-) -> Auction {
+/// classification time, and both halves are captured into the stance the caller
+/// built for this arm — so the worker needs no arming of its own.
+fn bid_out(stance: &Stance, deal: &FullDeal, dealer: Seat, vul: AbsoluteVulnerability) -> Auction {
     let mut auction = Auction::new();
     while !auction.has_ended() {
         let seat = common::seat_to_act(dealer, auction.len());
-        arm_kickback(kickback);
         auction.push(next_call(stance, deal[seat], dealer, vul, &auction));
     }
     auction
@@ -185,8 +177,8 @@ fn main() {
                 return tally;
             }
             let (dealer, vul) = (DEALERS[i % 4], VULS[i % 4]);
-            let auction = bid_out(&on, true, deal, dealer, vul);
-            let plain = bid_out(&off, false, deal, dealer, vul);
+            let auction = bid_out(&on, deal, dealer, vul);
+            let plain = bid_out(&off, deal, dealer, vul);
             let rows = divergent_rows(&auction, &plain);
 
             arm_kickback(true);

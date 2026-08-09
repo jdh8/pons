@@ -30,6 +30,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reading it too.  Seeded `smoke-default` / `smoke-dutch` dumps (20 000 boards)
   are byte-identical across the change.
 
+  The pin reaches the reading's *derived* contexts too.  The projection walks
+  each turn of the auction through a context of its own, and those carry no
+  stance; they now inherit the reader's pinned profile
+  (`Context::with_profile`) instead of falling back to the thread.  Without it
+  the whole authored-projection layer still decoded under whatever knobs the
+  thread held — the shipped defaults on a rayon worker — which is why a stance
+  built under a non-default `set_reading_scope` read exactly like one built
+  under the default (measured: 0 of 3 984 prefixes moved by the pin, 2 880 by
+  the thread-local; after the fix, 2 932 by the pin and 0 by the thread).  This
+  changes nothing when the knobs are default, so the seeded dumps are
+  unaffected, and it restores `ab-alert-reading` to the divergent-board count
+  it had before the campaign (57 of 4 000, seed 7).
+
+  `stance_pins_knobs_across_threads` is the campaign's keystone and now runs
+  unignored, armed over all 84 pinned cells: a stance built under a system
+  nobody plays must bid 24 seeded deals identically on a virgin thread whose
+  thread-locals hold the shipped defaults.  It is the cover for the derived-
+  context gap above — with that one line reverted it fails on 2 of the 24.
+
 - **The bias fold: the frozen-coordinate tax is now zero by construction.**
   `scripts/fold-constant-inputs.py` folds every card column the v4 corpus never
   varied into the first-layer bias (`b1 += cᵢ·wᵢ` in f64, then `wᵢ = 0`) and
@@ -200,6 +219,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   — only its comment was wrong about *when* the minor scheme is read, which had
   left its European arm classifying under the shipped Puppet default.  No
   default-knob behaviour moved: the seeded smoke dumps stay byte-identical.
+
+- **A second sweep, over every remaining harness that set a knob after its
+  build.**  Same idiom, same fix — arm, build, hand the stance to the workers.
+  `ab-alert-reading` and `ab-nt-invite` flipped a reading knob per board off one
+  shared stance and now build one book per arm (`ab-alert-reading` is back to
+  the parent's 57 divergent boards of 4 000 at seed 7; `ab-nt-invite` measured
+  0 at the parent too, so its repair is structural).  `ab-landy` armed the
+  penalty latch inside the worker, where it reached neither book; it is now set
+  before both, as the single thread-local it replaced was.
+  `ab-nt-defense-matrix` flipped the doubled-1NT runout per *cell*, so its
+  "sit" column had stopped differing from the others; the flags are baked into
+  that column's stance.  `ab-dnf-sd-lead` and `probe-closure-features` each
+  arm a *reading* knob, so each arm now gets its own reader stance.
+  `dump-evaluator`'s `--closed-hulls` reads through a knob-on twin of each
+  system (its `rayon::broadcast` is deleted — the workers read the stance now),
+  and `probe-reading-census` uses `Stance::repin` after the probe, which is
+  the only way to express "fill the store, then read from it".
+  `ab-major-continuations`, `ab-minor-continuations`, `ab-kickback` and
+  `probe-kickback-yield` already built one stance per arm and only carried a
+  now-redundant per-call re-arm, which is deleted; their divergent counts are
+  unchanged against the parent.  `examples/common`'s `Blinded` wrapper is
+  replaced by `blinded(&stance)`, a repinned copy — its one caller is
+  `bba-gen`'s deviation panel, and a `&dyn System` wrapper could no longer
+  blank a reading the stance had already pinned.
+
+- **`bba-gen --their-ns` no longer leaks our classify-time knobs onto their
+  seat.**  The opponents' book was built under `--their-*` and then reset, but
+  the classify-time half was read live, so whichever side classified second did
+  so under the other's knobs.  Each seat now reads under its own stance's pin.
+  Dumps drawn with `--their-ns` before this differ from ones drawn after
+  wherever the two seats disagree on a classify-time knob; the usual case,
+  matching `--ns-*` and `--their-ns`, is unaffected.  `--ns-probe` likewise
+  needed `repin`: both `set_probed_vacuous_reading` and `set_probed_reading`
+  are set *around* the probe, after the build, so without it neither reached
+  the dump.
 
 - **The `web` CI job, which the inference split would have turned red.**  The
   split demoted six `pub` reading-knob getters to `pub(crate)` on the finding

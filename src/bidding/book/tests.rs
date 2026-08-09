@@ -1051,12 +1051,12 @@ fn a_declared_opponent_reads_their_calls_in_their_books() {
 /// shipped defaults.  Any classify-time read that bypasses the pinned
 /// [`DecisionProfile`][super::DecisionProfile] diverges here.
 ///
-/// Ignored until the reader migrations land: stage 2 pins the inference
-/// layer, stage 3 instinct, stage 4 the evaluator/scale family; each stage
-/// extends the arming below with its own layer and this test goes live with
-/// stage 5.
+/// Live since stage 5, armed over all three layers: `ReadingProfile`'s 42
+/// cells, `InstinctProfile`'s 31, and the nine `DecisionProfile` holds
+/// directly.  The values are deliberately meaningless — this arms a system
+/// nobody plays — because what is under test is only that both threads see
+/// the *same* one.
 #[test]
-#[ignore = "armed by stages 2-4 of the pin-at-build campaign"]
 fn stance_pins_knobs_across_threads() {
     use crate::bidding::table::Table;
     use crate::bidding::{american, scoped};
@@ -1068,7 +1068,19 @@ fn stance_pins_knobs_across_threads() {
     // reused libtest workers stay clean.
     scoped(|| {
         crate::bidding::instinct::InstinctProfile::arm_all_nondefault();
-        // Stages 2 and 4 add their layers' arming here.
+        crate::bidding::inference::ReadingProfile::arm_all_nondefault();
+        // The nine cells `DecisionProfile` holds outside those two.
+        crate::bidding::evaluator::set_eval_auction(false);
+        crate::bidding::evaluator::set_eval_shape(true);
+        crate::bidding::features::set_blind_inference(true);
+        crate::bidding::instinct::set_two_over_one_force(false);
+        crate::bidding::constraint::set_fuzzy_fifths(true);
+        crate::bidding::constraint::set_fifths_companion(
+            crate::bidding::constraint::FifthsCompanion::Hcp,
+        );
+        crate::bidding::american::set_stayman_net_force(true);
+        crate::bidding::american::set_transfer_gf_majors(false);
+        crate::bidding::american::set_transfer_gf_hearts(false);
 
         let ns = american();
         let ew = american();

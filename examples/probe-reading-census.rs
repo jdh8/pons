@@ -288,6 +288,8 @@ fn main() {
     let args = Args::parse();
     let base = args.seed.unwrap_or_else(rand::random);
     let vul = AbsoluteVulnerability::NONE;
+    // Reading knobs are captured into the stance at build, so arm this one first.
+    pons::bidding::set_pass_exclusion_reading(args.exclusion);
     let mut stance = american().against();
     if args.probe > 0 {
         let report = stance.probe(args.probe, base.wrapping_add(0x9B0BE));
@@ -295,6 +297,11 @@ fn main() {
             "probed {} boards: {} keys stored, {} drifted between iterations",
             args.probe, report.keys, report.drifted,
         );
+        // Filling the store and *reading* from it are separate knobs, and the
+        // second can only be set after the probe — `repin` is the hook that
+        // makes a post-build set take, without rebuilding the book.
+        pons::bidding::set_probed_reading(true);
+        stance.repin();
     }
     let stance = stance;
 
@@ -302,9 +309,6 @@ fn main() {
         .par_iter()
         .enumerate()
         .map(|(board, deal)| {
-            // Thread-local knobs: set in every rayon worker, not just main.
-            pons::bidding::set_pass_exclusion_reading(args.exclusion);
-            pons::bidding::set_probed_reading(args.probe > 0);
             let dealer = Seat::ALL[board % 4];
             let auction = bid_out(&stance, &stance, true, dealer, vul, deal);
             census_auction(&stance, dealer, vul, &auction)

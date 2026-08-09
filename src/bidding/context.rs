@@ -83,6 +83,12 @@ pub struct Context<'a> {
     config: Option<&'a Config>,
     compact: Option<&'a CompactConfig>,
     authored_projection: Option<&'a AuthoredProjection>,
+    /// The pinned knob state a *derived* context inherits from its parent —
+    /// see [`Context::with_profile`].  `None` outranked by both the decision
+    /// cache and an attached stance; it is what keeps a context built off the
+    /// reader's auction (`Context::at_each_turn`) reading under the reader's
+    /// pin instead of the thread's live knobs.
+    pinned_profile: Option<DecisionProfile>,
     revision: u64,
     decision_cache: Option<Arc<DecisionCache>>,
 }
@@ -209,6 +215,7 @@ impl ContextCursor {
             config: None,
             compact: None,
             authored_projection: None,
+            pinned_profile: None,
             revision: 0,
             decision_cache: None,
         }
@@ -365,6 +372,7 @@ impl<'a> Context<'a> {
             config: None,
             compact: None,
             authored_projection: None,
+            pinned_profile: None,
             revision: 0,
             decision_cache: None,
         };
@@ -428,6 +436,20 @@ impl<'a> Context<'a> {
             }
         }
         contexts
+    }
+
+    /// Inherit a parent context's pinned knob state
+    ///
+    /// The reading walks each turn of the auction through a context of its own
+    /// ([`at_each_turn`][Self::at_each_turn]), and those carry no stance to pin
+    /// them.  Without this they would read under whatever knobs the *thread*
+    /// happens to hold, which is exactly the live read the pin exists to
+    /// remove — and on a rayon worker that is the shipped defaults, whatever
+    /// the reader was built under.  An attached stance still outranks it.
+    #[must_use]
+    pub(crate) const fn with_profile(mut self, profile: DecisionProfile) -> Self {
+        self.pinned_profile = Some(profile);
+        self
     }
 
     /// Attach the common prefixes of the auction in the queried [`Trie`]
@@ -592,9 +614,10 @@ impl<'a> Context<'a> {
     /// [`DecisionProfile`] it never looks at.
     pub(crate) fn reading_profile(&self) -> ReadingProfile {
         self.active_decision_cache().map_or_else(
-            || {
-                self.own_system
-                    .map_or_else(reading_profile, |system| system.profile().reading)
+            || match (self.own_system, self.pinned_profile) {
+                (Some(system), _) => system.profile().reading,
+                (None, Some(profile)) => profile.reading,
+                (None, None) => reading_profile(),
             },
             |cache| cache.profile.reading,
         )
@@ -608,9 +631,10 @@ impl<'a> Context<'a> {
     /// there is exactly what pinning removes.
     pub(crate) fn decision_profile(&self) -> DecisionProfile {
         self.active_decision_cache().map_or_else(
-            || {
-                self.own_system
-                    .map_or_else(DecisionProfile::current, Stance::profile)
+            || match (self.own_system, self.pinned_profile) {
+                (Some(system), _) => system.profile(),
+                (None, Some(profile)) => profile,
+                (None, None) => DecisionProfile::current(),
             },
             |cache| cache.profile,
         )

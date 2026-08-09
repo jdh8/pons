@@ -162,7 +162,10 @@ std::thread_local! {
 /// trained on the [`envelope_union_reading`] regime only, so the knob is only honoured
 /// there; anywhere else the v2 path serves as before.
 ///
-/// Per-thread, like every reading knob; set it inside worker closures.
+/// Per-thread, like every reading knob, and captured into a [`Stance`] when
+/// it is built: set it *before* the build, not inside a worker closure.
+///
+/// [`Stance`]: crate::bidding::Stance
 pub fn set_eval_auction(on: bool) {
     EVAL_AUCTION.with(|cell| cell.set(on));
 }
@@ -197,7 +200,10 @@ pub fn eval_auction() -> bool {
 /// only, and its shape block reads the *union* of announced boxes, so it is
 /// honoured only there.
 ///
-/// Per-thread, like every reading knob; set it inside worker closures.
+/// Per-thread, like every reading knob, and captured into a [`Stance`] when
+/// it is built: set it *before* the build, not inside a worker closure.
+///
+/// [`Stance`]: crate::bidding::Stance
 pub fn set_eval_shape(on: bool) {
     EVAL_SHAPE.with(|cell| cell.set(on));
 }

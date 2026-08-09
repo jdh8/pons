@@ -47,7 +47,7 @@ use std::ffi::{CString, c_int};
 mod common;
 use common::oracle::{BbaOracle, ConventionCard, DEFAULT_LIB, SYSTEM_2_OVER_1, bid_out, load_bbsa};
 use common::{
-    Blinded, Board, Dump, NtDefenseArg, ReadingScopeArg, deviant_floor, floor_card, hand_hcp,
+    Board, Dump, NtDefenseArg, ReadingScopeArg, blinded, deviant_floor, floor_card, hand_hcp,
     seat_floor, seat_floor_vs, seat_to_act,
 };
 
@@ -1917,8 +1917,11 @@ fn main() -> anyhow::Result<()> {
         // Fixed seed: every shard of an arm probes the identical map, so the
         // arm's readings are consistent across its shards.
         // Armed before the probe so its fixed-point iteration serves through
-        // the same fold consumption will (see `Stance::probe`).
+        // the same fold consumption will (see `Stance::probe`).  Both knobs are
+        // captured into the stance at build and can only be set after it, so
+        // each set is followed by the `repin` that makes it take.
         pons::bidding::set_probed_vacuous_reading(args.ns_probe_vacuous);
+        our_floor.repin();
         let report = our_floor.probe(args.ns_probe, 0x9B0BE);
         eprintln!(
             "probed {} boards: {} keys, {} drifted",
@@ -1926,6 +1929,7 @@ fn main() -> anyhow::Result<()> {
         );
         if !args.ns_probe_vacuous {
             pons::bidding::set_probed_reading(true);
+            our_floor.repin();
         }
     }
     let our_floor = our_floor;
@@ -1962,6 +1966,16 @@ fn main() -> anyhow::Result<()> {
     } else {
         our_floor
     };
+    // Blind arm of the deviation panel: our side reads with the two opponent
+    // seats' readings blanked.  The knob is captured into a stance, so this is a
+    // repinned copy of our floor rather than a global set — the pons book seated
+    // opposite us keeps its own readings.  (A BBA oracle has no pons readings to
+    // blank, so the flag only reaches the floor.)
+    let our_floor = if args.ns_blind_opponent_reading {
+        blinded(&our_floor)
+    } else {
+        our_floor
+    };
     let our_oracle = match our_system {
         Some(system) => Some(BbaOracle::load(&path, system, our_conv.clone())?),
         None => None,
@@ -1974,15 +1988,6 @@ fn main() -> anyhow::Result<()> {
         (Some(deviant), _) => deviant,
         (None, Some(oracle)) => oracle,
         (None, None) => &bba,
-    };
-    // Blind arm of the deviation panel: our side classifies with the two
-    // opponent seats' readings blanked.  Wrapped rather than set globally so
-    // the pons book seated opposite us keeps its own readings.
-    let blinded = Blinded(ours);
-    let ours: &dyn System = if args.ns_blind_opponent_reading {
-        &blinded
-    } else {
-        ours
     };
     // Labels name the card file rather than spelling out its ~257 toggles;
     // explicit `--*-conv` singles still render individually.

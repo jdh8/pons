@@ -58,9 +58,9 @@
 //! **Both knob regimes must be armed.** `set_rkcb_variant` gates rule *presence* at
 //! build time — the reading's `alerted` test is structural, so an always-present
 //! alerted rule on 4♥/4♠ would suppress the natural reading of those calls even
-//! in the off arm — *and* the recognizers at classification time.  So: one
-//! stance built per arm, and the flags re-set per call by side inside the
-//! bidding loop (thread-locals do not cross into rayon workers on their own).
+//! in the off arm — *and* the recognizers at classification time.  Both halves
+//! are captured into the stance at build, so one stance per arm carries the
+//! whole arm: the bidding loop picks by side and arms nothing.
 //!
 //! `--dump DIR` writes the divergent boards as a `common::Dump` shard —
 //! identical contracts swing zero under **every** scorer, so divergence is
@@ -354,8 +354,8 @@ fn build(arm: Arm, opponent: Arm) -> Stance {
     stance
 }
 
-/// Bid one deal, the feature arm seated N-S or E-W.  Both knobs are re-armed
-/// before every call, because the stance alone carries only the build-time half.
+/// Bid one deal, the feature arm seated N-S or E-W.  Each stance carries both
+/// halves of its arm's knobs — build-time and classify-time — from [`build`].
 fn bid_out(
     args: &Args,
     feature: &Stance,
@@ -369,12 +369,7 @@ fn bid_out(
         let seat = seat_to_act(dealer, auction.len());
         let seat_is_ns = matches!(seat, Seat::North | Seat::South);
         let feature_side = seat_is_ns == feature_is_ns;
-        let (arm, stance) = if feature_side {
-            (args.feature, feature)
-        } else {
-            (args.baseline, baseline)
-        };
-        arm_knobs(arm);
+        let stance = if feature_side { feature } else { baseline };
         auction.push(next_call(
             stance,
             deal[seat],
@@ -383,7 +378,6 @@ fn bid_out(
             &auction,
         ));
     }
-    arm_knobs(Arm::Plain);
     auction
 }
 

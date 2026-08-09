@@ -226,17 +226,11 @@ fn main() {
         .map(|(index, deal)| {
             let dealer = Seat::ALL[index % 4];
             std::array::from_fn(|arm| {
-                // Every knob but these two is construction-time and already baked
-                // into `stances`.  `two_over_one_force` and
-                // `two_over_one_slam_strength` are read at *classify* time, so
-                // they must be re-set inside the worker or these threads would
-                // only ever see the default (cf. ab-minor-continuations'
-                // longer-major).
-                set_two_over_one_force(!(arm == 1 && args.no_two_over_one_force));
-                set_two_over_one_slam_strength(!(arm == 1 && args.no_two_over_one_slam_strength));
+                // Every knob is captured into `stances[arm]` at build, the
+                // classify-time ones (`two_over_one_force`,
+                // `two_over_one_slam_strength`) included, so the worker needs no
+                // arming of its own.
                 let auction = bid_uncontested(&stances[arm], dealer, vul, deal);
-                set_two_over_one_force(true);
-                set_two_over_one_slam_strength(true);
                 final_contract(&auction, dealer)
             })
         })

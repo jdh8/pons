@@ -636,9 +636,10 @@ fn main() {
     }
 
     if args.sd {
-        // One default-flag reading serves both arms (see infer_stance above);
-        // pin the main thread back to the shipped defaults in case rayon ran a
-        // bid_out here and left an arm's knob set.
+        // One default-flag reading serves both arms (see infer_stance above).
+        // The sampler inside `single_dummy_leads` evaluates constraints on a
+        // *bare* context, which still falls back to the thread-locals, so put
+        // them back on the shipped defaults after the arms armed them.
         set_support_points(true);
         set_point_scale(PointScale::RuleOfNFloored);
         // Blind-lead pass: on each divergent board price both arms' auctions —

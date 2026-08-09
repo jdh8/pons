@@ -439,6 +439,12 @@ fn main() {
             maj.parse::<usize>().expect("MAJ is a number"),
         )
     };
+    // The latch is a reading knob, captured into a stance at build, so it is set
+    // before *both* books — as the single thread-local it replaces was.  It
+    // fires only for the side that made the penalty X, the measured pair, so
+    // arming the baseline too leaves the baseline unmoved.
+    set_penalty_latch(ns_penalty_latch);
+    set_latch_style(ns_latch_style);
     set_landy(None);
     set_unusual_notrump_defense(None);
     set_landy_hcp(false);
@@ -520,11 +526,6 @@ fn main() {
         .par_iter()
         .enumerate()
         .map(|(i, &deal)| {
-            // The latch is a live-read instinct flag, so set it per worker thread
-            // (Rayon workers do not inherit the main thread's thread-locals). It
-            // fires only for the side that made the penalty X — the measured pair.
-            set_penalty_latch(ns_penalty_latch);
-            set_latch_style(ns_latch_style);
             let dealer = Seat::ALL[i % 4];
             let table_a = bid_out(&measured, &baseline, true, dealer, vul, &deal);
             let table_b = bid_out(&measured, &baseline, false, dealer, vul, &deal);

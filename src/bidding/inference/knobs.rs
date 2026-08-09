@@ -735,6 +735,62 @@ impl ReadingProfile {
         self.notrump_defense == crate::bidding::american::NotrumpDefense::Natural
     }
 
+    /// Drive every cell of this profile off its shipped default, so the
+    /// cross-thread pinning test (`stance_pins_knobs_across_threads`) can tell
+    /// a pinned read from a live one: a classify-time read that bypasses the
+    /// pinned profile diverges on a virgin thread.
+    ///
+    /// The values are *different*, not meaningful — this arms a system nobody
+    /// plays.  What must hold is only that both threads see the same one.
+    #[cfg(test)]
+    pub(crate) fn arm_all_nondefault() {
+        use crate::bidding::american;
+        use crate::bidding::instinct;
+
+        set_nt_invite_inference(false);
+        set_rubens_transfer_reading(false);
+        set_reading_scope(ReadingScope::All);
+        set_fallback_projection(false);
+        set_envelope_union_reading(false);
+        set_blind_opponent_reading(true);
+        set_gauge_membership(true);
+        set_sum_closure(true);
+        set_upgrade_closure(true);
+        set_control_bid_reading(false);
+        set_cue_reading(false);
+        set_length_soundness(false);
+        set_pass_reading(false);
+        set_pass_exclusion_reading(true);
+        set_probed_reading(true);
+        set_probed_vacuous_reading(true);
+        set_announced_reading(true);
+        set_table_alert_reading(false);
+        set_rule_accept(false);
+        crate::bidding::constraint::set_point_scale(crate::bidding::constraint::PointScale::Hcp);
+        crate::bidding::constraint::set_support_points(false);
+        instinct::set_rubens_advances(true);
+        instinct::set_penalty_latch(false);
+        instinct::set_floor_rkcb(false);
+        instinct::set_rkcb_variant(instinct::RkcbVariant::Kickback);
+        american::set_nt_overcall_systems_on(false);
+        american::set_nt_overcall_gladiator(true);
+        american::set_nt_splinter(false);
+        american::set_opener_extras_ladder(false);
+        american::set_xyz(false);
+        american::set_notrump_minors(american::EUROPEAN);
+        american::set_opener_major_jump_rebid(false);
+        american::set_garbage_stayman(false);
+        american::set_crawling_stayman(false);
+        american::set_woolsey_points(9, 18);
+        american::set_woolsey_double_floor(13);
+        american::set_natural_double_floor(16);
+        american::set_longer_major_response(false);
+        american::set_landy(Some((8, 14)));
+        american::set_notrump_defense(american::NotrumpDefense::Woolsey);
+        american::set_natural_overcall_points(9, 13);
+        american::set_two_notrump_wide(true);
+    }
+
     pub(crate) const fn decodes_nonpass(self, alerted: bool) -> bool {
         match self.scope {
             ReadingScope::None => false,

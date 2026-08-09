@@ -244,9 +244,22 @@ Conventions:
 - The default encodes the measured verdict ([measurement.md](measurement.md)
   ship rules); the non-default state of a shipped knob keeps an off-switch in
   `bba-gen` (`--no-ns-*` for default-on knobs).
-- Most knobs are read at **book construction** — baked into the books, safe
-  under rayon. The `inference/knobs.rs` knobs are read at **classify time** —
-  set them inside worker closures in parallel harnesses.
+- Most knobs are read at **book construction** — baked into the books. The
+  `inference/knobs.rs` knobs and ~30 of `instinct.rs`'s are read at **classify
+  time**, so they are *captured into the `Stance`* when it is built
+  (`DecisionProfile`, `context.rs`). Either way a built stance is a pure value:
+  **set the knobs, then build, and hand the stance to the workers** — never set
+  a knob inside a worker closure. An A/B arm is one stance per arm.
+- Set-after-build is inert until the next build or an explicit
+  [`Stance::repin`], which re-captures the knob state without rebuilding the
+  book — the hook for an eval-time-only arm, and for the two knobs
+  (`probed_reading`, `probed_vacuous_reading`) that can only be set around a
+  `probe` run. `pons::bidding::scoped` builds on a fresh thread whose knobs
+  start at the shipped defaults, leaving the caller's thread untouched.
+- A context with no stance attached (a bare `Context::new` — tests,
+  diagnostics) still falls back to the thread's live knobs; a context *derived*
+  from a reader's (the per-turn walk in `project_authored`) inherits the
+  reader's pin via `Context::with_profile`.
 - A knob's off-state must leave the default system byte-identical while the
   treatment is unshipped.
 

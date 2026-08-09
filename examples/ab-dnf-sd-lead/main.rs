@@ -119,20 +119,22 @@ fn main() {
 
     // Price the opening lead for one arm: read the leader's inferences and
     // sample worlds *under the arm's knobs* (disjunctive boxes and/or gauge
-    // membership).  The sampler runs on the main thread inside
-    // `single_dummy_leads`, so the thread-locals set here govern it.
+    // membership).  Both knobs are captured into a stance at build, so the arm
+    // gets its own `reader`; the sampler inside `single_dummy_leads` runs on the
+    // main thread and follows the `Inferences` that reader produced.
     let score_arm = |envelope_union: bool, gauge: bool| -> Vec<i64> {
         let set_knobs = || {
             set_envelope_union_reading(envelope_union);
             set_gauge_membership(gauge);
         };
         set_knobs();
+        let reader = american().against();
         let mut pending: Vec<(usize, Contract, Seat)> = Vec::new();
         let mut questions: Vec<LeadQuestion> = Vec::new();
         for (i, auction) in auctions.iter().enumerate() {
             let dealer = Seat::ALL[i % 4];
             if let Some((contract, declarer, inferences)) =
-                lead_inputs(auction, &stance, dealer, vul)
+                lead_inputs(auction, &reader, dealer, vul)
             {
                 pending.push((i, contract, declarer));
                 questions.push(LeadQuestion {

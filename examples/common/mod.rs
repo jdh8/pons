@@ -691,39 +691,20 @@ pub fn deviant_floor(
     book
 }
 
-/// A [`System`] that classifies with the *opponents'* readings blanked
-///
-/// Wraps [`pons::bidding::set_blind_opponent_reading`] around `classify` and
-/// restores the previous state, so one side of the table can go blind while a
-/// pons book on the *other* side, sharing the thread, keeps its readings.  The
+/// A copy of `stance` that reads with the *opponents'* readings blanked — the
 /// `blind` arm of the deviation panel.
-pub struct Blinded<'a>(pub &'a dyn System);
-
-impl System for Blinded<'_> {
-    fn classify(
-        &self,
-        hand: Hand,
-        vul: contract_bridge::auction::RelativeVulnerability,
-        auction: &[Call],
-    ) -> Option<pons::bidding::array::Logits> {
-        let was = pons::bidding::blind_opponent_reading();
-        pons::bidding::set_blind_opponent_reading(true);
-        let out = self.0.classify(hand, vul, auction);
-        pons::bidding::set_blind_opponent_reading(was);
-        out
-    }
-
-    fn authored_at(
-        &self,
-        vul: contract_bridge::auction::RelativeVulnerability,
-        auction: &[Call],
-    ) -> bool {
-        let was = pons::bidding::blind_opponent_reading();
-        pons::bidding::set_blind_opponent_reading(true);
-        let out = self.0.authored_at(vul, auction);
-        pons::bidding::set_blind_opponent_reading(was);
-        out
-    }
+///
+/// The knob is captured into a stance when it is built, so one side of the table
+/// can go blind while a pons book on the *other* side keeps its readings: the
+/// two stances hold different pins.  [`Stance::repin`] re-captures the knob
+/// state without rebuilding the book underneath.
+pub fn blinded(stance: &Stance) -> Stance {
+    let was = pons::bidding::blind_opponent_reading();
+    pons::bidding::set_blind_opponent_reading(true);
+    let mut out = stance.clone();
+    out.repin();
+    pons::bidding::set_blind_opponent_reading(was);
+    out
 }
 
 /// CLI face of [`pons::bidding::american::NotrumpDefense`]

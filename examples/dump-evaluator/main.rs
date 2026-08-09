@@ -234,7 +234,8 @@ const VULS: [AbsoluteVulnerability; 4] = [
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
-    // Main thread's copy; the rayon workers get theirs via `broadcast` below.
+    // Set before the stances are built below, which is what captures them — the
+    // rayon workers then read the stance, not a thread-local of their own.
     pons::bidding::set_envelope_union_reading(args.envelope_union);
     pons::bidding::set_pass_exclusion_reading(args.pass_exclusion);
     let encoding = match args.encoding.as_str() {
@@ -289,6 +290,29 @@ fn main() -> anyhow::Result<()> {
         .collect::<anyhow::Result<_>>()?;
     anyhow::ensure!(systems.len() <= 2, "the tag byte holds two system slots");
 
+    // `--closed-hulls` turns the hull closures on for the *reading* only, and
+    // the knobs are captured into a stance at build — so each system gets a
+    // second stance for `infer`.  `classify` keeps using the knob-off one, so
+    // the auctions never move.
+    if args.closed_hulls {
+        pons::bidding::set_sum_closure(true);
+        pons::bidding::set_upgrade_closure(true);
+    }
+    let readers: Vec<Stance> = systems
+        .iter()
+        .map(|(name, _)| {
+            if *name == "dutch" {
+                dutch().against()
+            } else {
+                american().against()
+            }
+        })
+        .collect();
+    if args.closed_hulls {
+        pons::bidding::set_sum_closure(false);
+        pons::bidding::set_upgrade_closure(false);
+    }
+
     let deals = load_deals(&args.deals, args.skip, args.count)?;
     eprintln!(
         "evaluator-dump: {} deals × {} systems, {features_len} features + {DD_LEN} labels",
@@ -299,14 +323,6 @@ fn main() -> anyhow::Result<()> {
     let f32_path = format!("{}.f32", args.out);
     let mut writer = BufWriter::new(std::fs::File::create(&f32_path)?);
     let mut tags = BufWriter::new(std::fs::File::create(format!("{}.tags", args.out))?);
-
-    // The reading knob is a thread-local: every rayon worker needs the same
-    // setting main got at the top, and `broadcast` forces the pool up so no
-    // worker is born later with the bare default.
-    rayon::broadcast(|_| {
-        pons::bidding::set_envelope_union_reading(args.envelope_union);
-        pons::bidding::set_pass_exclusion_reading(args.pass_exclusion);
-    });
 
     let (mut rows, mut contested, mut forced_pass) = (0u64, 0u64, 0u64);
 
@@ -362,19 +378,11 @@ fn main() -> anyhow::Result<()> {
 
                         // The trie-prefixed reading, so conventional calls
                         // decode off their authoring rules rather than as
-                        // natural suits. Under `--closed-hulls` the closures
-                        // are on for exactly this read: `classify` above ran
+                        // natural suits.  Under `--closed-hulls` `readers` is
+                        // the knob-on twin of `stance`; `classify` above ran
                         // knob-off, so the auctions never move.
-                        if args.closed_hulls {
-                            pons::bidding::set_sum_closure(true);
-                            pons::bidding::set_upgrade_closure(true);
-                        }
-                        let inferences = stance.infer(rel, &auction);
+                        let inferences = readers[sys_idx].infer(rel, &auction);
                         encode(&mut row[..base_len], hand, &inferences, &auction, encoding);
-                        if args.closed_hulls {
-                            pons::bidding::set_sum_closure(false);
-                            pons::bidding::set_upgrade_closure(false);
-                        }
                         if args.oracle_all {
                             write_oracle_all(&mut row[base_len..features_len], deal, seat);
                         } else if args.oracle {

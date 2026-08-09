@@ -34,11 +34,10 @@ struct Args {
 fn main() {
     let args = Args::parse();
     let stance = american().against();
-    // Rayon is safe here precisely because this dump takes no knobs: the
-    // thread-locals are `const`-initialised to the shipped defaults, so a
-    // worker thread starts out holding exactly the system under test.  A
-    // harness that arms a *non*-default knob cannot do this — the flag would
-    // not cross into the workers — which is why `ab-kickback` re-arms per call.
+    // Rayon is safe here because a built stance pins the knob state it was
+    // built under: the workers read the stance, never their own thread-locals.
+    // A harness that arms a *non*-default knob does the same — arm, build,
+    // hand the stance to the workers.
     //
     // Collected in board order before printing, so the dump is byte-stable
     // across runs and thread counts.  That is the whole point of the file.

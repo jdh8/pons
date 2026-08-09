@@ -1024,7 +1024,11 @@ fn project_authored_with(
     // consume the same answer later without resolving the prefix again.  Keep
     // the scans separate and in legacy category order: besides avoiding work
     // when a reading mode is disabled, public opaque guards may be stateful.
-    let at_times = if compiled_reader {
+    // Each at-the-time context inherits the reader's pinned knob state: they
+    // carry no stance of their own, so without the pin they would decode under
+    // the *thread's* live knobs (the shipped defaults on a rayon worker).
+    let pin = context.decision_profile();
+    let at_times: Vec<Context<'_>> = if compiled_reader {
         Context::at_each_turn(context.vul(), auction)
     } else {
         (0..=len)
@@ -1037,7 +1041,10 @@ fn project_authored_with(
                 Context::new(vul, &auction[..index])
             })
             .collect()
-    };
+    }
+    .into_iter()
+    .map(|at| at.with_profile(pin))
+    .collect();
     let stance = compiled_reader.then(|| context.own_system()).flatten();
     // The opponents' books — ours unless the stance declares an opponent
     // ([`Stance::with_opponents`]).  Every decode below picks by the *side that made the

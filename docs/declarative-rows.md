@@ -355,6 +355,28 @@ Per-book config structs replacing thread-locals, constructed `::from_ambient()`
 at first so every call site and `bba-gen --ns-*` switch keeps working; harnesses
 migrate one at a time; thread-locals retire last. Byte-identity at every stage.
 
+**What the pin-at-build campaign already collected (2026-08-09).** Phase 3's
+*thread-safety* payoff is banked without the migration. The ~84 classify-time
+knobs — `ReadingProfile`'s 42, `InstinctProfile`'s 31, and `DecisionProfile`'s
+own 11 — are captured into the `Stance` at `Pair::against()`, and every
+classify-time reader now consults that pin instead of the thread. A built
+stance is a pure `Send + Sync` value: arm the knobs, build, hand it to the
+workers. The thread-locals stay as the sole authoring API (set → build), with
+`Stance::repin` for a deliberate set-after-build and `pons::bidding::scoped`
+for a build on virgin defaults. What Phase 3 still owns is the *other* half:
+deleting the ambient state, making the card read total, and the generated
+CLI/UI surfaces. The hazard the campaign closes is "one knob state, four
+readers, joined only by call-site discipline" — the readers now join on the
+stance.
+
+⚠ **Disclosed behavior change.** `bba-gen --their-ns` built the opponents'
+book under their knobs but the *classify-time* half leaked across seats: both
+sides read under whatever the thread last held, so the second seat classified
+under the first's knobs. Each seat now reads under its own stance's pin.
+Dumps produced with `--their-ns` before 2026-08-09 differ from ones produced
+after wherever the two seats disagree on a classify-time knob; corpora drawn
+with matching `--ns-*`/`--their-ns` (the usual case) are unaffected.
+
 **Terminal step: `Card::from(&config)` — demoted 2026-08-08.** It was justified
 by "when the thread-locals go, `american_card()` has no source; skipping this
 freezes every card at its default, and the only symptom is that every future
