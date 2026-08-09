@@ -108,10 +108,9 @@ fn suppress_one_notrump_opens_a_minor() {
     assert_eq!(opens(&openings(&Agreements::current()), balanced16), one_nt);
 
     // Suppressed: the same hand opens its minor — never 1NT, never Pass.
-    set_open_one_notrump(false);
-    let call = opens(&openings(&Agreements::current()), balanced16);
-    set_open_one_notrump(true);
-    assert_eq!(call, one_c);
+    let mut suppressed = Agreements::current();
+    suppressed.opening.open_one_notrump = false;
+    assert_eq!(opens(&openings(&suppressed), balanced16), one_c);
 }
 
 #[test]
@@ -122,8 +121,9 @@ fn one_notrump_offshape_is_opt_in() {
     use rand::rngs::StdRng;
 
     let baseline = openings(&Agreements::current());
-    set_one_notrump_offshape(false);
-    let explicit_off = openings(&Agreements::current());
+    let mut off = Agreements::current();
+    off.opening.one_notrump_offshape = false;
+    let explicit_off = openings(&off);
     let context = Context::new(RelativeVulnerability::NONE, &[]);
     let mut rng = StdRng::seed_from_u64(0x1A70_FF51);
     for _ in 0..64 {
@@ -139,9 +139,9 @@ fn one_notrump_offshape_is_opt_in() {
     let offshape = "AQ43.KQJ2.K532.J";
     let one_nt = Call::Bid(Bid::new(1, Strain::Notrump));
     assert_ne!(opens(&explicit_off, offshape), one_nt);
-    set_one_notrump_offshape(true);
-    assert_eq!(opens(&openings(&Agreements::current()), offshape), one_nt);
-    set_one_notrump_offshape(false);
+    let mut on = Agreements::current();
+    on.opening.one_notrump_offshape = true;
+    assert_eq!(opens(&openings(&on), offshape), one_nt);
 }
 
 #[test]
@@ -152,8 +152,9 @@ fn weak_two_wild_is_opt_in() {
     use rand::rngs::StdRng;
 
     let baseline = openings(&Agreements::current());
-    set_weak_two_wild(false);
-    let explicit_off = openings(&Agreements::current());
+    let mut off = Agreements::current();
+    off.opening.weak_two_wild = false;
+    let explicit_off = openings(&off);
     let context = Context::new(RelativeVulnerability::NONE, &[]);
     let mut rng = StdRng::seed_from_u64(0x2EA4_71D2);
     for _ in 0..64 {
@@ -169,9 +170,9 @@ fn weak_two_wild_is_opt_in() {
     let five_card = "KQJ98.743.52.842";
     let two_s = Call::Bid(Bid::new(2, Strain::Spades));
     assert_ne!(opens(&explicit_off, five_card), two_s);
-    set_weak_two_wild(true);
-    assert_eq!(opens(&openings(&Agreements::current()), five_card), two_s);
-    set_weak_two_wild(false);
+    let mut on = Agreements::current();
+    on.opening.weak_two_wild = true;
+    assert_eq!(opens(&openings(&on), five_card), two_s);
 }
 
 #[test]
@@ -203,27 +204,19 @@ fn weak_two_hcp_band_gauges_raw_hcp() {
     // the default `points(5..=10)` excludes it and — too weak for a 1-opener
     // — it passes.  Raw HCP 9 is a sound weak two the HCP band admits.
     let sound_nine = "KQ9832.KJ85.74.4";
-    set_weak_two_hcp(None);
-    assert_eq!(
-        opens(&openings(&Agreements::current()), sound_nine),
-        Call::Pass
-    );
-    set_weak_two_hcp(Some((5, 10)));
-    assert_eq!(opens(&openings(&Agreements::current()), sound_nine), two_s);
+    let mut plain = Agreements::current();
+    plain.opening.weak_two_hcp = None;
+    let mut band = Agreements::current();
+    band.opening.weak_two_hcp = Some((5, 10));
+    assert_eq!(opens(&openings(&plain), sound_nine), Call::Pass);
+    assert_eq!(opens(&openings(&band), sound_nine), two_s);
 
     // A junky shapely light hand the shape-crediting default over-admits:
     // 4 HCP, 6-4-2-1 reads `points` = 4 + 2 = 6, so the default opens a 2♠
     // the raw-HCP band (4 < 5) correctly declines.
     let junk_four = "QJ9832.T985.74.J";
-    set_weak_two_hcp(None);
-    assert_eq!(opens(&openings(&Agreements::current()), junk_four), two_s);
-    set_weak_two_hcp(Some((5, 10)));
-    assert_eq!(
-        opens(&openings(&Agreements::current()), junk_four),
-        Call::Pass
-    );
-
-    set_weak_two_hcp(None);
+    assert_eq!(opens(&openings(&plain), junk_four), two_s);
+    assert_eq!(opens(&openings(&band), junk_four), Call::Pass);
 }
 
 #[test]
@@ -243,51 +236,28 @@ fn weak_two_eval_gauges_honor_location() {
     // Discipline forms: prune the scattered hand, keep the concentrated
     // one (CCCC 8.10 vs 5.10; NLTC 9.5 vs 10.0 losers — probe-verified,
     // see `examples/probe-weak-two-eval.rs`).
-    set_weak_two_eval(Some(WeakTwoEval::CcccFloor(7.0)));
-    assert_eq!(
-        opens(&openings(&Agreements::current()), concentrated),
-        two_s
-    );
-    assert_eq!(
-        opens(&openings(&Agreements::current()), scattered),
-        Call::Pass
-    );
-    set_weak_two_eval(Some(WeakTwoEval::NltcCeil(9.5)));
-    assert_eq!(
-        opens(&openings(&Agreements::current()), concentrated),
-        two_s
-    );
-    assert_eq!(
-        opens(&openings(&Agreements::current()), scattered),
-        Call::Pass
-    );
+    let armed = |eval| {
+        let mut a = Agreements::current();
+        a.opening.weak_two_eval = Some(eval);
+        a
+    };
+    for eval in [WeakTwoEval::CcccFloor(7.0), WeakTwoEval::NltcCeil(9.5)] {
+        let a = armed(eval);
+        assert_eq!(opens(&openings(&a), concentrated), two_s);
+        assert_eq!(opens(&openings(&a), scattered), Call::Pass);
+    }
 
     // Band (swap) forms replace `points` outright and win over the armed
     // HCP band.
-    set_weak_two_hcp(Some((5, 10)));
-    set_weak_two_eval(Some(WeakTwoEval::CcccBand(7.0, 13.0)));
-    assert_eq!(
-        opens(&openings(&Agreements::current()), concentrated),
-        two_s
-    );
-    assert_eq!(
-        opens(&openings(&Agreements::current()), scattered),
-        Call::Pass
-    );
-    set_weak_two_eval(Some(WeakTwoEval::NltcBand(8.0, 9.5)));
-    assert_eq!(
-        opens(&openings(&Agreements::current()), concentrated),
-        two_s
-    );
-    assert_eq!(
-        opens(&openings(&Agreements::current()), scattered),
-        Call::Pass
-    );
-    set_weak_two_hcp(None);
-
-    // Byte-identical default restored.
-    set_weak_two_eval(None);
-    assert_eq!(opens(&openings(&Agreements::current()), scattered), two_s);
+    for eval in [
+        WeakTwoEval::CcccBand(7.0, 13.0),
+        WeakTwoEval::NltcBand(8.0, 9.5),
+    ] {
+        let mut a = armed(eval);
+        a.opening.weak_two_hcp = Some((5, 10));
+        assert_eq!(opens(&openings(&a), concentrated), two_s);
+        assert_eq!(opens(&openings(&a), scattered), Call::Pass);
+    }
 }
 
 /// D1b: the box union behind each [`NotrumpShape`] variant accepts exactly

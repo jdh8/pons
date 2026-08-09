@@ -1071,9 +1071,9 @@ pub struct ConventionCard {
     pub major_support_double: bool,
     /// `1NT - 3M` splinter (`set_nt_splinter`)
     pub nt_splinter: bool,
-    /// Off-shape 1NT openings — 4441 and any 5422 (`set_one_notrump_offshape`)
+    /// Off-shape 1NT openings — 4441 and any 5422 (`opening.one_notrump_offshape`)
     pub one_notrump_offshape: bool,
-    /// Which shapes open 1NT (`set_notrump_shape`)
+    /// Which shapes open 1NT (`opening.notrump_shape`)
     pub shape: NotrumpShape,
     /// The direct-seat defense to their 1NT (`set_notrump_defense`)
     pub defense: NotrumpDefense,

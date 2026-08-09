@@ -1,5 +1,5 @@
 //! Calibrate CCCC / NLTC thresholds for the weak-two evaluator gauges
-//! (`set_weak_two_eval`) before spending `.pdd` ledger rows on the A/B.
+//! (`weak_two_eval`) before spending `.pdd` ledger rows on the A/B.
 //!
 //! No double dummy — random hands only, seconds to run.  Over every hand
 //! holding a six-card suit in ♦/♥/♠ (the weak-two shape gate), print:

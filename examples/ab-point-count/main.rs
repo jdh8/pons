@@ -36,10 +36,10 @@ use contract_bridge::auction::{Auction, Call, display_calls};
 use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Hand, Seat};
 use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
 use pons::american;
+use pons::bidding::agreements::Agreements;
 use pons::bidding::american::{
     TwoOverOneGate, WeakTwoEval, set_nt_invite_hcp, set_redouble_answer, set_strong_double_hcp,
     set_two_over_one_gate, set_two_over_one_heart_light, set_two_suiter_hcp_floor,
-    set_weak_two_eval, set_weak_two_hcp,
 };
 use pons::bidding::constraint::{PointScale, set_point_scale, set_support_points};
 use pons::bidding::context::relative;
@@ -168,7 +168,7 @@ enum Fix {
     RedoubleAnswer,
     /// `set_nt_invite_hcp(true)`: HCP-gauge the post-two-suit 2NT invite
     NtInviteHcp,
-    /// `set_weak_two_eval(gauge)`: an honor-location evaluator (CCCC / NLTC)
+    /// `opening.weak_two_eval = Some(gauge)`: an honor-location evaluator (CCCC / NLTC)
     /// gauges the weak-two opening — the disclosure-wall follow-up
     WeakTwoEval(WeakTwoEval),
     /// `set_two_over_one_gate(gate)`: the major no-fit 2/1 entry gauge, vs
@@ -217,19 +217,29 @@ impl Fix {
         }
     }
 
-    /// Arm (or restore to shipped) this fix's thread-local knob
-    fn set(self, on: bool) {
+    /// Arm (or restore to shipped) this fix, and capture the agreements a book
+    /// built now would carry
+    ///
+    /// Most fixes are thread cells; `WeakTwoEval` is a field of the value, so
+    /// the capture happens after the cells are written and the field is set on
+    /// top of it.
+    fn set(self, on: bool) -> Agreements {
         match self {
             Self::StrongDoubleHcp(n) => set_strong_double_hcp(on.then_some(n)),
             Self::TwoSuiterHcp(n) => set_two_suiter_hcp_floor(on.then_some(n)),
             Self::RedoubleAnswer => set_redouble_answer(on),
             Self::NtInviteHcp => set_nt_invite_hcp(on),
-            Self::WeakTwoEval(gauge) => set_weak_two_eval(on.then_some(gauge)),
+            Self::WeakTwoEval(_) => {}
             Self::TwoOverOneGate(gate) => {
                 set_two_over_one_gate(if on { gate } else { TwoOverOneGate::default() });
             }
             Self::TwoOverOneHeartLight => set_two_over_one_heart_light(on),
         }
+        let mut agreements = Agreements::current();
+        if let Self::WeakTwoEval(gauge) = self {
+            agreements.opening.weak_two_eval = on.then_some(gauge);
+        }
+        agreements
     }
 
     /// The spec back, for the header line
@@ -287,9 +297,10 @@ impl Arms {
                 candidate,
                 baseline,
             } => set_point_scale(if is_candidate { candidate } else { baseline }),
-            Self::WeakTwoHcp { band } => set_weak_two_hcp(is_candidate.then_some(band)),
             // Baked into the two books at build time; nothing to flip per call.
-            Self::GateFix { .. } => {}
+            // (`Arms::apply` is only reached by the two scale arms — the other
+            // two match earlier and never call it.)
+            Self::WeakTwoHcp { .. } | Self::GateFix { .. } => {}
         }
     }
 }
@@ -497,18 +508,17 @@ fn main() {
     // be inert.
     let stances = match arms {
         Arms::WeakTwoHcp { band } => {
-            set_weak_two_hcp(None);
-            let baseline = american(&pons::bidding::agreements::Agreements::current()).against();
-            set_weak_two_hcp(Some(band));
-            let candidate = american(&pons::bidding::agreements::Agreements::current()).against();
-            set_weak_two_hcp(None);
+            let shipped = pons::bidding::agreements::Agreements::current();
+            let baseline = american(&shipped).against();
+            let mut armed = shipped;
+            armed.opening.weak_two_hcp = Some(band);
+            let candidate = american(&armed).against();
             [baseline, candidate]
         }
         Arms::GateFix { fix } => {
-            fix.set(false);
-            let baseline = american(&pons::bidding::agreements::Agreements::current()).against();
-            fix.set(true);
-            let candidate = american(&pons::bidding::agreements::Agreements::current()).against();
+            let baseline = american(&fix.set(false)).against();
+            let candidate = american(&fix.set(true)).against();
+            // Restores the cells the fix wrote; the returned value is spent.
             fix.set(false);
             [baseline, candidate]
         }

@@ -14,6 +14,7 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::eval::hcp as holding_hcp;
 use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Hand, Seat, Suit};
 use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
+use pons::bidding::agreements::Agreements;
 use pons::bidding::card::{Card, american_card, dutch_card};
 use pons::bidding::context::relative;
 use pons::bidding::features::{Config, ConventionCard};
@@ -562,43 +563,28 @@ pub fn report_sd_brackets(
 /// Build one of our authored books by name, as `--our-floor`/`--their-floor`
 /// spell it
 ///
-/// Reads the live knob state, so a caller wanting a *perturbed* book sets every
-/// `set_*` it should carry before calling and resets them straight after — the
-/// knobs are captured at construction, so two differently-configured books can
-/// then coexist on one thread.
-pub fn seat_floor(name: &str) -> anyhow::Result<Stance> {
+/// Takes the agreements as a value, so a caller wanting a *perturbed* book
+/// captures [`Agreements::current`] once every surviving `set_*` cell is armed,
+/// edits the fields it should carry, and passes the result — two
+/// differently-configured books can then coexist on one thread.
+pub fn seat_floor(name: &str, agreements: &Agreements) -> anyhow::Result<Stance> {
     Ok(match name {
-        "american" => pons::american(&pons::bidding::agreements::Agreements::current()).against(),
+        "american" => pons::american(agreements).against(),
         // The authored books with no floor at all: a driver seating this passes
         // whenever the books run out.  The floor ablation's other end.
-        "american-book" => pons::bidding::american::american_book(
-            &pons::bidding::agreements::Agreements::current(),
-        )
-        .against(),
-        "dutch" => pons::dutch(&pons::bidding::agreements::Agreements::current()).against(),
+        "american-book" => pons::bidding::american::american_book(agreements).against(),
+        "dutch" => pons::dutch(agreements).against(),
         // The deterministic pre-swap floors: the fixed baselines now that
         // `american` and `dutch` both ship the BBA net.
-        "american-instinct" => {
-            pons::american_instinct(&pons::bidding::agreements::Agreements::current()).against()
-        }
-        "dutch-instinct" => {
-            pons::dutch_instinct(&pons::bidding::agreements::Agreements::current()).against()
-        }
+        "american-instinct" => pons::american_instinct(agreements).against(),
+        "dutch-instinct" => pons::dutch_instinct(agreements).against(),
         // The book ablation: no authored book at all, the same floor wiring
         // `american` uses.  `american` − `american-floor` prices the book.
-        "american-floor" => {
-            pons::american_floor(&pons::bidding::agreements::Agreements::current()).against()
-        }
+        "american-floor" => pons::american_floor(agreements).against(),
         // The compact-config (v5) candidates: same books, the regime reaches
         // the net as both sides' `ConventionCard` instead of the card blocks.
-        "american-v5" => {
-            pons::bidding::american::american_v5(&pons::bidding::agreements::Agreements::current())
-                .against()
-        }
-        "dutch-v5" => {
-            pons::bidding::dutch::dutch_v5(&pons::bidding::agreements::Agreements::current())
-                .against()
-        }
+        "american-v5" => pons::bidding::american::american_v5(agreements).against(),
+        "dutch-v5" => pons::bidding::dutch::dutch_v5(agreements).against(),
         other => anyhow::bail!(
             "floor must be american|american-book|american-instinct|american-floor|american-v5|dutch|dutch-instinct|dutch-v5, got {other:?}"
         ),
@@ -610,10 +596,10 @@ pub fn seat_floor(name: &str) -> anyhow::Result<Stance> {
 /// Split on `-` like `bba-gen`'s `disclosure`: the `-instinct` / `-book` /
 /// `-floor` variants differ only in the floor, which no card row expresses, so
 /// they all declare their base system's card.
-pub fn floor_card(name: &str) -> anyhow::Result<Card> {
+pub fn floor_card(name: &str, agreements: &Agreements) -> anyhow::Result<Card> {
     Ok(match name.split('-').next().unwrap_or_default() {
-        "american" => american_card(&pons::bidding::agreements::Agreements::current()),
-        "dutch" => dutch_card(&pons::bidding::agreements::Agreements::current()),
+        "american" => american_card(agreements),
+        "dutch" => dutch_card(agreements),
         other => anyhow::bail!(
             "no card generator for system `{other}` (known: american, dutch).  \
              Write one in `src/bidding/card.rs` rather than declaring another \
@@ -637,9 +623,9 @@ pub fn floor_card(name: &str) -> anyhow::Result<Card> {
 /// `american` is the compact-config v5 floor on both paths, and `dutch` is the
 /// card-input v4 floor on both, until `dutch()`'s own gate A/B runs.
 ///
-/// Our own half is read from the live knobs *inside* the American seam, exactly
-/// as `american()` reads it — so the same "set every `--ns-*` first" rule
-/// applies to this call as to `bba-gen`'s `disclosure()`.  Theirs is projected
+/// Our own half rides `agreements`, captured by the caller once every `--ns-*`
+/// cell is armed — the same "set every `--ns-*` first" rule that applies to
+/// `bba-gen`'s `disclosure()`.  Theirs is projected
 /// off the card with
 /// [`ConventionCard::from_card`][pons::bidding::features::ConventionCard::from_card],
 /// the only channel a foreign engine's card has; it is lossy exactly where that
@@ -651,21 +637,15 @@ pub fn floor_card(name: &str) -> anyhow::Result<Card> {
 /// floors are refused rather than silently ignored: an arm that quietly kept a
 /// symmetric config would be incomparable to its sibling with nothing in the
 /// output saying so.
-pub fn seat_floor_vs(name: &str, theirs: &Card) -> anyhow::Result<Stance> {
+pub fn seat_floor_vs(name: &str, theirs: &Card, agreements: &Agreements) -> anyhow::Result<Stance> {
     Ok(match name {
-        "american" => pons::american_with_card(
-            &pons::bidding::agreements::Agreements::current(),
-            &ConventionCard::from_card(theirs),
-        )
-        .against(),
-        "dutch" => pons::dutch_with_config(
-            &pons::bidding::agreements::Agreements::current(),
-            Config::new(
-                &dutch_card(&pons::bidding::agreements::Agreements::current()),
-                theirs,
-            ),
-        )
-        .against(),
+        "american" => {
+            pons::american_with_card(agreements, &ConventionCard::from_card(theirs)).against()
+        }
+        "dutch" => {
+            pons::dutch_with_config(agreements, Config::new(&dutch_card(agreements), theirs))
+                .against()
+        }
         other => anyhow::bail!(
             "--declare-opponents needs a net floor to declare them to: \
              floor must be american|dutch, got {other:?}"
@@ -692,9 +672,15 @@ pub fn seat_floor_vs(name: &str, theirs: &Card) -> anyhow::Result<Stance> {
 /// `1NT opening shape 4441` card column under v4, and both are folded to zero
 /// (`docs/ai-bidder/card-manifold.md`).  The routing stays because honest
 /// disclosure is the invariant, not because it currently moves a logit.
+///
+/// `base` supplies the [`OpeningKnobs`][pons::bidding::agreements::OpeningKnobs]
+/// this seat was armed with — the two deviations that live there are written on
+/// top of it.  Everything else is re-read from the live cells *after* `dial` and
+/// `overcall_four_card` are set, because those two are still ambient.
 pub fn deviant_floor(
     name: &str,
     theirs: &Card,
+    base: &Agreements,
     dial: u8,
     overcall_four_card: bool,
     offshape_1nt: bool,
@@ -702,18 +688,18 @@ pub fn deviant_floor(
 ) -> anyhow::Result<Stance> {
     pons::bidding::constraint::set_strength_dial(dial);
     pons::bidding::american::set_overcall_four_card(overcall_four_card);
-    pons::bidding::american::set_one_notrump_offshape(offshape_1nt);
-    pons::bidding::american::set_weak_two_wild(wild_weak_two);
+    let mut agreements = Agreements::current();
+    agreements.opening = base.opening;
+    agreements.opening.one_notrump_offshape = offshape_1nt;
+    agreements.opening.weak_two_wild = wild_weak_two;
     // Only the net-floored names take a config; the instinct and book-only
     // floors have no net to declare anything to.
     let book = match name {
-        "american" | "dutch" => seat_floor_vs(name, theirs),
-        _ => seat_floor(name),
+        "american" | "dutch" => seat_floor_vs(name, theirs, &agreements),
+        _ => seat_floor(name, &agreements),
     };
     pons::bidding::constraint::set_strength_dial(0);
     pons::bidding::american::set_overcall_four_card(false);
-    pons::bidding::american::set_one_notrump_offshape(false);
-    pons::bidding::american::set_weak_two_wild(false);
     book
 }
 

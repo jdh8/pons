@@ -559,17 +559,14 @@ fn artificial_calls_are_alerted() {
 
 #[test]
 fn deviation_knobs_preserve_alert_invariant() {
-    use crate::bidding::american::{
-        american, set_one_notrump_offshape, set_overcall_four_card, set_weak_two_wild,
-    };
+    use crate::bidding::american::{american, set_overcall_four_card};
 
-    set_one_notrump_offshape(true);
     set_overcall_four_card(true);
-    set_weak_two_wild(true);
-    let pair = american(&crate::bidding::agreements::Agreements::current());
-    set_one_notrump_offshape(false);
+    let mut agreements = crate::bidding::agreements::Agreements::current();
+    agreements.opening.one_notrump_offshape = true;
+    agreements.opening.weak_two_wild = true;
+    let pair = american(&agreements);
     set_overcall_four_card(false);
-    set_weak_two_wild(false);
 
     let mut worklist = Vec::new();
     for (phase, trie) in [

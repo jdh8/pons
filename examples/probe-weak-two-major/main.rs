@@ -14,10 +14,10 @@
 //!
 //! Two modes, one per change:
 //!
-//! - `--mode tie` ablates [`set_weak_two_longest_first`] (shipped default-on).
+//! - `--mode tie` ablates `weak_two_longest_first` (shipped default-on).
 //!   Accepts responder hands with **two or more** qualifying suits outside
 //!   opener's, which is exactly when the tie-break can move the call.
-//! - `--mode ogust` arms [`set_weak_two_major_priority`] (opt-in).  Accepts a
+//! - `--mode ogust` arms `weak_two_major_priority` (opt-in).  Accepts a
 //!   weak 2♦ opposite a qualifying major *and* two-card diamond support, the
 //!   window where the 2.0 Ogust ask outranks the 1.5 new suit.
 //!
@@ -43,7 +43,7 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::Accumulator;
 use pons::american;
 use pons::bidding::Stance;
-use pons::bidding::american::{set_weak_two_longest_first, set_weak_two_major_priority};
+use pons::bidding::agreements::Agreements;
 use pons::bidding::constraint::point_count;
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
 use rand::SeedableRng;
@@ -188,24 +188,27 @@ fn main() {
     // Both knobs gate rule *construction*, so a stance is built per arm.
     let feature = match args.mode {
         Mode::Tie => {
-            set_weak_two_longest_first(true);
-            american(&pons::bidding::agreements::Agreements::current()).against()
+            let mut a = Agreements::current();
+            a.opening.weak_two_longest_first = true;
+            american(&a).against()
         }
         Mode::Ogust => {
-            set_weak_two_major_priority(true);
-            let stance = american(&pons::bidding::agreements::Agreements::current()).against();
-            set_weak_two_major_priority(false);
-            stance
+            let mut a = Agreements::current();
+            a.opening.weak_two_major_priority = true;
+            american(&a).against()
         }
     };
     let baseline = match args.mode {
         Mode::Tie => {
-            set_weak_two_longest_first(false);
-            let stance = american(&pons::bidding::agreements::Agreements::current()).against();
-            set_weak_two_longest_first(true);
-            stance
+            let mut a = Agreements::current();
+            a.opening.weak_two_longest_first = false;
+            american(&a).against()
         }
-        Mode::Ogust => american(&pons::bidding::agreements::Agreements::current()).against(),
+        Mode::Ogust => {
+            let mut a = Agreements::current();
+            a.opening.weak_two_major_priority = false;
+            american(&a).against()
+        }
     };
 
     // Stage 1: deal and reject on the raw hands.  Dealing is the cheapest thing

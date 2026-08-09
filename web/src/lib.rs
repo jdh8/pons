@@ -21,6 +21,7 @@ use contract_bridge::eval::{self, HandEvaluator as _, SimpleEvaluator};
 use contract_bridge::{
     AbsoluteVulnerability, Bid, Builder, Contract, FullDeal, Hand, Seat, Strain,
 };
+use pons::bidding::agreements::Agreements;
 use pons::bidding::american::american_book;
 use pons::bidding::evaluator::trick_estimates;
 use pons::bidding::fallback::Fallback;
@@ -664,8 +665,8 @@ impl WebTable {
     ) -> String {
         let dealer = dealer.parse().unwrap_or(Seat::North);
         let vul = vul.parse().unwrap_or(AbsoluteVulnerability::NONE);
-        let ns = pons::american(&pons::bidding::agreements::Agreements::current());
-        let ew = pons::american(&pons::bidding::agreements::Agreements::current());
+        let ns = pons::american(&agreements());
+        let ew = pons::american(&agreements());
         let mut board = Board {
             table: Table::of_pairs(&ns, &ew, dealer, vul),
             deal,
@@ -714,7 +715,7 @@ struct RuleJson {
 #[wasm_bindgen]
 #[must_use]
 pub fn book() -> String {
-    let pair = american_book(&pons::bidding::agreements::Agreements::current());
+    let pair = american_book(&agreements());
     let books: [(&str, &pons::Trie); 3] = [
         ("constructive", &pair.constructive.0),
         ("competitive", &pair.competitive.0),
@@ -825,6 +826,61 @@ fn rule_json(rules: &pons::bidding::Rules) -> Vec<RuleJson> {
         })
         .collect()
 }
+
+// ---------------------------------------------------------------------------
+// The settings value
+// ---------------------------------------------------------------------------
+
+// What the user has selected in the Settings tab
+// 
+// The engine used to hold every knob in a `thread_local!` cell of its own, and
+// this crate's registry wrote them through `set_*` functions.  Those cells are
+// being deleted in favour of one `Agreements` value threaded into
+// `american()`, which leaves the *UI's* settings state with nowhere to live —
+// so it lives here, where it belongs: a web app holding what the user picked
+// is app state, not a hidden configuration channel.
+// 
+// Wasm is single-threaded, so this cell is effectively a global.  It seeds
+// from [`Agreements::current`] rather than `default()` while the engine still
+// has cells of its own, so a knob this crate has not yet migrated still reads
+// through.
+thread_local! {
+    static AGREEMENTS: std::cell::Cell<Agreements> =
+        std::cell::Cell::new(Agreements::current());
+}
+
+/// The agreements a deal is bid under
+fn agreements() -> Agreements {
+    AGREEMENTS.with(std::cell::Cell::get)
+}
+
+/// Edit the settings value in place
+fn amend(edit: impl FnOnce(&mut Agreements)) {
+    AGREEMENTS.with(|cell| {
+        let mut value = cell.get();
+        edit(&mut value);
+        cell.set(value);
+    });
+}
+
+/// Define a registry row's `set`/`get` pair over one [`Agreements`] field
+///
+/// One line per knob whose engine cell has been deleted.  The pair keeps the
+/// `fn(bool)` / `fn() -> bool` shape [`Setting::Toggle`] stores, so migrating a
+/// knob costs a line here and nothing in the 65-row table.
+macro_rules! knob {
+    ($set:ident, $get:ident, $($field:ident).+ : $ty:ty) => {
+        fn $set(value: $ty) {
+            amend(|a| a.$($field).+ = value);
+        }
+        fn $get() -> $ty {
+            agreements().$($field).+
+        }
+    };
+}
+
+knob!(set_open_one_notrump, open_one_notrump, opening.open_one_notrump: bool);
+knob!(set_notrump_shape, notrump_shape_setting, opening.notrump_shape: american::NotrumpShape);
 
 /// The Settings-tab registry: one row per user-facing bidding knob
 ///
@@ -1040,7 +1096,7 @@ static NOTRUMP_SHAPE_VARIANTS: &[Variant] = &[
 /// Select the 1NT opening shape from its registry `value`.
 fn set_notrump_shape_choice(value: &str) {
     use american::NotrumpShape;
-    american::set_notrump_shape(match value {
+    set_notrump_shape(match value {
         "balanced" => NotrumpShape::Balanced,
         "wide" => NotrumpShape::Wide,
         _ => NotrumpShape::Wide6322,
@@ -1050,7 +1106,7 @@ fn set_notrump_shape_choice(value: &str) {
 /// The 1NT opening shape the engine currently holds, as its registry `value`.
 fn get_notrump_shape_choice() -> &'static str {
     use american::NotrumpShape;
-    match american::notrump_shape_setting() {
+    match notrump_shape_setting() {
         NotrumpShape::Balanced => "balanced",
         NotrumpShape::Wide => "wide",
         _ => "wide6322",
@@ -1193,7 +1249,7 @@ fn puppet_stayman() -> bool {
 #[rustfmt::skip]
 static SETTINGS: &[Setting] = &[
     // Openings
-    toggle("open_one_notrump", OPENINGS, "Open 1NT (15–17)", true, american::set_open_one_notrump, american::open_one_notrump),
+    toggle("open_one_notrump", OPENINGS, "Open 1NT (15–17)", true, set_open_one_notrump, open_one_notrump),
     Setting::Choice { key: "notrump_shape", section: OPENINGS, label: "1NT opening shape", variants: NOTRUMP_SHAPE_VARIANTS, default: "wide6322", requires: None, set: set_notrump_shape_choice, get: get_notrump_shape_choice },
     // Notrump
     toggle("puppet_stayman", NOTRUMP, "Puppet Stayman (3♣)", true, set_puppet_stayman, puppet_stayman),

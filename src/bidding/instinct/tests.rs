@@ -1414,7 +1414,7 @@ fn kickback_yields_the_undisprovable_major() {
         "responder's spades leave 4♥ natural, so the diamond ask stays 4NT"
     );
     // The same face over a weak two, where responder shows the longest
-    // major first (`set_weak_two_longest_first`).
+    // major first (`weak_two_longest_first`).
     let weak_two = [
         call(2, Strain::Diamonds),
         Call::Pass,

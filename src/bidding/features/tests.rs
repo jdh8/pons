@@ -1203,9 +1203,8 @@ fn each_compact_axis_moves_its_slots_and_only_live_ones_move_the_net() {
     use crate::bidding::american::{
         PUPPET, set_fourth_suit_forcing, set_garbage_stayman, set_jordan_truscott, set_landy,
         set_leaping_michaels, set_lebensohl_style, set_major_support_double, set_new_minor_forcing,
-        set_notrump_defense, set_notrump_minors, set_notrump_shape, set_nt_splinter,
-        set_one_notrump_offshape, set_responsive_takeout, set_transfer_super_accept,
-        set_woolsey_points, set_xyz,
+        set_notrump_defense, set_notrump_minors, set_nt_splinter, set_responsive_takeout,
+        set_transfer_super_accept, set_woolsey_points, set_xyz,
     };
     use crate::bidding::instinct::{RkcbVariant, forced, set_rkcb_variant};
     use crate::bidding::neural_floor::ConfiguredFloorV5;
@@ -1271,6 +1270,20 @@ fn each_compact_axis_moves_its_slots_and_only_live_ones_move_the_net() {
         ConventionCard::capture(&crate::bidding::agreements::Agreements::current(), true),
         &[0],
     );
+
+    // Two axes are fields of `Agreements` rather than ambient cells, so they arm
+    // the captured value directly.  Nothing global moves, so they need no
+    // restore and cannot strand a flipped knob for the next test on this thread.
+    let mut offshape = crate::bidding::agreements::Agreements::current();
+    offshape.opening.one_notrump_offshape = true;
+    check(
+        "one_notrump_offshape",
+        ConventionCard::capture(&offshape, false),
+        &[12],
+    );
+    let mut shape = crate::bidding::agreements::Agreements::current();
+    shape.opening.notrump_shape = NotrumpShape::Balanced;
+    check("shape", ConventionCard::capture(&shape, false), &[13, 15]);
 
     // Enum targets leave a trained lane deliberately: `Wide` (14), `Plain` (24)
     // and the five non-{Natural, Woolsey} defenses are folded, and `Wide` is
@@ -1339,18 +1352,6 @@ fn each_compact_axis_moves_its_slots_and_only_live_ones_move_the_net() {
             || set_nt_splinter(false),
             || set_nt_splinter(true),
             &[11],
-        ),
-        (
-            "one_notrump_offshape",
-            || set_one_notrump_offshape(true),
-            || set_one_notrump_offshape(false),
-            &[12],
-        ),
-        (
-            "shape",
-            || set_notrump_shape(NotrumpShape::Balanced),
-            || set_notrump_shape(NotrumpShape::Wide6322),
-            &[13, 15],
         ),
         (
             "defense",

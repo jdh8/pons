@@ -242,6 +242,7 @@ fn main() -> anyhow::Result<()> {
             name,
             // Our seat is bare `american()`, so that is the card they face.
             &pons::bidding::card::american_card(&pons::bidding::agreements::Agreements::current()),
+            &pons::bidding::agreements::Agreements::current(),
             args.their_dial,
             args.their_overcall_four_card,
             args.their_offshape_1nt,

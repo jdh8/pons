@@ -24,78 +24,12 @@
 //! Ogust answer also omit pass (opener showed maximum values; game is
 //! obligatory).
 
-use std::cell::Cell;
-
 use crate::bidding::agreements::Agreements;
 use crate::bidding::constraint::{hcp, len, longest_unbid, points, suit_hcp, support, top_honors};
 use crate::bidding::rows::{Bindings, Package, compile_into, expand};
 use crate::bidding::{Rules, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
-
-thread_local! {
-    /// Whether a good five-card major outranks the Ogust ask over a weak 2♦.
-    /// Default `true` — off restores the pre-repair Ogust priority.
-    static WEAK_TWO_MAJOR_PRIORITY: Cell<bool> = const { Cell::new(true) };
-    /// Whether responder's forcing new suit must be their longest.  Default
-    /// `true` — off it is the pre-repair argmax race.
-    static WEAK_TWO_LONGEST_FIRST: Cell<bool> = const { Cell::new(true) };
-}
-
-/// Show the **longest** suit with responder's forcing new suit over a weak two
-/// (default `true`; off restores the pre-repair argmax race)
-///
-/// The new-suit rules all carry weight 1.5, so before the repair the winner was
-/// decided by `Table::next_call`'s tie-break — descending sort, first *legal*
-/// call — i.e. the **cheapest** bid.  ♠AKT862 ♥AKJ92 therefore responded 2♥ to
-/// a weak 2♦, suppressing the longer and higher suit.  On, each rule gains
-/// `longest_unbid`, making the choice a constraint: longest first, an
-/// equal-length tie to the higher rank.  Same doctrine as
-/// [`set_longest_first_advance`][super::set_longest_first_advance] on the
-/// advance side, and like it the condition is a `shapes` partition, so knob-on
-/// the *reading* also pins the relative length.
-///
-/// Default-on as a doctrine repair, not a measured win: the collision needs two
-/// qualifying five-card suits opposite a weak two, roughly one board in 10⁴, so
-/// a random-deal A/B cannot resolve it.  The knob exists to ablate it in the
-/// enriched probe (`examples/probe-weak-two-major --mode tie`).
-pub fn set_weak_two_longest_first(on: bool) {
-    WEAK_TWO_LONGEST_FIRST.with(|cell| cell.set(on));
-}
-
-pub(super) fn weak_two_longest_first() -> bool {
-    WEAK_TWO_LONGEST_FIRST.with(Cell::get)
-}
-
-/// Bid a good five-card major over partner's weak 2♦ instead of asking Ogust
-/// (default `true`; off restores the pre-repair Ogust priority)
-///
-/// The old node ranked Ogust 2NT (weight 2.0) above every new suit (1.5), so
-/// a hand like ♠AKT862 ♥AKJ92 ♦xx asks about diamond quality rather than
-/// showing eleven cards in the majors — the major only escapes when responder
-/// is short enough in diamonds to fail Ogust's `support(2..)`.  Knob-on, the
-/// two major rules outrank Ogust **over 2♦ only**: there 2♥/2♠ is *cheaper*
-/// than 2NT and forcing, so the ask is deferred rather than lost.  Over 2♥/2♠
-/// a new suit costs 2♠ or the three level, so Ogust keeps priority.
-///
-/// Expressed as a weight, not as a gate on the Ogust rule: `top_honors` is part
-/// of the new-suit gate, so excluding "any five-card major" from Ogust would
-/// strand 14+ hands like ♠QJxxx ♦xx, which have no new-suit rule at all.  The
-/// cost is that 2NT's projected reading still promises only "14+, 2+♦" and does
-/// not deny a major.
-///
-/// Default-on on measurement: the enriched probe
-/// (`examples/probe-weak-two-major --mode ogust`, 20 000 accepted deals,
-/// 0.069% trigger density, 85% divergent) scored **+3.048 IMPs/accepted deal**
-/// under perfect defense, CI [+2.911, +3.184], and **+1.668** under plain DD,
-/// CI [+1.563, +1.773] — a gain under both scorings, so ≈+0.0021 IMPs/board.
-pub fn set_weak_two_major_priority(on: bool) {
-    WEAK_TWO_MAJOR_PRIORITY.with(|cell| cell.set(on));
-}
-
-pub(super) fn weak_two_major_priority() -> bool {
-    WEAK_TWO_MAJOR_PRIORITY.with(Cell::get)
-}
 
 // ---------------------------------------------------------------------------
 // First response to 2M
@@ -113,7 +47,7 @@ pub(super) fn weak_two_major_priority() -> bool {
 /// - **Forcing new suit** (weight 1.5): the **longest** five-card-plus suit
 ///   with two of the top three honors and opening values; one-round force.
 ///   Higher-ranking suits are bid at the two level; lower-ranking suits at the
-///   three level.  Under [`set_weak_two_major_priority`] a major outranks Ogust
+///   three level.  Under [`OpeningKnobs::weak_two_major_priority`] a major outranks Ogust
 ///   over 2♦.
 /// - **Simple raise** (weight 1.2): three-plus-card support, preemptive.
 /// - **Pass** (weight 0.0): catch-all.
@@ -198,7 +132,7 @@ fn ogust_answers(our: Suit) -> Rules {
     // The strength gauge is `points` (rule-of-N+8) not raw HCP: responder's 2NT
     // promised 2+ support, so the fit is known here and opener re-evaluates with
     // the 6th trump and side shape credited — unlike the fit-unknown opening gate
-    // (`set_weak_two_hcp`), which is disciplined in raw HCP.  BBA splits min/max
+    // (`weak_two_hcp`), which is disciplined in raw HCP.  BBA splits min/max
     // on raw HCP 7/8; we deliberately keep ours.
     //
     // The *quality* gate is BBA's, probed exactly (`probe-bba-constraints

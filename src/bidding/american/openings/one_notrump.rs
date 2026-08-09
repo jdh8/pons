@@ -8,82 +8,6 @@ use crate::bidding::constraint::{
 use crate::bidding::context::Context;
 use crate::bidding::inference::Range;
 use contract_bridge::{Bid, Hand, Strain, Suit};
-use std::cell::Cell;
-
-thread_local! {
-    /// Whether our side opens a strong balanced 15-17 with 1NT.  Default `true`.
-    static OPEN_ONE_NOTRUMP: Cell<bool> = const { Cell::new(true) };
-}
-
-thread_local! {
-    /// Restore the fifths gauge (`fifths(14.5..17.5)`, centre-matched to plain HCP
-    /// 15-17) for the 1NT opening.  Default `false` — the opening gauges plain HCP.
-    static ONE_NOTRUMP_FIFTHS: Cell<bool> = const { Cell::new(false) };
-}
-
-thread_local! {
-    /// Which shape policy the 1NT opening admits when `american()` rebuilds.
-    /// Default [`NotrumpShape::Wide6322`] (the shipped default).
-    static NOTRUMP_SHAPE: Cell<NotrumpShape> = const { Cell::new(NotrumpShape::Wide6322) };
-}
-
-thread_local! {
-    /// Whether the 1NT opening admits human-style off-shape hands. Default
-    /// `false` (byte-identical). See [`set_one_notrump_offshape`].
-    static ONE_NOTRUMP_OFFSHAPE: Cell<bool> = const { Cell::new(false) };
-}
-
-/// Suppress (`false`) or restore (`true`, the default) our own 1NT opening.
-///
-/// With it off, a strong balanced 15-17 opens a minor instead of 1NT, so a
-/// diagnostic can isolate our *defense* to an opponent's 1NT without our own 1NT
-/// openings polluting the duplicate (see `bba-match --no-our-1nt`).
-pub fn set_open_one_notrump(on: bool) {
-    OPEN_ONE_NOTRUMP.with(|cell| cell.set(on));
-}
-
-/// Whether the [`set_open_one_notrump`] knob is on
-pub fn open_one_notrump() -> bool {
-    OPEN_ONE_NOTRUMP.with(Cell::get)
-}
-
-/// Restore the legacy fifths strength gauge for the 1NT opening (`true`); the
-/// default (`false`) gauges plain HCP 15-17, which opens 1NT a touch more often.
-pub fn set_one_notrump_fifths(on: bool) {
-    ONE_NOTRUMP_FIFTHS.with(|cell| cell.set(on));
-}
-
-/// Whether the [`set_one_notrump_fifths`] knob is on
-pub(super) fn one_notrump_fifths() -> bool {
-    ONE_NOTRUMP_FIFTHS.with(Cell::get)
-}
-
-/// Select the 1NT opening [`NotrumpShape`] for the next rebuild of
-/// [`american()`][crate::american()] — the web Settings shape radio.  Default
-/// [`NotrumpShape::Wide6322`].  Read by
-/// [`american_book`][crate::bidding::american::american_book], so every
-/// constructor built on it picks up the setting.
-pub fn set_notrump_shape(shape: NotrumpShape) {
-    NOTRUMP_SHAPE.with(|cell| cell.set(shape));
-}
-
-/// The 1NT opening shape currently selected by [`set_notrump_shape`].
-pub fn notrump_shape_setting() -> NotrumpShape {
-    NOTRUMP_SHAPE.with(Cell::get)
-}
-
-/// Admit 5422 and mild singleton-honour shapes to the 15–17 1NT opening
-/// (opt-in; the default `false` is byte-identical).
-pub fn set_one_notrump_offshape(on: bool) {
-    ONE_NOTRUMP_OFFSHAPE.with(|cell| cell.set(on));
-}
-
-/// Whether the 1NT opening currently admits the off-shape hands
-/// ([`set_one_notrump_offshape`]) — read by the generated convention card as
-/// well as by the rules.
-pub(crate) fn one_notrump_offshape() -> bool {
-    ONE_NOTRUMP_OFFSHAPE.with(Cell::get)
-}
 
 /// Which hand shapes the strong 1NT opening admits ([`super::openings_with`])
 ///
@@ -161,9 +85,9 @@ pub(super) fn with_one_notrump(rules: Rules, shape: NotrumpShape, knobs: &Openin
     let mut rules = rules;
     let one_notrump_offshape = knobs.one_notrump_offshape;
     // Strong 1NT — gated so a diagnostic can suppress our own 1NT opening
-    // (`set_open_one_notrump`); the 15-17 balanced hands then open a minor.
+    // (`open_one_notrump`); the 15-17 balanced hands then open a minor.
     if knobs.open_one_notrump {
-        // Strength gauged by plain HCP 15-17 by default; `set_one_notrump_fifths`
+        // Strength gauged by plain HCP 15-17 by default; `one_notrump_fifths`
         // restores the legacy Andrews' fifths gauge.  Each arm reissues `.rule()`
         // so the differing constraint types unify to `Rules`.
         rules = if (knobs.one_notrump_fifths, one_notrump_offshape) == (true, true) {

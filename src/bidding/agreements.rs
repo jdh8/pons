@@ -468,25 +468,101 @@ impl NotrumpKnobs {
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct OpeningKnobs {
     // --- openings/one_notrump.rs
-    /// Open our strong `1NT` at all
+    /// Open our strong `1NT` at all — **default on**
+    ///
+    /// Off, a strong balanced 15-17 opens a minor instead, so a diagnostic can
+    /// isolate our *defense* to an opponent's `1NT` without our own `1NT`
+    /// openings polluting the duplicate (`bba-match --no-our-1nt`).
     pub open_one_notrump: bool,
     /// Gauge the `1NT` range in Andrews' fifths rather than plain HCP
+    ///
+    /// **Default off.**  On restores the legacy `fifths(14.5..17.5)`, centre-matched
+    /// to plain HCP 15-17; the shipped plain-HCP gauge opens `1NT` a touch more
+    /// often.
     pub one_notrump_fifths: bool,
     /// Which balanced shapes the strong `1NT` opening admits
+    ///
+    /// **Default [`NotrumpShape::Wide6322`].**  The web Settings shape radio.
     pub notrump_shape: NotrumpShape,
     /// Admit the off-shape `1NT` (a singleton honour in 4441/5431)
+    ///
+    /// **Default off** (byte-identical); on also admits 5422.  Read by the
+    /// generated convention card as well as by the rules.
     pub one_notrump_offshape: bool,
     // --- openings/weak_two.rs
     /// Optional raw-HCP band gauging the weak-two opening
+    ///
+    /// **Default `None`** — the shipped rule-of-N+8 `points(5..=10)`.  `Some`
+    /// gauges `lo..=hi` in raw HCP instead.  The opening is *fit-unknown*, so a
+    /// preempt's length is already pinned by the six-card requirement and
+    /// gauging its *strength* in shape-crediting `points` double-counts that
+    /// length: a six-card suit reads `+max(0, L2−8)`, +0 on 6-2-2-3 up to +2 on
+    /// 6-4-2-1, so no single `points` shift restores a clean cutoff.  Only the
+    /// fit-unknown *opening* moves — the Ogust min/max answers stay on `points`
+    /// because responder's `2NT` promises support, mirroring the 2/1 gate's
+    /// hcp/support-points fit-split.
+    ///
+    /// **Rejected default-on**: `hcp(5..=10)` measured a wash on the sd-lead
+    /// scorer (−0.0045 NV / −0.0018 vul, CIs span 0) — a weak two is a preempt,
+    /// and the plain-DD remnant the point-count campaign priced here is the
+    /// obstruction/disclosure wall, not a fixable gauge.  A major-only carve
+    /// measured strictly worse (sd-vul −0.0113).  Retained as a single-dummy
+    /// re-measure candidate (`docs/point-count-threshold-campaign.md`).
     pub weak_two_hcp: Option<(u8, u8)>,
     /// Optional honour-location evaluator gauging the weak-two opening
+    ///
+    /// **Default `None`**; wins over [`weak_two_hcp`][Self::weak_two_hcp] when
+    /// both are armed.  Tests the follow-up to the rejected raw-HCP re-gauge:
+    /// that *where the honours sit* — concentrated in the six-card suit versus
+    /// scattered through the short suits — separates the weak twos worth their
+    /// disclosure from the rest.  Like the HCP knob, only the fit-unknown
+    /// opening moves.
     pub weak_two_eval: Option<WeakTwoEval>,
     /// Open wild weak twos (five- or six-card suit, `points(3..=12)`)
+    ///
+    /// **Default off** (byte-identical).
     pub weak_two_wild: bool,
     // --- weak_twos.rs
-    /// Prefer a major when answering partner's weak two
+    /// Prefer a good five-card major to the Ogust ask over a weak `2♦`
+    ///
+    /// **Default on.**  The old node ranked Ogust `2NT` (weight 2.0) above every
+    /// new suit (1.5), so ♠AKT862 ♥AKJ92 ♦xx asked about diamond quality rather
+    /// than showing eleven cards in the majors — the major only escaped when
+    /// responder was short enough in diamonds to fail Ogust's `support(2..)`.
+    /// On, the two major rules outrank Ogust **over `2♦` only**: there `2♥`/`2♠`
+    /// is *cheaper* than `2NT` and forcing, so the ask is deferred rather than
+    /// lost.  Over `2♥`/`2♠` a new suit costs `2♠` or the three level, so Ogust
+    /// keeps priority.
+    ///
+    /// Expressed as a weight, not as a gate on the Ogust rule: `top_honors` is
+    /// part of the new-suit gate, so excluding "any five-card major" from Ogust
+    /// would strand 14+ hands like ♠QJxxx ♦xx, which have no new-suit rule at
+    /// all.  The cost is that `2NT`'s projected reading still promises only
+    /// "14+, 2+♦" and does not deny a major.
+    ///
+    /// Default-on on measurement: the enriched probe
+    /// (`examples/probe-weak-two-major --mode ogust`, 20 000 accepted deals,
+    /// 0.069% trigger density, 85% divergent) scored **+3.048 IMPs/accepted
+    /// deal** under perfect defense, CI [+2.911, +3.184], and **+1.668** under
+    /// plain DD, CI [+1.563, +1.773] — ≈+0.0021 IMPs/board.
     pub weak_two_major_priority: bool,
     /// Answer partner's weak two with the longest suit first
+    ///
+    /// **Default on**; off restores the pre-repair argmax race.  The new-suit
+    /// rules all carry weight 1.5, so before the repair the winner was decided
+    /// by `Table::next_call`'s tie-break — descending sort, first *legal* call,
+    /// i.e. the **cheapest** bid.  ♠AKT862 ♥AKJ92 therefore responded `2♥` to a
+    /// weak `2♦`, suppressing the longer and higher suit.  On, each rule gains
+    /// `longest_unbid`, making the choice a constraint: longest first, an
+    /// equal-length tie to the higher rank.  Same doctrine as
+    /// [`longest_first_advance`][DefenseKnobs::longest_first_advance_enabled] on the
+    /// advance side, and like it the condition is a `shapes` partition, so the
+    /// *reading* also pins the relative length.
+    ///
+    /// Default-on as a doctrine repair, not a measured win: the collision needs
+    /// two qualifying five-card suits opposite a weak two, roughly one board in
+    /// 10⁴, so a random-deal A/B cannot resolve it.  The knob exists to ablate
+    /// it in the enriched probe (`examples/probe-weak-two-major --mode tie`).
     pub weak_two_longest_first: bool,
 }
 
@@ -503,14 +579,6 @@ impl Default for OpeningKnobs {
             weak_two_major_priority: true,
             weak_two_longest_first: true,
         }
-    }
-}
-
-impl OpeningKnobs {
-    /// Capture this thread's opening build-time knob state
-    #[must_use]
-    pub fn current() -> Self {
-        super::american::openings::capture()
     }
 }
 
@@ -769,7 +837,7 @@ impl Agreements {
             competition: super::american::competition::capture(),
             defense: super::american::defense::capture(),
             notrump: super::american::notrump::capture(),
-            opening: super::american::openings::capture(),
+            opening: OpeningKnobs::default(),
             response: super::american::responses::capture(),
             rebid: super::american::rebids::capture(),
             game_force: super::american::game_force::capture(),

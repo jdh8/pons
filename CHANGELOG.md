@@ -596,6 +596,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Seeded `smoke-default` / `smoke-dutch` dumps (20 000 boards each) are
   byte-identical to `4c3dce2`, and `cards/*.bbsa` regenerate unchanged.
 
+- **The nine opening knobs are fields, not thread-locals.**  `set_open_one_notrump`,
+  `set_one_notrump_fifths`, `set_notrump_shape`, `set_one_notrump_offshape`,
+  `set_weak_two_hcp`, `set_weak_two_eval`, `set_weak_two_wild`,
+  `set_weak_two_major_priority` and `set_weak_two_longest_first` are gone, with
+  their cells and getters; each is a field of `Agreements::opening`, and what
+  their doc comments recorded — the sd-lead rejection of the raw-HCP weak-two
+  re-gauge, the +3.048 IMP Ogust probe, the argmax-race repair — moved onto the
+  `OpeningKnobs` fields.  Harness entry points (`seat_floor`, `seat_floor_vs`,
+  `floor_card`, `deviant_floor`) take the value instead of reading the thread.
+
+  The web Settings registry keeps its `fn(bool)` / `fn() -> bool` row shape;
+  a migrated knob's pair now reads and writes `pons-web`'s own `Agreements`
+  value.  A web app holding what the user picked is app state, not the hidden
+  configuration channel this campaign is deleting.
+
 - **The strength dial moved from build time to classify time — Phase 3's last
   cell.**  `STRENGTH_DIAL` (the deviation panel's axis B, default 0,
   measurement only) was baked into every `Hcp` / `Points` / `SupportPoints` as

@@ -881,7 +881,7 @@ pub(super) fn apply_opening(inf: &mut Envelope, bid: Bid, seat: u8, profile: Rea
             // +1 the same way.  Sound band 15−slack..18 — the slack term
             // keeps every opt-in arm exact.  ponytail:
             // exact for the shipped plain-HCP gauge; the archived
-            // `set_one_notrump_fifths` knob, if ever revived, would re-widen
+            // `one_notrump_fifths` knob, if ever revived, would re-widen
             // this to 14–19.
             let slack = crate::bidding::constraint::flat_hcp_slack(profile.point_scale());
             inf.narrow_points(Range::new(15 - slack, 18));

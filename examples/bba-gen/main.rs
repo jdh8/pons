@@ -37,6 +37,7 @@ use contract_bridge::auction::Call;
 use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, Bid, Hand, Seat, Strain, Suit};
 use pons::bidding::System;
+use pons::bidding::agreements::Agreements;
 use pons::bidding::american::DoubleShape;
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -1441,8 +1442,12 @@ fn seat_args(spec: &str) -> anyhow::Result<Args> {
 /// `--their-ns` parses its own `Args` and this applies it, then `main`
 /// re-applies its own to restore.  Every knob here is read at book-build
 /// time, so "arm, build, re-arm" is the whole discipline.
+///
+/// Returns the [`Agreements`] this seat plays: the ambient cells captured once
+/// every one of them is armed, plus the opening cells that live only in the
+/// value.  A build must be handed *this*, not a fresh `Agreements::current()`.
 #[allow(clippy::too_many_lines)]
-fn arm_knobs(args: &Args) -> anyhow::Result<()> {
+fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     // Our side: the authored floor by default, or a second EPBot card when
     // `--our-system` is given (the BBA-vs-BBA experiment).
     // Written on both arms, not just when on: `--their-ns` arms a second seat
@@ -1535,8 +1540,6 @@ fn arm_knobs(args: &Args) -> anyhow::Result<()> {
     pons::bidding::set_sum_closure(args.ns_sum_closure);
     pons::bidding::set_upgrade_closure(args.ns_upgrade_closure);
     pons::bidding::american::set_two_notrump_wide(args.ns_two_nt_wide);
-    pons::bidding::american::set_open_one_notrump(!args.no_our_1nt);
-    pons::bidding::american::set_one_notrump_fifths(args.nt_fifths);
     pons::bidding::american::set_natural_double_shape(match args.ns_double_shape.as_str() {
         "any" => DoubleShape::Any,
         "semi" => DoubleShape::SemiBalanced,
@@ -1761,7 +1764,12 @@ fn arm_knobs(args: &Args) -> anyhow::Result<()> {
     // generated card reads them.  Built here rather than beside the oracle so
     // the card cannot describe a system the run then reconfigures.
     pons::bidding::set_pass_exclusion_reading(args.ns_pass_exclusion);
-    Ok(())
+    // Captured after every ambient cell above, then the two opening cells that
+    // are fields of the value rather than cells of the thread.
+    let mut agreements = Agreements::current();
+    agreements.opening.open_one_notrump = !args.no_our_1nt;
+    agreements.opening.one_notrump_fifths = args.nt_fifths;
+    Ok(agreements)
 }
 
 #[allow(clippy::too_many_lines)]
@@ -1832,11 +1840,11 @@ fn main() -> anyhow::Result<()> {
     } else {
         None
     };
-    arm_knobs(&args)?;
+    let agreements = arm_knobs(&args)?;
     let bba = bba.with_opponents(disclosure(&args)?);
     // Read under *our* armed knobs, before the opponent seat borrows the
     // thread: this is the card whoever faces `--their-floor` is playing.
-    let our_card = floor_card(&args.our_floor)?;
+    let our_card = floor_card(&args.our_floor, &agreements)?;
     // The opponent seat's own command line, and the one we *say* it is playing.
     let their_ns = args.their_ns.as_deref().map(seat_args).transpose()?;
     let declared_as = args.declare_as.as_deref().map(seat_args).transpose()?;
@@ -1856,13 +1864,13 @@ fn main() -> anyhow::Result<()> {
     fn under<T>(
         seat: Option<&Args>,
         restore: &Args,
-        read: impl FnOnce() -> anyhow::Result<T>,
+        read: impl FnOnce(Agreements) -> anyhow::Result<T>,
     ) -> anyhow::Result<T> {
         match seat {
-            None => read(),
+            None => read(Agreements::current()),
             Some(seat) => {
-                arm_knobs(seat)?;
-                let out = read();
+                let agreements = arm_knobs(seat)?;
+                let out = read(agreements);
                 arm_knobs(restore)?;
                 out
             }
@@ -1904,18 +1912,20 @@ fn main() -> anyhow::Result<()> {
                 // touches the off-shape cell, so resetting it to the crate
                 // default is exact.
                 let offshape = declared_as.is_none() && args.their_offshape_1nt;
-                under(declared_as.as_ref().or(their_ns.as_ref()), &args, || {
-                    pons::bidding::american::set_one_notrump_offshape(offshape);
-                    let card = floor_card(name);
-                    pons::bidding::american::set_one_notrump_offshape(false);
-                    card
-                })?
+                under(
+                    declared_as.as_ref().or(their_ns.as_ref()),
+                    &args,
+                    |mut theirs| {
+                        theirs.opening.one_notrump_offshape = offshape;
+                        floor_card(name, &theirs)
+                    },
+                )?
             }
             None => bba_vs_natural.as_ref().unwrap_or(&bba).card(),
         };
-        seat_floor_vs(&args.our_floor, &theirs)?
+        seat_floor_vs(&args.our_floor, &theirs, &agreements)?
     } else {
-        seat_floor(&args.our_floor)?
+        seat_floor(&args.our_floor, &agreements)?
     };
     if args.ns_probe > 0 {
         // Fixed seed: every shard of an arm probes the identical map, so the
@@ -1950,10 +1960,11 @@ fn main() -> anyhow::Result<()> {
             // repins off the armed thread and still needs them.
             pons::bidding::set_probed_reading(false);
             pons::bidding::set_probed_vacuous_reading(false);
-            let built = under(their_ns.as_ref(), &args, || {
+            let built = under(their_ns.as_ref(), &args, |theirs| {
                 deviant_floor(
                     name,
                     &our_card,
+                    &theirs,
                     args.their_dial,
                     args.their_overcall_four_card,
                     args.their_offshape_1nt,

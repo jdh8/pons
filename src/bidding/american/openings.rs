@@ -5,11 +5,11 @@
 //!
 //! | Module | Agreement | Knob |
 //! | --- | --- | --- |
-//! | [`one_notrump`] | the strong `1NT` opening, shape policy, strength gauge, and off-shape treatment | [`set_open_one_notrump`], [`set_one_notrump_fifths`], [`set_notrump_shape`], [`set_one_notrump_offshape`] |
+//! | [`one_notrump`] | the strong `1NT` opening, shape policy, strength gauge, and off-shape treatment | [`OpeningKnobs::open_one_notrump`], [`OpeningKnobs::one_notrump_fifths`], [`OpeningKnobs::notrump_shape`], [`OpeningKnobs::one_notrump_offshape`] |
 //! | [`two_notrump`] | the strong `2NT` opening and wide-minor shape treatment | [`set_two_notrump_wide`] |
-//! | [`weak_two`] | weak-two strength gauges and wild five-card treatment | [`set_weak_two_hcp`], [`set_weak_two_eval`], [`set_weak_two_wild`] |
+//! | [`weak_two`] | weak-two strength gauges and wild five-card treatment | [`OpeningKnobs::weak_two_hcp`], [`OpeningKnobs::weak_two_eval`], [`OpeningKnobs::weak_two_wild`] |
 
-use crate::bidding::agreements::{Agreements, OpeningKnobs};
+use crate::bidding::agreements::Agreements;
 use crate::bidding::constraint::{Cons, Constraint, described, hcp, len, nth_seat, points};
 use crate::bidding::context::Context;
 use crate::bidding::rows::{Package, Pattern, compile_into, rows_of};
@@ -25,35 +25,12 @@ use one_notrump::with_one_notrump;
 use two_notrump::with_two_notrump;
 use weak_two::with_weak_twos;
 
-pub use one_notrump::{
-    NotrumpShape, set_notrump_shape, set_one_notrump_fifths, set_one_notrump_offshape,
-    set_open_one_notrump,
-};
+pub use one_notrump::NotrumpShape;
 pub use two_notrump::set_two_notrump_wide;
-pub use weak_two::{WeakTwoEval, set_weak_two_eval, set_weak_two_hcp, set_weak_two_wild};
+pub use weak_two::WeakTwoEval;
 
 pub(crate) use one_notrump::notrump_shape;
 pub(crate) use two_notrump::{two_notrump_wide, two_notrump_wide_shape};
-
-/// Capture this thread's opening build-time knobs
-///
-/// The one place the build-only opening cells are read. Everything downstream
-/// takes the captured value, so a `set_*` between this call and the rules being
-/// built cannot split the book against itself. `two_notrump_wide` is read at
-/// classify time too and lives only in `DecisionProfile`, so it is absent here.
-pub(in crate::bidding) fn capture() -> OpeningKnobs {
-    OpeningKnobs {
-        open_one_notrump: one_notrump::open_one_notrump(),
-        one_notrump_fifths: one_notrump::one_notrump_fifths(),
-        notrump_shape: one_notrump::notrump_shape_setting(),
-        one_notrump_offshape: one_notrump::one_notrump_offshape(),
-        weak_two_hcp: weak_two::weak_two_hcp(),
-        weak_two_eval: weak_two::weak_two_eval(),
-        weak_two_wild: weak_two::weak_two_wild(),
-        weak_two_major_priority: super::weak_twos::weak_two_major_priority(),
-        weak_two_longest_first: super::weak_twos::weak_two_longest_first(),
-    }
-}
 
 /// The strong, artificial `2♣` opening (22+) — the only artificial opening
 const STRONG_2C: Alert = Alert("strong-2c");
@@ -205,5 +182,3 @@ pub(super) fn register(book: &mut Trie, agreements: &Agreements) {
 
 #[cfg(test)]
 mod tests;
-pub use one_notrump::notrump_shape_setting;
-pub use one_notrump::open_one_notrump;

@@ -1,6 +1,7 @@
 use super::super::call;
 use super::*;
 use crate::bidding::Table;
+use crate::bidding::agreements::Agreements;
 use crate::bidding::american::american;
 use contract_bridge::auction::Auction;
 use contract_bridge::{AbsoluteVulnerability, Hand, Seat};
@@ -12,7 +13,12 @@ use contract_bridge::{AbsoluteVulnerability, Hand, Seat};
 /// `max_by` argmax the module tests elsewhere use.  The 2♥/2♠ collision is
 /// only visible on this path.
 fn responds(open: Call, hand: &str) -> Call {
-    let stance = american(&crate::bidding::agreements::Agreements::current()).against();
+    responds_with(&Agreements::current(), open, hand)
+}
+
+/// Responder's call over `open` -, under `agreements`
+fn responds_with(agreements: &Agreements, open: Call, hand: &str) -> Call {
+    let stance = american(agreements).against();
     let table = Table::new(
         stance.clone(),
         stance,
@@ -47,14 +53,16 @@ fn five_five_majors_respond_in_the_longer_major() {
     );
 }
 
-/// Ablating [`set_weak_two_longest_first`] restores the argmax race that
+/// Ablating `weak_two_longest_first` restores the argmax race that
 /// board [40] of the kickback audit was bid under — the probe's `tie` arm.
 #[test]
 fn longest_first_ablation_restores_the_cheaper_major() {
-    set_weak_two_longest_first(false);
-    let off = responds(call(2, Strain::Diamonds), "AKT862.AKJ92.4.3");
-    set_weak_two_longest_first(true);
-    assert_eq!(off, call(2, Strain::Hearts));
+    let mut off = Agreements::current();
+    off.opening.weak_two_longest_first = false;
+    assert_eq!(
+        responds_with(&off, call(2, Strain::Diamonds), "AKT862.AKJ92.4.3"),
+        call(2, Strain::Hearts)
+    );
 }
 
 /// The tie-break is doctrine, not a diamond-specific patch: it holds over
@@ -73,7 +81,7 @@ fn longest_first_holds_over_the_major_weak_twos() {
     );
 }
 
-/// [`set_weak_two_major_priority`] lifts a good five-card major above the
+/// `weak_two_major_priority` lifts a good five-card major above the
 /// Ogust ask over 2♦ — and only there.  Knob-off restores Ogust priority.
 #[test]
 fn major_priority_outranks_ogust_over_two_diamonds() {
@@ -89,8 +97,10 @@ fn major_priority_outranks_ogust_over_two_diamonds() {
         call(2, Strain::Notrump)
     );
 
-    set_weak_two_major_priority(false);
-    let off = responds(call(2, Strain::Diamonds), hand);
-    set_weak_two_major_priority(true);
-    assert_eq!(off, call(2, Strain::Notrump));
+    let mut off = Agreements::current();
+    off.opening.weak_two_major_priority = false;
+    assert_eq!(
+        responds_with(&off, call(2, Strain::Diamonds), hand),
+        call(2, Strain::Notrump)
+    );
 }

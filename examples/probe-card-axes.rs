@@ -26,15 +26,15 @@ use clap::Parser;
 use contract_bridge::auction::Auction;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use pons::american;
+use pons::bidding::agreements::{Agreements, OpeningKnobs};
 use pons::bidding::american::{
     EUROPEAN, LebensohlStyle, NotrumpDefense, NotrumpShape, PUPPET, fourth_suit_forcing,
     garbage_stayman, jordan_truscott, leaping_michaels_enabled, lebensohl_style,
-    major_support_double, notrump_defense, notrump_minors, notrump_shape_setting, nt_splinter,
-    responsive_takeout_enabled, set_fourth_suit_forcing, set_garbage_stayman, set_jordan_truscott,
-    set_landy, set_leaping_michaels, set_lebensohl_style, set_major_support_double,
-    set_new_minor_forcing, set_notrump_defense, set_notrump_minors, set_notrump_shape,
-    set_nt_splinter, set_one_notrump_offshape, set_responsive_takeout, set_transfer_super_accept,
-    set_xyz, transfer_super_accept,
+    major_support_double, notrump_defense, notrump_minors, nt_splinter, responsive_takeout_enabled,
+    set_fourth_suit_forcing, set_garbage_stayman, set_jordan_truscott, set_landy,
+    set_leaping_michaels, set_lebensohl_style, set_major_support_double, set_new_minor_forcing,
+    set_notrump_defense, set_notrump_minors, set_nt_splinter, set_responsive_takeout,
+    set_transfer_super_accept, set_xyz, transfer_super_accept,
 };
 use rayon::prelude::*;
 
@@ -94,7 +94,7 @@ impl Defaults {
             responsive: responsive_takeout_enabled(),
             support_x: major_support_double(),
             splinter: nt_splinter(),
-            shape: notrump_shape_setting(),
+            shape: OpeningKnobs::default().notrump_shape,
             defense: notrump_defense(),
             leb: lebensohl_style(),
             minors_european: notrump_minors() == EUROPEAN,
@@ -112,8 +112,6 @@ impl Defaults {
         set_responsive_takeout(self.responsive);
         set_major_support_double(self.support_x);
         set_nt_splinter(self.splinter);
-        set_one_notrump_offshape(self.offshape);
-        set_notrump_shape(self.shape);
         set_notrump_defense(self.defense);
         set_lebensohl_style(self.leb);
         set_notrump_minors(if self.minors_european {
@@ -123,57 +121,72 @@ impl Defaults {
         });
         set_landy(self.landy);
     }
+
+    /// The two axes that are fields of [`Agreements`] rather than thread cells
+    fn opening(&self) -> OpeningKnobs {
+        OpeningKnobs {
+            one_notrump_offshape: self.offshape,
+            notrump_shape: self.shape,
+            ..OpeningKnobs::default()
+        }
+    }
 }
 
 /// A knob flip away from the shipped defaults, applied on the bidding thread.
-type Flip = fn(&Defaults);
+///
+/// Most axes are thread cells, flipped in place; the two opening axes live in
+/// the [`Agreements`] value, so the flip is handed the [`OpeningKnobs`] the
+/// build will carry.
+type Flip = fn(&Defaults, &mut OpeningKnobs);
 
 /// Every probed axis: the card-block name(s) it moves, and the flip away from
 /// the shipped default.  Radio groups (one knob, several rows) probe as one.
 const AXES: [(&str, Flip); 16] = [
-    ("Garbage Stayman", |d| set_garbage_stayman(!d.garbage)),
-    ("Checkback (NMF)", |d| set_new_minor_forcing(!d.nmf)),
-    ("Two Way NMF (XYZ)", |d| set_xyz(!d.xyz)),
-    ("Super acceptance", |d| {
+    ("Garbage Stayman", |d, _| set_garbage_stayman(!d.garbage)),
+    ("Checkback (NMF)", |d, _| set_new_minor_forcing(!d.nmf)),
+    ("Two Way NMF (XYZ)", |d, _| set_xyz(!d.xyz)),
+    ("Super acceptance", |d, _| {
         set_transfer_super_accept(!d.super_accept);
     }),
-    ("Fourth suit forcing", |d| set_fourth_suit_forcing(!d.fsf)),
-    ("Jordan Truscott 2NT", |d| set_jordan_truscott(!d.jordan)),
-    ("Leaping Michaels", |d| set_leaping_michaels(!d.leaping)),
-    ("Responsive double", |d| {
+    ("Fourth suit forcing", |d, _| {
+        set_fourth_suit_forcing(!d.fsf)
+    }),
+    ("Jordan Truscott 2NT", |d, _| set_jordan_truscott(!d.jordan)),
+    ("Leaping Michaels", |d, _| set_leaping_michaels(!d.leaping)),
+    ("Responsive double", |d, _| {
         set_responsive_takeout(!d.responsive)
     }),
-    ("Support double/redouble", |d| {
+    ("Support double/redouble", |d, _| {
         set_major_support_double(!d.support_x);
     }),
-    ("1N-3M splinter", |d| set_nt_splinter(!d.splinter)),
-    ("1NT offshape 4441/5422", |d| {
-        set_one_notrump_offshape(!d.offshape);
+    ("1N-3M splinter", |d, _| set_nt_splinter(!d.splinter)),
+    ("1NT offshape 4441/5422", |d, opening| {
+        opening.one_notrump_offshape = !d.offshape;
     }),
-    ("1NT shape ladder", |d| {
-        set_notrump_shape(match d.shape {
+    ("1NT shape ladder", |d, opening| {
+        opening.notrump_shape = match d.shape {
             NotrumpShape::Balanced => NotrumpShape::Wide6322,
             _ => NotrumpShape::Balanced,
-        });
+        };
     }),
-    ("NT defense (Landy rows)", |d| {
+    ("NT defense (Landy rows)", |d, _| {
         set_notrump_defense(if d.defense == NotrumpDefense::Woolsey {
             NotrumpDefense::Natural
         } else {
             NotrumpDefense::Woolsey
         });
     }),
-    ("Lebensohl rows", |d| {
+    ("Lebensohl rows", |d, _| {
         set_lebensohl_style(if d.leb == LebensohlStyle::Off {
             LebensohlStyle::Transfer
         } else {
             LebensohlStyle::Off
         });
     }),
-    ("1NT minor scheme", |d| {
+    ("1NT minor scheme", |d, _| {
         set_notrump_minors(if d.minors_european { PUPPET } else { EUROPEAN });
     }),
-    ("Landy range", |d| {
+    ("Landy range", |d, _| {
         set_landy(if d.landy.is_some() {
             None
         } else {
@@ -183,8 +196,8 @@ const AXES: [(&str, Flip); 16] = [
 ];
 
 /// Bid every deal sequentially on the current thread under the armed knobs.
-fn bid_all(deals: &[FullDeal]) -> Vec<String> {
-    let stance = american(&pons::bidding::agreements::Agreements::current()).against();
+fn bid_all(deals: &[FullDeal], agreements: &Agreements) -> Vec<String> {
+    let stance = american(agreements).against();
     deals
         .iter()
         .enumerate()
@@ -220,10 +233,15 @@ fn main() {
         .into_par_iter()
         .map(|arm| {
             defaults.apply();
+            let mut opening = defaults.opening();
             if let Some((_, flip)) = arm.checked_sub(1).map(|i| AXES[i]) {
-                flip(&defaults);
+                flip(&defaults, &mut opening);
             }
-            let auctions = bid_all(&deals);
+            // The ambient half is read *after* the flip, which may have written
+            // a cell; the opening half is the value the flip just edited.
+            let mut agreements = Agreements::current();
+            agreements.opening = opening;
+            let auctions = bid_all(&deals, &agreements);
             defaults.apply();
             auctions
         })

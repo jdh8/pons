@@ -132,12 +132,7 @@ pub use notrump::{
 };
 pub(crate) use openings::notrump_shape;
 pub(crate) use openings::two_notrump_wide;
-pub use openings::{
-    NotrumpShape, WeakTwoEval, openings, openings_with, set_notrump_shape, set_one_notrump_fifths,
-    set_one_notrump_offshape, set_open_one_notrump, set_two_notrump_wide, set_weak_two_eval,
-    set_weak_two_hcp, set_weak_two_wild,
-};
-pub use weak_twos::{set_weak_two_longest_first, set_weak_two_major_priority};
+pub use openings::{NotrumpShape, WeakTwoEval, openings, openings_with, set_two_notrump_wide};
 
 pub use raises::{set_limit_raise_acceptance, set_major_game_tries};
 pub(crate) use rebids::{opener_extras_ladder, opener_major_jump_rebid};
@@ -337,7 +332,7 @@ pub fn american_floor(agreements: &Agreements) -> Pair {
 /// complementary ablation (the floor alone, with no book at all); see the
 /// `instinct-floor` example for an A/B match.
 ///
-/// The 1NT [`NotrumpShape`] follows [`set_notrump_shape`] (default
+/// The 1NT [`NotrumpShape`] follows [`OpeningKnobs::notrump_shape`][crate::bidding::agreements::OpeningKnobs::notrump_shape] (default
 /// [`NotrumpShape::Wide6322`] — a 5422 or 6322 with a long minor also opens
 /// 1NT).
 #[must_use]
@@ -445,8 +440,6 @@ pub use notrump::transfer_gf_majors;
 pub use notrump::transfer_longer_major;
 pub use notrump::transfer_slam_try;
 pub use notrump::transfer_super_accept;
-pub use openings::notrump_shape_setting;
-pub use openings::open_one_notrump;
 pub use raises::limit_raise_acceptance;
 pub use rebids::fourth_suit_forcing;
 pub use rebids::meckstroth_adjunct;

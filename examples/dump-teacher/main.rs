@@ -47,15 +47,15 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use ddss::TrickCountTable;
 use pons::bidding::Stance;
+use pons::bidding::agreements::{Agreements, OpeningKnobs};
 use pons::bidding::american::{
     EUROPEAN, LebensohlStyle, NotrumpDefense, NotrumpShape, PUPPET, fourth_suit_forcing,
     garbage_stayman, jordan_truscott, leaping_michaels_enabled, lebensohl_style,
-    major_support_double, notrump_defense, notrump_minors, notrump_shape_setting, nt_splinter,
-    responsive_takeout_enabled, set_fourth_suit_forcing, set_garbage_stayman, set_jordan_truscott,
-    set_landy, set_leaping_michaels, set_lebensohl_style, set_major_support_double,
-    set_new_minor_forcing, set_notrump_defense, set_notrump_minors, set_notrump_shape,
-    set_nt_splinter, set_one_notrump_offshape, set_responsive_takeout, set_transfer_super_accept,
-    set_xyz, transfer_super_accept,
+    major_support_double, notrump_defense, notrump_minors, nt_splinter, responsive_takeout_enabled,
+    set_fourth_suit_forcing, set_garbage_stayman, set_jordan_truscott, set_landy,
+    set_leaping_michaels, set_lebensohl_style, set_major_support_double, set_new_minor_forcing,
+    set_notrump_defense, set_notrump_minors, set_nt_splinter, set_responsive_takeout,
+    set_transfer_super_accept, set_xyz, transfer_super_accept,
 };
 use pons::bidding::card::{american_card, dutch_card};
 use pons::bidding::context::{Context, relative};
@@ -367,7 +367,7 @@ impl Defaults {
             responsive: responsive_takeout_enabled(),
             support_x: major_support_double(),
             splinter: nt_splinter(),
-            shape: notrump_shape_setting(),
+            shape: OpeningKnobs::default().notrump_shape,
             defense: notrump_defense(),
             leb: lebensohl_style(),
             minors_european: notrump_minors() == EUROPEAN,
@@ -385,8 +385,6 @@ impl Defaults {
         set_responsive_takeout(self.responsive);
         set_major_support_double(self.support_x);
         set_nt_splinter(self.splinter);
-        set_one_notrump_offshape(self.offshape);
-        set_notrump_shape(self.shape);
         set_notrump_defense(self.defense);
         set_lebensohl_style(self.leb);
         set_notrump_minors(if self.minors_european {
@@ -396,10 +394,23 @@ impl Defaults {
         });
         set_landy(self.landy);
     }
+
+    /// The two axes that are fields of [`Agreements`] rather than thread cells
+    fn opening(&self) -> OpeningKnobs {
+        OpeningKnobs {
+            one_notrump_offshape: self.offshape,
+            notrump_shape: self.shape,
+            ..OpeningKnobs::default()
+        }
+    }
 }
 
 /// A knob flip away from the shipped defaults, applied on the bidding thread.
-type Flip = fn(&Defaults);
+///
+/// Most axes are thread cells, flipped in place; the two opening axes live in
+/// the [`Agreements`] value, so the flip is handed the [`OpeningKnobs`] the
+/// build will carry.
+type Flip = fn(&Defaults, &mut OpeningKnobs);
 
 /// Every flippable axis, **in bit order**: bit i of `SideConfig::flips` (the
 /// `+HEX` cell-label suffix) applies entry i
@@ -433,49 +444,51 @@ type Flip = fn(&Defaults);
 ///
 /// [docs/ai-bidder/card-manifold.md]: ../../docs/ai-bidder/card-manifold.md
 const AXES: [(&str, Flip); 16] = [
-    ("Garbage Stayman", |d| set_garbage_stayman(!d.garbage)),
-    ("Checkback (NMF)", |d| set_new_minor_forcing(!d.nmf)),
-    ("Two Way NMF (XYZ)", |d| set_xyz(!d.xyz)),
-    ("Super acceptance", |d| {
+    ("Garbage Stayman", |d, _| set_garbage_stayman(!d.garbage)),
+    ("Checkback (NMF)", |d, _| set_new_minor_forcing(!d.nmf)),
+    ("Two Way NMF (XYZ)", |d, _| set_xyz(!d.xyz)),
+    ("Super acceptance", |d, _| {
         set_transfer_super_accept(!d.super_accept);
     }),
-    ("Fourth suit forcing", |d| set_fourth_suit_forcing(!d.fsf)),
-    ("Jordan Truscott 2NT", |d| set_jordan_truscott(!d.jordan)),
-    ("Leaping Michaels", |d| set_leaping_michaels(!d.leaping)),
-    ("Responsive double", |d| {
+    ("Fourth suit forcing", |d, _| {
+        set_fourth_suit_forcing(!d.fsf)
+    }),
+    ("Jordan Truscott 2NT", |d, _| set_jordan_truscott(!d.jordan)),
+    ("Leaping Michaels", |d, _| set_leaping_michaels(!d.leaping)),
+    ("Responsive double", |d, _| {
         set_responsive_takeout(!d.responsive)
     }),
-    ("Support double/redouble", |d| {
+    ("Support double/redouble", |d, _| {
         set_major_support_double(!d.support_x);
     }),
-    ("1N-3M splinter", |d| set_nt_splinter(!d.splinter)),
-    ("1NT offshape 4441/5422", |d| {
-        set_one_notrump_offshape(!d.offshape);
+    ("1N-3M splinter", |d, _| set_nt_splinter(!d.splinter)),
+    ("1NT offshape 4441/5422", |d, opening| {
+        opening.one_notrump_offshape = !d.offshape;
     }),
-    ("1NT shape ladder", |d| {
-        set_notrump_shape(match d.shape {
+    ("1NT shape ladder", |d, opening| {
+        opening.notrump_shape = match d.shape {
             NotrumpShape::Balanced => NotrumpShape::Wide6322,
             _ => NotrumpShape::Balanced,
-        });
+        };
     }),
-    ("NT defense (Landy rows)", |d| {
+    ("NT defense (Landy rows)", |d, _| {
         set_notrump_defense(if d.defense == NotrumpDefense::Woolsey {
             NotrumpDefense::Natural
         } else {
             NotrumpDefense::Woolsey
         });
     }),
-    ("Lebensohl rows", |d| {
+    ("Lebensohl rows", |d, _| {
         set_lebensohl_style(if d.leb == LebensohlStyle::Off {
             LebensohlStyle::Transfer
         } else {
             LebensohlStyle::Off
         });
     }),
-    ("1NT minor scheme", |d| {
+    ("1NT minor scheme", |d, _| {
         set_notrump_minors(if d.minors_european { PUPPET } else { EUROPEAN });
     }),
-    ("Landy range", |d| {
+    ("Landy range", |d, _| {
         set_landy(if d.landy.is_some() {
             None
         } else {
@@ -495,14 +508,24 @@ static AXIS_DEFAULTS: OnceLock<Defaults> = OnceLock::new();
 /// a mixed `--cell` re-arms per acting seat, so a knob merely set-when-on
 /// would leak the previous side's state into this side's book, card and
 /// reading.  Call it wherever [`arm_kickback`] is called for a side.
-fn arm_flips(flips: u16) {
+///
+/// Returns the [`Agreements`] the side plays — every build under this arming
+/// must be handed *this*, not a fresh `Agreements::current()`, or the two
+/// opening axes silently revert to their shipped poles.
+fn arm_flips(flips: u16) -> Agreements {
     let defaults = AXIS_DEFAULTS.get_or_init(Defaults::capture);
     defaults.apply();
+    let mut opening = defaults.opening();
     for (bit, (_, flip)) in AXES.iter().enumerate() {
         if flips & (1u16 << bit) != 0 {
-            flip(defaults);
+            flip(defaults, &mut opening);
         }
     }
+    // The ambient half is read *after* the flips, which may have written a
+    // cell; the opening half is the value they just edited.
+    let mut agreements = Agreements::current();
+    agreements.opening = opening;
+    agreements
 }
 
 /// `a-on`, `d-off`, `american-on`, `dutch-off` — a side's declared system,
@@ -598,10 +621,10 @@ fn to_convention_card(card: &pons::bidding::card::Card) -> anyhow::Result<EpbotC
 ///
 /// Must be called after the knobs for this cell are set: `american_card()` reads
 /// them, which is precisely what keeps the card, the code and the net in sync.
-fn card_for(system: &str) -> anyhow::Result<pons::bidding::card::Card> {
+fn card_for(system: &str, agreements: &Agreements) -> anyhow::Result<pons::bidding::card::Card> {
     Ok(match system {
-        "american" => american_card(&pons::bidding::agreements::Agreements::current()),
-        "dutch" => dutch_card(&pons::bidding::agreements::Agreements::current()),
+        "american" => american_card(agreements),
+        "dutch" => dutch_card(agreements),
         other => anyhow::bail!("--system must be american|dutch, got {other:?}"),
     })
 }
@@ -687,7 +710,10 @@ fn main() -> anyhow::Result<()> {
                     Some(card) => (card.system, card.toggles),
                     // `--configured --system dutch` means the teacher plays WJ;
                     // without this the corpus would claim WJ over 2/1 bidding.
-                    None if args.configured => (card_for(&args.system)?.system, Vec::new()),
+                    None if args.configured => (
+                        card_for(&args.system, &Agreements::current())?.system,
+                        Vec::new(),
+                    ),
                     None => (SYSTEM_2_OVER_1, Vec::new()),
                 };
                 // Singles win over the card, exactly as `bba-gen` applies them.
@@ -745,10 +771,10 @@ fn main() -> anyhow::Result<()> {
     // instead of a hand-maintained list.
     if args.teacher == "bba" {
         for side in sides.iter().filter(|side| side.flips != 0) {
-            arm_flips(0);
-            let default = card_for(side.system())?;
-            arm_flips(side.flips);
-            let flipped = card_for(side.system())?;
+            let plain = arm_flips(0);
+            let default = card_for(side.system(), &plain)?;
+            let armed = arm_flips(side.flips);
+            let flipped = card_for(side.system(), &armed)?;
             let unsticky: Vec<&str> = default
                 .rows
                 .iter()
@@ -781,21 +807,18 @@ fn main() -> anyhow::Result<()> {
         // stance and (per pair, below) teacher are all built under the same
         // knob state the auction loop re-arms per acting seat.
         arm_kickback(side.kickback);
-        arm_flips(side.flips);
-        let card = card_for(side.system())?;
+        let agreements = arm_flips(side.flips);
+        let card = card_for(side.system(), &agreements)?;
         if v5 {
             per_side_agreements.insert(
                 side.label(),
-                pons::bidding::features::ConventionCard::capture(
-                    &pons::bidding::agreements::Agreements::current(),
-                    side.dutch,
-                ),
+                pons::bidding::features::ConventionCard::capture(&agreements, side.dutch),
             );
         }
         let stance = if side.dutch {
-            dutch(&pons::bidding::agreements::Agreements::current()).against()
+            dutch(&agreements).against()
         } else {
-            american(&pons::bidding::agreements::Agreements::current()).against()
+            american(&agreements).against()
         };
         per_side.insert(side.label(), (card, stance));
     }
@@ -824,14 +847,10 @@ fn main() -> anyhow::Result<()> {
         // `bba` branch pushes as overrides were already rendered into `ours`
         // under the same arming in the per-side loop.
         arm_kickback(a.kickback);
-        arm_flips(a.flips);
+        let agreements = arm_flips(a.flips);
         let teacher: Box<dyn System> = match args.teacher.as_str() {
-            "american" if a.dutch => Box::new(
-                dutch_instinct(&pons::bidding::agreements::Agreements::current()).against(),
-            ),
-            "american" => Box::new(
-                american_instinct(&pons::bidding::agreements::Agreements::current()).against(),
-            ),
+            "american" if a.dutch => Box::new(dutch_instinct(&agreements).against()),
+            "american" => Box::new(american_instinct(&agreements).against()),
             "bba" => {
                 let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());
                 let ours = to_convention_card(&ours)?;
@@ -892,9 +911,10 @@ fn main() -> anyhow::Result<()> {
         // 140 floats a side, not a hot cost.
         let config = (args.configured && cells.is_empty())
             .then(|| -> anyhow::Result<Config> {
-                let ours = card_for(&args.system)?;
+                let agreements = Agreements::current();
+                let ours = card_for(&args.system, &agreements)?;
                 let theirs = match &args.their_system {
-                    Some(system) => card_for(system)?,
+                    Some(system) => card_for(system, &agreements)?,
                     None => ours.clone(),
                 };
                 Ok(Config::new(&ours, &theirs))
