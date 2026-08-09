@@ -6,10 +6,7 @@
 //! [`set_garbage_stayman`], the net-force seam under
 //! [`set_stayman_net_force`].
 
-use super::both_majors::{fit_value, stayman_5card_max, stayman_both_majors};
-use super::crawling_stayman::crawling_stayman;
-use super::invitational_majors::invitational_5card_majors;
-use super::stayman_slam::stayman_minor_slam_try;
+use super::both_majors::fit_value;
 use super::*;
 
 /// Garbage (drop-dead) Stayman: a weak 2♣ intending to pass opener's answer
@@ -22,8 +19,8 @@ use super::*;
 /// (`hcp(8..)`), so no hand matches two 2♣ rules.  Empty when off.
 // ponytail: the 0-4/5-7 split and the 3-vs-4 diamond floor are tunable knobs —
 // the A/B can tighten or loosen them.
-pub(super) fn garbage_stayman_rule() -> Rules {
-    if !garbage_stayman() {
+pub(super) fn garbage_stayman_rule(agreements: &Agreements) -> Rules {
+    if !agreements.build.notrump.garbage_stayman {
         return Rules::new();
     }
     Rules::new()
@@ -82,9 +79,9 @@ pub(crate) fn stayman_answers() -> Rules {
 /// a five-card major has ≤3 in the other major, so "both four-card majors" and
 /// "five-card major" never overlap; the natural answers (weight 1.0) catch every
 /// remaining case (single major, no major, a *minimum* five-card major).
-pub(super) fn stayman_answers_uncontested() -> Rules {
+pub(super) fn stayman_answers_uncontested(agreements: &Agreements) -> Rules {
     let mut rules = Rules::new();
-    if stayman_both_majors() {
+    if agreements.build.notrump.stayman_both_majors {
         // Both four-card majors with a *maximum* (16-17, the invite-accepting
         // range): jump to 2NT.  Responder then names their own major (3♣ = hearts,
         // 3♦ = spades) so opener — the strong, concealed hand — declares it
@@ -95,7 +92,7 @@ pub(super) fn stayman_answers_uncontested() -> Rules {
             .rule(Bid::new(2, Strain::Notrump), 110, both & hcp(16..))
             .alert(BOTH_MAJORS);
     }
-    if stayman_5card_max() {
+    if agreements.build.notrump.stayman_5card_max {
         // Five-card major, maximum (16-17): jump.  Natural (names and shows its
         // own suit), so unalerted — alerting would make alert-reading suppress it.
         rules = rules
@@ -215,7 +212,7 @@ fn stayman_net_seam(
 /// major (`3OM`) as an artificial slam try / choice of game.  Without a fit, the
 /// auction reverts to notrump exactly as over a bare 1NT — invite `2NT`, game
 /// `3NT`, and the quantitative `4NT` (16–17) — "ignore the 2♣ detour".
-pub(super) fn stayman_major_rebid(major: Suit) -> Rules {
+pub(super) fn stayman_major_rebid(major: Suit, agreements: &Agreements) -> Rules {
     let other = Strain::from(other_major(major));
     let strain = Strain::from(major);
     // Invitational-5-4 reroute: when on and opener showed *hearts*, a 5♠4♥ hand has
@@ -224,7 +221,7 @@ pub(super) fn stayman_major_rebid(major: Suit) -> Rules {
     // hand to 2♠ and sharpening `3♠` into a balanced slam try that *denies* five
     // spades.  Off the flag (or over a 2♠ answer, where 5♥4♠ transfers and never
     // reaches here) the cap `len(♠,..14)` is a no-op.
-    let reroute = invitational_5card_majors() && major == Suit::Hearts;
+    let reroute = agreements.build.notrump.invitational_5card_majors && major == Suit::Hearts;
     let spade_cap = if reroute {
         len(Suit::Spades, ..5)
     } else {
@@ -325,7 +322,7 @@ pub(super) fn stayman_major_rebid(major: Suit) -> Rules {
     // two-suiter shows its second suit instead of guessing notrump.  Empty off the
     // gate; the minor is real, so each rule floors only its own strain and stays
     // unalerted (the artificial-alert invariant).
-    if stayman_minor_slam_try() {
+    if agreements.build.notrump.stayman_minor_slam_try {
         rules
             .rule(
                 Bid::new(3, Strain::Clubs),
@@ -347,7 +344,7 @@ pub(super) fn stayman_major_rebid(major: Suit) -> Rules {
 /// Smolen: jump in the four-card major to show *five* in the other, game-forcing,
 /// so the strong notrump hand declares.  Lacking 5–4, revert to notrump as if the
 /// 2♣ detour never happened — invite `2NT`, game `3NT`, quantitative `4NT`.
-pub(super) fn stayman_no_major_rebid() -> Rules {
+pub(super) fn stayman_no_major_rebid(agreements: &Agreements) -> Rules {
     let rules = Rules::new()
         .rule(
             Bid::new(3, Strain::Hearts),
@@ -374,7 +371,7 @@ pub(super) fn stayman_no_major_rebid() -> Rules {
             100,
             stayman_net_seam(hcp(8..), hcp(8..=8), false, Strain::Notrump, 9),
         );
-    let rules = if crawling_stayman() {
+    let rules = if agreements.build.notrump.crawling_stayman {
         // Crawling Stayman: 4-4 majors short in diamonds (a bare 2♥, weak) — both
         // majors, pass-or-correct (see `answer_crawling_stayman`).  Gated by the
         // diamond shortness (≤1) that brought it here: garbage hands have 3+
@@ -389,7 +386,7 @@ pub(super) fn stayman_no_major_rebid() -> Rules {
     } else {
         rules
     };
-    let rules = if invitational_5card_majors() {
+    let rules = if agreements.build.notrump.invitational_5card_majors {
         // 5♠4♥, non-forcing invitational: opener denied hearts, so name the
         // five-card spade suit (natural, outranks the 2NT fallback).  Opener passes
         // a minimum or raises to game (see `answer_inv_5card_spades`).  A 5♠4♥
@@ -408,7 +405,7 @@ pub(super) fn stayman_no_major_rebid() -> Rules {
     // Weight 1.25 outranks the `3NT`/`4NT` reverts; the minor is real, so it floors
     // only its own strain and stays unalerted.  Empty off the gate.  (Smolen owns
     // `3♥`/`3♠`, so `3♣`/`3♦` are free here.)
-    if stayman_minor_slam_try() {
+    if agreements.build.notrump.stayman_minor_slam_try {
         rules
             .rule(
                 Bid::new(3, Strain::Clubs),

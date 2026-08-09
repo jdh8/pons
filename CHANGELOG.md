@@ -554,6 +554,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The 1NT book's 21 build-only knobs are carried, not fetched.**
+  `Build::notrump` captures every build-only cell in
+  `american/notrump{,/**}.rs` once through `notrump::capture()`, and the rule
+  builders read the resulting `NotrumpKnobs` fields.  Derived readings stay
+  functions, including the minor-scheme selectors, the six-card-invite and
+  Texas floor casts, and the transfer-table activation tests.  The three cells
+  also used at classify time (`STAYMAN_NET_FORCE`, `TRANSFER_GF_MAJORS`, and
+  `TRANSFER_GF_HEARTS`) keep their single home in `DecisionProfile`; build-time
+  sites read that pinned copy rather than duplicating them in `NotrumpKnobs`.
+  Setters, cells, and externally consumed getter signatures are untouched.
+
+- **The 1NT book's 21 build-time knobs are carried, not fetched.**  Same move
+  again, for `Build::notrump`: Stayman and its slam tries, the transfers, Texas,
+  the splinters, the size ask, the six-card invitations and the minor schemes
+  all read fields captured once by `notrump::capture()`.  Three of the
+  subtree's 24 cells are **not** here — `stayman_net_force`,
+  `transfer_gf_majors` and `transfer_gf_hearts` are read at classify time too,
+  so they keep their existing single home in the `Stance`-pinned
+  `DecisionProfile`, and their build-time sites read that instead.  Byte-identical.
+
 - **The defensive book's 55 build-time knobs are carried, not fetched.**
   The same move as the competitive book below, for
   `Build::defense`: every cell in `american/defense{,/**}.rs` — the notrump

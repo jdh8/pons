@@ -5,12 +5,9 @@
 //! game-forcing and slam-try continuations live in [`super::transfer_gf`] and
 //! [`super::transfer_slam`].
 
-use super::invitational_majors::invitational_5card_majors;
 use super::sixcard_invitation::{sixcard_invite_active, sixcard_invite_rebid};
-use super::transfer_gf::{
-    transfer_gf_hearts, transfer_gf_majors, transfer_heart_gf_rebid, transfer_spade_gf_rebid,
-};
-use super::transfer_slam::{transfer_slam_try, transfer_slam_try_rebid};
+use super::transfer_gf::{transfer_heart_gf_rebid, transfer_spade_gf_rebid};
+use super::transfer_slam::transfer_slam_try_rebid;
 use super::*;
 
 thread_local! {
@@ -77,9 +74,9 @@ pub fn transfer_longer_major() -> bool {
 /// simply names the anchor suit.
 // ponytail: a plain jump super-accept; fit-/shortness-showing super-accepts are
 // the upgrade path if the A/B asks for them.
-pub(crate) fn complete_transfer(into: Suit) -> Rules {
+pub(crate) fn complete_transfer(into: Suit, agreements: &Agreements) -> Rules {
     let mut rules = Rules::new();
-    if transfer_super_accept() {
+    if agreements.build.notrump.transfer_super_accept {
         rules = rules.rule(
             Bid::new(3, Strain::from(into)),
             150,
@@ -224,56 +221,56 @@ pub(super) fn answer_transfer_spade_single() -> Rules {
 /// Chain the heart-transfer rebids into their shared table
 ///
 /// The package gate and this table deliberately read the knobs at different arities.
-fn heart_transfer_rebid_table() -> Rules {
+fn heart_transfer_rebid_table(agreements: &Agreements) -> Rules {
     let mut heart_rebid = Rules::new();
-    if invitational_5card_majors() {
+    if agreements.build.notrump.invitational_5card_majors {
         heart_rebid = heart_rebid.chain(transfer_heart_invite_rebid());
     }
-    heart_rebid = heart_rebid.chain(sixcard_invite_rebid(Suit::Hearts));
-    heart_rebid = heart_rebid.chain(transfer_slam_try_rebid(Suit::Hearts));
-    heart_rebid = heart_rebid.chain(transfer_heart_gf_rebid());
+    heart_rebid = heart_rebid.chain(sixcard_invite_rebid(Suit::Hearts, agreements));
+    heart_rebid = heart_rebid.chain(transfer_slam_try_rebid(Suit::Hearts, agreements));
+    heart_rebid = heart_rebid.chain(transfer_heart_gf_rebid(agreements));
     heart_rebid
 }
 
 /// Chain the spade-transfer rebids into their shared table
 ///
 /// The package gate and this table deliberately read the knobs at different arities.
-fn spade_transfer_rebid_table() -> Rules {
+fn spade_transfer_rebid_table(agreements: &Agreements) -> Rules {
     let mut spade_rebid = Rules::new();
-    if invitational_5card_majors() {
+    if agreements.build.notrump.invitational_5card_majors {
         spade_rebid = spade_rebid.chain(transfer_spade_invite_rebid());
     }
-    spade_rebid = spade_rebid.chain(sixcard_invite_rebid(Suit::Spades));
-    spade_rebid = spade_rebid.chain(transfer_slam_try_rebid(Suit::Spades));
-    spade_rebid = spade_rebid.chain(transfer_spade_gf_rebid());
+    spade_rebid = spade_rebid.chain(sixcard_invite_rebid(Suit::Spades, agreements));
+    spade_rebid = spade_rebid.chain(transfer_slam_try_rebid(Suit::Spades, agreements));
+    spade_rebid = spade_rebid.chain(transfer_spade_gf_rebid(agreements));
     spade_rebid
 }
 
 /// Whether any treatment contributes to the heart-transfer rebid table
-fn heart_transfer_rebid_active() -> bool {
-    invitational_5card_majors()
-        || sixcard_invite_active()
-        || transfer_slam_try()
-        || transfer_gf_hearts()
+fn heart_transfer_rebid_active(agreements: &Agreements) -> bool {
+    agreements.build.notrump.invitational_5card_majors
+        || sixcard_invite_active(agreements)
+        || agreements.build.notrump.transfer_slam_try
+        || agreements.decision.transfer_gf_hearts
 }
 
 /// Whether any treatment contributes to the spade-transfer rebid table
-fn spade_transfer_rebid_active() -> bool {
-    invitational_5card_majors()
-        || sixcard_invite_active()
-        || transfer_slam_try()
-        || transfer_gf_majors()
+fn spade_transfer_rebid_active(agreements: &Agreements) -> bool {
+    agreements.build.notrump.invitational_5card_majors
+        || sixcard_invite_active(agreements)
+        || agreements.build.notrump.transfer_slam_try
+        || agreements.decision.transfer_gf_majors
 }
 
 /// Responder's chained rebids after transferring to hearts
 pub(crate) fn heart_transfer_rebids() -> Package {
     Package {
         name: "heart-transfer-rebids",
-        gate: |_| heart_transfer_rebid_active(),
-        entries: |_| {
+        gate: |agreements| heart_transfer_rebid_active(agreements),
+        entries: |agreements| {
             rows_of(
                 Pattern::node("P* 1NT - 2♦ - 2♥ -"),
-                heart_transfer_rebid_table(),
+                heart_transfer_rebid_table(agreements),
             )
         },
     }
@@ -283,11 +280,11 @@ pub(crate) fn heart_transfer_rebids() -> Package {
 pub(crate) fn spade_transfer_rebids() -> Package {
     Package {
         name: "spade-transfer-rebids",
-        gate: |_| spade_transfer_rebid_active(),
-        entries: |_| {
+        gate: |agreements| spade_transfer_rebid_active(agreements),
+        entries: |agreements| {
             rows_of(
                 Pattern::node("P* 1NT - 2♥ - 2♠ -"),
-                spade_transfer_rebid_table(),
+                spade_transfer_rebid_table(agreements),
             )
         },
     }

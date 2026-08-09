@@ -45,11 +45,11 @@ use super::*;
 ///
 /// On by default since 2026-07-28, its A/B (`examples/ab-nt-splinter`) having
 /// won in all four cells; see [`set_nt_splinter`] for the measured numbers.
-pub(super) fn nt_splinter_rules() -> Rules {
-    if !nt_splinter() {
+pub(super) fn nt_splinter_rules(agreements: &Agreements) -> Rules {
+    if !agreements.build.notrump.nt_splinter {
         return Rules::new();
     }
-    let floor = nt_splinter_floor();
+    let floor = agreements.build.notrump.nt_splinter_floor;
     let mut rules = Rules::new();
     for (short, other) in [(Suit::Hearts, Suit::Spades), (Suit::Spades, Suit::Hearts)] {
         rules = rules
@@ -175,7 +175,7 @@ pub fn nt_splinter() -> bool {
 }
 
 /// Responder's current HCP floor for the `3♥`/`3♠` splinter
-fn nt_splinter_floor() -> u8 {
+pub(super) fn nt_splinter_floor() -> u8 {
     NT_SPLINTER_FLOOR.with(Cell::get)
 }
 
@@ -183,7 +183,7 @@ fn nt_splinter_floor() -> u8 {
 pub(crate) fn notrump_splinter() -> Package {
     Package {
         name: "nt-splinter",
-        gate: |_| nt_splinter(),
+        gate: |agreements| agreements.build.notrump.nt_splinter,
         entries: |_| {
             expand(
                 "P* 1NT - 3M -",

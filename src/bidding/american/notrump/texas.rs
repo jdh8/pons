@@ -43,8 +43,8 @@ pub fn texas_slam_drive() -> bool {
 /// is RKCB, the [`slam`] 1430 ladder (installed alongside) places the slam.  Weaker
 /// (game-only) transfers match no rule and pass opener's `4M`.  Empty unless the
 /// reroute is on ([`set_texas_slam_drive`]).
-fn texas_slam_drive_rebid() -> Rules {
-    if !texas_slam_drive() {
+fn texas_slam_drive_rebid(agreements: &Agreements) -> Rules {
+    if !agreements.build.notrump.texas_slam_drive {
         return Rules::new();
     }
     Rules::new()
@@ -92,9 +92,14 @@ pub fn set_texas_game_floor(floor: u8) {
     TEXAS_GAME_FLOOR.with(|cell| cell.set(floor));
 }
 
-/// The current South African Texas game-blast floor (`point_count + trump length`)
-pub(super) fn texas_game_floor() -> usize {
-    usize::from(TEXAS_GAME_FLOOR.with(Cell::get))
+/// The raw South African Texas game-blast floor (`point_count + trump length`)
+pub(super) fn texas_game_floor_raw() -> u8 {
+    TEXAS_GAME_FLOOR.with(Cell::get)
+}
+
+/// The current game-blast floor, widened to the DSL's length type
+pub(super) fn texas_game_floor(agreements: &Agreements) -> usize {
+    usize::from(agreements.build.notrump.texas_game_floor)
 }
 
 /// The South African Texas game-blast strength gate for `major`:
@@ -106,8 +111,11 @@ pub(super) fn texas_game_floor() -> usize {
 /// meaningless for a one-suiter — here the whole suit is the trump length.)  The
 /// `len` guards (`6+` in `major`, `≤4` in the other) live with the rule; this is
 /// just the strength term.
-pub(super) fn texas_strength_gate(major: Suit) -> Cons<impl Constraint + Clone> {
-    let floor = texas_game_floor();
+pub(super) fn texas_strength_gate(
+    major: Suit,
+    agreements: &Agreements,
+) -> Cons<impl Constraint + Clone + use<>> {
+    let floor = texas_game_floor(agreements);
     described(
         "six-card-major game blast",
         move |hand: Hand, context: &Context<'_>| {
@@ -159,14 +167,17 @@ pub(crate) fn texas_transfers() -> Package {
 pub(crate) fn texas_drive() -> Package {
     Package {
         name: "texas-slam-drive",
-        gate: |_| texas_slam_drive(),
-        entries: |_| {
+        gate: |agreements| agreements.build.notrump.texas_slam_drive,
+        entries: |agreements| {
             let heart_drive = "P* 1NT - 4♣ - 4♥ -";
             let spade_drive = "P* 1NT - 4♦ - 4♠ -";
-            let mut entries = rows_of(Pattern::node(heart_drive), texas_slam_drive_rebid());
+            let mut entries = rows_of(
+                Pattern::node(heart_drive),
+                texas_slam_drive_rebid(agreements),
+            );
             entries.extend(rows_of(
                 Pattern::node(spade_drive),
-                texas_slam_drive_rebid(),
+                texas_slam_drive_rebid(agreements),
             ));
             entries.extend(slam::rkcb_rows(heart_drive, Suit::Hearts));
             entries.extend(slam::rkcb_rows(spade_drive, Suit::Spades));

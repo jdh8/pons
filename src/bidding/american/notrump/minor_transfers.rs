@@ -4,7 +4,7 @@
 //! diamonds and `2♠` is clubs-or-a-balanced-invite.  The European twin lives in
 //! [`super::european`], Puppet Stayman itself in [`super::puppet_stayman`].
 
-use super::size_ask::{SizeAskEight, size_ask_accept_floor, size_ask_eight, size_ask_eight_class};
+use super::size_ask::{SizeAskEight, size_ask_eight_class};
 use super::*;
 
 /// Puppet minor-suit responses to 1NT (the default scheme)
@@ -19,11 +19,11 @@ use super::*;
 /// off shapely hands, and a balanced no-four-card-major hand almost always has a
 /// three-card major, so this routes most balanced game forces through 3♣ (the
 /// no-fit case relays back to 3NT).
-pub(super) fn puppet_minors() -> Rules {
+pub(super) fn puppet_minors(agreements: &Agreements) -> Rules {
     // 2♠ = six-card clubs, plus the bare-8 balanced size ask (no four-card major),
     // gated on `size_ask_eight`: `Shipped` excludes the flat 4-3-3-3 (it passes),
     // `Invite` size-asks the whole class, `Pass` drops the invite (clubs only).
-    let two_spades = match size_ask_eight() {
+    let two_spades = match agreements.build.notrump.size_ask_eight {
         SizeAskEight::Shipped => Rules::new().rule(
             Bid::new(2, Strain::Spades),
             130,
@@ -128,12 +128,12 @@ pub(super) fn club_no_shortness(threshold: u8) -> Cons<impl Constraint + Clone> 
 /// Showing strength lets responder pass-or-correct safely: the weak club hand
 /// lands in `3♣` either way, the balanced invite plays `2NT` (min) or `3NT`
 /// (max), and a game-going club hand splinters.
-fn two_spade_answer() -> Rules {
+fn two_spade_answer(agreements: &Agreements) -> Rules {
     Rules::new()
         .rule(
             Bid::new(3, Strain::Clubs),
             100,
-            hcp(size_ask_accept_floor()..),
+            hcp(agreements.build.notrump.size_ask_accept_floor..),
         )
         .rule(Bid::new(2, Strain::Notrump), 90, hcp(0..))
 }
@@ -218,7 +218,7 @@ pub(super) fn pick_game_over_club_splinter(short: Suit) -> Rules {
 pub(crate) fn diamond_transfer() -> Package {
     Package {
         name: "diamond-transfer",
-        gate: |_| puppet_scheme(),
+        gate: |agreements| puppet_scheme(agreements),
         entries: |_| {
             let mut entries = rows_of(Pattern::node("P* 1NT - 2NT -"), diamond_transfer_answer());
             entries.extend(rows_of(
@@ -242,9 +242,9 @@ pub(crate) fn diamond_transfer() -> Package {
 pub(crate) fn two_spade_two_way() -> Package {
     Package {
         name: "two-spade-two-way",
-        gate: |_| puppet_scheme(),
-        entries: |_| {
-            let mut entries = rows_of(Pattern::node("P* 1NT - 2♠ -"), two_spade_answer());
+        gate: |agreements| puppet_scheme(agreements),
+        entries: |agreements| {
+            let mut entries = rows_of(Pattern::node("P* 1NT - 2♠ -"), two_spade_answer(agreements));
             entries.extend(rows_of(
                 Pattern::node("P* 1NT - 2♠ - 2NT -"),
                 two_spade_over_min(),

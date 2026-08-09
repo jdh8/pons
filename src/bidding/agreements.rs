@@ -42,15 +42,17 @@ use super::context::DecisionProfile;
 /// The knobs read only at book construction
 ///
 /// One field per area, each captured by the module that owns its cells (see
-/// [`CompetitionKnobs`] and [`DefenseKnobs`]); areas move in one at a time as their read sites
-/// convert from a thread-local getter to a field of this value, and
-/// `docs/declarative-rows.md` holds the ledger.
+/// [`CompetitionKnobs`], [`DefenseKnobs`], and [`NotrumpKnobs`]); areas move in
+/// one at a time as their read sites convert from a thread-local getter to a
+/// field of this value, and `docs/declarative-rows.md` holds the ledger.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Build {
     /// What we play when they contest our auction
     pub competition: CompetitionKnobs,
     /// What we play when they open the auction
     pub defense: DefenseKnobs,
+    /// What we play after our notrump openings and rebids
+    pub notrump: NotrumpKnobs,
 }
 
 impl Default for Build {
@@ -66,6 +68,7 @@ impl Build {
         Self {
             competition: super::american::competition::capture(),
             defense: super::american::defense::capture(),
+            notrump: super::american::notrump::capture(),
         }
     }
 }
@@ -328,6 +331,86 @@ impl DefenseKnobs {
     #[must_use]
     pub fn current() -> Self {
         super::american::defense::capture()
+    }
+}
+
+/// The notrump book's build-time knobs
+///
+/// Each field is one cell, named for the getter it replaces; *derived* readings
+/// stay functions of the module that owns them rather than becoming fields, so
+/// the "one cell, one home" invariant survives the move. The three cells also
+/// read at classify time live only in `DecisionProfile`.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct NotrumpKnobs {
+    // --- notrump.rs
+    /// Which minor-suit response scheme we play over our `1NT`
+    pub notrump_minors: super::rules::Alert,
+    // --- notrump/size_ask.rs
+    /// How a balanced eight with no four-card major handles the size ask
+    pub size_ask_eight: super::american::SizeAskEight,
+    /// Opener's HCP floor for accepting the balanced-eight size ask
+    pub size_ask_accept_floor: u8,
+    // --- notrump/both_majors.rs
+    /// Show both four-card majors in response to Stayman
+    pub stayman_both_majors: bool,
+    /// Show a five-card major when answering Stayman with a maximum
+    pub stayman_5card_max: bool,
+    // --- notrump/transfer_gf.rs
+    /// Route minimum game-forcing minor side suits directly to `3NT`
+    pub minor_min_to_3nt: bool,
+    // --- notrump/transfers.rs
+    /// Author super-accepts of Jacoby transfers
+    pub transfer_super_accept: bool,
+    /// Prefer the longer major when both majors can transfer
+    pub transfer_longer_major: bool,
+    // --- notrump/crawling_stayman.rs
+    /// Author Crawling Stayman
+    pub crawling_stayman: bool,
+    // --- notrump/sixcard_invitation.rs
+    /// Raw strength floor for inviting with a six-card major
+    pub sixcard_invite_floor: u8,
+    /// Raw strength floor for accepting a six-card-major invitation
+    pub sixcard_accept_floor: u8,
+    // --- notrump/transfer_slam.rs
+    /// Author the transfer slam-try structure
+    pub transfer_slam_try: bool,
+    // --- notrump/invitational_majors.rs
+    /// Author the invitational five-card-major structure
+    pub invitational_5card_majors: bool,
+    // --- notrump/texas.rs
+    /// Route strong Texas hands through the slam-drive continuations
+    pub texas_slam_drive: bool,
+    /// Raw strength floor for the Texas game transfer
+    pub texas_game_floor: u8,
+    // --- notrump/stayman.rs
+    /// Author Garbage Stayman
+    pub garbage_stayman: bool,
+    // --- notrump/splinter.rs
+    /// Author the `1NT` splinter
+    pub nt_splinter: bool,
+    /// Responder's HCP floor for the `1NT` splinter
+    pub nt_splinter_floor: u8,
+    // --- notrump/stayman_slam.rs
+    /// Author the Stayman cue-bid continuation
+    pub stayman_cue_continuation: bool,
+    /// Author the Stayman minor-slam try
+    pub stayman_minor_slam_try: bool,
+    // --- notrump/long_minor.rs
+    /// Author the source-of-tricks-eight long-minor force
+    pub long_minor_force: bool,
+}
+
+impl Default for NotrumpKnobs {
+    fn default() -> Self {
+        Self::current()
+    }
+}
+
+impl NotrumpKnobs {
+    /// Capture this thread's notrump build-time knob state
+    #[must_use]
+    pub fn current() -> Self {
+        super::american::notrump::capture()
     }
 }
 

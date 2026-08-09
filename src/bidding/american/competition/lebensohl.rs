@@ -510,7 +510,7 @@ pub(super) fn lebensohl_package() -> Package {
             // stolen 2♣ — same weight, same constraint, nothing to drift if
             // Stayman is retuned.  The empty-suffix table claims only
             // responder's first call; deeper calls fall through to the rebase.
-            let responses = notrump_responses();
+            let responses = notrump_responses(agreements);
             entries.push(classified(
                 Pattern::table("P* 1NT (2♣)"),
                 classifier(move |hand: Hand, context: &Context<'_>| {

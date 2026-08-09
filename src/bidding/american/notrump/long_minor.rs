@@ -14,8 +14,8 @@ use super::*;
 /// transfers (1.3); the shape is never `balanced()` (a 6+ suit rules it out), so it
 /// never collides with the balanced-only size-ask or Puppet Stayman.  Natural 3NT —
 /// no alert.  Empty when off, which is the default.
-pub(super) fn long_minor_force_rule() -> Rules {
-    if !long_minor_force() {
+pub(super) fn long_minor_force_rule(agreements: &Agreements) -> Rules {
+    if !agreements.build.notrump.long_minor_force {
         return Rules::new();
     }
     Rules::new().rule(
@@ -62,6 +62,6 @@ pub fn set_long_minor_force(on: bool) {
 }
 
 /// Whether the source-of-tricks-eight 3NT force is currently authored
-fn long_minor_force() -> bool {
+pub(super) fn long_minor_force() -> bool {
     LONG_MINOR_FORCE.with(Cell::get)
 }

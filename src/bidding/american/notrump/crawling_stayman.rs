@@ -14,8 +14,8 @@ use super::*;
 /// clubs, so the 2♥ pass-or-correct (and opener's 3♣ flee) always finds a fit.
 /// Weak only (`hcp(..8)`), disjoint from constructive 2♣ and the garbage tiers
 /// (which need 3+ diamonds).  Same STAYMAN alert.  Empty when off.
-pub(super) fn crawling_stayman_rule() -> Rules {
-    if !crawling_stayman() {
+pub(super) fn crawling_stayman_rule(agreements: &Agreements) -> Rules {
+    if !agreements.build.notrump.crawling_stayman {
         return Rules::new();
     }
     Rules::new()
@@ -82,7 +82,7 @@ fn answer_crawling_stayman() -> Rules {
 pub(crate) fn crawling() -> Package {
     Package {
         name: "crawling-stayman",
-        gate: |_| crawling_stayman(),
+        gate: |agreements| agreements.build.notrump.crawling_stayman,
         entries: |_| {
             rows_of(
                 Pattern::node("P* 1NT - 2♣ - 2♦ - 2♥ -"),

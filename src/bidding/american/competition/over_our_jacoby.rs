@@ -100,7 +100,7 @@ pub(super) fn competition_over_transfer_package() -> Package {
     Package {
         name: "competition-over-transfer",
         gate: |agreements| agreements.build.competition.competition_over_transfer,
-        entries: |_| {
+        entries: |agreements| {
             let mut entries = Vec::new();
             for (resp, major) in [(Suit::Diamonds, Suit::Hearts), (Suit::Hearts, Suit::Spades)] {
                 let key = format!("P* 1NT - 2{}", Strain::from(resp));
@@ -121,7 +121,7 @@ pub(super) fn competition_over_transfer_package() -> Package {
                 ));
                 entries.extend(rows_of(
                     Pattern::after(&key, "(X) - - XX -"),
-                    complete_transfer(major),
+                    complete_transfer(major, agreements),
                 ));
 
                 // Our transfer overcalled.  Opener's natural reply.

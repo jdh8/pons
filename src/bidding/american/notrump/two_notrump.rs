@@ -6,21 +6,20 @@
 //! response.
 
 use super::stayman::{smolen_at_three, smolen_completion};
-use super::transfers::transfer_longer_major;
 use super::*;
 
 /// Responses to a 2NT-strength notrump (3-level Stayman/transfers, 4NT invite)
 ///
 /// Used after both the direct 2NT opening (20–21 balanced) and opener's 2NT
 /// rebid after 2♣ (22–24 balanced).
-fn two_notrump_responses() -> Rules {
+fn two_notrump_responses(agreements: &Agreements) -> Rules {
     // The longer-major discipline (see [`set_transfer_longer_major`]): a
     // two-suiter transfers to the longer major, equal lengths to hearts —
     // there is no both-majors bid or slam reroute at this level, so hearts
     // takes every tie.  Off, the old guards tie at 2.0 and the pick between
     // the transfers is arbitrary (a weak 6♠5♥ could transfer to hearts and
     // scramble — the M6.4 A/B caught exactly that board).
-    let prefer_longer = transfer_longer_major();
+    let prefer_longer = agreements.build.notrump.transfer_longer_major;
     Rules::new()
         // 3-level Jacoby transfers.
         .rule(
@@ -124,7 +123,7 @@ pub(crate) fn two_notrump_structure() -> Package {
     Package {
         name: "two-notrump-structure",
         gate: |_| true,
-        entries: |_| {
+        entries: |agreements| {
             let two_nt = call(2, Strain::Notrump);
             let four_nt = call(4, Strain::Notrump);
             let bases: &[(&[Call], u8)] = &[
@@ -147,7 +146,10 @@ pub(crate) fn two_notrump_structure() -> Package {
                     .join(" ");
 
                 // Responses to the 2NT bid.
-                entries.extend(rows_of(Pattern::node(&prefix), two_notrump_responses()));
+                entries.extend(rows_of(
+                    Pattern::node(&prefix),
+                    two_notrump_responses(agreements),
+                ));
 
                 // Stayman answers and transfer completions at the three level.
                 let extend = |tail: Call| format!("{prefix} {tail} -");

@@ -66,9 +66,9 @@ pub(super) fn size_ask_eight_class() -> Cons<impl Constraint + Clone> {
 /// size ask in the `Invite` arm reroutes the flat-4-minor eight without touching
 /// this rule.  The `Pass` arm additionally routes the whole class here so the
 /// non-flat eights, whose size-ask rule is dropped, have a home.
-pub(super) fn size_ask_eight_pass() -> Rules {
+pub(super) fn size_ask_eight_pass(agreements: &Agreements) -> Rules {
     let base = hcp(..8) & len(Suit::Hearts, ..5) & len(Suit::Spades, ..5);
-    match size_ask_eight() {
+    match agreements.build.notrump.size_ask_eight {
         SizeAskEight::Shipped | SizeAskEight::Invite => {
             Rules::new().rule(Call::Pass, 0, base | (hcp(8..=8) & flat_4333()))
         }

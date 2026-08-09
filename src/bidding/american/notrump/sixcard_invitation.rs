@@ -53,20 +53,30 @@ pub fn set_sixcard_accept_floor(floor: u8) {
     SIXCARD_ACCEPT_FLOOR.with(|cell| cell.set(floor));
 }
 
-/// The current six-card-major game-invite floor (`point_count + trump length`)
-fn sixcard_invite_floor() -> usize {
-    usize::from(SIXCARD_INVITE_FLOOR.with(Cell::get))
+/// The raw six-card-major game-invite floor (`point_count + trump length`)
+pub(super) fn sixcard_invite_floor_raw() -> u8 {
+    SIXCARD_INVITE_FLOOR.with(Cell::get)
 }
 
-/// Opener's current accept floor for the six-card-major invite
-fn sixcard_accept_floor() -> usize {
-    usize::from(SIXCARD_ACCEPT_FLOOR.with(Cell::get))
+/// The current six-card-major game-invite floor, widened to the DSL's length type
+fn sixcard_invite_floor(agreements: &Agreements) -> usize {
+    usize::from(agreements.build.notrump.sixcard_invite_floor)
+}
+
+/// The raw accept-floor knob for the six-card-major invite
+pub(super) fn sixcard_accept_floor_raw() -> u8 {
+    SIXCARD_ACCEPT_FLOOR.with(Cell::get)
+}
+
+/// Opener's current accept floor, widened to the DSL's length type
+fn sixcard_accept_floor(agreements: &Agreements) -> usize {
+    usize::from(agreements.build.notrump.sixcard_accept_floor)
 }
 
 /// Whether the six-card-major invite is authored: its floor sits below the Texas
 /// game-blast floor, so the invitational band `[invite, blast)` is non-empty.
-pub(super) fn sixcard_invite_active() -> bool {
-    sixcard_invite_floor() < texas_game_floor()
+pub(super) fn sixcard_invite_active(agreements: &Agreements) -> bool {
+    sixcard_invite_floor(agreements) < texas_game_floor(agreements)
 }
 
 /// Responder's invitational jump after a Jacoby transfer completes, holding a
@@ -80,11 +90,11 @@ pub(super) fn sixcard_invite_active() -> bool {
 /// game or passes `3M` ([`accept_sixcard_invitation`]).  Empty unless the invite
 /// is on ([`set_sixcard_invite_floor`]).  Natural — floors only its own strain, so
 /// it stays unalerted (the artificial-alert invariant).
-pub(super) fn sixcard_invite_rebid(major: Suit) -> Rules {
-    if !sixcard_invite_active() {
+pub(super) fn sixcard_invite_rebid(major: Suit, agreements: &Agreements) -> Rules {
+    if !sixcard_invite_active(agreements) {
         return Rules::new();
     }
-    let floor = sixcard_invite_floor();
+    let floor = sixcard_invite_floor(agreements);
     Rules::new().rule(
         Bid::new(3, Strain::from(major)),
         130,
@@ -114,8 +124,8 @@ pub(super) fn sixcard_invite_rebid(major: Suit) -> Rules {
 /// [`set_sixcard_accept_floor`]'s value (default 18); otherwise pass `3M`.
 /// Authored because the keyless floor reads a three-level raise as forcing and so
 /// could not decline.
-fn accept_sixcard_invitation(major: Suit) -> Rules {
-    let floor = sixcard_accept_floor();
+fn accept_sixcard_invitation(major: Suit, agreements: &Agreements) -> Rules {
+    let floor = sixcard_accept_floor(agreements);
     Rules::new()
         .rule(
             Bid::new(4, Strain::from(major)),
@@ -144,15 +154,15 @@ fn accept_sixcard_invitation(major: Suit) -> Rules {
 pub(crate) fn sixcard_invite() -> Package {
     Package {
         name: "six-card-major-invite",
-        gate: |_| sixcard_invite_active(),
-        entries: |_| {
+        gate: |agreements| sixcard_invite_active(agreements),
+        entries: |agreements| {
             let mut entries = rows_of(
                 Pattern::node("P* 1NT - 2♦ - 2♥ - 3♥ -"),
-                accept_sixcard_invitation(Suit::Hearts),
+                accept_sixcard_invitation(Suit::Hearts, agreements),
             );
             entries.extend(rows_of(
                 Pattern::node("P* 1NT - 2♥ - 2♠ - 3♠ -"),
-                accept_sixcard_invitation(Suit::Spades),
+                accept_sixcard_invitation(Suit::Spades, agreements),
             ));
             entries
         },

@@ -54,7 +54,7 @@ pub fn set_minor_min_to_3nt(on: bool) {
 }
 
 /// Whether minimum five-card-spade game-forces with a minor bid `3NT` (Arm B)
-fn minor_min_to_3nt() -> bool {
+pub(super) fn minor_min_to_3nt() -> bool {
     MINOR_MIN_TO_3NT.with(Cell::get)
 }
 
@@ -89,13 +89,17 @@ pub fn transfer_gf_hearts() -> bool {
 /// floor's choice-of-games `3NT`.  All three natural calls floor only their own
 /// strains, so they stay unalerted; `4NT` is conventional and carries [`SLAM_TRY`].
 /// Empty off the gate.
-pub(super) fn transfer_spade_gf_rebid() -> Rules {
-    if !transfer_gf_majors() {
+pub(super) fn transfer_spade_gf_rebid(agreements: &Agreements) -> Rules {
+    if !agreements.decision.transfer_gf_majors {
         return Rules::new();
     }
     // Arm A shows the minor on any game force; Arm B reserves it for slam tries,
     // routing minimum game-forces to the floor's `3NT` (the `minor_min_to_3nt` A/B).
-    let minor_floor: u8 = if minor_min_to_3nt() { 17 } else { 10 };
+    let minor_floor: u8 = if agreements.build.notrump.minor_min_to_3nt {
+        17
+    } else {
+        10
+    };
     Rules::new()
         // The transfer already pins responder's five spades (`transfer_major_reading`),
         // so these natural rebids restate only their *own* second strain — flooring no
@@ -194,11 +198,15 @@ pub(super) fn transfer_spade_gf_rebid() -> Rules {
 /// - `4NT` — the single-suiter's quantitative slam invite, [`SLAM_TRY`].
 ///
 /// Empty off the heart gate.
-pub(super) fn transfer_heart_gf_rebid() -> Rules {
-    if !transfer_gf_hearts() {
+pub(super) fn transfer_heart_gf_rebid(agreements: &Agreements) -> Rules {
+    if !agreements.decision.transfer_gf_hearts {
         return Rules::new();
     }
-    let minor_floor: u8 = if minor_min_to_3nt() { 17 } else { 10 };
+    let minor_floor: u8 = if agreements.build.notrump.minor_min_to_3nt {
+        17
+    } else {
+        10
+    };
     // The transfer pins responder's five hearts, so these natural rebids restate only
     // their own second strain (floor no un-named suit → off the alert list).
     Rules::new()
@@ -445,7 +453,7 @@ pub(super) fn not_major_splinter_slam(major: Suit) -> Cons<impl Constraint + Clo
 pub(crate) fn spade_transfer_game_force() -> Package {
     Package {
         name: "spade-transfer-game-force",
-        gate: |_| transfer_gf_majors(),
+        gate: |agreements| agreements.decision.transfer_gf_majors,
         entries: |_| {
             let mut entries = rows_of(
                 Pattern::node("P* 1NT - 2♥ - 2♠ - 4NT -"),
@@ -473,7 +481,7 @@ pub(crate) fn spade_transfer_game_force() -> Package {
 pub(crate) fn heart_transfer_game_force() -> Package {
     Package {
         name: "heart-transfer-game-force",
-        gate: |_| transfer_gf_hearts(),
+        gate: |agreements| agreements.decision.transfer_gf_hearts,
         entries: |_| {
             let mut entries = rows_of(
                 Pattern::node("P* 1NT - 2♦ - 2♥ - 4NT -"),

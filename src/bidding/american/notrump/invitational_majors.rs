@@ -108,7 +108,7 @@ fn inv_5card_raise(strain: Strain) -> Rules {
 pub(crate) fn invitational_majors() -> Package {
     Package {
         name: "invitational-five-card-majors",
-        gate: |_| invitational_5card_majors(),
+        gate: |agreements| agreements.build.notrump.invitational_5card_majors,
         entries: |_| {
             let mut entries = rows_of(
                 Pattern::node("P* 1NT - 2♣ - 2♦ - 2♠ -"),

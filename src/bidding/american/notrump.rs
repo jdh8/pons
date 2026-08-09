@@ -20,7 +20,7 @@
 //! [`american`][super::american] during system assembly.
 
 use super::{call, other_major, slam};
-use crate::bidding::agreements::Agreements;
+use crate::bidding::agreements::{Agreements, NotrumpKnobs};
 use crate::bidding::constraint::{
     Cons, Constraint, balanced, described, envelope_union_upgrade, equal_length, hcp, len,
     long_suit_box, longer_suit, point_count_on, points, pred, reads_as, stopper_in,
@@ -105,6 +105,38 @@ pub(super) use transfers::{complete_transfer, heart_transfer_rebids, spade_trans
 pub use transfers::{set_transfer_longer_major, set_transfer_super_accept};
 pub(super) use two_notrump::{two_notrump_rebids, two_notrump_structure};
 
+/// Capture this thread's notrump build-time knobs
+///
+/// The one place the build-only notrump cells are read. Everything downstream
+/// takes the captured value, so a `set_*` between this call and the rules being
+/// built cannot split the book against itself. The three dual-read cells live
+/// only in `DecisionProfile` and are deliberately absent here.
+pub(in crate::bidding) fn capture() -> NotrumpKnobs {
+    NotrumpKnobs {
+        notrump_minors: notrump_minors(),
+        size_ask_eight: size_ask::size_ask_eight(),
+        size_ask_accept_floor: size_ask::size_ask_accept_floor(),
+        stayman_both_majors: both_majors::stayman_both_majors(),
+        stayman_5card_max: both_majors::stayman_5card_max(),
+        minor_min_to_3nt: transfer_gf::minor_min_to_3nt(),
+        transfer_super_accept: transfers::transfer_super_accept(),
+        transfer_longer_major: transfers::transfer_longer_major(),
+        crawling_stayman: crawling_stayman::crawling_stayman(),
+        sixcard_invite_floor: sixcard_invitation::sixcard_invite_floor_raw(),
+        sixcard_accept_floor: sixcard_invitation::sixcard_accept_floor_raw(),
+        transfer_slam_try: transfer_slam::transfer_slam_try(),
+        invitational_5card_majors: invitational_majors::invitational_5card_majors(),
+        texas_slam_drive: texas::texas_slam_drive(),
+        texas_game_floor: texas::texas_game_floor_raw(),
+        garbage_stayman: stayman::garbage_stayman(),
+        nt_splinter: splinter::nt_splinter(),
+        nt_splinter_floor: splinter::nt_splinter_floor(),
+        stayman_cue_continuation: stayman_slam::stayman_cue_continuation(),
+        stayman_minor_slam_try: stayman_slam::stayman_minor_slam_try(),
+        long_minor_force: long_minor::long_minor_force(),
+    }
+}
+
 /// The **Puppet** 1NT minor scheme — the shipped default
 ///
 /// `2♠` = clubs or a balanced invite, `2NT` = diamonds (transfer), `3♣` = Puppet
@@ -165,13 +197,13 @@ pub fn notrump_minors() -> Alert {
 ///
 /// This is a function because declarative [`Package`] gates are bare function
 /// pointers and cannot capture a local from [`register_one_nt`].
-fn puppet_scheme() -> bool {
-    notrump_minors() == PUPPET
+fn puppet_scheme(agreements: &Agreements) -> bool {
+    agreements.build.notrump.notrump_minors == PUPPET
 }
 
 /// The anti-gate of [`puppet_scheme`], for the European packages
-fn european_scheme() -> bool {
-    !puppet_scheme()
+fn european_scheme(agreements: &Agreements) -> bool {
+    !puppet_scheme(agreements)
 }
 
 /// Responses to our 1NT opening: Stayman, Jacoby transfers, the minor-suit
@@ -187,11 +219,16 @@ fn european_scheme() -> bool {
 /// `3♣` = Puppet Stayman) and `european_minors` (`2♠` = clubs, `2NT` = balanced
 /// invite, `3♣` = diamonds).
 #[must_use]
-pub fn notrump_responses() -> Rules {
+pub fn notrump_responses(agreements: &Agreements) -> Rules {
+    let dormant = dormant_minors(agreements);
     // Direct `4♥/4♠` is the opener-decides slam try; with the Texas slam-drive
     // reroute on it caps at the 15–16 invitational band (17+ Texas-transfers and
     // drives its own RKCB instead — see [`set_texas_slam_drive`]).
-    let direct_4m_max: u8 = if texas_slam_drive() { 15 } else { 18 };
+    let direct_4m_max: u8 = if agreements.build.notrump.texas_slam_drive {
+        15
+    } else {
+        18
+    };
     // Jacoby transfers — any strength, except a game-forcing 5-4 in the majors
     // (its weak-only arm denies it): that hand keeps off the transfer and takes
     // the 2♣ Stayman/Smolen route, which right-sides game to the strong notrump.
@@ -202,7 +239,7 @@ pub fn notrump_responses() -> Rules {
     // 3♦, slam try → spades (the `1NT - 2♥ - 2♠ - 3♥` structure).  2♦ (to hearts) is
     // UNCHANGED by the invitational-5-4 reroute — a 5♥4♠ invite keeps
     // transferring and shows the spades with a later 2NT/2♠.
-    let prefer_longer = transfer_longer_major();
+    let prefer_longer = agreements.build.notrump.transfer_longer_major;
     let head = if prefer_longer {
         Rules::new().rule(
             Bid::new(2, Strain::Diamonds),
@@ -227,7 +264,10 @@ pub fn notrump_responses() -> Rules {
     // invitational+ values OFF the transfer so it Staymans; a six-card spade suit
     // (`len(♠,6..)`) and a weaker 5♠4♥ (`hcp(..8)`) still transfer.  Off the flag,
     // the classic any-strength-but-GF-5-4 gate.
-    let head = match (prefer_longer, invitational_5card_majors()) {
+    let head = match (
+        prefer_longer,
+        agreements.build.notrump.invitational_5card_majors,
+    ) {
         (true, true) => head.rule(
             Bid::new(2, Strain::Hearts),
             200,
@@ -312,7 +352,7 @@ pub fn notrump_responses() -> Rules {
             250,
             len(Suit::Hearts, 6..)
                 & len(Suit::Spades, ..5)
-                & texas_strength_gate(Suit::Hearts)
+                & texas_strength_gate(Suit::Hearts, agreements)
                 & not_major_splinter_slam(Suit::Hearts),
         )
         .alert(TEXAS)
@@ -321,7 +361,7 @@ pub fn notrump_responses() -> Rules {
             250,
             len(Suit::Spades, 6..)
                 & len(Suit::Hearts, ..5)
-                & texas_strength_gate(Suit::Spades)
+                & texas_strength_gate(Suit::Spades, agreements)
                 & not_major_splinter_slam(Suit::Spades),
         )
         .alert(TEXAS)
@@ -389,7 +429,7 @@ pub fn notrump_responses() -> Rules {
         // The source-of-tricks *eight* (opt-in, OFF by default — measured a loss):
         // a running long minor would force 3NT (weight 1.4) rather than transfer,
         // but the transfer reaches the better game.  See `long_minor_force_rule`.
-        .chain(long_minor_force_rule())
+        .chain(long_minor_force_rule(agreements))
         // Pass 0-7, and also the flat 4-3-3-3 *eight*: a shape with no ruff and no
         // long suit is its high cards and nothing more, so it plays a level too high
         // opposite a 15-17.  A double-dummy probe (`examples/probe-uninvite-4333`,
@@ -398,27 +438,27 @@ pub fn notrump_responses() -> Rules {
         // eight — even the ace-holding eights gain.  The *nine* still forces (3NT):
         // the same probe found blanket-inviting it loses −0.33.  The size-ask eight's
         // pass/invite split is knob-gated for re-measurement — see `size_ask_eight`.
-        .chain(size_ask_eight_pass())
+        .chain(size_ask_eight_pass(agreements))
         // Splinter 3♥/3♠ (opt-in): shortness in the bid major, 2-3 in the other,
         // exactly four diamonds and 5-6 clubs.  See `nt_splinter_rules`.
-        .chain(nt_splinter_rules())
+        .chain(nt_splinter_rules(agreements))
         // Minor-suit responses (2♠/2NT/3♣): both schemes are authored here, each
         // alerted with its variant, and only the active one is gated in.  The gate
         // drops just the dormant minor scheme; every always-on alert (Stayman,
         // Jacoby, …) survives.  Default Puppet.
-        .chain(puppet_minors())
-        .chain(european_minors())
+        .chain(puppet_minors(agreements))
+        .chain(european_minors(agreements))
         // Garbage Stayman (opt-in): a weak 2♣ to escape 1NT.  Same STAYMAN alert,
         // so it survives the minor-scheme gate (which only drops dormant minors).
-        .chain(garbage_stayman_rule())
+        .chain(garbage_stayman_rule(agreements))
         // Crawling Stayman (superset of garbage): 4-4 majors short in diamonds.
-        .chain(crawling_stayman_rule())
-        .gated(move |alert| alert != dormant_minors())
+        .chain(crawling_stayman_rule(agreements))
+        .gated(move |alert| alert != dormant)
 }
 
 /// The minor scheme *not* selected — the one [`notrump_responses`] gates out
-fn dormant_minors() -> Alert {
-    if notrump_minors() == PUPPET {
+fn dormant_minors(agreements: &Agreements) -> Alert {
+    if agreements.build.notrump.notrump_minors == PUPPET {
         EUROPEAN
     } else {
         PUPPET
@@ -439,22 +479,22 @@ pub(super) fn base() -> Package {
     Package {
         name: "one-nt-base",
         gate: |_| true,
-        entries: |_| {
-            let mut entries = rows_of(Pattern::node("P* 1NT -"), notrump_responses());
+        entries: |agreements| {
+            let mut entries = rows_of(Pattern::node("P* 1NT -"), notrump_responses(agreements));
 
             // Stayman answers and transfer completions.  The uncontested table
             // folds in the opt-in max-showing overlays.
             entries.extend(rows_of(
                 Pattern::node("P* 1NT - 2♣ -"),
-                stayman_answers_uncontested(),
+                stayman_answers_uncontested(agreements),
             ));
             entries.extend(rows_of(
                 Pattern::node("P* 1NT - 2♦ -"),
-                complete_transfer(Suit::Hearts),
+                complete_transfer(Suit::Hearts, agreements),
             ));
             entries.extend(rows_of(
                 Pattern::node("P* 1NT - 2♥ -"),
-                complete_transfer(Suit::Spades),
+                complete_transfer(Suit::Spades, agreements),
             ));
             entries.extend(rows_of(
                 Pattern::node("P* 1NT - 4NT -"),
@@ -465,11 +505,11 @@ pub(super) fn base() -> Package {
             // to the artificial 3OM slam try.
             entries.extend(rows_of(
                 Pattern::node("P* 1NT - 2♣ - 2♥ -"),
-                stayman_major_rebid(Suit::Hearts),
+                stayman_major_rebid(Suit::Hearts, agreements),
             ));
             entries.extend(rows_of(
                 Pattern::node("P* 1NT - 2♣ - 2♠ -"),
-                stayman_major_rebid(Suit::Spades),
+                stayman_major_rebid(Suit::Spades, agreements),
             ));
             entries.extend(rows_of(
                 Pattern::node("P* 1NT - 2♣ - 2♥ - 3♠ -"),
@@ -484,7 +524,7 @@ pub(super) fn base() -> Package {
             // Smolen completion in responder's five-card major.
             entries.extend(rows_of(
                 Pattern::node("P* 1NT - 2♣ - 2♦ -"),
-                stayman_no_major_rebid(),
+                stayman_no_major_rebid(agreements),
             ));
             entries.extend(rows_of(
                 Pattern::node("P* 1NT - 2♣ - 2♦ - 3♥ -"),

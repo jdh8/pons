@@ -193,7 +193,7 @@ fn five_five_min_rebid(major: Suit) -> Rules {
 pub(crate) fn both_majors_relay() -> Package {
     Package {
         name: "stayman-both-majors-relay",
-        gate: |_| stayman_both_majors(),
+        gate: |agreements| agreements.build.notrump.stayman_both_majors,
         entries: |_| {
             let mut entries = rows_of(
                 Pattern::node("P* 1NT - 2♣ - 2NT -"),
@@ -224,7 +224,7 @@ pub(crate) fn both_majors_relay() -> Package {
 pub(crate) fn five_card_max() -> Package {
     Package {
         name: "stayman-five-card-max",
-        gate: |_| stayman_5card_max(),
+        gate: |agreements| agreements.build.notrump.stayman_5card_max,
         entries: |_| {
             expand(
                 "P* 1NT - 2♣ - 3M -",
