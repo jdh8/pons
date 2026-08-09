@@ -5,7 +5,6 @@
 //! tracks [`set_weak_two_notrump_points`]'s floor, so a widened band raises it
 //! instead of silently keeping a tierless structure calibrated for 16.
 
-use super::weak_two_defense::weak_two_notrump_points;
 use super::*;
 
 thread_local! {
@@ -50,7 +49,7 @@ pub fn set_weak_two_notrump_advances(on: bool) {
     WEAK_TWO_NOTRUMP_ADVANCES.with(|cell| cell.set(on));
 }
 
-fn weak_two_notrump_advances_enabled() -> bool {
+pub(super) fn weak_two_notrump_advances_enabled() -> bool {
     WEAK_TWO_NOTRUMP_ADVANCES.with(Cell::get)
 }
 
@@ -70,7 +69,7 @@ fn weak_two_notrump_advances_enabled() -> bool {
 /// suppresses the phantom natural suit at the same index.  No bespoke
 /// `Inferences` arm is needed (contrast `gladiator_reading`, whose relay has no
 /// sound per-suit floor to project).
-fn weak_two_notrump_advances(their_major: Suit) -> Rules {
+fn weak_two_notrump_advances(their_major: Suit, agreements: &Agreements) -> Rules {
     let o = other_major(their_major);
     let m = Strain::from(their_major);
     let os = Strain::from(o);
@@ -79,7 +78,7 @@ fn weak_two_notrump_advances(their_major: Suit) -> Rules {
     // widening it with [`set_weak_two_notrump_points`] cannot leave advancer
     // driving to game on a 23-count — the bias would fall on exactly the hands
     // the widening adds.
-    let game = 24u8.saturating_sub(weak_two_notrump_points().0);
+    let game = 24u8.saturating_sub(agreements.build.defense.weak_two_notrump_points.0);
 
     Rules::new()
         // Cue = Stayman for the *one* unbid major.  A flat (4333) is barred —
@@ -149,15 +148,15 @@ fn weak_two_notrump_relay_rebid(their_major: Suit) -> Rules {
 pub(super) fn weak_two_notrump_advance_package() -> Package {
     Package {
         name: "weak-two-notrump-advance",
-        gate: |_| weak_two_notrump_advances_enabled(),
-        entries: |_| {
+        gate: |agreements| agreements.build.defense.weak_two_notrump_advances_enabled,
+        entries: |agreements| {
             let mut entries = Vec::new();
             for suit in [Suit::Hearts, Suit::Spades] {
                 let opening = Bid::new(2, Strain::from(suit));
                 let base = format!("P* ({opening}) 2NT -");
                 entries.extend(rows_of(
                     Pattern::node(&base),
-                    weak_two_notrump_advances(suit),
+                    weak_two_notrump_advances(suit, agreements),
                 ));
                 entries.extend(rows_of(
                     Pattern::node(&format!("{base} 3♣ -")),

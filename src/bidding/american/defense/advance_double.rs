@@ -4,8 +4,8 @@
 //! (transfers, the `2NT` relay, minor jumps) is [`super::advance_rich`]; the
 //! weak-two case is [`super::advance_sohl`].
 
-use super::advance_rich::{advance_double_rich, rich_advance_double_enabled};
-use super::advance_sohl::{advance_sohl_style, sohl_rows_over};
+use super::advance_rich::advance_double_rich;
+use super::advance_sohl::sohl_rows_over;
 use super::*;
 
 /// Advancer's action after partner's takeout double, RHO passing: `(opening) X -`
@@ -29,7 +29,7 @@ use super::*;
 ///
 /// Panics if `their_opening` is a notrump bid; pass a suit opening.
 #[must_use]
-pub fn advance_double(their_opening: Bid) -> Rules {
+pub fn advance_double(their_opening: Bid, agreements: &Agreements) -> Rules {
     let theirs = their_opening.strain;
     let t = theirs.suit().expect("their opening is always a suit bid");
     let level = their_opening.level.get();
@@ -37,7 +37,7 @@ pub fn advance_double(their_opening: Bid) -> Rules {
     // Convert for penalty: a trump stack sits for the double — yielding, under
     // `set_advance_pass_yield_major`, to a weak hand's 4+ unbid major.
     let sit = len(t, 4..) & top_honors(t, 2..) & hcp(6..);
-    let mut rules = if advance_pass_yield_major_enabled() {
+    let mut rules = if agreements.build.defense.advance_pass_yield_major_enabled {
         Rules::new().rule(Call::Pass, 150, sit & (hcp(10..) | no_unbid_major(t)))
     } else {
         Rules::new().rule(Call::Pass, 150, sit)
@@ -61,7 +61,7 @@ pub fn advance_double(their_opening: Bid) -> Rules {
         }
         let bid_level = if strain > theirs { level } else { level + 1 };
         // Natural advance at the cheapest legal level (longest-first under the knob).
-        rules = natural_advance(rules, t, suit, bid_level, 100, 4);
+        rules = natural_advance(rules, t, suit, bid_level, 100, 4, agreements);
         // Major-suit game jump with support and opening values.
         if matches!(suit, Suit::Hearts | Suit::Spades) {
             rules = rules.rule(Bid::new(4, strain), 140, len(suit, 4..) & points(11..));
@@ -87,9 +87,10 @@ pub(super) fn natural_advance(
     bid_level: u8,
     base: i16,
     min_len: usize,
+    agreements: &Agreements,
 ) -> Rules {
     let bid = Bid::new(bid_level, Strain::from(suit));
-    if longest_first_advance_enabled() {
+    if agreements.build.defense.longest_first_advance_enabled {
         rules.rule(
             bid,
             base,
@@ -178,14 +179,14 @@ pub(super) fn advance_of_double_package() -> Package {
         name: "advance-of-weak-two-double",
         gate: |_| true,
         entries: |agreements| {
-            let style = advance_sohl_style();
+            let style = agreements.build.defense.advance_sohl_style;
             [Suit::Diamonds, Suit::Hearts, Suit::Spades]
                 .into_iter()
                 .flat_map(|suit| {
                     let opening = Bid::new(2, Strain::from(suit));
                     let base = format!("P* ({opening}) X -");
                     if style == LebensohlStyle::Off {
-                        rows_of(Pattern::node(&base), advance_double(opening))
+                        rows_of(Pattern::node(&base), advance_double(opening, agreements))
                     } else {
                         // gate_4333 = false: advancing partner's takeout double —
                         // partner is short in their suit, so the 4-4 fit keeps its
@@ -208,15 +209,15 @@ pub(super) fn advance_double_package() -> Package {
     Package {
         name: "advance-of-double",
         gate: |_| true,
-        entries: |_| {
+        entries: |agreements| {
             [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades]
                 .into_iter()
                 .flat_map(|suit| {
                     let opening = Bid::new(1, Strain::from(suit));
-                    let advances = if rich_advance_double_enabled() {
-                        advance_double_rich(opening)
+                    let advances = if agreements.build.defense.rich_advance_double_enabled {
+                        advance_double_rich(opening, agreements)
                     } else {
-                        advance_double(opening)
+                        advance_double(opening, agreements)
                     };
                     rows_of(Pattern::node(&format!("P* ({opening}) X -")), advances)
                 })

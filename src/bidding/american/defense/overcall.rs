@@ -6,7 +6,7 @@
 //! ([`set_natural_overcall_points`], [`set_overcall_discipline`],
 //! [`set_passed_hand_overcall`], [`set_strong_double_hcp`]).
 
-use super::michaels::{michaels_advances, two_suiter_hcp_floor, unusual_nt_advances};
+use super::michaels::{michaels_advances, unusual_nt_advances};
 use super::*;
 
 /// Which shapes qualify for the natural penalty double of their 1NT (the 15+ HCP
@@ -168,7 +168,7 @@ pub fn set_overcall_four_card(on: bool) {
     OVERCALL_FOUR_CARD.with(|cell| cell.set(on));
 }
 
-fn overcall_four_card() -> bool {
+pub(super) fn overcall_four_card() -> bool {
     OVERCALL_FOUR_CARD.with(Cell::get)
 }
 
@@ -206,7 +206,7 @@ pub fn set_two_level_minor_overcall_tight(on: bool) {
 }
 
 /// Whether the 2-level minor overcall demands 15+
-fn two_level_minor_overcall_tight() -> bool {
+pub(super) fn two_level_minor_overcall_tight() -> bool {
     TWO_LEVEL_MINOR_OVERCALL_TIGHT.with(Cell::get)
 }
 
@@ -223,12 +223,12 @@ pub fn set_nt_overcall_no_major(on: bool) {
 }
 
 /// Whether a five-card major is barred from the 1NT overcall
-fn nt_overcall_no_major() -> bool {
+pub(super) fn nt_overcall_no_major() -> bool {
     NT_OVERCALL_NO_MAJOR.with(Cell::get)
 }
 
 /// Whether the disciplined overcall bands are currently authored
-fn overcall_discipline() -> bool {
+pub(super) fn overcall_discipline() -> bool {
     OVERCALL_DISCIPLINE.with(Cell::get)
 }
 
@@ -307,13 +307,13 @@ pub(crate) fn strong_double_hcp() -> Option<u8> {
 ///
 /// Panics if `their_opening` is a notrump bid; pass a suit opening.
 #[must_use]
-pub fn defense_to_suit(their_opening: Bid) -> Rules {
+pub fn defense_to_suit(their_opening: Bid, agreements: &Agreements) -> Rules {
     let theirs = their_opening.strain;
     let t = theirs.suit().expect("their opening is always a suit bid");
 
     let one_nt = Bid::new(1, Strain::Notrump);
     let nt_base = hcp(15..=18) & balanced() & stopper_in_their_suits();
-    let mut rules = if nt_overcall_no_major() {
+    let mut rules = if agreements.build.defense.nt_overcall_no_major {
         Rules::new().rule(
             one_nt,
             150,
@@ -326,7 +326,7 @@ pub fn defense_to_suit(their_opening: Bid) -> Rules {
     // 12+ takeout double, optionally gated on support for the unbid suits so an
     // off-shape one-suiter overcalls (or waits for the 17+ tier) instead of
     // doubling and pulling to the 3-level.  See [`set_takeout_support`].
-    rules = match takeout_support() {
+    rules = match agreements.build.defense.takeout_support {
         TakeoutSupport::Off => rules.rule(
             Call::Double,
             130,
@@ -354,7 +354,7 @@ pub fn defense_to_suit(their_opening: Bid) -> Rules {
     // scores the same, above it the shape-free tier is finite at weight 1.2
     // and always outscores a weight-0 pass.  Authored so the pass reading
     // (`set_pass_reading`) can project the band a passed hand sits within.
-    rules = match strong_double_hcp() {
+    rules = match agreements.build.defense.strong_double_hcp {
         Some(n) => rules
             .rule(Call::Double, 120, hcp(n..))
             .alert(TAKEOUT_DOUBLE)
@@ -378,10 +378,12 @@ pub fn defense_to_suit(their_opening: Bid) -> Rules {
             // the safe light overcall.  Off by default; see `set_passed_hand_overcall`.
             let tight_minor = level == 2
                 && matches!(suit, Suit::Clubs | Suit::Diamonds)
-                && two_level_minor_overcall_tight();
-            let relax_passed =
-                overcall_discipline() && level == 2 && passed_hand_overcall() && !tight_minor;
-            let lo = if !overcall_discipline() || level == 1 {
+                && agreements.build.defense.two_level_minor_overcall_tight;
+            let relax_passed = agreements.build.defense.overcall_discipline
+                && level == 2
+                && agreements.build.defense.passed_hand_overcall
+                && !tight_minor;
+            let lo = if !agreements.build.defense.overcall_discipline || level == 1 {
                 8
             } else if tight_minor {
                 15
@@ -390,11 +392,15 @@ pub fn defense_to_suit(their_opening: Bid) -> Rules {
             } else {
                 11
             };
-            let hi = if overcall_discipline() { 17 } else { 16 };
+            let hi = if agreements.build.defense.overcall_discipline {
+                17
+            } else {
+                16
+            };
             // The band top is the other face of the strong-tier floor: when the
             // partition is HCP-gauged it moves with it, so overflow lands in the
             // tier instead of a shape-blind double on a five-card suit.
-            rules = match (strong_double_hcp(), relax_passed) {
+            rules = match (agreements.build.defense.strong_double_hcp, relax_passed) {
                 (Some(n), false) => rules.rule(
                     Bid::new(level, strain),
                     weight,
@@ -416,8 +422,8 @@ pub fn defense_to_suit(their_opening: Bid) -> Rules {
                     len(suit, 5..) & points(lo..=hi) & (points(11..) | passed_hand()),
                 ),
             };
-            if overcall_four_card() {
-                rules = match (strong_double_hcp(), relax_passed) {
+            if agreements.build.defense.overcall_four_card {
+                rules = match (agreements.build.defense.strong_double_hcp, relax_passed) {
                     (Some(n), false) => rules.rule(
                         Bid::new(level, strain),
                         weight,
@@ -460,7 +466,7 @@ pub fn defense_to_suit(their_opening: Bid) -> Rules {
         Suit::Hearts => (Suit::Spades, None),
         Suit::Spades => (Suit::Hearts, None),
     };
-    rules = match (two_suiter_hcp_floor(), low) {
+    rules = match (agreements.build.defense.two_suiter_hcp_floor, low) {
         (Some(f), Some(l)) => rules.rule(
             Bid::new(2, theirs),
             200,
@@ -494,7 +500,7 @@ pub fn defense_to_suit(their_opening: Bid) -> Rules {
         Suit::Diamonds => (Suit::Clubs, Suit::Hearts),
         Suit::Hearts | Suit::Spades => (Suit::Clubs, Suit::Diamonds),
     };
-    match two_suiter_hcp_floor() {
+    match agreements.build.defense.two_suiter_hcp_floor {
         Some(f) => rules
             .rule(
                 Bid::new(2, Strain::Notrump),
@@ -522,13 +528,16 @@ pub(super) fn suit_defense_package() -> Package {
     Package {
         name: "suit-defense",
         gate: |_| true,
-        entries: |_| {
+        entries: |agreements| {
             let mut entries = Vec::new();
             for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
                 let theirs = Strain::from(suit);
                 let opening = Bid::new(1, theirs);
                 let key = format!("P* ({opening})");
-                entries.extend(rows_of(Pattern::node(&key), defense_to_suit(opening)));
+                entries.extend(rows_of(
+                    Pattern::node(&key),
+                    defense_to_suit(opening, agreements),
+                ));
                 entries.extend(rows_of(
                     Pattern::node(&format!("{key} 2{theirs} -")),
                     michaels_advances(suit),

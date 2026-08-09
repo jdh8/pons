@@ -4,8 +4,7 @@
 //! with its own point band, because a weak two both steals room and bounds
 //! their hand.
 
-use super::leaping_michaels::leaping_michaels_enabled;
-use super::overcall::{TakeoutSupport, takeout_support};
+use super::overcall::TakeoutSupport;
 use super::*;
 
 thread_local! {
@@ -82,7 +81,7 @@ pub fn set_weak_two_pass_gate(on: bool) {
     WEAK_TWO_PASS_GATE.with(|cell| cell.set(on));
 }
 
-fn weak_two_pass_gate() -> bool {
+pub(super) fn weak_two_pass_gate() -> bool {
     WEAK_TWO_PASS_GATE.with(Cell::get)
 }
 
@@ -105,7 +104,7 @@ pub fn set_weak_two_notrump_shape(on: bool) {
     WEAK_TWO_NOTRUMP_SHAPE.with(|cell| cell.set(on));
 }
 
-fn weak_two_notrump_shape() -> bool {
+pub(super) fn weak_two_notrump_shape() -> bool {
     WEAK_TWO_NOTRUMP_SHAPE.with(Cell::get)
 }
 
@@ -137,7 +136,7 @@ pub fn set_weak_two_jump_overcall(on: bool) {
     WEAK_TWO_JUMP_OVERCALL.with(|cell| cell.set(on));
 }
 
-fn weak_two_jump_overcall() -> bool {
+pub(super) fn weak_two_jump_overcall() -> bool {
     WEAK_TWO_JUMP_OVERCALL.with(Cell::get)
 }
 
@@ -172,7 +171,7 @@ pub fn set_weak_two_cue(on: bool) {
     WEAK_TWO_CUE.with(|cell| cell.set(on));
 }
 
-fn weak_two_cue() -> bool {
+pub(super) fn weak_two_cue() -> bool {
     WEAK_TWO_CUE.with(Cell::get)
 }
 
@@ -223,7 +222,7 @@ pub fn set_weak_two_overcall_discipline(on: bool) {
     WEAK_TWO_OVERCALL_DISCIPLINE.with(|cell| cell.set(on));
 }
 
-fn weak_two_overcall_discipline() -> bool {
+pub(super) fn weak_two_overcall_discipline() -> bool {
     WEAK_TWO_OVERCALL_DISCIPLINE.with(Cell::get)
 }
 
@@ -277,7 +276,7 @@ pub fn set_weak_two_overcall_points(two_lo: u8, two_hi: u8, three_lo: u8, three_
     WEAK_TWO_OVERCALL_POINTS.with(|cell| cell.set((two_lo, two_hi, three_lo, three_hi)));
 }
 
-fn weak_two_overcall_points() -> (u8, u8, u8, u8) {
+pub(super) fn weak_two_overcall_points() -> (u8, u8, u8, u8) {
     WEAK_TWO_OVERCALL_POINTS.with(Cell::get)
 }
 
@@ -296,11 +295,11 @@ fn weak_two_overcall_points() -> (u8, u8, u8, u8) {
 ///
 /// Panics if `their_opening` is a notrump bid; pass a suit opening.
 #[must_use]
-pub fn defense_to_weak_two(their_opening: Bid) -> Rules {
+pub fn defense_to_weak_two(their_opening: Bid, agreements: &Agreements) -> Rules {
     let theirs = their_opening.strain;
     let level = their_opening.level.get();
 
-    let (nt_lo, nt_hi) = weak_two_notrump_points();
+    let (nt_lo, nt_hi) = agreements.build.defense.weak_two_notrump_points;
     let mut rules = Rules::new();
     // The wide arm is `balanced() | (two_notrump_wide_shape() & two top honours in their
     // suit)`: the extra shapes are the 6322 and long-minor hands, which have a
@@ -308,7 +307,7 @@ pub fn defense_to_weak_two(their_opening: Bid) -> Rules {
     // are asked for a *real* holding rather than the crisp Jxxx that
     // `stopper_in_their_suits` accepts.  Balanced hands keep today's gate, so the
     // knob only ever adds.
-    rules = if weak_two_notrump_shape() {
+    rules = if agreements.build.defense.weak_two_notrump_shape {
         let theirs_suit = theirs.suit().expect("weak two is a suit bid");
         rules.rule(
             Bid::new(2, Strain::Notrump),
@@ -327,7 +326,7 @@ pub fn defense_to_weak_two(their_opening: Bid) -> Rules {
 
     // 12+ takeout double, optionally gated on unbid-suit support (see
     // [`set_takeout_support`]); the 17+ tier catches off-shape strong hands.
-    rules = match takeout_support() {
+    rules = match agreements.build.defense.takeout_support {
         TakeoutSupport::Off => rules.rule(
             Call::Double,
             130,
@@ -356,7 +355,7 @@ pub fn defense_to_weak_two(their_opening: Bid) -> Rules {
     rules = rules
         .rule(Call::Double, 120, points(17..))
         .alert(TAKEOUT_DOUBLE);
-    rules = if weak_two_pass_gate() {
+    rules = if agreements.build.defense.weak_two_pass_gate {
         rules.rule(Call::Pass, 0, points(..17))
     } else {
         rules.rule(Call::Pass, 0, hcp(0..))
@@ -372,7 +371,8 @@ pub fn defense_to_weak_two(their_opening: Bid) -> Rules {
             let overcall_level = if strain > theirs { level } else { level + 1 };
             // The extra trick has to be paid for: the band is graded by the level
             // the overcall lands on (`set_weak_two_overcall_points`; default flat).
-            let (two_lo, two_hi, three_lo, three_hi) = weak_two_overcall_points();
+            let (two_lo, two_hi, three_lo, three_hi) =
+                agreements.build.defense.weak_two_overcall_points;
             let (lo, hi) = if overcall_level <= 2 {
                 (two_lo, two_hi)
             } else {
@@ -382,7 +382,7 @@ pub fn defense_to_weak_two(their_opening: Bid) -> Rules {
             // measurement splits on *our* vulnerability alone — so the
             // discipline is authored as a vulnerability conjunct rather than a
             // flat band (`set_weak_two_overcall_discipline`).
-            rules = if weak_two_overcall_discipline() {
+            rules = if agreements.build.defense.weak_two_overcall_discipline {
                 let (vul_lo, vul_hi) = if overcall_level <= 2 {
                     (12, 17)
                 } else {
@@ -400,7 +400,7 @@ pub fn defense_to_weak_two(their_opening: Bid) -> Rules {
                     len(suit, 5..) & points(lo..=hi),
                 )
             };
-            if weak_two_jump_overcall() && overcall_level < 3 {
+            if agreements.build.defense.weak_two_jump_overcall && overcall_level < 3 {
                 rules = rules.rule(
                     Bid::new(overcall_level + 1, strain),
                     110,
@@ -424,7 +424,7 @@ pub fn defense_to_weak_two(their_opening: Bid) -> Rules {
         Strain::Spades => Some(Suit::Hearts),
         _ => None,
     };
-    if weak_two_cue()
+    if agreements.build.defense.weak_two_cue
         && let Some(other) = cue_major
     {
         rules = rules
@@ -440,7 +440,7 @@ pub fn defense_to_weak_two(their_opening: Bid) -> Rules {
     // game-forcing values.  These are all 4-level jumps, so they never collide
     // with the natural overcalls above (which sit at the 2/3 level), and 4♦ over
     // 2♦ is a cue the natural loop skips.
-    if leaping_michaels_enabled() {
+    if agreements.build.defense.leaping_michaels_enabled {
         let t = theirs.suit().expect("weak two is a suit bid");
         let gf = points(14..);
         match t {
@@ -450,7 +450,7 @@ pub fn defense_to_weak_two(their_opening: Bid) -> Rules {
             // leaving both would author a rung the weights can never reach.  BBA
             // makes the same choice: `--mode def2-h` shows a `3♥` cue bucket and
             // no `4♣`/`4♦` bucket at all.
-            Suit::Hearts | Suit::Spades if !weak_two_cue() => {
+            Suit::Hearts | Suit::Spades if !agreements.build.defense.weak_two_cue => {
                 let other = if t == Suit::Hearts {
                     Suit::Spades
                 } else {
@@ -503,14 +503,14 @@ pub(super) fn weak_two_defense_package() -> Package {
     Package {
         name: "weak-two-defense",
         gate: |_| true,
-        entries: |_| {
+        entries: |agreements| {
             [Suit::Diamonds, Suit::Hearts, Suit::Spades]
                 .into_iter()
                 .flat_map(|suit| {
                     let opening = Bid::new(2, Strain::from(suit));
                     rows_of(
                         Pattern::node(&format!("P* ({opening})")),
-                        defense_to_weak_two(opening),
+                        defense_to_weak_two(opening, agreements),
                     )
                 })
                 .collect()

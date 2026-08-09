@@ -5,13 +5,12 @@
 //! (capped below opening, so every advance is a two-level signoff) are
 //! here.
 
-use super::nt_defense::{NotrumpDefense, notrump_defense};
-use super::overcall::natural_overcall_points;
+use super::nt_defense::NotrumpDefense;
 use super::*;
 
 /// Whether the direct-seat DONT defense is the active system
-pub(crate) fn direct_dont_enabled() -> bool {
-    notrump_defense() == NotrumpDefense::DirectDont
+pub(super) fn direct_dont_enabled(agreements: &Agreements) -> bool {
+    agreements.build.defense.notrump_defense == NotrumpDefense::DirectDont
 }
 
 thread_local! {
@@ -40,8 +39,14 @@ pub fn set_direct_dont_one_suiter_min(min: u8) {
     DIRECT_DONT_ONE_SUITER_MIN.with(|cell| cell.set(min));
 }
 
-pub(super) fn direct_dont_one_suiter_min() -> usize {
-    DIRECT_DONT_ONE_SUITER_MIN.with(Cell::get) as usize
+/// The raw minimum-length knob for direct DONT's one-suiter
+pub(super) fn direct_dont_one_suiter_min_raw() -> u8 {
+    DIRECT_DONT_ONE_SUITER_MIN.with(Cell::get)
+}
+
+/// Minimum one-suiter length, widened to the constraint DSL's length type
+pub(super) fn direct_dont_one_suiter_min(agreements: &Agreements) -> usize {
+    usize::from(agreements.build.defense.direct_dont_one_suiter_min)
 }
 
 /// Whether DONT two-suiters accept a flat 4-4 (default true = traditional 4-4; false =
@@ -57,10 +62,15 @@ pub fn set_direct_dont_x_floor(floor: u8) {
     DIRECT_DONT_X_FLOOR.with(|cell| cell.set(floor));
 }
 
-/// The configured DONT `X` floor, resolving the 0 sentinel to the natural overcall floor.
-fn direct_dont_x_floor() -> u8 {
-    match DIRECT_DONT_X_FLOOR.with(Cell::get) {
-        0 => natural_overcall_points().0,
+/// The raw configured DONT `X` floor before resolving the zero sentinel
+pub(super) fn direct_dont_x_floor_raw() -> u8 {
+    DIRECT_DONT_X_FLOOR.with(Cell::get)
+}
+
+/// The configured DONT `X` floor, resolving the zero sentinel to the natural overcall floor.
+fn direct_dont_x_floor(agreements: &Agreements) -> u8 {
+    match agreements.build.defense.direct_dont_x_floor {
+        0 => agreements.build.defense.natural_overcall_points.0,
         floor => floor,
     }
 }
@@ -71,9 +81,9 @@ pub fn direct_dont_four_four() -> bool {
 }
 
 /// DONT `X`: a one-suiter (♣/♦/♥), `points(direct-dont-x-floor..)`.
-pub(super) fn dont_x() -> Rules {
-    let lo = direct_dont_x_floor();
-    let one_min = direct_dont_one_suiter_min();
+pub(super) fn dont_x(agreements: &Agreements) -> Rules {
+    let lo = direct_dont_x_floor(agreements);
+    let one_min = direct_dont_one_suiter_min(agreements);
     Rules::new().rule(
         Call::Double,
         190,
@@ -82,9 +92,9 @@ pub(super) fn dont_x() -> Rules {
 }
 
 /// DONT `2♣`: clubs + a higher major, 5-4 (or 4-4 when configured).
-pub(super) fn dont_2c() -> Rules {
-    let lo = natural_overcall_points().0;
-    let ff = direct_dont_four_four();
+pub(super) fn dont_2c(agreements: &Agreements) -> Rules {
+    let lo = agreements.build.defense.natural_overcall_points.0;
+    let ff = agreements.build.defense.direct_dont_four_four;
     Rules::new().rule(
         Bid::new(2, Strain::Clubs),
         200,
@@ -93,9 +103,9 @@ pub(super) fn dont_2c() -> Rules {
 }
 
 /// DONT `2♦`: diamonds + a higher major, 5-4 (or 4-4 when configured).
-pub(super) fn dont_2d() -> Rules {
-    let lo = natural_overcall_points().0;
-    let ff = direct_dont_four_four();
+pub(super) fn dont_2d(agreements: &Agreements) -> Rules {
+    let lo = agreements.build.defense.natural_overcall_points.0;
+    let ff = agreements.build.defense.direct_dont_four_four;
     Rules::new().rule(
         Bid::new(2, Strain::Diamonds),
         200,
@@ -104,9 +114,9 @@ pub(super) fn dont_2d() -> Rules {
 }
 
 /// DONT `2♥`: both majors, 5-4 (or 4-4 when configured).
-pub(super) fn dont_2h() -> Rules {
-    let lo = natural_overcall_points().0;
-    let ff = direct_dont_four_four();
+pub(super) fn dont_2h(agreements: &Agreements) -> Rules {
+    let lo = agreements.build.defense.natural_overcall_points.0;
+    let ff = agreements.build.defense.direct_dont_four_four;
     Rules::new().rule(
         Bid::new(2, Strain::Hearts),
         200,
@@ -225,7 +235,7 @@ pub(super) fn passed_dont_2h_advance() -> Rules {
 pub(super) fn direct_dont_advance_package() -> Package {
     Package {
         name: "direct-dont-advance",
-        gate: |_| direct_dont_enabled(),
+        gate: |agreements| direct_dont_enabled(agreements),
         entries: |_| {
             let mut entries = rows_of(Pattern::node("P* (1NT) X -"), passed_dont_x_advance());
             for (key, rules) in [

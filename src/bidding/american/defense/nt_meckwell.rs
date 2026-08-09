@@ -4,13 +4,12 @@
 //! `X` is the two-way call that makes it Meckwell rather than DONT
 //! ([`set_meckwell_x_four_four`], [`set_meckwell_x_floor`]).
 
-use super::nt_defense::{NotrumpDefense, notrump_defense};
+use super::nt_defense::NotrumpDefense;
 use super::nt_dont::{
     dont_minor_major, passed_dont_2c_advance, passed_dont_2c_rebid, passed_dont_2d_advance,
     passed_dont_2d_rebid, passed_dont_2h_advance,
 };
 use super::nt_landy::both_majors_shape;
-use super::overcall::natural_overcall_points;
 use super::*;
 
 thread_local! {
@@ -31,8 +30,8 @@ thread_local! {
 }
 
 /// Whether the direct-seat Meckwell defense is the active system
-pub(crate) fn meckwell_enabled() -> bool {
-    notrump_defense() == NotrumpDefense::Meckwell
+pub(super) fn meckwell_enabled(agreements: &Agreements) -> bool {
+    agreements.build.defense.notrump_defense == NotrumpDefense::Meckwell
 }
 
 /// Whether Meckwell's `2♣`/`2♦` accept a flat 4-4 (default `false` = 5-4+).  A
@@ -41,7 +40,7 @@ pub fn set_meckwell_minor_major_44(on: bool) {
     MECKWELL_MINOR_MAJOR_44.with(|cell| cell.set(on));
 }
 
-fn meckwell_minor_major_44() -> bool {
+pub(super) fn meckwell_minor_major_44() -> bool {
     MECKWELL_MINOR_MAJOR_44.with(Cell::get)
 }
 
@@ -51,7 +50,7 @@ pub fn set_meckwell_x_four_four(on: bool) {
     MECKWELL_X_FOUR_FOUR.with(|cell| cell.set(on));
 }
 
-fn meckwell_x_four_four() -> bool {
+pub(super) fn meckwell_x_four_four() -> bool {
     MECKWELL_X_FOUR_FOUR.with(Cell::get)
 }
 
@@ -62,11 +61,16 @@ pub fn set_meckwell_x_floor(floor: u8) {
     MECKWELL_X_FLOOR.with(|cell| cell.set(floor));
 }
 
-/// The configured Meckwell `X` floor, resolving the 0 sentinel to the natural
+/// The raw configured Meckwell `X` floor before resolving the zero sentinel
+pub(super) fn meckwell_x_floor_raw() -> u8 {
+    MECKWELL_X_FLOOR.with(Cell::get)
+}
+
+/// The configured Meckwell `X` floor, resolving the zero sentinel to the natural
 /// overcall floor.
-fn meckwell_x_floor() -> u8 {
-    match MECKWELL_X_FLOOR.with(Cell::get) {
-        0 => natural_overcall_points().0,
+fn meckwell_x_floor(agreements: &Agreements) -> u8 {
+    match agreements.build.defense.meckwell_x_floor {
+        0 => agreements.build.defense.natural_overcall_points.0,
         floor => floor,
     }
 }
@@ -75,34 +79,40 @@ fn meckwell_x_floor() -> u8 {
 /// `points(meckwell-x-floor..)`.  The both-majors shape is the probe knob
 /// [`set_meckwell_x_four_four`], the floor is [`set_meckwell_x_floor`]; the
 /// single-minor length is a fixed 6.
-pub(super) fn meckwell_x() -> Rules {
-    let lo = meckwell_x_floor();
+pub(super) fn meckwell_x(agreements: &Agreements) -> Rules {
+    let lo = meckwell_x_floor(agreements);
     Rules::new().rule(
         Call::Double,
         190,
-        meckwell_double_shape(6, meckwell_x_four_four()) & points(lo..),
+        meckwell_double_shape(6, agreements.build.defense.meckwell_x_four_four) & points(lo..),
     )
 }
 
 /// Meckwell `2♣`: clubs + a major, 5-4 either way (or flat 4-4 per the probe knob
 /// [`set_meckwell_minor_major_44`]).  Shares [`dont_minor_major`]'s shape on the
 /// Meckwell knob so the two conventions can diverge.
-pub(super) fn meckwell_2c() -> Rules {
-    let lo = natural_overcall_points().0;
+pub(super) fn meckwell_2c(agreements: &Agreements) -> Rules {
+    let lo = agreements.build.defense.natural_overcall_points.0;
     Rules::new().rule(
         Bid::new(2, Strain::Clubs),
         200,
-        dont_minor_major(Suit::Clubs, meckwell_minor_major_44()) & points(lo..),
+        dont_minor_major(
+            Suit::Clubs,
+            agreements.build.defense.meckwell_minor_major_44,
+        ) & points(lo..),
     )
 }
 
 /// Meckwell `2♦`: diamonds + a major, 5-4 either way (or flat 4-4 per the probe knob).
-pub(super) fn meckwell_2d() -> Rules {
-    let lo = natural_overcall_points().0;
+pub(super) fn meckwell_2d(agreements: &Agreements) -> Rules {
+    let lo = agreements.build.defense.natural_overcall_points.0;
     Rules::new().rule(
         Bid::new(2, Strain::Diamonds),
         200,
-        dont_minor_major(Suit::Diamonds, meckwell_minor_major_44()) & points(lo..),
+        dont_minor_major(
+            Suit::Diamonds,
+            agreements.build.defense.meckwell_minor_major_44,
+        ) & points(lo..),
     )
 }
 
@@ -165,7 +175,7 @@ fn meckwell_x_rebid() -> Rules {
 pub(super) fn meckwell_advance_package() -> Package {
     Package {
         name: "meckwell-advance",
-        gate: |_| meckwell_enabled(),
+        gate: |agreements| meckwell_enabled(agreements),
         entries: |_| {
             let mut entries = rows_of(Pattern::node("P* (1NT) X -"), meckwell_x_advance());
             for (key, rules) in [

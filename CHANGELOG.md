@@ -554,6 +554,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The defensive book's 55 build-time knobs are carried, not fetched.**
+  The same move as the competitive book below, for
+  `Build::defense`: every cell in `american/defense{,/**}.rs` — the notrump
+  defenses (Natural, DONT, Landy, Meckwell, Woolsey), the overcall and
+  takeout-double discipline, the advance structures, and the weak-two defense —
+  is read exactly once per build by `defense::capture()`, and the rules read the
+  captured fields.  Derived readings stay functions (`natural_defense_enabled`,
+  `direct_dont_enabled`, `meckwell_enabled`, `woolsey_enabled`,
+  `direct_landy_double`, and the three floors that cast or combine), so each
+  cell keeps one home.  Setters and cells are untouched.  Byte-identical:
+  seeded `smoke-default` / `smoke-dutch` (20 000 boards each) and both
+  `cards/*.bbsa` are unchanged.
+
 - **The competitive book's 36 build-time knobs are carried, not fetched.**
   `Agreements` gained a `build: Build` half, and `Build::competition` is the
   first area to move into it: the competitive package's cells are read exactly

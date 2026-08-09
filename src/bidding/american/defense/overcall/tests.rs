@@ -1,4 +1,5 @@
 use super::super::tests::{best_call, call};
+use crate::bidding::agreements::Agreements;
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::{Bid, Hand, Strain};
 
@@ -44,13 +45,15 @@ fn direct_pass_gate_is_the_strong_tiers_complement() {
     }
 
     // Shipped gauge: hcp(18..).
+    let agreements = Agreements::current();
     certify(
-        &super::overcall::defense_to_suit(Bid::new(1, Strain::Hearts)),
+        &super::overcall::defense_to_suit(Bid::new(1, Strain::Hearts), &agreements),
         &hcp(18..),
     );
     // Legacy gauge: points(17..).
     super::overcall::set_strong_double_hcp(None);
-    let legacy = super::overcall::defense_to_suit(Bid::new(1, Strain::Clubs));
+    let agreements = Agreements::current();
+    let legacy = super::overcall::defense_to_suit(Bid::new(1, Strain::Clubs), &agreements);
     super::overcall::set_strong_double_hcp(Some(18));
     certify(&legacy, &points(17..));
 }
@@ -67,9 +70,11 @@ fn four_card_overcall_is_opt_in() {
     let their_opening = Bid::new(1, Strain::Clubs);
     let auction = [Call::Bid(their_opening)];
     let context = Context::new(RelativeVulnerability::NONE, &auction);
-    let baseline = super::overcall::defense_to_suit(their_opening);
+    let agreements = Agreements::current();
+    let baseline = super::overcall::defense_to_suit(their_opening, &agreements);
     super::overcall::set_overcall_four_card(false);
-    let explicit_off = super::overcall::defense_to_suit(their_opening);
+    let agreements = Agreements::current();
+    let explicit_off = super::overcall::defense_to_suit(their_opening, &agreements);
     let mut rng = StdRng::seed_from_u64(0x4CA4_D0C1);
     for _ in 0..64 {
         let deal = full_deal(&mut rng);
@@ -93,7 +98,8 @@ fn four_card_overcall_is_opt_in() {
     };
     assert_ne!(best(&off.0), one_s);
     super::overcall::set_overcall_four_card(true);
-    let on = super::overcall::defense_to_suit(their_opening).classify(hand, &context);
+    let agreements = Agreements::current();
+    let on = super::overcall::defense_to_suit(their_opening, &agreements).classify(hand, &context);
     super::overcall::set_overcall_four_card(false);
     assert_eq!(best(&on.0), one_s);
 }

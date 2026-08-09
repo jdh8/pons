@@ -8,8 +8,8 @@
 
 use super::advance_2nt::advance_2nt_rows;
 use super::advance_double::{cheapest_forced, natural_advance, no_unbid_major};
-use super::advance_minor_jump::{advance_minor_jump_enabled, advance_minor_jump_rows};
-use super::advance_rubens::{advance_major_transfers, advance_rubens_enabled, advance_rubens_rows};
+use super::advance_minor_jump::advance_minor_jump_rows;
+use super::advance_rubens::{advance_major_transfers, advance_rubens_rows};
 use super::*;
 
 thread_local! {
@@ -69,7 +69,7 @@ pub fn set_advance_sit_hcp_gate(gate: Option<u8>) {
 }
 
 /// The advancer's 4-card sit quality gate override, if any
-fn advance_sit_hcp_gate() -> Option<u8> {
+pub(super) fn advance_sit_hcp_gate() -> Option<u8> {
     ADVANCE_SIT_HCP_GATE.with(Cell::get)
 }
 
@@ -103,7 +103,7 @@ fn advance_sit_hcp_gate() -> Option<u8> {
 /// - **penalty pass** with a trump stack (5+ of their suit, or 4 with two top
 ///   honors — a swept `suit_hcp` floor under [`set_advance_sit_hcp_gate`]).
 #[must_use]
-pub(super) fn advance_double_rich(their_opening: Bid) -> Rules {
+pub(super) fn advance_double_rich(their_opening: Bid, agreements: &Agreements) -> Rules {
     let theirs = their_opening.strain;
     let t = theirs.suit().expect("their opening is always a suit bid");
     let level = their_opening.level.get();
@@ -116,17 +116,21 @@ pub(super) fn advance_double_rich(their_opening: Bid) -> Rules {
     // three-card minor that the field doubles at the game level.  Under
     // `set_advance_pass_yield_major`, a hand below the 10+ cue band holding a
     // 4+ unbid major bids the ladder instead of sitting.
-    fn sit_pass(t: Suit, quality: Cons<impl Constraint + Clone + 'static>) -> Rules {
+    fn sit_pass(
+        t: Suit,
+        quality: Cons<impl Constraint + Clone + 'static>,
+        agreements: &Agreements,
+    ) -> Rules {
         let sit = len(t, 5..) | (len(t, 4..) & quality);
-        if advance_pass_yield_major_enabled() {
+        if agreements.build.defense.advance_pass_yield_major_enabled {
             Rules::new().rule(Call::Pass, 160, sit & (hcp(10..) | no_unbid_major(t)))
         } else {
             Rules::new().rule(Call::Pass, 160, sit)
         }
     }
-    let mut rules = match advance_sit_hcp_gate() {
-        Some(gate) => sit_pass(t, suit_hcp(t, gate..)),
-        None => sit_pass(t, top_honors(t, 2..)),
+    let mut rules = match agreements.build.defense.advance_sit_hcp_gate {
+        Some(gate) => sit_pass(t, suit_hcp(t, gate..), agreements),
+        None => sit_pass(t, top_honors(t, 2..), agreements),
     };
 
     // Cue of opener's suit — *invitational-or-better*, forcing for one round
@@ -171,7 +175,7 @@ pub(super) fn advance_double_rich(their_opening: Bid) -> Rules {
     // freed up to be purely preemptive; for the rest `4M` is the limited game
     // force.  Over `(1♠)` hearts is *not* here (it sits below the jump-cue), so
     // The direct 4♥ advance over 1♠ doubled stays the minimum game force.
-    let transfer_majors: Vec<Suit> = if advance_rubens_enabled() {
+    let transfer_majors: Vec<Suit> = if agreements.build.defense.advance_rubens_enabled {
         advance_major_transfers(theirs)
             .into_iter()
             .map(|(_, target)| target)
@@ -186,10 +190,10 @@ pub(super) fn advance_double_rich(their_opening: Bid) -> Rules {
             continue;
         }
         let bid_level = if strain > theirs { level } else { level + 1 };
-        if longest_first_advance_enabled() {
+        if agreements.build.defense.longest_first_advance_enabled {
             // Natural advance at the cheapest legal level (weak, 0–7): the
             // longest unbid suit, an equal-length tie to the higher rank.
-            rules = natural_advance(rules, t, suit, bid_level, 100, 4);
+            rules = natural_advance(rules, t, suit, bid_level, 100, 4, agreements);
             // Forced 3-card suit: a takeout double cannot be passed for want of
             // a bid — but with no 4-card suit outside their suit the priority
             // flips from highest-ranking to **cheapest bid**, keeping the
@@ -203,14 +207,14 @@ pub(super) fn advance_double_rich(their_opening: Bid) -> Rules {
             );
         } else {
             // Natural advance at the cheapest legal level (weak, 0–7).
-            rules = natural_advance(rules, t, suit, bid_level, 100, 4);
+            rules = natural_advance(rules, t, suit, bid_level, 100, 4, agreements);
             // Forced 3-card suit: a takeout double cannot be passed for want of
             // a bid, so any hand with no 4-card suit and no notrump/cue home
             // still introduces its highest-ranking 3-card suit (no HCP cap —
             // the higher-weight cue, notrump, and 4-card-suit rules take every
             // hand that has a better call, leaving only the genuinely stuck
             // ones here).
-            rules = natural_advance(rules, t, suit, bid_level, 30, 3);
+            rules = natural_advance(rules, t, suit, bid_level, 30, 3, agreements);
         }
         // Jump in a new *major*: a cheap two-level jump is *constructive*
         // (8–10, 4+); the more committal three-level jump is *invitational* and
@@ -223,7 +227,7 @@ pub(super) fn advance_double_rich(their_opening: Bid) -> Rules {
             } else if jump == 3 {
                 rules = rules.rule(Bid::new(3, strain), 125, hcp(10..=12) & len(suit, 5..));
             }
-        } else if jump == 3 && advance_minor_jump_enabled() {
+        } else if jump == 3 && agreements.build.defense.advance_minor_jump_enabled {
             // Three-level jump in a *minor* — an invitational one-suiter (5+,
             // 10–12) that DENIES a 4-card unbid major: with one the advancer cues
             // opener's suit to find the 4-4 major fit rather than burying it under
@@ -271,7 +275,7 @@ pub(super) fn advance_double_rich(their_opening: Bid) -> Rules {
     // Jump-cue Rubens transfers: a 5+ unbid major (invitational-or-better) shows
     // via a transfer one rank below it, so the doubler declares (right-siding).
     // Weighted above the cue and the game-blast so a 5+ major routes here.
-    if advance_rubens_enabled() {
+    if agreements.build.defense.advance_rubens_enabled {
         for (bid, target) in advance_major_transfers(theirs) {
             rules = rules
                 .rule(bid, 160, hcp(10..) & len(target, 5..))
@@ -397,8 +401,8 @@ fn advance_cue_rebid(answer: Bid) -> Rules {
 pub(super) fn rich_advance_double_package() -> Package {
     Package {
         name: "rich-advance-of-double",
-        gate: |_| rich_advance_double_enabled(),
-        entries: |_| {
+        gate: |agreements| agreements.build.defense.rich_advance_double_enabled,
+        entries: |agreements| {
             let mut entries = Vec::new();
             for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
                 let theirs = Strain::from(suit);
@@ -425,14 +429,14 @@ pub(super) fn rich_advance_double_package() -> Package {
                 // Rubens transfers: the doubler completes the transfer
                 // (declaring), and the advancer raises to game or rests over the
                 // completion — so the artificial transfer is never left in.
-                entries.extend(advance_rubens_rows(&base, theirs));
+                entries.extend(advance_rubens_rows(&base, theirs, agreements));
 
                 // The natural jump is limited, so — like a `2NT` invite — the
                 // doubler passes to decline; only the accepting branches (and the
                 // advancer's rebid over them) need authoring.
-                entries.extend(advance_minor_jump_rows(&base, theirs, opening));
+                entries.extend(advance_minor_jump_rows(&base, theirs, opening, agreements));
 
-                entries.extend(advance_2nt_rows(&base, theirs, opening));
+                entries.extend(advance_2nt_rows(&base, theirs, opening, agreements));
             }
             entries
         },

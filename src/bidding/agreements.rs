@@ -34,20 +34,23 @@
 //! read from there at build time too; it is never duplicated here.
 
 use super::american::{
-    Competitive4333, DoubleStyle, FreeBidStyle, LebensohlStyle, NegativeDoubleShape,
+    Competitive4333, DoubleShape, DoubleStyle, FreeBidStyle, LebensohlStyle, NegativeDoubleShape,
+    NotrumpDefense, TakeoutSupport,
 };
 use super::context::DecisionProfile;
 
 /// The knobs read only at book construction
 ///
 /// One field per area, each captured by the module that owns its cells (see
-/// [`CompetitionKnobs`]); areas move in one at a time as their read sites
+/// [`CompetitionKnobs`] and [`DefenseKnobs`]); areas move in one at a time as their read sites
 /// convert from a thread-local getter to a field of this value, and
 /// `docs/declarative-rows.md` holds the ledger.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Build {
     /// What we play when they contest our auction
     pub competition: CompetitionKnobs,
+    /// What we play when they open the auction
+    pub defense: DefenseKnobs,
 }
 
 impl Default for Build {
@@ -62,6 +65,7 @@ impl Build {
     pub fn current() -> Self {
         Self {
             competition: super::american::competition::capture(),
+            defense: super::american::defense::capture(),
         }
     }
 }
@@ -172,6 +176,158 @@ impl CompetitionKnobs {
     #[must_use]
     pub fn current() -> Self {
         super::american::competition::capture()
+    }
+}
+
+/// The defensive book's build-time knobs
+///
+/// Each field is one cell, named for the getter it replaces; *derived* readings
+/// stay functions of the module that owns them rather than becoming fields, so
+/// the "one cell, one home" invariant survives the move.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct DefenseKnobs {
+    // --- defense.rs
+    /// Prefer the longest suit when advancing partner's takeout double
+    pub longest_first_advance_enabled: bool,
+    /// Let a weak penalty pass yield to a four-card unbid major
+    pub advance_pass_yield_major_enabled: bool,
+    // --- defense/overcall.rs
+    /// Shape gate for the natural penalty double of their `1NT`
+    pub natural_double_shape: DoubleShape,
+    /// HCP floor for the natural penalty double of their `1NT`
+    pub natural_double_floor: u8,
+    /// Logit weight of the natural penalty double of their `1NT`
+    pub natural_double_weight: i16,
+    /// Inclusive points band for natural overcalls of their `1NT`
+    pub natural_overcall_points: (u8, u8),
+    /// Support gate on the takeout double's 12+ tier
+    pub takeout_support: TakeoutSupport,
+    /// Use disciplined strength bands for natural suit overcalls
+    pub overcall_discipline: bool,
+    /// Allow a good four-card natural overcall
+    pub overcall_four_card: bool,
+    /// Let a passed hand make the disciplined two-level overcall lighter
+    pub passed_hand_overcall: bool,
+    /// Demand extra strength for a two-level minor overcall
+    pub two_level_minor_overcall_tight: bool,
+    /// Bar a five-card major from the natural `1NT` overcall
+    pub nt_overcall_no_major: bool,
+    /// Optional HCP seam between natural overcalls and the strong double
+    pub strong_double_hcp: Option<u8>,
+    // --- defense/nt_dont.rs
+    /// Raw minimum length cell for direct DONT's one-suiter
+    pub direct_dont_one_suiter_min: u8,
+    /// Allow four-four two-suiters in direct DONT
+    pub direct_dont_four_four: bool,
+    /// Raw points-floor cell for direct DONT's double
+    pub direct_dont_x_floor: u8,
+    // --- defense/nt_woolsey.rs
+    /// Inclusive points band for Woolsey's suit actions
+    pub woolsey_points: (u8, u8),
+    /// Points floor for Woolsey's double
+    pub woolsey_double_floor: u8,
+    // --- defense/weak_two_nt_advance.rs
+    /// Author advances of our `2NT` overcall of their weak two
+    pub weak_two_notrump_advances_enabled: bool,
+    // --- defense/advance_minor_jump.rs
+    /// Author invitational minor jumps after partner's takeout double
+    pub advance_minor_jump_enabled: bool,
+    // --- defense/nt_defense.rs
+    /// Which defense we play over their `1NT`
+    pub notrump_defense: NotrumpDefense,
+    /// Extend the notrump defense to the balancing seat
+    pub notrump_balancing_enabled: bool,
+    // --- defense/leaping_michaels.rs
+    /// Author Leaping Michaels over their weak two
+    pub leaping_michaels_enabled: bool,
+    // --- defense/weak_two_defense.rs
+    /// Author the weak-two pass as the complement of stronger actions
+    pub weak_two_pass_gate: bool,
+    /// Require the `2NT` overcall to have the wide-notrump shape
+    pub weak_two_notrump_shape: bool,
+    /// Author jump overcalls over their weak two
+    pub weak_two_jump_overcall: bool,
+    /// Use disciplined bands for suit overcalls of their weak two
+    pub weak_two_overcall_discipline: bool,
+    /// Author the natural cue-bid over their weak two
+    pub weak_two_cue: bool,
+    /// Inclusive points band for the `2NT` overcall of their weak two
+    pub weak_two_notrump_points: (u8, u8),
+    /// Points bands for two- and three-level overcalls of their weak two
+    pub weak_two_overcall_points: (u8, u8, u8, u8),
+    // --- defense/advance_rubens.rs
+    /// Author Rubens advances of partner's takeout double
+    pub advance_rubens_enabled: bool,
+    // --- defense/nt_landy.rs
+    /// Optional natural-plus-Landy strength band
+    pub landy_range: Option<(u8, u8)>,
+    /// Escape thresholds after their double of Landy `2♣`
+    pub doubled_landy_escape: (usize, usize),
+    /// Gauge the Landy band in HCP rather than points
+    pub landy_use_hcp: bool,
+    /// Raw four-four-shape cell for direct Landy's double
+    pub direct_landy_four_four: bool,
+    /// Points floor for direct Landy's double
+    pub direct_landy_double_floor: u8,
+    /// Author the direct-Landy penalty pass
+    pub direct_landy_penalty_pass: bool,
+    // --- defense/michaels.rs
+    /// Optional strength band for the unusual `2NT`
+    pub unusual_notrump_range: Option<(u8, u8)>,
+    /// Optional HCP floor for defensive two-suiters
+    pub two_suiter_hcp_floor: Option<u8>,
+    // --- defense/advance_sohl.rs
+    /// Which sohl advance structure partner's takeout double uses
+    pub advance_sohl_style: LebensohlStyle,
+    // --- defense/nt_meckwell.rs
+    /// Allow four-four in Meckwell's minor-major calls
+    pub meckwell_minor_major_44: bool,
+    /// Allow a four-four two-suiter in Meckwell's double
+    pub meckwell_x_four_four: bool,
+    /// Raw points floor cell for Meckwell's double
+    pub meckwell_x_floor: u8,
+    // --- defense/advance_2nt.rs
+    /// Author the continuation after advancer's invitational `2NT`
+    pub advance_2nt_continuation_enabled: bool,
+    // --- defense/nt_their_conventions.rs
+    /// Defend their Stayman convention
+    pub stayman_defense_enabled: bool,
+    /// Shape and strength floor for the natural call over their Stayman
+    pub stayman_defense_overcall: (usize, u8),
+    /// Defend their major-suit transfers
+    pub transfer_defense_enabled: bool,
+    /// Defend their minor-suit transfer
+    pub minor_transfer_defense_enabled: bool,
+    /// Defend their diamond transfer
+    pub diamond_transfer_defense_enabled: bool,
+    // --- defense/gladiator.rs
+    /// Graft systems-on advances below our `1NT` overcall
+    pub nt_overcall_systems_on: bool,
+    /// Replace the major-opening graft with Gladiator
+    pub nt_overcall_gladiator: bool,
+    // --- defense/advance_rich.rs
+    /// Author the rich advance of partner's takeout double
+    pub rich_advance_double_enabled: bool,
+    /// Optional HCP gate on advancer's penalty pass
+    pub advance_sit_hcp_gate: Option<u8>,
+    // --- defense/responsive.rs
+    /// Author responsive doubles after partner's takeout double
+    pub responsive_takeout_enabled: bool,
+    /// Author responsive doubles after partner's natural overcall
+    pub responsive_overcall_enabled: bool,
+}
+
+impl Default for DefenseKnobs {
+    fn default() -> Self {
+        Self::current()
+    }
+}
+
+impl DefenseKnobs {
+    /// Capture this thread's defensive build-time knob state
+    #[must_use]
+    pub fn current() -> Self {
+        super::american::defense::capture()
     }
 }
 

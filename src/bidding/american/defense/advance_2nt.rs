@@ -33,7 +33,7 @@ pub fn set_advance_2nt_continuation(on: bool) {
 }
 
 /// Whether the doubler's answer to the advancer's `2NT` invite is authored
-fn advance_2nt_continuation_enabled() -> bool {
+pub(super) fn advance_2nt_continuation_enabled() -> bool {
     ADVANCE_2NT_CONTINUATION.with(Cell::get)
 }
 
@@ -68,9 +68,14 @@ fn answer_advance_2nt(their_opening: Bid) -> Rules {
 }
 
 /// Invitational-`2NT` continuation rows for one opening suit
-pub(super) fn advance_2nt_rows(base: &str, theirs: Strain, opening: Bid) -> Vec<Entry> {
+pub(super) fn advance_2nt_rows(
+    base: &str,
+    theirs: Strain,
+    opening: Bid,
+    agreements: &Agreements,
+) -> Vec<Entry> {
     let mut entries = Vec::new();
-    if advance_2nt_continuation_enabled() {
+    if agreements.build.defense.advance_2nt_continuation_enabled {
         for rho in ["-", "(X)"] {
             let after_2nt = format!("{base} 2NT {rho}");
             entries.extend(rows_of(

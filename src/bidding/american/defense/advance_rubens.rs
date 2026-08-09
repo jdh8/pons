@@ -85,9 +85,13 @@ fn advance_transfer_rebid(target: Suit) -> Rules {
 }
 
 /// Rubens-transfer continuation rows for one opening suit
-pub(super) fn advance_rubens_rows(base: &str, theirs: Strain) -> Vec<Entry> {
+pub(super) fn advance_rubens_rows(
+    base: &str,
+    theirs: Strain,
+    agreements: &Agreements,
+) -> Vec<Entry> {
     let mut entries = Vec::new();
-    if advance_rubens_enabled() {
+    if agreements.build.defense.advance_rubens_enabled {
         for (bid, target) in advance_major_transfers(theirs) {
             let completion = Bid::new(3, Strain::from(target));
             for rho in ["-", "(X)"] {

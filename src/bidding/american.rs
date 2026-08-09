@@ -65,7 +65,7 @@ use super::common::{call, other_major, with_floor, with_floor_v5, with_instinct_
 use super::{Competitive, Constructive, Defensive, Pair};
 
 pub(in crate::bidding) mod competition;
-mod defense;
+pub(in crate::bidding) mod defense;
 mod game_force;
 mod nmf;
 mod notrump;

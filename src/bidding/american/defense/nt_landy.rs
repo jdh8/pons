@@ -7,7 +7,7 @@
 //! shapes live here.
 
 use super::nt_defense::{NotrumpDefense, notrump_defense, set_notrump_defense};
-use super::nt_woolsey::{set_woolsey_points, woolsey_enabled, woolsey_points};
+use super::nt_woolsey::{set_woolsey_points, woolsey_enabled};
 use super::*;
 
 thread_local! {
@@ -72,7 +72,7 @@ pub fn set_doubled_landy_escape(gate: (usize, usize)) {
 }
 
 /// The configured doubled-Landy minor-escape gate
-fn doubled_landy_escape() -> (usize, usize) {
+pub(super) fn doubled_landy_escape() -> (usize, usize) {
     DOUBLED_LANDY_ESCAPE.with(Cell::get)
 }
 
@@ -103,6 +103,11 @@ thread_local! {
     /// payload of the former `DIRECT_LANDY_DOUBLE` `Option`.  No effect unless the
     /// active system is [`NotrumpDefense::DirectLandy`].
     static DIRECT_LANDY_FOUR_FOUR: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Whether direct Landy's double accepts a flat four-four in the majors
+pub(super) fn direct_landy_four_four() -> bool {
+    DIRECT_LANDY_FOUR_FOUR.with(Cell::get)
 }
 
 thread_local! {
@@ -151,9 +156,9 @@ pub fn set_direct_landy_double(shape: Option<bool>) {
 }
 
 /// The configured direct-seat both-majors double shape, or `None` when off
-pub(crate) fn direct_landy_double() -> Option<bool> {
-    (notrump_defense() == NotrumpDefense::DirectLandy)
-        .then(|| DIRECT_LANDY_FOUR_FOUR.with(Cell::get))
+pub(crate) fn direct_landy_double(agreements: &Agreements) -> Option<bool> {
+    (agreements.build.defense.notrump_defense == NotrumpDefense::DirectLandy)
+        .then_some(agreements.build.defense.direct_landy_four_four)
 }
 
 /// Set the `points` floor for the direct-seat both-majors double (default 8), for
@@ -192,9 +197,9 @@ pub(super) fn direct_landy_penalty_pass() -> bool {
 /// signoffs for exactly these no-fit hands.  After the advancer's pass it is the
 /// *opener's* turn, so a following opener pass ends the auction in `1NTx` (declared by
 /// them, defended by us) — no doubler node is needed.
-fn both_majors_x_advance(lo: u8) -> Rules {
+fn both_majors_x_advance(lo: u8, agreements: &Agreements) -> Rules {
     let base = landy_advances(lo);
-    if direct_landy_penalty_pass() {
+    if agreements.build.defense.direct_landy_penalty_pass {
         let penalty = 22u8.saturating_sub(lo);
         base.rule(
             Call::Pass,
@@ -217,22 +222,22 @@ pub(super) fn both_majors_shape(four_four: bool) -> Cons<impl Constraint + Clone
 /// Direct-Landy `X`: both majors (5-4, or flat 4-4 when configured), replacing the
 /// 15+ penalty double; weight 1.9 beats the natural 2♥/2♠ so a both-majors hand
 /// doubles rather than picking one major.
-pub(super) fn landy_x() -> Rules {
-    let four_four = direct_landy_double().unwrap_or(false);
+pub(super) fn landy_x(agreements: &Agreements) -> Rules {
+    let four_four = direct_landy_double(agreements).unwrap_or(false);
     Rules::new().rule(
         Call::Double,
         190,
-        both_majors_shape(four_four) & points(direct_landy_double_floor()..),
+        both_majors_shape(four_four) & points(agreements.build.defense.direct_landy_double_floor..),
     )
 }
 
 /// Landy `2♣`: both majors, at least 5-4, on the shared two-suiter band
-/// ([`woolsey_points`], coupled with Woolsey's identical `2♣`; see [`set_landy`]),
+/// ([`set_woolsey_points`], coupled with Woolsey's identical `2♣`; see [`set_landy`]),
 /// gauged as raw HCP or upgraded points per [`set_landy_hcp`].
-pub(super) fn landy_2c() -> Rules {
-    let (lo, hi) = woolsey_points();
+pub(super) fn landy_2c(agreements: &Agreements) -> Rules {
+    let (lo, hi) = agreements.build.defense.woolsey_points;
     let shape = five_four(Suit::Hearts, Suit::Spades);
-    if landy_use_hcp() {
+    if agreements.build.defense.landy_use_hcp {
         Rules::new().rule(Bid::new(2, Strain::Clubs), 190, shape & hcp(lo..=hi))
     } else {
         Rules::new().rule(Bid::new(2, Strain::Clubs), 190, shape & points(lo..=hi))
@@ -318,7 +323,7 @@ fn landy_advances(lo: u8) -> Rules {
 /// minor, so those hands relay (Redouble) or sign off into the major instead.
 ///
 /// [`set_penalty_pass`]: super::set_penalty_pass
-fn landy_advances_over_double(lo: u8) -> Rules {
+fn landy_advances_over_double(lo: u8, agreements: &Agreements) -> Rules {
     let invite = 20u8.saturating_sub(lo);
     let game = 22u8.saturating_sub(lo);
 
@@ -327,7 +332,7 @@ fn landy_advances_over_double(lo: u8) -> Rules {
     let equal_majors = equal_length("equal majors", Suit::Hearts, Suit::Spades);
     // A long minor with both majors short (no 8-card fit opposite the overcaller's
     // 5-carder) outranks a major signoff. Gate A/B-tuned via set_doubled_landy_escape.
-    let (min_minor, max_major) = doubled_landy_escape();
+    let (min_minor, max_major) = agreements.build.defense.doubled_landy_escape;
     let short_majors = len(Suit::Hearts, ..=max_major) & len(Suit::Spades, ..=max_major);
 
     Rules::new()
@@ -509,14 +514,19 @@ fn landy_2nt_rebid(lo: u8, hi: u8) -> Rules {
 pub(super) fn landy_advance_package() -> Package {
     Package {
         name: "landy-advance",
-        gate: |_| landy_range().is_some() || woolsey_enabled(),
-        entries: |_| {
-            let (lo, hi) = woolsey_points();
+        gate: |agreements| {
+            agreements.build.defense.landy_range.is_some() || woolsey_enabled(agreements)
+        },
+        entries: |agreements| {
+            let (lo, hi) = agreements.build.defense.woolsey_points;
             [
                 ("P* (1NT) 2♣ -", landy_advances(lo)),
                 ("P* (1NT) 2♣ - 2♦ -", landy_2d_rebid()),
                 ("P* (1NT) 2♣ - 2NT -", landy_2nt_rebid(lo, hi)),
-                ("P* (1NT) 2♣ (X)", landy_advances_over_double(lo)),
+                (
+                    "P* (1NT) 2♣ (X)",
+                    landy_advances_over_double(lo, agreements),
+                ),
                 ("P* (1NT) 2♣ (X) XX -", landy_2d_rebid()),
                 ("P* (1NT) 2♣ (X) 2♦ -", landy_doubled_2d_rebid()),
                 ("P* (1NT) 2♣ (X) 2NT -", landy_2nt_rebid(lo, hi)),
@@ -540,14 +550,14 @@ pub(super) fn landy_advance_package() -> Package {
 pub(super) fn both_majors_double_package() -> Package {
     Package {
         name: "both-majors-double",
-        gate: |_| direct_landy_double().is_some(),
-        entries: |_| {
+        gate: |agreements| direct_landy_double(agreements).is_some(),
+        entries: |agreements| {
             // The advancer's invite/game thresholds track the X floor (a
             // stronger X asks less of the advancer), so read it here too.
-            let (lo, hi) = (direct_landy_double_floor(), 37u8);
+            let (lo, hi) = (agreements.build.defense.direct_landy_double_floor, 37u8);
             let mut entries = Vec::new();
             for (key, rules) in [
-                ("P* (1NT) X -", both_majors_x_advance(lo)),
+                ("P* (1NT) X -", both_majors_x_advance(lo, agreements)),
                 ("P* (1NT) X - 2♦ -", landy_2d_rebid()),
                 ("P* (1NT) X - 2♦ (X)", landy_2d_rebid()),
                 ("P* (1NT) X - 2NT -", landy_2nt_rebid(lo, hi)),

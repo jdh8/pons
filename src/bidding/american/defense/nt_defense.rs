@@ -24,15 +24,12 @@
 //! [`chain_natural_base`]); the conventions are the alerts — the same per-call
 //! [`Alert`] now carried by every artificial call system-wide (see [`Rules::alert`]).
 
-use super::michaels::{semi_balanced, unusual_notrump_range};
+use super::michaels::semi_balanced;
 use super::nt_dont::{direct_dont_one_suiter_min, dont_2c, dont_2d, dont_2h, dont_x};
-use super::nt_landy::{landy_2c, landy_range, landy_use_hcp, landy_x};
+use super::nt_landy::{landy_2c, landy_x};
 use super::nt_meckwell::{meckwell_2c, meckwell_2d, meckwell_natural_major, meckwell_x};
 use super::nt_woolsey::{muiderberg, multi_2d, woolsey_2c, woolsey_x};
-use super::overcall::{
-    DoubleShape, natural_double_floor, natural_double_shape, natural_double_weight,
-    natural_overcall_points,
-};
+use super::overcall::DoubleShape;
 use super::*;
 
 /// Which mutually-exclusive defense our side plays over the opponents' 1NT opening
@@ -99,8 +96,9 @@ thread_local! {
 }
 
 /// Whether the natural one-suiter defense is currently the active system
-pub(crate) fn natural_defense_enabled() -> bool {
-    notrump_defense() == NotrumpDefense::Natural
+#[allow(dead_code)]
+pub(super) fn natural_defense_enabled(agreements: &Agreements) -> bool {
+    agreements.build.defense.notrump_defense == NotrumpDefense::Natural
 }
 
 /// Extend the natural 1NT defense to the *balancing* seat `(1NT) - - ?` for books
@@ -111,7 +109,7 @@ pub fn set_notrump_balancing(on: bool) {
     NOTRUMP_BALANCING.with(|cell| cell.set(on));
 }
 
-fn notrump_balancing_enabled() -> bool {
+pub(super) fn notrump_balancing_enabled() -> bool {
     NOTRUMP_BALANCING.with(Cell::get)
 }
 
@@ -122,10 +120,14 @@ fn notrump_balancing_enabled() -> bool {
 
 /// Unusual `2NT`: both minors, 5-5, on its own range (raw HCP or points per
 /// [`set_landy_hcp`]).  Additive — compatible with every system.
-fn unusual_2nt() -> Rules {
-    let (lo, hi) = unusual_notrump_range().unwrap_or((0, 37));
+fn unusual_2nt(agreements: &Agreements) -> Rules {
+    let (lo, hi) = agreements
+        .build
+        .defense
+        .unusual_notrump_range
+        .unwrap_or((0, 37));
     let shape = len(Suit::Clubs, 5..) & len(Suit::Diamonds, 5..);
-    if landy_use_hcp() {
+    if agreements.build.defense.landy_use_hcp {
         Rules::new().rule(Bid::new(2, Strain::Notrump), 180, shape & hcp(lo..=hi))
     } else {
         Rules::new().rule(Bid::new(2, Strain::Notrump), 180, shape & points(lo..=hi))
@@ -134,8 +136,8 @@ fn unusual_2nt() -> Rules {
 
 /// The four natural two-level suit overcalls (five-card suit, `points(8..=14)`),
 /// optionally skipping `2♣` when the Landy `2♣` overlay owns that slot.
-fn chain_natural_overcalls(mut rules: Rules, skip_clubs: bool) -> Rules {
-    let (oc_lo, oc_hi) = natural_overcall_points();
+fn chain_natural_overcalls(mut rules: Rules, skip_clubs: bool, agreements: &Agreements) -> Rules {
+    let (oc_lo, oc_hi) = agreements.build.defense.natural_overcall_points;
     for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         if suit == Suit::Clubs && skip_clubs {
             continue;
@@ -155,11 +157,11 @@ fn chain_natural_overcalls(mut rules: Rules, skip_clubs: bool) -> Rules {
 /// conventions are chained and gated separately in [`defense_to_notrump`].  A slot
 /// no live system owns is simply not authored and falls to the instinct floor (the
 /// natural-off baseline arm).
-fn chain_natural_base(rules: Rules) -> Rules {
+fn chain_natural_base(rules: Rules, agreements: &Agreements) -> Rules {
     // One active system — the enum makes the old "two families at once" state (which
     // the read-time cascade precedence Woolsey > DONT > Meckwell > direct-Landy >
     // natural used to arbitrate) unrepresentable.
-    match notrump_defense() {
+    match agreements.build.defense.notrump_defense {
         // Woolsey owns X and every overcall; `Pass` is the only natural call.  Always-
         // pass is the same finite `Pass` logit — it shadows the floor so our side never
         // competes.
@@ -167,8 +169,8 @@ fn chain_natural_base(rules: Rules) -> Rules {
         NotrumpDefense::DirectDont => {
             // DONT keeps the natural `2♠` one-suiter (open-top, length-gated so the
             // one-suiter `X` can exclude spades) below its two-suiters, plus `Pass`.
-            let lo = natural_overcall_points().0;
-            let one_min = direct_dont_one_suiter_min();
+            let lo = agreements.build.defense.natural_overcall_points.0;
+            let one_min = direct_dont_one_suiter_min(agreements);
             rules
                 .rule(
                     Bid::new(2, Strain::Spades),
@@ -181,7 +183,7 @@ fn chain_natural_base(rules: Rules) -> Rules {
             // Meckwell keeps the natural 5+ single-suited majors (2♥/2♠, disjoint from
             // its two-suiters) below the alerts, plus Pass.  The two-way X / minor+major
             // 2♣/2♦ / both-minors 2NT are the artificial calls.
-            let lo = natural_overcall_points().0;
+            let lo = agreements.build.defense.natural_overcall_points.0;
             rules
                 .rule(
                     Bid::new(2, Strain::Hearts),
@@ -198,22 +200,26 @@ fn chain_natural_base(rules: Rules) -> Rules {
         NotrumpDefense::DirectLandy => {
             // The both-majors `X` is the alert; the four natural overcalls and `Pass`
             // are the floor-safe base (a 15+ balanced hand now passes or overcalls).
-            chain_natural_overcalls(rules.rule(Call::Pass, 0, hcp(0..)), false)
+            chain_natural_overcalls(rules.rule(Call::Pass, 0, hcp(0..)), false, agreements)
         }
         NotrumpDefense::Natural => {
             // Penalty `X` (HCP floor fixed; shape gate per `set_natural_double_shape` —
             // each arm reissues `.rule()` so the differing constraint types unify), the
             // owning `Pass`, and the natural overcalls (ceding `2♣` to a Landy overlay).
-            let floor = natural_double_floor();
-            let w = natural_double_weight();
-            let rules = match natural_double_shape() {
+            let floor = agreements.build.defense.natural_double_floor;
+            let w = agreements.build.defense.natural_double_weight;
+            let rules = match agreements.build.defense.natural_double_shape {
                 DoubleShape::Balanced => rules.rule(Call::Double, w, hcp(floor..) & balanced()),
                 DoubleShape::SemiBalanced => {
                     rules.rule(Call::Double, w, hcp(floor..) & semi_balanced())
                 }
                 DoubleShape::Any => rules.rule(Call::Double, w, hcp(floor..)),
             };
-            chain_natural_overcalls(rules.rule(Call::Pass, 0, hcp(0..)), landy_range().is_some())
+            chain_natural_overcalls(
+                rules.rule(Call::Pass, 0, hcp(0..)),
+                agreements.build.defense.landy_range.is_some(),
+                agreements,
+            )
         }
         // No system: author nothing, fall to the instinct floor.
         NotrumpDefense::Off => rules,
@@ -223,9 +229,9 @@ fn chain_natural_base(rules: Rules) -> Rules {
 /// The artificial alerts live at the `(1NT)` node for the configured system, one
 /// per [`NotrumpDefense`] plus the two independent overlays.  Read once at
 /// book-construction time.
-fn active_alerts() -> Vec<Alert> {
+fn active_alerts(agreements: &Agreements) -> Vec<Alert> {
     let mut alerts = Vec::new();
-    let system = notrump_defense();
+    let system = agreements.build.defense.notrump_defense;
     match system {
         // Always-pass authors only `Pass` — no alerts, no overlays.
         NotrumpDefense::AlwaysPass => return alerts,
@@ -247,11 +253,13 @@ fn active_alerts() -> Vec<Alert> {
     // The Landy `2♣` overlay is the natural family's one convention, incompatible with
     // DONT / Meckwell / direct-Landy-X / Woolsey (each repurposes the `2♣` slot) — so
     // it rides only on the non-convention arms.
-    if landy_range().is_some() && matches!(system, NotrumpDefense::Natural | NotrumpDefense::Off) {
+    if agreements.build.defense.landy_range.is_some()
+        && matches!(system, NotrumpDefense::Natural | NotrumpDefense::Off)
+    {
         alerts.push(LANDY_2C);
     }
     // Unusual `2NT` is additive — every non-always-pass system.
-    if unusual_notrump_range().is_some() {
+    if agreements.build.defense.unusual_notrump_range.is_some() {
         alerts.push(UNUSUAL_2NT);
     }
     alerts
@@ -264,24 +272,24 @@ fn active_alerts() -> Vec<Alert> {
 /// system's alerts (untagged natural rules always survive).  [`active_alerts`]
 /// guarantees at most one convention per call, and the natural base skips any slot
 /// an alert owns, so no two rules collide at a node.
-pub fn defense_to_notrump() -> Rules {
-    let alerts = active_alerts();
-    chain_natural_base(Rules::new())
-        .chain(woolsey_x().alert(WOOLSEY_X))
-        .chain(landy_x().alert(LANDY_X))
-        .chain(dont_x().alert(DONT_X))
-        .chain(landy_2c().alert(LANDY_2C))
-        .chain(woolsey_2c().alert(WOOLSEY_2C))
-        .chain(dont_2c().alert(DONT_2C))
-        .chain(multi_2d().alert(MULTI_2D))
-        .chain(dont_2d().alert(DONT_2D))
-        .chain(muiderberg(Suit::Hearts).alert(MUIDERBERG_2H))
-        .chain(dont_2h().alert(DONT_2H))
-        .chain(muiderberg(Suit::Spades).alert(MUIDERBERG_2S))
-        .chain(meckwell_x().alert(MECKWELL_X))
-        .chain(meckwell_2c().alert(MECKWELL_2C))
-        .chain(meckwell_2d().alert(MECKWELL_2D))
-        .chain(unusual_2nt().alert(UNUSUAL_2NT))
+pub fn defense_to_notrump(agreements: &Agreements) -> Rules {
+    let alerts = active_alerts(agreements);
+    chain_natural_base(Rules::new(), agreements)
+        .chain(woolsey_x(agreements).alert(WOOLSEY_X))
+        .chain(landy_x(agreements).alert(LANDY_X))
+        .chain(dont_x(agreements).alert(DONT_X))
+        .chain(landy_2c(agreements).alert(LANDY_2C))
+        .chain(woolsey_2c(agreements).alert(WOOLSEY_2C))
+        .chain(dont_2c(agreements).alert(DONT_2C))
+        .chain(multi_2d(agreements).alert(MULTI_2D))
+        .chain(dont_2d(agreements).alert(DONT_2D))
+        .chain(muiderberg(Suit::Hearts, agreements).alert(MUIDERBERG_2H))
+        .chain(dont_2h(agreements).alert(DONT_2H))
+        .chain(muiderberg(Suit::Spades, agreements).alert(MUIDERBERG_2S))
+        .chain(meckwell_x(agreements).alert(MECKWELL_X))
+        .chain(meckwell_2c(agreements).alert(MECKWELL_2C))
+        .chain(meckwell_2d(agreements).alert(MECKWELL_2D))
+        .chain(unusual_2nt(agreements).alert(UNUSUAL_2NT))
         .gated(move |t| alerts.contains(&t))
 }
 
@@ -295,10 +303,13 @@ pub(super) fn notrump_defense_package() -> Package {
     Package {
         name: "notrump-defense",
         gate: |_| true,
-        entries: |_| {
-            let mut entries = rows_of(Pattern::node("P* (1NT)"), defense_to_notrump());
-            if notrump_balancing_enabled() {
-                entries.extend(rows_of(Pattern::node("P* (1NT) - -"), defense_to_notrump()));
+        entries: |agreements| {
+            let mut entries = rows_of(Pattern::node("P* (1NT)"), defense_to_notrump(agreements));
+            if agreements.build.defense.notrump_balancing_enabled {
+                entries.extend(rows_of(
+                    Pattern::node("P* (1NT) - -"),
+                    defense_to_notrump(agreements),
+                ));
             }
             entries
         },

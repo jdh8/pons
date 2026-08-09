@@ -110,7 +110,8 @@ fn defense_to_notrump_authors_one_rule_per_call() {
     for (label, setup) in configs {
         reset();
         setup();
-        let calls: Vec<Call> = super::nt_defense::defense_to_notrump()
+        let agreements = Agreements::current();
+        let calls: Vec<Call> = super::nt_defense::defense_to_notrump(&agreements)
             .rules()
             .iter()
             .map(|r| r.call())
@@ -163,10 +164,12 @@ fn semi_balanced_boxes_match_closure() {
 
 #[test]
 fn defense_doubles_with_strength() {
-    let r = defense_to_suit(Bid::new(1, Strain::Diamonds));
+    let agreements = Agreements::current();
+    let r = defense_to_suit(Bid::new(1, Strain::Diamonds), &agreements);
     let a = [call(1, Strain::Diamonds)];
     // 18 HCP with length in their suit still doubles (planning to bid again).
     assert_eq!(best(&r, &a, "A.Q6.KJ852.AKJ42"), Call::Double);
     // A light five-card major overcalls.
     assert_eq!(best(&r, &a, "AQJ32.853.42.K92"), call(1, Strain::Spades));
 }
+use crate::bidding::agreements::Agreements;

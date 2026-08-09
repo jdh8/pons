@@ -1,4 +1,5 @@
 use super::super::tests::{best_call, call};
+use crate::bidding::agreements::Agreements;
 use crate::bidding::american::{set_direct_landy_double, set_woolsey_points};
 use contract_bridge::Strain;
 use contract_bridge::auction::Call;
@@ -32,7 +33,8 @@ fn direct_landy_double_shows_both_majors_and_runs_clean() {
     let x = Call::Double;
     let xx = Call::Redouble;
     let d2 = call(2, Strain::Diamonds);
-    let prev = super::nt_landy::direct_landy_double();
+    let agreements = Agreements::current();
+    let prev = super::nt_landy::direct_landy_double(&agreements);
     let prev_floor = super::nt_landy::direct_landy_double_floor();
     set_direct_landy_double(Some(false)); // 5-4
     super::nt_landy::set_direct_landy_double_floor(8); // low floor so these 10-14 hands fire the X
@@ -101,7 +103,8 @@ fn direct_landy_penalty_pass_defends_1ntx() {
     let nt = call(1, Strain::Notrump);
     let p = Call::Pass;
     let x = Call::Double;
-    let prev = super::nt_landy::direct_landy_double();
+    let agreements = Agreements::current();
+    let prev = super::nt_landy::direct_landy_double(&agreements);
     let prev_pen = super::nt_landy::direct_landy_penalty_pass();
     let prev_floor = super::nt_landy::direct_landy_double_floor();
     set_direct_landy_double(Some(false)); // 5-4

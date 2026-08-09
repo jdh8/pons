@@ -124,9 +124,14 @@ fn advance_minor_stopper_ask_answer(minor: Suit) -> Rules {
 }
 
 /// Invitational-minor-jump continuation rows for one opening suit
-pub(super) fn advance_minor_jump_rows(base: &str, theirs: Strain, opening: Bid) -> Vec<Entry> {
+pub(super) fn advance_minor_jump_rows(
+    base: &str,
+    theirs: Strain,
+    opening: Bid,
+    agreements: &Agreements,
+) -> Vec<Entry> {
     let mut entries = Vec::new();
-    if advance_minor_jump_enabled() {
+    if agreements.build.defense.advance_minor_jump_enabled {
         for minor in [Suit::Clubs, Suit::Diamonds] {
             let m = Strain::from(minor);
             // A three-level minor jump exists only below their suit.
