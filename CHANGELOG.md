@@ -9,6 +9,80 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The vs-BBA A/B stops solving and parsing every cell twice, and eight serial
+  example loops fan out.**  No bidding change — `src/` is untouched, so the
+  bidder is byte-identical; this is harness wall-clock only.
+
+  **`ab-dump-diff --score both`.**  `diffpair` ran the binary once per scorer,
+  and each run re-parsed the whole shard directory *and* re-solved the divergent
+  set.  A scorer only re-prices solved tables, so both brackets now come off one
+  solve: `common::score_boards` splits into `solve_divergent` + `score_solved`
+  (a pure extraction; the moved lines are character-identical), and the new
+  `--score both --out-plain P --out-pd Q` writes both reports from one process.
+  Verified on a 40-board paired dump: each file is **byte-identical** to what
+  the corresponding single-scorer run prints, and `scripts/ab-aggregate.sh`
+  parses both unchanged — the report text is an interface, since that script
+  matches ` fired (` and `^Delta` with awk.  Six runners updated
+  (`ab-lib.sh`'s `diffpair` plus five that had copy-pasted the `for score in
+  plain pd` loop), all keeping their existing output filenames; the skip guard
+  now wants *both* files, so a run killed between the writes redoes the cell.
+  Explicit output paths rather than a stem because the runners disagree on a
+  separator — `ab-reading-knobs.sh` spells `…-{vul}-plain.txt`, the rest
+  `….{vul}.plain.txt`.
+
+  **Serial loops parallelized**, with the gain tracking how much of each run was
+  single-threaded, measured on an idle 32-core box:
+  `probe-weak-two-eval` **0.46 s → 0.07 s (6.6×)** at its default 1M deals, the
+  clean case — a fully serial CPU loop with no solver;
+  `ab-defend-2sx-or-3nt` **3.16 s → 2.78 s** (its four-gate funnel screens
+  ~162k attempts per 400 accepted, but the DD solve dominates the run, so the
+  funnel was ~12% of it);
+  `probe-card-axes` **3.34 s → 3.26 s**, output byte-identical — it parallelized
+  over 17 arms only, capping at 17 of 32 cores, and now fans over arms × deals.
+  Also converted: the three `probe-two-over-one-*-3nt` probes,
+  `probe-heart-light-4h`, `ab-instinct-floor` (its `Telemetry` histogram folds
+  per worker and merges in board order, so each pattern keeps the sample call
+  from the earliest board), `ab-sat` and `ab-sat-slam-try`.
+
+  **Two conversions were built, measured, and reverted.**  `ab-landy`'s Phase-1
+  filter scan came out **28.65 s → 28.89 s** — no gain, because that harness is
+  DD-solver-bound and the scan is ~1% of it.  Since converting it changes which
+  deals a seed draws (`ab-lebensohl`'s `--seed` is fixed precisely "so
+  before/after builds deal identical boards"), that is a cost for nothing, and
+  both are back at HEAD.  Consequently **no production A/B harness changes its
+  deal stream**; the three that do (`probe-weak-two-eval`, `ab-sat`,
+  `ab-sat-slam-try`) are one-shot probes, and `ab-sat-slam-try`,
+  `ab-defend-2sx-or-3nt` and `ab-instinct-floor` drew from `rand::rng()` and
+  were never reproducible to begin with.
+
+  **Not done, deliberately.**  Parallelizing `common::seeded_deals` was planned
+  and dropped: a deal costs ~0.4 µs against ~104 µs/arm of bidding, so serial
+  generation is **0.3–0.5%** of wall clock and scale-invariant — measured
+  against `ab-minor-keycard`'s 1144 s for 10M boards, where it is ~4 s.
+  `bba-score` still double-invokes per scorer (two runners); folding it means
+  threading a writer through ~280 lines of bucket reporting for a saving that
+  lands in two scripts, against `ab-dump-diff`'s fifty.  `probe-closure-features`
+  keeps a note explaining what a conversion would owe (ten accumulators, two
+  first-one-wins witnesses, and a sampler seeded off a running node counter).
+  Nine more solver- and FFI-bound loops gained a one-line note on why they stay
+  serial, and `solve_divergent` states the rule at the chokepoint every harness
+  routes through.
+
+  Where the wall clock actually lives, if this is revisited: the bidding path
+  itself, at **798 allocations and 68.6 kB per deal** — allocation-bound work
+  that does not scale with cores, which is why the already-parallel harnesses
+  barely moved.
+
+- **`dump-teacher` defaults to the teacher that every shipped net records.**
+  `--teacher` defaulted to `american` (the deterministic Rust floor) while every
+  net's sidecar records `teacher: "bba"` — a default
+  `docs/ai-bidder/configured-net.md` documents as one of three traps that "cost
+  a discarded corpus between them", since a net distilled from it measures the
+  teacher swap rather than the feature under test.  The default is now `bba`;
+  `--teacher american` still distils the Rust floor when that is what you want.
+  `scripts/dump-v5.sh` and all four doc recipes pass `--teacher bba` explicitly
+  and are unaffected.  The doc is updated to say the trap is disarmed.
+
 - **Harness hygiene: `RuleOfNFloored` prose caught up with `PointCount`, and
   `ab-landy` refuses a dead flag.**  No bidding change, no measured impact.
 

@@ -26,6 +26,7 @@ use pons::bidding::agreements::Agreements;
 use pons::bidding::american::TwoOverOneGate;
 use pons::bidding::constraint::point_count;
 use pons::scoring::final_contract;
+use rayon::prelude::*;
 
 #[path = "common/mod.rs"]
 #[allow(dead_code)]
@@ -85,45 +86,56 @@ fn main() {
     let candidate_partnership = gated(TwoOverOneGate::Hcp13);
 
     let deals = seeded_deals(seed, count);
-    let mut qualifying: Vec<Board> = Vec::new();
-    for (index, deal) in deals.iter().enumerate() {
-        let dealer = Seat::ALL[index % 4];
-        let opener = dealer;
-        let responder = opener.partner();
+    // The scan fans out across rayon: each deal is seeded from its own index,
+    // and rayon's `collect` keeps input order, so a seed still reproduces the
+    // identical board list.
+    let qualifying: Vec<Board> = deals
+        .par_iter()
+        .enumerate()
+        .filter_map(|(index, deal)| {
+            let dealer = Seat::ALL[index % 4];
+            let opener = dealer;
+            let responder = opener.partner();
 
-        // Cheap hand-level pre-filter before touching the bidding engine at
-        // all: opener a genuinely light shapely minimum (raw HCP 10-12 —
-        // `points(12..)` is automatic once they actually open, since that's
-        // the opening rule itself), responder at the exact hcp13-vs-hcp14
-        // margin (raw HCP exactly 13), and no fit (deny 3-card-plus support
-        // in *either* major so the fit leg cannot be what admits the hand).
-        if !(10..=12).contains(&hand_hcp(deal[opener])) {
-            continue;
-        }
-        let resp: Hand = deal[responder];
-        if hand_hcp(resp) != 13 || resp[Suit::Hearts].len() >= 3 || resp[Suit::Spades].len() >= 3 {
-            continue;
-        }
+            // Cheap hand-level pre-filter before touching the bidding engine at
+            // all: opener a genuinely light shapely minimum (raw HCP 10-12 —
+            // `points(12..)` is automatic once they actually open, since that's
+            // the opening rule itself), responder at the exact hcp13-vs-hcp14
+            // margin (raw HCP exactly 13), and no fit (deny 3-card-plus support
+            // in *either* major so the fit leg cannot be what admits the hand).
+            if !(10..=12).contains(&hand_hcp(deal[opener])) {
+                return None;
+            }
+            let resp: Hand = deal[responder];
+            if hand_hcp(resp) != 13
+                || resp[Suit::Hearts].len() >= 3
+                || resp[Suit::Spades].len() >= 3
+            {
+                return None;
+            }
 
-        let baseline = bid_uncontested(&baseline_partnership, dealer, vul, deal);
-        let Some(major) = dealer_opens_major(&baseline) else {
-            continue;
-        };
-        let candidate = bid_uncontested(&candidate_partnership, dealer, vul, deal);
+            let baseline = bid_uncontested(&baseline_partnership, dealer, vul, deal);
+            let major = dealer_opens_major(&baseline)?;
+            let candidate = bid_uncontested(&candidate_partnership, dealer, vul, deal);
 
-        // Only the boards where the candidate floor actually admits the hand
-        // into the 2/1 (baseline does not — else this isn't a "shipped
-        // floor's own margin" board at all).
-        if responder_enters_two_over_one(&candidate) && !responder_enters_two_over_one(&baseline) {
-            qualifying.push(Board {
-                deal: *deal,
-                dealer,
-                major,
-                baseline,
-                candidate,
-            });
-        }
-    }
+            // Only the boards where the candidate floor actually admits the hand
+            // into the 2/1 (baseline does not — else this isn't a "shipped
+            // floor's own margin" board at all).
+            if responder_enters_two_over_one(&candidate)
+                && !responder_enters_two_over_one(&baseline)
+            {
+                Some(Board {
+                    deal: *deal,
+                    dealer,
+                    major,
+                    baseline,
+                    candidate,
+                })
+            } else {
+                None
+            }
+        })
+        .collect();
 
     println!(
         "{count} deals scanned, {} qualifying boards (opener hcp 10-12, responder hcp==13 & \

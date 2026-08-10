@@ -122,6 +122,10 @@ fn main() {
     let mut majors: Vec<Suit> = Vec::new();
     let mut rng = StdRng::seed_from_u64(seed);
     let mut attempts = 0usize;
+    // ponytail: no rayon on this loop. Dealing and rejecting a board costs
+    // microseconds; the single `Solver::lock(None)` batch below costs milliseconds
+    // a survivor and already spreads over the whole core pool from behind the
+    // process-global lock, which stays on the main thread (CLAUDE.md:102).
     while deals.len() < count && attempts < attempt_cap {
         attempts += 1;
         let deal = contract_bridge::deck::full_deal(&mut rng);

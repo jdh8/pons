@@ -56,12 +56,12 @@ arm() {
 # ab-dump-diff folds the arm dir's shards into a single DDS fan-out.
 diffpair() {
     on=$1; off=$2; vul=$3
-    for score in plain pd; do
-        out="$R/diff.$on.vs.$off.$vul.$score.txt"
-        [ -s "$out" ] && { log "skip $out (exists)"; continue; }
-        log "diff $on vs $off ($vul, $score)"
-        "$DIFF" "$R/$on-$vul" "$R/$off-$vul" --score "$score" --show 5 >"$out" 2>&1
-    done
+    plain="$R/diff.$on.vs.$off.$vul.plain.txt"
+    pd="$R/diff.$on.vs.$off.$vul.pd.txt"
+    [ -s "$plain" ] && [ -s "$pd" ] && { log "skip $plain + $pd (exist)"; return 0; }
+    log "diff $on vs $off ($vul, plain+pd)"
+    "$DIFF" "$R/$on-$vul" "$R/$off-$vul" --score both \
+        --out-plain "$plain" --out-pd "$pd" --show 5 >>"$R/log" 2>&1
 }
 
 log "weak-two/balancing A/B start, sha=$SHA, SEED_BASE=$SEED_BASE, shards=$SHARDS x $PER_SHARD boards/arm/vul"

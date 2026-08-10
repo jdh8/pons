@@ -233,6 +233,10 @@ fn generate(
     // Solve in chunks so memory stays flat and output streams for huge files.
     const CHUNK: usize = 4096;
     let mut done = 0;
+    // ponytail: serial by design. `Solver::lock` takes the process-global DDS
+    // lock and already fans each 4096-deal chunk across the whole pool, so rayon
+    // out here would oversubscribe the box, not speed it up (CLAUDE.md:102);
+    // dealing a chunk is microseconds against milliseconds a board to solve.
     while done < count {
         let n = CHUNK.min(count - done);
         let deals: Vec<FullDeal> = (0..n).map(|_| full_deal(&mut rng)).collect();

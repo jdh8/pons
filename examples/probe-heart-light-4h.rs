@@ -26,6 +26,7 @@ use pons::american;
 use pons::bidding::agreements::Agreements;
 use pons::bidding::constraint::point_count;
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
+use rayon::prelude::*;
 
 #[path = "common/mod.rs"]
 #[allow(dead_code)]
@@ -87,42 +88,50 @@ fn main() {
     let candidate = american(&light).bind();
 
     let deals = seeded_deals(seed, count);
-    let mut qualifying: Vec<Board> = Vec::new();
-    for (index, deal) in deals.iter().enumerate() {
-        let dealer = Seat::ALL[index % 4];
-        let responder = dealer.partner();
-        let resp: Hand = deal[responder];
+    // The scan fans out across rayon: each deal is seeded from its own index,
+    // and rayon's `collect` keeps input order, so a seed still reproduces the
+    // identical board list.
+    let qualifying: Vec<Board> = deals
+        .par_iter()
+        .enumerate()
+        .filter_map(|(index, deal)| {
+            let dealer = Seat::ALL[index % 4];
+            let responder = dealer.partner();
+            let resp: Hand = deal[responder];
 
-        // The pure heart-light add: flat twelve, five+ hearts, at most two spades
-        // (no fit).  points==12 (== hcp here) is what the shipped points13 gate
-        // misses, so these are exactly the boards the candidate gate moves.
-        if hand_hcp(resp) != 12
-            || point_count(resp) != 12
-            || resp[Suit::Hearts].len() < 5
-            || resp[Suit::Spades].len() >= 3
-        {
-            continue;
-        }
+            // The pure heart-light add: flat twelve, five+ hearts, at most two spades
+            // (no fit).  points==12 (== hcp here) is what the shipped points13 gate
+            // misses, so these are exactly the boards the candidate gate moves.
+            if hand_hcp(resp) != 12
+                || point_count(resp) != 12
+                || resp[Suit::Hearts].len() < 5
+                || resp[Suit::Spades].len() >= 3
+            {
+                return None;
+            }
 
-        let base = bid_uncontested(&baseline, dealer, vul, deal);
-        // Opener must actually open 1♠ for 2♥ to be the five-card-major 2/1.
-        if !matches!(base.first().copied(), Some(Call::Bid(b)) if b == Bid::new(1, Strain::Spades))
-        {
-            continue;
-        }
-        let cand = bid_uncontested(&candidate, dealer, vul, deal);
+            let base = bid_uncontested(&baseline, dealer, vul, deal);
+            // Opener must actually open 1♠ for 2♥ to be the five-card-major 2/1.
+            if !matches!(base.first().copied(), Some(Call::Bid(b)) if b == Bid::new(1, Strain::Spades))
+            {
+                return None;
+            }
+            let cand = bid_uncontested(&candidate, dealer, vul, deal);
 
-        // Only the entry adds: candidate enters the 2/1, baseline stays in 1NT.
-        if enters_two_over_one(&cand) && !enters_two_over_one(&base) {
-            qualifying.push(Board {
-                deal: *deal,
-                dealer,
-                opener_hearts: deal[dealer][Suit::Hearts].len(),
-                baseline: base,
-                candidate: cand,
-            });
-        }
-    }
+            // Only the entry adds: candidate enters the 2/1, baseline stays in 1NT.
+            if enters_two_over_one(&cand) && !enters_two_over_one(&base) {
+                Some(Board {
+                    deal: *deal,
+                    dealer,
+                    opener_hearts: deal[dealer][Suit::Hearts].len(),
+                    baseline: base,
+                    candidate: cand,
+                })
+            } else {
+                None
+            }
+        })
+        .collect();
 
     println!(
         "{count} deals scanned, {} qualifying entry-adds (opener 1♠, responder hcp==points==12 & \

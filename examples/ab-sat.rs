@@ -16,6 +16,10 @@
 //! cargo run --release --example ab-sat -- --phase score \
 //!     --file /tmp/sat-none.txt --seed 1 --count 10000000 --vulnerability none
 //! ```
+//!
+//! The deals are drawn in parallel from a per-deal RNG keyed on `(seed, index)`,
+//! so the qualifying set is still identical across the two phases at one seed;
+//! the stream differs from the old sequential draw at the same seed.
 #![allow(clippy::cast_precision_loss, clippy::cast_possible_truncation)]
 
 use clap::Parser;
@@ -26,6 +30,7 @@ use pons::american;
 use pons::scoring::{final_contract, imps, ns_score_contract};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
+use rayon::prelude::*;
 use std::fs;
 
 #[path = "common/mod.rs"]
@@ -92,9 +97,10 @@ fn opener_seat(deal: &FullDeal) -> Option<Seat> {
 
 /// Deterministic qualifying boards `(dealer = opener, deal)` from the seed
 fn boards(seed: u64, count: usize) -> Vec<(Seat, FullDeal)> {
-    let mut rng = StdRng::seed_from_u64(seed);
     (0..count)
-        .filter_map(|_| {
+        .into_par_iter()
+        .filter_map(|index| {
+            let mut rng = StdRng::seed_from_u64(seed.wrapping_add(index as u64));
             let deal = full_deal(&mut rng);
             opener_seat(&deal).map(|opener| (opener, deal))
         })
@@ -127,8 +133,10 @@ fn main() {
     let sys = american(&pons::bidding::agreements::Agreements::default()).bind();
     let boards = boards(args.seed, args.count);
 
+    // Bidding is pure, so fan the boards across Rayon; `collect` keeps board
+    // order, which is what the baseline file's line order means.
     let contracts: Vec<Option<(Contract, Seat)>> = boards
-        .iter()
+        .par_iter()
         .map(|(dealer, deal)| {
             final_contract(
                 &bid_uncontested(&sys, *dealer, args.vulnerability, deal),

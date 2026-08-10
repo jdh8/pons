@@ -25,6 +25,11 @@
 //! ```text
 //! cargo run --release --example ab-sat-slam-try -- --count 2000000 --vulnerability none
 //! ```
+//!
+//! The deals are drawn in parallel from a per-deal RNG keyed on `(random base,
+//! index)`, making the sample independent of thread schedule; the stream differs
+//! from the old sequential `rand::rng()` draw (both are unseeded, so neither
+//! run reproduces).
 //
 // ponytail: the gadget caps at 6M (small slam) — grand-slam / 5NT king-ask
 // exploration is out of scope (rare, and not what "invites MAX to RKCB" asked
@@ -41,6 +46,9 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::Partnership;
 use pons::scoring::{final_contract, imps, ns_score_contract};
+use rand::SeedableRng;
+use rand::rngs::StdRng;
+use rayon::prelude::*;
 
 #[path = "common/mod.rs"]
 #[allow(dead_code)]
@@ -180,27 +188,38 @@ fn main() {
     );
 
     let args = Args::parse();
-    let mut rng = rand::rng();
+    let seed_base: u64 = rand::random();
     let partnership = american(&pons::bidding::agreements::Agreements::default()).bind();
 
     // Collect slam-try configurations (only the N/S partnership, so North/South
     // scoring stays sign-consistent), each with the deal for the batch solve.
-    let mut deals: Vec<FullDeal> = Vec::new();
-    let mut configs: Vec<(Seat, Seat, Suit)> = Vec::new(); // (opener, responder, major)
-
-    for index in 0..args.count {
-        let deal = full_deal(&mut rng);
-        if let Some(config) = configuration(&deal, Seat::North, Seat::South) {
-            deals.push(deal);
-            configs.push(config);
-        }
-        if index % 8192 == 0 {
-            eprint!("\rsampled {}/{}", index + 1, args.count);
-        }
-    }
-    eprintln!("\rsampled {}/{}        ", args.count, args.count);
+    // Sampling fans across Rayon — `collect` keeps deal order, so the split below
+    // leaves the deal and its config aligned.
+    let sampled: Vec<(FullDeal, (Seat, Seat, Suit))> = (0..args.count)
+        .into_par_iter()
+        .filter_map(|index| {
+            let mut rng = StdRng::seed_from_u64(seed_base.wrapping_add(index as u64));
+            let deal = full_deal(&mut rng);
+            configuration(&deal, Seat::North, Seat::South).map(|config| (deal, config))
+        })
+        .collect();
+    // configs: (opener, responder, major)
+    let (deals, configs): (Vec<FullDeal>, Vec<(Seat, Seat, Suit)>) = sampled.into_iter().unzip();
+    eprintln!("sampled {} deals, {} configs", args.count, configs.len());
 
     let tables = Solver::lock(None).solve_deals(&deals, NonEmptyStrainFlags::ALL);
+
+    // Baseline: the real bidder, opener on lead-out (dealer = opener).  Bidding
+    // is pure, so fan it across Rayon; the diagnostics fold below stays serial
+    // because it accumulates counters.
+    let bases: Vec<Option<(Contract, Seat)>> = configs
+        .par_iter()
+        .zip(deals.par_iter())
+        .map(|(&(opener, _, _), deal)| {
+            let auction = bid_uncontested(&partnership, opener, args.vulnerability, deal);
+            final_contract(&auction, opener)
+        })
+        .collect();
 
     let mut total_imps = 0i64;
     let mut total_points = 0i64;
@@ -209,14 +228,12 @@ fn main() {
     let (mut base_4major, mut base_3nt) = (0usize, 0usize); // what the baseline does otherwise
     let (mut gadget_slam, mut gadget_slam_makes, mut gadget_pass, mut gadget_five) = (0, 0, 0, 0);
 
-    for ((opener, responder, major), (deal, table)) in
-        configs.iter().zip(deals.iter().zip(tables.iter()))
+    for (((opener, responder, major), (deal, table)), base) in configs
+        .iter()
+        .zip(deals.iter().zip(tables.iter()))
+        .zip(bases.iter().copied())
     {
         let strain = Strain::from(*major);
-
-        // Baseline: the real bidder, opener on lead-out (dealer = opener).
-        let auction = bid_uncontested(&partnership, *opener, args.vulnerability, deal);
-        let base = final_contract(&auction, *opener);
 
         // Gadget: modeled, responder-declared.
         let gadget = gadget_contract(deal[*opener], deal[*responder], *major);

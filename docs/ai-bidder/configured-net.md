@@ -343,12 +343,15 @@ than the estimate assumed.
 **Three traps this phase actually hit.** They cost a discarded corpus between
 them, and none is visible in the output of a run that has already gone wrong:
 
-1. **`--teacher` defaults to `american`**, which is `american_instinct()` — the
-   deterministic Rust floor, *not* EPBot. The shipped `WEIGHTS_BBA` records
-   `teacher: "bba"`, so a v4 net distilled from the default would have made gate
-   1 measure the teacher swap instead of the feature change. Always pass
-   `--teacher bba`. (Distinct from the `american()`-vs-`american_instinct()`
-   trap in §7.8, which is about *measuring divergence*, not about the target.)
+1. **`--teacher` used to default to `american`**, which is
+   `american_instinct()` — the deterministic Rust floor, *not* EPBot. The
+   shipped `WEIGHTS_BBA` records `teacher: "bba"`, so a v4 net distilled from
+   the default would have made gate 1 measure the teacher swap instead of the
+   feature change. **The default is now `bba`** (2026-08-10), so this trap is
+   disarmed; `--teacher american` still distils the Rust floor when that is what
+   you want. Every recipe here passes `--teacher bba` explicitly and is
+   unaffected. (Distinct from the `american()`-vs-`american_instinct()` trap in
+   §7.8, which is about *measuring divergence*, not about the target.)
 2. **`Multi` will not stick under system 2.** EPBot's WJ base bundles the Multi
    2♦ opening and refuses to turn it off, so every Dutch cell trips
    `verify_card`. Allowlisted in `KNOWN_UNSTICKY` beside `Reverse Bergen`: we

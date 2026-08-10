@@ -17,12 +17,17 @@
 //! ```
 //! Args (positional, optional): deal `count` (default 1,000,000), `seed`
 //! (default 0).
+//!
+//! The deals are drawn in parallel from a per-deal RNG keyed on `(seed, index)`,
+//! making the output independent of thread schedule; the stream differs from the
+//! old sequential scan at the same seed.
 
 use contract_bridge::eval::{self, HandEvaluator};
 use contract_bridge::{Hand, Seat, Suit};
 use pons::bidding::constraint::point_count;
 use rand::SeedableRng;
 use rand::rngs::StdRng;
+use rayon::prelude::*;
 
 /// The three weak-two strains: a six-card suit in exactly one of these
 fn weak_two_shape(hand: Hand) -> bool {
@@ -89,20 +94,30 @@ fn main() {
     }
 
     // (value, in-shipped-band) per weak-two-shaped hand, one entry per hand.
+    // Pure evaluator CPU, so the deals fan across Rayon; `collect` keeps them in
+    // board order, and the per-deal hands are flattened back in order below.
+    let per_deal: Vec<Vec<(f64, f64, bool)>> = (0..count)
+        .into_par_iter()
+        .map(|index| {
+            let mut rng = StdRng::seed_from_u64(seed.wrapping_add(index as u64));
+            let deal = contract_bridge::deck::full_deal(&mut rng);
+            let mut hands = Vec::new();
+            for seat in [Seat::North, Seat::East, Seat::South, Seat::West] {
+                let hand = deal[seat];
+                if !weak_two_shape(hand) {
+                    continue;
+                }
+                let shipped = (5..=10).contains(&point_count(hand));
+                hands.push((eval::cccc(hand), eval::NLTC.eval(hand), shipped));
+            }
+            hands
+        })
+        .collect();
     let mut cccc: Vec<(f64, bool)> = Vec::new();
     let mut nltc: Vec<(f64, bool)> = Vec::new();
-    let mut rng = StdRng::seed_from_u64(seed);
-    for _ in 0..count {
-        let deal = contract_bridge::deck::full_deal(&mut rng);
-        for seat in [Seat::North, Seat::East, Seat::South, Seat::West] {
-            let hand = deal[seat];
-            if !weak_two_shape(hand) {
-                continue;
-            }
-            let shipped = (5..=10).contains(&point_count(hand));
-            cccc.push((eval::cccc(hand), shipped));
-            nltc.push((eval::NLTC.eval(hand), shipped));
-        }
+    for (c, n, shipped) in per_deal.into_iter().flatten() {
+        cccc.push((c, shipped));
+        nltc.push((n, shipped));
     }
     let shipped = cccc.iter().filter(|&&(_, s)| s).count();
     #[allow(clippy::cast_precision_loss)]

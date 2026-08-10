@@ -71,12 +71,14 @@ log "=== reading-drift start, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/ar
 for vul in none both; do
     arm bba-gen-fix fix "$vul" "$FIX_ARGS"
     arm bba-gen-base base "$vul" "$BASE_ARGS"
-    for score in plain pd; do
-        out="$R/diff.fix.vs.base.$vul.$score.txt"
-        [ -s "$out" ] && { log "skip $out (exists)"; continue; }
-        log "diff fix vs base ($vul, $score)"
+    plain="$R/diff.fix.vs.base.$vul.plain.txt"
+    pd="$R/diff.fix.vs.base.$vul.pd.txt"
+    if [ -s "$plain" ] && [ -s "$pd" ]; then
+        log "skip $plain + $pd (exist)"
+    else
+        log "diff fix vs base ($vul, plain+pd)"
         "$R/ab-dump-diff" "$R/fix-$vul" "$R/base-$vul" \
-            --score "$score" --show "$SHOW" >"$out" 2>&1
-    done
+            --score both --out-plain "$plain" --out-pd "$pd" --show "$SHOW" >>"$R/log" 2>&1
+    fi
 done
 log "=== reading-drift done"

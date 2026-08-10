@@ -184,6 +184,16 @@ fn main() {
     let mut witness: Option<String> = None;
     let mut shape_witness: Option<String> = None;
 
+    // ponytail: left single-threaded, unlike the other scan harnesses.  The body
+    // is pure bidding and would fan out happily, but it threads ten accumulators
+    // through the loop — the two per-column `Vec<Vec<f64>>`, six counters, and
+    // two first-one-wins witnesses — and seeds its sampler from the *running*
+    // `nodes` counter at the `draw` closure below.  A conversion therefore owes a
+    // per-board tally folded back in board order (so the witnesses still name the
+    // earliest node) plus a reseed on `(board, cut)`, which would change the
+    // layouts drawn and so the probe's own numbers.  That is a real piece of work
+    // for a one-shot forensic binary no script invokes; do it if this probe ever
+    // becomes something we rerun.
     for (board, deal) in seeded_deals(base, args.count).into_iter().enumerate() {
         let dealer = Seat::ALL[board % 4];
         // Bid under the baseline in both arms: the corpus of readings is fixed,

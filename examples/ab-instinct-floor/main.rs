@@ -30,6 +30,7 @@ use pons::bidding::Partnership;
 use pons::bidding::american::american_book;
 use pons::bidding::context::relative;
 use pons::scoring::{final_contract, ns_score_contract};
+use rayon::prelude::*;
 use std::collections::HashMap;
 
 #[path = "../common/mod.rs"]
@@ -66,6 +67,24 @@ struct Telemetry {
     floor_calls: usize,
     /// Off-book auction (leading passes stripped) → (count, sample floor call)
     patterns: HashMap<String, (usize, Call)>,
+}
+
+impl Telemetry {
+    /// Fold one board's counts in
+    ///
+    /// Boards are bid in parallel, so each carries its own tally and they merge
+    /// here in board order — which keeps each pattern's sample call the one
+    /// from the earliest board that hit it, as the single-threaded tally left it.
+    fn merge(&mut self, other: Self) {
+        self.calls += other.calls;
+        self.floor_calls += other.floor_calls;
+        for (key, (count, call)) in other.patterns {
+            self.patterns
+                .entry(key)
+                .and_modify(|(total, _)| *total += count)
+                .or_insert((count, call));
+        }
+    }
 }
 
 /// One display key per off-book auction: leading passes stripped, calls joined
@@ -173,13 +192,17 @@ fn main() {
     let mut rng = rand::rng();
     let floored = american(&pons::bidding::agreements::Agreements::default()).bind();
     let bare = american_book(&pons::bidding::agreements::Agreements::default()).bind();
-    let mut telemetry = Telemetry::default();
-
-    // Bid every board at both tables, dealer rotating per board.
-    let boards: Vec<Board> = (0..args.count)
-        .map(|index| {
+    // Deal serially — a deal costs well under a microsecond against ~100 µs of
+    // bidding a board out twice — then bid both tables in parallel.  Each board
+    // tallies into its own telemetry so no worker touches a shared histogram;
+    // the tallies fold back in board order below.
+    let deals: Vec<FullDeal> = (0..args.count).map(|_| full_deal(&mut rng)).collect();
+    let bid: Vec<(Board, Telemetry)> = deals
+        .into_par_iter()
+        .enumerate()
+        .map(|(index, deal)| {
             let dealer = Seat::ALL[index % 4];
-            let deal = full_deal(&mut rng);
+            let mut tally = Telemetry::default();
             let table_a = bid_out(
                 &floored,
                 &bare,
@@ -187,7 +210,7 @@ fn main() {
                 dealer,
                 args.vulnerability,
                 &deal,
-                &mut telemetry,
+                &mut tally,
             );
             let table_b = bid_out(
                 &floored,
@@ -196,16 +219,26 @@ fn main() {
                 dealer,
                 args.vulnerability,
                 &deal,
-                &mut telemetry,
+                &mut tally,
             );
-            Board {
-                deal,
-                dealer,
-                table_a,
-                table_b,
-            }
+            (
+                Board {
+                    deal,
+                    dealer,
+                    table_a,
+                    table_b,
+                },
+                tally,
+            )
         })
         .collect();
+
+    let mut telemetry = Telemetry::default();
+    let mut boards = Vec::with_capacity(bid.len());
+    for (board, tally) in bid {
+        boards.push(board);
+        telemetry.merge(tally);
+    }
 
     // Only boards whose tables reach different results can swing; solve
     // those double dummy and credit the swing to the floored team (NS at

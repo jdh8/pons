@@ -120,11 +120,16 @@ const AXES: [(&str, Flip); 16] = [
     }),
 ];
 
-/// Bid every deal sequentially under one agreements value
+/// Bid every deal under one agreements value
+///
+/// Parallel over *deals*, inside a caller that is already parallel over *arms*.
+/// Arms alone cap at `AXES.len() + 1` — seventeen — which left half a 32-core
+/// box idle; rayon's work stealing flattens the two levels into one pool.
+/// Ordered `collect`, so an arm's auctions still line up with `deals`.
 fn bid_all(deals: &[FullDeal], agreements: &Agreements) -> Vec<String> {
     let partnership = american(agreements).bind();
     deals
-        .iter()
+        .par_iter()
         .enumerate()
         .map(|(index, deal)| {
             let dealer = Seat::ALL[index % 4];

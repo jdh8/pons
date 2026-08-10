@@ -52,6 +52,7 @@ use pons::american;
 use pons::bidding::constraint::{Constraint, hcp, len, stopper_in, top_honors};
 use pons::bidding::{Context, Partnership, Table};
 use pons::scoring::{final_contract, ns_score_contract};
+use rayon::prelude::*;
 use std::collections::HashMap;
 
 const TWO_SPADES: Call = Call::Bid(Bid::new(2, Strain::Spades));
@@ -78,9 +79,12 @@ struct Args {
 // ---------------------------------------------------------------------------
 
 /// A named binary policy over hands, compiled from a crisp constraint
+///
+/// `Sync` because the funnel screens attempts in parallel: the predicate reads
+/// only the hand, so every worker may hold it at once.
 struct Flavor {
     name: &'static str,
-    holds: Box<dyn Fn(Hand) -> bool>,
+    holds: Box<dyn Fn(Hand) -> bool + Sync>,
 }
 
 /// Compile a crisp constraint into a hand predicate (satisfied ⇒ `true`)
@@ -182,12 +186,93 @@ struct Collected {
     east_passed: usize,
 }
 
+/// One attempt's verdict, kept whole so the funnel can fan out and still fold
+/// its counters in attempt order
+struct Attempt {
+    west_opened: bool,
+    /// Bit `i` set when `flavors[i]` doubles North's hand; zero ⇒ gate 2 rejected
+    flavors_fired: u32,
+    east_passed: bool,
+    /// The deal, when all four gates passed
+    kept: Option<FullDeal>,
+}
+
+/// Run one fresh deal through the four gates
+///
+/// Reads only the table and the flavors, so attempts are independent and the
+/// caller may screen a whole batch at once; it folds the verdicts back in order.
+fn screen(
+    table: &Table<Partnership, Partnership>,
+    flavors: &[Flavor],
+    rng: &mut (impl rand::Rng + ?Sized),
+) -> Attempt {
+    let mut attempt = Attempt {
+        west_opened: false,
+        flavors_fired: 0,
+        east_passed: false,
+        kept: None,
+    };
+    let deal = full_deal(rng);
+
+    // Gate 1: West opens 2♠ per the system.
+    if table.next_call(deal[Seat::West], &Auction::new()) != TWO_SPADES {
+        return attempt;
+    }
+    attempt.west_opened = true;
+
+    // Gate 2: North doubles by at least one swept flavor.
+    let north = deal[Seat::North];
+    for (index, flavor) in flavors.iter().enumerate() {
+        if (flavor.holds)(north) {
+            attempt.flavors_fired |= 1u32 << index;
+        }
+    }
+    if attempt.flavors_fired == 0 {
+        return attempt;
+    }
+
+    // Gate 3: East passes over the double per the system.
+    let mut auction = Auction::new();
+    auction
+        .try_extend([TWO_SPADES, Call::Double])
+        .expect("the seeded prefix is legal from an empty auction");
+    if table.next_call(deal[Seat::East], &auction) != Call::Pass {
+        return attempt;
+    }
+    attempt.east_passed = true;
+
+    // Gate 4: South's decision is live — the system itself would pass
+    // for penalty or bid 3NT, not run to a suit or escape.
+    auction.push(Call::Pass);
+    let advance = table.next_call(deal[Seat::South], &auction);
+    if advance == Call::Pass || advance == THREE_NOTRUMP {
+        attempt.kept = Some(deal);
+    }
+    attempt
+}
+
+/// Attempts screened per parallel batch
+///
+/// Batching bounds the screening wasted past `--count` to one batch, while
+/// still handing rayon enough deals to fill the box.
+const BATCH: usize = 8192;
+
+/// Accept `--count` live deals through the funnel, screening in parallel
+///
+/// Three of the four gates are system bidding decisions, so the funnel — not
+/// the dealing — is the cost, and every attempt runs the same rejection
+/// sampler.  Each worker draws from its own `rand::rng()`: this harness takes
+/// no `--seed` and never did, so there is no stream for a run to reproduce.
 fn collect_deals(
     args: &Args,
     table: &Table<Partnership, Partnership>,
     flavors: &[Flavor],
-    rng: &mut (impl rand::Rng + ?Sized),
 ) -> Collected {
+    assert!(
+        flavors.len() <= u32::BITS as usize,
+        "the per-attempt flavor bitmask holds {} flavors",
+        u32::BITS,
+    );
     let cap = args.count.saturating_mul(args.max_attempts_per_deal);
     let mut collected = Collected {
         deals: Vec::with_capacity(args.count),
@@ -198,49 +283,30 @@ fn collect_deals(
         east_passed: 0,
     };
 
-    while collected.deals.len() < args.count && collected.attempts < cap {
-        let deal = full_deal(rng);
-        collected.attempts += 1;
+    'sampling: while collected.deals.len() < args.count && collected.attempts < cap {
+        let batch = BATCH.min(cap - collected.attempts);
+        let verdicts: Vec<Attempt> = (0..batch)
+            .into_par_iter()
+            .map(|_| screen(table, flavors, &mut rand::rng()))
+            .collect();
 
-        // Gate 1: West opens 2♠ per the system.
-        if table.next_call(deal[Seat::West], &Auction::new()) != TWO_SPADES {
-            continue;
-        }
-        collected.west_opened += 1;
-
-        // Gate 2: North doubles by at least one swept flavor.
-        let north = deal[Seat::North];
-        let mut doubled = false;
-        for (flavor, fired) in flavors.iter().zip(&mut collected.flavor_fired) {
-            if (flavor.holds)(north) {
-                *fired += 1;
-                doubled = true;
+        // Fold in order and stop the moment the target is met, so the counters
+        // stay consistent with `attempts` as the serial funnel left them.
+        for attempt in verdicts {
+            collected.attempts += 1;
+            collected.west_opened += usize::from(attempt.west_opened);
+            for (index, fired) in collected.flavor_fired.iter_mut().enumerate() {
+                *fired += usize::from(attempt.flavors_fired & (1u32 << index) != 0);
+            }
+            collected.north_doubled += usize::from(attempt.flavors_fired != 0);
+            collected.east_passed += usize::from(attempt.east_passed);
+            if let Some(deal) = attempt.kept {
+                collected.deals.push(deal);
+                if collected.deals.len() == args.count {
+                    break 'sampling;
+                }
             }
         }
-        if !doubled {
-            continue;
-        }
-        collected.north_doubled += 1;
-
-        // Gate 3: East passes over the double per the system.
-        let mut auction = Auction::new();
-        auction
-            .try_extend([TWO_SPADES, Call::Double])
-            .expect("the seeded prefix is legal from an empty auction");
-        if table.next_call(deal[Seat::East], &auction) != Call::Pass {
-            continue;
-        }
-        collected.east_passed += 1;
-
-        // Gate 4: South's decision is live — the system itself would pass
-        // for penalty or bid 3NT, not run to a suit or escape.
-        auction.push(Call::Pass);
-        let advance = table.next_call(deal[Seat::South], &auction);
-        if advance != Call::Pass && advance != THREE_NOTRUMP {
-            continue;
-        }
-
-        collected.deals.push(deal);
     }
     collected
 }
@@ -306,11 +372,13 @@ fn score_deals(
         Contract::new(3, Strain::Notrump, Penalty::Undoubled),
         Seat::South,
     ));
-    let mut telemetry = BranchTelemetry::default();
-
-    let outcomes = deals
-        .iter()
-        .zip(&tricks)
+    // Two full bid-outs per board is the cost here, and boards are independent,
+    // so they fan out; the telemetry is a shared histogram, so it folds back
+    // afterwards in board order rather than behind a lock.
+    type Reached = Option<(Contract, Seat)>;
+    let branches: Vec<(Outcome, Reached, Reached)> = deals
+        .par_iter()
+        .zip(tricks.par_iter())
         .map(|(deal, tricks)| {
             let defend = final_contract(
                 &table.bid_out_from(deal, seeded_auction(Call::Pass)),
@@ -320,26 +388,36 @@ fn score_deals(
                 &table.bid_out_from(deal, seeded_auction(THREE_NOTRUMP)),
                 Seat::West,
             );
-            if defend != two_sx {
-                telemetry.defend_diverged += 1;
-                *telemetry
-                    .defend_contracts
-                    .entry(contract_key(defend))
-                    .or_default() += 1;
-            }
-            if declare != three_nt {
-                telemetry.declare_diverged += 1;
-                *telemetry
-                    .declare_contracts
-                    .entry(contract_key(declare))
-                    .or_default() += 1;
-            }
-            Outcome {
-                defend: ns_score_contract(defend, tricks, vulnerability),
-                declare: ns_score_contract(declare, tricks, vulnerability),
-            }
+            (
+                Outcome {
+                    defend: ns_score_contract(defend, tricks, vulnerability),
+                    declare: ns_score_contract(declare, tricks, vulnerability),
+                },
+                defend,
+                declare,
+            )
         })
         .collect();
+
+    let mut telemetry = BranchTelemetry::default();
+    let mut outcomes = Vec::with_capacity(branches.len());
+    for (outcome, defend, declare) in branches {
+        if defend != two_sx {
+            telemetry.defend_diverged += 1;
+            *telemetry
+                .defend_contracts
+                .entry(contract_key(defend))
+                .or_default() += 1;
+        }
+        if declare != three_nt {
+            telemetry.declare_diverged += 1;
+            *telemetry
+                .declare_contracts
+                .entry(contract_key(declare))
+                .or_default() += 1;
+        }
+        outcomes.push(outcome);
+    }
     (outcomes, telemetry)
 }
 
@@ -490,12 +568,11 @@ fn print_response_sweep(policies: &[Flavor], deals: &[FullDeal], scores: &[Outco
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
-    let mut rng = rand::rng();
     let table = build_table(args.vulnerability);
     let doubles = double_flavors();
     let responses = response_flavors();
 
-    let collected = collect_deals(&args, &table, &doubles, &mut rng);
+    let collected = collect_deals(&args, &table, &doubles);
     if collected.deals.is_empty() {
         anyhow::bail!(
             "no deals survived the (2S) X - funnel in {} attempts; \

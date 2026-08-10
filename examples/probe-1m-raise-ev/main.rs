@@ -109,6 +109,10 @@ fn main() {
     let mut attempts = 0usize;
     let mut samples = Vec::with_capacity(args.count);
 
+    // ponytail: single-threaded by design. Classifying and rejecting a deal is
+    // microseconds against milliseconds to solve one, and the batch below holds
+    // the process-global DDS lock while fanning over every core — rayon around
+    // either would oversubscribe the box, never split it (CLAUDE.md:102).
     while samples.len() < args.count {
         attempts += 1;
         let deal = full_deal(&mut rng);

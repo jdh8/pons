@@ -114,11 +114,17 @@ struct Args {
     /// Output path stem; writes `<out>.f32` and `<out>.json`
     #[arg(long, default_value = "target/teacher-data")]
     out: String,
-    /// Teacher to distil: `american` (the pure-Rust 2/1 floor, default) or `bba`
-    /// (the vendored EPBot 2/1 oracle). `bba` bids through a single-threaded FFI
-    /// bot per decision, so that dump is BBA-bidding-bound — tractable, not
-    /// instant. Override the `.so` with `BBA_LIB`.
-    #[arg(long, default_value = "american")]
+    /// Teacher to distil: `bba` (the vendored EPBot 2/1 oracle, default) or
+    /// `american` (the pure-Rust 2/1 floor). `bba` bids through a
+    /// single-threaded FFI bot per decision, so that dump is BBA-bidding-bound —
+    /// tractable, not instant. Override the `.so` with `BBA_LIB`.
+    ///
+    /// The default was `american` until it cost a corpus: every shipped net
+    /// records `teacher: "bba"`, so a net distilled from the default measured
+    /// the teacher swap rather than the feature under test (see
+    /// `docs/ai-bidder/configured-net.md`). Distilling the Rust floor is still a
+    /// capability — it just is not what you want by accident.
+    #[arg(long, default_value = "bba")]
     teacher: String,
     /// `--teacher bba` only: a `.bbsa` convention card (e.g.
     /// `vendor/bba/WJ.bbsa`) pinning the teacher's system *and* every one of its
@@ -792,6 +798,11 @@ fn main() -> anyhow::Result<()> {
     };
     let mut file_iter = file_deals.iter().copied();
 
+    // ponytail: serial on purpose, and not a rayon candidate.  The live corpus
+    // path is `--teacher bba` (scripts/dump-v5.sh), which bids through the
+    // single-threaded EPBot FFI one decision at a time; the sanctioned way to
+    // fill the box is one process per shard, as that script already does.  Only
+    // `--teacher american` could fan out, and nothing draws a corpus with it.
     for board in 0..n_boards {
         // Which regime this board is dumped under.  Constant unless mixing, in
         // which case parity alternates so the corpus interleaves and the

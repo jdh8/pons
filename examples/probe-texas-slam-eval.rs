@@ -140,6 +140,10 @@ fn main() {
     let mut majors: Vec<Suit> = Vec::new();
     let mut rng = StdRng::seed_from_u64(seed);
     let mut attempts = 0usize;
+    // ponytail: serial on purpose. The accept rate makes this loop long, not the
+    // work per board — microseconds a deal against milliseconds each in the
+    // `Solver::lock(None)` batch below, which is main-thread-only (CLAUDE.md:102)
+    // and already saturates the core pool from inside the process-global lock.
     while deals.len() < count && attempts < attempt_cap {
         attempts += 1;
         let deal = contract_bridge::deck::full_deal(&mut rng);

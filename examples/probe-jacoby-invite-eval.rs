@@ -154,6 +154,10 @@ fn main() {
     let mut majors: Vec<Suit> = Vec::new();
     let mut rng = StdRng::seed_from_u64(seed);
     let mut attempts = 0usize;
+    // ponytail: the sampler stays single-threaded. Its whole output feeds the one
+    // `Solver::lock(None)` batch below, which holds the process-global DDS lock
+    // and uses every core itself — main-thread-only by iron rule (CLAUDE.md:102).
+    // Rejecting a deal is microseconds against milliseconds to solve a survivor.
     while deals.len() < count && attempts < attempt_cap {
         attempts += 1;
         let deal = contract_bridge::deck::full_deal(&mut rng);

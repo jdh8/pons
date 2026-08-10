@@ -103,14 +103,16 @@ for ref in ben bba; do
 			done
 		done
 	done
+	# One invocation per cell, both brackets: a scorer only re-prices solved
+	# tables, so this pays for the shard parse and the DDS fan-out once.
 	for vul in none both; do
-		for score in plain pd; do
-			out="$EXP/scores/diff-$ref-$KNOB-$vul-$score.txt"
-			[ -s "$out" ] && continue
-			log "diff $out"
-			target/release/examples/ab-dump-diff "$EXP/$ref-on/$vul" "$EXP/$ref-$KNOB-off/$vul" \
-				--score "$score" >"$out" 2>&1 || log "!!! diff failed: $out"
-		done
+		plain="$EXP/scores/diff-$ref-$KNOB-$vul-plain.txt"
+		pd="$EXP/scores/diff-$ref-$KNOB-$vul-pd.txt"
+		[ -s "$plain" ] && [ -s "$pd" ] && continue
+		log "diff $plain + $pd"
+		target/release/examples/ab-dump-diff "$EXP/$ref-on/$vul" "$EXP/$ref-$KNOB-off/$vul" \
+			--score both --out-plain "$plain" --out-pd "$pd" >&2 \
+			|| log "!!! diff failed: $plain + $pd"
 	done
 done
 

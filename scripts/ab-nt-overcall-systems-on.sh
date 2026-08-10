@@ -25,12 +25,12 @@ SEED_BASE=$(seed_for)
 # diffpair ON_DIR OFF_DIR TAG VUL — plain + pd
 diffpair() {
     on=$1; off=$2; tag=$3; vul=$4
-    for score in plain pd; do
-        out="$R/diff.$tag.$score.txt"
-        [ -s "$out" ] && { log "skip $out"; continue; }
-        log "diff $tag ($score)"
-        "$DIFF" "$on" "$off" --score "$score" --show 0 >"$out" 2>&1
-    done
+    plain="$R/diff.$tag.plain.txt"
+    pd="$R/diff.$tag.pd.txt"
+    [ -s "$plain" ] && [ -s "$pd" ] && { log "skip $plain + $pd"; return 0; }
+    log "diff $tag (plain+pd)"
+    "$DIFF" "$on" "$off" --score both \
+        --out-plain "$plain" --out-pd "$pd" --show 0 >>"$R/log" 2>&1
 }
 
 # sddiff ON_DIR OFF_DIR TAG VUL — sd-lead, 16 worlds

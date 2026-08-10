@@ -70,6 +70,10 @@ fn main() {
     let mut attempts = 0usize;
     let mut samples: Vec<(FullDeal, (HeartLength, u8))> = Vec::with_capacity(args.count);
 
+    // ponytail: kept single-threaded. The HCP and length filters cost microseconds
+    // a deal; the one `Solver::lock(None)` batch below costs milliseconds each and
+    // is already parallel inside the process-global lock, which never meets rayon
+    // (CLAUDE.md:102).
     while samples.len() < args.count {
         attempts += 1;
         let deal = full_deal(&mut rng);

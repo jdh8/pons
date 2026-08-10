@@ -199,6 +199,10 @@ fn main() {
     }
     let mut swaps: Vec<Swap> = Vec::new();
 
+    // ponytail: both passes stay single-threaded on purpose. `Solver::lock(None)`
+    // takes the process-global DDS lock and spreads each `--batch` chunk over
+    // every core itself, so a rayon wrapper only oversubscribes (CLAUDE.md:102).
+    // Bucketing and building the swap are microseconds against a deal's millisecond.
     for chunk in deals.chunks(args.batch) {
         let tables = Solver::lock(None).solve_deals(chunk, NonEmptyStrainFlags::ALL);
         for (deal, table) in chunk.iter().zip(tables.iter()) {

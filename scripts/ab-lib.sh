@@ -49,14 +49,21 @@ arm() {
 # diffpair ON OFF VUL — paired diff over the whole arm, plain + pd.  ab-dump-diff
 # folds every shard of the arm dir into a single DDS fan-out — one solver owns
 # all cores instead of one process per shard oversubscribing the box.
+#
+# One invocation, both brackets: a scorer only re-prices solved tables, so
+# `--score both` pays for the shard parse and the DDS fan-out once.  Running it
+# twice, once per scorer, paid for each twice.
+#
+# The skip guard wants BOTH files, so a run killed between the two writes redoes
+# the cell instead of resuming past a half-written pair.
 diffpair() {
     on=$1; off=$2; vul=$3
-    for score in plain pd; do
-        out="$R/diff.$on.vs.$off.$vul.$score.txt"
-        [ -s "$out" ] && { log "skip $out (exists)"; continue; }
-        log "diff $on vs $off ($vul, $score)"
-        "$DIFF" "$R/$on-$vul" "$R/$off-$vul" --score "$score" --show "$SHOW" >"$out" 2>&1
-    done
+    plain="$R/diff.$on.vs.$off.$vul.plain.txt"
+    pd="$R/diff.$on.vs.$off.$vul.pd.txt"
+    [ -s "$plain" ] && [ -s "$pd" ] && { log "skip $plain + $pd (exist)"; return 0; }
+    log "diff $on vs $off ($vul, plain+pd)"
+    "$DIFF" "$R/$on-$vul" "$R/$off-$vul" --score both \
+        --out-plain "$plain" --out-pd "$pd" --show "$SHOW" >>"$R/log" 2>&1
 }
 
 # sddiff ON OFF VUL [ab-dump-sd flags...] — sd-lead paired delta over the whole

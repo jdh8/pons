@@ -228,6 +228,10 @@ fn main() {
     let mut rng = StdRng::seed_from_u64(seed);
     let mut skipped = 0u32;
 
+    // ponytail: one hand at a time, deliberately. Both solves sit *inside* this
+    // loop, and `Solver::lock(None)` is a process-global lock that already fans
+    // each layout batch over every core — rayon here would queue on that lock
+    // (CLAUDE.md:102); sampling is microseconds against milliseconds to solve.
     for _ in 0..hands {
         let responder = contract_bridge::deck::full_deal(&mut rng)[Seat::South];
 

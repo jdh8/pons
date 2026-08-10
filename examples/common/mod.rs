@@ -462,12 +462,41 @@ pub fn score_boards(
     vul: AbsoluteVulnerability,
     scorer: impl Fn(Reached, &TrickCountTable, AbsoluteVulnerability) -> i64,
 ) -> Scored {
+    let (divergent, tables) = solve_divergent(contracts, deals);
+    score_solved(contracts, divergent, tables, vul, scorer)
+}
+
+/// Pick the boards whose two tables reached different contracts and solve just
+/// those double dummy, on the **main thread** — `Solver::lock` takes a global
+/// lock and fans out over the whole core pool internally, so it must never be
+/// called from a rayon worker.
+///
+/// Split out of [`score_boards`] so a caller that wants the same boards under
+/// more than one scorer pays for one solve instead of one per scorer.
+pub fn solve_divergent(
+    contracts: &[(Reached, Reached)],
+    deals: &[FullDeal],
+) -> (Vec<usize>, Vec<TrickCountTable>) {
     let divergent: Vec<usize> = (0..contracts.len())
         .filter(|&index| contracts[index].0 != contracts[index].1)
         .collect();
     let solve: Vec<FullDeal> = divergent.iter().map(|&index| deals[index]).collect();
     let tables = Solver::lock(None).solve_deals(&solve, NonEmptyStrainFlags::ALL);
+    (divergent, tables)
+}
 
+/// Price an already-solved divergent set with one `scorer`
+///
+/// `divergent` and `tables` are what [`solve_divergent`] returned, parallel to
+/// each other.  Call it twice on clones of the same pair to read the plain-DD
+/// and perfect-defense brackets off a single solve.
+pub fn score_solved(
+    contracts: &[(Reached, Reached)],
+    divergent: Vec<usize>,
+    tables: Vec<TrickCountTable>,
+    vul: AbsoluteVulnerability,
+    scorer: impl Fn(Reached, &TrickCountTable, AbsoluteVulnerability) -> i64,
+) -> Scored {
     let mut total_points = 0i64;
     let mut board_imps = vec![0i64; contracts.len()];
     let mut swings: Vec<(usize, i64, i64)> = Vec::with_capacity(divergent.len());
