@@ -8,7 +8,7 @@ fn two_suiter_hcp_floor_bars_garbage_michaels() {
     use crate::bidding::constraint::PointScale;
     // Calibrated to the rule-of-N+8 opt-out — the scale these example
     // hands' points assume (the 6-6 freak reads 9, not the point-count 7).
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.point_scale = PointScale::RuleOfNFloored;
     // Over their (1♥): a 5-HCP 6-6 freak reads 9 points and cues Michaels
     // at weight 2.0 straight into a penalty double (−17..−21 IMPs a board

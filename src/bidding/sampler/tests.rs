@@ -210,7 +210,7 @@ fn zero_request_is_empty() {
 /// both — read by the rule, not a hand-written range.
 #[test]
 fn replay_honors_both_sides_under_competition() {
-    let policy = crate::american(&crate::bidding::agreements::Agreements::current()).against();
+    let policy = crate::american(&crate::bidding::agreements::Agreements::default()).against();
     let actor = Seat::North;
     // len 2, North to act: index 0 is partner's 1♥, index 1 is RHO's 2♣.
     let auction = [bid(1, Strain::Hearts), bid(2, Strain::Clubs)];
@@ -246,7 +246,7 @@ fn replay_honors_both_sides_under_competition() {
 #[test]
 fn reads_a_passed_seat_as_bounded() {
     use crate::bidding::constraint::point_count;
-    let mut agreements = crate::bidding::agreements::Agreements::current();
+    let mut agreements = crate::bidding::agreements::Agreements::default();
     agreements.decision.reading.pass = true;
     agreements.decision.reading.table_alerts = true;
     let stance = crate::american(&agreements).against();
@@ -276,7 +276,7 @@ fn reads_a_passed_seat_as_bounded() {
 /// soft margin, tuned by A/B, not here.
 #[test]
 fn replay_rejects_implausible_passers() {
-    let policy = crate::american(&crate::bidding::agreements::Agreements::current()).against();
+    let policy = crate::american(&crate::bidding::agreements::Agreements::default()).against();
     let opener: Hand = "AKQ2.K53.QJ4.T92".parse().expect("valid test hand");
     assert!(!made_plausibly(
         opener,
@@ -318,7 +318,7 @@ fn game_backstop_rejects_every_hand_until_deleted() {
     let mut rng = StdRng::seed_from_u64(11);
     let hands: Vec<Hand> = (0..16).map(|_| full_deal(&mut rng)[Seat::South]).collect();
     let policy = |on| {
-        let mut agreements = crate::bidding::agreements::Agreements::current();
+        let mut agreements = crate::bidding::agreements::Agreements::default();
         agreements.game_force.game_backstop = on;
         crate::american(&agreements).against()
     };

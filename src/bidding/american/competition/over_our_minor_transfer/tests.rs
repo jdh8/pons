@@ -109,7 +109,7 @@ fn minor_overcalled_low_is_systems_off() {
 fn defense_to_their_minor_transfer_doubles_spades() {
     // After `(1NT) - (2♠)`, their 2♠ is a minor transfer; our fourth-hand X is
     // lead-directing in spades, the bid suit.
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.defense.minor_transfer_defense_enabled = true;
     let auction = [
         call(1, Strain::Notrump),
@@ -127,7 +127,7 @@ fn defense_to_their_minor_transfer_doubles_spades() {
 #[test]
 fn defense_to_their_minor_transfer_cues_top_and_bottom() {
     // (1NT) - (2♠): 5 spades + 5 diamonds → 3♣ cue (top-and-bottom), beating the X.
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.defense.minor_transfer_defense_enabled = true;
     let auction = [
         call(1, Strain::Notrump),
@@ -142,7 +142,7 @@ fn defense_to_their_minor_transfer_cues_top_and_bottom() {
 #[test]
 fn defense_to_their_minor_transfer_two_notrump_is_reds() {
     // (1NT) - (2♠): 5 diamonds + 5 hearts → 2NT (the two lowest unbid suits).
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.defense.minor_transfer_defense_enabled = true;
     let auction = [
         call(1, Strain::Notrump),

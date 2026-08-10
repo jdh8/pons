@@ -75,7 +75,7 @@ fn main() {
     // Two books, built once — `two_over_one_gate` is read at book
     // construction, never at classify time.
     let gated = |gate| {
-        let mut agreements = Agreements::current();
+        let mut agreements = Agreements::default();
         agreements.response.two_over_one_gate = gate;
         american(&agreements).against()
     };

@@ -56,7 +56,7 @@ fn main() {
     let count: usize = argv.next().and_then(|s| s.parse().ok()).unwrap_or(500_000);
     let seed: u64 = argv.next().and_then(|s| s.parse().ok()).unwrap_or(0);
 
-    let stance = dutch(&pons::bidding::agreements::Agreements::current()).against();
+    let stance = dutch(&pons::bidding::agreements::Agreements::default()).against();
     let mut rng = StdRng::seed_from_u64(seed);
     let mut points = Vec::new();
     let mut support = Vec::new();

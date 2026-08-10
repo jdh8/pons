@@ -5,7 +5,7 @@
 //! invitation-acceptance tables.  Garbage (drop-dead) Stayman rides it under
 //! [`garbage_stayman`][crate::bidding::inference::ReadingProfile::garbage_stayman],
 //! the net-force seam under
-//! [`set_stayman_net_force`].
+//! [`DecisionProfile::stayman_net_force`][crate::bidding::context::DecisionProfile::stayman_net_force].
 
 use super::both_majors::fit_value;
 use super::*;
@@ -111,57 +111,11 @@ pub(super) fn stayman_answers_uncontested(agreements: &Agreements) -> Rules {
     rules.chain(stayman_answers())
 }
 
-thread_local! {
-    /// See [`set_stayman_net_force`].
-    static STAYMAN_NET_FORCE: Cell<bool> = const { Cell::new(false) };
-}
-
-/// Price responder's Stayman-rebid invite/force seams with the evaluator net
-/// instead of the point tests (thread-local; **off by default — measured a
-/// loss**, kept for re-measurement)
-///
-/// The `probe-nt-invite-eval` screen (30 000 deals per class, seed 1784718391)
-/// found the net's game make-probability is the first evaluator to out-rank
-/// raw HCP at the 1NT invite/force boundary — but only on the Stayman class
-/// (+0.030 ±0.017 IMPs/board vul none, +0.044 ±0.025 vul both, rising to
-/// +0.048/+0.069 opposite exactly-15 openers); the balanced no-major seam
-/// stays HCP (net ≈ 0, third evaluator family to fail there).  This knob
-/// converts exactly the Stayman-rebid seams: with a fit the `4M`/`3M`/`3OM`
-/// split, without one the `3NT`/`2NT` revert — each force arm becomes "the
-/// net clears the game's IMP break-even at the live vulnerability", its
-/// invite twin the declined half.  The 2♣ entry, Smolen, garbage/crawling
-/// and the quantitative 4NT are untouched.
-///
-/// **The live A/B refuted it** (`ab-stayman-net-force --slice`, 200k sliced
-/// boards per vul, seed 1784719896): vul none −0.022 plain DD / +0.003 PD,
-/// vul both −0.021 plain / −0.027 PD.  The forensic split explains the
-/// screen-vs-live reversal: at the *fit* seam the incumbent is not raw HCP
-/// but [`fit_value`] — already an upgrade evaluator, and the net loses to it
-/// on both scorers in both directions; at the *no-fit NT* seam the net's
-/// flips are plain-DD-positive (matching the screen, which scored plain DD)
-/// but PD-negative — the DD-trained net promotes 3NTs that die against
-/// perfect defense, the decision table's "doubling artifact, don't ship" row.
-/// A frequency-matched NT-seam-only gate re-scored under `single_dummy_leads`
-/// is the remaining open refinement.
-///
-/// Unlike its construction-time neighbours, this is read at **classification
-/// time** (like
-/// [`bilans_floor`][crate::bidding::instinct::InstinctProfile::bilans_floor]):
-/// flip it on threads that classify through a [`Stance`][crate::bidding::Stance],
-/// no book rebuild needed.
-#[doc(hidden)]
-pub fn set_stayman_net_force(on: bool) {
-    STAYMAN_NET_FORCE.with(|cell| cell.set(on));
-}
-
-/// Plain-bool read of the Stayman net-force knob (see [`set_stayman_net_force`])
-pub(crate) fn stayman_net_force() -> bool {
-    STAYMAN_NET_FORCE.with(Cell::get)
-}
-
 /// One side of a Stayman-rebid invite/force seam: knob-off exactly
-/// `shape & points`; with [`set_stayman_net_force`] on, `shape` plus the net's
-/// `want` verdict on `tricks` in `strain` replacing the point test
+/// `shape & points`; with
+/// [`DecisionProfile::stayman_net_force`][crate::bidding::context::DecisionProfile::stayman_net_force]
+/// on, `shape` plus the net's `want` verdict on `tricks` in `strain` replacing
+/// the point test
 ///
 /// The call *reads* as `shape & points` either way ([`reads_as`]) — the net
 /// arm is an opaque predicate, and letting it into the projection `Or` would
@@ -335,7 +289,7 @@ pub(super) fn stayman_no_major_rebid(agreements: &Agreements) -> Rules {
         )
         .alert(SMOLEN)
         .rule(Bid::new(4, Strain::Notrump), 120, hcp(16..=17))
-        // The notrump revert seams are net-priced under `set_stayman_net_force`
+        // The notrump revert seams are net-priced under `DecisionProfile::stayman_net_force`
         // (Smolen and the quantitative 4NT outrank them by weight either way).
         .rule(
             Bid::new(3, Strain::Notrump),

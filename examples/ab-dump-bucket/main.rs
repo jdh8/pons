@@ -1,6 +1,6 @@
 //! Bucket a competitive-rebid A/B by the call the knob changed.
 //!
-//! The `set_competitive_rebid` fired-set is a mix of a DD-visible constructive
+//! The `InstinctKnobs::competitive_rebid` fired-set is a mix of a DD-visible constructive
 //! class (opener's sound one-suiter rebid → a making game the takeout double
 //! misses) and a DD-invisible/negative obstructive class (light overcaller
 //! rebids, minimum competitive pushes).  A single IMPs/board number over that

@@ -13,7 +13,7 @@ pub(super) const fn call(level: u8, strain: Strain) -> Call {
 #[test]
 fn row_package_invariants() {
     crate::bidding::rows::assert_package_invariants(
-        &crate::bidding::agreements::Agreements::current(),
+        &crate::bidding::agreements::Agreements::default(),
         &[
             super::weak_two_defense_package(),
             super::suit_defense_package(),
@@ -45,7 +45,7 @@ fn row_package_invariants() {
 /// floor (not a book node) produced it
 pub(super) fn best_call(auction: &[Call], hand: &str) -> (Call, bool) {
     let hand: Hand = hand.parse().expect("valid test hand");
-    let (logits, prov) = american(&crate::bidding::agreements::Agreements::current())
+    let (logits, prov) = american(&crate::bidding::agreements::Agreements::default())
         .against()
         .classify_with_provenance(hand, RelativeVulnerability::NONE, auction)
         .expect("a legal auction classifies");
@@ -81,7 +81,7 @@ pub(super) fn best_call_with(
 /// [`best_call`] at a chosen vulnerability, for the rules that read one.
 pub(super) fn best_call_vul(auction: &[Call], hand: &str, vul: RelativeVulnerability) -> Call {
     let hand: Hand = hand.parse().expect("valid test hand");
-    let (logits, _) = american(&crate::bidding::agreements::Agreements::current())
+    let (logits, _) = american(&crate::bidding::agreements::Agreements::default())
         .against()
         .classify_with_provenance(hand, vul, auction)
         .expect("a legal auction classifies");
@@ -127,7 +127,7 @@ fn defense_to_notrump_authors_one_rule_per_call() {
     ];
 
     for (label, setup) in configs {
-        let mut agreements = Agreements::current();
+        let mut agreements = Agreements::default();
         setup(&mut agreements);
         let calls: Vec<Call> = super::nt_defense::defense_to_notrump(&agreements)
             .rules()
@@ -181,7 +181,7 @@ fn semi_balanced_boxes_match_closure() {
 
 #[test]
 fn defense_doubles_with_strength() {
-    let agreements = Agreements::current();
+    let agreements = Agreements::default();
     let r = defense_to_suit(Bid::new(1, Strain::Diamonds), &agreements);
     let a = [call(1, Strain::Diamonds)];
     // 18 HCP with length in their suit still doubles (planning to bid again).

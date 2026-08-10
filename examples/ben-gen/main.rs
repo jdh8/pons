@@ -424,7 +424,7 @@ fn main() -> anyhow::Result<()> {
     // american() = the shipped net floor, by design: measure the real us vs BEN.
     // The gap lives off-book/contested, exactly where the net floor differs from
     // american_instinct(); the -1.906 Tier-S anchor (119675f) predates the swap.
-    let mut agreements = pons::bidding::agreements::Agreements::current();
+    let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.reading.cue = !args.no_ns_cue_reading;
     agreements.decision.reading.length_soundness = !args.no_ns_length_soundness;
     agreements.decision.reading.table_alerts = !args.no_ns_table_alert_reading;

@@ -39,7 +39,6 @@ struct Args {
 
 fn main() {
     let args = Args::parse();
-    pons::bidding::instinct::set_competitive_rebid(!args.no_competitive_rebid);
     let hand: Hand = args.hand.parse().expect("valid hand");
     let mut auction = Auction::new();
     for token in args.auction.split_whitespace() {
@@ -47,7 +46,8 @@ fn main() {
         auction.push(call);
     }
 
-    let mut agreements = pons::bidding::agreements::Agreements::current();
+    let mut agreements = pons::bidding::agreements::Agreements::default();
+    agreements.instinct.competitive_rebid = !args.no_competitive_rebid;
     agreements.decision.reading.envelope_union = !args.no_envelope_union;
     let stance = american(&agreements).against();
     let seat = Seat::ALL[auction.len() % 4];

@@ -47,7 +47,7 @@ const fn variant(kickback: bool) -> RkcbVariant {
 }
 
 fn agreements(kickback: bool) -> Agreements {
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.rkcb_variant = variant(kickback);
     agreements.decision.instinct.keycard_minors = true;
     agreements

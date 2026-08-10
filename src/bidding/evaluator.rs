@@ -42,7 +42,6 @@ use super::neural::{affine, decode, relu};
 use contract_bridge::auction::Call;
 use contract_bridge::{Hand, Strain};
 use nalgebra::SVectorView;
-use std::cell::Cell;
 use std::sync::LazyLock;
 
 /// Input width, pinned to the artifact.
@@ -128,9 +127,9 @@ const IN_V4: usize = FEATURES_LEN_EVAL_V4;
 /// Float count of the v4 MLP — same architecture, three columns wider.
 const TOTAL_V4: usize = HID * IN_V4 + HID + HID * HID + HID + OUT * HID + OUT;
 
-/// The shape-reading evaluator (`features_eval_v4`), trained on the envelope-union
-/// regime whose union readings the shape block conditions on; see
-/// [`set_eval_shape`].
+/// The shape-reading evaluator (`features_eval_v4`), trained on the
+/// envelope-union regime whose union readings the shape block conditions on;
+/// see [`DecisionProfile::eval_shape`].
 static RAW_V4_UNION_READING: &[u8] = include_bytes!("weights/evaluator_v4_dnf.f32");
 const _: () = assert!(
     RAW_V4_UNION_READING.len() == TOTAL_V4 * 4,
@@ -140,84 +139,6 @@ const _: () = assert!(
 /// [`RAW_V4_UNION_READING`] decoded once, on first use.
 static WEIGHTS_V4_UNION_READING: LazyLock<Vec<f32>> =
     LazyLock::new(|| decode(RAW_V4_UNION_READING));
-
-std::thread_local! {
-    /// Whether [`trick_estimates_with_auction`] serves the v3 calls-tail
-    /// artifact (see [`set_eval_auction`]).  On by default.
-    static EVAL_AUCTION: Cell<bool> = const { Cell::new(true) };
-
-    /// Whether [`trick_estimates_with_auction`] serves the v4 shape-reading
-    /// artifact (see [`set_eval_shape`]).
-    static EVAL_SHAPE: Cell<bool> = const { Cell::new(false) };
-}
-
-/// Serve the v3 calls-tail evaluator (default **on**, shipped 2026-07-27)
-///
-/// On, [`trick_estimates_with_auction`] feeds [`features_eval_v3`][super::features::features_eval_v3] — the hull
-/// vector plus the last four call identities — to the v3 artifact, which the
-/// 2026-07-27 NLL ablation priced at 0.038 over the hull-only vector (bare
-/// calls; docs/ai-bidder/evaluator-net.md §auction-input ablation).  The A/B
-/// shipped it default-on with a `win | win` verdict: plain DD +0.0180 ± 0.0042
-/// (none) / +0.0284 ± 0.0056 (both), PD +0.0222 / +0.0360, on 204,800
-/// boards/arm/vul at `SEED_BASE` 1785138816 — fired 1.3–1.6%, +1.3 to +2.3
-/// IMPs per fired board at the bilans game/slam gates.  The v3 twin was
-/// trained on the [`envelope_union`][field@crate::bidding::inference::ReadingProfile::envelope_union] regime
-/// only, so the setting is only honoured
-/// there; anywhere else the v2 path serves as before.
-///
-/// Per-thread, like every reading knob, and captured into a [`Stance`] when
-/// it is built: set it *before* the build, not inside a worker closure.
-///
-/// [`Stance`]: crate::bidding::Stance
-pub fn set_eval_auction(on: bool) {
-    EVAL_AUCTION.with(|cell| cell.set(on));
-}
-
-/// Whether the v3 calls-tail evaluator is enabled (default on)
-#[must_use]
-pub fn eval_auction() -> bool {
-    EVAL_AUCTION.with(Cell::get)
-}
-
-/// Serve the v4 shape-reading evaluator (default **off**, pending its A/B)
-///
-/// On, [`trick_estimates_with_auction`] feeds [`features_eval_v4`][super::features::features_eval_v4] to the v4
-/// artifact: v3's vector with each hidden seat's four length `{min, max}` pairs
-/// replaced by its **shape distribution** — `E[len]` and `sd[len]` per suit over
-/// the 560-shape lattice, plus one column for how much the reading pins the seat
-/// down.  Three columns wider than v3, and worth nothing in NLL: the round-two
-/// ablation scored the encoding at +0.00004 against a matched control on 8.15M
-/// rows, inside a 0.0006 seed spread.
-///
-/// The prize is **invariance**, not accuracy.  A hull is not a well-defined
-/// function of a reading — `♥5..13` and `♥5..8` are the same claim yet differ by
-/// a third of the column's range — so
-/// [`sum_closure`][field@crate::bidding::ReadingProfile::sum_closure], which provably rejects
-/// no hand, still displaces the endpoint columns at 81% of nodes by up to 4.19σ
-/// and has to buy a retrain before it can be judged on merit.  The shape columns
-/// move at 0.11% of nodes by up to 0.07σ, and that 0.11% is where the reading
-/// genuinely changed.  Under this knob the reading-fidelity chops become
-/// measurable on their own terms.
-///
-/// Supersedes [`set_eval_auction`] when both are on — v4 carries the calls tail
-/// verbatim.  Like the v3 twin it was trained on the
-/// [`envelope_union`][field@crate::bidding::inference::ReadingProfile::envelope_union] regime
-/// only, and its shape block reads the *union* of announced boxes, so it is
-/// honoured only there.
-///
-/// Per-thread, like every reading knob, and captured into a [`Stance`] when
-/// it is built: set it *before* the build, not inside a worker closure.
-///
-/// [`Stance`]: crate::bidding::Stance
-pub fn set_eval_shape(on: bool) {
-    EVAL_SHAPE.with(|cell| cell.set(on));
-}
-
-/// Whether the v4 shape-reading evaluator is enabled (default off)
-#[must_use]
-pub fn eval_shape() -> bool {
-    EVAL_SHAPE.with(Cell::get)
-}
 
 /// The strain order the training label uses (`gib::relativized_tricks`, itself
 /// the GIB tail order). [`Strain`]'s own discriminants ascend ♣♦♥♠NT, so this
@@ -343,11 +264,11 @@ fn trick_estimates_on(
 /// [`trick_estimates`], with the raw auction available for the v3 calls-tail
 /// artifact.
 ///
-/// Under [`set_eval_auction`] **and** the
+/// Under [`DecisionProfile::eval_auction`] **and** the
 /// [`envelope_union`][field@crate::bidding::inference::ReadingProfile::envelope_union] regime the v3 twin
 /// was trained on, this serves [`features_eval_v3`][super::features::features_eval_v3] — the same vector plus the
 /// last four call identities — from the weight set matching the explicit
-/// profile's [`pass_exclusion`][field@crate::bidding::ReadingProfile::pass_exclusion] regime.  Under [`set_eval_shape`] it
+/// profile's [`pass_exclusion`][field@crate::bidding::ReadingProfile::pass_exclusion] regime.  Under [`DecisionProfile::eval_shape`] it
 /// serves [`features_eval_v4`][super::features::features_eval_v4] instead, which carries that tail and reads each
 /// hidden seat as a shape distribution rather than a bounding box.  Anywhere
 /// else it is exactly [`trick_estimates`], byte for byte, so call sites can
@@ -358,14 +279,15 @@ pub fn trick_estimates_with_auction(
     inferences: &Inferences,
     calls: &[Call],
 ) -> TrickEstimates {
-    trick_estimates_with_auction_on(&DecisionProfile::current(), hand, inferences, calls)
+    trick_estimates_with_auction_on(&DecisionProfile::default(), hand, inferences, calls)
 }
 
 /// [`trick_estimates_with_auction`] on an explicit decision profile — what
 /// [`Context::trick_estimates`][super::Context::trick_estimates] serves, so the
 /// twin and weight set a stance selects are the ones pinned into it at build.
 #[must_use]
-pub(crate) fn trick_estimates_with_auction_on(
+#[doc(hidden)]
+pub fn trick_estimates_with_auction_on(
     profile: &DecisionProfile,
     hand: Hand,
     inferences: &Inferences,

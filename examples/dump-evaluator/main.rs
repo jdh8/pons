@@ -235,7 +235,7 @@ const VULS: [AbsoluteVulnerability; 4] = [
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
-    let mut agreements = pons::bidding::agreements::Agreements::current();
+    let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.reading.envelope_union = args.envelope_union;
     agreements.decision.reading.pass_exclusion = args.pass_exclusion;
     let encoding = match args.encoding.as_str() {

@@ -238,7 +238,7 @@ fn pavlicek(level: u8, class: Option<usize>) -> (f64, f64, u32) {
 
 fn main() {
     let args = Args::parse();
-    let stance = american(&pons::bidding::agreements::Agreements::current()).against();
+    let stance = american(&pons::bidding::agreements::Agreements::default()).against();
     let mut rows: Vec<Row> = Vec::new();
     let mut playouts_at = [[0usize; 3]; 8];
 

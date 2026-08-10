@@ -172,7 +172,7 @@ fn parse_override(spec: &str) -> anyhow::Result<(CString, c_int)> {
 /// Our generated card, so BBA reads our calls the way `bba-gen` has it read them
 fn our_card() -> EpbotCard {
     let card =
-        pons::bidding::card::american_card(&pons::bidding::agreements::Agreements::current());
+        pons::bidding::card::american_card(&pons::bidding::agreements::Agreements::default());
     EpbotCard {
         system: card.system,
         toggles: card
@@ -228,7 +228,7 @@ fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let base = args.seed.unwrap_or_else(rand::random);
     let vul = AbsoluteVulnerability::NONE;
-    let mut agreements = pons::bidding::agreements::Agreements::current();
+    let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.reading.scope = if args.ns_natural_reading {
         pons::bidding::ReadingScope::All
     } else {

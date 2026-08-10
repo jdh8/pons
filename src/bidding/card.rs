@@ -9,14 +9,15 @@
 //! default-on while `cards/American.bbsa` still declared `1N-3M splinter = 0`.
 //! A hand-maintained file also cannot describe an **A/B arm** — an arm that flips
 //! a knob plays one system and discloses another.  So the card is *generated*
-//! here from the live thread-local knob state, and `cards/*.bbsa` are golden
+//! here from the supplied
+//! [`Agreements`][crate::bidding::agreements::Agreements], and `cards/*.bbsa` are golden
 //! snapshots that `the_checked_in_cards_match_the_generator` asserts equal the
 //! generator at crate defaults.  Regenerate with
 //! `cargo run --example bba-card -- --system american > cards/American.bbsa`.
 //!
 //! Rows come in three kinds:
 //!
-//! * **computed** — a `set_*` knob or a book fact moves the value, so the row
+//! * **computed** — an agreement field or a book fact moves the value, so the row
 //!   reads that knob.  A row is computed *iff* something can move it; that is
 //!   the whole discipline, and it is what makes drift impossible rather than
 //!   merely detectable.
@@ -297,7 +298,7 @@ const SCHEMA: &[&str] = &[
 /// use pons::bidding::card::american_card;
 ///
 /// let row = |a: &Agreements| american_card(a).row("1N-3M splinter");
-/// let mut agreements = Agreements::current();
+/// let mut agreements = Agreements::default();
 /// assert_eq!(row(&agreements), Some(1)); // shipped default-on
 /// agreements.decision.reading.nt_splinter = false;
 /// assert_eq!(row(&agreements), Some(0));

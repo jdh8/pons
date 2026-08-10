@@ -841,12 +841,10 @@ fn rule_json(rules: &pons::bidding::Rules) -> Vec<RuleJson> {
 // is app state, not a hidden configuration channel.
 //
 // Wasm is single-threaded, so this cell is effectively a global.  It seeds
-// from [`Agreements::current`] rather than `default()` while the engine still
-// has cells of its own, so a knob this crate has not yet migrated still reads
-// through.
+// from `Agreements::default()` and every registry setter edits that value.
 thread_local! {
     static AGREEMENTS: std::cell::Cell<Agreements> =
-        std::cell::Cell::new(Agreements::current());
+        std::cell::Cell::new(Agreements::default());
 }
 
 /// The agreements a deal is bid under

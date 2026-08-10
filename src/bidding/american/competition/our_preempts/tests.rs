@@ -5,7 +5,7 @@ use contract_bridge::auction::Call;
 
 #[test]
 fn weak_two_doubled_gets_business_redouble_and_systems_on() {
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.competition.weak_two_competition = true;
     // `2♠ (X)`: 17-count with a singleton spade — no Ogust fit — redoubles.
     let auction = [call(2, Strain::Spades), Call::Double];
@@ -29,7 +29,7 @@ fn weak_two_doubled_gets_business_redouble_and_systems_on() {
 
 #[test]
 fn weak_two_overcalled_double_is_values_and_ogust_survives() {
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.competition.weak_two_competition = true;
     // `2♥ (2♠)`: a 12-count doubles for penalty-leaning values.
     let auction = [call(2, Strain::Hearts), call(2, Strain::Spades)];
@@ -52,7 +52,7 @@ fn weak_two_overcalled_double_is_values_and_ogust_survives() {
 
 #[test]
 fn strong_two_contested_stays_strong() {
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.competition.strong_two_competition = true;
     // `2♣ (X)`: systems on — a bust still gives the 2♥ double negative.
     let doubled = [call(2, Strain::Clubs), Call::Double];

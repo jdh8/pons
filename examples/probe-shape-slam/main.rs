@@ -98,7 +98,7 @@ struct Board {
 
 fn main() {
     let args = Args::parse();
-    let stance = american(&pons::bidding::agreements::Agreements::current()).against();
+    let stance = american(&pons::bidding::agreements::Agreements::default()).against();
     let deals = seeded_deals(args.seed, args.count);
     let vul = args.vulnerability;
 

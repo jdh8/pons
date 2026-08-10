@@ -181,7 +181,7 @@ fn main() {
 
     let args = Args::parse();
     let mut rng = rand::rng();
-    let stance = american(&pons::bidding::agreements::Agreements::current()).against();
+    let stance = american(&pons::bidding::agreements::Agreements::default()).against();
 
     // Collect slam-try configurations (only the N/S partnership, so North/South
     // scoring stays sign-consistent), each with the deal for the batch solve.

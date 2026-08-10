@@ -35,7 +35,7 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, Bid, Contract, FullDeal, Hand, Seat, Strain, Suit};
 use pons::american;
 use pons::bidding::american::{DoubleShape, NotrumpDefense};
-use pons::bidding::instinct::{LatchStyle, set_doubler_xx_runout};
+use pons::bidding::instinct::LatchStyle;
 use pons::scoring::{final_contract, ns_score_bid, ns_score_contract};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -432,8 +432,8 @@ fn main() {
             maj.parse::<usize>().expect("MAJ is a number"),
         )
     };
-    set_doubler_xx_runout(false);
-    let mut baseline_arm = pons::bidding::agreements::Agreements::current();
+    let mut baseline_arm = pons::bidding::agreements::Agreements::default();
+    baseline_arm.instinct.doubler_xx_runout = false;
     baseline_arm.decision.reading.penalty_latch = ns_penalty_latch;
     baseline_arm.decision.reading.landy_range = None;
     baseline_arm.decision.reading.notrump_defense = ew_defense;
@@ -445,8 +445,8 @@ fn main() {
     baseline_arm.defense.direct_landy_double_floor = 15;
     baseline_arm.defense.direct_landy_penalty_pass = false;
     let baseline = american(&baseline_arm).against();
-    set_doubler_xx_runout(ns_doubler_run);
-    let mut measured_arm = pons::bidding::agreements::Agreements::current();
+    let mut measured_arm = pons::bidding::agreements::Agreements::default();
+    measured_arm.instinct.doubler_xx_runout = ns_doubler_run;
     measured_arm.decision.reading.penalty_latch = ns_penalty_latch;
     // Preserve the family half of `--ns-landy-x-four-four`: a payload selects
     // Direct Landy, while an absent payload drops an explicit Direct-Landy

@@ -10,7 +10,7 @@ use super::features::{
     FEATURES_LEN_EVAL, FEATURES_LEN_EVAL_V3, FEATURES_LEN_EVAL_V4, features_eval, features_eval_v3,
     features_eval_v4,
 };
-use super::inference::{Inferences, ReadingProfile};
+use super::inference::Inferences;
 use super::rules::Rules;
 use super::trie::Classifier;
 use super::trie::Provenance;
@@ -84,19 +84,22 @@ impl ActiveEvaluatorFeatures {
 }
 
 /// Extract features through the same variant selection as public convenience
-/// serving, using the shipped [`ReadingProfile::default`] envelope-union
-/// regime.  Stance-bound serving selects from its explicit pinned profile.
+/// serving, using the shipped
+/// [`ReadingProfile::default`](crate::bidding::inference::ReadingProfile::default)
+/// envelope-union regime. Stance-bound serving selects from its explicit pinned
+/// profile.
 #[must_use]
 pub fn active_evaluator_features(
     hand: Hand,
     inferences: &Inferences,
     auction: &[Call],
 ) -> ActiveEvaluatorFeatures {
-    if !ReadingProfile::default().envelope_union {
+    let profile = super::context::DecisionProfile::default();
+    if !profile.reading.envelope_union {
         ActiveEvaluatorFeatures::V2(features_eval(hand, inferences))
-    } else if super::evaluator::eval_shape() {
+    } else if profile.eval_shape {
         ActiveEvaluatorFeatures::V4(features_eval_v4(hand, inferences, auction))
-    } else if !super::evaluator::eval_auction() {
+    } else if !profile.eval_auction {
         ActiveEvaluatorFeatures::V2(features_eval(hand, inferences))
     } else {
         ActiveEvaluatorFeatures::V3(features_eval_v3(hand, inferences, auction))

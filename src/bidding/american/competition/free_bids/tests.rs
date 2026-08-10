@@ -5,7 +5,7 @@ use contract_bridge::auction::Call;
 
 #[test]
 fn free_bids_fill_the_natural_gaps() {
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.competition.free_bids = true;
     // `1♠ (2♦)`: an 11-count with five hearts bids the 2/1-ish 2♥.
     let auction = [call(1, Strain::Spades), call(2, Strain::Diamonds)];
@@ -20,7 +20,7 @@ fn free_bids_fill_the_natural_gaps() {
 
 #[test]
 fn free_bid_floor_gates_the_marginal_hand() {
-    let mut at_6 = Agreements::current();
+    let mut at_6 = Agreements::default();
     at_6.competition.free_bids = true;
     at_6.competition.free_bid_floor = 6;
     let mut at_8 = at_6;
@@ -46,7 +46,7 @@ fn free_bid_floor_gates_the_marginal_hand() {
 
 #[test]
 fn negative_free_bid_is_weak_and_capped() {
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.competition.free_bid_style = super::free_bids::FreeBidStyle::Negative;
     let auction = [call(1, Strain::Clubs), call(1, Strain::Spades)];
     // 8 points with a six-card suit: the classic NFB.
@@ -70,7 +70,7 @@ fn negative_free_bid_is_weak_and_capped() {
 
 #[test]
 fn free_bid_transfers_swap_the_two_level() {
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.competition.free_bid_style = super::free_bids::FreeBidStyle::Transfer;
     // `1♣ (1♠)`: both red suits sit at the two level, so the slots swap
     // — 2♦ shows hearts, 2♥ shows diamonds (the wrap).
@@ -131,7 +131,7 @@ fn free_bid_transfers_swap_the_two_level() {
 /// 1NT at the default floor of 6.
 #[test]
 fn free_1nt_fires_at_default_floor() {
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.competition.free_1nt_floor = 6;
     let auction = [call(1, Strain::Clubs), call(1, Strain::Diamonds)];
     let (c, floored) = best_call_with(&arm, &auction, "Q54.J54.KJ32.543");
@@ -144,7 +144,7 @@ fn free_1nt_fires_at_default_floor() {
 #[test]
 fn free_1nt_dropped_above_raised_floor() {
     let auction = [call(1, Strain::Clubs), call(1, Strain::Diamonds)];
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.competition.free_1nt_floor = 8;
     let (c, _) = best_call_with(&arm, &auction, "Q54.J54.KJ32.543");
     assert_ne!(

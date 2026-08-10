@@ -156,7 +156,7 @@ pub struct ReadingProfile {
     /// statistic that stays honest when the deviant system is itself weaker.
     ///
     /// Distinct from
-    /// [`features::set_blind_inference`][crate::bidding::features::set_blind_inference],
+    /// [`DecisionProfile::blind_inference`][crate::bidding::context::DecisionProfile::blind_inference],
     /// which blanks all four seats and only for the nets — this one cuts at
     /// the source, so the sampler, the floor and the evaluator all go blind
     /// together.  The two are **not** comparable; the historical blind control

@@ -36,7 +36,12 @@ fn fixed_evaluator_extractors_match_the_vec_reference_bit_for_bit() {
     let inferences = Inferences::read(&context);
 
     let mut v2 = Vec::with_capacity(FEATURES_LEN_EVAL);
-    push_eval_base(&mut v2, blind_inference(), cards, &inferences);
+    push_eval_base(
+        &mut v2,
+        DecisionProfile::default().blind_inference,
+        cards,
+        &inferences,
+    );
     assert_feature_bits(features_eval(cards, &inferences), v2.clone());
 
     let mut v3 = v2;
@@ -53,12 +58,21 @@ fn fixed_evaluator_extractors_match_the_vec_reference_bit_for_bit() {
     let mut v4 = Vec::with_capacity(FEATURES_LEN_EVAL_V4);
     push_hand_eval(&mut v4, cards);
     for who in [Relative::Lho, Relative::Partner, Relative::Rho] {
-        push_points(&mut v4, shown(blind_inference(), inferences.announced(who)));
+        push_points(
+            &mut v4,
+            shown(
+                DecisionProfile::default().blind_inference,
+                inferences.announced(who),
+            ),
+        );
         push_shape_gauss(
             &mut v4,
             &shape_of(
                 &unseen,
-                shown_boxes(blind_inference(), inferences.announced_union(who)),
+                shown_boxes(
+                    DecisionProfile::default().blind_inference,
+                    inferences.announced_union(who),
+                ),
             ),
         );
     }
@@ -73,12 +87,19 @@ fn fixed_evaluator_extractors_match_the_vec_reference_bit_for_bit() {
     let mut shape = Vec::with_capacity(FEATURES_LEN_EVAL_SHAPE);
     push_hand_eval(&mut shape, cards);
     for who in [Relative::Lho, Relative::Partner, Relative::Rho] {
-        push_inference(&mut shape, blind_inference(), inferences.announced(who));
+        push_inference(
+            &mut shape,
+            DecisionProfile::default().blind_inference,
+            inferences.announced(who),
+        );
         push_shape_dist(
             &mut shape,
             &shape_of(
                 &unseen,
-                shown_boxes(blind_inference(), inferences.announced_union(who)),
+                shown_boxes(
+                    DecisionProfile::default().blind_inference,
+                    inferences.announced_union(who),
+                ),
             ),
         );
     }
@@ -94,12 +115,22 @@ fn fixed_evaluator_extractors_match_the_vec_reference_bit_for_bit() {
     let mut points = Vec::with_capacity(FEATURES_LEN_EVAL_POINTS);
     push_hand_eval(&mut points, cards);
     for who in [Relative::Lho, Relative::Partner, Relative::Rho] {
-        push_inference(&mut points, blind_inference(), inferences.announced(who));
-        let boxes = shown_boxes(blind_inference(), inferences.announced_union(who));
+        push_inference(
+            &mut points,
+            DecisionProfile::default().blind_inference,
+            inferences.announced(who),
+        );
+        let boxes = shown_boxes(
+            DecisionProfile::default().blind_inference,
+            inferences.announced_union(who),
+        );
         push_shape_gauss(&mut points, &shape_of(&unseen, boxes));
         push_hcp_ends(
             &mut points,
-            shown(blind_inference(), inferences.announced(who)),
+            shown(
+                DecisionProfile::default().blind_inference,
+                inferences.announced(who),
+            ),
         );
         push_hcp_gauss(&mut points, &hcp_of(&honours, boxes));
     }
@@ -178,8 +209,16 @@ fn shape_block_is_invariant_to_the_sum_closure() {
     let closed = lengths([(0, 3), (0, 3), (5, 8), (5, 8)]);
 
     let mut endpoints = (Vec::new(), Vec::new());
-    push_inference(&mut endpoints.0, blind_inference(), &open);
-    push_inference(&mut endpoints.1, blind_inference(), &closed);
+    push_inference(
+        &mut endpoints.0,
+        DecisionProfile::default().blind_inference,
+        &open,
+    );
+    push_inference(
+        &mut endpoints.1,
+        DecisionProfile::default().blind_inference,
+        &closed,
+    );
     assert_ne!(endpoints.0, endpoints.1, "the closure moves the endpoints");
 
     for cards in [SPREAD_HAND, "AQ32.K53.QJ4.A92"] {
@@ -530,10 +569,8 @@ fn blind_inference_blanks_the_shape_block() {
     let inferences = Inferences::read(&ctx);
     let cards = hand(SPREAD_HAND);
 
-    let seeing = features_eval_shape(cards, &inferences, &auction);
-    set_blind_inference(true);
-    let blind = features_eval_shape(cards, &inferences, &auction);
-    set_blind_inference(false);
+    let seeing = features_eval_shape_on(false, cards, &inferences, &auction);
+    let blind = features_eval_shape_on(true, cards, &inferences, &auction);
 
     assert_ne!(seeing, blind, "an opened auction shows something");
     let prior = shape_block(SPREAD_HAND, None);
@@ -603,9 +640,12 @@ fn blind_inference_blanks_only_the_reading_block() {
     let hand = hand("AKQ32.K532.QJ4.9");
 
     let seen = features_v3(hand, &ctx);
-    set_blind_inference(true);
-    let blind = features_v3(hand, &ctx);
-    set_blind_inference(false); // restore the default before any assert
+    let profile = DecisionProfile {
+        blind_inference: true,
+        ..Default::default()
+    };
+    let blind_ctx = Context::new(RelativeVulnerability::NONE, &auction).with_profile(profile);
+    let blind = features_v3(hand, &blind_ctx);
 
     let block = OFFSET_INFERENCES..OFFSET_INFERENCES + LEN_INFERENCES;
     assert_ne!(
@@ -831,13 +871,13 @@ fn penalty_one_hot() {
 #[test]
 fn card_block_is_the_whole_card() {
     assert_eq!(
-        crate::bidding::card::american_card(&crate::bidding::agreements::Agreements::current())
+        crate::bidding::card::american_card(&crate::bidding::agreements::Agreements::default())
             .rows
             .len(),
         LEN_CARD_ROWS
     );
     assert_eq!(
-        crate::bidding::card::dutch_card(&crate::bidding::agreements::Agreements::current())
+        crate::bidding::card::dutch_card(&crate::bidding::agreements::Agreements::default())
             .rows
             .len(),
         LEN_CARD_ROWS
@@ -856,10 +896,10 @@ fn card_block_is_the_whole_card() {
 #[test]
 fn the_base_system_is_encoded() {
     let american = Config::symmetric(&crate::bidding::card::american_card(
-        &crate::bidding::agreements::Agreements::current(),
+        &crate::bidding::agreements::Agreements::default(),
     ));
     let dutch = Config::symmetric(&crate::bidding::card::dutch_card(
-        &crate::bidding::agreements::Agreements::current(),
+        &crate::bidding::agreements::Agreements::default(),
     ));
 
     assert_eq!(american.ours[..LEN_SYSTEM], [1.0, 0.0, 0.0, 0.0, 0.0]);
@@ -886,8 +926,8 @@ fn the_base_system_is_encoded() {
 #[test]
 fn the_two_sides_are_independent() {
     let mixed = Config::new(
-        &crate::bidding::card::american_card(&crate::bidding::agreements::Agreements::current()),
-        &crate::bidding::card::dutch_card(&crate::bidding::agreements::Agreements::current()),
+        &crate::bidding::card::american_card(&crate::bidding::agreements::Agreements::default()),
+        &crate::bidding::card::dutch_card(&crate::bidding::agreements::Agreements::default()),
     );
     assert_eq!(mixed.ours[..LEN_SYSTEM], [1.0, 0.0, 0.0, 0.0, 0.0]);
     assert_eq!(mixed.theirs[..LEN_SYSTEM], [0.0, 0.0, 1.0, 0.0, 0.0]);
@@ -899,7 +939,7 @@ fn the_two_sides_are_independent() {
 fn features_v4_extends_v3_in_place() {
     let hand = hand("AQ32.K53.QJ4.A92");
     let config = Config::symmetric(&crate::bidding::card::american_card(
-        &crate::bidding::agreements::Agreements::current(),
+        &crate::bidding::agreements::Agreements::default(),
     ));
     let auction = [bid(1, Strain::Spades)];
     let context = Context::new(RelativeVulnerability::NONE, &auction).with_config(&config);
@@ -930,7 +970,7 @@ fn features_v4_extends_v3_in_place() {
 fn a_convention_knob_moves_the_card_block() {
     use crate::bidding::instinct::RkcbVariant;
 
-    let plain_agreements = crate::bidding::agreements::Agreements::current();
+    let plain_agreements = crate::bidding::agreements::Agreements::default();
     let plain = Config::symmetric(&crate::bidding::card::american_card(&plain_agreements));
     let mut relocated_agreements = plain_agreements;
     relocated_agreements.decision.reading.rkcb_variant = RkcbVariant::Kickback;
@@ -969,7 +1009,7 @@ fn a_convention_knob_moves_the_card_block() {
 #[test]
 fn bare_and_prefixed_contexts_disagree() {
     let stance =
-        crate::bidding::american(&crate::bidding::agreements::Agreements::current()).against();
+        crate::bidding::american(&crate::bidding::agreements::Agreements::default()).against();
     // An artificial call whose meaning lives in its authoring rule: the
     // Jacoby 2NT game-forcing raise.  A bare context cannot project it.
     let auction = [
@@ -1059,7 +1099,7 @@ fn compact_layout_is_pinned() {
         0.0, // 27: landy — `landy_range` off
     ];
     assert_eq!(
-        ConventionCard::capture(&crate::bidding::agreements::Agreements::current(), false).encode(),
+        ConventionCard::capture(&crate::bidding::agreements::Agreements::default(), false).encode(),
         expected
     );
 }
@@ -1075,7 +1115,7 @@ fn one_hot_blocks_are_exclusive() {
         }
     };
     let mut agreements =
-        ConventionCard::capture(&crate::bidding::agreements::Agreements::current(), false);
+        ConventionCard::capture(&crate::bidding::agreements::Agreements::default(), false);
     check(agreements);
     for shape in [
         NotrumpShape::Balanced,
@@ -1116,15 +1156,15 @@ fn one_hot_blocks_are_exclusive() {
 fn projection_agrees_with_capture_at_defaults() {
     assert_eq!(
         ConventionCard::from_card(&crate::bidding::card::american_card(
-            &crate::bidding::agreements::Agreements::current()
+            &crate::bidding::agreements::Agreements::default()
         )),
-        ConventionCard::capture(&crate::bidding::agreements::Agreements::current(), false)
+        ConventionCard::capture(&crate::bidding::agreements::Agreements::default(), false)
     );
     assert_eq!(
         ConventionCard::from_card(&crate::bidding::card::dutch_card(
-            &crate::bidding::agreements::Agreements::current()
+            &crate::bidding::agreements::Agreements::default()
         )),
-        ConventionCard::capture(&crate::bidding::agreements::Agreements::current(), true)
+        ConventionCard::capture(&crate::bidding::agreements::Agreements::default(), true)
     );
 }
 
@@ -1132,9 +1172,9 @@ fn projection_agrees_with_capture_at_defaults() {
 #[test]
 fn features_v5_appends_both_blocks() {
     let hand = hand("AQ32.K53.QJ4.A92");
-    let ours = ConventionCard::capture(&crate::bidding::agreements::Agreements::current(), false);
+    let ours = ConventionCard::capture(&crate::bidding::agreements::Agreements::default(), false);
     let theirs = ConventionCard::from_card(&crate::bidding::card::dutch_card(
-        &crate::bidding::agreements::Agreements::current(),
+        &crate::bidding::agreements::Agreements::default(),
     ));
     let compact = CompactConfig::new(&ours, &theirs);
     let auction = [bid(1, Strain::Spades)];
@@ -1232,7 +1272,7 @@ fn each_compact_axis_moves_its_slots_and_only_live_ones_move_the_net() {
             .collect::<Vec<u32>>()
     };
 
-    let base = ConventionCard::capture(&crate::bidding::agreements::Agreements::current(), false);
+    let base = ConventionCard::capture(&crate::bidding::agreements::Agreements::default(), false);
     let base_slots = base.encode();
     let baseline = logits(&base);
 
@@ -1254,71 +1294,71 @@ fn each_compact_axis_moves_its_slots_and_only_live_ones_move_the_net() {
     // arm — `capture` takes it as a parameter.
     check(
         "dutch",
-        ConventionCard::capture(&crate::bidding::agreements::Agreements::current(), true),
+        ConventionCard::capture(&crate::bidding::agreements::Agreements::default(), true),
         &[0],
     );
 
     // The build-time axes arm the captured value directly.
-    let mut offshape = crate::bidding::agreements::Agreements::current();
+    let mut offshape = crate::bidding::agreements::Agreements::default();
     offshape.opening.one_notrump_offshape = true;
     check(
         "one_notrump_offshape",
         ConventionCard::capture(&offshape, false),
         &[12],
     );
-    let mut shape = crate::bidding::agreements::Agreements::current();
+    let mut shape = crate::bidding::agreements::Agreements::default();
     shape.opening.notrump_shape = NotrumpShape::Balanced;
     check("shape", ConventionCard::capture(&shape, false), &[13, 15]);
-    let mut nmf = crate::bidding::agreements::Agreements::current();
+    let mut nmf = crate::bidding::agreements::Agreements::default();
     nmf.rebid.new_minor_forcing = true;
     check(
         "new_minor_forcing",
         ConventionCard::capture(&nmf, false),
         &[3],
     );
-    let mut fsf = crate::bidding::agreements::Agreements::current();
+    let mut fsf = crate::bidding::agreements::Agreements::default();
     fsf.rebid.fourth_suit_forcing = false;
     check(
         "fourth_suit_forcing",
         ConventionCard::capture(&fsf, false),
         &[6],
     );
-    let mut super_accept = crate::bidding::agreements::Agreements::current();
+    let mut super_accept = crate::bidding::agreements::Agreements::default();
     super_accept.notrump.transfer_super_accept = true;
     check(
         "transfer_super_accept",
         ConventionCard::capture(&super_accept, false),
         &[5],
     );
-    let mut jordan = crate::bidding::agreements::Agreements::current();
+    let mut jordan = crate::bidding::agreements::Agreements::default();
     jordan.competition.jordan_truscott = false;
     check(
         "jordan_truscott",
         ConventionCard::capture(&jordan, false),
         &[7],
     );
-    let mut support_double = crate::bidding::agreements::Agreements::current();
+    let mut support_double = crate::bidding::agreements::Agreements::default();
     support_double.competition.major_support_double = false;
     check(
         "major_support_double",
         ConventionCard::capture(&support_double, false),
         &[10],
     );
-    let mut lebensohl = crate::bidding::agreements::Agreements::current();
+    let mut lebensohl = crate::bidding::agreements::Agreements::default();
     lebensohl.competition.lebensohl_style = LebensohlStyle::Off;
     check(
         "lebensohl",
         ConventionCard::capture(&lebensohl, false),
         &[23, 25],
     );
-    let mut leaping = crate::bidding::agreements::Agreements::current();
+    let mut leaping = crate::bidding::agreements::Agreements::default();
     leaping.defense.leaping_michaels_enabled = false;
     check(
         "leaping_michaels",
         ConventionCard::capture(&leaping, false),
         &[8],
     );
-    let mut responsive = crate::bidding::agreements::Agreements::current();
+    let mut responsive = crate::bidding::agreements::Agreements::default();
     responsive.defense.responsive_takeout_enabled = false;
     check(
         "responsive_takeout",
@@ -1370,7 +1410,7 @@ fn each_compact_axis_moves_its_slots_and_only_live_ones_move_the_net() {
     ];
 
     for (name, arm, expect) in rows {
-        let mut agreements = Agreements::current();
+        let mut agreements = Agreements::default();
         arm(&mut agreements);
         let flipped = ConventionCard::capture(&agreements, false);
         check(name, flipped, expect);

@@ -204,7 +204,7 @@ struct Args {
 
 /// Capture both halves of `arm` in one agreements value.
 fn arm_agreements(arm: Arm) -> pons::bidding::agreements::Agreements {
-    let mut agreements = pons::bidding::agreements::Agreements::current();
+    let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.reading.rkcb_variant = arm.variant();
     agreements.decision.instinct.keycard_minors = arm.minors();
     agreements

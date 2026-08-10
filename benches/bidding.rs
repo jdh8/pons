@@ -279,10 +279,10 @@ fn allocation_report(
 
 fn bidding(c: &mut Criterion) {
     let positions = support::parse_corpus().expect("valid frozen bidding corpus");
-    let pair = american(&pons::bidding::agreements::Agreements::current());
+    let pair = american(&pons::bidding::agreements::Agreements::default());
     let stance = pair.against();
     let deterministic =
-        american_instinct(&pons::bidding::agreements::Agreements::current()).against();
+        american_instinct(&pons::bidding::agreements::Agreements::default()).against();
     validate_categories(&stance, &deterministic, &positions);
     let hot_instinct: Vec<_> = positions
         .iter()
@@ -364,7 +364,7 @@ fn bidding(c: &mut Criterion) {
         &inferences[0],
         &positions[0].auction,
     ));
-    let ladder = instinct(&pons::bidding::agreements::Agreements::current());
+    let ladder = instinct(&pons::bidding::agreements::Agreements::default());
     black_box(classify_instinct_scoped(
         &stance,
         &ladder,

@@ -102,14 +102,14 @@ fn test_responsive_overcall_double_toggle() {
     ];
     let hand = "KQ54.32.KQ54.932";
 
-    let mut on = Agreements::current();
+    let mut on = Agreements::default();
     on.defense.responsive_overcall_enabled = true;
     assert_eq!(
         best_call(&american(&on).against(), &auction, hand),
         Call::Double
     );
 
-    let mut off = Agreements::current();
+    let mut off = Agreements::default();
     off.defense.responsive_overcall_enabled = false;
     assert_ne!(
         best_call(&american(&off).against(), &auction, hand),

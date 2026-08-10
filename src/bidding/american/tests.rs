@@ -33,7 +33,7 @@ pub(super) fn best_on(
 #[test]
 fn row_package_invariants() {
     crate::bidding::rows::assert_package_invariants(
-        &Agreements::current(),
+        &Agreements::default(),
         &[
             openings::package(),
             weak_twos::package(),
@@ -126,7 +126,7 @@ fn the_default_floor_reads_the_live_agreements() {
             .expect("the floor always answers")
     };
 
-    let plain_agreements = crate::bidding::agreements::Agreements::current();
+    let plain_agreements = crate::bidding::agreements::Agreements::default();
     let plain = logits(&american(&plain_agreements).against());
     let mut relocated_agreements = plain_agreements;
     relocated_agreements.decision.reading.rkcb_variant = RkcbVariant::Kickback;

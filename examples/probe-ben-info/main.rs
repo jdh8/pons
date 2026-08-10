@@ -142,7 +142,7 @@ const SEAT_CHARS: [char; 4] = ['N', 'E', 'S', 'W'];
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
-    let mut agreements = pons::bidding::agreements::Agreements::current();
+    let mut agreements = pons::bidding::agreements::Agreements::default();
     if args.sound_reading {
         agreements.decision.reading.cue = true;
         agreements.decision.reading.length_soundness = true;

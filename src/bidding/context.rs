@@ -87,7 +87,7 @@ pub struct Context<'a> {
     /// see [`Context::with_profile`].  `None` outranked by both the decision
     /// cache and an attached stance; it is what keeps a context built off the
     /// reader's auction (`Context::at_each_turn`) reading under the reader's
-    /// pin instead of the thread's live knobs.
+    /// pin instead of the bare-context defaults.
     pinned_profile: Option<DecisionProfile>,
     revision: u64,
     decision_cache: Option<Arc<DecisionCache>>,
@@ -99,8 +99,7 @@ pub struct Context<'a> {
 /// [`Stance`] is built ([`Pair::against`][super::book::Pair::against]) and
 /// pinned there: every classify-time knob read serves off the stance's copy,
 /// so a built stance is a pure value that any thread can classify through.  A
-/// bare context with no attached system uses `DecisionProfile::current`: the
-/// remaining live cells plus the shipped [`InstinctProfile`] default.
+/// A bare context with no attached system uses [`DecisionProfile::default`].
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct DecisionProfile {
     /// The settings that can change a full-auction reading
@@ -110,7 +109,7 @@ pub struct DecisionProfile {
     pub reading: ReadingProfile,
     /// The settings the deterministic floor consults *during* classification
     ///
-    /// Build-time cells are deliberately absent: each is read only inside
+    /// Build-time settings are deliberately absent: each is read only inside
     /// [`instinct`][super::instinct()]'s table builder, so it is already baked
     /// into the rules that come back and needs no pin.  See
     /// [`InstinctProfile`].
@@ -301,34 +300,12 @@ impl Default for DecisionProfile {
     }
 }
 
-impl DecisionProfile {
-    /// Snapshot the remaining thread-local knob state
-    pub(crate) fn current() -> Self {
-        Self {
-            reading: ReadingProfile::default(),
-            instinct: InstinctProfile::default(),
-            eval_auction: super::evaluator::eval_auction(),
-            eval_shape: super::evaluator::eval_shape(),
-            blind_inference: super::features::blind_inference(),
-            two_over_one_force: super::instinct::two_over_one_force(),
-            fuzzy_fifths: super::constraint::fuzzy_fifths_now(),
-            fifths_companion: super::constraint::fifths_companion_now(),
-            stayman_net_force: super::american::stayman_net_force(),
-            transfer_gf_majors: super::american::transfer_gf_majors(),
-            transfer_gf_hearts: super::american::transfer_gf_hearts(),
-        }
-    }
-}
-
 /// Values shared by every classifier consulted for one immutable decision
 struct DecisionCache {
     hand: Hand,
     revision: u64,
     thread: ThreadId,
     profile: DecisionProfile,
-    /// Whether `profile` came pinned off a [`Stance`] (immune to later setter
-    /// calls) rather than captured from this thread's mutable state
-    pinned: bool,
     inferences: OnceLock<Inferences>,
     trick_estimates: OnceLock<TrickEstimates>,
     interpretation: OnceLock<Interpretation>,
@@ -450,7 +427,6 @@ impl DecisionCache {
         revision: u64,
         thread: ThreadId,
         profile: DecisionProfile,
-        pinned: bool,
         rule_face_slots: usize,
     ) -> Self {
         Self {
@@ -458,7 +434,6 @@ impl DecisionCache {
             revision,
             thread,
             profile,
-            pinned,
             inferences: OnceLock::new(),
             trick_estimates: OnceLock::new(),
             interpretation: OnceLock::new(),
@@ -493,12 +468,6 @@ impl DecisionCache {
         debug_assert!(
             self.thread == thread::current().id(),
             "a decision cache crossed its creating thread"
-        );
-        // A pinned profile is immune to setter calls by construction; only a
-        // capture off the thread's mutable state can drift mid-decision.
-        debug_assert!(
-            self.pinned || self.profile == DecisionProfile::current(),
-            "a reading or evaluator setting changed during one decision"
         );
     }
 }
@@ -624,10 +593,9 @@ impl<'a> Context<'a> {
     ///
     /// The reading walks each turn of the auction through a context of its own
     /// (`at_each_turn`), and those carry no stance to pin
-    /// them.  Without this they would read under whatever knobs the *thread*
-    /// happens to hold, which is exactly the live read the pin exists to
-    /// remove — and on a rayon worker that is the shipped defaults, whatever
-    /// the reader was built under.  An attached stance still outranks it.
+    /// them.  Without this they would fall back to shipped defaults rather than
+    /// the profile the reader was built from.  An attached stance still
+    /// outranks it.
     #[must_use]
     pub const fn with_profile(mut self, profile: DecisionProfile) -> Self {
         self.pinned_profile = Some(profile);
@@ -756,11 +724,11 @@ impl<'a> Context<'a> {
     fn install_decision_cache(&mut self, hand: Hand, rule_face_slots: usize) {
         let thread = thread::current().id();
         // The profile pinned into the serving stance or explicit diagnostic
-        // context, falling back to the thread's live state only when bare.
-        let (profile, pinned) = match (self.own_system, self.pinned_profile) {
-            (Some(system), _) => (system.profile(), true),
-            (None, Some(profile)) => (profile, true),
-            (None, None) => (DecisionProfile::current(), false),
+        // context, falling back to shipped defaults only when bare.
+        let profile = match (self.own_system, self.pinned_profile) {
+            (Some(system), _) => system.profile(),
+            (None, Some(profile)) => profile,
+            (None, None) => DecisionProfile::default(),
         };
         let reusable = self.decision_cache.as_deref().is_some_and(|cache| {
             cache.reusable(hand, self.revision, thread, profile, rule_face_slots)
@@ -771,7 +739,6 @@ impl<'a> Context<'a> {
                 self.revision,
                 thread,
                 profile,
-                pinned,
                 rule_face_slots,
             )));
         }
@@ -811,14 +778,13 @@ impl<'a> Context<'a> {
     /// chain, over the whole profile
     ///
     /// What the [instinct floor][super::instinct()] reads from inside a
-    /// predicate: the closures run per decision, so a live thread-local read
-    /// there is exactly what pinning removes.
+    /// predicate: the closures run per decision and must use the stance's pin.
     pub(crate) fn decision_profile(&self) -> DecisionProfile {
         self.active_decision_cache().map_or_else(
             || match (self.own_system, self.pinned_profile) {
                 (Some(system), _) => system.profile(),
                 (None, Some(profile)) => profile,
-                (None, None) => DecisionProfile::current(),
+                (None, None) => DecisionProfile::default(),
             },
             |cache| cache.profile,
         )

@@ -174,7 +174,7 @@ fn main() {
     // both-minors 2NT overcall (the environment that creates the auction) is on
     // for both, so the divergence isolates the UvU response.
     let range = Some((args.opp_lo, args.opp_hi));
-    let mut arm = pons::bidding::agreements::Agreements::current();
+    let mut arm = pons::bidding::agreements::Agreements::default();
     arm.defense.unusual_notrump_range = range;
     arm.competition.uvu = false;
     let baseline = american(&arm).against();

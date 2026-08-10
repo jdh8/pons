@@ -153,7 +153,7 @@ fn test_answer_negative_double_bids_other_major() {
 
 /// A stance whose competitive book reads their `(2♦)` over our `1NT` as a Multi
 fn stance_with_2d_multi(on: bool) -> Stance {
-    let mut arm = pons::bidding::agreements::Agreements::current();
+    let mut arm = pons::bidding::agreements::Agreements::default();
     arm.competition.defense_2d_multi = on;
     american(&arm).against()
 }
@@ -190,7 +190,7 @@ fn competitive_4333_knob_gates_the_cue_stayman() {
     // field is read at book construction, so each arm builds its own stance.
     use pons::bidding::american::Competitive4333;
     let arm = |school| {
-        let mut agreements = pons::bidding::agreements::Agreements::current();
+        let mut agreements = pons::bidding::agreements::Agreements::default();
         agreements.competition.competitive_4333 = school;
         american(&agreements).against()
     };
@@ -227,7 +227,7 @@ fn competitive_4333_knob_gates_the_cue_stayman() {
 }
 
 // ---------------------------------------------------------------------------
-// Section: opener's competitive long-suit rebid (`set_competitive_rebid`)
+// Section: opener's competitive long-suit rebid
 // ---------------------------------------------------------------------------
 
 #[test]
@@ -238,9 +238,9 @@ fn competitive_rebid_reaches_the_missed_game() {
     // raise ladder then carries East (14 opposite a shown 6+) to the cold
     // diamond game (5♦ makes 11 tricks double-dummy). Both sides through the
     // real stance: the fix is opener's rebid alone, responder was never broken.
-    use pons::bidding::instinct::set_competitive_rebid;
-    set_competitive_rebid(true);
-    let system = stance();
+    let mut agreements = pons::bidding::agreements::Agreements::default();
+    agreements.instinct.competitive_rebid = true;
+    let system = american(&agreements).against();
 
     let after_raise = [
         call(1, Strain::Diamonds),
@@ -274,7 +274,7 @@ fn competitive_rebid_reaches_the_missed_game() {
         call(5, Strain::Diamonds),
         "responder raises the shown suit"
     );
-    let mut legacy_agreements = pons::bidding::agreements::Agreements::current();
+    let mut legacy_agreements = pons::bidding::agreements::Agreements::default();
     legacy_agreements.decision.reading.envelope_union = false;
     let legacy_system = american(&legacy_agreements).against();
     assert_eq!(
@@ -282,8 +282,6 @@ fn competitive_rebid_reaches_the_missed_game() {
         call(5, Strain::Diamonds),
         "legacy hull read raises to the diamond game"
     );
-
-    set_competitive_rebid(false); // restore the default
 }
 
 // ---------------------------------------------------------------------------
@@ -313,7 +311,7 @@ fn doubled_splinter_runs_systems_on() {
     let hand = "A9543.AT75.A2.A4";
 
     let arm = |systems_on| {
-        let mut agreements = pons::bidding::agreements::Agreements::current();
+        let mut agreements = pons::bidding::agreements::Agreements::default();
         agreements.competition.splinter_doubled = systems_on;
         american(&agreements).against()
     };

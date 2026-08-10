@@ -177,7 +177,7 @@ fn main() {
     };
     let (lo, hi) = band(&args.on_ns_overcall);
     // Each arm carries its own competitive, defensive, and reading values.
-    let mut on_arm = pons::bidding::agreements::Agreements::current();
+    let mut on_arm = pons::bidding::agreements::Agreements::default();
     on_arm.decision.reading.natural_overcall_points = (lo, hi);
     on_arm.competition.free_bids = args.on_ns_free_bids;
     on_arm.competition.negative_double_shape = shape(&args.on_ns_negative_double_shape);
@@ -189,7 +189,7 @@ fn main() {
     let stance_on = american(&on_arm).against();
     let (lo, hi) = band(&args.off_ns_overcall);
     // The OFF arm is the shipped pole, spelled out rather than inherited.
-    let mut off_arm = pons::bidding::agreements::Agreements::current();
+    let mut off_arm = pons::bidding::agreements::Agreements::default();
     off_arm.decision.reading.natural_overcall_points = (lo, hi);
     off_arm.competition.free_bids = false;
     off_arm.competition.negative_double_shape = NegativeDoubleShape::Modern;

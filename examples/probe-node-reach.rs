@@ -47,7 +47,7 @@ fn main() {
     let args = Args::parse();
     let base = args.seed.unwrap_or_else(rand::random);
     let vul = AbsoluteVulnerability::NONE;
-    let stance = american(&pons::bidding::agreements::Agreements::current()).against();
+    let stance = american(&pons::bidding::agreements::Agreements::default()).against();
 
     // The constructive book re-audit candidates (ben-gap-campaign.md), plus the
     // retired game backstop's own anchor as the calibration yardstick: it fired

@@ -30,7 +30,7 @@ fn unread_compiled_effects_preserve_opaque_face_and_projection_hooks() {
     use crate::bidding::rules::Rules;
 
     let one_club = bid(1, Strain::Clubs);
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.scope = ReadingScope::Alerted;
     agreements.decision.reading.pass_exclusion = false;
     agreements.decision.reading.announced = false;
@@ -147,7 +147,7 @@ fn deal_cache_rejects_observable_faces_and_projections_before_hooks_run() {
             }),
     );
     let mut pair = Pair {
-        agreements: Agreements::current(),
+        agreements: Agreements::default(),
         ..Default::default()
     };
     pair.agreements.decision.reading.scope = ReadingScope::Alerted;
@@ -219,7 +219,7 @@ fn opaque_routes_keep_legacy_invocation_order_and_disable_step_cache() {
     };
 
     let mut pair = Pair {
-        agreements: Agreements::current(),
+        agreements: Agreements::default(),
         ..Default::default()
     };
     pair.agreements.decision.reading.scope = ReadingScope::Alerted;
@@ -290,7 +290,7 @@ fn later_opaque_route_does_not_speculatively_consult_an_earlier_face() {
     let opaque_target: Arc<dyn Classifier> = Arc::new(Rules::new());
 
     let mut pair = Pair {
-        agreements: Agreements::current(),
+        agreements: Agreements::default(),
         ..Default::default()
     };
     pair.agreements.decision.reading.scope = ReadingScope::Alerted;
@@ -349,7 +349,7 @@ fn opaque_route_on_unused_routed_prefix_is_never_invoked() {
     let classifier: Arc<dyn Classifier> =
         Arc::new(Rules::new().rule(Call::Pass, 0, crate::bidding::constraint::hcp(0..)));
     let mut pair = Pair {
-        agreements: Agreements::current(),
+        agreements: Agreements::default(),
         ..Default::default()
     };
     pair.agreements.decision.reading.scope = ReadingScope::Alerted;

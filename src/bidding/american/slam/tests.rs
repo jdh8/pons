@@ -35,7 +35,7 @@ fn row_package_invariants() {
     }
 
     crate::bidding::rows::assert_package_invariants(
-        &Agreements::current(),
+        &Agreements::default(),
         &[
             package("rkcb:♠", |_| rkcb_rows("P* 1♠ - 3♠ -", Suit::Spades)),
             package("rkcb:♥", |_| rkcb_rows("P* 1♥ - 3♥ -", Suit::Hearts)),

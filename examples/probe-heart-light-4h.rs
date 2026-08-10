@@ -81,8 +81,8 @@ fn main() {
     let vul = AbsoluteVulnerability::NONE;
 
     // Two books, built once — the knob is read at construction, not classify time.
-    let baseline = american(&Agreements::current()).against();
-    let mut light = Agreements::current();
+    let baseline = american(&Agreements::default()).against();
+    let mut light = Agreements::default();
     light.response.two_over_one_heart_light = true;
     let candidate = american(&light).against();
 

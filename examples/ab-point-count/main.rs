@@ -220,7 +220,7 @@ impl Fix {
     /// Every fix is a field of the value now; the capture picks up whatever
     /// cells remain ambient and the fields are set on top of it.
     fn set(self, on: bool) -> Agreements {
-        let mut agreements = Agreements::current();
+        let mut agreements = Agreements::default();
         match self {
             Self::StrongDoubleHcp(n) => agreements.defense.strong_double_hcp = on.then_some(n),
             Self::TwoSuiterHcp(n) => agreements.defense.two_suiter_hcp_floor = on.then_some(n),
@@ -498,14 +498,14 @@ fn main() {
     // matter, so a single reading serves both arms (a deliberate simplification —
     // we do not flip the knob for inference, unlike the per-arm books below).
     // Built first, before any arm is armed, so it is the default-flag book.
-    let infer_stance = american(&pons::bidding::agreements::Agreements::current()).against();
+    let infer_stance = american(&pons::bidding::agreements::Agreements::default()).against();
 
     // Two books, `[baseline, candidate]`.  Every arm bakes its difference in at
     // build — the scale knobs are pinned into a stance, so a per-call flip would
     // be inert.
     let stances = match arms {
         Arms::WeakTwoHcp { band } => {
-            let shipped = pons::bidding::agreements::Agreements::current();
+            let shipped = pons::bidding::agreements::Agreements::default();
             let baseline = american(&shipped).against();
             let mut armed = shipped;
             armed.opening.weak_two_hcp = Some(band);
@@ -531,7 +531,7 @@ fn main() {
         // Narrowing the registry guard to the four cells that actually drive the
         // projection bake is the fix.
         _ => {
-            let shipped = pons::bidding::agreements::Agreements::current();
+            let shipped = pons::bidding::agreements::Agreements::default();
             let mut baseline = american(&shipped).against();
             let mut candidate = american(&shipped).against();
             arms.apply(baseline.profile_mut(), false);

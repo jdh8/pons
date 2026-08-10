@@ -95,7 +95,7 @@ fn main() {
     let vul = args.vulnerability;
 
     // Two systems: the knob is baked into the book, so build one each way.
-    let mut arm = pons::bidding::agreements::Agreements::current();
+    let mut arm = pons::bidding::agreements::Agreements::default();
     arm.notrump.long_minor_force = false;
     let sys_off = american(&arm).against();
     arm.notrump.long_minor_force = true;

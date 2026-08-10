@@ -25,7 +25,7 @@ use contract_bridge::auction::{Auction, Call};
 use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Hand, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::constraint::{PointScale, set_fuzzy_fifths};
+use pons::bidding::constraint::PointScale;
 use pons::bidding::context::relative;
 use pons::bidding::{Inferences, Stance, System};
 use pons::scoring::{final_contract, ns_score_pd_tricks, ns_score_tricks};
@@ -66,8 +66,8 @@ impl Policy {
         } else {
             PointScale::Hcp
         };
-        set_fuzzy_fifths(fifths);
-        let mut agreements = pons::bidding::agreements::Agreements::current();
+        let mut agreements = pons::bidding::agreements::Agreements::default();
+        agreements.decision.fuzzy_fifths = fifths;
         agreements.decision.reading.point_scale = point_scale;
         american(&agreements).against()
     }
@@ -195,7 +195,7 @@ fn main() {
     // both arms (a deliberate simplification — we do not flip the fuzzy flags for
     // inference, unlike per-call bidding above).  Built first, before either arm
     // arms a gauge, so it stays the default-flag book it has always been.
-    let infer_stance = american(&pons::bidding::agreements::Agreements::current()).against();
+    let infer_stance = american(&pons::bidding::agreements::Agreements::default()).against();
     // `[off, on]` for this policy's gauges, indexed by the acting side.
     let stances = [policy.stance(false), policy.stance(true)];
 

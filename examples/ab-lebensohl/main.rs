@@ -559,7 +559,7 @@ fn main() {
     // exactly the knobs its `set_*` calls used to leave behind.  `penalty_double_leave_in`
     // is written only for the NS arm, as it always was — the baseline keeps the shipped
     // default.
-    let mut arm = pons::bidding::agreements::Agreements::current();
+    let mut arm = pons::bidding::agreements::Agreements::default();
     arm.competition.lebensohl_style = style_from(&args.ew);
     apply_double(&mut arm.competition, &args.ew_dbl);
     arm.competition.direct_3nt_stopper = args.ew_3nt_stopper != "off";

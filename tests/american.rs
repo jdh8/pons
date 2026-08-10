@@ -70,7 +70,7 @@ fn test_light_third_seat_major() {
     use pons::bidding::constraint::PointScale;
     // Calibrated to the rule-of-N+8 opt-out — the scale these example hands'
     // points assume (the 5-5 reads 11, not the point-count cap of 10).
-    let mut agreements = pons::bidding::agreements::Agreements::current();
+    let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.reading.point_scale = PointScale::RuleOfNFloored;
     let system = pons::american(&agreements).against();
     // 9 HCP, 5-5-2-1 -> 11 points: short of the first-seat `points(12..)` but
@@ -379,8 +379,8 @@ fn test_full_board_smoke() {
 
 #[test]
 fn strength_dial_zero_preserves_american_logits() {
-    let baseline = pons::american(&pons::bidding::agreements::Agreements::current()).against();
-    let mut agreements = pons::bidding::agreements::Agreements::current();
+    let baseline = pons::american(&pons::bidding::agreements::Agreements::default()).against();
+    let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.reading.strength_dial = 0;
     let dial_zero = pons::american(&agreements).against();
     let mut rng = StdRng::seed_from_u64(0x5_7EED);
@@ -484,7 +484,7 @@ fn test_strong_two_system_on_transfer() {
 fn test_competition_book_needs_binding() {
     // The unbound competitive book answers the negative double directly...
     let book =
-        pons::bidding::american::competition(&pons::bidding::agreements::Agreements::current());
+        pons::bidding::american::competition(&pons::bidding::agreements::Agreements::default());
     let one_h = call(1, Strain::Hearts);
 
     assert_eq!(

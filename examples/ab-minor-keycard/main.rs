@@ -69,7 +69,7 @@ struct Args {
 fn main() {
     let args = Args::parse();
     // The agreement gates node insertion, so build one stance per arm.
-    let mut agreements = pons::bidding::agreements::Agreements::current();
+    let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.instinct.keycard_minors = true;
     let feature = american(&agreements).against();
     agreements.decision.instinct.keycard_minors = false;

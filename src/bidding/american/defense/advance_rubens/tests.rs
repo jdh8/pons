@@ -8,7 +8,7 @@ use contract_bridge::auction::Call;
 /// the transfer is a genuine jump-cue (`1♣`/`1♦`/`1♥`).
 #[test]
 fn rubens_transfer_completes_into_the_major() {
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.defense.rich_advance_double_enabled = true;
     arm.defense.advance_rubens_enabled = true;
 

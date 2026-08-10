@@ -4,7 +4,7 @@ use contract_bridge::Strain;
 
 #[test]
 pub fn stayman_minor_slam_try() {
-    let on = Agreements::current();
+    let on = Agreements::default();
     let mut off = on;
     off.notrump.stayman_minor_slam_try = false;
 

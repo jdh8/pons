@@ -6,7 +6,7 @@ use crate::bidding::Trie;
 /// Build the full rebid Trie with the opener extras ladder on (the shipped
 /// default).
 fn ladder_trie() -> Trie {
-    let mut agreements = crate::bidding::agreements::Agreements::current();
+    let mut agreements = crate::bidding::agreements::Agreements::default();
     agreements.decision.reading.opener_extras_ladder = true;
     let mut trie = Trie::new();
     register(&mut trie, &agreements);
@@ -46,7 +46,7 @@ fn opener_extras_ladder_shows_strength() {
 
 #[test]
 fn opener_extras_ladder_reverts_when_off() {
-    let mut agreements = crate::bidding::agreements::Agreements::current();
+    let mut agreements = crate::bidding::agreements::Agreements::default();
     agreements.decision.reading.opener_extras_ladder = false;
     let mut trie = Trie::new();
     register(&mut trie, &agreements);

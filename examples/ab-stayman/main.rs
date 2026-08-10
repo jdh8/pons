@@ -86,7 +86,7 @@ fn decode(line: &str) -> Option<(Contract, Seat)> {
 #[allow(clippy::cast_precision_loss)]
 fn main() {
     let args = Args::parse();
-    let mut agreements = pons::bidding::agreements::Agreements::current();
+    let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.notrump.stayman_minor_slam_try = args.treatment;
     let sys = american(&agreements).against();
     let boards = boards(args.seed, args.count);

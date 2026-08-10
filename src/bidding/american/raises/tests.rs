@@ -37,7 +37,7 @@ pub(super) const LIMIT_RAISE_AUCTION: &[Call] = &[
 
 #[test]
 fn game_tries_absent_when_off() {
-    let mut agreements = crate::bidding::agreements::Agreements::current();
+    let mut agreements = crate::bidding::agreements::Agreements::default();
     agreements.response.major_game_tries = false;
     agreements.response.limit_raise_acceptance = false;
     let mut trie = Trie::new();
@@ -55,7 +55,7 @@ fn game_tries_absent_when_off() {
 
 #[test]
 fn limit_raise_acceptance_absent_when_off() {
-    let mut agreements = crate::bidding::agreements::Agreements::current();
+    let mut agreements = crate::bidding::agreements::Agreements::default();
     agreements.response.major_game_tries = false;
     agreements.response.limit_raise_acceptance = false;
     let mut trie = Trie::new();

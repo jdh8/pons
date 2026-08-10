@@ -123,7 +123,7 @@ fn nt_score(level: u8, opener: Seat, table: &TrickCountTable, vul: AbsoluteVulne
 #[allow(clippy::cast_precision_loss)]
 fn main() {
     let args = Args::parse();
-    let sys = american(&pons::bidding::agreements::Agreements::current()).against();
+    let sys = american(&pons::bidding::agreements::Agreements::default()).against();
     let one_nt = Bid::new(1, Strain::Notrump);
     let base = args.seed.unwrap_or_else(rand::random);
     let vul = args.vulnerability;

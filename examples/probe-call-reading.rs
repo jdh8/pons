@@ -56,7 +56,7 @@ fn render(shown: &Envelope) -> String {
 
 fn main() {
     let args = Args::parse();
-    let mut agreements = pons::bidding::agreements::Agreements::current();
+    let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.defense.weak_two_pass_gate = args.weak_two_pass_gate;
     agreements.defense.weak_two_notrump_shape = args.weak_two_v2;
     agreements.defense.weak_two_jump_overcall = args.weak_two_v2;

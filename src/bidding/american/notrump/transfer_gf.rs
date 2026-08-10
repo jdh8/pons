@@ -2,68 +2,12 @@
 //!
 //! Responder's `3`-level rebid sets up a game force; opener places the
 //! contract, and the 5-5 and splinter reroutes send the slam-worthy shapes
-//! somewhere better than `3NT`.  Gated by [`set_transfer_gf_majors`] and
-//! [`set_transfer_gf_hearts`].
+//! somewhere better than `3NT`.  Gated by
+//! [`DecisionProfile::transfer_gf_majors`][crate::bidding::context::DecisionProfile::transfer_gf_majors]
+//! and
+//! [`DecisionProfile::transfer_gf_hearts`][crate::bidding::context::DecisionProfile::transfer_gf_hearts].
 
 use super::*;
-
-thread_local! {
-    /// Responder's game-forcing structure after the spade transfer completes
-    /// (`1NT - 2♥ - 2♠`): the natural `3♥` 5-5 slam try, minor side-suits (`3♣`/`3♦`),
-    /// and the single-suiter's quantitative `4NT`; **on by default** (A/B vs BBA:
-    /// plain +0.0014, PD +0.0016 IMPs/board, both CI ±0.0003, +1.70/+1.90 per fired).
-    /// See [`set_transfer_gf_majors`].
-    static TRANSFER_GF_MAJORS: Cell<bool> = const { Cell::new(true) };
-    /// Mirror the GF structure onto the *heart* transfer (`1NT - 2♦ - 2♥`): minor
-    /// side-suits (`3♣`/`3♦`), the `3♠` spade splinter (plus `4♣`/`4♦`), and the
-    /// quantitative `4NT` — the single-suited slam try relocating off `3♠`, just as
-    /// spades relocated off `3♥`.  The 5-5 slam try needs no heart slot (it rides the
-    /// spade transfer).  No-op unless [`set_transfer_gf_majors`] is also on; **on by
-    /// default** (A/B vs BBA, two seeds: plain +0.0015/+0.0017, PD +0.0016/+0.0018
-    /// IMPs/board, all CI ±0.0003, +1.83/+2.08 per fired).  See [`set_transfer_gf_hearts`].
-    static TRANSFER_GF_HEARTS: Cell<bool> = const { Cell::new(true) };
-}
-
-/// Author responder's game-forcing structure after the spade transfer for books
-/// built *after* this call (thread-local; **on by default**).
-///
-/// After `1NT - 2♥ - 2♠`, responder's game-forcing hands otherwise fall to the floor's
-/// natural raise.  When on: a natural `3♥` shows 5-5 majors with slam interest
-/// (rerouted off the capped both-majors `3♦`), `3♣`/`3♦` show a five-spade hand with
-/// a four-card minor, and `4NT` is the single-suiter's quantitative slam invite
-/// (relocated off the repurposed `3♥`).  Pass `false` to fall back to the floor.
-pub fn set_transfer_gf_majors(on: bool) {
-    TRANSFER_GF_MAJORS.with(|cell| cell.set(on));
-}
-
-/// Whether the post-transfer game-forcing structure is currently authored
-pub fn transfer_gf_majors() -> bool {
-    TRANSFER_GF_MAJORS.with(Cell::get)
-}
-
-/// Mirror the post-transfer game-forcing structure onto the heart transfer for books
-/// built *after* this call (thread-local; **on by default**).
-///
-/// After `1NT - 2♦ - 2♥`, responder shows a five-heart-plus-minor game force (`3♣`/`3♦`),
-/// a six-heart splinter (`3♠` short in spades, `4♣`/`4♦` short in a minor), or a
-/// single-suited quantitative slam invite (`4NT`, relocated off the `3♠` slam try).
-/// The 5-5 majors slam try keeps its single home on the spade transfer.  No effect
-/// unless [`set_transfer_gf_majors`] is also on.
-pub fn set_transfer_gf_hearts(on: bool) {
-    TRANSFER_GF_HEARTS.with(|cell| cell.set(on));
-}
-
-/// Whether the heart-transfer mirror is asked for, ignoring the master gate
-///
-/// The mirror is a no-op unless [`set_transfer_gf_majors`] is also on; the
-/// conjunction lives in
-/// [`transfer_gf_heart_mirror`](crate::bidding::context::DecisionProfile::transfer_gf_heart_mirror),
-/// which is what the book gates on.  This getter returns the raw setting, so
-/// arming the mirror under a closed master gate and reading it back gives what
-/// was armed.
-pub fn transfer_gf_hearts() -> bool {
-    TRANSFER_GF_HEARTS.with(Cell::get)
-}
 
 /// Responder's game-forcing rebid after the spade transfer completes
 /// (`1NT - 2♥ - 2♠`), under the GF-majors structure

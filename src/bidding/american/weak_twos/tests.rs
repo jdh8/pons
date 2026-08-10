@@ -13,7 +13,7 @@ use contract_bridge::{AbsoluteVulnerability, Hand, Seat};
 /// `max_by` argmax the module tests elsewhere use.  The 2♥/2♠ collision is
 /// only visible on this path.
 fn responds(open: Call, hand: &str) -> Call {
-    responds_with(&Agreements::current(), open, hand)
+    responds_with(&Agreements::default(), open, hand)
 }
 
 /// Responder's call over `open` -, under `agreements`
@@ -57,7 +57,7 @@ fn five_five_majors_respond_in_the_longer_major() {
 /// board [40] of the kickback audit was bid under — the probe's `tie` arm.
 #[test]
 fn longest_first_ablation_restores_the_cheaper_major() {
-    let mut off = Agreements::current();
+    let mut off = Agreements::default();
     off.opening.weak_two_longest_first = false;
     assert_eq!(
         responds_with(&off, call(2, Strain::Diamonds), "AKT862.AKJ92.4.3"),
@@ -97,7 +97,7 @@ fn major_priority_outranks_ogust_over_two_diamonds() {
         call(2, Strain::Notrump)
     );
 
-    let mut off = Agreements::current();
+    let mut off = Agreements::default();
     off.opening.weak_two_major_priority = false;
     assert_eq!(
         responds_with(&off, call(2, Strain::Diamonds), hand),

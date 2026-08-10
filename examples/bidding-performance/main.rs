@@ -140,7 +140,7 @@ fn trimmed_rss_kib() -> anyhow::Result<u64> {
 
 #[cfg(all(target_os = "linux", target_env = "gnu"))]
 fn report_retained_memory() -> anyhow::Result<()> {
-    let pair = american(&pons::bidding::agreements::Agreements::current());
+    let pair = american(&pons::bidding::agreements::Agreements::default());
     let before = trimmed_rss_kib()?;
     let stance = pair.against();
     black_box(&stance);
@@ -373,7 +373,7 @@ fn run_cache_acceptance(
     repetitions: usize,
 ) -> anyhow::Result<CacheAcceptance> {
     let deterministic =
-        american_instinct(&pons::bidding::agreements::Agreements::current()).against();
+        american_instinct(&pons::bidding::agreements::Agreements::default()).against();
     let hot: Vec<_> = positions
         .iter()
         .filter(|position| {
@@ -535,7 +535,7 @@ fn main() -> anyhow::Result<()> {
     let use_pons = matches!(args.engine, Engine::Both | Engine::Pons);
     let use_bba = matches!(args.engine, Engine::Both | Engine::Bba);
     let stance: Option<Stance> =
-        use_pons.then(|| american(&pons::bidding::agreements::Agreements::current()).against());
+        use_pons.then(|| american(&pons::bidding::agreements::Agreements::default()).against());
     // EPBot is loaded and driven only from this main thread.
     let bba = use_bba
         .then(|| BbaOracle::load(&args.bba_lib, SYSTEM_2_OVER_1, Vec::new()))

@@ -365,8 +365,8 @@ fn main() -> anyhow::Result<()> {
     eprintln!("axis-reach: {} deals × 2 systems", deals.len());
 
     let systems = [
-        american(&pons::bidding::agreements::Agreements::current()).against(),
-        dutch(&pons::bidding::agreements::Agreements::current()).against(),
+        american(&pons::bidding::agreements::Agreements::default()).against(),
+        dutch(&pons::bidding::agreements::Agreements::default()).against(),
     ];
     let rkcb = [
         Call::Bid(Bid::new(5, Strain::Clubs)),

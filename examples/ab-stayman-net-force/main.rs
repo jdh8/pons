@@ -10,7 +10,7 @@
 //! with extras accepts the invite either way).  The balanced no-major seam
 //! stays HCP (the net measured ≈0 there, the third evaluator family to fail).
 //!
-//! [`set_stayman_net_force`][pons::bidding::american::set_stayman_net_force]
+//! [`DecisionProfile::stayman_net_force`][pons::bidding::context::DecisionProfile::stayman_net_force]
 //! (default **off** — this A/B measured a loss; see the knob's docs for the
 //! verdict and the forensic seam split) converts exactly the Stayman-rebid
 //! seams — with a fit the `4M`/`3M`/`3OM`-slam-try split, without one the
@@ -41,7 +41,6 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::Accumulator;
 use pons::american;
 use pons::bidding::Stance;
-use pons::bidding::american::set_stayman_net_force;
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -142,12 +141,11 @@ fn bid_out(
 #[allow(clippy::cast_precision_loss)]
 fn main() {
     let args = Args::parse();
-    set_stayman_net_force(false);
-    let plain = american(&pons::bidding::agreements::Agreements::current()).against();
-    set_stayman_net_force(true);
+    let mut measured = pons::bidding::agreements::Agreements::default();
+    measured.decision.stayman_net_force = true;
     let stances = [
-        plain,
-        american(&pons::bidding::agreements::Agreements::current()).against(),
+        american(&pons::bidding::agreements::Agreements::default()).against(),
+        american(&measured).against(),
     ];
 
     // Deal sequentially (seeded, reproducible); bid both tables in parallel.

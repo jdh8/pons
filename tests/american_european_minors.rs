@@ -16,7 +16,7 @@ use pons::american::EUROPEAN;
 ///
 /// Each call builds a stance whose agreements select the European book.
 fn stance() -> Stance {
-    let mut agreements = pons::bidding::agreements::Agreements::current();
+    let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.reading.notrump_minors = EUROPEAN;
     american(&agreements).against()
 }

@@ -7,8 +7,8 @@
 //! twice, duplicate style: at table A the HCP-companion pair sits North/South
 //! against the BUM-RAP-companion pair; at table B the teams swap seats.  Both
 //! pairs play the very same books — only the
-//! [`set_fifths_companion`][pons::bidding::constraint::set_fifths_companion]
-//! hook differs per acting side.  Boards whose two auctions reach different
+//! [`DecisionProfile::fifths_companion`][pons::bidding::context::DecisionProfile::fifths_companion]
+//! field differs per acting side.  Boards whose two auctions reach different
 //! contracts are solved double dummy once and scored with **both** brackets —
 //! plain DD and perfect defense — crediting the swing to the HCP team (so a
 //! positive total means HCP beats BUM-RAP).
@@ -22,9 +22,7 @@ use contract_bridge::auction::{Auction, Call};
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::constraint::{
-    FifthsCompanion, PointScale, set_fifths_companion, set_fuzzy_fifths,
-};
+use pons::bidding::constraint::{FifthsCompanion, PointScale};
 use pons::bidding::context::relative;
 use pons::bidding::{Stance, System};
 use pons::scoring::final_contract;
@@ -109,13 +107,14 @@ fn main() {
     let vul = args.vulnerability;
     // Both stances keep the shipped fuzzy gauges; `[Bumrap, Hcp]` differ only in
     // the companion, indexed by the acting side.
-    set_fuzzy_fifths(true);
-    set_fifths_companion(FifthsCompanion::Bumrap);
-    let mut bumrap_agreements = pons::bidding::agreements::Agreements::current();
+    let mut bumrap_agreements = pons::bidding::agreements::Agreements::default();
+    bumrap_agreements.decision.fuzzy_fifths = true;
+    bumrap_agreements.decision.fifths_companion = FifthsCompanion::Bumrap;
     bumrap_agreements.decision.reading.point_scale = PointScale::PointCount;
     let bumrap = american(&bumrap_agreements).against();
-    set_fifths_companion(FifthsCompanion::Hcp);
-    let mut hcp_agreements = pons::bidding::agreements::Agreements::current();
+    let mut hcp_agreements = pons::bidding::agreements::Agreements::default();
+    hcp_agreements.decision.fuzzy_fifths = true;
+    hcp_agreements.decision.fifths_companion = FifthsCompanion::Hcp;
     hcp_agreements.decision.reading.point_scale = PointScale::PointCount;
     let stances = [bumrap, american(&hcp_agreements).against()];
 

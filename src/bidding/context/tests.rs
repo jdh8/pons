@@ -218,7 +218,7 @@ fn configured_clone_preserves_decision_cache() {
     let context = Context::new(RelativeVulnerability::NONE, &[]).with_decision_cache(test_hand());
     let cache = Arc::clone(context.decision_cache.as_ref().expect("attached cache"));
     let config = Config::symmetric(&american_card(
-        &crate::bidding::agreements::Agreements::current(),
+        &crate::bidding::agreements::Agreements::default(),
     ));
     let configured = context.with_config(&config);
 
@@ -279,24 +279,6 @@ fn debug_omits_cache_mechanics() {
 
 #[cfg(debug_assertions)]
 #[test]
-fn decision_cache_rejects_profile_changes() {
-    use crate::bidding::evaluator::{eval_auction, set_eval_auction};
-    use std::panic::{AssertUnwindSafe, catch_unwind};
-
-    let original = eval_auction();
-    let context = Context::new(RelativeVulnerability::NONE, &[]).with_decision_cache(test_hand());
-    let _ = context.inferences();
-    set_eval_auction(!original);
-    let result = catch_unwind(AssertUnwindSafe(|| {
-        let _ = context.inferences();
-    }));
-    set_eval_auction(original);
-
-    assert!(result.is_err());
-}
-
-#[cfg(debug_assertions)]
-#[test]
 fn decision_cache_rejects_cross_thread_use() {
     let context = Context::new(RelativeVulnerability::NONE, &[]).with_decision_cache(test_hand());
 
@@ -311,12 +293,16 @@ fn decision_cache_rejects_cross_thread_use() {
 }
 
 #[test]
-fn threads_capture_their_own_profiles() {
+fn threads_use_their_explicit_profiles() {
     let handles = [false, true].map(|eval_auction| {
         std::thread::spawn(move || {
-            super::super::evaluator::set_eval_auction(eval_auction);
-            let context =
-                Context::new(RelativeVulnerability::NONE, &[]).with_decision_cache(test_hand());
+            let profile = DecisionProfile {
+                eval_auction,
+                ..DecisionProfile::default()
+            };
+            let context = Context::new(RelativeVulnerability::NONE, &[])
+                .with_profile(profile)
+                .with_decision_cache(test_hand());
             let uncached = Inferences::read(&context);
             assert_eq!(*context.inferences(), uncached);
             assert_eq!(context.decision_cache_init_counts(), Some((1, 0, 0)));

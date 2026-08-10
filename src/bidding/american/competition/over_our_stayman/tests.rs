@@ -107,7 +107,7 @@ fn stayman_overcalled_opener_doubles_their_suit() {
 #[test]
 fn defense_to_their_stayman_doubles_clubs() {
     // (1NT) - (2♣ Stayman): our 4th-hand X = lead-directing clubs (5+ good).
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.defense.stayman_defense_enabled = true;
     let auction = [call(1, Strain::Notrump), Call::Pass, call(2, Strain::Clubs)];
     let (c, floored) = best_call_with(&arm, &auction, "A2.K32.A32.KQ876");

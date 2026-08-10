@@ -56,7 +56,7 @@ fn blind_opponent_reading_spares_our_side() {
         bid(2, Strain::Hearts),
     ];
     let seen = read(&auction);
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.blind_opponents = true;
     let blind = read_with(&agreements, &auction);
 
@@ -142,7 +142,7 @@ fn two_over_one_denies_four_card_support() {
 #[test]
 fn pass_reading_caps_the_no_open_pass() {
     let p = Call::Pass;
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     // Knob off — the pre-ship identity: a pass reads nothing.
     agreements.decision.reading.pass = false;
     assert_eq!(
@@ -175,7 +175,7 @@ fn pass_reading_caps_the_no_open_pass() {
 #[test]
 fn pass_reading_caps_the_failed_compete() {
     let auction = [bid(1, Strain::Hearts), Call::Pass, Call::Pass];
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.pass = false;
     assert_eq!(
         read_booked_with(&agreements, &auction)
@@ -208,7 +208,7 @@ fn pass_reading_caps_the_failed_compete() {
 
 #[test]
 fn pass_reading_caps_the_silent_responder() {
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.pass = true;
     // Our 1♥, silent partner: the response table's `hcp(..6)` gate —
     // at most 5 raw HCP, 7 on the point-count scale (5 + max upgrade 2).
@@ -221,7 +221,7 @@ fn pass_reading_caps_the_silent_responder() {
 
 #[test]
 fn pass_reading_caps_the_notrump_signoff() {
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.pass = true;
     // Pass of partner's 1NT: the authored union of the weak arm and the
     // flat-eight arm — at most 10 points (the flat-eight arm's 8 HCP + the
@@ -237,7 +237,7 @@ fn pass_reading_caps_the_notrump_signoff() {
 
 #[test]
 fn pass_reading_skips_trap_and_trivial_passes() {
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.pass = true;
     agreements.decision.reading.table_alerts = true;
     // The advance of a takeout double authors genuine strong sits (the
@@ -259,7 +259,7 @@ fn pass_reading_skips_trap_and_trivial_passes() {
 #[test]
 fn pass_exclusion_caps_the_weak_two_defender() {
     let auction = [bid(2, Strain::Spades), Call::Pass, Call::Pass];
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.pass = true;
     agreements.decision.reading.table_alerts = false;
 
@@ -285,7 +285,7 @@ fn pass_exclusion_caps_the_weak_two_defender() {
 
 #[test]
 fn opener_extras_ladder_reads_extras() {
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.opener_extras_ladder = true;
     let d = bid(1, Strain::Diamonds);
     let s = bid(1, Strain::Spades);
@@ -313,7 +313,7 @@ fn opener_extras_ladder_reads_extras() {
 
 #[test]
 fn opener_major_jump_rebid_reads_extras() {
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.opener_major_jump_rebid = true;
     let h = bid(1, Strain::Hearts);
     let s = bid(1, Strain::Spades);
@@ -334,7 +334,7 @@ fn high_bid_control_vs_natural() {
     // minor-response verdicts are the knob-off ones — the longer-major
     // default is covered by `high_bid_under_longer_major_response`, and the
     // 1NT-transfer sub-cases below are knob-independent.
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.longer_major_response = false;
     // 1♦ - 1♠ - 2♦ - 4♥: responder bid spades first, so hearts cannot be their
     // longest — a control bid agreeing diamonds.  Hearts stays unfloored;
@@ -450,7 +450,7 @@ fn high_bid_control_vs_natural() {
 /// equal-length five-plus hearts (so the heart jump reads to play).
 #[test]
 fn high_bid_under_longer_major_response() {
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
 
     // 1♣ - 1♥ - 2♣ - 4♠, discipline on: 1♥ denied longer spades, so 4♠ is a
     // bypass — a control bid agreeing clubs, spades left unfloored.
@@ -513,7 +513,7 @@ fn gambling_3nt_over_double_reads_unbalanced() {
     // call as the long-minor gamble, so the natural balanced-3NT reading is
     // suppressed and a six-card minor stays within range — the search sampler must
     // be free to deal responder its running suit, not pin it to a flat hand.
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.instinct.gambling_3nt_over_double = true;
     let read = read_booked_with(
         &agreements,
@@ -656,7 +656,7 @@ fn opener_rebid_reads_five_plus_by_default() {
     // Our 1♠ response showed four spades and six-plus points.
     assert_eq!(inf.me().length(Suit::Spades), Range::new(4, 13));
     assert_eq!(inf.me().strength.points, Range::new(6, 37));
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.length_soundness = false;
     let legacy = read_with(&agreements, &auction);
     assert_eq!(legacy.partner().length(Suit::Hearts), Range::new(6, 13));
@@ -665,7 +665,7 @@ fn opener_rebid_reads_five_plus_by_default() {
 #[test]
 fn competitive_opener_rebid_shows_sixth_card() {
     // `1♦ (1♥) - (2♥) 3♦ -`: partner opened 1♦ and, over the opponents'
-    // heart auction, rebid 3♦ (the opt-in `set_competitive_rebid` floor).
+    // heart auction, rebid 3♦ (the opt-in `InstinctKnobs::competitive_rebid` floor).
     // The natural length reading applies in competition too — only the
     // *strength* reading is suppressed when opponents act — so partner is
     // still read with six-plus diamonds, keeping the sampler and any further
@@ -714,7 +714,7 @@ fn three_level_suit_over_one_notrump_is_natural() {
     // five-plus hearts.  This is the knob-off control for
     // `nt_splinter_is_read_as_shortness_not_length`; the splinter is on by
     // default, so the walk has to be asked for explicitly.
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.nt_splinter = false;
     let auction = [
         bid(1, Strain::Notrump),
@@ -732,7 +732,7 @@ fn nt_splinter_is_read_as_shortness_not_length() {
     // as five-plus hearts above now decodes off its alert into the pinned
     // shape — short hearts, 2-3 spades, exactly four diamonds, 5-6 clubs.
     // The natural walk would floor a phantom heart suit responder is void in.
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.nt_splinter = true;
     let auction = [
         bid(1, Strain::Notrump),
@@ -781,7 +781,7 @@ fn systems_on_stripped_read_is_separate_from_the_full_decision_cache() {
         Call::Pass,
     ];
     let hand: Hand = "AQ32.K53.QJ4.A92".parse().expect("valid test hand");
-    let stance = crate::american(&crate::bidding::agreements::Agreements::current()).against();
+    let stance = crate::american(&crate::bidding::agreements::Agreements::default()).against();
     let uncached = stance.infer(RelativeVulnerability::NONE, &auction);
     let context = stance
         .prefixed_context(RelativeVulnerability::NONE, &auction)
@@ -809,7 +809,7 @@ fn natural_reading_publishes_an_unalerted_rules_promise() {
         Call::Pass,
     ];
 
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.nt_overcall_gladiator = true;
     agreements.decision.reading.envelope_union = true;
     agreements.decision.reading.scope = ReadingScope::Alerted;
@@ -988,7 +988,7 @@ fn kickback_face_gate_keeps_natural_four_spades_natural() {
         Call::Pass,
     ];
     let baseline = read_booked(&auction).partner().length(Suit::Spades).min;
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.rkcb_variant = RkcbVariant::Kickback;
     let gated = read_booked_with(&agreements, &auction)
         .partner()
@@ -1012,7 +1012,7 @@ fn kickback_relocated_ask_still_reads_as_the_convention() {
         bid(4, Strain::Spades),
         Call::Pass,
     ];
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.rkcb_variant = RkcbVariant::Kickback;
     let spades = read_booked_with(&agreements, &auction)
         .partner()
@@ -1040,7 +1040,7 @@ fn answer_gates_spare_a_natural_five_diamonds() {
     // The plain arm on purpose (also the default): the poison this pins is
     // the *default system's* five-level answers, not the relocated
     // ladder's.
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.rkcb_variant = RkcbVariant::Plain;
     let auction = [
         bid(1, Strain::Diamonds),
@@ -1234,7 +1234,7 @@ fn their_cue_of_our_overcall_is_a_raise() {
     // 1♥ (2♦) 3♦: responder's cue of the overcalled suit is the limit-plus
     // heart raise — three-plus hearts, ten-plus points, and no diamond
     // length (the probe: two diamonds read as four).
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.cue = true;
     let inf = read_with(
         &agreements,
@@ -1256,7 +1256,7 @@ fn their_cue_of_our_overcall_is_a_raise() {
 fn a_doublers_jump_is_not_a_weak_jump() {
     // `(2♠) X - 3♦ - 4♥`: the doubler's jump to game is strength, made
     // on as few as three hearts — never a weak six-card jump.
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.length_soundness = true;
     let auction = [
         bid(2, Strain::Spades),
@@ -1277,7 +1277,7 @@ fn a_doublers_jump_is_not_a_weak_jump() {
 fn an_agreed_suit_re_raise_adds_no_length() {
     // 1♥ - 2♥ - 3♥: opener's game-try re-raise of the agreed suit adds
     // no length — the five from the opening stands, not a phantom sixth.
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.length_soundness = true;
     let auction = [
         bid(1, Strain::Hearts),
@@ -1298,7 +1298,7 @@ fn opener_minor_rebid_reads_five_plus() {
     // 1♦ - 1♠ - 2♦: opener's two-level rebid of the opened minor is
     // routinely a good five-card suit, not six (the probe: five of eight
     // rebids were made on five).
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.length_soundness = true;
     let auction = [
         bid(1, Strain::Diamonds),
@@ -1320,7 +1320,7 @@ fn their_splinter_is_disclosed_to_the_table() {
     // explained at the table, so it decodes off their authoring rule —
     // diamond shortness with spade support, never diamond length.
     let auction = [bid(1, Strain::Spades), Call::Pass, bid(4, Strain::Diamonds)];
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.table_alerts = true;
     let inf = read_booked_with(&agreements, &auction);
     assert!(inf.rho().length(Suit::Diamonds).max <= 1);
@@ -1343,7 +1343,7 @@ fn their_checkback_is_disclosed_to_the_table() {
         Call::Pass,
         bid(2, Strain::Clubs),
     ];
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.table_alerts = true;
     let inf = read_booked_with(&agreements, &auction);
     assert!(inf.rho().length(Suit::Clubs).min < 4);
@@ -1357,7 +1357,7 @@ fn their_checkback_is_disclosed_to_the_table() {
 /// three spades over 1♥, and 12+ points.
 #[test]
 fn choice_of_games_three_notrump_reads_support() {
-    let mut agreements = crate::bidding::agreements::Agreements::current();
+    let mut agreements = crate::bidding::agreements::Agreements::default();
     agreements.response.major_choice_of_games = true;
     let stance = crate::american(&agreements).against();
 
@@ -1390,7 +1390,7 @@ proptest! {
         let hand: Hand = deal[contract_bridge::Seat::North];
 
         let context = Context::new(RelativeVulnerability::NONE, &[]);
-        let logits = openings(&Agreements::current()).classify(hand, &context);
+        let logits = openings(&Agreements::default()).classify(hand, &context);
         let Some((call, _)) = (&logits.0)
             .into_iter()
             .filter(|(_, l)| l.is_finite())
@@ -1438,7 +1438,7 @@ proptest! {
         let deal = full_deal(&mut rng);
         let hand: Hand = deal[contract_bridge::Seat::North];
 
-        let mut agreements = Agreements::current();
+        let mut agreements = Agreements::default();
         agreements.decision.reading.envelope_union = true;
         agreements.decision.reading.sum_closure = false;
         agreements.decision.reading.upgrade_closure = false;

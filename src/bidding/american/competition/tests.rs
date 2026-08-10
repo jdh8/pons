@@ -14,7 +14,7 @@ pub(super) const fn call(level: u8, strain: Strain) -> Call {
 #[test]
 fn row_package_invariants() {
     crate::bidding::rows::assert_package_invariants(
-        &crate::bidding::agreements::Agreements::current(),
+        &crate::bidding::agreements::Agreements::default(),
         &[
             super::direct_seat_package(),
             super::splinter_doubled_package(),
@@ -45,7 +45,7 @@ fn row_package_invariants() {
 /// floor (not a book node) produced it
 pub(super) fn best_call(auction: &[Call], hand: &str) -> (Call, bool) {
     best_call_with(
-        &crate::bidding::agreements::Agreements::current(),
+        &crate::bidding::agreements::Agreements::default(),
         auction,
         hand,
     )
@@ -72,14 +72,14 @@ pub(super) fn best_call_with(
 
 /// As [`best_call`], with plain Lebensohl pinned on
 pub(super) fn bid(auction: &[Call], hand: &str) -> (Call, bool) {
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.competition.lebensohl_style = super::lebensohl::LebensohlStyle::Plain;
     best_call_with(&arm, auction, hand)
 }
 
 /// As [`best_call`], with Transfer Lebensohl pinned on
 pub(super) fn bid_transfer(auction: &[Call], hand: &str) -> (Call, bool) {
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.competition.lebensohl_style = super::lebensohl::LebensohlStyle::Transfer;
     best_call_with(&arm, auction, hand)
 }
@@ -87,7 +87,7 @@ pub(super) fn bid_transfer(auction: &[Call], hand: &str) -> (Call, bool) {
 /// As [`best_call`], with the Unusual-vs-Unusual `(2NT)` structure pinned on
 /// at the default A/B floors
 pub(super) fn bid_uvu(auction: &[Call], hand: &str) -> (Call, bool) {
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.competition.uvu = true;
     arm.competition.uvu_x_floor = 9;
     arm.competition.uvu_cue_floor = 8;
@@ -97,7 +97,7 @@ pub(super) fn bid_uvu(auction: &[Call], hand: &str) -> (Call, bool) {
 /// As [`best_call`], with our Jacoby-transfer competition + jump super-accept
 /// enabled (both opt-in/default-off after the DD-negative A/B)
 pub(super) fn bid_xfer(auction: &[Call], hand: &str) -> (Call, bool) {
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.competition.competition_over_transfer = true;
     arm.notrump.transfer_super_accept = true;
     best_call_with(&arm, auction, hand)
@@ -106,7 +106,7 @@ pub(super) fn bid_xfer(auction: &[Call], hand: &str) -> (Call, bool) {
 /// As [`best_call`], with our 2♠ minor-transfer competition (Side A) pinned on
 /// (it is also the default, but pin it so the arm is explicit)
 pub(super) fn bid_minor(auction: &[Call], hand: &str) -> (Call, bool) {
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.competition.competition_over_minor_transfer = true;
     best_call_with(&arm, auction, hand)
 }
@@ -114,7 +114,7 @@ pub(super) fn bid_minor(auction: &[Call], hand: &str) -> (Call, bool) {
 /// As [`best_call`], with our 2NT diamond-transfer competition (Side A) pinned
 /// on (it is also the default, but pin it so the arm is explicit)
 pub(super) fn bid_diamond(auction: &[Call], hand: &str) -> (Call, bool) {
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.competition.competition_over_diamond_transfer = true;
     best_call_with(&arm, auction, hand)
 }
@@ -125,7 +125,7 @@ pub(super) fn bid_transfer_dbl(
     auction: &[Call],
     hand: &str,
 ) -> (Call, bool) {
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.competition.lebensohl_style = super::lebensohl::LebensohlStyle::Transfer;
     arm.competition.double_style = style;
     best_call_with(&arm, auction, hand)
@@ -139,7 +139,7 @@ pub(super) fn bid_transfer_dbl(
 fn competitive_fallbacks_are_renderable() {
     use crate::bidding::fallback::Fallback;
 
-    let book = super::competition(&crate::bidding::agreements::Agreements::current());
+    let book = super::competition(&crate::bidding::agreements::Agreements::default());
     let all = book.0.fallbacks();
     assert!(
         all.len() > 30,
@@ -289,7 +289,7 @@ fn converted_packages_match_legacy() {
     use super::free_bids::FreeBidStyle;
     use super::negative_double::NegativeDoubleShape;
 
-    let shipped = Agreements::current();
+    let shipped = Agreements::default();
 
     // Section 4: opener answers the negative double of a 2-level minor.
     let mut auctions = Vec::new();

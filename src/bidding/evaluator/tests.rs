@@ -70,7 +70,7 @@ fn exclusion_knob_swaps_v3_weights() {
     let inf = Inferences::read(&ctx);
     let h = hand("AQ32.K53.QJ4.A92");
 
-    let mut profile = DecisionProfile::current();
+    let mut profile = DecisionProfile::default();
     profile.reading.envelope_union = true;
     profile.reading.pass_exclusion = false;
     let union_reading = trick_estimates_with_auction_on(&profile, h, &inf, &auction);
@@ -128,12 +128,15 @@ fn eval_shape_knob_contract() {
     let inf = Inferences::read(&ctx);
     let h = hand("AQ32.K53.QJ4.A92");
 
-    let mut profile = DecisionProfile::current();
+    let mut profile = DecisionProfile::default();
     profile.reading.envelope_union = true;
     profile.eval_auction = true;
     profile.eval_shape = false;
     let v3 = trick_estimates_with_auction_on(&profile, h, &inf, &auction);
-    assert!(!eval_shape(), "the v4 knob ships off");
+    assert!(
+        !DecisionProfile::default().eval_shape,
+        "the v4 knob ships off"
+    );
 
     profile.eval_shape = true;
     let v4 = trick_estimates_with_auction_on(&profile, h, &inf, &auction);
@@ -216,7 +219,7 @@ fn with_auction_knob_contract() {
     let inf = Inferences::read(&ctx);
     let h = hand("AQ32.K53.QJ4.A92");
 
-    let mut profile = DecisionProfile::current();
+    let mut profile = DecisionProfile::default();
     profile.reading.envelope_union = true;
     profile.eval_auction = false;
     let v2 = trick_estimates(h, &inf);

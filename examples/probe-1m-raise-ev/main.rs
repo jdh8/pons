@@ -103,7 +103,7 @@ fn main() {
     let args = Args::parse();
     assert!(args.count > 0, "--count must be positive");
 
-    let stance = dutch(&pons::bidding::agreements::Agreements::current()).against();
+    let stance = dutch(&pons::bidding::agreements::Agreements::default()).against();
     let one_heart = Bid::new(1, Strain::Hearts);
     let mut rng = StdRng::seed_from_u64(args.seed);
     let mut attempts = 0usize;

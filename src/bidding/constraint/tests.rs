@@ -1,4 +1,5 @@
 use super::*;
+use crate::bidding::context::DecisionProfile;
 use crate::bidding::inference::ReadingProfile;
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::{Bid, Strain};
@@ -15,7 +16,7 @@ fn empty_context() -> Context<'static> {
 }
 
 fn empty_context_with(configure: impl FnOnce(&mut ReadingProfile)) -> Context<'static> {
-    let mut agreements = crate::bidding::agreements::Agreements::current();
+    let mut agreements = crate::bidding::agreements::Agreements::default();
     configure(&mut agreements.decision.reading);
     Context::new(RelativeVulnerability::NONE, &[]).with_profile(agreements.decision)
 }
@@ -200,10 +201,10 @@ fn strength_dial_survives_on_a_pinned_stance() {
 
     let hand = hand("KQ765.A8765.32.2"); // 11 points
 
-    let mut deviant_agreements = crate::bidding::agreements::Agreements::current();
+    let mut deviant_agreements = crate::bidding::agreements::Agreements::default();
     deviant_agreements.decision.reading.strength_dial = 2;
     let deviant = american_book(&deviant_agreements).against();
-    let plain_agreements = crate::bidding::agreements::Agreements::current();
+    let plain_agreements = crate::bidding::agreements::Agreements::default();
     let plain = american_book(&plain_agreements).against();
 
     // An 11-count opens 1♥ only on the dialled stance; the plain one passes.
@@ -354,10 +355,14 @@ fn test_points_and_fifths() {
     // way), so it still drops out of a 15-17 notrump but stays inside a
     // 12-14 one.  Fifths is default-off now (raw HCP beat it in the A6
     // audit), so this test enables the gauge it exercises.
-    set_fuzzy_fifths(true);
-    assert_reject(fifths(15.0..18.0).eval(hand(BALANCED_15), &context));
-    assert_pass(fifths(12.0..15.0).eval(hand(BALANCED_15), &context));
-    set_fuzzy_fifths(false); // restore the shipped default
+    let fifths_profile = DecisionProfile {
+        fuzzy_fifths: true,
+        ..Default::default()
+    };
+    let fifths_context =
+        Context::new(RelativeVulnerability::NONE, &[]).with_profile(fifths_profile);
+    assert_reject(fifths(15.0..18.0).eval(hand(BALANCED_15), &fifths_context));
+    assert_pass(fifths(12.0..15.0).eval(hand(BALANCED_15), &fifths_context));
 
     // CCCC of this 4333 is 14.90 (oracle-verified in contract-bridge).
     assert_pass(cccc_at_least(14.9).eval(hand("AQ32.K53.QJ4.A92"), &context));
@@ -452,7 +457,6 @@ fn test_suit_support_points() {
 
 #[test]
 fn test_fifths_companion() {
-    let context = empty_context();
     // Quack-heavy 18-count: 18.2 Fifths, 18 HCP, 16.5 BUM-RAP.  The
     // Fifths/HCP average (18.1) tops a 15-17 notrump, but the lighter
     // Fifths/BUM-RAP average (17.35) keeps it inside — the two gauges
@@ -461,13 +465,17 @@ fn test_fifths_companion() {
 
     // The companion only matters inside the Fifths gauge, which is
     // default-off now (raw HCP beat it in the A6 audit) — enable it here.
-    set_fuzzy_fifths(true);
-    set_fifths_companion(FifthsCompanion::Hcp);
-    assert_reject(fifths(15.0..18.0).eval(quacky, &context));
+    let mut profile = DecisionProfile {
+        fuzzy_fifths: true,
+        fifths_companion: FifthsCompanion::Hcp,
+        ..DecisionProfile::default()
+    };
+    let hcp_context = Context::new(RelativeVulnerability::NONE, &[]).with_profile(profile);
+    assert_reject(fifths(15.0..18.0).eval(quacky, &hcp_context));
 
-    set_fifths_companion(FifthsCompanion::Bumrap);
-    assert_pass(fifths(15.0..18.0).eval(quacky, &context));
-    set_fuzzy_fifths(false); // restore the shipped default
+    profile.fifths_companion = FifthsCompanion::Bumrap;
+    let bumrap_context = Context::new(RelativeVulnerability::NONE, &[]).with_profile(profile);
+    assert_pass(fifths(15.0..18.0).eval(quacky, &bumrap_context));
 }
 
 #[test]
@@ -476,7 +484,6 @@ fn test_fuzzy_strength_toggle() {
 
     // These toggles swing `points` between raw HCP and the legacy
     // raw-HCP-plus-upgrade scale (both historical arms now).
-    set_fuzzy_fifths(false);
     let hcp_context = empty_context_with(|reading| reading.point_scale = PointScale::Hcp);
     // Raw HCP: 9 points, and fifths degrades to raw HCP too.
     assert_pass(points(9..=9).eval(two_suiter, &hcp_context));

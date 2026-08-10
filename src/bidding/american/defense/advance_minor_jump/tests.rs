@@ -11,7 +11,7 @@ use contract_bridge::auction::Call;
 fn advance_minor_jump_shows_invitational_one_suiter() {
     // (1♥) X - ? — advancer to act; the unbid major is spades.
     let auction = [call(1, Strain::Hearts), Call::Double, Call::Pass];
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.defense.rich_advance_double_enabled = true;
     arm.defense.advance_minor_jump_enabled = true;
     let mut without_jump = arm;
@@ -67,7 +67,7 @@ fn doubler_accepts_or_declines_the_minor_jump() {
         call(3, Strain::Diamonds),
         Call::Pass,
     ];
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.defense.rich_advance_double_enabled = true;
     arm.defense.advance_minor_jump_enabled = true;
 
@@ -126,7 +126,7 @@ fn doubler_stopper_ask_over_the_minor_jump() {
         call(3, Strain::Clubs),
         Call::Pass,
     ];
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.defense.rich_advance_double_enabled = true;
     arm.defense.advance_minor_jump_enabled = true;
 

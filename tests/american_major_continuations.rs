@@ -21,7 +21,7 @@ const P: Call = Call::Pass;
 
 /// A stance built with the given knobs
 fn stance_with(tries: bool, limit: bool, tails: bool, fsf: bool) -> Stance {
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.response.major_game_tries = tries;
     agreements.response.limit_raise_acceptance = limit;
     agreements.rebid.major_rebid_tails = tails;
@@ -435,7 +435,7 @@ fn fsf_without_tails_is_inert() {
 #[test]
 fn default_state_matches_all_on() {
     let all_on = stance_with(true, true, true, true);
-    let fresh = american(&pons::bidding::agreements::Agreements::current()).against();
+    let fresh = american(&pons::bidding::agreements::Agreements::default()).against();
 
     // The 1♥ - 2♥ opener decision (the game-tries node): reuse
     // `single_raise_passed_without_extras`'s flat 13-point opener.

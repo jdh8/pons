@@ -188,24 +188,24 @@ fn main() {
     // Both knobs gate rule *construction*, so a stance is built per arm.
     let feature = match args.mode {
         Mode::Tie => {
-            let mut a = Agreements::current();
+            let mut a = Agreements::default();
             a.opening.weak_two_longest_first = true;
             american(&a).against()
         }
         Mode::Ogust => {
-            let mut a = Agreements::current();
+            let mut a = Agreements::default();
             a.opening.weak_two_major_priority = true;
             american(&a).against()
         }
     };
     let baseline = match args.mode {
         Mode::Tie => {
-            let mut a = Agreements::current();
+            let mut a = Agreements::default();
             a.opening.weak_two_longest_first = false;
             american(&a).against()
         }
         Mode::Ogust => {
-            let mut a = Agreements::current();
+            let mut a = Agreements::default();
             a.opening.weak_two_major_priority = false;
             american(&a).against()
         }

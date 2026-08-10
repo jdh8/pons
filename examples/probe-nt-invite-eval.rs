@@ -78,7 +78,10 @@ use contract_bridge::{
 use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
 use pons::american;
 use pons::bidding::constraint::point_count;
-use pons::bidding::evaluator::{set_eval_shape, trick_estimates, trick_estimates_with_auction};
+use pons::bidding::context::DecisionProfile;
+use pons::bidding::evaluator::{
+    trick_estimates, trick_estimates_with_auction, trick_estimates_with_auction_on,
+};
 use pons::bidding::{Context, Inferences, Relative};
 use pons::scoring::{imps, ns_score_contract};
 use rand::SeedableRng;
@@ -136,7 +139,7 @@ static NT_INF: LazyLock<Inferences> =
 /// [`NT_INF`] verbatim: they are the pinned control that reproduces the
 /// 2026-07-22 verdict, and moving their input would forfeit the comparison.
 static NT_INF_PREFIXED: LazyLock<Inferences> = LazyLock::new(|| {
-    american(&pons::bidding::agreements::Agreements::current())
+    american(&pons::bidding::agreements::Agreements::default())
         .against()
         .infer(RelativeVulnerability::NONE, &PRIOR)
 });
@@ -167,7 +170,7 @@ fn ev_net_game(h: Hand) -> f64 {
 }
 
 /// [`ev_net_nt`] on the **shipped** evaluator: `trick_estimates_with_auction`
-/// serves `evaluator_v3` under the default knobs (`set_eval_auction` on,
+/// serves `evaluator_v3` under the default profile (`DecisionProfile::eval_auction` on,
 /// `ReadingProfile::envelope_union` on) and `evaluator_v4` under `--shape`, where the bare
 /// `trick_estimates` the v2 columns call is pinned to v2 for good.
 fn ev_net_nt3(h: Hand) -> f64 {
@@ -181,6 +184,34 @@ fn ev_net_nt3(h: Hand) -> f64 {
 /// [`ev_net_game`] on the shipped evaluator — see [`ev_net_nt3`].
 fn ev_net_game3(h: Hand) -> f64 {
     let e = trick_estimates_with_auction(h, &NT_INF_PREFIXED, &PRIOR);
+    [
+        (Strain::Notrump, 9),
+        (Strain::Hearts, 10),
+        (Strain::Spades, 10),
+    ]
+    .into_iter()
+    .map(|(s, t)| e.p_at_least(s, Relative::Partner, t))
+    .fold(0.0f64, |acc, p| acc.max(f64::from(p)))
+}
+
+fn ev_net_nt4(h: Hand) -> f64 {
+    let profile = DecisionProfile {
+        eval_shape: true,
+        ..DecisionProfile::default()
+    };
+    f64::from(
+        trick_estimates_with_auction_on(&profile, h, &NT_INF_PREFIXED, &PRIOR)
+            .get(Strain::Notrump, Relative::Partner)
+            .mean,
+    )
+}
+
+fn ev_net_game4(h: Hand) -> f64 {
+    let profile = DecisionProfile {
+        eval_shape: true,
+        ..DecisionProfile::default()
+    };
+    let e = trick_estimates_with_auction_on(&profile, h, &NT_INF_PREFIXED, &PRIOR);
     [
         (Strain::Notrump, 9),
         (Strain::Hearts, 10),
@@ -367,11 +398,13 @@ fn main() {
     assert_eq!(control_action(9), 2);
 
     // `--shape` serves `evaluator_v4` to the `net*3` columns instead of v3.  The
-    // probe is single-threaded (the ddss `Solver` is main-thread-only), so the
-    // thread-local knob set here holds for every column evaluated below.
     let args: Vec<String> = std::env::args().skip(1).collect();
     let shape = args.iter().any(|a| a == "--shape");
-    set_eval_shape(shape);
+    let mut evals = EVALS.to_vec();
+    if shape {
+        evals[8].1 = ev_net_nt4;
+        evals[9].1 = ev_net_game4;
+    }
     eprintln!(
         "net columns: netNT/netPgame = v2 (bare reading, pinned control); \
          netNT3/netPgame3 = {} (prefixed reading)",
@@ -460,7 +493,7 @@ fn main() {
             hcps.push(raw_hcp(resp));
             openers.push(opener);
             book_accepts.push(raw_hcp(opener) >= 17);
-            resp_evals.push(std::array::from_fn(|e| EVALS[e].1(resp)));
+            resp_evals.push(std::array::from_fn(|e| evals[e].1(resp)));
         }
 
         let n = values.len();
@@ -478,7 +511,7 @@ fn main() {
                 "    {:<9} {:>9}  {:>14}  {:>8}",
                 "evaluator", "IMP/bd", "95% CI", "diverg"
             );
-            for (e, &(ename, _, accept_fn)) in EVALS.iter().enumerate() {
+            for (e, &(ename, _, accept_fn)) in evals.iter().enumerate() {
                 let col: Vec<f64> = resp_evals.iter().map(|r| r[e]).collect();
                 let action = calibrate(&col, n_pass, n_inv);
                 // Acceptance: book 17+ unless the column ranks openers itself,

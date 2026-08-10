@@ -270,7 +270,7 @@ fn responder_accepts_invitational_minor_to_heart_game() {
 /// The 2/1 pair with the Meckstroth adjunct **off** — it ships on (so the default
 /// `stance()` already carries it), so build the baseline arm with the knob off.
 fn meckstroth_off_stance() -> Stance {
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.rebid.meckstroth_adjunct = false;
     american(&agreements).against()
 }
@@ -380,7 +380,7 @@ fn opener_pulls_club_showing_3nt_to_the_major() {
 
 /// The baseline arm with the two-suiter rebids off.
 fn two_suiter_off_stance() -> Stance {
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.rebid.forcing_nt_two_suiter = false;
     american(&agreements).against()
 }

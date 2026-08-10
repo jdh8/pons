@@ -47,9 +47,7 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use ddss::TrickCountTable;
 use pons::bidding::Stance;
-use pons::bidding::agreements::{
-    Agreements, CompetitionKnobs, DefenseKnobs, NotrumpKnobs, OpeningKnobs, RebidKnobs,
-};
+use pons::bidding::agreements::Agreements;
 use pons::bidding::american::{EUROPEAN, LebensohlStyle, NotrumpDefense, NotrumpShape, PUPPET};
 use pons::bidding::card::{american_card, dutch_card};
 use pons::bidding::context::{Context, relative};
@@ -57,7 +55,6 @@ use pons::bidding::features::{
     CompactConfig, Config, FEATURES_LEN_V3, FEATURES_LEN_V4, FEATURES_LEN_V5, FEATURES_VERSION_V3,
     FEATURES_VERSION_V4, FEATURES_VERSION_V5, features_v3, features_v4, features_v5,
 };
-use pons::bidding::inference::ReadingProfile;
 use pons::bidding::{Phase, System};
 use pons::gib;
 use pons::{american, american_instinct, dutch, dutch_instinct};
@@ -67,7 +64,6 @@ use std::collections::BTreeMap;
 use std::ffi::CString;
 use std::io::{BufWriter, Write};
 use std::os::raw::c_int;
-use std::sync::OnceLock;
 
 #[path = "../common/mod.rs"]
 #[allow(dead_code)]
@@ -82,7 +78,7 @@ const SOFTMAX_LEN: usize = 38;
 
 #[derive(Parser)]
 #[command(
-    about = "Dump (features, teacher_softmax) training rows from american(&pons::bidding::agreements::Agreements::current())"
+    about = "Dump (features, teacher_softmax) training rows from american(&pons::bidding::agreements::Agreements::default())"
 )]
 struct Args {
     /// Number of boards to bid out
@@ -318,128 +314,8 @@ fn rkcb_variant(on: bool) -> pons::bidding::instinct::RkcbVariant {
     }
 }
 
-/// The shipped default of every flippable knob, captured off the untouched
-/// process state so a default drift can never silently invert a flip
-/// (`probe-card-axes`'s `Defaults`, copied verbatim)
-#[derive(Clone, Copy)]
-struct Defaults {
-    garbage: bool,
-    nmf: bool,
-    xyz: bool,
-    super_accept: bool,
-    fsf: bool,
-    jordan: bool,
-    leaping: bool,
-    responsive: bool,
-    support_x: bool,
-    splinter: bool,
-    offshape: bool,
-    shape: NotrumpShape,
-    defense: NotrumpDefense,
-    leb: LebensohlStyle,
-    minors_european: bool,
-    landy: Option<(u8, u8)>,
-}
-
-impl Defaults {
-    fn capture() -> Self {
-        let reading = ReadingProfile::default();
-        Self {
-            garbage: reading.garbage_stayman,
-            xyz: reading.xyz,
-            landy: reading.landy_range,
-            nmf: RebidKnobs::default().new_minor_forcing,
-            offshape: OpeningKnobs::default().one_notrump_offshape,
-            super_accept: NotrumpKnobs::default().transfer_super_accept,
-            fsf: RebidKnobs::default().fourth_suit_forcing,
-            jordan: CompetitionKnobs::default().jordan_truscott,
-            leaping: DefenseKnobs::default().leaping_michaels_enabled,
-            responsive: DefenseKnobs::default().responsive_takeout_enabled,
-            support_x: CompetitionKnobs::default().major_support_double,
-            splinter: reading.nt_splinter,
-            shape: OpeningKnobs::default().notrump_shape,
-            defense: reading.notrump_defense,
-            leb: CompetitionKnobs::default().lebensohl_style,
-            minors_european: reading.notrump_minors == EUROPEAN,
-        }
-    }
-
-    /// The axes that are fields of [`Agreements`] rather than thread cells
-    fn knobs(&self) -> Knobs {
-        Knobs {
-            opening: OpeningKnobs {
-                one_notrump_offshape: self.offshape,
-                notrump_shape: self.shape,
-                ..OpeningKnobs::default()
-            },
-            rebid: RebidKnobs {
-                new_minor_forcing: self.nmf,
-                fourth_suit_forcing: self.fsf,
-                ..RebidKnobs::default()
-            },
-            notrump: NotrumpKnobs {
-                transfer_super_accept: self.super_accept,
-                ..NotrumpKnobs::default()
-            },
-            competition: CompetitionKnobs {
-                jordan_truscott: self.jordan,
-                major_support_double: self.support_x,
-                lebensohl_style: self.leb,
-                ..CompetitionKnobs::default()
-            },
-            defense: DefenseKnobs {
-                leaping_michaels_enabled: self.leaping,
-                responsive_takeout_enabled: self.responsive,
-                ..DefenseKnobs::default()
-            },
-            reading: ReadingProfile {
-                garbage_stayman: self.garbage,
-                xyz: self.xyz,
-                nt_splinter: self.splinter,
-                notrump_defense: self.defense,
-                notrump_minors: if self.minors_european {
-                    EUROPEAN
-                } else {
-                    PUPPET
-                },
-                landy_range: self.landy,
-                ..ReadingProfile::default()
-            },
-        }
-    }
-}
-
-/// The axes that live in the captured [`Agreements`] rather than in a cell
-#[derive(Clone, Copy)]
-struct Knobs {
-    opening: OpeningKnobs,
-    rebid: RebidKnobs,
-    notrump: NotrumpKnobs,
-    competition: CompetitionKnobs,
-    defense: DefenseKnobs,
-    reading: ReadingProfile,
-}
-
-impl Knobs {
-    /// Paste these onto a fresh capture of the ambient cells
-    fn onto_current(self) -> Agreements {
-        let mut agreements = Agreements::current();
-        agreements.opening = self.opening;
-        agreements.rebid = self.rebid;
-        agreements.notrump = self.notrump;
-        agreements.competition = self.competition;
-        agreements.defense = self.defense;
-        agreements.decision.reading = self.reading;
-        agreements
-    }
-}
-
-/// A knob flip away from the shipped defaults, applied on the bidding thread.
-///
-/// Most axes are thread cells, flipped in place; the rest live in the
-/// [`Agreements`] value, so the flip is also handed the [`Knobs`] the build
-/// will carry.  The cells are re-read after the flips, so a flip may do either.
-type Flip = fn(&Defaults, &mut Knobs);
+/// A knob flip away from the shipped defaults
+type Flip = fn(&mut Agreements);
 
 /// Every flippable axis, **in bit order**: bit i of `SideConfig::flips` (the
 /// `+HEX` cell-label suffix) applies entry i
@@ -473,94 +349,88 @@ type Flip = fn(&Defaults, &mut Knobs);
 ///
 /// [docs/ai-bidder/card-manifold.md]: ../../docs/ai-bidder/card-manifold.md
 const AXES: [(&str, Flip); 16] = [
-    ("Garbage Stayman", |d, k| {
-        k.reading.garbage_stayman = !d.garbage
+    ("Garbage Stayman", |a| {
+        a.decision.reading.garbage_stayman = !a.decision.reading.garbage_stayman
     }),
-    ("Checkback (NMF)", |d, k| {
-        k.rebid.new_minor_forcing = !d.nmf;
+    ("Checkback (NMF)", |a| {
+        a.rebid.new_minor_forcing = !a.rebid.new_minor_forcing;
     }),
-    ("Two Way NMF (XYZ)", |d, k| k.reading.xyz = !d.xyz),
-    ("Super acceptance", |d, k| {
-        k.notrump.transfer_super_accept = !d.super_accept;
+    ("Two Way NMF (XYZ)", |a| {
+        a.decision.reading.xyz = !a.decision.reading.xyz
     }),
-    ("Fourth suit forcing", |d, k| {
-        k.rebid.fourth_suit_forcing = !d.fsf;
+    ("Super acceptance", |a| {
+        a.notrump.transfer_super_accept = !a.notrump.transfer_super_accept;
     }),
-    ("Jordan Truscott 2NT", |d, k| {
-        k.competition.jordan_truscott = !d.jordan;
+    ("Fourth suit forcing", |a| {
+        a.rebid.fourth_suit_forcing = !a.rebid.fourth_suit_forcing;
     }),
-    ("Leaping Michaels", |d, k| {
-        k.defense.leaping_michaels_enabled = !d.leaping;
+    ("Jordan Truscott 2NT", |a| {
+        a.competition.jordan_truscott = !a.competition.jordan_truscott;
     }),
-    ("Responsive double", |d, k| {
-        k.defense.responsive_takeout_enabled = !d.responsive;
+    ("Leaping Michaels", |a| {
+        a.defense.leaping_michaels_enabled = !a.defense.leaping_michaels_enabled;
     }),
-    ("Support double/redouble", |d, k| {
-        k.competition.major_support_double = !d.support_x;
+    ("Responsive double", |a| {
+        a.defense.responsive_takeout_enabled = !a.defense.responsive_takeout_enabled;
     }),
-    ("1N-3M splinter", |d, k| k.reading.nt_splinter = !d.splinter),
-    ("1NT offshape 4441/5422", |d, k| {
-        k.opening.one_notrump_offshape = !d.offshape;
+    ("Support double/redouble", |a| {
+        a.competition.major_support_double = !a.competition.major_support_double;
     }),
-    ("1NT shape ladder", |d, k| {
-        k.opening.notrump_shape = match d.shape {
+    ("1N-3M splinter", |a| {
+        a.decision.reading.nt_splinter = !a.decision.reading.nt_splinter
+    }),
+    ("1NT offshape 4441/5422", |a| {
+        a.opening.one_notrump_offshape = !a.opening.one_notrump_offshape;
+    }),
+    ("1NT shape ladder", |a| {
+        a.opening.notrump_shape = match a.opening.notrump_shape {
             NotrumpShape::Balanced => NotrumpShape::Wide6322,
             _ => NotrumpShape::Balanced,
         };
     }),
-    ("NT defense (Landy rows)", |d, k| {
-        k.reading.notrump_defense = if d.defense == NotrumpDefense::Woolsey {
-            NotrumpDefense::Natural
-        } else {
-            NotrumpDefense::Woolsey
-        };
+    ("NT defense (Landy rows)", |a| {
+        a.decision.reading.notrump_defense =
+            if a.decision.reading.notrump_defense == NotrumpDefense::Woolsey {
+                NotrumpDefense::Natural
+            } else {
+                NotrumpDefense::Woolsey
+            };
     }),
-    ("Lebensohl rows", |d, k| {
-        k.competition.lebensohl_style = if d.leb == LebensohlStyle::Off {
+    ("Lebensohl rows", |a| {
+        a.competition.lebensohl_style = if a.competition.lebensohl_style == LebensohlStyle::Off {
             LebensohlStyle::Transfer
         } else {
             LebensohlStyle::Off
         };
     }),
-    ("1NT minor scheme", |d, k| {
-        k.reading.notrump_minors = if d.minors_european { PUPPET } else { EUROPEAN };
+    ("1NT minor scheme", |a| {
+        a.decision.reading.notrump_minors = if a.decision.reading.notrump_minors == EUROPEAN {
+            PUPPET
+        } else {
+            EUROPEAN
+        };
     }),
-    ("Landy range", |d, k| {
-        k.reading.landy_range = if d.landy.is_some() {
+    ("Landy range", |a| {
+        a.decision.reading.landy_range = if a.decision.reading.landy_range.is_some() {
             None
         } else {
             Some((8, 14))
         };
-        if let Some(range) = k.reading.landy_range {
-            k.reading.woolsey_points = range;
+        if let Some(range) = a.decision.reading.landy_range {
+            a.decision.reading.woolsey_points = range;
         }
     }),
 ];
 
-/// The shipped axis defaults, captured once before any arming so every later
-/// [`arm_flips`] re-assigns from the same untouched baseline.
-static AXIS_DEFAULTS: OnceLock<Defaults> = OnceLock::new();
-
-/// Arm a side's flip axes: re-assign **all** 16 defaults, then apply the set
-/// bits
-///
-/// Assignment discipline, exactly as `probe-card-axes` arms a rayon task:
-/// a mixed `--cell` re-arms per acting seat, so a knob merely set-when-on
-/// would leak the previous side's state into this side's book, card and
-/// reading. Call it wherever a side's `rkcb_variant` is selected.
-///
-/// Returns the [`Agreements`] the side plays — every build under this arming
-/// must be handed *this*, not a fresh `Agreements::current()`, or the
-/// value-borne axes silently revert to their shipped poles.
+/// Build a side's agreements from defaults, then apply its selected flip axes
 fn arm_flips(flips: u16) -> Agreements {
-    let defaults = AXIS_DEFAULTS.get_or_init(Defaults::capture);
-    let mut knobs = defaults.knobs();
+    let mut agreements = Agreements::default();
     for (bit, (_, flip)) in AXES.iter().enumerate() {
         if flips & (1u16 << bit) != 0 {
-            flip(defaults, &mut knobs);
+            flip(&mut agreements);
         }
     }
-    knobs.onto_current()
+    agreements
 }
 
 /// `a-on`, `d-off`, `american-on`, `dutch-off` — a side's declared system,
@@ -688,9 +558,6 @@ const VULS: [AbsoluteVulnerability; 4] = [
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
-    // Capture the axis defaults off the still-untouched knob state, before any
-    // arming can perturb what "default" means.
-    AXIS_DEFAULTS.get_or_init(Defaults::capture);
     let (feature_version, features_len) = match (args.feature_version, args.configured) {
         // `4` is "today's meaning", not a forced v4: a bare (v3) invocation
         // under the default flag value must stay byte-identical.
@@ -730,7 +597,7 @@ fn main() -> anyhow::Result<()> {
         // This top-level teacher historically builds before any per-regime
         // recognizer arming; keep its shipped reading profile. The BBA
         // convention override is still selected by `with_conv` below.
-        let agreements = Agreements::current();
+        let agreements = Agreements::default();
         Ok(match args.teacher.as_str() {
             // `--system` selects the teacher, not merely the disclosed card.
             // Letting them drift apart writes rows labelled with a system the
@@ -826,7 +693,6 @@ fn main() -> anyhow::Result<()> {
                 );
             }
         }
-        arm_flips(0);
     }
     let v5 = feature_version == FEATURES_VERSION_V5;
     // Per side: its card and the stance that reads its auctions.
@@ -837,9 +703,9 @@ fn main() -> anyhow::Result<()> {
     let mut per_side_agreements: BTreeMap<String, pons::bidding::features::ConventionCard> =
         BTreeMap::new();
     for side in &sides {
-        // The side's *full* arming — recognizer and flip axes — so its card,
-        // stance and (per pair, below) teacher are all built under the same
-        // knob state the auction loop re-arms per acting seat.
+        // The side's full agreements — recognizer and flip axes — so its card,
+        // stance and (per pair, below) teacher are all built from the same
+        // value.
         let mut agreements = arm_flips(side.flips);
         agreements.decision.reading.rkcb_variant = rkcb_variant(side.kickback);
         let card = card_for(side.system(), &agreements)?;
@@ -1013,12 +879,9 @@ fn main() -> anyhow::Result<()> {
                         (others, dealers_side)
                     }
                 });
-                // Arm the recognizer *and* the flip axes for the acting side
-                // before anything reads or classifies: in a mixed table the two
-                // sides disagree, and the row must be extracted under the
-                // configuration that produced it.  Both arms assign every knob
-                // (never merely set-when-on), so the previous seat's arming
-                // cannot leak through.
+                // Select the artifacts built for the acting side: in a mixed
+                // table the two sides disagree, and the row must be extracted
+                // under the configuration that produced it.
                 let cell_artifacts =
                     acting.map(|(ours, theirs)| &per_pair[&(ours.label(), theirs.label())]);
                 let teacher = match cell_artifacts {

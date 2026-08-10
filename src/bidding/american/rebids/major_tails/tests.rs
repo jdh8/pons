@@ -18,7 +18,7 @@ fn register_major_rebid_packages(trie: &mut Trie, agreements: &Agreements) {
 
 /// The shipped agreements with the two tail knobs pinned.
 fn tail_agreements(major_rebid_tails: bool, fourth_suit_forcing: bool) -> Agreements {
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.rebid.major_rebid_tails = major_rebid_tails;
     agreements.rebid.fourth_suit_forcing = fourth_suit_forcing;
     agreements

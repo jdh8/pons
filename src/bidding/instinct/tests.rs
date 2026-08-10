@@ -9,7 +9,7 @@ const fn call(level: u8, strain: Strain) -> Call {
 
 /// The highest-logit instinct call for a hand in an auction
 fn best(auction: &[Call], hand: &str) -> Call {
-    best_with(&Agreements::current(), auction, hand)
+    best_with(&Agreements::default(), auction, hand)
 }
 
 /// [`best`] under an explicit profile, pinned into the bare test context
@@ -26,13 +26,13 @@ fn best_with(agreements: &Agreements, auction: &[Call], hand: &str) -> Call {
 }
 
 fn kickback_agreements() -> Agreements {
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.rkcb_variant = RkcbVariant::Kickback;
     agreements
 }
 
 fn rubens_agreements() -> Agreements {
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.rubens_advances = true;
     agreements
 }
@@ -46,7 +46,7 @@ fn rubens_agreements() -> Agreements {
 /// Uses [`american_instinct`] (not the net-floored [`american`]) so these
 /// tests exercise the deterministic instinct ladder they assert against.
 fn american_floored(auction: &[Call], hand: &str) -> (Call, bool) {
-    american_floored_with(&Agreements::current(), auction, hand)
+    american_floored_with(&Agreements::default(), auction, hand)
 }
 
 /// The same, built from an explicit [`Agreements`] rather than this thread's
@@ -147,7 +147,7 @@ fn minimum_doubler_does_not_over_raise_a_forced_advance() {
     assert_eq!(best(&advanced, maximum), call(3, Strain::Diamonds));
 
     // Off: the blind raise ladder returns (the A/B baseline).
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.instinct.rein_advance_raise = false;
     assert_eq!(
         best_with(&agreements, &advanced, minimum),
@@ -187,16 +187,21 @@ fn competitive_rebid_shows_the_long_suit() {
     ];
     let one_suiter = "765.A.AKJT984.63";
 
-    // Off (default): the floor can only double, misdescribing a takeout shape.
-    set_competitive_rebid(false);
-    assert_eq!(best(&raised, one_suiter), Call::Double);
+    // Off: the floor can only double, misdescribing a takeout shape.
+    let mut off = Agreements::default();
+    off.instinct.competitive_rebid = false;
+    assert_eq!(best_with(&off, &raised, one_suiter), Call::Double);
 
     // On: rebid the suit instead — and it is the floor that produces it, not a
     // book node shadowing the position.
-    set_competitive_rebid(true);
-    assert_eq!(best(&raised, one_suiter), call(3, Strain::Diamonds));
+    let mut on = Agreements::default();
+    on.instinct.competitive_rebid = true;
     assert_eq!(
-        american_floored(&raised, one_suiter),
+        best_with(&on, &raised, one_suiter),
+        call(3, Strain::Diamonds)
+    );
+    assert_eq!(
+        american_floored_with(&on, &raised, one_suiter),
         (call(3, Strain::Diamonds), true)
     );
 
@@ -207,7 +212,10 @@ fn competitive_rebid_shows_the_long_suit() {
         Call::Pass,
         Call::Pass,
     ];
-    assert_eq!(best(&balancing, one_suiter), call(2, Strain::Diamonds));
+    assert_eq!(
+        best_with(&on, &balancing, one_suiter),
+        call(2, Strain::Diamonds)
+    );
 
     // General across suits: opener's six-card major over their overcall + raise.
     let major = [
@@ -255,7 +263,10 @@ fn competitive_rebid_shows_the_long_suit() {
         call(2, Strain::Hearts),
         call(3, Strain::Clubs),
     ];
-    assert_ne!(best(&transfer, "K5.AQJ982.A5.K43"), call(3, Strain::Hearts));
+    assert_ne!(
+        best_with(&on, &transfer, "K5.AQJ982.A5.K43"),
+        call(3, Strain::Hearts)
+    );
 
     // The overcaller's rebid path fires too — we personally bid the suit.
     let overcall = [
@@ -266,11 +277,9 @@ fn competitive_rebid_shows_the_long_suit() {
         Call::Pass,
     ];
     assert_eq!(
-        best(&overcall, "K5.A54.AKJT98.63"),
+        best_with(&on, &overcall, "K5.A54.AKJT98.63"),
         call(3, Strain::Diamonds)
     );
-
-    set_competitive_rebid(false);
 }
 
 #[test]
@@ -285,7 +294,7 @@ fn penalty_latch_doubles_the_runout_for_penalty() {
     // A pure diamond stack (9 HCP, all in their suit): combined with partner's
     // shown 15+ this is below game, so the floor neither bids nor advances.
     // Latch off — defend by passing, no penalty double offered.
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.penalty_latch = false;
     assert_eq!(
         best_with(&agreements, &auction, "T98.964.AKQ7.853"),
@@ -318,7 +327,7 @@ fn penalty_latch_leaves_partner_s_double_in() {
     ];
     // A flat 16-count with no diamond stopper: latch off, the takeout-advance
     // jumps to a dubious 4♠ on a four-card suit.
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.penalty_latch = false;
     assert_eq!(
         best_with(&agreements, &auction, "AQ74.AQ5.82.A632"),
@@ -343,7 +352,7 @@ fn advancer_runs_from_redoubled_penalty_double() {
     // Values (9 HCP): sit and defend 1NTxx — our side beats it.
     assert_eq!(best(&auction, "KQ7.K83.J642.643"), Call::Pass);
     // Off-switch: the runout disabled, the broke hand sits.
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.instinct.advancer_xx_runout = false;
     assert_eq!(
         best_with(&agreements, &auction, "J9763.852.764.43"),
@@ -368,9 +377,9 @@ fn doubler_runs_from_redoubled_penalty_double() {
     // No five-card suit (4-4-3-2): nowhere to run, so sit.
     assert_eq!(best(&auction, "AQ74.KQ32.A82.K3"), Call::Pass);
     // Off-switch: the strong doubler sits and defends 1NTxx.
-    set_doubler_xx_runout(false);
-    assert_eq!(best(&auction, "AQ765.KQ4.A82.K3"), Call::Pass);
-    set_doubler_xx_runout(true);
+    let mut off = Agreements::default();
+    off.instinct.doubler_xx_runout = false;
+    assert_eq!(best_with(&off, &auction, "AQ765.KQ4.A82.K3"), Call::Pass);
 }
 
 #[test]
@@ -384,7 +393,7 @@ fn optional_latch_doubles_short_and_partner_cooperates() {
     // Three small diamonds (no stack), 13 HCP, no four-card suit worth bidding:
     // the PENALTY latch needs a stack, so it does not double…
     let cooperative = "KQ5.KQ5.642.QJ93";
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.instinct.latch_style = LatchStyle::Penalty;
     assert_ne!(best_with(&agreements, &runout, cooperative), Call::Double);
     // …but the OPTIONAL latch doubles on the 2-3 holding and values.
@@ -458,7 +467,7 @@ fn doubles_only_their_live_bids() {
     ];
     let hand: Hand = "92.K53.AQJ42.962".parse().expect("valid test hand");
     let context = Context::new(RelativeVulnerability::NONE, &auction);
-    let logits = instinct(&Agreements::current()).classify(hand, &context);
+    let logits = instinct(&Agreements::default()).classify(hand, &context);
     assert_eq!(*logits.0.get(Call::Double), f32::NEG_INFINITY);
 }
 
@@ -470,7 +479,7 @@ fn settle_floor_defends_with_length_behind_their_suit() {
     let weak_with_defense = "9543.74.K2.QJ876";
 
     // Off: the floor over-advances to the captive 4♣.
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.instinct.settle_floor = false;
     assert_eq!(
         best_with(&agreements, &auction, weak_with_defense),
@@ -534,7 +543,7 @@ fn fit_sum_game_counts_trump_length_toward_game() {
     // Pin the point gate: this test is *about* `fit_sum_game` being read from
     // the profile, and the bilans floor replaces that arithmetic with the net —
     // which would answer 4♠ at both thresholds and assert nothing.
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.instinct.bilans_floor = false;
 
     // Armed at 31 (the default): the ninth trump counts as points (fit-sum
@@ -563,7 +572,7 @@ fn forced_to_game_picks_the_known_major_fit() {
     // The splinter owns this auction by default (short hearts, not long), so
     // it is switched off here: the floor path under test is only reachable
     // when the slot is empty, which is exactly when it should apply.
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.nt_splinter = false;
     let auction = [
         call(1, Strain::Notrump),
@@ -619,7 +628,7 @@ fn fit_sum_reads_a_four_four_major_fit() {
     // under this stance's readings), the slam is claimed *through RKCB*
     // rather than blind — 66.3% includes the boards off two keycards.
     assert_eq!(bid, call(4, Strain::Notrump));
-    let mut legacy_agreements = Agreements::current();
+    let mut legacy_agreements = Agreements::default();
     legacy_agreements.decision.reading.envelope_union = false;
     let (legacy, _) = american_floored_with(&legacy_agreements, &auction, south);
     assert_eq!(legacy, call(4, Strain::Notrump));
@@ -793,7 +802,7 @@ fn net_collar_vetoes_the_notrump_slam_below_thirty_three() {
     assert_eq!(bid, call(6, Strain::Notrump));
 
     // Collared: the arithmetic is the criterion again and vetoes it.
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.instinct.net_collar = true;
     let collared = american_floored_with(&agreements, &auction, hand).0;
     assert_eq!(collared, Call::Pass);
@@ -809,7 +818,7 @@ fn transfer_invite_reaches_the_floor_over_a_possible_five_two() {
     // natural-suit raise is out of the overlay's artificial-only scope).  With
     // only a five-card major shown and our own doubleton, the floor prefers 3NT
     // over a possible 5-2 game.
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.notrump.sixcard_invite_floor = 14;
     let invite = [
         call(1, Strain::Notrump),
@@ -871,7 +880,7 @@ fn slam_entry_floor_controls_the_rkcb_ask() {
     // Pin the point gate: the bilans floor enters keycarding on
     // `SLAM_ENTRY_P` instead of this point floor, so knob-on both thresholds
     // answer 4NT and the test stops testing what it names.
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.instinct.bilans_floor = false;
     agreements.decision.instinct.floor_slam_entry = 33;
     assert_eq!(
@@ -1891,7 +1900,7 @@ fn redwood_scopes_the_ladder_and_implies_the_minors() {
     ];
     let claims = |auction: &[Call], variant| kickback_ladder(auction, 4, variant);
     let minor_asks_for = |variant| {
-        let mut profile = DecisionProfile::current();
+        let mut profile = DecisionProfile::default();
         profile.instinct.keycard_minors = false;
         profile.reading.rkcb_variant = variant;
         minor_asks(&profile)
@@ -2159,7 +2168,7 @@ fn rkcb_historical_prefix_does_not_reuse_the_full_auction_reading() {
         Call::Double,
     ];
     let hand: Hand = "KQ.9.AQ9875.T764".parse().expect("valid test hand");
-    let stance = american_instinct(&crate::bidding::agreements::Agreements::current()).against();
+    let stance = american_instinct(&crate::bidding::agreements::Agreements::default()).against();
     let uncached_context = stance.prefixed_context(RelativeVulnerability::NONE, &auction);
     let reference = answer_trump(hand, &uncached_context, 8);
 
@@ -2355,7 +2364,7 @@ fn control_bid_is_never_passed_out() {
     // diamonds (the M6.4 reading) — and the floor returns to the agreed
     // suit instead of passing out the phantom heart contract.  (Under the
     // longer-major default, 1♠ can be 5-5, so 4♥ reads to play.)
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.longer_major_response = false;
     let auction = [
         call(1, Strain::Diamonds),
@@ -2498,7 +2507,7 @@ fn two_over_one_slam_strength_unblocks_the_ask() {
         Call::Pass,
     ];
     // Delete the book node so the floor owns the position.
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.instinct.two_over_one_slam_strength = false;
     agreements.game_force.opener_third = false;
     let (chosen, floored) = american_floored_with(&agreements, &auction, "AKQJ2.AKQ.AQJ4.9");
@@ -2509,7 +2518,7 @@ fn two_over_one_slam_strength_unblocks_the_ask() {
     // tricks above the grand's break-even.  Knob-off this is still 4♠.
     assert_eq!(chosen, call(7, Strain::Spades), "the net finds the grand");
 
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.instinct.two_over_one_slam_strength = true;
     agreements.game_force.opener_third = false;
     let (chosen, _) = american_floored_with(&agreements, &auction, "AKQJ2.AKQ.AQJ4.9");
@@ -2552,7 +2561,7 @@ fn a_minimum_signs_off_opposite_an_established_two_over_one() {
         Call::Pass,
     ];
     // Delete the book node so the floor owns the position.
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.game_force.opener_third = false;
     let (minimum, floored) = american_floored_with(&agreements, &auction, "AQJ52.32.KQ54.92");
     assert!(floored, "the deleted node leaves this to the floor");
@@ -2580,7 +2589,7 @@ fn bilans_floor_still_explores_the_rock_crusher_slam() {
         Call::Pass,
     ];
     // Delete the book node so the floor owns the position.
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.game_force.opener_third = false;
     let (crusher, floored) = american_floored_with(&agreements, &auction, "AKQJ2.AKQ.AQJ4.9");
     // The natural jump raise (cf. `floor_asks_keycards_with_slam_values_
@@ -2610,53 +2619,73 @@ fn bilans_floor_still_explores_the_rock_crusher_slam() {
 /// The auctions the game backstop used to cover, and the ones it did not
 #[test]
 fn two_over_one_force_reads_the_right_auctions() {
-    set_two_over_one_force(true);
-    let forced = |auction: &[Call]| {
-        two_over_one_game_force(&Context::new(RelativeVulnerability::NONE, auction))
+    let on = Agreements::default();
+    let forced = |agreements: &Agreements, auction: &[Call]| {
+        two_over_one_game_force(
+            &Context::new(RelativeVulnerability::NONE, auction).with_profile(agreements.decision),
+        )
     };
     // 1♠ - 2♣ and 1♦ - 2♣: the game force, read from opener's seat.
-    assert!(forced(&[
-        call(1, Strain::Spades),
-        Call::Pass,
-        call(2, Strain::Clubs),
-        Call::Pass
-    ]));
-    assert!(forced(&[
-        call(1, Strain::Diamonds),
-        Call::Pass,
-        call(2, Strain::Clubs),
-        Call::Pass
-    ]));
+    assert!(forced(
+        &on,
+        &[
+            call(1, Strain::Spades),
+            Call::Pass,
+            call(2, Strain::Clubs),
+            Call::Pass
+        ]
+    ));
+    assert!(forced(
+        &on,
+        &[
+            call(1, Strain::Diamonds),
+            Call::Pass,
+            call(2, Strain::Clubs),
+            Call::Pass
+        ]
+    ));
     // 1♥ - 2♠ is a jump shift, not a 2/1: the response must sit below the opening.
-    assert!(!forced(&[
-        call(1, Strain::Hearts),
-        Call::Pass,
-        call(2, Strain::Spades),
-        Call::Pass
-    ]));
+    assert!(!forced(
+        &on,
+        &[
+            call(1, Strain::Hearts),
+            Call::Pass,
+            call(2, Strain::Spades),
+            Call::Pass
+        ]
+    ));
     // 1♣ - 2♦ has no suit below clubs to answer in; the book registers no
     // game force there either.
-    assert!(!forced(&[
-        call(1, Strain::Clubs),
-        Call::Pass,
-        call(2, Strain::Diamonds),
-        Call::Pass
-    ]));
+    assert!(!forced(
+        &on,
+        &[
+            call(1, Strain::Clubs),
+            Call::Pass,
+            call(2, Strain::Diamonds),
+            Call::Pass
+        ]
+    ));
     // Contested: over interference a two-level suit is a free bid, not a force.
-    assert!(!forced(&[
-        call(1, Strain::Spades),
-        call(2, Strain::Diamonds),
-        call(2, Strain::Hearts),
-        Call::Pass
-    ]));
-    set_two_over_one_force(false);
-    assert!(!forced(&[
-        call(1, Strain::Spades),
-        Call::Pass,
-        call(2, Strain::Clubs),
-        Call::Pass
-    ]));
-    set_two_over_one_force(true); // restore the default
+    assert!(!forced(
+        &on,
+        &[
+            call(1, Strain::Spades),
+            call(2, Strain::Diamonds),
+            call(2, Strain::Hearts),
+            Call::Pass
+        ]
+    ));
+    let mut off = Agreements::default();
+    off.decision.two_over_one_force = false;
+    assert!(!forced(
+        &off,
+        &[
+            call(1, Strain::Spades),
+            Call::Pass,
+            call(2, Strain::Clubs),
+            Call::Pass
+        ]
+    ));
 }
 
 /// With the game backstop deleted the floor owns these nodes, and it must
@@ -2674,13 +2703,12 @@ fn two_over_one_force_never_passes_below_game() {
         call(3, Strain::Clubs),
         Call::Pass,
     ];
-    set_two_over_one_force(true);
+    let agreements = Agreements::default();
     for hand in ["AQ9876.K3.K95.76", "KQJ876.43.K95.A6", "AKJ976.Q2.J54.83"] {
-        let (chosen, floored) = american_floored(&auction, hand);
+        let (chosen, floored) = american_floored_with(&agreements, &auction, hand);
         assert!(floored, "the deleted backstop leaves {hand} to the floor");
         assert_ne!(chosen, Call::Pass, "{hand} must not pass a live game force");
     }
-    set_two_over_one_force(true); // restore the default
 }
 
 #[test]
@@ -3160,7 +3188,7 @@ fn rubens_skips_advances_of_a_double() {
 fn rubens_disabled_reverts_to_natural_advances() {
     // Knob off (`ReadingProfile::rubens_advances`) — the default since the layer A/B:
     // the same hands advance naturally.
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.rubens_advances = false;
     let auction = [call(1, Strain::Clubs), call(1, Strain::Spades), Call::Pass];
     // The limit raise is a direct natural raise, not the 2♥ transfer.
@@ -3189,7 +3217,7 @@ fn rubens_disabled_reverts_to_natural_advances() {
 fn one_nt_runout_disabled_passes() {
     // Disabled, responder has no runout and falls to the natural floor —
     // Pass — even broke with a five-card suit.
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.instinct.one_nt_runout = false;
     let doubled = [call(1, Strain::Notrump), Call::Double];
     assert_eq!(
@@ -3211,7 +3239,7 @@ fn one_nt_runout_escapes_to_the_long_suit() {
 
 #[test]
 fn one_nt_runout_redoubles_with_values() {
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.instinct.one_nt_runout = true;
     agreements.decision.instinct.runout_xx_min = 8;
     let doubled = [call(1, Strain::Notrump), Call::Double];
@@ -3232,7 +3260,7 @@ fn one_nt_runout_redoubles_with_values() {
 fn one_nt_overcall_runout_escapes_and_redoubles() {
     // The runout now fires when our 1NT was an OVERCALL, not just an opening:
     // (1♥) 1NT (X), advancer to act, our 1NT anchored at index 1.
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.instinct.one_nt_runout = true;
     let doubled = [
         call(1, Strain::Hearts),
@@ -3274,7 +3302,7 @@ fn one_nt_overcall_runout_is_floor_territory() {
 
 #[test]
 fn gambling_3nt_over_double_routes_long_minors() {
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.instinct.one_nt_runout = true;
     agreements.decision.instinct.gambling_3nt_over_double = true;
     agreements.decision.instinct.gambling_3nt_top_honors = 2;
@@ -3333,7 +3361,7 @@ fn preempt_4m_over_double_jumps_the_long_major() {
     // `support_points` scale their extra shortness tips the fit-sum floor to
     // game — masking the trump-ace / semi-solid escape gates this test checks.
     // The scale shift itself is measured by the A/B.
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.support_points = false;
     agreements.decision.instinct.one_nt_runout = true;
     agreements.decision.instinct.preempt_4m_over_double = true;
@@ -3379,7 +3407,7 @@ fn preempt_4m_over_double_jumps_the_long_major() {
 
 #[test]
 fn one_nt_runout_2nt_scrambles_the_minors() {
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.instinct.one_nt_runout = true;
     // The 2NT relay is the opt-in `FourFour` mode (the default is `Direct`).
     agreements.decision.instinct.unusual_2nt = Unusual2nt::FourFour;
@@ -3409,7 +3437,7 @@ fn one_nt_runout_2nt_scrambles_the_minors() {
 
 #[test]
 fn one_nt_runout_2nt_shape_modes() {
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.instinct.one_nt_runout = true;
     let doubled = [call(1, Strain::Notrump), Call::Double];
     // A weak 5-5 in the minors.  In `FourFour` it escapes naturally to a
@@ -3437,7 +3465,7 @@ fn one_nt_runout_2nt_shape_modes() {
 
 #[test]
 fn one_nt_runout_penalizes_escape_on_stack() {
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.instinct.one_nt_runout = true;
     agreements.decision.instinct.penalize_escape_values = false;
     // `1NT (X) XX (2♣)`: responder's business redouble shows values before RHO
@@ -3464,7 +3492,7 @@ fn one_nt_runout_penalizes_escape_on_stack() {
 
 #[test]
 fn one_nt_runout_leaves_in_escape_penalty() {
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.instinct.one_nt_runout = true;
     agreements.decision.instinct.penalize_escape_stack = true;
     // `1NT (X) XX (2♣) X -`: partner doubled their run for penalty.  We pass
@@ -3485,7 +3513,7 @@ fn one_nt_runout_leaves_in_escape_penalty() {
 
 #[test]
 fn one_nt_runout_penalizes_escape_on_values() {
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.instinct.one_nt_runout = true;
     agreements.decision.instinct.penalize_escape_stack = false;
     agreements.decision.instinct.penalize_escape_values = true;
@@ -3533,7 +3561,7 @@ fn one_nt_runout_penalizes_escape_on_values() {
 
 #[test]
 fn one_nt_runout_universal_opener_escapes_and_sos() {
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.instinct.one_nt_runout = true;
     agreements.decision.instinct.one_nt_runout_universal = true;
     // In the balancing seat after `1NT (X) - -`, partner is broke and opener

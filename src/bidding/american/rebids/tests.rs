@@ -32,7 +32,7 @@ fn balanced_1nt_rebid_knob_flips_2m_to_1nt() {
     // ♠KQ4 ♥Q3 ♦AK762 ♣853 — 3=2=5=3, 14 HCP, no four-card heart support.
     let hand = "KQ4.Q3.AK762.853";
     let build = |balanced_1nt_rebid: bool| {
-        let mut agreements = crate::bidding::agreements::Agreements::current();
+        let mut agreements = crate::bidding::agreements::Agreements::default();
         agreements.rebid.balanced_1nt_rebid = balanced_1nt_rebid;
         let mut trie = Trie::new();
         crate::bidding::rows::compile_into(&mut trie, &agreements, &[remaining_rebid_bases()]);

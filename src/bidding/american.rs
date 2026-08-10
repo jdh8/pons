@@ -85,10 +85,7 @@ pub use defense::{
     DoubleShape, NotrumpDefense, TakeoutSupport, advance_double, defense_to_suit,
     defense_to_weak_two,
 };
-pub use notrump::{
-    EUROPEAN, PUPPET, SizeAskEight, notrump_responses, set_stayman_net_force,
-    set_transfer_gf_hearts, set_transfer_gf_majors,
-};
+pub use notrump::{EUROPEAN, PUPPET, SizeAskEight, notrump_responses};
 pub(crate) use openings::notrump_shape;
 pub use openings::{NotrumpShape, WeakTwoEval, openings, openings_with};
 
@@ -342,6 +339,3 @@ pub(in crate::bidding) fn book(agreements: &Agreements) -> Pair {
 
 #[cfg(test)]
 mod tests;
-pub(crate) use notrump::stayman_net_force;
-pub use notrump::transfer_gf_hearts;
-pub use notrump::transfer_gf_majors;

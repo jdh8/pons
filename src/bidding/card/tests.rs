@@ -11,12 +11,12 @@ use crate::bidding::agreements::Agreements;
 #[test]
 fn the_checked_in_cards_match_the_generator() {
     assert_eq!(
-        american_card(&crate::bidding::agreements::Agreements::current()).to_string(),
+        american_card(&crate::bidding::agreements::Agreements::default()).to_string(),
         include_str!("../../../cards/American.bbsa"),
         "cards/American.bbsa is stale — re-bless it (see this test's doc)",
     );
     assert_eq!(
-        dutch_card(&crate::bidding::agreements::Agreements::current()).to_string(),
+        dutch_card(&crate::bidding::agreements::Agreements::default()).to_string(),
         include_str!("../../../cards/Dutch.bbsa"),
         "cards/Dutch.bbsa is stale — re-bless it (see this test's doc)",
     );
@@ -96,7 +96,7 @@ fn pons_rows_do_not_shadow_the_schema() {
 fn the_rendered_card_has_the_cards_full_length() {
     // Header + named rows + filler + `Opponent type`, as BBA writes it.  The
     // pons-only rows spend filler slots, so the total is unmoved.
-    let text = american_card(&crate::bidding::agreements::Agreements::current()).to_string();
+    let text = american_card(&crate::bidding::agreements::Agreements::default()).to_string();
     assert_eq!(text.lines().count(), 1 + SCHEMA.len() + NOT_DEFINED + 1);
     assert_eq!(
         text.lines()
@@ -138,7 +138,7 @@ fn a_knob_moves_its_row() {
     // The off-shape treatment admits *any* 5422 plus 4441/5431 with a singleton
     // honour, so it owns two shape rows of its own — the shape ladder alone
     // never reaches 4441.
-    let onshape = Agreements::current();
+    let onshape = Agreements::default();
     let mut offshape = onshape;
     offshape.opening.one_notrump_offshape = true;
     assert_eq!(
@@ -169,8 +169,8 @@ fn a_knob_moves_its_row() {
 #[test]
 fn dutch_differs_from_american_in_the_diamond_opening() {
     let (american, dutch) = (
-        american_card(&crate::bidding::agreements::Agreements::current()),
-        dutch_card(&crate::bidding::agreements::Agreements::current()),
+        american_card(&crate::bidding::agreements::Agreements::default()),
+        dutch_card(&crate::bidding::agreements::Agreements::default()),
     );
     assert_eq!(dutch.system, 2, "Dutch declares the WJ base");
     let moved: Vec<_> = SCHEMA
@@ -189,7 +189,7 @@ fn dutch_differs_from_american_in_the_diamond_opening() {
 /// into a description of somebody else's system.
 #[test]
 fn a_foreign_card_mirrors_the_schema_and_zeroes_the_pons_rows() {
-    let ours = american_card(&crate::bidding::agreements::Agreements::current());
+    let ours = american_card(&crate::bidding::agreements::Agreements::default());
     let mirrored = foreign_card(ours.system, |name| {
         ours.row(name)
             .expect("`read` is called with schema names only")
@@ -208,5 +208,5 @@ fn a_foreign_card_mirrors_the_schema_and_zeroes_the_pons_rows() {
 #[test]
 #[should_panic(expected = "not a row of the .bbsa schema")]
 fn setting_an_unknown_row_panics() {
-    american_card(&crate::bidding::agreements::Agreements::current()).set("Ghestem Cuebid", 1);
+    american_card(&crate::bidding::agreements::Agreements::default()).set("Ghestem Cuebid", 1);
 }

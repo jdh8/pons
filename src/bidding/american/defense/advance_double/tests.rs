@@ -10,7 +10,7 @@ use contract_bridge::auction::Call;
 fn forced_three_card_advance_bids_the_cheapest() {
     let over_1s = [call(1, Strain::Spades), Call::Double, Call::Pass];
     let over_1c = [call(1, Strain::Clubs), Call::Double, Call::Pass];
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.defense.rich_advance_double_enabled = true;
     arm.defense.longest_first_advance_enabled = true;
 

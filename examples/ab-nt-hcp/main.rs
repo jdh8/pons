@@ -102,7 +102,7 @@ fn main() {
     let args = Args::parse();
     // Ambient environment (both sides): optionally expose the point-arithmetic
     // milestone by disabling the net floor that otherwise shadows it.
-    let mut agreements = pons::bidding::agreements::Agreements::current();
+    let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.instinct.bilans_floor = !args.no_bilans;
     agreements.decision.instinct.nt_hcp_read = false;
     let plain = american(&agreements).against();

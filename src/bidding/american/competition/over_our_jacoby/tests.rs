@@ -121,7 +121,7 @@ fn transfer_overcalled_opener_super_accepts() {
 fn defense_to_their_transfer_doubles_the_bid_suit() {
     // After `(1NT) - (2♦)`, their 2♦ transfers to hearts; our fourth-hand X is
     // lead-directing in diamonds, the bid suit.
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.defense.transfer_defense_enabled = true;
     let auction = [
         call(1, Strain::Notrump),
@@ -140,7 +140,7 @@ fn defense_to_their_transfer_doubles_the_bid_suit() {
 fn defense_to_their_transfer_cues_michaels() {
     // After `(1NT) - (2♦)`, their 2♦ transfers to hearts; 5 spades and 5
     // diamonds cue 2♥ to show the other major plus a minor.
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.defense.transfer_defense_enabled = true;
     let auction = [
         call(1, Strain::Notrump),

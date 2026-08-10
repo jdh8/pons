@@ -58,7 +58,7 @@ fn uvu_smolen_shows_the_five_card_spade() {
 #[test]
 fn uvu_disabled_falls_to_floor() {
     // Disabled, 1NT (2NT) has no book node → instinct floor (the toggle works).
-    let mut off = Agreements::current();
+    let mut off = Agreements::default();
     off.competition.uvu = false;
     let auction = [call(1, Strain::Notrump), call(2, Strain::Notrump)];
     let (_, floored) = best_call_with(&off, &auction, "AQ32.KJ32.A2.432");
@@ -80,7 +80,7 @@ fn uvu_disabled_falls_to_floor() {
 /// net is validated in aggregate by the `ab-*` harnesses.
 #[test]
 fn uvu_encircling_doubles_the_runout() {
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.competition.uvu = true;
     arm.decision.instinct.uvu_encircle = true;
     let auction = [

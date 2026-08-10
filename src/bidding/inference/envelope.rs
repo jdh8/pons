@@ -716,7 +716,7 @@ impl EnvelopeUnion {
         }
     }
 
-    /// The same projection fold under the calling thread's live knobs.
+    /// The same projection fold under the shipped decision defaults.
     #[must_use]
     pub fn disjoin(self, other: Self) -> Self {
         self.disjoin_with(other, ReadingProfile::default())

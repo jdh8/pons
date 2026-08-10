@@ -59,7 +59,7 @@ struct Node<'a> {
 
 fn main() {
     let system = "american";
-    let pair = american_book(&pons::bidding::agreements::Agreements::current());
+    let pair = american_book(&pons::bidding::agreements::Agreements::default());
     let books: [(&'static str, &Trie); 3] = [
         ("constructive", &pair.constructive.0),
         ("competitive", &pair.competitive.0),

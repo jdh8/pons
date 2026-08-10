@@ -238,9 +238,9 @@ fn harvest_deal(
 
 fn main() -> anyhow::Result<()> {
     // NativeAOT EPBot stays on this main thread throughout.
-    let stance: Stance = american(&pons::bidding::agreements::Agreements::current()).against();
+    let stance: Stance = american(&pons::bidding::agreements::Agreements::default()).against();
     let deterministic =
-        american_instinct(&pons::bidding::agreements::Agreements::current()).against();
+        american_instinct(&pons::bidding::agreements::Agreements::default()).against();
     let bba = BbaOracle::load(DEFAULT_LIB, SYSTEM_2_OVER_1, Vec::new())?;
     let mut rows = Vec::with_capacity(support::POSITION_COUNT);
     harvest(Origin::Pons, &stance, &mut rows);

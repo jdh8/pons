@@ -156,7 +156,7 @@ fn main() {
     // arm 0 = invite the whole class, arm 1 = pass the whole class.  The routing is
     // baked into the book, so build each arm from its own agreements; the tries are
     // independent thereafter.
-    let mut arm = pons::bidding::agreements::Agreements::current();
+    let mut arm = pons::bidding::agreements::Agreements::default();
     arm.notrump.size_ask_eight = SizeAskEight::Invite;
     let invite = american(&arm).against();
     arm.notrump.size_ask_eight = SizeAskEight::Pass;

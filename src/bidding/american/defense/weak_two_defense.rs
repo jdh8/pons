@@ -57,17 +57,23 @@ pub fn defense_to_weak_two(their_opening: Bid, agreements: &Agreements) -> Rules
         TakeoutSupport::Off => rules.rule(
             Call::Double,
             130,
-            hcp(12..) & short_in_their_suits() & takeout_double_shape_ok(),
+            hcp(12..) & short_in_their_suits() & takeout_double_shape_ok(agreements.defense),
         ),
         TakeoutSupport::Lenient => rules.rule(
             Call::Double,
             130,
-            hcp(12..) & short_in_their_suits() & unbid_support(1) & takeout_double_shape_ok(),
+            hcp(12..)
+                & short_in_their_suits()
+                & unbid_support(1)
+                & takeout_double_shape_ok(agreements.defense),
         ),
         TakeoutSupport::Strict => rules.rule(
             Call::Double,
             130,
-            hcp(12..) & short_in_their_suits() & unbid_support(0) & takeout_double_shape_ok(),
+            hcp(12..)
+                & short_in_their_suits()
+                & unbid_support(0)
+                & takeout_double_shape_ok(agreements.defense),
         ),
     }
     .alert(TAKEOUT_DOUBLE);

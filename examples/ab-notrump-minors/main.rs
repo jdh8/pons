@@ -100,10 +100,10 @@ fn main() {
     // setting: the baked tries and the stance's pinned profile are then
     // independent, and the European arm no longer classifies under whatever the
     // thread was left holding.
-    let mut european_agreements = pons::bidding::agreements::Agreements::current();
+    let mut european_agreements = pons::bidding::agreements::Agreements::default();
     european_agreements.decision.reading.notrump_minors = EUROPEAN;
     let european = american(&european_agreements).against();
-    let mut puppet_agreements = pons::bidding::agreements::Agreements::current();
+    let mut puppet_agreements = pons::bidding::agreements::Agreements::default();
     puppet_agreements.decision.reading.notrump_minors = PUPPET;
     let puppet = american(&puppet_agreements).against();
     let stances = [european, puppet];

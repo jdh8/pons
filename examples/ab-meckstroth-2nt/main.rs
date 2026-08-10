@@ -111,12 +111,12 @@ fn main() {
     // force (so only the jumps move); without it the baseline drops the whole
     // adjunct.  An inverted `!` here silently re-ran the merged A/B instead —
     // the tell was divergence landing on the merged knob's 0.6%.
-    let mut base = Agreements::current();
+    let mut base = Agreements::default();
     base.rebid.meckstroth_adjunct = args.minor_jumps_only;
     base.rebid.meckstroth_minor_jumps = false;
     let baseline = american(&base).against();
     // The shipped default (both on).
-    let adjunct = american(&Agreements::current()).against();
+    let adjunct = american(&Agreements::default()).against();
     let stances = [baseline, adjunct];
 
     // Both arms bid the same deal; the only difference is opener's rebid table.

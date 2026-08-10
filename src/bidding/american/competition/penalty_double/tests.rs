@@ -83,7 +83,7 @@ fn opener_leaves_in_responder_penalty_double_when_penalty_style() {
         Call::Pass,
     ];
     // Penalty style + leave-in on: opener SITS, and it is an authored node.
-    let mut on = Agreements::current();
+    let mut on = Agreements::default();
     on.competition.lebensohl_style = super::lebensohl::LebensohlStyle::Plain;
     on.competition.double_style = DoubleStyle::Penalty;
     on.competition.penalty_double_leave_in = true;
@@ -118,7 +118,7 @@ fn opener_cooperates_with_responder_optional_double() {
         Call::Double,
         Call::Pass,
     ];
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.competition.lebensohl_style = super::lebensohl::LebensohlStyle::Plain;
     arm.competition.double_style = DoubleStyle::Optional;
     arm.competition.penalty_double_leave_in = true;

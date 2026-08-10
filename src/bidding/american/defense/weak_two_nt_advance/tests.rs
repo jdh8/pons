@@ -17,7 +17,7 @@ fn advance_game_threshold_tracks_the_notrump_band() {
     ];
     let hand = "K84.732.KQT43.42";
 
-    let mut at_16_band = Agreements::current();
+    let mut at_16_band = Agreements::default();
     at_16_band.defense.weak_two_notrump_advances_enabled = true;
     let mut at_15_band = at_16_band;
     at_15_band.defense.weak_two_notrump_points = (15, 17);
@@ -40,7 +40,7 @@ fn advance_game_threshold_tracks_the_notrump_band() {
 fn weak_two_notrump_advances_route_each_hand_class() {
     // Over their (2♥) our 2NT is 16–17 with a stopper, so eight opposite is
     // game values and there is no invitational tier: 3♣ or game.
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.defense.weak_two_notrump_advances_enabled = true;
     let auction = [
         call(2, Strain::Hearts),
@@ -74,7 +74,7 @@ fn weak_two_notrump_advances_route_each_hand_class() {
 fn weak_two_notrump_relay_lands_in_diamonds() {
     // 3♣ is forced to 3♦, which advancer passes — or cues with six-plus
     // diamonds to say 4♦ is safe.  Both halves must come off the book.
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.defense.weak_two_notrump_advances_enabled = true;
     let opening = || call(2, Strain::Hearts);
     let nt = || call(2, Strain::Notrump);
@@ -132,7 +132,7 @@ fn weak_two_notrump_relay_reads_as_diamonds_not_clubs() {
     use crate::bidding::Relative;
     use contract_bridge::Suit;
 
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.defense.weak_two_notrump_advances_enabled = true;
     let read = american(&arm).against().infer(
         RelativeVulnerability::NONE,

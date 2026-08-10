@@ -103,7 +103,7 @@ fn invitational_five_four_majors() {
     assert_eq!(best(&two_d_doubled, s5h4), bid(2, Strain::Spades));
 
     // With the structure off, the same 5♠4♥/8 takes the spade transfer instead.
-    let mut off = Agreements::current();
+    let mut off = Agreements::default();
     off.notrump.invitational_5card_majors = false;
     assert_eq!(best_with(&off, &one_nt, s5h4), bid(2, Strain::Hearts));
     // The doubled-2♦ escape is general (competition-over-Stayman, not the flag):

@@ -1,10 +1,8 @@
 //! What the partnership has agreed to play — the value a book is built from
 //!
-//! The knob layer's single source. Every remaining `set_*` knob is captured
-//! into one field of this value; a build captures it **once**
-//! ([`Agreements::current`][crate::bidding::agreements::Agreements::current]) and threads
-//! `&Agreements` to everything that reads a knob, instead of each reader
-//! consulting the thread on its own.
+//! The knob layer's single source. A build receives one value and threads
+//! `&Agreements` to everything that reads a knob, instead of readers consulting
+//! ambient thread state.
 //!
 //! That join is the point. Four readers must agree about what we play —
 //! [`american_book`][crate::bidding::american::american_book],
@@ -20,7 +18,7 @@
 //!
 //! One field per area of the system — `competition`, `defense`, `notrump`,
 //! `opening`, `response`, `rebid`, `game_force`, `instinct` — plus `decision`.
-//! No cell appears twice; that is the "one cell, one home" invariant, and
+//! No field appears twice; that is the "one knob, one home" invariant, and
 //! `no_knob_lives_in_two_homes` enforces it by scanning this source.
 //!
 //! `decision` holds the settings read **per decision**, at classify time,
@@ -29,7 +27,7 @@
 //! [`Stance`][crate::bidding::Stance] pins at
 //! [`Pair::against`][crate::bidding::Pair::against], so a stance decides
 //! identically on any thread; the eight build-time areas are baked into the
-//! rules a build returns and need no such pin.  A cell read at *both* times
+//! rules a build returns and need no such pin.  A setting read at *both* times
 //! lives in `decision` and is read from there at build time too.
 
 use super::american::{
@@ -40,10 +38,10 @@ use super::context::DecisionProfile;
 
 /// The competitive book's build-time knobs
 ///
-/// Each field is one cell, named for the getter it replaces; *derived* readings
+/// Each field is one build-time setting; *derived* readings
 /// (`free_bids_engaged`, the natural-floor pair) stay functions of the module
-/// that owns them rather than becoming fields, so the "one cell, one home"
-/// invariant survives the move.
+/// that owns them rather than becoming fields, so the "one knob, one home"
+/// invariant stays explicit.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct CompetitionKnobs {
     // --- competition/cue_raise.rs
@@ -521,9 +519,9 @@ impl Default for CompetitionKnobs {
 
 /// The defensive book's build-time knobs
 ///
-/// Each field is one cell, named for the getter it replaces; *derived* readings
-/// stay functions of the module that owns them rather than becoming fields, so
-/// the "one cell, one home" invariant survives the move.
+/// Each field is one build-time setting; *derived* readings stay functions of
+/// the module that owns them rather than becoming fields, so the "one knob, one
+/// home" invariant stays explicit.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct DefenseKnobs {
     // --- defense.rs
@@ -583,6 +581,58 @@ pub struct DefenseKnobs {
     /// [`TakeoutSupport::Lenient`] tolerates one doubleton.  An A/B knob
     /// (`bba-gen --ns-takeout-support off|lenient|strict`).
     pub takeout_support: TakeoutSupport,
+    /// Suppress a takeout double on a weak flat 4-3-3-3
+    ///
+    /// **Shipped default-on**: a flat 4-3-3-3 has no ruffing value, so a
+    /// takeout double on 12–14 HCP overbids.  The shape gate rejects those
+    /// hands so they route to Pass instead.  A paired BBA A/B (409.6k
+    /// boards/arm/vulnerability, seed 1783443667) scored it a plain-DD **and**
+    /// perfect-defense win at both vulnerabilities, every 95% CI excluding
+    /// zero: plain +0.0187 (NV) / +0.0385 (vul), PD +0.0566 / +0.0755
+    /// IMPs/board; about 1.2% fired.  `false` restores the old double.
+    ///
+    /// Read once while the defensive books and deterministic floor are built;
+    /// the resulting constraint closure captures the value.
+    pub suppress_flat_4333_takeout: bool,
+    /// Suppress a takeout double on a weak 5-3-3-2
+    ///
+    /// **Shipped default-on.**  A 12–13 HCP 5-3-3-2 has no four-card suit, so
+    /// the double cannot find a 4-4 fit and instead buries the unbid five-card
+    /// suit.  The hand routes to its natural overcall.  A paired BBA A/B
+    /// (409.6k boards/arm/vulnerability, seed 1783451581) scored a plain-DD
+    /// and perfect-defense win at both vulnerabilities, every 95% CI excluding
+    /// zero: plain +0.0191 (NV) / +0.0401 (vul), PD +0.0601 / +0.0773
+    /// IMPs/board; about 1.2% fired.  `false` restores the old double.
+    pub suppress_5332_takeout: bool,
+    /// Suppress a weak 4-4-3-2 takeout double over a major opening
+    ///
+    /// A 12–13 HCP 4-4-3-2 short in the opponents' suit is a takeout shape,
+    /// but the anchor split shows the loss over **major** openings: −3.2 to
+    /// −3.8 IMPs/divergence whether or not we hold the one unbid four-card
+    /// major.  The opponents have announced a fit and the minimum double is
+    /// outgunned, forcing partner to the two level.  **Default off** pending
+    /// the opener-suit A/B; on routes the hand to Pass.
+    pub suppress_4432_vs_major: bool,
+    /// Suppress a weak 4-4-3-2 takeout double over a minor opening
+    ///
+    /// The mildest 4-4-3-2 slice (−1.39 IMPs/divergence; the 4-4-major subset
+    /// is a wash) is the classic takeout of a minor showing the majors.  It is
+    /// likely kept and remains available for the opener-suit A/B.  **Default
+    /// off**; on routes the hand to Pass.
+    pub suppress_4432_vs_minor: bool,
+    /// Suppress a takeout double with an unbid five-card major
+    ///
+    /// Show the major directly rather than doubling and risking partner
+    /// bidding our short suit.  Over a weak two, the 12+ shapely double would
+    /// otherwise outscore the natural major overcall; only the 12–16 HCP tier
+    /// is redirected because 17+ reaches the separate strong-double rule.
+    /// **Shipped default-on.**  A paired BBA A/B (409.6k
+    /// boards/arm/vulnerability, seed 1783631820) won on plain DD,
+    /// perfect-defense, and single-dummy lead at both vulnerabilities, every
+    /// 95% CI excluding zero: plain +0.0190 (NV) / +0.0493 (vul), PD +0.0892 /
+    /// +0.1129, sd-lead +0.0124 / +0.0413 IMPs/board; about 2% fired.  `false`
+    /// restores the old double.
+    pub suppress_5card_major_takeout: bool,
     /// Use disciplined strength bands for natural suit overcalls
     ///
     /// `true` (the **default**, the shipped fix) raises the 1-level cap to 17
@@ -1307,6 +1357,11 @@ impl Default for DefenseKnobs {
             natural_double_shape: DoubleShape::Balanced,
             natural_double_weight: 130,
             takeout_support: TakeoutSupport::Strict,
+            suppress_flat_4333_takeout: true,
+            suppress_5332_takeout: true,
+            suppress_4432_vs_major: false,
+            suppress_4432_vs_minor: false,
+            suppress_5card_major_takeout: true,
             overcall_discipline: true,
             overcall_four_card: false,
             passed_hand_overcall: true,
@@ -1355,10 +1410,9 @@ impl Default for DefenseKnobs {
 
 /// The notrump book's build-time knobs
 ///
-/// Each field is one cell, named for the getter it replaces; *derived* readings
-/// stay functions of the module that owns them rather than becoming fields, so
-/// the "one cell, one home" invariant survives the move. The three cells also
-/// read at classify time live only in `DecisionProfile`.
+/// Each field is one build-time setting; *derived* readings stay functions of
+/// the module that owns them rather than becoming fields.  The three settings
+/// also read at classify time live only in `DecisionProfile`.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct NotrumpKnobs {
     // --- notrump.rs
@@ -1659,9 +1713,8 @@ impl Default for NotrumpKnobs {
 
 /// The opening book's build-time knobs
 ///
-/// Each field is one cell, named for the getter it replaces; *derived* readings
-/// stay functions of the module that owns them rather than becoming fields, so
-/// the "one cell, one home" invariant survives the move.  `two_notrump_wide` is
+/// Each field is one build-time setting; *derived* readings stay functions of
+/// the module that owns them rather than becoming fields.  `two_notrump_wide` is
 /// read at classify time as well and so lives only in `DecisionProfile`,
 /// deliberately absent here.
 #[derive(Clone, Copy, PartialEq, Debug)]
@@ -1783,9 +1836,8 @@ impl Default for OpeningKnobs {
 
 /// The response and raise books' build-time knobs
 ///
-/// Each field is one cell, named for the getter it replaces; *derived* readings
-/// stay functions of the module that owns them rather than becoming fields, so
-/// the "one cell, one home" invariant survives the move.
+/// Each field is one build-time setting; *derived* readings stay functions of
+/// the module that owns them rather than becoming fields.
 /// `longer_major_response` is read at classify time as well — the M6.4
 /// control-bid classifier reads the same discipline the response rule authors —
 /// and so lives only in `DecisionProfile`, deliberately absent here.
@@ -1932,10 +1984,9 @@ impl Default for ResponseKnobs {
 
 /// The rebid book's build-time knobs
 ///
-/// Each field is one cell, named for the getter it replaces; *derived* readings
-/// stay functions of the module that owns them rather than becoming fields, so
-/// the "one cell, one home" invariant survives the move.  Three of the area's
-/// twelve cells are read at classify time as well — `opener_extras_ladder`,
+/// Each field is one build-time setting; *derived* readings stay functions of
+/// the module that owns them rather than becoming fields.  Three of the area's
+/// twelve settings are read at classify time as well — `opener_extras_ladder`,
 /// `opener_major_jump_rebid` and `xyz` — and so live only in `DecisionProfile`,
 /// deliberately absent here.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -2089,7 +2140,7 @@ pub struct GameForceKnobs {
     /// stopped earning its keep.  Deleting it measures **+0.0117/+0.0142 plain,
     /// +0.0132/+0.0160 PD** IMPs/board NV/vul vs BBA (409,600×2, all CI>0)
     /// *paired with*
-    /// [`set_two_over_one_force`][crate::bidding::instinct::set_two_over_one_force],
+    /// [`DecisionProfile::two_over_one_force`][crate::bidding::context::DecisionProfile::two_over_one_force],
     /// which restores by rule the game force this node used to hold by
     /// omission.  On alone the deletion is worth only +0.005, because the floor
     /// then abandons partner's 2/1 on 24% of the boards it touches.
@@ -2126,7 +2177,7 @@ pub struct GameForceKnobs {
     /// capability loss.
     ///
     /// The architecturally correct fix, if this is ever resumed, is the
-    /// [`set_two_over_one_force`][crate::bidding::instinct::set_two_over_one_force]
+    /// [`DecisionProfile::two_over_one_force`][crate::bidding::context::DecisionProfile::two_over_one_force]
     /// pattern: delete the node *and* teach `instinct()` to ask keycards on a
     /// controls-and-fit test at an agreed-trump game force, which should beat
     /// both arms. Only the raw point threshold is obviously wrong; the ask
@@ -2159,8 +2210,7 @@ impl Default for GameForceKnobs {
 /// The floor's *other* knobs are read while it classifies and live in
 /// `InstinctProfile` alongside the rest of the decision half; these three are
 /// read inside [`instinct`][crate::bidding::instinct()]'s table builder, so
-/// they are baked into the ladder that comes back.  Membership is decided by
-/// where the cell is read, not by what it configures.
+/// they are baked into the ladder that comes back.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct InstinctKnobs {
     /// Author the competitive long-suit rebid
@@ -2178,14 +2228,6 @@ impl Default for InstinctKnobs {
             reopening_notrump: true,
             doubler_xx_runout: true,
         }
-    }
-}
-
-impl InstinctKnobs {
-    /// Capture this thread's floor build-time knob state
-    #[must_use]
-    pub fn current() -> Self {
-        super::instinct::capture_build()
     }
 }
 
@@ -2223,10 +2265,6 @@ pub struct Agreements {
 
 impl Default for Agreements {
     /// The shipped system — what `american_default()` plays
-    ///
-    /// Equal to [`Agreements::current`] on a virgin thread
-    /// (`build_defaults_match_the_cells`, `decision_defaults_match_the_cells`),
-    /// which is what lets the cells be deleted without moving a bid.
     fn default() -> Self {
         Self {
             decision: DecisionProfile::default(),
@@ -2238,27 +2276,6 @@ impl Default for Agreements {
             rebid: RebidKnobs::default(),
             game_force: GameForceKnobs::default(),
             instinct: InstinctKnobs::default(),
-        }
-    }
-}
-
-impl Agreements {
-    /// Capture this thread's knob state — the one read a build performs
-    ///
-    /// Every knob getter consulted here is consulted *here only*, so the
-    /// readers downstream cannot disagree about what we play.
-    #[must_use]
-    pub fn current() -> Self {
-        Self {
-            decision: DecisionProfile::current(),
-            competition: CompetitionKnobs::default(),
-            defense: DefenseKnobs::default(),
-            notrump: NotrumpKnobs::default(),
-            opening: OpeningKnobs::default(),
-            response: ResponseKnobs::default(),
-            rebid: RebidKnobs::default(),
-            game_force: GameForceKnobs::default(),
-            instinct: super::instinct::capture_build(),
         }
     }
 }

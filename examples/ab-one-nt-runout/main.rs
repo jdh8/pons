@@ -176,7 +176,7 @@ struct Args {
 ///
 /// [`InstinctProfile`]: pons::bidding::instinct::InstinctProfile
 fn arm(args: &Args, on: bool) -> Stance {
-    let mut agreements = pons::bidding::agreements::Agreements::current();
+    let mut agreements = pons::bidding::agreements::Agreements::default();
     let instinct = &mut agreements.decision.instinct;
     instinct.runout_xx_min = args.xx_min;
     instinct.one_nt_runout_universal = !args.no_universal;
@@ -279,7 +279,7 @@ fn responder_over_double(auction: &Auction, dealer: Seat) -> Option<(Call, Seat)
 
 /// Build the coverage stance: the full gambling package on for every seat
 fn arm_coverage(args: &Args) -> Stance {
-    let mut agreements = pons::bidding::agreements::Agreements::current();
+    let mut agreements = pons::bidding::agreements::Agreements::default();
     let instinct = &mut agreements.decision.instinct;
     instinct.runout_xx_min = args.xx_min;
     instinct.one_nt_runout = true;

@@ -56,7 +56,7 @@ fn main() {
 
     // The flag is captured into a stance when it is built, so each arm gets its
     // own book: `[off, on]`, indexed by the arm's flag.
-    let mut agreements = pons::bidding::agreements::Agreements::current();
+    let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.reading.nt_invite = false;
     let off = american(&agreements).against();
     agreements.decision.reading.nt_invite = true;

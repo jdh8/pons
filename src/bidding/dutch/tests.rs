@@ -5,7 +5,7 @@ use contract_bridge::{Bid, Strain};
 
 /// The Dutch opening for a first-seat hand.
 fn opens(hand: &str) -> Call {
-    let stance = dutch(&crate::bidding::agreements::Agreements::current()).against();
+    let stance = dutch(&crate::bidding::agreements::Agreements::default()).against();
     let hand = hand.parse().unwrap();
     let logits = stance
         .classify(hand, RelativeVulnerability::NONE, &[])
@@ -25,7 +25,7 @@ fn bid(level: u8, strain: Strain) -> Call {
 #[test]
 fn row_package_invariants() {
     crate::bidding::rows::assert_package_invariants(
-        &crate::bidding::agreements::Agreements::current(),
+        &crate::bidding::agreements::Agreements::default(),
         &[super::openings::package(), super::responses::package()],
     );
 }
@@ -61,7 +61,7 @@ fn opening_partition() {
 
 /// The Dutch call after an undisturbed `auction`.
 fn responds(auction: &[Call], hand: &str) -> Call {
-    let stance = dutch(&crate::bidding::agreements::Agreements::current()).against();
+    let stance = dutch(&crate::bidding::agreements::Agreements::default()).against();
     let hand = hand.parse().unwrap();
     let logits = stance
         .classify(hand, RelativeVulnerability::NONE, auction)

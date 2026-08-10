@@ -5,7 +5,7 @@ use contract_bridge::auction::Call;
 
 #[test]
 fn high_overcalls_get_a_structure() {
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.competition.high_overcall_responses = true;
     // `1♠ (3♦)`: 4 hearts + 12 HCP make the 3-level negative double; a
     // diamond stopper + 16 bids 3NT instead.

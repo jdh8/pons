@@ -96,11 +96,11 @@ fn main() {
     // shipped default).  Both keep every other shipped default (Meckstroth-2NT
     // on).  The toggle is read at book-construction time, so build each arm under
     // its own setting; the baked tries are independent thereafter.
-    let mut off = Agreements::current();
+    let mut off = Agreements::default();
     off.rebid.forcing_nt_two_suiter = false;
     let baseline = american(&off).against();
     // The shipped default (on).
-    let treatment = american(&Agreements::current()).against();
+    let treatment = american(&Agreements::default()).against();
     let stances = [baseline, treatment];
 
     // Both arms bid the same deal; the only difference is opener's rebid table.

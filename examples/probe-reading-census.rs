@@ -1,6 +1,6 @@
 //! Which calls read as **nothing**, weighted by how often they fire?
 //!
-//! `set_blind_inference` priced the whole reading programme by deleting every
+//! `DecisionProfile::blind_inference` priced the whole reading programme by deleting every
 //! reading: −0.65 … −1.27 IMPs/board, about the entire remaining gap to BBA
 //! ([ai-bidder/sampled-projection.md]). That is the *ceiling*. This probe is
 //! the census that says how much of it is still on the table — the one the
@@ -288,7 +288,7 @@ fn main() {
     let args = Args::parse();
     let base = args.seed.unwrap_or_else(rand::random);
     let vul = AbsoluteVulnerability::NONE;
-    let mut agreements = pons::bidding::agreements::Agreements::current();
+    let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.reading.pass_exclusion = args.exclusion;
     let mut stance = american(&agreements).against();
     if args.probe > 0 {

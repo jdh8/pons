@@ -60,8 +60,8 @@ fn print_auction(auction: &[Call], dealer: Seat) {
 
 fn main() {
     let args = Args::parse();
-    let ns = american(&pons::bidding::agreements::Agreements::current());
-    let ew = american(&pons::bidding::agreements::Agreements::current());
+    let ns = american(&pons::bidding::agreements::Agreements::default());
+    let ew = american(&pons::bidding::agreements::Agreements::default());
     let table = Table::of_pairs(&ns, &ew, args.dealer, args.vulnerability);
     let mut rng = rand::rng();
 

@@ -7,7 +7,7 @@ use contract_bridge::auction::Call;
 /// Best call with Leaping Michaels pinned to `on` and the sohl advance pinned
 /// off, so only the jump under test is authored
 fn leaping(on: bool, auction: &[Call], hand: &str) -> (Call, bool) {
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.defense.advance_sohl_style = LebensohlStyle::Off;
     arm.defense.leaping_michaels_enabled = on;
     best_call_with(&arm, auction, hand)

@@ -82,7 +82,7 @@ struct Args {
 /// Arm all four knobs at once and capture the agreements they describe
 ///
 fn agreements_for(longer_major: bool, up_the_line: bool, xyz: bool, nmf: bool) -> Agreements {
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.longer_major_response = longer_major;
     agreements.decision.reading.xyz = xyz;
     agreements.response.up_the_line = up_the_line;

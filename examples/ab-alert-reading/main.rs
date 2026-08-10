@@ -59,7 +59,7 @@ fn main() {
 
     // The reading scope is captured into a stance when it is built, so each arm
     // gets its own book: `[off, on]`, indexed by the arm's flag.
-    let mut agreements = pons::bidding::agreements::Agreements::current();
+    let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.reading.scope = ReadingScope::None;
     let off = american(&agreements).against();
     agreements.decision.reading.scope = ReadingScope::Alerted;

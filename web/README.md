@@ -122,7 +122,7 @@ lost, the family stays a fixed default with no control:
   `Takeout` −2.14 IMPs/div), `set_competitive_4333`, `set_negative_double_shape`,
   `set_natural_double_shape` (`Any` −0.70), `set_unusual_2nt` (the `FourFour`
   relay lost to the `Direct` default), `set_takeout_support`, `set_latch_style`
-  (`Optional` is only a wash), `set_fifths_companion` (an internal evaluator
+  (`Optional` is only a wash), `DecisionProfile::fifths_companion` (an internal evaluator
   gauge).  Lebensohl's `Plain` middle is likewise omitted — `Transfer` dominates
   it, so the `lebensohl` toggle is Off/Transfer only.
 

@@ -278,7 +278,7 @@ fn projection_reproduces_the_declarative_readers() {
     // Jacoby transfer to hearts (on by default): `1NT - 2♦ - 2♥ -`, the
     // responder is Me at length 6; the 2♦ rule is `len(♥,5..) & …`.
     agree(
-        &Agreements::current(),
+        &Agreements::default(),
         &[
             bid(1, Strain::Notrump),
             Call::Pass,
@@ -294,7 +294,7 @@ fn projection_reproduces_the_declarative_readers() {
 
     // Leaping Michaels: (2♥) 4♣ - = clubs + the other major (spades), 14+;
     // partner at length 3.  `len(♣,5..) & len(♠,5..) & points(14..)`.
-    let mut leaping = Agreements::current();
+    let mut leaping = Agreements::default();
     leaping.defense.leaping_michaels_enabled = true;
     agree(
         &leaping,
@@ -309,7 +309,7 @@ fn projection_reproduces_the_declarative_readers() {
 
     // Landy: (1NT) 2♣ - = both majors, at least 4-4, 8+; partner at length 3.
     // `((len(♥,5..)&len(♠,4..)) | (len(♥,4..)&len(♠,5..))) & points(8..)`.
-    let mut landy = Agreements::current();
+    let mut landy = Agreements::default();
     landy.decision.reading.landy_range = Some((8, 15));
     landy.decision.reading.woolsey_points = (8, 15);
     landy.defense.leaping_michaels_enabled = false;

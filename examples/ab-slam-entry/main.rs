@@ -129,7 +129,7 @@ fn main() {
     let args = Args::parse();
     // Ambient environment (both sides): the point floor is shadowed unless the
     // net floor is off (`slam_entry_reached`, src/bidding/instinct.rs).
-    let mut agreements = pons::bidding::agreements::Agreements::current();
+    let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.instinct.bilans_floor = !args.no_bilans;
     agreements.decision.instinct.floor_slam_entry = BASELINE;
     let plain = american(&agreements).against();

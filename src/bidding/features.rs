@@ -19,7 +19,7 @@
 use super::agreements::Agreements;
 use super::american::{EUROPEAN, LebensohlStyle, NotrumpDefense, NotrumpShape};
 use super::card::Card;
-use super::context::Context;
+use super::context::{Context, DecisionProfile};
 use super::inference::{Envelope, EnvelopeUnion, Inferences, Range, Relative};
 use super::instinct::relocating;
 use crate::bidding::constraint::{upgrade, upgrade_ceiling};
@@ -156,41 +156,8 @@ fn push_hand_eval(out: &mut impl FeatureSink, hand: Hand) {
     }
 }
 
-std::thread_local! {
-    /// Whether the inference blocks are blanked to `Envelope::unknown` (see
-    /// [`set_blind_inference`]).  Off by default.
-    static BLIND_INFERENCE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
-}
-
-/// Blank every inference block the nets see — the reading program's *negative control*
-///
-/// Every generator of readings (authored `project`, the agreement overlay behind
-/// [`announced`][field@crate::bidding::ReadingProfile::announced], and any
-/// future sampled projection) competes for one prize: the IMPs that flow from
-/// the nets reasoning about what the other three seats have shown.  Tightening a
-/// reading measures the *derivative* of that prize and lands in the noise.  This
-/// knob measures its **level** — on, all four seats read as `Envelope::unknown`
-/// and the nets reason from the auction alone.
-///
-/// The A/B against the shipped default is therefore a ceiling on the whole
-/// program: no reading, however well generated, can be worth more than what
-/// deleting every reading costs.  Nothing else consumes this — the sampler's
-/// containment test, `admits`, and the opening-lead sampling all read the
-/// [`Inferences`] directly and are untouched.
-///
-/// Diagnostic only; never ship it on.  Read at extraction time, per-thread.
-#[doc(hidden)]
-pub fn set_blind_inference(on: bool) {
-    BLIND_INFERENCE.with(|cell| cell.set(on));
-}
-
-/// Whether evaluator feature extraction is blind to auction inferences
-pub(crate) fn blind_inference() -> bool {
-    BLIND_INFERENCE.with(std::cell::Cell::get)
-}
-
 /// The reading the nets are fed: the seat's agreement, or nothing under
-/// [`set_blind_inference`].
+/// [`DecisionProfile::blind_inference`][crate::bidding::context::DecisionProfile::blind_inference].
 fn shown(blind: bool, player: &Envelope) -> &Envelope {
     // ponytail: one shared `unknown` rather than a per-call temporary — the
     // envelope is immutable and `Envelope::unknown` is `const`.
@@ -470,7 +437,8 @@ fn push_shape_dist(out: &mut impl FeatureSink, shape: &Shape) {
 }
 
 /// The boxes the nets are fed: the seat's agreement union, or nothing under
-/// [`set_blind_inference`].  `None` means "shows nothing", the ⊤ reading.
+/// [`DecisionProfile::blind_inference`].  `None` means "shows nothing", the ⊤
+/// reading.
 fn shown_boxes(blind: bool, union: &EnvelopeUnion) -> Option<&[Envelope]> {
     (!blind).then(|| union.boxes())
 }
@@ -1368,7 +1336,7 @@ fn push_eval_base(out: &mut impl FeatureSink, blind: bool, hand: Hand, inference
 /// rules.
 #[must_use]
 pub fn features_eval(hand: Hand, inferences: &Inferences) -> [f32; FEATURES_LEN_EVAL] {
-    features_eval_on(blind_inference(), hand, inferences)
+    features_eval_on(DecisionProfile::default().blind_inference, hand, inferences)
 }
 
 /// [`features_eval`] on an explicit blinding flag — what the classify-time
@@ -1445,7 +1413,12 @@ pub fn features_eval_v3(
     inferences: &Inferences,
     auction: &[Call],
 ) -> [f32; FEATURES_LEN_EVAL_V3] {
-    features_eval_v3_on(blind_inference(), hand, inferences, auction)
+    features_eval_v3_on(
+        DecisionProfile::default().blind_inference,
+        hand,
+        inferences,
+        auction,
+    )
 }
 
 /// [`features_eval_v3`] on an explicit blinding flag (see [`features_eval_on`])
@@ -1517,7 +1490,12 @@ pub fn features_eval_v4(
     inferences: &Inferences,
     auction: &[Call],
 ) -> [f32; FEATURES_LEN_EVAL_V4] {
-    features_eval_v4_on(blind_inference(), hand, inferences, auction)
+    features_eval_v4_on(
+        DecisionProfile::default().blind_inference,
+        hand,
+        inferences,
+        auction,
+    )
 }
 
 /// [`features_eval_v4`] on an explicit blinding flag (see [`features_eval_on`])
@@ -1578,12 +1556,25 @@ pub fn features_eval_shape(
     inferences: &Inferences,
     auction: &[Call],
 ) -> [f32; FEATURES_LEN_EVAL_SHAPE] {
+    features_eval_shape_on(
+        DecisionProfile::default().blind_inference,
+        hand,
+        inferences,
+        auction,
+    )
+}
+
+/// [`features_eval_shape`] on an explicit blinding flag
+#[must_use]
+pub(crate) fn features_eval_shape_on(
+    blind: bool,
+    hand: Hand,
+    inferences: &Inferences,
+    auction: &[Call],
+) -> [f32; FEATURES_LEN_EVAL_SHAPE] {
     let mut out = FixedFeatures::new();
     push_hand_eval(&mut out, hand);
     let unseen = Unseen::new(hand);
-    // ponytail: the thread's flag, not a pinned one — a corpus extractor
-    // (`dump-evaluator`), never a classify-time decision.
-    let blind = blind_inference();
     for who in [Relative::Lho, Relative::Partner, Relative::Rho] {
         push_inference(&mut out, blind, inferences.announced(who));
         let boxes = shown_boxes(blind, inferences.announced_union(who));
@@ -1645,12 +1636,26 @@ pub fn features_eval_points(
     inferences: &Inferences,
     auction: &[Call],
 ) -> [f32; FEATURES_LEN_EVAL_POINTS] {
+    features_eval_points_on(
+        DecisionProfile::default().blind_inference,
+        hand,
+        inferences,
+        auction,
+    )
+}
+
+/// [`features_eval_points`] on an explicit blinding flag
+#[must_use]
+pub(crate) fn features_eval_points_on(
+    blind: bool,
+    hand: Hand,
+    inferences: &Inferences,
+    auction: &[Call],
+) -> [f32; FEATURES_LEN_EVAL_POINTS] {
     let mut out = FixedFeatures::new();
     push_hand_eval(&mut out, hand);
     let unseen = Unseen::new(hand);
     let honours = UnseenHonours::new(hand);
-    // ponytail: as `features_eval_shape` — corpus extraction only.
-    let blind = blind_inference();
     for who in [Relative::Lho, Relative::Partner, Relative::Rho] {
         push_inference(&mut out, blind, inferences.announced(who));
         let boxes = shown_boxes(blind, inferences.announced_union(who));

@@ -125,7 +125,7 @@ fn opener_passes_the_minor_slam_placement() {
 /// responder rests in the 18–19 3NT instead of launching 4NT.
 #[test]
 fn knob_off_restores_the_pre_keycard_book() {
-    let mut agreements = pons::bidding::agreements::Agreements::current();
+    let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.instinct.keycard_minors = false;
     let system = pons::american(&agreements).against();
 

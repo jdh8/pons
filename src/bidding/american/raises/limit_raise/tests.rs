@@ -4,7 +4,7 @@ use super::*;
 /// A fresh trie with limit-raise acceptance authored (the shipped
 /// default).
 fn limit_raise_trie() -> Trie {
-    let mut agreements = crate::bidding::agreements::Agreements::current();
+    let mut agreements = crate::bidding::agreements::Agreements::default();
     agreements.response.limit_raise_acceptance = true;
     let mut trie = Trie::new();
     super::super::register(&mut trie, &agreements);

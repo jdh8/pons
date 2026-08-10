@@ -45,13 +45,13 @@ fn direct_pass_gate_is_the_strong_tiers_complement() {
     }
 
     // Shipped gauge: hcp(18..).
-    let agreements = Agreements::current();
+    let agreements = Agreements::default();
     certify(
         &super::overcall::defense_to_suit(Bid::new(1, Strain::Hearts), &agreements),
         &hcp(18..),
     );
     // Legacy gauge: points(17..).
-    let mut legacy_gauge = Agreements::current();
+    let mut legacy_gauge = Agreements::default();
     legacy_gauge.defense.strong_double_hcp = None;
     let legacy = super::overcall::defense_to_suit(Bid::new(1, Strain::Clubs), &legacy_gauge);
     certify(&legacy, &points(17..));
@@ -69,7 +69,7 @@ fn four_card_overcall_is_opt_in() {
     let their_opening = Bid::new(1, Strain::Clubs);
     let auction = [Call::Bid(their_opening)];
     let context = Context::new(RelativeVulnerability::NONE, &auction);
-    let agreements = Agreements::current();
+    let agreements = Agreements::default();
     let baseline = super::overcall::defense_to_suit(their_opening, &agreements);
     let mut off_arm = agreements;
     off_arm.defense.overcall_four_card = false;
@@ -114,7 +114,7 @@ fn two_level_minor_overcall_tight_gates_the_minimum() {
     assert_eq!(default_call, call(2, Strain::Clubs), "default overcalls 2♣");
     assert!(!floored, "the 2♣ overcall is a book node");
 
-    let mut tight = Agreements::current();
+    let mut tight = Agreements::default();
     tight.defense.two_level_minor_overcall_tight = true;
     let (tight_call, _) = best_call_with(&tight, &over_1s, minimum);
     // A 17-count is not silenced by the knob — it competes (a takeout X first).
@@ -136,7 +136,7 @@ fn strong_double_hcp_repartitions_overcall_vs_double() {
     use crate::bidding::constraint::PointScale;
     // Calibrated to the rule-of-N+8 opt-out — the scale these example
     // hands' points assume (the 6-3-3-1 reads 18, not the point-count 17).
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.point_scale = PointScale::RuleOfNFloored;
     // Over their (1♥): a shaped 17-HCP six-carder reads 18 points, which
     // overflows the shipped overcall band top (17) into the strong-tier
@@ -181,7 +181,7 @@ fn nt_overcall_no_major_routes_five_card_major_to_the_suit() {
         "default buries the major in 1NT"
     );
 
-    let mut no_major = Agreements::current();
+    let mut no_major = Agreements::default();
     no_major.defense.nt_overcall_no_major = true;
     let (gated_call, _) = best_call_with(&no_major, &over_1d, five_heart);
     // 15 HCP 4333, no 5M
@@ -198,23 +198,23 @@ fn nt_overcall_no_major_routes_five_card_major_to_the_suit() {
     );
 }
 
-/// `set_suppress_flat_4333_takeout` routes a weak flat 4-3-3-3 to Pass: a
+/// `DefenseKnobs::suppress_flat_4333_takeout` routes a weak flat 4-3-3-3 to Pass: a
 /// 13-HCP 4-3-3-3 doubles their `1♦` by default, but stops doubling once the
-/// opt-in knob is on (no ruffing value in a flat hand).  Reset the knob so it
-/// cannot leak into a sibling test on this thread.
+/// knob is on (no ruffing value in a flat hand).
 #[test]
 fn suppress_flat_4333_takeout_routes_to_pass() {
     // 4♠-3♥-3♦-3♣, 13 HCP (AK + Q + Q + Q), short in their diamonds.
     let over_1d = [call(1, Strain::Diamonds)];
     let hand = "AKxx.Qxx.Qxx.Qxx";
 
-    crate::bidding::constraint::set_suppress_flat_4333_takeout(false);
-    let (off, _) = best_call(&over_1d, hand);
+    let mut off_arm = Agreements::default();
+    off_arm.defense.suppress_flat_4333_takeout = false;
+    let (off, _) = best_call_with(&off_arm, &over_1d, hand);
     assert_eq!(off, Call::Double, "flat 4333 doubles by default (knob off)");
 
-    crate::bidding::constraint::set_suppress_flat_4333_takeout(true);
-    let (on, _) = best_call(&over_1d, hand);
-    crate::bidding::constraint::set_suppress_flat_4333_takeout(false);
+    let mut on_arm = Agreements::default();
+    on_arm.defense.suppress_flat_4333_takeout = true;
+    let (on, _) = best_call_with(&on_arm, &over_1d, hand);
     assert_ne!(
         on,
         Call::Double,
@@ -222,11 +222,11 @@ fn suppress_flat_4333_takeout_routes_to_pass() {
     );
 }
 
-/// `set_suppress_4432_vs_major` routes a weak 4-4-3-2 to Pass **when the
+/// `DefenseKnobs::suppress_4432_vs_major` routes a weak 4-4-3-2 to Pass **when the
 /// opponents opened a major** (the worst 4-4-3-2 slice; a minimum double is
 /// outgunned once they own a fit).  Over their `1♥` a 12-HCP 4♠-2♥-3♦-4♣
 /// doubles by default; the knob routes it to Pass.  The vs-minor knob leaves
-/// it alone (opener is a major).  Reset so it cannot leak into a sibling.
+/// it alone (opener is a major).
 #[test]
 fn suppress_4432_vs_major_routes_to_pass() {
     // 4♠-2♥-3♦-4♣, 12 HCP (KQ + AK), short in their hearts.
@@ -236,22 +236,22 @@ fn suppress_4432_vs_major_routes_to_pass() {
     let (off, _) = best_call(&over_1h, hand);
     assert_eq!(off, Call::Double, "4432 vs a major doubles by default");
 
-    crate::bidding::constraint::set_suppress_4432_vs_minor(true);
-    let (minor, _) = best_call(&over_1h, hand);
-    crate::bidding::constraint::set_suppress_4432_vs_minor(false);
+    let mut minor_arm = Agreements::default();
+    minor_arm.defense.suppress_4432_vs_minor = true;
+    let (minor, _) = best_call_with(&minor_arm, &over_1h, hand);
     assert_eq!(
         minor,
         Call::Double,
         "the vs-minor knob leaves a major opening"
     );
 
-    crate::bidding::constraint::set_suppress_4432_vs_major(true);
-    let (on, _) = best_call(&over_1h, hand);
-    crate::bidding::constraint::set_suppress_4432_vs_major(false);
+    let mut major_arm = Agreements::default();
+    major_arm.defense.suppress_4432_vs_major = true;
+    let (on, _) = best_call_with(&major_arm, &over_1h, hand);
     assert_ne!(on, Call::Double, "vs-major knob suppresses the 4432 double");
 }
 
-/// `set_suppress_4432_vs_minor` routes a weak 4-4-3-2 to Pass **when the
+/// `DefenseKnobs::suppress_4432_vs_minor` routes a weak 4-4-3-2 to Pass **when the
 /// opponents opened a minor**, and the vs-major knob leaves it alone.
 #[test]
 fn suppress_4432_vs_minor_routes_to_pass() {
@@ -262,22 +262,22 @@ fn suppress_4432_vs_minor_routes_to_pass() {
     let (off, _) = best_call(&over_1c, hand);
     assert_eq!(off, Call::Double, "4432 vs a minor doubles by default");
 
-    crate::bidding::constraint::set_suppress_4432_vs_major(true);
-    let (major, _) = best_call(&over_1c, hand);
-    crate::bidding::constraint::set_suppress_4432_vs_major(false);
+    let mut major_arm = Agreements::default();
+    major_arm.defense.suppress_4432_vs_major = true;
+    let (major, _) = best_call_with(&major_arm, &over_1c, hand);
     assert_eq!(
         major,
         Call::Double,
         "the vs-major knob leaves a minor opening"
     );
 
-    crate::bidding::constraint::set_suppress_4432_vs_minor(true);
-    let (on, _) = best_call(&over_1c, hand);
-    crate::bidding::constraint::set_suppress_4432_vs_minor(false);
+    let mut minor_arm = Agreements::default();
+    minor_arm.defense.suppress_4432_vs_minor = true;
+    let (on, _) = best_call_with(&minor_arm, &over_1c, hand);
     assert_ne!(on, Call::Double, "vs-minor knob suppresses the 4432 double");
 }
 
-/// `set_suppress_5332_takeout` (shipped default-on) routes a weak 5-3-3-2 off
+/// `DefenseKnobs::suppress_5332_takeout` (shipped default-on) routes a weak 5-3-3-2 off
 /// the takeout double to its natural overcall — a 5-3-3-2 has no 4-card major
 /// so the double cannot find a fit.  A 13-HCP 5♣ hand doubles their `1♦` with
 /// the knob off; the default makes it bid the five-card suit instead.
@@ -287,13 +287,14 @@ fn suppress_5332_takeout_bids_the_suit() {
     let over_1d = [call(1, Strain::Diamonds)];
     let hand = "AQx.KJx.xx.QT9xx";
 
-    crate::bidding::constraint::set_suppress_5332_takeout(false);
-    let (off, _) = best_call(&over_1d, hand);
+    let mut off_arm = Agreements::default();
+    off_arm.defense.suppress_5332_takeout = false;
+    let (off, _) = best_call_with(&off_arm, &over_1d, hand);
     assert_eq!(off, Call::Double, "5332 doubles with the knob off");
 
-    crate::bidding::constraint::set_suppress_5332_takeout(true);
-    let (on, _) = best_call(&over_1d, hand);
-    crate::bidding::constraint::set_suppress_5332_takeout(false);
+    let mut on_arm = Agreements::default();
+    on_arm.defense.suppress_5332_takeout = true;
+    let (on, _) = best_call_with(&on_arm, &over_1d, hand);
     assert_ne!(
         on,
         Call::Double,
@@ -301,7 +302,7 @@ fn suppress_5332_takeout_bids_the_suit() {
     );
 }
 
-/// `set_suppress_5card_major_takeout` routes a hand with an unbid five-card
+/// `DefenseKnobs::suppress_5card_major_takeout` routes a hand with an unbid five-card
 /// major off the takeout double to its natural overcall.  Over a weak two the
 /// 12+ shapely double outguns the two-level major overcall; the knob prefers
 /// the overcall — show the major rather than double into partner's short suit.
@@ -311,13 +312,14 @@ fn suppress_5card_major_takeout_overcalls() {
     let over_2d = [call(2, Strain::Diamonds)];
     let hand = "AKQ62.J94.32.KJ6";
 
-    crate::bidding::constraint::set_suppress_5card_major_takeout(false);
-    let (off, _) = best_call(&over_2d, hand);
+    let mut off_arm = Agreements::default();
+    off_arm.defense.suppress_5card_major_takeout = false;
+    let (off, _) = best_call_with(&off_arm, &over_2d, hand);
     assert_eq!(off, Call::Double, "5-card major doubles with the knob off");
 
-    crate::bidding::constraint::set_suppress_5card_major_takeout(true);
-    let (on, _) = best_call(&over_2d, hand);
-    crate::bidding::constraint::set_suppress_5card_major_takeout(false);
+    let mut on_arm = Agreements::default();
+    on_arm.defense.suppress_5card_major_takeout = true;
+    let (on, _) = best_call_with(&on_arm, &over_2d, hand);
     assert_eq!(
         on,
         call(2, Strain::Spades),

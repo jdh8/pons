@@ -267,7 +267,7 @@ fn five_four_smolens_over_the_stayman_denial() {
 // so arming it touches nothing global.
 
 fn stance_forcing_long_minors() -> Stance {
-    let mut agreements = pons::bidding::agreements::Agreements::current();
+    let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.notrump.long_minor_force = true;
     american(&agreements).against()
 }

@@ -92,7 +92,8 @@ verdict. Design lives in the docs above and the code.
   The kernel needs no `MassOracle`: enumerating the 560 *atoms* makes union
   membership an any-box test, so there is no inclusion–exclusion to pay and no
   overlap to cap, and the dump cost is **+6%**.
-  **The replacement now ships** as `features_eval_v4` behind `set_eval_shape`
+  **The replacement now ships** as `features_eval_v4` behind
+  `DecisionProfile::eval_shape`
   (default off pending its A/B, 2026-07-27): nine columns per hidden seat —
   `E[len]`, `sd[len]`, log-mass — in place of the eight length endpoints, at 97
   wide against v3's 94. The NLL ablation ran twelve arms over two rounds and the

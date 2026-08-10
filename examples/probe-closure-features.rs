@@ -156,7 +156,7 @@ fn main() {
     };
     // The knob is captured into a stance at build, so the probe needs one book
     // per setting: `stances[0]` knob-off (it also does the bidding), `[1]` on.
-    let mut off_agreements = pons::bidding::agreements::Agreements::current();
+    let mut off_agreements = pons::bidding::agreements::Agreements::default();
     off_agreements.decision.reading.gauge_membership = args.gauge;
     let mut on_agreements = off_agreements;
     if args.pass_exclusion {

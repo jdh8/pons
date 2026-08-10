@@ -26,7 +26,7 @@ fn michaels_cue_of_our_major_is_not_a_cue_raise() {
 
 #[test]
 fn uvu_major_cues_split_raise_and_fourth_suit() {
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.competition.uvu_over_majors = true;
     // `1♥ (2NT)`: their 2NT shows both minors; a 12-count with 3 hearts bids
     // 3♣ as a limit-plus raise.
@@ -41,7 +41,7 @@ fn uvu_major_cues_split_raise_and_fourth_suit() {
 
 #[test]
 fn michaels_cue_of_our_major_gets_a_structure() {
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.competition.uvu_over_majors = true;
     // `1♠ (2♠)`: their 2♠ is Michaels; a limit raise cues their known major
     // with 3♥...
@@ -57,7 +57,7 @@ fn michaels_cue_of_our_major_gets_a_structure() {
 
 #[test]
 fn opener_answers_the_uvu_major_cue() {
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.competition.uvu_over_majors = true;
     // `1♥ (2NT) 3♣ -` (limit+ raise): a minimum declines in 3♥, a
     // maximum accepts to game — the shipped cue-raise answer, rewired.
@@ -76,7 +76,7 @@ fn opener_answers_the_uvu_major_cue() {
 
 #[test]
 fn opener_answers_the_uvu_fourth_suit_force() {
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.competition.uvu_over_majors = true;
     // `1♥ (2NT) 3♦ -` (GF, 5+ spades): three-card support raises the
     // shown major to game.

@@ -107,7 +107,7 @@ fn main() {
     let args = Args::parse();
     let base = args.seed.unwrap_or_else(rand::random);
     let vul = args.vulnerability;
-    let stance = american(&pons::bidding::agreements::Agreements::current()).against();
+    let stance = american(&pons::bidding::agreements::Agreements::default()).against();
     let deals = seeded_deals(base, args.count);
 
     // Bidding is knob-independent (the floor+net bidder never samples), so bid
@@ -125,7 +125,7 @@ fn main() {
     // gets its own `reader`; the sampler inside `single_dummy_leads` runs on the
     // main thread and follows the `Inferences` that reader produced.
     let score_arm = |envelope_union: bool, gauge: bool| -> Vec<i64> {
-        let mut agreements = pons::bidding::agreements::Agreements::current();
+        let mut agreements = pons::bidding::agreements::Agreements::default();
         agreements.decision.reading.envelope_union = envelope_union;
         agreements.decision.reading.gauge_membership = gauge;
         let reader = american(&agreements).against();

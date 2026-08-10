@@ -11,7 +11,7 @@ fn longest_first_advance_bids_the_longer_suit() {
     // weight climbs with length and the longer diamonds win the advance.
     let over_1c = [call(1, Strain::Clubs), Call::Double, Call::Pass];
     let hand = "KJ32.32.K8765.32"; // 4 spades, 5 diamonds
-    let mut flat_book = Agreements::current();
+    let mut flat_book = Agreements::default();
     flat_book.defense.rich_advance_double_enabled = false;
     flat_book.defense.longest_first_advance_enabled = false;
     let (flat, _) = best_call_with(&flat_book, &over_1c, hand);
@@ -50,7 +50,7 @@ fn longest_first_advance_governs_the_rich_book() {
     // weak natural suit and the forced-when-broke suit both go longest-first.
     let over_1c = [call(1, Strain::Clubs), Call::Double, Call::Pass];
     let over_1h = [call(1, Strain::Hearts), Call::Double, Call::Pass];
-    let mut flat = Agreements::current();
+    let mut flat = Agreements::default();
     flat.defense.rich_advance_double_enabled = true;
     flat.defense.longest_first_advance_enabled = false;
     let mut longest = flat;
@@ -102,7 +102,7 @@ fn longest_first_advance_governs_the_rich_book() {
 #[test]
 fn advance_pass_yields_to_a_major_only_when_weak() {
     let over_1c = [call(1, Strain::Clubs), Call::Double, Call::Pass];
-    let mut base = Agreements::current();
+    let mut base = Agreements::default();
     base.defense.rich_advance_double_enabled = true;
     base.defense.longest_first_advance_enabled = true;
 
@@ -139,7 +139,7 @@ fn advance_pass_yields_to_a_major_only_when_weak() {
 #[test]
 fn advance_sit_hcp_gate_reshapes_the_4card_sit() {
     let over_1c = [call(1, Strain::Clubs), Call::Double, Call::Pass];
-    let mut honor_gate = Agreements::current();
+    let mut honor_gate = Agreements::default();
     honor_gate.defense.rich_advance_double_enabled = true;
 
     // AJxx: 5 suit HCP but one top honor — forced 1♦ by default...
@@ -184,7 +184,7 @@ fn longest_unbid_reads_the_relative_length() {
     use crate::bidding::constraint::Constraint as _;
     use contract_bridge::Suit;
 
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.envelope_union = true;
     let context = Context::new(RelativeVulnerability::NONE, &[]).with_profile(agreements.decision);
     // The ♦ instance over their (1♥): rivals ♠ (higher rank, must stay
@@ -228,7 +228,7 @@ fn rich_advance_double_cues_and_forces() {
     // still bid (a takeout double cannot be passed for want of a call).
     let broke = "xxx.xxxx.xxx.xxx";
 
-    let mut rich = Agreements::current();
+    let mut rich = Agreements::default();
     rich.defense.rich_advance_double_enabled = true;
     let mut flat = rich;
     flat.defense.rich_advance_double_enabled = false;
@@ -272,7 +272,7 @@ fn advance_cue_rebid_forces_or_invites() {
     // 10 HCP with 3 spades: mere invite — partner showed a minimum, so stop.
     let invite = "Axx.xxx.AJxx.xxx";
 
-    let mut rich = Agreements::current();
+    let mut rich = Agreements::default();
     rich.defense.rich_advance_double_enabled = true;
     let (driven, _) = best_call_with(&rich, &auction, force);
     let (rested, _) = best_call_with(&rich, &auction, invite);
@@ -301,7 +301,7 @@ fn rich_advance_weak_shapely_blasts_game() {
     // opposite a takeout double the shapely hand belongs in 4♥.
     let weak = "T3.AT9753.5.KQT7";
 
-    let mut rich = Agreements::current();
+    let mut rich = Agreements::default();
     rich.defense.rich_advance_double_enabled = true;
     let (blast, _) = best_call_with(&rich, &auction, weak);
 

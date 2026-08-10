@@ -12,7 +12,7 @@ fn table_deal_state_activates_the_causal_cache_at_deep_prefixes() {
     use crate::bidding::american::american_book;
     use contract_bridge::auction::RelativeVulnerability;
 
-    let stance = american_book(&crate::bidding::agreements::Agreements::current()).against();
+    let stance = american_book(&crate::bidding::agreements::Agreements::default()).against();
     let hand = "AKQ2.K53.QJ4.T92".parse().expect("valid hand");
     let mut state = stance.new_deal_state().expect("stance deal state");
     assert!(
@@ -61,7 +61,7 @@ fn finalized_decoder_matches_legacy_resolution_on_frozen_corpus() {
     use crate::bidding::american::american_book;
     use crate::bidding::context::{Context, flipped};
 
-    let stance = american_book(&crate::bidding::agreements::Agreements::current()).against();
+    let stance = american_book(&crate::bidding::agreements::Agreements::default()).against();
     let corpus = performance_support::parse_corpus().expect("valid frozen corpus");
     for position in corpus {
         for depth in 0..=position.auction.len() {
@@ -111,7 +111,7 @@ fn compiled_authored_projection_matches_legacy_on_frozen_corpus() {
         (ReadingScope::None, true, true, true, true, true, true),
     ];
     for (scope, union, fallback, pass, exclusion, announced, table) in profiles {
-        let mut agreements = crate::bidding::agreements::Agreements::current();
+        let mut agreements = crate::bidding::agreements::Agreements::default();
         agreements.decision.reading.scope = scope;
         agreements.decision.reading.envelope_union = union;
         agreements.decision.reading.fallback_projection = fallback;
@@ -133,7 +133,7 @@ fn append_only_step_cache_matches_from_scratch_frozen_prefixes() {
     use crate::bidding::context::flipped;
     use crate::bidding::inference::{AuthoringStepCache, assert_step_cache_projection_parity};
 
-    let stance = american_book(&crate::bidding::agreements::Agreements::current()).against();
+    let stance = american_book(&crate::bidding::agreements::Agreements::default()).against();
     let corpus = performance_support::parse_corpus().expect("valid frozen corpus");
     let mut cache_hits = 0usize;
     for position in corpus {
@@ -169,7 +169,7 @@ fn step_cache_drops_to_legacy_after_middeal_edit() {
     use crate::bidding::inference::AuthoringStepCache;
     use contract_bridge::auction::RelativeVulnerability;
 
-    let mut stance = american_book(&crate::bidding::agreements::Agreements::current()).against();
+    let mut stance = american_book(&crate::bidding::agreements::Agreements::default()).against();
     let auction = [bid(1, Strain::Notrump), Call::Pass];
     let mut cache = AuthoringStepCache::new();
     assert!(
@@ -198,7 +198,7 @@ fn step_cache_is_bound_to_stance_identity_and_probe_revision() {
     use crate::bidding::inference::AuthoringStepCache;
     use contract_bridge::auction::RelativeVulnerability;
 
-    let stance = american_book(&crate::bidding::agreements::Agreements::current()).against();
+    let stance = american_book(&crate::bidding::agreements::Agreements::default()).against();
     let clone = stance.clone();
     let mut clone_cache = AuthoringStepCache::new();
     assert!(
@@ -217,7 +217,7 @@ fn step_cache_is_bound_to_stance_identity_and_probe_revision() {
         "a clone preserves the stance cache identity"
     );
 
-    let other = american_book(&crate::bidding::agreements::Agreements::current()).against();
+    let other = american_book(&crate::bidding::agreements::Agreements::default()).against();
     let mut other_cache = AuthoringStepCache::new();
     assert!(
         other_cache
@@ -258,10 +258,10 @@ fn probe_stores_and_reads_high_traffic_keys() {
     use contract_bridge::auction::RelativeVulnerability;
 
     let mut stance =
-        crate::bidding::american::american_book(&crate::bidding::agreements::Agreements::current())
+        crate::bidding::american::american_book(&crate::bidding::agreements::Agreements::default())
             .against();
     let plain =
-        crate::bidding::american::american_book(&crate::bidding::agreements::Agreements::current())
+        crate::bidding::american::american_book(&crate::bidding::agreements::Agreements::default())
             .against();
     let report = stance.probe(2000, 0x9B0BE);
     assert!(report.keys > 0, "probe stored nothing");
@@ -337,7 +337,7 @@ fn probed_vacuous_fills_only_open_axes_on_contested_own_calls() {
     use crate::bidding::{Envelope, Range};
 
     let mut stance =
-        crate::bidding::american::american_book(&crate::bidding::agreements::Agreements::current())
+        crate::bidding::american::american_book(&crate::bidding::agreements::Agreements::default())
             .against();
     let boxed = |spades: Range, points: Range| {
         let mut envelope = Envelope::unknown();
@@ -446,7 +446,7 @@ fn explain_call_names_book_and_floor_rules() {
     use contract_bridge::Hand;
     use contract_bridge::auction::RelativeVulnerability;
 
-    let stance = american_instinct(&crate::bidding::agreements::Agreements::current()).against();
+    let stance = american_instinct(&crate::bidding::agreements::Agreements::default()).against();
 
     // A book decision: the routine 1♠ opening resolves at the exact root
     // node (no fallback taken) and names the rule that produced it.
@@ -490,7 +490,7 @@ fn explanation_reuses_decision_initializers() {
     use contract_bridge::Hand;
     use contract_bridge::auction::RelativeVulnerability;
 
-    let stance = american_instinct(&crate::bidding::agreements::Agreements::current()).against();
+    let stance = american_instinct(&crate::bidding::agreements::Agreements::default()).against();
     let auction = [bid(1, Strain::Diamonds), ONE_HEART, P, TWO_HEARTS];
     let hand: Hand = "765.A.AKJT984.63".parse().expect("valid test hand");
     let context = stance.decision_context(hand, RelativeVulnerability::NONE, &auction);
@@ -534,7 +534,7 @@ fn public_paths_match_uncached_reference_bit_for_bit() {
     use contract_bridge::Hand;
     use contract_bridge::auction::RelativeVulnerability;
 
-    let stance = american_instinct(&crate::bidding::agreements::Agreements::current()).against();
+    let stance = american_instinct(&crate::bidding::agreements::Agreements::default()).against();
     let assert_classification = |hand: Hand, auction: &[Call]| {
         let (actual, actual_provenance) = stance
             .classify_with_provenance(hand, RelativeVulnerability::NONE, auction)
@@ -694,10 +694,10 @@ fn cached_reference_parity_across_reading_and_evaluator_profiles() {
     let hand: Hand = "765.A.AKJT984.63".parse().expect("valid test hand");
 
     for (index, profile) in profiles.into_iter().enumerate() {
-        crate::bidding::evaluator::set_eval_auction(profile.eval_auction);
-        crate::bidding::evaluator::set_eval_shape(profile.eval_shape);
-        crate::bidding::features::set_blind_inference(profile.blind);
-        let mut agreements = crate::bidding::agreements::Agreements::current();
+        let mut agreements = crate::bidding::agreements::Agreements::default();
+        agreements.decision.eval_auction = profile.eval_auction;
+        agreements.decision.eval_shape = profile.eval_shape;
+        agreements.decision.blind_inference = profile.blind;
         agreements.decision.reading.scope = profile.scope;
         agreements.decision.reading.envelope_union = profile.union;
         agreements.decision.reading.pass_exclusion = profile.exclusion;
@@ -728,11 +728,6 @@ fn cached_reference_parity_across_reading_and_evaluator_profiles() {
             );
         }
     }
-
-    // Restore this worker thread's shipped defaults for later tests.
-    crate::bidding::evaluator::set_eval_auction(true);
-    crate::bidding::evaluator::set_eval_shape(false);
-    crate::bidding::features::set_blind_inference(false);
 }
 
 /// Component-by-component release parity over the frozen stage-1 corpus.
@@ -753,12 +748,6 @@ fn cached_and_uncached_match_frozen_performance_corpus() {
     use crate::bidding::instinct::Interpretation;
     use crate::bidding::trie::Provenance;
     use contract_bridge::auction::Auction;
-
-    fn set_shipped_profile() {
-        crate::bidding::evaluator::set_eval_auction(true);
-        crate::bidding::evaluator::set_eval_shape(false);
-        crate::bidding::features::set_blind_inference(false);
-    }
 
     fn assert_float_bits(actual: &[f32], reference: &[f32], component: &str, position: u16) {
         assert_eq!(
@@ -843,10 +832,9 @@ fn cached_and_uncached_match_frozen_performance_corpus() {
         }
     }
 
-    set_shipped_profile();
     let positions = performance_support::parse_corpus().expect("valid frozen corpus");
     assert_eq!(positions.len(), performance_support::POSITION_COUNT);
-    let stance = american(&crate::bidding::agreements::Agreements::current()).against();
+    let stance = american(&crate::bidding::agreements::Agreements::default()).against();
 
     for position in positions {
         let id = position.id;
@@ -930,10 +918,6 @@ fn cached_and_uncached_match_frozen_performance_corpus() {
             "interpretation initialized {counts:?} at position {id}"
         );
     }
-
-    // This ignored test is often selected beside other release checks on a
-    // reused harness worker; leave every setting it pins at the shipped value.
-    set_shipped_profile();
 }
 
 /// Same-process release sweep of the causal cached path against its
@@ -965,7 +949,7 @@ fn cached_and_uncached_match_over_twenty_thousand_deals() {
             .unwrap_or(Call::Pass)
     }
 
-    let stance = american(&crate::bidding::agreements::Agreements::current()).against();
+    let stance = american(&crate::bidding::agreements::Agreements::default()).against();
     let vulnerabilities = [
         AbsoluteVulnerability::NONE,
         AbsoluteVulnerability::NS,
@@ -1036,8 +1020,8 @@ fn a_declared_opponent_reads_their_calls_in_their_books() {
     use contract_bridge::auction::RelativeVulnerability;
 
     let auction = [bid(1, Strain::Clubs), Call::Pass, bid(2, Strain::Diamonds)];
-    let ours = american_book(&crate::bidding::agreements::Agreements::current()).against();
-    let dutch = dutch_book(&crate::bidding::agreements::Agreements::current()).against();
+    let ours = american_book(&crate::bidding::agreements::Agreements::default()).against();
+    let dutch = dutch_book(&crate::bidding::agreements::Agreements::default()).against();
 
     let read = |stance: &super::Stance| {
         *stance
@@ -1046,7 +1030,7 @@ fn a_declared_opponent_reads_their_calls_in_their_books() {
     };
     let undeclared = read(&ours);
     let declared = read(
-        &american_book(&crate::bidding::agreements::Agreements::current())
+        &american_book(&crate::bidding::agreements::Agreements::default())
             .against()
             .with_opponents(&dutch),
     );
@@ -1063,7 +1047,7 @@ fn a_declared_opponent_reads_their_calls_in_their_books() {
         format!(
             "{:?}",
             read(
-                &american_book(&crate::bidding::agreements::Agreements::current())
+                &american_book(&crate::bidding::agreements::Agreements::default())
                     .against()
                     .with_opponents(&ours)
             )
@@ -1072,68 +1056,63 @@ fn a_declared_opponent_reads_their_calls_in_their_books() {
     );
 }
 
-/// The keystone of the pin-at-build campaign: a stance built under armed
-/// knobs answers identically on a virgin thread whose remaining thread-locals
-/// hold the shipped defaults.  Any classify-time read that bypasses the pinned
-/// [`DecisionProfile`][super::DecisionProfile] diverges here.
+/// The keystone of the pin-at-build campaign: two pairs built from one armed
+/// [`Agreements`][crate::bidding::agreements::Agreements] answer identically on
+/// the building thread and a second thread. Any classify-time read that
+/// bypasses the pinned [`DecisionProfile`][super::DecisionProfile] diverges
+/// here.
 ///
 /// Live since stage 5, armed over all three layers: `ReadingProfile`'s 43
 /// fields (the 24 former foreign cells plus the other 19 value-owned fields),
-/// `InstinctProfile`'s 31 fields, and the nine cells `DecisionProfile` holds
-/// directly.  The values are deliberately meaningless — this arms a system
+/// `InstinctProfile`'s 31 fields, and the nine scalar fields `DecisionProfile`
+/// holds directly.  The values are deliberately meaningless — this arms a system
 /// nobody plays — because what is under test is only that both threads see the
 /// *same* one.
 #[test]
 fn stance_pins_knobs_across_threads() {
+    use crate::bidding::american;
     use crate::bidding::table::Table;
-    use crate::bidding::{american, scoped};
     use contract_bridge::auction::AbsoluteVulnerability;
     use contract_bridge::{FullDeal, Seat};
     use rand::SeedableRng as _;
 
-    // The whole test runs on a scratch thread, so the arming dies with it and
-    // reused libtest workers stay clean.
-    scoped(|| {
-        // The nine cells `DecisionProfile` holds outside those two.
-        crate::bidding::evaluator::set_eval_auction(false);
-        crate::bidding::evaluator::set_eval_shape(true);
-        crate::bidding::features::set_blind_inference(true);
-        crate::bidding::instinct::set_two_over_one_force(false);
-        crate::bidding::constraint::set_fuzzy_fifths(true);
-        crate::bidding::constraint::set_fifths_companion(
-            crate::bidding::constraint::FifthsCompanion::Hcp,
-        );
-        crate::bidding::american::set_stayman_net_force(true);
-        crate::bidding::american::set_transfer_gf_majors(false);
-        crate::bidding::american::set_transfer_gf_hearts(false);
+    let mut agreements = crate::bidding::agreements::Agreements::default();
+    agreements.decision.reading = crate::bidding::inference::ReadingProfile::nondefault();
+    agreements.decision.instinct = crate::bidding::instinct::InstinctProfile::nondefault();
+    agreements.decision.eval_auction = false;
+    agreements.decision.eval_shape = true;
+    agreements.decision.blind_inference = true;
+    agreements.decision.two_over_one_force = false;
+    agreements.decision.fuzzy_fifths = true;
+    agreements.decision.fifths_companion = crate::bidding::constraint::FifthsCompanion::Hcp;
+    agreements.decision.stayman_net_force = true;
+    agreements.decision.transfer_gf_majors = false;
+    agreements.decision.transfer_gf_hearts = false;
 
-        let mut agreements = crate::bidding::agreements::Agreements::current();
-        agreements.decision.reading = crate::bidding::inference::ReadingProfile::nondefault();
-        agreements.decision.instinct = crate::bidding::instinct::InstinctProfile::nondefault();
-        let ns = american(&agreements);
-        let ew = american(&agreements);
-        let table = Table::of_pairs(&ns, &ew, Seat::North, AbsoluteVulnerability::NONE);
-        let deals: Vec<FullDeal> = (0..24)
-            .map(|seed| {
-                contract_bridge::deck::full_deal(&mut rand::rngs::StdRng::seed_from_u64(seed))
+    let ns = american(&agreements);
+    let ew = american(&agreements);
+    let table = Table::of_pairs(&ns, &ew, Seat::North, AbsoluteVulnerability::NONE);
+    let deals: Vec<FullDeal> = (0..24)
+        .map(|seed| contract_bridge::deck::full_deal(&mut rand::rngs::StdRng::seed_from_u64(seed)))
+        .collect();
+
+    let first_thread: Vec<String> = deals
+        .iter()
+        .map(|deal| table.bid_out(deal).to_string())
+        .collect();
+    let second_thread: Vec<String> = std::thread::scope(|scope| {
+        scope
+            .spawn(|| {
+                deals
+                    .iter()
+                    .map(|deal| table.bid_out(deal).to_string())
+                    .collect()
             })
-            .collect();
-
-        let armed: Vec<String> = deals
-            .iter()
-            .map(|deal| table.bid_out(deal).to_string())
-            .collect();
-        let virgin: Vec<String> = std::thread::scope(|scope| {
-            scope
-                .spawn(|| {
-                    deals
-                        .iter()
-                        .map(|deal| table.bid_out(deal).to_string())
-                        .collect()
-                })
-                .join()
-                .expect("virgin bidding thread panicked")
-        });
-        assert_eq!(armed, virgin, "a classify-time knob read escaped the pin");
+            .join()
+            .expect("second bidding thread panicked")
     });
+    assert_eq!(
+        first_thread, second_thread,
+        "a classify-time knob read escaped the pin"
+    );
 }

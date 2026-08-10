@@ -46,7 +46,7 @@ fn jacoby_union_matches_composite() {
 
 #[test]
 fn major_responses_run_the_2_over_1_ladder() {
-    let r = major_responses(Suit::Hearts, &Agreements::current());
+    let r = major_responses(Suit::Hearts, &Agreements::default());
     let a = [call(1, Strain::Hearts), Call::Pass];
     assert_eq!(best(&r, &a, "K2.KQ54.A964.Q92"), call(2, Strain::Notrump));
     assert_eq!(best(&r, &a, "Q32.J53.A964.Q92"), call(2, Strain::Hearts));
@@ -56,8 +56,8 @@ fn major_responses_run_the_2_over_1_ladder() {
 #[test]
 fn choice_of_games_three_notrump() {
     let a = [call(1, Strain::Hearts), Call::Pass];
-    let on = major_responses(Suit::Hearts, &Agreements::current());
-    let mut without = Agreements::current();
+    let on = major_responses(Suit::Hearts, &Agreements::default());
+    let mut without = Agreements::default();
     without.response.major_choice_of_games = false;
     let off = major_responses(Suit::Hearts, &without);
 
@@ -80,7 +80,7 @@ fn two_over_one_fit_leg_and_gates() {
     let a = [call(1, Strain::Hearts), Call::Pass];
     // Arms are relative to the legacy gate; the shipped default is
     // fit + Points13 (the `fit` arm below).
-    let mut base = Agreements::current();
+    let mut base = Agreements::default();
     base.decision.reading.point_scale = PointScale::RuleOfNFloored;
     let arm = |fit: bool, gate: TwoOverOneGate| {
         let mut agreements = base;
@@ -129,7 +129,7 @@ fn two_over_one_natural_lengths_and_light_major() {
     // The major discount subtracts from an `Hcp*` floor (`hcp_floor -
     // discount`); the shipped `Points13` gate hardcodes `points(13..)` and
     // ignores it, so pin the raw-HCP gate this knob was designed against.
-    let mut base = Agreements::current();
+    let mut base = Agreements::default();
     base.response.two_over_one_gate = TwoOverOneGate::Hcp13;
     let arm = |natural_lengths: bool, discount: bool| {
         let mut agreements = base;

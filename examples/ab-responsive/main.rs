@@ -116,7 +116,7 @@ fn main() {
     let args = Args::parse();
     let mut rng = rand::rng();
 
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     configure(&mut arm, &args.conv, false);
     let baseline = american(&arm).against();
     configure(&mut arm, &args.conv, true);

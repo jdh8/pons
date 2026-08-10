@@ -564,7 +564,7 @@ pub fn report_sd_brackets(
 /// spell it
 ///
 /// Takes the agreements as a value, so a caller wanting a *perturbed* book
-/// captures [`Agreements::current`] once every surviving `set_*` cell is armed,
+/// receives the complete [`Agreements`] value for the system being described,
 /// edits the fields it should carry, and passes the result — two
 /// differently-configured books can then coexist on one thread.
 pub fn seat_floor(name: &str, agreements: &Agreements) -> anyhow::Result<Stance> {
@@ -686,7 +686,7 @@ pub fn deviant_floor(
     offshape_1nt: bool,
     wild_weak_two: bool,
 ) -> anyhow::Result<Stance> {
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.strength_dial = dial;
     agreements.opening = base.opening;
     agreements.opening.one_notrump_offshape = offshape_1nt;

@@ -101,7 +101,7 @@ fn diamond_competition_disabled_falls_to_floor() {
         call(2, Strain::Notrump),
         Call::Double,
     ];
-    let mut off = Agreements::current();
+    let mut off = Agreements::default();
     off.competition.competition_over_diamond_transfer = false;
     let (_, floored) = best_call_with(&off, &auction, "Axx.Kxx.Qxx.AKxx");
     assert!(floored, "with the toggle off opener falls to the floor");
@@ -113,7 +113,7 @@ fn diamond_competition_disabled_falls_to_floor() {
 fn defense_to_their_diamond_transfer_doubles_diamonds() {
     // After `(1NT) - (2NT)`, their 2NT transfers to diamonds; our fourth-hand X
     // is lead-directing in diamonds, the shown suit.
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.defense.diamond_transfer_defense_enabled = true;
     let auction = [
         call(1, Strain::Notrump),
@@ -132,7 +132,7 @@ fn defense_to_their_diamond_transfer_doubles_diamonds() {
 fn defense_to_their_diamond_transfer_cues_both_majors() {
     // After `(1NT) - (2NT)`, their 2NT transfers to diamonds; 5 spades and 5
     // hearts cue 3♦ to show both majors, beating the X.
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.defense.diamond_transfer_defense_enabled = true;
     let auction = [
         call(1, Strain::Notrump),

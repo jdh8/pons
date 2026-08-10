@@ -120,11 +120,11 @@ fn main() {
     let args = Args::parse();
     let mut rng = rand::rng();
 
-    let mut ew = pons::bidding::agreements::Agreements::current();
+    let mut ew = pons::bidding::agreements::Agreements::default();
     ew.defense.advance_sohl_style = style_from(&args.ew);
     ew.competition.delayed_cue = false;
     let baseline = american(&ew).against();
-    let mut ns = pons::bidding::agreements::Agreements::current();
+    let mut ns = pons::bidding::agreements::Agreements::default();
     ns.defense.advance_sohl_style = style_from(&args.ns);
     ns.competition.delayed_cue = args.delayed_cue;
     let sohl = american(&ns).against();

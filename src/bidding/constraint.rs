@@ -34,7 +34,6 @@ use super::inference::{Envelope, EnvelopeUnion, Range, ReadingProfile};
 use contract_bridge::auction::Call;
 use contract_bridge::eval::{self, HandEvaluator, SimpleEvaluator};
 use contract_bridge::{Hand, Holding, Level, Rank, Strain, Suit};
-use core::cell::Cell;
 use core::fmt;
 use core::ops::{BitAnd, BitOr, Bound, Not, RangeBounds};
 use std::borrow::Cow;
@@ -1187,47 +1186,6 @@ pub enum PointScale {
     /// 4-3-3-3 — plain rule-of-N+8's only downgrade — reads its raw HCP
     /// (an opt-out since the upgrade-linearisation flip)
     RuleOfNFloored,
-}
-
-std::thread_local! {
-    /// Whether [`fifths`] evaluates Fifths rather than raw HCP.  Default **off**:
-    /// the Fifths NT-gauge measured a clean net loss vs raw HCP in the A6 audit
-    /// (self-play plain −0.012/−0.018 NV/vul, PD alike, CIs excluding 0), and it
-    /// dragged the `points` upgrade (points-only beat points+fifths on both
-    /// scorers).  See docs/bidding-options.md A6.
-    static FUZZY_FIFTHS: Cell<bool> = const { Cell::new(false) };
-    /// The honor count averaged with Fifths in [`fifths`] (BUM-RAP won the A/B)
-    static FIFTHS_COMPANION: Cell<FifthsCompanion> = const { Cell::new(FifthsCompanion::Bumrap) };
-}
-
-/// Enable or disable [`fifths`] alone
-///
-/// For A/B measurement only, read at classification time, per-thread; classify
-/// on the thread that set it.  The `points` half of the old "fuzzy strength"
-/// umbrella is [`point_scale`][field@ReadingProfile::point_scale] — the umbrella and its bool `points` wrapper
-/// were deleted 2026-08-03: one wrote *two* sibling cells (so flipping it
-/// silently moved a knob the caller never named), and the other was a bool over
-/// a three-valued scale, unable to name [`PointScale::RuleOfNFloored`] and
-/// destroying it on write.
-#[doc(hidden)]
-pub fn set_fuzzy_fifths(enabled: bool) {
-    FUZZY_FIFTHS.with(|flag| flag.set(enabled));
-}
-
-/// Choose the honor count averaged into [`fifths`] (see [`FifthsCompanion`])
-#[doc(hidden)]
-pub fn set_fifths_companion(companion: FifthsCompanion) {
-    FIFTHS_COMPANION.with(|cell| cell.set(companion));
-}
-
-/// The [`set_fuzzy_fifths`] knob active on this thread
-pub(crate) fn fuzzy_fifths_now() -> bool {
-    FUZZY_FIFTHS.with(Cell::get)
-}
-
-/// The [`set_fifths_companion`] choice active on this thread
-pub(crate) fn fifths_companion_now() -> FifthsCompanion {
-    FIFTHS_COMPANION.with(Cell::get)
 }
 
 /// Direction in which the strength dial moves a measured value
@@ -2973,153 +2931,22 @@ pub fn short_in_their_suits() -> Cons<impl Constraint + Clone> {
     Cons(ShortInTheirSuits)
 }
 
-std::thread_local! {
-    /// Whether [`takeout_double_shape_ok`] routes a weak flat 4-3-3-3 to Pass
-    static SUPPRESS_FLAT_4333_TAKEOUT: Cell<bool> = const { Cell::new(true) };
-    /// Whether [`takeout_double_shape_ok`] routes a weak 5-3-3-2 (12–13 HCP) to
-    /// its natural overcall instead of a takeout double — bid the five-card suit.
-    /// **Shipped default-on** (a 5-3-3-2 holds no 4-card suit, so the double
-    /// cannot find a 4-4 fit — its whole purpose is moot).
-    static SUPPRESS_5332_TAKEOUT: Cell<bool> = const { Cell::new(true) };
-    /// Whether [`takeout_double_shape_ok`] routes a weak 4-4-3-2 (12–13 HCP) to
-    /// Pass **when the opponents opened a major**: they have announced a fit, so
-    /// our minimum double is outgunned and partner is forced to the two level
-    /// (anchor split: the worst 4-4-3-2 slice, −3.2 to −3.8 IMPs/div, and one
-    /// unbid 4-card major does not rescue it).
-    static SUPPRESS_4432_VS_MAJOR: Cell<bool> = const { Cell::new(false) };
-    /// Whether [`takeout_double_shape_ok`] routes a weak 4-4-3-2 (12–13 HCP) to
-    /// Pass **when the opponents opened a minor** — the classic "double the minor
-    /// with the majors", the mildest 4-4-3-2 slice (−1.39 IMPs/div; the 4-4-majors
-    /// subset a wash).  Likely kept; here for the opener-suit A/B.
-    static SUPPRESS_4432_VS_MINOR: Cell<bool> = const { Cell::new(false) };
-    /// Whether [`takeout_double_shape_ok`] routes a hand with an unbid five-card
-    /// **major** to its natural overcall instead of a takeout double — show the
-    /// major directly rather than doubling and risking partner bidding our short
-    /// suit.  **Shipped default-on** (only the 12–16 HCP shapely double is
-    /// redirected; 17+ hands fall through to the separate `points(17..)` rule).
-    static SUPPRESS_5CARD_MAJOR_TAKEOUT: Cell<bool> = const { Cell::new(true) };
-}
-
-/// Suppress our takeout double on a flat 4-3-3-3 weaker than a 1NT opening
-///
-/// **Shipped default-on**: a flat 4-3-3-3 has no ruffing value, so a takeout
-/// double on 12–14 HCP flat 4333 overbids.  [`takeout_double_shape_ok`] rejects
-/// those hands so they route to Pass instead.  A paired BBA A/B (409.6k bd/arm/
-/// vul, SEED_BASE 1783443667) scored it a plain-DD **and** perfect-defense win
-/// at both vulnerabilities, every 95% CI excluding 0: plain +0.0187 (NV) /
-/// +0.0385 (vul), PD +0.0566 / +0.0755 IMPs/board; ~1.2% fired.  Pass `false`
-/// to revert to doubling.  Read at classification time and per-thread — the flag
-/// is consulted for books built after this call; classify on the thread that set
-/// it.
-#[doc(hidden)]
-pub fn set_suppress_flat_4333_takeout(on: bool) {
-    SUPPRESS_FLAT_4333_TAKEOUT.with(|flag| flag.set(on));
-}
-
-/// Whether the weak-flat-4333 takeout suppression is active
-fn suppress_flat_4333_takeout() -> bool {
-    SUPPRESS_FLAT_4333_TAKEOUT.with(Cell::get)
-}
-
-/// Suppress our takeout double on a weak 5-3-3-2 — bid the five-card suit instead
-///
-/// **Shipped default-on.**  A 12–13 HCP 5-3-3-2 holds *no* 4-card suit, hence no
-/// 4-card major, so a takeout double cannot do its job — find a 4-4 fit; it just
-/// buries the unbid five-card suit.  With the knob on, [`takeout_double_shape_ok`]
-/// rejects the double so the hand routes to its natural overcall, matching BBA.
-/// A paired BBA A/B (409.6k bd/arm/vul, SEED_BASE 1783451581) scored the 5-3-3-2
-/// half a plain-DD **and** perfect-defense win at both vulnerabilities, every
-/// 95% CI excluding 0: plain +0.0191 (NV) / +0.0401 (vul), PD +0.0601 / +0.0773
-/// IMPs/board; ~1.2% fired.  Pass `false` to revert to doubling.  Read at
-/// classification time and per-thread, like its 4333 sibling.
-#[doc(hidden)]
-pub fn set_suppress_5332_takeout(on: bool) {
-    SUPPRESS_5332_TAKEOUT.with(|flag| flag.set(on));
-}
-
-/// Whether the weak-5332 takeout suppression is active
-fn suppress_5332_takeout() -> bool {
-    SUPPRESS_5332_TAKEOUT.with(Cell::get)
-}
-
-/// Suppress our weak 4-4-3-2 takeout double when the opponents opened a **major**
-///
-/// A 12–13 HCP 4-4-3-2 short in the opponents' suit is a takeout shape, but the
-/// anchor split (opener = the takeout-short suit) shows the loss lives over
-/// **major** openings — −3.2 to −3.8 IMPs/div whether or not we hold the one
-/// unbid 4-card major, because the opponents have announced a fit and our
-/// minimum double gets outgunned, partner forced to the two level.  With the
-/// knob on, [`takeout_double_shape_ok`] rejects the double so the hand routes to
-/// Pass.  **Default off** pending the opener-suit A/B; pass `true` to enable.
-/// Read at classification time and per-thread.
-#[doc(hidden)]
-pub fn set_suppress_4432_vs_major(on: bool) {
-    SUPPRESS_4432_VS_MAJOR.with(|flag| flag.set(on));
-}
-
-/// Whether the weak-4432-over-a-major takeout suppression is active
-fn suppress_4432_vs_major() -> bool {
-    SUPPRESS_4432_VS_MAJOR.with(Cell::get)
-}
-
-/// Suppress our weak 4-4-3-2 takeout double when the opponents opened a **minor**
-///
-/// The mildest 4-4-3-2 slice (−1.39 IMPs/div; the 4-4-majors subset a wash) — the
-/// classic takeout of a minor showing the majors, which is textbook and likely
-/// kept.  Provided for the opener-suit A/B; **default off**.  Read at
-/// classification time and per-thread.
-#[doc(hidden)]
-pub fn set_suppress_4432_vs_minor(on: bool) {
-    SUPPRESS_4432_VS_MINOR.with(|flag| flag.set(on));
-}
-
-/// Whether the weak-4432-over-a-minor takeout suppression is active
-fn suppress_4432_vs_minor() -> bool {
-    SUPPRESS_4432_VS_MINOR.with(Cell::get)
-}
-
-/// Suppress our takeout double when we hold an unbid five-card major — overcall it
-///
-/// With a five-card (or longer) major we can name the suit directly, so a takeout
-/// double only risks partner responding in our short suit.  Over a one-level
-/// opening the natural major overcall already outranks the double; the leak is
-/// over a **weak two**, where the 12+ shapely double (weight 1.3) outguns the
-/// two-level major overcall (weight 1.0).  With the knob on (the default),
-/// [`takeout_double_shape_ok`] rejects the double so the hand routes to its
-/// natural overcall — only the 12–16 HCP range is redirected, since a 17+ hand
-/// falls through to the separate `points(17..)` double (too strong for a simple
-/// overcall).  **Shipped default-on**: a paired BBA A/B (409.6k bd/arm/vul,
-/// SEED_BASE 1783631820) scored a plain-DD **and** perfect-defense **and**
-/// single-dummy-lead win at both vulnerabilities, every 95% CI excluding 0: plain
-/// +0.0190 (NV) / +0.0493 (vul), PD +0.0892 / +0.1129, sd-lead +0.0124 / +0.0413
-/// IMPs/board; ~2% fired.  Pass `false` to revert to doubling.  Read at
-/// classification time and per-thread.
-#[doc(hidden)]
-pub fn set_suppress_5card_major_takeout(on: bool) {
-    SUPPRESS_5CARD_MAJOR_TAKEOUT.with(|flag| flag.set(on));
-}
-
-/// Whether the unbid-five-card-major takeout suppression is active
-fn suppress_5card_major_takeout() -> bool {
-    SUPPRESS_5CARD_MAJOR_TAKEOUT.with(Cell::get)
-}
-
 /// Gate ANDed into each takeout-double rule to suppress a weak flat 4-3-3-3
 ///
-/// A no-op unless [`set_suppress_flat_4333_takeout`] is on (the default): when
-/// off it is satisfied for every hand, reverting to the old double.  When on it
-/// is satisfied *unless* the hand is a flat 4-3-3-3 with fewer than 15 HCP (12–14),
-/// which a takeout double overbids for lack of ruffing value — those hands route
-/// to Pass instead.  Four suits all 3 or 4 cards long sum to 13 only as a
-/// 4-3-3-3, so that test *is* "flat 4333".  The flag is read once at
-/// construction, so the closure captures a `bool`.
+/// The five build-time switches live on
+/// [`DefenseKnobs`][crate::bidding::agreements::DefenseKnobs] and are copied
+/// into this closure.  In particular, flat 4-3-3-3 suppression rejects a hand
+/// below 15 HCP for lack of ruffing value; four suits all three or four cards
+/// long sum to 13 only as a 4-3-3-3.
 #[must_use]
-pub(crate) fn takeout_double_shape_ok() -> Cons<impl Constraint + Clone> {
-    let suppress_4333 = suppress_flat_4333_takeout();
-    let suppress_5332 = suppress_5332_takeout();
-    let suppress_4432_major = suppress_4432_vs_major();
-    let suppress_4432_minor = suppress_4432_vs_minor();
-    let suppress_5card_major = suppress_5card_major_takeout();
+pub(crate) fn takeout_double_shape_ok(
+    defense: super::agreements::DefenseKnobs,
+) -> Cons<impl Constraint + Clone> {
+    let suppress_4333 = defense.suppress_flat_4333_takeout;
+    let suppress_5332 = defense.suppress_5332_takeout;
+    let suppress_4432_major = defense.suppress_4432_vs_major;
+    let suppress_4432_minor = defense.suppress_4432_vs_minor;
+    let suppress_5card_major = defense.suppress_5card_major_takeout;
     described(
         "not a weak balanced hand diverted to Pass",
         move |hand: Hand, context: &Context<'_>| {

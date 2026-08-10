@@ -29,7 +29,7 @@ pub(super) fn read_with(
 /// hands `Inferences::read` (cf. `Stance::prefixed_context`).  The plain `read`
 /// above is keyless, so it sees no convention overlay.
 pub(super) fn read_booked(auction: &[Call]) -> Inferences {
-    read_booked_with(&crate::bidding::agreements::Agreements::current(), auction)
+    read_booked_with(&crate::bidding::agreements::Agreements::default(), auction)
 }
 
 /// [`read_booked`], but under an explicit set of agreements — the shape a knob
@@ -69,7 +69,7 @@ pub(super) fn chosen_call(stance: &crate::bidding::Stance, hand: Hand, auction: 
 fn gladiator_readings_admit_the_bidder() {
     use rand::SeedableRng as _;
 
-    let mut agreements = crate::bidding::agreements::Agreements::current();
+    let mut agreements = crate::bidding::agreements::Agreements::default();
     agreements.decision.reading.nt_overcall_gladiator = true;
     agreements.decision.reading.envelope_union = true;
     let node = [bid(1, Strain::Spades), bid(1, Strain::Notrump), Call::Pass];
@@ -174,7 +174,7 @@ fn gladiator_readings_admit_the_bidder() {
 fn readings_admit_the_bidder() {
     use rand::SeedableRng as _;
 
-    let mut agreements = crate::bidding::agreements::Agreements::current();
+    let mut agreements = crate::bidding::agreements::Agreements::default();
     agreements.decision.reading.envelope_union = true;
 
     // (what the node is, the auction up to the seat replayed).  Multi-call
@@ -422,7 +422,7 @@ fn node_context<'a>(
 fn node_context_memoises_the_uncached_read() {
     use crate::bidding::american::american;
 
-    let mut agreements = crate::bidding::agreements::Agreements::current();
+    let mut agreements = crate::bidding::agreements::Agreements::default();
     agreements.decision.reading.envelope_union = true;
     let american = american(&agreements);
     let trie = &american.constructive.0;
@@ -578,7 +578,7 @@ fn assert_all_alerted(what: &str, mut worklist: Vec<String>) {
 fn artificial_calls_are_alerted() {
     use crate::bidding::american::american;
 
-    let agreements = crate::bidding::agreements::Agreements::current();
+    let agreements = crate::bidding::agreements::Agreements::default();
     let pair = american(&agreements);
     let mut worklist = Vec::new();
     for (phase, trie) in [
@@ -595,7 +595,7 @@ fn artificial_calls_are_alerted() {
 fn deviation_knobs_preserve_alert_invariant() {
     use crate::bidding::american::american;
 
-    let mut agreements = crate::bidding::agreements::Agreements::current();
+    let mut agreements = crate::bidding::agreements::Agreements::default();
     agreements.opening.one_notrump_offshape = true;
     agreements.opening.weak_two_wild = true;
     agreements.defense.overcall_four_card = true;
@@ -633,7 +633,7 @@ fn alerted_call_sites_match_the_disclosure_fixture() {
     use crate::bidding::american::american;
     use std::collections::BTreeMap;
 
-    let agreements = crate::bidding::agreements::Agreements::current();
+    let agreements = crate::bidding::agreements::Agreements::default();
     let pair = american(&agreements);
     let mut counts: BTreeMap<&str, usize> = BTreeMap::new();
     for trie in [&pair.constructive.0, &pair.competitive.0, &pair.defensive.0] {
@@ -845,7 +845,7 @@ fn authored_rules_eval_within_projection() {
         .map(|text| text.parse::<Hand>().unwrap_or_else(|_| unreachable!())),
     );
 
-    let mut agreements = crate::bidding::agreements::Agreements::current();
+    let mut agreements = crate::bidding::agreements::Agreements::default();
     agreements.decision.reading.envelope_union = true;
     let american = american(&agreements);
     let dutch = dutch(&agreements);
@@ -935,7 +935,7 @@ fn passes_read_within_their_table() {
             .map(|text| text.parse::<Hand>().unwrap_or_else(|_| unreachable!())),
     );
 
-    let mut agreements = crate::bidding::agreements::Agreements::current();
+    let mut agreements = crate::bidding::agreements::Agreements::default();
     agreements.decision.reading.envelope_union = true;
     agreements.decision.reading.pass_exclusion = true;
     let american = american(&agreements);
@@ -1047,8 +1047,8 @@ fn authored_calls_read_what_they_gate() {
     use crate::bidding::american::american;
     use crate::bidding::dutch::dutch;
 
-    let american = american(&crate::bidding::agreements::Agreements::current());
-    let dutch = dutch(&crate::bidding::agreements::Agreements::current());
+    let american = american(&crate::bidding::agreements::Agreements::default());
+    let dutch = dutch(&crate::bidding::agreements::Agreements::default());
     let tries: [(&str, &crate::bidding::trie::Trie); 4] = [
         ("american constructive", &american.constructive.0),
         ("american competitive", &american.competitive.0),
@@ -1056,7 +1056,7 @@ fn authored_calls_read_what_they_gate() {
         ("dutch constructive", &dutch.constructive.0),
     ];
 
-    let mut off_profile = crate::bidding::context::DecisionProfile::current();
+    let mut off_profile = crate::bidding::context::DecisionProfile::default();
     off_profile.reading.envelope_union = false;
     let off = axis_leaks(&tries, off_profile);
     let mut on_profile = off_profile;
@@ -1159,8 +1159,8 @@ fn fallback_rules_read_what_they_gate() {
     use crate::bidding::american::american;
     use crate::bidding::dutch::dutch;
 
-    let american = american(&crate::bidding::agreements::Agreements::current());
-    let dutch = dutch(&crate::bidding::agreements::Agreements::current());
+    let american = american(&crate::bidding::agreements::Agreements::default());
+    let dutch = dutch(&crate::bidding::agreements::Agreements::default());
     let tries: [(&str, &crate::bidding::trie::Trie); 4] = [
         ("american constructive", &american.constructive.0),
         ("american competitive", &american.competitive.0),
@@ -1171,7 +1171,7 @@ fn fallback_rules_read_what_they_gate() {
         for_each_fallback_rule(trie, profile, visit, |_, _| {});
     };
 
-    let mut off_profile = crate::bidding::context::DecisionProfile::current();
+    let mut off_profile = crate::bidding::context::DecisionProfile::default();
     off_profile.reading.envelope_union = false;
     let off = axis_leaks_with(&tries, off_profile, walk);
     let mut on_profile = off_profile;
@@ -1245,7 +1245,7 @@ fn fallback_rules_read_what_they_gate() {
     for (system, trie) in tries {
         for_each_fallback_rule(
             trie,
-            crate::bidding::context::DecisionProfile::current(),
+            crate::bidding::context::DecisionProfile::default(),
             |_, _, _| {},
             |auction, label| {
                 opaque.push(format!(
@@ -1278,7 +1278,7 @@ fn fallback_rules_read_what_they_gate() {
 fn gladiator_artificial_calls_are_alerted() {
     use crate::bidding::american::american;
 
-    let mut agreements = crate::bidding::agreements::Agreements::current();
+    let mut agreements = crate::bidding::agreements::Agreements::default();
     agreements.decision.reading.nt_overcall_gladiator = true;
     let pair = american(&agreements);
 
@@ -1297,7 +1297,7 @@ fn gladiator_artificial_calls_are_alerted() {
 fn dutch_artificial_calls_are_alerted() {
     use crate::bidding::dutch::dutch;
 
-    let agreements = crate::bidding::agreements::Agreements::current();
+    let agreements = crate::bidding::agreements::Agreements::default();
     let pair = dutch(&agreements);
     assert_all_alerted(
         "Dutch",
@@ -1313,7 +1313,7 @@ fn dutch_artificial_calls_are_alerted() {
 fn new_minor_forcing_artificial_calls_are_alerted() {
     use crate::bidding::american::american;
 
-    let mut agreements = crate::bidding::agreements::Agreements::current();
+    let mut agreements = crate::bidding::agreements::Agreements::default();
     agreements.rebid.new_minor_forcing = true;
     let pair = american(&agreements);
 
@@ -1330,7 +1330,7 @@ fn new_minor_forcing_artificial_calls_are_alerted() {
 fn choice_of_games_artificial_calls_are_alerted() {
     use crate::bidding::american::american;
 
-    let mut agreements = crate::bidding::agreements::Agreements::current();
+    let mut agreements = crate::bidding::agreements::Agreements::default();
     agreements.response.major_choice_of_games = true;
     let pair = american(&agreements);
 

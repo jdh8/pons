@@ -23,7 +23,7 @@ fn sub_ten_hcp_freaks_open_only_in_third_seat() {
     use crate::bidding::constraint::PointScale;
     // Calibrated to the rule-of-N+8 opt-out — the scale these example
     // hands' points assume (6-5 reads 12, not the point-count cap of 10).
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.point_scale = PointScale::RuleOfNFloored;
     // ♠5 ♥JT952 ♦J ♣AK7652 — 9 HCP, 12 points (6-5).  Rule-of-N+8 alone
     // would walk it in the sound-opening front door; `hcp(10..)` bars it in
@@ -76,7 +76,7 @@ fn wide_notrump_shape_gate() {
     let balanced16 = "AQ32.K53.QJ4.A92";
 
     // Classic: only the balanced hand opens 1NT; the shapely ones open a suit.
-    let narrow = openings_with(NotrumpShape::Balanced, &Agreements::current());
+    let narrow = openings_with(NotrumpShape::Balanced, &Agreements::default());
     assert_eq!(opens(&narrow, balanced16), one_nt);
     assert_eq!(opens(&narrow, five422_minor), one_c);
     assert_eq!(opens(&narrow, five422_major), one_s);
@@ -84,7 +84,7 @@ fn wide_notrump_shape_gate() {
     assert_eq!(opens(&narrow, six322_major), one_s);
 
     // Wide: the long-minor 5422 joins 1NT; majors and 6322 stay suits.
-    let wide = openings_with(NotrumpShape::Wide, &Agreements::current());
+    let wide = openings_with(NotrumpShape::Wide, &Agreements::default());
     assert_eq!(opens(&wide, balanced16), one_nt);
     assert_eq!(opens(&wide, five422_minor), one_nt);
     assert_eq!(opens(&wide, five422_major), one_s);
@@ -92,7 +92,7 @@ fn wide_notrump_shape_gate() {
     assert_eq!(opens(&wide, six322_major), one_s);
 
     // Wide6322 (default): the long-minor 6322 also joins 1NT; majors still stay suits.
-    let wide6322 = openings_with(NotrumpShape::Wide6322, &Agreements::current());
+    let wide6322 = openings_with(NotrumpShape::Wide6322, &Agreements::default());
     assert_eq!(opens(&wide6322, five422_minor), one_nt);
     assert_eq!(opens(&wide6322, five422_major), one_s);
     assert_eq!(opens(&wide6322, six322_minor), one_nt);
@@ -106,10 +106,10 @@ fn suppress_one_notrump_opens_a_minor() {
     let balanced16 = "AQ32.K53.QJ4.A92"; // 4333, 16 HCP — a textbook 1NT opener
 
     // Default: opens 1NT.
-    assert_eq!(opens(&openings(&Agreements::current()), balanced16), one_nt);
+    assert_eq!(opens(&openings(&Agreements::default()), balanced16), one_nt);
 
     // Suppressed: the same hand opens its minor — never 1NT, never Pass.
-    let mut suppressed = Agreements::current();
+    let mut suppressed = Agreements::default();
     suppressed.opening.open_one_notrump = false;
     assert_eq!(opens(&openings(&suppressed), balanced16), one_c);
 }
@@ -121,8 +121,8 @@ fn one_notrump_offshape_is_opt_in() {
     use rand::SeedableRng;
     use rand::rngs::StdRng;
 
-    let baseline = openings(&Agreements::current());
-    let mut off = Agreements::current();
+    let baseline = openings(&Agreements::default());
+    let mut off = Agreements::default();
     off.opening.one_notrump_offshape = false;
     let explicit_off = openings(&off);
     let context = Context::new(RelativeVulnerability::NONE, &[]);
@@ -140,7 +140,7 @@ fn one_notrump_offshape_is_opt_in() {
     let offshape = "AQ43.KQJ2.K532.J";
     let one_nt = Call::Bid(Bid::new(1, Strain::Notrump));
     assert_ne!(opens(&explicit_off, offshape), one_nt);
-    let mut on = Agreements::current();
+    let mut on = Agreements::default();
     on.opening.one_notrump_offshape = true;
     assert_eq!(opens(&openings(&on), offshape), one_nt);
 }
@@ -152,8 +152,8 @@ fn weak_two_wild_is_opt_in() {
     use rand::SeedableRng;
     use rand::rngs::StdRng;
 
-    let baseline = openings(&Agreements::current());
-    let mut off = Agreements::current();
+    let baseline = openings(&Agreements::default());
+    let mut off = Agreements::default();
     off.opening.weak_two_wild = false;
     let explicit_off = openings(&off);
     let context = Context::new(RelativeVulnerability::NONE, &[]);
@@ -171,7 +171,7 @@ fn weak_two_wild_is_opt_in() {
     let five_card = "KQJ98.743.52.842";
     let two_s = Call::Bid(Bid::new(2, Strain::Spades));
     assert_ne!(opens(&explicit_off, five_card), two_s);
-    let mut on = Agreements::current();
+    let mut on = Agreements::default();
     on.opening.weak_two_wild = true;
     assert_eq!(opens(&openings(&on), five_card), two_s);
 }
@@ -186,13 +186,13 @@ fn sound_eleven_counts_open_one_of_a_suit() {
     // below the sole `points(12..=21)` opening — so it passes.
     let sound_11 = "AK986.J9.QJT6.64";
     assert_eq!(
-        opens(&openings(&Agreements::current()), sound_11),
+        opens(&openings(&Agreements::default()), sound_11),
         Call::Pass
     );
 
     // On the rule-of-N+8 opt-out `points(12..)` *is* the Rule of 20 (11 + 9),
     // blind to the wasted J9, so the identity opens the same hand 1♠.
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.point_scale = PointScale::RuleOfN;
     let call = best_on(&openings(&agreements), &[], sound_11, agreements.decision);
     assert_eq!(call, one_s);
@@ -205,9 +205,9 @@ fn weak_two_hcp_band_gauges_raw_hcp() {
     // the default `points(5..=10)` excludes it and — too weak for a 1-opener
     // — it passes.  Raw HCP 9 is a sound weak two the HCP band admits.
     let sound_nine = "KQ9832.KJ85.74.4";
-    let mut plain = Agreements::current();
+    let mut plain = Agreements::default();
     plain.opening.weak_two_hcp = None;
-    let mut band = Agreements::current();
+    let mut band = Agreements::default();
     band.opening.weak_two_hcp = Some((5, 10));
     assert_eq!(opens(&openings(&plain), sound_nine), Call::Pass);
     assert_eq!(opens(&openings(&band), sound_nine), two_s);
@@ -229,16 +229,16 @@ fn weak_two_eval_gauges_honor_location() {
     let concentrated = "KQJ862.943.75.82";
     let scattered = "986432.94.KQ.J82";
     assert_eq!(
-        opens(&openings(&Agreements::current()), concentrated),
+        opens(&openings(&Agreements::default()), concentrated),
         two_s
     );
-    assert_eq!(opens(&openings(&Agreements::current()), scattered), two_s);
+    assert_eq!(opens(&openings(&Agreements::default()), scattered), two_s);
 
     // Discipline forms: prune the scattered hand, keep the concentrated
     // one (CCCC 8.10 vs 5.10; NLTC 9.5 vs 10.0 losers — probe-verified,
     // see `examples/probe-weak-two-eval.rs`).
     let armed = |eval| {
-        let mut a = Agreements::current();
+        let mut a = Agreements::default();
         a.opening.weak_two_eval = Some(eval);
         a
     };
@@ -323,7 +323,7 @@ fn two_notrump_wide_shape_drops_five_card_majors() {
 
 #[test]
 fn openings_pick_the_descriptive_bid() {
-    let o = openings(&Agreements::current());
+    let o = openings(&Agreements::default());
     // 16 balanced -> 1NT; 22 -> 2♣; five hearts -> 1♥; six spades, weak -> 2♠.
     assert_eq!(best(&o, &[], "AQ32.K53.QJ4.A92"), call(1, Strain::Notrump));
     assert_eq!(best(&o, &[], "AKQ2.AKJ.KQ4.932"), call(2, Strain::Clubs));
@@ -334,7 +334,7 @@ fn openings_pick_the_descriptive_bid() {
 #[test]
 fn openings_suppress_weak_twos_in_fourth_seat() {
     // The same six-spade 6-count opens 2♠ in first seat but passes in fourth.
-    let o = openings(&Agreements::current());
+    let o = openings(&Agreements::default());
     assert_eq!(best(&o, &[], "KQJ732.53.842.92"), call(2, Strain::Spades));
     assert_eq!(best(&o, &[Call::Pass; 3], "KQJ732.53.842.92"), Call::Pass,);
 }

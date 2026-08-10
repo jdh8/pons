@@ -6,7 +6,7 @@ use contract_bridge::auction::Call;
 
 /// Best call with the advance-of-double sohl pinned to `style`
 fn advance(style: LebensohlStyle, auction: &[Call], hand: &str) -> (Call, bool) {
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.defense.advance_sohl_style = style;
     best_call_with(&arm, auction, hand)
 }

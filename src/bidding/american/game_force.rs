@@ -21,7 +21,7 @@
 //!
 //! That holds the game force only where a table *exists*.  The floor owns
 //! everything else, and it needs telling: see
-//! [`set_two_over_one_force`][crate::bidding::instinct::set_two_over_one_force],
+//! [`DecisionProfile::two_over_one_force`][crate::bidding::context::DecisionProfile::two_over_one_force],
 //! which marks an uncontested 2/1 forced to game so the floor takes the cheapest
 //! game milestone rather than passing out a partscore.
 

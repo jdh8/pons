@@ -140,10 +140,10 @@ fn main() {
     // Both keep every other shipped default. The knob is read at book-
     // construction time, so build each arm under its own setting; the baked
     // tries are independent thereafter.
-    let mut off_agreements = pons::bidding::agreements::Agreements::current();
+    let mut off_agreements = pons::bidding::agreements::Agreements::default();
     off_agreements.decision.reading.nt_splinter = false;
     let off = american(&off_agreements).against();
-    let mut armed = pons::bidding::agreements::Agreements::current();
+    let mut armed = pons::bidding::agreements::Agreements::default();
     armed.decision.reading.nt_splinter = true;
     armed.notrump.nt_splinter_floor = args.floor;
     let on = american(&armed).against();

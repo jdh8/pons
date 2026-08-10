@@ -16,7 +16,7 @@ fn sixcard_major_invite() {
     // The shipped floor (13, the invite on) and the off pole (14 == the blast
     // floor).  Captured *after* the `support_points` pin, which is a reading
     // knob the capture reads.
-    let mut on = Agreements::current();
+    let mut on = Agreements::default();
     on.decision.reading.support_points = false;
     let mut off = on;
     off.notrump.sixcard_invite_floor = 14;

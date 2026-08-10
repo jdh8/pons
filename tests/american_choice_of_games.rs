@@ -7,7 +7,7 @@ use pons::bidding::agreements::Agreements;
 
 /// The opt-out 2/1 pair.
 fn no_cog_stance() -> Stance {
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.response.major_choice_of_games = false;
     american(&agreements).against()
 }

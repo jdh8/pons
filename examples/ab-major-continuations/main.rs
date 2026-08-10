@@ -13,7 +13,7 @@
 //!
 //! **Its baseline is not the shipped system.**  `set_knobs(.., false)` drives
 //! *every* knob here to its off state, including the ones that ship on
-//! (`two_over_one_fit`, `opener_third`, `set_two_over_one_force`, …), so
+//! (`two_over_one_fit`, `opener_third`, `DecisionProfile::two_over_one_force`, …), so
 //! arm 0 is a stripped system and arm 1 is that system plus the treatments.  For
 //! a knob whose value depends on machinery the stripping removes, this harness
 //! can read a flat zero where the real routing shows a win — the two-over-one
@@ -36,7 +36,6 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::agreements::Agreements;
 use pons::bidding::american::TwoOverOneGate;
-use pons::bidding::instinct::set_two_over_one_force;
 use pons::scoring::final_contract;
 use rayon::prelude::*;
 
@@ -106,7 +105,7 @@ struct Args {
     game_backstop: bool,
 
     /// Treatment: *drop* the floor's 2/1 game force, letting it pass below game
-    /// in an established two-over-one (`set_two_over_one_force`, shipped on)
+    /// in an established two-over-one (`DecisionProfile::two_over_one_force`, shipped on)
     #[arg(long, default_value_t = false)]
     no_two_over_one_force: bool,
 
@@ -154,14 +153,11 @@ fn parse_gate(s: &str) -> TwoOverOneGate {
 /// Arm every knob at once and capture the arm's agreements; `treatment` false
 /// = the all-off baseline arm
 ///
-/// The game-force knob is still a thread cell, so it is written before the
-/// capture; the slam-strength agreement is a field of the value.
 fn arm_knobs(args: &Args, treatment: bool) -> Agreements {
     // These ship the other way round (backstop retired, force on), so the
     // treatment *restores* the old behaviour rather than adding a new one.
-    set_two_over_one_force(!(treatment && args.no_two_over_one_force));
-
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
+    agreements.decision.two_over_one_force = !(treatment && args.no_two_over_one_force);
     agreements.decision.instinct.two_over_one_slam_strength =
         !(treatment && args.no_two_over_one_slam_strength);
     agreements.response.major_game_tries = treatment && args.game_tries;

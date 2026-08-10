@@ -50,7 +50,7 @@
 //! the most-hit auctions are the next nodes worth authoring properly.
 
 use super::Rules;
-use super::agreements::{Agreements, InstinctKnobs};
+use super::agreements::Agreements;
 use super::constraint::{
     Cons, Constraint, balanced, described, hcp, len, min_level_is, partner_shown_len,
     partner_suit_is, point_count_on, points, pred, short_in_their_suits, stopper_in_their_suits,
@@ -63,7 +63,6 @@ use super::rules::{Alert, FaceId};
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::eval::hcp as holding_hcp;
 use contract_bridge::{Bid, Hand, Penalty, Rank, Strain, Suit};
-use core::cell::Cell;
 
 /// The per-call alert for responder's gambling 3NT over a double of our 1NT: a
 /// long minor run, *not* a natural balanced 3NT.  Marks the call artificial so
@@ -111,24 +110,6 @@ pub enum LatchStyle {
     /// suit with values, and partner *cooperates* (sit on a fit, run when short)
     /// via the general advance-a-double machinery instead of being forced to sit.
     Optional,
-}
-
-std::thread_local! {
-    /// Whether the *doubler* runs after `(1NT) X (XX) - -` comes back around
-    /// (**on by default** — see [`set_doubler_xx_runout`]).  Construction-gated:
-    /// read once in [`instinct`] so the escape rule lands only in the on book.
-    static DOUBLER_XX_RUNOUT: Cell<bool> = const { Cell::new(true) };
-
-    /// A hand that already bid a suit rebids it in competition rather than being
-    /// forced to a takeout double (**shipped default-on**; see
-    /// [`set_competitive_rebid`]).
-    static COMPETITIVE_REBID: Cell<bool> = const { Cell::new(true) };
-
-    /// Opener's balanced-18-19 notrump actions in a `1X (1Y) …` auction the
-    /// floor otherwise passes out — reopening 1NT, 3NT over responder's free
-    /// 1NT, and responder's raise (**default-on**; see [`set_reopening_notrump`]).
-    static REOPENING_NOTRUMP: Cell<bool> = const { Cell::new(true) };
-
 }
 
 /// The classify-time instinct knobs, snapshotted into a
@@ -632,7 +613,7 @@ fn bilans_floor() -> Cons<impl Constraint + Clone> {
 }
 
 /// The bilans setting off a pinned profile — [`net_break_even_gate`]'s selector
-/// runs *inside* a predicate, where the thread's live state is the wrong source
+/// runs *inside* a predicate, where bare-context defaults are the wrong source
 fn bilans_pinned(profile: &DecisionProfile) -> bool {
     profile.instinct.bilans_floor
 }
@@ -649,55 +630,6 @@ fn net_collar() -> Cons<impl Constraint + Clone> {
 // upgrade if the A/B lands close enough to want it swept.
 const COLLAR_SLACK: u8 = 2;
 
-/// Enable opener's/overcaller's competitive rebid of a long suit (**shipped default-on**)
-///
-/// Once our side has bid, the deterministic floor's only competitive actions are
-/// raising partner and the takeout double — so a self-sufficient one-suiter
-/// (e.g. `1♦ (1♥) - (2♥)` holding `AKJT984`) can only double, misdescribing a
-/// takeout shape it does not have.  With this on, a suit we already bid and hold
-/// six-plus in is rebid at the cheapest legal level, outranking that double; the
-/// existing raise ladder then carries responder to game.  The two-level rebid is
-/// unconditional; the more committal three-level rebid demands a real source of
-/// tricks (seven cards, or a good six — two of the top three honors).
-///
-/// A/B (SEED_BASE 1783316036, 102.4k bd/arm/vul): plain **+0.047/+0.037** IMPs/bd
-/// NV/vul, PD **+0.040/+0.023**, all four cells' CIs exclude 0.  Disable with
-/// `bba-gen --no-ns-competitive-rebid`.  Read at book construction.
-#[doc(hidden)]
-pub fn set_competitive_rebid(enabled: bool) {
-    COMPETITIVE_REBID.with(|flag| flag.set(enabled));
-}
-
-/// Capture the floor's build-time cells into [`InstinctKnobs`]
-pub(in crate::bidding) fn capture_build() -> InstinctKnobs {
-    InstinctKnobs {
-        competitive_rebid: competitive_rebid_enabled(),
-        reopening_notrump: reopening_notrump_enabled(),
-        doubler_xx_runout: doubler_xx_runout_enabled(),
-    }
-}
-
-/// The competitive long-suit rebid is enabled (see [`set_competitive_rebid`])
-fn competitive_rebid_enabled() -> bool {
-    COMPETITIVE_REBID.with(Cell::get)
-}
-
-/// Author opener's balanced-18-19 notrump actions in a `1X (1Y) …` auction the
-/// floor otherwise passes out: the reopening 1NT (`1X (1Y) - -` back to
-/// opener with their suit stopped), 3NT over responder's free 1NT, and
-/// responder's raise of the reopening 1NT.  Default on; the off state restores
-/// the lone-takeout-double floor for the A/B (`bba-gen --no-ns-reopening-notrump`).
-/// Read at book construction.
-#[doc(hidden)]
-pub fn set_reopening_notrump(enabled: bool) {
-    REOPENING_NOTRUMP.with(|flag| flag.set(enabled));
-}
-
-/// Opener's contested notrump actions are enabled (see [`set_reopening_notrump`])
-fn reopening_notrump_enabled() -> bool {
-    REOPENING_NOTRUMP.with(Cell::get)
-}
-
 /// The floor's 4NT keycard ask and its 1430 answers are artificial (M6.4);
 /// the alert suppresses their natural reading — without it partner would read
 /// a 5♦ answer as a diamond suit and the sampler would deal the phantom.
@@ -712,46 +644,6 @@ const fn rkcb_relay_face(back: u8) -> FaceId {
 
 const fn rkcb_relocated_ask_face(target: Suit) -> FaceId {
     FaceId::new("rkcb:relocated-ask", target as u8)
-}
-
-std::thread_local! {
-    /// Whether an uncontested 2/1 marks the auction forced to game.  **On by
-    /// default** since 2026-07-20; see [`set_two_over_one_force`].
-    static TWO_OVER_ONE_FORCE: Cell<bool> = const { Cell::new(true) };
-
-}
-
-/// Enable or disable the floor's two-over-one game force (**on by default**)
-///
-/// The authored book has always held this invariant by *omission* — no table in
-/// the 2/1 game-force book carries a `Pass` rule, so pass
-/// scores −∞ and a 2/1 auction cannot die below game.  The floor never learned
-/// it, which did not matter while the game backstop covered every uncovered
-/// continuation.  Deleting that node
-/// ([`game_backstop`][super::agreements::GameForceKnobs::game_backstop], now the
-/// default)
-/// exposed the gap: against BBA, 24% of the affected boards had our side
-/// settling below game in an established 2/1 — opener passing responder's 3♣ out
-/// in a partscore.
-///
-/// On, an uncontested 2/1 sets `Interpretation::forced_to_game`, so the floor
-/// takes the cheapest game milestone instead of passing.  Measured on top of the
-/// deletion: **+0.0067/+0.0102 plain, +0.0060/+0.0094 PD** IMPs/board NV/vul vs
-/// BBA (409,600×2, all CI>0), firing on 606/622 boards — exactly the set that
-/// abandoned the force — at +4.5/+6.7 IMPs each.  It costs routing those nodes
-/// through the deterministic ladder rather than the learned net, since the
-/// [shell][super::neural_floor] delegates wholesale on a forced auction; that
-/// price is inside the measurement.
-///
-/// Uncontested only, matching the `Undisturbed` guard the deleted node carried:
-/// over interference a two-level new suit is a free bid, not a game force.
-pub fn set_two_over_one_force(on: bool) {
-    TWO_OVER_ONE_FORCE.with(|cell| cell.set(on));
-}
-
-/// Whether the [`set_two_over_one_force`] knob is on
-pub fn two_over_one_force() -> bool {
-    TWO_OVER_ONE_FORCE.with(Cell::get)
 }
 
 /// Partner's shown minimum points, floored by a live 2/1 (see
@@ -1537,7 +1429,8 @@ fn we_have_not_bid() -> Cons<impl Constraint + Clone> {
 }
 
 /// The player to act has *personally* bid `suit` — the anchor for rebidding our
-/// own long suit in competition (see [`set_competitive_rebid`]).
+/// own long suit in competition (see
+/// [`InstinctKnobs::competitive_rebid`][crate::bidding::agreements::InstinctKnobs::competitive_rebid]).
 ///
 /// Seat-scoped, not side-scoped (`context.we_bid` is the union of both seats):
 /// partner's artificial bid — a Jacoby transfer names our short major — must not
@@ -3789,7 +3682,8 @@ impl Interpretation {
 /// Uncontested only — over interference a two-level new suit is a free bid, not
 /// a game force — which also matches the `Undisturbed` guard the deleted game
 /// backstop carried.  Without this the floor has no idea it is forced and
-/// happily passes partner's 2/1 in a partscore ([`set_two_over_one_force`]).
+/// happily passes partner's 2/1 in a partscore
+/// ([`DecisionProfile::two_over_one_force`]).
 fn two_over_one_game_force(context: &Context<'_>) -> bool {
     let auction = context.auction();
     if !context.decision_profile().two_over_one_force || !context.undisturbed() {
@@ -3906,23 +3800,6 @@ fn advancer_xx_runout_now(context: &Context<'_>) -> bool {
 /// [`advancer_xx_runout_now`] as a hand-ignoring [`Constraint`] for the ladder
 fn advancer_xx_runout() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| advancer_xx_runout_now(context))
-}
-
-/// Enable or disable the *doubler's* runout from their redoubled penalty double
-///
-/// **On by default.**  After `(1NT) X (XX)` the opponents' business redouble runs
-/// back around — advancer passes, opener passes (`(1NT) X (XX) - -`) — to the 15+
-/// doubler.  On, a doubler holding a five-plus-card suit escapes to it rather than
-/// defend a likely-making `1NTxx`; off, it sits.  Read once at book construction
-/// (the escape rule is added only when on) so a duplicate A/B isolates cleanly.
-#[doc(hidden)]
-pub fn set_doubler_xx_runout(enabled: bool) {
-    DOUBLER_XX_RUNOUT.with(|flag| flag.set(enabled));
-}
-
-/// Whether the doubler's runout rule is authored into the current book
-pub fn doubler_xx_runout_enabled() -> bool {
-    DOUBLER_XX_RUNOUT.with(Cell::get)
 }
 
 /// Their redoubled penalty double has run back to the doubler (`(1NT) X (XX) - -`)
@@ -4600,7 +4477,7 @@ pub fn instinct(agreements: &Agreements) -> Rules {
     }
 
     // Doubler's runout once the redouble runs back around (`(1NT) X (XX) - -`,
-    // on by default; `set_doubler_xx_runout`).  Unlike the advancer, the doubler is
+    // on by default; `InstinctKnobs::doubler_xx_runout`).  Unlike the advancer, the doubler is
     // the 15+ penalty hand, so there is *no* HCP cap — a doubler holding a five-plus
     // suit (a 5332 under the default balanced gate) escapes the redoubled `1NTxx`
     // rather than defend it; a 4-3-3-3/4-4-3-2 bust has nowhere to run and sits.
@@ -5805,7 +5682,7 @@ pub fn instinct(agreements: &Agreements) -> Rules {
         );
     }
 
-    // Competitive long-suit rebid (opt-in; see `set_competitive_rebid`).  Once
+    // Competitive long-suit rebid (opt-in; see `InstinctKnobs::competitive_rebid`).  Once
     // `we_have_not_bid` is false the floor competes only by raising partner or
     // doubling, so a hand with a suit of its own — the opener's rebiddable
     // six-bagger, an overcaller's — is stuck doubling.  Rebid that suit at the
@@ -5897,7 +5774,7 @@ pub fn instinct(agreements: &Agreements) -> Rules {
                 & short_in_their_suits()
                 & hcp(12..)
                 & not_penalty_latched()
-                & takeout_double_shape_ok()
+                & takeout_double_shape_ok(agreements.defense)
                 & !minimum_reraise_blocked(),
         )
         .rule(

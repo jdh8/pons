@@ -133,7 +133,7 @@ fn main() {
     // Likewise ambient: `points_or_net` masks the authored `fit_sum_game` leg to
     // `authored & false` while the net floor is on, so the threshold only bites
     // with it off (src/bidding/instinct.rs, `points_or_net`).
-    let mut agreements = pons::bidding::agreements::Agreements::current();
+    let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.reading.support_points = args.support_points;
     agreements.decision.instinct.bilans_floor = !args.no_bilans;
     agreements.decision.instinct.fit_sum_game = args.baseline;

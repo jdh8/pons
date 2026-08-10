@@ -43,7 +43,7 @@ use pons::bidding::instinct::{RkcbVariant, keycard_ask_at};
 use rayon::prelude::*;
 
 fn agreements(on: bool) -> pons::bidding::agreements::Agreements {
-    let mut agreements = pons::bidding::agreements::Agreements::current();
+    let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.reading.rkcb_variant = if on {
         RkcbVariant::Kickback
     } else {

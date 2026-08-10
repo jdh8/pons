@@ -4,7 +4,7 @@ use contract_bridge::auction::RelativeVulnerability;
 use contract_bridge::{Hand, Suit};
 
 fn reading_with(configure: impl FnOnce(&mut ReadingProfile)) -> ReadingProfile {
-    let mut agreements = crate::bidding::agreements::Agreements::current();
+    let mut agreements = crate::bidding::agreements::Agreements::default();
     configure(&mut agreements.decision.reading);
     agreements.decision.reading
 }
@@ -218,8 +218,10 @@ fn tidy_prunes_ghosts_and_contained() {
     use crate::bidding::constraint::{Constraint as _, and, balanced, points};
 
     let profile = reading_with(|profile| profile.envelope_union = true);
-    let mut decision = crate::bidding::context::DecisionProfile::current();
-    decision.reading = profile;
+    let decision = crate::bidding::context::DecisionProfile {
+        reading: profile,
+        ..Default::default()
+    };
     let context = Context::new(RelativeVulnerability::NONE, &[]).with_profile(decision);
 
     // `balanced & {3..}⁴`: the four 5(332) pan-handles intersect to
@@ -324,8 +326,10 @@ fn upgrade_closure_crisps_the_balanced_band() {
             profile.envelope_union = true;
             profile.upgrade_closure = on;
         });
-        let mut decision = crate::bidding::context::DecisionProfile::current();
-        decision.reading = profile;
+        let decision = crate::bidding::context::DecisionProfile {
+            reading: profile,
+            ..Default::default()
+        };
         let context = Context::new(RelativeVulnerability::NONE, &[]).with_profile(decision);
         let union = (balanced() & points(15..)).project(&context);
         union.hull().strength.hcp
@@ -354,8 +358,10 @@ fn upgrade_closure_gives_hcp_teeth() {
     // because `points` was slacked to `hcp + hcp_ceiling_slack()`.
     let hand: Hand = "AKQ2.J43.432.432".parse().expect("valid hand");
     let loose = reading_with(|profile| profile.envelope_union = true);
-    let mut decision = crate::bidding::context::DecisionProfile::current();
-    decision.reading = loose;
+    let decision = crate::bidding::context::DecisionProfile {
+        reading: loose,
+        ..Default::default()
+    };
     let context = Context::new(RelativeVulnerability::NONE, &[]).with_profile(decision);
     let reading = (balanced() & hcp(..=8)).project_band(&context);
 

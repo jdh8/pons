@@ -15,14 +15,14 @@ use common::*;
 ///
 /// Each call builds a stance whose agreements author the splinter.
 fn stance() -> Stance {
-    let mut agreements = pons::bidding::agreements::Agreements::current();
+    let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.reading.nt_splinter = true;
     american(&agreements).against()
 }
 
 /// The 2/1 stance with the splinter *not* authored — the pre-2026-07-28 ladder
 fn without() -> Stance {
-    let mut agreements = pons::bidding::agreements::Agreements::current();
+    let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.reading.nt_splinter = false;
     american(&agreements).against()
 }
@@ -209,7 +209,7 @@ fn the_eight_count_passes_at_the_default_floor() {
 #[test]
 fn lowering_the_floor_catches_the_eight() {
     // The same hand with the floor at 8 — the sweep arm.
-    let mut agreements = pons::bidding::agreements::Agreements::current();
+    let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.reading.nt_splinter = true;
     agreements.notrump.nt_splinter_floor = 8;
     let system = american(&agreements).against();

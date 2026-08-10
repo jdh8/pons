@@ -48,7 +48,7 @@ fn print_rules(rules: &Rules, opaque: &mut usize) {
 }
 
 fn main() {
-    let pair = american_book(&pons::bidding::agreements::Agreements::current());
+    let pair = american_book(&pons::bidding::agreements::Agreements::default());
     let books: [(&str, &Trie); 3] = [
         ("constructive", &pair.constructive.0),
         ("competitive", &pair.competitive.0),

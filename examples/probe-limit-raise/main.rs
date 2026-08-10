@@ -44,10 +44,10 @@ fn main() {
     let args = Args::parse();
     let vul = args.vulnerability;
 
-    let mut off = Agreements::current();
+    let mut off = Agreements::default();
     off.response.limit_raise_acceptance = false;
     let baseline = american(&off).against();
-    let treatment = american(&Agreements::current()).against();
+    let treatment = american(&Agreements::default()).against();
     let stances = [baseline, treatment];
 
     let deals = seeded_deals(args.seed, args.count);

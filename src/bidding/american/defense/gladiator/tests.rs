@@ -4,13 +4,13 @@ use contract_bridge::Strain;
 use contract_bridge::auction::Call;
 
 fn best_call(auction: &[Call], hand: &str) -> (Call, bool) {
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.nt_overcall_gladiator = true;
     best_call_with(&agreements, auction, hand)
 }
 
 fn systems_on_best_call(auction: &[Call], hand: &str) -> (Call, bool) {
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.nt_overcall_gladiator = false;
     agreements.decision.reading.nt_overcall_systems_on = true;
     best_call_with(&agreements, auction, hand)

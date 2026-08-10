@@ -554,7 +554,7 @@ impl AuthoringStepCache {
             Some(identity) if std::sync::Arc::ptr_eq(identity, stance.cache_identity()) => {}
             Some(_) => return self.disable(),
         }
-        // The stance's pinned reading, not the thread's live one: this walk
+        // The stance's pinned reading, not bare-context defaults: this walk
         // serves that stance, and `Stance::profile_mut` invalidates the cache
         // identity checked just above, so a deliberate edit still resets it.
         let profile = stance.profile().reading;

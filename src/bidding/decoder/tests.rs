@@ -484,7 +484,7 @@ fn streaming_ledger_compile_matches_catalog_with_grafts_and_overwrites() {
     let mut source = Trie::new();
     compile_into(
         &mut source,
-        &crate::bidding::agreements::Agreements::current(),
+        &crate::bidding::agreements::Agreements::default(),
         &[Package {
             name: "decoder-streaming-test",
             gate: |_| true,

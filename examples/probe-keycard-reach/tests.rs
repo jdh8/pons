@@ -10,7 +10,7 @@ fn calls(strs: &[&str]) -> Vec<Call> {
 /// The winning rule's prose for `call` at this point of a North-dealt
 /// auction, `""` when no authored rule serves it.
 fn describe(auction: &[&str], hand: &str, call: &str) -> String {
-    let stance = american(&pons::bidding::agreements::Agreements::current()).against();
+    let stance = american(&pons::bidding::agreements::Agreements::default()).against();
     let auction = calls(auction);
     let hand: Hand = hand.parse().expect("valid test hand");
     let seat = Seat::ALL[auction.len() % 4];
@@ -45,7 +45,7 @@ fn splinter_shows_shortness() {
     // regime's projection overlay does not yet carry (parked in
     // docs/dnf-migration.md — the cap is LOST knob-on, hull and boxes
     // both).  Pin the knob off for the realization assert.
-    let mut agreements = pons::bidding::agreements::Agreements::current();
+    let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.reading.envelope_union = false;
     let stance = american(&agreements).against();
     let inferences = stance.infer(rel, &auction);

@@ -99,7 +99,7 @@ fn test_deep_contested_auction_is_covered() {
 // `rubens_disabled_reverts_to_natural_advances` in `instinct.rs`.
 
 fn rubens_stance() -> Stance {
-    let mut agreements = pons::bidding::agreements::Agreements::current();
+    let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.reading.rubens_advances = true;
     american(&agreements).against()
 }

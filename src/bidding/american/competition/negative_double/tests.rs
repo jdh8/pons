@@ -5,7 +5,7 @@ use contract_bridge::auction::Call;
 
 #[test]
 fn modern_negative_double_is_exactly_four_over_one_heart() {
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.competition.negative_double_shape = super::negative_double::NegativeDoubleShape::Modern;
     // `1♦ (1♥)`: five spades bid the free 1♠; exactly four double.
     let auction = [call(1, Strain::Diamonds), call(1, Strain::Hearts)];
@@ -18,7 +18,7 @@ fn modern_negative_double_is_exactly_four_over_one_heart() {
 
 #[test]
 fn cachalot_rotates_the_one_level() {
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.competition.negative_double_shape = super::negative_double::NegativeDoubleShape::Cachalot;
     let auction = [call(1, Strain::Clubs), call(1, Strain::Diamonds)];
     // X = 4+ hearts; 1♥ = 4+ spades; 1♠ = the residual takeout hand.
@@ -45,7 +45,7 @@ fn cachalot_rotates_the_one_level() {
 #[test]
 fn cachalot_probe_spades3() {
     use contract_bridge::Strain::*;
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.competition.negative_double_shape = super::negative_double::NegativeDoubleShape::Cachalot;
     let h = "A2.KJ54.KQ543.A2"; // opener-ish, 4 spades
     let cases = vec![
@@ -120,7 +120,7 @@ fn cachalot_probe_spades3() {
 
 #[test]
 fn cachalot_probe_spades2() {
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.competition.negative_double_shape = super::negative_double::NegativeDoubleShape::Cachalot;
     // spades-family PASS-OUT: does the authored completion even fire over (1♥)?
     let passout = [
@@ -152,7 +152,7 @@ fn cachalot_probe_spades2() {
 
 #[test]
 fn cachalot_probe_spades() {
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.competition.negative_double_shape = super::negative_double::NegativeDoubleShape::Cachalot;
     // Is `1♦ (1♥) X` even the spade transfer? And does reveal fire?
     let respond = [call(1, Strain::Diamonds), call(1, Strain::Hearts)];
@@ -199,7 +199,7 @@ fn cachalot_x_contested_answer_raises_the_shown_major() {
     // authored contested answer raises the major the X showed at the level
     // the intervention forces — a fit the floor would otherwise leave for a
     // bare double. Hearts over (1♦), spades over (1♥).
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.competition.negative_double_shape = super::negative_double::NegativeDoubleShape::Cachalot;
     // `1♣ (1♦) X (2♦)` (X = 4+♥): opener with four hearts jumps to 3♥.
     let x_hearts = [
@@ -230,7 +230,7 @@ fn cachalot_x_contested_answer_raises_the_shown_major() {
 
 #[test]
 fn sputnik_negative_double_is_the_residual() {
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.competition.negative_double_shape = super::negative_double::NegativeDoubleShape::Sputnik;
     // `1♣ (1♦)`: a 4-card major is bid naturally at the 1-level...
     let auction = [call(1, Strain::Clubs), call(1, Strain::Diamonds)];
@@ -249,7 +249,7 @@ fn sputnik_negative_double_is_the_residual() {
 
 #[test]
 fn cachalot_natural_free_bids_get_the_forcing_answers() {
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.competition.negative_double_shape = super::negative_double::NegativeDoubleShape::Cachalot;
     // A natural 2-level free bid reaches Section 4d's forcing answers:
     // opener raises partner's freely bid diamonds with three.
@@ -280,7 +280,7 @@ fn cachalot_natural_free_bids_get_the_forcing_answers() {
 
 #[test]
 fn sputnik_free_major_raise_needs_four() {
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.competition.negative_double_shape = super::negative_double::NegativeDoubleShape::Sputnik;
     // Sputnik's natural 1-level major promises only four, so opener's
     // two-level raise demands four trumps — three would be a Moysian.
@@ -303,7 +303,7 @@ fn sputnik_free_major_raise_needs_four() {
 
 #[test]
 fn negative_double_then_suit_is_game_forcing() {
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.competition.free_bid_style = super::free_bids::FreeBidStyle::Negative;
     // The doubler clarifies with the concealed long suit — forcing to
     // game — and opener answers it with the forcing-answer table.

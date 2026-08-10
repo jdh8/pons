@@ -574,7 +574,7 @@ fn main() -> Result<()> {
     }
     let ours = args
         .ours
-        .then(|| american(&pons::bidding::agreements::Agreements::current()).against());
+        .then(|| american(&pons::bidding::agreements::Agreements::default()).against());
 
     let overrides = parse_conv(&args.conv)?;
     let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());

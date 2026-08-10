@@ -204,8 +204,7 @@ seat-carrying `project` or the sampled projection.
   one measured chop at a time — see
   [reader-retirement.md](reader-retirement.md).
 - Footgun: `Rules::gated` blocks keyed on an alert slug **silently drop** the
-  rule when the slug isn't in the active set; alert-const names can collide
-  with toggle thread-locals — pick distinct names.
+  rule when the slug isn't in the active set.
 
 ## Samplers (`sampler.rs`)
 
@@ -237,9 +236,8 @@ seat-carrying `project` or the sampled projection.
 
 ## Knobs
 
-~100 `set_*` free functions on thread-locals, clustered in `instinct.rs`,
-`constraint.rs`, `inference/knobs.rs`, and `american/{openings,rebids,notrump,competition,defense}.rs`.
-Conventions:
+Every knob is a public field of `Agreements` or one of its area/profile
+structs. Conventions:
 
 - The default encodes the measured verdict ([measurement.md](measurement.md)
   ship rules); the non-default state of a shipped knob keeps an off-switch in
@@ -251,12 +249,9 @@ Conventions:
   one build — the rules, the sidecar, the readings and the floor cannot come
   from different reads. `Stance::agreements()` asks a built system what it
   plays.
-- The remaining `set_*` thread-locals feed `Agreements::current()`, which is how
-  a harness still arms a knob and captures it: **set, then `current()`, then
-  build.** Passing `Agreements::default()` after arming ignores the knobs — the
-  value is the only channel. A built stance is a pure value either way: hand it
-  to the workers, never set a knob inside a worker closure. An A/B arm is one
-  stance per arm.
+- A harness starts with `Agreements::default()`, writes every field that defines
+  the arm, and builds from that same value. A built stance is a pure value: hand
+  it to workers directly. An A/B arm is one agreements value and one stance.
 - Which half a setting belongs to is decided by *where it is read*, and a
   setting read at both times lives in the classify half alone, with the book
   reading it from there (`no_knob_lives_in_two_homes` enforces this across all
@@ -265,10 +260,9 @@ Conventions:
   already built, edit its own pin with `Stance::profile_mut`, which does not
   rebuild the book — the hook for an eval-time-only arm, and for the two
   settings (`probed`, `probed_vacuous`) that are only knowable around a
-  `probe` run. `pons::bidding::scoped` builds on a fresh thread whose knobs
-  start at the shipped defaults, leaving the caller's thread untouched.
+  `probe` run.
 - A context with no stance attached (a bare `Context::new` — tests,
-  diagnostics) still falls back to the thread's live knobs; a context *derived*
+  diagnostics) falls back to `DecisionProfile::default()`; a context *derived*
   from a reader's (the per-turn walk in `project_authored`) inherits the
   reader's pin via `Context::with_profile`.
 - A knob's off-state must leave the default system byte-identical while the

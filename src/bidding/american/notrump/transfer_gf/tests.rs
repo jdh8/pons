@@ -1,4 +1,4 @@
-use super::super::tests::{P, best, best_with, bid};
+use super::super::tests::{P, best_with, bid};
 use crate::bidding::agreements::Agreements;
 use contract_bridge::Strain;
 
@@ -7,8 +7,6 @@ use contract_bridge::Strain;
 /// single-suiter relocates from the old artificial `3♥` to a quantitative `4NT`.
 #[test]
 fn transfer_gf_majors_five_five_and_quantitative() {
-    use crate::bidding::american::set_transfer_gf_majors;
-
     let one_nt = [bid(1, Strain::Notrump), P];
     let after = [
         bid(1, Strain::Notrump),
@@ -26,22 +24,23 @@ fn transfer_gf_majors_five_five_and_quantitative() {
     let single = "AKQ52.A32.K32.Q2";
 
     // --- Baseline (gate off): unchanged ------------------------------
-    set_transfer_gf_majors(false);
+    let mut off = Agreements::default();
+    off.decision.transfer_gf_majors = false;
     // The slam 5-5 shows both suits with the direct 3♦ jump.
-    assert_eq!(best(&one_nt, slam_55), bid(3, Strain::Diamonds));
+    assert_eq!(best_with(&off, &one_nt, slam_55), bid(3, Strain::Diamonds));
     // The single-suiter bids the artificial 3♥ slam try after transferring.
-    assert_eq!(best(&after, single), bid(3, Strain::Hearts));
+    assert_eq!(best_with(&off, &after, single), bid(3, Strain::Hearts));
 
     // --- Gate on -----------------------------------------------------
-    set_transfer_gf_majors(true);
+    let on = Agreements::default();
     // The slam 5-5 is capped off 3♦ and transfers instead...
-    assert_eq!(best(&one_nt, slam_55), bid(2, Strain::Hearts));
+    assert_eq!(best_with(&on, &one_nt, slam_55), bid(2, Strain::Hearts));
     // ...then rebids a natural 3♥ (5-5 slam try).
-    assert_eq!(best(&after, slam_55), bid(3, Strain::Hearts));
+    assert_eq!(best_with(&on, &after, slam_55), bid(3, Strain::Hearts));
     // The minimum 5-5 keeps the direct 3♦ — the cap still admits it.
-    assert_eq!(best(&one_nt, min_55), bid(3, Strain::Diamonds));
+    assert_eq!(best_with(&on, &one_nt, min_55), bid(3, Strain::Diamonds));
     // The single-suiter relocates to a quantitative 4NT (no longer 3♥).
-    assert_eq!(best(&after, single), bid(4, Strain::Notrump));
+    assert_eq!(best_with(&on, &after, single), bid(4, Strain::Notrump));
 
     // Opener's reply to the quantitative 4NT: a maximum accepts (6♠ on the
     // known eight-card fit), a minimum declines.
@@ -56,10 +55,10 @@ fn transfer_gf_majors_five_five_and_quantitative() {
         P,
     ];
     assert_eq!(
-        best(&over_quant, "AQ4.KQ3.KQJ2.Q32"),
+        best_with(&on, &over_quant, "AQ4.KQ3.KQJ2.Q32"),
         bid(6, Strain::Spades)
     );
-    assert_eq!(best(&over_quant, "AQ4.K83.KJ72.Q83"), P);
+    assert_eq!(best_with(&on, &over_quant, "AQ4.K83.KJ72.Q83"), P);
 
     // Opener's reply to the 5-5 slam try (spade-agreed, like the single-suited
     // try): a maximum launches RKCB, a minimum signs off in 4♠.
@@ -73,10 +72,14 @@ fn transfer_gf_majors_five_five_and_quantitative() {
         bid(3, Strain::Hearts),
         P,
     ];
-    assert_eq!(best(&over_55, "AQ4.KQ3.KQJ2.Q32"), bid(4, Strain::Notrump));
-    assert_eq!(best(&over_55, "AQ43.K83.KJ7.Q83"), bid(4, Strain::Spades));
-
-    set_transfer_gf_majors(true); // restore the default
+    assert_eq!(
+        best_with(&on, &over_55, "AQ4.KQ3.KQJ2.Q32"),
+        bid(4, Strain::Notrump)
+    );
+    assert_eq!(
+        best_with(&on, &over_55, "AQ43.K83.KJ7.Q83"),
+        bid(4, Strain::Spades)
+    );
 }
 
 /// The GF-majors minor side-suits: `3♣`/`3♦` show five spades and a four-card
@@ -84,8 +87,6 @@ fn transfer_gf_majors_five_five_and_quantitative() {
 /// reserves them for slam tries, the minimums resting in the floor's `3NT`.
 #[test]
 fn transfer_gf_majors_minor_side_suits() {
-    use crate::bidding::american::set_transfer_gf_majors;
-
     let after = [
         bid(1, Strain::Notrump),
         P,
@@ -101,10 +102,8 @@ fn transfer_gf_majors_minor_side_suits() {
     // 5♠4♣, ♠AKQ + ♣AKQ = 18 HCP → point_count 19 (slam).
     let slam_club = "AKQ52.32.32.AKQ2";
 
-    set_transfer_gf_majors(true);
-
     // --- Arm A (default): the minor shows on any game force ------------
-    let arm_a = Agreements::current();
+    let arm_a = Agreements::default();
     assert_eq!(best_with(&arm_a, &after, min_club), bid(3, Strain::Clubs));
     assert_eq!(
         best_with(&arm_a, &after, min_diamond),
@@ -138,8 +137,6 @@ fn transfer_gf_majors_minor_side_suits() {
         best_with(&arm_a, &over_minor, "A4.KQ32.KQJ2.Q32"),
         bid(3, Strain::Notrump)
     );
-
-    set_transfer_gf_majors(true); // restore the default
 }
 
 /// Choice of games: a balanced exactly-five-spade game force offers `3NT` (the
@@ -148,8 +145,6 @@ fn transfer_gf_majors_minor_side_suits() {
 /// ruff-gated correction relies on.
 #[test]
 fn transfer_gf_majors_choice_of_games_3nt() {
-    use crate::bidding::american::set_transfer_gf_majors;
-
     let after = [
         bid(1, Strain::Notrump),
         P,
@@ -158,13 +153,22 @@ fn transfer_gf_majors_choice_of_games_3nt() {
         bid(2, Strain::Spades),
         P,
     ];
-    set_transfer_gf_majors(true);
+    let agreements = Agreements::default();
     // 5-3-3-2, 12 HCP, no four-card minor, no second five-card suit → 3NT.
-    assert_eq!(best(&after, "AQ654.K72.Q83.J4"), bid(3, Strain::Notrump));
+    assert_eq!(
+        best_with(&agreements, &after, "AQ654.K72.Q83.J4"),
+        bid(3, Strain::Notrump)
+    );
     // A six-card suit is not balanced — it keeps its natural spade route.
-    assert_ne!(best(&after, "AQ6543.K72.Q8.J4"), bid(3, Strain::Notrump));
+    assert_ne!(
+        best_with(&agreements, &after, "AQ6543.K72.Q8.J4"),
+        bid(3, Strain::Notrump)
+    );
     // A four-card minor shows the minor (3♣), not the balanced 3NT.
-    assert_eq!(best(&after, "AQ654.K7.Q8.J432"), bid(3, Strain::Clubs));
+    assert_eq!(
+        best_with(&agreements, &after, "AQ654.K7.Q8.J432"),
+        bid(3, Strain::Clubs)
+    );
 }
 
 /// The GF-majors spade splinters: a 6+♠ slam hand with a side-suit splinter is
@@ -172,8 +176,6 @@ fn transfer_gf_majors_choice_of_games_3nt() {
 /// A singleton ace or king is a working honor, not a splinter.
 #[test]
 fn transfer_gf_majors_spade_splinters() {
-    use crate::bidding::american::set_transfer_gf_majors;
-
     let one_nt = [bid(1, Strain::Notrump), P];
     let after = [
         bid(1, Strain::Notrump),
@@ -189,15 +191,16 @@ fn transfer_gf_majors_spade_splinters() {
     let stiff_ace = "AKQ432.AK2.Q43.A";
 
     // --- Baseline (gate off): the 16+ six-spader Texas-transfers (4♦) ---
-    set_transfer_gf_majors(false);
-    assert_eq!(best(&one_nt, splinter), bid(4, Strain::Diamonds));
+    let mut off = Agreements::default();
+    off.decision.transfer_gf_majors = false;
+    assert_eq!(best_with(&off, &one_nt, splinter), bid(4, Strain::Diamonds));
 
     // --- Gate on: carved off Texas, it transfers and splinters ---------
-    set_transfer_gf_majors(true);
-    assert_eq!(best(&one_nt, splinter), bid(2, Strain::Hearts));
-    assert_eq!(best(&after, splinter), bid(4, Strain::Clubs));
+    let on = Agreements::default();
+    assert_eq!(best_with(&on, &one_nt, splinter), bid(2, Strain::Hearts));
+    assert_eq!(best_with(&on, &after, splinter), bid(4, Strain::Clubs));
     // The stiff ace is no splinter — it keeps the Texas route even on the gate.
-    assert_eq!(best(&one_nt, stiff_ace), bid(4, Strain::Diamonds));
+    assert_eq!(best_with(&on, &one_nt, stiff_ace), bid(4, Strain::Diamonds));
 
     // Opener's reply to the splinter: a maximum RKCBs spades, a minimum signs
     // off in 4♠.
@@ -212,24 +215,20 @@ fn transfer_gf_majors_spade_splinters() {
         P,
     ];
     assert_eq!(
-        best(&over_splinter, "AQ3.KJ32.KQ32.Q3"),
+        best_with(&on, &over_splinter, "AQ3.KJ32.KQ32.Q3"),
         bid(4, Strain::Notrump)
     );
     assert_eq!(
-        best(&over_splinter, "KQ3.KJ32.KJ32.Q3"),
+        best_with(&on, &over_splinter, "KQ3.KJ32.KJ32.Q3"),
         bid(4, Strain::Spades)
     );
-
-    set_transfer_gf_majors(true); // restore the default
 }
 
-/// The heart mirror (`set_transfer_gf_hearts`): a five-heart-plus-minor game force
+/// The heart mirror: a five-heart-plus-minor game force
 /// shows the minor (`3♣`/`3♦`), and a single-suited 16+ hand invites slam
 /// quantitatively (`4NT`); opener places game on the 5-3 heart fit or accepts slam.
 #[test]
 fn transfer_gf_hearts_minors_and_quant() {
-    use crate::bidding::american::{set_transfer_gf_hearts, set_transfer_gf_majors};
-
     let after = [
         bid(1, Strain::Notrump),
         P,
@@ -245,11 +244,19 @@ fn transfer_gf_hearts_minors_and_quant() {
     // 5♥, 16 HCP, no four-card side suit — the single-suited quantitative raise.
     let quant = "Q32.AKJ42.KJ2.Q2";
 
-    set_transfer_gf_majors(true);
-    set_transfer_gf_hearts(true);
-    assert_eq!(best(&after, min_club), bid(3, Strain::Clubs));
-    assert_eq!(best(&after, min_diamond), bid(3, Strain::Diamonds));
-    assert_eq!(best(&after, quant), bid(4, Strain::Notrump));
+    let agreements = Agreements::default();
+    assert_eq!(
+        best_with(&agreements, &after, min_club),
+        bid(3, Strain::Clubs)
+    );
+    assert_eq!(
+        best_with(&agreements, &after, min_diamond),
+        bid(3, Strain::Diamonds)
+    );
+    assert_eq!(
+        best_with(&agreements, &after, quant),
+        bid(4, Strain::Notrump)
+    );
 
     // Opener over the minor (`…3♣`): place game on the 5-3 heart fit — 4♥ with
     // three-card support (its ruffing value beats an un-pulled 3NT), else 3NT.
@@ -264,11 +271,11 @@ fn transfer_gf_hearts_minors_and_quant() {
         P,
     ];
     assert_eq!(
-        best(&over_minor, "AQ4.KQ3.KQJ2.Q32"),
+        best_with(&agreements, &over_minor, "AQ4.KQ3.KQJ2.Q32"),
         bid(4, Strain::Hearts)
     );
     assert_eq!(
-        best(&over_minor, "AQ32.K3.KQJ2.Q32"),
+        best_with(&agreements, &over_minor, "AQ32.K3.KQJ2.Q32"),
         bid(3, Strain::Notrump)
     );
 
@@ -284,12 +291,10 @@ fn transfer_gf_hearts_minors_and_quant() {
         P,
     ];
     assert_eq!(
-        best(&over_quant, "AQ42.KQ3.KJ5.Q32"),
+        best_with(&agreements, &over_quant, "AQ42.KQ3.KJ5.Q32"),
         bid(6, Strain::Hearts)
     );
-    assert_eq!(best(&over_quant, "KJ42.KQ3.KJ5.Q32"), P);
-
-    set_transfer_gf_hearts(true); // restore the default
+    assert_eq!(best_with(&agreements, &over_quant, "KJ42.KQ3.KJ5.Q32"), P);
 }
 
 /// The heart mirror's cheap spade splinter: a six-heart slam hand short in spades
@@ -297,8 +302,6 @@ fn transfer_gf_hearts_minors_and_quant() {
 /// a minor shortness splinters at `4♣`/`4♦`.  A singleton ace is no splinter.
 #[test]
 fn transfer_gf_hearts_spade_splinter() {
-    use crate::bidding::american::{set_transfer_gf_hearts, set_transfer_gf_majors};
-
     let one_nt = [bid(1, Strain::Notrump), P];
     let after = [
         bid(1, Strain::Notrump),
@@ -315,14 +318,25 @@ fn transfer_gf_hearts_spade_splinter() {
     // The same six-heart slam but a singleton ♠A — a working honor, not a splinter.
     let stiff_ace = "A.AKQ432.Q43.Q42";
 
-    set_transfer_gf_majors(true);
-    set_transfer_gf_hearts(true);
+    let agreements = Agreements::default();
     // Carved off the direct Texas `4♣`, it transfers (2♦) and splinters at 3♠.
-    assert_eq!(best(&one_nt, spade_short), bid(2, Strain::Diamonds));
-    assert_eq!(best(&after, spade_short), bid(3, Strain::Spades));
-    assert_eq!(best(&after, diamond_short), bid(4, Strain::Diamonds));
+    assert_eq!(
+        best_with(&agreements, &one_nt, spade_short),
+        bid(2, Strain::Diamonds)
+    );
+    assert_eq!(
+        best_with(&agreements, &after, spade_short),
+        bid(3, Strain::Spades)
+    );
+    assert_eq!(
+        best_with(&agreements, &after, diamond_short),
+        bid(4, Strain::Diamonds)
+    );
     // The stiff ace is no splinter — it keeps the direct Texas route (`4♣`).
-    assert_eq!(best(&one_nt, stiff_ace), bid(4, Strain::Clubs));
+    assert_eq!(
+        best_with(&agreements, &one_nt, stiff_ace),
+        bid(4, Strain::Clubs)
+    );
 
     // Opener's reply to the 3♠ splinter (agreeing hearts): a maximum RKCBs (4NT),
     // a minimum signs off in 4♥.
@@ -337,13 +351,11 @@ fn transfer_gf_hearts_spade_splinter() {
         P,
     ];
     assert_eq!(
-        best(&over_splinter, "KJ32.AQ3.KQ32.Q3"),
+        best_with(&agreements, &over_splinter, "KJ32.AQ3.KQ32.Q3"),
         bid(4, Strain::Notrump)
     );
     assert_eq!(
-        best(&over_splinter, "KJ32.KQ3.KJ32.Q3"),
+        best_with(&agreements, &over_splinter, "KJ32.KQ3.KJ32.Q3"),
         bid(4, Strain::Hearts)
     );
-
-    set_transfer_gf_hearts(true); // restore the default
 }

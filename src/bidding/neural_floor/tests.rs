@@ -12,7 +12,7 @@ const fn call(level: u8, strain: Strain) -> Call {
 /// The card is read per call, not once, because several tests below arm a
 /// knob and re-shell to assert the logits moved.
 fn shelled(auction: &[Call], hand: &str) -> Logits {
-    shelled_with(&Agreements::current(), auction, hand)
+    shelled_with(&Agreements::default(), auction, hand)
 }
 
 fn shelled_with(agreements: &Agreements, auction: &[Call], hand: &str) -> Logits {
@@ -45,7 +45,7 @@ fn configured_with(agreements: &Agreements, auction: &[Call], hand: &str) -> Vec
 fn the_configured_floor_reads_its_card() {
     let auction = [call(1, Strain::Spades), Call::Pass];
     let hand = "AQ32.K53.QJ4.A92";
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.rkcb_variant = crate::bidding::instinct::RkcbVariant::Plain;
     let off = configured_with(&agreements, &auction, hand);
     agreements.decision.reading.rkcb_variant = crate::bidding::instinct::RkcbVariant::Kickback;
@@ -80,13 +80,13 @@ fn the_configured_floor_answers_off_its_own_ladder() {
     ];
     let hand: Hand = "432.K765.5432.3".parse().expect("valid test hand");
     let card = Config::symmetric(&crate::bidding::card::american_card(
-        &crate::bidding::agreements::Agreements::current(),
+        &crate::bidding::agreements::Agreements::default(),
     ));
 
-    let mut relocated_agreements = Agreements::current();
+    let mut relocated_agreements = Agreements::default();
     relocated_agreements.decision.reading.rkcb_variant = RkcbVariant::Kickback;
     let relocated = Arc::new(instinct(&relocated_agreements));
-    let mut plain_agreements = Agreements::current();
+    let mut plain_agreements = Agreements::default();
     plain_agreements.decision.reading.rkcb_variant = RkcbVariant::Plain;
     let plain = Arc::new(instinct(&plain_agreements));
 
@@ -123,9 +123,9 @@ fn configured_floor_clone_reuses_the_decision_cache() {
     let hand: Hand = "AQ32.K53.QJ4.A92".parse().expect("valid test hand");
     let floor = ConfiguredFloorBba::new(
         Config::symmetric(&crate::bidding::card::american_card(
-            &crate::bidding::agreements::Agreements::current(),
+            &crate::bidding::agreements::Agreements::default(),
         )),
-        Arc::new(crate::bidding::instinct(&Agreements::current())),
+        Arc::new(crate::bidding::instinct(&Agreements::default())),
     );
     let context = Context::new(RelativeVulnerability::NONE, &auction).with_decision_cache(hand);
 
@@ -182,7 +182,7 @@ fn the_six_six_hand_stops_jumping_into_the_relocated_ask() {
         Call::Pass,
     ];
     let hand = "AQJT83.QT9875..6"; // ♠AQJT83 ♥QT9875 ♦— ♣6, board 229
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.rkcb_variant = crate::bidding::instinct::RkcbVariant::Kickback;
     let logits = shelled_with(&agreements, &auction, hand);
     let with_kickback = (&logits.0)

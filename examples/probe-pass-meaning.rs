@@ -163,7 +163,7 @@ fn main() {
     let args = Args::parse();
     let base = args.seed.unwrap_or_else(rand::random);
     let vul = AbsoluteVulnerability::NONE;
-    let stance = american(&pons::bidding::agreements::Agreements::current()).against();
+    let stance = american(&pons::bidding::agreements::Agreements::default()).against();
 
     let per_board = |board: usize, deal: &contract_bridge::FullDeal| {
         let dealer = Seat::ALL[board % 4];

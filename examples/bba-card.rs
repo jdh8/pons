@@ -36,8 +36,8 @@ fn main() {
 /// more damagingly than disclosing nothing.
 fn card_for(system: &str) -> Card {
     match system {
-        "american" => american_card(&pons::bidding::agreements::Agreements::current()),
-        "dutch" => dutch_card(&pons::bidding::agreements::Agreements::current()),
+        "american" => american_card(&pons::bidding::agreements::Agreements::default()),
+        "dutch" => dutch_card(&pons::bidding::agreements::Agreements::default()),
         other => {
             eprintln!("bba-card: no card generator for system `{other}`");
             eprintln!("           known systems: american, dutch");

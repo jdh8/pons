@@ -13,7 +13,7 @@ const P: Call = Call::Pass;
 
 /// A stance built with the given knobs.
 fn stance_with(longer_major: bool, up_the_line: bool, xyz: bool) -> Stance {
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.longer_major_response = longer_major;
     agreements.decision.reading.xyz = xyz;
     agreements.response.up_the_line = up_the_line;
@@ -227,7 +227,7 @@ fn xyz_invitation_accepted_to_game() {
 /// NMF overrides XYZ on the four `1m - 1M - 1NT` slots; the tests only touch
 /// those, so `ReadingProfile::xyz` is left off to isolate the convention purely.
 fn nmf_stance() -> Stance {
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.longer_major_response = false;
     agreements.decision.reading.xyz = false;
     agreements.response.up_the_line = false;

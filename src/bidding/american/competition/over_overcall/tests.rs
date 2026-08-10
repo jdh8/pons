@@ -72,7 +72,7 @@ fn per_overcall_tables_match_legacy() {
         ] {
             for engaged in [false, true] {
                 for quality in [false, true] {
-                    let mut agreements = Agreements::current();
+                    let mut agreements = Agreements::default();
                     agreements.competition.negative_double_shape = shape;
                     agreements.competition.free_bid_style = style;
                     agreements.competition.free_bids = engaged;

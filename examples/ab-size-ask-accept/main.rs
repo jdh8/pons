@@ -205,7 +205,7 @@ fn main() {
     // 17 accepts in both arms, so never diverges.  The floor is baked into the
     // book, so build each arm from its own agreements; the tries are independent
     // thereafter.
-    let mut arm = pons::bidding::agreements::Agreements::current();
+    let mut arm = pons::bidding::agreements::Agreements::default();
     arm.notrump.size_ask_accept_floor = 15;
     let accept = american(&arm).against();
     arm.notrump.size_ask_accept_floor = 17;

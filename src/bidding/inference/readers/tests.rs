@@ -8,13 +8,13 @@ use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::{Hand, Strain, Suit};
 
 fn gladiator_agreements() -> Agreements {
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.nt_overcall_gladiator = true;
     agreements
 }
 
 fn rubens_agreements() -> Agreements {
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.rubens_advances = true;
     agreements
 }
@@ -39,7 +39,7 @@ fn envelope_union_reading_pins_the_two_suiter() {
     let five_four: Hand = "AKQJ3.KQ42.32.32".parse().unwrap(); // no six-card major
     let reading = or([Suit::Hearts, Suit::Spades], 6..);
 
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.envelope_union = true;
     let on = Context::new(RelativeVulnerability::NONE, &[]).with_profile(agreements.decision);
     let boxes = reading.project(&on);
@@ -69,7 +69,7 @@ fn leaping_michaels_conditions_partner() {
     // (2♥) 4♣ -: the advancer reads partner's two-suiter — five-plus clubs
     // AND five-plus spades, game-forcing — so the search sampler deals partner
     // the right shape rather than a natural club one-suiter.
-    let mut on = Agreements::current();
+    let mut on = Agreements::default();
     on.defense.leaping_michaels_enabled = true;
     let advance = read_booked_with(
         &on,
@@ -94,7 +94,7 @@ fn leaping_michaels_conditions_partner() {
 
     // Disabled (the convention ships on): a 4♣ jump reads as a natural
     // one-suiter, so spades stay unconstrained — it must not leak when off.
-    let mut disabled = Agreements::current();
+    let mut disabled = Agreements::default();
     disabled.defense.leaping_michaels_enabled = false;
     let off = read_booked_with(
         &disabled,
@@ -109,7 +109,7 @@ fn landy_conditions_partner() {
 
     // (1NT) 2♣ -: the advancer reads partner's both-majors two-suiter (at
     // least 4-4 in the majors, 8+ points) rather than a natural club suit.
-    let mut on = Agreements::current();
+    let mut on = Agreements::default();
     on.decision.reading.landy_range = Some((8, 15));
     on.decision.reading.woolsey_points = (8, 15);
     on.defense.unusual_notrump_range = Some((8, 15));
@@ -147,7 +147,7 @@ fn landy_conditions_partner() {
     // Disabled: 2♣ reads as a natural club one-suiter, so spades stay
     // unconstrained — the convention must not leak when off.  Landy is still a
     // agreement, so the disabled arm is built separately.
-    let mut disabled = Agreements::current();
+    let mut disabled = Agreements::default();
     disabled.decision.reading.landy_range = None;
     disabled.defense.unusual_notrump_range = None;
     let off = read_booked_with(
@@ -162,7 +162,7 @@ fn woolsey_conditions_partner() {
     use crate::bidding::agreements::Agreements;
     use crate::bidding::american::NotrumpDefense;
     // Landy off, Woolsey on: the 2♣ must read through the Woolsey path.
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.decision.reading.landy_range = None;
     arm.decision.reading.notrump_defense = NotrumpDefense::Woolsey;
     arm.decision.reading.woolsey_points = (10, 19);
@@ -247,7 +247,7 @@ fn woolsey_conditions_partner() {
 #[test]
 fn woolsey_double_and_advances_read() {
     use crate::bidding::american::NotrumpDefense;
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.landy_range = None;
     agreements.decision.reading.notrump_defense = NotrumpDefense::Woolsey;
     agreements.decision.reading.woolsey_points = (10, 19);
@@ -304,7 +304,7 @@ fn woolsey_double_and_advances_read() {
 #[test]
 fn dont_overcalls_and_advances_read() {
     use crate::bidding::american::NotrumpDefense;
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.landy_range = None;
     agreements.decision.reading.notrump_defense = NotrumpDefense::DirectDont;
 
@@ -375,7 +375,7 @@ fn dont_overcalls_and_advances_read() {
 #[test]
 fn meckwell_overcalls_and_advances_read() {
     use crate::bidding::american::NotrumpDefense;
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.landy_range = None;
     agreements.decision.reading.notrump_defense = NotrumpDefense::Meckwell;
 
@@ -980,7 +980,7 @@ fn rubens_transfer_is_not_read_as_natural() {
 fn rubens_reading_respects_the_knob() {
     // With Rubens advances off — the default since the layer A/B — the same
     // 2♣ is a genuine club suit: the suppression lifts and it reads naturally.
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.rubens_advances = false;
     agreements.decision.reading.cue = false;
     let inf = read_with(
@@ -1001,7 +1001,7 @@ fn their_minor_cue_reads_as_michaels() {
     // (1♣) 2♣: the direct cue of their minor opening is Michaels — both
     // majors, five-five, and no club length (the probe caught a club void
     // read as five clubs).  Off, the old overcall reading returns.
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.cue = true;
     let inf = read_with(&agreements, &[bid(1, Strain::Clubs), bid(2, Strain::Clubs)]);
     assert_eq!(inf.rho().length(Suit::Clubs), Range::FULL_LENGTH);
@@ -1016,7 +1016,7 @@ fn their_minor_cue_reads_as_michaels() {
 fn their_jump_cue_over_a_weak_two_is_leaping_michaels() {
     // (2♦) 4♦: the jump cue of a weak-two minor is Leaping Michaels — both
     // majors, no diamond length (the probe: a diamond void read as six).
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.cue = true;
     let inf = read_with(
         &agreements,
@@ -1041,7 +1041,7 @@ fn their_michaels_is_disclosed_to_the_table() {
     // the reading, so its off arm is the honest record of what the
     // retirement gives up: the shape floor goes too.
     let auction = [bid(1, Strain::Spades), bid(2, Strain::Spades)];
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.table_alerts = true;
     let inf = read_booked_with(&agreements, &auction);
     assert!(inf.rho().length(Suit::Hearts).min >= 5);
@@ -1155,7 +1155,7 @@ fn michaels_cue_over_our_major_reads_the_other_major() {
 
     // Table-wide disclosure and the shipped cue reading both off: the
     // pre-package natural reading is preserved verbatim.
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.table_alerts = false;
     agreements.decision.reading.cue = false;
     let inf = read_booked_with(
@@ -1178,7 +1178,7 @@ fn unusual_2nt_over_our_major_reads_both_minors() {
 
     // Table-wide disclosure off: nothing recorded for their 2NT (a notrump
     // bid never entered the natural suit walk either).
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.table_alerts = false;
     let inf = read_booked_with(
         &agreements,
@@ -1269,7 +1269,7 @@ fn uvu_major_cue_projects_the_raise() {
     // `1♥ (2NT) 3♣ -` from opener's seat: partner's cheap cue is the
     // alerted limit-plus raise — decoded off its authored rule's
     // projection (3+ hearts, 10+), not as natural clubs.  `read_booked`
-    // builds under `Agreements::current()`, whose
+    // builds under `Agreements::default()`, whose
     // `competition.uvu_over_majors` is on by default — the arming this
     // test needs.
     let inf = read_booked(&[
@@ -1298,7 +1298,7 @@ fn uvu_major_cue_projects_the_raise() {
 fn rubens_transfer_reading_knob_recovers_suppress_only() {
     // Stage-2 knob off: the transfer is still suppressed (not natural
     // hearts) but records nothing — the pre-fix shape.
-    let mut agreements = Agreements::current();
+    let mut agreements = Agreements::default();
     agreements.decision.reading.rubens_advances = true;
     agreements.decision.reading.rubens_transfer = false;
     let inf = read_with(

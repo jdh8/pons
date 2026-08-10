@@ -92,7 +92,7 @@ fn bid_out(
 #[allow(clippy::cast_precision_loss)]
 fn main() {
     let args = Args::parse();
-    let mut agreements = pons::bidding::agreements::Agreements::current();
+    let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.instinct.settle_floor = false;
     let plain = american(&agreements).against();
     agreements.decision.instinct.settle_floor = true;

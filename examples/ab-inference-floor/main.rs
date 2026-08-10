@@ -104,7 +104,7 @@ fn main() {
     let base = args.seed.unwrap_or_else(rand::random);
     let vul = args.vulnerability;
     // `[plain, aware]`, indexed by the acting side's flag.
-    let mut agreements = pons::bidding::agreements::Agreements::current();
+    let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.instinct.inference_aware = false;
     let plain = american(&agreements).against();
     agreements.decision.instinct.inference_aware = true;

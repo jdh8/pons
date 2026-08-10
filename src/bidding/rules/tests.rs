@@ -336,7 +336,7 @@ fn projection_folds_compile_independently_and_profile_mismatch_falls_back() {
         )
         .alert(Alert("test announcement"));
     let auction = [Call::Bid(Bid::new(1, Strain::Hearts)), Call::Pass];
-    let mut agreements = crate::bidding::agreements::Agreements::current();
+    let mut agreements = crate::bidding::agreements::Agreements::default();
     agreements.decision.reading.envelope_union = false;
     agreements.decision.reading.pass_exclusion = true;
     agreements.decision.reading.announced = true;

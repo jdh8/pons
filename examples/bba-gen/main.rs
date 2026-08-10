@@ -324,7 +324,7 @@ struct Args {
     ns_net_collar: bool,
 
     /// Turn OFF the v3 calls-tail evaluator for our side
-    /// (`evaluator::set_eval_auction`, crate default on — shipped 2026-07-27,
+    /// (`DecisionProfile::eval_auction`, crate default on — shipped 2026-07-27,
     /// `win | win`, plain +0.018/+0.028 by vul).  The bilans game/slam gates
     /// read trick estimates from the v3 artifact, whose input is the hull
     /// vector plus the last four call identities — the 0.038-NLL win of the
@@ -335,7 +335,7 @@ struct Args {
     no_ns_eval_auction: bool,
 
     /// Serve the v4 shape-reading evaluator for our side
-    /// (`evaluator::set_eval_shape`, crate default off).  Replaces each hidden
+    /// (`DecisionProfile::eval_shape`, crate default off).  Replaces each hidden
     /// seat's four suit-length `{min, max}` pairs with its shape distribution
     /// — `E[len]`, `sd[len]` per suit plus a log-mass column — over the
     /// 560-shape lattice.  NLL-par with the v3 hull vector by construction;
@@ -378,7 +378,7 @@ struct Args {
     #[arg(long, value_enum, default_value = "alerted")]
     ns_reading_scope: ReadingScopeArg,
 
-    /// Blank every reading our nets see (`features::set_blind_inference`, crate
+    /// Blank every reading our nets see (`DecisionProfile::blind_inference`, crate
     /// default off — diagnostic, never ship it on).  The reading program's
     /// negative control: each generator of readings tightens a box and measures
     /// the *derivative*, which keeps landing in the noise.  This deletes the
@@ -692,31 +692,31 @@ struct Args {
 
     /// Re-enable our takeout double on a flat 4-3-3-3 weaker than a 1NT opening
     /// (12–14 HCP flat 4333) — the default suppresses it and routes to Pass
-    /// (shipped default-on; see `set_suppress_flat_4333_takeout`).
+    /// (shipped default-on; see `DefenseKnobs::suppress_flat_4333_takeout`).
     #[arg(long, default_value_t = false)]
     no_ns_suppress_flat_4333_takeout: bool,
 
     /// Re-enable our takeout double on a weak `5-3-3-2` (12–13 HCP) — the default
     /// routes it to a natural overcall of the five-card suit (a 5-3-3-2 has no
     /// 4-card major, so the double cannot find a fit; shipped default-on; see
-    /// `set_suppress_5332_takeout`).
+    /// `DefenseKnobs::suppress_5332_takeout`).
     #[arg(long, default_value_t = false)]
     no_ns_suppress_5332_takeout: bool,
 
     /// Route a weak `4-4-3-2` (12–13 HCP) to Pass when the opponents opened a
-    /// **major** (opt-in; see `set_suppress_4432_vs_major`).
+    /// **major** (opt-in; see `DefenseKnobs::suppress_4432_vs_major`).
     #[arg(long, default_value_t = false)]
     ns_suppress_4432_vs_major: bool,
 
     /// Route a weak `4-4-3-2` (12–13 HCP) to Pass when the opponents opened a
-    /// **minor** (opt-in; see `set_suppress_4432_vs_minor`).
+    /// **minor** (opt-in; see `DefenseKnobs::suppress_4432_vs_minor`).
     #[arg(long, default_value_t = false)]
     ns_suppress_4432_vs_minor: bool,
 
     /// Re-enable our takeout double on a hand with an unbid five-card **major** —
     /// the default routes it to a natural overcall of the major (show the suit
     /// rather than double into partner's short suit; shipped default-on; see
-    /// `set_suppress_5card_major_takeout`).
+    /// `DefenseKnobs::suppress_5card_major_takeout`).
     #[arg(long, default_value_t = false)]
     no_ns_suppress_5card_major_takeout: bool,
 
@@ -816,7 +816,7 @@ struct Args {
     /// established two-over-one.  The authored book holds the force by omission;
     /// the floor needs telling, and without this it abandoned partner's 2/1 on
     /// 24% of the boards the backstop deletion touched (shipped default-on; see
-    /// `set_two_over_one_force`).
+    /// `DecisionProfile::two_over_one_force`).
     #[arg(long, default_value_t = false)]
     no_ns_two_over_one_force: bool,
 
@@ -832,13 +832,13 @@ struct Args {
     /// Disable the competitive long-suit rebid — opener's/overcaller's rebid of a
     /// 6+ suit in competition (2-level any, 3-level needs 7 cards or a good six)
     /// instead of a forced takeout double (shipped default-on; see
-    /// `set_competitive_rebid`).
+    /// `InstinctKnobs::competitive_rebid`).
     #[arg(long, default_value_t = false)]
     no_ns_competitive_rebid: bool,
 
     /// Disable opener's balanced-18-19 notrump actions in a `1X (1Y) …` auction
     /// the floor otherwise passes out: reopening 1NT, 3NT over responder's free
-    /// 1NT, and responder's raise (default-on; see `set_reopening_notrump`).
+    /// 1NT, and responder's raise (default-on; see `InstinctKnobs::reopening_notrump`).
     #[arg(long, default_value_t = false)]
     no_ns_reopening_notrump: bool,
 
@@ -1315,12 +1315,10 @@ fn parse_override(spec: &str) -> Result<(CString, c_int), String> {
 
 /// What to declare to the BBA seats, per `--disclose` and `--disclose-conv`
 ///
-/// Call **after** every `--ns-*` knob is set: a generated card is a function of
-/// the live thread-local state, so building it early would describe a system
-/// this run then reconfigures.  `armed` carries the halves of that state that
-/// are fields of the [`Agreements`] rather than cells, so the card keeps
-/// describing the `--ns-*` competitive and defensive knobs it described when
-/// they were cells.
+/// Call **after** every `--ns-*` knob is written into `armed`: a generated card
+/// is a function of that [`Agreements`] value, so building it early would
+/// describe a system this run then reconfigures. The card intentionally copies
+/// only the competitive and defensive knobs it discloses.
 ///
 /// A `--our-floor` with no card generator is a hard error rather than a fall
 /// back to American's card or to silence — disclosing the wrong card
@@ -1328,11 +1326,10 @@ fn parse_override(spec: &str) -> Result<(CString, c_int), String> {
 /// silently reverting to blind would make the two arms of a cross-system A/B
 /// incomparable.
 fn disclosure(args: &Args, armed: &Agreements) -> anyhow::Result<Option<EpbotCard>> {
-    let armed = || {
-        let mut agreements = Agreements::current();
-        agreements.competition = armed.competition;
-        agreements.defense = armed.defense;
-        agreements
+    let armed = || Agreements {
+        competition: armed.competition,
+        defense: armed.defense,
+        ..Default::default()
     };
     let mut card = match args.disclose.as_str() {
         "off" => return Ok(None),
@@ -1449,18 +1446,18 @@ fn seat_args(spec: &str) -> anyhow::Result<Args> {
 /// time, so each returned value carries one seat's complete arm.
 ///
 /// Returns the [`Agreements`] this seat plays. A build must be handed *this*,
-/// not a fresh `Agreements::current()`.
+/// not a fresh `Agreements::default()`.
 #[allow(clippy::too_many_lines)]
 fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     // Our side: the authored floor by default, or a second EPBot card when
     // `--our-system` is given (the BBA-vs-BBA experiment).
-    // Written on both arms, not just when on: `--their-ns` arms a second seat
-    // through this function and then re-arms ours to restore, which only works
-    // if every knob here is *assigned*, never merely set.
-    pons::bidding::instinct::set_doubler_xx_runout(!args.no_ns_doubler_run);
-    pons::bidding::evaluator::set_eval_auction(!args.no_ns_eval_auction);
-    pons::bidding::evaluator::set_eval_shape(args.ns_eval_shape);
-    pons::bidding::features::set_blind_inference(args.ns_blind_inference);
+    // Written on both arms, not just when on: every returned value is a
+    // complete, independently buildable seat configuration.
+    let mut agreements = Agreements::default();
+    agreements.instinct.doubler_xx_runout = !args.no_ns_doubler_run;
+    agreements.decision.eval_auction = !args.no_ns_eval_auction;
+    agreements.decision.eval_shape = args.ns_eval_shape;
+    agreements.decision.blind_inference = args.ns_blind_inference;
     let (oc_lo, oc_hi) = args
         .ns_overcall
         .split_once(':')
@@ -1468,20 +1465,16 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
         .ok_or_else(|| {
             anyhow::anyhow!("--ns-overcall must be LO:HI, got {:?}", args.ns_overcall)
         })?;
-    pons::bidding::american::set_transfer_gf_majors(!args.no_ns_transfer_gf_majors);
-    pons::bidding::american::set_transfer_gf_hearts(!args.no_ns_transfer_gf_hearts);
-    pons::bidding::constraint::set_suppress_flat_4333_takeout(
-        !args.no_ns_suppress_flat_4333_takeout,
-    );
-    pons::bidding::constraint::set_suppress_5332_takeout(!args.no_ns_suppress_5332_takeout);
-    pons::bidding::constraint::set_suppress_4432_vs_major(args.ns_suppress_4432_vs_major);
-    pons::bidding::constraint::set_suppress_4432_vs_minor(args.ns_suppress_4432_vs_minor);
-    pons::bidding::constraint::set_suppress_5card_major_takeout(
-        !args.no_ns_suppress_5card_major_takeout,
-    );
-    pons::bidding::instinct::set_two_over_one_force(!args.no_ns_two_over_one_force);
-    pons::bidding::instinct::set_competitive_rebid(!args.no_ns_competitive_rebid);
-    pons::bidding::instinct::set_reopening_notrump(!args.no_ns_reopening_notrump);
+    agreements.decision.transfer_gf_majors = !args.no_ns_transfer_gf_majors;
+    agreements.decision.transfer_gf_hearts = !args.no_ns_transfer_gf_hearts;
+    agreements.defense.suppress_flat_4333_takeout = !args.no_ns_suppress_flat_4333_takeout;
+    agreements.defense.suppress_5332_takeout = !args.no_ns_suppress_5332_takeout;
+    agreements.defense.suppress_4432_vs_major = args.ns_suppress_4432_vs_major;
+    agreements.defense.suppress_4432_vs_minor = args.ns_suppress_4432_vs_minor;
+    agreements.defense.suppress_5card_major_takeout = !args.no_ns_suppress_5card_major_takeout;
+    agreements.decision.two_over_one_force = !args.no_ns_two_over_one_force;
+    agreements.instinct.competitive_rebid = !args.no_ns_competitive_rebid;
+    agreements.instinct.reopening_notrump = !args.no_ns_reopening_notrump;
     // One system, one write — the payloads then apply to whichever family owns
     // them.  No forced-off block: the cell holds exactly one variant, so
     // selecting a family already deselects the rest.
@@ -1514,9 +1507,6 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     // Disclosure last: every `--ns-*` knob above moves the system, and a
     // generated card reads them.  Built here rather than beside the oracle so
     // the card cannot describe a system the run then reconfigures.
-    // Captured after the remaining ambient cells above, then completed with
-    // the reading fields that live only in the value.
-    let mut agreements = Agreements::current();
     agreements.decision.reading.penalty_latch = !args.no_ns_penalty_latch;
     agreements.decision.reading.rubens_advances = args.ns_rubens;
     agreements.decision.reading.floor_rkcb = !args.no_ns_floor_rkcb;
@@ -1866,35 +1856,34 @@ fn main() -> anyhow::Result<()> {
         declared_as.is_none() || args.declare_opponents,
         "--declare-as moves the card handed to our net; it needs --declare-opponents"
     );
-    /// Arm one seat's knobs, run `read`, and re-arm `restore`'s
-    ///
-    /// The `ab-kickback` idiom: every knob below is read at build time, so a
-    /// scoped set → read → reset is what lets two differently-configured books
-    /// (or cards) coexist on one thread.
+    /// Build one seat's agreements and run `read` under that value
     fn under<T>(
         seat: Option<&Args>,
         restore: &Args,
         read: impl FnOnce(Agreements) -> anyhow::Result<T>,
     ) -> anyhow::Result<T> {
         match seat {
-            // No second seat: read under the ambient arming, which is
-            // `restore`'s.  The competitive and defensive knobs were ambient
-            // cells until this refactor, so they are pasted back explicitly to
-            // keep this branch byte-identical; the other value-borne halves
-            // (opening, response, rebid, notrump, game_force) were *not* carried
-            // here before and still are not.
+            // No second seat: preserve the historical subset that this branch
+            // captured from ambient cells, plus the competition/defense values
+            // it already pasted explicitly.  Other areas remain shipped
+            // defaults exactly as before.
             None => {
                 let armed = arm_knobs(restore)?;
-                let mut ambient = Agreements::current();
+                let mut ambient = Agreements::default();
+                ambient.decision.eval_auction = armed.decision.eval_auction;
+                ambient.decision.eval_shape = armed.decision.eval_shape;
+                ambient.decision.blind_inference = armed.decision.blind_inference;
+                ambient.decision.two_over_one_force = armed.decision.two_over_one_force;
+                ambient.decision.transfer_gf_majors = armed.decision.transfer_gf_majors;
+                ambient.decision.transfer_gf_hearts = armed.decision.transfer_gf_hearts;
                 ambient.competition = armed.competition;
                 ambient.defense = armed.defense;
+                ambient.instinct = armed.instinct;
                 read(ambient)
             }
             Some(seat) => {
                 let agreements = arm_knobs(seat)?;
-                let out = read(agreements);
-                arm_knobs(restore)?;
-                out
+                read(agreements)
             }
         }
     }

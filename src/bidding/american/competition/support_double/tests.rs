@@ -5,7 +5,7 @@ use contract_bridge::auction::Call;
 
 #[test]
 fn major_support_double_shows_three_spades() {
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.competition.major_support_double = true;
     // `1♥ - 1♠ (2♣)`: opener with exactly three spades doubles.
     let auction = [

@@ -17,7 +17,7 @@ fn doubler_accepts_or_declines_the_2nt_invite() {
         call(2, Strain::Notrump),
         Call::Pass,
     ];
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.defense.rich_advance_double_enabled = true;
     arm.defense.advance_2nt_continuation_enabled = true;
 

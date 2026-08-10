@@ -360,33 +360,6 @@ impl Pair {
     }
 }
 
-/// Build under a scratch knob state, without touching this thread's
-///
-/// Runs `build` on a fresh scoped thread, whose remaining thread-local knobs
-/// start at the shipped defaults, and returns its value; the closure's setters
-/// die with the thread.  Because a [`Stance`] pins the knob state it is built
-/// under, the returned value keeps the armed behavior wherever it later
-/// classifies:
-///
-/// ```
-/// use pons::bidding::{agreements::Agreements, american, scoped};
-///
-/// let stance = scoped(|| {
-///     pons::bidding::constraint::set_fuzzy_fifths(true);
-///     american(&Agreements::current()).against()
-/// });
-/// ```
-///
-/// The caller's own knob state is never read and never modified — arming for
-/// a *derived* baseline (defaults plus the caller's prior tweaks) needs the
-/// plain set-then-build flow instead.
-pub fn scoped<T: Send>(build: impl FnOnce() -> T + Send) -> T {
-    match std::thread::scope(|scope| scope.spawn(build).join()) {
-        Ok(value) => value,
-        Err(panic) => std::panic::resume_unwind(panic),
-    }
-}
-
 /// One finalized runtime book
 ///
 /// The mutable [`Trie`] remains the public authoring surface. Binding freezes

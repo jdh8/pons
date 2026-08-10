@@ -164,9 +164,9 @@ fn main() -> anyhow::Result<()> {
     }
 
     let ours = match args.our_floor.as_str() {
-        "american" => pons::american(&pons::bidding::agreements::Agreements::current()).against(),
+        "american" => pons::american(&pons::bidding::agreements::Agreements::default()).against(),
         "american-floor" => {
-            pons::american_floor(&pons::bidding::agreements::Agreements::current()).against()
+            pons::american_floor(&pons::bidding::agreements::Agreements::default()).against()
         }
         other => anyhow::bail!("--our-floor must be american|american-floor, got {other:?}"),
     };

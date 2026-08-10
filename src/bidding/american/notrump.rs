@@ -32,7 +32,6 @@ use crate::bidding::rows::{Package, Pattern, compile_into, expand, rows_of};
 use crate::bidding::{Alert, Context, Rules, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Hand, Holding, Rank, Strain, Suit};
-use std::cell::Cell;
 
 mod both_majors;
 mod crawling_stayman;
@@ -78,13 +77,10 @@ pub(super) use puppet_stayman::puppet;
 pub(super) use sixcard_invitation::sixcard_invite;
 pub use size_ask::SizeAskEight;
 pub(super) use splinter::notrump_splinter;
-pub use stayman::set_stayman_net_force;
-pub(crate) use stayman::stayman_net_force;
 pub(super) use stayman::{smolen_at_three, smolen_completion, stayman_answers};
 pub(super) use stayman_slam::{cue, minor_slam};
 pub(super) use texas::{texas_drive, texas_transfers};
 pub(super) use transfer_gf::{heart_transfer_game_force, spade_transfer_game_force};
-pub use transfer_gf::{set_transfer_gf_hearts, set_transfer_gf_majors};
 pub(super) use transfer_slam::{heart_transfer_slam_try, spade_transfer_slam_try};
 pub(super) use transfers::{complete_transfer, heart_transfer_rebids, spade_transfer_rebids};
 pub(super) use two_notrump::{two_notrump_rebids, two_notrump_structure};
@@ -559,5 +555,3 @@ pub(super) fn register_two_nt_and_rebids(book: &mut Trie, agreements: &Agreement
 
 #[cfg(test)]
 mod tests;
-pub use transfer_gf::transfer_gf_hearts;
-pub use transfer_gf::transfer_gf_majors;

@@ -19,7 +19,7 @@ fn two_rule_table() -> Rules {
 
 fn compiled(packages: &[Package]) -> Trie {
     let mut book = Trie::new();
-    compile_into(&mut book, &Agreements::current(), packages);
+    compile_into(&mut book, &Agreements::default(), packages);
     book
 }
 
@@ -46,7 +46,7 @@ fn weight_ties_report_once_per_rung() {
                 .rule(Call::Pass, 0, hcp(0..)),
         )
     });
-    assert!(weight_tie_report(&Agreements::current(), &[distinct]).is_empty());
+    assert!(weight_tie_report(&Agreements::default(), &[distinct]).is_empty());
 
     let tied = package(|_| {
         rows_of(
@@ -60,7 +60,7 @@ fn weight_ties_report_once_per_rung() {
                 .rule(Call::Pass, 0, hcp(0..)),
         )
     });
-    let report = weight_tie_report(&Agreements::current(), &[tied]);
+    let report = weight_tie_report(&Agreements::default(), &[tied]);
     assert_eq!(report.len(), 1, "one rung, one line: {report:?}");
     assert!(
         report[0].contains("2♥ at weight 100, 3 rules"),

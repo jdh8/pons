@@ -164,8 +164,8 @@ fn bid_out(
 fn main() {
     let args = Args::parse();
     let mut rng = rand::rng();
-    let floored = american(&pons::bidding::agreements::Agreements::current()).against();
-    let bare = american_book(&pons::bidding::agreements::Agreements::current()).against();
+    let floored = american(&pons::bidding::agreements::Agreements::default()).against();
+    let bare = american_book(&pons::bidding::agreements::Agreements::default()).against();
     let mut telemetry = Telemetry::default();
 
     // Bid every board at both tables, dealer rotating per board.

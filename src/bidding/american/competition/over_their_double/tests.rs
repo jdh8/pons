@@ -5,7 +5,7 @@ use contract_bridge::auction::Call;
 
 #[test]
 fn jordan_truscott_over_their_double() {
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
     arm.competition.jordan_truscott = true;
     let auction = [call(1, Strain::Spades), Call::Double];
     // Jordan 2NT: 4 trumps, limit+.
@@ -70,7 +70,7 @@ fn redouble_answer_shadows_the_rebase_blast() {
     );
     assert!(!long_floored, "the sit is authored too");
 
-    let mut off = Agreements::current();
+    let mut off = Agreements::default();
     off.competition.redouble_answer = false;
     let (off_call, _) = best_call_with(&off, &auction, opener);
     assert_ne!(

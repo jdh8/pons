@@ -217,7 +217,7 @@ fn smolen_works_at_the_two_notrump_level() {
 // on, five-card-max on.
 
 fn stance_with(garbage: bool, both_majors: bool, five_card_max: bool) -> Stance {
-    let mut agreements = pons::bidding::agreements::Agreements::current();
+    let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.reading.garbage_stayman = garbage;
     agreements.notrump.stayman_both_majors = both_majors;
     agreements.notrump.stayman_5card_max = five_card_max;

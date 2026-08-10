@@ -106,7 +106,7 @@ fn main() {
     let args = Args::parse();
     let mut rng = rand::rng();
 
-    let mut arm = pons::bidding::agreements::Agreements::current();
+    let mut arm = pons::bidding::agreements::Agreements::default();
     arm.defense.leaping_michaels_enabled = on_from(&args.ew);
     let baseline = american(&arm).against();
     arm.defense.leaping_michaels_enabled = on_from(&args.ns);

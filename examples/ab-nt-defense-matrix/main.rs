@@ -147,11 +147,16 @@ fn build_books() -> (Vec<Stance>, Vec<Stance>) {
         };
         configure(&mut knobs);
         // Build from the values `configure` just wrote.
-        let mut agreements = Agreements::current();
-        agreements.competition = knobs.competition;
-        agreements.defense = knobs.defense;
-        agreements.decision.instinct = knobs.instinct;
-        agreements.decision.reading = knobs.reading;
+        let agreements = Agreements {
+            competition: knobs.competition,
+            defense: knobs.defense,
+            decision: pons::bidding::context::DecisionProfile {
+                instinct: knobs.instinct,
+                reading: knobs.reading,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
         american(&agreements).against()
     };
     // The DONT parity config (docs/ai-bidder/1nt-defense-dont.md): 6+ one-suiter

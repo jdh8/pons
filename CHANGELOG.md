@@ -676,6 +676,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Seeded `smoke-default` / `smoke-dutch` dumps (20 000 boards each) are
   byte-identical, and `cards/*.bbsa` regenerate unchanged.
 
+- **No bidding knob lives on a thread any more.**  The last seventeen cells go:
+  the nine `DecisionProfile` scalars (`eval_auction`, `eval_shape`,
+  `blind_inference`, `two_over_one_force`, `fuzzy_fifths`, `fifths_companion`,
+  `stayman_net_force`, `transfer_gf_majors`, `transfer_gf_hearts`), the three
+  `InstinctKnobs` build knobs (`competitive_rebid`, `reopening_notrump`,
+  `doubler_xx_runout`), and the five weak-balanced takeout suppressions.  A
+  system is now exactly the `Agreements` value it was built from — `american(&a)`
+  and nothing else — and `grep 'static .*: Cell<' src/` returns nothing.
+
+  The five `suppress_*` knobs were **misfiled**: their setter docs claimed they
+  were read at classification time, but `takeout_double_shape_ok` read all five
+  at *construction* and captured them into its closure.  They are now
+  `DefenseKnobs` fields, where their measured A/B records live with the rest of
+  the defensive card, and the gate takes a `DefenseKnobs` argument from the
+  three book builders that use it.
+
+  **Breaking:** `Agreements::current`, `DecisionProfile::current`,
+  `InstinctKnobs::current`, `instinct::capture_build` and `bidding::scoped` are
+  gone along with the seventeen setters and their getters.  Use
+  `Agreements::default()` and edit the fields you want; `scoped` existed only to
+  keep a scratch thread's arming off the caller's, which no longer means
+  anything.  `evaluator::trick_estimates_with_auction_on` becomes `pub`
+  (`#[doc(hidden)]`) so a probe can pass an explicit profile where it used to
+  flip a global.
+
+  Three tests went with the machinery they guarded:
+  `build_defaults_match_the_cells` and `decision_defaults_match_the_cells`
+  compared the `Agreements` defaults against the `Cell::new` literals, and
+  `decision_cache_rejects_profile_changes` checked the cache's debug drift
+  assert.  With one home per knob none of the three can fail;
+  `no_knob_lives_in_two_homes` — which scans all eight build-time areas and all
+  three classify-time profiles for a field name in two places — is what still
+  holds the line.  `stance_pins_knobs_across_threads` no longer arms anything:
+  it builds two pairs from one deliberately non-default `Agreements` and checks
+  24 seeded deals bid identically on a second thread.
+
+  Seeded `smoke-default` / `smoke-dutch` dumps (20 000 boards each) are
+  byte-identical, and `cards/*.bbsa` regenerate unchanged.
+
 - **The reading profile is a value: its last twenty-four cells are gone, and so
   is `reading_profile()`.**  The fields `constraint.rs`, `instinct.rs` and
   `american/*` sourced — the point scale and support-point scale, the strength
