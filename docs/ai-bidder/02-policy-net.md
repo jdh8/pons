@@ -162,7 +162,7 @@ The same four steps, used two ways:
 
 #### As a runtime player (the "thinking" bidder)
 
-Wrap steps 1–4 as a drop-in `Classifier`/`System`, behind a `search` cargo
+Wrap steps 1–4 as a drop-in `Classifier`/`Bidder`, behind a `search` cargo
 feature, and return the improved distribution directly. This *is* the policy at
 the table: it simulates before it bids. It ships gated and slow on purpose —
 strength over latency — and is the strongest *bidding* player we can field. The

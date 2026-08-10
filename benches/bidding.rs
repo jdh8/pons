@@ -13,7 +13,7 @@ use pons::bidding::benchmark::{
 };
 use pons::bidding::evaluator::trick_estimates_with_auction;
 use pons::bidding::inference::Inferences;
-use pons::bidding::{Pair, Stance, System, Table, instinct};
+use pons::bidding::{Bidder, Pair, Stance, Table, instinct};
 use pons::{american, american_instinct};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -31,7 +31,7 @@ const DEALS: usize = 64;
 #[derive(Clone, Copy)]
 struct Legacy<'a>(&'a Stance);
 
-impl System for Legacy<'_> {
+impl Bidder for Legacy<'_> {
     fn classify(
         &self,
         hand: contract_bridge::Hand,

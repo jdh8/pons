@@ -55,7 +55,7 @@ use pons::bidding::features::{
     CompactConfig, Config, FEATURES_LEN_V3, FEATURES_LEN_V4, FEATURES_LEN_V5, FEATURES_VERSION_V3,
     FEATURES_VERSION_V4, FEATURES_VERSION_V5, features_v3, features_v4, features_v5,
 };
-use pons::bidding::{Phase, System};
+use pons::bidding::{Bidder, Phase};
 use pons::gib;
 use pons::{american, american_instinct, dutch, dutch_instinct};
 use rand::rngs::StdRng;
@@ -590,7 +590,7 @@ fn main() -> anyhow::Result<()> {
     } else {
         vec![args.kickback]
     };
-    let build_teacher = |with_conv: bool| -> anyhow::Result<Box<dyn System>> {
+    let build_teacher = |with_conv: bool| -> anyhow::Result<Box<dyn Bidder>> {
         // This top-level teacher historically builds before any per-regime
         // recognizer arming; keep its shipped reading profile. The BBA
         // convention override is still selected by `with_conv` below.
@@ -625,7 +625,7 @@ fn main() -> anyhow::Result<()> {
     };
     // One teacher per regime: mixing needs the plain engine *and* the one
     // playing the convention, because the target has to change with the reading.
-    let teachers: Vec<Box<dyn System>> = if args.mix_kickback {
+    let teachers: Vec<Box<dyn Bidder>> = if args.mix_kickback {
         vec![build_teacher(false)?, build_teacher(true)?]
     } else {
         vec![build_teacher(!args.conv.is_empty())?]
@@ -720,7 +720,7 @@ fn main() -> anyhow::Result<()> {
         per_side.insert(side.label(), (card, stance));
     }
     // Per ordered pair: the feature-side config, and the teacher that plays it.
-    let mut per_pair: BTreeMap<(String, String), (Config, Box<dyn System>)> = BTreeMap::new();
+    let mut per_pair: BTreeMap<(String, String), (Config, Box<dyn Bidder>)> = BTreeMap::new();
     // v5 only: the compact config the extractor reads instead of the card
     // blocks, from the same per-side captures the cards came from.
     let mut per_pair_compact: BTreeMap<(String, String), CompactConfig> = BTreeMap::new();
@@ -745,7 +745,7 @@ fn main() -> anyhow::Result<()> {
         // under the same arming in the per-side loop.
         let mut agreements = arm_flips(a.flips);
         agreements.decision.reading.rkcb_variant = rkcb_variant(a.kickback);
-        let teacher: Box<dyn System> = match args.teacher.as_str() {
+        let teacher: Box<dyn Bidder> = match args.teacher.as_str() {
             "american" if a.dutch => Box::new(dutch_instinct(&agreements).against()),
             "american" => Box::new(american_instinct(&agreements).against()),
             "bba" => {

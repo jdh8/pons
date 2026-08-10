@@ -4,7 +4,7 @@ use core::hint::black_box;
 use criterion::{Criterion, criterion_group, criterion_main};
 use pons::bidding::array::Logits;
 use pons::bidding::trie::classifier;
-use pons::bidding::{System, Trie};
+use pons::bidding::{Bidder, Trie};
 
 const fn bid(level: u8, strain: Strain) -> Call {
     Call::Bid(Bid::new(level, strain))
@@ -78,7 +78,7 @@ fn bench_iter(c: &mut Criterion) {
 fn bench_classify(c: &mut Criterion) {
     let trie = populated_trie();
     let auction = [bid(1, Strain::Hearts)];
-    c.bench_function("System::classify_via_Trie", |b| {
+    c.bench_function("Bidder::classify_via_Trie", |b| {
         b.iter(|| {
             black_box(trie.classify(
                 black_box(Hand::default()),

@@ -161,7 +161,7 @@ declarer playout — **offline only**, because the cost is prohibitive live.
 
 - **Deliverable:** an `SD_EVAL` thread-local (default off, idiom of
   `LENGTH_SOUNDNESS` at [inference.rs](../../src/bidding/inference.rs)) that swaps `ev_all`'s per-candidate trick source from the shared DD table to `single_dummy_declarer_tricks` ([single_dummy.rs:564](../../src/single_dummy.rs)); consumed by the `dump-search` teacher, **not** the live `SearchFloor`.
-- **Seam:** [ev.rs:132-141](../../src/bidding/ev.rs) — the scoring line `ns_score_bid(result, tricks, vul)` at [ev.rs:138](../../src/bidding/ev.rs). The swap needs (a) leader-view **and** declarer-view inferences per reached contract, computed with `Stance::infer` on the rolled-out prefix — the exact idiom already in [examples/common/mod.rs:213-249](../../examples/common/mod.rs) (`sd_declarer_ns_score`) — but `ev_all` is generic over `System` while `infer` lives on `Stance` ([book.rs](../../src/bidding/book.rs)), so it needs `ev_all` narrowed to `&Stance` or a new `System::infer`, not a bare scoring-line swap; (b) a perfect-defense-doubling variant of `ns_score_tricks` ([scoring.rs:190](../../src/scoring.rs)) — double when `sd_tricks < 6 + level`, so a failing sacrifice still prices doubled (do **not** copy the example's plain `ns_score_tricks`, which drops the doubling ev_all's semantics require).
+- **Seam:** [ev.rs:132-141](../../src/bidding/ev.rs) — the scoring line `ns_score_bid(result, tricks, vul)` at [ev.rs:138](../../src/bidding/ev.rs). The swap needs (a) leader-view **and** declarer-view inferences per reached contract, computed with `Stance::infer` on the rolled-out prefix — the exact idiom already in [examples/common/mod.rs:213-249](../../examples/common/mod.rs) (`sd_declarer_ns_score`) — but `ev_all` is generic over `Bidder` while `infer` lives on `Stance` ([book.rs](../../src/bidding/book.rs)), so it needs `ev_all` narrowed to `&Stance` or a new `Bidder::infer`, not a bare scoring-line swap; (b) a perfect-defense-doubling variant of `ns_score_tricks` ([scoring.rs:190](../../src/scoring.rs)) — double when `sd_tricks < 6 + level`, so a failing sacrifice still prices doubled (do **not** copy the example's plain `ns_score_tricks`, which drops the doubling ev_all's semantics require).
 - **Measure:** a constructive slam-boundary A/B, scored plain + PD **and** the
   sd-declarer bracket (`ab-dump-sd --sd-declarer` / `ab-slam-entry --sd`), with
   the Pavlicek Δlogit shave on DD-making slams ([measurement.md slam-boundary addendum](../measurement.md#the-decision-table)).
@@ -273,7 +273,7 @@ narrowed to the replay sampler (the range sampler is 0.03% of a DD decision —
 no win there), which makes it much smaller than it looked. Recommended order:
 
 1. **Phase 2** — the `SD_EVAL` offline scorer (the highest-value *correctness*
-   win; the scoring swap at [ev.rs:138](../../src/bidding/ev.rs) plus two-view inference plumbing — mirrors `sd_declarer_ns_score`, but `ev_all` must first gain `Stance` access, being generic over `System` today).
+   win; the scoring swap at [ev.rs:138](../../src/bidding/ev.rs) plus two-view inference plumbing — mirrors `sd_declarer_ns_score`, but `ev_all` must first gain `Stance` access, being generic over `Bidder` today).
 2. **Phase 1c (narrowed)** — weighted dealing for the replay sampler only.
 3. **Phase 4** — re-distill and measure vs BEN Tier-F + BBA guard.
 

@@ -23,7 +23,7 @@
 use clap::Parser;
 use contract_bridge::auction::{Auction, Call, RelativeVulnerability};
 use contract_bridge::{AbsoluteVulnerability, Bid, Hand, Level, Seat, Strain};
-use pons::bidding::System;
+use pons::bidding::Bidder;
 use pons::bidding::context::relative;
 use std::io::Write;
 
@@ -146,7 +146,7 @@ fn to_rows(state: &BbaState) -> Vec<SeatRow> {
 
 /// The highest-logit legal call from a system, defaulting to a pass
 fn call_of(
-    system: &dyn System,
+    system: &dyn Bidder,
     hand: Hand,
     seat: Seat,
     vul: AbsoluteVulnerability,

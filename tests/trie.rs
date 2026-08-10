@@ -2,7 +2,7 @@ use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::{Bid, Hand, Level, Strain};
 use pons::bidding::array::Logits;
 use pons::bidding::trie::classifier;
-use pons::bidding::{Context, System, Trie};
+use pons::bidding::{Bidder, Context, Trie};
 
 const fn bid(level: u8, strain: Strain) -> Call {
     Call::Bid(Bid {

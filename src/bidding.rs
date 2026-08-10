@@ -103,7 +103,7 @@ use contract_bridge::auction::{Call, RelativeVulnerability};
 /// call is being classified.  Composite systems pass it through unchanged;
 /// drivers convert from absolute vulnerability once per call with
 /// [`context::relative`].
-pub trait System {
+pub trait Bidder {
     /// Classify a hand into logits for each call
     ///
     /// `auction` is the raw table auction (all four players' calls), and
@@ -125,7 +125,7 @@ pub trait System {
     }
 
     /// Classify inside a table-driven deal using the state from
-    /// [`System::new_deal_state`].
+    /// [`Bidder::new_deal_state`].
     #[doc(hidden)]
     fn classify_in_deal(
         &self,
@@ -161,7 +161,7 @@ pub trait System {
     /// `a.vs(b)` dispatches by parity: `a` answers at even auction lengths,
     /// `b` at odd ones.  Pick the seating per board by dealer — `ns.vs(ew)`
     /// when North/South deal, `ew.vs(ns)` otherwise.
-    fn vs<B: System>(self, other: B) -> Versus<Self, B>
+    fn vs<B: Bidder>(self, other: B) -> Versus<Self, B>
     where
         Self: Sized,
     {
@@ -172,7 +172,7 @@ pub trait System {
     ///
     /// `a.or_else(b)` answers from `a`, falling through to `b` when `a`
     /// returns [`None`] or logits without any probability mass.
-    fn or_else<B: System>(self, other: B) -> OrElse<Self, B>
+    fn or_else<B: Bidder>(self, other: B) -> OrElse<Self, B>
     where
         Self: Sized,
     {
@@ -181,7 +181,7 @@ pub trait System {
 }
 
 /// References delegate to the referent, so `(&a).vs(&a)` needs no clone
-impl<S: System + ?Sized> System for &S {
+impl<S: Bidder + ?Sized> Bidder for &S {
     fn classify(
         &self,
         hand: Hand,
@@ -219,7 +219,7 @@ impl<S: System + ?Sized> System for &S {
 /// pair's notes from its own side with [`Constructive`], [`Competitive`], and
 /// [`Defensive`] instead, assembled into a [`Pair`] and bound with
 /// [`Pair::against`].
-impl System for Trie {
+impl Bidder for Trie {
     fn classify(
         &self,
         hand: Hand,

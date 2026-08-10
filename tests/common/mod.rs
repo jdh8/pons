@@ -19,7 +19,7 @@ pub use contract_bridge::{Bid, Hand, Strain};
 // aggregate by the `ab-*` A/B harnesses, never by pinning individual calls.
 pub use pons::american_instinct as american;
 pub use pons::bidding::array::Logits;
-pub use pons::bidding::{Stance, System};
+pub use pons::bidding::{Bidder, Stance};
 
 /// Shorthand for a bid call at `level`/`strain`.
 pub const fn call(level: u8, strain: Strain) -> Call {
@@ -33,7 +33,7 @@ pub fn stance() -> Stance {
 }
 
 /// The single highest-logit call the system assigns the hand for the auction.
-pub fn best_call(system: &impl System, auction: &[Call], hand: &str) -> Call {
+pub fn best_call(system: &impl Bidder, auction: &[Call], hand: &str) -> Call {
     let hand: Hand = hand.parse().expect("valid test hand");
     let logits: Logits = system
         .classify(hand, RelativeVulnerability::NONE, auction)

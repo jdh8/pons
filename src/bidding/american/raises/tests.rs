@@ -1,5 +1,5 @@
 use super::*;
-use crate::bidding::System;
+use crate::bidding::Bidder;
 use contract_bridge::Hand;
 use contract_bridge::auction::RelativeVulnerability;
 

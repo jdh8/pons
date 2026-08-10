@@ -12,7 +12,7 @@ build must satisfy these, and the existing
 [`instinct` tests](../../src/bidding/instinct.rs) become the regression suite.
 
 1. **Drop-in type.** It is a `Classifier` (`classify(hand, &Context) -> Logits`)
-   or a `System` (`classify(hand, vul, auction) -> Option<Logits>`). No new
+   or a `Bidder` (`classify(hand, vul, auction) -> Option<Logits>`). No new
    plumbing in the driver.
 2. **Legality is the driver's job, but help it.** The floor may assign finite
    logits only to calls that *could* be legal; the driver already filters to

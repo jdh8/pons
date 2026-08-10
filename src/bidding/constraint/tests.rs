@@ -196,7 +196,7 @@ fn strength_dial_two_moves_points_antisymmetrically() {
 /// (`examples/common/mod.rs`'s `deviant_floor` arms, builds, and resets).
 #[test]
 fn strength_dial_survives_on_a_pinned_stance() {
-    use crate::bidding::System;
+    use crate::bidding::Bidder;
     use crate::bidding::american::american_book;
 
     let hand = hand("KQ765.A8765.32.2"); // 11 points

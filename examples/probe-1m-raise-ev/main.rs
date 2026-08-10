@@ -9,7 +9,7 @@ use contract_bridge::{
     AbsoluteVulnerability, Bid, Contract, FullDeal, Penalty, Seat, Strain, Suit,
 };
 use ddss::{NonEmptyStrainFlags, Solver};
-use pons::bidding::System;
+use pons::bidding::Bidder;
 use pons::bidding::constraint::support_point_count;
 use pons::dutch;
 use pons::scoring::{imps, ns_score_tricks};

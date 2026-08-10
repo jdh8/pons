@@ -1,8 +1,8 @@
-//! Driving external bidding oracles as pons [`System`]s.
+//! Driving external bidding oracles as pons [`Bidder`]s.
 //!
 //! [`BbaOracle`] wraps EPBot's C ABI (`libEPBot.so`, no Wine) — the BBA
 //! reference bidder used by `bba-gen` and by `ben-gen --calibrate-epbot`.
-//! [`next_call`]/[`bid_out`] are the `&dyn System` match drivers shared by
+//! [`next_call`]/[`bid_out`] are the `&dyn Bidder` match drivers shared by
 //! every oracle-vs-oracle generator (the `Stance`-based variants in
 //! [`mod.rs`](super) serve the self-play harnesses instead).
 //!
@@ -12,7 +12,7 @@
 use contract_bridge::auction::{Auction, Call, RelativeVulnerability};
 use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Hand, Level, Seat, Strain, Suit};
 use libloading::Library;
-use pons::bidding::System;
+use pons::bidding::Bidder;
 use pons::bidding::array::{Array, Logits};
 use pons::bidding::card::{Card, foreign_card};
 use pons::bidding::context::relative;
@@ -148,9 +148,9 @@ const INFO_CAPACITY: usize = 512;
 /// Measured, not assumed: 5 strains plus 4 undecoded trailing slots.
 pub const PROBABLE_LEVELS: usize = 9;
 
-/// EPBot 2/1 bidder behind pons's [`System`] trait.
+/// EPBot 2/1 bidder behind pons's [`Bidder`] trait.
 ///
-/// Each [`System::classify`] call drives a *fresh* bot: it configures the seats
+/// Each [`Bidder::classify`] call drives a *fresh* bot: it configures the seats
 /// to their systems, deals the actor's hand, replays the auction so far with
 /// `set_bid`, and reads the actor's call with `get_bid`.  A fresh bot per
 /// decision keeps `classify` a pure, stateless function of its arguments.
@@ -428,7 +428,7 @@ impl BbaOracle {
     /// Configures our side's seats to the chosen system and the opponents' to
     /// whatever [`BbaOracle::with_opponents`] declared (our own by default),
     /// deals the actor's hand, and replays the auction so far with `set_bid` —
-    /// the shared setup behind both [`System::classify`] and [`BbaOracle::probe`].
+    /// the shared setup behind both [`Bidder::classify`] and [`BbaOracle::probe`].
     /// A fresh bot per decision keeps both a pure, stateless function of their
     /// arguments.
     ///
@@ -524,7 +524,7 @@ impl BbaOracle {
 
     /// Read BBA's whole bilans state for one decision
     ///
-    /// This is the [`System::classify`] call plus everything the engine computed
+    /// This is the [`Bidder::classify`] call plus everything the engine computed
     /// on the way there: its target level per strain, and its reconstruction of
     /// all four hands.  See `docs/ai-bidder/bba-floor.md` §5-6.
     pub fn probe(
@@ -626,7 +626,7 @@ impl BbaOracle {
     }
 }
 
-impl System for BbaOracle {
+impl Bidder for BbaOracle {
     fn classify(&self, hand: Hand, vul: RelativeVulnerability, auction: &[Call]) -> Option<Logits> {
         // SAFETY: `bot` is live for the duration of the closure.
         let code = self.with_bot(hand, vul, auction, |bot| unsafe { (self.get_bid)(bot) })?;
@@ -802,7 +802,7 @@ pub fn one_hot(call: Call) -> Logits {
 
 /// The highest-logit *legal* call, defaulting to a pass
 pub fn next_call(
-    system: &dyn System,
+    system: &dyn Bidder,
     hand: Hand,
     seat: Seat,
     vul: AbsoluteVulnerability,
@@ -826,8 +826,8 @@ pub fn next_call(
 
 /// Bid out one deal with `ours` on `ours_is_ns`'s side, `theirs` on the other
 pub fn bid_out(
-    ours: &dyn System,
-    theirs: &dyn System,
+    ours: &dyn Bidder,
+    theirs: &dyn Bidder,
     ours_is_ns: bool,
     dealer: Seat,
     vul: AbsoluteVulnerability,

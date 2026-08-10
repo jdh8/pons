@@ -3,7 +3,7 @@ use contract_bridge::{Bid, Hand, Level, Strain};
 use pons::bidding::array::Logits;
 use pons::bidding::fallback::{Always, Fallback, FirstIs, OvercallAtMost, ReplaceNext, rewriter};
 use pons::bidding::trie::{Provenance, REBASE_LIMIT, classifier};
-use pons::bidding::{Context, System, Trie};
+use pons::bidding::{Bidder, Context, Trie};
 
 const fn bid(level: u8, strain: Strain) -> Call {
     Call::Bid(Bid {

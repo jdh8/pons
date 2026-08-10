@@ -12,7 +12,7 @@ use pons::bidding::array::Logits;
 use pons::bidding::benchmark::{
     classify_with_provenance_uncached, is_deterministic_instinct_floor,
 };
-use pons::bidding::{Stance, System, Table};
+use pons::bidding::{Bidder, Stance, Table};
 use pons::{american, american_instinct};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -80,7 +80,7 @@ const WHOLE_LEGACY_LOOPS: usize = 1;
 #[derive(Clone, Copy)]
 struct Legacy<'a>(&'a Stance);
 
-impl System for Legacy<'_> {
+impl Bidder for Legacy<'_> {
     fn classify(
         &self,
         hand: contract_bridge::Hand,
@@ -100,7 +100,7 @@ fn seat_to_act(dealer: contract_bridge::Seat, len: usize) -> contract_bridge::Se
     contract_bridge::Seat::ALL[(dealer as usize + len) % 4]
 }
 
-fn classify_all(system: &dyn System, positions: &[Position], loops: usize) {
+fn classify_all(system: &dyn Bidder, positions: &[Position], loops: usize) {
     for _ in 0..loops {
         for position in positions {
             black_box(
@@ -157,13 +157,13 @@ fn report_retained_memory() -> anyhow::Result<()> {
     anyhow::bail!("allocator-trimmed RSS measurement requires Linux with glibc")
 }
 
-fn timed(system: &dyn System, positions: &[Position], loops: usize) -> Duration {
+fn timed(system: &dyn Bidder, positions: &[Position], loops: usize) -> Duration {
     let start = Instant::now();
     classify_all(system, positions, loops);
     start.elapsed()
 }
 
-fn allocated(system: &dyn System, positions: &[Position]) -> AllocationSnapshot {
+fn allocated(system: &dyn Bidder, positions: &[Position]) -> AllocationSnapshot {
     ALLOCATOR.reset();
     classify_all(system, positions, 1);
     ALLOCATOR.snapshot()

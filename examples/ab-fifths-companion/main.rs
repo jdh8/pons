@@ -24,7 +24,7 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::constraint::{FifthsCompanion, PointScale};
 use pons::bidding::context::relative;
-use pons::bidding::{Stance, System};
+use pons::bidding::{Bidder, Stance};
 use pons::scoring::final_contract;
 use rayon::prelude::*;
 

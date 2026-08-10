@@ -7,7 +7,7 @@ use contract_bridge::{AbsoluteVulnerability, Bid, Hand, Level, Seat, Strain};
 use pons::bidding::agreements::Agreements;
 use pons::bidding::array::Logits;
 use pons::bidding::trie::classifier;
-use pons::bidding::{Competitive, Constructive, Defensive, Pair, System, Table};
+use pons::bidding::{Bidder, Competitive, Constructive, Defensive, Pair, Table};
 
 const fn bid(level: u8, strain: Strain) -> Call {
     Call::Bid(Bid {
@@ -29,7 +29,7 @@ fn single(call: Call, logit: f32) -> Logits {
 /// Hand-blind system bidding from a fixed preference list
 struct Prefers(&'static [(Call, f32)]);
 
-impl System for Prefers {
+impl Bidder for Prefers {
     fn classify(&self, _: Hand, _: RelativeVulnerability, _: &[Call]) -> Option<Logits> {
         let mut logits = Logits::new();
         for &(call, logit) in self.0 {
@@ -39,19 +39,19 @@ impl System for Prefers {
     }
 }
 
-/// System with no answer at all
+/// Bidder with no answer at all
 struct Silent;
 
-impl System for Silent {
+impl Bidder for Silent {
     fn classify(&self, _: Hand, _: RelativeVulnerability, _: &[Call]) -> Option<Logits> {
         None
     }
 }
 
-/// System echoing the vulnerability it receives
+/// Bidder echoing the vulnerability it receives
 struct VulProbe;
 
-impl System for VulProbe {
+impl Bidder for VulProbe {
     fn classify(&self, _: Hand, vul: RelativeVulnerability, _: &[Call]) -> Option<Logits> {
         Some(single(Call::Pass, f32::from(vul.bits())))
     }

@@ -159,7 +159,7 @@ fn game_is_good(tables: &[ddss::TrickCountTable], vul: AbsoluteVulnerability) ->
 
 /// Fraction of the half's deals where the book lands in a game contract.
 fn reaches_game_frac(
-    table: &Table<impl pons::System, impl pons::System>,
+    table: &Table<impl pons::Bidder, impl pons::Bidder>,
     deals: &[FullDeal],
     seed: &Auction,
     dealer: Seat,

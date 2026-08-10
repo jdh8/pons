@@ -40,7 +40,7 @@ use pons::bidding::agreements::Agreements;
 use pons::bidding::american::{TwoOverOneGate, WeakTwoEval};
 use pons::bidding::constraint::PointScale;
 use pons::bidding::context::relative;
-use pons::bidding::{Inferences, Stance, System};
+use pons::bidding::{Bidder, Inferences, Stance};
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd_tricks, ns_score_tricks};
 use pons::single_dummy::{LeadQuestion, single_dummy_leads};
 

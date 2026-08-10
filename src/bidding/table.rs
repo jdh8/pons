@@ -1,17 +1,17 @@
 //! A full table: two systems in absolute seats
 //!
-//! [`Table`] seats one [`System`] as North/South and another as East/West,
+//! [`Table`] seats one [`Bidder`] as North/South and another as East/West,
 //! fixes the dealer and the absolute vulnerability, and drives the auction:
 //! it rotates the seat to act, converts the vulnerability to the side to act
 //! (once per call, with [`relative`]), filters illegal calls, and bids a deal
 //! out.
 //!
-//! A table deliberately does **not** implement [`System`]: that trait speaks
+//! A table deliberately does **not** implement [`Bidder`]: that trait speaks
 //! relative vulnerability and leaves seats to the caller, while a table owns
 //! both.  For a dealer-relative, vulnerability-agnostic composition, use
-//! [`System::vs`] instead.
+//! [`Bidder::vs`] instead.
 
-use super::System;
+use super::Bidder;
 use super::array::{CALL_VARIANTS, Logits, encode_call};
 use super::book::{Pair, Stance};
 use super::context::relative;
@@ -135,7 +135,7 @@ pub struct Table<N, E> {
     vul: AbsoluteVulnerability,
 }
 
-impl<N: System, E: System> Table<N, E> {
+impl<N: Bidder, E: Bidder> Table<N, E> {
     /// Seat two systems with a dealer and an absolute vulnerability
     #[must_use]
     pub const fn new(

@@ -41,7 +41,7 @@ use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
 use pons::bidding::context::relative;
 use pons::bidding::evaluator::trick_estimates;
 use pons::bidding::sampler::{sample_layouts, sample_layouts_replay};
-use pons::bidding::{Phase, Relative, Stance, System};
+use pons::bidding::{Bidder, Phase, Relative, Stance};
 use pons::{american, dutch};
 use rand::rngs::StdRng;
 use rand::{RngExt, SeedableRng};

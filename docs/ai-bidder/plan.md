@@ -156,12 +156,12 @@ The piece `Inferences` was built for; needed before any "beat the teacher" work.
   ranking sanity (sound game > hopeless grand, grand prices out negative),
   fixed-seed determinism, the illegal-candidate and infeasible `NaN` paths, and
   the empty slate. *Decision (settled this milestone):* the continuation policy is
-  a `System` **parameter**, not hardwired — `ev`'s `policy: &impl System` defaults
+  a `Bidder` **parameter**, not hardwired — `ev`'s `policy: &impl Bidder` defaults
   callers to the deterministic `american()` for debuggable validation (and ≈
   the M1 net at bootstrap); M3.2 swaps in successive nets with no change to this
   code.
 - ✅ **M2.3 Live search bidder (gated).** Wrap M2.2 as a runtime
-  `Classifier`/`System`: at each non-forced decision, use the net's softmax as a
+  `Classifier`/`Bidder`: at each non-forced decision, use the net's softmax as a
   prior to shortlist the top-`k` legal calls, run `ev` over sampled layouts,
   return a distribution peaked on the high-EV calls — behind a `search` cargo
   feature, wrapped in the same forced-rails shell as `NeuralFloor`. This *is*
@@ -580,7 +580,7 @@ opt-in behind `search`.
   rewrite if avoidable. *Measure:* parity-or-better vs `american_search()` on
   contested (`search-floor` harness); the `instinct` rails stay green (forced →
   deterministic, before any search). *Deps:* none (the seam exists). **Done:**
-  `SearchBook` — a `System` wrapping a *bound* `Stance` (search_floor.rs), plus
+  `SearchBook` — a `Bidder` wrapping a *bound* `Stance` (search_floor.rs), plus
   `american_search_book(them)`. It runs the search at every **non-forced authored
   book leaf** (`provenance.fallback == None`, with mass), feeding the leaf logits
   through the existing seam: candidate set = the rule's finite calls ∪ the net's
@@ -734,7 +734,7 @@ rule-based, ~100%-reproducible engine; we drive it as a black box (native
   divergence-board dump. *Measure:* a CI excluding noise; the dump names concrete
   under-bidding auctions. *Deps:* S.0. *Value:* turns "did we improve?" into "how
   far from a mature engine?" — calibrates the M1/M3 gains. **Done:**
-  `examples/bba-match` — `BbaOracle: System` drives EPBot system 0 ("2/1GF - 2/1
+  `examples/bba-match` — `BbaOracle: Bidder` drives EPBot system 0 ("2/1GF - 2/1
   Game Force", verified by name), one fresh bot per decision (S.0 ABI generalized:
   `set_bid(bot, position, bid, meaning)` and `set_system_type(bot, position,
   system)` decompiled + confirmed; the ten is EPBot-canonical `T`; the dealer is

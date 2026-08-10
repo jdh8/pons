@@ -14,7 +14,7 @@ use super::inference::Inferences;
 use super::rules::Rules;
 use super::trie::Classifier;
 use super::trie::Provenance;
-use super::{Stance, System};
+use super::{Bidder, Stance};
 use contract_bridge::Hand;
 use contract_bridge::auction::Auction;
 use contract_bridge::auction::{Call, RelativeVulnerability};

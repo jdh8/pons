@@ -42,7 +42,7 @@ use pons::bidding::american::{DoubleStyle, LebensohlStyle};
 use pons::bidding::constraint::point_count;
 use pons::bidding::context::{Context, relative};
 use pons::bidding::ev::ev_all;
-use pons::bidding::{Stance, System};
+use pons::bidding::{Bidder, Stance};
 use pons::scoring::{final_contract, imps, ns_score_contract};
 use rand::SeedableRng;
 use rand::rngs::StdRng;

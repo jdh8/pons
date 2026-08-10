@@ -36,7 +36,7 @@ use clap::Parser;
 use contract_bridge::auction::Call;
 use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, Bid, Hand, Seat, Strain, Suit};
-use pons::bidding::System;
+use pons::bidding::Bidder;
 use pons::bidding::agreements::Agreements;
 use pons::bidding::american::DoubleShape;
 use rand::SeedableRng;
@@ -1394,7 +1394,7 @@ fn label_overrides(overrides: &[(CString, c_int)]) -> String {
         .collect()
 }
 
-// The BBA oracle (`BbaOracle`) and the `&dyn System` match drivers
+// The BBA oracle (`BbaOracle`) and the `&dyn Bidder` match drivers
 // (`next_call`/`bid_out`) now live in `common::oracle`, shared with `ben-gen`.
 
 // ---------------------------------------------------------------------------
@@ -2011,11 +2011,11 @@ fn main() -> anyhow::Result<()> {
         Some(system) => Some(BbaOracle::load(&path, system, our_conv.clone())?),
         None => None,
     };
-    let ours: &dyn System = match &our_oracle {
+    let ours: &dyn Bidder = match &our_oracle {
         Some(oracle) => oracle,
         None => &our_floor,
     };
-    let opponent: &dyn System = match (&their_floor, &bba_vs_natural) {
+    let opponent: &dyn Bidder = match (&their_floor, &bba_vs_natural) {
         (Some(deviant), _) => deviant,
         (None, Some(oracle)) => oracle,
         (None, None) => &bba,
@@ -2117,7 +2117,7 @@ fn main() -> anyhow::Result<()> {
         let dealer = Seat::ALL[boards.len() % 4];
         // For `--isolate-opening pons` the defender is ours at *both* tables, so our
         // N/S opens against our own defense at table A; otherwise BBA defends.
-        let defender_a: &dyn System = if isolate_opening == "pons" {
+        let defender_a: &dyn Bidder = if isolate_opening == "pons" {
             ours
         } else {
             opponent

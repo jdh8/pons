@@ -15,7 +15,7 @@ use pons::bidding::agreements::Agreements;
 use pons::bidding::array::Logits;
 use pons::bidding::constraint::{balanced, hcp, len, nth_seat, support};
 use pons::bidding::fallback::{Fallback, FirstIs, OvercallAtMost, ReplaceNext};
-use pons::bidding::{Competitive, Constructive, Defensive, Pair, Rules, Stance, System};
+use pons::bidding::{Bidder, Competitive, Constructive, Defensive, Pair, Rules, Stance};
 
 const fn call(level: u8, strain: Strain) -> Call {
     Call::Bid(Bid::new(level, strain))
@@ -126,7 +126,7 @@ fn demo_stance() -> Stance {
     demo_system().against()
 }
 
-fn best_call(system: &impl System, auction: &[Call], hand: &str) -> Call {
+fn best_call(system: &impl Bidder, auction: &[Call], hand: &str) -> Call {
     let hand: Hand = hand.parse().expect("valid test hand");
     let logits: Logits = system
         .classify(hand, RelativeVulnerability::NONE, auction)

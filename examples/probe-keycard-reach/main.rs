@@ -45,7 +45,7 @@ use contract_bridge::auction::{Auction, Call};
 use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Seat, Strain, Suit};
 use ddss::TrickCountTable;
 use pons::bidding::context::relative;
-use pons::bidding::{Phase, Stance, System};
+use pons::bidding::{Bidder, Phase, Stance};
 use pons::{american, dutch, gib};
 use rand::rngs::StdRng;
 use rand::{RngExt, SeedableRng};

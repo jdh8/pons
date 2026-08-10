@@ -12,7 +12,7 @@ use common::*;
 const P: Call = Call::Pass;
 
 /// A stance built with the shipped default system (the queen relay is always on).
-fn armed() -> impl System {
+fn armed() -> impl Bidder {
     stance()
 }
 

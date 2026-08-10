@@ -108,7 +108,7 @@ fn row_package_invariants() {
 /// future axis A/B measuring zero.
 #[test]
 fn the_default_floor_reads_the_live_agreements() {
-    use crate::bidding::System as _;
+    use crate::bidding::Bidder as _;
     use crate::bidding::instinct::RkcbVariant;
 
     // Not a forced auction, and no authored node — the net answers.

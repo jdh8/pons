@@ -16,7 +16,7 @@
 //! All three wrap the low-level [`Trie`] engine and add nothing to authoring:
 //! they deref to it, so [`insert`][Trie::insert],
 //! [`fallback_at`][Trie::fallback_at], and friends are available directly.
-//! What the newtype adds is a *gated* [`System`] implementation that answers
+//! What the newtype adds is a *gated* [`Bidder`] implementation that answers
 //! only for its phase.  A [`Pair`] assembles the three books **and the
 //! [`Agreements`][crate::bidding::agreements::Agreements] they were baked
 //! from**; binding it with [`Pair::against`] yields a [`Stance`], the system
@@ -42,7 +42,7 @@
 //! of scope — author them as a bare [`Trie`] table model (which keys on the
 //! literal auction with no pass semantics) until a dedicated router exists.
 
-use super::System;
+use super::Bidder;
 use super::agreements::Agreements;
 use super::array::Logits;
 use super::constraint::PointScale;
@@ -78,7 +78,7 @@ fn resolve(
 ///
 /// Keyed by the raw table auction, so seats are explicit leading passes: the
 /// opening prefix is empty, `-`, `- -`, or `- - -` for 1st through 4th seat,
-/// and continuations hang off the matching prefix.  As a [`System`] it answers
+/// and continuations hang off the matching prefix.  As a [`Bidder`] it answers
 /// only while nobody has opened or we opened and the opponents have only
 /// passed; see the [module docs][self].
 #[derive(Clone, Debug, Default)]
@@ -106,7 +106,7 @@ impl DerefMut for Constructive {
     }
 }
 
-impl System for Constructive {
+impl Bidder for Constructive {
     fn classify(&self, hand: Hand, vul: RelativeVulnerability, auction: &[Call]) -> Option<Logits> {
         (Phase::of(auction) == Phase::Constructive)
             .then(|| resolve(&self.0, hand, vul, auction))
@@ -118,7 +118,7 @@ impl System for Constructive {
 ///
 /// Keyed by the raw table auction starting from their opening: `(1♠)` is our
 /// overcall decision over their 1♠, and continuations hang off it.  As a
-/// [`System`] it answers only when the opponents opened; see the
+/// [`Bidder`] it answers only when the opponents opened; see the
 /// [module docs][self].
 #[derive(Clone, Debug, Default)]
 pub struct Defensive(pub Trie);
@@ -145,7 +145,7 @@ impl DerefMut for Defensive {
     }
 }
 
-impl System for Defensive {
+impl Bidder for Defensive {
     fn classify(&self, hand: Hand, vul: RelativeVulnerability, auction: &[Call]) -> Option<Logits> {
         (Phase::of(auction) == Phase::Defensive)
             .then(|| resolve(&self.0, hand, vul, auction))
@@ -206,7 +206,7 @@ impl Phase {
 ///
 /// Keyed by the raw table auction like its siblings: `1♥ (2♣)` is our
 /// decision after our 1st-seat 1♥ opening and their 2♣ overcall.  As a
-/// [`System`] it answers only in its [`Phase`].
+/// [`Bidder`] it answers only in its [`Phase`].
 ///
 /// Standalone, a rebase ([`Fallback::Rebase`][super::fallback::Fallback]) sees
 /// only this trie; bind through [`Pair::against`] so that "system on" rebases
@@ -236,7 +236,7 @@ impl DerefMut for Competitive {
     }
 }
 
-impl System for Competitive {
+impl Bidder for Competitive {
     fn classify(&self, hand: Hand, vul: RelativeVulnerability, auction: &[Call]) -> Option<Logits> {
         (Phase::of(auction) == Phase::Competitive)
             .then(|| resolve(&self.0, hand, vul, auction))
@@ -248,7 +248,7 @@ impl System for Competitive {
 ///
 /// A pair writes a [`Constructive`] book (strictly uncontested), a
 /// [`Competitive`] book (we open, they intervene), and a [`Defensive`] book
-/// (they open).  A pair is *authoring material*, not yet a [`System`]: bind
+/// (they open).  A pair is *authoring material*, not yet a [`Bidder`]: bind
 /// it with [`against`][Self::against] — once, at table assembly — to get a
 /// [`Stance`] that classifies.
 ///
@@ -535,7 +535,7 @@ pub struct StanceCacheIdentity;
 
 /// A pair's system, bound and ready to classify
 ///
-/// Built by [`Pair::against`].  As a [`System`] it routes each query by
+/// Built by [`Pair::against`].  As a [`Bidder`] it routes each query by
 /// [`Phase`]: the constructive trie answers the strictly uncontested auctions,
 /// the bound competitive trie (which contains the uncontested core for its
 /// rebases) answers when they intervene over our opening, and the defensive
@@ -757,7 +757,7 @@ impl Stance {
 
     /// Classify with the resolution [`Provenance`] — where the answer came from
     ///
-    /// Same routing and result as the [`System`] implementation, with the
+    /// Same routing and result as the [`Bidder`] implementation, with the
     /// provenance of the winning classifier alongside the logits.  This is
     /// the telemetry hook for the instinct floor
     /// ([`bidding::instinct`][mod@crate::bidding::instinct]): `depth == 0` with
@@ -898,7 +898,7 @@ pub struct ExplainedRule {
 impl Stance {
     /// The prefixed [`Context`] this stance classifies an auction under
     ///
-    /// The same trie-routed, prefix-bearing context the [`System`] impl builds
+    /// The same trie-routed, prefix-bearing context the [`Bidder`] impl builds
     /// (cf. [`classify_with_provenance`][Self::classify_with_provenance]).  It
     /// hands the otherwise-keyless reading paths the trie access the projection
     /// pass needs, so [`Inferences::read`][super::inference::Inferences::read]
@@ -1195,7 +1195,7 @@ struct StanceDealState {
     authoring: Option<AuthoringStepCache>,
 }
 
-impl System for Stance {
+impl Bidder for Stance {
     fn classify(&self, hand: Hand, vul: RelativeVulnerability, auction: &[Call]) -> Option<Logits> {
         self.classify_with_provenance(hand, vul, auction)
             .map(|(logits, _)| logits)

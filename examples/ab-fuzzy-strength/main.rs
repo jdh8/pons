@@ -27,7 +27,7 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::constraint::PointScale;
 use pons::bidding::context::relative;
-use pons::bidding::{Inferences, Stance, System};
+use pons::bidding::{Bidder, Inferences, Stance};
 use pons::scoring::{final_contract, ns_score_pd_tricks, ns_score_tricks};
 use pons::single_dummy::{LeadQuestion, single_dummy_leads};
 use rand::SeedableRng;

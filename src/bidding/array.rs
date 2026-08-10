@@ -383,7 +383,7 @@ impl Logits {
     /// Whether any call has a finite logit — i.e. a softmax distribution exists
     ///
     /// The complement of all-[`f32::NEG_INFINITY`]: a node that admits no call
-    /// for a hand has no mass, and a layered [`System`][crate::bidding::System]
+    /// for a hand has no mass, and a layered [`Bidder`][crate::bidding::Bidder]
     /// falls through past it.
     #[must_use]
     pub fn has_mass(&self) -> bool {

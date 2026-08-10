@@ -3,7 +3,7 @@ use contract_bridge::{Bid, Hand, Level, Strain};
 use pons::bidding::agreements::Agreements;
 use pons::bidding::array::Logits;
 use pons::bidding::trie::classifier;
-use pons::bidding::{Competitive, Constructive, Defensive, Pair, System};
+use pons::bidding::{Bidder, Competitive, Constructive, Defensive, Pair};
 
 const fn bid(level: u8, strain: Strain) -> Call {
     Call::Bid(Bid {
@@ -18,43 +18,43 @@ const fn marker_logits(value: f32) -> Logits {
     logits
 }
 
-/// System always answering with a marker value
+/// Bidder always answering with a marker value
 struct Constant(f32);
 
-impl System for Constant {
+impl Bidder for Constant {
     fn classify(&self, _: Hand, _: RelativeVulnerability, _: &[Call]) -> Option<Logits> {
         Some(marker_logits(self.0))
     }
 }
 
-/// System echoing the vulnerability it receives
+/// Bidder echoing the vulnerability it receives
 struct VulProbe;
 
-impl System for VulProbe {
+impl Bidder for VulProbe {
     fn classify(&self, _: Hand, vul: RelativeVulnerability, _: &[Call]) -> Option<Logits> {
         Some(marker_logits(f32::from(vul.bits())))
     }
 }
 
-/// System with no answer at all
+/// Bidder with no answer at all
 struct Silent;
 
-impl System for Silent {
+impl Bidder for Silent {
     fn classify(&self, _: Hand, _: RelativeVulnerability, _: &[Call]) -> Option<Logits> {
         None
     }
 }
 
-/// System answering with logits carrying no probability mass
+/// Bidder answering with logits carrying no probability mass
 struct NoMass;
 
-impl System for NoMass {
+impl Bidder for NoMass {
     fn classify(&self, _: Hand, _: RelativeVulnerability, _: &[Call]) -> Option<Logits> {
         Some(Logits::new())
     }
 }
 
-fn classify_marker(system: &impl System, auction: &[Call]) -> Option<f32> {
+fn classify_marker(system: &impl Bidder, auction: &[Call]) -> Option<f32> {
     system
         .classify(Hand::default(), RelativeVulnerability::NONE, auction)
         .map(|logits| *logits.0.get(Call::Pass))

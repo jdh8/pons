@@ -1,6 +1,6 @@
 use super::super::tests::best;
 use super::*;
-use crate::bidding::{System, Trie};
+use crate::bidding::{Bidder, Trie};
 use contract_bridge::Hand;
 use contract_bridge::auction::RelativeVulnerability;
 

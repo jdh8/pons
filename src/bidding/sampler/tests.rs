@@ -300,7 +300,7 @@ fn replay_rejects_implausible_passers() {
 /// node's best finite.  The gate then rejects partner's 3♣ for **every**
 /// hand: the 0% replay fill `probe-replay-yield` reports on this auction.
 /// Dropping the node lands resolution on the keyless floor, where
-/// [`System::authored_at`] is false and the gate abstains.
+/// [`Bidder::authored_at`] is false and the gate abstains.
 #[test]
 fn game_backstop_rejects_every_hand_until_deleted() {
     let prefix = [

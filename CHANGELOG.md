@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **`Bidder` is the public adapter trait for bidding engines.** All bounds,
+  implementations, trait objects, re-exports, and intra-doc links use the new
+  name. This is an API-only rename; bidding logic, defaults, and behaviour are
+  unchanged.
+
 ### Added
 
 - **`bidding::scoped` and `Stance::profile_mut`** — the two authoring hooks of
@@ -333,7 +340,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   now-redundant per-call re-arm, which is deleted; their divergent counts are
   unchanged against the parent.  `examples/common`'s `Blinded` wrapper is
   replaced by `blinded(&stance)`, a copy with one setting moved — its one caller is
-  `bba-gen`'s deviation panel, and a `&dyn System` wrapper could no longer
+  `bba-gen`'s deviation panel, and a `&dyn Bidder` wrapper could no longer
   blank a reading the stance had already pinned.
 
 - **`bba-gen --their-ns` no longer leaks our classify-time knobs onto their
@@ -675,6 +682,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   Seeded `smoke-default` / `smoke-dutch` dumps (20 000 boards each) are
   byte-identical, and `cards/*.bbsa` regenerate unchanged.
+
+- **The bidding trait is `Bidder`, not `System`.**  It is an *adapter*
+  interface — `Table<S, S>` is generic over it, and the three foreign engines
+  (BBA/EPBot, BEN, the bench `Legacy` implementor) are reachable only through
+  it — so naming it for the thing that picks a call, rather than for the thing
+  a partnership plays, frees `System` for what actually is one.
+
+  **Breaking:** `pons::bidding::System` is now `pons::bidding::Bidder`.  The
+  `.bbsa` disclosure format's `System type` header is untouched, as is every
+  bridge-sense use of the word ("system on", "the 2/1 system").
 
 - **Landy and Woolsey share one strength band.**  They are the same defense
   apart from the double — Landy's `2♣` and Woolsey's are the identical
@@ -7432,7 +7449,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   as truth — a caveat for anything else calibrated against it. The replay
   arm's 0.1060 stays the number of record as the conservative end.
 
-  **Nothing consumes the net yet** — it is not a `Classifier` and no `System`
+  **Nothing consumes the net yet** — it is not a `Classifier` and no `Bidder`
   references it, so no bidding behaviour changes and no A/B applies. It is
   ungated: the weights are 37 KB of `include_bytes!` and no dependency, so a
   cargo feature would buy binary size already conceded tenfold by the 393 KB
@@ -7976,7 +7993,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   not name at −∞ while the unconditional 3NT kept the node's best finite — the
   documented all-−∞ escape hatch could never fire, and the replay gate rejected
   those calls for **every** hand (0% fill, the search silently falling back to
-  range-only worlds). With no node the floor answers, `System::authored_at` is
+  range-only worlds). With no node the floor answers, `Bidder::authored_at` is
   false, and the gate abstains; `probe-replay-yield` goes 0.0% → 100.0% on
   `1♠ - 2♣ - 2♦ - 2♥ - 3♣` with no sampler change.
 
@@ -8321,7 +8338,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   measured **~0.1 s/bid, ~0.92 s/board, ~1.0 GB RSS/instance**.
   `--calibrate-epbot` seats the vendored EPBot at our chairs (zero pons in
   the loop) for the Table-1 calibration, via `BbaOracle` + the
-  `&dyn System` match drivers factored **verbatim** out of `bba-gen` into
+  `&dyn Bidder` match drivers factored **verbatim** out of `bba-gen` into
   shared `examples/common/oracle.rs`. `bba-decompose` report headlines now
   read the dump's `our_label`/`their_label` instead of hardcoded
   `"our american floor"`/`"BBA 2/1"`. Ops: `scripts/ben-servers.sh

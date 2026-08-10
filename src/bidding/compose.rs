@@ -1,24 +1,24 @@
 //! Lazy composition of bidding systems
 //!
-//! These combinators wrap arbitrary [`System`]s — a bound [`Stance`], a
+//! These combinators wrap arbitrary [`Bidder`]s — a bound [`Stance`], a
 //! learned model, anything implementing the trait — so they stay lazy
 //! wrapper structs rather than materialized tries.  Structural fusion of
 //! books belongs to `merge` on [`Trie`] instead.
 //!
-//! Neither combinator touches vulnerability: per the [`System`] convention
+//! Neither combinator touches vulnerability: per the [`Bidder`] convention
 //! it is relative to the side to act, so it passes through unchanged.
 //!
 //! [`Stance`]: super::book::Stance
 //! [`Trie`]: super::Trie
 
-use super::System;
+use super::Bidder;
 use super::array::Logits;
 use contract_bridge::Hand;
 use contract_bridge::auction::{Call, RelativeVulnerability};
 
 /// A table where two partnership systems oppose each other
 ///
-/// Constructed by [`System::vs`]: `a.vs(b)` is the table where the
+/// Constructed by [`Bidder::vs`]: `a.vs(b)` is the table where the
 /// partnership playing `a` is the dealer's side.  Sides alternate strictly
 /// by call index, so dispatch is by parity alone: the dealer's side acts at
 /// even auction lengths, the other side at odd ones.
@@ -40,7 +40,7 @@ impl<A, B> Versus<A, B> {
     }
 }
 
-impl<A: System, B: System> System for Versus<A, B> {
+impl<A: Bidder, B: Bidder> Bidder for Versus<A, B> {
     fn classify(&self, hand: Hand, vul: RelativeVulnerability, auction: &[Call]) -> Option<Logits> {
         if auction.len().is_multiple_of(2) {
             self.dealer_side.classify(hand, vul, auction)
@@ -52,7 +52,7 @@ impl<A: System, B: System> System for Versus<A, B> {
 
 /// A layered system falling through to a second one
 ///
-/// Constructed by [`System::or_else`]: `a.or_else(b)` answers from `a`,
+/// Constructed by [`Bidder::or_else`]: `a.or_else(b)` answers from `a`,
 /// falling through to `b` when `a` returns [`None`] or logits without any
 /// probability mass (the book covers the auction, but no call fits the
 /// hand).  Typical layering: an authored book over a learned model or a
@@ -70,7 +70,7 @@ impl<A, B> OrElse<A, B> {
     }
 }
 
-impl<A: System, B: System> System for OrElse<A, B> {
+impl<A: Bidder, B: Bidder> Bidder for OrElse<A, B> {
     fn classify(&self, hand: Hand, vul: RelativeVulnerability, auction: &[Call]) -> Option<Logits> {
         self.first
             .classify(hand, vul, auction)

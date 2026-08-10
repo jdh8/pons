@@ -29,7 +29,7 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::eval::hcp;
 use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Hand, Level, Seat, Strain, Suit};
 use pons::american;
-use pons::bidding::System;
+use pons::bidding::Bidder;
 use pons::bidding::array::Logits;
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -234,10 +234,10 @@ fn ben_vulnerability(vul: RelativeVulnerability, actor: usize) -> &'static str {
 }
 
 // ---------------------------------------------------------------------------
-// The BEN oracle: the REST `/bid` endpoint driven as a pons `System`
+// The BEN oracle: the REST `/bid` endpoint driven as a pons `Bidder`
 // ---------------------------------------------------------------------------
 
-/// BEN behind pons's [`System`] trait — one blocking HTTP GET per call.
+/// BEN behind pons's [`Bidder`] trait — one blocking HTTP GET per call.
 ///
 /// Like [`BbaOracle`], the dealer is canonicalized (to North); each `/bid`
 /// request is stateless and, with a fixed server version + config + startup
@@ -309,7 +309,7 @@ impl BenOracle {
     }
 }
 
-impl System for BenOracle {
+impl Bidder for BenOracle {
     fn classify(&self, hand: Hand, vul: RelativeVulnerability, auction: &[Call]) -> Option<Logits> {
         let actor = auction.len() % 4;
         let seat = ["N", "E", "S", "W"][actor];
@@ -436,7 +436,7 @@ fn main() -> anyhow::Result<()> {
     } else {
         None
     };
-    let (ours, our_label): (&dyn System, &str) = match &epbot {
+    let (ours, our_label): (&dyn Bidder, &str) = match &epbot {
         Some(oracle) => (oracle, "EPBot 2/1 (vendored)"),
         None => (&our_floor, "our american floor"),
     };

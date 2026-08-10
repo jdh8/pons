@@ -24,7 +24,7 @@ model, in two cooperating halves:
 
 - **The output is already an ML interface.** [`Logits`](../../src/bidding/array.rs)
   is "log odds … useful for machine learning" with `softmax` built in. A learned
-  policy is a drop-in [`Classifier`](../../src/bidding/trie.rs) / `System` — same
+  policy is a drop-in [`Classifier`](../../src/bidding/trie.rs) / `Bidder` — same
   signature, same 38-way output. The seam exists today.
 - **The self-improvement engine is half-built.**
   [`Inferences`](../../src/bidding/inference.rs) (per-player shown shape and

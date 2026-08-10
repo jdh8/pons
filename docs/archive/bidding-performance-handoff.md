@@ -125,7 +125,7 @@ BoundBook
   reading-profile identity
 ```
 
-Mutable standalone `Trie` values retain the legacy path. Public `Pair`, `Stance`, `Trie`, `System`, `Classifier::classify`, and `Context::new` behavior remains unchanged.
+Mutable standalone `Trie` values retain the legacy path. Public `Pair`, `Stance`, `Trie`, `Bidder`, `Classifier::classify`, and `Context::new` behavior remains unchanged.
 
 The implementation keeps an authoring ledger through trie mutation, grafting,
 merging, and flooring. Finalization consumes that ledger only in

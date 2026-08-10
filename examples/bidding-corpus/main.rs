@@ -8,7 +8,7 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat};
 use pons::bidding::book::Phase;
 use pons::bidding::context::relative;
-use pons::bidding::{Stance, System};
+use pons::bidding::{Bidder, Stance};
 use pons::{american, american_instinct};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -57,7 +57,7 @@ fn seat_to_act(dealer: Seat, len: usize) -> Seat {
 }
 
 fn next_call(
-    system: &dyn System,
+    system: &dyn Bidder,
     hand: Hand,
     vul: contract_bridge::auction::RelativeVulnerability,
     auction: &Auction,
@@ -78,7 +78,7 @@ fn next_call(
         .unwrap_or(Call::Pass)
 }
 
-fn harvest(origin: Origin, system: &dyn System, rows: &mut Vec<Row>) {
+fn harvest(origin: Origin, system: &dyn Bidder, rows: &mut Vec<Row>) {
     let mut counts = [0_usize; 4];
     for row in rows.iter().filter(|row| row.origin == origin) {
         let index = TARGETS.iter().position(|&(bin, _)| bin == row.bin).unwrap();
@@ -195,7 +195,7 @@ fn annotate_categories(stance: &Stance, deterministic: &Stance, rows: &mut [Row]
 
 fn harvest_deal(
     origin: Origin,
-    system: &dyn System,
+    system: &dyn Bidder,
     deal: &FullDeal,
     dealer: Seat,
     vul: AbsoluteVulnerability,

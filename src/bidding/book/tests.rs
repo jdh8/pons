@@ -8,7 +8,7 @@ const fn bid(level: u8, strain: Strain) -> Call {
 
 #[test]
 fn table_deal_state_activates_the_causal_cache_at_deep_prefixes() {
-    use crate::bidding::System;
+    use crate::bidding::Bidder;
     use crate::bidding::american::american_book;
     use contract_bridge::auction::RelativeVulnerability;
 

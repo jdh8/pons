@@ -14,7 +14,7 @@ use contract_bridge::{AbsoluteVulnerability, Hand, Seat};
 use pons::bidding::agreements::Agreements;
 use pons::bidding::context::relative;
 use pons::bidding::instinct::RkcbVariant;
-use pons::bidding::{Stance, System, american};
+use pons::bidding::{Bidder, Stance, american};
 use pons::scoring::final_contract;
 
 #[path = "../common/mod.rs"]

@@ -28,7 +28,7 @@
 //! loop forever.  A smarter importance sampler can replace the rejection loop
 //! later if EV throughput demands it; the signature would not change.
 
-use super::System;
+use super::Bidder;
 use super::inference::{Inferences, Relative, relative_of};
 use contract_bridge::auction::{Auction, Call, RelativeVulnerability};
 use contract_bridge::deck::fill_deals;
@@ -119,7 +119,7 @@ pub fn sample_layouts(
 ///
 /// A hand is kept iff it (a) falls within `inferences` — the old range reading,
 /// which covers every call — *and* (b) at every **authored** node a non-actor
-/// player bid ([`System::authored_at`]), `policy` re-run on the candidate ranks
+/// player bid ([`Bidder::authored_at`]), `policy` re-run on the candidate ranks
 /// the made call within a margin of its best legal call.  Replay only tightens
 /// where a rule answers; a bid the keyless floor handled (a competitive
 /// raise/rebid with no authored node) is left to the range reading alone.  `vul`
@@ -135,7 +135,7 @@ pub fn sample_layouts(
 pub fn sample_layouts_replay(
     hand: Hand,
     seat: Seat,
-    policy: &dyn System,
+    policy: &dyn Bidder,
     vul: RelativeVulnerability,
     auction: &[Call],
     inferences: &Inferences,
@@ -221,7 +221,7 @@ fn within_ranges(deal: &FullDeal, seat: Seat, inferences: &Inferences) -> bool {
 fn rules_accept(
     deal: &FullDeal,
     seat: Seat,
-    policy: &dyn System,
+    policy: &dyn Bidder,
     vul: RelativeVulnerability,
     auction: &[Call],
 ) -> bool {
@@ -256,7 +256,7 @@ fn rules_accept(
 /// stay in.
 fn made_plausibly(
     hand: Hand,
-    policy: &dyn System,
+    policy: &dyn Bidder,
     vul: RelativeVulnerability,
     prefix: &[Call],
     made: Call,

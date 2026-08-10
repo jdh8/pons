@@ -20,7 +20,7 @@ fn balanced_twenty() -> Hand {
 }
 
 /// The deterministic continuation policy used throughout these tests.
-fn deterministic() -> impl System {
+fn deterministic() -> impl Bidder {
     american(&crate::bidding::agreements::Agreements::default()).against()
 }
 

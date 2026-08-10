@@ -30,7 +30,7 @@ use std::sync::atomic::AtomicUsize;
 /// Convert absolute vulnerability to the perspective of a seat
 ///
 /// This is the only vulnerability conversion in the crate: drivers call it
-/// once per [`classify`][super::System::classify] call, and systems pass the
+/// once per [`classify`][super::Bidder::classify] call, and systems pass the
 /// relative value through unchanged.
 #[must_use]
 pub fn relative(vul: AbsoluteVulnerability, seat: Seat) -> RelativeVulnerability {

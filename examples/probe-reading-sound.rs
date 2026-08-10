@@ -43,7 +43,7 @@ use contract_bridge::auction::Call;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use pons::american;
 use pons::bidding::context::relative;
-use pons::bidding::{Relative, Stance, System};
+use pons::bidding::{Bidder, Relative, Stance};
 use std::collections::HashMap;
 use std::ffi::{CString, c_int};
 
@@ -283,7 +283,7 @@ fn main() -> anyhow::Result<()> {
                 .with_opponents((!args.no_disclose).then(our_card)),
         ),
     };
-    let opponent: &dyn System = match (&their_floor, &bba) {
+    let opponent: &dyn Bidder = match (&their_floor, &bba) {
         (Some(book), _) => book,
         (None, Some(oracle)) => oracle,
         (None, None) => unreachable!("one of the two is always built"),

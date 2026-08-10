@@ -175,7 +175,7 @@ keyless construction that feeds `Inferences::read`/`features` is
 [`SearchBook::classify`](../../../src/bidding/search_floor.rs#L241), which re-derived a
 fresh `Context::new`; every other keyless `Inferences::read` caller is
 `#[cfg(test)]`. So the wire is one line — `SearchBook` builds
-`self.stance.prefixed_context(...)` instead — no `System`-trait accessor needed.
+`self.stance.prefixed_context(...)` instead — no `Bidder`-trait accessor needed.
 
 What shipped:
 

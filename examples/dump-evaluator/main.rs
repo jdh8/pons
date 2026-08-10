@@ -47,7 +47,7 @@ use pons::bidding::features::{
     features_eval_v4, features_v3,
 };
 use pons::bidding::tags::derive;
-use pons::bidding::{Inferences, Phase, Stance, System};
+use pons::bidding::{Bidder, Inferences, Phase, Stance};
 use pons::{american, dutch, gib};
 use rand::rngs::StdRng;
 use rand::{RngExt, SeedableRng};

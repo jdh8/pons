@@ -15,7 +15,7 @@ use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::deck::full_deal;
 use contract_bridge::{Bid, Hand, Seat, Strain};
 use pons::bidding::constraint::{point_count, support_point_count};
-use pons::{System, dutch};
+use pons::{Bidder, dutch};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 

@@ -35,7 +35,7 @@ use super::rows::compile_into;
 ///
 /// ```
 /// use pons::dutch_default;
-/// use pons::bidding::System;
+/// use pons::bidding::Bidder;
 /// use contract_bridge::auction::{Call, RelativeVulnerability};
 /// use contract_bridge::{Bid, Strain};
 ///

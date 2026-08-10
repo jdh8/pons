@@ -18,7 +18,7 @@ use pons::bidding::agreements::Agreements;
 use pons::bidding::card::{Card, american_card, dutch_card};
 use pons::bidding::context::relative;
 use pons::bidding::features::{Config, ConventionCard};
-use pons::bidding::{Stance, System};
+use pons::bidding::{Bidder, Stance};
 use pons::scoring::{
     final_contract, imps, ns_score_contract, ns_score_pd, ns_score_pd_tricks, ns_score_tricks,
 };

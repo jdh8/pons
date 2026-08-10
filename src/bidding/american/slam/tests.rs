@@ -1,7 +1,7 @@
 use super::*;
 use crate::bidding::agreements::Agreements;
 use crate::bidding::rows::compile_entries;
-use crate::bidding::{System, Trie};
+use crate::bidding::{Bidder, Trie};
 use contract_bridge::auction::RelativeVulnerability;
 use contract_bridge::{Hand, Strain};
 

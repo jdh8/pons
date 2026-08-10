@@ -1,5 +1,5 @@
 use super::dutch;
-use crate::bidding::System;
+use crate::bidding::Bidder;
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::{Bid, Strain};
 

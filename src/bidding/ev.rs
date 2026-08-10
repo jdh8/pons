@@ -19,7 +19,7 @@
 //!    chases phantom saves into runaway competitive auctions.
 //! 4. **Average** over layouts.  That average is the call's EV.
 //!
-//! The continuation policy is a [`System`] *parameter*, not hardwired.  M2.2
+//! The continuation policy is a [`Bidder`] *parameter*, not hardwired.  M2.2
 //! defaults callers to the deterministic [`american`][crate::american()]
 //! (debuggable, and ≈ the distilled net at bootstrap); the M3 search-improvement
 //! loop swaps in successive nets without touching this code.
@@ -30,7 +30,7 @@
 //! `n` solves, not `k · n`.  This batch form is also what the M2.3 live search
 //! bidder wants — score the net-shortlisted top-`k` at once.
 
-use super::System;
+use super::Bidder;
 use super::context::Context;
 use super::sampler::{sample_layouts, sample_layouts_replay};
 use super::table::Table;
@@ -72,7 +72,7 @@ pub fn ev_all(
     vul: AbsoluteVulnerability,
     context: &Context<'_>,
     calls: &[Call],
-    policy: &impl System,
+    policy: &impl Bidder,
     rng: &mut impl Rng,
     n: usize,
 ) -> Vec<f32> {

@@ -118,7 +118,7 @@ pub use responses::{TwoOverOneGate, major_responses, minor_responses};
 ///
 /// ```
 /// use pons::american_default;
-/// use pons::bidding::System;
+/// use pons::bidding::Bidder;
 /// use contract_bridge::auction::{Call, RelativeVulnerability};
 /// use contract_bridge::{Bid, Strain};
 ///
