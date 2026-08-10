@@ -122,7 +122,7 @@ const INV_5CARD: Alert = Alert("inv-5card-major");
 /// This is a function because declarative [`Package`] gates are bare function
 /// pointers and cannot capture a local from [`register_one_nt`].
 fn puppet_scheme(agreements: &Agreements) -> bool {
-    agreements.decision.reading.notrump_minors() == PUPPET
+    agreements.decision.reading.notrump_minors == PUPPET
 }
 
 /// The anti-gate of [`puppet_scheme`], for the European packages
@@ -251,8 +251,7 @@ pub fn notrump_responses(agreements: &Agreements) -> Rules {
                     |hand: Hand, context: &Context<'_>| {
                         let profile = context.decision_profile();
                         !profile.transfer_gf_majors
-                            || usize::from(point_count_on(profile.reading.point_scale(), hand))
-                                <= 16
+                            || usize::from(point_count_on(profile.reading.point_scale, hand)) <= 16
                     },
                 ),
         )
@@ -380,7 +379,7 @@ pub fn notrump_responses(agreements: &Agreements) -> Rules {
 
 /// The minor scheme *not* selected — the one [`notrump_responses`] gates out
 fn dormant_minors(agreements: &Agreements) -> Alert {
-    if agreements.decision.reading.notrump_minors() == PUPPET {
+    if agreements.decision.reading.notrump_minors == PUPPET {
         EUROPEAN
     } else {
         PUPPET

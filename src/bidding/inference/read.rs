@@ -342,7 +342,7 @@ impl Inferences {
             // projection pass off the table's own Pass gate (`points(..12)` —
             // see `ReadingProfile::pass`).  The walk below needs an opening, so
             // apply the overlay here and return.
-            if profile.pass_reading() {
+            if profile.pass {
                 let (overlay, agreement, _) = project_authored(context);
                 for (player, projected) in players.iter_mut().zip(&overlay) {
                     *player = player.intersect(&projected.hull());

@@ -1,9 +1,9 @@
 //! The Gladiator structure after our `1NT` overcall
 //!
 //! Opt-in under
-//! [`nt_overcall_gladiator`][crate::bidding::inference::ReadingProfile::nt_overcall_gladiator]:
+//! [`nt_overcall_gladiator`][field@crate::bidding::inference::ReadingProfile::nt_overcall_gladiator]:
 //! a relay structure replacing plain systems-on
-//! ([`nt_overcall_systems_on`][crate::bidding::inference::ReadingProfile::nt_overcall_systems_on])
+//! ([`nt_overcall_systems_on`][field@crate::bidding::inference::ReadingProfile::nt_overcall_systems_on])
 //! when we overcall `1NT` over their major, so the strong hand declares and
 //! advancer can invite, force, or escape a double.
 
@@ -11,7 +11,7 @@ use super::advance_sohl::sohl_rows_over;
 use super::*;
 
 /// Gladiator: the advances of our 1NT overcall of their major
-/// ([`nt_overcall_gladiator`][crate::bidding::inference::ReadingProfile::nt_overcall_gladiator])
+/// ([`nt_overcall_gladiator`][field@crate::bidding::inference::ReadingProfile::nt_overcall_gladiator])
 ///
 /// Over a MAJOR one Stayman-found major is theirs, so the systems-on graft of
 /// the whole opening-1NT structure does not fit the geometry; Gladiator replaces
@@ -25,7 +25,7 @@ use super::*;
 pub(super) fn gladiator_package() -> Package {
     Package {
         name: "gladiator",
-        gate: |agreements| agreements.decision.reading.nt_overcall_gladiator(),
+        gate: |agreements| agreements.decision.reading.nt_overcall_gladiator,
         entries: |_| {
             let mut entries = Vec::new();
             for suit in [Suit::Hearts, Suit::Spades] {
@@ -196,7 +196,7 @@ pub(super) fn gladiator_package() -> Package {
 pub(super) fn gladiator_sohl_package() -> Package {
     Package {
         name: "gladiator-sohl",
-        gate: |agreements| agreements.decision.reading.nt_overcall_gladiator(),
+        gate: |agreements| agreements.decision.reading.nt_overcall_gladiator,
         entries: |agreements| {
             let mut entries = Vec::new();
             for major in [Suit::Hearts, Suit::Spades] {

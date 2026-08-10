@@ -459,9 +459,13 @@ pub struct ReadingProfile {
     /// NN-replay gate.  Off restores range-only sampling; the
     /// `ab-search-floor` example A/Bs the two via `--no-rule-accept`.  See
     /// [`sample_layouts_replay`][crate::bidding::sampler::sample_layouts_replay].
+    /// Only [`ev`][crate::bidding::ev] gauges on this, so it follows that
+    /// module's feature gate.
     pub rule_accept: bool,
 
-    /// The point scale every strength gauge counts on
+    /// The point scale every strength gauge counts on —
+    /// [`point_count`][crate::bidding::constraint::point_count] and the slack
+    /// its projections owe raw HCP
     ///
     /// **Default [`PointCount`][crate::bidding::constraint::PointScale::PointCount]**
     /// — raw HCP plus the capped shape upgrade (0–2: +1 unbalanced, +1 for a
@@ -516,6 +520,13 @@ pub struct ReadingProfile {
     /// never in the reading folds — so the deviant opponent keeps disclosing
     /// the authored meanings, and that mismatch is the deviation being
     /// measured.
+    ///
+    /// It used to be baked into each gauge as the constraint was *built*, on
+    /// the grounds that a classify-time read would leak the dial into the book
+    /// seated opposite on the same thread.  Pinning removed that leak — the
+    /// deviant stance carries its own profile — so the dial reads from here
+    /// like every other gauge setting, and no longer needs an `&Agreements` at
+    /// 1431 `.rule()` sites to reach the three constructors.
     pub strength_dial: u8,
 
     /// Advance partner's simple overcall with Rubens transfers and the
@@ -641,7 +652,9 @@ pub struct ReadingProfile {
     /// major-opening nodes carry the jump-rebid rung alone
     /// ([`opener_major_jump_rebid`][field@Self::opener_major_jump_rebid]).  The
     /// matching reading gates on this same field, narrowing each rung's shape
-    /// and strength.
+    /// and strength. Read at build time too
+    /// (`american/rebids/extras_ladder.rs`), so the rebid book takes it from
+    /// here — one value, one home.
     pub opener_extras_ladder: bool,
 
     /// Author XYZ — the two-way checkback after three one-level bids
@@ -659,6 +672,9 @@ pub struct ReadingProfile {
     /// **`2♦` is an artificial game force**, after which bidding is natural.
     /// Direct two-level rebids are weak sign-offs.  The known cost: the
     /// natural `2♣` sign-off becomes an orphan.
+    ///
+    /// Read at build time too (`american/xyz.rs` gates the whole package on
+    /// it), so the rebid book takes it from here — one value, one home.
     pub xyz: bool,
 
     /// Which minor scheme our `1NT` plays — the alert its `2♠`/`2NT`/`3♣`
@@ -692,7 +708,9 @@ pub struct ReadingProfile {
     /// invitational `3M` and stranding below game — and authoring both sides
     /// flipped it to a win.  Scoped to opener's *own* suit to avoid the
     /// Meckstroth `3m` collision on the jump-shift rung; natural, so unalerted
-    /// and floor-safe, with the matching reading on this same field.
+    /// and floor-safe, with the matching reading on this same field. Read at
+    /// build time too (`american/rebids/major_jump_rebid.rs`), so the rebid book
+    /// takes it from here — one value, one home.
     pub opener_major_jump_rebid: bool,
 
     /// Author garbage (drop-dead) Stayman
@@ -768,7 +786,10 @@ pub struct ReadingProfile {
     /// naturalness tiebreak (docs/measurement.md) — so the simplification is
     /// the opt-in.  The M6.4 control-bid classifier reads the same discipline
     /// at classify time: the response rule, the rebid structure and the
-    /// classifier move together.
+    /// classifier move together. Read at build time too
+    /// (`american/responses/longer_major.rs` picks the selector pair off it),
+    /// which is why the response book takes it from here rather than keeping
+    /// another copy of its own — one value, one home.
     pub longer_major_response: bool,
 
     /// The Landy `2♣` band, or `None` when Landy is off
@@ -830,6 +851,10 @@ pub struct ReadingProfile {
     /// [`Wide6322`][crate::bidding::american::NotrumpShape::Wide6322] minus
     /// its two major pan-handles.  The opening reading widens opener's minors
     /// to six off this same field.
+    ///
+    /// Read at build time too (`american/openings/two_notrump.rs` picks the
+    /// shape gate off it), which is why the opening book takes it from here
+    /// rather than keeping another copy of its own — one value, one home.
     pub two_notrump_wide: bool,
 
     /// The floor asks and answers RKCB 1430 (M6.4)
@@ -949,198 +974,6 @@ impl ReadingProfile {
             ReadingScope::Alerted => alerted,
             ReadingScope::All => true,
         }
-    }
-
-    pub(crate) const fn pass_reading(self) -> bool {
-        self.pass
-    }
-
-    pub(crate) const fn pass_exclusion_reading(self) -> bool {
-        self.pass_exclusion
-    }
-
-    pub(crate) const fn announced_reading(self) -> bool {
-        self.announced
-    }
-
-    pub(crate) const fn probed_reading(self) -> bool {
-        self.probed
-    }
-
-    pub(crate) const fn probed_vacuous_reading(self) -> bool {
-        self.probed_vacuous
-    }
-
-    pub(crate) const fn gauge_membership(self) -> bool {
-        self.gauge_membership
-    }
-
-    /// Only [`ev`][crate::bidding::ev] gauges on this, so it follows that
-    /// module's feature gate.
-    #[cfg(feature = "dd")]
-    pub(crate) const fn rule_accept(self) -> bool {
-        self.rule_accept
-    }
-
-    /// The point scale every strength gauge counts on — [`point_count`] and the
-    /// slack its projections owe raw HCP.
-    ///
-    /// [`point_count`]: crate::bidding::constraint::point_count
-    pub(crate) const fn point_scale(self) -> crate::bidding::constraint::PointScale {
-        self.point_scale
-    }
-
-    /// Whether the fit-known shortness scale gauges `support_points`.  Lives
-    /// here beside [`point_scale`][Self::point_scale] rather than in
-    /// `DecisionProfile`, because the reading layer gauges box membership on it
-    /// too (`Envelope::supports`) — one value, one home.
-    pub(crate) const fn support_points(self) -> bool {
-        self.support_points
-    }
-
-    /// The deviation panel's antisymmetric strength adjustment
-    /// ([`strength_dial`][field@Self::strength_dial],
-    /// **default 0**, measurement only).  The magnitude only: the direction is
-    /// chosen per decision from the auction (`dial_shift`).
-    ///
-    /// It used to be baked into each gauge as the constraint was *built*, on
-    /// the grounds that a classify-time read would leak the dial into the book
-    /// seated opposite on the same thread.  Pinning removed that leak — the
-    /// deviant stance carries its own profile — so the dial reads from here
-    /// like every other gauge setting, and no longer needs an `&Agreements` at
-    /// 1431 `.rule()` sites to reach the three constructors.
-    pub(crate) const fn strength_dial(self) -> u8 {
-        self.strength_dial
-    }
-
-    /// Whether the strong `2NT` opening carries the wide-minor shape.  Read at
-    /// build time too (`american/openings/two_notrump.rs` picks the shape gate
-    /// off it), which is why the opening book takes it from here rather than
-    /// keeping another copy of its own — one value, one home.
-    pub(crate) const fn two_notrump_wide(self) -> bool {
-        self.two_notrump_wide
-    }
-
-    /// Whether a response to our minor names the longer major.  Read at build
-    /// time too (`american/responses/longer_major.rs` picks the selector pair
-    /// off it), which is why the response book takes it from here rather than
-    /// keeping another copy of its own — one value, one home.
-    pub(crate) const fn longer_major_response(self) -> bool {
-        self.longer_major_response
-    }
-
-    /// Whether opener's strength-showing ladder is authored.  Read at build
-    /// time too (`american/rebids/extras_ladder.rs`), so the rebid book takes
-    /// it from here — one value, one home.
-    pub(crate) const fn opener_extras_ladder(self) -> bool {
-        self.opener_extras_ladder
-    }
-
-    /// Whether opener's `3M` jump rebid is authored.  Read at build time too
-    /// (`american/rebids/major_jump_rebid.rs`), so the rebid book takes it from
-    /// here — one value, one home.
-    pub(crate) const fn opener_major_jump_rebid(self) -> bool {
-        self.opener_major_jump_rebid
-    }
-
-    /// Whether two-way checkback (XYZ) is authored.  Read at build time too
-    /// (`american/xyz.rs` gates the whole package on it), so the rebid book
-    /// takes it from here — one value, one home.
-    pub(crate) const fn xyz(self) -> bool {
-        self.xyz
-    }
-
-    // The twelve values the defensive and notrump books also build from.
-    // They were briefly duplicated into `DefenseKnobs`/`NotrumpKnobs`, which
-    // put one agreement in two homes. The books read them from here so the two
-    // halves cannot diverge.
-
-    /// Which notrump defense we play against their `1NT`
-    pub(crate) const fn notrump_defense(self) -> crate::bidding::american::NotrumpDefense {
-        self.notrump_defense
-    }
-
-    /// Optional `(min, max)` HCP band overriding the Landy `2♣` overcall
-    pub(crate) const fn landy_range(self) -> Option<(u8, u8)> {
-        self.landy_range
-    }
-
-    /// `(min, max)` HCP band on the Woolsey defense's overcalls
-    pub(crate) const fn woolsey_points(self) -> (u8, u8) {
-        self.woolsey_points
-    }
-
-    /// HCP floor on the Woolsey defense's double
-    pub(crate) const fn woolsey_double_floor(self) -> u8 {
-        self.woolsey_double_floor
-    }
-
-    /// HCP floor on the natural defense's double
-    pub(crate) const fn natural_double_floor(self) -> u8 {
-        self.natural_double_floor
-    }
-
-    /// `(min, max)` HCP band on the natural defense's overcalls
-    pub(crate) const fn natural_overcall_points(self) -> (u8, u8) {
-        self.natural_overcall_points
-    }
-
-    /// Whether our structure stays on over their notrump overcall
-    pub(crate) const fn nt_overcall_systems_on(self) -> bool {
-        self.nt_overcall_systems_on
-    }
-
-    /// Whether the Gladiator major overcall of their `1NT` is authored
-    pub(crate) const fn nt_overcall_gladiator(self) -> bool {
-        self.nt_overcall_gladiator
-    }
-
-    /// Whether the `1NT - 3M` splinter is authored
-    pub(crate) const fn nt_splinter(self) -> bool {
-        self.nt_splinter
-    }
-
-    /// Which minor scheme our `1NT` plays — the alert the `2♠`/`3♣` calls carry
-    pub(crate) const fn notrump_minors(self) -> crate::bidding::rules::Alert {
-        self.notrump_minors
-    }
-
-    /// Whether garbage Stayman is authored
-    pub(crate) const fn garbage_stayman(self) -> bool {
-        self.garbage_stayman
-    }
-
-    /// Whether crawling Stayman is authored
-    pub(crate) const fn crawling_stayman(self) -> bool {
-        self.crawling_stayman
-    }
-
-    // The five values the [instinct floor][crate::bidding::instinct()] shares
-    // with the reading layer.  They live here, not in
-    // [`InstinctProfile`][crate::bidding::instinct::InstinctProfile]: one field,
-    // one home, so the two halves of a decision profile cannot disagree about
-    // what the partnership plays.
-
-    /// Whether control bids are read.  The floor's `partner_control_bid`
-    /// witness is the reading's own, so it must gate on the same field.
-    pub(crate) const fn control_bid(self) -> bool {
-        self.control_bid
-    }
-
-    pub(crate) const fn floor_rkcb(self) -> bool {
-        self.floor_rkcb
-    }
-
-    pub(crate) const fn rkcb_variant(self) -> crate::bidding::instinct::RkcbVariant {
-        self.rkcb_variant
-    }
-
-    pub(crate) const fn rubens_advances(self) -> bool {
-        self.rubens_advances
-    }
-
-    pub(crate) const fn penalty_latch(self) -> bool {
-        self.penalty_latch
     }
 }
 

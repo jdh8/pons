@@ -85,7 +85,7 @@ struct Args {
     pass_exclusion: bool,
 
     /// Give the strength gauges membership teeth in *both* arms
-    /// ([`pons::bidding::ReadingProfile::gauge_membership`]).  C2's membership effect should vanish
+    /// ([`gauge_membership`][field@pons::bidding::ReadingProfile::gauge_membership]).  C2's membership effect should vanish
     /// under it: C2 bounds `points` by `hcp + upgrade_ceiling(lengths)`, and
     /// a hand inside the box has `upgrade <= upgrade_ceiling`, so any hand
     /// the closure rejects was already rejected by the direct `hcp` test.

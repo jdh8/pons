@@ -49,8 +49,8 @@ pub(super) fn texas_strength_gate(
             // Side-suit shortness counts; the length term is explicit.
             let profile = context.reading_profile();
             let support = usize::from(support_point_count_in_on(
-                profile.support_points(),
-                profile.point_scale(),
+                profile.support_points,
+                profile.point_scale,
                 hand,
                 major,
             ));

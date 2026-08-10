@@ -409,7 +409,7 @@ impl Card {
 )]
 fn american_row(name: &str, a: &Agreements) -> i32 {
     // The 1NT minor scheme drives six mutually-exclusive rows at once.
-    let european = a.decision.reading.notrump_minors() == EUROPEAN;
+    let european = a.decision.reading.notrump_minors == EUROPEAN;
     match name {
         // ---- computed: a knob or a book fact moves these ----
         //
@@ -419,7 +419,7 @@ fn american_row(name: &str, a: &Agreements) -> i32 {
         "1N-2N transfer to diamonds" => i32::from(!european),
         "1N-3C transfer to diamonds" => i32::from(european),
         "1N-3C Puppet Stayman" => i32::from(!european),
-        "1N-3M splinter" => i32::from(a.decision.reading.nt_splinter()),
+        "1N-3M splinter" => i32::from(a.decision.reading.nt_splinter),
         // Either policy can admit the 5422: the shape ladder from `Wide` up, or
         // the off-shape treatment on its own (which admits *any* 5422, not just
         // the five-card-minor ones).
@@ -434,19 +434,19 @@ fn american_row(name: &str, a: &Agreements) -> i32 {
         // convention we do not play, and generating it fixes the disclosure.
         "Super acceptance after NT" => i32::from(a.notrump.transfer_super_accept),
         "Fourth suit" | "Fourth suit game force" => i32::from(a.rebid.fourth_suit_forcing),
-        "Garbage Stayman" => i32::from(a.decision.reading.garbage_stayman()),
+        "Garbage Stayman" => i32::from(a.decision.reading.garbage_stayman),
         "Jordan Truscott 2NT" => i32::from(a.competition.jordan_truscott),
         // `landy_range` carries the (min, max) two-suiter range when on; the
         // mutually-exclusive direct-seat system lives in `NotrumpDefense`.
         "Landy" => {
-            i32::from(a.decision.reading.landy_range().is_some() || a.decision.reading.notrump_defense() == NotrumpDefense::DirectLandy)
+            i32::from(a.decision.reading.landy_range.is_some() || a.decision.reading.notrump_defense == NotrumpDefense::DirectLandy)
         }
-        "Multi-Landy" => i32::from(a.decision.reading.notrump_defense() == NotrumpDefense::Woolsey),
+        "Multi-Landy" => i32::from(a.decision.reading.notrump_defense == NotrumpDefense::Woolsey),
         "Leaping Michaels" => i32::from(a.defense.leaping_michaels_enabled),
         "Lebensohl after 1NT" => i32::from(a.competition.lebensohl_style != LebensohlStyle::Off),
         "Rubensohl after double" => i32::from(a.competition.lebensohl_style == LebensohlStyle::Transfer),
-        "New Minor Forcing" => i32::from(a.rebid.new_minor_forcing && !a.decision.reading.xyz()),
-        "Two Way New Minor Forcing" => i32::from(a.decision.reading.xyz()),
+        "New Minor Forcing" => i32::from(a.rebid.new_minor_forcing && !a.decision.reading.xyz),
+        "Two Way New Minor Forcing" => i32::from(a.decision.reading.xyz),
         "Responsive double" => i32::from(a.defense.responsive_takeout_enabled),
         "Support double redouble" => i32::from(a.competition.major_support_double),
         // Systems on when RHO overcalls our 1NT with 2♣ — EPBot's

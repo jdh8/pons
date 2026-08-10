@@ -2,7 +2,7 @@
 //!
 //! Three rungs above the minimum natural rebid — jump-rebid, reverse,
 //! jump-shift — disjoint from it by crisp point bands. Gated by
-//! [`opener_extras_ladder`][crate::bidding::inference::ReadingProfile::opener_extras_ladder];
+//! [`opener_extras_ladder`][field@crate::bidding::inference::ReadingProfile::opener_extras_ladder];
 //! the matching `Inferences` reading gates on the same field. Only the two
 //! minor-opening rebid nodes carry the full ladder; the major-opening nodes
 //! carry the jump-rebid rung alone (see [`super::major_jump_rebid`]).
@@ -26,7 +26,7 @@ pub(super) fn with_extras_ladder(
     responder: Option<Suit>,
     agreements: &Agreements,
 ) -> Rules {
-    if !agreements.decision.reading.opener_extras_ladder() {
+    if !agreements.decision.reading.opener_extras_ladder {
         return rules;
     }
     let opener_strain = Strain::from(opener);

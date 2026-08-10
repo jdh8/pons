@@ -428,10 +428,10 @@ impl Envelope {
             .strength
             .points
             .contains(crate::bidding::constraint::point_count_on(
-                profile.point_scale(),
+                profile.point_scale,
                 hand,
             ))
-            && (!profile.gauge_membership()
+            && (!profile.gauge_membership
                 || (self
                     .strength
                     .hcp
@@ -447,8 +447,8 @@ impl Envelope {
     fn supports(&self, hand: Hand, profile: ReadingProfile) -> bool {
         Suit::ASC.into_iter().all(|suit| {
             let value = crate::bidding::constraint::support_point_count_in_on(
-                profile.support_points(),
-                profile.point_scale(),
+                profile.support_points,
+                profile.point_scale,
                 hand,
                 suit,
             );
@@ -754,7 +754,7 @@ impl EnvelopeUnion {
 
     /// Consuming intersection used by append-only projection accumulators.
     pub(crate) fn intersect_owned(self, other: &Self, profile: ReadingProfile) -> Self {
-        let scale = profile.point_scale();
+        let scale = profile.point_scale;
         let fallback = self.hull().intersect_on(&other.hull(), scale);
         match (self.0, &other.0) {
             (EnvelopeBoxes::One(one), EnvelopeBoxes::One(two)) => Self(EnvelopeBoxes::One(
@@ -837,7 +837,7 @@ impl EnvelopeUnion {
                     box_.narrow_to_sum();
                 }
                 if profile.upgrade_closure {
-                    box_.narrow_to_upgrade(profile.point_scale());
+                    box_.narrow_to_upgrade(profile.point_scale);
                 }
                 return Self(EnvelopeBoxes::One(box_));
             }
@@ -854,7 +854,7 @@ impl EnvelopeUnion {
                     box_.narrow_to_sum();
                 }
                 if profile.upgrade_closure {
-                    box_.narrow_to_upgrade(profile.point_scale());
+                    box_.narrow_to_upgrade(profile.point_scale);
                 }
             }
         }

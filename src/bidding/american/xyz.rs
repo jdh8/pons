@@ -9,7 +9,7 @@
 //! `2♣` sign-off becomes an orphan.
 //!
 //! Everything is gated on
-//! [`xyz`][crate::bidding::inference::ReadingProfile::xyz] — default **on**,
+//! [`xyz`][field@crate::bidding::inference::ReadingProfile::xyz] — default **on**,
 //! shipped with
 //! `up_the_line` (`ab-minor-continuations`, 300k boards: the pair is
 //! plain +0.0382/+0.0559 IMPs/board NV/vul, PD +0.0289/+0.0407; XYZ alone is
@@ -274,7 +274,7 @@ fn rows_for_prefix(opening: Suit, response: Suit, rebid: Strain, knobs: &RebidKn
 pub(super) fn package() -> Package {
     Package {
         name: "xyz",
-        gate: |a| a.decision.reading.xyz(),
+        gate: |a| a.decision.reading.xyz,
         entries: |agreements| {
             let knobs = &agreements.rebid;
             let nmf = knobs.new_minor_forcing;

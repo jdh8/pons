@@ -1120,8 +1120,8 @@ impl Stance {
         // stays off); otherwise the full fold serves, as before.  A re-probe
         // of a stance with a stale map would serve that map in its first pass
         // — probe fresh stances.
-        let was = self.agreements.decision.reading.probed_reading();
-        let vacuous = self.agreements.decision.reading.probed_vacuous_reading();
+        let was = self.agreements.decision.reading.probed;
+        let vacuous = self.agreements.decision.reading.probed_vacuous;
         self.profile_mut().reading.probed = false;
         let first = boxed(harvest(self));
         self.probed = first;
@@ -1153,7 +1153,7 @@ impl Stance {
     fn harvest_board(&self, board: usize, deal: &FullDeal) -> HashMap<Vec<Call>, Observed> {
         // The stance's own pinned scale, so a harvest gauges the same points on
         // any thread — `probe` is the one bidding loop meant to fan out.
-        let scale = self.profile().reading.point_scale();
+        let scale = self.profile().reading.point_scale;
         let mut auction = Auction::new();
         let mut keys: HashMap<Vec<Call>, Observed> = HashMap::new();
         while !auction.has_ended() {

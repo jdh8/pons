@@ -51,8 +51,8 @@ pub(super) fn sixcard_invite_rebid(major: Suit, agreements: &Agreements) -> Rule
                     // Side-suit shortness counts; the length term is explicit.
                     let profile = context.reading_profile();
                     let support = usize::from(support_point_count_in_on(
-                        profile.support_points(),
-                        profile.point_scale(),
+                        profile.support_points,
+                        profile.point_scale,
                         hand,
                         major,
                     ));
@@ -82,8 +82,8 @@ fn accept_sixcard_invitation(major: Suit, agreements: &Agreements) -> Rules {
                     // the corner where the suit-indexed scale measurably won.
                     let profile = context.reading_profile();
                     let support = usize::from(support_point_count_in_on(
-                        profile.support_points(),
-                        profile.point_scale(),
+                        profile.support_points,
+                        profile.point_scale,
                         hand,
                         major,
                     ));

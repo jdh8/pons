@@ -247,15 +247,11 @@ pub fn defensive(agreements: &Agreements) -> Defensive {
     // structure (Stayman, transfers, Smolen — reflecting the same knobs), built
     // once and grafted below each `(their-suit) 1NT` so the advancer plays it
     // verbatim. On by default; see `ReadingProfile::nt_overcall_systems_on`.
-    let nt_overcall_book = agreements
-        .decision
-        .reading
-        .nt_overcall_systems_on()
-        .then(|| {
-            let mut nt = Trie::new();
-            super::notrump::register_one_nt(&mut nt, agreements);
-            nt
-        });
+    let nt_overcall_book = agreements.decision.reading.nt_overcall_systems_on.then(|| {
+        let mut nt = Trie::new();
+        super::notrump::register_one_nt(&mut nt, agreements);
+        nt
+    });
 
     // Over each one-of-a-suit opening: our direct defense, and the advances of
     // partner's Michaels cue and Unusual 2NT.
@@ -286,7 +282,7 @@ pub fn defensive(agreements: &Agreements) -> Defensive {
             // Over a major the graft's Stayman would look for a major they own;
             // `gladiator_package` replaces it with the geometry that fits.
             if matches!(suit, Suit::Hearts | Suit::Spades)
-                && agreements.decision.reading.nt_overcall_gladiator()
+                && agreements.decision.reading.nt_overcall_gladiator
             {
                 continue;
             }

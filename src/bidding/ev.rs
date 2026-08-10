@@ -81,7 +81,7 @@ pub fn ev_all(
     }
 
     let inferences = context.inferences();
-    let deals = if context.reading_profile().rule_accept() {
+    let deals = if context.reading_profile().rule_accept {
         // Read each authored prior bid by replaying the rule that authored it
         // (frozen at its node); unauthored nodes fall back to the range reading.
         let mut deals = sample_layouts_replay(

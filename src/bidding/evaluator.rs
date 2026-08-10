@@ -310,7 +310,7 @@ pub fn trick_estimates_with_auction_on(
     debug_assert_eq!(x.len(), IN_V3);
     // The exclusion twin was fit on readings carrying the pass-exclusion caps;
     // serving it only under its knob keeps knob-off byte-identical.
-    let weights = if profile.reading.pass_exclusion_reading() {
+    let weights = if profile.reading.pass_exclusion {
         &WEIGHTS_V3_EXCLUSION
     } else {
         &WEIGHTS_V3_UNION_READING

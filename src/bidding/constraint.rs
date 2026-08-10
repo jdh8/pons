@@ -1258,7 +1258,7 @@ struct Hcp<R> {
 impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Hcp<R> {
     fn eval(&self, hand: Hand, context: &Context<'_>) -> f32 {
         let value = raw_hcp(hand);
-        let dial = context.reading_profile().strength_dial();
+        let dial = context.reading_profile().strength_dial;
         if dial == 0 {
             return crisp(self.range.contains(&value));
         }
@@ -1293,7 +1293,7 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Hcp<R> {
         // under its HCP, so that scale gives the floor back 1.  The ceiling
         // returns in [`project_band`][Constraint::project_band], widened by
         // [`hcp_ceiling_slack`].
-        let slack = flat_hcp_slack(context.reading_profile().point_scale());
+        let slack = flat_hcp_slack(context.reading_profile().point_scale);
         let floor = bound_range(&self.range, Range::FULL_POINTS.max).min;
         let mut inference = Envelope::unknown();
         inference.strength.points = Range::new(floor.saturating_sub(slack), Range::FULL_POINTS.max);
@@ -1304,7 +1304,7 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Hcp<R> {
 
     fn project_band(&self, context: &Context<'_>) -> EnvelopeUnion {
         EnvelopeUnion::from(hcp_band(
-            context.reading_profile().point_scale(),
+            context.reading_profile().point_scale,
             bound_range(&self.range, Range::FULL_POINTS.max),
         ))
     }
@@ -1320,7 +1320,7 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Hcp<R> {
             bound_range(&self.range, Range::FULL_POINTS.max),
             Range::FULL_POINTS.max,
         )
-        .map(|half| EnvelopeUnion::from(hcp_band(profile.point_scale(), half)))
+        .map(|half| EnvelopeUnion::from(hcp_band(profile.point_scale, half)))
         .reduce(|a, b| a.disjoin_with(b, profile))
         .unwrap_or_else(EnvelopeUnion::unknown)
     }
@@ -1510,8 +1510,8 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Points<R> {
         // sampler's soundness invariant (it measures the same number) holds
         // on every arm of the point-scale A/B.
         let profile = context.reading_profile();
-        let value = point_count_on(profile.point_scale(), hand);
-        let dial = profile.strength_dial();
+        let value = point_count_on(profile.point_scale, hand);
+        let dial = profile.strength_dial;
         if dial == 0 {
             return crisp(self.range.contains(&value));
         }
@@ -1551,7 +1551,7 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Points<R> {
             // whose HCP box the points box (correctly) swallows loses its HCP
             // knowledge entirely.  New precision — knob-gated.
             inference.strength.hcp = Range::new(
-                floor.saturating_sub(hcp_ceiling_slack(profile.point_scale())),
+                floor.saturating_sub(hcp_ceiling_slack(profile.point_scale)),
                 Range::FULL_POINTS.max,
             );
         }
@@ -1571,9 +1571,9 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Points<R> {
             // reads a flat 4-3-3-3 one under its HCP).  Knob-gated as above.
             inference.strength.hcp = Range::new(
                 band.min
-                    .saturating_sub(hcp_ceiling_slack(profile.point_scale())),
+                    .saturating_sub(hcp_ceiling_slack(profile.point_scale)),
                 band.max
-                    .saturating_add(flat_hcp_slack(profile.point_scale()))
+                    .saturating_add(flat_hcp_slack(profile.point_scale))
                     .min(Range::FULL_POINTS.max),
             );
         }
@@ -1705,13 +1705,9 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for SupportPoints<R> {
         // "unbounded", so the clamp keeps a freak hand inside every
         // floor-only band.
         let profile = context.reading_profile();
-        let value = support_point_count_in_on(
-            profile.support_points(),
-            profile.point_scale(),
-            hand,
-            self.suit,
-        );
-        let dial = profile.strength_dial();
+        let value =
+            support_point_count_in_on(profile.support_points, profile.point_scale, hand, self.suit);
+        let dial = profile.strength_dial;
         if dial == 0 {
             return crisp(self.band().contains(value.min(Range::FULL_POINTS.max)));
         }
@@ -1969,7 +1965,7 @@ impl<const N: usize, R: RangeBounds<usize> + Clone + Send + Sync> Constraint for
     fn project(&self, context: &Context<'_>) -> EnvelopeUnion {
         // Every named suit is floored to `range` (the same exact `len` check), so
         // the projection intersects each suit's bound — sound *and* tight.
-        let scale = context.reading_profile().point_scale();
+        let scale = context.reading_profile().point_scale;
         EnvelopeUnion::from(
             self.suits
                 .iter()

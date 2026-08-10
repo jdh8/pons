@@ -3,7 +3,7 @@
 //! The base convention: responder's `2♣`, opener's `2♦`/`2♥`/`2♠`, responder's
 //! rebid whether or not a major came back, Smolen after the denial, and the
 //! invitation-acceptance tables.  Garbage (drop-dead) Stayman rides it under
-//! [`garbage_stayman`][crate::bidding::inference::ReadingProfile::garbage_stayman],
+//! [`garbage_stayman`][field@crate::bidding::inference::ReadingProfile::garbage_stayman],
 //! the net-force seam under
 //! [`DecisionProfile::stayman_net_force`][crate::bidding::context::DecisionProfile::stayman_net_force].
 
@@ -21,7 +21,7 @@ use super::*;
 // ponytail: the 0-4/5-7 split and the 3-vs-4 diamond floor are tunable knobs —
 // the A/B can tighten or loosen them.
 pub(super) fn garbage_stayman_rule(agreements: &Agreements) -> Rules {
-    if !agreements.decision.reading.garbage_stayman() {
+    if !agreements.decision.reading.garbage_stayman {
         return Rules::new();
     }
     Rules::new()
@@ -301,7 +301,7 @@ pub(super) fn stayman_no_major_rebid(agreements: &Agreements) -> Rules {
             100,
             stayman_net_seam(hcp(8..), hcp(8..=8), false, Strain::Notrump, 9),
         );
-    let rules = if agreements.decision.reading.crawling_stayman() {
+    let rules = if agreements.decision.reading.crawling_stayman {
         // Crawling Stayman: 4-4 majors short in diamonds (a bare 2♥, weak) — both
         // majors, pass-or-correct (see `answer_crawling_stayman`).  Gated by the
         // diamond shortness (≤1) that brought it here: garbage hands have 3+

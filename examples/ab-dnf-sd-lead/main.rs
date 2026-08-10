@@ -1,6 +1,6 @@
 //! DNF sd-lead A/B: the **same** auction scored four ways — the
 //! [`pons::bidding::ReadingProfile::envelope_union`] ×
-//! [`pons::bidding::ReadingProfile::gauge_membership`]
+//! [`gauge_membership`][field@pons::bidding::ReadingProfile::gauge_membership]
 //! matrix (off / dnf / gauge /
 //! both), all in one process so every arm prices the identical lead question.
 //!

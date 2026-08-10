@@ -571,8 +571,8 @@ fn pinned(context: &Context<'_>) -> InstinctProfile {
 /// auction-only ladder helpers ([`kickback_ladder`], [`kickback_trump`],
 /// [`keycard_ask_bid`]) take in place of a live knob read.
 fn relocation(profile: ReadingProfile) -> RkcbVariant {
-    if profile.floor_rkcb() {
-        profile.rkcb_variant()
+    if profile.floor_rkcb {
+        profile.rkcb_variant
     } else {
         RkcbVariant::Plain
     }
@@ -1898,7 +1898,7 @@ fn keycard_asked(hand: Hand, context: &Context<'_>) -> Option<(Suit, Bid)> {
 /// (the inference consult sites skip face-dead rules) share one predicate and
 /// cannot drift — the phase-5 fix for the §7.3.1 union poison.
 fn keycard_asked_face(context: &Context<'_>) -> Option<Bid> {
-    if !context.reading_profile().floor_rkcb() {
+    if !context.reading_profile().floor_rkcb {
         return None;
     }
     let auction = context.auction();
@@ -2473,7 +2473,7 @@ fn dopi_window_face(context: &Context<'_>) -> bool {
 
 /// The face half of [`keycard_asked_over_bid`] — see [`keycard_asked_face`]
 fn keycard_asked_over_bid_face(context: &Context<'_>) -> Option<Bid> {
-    if !context.reading_profile().floor_rkcb() {
+    if !context.reading_profile().floor_rkcb {
         return None;
     }
     let auction = context.auction();
@@ -2594,7 +2594,7 @@ fn depo_answer(even: bool) -> Cons<impl Constraint + Clone> {
 /// decode had to guess, driving six off two keycards on every high guess.
 fn keycard_answered(hand: Hand, context: &Context<'_>) -> Option<(Suit, usize)> {
     use super::american::slam::count_keycards;
-    if !context.reading_profile().floor_rkcb() {
+    if !context.reading_profile().floor_rkcb {
         return None;
     }
     let auction = context.auction();
@@ -2736,7 +2736,7 @@ fn relay_window(hand: Hand, context: &Context<'_>, back: usize) -> Option<(Suit,
 /// the constraint (it cannot derive the trump), which is the right direction:
 /// the gate must be *implied by* the constraint for exclusion to stay sound.
 fn relay_window_face(context: &Context<'_>, back: usize) -> bool {
-    if !context.reading_profile().floor_rkcb() {
+    if !context.reading_profile().floor_rkcb {
         return false;
     }
     let auction = context.auction();
@@ -3148,7 +3148,7 @@ fn answer_doubled() -> Cons<impl Constraint + Clone> {
 fn respect_keycard_signoff() -> Cons<impl Constraint + Clone> {
     use super::american::slam::count_keycards;
     pred(|hand: Hand, context: &Context<'_>| {
-        if !context.reading_profile().floor_rkcb() {
+        if !context.reading_profile().floor_rkcb {
             return false;
         }
         let auction = context.auction();
@@ -3202,7 +3202,7 @@ fn respect_keycard_signoff() -> Cons<impl Constraint + Clone> {
 /// [`Inferences`]: super::inference::Inferences
 fn partner_control_bid(trump: Suit) -> Cons<impl Constraint + Clone> {
     pred(move |_: Hand, context: &Context<'_>| {
-        if !context.reading_profile().control_bid() || !context.undisturbed() {
+        if !context.reading_profile().control_bid || !context.undisturbed() {
             return false;
         }
         let n = context.auction().len();
@@ -3261,7 +3261,7 @@ fn bare_four_four_own_flat(hand: Hand, suit: Suit, partner_min: usize) -> bool {
 fn combined_points(threshold: u8) -> Cons<impl Constraint + Clone> {
     pred(move |hand: Hand, context: &Context<'_>| {
         let partner_min = context.inferences().partner().strength.shown_floor();
-        let own = point_count_on(context.reading_profile().point_scale(), hand);
+        let own = point_count_on(context.reading_profile().point_scale, hand);
         u16::from(own) + u16::from(partner_min) >= u16::from(threshold)
     })
 }
@@ -3295,7 +3295,7 @@ fn combined_hcp(threshold: u8) -> Cons<impl Constraint + Clone> {
             )
         } else {
             (
-                point_count_on(context.reading_profile().point_scale(), hand),
+                point_count_on(context.reading_profile().point_scale, hand),
                 partner.strength.shown_floor(),
             )
         };
@@ -3330,7 +3330,7 @@ fn slam_entry_reached() -> Cons<impl Constraint + Clone> {
         // `floor_slam_entry` resweep.
         let partner_min = partner_slam_strength(context);
         let reading = context.reading_profile();
-        let own = support_point_count_on(reading.support_points(), reading.point_scale(), hand);
+        let own = support_point_count_on(reading.support_points, reading.point_scale, hand);
         u16::from(own) + u16::from(partner_min) >= u16::from(pinned(context).floor_slam_entry)
     })
 }
@@ -3368,7 +3368,7 @@ fn fit_sum_game(suit: Suit, slack: u8) -> Cons<impl Constraint + Clone> {
             .unwrap_or_else(|| partner.strength.shown_floor());
         let reading = context.reading_profile();
         let own =
-            support_point_count_in_on(reading.support_points(), reading.point_scale(), hand, suit);
+            support_point_count_in_on(reading.support_points, reading.point_scale, hand, suit);
         let fit = hand[suit].len() as u16 + u16::from(partner.length(suit).min);
         u16::from(own) + u16::from(partner_pts) + fit
             >= u16::from(pinned(context).fit_sum_game.saturating_sub(slack))
@@ -3738,7 +3738,7 @@ fn undisturbed() -> Cons<impl Constraint + Clone> {
 /// penalty" — even after our side bids a suit of its own.  Gated on
 /// [`penalty_latch`][field@crate::bidding::inference::ReadingProfile::penalty_latch].
 fn penalty_latched(context: &Context<'_>) -> bool {
-    if !context.reading_profile().penalty_latch() {
+    if !context.reading_profile().penalty_latch {
         return false;
     }
     let auction = context.auction();
@@ -3897,7 +3897,7 @@ pub(crate) fn forced(context: &Context<'_>) -> bool {
 /// passed out in 5♥.  Shares [`opponents_quiet_since`] with the machinery's
 /// own gates so the two never disagree.
 pub(crate) fn keycard_conversation_now(context: &Context<'_>) -> bool {
-    if !context.reading_profile().floor_rkcb() {
+    if !context.reading_profile().floor_rkcb {
         return false;
     }
     let auction = context.auction();
@@ -4052,7 +4052,7 @@ fn advance_of_overcall(context: &Context<'_>) -> Option<(Suit, Suit, u8)> {
 /// limit-plus raise) over a new-suit transfer (advancer's own five-card suit).
 fn rubens_transfer(source: Suit, into_partner: bool) -> Cons<impl Constraint + Clone> {
     pred(move |_: Hand, context: &Context<'_>| {
-        context.reading_profile().rubens_advances()
+        context.reading_profile().rubens_advances
             && advance_of_overcall(context).is_some_and(|(x, y, level)| {
                 level == 1
                     && (x as u8) <= (source as u8)
@@ -4066,7 +4066,7 @@ fn rubens_transfer(source: Suit, into_partner: bool) -> Cons<impl Constraint + C
 /// a limit-plus raise, the cue being the opponents' suit `X`
 fn rubens_cue_raise(cue: Suit) -> Cons<impl Constraint + Clone> {
     pred(move |_: Hand, context: &Context<'_>| {
-        context.reading_profile().rubens_advances()
+        context.reading_profile().rubens_advances
             && advance_of_overcall(context)
                 .is_some_and(|(x, _, level)| level == 2 && x as u8 == cue as u8)
     })
@@ -4079,7 +4079,7 @@ fn rubens_cue_raise(cue: Suit) -> Cons<impl Constraint + Clone> {
 /// Mechanical (hand-independent), like completing a transfer over our own
 /// notrump — see [`TRANSFERS`].
 fn rubens_completion(context: &Context<'_>) -> Option<Suit> {
-    if !context.reading_profile().rubens_advances() {
+    if !context.reading_profile().rubens_advances {
         return None;
     }
     let auction = context.auction();
@@ -4116,7 +4116,7 @@ fn rubens_completes(target: Suit) -> Cons<impl Constraint + Clone> {
 /// the two level (A/B'd the dominant Rubens leak: a quarter of the divergent
 /// boards died in this passout).  Returns `(X = their suit, Y = our suit)`.
 fn rubens_cue_answer(context: &Context<'_>) -> Option<(Suit, Suit)> {
-    if !context.reading_profile().rubens_advances() {
+    if !context.reading_profile().rubens_advances {
         return None;
     }
     let auction = context.auction();
@@ -4161,7 +4161,7 @@ fn rubens_into_partner(y: Suit) -> Cons<impl Constraint + Clone> {
 /// limited partner to no super-accept, so only extras beyond our shown
 /// ten-plus move again.
 fn rubens_raiser_rebid(context: &Context<'_>) -> Option<Suit> {
-    if !context.reading_profile().rubens_advances() {
+    if !context.reading_profile().rubens_advances {
         return None;
     }
     let auction = context.auction();
@@ -4197,7 +4197,7 @@ fn rubens_raiser_rebids(y: Suit) -> Cons<impl Constraint + Clone> {
 /// `S+1 ≠ Y`: the transfer showed the suit cheaply without settling forcing
 /// questions, so a mild hand passes the completion and extras move again.
 fn rubens_transferee_rebid(context: &Context<'_>) -> Option<Suit> {
-    if !context.reading_profile().rubens_advances() {
+    if !context.reading_profile().rubens_advances {
         return None;
     }
     let auction = context.auction();
@@ -4253,7 +4253,7 @@ fn rubens_new_suit_completion(target: Suit) -> Cons<impl Constraint + Clone> {
 /// [`rubens_transfer`], at the same weight.
 fn natural_new_suit_advance(target: Suit) -> Cons<impl Constraint + Clone> {
     pred(move |_: Hand, context: &Context<'_>| {
-        !context.reading_profile().rubens_advances()
+        !context.reading_profile().rubens_advances
             && advance_of_overcall(context).is_some_and(|(x, y, level)| {
                 level == 1 && (x as u8) < (target as u8) && (target as u8) < (y as u8)
             })
@@ -5032,7 +5032,7 @@ pub fn instinct(agreements: &Agreements) -> Rules {
             Bid::new(4, Strain::Notrump),
             168,
             pred(|hand: Hand, context: &Context<'_>| {
-                context.reading_profile().floor_rkcb()
+                context.reading_profile().floor_rkcb
                     && context.undisturbed()
                     && keycard_trump(hand, context).is_some_and(|trump| {
                         let inferences = context.inferences();

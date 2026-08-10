@@ -2,7 +2,7 @@
 //!
 //! Responder's `2♥` over the diamond denial is a *pass-or-correct* signoff on
 //! both majors rather than a natural heart bid.  Gated by
-//! [`crawling_stayman`][crate::bidding::inference::ReadingProfile::crawling_stayman].
+//! [`crawling_stayman`][field@crate::bidding::inference::ReadingProfile::crawling_stayman].
 
 use super::*;
 
@@ -15,7 +15,7 @@ use super::*;
 /// Weak only (`hcp(..8)`), disjoint from constructive 2♣ and the garbage tiers
 /// (which need 3+ diamonds).  Same STAYMAN alert.  Empty when off.
 pub(super) fn crawling_stayman_rule(agreements: &Agreements) -> Rules {
-    if !agreements.decision.reading.crawling_stayman() {
+    if !agreements.decision.reading.crawling_stayman {
         return Rules::new();
     }
     Rules::new()
@@ -55,7 +55,7 @@ fn answer_crawling_stayman() -> Rules {
 pub(crate) fn crawling() -> Package {
     Package {
         name: "crawling-stayman",
-        gate: |agreements| agreements.decision.reading.crawling_stayman(),
+        gate: |agreements| agreements.decision.reading.crawling_stayman,
         entries: |_| {
             rows_of(
                 Pattern::node("P* 1NT - 2♣ - 2♦ - 2♥ -"),

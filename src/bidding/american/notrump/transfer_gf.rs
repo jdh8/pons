@@ -275,7 +275,7 @@ pub(super) fn slam_55_reroute() -> Cons<impl Constraint + Clone> {
             let profile = context.decision_profile();
             profile.transfer_gf_majors
                 && hand[Suit::Hearts].len() >= 5
-                && usize::from(point_count_on(profile.reading.point_scale(), hand)) >= 17
+                && usize::from(point_count_on(profile.reading.point_scale, hand)) >= 17
         },
     );
     // Whenever the gate accepts at all it requires 5+ hearts and 17+ points
@@ -334,8 +334,8 @@ fn is_major_splinter_slam(context: &Context<'_>, hand: Hand, major: Suit) -> boo
         // value, in lockstep with the splinter gates'
         // `support_points(major, 16..)` and the reroute boxes.
         && usize::from(support_point_count_in_on(
-            profile.support_points(),
-            profile.point_scale(),
+            profile.support_points,
+            profile.point_scale,
             hand,
             major,
         )) >= 16

@@ -42,7 +42,7 @@ impl VecEnvelopeUnion {
         let mut out = Vec::new();
         for a in &self.0 {
             for b in &other.0 {
-                if let Some(product) = a.intersect_nonempty(b, profile.point_scale()) {
+                if let Some(product) = a.intersect_nonempty(b, profile.point_scale) {
                     out.push(product);
                 }
             }
@@ -64,7 +64,7 @@ impl VecEnvelopeUnion {
                     box_.narrow_to_sum();
                 }
                 if profile.upgrade_closure {
-                    box_.narrow_to_upgrade(profile.point_scale());
+                    box_.narrow_to_upgrade(profile.point_scale);
                 }
             }
         }
@@ -341,7 +341,9 @@ fn upgrade_closure_crisps_the_balanced_band() {
 
 /// C2 is **not** membership-inert, unlike C1: it derives a bound on
 /// `points` — an axis `admits` tests — from `hcp`, an axis it does not
-/// (the write-only axis; see [`ReadingProfile::gauge_membership`]).  So the closure
+/// (the write-only axis; see
+/// [`gauge_membership`][field@crate::bidding::inference::ReadingProfile::gauge_membership]).
+/// So the closure
 /// gives an otherwise unenforced HCP claim teeth *through* `points`.
 ///
 /// Found by `examples/probe-closure-features.rs`, which cross-tested
@@ -373,8 +375,10 @@ fn upgrade_closure_gives_hcp_teeth() {
     assert!(!reading.tidy(closed).contains_on(hand, closed));
 }
 
-/// Chop E: [`ReadingProfile::gauge_membership`] gives the raw-HCP and support-points
-/// bands membership teeth; off (the default) they are inert.
+/// Chop E:
+/// [`gauge_membership`][field@crate::bidding::inference::ReadingProfile::gauge_membership]
+/// gives the raw-HCP and support-points bands membership teeth; off (the
+/// default) they are inert.
 #[test]
 fn gauge_membership_teeth() {
     // 15 raw HCP, flat 4333 (no upgrade on any scale).

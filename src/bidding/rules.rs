@@ -761,9 +761,9 @@ impl CompiledRulePlan {
         .map(|kind| {
             let eager = match kind {
                 ProjectionKind::Forward => eager_forward,
-                ProjectionKind::Band => rule.call == Call::Pass && profile.pass_reading(),
-                ProjectionKind::Complement => profile.pass_exclusion_reading(),
-                ProjectionKind::Announcement => rule.alert.is_some() && profile.announced_reading(),
+                ProjectionKind::Band => rule.call == Call::Pass && profile.pass,
+                ProjectionKind::Complement => profile.pass_exclusion,
+                ProjectionKind::Announcement => rule.alert.is_some() && profile.announced,
             };
             ProjectionPlan::compile(
                 rule,

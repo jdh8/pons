@@ -1,7 +1,7 @@
 //! The strong 2NT opening and its wide-minor shape agreement
 //!
 //! [`two_notrump_wide_shape`] is read by `src/bidding/american/defense.rs`, and
-//! [`two_notrump_wide`][crate::bidding::inference::ReadingProfile::two_notrump_wide]
+//! [`two_notrump_wide`][field@crate::bidding::inference::ReadingProfile::two_notrump_wide]
 //! is read by `src/bidding/inference.rs`.
 
 use crate::bidding::Rules;
@@ -37,7 +37,7 @@ pub(super) fn with_two_notrump(rules: Rules, agreements: &Agreements) -> Rules {
     // 2NT opener's minor length on it), so it lives in `DecisionProfile` and
     // is read from there here rather than duplicated into `OpeningKnobs` — one
     // value, one home.
-    rules = if agreements.decision.reading.two_notrump_wide() {
+    rules = if agreements.decision.reading.two_notrump_wide {
         rules.rule(
             Bid::new(2, Strain::Notrump),
             200,

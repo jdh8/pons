@@ -676,6 +676,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Seeded `smoke-default` / `smoke-dutch` dumps (20 000 boards each) are
   byte-identical, and `cards/*.bbsa` regenerate unchanged.
 
+- **`ReadingProfile` is read by field.**  Its thirty-two pass-through getters —
+  `profile.xyz()`, `profile.pass_reading()`, `profile.woolsey_points()` and the
+  rest — are deleted; the ~140 call sites read the `pub` field directly.  They
+  were the interface back when the fields were private and their values came
+  from cells.  The methods that are real logic stay: `decodes_nonpass`, and the
+  four `*_enabled` helpers that compare the defense enum.
+
 - **A `Context` serves one profile, not a precedence chain.**  `pinned_profile:
   Option<DecisionProfile>` becomes `profile: DecisionProfile` — always present.
   `Context::new` starts it at the shipped default, `with_system` takes the

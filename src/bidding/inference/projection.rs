@@ -47,7 +47,7 @@ pub(super) fn project_pass<'a>(
                 .reduce(|a, b| a.disjoin_with(b, profile))?,
         )
     };
-    if !profile.pass_exclusion_reading() {
+    if !profile.pass_exclusion {
         return Some(band);
     }
     if let Some(compiled) = compiled {
@@ -170,7 +170,7 @@ fn authored_effect<'a>(
     // non-compiled oracle's evaluation order intact for opaque public hooks.
     if let Some(compiled) = compiled {
         if is_pass {
-            if !decode_pass && compiled.can_skip_pass_effect(profile.pass_exclusion_reading()) {
+            if !decode_pass && compiled.can_skip_pass_effect(profile.pass_exclusion) {
                 return None;
             }
         } else {
@@ -337,9 +337,7 @@ fn authored_effect_is_reusable(
     profile: ReadingProfile,
 ) -> bool {
     classifier.as_rules().is_none()
-        || compiled.is_some_and(|plan| {
-            plan.can_reuse_authored_effect(made, profile.pass_exclusion_reading())
-        })
+        || compiled.is_some_and(|plan| plan.can_reuse_authored_effect(made, profile.pass_exclusion))
 }
 
 /// The per-call audit trail [`AuthoringStepCache`] appends as it walks
@@ -586,8 +584,8 @@ impl AuthoringStepCache {
             }
         }
         let full_context = full_cursor.context(vul, auction);
-        let announce_split = profile.announced_reading();
-        let read_passes = profile.pass_reading();
+        let announce_split = profile.announced;
+        let read_passes = profile.pass;
         let table_alerts = profile.table_alerts;
         let fallback_projection = profile.fallback_projection;
 
@@ -977,10 +975,10 @@ fn project_authored_with(
     };
 
     let profile = context.reading_profile();
-    let read_passes = profile.pass_reading();
+    let read_passes = profile.pass;
     let table_alerts = profile.table_alerts;
     let fallback_projection = profile.fallback_projection;
-    let announce_split = profile.announced_reading();
+    let announce_split = profile.announced;
 
     // Project the call made at `index`, authored by `classifier`, into the
     // overlay, evaluating its rules under `ctx` — always the bidder's

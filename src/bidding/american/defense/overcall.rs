@@ -3,7 +3,7 @@
 //! The base defensive table: natural suit overcalls, the `1NT` overcall, and
 //! the takeout double.  [`DoubleShape`] and [`TakeoutSupport`] tune what the
 //! double promises; the point bands and disciplines are knobs
-//! ([`natural_overcall_points`][crate::bidding::inference::ReadingProfile::natural_overcall_points],
+//! ([`natural_overcall_points`][field@crate::bidding::inference::ReadingProfile::natural_overcall_points],
 //! `agreements.defense.overcall_discipline`,
 //! `agreements.defense.passed_hand_overcall`,
 //! `agreements.defense.strong_double_hcp`).

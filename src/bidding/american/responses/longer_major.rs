@@ -43,7 +43,7 @@ fn hearts_take_first(spades: usize, hearts: usize) -> bool {
 pub(super) fn with_major_selection(rules: Rules, agreements: &Agreements) -> Rules {
     let mut rules = rules;
     // Major selection between 4+ majors, per the longer-major knob (default on).
-    rules = if agreements.decision.reading.longer_major_response() {
+    rules = if agreements.decision.reading.longer_major_response {
         // Longer-major discipline (the default): the response
         // names the longer major — 1♠ on 5♠4♥/6♠5♥ or any 5-5+, 1♥ up the
         // line only on 4-4 — so 1♥ denies longer spades and the M6.4

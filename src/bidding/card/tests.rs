@@ -24,7 +24,8 @@ fn the_checked_in_cards_match_the_generator() {
 
 /// The card never claims a relocation the floor cannot make
 ///
-/// `Kickback 1430` rides the combination of [`rkcb_variant`] and
+/// `Kickback 1430` rides the combination of
+/// [`rkcb_variant`][field@crate::bidding::inference::ReadingProfile::rkcb_variant] and
 /// [`floor_rkcb`][field@crate::bidding::inference::ReadingProfile::floor_rkcb].
 /// Before 2026-08-03 it read the variant alone, so
 /// turning the floor's keycard machinery off while a relocation was selected
