@@ -3,7 +3,7 @@
 //! The instinct floor's game/slam boundaries are point gates — combined 25 for
 //! game, the fit-sum 31, 33/37 for the slams, support-points 29 for the RKCB
 //! ask — all blind to vulnerability.  The bilans floor
-//! ([`set_bilans_floor`][pons::bidding::instinct::set_bilans_floor], **shipped
+//! ([`bilans_floor`][pons::bidding::instinct::InstinctProfile::bilans_floor], **shipped
 //! default-on** 2026-07-21 on the strength of this A/B — win/win on both
 //! scorers at both vulnerabilities, see the knob's docs) swaps the arithmetic
 //! inside those gates
@@ -38,7 +38,6 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::Accumulator;
 use pons::american;
 use pons::bidding::Stance;
-use pons::bidding::instinct::set_bilans_floor;
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -99,13 +98,11 @@ fn bid_out(
 #[allow(clippy::cast_precision_loss)]
 fn main() {
     let args = Args::parse();
-    set_bilans_floor(false);
-    let plain = american(&pons::bidding::agreements::Agreements::current()).against();
-    set_bilans_floor(true);
-    let stances = [
-        plain,
-        american(&pons::bidding::agreements::Agreements::current()).against(),
-    ];
+    let mut agreements = pons::bidding::agreements::Agreements::current();
+    agreements.decision.instinct.bilans_floor = false;
+    let plain = american(&agreements).against();
+    agreements.decision.instinct.bilans_floor = true;
+    let stances = [plain, american(&agreements).against()];
 
     // Deal sequentially (seeded, reproducible); bid both tables in parallel.
     let mut rng = StdRng::seed_from_u64(args.seed);

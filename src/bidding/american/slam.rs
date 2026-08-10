@@ -64,7 +64,7 @@ use core::ops::RangeBounds;
 pub(super) const RKCB: Alert = Alert("rkcb");
 
 /// Whether RKCB reaches agreed **minor** trumps — the book half of
-/// [`set_rkcb_minors`][crate::bidding::instinct::set_rkcb_minors]
+/// [`keycard_minors`][crate::bidding::instinct::InstinctProfile::keycard_minors]
 ///
 /// One agreement, two layers: the book authors the minor-suit plain-4NT
 /// keycard at its two vehicles — the strong-2♣ minor raise (`2♣ - 2♦ - 3m - 4m`,

@@ -2,7 +2,7 @@
 //!
 //! The floor's RKCB *ask* (4NT) fires on a known five-plus major fit once the
 //! combined minimum reaches a point floor
-//! ([`set_floor_slam_entry`][pons::bidding::instinct::set_floor_slam_entry],
+//! ([`floor_slam_entry`][pons::bidding::instinct::InstinctProfile::floor_slam_entry],
 //! default **33** — the notrump small-slam yardstick).  A population probe
 //! (`examples/probe-shape-slam`) found the 5-3/5-4 shape slams cluster at ~28–29
 //! combined points (double-dummy make-rate >50% within genuine 8+ fits), *below*
@@ -40,7 +40,6 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::Accumulator;
 use pons::american;
 use pons::bidding::Stance;
-use pons::bidding::instinct::{set_bilans_floor, set_floor_slam_entry};
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -130,14 +129,12 @@ fn main() {
     let args = Args::parse();
     // Ambient environment (both sides): the point floor is shadowed unless the
     // net floor is off (`slam_entry_reached`, src/bidding/instinct.rs).
-    set_bilans_floor(!args.no_bilans);
-    set_floor_slam_entry(BASELINE);
-    let plain = american(&pons::bidding::agreements::Agreements::current()).against();
-    set_floor_slam_entry(args.threshold);
-    let stances = [
-        plain,
-        american(&pons::bidding::agreements::Agreements::current()).against(),
-    ];
+    let mut agreements = pons::bidding::agreements::Agreements::current();
+    agreements.decision.instinct.bilans_floor = !args.no_bilans;
+    agreements.decision.instinct.floor_slam_entry = BASELINE;
+    let plain = american(&agreements).against();
+    agreements.decision.instinct.floor_slam_entry = args.threshold;
+    let stances = [plain, american(&agreements).against()];
 
     // Deal sequentially (seeded, reproducible); bid both tables in parallel.
     let mut rng = StdRng::seed_from_u64(args.seed);

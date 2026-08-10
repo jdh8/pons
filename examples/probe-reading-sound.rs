@@ -129,7 +129,7 @@ struct Args {
 /// Readings taken, and how many excluded the truth — on both predicates
 ///
 /// `bad` tests [`Inferences::admits`], the *table* reading every in-crate
-/// consumer (sampler, nets, `set_inference_aware` floor) actually sits on, and
+/// consumer (sampler, nets, inference-aware floor) actually sits on, and
 /// the one the `readings_admit_the_bidder` sweep enforces.  `bad_announced`
 /// tests `announced_union().contains`, the lenient *disclosure* overlay — the
 /// predicate of the recorded 8.2/3.3/8.3% baseline (`docs/deviation-panel.md`).

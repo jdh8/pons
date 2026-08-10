@@ -2,7 +2,7 @@ use super::*;
 use crate::bidding::agreements::Agreements;
 use crate::bidding::constraint::point_count;
 use crate::bidding::context::Context;
-use crate::bidding::inference::tests::{bid, read, read_booked};
+use crate::bidding::inference::tests::{bid, read, read_booked, read_booked_with};
 use crate::bidding::inference::{Envelope, EnvelopeUnion, Inferences, Range, Relative};
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::{Hand, Strain, Suit};
@@ -457,21 +457,23 @@ fn high_bid_under_longer_major_response() {
 
 #[test]
 fn gambling_3nt_over_double_reads_unbalanced() {
-    use crate::bidding::instinct::set_gambling_3nt_over_double;
     // `1NT (X) 3NT -`: opener reads partner's gambling 3NT.  The floor alerts the
     // call as the long-minor gamble, so the natural balanced-3NT reading is
     // suppressed and a six-card minor stays within range — the search sampler must
     // be free to deal responder its running suit, not pin it to a flat hand.
-    set_gambling_3nt_over_double(true);
-    let read = read_booked(&[
-        bid(1, Strain::Notrump),
-        Call::Double,
-        bid(3, Strain::Notrump),
-        Call::Pass,
-    ]);
+    let mut agreements = Agreements::current();
+    agreements.decision.instinct.gambling_3nt_over_double = true;
+    let read = read_booked_with(
+        &agreements,
+        &[
+            bid(1, Strain::Notrump),
+            Call::Double,
+            bid(3, Strain::Notrump),
+            Call::Pass,
+        ],
+    );
     assert!(read.partner().length(Suit::Clubs).contains(6));
     assert!(read.partner().length(Suit::Diamonds).contains(6));
-    set_gambling_3nt_over_double(false);
 }
 
 #[test]

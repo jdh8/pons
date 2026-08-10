@@ -650,7 +650,7 @@ fn gladiator_cue_min_misfit() -> Rules {
 /// as a cue, and running into the suit they opened is the worst landing on the
 /// board.  A bust with no other five-bagger sits.
 fn gladiator_doubled_runout(their_major: Suit) -> Rules {
-    // Matches the floor's `set_runout_xx_min` default: below it we run, at it
+    // Matches the floor's `InstinctProfile::runout_xx_min` default: below it we run, at it
     // or above we sit for the redouble.
     let xx_min = 7;
     let mut rules = Rules::new().rule(Call::Redouble, 120, hcp(xx_min..));

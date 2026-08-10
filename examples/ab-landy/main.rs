@@ -38,9 +38,7 @@ use pons::bidding::american::{
     DoubleShape, NotrumpDefense, notrump_defense, set_landy, set_notrump_defense,
     set_woolsey_double_floor, set_woolsey_points,
 };
-use pons::bidding::instinct::{
-    LatchStyle, set_doubler_xx_runout, set_latch_style, set_penalty_latch,
-};
+use pons::bidding::instinct::{LatchStyle, set_doubler_xx_runout, set_penalty_latch};
 use pons::scoring::{final_contract, ns_score_bid, ns_score_contract};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -442,7 +440,6 @@ fn main() {
     // fires only for the side that made the penalty X, the measured pair, so
     // arming the baseline too leaves the baseline unmoved.
     set_penalty_latch(ns_penalty_latch);
-    set_latch_style(ns_latch_style);
     set_landy(None);
     set_notrump_defense(ew_defense);
     set_doubler_xx_runout(false);
@@ -450,6 +447,7 @@ fn main() {
     // notrump-defense family and the Woolsey band are still ambient cells, so
     // each arm captures *after* its own writes and spells its fields out.
     let mut baseline_arm = pons::bidding::agreements::Agreements::current();
+    baseline_arm.decision.instinct.latch_style = ns_latch_style;
     baseline_arm.competition.penalty_pass = ew_penalty_pass;
     baseline_arm.defense.unusual_notrump_range = None;
     baseline_arm.defense.landy_use_hcp = false;
@@ -479,6 +477,7 @@ fn main() {
     set_woolsey_points(woolsey_range.0, woolsey_range.1);
     set_woolsey_double_floor(args.ns_woolsey_x_floor);
     let mut measured_arm = pons::bidding::agreements::Agreements::current();
+    measured_arm.decision.instinct.latch_style = ns_latch_style;
     measured_arm.competition.penalty_pass = ns_penalty_pass;
     measured_arm.defense.unusual_notrump_range = if ns_defense == NotrumpDefense::DirectDont {
         // DONT's own both-minors 2NT band, not the overlay's.

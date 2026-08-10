@@ -646,6 +646,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   existed — `set_choice_reroutes_the_defense` failed the moment binding stopped
   reading the thread.
 
+- **The floor's thirty-one classify-time knobs are fields, not thread-locals.**
+  `InstinctProfile` — the deterministic floor's half of the pinned
+  `DecisionProfile` — loses its cells: the doubled-`1NT` runout with its whole
+  escape / redouble / penalty family, the `2NT` minors mode, the latch style
+  and its no-pull gate, the gambling-`3NT` and preemptive-`4M` overlays with
+  their honour tests, the slam-entry and fit-sum game thresholds, the bilans
+  floor and its net collar, the keycard-minors reach and the 2/1 slam-strength
+  floor.  Arming one is `a.decision.instinct.one_nt_runout = false` before the
+  build.
+
+  Nothing on the bidding path moved: every read site already went through
+  `pinned(context)`, and the cells fed exactly one function,
+  `InstinctProfile::capture()`.  Two of the thirty-one turn out to be read at
+  *build* time as well — `rein_advance_raise` gates a ladder arm and
+  `nt_responder_game_floor` a rule's HCP band — and those two reads now come
+  off the `&Agreements` the builder already holds.
+
+  The floor's own tests gain `best_with(&agreements, …)`, which pins the
+  profile into their bare context (`Context::with_profile`) rather than
+  relying on the thread; the `best` it replaces could not have caught a read
+  escaping the pin.  The campaign keystone `stance_pins_knobs_across_threads`
+  still drives all thirty-one off their defaults, now through
+  `InstinctProfile::nondefault()` assigned onto the value it builds from.
+
+  **Breaking:** the thirty-one `pons::bidding::instinct::set_*` functions and
+  the getters that served them are gone.
+
+  Seeded `smoke-default` / `smoke-dutch` dumps (20 000 boards each) are
+  byte-identical, and `cards/*.bbsa` regenerate unchanged.
+
 - **The three classify-time profiles are public, and documented.**
   `DecisionProfile`, `ReadingProfile` and `InstinctProfile` — the `Copy`
   snapshots pinned into a `Stance` at `Pair::against`, so a stance classifies

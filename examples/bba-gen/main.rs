@@ -303,7 +303,7 @@ struct Args {
     ns_sum_closure: bool,
 
     /// Turn OFF the learned bilans floor for our side
-    /// (`instinct::set_bilans_floor`, crate default on): the converted game and
+    /// (`InstinctProfile::bilans_floor`, crate default on): the converted game and
     /// slam gates fall back to authored point arithmetic instead of asking the
     /// `evaluator_v2` net.  The isolation arm for any reading change suspected
     /// of putting the evaluator out of distribution (chop F1's mechanism) —
@@ -313,7 +313,7 @@ struct Args {
     no_ns_bilans: bool,
 
     /// Collar the bilans net for our side instead of letting it replace the
-    /// point arithmetic (`instinct::set_net_collar`, crate default off).  The
+    /// point arithmetic (`InstinctProfile::net_collar`, crate default off).  The
     /// shipped wiring masks the authored gate off and hands the net the whole
     /// criterion; with this on the arithmetic decides and the net rules on it in
     /// one direction only — accelerating at game (reaching at most 2 points
@@ -825,7 +825,7 @@ struct Args {
     /// its natural reading is suppressed and the rule's `points(13..)` gate
     /// projects to no high-card floor at all — partner reads as *zero* through
     /// the whole game force and the floor can never reach the slam-entry
-    /// threshold.  Shipped default-on; see `set_two_over_one_slam_strength`.
+    /// threshold.  Shipped default-on; see `InstinctProfile::two_over_one_slam_strength`.
     #[arg(long, default_value_t = false)]
     no_ns_two_over_one_slam_strength: bool,
 
@@ -844,7 +844,7 @@ struct Args {
 
     /// Disable the rein on a minimum takeout doubler that over-raises partner's
     /// forced advance of our double into a doubled game (default-on; see
-    /// `set_rein_advance_raise`).
+    /// `InstinctProfile::rein_advance_raise`).
     #[arg(long, default_value_t = false)]
     no_ns_rein_advance_raise: bool,
 
@@ -1458,27 +1458,11 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     // Written on both arms, not just when on: `--their-ns` arms a second seat
     // through this function and then re-arms ours to restore, which only works
     // if every knob here is *assigned*, never merely set.
-    pons::bidding::instinct::set_uvu_encircle(args.uvu);
-    pons::bidding::instinct::set_settle_floor(!args.no_settle_floor);
-    pons::bidding::instinct::set_nt_responder_game_floor(args.ns_nt_responder_game_floor);
-    pons::bidding::instinct::set_suppress_nt_game_force_over_double(
-        !args.no_ns_suppress_nt_gf_over_double,
-    );
-    pons::bidding::instinct::set_gambling_3nt_over_double(args.ns_gambling_3nt);
-    pons::bidding::instinct::set_gambling_3nt_top_honors(args.ns_gambling_3nt_top_honors);
-    pons::bidding::instinct::set_gambling_3nt_require_ace(!args.no_ns_gambling_3nt_ace);
-    pons::bidding::instinct::set_preempt_4m_over_double(args.ns_preempt_4m);
-    pons::bidding::instinct::set_preempt_4m_top_honors(args.ns_preempt_4m_top_honors);
-    pons::bidding::instinct::set_preempt_4m_require_ace(!args.no_ns_preempt_4m_ace);
-    pons::bidding::instinct::set_correct_3nt_to_major(!args.no_ns_correct_3nt_to_major);
     pons::bidding::instinct::set_penalty_latch(!args.no_ns_penalty_latch);
-    pons::bidding::instinct::set_penalty_no_pull(!args.ns_allow_pull);
-    pons::bidding::instinct::set_advancer_xx_runout(!args.no_ns_xx_runout);
     pons::bidding::instinct::set_doubler_xx_runout(!args.no_ns_doubler_run);
     pons::bidding::instinct::set_rubens_advances(args.ns_rubens);
     pons::bidding::set_rubens_transfer_reading(!args.no_ns_rubens_reading);
     pons::bidding::instinct::set_floor_rkcb(!args.no_ns_floor_rkcb);
-    pons::bidding::instinct::set_rkcb_minors(!args.no_ns_rkcb_minors);
     pons::bidding::instinct::set_rkcb_variant(args.ns_rkcb.into());
     pons::bidding::set_control_bid_reading(!args.no_ns_control_bid_reading);
     pons::bidding::set_cue_reading(!args.no_ns_cue_reading);
@@ -1488,8 +1472,6 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     pons::bidding::set_fallback_projection(!args.no_ns_fallback_projection);
     pons::bidding::set_envelope_union_reading(!args.no_ns_envelope_union);
     pons::bidding::set_gauge_membership(args.ns_gauge_membership);
-    pons::bidding::instinct::set_bilans_floor(!args.no_ns_bilans);
-    pons::bidding::instinct::set_net_collar(args.ns_net_collar);
     pons::bidding::inference::set_announced_reading(args.ns_announced_reading);
     pons::bidding::set_reading_scope(args.ns_reading_scope.into());
     pons::bidding::evaluator::set_eval_auction(!args.no_ns_eval_auction);
@@ -1527,10 +1509,8 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     pons::bidding::american::set_opener_extras_ladder(!args.no_ns_opener_extras_ladder);
     pons::bidding::american::set_opener_major_jump_rebid(!args.no_ns_opener_major_jump_rebid);
     pons::bidding::instinct::set_two_over_one_force(!args.no_ns_two_over_one_force);
-    pons::bidding::instinct::set_two_over_one_slam_strength(!args.no_ns_two_over_one_slam_strength);
     pons::bidding::instinct::set_competitive_rebid(!args.no_ns_competitive_rebid);
     pons::bidding::instinct::set_reopening_notrump(!args.no_ns_reopening_notrump);
-    pons::bidding::instinct::set_rein_advance_raise(!args.no_ns_rein_advance_raise);
     // One system, one write — the payloads then apply to whichever family owns
     // them.  No forced-off block: the cell holds exactly one variant, so
     // selecting a family already deselects the rest.
@@ -1569,6 +1549,26 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     // Captured after every ambient cell above, then the knobs that are fields
     // of the value rather than cells of the thread.
     let mut agreements = Agreements::current();
+    agreements.decision.instinct.uvu_encircle = args.uvu;
+    agreements.decision.instinct.settle_floor = !args.no_settle_floor;
+    agreements.decision.instinct.nt_responder_game_floor = args.ns_nt_responder_game_floor;
+    agreements.decision.instinct.suppress_nt_gf_over_double =
+        !args.no_ns_suppress_nt_gf_over_double;
+    agreements.decision.instinct.gambling_3nt_over_double = args.ns_gambling_3nt;
+    agreements.decision.instinct.gambling_3nt_top_honors = args.ns_gambling_3nt_top_honors;
+    agreements.decision.instinct.gambling_3nt_require_ace = !args.no_ns_gambling_3nt_ace;
+    agreements.decision.instinct.preempt_4m_over_double = args.ns_preempt_4m;
+    agreements.decision.instinct.preempt_4m_top_honors = args.ns_preempt_4m_top_honors;
+    agreements.decision.instinct.preempt_4m_require_ace = !args.no_ns_preempt_4m_ace;
+    agreements.decision.instinct.correct_3nt_to_major = !args.no_ns_correct_3nt_to_major;
+    agreements.decision.instinct.penalty_no_pull = !args.ns_allow_pull;
+    agreements.decision.instinct.advancer_xx_runout = !args.no_ns_xx_runout;
+    agreements.decision.instinct.keycard_minors = !args.no_ns_rkcb_minors;
+    agreements.decision.instinct.bilans_floor = !args.no_ns_bilans;
+    agreements.decision.instinct.net_collar = args.ns_net_collar;
+    agreements.decision.instinct.two_over_one_slam_strength =
+        !args.no_ns_two_over_one_slam_strength;
+    agreements.decision.instinct.rein_advance_raise = !args.no_ns_rein_advance_raise;
     // The competitive book.  `--uvu-x-floor` / `--uvu-cue-floor` still ride
     // inside the `--uvu` gate, as they did as cells; the difference is that a
     // gated-off floor now stays at the shipped default instead of keeping

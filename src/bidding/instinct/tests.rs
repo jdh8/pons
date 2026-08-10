@@ -10,9 +10,15 @@ const fn call(level: u8, strain: Strain) -> Call {
 
 /// The highest-logit instinct call for a hand in an auction
 fn best(auction: &[Call], hand: &str) -> Call {
+    best_with(&Agreements::current(), auction, hand)
+}
+
+/// [`best`] under an explicit profile, pinned into the bare test context
+fn best_with(agreements: &Agreements, auction: &[Call], hand: &str) -> Call {
     let hand: Hand = hand.parse().expect("valid test hand");
-    let context = Context::new(RelativeVulnerability::NONE, auction);
-    let logits = instinct(&Agreements::current()).classify(hand, &context);
+    let context =
+        Context::new(RelativeVulnerability::NONE, auction).with_profile(agreements.decision);
+    let logits = instinct(agreements).classify(hand, &context);
     (&logits.0)
         .into_iter()
         .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))
@@ -130,9 +136,12 @@ fn minimum_doubler_does_not_over_raise_a_forced_advance() {
     assert_eq!(best(&advanced, maximum), call(3, Strain::Diamonds));
 
     // Off: the blind raise ladder returns (the A/B baseline).
-    set_rein_advance_raise(false);
-    assert_eq!(best(&advanced, minimum), call(3, Strain::Diamonds));
-    set_rein_advance_raise(true);
+    let mut agreements = Agreements::current();
+    agreements.decision.instinct.rein_advance_raise = false;
+    assert_eq!(
+        best_with(&agreements, &advanced, minimum),
+        call(3, Strain::Diamonds)
+    );
 
     // Unaffected: raising partner's *overcall* (we never doubled) — the 2♦
     // competitor lets us raise 1♥ to 2♥ on the same minimum values.
@@ -306,9 +315,12 @@ fn advancer_runs_from_redoubled_penalty_double() {
     // Values (9 HCP): sit and defend 1NTxx — our side beats it.
     assert_eq!(best(&auction, "KQ7.K83.J642.643"), Call::Pass);
     // Off-switch: the runout disabled, the broke hand sits.
-    set_advancer_xx_runout(false);
-    assert_eq!(best(&auction, "J9763.852.764.43"), Call::Pass);
-    set_advancer_xx_runout(true);
+    let mut agreements = Agreements::current();
+    agreements.decision.instinct.advancer_xx_runout = false;
+    assert_eq!(
+        best_with(&agreements, &auction, "J9763.852.764.43"),
+        Call::Pass
+    );
 }
 
 #[test]
@@ -344,11 +356,12 @@ fn optional_latch_doubles_short_and_partner_cooperates() {
     // Three small diamonds (no stack), 13 HCP, no four-card suit worth bidding:
     // the PENALTY latch needs a stack, so it does not double…
     let cooperative = "KQ5.KQ5.642.QJ93";
-    set_latch_style(LatchStyle::Penalty);
-    assert_ne!(best(&runout, cooperative), Call::Double);
+    let mut agreements = Agreements::current();
+    agreements.decision.instinct.latch_style = LatchStyle::Penalty;
+    assert_ne!(best_with(&agreements, &runout, cooperative), Call::Double);
     // …but the OPTIONAL latch doubles on the 2-3 holding and values.
-    set_latch_style(LatchStyle::Optional);
-    assert_eq!(best(&runout, cooperative), Call::Double);
+    agreements.decision.instinct.latch_style = LatchStyle::Optional;
+    assert_eq!(best_with(&agreements, &runout, cooperative), Call::Double);
 
     // `(1NT) X (2♦) X -`: partner's latched double, back to the 15+ doubler.
     let advance = [
@@ -359,14 +372,18 @@ fn optional_latch_doubles_short_and_partner_cooperates() {
         Call::Pass,
     ];
     // Penalty: forced sit — leave the penalty double in (defend 2♦x).
-    set_latch_style(LatchStyle::Penalty);
-    assert_eq!(best(&advance, "AQ74.AQ5.82.A632"), Call::Pass);
+    agreements.decision.instinct.latch_style = LatchStyle::Penalty;
+    assert_eq!(
+        best_with(&agreements, &advance, "AQ74.AQ5.82.A632"),
+        Call::Pass
+    );
     // Optional: cooperate (not forced to sit) — short in their suit with a
     // four-card major and values, run to the major game.
-    set_latch_style(LatchStyle::Optional);
-    assert_eq!(best(&advance, "AQ74.AQ5.82.A632"), call(4, Strain::Spades));
-
-    set_latch_style(LatchStyle::default());
+    agreements.decision.instinct.latch_style = LatchStyle::Optional;
+    assert_eq!(
+        best_with(&agreements, &advance, "AQ74.AQ5.82.A632"),
+        call(4, Strain::Spades)
+    );
 }
 
 #[test]
@@ -424,21 +441,29 @@ fn settle_floor_defends_with_length_behind_their_suit() {
     // 6 HCP, five clubs but four cards sitting behind their spades.
     let weak_with_defense = "9543.74.K2.QJ876";
 
-    // Off (default): the floor over-advances to the captive 4♣.
-    set_settle_floor(false);
-    assert_eq!(best(&auction, weak_with_defense), call(4, Strain::Clubs));
+    // Off: the floor over-advances to the captive 4♣.
+    let mut agreements = Agreements::current();
+    agreements.decision.instinct.settle_floor = false;
+    assert_eq!(
+        best_with(&agreements, &auction, weak_with_defense),
+        call(4, Strain::Clubs)
+    );
 
     // On: the four-level new suit is a free bid we lack the values for, and we
     // hold four behind their suit, so we defend — pass plays 3♠ doubled.
-    set_settle_floor(true);
-    assert_eq!(best(&auction, weak_with_defense), Call::Pass);
+    agreements.decision.instinct.settle_floor = true;
+    assert_eq!(
+        best_with(&agreements, &auction, weak_with_defense),
+        Call::Pass
+    );
 
     // On, with real values: the free bid is earned — we still advance to 4♣
     // (a hand short in their suit cannot defend anyway).
     let strong = "2.853.K42.AKQ876";
-    assert_eq!(best(&auction, strong), call(4, Strain::Clubs));
-
-    set_settle_floor(true); // restore the default (on) for the rest of the suite
+    assert_eq!(
+        best_with(&agreements, &auction, strong),
+        call(4, Strain::Clubs)
+    );
 }
 
 #[test]
@@ -478,23 +503,27 @@ fn fit_sum_game_counts_trump_length_toward_game() {
     let auction = [call(2, Strain::Spades), Call::Pass];
     let raise = "AK4.AQ2.KJ32.Q92";
 
-    // Pin the point gate: this test is *about* `set_fit_sum_game` being read
-    // live, and the bilans floor replaces that arithmetic with the net —
+    // Pin the point gate: this test is *about* `fit_sum_game` being read from
+    // the profile, and the bilans floor replaces that arithmetic with the net —
     // which would answer 4♠ at both thresholds and assert nothing.
-    set_bilans_floor(false);
+    let mut agreements = Agreements::current();
+    agreements.decision.instinct.bilans_floor = false;
 
     // Armed at 31 (the default): the ninth trump counts as points (fit-sum
     // 33 ≥ 31), lifting the hand to the major-suit game.
-    set_fit_sum_game(31);
-    assert_eq!(best(&auction, raise), call(4, Strain::Spades));
+    agreements.decision.instinct.fit_sum_game = 31;
+    assert_eq!(
+        best_with(&agreements, &auction, raise),
+        call(4, Strain::Spades)
+    );
 
     // Armed at 34: the same fit-sum (33) falls one short, so the boundary holds
     // and we are back to inviting — confirms the threshold is read live.
-    set_fit_sum_game(34);
-    assert_eq!(best(&auction, raise), call(3, Strain::Spades));
-
-    set_fit_sum_game(31); // restore the default (31) for the rest of the suite
-    set_bilans_floor(true); // restore the default
+    agreements.decision.instinct.fit_sum_game = 34;
+    assert_eq!(
+        best_with(&agreements, &auction, raise),
+        call(3, Strain::Spades)
+    );
 }
 
 #[test]
@@ -684,9 +713,7 @@ fn bilans_floor_still_bids_the_known_fit_game() {
         call(2, Strain::Spades),
         Call::Pass,
     ];
-    set_bilans_floor(true);
     let (bid, from_floor) = american_floored(&auction, "JT87.AQT2.A75.86");
-    set_bilans_floor(true); // restore the default (bilans is on) before any assert
     assert!(
         from_floor,
         "South's continuation is off-book (floor territory)"
@@ -700,7 +727,8 @@ fn bilans_floor_still_bids_the_known_fit_game() {
     assert_eq!(bid, call(4, Strain::Notrump));
 }
 
-/// [`set_net_collar`]'s veto, on the board the smoke run surfaced (seed
+/// [`net_collar`][InstinctProfile::net_collar]'s veto, on the board the smoke
+/// run surfaced (seed
 /// 20260726 board 33, 2026-07-26): the shipped wiring blasts 6NT on a
 /// combined **31**, because knob-on `points_or_net` masked
 /// [`combined_hcp`]`(33)` off entirely and the net alone decided.  Collared,
@@ -737,9 +765,9 @@ fn net_collar_vetoes_the_notrump_slam_below_thirty_three() {
     assert_eq!(bid, call(6, Strain::Notrump));
 
     // Collared: the arithmetic is the criterion again and vetoes it.
-    set_net_collar(true);
-    let collared = american_floored(&auction, hand).0;
-    set_net_collar(false); // restore the default before asserting
+    let mut agreements = Agreements::current();
+    agreements.decision.instinct.net_collar = true;
+    let collared = american_floored_with(&agreements, &auction, hand).0;
     assert_eq!(collared, Call::Pass);
 }
 
@@ -797,7 +825,7 @@ fn floor_asks_keycards_with_slam_values_and_a_known_fit() {
     );
 }
 
-/// The RKCB-ask floor (`set_floor_slam_entry`) governs whether the floor
+/// The RKCB-ask floor (`floor_slam_entry`) governs whether the floor
 /// enters keycarding on shape-slam values.  The same 1♠ - 3♠ auction with a
 /// ~30-combined opener stops in game at the old 33 yardstick but asks 4NT at
 /// the shipped 29 floor — the population-probe fix (A/B'd a plain-DD win).
@@ -815,20 +843,20 @@ fn slam_entry_floor_controls_the_rkcb_ask() {
     // Pin the point gate: the bilans floor enters keycarding on
     // `SLAM_ENTRY_P` instead of this point floor, so knob-on both thresholds
     // answer 4NT and the test stops testing what it names.
-    set_bilans_floor(false);
-    set_floor_slam_entry(33);
+    let mut agreements = Agreements::current();
+    agreements.decision.instinct.bilans_floor = false;
+    agreements.decision.instinct.floor_slam_entry = 33;
     assert_eq!(
-        best(&auction, opener),
+        best_with(&agreements, &auction, opener),
         call(4, Strain::Spades),
         "combined ~30 < 33: stop in game, no ask"
     );
-    set_floor_slam_entry(29);
+    agreements.decision.instinct.floor_slam_entry = 29;
     assert_eq!(
-        best(&auction, opener),
+        best_with(&agreements, &auction, opener),
         call(4, Strain::Notrump),
         "shipped 29 gate: ask keycards on shape-slam values"
     );
-    set_bilans_floor(true); // restore the default
 }
 
 /// The 1430 answers to partner's off-book 4NT, counted against the
@@ -1799,8 +1827,6 @@ fn redwood_keeps_the_trump_five_reachable() {
         call(3, Strain::Diamonds),
         Call::Pass,
     ];
-    set_rkcb_minors(true);
-
     set_rkcb_variant(RkcbVariant::Kickback);
     let relocated: Vec<Call> = raise
         .iter()
@@ -1822,7 +1848,6 @@ fn redwood_keeps_the_trump_five_reachable() {
         .collect();
     let blackwood = best(&plain, responder);
 
-    set_rkcb_minors(true); // restore the default (on since 2026-08-01)
     assert_eq!(
         redwood,
         call(5, Strain::Diamonds),
@@ -1854,11 +1879,14 @@ fn redwood_scopes_the_ladder_and_implies_the_minors() {
         Call::Pass,
     ];
     let claims = |auction: &[Call]| kickback_ladder(auction, 4, rkcb_variant_now());
-    // Captured fresh on every call — the arms below re-set the cells between
-    // reads, so a hoisted snapshot would answer for the wrong arm.
-    let minor_asks_now = || minor_asks(&DecisionProfile::current());
+    // Captured fresh on every call — the arms below reset the relocation cell
+    // between reads, while the plain-minors carve stays off in the value.
+    let minor_asks_now = || {
+        let mut profile = DecisionProfile::current();
+        profile.instinct.keycard_minors = false;
+        minor_asks(&profile)
+    };
 
-    set_rkcb_minors(false);
     set_rkcb_variant(RkcbVariant::Redwood);
     assert_eq!(
         claims(&diamonds)[Suit::Hearts as usize],
@@ -1894,7 +1922,6 @@ fn redwood_scopes_the_ladder_and_implies_the_minors() {
     set_rkcb_variant(RkcbVariant::Plain);
     assert_eq!(claims(&diamonds)[Suit::Hearts as usize], None);
     assert!(!minor_asks_now(), "no relocation, no carve: majors only");
-    set_rkcb_minors(true); // restore the default (on since 2026-08-01)
 }
 
 /// One hand's shown five never converts 4NT into an ask: opener's five
@@ -2384,8 +2411,7 @@ fn opener_corrects_choice_of_games_3nt_to_the_known_major_fit() {
     // the choice with 3NT.  Opposite three-card support the 5-3 fit out-scores
     // notrump single-dummy *only with a ruffing doubleton*, so opener corrects
     // to 4♠ on a doubleton, but a flat 4-3-3-3 (no ruff) leaves the better game
-    // in 3NT.  Default on; the guard sets it explicitly to stay isolated.
-    set_correct_3nt_to_major(true);
+    // in 3NT.  Default on.
     let auction = [
         call(1, Strain::Notrump),
         Call::Pass,
@@ -2413,7 +2439,6 @@ fn opener_corrects_choice_of_games_3nt_to_the_known_major_fit() {
     // Only a doubleton spade — no eight-card fit — also stays in 3NT.
     let (two, _) = american_floored(&auction, "AQ.K842.KJ73.Q82");
     assert_eq!(two, Call::Pass, "no eight-card fit leaves it in 3NT");
-    set_correct_3nt_to_major(true); // restore the default
 }
 
 #[test]
@@ -2460,9 +2485,9 @@ fn two_over_one_slam_strength_unblocks_the_ask() {
         call(3, Strain::Spades),
         Call::Pass,
     ];
-    set_two_over_one_slam_strength(false);
     // Delete the book node so the floor owns the position.
     let mut agreements = Agreements::current();
+    agreements.decision.instinct.two_over_one_slam_strength = false;
     agreements.game_force.opener_third = false;
     let (chosen, floored) = american_floored_with(&agreements, &auction, "AKQJ2.AKQ.AQJ4.9");
     assert!(floored, "the deleted node leaves this to the floor");
@@ -2472,8 +2497,8 @@ fn two_over_one_slam_strength_unblocks_the_ask() {
     // tricks above the grand's break-even.  Knob-off this is still 4♠.
     assert_eq!(chosen, call(7, Strain::Spades), "the net finds the grand");
 
-    set_two_over_one_slam_strength(true);
     let mut agreements = Agreements::current();
+    agreements.decision.instinct.two_over_one_slam_strength = true;
     agreements.game_force.opener_third = false;
     let (chosen, _) = american_floored_with(&agreements, &auction, "AKQJ2.AKQ.AQJ4.9");
     assert_ne!(
@@ -2484,8 +2509,6 @@ fn two_over_one_slam_strength_unblocks_the_ask() {
     // The matching "a genuine minimum still signs off" guard lives in
     // `a_minimum_signs_off_opposite_an_established_two_over_one`, which is
     // ignored pending the 2/1 projection fix.
-
-    set_two_over_one_slam_strength(true); // restore the default
 }
 
 /// A minimum opener signs off in game opposite an established 2/1 — the
@@ -2544,7 +2567,6 @@ fn bilans_floor_still_explores_the_rock_crusher_slam() {
         call(3, Strain::Spades),
         Call::Pass,
     ];
-    set_bilans_floor(true);
     // Delete the book node so the floor owns the position.
     let mut agreements = Agreements::current();
     agreements.game_force.opener_third = false;
@@ -2560,7 +2582,6 @@ fn bilans_floor_still_explores_the_rock_crusher_slam() {
         Call::Pass,
     ];
     let ask = best(&raise, "AKQJ7.AKQ.A32.32");
-    set_bilans_floor(true); // restore the default (bilans is on) before any assert
     assert!(floored, "the deleted node leaves this to the floor");
     assert_eq!(
         crusher,
@@ -3092,15 +3113,17 @@ fn rubens_disabled_reverts_to_natural_advances() {
 fn one_nt_runout_disabled_passes() {
     // Disabled, responder has no runout and falls to the natural floor —
     // Pass — even broke with a five-card suit.
-    set_one_nt_runout(false);
+    let mut agreements = Agreements::current();
+    agreements.decision.instinct.one_nt_runout = false;
     let doubled = [call(1, Strain::Notrump), Call::Double];
-    assert_eq!(best(&doubled, "32.QJ763.9742.83"), Call::Pass);
-    set_one_nt_runout(true);
+    assert_eq!(
+        best_with(&agreements, &doubled, "32.QJ763.9742.83"),
+        Call::Pass
+    );
 }
 
 #[test]
 fn one_nt_runout_escapes_to_the_long_suit() {
-    set_one_nt_runout(true);
     let doubled = [call(1, Strain::Notrump), Call::Double];
     // A broke hand with five hearts runs to 2♥ rather than sit for it.
     assert_eq!(best(&doubled, "32.QJ763.9742.83"), call(2, Strain::Hearts));
@@ -3108,43 +3131,55 @@ fn one_nt_runout_escapes_to_the_long_suit() {
     assert_eq!(best(&doubled, "T9842.3.7.QJ9632"), call(2, Strain::Clubs));
     // A balanced bust has nowhere to run: it sits.
     assert_eq!(best(&doubled, "432.J85.K74.9632"), Call::Pass);
-    set_one_nt_runout(true);
 }
 
 #[test]
 fn one_nt_runout_redoubles_with_values() {
-    set_one_nt_runout(true);
-    set_runout_xx_min(8);
+    let mut agreements = Agreements::current();
+    agreements.decision.instinct.one_nt_runout = true;
+    agreements.decision.instinct.runout_xx_min = 8;
     let doubled = [call(1, Strain::Notrump), Call::Double];
     // 8 balanced HCP — too good to run, not enough to force game opposite a
     // 15–17 opener (23 combined): redouble to play 1NT-XX.
-    assert_eq!(best(&doubled, "K43.KQ5.8642.972"), Call::Redouble);
+    assert_eq!(
+        best_with(&agreements, &doubled, "K43.KQ5.8642.972"),
+        Call::Redouble
+    );
     // A shapely bust at the same boundary still runs, never redoubles.
-    assert_eq!(best(&doubled, "3.QJ763.97642.83"), call(2, Strain::Hearts));
-    set_runout_xx_min(7);
-    set_one_nt_runout(true);
+    assert_eq!(
+        best_with(&agreements, &doubled, "3.QJ763.97642.83"),
+        call(2, Strain::Hearts)
+    );
 }
 
 #[test]
 fn one_nt_overcall_runout_escapes_and_redoubles() {
     // The runout now fires when our 1NT was an OVERCALL, not just an opening:
     // (1♥) 1NT (X), advancer to act, our 1NT anchored at index 1.
-    set_one_nt_runout(true);
+    let mut agreements = Agreements::current();
+    agreements.decision.instinct.one_nt_runout = true;
     let doubled = [
         call(1, Strain::Hearts),
         call(1, Strain::Notrump),
         Call::Double,
     ];
     // A broke hand with five spades runs to 2♠ rather than sit for it.
-    assert_eq!(best(&doubled, "QJ763.32.9742.83"), call(2, Strain::Spades));
+    assert_eq!(
+        best_with(&agreements, &doubled, "QJ763.32.9742.83"),
+        call(2, Strain::Spades)
+    );
     // A balanced bust has nowhere to run: it sits.
-    assert_eq!(best(&doubled, "432.J85.K74.9632"), Call::Pass);
+    assert_eq!(
+        best_with(&agreements, &doubled, "432.J85.K74.9632"),
+        Call::Pass
+    );
     // Eight balanced HCP is too good to run, too weak to force game opposite a
     // 15–18 overcall: redouble to play 1NT-XX (business).
-    set_runout_xx_min(8);
-    assert_eq!(best(&doubled, "K43.KQ5.8642.972"), Call::Redouble);
-    set_runout_xx_min(7);
-    set_one_nt_runout(true);
+    agreements.decision.instinct.runout_xx_min = 8;
+    assert_eq!(
+        best_with(&agreements, &doubled, "K43.KQ5.8642.972"),
+        Call::Redouble
+    );
 }
 
 #[test]
@@ -3163,86 +3198,124 @@ fn one_nt_overcall_runout_is_floor_territory() {
 
 #[test]
 fn gambling_3nt_over_double_routes_long_minors() {
-    set_one_nt_runout(true);
-    set_gambling_3nt_over_double(true);
-    set_gambling_3nt_top_honors(2);
-    set_gambling_3nt_require_ace(true);
+    let mut agreements = Agreements::current();
+    agreements.decision.instinct.one_nt_runout = true;
+    agreements.decision.instinct.gambling_3nt_over_double = true;
+    agreements.decision.instinct.gambling_3nt_top_honors = 2;
+    agreements.decision.instinct.gambling_3nt_require_ace = true;
     let doubled = [call(1, Strain::Notrump), Call::Double];
 
     // A six-card minor headed by its own ace (semi-solid, suit ace) runs to the
     // gambling 3NT — opposite the 15–17 opener the suit cashes — not XX, not an
     // escape.
-    assert_eq!(best(&doubled, "32.43.654.AKJ987"), call(3, Strain::Notrump));
-    assert_eq!(best(&doubled, "32.43.AKJ987.654"), call(3, Strain::Notrump));
+    assert_eq!(
+        best_with(&agreements, &doubled, "32.43.654.AKJ987"),
+        call(3, Strain::Notrump)
+    );
+    assert_eq!(
+        best_with(&agreements, &doubled, "32.43.AKJ987.654"),
+        call(3, Strain::Notrump)
+    );
 
     // A strong balanced hand holds no six-card minor, so the gamble can never
     // steal it: it still defends the business redouble.
-    assert_eq!(best(&doubled, "KQ4.KJ43.AQ62.Q5"), Call::Redouble);
+    assert_eq!(
+        best_with(&agreements, &doubled, "KQ4.KJ43.AQ62.Q5"),
+        Call::Redouble
+    );
 
     // The suit-ace gate (default on): a semi-solid six-bagger missing its own ace
     // cannot gamble — it escapes.  Drop the requirement and it gambles.
-    assert_eq!(best(&doubled, "32.43.654.KQJ987"), call(2, Strain::Clubs));
-    set_gambling_3nt_require_ace(false);
-    assert_eq!(best(&doubled, "32.43.654.KQJ987"), call(3, Strain::Notrump));
-    set_gambling_3nt_require_ace(true);
+    assert_eq!(
+        best_with(&agreements, &doubled, "32.43.654.KQJ987"),
+        call(2, Strain::Clubs)
+    );
+    agreements.decision.instinct.gambling_3nt_require_ace = false;
+    assert_eq!(
+        best_with(&agreements, &doubled, "32.43.654.KQJ987"),
+        call(3, Strain::Notrump)
+    );
+    agreements.decision.instinct.gambling_3nt_require_ace = true;
 
     // The semi-solid gate: an ace-headed but ragged six-bagger (one top honor)
     // escapes; length-only (top-honors 0) lets it gamble instead.
-    assert_eq!(best(&doubled, "32.43.654.AJ9876"), call(2, Strain::Clubs));
-    set_gambling_3nt_top_honors(0);
-    assert_eq!(best(&doubled, "32.43.654.AJ9876"), call(3, Strain::Notrump));
-
-    set_gambling_3nt_top_honors(2);
-    set_gambling_3nt_over_double(false);
-    set_one_nt_runout(true);
+    assert_eq!(
+        best_with(&agreements, &doubled, "32.43.654.AJ9876"),
+        call(2, Strain::Clubs)
+    );
+    agreements.decision.instinct.gambling_3nt_top_honors = 0;
+    assert_eq!(
+        best_with(&agreements, &doubled, "32.43.654.AJ9876"),
+        call(3, Strain::Notrump)
+    );
 }
 
 #[test]
 fn preempt_4m_over_double_jumps_the_long_major() {
     use crate::bidding::constraint::set_support_points;
-    set_one_nt_runout(true);
-    set_preempt_4m_over_double(true);
-    set_preempt_4m_top_honors(2);
-    set_preempt_4m_require_ace(true);
     // Pin the legacy scale: these 6-count runout hands have a known 8-card
     // fit (six-card major opposite the 1NT), so under the shipped
     // `support_points` scale their extra shortness tips the fit-sum floor to
     // game — masking the trump-ace / semi-solid escape gates this test checks.
     // The scale shift itself is measured by the A/B.
     set_support_points(false);
+    let mut agreements = Agreements::current();
+    agreements.decision.instinct.one_nt_runout = true;
+    agreements.decision.instinct.preempt_4m_over_double = true;
+    agreements.decision.instinct.preempt_4m_top_honors = 2;
+    agreements.decision.instinct.preempt_4m_require_ace = true;
     let doubled = [call(1, Strain::Notrump), Call::Double];
 
     // A semi-solid six-card major headed by the trump ace jumps to its game.
-    assert_eq!(best(&doubled, "432.AKJ987.65.32"), call(4, Strain::Hearts));
-    assert_eq!(best(&doubled, "AKJ987.432.65.32"), call(4, Strain::Spades));
+    assert_eq!(
+        best_with(&agreements, &doubled, "432.AKJ987.65.32"),
+        call(4, Strain::Hearts)
+    );
+    assert_eq!(
+        best_with(&agreements, &doubled, "AKJ987.432.65.32"),
+        call(4, Strain::Spades)
+    );
 
     // The trump-ace gate (default on): a KQ-headed six-bagger lacking the trump
     // ace does not preempt to game (a 6-count escapes); drop it and it jumps.
-    assert_eq!(best(&doubled, "432.KQJ987.65.32"), call(2, Strain::Hearts));
-    set_preempt_4m_require_ace(false);
-    assert_eq!(best(&doubled, "432.KQJ987.65.32"), call(4, Strain::Hearts));
-    set_preempt_4m_require_ace(true);
+    assert_eq!(
+        best_with(&agreements, &doubled, "432.KQJ987.65.32"),
+        call(2, Strain::Hearts)
+    );
+    agreements.decision.instinct.preempt_4m_require_ace = false;
+    assert_eq!(
+        best_with(&agreements, &doubled, "432.KQJ987.65.32"),
+        call(4, Strain::Hearts)
+    );
+    agreements.decision.instinct.preempt_4m_require_ace = true;
 
     // The semi-solid gate: an ace-headed but ragged six-bagger escapes;
     // length-only (top-honors 0) lets it preempt.
-    assert_eq!(best(&doubled, "432.AJ9876.65.32"), call(2, Strain::Hearts));
-    set_preempt_4m_top_honors(0);
-    assert_eq!(best(&doubled, "432.AJ9876.65.32"), call(4, Strain::Hearts));
+    assert_eq!(
+        best_with(&agreements, &doubled, "432.AJ9876.65.32"),
+        call(2, Strain::Hearts)
+    );
+    agreements.decision.instinct.preempt_4m_top_honors = 0;
+    assert_eq!(
+        best_with(&agreements, &doubled, "432.AJ9876.65.32"),
+        call(4, Strain::Hearts)
+    );
 
-    set_preempt_4m_top_honors(2);
-    set_preempt_4m_over_double(false);
-    set_one_nt_runout(true);
     set_support_points(true); // restore the shipped default
 }
 
 #[test]
 fn one_nt_runout_2nt_scrambles_the_minors() {
-    set_one_nt_runout(true);
+    let mut agreements = Agreements::current();
+    agreements.decision.instinct.one_nt_runout = true;
     // The 2NT relay is the opt-in `FourFour` mode (the default is `Direct`).
-    set_unusual_2nt(Unusual2nt::FourFour);
+    agreements.decision.instinct.unusual_2nt = Unusual2nt::FourFour;
     // 4-4 in the minors, no five-card suit, broke: 2NT asks opener to pick.
     let doubled = [call(1, Strain::Notrump), Call::Double];
-    assert_eq!(best(&doubled, "K3.842.Q642.J642"), call(2, Strain::Notrump));
+    assert_eq!(
+        best_with(&agreements, &doubled, "K3.842.Q642.J642"),
+        call(2, Strain::Notrump)
+    );
     // Opener names the longer minor: clubs here, diamonds when reversed —
     // never blindly "completing" 2NT as a diamond transfer.
     let after = [
@@ -3251,39 +3324,49 @@ fn one_nt_runout_2nt_scrambles_the_minors() {
         call(2, Strain::Notrump),
         Call::Pass,
     ];
-    assert_eq!(best(&after, "AQ5.KQ4.32.AK842"), call(3, Strain::Clubs));
-    assert_eq!(best(&after, "AQ5.KQ4.AK842.32"), call(3, Strain::Diamonds));
-    set_unusual_2nt(Unusual2nt::Direct);
-    set_one_nt_runout(true);
+    assert_eq!(
+        best_with(&agreements, &after, "AQ5.KQ4.32.AK842"),
+        call(3, Strain::Clubs)
+    );
+    assert_eq!(
+        best_with(&agreements, &after, "AQ5.KQ4.AK842.32"),
+        call(3, Strain::Diamonds)
+    );
 }
 
 #[test]
 fn one_nt_runout_2nt_shape_modes() {
-    set_one_nt_runout(true);
+    let mut agreements = Agreements::current();
+    agreements.decision.instinct.one_nt_runout = true;
     let doubled = [call(1, Strain::Notrump), Call::Double];
     // A weak 5-5 in the minors.  In `FourFour` it escapes naturally to a
     // five-card minor; the 2NT scramble is only the no-five-card-suit action.
-    set_unusual_2nt(Unusual2nt::FourFour);
-    assert_ne!(best(&doubled, "3.42.KQ876.J8765"), call(2, Strain::Notrump));
+    agreements.decision.instinct.unusual_2nt = Unusual2nt::FourFour;
+    assert_ne!(
+        best_with(&agreements, &doubled, "3.42.KQ876.J8765"),
+        call(2, Strain::Notrump)
+    );
     // FiveFiveAdd routes the 5-5 hand through 2NT so opener picks the better
     // minor instead of responder guessing.
-    set_unusual_2nt(Unusual2nt::FiveFiveAdd);
-    assert_eq!(best(&doubled, "3.42.KQ876.J8765"), call(2, Strain::Notrump));
+    agreements.decision.instinct.unusual_2nt = Unusual2nt::FiveFiveAdd;
+    assert_eq!(
+        best_with(&agreements, &doubled, "3.42.KQ876.J8765"),
+        call(2, Strain::Notrump)
+    );
     // Direct suppresses 2NT: the 4-4 bust runs straight to its longer minor
     // (ties to diamonds) at the two level.
-    set_unusual_2nt(Unusual2nt::Direct);
+    agreements.decision.instinct.unusual_2nt = Unusual2nt::Direct;
     assert_eq!(
-        best(&doubled, "K3.842.Q642.J642"),
+        best_with(&agreements, &doubled, "K3.842.Q642.J642"),
         call(2, Strain::Diamonds)
     );
-    set_unusual_2nt(Unusual2nt::Direct);
-    set_one_nt_runout(true);
 }
 
 #[test]
 fn one_nt_runout_penalizes_escape_on_stack() {
-    set_one_nt_runout(true);
-    set_penalize_escape_values(false);
+    let mut agreements = Agreements::current();
+    agreements.decision.instinct.one_nt_runout = true;
+    agreements.decision.instinct.penalize_escape_values = false;
     // `1NT (X) XX (2♣)`: responder's business redouble shows values before RHO
     // runs to 2♣.  A club stack (and not short in their suit, so the floor would
     // not take out) doubles the run for penalty.  Toggling the arm off withdraws
@@ -3294,19 +3377,23 @@ fn one_nt_runout_penalizes_escape_on_stack() {
         Call::Redouble,
         call(2, Strain::Clubs),
     ];
-    set_penalize_escape_stack(true);
-    assert_eq!(best(&run, "Q52.K43.Q43.AKJ4"), Call::Double);
-    set_penalize_escape_stack(false);
-    assert_ne!(best(&run, "Q52.K43.Q43.AKJ4"), Call::Double);
-    set_penalize_escape_stack(true);
-    set_penalize_escape_values(true);
-    set_one_nt_runout(true);
+    agreements.decision.instinct.penalize_escape_stack = true;
+    assert_eq!(
+        best_with(&agreements, &run, "Q52.K43.Q43.AKJ4"),
+        Call::Double
+    );
+    agreements.decision.instinct.penalize_escape_stack = false;
+    assert_ne!(
+        best_with(&agreements, &run, "Q52.K43.Q43.AKJ4"),
+        Call::Double
+    );
 }
 
 #[test]
 fn one_nt_runout_leaves_in_escape_penalty() {
-    set_one_nt_runout(true);
-    set_penalize_escape_stack(true);
+    let mut agreements = Agreements::current();
+    agreements.decision.instinct.one_nt_runout = true;
+    agreements.decision.instinct.penalize_escape_stack = true;
     // `1NT (X) XX (2♣) X -`: partner doubled their run for penalty.  We pass
     // to leave it in, never advancing it as if it were a takeout double.
     let doubled_run = [
@@ -3317,16 +3404,18 @@ fn one_nt_runout_leaves_in_escape_penalty() {
         Call::Double,
         Call::Pass,
     ];
-    assert_eq!(best(&doubled_run, "KQ3.K54.J632.987"), Call::Pass);
-    set_penalize_escape_stack(true);
-    set_one_nt_runout(true);
+    assert_eq!(
+        best_with(&agreements, &doubled_run, "KQ3.K54.J632.987"),
+        Call::Pass
+    );
 }
 
 #[test]
 fn one_nt_runout_penalizes_escape_on_values() {
-    set_one_nt_runout(true);
-    set_penalize_escape_stack(false);
-    set_penalize_escape_values(true);
+    let mut agreements = Agreements::current();
+    agreements.decision.instinct.one_nt_runout = true;
+    agreements.decision.instinct.penalize_escape_stack = false;
+    agreements.decision.instinct.penalize_escape_values = true;
     // After responder's business redouble shows values, opener doubles their
     // run on general strength — no personal trump stack, and not short in
     // their suit, so the double is ours and not the floor's takeout.
@@ -3336,7 +3425,10 @@ fn one_nt_runout_penalizes_escape_on_values() {
         Call::Redouble,
         call(2, Strain::Clubs),
     ];
-    assert_eq!(best(&run, "AQ5.KQ43.K3.6432"), Call::Double);
+    assert_eq!(
+        best_with(&agreements, &run, "AQ5.KQ43.K3.6432"),
+        Call::Double
+    );
     // The chase recurses: they run on to 2♦, the values hand doubles again.
     let again = [
         call(1, Strain::Notrump),
@@ -3346,7 +3438,10 @@ fn one_nt_runout_penalizes_escape_on_values() {
         Call::Double,
         call(2, Strain::Diamonds),
     ];
-    assert_eq!(best(&again, "KQ3.K54.J632.987"), Call::Double);
+    assert_eq!(
+        best_with(&agreements, &again, "KQ3.K54.J632.987"),
+        Call::Double
+    );
     // But opener's *SOS* redouble shows no values, so the values arm stays
     // silent there: `1NT (X) - - XX (2♣)` is not a values double.
     let sos = [
@@ -3357,16 +3452,17 @@ fn one_nt_runout_penalizes_escape_on_values() {
         Call::Redouble,
         call(2, Strain::Clubs),
     ];
-    assert_ne!(best(&sos, "J32.Q54.J632.987"), Call::Double);
-    set_penalize_escape_stack(true);
-    set_penalize_escape_values(true);
-    set_one_nt_runout(true);
+    assert_ne!(
+        best_with(&agreements, &sos, "J32.Q54.J632.987"),
+        Call::Double
+    );
 }
 
 #[test]
 fn one_nt_runout_universal_opener_escapes_and_sos() {
-    set_one_nt_runout(true);
-    set_one_nt_runout_universal(true);
+    let mut agreements = Agreements::current();
+    agreements.decision.instinct.one_nt_runout = true;
+    agreements.decision.instinct.one_nt_runout_universal = true;
     // In the balancing seat after `1NT (X) - -`, partner is broke and opener
     // acts rather than
     // sit 1NT-X.  A minimum with five spades runs to 2♠.
@@ -3377,11 +3473,14 @@ fn one_nt_runout_universal_opener_escapes_and_sos() {
         Call::Pass,
     ];
     assert_eq!(
-        best(&balancing, "AQ542.KJ.K43.Q32"),
+        best_with(&agreements, &balancing, "AQ542.KJ.K43.Q32"),
         call(2, Strain::Spades)
     );
     // A minimum with no five-card suit SOS-redoubles instead.
-    assert_eq!(best(&balancing, "AQ4.KJ2.K432.Q32"), Call::Redouble);
+    assert_eq!(
+        best_with(&agreements, &balancing, "AQ4.KJ2.K432.Q32"),
+        Call::Redouble
+    );
     // Responder answers the SOS with its longest suit, a four-carder.
     let after_sos = [
         call(1, Strain::Notrump),
@@ -3392,16 +3491,13 @@ fn one_nt_runout_universal_opener_escapes_and_sos() {
         Call::Pass,
     ];
     assert_eq!(
-        best(&after_sos, "QJ32.842.642.J32"),
+        best_with(&agreements, &after_sos, "QJ32.842.642.J32"),
         call(2, Strain::Spades)
     );
-    set_one_nt_runout_universal(true);
-    set_one_nt_runout(true);
 }
 
 #[test]
 fn one_nt_runout_opener_passes_not_completes_phantom_transfer() {
-    set_one_nt_runout(true);
     // `1NT (X) 2♥` is partner's *runout*, not a Jacoby transfer: opener passes
     // rather than "complete" it to 2♠ (responder's short suit).
     let after_runout = [
@@ -3411,5 +3507,4 @@ fn one_nt_runout_opener_passes_not_completes_phantom_transfer() {
         Call::Pass,
     ];
     assert_eq!(best(&after_runout, "AQ4.KJ3.KQ52.432"), Call::Pass);
-    set_one_nt_runout(true);
 }

@@ -36,7 +36,7 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::agreements::Agreements;
 use pons::bidding::american::TwoOverOneGate;
-use pons::bidding::instinct::{set_two_over_one_force, set_two_over_one_slam_strength};
+use pons::bidding::instinct::set_two_over_one_force;
 use pons::scoring::final_contract;
 use rayon::prelude::*;
 
@@ -130,7 +130,7 @@ struct Args {
     no_xyz_invite_judgment: bool,
 
     /// Treatment: *drop* the two-over-one strength floor on the slam-entry gate
-    /// (`set_two_over_one_slam_strength`, shipped on).  Without it the alerted
+    /// (`two_over_one_slam_strength`, shipped on).  Without it the alerted
     /// `GAME_FORCE` response reads as zero and the floor never asks keycards
     /// through a 2/1.
     #[arg(long, default_value_t = false)]
@@ -154,15 +154,16 @@ fn parse_gate(s: &str) -> TwoOverOneGate {
 /// Arm every knob at once and capture the arm's agreements; `treatment` false
 /// = the all-off baseline arm
 ///
-/// The two `instinct` knobs are still thread cells, so they are written before
-/// the capture; the rest are fields of the value.
+/// The game-force knob is still a thread cell, so it is written before the
+/// capture; the slam-strength agreement is a field of the value.
 fn arm_knobs(args: &Args, treatment: bool) -> Agreements {
     // These ship the other way round (backstop retired, force on), so the
     // treatment *restores* the old behaviour rather than adding a new one.
     set_two_over_one_force(!(treatment && args.no_two_over_one_force));
-    set_two_over_one_slam_strength(!(treatment && args.no_two_over_one_slam_strength));
 
     let mut agreements = Agreements::current();
+    agreements.decision.instinct.two_over_one_slam_strength =
+        !(treatment && args.no_two_over_one_slam_strength);
     agreements.response.major_game_tries = treatment && args.game_tries;
     agreements.response.limit_raise_acceptance = treatment && args.limit_raise;
     agreements.rebid.major_rebid_tails = treatment && args.tails;

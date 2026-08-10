@@ -7,7 +7,7 @@
 //! table A the inference-aware pair sits North/South against a pair whose floor
 //! ignores the interpretation (the pre-inference behavior); at table B the
 //! teams swap seats.  Both pairs play the very same books — the
-//! [`set_inference_aware`][pons::bidding::instinct::set_inference_aware]
+//! [`inference_aware`][pons::bidding::instinct::InstinctProfile::inference_aware]
 //! ablation hook flips the floor's inference reading per acting side.  Boards
 //! whose two auctions reach different contracts are solved double dummy once and
 //! scored with **both** brackets — plain DD and perfect defense — crediting the
@@ -23,7 +23,6 @@ use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::context::relative;
-use pons::bidding::instinct::set_inference_aware;
 use pons::bidding::{Stance, System};
 use pons::scoring::final_contract;
 use rayon::prelude::*;
@@ -105,13 +104,11 @@ fn main() {
     let base = args.seed.unwrap_or_else(rand::random);
     let vul = args.vulnerability;
     // `[plain, aware]`, indexed by the acting side's flag.
-    set_inference_aware(false);
-    let plain = american(&pons::bidding::agreements::Agreements::current()).against();
-    set_inference_aware(true);
-    let stances = [
-        plain,
-        american(&pons::bidding::agreements::Agreements::current()).against(),
-    ];
+    let mut agreements = pons::bidding::agreements::Agreements::current();
+    agreements.decision.instinct.inference_aware = false;
+    let plain = american(&agreements).against();
+    agreements.decision.instinct.inference_aware = true;
+    let stances = [plain, american(&agreements).against()];
 
     // Deals are seeded per board (base + index) so every arm/vul replays the
     // identical stream.  Both stances are plain values, so board bidding

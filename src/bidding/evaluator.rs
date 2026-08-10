@@ -27,7 +27,8 @@
 //! smooth out into the tails where an interpolated one would have to clamp.
 //!
 //! Consumed by the instinct floor's game/slam boundary gates behind
-//! [`set_bilans_floor`][super::instinct::set_bilans_floor] (bilans session D,
+//! [`bilans_floor`][crate::bidding::instinct::InstinctProfile::bilans_floor]
+//! (bilans session D,
 //! default off pending its A/B); the module itself is ungated and always
 //! builds.
 

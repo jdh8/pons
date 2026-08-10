@@ -1,4 +1,4 @@
-//! Measure the plain-4NT minor keycard (`set_rkcb_minors`): an A/B duplicate match.
+//! Measure the plain-4NT minor-keycard agreement: an A/B duplicate match.
 //!
 //! The feature side keycards agreed minors (strong-2♣ minor raise asks with
 //! 28+, inverted-minor responders ask over the 18–19 3NT on
@@ -23,7 +23,6 @@ use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::Accumulator;
 use pons::american;
-use pons::bidding::instinct::set_rkcb_minors;
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -69,14 +68,12 @@ struct Args {
 #[allow(clippy::cast_precision_loss)]
 fn main() {
     let args = Args::parse();
-    // The knob gates node *insertion*, so it is read at book construction —
-    // build one stance per arm (a per-call thread-local flip would be a
-    // no-op on an already-built book).
-    set_rkcb_minors(true);
-    let feature = american(&pons::bidding::agreements::Agreements::current()).against();
-    set_rkcb_minors(false);
-    let baseline = american(&pons::bidding::agreements::Agreements::current()).against();
-    set_rkcb_minors(true);
+    // The agreement gates node insertion, so build one stance per arm.
+    let mut agreements = pons::bidding::agreements::Agreements::current();
+    agreements.decision.instinct.keycard_minors = true;
+    let feature = american(&agreements).against();
+    agreements.decision.instinct.keycard_minors = false;
+    let baseline = american(&agreements).against();
 
     let deals: Vec<(Seat, FullDeal)> = seeded_deals(args.seed, args.count)
         .into_iter()

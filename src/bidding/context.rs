@@ -95,11 +95,12 @@ pub struct Context<'a> {
 
 /// The knob inputs whose values must stay fixed during one decision
 ///
-/// Captured from the thread-locals when a [`Stance`] is built
-/// ([`Pair::against`][super::book::Pair::against]) and pinned there: every
-/// classify-time knob read serves off the stance's copy, so a built stance is
-/// a pure value that any thread can classify through.  A bare context with no
-/// attached system falls back to capturing the current thread's state.
+/// Taken from the [`Agreements`][super::agreements::Agreements] when a
+/// [`Stance`] is built ([`Pair::against`][super::book::Pair::against]) and
+/// pinned there: every classify-time knob read serves off the stance's copy,
+/// so a built stance is a pure value that any thread can classify through.  A
+/// bare context with no attached system uses `DecisionProfile::current`: the
+/// remaining live cells plus the shipped [`InstinctProfile`] default.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct DecisionProfile {
     /// The settings that can change a full-auction reading
@@ -304,7 +305,7 @@ impl DecisionProfile {
     pub(crate) fn current() -> Self {
         Self {
             reading: reading_profile(),
-            instinct: InstinctProfile::capture(),
+            instinct: InstinctProfile::default(),
             eval_auction: super::evaluator::eval_auction(),
             eval_shape: super::evaluator::eval_shape(),
             blind_inference: super::features::blind_inference(),

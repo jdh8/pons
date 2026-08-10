@@ -5,7 +5,8 @@
 //! length-upgraded `point_count` by default.  A long-suit bonus is a ruffing
 //! value worth nothing in notrump, so it overcounts there — a 5-card suit can
 //! carry a hand into 3NT the raw HCP would leave in a partscore.
-//! [`set_nt_hcp_read`][pons::bidding::instinct::set_nt_hcp_read] switches those
+//! [`nt_hcp_read`][pons::bidding::instinct::InstinctProfile::nt_hcp_read]
+//! switches those
 //! milestones to raw HCP (own hand, and partner's crisp `hcp` gauge with the
 //! length-scale fallback).
 //!
@@ -32,7 +33,6 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::Accumulator;
 use pons::american;
 use pons::bidding::Stance;
-use pons::bidding::instinct::{set_bilans_floor, set_nt_hcp_read};
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -102,14 +102,12 @@ fn main() {
     let args = Args::parse();
     // Ambient environment (both sides): optionally expose the point-arithmetic
     // milestone by disabling the net floor that otherwise shadows it.
-    set_bilans_floor(!args.no_bilans);
-    set_nt_hcp_read(false);
-    let plain = american(&pons::bidding::agreements::Agreements::current()).against();
-    set_nt_hcp_read(true);
-    let stances = [
-        plain,
-        american(&pons::bidding::agreements::Agreements::current()).against(),
-    ];
+    let mut agreements = pons::bidding::agreements::Agreements::current();
+    agreements.decision.instinct.bilans_floor = !args.no_bilans;
+    agreements.decision.instinct.nt_hcp_read = false;
+    let plain = american(&agreements).against();
+    agreements.decision.instinct.nt_hcp_read = true;
+    let stances = [plain, american(&agreements).against()];
 
     // Deal sequentially (seeded, reproducible); bid both tables in parallel.
     let mut rng = StdRng::seed_from_u64(args.seed);

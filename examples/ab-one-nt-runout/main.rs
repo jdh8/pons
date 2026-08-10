@@ -3,7 +3,7 @@
 //! When our 1NT is doubled, the [instinct floor][pons::bidding::instinct]
 //! normally has nothing to say and responder passes — sitting for an
 //! effectively-penalty double on a hand that may be broke.  The runout
-//! ([`set_one_nt_runout`][pons::bidding::instinct::set_one_nt_runout]) lets a
+//! ([`one_nt_runout`][pons::bidding::instinct::InstinctProfile::one_nt_runout]) lets a
 //! weak responder escape to its longest five-plus-card suit instead.  Is that
 //! worth points?
 //!
@@ -43,12 +43,7 @@ use contract_bridge::{AbsoluteVulnerability, Bid, Contract, FullDeal, Hand, Seat
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::context::relative;
-use pons::bidding::instinct::{
-    Unusual2nt, set_gambling_3nt_over_double, set_gambling_3nt_require_ace,
-    set_gambling_3nt_top_honors, set_one_nt_runout, set_one_nt_runout_universal,
-    set_penalize_escape_stack, set_penalize_escape_values, set_preempt_4m_over_double,
-    set_preempt_4m_require_ace, set_preempt_4m_top_honors, set_runout_xx_min, set_unusual_2nt,
-};
+use pons::bidding::instinct::Unusual2nt;
 use pons::bidding::{Inferences, Stance};
 use pons::scoring::{
     final_contract, imps, ns_score_contract, ns_score_pd, ns_score_pd_tricks, ns_score_tricks,
@@ -179,21 +174,23 @@ struct Args {
 /// other axis the base runout is on for both sides and only the named
 /// sub-feature flips, isolating its marginal value.
 ///
-/// [`InstinctProfile`]: pons::bidding::instinct
+/// [`InstinctProfile`]: pons::bidding::instinct::InstinctProfile
 fn arm(args: &Args, on: bool) -> Stance {
-    set_runout_xx_min(args.xx_min);
-    set_one_nt_runout_universal(!args.no_universal);
+    let mut agreements = pons::bidding::agreements::Agreements::current();
+    let instinct = &mut agreements.decision.instinct;
+    instinct.runout_xx_min = args.xx_min;
+    instinct.one_nt_runout_universal = !args.no_universal;
     // Baseline: runout on (except the Runout axis flips it), sub-features off.
-    set_one_nt_runout(args.compare != Compare::Runout || on);
-    set_unusual_2nt(Unusual2nt::FourFour);
-    set_penalize_escape_stack(false);
-    set_penalize_escape_values(false);
+    instinct.one_nt_runout = args.compare != Compare::Runout || on;
+    instinct.unusual_2nt = Unusual2nt::FourFour;
+    instinct.penalize_escape_stack = false;
+    instinct.penalize_escape_values = false;
     // Flip only the measured sub-feature on the feature side.
     match args.compare {
-        Compare::EscapeStack => set_penalize_escape_stack(on),
-        Compare::EscapeValues => set_penalize_escape_values(on),
-        Compare::Minors5 if on => set_unusual_2nt(Unusual2nt::FiveFiveAdd),
-        Compare::Direct if on => set_unusual_2nt(Unusual2nt::Direct),
+        Compare::EscapeStack => instinct.penalize_escape_stack = on,
+        Compare::EscapeValues => instinct.penalize_escape_values = on,
+        Compare::Minors5 if on => instinct.unusual_2nt = Unusual2nt::FiveFiveAdd,
+        Compare::Direct if on => instinct.unusual_2nt = Unusual2nt::Direct,
         _ => {}
     }
 
@@ -217,14 +214,14 @@ fn arm(args: &Args, on: bool) -> Stance {
         // every baseline / non-gambling axis: suppress (both games off)
         _ => (false, 2, true, false, 2, true),
     };
-    set_gambling_3nt_over_double(g3_on);
-    set_gambling_3nt_top_honors(g3_honors);
-    set_gambling_3nt_require_ace(g3_ace);
-    set_preempt_4m_over_double(p4_on);
-    set_preempt_4m_top_honors(p4_honors);
-    set_preempt_4m_require_ace(p4_ace);
+    instinct.gambling_3nt_over_double = g3_on;
+    instinct.gambling_3nt_top_honors = g3_honors;
+    instinct.gambling_3nt_require_ace = g3_ace;
+    instinct.preempt_4m_over_double = p4_on;
+    instinct.preempt_4m_top_honors = p4_honors;
+    instinct.preempt_4m_require_ace = p4_ace;
 
-    american(&pons::bidding::agreements::Agreements::current()).against()
+    american(&agreements).against()
 }
 
 /// Bid out one deal, flipping the measured feature per acting side
@@ -282,17 +279,19 @@ fn responder_over_double(auction: &Auction, dealer: Seat) -> Option<(Call, Seat)
 
 /// Build the coverage stance: the full gambling package on for every seat
 fn arm_coverage(args: &Args) -> Stance {
-    set_runout_xx_min(args.xx_min);
-    set_one_nt_runout(true);
-    set_one_nt_runout_universal(!args.no_universal);
-    set_unusual_2nt(Unusual2nt::FourFour);
-    set_penalize_escape_stack(false);
-    set_penalize_escape_values(false);
-    set_gambling_3nt_over_double(true);
-    set_gambling_3nt_top_honors(2);
-    set_gambling_3nt_require_ace(true);
-    set_preempt_4m_over_double(true);
-    american(&pons::bidding::agreements::Agreements::current()).against()
+    let mut agreements = pons::bidding::agreements::Agreements::current();
+    let instinct = &mut agreements.decision.instinct;
+    instinct.runout_xx_min = args.xx_min;
+    instinct.one_nt_runout = true;
+    instinct.one_nt_runout_universal = !args.no_universal;
+    instinct.unusual_2nt = Unusual2nt::FourFour;
+    instinct.penalize_escape_stack = false;
+    instinct.penalize_escape_values = false;
+    instinct.gambling_3nt_over_double = true;
+    instinct.gambling_3nt_top_honors = 2;
+    instinct.gambling_3nt_require_ace = true;
+    instinct.preempt_4m_over_double = true;
+    american(&agreements).against()
 }
 
 /// Bid one deal with the full gambling package on for every seat (coverage mode)

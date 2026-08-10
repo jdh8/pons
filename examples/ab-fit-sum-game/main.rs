@@ -3,7 +3,8 @@
 //!
 //! The floor reaches a major game on a *known* eight-plus fit once the combined
 //! minimum reaches the
-//! [`set_fit_sum_game`][pons::bidding::instinct::set_fit_sum_game] threshold,
+//! [`fit_sum_game`][pons::bidding::instinct::InstinctProfile::fit_sum_game]
+//! threshold,
 //! which folds the known trump length into the point total — the total-tricks
 //! yardstick where a ninth trump ≈ a point, so a nine-card fit games a point
 //! cheaper and a ten-card fit two cheaper.  An eight-card fit games at the shipped
@@ -43,7 +44,6 @@ use pons::Accumulator;
 use pons::american;
 use pons::bidding::Stance;
 use pons::bidding::constraint::set_support_points;
-use pons::bidding::instinct::{set_bilans_floor, set_fit_sum_game, set_fit_sum_support_read};
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -74,7 +74,7 @@ struct Args {
     #[arg(long, default_value_t = false)]
     support_points: bool,
 
-    /// Edit 1 treatment: arm `set_fit_sum_support_read` on the feature side only,
+    /// Edit 1 treatment: arm `fit_sum_support_read` on the feature side only,
     /// so `fit_sum_game` reads partner's `support_points` gauge.  Pair with equal
     /// `--threshold`/`--baseline` so the gauge read is the sole variable.
     #[arg(long, default_value_t = false)]
@@ -135,17 +135,15 @@ fn main() {
     // Likewise ambient: `points_or_net` masks the authored `fit_sum_game` leg to
     // `authored & false` while the net floor is on, so the threshold only bites
     // with it off (src/bidding/instinct.rs, `points_or_net`).
-    set_bilans_floor(!args.no_bilans);
-    set_fit_sum_game(args.baseline);
-    set_fit_sum_support_read(false);
-    let plain = american(&pons::bidding::agreements::Agreements::current()).against();
+    let mut agreements = pons::bidding::agreements::Agreements::current();
+    agreements.decision.instinct.bilans_floor = !args.no_bilans;
+    agreements.decision.instinct.fit_sum_game = args.baseline;
+    agreements.decision.instinct.fit_sum_support_read = false;
+    let plain = american(&agreements).against();
     // Edit 1 treatment: the support-gauge read fires only for the feature side.
-    set_fit_sum_game(args.threshold);
-    set_fit_sum_support_read(args.support_read);
-    let stances = [
-        plain,
-        american(&pons::bidding::agreements::Agreements::current()).against(),
-    ];
+    agreements.decision.instinct.fit_sum_game = args.threshold;
+    agreements.decision.instinct.fit_sum_support_read = args.support_read;
+    let stances = [plain, american(&agreements).against()];
 
     // Deal sequentially (seeded, reproducible); bid both tables in parallel.
     let mut rng = StdRng::seed_from_u64(args.seed);

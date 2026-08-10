@@ -713,13 +713,14 @@ fn cached_reference_parity_across_reading_and_evaluator_profiles() {
         crate::bidding::evaluator::set_eval_auction(profile.eval_auction);
         crate::bidding::evaluator::set_eval_shape(profile.eval_shape);
         crate::bidding::features::set_blind_inference(profile.blind);
-        crate::bidding::instinct::set_bilans_floor(profile.bilans);
-        crate::bidding::instinct::set_net_collar(profile.collar);
+        let mut agreements = crate::bidding::agreements::Agreements::current();
+        agreements.decision.instinct.bilans_floor = profile.bilans;
+        agreements.decision.instinct.net_collar = profile.collar;
 
         let stance = if profile.configured {
-            american(&crate::bidding::agreements::Agreements::current()).against()
+            american(&agreements).against()
         } else {
-            american_instinct(&crate::bidding::agreements::Agreements::current()).against()
+            american_instinct(&agreements).against()
         };
         let vul = vulnerabilities[index % vulnerabilities.len()];
         let cached = stance
@@ -748,8 +749,6 @@ fn cached_reference_parity_across_reading_and_evaluator_profiles() {
     crate::bidding::evaluator::set_eval_auction(true);
     crate::bidding::evaluator::set_eval_shape(false);
     crate::bidding::features::set_blind_inference(false);
-    crate::bidding::instinct::set_bilans_floor(true);
-    crate::bidding::instinct::set_net_collar(false);
 }
 
 /// Component-by-component release parity over the frozen stage-1 corpus.
@@ -778,8 +777,6 @@ fn cached_and_uncached_match_frozen_performance_corpus() {
         crate::bidding::evaluator::set_eval_auction(true);
         crate::bidding::evaluator::set_eval_shape(false);
         crate::bidding::features::set_blind_inference(false);
-        crate::bidding::instinct::set_bilans_floor(true);
-        crate::bidding::instinct::set_net_collar(false);
     }
 
     fn assert_float_bits(actual: &[f32], reference: &[f32], component: &str, position: u16) {
@@ -1095,12 +1092,12 @@ fn a_declared_opponent_reads_their_calls_in_their_books() {
 }
 
 /// The keystone of the pin-at-build campaign: a stance built under armed
-/// knobs answers identically on a virgin thread whose thread-locals hold the
-/// shipped defaults.  Any classify-time read that bypasses the pinned
+/// knobs answers identically on a virgin thread whose remaining thread-locals
+/// hold the shipped defaults.  Any classify-time read that bypasses the pinned
 /// [`DecisionProfile`][super::DecisionProfile] diverges here.
 ///
 /// Live since stage 5, armed over all three layers: `ReadingProfile`'s 42
-/// cells, `InstinctProfile`'s 31, and the nine `DecisionProfile` holds
+/// cells, `InstinctProfile`'s 31 fields, and the nine `DecisionProfile` holds
 /// directly.  The values are deliberately meaningless — this arms a system
 /// nobody plays — because what is under test is only that both threads see
 /// the *same* one.
@@ -1115,7 +1112,6 @@ fn stance_pins_knobs_across_threads() {
     // The whole test runs on a scratch thread, so the arming dies with it and
     // reused libtest workers stay clean.
     scoped(|| {
-        crate::bidding::instinct::InstinctProfile::arm_all_nondefault();
         crate::bidding::inference::ReadingProfile::arm_all_nondefault();
         // The nine cells `DecisionProfile` holds outside those two.
         crate::bidding::evaluator::set_eval_auction(false);
@@ -1130,8 +1126,10 @@ fn stance_pins_knobs_across_threads() {
         crate::bidding::american::set_transfer_gf_majors(false);
         crate::bidding::american::set_transfer_gf_hearts(false);
 
-        let ns = american(&crate::bidding::agreements::Agreements::current());
-        let ew = american(&crate::bidding::agreements::Agreements::current());
+        let mut agreements = crate::bidding::agreements::Agreements::current();
+        agreements.decision.instinct = crate::bidding::instinct::InstinctProfile::nondefault();
+        let ns = american(&agreements);
+        let ew = american(&agreements);
         let table = Table::of_pairs(&ns, &ew, Seat::North, AbsoluteVulnerability::NONE);
         let deals: Vec<FullDeal> = (0..24)
             .map(|seed| {

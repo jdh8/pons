@@ -3,7 +3,7 @@
 //! The [instinct floor][pons::bidding::instinct] used to treat partner's live
 //! takeout double as *forcing*: it must advance, climbing even to a doubled `4♣x`
 //! on a bust.  The settle floor
-//! ([`set_settle_floor`][pons::bidding::instinct::set_settle_floor], **now the
+//! ([`settle_floor`][pons::bidding::instinct::InstinctProfile::settle_floor], **now the
 //! default**) recasts Pass as *playing the top bid*: a takeout double is not 100%
 //! forcing, so a hand with length behind their doubled suit defends instead of
 //! advancing, and a four-level advance becomes a *free bid* requiring values.  This
@@ -32,7 +32,6 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::Accumulator;
 use pons::american;
 use pons::bidding::Stance;
-use pons::bidding::instinct::set_settle_floor;
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -93,13 +92,11 @@ fn bid_out(
 #[allow(clippy::cast_precision_loss)]
 fn main() {
     let args = Args::parse();
-    set_settle_floor(false);
-    let plain = american(&pons::bidding::agreements::Agreements::current()).against();
-    set_settle_floor(true);
-    let stances = [
-        plain,
-        american(&pons::bidding::agreements::Agreements::current()).against(),
-    ];
+    let mut agreements = pons::bidding::agreements::Agreements::current();
+    agreements.decision.instinct.settle_floor = false;
+    let plain = american(&agreements).against();
+    agreements.decision.instinct.settle_floor = true;
+    let stances = [plain, american(&agreements).against()];
 
     // Deal sequentially (seeded, reproducible); bid both tables in parallel.
     let mut rng = StdRng::seed_from_u64(args.seed);

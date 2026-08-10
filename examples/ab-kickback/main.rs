@@ -3,7 +3,7 @@
 //!
 //! Three arms over two axes, so each coupled change stays attributable:
 //!
-//! | arm | `set_rkcb_minors` | `set_rkcb_variant` | what it is |
+//! | arm | `keycard_minors` | `set_rkcb_variant` | what it is |
 //! |---|---|---|---|
 //! | `plain` | off | plain | majors-only trump, the ask is 4NT |
 //! | `minors` | on | plain | minor asks at plain 4NT — round 4's losing arm, re-priced |
@@ -93,9 +93,7 @@ use pons::bidding::Stance;
 use pons::bidding::american::american_with_config;
 use pons::bidding::card::{Card, american_card};
 use pons::bidding::features::Config;
-use pons::bidding::instinct::{
-    RkcbVariant, keycard_ask_at, kickback_offered_at, set_rkcb_minors, set_rkcb_variant,
-};
+use pons::bidding::instinct::{RkcbVariant, keycard_ask_at, kickback_offered_at, set_rkcb_variant};
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -206,8 +204,15 @@ struct Args {
 
 /// Arm the classify-time half of the knobs for `arm`
 fn arm_knobs(arm: Arm) {
-    set_rkcb_minors(arm.minors());
     set_rkcb_variant(arm.variant());
+}
+
+/// Capture the value-owned half of `arm` alongside its live relocation knob
+fn arm_agreements(arm: Arm) -> pons::bidding::agreements::Agreements {
+    arm_knobs(arm);
+    let mut agreements = pons::bidding::agreements::Agreements::current();
+    agreements.decision.instinct.keycard_minors = arm.minors();
+    agreements
 }
 
 /// The keycard ask `arm` made at one table, if any — the trump it asked in and
@@ -330,14 +335,13 @@ fn per_trump_census(
 
 /// The convention card `arm` discloses — its knobs, read through `card.rs`
 fn card(arm: Arm) -> Card {
-    arm_knobs(arm);
-    let card = american_card(&pons::bidding::agreements::Agreements::current());
+    let card = american_card(&arm_agreements(arm));
     arm_knobs(Arm::Plain);
     card
 }
 
 /// Build one stance per arm.  `set_rkcb_variant` is read at build time for rule
-/// presence, and `set_rkcb_minors` by the book's RKCB row packages, so the
+/// presence, and `keycard_minors` by the book's RKCB row packages, so the
 /// arms cannot share a book.
 ///
 /// Every arm captures the cell at build time: its own card and `opponent`'s,
@@ -348,9 +352,7 @@ fn card(arm: Arm) -> Card {
 /// are armed for the build, because `american_card` reads the same knobs.
 fn build(arm: Arm, opponent: Arm) -> Stance {
     let cell = Config::new(&card(arm), &card(opponent));
-    arm_knobs(arm);
-    let stance =
-        american_with_config(&pons::bidding::agreements::Agreements::current(), cell).against();
+    let stance = american_with_config(&arm_agreements(arm), cell).against();
     arm_knobs(Arm::Plain);
     stance
 }

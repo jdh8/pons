@@ -170,7 +170,8 @@ thread_local! {
 /// is the remaining open refinement.
 ///
 /// Unlike its construction-time neighbours, this is read at **classification
-/// time** (like [`set_bilans_floor`][crate::bidding::instinct::set_bilans_floor]):
+/// time** (like
+/// [`bilans_floor`][crate::bidding::instinct::InstinctProfile::bilans_floor]):
 /// flip it on threads that classify through a [`Stance`][crate::bidding::Stance],
 /// no book rebuild needed.
 #[doc(hidden)]

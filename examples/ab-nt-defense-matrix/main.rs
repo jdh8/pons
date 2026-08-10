@@ -55,7 +55,7 @@ use pons::american;
 use pons::bidding::agreements::{Agreements, CompetitionKnobs, DefenseKnobs};
 use pons::bidding::american::{DoubleStyle, NotrumpDefense, set_landy, set_notrump_defense};
 use pons::bidding::context::relative;
-use pons::bidding::instinct::{set_one_nt_runout, set_one_nt_runout_universal};
+use pons::bidding::instinct::InstinctProfile;
 use pons::bidding::{Inferences, Stance};
 use pons::scoring::{
     final_contract, imps, ns_score_contract, ns_score_pd, ns_score_pd_tricks, ns_score_tricks,
@@ -127,6 +127,7 @@ struct Args {
 struct Knobs {
     competition: CompetitionKnobs,
     defense: DefenseKnobs,
+    instinct: InstinctProfile,
 }
 
 /// Reset every ambient defense cell (row axis) to the shipped default, so a book
@@ -142,7 +143,6 @@ fn reset_knobs() {
     // value below.
     set_notrump_defense(NotrumpDefense::Natural);
     set_landy(None);
-    set_column_flags(0);
 }
 
 /// Build the four row books (our defense menu) and four column books (their
@@ -156,12 +156,14 @@ fn build_books() -> (Vec<Stance>, Vec<Stance>) {
         let mut knobs = Knobs {
             competition: CompetitionKnobs::default(),
             defense: DefenseKnobs::default(),
+            instinct: InstinctProfile::default(),
         };
         configure(&mut knobs);
         // The cells `configure` may have written are read here, after the write.
         let mut agreements = Agreements::current();
         agreements.competition = knobs.competition;
         agreements.defense = knobs.defense;
+        agreements.decision.instinct = knobs.instinct;
         american(&agreements).against()
     };
     // The DONT parity config (docs/ai-bidder/1nt-defense-dont.md): 6+ one-suiter
@@ -212,7 +214,7 @@ fn build_books() -> (Vec<Stance>, Vec<Stance>) {
         }),
         // Sit: the runout flags are the only difference, and they are captured
         // into the stance at build like every other knob.
-        build(&|_| set_column_flags(3)),
+        build(&|knobs| set_column_flags(knobs, 3)),
     ];
     (rows, cols)
 }
@@ -220,10 +222,10 @@ fn build_books() -> (Vec<Stance>, Vec<Stance>) {
 /// The "sit" column disables the doubled-1NT runout.  The flags are read at
 /// classification time but captured into the stance at build, so this runs
 /// inside [`build_books`] rather than per cell.
-fn set_column_flags(col: usize) {
+fn set_column_flags(knobs: &mut Knobs, col: usize) {
     let runout = col != 3;
-    set_one_nt_runout(runout);
-    set_one_nt_runout_universal(runout);
+    knobs.instinct.one_nt_runout = runout;
+    knobs.instinct.one_nt_runout_universal = runout;
 }
 
 /// Balanced shape (no singleton/void, at most one doubleton) with HCP in `lo..=hi`

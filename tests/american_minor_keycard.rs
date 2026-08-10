@@ -120,14 +120,14 @@ fn opener_passes_the_minor_slam_placement() {
 
 // --- The knob's off arm (the A7 re-measure baseline) ------------------------
 
-/// With `set_rkcb_minors(false)`, the pre-keycard book returns: the strong-2♣
+/// With `keycard_minors = false`, the pre-keycard book returns: the strong-2♣
 /// monster blind-jumps 6♣ (27+) instead of asking, and the inverted-minor
 /// responder rests in the 18–19 3NT instead of launching 4NT.
 #[test]
 fn knob_off_restores_the_pre_keycard_book() {
-    pons::bidding::instinct::set_rkcb_minors(false);
-    let system = stance();
-    pons::bidding::instinct::set_rkcb_minors(true);
+    let mut agreements = pons::bidding::agreements::Agreements::current();
+    agreements.decision.instinct.keycard_minors = false;
+    let system = pons::american(&agreements).against();
 
     let strong_two = [
         call(2, Strain::Clubs),

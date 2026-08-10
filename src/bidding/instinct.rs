@@ -38,7 +38,8 @@
 //! so it shows values.  The interpretation of the double is deliberately
 //! mechanical: a classifier may know its system, and instinct's system is plain
 //! standard.  (The defend-or-advance reading is the "settle floor", default on;
-//! [`set_settle_floor`] recovers the old always-advance behavior.)
+//! [`settle_floor`][crate::bidding::instinct::InstinctProfile::settle_floor]
+//! `false` recovers the old always-advance behavior.)
 //!
 //! # Observability
 //!
@@ -93,7 +94,8 @@ pub enum Unusual2nt {
 }
 
 /// What a *latched* later double means after our natural penalty double of their
-/// 1NT — the `(1NT) X (2Y) X` second double (A/B knob, see [`set_latch_style`])
+/// 1NT — the `(1NT) X (2Y) X` second double (A/B knob, see
+/// [`latch_style`][InstinctProfile::latch_style])
 ///
 /// The mirror of [`DoubleStyle`][super::american::DoubleStyle] on the defensive
 /// side: the same penalty-vs-optional question the we-open `1NT (2X) X` faced.
@@ -112,69 +114,11 @@ pub enum LatchStyle {
 }
 
 std::thread_local! {
-    /// Whether the floor consults the auction interpretation for known fits
-    static INFERENCE_AWARE: Cell<bool> = const { Cell::new(true) };
-
-    /// Whether a weak responder runs from our doubled 1NT (default on)
-    static ONE_NT_RUNOUT: Cell<bool> = const { Cell::new(true) };
-
-    /// HCP floor at which responder redoubles a doubled 1NT to play (A/B knob)
-    static RUNOUT_XX_MIN: Cell<u8> = const { Cell::new(7) };
-
-    /// Whether the runout is universal: opener also escapes / SOS-redoubles in
-    /// the balancing seat, not just the weak responder direct (default on)
-    static ONE_NT_RUNOUT_UNIVERSAL: Cell<bool> = const { Cell::new(true) };
-
-    /// What responder's `2NT` shows in the runout (see [`set_unusual_2nt`]);
-    /// `Direct` (no relay) by default, A/B'd a win over the `FourFour` relay
-    static UNUSUAL_2NT: Cell<Unusual2nt> = const { Cell::new(Unusual2nt::Direct) };
-
-    /// Whether we double the opponents' escape from our doubled 1NT on a trump
-    /// stack in their suit (default on; A/B'd +5..+7 IMPs/divergent)
-    static PENALIZE_ESCAPE_STACK: Cell<bool> = const { Cell::new(true) };
-
-    /// Whether we double their escape from our 1NT-XX on values, once
-    /// responder's business redouble has shown them (default on; A/B'd a win)
-    static PENALIZE_ESCAPE_VALUES: Cell<bool> = const { Cell::new(true) };
-
-    /// Whether we encircle (penalty-double) the opponents' escape from our
-    /// `1NT (2NT) X` — the Unusual-vs-Unusual penalty chase. Default on (it only
-    /// fires after our own UvU `X`, so it is dormant unless
-    /// `agreements.competition.uvu` is on).
-    static UVU_ENCIRCLE: Cell<bool> = const { Cell::new(true) };
-
-    /// Whether the "settle" view of Pass is in force (**default on** — see
-    /// [`set_settle_floor`]): partner's takeout double is not 100% forcing, so a
-    /// hand may pass to *play the top bid* (defend) instead of always advancing
-    static SETTLE_FLOOR: Cell<bool> = const { Cell::new(true) };
-
     /// Whether the "once penalty, always penalty" latch is in force (**on by
     /// default** — DD-measured a penalty-X-bucket win with no regression, see
     /// [`set_penalty_latch`]): after our natural penalty double of their 1NT, our
     /// later doubles read as penalty (sit / leave in) rather than the takeout default
     static PENALTY_LATCH: Cell<bool> = const { Cell::new(true) };
-
-    /// What a latched later double means: [`Penalty`] (stack + sit, **the
-    /// default**) or [`Optional`] (2-3 + cooperate). See [`set_latch_style`].
-    ///
-    /// [`Penalty`]: LatchStyle::Penalty
-    /// [`Optional`]: LatchStyle::Optional
-    static LATCH_STYLE: Cell<LatchStyle> = const { Cell::new(LatchStyle::Penalty) };
-
-    /// Whether to suppress the doubler's *constructive pulls* of its own penalty
-    /// double of their 1NT (**on by default** — DD-measured a clear penalty-X-bucket
-    /// win; see [`set_penalty_no_pull`]).  While [`penalty_latched`], the natural
-    /// suit and notrump overcall rules still fire for the doubler (a double is not a
-    /// bid), so a 15+ balanced doubler "competes" to 2NT/3NT/a major opposite a
-    /// likely-broke partner — the dominant defense leak.  On, those pulls step aside
-    /// and the doubler defends by passing or latch-doubles their escape.
-    static PENALTY_NO_PULL: Cell<bool> = const { Cell::new(true) };
-
-    /// Whether a weak advancer runs from their *redoubled* penalty double
-    /// (`(1NT) X (XX)`, **on by default** — see [`set_advancer_xx_runout`]).  Their
-    /// XX is business (BBA and our own system both: "we make 1NT redoubled"), so a
-    /// broke advancer escapes to its long suit rather than sit for the doom.
-    static ADVANCER_XX_RUNOUT: Cell<bool> = const { Cell::new(true) };
 
     /// Whether the *doubler* runs after `(1NT) X (XX) - -` comes back around
     /// (**on by default** — see [`set_doubler_xx_runout`]).  Construction-gated:
@@ -188,73 +132,6 @@ std::thread_local! {
     /// through a relay and the cue-raise means a limit-plus raise.
     static RUBENS_ADVANCES: Cell<bool> = const { Cell::new(false) };
 
-    /// HCP floor at which a strong-1NT responder forces game off the floor *in an
-    /// undisturbed auction* (A/B knob; see [`set_nt_responder_game_floor`]).  The
-    /// authored direct-3NT game force is already 9, but a 9-count *five-card-major*
-    /// hand can't bid it (it must transfer) and matches no authored game-forcing
-    /// transfer rebid, so it lands here; default **9** (an A/B win: plain +0.0048
-    /// IMPs/board vs BBA, PD wash).  Only undisturbed: forcing a thin 9 over a suit
-    /// overcall measured a DD loss (the enemy lead/shape beats the thin 3NT), and
-    /// over a double the business XX governs ([`SUPPRESS_NT_GF_OVER_DOUBLE`]).
-    static NT_RESPONDER_GAME_FLOOR: Cell<u8> = const { Cell::new(9) };
-
-    /// Whether to suppress the strong-1NT responder's natural-3NT game force at
-    /// responder's first turn over a *double* of our 1NT (**on by default**; see
-    /// [`set_suppress_nt_game_force_over_double`]).  The business redouble is
-    /// unlimited — over the double we defend `1NT` redoubled (or escape a long
-    /// suit) rather than pull to 3NT.  Isolated A/B win +5.6 IMPs/fired in both
-    /// plain and PD (rare, ~0.03%).
-    static SUPPRESS_NT_GF_OVER_DOUBLE: Cell<bool> = const { Cell::new(true) };
-
-    /// Whether opener corrects partner's choice-of-games `3NT` to `4M` holding a
-    /// *known* eight-card major fit — **undisturbed and with a ruffing doubleton**
-    /// (see [`set_correct_3nt_to_major`]).  The 5-3 ruffing edge is single-dummy lore
-    /// that double-dummy shares only when the trump-short hand can ruff: a flat
-    /// 4-3-3-3 has no ruff (`3NT` keeps its ninth trick against `4M`'s tenth), and a
-    /// contested pull walks into a penalty double.  Ungated the correction lost
-    /// −0.037 IMPs/board; gated on both (`undisturbed`, `has_ruffing_shortness`) it
-    /// wins **+0.0062 plain / +0.0068 PD** (CI ±0.0005, two seeds).  Default **on**.
-    static CORRECT_3NT_TO_MAJOR: Cell<bool> = const { Cell::new(true) };
-
-    /// Whether responder's 3NT over a *double* of our 1NT is the **gambling**
-    /// long-minor game — six-plus clubs or diamonds, semi-solid, optionally an
-    /// outside ace — instead of the suppressed game-force / business-XX baseline.
-    /// Off by default (opt-in A/B knob; see [`set_gambling_3nt_over_double`]).  The
-    /// minor length floor is fixed at six (it must be a build-time `len` to project
-    /// the suit for the reader); the quality and ace gates are runtime knobs.
-    static GAMBLING_3NT_OVER_DOUBLE: Cell<bool> = const { Cell::new(false) };
-
-    /// Top-honor floor (count of A/K/Q) the gambling 3NT's long minor must hold —
-    /// the "semi-solid" gate.  `0` disables it (length only).  Default `2`.
-    static GAMBLING_3NT_TOP_HONORS: Cell<u8> = const { Cell::new(2) };
-
-    /// Whether the gambling 3NT requires the *suit* ace — the ace of the long
-    /// minor itself, so the suit runs from the top and buffs total tricks.  On by
-    /// default when the package is armed.
-    static GAMBLING_3NT_REQUIRE_ACE: Cell<bool> = const { Cell::new(true) };
-
-    /// Whether responder's 4M over a *double* of our 1NT is loosened to a
-    /// **preemptive** long-major game — six-plus major plus a modest HCP floor —
-    /// instead of needing full game values.  Off by default (opt-in A/B knob; see
-    /// [`set_preempt_4m_over_double`]).  The undisturbed / over-an-overcall 4M is
-    /// unchanged: this only adds a rule in the doubled-1NT runout.
-    static PREEMPT_4M_OVER_DOUBLE: Cell<bool> = const { Cell::new(false) };
-
-    /// The HCP floor for the preemptive 4M long-major game (see
-    /// [`PREEMPT_4M_OVER_DOUBLE`]).  Default `5` — a source of tricks, not a bust.
-    static PREEMPT_4M_FLOOR: Cell<u8> = const { Cell::new(5) };
-
-    /// Top-honor floor (count of A/K/Q) the preemptive 4M's long major must hold —
-    /// the same "semi-solid" gate the gambling 3NT uses, so 4M is a *quality* long
-    /// major, not any six-bagger (`0` = length only).  Default `2`: a ragged six-card
-    /// major jumping to game fails double-dummy exactly as a ragged minor 3NT does.
-    static PREEMPT_4M_TOP_HONORS: Cell<u8> = const { Cell::new(2) };
-
-    /// Whether the preemptive 4M requires the *trump* ace — the ace of the long
-    /// major, a sure trump trick and control that buffs total tricks.  On by default
-    /// when the package is armed.
-    static PREEMPT_4M_REQUIRE_ACE: Cell<bool> = const { Cell::new(true) };
-
     /// A hand that already bid a suit rebids it in competition rather than being
     /// forced to a takeout double (**shipped default-on**; see
     /// [`set_competitive_rebid`]).
@@ -265,71 +142,12 @@ std::thread_local! {
     /// 1NT, and responder's raise (**default-on**; see [`set_reopening_notrump`]).
     static REOPENING_NOTRUMP: Cell<bool> = const { Cell::new(true) };
 
-    /// A minimum takeout doubler stops raising partner's *forced* advance on its
-    /// own points (the double already showed them) rather than driving to a
-    /// doubled game (**default-on**; see [`set_rein_advance_raise`]).
-    static REIN_ADVANCE_RAISE: Cell<bool> = const { Cell::new(true) };
-
-    /// Combined-points floor at which the floor's RKCB *ask* (4NT) fires on a
-    /// known five-plus-card major fit (A/B knob; see [`set_floor_slam_entry`]).
-    /// Default **29** — lowered from the 33 notrump small-slam yardstick to enter
-    /// keycarding on the shape-slam band a population probe found (5-3/5-4 fits at
-    /// ~29 combined points make a small slam >50% double-dummy within genuine 8+
-    /// fits).  The ask's own five-plus decodability gate keeps it off bare 4-4
-    /// fits (which would blast the uncontrolled direct milestone), so the lower
-    /// floor only ever routes through RKCB's keycard check.  A/B'd a plain-DD win
-    /// at both vulnerabilities (~+0.005 IMPs/board, PD in lockstep); `33` restores
-    /// the pre-knob gate.  29 beat 28 (28's marginal fires overreach and dilute).
-    static FLOOR_SLAM_ENTRY: Cell<u8> = const { Cell::new(29) };
-
-    /// Combined-points floor at which the floor bids a major game on a known
-    /// eight-plus fit, *counting the trump length as points* — the total-tricks
-    /// yardstick where a ninth trump ≈ a point (threshold knob; see
-    /// [`set_fit_sum_game`]).  Game once
-    /// `own_points + partner_shown_floor + (own_len + partner_shown_len) >= t`, so
-    /// an eight-card fit games at `t - 8` combined, a nine-card fit at `t - 9`, a
-    /// ten-card fit at `t - 10` — strictly lighter as the fit lengthens.  Default
-    /// `31` is the dual-metric peak of a swept boundary (34→31 each a CI-clean
-    /// plain-DD gain with perfect defense tracking; at 30 the NV perfect-defense
-    /// line turns negative — a doubling artifact).  Proven default-on, so there is
-    /// no off-state — the threshold is always armed.
-    ///
-    /// `31` holds under the default-on `support_point_count` scale: re-probed
-    /// 2026-07-14 (`ab-fit-sum-game --support-points`, 200k×2vul), 32-vs-31 is NV
-    /// PD +0.004 but **vul PD −0.004 (parity/behind)** — not a bump.  The gate
-    /// re-adds `own_len`, which the scale's own long-suit term already counts, so
-    /// the hotness self-cancels and the peak stays at 31 (an earlier, broader
-    /// re-probe under the since-deleted global scale had suggested 32; the
-    /// fit-known-only scale that shipped is narrower and refuted it).
-    static FIT_SUM_GAME: Cell<u8> = const { Cell::new(31) };
-
-    /// The *bilans* floor: game/slam boundary gates priced by the learned trick
-    /// evaluator instead of point arithmetic (see [`set_bilans_floor`]).
-    static BILANS_FLOOR: Cell<bool> = const { Cell::new(true) };
-
-    /// Collar the bilans net's licence instead of letting it replace the point
-    /// arithmetic: the net accelerates at game and only vetoes at slam (see
-    /// [`set_net_collar`]).  Default off — byte-identical to the shipped mask.
-    static NET_COLLAR: Cell<bool> = const { Cell::new(false) };
-
-    /// Edit 1: read partner's fit-known strength off the dedicated
-    /// `support_points` gauge in [`fit_sum_game`], falling back to the
-    /// length-scale `points` when it is unpopulated (see
-    /// [`set_fit_sum_support_read`]).  Default off — byte-identical to reading
-    /// `points`.
-    static FIT_SUM_SUPPORT_READ: Cell<bool> = const { Cell::new(false) };
-
-    /// Edit 2: value the notrump game/slam milestones on raw HCP — own hand and
-    /// partner's crisp `hcp` gauge — instead of the length-upgraded `point_count`
-    /// (see [`set_nt_hcp_read`]).  Default off — [`combined_hcp`] is then
-    /// [`combined_points`] verbatim.
-    static NT_HCP_READ: Cell<bool> = const { Cell::new(false) };
 }
 
 /// The classify-time instinct knobs, snapshotted into a
 /// [`DecisionProfile`] when a stance is built
 ///
-/// One field per cell the floor reads *during* classification.  Build-time
+/// One field per agreement the floor reads *during* classification.  Build-time
 /// cells (`COMPETITIVE_REBID`, `REOPENING_NOTRUMP`, `DOUBLER_XX_RUNOUT`) are
 /// deliberately absent — each is read only inside [`instinct`]'s table
 /// builder, so it is baked into the rules that come back.  Knobs the reading
@@ -337,8 +155,8 @@ std::thread_local! {
 /// `penalty_latch`, `rubens_advances`, `floor_rkcb`, `rkcb_variant`) are not
 /// duplicated here.
 ///
-/// Membership is decided by *where the cell is read*, not by what it
-/// configures: `REIN_ADVANCE_RAISE` shapes the table at one site and is read
+/// Membership is decided by *where the value is read*, not by what it
+/// configures: `rein_advance_raise` shapes the table at one site and is read
 /// again inside a `pred` closure at another, which puts it here.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct InstinctProfile {
@@ -725,79 +543,43 @@ impl Default for InstinctProfile {
 }
 
 impl InstinctProfile {
-    /// Snapshot the instinct knobs active on this thread
-    pub(crate) fn capture() -> Self {
-        Self {
-            inference_aware: INFERENCE_AWARE.with(Cell::get),
-            one_nt_runout: ONE_NT_RUNOUT.with(Cell::get),
-            runout_xx_min: RUNOUT_XX_MIN.with(Cell::get),
-            one_nt_runout_universal: ONE_NT_RUNOUT_UNIVERSAL.with(Cell::get),
-            unusual_2nt: UNUSUAL_2NT.with(Cell::get),
-            penalize_escape_stack: PENALIZE_ESCAPE_STACK.with(Cell::get),
-            penalize_escape_values: PENALIZE_ESCAPE_VALUES.with(Cell::get),
-            uvu_encircle: UVU_ENCIRCLE.with(Cell::get),
-            settle_floor: SETTLE_FLOOR.with(Cell::get),
-            latch_style: LATCH_STYLE.with(Cell::get),
-            penalty_no_pull: PENALTY_NO_PULL.with(Cell::get),
-            advancer_xx_runout: ADVANCER_XX_RUNOUT.with(Cell::get),
-            nt_responder_game_floor: NT_RESPONDER_GAME_FLOOR.with(Cell::get),
-            suppress_nt_gf_over_double: SUPPRESS_NT_GF_OVER_DOUBLE.with(Cell::get),
-            correct_3nt_to_major: CORRECT_3NT_TO_MAJOR.with(Cell::get),
-            gambling_3nt_over_double: GAMBLING_3NT_OVER_DOUBLE.with(Cell::get),
-            gambling_3nt_top_honors: GAMBLING_3NT_TOP_HONORS.with(Cell::get),
-            gambling_3nt_require_ace: GAMBLING_3NT_REQUIRE_ACE.with(Cell::get),
-            preempt_4m_over_double: PREEMPT_4M_OVER_DOUBLE.with(Cell::get),
-            preempt_4m_floor: PREEMPT_4M_FLOOR.with(Cell::get),
-            preempt_4m_top_honors: PREEMPT_4M_TOP_HONORS.with(Cell::get),
-            preempt_4m_require_ace: PREEMPT_4M_REQUIRE_ACE.with(Cell::get),
-            floor_slam_entry: FLOOR_SLAM_ENTRY.with(Cell::get),
-            fit_sum_game: FIT_SUM_GAME.with(Cell::get),
-            bilans_floor: bilans_enabled(),
-            net_collar: NET_COLLAR.with(Cell::get),
-            fit_sum_support_read: FIT_SUM_SUPPORT_READ.with(Cell::get),
-            nt_hcp_read: NT_HCP_READ.with(Cell::get),
-            two_over_one_slam_strength: TWO_OVER_ONE_SLAM_STRENGTH.with(Cell::get),
-            keycard_minors: KEYCARD_MINORS.with(Cell::get),
-            rein_advance_raise: REIN_ADVANCE_RAISE.with(Cell::get),
-        }
-    }
-
-    /// Drive every captured cell off its shipped default, for the keystone
-    /// pinning test (`stance_pins_knobs_across_threads`): a classify-time read
-    /// that bypasses the pinned profile then diverges on a virgin thread.
+    /// Every field driven off its shipped default, for the keystone pinning
+    /// test (`stance_pins_knobs_across_threads`).
     #[cfg(test)]
-    pub(crate) fn arm_all_nondefault() {
-        INFERENCE_AWARE.with(|cell| cell.set(false));
-        ONE_NT_RUNOUT.with(|cell| cell.set(false));
-        RUNOUT_XX_MIN.with(|cell| cell.set(8));
-        ONE_NT_RUNOUT_UNIVERSAL.with(|cell| cell.set(false));
-        UNUSUAL_2NT.with(|cell| cell.set(Unusual2nt::FourFour));
-        PENALIZE_ESCAPE_STACK.with(|cell| cell.set(false));
-        PENALIZE_ESCAPE_VALUES.with(|cell| cell.set(false));
-        UVU_ENCIRCLE.with(|cell| cell.set(false));
-        SETTLE_FLOOR.with(|cell| cell.set(false));
-        LATCH_STYLE.with(|cell| cell.set(LatchStyle::Optional));
-        PENALTY_NO_PULL.with(|cell| cell.set(false));
-        ADVANCER_XX_RUNOUT.with(|cell| cell.set(false));
-        NT_RESPONDER_GAME_FLOOR.with(|cell| cell.set(10));
-        SUPPRESS_NT_GF_OVER_DOUBLE.with(|cell| cell.set(false));
-        CORRECT_3NT_TO_MAJOR.with(|cell| cell.set(false));
-        GAMBLING_3NT_OVER_DOUBLE.with(|cell| cell.set(true));
-        GAMBLING_3NT_TOP_HONORS.with(|cell| cell.set(3));
-        GAMBLING_3NT_REQUIRE_ACE.with(|cell| cell.set(false));
-        PREEMPT_4M_OVER_DOUBLE.with(|cell| cell.set(true));
-        PREEMPT_4M_FLOOR.with(|cell| cell.set(6));
-        PREEMPT_4M_TOP_HONORS.with(|cell| cell.set(3));
-        PREEMPT_4M_REQUIRE_ACE.with(|cell| cell.set(false));
-        FLOOR_SLAM_ENTRY.with(|cell| cell.set(30));
-        FIT_SUM_GAME.with(|cell| cell.set(32));
-        BILANS_FLOOR.with(|cell| cell.set(false));
-        NET_COLLAR.with(|cell| cell.set(true));
-        FIT_SUM_SUPPORT_READ.with(|cell| cell.set(true));
-        NT_HCP_READ.with(|cell| cell.set(true));
-        TWO_OVER_ONE_SLAM_STRENGTH.with(|cell| cell.set(false));
-        KEYCARD_MINORS.with(|cell| cell.set(false));
-        REIN_ADVANCE_RAISE.with(|cell| cell.set(false));
+    pub(crate) fn nondefault() -> Self {
+        Self {
+            inference_aware: false,
+            one_nt_runout: false,
+            runout_xx_min: 8,
+            one_nt_runout_universal: false,
+            unusual_2nt: Unusual2nt::FourFour,
+            penalize_escape_stack: false,
+            penalize_escape_values: false,
+            uvu_encircle: false,
+            settle_floor: false,
+            latch_style: LatchStyle::Optional,
+            penalty_no_pull: false,
+            advancer_xx_runout: false,
+            nt_responder_game_floor: 10,
+            suppress_nt_gf_over_double: false,
+            correct_3nt_to_major: false,
+            gambling_3nt_over_double: true,
+            gambling_3nt_top_honors: 3,
+            gambling_3nt_require_ace: false,
+            preempt_4m_over_double: true,
+            preempt_4m_floor: 6,
+            preempt_4m_top_honors: 3,
+            preempt_4m_require_ace: false,
+            floor_slam_entry: 30,
+            fit_sum_game: 32,
+            bilans_floor: false,
+            net_collar: true,
+            fit_sum_support_read: true,
+            nt_hcp_read: true,
+            two_over_one_slam_strength: false,
+            keycard_minors: false,
+            rein_advance_raise: false,
+        }
     }
 }
 
@@ -806,8 +588,8 @@ impl InstinctProfile {
 /// Every classify-time knob read in this module goes through here, so the
 /// floor's answer depends only on the [`Stance`][super::Stance] serving the
 /// decision — never on which thread is asking.  A bare context (a rule table
-/// classified without a stance) still falls back to the thread's live state,
-/// which is what keeps the diagnostic and single-table tests working.
+/// classified without a stance) gets the shipped default; tests that vary the
+/// profile pin their explicit value with [`Context::with_profile`].
 fn pinned(context: &Context<'_>) -> InstinctProfile {
     context.decision_profile().instinct
 }
@@ -833,157 +615,41 @@ pub(in crate::bidding) fn relocating(profile: &DecisionProfile) -> bool {
 
 /// Responder runs from a doubled 1NT below this many HCP; with more, 1NT-X
 /// rates to make opposite a 15–17 opener, so sit (or redouble — see
-/// [`set_runout_xx_min`]).  A named knob for A/B tuning.
+/// [`runout_xx_min`][InstinctProfile::runout_xx_min]).
 const RUNOUT_MAX_HCP: u8 = 8;
 
-/// Enable or disable inference-aware instinct rules on the current thread
-///
-/// For A/B measurement only (see the `inference-floor` example): with it
-/// disabled the floor ignores partner's shown shape, falling back to the
-/// shape-blind 3NT / six-card-major game selection.  The flag is read at
-/// classification time and is per-thread; classify on the thread that set it.
-#[doc(hidden)]
-pub fn set_inference_aware(enabled: bool) {
-    INFERENCE_AWARE.with(|flag| flag.set(enabled));
-}
-
-/// The floor is consulting the auction interpretation (see [`set_inference_aware`])
+/// The floor is consulting the auction interpretation (see
+/// [`inference_aware`][InstinctProfile::inference_aware])
 fn inference_aware() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| pinned(context).inference_aware)
 }
 
-/// Enable or disable the doubled-1NT runout on the current thread
-///
-/// On by default: when our 1NT is doubled, a weak responder escapes to its
-/// longest five-plus-card suit instead of sitting for the penalty (and opener
-/// passes that escape).  Disable to fall back to the natural floor — Pass.  For
-/// A/B measurement (see the `ab-one-nt-runout` example); read at classification
-/// time, per-thread.
-#[doc(hidden)]
-pub fn set_one_nt_runout(enabled: bool) {
-    ONE_NT_RUNOUT.with(|flag| flag.set(enabled));
-}
-
-/// Whether the [`set_one_nt_runout`] knob is on
-pub fn one_nt_runout() -> bool {
-    ONE_NT_RUNOUT.with(Cell::get)
-}
-
-/// The doubled-1NT runout is enabled (see [`set_one_nt_runout`])
+/// The doubled-1NT runout is enabled (see
+/// [`one_nt_runout`][InstinctProfile::one_nt_runout])
 fn one_nt_runout_enabled() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| pinned(context).one_nt_runout)
 }
 
-/// Enable or disable the "settle" view of Pass on the current thread
-///
-/// **On by default** (A/B'd a clear win — +0.26 IMPs/board vul none, +0.37 vul
-/// both, on `ab-settle-floor`'s perfect-defense measure).  The floor treats Pass
-/// as *playing the top bid*: partner's takeout double is not 100% forcing, so a
-/// hand with a good penalty (length behind their doubled suit) defends instead of
-/// advancing, and a four-level advance becomes a *free bid* requiring values.
-/// Disable to recover the old always-advance floor.  For A/B measurement (see the
-/// `ab-settle-floor` example); read at classification time, per-thread.
-#[doc(hidden)]
-pub fn set_settle_floor(enabled: bool) {
-    SETTLE_FLOOR.with(|flag| flag.set(enabled));
-}
-
-/// Whether the [`set_settle_floor`] knob is on
-pub fn settle_floor_enabled() -> bool {
-    SETTLE_FLOOR.with(Cell::get)
-}
-
-/// The "settle" view of Pass is enabled (see [`set_settle_floor`])
+/// The "settle" view of Pass is enabled (see
+/// [`settle_floor`][InstinctProfile::settle_floor])
 fn settle_floor() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| pinned(context).settle_floor)
 }
 
-/// Enable the *bilans* floor on the current thread: the game/slam boundary
-/// gates price their calls with the learned trick evaluator instead of the
-/// point-count arithmetic
-///
-/// **Shipped default-on** (2026-07-21).  The `ab-bilans-floor` duplicate match
-/// over 200 000 boards per arm put it ahead on *both* scorers at *both*
-/// vulnerabilities — non-vul +0.036 IMPs/board plain DD (95% CI [+0.030,
-/// +0.042]) and +0.009 PD ([+0.002, +0.016]); vulnerable +0.065 plain DD
-/// ([+0.057, +0.073]) and +0.013 PD ([+0.003, +0.022]).  Both arms clear the
-/// decision table's win/win row, and the gain is larger vulnerable than
-/// non-vul (as is the divergence rate, 4.29% vs 3.52%) — the vulnerability
-/// axis the point gates were blind to, moving the direction the design
-/// predicts.  Pass `false` to recover the point-gate arithmetic.
-///
-/// With it on, each converted gate asks
-/// [`trick_estimates`][super::evaluator::trick_estimates] for the contract's make
-/// probability and compares it against the IMP break-even for that decision at
-/// the live vulnerability ([`break_even`]) — partscore→game at even money
-/// non-vul / 44.4% vul (our failing branch priced *doubled*, per the
-/// bid-scoring split), small slam at even money, grand at ~56–58% — the
-/// vulnerability-awareness the point gates never had.  The RKCB ask enters at
-/// [`SLAM_ENTRY_P`] instead of the [`set_floor_slam_entry`] point floor.
-///
-/// The name tips the hat to Edward Piwowar: *bilans* (Polish for "balance") is
-/// his term for the always-running deal evaluator inside EPBot, the engine
-/// behind BBA, whose reverse-engineering (`docs/ai-bidder/bba-floor.md` §5)
-/// inspired this floor.  His is analytic winner/loser arithmetic on
-/// reconstructed hands; ours is the session-C learned net over the same
-/// question.
-///
-/// Flip it only on threads that classify through a [`Stance`][super::Stance]
-/// (every real harness does): the net was fit on trie-prefixed readings, and a
-/// bare [`Context`] hands it the looser projection-less ranges it was not
-/// trained on.  Read at classification time, per-thread.
-#[doc(hidden)]
-pub fn set_bilans_floor(enabled: bool) {
-    BILANS_FLOOR.with(|flag| flag.set(enabled));
-}
-
-/// The bilans floor is enabled (see [`set_bilans_floor`])
+/// The bilans floor is enabled (see
+/// [`bilans_floor`][InstinctProfile::bilans_floor])
 fn bilans_floor() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| pinned(context).bilans_floor)
 }
 
-/// Plain-bool read of the bilans knob, for gates that must short-circuit ahead
-/// of a net forward pass (see [`net_break_even_gate`])
-fn bilans_enabled() -> bool {
-    BILANS_FLOOR.with(Cell::get)
-}
-
-/// [`bilans_enabled`] off a pinned profile — [`net_break_even_gate`]'s selector
+/// The bilans setting off a pinned profile — [`net_break_even_gate`]'s selector
 /// runs *inside* a predicate, where the thread's live state is the wrong source
 fn bilans_pinned(profile: &DecisionProfile) -> bool {
     profile.instinct.bilans_floor
 }
 
-/// Collar the bilans net instead of letting it replace the point arithmetic
-///
-/// [`set_bilans_floor`] as shipped *masks the authored arithmetic off* and hands
-/// the net the whole criterion — an unbounded veto over hands the point sums
-/// accept, and an unbounded reach below them.  With this on, the arithmetic is
-/// the criterion again and the net rules on it in one direction only, chosen by
-/// the decision's own IMP economics ([`break_even`]):
-///
-/// | decision | `tricks` | break-even, both vuls | net's licence |
-/// | --- | --- | --- | --- |
-/// | game | ≤ 11 | never *above* even money | accelerate — [`points_or_net`] |
-/// | slam | ≥ 12 | never *below* even money | veto — [`points_and_net`] |
-///
-/// A game is taken at or below even money, so the cheap direction is to *add*
-/// hands the point sums decline, bounded by a collar ([`COLLAR_SLACK`] below the
-/// authored threshold).  A slam needs at or above even money, so the net may only
-/// *decline*.  The two boundary rows sit exactly on 0.5 (non-vul game under the
-/// bid-scoring doubling premium, and the small slam on every convention — its
-/// bonus is symmetric), where the economics give no direction; the tie-break
-/// there is structural, since a veto keeps the authored reading and an
-/// accelerator does not (`docs/ai-bidder/evaluator-net.md`, "The reach ceiling").
-///
-/// Default off — byte-identical to the shipped mask in every
-/// [`set_bilans_floor`] state.  Read at classification time, per-thread.
-#[doc(hidden)]
-pub fn set_net_collar(enabled: bool) {
-    NET_COLLAR.with(|flag| flag.set(enabled));
-}
-
-/// The net collar is enabled (see [`set_net_collar`])
+/// The net collar is enabled (see
+/// [`net_collar`][InstinctProfile::net_collar])
 fn net_collar() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| pinned(context).net_collar)
 }
@@ -1041,24 +707,6 @@ pub fn set_reopening_notrump(enabled: bool) {
 /// Opener's contested notrump actions are enabled (see [`set_reopening_notrump`])
 fn reopening_notrump_enabled() -> bool {
     REOPENING_NOTRUMP.with(Cell::get)
-}
-
-/// Rein in a minimum takeout doubler that over-raises partner's forced advance
-///
-/// After we double an opponent's suit for takeout and partner names a suit — a
-/// forced, possibly bust advance — a minimum doubler (< 17 total points) that
-/// re-doubles or raises the advance to the three level double-counts its values
-/// and drives to a doubled game (`1X (1Y) - (1Z) X - 2m (2Z) 3m (X) …`).  Default on;
-/// the off state restores the blind raise ladder for the A/B
-/// (`bba-gen --no-ns-rein-advance-raise`).  Read at book construction.
-#[doc(hidden)]
-pub fn set_rein_advance_raise(enabled: bool) {
-    REIN_ADVANCE_RAISE.with(|flag| flag.set(enabled));
-}
-
-/// The advance-raise rein is enabled (see [`set_rein_advance_raise`])
-fn rein_advance_raise_enabled() -> bool {
-    REIN_ADVANCE_RAISE.with(Cell::get)
 }
 
 /// Enable or disable Rubens advances of partner's simple overcall
@@ -1130,15 +778,6 @@ std::thread_local! {
     /// default** since 2026-07-20; see [`set_two_over_one_force`].
     static TWO_OVER_ONE_FORCE: Cell<bool> = const { Cell::new(true) };
 
-    /// Whether a live 2/1 floors partner's shown strength for the slam-entry
-    /// gate.  **On by default** since 2026-07-20; see
-    /// [`set_two_over_one_slam_strength`].
-    static TWO_OVER_ONE_SLAM_STRENGTH: Cell<bool> = const { Cell::new(true) };
-
-    /// Whether the floor's keycard ask reaches agreed **minors** as well as
-    /// majors.  **On by default** since 2026-08-01; see [`set_rkcb_minors`].
-    static KEYCARD_MINORS: Cell<bool> = const { Cell::new(true) };
-
     /// Which relocation stance the keycard ask plays.  **[`Plain`] by
     /// default** — Kickback was default-on 2026-08-02 to 2026-08-03 only; see
     /// [`set_rkcb_variant`].
@@ -1181,38 +820,8 @@ pub fn two_over_one_force() -> bool {
     TWO_OVER_ONE_FORCE.with(Cell::get)
 }
 
-/// Enable or disable the two-over-one strength floor on the slam-entry gate
-///
-/// **On by default.**  The 2/1 response is alerted
-/// (`GAME_FORCE`), so the inference walk skips its natural reading and takes the
-/// rule's projection instead — and the rule gates on `points(13..)`, which on
-/// the rule-of-N+8 scale soundly projects to *no* high-card floor at all (a
-/// 13-point hand can be an eight-count with a six-card suit).  Partner therefore
-/// reads as **zero** through an established game force, and
-/// the slam-entry gate never fires on these auctions: opener holding a
-/// 26-count opposite the force counts `26 + 0 < 29` and signs off in game.
-///
-/// On, partner's shown minimum is floored at the 13 points the two-over-one
-/// promised — the same scale our own [`support_point_count`][super::constraint::support_point_count] term already uses,
-/// so the sum stays consistent.  Only when *partner* made the two-over-one:
-/// opener's one-level opening is read naturally and needs no floor.
-///
-/// Measured vs BBA (409,600×2, both scorers): **+0.0032/+0.0042 plain,
-/// +0.0031/+0.0041 PD** IMPs/board NV/vul, all CI>0, firing on 0.08%/0.09% of
-/// boards at +3.8/+4.8 IMPs each.  The same run priced deleting
-/// [`opener_third`][super::agreements::GameForceKnobs::opener_third] *on top of*
-/// this floor at
-/// +0.0003/+0.0004 with the CI straddling zero, so that node stays: the
-/// constructive re-audit's candidate #2 was starved of a reading, not shadowing
-/// a better call.
-///
-/// Read at classification time, per-thread.
-pub fn set_two_over_one_slam_strength(on: bool) {
-    TWO_OVER_ONE_SLAM_STRENGTH.with(|cell| cell.set(on));
-}
-
 /// Partner's shown minimum points, floored by a live 2/1 (see
-/// [`set_two_over_one_slam_strength`])
+/// [`two_over_one_slam_strength`][InstinctProfile::two_over_one_slam_strength])
 fn partner_slam_strength(context: &Context<'_>) -> u8 {
     let shown = context.inferences().partner().strength.shown_floor();
     if !pinned(context).two_over_one_slam_strength || !two_over_one_game_force(context) {
@@ -1239,7 +848,8 @@ fn partner_slam_strength(context: &Context<'_>) -> u8 {
 ///
 /// **The outer gate of the whole keycard package.**  Off, there is no ask to
 /// relocate, so [`relocating_now`] is false whatever [`set_rkcb_variant`] says
-/// and [`set_rkcb_minors`] has nothing to widen — the card discloses plain 4NT
+/// and [`keycard_minors`][InstinctProfile::keycard_minors] has nothing to widen
+/// — the card discloses plain 4NT
 /// and the plain twin serves the floor.
 #[doc(hidden)]
 pub fn set_floor_rkcb(enabled: bool) {
@@ -1256,29 +866,6 @@ pub(in crate::bidding) fn floor_rkcb_now() -> bool {
     FLOOR_RKCB.with(Cell::get)
 }
 
-/// Let the floor's keycard ask reach agreed **minors** (**on by default**)
-///
-/// [`keycard_trump`] was majors-only by measured decision — round 4 of the M6.4
-/// A/B lost to the milestone 6NT power-blast on minor and thin 6-2 asks — and
-/// **that verdict expired on the 2026-08 system**.  Arm B of the three-arm
-/// kickback A/B (`ab-kickback`, 1M boards a cell, seed 1785546026) re-priced it
-/// and the ask now beats the blast on every scoring row at both vulnerabilities:
-/// **+0.00394 PD / +0.00375 plain DD** per board vul none (1840 divergent) and
-/// **+0.00502 / +0.00471** vul both (1753), every 95% CI clear of zero.  Half
-/// the gain is the ask *declining* a slam — `5♦ vs 6♦` ran +44 IMPs over four
-/// audited boards where the majors-only arm blasted six without the keycards.
-///
-/// Off, the ask reverts to majors-only — the plain-4NT carve this knob owns.
-/// A live relocation implies the minors' reach regardless
-/// (`minor_asks_now`): [`RkcbVariant::Redwood`] and [`RkcbVariant::Kickback`]
-/// bring their own minor lanes.  The tie-break still prefers the higher
-/// suit either way, so a major fit of equal length keeps winning.  Read at
-/// classification time, per-thread.
-#[doc(hidden)]
-pub fn set_rkcb_minors(enabled: bool) {
-    KEYCARD_MINORS.with(|flag| flag.set(enabled));
-}
-
 /// Where the keycard ask lives — the relocation stance of the 1430 machinery
 ///
 /// The variants are the *playable* cells of what used to be two independent
@@ -1290,7 +877,8 @@ pub fn set_rkcb_minors(enabled: bool) {
 /// three stances.  One `Cell` makes the honest domain the type, the
 /// [`NotrumpDefense`][super::american::NotrumpDefense] precedent.  Selected
 /// by [`set_rkcb_variant`]; either relocation implies the minors' reach
-/// whatever [`set_rkcb_minors`] says (`minor_asks_now`), because a ladder
+/// whatever [`keycard_minors`][InstinctProfile::keycard_minors] says
+/// (`minor_asks_now`), because a ladder
 /// whose payoff is the minor lanes needs a minor to ask in.
 #[derive(Clone, Copy, PartialEq, Eq, Default, Debug)]
 pub enum RkcbVariant {
@@ -1410,8 +998,9 @@ fn relocation_now() -> RkcbVariant {
     relocation(crate::bidding::inference::reading_profile())
 }
 
-/// The keycard ask reaches agreed minors — carved in by [`set_rkcb_minors`],
-/// or implied by a live relocation ([`RkcbVariant`]): a ladder whose payoff is
+/// The keycard ask reaches agreed minors — carved in by
+/// [`keycard_minors`][InstinctProfile::keycard_minors], or implied by a live
+/// relocation ([`RkcbVariant`]): a ladder whose payoff is
 /// the minor lanes with no minor to ask in would be "kickback only hearts", a
 /// stance nobody plays.
 ///
@@ -1464,83 +1053,11 @@ pub(in crate::bidding) const fn queen_buff_fit() -> u8 {
     QUEEN_BUFF_FIT
 }
 
-/// Set the HCP floor at which responder redoubles a doubled 1NT to play
-///
-/// For A/B measurement (see `ab-one-nt-runout --xx-min`).  XX shows values and
-/// suggests defending 1NT redoubled; keyed on raw HCP (defensive strength), not
-/// the shape-upgraded point count — a shapely weak hand should run, not sit.
-#[doc(hidden)]
-pub fn set_runout_xx_min(floor: u8) {
-    RUNOUT_XX_MIN.with(|cell| cell.set(floor));
-}
-
-/// Set the HCP floor at which a strong-1NT responder forces game off the floor
-///
-/// For A/B measurement.  Default 10; lowering to 9 closes the post-transfer seam
-/// where a 9-count five-card-major hand transfers, finds no authored game-forcing
-/// rebid, and stalls below the floor's trigger.  The authored direct-3NT force is
-/// already 9, so 9 here is symmetric.
-#[doc(hidden)]
-pub fn set_nt_responder_game_floor(floor: u8) {
-    NT_RESPONDER_GAME_FLOOR.with(|cell| cell.set(floor));
-}
-
-/// The current strong-1NT responder game-force floor (see
-/// [`set_nt_responder_game_floor`])
-fn nt_responder_game_floor() -> u8 {
-    NT_RESPONDER_GAME_FLOOR.with(Cell::get)
-}
-
-/// Combined-points floor at which the floor's RKCB ask fires on a known
-/// five-plus major fit (see [`FLOOR_SLAM_ENTRY`]).  For A/B measurement:
-/// default 33; ~28–29 enters keycarding on shape-slam values.
-#[doc(hidden)]
-pub fn set_floor_slam_entry(threshold: u8) {
-    FLOOR_SLAM_ENTRY.with(|cell| cell.set(threshold));
-}
-
-/// The combined-points floor at which the floor bids a major game on a known
-/// eight-plus fit, counting the trump length as points (see [`FIT_SUM_GAME`]).
-/// For A/B measurement of the threshold itself — the shipped default is `31`;
-/// the `support_points` flip re-probes `32`.
-#[doc(hidden)]
-pub fn set_fit_sum_game(threshold: u8) {
-    FIT_SUM_GAME.with(|cell| cell.set(threshold));
-}
-
-/// Edit 1 — read partner's fit-known strength off the dedicated `support_points`
-/// gauge in [`fit_sum_game`] instead of the length-scale `points` (default off).
-/// For A/B measurement (`ab-fit-sum-game`).
-#[doc(hidden)]
-pub fn set_fit_sum_support_read(on: bool) {
-    FIT_SUM_SUPPORT_READ.with(|cell| cell.set(on));
-}
-
-/// Edit 2 — value the notrump game/slam milestones ([`combined_hcp`]) on raw HCP
-/// instead of the length-upgraded `point_count` (default off).  For A/B measurement.
-#[doc(hidden)]
-pub fn set_nt_hcp_read(on: bool) {
-    NT_HCP_READ.with(|cell| cell.set(on));
-}
-
-/// Suppress (or not) the strong-1NT responder's 3NT game force over a double of
-/// our 1NT — see [`SUPPRESS_NT_GF_OVER_DOUBLE`].  For A/B measurement.
-#[doc(hidden)]
-pub fn set_suppress_nt_game_force_over_double(suppress: bool) {
-    SUPPRESS_NT_GF_OVER_DOUBLE.with(|cell| cell.set(suppress));
-}
-
-/// Author whether opener corrects partner's choice-of-games `3NT` to `4M` with a
-/// known eight-card major fit, undisturbed and holding a ruffing doubleton (see
-/// [`CORRECT_3NT_TO_MAJOR`]).  Default on; disable for the off arm of an A/B.
-#[doc(hidden)]
-pub fn set_correct_3nt_to_major(correct: bool) {
-    CORRECT_3NT_TO_MAJOR.with(|cell| cell.set(correct));
-}
-
 /// Whether the strong-1NT responder's 3NT game force is allowed in the current
 /// auction.  It steps aside only at responder's first turn over a double of our
-/// 1NT (when [`SUPPRESS_NT_GF_OVER_DOUBLE`] is set) — the business-XX / escape
+/// 1NT (when
+/// [`suppress_nt_gf_over_double`][InstinctProfile::suppress_nt_gf_over_double]
+/// is set) — the business-XX / escape
 /// runout governs instead.  Over a suit overcall it bids as usual (no XX there,
 /// the opponents are not penalizing).
 fn nt_game_force_3nt_allowed() -> Cons<impl Constraint + Clone> {
@@ -1549,8 +1066,8 @@ fn nt_game_force_3nt_allowed() -> Cons<impl Constraint + Clone> {
     })
 }
 
-/// Responder holds redouble values: raw HCP at or above the [`RUNOUT_XX_MIN`]
-/// floor (see [`set_runout_xx_min`])
+/// Responder holds redouble values: raw HCP at or above
+/// [`runout_xx_min`][InstinctProfile::runout_xx_min]
 fn responder_has_xx_values() -> Cons<impl Constraint + Clone> {
     pred(|hand: Hand, context: &Context<'_>| {
         let hcp: u8 = Suit::ASC
@@ -1561,62 +1078,15 @@ fn responder_has_xx_values() -> Cons<impl Constraint + Clone> {
     })
 }
 
-/// Author whether responder's 3NT over a double of our 1NT is the gambling
-/// long-minor game (see [`GAMBLING_3NT_OVER_DOUBLE`]).  For A/B measurement.
-#[doc(hidden)]
-pub fn set_gambling_3nt_over_double(on: bool) {
-    GAMBLING_3NT_OVER_DOUBLE.with(|cell| cell.set(on));
-}
-
-/// Set the gambling 3NT's "semi-solid" top-honor floor (see
-/// [`GAMBLING_3NT_TOP_HONORS`]; `0` = length only).  For A/B measurement.
-#[doc(hidden)]
-pub fn set_gambling_3nt_top_honors(floor: u8) {
-    GAMBLING_3NT_TOP_HONORS.with(|cell| cell.set(floor));
-}
-
-/// Author whether the gambling 3NT requires an outside ace (see
-/// [`GAMBLING_3NT_REQUIRE_ACE`]).  For A/B measurement.
-#[doc(hidden)]
-pub fn set_gambling_3nt_require_ace(on: bool) {
-    GAMBLING_3NT_REQUIRE_ACE.with(|cell| cell.set(on));
-}
-
-/// Author whether responder's 4M over a double of our 1NT is the preemptive
-/// long-major game (see [`PREEMPT_4M_OVER_DOUBLE`]).  For A/B measurement.
-#[doc(hidden)]
-pub fn set_preempt_4m_over_double(on: bool) {
-    PREEMPT_4M_OVER_DOUBLE.with(|cell| cell.set(on));
-}
-
-/// Set the HCP floor for the preemptive 4M long-major game (see
-/// [`PREEMPT_4M_FLOOR`]).  For A/B measurement.
-#[doc(hidden)]
-pub fn set_preempt_4m_floor(floor: u8) {
-    PREEMPT_4M_FLOOR.with(|cell| cell.set(floor));
-}
-
-/// Set the preemptive 4M's "semi-solid" top-honor floor (see
-/// [`PREEMPT_4M_TOP_HONORS`]; `0` = length only).  For A/B measurement.
-#[doc(hidden)]
-pub fn set_preempt_4m_top_honors(floor: u8) {
-    PREEMPT_4M_TOP_HONORS.with(|cell| cell.set(floor));
-}
-
-/// Author whether the preemptive 4M requires the trump ace (see
-/// [`PREEMPT_4M_REQUIRE_ACE`]).  For A/B measurement.
-#[doc(hidden)]
-pub fn set_preempt_4m_require_ace(on: bool) {
-    PREEMPT_4M_REQUIRE_ACE.with(|cell| cell.set(on));
-}
-
-/// The gambling long-minor 3NT is armed (see [`set_gambling_3nt_over_double`])
+/// The gambling long-minor 3NT is armed (see
+/// [`gambling_3nt_over_double`][InstinctProfile::gambling_3nt_over_double])
 fn gambling_3nt_authored() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| pinned(context).gambling_3nt_over_double)
 }
 
 /// The gambling 3NT's long minor is semi-solid: it holds at least
-/// [`GAMBLING_3NT_TOP_HONORS`] of the top three honors (A/K/Q).  An eval-time
+/// [`gambling_3nt_top_honors`][InstinctProfile::gambling_3nt_top_honors] of
+/// the top three honors (A/K/Q).  An eval-time
 /// knob (not the build-time [`top_honors`][super::constraint::top_honors]) so the
 /// A/B can flip length-only vs semi-solid per board without rebuilding.
 fn gambling_3nt_semisolid(minor: Suit) -> Cons<impl Constraint + Clone> {
@@ -1641,12 +1111,14 @@ fn gambling_3nt_suit_ace(minor: Suit) -> Cons<impl Constraint + Clone> {
     })
 }
 
-/// The preemptive long-major 4M is armed (see [`set_preempt_4m_over_double`])
+/// The preemptive long-major 4M is armed (see
+/// [`preempt_4m_over_double`][InstinctProfile::preempt_4m_over_double])
 fn preempt_4m_authored() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| pinned(context).preempt_4m_over_double)
 }
 
-/// Responder holds at least the preemptive-4M HCP floor (see [`PREEMPT_4M_FLOOR`])
+/// Responder holds at least
+/// [`preempt_4m_floor`][InstinctProfile::preempt_4m_floor] HCP
 fn preempt_4m_values() -> Cons<impl Constraint + Clone> {
     described("a modest opening", |hand: Hand, context: &Context<'_>| {
         let hcp: u8 = Suit::ASC
@@ -1658,7 +1130,8 @@ fn preempt_4m_values() -> Cons<impl Constraint + Clone> {
 }
 
 /// The preemptive 4M's long major is semi-solid: it holds at least
-/// [`PREEMPT_4M_TOP_HONORS`] of the top three honors (A/K/Q).  The major's mirror
+/// [`preempt_4m_top_honors`][InstinctProfile::preempt_4m_top_honors] of the
+/// top three honors (A/K/Q).  The major's mirror
 /// of [`gambling_3nt_semisolid`].
 fn preempt_4m_semisolid(major: Suit) -> Cons<impl Constraint + Clone> {
     described(
@@ -1681,98 +1154,32 @@ fn preempt_4m_trump_ace(major: Suit) -> Cons<impl Constraint + Clone> {
     })
 }
 
-/// Enable or disable the *universal* doubled-1NT runout on the current thread
-///
-/// On by default: opener too escapes its own five-plus-card suit, and SOS-
-/// redoubles (the balancing redouble) when it has none, in the seat where the
-/// double comes back to it with a weak partner.  Off restricts the runout to the
-/// weak responder's direct seat.  For A/B measurement (see
-/// `ab-one-nt-runout --universal`); read at classification time, per-thread.
-#[doc(hidden)]
-pub fn set_one_nt_runout_universal(enabled: bool) {
-    ONE_NT_RUNOUT_UNIVERSAL.with(|flag| flag.set(enabled));
-}
-
-/// Whether the [`set_one_nt_runout_universal`] knob is on
-pub fn one_nt_runout_universal_enabled() -> bool {
-    ONE_NT_RUNOUT_UNIVERSAL.with(Cell::get)
-}
-
-/// The universal runout is enabled (see [`set_one_nt_runout_universal`])
+/// The universal runout is enabled (see
+/// [`one_nt_runout_universal`][InstinctProfile::one_nt_runout_universal])
 fn one_nt_runout_universal() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| pinned(context).one_nt_runout_universal)
 }
 
-/// Set what responder's `2NT` shows in the doubled-1NT runout
-///
-/// For A/B measurement (see `ab-one-nt-runout --compare minors5|direct`); read
-/// at classification time, per-thread.  [`Unusual2nt::Direct`] is the default.
-#[doc(hidden)]
-pub fn set_unusual_2nt(mode: Unusual2nt) {
-    UNUSUAL_2NT.with(|cell| cell.set(mode));
-}
-
-/// Responder's `2NT` is configured to `mode` (see [`set_unusual_2nt`])
+/// Responder's `2NT` is configured to `mode` (see
+/// [`unusual_2nt`][InstinctProfile::unusual_2nt])
 fn unusual_2nt_is(mode: Unusual2nt) -> Cons<impl Constraint + Clone> {
     pred(move |_: Hand, context: &Context<'_>| pinned(context).unusual_2nt == mode)
 }
 
-/// Enable or disable the trump-stack penalty double of the opponents' escape
-///
-/// For A/B measurement (see `ab-one-nt-runout --compare escape-stack`); read at
-/// classification time, per-thread.  On by default.
-#[doc(hidden)]
-pub fn set_penalize_escape_stack(enabled: bool) {
-    PENALIZE_ESCAPE_STACK.with(|flag| flag.set(enabled));
-}
-
-/// Whether the [`set_penalize_escape_stack`] knob is on
-pub fn penalize_escape_stack() -> bool {
-    PENALIZE_ESCAPE_STACK.with(Cell::get)
-}
-
-/// The trump-stack escape penalty is enabled (see [`set_penalize_escape_stack`])
+/// The trump-stack escape penalty is enabled (see
+/// [`penalize_escape_stack`][InstinctProfile::penalize_escape_stack])
 fn penalize_escape_stack_enabled() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| pinned(context).penalize_escape_stack)
 }
 
-/// Enable or disable the values penalty double of their escape from our 1NT-XX
-///
-/// For A/B measurement (see `ab-one-nt-runout --compare escape-values`); read at
-/// classification time, per-thread.  On by default.
-#[doc(hidden)]
-pub fn set_penalize_escape_values(enabled: bool) {
-    PENALIZE_ESCAPE_VALUES.with(|flag| flag.set(enabled));
-}
-
-/// Whether the [`set_penalize_escape_values`] knob is on
-pub fn penalize_escape_values() -> bool {
-    PENALIZE_ESCAPE_VALUES.with(Cell::get)
-}
-
-/// The values escape penalty is enabled (see [`set_penalize_escape_values`])
+/// The values escape penalty is enabled (see
+/// [`penalize_escape_values`][InstinctProfile::penalize_escape_values])
 fn penalize_escape_values_enabled() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| pinned(context).penalize_escape_values)
 }
 
-/// Enable or disable the Unusual-vs-Unusual penalty chase after `1NT (2NT) X`
-///
-/// "All our doubles are penalty from the first X on"; a pass conveys inability
-/// to punish *this* contract.  The responder `X` itself lives in the american
-/// book (`agreements.competition.uvu`); this only adds the
-/// follow-up chase of the opponents' escape.  Read at classification time,
-/// per-thread.  On by default — but dormant unless our UvU `X` was bid.
-#[doc(hidden)]
-pub fn set_uvu_encircle(enabled: bool) {
-    UVU_ENCIRCLE.with(|flag| flag.set(enabled));
-}
-
-/// Whether the [`set_uvu_encircle`] knob is on
-pub fn uvu_encircle() -> bool {
-    UVU_ENCIRCLE.with(Cell::get)
-}
-
-/// The UvU penalty chase is enabled (see [`set_uvu_encircle`])
+/// The UvU penalty chase is enabled (see
+/// [`uvu_encircle`][InstinctProfile::uvu_encircle])
 fn uvu_encircle_enabled() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| pinned(context).uvu_encircle)
 }
@@ -2066,7 +1473,8 @@ fn leave_in_escape_penalty() -> Cons<impl Constraint + Clone> {
 /// for penalty, and since then we have only passed or doubled — so the live suit
 /// contract is *theirs* (their escape from the X).  Returns the index of our
 /// opening 1NT when the pattern holds; mirrors [`our_doubled_one_nt_escape`] for
-/// the Unusual-vs-Unusual chase ([`set_uvu_encircle`]).
+/// the Unusual-vs-Unusual chase
+/// ([`uvu_encircle`][InstinctProfile::uvu_encircle]).
 fn our_uvu_penalty_escape(context: &Context<'_>) -> Option<usize> {
     let auction = context.auction();
     let (index, bid) = opening_bid(auction)?;
@@ -2176,7 +1584,7 @@ fn partner_advanced_our_double() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| partner_advanced_our_double_now(context))
 }
 
-/// The rein (`set_rein_advance_raise`) is silencing a minimum's *second* action
+/// The `rein_advance_raise` agreement is silencing a minimum's *second* action
 /// over partner's forced advance of our double — a constraint to `&`-negate into
 /// the takeout-double rule (the separate 17+ rule keeps the maximum doubling).
 fn minimum_reraise_blocked() -> Cons<impl Constraint + Clone> {
@@ -2200,7 +1608,7 @@ fn has_fit(hand: Hand, context: &Context<'_>) -> bool {
 }
 
 /// The free-bid gate on an advance of partner's double into a new suit at `level` (see
-/// [`set_settle_floor`])
+/// [`settle_floor`][InstinctProfile::settle_floor])
 ///
 /// A no-op unless the settle floor is on, and only ever gates the **four level**:
 /// a new suit there is a *free bid* — partner's takeout double does not force us to
@@ -2382,7 +1790,8 @@ fn below_game() -> Cons<impl Constraint + Clone> {
 }
 
 /// Partner's last call was a choice-of-games `3NT` we may correct to `4M`, and
-/// the correction is enabled (see [`CORRECT_3NT_TO_MAJOR`])
+/// the correction is enabled (see
+/// [`correct_3nt_to_major`][InstinctProfile::correct_3nt_to_major])
 ///
 /// Pair with a known eight-card major fit: a responder who transferred (showing
 /// five) then bid `3NT` offers the choice, and opposite three-card support the
@@ -2429,7 +1838,8 @@ fn below_slam() -> Cons<impl Constraint + Clone> {
 /// This was majors-only until 2026-08-01, on round 4 of the M6.4 A/B: at
 /// combined 33 the milestone 6NT power-blast out-scored minor and thin 6-2 suit
 /// slams on double-dummy.  Re-priced on the 2026-08 system, **the ask beats the
-/// blast** — see [`set_rkcb_minors`], which now carves *back* to majors
+/// blast** — see [`keycard_minors`][InstinctProfile::keycard_minors], which now
+/// carves *back* to majors
 /// rather than lifting a carve; a live relocation lifts it too
 /// ([`minor_asks_now`]).
 fn keycard_trump(hand: Hand, context: &Context<'_>) -> Option<Suit> {
@@ -3935,7 +3345,8 @@ fn king_reply(bid: Bid, more: bool) -> Cons<impl Constraint + Clone> {
 
 /// Grand-zone values: the authored point floor **and** the net's verdict
 ///
-/// [`points_and_net`] alone is not that.  With [`set_bilans_floor`] on — the
+/// [`points_and_net`] alone is not that.  With
+/// [`bilans_floor`][InstinctProfile::bilans_floor] on — the
 /// default — its authored arm is dead and the net's break-even test decides by
 /// itself, and the net calls a grand plausible on hands the point count puts
 /// nowhere near one: probing the `1♠ - 3♠ - 4NT - 5♣` asker, *every* hand strong
@@ -4120,7 +3531,8 @@ fn raw_hcp(hand: Hand) -> u8 {
 /// [`combined_points`] for notrump: both hands on raw HCP (length and shortness
 /// are worthless in notrump), reading partner's crisp `hcp` gauge when populated
 ///
-/// Edit 2 — with [`NT_HCP_READ`] off this is [`combined_points`] verbatim
+/// Edit 2 — with [`nt_hcp_read`][InstinctProfile::nt_hcp_read] off this is
+/// [`combined_points`] verbatim
 /// (`point_count` own, partner's length-scale `points` floor), so the notrump
 /// milestones stay byte-identical until the knob flips.
 fn combined_hcp(threshold: u8) -> Cons<impl Constraint + Clone> {
@@ -4145,7 +3557,8 @@ fn combined_hcp(threshold: u8) -> Cons<impl Constraint + Clone> {
     })
 }
 
-/// [`combined_points`] against the live [`FLOOR_SLAM_ENTRY`] floor — read at
+/// [`combined_points`] against the live
+/// [`floor_slam_entry`][InstinctProfile::floor_slam_entry] floor — read at
 /// classify time (not baked at construction) so an A/B harness can flip the
 /// RKCB-ask threshold per call, matching the other floor knobs.
 fn slam_entry_reached() -> Cons<impl Constraint + Clone> {
@@ -4168,7 +3581,7 @@ fn slam_entry_reached() -> Cons<impl Constraint + Clone> {
         // shortness as support value.  Still the suit-blind scalar — the
         // trump here is dynamic (`keycard_trump`), and the migration to
         // `support_point_count_in` is a ledger follow-up with its own
-        // FLOOR_SLAM_ENTRY resweep.
+        // `floor_slam_entry` resweep.
         let partner_min = partner_slam_strength(context);
         let reading = context.reading_profile();
         let own = support_point_count_on(reading.support_points(), reading.point_scale(), hand);
@@ -4176,7 +3589,8 @@ fn slam_entry_reached() -> Cons<impl Constraint + Clone> {
     })
 }
 
-/// The major-game gate that counts trump length as points (see [`FIT_SUM_GAME`]).
+/// The major-game gate that counts trump length as points (see
+/// [`fit_sum_game`][InstinctProfile::fit_sum_game]).
 ///
 /// Folds the known combined trump length — our holding in `suit` plus partner's
 /// shown floor, the same sum [`known_eight_card_fit`] gates on — into the point
@@ -4190,8 +3604,8 @@ fn slam_entry_reached() -> Cons<impl Constraint + Clone> {
 ///
 /// `slack` lowers the threshold, so `fit_sum_game(suit, COLLAR_SLACK)` is the
 /// collar arm of [`points_or_net`] at the fitted-major game.  It subtracts from
-/// the *live* [`FIT_SUM_GAME`], so the collar keeps tracking
-/// [`set_fit_sum_game`] instead of pinning a second constant.
+/// the live [`fit_sum_game`][InstinctProfile::fit_sum_game], so the collar
+/// keeps tracking the agreement instead of pinning a second constant.
 fn fit_sum_game(suit: Suit, slack: u8) -> Cons<impl Constraint + Clone> {
     pred(move |hand: Hand, context: &Context<'_>| {
         // Fit-known (the rule pairs this with `known_eight_card_fit`), so count
@@ -4333,7 +3747,8 @@ fn bilans_trick_gate(
     })
 }
 
-/// With [`set_bilans_floor`] on, the net likes `tricks` of ours in `strain` at
+/// With [`bilans_floor`][InstinctProfile::bilans_floor] on, the net likes
+/// `tricks` of ours in `strain` at
 /// better than even money
 ///
 /// Unlike [`points_or_net`] this converts no authored arithmetic — it is a gate
@@ -4356,7 +3771,8 @@ fn net_makes(strain: Strain, tricks: u8) -> Cons<impl Constraint + Clone> {
 /// - Both knobs off: exactly `authored`.  The net arm is `-∞` and falls out of
 ///   the [`Or`][super::constraint] max without touching the net (its predicate
 ///   short-circuits on the thread-local); the masking arms contribute `0.0`.
-/// - [`set_bilans_floor`] on, [`set_net_collar`] off: exactly the net.  The
+/// - [`bilans_floor`][InstinctProfile::bilans_floor] on,
+///   [`net_collar`][InstinctProfile::net_collar] off: exactly the net.  The
 ///   authored arm is masked to `-∞` and the gate is
 ///   `P(≥ tricks by our declarer in strain) ≥ break_even` — an unbounded reach
 ///   *and* an unbounded veto over hands the point sums accept.
@@ -4387,7 +3803,8 @@ fn points_or_net(
 ///
 /// The mirror of [`points_or_net`]: slams break even at or *above* even money, so
 /// the cheap direction is to decline rather than to add.  Knob states, as there:
-/// both off is exactly `authored`; [`set_bilans_floor`] alone is exactly the net
+/// both off is exactly `authored`;
+/// [`bilans_floor`][InstinctProfile::bilans_floor] alone is exactly the net
 /// (the legacy mask); both on is `authored & net`, which needs no collar because
 /// it only ever shrinks the accepted set — and therefore keeps `authored`'s own
 /// reading, loose in the safe direction.
@@ -4617,30 +4034,6 @@ fn penalty_latched_c() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| penalty_latched(context))
 }
 
-/// Suppress the doubler's constructive pulls of its own penalty double of their
-/// 1NT (**on by default**)
-///
-/// Independent of the latch's double-handling: this only stops the *bids* (the
-/// natural suit / notrump overcalls), so the doubler defends or latch-doubles
-/// instead of "competing" to 2NT/3NT/a major opposite a likely-broke partner.
-/// A no-op unless the latch is on (the penalty stance it keys off, see
-/// [`penalty_latched`]).  Read at classification time, per-thread.
-///
-/// DD-measured against BBA's 2/1 on the isolated 1NT-defense match (8000 we-defend
-/// boards/seed): the penalty-X bucket goes −2.312 → −1.013 IMPs/X-board vulnerable
-/// (paired +0.058 IMPs/board overall, 95% CI [+0.030, +0.085]) and is neutral
-/// non-vulnerable (+0.007, CI straddles 0); the swing is isolated to the X bucket.
-/// Disable for the off arm of the A/B.
-#[doc(hidden)]
-pub fn set_penalty_no_pull(enabled: bool) {
-    PENALTY_NO_PULL.with(|flag| flag.set(enabled));
-}
-
-/// Whether the [`set_penalty_no_pull`] knob is on
-pub fn penalty_no_pull() -> bool {
-    PENALTY_NO_PULL.with(Cell::get)
-}
-
 /// The doubler may make a constructive overcall: either the no-pull knob is off,
 /// or we are not in the penalty stance ([`penalty_latched`]).  Gates the
 /// overcall-shaped rules that fire off [`we_have_not_bid`] (a double is not a bid).
@@ -4655,17 +4048,6 @@ fn not_penalty_latched() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| !penalty_latched(context))
 }
 
-/// Select what a latched later double means for the current thread (live-read)
-///
-/// [`LatchStyle::Penalty`] (the **default**) is the stack-and-sit penalty double;
-/// [`LatchStyle::Optional`] is the 2-3-card cooperative double.  A live-read
-/// instinct flag (like [`set_penalty_latch`]), so the A/B harness sets it per
-/// worker thread.
-#[doc(hidden)]
-pub fn set_latch_style(style: LatchStyle) {
-    LATCH_STYLE.with(|cell| cell.set(style));
-}
-
 /// The latched double is the cooperative *optional* style (see [`LatchStyle`])
 fn latch_optional_c() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| pinned(context).latch_style == LatchStyle::Optional)
@@ -4674,23 +4056,6 @@ fn latch_optional_c() -> Cons<impl Constraint + Clone> {
 /// The latched double is the pure *penalty* style (the default; see [`LatchStyle`])
 fn latch_penalty_c() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| pinned(context).latch_style == LatchStyle::Penalty)
-}
-
-/// Enable or disable the advancer's runout from their redoubled penalty double
-///
-/// **On by default.**  After our natural penalty double of their 1NT, their
-/// business redouble (`(1NT) X (XX)`) marks their side with the values, so a weak
-/// advancer escapes to its long suit rather than sit for a making `1NTxx`.  The
-/// mirror of the [responder runout][`set_one_nt_runout`] on the defensive side.
-/// Disable for the off arm of the A/B; read at classification time, per-thread.
-#[doc(hidden)]
-pub fn set_advancer_xx_runout(enabled: bool) {
-    ADVANCER_XX_RUNOUT.with(|flag| flag.set(enabled));
-}
-
-/// Whether the [`set_advancer_xx_runout`] knob is on
-pub fn advancer_xx_runout_enabled() -> bool {
-    ADVANCER_XX_RUNOUT.with(Cell::get)
 }
 
 /// Their redoubled penalty double is back to a weak advancer (`(1NT) X (XX)`) and
@@ -5295,7 +4660,7 @@ pub fn instinct(agreements: &Agreements) -> Rules {
         // into a doubled disaster.  A natural overcall is shown 5+, so it is
         // unaffected.  See `inference::multi_reading`.
         //
-        // The rein (`set_rein_advance_raise`, default on) blocks the three-level+
+        // The rein (`rein_advance_raise`, default on) blocks the three-level+
         // rung when partner's suit was a forced advance of *our* takeout double:
         // the double already showed our values, so a minimum re-raise double-counts
         // them into a doubled game.  A genuine maximum (17+ points) still competes.
@@ -5305,7 +4670,7 @@ pub fn instinct(agreements: &Agreements) -> Rules {
                 & min_level_is(level, strain)
                 & support(3..)
                 & points(threshold..);
-            rules = if rein_advance_raise_enabled() && level >= 3 {
+            rules = if agreements.decision.instinct.rein_advance_raise && level >= 3 {
                 rules.rule(
                     Bid::new(level, strain),
                     120,
@@ -5346,14 +4711,14 @@ pub fn instinct(agreements: &Agreements) -> Rules {
         }
     }
 
-    // Runout after our 1NT is doubled (default on; `set_one_nt_runout`).  A weak
+    // Runout after our 1NT is doubled (default on; `one_nt_runout`).  A weak
     // responder escapes to its longest five-plus-card suit rather than sit for
     // the (effectively penalty) double; the values end redoubles and opener
     // passes the escape — both rules below.  The run/XX boundary is the
-    // `set_runout_xx_min` knob (raw HCP), measured best near 7.
+    // `runout_xx_min` agreement (raw HCP), measured best near 7.
     //
-    // The both-minor 2NT action (`set_unusual_2nt`) and the penalty double of
-    // the opponents' escape (`set_penalize_escape_stack` / `_values`) are
+    // The both-minor 2NT action (`unusual_2nt`) and the penalty double of
+    // the opponents' escape (`penalize_escape_stack` / `_values`) are
     // authored below as A/B knobs; see the `ab-one-nt-runout --compare` axes.
     for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         let strain = Strain::from(suit);
@@ -5382,7 +4747,7 @@ pub fn instinct(agreements: &Agreements) -> Rules {
     }
 
     // Advancer's runout from their redoubled penalty double (`(1NT) X (XX)`,
-    // default on; `set_advancer_xx_runout`).  Their XX is business, so a weak
+    // default on; `advancer_xx_runout`).  Their XX is business, so a weak
     // advancer escapes to its longest five-plus-card suit instead of sitting for a
     // making `1NTxx` — the defensive mirror of the responder runout above.  A
     // values advancer (>= `RUNOUT_MAX_HCP`) passes to defend `1NTxx` instead.
@@ -5490,7 +4855,7 @@ pub fn instinct(agreements: &Agreements) -> Rules {
             & len(Suit::Spades, ..5),
     );
 
-    // Runout, 2NT extended (`set_unusual_2nt(FiveFiveAdd)`): a five-five-minors
+    // Runout, 2NT extended (`unusual_2nt = FiveFiveAdd`): a five-five-minors
     // hand bids 2NT too, above the natural minor escape (1.0/1.1), so opener
     // picks the better fit instead of responder guessing a minor.  A five-five
     // hand cannot hold a five-card major, so no major guard is needed.
@@ -5505,7 +4870,7 @@ pub fn instinct(agreements: &Agreements) -> Rules {
             & len(Suit::Diamonds, 5..),
     );
 
-    // Runout, the direct escape (`set_unusual_2nt(Direct)`, the default): no 2NT
+    // Runout, the direct escape (`unusual_2nt = Direct`, the default): no 2NT
     // relay — a weak four-four-minors bust bids its longer minor (ties to
     // diamonds) at the two level, one double-exposure instead of the relay's two.
     // Opener passes it like any escape (`opener_after_one_nt_runout`, above).
@@ -5555,7 +4920,7 @@ pub fn instinct(agreements: &Agreements) -> Rules {
             one_nt_runout_enabled() & opener_after_one_nt_minors() & !longer_diamonds(),
         );
 
-    // Universal runout, opener's balancing seat (`set_one_nt_runout_universal`).
+    // Universal runout, opener's balancing seat (`one_nt_runout_universal`).
     // The double came back to opener with a weak partner (it had no escape), so
     // 1NT-X rates to fail: opener runs its own five-plus-card suit rather than
     // sit — but only minimum-ish, since a maximum still rates to make 1NT-X.
@@ -5678,7 +5043,7 @@ pub fn instinct(agreements: &Agreements) -> Rules {
     // UvU encircling: the opponents ran from our 1NT (2NT) X.  Double their
     // escape with a trump stack — and keep doubling as they keep running — by
     // agreement; partner leaves in.  Mirrors the doubled-1NT escape chase above,
-    // gated on its own A/B knob ([`set_uvu_encircle`]), independent of the runout.
+    // gated on its own A/B agreement (`uvu_encircle`), independent of the runout.
     rules = rules
         .rule(
             Call::Double,
@@ -5747,7 +5112,8 @@ pub fn instinct(agreements: &Agreements) -> Rules {
     // (the bilans knob prices that contract's own strain and trick target) —
     // while these forces still apply untouched.
     let game_forces = (partner_strong_notrump(1)
-        & (hcp(10..) | (hcp(nt_responder_game_floor()..) & undisturbed())))
+        & (hcp(10..)
+            | (hcp(agreements.decision.instinct.nt_responder_game_floor..) & undisturbed())))
         | (partner_strong_notrump(2) & hcp(5..))
         | auction_forces_game();
     rules = rules.rule(
@@ -5766,7 +5132,7 @@ pub fn instinct(agreements: &Agreements) -> Rules {
             & nt_game_force_3nt_allowed()
             & level_available(3, Strain::Notrump),
     );
-    // Gambling 3NT over a double of our 1NT (opt-in; `set_gambling_3nt_over_double`).
+    // Gambling 3NT over a double of our 1NT (opt-in; `gambling_3nt_over_double`).
     // A long (6+) minor, semi-solid, with an outside ace by default — responder runs
     // its suit opposite the 15–17 opener rather than defend the redouble or escape.
     // Split per minor so the build-time `len(minor, 6..)` floors the *named* suit in
@@ -5837,7 +5203,7 @@ pub fn instinct(agreements: &Agreements) -> Rules {
                 & len(major, 6..)
                 & level_available(4, strain),
         );
-        // Preemptive 4M over a double of our 1NT (opt-in; `set_preempt_4m_over_double`).
+        // Preemptive 4M over a double of our 1NT (opt-in; `preempt_4m_over_double`).
         // The major's mirror of the gambling 3NT: a *quality* long (6+) major —
         // semi-solid and headed by the trump ace (a sure trump trick that buffs total
         // tricks) — on a modest hand, partly preemptive and partly to make opposite the
@@ -5858,7 +5224,7 @@ pub fn instinct(agreements: &Agreements) -> Rules {
         );
         // A ninth or tenth trump counts as points here: `fit_sum_game` reaches
         // game once own points + partner's shown floor + the combined trump length
-        // clear the [`FIT_SUM_GAME`] threshold (default 31).
+        // clear the `fit_sum_game` threshold (default 31).
         rules = rules.rule(
             Bid::new(4, strain),
             150,

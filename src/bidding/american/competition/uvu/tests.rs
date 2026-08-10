@@ -70,7 +70,7 @@ fn uvu_disabled_falls_to_floor() {
 ///
 /// Asserted against `american_instinct()`, not `american()`, because the
 /// chase is a rule of the **deterministic** ladder gated on
-/// `set_uvu_encircle` — and `with_floor` attaches `instinct()` to the
+/// `InstinctProfile::uvu_encircle` — and `with_floor` attaches `instinct()` to the
 /// *constructive* book only, so on a contested auction like this one the
 /// learned floor is the sole answer and the rule never runs. Through
 /// `american()` this test asserted that the net happened to *agree* with the
@@ -82,7 +82,7 @@ fn uvu_disabled_falls_to_floor() {
 fn uvu_encircling_doubles_the_runout() {
     let mut arm = Agreements::current();
     arm.competition.uvu = true;
-    crate::bidding::instinct::set_uvu_encircle(true);
+    arm.decision.instinct.uvu_encircle = true;
     let auction = [
         call(1, Strain::Notrump),
         call(2, Strain::Notrump),
@@ -101,6 +101,5 @@ fn uvu_encircling_doubles_the_runout() {
         .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))
         .map(|(call, _)| call)
         .expect("array is never empty");
-    crate::bidding::instinct::set_uvu_encircle(true); // the shipped default
     assert_eq!(c, Call::Double, "encircle the 3♣ runout with a club stack");
 }
