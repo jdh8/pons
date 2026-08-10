@@ -1231,7 +1231,7 @@ impl Bidder for Partnership {
 
 #[cfg(test)]
 #[path = "../../benches/support/mod.rs"]
-mod performance_support;
+pub(crate) mod performance_support;
 
 #[cfg(test)]
 mod tests;

@@ -234,6 +234,43 @@ seat-carrying `project` or the sampled projection.
   blind opening lead (the known DD bias at 1NT); `Partnership::infer` attaches the
   trie so alerted conventions decode in the leader's sampling.
 
+## Serving one decision: `Bidder`, `Context`, `DecisionCache`
+
+`Bidder` (`bidding.rs`) is the adapter interface — one method, "here is a hand
+and an auction, give me logits". `Partnership` implements it, and so do the
+foreign engines we measure against: BBA/EPBot, BEN, and the bench `Legacy`
+implementor. `Table<B, B>` is generic over it, which is what lets a pons seat
+play a BBA seat with no special case.
+
+`Context` (`context.rs`) is what that call may consult besides the hand, and it
+is **three strata in one struct**:
+
+| Stratum | What it is | Bare context |
+| --- | --- | --- |
+| Mechanical facts | vulnerability, the auction, and eleven facts derived from it | always present |
+| Attachments | borrows of what the caller already built: the serving `Partnership` and the one it models for them, both convention cards, the authored projection, the trie prefixes, and the `DecisionProfile` | all absent; the profile falls back to `DecisionProfile::default()` |
+| Per-decision memo | `DecisionCache`, plus a `revision` counter that invalidates it | absent — a bare context recomputes, by design |
+
+Nothing in stratum 2 is *discovered*; it is handed over. Since 0.11 that is
+literally true — no bidding knob lives on a thread, so `Context::reading_profile`
+is one field read rather than the four-arm cascade (cache, attached system,
+explicit pin, thread-local) it was through 0.10.
+
+The facts are derived **twice, by two different algorithms**: `ContextCursor`
+maintains them incrementally as the reading walk advances one turn at a time,
+while `Context::new` rescans. Nothing makes them agree by construction, so
+`incremental_and_rescanned_facts_agree_on_the_frozen_corpus` holds them to the
+same answer at every prefix of all 512 frozen positions. A drift there is a
+silent wrong-bidding bug.
+
+`DecisionCache` memoizes one classification's readings, features and pure gate
+results, keyed by hand, thread and profile so it cannot answer a question it
+was not built for. It and the compiled rule path are ~690 lines that landed on
+2026-08-05 in two commits with empty bodies (`42a35cc`, `6a109be`) and no
+CHANGELOG entry; their design record is
+[bidding-performance-handoff.md](bidding-performance-handoff.md). **Read that
+before changing either.**
+
 ## Knobs
 
 Every knob is a public field of `Agreements` or one of its area/profile

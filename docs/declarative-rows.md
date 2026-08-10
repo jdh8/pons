@@ -52,7 +52,7 @@ code, not book wiring.
 ## Why the layer is load-bearing
 
 Not cosmetics. The bidding-engine recovery (stages 1–6, archived at
-[docs/archive/bidding-performance-handoff.md](archive/bidding-performance-handoff.md))
+[docs/bidding-performance-handoff.md](bidding-performance-handoff.md))
 **compiles row grammar.** Stage 3 keeps a `Pattern`/`Row` authoring ledger alive
 through trie mutation, graft, merge and floor, and consumes it at
 `System::bind()`; stages 4–5 turn exact patterns into direct transitions and

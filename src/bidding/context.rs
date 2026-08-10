@@ -1,13 +1,32 @@
-//! Mechanical context of an auction
+//! What one bidding decision may consult, besides the hand
 //!
-//! [`Context`] packages everything a [`Classifier`][super::trie::Classifier]
-//! or a [`Constraint`][super::constraint::Constraint] may consult besides the
-//! hand itself: vulnerability, the raw table auction, and facts derived from
-//! it (who bid which strains, the contract to beat, passed-hand status).
+//! [`Context`] is three things in one struct, and telling them apart is most
+//! of understanding it:
 //!
-//! All facts here are *mechanical*: they follow from the laws of the game
-//! alone.  System interpretation (such as forcing status) deliberately does
-//! not live here — it belongs to classifiers, which know their system.
+//! 1. **Mechanical facts** — vulnerability, the raw table auction, and the
+//!    eleven facts derived from it (who bid which strains, the contract to
+//!    beat, passed-hand status, the opening index).  These follow from the
+//!    laws of the game alone.  System interpretation — forcing status, what a
+//!    `2♣` means — deliberately does not live here; it belongs to classifiers,
+//!    which know their system.
+//! 2. **Attachments** — borrows of things the caller already built, each
+//!    `Option` because a bare context has none of them: the serving
+//!    [`Partnership`] and the one it models for the opponents, the convention
+//!    cards the nets read, the authored projection, the trie prefixes, and the
+//!    [`DecisionProfile`] this decision serves under.  These are *not* ambient
+//!    state — nothing here is discovered, only handed over.
+//! 3. **A per-decision memo** — `DecisionCache`, plus the `revision` counter
+//!    that invalidates it.  One classification asks for the same readings,
+//!    features and gate results many times; the memo makes the repeats free
+//!    and is keyed by hand, thread and profile so it can never answer a
+//!    question it was not built for.
+//!
+//! Only the first stratum was here originally.  Strata 2 and 3 arrived on
+//! 2026-08-05 in two large unnarrated commits (`42a35cc`, `6a109be`), whose
+//! design record is [docs/bidding-performance-handoff.md]; read that before
+//! changing anything about the cache or the compiled rule path.
+//!
+//! [docs/bidding-performance-handoff.md]: ../../../docs/bidding-performance-handoff.md
 
 use super::book::Partnership;
 use super::constraint::FifthsCompanion;
@@ -66,22 +85,45 @@ pub(crate) fn flipped(vul: RelativeVulnerability) -> RelativeVulnerability {
 /// player about to call, and the vulnerability is relative to that side.
 #[derive(Clone)]
 pub struct Context<'a> {
+    // --- Mechanical facts: derived from the auction, true under the laws ---
+    /// Vulnerability from the perspective of the side to act
     vul: RelativeVulnerability,
+    /// The raw table auction — all four players' calls, oldest first
     auction: &'a [Call],
+    /// Bitmask over [`Strain`] of the strains our side has bid
     our_strains: u8,
+    /// Bitmask over [`Strain`] of the strains they have bid
     their_strains: u8,
+    /// Partner's last *bid* (not double or pass), if any
     partner_last_bid: Option<Bid>,
+    /// The last bid by anyone — the contract to beat
     last_bid: Option<Bid>,
+    /// Whether the last bid stands doubled or redoubled
     penalty: Penalty,
+    /// Whether they have yet to make a non-pass call
     undisturbed: bool,
+    /// Whether the player to act passed earlier in this auction
     passed_hand: bool,
+    /// Whether partner passed earlier in this auction
     partner_passed_hand: bool,
+    /// Index in `auction` of the first non-pass call, if the bidding has opened
     opening_index: Option<usize>,
+
+    // --- Attachments: borrows of what the caller already built ---
+    /// The queried trie's common prefixes, for the exact-node projection path
     prefixes: Option<CommonPrefixes<'a, 'a>>,
+    /// The partnership serving this decision, attached by
+    /// [`Context::with_system`]; `None` for a bare diagnostic context
     own_system: Option<&'a Partnership>,
+    /// The system we model the opponents as playing — our own unless the
+    /// partnership was built against a declared opponent
     their_system: Option<&'a Partnership>,
+    /// Both sides' convention cards, as the `features_v5` net block reads them
     config: Option<&'a Config>,
+    /// The compact card encoding, the smaller sibling of `config`
     compact: Option<&'a CompactConfig>,
+    /// Precomputed authored projections, so a reading walk need not re-resolve
+    /// each prior call's authoring classifier
     authored_projection: Option<&'a AuthoredProjection>,
     /// The knob state this decision serves under
     ///
@@ -93,7 +135,16 @@ pub struct Context<'a> {
     /// reader's settings.  There is no ambient fallback: since 0.11 no bidding
     /// knob lives on a thread.
     profile: DecisionProfile,
+
+    // --- The per-decision memo ---
+    /// Bumped by every builder that changes what a cached answer would be, so
+    /// a cache carried across such a builder is recognised as stale rather
+    /// than trusted.  Attaching a system bumps it; setting the profile does
+    /// not, because the cache compares profiles itself.
     revision: u64,
+    /// Memo of this decision's readings, features and pure gate results.
+    /// `None` for a bare context, which recomputes and is the slow path by
+    /// design — `Arc` because a derived context shares its parent's memo.
     decision_cache: Option<Arc<DecisionCache>>,
 }
 

@@ -104,6 +104,41 @@ fn incremental_turn_contexts_match_fresh_construction() {
     }
 }
 
+/// The eleven mechanical facts are derived **twice, by two different
+/// algorithms** — [`ContextCursor`] maintains them incrementally, O(1) a turn,
+/// while [`Context::new`] rescans the whole auction.  Nothing makes them agree
+/// by construction, so this walks the frozen corpus and holds them to the same
+/// answer at every prefix of every auction; the sibling test above covers one
+/// hand-picked auction across all four vulnerabilities.
+///
+/// A drift here is a silent wrong-bidding bug: the reading walk uses the
+/// cursor and a fresh classification uses the scan.
+#[test]
+fn incremental_and_rescanned_facts_agree_on_the_frozen_corpus() {
+    use crate::bidding::book::performance_support::parse_corpus;
+
+    let positions = parse_corpus().expect("valid frozen corpus");
+    assert!(positions.len() > 100, "the corpus was found");
+    for position in &positions {
+        for (depth, incremental) in Context::at_each_turn(position.vul, &position.auction)
+            .iter()
+            .enumerate()
+        {
+            let vul = if (position.auction.len() - depth).is_multiple_of(2) {
+                position.vul
+            } else {
+                flipped(position.vul)
+            };
+            assert_eq!(
+                format!("{incremental:?}"),
+                format!("{:?}", Context::new(vul, &position.auction[..depth])),
+                "position {} diverges at depth {depth}",
+                position.id,
+            );
+        }
+    }
+}
+
 #[test]
 fn test_their_suits_and_min_level() {
     // They opened 1♥ and raised to 2♥ over partner's 1♠ overcall.

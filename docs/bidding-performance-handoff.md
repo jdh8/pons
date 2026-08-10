@@ -1,6 +1,10 @@
 # Bidding Engine Performance Recovery and Rule-Compilation Record
 
-> **Status:** Complete and archived on 2026-08-05 after Stage 6.
+> **Status:** Complete on 2026-08-05 after Stage 6. Un-archived 2026-08-10 —
+> this is the design record for `Context`'s decision cache and the compiled
+> rule path, ~690 lines that landed in two commits with empty bodies
+> (`42a35cc`, `6a109be`) and no CHANGELOG entry. Read it before changing
+> either.
 
 ## Summary
 

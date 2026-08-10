@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`Context` says what it is.**  Its module doc claimed "all facts here are
+  *mechanical*: they follow from the laws of the game alone" — a claim six
+  attachment fields have contradicted since 2026-08-05, when two commits with
+  empty bodies and no CHANGELOG entry (`42a35cc`, `6a109be`) took the file from
+  456 lines to 1127.  The doc now names the three strata it actually holds:
+  mechanical facts, borrows of what the caller already built, and a
+  per-decision memo.  All nineteen previously undocumented fields carry doc
+  comments, grouped by stratum.
+
+  `docs/archive/bidding-performance-handoff.md` — the design record for those
+  690 lines — moves to `docs/` and joins CLAUDE.md's reading table.  Being
+  archived out of the reading path is why the machinery read as unexplained.
+  `docs/bidding-architecture.md` gains a section on serving one decision; it
+  had **no** mention of `DecisionCache` or of the bidding trait at all.
+
+  New test `incremental_and_rescanned_facts_agree_on_the_frozen_corpus`: the
+  eleven mechanical facts are derived twice by two different algorithms —
+  `ContextCursor` incrementally, `Context::new` by rescan — and nothing made
+  them agree by construction.  The existing check covered one hand-picked
+  auction; this holds them to the same answer at every prefix of all 512 frozen
+  positions, because a drift there is a silent wrong-bidding bug.
+
 - **A partnership plays a system; anything that picks a call is a bidder.**
   The authored `Pair` becomes `System`, the bound runtime `Stance` becomes
   `Partnership`, `Pair::against()` becomes `System::bind()`, and
