@@ -1,6 +1,5 @@
 use super::*;
 use crate::bidding::agreements::Agreements;
-use crate::bidding::american::{set_notrump_minors, set_nt_splinter, set_xyz};
 
 /// The checked-in cards are current
 ///
@@ -25,8 +24,9 @@ fn the_checked_in_cards_match_the_generator() {
 
 /// The card never claims a relocation the floor cannot make
 ///
-/// `Kickback 1430` rides `relocating_now()`, which is `set_rkcb_variant` AND
-/// `set_floor_rkcb`.  Before 2026-08-03 it read the variant alone, so
+/// `Kickback 1430` rides the combination of [`rkcb_variant`] and
+/// [`floor_rkcb`][field@crate::bidding::inference::ReadingProfile::floor_rkcb].
+/// Before 2026-08-03 it read the variant alone, so
 /// turning the floor's keycard machinery off while a relocation was selected
 /// published a convention we then never bid — an undisclosed-system fault
 /// before it is a measurement one, and it invalidates a kickback-vs-BBA
@@ -35,29 +35,33 @@ fn the_checked_in_cards_match_the_generator() {
 /// so the pin matters more, not less.
 #[test]
 fn the_card_discloses_kickback_only_when_the_floor_can_ask() {
-    use crate::bidding::instinct::{RkcbVariant, set_floor_rkcb, set_rkcb_variant};
+    use crate::bidding::instinct::RkcbVariant;
 
-    let row = |name: &str| {
-        american_card(&crate::bidding::agreements::Agreements::current())
+    let row = |agreements: &Agreements, name: &str| {
+        american_card(agreements)
             .to_string()
             .lines()
             .any(|l| l == name)
     };
-    let claims_kickback = || row("Kickback 1430 = 1");
-    assert!(row("Kickback 1430 = 0"), "the shipped default is plain 4NT");
-
-    set_rkcb_variant(RkcbVariant::Kickback);
-    assert!(claims_kickback(), "a live relocation must be disclosed");
-
-    set_floor_rkcb(false);
+    let plain = Agreements::default();
     assert!(
-        !claims_kickback(),
+        row(&plain, "Kickback 1430 = 0"),
+        "the shipped default is plain 4NT"
+    );
+
+    let mut kickback = plain;
+    kickback.decision.reading.rkcb_variant = RkcbVariant::Kickback;
+    assert!(
+        row(&kickback, "Kickback 1430 = 1"),
+        "a live relocation must be disclosed"
+    );
+
+    kickback.decision.reading.floor_rkcb = false;
+    assert!(
+        !row(&kickback, "Kickback 1430 = 1"),
         "with the floor's keycard ask off there is nothing to relocate, \
          so the card must not claim Kickback"
     );
-
-    set_floor_rkcb(true);
-    set_rkcb_variant(RkcbVariant::Plain);
 }
 
 #[test]
@@ -106,38 +110,30 @@ fn the_rendered_card_has_the_cards_full_length() {
 
 #[test]
 fn a_knob_moves_its_row() {
-    set_nt_splinter(false);
-    assert_eq!(
-        american_card(&crate::bidding::agreements::Agreements::current()).row("1N-3M splinter"),
-        Some(0)
-    );
-    set_nt_splinter(true);
-    assert_eq!(
-        american_card(&crate::bidding::agreements::Agreements::current()).row("1N-3M splinter"),
-        Some(1)
-    );
+    let mut agreements = Agreements::default();
+    agreements.decision.reading.nt_splinter = false;
+    assert_eq!(american_card(&agreements).row("1N-3M splinter"), Some(0));
+    agreements.decision.reading.nt_splinter = true;
+    assert_eq!(american_card(&agreements).row("1N-3M splinter"), Some(1));
 
-    set_xyz(false);
+    agreements.decision.reading.xyz = false;
     assert_eq!(
-        american_card(&crate::bidding::agreements::Agreements::current())
-            .row("Two Way New Minor Forcing"),
+        american_card(&agreements).row("Two Way New Minor Forcing"),
         Some(0)
     );
-    set_xyz(true);
+    agreements.decision.reading.xyz = true;
     assert_eq!(
-        american_card(&crate::bidding::agreements::Agreements::current())
-            .row("Two Way New Minor Forcing"),
+        american_card(&agreements).row("Two Way New Minor Forcing"),
         Some(1)
     );
 
     // The minor scheme is a radio group: exactly one of Puppet `3♣` and the
     // European `3♣`-diamond transfer is ever live.
-    set_notrump_minors(EUROPEAN);
-    let card = american_card(&crate::bidding::agreements::Agreements::current());
+    agreements.decision.reading.notrump_minors = EUROPEAN;
+    let card = american_card(&agreements);
     assert_eq!(card.row("1N-3C Puppet Stayman"), Some(0));
     assert_eq!(card.row("1N-3C transfer to diamonds"), Some(1));
     assert_eq!(card.row("1N-2N transfer to diamonds"), Some(0));
-    set_notrump_minors(crate::bidding::american::PUPPET);
 
     // The off-shape treatment admits *any* 5422 plus 4441/5431 with a singleton
     // honour, so it owns two shape rows of its own — the shape ladder alone

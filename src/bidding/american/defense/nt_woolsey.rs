@@ -8,51 +8,10 @@
 use super::nt_defense::NotrumpDefense;
 use super::*;
 
-thread_local! {
-    /// Inclusive `points` band for the Woolsey suit overcalls (`2♣`/`2♦`/`2♥`/`2♠`);
-    /// **(8, 19) by default** — level with the natural overcall floor.  A 2026-06-26
-    /// re-probe (continuations now fully authored) found honest plain-DD self-play
-    /// *peaks at 8* and flattens below it (6/7 add no value), and the BBA head-to-head
-    /// agrees; perfect-defense (PD) still mildly prefers 10, but PD over-deters by
-    /// assuming a perfect doubler.  The conventions only rearrange *which* call shows a
-    /// hand — the strength floor tracks natural's 8.  See `docs/` re-probe note.
-    static WOOLSEY_POINTS: Cell<(u8, u8)> = const { Cell::new((8, 19)) };
-    /// `points` floor for the Woolsey takeout `X` (4-card major + longer minor);
-    /// **12 by default** — the X is the most constructive Woolsey action, so it
-    /// floors above the preemptive suit overcalls.  See [`set_woolsey_double_floor`].
-    static WOOLSEY_DOUBLE_FLOOR: Cell<u8> = const { Cell::new(12) };
-}
-
 /// Whether the Woolsey defense is the active system (read by the inference engine
 /// to decode our artificial 2♣/2♦/2♥/2♠ overcalls; see `inference::multi_reading`)
 pub(super) fn woolsey_enabled(agreements: &Agreements) -> bool {
     agreements.decision.reading.notrump_defense() == NotrumpDefense::Woolsey
-}
-
-/// Set the inclusive `points` band for the Woolsey suit overcalls (`2♣`/`2♦`/`2♥`/
-/// `2♠`, default 8–19) for books built *after* this call.  No effect unless
-/// [`NotrumpDefense::Woolsey`] is selected.  The A/B knob for
-/// `examples/ab-landy --ns-woolsey-range`.
-pub fn set_woolsey_points(lo: u8, hi: u8) {
-    WOOLSEY_POINTS.with(|cell| cell.set((lo, hi)));
-}
-
-/// The configured Woolsey suit-overcall `points` band (also the points floor the
-/// inference engine reads for our 2♣/2♦/2♥/2♠ overcalls)
-pub(crate) fn woolsey_points() -> (u8, u8) {
-    WOOLSEY_POINTS.with(Cell::get)
-}
-
-/// Set the `points` floor for the Woolsey takeout `X` (default 12) for books built
-/// *after* this call.  No effect unless [`NotrumpDefense::Woolsey`] is selected.  The A/B knob for
-/// `examples/ab-landy --ns-woolsey-x-floor`.
-pub fn set_woolsey_double_floor(floor: u8) {
-    WOOLSEY_DOUBLE_FLOOR.with(|cell| cell.set(floor));
-}
-
-/// The configured Woolsey takeout-`X` `points` floor
-pub(crate) fn woolsey_double_floor() -> u8 {
-    WOOLSEY_DOUBLE_FLOOR.with(Cell::get)
 }
 
 /// Woolsey **Multi** `2♦`: a single 6+ card major (unknown which), nothing else long —

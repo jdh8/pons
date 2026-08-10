@@ -5,7 +5,7 @@
 //! `bba-gen --disclose` replays a card onto the seats pons occupies, so the BBA
 //! opponents read our alerts instead of taking us for a BBA.
 //!
-//! The card used to be hand-written, and it drifted: `set_nt_splinter` shipped
+//! The card used to be hand-written, and it drifted: `nt_splinter` shipped
 //! default-on while `cards/American.bbsa` still declared `1N-3M splinter = 0`.
 //! A hand-maintained file also cannot describe an **A/B arm** — an arm that flips
 //! a knob plays one system and discloses another.  So the card is *generated*
@@ -287,21 +287,20 @@ const SCHEMA: &[&str] = &[
     "Wilkosz",
 ];
 
-/// The card for [`american`][crate::american()], read off the live knob state
+/// The card for [`american`][crate::american()], read off `a`
 ///
-/// Call it after any `set_*` you want disclosed; every row that a knob can move
-/// reads that knob here, so an A/B arm discloses the system it actually plays.
+/// Every row that an agreement can move reads that value here, so an A/B arm
+/// discloses the system it actually plays.
 ///
 /// ```
 /// use pons::bidding::agreements::Agreements;
 /// use pons::bidding::card::american_card;
-/// use pons::bidding::american::set_nt_splinter;
 ///
 /// let row = |a: &Agreements| american_card(a).row("1N-3M splinter");
-/// assert_eq!(row(&Agreements::current()), Some(1)); // shipped default-on
-/// set_nt_splinter(false);
-/// assert_eq!(row(&Agreements::current()), Some(0));
-/// set_nt_splinter(true); // restore the default
+/// let mut agreements = Agreements::current();
+/// assert_eq!(row(&agreements), Some(1)); // shipped default-on
+/// agreements.decision.reading.nt_splinter = false;
+/// assert_eq!(row(&agreements), Some(0));
 /// ```
 #[must_use]
 ///
@@ -436,7 +435,7 @@ fn american_row(name: &str, a: &Agreements) -> i32 {
         "Fourth suit" | "Fourth suit game force" => i32::from(a.rebid.fourth_suit_forcing),
         "Garbage Stayman" => i32::from(a.decision.reading.garbage_stayman()),
         "Jordan Truscott 2NT" => i32::from(a.competition.jordan_truscott),
-        // `set_landy` carries the (min, max) two-suiter range when on; the
+        // `landy_range` carries the (min, max) two-suiter range when on; the
         // mutually-exclusive direct-seat system lives in `NotrumpDefense`.
         "Landy" => {
             i32::from(a.decision.reading.landy_range().is_some() || a.decision.reading.notrump_defense() == NotrumpDefense::DirectLandy)
@@ -485,7 +484,7 @@ fn american_row(name: &str, a: &Agreements) -> i32 {
         "1X-(1Y)-2Z strong" | "1X-(1Y)-2Z weak" => 0,
         // RKCB 1430 into the agreed suit; no Crosswood, no Exclusion, and none of
         // the other two keycard orderings.  Whether the ask is *relocated* is a
-        // separate row that rides `set_rkcb_variant` — see "Kickback 1430" below.
+        // separate row that rides `rkcb_variant` — see "Kickback 1430" below.
         "Blackwood 1430" => 1,
         "Blackwood 0123"
         | "Blackwood 0314"

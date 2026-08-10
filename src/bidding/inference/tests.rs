@@ -69,8 +69,8 @@ pub(super) fn chosen_call(stance: &crate::bidding::Stance, hand: Hand, auction: 
 fn gladiator_readings_admit_the_bidder() {
     use rand::SeedableRng as _;
 
-    crate::bidding::american::set_nt_overcall_gladiator(true);
     let mut agreements = crate::bidding::agreements::Agreements::current();
+    agreements.decision.reading.nt_overcall_gladiator = true;
     agreements.decision.reading.envelope_union = true;
     let node = [bid(1, Strain::Spades), bid(1, Strain::Notrump), Call::Pass];
 
@@ -151,8 +151,6 @@ fn gladiator_readings_admit_the_bidder() {
             check(&stance, &mut failures, hand, &doubled, made);
         }
     }
-    crate::bidding::american::set_nt_overcall_gladiator(false);
-
     assert!(
         failures.is_empty(),
         "Gladiator readings exclude their own bidders:\n{}",
@@ -629,7 +627,7 @@ fn deviation_knobs_preserve_alert_invariant() {
 /// fixture degrades into a rubber stamp.  Counts are also the granularity
 /// that *works* — `Alert("splinter")` is shared by the major-raise splinter
 /// and the 1NT splinter, so the slug **set** was unchanged when
-/// `set_nt_splinter` shipped, and only the count moved.
+/// `ReadingProfile::nt_splinter` shipped, and only the count moved.
 #[test]
 fn alerted_call_sites_match_the_disclosure_fixture() {
     use crate::bidding::american::american;
@@ -1278,12 +1276,11 @@ fn fallback_rules_read_what_they_gate() {
 /// `.alert(...)` fails here.
 #[test]
 fn gladiator_artificial_calls_are_alerted() {
-    use crate::bidding::american::{american, set_nt_overcall_gladiator};
+    use crate::bidding::american::american;
 
-    set_nt_overcall_gladiator(true);
-    let agreements = crate::bidding::agreements::Agreements::current();
+    let mut agreements = crate::bidding::agreements::Agreements::current();
+    agreements.decision.reading.nt_overcall_gladiator = true;
     let pair = american(&agreements);
-    set_nt_overcall_gladiator(false);
 
     assert_all_alerted(
         "Gladiator",

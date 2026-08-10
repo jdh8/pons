@@ -16,7 +16,7 @@ use contract_bridge::{Bid, Hand, Strain, Suit};
 
 /// A systems-on advance of our 1NT overcall, with their opening stripped
 ///
-/// When `set_nt_overcall_systems_on` is enabled the advancer plays the full
+/// When `ReadingProfile::nt_overcall_systems_on` is enabled the advancer plays the full
 /// opening-1NT structure grafted below `(their 1-of-a-suit) 1NT`, so the
 /// artificial Stayman/transfer calls need the *opening-1NT* reading, not the
 /// natural walk.  This returns the auction with their opening removed, which
@@ -111,12 +111,9 @@ pub struct Inferences {
     /// membership rule [`admits`][Self::admits] tests on.  Carried on the value
     /// so the sampler's acceptance test runs on the stance's pinned settings
     /// without every sampler entry point growing a profile argument.  Skipped
-    /// by serde and refilled from the thread on deserialize, matching how a
-    /// reading loaded from a corpus has always been gauged.
-    #[cfg_attr(
-        feature = "serde",
-        serde(skip, default = "super::knobs::reading_profile")
-    )]
+    /// by serde and refilled with the shipped default on deserialize, matching
+    /// how a reading loaded from a corpus is gauged without an attached stance.
+    #[cfg_attr(feature = "serde", serde(skip, default = "ReadingProfile::default"))]
     profile: ReadingProfile,
 }
 
@@ -269,7 +266,7 @@ impl Inferences {
     /// Intersects (never widens), so the result stays within what was shown.
     #[must_use]
     pub fn narrowed_points(&self, who: Relative, points: Range) -> Self {
-        let profile = reading_profile();
+        let profile = ReadingProfile::default();
         let mut copy = self.clone();
         let i = who as usize;
         copy.players[i].strength.points = copy.players[i].strength.points.intersect(points);
@@ -612,7 +609,7 @@ impl Inferences {
                                     && lane_bids[lane] == 1
                                     && bid.level.get() == 2
                                     && opening_bid.strain.suit() == Some(suit);
-                                // Under XYZ (`set_xyz`) responder's two-level
+                                // Under XYZ (`ReadingProfile::xyz`) responder's two-level
                                 // rebid of the one-level major is authored
                                 // five-plus, both routes: the direct 2M weak
                                 // sign-off and the invitational 2M through the
@@ -903,7 +900,7 @@ impl Inferences {
                         }
                     }
 
-                    // Opener's major jump-rebid (set_opener_major_jump_rebid):
+                    // Opener's major jump-rebid (`ReadingProfile::opener_major_jump_rebid`):
                     // a 3M jump in opener's own opened major over `1♥ - 1♠` / `1M - 1NT`
                     // shows 16+.  Natural, so the six-card length is read above
                     // (the `i_bid_it` branch); add the strength floor here.
@@ -1200,7 +1197,7 @@ fn classify_high_bid(
         return HighBid::Unclaimed;
     };
 
-    // The longer-major response discipline (`set_longer_major_response`)
+    // The longer-major response discipline (`ReadingProfile::longer_major_response`)
     // swaps two verdicts when the bidder's first call was a one-level major
     // response to partner's minor opening: a 1♥ response denies longer
     // spades, so a later spade bid *is* a bypass (control) even though it
@@ -1306,7 +1303,7 @@ fn intersect_overlay(
 /// Once responder enters a structure as their first call, every later three-level
 /// suit bid by our side is an artificial relay or splinter.  Which first calls
 /// enter, and the lone exception, depend on the active minor scheme
-/// ([`notrump_minors`][crate::bidding::american::notrump_minors]):
+/// ([`notrump_minors`][field@crate::bidding::inference::ReadingProfile::notrump_minors]):
 ///
 /// - **Puppet:** 3♣ Puppet, 2NT diamond transfer, or 2♠ two-way relay — except
 ///   opener's genuine five-card major show over Puppet (`1NT - 3♣ - 3♥/3♠`).

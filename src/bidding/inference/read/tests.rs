@@ -285,45 +285,43 @@ fn pass_exclusion_caps_the_weak_two_defender() {
 
 #[test]
 fn opener_extras_ladder_reads_extras() {
-    use crate::bidding::american::set_opener_extras_ladder;
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.opener_extras_ladder = true;
     let d = bid(1, Strain::Diamonds);
     let s = bid(1, Strain::Spades);
     let p = Call::Pass;
-    set_opener_extras_ladder(true);
     // Opener (partner of the hero to act) after 1♦ - 1♠ - X.
     // Jump-rebid 3♦: a self-sufficient six-plus diamonds, 16+.
-    let jr = read(&[d, p, s, p, bid(3, Strain::Diamonds), p]);
+    let jr = read_with(&agreements, &[d, p, s, p, bid(3, Strain::Diamonds), p]);
     assert!(jr.partner().length(Suit::Diamonds).min >= 6);
     assert!(jr.partner().strength.points.min >= 16);
     // Reverse 2♥: five-plus diamonds, four-plus hearts, 17+.
-    let rev = read(&[d, p, s, p, bid(2, Strain::Hearts), p]);
+    let rev = read_with(&agreements, &[d, p, s, p, bid(2, Strain::Hearts), p]);
     assert!(rev.partner().length(Suit::Diamonds).min >= 5);
     assert!(rev.partner().length(Suit::Hearts).min >= 4);
     assert!(rev.partner().strength.points.min >= 17);
     // Jump-shift 3♣: five-plus diamonds, 18+, and clubs read as the strong
     // 4+ second suit — NOT the weak-jump six (the phantom-suit fix).
-    let js = read(&[d, p, s, p, bid(3, Strain::Clubs), p]);
+    let js = read_with(&agreements, &[d, p, s, p, bid(3, Strain::Clubs), p]);
     assert!(js.partner().length(Suit::Diamonds).min >= 5);
     assert!(js.partner().strength.points.min >= 18);
     assert_eq!(
         js.partner().length(Suit::Clubs),
         Range::at_least(4, LENGTH_CAP)
     );
-    set_opener_extras_ladder(true);
 }
 
 #[test]
 fn opener_major_jump_rebid_reads_extras() {
-    use crate::bidding::american::set_opener_major_jump_rebid;
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.opener_major_jump_rebid = true;
     let h = bid(1, Strain::Hearts);
     let s = bid(1, Strain::Spades);
     let p = Call::Pass;
-    set_opener_major_jump_rebid(true);
     // Opener after 1♥ - 1♠ - 3♥: jump-rebid of a six-plus major, 16+.
-    let jr = read(&[h, p, s, p, bid(3, Strain::Hearts), p]);
+    let jr = read_with(&agreements, &[h, p, s, p, bid(3, Strain::Hearts), p]);
     assert!(jr.partner().length(Suit::Hearts).min >= 6);
     assert!(jr.partner().strength.points.min >= 16);
-    set_opener_major_jump_rebid(true);
 }
 
 /// The M6.4 deterministic rule on its canonical auctions: a
@@ -332,51 +330,60 @@ fn opener_major_jump_rebid_reads_extras() {
 /// everything else stays to play — suppressed, nothing floored.
 #[test]
 fn high_bid_control_vs_natural() {
-    use crate::bidding::american::set_longer_major_response;
     // Pin the historic hearts-first reading (knob off): these
     // minor-response verdicts are the knob-off ones — the longer-major
     // default is covered by `high_bid_under_longer_major_response`, and the
     // 1NT-transfer sub-cases below are knob-independent.
-    set_longer_major_response(false);
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.longer_major_response = false;
     // 1♦ - 1♠ - 2♦ - 4♥: responder bid spades first, so hearts cannot be their
     // longest — a control bid agreeing diamonds.  Hearts stays unfloored;
     // diamond support and slam-try values are recorded instead.
-    let control = read(&[
-        bid(1, Strain::Diamonds),
-        Call::Pass,
-        bid(1, Strain::Spades),
-        Call::Pass,
-        bid(2, Strain::Diamonds),
-        Call::Pass,
-        bid(4, Strain::Hearts),
-        Call::Pass,
-    ]);
+    let control = read_with(
+        &agreements,
+        &[
+            bid(1, Strain::Diamonds),
+            Call::Pass,
+            bid(1, Strain::Spades),
+            Call::Pass,
+            bid(2, Strain::Diamonds),
+            Call::Pass,
+            bid(4, Strain::Hearts),
+            Call::Pass,
+        ],
+    );
     assert_eq!(control.partner().length(Suit::Hearts).min, 0);
     assert!(control.partner().length(Suit::Diamonds).min >= 3);
     assert!(control.partner().strength.points.min >= 13);
 
     // 1♦ - 1♠ - 2♦ - 4♠: rebidding one's own suit is natural — six-plus spades.
-    let rebid = read(&[
-        bid(1, Strain::Diamonds),
-        Call::Pass,
-        bid(1, Strain::Spades),
-        Call::Pass,
-        bid(2, Strain::Diamonds),
-        Call::Pass,
-        bid(4, Strain::Spades),
-        Call::Pass,
-    ]);
+    let rebid = read_with(
+        &agreements,
+        &[
+            bid(1, Strain::Diamonds),
+            Call::Pass,
+            bid(1, Strain::Spades),
+            Call::Pass,
+            bid(2, Strain::Diamonds),
+            Call::Pass,
+            bid(4, Strain::Spades),
+            Call::Pass,
+        ],
+    );
     assert!(rebid.partner().length(Suit::Spades).min >= 6);
 
     // 1♦ - 4♥: the bidder has shown nothing, so hearts can be their
     // longest — to play, no control machinery (and no phantom floor:
     // the honest envelope of an unread jump stays wide).
-    let preempt = read(&[
-        bid(1, Strain::Diamonds),
-        Call::Pass,
-        bid(4, Strain::Hearts),
-        Call::Pass,
-    ]);
+    let preempt = read_with(
+        &agreements,
+        &[
+            bid(1, Strain::Diamonds),
+            Call::Pass,
+            bid(4, Strain::Hearts),
+            Call::Pass,
+        ],
+    );
     assert!(preempt.control_bid().is_none());
 
     // 1♣ - 1♥ - 2♣ - 4♠: spades sit *above* the first-shown hearts, so they were
@@ -384,49 +391,57 @@ fn high_bid_control_vs_natural() {
     // cheaper suit first holding a longer higher one (the first M6.4 A/B
     // bled six IMPs a fired board pulling these to the "agreed" minor).
     // To play, not a control bid.
-    let above = read(&[
-        bid(1, Strain::Clubs),
-        Call::Pass,
-        bid(1, Strain::Hearts),
-        Call::Pass,
-        bid(2, Strain::Clubs),
-        Call::Pass,
-        bid(4, Strain::Spades),
-        Call::Pass,
-    ]);
+    let above = read_with(
+        &agreements,
+        &[
+            bid(1, Strain::Clubs),
+            Call::Pass,
+            bid(1, Strain::Hearts),
+            Call::Pass,
+            bid(2, Strain::Clubs),
+            Call::Pass,
+            bid(4, Strain::Spades),
+            Call::Pass,
+        ],
+    );
     assert!(above.control_bid().is_none());
 
     // 1NT - 2♦ - 2♥ - 4♠: same shape through a transfer (the overlay attributes
     // the hearts to the bidder) — spades were never denied, so to play.
-    let post_transfer = read_booked(&[
-        bid(1, Strain::Notrump),
-        Call::Pass,
-        bid(2, Strain::Diamonds),
-        Call::Pass,
-        bid(2, Strain::Hearts),
-        Call::Pass,
-        bid(4, Strain::Spades),
-        Call::Pass,
-    ]);
+    let post_transfer = read_booked_with(
+        &agreements,
+        &[
+            bid(1, Strain::Notrump),
+            Call::Pass,
+            bid(2, Strain::Diamonds),
+            Call::Pass,
+            bid(2, Strain::Hearts),
+            Call::Pass,
+            bid(4, Strain::Spades),
+            Call::Pass,
+        ],
+    );
     assert!(post_transfer.control_bid().is_none());
     assert!(post_transfer.partner().length(Suit::Hearts).min >= 5);
 
     // 1NT - 2♥ - 2♠ - 4♥ — the mirror: hearts sit *below* the transferred
     // spades and the cheaper heart transfer was bypassed, so 4♥ cannot be
     // long — a control bid agreeing spades, promising a sixth.
-    let mirror = read_booked(&[
-        bid(1, Strain::Notrump),
-        Call::Pass,
-        bid(2, Strain::Hearts),
-        Call::Pass,
-        bid(2, Strain::Spades),
-        Call::Pass,
-        bid(4, Strain::Hearts),
-        Call::Pass,
-    ]);
+    let mirror = read_booked_with(
+        &agreements,
+        &[
+            bid(1, Strain::Notrump),
+            Call::Pass,
+            bid(2, Strain::Hearts),
+            Call::Pass,
+            bid(2, Strain::Spades),
+            Call::Pass,
+            bid(4, Strain::Hearts),
+            Call::Pass,
+        ],
+    );
     assert_eq!(mirror.partner().length(Suit::Hearts).min, 0);
     assert!(mirror.partner().length(Suit::Spades).min >= 6);
-    set_longer_major_response(true); // restore the shipped default
 }
 
 /// The longer-major response discipline swaps the M6.4 verdicts on the
@@ -435,33 +450,39 @@ fn high_bid_control_vs_natural() {
 /// equal-length five-plus hearts (so the heart jump reads to play).
 #[test]
 fn high_bid_under_longer_major_response() {
-    use crate::bidding::american::set_longer_major_response;
+    let mut agreements = Agreements::current();
 
     // 1♣ - 1♥ - 2♣ - 4♠, discipline on: 1♥ denied longer spades, so 4♠ is a
     // bypass — a control bid agreeing clubs, spades left unfloored.
-    set_longer_major_response(true);
-    let control = read(&[
-        bid(1, Strain::Clubs),
-        Call::Pass,
-        bid(1, Strain::Hearts),
-        Call::Pass,
-        bid(2, Strain::Clubs),
-        Call::Pass,
-        bid(4, Strain::Spades),
-        Call::Pass,
-    ]);
+    agreements.decision.reading.longer_major_response = true;
+    let control = read_with(
+        &agreements,
+        &[
+            bid(1, Strain::Clubs),
+            Call::Pass,
+            bid(1, Strain::Hearts),
+            Call::Pass,
+            bid(2, Strain::Clubs),
+            Call::Pass,
+            bid(4, Strain::Spades),
+            Call::Pass,
+        ],
+    );
     // The mirror 1♣ - 1♠ - 2♣ - 4♥: a 1♠ response no longer proves short
     // hearts (5-5 responds 1♠), so the heart jump reads to play.
-    let to_play = read(&[
-        bid(1, Strain::Clubs),
-        Call::Pass,
-        bid(1, Strain::Spades),
-        Call::Pass,
-        bid(2, Strain::Clubs),
-        Call::Pass,
-        bid(4, Strain::Hearts),
-        Call::Pass,
-    ]);
+    let to_play = read_with(
+        &agreements,
+        &[
+            bid(1, Strain::Clubs),
+            Call::Pass,
+            bid(1, Strain::Spades),
+            Call::Pass,
+            bid(2, Strain::Clubs),
+            Call::Pass,
+            bid(4, Strain::Hearts),
+            Call::Pass,
+        ],
+    );
     assert_eq!(control.partner().length(Suit::Spades).min, 0);
     assert!(control.partner().length(Suit::Clubs).min >= 3);
     assert!(control.partner().strength.points.min >= 13);
@@ -469,18 +490,20 @@ fn high_bid_under_longer_major_response() {
 
     // Knob off (the historic hearts-first opt-in): the original verdicts
     // stand — the spade jump above the 1♥ response is to play.
-    set_longer_major_response(false);
-    let above = read(&[
-        bid(1, Strain::Clubs),
-        Call::Pass,
-        bid(1, Strain::Hearts),
-        Call::Pass,
-        bid(2, Strain::Clubs),
-        Call::Pass,
-        bid(4, Strain::Spades),
-        Call::Pass,
-    ]);
-    set_longer_major_response(true); // restore the shipped default
+    agreements.decision.reading.longer_major_response = false;
+    let above = read_with(
+        &agreements,
+        &[
+            bid(1, Strain::Clubs),
+            Call::Pass,
+            bid(1, Strain::Hearts),
+            Call::Pass,
+            bid(2, Strain::Clubs),
+            Call::Pass,
+            bid(4, Strain::Spades),
+            Call::Pass,
+        ],
+    );
     assert!(above.control_bid().is_none());
 }
 
@@ -691,15 +714,15 @@ fn three_level_suit_over_one_notrump_is_natural() {
     // five-plus hearts.  This is the knob-off control for
     // `nt_splinter_is_read_as_shortness_not_length`; the splinter is on by
     // default, so the walk has to be asked for explicitly.
-    crate::bidding::american::set_nt_splinter(false);
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.nt_splinter = false;
     let auction = [
         bid(1, Strain::Notrump),
         Call::Pass,
         bid(3, Strain::Hearts),
         Call::Pass,
     ];
-    let inf = read(&auction);
-    crate::bidding::american::set_nt_splinter(true);
+    let inf = read_with(&agreements, &auction);
     assert_eq!(inf.partner().length(Suit::Hearts), Range::new(5, 13));
 }
 
@@ -709,15 +732,15 @@ fn nt_splinter_is_read_as_shortness_not_length() {
     // as five-plus hearts above now decodes off its alert into the pinned
     // shape — short hearts, 2-3 spades, exactly four diamonds, 5-6 clubs.
     // The natural walk would floor a phantom heart suit responder is void in.
-    crate::bidding::american::set_nt_splinter(true);
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.nt_splinter = true;
     let auction = [
         bid(1, Strain::Notrump),
         Call::Pass,
         bid(3, Strain::Hearts),
         Call::Pass,
     ];
-    let inf = read_booked(&auction);
-    crate::bidding::american::set_nt_splinter(false);
+    let inf = read_booked_with(&agreements, &auction);
 
     let partner = inf.partner();
     assert!(partner.length(Suit::Hearts).max <= 1);
@@ -726,8 +749,8 @@ fn nt_splinter_is_read_as_shortness_not_length() {
     assert_eq!(partner.length(Suit::Clubs), Range::new(5, 6));
 
     // Knob off, the book has no 3♥ rule and the walk is back: five-plus.
-    let off = read_booked(&auction);
-    crate::bidding::american::set_nt_splinter(true); // restore the default
+    agreements.decision.reading.nt_splinter = false;
+    let off = read_booked_with(&agreements, &auction);
     assert_eq!(off.partner().length(Suit::Hearts), Range::new(5, 13));
 }
 
@@ -778,7 +801,6 @@ fn systems_on_stripped_read_is_separate_from_the_full_decision_cache() {
 /// game force is simply lost.  Knob-on the rule's own box is intersected in.
 #[test]
 fn natural_reading_publishes_an_unalerted_rules_promise() {
-    crate::bidding::american::set_nt_overcall_gladiator(true);
     let auction = [
         bid(1, Strain::Spades),
         bid(1, Strain::Notrump),
@@ -788,12 +810,12 @@ fn natural_reading_publishes_an_unalerted_rules_promise() {
     ];
 
     let mut agreements = Agreements::current();
+    agreements.decision.reading.nt_overcall_gladiator = true;
     agreements.decision.reading.envelope_union = true;
     agreements.decision.reading.scope = ReadingScope::Alerted;
     let off = read_booked_with(&agreements, &auction);
     agreements.decision.reading.scope = ReadingScope::All;
     let on = read_booked_with(&agreements, &auction);
-    crate::bidding::american::set_nt_overcall_gladiator(false);
 
     assert_eq!(
         off.partner().strength.points,
@@ -952,7 +974,7 @@ fn contested_transfer_lebensohl_reads_the_target_under_intervention() {
 /// all-`None`): the knob-on reading must equal the knob-off one.
 #[test]
 fn kickback_face_gate_keeps_natural_four_spades_natural() {
-    use crate::bidding::instinct::{RkcbVariant, set_rkcb_variant};
+    use crate::bidding::instinct::RkcbVariant;
     // The audited C−B shape: 1♦ - 1♠ - 2♦ - 4♠ - — the reader is the
     // opener, partner is the natural 4♠ bidder.
     let auction = [
@@ -966,9 +988,12 @@ fn kickback_face_gate_keeps_natural_four_spades_natural() {
         Call::Pass,
     ];
     let baseline = read_booked(&auction).partner().length(Suit::Spades).min;
-    set_rkcb_variant(RkcbVariant::Kickback);
-    let gated = read_booked(&auction).partner().length(Suit::Spades).min;
-    set_rkcb_variant(RkcbVariant::Plain); // restore the default (off) for the rest of the suite
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.rkcb_variant = RkcbVariant::Kickback;
+    let gated = read_booked_with(&agreements, &auction)
+        .partner()
+        .length(Suit::Spades)
+        .min;
     assert!(baseline >= 4, "the natural walk floors responder's spades");
     assert_eq!(gated, baseline, "kickback must not erase the natural floor");
 }
@@ -978,7 +1003,7 @@ fn kickback_face_gate_keeps_natural_four_spades_natural() {
 /// alerted, so the ask is not read as a natural spade suit.
 #[test]
 fn kickback_relocated_ask_still_reads_as_the_convention() {
-    use crate::bidding::instinct::{RkcbVariant, set_rkcb_variant};
+    use crate::bidding::instinct::RkcbVariant;
     let auction = [
         bid(1, Strain::Hearts),
         Call::Pass,
@@ -987,9 +1012,12 @@ fn kickback_relocated_ask_still_reads_as_the_convention() {
         bid(4, Strain::Spades),
         Call::Pass,
     ];
-    set_rkcb_variant(RkcbVariant::Kickback);
-    let spades = read_booked(&auction).partner().length(Suit::Spades).min;
-    set_rkcb_variant(RkcbVariant::Plain); // restore the default (off) for the rest of the suite
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.rkcb_variant = RkcbVariant::Kickback;
+    let spades = read_booked_with(&agreements, &auction)
+        .partner()
+        .length(Suit::Spades)
+        .min;
     assert!(spades < 4, "the relocated ask is not a natural spade suit");
 }
 
@@ -1008,11 +1036,12 @@ fn kickback_relocated_ask_still_reads_as_the_convention() {
 /// nothing, which is exactly the regression being pinned.
 #[test]
 fn answer_gates_spare_a_natural_five_diamonds() {
-    use crate::bidding::instinct::{RkcbVariant, set_rkcb_variant};
+    use crate::bidding::instinct::RkcbVariant;
     // The plain arm on purpose (also the default): the poison this pins is
     // the *default system's* five-level answers, not the relocated
     // ladder's.
-    set_rkcb_variant(RkcbVariant::Plain);
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.rkcb_variant = RkcbVariant::Plain;
     let auction = [
         bid(1, Strain::Diamonds),
         Call::Pass,
@@ -1023,8 +1052,10 @@ fn answer_gates_spare_a_natural_five_diamonds() {
         bid(5, Strain::Diamonds),
         Call::Pass,
     ];
-    let diamonds = read_booked(&auction).partner().length(Suit::Diamonds).min;
-    set_rkcb_variant(RkcbVariant::Plain); // restore the default (off) for the rest of the suite
+    let diamonds = read_booked_with(&agreements, &auction)
+        .partner()
+        .length(Suit::Diamonds)
+        .min;
     assert!(
         diamonds >= 2,
         "a natural 5♦ with no ask anywhere on the face must keep its \

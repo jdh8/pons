@@ -1,72 +1,17 @@
 //! The Gladiator structure after our `1NT` overcall
 //!
-//! Opt-in ([`set_nt_overcall_gladiator`]): a relay structure replacing plain
-//! systems-on ([`set_nt_overcall_systems_on`]) when we overcall `1NT` over
-//! their major, so the strong hand declares and advancer can invite, force, or
-//! escape a double.
+//! Opt-in under
+//! [`nt_overcall_gladiator`][crate::bidding::inference::ReadingProfile::nt_overcall_gladiator]:
+//! a relay structure replacing plain systems-on
+//! ([`nt_overcall_systems_on`][crate::bidding::inference::ReadingProfile::nt_overcall_systems_on])
+//! when we overcall `1NT` over their major, so the strong hand declares and
+//! advancer can invite, force, or escape a double.
 
 use super::advance_sohl::sohl_rows_over;
 use super::*;
 
-thread_local! {
-    /// Whether the advancer runs **systems-on** after our natural 1NT overcall:
-    /// the whole opening-1NT response structure (Stayman, transfers, Smolen)
-    /// grafted below `(1t) 1NT`, so a 15–18 balanced overcall finds 4-4 major
-    /// fits and right-sides via transfers; **true by default** (measured a
-    /// clean single-dummy-lead win over both minor and major openings). See
-    /// [`set_nt_overcall_systems_on`].
-    static NT_OVERCALL_SYSTEMS_ON: Cell<bool> = const { Cell::new(true) };
-    /// Whether the advancer runs **Gladiator** (not systems-on) after our 1NT
-    /// overcall of their **major**: a `2♣` weak relay, a cue-of-their-major
-    /// Stayman for the *one* unbid major, natural INV bids, and shape actions
-    /// (splinter, Leaping Michaels).  Replaces the opening-1NT graft for major
-    /// openings only (minors keep systems-on); **false by default** (an A/B
-    /// candidate — the major graft washes plain/PD, wins only on sd-lead). See
-    /// [`set_nt_overcall_gladiator`].
-    static NT_OVERCALL_GLADIATOR: Cell<bool> = const { Cell::new(false) };
-}
-
-/// Run systems-on (cue-Stayman) advances after our natural 1NT overcall, for
-/// books built *after* this call (thread-local, read at construction)
-///
-/// `true` (the **default**) grafts the full opening-1NT response structure below
-/// `(1t) 1NT`, so `(1♦) 1NT` equals `(1♣) 1NT` equals an opening 1NT — Stayman,
-/// Jacoby/minor transfers, and Smolen, identical over both minors, with the same
-/// structure over a major (one Stayman-found major is theirs). Transfers preserve
-/// right-siding (the strong overcaller declares). `false` leaves the `(1t) 1NT -`
-/// advance to the instinct floor's naturals. Off flag: `bba-gen
-/// --no-ns-nt-overcall-systems-on`.
-pub fn set_nt_overcall_systems_on(on: bool) {
-    NT_OVERCALL_SYSTEMS_ON.with(|cell| cell.set(on));
-}
-
-/// Whether systems-on advances of the 1NT overcall are authored
-pub(crate) fn nt_overcall_systems_on() -> bool {
-    NT_OVERCALL_SYSTEMS_ON.with(Cell::get)
-}
-
-/// Run **Gladiator** advances after our 1NT overcall of their **major**, for
-/// books built *after* this call (thread-local, read at construction)
-///
-/// `false` (the **default**) keeps the systems-on opening-1NT graft over majors.
-/// `true` replaces that graft (for major openings only — minors stay systems-on)
-/// with Gladiator: `2♣` = weak relay (pass-or-correct to the best part-score),
-/// the cue of their major = Stayman for the single unbid major, natural `2♦`/`2M`
-/// = 5-card INV, `2NT` = NF INV clubs, plus splinter / Leaping-Michaels shape
-/// actions. Independent of [`set_nt_overcall_systems_on`] (it only governs
-/// the *major* branch — minors keep systems-on when that is set). Off flag:
-/// `bba-gen --ns-nt-overcall-gladiator`.
-pub fn set_nt_overcall_gladiator(on: bool) {
-    NT_OVERCALL_GLADIATOR.with(|cell| cell.set(on));
-}
-
-/// Whether Gladiator advances replace the major-opening systems-on graft
-pub fn nt_overcall_gladiator() -> bool {
-    NT_OVERCALL_GLADIATOR.with(Cell::get)
-}
-
 /// Gladiator: the advances of our 1NT overcall of their major
-/// ([`set_nt_overcall_gladiator`])
+/// ([`nt_overcall_gladiator`][crate::bidding::inference::ReadingProfile::nt_overcall_gladiator])
 ///
 /// Over a MAJOR one Stayman-found major is theirs, so the systems-on graft of
 /// the whole opening-1NT structure does not fit the geometry; Gladiator replaces

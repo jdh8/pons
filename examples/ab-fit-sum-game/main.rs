@@ -12,7 +12,7 @@
 //! thresholds (`31` vs `32`) to isolate a one-point move.
 //!
 //! `--support-points` arms the opt-in `hcp_plus`
-//! [`support_points`][pons::bidding::constraint::set_support_points] scale on
+//! [`support_points`][field@pons::bidding::inference::ReadingProfile::support_points] scale on
 //! *both* sides (the ambient environment, not the treatment): once `fit_sum_game`
 //! gauges the support scale, its total is
 //! `support + partner.min + own_len + partner_shown_len`, and the shortness
@@ -43,7 +43,6 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::Accumulator;
 use pons::american;
 use pons::bidding::Stance;
-use pons::bidding::constraint::set_support_points;
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -131,11 +130,11 @@ fn main() {
     let args = Args::parse();
     // The point-count scale is the shared environment, not the treatment:
     // arm it identically for both sides so only the threshold differs.
-    set_support_points(args.support_points);
     // Likewise ambient: `points_or_net` masks the authored `fit_sum_game` leg to
     // `authored & false` while the net floor is on, so the threshold only bites
     // with it off (src/bidding/instinct.rs, `points_or_net`).
     let mut agreements = pons::bidding::agreements::Agreements::current();
+    agreements.decision.reading.support_points = args.support_points;
     agreements.decision.instinct.bilans_floor = !args.no_bilans;
     agreements.decision.instinct.fit_sum_game = args.baseline;
     agreements.decision.instinct.fit_sum_support_read = false;

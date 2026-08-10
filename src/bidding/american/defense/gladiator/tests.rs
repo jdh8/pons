@@ -1,13 +1,26 @@
-use super::super::tests::{best_call, call};
+use super::super::tests::{best_call_with, call};
+use crate::bidding::agreements::Agreements;
 use contract_bridge::Strain;
 use contract_bridge::auction::Call;
+
+fn best_call(auction: &[Call], hand: &str) -> (Call, bool) {
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.nt_overcall_gladiator = true;
+    best_call_with(&agreements, auction, hand)
+}
+
+fn systems_on_best_call(auction: &[Call], hand: &str) -> (Call, bool) {
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.nt_overcall_gladiator = false;
+    agreements.decision.reading.nt_overcall_systems_on = true;
+    best_call_with(&agreements, auction, hand)
+}
 
 #[test]
 fn gladiator_club_three_way() {
     // Clubs split three ways by strength: a weak 6+♣ hand transfers via 2NT
     // (overcaller completes 3♣); an invitational 6+♣ hand goes 2♣→2♦→3♣; a
     // game-forcing club hand bids 3♣ directly.  Locks the user's structure.
-    super::gladiator::set_nt_overcall_gladiator(true);
     let s = || call(1, Strain::Spades);
     let nt = || call(1, Strain::Notrump);
     let p = Call::Pass;
@@ -21,7 +34,6 @@ fn gladiator_club_three_way() {
     let (gf, _) = best_call(&[s(), nt(), p], "A3.K2.42.AKQ9876"); // GF clubs
     let (relay, _) = best_call(&[s(), nt(), p], "43.72.K5.KQ9876"); // INV 6♣, 8 HCP
     let (pull, _) = best_call(&[s(), nt(), p, c(2), p, d2, p], "43.72.K5.KQ9876");
-    super::gladiator::set_nt_overcall_gladiator(false);
     assert_eq!(weak, call(2, Strain::Notrump), "weak 6♣ transfers via 2NT");
     assert_eq!(complete, c(3), "overcaller completes the club transfer");
     assert_eq!(gf, c(3), "game-forcing clubs bid 3♣ directly");
@@ -36,22 +48,20 @@ fn nt_overcall_systems_on_grafts_the_1nt_structure() {
     // Stayman (not a cue of their suit); a five-card spade suit transfers
     // (2♥ → spades), preserving right-siding — the whole point; the
     // overcaller answers Stayman with 4 hearts (2♥) from the grafted table.
-    super::gladiator::set_nt_overcall_systems_on(true);
     let d = || call(1, Strain::Diamonds);
     let nt = || call(1, Strain::Notrump);
-    let (stayman, floored) = best_call(
+    let (stayman, floored) = systems_on_best_call(
         &[d(), nt(), Call::Pass],
         "A432.KQ84.32.QJ4", // 12 HCP, 4-4 majors
     );
-    let (transfer, _) = best_call(
+    let (transfer, _) = systems_on_best_call(
         &[d(), nt(), Call::Pass],
         "KQ432.K84.32.QJ4", // 10 HCP, 5 spades — Jacoby transfer, not Stayman
     );
-    let (answer, _) = best_call(
+    let (answer, _) = systems_on_best_call(
         &[d(), nt(), Call::Pass, call(2, Strain::Clubs), Call::Pass],
         "Q3.KJ84.AQ54.KQ2", // 17 HCP, 4 hearts, ♦ stopper
     );
-    super::gladiator::set_nt_overcall_systems_on(false);
     assert_eq!(stayman, call(2, Strain::Clubs), "advancer bids 2♣ Stayman");
     assert!(
         !floored,
@@ -71,7 +81,6 @@ fn gladiator_replaces_the_major_graft() {
     // hand with exactly 4 hearts + invitational values cues 2♠ (Stayman for
     // the one unbid major); a weak hand takes the 2♣ relay; the overcaller
     // jumps to 4♥ over the cue with a maximum heart fit.
-    super::gladiator::set_nt_overcall_gladiator(true);
     let s = || call(1, Strain::Spades);
     let nt = || call(1, Strain::Notrump);
     let (cue, floored) = best_call(
@@ -90,7 +99,6 @@ fn gladiator_replaces_the_major_graft() {
         &[s(), nt(), Call::Pass, call(2, Strain::Spades), Call::Pass],
         "AQ.KQ84.AQ54.J32", // 18 HCP, 4 hearts, ♠ stopper — max fit
     );
-    super::gladiator::set_nt_overcall_gladiator(false);
     assert_eq!(
         cue,
         call(2, Strain::Spades),
@@ -119,7 +127,6 @@ fn gladiator_over_2c_steals_the_relay_with_a_double() {
     // (1♠) 1NT (2♣): systems on, but it is Gladiator.  2♣ steals no room, so
     // the now-unbiddable relay reappears as X; every other advance keeps its
     // meaning, and the overcaller answers the stolen relay with the forced 2♦.
-    super::gladiator::set_nt_overcall_gladiator(true);
     let s = || call(1, Strain::Spades);
     let nt = || call(1, Strain::Notrump);
     let c2 = call(2, Strain::Clubs);
@@ -130,7 +137,6 @@ fn gladiator_over_2c_steals_the_relay_with_a_double() {
     let (forced, _) = best_call(&[s(), nt(), c2, Call::Double, p], "AQ4.KQ4.AK92.65");
     // A cue-Stayman hand keeps cueing 2♠ (2♣ stole only the relay).
     let (cue, cue_floored) = best_call(&[s(), nt(), c2], "K84.KQ84.QJ32.42");
-    super::gladiator::set_nt_overcall_gladiator(false);
     assert_eq!(
         relay_x,
         Call::Double,
@@ -157,7 +163,6 @@ fn gladiator_over_two_level_runs_transfer_lebensohl() {
     // Once RHO takes the two level there is no room for the relay tree, so
     // advancer plays the partnership's Transfer Lebensohl — book nodes, not
     // the floor.  Over (2♦) the 3♣-Stayman leg fires instead.
-    super::gladiator::set_nt_overcall_gladiator(true);
     let nt = || call(1, Strain::Notrump);
     let p = Call::Pass;
     // (1♠) 1NT (2♥): a weak long-diamond hand relays 2NT (→ 3♣ → correct);
@@ -173,7 +178,6 @@ fn gladiator_over_two_level_runs_transfer_lebensohl() {
     let h = call(1, Strain::Hearts);
     let d2 = call(2, Strain::Diamonds);
     let (stayman, stayman_floored) = best_call(&[h, nt(), d2], "AQ32.KJ32.A2.432");
-    super::gladiator::set_nt_overcall_gladiator(false);
     assert_eq!(relay, call(2, Strain::Notrump), "weak long suit relays 2NT");
     assert!(
         !relay_floored,
@@ -197,7 +201,6 @@ fn gladiator_continuations_reach_game() {
     // dying in the floor's partscore.  After `(1♠) 1NT - 2♠ - 3♥`, a
     // game-forcing advancer raises to 4♥.  And a game-forcing natural 3♥
     // (5+ hearts) is raised to 4♥ by the overcaller's heart fit.
-    super::gladiator::set_nt_overcall_gladiator(true);
     let s = || call(1, Strain::Spades);
     let nt = || call(1, Strain::Notrump);
     let h = |n| call(n, Strain::Hearts);
@@ -217,7 +220,6 @@ fn gladiator_continuations_reach_game() {
         &[s(), nt(), Call::Pass, h(3), Call::Pass],
         "AQ2.KQ8.AQ54.K93", // 18 HCP, 3 hearts — raise the GF 3♥ to game
     );
-    super::gladiator::set_nt_overcall_gladiator(false);
     assert_eq!(place, h(4), "GF advancer raises the min fit to 4♥");
     assert!(
         !floored,
@@ -233,7 +235,6 @@ fn gladiator_delayed_cue_finds_the_five_three_fit() {
     // ruffing value) routes 2♣ relay → forced 2♦ → 2♠ (delayed cue) to check
     // the 5-3 fit the direct cue (promising 4) would miss; the overcaller with
     // 5 hearts and a maximum jumps to 4♥.
-    super::gladiator::set_nt_overcall_gladiator(true);
     let s = || call(1, Strain::Spades);
     let nt = || call(1, Strain::Notrump);
     let c = || call(2, Strain::Clubs);
@@ -256,7 +257,6 @@ fn gladiator_delayed_cue_finds_the_five_three_fit() {
         ],
         "AQ2.KQ842.AK5.32", // 18 HCP, 5 hearts, ♠ stopper — max fit
     );
-    super::gladiator::set_nt_overcall_gladiator(false);
     assert_eq!(
         cue,
         call(2, Strain::Spades),
@@ -274,7 +274,6 @@ fn gladiator_delayed_cue_finds_the_five_three_fit() {
 fn gladiator_cues_barred_with_flat_4333() {
     // The 4333 curse: a flat (4333) has no ruffing value, so neither cue is
     // made — it invites/plays notrump instead of chasing a major fit.
-    super::gladiator::set_nt_overcall_gladiator(true);
     let s = || call(1, Strain::Spades);
     let nt = || call(1, Strain::Notrump);
     // Direct cue barred: flat 4333 with exactly 4 hearts, GF → 3NT, not 2♠.
@@ -295,7 +294,6 @@ fn gladiator_cues_barred_with_flat_4333() {
         ],
         "J843.KJ8.Q84.Q84", // 9 HCP, 4-3-3-3 flat, 3 hearts
     );
-    super::gladiator::set_nt_overcall_gladiator(false);
     assert_eq!(
         direct,
         call(3, Strain::Notrump),

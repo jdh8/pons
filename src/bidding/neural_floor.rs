@@ -77,8 +77,8 @@ use std::sync::Arc;
 ///
 /// The deterministic ladder the forced path delegates to is captured the same
 /// way, as a constructor argument rather than a process-wide `LazyLock`:
-/// [`instinct()`][super::instinct::instinct] reads build-time knobs too
-/// (`relocating_now()` picks the kickback keycard ladder over the plain one), so
+/// [`instinct()`][super::instinct::instinct] reads the pinned profile at build
+/// time too (its RKCB fields pick the kickback ladder over the plain one), so
 /// a process that builds two differently-knobbed pairs must not share one ladder
 /// frozen at whichever came first.
 /// `common::with_floor` builds it once per pair and gives the same `Arc` to the

@@ -12,15 +12,6 @@ use super::{LENGTH_CAP, POINTS_CAP};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
 
-// Keep the getter re-exports used by the unchanged intra-doc links now that
-// classification reads their pinned profile equivalents instead of calling them.
-const _: [fn() -> bool; 4] = [
-    crate::bidding::american::woolsey_enabled,
-    crate::bidding::american::meckwell_enabled,
-    crate::bidding::american::direct_dont_enabled,
-    crate::bidding::american::natural_defense_enabled,
-];
-
 /// The Rubens-artificial calls of an advance, and the advance's strength reading
 ///
 /// In a [Rubens advance][crate::bidding::instinct::overcall_shape] of a simple overcall,
@@ -277,7 +268,7 @@ pub(super) fn multi_reading(auction: &[Call], profile: ReadingProfile) -> Option
 }
 
 /// Our **Gladiator** advance of a 1NT overcall of their major
-/// ([`set_nt_overcall_gladiator`][crate::bidding::american::set_nt_overcall_gladiator])
+/// ([`nt_overcall_gladiator`][field@crate::bidding::inference::ReadingProfile::nt_overcall_gladiator])
 ///
 /// The advancer's artificial calls under `(1M) 1NT - ?` — the `2♣` relay (and
 /// its forced `2♦` completion), the cue of their major (Stayman for the unbid
@@ -427,7 +418,7 @@ pub(super) fn gladiator_reading(
 /// Our Woolsey takeout **double** of their 1NT and the advancer's `2♣` minor relay
 ///
 /// The double shows a 4-card major plus a 5-6 card minor with the
-/// [`woolsey_double_floor`][crate::bidding::american::woolsey_double_floor] points
+/// [`woolsey_double_floor`][field@crate::bidding::inference::ReadingProfile::woolsey_double_floor] points
 /// floor.  The shape is a *double* disjunction (either major, either minor) the
 /// per-suit framework cannot pin, so only the points floor is recorded post-walk —
 /// but that alone matters: a double of 1NT names no suit, so the generic walk reads
@@ -501,7 +492,7 @@ pub(super) fn woolsey_x_reading(
 ///
 /// A double of 1NT names no suit, so the generic walk's takeout branch (which needs
 /// a suit opening) reads it as nothing.  Returns the doubler's index so the post-walk
-/// pass records the [`natural_double_floor`][crate::bidding::american::natural_double_floor]
+/// pass records the [`natural_double_floor`][field@crate::bidding::inference::ReadingProfile::natural_double_floor]
 /// points floor.  Mirrors [`woolsey_x_reading`].
 ///
 /// Fires only when a double of their 1NT actually *means* the natural penalty double:
@@ -511,7 +502,7 @@ pub(super) fn woolsey_x_reading(
 /// call, not penalty; an unpassed doubler is identified by lane (a seat that passed
 /// before the opening occupies a lane below `opening_index`).
 pub(in crate::bidding) fn penalty_x_reading(auction: &[Call]) -> Option<usize> {
-    penalty_x_reading_with_profile(auction, super::knobs::reading_profile())
+    penalty_x_reading_with_profile(auction, ReadingProfile::default())
 }
 
 fn penalty_x_reading_with_profile(auction: &[Call], profile: ReadingProfile) -> Option<usize> {
@@ -574,7 +565,7 @@ pub(super) fn responder_overcall_double_reading(auction: &[Call], len: usize) ->
 /// Our side's *subsequent* penalty doubles after the natural penalty X of their
 /// 1NT — the latch's later doubles — each paired with the suit it doubles
 ///
-/// The penalty latch ([`set_penalty_latch`][crate::bidding::instinct::set_penalty_latch])
+/// The penalty latch ([`penalty_latch`][field@crate::bidding::inference::ReadingProfile::penalty_latch])
 /// makes these via the trump-stack rule, so each promises four-plus cards in the
 /// doubled suit.  Recording that length stops the sampler reading the double as
 /// takeout — without it the advancer pulls a penalty double thinking partner is
@@ -896,7 +887,7 @@ pub(super) fn apply_opening(inf: &mut Envelope, bid: Bid, seat: u8, profile: Rea
         }
         (2, Strain::Notrump) => {
             if profile.two_notrump_wide {
-                // Chop G0: the wide-minor 2NT (`set_two_notrump_wide`) caps
+                // Chop G0: the wide-minor 2NT (`ReadingProfile::two_notrump_wide`) caps
                 // majors at four (5M(332) opens one-of-a-major) and runs minors
                 // to six (5m422/6m322).  `narrow_length` only intersects, so set
                 // the four suits directly rather than clamping via `balanced()`.

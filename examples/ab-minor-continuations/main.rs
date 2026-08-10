@@ -27,7 +27,6 @@ use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::agreements::Agreements;
-use pons::bidding::american::{set_longer_major_response, set_xyz};
 use pons::scoring::{final_contract, imps, ns_score_contract};
 use rayon::prelude::*;
 
@@ -53,7 +52,7 @@ struct Args {
     seed: Option<u64>,
 
     /// Treatment: the longer-major response discipline
-    /// (`set_longer_major_response`)
+    /// (`ReadingProfile::longer_major_response`)
     #[arg(long, default_value_t = false)]
     longer_major: bool,
 
@@ -61,7 +60,7 @@ struct Args {
     #[arg(long, default_value_t = false)]
     up_the_line: bool,
 
-    /// Treatment: XYZ (`set_xyz`)
+    /// Treatment: XYZ (`ReadingProfile::xyz`)
     #[arg(long, default_value_t = false)]
     xyz: bool,
 
@@ -82,12 +81,10 @@ struct Args {
 
 /// Arm all four knobs at once and capture the agreements they describe
 ///
-/// Two are still ambient cells (`longer_major_response` is read at classify
-/// time as well); the other two are fields of the captured value.
 fn agreements_for(longer_major: bool, up_the_line: bool, xyz: bool, nmf: bool) -> Agreements {
-    set_longer_major_response(longer_major);
-    set_xyz(xyz);
     let mut agreements = Agreements::current();
+    agreements.decision.reading.longer_major_response = longer_major;
+    agreements.decision.reading.xyz = xyz;
     agreements.response.up_the_line = up_the_line;
     agreements.rebid.new_minor_forcing = nmf;
     agreements
@@ -106,8 +103,7 @@ fn main() {
     // arm 0 = baseline, arm 1 = the selected treatment set.  The knobs are read
     // at book-construction time, so each arm bakes its own books; the
     // longer-major knob is *also* read at classify time by the M6.4 control-bid
-    // classifier, so the bidding loop re-sets it per arm inside the worker
-    // (thread-locals are per rayon thread).  NMF is measured against an XYZ
+    // classifier. NMF is measured against an XYZ
     // baseline (it *replaces* XYZ on four slots), so `--nmf` turns XYZ on in
     // both arms; every other treatment is measured against the bare floor.
     let baseline_xyz = args.nmf;
@@ -119,8 +115,6 @@ fn main() {
         args.nmf,
     ))
     .against();
-    set_longer_major_response(false);
-    set_xyz(false);
     let stances = [baseline, treatment];
 
     // Deals are seeded per board (base + index) so any arm of the experiment

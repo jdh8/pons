@@ -1,27 +1,23 @@
 //! Integration tests for the minor-opening continuation knobs: the
-//! longer-major response discipline (`set_longer_major_response`), the
+//! longer-major response discipline (`ReadingProfile::longer_major_response`), the
 //! up-the-line completion (`ResponseKnobs::up_the_line`), and the XYZ two-way
-//! checkback (`set_xyz`).  Each test builds its own stance with the knobs it
+//! checkback (`ReadingProfile::xyz`). Each test builds its own stance with the knobs it
 //! needs, so the rest of the suite keeps measuring the shipped system.
 
 mod common;
 use common::*;
 
 use pons::bidding::agreements::Agreements;
-use pons::bidding::american::{set_longer_major_response, set_xyz};
 
 const P: Call = Call::Pass;
 
-/// A stance built with the given knobs; the ambient cells are restored
+/// A stance built with the given knobs.
 fn stance_with(longer_major: bool, up_the_line: bool, xyz: bool) -> Stance {
-    set_longer_major_response(longer_major);
-    set_xyz(xyz);
     let mut agreements = Agreements::current();
+    agreements.decision.reading.longer_major_response = longer_major;
+    agreements.decision.reading.xyz = xyz;
     agreements.response.up_the_line = up_the_line;
-    let stance = american(&agreements).against();
-    set_longer_major_response(true); // restore the shipped default (longer-major is now on)
-    set_xyz(false);
-    stance
+    american(&agreements).against()
 }
 
 // --- Knob A: the longer-major response discipline ---------------------------
@@ -52,7 +48,7 @@ fn longer_major_response_discipline() {
         call(1, Strain::Hearts),
     );
 
-    // Opt-in off (`set_longer_major_response(false)`): the historic
+    // Opt-in off (`ReadingProfile::longer_major_response = false`): the historic
     // unconditional hearts-first responds 1♥ on 5♠4♥ — the simplification that
     // washed against the longer-major default and stays available as a knob.
     let hearts_first = stance_with(false, false, false);
@@ -229,17 +225,14 @@ fn xyz_invitation_accepted_to_game() {
 /// A stance running New Minor Forcing in place of XYZ, defaults restored
 ///
 /// NMF overrides XYZ on the four `1m - 1M - 1NT` slots; the tests only touch
-/// those, so `set_xyz` is left off to isolate the convention purely.
+/// those, so `ReadingProfile::xyz` is left off to isolate the convention purely.
 fn nmf_stance() -> Stance {
-    set_longer_major_response(false);
-    set_xyz(false);
     let mut agreements = Agreements::current();
+    agreements.decision.reading.longer_major_response = false;
+    agreements.decision.reading.xyz = false;
     agreements.response.up_the_line = false;
     agreements.rebid.new_minor_forcing = true;
-    let stance = american(&agreements).against();
-    set_longer_major_response(true);
-    set_xyz(false);
-    stance
+    american(&agreements).against()
 }
 
 #[test]

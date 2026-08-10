@@ -676,8 +676,7 @@ pub fn seat_floor_vs(name: &str, theirs: &Card, agreements: &Agreements) -> anyh
 /// `base` supplies the [`OpeningKnobs`][pons::bidding::agreements::OpeningKnobs]
 /// this seat was armed with — the two deviations that live there are written on
 /// top of it, as is `overcall_four_card`, now a field of the value.  Everything
-/// else is re-read from the live cells *after* `dial` is set, because that one
-/// is still ambient.
+/// else comes from the current agreements snapshot.
 pub fn deviant_floor(
     name: &str,
     theirs: &Card,
@@ -687,20 +686,18 @@ pub fn deviant_floor(
     offshape_1nt: bool,
     wild_weak_two: bool,
 ) -> anyhow::Result<Stance> {
-    pons::bidding::constraint::set_strength_dial(dial);
     let mut agreements = Agreements::current();
+    agreements.decision.reading.strength_dial = dial;
     agreements.opening = base.opening;
     agreements.opening.one_notrump_offshape = offshape_1nt;
     agreements.opening.weak_two_wild = wild_weak_two;
     agreements.defense.overcall_four_card = overcall_four_card;
     // Only the net-floored names take a config; the instinct and book-only
     // floors have no net to declare anything to.
-    let book = match name {
+    match name {
         "american" | "dutch" => seat_floor_vs(name, theirs, &agreements),
         _ => seat_floor(name, &agreements),
-    };
-    pons::bidding::constraint::set_strength_dial(0);
-    book
+    }
 }
 
 /// A copy of `stance` that reads with the *opponents'* readings blanked — the

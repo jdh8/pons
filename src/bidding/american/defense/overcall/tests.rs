@@ -133,10 +133,11 @@ fn two_level_minor_overcall_tight_gates_the_minimum() {
 
 #[test]
 fn strong_double_hcp_repartitions_overcall_vs_double() {
-    use crate::bidding::constraint::{PointScale, set_point_scale};
+    use crate::bidding::constraint::PointScale;
     // Calibrated to the rule-of-N+8 opt-out — the scale these example
     // hands' points assume (the 6-3-3-1 reads 18, not the point-count 17).
-    set_point_scale(PointScale::RuleOfNFloored);
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.point_scale = PointScale::RuleOfNFloored;
     // Over their (1♥): a shaped 17-HCP six-carder reads 18 points, which
     // overflows the shipped overcall band top (17) into the strong-tier
     // double — the point-count remnant's X↔bid seam (the forensic dump's
@@ -146,17 +147,17 @@ fn strong_double_hcp_repartitions_overcall_vs_double() {
     let over_1h = [call(1, Strain::Hearts)];
     let shaped = "AKQT42.A76.Q75.Q"; // 17 HCP, 18 points
     let flat = "AQ2.K42.KQ2.AJ32"; // 19 HCP, 3=3=3=4
-    let (default_call, default_floored) = best_call(&over_1h, shaped);
+    let (default_call, default_floored) = best_call_with(&agreements, &over_1h, shaped);
     assert_eq!(
         default_call,
         call(1, Strain::Spades),
         "default (HCP partition): the 17-HCP shaped hand overcalls"
     );
     assert!(!default_floored, "the overcall is a book node");
-    let (strong_call, _) = best_call(&over_1h, flat);
+    let (strong_call, _) = best_call_with(&agreements, &over_1h, flat);
     assert_eq!(strong_call, Call::Double, "19 HCP still doubles first");
 
-    let mut legacy_gauge = Agreements::current();
+    let mut legacy_gauge = agreements;
     legacy_gauge.defense.strong_double_hcp = None;
     let (legacy_call, _) = best_call_with(&legacy_gauge, &over_1h, shaped);
     assert_eq!(
@@ -164,7 +165,6 @@ fn strong_double_hcp_repartitions_overcall_vs_double() {
         Call::Double,
         "the points partition (off arm): 18 points reads as the strong tier"
     );
-    set_point_scale(PointScale::PointCount);
 }
 
 #[test]

@@ -4,7 +4,7 @@
 //! a [`Strength`].  An [`EnvelopeUnion`] is a disjunction of such boxes, the
 //! reading a rule's `project` fold produces when its meaning is not a single box.
 
-use super::knobs::{ReadingProfile, reading_profile};
+use super::knobs::ReadingProfile;
 use super::{LENGTH_CAP, POINTS_CAP, SUIT_HCP_CAP};
 use crate::bidding::constraint::PointScale;
 use contract_bridge::{Hand, Suit};
@@ -349,7 +349,7 @@ impl Envelope {
     /// ([`Range::intersect`]).
     #[must_use]
     pub fn intersect(&self, other: &Self) -> Self {
-        self.intersect_on(other, crate::bidding::constraint::point_scale())
+        self.intersect_on(other, ReadingProfile::default().point_scale)
     }
 
     /// [`intersect`][Self::intersect] on an explicit point scale — what every
@@ -411,7 +411,7 @@ impl Envelope {
     /// and support-points bands membership teeth.
     #[must_use]
     pub fn admits(&self, hand: Hand) -> bool {
-        self.admits_on(hand, reading_profile())
+        self.admits_on(hand, ReadingProfile::default())
     }
 
     /// [`admits`][Self::admits] on an explicit reading profile — what the
@@ -578,7 +578,7 @@ impl Envelope {
     /// hands always satisfy the eval-within-projection soundness sweep.
     #[must_use]
     pub fn accepts(&self, hand: Hand) -> bool {
-        let profile = reading_profile();
+        let profile = ReadingProfile::default();
         self.admits_on(hand, profile)
             && self
                 .strength
@@ -675,7 +675,7 @@ impl EnvelopeUnion {
     /// Whether **some** box admits the hand — tighter than `hull().admits()`
     #[must_use]
     pub fn contains(&self, hand: Hand) -> bool {
-        self.contains_on(hand, reading_profile())
+        self.contains_on(hand, ReadingProfile::default())
     }
 
     /// [`contains`][Self::contains] on an explicit reading profile (see
@@ -719,7 +719,7 @@ impl EnvelopeUnion {
     /// The same projection fold under the calling thread's live knobs.
     #[must_use]
     pub fn disjoin(self, other: Self) -> Self {
-        self.disjoin_with(other, reading_profile())
+        self.disjoin_with(other, ReadingProfile::default())
     }
 
     /// The `|` combine the projection fold uses: separate boxes under
@@ -748,7 +748,8 @@ impl EnvelopeUnion {
     /// — sound and loose, never an empty (unsound) `EnvelopeUnion`.
     #[must_use]
     pub fn intersect(&self, other: &Self) -> Self {
-        self.clone().intersect_owned(other, reading_profile())
+        self.clone()
+            .intersect_owned(other, ReadingProfile::default())
     }
 
     /// Consuming intersection used by append-only projection accumulators.

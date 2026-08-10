@@ -48,7 +48,6 @@ use super::openings::two_notrump_wide_shape;
 use super::{call, other_major};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Hand, Strain, Suit};
-use std::cell::Cell;
 
 mod advance_2nt;
 mod advance_double;
@@ -90,38 +89,9 @@ use weak_two_defense::weak_two_defense_package;
 use weak_two_nt_advance::weak_two_notrump_advance_package;
 
 pub use advance_double::advance_double;
-pub(crate) use gladiator::nt_overcall_systems_on;
-pub use gladiator::{set_nt_overcall_gladiator, set_nt_overcall_systems_on};
-pub use nt_defense::{NotrumpDefense, set_notrump_defense};
-pub(crate) use nt_landy::landy_range;
-pub use nt_landy::set_landy;
-pub use nt_woolsey::{set_woolsey_double_floor, set_woolsey_points};
-pub(crate) use nt_woolsey::{woolsey_double_floor, woolsey_points};
-pub use overcall::{
-    DoubleShape, TakeoutSupport, defense_to_suit, set_natural_double_floor,
-    set_natural_overcall_points,
-};
-pub(crate) use overcall::{natural_double_floor, natural_overcall_points};
+pub use nt_defense::NotrumpDefense;
+pub use overcall::{DoubleShape, TakeoutSupport, defense_to_suit};
 pub use weak_two_defense::defense_to_weak_two;
-
-// Compatibility getters used outside the defensive book. The book itself uses
-// the pinned reading profile and the agreement-taking derived helpers in the
-// owning modules.
-pub(crate) fn natural_defense_enabled() -> bool {
-    nt_defense::notrump_defense() == NotrumpDefense::Natural
-}
-
-pub(crate) fn direct_dont_enabled() -> bool {
-    nt_defense::notrump_defense() == NotrumpDefense::DirectDont
-}
-
-pub(crate) fn meckwell_enabled() -> bool {
-    nt_defense::notrump_defense() == NotrumpDefense::Meckwell
-}
-
-pub(crate) fn woolsey_enabled() -> bool {
-    nt_defense::notrump_defense() == NotrumpDefense::Woolsey
-}
 
 /// At least 5-4 (or 4-5) in the two named suits — the Landy two-suiter shape
 pub(crate) fn five_four(a: Suit, b: Suit) -> Cons<impl Constraint + Clone> {
@@ -276,7 +246,7 @@ pub fn defensive(agreements: &Agreements) -> Defensive {
     // Systems-on advances of our 1NT overcall: the whole 1NT-opening response
     // structure (Stayman, transfers, Smolen — reflecting the same knobs), built
     // once and grafted below each `(their-suit) 1NT` so the advancer plays it
-    // verbatim.  On by default; see `set_nt_overcall_systems_on`.
+    // verbatim. On by default; see `ReadingProfile::nt_overcall_systems_on`.
     let nt_overcall_book = agreements
         .decision
         .reading
@@ -407,5 +377,3 @@ pub fn defensive(agreements: &Agreements) -> Defensive {
 
 #[cfg(test)]
 mod tests;
-pub use gladiator::nt_overcall_gladiator;
-pub use nt_defense::notrump_defense;

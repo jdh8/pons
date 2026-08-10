@@ -71,8 +71,6 @@ use two_notrump::quantitative_answer;
 
 pub(super) use both_majors::{both_majors_relay, both_majors_three_diamond, five_card_max};
 pub(super) use crawling_stayman::crawling;
-pub use crawling_stayman::crawling_stayman;
-pub use crawling_stayman::set_crawling_stayman;
 pub(super) use european::{european_three_club, european_two_notrump, european_two_spade};
 pub(super) use invitational_majors::invitational_majors;
 pub(super) use minor_transfers::{diamond_transfer, two_spade_two_way};
@@ -80,11 +78,8 @@ pub(super) use puppet_stayman::puppet;
 pub(super) use sixcard_invitation::sixcard_invite;
 pub use size_ask::SizeAskEight;
 pub(super) use splinter::notrump_splinter;
-pub use splinter::nt_splinter;
-pub use splinter::set_nt_splinter;
-pub use stayman::garbage_stayman;
+pub use stayman::set_stayman_net_force;
 pub(crate) use stayman::stayman_net_force;
-pub use stayman::{set_garbage_stayman, set_stayman_net_force};
 pub(super) use stayman::{smolen_at_three, smolen_completion, stayman_answers};
 pub(super) use stayman_slam::{cue, minor_slam};
 pub(super) use texas::{texas_drive, texas_transfers};
@@ -98,14 +93,16 @@ pub(super) use two_notrump::{two_notrump_rebids, two_notrump_structure};
 ///
 /// `2♠` = clubs or a balanced invite, `2NT` = diamonds (transfer), `3♣` = Puppet
 /// Stayman.  The variant-selecting [`Alert`] minting the convention (see the
-/// `Alert` newtype doc); pass it to [`set_notrump_minors`].
+/// `Alert` newtype doc); assign it to
+/// [`notrump_minors`][field@crate::bidding::inference::ReadingProfile::notrump_minors].
 pub const PUPPET: Alert = Alert("puppet");
 
 /// The **European** 1NT minor scheme — opt-in, BBA's Atlantic style
 ///
 /// `2♠` = clubs (transfer), `2NT` = a balanced invite / size ask, `3♣` = diamonds
 /// (transfer); no Puppet Stayman.  The standard Polish Club / WJ and common
-/// continental response set.  Select with [`set_notrump_minors`].
+/// continental response set. Select with
+/// [`notrump_minors`][field@crate::bidding::inference::ReadingProfile::notrump_minors].
 pub const EUROPEAN: Alert = Alert("european");
 
 // Always-on artificial 1NT responses (present under either minor scheme).  These
@@ -123,32 +120,6 @@ const SLAM_TRY: Alert = Alert("slam-try");
 /// four spades.  Both are artificial — `2♠` isn't spades, `2NT` pins the 4-card
 /// side suit — so the reader decodes them rather than reading natural.
 const INV_5CARD: Alert = Alert("inv-5card-major");
-
-thread_local! {
-    /// The active 1NT minor-suit response variant, read once at book-construction
-    /// time (and by the inference engine, to decode our `2♠`/`2NT`/`3♣`).
-    /// [`PUPPET`] by default; flipped to [`EUROPEAN`] by [`set_notrump_minors`].
-    static NOTRUMP_MINORS: Cell<Alert> = const { Cell::new(PUPPET) };
-}
-
-/// Select the 1NT minor-suit response scheme for books built *after* this call
-///
-/// Thread-local, read at book-construction time (the
-/// [`set_notrump_defense`][super::set_notrump_defense]-style knob).
-/// Pass [`PUPPET`] (default) or [`EUROPEAN`]; both variants are authored, and only
-/// the selected one's `2♠`/`2NT`/`3♣` rules are gated into the trie.
-///
-pub fn set_notrump_minors(variant: Alert) {
-    NOTRUMP_MINORS.with(|cell| cell.set(variant));
-}
-
-/// The active 1NT minor scheme, defaulting to [`PUPPET`]
-///
-/// Read both at book construction (to gate `2♠`/`2NT`/`3♣` and their
-/// continuations) and by the inference engine (to read the artificial calls).
-pub fn notrump_minors() -> Alert {
-    NOTRUMP_MINORS.with(Cell::get)
-}
 
 /// Whether book construction uses the Puppet minor scheme
 ///
@@ -171,8 +142,9 @@ fn european_scheme(agreements: &Agreements) -> bool {
 /// invites slam opposite a balanced 16–17 with no four-card major.
 ///
 /// The minor-suit responses (`2♠`/`2NT`/`3♣`) come in two variants, both authored
-/// here behind their [`Alert`] and gated to the active one (`set_notrump_minors`,
-/// default [`PUPPET`]): `puppet_minors` (`2♠` = clubs-or-invite, `2NT` = diamonds,
+/// here behind their [`Alert`] and gated to the active
+/// [`notrump_minors`][field@crate::bidding::inference::ReadingProfile::notrump_minors]
+/// field (default [`PUPPET`]): `puppet_minors` (`2♠` = clubs-or-invite, `2NT` = diamonds,
 /// `3♣` = Puppet Stayman) and `european_minors` (`2♠` = clubs, `2NT` = balanced
 /// invite, `3♣` = diamonds).
 #[must_use]

@@ -3,7 +3,8 @@
 //! The base convention: responder's `2♣`, opener's `2♦`/`2♥`/`2♠`, responder's
 //! rebid whether or not a major came back, Smolen after the denial, and the
 //! invitation-acceptance tables.  Garbage (drop-dead) Stayman rides it under
-//! [`set_garbage_stayman`], the net-force seam under
+//! [`garbage_stayman`][crate::bidding::inference::ReadingProfile::garbage_stayman],
+//! the net-force seam under
 //! [`set_stayman_net_force`].
 
 use super::both_majors::fit_value;
@@ -108,32 +109,6 @@ pub(super) fn stayman_answers_uncontested(agreements: &Agreements) -> Rules {
             );
     }
     rules.chain(stayman_answers())
-}
-
-thread_local! {
-    /// Garbage (drop-dead) Stayman: a *weak* hand bids 2♣ to escape 1NT into a
-    /// major (or diamond) partscore, intending to pass opener's answer.  **On by
-    /// default** — a paired DD A/B vs BBA (205k boards, vul none) measured +0.51
-    /// IMPs/fired plain (+0.0009/board, 95% CI excl 0) and +0.70 PD.  See
-    /// [`set_garbage_stayman`].
-    static GARBAGE_STAYMAN: Cell<bool> = const { Cell::new(true) };
-}
-
-/// Author garbage (drop-dead) Stayman for books built *after* this call
-/// (thread-local; **on by default**).
-///
-/// A weak responder with short clubs and a four-card major bids 2♣ to escape a
-/// likely-doomed 1NT, passing opener's 2♦/2♥/2♠.  Looser the weaker responder
-/// is: broke hands accept a thinner 2♦ landing, since any ~7-card fit beats a
-/// broke 1NT.
-pub fn set_garbage_stayman(on: bool) {
-    GARBAGE_STAYMAN.with(|cell| cell.set(on));
-}
-
-/// Whether garbage Stayman is currently authored (read by the inference engine
-/// too, to widen the 2♣ point range it reads)
-pub fn garbage_stayman() -> bool {
-    GARBAGE_STAYMAN.with(Cell::get)
 }
 
 thread_local! {

@@ -50,17 +50,14 @@ use pons::bidding::Stance;
 use pons::bidding::agreements::{
     Agreements, CompetitionKnobs, DefenseKnobs, NotrumpKnobs, OpeningKnobs, RebidKnobs,
 };
-use pons::bidding::american::{
-    EUROPEAN, LebensohlStyle, NotrumpDefense, NotrumpShape, PUPPET, garbage_stayman,
-    notrump_defense, notrump_minors, nt_splinter, set_garbage_stayman, set_landy,
-    set_notrump_defense, set_notrump_minors, set_nt_splinter, set_xyz,
-};
+use pons::bidding::american::{EUROPEAN, LebensohlStyle, NotrumpDefense, NotrumpShape, PUPPET};
 use pons::bidding::card::{american_card, dutch_card};
 use pons::bidding::context::{Context, relative};
 use pons::bidding::features::{
     CompactConfig, Config, FEATURES_LEN_V3, FEATURES_LEN_V4, FEATURES_LEN_V5, FEATURES_VERSION_V3,
     FEATURES_VERSION_V4, FEATURES_VERSION_V5, features_v3, features_v4, features_v5,
 };
+use pons::bidding::inference::ReadingProfile;
 use pons::bidding::{Phase, System};
 use pons::gib;
 use pons::{american, american_instinct, dutch, dutch_instinct};
@@ -146,7 +143,7 @@ struct Args {
     #[arg(long = "conv", value_parser = parse_override, value_name = "NAME=0|1")]
     conv: Vec<(CString, c_int)>,
     /// Extract features with **our** kickback recognizer armed
-    /// (`set_rkcb_variant`).  Pair it with `--conv "Kickback 1430=1"`: the `conv`
+    /// (`ReadingProfile::rkcb_variant`). Pair it with `--conv "Kickback 1430=1"`: the `conv`
     /// flag makes the *teacher* play kickback, this one makes our extractor
     /// read the resulting auctions the way serving will.
     ///
@@ -313,15 +310,12 @@ impl SideConfig {
     }
 }
 
-/// Arm the recognizer for a side's `kickback: bool` — this harness dumps the
-/// full-ladder or plain regimes only, never Redwood, so the bool CLI stays.
-fn arm_kickback(on: bool) {
-    use pons::bidding::instinct::{RkcbVariant, set_rkcb_variant};
-    set_rkcb_variant(if on {
-        RkcbVariant::Kickback
+fn rkcb_variant(on: bool) -> pons::bidding::instinct::RkcbVariant {
+    if on {
+        pons::bidding::instinct::RkcbVariant::Kickback
     } else {
-        RkcbVariant::Plain
-    });
+        pons::bidding::instinct::RkcbVariant::Plain
+    }
 }
 
 /// The shipped default of every flippable knob, captured off the untouched
@@ -349,13 +343,11 @@ struct Defaults {
 
 impl Defaults {
     fn capture() -> Self {
+        let reading = ReadingProfile::default();
         Self {
-            garbage: garbage_stayman(),
-            // These two have crate-private readers (not web-settable), so
-            // their shipped defaults are transcribed from the `Cell::new`
-            // literals: xyz.rs:42, nt_landy.rs:17.
-            xyz: true,
-            landy: None,
+            garbage: reading.garbage_stayman,
+            xyz: reading.xyz,
+            landy: reading.landy_range,
             nmf: RebidKnobs::default().new_minor_forcing,
             offshape: OpeningKnobs::default().one_notrump_offshape,
             super_accept: NotrumpKnobs::default().transfer_super_accept,
@@ -364,25 +356,12 @@ impl Defaults {
             leaping: DefenseKnobs::default().leaping_michaels_enabled,
             responsive: DefenseKnobs::default().responsive_takeout_enabled,
             support_x: CompetitionKnobs::default().major_support_double,
-            splinter: nt_splinter(),
+            splinter: reading.nt_splinter,
             shape: OpeningKnobs::default().notrump_shape,
-            defense: notrump_defense(),
+            defense: reading.notrump_defense,
             leb: CompetitionKnobs::default().lebensohl_style,
-            minors_european: notrump_minors() == EUROPEAN,
+            minors_european: reading.notrump_minors == EUROPEAN,
         }
-    }
-
-    fn apply(&self) {
-        set_garbage_stayman(self.garbage);
-        set_xyz(self.xyz);
-        set_nt_splinter(self.splinter);
-        set_notrump_defense(self.defense);
-        set_notrump_minors(if self.minors_european {
-            EUROPEAN
-        } else {
-            PUPPET
-        });
-        set_landy(self.landy);
     }
 
     /// The axes that are fields of [`Agreements`] rather than thread cells
@@ -413,6 +392,19 @@ impl Defaults {
                 responsive_takeout_enabled: self.responsive,
                 ..DefenseKnobs::default()
             },
+            reading: ReadingProfile {
+                garbage_stayman: self.garbage,
+                xyz: self.xyz,
+                nt_splinter: self.splinter,
+                notrump_defense: self.defense,
+                notrump_minors: if self.minors_european {
+                    EUROPEAN
+                } else {
+                    PUPPET
+                },
+                landy_range: self.landy,
+                ..ReadingProfile::default()
+            },
         }
     }
 }
@@ -425,6 +417,7 @@ struct Knobs {
     notrump: NotrumpKnobs,
     competition: CompetitionKnobs,
     defense: DefenseKnobs,
+    reading: ReadingProfile,
 }
 
 impl Knobs {
@@ -436,6 +429,7 @@ impl Knobs {
         agreements.notrump = self.notrump;
         agreements.competition = self.competition;
         agreements.defense = self.defense;
+        agreements.decision.reading = self.reading;
         agreements
     }
 }
@@ -479,11 +473,13 @@ type Flip = fn(&Defaults, &mut Knobs);
 ///
 /// [docs/ai-bidder/card-manifold.md]: ../../docs/ai-bidder/card-manifold.md
 const AXES: [(&str, Flip); 16] = [
-    ("Garbage Stayman", |d, _| set_garbage_stayman(!d.garbage)),
+    ("Garbage Stayman", |d, k| {
+        k.reading.garbage_stayman = !d.garbage
+    }),
     ("Checkback (NMF)", |d, k| {
         k.rebid.new_minor_forcing = !d.nmf;
     }),
-    ("Two Way NMF (XYZ)", |d, _| set_xyz(!d.xyz)),
+    ("Two Way NMF (XYZ)", |d, k| k.reading.xyz = !d.xyz),
     ("Super acceptance", |d, k| {
         k.notrump.transfer_super_accept = !d.super_accept;
     }),
@@ -502,7 +498,7 @@ const AXES: [(&str, Flip); 16] = [
     ("Support double/redouble", |d, k| {
         k.competition.major_support_double = !d.support_x;
     }),
-    ("1N-3M splinter", |d, _| set_nt_splinter(!d.splinter)),
+    ("1N-3M splinter", |d, k| k.reading.nt_splinter = !d.splinter),
     ("1NT offshape 4441/5422", |d, k| {
         k.opening.one_notrump_offshape = !d.offshape;
     }),
@@ -512,12 +508,12 @@ const AXES: [(&str, Flip); 16] = [
             _ => NotrumpShape::Balanced,
         };
     }),
-    ("NT defense (Landy rows)", |d, _| {
-        set_notrump_defense(if d.defense == NotrumpDefense::Woolsey {
+    ("NT defense (Landy rows)", |d, k| {
+        k.reading.notrump_defense = if d.defense == NotrumpDefense::Woolsey {
             NotrumpDefense::Natural
         } else {
             NotrumpDefense::Woolsey
-        });
+        };
     }),
     ("Lebensohl rows", |d, k| {
         k.competition.lebensohl_style = if d.leb == LebensohlStyle::Off {
@@ -526,15 +522,18 @@ const AXES: [(&str, Flip); 16] = [
             LebensohlStyle::Off
         };
     }),
-    ("1NT minor scheme", |d, _| {
-        set_notrump_minors(if d.minors_european { PUPPET } else { EUROPEAN });
+    ("1NT minor scheme", |d, k| {
+        k.reading.notrump_minors = if d.minors_european { PUPPET } else { EUROPEAN };
     }),
-    ("Landy range", |d, _| {
-        set_landy(if d.landy.is_some() {
+    ("Landy range", |d, k| {
+        k.reading.landy_range = if d.landy.is_some() {
             None
         } else {
             Some((8, 14))
-        });
+        };
+        if let Some(range) = k.reading.landy_range {
+            k.reading.woolsey_points = range;
+        }
     }),
 ];
 
@@ -548,22 +547,19 @@ static AXIS_DEFAULTS: OnceLock<Defaults> = OnceLock::new();
 /// Assignment discipline, exactly as `probe-card-axes` arms a rayon task:
 /// a mixed `--cell` re-arms per acting seat, so a knob merely set-when-on
 /// would leak the previous side's state into this side's book, card and
-/// reading.  Call it wherever [`arm_kickback`] is called for a side.
+/// reading. Call it wherever a side's `rkcb_variant` is selected.
 ///
 /// Returns the [`Agreements`] the side plays — every build under this arming
 /// must be handed *this*, not a fresh `Agreements::current()`, or the
 /// value-borne axes silently revert to their shipped poles.
 fn arm_flips(flips: u16) -> Agreements {
     let defaults = AXIS_DEFAULTS.get_or_init(Defaults::capture);
-    defaults.apply();
     let mut knobs = defaults.knobs();
     for (bit, (_, flip)) in AXES.iter().enumerate() {
         if flips & (1u16 << bit) != 0 {
             flip(defaults, &mut knobs);
         }
     }
-    // The ambient half is read *after* the flips, which may have written a
-    // cell; the value half is what they just edited.
     knobs.onto_current()
 }
 
@@ -731,17 +727,17 @@ fn main() -> anyhow::Result<()> {
         vec![args.kickback]
     };
     let build_teacher = |with_conv: bool| -> anyhow::Result<Box<dyn System>> {
+        // This top-level teacher historically builds before any per-regime
+        // recognizer arming; keep its shipped reading profile. The BBA
+        // convention override is still selected by `with_conv` below.
+        let agreements = Agreements::current();
         Ok(match args.teacher.as_str() {
             // `--system` selects the teacher, not merely the disclosed card.
             // Letting them drift apart writes rows labelled with a system the
             // teacher was not playing -- the mislabeling that `verify_card`
             // guards against for BBA, one level up and just as invisible.
-            "american" if args.system == "dutch" => Box::new(
-                dutch_instinct(&pons::bidding::agreements::Agreements::current()).against(),
-            ),
-            "american" => Box::new(
-                american_instinct(&pons::bidding::agreements::Agreements::current()).against(),
-            ),
+            "american" if args.system == "dutch" => Box::new(dutch_instinct(&agreements).against()),
+            "american" => Box::new(american_instinct(&agreements).against()),
             "bba" => {
                 let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());
                 let card = args.card.as_deref().map(load_bbsa).transpose()?;
@@ -749,10 +745,9 @@ fn main() -> anyhow::Result<()> {
                     Some(card) => (card.system, card.toggles),
                     // `--configured --system dutch` means the teacher plays WJ;
                     // without this the corpus would claim WJ over 2/1 bidding.
-                    None if args.configured => (
-                        card_for(&args.system, &Agreements::current())?.system,
-                        Vec::new(),
-                    ),
+                    None if args.configured => {
+                        (card_for(&args.system, &agreements)?.system, Vec::new())
+                    }
                     None => (SYSTEM_2_OVER_1, Vec::new()),
                 };
                 // Singles win over the card, exactly as `bba-gen` applies them.
@@ -845,8 +840,8 @@ fn main() -> anyhow::Result<()> {
         // The side's *full* arming — recognizer and flip axes — so its card,
         // stance and (per pair, below) teacher are all built under the same
         // knob state the auction loop re-arms per acting seat.
-        arm_kickback(side.kickback);
-        let agreements = arm_flips(side.flips);
+        let mut agreements = arm_flips(side.flips);
+        agreements.decision.reading.rkcb_variant = rkcb_variant(side.kickback);
         let card = card_for(side.system(), &agreements)?;
         if v5 {
             per_side_agreements.insert(
@@ -885,8 +880,8 @@ fn main() -> anyhow::Result<()> {
         // builds its instinct book under this arming, and the flipped rows the
         // `bba` branch pushes as overrides were already rendered into `ours`
         // under the same arming in the per-side loop.
-        arm_kickback(a.kickback);
-        let agreements = arm_flips(a.flips);
+        let mut agreements = arm_flips(a.flips);
+        agreements.decision.reading.rkcb_variant = rkcb_variant(a.kickback);
         let teacher: Box<dyn System> = match args.teacher.as_str() {
             "american" if a.dutch => Box::new(dutch_instinct(&agreements).against()),
             "american" => Box::new(american_instinct(&agreements).against()),
@@ -943,17 +938,17 @@ fn main() -> anyhow::Result<()> {
         // `features_v3` reads `Inferences`, so this decides what the corpus
         // *says* a relocated ask is — and it must agree with the teacher that
         // produced the target.
-        arm_kickback(regimes[regime]);
+        let mut regime_agreements = arm_flips(0);
+        regime_agreements.decision.reading.rkcb_variant = rkcb_variant(regimes[regime]);
         // The card is rendered *after* the knobs are armed, which is what keeps
         // card, code and net in sync: `american_card()` reads the same knobs the
         // rules do.  Rebuilt per board only because `regime` can alternate; it is
         // 140 floats a side, not a hot cost.
         let config = (args.configured && cells.is_empty())
             .then(|| -> anyhow::Result<Config> {
-                let agreements = Agreements::current();
-                let ours = card_for(&args.system, &agreements)?;
+                let ours = card_for(&args.system, &regime_agreements)?;
                 let theirs = match &args.their_system {
-                    Some(system) => card_for(system, &agreements)?,
+                    Some(system) => card_for(system, &regime_agreements)?,
                     None => ours.clone(),
                 };
                 Ok(Config::new(&ours, &theirs))
@@ -964,8 +959,8 @@ fn main() -> anyhow::Result<()> {
         let reader: Option<Stance> = (args.configured && cells.is_empty() && !args.bare_context)
             .then(|| -> anyhow::Result<Stance> {
                 Ok(match args.system.as_str() {
-                    "dutch" => dutch(&pons::bidding::agreements::Agreements::current()).against(),
-                    _ => american(&pons::bidding::agreements::Agreements::current()).against(),
+                    "dutch" => dutch(&regime_agreements).against(),
+                    _ => american(&regime_agreements).against(),
                 })
             })
             .transpose()?;
@@ -1024,10 +1019,6 @@ fn main() -> anyhow::Result<()> {
                 // configuration that produced it.  Both arms assign every knob
                 // (never merely set-when-on), so the previous seat's arming
                 // cannot leak through.
-                if let Some((ours, _)) = acting {
-                    arm_kickback(ours.kickback);
-                    arm_flips(ours.flips);
-                }
                 let cell_artifacts =
                     acting.map(|(ours, theirs)| &per_pair[&(ours.label(), theirs.label())]);
                 let teacher = match cell_artifacts {
@@ -1062,7 +1053,18 @@ fn main() -> anyhow::Result<()> {
                 };
                 let mut context = match acting_reader {
                     Some(stance) => stance.prefixed_context(rel, &auction),
-                    None => Context::new(rel, &auction),
+                    None => {
+                        let profile = match acting {
+                            Some((ours, _)) => {
+                                let mut agreements = arm_flips(ours.flips);
+                                agreements.decision.reading.rkcb_variant =
+                                    rkcb_variant(ours.kickback);
+                                agreements.decision
+                            }
+                            None => regime_agreements.decision,
+                        };
+                        Context::new(rel, &auction).with_profile(profile)
+                    }
                 };
                 if let Some(config) = cell_artifacts.map(|(config, _)| config).or(config.as_ref()) {
                     context = context.with_config(config);

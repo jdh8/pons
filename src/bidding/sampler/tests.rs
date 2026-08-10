@@ -1,6 +1,7 @@
 use super::*;
 use crate::bidding::constraint::point_count;
-use crate::bidding::context::Context;
+use crate::bidding::context::{Context, DecisionProfile};
+use crate::bidding::inference::ReadingProfile;
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::deck::full_deal;
 use contract_bridge::{Bid, Level, Strain, Suit};
@@ -18,6 +19,14 @@ const fn bid(level: u8, strain: Strain) -> Call {
 /// Inferences relative to the side to act, read from an auction
 fn inferences(auction: &[Call]) -> Inferences {
     Inferences::read(&Context::new(RelativeVulnerability::NONE, auction))
+}
+
+fn inferences_with(profile: ReadingProfile, auction: &[Call]) -> Inferences {
+    let decision = DecisionProfile {
+        reading: profile,
+        ..DecisionProfile::default()
+    };
+    Inferences::read(&Context::new(RelativeVulnerability::NONE, auction).with_profile(decision))
 }
 
 /// The natural penalty double of their 1NT shows 15+, and a passed doubler's
@@ -44,7 +53,6 @@ fn reads_natural_penalty_double_of_their_notrump() {
 /// suit, so partner reads it as penalty (and leaves it in) instead of takeout.
 #[test]
 fn reads_latched_penalty_double_of_the_runout() {
-    use crate::bidding::instinct::set_penalty_latch;
     // `(1NT) X (2♦) X -`: our penalty X, their runout, partner's penalty double.
     let auction = [
         bid(1, Strain::Notrump),
@@ -54,11 +62,25 @@ fn reads_latched_penalty_double_of_the_runout() {
         Call::Pass,
     ];
     // Off: the later double reads as nothing — no length shown.
-    set_penalty_latch(false);
-    assert_eq!(inferences(&auction).partner().length(Suit::Diamonds).min, 0);
+    let profile = ReadingProfile {
+        penalty_latch: false,
+        ..ReadingProfile::default()
+    };
+    assert_eq!(
+        inferences_with(profile, &auction)
+            .partner()
+            .length(Suit::Diamonds)
+            .min,
+        0
+    );
     // On (the default): the latch's double promises four-plus diamonds (the stack).
-    set_penalty_latch(true);
-    assert_eq!(inferences(&auction).partner().length(Suit::Diamonds).min, 4);
+    assert_eq!(
+        inferences_with(ReadingProfile::default(), &auction)
+            .partner()
+            .length(Suit::Diamonds)
+            .min,
+        4
+    );
 }
 
 /// A fixed hand short in hearts, so an RHO who must hold 5+ hearts is easy

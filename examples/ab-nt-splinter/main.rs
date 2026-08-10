@@ -1,7 +1,8 @@
 //! `1NT - 3♥/3♠` splinter A/B: the shipped empty slot vs the Polish Club treatment.
 //!
 //! Responder's `3♥`/`3♠` over our 1NT are the only two slots the response ladder
-//! leaves empty. [`set_nt_splinter`] fills them with the Bridge World Standard /
+//! leaves empty. [`nt_splinter`][field@pons::bidding::inference::ReadingProfile::nt_splinter]
+//! fills them with the Bridge World Standard /
 //! Polish Club agreement — shortness in the **bid** major, 2–3 in the other,
 //! exactly four diamonds, five or six clubs — whose core hand (`3-1-4-5` and
 //! mirrors) has no home at all in the shipped system: too few majors for
@@ -32,15 +33,12 @@
 //! cargo run --release --example ab-nt-splinter -- --count 200000 --seed "$SEED_BASE"
 //! ```
 //!
-//! [`set_nt_splinter`]: pons::bidding::american::set_nt_splinter
-
 use clap::Parser;
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Seat, Strain};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::american::set_nt_splinter;
 use pons::bidding::context::relative;
 use pons::bidding::{Inferences, Stance};
 use pons::scoring::{
@@ -142,18 +140,18 @@ fn main() {
     // Both keep every other shipped default. The knob is read at book-
     // construction time, so build each arm under its own setting; the baked
     // tries are independent thereafter.
-    set_nt_splinter(false);
-    let off = american(&pons::bidding::agreements::Agreements::current()).against();
-    set_nt_splinter(true);
+    let mut off_agreements = pons::bidding::agreements::Agreements::current();
+    off_agreements.decision.reading.nt_splinter = false;
+    let off = american(&off_agreements).against();
     let mut armed = pons::bidding::agreements::Agreements::current();
+    armed.decision.reading.nt_splinter = true;
     armed.notrump.nt_splinter_floor = args.floor;
     let on = american(&armed).against();
-    set_nt_splinter(false); // restore the shipped default for anything downstream
     let stances = [off, on];
 
     // Both arms bid the same deal; the only difference is the two 3M rules.
     // Deal sequentially (cheap, and seeded so arms are reproducible), then bid
-    // in parallel — bidding is pure (the books read their thread-locals at
+    // in parallel — bidding is pure (the books captured their agreements at
     // construction), so boards are independent and par_iter preserves order.
     // The DD solver stays on the main thread below.
     let deals: Vec<FullDeal> = (0..args.count).map(|_| full_deal(&mut rng)).collect();

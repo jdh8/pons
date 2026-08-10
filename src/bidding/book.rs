@@ -362,8 +362,8 @@ impl Pair {
 
 /// Build under a scratch knob state, without touching this thread's
 ///
-/// Runs `build` on a fresh scoped thread, whose thread-local knobs start at
-/// the shipped defaults, and returns its value; the closure's `set_*` calls
+/// Runs `build` on a fresh scoped thread, whose remaining thread-local knobs
+/// start at the shipped defaults, and returns its value; the closure's setters
 /// die with the thread.  Because a [`Stance`] pins the knob state it is built
 /// under, the returned value keeps the armed behavior wherever it later
 /// classifies:
@@ -372,7 +372,7 @@ impl Pair {
 /// use pons::bidding::{agreements::Agreements, american, scoped};
 ///
 /// let stance = scoped(|| {
-///     pons::american::set_garbage_stayman(false);
+///     pons::bidding::constraint::set_fuzzy_fifths(true);
 ///     american(&Agreements::current()).against()
 /// });
 /// ```

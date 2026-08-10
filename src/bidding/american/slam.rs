@@ -84,9 +84,9 @@ pub(super) const RKCB: Alert = Alert("rkcb");
 /// (none/both, 2M boards), PD re-measure **+5.41/+7.05 IMPs/divergent** (10M
 /// boards, 202 divergent, ~1 in 49.5k) — rare but decisively positive per fire.
 ///
-/// A *derived* reading, so it stays a function of the two cells it is made of
+/// A *derived* reading, so it stays a function of the two fields it is made of
 /// rather than becoming a `Build` field — the same rule the competitive book's
-/// `free_bids_engaged` follows.  Both cells are pinned classify-time state, so
+/// `free_bids_engaged` follows. Both fields are pinned classify-time state, so
 /// the build reads them back off the stance's [`DecisionProfile`], which is
 /// exactly what [`minor_asks`][crate::bidding::instinct] does for the floor.
 pub(super) fn minor_keycard(agreements: &Agreements) -> bool {

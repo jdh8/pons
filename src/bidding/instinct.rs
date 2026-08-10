@@ -114,23 +114,10 @@ pub enum LatchStyle {
 }
 
 std::thread_local! {
-    /// Whether the "once penalty, always penalty" latch is in force (**on by
-    /// default** — DD-measured a penalty-X-bucket win with no regression, see
-    /// [`set_penalty_latch`]): after our natural penalty double of their 1NT, our
-    /// later doubles read as penalty (sit / leave in) rather than the takeout default
-    static PENALTY_LATCH: Cell<bool> = const { Cell::new(true) };
-
     /// Whether the *doubler* runs after `(1NT) X (XX) - -` comes back around
     /// (**on by default** — see [`set_doubler_xx_runout`]).  Construction-gated:
     /// read once in [`instinct`] so the escape rule lands only in the on book.
     static DOUBLER_XX_RUNOUT: Cell<bool> = const { Cell::new(true) };
-
-    /// Whether advances of partner's simple overcall are Rubens transfers /
-    /// the cue-raise (**off by default since 2026-07-31** — the layer was
-    /// measured against the natural ladder it replaced and lost; see
-    /// [`set_rubens_advances`]).  On restores the transfer structure: raises go
-    /// through a relay and the cue-raise means a limit-plus raise.
-    static RUBENS_ADVANCES: Cell<bool> = const { Cell::new(false) };
 
     /// A hand that already bid a suit rebids it in competition rather than being
     /// forced to a takeout double (**shipped default-on**; see
@@ -597,7 +584,9 @@ fn pinned(context: &Context<'_>) -> InstinctProfile {
 /// The relocation stance in force under `profile`
 ///
 /// [`RkcbVariant::Plain`] unless the floor both makes a keycard ask and
-/// relocates it — the pinned twin of [`relocating_now`], and what the
+/// relocates it — derived from the pinned
+/// [`rkcb_variant`][field@ReadingProfile::rkcb_variant] and
+/// [`floor_rkcb`][field@ReadingProfile::floor_rkcb] fields, and what the
 /// auction-only ladder helpers ([`kickback_ladder`], [`kickback_trump`],
 /// [`keycard_ask_bid`]) take in place of a live knob read.
 fn relocation(profile: ReadingProfile) -> RkcbVariant {
@@ -608,7 +597,7 @@ fn relocation(profile: ReadingProfile) -> RkcbVariant {
     }
 }
 
-/// [`relocating_now`] off a pinned profile — the card's and the book's reading
+/// Whether the pinned profile relocates RKCB — the card's and the book's reading
 pub(in crate::bidding) fn relocating(profile: &DecisionProfile) -> bool {
     relocation(profile.reading) != RkcbVariant::Plain
 }
@@ -709,50 +698,6 @@ fn reopening_notrump_enabled() -> bool {
     REOPENING_NOTRUMP.with(Cell::get)
 }
 
-/// Enable or disable Rubens advances of partner's simple overcall
-///
-/// **Off by default since 2026-07-31 — a reversal on re-measure.**  The layer
-/// won its M6.3 A/B (2026-07-02, plain +0.0016 ±0.0015 with the CI excluding
-/// zero, PD −0.0009 wash, 1144 fired) once both sides' continuations were
-/// authored, and shipped default-on on that.  Re-measured on the current
-/// system (`scripts/ab-rubens.sh`, 204,800 bd/arm/vul, SEED_BASE 1785426828,
-/// sha 4485555) it **loses in all four cells** — plain −0.0009 ±0.0009 NV / −0.0008 ±0.0011 vul, PD
-/// −0.0014 ±0.0011 / −0.0014 ±0.0013 (both PD CIs clear of zero), fired
-/// 0.11%/0.09%, −0.83/−0.85 plain and −1.29/−1.51 PD per fired board.  The
-/// default is now the natural ladder: raises stay the natural ladder (the
-/// limit distinction is lost, the honest natural price) and a natural
-/// two-level new-suit advance covers the hands the transfers covered.
-///
-/// On, the calls from the cue up to just below partner's suit are transfers
-/// over a one-level overcall, and the cue is the limit-plus raise over a
-/// two-level one.  The firing rate fell with the verdict — 1144 fired at M6.3
-/// against 218/193 now on the same 204,800 boards, so the floor around it
-/// moved and the transfers are reached far less often than when they won.
-/// Kept as a knob for re-measure — the losing tail is
-/// over-reach (`1♦ (1♠) - (2♥)` climbing to a failing `4♠` where the natural arm
-/// stops), not one unauthored continuation, and the transfers were mostly not
-/// reached in the first place: over `1♣ (1♥) -` the bidder took the `2♦`
-/// transfer 0.4% of the time, holding six-plus *diamonds*
-/// (`probe-bba-constraints --mode rub-ch --ours`,
-/// docs/reader-retirement.md §The Rubens layer).
-///
-/// Read at classification time, per-thread.  The [`Inferences`] reading shares
-/// the knob: off, an advance in the band is a genuine suit — so this default
-/// also silences `rubens_reading`.
-///
-/// [`Inferences`]: super::inference::Inferences
-#[doc(hidden)]
-pub fn set_rubens_advances(enabled: bool) {
-    RUBENS_ADVANCES.with(|flag| flag.set(enabled));
-}
-
-/// Rubens advances are enabled (see [`set_rubens_advances`]); shared with the
-/// [`Inferences`] reading so the bidder and the
-/// reader flip together
-pub fn rubens_advances_enabled() -> bool {
-    RUBENS_ADVANCES.with(Cell::get)
-}
-
 /// The floor's 4NT keycard ask and its 1430 answers are artificial (M6.4);
 /// the alert suppresses their natural reading — without it partner would read
 /// a 5♦ answer as a diamond suit and the sampler would deal the phantom.
@@ -770,20 +715,9 @@ const fn rkcb_relocated_ask_face(target: Suit) -> FaceId {
 }
 
 std::thread_local! {
-    /// Whether the floor asks and answers RKCB 1430 once a fit and small-slam
-    /// values are known (**on by default**, M6.4).  See [`set_floor_rkcb`].
-    static FLOOR_RKCB: Cell<bool> = const { Cell::new(true) };
-
     /// Whether an uncontested 2/1 marks the auction forced to game.  **On by
     /// default** since 2026-07-20; see [`set_two_over_one_force`].
     static TWO_OVER_ONE_FORCE: Cell<bool> = const { Cell::new(true) };
-
-    /// Which relocation stance the keycard ask plays.  **[`Plain`] by
-    /// default** — Kickback was default-on 2026-08-02 to 2026-08-03 only; see
-    /// [`set_rkcb_variant`].
-    ///
-    /// [`Plain`]: RkcbVariant::Plain
-    static RKCB_VARIANT: Cell<RkcbVariant> = const { Cell::new(RkcbVariant::Plain) };
 
 }
 
@@ -836,36 +770,6 @@ fn partner_slam_strength(context: &Context<'_>) -> u8 {
     }
 }
 
-/// Enable or disable the floor's RKCB 1430 (M6.4)
-///
-/// **On by default**: with a known eight-card fit and combined small-slam
-/// values the floor asks 4NT before committing — the milestone 6-of-the-fit
-/// only fires directly at the grand-zone 37 or when the ask has no room.  The
-/// answers reuse the book's 1430 ladder ([`american`](super::american)'s
-/// keycard counting), so instinct decodes instinct on both sides.  Disable to
-/// recover the direct-milestone floor (the A/B off arm, `bba-gen
-/// --no-ns-floor-rkcb`); read at classification time, per-thread.
-///
-/// **The outer gate of the whole keycard package.**  Off, there is no ask to
-/// relocate, so [`relocating_now`] is false whatever [`set_rkcb_variant`] says
-/// and [`keycard_minors`][InstinctProfile::keycard_minors] has nothing to widen
-/// — the card discloses plain 4NT
-/// and the plain twin serves the floor.
-#[doc(hidden)]
-pub fn set_floor_rkcb(enabled: bool) {
-    FLOOR_RKCB.with(|flag| flag.set(enabled));
-}
-
-/// Whether the [`set_floor_rkcb`] knob is on
-pub fn floor_rkcb() -> bool {
-    FLOOR_RKCB.with(Cell::get)
-}
-
-/// The floor RKCB is enabled (see [`set_floor_rkcb`])
-pub(in crate::bidding) fn floor_rkcb_now() -> bool {
-    FLOOR_RKCB.with(Cell::get)
-}
-
 /// Where the keycard ask lives — the relocation stance of the 1430 machinery
 ///
 /// The variants are the *playable* cells of what used to be two independent
@@ -874,9 +778,9 @@ pub(in crate::bidding) fn floor_rkcb_now() -> bool {
 /// relocate exactly one call, since spades asks at 4NT either way ("there is
 /// no point to kickback only hearts", jdh8 2026-08-03) — so a hearts-only
 /// ladder was unrepresentable and `(kickback, redwood)` had four cells for
-/// three stances.  One `Cell` makes the honest domain the type, the
+/// three stances. One enum field makes the honest domain the type, the
 /// [`NotrumpDefense`][super::american::NotrumpDefense] precedent.  Selected
-/// by [`set_rkcb_variant`]; either relocation implies the minors' reach
+/// by [`rkcb_variant`][field@crate::bidding::inference::ReadingProfile::rkcb_variant]; either relocation implies the minors' reach
 /// whatever [`keycard_minors`][InstinctProfile::keycard_minors] says
 /// (`minor_asks_now`), because a ladder
 /// whose payoff is the minor lanes needs a minor to ask in.
@@ -936,66 +840,6 @@ pub enum RkcbVariant {
     /// fights DD's slam optimism the way sd fights its defensive optimism.
     /// Full ledger: `docs/ai-bidder/bba-kickback.md` §7.13.
     Kickback,
-}
-
-/// Select the keycard ask's relocation stance (**[`Plain`] by default**)
-///
-/// The per-suit scope lives in `kickback_ladder`'s claim loop, so every
-/// recognizer and rule downstream inherits one claim table instead of
-/// re-deriving the stance.
-///
-/// **Read in two regimes, and a harness must arm both.** Rule *presence* is
-/// gated at [`instinct`] build time, because the reading's `alerted` test is
-/// structural — it asks whether any rule on the made call carries an alert,
-/// and never evaluates the constraint — so an always-present alerted rule on
-/// 4♠ would suppress the natural reading of *every* floor-classified 4♠ even
-/// in the plain stance.  The recognizer (`keycard_ask_bid`, and
-/// `keycard_conversation_now` outside the rules table) is read at
-/// classification time.  Build one stance per arm **and** set the variant per
-/// call by side; arming only one gives dead alert sites (rules present,
-/// recognizer off) or a phantom ask (recognizer on, rules absent).
-///
-/// **The stance also selects the floor's weights.**  A relocation is not a
-/// rule the reader can hold alone: a net distilled from a kickback-blind
-/// teacher keeps bidding a natural 4♥ into the relocated ask, so
-/// `classify_bba` serves the kickback twin whenever a relocation is live.
-/// [`Plain`] restores both halves.
-///
-/// [`Plain`]: RkcbVariant::Plain
-pub fn set_rkcb_variant(variant: RkcbVariant) {
-    RKCB_VARIANT.with(|cell| cell.set(variant));
-}
-
-/// The keycard ask's relocation stance (see [`set_rkcb_variant`])
-pub fn rkcb_variant_now() -> RkcbVariant {
-    RKCB_VARIANT.with(Cell::get)
-}
-
-/// Some relocation is live — the full ladder or its minor half
-/// ([`RkcbVariant`]), *and* the floor still has a keycard ask to relocate.
-/// The build-time gate for the relocated answer set and the relocated-ask
-/// rules; the *per-suit* scope is [`kickback_ladder`]'s claim loop, so every
-/// recognizer downstream of the ladder inherits it.
-///
-/// The [`set_floor_rkcb`] conjunct is what keeps the stance *consistent* across
-/// its three consumers.  The relocated rules' `face` gate always carried it, but
-/// the convention card ([`card.rs`](super::card)) and the distilled-net
-/// selection ([`classify_bba`](super::neural::classify_bba)) read the variant
-/// alone — so `(floor_rkcb = off, variant = Kickback)` published `Kickback 1430`
-/// on the generated card and served the kickback twin while the floor made no
-/// relocated ask at all.  A knob cross-product has to name a stance a
-/// partnership could play; that one disclosed a convention we did not.
-///
-/// The **build-time** reader — the book, the card and the net selection all run
-/// before a decision exists.  A predicate wants the pinned twin [`relocation`].
-pub(in crate::bidding) fn relocating_now() -> bool {
-    relocation_now() != RkcbVariant::Plain
-}
-
-/// [`relocation`] off this thread's live knobs, for the build-time and
-/// public-diagnostic readers that have no decision to read from
-fn relocation_now() -> RkcbVariant {
-    relocation(crate::bidding::inference::reading_profile())
 }
 
 /// The keycard ask reaches agreed minors — carved in by
@@ -1981,7 +1825,7 @@ fn face_trump(auction: &[Call], ask: usize) -> Option<Suit> {
 /// claiming minor-trump lanes under either relocation and the hearts lane
 /// under [`RkcbVariant::Kickback`] alone.  Still no hand and no readings —
 /// the stance is part of the system, set per side by any harness (see
-/// [`set_rkcb_variant`]'s two-regimes note) — and scoping *here* means every
+/// [`rkcb_variant`][field@crate::bidding::inference::ReadingProfile::rkcb_variant]'s two-regimes note) — and scoping *here* means every
 /// recognizer and rule downstream inherits one claim table instead of
 /// re-deriving the stance.
 fn kickback_ladder(auction: &[Call], ask: usize, variant: RkcbVariant) -> [Option<Suit>; 4] {
@@ -2320,11 +2164,16 @@ fn keycard_ask_bid(auction: &[Call], ask: usize, variant: RkcbVariant) -> Option
 /// same conflation — bucketing by a label that does not identify the lane — is
 /// what invalidated the per-trump-by-contract-strain cut (§7.9).
 ///
-/// **Reads the knob**, like [`keycard_ask_at`].
+/// `profile` is the arm whose relocation agreement produced the auction.
 #[doc(hidden)]
 #[must_use]
-pub fn kickback_offered_at(auction: &[Call], index: usize, trump: Suit) -> bool {
-    let variant = relocation_now();
+pub fn kickback_offered_at(
+    profile: ReadingProfile,
+    auction: &[Call],
+    index: usize,
+    trump: Suit,
+) -> bool {
+    let variant = relocation(profile);
     variant != RkcbVariant::Plain
         && kickback_ladder(auction, index, variant)[trump as usize].is_some()
 }
@@ -2341,12 +2190,16 @@ pub fn kickback_offered_at(auction: &[Call], index: usize, trump: Suit) -> bool 
 /// residue attributable to the net alone (`docs/ai-bidder/bba-kickback.md`
 /// §7.8).
 ///
-/// **Reads the knob**, through [`kickback_trump`]: call it with the same arm
-/// armed that produced the auction, or a relocated ask reads as no ask.
+/// Pass the same arm's `profile` that produced the auction, or a relocated ask
+/// reads as no ask.
 #[doc(hidden)]
 #[must_use]
-pub fn keycard_ask_at(auction: &[Call], index: usize) -> Option<(Bid, Suit, bool)> {
-    let variant = relocation_now();
+pub fn keycard_ask_at(
+    profile: ReadingProfile,
+    auction: &[Call],
+    index: usize,
+) -> Option<(Bid, Suit, bool)> {
+    let variant = relocation(profile);
     let ask = keycard_ask_bid(auction, index, variant)?;
     match kickback_trump(auction, index, variant) {
         Some(trump) => Some((ask, trump, true)),
@@ -3982,24 +3835,6 @@ fn undisturbed() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| context.undisturbed())
 }
 
-/// Enable or disable the penalty-double latch on the current thread
-///
-/// **On by default** (DD-measured a clear penalty-X-bucket win with no regression:
-/// self-play X bucket −0.621 → −0.464 IMPs/action-board, vs BBA −2.716 → −2.329
-/// IMPs/X-board).  The human "once penalty, always penalty" rule: after our side's
-/// natural penalty double of their 1NT ([`penalty_x_reading`]), our later doubles
-/// read as **penalty** — we double their runout on a trump stack rather than for
-/// takeout on shortness, and partner leaves our double in rather than advancing it.
-/// Keyed off the one penalty double the floor classifies today, so it is a no-op
-/// unless the natural defense is on.  Disable for the off arm of the A/B.  Read at
-/// classification time, per-thread.
-///
-/// [`penalty_x_reading`]: super::inference::penalty_x_reading
-#[doc(hidden)]
-pub fn set_penalty_latch(enabled: bool) {
-    PENALTY_LATCH.with(|flag| flag.set(enabled));
-}
-
 /// Our side has latched into a penalty stance: we made the natural penalty double
 /// of their 1NT earlier this auction and have bid no contract since
 ///
@@ -4007,7 +3842,7 @@ pub fn set_penalty_latch(enabled: bool) {
 /// opponents' penalty doubles do not latch us).  Once we penalty-double their 1NT
 /// the penalty stance holds for the rest of the auction — "once penalty, always
 /// penalty" — even after our side bids a suit of its own.  Gated on
-/// [`set_penalty_latch`], so it is dormant by default.
+/// [`penalty_latch`][field@crate::bidding::inference::ReadingProfile::penalty_latch].
 fn penalty_latched(context: &Context<'_>) -> bool {
     if !context.reading_profile().penalty_latch() {
         return false;
@@ -4018,15 +3853,6 @@ fn penalty_latched(context: &Context<'_>) -> bool {
     };
     // The doubler shares the player-to-act's parity (our side).
     double_index % 2 == auction.len() % 2
-}
-
-/// Whether the penalty-double latch is enabled (see [`set_penalty_latch`])
-///
-/// Exposed for the inference walk's matching reading
-/// ([`penalty_latch_double_reading`][super::inference]), which must agree with the
-/// floor on when a later double is penalty rather than takeout.
-pub fn penalty_latch_enabled() -> bool {
-    PENALTY_LATCH.with(Cell::get)
 }
 
 /// [`penalty_latched`] as a hand-ignoring [`Constraint`] for the ladder
@@ -4540,7 +4366,7 @@ fn rubens_new_suit_completion(target: Suit) -> Cons<impl Constraint + Clone> {
 }
 
 /// `2 target` is a *natural* new-suit advance of partner's one-level overcall,
-/// live only while Rubens advances are off ([`set_rubens_advances`])
+/// live only while [`rubens_advances`][field@crate::bidding::inference::ReadingProfile::rubens_advances] is off
 ///
 /// The knob-off baseline: the natural five-card-suit overcall rule is anchored
 /// on [`we_have_not_bid`], dead for the advancer, so without this the band
@@ -5031,7 +4857,7 @@ pub fn instinct(agreements: &Agreements) -> Rules {
     // Penalty latch: once our side has penalty-doubled their 1NT, leave in any
     // later double of ours rather than advance it — "once penalty, always
     // penalty".  Outranks every advance action (<=1.5); the mirror of the runout
-    // leave-in above, gated on its own A/B knob ([`set_penalty_latch`]).  The
+    // leave-in above, gated on its own A/B knob (`ReadingProfile::penalty_latch`).  The
     // optional latch style suppresses this forced sit: partner instead cooperates
     // (sit on a fit, run when short) via the general advance-a-double machinery.
     rules = rules.rule(
@@ -5381,7 +5207,7 @@ pub fn instinct(agreements: &Agreements) -> Rules {
     // right one.  Off the knob that leaves 5♣ ROPI and 5♦/5♥/5♠ DOPI — the
     // rules the floor has always carried, plus two that can never fire (a 5♣
     // DOPI step would need their bid to *be* the 4NT ask).
-    if relocating_now() {
+    if relocating(&agreements.decision) {
         // The relocated arms' landings include the 4-level, where the alert
         // collides with natural games — so each rule is face-gated on its
         // recognizer's face half: on faces where no ask window is live the
@@ -5520,7 +5346,7 @@ pub fn instinct(agreements: &Agreements) -> Rules {
         .shared_face(FACE_RKCB_DOPI, dopi_window_face)
         // After our answer the asker holds the count: respect the placement.
         .rule(Call::Pass, 188, respect_keycard_signoff());
-    // The relocated ask (`set_rkcb_variant`): the cheapest unguarded suit above
+    // The relocated ask (`ReadingProfile::rkcb_variant`): the cheapest unguarded suit above
     // the trump, so every 1430 answer lands at or below five of trump instead
     // of blowing past it — 4♦ and 4♥ over the minors are Redwood, 4♠ over
     // hearts is the Kickback proper.  Same gate as the 4NT ask, keyed on the
@@ -5536,7 +5362,7 @@ pub fn instinct(agreements: &Agreements) -> Rules {
     // consults it, so the bidder is unchanged, and the reader skips the rule
     // on faces where the ladder claims nothing, so a natural 4♠ keeps its
     // natural reading (the §7.3.1 union poison).
-    if relocating_now() {
+    if relocating(&agreements.decision) {
         for target in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
             let strain = Strain::from(target);
             rules = rules

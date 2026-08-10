@@ -1,6 +1,6 @@
 //! Bucket a Gladiator-advance A/B by *which advance our advancer made*.
 //!
-//! `set_nt_overcall_gladiator` layers a whole advancing structure on top of our
+//! `ReadingProfile::nt_overcall_gladiator` layers a whole advancing structure on top of our
 //! 1NT overcall of a major (`(1M) 1NT - ?`). A single IMPs/board number over
 //! that structure is the usual
 //! obstruction-wall + scope blend (docs/measurement.md); the verdict has to be

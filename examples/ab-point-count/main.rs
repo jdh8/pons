@@ -12,7 +12,7 @@
 //! - Default: the fit-known
 //!   [`support_points`][pons::bidding::constraint::support_points] scale
 //!   (shipped) vs legacy, via
-//!   [`set_support_points`][pons::bidding::constraint::set_support_points].
+//!   [`support_points`][field@pons::bidding::inference::ReadingProfile::support_points].
 //! - `--candidate hcp|rule`: the **global**
 //!   [`PointScale`][pons::bidding::constraint::PointScale] deprecation A/B/C —
 //!   every `points` gate, the sampler, and the floor's combined counts swap
@@ -38,7 +38,7 @@ use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
 use pons::american;
 use pons::bidding::agreements::Agreements;
 use pons::bidding::american::{TwoOverOneGate, WeakTwoEval};
-use pons::bidding::constraint::{PointScale, set_point_scale, set_support_points};
+use pons::bidding::constraint::PointScale;
 use pons::bidding::context::relative;
 use pons::bidding::{Inferences, Stance, System};
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd_tricks, ns_score_tricks};
@@ -648,12 +648,8 @@ fn main() {
     }
 
     if args.sd {
-        // One default-flag reading serves both arms (see infer_stance above).
-        // The sampler inside `single_dummy_leads` evaluates constraints on a
-        // *bare* context, which still falls back to the thread-locals, so put
-        // them back on the shipped defaults after the arms armed them.
-        set_support_points(true);
-        set_point_scale(PointScale::RuleOfNFloored);
+        // One default-profile reading serves both arms (see `infer_stance`
+        // above); bare contexts use `ReadingProfile::default()`.
         // Blind-lead pass: on each divergent board price both arms' auctions —
         // the opening lead is chosen single-dummy over `sd_worlds` sampled worlds
         // (read from the leader's view through the default-flag book), then play

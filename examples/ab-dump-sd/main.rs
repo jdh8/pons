@@ -32,7 +32,7 @@ use clap::Parser;
 use contract_bridge::auction::Auction;
 use contract_bridge::{AbsoluteVulnerability, Contract, Seat};
 use pons::american;
-use pons::bidding::american::{FreeBidStyle, NegativeDoubleShape, set_natural_overcall_points};
+use pons::bidding::american::{FreeBidStyle, NegativeDoubleShape};
 use pons::bidding::context::relative;
 use pons::bidding::{Inferences, Stance};
 use pons::scoring::{final_contract, imps, ns_score_pd_tricks, ns_score_tricks};
@@ -94,7 +94,7 @@ struct Args {
     #[arg(long, default_value_t = false)]
     on_ns_two_level_minor_overcall_tight: bool,
     /// Read the ON arm's auctions with this natural 1NT-defense suit-overcall
-    /// band `LO:HI` (`set_natural_overcall_points`; the band sweep's arms differ
+    /// band `LO:HI` (`ReadingProfile::natural_overcall_points`; the band sweep's arms differ
     /// only here, so the blind leader must know which one bid)
     #[arg(long, default_value = "8:14")]
     on_ns_overcall: String,
@@ -176,11 +176,9 @@ fn main() {
             .unwrap_or_else(|| panic!("overcall band must be LO:HI, got {spec:?}"))
     };
     let (lo, hi) = band(&args.on_ns_overcall);
-    set_natural_overcall_points(lo, hi);
-    // The competitive and defensive knobs are fields of the value now; the
-    // natural-overcall band is still an ambient cell, so each arm captures
-    // *after* its own write.
+    // Each arm carries its own competitive, defensive, and reading values.
     let mut on_arm = pons::bidding::agreements::Agreements::current();
+    on_arm.decision.reading.natural_overcall_points = (lo, hi);
     on_arm.competition.free_bids = args.on_ns_free_bids;
     on_arm.competition.negative_double_shape = shape(&args.on_ns_negative_double_shape);
     on_arm.competition.free_bid_style = style(&args.on_ns_free_bid_style);
@@ -190,9 +188,9 @@ fn main() {
     on_arm.defense.weak_two_notrump_advances_enabled = args.on_ns_weak_two_nt_advances;
     let stance_on = american(&on_arm).against();
     let (lo, hi) = band(&args.off_ns_overcall);
-    set_natural_overcall_points(lo, hi);
     // The OFF arm is the shipped pole, spelled out rather than inherited.
     let mut off_arm = pons::bidding::agreements::Agreements::current();
+    off_arm.decision.reading.natural_overcall_points = (lo, hi);
     off_arm.competition.free_bids = false;
     off_arm.competition.negative_double_shape = NegativeDoubleShape::Modern;
     off_arm.competition.free_bid_style = FreeBidStyle::Forcing;

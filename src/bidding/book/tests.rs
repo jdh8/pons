@@ -1078,7 +1078,7 @@ fn a_declared_opponent_reads_their_calls_in_their_books() {
 /// [`DecisionProfile`][super::DecisionProfile] diverges here.
 ///
 /// Live since stage 5, armed over all three layers: `ReadingProfile`'s 43
-/// fields (24 captured from remaining cells plus 19 value-owned here),
+/// fields (the 24 former foreign cells plus the other 19 value-owned fields),
 /// `InstinctProfile`'s 31 fields, and the nine cells `DecisionProfile` holds
 /// directly.  The values are deliberately meaningless — this arms a system
 /// nobody plays — because what is under test is only that both threads see the
@@ -1094,7 +1094,6 @@ fn stance_pins_knobs_across_threads() {
     // The whole test runs on a scratch thread, so the arming dies with it and
     // reused libtest workers stay clean.
     scoped(|| {
-        crate::bidding::inference::ReadingProfile::arm_all_nondefault();
         // The nine cells `DecisionProfile` holds outside those two.
         crate::bidding::evaluator::set_eval_auction(false);
         crate::bidding::evaluator::set_eval_shape(true);

@@ -23,7 +23,7 @@ use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::constraint::{
-    FifthsCompanion, PointScale, set_fifths_companion, set_fuzzy_fifths, set_point_scale,
+    FifthsCompanion, PointScale, set_fifths_companion, set_fuzzy_fifths,
 };
 use pons::bidding::context::relative;
 use pons::bidding::{Stance, System};
@@ -109,15 +109,15 @@ fn main() {
     let vul = args.vulnerability;
     // Both stances keep the shipped fuzzy gauges; `[Bumrap, Hcp]` differ only in
     // the companion, indexed by the acting side.
-    set_point_scale(PointScale::PointCount);
     set_fuzzy_fifths(true);
     set_fifths_companion(FifthsCompanion::Bumrap);
-    let bumrap = american(&pons::bidding::agreements::Agreements::current()).against();
+    let mut bumrap_agreements = pons::bidding::agreements::Agreements::current();
+    bumrap_agreements.decision.reading.point_scale = PointScale::PointCount;
+    let bumrap = american(&bumrap_agreements).against();
     set_fifths_companion(FifthsCompanion::Hcp);
-    let stances = [
-        bumrap,
-        american(&pons::bidding::agreements::Agreements::current()).against(),
-    ];
+    let mut hcp_agreements = pons::bidding::agreements::Agreements::current();
+    hcp_agreements.decision.reading.point_scale = PointScale::PointCount;
+    let stances = [bumrap, american(&hcp_agreements).against()];
 
     // Deals are seeded per board (base + index) so every arm/vul replays the
     // identical stream.  Both stances are plain values, so board bidding

@@ -6,12 +6,10 @@ use crate::bidding::Trie;
 /// Build the full rebid Trie with opener's major jump-rebid rung on (the
 /// shipped default).
 fn major_jump_trie() -> Trie {
-    set_opener_major_jump_rebid(true);
+    let mut agreements = crate::bidding::agreements::Agreements::current();
+    agreements.decision.reading.opener_major_jump_rebid = true;
     let mut trie = Trie::new();
-    register(
-        &mut trie,
-        &crate::bidding::agreements::Agreements::current(),
-    );
+    register(&mut trie, &agreements);
     trie
 }
 
@@ -54,13 +52,10 @@ fn opener_major_jump_rebid_shows_strength() {
 #[test]
 fn opener_major_jump_rebid_reverts_when_off() {
     // Knob off: the 16-count 6-heart hand reverts to the minimum 2♥ rebid.
-    set_opener_major_jump_rebid(false);
+    let mut agreements = crate::bidding::agreements::Agreements::current();
+    agreements.decision.reading.opener_major_jump_rebid = false;
     let mut trie = Trie::new();
-    register(
-        &mut trie,
-        &crate::bidding::agreements::Agreements::current(),
-    );
-    set_opener_major_jump_rebid(true);
+    register(&mut trie, &agreements);
     assert_eq!(
         best(&trie, AFTER_1H_1S, "3.AKQJ72.KQ5.J54"),
         Call::Bid(Bid::new(2, Strain::Hearts))

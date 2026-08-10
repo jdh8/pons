@@ -3,7 +3,8 @@
 //! The base defensive table: natural suit overcalls, the `1NT` overcall, and
 //! the takeout double.  [`DoubleShape`] and [`TakeoutSupport`] tune what the
 //! double promises; the point bands and disciplines are knobs
-//! ([`set_natural_overcall_points`], `agreements.defense.overcall_discipline`,
+//! ([`natural_overcall_points`][crate::bidding::inference::ReadingProfile::natural_overcall_points],
+//! `agreements.defense.overcall_discipline`,
 //! `agreements.defense.passed_hand_overcall`,
 //! `agreements.defense.strong_double_hcp`).
 
@@ -35,15 +36,6 @@ pub enum DoubleShape {
     Any,
 }
 
-thread_local! {
-    /// HCP floor for the natural penalty double of their 1NT; **15 by default**.
-    static NATURAL_DOUBLE_FLOOR: Cell<u8> = const { Cell::new(15) };
-    /// Inclusive `points` range for the natural two-level suit overcall of their
-    /// 1NT; **(8, 14) by default**. Lifting the ceiling lets a strong one-suiter
-    /// overcall its suit instead of falling through to the penalty double.
-    static NATURAL_OVERCALL_POINTS: Cell<(u8, u8)> = const { Cell::new((8, 14)) };
-}
-
 /// Support gate added to the 12+ takeout double of a suit / weak-two opening.
 ///
 /// The 12+ tier of the takeout double only checks shortness in *their* suit(s),
@@ -66,28 +58,6 @@ pub enum TakeoutSupport {
     /// **the default**, the shipped fix).
     #[default]
     Strict,
-}
-
-/// Set the HCP floor of the natural penalty double of their 1NT (default 15) for
-/// books built *after* this call. An A/B knob (`bba-match --ns-double-floor`).
-pub fn set_natural_double_floor(floor: u8) {
-    NATURAL_DOUBLE_FLOOR.with(|cell| cell.set(floor));
-}
-
-pub(crate) fn natural_double_floor() -> u8 {
-    NATURAL_DOUBLE_FLOOR.with(Cell::get)
-}
-
-/// Set the inclusive `points` range of the natural two-level suit overcall of
-/// their 1NT (default 8–14) for books built *after* this call. Raising the
-/// ceiling routes a strong shapely one-suiter into a suit overcall rather than
-/// the penalty double. An A/B knob (`bba-match --ns-overcall LO:HI`).
-pub fn set_natural_overcall_points(lo: u8, hi: u8) {
-    NATURAL_OVERCALL_POINTS.with(|cell| cell.set((lo, hi)));
-}
-
-pub(crate) fn natural_overcall_points() -> (u8, u8) {
-    NATURAL_OVERCALL_POINTS.with(Cell::get)
 }
 
 /// Our action over their one-of-a-suit opening

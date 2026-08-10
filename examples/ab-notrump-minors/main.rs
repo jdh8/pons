@@ -1,7 +1,7 @@
 //! 1NT minor-scheme A/B: Puppet minor responses vs European transfers.
 //!
 //! Over our 1NT the minor-suit responses come in two authored schemes, picked by
-//! [`set_notrump_minors`]: the shipped default **Puppet** (`2♠` = clubs-or-invite,
+//! [`notrump_minors`][field@pons::bidding::inference::ReadingProfile::notrump_minors]: the shipped default **Puppet** (`2♠` = clubs-or-invite,
 //! `2NT` = diamond transfer, `3♣` = Puppet Stayman) and the opt-in **European**
 //! (`2♠` = club transfer, `2NT` = the bare-8 size ask, `3♣` = diamond transfer, no
 //! Puppet Stayman).  The scheme as a whole once measured +0.76/+1.15 vs a natural
@@ -26,7 +26,7 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::american::{EUROPEAN, PUPPET, set_notrump_minors};
+use pons::bidding::american::{EUROPEAN, PUPPET};
 use pons::bidding::context::relative;
 use pons::bidding::{Inferences, Stance};
 use pons::scoring::{
@@ -100,15 +100,17 @@ fn main() {
     // setting: the baked tries and the stance's pinned profile are then
     // independent, and the European arm no longer classifies under whatever the
     // thread was left holding.
-    set_notrump_minors(EUROPEAN);
-    let european = american(&pons::bidding::agreements::Agreements::current()).against();
-    set_notrump_minors(PUPPET); // restore the shipped default
-    let puppet = american(&pons::bidding::agreements::Agreements::current()).against();
+    let mut european_agreements = pons::bidding::agreements::Agreements::current();
+    european_agreements.decision.reading.notrump_minors = EUROPEAN;
+    let european = american(&european_agreements).against();
+    let mut puppet_agreements = pons::bidding::agreements::Agreements::current();
+    puppet_agreements.decision.reading.notrump_minors = PUPPET;
+    let puppet = american(&puppet_agreements).against();
     let stances = [european, puppet];
 
     // Both arms bid the same deal; the only difference is the 1NT minor table.
     // Deal sequentially (cheap), then bid in parallel — bidding is pure (the
-    // books read their thread-locals at construction), so boards are independent
+    // books captured their agreements at construction), so boards are independent
     // and par_iter preserves order. The DD solver stays on the main thread below.
     let deals: Vec<FullDeal> = (0..args.count).map(|_| full_deal(&mut rng)).collect();
     let vul = args.vulnerability;

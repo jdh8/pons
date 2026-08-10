@@ -140,7 +140,6 @@ fn strength_dial_zero_is_identical_in_both_roles() {
     let baseline_hcp = hcp(15..=17);
     let baseline_points = points(15..=17);
     let baseline_support = support_points(Suit::Spades, 15..=17);
-    set_strength_dial(0);
     let zero_hcp = hcp(15..=17);
     let zero_points = points(15..=17);
     let zero_support = support_points(Suit::Spades, 15..=17);
@@ -166,26 +165,29 @@ fn strength_dial_two_moves_points_antisymmetrically() {
     let test_hand = hand("KQ765.A8765.32.2"); // 11 points
     let one_club = Call::Bid(Bid::new(1, Strain::Clubs));
     let responder_auction = [one_club, Call::Pass];
-    let opener = empty_context();
-    let responder = Context::new(RelativeVulnerability::NONE, &responder_auction);
+    let opener = empty_context_with(|reading| reading.strength_dial = 2);
+    let mut profile = crate::bidding::context::DecisionProfile::default();
+    profile.reading.strength_dial = 2;
+    let responder =
+        Context::new(RelativeVulnerability::NONE, &responder_auction).with_profile(profile);
 
     let gate = points(13..);
 
-    // The dial is read when the gate is *evaluated*, not when it is built, so
-    // it stays armed across both classifications.  An 11-count opens as though
-    // it were 13 and responds as though it were 9.
-    set_strength_dial(2);
+    // The dial is read from the context when the gate is evaluated, not when it
+    // is built. An 11-count opens as though it were 13 and responds as though
+    // it were 9.
     let opener_verdict = gate.eval(test_hand, &opener);
     let responder_verdict = gate.eval(test_hand, &responder);
-    set_strength_dial(0);
 
     assert_pass(opener_verdict);
     assert_reject(responder_verdict);
 
-    // And with the dial back at rest the same gate rejects in both roles —
+    // And at rest the same gate rejects in both roles —
     // proof the constraint carries no baked-in dial of its own.
-    assert_reject(gate.eval(test_hand, &opener));
-    assert_reject(gate.eval(test_hand, &responder));
+    let plain_opener = empty_context();
+    let plain_responder = Context::new(RelativeVulnerability::NONE, &responder_auction);
+    assert_reject(gate.eval(test_hand, &plain_opener));
+    assert_reject(gate.eval(test_hand, &plain_responder));
 }
 
 /// A stance pins the dial it was built under, so the deviation panel's deviant
@@ -198,10 +200,11 @@ fn strength_dial_survives_on_a_pinned_stance() {
 
     let hand = hand("KQ765.A8765.32.2"); // 11 points
 
-    set_strength_dial(2);
-    let deviant = american_book(&crate::bidding::agreements::Agreements::current()).against();
-    set_strength_dial(0);
-    let plain = american_book(&crate::bidding::agreements::Agreements::current()).against();
+    let mut deviant_agreements = crate::bidding::agreements::Agreements::current();
+    deviant_agreements.decision.reading.strength_dial = 2;
+    let deviant = american_book(&deviant_agreements).against();
+    let plain_agreements = crate::bidding::agreements::Agreements::current();
+    let plain = american_book(&plain_agreements).against();
 
     // An 11-count opens 1♥ only on the dialled stance; the plain one passes.
     let opened = |stance: &crate::bidding::book::Stance| {
@@ -267,8 +270,9 @@ fn test_upgrade() {
 fn points_twelve_is_the_rule_of_20() {
     // The N+8 = Rule-of-20 identity is now the opt-out, not the default:
     // pin the rule-of-N+8 scale these example hands' points assume.
-    set_point_scale(PointScale::RuleOfNFloored);
-    let context = empty_context();
+    let context = empty_context_with(|reading| {
+        reading.point_scale = PointScale::RuleOfNFloored;
+    });
     let opens = |text: &str| points(12..).eval(hand(text), &context);
     // Raw HCP + the two longest suits, the classic Rule-of-20 kernel.
     let rule_of_20 = |text: &str| {
@@ -302,7 +306,6 @@ fn points_twelve_is_the_rule_of_20() {
     // A flat 11-count is short of both.
     assert!(!rule_of_20("KQ32.K32.Q32.J32"));
     assert_reject(opens("KQ32.K32.Q32.J32"));
-    set_point_scale(PointScale::PointCount);
 }
 
 #[test]
@@ -332,7 +335,6 @@ fn test_unbid_support() {
 #[test]
 fn test_points_and_fifths() {
     let context = empty_context();
-
     // This test exercises the shipped raw-HCP+upgrade (PointCount) default
     // scale; the rule-of-N+8 arms live in `test_point_scale`, and the
     // fit-known candidate rides on `support_points` (see `test_support_points`).
@@ -379,8 +381,6 @@ fn test_points_and_fifths() {
 
 #[test]
 fn test_support_points() {
-    let context = empty_context();
-
     // 9 HCP, clean 5-5-2-1.  The candidate scale counts hcp_plus (useful
     // shortness: +1 doubleton, +2 singleton) plus the long-suit term:
     // 9 + 1 + 2 + 1 = 13, above the legacy raw-HCP-plus-upgrade of 11.
@@ -389,18 +389,24 @@ fn test_support_points() {
     // Off (the A/B baseline arm): byte-identical to the global `point_count`
     // that `points` gauges — a gate swapped `points`→`support_points` doesn't
     // move.  (Rule of N+8 and the legacy upgrade agree on this clean 5-5.)
-    set_support_points(false);
-    assert_eq!(support_point_count(two_suiter), point_count(two_suiter));
-    assert_eq!(support_point_count(two_suiter), 11);
-    assert_pass(support_points(Suit::Spades, 11..=11).eval(two_suiter, &context));
+    let off = empty_context_with(|reading| reading.support_points = false);
+    assert_eq!(
+        support_point_count_on(false, PointScale::PointCount, two_suiter),
+        point_count(two_suiter)
+    );
+    assert_eq!(
+        support_point_count_on(false, PointScale::PointCount, two_suiter),
+        11
+    );
+    assert_pass(support_points(Suit::Spades, 11..=11).eval(two_suiter, &off));
 
     // On (the shipped default): the hotter hcp_plus scale, strictly above
     // legacy for a shaped hand (the singleton and doubleton now add).
-    set_support_points(true);
     assert_eq!(support_point_count(two_suiter), 13);
     assert!(support_point_count(two_suiter) > point_count(two_suiter));
-    assert_pass(support_points(Suit::Spades, 13..=13).eval(two_suiter, &context));
-    assert_reject(support_points(Suit::Spades, ..=12).eval(two_suiter, &context));
+    let on = empty_context();
+    assert_pass(support_points(Suit::Spades, 13..=13).eval(two_suiter, &on));
+    assert_reject(support_points(Suit::Spades, ..=12).eval(two_suiter, &on));
 
     // Flat hands carry no useful shortness, so the support scale sticks to
     // raw HCP — and the floored rule-of-N+8 default agrees on a 4-3-3-3.
@@ -466,62 +472,53 @@ fn test_fifths_companion() {
 
 #[test]
 fn test_fuzzy_strength_toggle() {
-    let context = empty_context();
     let two_suiter = hand("KQ765.A8765.32.2");
 
     // These toggles swing `points` between raw HCP and the legacy
     // raw-HCP-plus-upgrade scale (both historical arms now).
-    set_point_scale(PointScale::Hcp);
     set_fuzzy_fifths(false);
+    let hcp_context = empty_context_with(|reading| reading.point_scale = PointScale::Hcp);
     // Raw HCP: 9 points, and fifths degrades to raw HCP too.
-    assert_pass(points(9..=9).eval(two_suiter, &context));
-    assert_pass(fifths(15.0..18.0).eval(hand(BALANCED_15), &context));
-    assert_reject(fifths(15.5..18.0).eval(hand(BALANCED_15), &context));
+    assert_pass(points(9..=9).eval(two_suiter, &hcp_context));
+    assert_pass(fifths(15.0..18.0).eval(hand(BALANCED_15), &hcp_context));
+    assert_reject(fifths(15.5..18.0).eval(hand(BALANCED_15), &hcp_context));
 
     // The legacy upgrade arm agrees with rule-of-N+8 on this clean 5-5.
-    set_point_scale(PointScale::PointCount);
-    assert_pass(points(11..=11).eval(two_suiter, &context));
-
-    // Restore the shipped default for the rest of the suite.
-    set_point_scale(PointScale::PointCount);
+    assert_pass(points(11..=11).eval(two_suiter, &empty_context()));
 }
 
 #[test]
 fn test_point_scale() {
-    let context = empty_context();
     let two_suiter = hand("KQ765.A8765.32.2"); // 9 HCP, 5-5-2-1
     let flat = hand("AQ32.K53.QJ4.A92"); // 16 HCP, 4-3-3-3
 
     // Rule of N+8: raw HCP + two longest suit lengths − 8, so a
     // `points(12..)` gate is exactly the Rule of 20.
-    set_point_scale(PointScale::RuleOfN);
+    let rule_of_n = empty_context_with(|reading| reading.point_scale = PointScale::RuleOfN);
     // Clean 5-5 agrees with the legacy upgrade: 9 + 10 − 8 = 9 + 2.
-    assert_eq!(point_count(two_suiter), 11);
-    assert_pass(points(11..=11).eval(two_suiter, &context));
+    assert_eq!(point_count_on(PointScale::RuleOfN, two_suiter), 11);
+    assert_pass(points(11..=11).eval(two_suiter, &rule_of_n));
     // Flat 4-3-3-3 reads one under its HCP: 16 + 7 − 8.
-    assert_eq!(point_count(flat), 15);
-    assert_reject(points(16..).eval(flat, &context));
+    assert_eq!(point_count_on(PointScale::RuleOfN, flat), 15);
+    assert_reject(points(16..).eval(flat, &rule_of_n));
     // A wasted stiff K voids the legacy upgrade but its shape still
     // counts here: 12 + 9 − 8 = 13 vs legacy 12.
     let wasted = hand("KQ765.A876.532.K");
-    assert_eq!(point_count(wasted), 13);
-    assert_eq!(point_count(wasted), raw_hcp(wasted) + 1);
+    assert_eq!(point_count_on(PointScale::RuleOfN, wasted), 13);
+    assert_eq!(
+        point_count_on(PointScale::RuleOfN, wasted),
+        raw_hcp(wasted) + 1
+    );
 
     // Blocking the downgrade: flat 4-3-3-3 reads its raw HCP, every
     // other shape agrees with plain rule-of-N+8.
-    set_point_scale(PointScale::RuleOfNFloored);
-    assert_eq!(point_count(flat), 16);
-    assert_eq!(point_count(two_suiter), 11);
+    assert_eq!(point_count_on(PointScale::RuleOfNFloored, flat), 16);
+    assert_eq!(point_count_on(PointScale::RuleOfNFloored, two_suiter), 11);
 
-    set_point_scale(PointScale::Hcp);
-    assert_eq!(point_count(two_suiter), 9);
+    assert_eq!(point_count_on(PointScale::Hcp, two_suiter), 9);
 
     // The deposed legacy scale stays reachable as the opt-out.
-    set_point_scale(PointScale::PointCount);
-    assert_eq!(point_count(two_suiter), 11);
-
-    // Restore the shipped default for the rest of the suite.
-    set_point_scale(PointScale::PointCount);
+    assert_eq!(point_count_on(PointScale::PointCount, two_suiter), 11);
 }
 
 #[test]

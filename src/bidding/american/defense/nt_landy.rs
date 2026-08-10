@@ -2,53 +2,14 @@
 //!
 //! The both-majors `2♣` and everything below it: advancer's preference, the
 //! `2NT` game-force ask, the doubled runout and the SOS redouble.
-//! [`set_landy`] sets its band; [`NotrumpDefense::DirectLandy`] (with the shape
+//! [`landy_range`][crate::bidding::inference::ReadingProfile::landy_range]
+//! sets its band; [`NotrumpDefense::DirectLandy`] (with the shape
 //! flag `agreements.defense.direct_landy_four_four`) adds the direct-seat `X`.
 //! Woolsey reuses the same `2♣` call, so the both-majors shapes live here.
 
 use super::nt_defense::NotrumpDefense;
-use super::nt_woolsey::{set_woolsey_points, woolsey_enabled};
+use super::nt_woolsey::woolsey_enabled;
 use super::*;
-
-thread_local! {
-    /// Landy defense to their 1NT: `None` = off (the default natural overcalls +
-    /// penalty double); `Some((lo, hi))` = on, with `2♣` = both majors and
-    /// `2NT` = both minors on `points(lo..=hi)`.  See [`set_landy`].
-    static LANDY: Cell<Option<(u8, u8)>> = const { Cell::new(None) };
-}
-
-/// Configure the Landy defense to an opponent's 1NT for books built *after* this
-/// call (thread-local, read once at book-construction time)
-///
-/// `None` (the **default**) keeps today's natural defense: a penalty double
-/// (15+ balanced) and natural two-level suit overcalls.  `Some((lo, hi))` turns
-/// Landy on: `2♣` shows at least 5-4 in the majors and `2NT` at least 5-4 in the
-/// minors, both on `points(lo..=hi)`, at the cost of the natural `2♣` club
-/// overcall.  The range is the A/B sweep knob (`examples/ab-landy --ns-majors`);
-/// the advancer's invite/game thresholds and the overcaller's min/med/max
-/// rebid track it, so a lighter overcall asks more of the advancer.  It also
-/// *is* the shared two-suiter band — see [`set_woolsey_points`] — so Landy's and
-/// Woolsey's identical both-majors `2♣` always overcall at the same strength.
-pub fn set_landy(range: Option<(u8, u8)>) {
-    LANDY.with(|cell| cell.set(range));
-    // Coupled with Woolsey: the both-majors `2♣` is the identical call in both
-    // conventions, so they share one strength band — the [`woolsey_points`] cell.
-    // A Landy range feeds that band, so the two can never carry divergent strengths.
-    // (Measured: the `:19` cap binds on ~0 hands and the floor barely moves the IMPs,
-    // so one knob loses nothing; see `examples/ab-landy` / `bba-gen --ns-landy`.)
-    if let Some((lo, hi)) = range {
-        set_woolsey_points(lo, hi);
-    }
-}
-
-/// The configured Landy range, or `None` when Landy is off
-///
-/// Crate-visible so the inference projection pass and the Landy relay stub can
-/// condition partner on the two-suiter (see `inference::authored_reading` and
-/// `inference::landy_advance_suppress`).
-pub(crate) fn landy_range() -> Option<(u8, u8)> {
-    LANDY.with(Cell::get)
-}
 
 /// The configured direct-seat both-majors double shape, or `None` when off
 pub(crate) fn direct_landy_double(agreements: &Agreements) -> Option<bool> {
@@ -101,7 +62,9 @@ pub(super) fn landy_x(agreements: &Agreements) -> Rules {
 }
 
 /// Landy `2♣`: both majors, at least 5-4, on the shared two-suiter band
-/// ([`set_woolsey_points`], coupled with Woolsey's identical `2♣`; see [`set_landy`]),
+/// ([`woolsey_points`][crate::bidding::inference::ReadingProfile::woolsey_points],
+/// coupled with Woolsey's identical `2♣`; see
+/// [`landy_range`][crate::bidding::inference::ReadingProfile::landy_range]),
 /// gauged as raw HCP or upgraded points per `agreements.defense.landy_use_hcp`.
 pub(super) fn landy_2c(agreements: &Agreements) -> Rules {
     let (lo, hi) = agreements.decision.reading.woolsey_points();

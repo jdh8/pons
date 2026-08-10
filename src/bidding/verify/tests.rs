@@ -230,7 +230,6 @@ fn projection_contains_every_accepted_hand() {
 fn projection_reproduces_the_declarative_readers() {
     use crate::american;
     use crate::bidding::agreements::Agreements;
-    use crate::bidding::american::set_landy;
     use crate::bidding::inference::{Inferences, Range, Relative, authored_reading};
     use contract_bridge::auction::{Call, RelativeVulnerability};
     use contract_bridge::{Bid, Level, Strain};
@@ -310,8 +309,9 @@ fn projection_reproduces_the_declarative_readers() {
 
     // Landy: (1NT) 2♣ - = both majors, at least 4-4, 8+; partner at length 3.
     // `((len(♥,5..)&len(♠,4..)) | (len(♥,4..)&len(♠,5..))) & points(8..)`.
-    set_landy(Some((8, 15)));
     let mut landy = Agreements::current();
+    landy.decision.reading.landy_range = Some((8, 15));
+    landy.decision.reading.woolsey_points = (8, 15);
     landy.defense.leaping_michaels_enabled = false;
     agree(
         &landy,
@@ -323,5 +323,4 @@ fn projection_reproduces_the_declarative_readers() {
         ],
         Range::new(8, 37),
     );
-    set_landy(None);
 }

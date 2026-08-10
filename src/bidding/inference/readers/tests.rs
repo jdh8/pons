@@ -7,6 +7,18 @@ use crate::bidding::inference::{EnvelopeUnion, Range, ReadingProfile, Relative};
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::{Hand, Strain, Suit};
 
+fn gladiator_agreements() -> Agreements {
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.nt_overcall_gladiator = true;
+    agreements
+}
+
+fn rubens_agreements() -> Agreements {
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.rubens_advances = true;
+    agreements
+}
+
 /// [`ReadingProfile::envelope_union`] gates the `Or` wall: off,
 /// `or([♥, ♠], 6..)` hulls to one
 /// box that admits a 5-4 hand with no six-card major; on, it keeps the two
@@ -94,12 +106,12 @@ fn leaping_michaels_conditions_partner() {
 #[test]
 fn landy_conditions_partner() {
     use crate::bidding::agreements::Agreements;
-    use crate::bidding::american::set_landy;
 
     // (1NT) 2♣ -: the advancer reads partner's both-majors two-suiter (at
     // least 4-4 in the majors, 8+ points) rather than a natural club suit.
-    set_landy(Some((8, 15)));
     let mut on = Agreements::current();
+    on.decision.reading.landy_range = Some((8, 15));
+    on.decision.reading.woolsey_points = (8, 15);
     on.defense.unusual_notrump_range = Some((8, 15));
     let advance = read_booked_with(
         &on,
@@ -134,10 +146,9 @@ fn landy_conditions_partner() {
 
     // Disabled: 2♣ reads as a natural club one-suiter, so spades stay
     // unconstrained — the convention must not leak when off.  Landy is still a
-    // cell, so restore it for sibling tests on this thread (it ships off); the
-    // unusual-2NT range rides on the agreements and needs no restore.
-    set_landy(None);
+    // agreement, so the disabled arm is built separately.
     let mut disabled = Agreements::current();
+    disabled.decision.reading.landy_range = None;
     disabled.defense.unusual_notrump_range = None;
     let off = read_booked_with(
         &disabled,
@@ -149,15 +160,12 @@ fn landy_conditions_partner() {
 #[test]
 fn woolsey_conditions_partner() {
     use crate::bidding::agreements::Agreements;
-    use crate::bidding::american::{
-        NotrumpDefense, set_landy, set_notrump_defense, set_woolsey_points,
-    };
+    use crate::bidding::american::NotrumpDefense;
     // Landy off, Woolsey on: the 2♣ must read through the Woolsey path.
-    set_landy(None);
-    set_notrump_defense(NotrumpDefense::Woolsey);
-    set_woolsey_points(10, 19);
-    // Captured after the cells above, so the book sees both.
     let mut arm = Agreements::current();
+    arm.decision.reading.landy_range = None;
+    arm.decision.reading.notrump_defense = NotrumpDefense::Woolsey;
+    arm.decision.reading.woolsey_points = (10, 19);
     arm.defense.unusual_notrump_range = None;
 
     // (1NT) 2♣ -: Woolsey's 2♣ is both majors, 10+, never a natural club suit.
@@ -177,196 +185,251 @@ fn woolsey_conditions_partner() {
     // ≥5 reading is suppressed and BOTH minors narrow to ≤4 — the floor can no
     // longer "raise diamonds" into a doubled 5♦ (the 6+ major falls out of the
     // residual the per-suit framework cannot pin).
-    let multi = read(&[
-        bid(1, Strain::Notrump),
-        bid(2, Strain::Diamonds),
-        Call::Pass,
-    ]);
+    let multi = read_with(
+        &arm,
+        &[
+            bid(1, Strain::Notrump),
+            bid(2, Strain::Diamonds),
+            Call::Pass,
+        ],
+    );
     assert_eq!(multi.partner().length(Suit::Diamonds), Range::new(0, 4));
     assert_eq!(multi.partner().length(Suit::Clubs), Range::new(0, 4));
 
     // (1NT) 2♥ -: Muiderberg — exactly 5 hearts, ≤3 spades.
-    let muiderberg = read(&[bid(1, Strain::Notrump), bid(2, Strain::Hearts), Call::Pass]);
+    let muiderberg = read_with(
+        &arm,
+        &[bid(1, Strain::Notrump), bid(2, Strain::Hearts), Call::Pass],
+    );
     assert_eq!(muiderberg.partner().length(Suit::Hearts), Range::new(5, 5));
     assert_eq!(muiderberg.partner().length(Suit::Spades), Range::new(0, 3));
 
     // The advancer's 2♥/2♠ over 2♣ (both majors) or 2♦ (Multi) is a PREFERENCE
     // among partner's two majors — not own length — so its natural ≥4 reading is
     // suppressed throughout (here, read from the advancer's seat as partner).
-    let pref_2c = read(&[
-        bid(1, Strain::Notrump),
-        bid(2, Strain::Clubs),
-        Call::Pass,
-        bid(2, Strain::Hearts),
-        Call::Pass,
-    ]);
+    let pref_2c = read_with(
+        &arm,
+        &[
+            bid(1, Strain::Notrump),
+            bid(2, Strain::Clubs),
+            Call::Pass,
+            bid(2, Strain::Hearts),
+            Call::Pass,
+        ],
+    );
     assert_eq!(pref_2c.partner().length(Suit::Hearts), Range::FULL_LENGTH);
-    let pref_2d = read(&[
-        bid(1, Strain::Notrump),
-        bid(2, Strain::Diamonds),
-        Call::Pass,
-        bid(2, Strain::Spades),
-        Call::Pass,
-    ]);
+    let pref_2d = read_with(
+        &arm,
+        &[
+            bid(1, Strain::Notrump),
+            bid(2, Strain::Diamonds),
+            Call::Pass,
+            bid(2, Strain::Spades),
+            Call::Pass,
+        ],
+    );
     assert_eq!(pref_2d.partner().length(Suit::Spades), Range::FULL_LENGTH);
 
     // Off: the Multi 2♦ reads as a natural diamond one-suiter again (≥5) — the
     // convention must not leak when disabled.
-    set_notrump_defense(NotrumpDefense::Natural);
-    let off = read(&[
-        bid(1, Strain::Notrump),
-        bid(2, Strain::Diamonds),
-        Call::Pass,
-    ]);
+    arm.decision.reading.notrump_defense = NotrumpDefense::Natural;
+    let off = read_with(
+        &arm,
+        &[
+            bid(1, Strain::Notrump),
+            bid(2, Strain::Diamonds),
+            Call::Pass,
+        ],
+    );
     assert_eq!(off.partner().length(Suit::Diamonds), Range::new(5, 13));
-
-    // Restore the shipped default of the one knob that is still a cell.
-    set_woolsey_points(8, 19);
 }
 
 #[test]
 fn woolsey_double_and_advances_read() {
-    use crate::bidding::american::{
-        NotrumpDefense, set_landy, set_notrump_defense, set_woolsey_double_floor,
-        set_woolsey_points,
-    };
-    set_landy(None);
-    set_notrump_defense(NotrumpDefense::Woolsey);
-    set_woolsey_points(10, 19);
-    set_woolsey_double_floor(12);
+    use crate::bidding::american::NotrumpDefense;
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.landy_range = None;
+    agreements.decision.reading.notrump_defense = NotrumpDefense::Woolsey;
+    agreements.decision.reading.woolsey_points = (10, 19);
+    agreements.decision.reading.woolsey_double_floor = 12;
 
     // (1NT) X -: the takeout double names no suit, so nothing is misread — but
     // the doubler's strength (12+) is recorded, where a bare double of 1NT would
     // otherwise read as nothing.
-    let x = read(&[bid(1, Strain::Notrump), Call::Double, Call::Pass]);
+    let x = read_with(
+        &agreements,
+        &[bid(1, Strain::Notrump), Call::Double, Call::Pass],
+    );
     assert_eq!(x.partner().strength.points, Range::new(12, 37));
 
     // (1NT) X - 2♣ -: the advancer's 2♣ is a "name your minor" relay, not own
     // clubs, so its natural ≥4 reading is suppressed (read from the advancer seat).
-    let relay = read(&[
-        bid(1, Strain::Notrump),
-        Call::Double,
-        Call::Pass,
-        bid(2, Strain::Clubs),
-        Call::Pass,
-    ]);
+    let relay = read_with(
+        &agreements,
+        &[
+            bid(1, Strain::Notrump),
+            Call::Double,
+            Call::Pass,
+            bid(2, Strain::Clubs),
+            Call::Pass,
+        ],
+    );
     assert_eq!(relay.partner().length(Suit::Clubs), Range::FULL_LENGTH);
 
     // (1NT) 2♥ - 2NT -: the Muiderberg minor-ask 2NT is a relay in a
     // COMPETITIVE auction (our side already overcalled), so it is never read as a
     // natural notrump invite — the advancer's points stay unconstrained.
-    let ask = read(&[
-        bid(1, Strain::Notrump),
-        bid(2, Strain::Hearts),
-        Call::Pass,
-        bid(2, Strain::Notrump),
-        Call::Pass,
-    ]);
+    let ask = read_with(
+        &agreements,
+        &[
+            bid(1, Strain::Notrump),
+            bid(2, Strain::Hearts),
+            Call::Pass,
+            bid(2, Strain::Notrump),
+            Call::Pass,
+        ],
+    );
     assert_eq!(ask.partner().strength.points, Range::new(0, 37));
 
     // Off: the Woolsey 12+ reading must not leak — the double now falls through to
     // the default-on natural penalty reading (15+), not Woolsey's 12+.
-    set_notrump_defense(NotrumpDefense::Natural);
-    let off = read(&[bid(1, Strain::Notrump), Call::Double, Call::Pass]);
+    agreements.decision.reading.notrump_defense = NotrumpDefense::Natural;
+    let off = read_with(
+        &agreements,
+        &[bid(1, Strain::Notrump), Call::Double, Call::Pass],
+    );
     assert_eq!(off.partner().strength.points, Range::new(15, 37));
-
-    set_woolsey_points(8, 19);
 }
 
 #[test]
 fn dont_overcalls_and_advances_read() {
-    use crate::bidding::american::{NotrumpDefense, set_landy, set_notrump_defense};
-    set_landy(None);
-    set_notrump_defense(NotrumpDefense::DirectDont);
+    use crate::bidding::american::NotrumpDefense;
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.landy_range = None;
+    agreements.decision.reading.notrump_defense = NotrumpDefense::DirectDont;
 
     // (1NT) X -: a one-suiter in ♣/♦/♥ — spades short (≤3, the one sound fact),
     // strength recorded (the default 8+ overcall floor) where a bare double of 1NT
     // would otherwise read as nothing.
-    let x = read(&[bid(1, Strain::Notrump), Call::Double, Call::Pass]);
+    let x = read_with(
+        &agreements,
+        &[bid(1, Strain::Notrump), Call::Double, Call::Pass],
+    );
     assert_eq!(x.partner().length(Suit::Spades), Range::new(0, 3));
     assert_eq!(x.partner().strength.points, Range::new(8, 37));
 
     // (1NT) X - 2♣ -: the advancer's 2♣ is a "name your suit" relay, not own
     // clubs, so its natural ≥4 reading is suppressed (read from the advancer seat).
-    let relay = read(&[
-        bid(1, Strain::Notrump),
-        Call::Double,
-        Call::Pass,
-        bid(2, Strain::Clubs),
-        Call::Pass,
-    ]);
+    let relay = read_with(
+        &agreements,
+        &[
+            bid(1, Strain::Notrump),
+            Call::Double,
+            Call::Pass,
+            bid(2, Strain::Clubs),
+            Call::Pass,
+        ],
+    );
     assert_eq!(relay.partner().length(Suit::Clubs), Range::FULL_LENGTH);
 
     // (1NT) 2♣ -: a real ≥4 club suit + an unknown major.  The natural ≥5 reading
     // is suppressed (a 4-club / 5-major DONT hand makes this call), re-pinned to ≥4.
-    let two_c = read(&[bid(1, Strain::Notrump), bid(2, Strain::Clubs), Call::Pass]);
+    let two_c = read_with(
+        &agreements,
+        &[bid(1, Strain::Notrump), bid(2, Strain::Clubs), Call::Pass],
+    );
     assert_eq!(two_c.partner().length(Suit::Clubs), Range::new(4, 13));
     assert_eq!(two_c.partner().strength.points, Range::new(8, 37));
 
     // (1NT) 2♣ - 2♦ -: the advancer's 2♦ is a "name your higher suit" relay,
     // not own diamonds — suppressed.
-    let pref = read(&[
-        bid(1, Strain::Notrump),
-        bid(2, Strain::Clubs),
-        Call::Pass,
-        bid(2, Strain::Diamonds),
-        Call::Pass,
-    ]);
+    let pref = read_with(
+        &agreements,
+        &[
+            bid(1, Strain::Notrump),
+            bid(2, Strain::Clubs),
+            Call::Pass,
+            bid(2, Strain::Diamonds),
+            Call::Pass,
+        ],
+    );
     assert_eq!(pref.partner().length(Suit::Diamonds), Range::FULL_LENGTH);
 
     // (1NT) 2♥ -: both majors, ≥4-4 — exactly a Landy two-suiter on the 2♥ bid.
-    let two_h = read(&[bid(1, Strain::Notrump), bid(2, Strain::Hearts), Call::Pass]);
+    let two_h = read_with(
+        &agreements,
+        &[bid(1, Strain::Notrump), bid(2, Strain::Hearts), Call::Pass],
+    );
     assert_eq!(two_h.partner().length(Suit::Hearts), Range::new(4, 13));
     assert_eq!(two_h.partner().length(Suit::Spades), Range::new(4, 13));
 
     // Off: the 2♣ reads as a natural club one-suiter again (≥5) — no leak.
-    set_notrump_defense(NotrumpDefense::Natural);
-    let off = read(&[bid(1, Strain::Notrump), bid(2, Strain::Clubs), Call::Pass]);
+    agreements.decision.reading.notrump_defense = NotrumpDefense::Natural;
+    let off = read_with(
+        &agreements,
+        &[bid(1, Strain::Notrump), bid(2, Strain::Clubs), Call::Pass],
+    );
     assert_eq!(off.partner().length(Suit::Clubs), Range::new(5, 13));
 }
 
 #[test]
 fn meckwell_overcalls_and_advances_read() {
-    use crate::bidding::american::{NotrumpDefense, set_landy, set_notrump_defense};
-    set_landy(None);
-    set_notrump_defense(NotrumpDefense::Meckwell);
+    use crate::bidding::american::NotrumpDefense;
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.landy_range = None;
+    agreements.decision.reading.notrump_defense = NotrumpDefense::Meckwell;
 
     // (1NT) X -: the two-way double (single 6+ minor OR both majors) shares no
     // sound per-suit fact, so ONLY the points floor is recorded — no length is
     // narrowed (unlike DONT's X, which pins spades ≤ 3).
-    let x = read(&[bid(1, Strain::Notrump), Call::Double, Call::Pass]);
+    let x = read_with(
+        &agreements,
+        &[bid(1, Strain::Notrump), Call::Double, Call::Pass],
+    );
     assert_eq!(x.partner().strength.points, Range::new(8, 37));
     assert_eq!(x.partner().length(Suit::Spades), Range::FULL_LENGTH);
     assert_eq!(x.partner().length(Suit::Hearts), Range::FULL_LENGTH);
 
     // (1NT) X - 2♣ -: the advancer's 2♣ is a "name your suit" relay, not own
     // clubs, so its natural ≥ 4 reading is suppressed.
-    let relay = read(&[
-        bid(1, Strain::Notrump),
-        Call::Double,
-        Call::Pass,
-        bid(2, Strain::Clubs),
-        Call::Pass,
-    ]);
+    let relay = read_with(
+        &agreements,
+        &[
+            bid(1, Strain::Notrump),
+            Call::Double,
+            Call::Pass,
+            bid(2, Strain::Clubs),
+            Call::Pass,
+        ],
+    );
     assert_eq!(relay.partner().length(Suit::Clubs), Range::FULL_LENGTH);
 
     // (1NT) 2♣ -: a real ≥ 4 club suit + an unknown major.  The natural ≥ 5
     // reading is suppressed (a 4-club / 5-major hand makes this call), re-pinned ≥ 4.
-    let two_c = read(&[bid(1, Strain::Notrump), bid(2, Strain::Clubs), Call::Pass]);
+    let two_c = read_with(
+        &agreements,
+        &[bid(1, Strain::Notrump), bid(2, Strain::Clubs), Call::Pass],
+    );
     assert_eq!(two_c.partner().length(Suit::Clubs), Range::new(4, 13));
     assert_eq!(two_c.partner().strength.points, Range::new(8, 37));
 
     // (1NT) 2♦ -: diamonds + a major, real ≥ 4.
-    let two_d = read(&[
-        bid(1, Strain::Notrump),
-        bid(2, Strain::Diamonds),
-        Call::Pass,
-    ]);
+    let two_d = read_with(
+        &agreements,
+        &[
+            bid(1, Strain::Notrump),
+            bid(2, Strain::Diamonds),
+            Call::Pass,
+        ],
+    );
     assert_eq!(two_d.partner().length(Suit::Diamonds), Range::new(4, 13));
 
     // (1NT) 2♥ -: NATURAL hearts (Meckwell's 2♥ is a single-suiter, not DONT's
     // both-majors), so spades are not floored — the DONT-vs-Meckwell fork.
-    let two_h = read(&[bid(1, Strain::Notrump), bid(2, Strain::Hearts), Call::Pass]);
+    let two_h = read_with(
+        &agreements,
+        &[bid(1, Strain::Notrump), bid(2, Strain::Hearts), Call::Pass],
+    );
     assert_eq!(
         two_h.partner().length(Suit::Spades).min,
         0,
@@ -374,8 +437,11 @@ fn meckwell_overcalls_and_advances_read() {
     );
 
     // Off: the 2♣ reads as a natural club one-suiter again (≥ 5) — no leak.
-    set_notrump_defense(NotrumpDefense::Natural);
-    let off = read(&[bid(1, Strain::Notrump), bid(2, Strain::Clubs), Call::Pass]);
+    agreements.decision.reading.notrump_defense = NotrumpDefense::Natural;
+    let off = read_with(
+        &agreements,
+        &[bid(1, Strain::Notrump), bid(2, Strain::Clubs), Call::Pass],
+    );
     assert_eq!(off.partner().length(Suit::Clubs), Range::new(5, 13));
 }
 
@@ -385,7 +451,7 @@ fn gladiator_cue_is_not_read_as_their_major() {
     // Gladiator Stayman for hearts (exactly 4, INV+) — NOT a natural spade
     // suit.  The major-strip is suppressed for Gladiator, so `gladiator_reading`
     // reads the cue.
-    crate::bidding::american::set_nt_overcall_gladiator(true);
+    let agreements = gladiator_agreements();
     let auction = [
         bid(1, Strain::Spades),
         bid(1, Strain::Notrump),
@@ -393,8 +459,7 @@ fn gladiator_cue_is_not_read_as_their_major() {
         bid(2, Strain::Spades),
         Call::Pass,
     ];
-    let inf = read(&auction);
-    crate::bidding::american::set_nt_overcall_gladiator(false);
+    let inf = read_with(&agreements, &auction);
     // Their major is never floored into the advancer's hand (the iron rule)...
     assert_eq!(inf.partner().length(Suit::Spades), Range::FULL_LENGTH);
     // ...and the cue pins the four-card heart holding it promised.
@@ -405,7 +470,7 @@ fn gladiator_cue_is_not_read_as_their_major() {
 fn gladiator_relay_is_not_read_as_clubs() {
     // `(1♠) 1NT - 2♣ -`: the advancer's 2♣ is the Gladiator relay (weak /
     // invitational, any suit), not a natural club suit.
-    crate::bidding::american::set_nt_overcall_gladiator(true);
+    let agreements = gladiator_agreements();
     let auction = [
         bid(1, Strain::Spades),
         bid(1, Strain::Notrump),
@@ -413,8 +478,7 @@ fn gladiator_relay_is_not_read_as_clubs() {
         bid(2, Strain::Clubs),
         Call::Pass,
     ];
-    let inf = read(&auction);
-    crate::bidding::american::set_nt_overcall_gladiator(false);
+    let inf = read_with(&agreements, &auction);
     assert_eq!(inf.partner().length(Suit::Clubs), Range::FULL_LENGTH);
 }
 
@@ -424,7 +488,7 @@ fn gladiator_delayed_cue_is_read_as_exactly_three_not_spades() {
     // and forced 2♦) is the Gladiator delayed cue — exactly 3 hearts, INV+ —
     // NOT a natural spade suit.  The suppression must cover it too, else the
     // floor raises a phantom spade suit into a doubled disaster (the iron rule).
-    crate::bidding::american::set_nt_overcall_gladiator(true);
+    let agreements = gladiator_agreements();
     let auction = [
         bid(1, Strain::Spades),
         bid(1, Strain::Notrump),
@@ -436,8 +500,7 @@ fn gladiator_delayed_cue_is_read_as_exactly_three_not_spades() {
         bid(2, Strain::Spades),
         Call::Pass,
     ];
-    let inf = read(&auction);
-    crate::bidding::american::set_nt_overcall_gladiator(false);
+    let inf = read_with(&agreements, &auction);
     // Their major is never floored into the advancer's hand...
     assert_eq!(inf.partner().length(Suit::Spades), Range::FULL_LENGTH);
     // ...and the delayed cue pins exactly 3 hearts.
@@ -449,7 +512,7 @@ fn gladiator_stolen_relay_double_is_read_as_the_relay() {
     // `(1♠) 1NT (2♣) X -`: over RHO's systems-on 2♣, the advancer's Double is
     // the stolen Gladiator relay (weak-or-invitational, any suit) — NOT a
     // penalty double naming clubs.  The reader mirrors the book rebase.
-    crate::bidding::american::set_nt_overcall_gladiator(true);
+    let agreements = gladiator_agreements();
     let auction = [
         bid(1, Strain::Spades),
         bid(1, Strain::Notrump),
@@ -457,8 +520,7 @@ fn gladiator_stolen_relay_double_is_read_as_the_relay() {
         Call::Double,
         Call::Pass,
     ];
-    let inf = read(&auction);
-    crate::bidding::american::set_nt_overcall_gladiator(false);
+    let inf = read_with(&agreements, &auction);
     // No phantom club suit raised from the doubled strain...
     assert_eq!(inf.partner().length(Suit::Clubs), Range::FULL_LENGTH);
     // ...and no point cap: the relay's third arm is game-forcing, so the
@@ -469,7 +531,7 @@ fn gladiator_stolen_relay_double_is_read_as_the_relay() {
 
 /// Do we play the card we claim to play?
 ///
-/// Our Gladiator (`set_nt_overcall_gladiator`) adapts the Crowborough card
+/// Our Gladiator (`ReadingProfile::nt_overcall_gladiator`) adapts the Crowborough card
 /// — <https://www.bridgewebs.com/crowborough/NT%20Responses.htm> — from a
 /// 1NT *opening* to our 1NT *overcall*, where `2♦` is natural and the cue
 /// is Stayman, so the relay must also park the hands that card's `2♦`
@@ -479,8 +541,8 @@ fn gladiator_stolen_relay_double_is_read_as_the_relay() {
 /// red test rather than as a convention that quietly stops firing.
 #[test]
 fn gladiator_advances_follow_the_card() {
-    crate::bidding::american::set_nt_overcall_gladiator(true);
-    let stance = crate::american(&crate::bidding::agreements::Agreements::current()).against();
+    let agreements = gladiator_agreements();
+    let stance = crate::american(&agreements).against();
     let node = [bid(1, Strain::Spades), bid(1, Strain::Notrump), Call::Pass];
     // After the relay and its forced 2♦ puppet: the XYZ-style sort.
     let sorted: Vec<Call> = node
@@ -592,8 +654,6 @@ fn gladiator_advances_follow_the_card() {
             failures.push(format!("{text} ({what}): bid {made}, carded {expected}"));
         }
     }
-    crate::bidding::american::set_nt_overcall_gladiator(false);
-
     assert!(
         failures.is_empty(),
         "Gladiator diverges from the card:\n{}",
@@ -609,8 +669,8 @@ fn gladiator_advances_follow_the_card() {
 /// the book node that shadows it.
 #[test]
 fn gladiator_runs_out_of_the_doubled_overcall() {
-    crate::bidding::american::set_nt_overcall_gladiator(true);
-    let stance = crate::american(&crate::bidding::agreements::Agreements::current()).against();
+    let agreements = gladiator_agreements();
+    let stance = crate::american(&agreements).against();
     let node = [
         bid(1, Strain::Spades),
         bid(1, Strain::Notrump),
@@ -643,8 +703,6 @@ fn gladiator_runs_out_of_the_doubled_overcall() {
             failures.push(format!("{text} ({what}): bid {made}, carded {expected}"));
         }
     }
-    crate::bidding::american::set_nt_overcall_gladiator(false);
-
     assert!(
         failures.is_empty(),
         "the doubled 1NT overcall misplays its runout:\n{}",
@@ -664,8 +722,8 @@ fn gladiator_runs_out_of_the_doubled_overcall() {
 /// that had denied 8 points, and answered Leaping Michaels `4♣` with `5NT`.
 #[test]
 fn gladiator_continuations_are_authored_to_the_leaf() {
-    crate::bidding::american::set_nt_overcall_gladiator(true);
-    let stance = crate::american(&crate::bidding::agreements::Agreements::current()).against();
+    let agreements = gladiator_agreements();
+    let stance = crate::american(&agreements).against();
     let p = Call::Pass;
     let base = [bid(1, Strain::Spades), bid(1, Strain::Notrump), p];
     let seq =
@@ -768,8 +826,6 @@ fn gladiator_continuations_are_authored_to_the_leaf() {
             failures.push(format!("{text} ({what}): bid {made}, wanted {expected}"));
         }
     }
-    crate::bidding::american::set_nt_overcall_gladiator(false);
-
     assert!(
         failures.is_empty(),
         "Gladiator continuations land in the wrong place:\n{}",
@@ -786,7 +842,7 @@ fn gladiator_continuations_are_authored_to_the_leaf() {
 /// the advances, the stolen relay and Transfer Lebensohl all diverge.
 #[test]
 fn gladiator_keeps_the_strip_where_it_has_no_structure() {
-    crate::bidding::american::set_nt_overcall_gladiator(true);
+    let agreements = gladiator_agreements();
     let p = Call::Pass;
     let one_s = bid(1, Strain::Spades);
     let one_nt = bid(1, Strain::Notrump);
@@ -824,14 +880,13 @@ fn gladiator_keeps_the_strip_where_it_has_no_structure() {
             .collect();
         let got = crate::bidding::inference::read::systems_on_overcall_strip(
             &auction,
-            crate::bidding::inference::knobs::reading_profile(),
+            agreements.decision.reading,
         )
         .is_some();
         if got != want {
             failures.push(format!("{what}: stripped = {got}, wanted {want}"));
         }
     }
-    crate::bidding::american::set_nt_overcall_gladiator(false);
     assert!(
         failures.is_empty(),
         "strip scope wrong:\n{}",
@@ -845,7 +900,7 @@ fn gladiator_contested_transfer_lebensohl_pins_the_target() {
     // tree, so advancer plays Transfer Lebensohl; 3♦ transfers up through their
     // hearts (showing spades), read via the builders' alerts — opener must not
     // raise a phantom diamond suit.
-    crate::bidding::american::set_nt_overcall_gladiator(true);
+    let agreements = gladiator_agreements();
     let auction = [
         bid(1, Strain::Spades),
         bid(1, Strain::Notrump),
@@ -853,8 +908,7 @@ fn gladiator_contested_transfer_lebensohl_pins_the_target() {
         bid(3, Strain::Diamonds),
         Call::Pass,
     ];
-    let inf = read_booked(&auction);
-    crate::bidding::american::set_nt_overcall_gladiator(false);
+    let inf = read_booked_with(&agreements, &auction);
     assert!(
         inf.partner().length(Suit::Spades).min >= 5,
         "transfer target pinned"
@@ -908,13 +962,17 @@ fn rubens_cue_raise_shows_support() {
 fn rubens_transfer_is_not_read_as_natural() {
     // (1♣) 1♠ - 2♣ -: we overcalled 1♠, partner transferred 2♣ (a relay
     // to diamonds).  The bid suit must not be read as a club holding.
-    let inf = read(&[
-        bid(1, Strain::Clubs),
-        bid(1, Strain::Spades),
-        Call::Pass,
-        bid(2, Strain::Clubs),
-        Call::Pass,
-    ]);
+    let agreements = rubens_agreements();
+    let inf = read_with(
+        &agreements,
+        &[
+            bid(1, Strain::Clubs),
+            bid(1, Strain::Spades),
+            Call::Pass,
+            bid(2, Strain::Clubs),
+            Call::Pass,
+        ],
+    );
     assert_eq!(inf.partner().length(Suit::Clubs), Range::FULL_LENGTH);
 }
 
@@ -922,8 +980,8 @@ fn rubens_transfer_is_not_read_as_natural() {
 fn rubens_reading_respects_the_knob() {
     // With Rubens advances off — the default since the layer A/B — the same
     // 2♣ is a genuine club suit: the suppression lifts and it reads naturally.
-    crate::bidding::instinct::set_rubens_advances(false);
     let mut agreements = Agreements::current();
+    agreements.decision.reading.rubens_advances = false;
     agreements.decision.reading.cue = false;
     let inf = read_with(
         &agreements,
@@ -997,17 +1055,20 @@ fn their_michaels_is_disclosed_to_the_table() {
 
 #[test]
 fn rubens_limit_raise_transfer_records_support() {
-    crate::bidding::instinct::set_rubens_advances(true);
+    let agreements = rubens_agreements();
     // (1♣) 1♠ - 2♥ -: partner's transfer into our spades is the
     // limit-plus raise — the overcaller reads three-plus spades and
     // ten-plus points, while the named hearts stay unread (a relay).
-    let inf = read(&[
-        bid(1, Strain::Clubs),
-        bid(1, Strain::Spades),
-        Call::Pass,
-        bid(2, Strain::Hearts),
-        Call::Pass,
-    ]);
+    let inf = read_with(
+        &agreements,
+        &[
+            bid(1, Strain::Clubs),
+            bid(1, Strain::Spades),
+            Call::Pass,
+            bid(2, Strain::Hearts),
+            Call::Pass,
+        ],
+    );
     assert!(inf.partner().length(Suit::Spades).min >= 3);
     assert!(inf.partner().strength.points.min >= 10);
     assert_eq!(inf.partner().length(Suit::Hearts), Range::FULL_LENGTH);
@@ -1015,16 +1076,19 @@ fn rubens_limit_raise_transfer_records_support() {
 
 #[test]
 fn rubens_new_suit_transfer_records_the_target() {
-    crate::bidding::instinct::set_rubens_advances(true);
+    let agreements = rubens_agreements();
     // (1♣) 1♠ - 2♣ -: the new-suit transfer shows the advancer's own
     // five-card diamond suit and ten-plus points; clubs stay unread.
-    let inf = read(&[
-        bid(1, Strain::Clubs),
-        bid(1, Strain::Spades),
-        Call::Pass,
-        bid(2, Strain::Clubs),
-        Call::Pass,
-    ]);
+    let inf = read_with(
+        &agreements,
+        &[
+            bid(1, Strain::Clubs),
+            bid(1, Strain::Spades),
+            Call::Pass,
+            bid(2, Strain::Clubs),
+            Call::Pass,
+        ],
+    );
     assert!(inf.partner().length(Suit::Diamonds).min >= 5);
     assert!(inf.partner().strength.points.min >= 10);
     assert_eq!(inf.partner().length(Suit::Clubs), Range::FULL_LENGTH);
@@ -1032,17 +1096,20 @@ fn rubens_new_suit_transfer_records_the_target() {
 
 #[test]
 fn rubens_transfer_records_despite_intervention() {
-    crate::bidding::instinct::set_rubens_advances(true);
+    let agreements = rubens_agreements();
     // (1♣) 1♠ - 2♥ (X): opener doubles the transfer — the completion
     // never comes, but the shown limit raise is exactly what the
     // overcaller needs for the competitive decision.
-    let inf = read(&[
-        bid(1, Strain::Clubs),
-        bid(1, Strain::Spades),
-        Call::Pass,
-        bid(2, Strain::Hearts),
-        Call::Double,
-    ]);
+    let inf = read_with(
+        &agreements,
+        &[
+            bid(1, Strain::Clubs),
+            bid(1, Strain::Spades),
+            Call::Pass,
+            bid(2, Strain::Hearts),
+            Call::Double,
+        ],
+    );
     assert!(inf.partner().length(Suit::Spades).min >= 3);
     assert!(inf.partner().strength.points.min >= 10);
 }
@@ -1229,10 +1296,10 @@ fn uvu_major_cue_projects_the_raise() {
 
 #[test]
 fn rubens_transfer_reading_knob_recovers_suppress_only() {
-    crate::bidding::instinct::set_rubens_advances(true);
     // Stage-2 knob off: the transfer is still suppressed (not natural
     // hearts) but records nothing — the pre-fix shape.
     let mut agreements = Agreements::current();
+    agreements.decision.reading.rubens_advances = true;
     agreements.decision.reading.rubens_transfer = false;
     let inf = read_with(
         &agreements,

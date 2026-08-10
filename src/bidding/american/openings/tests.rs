@@ -1,5 +1,5 @@
 use super::super::call;
-use super::super::tests::best;
+use super::super::tests::{best, best_on};
 use super::*;
 use crate::bidding::agreements::Agreements;
 use crate::bidding::context::Context;
@@ -20,10 +20,11 @@ fn opens(rules: &Rules, hand: &str) -> Call {
 
 #[test]
 fn sub_ten_hcp_freaks_open_only_in_third_seat() {
-    use crate::bidding::constraint::{PointScale, set_point_scale};
+    use crate::bidding::constraint::PointScale;
     // Calibrated to the rule-of-N+8 opt-out — the scale these example
     // hands' points assume (6-5 reads 12, not the point-count cap of 10).
-    set_point_scale(PointScale::RuleOfNFloored);
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.point_scale = PointScale::RuleOfNFloored;
     // ♠5 ♥JT952 ♦J ♣AK7652 — 9 HCP, 12 points (6-5).  Rule-of-N+8 alone
     // would walk it in the sound-opening front door; `hcp(10..)` bars it in
     // first seat, and no other rule takes it (points 12 is past the weak
@@ -31,9 +32,9 @@ fn sub_ten_hcp_freaks_open_only_in_third_seat() {
     // the full book's floor passes.  Third seat opens it: 12 points clears
     // `points(11..)` and 9 HCP clears the legal `hcp(8..)`.
     let freak: Hand = "5.JT952.J.AK7652".parse().expect("valid test hand");
-    let table = openings(&Agreements::current());
+    let table = openings(&agreements);
 
-    let first = Context::new(RelativeVulnerability::NONE, &[]);
+    let first = Context::new(RelativeVulnerability::NONE, &[]).with_profile(agreements.decision);
     assert!(
         (&table.classify(freak, &first).0)
             .into_iter()
@@ -41,7 +42,8 @@ fn sub_ten_hcp_freaks_open_only_in_third_seat() {
         "first seat rejects the sub-10-HCP freak (falls through to Pass)"
     );
 
-    let third = Context::new(RelativeVulnerability::NONE, &[Call::Pass, Call::Pass]);
+    let third = Context::new(RelativeVulnerability::NONE, &[Call::Pass, Call::Pass])
+        .with_profile(agreements.decision);
     let best = (&table.classify(freak, &third).0)
         .into_iter()
         .max_by(|(_, a): &(Call, &f32), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))
@@ -54,11 +56,10 @@ fn sub_ten_hcp_freaks_open_only_in_third_seat() {
     );
 
     assert_eq!(
-        opens(&table, "AT86.975.QJ4.AJ3"),
+        best_on(&table, &[], "AT86.975.QJ4.AJ3", agreements.decision),
         Call::Bid(Bid::new(1, Strain::Clubs)),
         "a flat 12 still opens its better minor in first seat"
     );
-    set_point_scale(PointScale::PointCount);
 }
 
 #[test]
@@ -177,7 +178,7 @@ fn weak_two_wild_is_opt_in() {
 
 #[test]
 fn sound_eleven_counts_open_one_of_a_suit() {
-    use crate::bidding::constraint::{PointScale, set_point_scale};
+    use crate::bidding::constraint::PointScale;
 
     let one_s = Call::Bid(Bid::new(1, Strain::Spades));
     // 11 HCP, 5-2-4-2.  On the shipped raw-HCP+upgrade scale the wasted J9
@@ -191,9 +192,9 @@ fn sound_eleven_counts_open_one_of_a_suit() {
 
     // On the rule-of-N+8 opt-out `points(12..)` *is* the Rule of 20 (11 + 9),
     // blind to the wasted J9, so the identity opens the same hand 1♠.
-    set_point_scale(PointScale::RuleOfN);
-    let call = opens(&openings(&Agreements::current()), sound_11);
-    set_point_scale(PointScale::PointCount);
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.point_scale = PointScale::RuleOfN;
+    let call = best_on(&openings(&agreements), &[], sound_11, agreements.decision);
     assert_eq!(call, one_s);
 }
 

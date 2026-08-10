@@ -60,7 +60,6 @@ pub use knobs::{ReadingProfile, ReadingScope};
 pub use read::Inferences;
 
 pub(crate) use envelope::relative_of;
-pub(crate) use knobs::reading_profile;
 pub(crate) use projection::{AuthoredProjection, AuthoringStepCache};
 pub(in crate::bidding) use readers::penalty_x_reading;
 

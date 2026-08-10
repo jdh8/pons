@@ -496,7 +496,7 @@ pub struct ReadingProfile {
     ///
     /// Lives here beside [`point_scale`][field@Self::point_scale] rather than in
     /// `DecisionProfile`, because the reading layer gauges box membership on
-    /// it too (`Envelope::supports`) — one cell, one home.
+    /// it too (`Envelope::supports`) — one value, one home.
     pub support_points: bool,
 
     /// The deviation panel's antisymmetric strength adjustment (**default 0**,
@@ -547,7 +547,7 @@ pub struct ReadingProfile {
     /// (`probe-bba-constraints --mode rub-ch --ours`,
     /// docs/reader-retirement.md § The Rubens layer).
     ///
-    /// One cell for the bidder and the reader: off, an advance in the band is
+    /// One field for the bidder and the reader: off, an advance in the band is
     /// a genuine suit, so this default also silences `rubens_reading`.
     pub rubens_advances: bool,
 
@@ -563,7 +563,7 @@ pub struct ReadingProfile {
     /// today, so it is a no-op unless the natural defense is on.
     ///
     /// The floor and the inference walk's matching reading
-    /// (`penalty_latch_double_reading`) read this one cell, so they cannot
+    /// (`penalty_latch_double_reading`) read this one field, so they cannot
     /// disagree about when a later double is penalty rather than takeout.
     pub penalty_latch: bool,
 
@@ -640,7 +640,7 @@ pub struct ReadingProfile {
     /// Only the two minor-opening rebid nodes carry the full ladder; the
     /// major-opening nodes carry the jump-rebid rung alone
     /// ([`opener_major_jump_rebid`][field@Self::opener_major_jump_rebid]).  The
-    /// matching reading gates on this same cell, narrowing each rung's shape
+    /// matching reading gates on this same field, narrowing each rung's shape
     /// and strength.
     pub opener_extras_ladder: bool,
 
@@ -670,7 +670,7 @@ pub struct ReadingProfile {
     /// `3♣` = diamonds (transfer), no Puppet Stayman — the standard Polish
     /// Club / WJ and common continental response set.  Both variants are
     /// authored; only the selected one's `2♠`/`2NT`/`3♣` rules are gated into
-    /// the trie, and the inference engine reads the same cell to decode them.
+    /// the trie, and the inference engine reads the same field to decode them.
     pub notrump_minors: crate::bidding::rules::Alert,
 
     /// Author opener's `3M` jump rebid of a six-card major with extras
@@ -692,7 +692,7 @@ pub struct ReadingProfile {
     /// invitational `3M` and stranding below game — and authoring both sides
     /// flipped it to a win.  Scoped to opener's *own* suit to avoid the
     /// Meckstroth `3m` collision on the jump-shift rung; natural, so unalerted
-    /// and floor-safe, with the matching reading on this same cell.
+    /// and floor-safe, with the matching reading on this same field.
     pub opener_major_jump_rebid: bool,
 
     /// Author garbage (drop-dead) Stayman
@@ -703,7 +703,7 @@ pub struct ReadingProfile {
     /// `2♣` to escape a likely-doomed `1NT`, intending to pass opener's
     /// `2♦`/`2♥`/`2♠`.  It is looser the weaker responder is: broke hands
     /// accept a thinner `2♦` landing, since any ~7-card fit beats a broke
-    /// `1NT`.  The inference engine reads the same cell, to widen the `2♣`
+    /// `1NT`. The inference engine reads the same field, to widen the `2♣`
     /// point range it reads.
     pub garbage_stayman: bool,
 
@@ -717,7 +717,7 @@ pub struct ReadingProfile {
     /// diamond partscore.  4-4 majors with ≤1 diamond forces 4+ clubs, so the
     /// `2♥` pass-or-correct (and opener's `3♣` flee) always finds a fit.  Weak
     /// only (`hcp(..8)`), disjoint from the constructive and garbage `2♣`
-    /// tiers; the inference engine reads the same cell to widen the `2♣` point
+    /// tiers; the inference engine reads the same field to widen the `2♣` point
     /// range.
     pub crawling_stayman: bool,
 
@@ -782,11 +782,12 @@ pub struct ReadingProfile {
     /// overcaller's min/med/max rebid track it, so a lighter overcall asks
     /// more of the advancer.
     ///
-    /// It also *is* the shared two-suiter band: Landy's and Woolsey's
-    /// both-majors `2♣` are the identical call, so setting a Landy range also
-    /// feeds [`woolsey_points`][field@Self::woolsey_points] and the two can never
-    /// carry divergent strengths.  (Measured: the `:19` cap binds on ~0 hands
-    /// and the floor barely moves the IMPs, so one knob loses nothing.)
+    /// It shares the two-suiter band with Woolsey: Landy's and Woolsey's
+    /// both-majors `2♣` are the identical call. An arm enabling Landy therefore
+    /// assigns the same range to
+    /// [`woolsey_points`][field@Self::woolsey_points], preserving the former
+    /// setter's coupling. (Measured: the `:19` cap binds on ~0 hands and the
+    /// floor barely moves the IMPs, so one knob loses nothing.)
     pub landy_range: Option<(u8, u8)>,
 
     /// Which mutually-exclusive defense we play over their `1NT` opening
@@ -800,7 +801,7 @@ pub struct ReadingProfile {
     /// block, all of them are chained at the `(1NT)` node, and only the active
     /// system's calls are gated into the trie.
     ///
-    /// One cell, so the old "two families authored at once" state — possible
+    /// One enum field, so the old "two families authored at once" state — possible
     /// with the independent per-system booleans and resolved only by a
     /// read-time precedence cascade — is unrepresentable.  The `DirectLandy`
     /// payload rides on `agreements.defense.direct_landy_four_four`, since the
@@ -828,7 +829,7 @@ pub struct ReadingProfile {
     /// mirroring
     /// [`Wide6322`][crate::bidding::american::NotrumpShape::Wide6322] minus
     /// its two major pan-handles.  The opening reading widens opener's minors
-    /// to six off this same cell.
+    /// to six off this same field.
     pub two_notrump_wide: bool,
 
     /// The floor asks and answers RKCB 1430 (M6.4)
@@ -891,44 +892,8 @@ impl ReadingProfile {
         self.notrump_defense == crate::bidding::american::NotrumpDefense::Natural
     }
 
-    /// Drive the 24 remaining cells of this profile off their shipped defaults
-    /// for the cross-thread pinning test (`stance_pins_knobs_across_threads`).
-    ///
-    /// The values are *different*, not meaningful — this arms a system nobody
-    /// plays.  What must hold is only that both threads see the same one.
-    #[cfg(test)]
-    pub(crate) fn arm_all_nondefault() {
-        use crate::bidding::american;
-        use crate::bidding::instinct;
-
-        crate::bidding::constraint::set_point_scale(crate::bidding::constraint::PointScale::Hcp);
-        crate::bidding::constraint::set_support_points(false);
-        crate::bidding::constraint::set_strength_dial(1);
-        instinct::set_rubens_advances(true);
-        instinct::set_penalty_latch(false);
-        instinct::set_floor_rkcb(false);
-        instinct::set_rkcb_variant(instinct::RkcbVariant::Kickback);
-        american::set_nt_overcall_systems_on(false);
-        american::set_nt_overcall_gladiator(true);
-        american::set_nt_splinter(false);
-        american::set_opener_extras_ladder(false);
-        american::set_xyz(false);
-        american::set_notrump_minors(american::EUROPEAN);
-        american::set_opener_major_jump_rebid(false);
-        american::set_garbage_stayman(false);
-        american::set_crawling_stayman(false);
-        american::set_woolsey_points(9, 18);
-        american::set_woolsey_double_floor(13);
-        american::set_natural_double_floor(16);
-        american::set_longer_major_response(false);
-        american::set_landy(Some((8, 14)));
-        american::set_notrump_defense(american::NotrumpDefense::Woolsey);
-        american::set_natural_overcall_points(9, 13);
-        american::set_two_notrump_wide(true);
-    }
-
-    /// Every value-owned field driven off its shipped default, for the
-    /// cross-thread pinning test (`stance_pins_knobs_across_threads`).
+    /// Every field driven off its shipped default, for the cross-thread pinning
+    /// test (`stance_pins_knobs_across_threads`).
     #[cfg(test)]
     pub(crate) fn nondefault() -> Self {
         Self {
@@ -951,7 +916,30 @@ impl ReadingProfile {
             announced: true,
             table_alerts: false,
             rule_accept: false,
-            ..reading_profile()
+            point_scale: crate::bidding::constraint::PointScale::Hcp,
+            support_points: false,
+            strength_dial: 1,
+            rubens_advances: true,
+            penalty_latch: false,
+            nt_overcall_systems_on: false,
+            nt_overcall_gladiator: true,
+            nt_splinter: false,
+            opener_extras_ladder: false,
+            xyz: false,
+            notrump_minors: crate::bidding::american::EUROPEAN,
+            opener_major_jump_rebid: false,
+            garbage_stayman: false,
+            crawling_stayman: false,
+            woolsey_points: (9, 18),
+            woolsey_double_floor: 13,
+            natural_double_floor: 16,
+            longer_major_response: false,
+            landy_range: Some((8, 14)),
+            notrump_defense: crate::bidding::american::NotrumpDefense::Woolsey,
+            natural_overcall_points: (9, 13),
+            two_notrump_wide: true,
+            floor_rkcb: false,
+            rkcb_variant: crate::bidding::instinct::RkcbVariant::Kickback,
         }
     }
 
@@ -1005,13 +993,13 @@ impl ReadingProfile {
     /// Whether the fit-known shortness scale gauges `support_points`.  Lives
     /// here beside [`point_scale`][Self::point_scale] rather than in
     /// `DecisionProfile`, because the reading layer gauges box membership on it
-    /// too (`Envelope::supports`) — one cell, one home.
+    /// too (`Envelope::supports`) — one value, one home.
     pub(crate) const fn support_points(self) -> bool {
         self.support_points
     }
 
     /// The deviation panel's antisymmetric strength adjustment
-    /// ([`set_strength_dial`][crate::bidding::constraint::set_strength_dial],
+    /// ([`strength_dial`][field@Self::strength_dial],
     /// **default 0**, measurement only).  The magnitude only: the direction is
     /// chosen per decision from the auction (`dial_shift`).
     ///
@@ -1028,7 +1016,7 @@ impl ReadingProfile {
     /// Whether the strong `2NT` opening carries the wide-minor shape.  Read at
     /// build time too (`american/openings/two_notrump.rs` picks the shape gate
     /// off it), which is why the opening book takes it from here rather than
-    /// keeping a cell of its own — one cell, one home.
+    /// keeping another copy of its own — one value, one home.
     pub(crate) const fn two_notrump_wide(self) -> bool {
         self.two_notrump_wide
     }
@@ -1036,37 +1024,36 @@ impl ReadingProfile {
     /// Whether a response to our minor names the longer major.  Read at build
     /// time too (`american/responses/longer_major.rs` picks the selector pair
     /// off it), which is why the response book takes it from here rather than
-    /// keeping a cell of its own — one cell, one home.
+    /// keeping another copy of its own — one value, one home.
     pub(crate) const fn longer_major_response(self) -> bool {
         self.longer_major_response
     }
 
     /// Whether opener's strength-showing ladder is authored.  Read at build
     /// time too (`american/rebids/extras_ladder.rs`), so the rebid book takes
-    /// it from here — one cell, one home.
+    /// it from here — one value, one home.
     pub(crate) const fn opener_extras_ladder(self) -> bool {
         self.opener_extras_ladder
     }
 
     /// Whether opener's `3M` jump rebid is authored.  Read at build time too
     /// (`american/rebids/major_jump_rebid.rs`), so the rebid book takes it from
-    /// here — one cell, one home.
+    /// here — one value, one home.
     pub(crate) const fn opener_major_jump_rebid(self) -> bool {
         self.opener_major_jump_rebid
     }
 
     /// Whether two-way checkback (XYZ) is authored.  Read at build time too
     /// (`american/xyz.rs` gates the whole package on it), so the rebid book
-    /// takes it from here — one cell, one home.
+    /// takes it from here — one value, one home.
     pub(crate) const fn xyz(self) -> bool {
         self.xyz
     }
 
-    // The twelve dual cells the defensive and notrump books also build from.
+    // The twelve values the defensive and notrump books also build from.
     // They were briefly duplicated into `DefenseKnobs`/`NotrumpKnobs`, which
-    // put one cell in two homes: harmless while the cells still back both
-    // captures, silently divergent the moment the cells are deleted and the two
-    // fields become independently settable.  The books read them from here.
+    // put one agreement in two homes. The books read them from here so the two
+    // halves cannot diverge.
 
     /// Which notrump defense we play against their `1NT`
     pub(crate) const fn notrump_defense(self) -> crate::bidding::american::NotrumpDefense {
@@ -1128,9 +1115,9 @@ impl ReadingProfile {
         self.crawling_stayman
     }
 
-    // The five cells the [instinct floor][crate::bidding::instinct()] shares
+    // The five values the [instinct floor][crate::bidding::instinct()] shares
     // with the reading layer.  They live here, not in
-    // [`InstinctProfile`][crate::bidding::instinct::InstinctProfile]: one cell,
+    // [`InstinctProfile`][crate::bidding::instinct::InstinctProfile]: one field,
     // one home, so the two halves of a decision profile cannot disagree about
     // what the partnership plays.
 
@@ -1158,10 +1145,6 @@ impl ReadingProfile {
 }
 
 /// The shipped reading agreements
-///
-/// Held equal to `reading_profile` on a virgin thread by
-/// `decision_defaults_match_the_cells`; that capture overwrites only the 24
-/// fields whose cells have not yet migrated.
 impl Default for ReadingProfile {
     fn default() -> Self {
         Self {
@@ -1209,36 +1192,5 @@ impl Default for ReadingProfile {
             floor_rkcb: true,
             rkcb_variant: crate::bidding::instinct::RkcbVariant::Plain,
         }
-    }
-}
-
-/// Snapshot the reading settings active on this thread
-pub(crate) fn reading_profile() -> ReadingProfile {
-    ReadingProfile {
-        point_scale: crate::bidding::constraint::point_scale(),
-        support_points: crate::bidding::constraint::support_points_now(),
-        strength_dial: crate::bidding::constraint::strength_dial(),
-        rubens_advances: crate::bidding::instinct::rubens_advances_enabled(),
-        penalty_latch: crate::bidding::instinct::penalty_latch_enabled(),
-        nt_overcall_systems_on: crate::bidding::american::nt_overcall_systems_on(),
-        nt_overcall_gladiator: crate::bidding::american::nt_overcall_gladiator(),
-        nt_splinter: crate::bidding::american::nt_splinter(),
-        opener_extras_ladder: crate::bidding::american::opener_extras_ladder(),
-        xyz: crate::bidding::american::xyz(),
-        notrump_minors: crate::bidding::american::notrump_minors(),
-        opener_major_jump_rebid: crate::bidding::american::opener_major_jump_rebid(),
-        garbage_stayman: crate::bidding::american::garbage_stayman(),
-        crawling_stayman: crate::bidding::american::crawling_stayman(),
-        woolsey_points: crate::bidding::american::woolsey_points(),
-        woolsey_double_floor: crate::bidding::american::woolsey_double_floor(),
-        natural_double_floor: crate::bidding::american::natural_double_floor(),
-        longer_major_response: crate::bidding::american::longer_major_response(),
-        landy_range: crate::bidding::american::landy_range(),
-        notrump_defense: crate::bidding::american::notrump_defense(),
-        natural_overcall_points: crate::bidding::american::natural_overcall_points(),
-        two_notrump_wide: crate::bidding::american::two_notrump_wide(),
-        floor_rkcb: crate::bidding::instinct::floor_rkcb_now(),
-        rkcb_variant: crate::bidding::instinct::rkcb_variant_now(),
-        ..ReadingProfile::default()
     }
 }

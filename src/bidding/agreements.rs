@@ -10,8 +10,8 @@
 //! [`american_book`][crate::bidding::american::american_book],
 //! [`instinct`][crate::bidding::instinct()],
 //! [`ConventionCard::capture`][crate::bidding::features::ConventionCard::capture]
-//! and [`reading_profile`][crate::bidding::inference] — and until this value
-//! existed nothing but call-site discipline made them. Two defects were paid
+//! and the [`ReadingProfile`][crate::bidding::inference::ReadingProfile] — and
+//! until this value existed nothing but call-site discipline made them. Two defects were paid
 //! for by that gap: the forced rail froze into a process-wide `LazyLock` built
 //! by whichever pair came first, and a card disclosed rows the rules were not
 //! playing. Both become unrepresentable once one capture feeds all four.
@@ -30,7 +30,7 @@
 //! [`Pair::against`][crate::bidding::Pair::against], so a stance decides
 //! identically on any thread; the eight build-time areas are baked into the
 //! rules a build returns and need no such pin.  A cell read at *both* times
-//! (there are 24) lives in `decision` and is read from there at build time too.
+//! lives in `decision` and is read from there at build time too.
 
 use super::american::{
     Competitive4333, DoubleShape, DoubleStyle, FreeBidStyle, LebensohlStyle, NegativeDoubleShape,
@@ -562,7 +562,7 @@ pub struct DefenseKnobs {
     /// would rather declare.  [`DoubleShape::SemiBalanced`] adds 5422/6322/7222
     /// and [`DoubleShape::Any`] doubles every 15+ hand regardless of shape; the
     /// HCP floor is untouched (it lives in
-    /// [`set_natural_double_floor`][crate::bidding::american::set_natural_double_floor],
+    /// [`natural_double_floor`][field@crate::bidding::inference::ReadingProfile::natural_double_floor],
     /// 15), so this only widens the *shape* gate.  An A/B knob
     /// (`examples/ab-landy --ns-double-shape balanced|semibal|any`).
     pub natural_double_shape: DoubleShape,
@@ -676,7 +676,7 @@ pub struct DefenseKnobs {
     ///
     /// **This is the raw cell, not the effective floor**: `0` is a sentinel the
     /// module resolves to the natural-overcall floor
-    /// ([`set_natural_overcall_points`][crate::bidding::american::set_natural_overcall_points],
+    /// ([`natural_overcall_points`][field@crate::bidding::inference::ReadingProfile::natural_overcall_points],
     /// 8).  **0 by default**, therefore byte-identical to inheriting 8.
     ///
     /// Raise it so only strong one-suiters double and 8–11 hands pass — the `X`
@@ -998,7 +998,7 @@ pub struct DefenseKnobs {
     ///
     /// **Default `(6, 2)`**, the A/B-tuned shipped gate; the knob is
     /// `examples/landy-ab --ns-doubled-escape MIN:MAJ`.  Only reachable when
-    /// Landy is on ([`set_landy`][crate::bidding::american::set_landy]), so the
+    /// Landy is on ([`landy_range`][field@crate::bidding::inference::ReadingProfile::landy_range]), so the
     /// convention stays opt-in.
     pub doubled_landy_escape: (usize, usize),
     /// Gauge the Landy band in HCP rather than points
@@ -1016,7 +1016,7 @@ pub struct DefenseKnobs {
     /// when the active system is
     /// [`NotrumpDefense::DirectLandy`][crate::bidding::american::NotrumpDefense::DirectLandy]
     /// (selected via
-    /// [`set_notrump_defense`][crate::bidding::american::set_notrump_defense]) —
+    /// [`notrump_defense`][field@crate::bidding::inference::ReadingProfile::notrump_defense]) —
     /// under any other system it has no meaning at all.  **Default `false`**
     /// (5-4+).
     ///
@@ -1058,7 +1058,7 @@ pub struct DefenseKnobs {
     /// The both-minors `2NT` overcall of their `1NT`: `None` = off (the floor's
     /// natural — and near-useless — `2NT`); `Some((lo, hi))` = both minors (5-5)
     /// on `points(lo..=hi)`.  Independent of
-    /// [`set_landy`][crate::bidding::american::set_landy]: a natural `2NT` over
+    /// [`landy_range`][field@crate::bidding::inference::ReadingProfile::landy_range]: a natural `2NT` over
     /// their strong `1NT` is nearly worthless, so this repurposes the bid as a
     /// two-suiter — purely additive, it sacrifices no natural call.
     ///
@@ -1122,11 +1122,11 @@ pub struct DefenseKnobs {
     ///
     /// **This is the raw cell, not the effective floor**: `0` is a sentinel the
     /// module resolves to the natural-overcall floor
-    /// ([`set_natural_overcall_points`][crate::bidding::american::set_natural_overcall_points],
+    /// ([`natural_overcall_points`][field@crate::bidding::inference::ReadingProfile::natural_overcall_points],
     /// 8).  **0 by default**, therefore byte-identical to inheriting 8.
     ///
     /// Raise it — e.g. 12, the Woolsey `X` floor
-    /// ([`set_woolsey_double_floor`][crate::bidding::american::set_woolsey_double_floor])
+    /// ([`woolsey_double_floor`][field@crate::bidding::inference::ReadingProfile::woolsey_double_floor])
     /// — so only strong hands make the broad two-way double and 8–11
     /// both-majors / single-minor hands pass: fewer sacrificial doubles over a
     /// strong `1NT`.  A **probe** knob, and the tournament's dominant Meckwell
@@ -1862,7 +1862,7 @@ pub struct ResponseKnobs {
     /// Complete the natural minor tree up the line
     ///
     /// **Default on**, shipped **jointly with
-    /// [`set_xyz`][crate::bidding::american::set_xyz]**
+    /// [`xyz`][field@crate::bidding::inference::ReadingProfile::xyz]**
     /// (`ab-minor-continuations`, 300k boards: plain +0.0382/+0.0559
     /// IMPs/board NV/vul, PD +0.0289/+0.0407).  Alone it is a measured **loss**
     /// (plain −0.91/−1.28 per divergent) — the `1♦` response reroutes hands

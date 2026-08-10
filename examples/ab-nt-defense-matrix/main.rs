@@ -53,8 +53,9 @@ use contract_bridge::{AbsoluteVulnerability, Bid, Contract, FullDeal, Hand, Seat
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::agreements::{Agreements, CompetitionKnobs, DefenseKnobs};
-use pons::bidding::american::{DoubleStyle, NotrumpDefense, set_landy, set_notrump_defense};
+use pons::bidding::american::{DoubleStyle, NotrumpDefense};
 use pons::bidding::context::relative;
+use pons::bidding::inference::ReadingProfile;
 use pons::bidding::instinct::InstinctProfile;
 use pons::bidding::{Inferences, Stance};
 use pons::scoring::{
@@ -128,21 +129,7 @@ struct Knobs {
     competition: CompetitionKnobs,
     defense: DefenseKnobs,
     instinct: InstinctProfile,
-}
-
-/// Reset every ambient defense cell (row axis) to the shipped default, so a book
-/// build never inherits a previous build's setting.
-///
-/// The per-family payloads live in [`DefenseKnobs`] now and the column axis in
-/// [`CompetitionKnobs`]; both start each build from `default()`, so only the
-/// cells need resetting here.
-fn reset_knobs() {
-    // Row axis — our defense over their 1NT.  One cell holds the system, so one
-    // write resets the whole family, Direct Landy included; its four-four shape
-    // payload is `defense.direct_landy_four_four`, reset with the rest of the
-    // value below.
-    set_notrump_defense(NotrumpDefense::Natural);
-    set_landy(None);
+    reading: ReadingProfile,
 }
 
 /// Build the four row books (our defense menu) and four column books (their
@@ -152,18 +139,19 @@ fn reset_knobs() {
 /// edited from `default()`.
 fn build_books() -> (Vec<Stance>, Vec<Stance>) {
     let build = |configure: &dyn Fn(&mut Knobs)| {
-        reset_knobs();
         let mut knobs = Knobs {
             competition: CompetitionKnobs::default(),
             defense: DefenseKnobs::default(),
             instinct: InstinctProfile::default(),
+            reading: ReadingProfile::default(),
         };
         configure(&mut knobs);
-        // The cells `configure` may have written are read here, after the write.
+        // Build from the values `configure` just wrote.
         let mut agreements = Agreements::current();
         agreements.competition = knobs.competition;
         agreements.defense = knobs.defense;
         agreements.decision.instinct = knobs.instinct;
+        agreements.decision.reading = knobs.reading;
         american(&agreements).against()
     };
     // The DONT parity config (docs/ai-bidder/1nt-defense-dont.md): 6+ one-suiter
@@ -171,7 +159,7 @@ fn build_books() -> (Vec<Stance>, Vec<Stance>) {
     // `x_floor` variant raises only the one-suiter X floor (strong doubles only).
     let dont = |x_floor: u8| {
         move |k: &mut Knobs| {
-            set_notrump_defense(NotrumpDefense::DirectDont);
+            k.reading.notrump_defense = NotrumpDefense::DirectDont;
             k.defense.direct_dont_one_suiter_min = 6;
             k.defense.direct_dont_x_floor = x_floor;
             k.defense.unusual_notrump_range = Some((8, 14));
@@ -182,7 +170,7 @@ fn build_books() -> (Vec<Stance>, Vec<Stance>) {
     // X); the `x_floor` variant raises only the broad two-way X floor.
     let meckwell = |x_floor: u8| {
         move |k: &mut Knobs| {
-            set_notrump_defense(NotrumpDefense::Meckwell);
+            k.reading.notrump_defense = NotrumpDefense::Meckwell;
             k.defense.unusual_notrump_range = Some((8, 14));
             k.defense.meckwell_minor_major_44 = false;
             k.defense.meckwell_x_four_four = true;
@@ -190,13 +178,13 @@ fn build_books() -> (Vec<Stance>, Vec<Stance>) {
         }
     };
     let rows = vec![
-        build(&|_| set_notrump_defense(NotrumpDefense::AlwaysPass)),
+        build(&|k| k.reading.notrump_defense = NotrumpDefense::AlwaysPass),
         build(&|_| ()),   // natural: the shipped default defense
         build(&dont(0)),  // DONT(6+): X floor inherits the natural 8
         build(&dont(12)), // DONT(6+,X12): strong one-suiter doubles only
         build(&|k| {
             // Woolsey owns every direct call over their 1NT.
-            set_notrump_defense(NotrumpDefense::Woolsey);
+            k.reading.notrump_defense = NotrumpDefense::Woolsey;
             k.defense.unusual_notrump_range = None;
         }),
         build(&meckwell(0)),  // Meckwell: X floor inherits the natural 8

@@ -1,5 +1,5 @@
 use super::super::call;
-use super::super::tests::best;
+use super::super::tests::{best, best_on};
 use super::*;
 use crate::bidding::agreements::Agreements;
 use crate::bidding::constraint::Constraint;
@@ -74,14 +74,14 @@ fn choice_of_games_three_notrump() {
 
 #[test]
 fn two_over_one_fit_leg_and_gates() {
-    use crate::bidding::constraint::{PointScale, set_point_scale};
+    use crate::bidding::constraint::PointScale;
     // Calibrated to the rule-of-N+8 opt-out — the scale the Points13 arm's
     // example hand assumes (the 6-4 reads 13, not the point-count 12).
-    set_point_scale(PointScale::RuleOfNFloored);
     let a = [call(1, Strain::Hearts), Call::Pass];
     // Arms are relative to the legacy gate; the shipped default is
     // fit + Points13 (the `fit` arm below).
-    let base = Agreements::current();
+    let mut base = Agreements::current();
+    base.decision.reading.point_scale = PointScale::RuleOfNFloored;
     let arm = |fit: bool, gate: TwoOverOneGate| {
         let mut agreements = base;
         agreements.response.two_over_one_fit = fit;
@@ -95,27 +95,32 @@ fn two_over_one_fit_leg_and_gates() {
 
     // Fit leg: exactly three trumps, 11 HCP + spade singleton reads 13
     // support points — a 2/1 preparing the heart raise; off, a 1NT.
-    assert_eq!(best(&fit, &a, "7.K54.A964.KJ932"), call(2, Strain::Clubs));
     assert_eq!(
-        best(&baseline, &a, "7.K54.A964.KJ932"),
+        best_on(&fit, &a, "7.K54.A964.KJ932", base.decision),
+        call(2, Strain::Clubs)
+    );
+    assert_eq!(
+        best_on(&baseline, &a, "7.K54.A964.KJ932", base.decision),
         call(1, Strain::Notrump)
     );
     // Hcp13 demotes a shaped 12 (6-4 reads 13 points) back to 1NT.
     assert_eq!(
-        best(&baseline, &a, "32.Q4.AKJ964.Q93"),
+        best_on(&baseline, &a, "32.Q4.AKJ964.Q93", base.decision),
         call(2, Strain::Diamonds)
     );
     assert_eq!(
-        best(&hcp13, &a, "32.Q4.AKJ964.Q93"),
+        best_on(&hcp13, &a, "32.Q4.AKJ964.Q93", base.decision),
         call(1, Strain::Notrump)
     );
     // Hcp12 admits a no-fit flat 12 the shipped gate leaves in 1NT.
     assert_eq!(
-        best(&baseline, &a, "K32.54.A964.KQ92"),
+        best_on(&baseline, &a, "K32.54.A964.KQ92", base.decision),
         call(1, Strain::Notrump)
     );
-    assert_eq!(best(&hcp12, &a, "K32.54.A964.KQ92"), call(2, Strain::Clubs));
-    set_point_scale(PointScale::PointCount);
+    assert_eq!(
+        best_on(&hcp12, &a, "K32.54.A964.KQ92", base.decision),
+        call(2, Strain::Clubs)
+    );
 }
 
 #[test]

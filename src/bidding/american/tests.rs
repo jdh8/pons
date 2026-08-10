@@ -1,14 +1,24 @@
 use super::*;
 use crate::bidding::Rules;
-use crate::bidding::context::Context;
+use crate::bidding::context::{Context, DecisionProfile};
 use crate::bidding::trie::Classifier;
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::{Hand, Strain};
 
 /// The highest-logit call a sub-builder makes for a hand in a context
 pub(super) fn best(rules: &Rules, auction: &[Call], hand: &str) -> Call {
+    best_on(rules, auction, hand, DecisionProfile::default())
+}
+
+/// The highest-logit call under an explicit classify-time profile.
+pub(super) fn best_on(
+    rules: &Rules,
+    auction: &[Call],
+    hand: &str,
+    profile: DecisionProfile,
+) -> Call {
     let hand: Hand = hand.parse().expect("valid test hand");
-    let context = Context::new(RelativeVulnerability::NONE, auction);
+    let context = Context::new(RelativeVulnerability::NONE, auction).with_profile(profile);
     let logits = rules.classify(hand, &context);
     (&logits.0)
         .into_iter()
@@ -99,7 +109,7 @@ fn row_package_invariants() {
 #[test]
 fn the_default_floor_reads_the_live_agreements() {
     use crate::bidding::System as _;
-    use crate::bidding::instinct::{RkcbVariant, set_rkcb_variant};
+    use crate::bidding::instinct::RkcbVariant;
 
     // Not a forced auction, and no authored node — the net answers.
     let auction = [
@@ -116,10 +126,11 @@ fn the_default_floor_reads_the_live_agreements() {
             .expect("the floor always answers")
     };
 
-    let plain = logits(&american(&crate::bidding::agreements::Agreements::current()).against());
-    set_rkcb_variant(RkcbVariant::Kickback);
-    let relocated = logits(&american(&crate::bidding::agreements::Agreements::current()).against());
-    set_rkcb_variant(RkcbVariant::Plain);
+    let plain_agreements = crate::bidding::agreements::Agreements::current();
+    let plain = logits(&american(&plain_agreements).against());
+    let mut relocated_agreements = plain_agreements;
+    relocated_agreements.decision.reading.rkcb_variant = RkcbVariant::Kickback;
+    let relocated = logits(&american(&relocated_agreements).against());
 
     assert_ne!(
         plain.0.into_iter().collect::<Vec<_>>(),

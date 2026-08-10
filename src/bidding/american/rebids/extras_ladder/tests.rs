@@ -6,12 +6,10 @@ use crate::bidding::Trie;
 /// Build the full rebid Trie with the opener extras ladder on (the shipped
 /// default).
 fn ladder_trie() -> Trie {
-    set_opener_extras_ladder(true);
+    let mut agreements = crate::bidding::agreements::Agreements::current();
+    agreements.decision.reading.opener_extras_ladder = true;
     let mut trie = Trie::new();
-    register(
-        &mut trie,
-        &crate::bidding::agreements::Agreements::current(),
-    );
+    register(&mut trie, &agreements);
     trie
 }
 
@@ -48,13 +46,10 @@ fn opener_extras_ladder_shows_strength() {
 
 #[test]
 fn opener_extras_ladder_reverts_when_off() {
-    set_opener_extras_ladder(false);
+    let mut agreements = crate::bidding::agreements::Agreements::current();
+    agreements.decision.reading.opener_extras_ladder = false;
     let mut trie = Trie::new();
-    register(
-        &mut trie,
-        &crate::bidding::agreements::Agreements::current(),
-    );
-    set_opener_extras_ladder(true);
+    register(&mut trie, &agreements);
     // Knob off: the 16-count monster reverts to the minimum 2♦ rebid.
     assert_eq!(
         best(&trie, AFTER_1D_1S, "653.K3.AKQT854.A"),

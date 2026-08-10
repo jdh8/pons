@@ -1,24 +1,24 @@
 //! Integration tests for the **European** 1NT minor scheme
-//! ([`set_notrump_minors`]`(`[`EUROPEAN`]`)`): `2♠` = clubs (transfer), `2NT` = a
+//! ([`notrump_minors`][field@pons::bidding::inference::ReadingProfile::notrump_minors]
+//! set to [`EUROPEAN`]): `2♠` = clubs (transfer), `2NT` = a
 //! balanced invite / size ask, `3♣` = diamonds (transfer); no Puppet Stayman, so a
 //! game-forcing balanced hand with only a three-card major bids 3NT and a 4-3 game
 //! force takes Stayman.  Mirrors `american_minor_transfers.rs` (the Puppet default).
 //!
-//! [`set_notrump_minors`]: pons::american::set_notrump_minors
 //! [`EUROPEAN`]: pons::american::EUROPEAN
 
 mod common;
 use common::*;
 
-use pons::american::{EUROPEAN, set_notrump_minors};
+use pons::american::EUROPEAN;
 
 /// The American 2/1 stance with the **European** minor scheme selected
 ///
-/// `set_notrump_minors` is a thread-local read at book-construction time, so it is
-/// set here on every call — each test thread builds a European book.
+/// Each call builds a stance whose agreements select the European book.
 fn stance() -> Stance {
-    set_notrump_minors(EUROPEAN);
-    american(&pons::bidding::agreements::Agreements::current()).against()
+    let mut agreements = pons::bidding::agreements::Agreements::current();
+    agreements.decision.reading.notrump_minors = EUROPEAN;
+    american(&agreements).against()
 }
 
 const P: Call = Call::Pass;

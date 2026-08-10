@@ -13,7 +13,7 @@ use super::book::Stance;
 use super::constraint::FifthsCompanion;
 use super::evaluator::{TrickEstimates, trick_estimates_with_auction_on};
 use super::features::{CompactConfig, Config};
-use super::inference::{AuthoredProjection, Inferences, ReadingProfile, reading_profile};
+use super::inference::{AuthoredProjection, Inferences, ReadingProfile};
 use super::instinct::{InstinctProfile, Interpretation};
 use super::trie::CommonPrefixes;
 use contract_bridge::auction::{AbsoluteVulnerability, Call, RelativeVulnerability};
@@ -302,10 +302,10 @@ impl Default for DecisionProfile {
 }
 
 impl DecisionProfile {
-    /// Snapshot the knob state active on this thread
+    /// Snapshot the remaining thread-local knob state
     pub(crate) fn current() -> Self {
         Self {
-            reading: reading_profile(),
+            reading: ReadingProfile::default(),
             instinct: InstinctProfile::default(),
             eval_auction: super::evaluator::eval_auction(),
             eval_shape: super::evaluator::eval_shape(),
@@ -623,13 +623,13 @@ impl<'a> Context<'a> {
     /// Inherit a parent context's pinned knob state
     ///
     /// The reading walks each turn of the auction through a context of its own
-    /// ([`at_each_turn`][Self::at_each_turn]), and those carry no stance to pin
+    /// (`at_each_turn`), and those carry no stance to pin
     /// them.  Without this they would read under whatever knobs the *thread*
     /// happens to hold, which is exactly the live read the pin exists to
     /// remove — and on a rayon worker that is the shipped defaults, whatever
     /// the reader was built under.  An attached stance still outranks it.
     #[must_use]
-    pub(crate) const fn with_profile(mut self, profile: DecisionProfile) -> Self {
+    pub const fn with_profile(mut self, profile: DecisionProfile) -> Self {
         self.pinned_profile = Some(profile);
         self
     }
@@ -791,17 +791,17 @@ impl<'a> Context<'a> {
     ///
     /// Chain: the profile captured at decision entry, else the one pinned in
     /// the attached system ([`Stance::infer`] attaches a system but enters no
-    /// decision scope), else — for a bare diagnostic context — the current
-    /// thread's live knob state.  The bare arm snapshots only the reading
-    /// profile: constraint projection calls this per node, and a bare context
-    /// (rows verify, `probe`) should not pay for the instinct half of a
+    /// decision scope), else — for a bare diagnostic context — the shipped
+    /// default reading profile. The bare arm returns only the reading profile:
+    /// constraint projection calls this per node, and a bare context (rows
+    /// verify, `probe`) should not pay for the instinct half of a
     /// [`DecisionProfile`] it never looks at.
     pub(crate) fn reading_profile(&self) -> ReadingProfile {
         self.active_decision_cache().map_or_else(
             || match (self.own_system, self.pinned_profile) {
                 (Some(system), _) => system.profile().reading,
                 (None, Some(profile)) => profile.reading,
-                (None, None) => reading_profile(),
+                (None, None) => ReadingProfile::default(),
             },
             |cache| cache.profile.reading,
         )

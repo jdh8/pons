@@ -1,25 +1,20 @@
 use super::super::tests::{best_call_with, call};
 use crate::bidding::agreements::Agreements;
-use crate::bidding::american::{
-    NotrumpDefense, set_notrump_defense, set_woolsey_double_floor, set_woolsey_points,
-};
+use crate::bidding::american::NotrumpDefense;
 use contract_bridge::Strain;
 use contract_bridge::auction::Call;
 
 /// Best call with Woolsey forced on (default ranges) and the conflicting
-/// overlay off, independent of any other test on this thread.  Resets the
-/// system cell afterward so it cannot leak into a non-Woolsey test.
+/// overlay off, independent of any other test.
 fn woolsey(auction: &[Call], hand: &str) -> (Call, bool) {
-    set_woolsey_points(9, 19);
-    set_woolsey_double_floor(11);
-    set_notrump_defense(NotrumpDefense::Woolsey);
     // The additive both-minors `2NT` is off for this arm so it cannot outrank
     // a Woolsey call.
-    let mut arm = Agreements::current();
+    let mut arm = Agreements::default();
+    arm.decision.reading.woolsey_points = (9, 19);
+    arm.decision.reading.woolsey_double_floor = 11;
+    arm.decision.reading.notrump_defense = NotrumpDefense::Woolsey;
     arm.defense.unusual_notrump_range = None;
-    let result = best_call_with(&arm, auction, hand);
-    set_notrump_defense(NotrumpDefense::Natural);
-    result
+    best_call_with(&arm, auction, hand)
 }
 
 #[test]

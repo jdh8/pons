@@ -676,6 +676,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Seeded `smoke-default` / `smoke-dutch` dumps (20 000 boards each) are
   byte-identical, and `cards/*.bbsa` regenerate unchanged.
 
+- **The reading profile is a value: its last twenty-four cells are gone, and so
+  is `reading_profile()`.**  The fields `constraint.rs`, `instinct.rs` and
+  `american/*` sourced — the point scale and support-point scale, the strength
+  dial, Rubens advances, the penalty latch, the floor's keycard ask and its
+  relocation variant, the two 1NT-overcall gates, the `1NT`-`3M` splinter, the
+  opener-extras ladder, XYZ, the 1NT minor scheme, the opener major jump rebid,
+  garbage and crawling Stayman, the Woolsey band and its double floor, the
+  natural double floor and overcall band, the longer-major response, the Landy
+  range, the notrump-defense family and the wide `2NT` opening — now travel in
+  `agreements.decision.reading` like the other nineteen.  `reading_profile()`
+  had nothing left to snapshot and is deleted; the handful of bare-context and
+  convenience readers it served take `ReadingProfile::default()`.
+
+  Four book builders read one of these at *build* time and now take it off the
+  `&Agreements` they already hold: the wide `2NT` shape, the longer-major
+  response, and both RKCB rule-presence gates (`relocation` became a function
+  of an explicit `ReadingProfile` rather than a thread read).  `point_count`,
+  `support_point_count`, `support_point_count_in` and `features::box_hcp_mask`
+  are public conveniences with classify-time twins, so each now names the
+  shipped default it serves.
+
+  **Watch for this when authoring:** `set_landy(Some(range))` used to write
+  `woolsey_points` as a side effect, because Landy's `2♣` and Woolsey's are the
+  same call on one strength band.  As fields the two are independent, so a
+  harness arming Landy must set both — every existing site does, and
+  `examples/ab-landy` and `bba-gen` deliberately override the band afterwards,
+  which is why the coupling could not simply move into the builder.
+
+  **Breaking:** the twenty-four `set_*` functions and their getters are gone,
+  including `pons::bidding::american::{set_notrump_defense, set_landy,
+  set_xyz, set_garbage_stayman, set_notrump_minors}`,
+  `pons::bidding::constraint::{set_point_scale, set_support_points,
+  set_strength_dial}` and `pons::bidding::instinct::{set_floor_rkcb,
+  set_rkcb_variant, set_penalty_latch, set_rubens_advances}`.
+
+  Seeded `smoke-default` / `smoke-dutch` dumps (20 000 boards each) are
+  byte-identical, and `cards/*.bbsa` regenerate unchanged.  Seventeen bidding
+  thread-locals remain, down from ninety-one.
+
 - **Nineteen reading knobs are fields, not thread-locals.**  The half of
   `ReadingProfile` that `inference/knobs.rs` owned outright loses its cells:
   the reading scope, the fallback projection, the envelope-union reading and

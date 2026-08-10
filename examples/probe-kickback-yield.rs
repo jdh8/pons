@@ -39,16 +39,17 @@ use contract_bridge::auction::Auction;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat, Suit};
 use pons::american_instinct;
 use pons::bidding::Stance;
-use pons::bidding::instinct::{RkcbVariant, keycard_ask_at, set_rkcb_variant};
+use pons::bidding::instinct::{RkcbVariant, keycard_ask_at};
 use rayon::prelude::*;
 
-/// Arm the probe's regime: the full ladder or plain 4NT, never Redwood.
-fn arm_kickback(on: bool) {
-    set_rkcb_variant(if on {
+fn agreements(on: bool) -> pons::bidding::agreements::Agreements {
+    let mut agreements = pons::bidding::agreements::Agreements::current();
+    agreements.decision.reading.rkcb_variant = if on {
         RkcbVariant::Kickback
     } else {
         RkcbVariant::Plain
-    });
+    };
+    agreements
 }
 
 #[path = "common/mod.rs"]
@@ -155,12 +156,7 @@ fn main() {
     let args = Args::parse();
     // One stance per arm: the knob gates rule presence, so an off-arm stance
     // built with it on would carry alerted rungs that erase natural readings.
-    let arm = |kickback| {
-        arm_kickback(kickback);
-        let built = american_instinct(&pons::bidding::agreements::Agreements::current()).against();
-        arm_kickback(true);
-        built
-    };
+    let arm = |kickback| american_instinct(&agreements(kickback)).against();
     let (on, off) = (arm(true), arm(false));
     let deals = seeded_deals(args.seed, args.count);
 
@@ -181,10 +177,10 @@ fn main() {
             let plain = bid_out(&off, deal, dealer, vul);
             let rows = divergent_rows(&auction, &plain);
 
-            arm_kickback(true);
             let calls: Vec<_> = auction.iter().copied().collect();
+            let profile = agreements(true).decision.reading;
             let non_spade = (0..calls.len())
-                .find_map(|at| keycard_ask_at(&calls, at))
+                .find_map(|at| keycard_ask_at(profile, &calls, at))
                 .map(|(_, suit, _)| suit)
                 .filter(|&suit| suit != Suit::Spades);
             if let Some(suit) = non_spade {

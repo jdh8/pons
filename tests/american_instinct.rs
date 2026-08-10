@@ -98,13 +98,18 @@ fn test_deep_contested_auction_is_covered() {
 // these three enable it explicitly; the knob-off default is pinned by
 // `rubens_disabled_reverts_to_natural_advances` in `instinct.rs`.
 
+fn rubens_stance() -> Stance {
+    let mut agreements = pons::bidding::agreements::Agreements::current();
+    agreements.decision.reading.rubens_advances = true;
+    american(&agreements).against()
+}
+
 /// `(1♣) 1♠ -`: advancing with our own five-card diamond suit and a good 9
 /// (10+ upgraded points) transfers — 2♣ shows diamonds.  Reaches the floor now
 /// that the book authors no `advances`.
 #[test]
 fn test_rubens_new_suit_transfer_through_system() {
-    pons::bidding::instinct::set_rubens_advances(true);
-    let system = stance();
+    let system = rubens_stance();
     assert_eq!(
         best_call(
             &system,
@@ -119,8 +124,7 @@ fn test_rubens_new_suit_transfer_through_system() {
 /// suit — 2♥, not a direct 2♠.
 #[test]
 fn test_rubens_limit_raise_through_system() {
-    pons::bidding::instinct::set_rubens_advances(true);
-    let system = stance();
+    let system = rubens_stance();
     assert_eq!(
         best_call(
             &system,
@@ -153,8 +157,7 @@ fn test_rubens_preemptive_raise_through_system() {
 /// (2♠) is the limit-plus club raise.
 #[test]
 fn test_rubens_cue_raise_through_system() {
-    pons::bidding::instinct::set_rubens_advances(true);
-    let system = stance();
+    let system = rubens_stance();
     assert_eq!(
         best_call(
             &system,

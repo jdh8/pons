@@ -81,33 +81,18 @@ mod xyz;
 pub use competition::{
     Competitive4333, DoubleStyle, FreeBidStyle, LebensohlStyle, NegativeDoubleShape, competition,
 };
-// Knobs the inference walk reads at classify time.
 pub use defense::{
     DoubleShape, NotrumpDefense, TakeoutSupport, advance_double, defense_to_suit,
-    defense_to_weak_two, set_landy, set_natural_double_floor, set_natural_overcall_points,
-    set_notrump_defense, set_nt_overcall_gladiator, set_nt_overcall_systems_on,
-    set_woolsey_double_floor, set_woolsey_points,
-};
-pub(crate) use defense::{
-    direct_dont_enabled, landy_range, meckwell_enabled, natural_defense_enabled,
-    natural_double_floor, natural_overcall_points, nt_overcall_systems_on, woolsey_double_floor,
-    woolsey_enabled, woolsey_points,
+    defense_to_weak_two,
 };
 pub use notrump::{
-    EUROPEAN, PUPPET, SizeAskEight, notrump_responses, set_crawling_stayman, set_garbage_stayman,
-    set_notrump_minors, set_nt_splinter, set_stayman_net_force, set_transfer_gf_hearts,
-    set_transfer_gf_majors,
+    EUROPEAN, PUPPET, SizeAskEight, notrump_responses, set_stayman_net_force,
+    set_transfer_gf_hearts, set_transfer_gf_majors,
 };
 pub(crate) use openings::notrump_shape;
-pub(crate) use openings::two_notrump_wide;
-pub use openings::{NotrumpShape, WeakTwoEval, openings, openings_with, set_two_notrump_wide};
+pub use openings::{NotrumpShape, WeakTwoEval, openings, openings_with};
 
-pub(crate) use rebids::{opener_extras_ladder, opener_major_jump_rebid};
-pub use rebids::{set_opener_extras_ladder, set_opener_major_jump_rebid};
-pub(crate) use responses::longer_major_response;
-pub use responses::{TwoOverOneGate, major_responses, minor_responses, set_longer_major_response};
-pub use xyz::set_xyz;
-pub(crate) use xyz::xyz;
+pub use responses::{TwoOverOneGate, major_responses, minor_responses};
 
 // ---------------------------------------------------------------------------
 // Assembly
@@ -357,12 +342,6 @@ pub(in crate::bidding) fn book(agreements: &Agreements) -> Pair {
 
 #[cfg(test)]
 mod tests;
-pub use defense::notrump_defense;
-pub use defense::nt_overcall_gladiator;
-pub use notrump::crawling_stayman;
-pub use notrump::garbage_stayman;
-pub use notrump::notrump_minors;
-pub use notrump::nt_splinter;
 pub(crate) use notrump::stayman_net_force;
 pub use notrump::transfer_gf_hearts;
 pub use notrump::transfer_gf_majors;

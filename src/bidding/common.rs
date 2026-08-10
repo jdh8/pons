@@ -76,8 +76,8 @@ pub(in crate::bidding) fn fallback_all_seats(
 ///
 /// `ladder` is a parameter rather than a fresh [`instinct()`] because the
 /// contested floor needs the *same* one: [`ConfiguredFloorBba`] delegates forced
-/// situations to it, and [`instinct()`] itself reads build-time knobs
-/// (`relocating_now()` picks the kickback keycard ladder over the plain one).
+/// situations to it, and [`instinct()`] itself reads the pinned profile at
+/// build time (its RKCB fields pick the kickback ladder over the plain one).
 /// Two independent builds could disagree; one `Arc` cannot.
 fn with_floors(mut pair: Pair, ladder: &Arc<Rules>, contested: Fallback) -> Pair {
     pair.competitive.fallback_at(&[], Always, contested.clone());

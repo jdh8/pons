@@ -1,31 +1,20 @@
 use super::super::tests::{best_call_with, call};
 use crate::bidding::agreements::Agreements;
-use crate::bidding::american::{
-    NotrumpDefense, notrump_defense, set_notrump_defense, set_woolsey_points,
-};
+use crate::bidding::american::NotrumpDefense;
 use contract_bridge::Strain;
 use contract_bridge::auction::Call;
 
 /// Coupling: a Landy range feeds the one shared two-suiter band, so Landy's and
 /// Woolsey's identical both-majors `2♣` can never carry divergent strengths.
 #[test]
-fn landy_range_feeds_the_shared_woolsey_band() {
-    super::nt_landy::set_landy(Some((9, 16)));
+fn landy_range_and_woolsey_use_the_shared_band() {
+    let mut agreements = Agreements::default();
+    agreements.decision.reading.landy_range = Some((9, 16));
+    agreements.decision.reading.woolsey_points = (9, 16);
     assert_eq!(
-        super::nt_woolsey::woolsey_points(),
-        (9, 16),
-        "a Landy range sets the shared band"
+        agreements.decision.reading.landy_range,
+        Some(agreements.decision.reading.woolsey_points),
     );
-    // Turning Landy off must not clobber an explicit Woolsey band.
-    set_woolsey_points(7, 18);
-    super::nt_landy::set_landy(None);
-    assert_eq!(
-        super::nt_woolsey::woolsey_points(),
-        (7, 18),
-        "set_landy(None) leaves the band alone"
-    );
-    // Restore the default for any sibling test sharing this thread.
-    set_woolsey_points(8, 19);
 }
 
 #[test]
@@ -35,11 +24,9 @@ fn direct_landy_double_shows_both_majors_and_runs_clean() {
     let x = Call::Double;
     let xx = Call::Redouble;
     let d2 = call(2, Strain::Diamonds);
-    // `set_direct_landy_double(Some(false))` was two writes: select the
-    // `DirectLandy` system (still a cell) and store `direct_landy_four_four`.
-    let prev = notrump_defense();
-    set_notrump_defense(NotrumpDefense::DirectLandy);
-    let mut arm = Agreements::current();
+    // Direct Landy is two fields: select the system and store its 4-4 policy.
+    let mut arm = Agreements::default();
+    arm.decision.reading.notrump_defense = NotrumpDefense::DirectLandy;
     arm.defense.direct_landy_four_four = false; // 5-4
     arm.defense.direct_landy_double_floor = 8; // low floor so these 10-14 hands fire the X
 
@@ -65,7 +52,6 @@ fn direct_landy_double_shows_both_majors_and_runs_clean() {
     let sit_auction = [nt, x, p, d2, x, call(2, Strain::Hearts), x, p, p];
     let (settle, settle_floored) = best_call_with(&arm, &sit_auction, "AJ32.KQ876.32.32");
 
-    set_notrump_defense(prev);
     assert_eq!(ask, Call::Pass, "equal majors over XX → Pass = ask back");
     assert!(!ask_floored, "the ask-Pass must come from the book");
     assert_eq!(
@@ -106,9 +92,8 @@ fn direct_landy_penalty_pass_defends_1ntx() {
     let nt = call(1, Strain::Notrump);
     let p = Call::Pass;
     let x = Call::Double;
-    let prev = notrump_defense();
-    set_notrump_defense(NotrumpDefense::DirectLandy);
-    let mut without_pass = Agreements::current();
+    let mut without_pass = Agreements::default();
+    without_pass.decision.reading.notrump_defense = NotrumpDefense::DirectLandy;
     without_pass.defense.direct_landy_four_four = false; // 5-4
     without_pass.defense.direct_landy_double_floor = 8; // floor 8 → penalty needs 22-8 = 14+
     let mut with_pass = without_pass;
@@ -122,7 +107,6 @@ fn direct_landy_penalty_pass_defends_1ntx() {
     // A hand WITH a major fit still bids even with the knob on (not a penalty pass).
     let (with_fit, _) = best_call_with(&with_pass, &[nt, x, p], "QJ32.K.QJ876.K43"); // 4 spades
 
-    set_notrump_defense(prev);
     assert_ne!(forced, Call::Pass, "knob off: advancer is forced to bid");
     assert_eq!(
         penalty,

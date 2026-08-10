@@ -34,18 +34,14 @@ use super::*;
 
 /// Which mutually-exclusive defense our side plays over the opponents' 1NT opening
 ///
-/// Exactly one system is active at a time.  Storing the choice in a single `Cell`
+/// Exactly one system is active at a time. Storing the choice in a single field
 /// makes the old "two families authored at once" state — previously possible with
 /// the independent `NATURAL_DEFENSE` / `DIRECT_DONT` / `MECKWELL` / `WOOLSEY` /
 /// `ALWAYS_PASS_DEFENSE` booleans and resolved only by a read-time precedence
-/// cascade — unrepresentable.  Read once at book-construction time.
-///
-/// [`set_notrump_defense`] is the only setter.  The five per-system bool shims
-/// that survived the original fold were deleted 2026-08-03: their `false` arms
-/// reverted to Natural *only if that system was the active one*, so a harness
-/// resetting by calling every `set_*(false)` got an order-dependent result — and
-/// keeping them let `bba-gen` and `ab-landy` re-implement the very cascade this
-/// cell deleted.  The `DirectLandy` payload rides on
+/// cascade — unrepresentable. The five per-system bool shims that survived the
+/// original fold were deleted 2026-08-03: their `false` arms reverted to Natural
+/// *only if that system was the active one*, so a harness resetting by calling
+/// every setter got an order-dependent result. The `DirectLandy` payload rides on
 /// `agreements.defense.direct_landy_four_four`, since the flat-4-4 flag has no
 /// meaning without the double it configures.
 #[derive(Clone, Copy, PartialEq, Eq, Default, Debug)]
@@ -69,23 +65,6 @@ pub enum NotrumpDefense {
     /// Author nothing; the `(1NT)` node falls through to the bare instinct floor
     /// (what selecting this variant gives: no authored rules at the `(1NT)` node).
     Off,
-}
-
-thread_local! {
-    /// The mutually-exclusive 1NT defense in force; **[`Natural`](NotrumpDefense::Natural)
-    /// by default**.
-    static NOTRUMP_DEFENSE: Cell<NotrumpDefense> = const { Cell::new(NotrumpDefense::Natural) };
-}
-
-/// Select the mutually-exclusive 1NT defense for books built *after* this call
-/// (thread-local, read once at book-construction time)
-pub fn set_notrump_defense(system: NotrumpDefense) {
-    NOTRUMP_DEFENSE.with(|cell| cell.set(system));
-}
-
-/// The mutually-exclusive 1NT defense currently selected
-pub fn notrump_defense() -> NotrumpDefense {
-    NOTRUMP_DEFENSE.with(Cell::get)
 }
 
 /// Whether the natural one-suiter defense is currently the active system

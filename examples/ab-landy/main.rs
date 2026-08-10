@@ -1,7 +1,7 @@
 //! Landy defense to their 1NT A/B, **contested**, plain-DD duplicate (the A/B
 //! standard `ns_score_contract`).
 //!
-//! Landy (`set_landy`) turns `2♣` into both majors (at least 5-4) and `2NT` into
+//! Landy (`ReadingProfile::landy_range`) turns `2♣` into both majors (at least 5-4) and `2NT` into
 //! both minors over an opponent's 1NT, replacing the natural `2♣` club overcall.
 //! The measured pair carries Landy on the configured points range; the baseline
 //! pair keeps today's default (natural overcalls + penalty double, Landy off).
@@ -34,11 +34,8 @@ use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, Bid, Contract, FullDeal, Hand, Seat, Strain, Suit};
 use pons::american;
-use pons::bidding::american::{
-    DoubleShape, NotrumpDefense, notrump_defense, set_landy, set_notrump_defense,
-    set_woolsey_double_floor, set_woolsey_points,
-};
-use pons::bidding::instinct::{LatchStyle, set_doubler_xx_runout, set_penalty_latch};
+use pons::bidding::american::{DoubleShape, NotrumpDefense};
+use pons::bidding::instinct::{LatchStyle, set_doubler_xx_runout};
 use pons::scoring::{final_contract, ns_score_bid, ns_score_contract};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -435,18 +432,11 @@ fn main() {
             maj.parse::<usize>().expect("MAJ is a number"),
         )
     };
-    // The latch is a reading knob, captured into a stance at build, so it is set
-    // before *both* books — as the single thread-local it replaces was.  It
-    // fires only for the side that made the penalty X, the measured pair, so
-    // arming the baseline too leaves the baseline unmoved.
-    set_penalty_latch(ns_penalty_latch);
-    set_landy(None);
-    set_notrump_defense(ew_defense);
     set_doubler_xx_runout(false);
-    // The defensive knobs are fields of the value now; the Landy range, the
-    // notrump-defense family and the Woolsey band are still ambient cells, so
-    // each arm captures *after* its own writes and spells its fields out.
     let mut baseline_arm = pons::bidding::agreements::Agreements::current();
+    baseline_arm.decision.reading.penalty_latch = ns_penalty_latch;
+    baseline_arm.decision.reading.landy_range = None;
+    baseline_arm.decision.reading.notrump_defense = ew_defense;
     baseline_arm.decision.instinct.latch_style = ns_latch_style;
     baseline_arm.competition.penalty_pass = ew_penalty_pass;
     baseline_arm.defense.unusual_notrump_range = None;
@@ -455,28 +445,20 @@ fn main() {
     baseline_arm.defense.direct_landy_double_floor = 15;
     baseline_arm.defense.direct_landy_penalty_pass = false;
     let baseline = american(&baseline_arm).against();
-    // One write picks the measured system; the two forced-off blocks this
-    // replaced ("DONT owns 2♣/2NT", "Woolsey owns every direct call") were the
-    // read-time precedence cascade the `NotrumpDefense` cell exists to delete.
-    // The Landy/Unusual overlays stay set: the engine honours them only under
-    // `natural`/`off`, so a conventional family leaves them inert by itself.
-    set_notrump_defense(ns_defense);
-    set_landy(majors);
-    // The family half of `--ns-landy-x-four-four`: a `Some` payload picks Direct
-    // Landy, a `None` drops a Direct-Landy selection back to natural and leaves
-    // every other family alone.  Its shape half is the
-    // `defense.direct_landy_four_four` field written onto the capture below.
-    match ns_landy_x {
-        Some(_) => set_notrump_defense(NotrumpDefense::DirectLandy),
-        None if notrump_defense() == NotrumpDefense::DirectLandy => {
-            set_notrump_defense(NotrumpDefense::Natural);
-        }
-        None => {}
-    }
     set_doubler_xx_runout(ns_doubler_run);
-    set_woolsey_points(woolsey_range.0, woolsey_range.1);
-    set_woolsey_double_floor(args.ns_woolsey_x_floor);
     let mut measured_arm = pons::bidding::agreements::Agreements::current();
+    measured_arm.decision.reading.penalty_latch = ns_penalty_latch;
+    // Preserve the family half of `--ns-landy-x-four-four`: a payload selects
+    // Direct Landy, while an absent payload drops an explicit Direct-Landy
+    // family selection back to Natural and leaves every other family alone.
+    measured_arm.decision.reading.notrump_defense = match ns_landy_x {
+        Some(_) => NotrumpDefense::DirectLandy,
+        None if ns_defense == NotrumpDefense::DirectLandy => NotrumpDefense::Natural,
+        None => ns_defense,
+    };
+    measured_arm.decision.reading.landy_range = majors;
+    measured_arm.decision.reading.woolsey_points = woolsey_range;
+    measured_arm.decision.reading.woolsey_double_floor = args.ns_woolsey_x_floor;
     measured_arm.decision.instinct.latch_style = ns_latch_style;
     measured_arm.competition.penalty_pass = ns_penalty_pass;
     measured_arm.defense.unusual_notrump_range = if ns_defense == NotrumpDefense::DirectDont {

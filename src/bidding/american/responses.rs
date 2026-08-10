@@ -5,7 +5,7 @@
 //! | Module | Agreement | Knob |
 //! | --- | --- | --- |
 //! | [`two_over_one`] | major-suit 2/1 fit split, entry gate, and suit-length treatments | [`ResponseKnobs::two_over_one_fit`], [`ResponseKnobs::two_over_one_gate`], [`ResponseKnobs::two_over_one_natural_lengths`], [`ResponseKnobs::two_over_one_major_discount`], [`ResponseKnobs::two_over_one_heart_light`] |
-//! | [`longer_major`] | longer-major selection and the up-the-line minor-opening tree | [`set_longer_major_response`], [`ResponseKnobs::up_the_line`] |
+//! | [`longer_major`] | longer-major selection and the up-the-line minor-opening tree | [`longer_major_response`][field@crate::bidding::inference::ReadingProfile::longer_major_response], [`ResponseKnobs::up_the_line`] |
 //! | [`choice_of_games`] | `1M - 3NT` choice of games | [`ResponseKnobs::major_choice_of_games`] |
 //! | [`inverted_minor`] | inverted-minor continuation tree | always on |
 
@@ -33,8 +33,6 @@ use two_over_one::with_two_over_one;
 
 pub(super) use choice_of_games::choice_of_games_continuations;
 pub(super) use inverted_minor::minor_keycard_continuations;
-pub(crate) use longer_major::longer_major_response;
-pub use longer_major::set_longer_major_response;
 pub use two_over_one::TwoOverOneGate;
 
 /// Jacoby 2NT — the game-forcing major raise with four-card support

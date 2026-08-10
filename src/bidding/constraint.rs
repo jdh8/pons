@@ -1163,14 +1163,14 @@ pub enum FifthsCompanion {
     Bumrap,
 }
 
-/// Which scale the global [`point_count`] evaluates on the current thread —
-/// and with it every [`points`] gate, the constrained sampler's acceptance,
-/// and the floor's combined counts, all at once
+/// Which scale pinned bidding decisions use for point counts
 ///
 /// The point-scale deprecation A/B/C: the arms swap the scalar wholesale so a
 /// candidate side's gates, projections, and sampling stay denominated in one
 /// scale — the gates-vs-sampler confound of swapping [`points`] alone cannot
-/// arise.  Authored ranges are untouched; only their gauge moves.
+/// arise. Authored ranges are untouched; only their gauge moves. The public
+/// [`point_count`] convenience uses the shipped default; bidding paths use the
+/// field on their pinned [`ReadingProfile`].
 #[doc(hidden)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PointScale {
@@ -1190,21 +1190,6 @@ pub enum PointScale {
 }
 
 std::thread_local! {
-    /// The scale [`point_count`] evaluates (the point-scale A/B knob).
-    /// **Default [`PointScale::PointCount`]** — raw HCP plus the capped
-    /// shape [`upgrade`] (0-2: +1 unbalanced, +1 for a ten-card two-suiter,
-    /// −1 per wasted short honor).  History: the deprecation A/B/C once deposed
-    /// this legacy scale for rule of N+8, but that was against the *cliff*
-    /// upgrade (first wasted honor voided the whole bonus); linearising
-    /// [`upgrade`] flipped the verdict back — vs rule-of-N+8-floored, PointCount
-    /// measured plain-DD wash both vuls and **PD +0.023 NV / +0.037 vul** (two
-    /// disjoint ~90k-board/vul seeds, deterministic floor so the CI is the whole
-    /// error budget; no retrain — the net consumes `upgrade` directly, scale-free).
-    /// The capped shape reads wild two-suiters/freaks lighter than N+8's
-    /// bonus-of-5, cutting the overbids PD punishes.  Rule of N+8 is now the
-    /// opt-out: `set_point_scale(PointScale::RuleOfNFloored)` (and
-    /// `PointScale::Hcp` for raw HCP).
-    static POINT_SCALE: Cell<PointScale> = const { Cell::new(PointScale::PointCount) };
     /// Whether [`fifths`] evaluates Fifths rather than raw HCP.  Default **off**:
     /// the Fifths NT-gauge measured a clean net loss vs raw HCP in the A6 audit
     /// (self-play plain −0.012/−0.018 NV/vul, PD alike, CIs excluding 0), and it
@@ -1213,51 +1198,13 @@ std::thread_local! {
     static FUZZY_FIFTHS: Cell<bool> = const { Cell::new(false) };
     /// The honor count averaged with Fifths in [`fifths`] (BUM-RAP won the A/B)
     static FIFTHS_COMPANION: Cell<FifthsCompanion> = const { Cell::new(FifthsCompanion::Bumrap) };
-    /// Whether [`support_points`] gauges the `hcp_plus`-based scale (HCP plus
-    /// useful shortness, after BBO GIB) instead of the legacy
-    /// raw-HCP-plus-[`upgrade`] [`point_count`]. **Default on.** Shortness is a
-    /// ruffing value, real only once a trump fit exists, so the scale is scoped
-    /// to the **fit-known** gates only ([`support_points`], never the global
-    /// [`point_count`]) — the fit-unknown gates keep legacy [`points`] untouched.
-    /// A measured win on every scorer (`examples/ab-point-count`, 200k–500k
-    /// boards/vul): plain DD +0.033/+0.054, perfect defense +0.005/+0.020,
-    /// sd-lead +0.052 (NV/vul) — all CIs clearing zero.  The unscoped global
-    /// flip won bigger (sd-lead +0.28) but broke legacy gates on shaped hands
-    /// before a fit; this captures the fit-known fraction without that
-    /// regression.  `set_support_points(false)` is the A/B off arm.
-    static SUPPORT_POINTS: Cell<bool> = const { Cell::new(true) };
-    /// Antisymmetric strength adjustment for a simulated natural bidder.
-    /// **Default 0** — byte-identical to the authored card.  Openings and
-    /// overcalls are this many points lighter; responses and advances are this
-    /// many points heavier.  Captured by strength gauges at book construction.
-    ///
-    /// Projection deliberately keeps disclosing the undialled authored
-    /// meanings: that mismatch is the simulated deviation being measured.
-    static STRENGTH_DIAL: Cell<u8> = const { Cell::new(0) };
-}
-
-/// Select the global point-count scale on the current thread (see
-/// [`PointScale`])
-///
-/// For A/B measurement only: the scale is read at classification time by
-/// [`point_count`] — and therefore by every [`points`] gate, the constrained
-/// sampler, and the floor's combined counts together — and is per-thread;
-/// classify on the thread that set it.
-#[doc(hidden)]
-pub fn set_point_scale(scale: PointScale) {
-    POINT_SCALE.with(|cell| cell.set(scale));
-}
-
-/// The point scale active on the current classification thread
-pub(crate) fn point_scale() -> PointScale {
-    POINT_SCALE.with(Cell::get)
 }
 
 /// Enable or disable [`fifths`] alone
 ///
 /// For A/B measurement only, read at classification time, per-thread; classify
 /// on the thread that set it.  The `points` half of the old "fuzzy strength"
-/// umbrella is [`set_point_scale`] — the umbrella and its bool `points` wrapper
+/// umbrella is [`point_scale`][field@ReadingProfile::point_scale] — the umbrella and its bool `points` wrapper
 /// were deleted 2026-08-03: one wrote *two* sibling cells (so flipping it
 /// silently moved a knob the caller never named), and the other was a bool over
 /// a three-valued scale, unable to name [`PointScale::RuleOfNFloored`] and
@@ -1273,14 +1220,6 @@ pub fn set_fifths_companion(companion: FifthsCompanion) {
     FIFTHS_COMPANION.with(|cell| cell.set(companion));
 }
 
-/// Enable or disable the `hcp_plus`-based [`support_points`] scale on the
-/// current thread. **Default on** (the shipped fit-known shortness scale);
-/// `false` is the A/B off arm that gauges legacy [`point_count`] instead.
-#[doc(hidden)]
-pub fn set_support_points(enabled: bool) {
-    SUPPORT_POINTS.with(|flag| flag.set(enabled));
-}
-
 /// The [`set_fuzzy_fifths`] knob active on this thread
 pub(crate) fn fuzzy_fifths_now() -> bool {
     FUZZY_FIFTHS.with(Cell::get)
@@ -1289,41 +1228,6 @@ pub(crate) fn fuzzy_fifths_now() -> bool {
 /// The [`set_fifths_companion`] choice active on this thread
 pub(crate) fn fifths_companion_now() -> FifthsCompanion {
     FIFTHS_COMPANION.with(Cell::get)
-}
-
-/// The [`set_support_points`] knob active on this thread
-pub(crate) fn support_points_now() -> bool {
-    SUPPORT_POINTS.with(Cell::get)
-}
-
-/// Set the antisymmetric strength adjustment for stances subsequently pinned on
-/// the current thread (**default 0**, measurement only)
-///
-/// The deviation panel's B axis (docs/deviation-panel.md): a simulated natural
-/// bidder whose openings and overcalls are `dial` points lighter and whose
-/// responses and advances are `dial` points heavier.  The antisymmetry is the
-/// point — pair-level calibration is preserved, so the partnership still stops
-/// in the same places and every authored continuation stays coherent.
-///
-/// Pinned into the stance at [`Pair::against`][super::Pair::against] like every
-/// other gauge setting, so the idiom is unchanged: set it, build the deviant
-/// pair, reset.  It used to be captured when each *gauge* was built, because
-/// before the pin campaign a classify-time read would have leaked the dial into
-/// the book seated opposite on the same thread; a stance now carries its own
-/// `ReadingProfile`, so the two seats
-/// cannot see each other's dial.  The magnitude is all that is read here — the
-/// direction is chosen per decision from the auction (`dial_shift`).
-///
-/// Projections stay undialled either way: the dial appears only in
-/// [`Constraint::eval`], never in the reading folds, so the deviant opponent
-/// keeps disclosing the authored meanings and that mismatch is the deviation
-/// being measured.
-pub fn set_strength_dial(dial: u8) {
-    STRENGTH_DIAL.with(|cell| cell.set(dial));
-}
-
-pub(crate) fn strength_dial() -> u8 {
-    STRENGTH_DIAL.with(Cell::get)
 }
 
 /// Direction in which the strength dial moves a measured value
@@ -1603,14 +1507,14 @@ fn longest_two_suits(hand: Hand) -> u8 {
 /// value rather than a range — constrained sampling, for one — shares this
 /// single definition so it can never drift from the ranges it checks against,
 /// and [`points`] gauges it directly so the two can never disagree.
-/// [`set_point_scale`] swaps the scale wholesale — gates, sampler, and floor
-/// together — for the point-scale A/B; the fit-known shortness scale rides on
-/// [`support_point_count`] instead.
+/// [`point_scale`][field@ReadingProfile::point_scale] swaps the scale wholesale — gates, sampler,
+/// and floor together — for the point-scale A/B; the fit-known shortness scale
+/// rides on [`support_point_count`] instead.
 ///
 /// [`Inferences`]: super::inference::Inferences
 #[must_use]
 pub fn point_count(hand: Hand) -> u8 {
-    point_count_on(point_scale(), hand)
+    point_count_on(ReadingProfile::default().point_scale, hand)
 }
 
 /// [`point_count`] on an explicit scale — what every classify-time caller uses,
@@ -1746,9 +1650,10 @@ pub fn points(range: impl RangeBounds<u8> + Clone + Send + Sync) -> Cons<impl Co
     Cons(Points { range })
 }
 
-/// The **suit-blind** support scalar: [`point_count`] on the fit-known
-/// shortness scale when [`set_support_points`] is on, else legacy
-/// [`point_count`]
+/// The **suit-blind** support scalar under the shipped default
+/// [`ReadingProfile`]: [`point_count`] on the fit-known shortness scale when
+/// [`support_points`][field@ReadingProfile::support_points] is on, else legacy
+/// [`point_count`].
 ///
 /// Superseded by [`support_point_count_in`] at every gate that knows its
 /// trump statically — this sums `hcp_plus` over *all four* suits, crediting
@@ -1758,7 +1663,8 @@ pub fn points(range: impl RangeBounds<u8> + Clone + Send + Sync) -> Cons<impl Co
 /// diagnostic probes.
 #[must_use]
 pub fn support_point_count(hand: Hand) -> u8 {
-    support_point_count_on(support_points_now(), point_scale(), hand)
+    let reading = ReadingProfile::default();
+    support_point_count_on(reading.support_points, reading.point_scale, hand)
 }
 
 /// [`support_point_count`] on explicit scales (see [`point_count_on`])
@@ -1783,11 +1689,13 @@ pub(crate) fn support_point_count_on(support: bool, scale: PointScale, hand: Han
 /// `support_point_count(hand)`; the scales diverge only on a short trump
 /// holding, where the suit-blind scale wrongly counted ruffing shortness *in
 /// trump* — a doubleton reads a point lower here, a stiff two.  Under
-/// [`set_support_points`]`(false)` (the historical A/B off arm) it falls back
-/// to legacy [`point_count`], which counts no shortness anywhere.
+/// [`support_points`][field@ReadingProfile::support_points] `false` (the historical
+/// A/B off arm) it falls back to legacy [`point_count`], which counts no
+/// shortness anywhere.
 #[must_use]
 pub fn support_point_count_in(hand: Hand, trump: Suit) -> u8 {
-    support_point_count_in_on(support_points_now(), point_scale(), hand, trump)
+    let reading = ReadingProfile::default();
+    support_point_count_in_on(reading.support_points, reading.point_scale, hand, trump)
 }
 
 /// [`support_point_count_in`] on explicit scales (see [`point_count_on`])

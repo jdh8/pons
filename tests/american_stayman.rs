@@ -213,21 +213,15 @@ fn smolen_works_at_the_two_notrump_level() {
 
 // --- Stayman treatments (garbage, opener's max-showing answers) --------------
 //
-// Garbage Stayman is still a thread-local read at book-construction time, so it
-// is set here and restored to the library default before asserting (the book is
-// already captured) so a reused worker thread cannot leak into a `stance()` test
-// that expects the defaults.  The two max-showing answers are fields of the
-// captured agreements and need no restore.  Defaults: garbage on, both-majors
+// All three values are fields of the captured agreements. Defaults: garbage on, both-majors
 // on, five-card-max on.
 
 fn stance_with(garbage: bool, both_majors: bool, five_card_max: bool) -> Stance {
-    pons::bidding::american::set_garbage_stayman(garbage);
     let mut agreements = pons::bidding::agreements::Agreements::current();
+    agreements.decision.reading.garbage_stayman = garbage;
     agreements.notrump.stayman_both_majors = both_majors;
     agreements.notrump.stayman_5card_max = five_card_max;
-    let system = american(&agreements).against();
-    pons::bidding::american::set_garbage_stayman(true);
-    system
+    american(&agreements).against()
 }
 
 // --- Max-only both-majors relay (2NT = 16-17, 3♣/3♦ name responder's major) --

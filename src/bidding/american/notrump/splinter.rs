@@ -1,7 +1,9 @@
 //! The `1NT` splinter — `3♥`/`3♠` showing shortness with a minor
 //!
 //! Responder jumps to the *short* major, agreeing clubs or diamonds with slam
-//! interest.  Gated by [`set_nt_splinter`], with its own HCP floor
+//! interest. Gated by
+//! [`nt_splinter`][crate::bidding::inference::ReadingProfile::nt_splinter],
+//! with its own HCP floor
 //! ([`NotrumpKnobs::nt_splinter_floor`][crate::bidding::agreements::NotrumpKnobs::nt_splinter_floor]).
 
 use super::transfer_gf::splinter_short;
@@ -44,7 +46,9 @@ use super::*;
 /// `docs/ai-bidder/bba-1nt-splinter.md` for the measured read of it.
 ///
 /// On by default since 2026-07-28, its A/B (`examples/ab-nt-splinter`) having
-/// won in all four cells; see [`set_nt_splinter`] for the measured numbers.
+/// won in all four cells; see
+/// [`nt_splinter`][crate::bidding::inference::ReadingProfile::nt_splinter] for
+/// the measured numbers.
 pub(super) fn nt_splinter_rules(agreements: &Agreements) -> Rules {
     if !agreements.decision.reading.nt_splinter() {
         return Rules::new();
@@ -116,47 +120,6 @@ fn nt_splinter_answer(short: Suit) -> Rules {
         // Finite catch-all: no guard, no fit (a 4-4 major hand with a doubleton
         // club and three diamonds) — take the nine-trick game anyway.
         .rule(Bid::new(3, Strain::Notrump), 50, hcp(0..))
-}
-
-thread_local! {
-    /// Whether responder's `3♥`/`3♠` splinter over 1NT is authored, read once at
-    /// book-construction time (and by the inference engine, to decode it).
-    /// **On by default** since 2026-07-28: 5M boards per vulnerability, win in
-    /// all four cells (+0.56/+0.67 IMPs per fired board at none, +0.69/+0.81 at
-    /// both; plain/PD).  See [`set_nt_splinter`].
-    static NT_SPLINTER: Cell<bool> = const { Cell::new(true) };
-}
-
-/// Author responder's `3♥`/`3♠` splinter over 1NT for books built *after* this
-/// call (thread-local; **on by default** — it won its A/B in all four cells)
-///
-/// Shortness in the *bid* major, 2–3 in the other, exactly four diamonds and
-/// five or six clubs — the Bridge World Standard / Polish Club treatment of the
-/// two slots our ladder leaves empty.  The hand class it serves (`3-1-4-5` and
-/// mirrors) has no home at all today: too few majors for Stayman, too few
-/// diamonds for the `2NT` transfer, too few clubs for the `2♠` transfer, and not
-/// `balanced()` for Puppet `3♣`, so at 9+ HCP it blasts 3NT and at 8 it *passes*
-/// 1NT holding a singleton opposite 15-17.
-///
-/// Since `♣ = 9 − (both majors)`, the shape is *closed*: `3-1-4-5`, `1-2-4-6`
-/// and `0-3-4-6` (and mirrors).  The `♣6` rows also qualify for the `2♠` club
-/// transfer and this outranks it deliberately — after `2♠` responder can never
-/// show the four diamonds, which is the whole 6-4 slam lane.
-///
-/// On, the inference engine also stops reading a three-level major over our 1NT
-/// as a natural five-card suit and decodes it off the alert instead, and opener
-/// answers from an authored table (`nt_splinter_answer`) rather than the floor,
-/// which measured inert here — given the whole pinned shape it bid `3NT` on
-/// every hand.  Full rationale and the splinter-versus-fragment argument are on
-/// the private `nt_splinter_rules`.  Measured by `examples/ab-nt-splinter`.
-pub fn set_nt_splinter(on: bool) {
-    NT_SPLINTER.with(|cell| cell.set(on));
-}
-
-/// Whether responder's `3♥`/`3♠` splinter over 1NT is currently authored (read
-/// by the inference engine too, to decode the call off its alert)
-pub fn nt_splinter() -> bool {
-    NT_SPLINTER.with(Cell::get)
 }
 
 /// Opener's game placement after responder's opt-in 1NT - 3M splinter

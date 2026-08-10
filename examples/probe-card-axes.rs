@@ -29,11 +29,8 @@ use pons::american;
 use pons::bidding::agreements::{
     Agreements, CompetitionKnobs, DefenseKnobs, NotrumpKnobs, OpeningKnobs, RebidKnobs,
 };
-use pons::bidding::american::{
-    EUROPEAN, LebensohlStyle, NotrumpDefense, NotrumpShape, PUPPET, garbage_stayman,
-    notrump_defense, notrump_minors, nt_splinter, set_garbage_stayman, set_landy,
-    set_notrump_defense, set_notrump_minors, set_nt_splinter, set_xyz,
-};
+use pons::bidding::american::{EUROPEAN, LebensohlStyle, NotrumpDefense, NotrumpShape, PUPPET};
+use pons::bidding::inference::ReadingProfile;
 use rayon::prelude::*;
 
 #[path = "common/mod.rs"]
@@ -76,13 +73,11 @@ struct Defaults {
 
 impl Defaults {
     fn capture() -> Self {
+        let reading = ReadingProfile::default();
         Self {
-            garbage: garbage_stayman(),
-            // These two have crate-private readers (not web-settable), so
-            // their shipped defaults are transcribed from the `Cell::new`
-            // literals: xyz.rs:42, nt_landy.rs:17.
-            xyz: true,
-            landy: None,
+            garbage: reading.garbage_stayman,
+            xyz: reading.xyz,
+            landy: reading.landy_range,
             nmf: RebidKnobs::default().new_minor_forcing,
             offshape: OpeningKnobs::default().one_notrump_offshape,
             super_accept: NotrumpKnobs::default().transfer_super_accept,
@@ -91,25 +86,12 @@ impl Defaults {
             leaping: DefenseKnobs::default().leaping_michaels_enabled,
             responsive: DefenseKnobs::default().responsive_takeout_enabled,
             support_x: CompetitionKnobs::default().major_support_double,
-            splinter: nt_splinter(),
+            splinter: reading.nt_splinter,
             shape: OpeningKnobs::default().notrump_shape,
-            defense: notrump_defense(),
+            defense: reading.notrump_defense,
             leb: CompetitionKnobs::default().lebensohl_style,
-            minors_european: notrump_minors() == EUROPEAN,
+            minors_european: reading.notrump_minors == EUROPEAN,
         }
-    }
-
-    fn apply(&self) {
-        set_garbage_stayman(self.garbage);
-        set_xyz(self.xyz);
-        set_nt_splinter(self.splinter);
-        set_notrump_defense(self.defense);
-        set_notrump_minors(if self.minors_european {
-            EUROPEAN
-        } else {
-            PUPPET
-        });
-        set_landy(self.landy);
     }
 
     /// The axes that are fields of [`Agreements`] rather than thread cells
@@ -140,6 +122,19 @@ impl Defaults {
                 responsive_takeout_enabled: self.responsive,
                 ..DefenseKnobs::default()
             },
+            reading: ReadingProfile {
+                garbage_stayman: self.garbage,
+                xyz: self.xyz,
+                nt_splinter: self.splinter,
+                notrump_defense: self.defense,
+                notrump_minors: if self.minors_european {
+                    EUROPEAN
+                } else {
+                    PUPPET
+                },
+                landy_range: self.landy,
+                ..ReadingProfile::default()
+            },
         }
     }
 }
@@ -152,6 +147,7 @@ struct Knobs {
     notrump: NotrumpKnobs,
     competition: CompetitionKnobs,
     defense: DefenseKnobs,
+    reading: ReadingProfile,
 }
 
 impl Knobs {
@@ -163,6 +159,7 @@ impl Knobs {
         agreements.notrump = self.notrump;
         agreements.competition = self.competition;
         agreements.defense = self.defense;
+        agreements.decision.reading = self.reading;
         agreements
     }
 }
@@ -177,11 +174,13 @@ type Flip = fn(&Defaults, &mut Knobs);
 /// Every probed axis: the card-block name(s) it moves, and the flip away from
 /// the shipped default.  Radio groups (one knob, several rows) probe as one.
 const AXES: [(&str, Flip); 16] = [
-    ("Garbage Stayman", |d, _| set_garbage_stayman(!d.garbage)),
+    ("Garbage Stayman", |d, k| {
+        k.reading.garbage_stayman = !d.garbage
+    }),
     ("Checkback (NMF)", |d, k| {
         k.rebid.new_minor_forcing = !d.nmf;
     }),
-    ("Two Way NMF (XYZ)", |d, _| set_xyz(!d.xyz)),
+    ("Two Way NMF (XYZ)", |d, k| k.reading.xyz = !d.xyz),
     ("Super acceptance", |d, k| {
         k.notrump.transfer_super_accept = !d.super_accept;
     }),
@@ -200,7 +199,7 @@ const AXES: [(&str, Flip); 16] = [
     ("Support double/redouble", |d, k| {
         k.competition.major_support_double = !d.support_x;
     }),
-    ("1N-3M splinter", |d, _| set_nt_splinter(!d.splinter)),
+    ("1N-3M splinter", |d, k| k.reading.nt_splinter = !d.splinter),
     ("1NT offshape 4441/5422", |d, k| {
         k.opening.one_notrump_offshape = !d.offshape;
     }),
@@ -210,12 +209,12 @@ const AXES: [(&str, Flip); 16] = [
             _ => NotrumpShape::Balanced,
         };
     }),
-    ("NT defense (Landy rows)", |d, _| {
-        set_notrump_defense(if d.defense == NotrumpDefense::Woolsey {
+    ("NT defense (Landy rows)", |d, k| {
+        k.reading.notrump_defense = if d.defense == NotrumpDefense::Woolsey {
             NotrumpDefense::Natural
         } else {
             NotrumpDefense::Woolsey
-        });
+        };
     }),
     ("Lebensohl rows", |d, k| {
         k.competition.lebensohl_style = if d.leb == LebensohlStyle::Off {
@@ -224,15 +223,18 @@ const AXES: [(&str, Flip); 16] = [
             LebensohlStyle::Off
         };
     }),
-    ("1NT minor scheme", |d, _| {
-        set_notrump_minors(if d.minors_european { PUPPET } else { EUROPEAN });
+    ("1NT minor scheme", |d, k| {
+        k.reading.notrump_minors = if d.minors_european { PUPPET } else { EUROPEAN };
     }),
-    ("Landy range", |d, _| {
-        set_landy(if d.landy.is_some() {
+    ("Landy range", |d, k| {
+        k.reading.landy_range = if d.landy.is_some() {
             None
         } else {
             Some((8, 14))
-        });
+        };
+        if let Some(range) = k.reading.landy_range {
+            k.reading.woolsey_points = range;
+        }
     }),
 ];
 
@@ -273,16 +275,11 @@ fn main() {
     let arms: Vec<Vec<String>> = (0..=AXES.len())
         .into_par_iter()
         .map(|arm| {
-            defaults.apply();
             let mut knobs = defaults.knobs();
             if let Some((_, flip)) = arm.checked_sub(1).map(|i| AXES[i]) {
                 flip(&defaults, &mut knobs);
             }
-            // The ambient half is read *after* the flip, which may have written
-            // a cell; the value half is what the flip just edited.
-            let auctions = bid_all(&deals, &knobs.onto_current());
-            defaults.apply();
-            auctions
+            bid_all(&deals, &knobs.onto_current())
         })
         .collect();
 

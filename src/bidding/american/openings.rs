@@ -6,7 +6,7 @@
 //! | Module | Agreement | Knob |
 //! | --- | --- | --- |
 //! | [`one_notrump`] | the strong `1NT` opening, shape policy, strength gauge, and off-shape treatment | [`OpeningKnobs::open_one_notrump`], [`OpeningKnobs::one_notrump_fifths`], [`OpeningKnobs::notrump_shape`], [`OpeningKnobs::one_notrump_offshape`] |
-//! | [`two_notrump`] | the strong `2NT` opening and wide-minor shape treatment | [`set_two_notrump_wide`] |
+//! | [`two_notrump`] | the strong `2NT` opening and wide-minor shape treatment | [`two_notrump_wide`][field@crate::bidding::inference::ReadingProfile::two_notrump_wide] |
 //! | [`weak_two`] | weak-two strength gauges and wild five-card treatment | [`OpeningKnobs::weak_two_hcp`], [`OpeningKnobs::weak_two_eval`], [`OpeningKnobs::weak_two_wild`] |
 
 use crate::bidding::agreements::Agreements;
@@ -26,11 +26,10 @@ use two_notrump::with_two_notrump;
 use weak_two::with_weak_twos;
 
 pub use one_notrump::NotrumpShape;
-pub use two_notrump::set_two_notrump_wide;
 pub use weak_two::WeakTwoEval;
 
 pub(crate) use one_notrump::notrump_shape;
-pub(crate) use two_notrump::{two_notrump_wide, two_notrump_wide_shape};
+pub(crate) use two_notrump::two_notrump_wide_shape;
 
 /// The strong, artificial `2♣` opening (22+) — the only artificial opening
 const STRONG_2C: Alert = Alert("strong-2c");

@@ -578,13 +578,14 @@ fn band_mask(lo: u8, hi: u8) -> u64 {
 fn box_hcp_mask(envelope: &Envelope) -> u64 {
     let hcp = envelope.strength.hcp;
     let (mut lo, mut hi) = (hcp.min, hcp.max);
-    // ponytail: the thread's scale, not a pinned one — this lattice walk is
-    // reached only from `features_eval_points`, a corpus extractor
-    // (`dump-evaluator`), never from a classify-time decision.  Give it the
+    // ponytail: the shipped default scale, not a pinned one — this lattice walk
+    // is reached only from `features_eval_points`, a corpus extractor
+    // (`dump-evaluator`), never from a classify-time decision. Give it the
     // pinned scale the day something on the bidding path reads it.
-    if let Some(ceiling) =
-        upgrade_ceiling(crate::bidding::constraint::point_scale(), &envelope.lengths)
-    {
+    if let Some(ceiling) = upgrade_ceiling(
+        crate::bidding::inference::ReadingProfile::default().point_scale,
+        &envelope.lengths,
+    ) {
         let points = envelope.strength.points;
         lo = lo.max(points.min.saturating_sub(ceiling));
         hi = hi.min(points.max);
@@ -1039,23 +1040,23 @@ pub const OFFSET_THEIR_COMPACT: usize = OFFSET_OUR_COMPACT + LEN_COMPACT;
 ///
 /// The semantic domain behind one [`LEN_COMPACT`] block: which book, plus every
 /// knob-driven agreement the compact layout encodes.  Two constructors, two
-/// directions: [`capture`][Self::capture] reads the live thread-local knobs
-/// (the same state [`american_card`][super::card::american_card] reads row by
-/// row), and [`from_card`][Self::from_card] projects a card — possibly a
-/// foreign engine's — back onto these axes.
+/// directions: [`capture`][Self::capture] reads one [`Agreements`] value (the
+/// same state [`american_card`][super::card::american_card] reads row by row),
+/// and [`from_card`][Self::from_card] projects a card — possibly a foreign
+/// engine's — back onto these axes.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ConventionCard {
     /// The Dutch book (wide non-forcing 1♣) rather than 2/1 — a *book*
     /// choice, not a knob, so [`capture`][Self::capture] takes it as a
     /// parameter
     pub dutch: bool,
-    /// The keycard ask is relocated below 4NT (`set_rkcb_variant`)
+    /// The keycard ask is relocated below 4NT (`ReadingProfile::rkcb_variant`)
     pub relocating: bool,
-    /// Garbage Stayman (`set_garbage_stayman`)
+    /// Garbage Stayman (`ReadingProfile::garbage_stayman`)
     pub garbage_stayman: bool,
     /// New Minor Forcing (`RebidKnobs::new_minor_forcing`)
     pub new_minor_forcing: bool,
-    /// Two-way checkback (`set_xyz`; shadows plain NMF when on)
+    /// Two-way checkback (`ReadingProfile::xyz`; shadows plain NMF when on)
     pub xyz: bool,
     /// Jump super-accept of a Jacoby transfer (`notrump.transfer_super_accept`)
     pub transfer_super_accept: bool,
@@ -1069,27 +1070,27 @@ pub struct ConventionCard {
     pub responsive_takeout: bool,
     /// Support doubles and redoubles (`competition.major_support_double`)
     pub major_support_double: bool,
-    /// `1NT - 3M` splinter (`set_nt_splinter`)
+    /// `1NT - 3M` splinter (`ReadingProfile::nt_splinter`)
     pub nt_splinter: bool,
     /// Off-shape 1NT openings — 4441 and any 5422 (`opening.one_notrump_offshape`)
     pub one_notrump_offshape: bool,
     /// Which shapes open 1NT (`opening.notrump_shape`)
     pub shape: NotrumpShape,
-    /// The direct-seat defense to their 1NT (`set_notrump_defense`)
+    /// The direct-seat defense to their 1NT (`ReadingProfile::notrump_defense`)
     pub defense: NotrumpDefense,
     /// Responder's machinery over their overcall of our 1NT
     /// (`competition.lebensohl_style`)
     pub lebensohl: LebensohlStyle,
     /// The European 1NT minor scheme (`3♣` = diamonds) rather than Puppet
-    /// (`set_notrump_minors`)
+    /// (`ReadingProfile::notrump_minors`)
     pub minors_european: bool,
-    /// The balancing Landy 2♣ two-suiter (`set_landy`)
+    /// The balancing Landy 2♣ two-suiter (`ReadingProfile::landy_range`)
     pub landy: bool,
 }
 
 impl ConventionCard {
-    /// Read this thread's knob state, as
-    /// [`american_card`][super::card::american_card] does row by row
+    /// Read one agreement value, as [`american_card`][super::card::american_card]
+    /// does row by row
     ///
     /// `dutch` is a parameter because it selects a *book*, not a knob:
     /// [`dutch`][crate::dutch()] overlays `american_book()` and inherits every
@@ -1167,7 +1168,7 @@ impl ConventionCard {
             defense: if row("Multi-Landy") {
                 NotrumpDefense::Woolsey
             } else if row("Landy") {
-                // The `Landy` row also rides `set_landy`'s balancing range, so
+                // The `Landy` row also rides the balancing `landy_range`, so
                 // a balancing-only Landy projects onto the direct-seat system.
                 NotrumpDefense::DirectLandy
             } else {

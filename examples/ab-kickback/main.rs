@@ -3,7 +3,7 @@
 //!
 //! Three arms over two axes, so each coupled change stays attributable:
 //!
-//! | arm | `keycard_minors` | `set_rkcb_variant` | what it is |
+//! | arm | `keycard_minors` | `ReadingProfile::rkcb_variant` | what it is |
 //! |---|---|---|---|
 //! | `plain` | off | plain | majors-only trump, the ask is 4NT |
 //! | `minors` | on | plain | minor asks at plain 4NT — round 4's losing arm, re-priced |
@@ -55,7 +55,7 @@
 //! ask*.  The interesting boards are therefore the ones where the answer used to
 //! land past the trump suit's own five level and the asker had nowhere to stop.
 //!
-//! **Both knob regimes must be armed.** `set_rkcb_variant` gates rule *presence* at
+//! **Both knob regimes must be armed.** `ReadingProfile::rkcb_variant` gates rule *presence* at
 //! build time — the reading's `alerted` test is structural, so an always-present
 //! alerted rule on 4♥/4♠ would suppress the natural reading of those calls even
 //! in the off arm — *and* the recognizers at classification time.  Both halves
@@ -93,7 +93,7 @@ use pons::bidding::Stance;
 use pons::bidding::american::american_with_config;
 use pons::bidding::card::{Card, american_card};
 use pons::bidding::features::Config;
-use pons::bidding::instinct::{RkcbVariant, keycard_ask_at, kickback_offered_at, set_rkcb_variant};
+use pons::bidding::instinct::{RkcbVariant, keycard_ask_at, kickback_offered_at};
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -202,15 +202,10 @@ struct Args {
     sd_ask_only: bool,
 }
 
-/// Arm the classify-time half of the knobs for `arm`
-fn arm_knobs(arm: Arm) {
-    set_rkcb_variant(arm.variant());
-}
-
-/// Capture the value-owned half of `arm` alongside its live relocation knob
+/// Capture both halves of `arm` in one agreements value.
 fn arm_agreements(arm: Arm) -> pons::bidding::agreements::Agreements {
-    arm_knobs(arm);
     let mut agreements = pons::bidding::agreements::Agreements::current();
+    agreements.decision.reading.rkcb_variant = arm.variant();
     agreements.decision.instinct.keycard_minors = arm.minors();
     agreements
 }
@@ -235,7 +230,7 @@ fn table_ask(
     arm: Arm,
     arm_is_ns: bool,
 ) -> Option<(Suit, bool, bool)> {
-    arm_knobs(arm);
+    let profile = arm_agreements(arm).decision.reading;
     let calls: Vec<Call> = auction.iter().copied().collect();
     (0..calls.len()).find_map(|index| {
         let seat = seat_to_act(dealer, index);
@@ -243,7 +238,7 @@ fn table_ask(
         if north_south != arm_is_ns {
             return None;
         }
-        keycard_ask_at(&calls, index).map(|(_bid, trump, relocated)| {
+        keycard_ask_at(profile, &calls, index).map(|(_bid, trump, relocated)| {
             // A 4NT ask made while the ladder was offering a relocation is a
             // seat the convention was available for and did not get: the
             // authored book installs RKCB at absolute 4NT and has never been
@@ -252,7 +247,7 @@ fn table_ask(
             // point — the first is a missed relocation, the second is correct.
             // Keyed to the ask's own trump: a spade ask belongs at 4NT, so a
             // claim in some other suit on the same face is not a miss.
-            let offered = !relocated && kickback_offered_at(&calls, index, trump);
+            let offered = !relocated && kickback_offered_at(profile, &calls, index, trump);
             (trump, relocated, offered)
         })
     })
@@ -313,8 +308,6 @@ fn per_trump_census(
         };
         bump(label, swings_pd[index], swings_dd[index]);
     }
-    arm_knobs(Arm::Plain);
-
     rows.sort_by(|a, b| b.1[0].cmp(&a.1[0]));
     let total = divergent.len().max(1) as f64;
     println!("\n-- per-trump attribution, bucketed by the ask (all divergent boards) --");
@@ -335,12 +328,10 @@ fn per_trump_census(
 
 /// The convention card `arm` discloses — its knobs, read through `card.rs`
 fn card(arm: Arm) -> Card {
-    let card = american_card(&arm_agreements(arm));
-    arm_knobs(Arm::Plain);
-    card
+    american_card(&arm_agreements(arm))
 }
 
-/// Build one stance per arm.  `set_rkcb_variant` is read at build time for rule
+/// Build one stance per arm. `ReadingProfile::rkcb_variant` is read at build time for rule
 /// presence, and `keycard_minors` by the book's RKCB row packages, so the
 /// arms cannot share a book.
 ///
@@ -352,9 +343,7 @@ fn card(arm: Arm) -> Card {
 /// are armed for the build, because `american_card` reads the same knobs.
 fn build(arm: Arm, opponent: Arm) -> Stance {
     let cell = Config::new(&card(arm), &card(opponent));
-    let stance = american_with_config(&arm_agreements(arm), cell).against();
-    arm_knobs(Arm::Plain);
-    stance
+    american_with_config(&arm_agreements(arm), cell).against()
 }
 
 /// Bid one deal, the feature arm seated N-S or E-W.  Each stance carries both
@@ -492,7 +481,6 @@ fn rescore(args: &Args, path: &str) {
     // feature stance reads for both tables, as in the live --sd row.
     let stance = build(feature, baseline);
     let mut rng = StdRng::seed_from_u64(args.sd_seed);
-    arm_knobs(feature);
     let sd: Vec<Option<[common::SdScores; 2]>> = dump
         .boards
         .iter()
@@ -514,7 +502,6 @@ fn rescore(args: &Args, path: &str) {
             })
         })
         .collect();
-    arm_knobs(Arm::Plain);
 
     // Per-board swings (feature − baseline, IMPs) under every instrument.
     let n = dump.boards.len();
@@ -784,7 +771,6 @@ fn main() {
     let swings_sd = args.sd.then(|| {
         let mut rng = StdRng::seed_from_u64(args.sd_seed);
         let mut swings = [vec![0i64; args.count], vec![0i64; args.count]];
-        arm_knobs(args.feature);
         for &index in &divergent {
             let board = &boards[index];
             let [a, b] = [&board.table_a, &board.table_b].map(|auction| {
@@ -804,7 +790,6 @@ fn main() {
                 swing[index] = imps(a[k] - b[k]);
             }
         }
-        arm_knobs(Arm::Plain);
         swings
     });
 

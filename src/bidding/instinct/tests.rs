@@ -25,6 +25,18 @@ fn best_with(agreements: &Agreements, auction: &[Call], hand: &str) -> Call {
         .expect("array is never empty")
 }
 
+fn kickback_agreements() -> Agreements {
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.rkcb_variant = RkcbVariant::Kickback;
+    agreements
+}
+
+fn rubens_agreements() -> Agreements {
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.rubens_advances = true;
+    agreements
+}
+
 /// The full-`american_instinct()` call for a hand and whether the floor
 /// produced it
 ///
@@ -273,15 +285,25 @@ fn penalty_latch_doubles_the_runout_for_penalty() {
     // A pure diamond stack (9 HCP, all in their suit): combined with partner's
     // shown 15+ this is below game, so the floor neither bids nor advances.
     // Latch off — defend by passing, no penalty double offered.
-    set_penalty_latch(false);
-    assert_eq!(best(&auction, "T98.964.AKQ7.853"), Call::Pass);
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.penalty_latch = false;
+    assert_eq!(
+        best_with(&agreements, &auction, "T98.964.AKQ7.853"),
+        Call::Pass
+    );
     // Latch on (the default): "once penalty, always penalty" — double for penalty.
-    set_penalty_latch(true);
-    assert_eq!(best(&auction, "T98.964.AKQ7.853"), Call::Double);
+    agreements.decision.reading.penalty_latch = true;
+    assert_eq!(
+        best_with(&agreements, &auction, "T98.964.AKQ7.853"),
+        Call::Double
+    );
     // The latch keys off the 1NT penalty double only: a plain takeout auction
     // is untouched — short in clubs with opening values still doubles 2♣ takeout.
     let takeout = [call(2, Strain::Clubs)];
-    assert_eq!(best(&takeout, "AQ95.KJ73.K842.6"), Call::Double);
+    assert_eq!(
+        best_with(&agreements, &takeout, "AQ95.KJ73.K842.6"),
+        Call::Double
+    );
 }
 
 #[test]
@@ -296,11 +318,18 @@ fn penalty_latch_leaves_partner_s_double_in() {
     ];
     // A flat 16-count with no diamond stopper: latch off, the takeout-advance
     // jumps to a dubious 4♠ on a four-card suit.
-    set_penalty_latch(false);
-    assert_eq!(best(&auction, "AQ74.AQ5.82.A632"), call(4, Strain::Spades));
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.penalty_latch = false;
+    assert_eq!(
+        best_with(&agreements, &auction, "AQ74.AQ5.82.A632"),
+        call(4, Strain::Spades)
+    );
     // Latched (the default), partner's double is penalty — leave it in (defend 2♦x).
-    set_penalty_latch(true);
-    assert_eq!(best(&auction, "AQ74.AQ5.82.A632"), Call::Pass);
+    agreements.decision.reading.penalty_latch = true;
+    assert_eq!(
+        best_with(&agreements, &auction, "AQ74.AQ5.82.A632"),
+        Call::Pass
+    );
 }
 
 #[test]
@@ -534,15 +563,15 @@ fn forced_to_game_picks_the_known_major_fit() {
     // The splinter owns this auction by default (short hearts, not long), so
     // it is switched off here: the floor path under test is only reachable
     // when the slot is empty, which is exactly when it should apply.
-    crate::bidding::american::set_nt_splinter(false);
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.nt_splinter = false;
     let auction = [
         call(1, Strain::Notrump),
         Call::Pass,
         call(3, Strain::Hearts),
         Call::Pass,
     ];
-    let bid = best(&auction, "AQ52.K53.KQ4.32");
-    crate::bidding::american::set_nt_splinter(true); // restore the default
+    let bid = best_with(&agreements, &auction, "AQ52.K53.KQ4.32");
     assert_eq!(bid, call(4, Strain::Hearts));
 }
 
@@ -1405,7 +1434,6 @@ fn face_trump_steps_past_cues_and_reads_the_nt_dichotomy() {
 fn a_guarded_rung_falls_back_to_notrump() {
     // The stance is on, so the all-`None` is the guard's veto, not the
     // knob's.
-    set_rkcb_variant(RkcbVariant::Kickback);
     let jump_rebid = [
         call(1, Strain::Diamonds),
         Call::Pass,
@@ -1415,7 +1443,7 @@ fn a_guarded_rung_falls_back_to_notrump() {
         Call::Pass,
     ];
     assert_eq!(
-        kickback_ladder(&jump_rebid, 6, rkcb_variant_now()),
+        kickback_ladder(&jump_rebid, 6, RkcbVariant::Kickback),
         [None; 4],
         "hearts are guarded, so diamonds do not relocate at all"
     );
@@ -1424,7 +1452,6 @@ fn a_guarded_rung_falls_back_to_notrump() {
         Some(Suit::Diamonds),
         "and 4NT still asks in the suit it always asked in"
     );
-    set_rkcb_variant(RkcbVariant::Plain);
 }
 
 /// A spade bid cannot disprove hearts (5-5 majors bid spades first), so the
@@ -1433,7 +1460,6 @@ fn a_guarded_rung_falls_back_to_notrump() {
 /// cards and leaves no room for five hearts.
 #[test]
 fn kickback_yields_the_undisprovable_major() {
-    set_rkcb_variant(RkcbVariant::Kickback);
     let response = [
         call(1, Strain::Diamonds),
         Call::Pass,
@@ -1443,7 +1469,7 @@ fn kickback_yields_the_undisprovable_major() {
         Call::Pass,
     ];
     assert_eq!(
-        kickback_ladder(&response, 6, rkcb_variant_now()),
+        kickback_ladder(&response, 6, RkcbVariant::Kickback),
         [None; 4],
         "responder's spades leave 4♥ natural, so the diamond ask stays 4NT"
     );
@@ -1458,7 +1484,7 @@ fn kickback_yields_the_undisprovable_major() {
         Call::Pass,
     ];
     assert_eq!(
-        kickback_ladder(&weak_two, 6, rkcb_variant_now()),
+        kickback_ladder(&weak_two, 6, RkcbVariant::Kickback),
         [None; 4],
         "the weak-two face reads the same way"
     );
@@ -1473,18 +1499,16 @@ fn kickback_yields_the_undisprovable_major() {
         Call::Pass,
     ];
     assert_eq!(
-        kickback_ladder(&two_suited, 6, rkcb_variant_now()),
+        kickback_ladder(&two_suited, 6, RkcbVariant::Kickback),
         [None, None, Some(Suit::Diamonds), None],
         "a second named suit disproves five hearts, so 4♥ asks in diamonds"
     );
-    set_rkcb_variant(RkcbVariant::Plain);
 }
 
 /// Two set suits claim in ascending order, so both can carry a relocated
 /// ask — 4♦ asks in clubs, 4♠ in hearts, and 4NT is left over.
 #[test]
 fn kickback_serves_both_fits_when_it_can() {
-    set_rkcb_variant(RkcbVariant::Kickback);
     let two_fits = [
         call(1, Strain::Clubs),
         Call::Pass,
@@ -1496,7 +1520,7 @@ fn kickback_serves_both_fits_when_it_can() {
         Call::Pass,
     ];
     assert_eq!(
-        kickback_ladder(&two_fits, 8, rkcb_variant_now()),
+        kickback_ladder(&two_fits, 8, RkcbVariant::Kickback),
         [None, Some(Suit::Clubs), None, Some(Suit::Hearts)],
         "clubs claim 4♦, hearts claim 4♠"
     );
@@ -1514,11 +1538,10 @@ fn kickback_serves_both_fits_when_it_can() {
         Call::Pass,
     ];
     assert_eq!(
-        kickback_ladder(&one_free, 8, rkcb_variant_now()),
+        kickback_ladder(&one_free, 8, RkcbVariant::Kickback),
         [None, None, None, Some(Suit::Hearts)],
         "diamonds revert to 4NT; hearts keep 4♠"
     );
-    set_rkcb_variant(RkcbVariant::Plain);
 }
 
 /// What must *not* relocate: an unagreed suit, the opponents' suit, a
@@ -1527,10 +1550,9 @@ fn kickback_serves_both_fits_when_it_can() {
 fn kickback_refuses_without_a_set_trump() {
     // The stance is on, so every all-`None` below is the geometry's own
     // veto rather than the knob's.
-    set_rkcb_variant(RkcbVariant::Kickback);
     let one_bid = [call(1, Strain::Diamonds), Call::Pass];
     assert_eq!(
-        kickback_ladder(&one_bid, 2, rkcb_variant_now()),
+        kickback_ladder(&one_bid, 2, RkcbVariant::Kickback),
         [None; 4],
         "one bid is no agreement — `1♦ - 4♥` is not an ask"
     );
@@ -1541,7 +1563,7 @@ fn kickback_refuses_without_a_set_trump() {
         Call::Pass,
     ];
     assert_eq!(
-        kickback_ladder(&spades, 4, rkcb_variant_now()),
+        kickback_ladder(&spades, 4, RkcbVariant::Kickback),
         [None; 4],
         "nothing sits between 4♠ and 4NT"
     );
@@ -1556,11 +1578,10 @@ fn kickback_refuses_without_a_set_trump() {
         Call::Pass,
     ];
     assert_eq!(
-        kickback_ladder(&minor_signoff, 6, rkcb_variant_now()),
+        kickback_ladder(&minor_signoff, 6, RkcbVariant::Kickback),
         [None; 4],
         "the notrump veto carries to the ladder"
     );
-    set_rkcb_variant(RkcbVariant::Plain);
 }
 
 /// A cue of their suit shows no length, so it never becomes the ask —
@@ -1568,7 +1589,6 @@ fn kickback_refuses_without_a_set_trump() {
 /// cue it was.
 #[test]
 fn kickback_never_claims_the_opponents_suit() {
-    set_rkcb_variant(RkcbVariant::Kickback);
     let cued = [
         call(1, Strain::Hearts),
         call(3, Strain::Diamonds),
@@ -1578,11 +1598,10 @@ fn kickback_never_claims_the_opponents_suit() {
         Call::Pass,
     ];
     assert_eq!(
-        kickback_ladder(&cued, 6, rkcb_variant_now()),
+        kickback_ladder(&cued, 6, RkcbVariant::Kickback),
         [None, None, None, Some(Suit::Hearts)],
         "their diamonds are guarded; the heart ask takes 4♠"
     );
-    set_rkcb_variant(RkcbVariant::Plain);
 }
 
 /// The 1430 rungs are *steps above the ask* — and over a plain 4NT those
@@ -1650,9 +1669,8 @@ fn kickback_asker_prefers_the_relocated_call() {
         Call::Pass,
     ];
     let monster = "A32.AKQJ7.AKQ.32";
-    set_rkcb_variant(RkcbVariant::Kickback);
-    let relocated = best(&auction, monster);
-    set_rkcb_variant(RkcbVariant::Plain); // restore the default (off) for the rest of the suite
+    let kickback = kickback_agreements();
+    let relocated = best_with(&kickback, &auction, monster);
     assert_eq!(
         relocated,
         call(4, Strain::Spades),
@@ -1670,7 +1688,7 @@ fn kickback_asker_prefers_the_relocated_call() {
 /// in steps above the relocated ask — the 4♠-for-hearts slice
 #[test]
 fn kickback_answers_climb_from_four_spades() {
-    set_rkcb_variant(RkcbVariant::Kickback);
+    let kickback = kickback_agreements();
     let auction = [
         call(1, Strain::Hearts),
         Call::Pass,
@@ -1680,7 +1698,7 @@ fn kickback_answers_climb_from_four_spades() {
         Call::Pass,
     ];
     assert_eq!(
-        kickback_ladder(&auction, 4, rkcb_variant_now())[Suit::Spades as usize],
+        kickback_ladder(&auction, 4, RkcbVariant::Kickback)[Suit::Spades as usize],
         Some(Suit::Hearts),
         "hearts are set and spades unguarded, so 4♠ asks in hearts"
     );
@@ -1698,9 +1716,8 @@ fn kickback_answers_climb_from_four_spades() {
             "two with the queen",
         ),
     ] {
-        assert_eq!(best(&auction, hand), expected, "{why}");
+        assert_eq!(best_with(&kickback, &auction, hand), expected, "{why}");
     }
-    set_rkcb_variant(RkcbVariant::Plain); // restore the default (off) for the rest of the suite
 }
 
 /// A 4NT that *answers* a relocated ask is an answer, not a new ask — the
@@ -1710,7 +1727,7 @@ fn kickback_answers_climb_from_four_spades() {
 /// own 1.82 signoff).  The asker must place the contract in trumps instead.
 #[test]
 fn a_four_notrump_answering_the_relocation_is_not_a_new_ask() {
-    set_rkcb_variant(RkcbVariant::Kickback);
+    let kickback = kickback_agreements();
     let auction = [
         call(1, Strain::Hearts),
         Call::Pass,
@@ -1722,19 +1739,18 @@ fn a_four_notrump_answering_the_relocation_is_not_a_new_ask() {
         Call::Pass,
     ];
     assert_eq!(
-        keycard_ask_bid(&auction, 6, relocation_now()),
+        keycard_ask_bid(&auction, 6, RkcbVariant::Kickback),
         None,
         "4NT is step 1 over the 4♠ ask, so it asks nothing"
     );
     assert_eq!(
-        keycard_ask_bid(&auction, 4, relocation_now()),
+        keycard_ask_bid(&auction, 4, RkcbVariant::Kickback),
         Some(Bid::new(4, Strain::Spades)),
         "the ask is still the 4♠ two calls before it"
     );
     // Two keycards and the queen opposite a 1-or-4 answer: three combined,
     // two missing — sign off in the agreed suit, never a fifth-strain bid.
-    let placement = best(&auction, "A32.AKQJ7.AKQ.32");
-    set_rkcb_variant(RkcbVariant::Plain); // restore the default (off) for the rest of the suite
+    let placement = best_with(&kickback, &auction, "A32.AKQJ7.AKQ.32");
     assert_eq!(
         placement,
         call(6, Strain::Hearts),
@@ -1753,7 +1769,7 @@ fn a_four_notrump_answering_the_relocation_is_not_a_new_ask() {
 /// ♣987, −1100 against ♣KQT643 offside.
 #[test]
 fn a_suit_answering_the_relocation_is_not_a_new_ask() {
-    set_rkcb_variant(RkcbVariant::Kickback);
+    let kickback = kickback_agreements();
     let auction = [
         call(1, Strain::Diamonds),
         Call::Pass,
@@ -1765,17 +1781,16 @@ fn a_suit_answering_the_relocation_is_not_a_new_ask() {
         Call::Pass,
     ];
     assert_eq!(
-        keycard_ask_bid(&auction, 6, relocation_now()),
+        keycard_ask_bid(&auction, 6, RkcbVariant::Kickback),
         None,
         "4♠ is step 1 over the 4♥ ask, so it asks nothing"
     );
     assert_eq!(
-        keycard_ask_bid(&auction, 4, relocation_now()),
+        keycard_ask_bid(&auction, 4, RkcbVariant::Kickback),
         Some(Bid::new(4, Strain::Hearts)),
         "the ask is still the 4♥ two calls before it"
     );
-    let placement = best(&auction, "AKQ3.AQ42.QT72.A");
-    set_rkcb_variant(RkcbVariant::Plain); // restore the default (off) for the rest of the suite
+    let placement = best_with(&kickback, &auction, "AKQ3.AQ42.QT72.A");
     assert!(
         matches!(placement, Call::Bid(bid) if bid.strain == Strain::Diamonds),
         "the asker places the contract in the agreed trump, never a phantom club: {placement:?}"
@@ -1791,7 +1806,6 @@ fn a_suit_answering_the_relocation_is_not_a_new_ask() {
 /// live.  The guard is unconditional now, and so is the relay.
 #[test]
 fn the_answer_is_not_an_ask() {
-    set_rkcb_variant(RkcbVariant::Kickback);
     let auction = [
         call(1, Strain::Diamonds),
         Call::Pass,
@@ -1802,9 +1816,8 @@ fn the_answer_is_not_an_ask() {
         call(4, Strain::Spades),
         Call::Pass,
     ];
-    let answer = keycard_ask_bid(&auction, 6, relocation_now());
-    let ask = keycard_ask_bid(&auction, 4, relocation_now());
-    set_rkcb_variant(RkcbVariant::Plain); // restore the default (off) for the rest of the suite
+    let answer = keycard_ask_bid(&auction, 6, RkcbVariant::Kickback);
+    let ask = keycard_ask_bid(&auction, 4, RkcbVariant::Kickback);
     assert_eq!(answer, None, "4♠ answers the 4♥ ask; it asks nothing");
     assert_eq!(
         ask,
@@ -1826,19 +1839,18 @@ fn redwood_keeps_the_trump_five_reachable() {
         call(3, Strain::Diamonds),
         Call::Pass,
     ];
-    set_rkcb_variant(RkcbVariant::Kickback);
+    let kickback = kickback_agreements();
     let relocated: Vec<Call> = raise
         .iter()
         .copied()
         .chain([call(4, Strain::Hearts), Call::Pass])
         .collect();
     assert_eq!(
-        kickback_ladder(&relocated, 4, rkcb_variant_now())[Suit::Hearts as usize],
+        kickback_ladder(&relocated, 4, RkcbVariant::Kickback)[Suit::Hearts as usize],
         Some(Suit::Diamonds),
         "diamonds are set and hearts unguarded, so 4♥ asks in diamonds"
     );
-    let redwood = best(&relocated, responder);
-    set_rkcb_variant(RkcbVariant::Plain);
+    let redwood = best_with(&kickback, &relocated, responder);
 
     let plain: Vec<Call> = raise
         .iter()
@@ -1877,50 +1889,52 @@ fn redwood_scopes_the_ladder_and_implies_the_minors() {
         call(3, Strain::Hearts),
         Call::Pass,
     ];
-    let claims = |auction: &[Call]| kickback_ladder(auction, 4, rkcb_variant_now());
-    // Captured fresh on every call — the arms below reset the relocation cell
-    // between reads, while the plain-minors carve stays off in the value.
-    let minor_asks_now = || {
+    let claims = |auction: &[Call], variant| kickback_ladder(auction, 4, variant);
+    let minor_asks_for = |variant| {
         let mut profile = DecisionProfile::current();
         profile.instinct.keycard_minors = false;
+        profile.reading.rkcb_variant = variant;
         minor_asks(&profile)
     };
 
-    set_rkcb_variant(RkcbVariant::Redwood);
     assert_eq!(
-        claims(&diamonds)[Suit::Hearts as usize],
+        claims(&diamonds, RkcbVariant::Redwood)[Suit::Hearts as usize],
         Some(Suit::Diamonds),
         "Redwood relocates the diamond ask to 4♥"
     );
     assert_eq!(
-        claims(&hearts)[Suit::Spades as usize],
+        claims(&hearts, RkcbVariant::Redwood)[Suit::Spades as usize],
         None,
         "Redwood alone never claims 4♠ — the hearts ask stays at 4NT"
     );
     assert!(
-        minor_asks_now(),
+        minor_asks_for(RkcbVariant::Redwood),
         "a live minor relocation implies the minors' reach"
     );
 
-    set_rkcb_variant(RkcbVariant::Kickback);
     assert_eq!(
-        claims(&hearts)[Suit::Spades as usize],
+        claims(&hearts, RkcbVariant::Kickback)[Suit::Spades as usize],
         Some(Suit::Hearts),
         "the full ladder claims the hearts lane too"
     );
     assert_eq!(
-        claims(&diamonds)[Suit::Hearts as usize],
+        claims(&diamonds, RkcbVariant::Kickback)[Suit::Hearts as usize],
         Some(Suit::Diamonds),
         "kickback implies the Redwood scope — never a hearts-only ladder"
     );
     assert!(
-        minor_asks_now(),
+        minor_asks_for(RkcbVariant::Kickback),
         "kickback implies the minors' reach as well"
     );
 
-    set_rkcb_variant(RkcbVariant::Plain);
-    assert_eq!(claims(&diamonds)[Suit::Hearts as usize], None);
-    assert!(!minor_asks_now(), "no relocation, no carve: majors only");
+    assert_eq!(
+        claims(&diamonds, RkcbVariant::Plain)[Suit::Hearts as usize],
+        None
+    );
+    assert!(
+        !minor_asks_for(RkcbVariant::Plain),
+        "no relocation, no carve: majors only"
+    );
 }
 
 /// One hand's shown five never converts 4NT into an ask: opener's five
@@ -2336,13 +2350,13 @@ fn keycard_conversation_is_forced_rail_territory() {
 /// phantom spade contract
 #[test]
 fn control_bid_is_never_passed_out() {
-    use crate::bidding::american::set_longer_major_response;
     // 1♦ - 1♠ - 2♦ - 4♥ under the hearts-first opt-in (knob off): a 1♠ response
     // denies four hearts, so 4♥ cannot be long — a control bid agreeing
     // diamonds (the M6.4 reading) — and the floor returns to the agreed
     // suit instead of passing out the phantom heart contract.  (Under the
     // longer-major default, 1♠ can be 5-5, so 4♥ reads to play.)
-    set_longer_major_response(false);
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.longer_major_response = false;
     let auction = [
         call(1, Strain::Diamonds),
         Call::Pass,
@@ -2353,8 +2367,7 @@ fn control_bid_is_never_passed_out() {
         call(4, Strain::Hearts),
         Call::Pass,
     ];
-    let (bid, from_floor) = american_floored(&auction, "A4.K85.KQJ62.Q75");
-    set_longer_major_response(true); // restore the shipped default
+    let (bid, from_floor) = american_floored_with(&agreements, &auction, "A4.K85.KQJ62.Q75");
     assert!(from_floor, "the 4♥ jump is off-book");
     assert_eq!(
         bid,
@@ -2827,30 +2840,39 @@ fn milestone_notrump_game_needs_a_stopper_in_competition() {
 
 #[test]
 fn rubens_new_suit_transfer() {
-    set_rubens_advances(true);
+    let agreements = rubens_agreements();
     // (1♣) 1♠ -: advancing partner's spade overcall with our own five-card
     // diamond suit, we transfer — 2♣ shows diamonds (the next suit up).  The
     // floor is 10 upgraded points (a *good* 9 and all 10+), since the
     // transfer commits partner to the two-level.
     let auction = [call(1, Strain::Clubs), call(1, Strain::Spades), Call::Pass];
     // A good 9: working K/KQ in a five-card suit upgrades over the floor.
-    assert_eq!(best(&auction, "2.K32.KQT54.J432"), call(2, Strain::Clubs));
+    assert_eq!(
+        best_with(&agreements, &auction, "2.K32.KQT54.J432"),
+        call(2, Strain::Clubs)
+    );
     // A bare 8 does not reach it: too weak to introduce the suit, pass.
-    assert_eq!(best(&auction, "2.Q32.KQT54.J432"), Call::Pass);
+    assert_eq!(
+        best_with(&agreements, &auction, "2.Q32.KQT54.J432"),
+        Call::Pass
+    );
 }
 
 #[test]
 fn rubens_limit_raise_transfer() {
-    set_rubens_advances(true);
+    let agreements = rubens_agreements();
     // (1♣) 1♠ -: a limit raise of partner's spades goes through the
     // transfer that lands in their suit — 2♥ (the bid just below 2♠).
     let auction = [call(1, Strain::Clubs), call(1, Strain::Spades), Call::Pass];
-    assert_eq!(best(&auction, "K54.K32.K43.Q432"), call(2, Strain::Hearts));
+    assert_eq!(
+        best_with(&agreements, &auction, "K54.K32.K43.Q432"),
+        call(2, Strain::Hearts)
+    );
 }
 
 #[test]
 fn rubens_completion_is_mechanical() {
-    set_rubens_advances(true);
+    let agreements = rubens_agreements();
     // (1♣) 1♠ - 2♣ -: partner transferred to diamonds; the overcaller
     // completes into 2♦ regardless of hand.
     let auction = [
@@ -2861,18 +2883,21 @@ fn rubens_completion_is_mechanical() {
         Call::Pass,
     ];
     assert_eq!(
-        best(&auction, "AKJ52.K3.952.J32"),
+        best_with(&agreements, &auction, "AKJ52.K3.952.J32"),
         call(2, Strain::Diamonds)
     );
 }
 
 #[test]
 fn rubens_two_level_cue_raise() {
-    set_rubens_advances(true);
+    let agreements = rubens_agreements();
     // (1♠) 2♣ -: partner overcalled at the two level, so the cue (2♠) is
     // the limit-plus raise of clubs — no transfer ladder where there is no room.
     let auction = [call(1, Strain::Spades), call(2, Strain::Clubs), Call::Pass];
-    assert_eq!(best(&auction, "432.K32.K2.KQJ54"), call(2, Strain::Spades));
+    assert_eq!(
+        best_with(&agreements, &auction, "432.K32.K2.KQJ54"),
+        call(2, Strain::Spades)
+    );
 }
 
 #[test]
@@ -2886,7 +2911,7 @@ fn rubens_skips_jump_overcalls() {
 
 #[test]
 fn rubens_completes_through_the_double() {
-    set_rubens_advances(true);
+    let agreements = rubens_agreements();
     // (1♣) 1♠ - 2♣ (X): opener lead-directs against the transfer; the
     // completion still fires — otherwise the relay dies and partner plays
     // the phantom suit doubled.
@@ -2898,14 +2923,14 @@ fn rubens_completes_through_the_double() {
         Call::Double,
     ];
     assert_eq!(
-        best(&auction, "AKJ52.K3.952.J32"),
+        best_with(&agreements, &auction, "AKJ52.K3.952.J32"),
         call(2, Strain::Diamonds)
     );
 }
 
 #[test]
 fn rubens_max_breaks_the_completion_to_game() {
-    set_rubens_advances(true);
+    let agreements = rubens_agreements();
     // (1♣) 1♠ - 2♥ -: partner's transfer into our spades showed 10+
     // with support, so a maximum places the game instead of completing.
     let auction = [
@@ -2915,11 +2940,20 @@ fn rubens_max_breaks_the_completion_to_game() {
         call(2, Strain::Hearts),
         Call::Pass,
     ];
-    assert_eq!(best(&auction, "AKJ52.K3.K52.J32"), call(4, Strain::Spades));
+    assert_eq!(
+        best_with(&agreements, &auction, "AKJ52.K3.K52.J32"),
+        call(4, Strain::Spades)
+    );
     // In between, the overcaller super-accepts — the invite `3♠`.
-    assert_eq!(best(&auction, "AKJ52.K3.Q52.432"), call(3, Strain::Spades));
+    assert_eq!(
+        best_with(&agreements, &auction, "AKJ52.K3.Q52.432"),
+        call(3, Strain::Spades)
+    );
     // A minimum still completes mechanically.
-    assert_eq!(best(&auction, "AKJ52.K3.952.J32"), call(2, Strain::Spades));
+    assert_eq!(
+        best_with(&agreements, &auction, "AKJ52.K3.952.J32"),
+        call(2, Strain::Spades)
+    );
     // (1♣) 1♦ - 2♣ -: the diamond break is 3NT behind a club stopper…
     let minor = [
         call(1, Strain::Clubs),
@@ -2928,14 +2962,20 @@ fn rubens_max_breaks_the_completion_to_game() {
         call(2, Strain::Clubs),
         Call::Pass,
     ];
-    assert_eq!(best(&minor, "A32.K32.AQJ54.K2"), call(3, Strain::Notrump));
+    assert_eq!(
+        best_with(&agreements, &minor, "A32.K32.AQJ54.K2"),
+        call(3, Strain::Notrump)
+    );
     // …and completes without one, whatever the strength.
-    assert_eq!(best(&minor, "AQ2.K32.AQJ54.32"), call(2, Strain::Diamonds));
+    assert_eq!(
+        best_with(&agreements, &minor, "AQ2.K32.AQJ54.32"),
+        call(2, Strain::Diamonds)
+    );
 }
 
 #[test]
 fn rubens_new_suit_break_bids_what_it_would_over_natural() {
-    set_rubens_advances(true);
+    let agreements = rubens_agreements();
     // (1♣) 1♠ - 2♦ -: partner shows hearts.  The completion covers the
     // would-pass-a-natural-2♥ hands; with a fit and values the overcaller
     // bids what it would have bid over that natural 2♥.
@@ -2947,11 +2987,20 @@ fn rubens_new_suit_break_bids_what_it_would_over_natural() {
         Call::Pass,
     ];
     // Fit + 13: the invite raise.
-    assert_eq!(best(&auction, "AKJ52.Q32.K52.32"), call(3, Strain::Hearts));
+    assert_eq!(
+        best_with(&agreements, &auction, "AKJ52.Q32.K52.32"),
+        call(3, Strain::Hearts)
+    );
     // Fit + maximum: the game.
-    assert_eq!(best(&auction, "AKJ52.Q32.K52.A2"), call(4, Strain::Hearts));
+    assert_eq!(
+        best_with(&agreements, &auction, "AKJ52.Q32.K52.A2"),
+        call(4, Strain::Hearts)
+    );
     // No fit, minimum: the mechanical completion.
-    assert_eq!(best(&auction, "AKJ52.32.Q952.J2"), call(2, Strain::Hearts));
+    assert_eq!(
+        best_with(&agreements, &auction, "AKJ52.32.Q952.J2"),
+        call(2, Strain::Hearts)
+    );
 }
 
 #[test]
@@ -2973,7 +3022,7 @@ fn rubens_transferee_rebid_survives_an_out_of_band_two_spades() {
 
 #[test]
 fn rubens_transferee_clarifies_with_extras() {
-    set_rubens_advances(true);
+    let agreements = rubens_agreements();
     // (1♣) 1♠ - 2♦ - 2♥ -: the heart transfer was wide yet
     // unlimited — a six-card maximum now bids the game.
     let hearts = [
@@ -2985,9 +3034,15 @@ fn rubens_transferee_clarifies_with_extras() {
         call(2, Strain::Hearts),
         Call::Pass,
     ];
-    assert_eq!(best(&hearts, "2.AKQT54.K32.A32"), call(4, Strain::Hearts));
+    assert_eq!(
+        best_with(&agreements, &hearts, "2.AKQT54.K32.A32"),
+        call(4, Strain::Hearts)
+    );
     // 12–13 re-raises the suit: the invite the natural NF 2♥ never had.
-    assert_eq!(best(&hearts, "2.AKJT54.Q32.Q32"), call(3, Strain::Hearts));
+    assert_eq!(
+        best_with(&agreements, &hearts, "2.AKJT54.Q32.Q32"),
+        call(3, Strain::Hearts)
+    );
     // (1♣) 1♠ - 2♣ - 2♦ -: the diamond hand's game is 3NT behind a
     // club stopper.
     let diamonds = [
@@ -3000,14 +3055,14 @@ fn rubens_transferee_clarifies_with_extras() {
         Call::Pass,
     ];
     assert_eq!(
-        best(&diamonds, "2.K32.AKQT54.A32"),
+        best_with(&agreements, &diamonds, "2.K32.AKQT54.A32"),
         call(3, Strain::Notrump)
     );
 }
 
 #[test]
 fn rubens_raiser_moves_with_extras_over_the_completion() {
-    set_rubens_advances(true);
+    let agreements = rubens_agreements();
     // (1♣) 1♠ - 2♥ - 2♠ -: the mechanical completion denied extras,
     // so the raiser drives to game with 14+ and rests below it otherwise.
     let auction = [
@@ -3021,13 +3076,19 @@ fn rubens_raiser_moves_with_extras_over_the_completion() {
     ];
     // 14 points needs a non-flat shape on the shipped rule-of-N+8 scale
     // (a 4333 14-count reads 13 and rests).
-    assert_eq!(best(&auction, "K542.A32.KQ32.Q4"), call(4, Strain::Spades));
-    assert_ne!(best(&auction, "K54.K32.K43.Q432"), call(4, Strain::Spades));
+    assert_eq!(
+        best_with(&agreements, &auction, "K542.A32.KQ32.Q4"),
+        call(4, Strain::Spades)
+    );
+    assert_ne!(
+        best_with(&agreements, &auction, "K54.K32.K43.Q432"),
+        call(4, Strain::Spades)
+    );
 }
 
 #[test]
 fn rubens_cue_answer_places_the_contract() {
-    set_rubens_advances(true);
+    let agreements = rubens_agreements();
     // (1♠) 2♣ - 2♠ -: partner's cue-raise must never play their suit.
     let auction = [
         call(1, Strain::Spades),
@@ -3037,9 +3098,15 @@ fn rubens_cue_answer_places_the_contract() {
         Call::Pass,
     ];
     // A minimum retreats to our suit.
-    assert_eq!(best(&auction, "32.K32.Q32.AQJT54"), call(3, Strain::Clubs));
+    assert_eq!(
+        best_with(&agreements, &auction, "32.K32.Q32.AQJT54"),
+        call(3, Strain::Clubs)
+    );
     // A maximum with their suit stopped places the notrump game.
-    assert_eq!(best(&auction, "A2.K32.Q2.AKQJ54"), call(3, Strain::Notrump));
+    assert_eq!(
+        best_with(&agreements, &auction, "A2.K32.Q2.AKQJ54"),
+        call(3, Strain::Notrump)
+    );
     // (1♠) 2♥ - 2♠ -: a maximum with hearts places the major game.
     let hearts = [
         call(1, Strain::Spades),
@@ -3048,13 +3115,19 @@ fn rubens_cue_answer_places_the_contract() {
         call(2, Strain::Spades),
         Call::Pass,
     ];
-    assert_eq!(best(&hearts, "2.AKQJ54.K32.Q32"), call(4, Strain::Hearts));
-    assert_eq!(best(&hearts, "Q2.AQJT54.432.32"), call(3, Strain::Hearts));
+    assert_eq!(
+        best_with(&agreements, &hearts, "2.AKQJ54.K32.Q32"),
+        call(4, Strain::Hearts)
+    );
+    assert_eq!(
+        best_with(&agreements, &hearts, "Q2.AQJT54.432.32"),
+        call(3, Strain::Hearts)
+    );
 }
 
 #[test]
 fn rubens_cue_answer_fires_through_the_system() {
-    set_rubens_advances(true);
+    let agreements = rubens_agreements();
     // The same node reached through `american()`: the floor rule must not
     // be shadowed by a book node (`project_floor_shadowed_by_book_nodes`),
     // or the cue keeps passing out at the real table.
@@ -3065,7 +3138,7 @@ fn rubens_cue_answer_fires_through_the_system() {
         call(2, Strain::Spades),
         Call::Pass,
     ];
-    let (call_made, floored) = american_floored(&auction, "32.K32.Q32.AQJT54");
+    let (call_made, floored) = american_floored_with(&agreements, &auction, "32.K32.Q32.AQJT54");
     assert!(floored, "the overcaller's cue answer is floor territory");
     assert_eq!(call_made, call(3, Strain::Clubs));
 }
@@ -3085,16 +3158,20 @@ fn rubens_skips_advances_of_a_double() {
 
 #[test]
 fn rubens_disabled_reverts_to_natural_advances() {
-    // Knob off (`set_rubens_advances`) — the default since the layer A/B:
+    // Knob off (`ReadingProfile::rubens_advances`) — the default since the layer A/B:
     // the same hands advance naturally.
-    set_rubens_advances(false);
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.rubens_advances = false;
     let auction = [call(1, Strain::Clubs), call(1, Strain::Spades), Call::Pass];
     // The limit raise is a direct natural raise, not the 2♥ transfer.
-    assert_eq!(best(&auction, "K54.K32.K43.Q432"), call(2, Strain::Spades));
+    assert_eq!(
+        best_with(&agreements, &auction, "K54.K32.K43.Q432"),
+        call(2, Strain::Spades)
+    );
     // A five-card-diamond good 9 bids its suit naturally (the knob-off
     // fallback rule), not the 2♣ transfer.
     assert_eq!(
-        best(&auction, "2.K32.KQT54.J432"),
+        best_with(&agreements, &auction, "2.K32.KQT54.J432"),
         call(2, Strain::Diamonds)
     );
     // No mechanical completion: partner's 2♣ is a genuine club suit.
@@ -3251,14 +3328,13 @@ fn gambling_3nt_over_double_routes_long_minors() {
 
 #[test]
 fn preempt_4m_over_double_jumps_the_long_major() {
-    use crate::bidding::constraint::set_support_points;
     // Pin the legacy scale: these 6-count runout hands have a known 8-card
     // fit (six-card major opposite the 1NT), so under the shipped
     // `support_points` scale their extra shortness tips the fit-sum floor to
     // game — masking the trump-ace / semi-solid escape gates this test checks.
     // The scale shift itself is measured by the A/B.
-    set_support_points(false);
     let mut agreements = Agreements::current();
+    agreements.decision.reading.support_points = false;
     agreements.decision.instinct.one_nt_runout = true;
     agreements.decision.instinct.preempt_4m_over_double = true;
     agreements.decision.instinct.preempt_4m_top_honors = 2;
@@ -3299,8 +3375,6 @@ fn preempt_4m_over_double_jumps_the_long_major() {
         best_with(&agreements, &doubled, "432.AJ9876.65.32"),
         call(4, Strain::Hearts)
     );
-
-    set_support_points(true); // restore the shipped default
 }
 
 #[test]

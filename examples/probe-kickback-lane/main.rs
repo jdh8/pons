@@ -13,7 +13,7 @@ use contract_bridge::auction::{Auction, Call};
 use contract_bridge::{AbsoluteVulnerability, Hand, Seat};
 use pons::bidding::agreements::Agreements;
 use pons::bidding::context::relative;
-use pons::bidding::instinct::{RkcbVariant, set_rkcb_variant};
+use pons::bidding::instinct::RkcbVariant;
 use pons::bidding::{Stance, System, american};
 use pons::scoring::final_contract;
 
@@ -38,17 +38,17 @@ struct Args {
     top: usize,
 }
 
-fn set_variant(kickback: bool) {
-    set_rkcb_variant(if kickback {
+const fn variant(kickback: bool) -> RkcbVariant {
+    if kickback {
         RkcbVariant::Kickback
     } else {
         RkcbVariant::Plain
-    });
+    }
 }
 
 fn agreements(kickback: bool) -> Agreements {
-    set_variant(kickback);
     let mut agreements = Agreements::current();
+    agreements.decision.reading.rkcb_variant = variant(kickback);
     agreements.decision.instinct.keycard_minors = true;
     agreements
 }
@@ -56,11 +56,7 @@ fn agreements(kickback: bool) -> Agreements {
 fn main() {
     let args = Args::parse();
     let kickback = !args.baseline;
-    let stance: Stance = {
-        let built = american(&agreements(kickback)).against();
-        set_variant(false);
-        built
-    };
+    let stance: Stance = american(&agreements(kickback)).against();
 
     let hands: Vec<Hand> = args
         .hands
@@ -81,7 +77,6 @@ fn main() {
     );
     let mut auction = Auction::new();
     while !auction.has_ended() {
-        set_variant(kickback);
         let seat = seat_to_act(dealer, auction.len());
         let hand = hands[seat as usize];
         let authored = stance.authored_at(relative(vul, seat), &auction);
@@ -109,5 +104,4 @@ fn main() {
         auction.push(call);
     }
     println!("contract: {:?}", final_contract(&auction, dealer));
-    set_variant(false);
 }

@@ -297,42 +297,6 @@ fn decision_cache_rejects_profile_changes() {
 
 #[cfg(debug_assertions)]
 #[test]
-fn decision_cache_rejects_rkcb_face_profile_changes() {
-    use crate::bidding::instinct::{
-        RkcbVariant, floor_rkcb_now, rkcb_variant_now, set_floor_rkcb, set_rkcb_variant,
-    };
-    use std::panic::{AssertUnwindSafe, catch_unwind};
-
-    let original_floor = floor_rkcb_now();
-    let floor_context =
-        Context::new(RelativeVulnerability::NONE, &[]).with_decision_cache(test_hand());
-    let _ = floor_context.inferences();
-    set_floor_rkcb(!original_floor);
-    let floor_result = catch_unwind(AssertUnwindSafe(|| {
-        let _ = floor_context.inferences();
-    }));
-    set_floor_rkcb(original_floor);
-    assert!(floor_result.is_err());
-
-    let original_variant = rkcb_variant_now();
-    let other_variant = if original_variant == RkcbVariant::Plain {
-        RkcbVariant::Kickback
-    } else {
-        RkcbVariant::Plain
-    };
-    let variant_context =
-        Context::new(RelativeVulnerability::NONE, &[]).with_decision_cache(test_hand());
-    let _ = variant_context.inferences();
-    set_rkcb_variant(other_variant);
-    let variant_result = catch_unwind(AssertUnwindSafe(|| {
-        let _ = variant_context.inferences();
-    }));
-    set_rkcb_variant(original_variant);
-    assert!(variant_result.is_err());
-}
-
-#[cfg(debug_assertions)]
-#[test]
 fn decision_cache_rejects_cross_thread_use() {
     let context = Context::new(RelativeVulnerability::NONE, &[]).with_decision_cache(test_hand());
 

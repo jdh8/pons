@@ -1,5 +1,5 @@
 //! Integration tests for responder's `1NT - 3♥/3♠` splinter
-//! ([`set_nt_splinter`]), the Bridge World Standard / Polish Club treatment of
+//! ([`nt_splinter`][field@pons::bidding::inference::ReadingProfile::nt_splinter]), the Bridge World Standard / Polish Club treatment of
 //! the two slots our response ladder leaves empty.
 //!
 //! The agreement is a *pinned* shape rather than a floored one — shortness in
@@ -8,26 +8,23 @@
 //! These tests pin both halves: that the shape bids `3M`, and that each
 //! neighbour keeps the hands it already had.
 //!
-//! [`set_nt_splinter`]: pons::american::set_nt_splinter
-
 mod common;
 use common::*;
 
-use pons::american::set_nt_splinter;
-
 /// The 2/1 stance with the splinter authored
 ///
-/// `set_nt_splinter` is a thread-local read at book-construction time, so it is
-/// set here on every call — each test thread builds a splinter book.
+/// Each call builds a stance whose agreements author the splinter.
 fn stance() -> Stance {
-    set_nt_splinter(true);
-    american(&pons::bidding::agreements::Agreements::current()).against()
+    let mut agreements = pons::bidding::agreements::Agreements::current();
+    agreements.decision.reading.nt_splinter = true;
+    american(&agreements).against()
 }
 
 /// The 2/1 stance with the splinter *not* authored — the pre-2026-07-28 ladder
 fn without() -> Stance {
-    set_nt_splinter(false);
-    american(&pons::bidding::agreements::Agreements::current()).against()
+    let mut agreements = pons::bidding::agreements::Agreements::current();
+    agreements.decision.reading.nt_splinter = false;
+    american(&agreements).against()
 }
 
 const P: Call = Call::Pass;
@@ -212,8 +209,8 @@ fn the_eight_count_passes_at_the_default_floor() {
 #[test]
 fn lowering_the_floor_catches_the_eight() {
     // The same hand with the floor at 8 — the sweep arm.
-    set_nt_splinter(true);
     let mut agreements = pons::bidding::agreements::Agreements::current();
+    agreements.decision.reading.nt_splinter = true;
     agreements.notrump.nt_splinter_floor = 8;
     let system = american(&agreements).against();
     let bid = best_call(&system, &after_1nt(), "Jxx.x.AQxx.Jxxxx");

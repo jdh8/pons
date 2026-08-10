@@ -4,7 +4,6 @@ mod common;
 use common::*;
 use contract_bridge::Seat;
 use contract_bridge::deck::full_deal;
-use pons::bidding::constraint::set_strength_dial;
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 
@@ -68,11 +67,12 @@ fn test_openings() {
 
 #[test]
 fn test_light_third_seat_major() {
-    use pons::bidding::constraint::{PointScale, set_point_scale};
+    use pons::bidding::constraint::PointScale;
     // Calibrated to the rule-of-N+8 opt-out — the scale these example hands'
     // points assume (the 5-5 reads 11, not the point-count cap of 10).
-    set_point_scale(PointScale::RuleOfNFloored);
-    let system = stance();
+    let mut agreements = pons::bidding::agreements::Agreements::current();
+    agreements.decision.reading.point_scale = PointScale::RuleOfNFloored;
+    let system = pons::american(&agreements).against();
     // 9 HCP, 5-5-2-1 -> 11 points: short of the first-seat `points(12..)` but
     // clear of third seat's Rule-of-19 band, and 9 HCP clears the legal 8.
     let light = "AQ432.J8765.Q4.2";
@@ -86,7 +86,6 @@ fn test_light_third_seat_major() {
         best_call(&system, &[Call::Pass, Call::Pass], "AQJ32.853.Q42.92"),
         Call::Pass,
     );
-    set_point_scale(PointScale::PointCount);
 }
 
 // --- Major responses --------------------------------------------------------
@@ -381,8 +380,9 @@ fn test_full_board_smoke() {
 #[test]
 fn strength_dial_zero_preserves_american_logits() {
     let baseline = pons::american(&pons::bidding::agreements::Agreements::current()).against();
-    set_strength_dial(0);
-    let dial_zero = pons::american(&pons::bidding::agreements::Agreements::current()).against();
+    let mut agreements = pons::bidding::agreements::Agreements::current();
+    agreements.decision.reading.strength_dial = 0;
+    let dial_zero = pons::american(&agreements).against();
     let mut rng = StdRng::seed_from_u64(0x5_7EED);
 
     for _ in 0..8 {

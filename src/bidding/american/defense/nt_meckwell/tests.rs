@@ -1,16 +1,14 @@
-use super::super::tests::{best_call, call};
-use crate::bidding::american::{NotrumpDefense, set_notrump_defense};
+use super::super::tests::{best_call_with, call};
+use crate::bidding::agreements::Agreements;
+use crate::bidding::american::NotrumpDefense;
 use contract_bridge::Strain;
 use contract_bridge::auction::Call;
 
-/// Best call with Meckwell forced on, restored after so it never leaks to a
-/// sibling test on this thread.
+/// Best call with Meckwell forced on.
 fn meckwell(auction: &[Call], hand: &str) -> (Call, bool) {
-    let prev = super::nt_defense::notrump_defense();
-    set_notrump_defense(NotrumpDefense::Meckwell);
-    let result = best_call(auction, hand);
-    set_notrump_defense(prev);
-    result
+    let mut agreements = Agreements::default();
+    agreements.decision.reading.notrump_defense = NotrumpDefense::Meckwell;
+    best_call_with(&agreements, auction, hand)
 }
 
 #[test]
@@ -58,24 +56,43 @@ fn meckwell_two_way_double_relays_then_names() {
     let nt = call(1, Strain::Notrump);
     let p = Call::Pass;
     let c2 = call(2, Strain::Clubs);
-    let prev = super::nt_defense::notrump_defense();
-    set_notrump_defense(NotrumpDefense::Meckwell);
+    let mut agreements = Agreements::default();
+    agreements.decision.reading.notrump_defense = NotrumpDefense::Meckwell;
 
     // `(1NT) X -`: advancer relays 2♣ (pass-or-correct), from the book.
-    let (relay, relay_floored) = best_call(&[nt, Call::Double, p], "Q32.Q32.Q432.432");
+    let (relay, relay_floored) =
+        best_call_with(&agreements, &[nt, Call::Double, p], "Q32.Q32.Q432.432");
     // `(1NT) X - 2♣ -`: a diamond one-suiter doubler names 2♦ (real diamonds).
-    let (diamonds, _) = best_call(&[nt, Call::Double, p, c2, p], "32.32.AKQ876.432");
+    let (diamonds, _) = best_call_with(
+        &agreements,
+        &[nt, Call::Double, p, c2, p],
+        "32.32.AKQ876.432",
+    );
     // …a both-majors doubler bids 2♥ (4+ hearts here ⇒ both majors).
-    let (majors, majors_floored) = best_call(&[nt, Call::Double, p, c2, p], "AJ32.KQ87.32.32");
+    let (majors, majors_floored) = best_call_with(
+        &agreements,
+        &[nt, Call::Double, p, c2, p],
+        "AJ32.KQ87.32.32",
+    );
     // …a club one-suiter doubler passes (plays 2♣).
-    let (clubs, _) = best_call(&[nt, Call::Double, p, c2, p], "32.32.432.AKQ876");
+    let (clubs, _) = best_call_with(
+        &agreements,
+        &[nt, Call::Double, p, c2, p],
+        "32.32.432.AKQ876",
+    );
     // `(1NT) X (XX)`: their redouble — the advancer still relays 2♣, never sits 1NTxx.
-    let (escape, esc_floored) = best_call(&[nt, Call::Double, Call::Redouble], "Q32.Q32.Q432.432");
+    let (escape, esc_floored) = best_call_with(
+        &agreements,
+        &[nt, Call::Double, Call::Redouble],
+        "Q32.Q32.Q432.432",
+    );
     // `(1NT) X - 2♣ (X)`: they double our relay — the diamond doubler still names 2♦,
     // never sits in the doubled 2♣x misfit.
-    let (named, nd_floored) =
-        best_call(&[nt, Call::Double, p, c2, Call::Double], "32.32.AKQ876.432");
-    set_notrump_defense(prev);
+    let (named, nd_floored) = best_call_with(
+        &agreements,
+        &[nt, Call::Double, p, c2, Call::Double],
+        "32.32.AKQ876.432",
+    );
 
     assert_eq!(relay, c2, "advancer relays 2♣ over the two-way X");
     assert!(!relay_floored, "the relay must come from the book");

@@ -8,7 +8,9 @@
 //! Direct two-level rebids are weak sign-offs.  The known cost: the natural
 //! `2♣` sign-off becomes an orphan.
 //!
-//! Everything is gated on [`set_xyz`] — default **on**, shipped with
+//! Everything is gated on
+//! [`xyz`][crate::bidding::inference::ReadingProfile::xyz] — default **on**,
+//! shipped with
 //! `up_the_line` (`ab-minor-continuations`, 300k boards: the pair is
 //! plain +0.0382/+0.0559 IMPs/board NV/vul, PD +0.0289/+0.0407; XYZ alone is
 //! plain +0.504/+0.795 per divergent, PD +0.332/+0.472 — a win on both
@@ -27,7 +29,6 @@ use crate::bidding::rows::{Entry, Package, Pattern, compile_into, rows_of};
 use crate::bidding::{Alert, Rules, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
-use std::cell::Cell;
 
 /// XYZ `2♣` — puppet to `2♦`: weak with diamonds, or any invitation
 const XYZ_RELAY: Alert = Alert("xyz-relay");
@@ -35,28 +36,6 @@ const XYZ_RELAY: Alert = Alert("xyz-relay");
 const XYZ_FORCE: Alert = Alert("xyz-game-force");
 /// Opener's forced `2♦` completing the puppet — says nothing about diamonds
 const XYZ_COMPLETION: Alert = Alert("xyz-completion");
-
-std::thread_local! {
-    /// Whether the XYZ structure is authored.  Default `true` (see the
-    /// module doc for the measured verdict).
-    static XYZ: Cell<bool> = const { Cell::new(true) };
-}
-
-/// Author XYZ for books built *after* this call (default `true`; off-switch
-/// `--no-ns-xyz` in `bba-gen`)
-///
-/// Read at book-construction time; set it before building the [`Pair`]
-/// (`register` authors the whole tree or nothing).
-///
-/// [`Pair`]: crate::bidding::Pair
-pub fn set_xyz(on: bool) {
-    XYZ.with(|cell| cell.set(on));
-}
-
-/// Whether XYZ is currently authored
-pub(crate) fn xyz() -> bool {
-    XYZ.with(Cell::get)
-}
 
 /// Responder's rebid at `1x - 1y - 1z`: the XYZ round
 ///

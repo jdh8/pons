@@ -928,24 +928,16 @@ fn features_v4_extends_v3_in_place() {
 /// which is the confound `docs/ai-bidder/configured-net.md` exists to kill.
 #[test]
 fn a_convention_knob_moves_the_card_block() {
-    use crate::bidding::instinct::{RkcbVariant, set_rkcb_variant};
+    use crate::bidding::instinct::RkcbVariant;
 
-    let plain = {
-        set_rkcb_variant(RkcbVariant::Plain);
-        Config::symmetric(&crate::bidding::card::american_card(
-            &crate::bidding::agreements::Agreements::current(),
-        ))
-    };
-    let relocated = {
-        set_rkcb_variant(RkcbVariant::Kickback);
-        Config::symmetric(&crate::bidding::card::american_card(
-            &crate::bidding::agreements::Agreements::current(),
-        ))
-    };
-    set_rkcb_variant(RkcbVariant::Plain); // restore the shipped default (off)
+    let plain_agreements = crate::bidding::agreements::Agreements::current();
+    let plain = Config::symmetric(&crate::bidding::card::american_card(&plain_agreements));
+    let mut relocated_agreements = plain_agreements;
+    relocated_agreements.decision.reading.rkcb_variant = RkcbVariant::Kickback;
+    let relocated = Config::symmetric(&crate::bidding::card::american_card(&relocated_agreements));
     assert_ne!(
         plain, relocated,
-        "`Kickback 1430` rides `set_rkcb_variant`, so the config block must differ"
+        "`Kickback 1430` rides `ReadingProfile::rkcb_variant`, so the config block must differ"
     );
 
     // Exactly one row moves, and the two sides move together.
@@ -1064,7 +1056,7 @@ fn compact_layout_is_pinned() {
         1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, // 16..23: NotrumpDefense — Natural
         0.0, 0.0, 1.0, // 23..26: LebensohlStyle — Transfer
         0.0, // 26: minors_european — Puppet scheme by default
-        0.0, // 27: landy — `set_landy` off
+        0.0, // 27: landy — `landy_range` off
     ];
     assert_eq!(
         ConventionCard::capture(&crate::bidding::agreements::Agreements::current(), false).encode(),
@@ -1200,11 +1192,8 @@ fn features_v5_appends_both_blocks() {
 #[test]
 fn each_compact_axis_moves_its_slots_and_only_live_ones_move_the_net() {
     use crate::bidding::Rules;
-    use crate::bidding::american::{
-        PUPPET, set_garbage_stayman, set_landy, set_notrump_defense, set_notrump_minors,
-        set_nt_splinter, set_woolsey_points, set_xyz,
-    };
-    use crate::bidding::instinct::{RkcbVariant, forced, set_rkcb_variant};
+    use crate::bidding::agreements::Agreements;
+    use crate::bidding::instinct::{RkcbVariant, forced};
     use crate::bidding::neural_floor::ConfiguredFloorV5;
     use crate::bidding::trie::Classifier;
     use std::sync::Arc;
@@ -1230,8 +1219,8 @@ fn each_compact_axis_moves_its_slots_and_only_live_ones_move_the_net() {
         "the net must answer here — a forced auction would pass every row vacuously"
     );
 
-    // One empty ladder for every arm.  `instinct()` reads `relocating_now()` at
-    // build time, so a per-arm ladder would move the `relocating` row for two
+    // One empty ladder for every arm. `instinct()` reads the pinned relocation
+    // field at build time, so a per-arm ladder would move the `relocating` row for two
     // reasons at once; empty is safe because the auction is not forced, and the
     // assert above keeps it that way.
     let ladder = Arc::new(Rules::new());
@@ -1269,9 +1258,7 @@ fn each_compact_axis_moves_its_slots_and_only_live_ones_move_the_net() {
         &[0],
     );
 
-    // Ten axes are fields of `Agreements` rather than ambient cells, so they arm
-    // the captured value directly.  Nothing global moves, so they need no
-    // restore and cannot strand a flipped knob for the next test on this thread.
+    // The build-time axes arm the captured value directly.
     let mut offshape = crate::bidding::agreements::Agreements::current();
     offshape.opening.one_notrump_offshape = true;
     check(
@@ -1343,67 +1330,49 @@ fn each_compact_axis_moves_its_slots_and_only_live_ones_move_the_net() {
     // and the five non-{Natural, Woolsey} defenses are folded, and `Wide` is
     // additionally unreachable through `from_card`.  These are the poles
     // `examples/dump-teacher`'s axis shards rotate.
-    /// Name, arm the flip, restore the shipped default, the slots it must move.
-    type Axis = (&'static str, fn(), fn(), &'static [usize]);
+    /// Name, arm the flip, and the slots it must move.
+    type Axis = (&'static str, fn(&mut Agreements), &'static [usize]);
     let rows: &[Axis] = &[
         (
             "relocating",
-            || set_rkcb_variant(RkcbVariant::Kickback),
-            || set_rkcb_variant(RkcbVariant::Plain),
+            |a| a.decision.reading.rkcb_variant = RkcbVariant::Kickback,
             &[1],
         ),
         (
             "garbage_stayman",
-            || set_garbage_stayman(false),
-            || set_garbage_stayman(true),
+            |a| a.decision.reading.garbage_stayman = false,
             &[2],
         ),
-        ("xyz", || set_xyz(false), || set_xyz(true), &[4]),
+        ("xyz", |a| a.decision.reading.xyz = false, &[4]),
         (
             "nt_splinter",
-            || set_nt_splinter(false),
-            || set_nt_splinter(true),
+            |a| a.decision.reading.nt_splinter = false,
             &[11],
         ),
         (
             "defense",
-            || set_notrump_defense(NotrumpDefense::Woolsey),
-            || set_notrump_defense(NotrumpDefense::Natural),
+            |a| a.decision.reading.notrump_defense = NotrumpDefense::Woolsey,
             &[16, 19],
         ),
         (
             "minors_european",
-            || set_notrump_minors(EUROPEAN),
-            || set_notrump_minors(PUPPET),
+            |a| a.decision.reading.notrump_minors = EUROPEAN,
             &[26],
         ),
         (
             "landy",
-            || set_landy(Some((8, 14))),
-            // `set_landy(Some(..))` also writes the shared Woolsey band and
-            // `set_landy(None)` deliberately leaves it — so restore both, and
-            // note that the leak guard below cannot see the miss: `woolsey_points`
-            // is not a `ConventionCard` field.
-            || {
-                set_landy(None);
-                set_woolsey_points(8, 19);
+            |a| {
+                a.decision.reading.landy_range = Some((8, 14));
+                a.decision.reading.woolsey_points = (8, 14);
             },
             &[27],
         ),
     ];
 
-    for (name, arm, restore, expect) in rows {
-        arm();
-        let flipped =
-            ConventionCard::capture(&crate::bidding::agreements::Agreements::current(), false);
-        restore();
-        // Restored before a single assertion can panic, so a failing row cannot
-        // strand a flipped knob for the next test on this thread.
-        assert_eq!(
-            ConventionCard::capture(&crate::bidding::agreements::Agreements::current(), false),
-            base,
-            "{name} did not restore"
-        );
+    for (name, arm, expect) in rows {
+        let mut agreements = Agreements::current();
+        arm(&mut agreements);
+        let flipped = ConventionCard::capture(&agreements, false);
         check(name, flipped, expect);
     }
 }

@@ -1,16 +1,14 @@
-use super::super::tests::{best_call, call};
-use crate::bidding::american::{NotrumpDefense, set_notrump_defense};
+use super::super::tests::{best_call_with, call};
+use crate::bidding::agreements::Agreements;
+use crate::bidding::american::NotrumpDefense;
 use contract_bridge::Strain;
 use contract_bridge::auction::Call;
 
-/// Best call with direct-seat DONT forced on, restored after so it never leaks
-/// into a sibling test on this thread.
+/// Best call with direct-seat DONT forced on.
 fn direct_dont(auction: &[Call], hand: &str) -> (Call, bool) {
-    let prev = super::nt_defense::notrump_defense();
-    set_notrump_defense(NotrumpDefense::DirectDont);
-    let result = best_call(auction, hand);
-    set_notrump_defense(prev);
-    result
+    let mut agreements = Agreements::default();
+    agreements.decision.reading.notrump_defense = NotrumpDefense::DirectDont;
+    best_call_with(&agreements, auction, hand)
 }
 
 #[test]
@@ -51,15 +49,19 @@ fn direct_dont_one_suiter_double_relays_then_names() {
     // relays 2♣ (a book node now keyed at the direct seat, not floored)...
     let nt = call(1, Strain::Notrump);
     let p = Call::Pass;
-    let prev = super::nt_defense::notrump_defense();
-    set_notrump_defense(NotrumpDefense::DirectDont);
-    let (relay, floored) = best_call(&[nt, Call::Double, p], "Q32.Q32.Q432.432");
+    let mut agreements = Agreements::default();
+    agreements.decision.reading.notrump_defense = NotrumpDefense::DirectDont;
+    let (relay, floored) = best_call_with(&agreements, &[nt, Call::Double, p], "Q32.Q32.Q432.432");
     // ...and the doubler with a long heart suit names it.
     let after_relay = [nt, Call::Double, p, call(2, Strain::Clubs), p];
-    let (name, _) = best_call(&after_relay, "432.AKJ87.32.432");
+    let (name, _) = best_call_with(&agreements, &after_relay, "432.AKJ87.32.432");
     // And if they redouble the one-suiter X, the advancer still relays 2♣ —
     // never sits in 1NTxx.
-    let (escape, esc_floored) = best_call(&[nt, Call::Double, Call::Redouble], "Q32.Q32.Q432.432");
+    let (escape, esc_floored) = best_call_with(
+        &agreements,
+        &[nt, Call::Double, Call::Redouble],
+        "Q32.Q32.Q432.432",
+    );
     // And if they double our artificial 2♣ relay, the doubler still names the
     // real suit (2♥ here) rather than sitting in the 2♣x misfit.
     let relay_doubled = [
@@ -69,8 +71,7 @@ fn direct_dont_one_suiter_double_relays_then_names() {
         call(2, Strain::Clubs),
         Call::Double,
     ];
-    let (named, nd_floored) = best_call(&relay_doubled, "432.AKJ87.32.432");
-    set_notrump_defense(prev);
+    let (named, nd_floored) = best_call_with(&agreements, &relay_doubled, "432.AKJ87.32.432");
     assert_eq!(relay, call(2, Strain::Clubs));
     assert!(!floored, "the direct-seat relay must come from the book");
     assert_eq!(name, call(2, Strain::Hearts));

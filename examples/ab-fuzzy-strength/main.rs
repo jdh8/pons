@@ -8,7 +8,7 @@
 //! fuzzy pair sits North/South against a pair evaluating raw HCP everywhere
 //! (the pre-upgrade behavior); at table B the teams swap seats.  Both pairs
 //! play the very same books — the
-//! [`set_point_scale`][pons::bidding::constraint::set_point_scale]
+//! [`point_scale`][field@pons::bidding::inference::ReadingProfile::point_scale]
 //! ablation hook flips the strength gauge per acting side.  Boards whose two
 //! auctions reach different contracts are solved double dummy once and scored
 //! with **both** brackets — plain DD and perfect defense — crediting the swing
@@ -25,7 +25,7 @@ use contract_bridge::auction::{Auction, Call};
 use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Hand, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::constraint::{PointScale, set_fuzzy_fifths, set_point_scale};
+use pons::bidding::constraint::{PointScale, set_fuzzy_fifths};
 use pons::bidding::context::relative;
 use pons::bidding::{Inferences, Stance, System};
 use pons::scoring::{final_contract, ns_score_pd_tricks, ns_score_tricks};
@@ -61,13 +61,15 @@ impl Policy {
             Self::Fifths => (false, enabled),
             Self::Both => (enabled, enabled),
         };
-        set_point_scale(if points {
+        let point_scale = if points {
             PointScale::PointCount
         } else {
             PointScale::Hcp
-        });
+        };
         set_fuzzy_fifths(fifths);
-        american(&pons::bidding::agreements::Agreements::current()).against()
+        let mut agreements = pons::bidding::agreements::Agreements::current();
+        agreements.decision.reading.point_scale = point_scale;
+        american(&agreements).against()
     }
 }
 

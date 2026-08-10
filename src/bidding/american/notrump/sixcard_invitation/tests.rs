@@ -7,20 +7,17 @@ use contract_bridge::Strain;
 /// on `point_count + trump length`.
 #[test]
 fn sixcard_major_invite() {
-    use crate::bidding::constraint::set_support_points;
-
     // This exercises the invite *mechanism* (transfer → 3M invite → accept
     // ladder), whose hands are calibrated to legacy `point_count` arithmetic
     // in the comments below.  The shipped `support_points` scale reads these
     // shaped six-card hands ~1 hotter, tipping some across the blast/accept
     // boundaries — that shift is measured by the A/B and `test_support_points`,
     // so pin the legacy scale here to test the ladder in isolation.
-    set_support_points(false);
-
     // The shipped floor (13, the invite on) and the off pole (14 == the blast
     // floor).  Captured *after* the `support_points` pin, which is a reading
     // knob the capture reads.
-    let on = Agreements::current();
+    let mut on = Agreements::current();
+    on.decision.reading.support_points = false;
     let mut off = on;
     off.notrump.sixcard_invite_floor = 14;
 
@@ -93,6 +90,4 @@ fn sixcard_major_invite() {
         best_with(&on, &after_spade, spade_inv),
         bid(3, Strain::Spades)
     );
-
-    set_support_points(true); // restore the shipped default
 }

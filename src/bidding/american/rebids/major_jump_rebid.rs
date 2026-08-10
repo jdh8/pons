@@ -2,59 +2,17 @@
 //!
 //! The deferred major-opening half of the [extras ladder](super::extras_ladder):
 //! `1♥ - 1♠ - 3♥` and `1M - 1NT - 3M` on a 6+ suit with 16+ points, plus
-//! responder's continuation over it.  Gated by [`set_opener_major_jump_rebid`].
+//! responder's continuation over it. Gated by
+//! [`opener_major_jump_rebid`][crate::bidding::inference::ReadingProfile::opener_major_jump_rebid].
 
 use super::*;
-
-// ponytail: same construction-time toggle idiom as the extras ladder above.
-std::thread_local! {
-    /// Whether opener's major-opening rebid nodes carry the jump-rebid rung of
-    /// a six-card major with extras (`1♥ - 1♠ - 3♥`, `1M - 1NT - 3M`) and
-    /// responder's continuation over it.  Shipped **on** (BBA-gap bucket #3
-    /// residual); see [`set_opener_major_jump_rebid`].
-    static OPENER_MAJOR_JUMP_REBID: Cell<bool> = const { Cell::new(true) };
-}
-
-/// Enable opener's major jump-rebid rung in books built after this call
-///
-/// The [extras ladder](super::set_opener_extras_ladder) covers only the two
-/// minor-opening rebid nodes; the major-opening nodes (`1♥ - 1♠` and the
-/// forcing-`1NT` rebid) still cap opener's own-major rebid at a minimum `2M`
-/// with no upper bound, so a 16+ hand with a strong six-card major underbids
-/// and misses the game BBA reaches (the `6+ ♥`/`6+ ♠` residual in the
-/// Constructive/book/round-2 anchor bucket — `3♥ → 4♥`, `2♥ → 3♥`, `3♠ → 4♠`).
-///
-/// This adds the single jump-rebid `3M` (6+ suit, 16+ points), disjoint from
-/// the `2M` minimum by a crisp point band, **plus responder's continuation**
-/// (`responder_after_major_jump_rebid`: raise `4M` on an 8-card fit, `3NT` with
-/// no fit, pass with a minimum).  It is the deferred major-opening half of the
-/// extras ladder, scoped to opener's *own* suit to avoid the Meckstroth `3m`
-/// collision on the jump-shift-into-a-minor rung.  Natural (names opener's own
-/// suit), so unalerted and floor-safe; the matching
-/// [`Inferences`](crate::bidding::inference) reading gates on the same toggle.
-///
-/// Read at book-construction time; shipped default-on (+0.0059/+0.0125 plain,
-/// +0.0046/+0.0104 PD IMPs/board vs BBA, NV/vul, all CIs>0).  The bare rung
-/// *without* the continuation measured a loss (−0.005/−0.009 plain: responder
-/// passed the invitational `3M` and stranded below game) — authoring both sides
-/// flipped it to a win.
-pub fn set_opener_major_jump_rebid(on: bool) {
-    OPENER_MAJOR_JUMP_REBID.with(|cell| cell.set(on));
-}
-
-/// Whether opener's major jump-rebid rung is currently enabled
-///
-/// Read at book-construction time by `register`, and at classify time by the
-/// matching `Inferences` reading.
-pub(crate) fn opener_major_jump_rebid() -> bool {
-    OPENER_MAJOR_JUMP_REBID.with(Cell::get)
-}
 
 /// Append opener's jump-rebid of a six-card major with extras
 ///
 /// `major` is opener's opened suit and `highest` responder's call.  The jump
 /// `3M` sits above the `2M` minimum by weight, so only a 16+ hand takes it.
-/// Gated on [`set_opener_major_jump_rebid`].
+/// Gated on
+/// [`opener_major_jump_rebid`][crate::bidding::inference::ReadingProfile::opener_major_jump_rebid].
 pub(super) fn with_major_jump_rebid(
     rules: Rules,
     major: Suit,

@@ -100,48 +100,40 @@ pub(super) fn best_call_vul(auction: &[Call], hand: &str, vul: RelativeVulnerabi
 /// own the auction).
 #[test]
 fn defense_to_notrump_authors_one_rule_per_call() {
-    // The two cells this test still drives; `unusual_notrump_range` is now a
-    // `DefenseKnobs` field, and `Agreements::current()` always hands back its
-    // `Some((8, 13))` default, so the old third reset line has no work to do.
-    fn reset() {
-        super::nt_defense::set_notrump_defense(NotrumpDefense::Natural);
-        super::nt_landy::set_landy(None);
-    }
-
-    let configs: [(&str, fn()); 7] = [
-        ("natural+unusual2nt", || {}),
-        ("natural+landy", || {
-            super::nt_landy::set_landy(Some((8, 15)))
+    type Configure = fn(&mut Agreements);
+    let configs: [(&str, Configure); 7] = [
+        ("natural+unusual2nt", |_| {}),
+        ("natural+landy", |agreements| {
+            agreements.decision.reading.landy_range = Some((8, 15));
+            agreements.decision.reading.woolsey_points = (8, 15);
         }),
-        ("woolsey", || {
-            super::nt_defense::set_notrump_defense(NotrumpDefense::Woolsey)
+        ("woolsey", |agreements| {
+            agreements.decision.reading.notrump_defense = NotrumpDefense::Woolsey;
         }),
-        ("dont", || {
-            super::nt_defense::set_notrump_defense(NotrumpDefense::DirectDont)
+        ("dont", |agreements| {
+            agreements.decision.reading.notrump_defense = NotrumpDefense::DirectDont;
         }),
-        ("meckwell", || {
-            super::nt_defense::set_notrump_defense(NotrumpDefense::Meckwell)
+        ("meckwell", |agreements| {
+            agreements.decision.reading.notrump_defense = NotrumpDefense::Meckwell;
         }),
         // `set_direct_landy_double(Some(false))` selected `DirectLandy` and
         // stored `direct_landy_four_four = false`, which is the field's default.
-        ("direct-landy-x", || {
-            super::nt_defense::set_notrump_defense(NotrumpDefense::DirectLandy)
+        ("direct-landy-x", |agreements| {
+            agreements.decision.reading.notrump_defense = NotrumpDefense::DirectLandy;
         }),
-        ("always-pass", || {
-            super::nt_defense::set_notrump_defense(NotrumpDefense::AlwaysPass)
+        ("always-pass", |agreements| {
+            agreements.decision.reading.notrump_defense = NotrumpDefense::AlwaysPass;
         }),
     ];
 
     for (label, setup) in configs {
-        reset();
-        setup();
-        let agreements = Agreements::current();
+        let mut agreements = Agreements::current();
+        setup(&mut agreements);
         let calls: Vec<Call> = super::nt_defense::defense_to_notrump(&agreements)
             .rules()
             .iter()
             .map(|r| r.call())
             .collect();
-        reset();
         assert!(
             calls.contains(&Call::Pass),
             "{label}: the owning Pass is missing",

@@ -8,8 +8,8 @@
 //!
 //! | Module | Agreement | Knob |
 //! | --- | --- | --- |
-//! | [`extras_ladder`] | jump-rebid / reverse / jump-shift after a minor opening | [`set_opener_extras_ladder`] |
-//! | [`major_jump_rebid`] | `3M` on a six-card major with extras | [`set_opener_major_jump_rebid`] |
+//! | [`extras_ladder`] | jump-rebid / reverse / jump-shift after a minor opening | [`opener_extras_ladder`][field@crate::bidding::inference::ReadingProfile::opener_extras_ladder] |
+//! | [`major_jump_rebid`] | `3M` on a six-card major with extras | [`opener_major_jump_rebid`][field@crate::bidding::inference::ReadingProfile::opener_major_jump_rebid] |
 //! | [`meckstroth`] | the artificial GF `2NT` and the invitational `3m` jumps | [`RebidKnobs::meckstroth_adjunct`] |
 //! | [`two_suiter`] | `1♥ - 1NT - 2♠` / `1♠ - 1NT - 3♥`, 15–17 | [`RebidKnobs::forcing_nt_two_suiter`] |
 //! | [`forcing_notrump`] | responder's second call after the forcing `1NT` | always on |
@@ -24,7 +24,6 @@ use crate::bidding::rows::{Package, Pattern, compile_into, expand, rows_of};
 use crate::bidding::{Alert, Rules, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
-use std::cell::Cell;
 
 mod extras_ladder;
 mod forcing_notrump;
@@ -37,13 +36,6 @@ use extras_ladder::with_extras_ladder;
 use major_jump_rebid::with_major_jump_rebid;
 use meckstroth::with_invitational_minors;
 use two_suiter::with_forcing_nt_two_suiter;
-
-pub use extras_ladder::set_opener_extras_ladder;
-pub use major_jump_rebid::set_opener_major_jump_rebid;
-
-// Knobs the inference walk reads at classify time.
-pub(crate) use extras_ladder::opener_extras_ladder;
-pub(crate) use major_jump_rebid::opener_major_jump_rebid;
 
 // The packages, re-exported so `american::tests::row_package_invariants` and
 // `register` below name them at one path.

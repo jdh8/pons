@@ -421,7 +421,7 @@ struct Args {
     ns_upgrade_closure: bool,
 
     /// Open the strong 2NT (20-21) on the wide-minor shape `{M 2..=4, m 2..=6}`
-    /// for our side (`set_two_notrump_wide`, crate default off): drops the
+    /// for our side (`ReadingProfile::two_notrump_wide`, crate default off): drops the
     /// 5M(332) balanced hands (they open one-of-a-major) and adds the wide
     /// minors (5m422/6m322).  DNF-ledger chop G0 (docs/dnf-migration.md).
     #[arg(long, default_value_t = false)]
@@ -543,7 +543,7 @@ struct Args {
     /// Disable the longer-major discipline for minor-opening responses (1♠ on
     /// longer spades or 5-5, 1♥ up the line only on 4-4, with the M6.4
     /// classifier reading to match); on by default (the established American
-    /// treatment — see `set_longer_major_response`). Off-switch for the A/B.
+    /// treatment — see `ReadingProfile::longer_major_response`). Off-switch for the A/B.
     #[arg(long, default_value_t = false)]
     no_ns_longer_major_response: bool,
 
@@ -777,7 +777,7 @@ struct Args {
 
     /// Disable opener's strength-showing rebid ladder after a minor opening and a
     /// one-level response — revert jump-rebid / reverse / jump-shift to the
-    /// minimum natural rebid (shipped default-on; see `set_opener_extras_ladder`).
+    /// minimum natural rebid (shipped default-on; see `ReadingProfile::opener_extras_ladder`).
     /// BBA-gap bucket #3.
     #[arg(long, default_value_t = false)]
     no_ns_opener_extras_ladder: bool,
@@ -785,7 +785,7 @@ struct Args {
     /// Disable opener's major jump-rebid rung (`1♥ - 1♠ - 3♥`, `1M - 1NT - 3M`)
     /// on a six-card major with 16+ and responder's continuation over it — the
     /// major-opening half of the extras ladder (shipped default-on; see
-    /// `set_opener_major_jump_rebid`).
+    /// `ReadingProfile::opener_major_jump_rebid`).
     #[arg(long, default_value_t = false)]
     no_ns_opener_major_jump_rebid: bool,
 
@@ -1111,7 +1111,7 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_rkcb_minors: bool,
 
-    /// The keycard ask's relocation stance, `set_rkcb_variant` (opt-in, as in
+    /// The keycard ask's relocation stance, `ReadingProfile::rkcb_variant` (opt-in, as in
     /// the crate): `redwood` relocates the minor asks only — 4♦ asks in clubs
     /// and 4♥ in diamonds, the majors keep plain 4NT — and `kickback` adds 4♠
     /// asking in hearts, so every 1430 answer lands at or below five of trump.
@@ -1446,11 +1446,10 @@ fn seat_args(spec: &str) -> anyhow::Result<Args> {
 /// Factored out of `main` so a *second* seat can be armed the same way:
 /// `--their-ns` parses its own `Args` and this applies it, then `main`
 /// re-applies its own to restore.  Every knob here is read at book-build
-/// time, so "arm, build, re-arm" is the whole discipline.
+/// time, so each returned value carries one seat's complete arm.
 ///
-/// Returns the [`Agreements`] this seat plays: the ambient cells captured once
-/// every one of them is armed, plus the opening cells that live only in the
-/// value.  A build must be handed *this*, not a fresh `Agreements::current()`.
+/// Returns the [`Agreements`] this seat plays. A build must be handed *this*,
+/// not a fresh `Agreements::current()`.
 #[allow(clippy::too_many_lines)]
 fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     // Our side: the authored floor by default, or a second EPBot card when
@@ -1458,18 +1457,10 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     // Written on both arms, not just when on: `--their-ns` arms a second seat
     // through this function and then re-arms ours to restore, which only works
     // if every knob here is *assigned*, never merely set.
-    pons::bidding::instinct::set_penalty_latch(!args.no_ns_penalty_latch);
     pons::bidding::instinct::set_doubler_xx_runout(!args.no_ns_doubler_run);
-    pons::bidding::instinct::set_rubens_advances(args.ns_rubens);
-    pons::bidding::instinct::set_floor_rkcb(!args.no_ns_floor_rkcb);
-    pons::bidding::instinct::set_rkcb_variant(args.ns_rkcb.into());
     pons::bidding::evaluator::set_eval_auction(!args.no_ns_eval_auction);
     pons::bidding::evaluator::set_eval_shape(args.ns_eval_shape);
     pons::bidding::features::set_blind_inference(args.ns_blind_inference);
-    pons::bidding::american::set_two_notrump_wide(args.ns_two_nt_wide);
-    pons::bidding::american::set_natural_double_floor(args.ns_double_floor);
-    pons::bidding::american::set_nt_overcall_systems_on(!args.no_ns_nt_overcall_systems_on);
-    pons::bidding::american::set_nt_overcall_gladiator(args.ns_nt_overcall_gladiator);
     let (oc_lo, oc_hi) = args
         .ns_overcall
         .split_once(':')
@@ -1477,13 +1468,8 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
         .ok_or_else(|| {
             anyhow::anyhow!("--ns-overcall must be LO:HI, got {:?}", args.ns_overcall)
         })?;
-    pons::bidding::american::set_natural_overcall_points(oc_lo, oc_hi);
     pons::bidding::american::set_transfer_gf_majors(!args.no_ns_transfer_gf_majors);
     pons::bidding::american::set_transfer_gf_hearts(!args.no_ns_transfer_gf_hearts);
-    pons::bidding::american::set_garbage_stayman(!args.no_ns_garbage_stayman);
-    pons::bidding::american::set_crawling_stayman(!args.no_ns_crawling_stayman);
-    pons::bidding::american::set_longer_major_response(!args.no_ns_longer_major_response);
-    pons::bidding::american::set_xyz(!args.no_ns_xyz);
     pons::bidding::constraint::set_suppress_flat_4333_takeout(
         !args.no_ns_suppress_flat_4333_takeout,
     );
@@ -1493,8 +1479,6 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     pons::bidding::constraint::set_suppress_5card_major_takeout(
         !args.no_ns_suppress_5card_major_takeout,
     );
-    pons::bidding::american::set_opener_extras_ladder(!args.no_ns_opener_extras_ladder);
-    pons::bidding::american::set_opener_major_jump_rebid(!args.no_ns_opener_major_jump_rebid);
     pons::bidding::instinct::set_two_over_one_force(!args.no_ns_two_over_one_force);
     pons::bidding::instinct::set_competitive_rebid(!args.no_ns_competitive_rebid);
     pons::bidding::instinct::set_reopening_notrump(!args.no_ns_reopening_notrump);
@@ -1502,8 +1486,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     // them.  No forced-off block: the cell holds exactly one variant, so
     // selecting a family already deselects the rest.
     let ns_defense = pons::bidding::american::NotrumpDefense::from(args.ns_notrump_defense);
-    pons::bidding::american::set_notrump_defense(ns_defense);
-    // Woolsey is the one family whose payload is still a pair of cells.
+    let mut woolsey_range = None;
     if ns_defense == pons::bidding::american::NotrumpDefense::Woolsey {
         let (wlo, whi) = args
             .ns_woolsey_range
@@ -1515,26 +1498,51 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
                     args.ns_woolsey_range
                 )
             })?;
-        pons::bidding::american::set_woolsey_points(wlo, whi);
-        pons::bidding::american::set_woolsey_double_floor(args.ns_woolsey_x_floor);
+        woolsey_range = Some((wlo, whi));
     }
-    // The Landy overlay rides its own cell and the engine honours it only under
-    // `natural`/`off`, so it needs no ordering against the family above.
-    if let Some(spec) = &args.ns_landy {
+    // The Landy overlay rides its own field and the engine honours it only
+    // under `natural`/`off`, so it needs no ordering against the family above.
+    let landy_range = if let Some(spec) = &args.ns_landy {
         let (lo, hi) = spec
             .split_once(':')
             .and_then(|(lo, hi)| Some((lo.parse::<u8>().ok()?, hi.parse::<u8>().ok()?)))
             .ok_or_else(|| anyhow::anyhow!("--ns-landy must be LO:HI, got {spec:?}"))?;
-        pons::bidding::american::set_landy(Some((lo, hi)));
+        Some((lo, hi))
     } else {
-        pons::bidding::american::set_landy(None);
-    }
+        None
+    };
     // Disclosure last: every `--ns-*` knob above moves the system, and a
     // generated card reads them.  Built here rather than beside the oracle so
     // the card cannot describe a system the run then reconfigures.
-    // Captured after every ambient cell above, then the knobs that are fields
-    // of the value rather than cells of the thread.
+    // Captured after the remaining ambient cells above, then completed with
+    // the reading fields that live only in the value.
     let mut agreements = Agreements::current();
+    agreements.decision.reading.penalty_latch = !args.no_ns_penalty_latch;
+    agreements.decision.reading.rubens_advances = args.ns_rubens;
+    agreements.decision.reading.floor_rkcb = !args.no_ns_floor_rkcb;
+    agreements.decision.reading.rkcb_variant = args.ns_rkcb.into();
+    agreements.decision.reading.two_notrump_wide = args.ns_two_nt_wide;
+    agreements.decision.reading.natural_double_floor = args.ns_double_floor;
+    agreements.decision.reading.nt_overcall_systems_on = !args.no_ns_nt_overcall_systems_on;
+    agreements.decision.reading.nt_overcall_gladiator = args.ns_nt_overcall_gladiator;
+    agreements.decision.reading.natural_overcall_points = (oc_lo, oc_hi);
+    agreements.decision.reading.garbage_stayman = !args.no_ns_garbage_stayman;
+    agreements.decision.reading.crawling_stayman = !args.no_ns_crawling_stayman;
+    agreements.decision.reading.longer_major_response = !args.no_ns_longer_major_response;
+    agreements.decision.reading.xyz = !args.no_ns_xyz;
+    agreements.decision.reading.opener_extras_ladder = !args.no_ns_opener_extras_ladder;
+    agreements.decision.reading.opener_major_jump_rebid = !args.no_ns_opener_major_jump_rebid;
+    agreements.decision.reading.notrump_defense = ns_defense;
+    if let Some(range) = woolsey_range {
+        agreements.decision.reading.woolsey_points = range;
+        agreements.decision.reading.woolsey_double_floor = args.ns_woolsey_x_floor;
+    }
+    agreements.decision.reading.landy_range = landy_range;
+    if let Some(range) = landy_range {
+        // Preserve Landy's historical coupling: the balancing
+        // Landy arm also supplied the shared Woolsey strength range.
+        agreements.decision.reading.woolsey_points = range;
+    }
     agreements.decision.reading.rubens_transfer = !args.no_ns_rubens_reading;
     agreements.decision.reading.control_bid = !args.no_ns_control_bid_reading;
     agreements.decision.reading.cue = !args.no_ns_cue_reading;

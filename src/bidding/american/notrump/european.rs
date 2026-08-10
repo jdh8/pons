@@ -1,6 +1,7 @@
 //! The European minor scheme — `2♠` clubs, `2NT` invite, `3♣` diamonds
 //!
-//! Opt-in via [`set_notrump_minors`](super::set_notrump_minors)`(EUROPEAN)`:
+//! Opt-in via [`notrump_minors`][field@crate::bidding::inference::ReadingProfile::notrump_minors]
+//! set to [`EUROPEAN`][super::EUROPEAN]:
 //! BBA's Atlantic style, and the standard Polish Club / WJ treatment.  Replaces
 //! [`super::minor_transfers`] and [`super::puppet_stayman`] wholesale — the two schemes
 //! wire the same keys under complementary gates.
@@ -11,7 +12,8 @@ use super::minor_transfers::{
 use super::size_ask::{SizeAskEight, size_ask_eight_class};
 use super::*;
 
-/// European minor-suit responses to 1NT (opt-in via [`set_notrump_minors`])
+/// European minor-suit responses to 1NT (opt-in via
+/// [`notrump_minors`][field@crate::bidding::inference::ReadingProfile::notrump_minors])
 ///
 /// `2♠` = transfer to clubs (a six-card one-suiter, weak-to-game).  `2NT` = a
 /// balanced invitational eight with no four-card major — the size ask, opener

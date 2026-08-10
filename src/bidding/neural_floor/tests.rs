@@ -12,20 +12,22 @@ const fn call(level: u8, strain: Strain) -> Call {
 /// The card is read per call, not once, because several tests below arm a
 /// knob and re-shell to assert the logits moved.
 fn shelled(auction: &[Call], hand: &str) -> Logits {
+    shelled_with(&Agreements::current(), auction, hand)
+}
+
+fn shelled_with(agreements: &Agreements, auction: &[Call], hand: &str) -> Logits {
     let hand: Hand = hand.parse().expect("valid test hand");
     let floor = ConfiguredFloorBba::new(
-        Config::symmetric(&crate::bidding::card::american_card(
-            &crate::bidding::agreements::Agreements::current(),
-        )),
-        Arc::new(crate::bidding::instinct(&Agreements::current())),
+        Config::symmetric(&crate::bidding::card::american_card(agreements)),
+        Arc::new(crate::bidding::instinct(agreements)),
     );
-    let context = Context::new(RelativeVulnerability::NONE, auction);
+    let context =
+        Context::new(RelativeVulnerability::NONE, auction).with_profile(agreements.decision);
     floor.classify(hand, &context)
 }
 
-/// [`shelled`] as a plain vector, for whole-vector comparisons
-fn configured(auction: &[Call], hand: &str) -> Vec<f32> {
-    shelled(auction, hand)
+fn configured_with(agreements: &Agreements, auction: &[Call], hand: &str) -> Vec<f32> {
+    shelled_with(agreements, auction, hand)
         .iter()
         .map(|(_, logit)| *logit)
         .collect()
@@ -43,20 +45,20 @@ fn configured(auction: &[Call], hand: &str) -> Vec<f32> {
 fn the_configured_floor_reads_its_card() {
     let auction = [call(1, Strain::Spades), Call::Pass];
     let hand = "AQ32.K53.QJ4.A92";
-    crate::bidding::instinct::set_rkcb_variant(crate::bidding::instinct::RkcbVariant::Plain);
-    let off = configured(&auction, hand);
-    crate::bidding::instinct::set_rkcb_variant(crate::bidding::instinct::RkcbVariant::Kickback);
-    let on = configured(&auction, hand);
-    crate::bidding::instinct::set_rkcb_variant(crate::bidding::instinct::RkcbVariant::Plain);
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.rkcb_variant = crate::bidding::instinct::RkcbVariant::Plain;
+    let off = configured_with(&agreements, &auction, hand);
+    agreements.decision.reading.rkcb_variant = crate::bidding::instinct::RkcbVariant::Kickback;
+    let on = configured_with(&agreements, &auction, hand);
     assert_ne!(off, on, "the kickback row must reach the feature vector");
 }
 
 /// The forced rail answers off **this shell's** ladder, not a process-global
 /// one
 ///
-/// [`instinct`][crate::bidding::instinct] reads build-time knobs of its own:
-/// `relocating_now()` installs the kickback answer table instead of the plain
-/// one.  While the ladder was a `LazyLock` static, the whole process shared
+/// [`instinct`][crate::bidding::instinct] reads the pinned profile at build
+/// time: its RKCB fields install the kickback answer table instead of the plain
+/// one. While the ladder was a `LazyLock` static, the whole process shared
 /// whichever arm happened to classify first — so `ab-kickback`, which holds
 /// both arms at once under rayon, could answer a relocated `4♠` ask off a plain
 /// ladder, nondeterministically.  Both shells here are built in one process and
@@ -66,7 +68,7 @@ fn the_configured_floor_reads_its_card() {
 /// the ambient knob stays on so `forced` opens the window for both.
 #[test]
 fn the_configured_floor_answers_off_its_own_ladder() {
-    use crate::bidding::instinct::{RkcbVariant, instinct, set_rkcb_variant};
+    use crate::bidding::instinct::{RkcbVariant, instinct};
 
     let auction = [
         call(1, Strain::Hearts),
@@ -81,15 +83,17 @@ fn the_configured_floor_answers_off_its_own_ladder() {
         &crate::bidding::agreements::Agreements::current(),
     ));
 
-    set_rkcb_variant(RkcbVariant::Kickback);
-    let relocated = Arc::new(instinct(&Agreements::current()));
-    set_rkcb_variant(RkcbVariant::Plain);
-    let plain = Arc::new(instinct(&Agreements::current()));
+    let mut relocated_agreements = Agreements::current();
+    relocated_agreements.decision.reading.rkcb_variant = RkcbVariant::Kickback;
+    let relocated = Arc::new(instinct(&relocated_agreements));
+    let mut plain_agreements = Agreements::current();
+    plain_agreements.decision.reading.rkcb_variant = RkcbVariant::Plain;
+    let plain = Arc::new(instinct(&plain_agreements));
 
     // Ambient on: `forced` recognizes the relocated ask for both shells, so the
     // only difference left is the ladder each was handed.
-    set_rkcb_variant(RkcbVariant::Kickback);
-    let context = Context::new(RelativeVulnerability::NONE, &auction);
+    let context = Context::new(RelativeVulnerability::NONE, &auction)
+        .with_profile(relocated_agreements.decision);
     let answer = |ladder: Arc<Rules>| {
         let logits = ConfiguredFloorBba::new(card.clone(), ladder).classify(hand, &context);
         (&logits.0)
@@ -100,8 +104,6 @@ fn the_configured_floor_answers_off_its_own_ladder() {
     };
     let on_relocated = answer(relocated);
     let on_plain = answer(plain);
-    set_rkcb_variant(RkcbVariant::Plain);
-
     assert_eq!(
         on_relocated,
         call(4, Strain::Notrump),
@@ -180,9 +182,14 @@ fn the_six_six_hand_stops_jumping_into_the_relocated_ask() {
         Call::Pass,
     ];
     let hand = "AQJT83.QT9875..6"; // ♠AQJT83 ♥QT9875 ♦— ♣6, board 229
-    crate::bidding::instinct::set_rkcb_variant(crate::bidding::instinct::RkcbVariant::Kickback);
-    let with_kickback = best(&auction, hand);
-    crate::bidding::instinct::set_rkcb_variant(crate::bidding::instinct::RkcbVariant::Plain);
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.rkcb_variant = crate::bidding::instinct::RkcbVariant::Kickback;
+    let logits = shelled_with(&agreements, &auction, hand);
+    let with_kickback = (&logits.0)
+        .into_iter()
+        .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))
+        .map(|(call, _)| call)
+        .expect("array is never empty");
     assert_ne!(
         with_kickback,
         call(4, Strain::Hearts),
