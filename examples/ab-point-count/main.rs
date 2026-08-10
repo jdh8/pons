@@ -13,10 +13,11 @@
 //!   [`support_points`][pons::bidding::constraint::support_points] scale
 //!   (shipped) vs legacy, via
 //!   [`support_points`][field@pons::bidding::inference::ReadingProfile::support_points].
-//! - `--candidate hcp|rule`: the **global**
-//!   [`PointScale`][pons::bidding::constraint::PointScale] deprecation A/B/C —
-//!   every `points` gate, the sampler, and the floor's combined counts swap
-//!   scale together per acting side, against `--baseline` (default legacy).
+//! - `--candidate hcp`: the **global**
+//!   [`PointScale`][pons::bidding::constraint::PointScale] A/B — every
+//!   `points` gate, the sampler, and the floor's combined counts swap scale
+//!   together per acting side, against `--baseline` (default `point-count`,
+//!   the shipped scale).
 //!
 //! `--deals <bank.pdd> --offset <rows>` bids a slice of a pre-solved binary
 //! deal bank instead of seeded deals: plain DD and perfect defense then score
@@ -27,7 +28,7 @@
 //! ```text
 //! cargo run --example ab-point-count -- --count 1000 --vulnerability ns --seed "$SEED_BASE"
 //! cargo run --example ab-point-count -- --count 1000 --sd --seed "$SEED_BASE"
-//! cargo run --release --example ab-point-count -- --candidate rule \
+//! cargo run --release --example ab-point-count -- --candidate hcp \
 //!     --deals /nfs2/jdh8/pons/24.pdd --offset 0 --count 1000000 --show 20
 //! ```
 
@@ -82,18 +83,18 @@ struct Args {
     #[arg(long, default_value_t = 20_240_607)]
     sd_seed: u64,
 
-    /// Candidate **global** point scale (the deprecation A/B/C); when omitted
-    /// the runner measures the fit-known support_points scale instead
+    /// Candidate **global** point scale; when omitted the runner measures the
+    /// fit-known support_points scale instead
     #[arg(long, value_enum)]
     candidate: Option<Scale>,
 
     /// Baseline global point scale for the other side (with --candidate)
-    #[arg(long, value_enum, default_value = "legacy")]
+    #[arg(long, value_enum, default_value = "point-count")]
     baseline: Scale,
 
     /// Fix-vs-shipped for the weak-two remnant: `LO:HI` gauges the weak-two
     /// opening in raw HCP on the candidate side; the baseline keeps the shipped
-    /// `points(5..=10)`.  Both sides stay on the floored scale, so this measures
+    /// `points(5..=10)`.  Both sides stay on the shipped scale, so this measures
     /// the gate alone.  Overrides `--candidate`. E.g. `5:10`.
     #[arg(long)]
     weak_two_hcp: Option<String>,
@@ -128,27 +129,23 @@ struct Args {
 }
 
 /// A CLI name for each global [`PointScale`] arm
+///
+/// The rule-of-N+8 arms were pruned once `PointCount` won the deprecation
+/// A/B/C; the engine variants survive in [`PointScale`] for tests and
+/// re-measures.
 #[derive(Clone, Copy, PartialEq, Eq, Debug, clap::ValueEnum)]
 enum Scale {
-    /// Legacy raw HCP + upgrade (deposed 2026-07-14; the opt-out)
-    Legacy,
+    /// Raw HCP + the capped shape upgrade (the shipped default)
+    PointCount,
     /// Raw Milton Work HCP
     Hcp,
-    /// Rule of N+8: HCP + two longest suit lengths − 8 (opt-in since the
-    /// 4333-floor A/B)
-    Rule,
-    /// Rule of N+8 floored at raw HCP: flat 4-3-3-3 keeps its HCP (the
-    /// shipped default)
-    RuleFloored,
 }
 
 impl From<Scale> for PointScale {
     fn from(scale: Scale) -> Self {
         match scale {
-            Scale::Legacy => Self::PointCount,
+            Scale::PointCount => Self::PointCount,
             Scale::Hcp => Self::Hcp,
-            Scale::Rule => Self::RuleOfN,
-            Scale::RuleFloored => Self::RuleOfNFloored,
         }
     }
 }

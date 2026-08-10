@@ -59,7 +59,9 @@ struct Args {
     vulnerability: AbsoluteVulnerability,
 
     /// Landy `2♣` (both majors) points range: `LO` (open-topped) or `LO:HI`. Empty
-    /// disables the `2♣` part (e.g. to isolate the `2NT` minors).
+    /// disables the `2♣` part (e.g. to isolate the `2NT` minors).  Rejected
+    /// under `--ns-defense woolsey`, where the shared band comes from
+    /// `--ns-woolsey-range`.
     #[arg(long, default_value = "8")]
     ns_majors: String,
 
@@ -408,6 +410,13 @@ fn main() {
     };
     let ns_defense = NotrumpDefense::from(args.ns_defense);
     let ew_defense = NotrumpDefense::from(args.ew_defense);
+    // One band serves Landy and Woolsey, and under Woolsey it comes from
+    // `--ns-woolsey-range`; a Landy range here would be silently discarded —
+    // the class of bug that voided the pre-0.11 sweeps — so refuse it.
+    assert!(
+        ns_defense != NotrumpDefense::Woolsey || args.ns_majors == "8",
+        "--ns-majors is dead under --ns-defense woolsey; set the band with --ns-woolsey-range"
+    );
     let ns_doubler_run = parse_on_off(&args.ns_doubler_run, "--ns-doubler-run");
     // `Option<bool>` is the engine's shape for "DirectLandy, and does its X take a
     // flat 4-4?" — `None` for every other system, since the payload has no meaning

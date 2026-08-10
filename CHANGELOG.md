@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Harness hygiene: `RuleOfNFloored` prose caught up with `PointCount`, and
+  `ab-landy` refuses a dead flag.**  No bidding change, no measured impact.
+
+  `ab-point-count`'s `Scale` enum still offered `rule`/`rule-floored` arms and
+  labelled `rule-floored` "the shipped default" while the actual default arm was
+  named `legacy` and documented as "deposed… the opt-out" — every label stale
+  since `PointCount` shipped.  The rule arms are pruned (the
+  `PointScale::RuleOfN*` engine variants stay, constructible for tests and
+  re-measures) and the default arm is now truthfully named `point-count`.
+  Nothing live passed the old strings.  The trainer's evaluator arm-spec doc,
+  which claimed "the default scale is now `RuleOfNFloored`", is corrected to
+  history, as is `overcall.rs`'s Michaels comment (it named the deleted
+  `set_two_suiter_hcp_floor` and predated `Some(8)` becoming the measured
+  default).
+
+  `ab-landy` under `--ns-defense woolsey` silently discarded an explicit
+  `--ns-majors LO:HI` — the band comes from `--ns-woolsey-range` there — the
+  same silent-flag class that voided the pre-0.11 `--ns-majors` sweeps.  The
+  combination is now a hard error.
+
+  Answered in passing: `Agreements` deliberately has no setters (harnesses
+  write fields; `web/` manufactures its set/get pairs), and the unified
+  Landy/Woolsey band already exists as `ReadingProfile::convention_points`
+  (shared since `f43fda2`); `DefenseKnobs`' doc now points there.
+
 - **`Context` says what it is.**  Its module doc claimed "all facts here are
   *mechanical*: they follow from the laws of the game alone" — a claim six
   attachment fields have contradicted since 2026-08-05, when two commits with

@@ -428,9 +428,11 @@ impl Arm {
     ///
     /// The two globals are separate flags because they are separately suspect.
     /// `upgrade` is the *legacy* shape term (`!is_balanced + longest_two ≥ 10`)
-    /// from when `point_count` was `raw_hcp + upgrade`; the default scale is now
-    /// `RuleOfNFloored`, so it no longer reconstructs the scale the inference
-    /// blocks record partner's points on. And global `hcp` is exactly the sum of
+    /// from when `point_count` was `raw_hcp + upgrade`; when this spec was
+    /// drawn the default scale was `RuleOfNFloored`, so it did not reconstruct
+    /// the scale the inference blocks record partner's points on (the default
+    /// has since returned to `PointCount`, `raw_hcp` plus the linearised
+    /// upgrade). And global `hcp` is exactly the sum of
     /// the four `suit_hcp` columns whenever those are live, which is a 4-weight
     /// reconstruction rather than the 16-weight one the coordination argument
     /// was built on.

@@ -521,7 +521,10 @@ impl Default for CompetitionKnobs {
 ///
 /// Each field is one build-time setting; *derived* readings stay functions of
 /// the module that owns them rather than becoming fields, so the "one knob, one
-/// home" invariant stays explicit.
+/// home" invariant stays explicit.  The Landy/Woolsey strength band is *not*
+/// here: one band serves both families and lives on
+/// [`convention_points`][field@crate::bidding::inference::ReadingProfile::convention_points],
+/// where the sampler's readers can also reach it.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct DefenseKnobs {
     // --- defense.rs

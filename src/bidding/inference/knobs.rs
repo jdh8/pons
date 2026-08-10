@@ -480,7 +480,8 @@ pub struct ReadingProfile {
     /// scale-free).  The capped shape reads wild two-suiters and freaks
     /// lighter than N+8's bonus-of-5, cutting the overbids PD punishes.  Rule
     /// of N+8 ([`RuleOfNFloored`][crate::bidding::constraint::PointScale::RuleOfNFloored])
-    /// is now the opt-out, and
+    /// is now the opt-out — constructible for tests and re-measures, though
+    /// `ab-point-count` no longer offers it as an arm — and
     /// [`Hcp`][crate::bidding::constraint::PointScale::Hcp] gauges raw HCP.
     pub point_scale: crate::bidding::constraint::PointScale,
 

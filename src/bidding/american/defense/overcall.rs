@@ -234,9 +234,9 @@ pub fn defense_to_suit(their_opening: Bid, agreements: &Agreements) -> Rules {
         }
     }
 
-    // Michaels cue-bid: 2 of their suit, 5-5, 8+ HCP — the HCP is real when
-    // `set_two_suiter_hcp_floor` is armed; the shipped gate is `points(8..)`
-    // alone, which rule-of-N+8 satisfies on 5-HCP 6-5 freaks.
+    // Michaels cue-bid: 2 of their suit, 5-5, 8+ HCP — the HCP leg is armed by
+    // `defense.two_suiter_hcp_floor`, shipped `Some(8)`: the bare `points(8..)`
+    // gate let rule-of-N+8 cue 5-HCP 6-5 freaks into penalty doubles.
     let (high, low) = match t {
         // t minor → both majors; t major → the other major (paired with a minor
         // below via `low`).
