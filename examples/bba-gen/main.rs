@@ -1945,19 +1945,17 @@ fn main() -> anyhow::Result<()> {
         // Fixed seed: every shard of an arm probes the identical map, so the
         // arm's readings are consistent across its shards.
         // Armed before the probe so its fixed-point iteration serves through
-        // the same fold consumption will (see `Stance::probe`).  Both knobs are
-        // captured into the stance at build and can only be set after it, so
-        // each set is followed by the `repin` that makes it take.
-        pons::bidding::set_probed_vacuous_reading(args.ns_probe_vacuous);
-        our_floor.repin();
+        // the same fold consumption will (see `Stance::probe`).  Both settings
+        // are pinned into the stance at build and are only knowable after it,
+        // so each moves on this stance's own copy.
+        our_floor.profile_mut().reading.probed_vacuous = args.ns_probe_vacuous;
         let report = our_floor.probe(args.ns_probe, 0x9B0BE);
         eprintln!(
             "probed {} boards: {} keys, {} drifted",
             args.ns_probe, report.keys, report.drifted
         );
         if !args.ns_probe_vacuous {
-            pons::bidding::set_probed_reading(true);
-            our_floor.repin();
+            our_floor.profile_mut().reading.probed = true;
         }
     }
     let our_floor = our_floor;
@@ -1970,8 +1968,11 @@ fn main() -> anyhow::Result<()> {
             // `--ns-probe` above pinned the probed overlay into `our_floor` and
             // left the bits armed on this thread.  Their book never probed, so
             // building it armed would fold a probed reading against an *empty*
-            // box map.  Off for this build only, then restored — `blinded` below
-            // repins off the armed thread and still needs them.
+            // box map.  Off for this build only, then restored, because the
+            // cells still back other build-time reads until the classify-time
+            // half of the knob campaign lands.  `blinded` below no longer needs
+            // the restore: it copies `our_floor`'s own pin, which already holds
+            // the probed bits, instead of re-capturing this thread.
             pons::bidding::set_probed_reading(false);
             pons::bidding::set_probed_vacuous_reading(false);
             let built = under(their_ns.as_ref(), &args, |theirs| {
@@ -2010,10 +2011,10 @@ fn main() -> anyhow::Result<()> {
         our_floor
     };
     // Blind arm of the deviation panel: our side reads with the two opponent
-    // seats' readings blanked.  The knob is captured into a stance, so this is a
-    // repinned copy of our floor rather than a global set — the pons book seated
-    // opposite us keeps its own readings.  (A BBA oracle has no pons readings to
-    // blank, so the flag only reaches the floor.)
+    // seats' readings blanked.  The setting is pinned into a stance, so this is
+    // a copy of our floor with one field moved rather than a global set — the
+    // pons book seated opposite us keeps its own readings.  (A BBA oracle has no
+    // pons readings to blank, so the flag only reaches the floor.)
     let our_floor = if args.ns_blind_opponent_reading {
         blinded(&our_floor)
     } else {

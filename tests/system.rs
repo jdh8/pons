@@ -1,5 +1,6 @@
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::{Bid, Hand, Level, Strain};
+use pons::bidding::agreements::Agreements;
 use pons::bidding::array::Logits;
 use pons::bidding::trie::classifier;
 use pons::bidding::{Competitive, Constructive, Defensive, Pair, System};
@@ -78,7 +79,7 @@ fn test_stance_routes_by_phase() {
     let mut defensive = Defensive::new();
     defensive.insert(&[one_s], classifier(|_, _| marker_logits(3.0)));
 
-    let stance = Pair::new(constructive, competitive, defensive).against();
+    let stance = Pair::new(constructive, competitive, defensive, Agreements::default()).against();
 
     // Nobody has opened: the opening decision is constructive.
     assert_eq!(classify_marker(&stance, &[]), Some(1.0));

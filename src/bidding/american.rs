@@ -123,11 +123,10 @@ pub(crate) use xyz::xyz;
 /// [`ConfiguredFloorV5`][crate::bidding::neural_floor::ConfiguredFloorV5] —
 /// one artifact whose convention-regime input is both partnerships'
 /// [`ConventionCard`][super::features::ConventionCard], **captured here, at build
-/// time**, from whatever the `set_*` knobs say when this is called, in the
-/// same expression that reads them for [`american_book`].  That is what keeps
-/// regime and rules from disagreeing: an A/B arm builds its stance with its
-/// own knobs armed, exactly as it already does for rule presence, and gets a
-/// matching regime vector for free.  Opponents are modeled as playing our own
+/// time**, from the `agreements` value in the same expression that reads it for
+/// [`american_book`].  That is what keeps regime and rules from disagreeing:
+/// one value serves the card, the books, and — since the pair carries it —
+/// the classify-time half that [`Pair::against`] pins.  Opponents are modeled as playing our own
 /// agreements, matching every other undeclared-opposition default in the
 /// crate; a genuinely mixed table wants [`american_with_config`], which also
 /// remains the card-input v4 floor's entry point.  The v5 floor became the
@@ -171,12 +170,12 @@ pub fn american(agreements: &Agreements) -> Pair {
 /// v4 corpus, and this is how a harness reaches it: build each arm's card from
 /// its own knob state, then hand each side both.
 ///
-/// `config` is taken verbatim and the **book still comes from the live knobs**,
-/// so set them to match — a card claiming an agreement the rules do not play is
-/// a misdisclosure to the net, and nothing checks it.  [`american`] cannot make
-/// that mistake (it reads regime and book from one knob state in one
-/// expression); this entry point can, which is the price of declaring an
-/// opponent the knobs cannot describe.
+/// `config` is taken verbatim while the **book comes from `agreements`**, so
+/// make them match — a card claiming an agreement the rules do not play is a
+/// misdisclosure to the net, and nothing checks it.  [`american`] cannot make
+/// that mistake (it derives regime and book from one value in one expression);
+/// this entry point can, which is the price of declaring an opponent that value
+/// cannot describe.
 ///
 /// Since the 2026-08-08 default-floor swap this is also the only entry point
 /// that still builds the 2/1 book over the card-input **v4** floor
@@ -272,7 +271,12 @@ pub fn american_instinct(agreements: &Agreements) -> Pair {
 #[must_use]
 pub fn american_floor(agreements: &Agreements) -> Pair {
     with_floor_v5(
-        Pair::new(Constructive::new(), Competitive::new(), Defensive::new()),
+        Pair::new(
+            Constructive::new(),
+            Competitive::new(),
+            Defensive::new(),
+            *agreements,
+        ),
         super::features::CompactConfig::symmetric(&super::features::ConventionCard::capture(
             agreements, false,
         )),
@@ -347,6 +351,7 @@ pub(in crate::bidding) fn book(agreements: &Agreements) -> Pair {
         c,
         competition::competition(&agreements),
         defense::defensive(&agreements),
+        agreements,
     )
 }
 

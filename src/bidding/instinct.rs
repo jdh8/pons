@@ -340,7 +340,7 @@ std::thread_local! {
 /// Membership is decided by *where the cell is read*, not by what it
 /// configures: `REIN_ADVANCE_RAISE` shapes the table at one site and is read
 /// again inside a `pred` closure at another, which puts it here.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct InstinctProfile {
     /// Consult the auction interpretation for known fits
     ///

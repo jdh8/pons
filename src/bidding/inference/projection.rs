@@ -553,8 +553,8 @@ impl AuthoringStepCache {
             Some(_) => return self.disable(),
         }
         // The stance's pinned reading, not the thread's live one: this walk
-        // serves that stance, and `Stance::repin` invalidates the cache
-        // identity checked just above, so a deliberate re-pin still resets it.
+        // serves that stance, and `Stance::profile_mut` invalidates the cache
+        // identity checked just above, so a deliberate edit still resets it.
         let profile = stance.profile().reading;
         let reader_parity = auction.len() % 2;
         match (self.profile, self.vul, self.reader_parity) {

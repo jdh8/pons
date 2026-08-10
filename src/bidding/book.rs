@@ -17,10 +17,13 @@
 //! they deref to it, so [`insert`][Trie::insert],
 //! [`fallback_at`][Trie::fallback_at], and friends are available directly.
 //! What the newtype adds is a *gated* [`System`] implementation that answers
-//! only for its phase.  A [`Pair`] assembles the three books; binding it with
-//! [`Pair::against`] yields a [`Stance`], the system that actually
-//! classifies.  There is no whole-system identity label: a system announces
-//! itself through its calls' own [`Alert`][super::Alert]s and their readings.
+//! only for its phase.  A [`Pair`] assembles the three books **and the
+//! [`Agreements`][crate::bidding::agreements::Agreements] they were baked
+//! from**; binding it with [`Pair::against`] yields a [`Stance`], the system
+//! that actually classifies, with the classify-time half of those agreements
+//! pinned into it from the same value.
+//! There is no whole-system identity label: a system announces itself through
+//! its calls' own [`Alert`][super::Alert]s and their readings.
 //!
 //! # Key disjointness
 //!
@@ -40,13 +43,12 @@
 //! literal auction with no pass semantics) until a dedicated router exists.
 
 use super::System;
+use super::agreements::Agreements;
 use super::array::Logits;
 use super::constraint::PointScale;
 use super::context::{Context, DecisionProfile};
 use super::decoder::AuthoringDecoder;
-use super::inference::{
-    AuthoringStepCache, Envelope, Inferences, Range, ReadingProfile, reading_profile,
-};
+use super::inference::{AuthoringStepCache, Envelope, Inferences, Range, ReadingProfile};
 use super::rules::{CompiledRules, FaceRegistry, ProjectionCache};
 use super::trie::{Classifier, Provenance, Trie};
 use contract_bridge::auction::{Auction, Call, RelativeVulnerability};
@@ -242,7 +244,7 @@ impl System for Competitive {
     }
 }
 
-/// One pair's authored system: its three books
+/// One pair's authored system: its three books and the agreements behind them
 ///
 /// A pair writes a [`Constructive`] book (strictly uncontested), a
 /// [`Competitive`] book (we open, they intervene), and a [`Defensive`] book
@@ -253,6 +255,17 @@ impl System for Competitive {
 /// The books occupy disjoint keys by construction: a constructive key has all
 /// opposing calls as passes, while a competitive key contains an opposing
 /// non-pass call.
+///
+/// # Why the agreements ride along
+///
+/// The books are *baked* from an [`Agreements`] value, but a book cannot answer
+/// what it was baked from, and roughly half of what a partnership agrees is read
+/// while classifying rather than while building — which readings decode, what
+/// the deterministic floor plays.  Carrying the value the books came from is
+/// what lets [`against`][Self::against] pin that half from the same source, in
+/// the same expression.  Before it did, the two came from different places: the
+/// books from this value and the pin from whatever the *building thread's*
+/// knobs happened to hold.
 #[derive(Clone, Debug, Default)]
 pub struct Pair {
     /// The book for the strictly uncontested auctions
@@ -261,20 +274,31 @@ pub struct Pair {
     pub competitive: Competitive,
     /// The book for when they open
     pub defensive: Defensive,
+    /// What this pair agreed to play — the value the three books were baked
+    /// from, and the source of the classify-time half that
+    /// [`against`][Self::against] pins into the [`Stance`]
+    pub agreements: Agreements,
 }
 
 impl Pair {
-    /// Assemble a pair from its three books
+    /// Assemble a pair from its three books and the agreements behind them
+    ///
+    /// `agreements` must be the value the books were built from; nothing checks
+    /// it, and a mismatch means the rules play one system while the readings
+    /// decode another.  Every in-crate factory passes the same value it baked
+    /// with, in the same expression.
     #[must_use]
     pub const fn new(
         constructive: Constructive,
         competitive: Competitive,
         defensive: Defensive,
+        agreements: Agreements,
     ) -> Self {
         Self {
             constructive,
             competitive,
             defensive,
+            agreements,
         }
     }
 
@@ -303,16 +327,16 @@ impl Pair {
         let (constructive_trie, constructive_decoder) = BoundBook::finalize(constructive);
         let (competitive_trie, competitive_decoder) = BoundBook::finalize(bound);
         let (defensive_trie, defensive_decoder) = BoundBook::finalize(self.defensive.0.clone());
-        let compiled_rules = Arc::new(CompiledRuleRegistry::compile([
-            constructive_decoder.as_ref(),
-            competitive_decoder.as_ref(),
-            defensive_decoder.as_ref(),
-        ]));
-        let profile = DecisionProfile::current();
-        debug_assert!(
-            compiled_rules.profile == profile.reading,
-            "the compiled-rule sidecar and the stance captured different reading profiles"
-        );
+        // One value, read once: the sidecar, the pin and the books above all
+        // come from `self.agreements`, so no two of them can disagree.
+        let compiled_rules = Arc::new(CompiledRuleRegistry::compile(
+            [
+                constructive_decoder.as_ref(),
+                competitive_decoder.as_ref(),
+                defensive_decoder.as_ref(),
+            ],
+            self.agreements.decision,
+        ));
         let constructive = BoundBook::new(
             constructive_trie,
             constructive_decoder,
@@ -330,8 +354,8 @@ impl Pair {
             defensive,
             probed: HashMap::new(),
             opponents: None,
-            cache_identity: Arc::new(StanceCacheIdentity::default()),
-            profile,
+            cache_identity: Arc::new(StanceCacheIdentity),
+            agreements: self.agreements,
         }
     }
 }
@@ -456,13 +480,22 @@ impl CompiledRuleRegistry {
         std::ptr::from_ref(classifier).cast::<()>() as usize
     }
 
-    fn compile<'a>(decoders: impl IntoIterator<Item = &'a AuthoringDecoder>) -> Self {
+    /// Bake every rule table under `profile`
+    ///
+    /// `profile` comes from the same [`Agreements`] the books were built from,
+    /// so the sidecar cannot bake under one reading while the stance pins
+    /// another.  It also reaches the bare context below, which is what the
+    /// projection fold consults per node.
+    fn compile<'a>(
+        decoders: impl IntoIterator<Item = &'a AuthoringDecoder>,
+        profile: DecisionProfile,
+    ) -> Self {
         let mut registry = Self {
-            profile: reading_profile(),
+            profile: profile.reading,
             tables: HashMap::new(),
             face_slots: 0,
         };
-        let context = Context::new(RelativeVulnerability::NONE, &[]);
+        let context = Context::new(RelativeVulnerability::NONE, &[]).with_profile(profile);
         let mut projections = ProjectionCache::default();
         let mut faces = FaceRegistry::default();
         let mut insert = |classifier: &dyn Classifier| {
@@ -509,16 +542,23 @@ impl CompiledRuleRegistry {
 impl Default for BoundBook {
     fn default() -> Self {
         let (trie, decoder) = Self::finalize(Trie::new());
-        let compiled_rules = Arc::new(CompiledRuleRegistry::compile([decoder.as_ref()]));
+        let compiled_rules = Arc::new(CompiledRuleRegistry::compile(
+            [decoder.as_ref()],
+            DecisionProfile::default(),
+        ));
         Self::new(trie, decoder, compiled_rules)
     }
 }
 
 /// Clone-stable identity for stance-local data consumed by deal caches.
-#[derive(Debug, Default)]
-pub(crate) struct StanceCacheIdentity {
-    revision: u64,
-}
+///
+/// The identity *is* the allocation: consumers compare with `Arc::ptr_eq`, and
+/// a deal cache retains its own clone, which keeps the allocation alive — so
+/// the allocator cannot recycle the address into a false match while the
+/// comparison still means anything.  There is deliberately nothing to compare
+/// inside; a counter here would be written and never read.
+#[derive(Debug)]
+pub struct StanceCacheIdentity;
 
 /// A pair's system, bound and ready to classify
 ///
@@ -547,10 +587,11 @@ pub struct Stance {
     /// changes. Deal caches retain this small token, so an allocator cannot
     /// recycle a raw address into a false identity match.
     cache_identity: Arc<StanceCacheIdentity>,
-    /// The knob state pinned at build ([`Pair::against`]): classify-time knob
-    /// reads serve off this copy, so the stance answers identically on every
-    /// thread.  Re-captured only by [`repin`][Self::repin].
-    profile: DecisionProfile,
+    /// What this stance plays, pinned at build ([`Pair::against`]) from the
+    /// same value the books were baked from.  Classify-time reads serve off
+    /// this copy, so the stance answers identically on every thread.  Moved
+    /// only by [`profile_mut`][Self::profile_mut].
+    agreements: Agreements,
 }
 
 impl Default for Stance {
@@ -562,8 +603,8 @@ impl Default for Stance {
             defensive: BoundBook::default(),
             probed: HashMap::new(),
             opponents: None,
-            cache_identity: Arc::new(StanceCacheIdentity::default()),
-            profile: DecisionProfile::current(),
+            cache_identity: Arc::new(StanceCacheIdentity),
+            agreements: Agreements::default(),
         }
     }
 }
@@ -585,28 +626,42 @@ impl Stance {
         &self.cache_identity
     }
 
-    /// The knob state pinned into this stance at build
-    pub(crate) fn profile(&self) -> DecisionProfile {
-        self.profile
+    /// What this stance plays — the agreements pinned into it at build
+    ///
+    /// A built system can be asked what it plays, which is what lets a caller
+    /// disclose it without hand-carrying a matching value alongside.
+    pub const fn agreements(&self) -> &Agreements {
+        &self.agreements
     }
 
-    /// Re-capture this thread's knob state into the stance
+    /// The classify-time half of [`agreements`][Self::agreements]
+    pub const fn profile(&self) -> DecisionProfile {
+        self.agreements.decision
+    }
+
+    /// Edit the knob state pinned into this stance
     ///
     /// A stance pins the classify-time knob state when it is built
-    /// ([`Pair::against`]); later `set_*` calls do not move it.  This is the
-    /// deliberate escape hatch for a set-*after*-build flow: call the setters,
-    /// then `repin` the stance they should govern.  Prefer rebuilding when the
-    /// changed knob also shapes the books — repinning moves only the
-    /// classify-time reads.
-    pub fn repin(&mut self) {
-        self.profile = DecisionProfile::current();
+    /// ([`Pair::against`]), which is what lets it classify identically on any
+    /// thread.  This is the deliberate escape hatch for the eval-time-only arm:
+    /// move one setting on an already-built stance without rebuilding the books
+    /// under it.  Prefer rebuilding when the setting also *shapes* the books —
+    /// this moves only the classify-time reads.
+    ///
+    /// The returned borrow invalidates the stance's cache identity eagerly, so
+    /// a caller that takes it and changes nothing pays one cache miss and
+    /// nothing else.
+    ///
+    /// ```
+    /// use pons::american_default;
+    ///
+    /// let mut stance = american_default().against();
+    /// stance.profile_mut().reading.blind_opponents = true;
+    /// assert!(stance.profile().reading.blind_opponents);
+    /// ```
+    pub fn profile_mut(&mut self) -> &mut DecisionProfile {
         self.invalidate_cache_identity();
-    }
-
-    /// Move this stance's probed-overlay bit — [`probe`][Self::probe]'s driver
-    fn set_probed_reading(&mut self, on: bool) {
-        self.profile.reading.set_probed(on);
-        self.invalidate_cache_identity();
+        &mut self.agreements.decision
     }
 
     /// Read the opponents' calls off `them` instead of off our own books
@@ -635,9 +690,7 @@ impl Stance {
     }
 
     fn invalidate_cache_identity(&mut self) {
-        self.cache_identity = Arc::new(StanceCacheIdentity {
-            revision: self.cache_identity.revision.wrapping_add(1),
-        });
+        self.cache_identity = Arc::new(StanceCacheIdentity);
     }
 
     fn bound_for(&self, auction: &[Call]) -> &BoundBook {
@@ -1094,14 +1147,14 @@ impl Stance {
         // stays off); otherwise the full fold serves, as before.  A re-probe
         // of a stance with a stale map would serve that map in its first pass
         // — probe fresh stances.
-        let was = self.profile.reading.probed_reading();
-        let vacuous = self.profile.reading.probed_vacuous_reading();
-        self.set_probed_reading(false);
+        let was = self.agreements.decision.reading.probed_reading();
+        let vacuous = self.agreements.decision.reading.probed_vacuous_reading();
+        self.profile_mut().reading.probed = false;
         let first = boxed(harvest(self));
         self.probed = first;
-        self.set_probed_reading(!vacuous);
+        self.profile_mut().reading.probed = !vacuous;
         let second = boxed(harvest(self));
-        self.set_probed_reading(was);
+        self.profile_mut().reading.probed = was;
 
         let drifted = second
             .iter()

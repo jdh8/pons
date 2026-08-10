@@ -25,7 +25,7 @@ use pons::bidding::agreements::Agreements;
 use pons::bidding::american::american_book;
 use pons::bidding::evaluator::trick_estimates;
 use pons::bidding::fallback::Fallback;
-use pons::bidding::{Relative, Stance, Table, american, inference, instinct};
+use pons::bidding::{Relative, Stance, Table, american, instinct};
 use pons::scoring::{final_contract, imps};
 use pons_dds::{Par, Solver, TrickCountTable, Vulnerability, calculate_par, solve_deal_on};
 use rand::SeedableRng as _;
@@ -909,6 +909,34 @@ knob!(set_competition_over_stayman, competition_over_stayman, competition.compet
 knob!(set_competition_over_minor_transfer, competition_over_minor_transfer, competition.competition_over_minor_transfer: bool);
 knob!(set_competition_over_diamond_transfer, competition_over_diamond_transfer, competition.competition_over_diamond_transfer: bool);
 knob!(set_defense_to_2d_multi, defense_to_2d_multi, competition.defense_2d_multi: bool);
+
+// The classify-time half, on this value rather than the crate's thread-locals:
+// the pair carries its agreements now, so a setter that wrote a global would
+// move nothing the built stance ever reads.
+knob!(set_garbage_stayman, garbage_stayman, decision.reading.garbage_stayman: bool);
+knob!(set_crawling_stayman, crawling_stayman, decision.reading.crawling_stayman: bool);
+knob!(set_nt_splinter, nt_splinter, decision.reading.nt_splinter: bool);
+knob!(set_nt_overcall_gladiator, nt_overcall_gladiator, decision.reading.nt_overcall_gladiator: bool);
+knob!(set_rubens_advances, rubens_advances, decision.reading.rubens_advances: bool);
+knob!(set_floor_rkcb, floor_rkcb, decision.reading.floor_rkcb: bool);
+knob!(set_penalty_latch, penalty_latch, decision.reading.penalty_latch: bool);
+knob!(set_nt_invite, nt_invite, decision.reading.nt_invite: bool);
+knob!(set_rubens_transfer, rubens_transfer, decision.reading.rubens_transfer: bool);
+knob!(set_fallback_projection, fallback_projection, decision.reading.fallback_projection: bool);
+knob!(set_control_bid, control_bid, decision.reading.control_bid: bool);
+knob!(set_rule_accept, rule_accept, decision.reading.rule_accept: bool);
+knob!(set_transfer_gf_majors, transfer_gf_majors, decision.transfer_gf_majors: bool);
+knob!(set_transfer_gf_hearts, transfer_gf_hearts, decision.transfer_gf_hearts: bool);
+knob!(set_two_over_one_force, two_over_one_force, decision.two_over_one_force: bool);
+knob!(set_one_nt_runout, one_nt_runout, decision.instinct.one_nt_runout: bool);
+knob!(set_one_nt_runout_universal, one_nt_runout_universal, decision.instinct.one_nt_runout_universal: bool);
+knob!(set_settle_floor, settle_floor, decision.instinct.settle_floor: bool);
+knob!(set_penalize_escape_stack, penalize_escape_stack, decision.instinct.penalize_escape_stack: bool);
+knob!(set_penalize_escape_values, penalize_escape_values, decision.instinct.penalize_escape_values: bool);
+knob!(set_uvu_encircle, uvu_encircle, decision.instinct.uvu_encircle: bool);
+knob!(set_penalty_no_pull, penalty_no_pull, decision.instinct.penalty_no_pull: bool);
+knob!(set_advancer_xx_runout, advancer_xx_runout, decision.instinct.advancer_xx_runout: bool);
+knob!(set_doubler_xx_runout, doubler_xx_runout, instinct.doubler_xx_runout: bool);
 knob!(set_negative_double_shape, negative_double_shape, competition.negative_double_shape: american::NegativeDoubleShape);
 knob!(set_lebensohl_style, lebensohl_style, competition.lebensohl_style: american::LebensohlStyle);
 knob!(set_passed_hand_overcall, passed_hand_overcall, defense.passed_hand_overcall: bool);
@@ -1087,15 +1115,19 @@ fn set_notrump_defense_choice(value: &str) {
     use american::NotrumpDefense;
     // DirectLandy carries a shape flag; select the measured-winning 5-4 form.
     if value == "direct_landy" {
-        amend(|a| a.defense.direct_landy_four_four = false);
-        american::set_notrump_defense(NotrumpDefense::DirectLandy);
+        amend(|a| {
+            a.defense.direct_landy_four_four = false;
+            a.decision.reading.notrump_defense = NotrumpDefense::DirectLandy;
+        });
         return;
     }
-    american::set_notrump_defense(match value {
-        "direct_dont" => NotrumpDefense::DirectDont,
-        "woolsey" => NotrumpDefense::Woolsey,
-        "always_pass" => NotrumpDefense::AlwaysPass,
-        _ => NotrumpDefense::Natural,
+    amend(|a| {
+        a.decision.reading.notrump_defense = match value {
+            "direct_dont" => NotrumpDefense::DirectDont,
+            "woolsey" => NotrumpDefense::Woolsey,
+            "always_pass" => NotrumpDefense::AlwaysPass,
+            _ => NotrumpDefense::Natural,
+        };
     });
 }
 
@@ -1108,7 +1140,7 @@ fn set_notrump_defense_choice(value: &str) {
 /// group can display.
 fn get_notrump_defense_choice() -> &'static str {
     use american::NotrumpDefense;
-    match american::notrump_defense() {
+    match agreements().decision.reading.notrump_defense {
         NotrumpDefense::DirectDont => "direct_dont",
         NotrumpDefense::Woolsey => "woolsey",
         NotrumpDefense::AlwaysPass => "always_pass",
@@ -1215,10 +1247,12 @@ static RKCB_VARIANT_VARIANTS: &[Variant] = &[
 /// Select the keycard relocation stance from its registry `value`.
 fn set_rkcb_variant_choice(value: &str) {
     use instinct::RkcbVariant;
-    instinct::set_rkcb_variant(match value {
-        "redwood" => RkcbVariant::Redwood,
-        "kickback" => RkcbVariant::Kickback,
-        _ => RkcbVariant::Plain,
+    amend(|a| {
+        a.decision.reading.rkcb_variant = match value {
+            "redwood" => RkcbVariant::Redwood,
+            "kickback" => RkcbVariant::Kickback,
+            _ => RkcbVariant::Plain,
+        };
     });
 }
 
@@ -1226,7 +1260,7 @@ fn set_rkcb_variant_choice(value: &str) {
 /// `value`.
 fn get_rkcb_variant_choice() -> &'static str {
     use instinct::RkcbVariant;
-    match instinct::rkcb_variant_now() {
+    match agreements().decision.reading.rkcb_variant {
         RkcbVariant::Redwood => "redwood",
         RkcbVariant::Kickback => "kickback",
         _ => "plain",
@@ -1270,16 +1304,18 @@ fn advance_sohl_toggle() -> bool {
 /// Puppet Stayman as an on/off toggle: on = Puppet (the shipped default, 3♣ Puppet
 /// Stayman), off = European transfers (2♠ club transfer, 2NT natural, 3♣ diamond).
 fn set_puppet_stayman(on: bool) {
-    american::set_notrump_minors(if on {
-        american::PUPPET
-    } else {
-        american::EUROPEAN
+    amend(|a| {
+        a.decision.reading.notrump_minors = if on {
+            american::PUPPET
+        } else {
+            american::EUROPEAN
+        };
     });
 }
 
 /// Whether the 1NT minor scheme is Puppet rather than European transfers.
 fn puppet_stayman() -> bool {
-    american::notrump_minors() == american::PUPPET
+    agreements().decision.reading.notrump_minors == american::PUPPET
 }
 
 /// The registry.  Each `default` mirrors its engine `Cell::new(...)` — keep the two
@@ -1295,20 +1331,20 @@ static SETTINGS: &[Setting] = &[
     Setting::Choice { key: "notrump_shape", section: OPENINGS, label: "1NT opening shape", variants: NOTRUMP_SHAPE_VARIANTS, default: "wide6322", requires: None, set: set_notrump_shape_choice, get: get_notrump_shape_choice },
     // Notrump
     toggle("puppet_stayman", NOTRUMP, "Puppet Stayman (3♣)", true, set_puppet_stayman, puppet_stayman),
-    toggle("garbage_stayman", NOTRUMP, "Garbage Stayman", true, american::set_garbage_stayman, american::garbage_stayman),
+    toggle("garbage_stayman", NOTRUMP, "Garbage Stayman", true, set_garbage_stayman, garbage_stayman),
     toggle("transfer_super_accept", NOTRUMP, "", false, set_transfer_super_accept, transfer_super_accept),
     toggle("transfer_slam_try", NOTRUMP, "", true, set_transfer_slam_try, transfer_slam_try),
     toggle("texas_slam_drive", NOTRUMP, "", true, set_texas_slam_drive, texas_slam_drive),
-    toggle("transfer_gf_majors", NOTRUMP, "", true, american::set_transfer_gf_majors, american::transfer_gf_majors),
-    gated("transfer_gf_hearts", NOTRUMP, "", true, american::set_transfer_gf_hearts, american::transfer_gf_hearts, "transfer_gf_majors"),
+    toggle("transfer_gf_majors", NOTRUMP, "", true, set_transfer_gf_majors, transfer_gf_majors),
+    gated("transfer_gf_hearts", NOTRUMP, "", true, set_transfer_gf_hearts, transfer_gf_hearts, "transfer_gf_majors"),
     toggle("stayman_both_majors", NOTRUMP, "", true, set_stayman_both_majors, stayman_both_majors),
     toggle("stayman_5card_max", NOTRUMP, "", true, set_stayman_5card_max, stayman_5card_max),
     toggle("invitational_5card_majors", NOTRUMP, "", true, set_invitational_5card_majors, invitational_5card_majors),
     toggle("transfer_longer_major", NOTRUMP, "", true, set_transfer_longer_major, transfer_longer_major),
-    toggle("crawling_stayman", NOTRUMP, "", true, american::set_crawling_stayman, american::crawling_stayman),
+    toggle("crawling_stayman", NOTRUMP, "", true, set_crawling_stayman, crawling_stayman),
     toggle("stayman_cue_continuation", NOTRUMP, "", true, set_stayman_cue_continuation, stayman_cue_continuation),
     toggle("stayman_minor_slam_try", NOTRUMP, "", true, set_stayman_minor_slam_try, stayman_minor_slam_try),
-    toggle("nt_splinter", NOTRUMP, "1NT - 3M splinter (short major, ♦4, ♣5–6)", true, american::set_nt_splinter, american::nt_splinter),
+    toggle("nt_splinter", NOTRUMP, "1NT - 3M splinter (short major, ♦4, ♣5–6)", true, set_nt_splinter, nt_splinter),
     // Competition
     toggle("lebensohl", COMPETITION, "Lebensohl (over 1NT interference)", true, set_lebensohl_toggle, lebensohl_toggle),
     toggle("advance_lebensohl", COMPETITION, "Lebensohl advancing a double", true, set_advance_sohl_toggle, advance_sohl_toggle),
@@ -1331,7 +1367,7 @@ static SETTINGS: &[Setting] = &[
     toggle("responsive_takeout", COMPETITION, "Responsive doubles", true, set_responsive_takeout, responsive_takeout),
     toggle("rich_advance_double", COMPETITION, "", true, set_rich_advance_double, rich_advance_double),
     gated("advance_rubens", COMPETITION, "Rubens advances", false, set_advance_rubens, advance_rubens, "rich_advance_double"),
-    toggle("nt_overcall_gladiator", COMPETITION, "Gladiator (1NT-overcall advance)", false, american::set_nt_overcall_gladiator, american::nt_overcall_gladiator),
+    toggle("nt_overcall_gladiator", COMPETITION, "Gladiator (1NT-overcall advance)", false, set_nt_overcall_gladiator, nt_overcall_gladiator),
     // Negative-double school over their overcall — the enum-backed radio family
     Setting::Choice {
         key: "negative_double_shape",
@@ -1365,31 +1401,31 @@ static SETTINGS: &[Setting] = &[
     toggle("meckstroth_adjunct", REBIDS, "Meckstroth adjunct", true, set_meckstroth_adjunct, meckstroth_adjunct),
     toggle("limit_raise_acceptance", REBIDS, "", true, set_limit_raise_acceptance, limit_raise_acceptance),
     // Floor (instinct)
-    toggle("one_nt_runout", FLOOR, "", true, instinct::set_one_nt_runout, instinct::one_nt_runout),
-    gated("one_nt_runout_universal", FLOOR, "", true, instinct::set_one_nt_runout_universal, instinct::one_nt_runout_universal_enabled, "one_nt_runout"),
-    toggle("settle_floor", FLOOR, "", true, instinct::set_settle_floor, instinct::settle_floor_enabled),
-    toggle("rubens_advances", FLOOR, "", false, instinct::set_rubens_advances, instinct::rubens_advances_enabled),
-    toggle("floor_rkcb", FLOOR, "", true, instinct::set_floor_rkcb, instinct::floor_rkcb),
+    toggle("one_nt_runout", FLOOR, "", true, set_one_nt_runout, one_nt_runout),
+    gated("one_nt_runout_universal", FLOOR, "", true, set_one_nt_runout_universal, one_nt_runout_universal, "one_nt_runout"),
+    toggle("settle_floor", FLOOR, "", true, set_settle_floor, settle_floor),
+    toggle("rubens_advances", FLOOR, "", false, set_rubens_advances, rubens_advances),
+    toggle("floor_rkcb", FLOOR, "", true, set_floor_rkcb, floor_rkcb),
     // One radio family, not two checkboxes: the old redwood/kickback toggles let
     // the UI show both checked, a state the engine cannot play.  `rkcb_minors`
     // used to sit here too and was dropped for the same reason — either
     // relocation implies the minors' reach (`minor_asks_now`), so the checkbox
     // was inert on two of its six cells.
     Setting::Choice { key: "rkcb_variant", section: FLOOR, label: "Keycard ask relocation", variants: RKCB_VARIANT_VARIANTS, default: "plain", requires: Some("floor_rkcb"), set: set_rkcb_variant_choice, get: get_rkcb_variant_choice },
-    toggle("two_over_one_force", FLOOR, "2/1 forces game", true, instinct::set_two_over_one_force, instinct::two_over_one_force),
-    gated("penalize_escape_stack", FLOOR, "", true, instinct::set_penalize_escape_stack, instinct::penalize_escape_stack, "one_nt_runout"),
-    gated("penalize_escape_values", FLOOR, "", true, instinct::set_penalize_escape_values, instinct::penalize_escape_values, "one_nt_runout"),
-    gated("uvu_encircle", FLOOR, "UVU penalty procedure", true, instinct::set_uvu_encircle, instinct::uvu_encircle, "uvu"),
-    gated("penalty_latch", FLOOR, "", true, instinct::set_penalty_latch, instinct::penalty_latch_enabled, "notrump_defense=natural"),
-    gated("penalty_no_pull", FLOOR, "", true, instinct::set_penalty_no_pull, instinct::penalty_no_pull, "penalty_latch"),
-    toggle("advancer_xx_runout", FLOOR, "", true, instinct::set_advancer_xx_runout, instinct::advancer_xx_runout_enabled),
-    toggle("doubler_xx_runout", FLOOR, "", true, instinct::set_doubler_xx_runout, instinct::doubler_xx_runout_enabled),
+    toggle("two_over_one_force", FLOOR, "2/1 forces game", true, set_two_over_one_force, two_over_one_force),
+    gated("penalize_escape_stack", FLOOR, "", true, set_penalize_escape_stack, penalize_escape_stack, "one_nt_runout"),
+    gated("penalize_escape_values", FLOOR, "", true, set_penalize_escape_values, penalize_escape_values, "one_nt_runout"),
+    gated("uvu_encircle", FLOOR, "UVU penalty procedure", true, set_uvu_encircle, uvu_encircle, "uvu"),
+    gated("penalty_latch", FLOOR, "", true, set_penalty_latch, penalty_latch, "notrump_defense=natural"),
+    gated("penalty_no_pull", FLOOR, "", true, set_penalty_no_pull, penalty_no_pull, "penalty_latch"),
+    toggle("advancer_xx_runout", FLOOR, "", true, set_advancer_xx_runout, advancer_xx_runout),
+    toggle("doubler_xx_runout", FLOOR, "", true, set_doubler_xx_runout, doubler_xx_runout),
     // Inference (auction reading)
-    toggle("nt_invite_inference", INFERENCE, "", true, inference::set_nt_invite_inference, inference::nt_invite_inference),
-    gated("rubens_transfer_reading", INFERENCE, "", true, inference::set_rubens_transfer_reading, inference::rubens_transfer_reading, "rubens_advances"),
-    toggle("fallback_projection", INFERENCE, "", true, inference::set_fallback_projection, inference::fallback_projection_enabled),
-    toggle("control_bid_reading", INFERENCE, "", true, inference::set_control_bid_reading, inference::control_bid_reading),
-    toggle("rule_accept", INFERENCE, "", true, inference::set_rule_accept, inference::rule_accept_enabled),
+    toggle("nt_invite_inference", INFERENCE, "", true, set_nt_invite, nt_invite),
+    gated("rubens_transfer_reading", INFERENCE, "", true, set_rubens_transfer, rubens_transfer, "rubens_advances"),
+    toggle("fallback_projection", INFERENCE, "", true, set_fallback_projection, fallback_projection),
+    toggle("control_bid_reading", INFERENCE, "", true, set_control_bid, control_bid),
+    toggle("rule_accept", INFERENCE, "", true, set_rule_accept, rule_accept),
 ];
 
 /// The in-browser half of `examples/binky`'s benchmark: fix N-S, reshuffle E-W.

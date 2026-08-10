@@ -1746,14 +1746,6 @@ impl ReadingProfile {
     pub(crate) const fn penalty_latch(self) -> bool {
         self.penalty_latch
     }
-
-    /// Drive the probed-overlay bit — [`Stance::probe`]'s fixed point runs by
-    /// mutating the stance it probes, not the thread.
-    ///
-    /// [`Stance::probe`]: crate::bidding::Stance::probe
-    pub(crate) const fn set_probed(&mut self, on: bool) {
-        self.probed = on;
-    }
 }
 
 /// The shipped reading agreements

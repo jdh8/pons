@@ -11,6 +11,7 @@
 
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::{Bid, Hand, Strain, Suit};
+use pons::bidding::agreements::Agreements;
 use pons::bidding::array::Logits;
 use pons::bidding::constraint::{balanced, hcp, len, nth_seat, support};
 use pons::bidding::fallback::{Fallback, FirstIs, OvercallAtMost, ReplaceNext};
@@ -117,7 +118,7 @@ fn demo_system() -> Pair {
     let mut defensive = Defensive::new();
     defensive.insert(&[call(1, Strain::Clubs)], overcalls());
 
-    Pair::new(constructive, competitive, defensive)
+    Pair::new(constructive, competitive, defensive, Agreements::default())
 }
 
 /// The demo pair bound against natural opponents — bind once, then classify

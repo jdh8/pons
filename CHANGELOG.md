@@ -9,18 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **`bidding::scoped` and `Stance::repin`** — the two authoring hooks of the
-  pin-at-build campaign.  `scoped(|| { set_…(); american().against() })` runs
+- **`bidding::scoped` and `Stance::profile_mut`** — the two authoring hooks of
+  the pin-at-build campaign.  `scoped(|| { set_…(); american().against() })` runs
   the build on a fresh thread, so it starts from the shipped defaults instead
   of inheriting whatever knobs the caller's thread was left holding; the
-  caller's own knob state is untouched.  `Stance::repin` re-captures the
-  thread's knob state into an already-built stance, the deliberate escape
-  hatch for setting a knob *after* `Pair::against`.  The inference, instinct,
+  caller's own knob state is untouched.  `Stance::profile_mut` hands out the
+  stance's *own* pinned profile for editing, the deliberate escape hatch for an
+  eval-time-only arm — one setting moved on a built stance without rebuilding
+  the book under it.  It edits rather than re-captures on purpose: an arm that
+  had to arm a global, clone, re-capture and restore could only be correct if
+  the thread happened to hold what the stance was built under, and two arms
+  sharing a thread could not be built independently.  Taking the borrow
+  invalidates the stance's cache identity eagerly, so no edit can outlive the
+  deal cache that served the old value.  The inference, instinct,
   evaluator and point-scale layers now read that pinned profile rather than the
   thread, as do the book's own classify-time guards (the GF-majors transfer
   structure caps and reroutes), so a stance decides identically on any thread —
   and a reading, floor, evaluator, scale or classify-time book knob set *after*
-  `Pair::against` is inert until the next build or `repin`.  A reading also carries the settings it was
+  `Pair::against` is inert until the next build.  A reading also carries the settings it was
   gauged under, so the layout sampler's acceptance test (`Inferences::admits`)
   runs on the stance's scale rather than the sampling thread's.  Knobs consumed
   at book construction keep their old timing; a bare context with no stance
@@ -244,14 +250,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Also repaired: `bba-gen` armed `set_probed_reading(true)` after probing our
   own floor and never reset it, so `--their-floor`'s deviation book — which
   never probes — was built with a probed reading against an *empty* box map.
-  The bits are now off for that build alone and restored afterwards, since
-  `blinded()` further down repins off the armed thread and still needs them.
-  Two costs in `ab-point-count` are left recorded rather than patched, both
-  inert for that binary: `SUPPORT_POINTS` defaults *on*, so its baseline arm
-  mismatches the compiled rule registry while the candidate matches (same
-  answer, different code path), and the scale knobs stay armed on exit because
-  restoring them would mean hardcoding defaults that can drift.  Both close
-  structurally with the knob-to-value migration.
+  The bits are now off for that build alone and restored afterwards, since the
+  cells still back other build-time reads.  One cost in `ab-point-count` is left
+  recorded rather than patched, inert for that binary: `support_points` defaults
+  *on*, so its baseline arm mismatches the compiled rule registry while the
+  candidate matches (same answer, different code path).  It closes structurally
+  with the knob-to-value migration.
 
 - **`cargo test --all-features` back from 704 s to 100 s** (7×), with no
   shipped behaviour touched — the change lives entirely inside the crate's
@@ -301,7 +305,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   count in every case.  `ab-point-count`'s scale arms are *eval-time* by design
   (both books on the shipped defaults, only the classify-time gauge differing,
   so the run prices the scale rather than the whole system a rebuild would move),
-  so it uses `Stance::repin` rather than a rebuild; its counts shift a little
+  so it edits each arm's own pinned profile rather than rebuilding; its counts shift a little
   because at the parent an arm reached some readers and not others, and those
   numbers priced a half-armed system.  `ab-notrump-minors` needed no code change
   — only its comment was wrong about *when* the minor scheme is read, which had
@@ -322,13 +326,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   arm a *reading* knob, so each arm now gets its own reader stance.
   `dump-evaluator`'s `--closed-hulls` reads through a knob-on twin of each
   system (its `rayon::broadcast` is deleted — the workers read the stance now),
-  and `probe-reading-census` uses `Stance::repin` after the probe, which is
-  the only way to express "fill the store, then read from it".
+  and `probe-reading-census` moves the stance's own `probed` bit after the
+  probe, which is the only way to express "fill the store, then read from it".
   `ab-major-continuations`, `ab-minor-continuations`, `ab-kickback` and
   `probe-kickback-yield` already built one stance per arm and only carried a
   now-redundant per-call re-arm, which is deleted; their divergent counts are
   unchanged against the parent.  `examples/common`'s `Blinded` wrapper is
-  replaced by `blinded(&stance)`, a repinned copy — its one caller is
+  replaced by `blinded(&stance)`, a copy with one setting moved — its one caller is
   `bba-gen`'s deviation panel, and a `&dyn System` wrapper could no longer
   blank a reading the stance had already pinned.
 
@@ -339,8 +343,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Dumps drawn with `--their-ns` before this differ from ones drawn after
   wherever the two seats disagree on a classify-time knob; the usual case,
   matching `--ns-*` and `--their-ns`, is unaffected.  `--ns-probe` likewise
-  needed `repin`: both `set_probed_vacuous_reading` and `set_probed_reading`
-  are set *around* the probe, after the build, so without it neither reached
+  needed a post-build edit: both `probed_vacuous` and `probed` are only
+  knowable *around* the probe, after the build, so without one neither reached
   the dump.
 
 - **The `web` CI job, which the inference split would have turned red.**  The
@@ -595,6 +599,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   Seeded `smoke-default` / `smoke-dutch` dumps (20 000 boards each) are
   byte-identical to `4c3dce2`, and `cards/*.bbsa` regenerate unchanged.
+
+- **A `Pair` carries the `Agreements` its books were baked from, and binding
+  reads the classify-time half from that value instead of the thread.**  The
+  constructors already took an `&Agreements` and built the books from it — then
+  dropped it.  `Pair::against` recovered the classify-time half by calling
+  `DecisionProfile::current()`, and the compiled-rule sidecar
+  (`CompiledRuleRegistry::compile`, and `CompiledRules::compile_with_cache`
+  below it, which reached past a `&Context` it already held) each read the
+  thread again.  Three reads, three chances to disagree with the books; the
+  `debug_assert!` comparing two of them could not catch it, because both sides
+  of that comparison were thread reads.
+
+  It agreed only by luck of timing: `Agreements::current()` captured the same
+  thread microseconds earlier.  Hand-build an `Agreements` instead — which is
+  the entire point of the value — and the books play one system while the
+  readings decode another.  The seeded dumps cannot see it either, since both
+  smoke arms run shipped defaults in and shipped defaults out.  It is now
+  unrepresentable: `Pair::new` takes the value as a fourth argument, `against`
+  pins `self.agreements.decision`, and the sidecar bakes under the same value in
+  the same expression.  `Stance::agreements()` finally lets a built system be
+  asked what it plays.
+
+  **Breaking:** `Pair::new` takes a trailing `Agreements`; `Pair` gains a public
+  `agreements` field; `Agreements::decision` is `pub`; `Agreements`,
+  `DecisionProfile`, `InstinctProfile` and `FifthsCompanion` derive `Debug`.
+
+  Four projection tests armed a knob *between* `Pair::default()` and `against()`
+  and so were the only in-crate cover for the broken seam — one failed
+  immediately on the change, which is the check that it was real.  All four now
+  build from an explicit capture.  Seeded dumps stay byte-identical to
+  `4c3dce2` and `cards/*.bbsa` regenerate unchanged.
+
+- **`pons-web`'s 27 classify-time settings actually take effect.**  The web app
+  keeps its own `Agreements` value and bids from it, but 27 of its registry rows
+  — the whole `FLOOR` and `INFERENCE` sections, plus the 1NT defense, keycard
+  variant, Puppet/European minors, both GF transfers and 2/1-forcing — wrote the
+  *crate's* thread-locals instead.  So the book was baked from the app's value
+  while the classify half came from the thread, and which one a given setting
+  reached depended on when the value was first captured.  Changing the 1NT
+  defense could move the readings without moving the rules that produce them.
+
+  Every one now goes through the same `knob!` macro as the other 65 rows, so
+  the app's value is the single source: `web` no longer calls a crate `set_*`
+  anywhere, and its `inference` import is gone.  The regression cover already
+  existed — `set_choice_reroutes_the_defense` failed the moment binding stopped
+  reading the thread.
 
 - **The three classify-time profiles are public, and documented.**
   `DecisionProfile`, `ReadingProfile` and `InstinctProfile` — the `Copy`

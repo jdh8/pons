@@ -706,16 +706,14 @@ pub fn deviant_floor(
 /// A copy of `stance` that reads with the *opponents'* readings blanked — the
 /// `blind` arm of the deviation panel.
 ///
-/// The knob is captured into a stance when it is built, so one side of the table
-/// can go blind while a pons book on the *other* side keeps its readings: the
-/// two stances hold different pins.  [`Stance::repin`] re-captures the knob
-/// state without rebuilding the book underneath.
+/// The setting is pinned into a stance when it is built, so one side of the
+/// table can go blind while a pons book on the *other* side keeps its readings:
+/// the two stances hold different pins.  [`Stance::profile_mut`] moves this
+/// stance's copy without rebuilding the book underneath, and without touching
+/// any state the caller shares.
 pub fn blinded(stance: &Stance) -> Stance {
-    let was = pons::bidding::blind_opponent_reading();
-    pons::bidding::set_blind_opponent_reading(true);
     let mut out = stance.clone();
-    out.repin();
-    pons::bidding::set_blind_opponent_reading(was);
+    out.profile_mut().reading.blind_opponents = true;
     out
 }
 

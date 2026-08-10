@@ -244,16 +244,27 @@ Conventions:
 - The default encodes the measured verdict ([measurement.md](measurement.md)
   ship rules); the non-default state of a shipped knob keeps an off-switch in
   `bba-gen` (`--no-ns-*` for default-on knobs).
-- Most knobs are read at **book construction** — baked into the books. The
-  `inference/knobs.rs` knobs and ~30 of `instinct.rs`'s are read at **classify
-  time**, so they are *captured into the `Stance`* when it is built
-  (`DecisionProfile`, `context.rs`). Either way a built stance is a pure value:
-  **set the knobs, then build, and hand the stance to the workers** — never set
-  a knob inside a worker closure. An A/B arm is one stance per arm.
-- Set-after-build is inert until the next build or an explicit
-  [`Stance::repin`], which re-captures the knob state without rebuilding the
-  book — the hook for an eval-time-only arm, and for the two knobs
-  (`probed_reading`, `probed_vacuous_reading`) that can only be set around a
+- **The `Agreements` value is the input, not the thread.** A system factory
+  takes `&Agreements`, bakes the books from it, and the `Pair` keeps it;
+  `Pair::against` pins its classify-time half (`agreements.decision`) into the
+  `Stance` and bakes the compiled-rule sidecar under the same value. One value,
+  one build — the rules, the sidecar, the readings and the floor cannot come
+  from different reads. `Stance::agreements()` asks a built system what it
+  plays.
+- The remaining `set_*` thread-locals feed `Agreements::current()`, which is how
+  a harness still arms a knob and captures it: **set, then `current()`, then
+  build.** Passing `Agreements::default()` after arming ignores the knobs — the
+  value is the only channel. A built stance is a pure value either way: hand it
+  to the workers, never set a knob inside a worker closure. An A/B arm is one
+  stance per arm.
+- Which half a setting belongs to is decided by *where it is read*, and a
+  setting read at both times lives in the classify half alone, with the book
+  reading it from there (`no_knob_lives_in_two_homes` enforces this across all
+  eight build-time areas).
+- Set-after-build is inert until the next build. To move a setting on a stance
+  already built, edit its own pin with `Stance::profile_mut`, which does not
+  rebuild the book — the hook for an eval-time-only arm, and for the two
+  settings (`probed`, `probed_vacuous`) that are only knowable around a
   `probe` run. `pons::bidding::scoped` builds on a fresh thread whose knobs
   start at the shipped defaults, leaving the caller's thread untouched.
 - A context with no stance attached (a bare `Context::new` — tests,

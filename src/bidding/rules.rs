@@ -28,7 +28,7 @@ use super::constraint::{
     Constraint, ConstraintDependencies, Description, ProjectionDependencies, ProjectionKind,
 };
 use super::context::Context;
-use super::inference::{Envelope, EnvelopeUnion, ReadingProfile, reading_profile};
+use super::inference::{Envelope, EnvelopeUnion, ReadingProfile};
 use super::trie::Classifier;
 use contract_bridge::Hand;
 use contract_bridge::auction::Call;
@@ -872,7 +872,10 @@ impl CompiledRules {
         cache: &mut ProjectionCache,
         faces: &mut FaceRegistry,
     ) -> Self {
-        let profile = reading_profile();
+        // Off the context, not the thread: the caller already pinned the
+        // agreements this bake belongs to, and reading the thread here is how
+        // a sidecar baked under one system used to end up serving another.
+        let profile = context.reading_profile();
         let mut by_call: Map<usize> = Map::new();
         let mut alerted_by_call: Map<usize> = Map::new();
         let mut max_weight_by_call: Map<i16> = Map::new();
@@ -1121,7 +1124,7 @@ impl CompiledRules {
         context: &Context<'_>,
     ) -> EnvelopeUnion {
         let rule = self.rule(authored, index);
-        if self.profile == reading_profile()
+        if self.profile == context.reading_profile()
             && let Some(projected) = self.rules[index as usize]
                 .projection(kind)
                 .constant(&self.constant_projections)

@@ -169,13 +169,13 @@ fn append_only_step_cache_matches_from_scratch_frozen_prefixes() {
     );
 }
 
-/// A stance pins its reading profile, so a mid-deal knob flip reaches this
-/// cache only through [`Stance::repin`] — which invalidates the stance's cache
-/// identity, and with it the deal cache.  The profile arm of `prepare`'s guard
-/// is therefore belt-and-braces: no path moves a pinned profile without also
-/// bumping the identity checked just before it.
+/// A stance pins its reading profile, so a mid-deal setting flip reaches this
+/// cache only through [`Stance::profile_mut`] — which invalidates the stance's
+/// cache identity, and with it the deal cache.  The profile arm of `prepare`'s
+/// guard is therefore belt-and-braces: no path moves a pinned profile without
+/// also bumping the identity checked just before it.
 #[test]
-fn step_cache_drops_to_legacy_after_middeal_repin() {
+fn step_cache_drops_to_legacy_after_middeal_edit() {
     use crate::bidding::american::american_book;
     use crate::bidding::inference::{AuthoringStepCache, set_envelope_union_reading};
     use contract_bridge::auction::RelativeVulnerability;
@@ -195,12 +195,12 @@ fn step_cache_drops_to_legacy_after_middeal_repin() {
             .is_some(),
         "an unpinned knob flip must not disturb this deal cache"
     );
-    stance.repin();
+    stance.profile_mut().reading.envelope_union = false;
     assert!(
         cache
             .prepare(&stance, RelativeVulnerability::NONE, &auction)
             .is_none(),
-        "repinning must disable this deal cache"
+        "moving the pinned profile must disable this deal cache"
     );
     set_envelope_union_reading(true);
 }
@@ -286,10 +286,9 @@ fn probe_stores_and_reads_high_traffic_keys() {
     let unprobed = plain.infer(RelativeVulnerability::NONE, &auction);
     assert_eq!(off.rho(), unprobed.rho());
 
-    crate::bidding::set_probed_reading(true);
-    stance.repin();
+    stance.profile_mut().reading.probed = true;
     let on = stance.infer(RelativeVulnerability::NONE, &auction);
-    crate::bidding::set_probed_reading(false);
+    stance.profile_mut().reading.probed = false;
     // The probed box only tightens the symbolic band — and it reads suit
     // lengths on the passer, which no symbolic path can (the pass gate is
     // points-only).
@@ -377,10 +376,9 @@ fn probed_vacuous_fills_only_open_axes_on_contested_own_calls() {
 
     let auction = [ONE_DIAMOND, TWO_CLUBS, TWO_SPADES, P];
     let off = stance.infer(RelativeVulnerability::NONE, &auction);
-    crate::bidding::set_probed_vacuous_reading(true);
-    stance.repin();
+    stance.profile_mut().reading.probed_vacuous = true;
     let on = stance.infer(RelativeVulnerability::NONE, &auction);
-    crate::bidding::set_probed_vacuous_reading(false);
+    stance.profile_mut().reading.probed_vacuous = false;
 
     assert_eq!(on.rho(), off.rho(), "an opponent's probed box folded");
     assert_eq!(on.me(), off.me(), "a constructive-prefix key folded");

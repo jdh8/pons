@@ -284,13 +284,16 @@ enum Arms {
 
 impl Arms {
     /// Arm this side's knob, to be read by the `american()` build that follows
-    fn apply(self, is_candidate: bool) {
+    /// Move this arm's gauge on one built stance's own pinned profile
+    fn apply(self, profile: &mut pons::bidding::context::DecisionProfile, is_candidate: bool) {
         match self {
-            Self::SupportPoints => set_support_points(is_candidate),
+            Self::SupportPoints => profile.reading.support_points = is_candidate,
             Self::PointScale {
                 candidate,
                 baseline,
-            } => set_point_scale(if is_candidate { candidate } else { baseline }),
+            } => {
+                profile.reading.point_scale = if is_candidate { candidate } else { baseline };
+            }
             // Baked into the two books at build time; nothing to flip per call.
             // (`Arms::apply` is only reached by the two scale arms — the other
             // two match earlier and never call it.)
@@ -519,28 +522,20 @@ fn main() {
         // The scale arms are *eval-time*: both books are built on the shipped
         // defaults and only the classify-time gauge differs, so the measurement
         // prices the scale rather than the whole system it would also rebuild.
-        // `repin` is what keeps that expressible — it re-captures the knob state
-        // into a built stance without touching the book underneath.
-        // ponytail: two known costs here, both inert for this binary and both
-        // closed structurally by the `ConventionCard` migration rather than patched:
-        //   - `SUPPORT_POINTS` defaults *on*, so `apply(false)` leaves the
-        //     baseline mismatching the compiled rule registry while the
-        //     candidate matches: the arms run different code paths (same answer,
-        //     different cost).  Narrowing the registry guard to the four cells
-        //     that actually drive the projection bake is the fix.
-        //   - the scale knobs are left at the candidate value on exit; restoring
-        //     them needs `constraint::{point_scale, support_points_now}`, which
-        //     are `pub(crate)`, and hardcoding the defaults here is the drift
-        //     that rotted `probe-card-axes`'s `Defaults::capture`.
+        // `profile_mut` is what keeps that expressible — it moves the gauge on a
+        // built stance without touching the book underneath, and each arm edits
+        // only its own copy, so neither can leak into the other or outlive the run.
+        // ponytail: one known cost, inert for this binary — `support_points`
+        // defaults *on*, so the baseline arm mismatches the compiled rule
+        // registry while the candidate matches: same answer, different cost.
+        // Narrowing the registry guard to the four cells that actually drive the
+        // projection bake is the fix.
         _ => {
-            let mut baseline =
-                american(&pons::bidding::agreements::Agreements::current()).against();
-            let mut candidate =
-                american(&pons::bidding::agreements::Agreements::current()).against();
-            arms.apply(false);
-            baseline.repin();
-            arms.apply(true);
-            candidate.repin();
+            let shipped = pons::bidding::agreements::Agreements::current();
+            let mut baseline = american(&shipped).against();
+            let mut candidate = american(&shipped).against();
+            arms.apply(baseline.profile_mut(), false);
+            arms.apply(candidate.profile_mut(), true);
             [baseline, candidate]
         }
     };

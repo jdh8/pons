@@ -4,6 +4,7 @@
 use contract_bridge::auction::{Auction, Call, RelativeVulnerability};
 use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, Bid, Hand, Level, Seat, Strain};
+use pons::bidding::agreements::Agreements;
 use pons::bidding::array::Logits;
 use pons::bidding::trie::classifier;
 use pons::bidding::{Competitive, Constructive, Defensive, Pair, System, Table};
@@ -182,7 +183,12 @@ fn test_of_pairs_binds_and_plays() {
     let mut constructive = Constructive::new();
     constructive.insert(&[], classifier(|_, _| single(ONE_CLUB, 1.0)));
 
-    let ns = Pair::new(constructive, Competitive::new(), Defensive::new());
+    let ns = Pair::new(
+        constructive,
+        Competitive::new(),
+        Defensive::new(),
+        Agreements::default(),
+    );
     let ew = Pair::default();
 
     let table = Table::of_pairs(&ns, &ew, Seat::North, AbsoluteVulnerability::NONE);

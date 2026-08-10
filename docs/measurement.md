@@ -562,8 +562,8 @@ New-harness rules (the Rayon pattern, commits `8f549ed`/`eadb654`):
   book-construction and classify-time — are captured into the `Stance` at
   build, so a `set_*` inside a worker closure reaches nothing and both arms
   bid identically (a clean wash on every board, meaning nothing by it). If an
-  arm must differ only at eval time, build both on the defaults and
-  `Stance::repin` each under its own setting.
+  arm must differ only at eval time, build both on the defaults and edit each
+  one's own pin with `Stance::profile_mut`.
 - Solve only the **divergent** boards; score both plain and PD from the same
   solved table (near-free — loop the summary over both swing vectors).
 - Verify determinism: same seed twice → bit-identical summary.

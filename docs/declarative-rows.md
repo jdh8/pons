@@ -362,8 +362,8 @@ own 11 — are captured into the `Stance` at `Pair::against()`, and every
 classify-time reader now consults that pin instead of the thread. A built
 stance is a pure `Send + Sync` value: arm the knobs, build, hand it to the
 workers. The thread-locals stay as the sole authoring API (set → build), with
-`Stance::repin` for a deliberate set-after-build and `pons::bidding::scoped`
-for a build on virgin defaults. What Phase 3 still owns is the *other* half:
+`Stance::profile_mut` for a deliberate eval-time-only edit and
+`pons::bidding::scoped` for a build on virgin defaults. What Phase 3 still owns is the *other* half:
 deleting the ambient state, making the card read total, and the generated
 CLI/UI surfaces. The hazard the campaign closes is "one knob state, four
 readers, joined only by call-site discipline" — the readers now join on the

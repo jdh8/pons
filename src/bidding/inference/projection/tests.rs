@@ -1,4 +1,5 @@
 use super::*;
+use crate::bidding::agreements::Agreements;
 use crate::bidding::constraint::Constraint;
 use crate::bidding::context::Context;
 use crate::bidding::inference::EnvelopeUnion;
@@ -152,7 +153,10 @@ fn deal_cache_rejects_observable_faces_and_projections_before_hooks_run() {
                 true
             }),
     );
-    let mut pair = Pair::default();
+    let mut pair = Pair {
+        agreements: Agreements::current(),
+        ..Default::default()
+    };
     pair.constructive.insert_arc(&[], classifier);
     let auction = [one_club, Call::Pass];
 
@@ -224,7 +228,10 @@ fn opaque_routes_keep_legacy_invocation_order_and_disable_step_cache() {
         })
     };
 
-    let mut pair = Pair::default();
+    let mut pair = Pair {
+        agreements: Agreements::current(),
+        ..Default::default()
+    };
     pair.constructive.fallback_at(
         &[],
         make_guard(Arc::clone(&calls)),
@@ -294,7 +301,10 @@ fn later_opaque_route_does_not_speculatively_consult_an_earlier_face() {
     let observed_guard = Arc::clone(&guard_calls);
     let opaque_target: Arc<dyn Classifier> = Arc::new(Rules::new());
 
-    let mut pair = Pair::default();
+    let mut pair = Pair {
+        agreements: Agreements::current(),
+        ..Default::default()
+    };
     pair.constructive.insert_arc(&[], root);
     pair.competitive.fallback_at(
         &[],
@@ -353,7 +363,10 @@ fn opaque_route_on_unused_routed_prefix_is_never_invoked() {
     let observed = Arc::clone(&calls);
     let classifier: Arc<dyn Classifier> =
         Arc::new(Rules::new().rule(Call::Pass, 0, crate::bidding::constraint::hcp(0..)));
-    let mut pair = Pair::default();
+    let mut pair = Pair {
+        agreements: Agreements::current(),
+        ..Default::default()
+    };
     pair.constructive.fallback_at(
         &[],
         guard(move |_: &Context<'_>, _: &[Call]| {

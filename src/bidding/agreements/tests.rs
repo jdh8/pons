@@ -20,8 +20,21 @@ fn build_defaults_match_the_cells() {
     assert_eq!(d.rebid, c.rebid);
     assert_eq!(d.game_force, c.game_force);
     assert_eq!(d.instinct, c.instinct);
-    assert!(d.decision == c.decision, "the classify half diverged");
+    // The catch-all: a field added later is covered here even if nobody adds a
+    // line for it above.
     assert!(d == c);
+}
+
+/// The classify half's literal defaults equal a virgin thread's cells
+///
+/// The half [`build_defaults_match_the_cells`] cannot name field by field:
+/// `DecisionProfile` and the two profiles it nests carry 85 cells between
+/// them, and none of the three derives [`Debug`], so this is one value
+/// comparison rather than a list.
+#[test]
+fn decision_defaults_match_the_cells() {
+    let (d, c) = (Agreements::default(), Agreements::current());
+    assert!(d.decision == c.decision, "the classify half diverged");
 }
 
 /// The `pub`-ish field names of `struct name` in `src`
@@ -72,6 +85,8 @@ fn no_knob_lives_in_two_homes() {
         "OpeningKnobs",
         "ResponseKnobs",
         "RebidKnobs",
+        "GameForceKnobs",
+        "InstinctKnobs",
     ]
     .iter()
     .flat_map(|name| fields(agreements, name))

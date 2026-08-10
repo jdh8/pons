@@ -297,11 +297,10 @@ fn main() {
             "probed {} boards: {} keys stored, {} drifted between iterations",
             args.probe, report.keys, report.drifted,
         );
-        // Filling the store and *reading* from it are separate knobs, and the
-        // second can only be set after the probe — `repin` is the hook that
-        // makes a post-build set take, without rebuilding the book.
-        pons::bidding::set_probed_reading(true);
-        stance.repin();
+        // Filling the store and *reading* from it are separate settings, and
+        // the second can only be turned on after the probe — so it moves on
+        // this stance's own pin, without rebuilding the book.
+        stance.profile_mut().reading.probed = true;
     }
     let stance = stance;
 

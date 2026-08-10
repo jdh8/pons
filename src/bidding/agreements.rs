@@ -2199,10 +2199,10 @@ impl InstinctKnobs {
 /// value is read, not by what it means — a build-time area and `decision` are
 /// equally "what we agreed" — so it buys the `Stance` a small `Copy` snapshot
 /// to pin and nothing else.
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Clone, Copy, PartialEq, Debug)]
 pub struct Agreements {
     /// The classify-time cells, pinned into the stance at `Pair::against`
-    pub(crate) decision: DecisionProfile,
+    pub decision: DecisionProfile,
     /// What we play when they contest our auction
     pub competition: CompetitionKnobs,
     /// What we play when they open the auction

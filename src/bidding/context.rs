@@ -100,7 +100,7 @@ pub struct Context<'a> {
 /// classify-time knob read serves off the stance's copy, so a built stance is
 /// a pure value that any thread can classify through.  A bare context with no
 /// attached system falls back to capturing the current thread's state.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct DecisionProfile {
     /// The settings that can change a full-auction reading
     ///
