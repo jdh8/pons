@@ -77,7 +77,7 @@ pub fn defense_to_weak_two(their_opening: Bid, agreements: &Agreements) -> Rules
     // Byte-identical to the old `hcp(0..)` catch-all: below the floor both score
     // 0.0, above it the shape-free tier is finite at weight 1.2 and always
     // outscores a weight-0 pass.  Authored so the pass reading
-    // (`set_pass_reading`) has a band to project; the ⊤ census found the
+    // (`ReadingProfile::pass`) has a band to project; the ⊤ census found the
     // direct-seat pass over their weak two reading *nothing* on all five axes.
     rules = rules
         .rule(Call::Double, 120, points(17..))
@@ -137,7 +137,7 @@ pub fn defense_to_weak_two(their_opening: Bid, agreements: &Agreements) -> Rules
     }
 
     // The direct cue of their MAJOR weak two: the other major plus a minor, 5-5 —
-    // what BBA bids and what `set_cue_reading` already reads.  Over 2♦ the cue is
+    // what BBA bids and what `ReadingProfile::cue` already reads.  Over 2♦ the cue is
     // deliberately absent (see `set_weak_two_cue`).
     //
     // Game-forcing, the same `points(14..)` Leaping Michaels demands, because the

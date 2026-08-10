@@ -203,17 +203,18 @@ struct Args {
     /// Output path stem; writes `<out>.f32`, `<out>.json`, `<out>.tags`
     #[arg(long, default_value = "target/evaluator-data")]
     out: String,
-    /// Bid and read with `set_envelope_union_reading(true)` — the F2b corpus. Both the
+    /// Bid and read with `ReadingProfile::envelope_union = true` — the F2b corpus. Both the
     /// auctions and the range features come from the knob-on regime, matching
     /// what a knob-on bidder serves the evaluator.
     #[arg(long)]
     envelope_union: bool,
-    /// Bid and read with `set_pass_exclusion_reading(true)` — the exclusion
+    /// Bid and read with `ReadingProfile::pass_exclusion = true` — the exclusion
     /// twin's corpus. Like `--envelope-union`, auctions and range features both come
     /// from the knob-on regime.
     #[arg(long)]
     pass_exclusion: bool,
-    /// Fold both box closures (`set_sum_closure` + `set_upgrade_closure`) into
+    /// Fold both box closures (`ReadingProfile::sum_closure` +
+    /// `ReadingProfile::upgrade_closure`) into
     /// the hulls the features see — the canonicalized-reading corpus. The
     /// closures are flipped on only around `infer`/`encode`, so the *auctions*
     /// are still bid knob-off and stay byte-identical to a dump without this
@@ -234,10 +235,9 @@ const VULS: [AbsoluteVulnerability; 4] = [
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
-    // Set before the stances are built below, which is what captures them — the
-    // rayon workers then read the stance, not a thread-local of their own.
-    pons::bidding::set_envelope_union_reading(args.envelope_union);
-    pons::bidding::set_pass_exclusion_reading(args.pass_exclusion);
+    let mut agreements = pons::bidding::agreements::Agreements::current();
+    agreements.decision.reading.envelope_union = args.envelope_union;
+    agreements.decision.reading.pass_exclusion = args.pass_exclusion;
     let encoding = match args.encoding.as_str() {
         "summary" => Encoding::Summary,
         "onehot" => Encoding::Onehot,
@@ -283,14 +283,8 @@ fn main() -> anyhow::Result<()> {
         .systems
         .split(',')
         .map(|name| match name.trim() {
-            "american" => Ok((
-                "american",
-                american(&pons::bidding::agreements::Agreements::current()).against(),
-            )),
-            "dutch" => Ok((
-                "dutch",
-                dutch(&pons::bidding::agreements::Agreements::current()).against(),
-            )),
+            "american" => Ok(("american", american(&agreements).against())),
+            "dutch" => Ok(("dutch", dutch(&agreements).against())),
             other => anyhow::bail!("--systems entries must be american|dutch, got {other:?}"),
         })
         .collect::<anyhow::Result<_>>()?;
@@ -300,24 +294,19 @@ fn main() -> anyhow::Result<()> {
     // the knobs are captured into a stance at build — so each system gets a
     // second stance for `infer`.  `classify` keeps using the knob-off one, so
     // the auctions never move.
-    if args.closed_hulls {
-        pons::bidding::set_sum_closure(true);
-        pons::bidding::set_upgrade_closure(true);
-    }
+    let mut reader_agreements = agreements;
+    reader_agreements.decision.reading.sum_closure = args.closed_hulls;
+    reader_agreements.decision.reading.upgrade_closure = args.closed_hulls;
     let readers: Vec<Stance> = systems
         .iter()
         .map(|(name, _)| {
             if *name == "dutch" {
-                dutch(&pons::bidding::agreements::Agreements::current()).against()
+                dutch(&reader_agreements).against()
             } else {
-                american(&pons::bidding::agreements::Agreements::current()).against()
+                american(&reader_agreements).against()
             }
         })
         .collect();
-    if args.closed_hulls {
-        pons::bidding::set_sum_closure(false);
-        pons::bidding::set_upgrade_closure(false);
-    }
 
     let deals = load_deals(&args.deals, args.skip, args.count)?;
     eprintln!(

@@ -29,12 +29,12 @@ fn unread_compiled_effects_preserve_opaque_face_and_projection_hooks() {
     use crate::bidding::constraint::hcp;
     use crate::bidding::rules::Rules;
 
-    set_reading_scope(ReadingScope::Alerted);
-    set_pass_exclusion_reading(false);
-    set_announced_reading(false);
-
     let one_club = bid(1, Strain::Clubs);
-    let context = Context::new(RelativeVulnerability::NONE, &[]);
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.scope = ReadingScope::Alerted;
+    agreements.decision.reading.pass_exclusion = false;
+    agreements.decision.reading.announced = false;
+    let context = Context::new(RelativeVulnerability::NONE, &[]).with_profile(agreements.decision);
 
     let face_events = Arc::new(Mutex::new(Vec::new()));
     let observed_face = Arc::clone(&face_events);
@@ -128,13 +128,6 @@ fn deal_cache_rejects_observable_faces_and_projections_before_hooks_run() {
     use crate::bidding::rules::{Alert, Rules};
     use crate::bidding::trie::Classifier;
 
-    set_reading_scope(ReadingScope::Alerted);
-    set_pass_reading(false);
-    set_pass_exclusion_reading(false);
-    set_table_alert_reading(false);
-    set_announced_reading(false);
-    set_probed_reading(false);
-
     let events = Arc::new(Mutex::new(Vec::new()));
     let face_events = Arc::clone(&events);
     let one_club = bid(1, Strain::Clubs);
@@ -157,11 +150,17 @@ fn deal_cache_rejects_observable_faces_and_projections_before_hooks_run() {
         agreements: Agreements::current(),
         ..Default::default()
     };
+    pair.agreements.decision.reading.scope = ReadingScope::Alerted;
+    pair.agreements.decision.reading.pass = false;
+    pair.agreements.decision.reading.pass_exclusion = false;
+    pair.agreements.decision.reading.table_alerts = false;
+    pair.agreements.decision.reading.announced = false;
+    pair.agreements.decision.reading.probed = false;
     pair.constructive.insert_arc(&[], classifier);
     let auction = [one_club, Call::Pass];
 
     for fallback_projection in [true, false] {
-        set_fallback_projection(fallback_projection);
+        pair.agreements.decision.reading.fallback_projection = fallback_projection;
         let stance = pair.against();
         let mut cache = AuthoringStepCache::new();
 
@@ -192,10 +191,6 @@ fn deal_cache_rejects_observable_faces_and_projections_before_hooks_run() {
             assert_eq!(actual_events, expected_events);
         }
     }
-
-    set_fallback_projection(true);
-    set_pass_reading(true);
-    set_table_alert_reading(true);
 }
 
 #[test]
@@ -206,11 +201,6 @@ fn opaque_routes_keep_legacy_invocation_order_and_disable_step_cache() {
     use crate::bidding::trie::Classifier;
     use std::sync::Arc;
     use std::sync::atomic::{AtomicUsize, Ordering};
-
-    set_reading_scope(ReadingScope::Alerted);
-    set_fallback_projection(true);
-    set_pass_reading(true);
-    set_table_alert_reading(true);
 
     let calls = Arc::new(AtomicUsize::new(0));
     let classifier: Arc<dyn Classifier> = Arc::new(
@@ -232,6 +222,10 @@ fn opaque_routes_keep_legacy_invocation_order_and_disable_step_cache() {
         agreements: Agreements::current(),
         ..Default::default()
     };
+    pair.agreements.decision.reading.scope = ReadingScope::Alerted;
+    pair.agreements.decision.reading.fallback_projection = true;
+    pair.agreements.decision.reading.pass = true;
+    pair.agreements.decision.reading.table_alerts = true;
     pair.constructive.fallback_at(
         &[],
         make_guard(Arc::clone(&calls)),
@@ -275,12 +269,6 @@ fn later_opaque_route_does_not_speculatively_consult_an_earlier_face() {
     use std::sync::Arc;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
-    set_reading_scope(ReadingScope::Alerted);
-    set_fallback_projection(true);
-    set_pass_reading(false);
-    set_table_alert_reading(false);
-    set_announced_reading(false);
-
     let face_calls = Arc::new(AtomicUsize::new(0));
     let observed_face = Arc::clone(&face_calls);
     let root: Arc<dyn Classifier> = Arc::new(
@@ -305,6 +293,11 @@ fn later_opaque_route_does_not_speculatively_consult_an_earlier_face() {
         agreements: Agreements::current(),
         ..Default::default()
     };
+    pair.agreements.decision.reading.scope = ReadingScope::Alerted;
+    pair.agreements.decision.reading.fallback_projection = true;
+    pair.agreements.decision.reading.pass = false;
+    pair.agreements.decision.reading.table_alerts = false;
+    pair.agreements.decision.reading.announced = false;
     pair.constructive.insert_arc(&[], root);
     pair.competitive.fallback_at(
         &[],
@@ -340,9 +333,6 @@ fn later_opaque_route_does_not_speculatively_consult_an_earlier_face() {
     assert_eq!(actual, expected);
     assert_eq!(face_calls.load(Ordering::SeqCst), expected_face_calls);
     assert_eq!(guard_calls.load(Ordering::SeqCst), expected_guard_calls);
-
-    set_pass_reading(true);
-    set_table_alert_reading(true);
 }
 
 #[test]
@@ -354,11 +344,6 @@ fn opaque_route_on_unused_routed_prefix_is_never_invoked() {
     use std::sync::Arc;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
-    set_reading_scope(ReadingScope::Alerted);
-    set_fallback_projection(false);
-    set_pass_reading(true);
-    set_table_alert_reading(true);
-
     let calls = Arc::new(AtomicUsize::new(0));
     let observed = Arc::clone(&calls);
     let classifier: Arc<dyn Classifier> =
@@ -367,6 +352,10 @@ fn opaque_route_on_unused_routed_prefix_is_never_invoked() {
         agreements: Agreements::current(),
         ..Default::default()
     };
+    pair.agreements.decision.reading.scope = ReadingScope::Alerted;
+    pair.agreements.decision.reading.fallback_projection = false;
+    pair.agreements.decision.reading.pass = true;
+    pair.agreements.decision.reading.table_alerts = true;
     pair.constructive.fallback_at(
         &[],
         guard(move |_: &Context<'_>, _: &[Call]| {
@@ -396,6 +385,4 @@ fn opaque_route_on_unused_routed_prefix_is_never_invoked() {
             .is_some()
     );
     assert_eq!(calls.load(Ordering::SeqCst), 0);
-
-    set_fallback_projection(true);
 }

@@ -88,12 +88,14 @@ pub struct Inferences {
     /// unchanged; collapse to get-by-value if the two ever drift`).
     players: [Envelope; 4],
     /// Per-seat union-of-boxes reading; the sampler tests any-box under
-    /// [`envelope_union_reading`].  Off, every entry is a single box equal to
+    /// [`envelope_union`][field@crate::bidding::ReadingProfile::envelope_union].
+    /// Off, every entry is a single box equal to
     /// `players[i]`.
     unions: [EnvelopeUnion; 4],
     /// Per-seat hull of `announced_unions` — the *agreement* twin of `players`, and
     /// what [`features`][crate::bidding::features] hands the nets.  Equal to `players`
-    /// unless [`set_announced_reading`] is on and some rule split the two with
+    /// unless [`announced`][field@crate::bidding::ReadingProfile::announced]
+    /// is on and some rule split the two with
     /// [`announced`][crate::bidding::constraint::announced].
     announced_players: [Envelope; 4],
     /// Per-seat agreement boxes; the twin of `unions` (see `announced_players`).
@@ -154,7 +156,8 @@ impl Inferences {
     /// What one relative seat's calls **announce** — the partnership agreement
     ///
     /// The disclosure twin of [`get`][Self::get].  Equal to it unless
-    /// [`set_announced_reading`] is on and a rule split the two with
+    /// [`announced`][field@crate::bidding::ReadingProfile::announced] is on
+    /// and a rule split the two with
     /// [`announced`][crate::bidding::constraint::announced], which is how a call decided
     /// by the evaluator net can still say what it means: the sound projection
     /// stays ⊤ for the sampler while this carries the agreement.
@@ -219,7 +222,8 @@ impl Inferences {
 
     /// Whether `hand` is consistent with one seat's reading
     ///
-    /// Under [`envelope_union_reading`] a hand must lie in *some* box of that seat's union
+    /// Under [`envelope_union`][field@crate::bidding::inference::ReadingProfile::envelope_union]
+    /// a hand must lie in *some* box of that seat's union
     /// (tighter — pins two-suiters / Multi / the fit-split); off, it need only
     /// lie in the bounding-box hull (today's acceptance).  The sampler's per-seat
     /// test.
@@ -330,7 +334,7 @@ impl Inferences {
         let mut overlay_unions: [EnvelopeUnion; 4] =
             std::array::from_fn(|_| EnvelopeUnion::unknown());
         // The agreement twin of `overlay_unions`; a clone of it unless
-        // [`set_announced_reading`] is on (see [`project_authored`]).
+        // `ReadingProfile::announced` is on (see [`project_authored`]).
         let mut agreement_unions: [EnvelopeUnion; 4] =
             std::array::from_fn(|_| EnvelopeUnion::unknown());
         let mut control_bid = None;
@@ -339,7 +343,7 @@ impl Inferences {
             // Nothing but passes so far — each is still a call with a reading:
             // a no-open pass declines the whole opening table, decoded by the
             // projection pass off the table's own Pass gate (`points(..12)` —
-            // see [`set_pass_reading`]).  The walk below needs an opening, so
+            // see `ReadingProfile::pass`).  The walk below needs an opening, so
             // apply the overlay here and return.
             if profile.pass_reading() {
                 let (overlay, agreement, _) = project_authored(context);
@@ -589,14 +593,14 @@ impl Inferences {
                             let i_bid_it = lane_suits[lane] & mask != 0;
                             let partner_bid_it = lane_suits[(lane + 2) % 4] & mask != 0;
                             // A bid of a suit only the opponents have naturally
-                            // shown is a cue, never a holding (`set_cue_reading`).
+                            // shown is a cue, never a holding (`ReadingProfile::cue`).
                             let opponents_natural = natural_lane_suits[(lane + 1) % 4]
                                 | natural_lane_suits[(lane + 3) % 4];
                             let opponents_shown_it = read_cues && opponents_natural & mask != 0;
 
                             if i_bid_it {
                                 // Rebidding our own suit shows a sixth card —
-                                // except (`set_length_soundness`) a re-raise of
+                                // except (`ReadingProfile::length_soundness`) a re-raise of
                                 // a suit partner has also bid (agreed, so no new
                                 // length) and opener's immediate two-level rebid
                                 // of the opened suit, routinely a good five
@@ -734,7 +738,7 @@ impl Inferences {
                             } else if jump >= 1 {
                                 // A single jump in a new suit is a weak jump: a
                                 // six-card suit.  Skip splinters (double jumps)
-                                // — and, under `set_length_soundness`, a player
+                                // — and, under `ReadingProfile::length_soundness`, a player
                                 // who has doubled (their jump is strength on as
                                 // few as three cards; claim nothing).  Opener's
                                 // extras-ladder jump-shift is instead a strong
@@ -995,7 +999,7 @@ impl Inferences {
         // block order inside `apply` is load-bearing — see its doc comment.
         readings.apply(&mut players, &overlay, len, profile);
 
-        // The vacuous-scoped probed overlay ([`set_probed_vacuous_reading`]):
+        // The vacuous-scoped probed overlay (`ReadingProfile::probed_vacuous`):
         // own-side calls in *contested* prefixes only, folded onto axes every
         // symbolic source above — walk stamps, projections, and hand
         // recordings alike — left fully open.  It runs here, last, because
@@ -1282,7 +1286,9 @@ fn classify_high_bid(
 /// `players[i]` already folds `overlay[i].hull()` and every hand-walk narrowing,
 /// and each overlay box is `⊆` that hull, so re-intersecting recovers exactly
 /// `⋃(hand-walk ∩ boxₖ)` — the tight union — while dropping boxes the walk
-/// contradicts.  With [`envelope_union_reading`] off each overlay is one box,
+/// contradicts.  With
+/// [`envelope_union`][field@crate::bidding::ReadingProfile::envelope_union]
+/// off each overlay is one box,
 /// so the result is the single box `players[i]` and
 /// `unions[i].hull() == players[i]` (byte-identical).
 fn intersect_overlay(

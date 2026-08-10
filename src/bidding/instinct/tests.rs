@@ -1,6 +1,5 @@
 use super::*;
 use crate::bidding::context::DecisionProfile;
-use crate::bidding::inference::set_envelope_union_reading;
 use crate::bidding::trie::Classifier;
 use contract_bridge::auction::RelativeVulnerability;
 
@@ -591,9 +590,9 @@ fn fit_sum_reads_a_four_four_major_fit() {
     // under this stance's readings), the slam is claimed *through RKCB*
     // rather than blind — 66.3% includes the boards off two keycards.
     assert_eq!(bid, call(4, Strain::Notrump));
-    set_envelope_union_reading(false);
-    let (legacy, _) = american_floored(&auction, south);
-    set_envelope_union_reading(true);
+    let mut legacy_agreements = Agreements::current();
+    legacy_agreements.decision.reading.envelope_union = false;
+    let (legacy, _) = american_floored_with(&legacy_agreements, &auction, south);
     assert_eq!(legacy, call(4, Strain::Notrump));
     // North answers 1430 (A♠ A♣ + trump K♠ = 3 → 5♦); South holds two,
     // and under the three-combined-keycards doctrine 0 is impossible

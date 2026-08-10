@@ -102,11 +102,7 @@ fn finalized_decoder_matches_legacy_resolution_on_frozen_corpus() {
 #[test]
 fn compiled_authored_projection_matches_legacy_on_frozen_corpus() {
     use crate::bidding::american::american_book;
-    use crate::bidding::inference::{
-        ReadingScope, assert_compiled_authoring_projection_parity, set_announced_reading,
-        set_envelope_union_reading, set_fallback_projection, set_pass_exclusion_reading,
-        set_pass_reading, set_reading_scope, set_table_alert_reading,
-    };
+    use crate::bidding::inference::{ReadingScope, assert_compiled_authoring_projection_parity};
 
     let corpus = performance_support::parse_corpus().expect("valid frozen corpus");
     let profiles = [
@@ -115,27 +111,20 @@ fn compiled_authored_projection_matches_legacy_on_frozen_corpus() {
         (ReadingScope::None, true, true, true, true, true, true),
     ];
     for (scope, union, fallback, pass, exclusion, announced, table) in profiles {
-        set_reading_scope(scope);
-        set_envelope_union_reading(union);
-        set_fallback_projection(fallback);
-        set_pass_reading(pass);
-        set_pass_exclusion_reading(exclusion);
-        set_announced_reading(announced);
-        set_table_alert_reading(table);
-        let stance = american_book(&crate::bidding::agreements::Agreements::current()).against();
+        let mut agreements = crate::bidding::agreements::Agreements::current();
+        agreements.decision.reading.scope = scope;
+        agreements.decision.reading.envelope_union = union;
+        agreements.decision.reading.fallback_projection = fallback;
+        agreements.decision.reading.pass = pass;
+        agreements.decision.reading.pass_exclusion = exclusion;
+        agreements.decision.reading.announced = announced;
+        agreements.decision.reading.table_alerts = table;
+        let stance = american_book(&agreements).against();
         for position in &corpus {
             let context = stance.prefixed_context(position.vul, &position.auction);
             assert_compiled_authoring_projection_parity(&context);
         }
     }
-
-    set_reading_scope(ReadingScope::Alerted);
-    set_envelope_union_reading(true);
-    set_fallback_projection(true);
-    set_pass_reading(true);
-    set_pass_exclusion_reading(false);
-    set_announced_reading(false);
-    set_table_alert_reading(true);
 }
 
 #[test]
@@ -177,7 +166,7 @@ fn append_only_step_cache_matches_from_scratch_frozen_prefixes() {
 #[test]
 fn step_cache_drops_to_legacy_after_middeal_edit() {
     use crate::bidding::american::american_book;
-    use crate::bidding::inference::{AuthoringStepCache, set_envelope_union_reading};
+    use crate::bidding::inference::AuthoringStepCache;
     use contract_bridge::auction::RelativeVulnerability;
 
     let mut stance = american_book(&crate::bidding::agreements::Agreements::current()).against();
@@ -188,12 +177,11 @@ fn step_cache_drops_to_legacy_after_middeal_edit() {
             .prepare(&stance, RelativeVulnerability::NONE, &[])
             .is_some()
     );
-    set_envelope_union_reading(false);
     assert!(
         cache
             .prepare(&stance, RelativeVulnerability::NONE, &auction)
             .is_some(),
-        "an unpinned knob flip must not disturb this deal cache"
+        "extending the auction must not disturb this deal cache"
     );
     stance.profile_mut().reading.envelope_union = false;
     assert!(
@@ -202,7 +190,6 @@ fn step_cache_drops_to_legacy_after_middeal_edit() {
             .is_none(),
         "moving the pinned profile must disable this deal cache"
     );
-    set_envelope_union_reading(true);
 }
 
 #[test]
@@ -707,13 +694,13 @@ fn cached_reference_parity_across_reading_and_evaluator_profiles() {
     let hand: Hand = "765.A.AKJT984.63".parse().expect("valid test hand");
 
     for (index, profile) in profiles.into_iter().enumerate() {
-        crate::bidding::set_reading_scope(profile.scope);
-        crate::bidding::set_envelope_union_reading(profile.union);
-        crate::bidding::set_pass_exclusion_reading(profile.exclusion);
         crate::bidding::evaluator::set_eval_auction(profile.eval_auction);
         crate::bidding::evaluator::set_eval_shape(profile.eval_shape);
         crate::bidding::features::set_blind_inference(profile.blind);
         let mut agreements = crate::bidding::agreements::Agreements::current();
+        agreements.decision.reading.scope = profile.scope;
+        agreements.decision.reading.envelope_union = profile.union;
+        agreements.decision.reading.pass_exclusion = profile.exclusion;
         agreements.decision.instinct.bilans_floor = profile.bilans;
         agreements.decision.instinct.net_collar = profile.collar;
 
@@ -743,9 +730,6 @@ fn cached_reference_parity_across_reading_and_evaluator_profiles() {
     }
 
     // Restore this worker thread's shipped defaults for later tests.
-    crate::bidding::set_reading_scope(ReadingScope::Alerted);
-    crate::bidding::set_envelope_union_reading(true);
-    crate::bidding::set_pass_exclusion_reading(false);
     crate::bidding::evaluator::set_eval_auction(true);
     crate::bidding::evaluator::set_eval_shape(false);
     crate::bidding::features::set_blind_inference(false);
@@ -765,15 +749,12 @@ fn cached_and_uncached_match_frozen_performance_corpus() {
     use crate::bidding::array::Logits;
     use crate::bidding::evaluator::trick_estimates_with_auction;
     use crate::bidding::features::{features_eval, features_eval_v3, features_eval_v4};
-    use crate::bidding::inference::{Inferences, ReadingScope};
+    use crate::bidding::inference::Inferences;
     use crate::bidding::instinct::Interpretation;
     use crate::bidding::trie::Provenance;
     use contract_bridge::auction::Auction;
 
     fn set_shipped_profile() {
-        crate::bidding::set_reading_scope(ReadingScope::Alerted);
-        crate::bidding::set_envelope_union_reading(true);
-        crate::bidding::set_pass_exclusion_reading(false);
         crate::bidding::evaluator::set_eval_auction(true);
         crate::bidding::evaluator::set_eval_shape(false);
         crate::bidding::features::set_blind_inference(false);
@@ -1096,11 +1077,12 @@ fn a_declared_opponent_reads_their_calls_in_their_books() {
 /// hold the shipped defaults.  Any classify-time read that bypasses the pinned
 /// [`DecisionProfile`][super::DecisionProfile] diverges here.
 ///
-/// Live since stage 5, armed over all three layers: `ReadingProfile`'s 42
-/// cells, `InstinctProfile`'s 31 fields, and the nine `DecisionProfile` holds
+/// Live since stage 5, armed over all three layers: `ReadingProfile`'s 43
+/// fields (24 captured from remaining cells plus 19 value-owned here),
+/// `InstinctProfile`'s 31 fields, and the nine cells `DecisionProfile` holds
 /// directly.  The values are deliberately meaningless — this arms a system
-/// nobody plays — because what is under test is only that both threads see
-/// the *same* one.
+/// nobody plays — because what is under test is only that both threads see the
+/// *same* one.
 #[test]
 fn stance_pins_knobs_across_threads() {
     use crate::bidding::table::Table;
@@ -1127,6 +1109,7 @@ fn stance_pins_knobs_across_threads() {
         crate::bidding::american::set_transfer_gf_hearts(false);
 
         let mut agreements = crate::bidding::agreements::Agreements::current();
+        agreements.decision.reading = crate::bidding::inference::ReadingProfile::nondefault();
         agreements.decision.instinct = crate::bidding::instinct::InstinctProfile::nondefault();
         let ns = american(&agreements);
         let ew = american(&agreements);

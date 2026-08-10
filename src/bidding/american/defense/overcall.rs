@@ -154,7 +154,7 @@ pub fn defense_to_suit(their_opening: Bid, agreements: &Agreements) -> Rules {
     // Byte-identical to the old `hcp(0..)` catch-all: below the floor the gate
     // scores the same, above it the shape-free tier is finite at weight 1.2
     // and always outscores a weight-0 pass.  Authored so the pass reading
-    // (`set_pass_reading`) can project the band a passed hand sits within.
+    // (`ReadingProfile::pass`) can project the band a passed hand sits within.
     rules = match agreements.defense.strong_double_hcp {
         Some(n) => rules
             .rule(Call::Double, 120, hcp(n..))

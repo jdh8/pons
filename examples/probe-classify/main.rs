@@ -30,8 +30,8 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_competitive_rebid: bool,
 
-    /// Classify under the legacy bounding-box hull reading (`set_envelope_union_reading`
-    /// off; the crate default is ON since chop F2b) — the forensic view of
+    /// Classify under the legacy bounding-box hull reading
+    /// (`ReadingProfile::envelope_union` off; the crate default is ON since chop F2b) — the forensic view of
     /// what the flip changes at this node
     #[arg(long, default_value_t = false)]
     no_envelope_union: bool,
@@ -40,7 +40,6 @@ struct Args {
 fn main() {
     let args = Args::parse();
     pons::bidding::instinct::set_competitive_rebid(!args.no_competitive_rebid);
-    pons::bidding::set_envelope_union_reading(!args.no_envelope_union);
     let hand: Hand = args.hand.parse().expect("valid hand");
     let mut auction = Auction::new();
     for token in args.auction.split_whitespace() {
@@ -48,13 +47,15 @@ fn main() {
         auction.push(call);
     }
 
-    let stance = american(&pons::bidding::agreements::Agreements::current()).against();
+    let mut agreements = pons::bidding::agreements::Agreements::current();
+    agreements.decision.reading.envelope_union = !args.no_envelope_union;
+    let stance = american(&agreements).against();
     let seat = Seat::ALL[auction.len() % 4];
     let vul = relative(args.vulnerability, seat);
     // The prefixed reading — what the bidder actually sees (a bare
     // `Context::new` skips the projection overlay; see `Inferences::read`).
     println!(
-        "inferences via Stance::infer (envelope_union_reading={}):\n{:#?}",
+        "inferences via Stance::infer (envelope_union={}):\n{:#?}",
         !args.no_envelope_union,
         stance.infer(vul, &auction)
     );

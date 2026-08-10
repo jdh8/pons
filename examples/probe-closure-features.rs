@@ -1,7 +1,7 @@
 //! Does a hull-tightening closure move the net's *inputs* without moving the
 //! *distribution* those inputs claim to describe?
 //!
-//! C1 (`set_sum_closure`) is membership-inert: every real hand satisfies
+//! C1 (`ReadingProfile::sum_closure`) is membership-inert: every real hand satisfies
 //! `Σ len = 13`, so narrowing a box by it cannot change `Envelope::admits`.
 //! The set of hands consistent with a reading is therefore identical in both
 //! arms — every conditional moment is *exactly* unchanged — while
@@ -45,10 +45,7 @@ use contract_bridge::{AbsoluteVulnerability, Seat};
 use pons::american;
 use pons::bidding::context::relative;
 use pons::bidding::features::{LEN_HAND_EVAL, LEN_INFERENCE, LEN_SEAT_SHAPE, features_eval_shape};
-use pons::bidding::{
-    Relative, sample_layouts, set_gauge_membership, set_pass_exclusion_reading, set_sum_closure,
-    set_upgrade_closure,
-};
+use pons::bidding::{Relative, sample_layouts};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 
@@ -76,11 +73,11 @@ struct Args {
     #[arg(long, default_value = "64")]
     samples: usize,
 
-    /// Probe C2 (`set_upgrade_closure`) instead of C1
+    /// Probe C2 (`ReadingProfile::upgrade_closure`) instead of C1
     #[arg(long)]
     upgrade: bool,
 
-    /// Probe the pass-exclusion reading (`set_pass_exclusion_reading`)
+    /// Probe the pass-exclusion reading (`ReadingProfile::pass_exclusion`)
     /// instead — not a closure: it narrows the described hand set, so
     /// membership rejections are the earnable picture, C1's (0 rejections)
     /// the unearnable one
@@ -88,7 +85,7 @@ struct Args {
     pass_exclusion: bool,
 
     /// Give the strength gauges membership teeth in *both* arms
-    /// ([`set_gauge_membership`]).  C2's membership effect should vanish
+    /// ([`pons::bidding::ReadingProfile::gauge_membership`]).  C2's membership effect should vanish
     /// under it: C2 bounds `points` by `hcp + upgrade_ceiling(lengths)`, and
     /// a hand inside the box has `upgrade <= upgrade_ceiling`, so any hand
     /// the closure rejects was already rejected by the direct `hcp` test.
@@ -150,24 +147,32 @@ fn main() {
     let args = Args::parse();
     let base = args.seed.unwrap_or_else(rand::random);
     let vul = AbsoluteVulnerability::NONE;
-    let (knob, name): (fn(bool), &str) = if args.pass_exclusion {
-        (set_pass_exclusion_reading, "pass-exclusion")
+    let name = if args.pass_exclusion {
+        "pass-exclusion"
     } else if args.upgrade {
-        (set_upgrade_closure, "C2 upgrade")
+        "C2 upgrade"
     } else {
-        (set_sum_closure, "C1 sum")
+        "C1 sum"
     };
     // The knob is captured into a stance at build, so the probe needs one book
     // per setting: `stances[0]` knob-off (it also does the bidding), `[1]` on.
-    set_gauge_membership(args.gauge);
-    knob(false);
-    let off = american(&pons::bidding::agreements::Agreements::current()).against();
-    knob(true);
+    let mut off_agreements = pons::bidding::agreements::Agreements::current();
+    off_agreements.decision.reading.gauge_membership = args.gauge;
+    let mut on_agreements = off_agreements;
+    if args.pass_exclusion {
+        off_agreements.decision.reading.pass_exclusion = false;
+        on_agreements.decision.reading.pass_exclusion = true;
+    } else if args.upgrade {
+        off_agreements.decision.reading.upgrade_closure = false;
+        on_agreements.decision.reading.upgrade_closure = true;
+    } else {
+        off_agreements.decision.reading.sum_closure = false;
+        on_agreements.decision.reading.sum_closure = true;
+    }
     let stances = [
-        off,
-        american(&pons::bidding::agreements::Agreements::current()).against(),
+        american(&off_agreements).against(),
+        american(&on_agreements).against(),
     ];
-    knob(false);
     let stance = &stances[0];
 
     // Per column kind: every |Δ| that was nonzero, plus every value seen

@@ -676,6 +676,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Seeded `smoke-default` / `smoke-dutch` dumps (20 000 boards each) are
   byte-identical, and `cards/*.bbsa` regenerate unchanged.
 
+- **Nineteen reading knobs are fields, not thread-locals.**  The half of
+  `ReadingProfile` that `inference/knobs.rs` owned outright loses its cells:
+  the reading scope, the fallback projection, the envelope-union reading and
+  its two box closures, the gauge-membership teeth, the control-bid, cue,
+  length-soundness, pass and pass-exclusion readings, the probed overlay and
+  its vacuous fold, the announced/table-alert disclosure split, the
+  blind-opponent control, the `1NT`-invite and Rubens-transfer readings, and
+  the `ev` rule-accept gate.  Arming one is
+  `a.decision.reading.envelope_union = false` before the build.  The other
+  twenty-four `ReadingProfile` fields still come from cells in `constraint.rs`,
+  `instinct.rs` and `american/*`; `reading_profile()` now starts from
+  `ReadingProfile::default()` and overwrites only those.
+
+  Nothing on the bidding path moved: classify-time reads already went through
+  `context.reading_profile()`.  Four public conveniences did read the thread —
+  `evaluator::trick_estimates`' `forward`, its `bench-internals` `forward_v3`
+  twin, `benchmark::active_evaluator_features`, and the `assert_package_invariants`
+  alert probe — and each now names the shipped default it serves, with the
+  explicit-profile twin documented beside it, the way `point_count` /
+  `point_count_on` already read.  `assert_package_invariants` keeps its two
+  regimes apart with two contexts instead of a save/restore around the cell.
+
+  The campaign keystone `stance_pins_knobs_across_threads` still drives all
+  forty-three reading fields off their defaults: nineteen through
+  `ReadingProfile::nondefault()`, the rest through the cells it still arms.
+
+  **Breaking:** the nineteen `set_*` functions and their free getters are gone
+  — among them `set_envelope_union_reading`, `set_reading_scope`,
+  `set_pass_reading`, `set_fallback_projection` and `set_gauge_membership`.
+  `ReadingProfile`'s same-named *methods* are untouched.
+
+  Seeded `smoke-default` / `smoke-dutch` dumps (20 000 boards each) are
+  byte-identical, and `cards/*.bbsa` regenerate unchanged.
+
 - **The three classify-time profiles are public, and documented.**
   `DecisionProfile`, `ReadingProfile` and `InstinctProfile` — the `Copy`
   snapshots pinned into a `Stance` at `Pair::against`, so a stance classifies

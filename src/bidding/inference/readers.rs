@@ -33,7 +33,8 @@ const _: [fn() -> bool; 4] = [
 /// `(index, suit, min-len)` of a one-level transfer's meaning — the transfer
 /// into partner's suit is the same limit-plus raise (`(index, Y, 3)`), a
 /// new-suit transfer shows its own five-card target (`(index, target, 5)`),
-/// both ten-plus points ([`set_rubens_transfer_reading`], recorded post-walk
+/// both ten-plus points
+/// ([`rubens_transfer`][field@crate::bidding::ReadingProfile::rubens_transfer], recorded post-walk
 /// for the advancer's *own side only* — an opponent's in-band advance may be
 /// natural).
 ///
@@ -1075,7 +1076,7 @@ impl Readings {
         }
 
         // A one-level Rubens transfer records its meaning likewise (see
-        // [`set_rubens_transfer_reading`]) — but only for the advancer's own
+        // `ReadingProfile::rubens_transfer`) — but only for the advancer's own
         // side: the transfer semantics are *our* agreement, and an opponent's
         // in-band advance may be a genuine suit (asserting length in the suit
         // above would poison the sampler).  Suppression above stays side-blind:

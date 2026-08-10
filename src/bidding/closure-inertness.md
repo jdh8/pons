@@ -10,12 +10,13 @@ Whether a closure is **membership-inert** — whether `Envelope::admits` and
 `EnvelopeUnion::contains` accept exactly the same hands before and after, so the sampler
 cannot move — depends on which axes it reads:
 
-- `set_sum_closure` **is** inert.  It reads and writes only `lengths`, an axis
+- `ReadingProfile::sum_closure` **is** inert.  It reads and writes only `lengths`, an axis
   `admits` already enforces, and every real 13-card hand satisfies
   `Σ len = 13`.  Measured over 409,708 sampled layouts by
   `examples/probe-closure-features.rs`: zero rejections in either direction.
-- `set_upgrade_closure` is **not**.  It bounds `points` — which `admits` tests
-  — using `hcp`, which `admits` ignores until `set_gauge_membership`.  So it
+- `ReadingProfile::upgrade_closure` is **not**.  It bounds `points` — which
+  `admits` tests — using `hcp`, which `admits` ignores until
+  `ReadingProfile::gauge_membership`.  So it
   gives an otherwise unenforced HCP claim teeth *through* `points`: a box
   reading `hcp ..=8` with `points` slacked to `..=10` narrows back to `..=8`
   once its lengths force balanced, and the sampler stops dealing the 9- and

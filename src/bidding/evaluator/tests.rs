@@ -8,20 +8,26 @@ fn hand(s: &str) -> Hand {
 }
 
 /// The hand-rolled forward pass must reproduce the trainer's candle
-/// outputs on the exported fixture — the legacy (knob-off) weights.
-/// Thread-local knob, restored to the crate default afterwards.
+/// outputs on the exported fixture — the legacy envelope-union-off weights.
 #[test]
 fn matches_candle_fixture() {
-    crate::bidding::set_envelope_union_reading(false);
-    check_candle_fixture(include_str!("../weights/evaluator_v2.fixture.json"));
-    crate::bidding::set_envelope_union_reading(true);
+    check_fixture(
+        include_str!("../weights/evaluator_v2.fixture.json"),
+        u64::from(FEATURES_VERSION_EVAL),
+        IN,
+        |x| forward_on(false, x),
+    );
 }
 
 /// The knob-on twin (the shipped default) against its own fixture.
 #[test]
 fn union_reading_matches_candle_fixture() {
-    crate::bidding::set_envelope_union_reading(true);
-    check_candle_fixture(include_str!("../weights/evaluator_v2_dnf.fixture.json"));
+    check_fixture(
+        include_str!("../weights/evaluator_v2_dnf.fixture.json"),
+        u64::from(FEATURES_VERSION_EVAL),
+        IN,
+        |x| forward_on(true, x),
+    );
 }
 
 /// The v3 calls-tail artifact against its own fixture — served directly,
@@ -64,20 +70,32 @@ fn exclusion_knob_swaps_v3_weights() {
     let inf = Inferences::read(&ctx);
     let h = hand("AQ32.K53.QJ4.A92");
 
-    crate::bidding::set_envelope_union_reading(true);
-    crate::bidding::set_pass_exclusion_reading(false);
-    let union_reading = trick_estimates_with_auction(h, &inf, &auction);
+    let mut profile = DecisionProfile::current();
+    profile.reading.envelope_union = true;
+    profile.reading.pass_exclusion = false;
+    let union_reading = trick_estimates_with_auction_on(&profile, h, &inf, &auction);
 
-    crate::bidding::set_pass_exclusion_reading(true);
-    let exclusion = trick_estimates_with_auction(h, &inf, &auction);
-    crate::bidding::set_pass_exclusion_reading(false);
+    profile.reading.pass_exclusion = true;
+    let exclusion = trick_estimates_with_auction_on(&profile, h, &inf, &auction);
 
     assert_ne!(
         exclusion, union_reading,
         "the twin should not shadow the envelope-union weights"
     );
     assert_eq!(
-        trick_estimates_with_auction(h, &inf, &auction),
+        trick_estimates_with_auction_on(
+            &DecisionProfile {
+                reading: ReadingProfile {
+                    envelope_union: true,
+                    pass_exclusion: false,
+                    ..profile.reading
+                },
+                ..profile
+            },
+            h,
+            &inf,
+            &auction,
+        ),
         union_reading,
         "knob off must be byte-identical"
     );
@@ -110,16 +128,18 @@ fn eval_shape_knob_contract() {
     let inf = Inferences::read(&ctx);
     let h = hand("AQ32.K53.QJ4.A92");
 
-    crate::bidding::set_envelope_union_reading(true);
-    set_eval_auction(true);
-    let v3 = trick_estimates_with_auction(h, &inf, &auction);
+    let mut profile = DecisionProfile::current();
+    profile.reading.envelope_union = true;
+    profile.eval_auction = true;
+    profile.eval_shape = false;
+    let v3 = trick_estimates_with_auction_on(&profile, h, &inf, &auction);
     assert!(!eval_shape(), "the v4 knob ships off");
 
-    set_eval_shape(true);
-    let v4 = trick_estimates_with_auction(h, &inf, &auction);
-    set_eval_shape(false);
+    profile.eval_shape = true;
+    let v4 = trick_estimates_with_auction_on(&profile, h, &inf, &auction);
+    profile.eval_shape = false;
     assert_eq!(
-        trick_estimates_with_auction(h, &inf, &auction),
+        trick_estimates_with_auction_on(&profile, h, &inf, &auction),
         v3,
         "knob off must be byte-identical"
     );
@@ -139,10 +159,6 @@ fn eval_shape_knob_contract() {
             );
         }
     }
-}
-
-fn check_candle_fixture(fixture: &str) {
-    check_fixture(fixture, u64::from(FEATURES_VERSION_EVAL), IN, forward);
 }
 
 fn check_fixture(fixture: &str, version: u64, in_dim: usize, fwd: impl Fn(&[f32]) -> [f32; OUT]) {
@@ -200,13 +216,17 @@ fn with_auction_knob_contract() {
     let inf = Inferences::read(&ctx);
     let h = hand("AQ32.K53.QJ4.A92");
 
-    set_eval_auction(false);
+    let mut profile = DecisionProfile::current();
+    profile.reading.envelope_union = true;
+    profile.eval_auction = false;
     let v2 = trick_estimates(h, &inf);
-    assert_eq!(trick_estimates_with_auction(h, &inf, &auction), v2);
+    assert_eq!(
+        trick_estimates_with_auction_on(&profile, h, &inf, &auction),
+        v2
+    );
 
-    crate::bidding::set_envelope_union_reading(true);
-    set_eval_auction(true);
-    let v3 = trick_estimates_with_auction(h, &inf, &auction);
+    profile.eval_auction = true;
+    let v3 = trick_estimates_with_auction_on(&profile, h, &inf, &auction);
 
     assert_ne!(v3, v2, "v3 artifact should not shadow v2 exactly");
     for strain in Strain::ASC {

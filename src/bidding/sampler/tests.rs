@@ -224,9 +224,10 @@ fn replay_honors_both_sides_under_competition() {
 #[test]
 fn reads_a_passed_seat_as_bounded() {
     use crate::bidding::constraint::point_count;
-    crate::bidding::set_pass_reading(true);
-    crate::bidding::set_table_alert_reading(true);
-    let stance = crate::american(&crate::bidding::agreements::Agreements::current()).against();
+    let mut agreements = crate::bidding::agreements::Agreements::current();
+    agreements.decision.reading.pass = true;
+    agreements.decision.reading.table_alerts = true;
+    let stance = crate::american(&agreements).against();
     let inf =
         Inferences::read(&stance.prefixed_context(RelativeVulnerability::NONE, &[Call::Pass]));
 

@@ -280,7 +280,7 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_fallback_projection: bool,
 
-    /// Turn OFF the envelope-union reading for our side (`set_envelope_union_reading`,
+    /// Turn OFF the envelope-union reading for our side (`ReadingProfile::envelope_union`,
     /// crate default ON since chop F2b — docs/dnf-migration.md): fall back to
     /// hulling every disjunction to its bounding box, the legacy reading and
     /// the F2b A/B's off arm.
@@ -288,14 +288,14 @@ struct Args {
     no_ns_envelope_union: bool,
 
     /// Also give the strength gauges membership teeth for our side
-    /// (`set_gauge_membership`, crate default off): samplers reject hands
+    /// (`ReadingProfile::gauge_membership`, crate default off): samplers reject hands
     /// outside the raw-HCP / support-points bands.  Measured WASH on sd-lead;
     /// independent kill-switch. It reads envelope-union boxes, so it wants that
     /// reading live — which is the default, i.e. pass no `--no-ns-envelope-union`.
     #[arg(long, default_value_t = false)]
     ns_gauge_membership: bool,
 
-    /// Narrow our side's read suit lengths by `Σ len = 13` (`set_sum_closure`,
+    /// Narrow our side's read suit lengths by `Σ len = 13` (`ReadingProfile::sum_closure`,
     /// crate default off): a both-majors box stops claiming 13 spades.  Exact
     /// and membership-inert, so only hulls and term counts move.  DNF-ledger
     /// chop C1 (docs/dnf-migration.md).
@@ -349,7 +349,7 @@ struct Args {
     ns_eval_shape: bool,
 
     /// Split disclosure from projection for our side
-    /// (`inference::set_announced_reading`, crate default off).  A call decided
+    /// (`ReadingProfile::announced`, crate default off).  A call decided
     /// by the evaluator net projects ⊤ and always will — a net accepts hands no
     /// box contains — so it reads as nothing.  On, every rule also contributes
     /// an *agreement* overlay, which the nets' feature vectors consume while the
@@ -361,7 +361,7 @@ struct Args {
     ns_announced_reading: bool,
 
     /// How much of the authored book our projection decodes
-    /// (`inference::set_reading_scope`, crate default `alerted`).
+    /// (`ReadingProfile::scope`, crate default `alerted`).
     ///
     /// `alerted` decodes a call when its rule alerts it; `none` is the
     /// pre-alert arm, where a strength-showing artificial reads as a natural
@@ -390,7 +390,7 @@ struct Args {
     ns_blind_inference: bool,
 
     /// Read our side's passes with sibling-gate exclusion
-    /// (`set_pass_exclusion_reading`, crate default off).  A pass proves the
+    /// (`ReadingProfile::pass_exclusion`, crate default off).  A pass proves the
     /// hand outside every table sibling whose weight strictly beats every
     /// Pass rule's; single-box complements fold into the pass band, so the
     /// catch-all defensive passes (their weak twos) read ≤16 points instead
@@ -400,13 +400,13 @@ struct Args {
 
     /// Probe our stance's behavior over this many self-play boards at startup
     /// and read with the probed boxes on (`Stance::probe` +
-    /// `set_probed_reading`, crate default off).  Fixed probe seed, so every
+    /// `ReadingProfile::probed`, crate default off).  Fixed probe seed, so every
     /// shard of an arm carries the identical probed map.  0 = off.
     #[arg(long, default_value_t = 0)]
     ns_probe: usize,
 
     /// Serve the probed boxes through the vacuous-scoped fold instead of the
-    /// full one (`set_probed_vacuous_reading`, crate default off): own-side
+    /// full one (`ReadingProfile::probed_vacuous`, crate default off): own-side
     /// calls only, and only onto axes the symbolic reading left fully open —
     /// the coverage slice of the probed reading, without the tightening that
     /// refuted the full fold.  Requires `--ns-probe`.
@@ -414,7 +414,7 @@ struct Args {
     ns_probe_vacuous: bool,
 
     /// Close our side's read `hcp` against `points` through the shape upgrade
-    /// (`set_upgrade_closure`, crate default off): balanced hands never
+    /// (`ReadingProfile::upgrade_closure`, crate default off): balanced hands never
     /// upgrade, so a balanced box reads `points == hcp` instead of carrying the
     /// scale's global slack.  DNF-ledger chop C2.
     #[arg(long, default_value_t = false)]
@@ -1461,24 +1461,11 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     pons::bidding::instinct::set_penalty_latch(!args.no_ns_penalty_latch);
     pons::bidding::instinct::set_doubler_xx_runout(!args.no_ns_doubler_run);
     pons::bidding::instinct::set_rubens_advances(args.ns_rubens);
-    pons::bidding::set_rubens_transfer_reading(!args.no_ns_rubens_reading);
     pons::bidding::instinct::set_floor_rkcb(!args.no_ns_floor_rkcb);
     pons::bidding::instinct::set_rkcb_variant(args.ns_rkcb.into());
-    pons::bidding::set_control_bid_reading(!args.no_ns_control_bid_reading);
-    pons::bidding::set_cue_reading(!args.no_ns_cue_reading);
-    pons::bidding::set_length_soundness(!args.no_ns_length_soundness);
-    pons::bidding::set_table_alert_reading(!args.no_ns_table_alert_reading);
-    pons::bidding::set_pass_reading(!args.no_ns_pass_reading);
-    pons::bidding::set_fallback_projection(!args.no_ns_fallback_projection);
-    pons::bidding::set_envelope_union_reading(!args.no_ns_envelope_union);
-    pons::bidding::set_gauge_membership(args.ns_gauge_membership);
-    pons::bidding::inference::set_announced_reading(args.ns_announced_reading);
-    pons::bidding::set_reading_scope(args.ns_reading_scope.into());
     pons::bidding::evaluator::set_eval_auction(!args.no_ns_eval_auction);
     pons::bidding::evaluator::set_eval_shape(args.ns_eval_shape);
     pons::bidding::features::set_blind_inference(args.ns_blind_inference);
-    pons::bidding::set_sum_closure(args.ns_sum_closure);
-    pons::bidding::set_upgrade_closure(args.ns_upgrade_closure);
     pons::bidding::american::set_two_notrump_wide(args.ns_two_nt_wide);
     pons::bidding::american::set_natural_double_floor(args.ns_double_floor);
     pons::bidding::american::set_nt_overcall_systems_on(!args.no_ns_nt_overcall_systems_on);
@@ -1545,10 +1532,23 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     // Disclosure last: every `--ns-*` knob above moves the system, and a
     // generated card reads them.  Built here rather than beside the oracle so
     // the card cannot describe a system the run then reconfigures.
-    pons::bidding::set_pass_exclusion_reading(args.ns_pass_exclusion);
     // Captured after every ambient cell above, then the knobs that are fields
     // of the value rather than cells of the thread.
     let mut agreements = Agreements::current();
+    agreements.decision.reading.rubens_transfer = !args.no_ns_rubens_reading;
+    agreements.decision.reading.control_bid = !args.no_ns_control_bid_reading;
+    agreements.decision.reading.cue = !args.no_ns_cue_reading;
+    agreements.decision.reading.length_soundness = !args.no_ns_length_soundness;
+    agreements.decision.reading.table_alerts = !args.no_ns_table_alert_reading;
+    agreements.decision.reading.pass = !args.no_ns_pass_reading;
+    agreements.decision.reading.fallback_projection = !args.no_ns_fallback_projection;
+    agreements.decision.reading.envelope_union = !args.no_ns_envelope_union;
+    agreements.decision.reading.gauge_membership = args.ns_gauge_membership;
+    agreements.decision.reading.announced = args.ns_announced_reading;
+    agreements.decision.reading.scope = args.ns_reading_scope.into();
+    agreements.decision.reading.sum_closure = args.ns_sum_closure;
+    agreements.decision.reading.upgrade_closure = args.ns_upgrade_closure;
+    agreements.decision.reading.pass_exclusion = args.ns_pass_exclusion;
     agreements.decision.instinct.uvu_encircle = args.uvu;
     agreements.decision.instinct.settle_floor = !args.no_settle_floor;
     agreements.decision.instinct.nt_responder_game_floor = args.ns_nt_responder_game_floor;
@@ -1965,16 +1965,9 @@ fn main() -> anyhow::Result<()> {
     // same discipline `--ns-*` follows above.
     let their_floor = match &args.their_floor {
         Some(name) => {
-            // `--ns-probe` above pinned the probed overlay into `our_floor` and
-            // left the bits armed on this thread.  Their book never probed, so
-            // building it armed would fold a probed reading against an *empty*
-            // box map.  Off for this build only, then restored, because the
-            // cells still back other build-time reads until the classify-time
-            // half of the knob campaign lands.  `blinded` below no longer needs
-            // the restore: it copies `our_floor`'s own pin, which already holds
-            // the probed bits, instead of re-capturing this thread.
-            pons::bidding::set_probed_reading(false);
-            pons::bidding::set_probed_vacuous_reading(false);
+            // `--ns-probe` above moved the probed overlay only on
+            // `our_floor`'s pinned profile. Their book never probed, so its
+            // separately built agreements retain the shipped-off settings.
             let built = under(their_ns.as_ref(), &args, |theirs| {
                 deviant_floor(
                     name,
@@ -1986,10 +1979,6 @@ fn main() -> anyhow::Result<()> {
                     args.their_wild_weak_two,
                 )
             })?;
-            if args.ns_probe > 0 {
-                pons::bidding::set_probed_vacuous_reading(args.ns_probe_vacuous);
-                pons::bidding::set_probed_reading(!args.ns_probe_vacuous);
-            }
             Some(built)
         }
         None => None,

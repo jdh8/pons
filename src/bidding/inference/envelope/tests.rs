@@ -1,10 +1,13 @@
-use super::*;
-use crate::bidding::constraint::point_scale;
 use crate::bidding::context::Context;
-use crate::bidding::inference::knobs::*;
-use crate::bidding::inference::{Envelope, EnvelopeUnion, Range, Strength};
+use crate::bidding::inference::{Envelope, EnvelopeUnion, Range, ReadingProfile, Strength};
 use contract_bridge::auction::RelativeVulnerability;
 use contract_bridge::{Hand, Suit};
+
+fn reading_with(configure: impl FnOnce(&mut ReadingProfile)) -> ReadingProfile {
+    let mut agreements = crate::bidding::agreements::Agreements::current();
+    configure(&mut agreements.decision.reading);
+    agreements.decision.reading
+}
 
 /// The `EnvelopeUnion` box algebra: `union` retains alternatives,
 /// `intersect` distributes and **drops** the empty
@@ -27,19 +30,19 @@ impl VecEnvelopeUnion {
         self
     }
 
-    fn disjoin(self, other: Self) -> Self {
-        if envelope_union_reading() {
-            self.union(other).tidy()
+    fn disjoin(self, other: Self, profile: ReadingProfile) -> Self {
+        if profile.envelope_union {
+            self.union(other).tidy(profile)
         } else {
             Self(vec![self.hull().span(&other.hull())])
         }
     }
 
-    fn intersect(&self, other: &Self) -> Self {
+    fn intersect(&self, other: &Self, profile: ReadingProfile) -> Self {
         let mut out = Vec::new();
         for a in &self.0 {
             for b in &other.0 {
-                if let Some(product) = a.intersect_nonempty(b, point_scale()) {
+                if let Some(product) = a.intersect_nonempty(b, profile.point_scale()) {
                     out.push(product);
                 }
             }
@@ -47,21 +50,21 @@ impl VecEnvelopeUnion {
         if out.is_empty() {
             out.push(self.hull().intersect(&other.hull()));
         }
-        Self(out).tidy()
+        Self(out).tidy(profile)
     }
 
-    fn tidy(mut self) -> Self {
-        if !envelope_union_reading() {
+    fn tidy(mut self, profile: ReadingProfile) -> Self {
+        if !profile.envelope_union {
             return self;
         }
         self.0.retain(Envelope::sum_feasible);
-        if sum_closure() || upgrade_closure() {
+        if profile.sum_closure || profile.upgrade_closure {
             for box_ in &mut self.0 {
-                if sum_closure() {
+                if profile.sum_closure {
                     box_.narrow_to_sum();
                 }
-                if upgrade_closure() {
-                    box_.narrow_to_upgrade(point_scale());
+                if profile.upgrade_closure {
+                    box_.narrow_to_upgrade(profile.point_scale());
                 }
             }
         }
@@ -103,9 +106,11 @@ fn inline_union_matches_the_vec_oracle_in_every_closure_profile() {
     for union in [false, true] {
         for sum in [false, true] {
             for upgrade in [false, true] {
-                set_envelope_union_reading(union);
-                set_sum_closure(sum);
-                set_upgrade_closure(upgrade);
+                let profile = reading_with(|profile| {
+                    profile.envelope_union = union;
+                    profile.sum_closure = sum;
+                    profile.upgrade_closure = upgrade;
+                });
 
                 let actual_left = EnvelopeUnion::from_boxes(left.clone());
                 let actual_right = EnvelopeUnion::from_boxes(right.clone());
@@ -113,28 +118,30 @@ fn inline_union_matches_the_vec_oracle_in_every_closure_profile() {
                 let reference_right = VecEnvelopeUnion(right.clone());
 
                 assert_eq!(
-                    actual_left.clone().tidy(reading_profile()).boxes(),
-                    reference_left.clone().tidy().0
+                    actual_left.clone().tidy(profile).boxes(),
+                    reference_left.clone().tidy(profile).0
                 );
                 assert_eq!(
                     actual_left.clone().union(actual_right.clone()).boxes(),
                     reference_left.clone().union(reference_right.clone()).0
                 );
                 assert_eq!(
-                    actual_left.clone().disjoin(actual_right.clone()).boxes(),
-                    reference_left.clone().disjoin(reference_right.clone()).0
+                    actual_left
+                        .clone()
+                        .disjoin_with(actual_right.clone(), profile)
+                        .boxes(),
+                    reference_left
+                        .clone()
+                        .disjoin(reference_right.clone(), profile)
+                        .0
                 );
                 assert_eq!(
-                    actual_left.intersect(&actual_right).boxes(),
-                    reference_left.intersect(&reference_right).0
+                    actual_left.intersect_owned(&actual_right, profile).boxes(),
+                    reference_left.intersect(&reference_right, profile).0
                 );
             }
         }
     }
-
-    set_envelope_union_reading(true);
-    set_sum_closure(false);
-    set_upgrade_closure(false);
 }
 
 #[test]
@@ -210,8 +217,10 @@ fn envelope_union_algebra_preserves_exact_alternatives() {
 fn tidy_prunes_ghosts_and_contained() {
     use crate::bidding::constraint::{Constraint as _, and, balanced, points};
 
-    set_envelope_union_reading(true);
-    let context = Context::new(RelativeVulnerability::NONE, &[]);
+    let profile = reading_with(|profile| profile.envelope_union = true);
+    let mut decision = crate::bidding::context::DecisionProfile::current();
+    decision.reading = profile;
+    let context = Context::new(RelativeVulnerability::NONE, &[]).with_profile(decision);
 
     // `balanced & {3..}⁴`: the four 5(332) pan-handles intersect to
     // sum-infeasible 5-3-3-3 ghosts; only the {3..=4}⁴ flat cube survives.
@@ -224,8 +233,6 @@ fn tidy_prunes_ghosts_and_contained() {
     // arms; the wider-points copy encloses the narrower, so five remain.
     let dup = (balanced() & (points(8..) | points(10..))).project_band(&context);
     assert_eq!(dup.boxes().len(), 5);
-
-    set_envelope_union_reading(true);
 }
 
 /// The 560 ordered shapes — every 4-tuple of suit lengths summing to 13.
@@ -312,12 +319,15 @@ fn sum_closure_is_exact_and_inert() {
 fn upgrade_closure_crisps_the_balanced_band() {
     use crate::bidding::constraint::{Constraint as _, balanced, points};
 
-    set_envelope_union_reading(true);
-    let context = Context::new(RelativeVulnerability::NONE, &[]);
     let read_hcp = |on: bool| {
-        set_upgrade_closure(on);
+        let profile = reading_with(|profile| {
+            profile.envelope_union = true;
+            profile.upgrade_closure = on;
+        });
+        let mut decision = crate::bidding::context::DecisionProfile::current();
+        decision.reading = profile;
+        let context = Context::new(RelativeVulnerability::NONE, &[]).with_profile(decision);
         let union = (balanced() & points(15..)).project(&context);
-        set_upgrade_closure(false);
         union.hull().strength.hcp
     };
 
@@ -327,7 +337,7 @@ fn upgrade_closure_crisps_the_balanced_band() {
 
 /// C2 is **not** membership-inert, unlike C1: it derives a bound on
 /// `points` — an axis `admits` tests — from `hcp`, an axis it does not
-/// (the write-only axis; see [`set_gauge_membership`]).  So the closure
+/// (the write-only axis; see [`ReadingProfile::gauge_membership`]).  So the closure
 /// gives an otherwise unenforced HCP claim teeth *through* `points`.
 ///
 /// Found by `examples/probe-closure-features.rs`, which cross-tested
@@ -343,17 +353,21 @@ fn upgrade_closure_gives_hcp_teeth() {
     // Outside the `hcp(..=8)` claim, yet the loose reading admits it,
     // because `points` was slacked to `hcp + hcp_ceiling_slack()`.
     let hand: Hand = "AKQ2.J43.432.432".parse().expect("valid hand");
-    set_envelope_union_reading(true);
-    let context = Context::new(RelativeVulnerability::NONE, &[]);
+    let loose = reading_with(|profile| profile.envelope_union = true);
+    let mut decision = crate::bidding::context::DecisionProfile::current();
+    decision.reading = loose;
+    let context = Context::new(RelativeVulnerability::NONE, &[]).with_profile(decision);
     let reading = (balanced() & hcp(..=8)).project_band(&context);
 
-    assert!(reading.clone().tidy(reading_profile()).contains(hand));
-    set_upgrade_closure(true);
-    assert!(!reading.tidy(reading_profile()).contains(hand));
-    set_upgrade_closure(false);
+    assert!(reading.clone().tidy(loose).contains_on(hand, loose));
+    let closed = reading_with(|profile| {
+        profile.envelope_union = true;
+        profile.upgrade_closure = true;
+    });
+    assert!(!reading.tidy(closed).contains_on(hand, closed));
 }
 
-/// Chop E: `set_gauge_membership` gives the raw-HCP and support-points
+/// Chop E: [`ReadingProfile::gauge_membership`] gives the raw-HCP and support-points
 /// bands membership teeth; off (the default) they are inert.
 #[test]
 fn gauge_membership_teeth() {
@@ -363,16 +377,16 @@ fn gauge_membership_teeth() {
     envelope.strength.hcp = Range::new(16, 17);
 
     // Off: the `points` gauge alone doesn't exclude it…
-    assert!(envelope.admits(hand));
+    let off = reading_with(|profile| profile.gauge_membership = false);
+    assert!(envelope.admits_on(hand, off));
 
     // …on: the raw-HCP band does, and widening the band re-admits.
-    set_gauge_membership(true);
-    assert!(!envelope.admits(hand));
+    let on = reading_with(|profile| profile.gauge_membership = true);
+    assert!(!envelope.admits_on(hand, on));
     envelope.strength.hcp = Range::new(15, 17);
-    assert!(envelope.admits(hand));
+    assert!(envelope.admits_on(hand, on));
     envelope.strength.support_points = [Range::new(16, 37); 4];
-    assert!(!envelope.admits(hand));
-    set_gauge_membership(false);
+    assert!(!envelope.admits_on(hand, on));
 }
 
 #[test]

@@ -75,12 +75,12 @@ struct Args {
     #[arg(long, default_value = "30")]
     top: usize,
 
-    /// Read passes with sibling-gate exclusion (`set_pass_exclusion_reading`)
+    /// Read passes with sibling-gate exclusion (`ReadingProfile::pass_exclusion`)
     #[arg(long)]
     exclusion: bool,
 
     /// Probe the stance over this many self-play boards first and census with
-    /// the probed reading on (`Stance::probe` + `set_probed_reading`)
+    /// the probed reading on (`Stance::probe` + `ReadingProfile::probed`)
     #[arg(long, default_value = "0")]
     probe: usize,
 }
@@ -288,9 +288,9 @@ fn main() {
     let args = Args::parse();
     let base = args.seed.unwrap_or_else(rand::random);
     let vul = AbsoluteVulnerability::NONE;
-    // Reading knobs are captured into the stance at build, so arm this one first.
-    pons::bidding::set_pass_exclusion_reading(args.exclusion);
-    let mut stance = american(&pons::bidding::agreements::Agreements::current()).against();
+    let mut agreements = pons::bidding::agreements::Agreements::current();
+    agreements.decision.reading.pass_exclusion = args.exclusion;
+    let mut stance = american(&agreements).against();
     if args.probe > 0 {
         let report = stance.probe(args.probe, base.wrapping_add(0x9B0BE));
         eprintln!(

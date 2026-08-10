@@ -1,7 +1,7 @@
 //! What the partnership has agreed to play — the value a book is built from
 //!
-//! The knob layer's single source. Every `set_*` knob is one cell of this
-//! value; a build captures it **once**
+//! The knob layer's single source. Every remaining `set_*` knob is captured
+//! into one field of this value; a build captures it **once**
 //! ([`Agreements::current`][crate::bidding::agreements::Agreements::current]) and threads
 //! `&Agreements` to everything that reads a knob, instead of each reader
 //! consulting the thread on its own.
@@ -23,8 +23,8 @@
 //! No cell appears twice; that is the "one cell, one home" invariant, and
 //! `no_knob_lives_in_two_homes` enforces it by scanning this source.
 //!
-//! `decision` (crate-private until the cells are gone) holds the cells read
-//! **per decision**, at classify time, rather than while the books are built.
+//! `decision` holds the settings read **per decision**, at classify time,
+//! rather than while the books are built.
 //! It is split out only because it is the snapshot a
 //! [`Stance`][crate::bidding::Stance] pins at
 //! [`Pair::against`][crate::bidding::Pair::against], so a stance decides
@@ -441,7 +441,7 @@ pub struct CompetitionKnobs {
     /// walk's hand-written two-suiter reading; that reader was retired in
     /// favour of the authored rules' own projection (chop 1 of
     /// `docs/reader-retirement.md`), so the reading is now owned by
-    /// [`set_table_alert_reading`][crate::bidding::set_table_alert_reading].
+    /// [`table_alerts`][field@crate::bidding::ReadingProfile::table_alerts].
     pub uvu_over_majors: bool,
     // --- competition/uvu.rs
     /// Author unusual-vs-unusual at all
@@ -900,7 +900,7 @@ pub struct DefenseKnobs {
     /// `3♠` over `2♠` = the other major plus an unspecified minor, 5-5.  This is
     /// what BBA bids there (`probe-bba-constraints --mode def2-h`: ♠ 5–6,
     /// longest minor 5–6, ♥ 0–2, 0% balanced) and what
-    /// [`set_cue_reading`][crate::bidding::set_cue_reading] already *reads* a
+    /// [`cue`][field@crate::bidding::ReadingProfile::cue] already *reads* a
     /// direct cue as — so knob-off the book authors a call the reader is waiting
     /// for.
     ///

@@ -120,7 +120,7 @@ struct Args {
     their_wild_weak_two: bool,
 
     /// Our seats read **every** authored call, not only the alerted ones
-    /// (`set_reading_scope(ReadingScope::All)` — the regime-2 diagnostic; see
+    /// (`ReadingProfile::scope = ReadingScope::All` — the regime-2 diagnostic; see
     /// `docs/reading-drift-handoff.md`)
     #[arg(long)]
     ns_natural_reading: bool,
@@ -228,12 +228,13 @@ fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let base = args.seed.unwrap_or_else(rand::random);
     let vul = AbsoluteVulnerability::NONE;
-    pons::bidding::set_reading_scope(if args.ns_natural_reading {
+    let mut agreements = pons::bidding::agreements::Agreements::current();
+    agreements.decision.reading.scope = if args.ns_natural_reading {
         pons::bidding::ReadingScope::All
     } else {
         pons::bidding::ReadingScope::Alerted
-    });
-    let stance = american(&pons::bidding::agreements::Agreements::current()).against();
+    };
+    let stance = american(&agreements).against();
 
     // The opponents: a perturbed pons book (deviation panel axes B/C) or, by
     // default, EPBot on whichever card `--system`/`--their-card` names (axis A).
@@ -241,8 +242,8 @@ fn main() -> anyhow::Result<()> {
         Some(name) => Some(deviant_floor(
             name,
             // Our seat is bare `american()`, so that is the card they face.
-            &pons::bidding::card::american_card(&pons::bidding::agreements::Agreements::current()),
-            &pons::bidding::agreements::Agreements::current(),
+            &pons::bidding::card::american_card(&agreements),
+            &agreements,
             args.their_dial,
             args.their_overcall_four_card,
             args.their_offshape_1nt,

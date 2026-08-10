@@ -1,5 +1,6 @@
 //! Rule-replay vs range sampler yield (no double-dummy) — the cheap pre-check
-//! before any DD A/B of [`set_rule_accept`][pons::bidding::inference::set_rule_accept].
+//! before any DD A/B of
+//! [`rule_accept`][field@pons::bidding::ReadingProfile::rule_accept].
 //!
 //! Fills `n` layouts per auction both ways; `replay fill` far below `range fill`
 //! (ratio « 1) flags an auction where rule-replay starves and the ev.rs top-up

@@ -1,5 +1,7 @@
 //! DNF sd-lead A/B: the **same** auction scored four ways — the
-//! `set_envelope_union_reading` × `set_gauge_membership` knob matrix (off / dnf / gauge /
+//! [`pons::bidding::ReadingProfile::envelope_union`] ×
+//! [`pons::bidding::ReadingProfile::gauge_membership`]
+//! matrix (off / dnf / gauge /
 //! both), all in one process so every arm prices the identical lead question.
 //!
 //! Both knobs are inert for the floor+net bidder — it never samples during
@@ -43,7 +45,7 @@ use contract_bridge::auction::Auction;
 use contract_bridge::{AbsoluteVulnerability, Contract, Seat};
 use pons::american;
 use pons::bidding::context::relative;
-use pons::bidding::{Inferences, Stance, set_envelope_union_reading, set_gauge_membership};
+use pons::bidding::{Inferences, Stance};
 use pons::scoring::{final_contract, imps, ns_score_tricks};
 use pons::single_dummy::{LeadQuestion, single_dummy_leads};
 use rand::SeedableRng;
@@ -123,12 +125,10 @@ fn main() {
     // gets its own `reader`; the sampler inside `single_dummy_leads` runs on the
     // main thread and follows the `Inferences` that reader produced.
     let score_arm = |envelope_union: bool, gauge: bool| -> Vec<i64> {
-        let set_knobs = || {
-            set_envelope_union_reading(envelope_union);
-            set_gauge_membership(gauge);
-        };
-        set_knobs();
-        let reader = american(&pons::bidding::agreements::Agreements::current()).against();
+        let mut agreements = pons::bidding::agreements::Agreements::current();
+        agreements.decision.reading.envelope_union = envelope_union;
+        agreements.decision.reading.gauge_membership = gauge;
+        let reader = american(&agreements).against();
         let mut pending: Vec<(usize, Contract, Seat)> = Vec::new();
         let mut questions: Vec<LeadQuestion> = Vec::new();
         for (i, auction) in auctions.iter().enumerate() {
@@ -149,14 +149,11 @@ fn main() {
         let mut score = vec![0i64; args.count];
         const CHUNK: usize = 4096;
         for (asked, chunk) in pending.chunks(CHUNK).zip(questions.chunks(CHUNK)) {
-            set_knobs(); // keep them set across chunks on this thread
             let answers = single_dummy_leads(chunk, &mut rng, args.sd_worlds);
             for (&(i, contract, declarer), &(_, tricks)) in asked.iter().zip(&answers) {
                 score[i] = ns_score_tricks(contract, declarer, u8::from(tricks), vul);
             }
         }
-        set_envelope_union_reading(false);
-        set_gauge_membership(false);
         score
     };
 

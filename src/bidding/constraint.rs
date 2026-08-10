@@ -2171,7 +2171,8 @@ impl<const N: usize, R: RangeBounds<usize> + Clone + Send + Sync> Constraint for
         // envelope is the union of the arms, which widens every suit back to full
         // unless exactly one suit is named (then it floors exactly, like `len`).
         //
-        // C2 (`envelope_union_reading` on) keeps the arms as separate `EnvelopeUnion` boxes so
+        // C2 (`ReadingProfile::envelope_union` on) keeps the arms as separate
+        // `EnvelopeUnion` boxes so
         // `or([♥, ♠], 6..)` pins the two shapes instead of widening both suits
         // to full — the `Or`-wall fix; off, it hulls to one box (byte-identical).
         self.suits

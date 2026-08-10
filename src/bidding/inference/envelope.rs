@@ -132,7 +132,8 @@ impl Range {
 /// restored here — see `canonicalize`.)  The shape fact *is* recoverable per
 /// box, just not in the `(hcp, points)` plane: the lengths sit in the same box,
 /// so `Envelope::narrow_to_upgrade` closes the two gauges against each other
-/// under [`set_upgrade_closure`][super::set_upgrade_closure].
+/// under
+/// [`upgrade_closure`][field@crate::bidding::ReadingProfile::upgrade_closure].
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Strength {
@@ -405,7 +406,8 @@ impl Envelope {
     ///
     /// The per-box membership test the sampler and [`EnvelopeUnion::contains`] share.
     /// Reads the `points` (length) gauge only — until
-    /// [`set_gauge_membership`][super::set_gauge_membership] (chop E, default off) also gives the raw-HCP
+    /// [`gauge_membership`][field@crate::bidding::inference::ReadingProfile::gauge_membership]
+    /// (chop E, default off) also gives the raw-HCP
     /// and support-points bands membership teeth.
     #[must_use]
     pub fn admits(&self, hand: Hand) -> bool {
@@ -517,7 +519,9 @@ impl Envelope {
     /// [`subset_of`][Self::subset_of] dedup.  But **not membership-inert**,
     /// unlike [`narrow_to_sum`][Self::narrow_to_sum]: it bounds `points`,
     /// which [`admits`][Self::admits] tests, using `hcp`, which `admits`
-    /// ignores until [`set_gauge_membership`].  So it gives an unenforced HCP
+    /// ignores until
+    /// [`gauge_membership`][field@crate::bidding::ReadingProfile::gauge_membership].
+    /// So it gives an unenforced HCP
     /// claim teeth through `points`, and the sampler *does* move
     /// (`upgrade_closure_gives_hcp_teeth`).  A no-op on scales whose upgrade a
     /// length box cannot bound (see `crate::bidding::constraint::upgrade_ceiling`).
@@ -719,7 +723,8 @@ impl EnvelopeUnion {
     }
 
     /// The `|` combine the projection fold uses: separate boxes under
-    /// [`envelope_union_reading`][super::envelope_union_reading], else the single bounding-box hull
+    /// [`envelope_union`][field@crate::bidding::ReadingProfile::envelope_union],
+    /// else the single bounding-box hull
     ///
     /// Off, reproduces [`Envelope::span`] exactly, so the hull
     /// path stays byte-identical; on, keeps the arms so an enclosing `&`
@@ -808,11 +813,13 @@ impl EnvelopeUnion {
     /// are sum-infeasible ([`Envelope::sum_feasible`]) admit no hand, and a
     /// box **contained** in another ([`Envelope::subset_of`]) adds no hands
     /// (equal boxes keep their first copy).  Between them, under
-    /// [`set_sum_closure`] / [`set_upgrade_closure`], each surviving box is
+    /// [`sum_closure`][field@crate::bidding::ReadingProfile::sum_closure] /
+    /// [`upgrade_closure`][field@crate::bidding::ReadingProfile::upgrade_closure],
+    /// each surviving box is
     /// narrowed to the bounds its own contents imply
     /// (`Envelope::narrow_to_sum`, `Envelope::narrow_to_upgrade`) — exact, so
     /// the extra containments the dedup then finds are real.  Runs only under
-    /// [`envelope_union_reading`] —
+    /// [`envelope_union`][field@crate::bidding::ReadingProfile::envelope_union] —
     /// the knob-off hull path must stay byte-identical — and restores the
     /// non-empty invariant with ⊤ if every box was a ghost (an unsatisfiable
     /// conjunction; sound, loose, rare).

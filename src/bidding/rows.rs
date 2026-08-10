@@ -1507,7 +1507,7 @@ pub(crate) fn assert_package_invariants(agreements: &Agreements, packages: &[Pac
     );
 
     use super::context::Context;
-    use super::inference::{artificial, envelope_union_reading};
+    use super::inference::artificial;
     use super::trie::Classifier;
     use contract_bridge::auction::RelativeVulnerability;
 
@@ -1526,7 +1526,8 @@ pub(crate) fn assert_package_invariants(agreements: &Agreements, packages: &[Pac
     for package in packages {
         for (pattern, lowered) in group(package.name, (package.entries)(agreements)) {
             let auction = pattern.probe_auction();
-            let context = Context::new(RelativeVulnerability::NONE, &auction);
+            let context = Context::new(RelativeVulnerability::NONE, &auction)
+                .with_profile(agreements.decision);
             if let Some(spec @ GuardSpec::Opaque { sample, .. }) = &pattern.guard {
                 assert!(
                     spec.lower().admits(&context, sample),
@@ -1562,20 +1563,20 @@ pub(crate) fn assert_package_invariants(agreements: &Agreements, packages: &[Pac
                 Call::Bid(bid) => Some(bid.strain),
                 _ => None,
             });
-            // Match `artificial_calls_are_alerted`'s legacy-hull definition.
-            // Restore the thread-local before asserting so a failed invariant
-            // cannot leak its profile into another test on this worker.
-            let prior_union_reading = envelope_union_reading();
-            super::set_envelope_union_reading(false);
+            // Match `artificial_calls_are_alerted`'s legacy-hull definition:
+            // this one probe reads with the union off, so it needs its own
+            // context.  Everything above reads what the package plays.
+            let mut legacy = agreements.decision;
+            legacy.reading.envelope_union = false;
+            let hulled = Context::new(RelativeVulnerability::NONE, &auction).with_profile(legacy);
             let unalerted = rules
                 .rules()
                 .iter()
                 .find(|rule| {
-                    artificial(&rule.project(&context), rule.call(), doubled)
+                    artificial(&rule.project(&hulled), rule.call(), doubled)
                         && rule.alert().is_none()
                 })
                 .map(super::rules::Rule::call);
-            super::set_envelope_union_reading(prior_union_reading);
             assert!(
                 unalerted.is_none(),
                 "{}: artificial call {} at {:?} has no alert",

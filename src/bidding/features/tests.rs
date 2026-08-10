@@ -166,7 +166,7 @@ fn unconditional_shape_prior_is_hypergeometric() {
     );
 }
 
-/// **The point of the encoding.**  `set_sum_closure` narrows every box to
+/// **The point of the encoding.**  `ReadingProfile::sum_closure` narrows every box to
 /// what `Σ len = 13` already implies — it cannot reject a hand, so it is
 /// information-free — yet it moves `push_inference`'s endpoints by multiple
 /// σ of their own corpus spread.  The shape block must not move at all.

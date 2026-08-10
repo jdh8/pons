@@ -577,7 +577,7 @@ pub struct Stance {
     /// Behaviorally probed readings, keyed by auction prefix with leading
     /// passes stripped (dealer rotations merge, as the books fan).  Empty
     /// until [`probe`][Self::probe] runs; consumed by the projection pass
-    /// under [`set_probed_reading`][super::set_probed_reading].
+    /// under [`probed`][field@crate::bidding::ReadingProfile::probed].
     probed: HashMap<Vec<Call>, Envelope>,
     /// The books the *opponents* are declared to play, for reading their
     /// calls ([`with_opponents`][Self::with_opponents]).  [`None`] — the default — models them as
@@ -1078,7 +1078,7 @@ impl Stance {
     /// This reaches what no symbolic projection can: the floor's calls (a
     /// net's pass has no rule to project), rule competition, and off-axis
     /// shadows.  Consumed by [`Inferences::read`] only under
-    /// [`set_probed_reading`][super::set_probed_reading].
+    /// [`probed`][field@crate::bidding::ReadingProfile::probed].
     ///
     /// Runs **two** iterations: the first probes the bidder under the current
     /// (symbolic) readings, the second re-probes with the first pass's boxes
@@ -1142,7 +1142,7 @@ impl Stance {
         // thread-local — so the fixed point is driven by mutating this stance,
         // and a probe on one thread no longer leaks into another's readings.
         // The second pass must serve the first pass's boxes through the fold
-        // consumption will use: build under `set_probed_vacuous_reading` and
+        // consumption will use: build with `ReadingProfile::probed_vacuous` and
         // the fixed point runs under the vacuous scope (the full-fold toggle
         // stays off); otherwise the full fold serves, as before.  A re-probe
         // of a stance with a stale map would serve that map in its first pass

@@ -217,7 +217,7 @@ impl Rule {
         // alert/`artificial` checks and `authored_reading` stay on `Envelope`.
         // The overlay that the sampler consumes uses
         // [`project_union`][Self::project_union] to keep the boxes when
-        // `envelope_union_reading` is on.
+        // `ReadingProfile::envelope_union` is on.
         self.when.project(context).hull()
     }
 
@@ -226,7 +226,7 @@ impl Rule {
     ///
     /// The overlay [`Inferences::read`][super::inference::Inferences] feeds the
     /// sampler; keeps the disjunctive boxes under
-    /// [`set_envelope_union_reading`][super::set_envelope_union_reading]
+    /// [`envelope_union`][field@crate::bidding::inference::ReadingProfile::envelope_union]
     /// (off → one box, the hull).
     #[must_use]
     pub fn project_union(&self, context: &Context<'_>) -> super::inference::EnvelopeUnion {
@@ -238,7 +238,8 @@ impl Rule {
     ///
     /// What a *declined* call asserts: a passed hand satisfied some Pass
     /// rule's gate, so it lies within the union of the gates' bands.  The
-    /// reading-side fold behind [`set_pass_reading`][super::set_pass_reading].
+    /// reading-side fold behind
+    /// [`pass`][field@crate::bidding::ReadingProfile::pass].
     #[must_use]
     pub fn project_band(&self, context: &Context<'_>) -> Envelope {
         self.when.project_band(context).hull()
@@ -257,7 +258,8 @@ impl Rule {
     /// What *declining* this rule asserts: under argmax selection a hand
     /// inside a gate that outweighs every Pass rule cannot have passed, so
     /// the passer lies in the gate's complement.  The reading-side fold
-    /// behind [`set_pass_exclusion_reading`][super::set_pass_exclusion_reading].
+    /// behind
+    /// [`pass_exclusion`][field@crate::bidding::ReadingProfile::pass_exclusion].
     #[must_use]
     pub fn project_complement_union(
         &self,

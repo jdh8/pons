@@ -165,7 +165,7 @@ std::thread_local! {
 /// Blank every inference block the nets see — the reading program's *negative control*
 ///
 /// Every generator of readings (authored `project`, the agreement overlay behind
-/// [`set_announced_reading`][super::inference::set_announced_reading], and any
+/// [`announced`][field@crate::bidding::ReadingProfile::announced], and any
 /// future sampled projection) competes for one prize: the IMPs that flow from
 /// the nets reasoning about what the other three seats have shown.  Tightening a
 /// reading measures the *derivative* of that prize and lands in the noise.  This
@@ -809,7 +809,7 @@ fn push_context(out: &mut impl FeatureSink, context: &Context<'_>) {
     ] {
         // The *agreement*, not the sound projection: a call is explained by what
         // the partnership announces, and that is what a reasoning seat should be
-        // fed.  Identical to `get` unless `set_announced_reading` is on and some
+        // fed.  Identical to `get` unless `ReadingProfile::announced` is on and some
         // rule split the two — a net-decided call, whose sound projection is ⊤.
         push_inference(
             out,
@@ -1487,7 +1487,8 @@ pub const FEATURES_LEN_EVAL_V4: usize =
 /// *nil*, and that is the expected result — MASS already showed the fitted
 /// `(μ, σ)` at a hull row is the union-conditional the net learned empirically,
 /// so handing it the same information in a different parameterization cannot
-/// pay.  What is bought is **invariance**: under `set_sum_closure`, a
+/// pay.  What is bought is **invariance**: under
+/// [`sum_closure`][field@crate::bidding::ReadingProfile::sum_closure], a
 /// provably-rejection-free tightening, the endpoint columns move at 81.17% of
 /// nodes by up to 4.19σ while these columns move at 0.11% by up to 0.07σ — and
 /// that 0.11% is where the reading genuinely changed.  Every future

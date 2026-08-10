@@ -21,7 +21,7 @@
 //! Keys keep their **leading passes**, unlike the census's
 //! [`auction_key`][common::auction_key]: passer status changes the published
 //! reading — an opening pass caps at 11 points
-//! ([`set_pass_reading`][pons::bidding::set_pass_reading]) — so pooling
+//! ([`pass`][field@pons::bidding::ReadingProfile::pass]) — so pooling
 //! `1♣ - 1♥` with `- - 1♣ - 1♥` compares a passed hand's correct 6..=11
 //! against an unpassed population running to 21.  That was this example's
 //! first false positive; the wider key is what keeps a row one population.

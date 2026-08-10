@@ -1,8 +1,5 @@
 use super::*;
 use crate::bidding::constraint::{announced, balanced, hcp, len, pred, support};
-use crate::bidding::inference::{
-    set_announced_reading, set_envelope_union_reading, set_pass_exclusion_reading,
-};
 use contract_bridge::auction::RelativeVulnerability;
 use contract_bridge::{Bid, Strain, Suit};
 use std::sync::Mutex;
@@ -339,11 +336,12 @@ fn projection_folds_compile_independently_and_profile_mismatch_falls_back() {
         )
         .alert(Alert("test announcement"));
     let auction = [Call::Bid(Bid::new(1, Strain::Hearts)), Call::Pass];
-    let context = Context::new(RelativeVulnerability::NONE, &auction);
-
-    set_envelope_union_reading(false);
-    set_pass_exclusion_reading(true);
-    set_announced_reading(true);
+    let mut agreements = crate::bidding::agreements::Agreements::current();
+    agreements.decision.reading.envelope_union = false;
+    agreements.decision.reading.pass_exclusion = true;
+    agreements.decision.reading.announced = true;
+    let context =
+        Context::new(RelativeVulnerability::NONE, &auction).with_profile(agreements.decision);
     let compiled = rules.compile(&context);
     assert!(compiled.projection_is_constant(0, ProjectionKind::Forward));
     assert!(compiled.projection_is_constant(0, ProjectionKind::Complement));
@@ -374,14 +372,13 @@ fn projection_folds_compile_independently_and_profile_mismatch_falls_back() {
 
     // The complement was frozen knob-off, but a changed profile must use
     // the live virtual fold and retain both knob-on halves.
-    set_envelope_union_reading(true);
-    let expected = rules.rules()[0].project_complement_union(&context);
+    agreements.decision.reading.envelope_union = true;
+    let changed =
+        Context::new(RelativeVulnerability::NONE, &auction).with_profile(agreements.decision);
+    let expected = rules.rules()[0].project_complement_union(&changed);
     assert_eq!(expected.boxes().len(), 2);
     assert_eq!(
-        compiled.project_complement_union(&rules, 0, &context),
+        compiled.project_complement_union(&rules, 0, &changed),
         expected
     );
-    set_pass_exclusion_reading(false);
-    set_announced_reading(false);
-    set_envelope_union_reading(true);
 }

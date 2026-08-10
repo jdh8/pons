@@ -182,11 +182,11 @@ fn advance_sit_hcp_gate_reshapes_the_4card_sit() {
 fn longest_unbid_reads_the_relative_length() {
     use super::Context;
     use crate::bidding::constraint::Constraint as _;
-    use crate::bidding::inference::set_envelope_union_reading;
     use contract_bridge::Suit;
 
-    set_envelope_union_reading(true);
-    let context = Context::new(RelativeVulnerability::NONE, &[]);
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.envelope_union = true;
+    let context = Context::new(RelativeVulnerability::NONE, &[]).with_profile(agreements.decision);
     // The ♦ instance over their (1♥): rivals ♠ (higher rank, must stay
     // strictly shorter) and ♣ (lower rank, may equal).
     let diamonds = super::longest_unbid(Suit::Diamonds, Suit::Hearts);

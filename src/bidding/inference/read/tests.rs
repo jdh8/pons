@@ -2,7 +2,7 @@ use super::*;
 use crate::bidding::agreements::Agreements;
 use crate::bidding::constraint::point_count;
 use crate::bidding::context::Context;
-use crate::bidding::inference::tests::{bid, read, read_booked, read_booked_with};
+use crate::bidding::inference::tests::{bid, read, read_booked, read_booked_with, read_with};
 use crate::bidding::inference::{Envelope, EnvelopeUnion, Inferences, Range, Relative};
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::{Hand, Strain, Suit};
@@ -42,7 +42,7 @@ fn support_band_points_image_is_sound() {
     }
 }
 
-/// `set_blind_opponent_reading` blanks LHO and RHO and *only* those: the
+/// [`ReadingProfile::blind_opponents`] blanks LHO and RHO and *only* those: the
 /// deviation panel's blind arm must leave partner and our own reading
 /// intact, or it stops measuring what reading *their* calls is worth.
 #[test]
@@ -56,9 +56,9 @@ fn blind_opponent_reading_spares_our_side() {
         bid(2, Strain::Hearts),
     ];
     let seen = read(&auction);
-    set_blind_opponent_reading(true);
-    let blind = read(&auction);
-    set_blind_opponent_reading(false);
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.blind_opponents = true;
+    let blind = read_with(&agreements, &auction);
 
     for who in [Relative::Lho, Relative::Rho] {
         assert_eq!(*blind.get(who), Envelope::unknown(), "{who:?} not blanked");
@@ -142,25 +142,32 @@ fn two_over_one_denies_four_card_support() {
 #[test]
 fn pass_reading_caps_the_no_open_pass() {
     let p = Call::Pass;
+    let mut agreements = Agreements::current();
     // Knob off — the pre-ship identity: a pass reads nothing.
-    set_pass_reading(false);
+    agreements.decision.reading.pass = false;
     assert_eq!(
-        read_booked(&[p, p]).partner().strength.points,
+        read_booked_with(&agreements, &[p, p])
+            .partner()
+            .strength
+            .points,
         Range::FULL_POINTS
     );
 
-    set_pass_reading(true);
-    set_table_alert_reading(false);
+    agreements.decision.reading.pass = true;
+    agreements.decision.reading.table_alerts = false;
     // Partner's no-open pass reads the opening table's own gate,
     // `points(..12)`; an opponent's pass stays unread until table-wide
     // disclosure is on too.
-    let own = read_booked(&[p, p]);
+    let own = read_booked_with(&agreements, &[p, p]);
     assert_eq!(own.partner().strength.points, Range::new(0, 11));
     assert_eq!(own.rho().strength.points, Range::FULL_POINTS);
-    set_table_alert_reading(true);
-    assert_eq!(read_booked(&[p]).rho().strength.points, Range::new(0, 11));
+    agreements.decision.reading.table_alerts = true;
+    assert_eq!(
+        read_booked_with(&agreements, &[p]).rho().strength.points,
+        Range::new(0, 11)
+    );
     // A capped passer leaves the opener's own band alone.
-    let opened = read_booked(&[p, bid(1, Strain::Hearts)]);
+    let opened = read_booked_with(&agreements, &[p, bid(1, Strain::Hearts)]);
     assert_eq!(opened.partner().strength.points, Range::new(0, 11));
     assert_eq!(opened.rho().strength.points, Range::new(10, 21));
 }
@@ -168,46 +175,61 @@ fn pass_reading_caps_the_no_open_pass() {
 #[test]
 fn pass_reading_caps_the_failed_compete() {
     let auction = [bid(1, Strain::Hearts), Call::Pass, Call::Pass];
-    set_pass_reading(false);
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.pass = false;
     assert_eq!(
-        read_booked(&auction).partner().strength.points,
+        read_booked_with(&agreements, &auction)
+            .partner()
+            .strength
+            .points,
         Range::FULL_POINTS
     );
 
-    set_pass_reading(true);
-    set_table_alert_reading(false);
+    agreements.decision.reading.pass = true;
+    agreements.decision.reading.table_alerts = false;
     // Partner's direct-seat pass: the authored complement of the strong
     // tier ("strong hands double first regardless") — at most 17 raw HCP,
     // 19 on the point-count scale (17 + max upgrade 2).  Their responder's
     // pass stays unread until table-wide disclosure is on.
-    let own = read_booked(&auction);
+    let own = read_booked_with(&agreements, &auction);
     assert_eq!(own.partner().strength.points, Range::new(0, 19));
     assert_eq!(own.rho().strength.points, Range::FULL_POINTS);
-    set_table_alert_reading(true);
+    agreements.decision.reading.table_alerts = true;
     // Their responder's pass: the response table's `hcp(..6)` gate — at
     // most 5 raw HCP, 7 on the point-count scale (5 + max upgrade 2).
     assert_eq!(
-        read_booked(&auction).rho().strength.points,
+        read_booked_with(&agreements, &auction)
+            .rho()
+            .strength
+            .points,
         Range::new(0, 7)
     );
 }
 
 #[test]
 fn pass_reading_caps_the_silent_responder() {
-    set_pass_reading(true);
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.pass = true;
     // Our 1♥, silent partner: the response table's `hcp(..6)` gate —
     // at most 5 raw HCP, 7 on the point-count scale (5 + max upgrade 2).
-    let caps = read_booked(&[bid(1, Strain::Hearts), Call::Pass, Call::Pass, Call::Pass]);
+    let caps = read_booked_with(
+        &agreements,
+        &[bid(1, Strain::Hearts), Call::Pass, Call::Pass, Call::Pass],
+    );
     assert_eq!(caps.partner().strength.points, Range::new(0, 7));
 }
 
 #[test]
 fn pass_reading_caps_the_notrump_signoff() {
-    set_pass_reading(true);
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.pass = true;
     // Pass of partner's 1NT: the authored union of the weak arm and the
     // flat-eight arm — at most 10 points (the flat-eight arm's 8 HCP + the
     // point-count max upgrade 2), no six-card major.
-    let nt = read_booked(&[bid(1, Strain::Notrump), Call::Pass, Call::Pass, Call::Pass]);
+    let nt = read_booked_with(
+        &agreements,
+        &[bid(1, Strain::Notrump), Call::Pass, Call::Pass, Call::Pass],
+    );
     assert_eq!(nt.partner().strength.points, Range::new(0, 10));
     assert!(nt.partner().length(Suit::Hearts).max <= 5);
     assert!(nt.partner().length(Suit::Spades).max <= 5);
@@ -215,16 +237,20 @@ fn pass_reading_caps_the_notrump_signoff() {
 
 #[test]
 fn pass_reading_skips_trap_and_trivial_passes() {
-    set_pass_reading(true);
-    set_table_alert_reading(true);
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.pass = true;
+    agreements.decision.reading.table_alerts = true;
     // The advance of a takeout double authors genuine strong sits (the
     // penalty conversion), so its pass-gate union is trivial: nothing is
     // claimed about the advancer even with every reading knob on.
-    let trap = read_booked(&[bid(1, Strain::Hearts), Call::Double, Call::Pass, Call::Pass]);
+    let trap = read_booked_with(
+        &agreements,
+        &[bid(1, Strain::Hearts), Call::Double, Call::Pass, Call::Pass],
+    );
     assert_eq!(trap.rho().strength.points, Range::FULL_POINTS);
 }
 
-/// Pass-exclusion (`set_pass_exclusion_reading`) caps the direct-seat pass
+/// [`ReadingProfile::pass_exclusion`] caps the direct-seat pass
 /// over their weak two off the *declined* shape-free double tier
 /// (`points(17..)`, weight 1.2) — the catch-all `hcp(0..)` Pass gate says
 /// nothing on its own, which is why this key read 100% blind in the census.
@@ -233,25 +259,28 @@ fn pass_reading_skips_trap_and_trivial_passes() {
 #[test]
 fn pass_exclusion_caps_the_weak_two_defender() {
     let auction = [bid(2, Strain::Spades), Call::Pass, Call::Pass];
-    set_pass_reading(true);
-    set_table_alert_reading(false);
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.pass = true;
+    agreements.decision.reading.table_alerts = false;
 
     // Knob off — today's identity: the catch-all gate reads nothing.
-    set_pass_exclusion_reading(false);
-    let off = read_booked(&auction);
+    agreements.decision.reading.pass_exclusion = false;
+    let off = read_booked_with(&agreements, &auction);
     assert_eq!(off.partner().strength.points, Range::FULL_POINTS);
 
     // Knob on — declining the 17+ double caps the passer.
-    set_pass_exclusion_reading(true);
-    let on = read_booked(&auction);
+    agreements.decision.reading.pass_exclusion = true;
+    let on = read_booked_with(&agreements, &auction);
     assert_eq!(on.partner().strength.points, Range::new(0, 16));
     // The overcall complements are multi-box and skipped: no length claim.
     assert_eq!(on.partner().length(Suit::Hearts), Range::new(0, 13));
 
     // Off again is byte-identical to never having been on.
-    set_pass_exclusion_reading(false);
-    assert_eq!(read_booked(&auction).partner(), off.partner());
-    set_table_alert_reading(true);
+    agreements.decision.reading.pass_exclusion = false;
+    assert_eq!(
+        read_booked_with(&agreements, &auction).partner(),
+        off.partner()
+    );
 }
 
 #[test]
@@ -604,10 +633,10 @@ fn opener_rebid_reads_five_plus_by_default() {
     // Our 1♠ response showed four spades and six-plus points.
     assert_eq!(inf.me().length(Suit::Spades), Range::new(4, 13));
     assert_eq!(inf.me().strength.points, Range::new(6, 37));
-    set_length_soundness(false);
-    let legacy = read(&auction);
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.length_soundness = false;
+    let legacy = read_with(&agreements, &auction);
     assert_eq!(legacy.partner().length(Suit::Hearts), Range::new(6, 13));
-    set_length_soundness(true);
 }
 
 #[test]
@@ -750,7 +779,6 @@ fn systems_on_stripped_read_is_separate_from_the_full_decision_cache() {
 #[test]
 fn natural_reading_publishes_an_unalerted_rules_promise() {
     crate::bidding::american::set_nt_overcall_gladiator(true);
-    set_envelope_union_reading(true);
     let auction = [
         bid(1, Strain::Spades),
         bid(1, Strain::Notrump),
@@ -759,11 +787,12 @@ fn natural_reading_publishes_an_unalerted_rules_promise() {
         Call::Pass,
     ];
 
-    set_reading_scope(ReadingScope::Alerted);
-    let off = read_booked(&auction);
-    set_reading_scope(ReadingScope::All);
-    let on = read_booked(&auction);
-    set_reading_scope(ReadingScope::Alerted);
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.envelope_union = true;
+    agreements.decision.reading.scope = ReadingScope::Alerted;
+    let off = read_booked_with(&agreements, &auction);
+    agreements.decision.reading.scope = ReadingScope::All;
+    let on = read_booked_with(&agreements, &auction);
     crate::bidding::american::set_nt_overcall_gladiator(false);
 
     assert_eq!(
@@ -1174,14 +1203,18 @@ fn their_cue_of_our_overcall_is_a_raise() {
     // 1♥ (2♦) 3♦: responder's cue of the overcalled suit is the limit-plus
     // heart raise — three-plus hearts, ten-plus points, and no diamond
     // length (the probe: two diamonds read as four).
-    set_cue_reading(true);
-    let inf = read(&[
-        Call::Pass,
-        Call::Pass,
-        bid(1, Strain::Hearts),
-        bid(2, Strain::Diamonds),
-        bid(3, Strain::Diamonds),
-    ]);
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.cue = true;
+    let inf = read_with(
+        &agreements,
+        &[
+            Call::Pass,
+            Call::Pass,
+            bid(1, Strain::Hearts),
+            bid(2, Strain::Diamonds),
+            bid(3, Strain::Diamonds),
+        ],
+    );
     assert_eq!(inf.rho().length(Suit::Diamonds), Range::FULL_LENGTH);
     assert!(inf.rho().length(Suit::Hearts).min >= 3);
     assert!(inf.rho().strength.support_points[Suit::Hearts as usize].min >= 10);
@@ -1192,7 +1225,8 @@ fn their_cue_of_our_overcall_is_a_raise() {
 fn a_doublers_jump_is_not_a_weak_jump() {
     // `(2♠) X - 3♦ - 4♥`: the doubler's jump to game is strength, made
     // on as few as three hearts — never a weak six-card jump.
-    set_length_soundness(true);
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.length_soundness = true;
     let auction = [
         bid(2, Strain::Spades),
         Call::Double,
@@ -1201,19 +1235,19 @@ fn a_doublers_jump_is_not_a_weak_jump() {
         Call::Pass,
         bid(4, Strain::Hearts),
     ];
-    let inf = read(&auction);
+    let inf = read_with(&agreements, &auction);
     assert_eq!(inf.rho().length(Suit::Hearts), Range::FULL_LENGTH);
-    set_length_soundness(false);
-    let off = read(&auction);
+    agreements.decision.reading.length_soundness = false;
+    let off = read_with(&agreements, &auction);
     assert!(off.rho().length(Suit::Hearts).min >= 6);
-    set_length_soundness(true);
 }
 
 #[test]
 fn an_agreed_suit_re_raise_adds_no_length() {
     // 1♥ - 2♥ - 3♥: opener's game-try re-raise of the agreed suit adds
     // no length — the five from the opening stands, not a phantom sixth.
-    set_length_soundness(true);
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.length_soundness = true;
     let auction = [
         bid(1, Strain::Hearts),
         Call::Pass,
@@ -1221,12 +1255,11 @@ fn an_agreed_suit_re_raise_adds_no_length() {
         Call::Pass,
         bid(3, Strain::Hearts),
     ];
-    let inf = read(&auction);
+    let inf = read_with(&agreements, &auction);
     assert_eq!(inf.rho().length(Suit::Hearts).min, 5);
-    set_length_soundness(false);
-    let off = read(&auction);
+    agreements.decision.reading.length_soundness = false;
+    let off = read_with(&agreements, &auction);
     assert_eq!(off.rho().length(Suit::Hearts).min, 6);
-    set_length_soundness(true);
 }
 
 #[test]
@@ -1234,7 +1267,8 @@ fn opener_minor_rebid_reads_five_plus() {
     // 1♦ - 1♠ - 2♦: opener's two-level rebid of the opened minor is
     // routinely a good five-card suit, not six (the probe: five of eight
     // rebids were made on five).
-    set_length_soundness(true);
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.length_soundness = true;
     let auction = [
         bid(1, Strain::Diamonds),
         Call::Pass,
@@ -1242,12 +1276,11 @@ fn opener_minor_rebid_reads_five_plus() {
         Call::Pass,
         bid(2, Strain::Diamonds),
     ];
-    let inf = read(&auction);
+    let inf = read_with(&agreements, &auction);
     assert_eq!(inf.rho().length(Suit::Diamonds).min, 5);
-    set_length_soundness(false);
-    let off = read(&auction);
+    agreements.decision.reading.length_soundness = false;
+    let off = read_with(&agreements, &auction);
     assert_eq!(off.rho().length(Suit::Diamonds).min, 6);
-    set_length_soundness(true);
 }
 
 #[test]
@@ -1255,12 +1288,13 @@ fn their_splinter_is_disclosed_to_the_table() {
     // 1♠ - 4♦ read by a defender: their splinter is alerted and
     // explained at the table, so it decodes off their authoring rule —
     // diamond shortness with spade support, never diamond length.
-    set_table_alert_reading(true);
     let auction = [bid(1, Strain::Spades), Call::Pass, bid(4, Strain::Diamonds)];
-    let inf = read_booked(&auction);
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.table_alerts = true;
+    let inf = read_booked_with(&agreements, &auction);
     assert!(inf.rho().length(Suit::Diamonds).max <= 1);
-    set_table_alert_reading(false);
-    let off = read_booked(&auction);
+    agreements.decision.reading.table_alerts = false;
+    let off = read_booked_with(&agreements, &auction);
     assert_eq!(off.rho().length(Suit::Diamonds).max, 13);
 }
 
@@ -1269,7 +1303,6 @@ fn their_checkback_is_disclosed_to_the_table() {
     // 1♦ - 1♠ - 1NT - 2♣ read by a defender: their artificial
     // checkback 2♣ promises no clubs — the natural walk floored four (the
     // probe: four-plus clubs read on a singleton).
-    set_table_alert_reading(true);
     let auction = [
         bid(1, Strain::Diamonds),
         Call::Pass,
@@ -1279,12 +1312,13 @@ fn their_checkback_is_disclosed_to_the_table() {
         Call::Pass,
         bid(2, Strain::Clubs),
     ];
-    let inf = read_booked(&auction);
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.table_alerts = true;
+    let inf = read_booked_with(&agreements, &auction);
     assert!(inf.rho().length(Suit::Clubs).min < 4);
-    set_table_alert_reading(false);
-    let off = read_booked(&auction);
+    agreements.decision.reading.table_alerts = false;
+    let off = read_booked_with(&agreements, &auction);
     assert!(off.rho().length(Suit::Clubs).min >= 4);
-    set_table_alert_reading(true);
 }
 
 /// The alerted choice-of-games 3NT decodes: opener reads responder as
@@ -1373,8 +1407,13 @@ proptest! {
         let deal = full_deal(&mut rng);
         let hand: Hand = deal[contract_bridge::Seat::North];
 
-        set_envelope_union_reading(true);
-        let context = Context::new(RelativeVulnerability::NONE, &[]);
+        let mut agreements = Agreements::current();
+        agreements.decision.reading.envelope_union = true;
+        agreements.decision.reading.sum_closure = false;
+        agreements.decision.reading.upgrade_closure = false;
+        let loose_profile = agreements.decision.reading;
+        let context =
+            Context::new(RelativeVulnerability::NONE, &[]).with_profile(agreements.decision);
         let readings = [
             (balanced() & points(15..17)).project_band(&context),
             (or([Suit::Hearts, Suit::Spades], 5..) & points(8..)).project(&context),
@@ -1384,17 +1423,15 @@ proptest! {
         ];
 
         for reading in readings {
-            let loose = reading
-                .clone()
-                .tidy(crate::bidding::inference::knobs::reading_profile());
-            set_sum_closure(true);
-            set_upgrade_closure(true);
-            let closed = reading.tidy(crate::bidding::inference::knobs::reading_profile());
-            set_sum_closure(false);
-            set_upgrade_closure(false);
+            let loose = reading.clone().tidy(loose_profile);
+            let mut closed_profile = loose_profile;
+            closed_profile.sum_closure = true;
+            closed_profile.upgrade_closure = true;
+            let closed = reading.tidy(closed_profile);
 
             prop_assert_eq!(
-                loose.contains(hand), closed.contains(hand),
+                loose.contains_on(hand, loose_profile),
+                closed.contains_on(hand, closed_profile),
                 "contains moved: {:?} vs {:?}", loose, closed
             );
             prop_assert_eq!(

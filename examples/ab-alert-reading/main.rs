@@ -6,7 +6,7 @@
 //! its 2♦ waiting / 2♥ double negative, and Puppet 3♣.  Those were read as a
 //! natural suit, so partner (and the keyless floor behind it) thought opener held
 //! clubs.  Marking every artificial call with an [`Alert`] and reading the alert
-//! (`set_reading_scope`) lets the floor suppress the phantom-suit read and project
+//! ([`pons::bidding::ReadingProfile::scope`]) lets the floor suppress the phantom-suit read and project
 //! the convention instead.  Both arms run the same 2/1 system; the only difference
 //! is the toggle.
 //!
@@ -25,7 +25,7 @@ use clap::Parser;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::{ReadingScope, set_reading_scope};
+use pons::bidding::ReadingScope;
 use pons::scoring::final_contract;
 use rayon::prelude::*;
 
@@ -59,13 +59,11 @@ fn main() {
 
     // The reading scope is captured into a stance when it is built, so each arm
     // gets its own book: `[off, on]`, indexed by the arm's flag.
-    set_reading_scope(ReadingScope::None);
-    let off = american(&pons::bidding::agreements::Agreements::current()).against();
-    set_reading_scope(ReadingScope::Alerted);
-    let sys = [
-        off,
-        american(&pons::bidding::agreements::Agreements::current()).against(),
-    ];
+    let mut agreements = pons::bidding::agreements::Agreements::current();
+    agreements.decision.reading.scope = ReadingScope::None;
+    let off = american(&agreements).against();
+    agreements.decision.reading.scope = ReadingScope::Alerted;
+    let sys = [off, american(&agreements).against()];
 
     // Deals are seeded per board (base + index) so every arm/vul of the
     // experiment replays the identical stream.

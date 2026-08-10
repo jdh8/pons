@@ -360,11 +360,6 @@ fn main() -> anyhow::Result<()> {
         matches!(args.tier.as_str(), "f" | "s"),
         "--tier must be f or s"
     );
-    // Classify-time inference knobs; the board loop stays on this thread.
-    pons::bidding::set_cue_reading(!args.no_ns_cue_reading);
-    pons::bidding::set_length_soundness(!args.no_ns_length_soundness);
-    pons::bidding::set_table_alert_reading(!args.no_ns_table_alert_reading);
-    pons::bidding::set_pass_reading(!args.no_ns_pass_reading);
     let ben = BenOracle { port: args.port };
 
     // Health-probe the server before dealing: a fixed opening-bid request.
@@ -429,7 +424,12 @@ fn main() -> anyhow::Result<()> {
     // american() = the shipped net floor, by design: measure the real us vs BEN.
     // The gap lives off-book/contested, exactly where the net floor differs from
     // american_instinct(); the -1.906 Tier-S anchor (119675f) predates the swap.
-    let our_floor = american(&pons::bidding::agreements::Agreements::current()).against();
+    let mut agreements = pons::bidding::agreements::Agreements::current();
+    agreements.decision.reading.cue = !args.no_ns_cue_reading;
+    agreements.decision.reading.length_soundness = !args.no_ns_length_soundness;
+    agreements.decision.reading.table_alerts = !args.no_ns_table_alert_reading;
+    agreements.decision.reading.pass = !args.no_ns_pass_reading;
+    let our_floor = american(&agreements).against();
     let epbot = if args.calibrate_epbot {
         let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());
         Some(BbaOracle::load(&path, SYSTEM_2_OVER_1, Vec::new())?)

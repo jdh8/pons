@@ -14,6 +14,16 @@ pub(super) fn read(auction: &[Call]) -> Inferences {
     Inferences::read(&Context::new(RelativeVulnerability::NONE, auction))
 }
 
+/// [`read`] under an explicit set of agreements.
+pub(super) fn read_with(
+    agreements: &crate::bidding::agreements::Agreements,
+    auction: &[Call],
+) -> Inferences {
+    Inferences::read(
+        &Context::new(RelativeVulnerability::NONE, auction).with_profile(agreements.decision),
+    )
+}
+
 /// Read on a *prefixed* context, the trie access the projection pass needs to
 /// read a convention off its authored rule — what the production search floor
 /// hands `Inferences::read` (cf. `Stance::prefixed_context`).  The plain `read`
@@ -60,8 +70,8 @@ fn gladiator_readings_admit_the_bidder() {
     use rand::SeedableRng as _;
 
     crate::bidding::american::set_nt_overcall_gladiator(true);
-    set_envelope_union_reading(true);
-    let stance = crate::american(&crate::bidding::agreements::Agreements::current()).against();
+    let mut agreements = crate::bidding::agreements::Agreements::current();
+    agreements.decision.reading.envelope_union = true;
     let node = [bid(1, Strain::Spades), bid(1, Strain::Notrump), Call::Pass];
 
     let mut rng = rand::rngs::StdRng::seed_from_u64(0x61AD);
@@ -80,7 +90,11 @@ fn gladiator_readings_admit_the_bidder() {
     // box.  Fixed by teaching the walk that our 1NT *overcall* takes the
     // same three-level reading as an opening 1NT (`over_one_notrump`), and
     // pinned here so the two layers cannot drift apart again.
-    let check = |failures: &mut Vec<String>, hand: Hand, auction: &[Call], made: Call| {
+    let check = |stance: &crate::bidding::Stance,
+                 failures: &mut Vec<String>,
+                 hand: Hand,
+                 auction: &[Call],
+                 made: Call| {
         let mut read: Vec<Call> = auction.to_vec();
         read.push(made);
         read.push(Call::Pass);
@@ -98,14 +112,15 @@ fn gladiator_readings_admit_the_bidder() {
     // contradicts the rule empties the box instead of quietly overriding it
     // — the sweep is how `set_natural_reading` gets adjudicated per node.
     for natural in [false, true] {
-        set_reading_scope(if natural {
+        agreements.decision.reading.scope = if natural {
             ReadingScope::All
         } else {
             ReadingScope::Alerted
-        });
+        };
+        let stance = crate::american(&agreements).against();
         for &hand in &hands {
             let made = chosen_call(&stance, hand, &node);
-            check(&mut failures, hand, &node, made);
+            check(&stance, &mut failures, hand, &node, made);
             // Relayers carry on through the forced 2♦ — the only route to
             // the delayed cue, whose stamp is the other narrowing one.
             if made != bid(2, Strain::Clubs) {
@@ -122,7 +137,7 @@ fn gladiator_readings_admit_the_bidder() {
                 ])
                 .collect();
             let continued = chosen_call(&stance, hand, &sorted);
-            check(&mut failures, hand, &sorted, continued);
+            check(&stance, &mut failures, hand, &sorted, continued);
         }
         // The runout branch too — `(1♠) 1NT (X)` is authored, so its
         // escapes are read by the walk like any other natural call.
@@ -133,10 +148,9 @@ fn gladiator_readings_admit_the_bidder() {
         ];
         for &hand in &hands {
             let made = chosen_call(&stance, hand, &doubled);
-            check(&mut failures, hand, &doubled, made);
+            check(&stance, &mut failures, hand, &doubled, made);
         }
     }
-    set_reading_scope(ReadingScope::Alerted);
     crate::bidding::american::set_nt_overcall_gladiator(false);
 
     assert!(
@@ -162,8 +176,8 @@ fn gladiator_readings_admit_the_bidder() {
 fn readings_admit_the_bidder() {
     use rand::SeedableRng as _;
 
-    set_envelope_union_reading(true);
-    let stance = crate::american(&crate::bidding::agreements::Agreements::current()).against();
+    let mut agreements = crate::bidding::agreements::Agreements::current();
+    agreements.decision.reading.envelope_union = true;
 
     // (what the node is, the auction up to the seat replayed).  Multi-call
     // seats are route-filtered below: a hand counts only when replaying
@@ -332,11 +346,12 @@ fn readings_admit_the_bidder() {
 
     let mut failures: Vec<String> = Vec::new();
     for natural in [false, true] {
-        set_reading_scope(if natural {
+        agreements.decision.reading.scope = if natural {
             ReadingScope::All
         } else {
             ReadingScope::Alerted
-        });
+        };
+        let stance = crate::american(&agreements).against();
         for &(what, node) in nodes {
             for &hand in &hands {
                 // Honest route only: the seat's earlier calls in the
@@ -363,8 +378,6 @@ fn readings_admit_the_bidder() {
             }
         }
     }
-    set_reading_scope(ReadingScope::Alerted);
-
     assert!(
         failures.is_empty(),
         "readings exclude their own bidders:\n{}",
@@ -387,9 +400,14 @@ fn readings_admit_the_bidder() {
 /// the cache takes is likewise inert — every walker below flips knobs
 /// *around* the walk, never inside it, and `assert_fixed_call` fails loudly in
 /// debug if that ever stops being true.
-fn node_context<'a>(trie: &'a crate::bidding::trie::Trie, auction: &'a [Call]) -> Context<'a> {
+fn node_context<'a>(
+    trie: &'a crate::bidding::trie::Trie,
+    auction: &'a [Call],
+    profile: crate::bidding::context::DecisionProfile,
+) -> Context<'a> {
     Context::new(RelativeVulnerability::NONE, auction)
         .with_prefixes(trie.common_prefixes(auction))
+        .with_profile(profile)
         .with_decision_cache(Hand::EMPTY)
 }
 
@@ -406,8 +424,9 @@ fn node_context<'a>(trie: &'a crate::bidding::trie::Trie, auction: &'a [Call]) -
 fn node_context_memoises_the_uncached_read() {
     use crate::bidding::american::american;
 
-    set_envelope_union_reading(true);
-    let american = american(&crate::bidding::agreements::Agreements::current());
+    let mut agreements = crate::bidding::agreements::Agreements::current();
+    agreements.decision.reading.envelope_union = true;
+    let american = american(&agreements);
     let trie = &american.constructive.0;
     let mut checked = 0usize;
     for (auction, classifier) in trie {
@@ -416,8 +435,9 @@ fn node_context_memoises_the_uncached_read() {
             continue;
         }
         let bare = Context::new(RelativeVulnerability::NONE, auction)
-            .with_prefixes(trie.common_prefixes(auction));
-        let cached = node_context(trie, auction);
+            .with_prefixes(trie.common_prefixes(auction))
+            .with_profile(agreements.decision);
+        let cached = node_context(trie, auction, agreements.decision);
         let where_ = || contract_bridge::auction::display_calls(auction);
         assert_eq!(
             *cached.inferences(),
@@ -450,6 +470,7 @@ fn node_context_memoises_the_uncached_read() {
 /// node's [`Context`] (with common prefixes), and visit each rule.
 fn for_each_authored_rule(
     trie: &crate::bidding::trie::Trie,
+    profile: crate::bidding::context::DecisionProfile,
     mut visit: impl FnMut(&[Call], &Context<'_>, &crate::bidding::rules::Rule),
 ) {
     for (auction, classifier) in trie {
@@ -457,7 +478,7 @@ fn for_each_authored_rule(
         let Some(rules) = classifier.as_rules() else {
             continue;
         };
-        let context = node_context(trie, auction);
+        let context = node_context(trie, auction, profile);
         for rule in rules.rules() {
             visit(auction, &context, rule);
         }
@@ -479,6 +500,7 @@ fn for_each_authored_rule(
 /// campaign (`docs/ai-bidder/sampled-projection.md`).
 fn for_each_fallback_rule(
     trie: &crate::bidding::trie::Trie,
+    profile: crate::bidding::context::DecisionProfile,
     mut visit: impl FnMut(&[Call], &Context<'_>, &crate::bidding::rules::Rule),
     mut opaque: impl FnMut(&[Call], Option<String>),
 ) {
@@ -491,7 +513,7 @@ fn for_each_fallback_rule(
             opaque(auction, guard.describe());
             continue;
         };
-        let context = node_context(trie, auction);
+        let context = node_context(trie, auction, profile);
         for rule in rules.rules() {
             visit(auction, &context, rule);
         }
@@ -502,15 +524,19 @@ fn for_each_fallback_rule(
 /// structural [`artificial`] detector flags but which carry no `.alert(...)`
 ///
 /// Walks under the **legacy hull projection**
-/// (`set_envelope_union_reading(false)`):
+/// ([`ReadingProfile::envelope_union`] disabled):
 /// the detector's "floors a suit it did not name" reading was defined
 /// against hulls, and knob-on box unions (the fit-split's major floors,
 /// `envelope_union_upgrade` boxes) legitimately carry other-suit information that
 /// would false-positive it.
-fn unalerted_artificial(label: &str, trie: &crate::bidding::trie::Trie) -> Vec<String> {
-    set_envelope_union_reading(false);
+fn unalerted_artificial(
+    label: &str,
+    trie: &crate::bidding::trie::Trie,
+    mut profile: crate::bidding::context::DecisionProfile,
+) -> Vec<String> {
+    profile.reading.envelope_union = false;
     let mut worklist = Vec::new();
-    for_each_authored_rule(trie, |auction, context, rule| {
+    for_each_authored_rule(trie, profile, |auction, context, rule| {
         let made = rule.call();
         let doubled = context.last_bid().map(|last| last.strain);
         if super::artificial(&rule.project(context), made, doubled) && rule.alert().is_none() {
@@ -521,7 +547,6 @@ fn unalerted_artificial(label: &str, trie: &crate::bidding::trie::Trie) -> Vec<S
             ));
         }
     });
-    set_envelope_union_reading(true);
     worklist
 }
 
@@ -555,14 +580,15 @@ fn assert_all_alerted(what: &str, mut worklist: Vec<String>) {
 fn artificial_calls_are_alerted() {
     use crate::bidding::american::american;
 
-    let pair = american(&crate::bidding::agreements::Agreements::current());
+    let agreements = crate::bidding::agreements::Agreements::current();
+    let pair = american(&agreements);
     let mut worklist = Vec::new();
     for (phase, trie) in [
         ("constructive", &pair.constructive.0),
         ("competitive", &pair.competitive.0),
         ("defensive", &pair.defensive.0),
     ] {
-        worklist.extend(unalerted_artificial(phase, trie));
+        worklist.extend(unalerted_artificial(phase, trie, agreements.decision));
     }
     assert_all_alerted("american", worklist);
 }
@@ -583,7 +609,7 @@ fn deviation_knobs_preserve_alert_invariant() {
         ("competitive", &pair.competitive.0),
         ("defensive", &pair.defensive.0),
     ] {
-        worklist.extend(unalerted_artificial(phase, trie));
+        worklist.extend(unalerted_artificial(phase, trie, agreements.decision));
     }
     assert_all_alerted("american deviation knobs", worklist);
 }
@@ -609,10 +635,11 @@ fn alerted_call_sites_match_the_disclosure_fixture() {
     use crate::bidding::american::american;
     use std::collections::BTreeMap;
 
-    let pair = american(&crate::bidding::agreements::Agreements::current());
+    let agreements = crate::bidding::agreements::Agreements::current();
+    let pair = american(&agreements);
     let mut counts: BTreeMap<&str, usize> = BTreeMap::new();
     for trie in [&pair.constructive.0, &pair.competitive.0, &pair.defensive.0] {
-        for_each_authored_rule(trie, |_auction, _context, rule| {
+        for_each_authored_rule(trie, agreements.decision, |_auction, _context, rule| {
             if let Some(alert) = rule.alert() {
                 *counts.entry(alert.0).or_default() += 1;
             }
@@ -659,17 +686,22 @@ fn alerted_call_sites_match_the_disclosure_fixture() {
 /// The rule walk `axis_leaks_with` meters over — exact-node or fallback
 type RuleWalk = fn(
     &crate::bidding::trie::Trie,
+    crate::bidding::context::DecisionProfile,
     &mut dyn FnMut(&[Call], &Context<'_>, &crate::bidding::rules::Rule),
 );
 
 fn axis_leaks(
     tries: &[(&str, &crate::bidding::trie::Trie)],
+    profile: crate::bidding::context::DecisionProfile,
 ) -> std::collections::BTreeMap<&'static str, Vec<String>> {
-    axis_leaks_with(tries, |trie, visit| for_each_authored_rule(trie, visit))
+    axis_leaks_with(tries, profile, |trie, profile, visit| {
+        for_each_authored_rule(trie, profile, visit);
+    })
 }
 
 fn axis_leaks_with(
     tries: &[(&str, &crate::bidding::trie::Trie)],
+    profile: crate::bidding::context::DecisionProfile,
     walk: RuleWalk,
 ) -> std::collections::BTreeMap<&'static str, Vec<String>> {
     use crate::bidding::constraint::Description;
@@ -695,7 +727,7 @@ fn axis_leaks_with(
 
     let mut leaks = std::collections::BTreeMap::<&'static str, Vec<String>>::new();
     for &(system, trie) in tries {
-        walk(trie, &mut |_, context, rule| {
+        walk(trie, profile, &mut |_, context, rule| {
             let mut leaves = Vec::new();
             atoms(&rule.describe(), &mut leaves);
             let band = rule.project_band_union(context);
@@ -815,9 +847,10 @@ fn authored_rules_eval_within_projection() {
         .map(|text| text.parse::<Hand>().unwrap_or_else(|_| unreachable!())),
     );
 
-    set_envelope_union_reading(true);
-    let american = american(&crate::bidding::agreements::Agreements::current());
-    let dutch = dutch(&crate::bidding::agreements::Agreements::current());
+    let mut agreements = crate::bidding::agreements::Agreements::current();
+    agreements.decision.reading.envelope_union = true;
+    let american = american(&agreements);
+    let dutch = dutch(&agreements);
     let tries: [(&str, &crate::bidding::trie::Trie); 4] = [
         ("american constructive", &american.constructive.0),
         ("american competitive", &american.competitive.0),
@@ -855,7 +888,7 @@ fn authored_rules_eval_within_projection() {
 
     let mut failures: Vec<String> = Vec::new();
     for (system, trie) in tries {
-        for_each_authored_rule(trie, |auction, context, rule| {
+        for_each_authored_rule(trie, agreements.decision, |auction, context, rule| {
             check(&mut failures, &hands, system, auction, context, rule);
         });
         // The same soundness claim for fallback-authored rules — the layer
@@ -864,6 +897,7 @@ fn authored_rules_eval_within_projection() {
         // no acceptable nonzero.
         for_each_fallback_rule(
             trie,
+            agreements.decision,
             |auction, context, rule| {
                 check(&mut failures, &hands, system, auction, context, rule);
             },
@@ -903,10 +937,11 @@ fn passes_read_within_their_table() {
             .map(|text| text.parse::<Hand>().unwrap_or_else(|_| unreachable!())),
     );
 
-    set_envelope_union_reading(true);
-    set_pass_exclusion_reading(true);
-    let american = american(&crate::bidding::agreements::Agreements::current());
-    let dutch = dutch(&crate::bidding::agreements::Agreements::current());
+    let mut agreements = crate::bidding::agreements::Agreements::current();
+    agreements.decision.reading.envelope_union = true;
+    agreements.decision.reading.pass_exclusion = true;
+    let american = american(&agreements);
+    let dutch = dutch(&agreements);
     let tries: [(&str, &crate::bidding::trie::Trie); 4] = [
         ("american constructive", &american.constructive.0),
         ("american competitive", &american.competitive.0),
@@ -957,7 +992,8 @@ fn passes_read_within_their_table() {
         for (auction, classifier) in trie {
             if let Some(rules) = classifier.as_rules() {
                 let context = Context::new(RelativeVulnerability::NONE, &auction)
-                    .with_prefixes(trie.common_prefixes(&auction));
+                    .with_prefixes(trie.common_prefixes(&auction))
+                    .with_profile(agreements.decision);
                 check(system, &auction, &context, rules);
             }
         }
@@ -967,13 +1003,12 @@ fn passes_read_within_their_table() {
             };
             if let Some(rules) = classifier.as_rules() {
                 let context = Context::new(RelativeVulnerability::NONE, &auction)
-                    .with_prefixes(trie.common_prefixes(&auction));
+                    .with_prefixes(trie.common_prefixes(&auction))
+                    .with_profile(agreements.decision);
                 check(system, &auction, &context, rules);
             }
         }
     }
-    set_pass_exclusion_reading(false);
-
     assert!(
         failures.is_empty(),
         "pass-exclusion excludes hands that pass:\n{}",
@@ -998,7 +1033,7 @@ fn passes_read_within_their_table() {
 /// constructive trie (Dutch reuses american's competitive and defensive
 /// books), and runs **twice**:
 ///
-/// - **knob-off** (`set_envelope_union_reading(false)`) — the legacy reading;
+/// - **union off** ([`ReadingProfile::envelope_union`]) — the legacy reading;
 ///   the
 ///   byte-identity guard.  These counts must not move *in either direction*:
 ///   a fall means a knob-off hull tightened, which is a bidding change that
@@ -1023,10 +1058,12 @@ fn authored_calls_read_what_they_gate() {
         ("dutch constructive", &dutch.constructive.0),
     ];
 
-    set_envelope_union_reading(false);
-    let off = axis_leaks(&tries);
-    set_envelope_union_reading(true);
-    let on = axis_leaks(&tries);
+    let mut off_profile = crate::bidding::context::DecisionProfile::current();
+    off_profile.reading.envelope_union = false;
+    let off = axis_leaks(&tries, off_profile);
+    let mut on_profile = off_profile;
+    on_profile.reading.envelope_union = true;
+    let on = axis_leaks(&tries, on_profile);
 
     // (column, knob-off pin, knob-on pin) — re-pins go in the
     // docs/dnf-migration.md ledger.  Chop G drove every knob-on column to
@@ -1132,12 +1169,16 @@ fn fallback_rules_read_what_they_gate() {
         ("american defensive", &american.defensive.0),
         ("dutch constructive", &dutch.constructive.0),
     ];
-    let walk: RuleWalk = |trie, visit| for_each_fallback_rule(trie, visit, |_, _| {});
+    let walk: RuleWalk = |trie, profile, visit| {
+        for_each_fallback_rule(trie, profile, visit, |_, _| {});
+    };
 
-    set_envelope_union_reading(false);
-    let off = axis_leaks_with(&tries, walk);
-    set_envelope_union_reading(true);
-    let on = axis_leaks_with(&tries, walk);
+    let mut off_profile = crate::bidding::context::DecisionProfile::current();
+    off_profile.reading.envelope_union = false;
+    let off = axis_leaks_with(&tries, off_profile, walk);
+    let mut on_profile = off_profile;
+    on_profile.reading.envelope_union = true;
+    let on = axis_leaks_with(&tries, on_profile, walk);
 
     // Pinned at birth (2026-07-27) — the meter getting honest, not a
     // regression: these are the worklist the exact-node walk never saw.
@@ -1206,6 +1247,7 @@ fn fallback_rules_read_what_they_gate() {
     for (system, trie) in tries {
         for_each_fallback_rule(
             trie,
+            crate::bidding::context::DecisionProfile::current(),
             |_, _, _| {},
             |auction, label| {
                 opaque.push(format!(
@@ -1239,12 +1281,13 @@ fn gladiator_artificial_calls_are_alerted() {
     use crate::bidding::american::{american, set_nt_overcall_gladiator};
 
     set_nt_overcall_gladiator(true);
-    let pair = american(&crate::bidding::agreements::Agreements::current());
+    let agreements = crate::bidding::agreements::Agreements::current();
+    let pair = american(&agreements);
     set_nt_overcall_gladiator(false);
 
     assert_all_alerted(
         "Gladiator",
-        unalerted_artificial("defensive", &pair.defensive.0),
+        unalerted_artificial("defensive", &pair.defensive.0, agreements.decision),
     );
 }
 
@@ -1257,10 +1300,11 @@ fn gladiator_artificial_calls_are_alerted() {
 fn dutch_artificial_calls_are_alerted() {
     use crate::bidding::dutch::dutch;
 
-    let pair = dutch(&crate::bidding::agreements::Agreements::current());
+    let agreements = crate::bidding::agreements::Agreements::current();
+    let pair = dutch(&agreements);
     assert_all_alerted(
         "Dutch",
-        unalerted_artificial("constructive", &pair.constructive.0),
+        unalerted_artificial("constructive", &pair.constructive.0, agreements.decision),
     );
 }
 
@@ -1278,7 +1322,7 @@ fn new_minor_forcing_artificial_calls_are_alerted() {
 
     assert_all_alerted(
         "New Minor Forcing",
-        unalerted_artificial("constructive", &pair.constructive.0),
+        unalerted_artificial("constructive", &pair.constructive.0, agreements.decision),
     );
 }
 
@@ -1295,6 +1339,6 @@ fn choice_of_games_artificial_calls_are_alerted() {
 
     assert_all_alerted(
         "choice-of-games",
-        unalerted_artificial("constructive", &pair.constructive.0),
+        unalerted_artificial("constructive", &pair.constructive.0, agreements.decision),
     );
 }

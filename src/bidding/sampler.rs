@@ -115,7 +115,7 @@ pub fn sample_layouts(
 
 /// Deal up to `n` layouts, accepting each by *replaying the rule* on top of the
 /// [`Inferences`] ranges (gated by
-/// [`set_rule_accept`][super::inference::set_rule_accept]).
+/// [`rule_accept`][field@crate::bidding::inference::ReadingProfile::rule_accept]).
 ///
 /// A hand is kept iff it (a) falls within `inferences` — the old range reading,
 /// which covers every call — *and* (b) at every **authored** node a non-actor

@@ -105,7 +105,7 @@ pub struct Context<'a> {
 pub struct DecisionProfile {
     /// The settings that can change a full-auction reading
     ///
-    /// One field per cell the reading walk consults while turning the auction
+    /// One field per setting the reading walk consults while turning the auction
     /// into [`Inferences`]; see [`ReadingProfile`] for the membership rule.
     pub reading: ReadingProfile,
     /// The settings the deterministic floor consults *during* classification
@@ -146,7 +146,8 @@ pub struct DecisionProfile {
     /// The prize is **invariance**, not accuracy.  A hull is not a
     /// well-defined function of a reading — `♥5..13` and `♥5..8` are the same
     /// claim yet differ by a third of the column's range — so
-    /// `set_sum_closure`, which provably rejects no hand, still displaces the
+    /// [`sum_closure`][field@crate::bidding::ReadingProfile::sum_closure],
+    /// which provably rejects no hand, still displaces the
     /// endpoint columns at 81% of nodes by up to 4.19σ and has to buy a
     /// retrain before it can be judged on merit.  The shape columns move at
     /// 0.11% of nodes by up to 0.07σ, and that 0.11% is where the reading
@@ -655,7 +656,8 @@ impl<'a> Context<'a> {
     /// opponents' alerted calls off their authoring rules; modeling them as
     /// playing our own books is exact in self-play and an approximation
     /// against other natural-family engines. Consumed by `project_authored`
-    /// behind [`set_table_alert_reading`][super::inference::set_table_alert_reading].
+    /// behind
+    /// [`table_alerts`][field@crate::bidding::ReadingProfile::table_alerts].
     #[must_use]
     pub(crate) fn with_system(mut self, ours: &'a Stance) -> Self {
         self.own_system = Some(ours);
@@ -753,11 +755,12 @@ impl<'a> Context<'a> {
 
     fn install_decision_cache(&mut self, hand: Hand, rule_face_slots: usize) {
         let thread = thread::current().id();
-        // The profile pinned into the serving stance at its build, falling
-        // back to the thread's live state for a bare (diagnostic) context.
-        let (profile, pinned) = match self.own_system {
-            Some(system) => (system.profile(), true),
-            None => (DecisionProfile::current(), false),
+        // The profile pinned into the serving stance or explicit diagnostic
+        // context, falling back to the thread's live state only when bare.
+        let (profile, pinned) = match (self.own_system, self.pinned_profile) {
+            (Some(system), _) => (system.profile(), true),
+            (None, Some(profile)) => (profile, true),
+            (None, None) => (DecisionProfile::current(), false),
         };
         let reusable = self.decision_cache.as_deref().is_some_and(|cache| {
             cache.reusable(hand, self.revision, thread, profile, rule_face_slots)
@@ -790,7 +793,7 @@ impl<'a> Context<'a> {
     /// the attached system ([`Stance::infer`] attaches a system but enters no
     /// decision scope), else — for a bare diagnostic context — the current
     /// thread's live knob state.  The bare arm snapshots only the reading
-    /// cells: constraint projection calls this per node, and a bare context
+    /// profile: constraint projection calls this per node, and a bare context
     /// (rows verify, `probe`) should not pay for the instinct half of a
     /// [`DecisionProfile`] it never looks at.
     pub(crate) fn reading_profile(&self) -> ReadingProfile {

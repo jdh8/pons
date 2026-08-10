@@ -1,5 +1,5 @@
 use super::*;
-use crate::bidding::inference::set_envelope_union_reading;
+use crate::bidding::inference::ReadingProfile;
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::{Bid, Strain};
 
@@ -12,6 +12,12 @@ fn hand(s: &str) -> Hand {
 
 fn empty_context() -> Context<'static> {
     Context::new(RelativeVulnerability::NONE, &[])
+}
+
+fn empty_context_with(configure: impl FnOnce(&mut ReadingProfile)) -> Context<'static> {
+    let mut agreements = crate::bidding::agreements::Agreements::current();
+    configure(&mut agreements.decision.reading);
+    Context::new(RelativeVulnerability::NONE, &[]).with_profile(agreements.decision)
 }
 
 fn assert_pass(logit: f32) {
@@ -29,8 +35,7 @@ fn assert_reject(logit: f32) {
 /// whole book, and the pilot's A/B a clean one-site experiment.
 #[test]
 fn announce_defaults_to_project() {
-    let context = empty_context();
-    set_envelope_union_reading(false);
+    let context = empty_context_with(|profile| profile.envelope_union = false);
 
     // A leaf, and both combinators over leaves.
     let same = |c: &dyn Constraint| {
@@ -54,13 +59,11 @@ fn announce_defaults_to_project() {
         "the agreement is what the table is told"
     );
     assert_pass(split.eval(hand(BALANCED_15), &context));
-    set_envelope_union_reading(true);
 }
 
 #[test]
 fn project_band_carries_ceilings() {
-    let context = empty_context();
-    set_envelope_union_reading(false);
+    let context = empty_context_with(|profile| profile.envelope_union = false);
     // `points` gauges the shared scalar: both bounds exact.  (`.hull()`
     // collapses the single-box C1 `EnvelopeUnion` to its `Envelope`.)
     assert_eq!(
@@ -95,7 +98,6 @@ fn project_band_carries_ceilings() {
     assert_eq!(band.length(Suit::Spades).max, 5);
     // A trivial catch-all claims nothing — the trap-pass safeguard.
     assert_eq!(hcp(0..).project_band(&context).hull(), Envelope::unknown());
-    set_envelope_union_reading(true);
 }
 
 #[test]
@@ -733,8 +735,7 @@ fn test_describe_opaque_and_labeled() {
 /// single-envelope readings knob-off.
 #[test]
 fn complement_union_boxes() {
-    let ctx = empty_context();
-    set_envelope_union_reading(false);
+    let ctx = empty_context_with(|profile| profile.envelope_union = false);
 
     // Knob-off: a two-sided band's complement hulls to ⊤ (the legacy
     // reading), and De Morgan stays ⊤.
@@ -743,7 +744,7 @@ fn complement_union_boxes() {
     let demorgan = (!(len(Suit::Spades, 4..) & hcp(13..))).project(&ctx);
     assert_eq!(demorgan.hull(), Envelope::unknown());
 
-    set_envelope_union_reading(true);
+    let ctx = empty_context_with(|profile| profile.envelope_union = true);
 
     // Two-sided band → two outer halves on the raw-HCP gauge.
     let band = (!hcp(15..=17)).project(&ctx);
@@ -766,23 +767,20 @@ fn complement_union_boxes() {
     // Double negation reads the inner band again.
     let double = (!!hcp(15..=17)).project(&ctx);
     assert_eq!(double.hull().strength.hcp, Range::new(15, 17));
-
-    set_envelope_union_reading(true);
 }
 
 /// D1b: `balanced` projects the exact 5-box union knob-on and hulls back
 /// to the historical readings knob-off (⊤ forward, 2..=5 band).
 #[test]
 fn balanced_projection_boxes() {
-    let ctx = empty_context();
-    set_envelope_union_reading(false);
+    let ctx = empty_context_with(|profile| profile.envelope_union = false);
     assert_eq!(balanced().project(&ctx).hull(), Envelope::unknown());
     assert_eq!(
         balanced().project_band(&ctx).hull().lengths,
         [Range::new(2, 5); 4],
     );
 
-    set_envelope_union_reading(true);
+    let ctx = empty_context_with(|profile| profile.envelope_union = true);
     let union = balanced().project(&ctx);
     assert_eq!(union.boxes().len(), 5);
     // Exhaustive over the length lattice: the union admits exactly the
@@ -794,7 +792,6 @@ fn balanced_projection_boxes() {
             "balanced boxes disagree at {lengths:?}",
         );
     });
-    set_envelope_union_reading(true);
 }
 
 /// G: the comparative staircases evaluate exactly as the `described`
@@ -831,11 +828,10 @@ fn comparative_staircases_match_closures() {
 /// stays ⊤ knob-off.
 #[test]
 fn unbalanced_complement_boxes() {
-    let ctx = empty_context();
-    set_envelope_union_reading(false);
+    let ctx = empty_context_with(|profile| profile.envelope_union = false);
     assert_eq!((!balanced()).project(&ctx).hull(), Envelope::unknown());
 
-    set_envelope_union_reading(true);
+    let ctx = empty_context_with(|profile| profile.envelope_union = true);
     let union = (!balanced()).project(&ctx);
     assert_eq!(union.boxes().len(), 20);
     for_each_shape(|lengths, hand| {
@@ -845,7 +841,6 @@ fn unbalanced_complement_boxes() {
             "unbalanced boxes disagree at {lengths:?}",
         );
     });
-    set_envelope_union_reading(true);
 }
 
 /// G: `top_honors` floors its suit length and raw HCP knob-on; a
@@ -853,14 +848,13 @@ fn unbalanced_complement_boxes() {
 /// containment dedup (the strong-2♣ swallow).
 #[test]
 fn honor_and_points_gauge_boxes() {
-    let ctx = empty_context();
-    set_envelope_union_reading(false);
+    let ctx = empty_context_with(|profile| profile.envelope_union = false);
     assert_eq!(
         top_honors(Suit::Spades, 2..).project(&ctx).hull(),
         Envelope::unknown(),
     );
 
-    set_envelope_union_reading(true);
+    let ctx = empty_context_with(|profile| profile.envelope_union = true);
     let honors = top_honors(Suit::Spades, 2..).project(&ctx);
     let envelope = honors.boxes()[0];
     assert_eq!(envelope.length(Suit::Spades), Range::new(2, 13));
@@ -883,7 +877,6 @@ fn honor_and_points_gauge_boxes() {
             .any(|b| b.strength.hcp != Range::FULL_POINTS),
         "22+ points | 22+ HCP lost its HCP floor: {strong_two:?}",
     );
-    set_envelope_union_reading(true);
 }
 
 /// The [`SuitHcp`] projection folds are exact on the `suit_hcp` axis —
@@ -891,7 +884,7 @@ fn honor_and_points_gauge_boxes() {
 /// one (own-scale, no upgrade slack exists to make it unsound).
 #[test]
 fn suit_hcp_folds_are_exact() {
-    let ctx = empty_context();
+    let ctx = empty_context_with(|profile| profile.envelope_union = true);
     let slot = |union: &EnvelopeUnion, suit: Suit| {
         union
             .boxes()
@@ -900,7 +893,6 @@ fn suit_hcp_folds_are_exact() {
             .collect::<Vec<_>>()
     };
 
-    set_envelope_union_reading(true);
     let band = suit_hcp(Suit::Spades, 5..=7).project_band(&ctx);
     assert_eq!(slot(&band, Suit::Spades), [Range::new(5, 7)]);
     // Forward = band: the ceiling survives the alert path too.
@@ -914,10 +906,9 @@ fn suit_hcp_folds_are_exact() {
     );
 
     // …and knob-off the halves hull back to the full axis.
-    set_envelope_union_reading(false);
-    let hulled = (!suit_hcp(Suit::Spades, 5..=7)).project(&ctx);
+    let legacy = empty_context_with(|profile| profile.envelope_union = false);
+    let hulled = (!suit_hcp(Suit::Spades, 5..=7)).project(&legacy);
     assert_eq!(hulled.hull(), Envelope::unknown());
-    set_envelope_union_reading(true);
 }
 
 /// The length ↔ suit-HCP cap tables, exhaustively pinned against every

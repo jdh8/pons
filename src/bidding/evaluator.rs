@@ -37,7 +37,7 @@ use super::features::{
     FEATURES_LEN_EVAL, FEATURES_LEN_EVAL_V3, FEATURES_LEN_EVAL_V4, features_eval, features_eval_on,
     features_eval_v3_on, features_eval_v4_on,
 };
-use super::inference::{Inferences, Relative, envelope_union_reading};
+use super::inference::{Inferences, ReadingProfile, Relative};
 use super::neural::{affine, decode, relu};
 use contract_bridge::auction::Call;
 use contract_bridge::{Hand, Strain};
@@ -73,9 +73,9 @@ const _: () = assert!(
 );
 
 /// The knob-matched twin (DNF chop F2b): same architecture and training
-/// recipe, corpus regenerated with `set_envelope_union_reading(true)` so the range
-/// blocks come from the tightened prefixed readings a knob-on bidder serves.
-/// Selected per call by [`envelope_union_reading`]; knob-off never touches it.
+/// recipe, corpus regenerated with
+/// [`envelope_union`][field@crate::bidding::ReadingProfile::envelope_union] enabled so the range
+/// blocks come from the tightened prefixed readings that regime serves.
 static RAW_UNION_READING: &[u8] = include_bytes!("weights/evaluator_v2_dnf.f32");
 const _: () = assert!(
     RAW_UNION_READING.len() == TOTAL * 4,
@@ -108,10 +108,11 @@ static WEIGHTS_V3_UNION_READING: LazyLock<Vec<f32>> =
     LazyLock::new(|| decode(RAW_V3_UNION_READING));
 
 /// The pass-exclusion twin of the v3 artifact — same architecture and recipe,
-/// corpus regenerated with `set_pass_exclusion_reading(true)` on top of the
+/// corpus regenerated with [`pass_exclusion`][field@crate::bidding::ReadingProfile::pass_exclusion]
+/// enabled on top of the
 /// envelope-union regime (val NLL −1.55010 vs the union-reading twin's −1.54872 on its own
-/// regime).  Selected per call by [`pass_exclusion_reading`][super::inference::pass_exclusion_reading] inside the v3
-/// path; knob-off never touches it.
+/// regime).  The explicit-profile serving path selects it only when that field
+/// is enabled.
 static RAW_V3_EXCLUSION: &[u8] = include_bytes!("weights/evaluator_v3_exclusion.f32");
 const _: () = assert!(
     RAW_V3_EXCLUSION.len() == TOTAL_V3 * 4,
@@ -160,7 +161,8 @@ std::thread_local! {
 /// (none) / +0.0284 ± 0.0056 (both), PD +0.0222 / +0.0360, on 204,800
 /// boards/arm/vul at `SEED_BASE` 1785138816 — fired 1.3–1.6%, +1.3 to +2.3
 /// IMPs per fired board at the bilans game/slam gates.  The v3 twin was
-/// trained on the [`envelope_union_reading`] regime only, so the knob is only honoured
+/// trained on the [`envelope_union`][field@crate::bidding::inference::ReadingProfile::envelope_union] regime
+/// only, so the setting is only honoured
 /// there; anywhere else the v2 path serves as before.
 ///
 /// Per-thread, like every reading knob, and captured into a [`Stance`] when
@@ -189,7 +191,8 @@ pub fn eval_auction() -> bool {
 ///
 /// The prize is **invariance**, not accuracy.  A hull is not a well-defined
 /// function of a reading — `♥5..13` and `♥5..8` are the same claim yet differ by
-/// a third of the column's range — so `set_sum_closure`, which provably rejects
+/// a third of the column's range — so
+/// [`sum_closure`][field@crate::bidding::ReadingProfile::sum_closure], which provably rejects
 /// no hand, still displaces the endpoint columns at 81% of nodes by up to 4.19σ
 /// and has to buy a retrain before it can be judged on merit.  The shape columns
 /// move at 0.11% of nodes by up to 0.07σ, and that 0.11% is where the reading
@@ -197,7 +200,8 @@ pub fn eval_auction() -> bool {
 /// measurable on their own terms.
 ///
 /// Supersedes [`set_eval_auction`] when both are on — v4 carries the calls tail
-/// verbatim.  Like the v3 twin it was trained on the [`envelope_union_reading`] regime
+/// verbatim.  Like the v3 twin it was trained on the
+/// [`envelope_union`][field@crate::bidding::inference::ReadingProfile::envelope_union] regime
 /// only, and its shape block reads the *union* of announced boxes, so it is
 /// honoured only there.
 ///
@@ -312,7 +316,10 @@ impl TrickEstimates {
 /// authoring rules; a bare [`Context`][super::Context] reading is looser and is
 /// not the distribution this net was fit on.
 ///
-/// Deterministic — fixed weights, no RNG, no solver.
+/// Deterministic — fixed weights, no RNG, no solver.  This public convenience
+/// serves the shipped [`ReadingProfile::default`] envelope-union regime;
+/// classify-time callers use an explicit profile through the private
+/// `trick_estimates_on` twin.
 #[must_use]
 pub fn trick_estimates(hand: Hand, inferences: &Inferences) -> TrickEstimates {
     let x = features_eval(hand, inferences);
@@ -336,10 +343,11 @@ fn trick_estimates_on(
 /// [`trick_estimates`], with the raw auction available for the v3 calls-tail
 /// artifact.
 ///
-/// Under [`set_eval_auction`] **and** the [`envelope_union_reading`] regime the v3 twin
+/// Under [`set_eval_auction`] **and** the
+/// [`envelope_union`][field@crate::bidding::inference::ReadingProfile::envelope_union] regime the v3 twin
 /// was trained on, this serves [`features_eval_v3`][super::features::features_eval_v3] — the same vector plus the
-/// last four call identities — from the weight set matching the calling
-/// thread's [`pass_exclusion_reading`][super::inference::pass_exclusion_reading] regime.  Under [`set_eval_shape`] it
+/// last four call identities — from the weight set matching the explicit
+/// profile's [`pass_exclusion`][field@crate::bidding::ReadingProfile::pass_exclusion] regime.  Under [`set_eval_shape`] it
 /// serves [`features_eval_v4`][super::features::features_eval_v4] instead, which carries that tail and reads each
 /// hidden seat as a shape distribution rather than a bounding box.  Anywhere
 /// else it is exactly [`trick_estimates`], byte for byte, so call sites can
@@ -403,10 +411,10 @@ fn reshape(z: [f32; OUT]) -> TrickEstimates {
 }
 
 /// The raw `OUT` outputs, before reshaping and rescaling. Serves the weights
-/// fit on the reading regime the calling thread is actually in: the knob-on
-/// twin under [`envelope_union_reading`], the shipped artifact otherwise.
+/// fit on the shipped [`ReadingProfile::default`] envelope-union regime.
+/// Classify-time callers select the profile's regime through [`forward_on`].
 pub(super) fn forward(x: &[f32]) -> [f32; OUT] {
-    forward_on(envelope_union_reading(), x)
+    forward_on(ReadingProfile::default().envelope_union, x)
 }
 
 /// [`forward`] on an explicit reading regime (see [`trick_estimates_on`])
@@ -419,11 +427,12 @@ fn forward_on(union_reading: bool, x: &[f32]) -> [f32; OUT] {
     forward_with::<IN>(weights, x)
 }
 
-/// Benchmark-only forward half of the active v3 calls-tail evaluator.
+/// Benchmark-only forward half of the v3 calls-tail evaluator, serving the
+/// shipped [`ReadingProfile::default`] pass-exclusion regime.
 #[cfg(feature = "bench-internals")]
 pub(super) fn forward_v3(x: &[f32]) -> [f32; OUT] {
     assert_eq!(x.len(), IN_V3, "v3 evaluator feature width");
-    let weights = if super::inference::pass_exclusion_reading() {
+    let weights = if ReadingProfile::default().pass_exclusion {
         &WEIGHTS_V3_EXCLUSION
     } else {
         &WEIGHTS_V3_UNION_READING

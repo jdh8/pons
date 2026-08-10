@@ -1,11 +1,13 @@
+use crate::bidding::agreements::Agreements;
 use crate::bidding::context::Context;
-use crate::bidding::inference::knobs::*;
-use crate::bidding::inference::tests::{bid, chosen_call, read, read_booked, read_booked_with};
-use crate::bidding::inference::{EnvelopeUnion, Range, Relative};
+use crate::bidding::inference::tests::{
+    bid, chosen_call, read, read_booked, read_booked_with, read_with,
+};
+use crate::bidding::inference::{EnvelopeUnion, Range, ReadingProfile, Relative};
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::{Hand, Strain, Suit};
 
-/// `set_envelope_union_reading` gates the `Or` wall: off,
+/// [`ReadingProfile::envelope_union`] gates the `Or` wall: off,
 /// `or([♥, ♠], 6..)` hulls to one
 /// box that admits a 5-4 hand with no six-card major; on, it keeps the two
 /// boxes and rejects that hand while still admitting each true one-suiter.
@@ -13,7 +15,9 @@ use contract_bridge::{Hand, Strain, Suit};
 fn envelope_union_reading_pins_the_two_suiter() {
     use crate::bidding::constraint::{Constraint, or};
     assert!(
-        std::thread::spawn(envelope_union_reading).join().unwrap(),
+        std::thread::spawn(|| ReadingProfile::default().envelope_union)
+            .join()
+            .unwrap(),
         "the envelope-union reading must default on"
     );
 
@@ -21,11 +25,12 @@ fn envelope_union_reading_pins_the_two_suiter() {
     let six_spades: Hand = "AKQJ32.KQ4.32.32".parse().unwrap();
     let six_hearts: Hand = "KQ4.AKQJ32.32.32".parse().unwrap();
     let five_four: Hand = "AKQJ3.KQ42.32.32".parse().unwrap(); // no six-card major
-    let ctx = Context::new(RelativeVulnerability::NONE, &[]);
     let reading = or([Suit::Hearts, Suit::Spades], 6..);
 
-    set_envelope_union_reading(true);
-    let boxes = reading.project(&ctx);
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.envelope_union = true;
+    let on = Context::new(RelativeVulnerability::NONE, &[]).with_profile(agreements.decision);
+    let boxes = reading.project(&on);
     let expected_legacy_hull = EnvelopeUnion::from(boxes.hull());
     assert_eq!(boxes.boxes().len(), 2, "on: one box per major");
     assert!(boxes.contains(six_spades) && boxes.contains(six_hearts));
@@ -34,16 +39,15 @@ fn envelope_union_reading_pins_the_two_suiter() {
         "on: neither box holds the 5-4 hand"
     );
 
-    set_envelope_union_reading(false);
-    let hull = reading.project(&ctx);
+    agreements.decision.reading.envelope_union = false;
+    let off = Context::new(RelativeVulnerability::NONE, &[]).with_profile(agreements.decision);
+    let hull = reading.project(&off);
     assert_eq!(hull, expected_legacy_hull, "off: the legacy span");
     assert_eq!(hull.boxes().len(), 1, "off: one bounding box");
     assert!(
         hull.contains(five_four),
         "off: the hull admits the 5-4 slop"
     );
-
-    set_envelope_union_reading(true);
 }
 
 #[test]
@@ -919,16 +923,19 @@ fn rubens_reading_respects_the_knob() {
     // With Rubens advances off — the default since the layer A/B — the same
     // 2♣ is a genuine club suit: the suppression lifts and it reads naturally.
     crate::bidding::instinct::set_rubens_advances(false);
-    set_cue_reading(false);
-    let inf = read(&[
-        bid(1, Strain::Clubs),
-        bid(1, Strain::Spades),
-        Call::Pass,
-        bid(2, Strain::Clubs),
-        Call::Pass,
-    ]);
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.cue = false;
+    let inf = read_with(
+        &agreements,
+        &[
+            bid(1, Strain::Clubs),
+            bid(1, Strain::Spades),
+            Call::Pass,
+            bid(2, Strain::Clubs),
+            Call::Pass,
+        ],
+    );
     assert!(inf.partner().length(Suit::Clubs).min >= 4);
-    set_cue_reading(true);
 }
 
 #[test]
@@ -936,27 +943,31 @@ fn their_minor_cue_reads_as_michaels() {
     // (1♣) 2♣: the direct cue of their minor opening is Michaels — both
     // majors, five-five, and no club length (the probe caught a club void
     // read as five clubs).  Off, the old overcall reading returns.
-    set_cue_reading(true);
-    let inf = read(&[bid(1, Strain::Clubs), bid(2, Strain::Clubs)]);
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.cue = true;
+    let inf = read_with(&agreements, &[bid(1, Strain::Clubs), bid(2, Strain::Clubs)]);
     assert_eq!(inf.rho().length(Suit::Clubs), Range::FULL_LENGTH);
     assert!(inf.rho().length(Suit::Hearts).min >= 5);
     assert!(inf.rho().length(Suit::Spades).min >= 5);
-    set_cue_reading(false);
-    let off = read(&[bid(1, Strain::Clubs), bid(2, Strain::Clubs)]);
+    agreements.decision.reading.cue = false;
+    let off = read_with(&agreements, &[bid(1, Strain::Clubs), bid(2, Strain::Clubs)]);
     assert!(off.rho().length(Suit::Clubs).min >= 5);
-    set_cue_reading(true);
 }
 
 #[test]
 fn their_jump_cue_over_a_weak_two_is_leaping_michaels() {
     // (2♦) 4♦: the jump cue of a weak-two minor is Leaping Michaels — both
     // majors, no diamond length (the probe: a diamond void read as six).
-    set_cue_reading(true);
-    let inf = read(&[
-        Call::Pass,
-        bid(2, Strain::Diamonds),
-        bid(4, Strain::Diamonds),
-    ]);
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.cue = true;
+    let inf = read_with(
+        &agreements,
+        &[
+            Call::Pass,
+            bid(2, Strain::Diamonds),
+            bid(4, Strain::Diamonds),
+        ],
+    );
     assert_eq!(inf.rho().length(Suit::Diamonds), Range::FULL_LENGTH);
     assert!(inf.rho().length(Suit::Hearts).min >= 5);
     assert!(inf.rho().length(Suit::Spades).min >= 5);
@@ -971,17 +982,17 @@ fn their_michaels_is_disclosed_to_the_table() {
     // `docs/reader-retirement.md`).  This knob is now the only owner of
     // the reading, so its off arm is the honest record of what the
     // retirement gives up: the shape floor goes too.
-    set_table_alert_reading(true);
     let auction = [bid(1, Strain::Spades), bid(2, Strain::Spades)];
-    let inf = read_booked(&auction);
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.table_alerts = true;
+    let inf = read_booked_with(&agreements, &auction);
     assert!(inf.rho().length(Suit::Hearts).min >= 5);
     assert!(inf.rho().strength.points.min >= 8);
     assert_eq!(inf.rho().length(Suit::Spades).min, 0);
-    set_table_alert_reading(false);
-    let off = read_booked(&auction);
+    agreements.decision.reading.table_alerts = false;
+    let off = read_booked_with(&agreements, &auction);
     assert_eq!(off.rho().strength.points.min, 0);
     assert_eq!(off.rho().length(Suit::Hearts).min, 0);
-    set_table_alert_reading(true);
 }
 
 #[test]
@@ -1057,7 +1068,7 @@ fn rubens_transfer_is_not_read_for_the_opponents() {
 ///
 /// The reading now comes from the authored `.alert(MICHAELS)` rule's own
 /// projection, so the auction must be read **keyed** (`read_booked`) and
-/// the knob that owns the reading is `set_table_alert_reading`, not
+/// the setting that owns the reading is `ReadingProfile::table_alerts`, not
 /// `agreements.competition.uvu_over_majors` (which kept only its book
 /// half).  The projection also carries the rule's strength floor, which
 /// the retired reader never did.
@@ -1077,13 +1088,15 @@ fn michaels_cue_over_our_major_reads_the_other_major() {
 
     // Table-wide disclosure and the shipped cue reading both off: the
     // pre-package natural reading is preserved verbatim.
-    set_table_alert_reading(false);
-    set_cue_reading(false);
-    let inf = read_booked(&[bid(1, Strain::Hearts), bid(2, Strain::Hearts)]);
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.table_alerts = false;
+    agreements.decision.reading.cue = false;
+    let inf = read_booked_with(
+        &agreements,
+        &[bid(1, Strain::Hearts), bid(2, Strain::Hearts)],
+    );
     assert!(inf.rho().length(Suit::Hearts).min >= 5);
     assert_eq!(inf.rho().length(Suit::Spades), Range::FULL_LENGTH);
-    set_cue_reading(true);
-    set_table_alert_reading(true);
 }
 
 /// Their unusual `(2NT)` over our major, post-retirement (chop 1) — as
@@ -1098,12 +1111,15 @@ fn unusual_2nt_over_our_major_reads_both_minors() {
 
     // Table-wide disclosure off: nothing recorded for their 2NT (a notrump
     // bid never entered the natural suit walk either).
-    set_table_alert_reading(false);
-    let inf = read_booked(&[bid(1, Strain::Spades), bid(2, Strain::Notrump)]);
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.table_alerts = false;
+    let inf = read_booked_with(
+        &agreements,
+        &[bid(1, Strain::Spades), bid(2, Strain::Notrump)],
+    );
     assert_eq!(inf.rho().length(Suit::Clubs), Range::FULL_LENGTH);
     assert_eq!(inf.rho().length(Suit::Diamonds), Range::FULL_LENGTH);
     assert_eq!(inf.rho().strength.points, Range::FULL_POINTS);
-    set_table_alert_reading(true);
 }
 
 /// The retirement guard for chop 1 (`docs/reader-retirement.md`)
@@ -1216,16 +1232,19 @@ fn rubens_transfer_reading_knob_recovers_suppress_only() {
     crate::bidding::instinct::set_rubens_advances(true);
     // Stage-2 knob off: the transfer is still suppressed (not natural
     // hearts) but records nothing — the pre-fix shape.
-    set_rubens_transfer_reading(false);
-    let inf = read(&[
-        bid(1, Strain::Clubs),
-        bid(1, Strain::Spades),
-        Call::Pass,
-        bid(2, Strain::Hearts),
-        Call::Pass,
-    ]);
+    let mut agreements = Agreements::current();
+    agreements.decision.reading.rubens_transfer = false;
+    let inf = read_with(
+        &agreements,
+        &[
+            bid(1, Strain::Clubs),
+            bid(1, Strain::Spades),
+            Call::Pass,
+            bid(2, Strain::Hearts),
+            Call::Pass,
+        ],
+    );
     assert_eq!(inf.partner().length(Suit::Spades), Range::FULL_LENGTH);
     assert_eq!(inf.partner().length(Suit::Hearts), Range::FULL_LENGTH);
     assert_eq!(inf.partner().strength.points, Range::FULL_POINTS);
-    set_rubens_transfer_reading(true);
 }

@@ -164,11 +164,11 @@ fn empty_candidates_is_empty() {
 
 /// Phase 1b: the search sampler replays the authored policy by *default* — a
 /// sampled world must fall in range *and* reproduce the authored calls.  This
-/// guards the flip (`RULE_ACCEPT` in `inference`); revert it and this fails.
+/// guards the default of `ReadingProfile::rule_accept`; revert it and this fails.
 #[test]
 fn rule_replay_is_the_default() {
     assert!(
-        crate::bidding::inference::rule_accept_enabled(),
+        crate::bidding::ReadingProfile::default().rule_accept,
         "the search EV samples its rollout worlds by rule-replay by default"
     );
 }

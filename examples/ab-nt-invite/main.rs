@@ -6,7 +6,7 @@
 //! openings).  Teaching the inference that `1NT - 2NT` shows ≈8–9 (and `1NT - 3NT` 10+)
 //! lets the keyless floor see responder's strength and accept game opposite a
 //! maximum — no hand-authored acceptance node.  Both arms run the same 2/1 system;
-//! the only difference is the [`set_nt_invite_inference`] toggle.
+//! the only difference is [`pons::bidding::ReadingProfile::nt_invite`].
 //!
 //! Unlike the Meckstroth toggle (read at book-construction time), this one is read
 //! at *runtime* inside `Inferences::read`, so the two arms cannot be interleaved:
@@ -23,7 +23,6 @@ use clap::Parser;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::set_nt_invite_inference;
 use pons::scoring::final_contract;
 use rayon::prelude::*;
 
@@ -57,13 +56,11 @@ fn main() {
 
     // The flag is captured into a stance when it is built, so each arm gets its
     // own book: `[off, on]`, indexed by the arm's flag.
-    set_nt_invite_inference(false);
-    let off = american(&pons::bidding::agreements::Agreements::current()).against();
-    set_nt_invite_inference(true);
-    let sys = [
-        off,
-        american(&pons::bidding::agreements::Agreements::current()).against(),
-    ];
+    let mut agreements = pons::bidding::agreements::Agreements::current();
+    agreements.decision.reading.nt_invite = false;
+    let off = american(&agreements).against();
+    agreements.decision.reading.nt_invite = true;
+    let sys = [off, american(&agreements).against()];
 
     // Deals are seeded per board (base + index) so every arm/vul of the
     // experiment replays the identical stream.

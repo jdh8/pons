@@ -142,13 +142,14 @@ const SEAT_CHARS: [char; 4] = ['N', 'E', 'S', 'W'];
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
+    let mut agreements = pons::bidding::agreements::Agreements::current();
     if args.sound_reading {
-        pons::bidding::set_cue_reading(true);
-        pons::bidding::set_length_soundness(true);
-        pons::bidding::set_table_alert_reading(true);
-        pons::bidding::set_pass_reading(true);
+        agreements.decision.reading.cue = true;
+        agreements.decision.reading.length_soundness = true;
+        agreements.decision.reading.table_alerts = true;
+        agreements.decision.reading.pass = true;
     }
-    let stance = american(&pons::bidding::agreements::Agreements::current()).against();
+    let stance = american(&agreements).against();
     let seed = args.seed.unwrap_or_else(rand::random);
     let mut rng = StdRng::seed_from_u64(seed);
     let vul = args.vulnerability;

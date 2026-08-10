@@ -15,7 +15,9 @@ use contract_bridge::{Strain, Suit};
 /// One table's pass reading: the union of its Pass rules' bands, knob-on
 /// intersected with the complements of the sibling gates the passer declined
 ///
-/// The exclusion half (see [`set_pass_exclusion_reading`]) leans on argmax
+/// The exclusion half (see
+/// [`pass_exclusion`][field@crate::bidding::ReadingProfile::pass_exclusion])
+/// leans on argmax
 /// selection: a hand inside a sibling gate whose weight strictly beats
 /// **every** Pass rule's weight could not have let Pass win, so the passer
 /// lies in that gate's complement.  Single-box complements only — the
@@ -1221,7 +1223,7 @@ fn project_authored_with(
         }
     }
 
-    // The probed overlay (see [`set_probed_reading`]): fold each prior call's
+    // The probed overlay (see `ReadingProfile::probed`): fold each prior call's
     // behaviorally measured box, keyed by the prefix through it.  Runs last so
     // it composes with — never replaces — the symbolic folds above; an empty
     // probed map is a no-op.  The vacuous-scoped variant lives in
