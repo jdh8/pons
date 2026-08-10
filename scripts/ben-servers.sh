@@ -81,7 +81,7 @@ stop)
 	pkill -u "$USER" -f 'gameapi\.py' && echo "stopped" || echo "nothing running"
 	;;
 status)
-	for port in $(pgrep -u "$USER" -af 'gameapi\.py' | grep -o -- '--port [0-9]*' | awk '{print $2}' | sort -n); do
+	for port in $(pgrep -u "$USER" -af 'gameapi\.py' | grep -o -- '--port [0-9]*' | awk '{print $2}' | sort -nu); do
 		if probe_port "$port"; then echo "port $port: OK"; else echo "port $port: NOT ANSWERING"; fi
 	done
 	ps -u "$USER" -o rss=,args= | awk '/gameapi\.py/ {for (i = 1; i <= NF; i++) if ($i == "--port") port = $(i + 1); printf "port %s: %.1f GB RSS\n", port, $1 / 1048576}' | sort

@@ -163,7 +163,7 @@ that live *inside* a book are in Tier B.
 | set_penalty_no_pull | `--ns-allow-pull` (**inverted**) | Natural | ON | X bucket −2.312→−1.013 vul; paired +0.058 IMPs/bd CI [+0.030,+0.085] | fresh | default-on ✓ |
 | set_advancer_xx_runout | `--no-ns-xx-runout` | Artificial | ON | [project_penalty-x-runout] default-on (advancer escape from `1NT (X) XX`) | fresh | default-on ✓ |
 | set_doubler_xx_runout | `--no-ns-doubler-run` | Artificial | ON | [project_doubler-xx-runout] default-on; rare | fresh | default-on ✓ |
-| set_uvu_encircle | `--uvu` (with set_uvu) | Artificial | ON | [project_uvu-over-1nt-2nt] default-on; dormant unless UvU X bid | fresh | default-on ✓ |
+| set_uvu_encircle | `--no-uvu` (with set_uvu) | Artificial | ON | [project_uvu-over-1nt-2nt] default-on; dormant unless UvU X bid | fresh | default-on ✓ |
 | set_correct_3nt_to_major | `--no-ns-correct-3nt-to-major` | Natural | ON | [project_nt-9count-gameforce-seam], gated default-on (3NT → 4M on 8-card fit) | fresh | fold into base |
 | set_suppress_nt_game_force_over_double | `--no-ns-suppress-nt-gf-over-double` | Natural | ON | [project_nt-9count-gameforce-seam] default-on (suppress `1NT (X) 3NT` overbid) | fresh | fold into base |
 | set_gambling_3nt_over_double | `--ns-gambling-3nt` | Artificial | OFF | net DD-negative (1NTxx baseline too strong) ([project_gambling-games-over-1ntx]) | fresh | stays opt-in (measured loss) |
@@ -193,7 +193,7 @@ that live *inside* a book are in Tier B.
 | set_cue_minor_raise_answer | `--no-ns-cue-minor-raise-answer` | Natural | ON | **A4 pass** (same run): plain **+0.0134/+0.0184**, PD **+0.0211/+0.0262** NV/vul — all 4 cells CI>0, PD≥plain (fires 0.25%, +5.4…+10.5 IMPs/fired; thin fired set). Minor twin; `3NT` / `3m - 4m` replies unalerted/natural | fresh | default-on ✓ (Natural capability-add) |
 | set_weak_two_competition | `--ns-weak-two-comp` | Artificial | OFF | plain −0.0012/−0.0015 wash, PD −0.0097/−0.0116 (CI<0, SEED 1783284838); **REFUTED** by fallible-opponent test | fresh | stays opt-in (measured loss) |
 | set_strong_two_competition | `--no-ns-strong-two-comp` | Natural | ON | plain +0.0009/+0.0013, PD +0.0010/+0.0014 (all 4 CI>0, SEED 1783285250) | fresh | fold into base |
-| set_uvu | `--uvu` | Artificial | ON | +0.6–2.6 IMPs/bd per call vs passing floor (DD-robust) | fresh | default-on ✓ |
+| set_uvu | `--no-uvu` | Artificial | ON | +0.6–2.6 IMPs/bd per call vs passing floor (DD-robust) | fresh | default-on ✓ |
 | set_uvu_over_majors | `--no-ns-uvu-over-majors` | Artificial | ON | plain +0.0019/+0.0018 (CI>0), PD +0.0009/+0.0006 (P1, SEED 1783284454, sha bc949dc) | fresh | default-on ✓ — **book half only** since reader-retirement chop 1; reading their cue / `(2NT)` is now `set_table_alert_reading`'s |
 | set_competitive_rebid | `--no-ns-competitive-rebid` | Natural | ON | plain +0.047/+0.037, PD +0.040/+0.023 (all 4 CI>0; P5 largest per-bd, SEED 1783316036) | fresh | fold into base |
 | set_reopening_notrump | `--no-ns-reopening-notrump` | Natural | ON | plain +0.0163/+0.0332 (de-confounded ×2, free-1nt-range package) | fresh | fold into base |

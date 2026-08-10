@@ -25,7 +25,11 @@ mkdir -p "$outdir"
 
 # `|| true` absorbs the pipeline's pipefail status when no server matches, so
 # the [ -n ] guard below gets to print its message instead of a silent exit 1.
-ports=$(pgrep -u "$USER" -af 'gameapi\.py' | grep -o -- '--port [0-9]*' | awk '{print $2}' | sort -n || true)
+# `sort -nu`: idle-run.sh no longer execs, so its wrapper AND the python it
+# forked both carry `gameapi.py --port N` — without the dedupe every port is
+# discovered twice and the run launches two clients per server, interleaving
+# their Tier-S sampling on one server RNG.
+ports=$(pgrep -u "$USER" -af 'gameapi\.py' | grep -o -- '--port [0-9]*' | awk '{print $2}' | sort -nu || true)
 [ -n "$ports" ] || {
 	echo "no BEN servers running — scripts/ben-servers.sh start N [f|s]" >&2
 	exit 1

@@ -1,7 +1,9 @@
 # The BBA gap campaign — closing pons↔BBA, especially via the floor
 
 The standing plan for the campaign metric: `american()` vs BBA's 2/1 card,
-IMPs/board.  **As of 2026-07-19 (the floor swap, B4) the anchor's pons side is
+IMPs/board.  **Standing at `0d8b755` (2026-08-10): −0.627 plain / −0.585 PD for
+what ships, −1.069 / −1.205 for the deterministic side the buckets decompose.**
+**As of 2026-07-19 (the floor swap, B4) the anchor's pons side is
 `american_instinct()`** — `american()` now ships the BBA-distilled net floor,
 whose off-book calls do not decompose into book buckets, so the
 decompose-and-rank series stays on the deterministic system; the net floor's
@@ -414,6 +416,68 @@ re-ranks the campaign: **Pillar D defensive book first (bucket 1), then
 constructive openings/rebids (2–4); Pillar B2 balancing drops to backlog and
 its floor effort points at `floor#3` pass discipline instead.**
 
+**Re-anchor `0d8b755` (2026-08-10, 409.6k boards, same seed).**  Pooled
+**−1.069 plain / −1.205 PD** (vul none −0.967 / −1.006, both −1.171 / −1.405),
+from −1.113 / −1.273 — **+0.044 plain / +0.068 PD** for the deterministic side.
+The batch is the reading-drift tail (face-trump, cramped-doubled, DOPI/ROPI/DEPO,
+rung-2, ask-gate recalibration, cue-face + the NT dichotomy) plus the knob-home
+refactors; the v4/v5 floor swaps are invisible here **by construction** — this
+series bids `american_instinct()`.  For what ships, see the companion below.
+
+Head order unchanged for the sixth anchor running: `Defensive/book/round-1`
+**−84479** (from −88313), then constructive `opening`/`round-2` −66278 / −38547
+(−69131 / −40047), and constructive `round-1` −31669 (−33747).  `floor#3`
+defensive r2+r1 −37776 → −37219.  One row moved provenance rather than value:
+**`Competitive/book/round-1` enters the head at −32251 while `fallback@1`
+collapses −38179 → −440** — the shipped competitive-book packages now author
+calls the fallback used to catch, so the loss moved rows without moving the
+total.  Compare competitive rows on the *phase*, not the provenance, across
+this boundary.  Report: `ab-results/anchor/2026-08-10-0d8b755/report.md`.
+
+> **Replay verification stopped being exact, and that is a defect.**  Both arms
+> report 69 and 66 mismatched calls (of 2.12M and 2.10M — 3×10⁻⁵, so the
+> printed rate still rounds to 100.00%, but the sub-100% warning fires).  Every
+> earlier anchor in the series replayed **0** mismatched.  The IMP headline is
+> unaffected (it is computed from the recorded auctions), but bucket attribution
+> is approximate at that rate for this row only.  **Cause found and fixed
+> (2026-08-11).**  `bba-gen` builds our floor from `arm_knobs(args)` — the CLI's
+> *armed* `Agreements` — while `bba-decompose` replays
+> `american_instinct(&Agreements::default())`, so the series has always relied on
+> `arm_knobs(default args) == Agreements::default()`.  `--uvu` broke it: the flag
+> dates from when Unusual-vs-Unusual was opt-in and read `if args.uvu {
+> set_uvu(true); … }`, which a default run skipped, leaving the shipped default
+> intact.  `2a18843` ("one home for the competitive knobs") rewrote it as the
+> unconditional `agreements.competition.uvu = args.uvu`, and `default_value_t =
+> false` turned a force-on flag into a kill switch — so every arm at this sha bid
+> UvU off (the shipping companion below too — same `bba-gen`, and its numbers are
+> therefore a hair pessimistic)
+> while the replay bid it on, and the mismatch rate is exactly what an auction
+> needing our 1NT *and* their both-minors 2NT should cost.  Renamed `--no-uvu`;
+> the equality is now a `bba-gen` unit test
+> (`default_args_arm_the_shipped_system`), which prints the offending field pair.
+> **Read this as a rule, not an incident:** a flag whose default disagrees with
+> the crate's silently re-points every A/B at a system nobody plays, and only the
+> replay check ever notices.
+
+**What the *shipping* pair scores (`--our-floor american`, same deals, same
+seed, both arms generated at this sha):** pooled **−0.627 plain / −0.585 PD**
+(vul none −0.555 / −0.499, both −0.699 / −0.671).  This is the first shipping
+headline since `eb02d9d` (07-26, −1.021 / −1.254) and the first one *ever* taken
+under the v4→v5 configured floor — but it also crosses the `3c94802` disclosure
+flip, so **do not read the whole −0.394 / −0.669 as floor value**: the two
+snapshots are different series.  Report: `report-american.md` (bucket rows
+invalid by construction — replay is 90.19% / 90.99% because the net's off-book
+calls do not reproduce through `american_instinct()`; only the IMP figures are
+readable).
+
+Against *this* anchor's own instinct arms — same deals, same sha, so the
+control-at-HEAD rule is satisfied — the net floor is worth **+0.442 plain /
++0.620 PD**, against v4's paired +0.200 / +0.317 at `e650a86`.  Treat the
+magnitude as provisional: this is an unpaired difference of two absolute vs-BBA
+gaps, the loose instrument the `e650a86` note warns about; an `ab-dump-diff`
+paired arm-pair would tighten it and is cheap now that an arm generates in 100
+seconds.
+
 ### First-anchor runbook (any machine with the BBA submodule)
 
 ```sh
@@ -439,7 +503,14 @@ which never change under the fixed seed.  Afterwards:
    is wholly on or off mismatches far more loudly.  Confirm it is systematic by
    re-running the decompose on one shard twice: an identical count is drift, a
    varying one would be nondeterminism.  **When you flip a crate default, grep
-   `examples/bba-gen/main.rs` for its `set_*` in the same commit.**
+   `examples/bba-gen/main.rs` for its `set_*` in the same commit.**  Since
+   2026-08-11 the equality itself is a unit test —
+   `default_args_arm_the_shipped_system` in `bba-gen`, run by `cargo test`
+   (`[[example]] test = true`) — so this class of drift fails the build instead
+   of a report line.  Its first catch was `--uvu`, which `2a18843` inverted from
+   a force-on into a kill switch by rewriting an `if args.uvu { … }` guard as an
+   unconditional assignment; watch for that shape whenever an opt-in knob's
+   arming is mechanically rewritten.
 2. Anchor outputs stay **untracked**. `/ab-results` is gitignored and `6a5cbdb`
    dropped the 21 previously-committed reports: every snapshot regenerates from
    the series `seed` + the SHA, so the repo carries the headline (here and in

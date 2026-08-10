@@ -7,7 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`bba-gen`'s `--uvu` had inverted into a kill switch, so every A/B since
+  yesterday measured the system with Unusual-vs-Unusual off.**  The flag dates
+  from when UvU was opt-in and read `if args.uvu { set_uvu(true); … }` — a
+  force-on that a default run simply skipped, leaving the shipped default (on)
+  intact.  Yesterday's "one home for the competitive knobs" refactor rewrote
+  every setter as an unconditional field assignment, `agreements.competition.uvu
+  = args.uvu`, and the flag's `default_value_t = false` then actively disabled a
+  convention that ships on.  Renamed to `--no-uvu`, matching the house idiom for
+  a shipped-on knob.  Caught by the anchor's replay verification (69 and 66
+  mismatched calls of ~2.1M, the rate you would expect of an auction needing our
+  1NT *and* their both-minors 2NT), and now locked down: `bba-gen` gained a
+  `default_args_arm_the_shipped_system` unit test holding `arm_knobs(Args::parse_from(["bba-gen"]))
+  == Agreements::default()`, which is exactly the equality `bba-decompose`'s
+  replay assumes when it attributes a board to a bucket.  It prints the offending
+  field pair on failure.  No shipped bidding change: the crate default was always
+  on, and only `bba-gen`-generated arms were affected (`ben-gen` builds straight
+  from `Agreements::default()`, so the BEN anchor never saw this).
+
+- **The BEN harness launched two clients per server, halving the shard count it
+  meant to run.**  `ben-gen-parallel.sh` discovers ports by `pgrep -f
+  'gameapi\.py'`, which since `idle-run.sh` stopped `exec`ing matches *both* the
+  wrapper and the python it forked — so every port came back twice and an
+  8-server fleet drew 16 shard clients on seeds `SEED_BASE+0..15`.  Two clients
+  per instance interleave their Tier-S Monte-Carlo draws on one server RNG, and
+  the shard count sets the board set, so a re-anchor run that way is neither
+  reproducible nor comparable with the series it extends.  `sort -n` → `sort
+  -nu` in the discovery pipeline (and in `ben-servers.sh status`, which was
+  double-probing every port for the same reason).  No bidding change.
+
 ### Changed
+
+- **Both gaps re-anchored at `0d8b755`.**  vs BEN Tier S (20k boards, persistent
+  series seed, BEN v0.8.8.4 on its stock conf): **−1.163 plain / −1.032 PD**,
+  from −1.906 / −1.860 at `119675f` on 07-17 — **+0.743 / +0.829** across three
+  floor generations (v3 distilled → v4 configured → v5) plus the reading-drift
+  and competitive-book tails, with divergence down 71%/70% → 65%/64%.  The row
+  bundles ~3½ weeks of ships and attributes none of them; that is the Tier-F
+  decompose's job.  Note for the next re-anchor: over the same span the BBA gap
+  closed by 1.05 against BEN's 0.74, so BEN now measures ≈0.54 harder than BBA
+  where it measured ≈0.2 — the shape the exploit guard exists to catch, not yet
+  proof of it.  vs BBA (409.6k boards, persistent
+  series seed): **−0.627 plain / −0.585 PD** for the shipping pair
+  (`--our-floor american`, the v5 configured floor — the first shipping headline
+  since `eb02d9d` on 07-26 read −1.021 / −1.254, though that one predates the
+  disclosure flip and is a different series), and **−1.069 / −1.205** for the
+  `american_instinct()` side the buckets decompose (from −1.113 / −1.273).
+  `Defensive/book/round-1` holds #1 for the sixth anchor running at −84479;
+  `Competitive/book/round-1` enters the head at −32251 as `fallback@1` collapses
+  −38179 → −440, the shipped competitive book taking calls the fallback used to
+  catch.  Trail and caveats in
+  [docs/bba-gap-campaign.md](docs/bba-gap-campaign.md).  The instinct arms
+  replayed at 99.997% rather than the series' usual 100% — cause found and fixed
+  below; IMP headlines are unaffected and bucket attribution is approximate at
+  3×10⁻⁵ for this one row.
 
 - **The docs shelf is triaged: five closed campaigns archived, and the ledgers
   now say what the code does.**  A full-scan survey of all 45 docs moved

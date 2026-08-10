@@ -1,8 +1,9 @@
 # The BEN gap campaign — closing pons↔BEN, with BBA as the exploit guard
 
-**Status: first anchor MEASURED (2026-07-17) — pons is
-−1.906 plain / −1.860 PD IMPs/board behind BEN Tier S** (20k boards at
-`119675f`; **predates the 2026-07-19 floor swap** — see trail below). Phase 0 is complete: the EPBot-vs-BEN calibration
+**Status: re-anchored at `0d8b755` (2026-08-10) — pons is
+−1.163 plain / −1.032 PD IMPs/board behind BEN Tier S** (20k boards; was
+−1.906 / −1.860 at `119675f`, so **+0.74 plain / +0.83 PD** since the first
+anchor — see trail below). Phase 0 is complete: the EPBot-vs-BEN calibration
 exit gate PASSED (plain DD −0.568 pooled from EPBot's side vs BBA's
 published −0.38 DD / −0.51 SD; details in
 [ben-gen-design.md](ben-gen-design.md), validation step 4). Phase 1's
@@ -437,13 +438,13 @@ Tier S, 20k boards (8×1,250 × {none, both}), persistent
 
 | date | pons | plain | PD | notes |
 | --- | --- | --- | --- | --- |
-| 2026-07-17 | `119675f` | **−1.906** (none −1.640 [−1.736, −1.545], both −2.172 [−2.293, −2.050]) | **−1.860** (none −1.510, both −2.209) | First anchor; retires the chained ≈2.1. Divergence 71%/70% (vs 49%/46% for EPBot-vs-BEN). Reading knobs at committed defaults (off). |
+| 2026-07-17 | `119675f` | **−1.906** (none −1.640 [−1.736, −1.545], both −2.172 [−2.293, −2.050]) | **−1.860** (none −1.510, both −2.209) | First anchor; retires the chained ≈2.1. Divergence 71%/70% (vs 49%/46% for EPBot-vs-BEN). Reading knobs at committed defaults (off). Pre-floor-swap (deterministic floor). |
+| 2026-08-10 | `0d8b755` | **−1.163** (none −0.998 [−1.088, −0.909], both −1.328 [−1.442, −1.214]) | **−1.032** (none −0.837 [−0.941, −0.733], both −1.226 [−1.358, −1.094]) | **+0.743 plain / +0.829 PD** vs the first row. Covers three floor generations (v3 distilled → v4 configured → **v5, `american()`'s default since 2026-08-08**) plus the reading-drift and competitive-book tails. Divergence 65%/64%, down from 71%/70%. BEN pinned v0.8.8.4, conf sha256 `503b026a…`. |
 
-> **Floor-swap caveat (2026-07-19, `9dbad7d`):** this row measured the pre-swap
-> deterministic floor. `american()` now ships the BBA-distilled net (+0.11 NV /
-> +0.25 vul vs BBA), and `ben-gen` bids the real shipped floor — so the next
-> Tier-S re-anchor will refresh this headline. Deferred to the next **periodic**
-> re-anchor (not per-fix), per the Phase-2 loop.
+> **Reading the delta.** This row is paired with the first only by *deal*
+> (shared `SEED_BASE`), not by BEN's replies — BEN re-bids each auction, so
+> its side moves too. It bundles ~3½ weeks of ships; it attributes nothing.
+> Attribution is the Tier-F decompose's job.
 
 **Tier-F gap** (one-time calibration, fresh seeds 1784294370, 102.4k/arm,
 sha 74d783d, `ab-results/reading-knobs/2026-07-17/`): plain **−0.879**
@@ -459,6 +460,19 @@ measures ≈0.2 harder than BBA — same sign, smaller than the naive chain
 is nonlinear across deal streams, which the design doc anticipated. The
 vul-both arm is ~0.5 worse than vul-none, the same skew the BBA series
 shows.
+
+**The spread is widening — watch it.** Both anchors compare like with like
+(2026-07-17: deterministic floor on both series; 2026-08-10: v5 on both),
+and between those dates the BBA gap closed by **1.05** (−1.68 → −0.627
+plain) while the BEN gap closed by **0.74**. BEN went from ≈0.2 to ≈0.54
+harder than BBA. That is the shape the exploit guard exists to detect: our
+floors are distilled from BBA, so "better at BBA" comes cheaper than
+"better at bridge", and a widening spread is the price. It is not yet proof
+of overfitting — the two series use different deals and different scoring
+pipelines, and 0.3 is within what deal-stream nonlinearity has already been
+seen to do. Treat it as a live hypothesis for the next re-anchor: if the
+spread widens again while BBA keeps improving, the BBA metric has stopped
+being a proxy for bridge.
 
 ## Tier-F distillation probe — how ruly is BEN's policy? (2026-07-18)
 

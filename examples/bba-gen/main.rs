@@ -242,21 +242,21 @@ struct Args {
     #[arg(long, default_value_t = false)]
     filter_1nt: bool,
 
-    /// Enable our Unusual-vs-Unusual structure over 1NT (2NT) — BBA overcalls our
-    /// 1NT with a both-minors 2NT (Multi-Landy), so this is the live test.  Sets
-    /// the responder structure + the encircling chase at the given floors.
+    /// Disable our Unusual-vs-Unusual structure over 1NT (2NT) — BBA overcalls our
+    /// 1NT with a both-minors 2NT (Multi-Landy), so this is the live test.  On by
+    /// default (it ships): the responder structure + the encircling chase.
     #[arg(long, default_value_t = false)]
-    uvu: bool,
+    no_uvu: bool,
 
-    /// Responder's penalty-double HCP floor for `--uvu`
+    /// Responder's penalty-double HCP floor for UvU
     #[arg(long, default_value_t = 9)]
     uvu_x_floor: u8,
 
-    /// Responder's INV+ cue-bid points floor for `--uvu`
+    /// Responder's INV+ cue-bid points floor for UvU
     #[arg(long, default_value_t = 8)]
     uvu_cue_floor: u8,
 
-    /// Deal seed for reproducible boards (pairs an `--uvu` on/off comparison so
+    /// Deal seed for reproducible boards (pairs a `--no-uvu` on/off comparison so
     /// the boards UvU does not touch are identical and cancel); unset = random
     #[arg(long)]
     seed: Option<u64>,
@@ -1548,7 +1548,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.decision.reading.sum_closure = args.ns_sum_closure;
     agreements.decision.reading.upgrade_closure = args.ns_upgrade_closure;
     agreements.decision.reading.pass_exclusion = args.ns_pass_exclusion;
-    agreements.decision.instinct.uvu_encircle = args.uvu;
+    agreements.decision.instinct.uvu_encircle = !args.no_uvu;
     agreements.decision.instinct.settle_floor = !args.no_settle_floor;
     agreements.decision.instinct.nt_responder_game_floor = args.ns_nt_responder_game_floor;
     agreements.decision.instinct.suppress_nt_gf_over_double =
@@ -1569,11 +1569,11 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
         !args.no_ns_two_over_one_slam_strength;
     agreements.decision.instinct.rein_advance_raise = !args.no_ns_rein_advance_raise;
     // The competitive book.  `--uvu-x-floor` / `--uvu-cue-floor` still ride
-    // inside the `--uvu` gate, as they did as cells; the difference is that a
+    // inside the UvU gate, as they did as cells; the difference is that a
     // gated-off floor now stays at the shipped default instead of keeping
     // whatever the last-armed seat left on the thread.
-    agreements.competition.uvu = args.uvu;
-    if args.uvu {
+    agreements.competition.uvu = !args.no_uvu;
+    if !args.no_uvu {
         agreements.competition.uvu_x_floor = args.uvu_x_floor;
         agreements.competition.uvu_cue_floor = args.uvu_cue_floor;
     }
@@ -2177,4 +2177,38 @@ fn main() -> anyhow::Result<()> {
         },
     );
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Args, arm_knobs};
+    use clap::Parser;
+    use pons::bidding::agreements::Agreements;
+
+    /// Default CLI arms exactly the shipped system — `bba-decompose`'s
+    /// replay contract.
+    ///
+    /// The decompose replays a dump through `Agreements::default()` and
+    /// demands 100% bit-reproduction, so every board it attributes to a
+    /// bucket assumes this equality. When it broke (2026-08-10 anchor, 69
+    /// and 66 mismatched calls of ~2.1M) nothing failed loudly: the
+    /// replay-verified fraction just slipped below 100% in a report line.
+    #[test]
+    fn default_args_arm_the_shipped_system() {
+        let armed = arm_knobs(&Args::parse_from(["bba-gen"])).unwrap();
+        let shipped = Agreements::default();
+        if armed != shipped {
+            let (a, s) = (format!("{armed:#?}"), format!("{shipped:#?}"));
+            let diff: Vec<_> = a
+                .lines()
+                .zip(s.lines())
+                .filter(|(x, y)| x != y)
+                .map(|(x, y)| format!("armed{x}\n  shipped{y}"))
+                .collect();
+            panic!(
+                "--ns-* defaults drifted from the shipped system:\n{}",
+                diff.join("\n")
+            );
+        }
+    }
 }
