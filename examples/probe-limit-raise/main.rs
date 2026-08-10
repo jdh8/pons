@@ -46,9 +46,9 @@ fn main() {
 
     let mut off = Agreements::default();
     off.response.limit_raise_acceptance = false;
-    let baseline = american(&off).against();
-    let treatment = american(&Agreements::default()).against();
-    let stances = [baseline, treatment];
+    let baseline = american(&off).bind();
+    let treatment = american(&Agreements::default()).bind();
+    let partnerships = [baseline, treatment];
 
     let deals = seeded_deals(args.seed, args.count);
     let auctions: Vec<[_; 2]> = deals
@@ -56,7 +56,7 @@ fn main() {
         .enumerate()
         .map(|(index, deal)| {
             let dealer = Seat::ALL[index % 4];
-            std::array::from_fn(|arm| bid_uncontested(&stances[arm], dealer, vul, deal))
+            std::array::from_fn(|arm| bid_uncontested(&partnerships[arm], dealer, vul, deal))
         })
         .collect();
 

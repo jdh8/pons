@@ -17,9 +17,9 @@ fn fixture() -> (Hand, Inferences) {
         .iter()
         .map(|c| c.parse().expect("valid test call"))
         .collect();
-    let stance = american(&pons::bidding::agreements::Agreements::default()).against();
+    let partnership = american(&pons::bidding::agreements::Agreements::default()).bind();
     let vul = relative(AbsoluteVulnerability::NONE, Seat::North);
-    (hand, stance.infer(vul, &auction))
+    (hand, partnership.infer(vul, &auction))
 }
 
 /// The `bits` columns the trainer's `--arm ben` leaves live, re-derived from
@@ -166,9 +166,9 @@ fn auction_block_encodes_stayman() {
     // Invitational with both four-card majors — a live Stayman hand, so
     // the alerted 2♣ rule gives it a finite logit and wins attribution.
     let hand: Hand = "AQ32.KJ54.876.54".parse().expect("valid test hand");
-    let stance = american(&pons::bidding::agreements::Agreements::default()).against();
+    let partnership = american(&pons::bidding::agreements::Agreements::default()).bind();
     let vul = relative(AbsoluteVulnerability::NONE, Seat::South);
-    let alert = stance
+    let alert = partnership
         .explain_call(hand, vul, &auction[..2], auction[2])
         .and_then(|(_, rule)| rule)
         .and_then(|rule| rule.alert);

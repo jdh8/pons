@@ -8,7 +8,7 @@ use common::*;
 /// At `2♣ -`: the right response for various hand types
 #[test]
 fn test_responses_to_two_clubs() {
-    let system = stance();
+    let system = partnership();
     let auction = &[call(2, Strain::Clubs), Call::Pass][..];
 
     // 1 HCP — double negative (0–3 HCP).
@@ -38,7 +38,7 @@ fn test_responses_to_two_clubs() {
 /// At `2♣ - 2♦ -`: opener rebids shape or notrump range
 #[test]
 fn test_opener_rebid_after_waiting() {
-    let system = stance();
+    let system = partnership();
     let auction = &[
         call(2, Strain::Clubs),
         Call::Pass,
@@ -63,7 +63,7 @@ fn test_opener_rebid_after_waiting() {
 /// At `2♣ - 2♦ - 2♠ -`: responder supports or retreats
 #[test]
 fn test_resp_after_waiting_spades() {
-    let system = stance();
+    let system = partnership();
     let auction = &[
         call(2, Strain::Clubs),
         Call::Pass,
@@ -91,7 +91,7 @@ fn test_resp_after_waiting_spades() {
 /// At `2♣ - 2♦ - 2♠ - 3♠ -`: sign off or launch RKCB
 #[test]
 fn test_opener_after_spades_raise() {
-    let system = stance();
+    let system = partnership();
     let auction = &[
         call(2, Strain::Clubs),
         Call::Pass,

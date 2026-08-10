@@ -25,7 +25,7 @@ use pons::bidding::agreements::Agreements;
 use pons::bidding::american::american_book;
 use pons::bidding::evaluator::trick_estimates;
 use pons::bidding::fallback::Fallback;
-use pons::bidding::{Relative, Stance, Table, american, instinct};
+use pons::bidding::{Partnership, Relative, Table, american, instinct};
 use pons::scoring::{final_contract, imps};
 use pons_dds::{Par, Solver, TrickCountTable, Vulnerability, calculate_par, solve_deal_on};
 use rand::SeedableRng as _;
@@ -87,7 +87,7 @@ struct Snapshot<'a> {
 
 /// One dealt board and its auction state
 struct Board {
-    table: Table<Stance, Stance>,
+    table: Table<Partnership, Partnership>,
     deal: FullDeal,
     dealer: Seat,
     vul: AbsoluteVulnerability,
@@ -114,7 +114,7 @@ struct HintRow {
 impl Board {
     /// Price every strain for the side to act, off what the auction has shown
     ///
-    /// Declarer is whichever of us the net rates higher — the pair picks the
+    /// Declarer is whichever of us the net rates higher — the system picks the
     /// better hand to play it, so the useful number is the max, not our own.
     fn hint(&self) -> Vec<HintRow> {
         let seat = self.table.seat_to_act(self.auction.len());
@@ -395,7 +395,7 @@ fn verdict_lines(
         _ => ("Result: Passed out".to_string(), 0),
     };
 
-    // Par line: the par score plus its contracts, deduped by side (a pair
+    // Par line: the par score plus its contracts, deduped by side (a system
     // expands to both declarers, which collapse to one "NS"/"EW" string).
     let par_line = if par.contracts.is_empty() {
         "Par: Passed out".to_string()
@@ -668,7 +668,7 @@ impl WebTable {
         let ns = pons::american(&agreements());
         let ew = pons::american(&agreements());
         let mut board = Board {
-            table: Table::of_pairs(&ns, &ew, dealer, vul),
+            table: Table::of_systems(&ns, &ew, dealer, vul),
             deal,
             dealer,
             vul,
@@ -715,11 +715,11 @@ struct RuleJson {
 #[wasm_bindgen]
 #[must_use]
 pub fn book() -> String {
-    let pair = american_book(&agreements());
+    let system = american_book(&agreements());
     let books: [(&str, &pons::Trie); 3] = [
-        ("constructive", &pair.constructive.0),
-        ("competitive", &pair.competitive.0),
-        ("defensive", &pair.defensive.0),
+        ("constructive", &system.constructive.0),
+        ("competitive", &system.competitive.0),
+        ("defensive", &system.defensive.0),
     ];
 
     let mut seen: HashSet<(&str, String, usize)> = HashSet::new();
@@ -861,9 +861,9 @@ fn amend(edit: impl FnOnce(&mut Agreements)) {
     });
 }
 
-/// Define a registry row's `set`/`get` pair over one [`Agreements`] field
+/// Define a registry row's `set`/`get` system over one [`Agreements`] field
 ///
-/// One line per knob whose engine cell has been deleted.  The pair keeps the
+/// One line per knob whose engine cell has been deleted.  The system keeps the
 /// `fn(bool)` / `fn() -> bool` shape [`Setting::Toggle`] stores, so migrating a
 /// knob costs a line here and nothing in the 65-row table.
 macro_rules! knob {
@@ -909,8 +909,8 @@ knob!(set_competition_over_diamond_transfer, competition_over_diamond_transfer, 
 knob!(set_defense_to_2d_multi, defense_to_2d_multi, competition.defense_2d_multi: bool);
 
 // The classify-time half, on this value rather than the crate's thread-locals:
-// the pair carries its agreements now, so a setter that wrote a global would
-// move nothing the built stance ever reads.
+// the system carries its agreements now, so a setter that wrote a global would
+// move nothing the built partnership ever reads.
 knob!(set_garbage_stayman, garbage_stayman, decision.reading.garbage_stayman: bool);
 knob!(set_crawling_stayman, crawling_stayman, decision.reading.crawling_stayman: bool);
 knob!(set_nt_splinter, nt_splinter, decision.reading.nt_splinter: bool);
@@ -1493,7 +1493,7 @@ impl Binky {
     /// which N-S take exactly `k` tricks.
     pub fn run(&mut self, samples: u32) -> String {
         for deal in fill_deals(&mut self.rng, self.partial).take(samples as usize) {
-            // The label is the pair's best declarer, and for a suit table also
+            // The label is the system's best declarer, and for a suit table also
             // their best suit — the same `max` `examples/binky` fits against.
             let tricks = self
                 .strains

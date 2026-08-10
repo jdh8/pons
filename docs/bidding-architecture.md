@@ -10,7 +10,7 @@ convention is the `author-convention` skill; measurement is
 
 ```text
 auction + hand
-  → Stance          (book.rs — one seat's view; routes by Phase to a book)
+  → Partnership          (book.rs — one seat's view; routes by Phase to a book)
   → book Trie       (trie.rs — authored nodes keyed by auction suffix)
   →   Rules         (rules.rs — weighted, constraint-gated rule tables)
   → floor chain     (fallback.rs — when no node claims the hand)
@@ -20,10 +20,10 @@ auction + hand
 ```
 
 - **Books** (`book.rs`): `Constructive`, `Competitive`, `Defensive` tries per
-  side, bundled into `Pair`; `Stance` is one seat's runtime view
+  side, bundled into `System`; `Partnership` is one seat's runtime view
   (`classify_with_provenance`, `infer`). `Phase::of` is the single routing
-  point deciding which book an auction belongs to. `Pair::against` binds the
-  books into a `Stance`. There is no whole-system identity label (`Family`
+  point deciding which book an auction belongs to. `System::bind` binds the
+  books into a `Partnership`. There is no whole-system identity label (`Family`
   was deleted in 0.11): a system announces itself through its calls' own
   alerts and readings, and defense dispatch against a future non-natural
   book belongs in reading-gated rules, not a label argument.
@@ -66,7 +66,7 @@ auction + hand
 - Therefore: to let the floor own a position, **delete the node** (leaving it
   rule-less is not enough if any catch-all matches). Adding a smart floor rule
   under a live book node is dead code. Verify a floor rule fires through the
-  full `Stance`, not bare `instinct()` — the `ab-instinct-floor` telemetry
+  full `Partnership`, not bare `instinct()` — the `ab-instinct-floor` telemetry
   shows activations.
 - **Every rule table ends in a finite catch-all** — a table that can reject
   every hand once produced a degenerate best-call (the 7NT bug). The flip
@@ -188,10 +188,10 @@ seat-carrying `project` or the sampled projection.
   opponents' calls read through the natural walk. **Table-wide alert
   reading** (`set_table_alert_reading`, default on) extends
   disclosure to the whole table, as at a real one: each opponent call is
-  resolved in *their* phase-routed book (`Stance::trie_for` on the auction
+  resolved in *their* phase-routed book (`Partnership::trie_for` on the auction
   cut at their turn — `Phase::of` is slice-relative, so their side's phase
   falls out) under their at-the-time context, and decoded when alerted. The
-  stance models the opponents as playing our own books: exact in self-play,
+  partnership models the opponents as playing our own books: exact in self-play,
   an approximation against other natural-family engines.
 - `Inferences::read` (`inference/read.rs`) accumulates per-player `Envelope`
   (per-suit length ranges + points) from the auction — design law **soundness
@@ -231,7 +231,7 @@ seat-carrying `project` or the sampled projection.
   reasons over the auction. (The gated live-search bidder that made this acute
   was retired with the M1–M3 neural line; see the CHANGELOG.)
 - `single_dummy.rs` — MC-DD trick estimation; `single_dummy_leads` prices the
-  blind opening lead (the known DD bias at 1NT); `Stance::infer` attaches the
+  blind opening lead (the known DD bias at 1NT); `Partnership::infer` attaches the
   trie so alerted conventions decode in the leader's sampling.
 
 ## Knobs
@@ -243,25 +243,25 @@ structs. Conventions:
   ship rules); the non-default state of a shipped knob keeps an off-switch in
   `bba-gen` (`--no-ns-*` for default-on knobs).
 - **The `Agreements` value is the input, not the thread.** A system factory
-  takes `&Agreements`, bakes the books from it, and the `Pair` keeps it;
-  `Pair::against` pins its classify-time half (`agreements.decision`) into the
-  `Stance` and bakes the compiled-rule sidecar under the same value. One value,
+  takes `&Agreements`, bakes the books from it, and the `System` keeps it;
+  `System::bind` pins its classify-time half (`agreements.decision`) into the
+  `Partnership` and bakes the compiled-rule sidecar under the same value. One value,
   one build — the rules, the sidecar, the readings and the floor cannot come
-  from different reads. `Stance::agreements()` asks a built system what it
+  from different reads. `Partnership::agreements()` asks a built partnership what it
   plays.
 - A harness starts with `Agreements::default()`, writes every field that defines
-  the arm, and builds from that same value. A built stance is a pure value: hand
-  it to workers directly. An A/B arm is one agreements value and one stance.
+  the arm, and builds from that same value. A built partnership is a pure value: hand
+  it to workers directly. An A/B arm is one agreements value and one partnership.
 - Which half a setting belongs to is decided by *where it is read*, and a
   setting read at both times lives in the classify half alone, with the book
   reading it from there (`no_knob_lives_in_two_homes` enforces this across all
   eight build-time areas).
-- Set-after-build is inert until the next build. To move a setting on a stance
-  already built, edit its own pin with `Stance::profile_mut`, which does not
+- Set-after-build is inert until the next build. To move a setting on a partnership
+  already built, edit its own pin with `Partnership::profile_mut`, which does not
   rebuild the book — the hook for an eval-time-only arm, and for the two
   settings (`probed`, `probed_vacuous`) that are only knowable around a
   `probe` run.
-- A context with no stance attached (a bare `Context::new` — tests,
+- A context with no partnership attached (a bare `Context::new` — tests,
   diagnostics) falls back to `DecisionProfile::default()`; a context *derived*
   from a reader's (the per-turn walk in `project_authored`) inherits the
   reader's pin via `Context::with_profile`.

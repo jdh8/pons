@@ -18,7 +18,7 @@ use pons::bidding::agreements::Agreements;
 use pons::bidding::card::{Card, american_card, dutch_card};
 use pons::bidding::context::relative;
 use pons::bidding::features::{Config, ConventionCard};
-use pons::bidding::{Bidder, Stance};
+use pons::bidding::{Bidder, Partnership};
 use pons::scoring::{
     final_contract, imps, ns_score_contract, ns_score_pd, ns_score_pd_tricks, ns_score_tricks,
 };
@@ -95,14 +95,14 @@ pub fn seeded_deals(base: u64, count: usize) -> Vec<FullDeal> {
 
 /// The highest-logit *legal* call, defaulting to a pass
 pub fn next_call(
-    stance: &Stance,
+    partnership: &Partnership,
     hand: Hand,
     dealer: Seat,
     vul: AbsoluteVulnerability,
     auction: &Auction,
 ) -> Call {
     let seat = seat_to_act(dealer, auction.len());
-    let Some(logits) = stance.classify(hand, relative(vul, seat), auction) else {
+    let Some(logits) = partnership.classify(hand, relative(vul, seat), auction) else {
         return Call::Pass;
     };
     let mut scored: Vec<(Call, f32)> = logits
@@ -120,8 +120,8 @@ pub fn next_call(
 
 /// Bid one deal with the convention pair on the side picked by `conv_is_ns`
 pub fn bid_out(
-    conv: &Stance,
-    baseline: &Stance,
+    conv: &Partnership,
+    baseline: &Partnership,
     conv_is_ns: bool,
     dealer: Seat,
     vul: AbsoluteVulnerability,
@@ -131,19 +131,19 @@ pub fn bid_out(
     while !auction.has_ended() {
         let seat = seat_to_act(dealer, auction.len());
         let seat_is_ns = matches!(seat, Seat::North | Seat::South);
-        let stance = if seat_is_ns == conv_is_ns {
+        let partnership = if seat_is_ns == conv_is_ns {
             conv
         } else {
             baseline
         };
-        auction.push(next_call(stance, deal[seat], dealer, vul, &auction));
+        auction.push(next_call(partnership, deal[seat], dealer, vul, &auction));
     }
     auction
 }
 
 /// Bid one deal with the opponents (East/West) forced to pass throughout
 pub fn bid_uncontested(
-    stance: &Stance,
+    partnership: &Partnership,
     dealer: Seat,
     vul: AbsoluteVulnerability,
     deal: &FullDeal,
@@ -154,7 +154,7 @@ pub fn bid_uncontested(
         let call = if matches!(seat, Seat::East | Seat::West) {
             Call::Pass
         } else {
-            next_call(stance, deal[seat], dealer, vul, &auction)
+            next_call(partnership, deal[seat], dealer, vul, &auction)
         };
         auction.push(call);
     }
@@ -282,7 +282,7 @@ pub struct SdScores {
 /// play +7pp of make-rate on slams) and once with a declarer who chooses
 /// every card over worlds consistent with the auction instead of peeking
 /// (the pessimist — its misguess haircut measures ≈1.5× the real one).
-/// `stance` reads the auction for both modelled views (the leader's and
+/// `partnership` reads the auction for both modelled views (the leader's and
 /// declarer's); a pass-out scores 0.
 ///
 /// Each endpoint is priced `[plain, perfect-defense]` ([`ns_score_tricks`]
@@ -304,7 +304,7 @@ pub fn sd_declarer_ns_score(
     auction: &Auction,
     dealer: Seat,
     deal: &FullDeal,
-    stance: &Stance,
+    partnership: &Partnership,
     vul: AbsoluteVulnerability,
     rng: &mut StdRng,
     lead_worlds: usize,
@@ -321,7 +321,7 @@ pub fn sd_declarer_ns_score(
         let cut = (auction.len().saturating_sub(3)..=auction.len())
             .find(|&len| seat_to_act(dealer, len) == seat)
             .expect("one of four consecutive lengths reaches every seat");
-        stance.infer(relative(vul, seat), &auction[..cut])
+        partnership.infer(relative(vul, seat), &auction[..cut])
     };
     let (_, lead_tricks, line_tricks) = pons::single_dummy_declarer_tricks(
         deal,
@@ -567,24 +567,24 @@ pub fn report_sd_brackets(
 /// receives the complete [`Agreements`] value for the system being described,
 /// edits the fields it should carry, and passes the result — two
 /// differently-configured books can then coexist on one thread.
-pub fn seat_floor(name: &str, agreements: &Agreements) -> anyhow::Result<Stance> {
+pub fn seat_floor(name: &str, agreements: &Agreements) -> anyhow::Result<Partnership> {
     Ok(match name {
-        "american" => pons::american(agreements).against(),
+        "american" => pons::american(agreements).bind(),
         // The authored books with no floor at all: a driver seating this passes
         // whenever the books run out.  The floor ablation's other end.
-        "american-book" => pons::bidding::american::american_book(agreements).against(),
-        "dutch" => pons::dutch(agreements).against(),
+        "american-book" => pons::bidding::american::american_book(agreements).bind(),
+        "dutch" => pons::dutch(agreements).bind(),
         // The deterministic pre-swap floors: the fixed baselines now that
         // `american` and `dutch` both ship the BBA net.
-        "american-instinct" => pons::american_instinct(agreements).against(),
-        "dutch-instinct" => pons::dutch_instinct(agreements).against(),
+        "american-instinct" => pons::american_instinct(agreements).bind(),
+        "dutch-instinct" => pons::dutch_instinct(agreements).bind(),
         // The book ablation: no authored book at all, the same floor wiring
         // `american` uses.  `american` − `american-floor` prices the book.
-        "american-floor" => pons::american_floor(agreements).against(),
+        "american-floor" => pons::american_floor(agreements).bind(),
         // The compact-config (v5) candidates: same books, the regime reaches
         // the net as both sides' `ConventionCard` instead of the card blocks.
-        "american-v5" => pons::bidding::american::american_v5(agreements).against(),
-        "dutch-v5" => pons::bidding::dutch::dutch_v5(agreements).against(),
+        "american-v5" => pons::bidding::american::american_v5(agreements).bind(),
+        "dutch-v5" => pons::bidding::dutch::dutch_v5(agreements).bind(),
         other => anyhow::bail!(
             "floor must be american|american-book|american-instinct|american-floor|american-v5|dutch|dutch-instinct|dutch-v5, got {other:?}"
         ),
@@ -637,14 +637,17 @@ pub fn floor_card(name: &str, agreements: &Agreements) -> anyhow::Result<Card> {
 /// floors are refused rather than silently ignored: an arm that quietly kept a
 /// symmetric config would be incomparable to its sibling with nothing in the
 /// output saying so.
-pub fn seat_floor_vs(name: &str, theirs: &Card, agreements: &Agreements) -> anyhow::Result<Stance> {
+pub fn seat_floor_vs(
+    name: &str,
+    theirs: &Card,
+    agreements: &Agreements,
+) -> anyhow::Result<Partnership> {
     Ok(match name {
         "american" => {
-            pons::american_with_card(agreements, &ConventionCard::from_card(theirs)).against()
+            pons::american_with_card(agreements, &ConventionCard::from_card(theirs)).bind()
         }
         "dutch" => {
-            pons::dutch_with_config(agreements, Config::new(&dutch_card(agreements), theirs))
-                .against()
+            pons::dutch_with_config(agreements, Config::new(&dutch_card(agreements), theirs)).bind()
         }
         other => anyhow::bail!(
             "--declare-opponents needs a net floor to declare them to: \
@@ -685,7 +688,7 @@ pub fn deviant_floor(
     overcall_four_card: bool,
     offshape_1nt: bool,
     wild_weak_two: bool,
-) -> anyhow::Result<Stance> {
+) -> anyhow::Result<Partnership> {
     let mut agreements = Agreements::default();
     agreements.decision.reading.strength_dial = dial;
     agreements.opening = base.opening;
@@ -700,16 +703,16 @@ pub fn deviant_floor(
     }
 }
 
-/// A copy of `stance` that reads with the *opponents'* readings blanked — the
+/// A copy of `partnership` that reads with the *opponents'* readings blanked — the
 /// `blind` arm of the deviation panel.
 ///
-/// The setting is pinned into a stance when it is built, so one side of the
+/// The setting is pinned into a partnership when it is built, so one side of the
 /// table can go blind while a pons book on the *other* side keeps its readings:
-/// the two stances hold different pins.  [`Stance::profile_mut`] moves this
-/// stance's copy without rebuilding the book underneath, and without touching
+/// the two partnerships hold different pins.  [`Partnership::profile_mut`] moves this
+/// partnership's copy without rebuilding the book underneath, and without touching
 /// any state the caller shares.
-pub fn blinded(stance: &Stance) -> Stance {
-    let mut out = stance.clone();
+pub fn blinded(partnership: &Partnership) -> Partnership {
+    let mut out = partnership.clone();
     out.profile_mut().reading.blind_opponents = true;
     out
 }

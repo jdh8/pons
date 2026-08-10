@@ -41,7 +41,7 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::american::SizeAskEight;
 use pons::bidding::context::relative;
-use pons::bidding::{Inferences, Stance};
+use pons::bidding::{Inferences, Partnership};
 use pons::scoring::{
     final_contract, imps, ns_score_contract, ns_score_pd, ns_score_pd_tricks, ns_score_tricks,
 };
@@ -104,10 +104,10 @@ fn responder_is_flat(deal: &FullDeal) -> Option<bool> {
 }
 
 /// The (contract, declarer, leader-view inferences) of one auction, read through
-/// `stance`; `None` for a pass-out (sd score 0).  Mirrors `ab-notrump-minors`.
+/// `partnership`; `None` for a pass-out (sd score 0).  Mirrors `ab-notrump-minors`.
 fn lead_inputs(
     auction: &Auction,
-    stance: &Stance,
+    partnership: &Partnership,
     dealer: Seat,
     vul: AbsoluteVulnerability,
 ) -> Option<(Contract, Seat, Inferences)> {
@@ -119,7 +119,7 @@ fn lead_inputs(
     Some((
         contract,
         declarer,
-        stance.infer(relative(vul, leader), &auction[..cut]),
+        partnership.infer(relative(vul, leader), &auction[..cut]),
     ))
 }
 
@@ -158,10 +158,10 @@ fn main() {
     // independent thereafter.
     let mut arm = pons::bidding::agreements::Agreements::default();
     arm.notrump.size_ask_eight = SizeAskEight::Invite;
-    let invite = american(&arm).against();
+    let invite = american(&arm).bind();
     arm.notrump.size_ask_eight = SizeAskEight::Pass;
-    let pass = american(&arm).against();
-    let stances = [invite, pass];
+    let pass = american(&arm).bind();
+    let partnerships = [invite, pass];
 
     let deals = seeded_deals(base, args.count);
     let bids: Vec<ArmBids> = deals
@@ -170,7 +170,7 @@ fn main() {
         .map(|(index, deal)| {
             let dealer = Seat::ALL[index % 4];
             std::array::from_fn(|arm| {
-                let auction = bid_uncontested(&stances[arm], dealer, vul, deal);
+                let auction = bid_uncontested(&partnerships[arm], dealer, vul, deal);
                 let contract = final_contract(&auction, dealer);
                 (auction, contract)
             })
@@ -212,7 +212,7 @@ fn main() {
         let dealer = Seat::ALL[i % 4];
         for arm in [0usize, 1usize] {
             if let Some((contract, declarer, inferences)) =
-                lead_inputs(&bids[i][arm].0, &stances[arm], dealer, vul)
+                lead_inputs(&bids[i][arm].0, &partnerships[arm], dealer, vul)
             {
                 pending.push((i, arm, contract, declarer));
                 questions.push(LeadQuestion {

@@ -7,7 +7,7 @@
 # cachalot / sputnik. Pairs vs modern with plain+pd, plus sd-lead 16 worlds —
 # right-siding is DD-blind and is Cachalot's whole thesis, so sd is the
 # arbiter. The ON arm's school is disclosed to the blind leader; the OFF arm
-# (modern) is ab-dump-sd's default stance, correct by construction.
+# (modern) is ab-dump-sd's default partnership, correct by construction.
 #
 #   setsid nohup scripts/idle-run.sh scripts/ab-school-negx.sh \
 #       ab-results/school-negx >ab-results/school-negx.log 2>&1 &

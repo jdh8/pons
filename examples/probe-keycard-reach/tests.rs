@@ -10,12 +10,12 @@ fn calls(strs: &[&str]) -> Vec<Call> {
 /// The winning rule's prose for `call` at this point of a North-dealt
 /// auction, `""` when no authored rule serves it.
 fn describe(auction: &[&str], hand: &str, call: &str) -> String {
-    let stance = american(&pons::bidding::agreements::Agreements::default()).against();
+    let partnership = american(&pons::bidding::agreements::Agreements::default()).bind();
     let auction = calls(auction);
     let hand: Hand = hand.parse().expect("valid test hand");
     let seat = Seat::ALL[auction.len() % 4];
     let rel = relative(AbsoluteVulnerability::NONE, seat);
-    stance
+    partnership
         .explain_call(hand, rel, &auction, call.parse().expect("valid test call"))
         .and_then(|(_, rule)| rule)
         .map_or(String::new(), |rule| rule.description)
@@ -47,8 +47,8 @@ fn splinter_shows_shortness() {
     // both).  Pin the knob off for the realization assert.
     let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.reading.envelope_union = false;
-    let stance = american(&agreements).against();
-    let inferences = stance.infer(rel, &auction);
+    let partnership = american(&agreements).bind();
+    let inferences = partnership.infer(rel, &auction);
     assert!(
         inferences
             .partner()

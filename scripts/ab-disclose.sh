@@ -12,7 +12,7 @@
 #   blind   --disclose off                 (every anchor recorded before 2026-07-28)
 #   told    --disclose cards/American.bbsa (BBA reads our alerts)
 #
-# Both arms name their stance explicitly: `--disclose` now defaults to
+# Both arms name their partnership explicitly: `--disclose` now defaults to
 # `generated`, so neither is the default any more and an unflagged arm would
 # quietly be a third thing.
 #

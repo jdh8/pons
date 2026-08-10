@@ -446,7 +446,7 @@ fn main() {
     baseline_arm.defense.natural_double_shape = ew_double_shape;
     baseline_arm.defense.direct_landy_double_floor = 15;
     baseline_arm.defense.direct_landy_penalty_pass = false;
-    let baseline = american(&baseline_arm).against();
+    let baseline = american(&baseline_arm).bind();
     let mut measured_arm = pons::bidding::agreements::Agreements::default();
     measured_arm.instinct.doubler_xx_runout = ns_doubler_run;
     measured_arm.decision.reading.penalty_latch = ns_penalty_latch;
@@ -487,7 +487,7 @@ fn main() {
     measured_arm.defense.direct_landy_penalty_pass =
         parse_on_off(&args.ns_landy_x_penalty, "--ns-landy-x-penalty");
     measured_arm.defense.doubled_landy_escape = ns_doubled_escape;
-    let measured = american(&measured_arm).against();
+    let measured = american(&measured_arm).bind();
 
     // Each board at both tables (Landy NS at A, EW at B), dealer rotating.
     // Any system difference between the two pairs makes every hand with a

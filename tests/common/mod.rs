@@ -1,10 +1,10 @@
 //! Shared harness for the `american_*` integration tests.
 //!
 //! Each test file pulls it in with `mod common;` then `use common::*;`, which
-//! brings the three helpers (`call`, `stance`, `best_call`) and the auction
+//! brings the three helpers (`call`, `partnership`, `best_call`) and the auction
 //! types the assertions name into scope.  A file that needs a variant — the
 //! legality-filtered `best_call` for contested auctions, the knob-setting
-//! `stance` — defines its own locally, which shadows the glob import.
+//! `partnership` — defines its own locally, which shadows the glob import.
 //!
 //! `dead_code`/`unused_imports` are allowed because every test crate compiles
 //! this module in full yet uses only the subset it names.
@@ -19,7 +19,7 @@ pub use contract_bridge::{Bid, Hand, Strain};
 // aggregate by the `ab-*` A/B harnesses, never by pinning individual calls.
 pub use pons::american_instinct as american;
 pub use pons::bidding::array::Logits;
-pub use pons::bidding::{Bidder, Stance};
+pub use pons::bidding::{Bidder, Partnership};
 
 /// Shorthand for a bid call at `level`/`strain`.
 pub const fn call(level: u8, strain: Strain) -> Call {
@@ -28,8 +28,8 @@ pub const fn call(level: u8, strain: Strain) -> Call {
 
 /// The 2/1 pair bound against natural opponents (the deterministic instinct
 /// floor — see the `american` re-export note above).
-pub fn stance() -> Stance {
-    american(&pons::bidding::agreements::Agreements::default()).against()
+pub fn partnership() -> Partnership {
+    american(&pons::bidding::agreements::Agreements::default()).bind()
 }
 
 /// The single highest-logit call the system assigns the hand for the auction.

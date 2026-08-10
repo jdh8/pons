@@ -13,7 +13,7 @@ const P: Call = Call::Pass;
 /// Responder with slam values launches keycard (4NT) over opener's 3NT.
 #[test]
 fn responder_launches_minor_keycard_over_3nt() {
-    let system = stance();
+    let system = partnership();
     // 1♣ - 2♣ - 3NT - — responder to act.
     let auction = [
         call(1, Strain::Clubs),
@@ -33,7 +33,7 @@ fn responder_launches_minor_keycard_over_3nt() {
 /// Without extra values, responder passes the cold 3NT (no keycard).
 #[test]
 fn responder_passes_3nt_without_slam_values() {
-    let system = stance();
+    let system = partnership();
     let auction = [
         call(1, Strain::Clubs),
         P,
@@ -49,7 +49,7 @@ fn responder_passes_3nt_without_slam_values() {
 /// Over responder's 4NT, opener gives a keycard answer (the ask is wired).
 #[test]
 fn opener_answers_keycard_in_inverted_minor() {
-    let system = stance();
+    let system = partnership();
     // 1♣ - 2♣ - 3NT - 4NT - — opener to answer.
     let auction = [
         call(1, Strain::Clubs),
@@ -73,7 +73,7 @@ fn opener_answers_keycard_in_inverted_minor() {
 /// A 28+ HCP opener launches keycard rather than blasting the slam blind.
 #[test]
 fn strong_two_opener_launches_minor_keycard() {
-    let system = stance();
+    let system = partnership();
     // 2♣ - 2♦ - 3♣ - 4♣ - — opener to act.
     let auction = [
         call(2, Strain::Clubs),
@@ -98,7 +98,7 @@ fn strong_two_opener_launches_minor_keycard() {
 /// instinct floor — no node is authored after the placement).
 #[test]
 fn opener_passes_the_minor_slam_placement() {
-    let system = stance();
+    let system = partnership();
     // 1♣ - 2♣ - 3NT - 4NT - 5♣ - 6♣ - — opener (the answerer) to act.
     let auction = [
         call(1, Strain::Clubs),
@@ -127,7 +127,7 @@ fn opener_passes_the_minor_slam_placement() {
 fn knob_off_restores_the_pre_keycard_book() {
     let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.instinct.keycard_minors = false;
-    let system = pons::american(&agreements).against();
+    let system = pons::american(&agreements).bind();
 
     let strong_two = [
         call(2, Strain::Clubs),

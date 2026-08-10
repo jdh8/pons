@@ -222,7 +222,7 @@ fn projection_contains_every_accepted_hand() {
 /// the projection pass reads it off the authored rule's own `len`/`points`
 /// constraint, the single source of truth.  Three declarative anchors:
 /// `transfer_major_reading` (the cleanest, uncontested), `leaping_michaels`,
-/// and `landy` core — each on a *prefixed* context via `Stance`, the trie
+/// and `landy` core — each on a *prefixed* context via `Partnership`, the trie
 /// access M6.2c will wire into the keyless sampler/features paths for real.
 /// Opaque (`described()`) conventions project no info and need M6.2d, so they
 /// are out of this harness.
@@ -249,8 +249,8 @@ fn projection_reproduces_the_declarative_readers() {
                  who: Relative,
                  suits: &[(Suit, Range)],
                  points: Range| {
-        let stance = american(agreements).against();
-        let ctx = stance.prefixed_context(RelativeVulnerability::NONE, auction);
+        let partnership = american(agreements).bind();
+        let ctx = partnership.prefixed_context(RelativeVulnerability::NONE, auction);
         let reader = *Inferences::read(&ctx).get(who);
         let projected = *authored_reading(&ctx).get(who);
         for &(suit, want) in suits {

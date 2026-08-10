@@ -209,10 +209,10 @@ fn main() {
     // the knobs are read only at book-construction time, so each arm bakes its
     // own books; `two_over_one_force` is the exception — a classify-time read,
     // re-set per arm inside the worker below.
-    let baseline = american(&arm_knobs(&args, false)).against();
-    let treatment = american(&arm_knobs(&args, true)).against();
+    let baseline = american(&arm_knobs(&args, false)).bind();
+    let treatment = american(&arm_knobs(&args, true)).bind();
     arm_knobs(&args, false);
-    let stances = [baseline, treatment];
+    let partnerships = [baseline, treatment];
 
     // Deals are seeded per board (base + index) so any arm of the experiment
     // replays the identical deal set; bidding is pure and parallelizes, the
@@ -224,11 +224,11 @@ fn main() {
         .map(|(index, deal)| {
             let dealer = Seat::ALL[index % 4];
             std::array::from_fn(|arm| {
-                // Every knob is captured into `stances[arm]` at build, the
+                // Every knob is captured into `partnerships[arm]` at build, the
                 // classify-time ones (`two_over_one_force`,
                 // `two_over_one_slam_strength`) included, so the worker needs no
                 // arming of its own.
-                let auction = bid_uncontested(&stances[arm], dealer, vul, deal);
+                let auction = bid_uncontested(&partnerships[arm], dealer, vul, deal);
                 final_contract(&auction, dealer)
             })
         })

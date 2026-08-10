@@ -64,7 +64,7 @@ see the cards. A double-dummy search can.
 
 > **Meaning stays authored. Judgement moves to DD.**
 
-This is the same "net proposes, search disposes" stance the search floor already
+This is the same "net proposes, search disposes" partnership the search floor already
 takes ([`search_floor.rs:9`](../../../src/bidding/search_floor.rs)), widened: the
 proposer is no longer only the net — it is the **authored leaf**, optionally
 unioned with the net. The leaf's logits become *a prior*, not a verdict.
@@ -98,7 +98,7 @@ rule that authored only one call.)
 **Where it attaches.** A search-aware classification path: when `classify_floored`
 resolves a book leaf with mass and the situation is not forced, feed those logits
 (∪ net) through the three steps instead of returning them raw. Cleanest as a
-`Pair`/`Table`-level wrapper or a `Trie` method variant, exposed as a new gated
+`System`/`Table`-level wrapper or a `Trie` method variant, exposed as a new gated
 constructor (e.g. `american_search_book()`) alongside `american_search()`.
 `instinct()` and `american()` are untouched; the new bidder is opt-in behind the
 `search` feature.

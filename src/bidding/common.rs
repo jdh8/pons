@@ -10,7 +10,7 @@ use super::fallback::{Always, Fallback, Guard};
 use super::features::{CompactConfig, Config};
 use super::instinct::instinct;
 use super::neural_floor::{ConfiguredFloorBba, ConfiguredFloorV5};
-use super::{Pair, Rules, Trie};
+use super::{Rules, System, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
 use std::sync::Arc;
@@ -61,7 +61,7 @@ pub(in crate::bidding) fn fallback_all_seats(
 // Floor attachment
 // ---------------------------------------------------------------------------
 
-/// Attach one ladder and one contested floor to a pair's three books
+/// Attach one ladder and one contested floor to a system's three books
 ///
 /// A root `Always` fallback on both contested books, shared through the
 /// `Fallback`'s `Arc`.  Resolution reaches the root last, so the floor never
@@ -79,46 +79,53 @@ pub(in crate::bidding) fn fallback_all_seats(
 /// situations to it, and [`instinct()`] itself reads the pinned profile at
 /// build time (its RKCB fields pick the kickback ladder over the plain one).
 /// Two independent builds could disagree; one `Arc` cannot.
-fn with_floors(mut pair: Pair, ladder: &Arc<Rules>, contested: Fallback) -> Pair {
-    pair.competitive.fallback_at(&[], Always, contested.clone());
-    pair.defensive.fallback_at(&[], Always, contested);
-    pair.constructive
+fn with_floors(mut system: System, ladder: &Arc<Rules>, contested: Fallback) -> System {
+    system
+        .competitive
+        .fallback_at(&[], Always, contested.clone());
+    system.defensive.fallback_at(&[], Always, contested);
+    system
+        .constructive
         .fallback_at(&[], Always, Fallback::Classify(ladder.clone()));
-    pair
+    system
 }
 
-/// Attach the card-input (v4) BBA-distilled floor to a pair's contested books
+/// Attach the card-input (v4) BBA-distilled floor to a system's contested books
 ///
 /// Since the 2026-08-08 swap this backs [`dutch`][super::dutch::dutch] (whose
 /// v5 twin is ungated) and the declared-opponent entry point
 /// [`american_with_config`][super::american::american_with_config];
 /// [`american`][super::american::american] moved to [`with_floor_v5`].
-pub(in crate::bidding) fn with_floor(pair: Pair, config: Config, agreements: &Agreements) -> Pair {
+pub(in crate::bidding) fn with_floor(
+    system: System,
+    config: Config,
+    agreements: &Agreements,
+) -> System {
     let ladder = Arc::new(instinct(agreements));
     let contested = Fallback::classify(ConfiguredFloorBba::new(config, Arc::clone(&ladder)));
-    with_floors(pair, &ladder, contested)
+    with_floors(system, &ladder, contested)
 }
 
-/// Attach the compact-config (v5) BBA-distilled floor to a pair's contested books
+/// Attach the compact-config (v5) BBA-distilled floor to a system's contested books
 ///
 /// [`with_floor`]'s v5 sibling — the shipped default for
 /// [`american`][super::american::american] since its 2026-08-08 gate A/B, and
 /// the opt-in behind [`dutch_v5`][super::dutch::dutch_v5].
 pub(in crate::bidding) fn with_floor_v5(
-    pair: Pair,
+    system: System,
     compact: CompactConfig,
     agreements: &Agreements,
-) -> Pair {
+) -> System {
     let ladder = Arc::new(instinct(agreements));
     let contested = Fallback::classify(ConfiguredFloorV5::new(compact, Arc::clone(&ladder)));
-    with_floors(pair, &ladder, contested)
+    with_floors(system, &ladder, contested)
 }
 
-/// Attach the deterministic instinct floor to a pair's contested books
+/// Attach the deterministic instinct floor to a system's contested books
 ///
 /// The fully-disclosable reference wiring: one ladder on all three books.
-pub(in crate::bidding) fn with_instinct_floor(pair: Pair, agreements: &Agreements) -> Pair {
+pub(in crate::bidding) fn with_instinct_floor(system: System, agreements: &Agreements) -> System {
     let ladder = Arc::new(instinct(agreements));
     let contested = Fallback::Classify(ladder.clone());
-    with_floors(pair, &ladder, contested)
+    with_floors(system, &ladder, contested)
 }

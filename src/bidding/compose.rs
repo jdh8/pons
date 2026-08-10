@@ -1,6 +1,6 @@
 //! Lazy composition of bidding systems
 //!
-//! These combinators wrap arbitrary [`Bidder`]s — a bound [`Stance`], a
+//! These combinators wrap arbitrary [`Bidder`]s — a bound [`Partnership`], a
 //! learned model, anything implementing the trait — so they stay lazy
 //! wrapper structs rather than materialized tries.  Structural fusion of
 //! books belongs to `merge` on [`Trie`] instead.
@@ -8,7 +8,7 @@
 //! Neither combinator touches vulnerability: per the [`Bidder`] convention
 //! it is relative to the side to act, so it passes through unchanged.
 //!
-//! [`Stance`]: super::book::Stance
+//! [`Partnership`]: super::book::Partnership
 //! [`Trie`]: super::Trie
 
 use super::Bidder;

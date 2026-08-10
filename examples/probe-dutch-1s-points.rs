@@ -19,8 +19,8 @@ use pons::{Bidder, dutch};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 
-fn opens_one_spade(stance: &pons::Stance, hand: Hand) -> bool {
-    let Some(logits) = stance.classify(hand, RelativeVulnerability::NONE, &[]) else {
+fn opens_one_spade(partnership: &pons::Partnership, hand: Hand) -> bool {
+    let Some(logits) = partnership.classify(hand, RelativeVulnerability::NONE, &[]) else {
         return false;
     };
     let best = (&logits.0)
@@ -56,7 +56,7 @@ fn main() {
     let count: usize = argv.next().and_then(|s| s.parse().ok()).unwrap_or(500_000);
     let seed: u64 = argv.next().and_then(|s| s.parse().ok()).unwrap_or(0);
 
-    let stance = dutch(&pons::bidding::agreements::Agreements::default()).against();
+    let partnership = dutch(&pons::bidding::agreements::Agreements::default()).bind();
     let mut rng = StdRng::seed_from_u64(seed);
     let mut points = Vec::new();
     let mut support = Vec::new();
@@ -64,7 +64,7 @@ fn main() {
         let deal = full_deal(&mut rng);
         for seat in [Seat::North, Seat::East, Seat::South, Seat::West] {
             let hand = deal[seat];
-            if opens_one_spade(&stance, hand) {
+            if opens_one_spade(&partnership, hand) {
                 points.push(point_count(hand));
                 support.push(support_point_count(hand));
             }

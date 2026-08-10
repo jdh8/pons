@@ -41,7 +41,7 @@ use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
 use pons::bidding::context::relative;
 use pons::bidding::evaluator::trick_estimates;
 use pons::bidding::sampler::{sample_layouts, sample_layouts_replay};
-use pons::bidding::{Bidder, Phase, Relative, Stance};
+use pons::bidding::{Bidder, Partnership, Phase, Relative};
 use pons::{american, dutch};
 use rand::rngs::StdRng;
 use rand::{RngExt, SeedableRng};
@@ -137,9 +137,9 @@ impl Mean {
 
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
-    let stance: Stance = match args.system.as_str() {
-        "american" => american(&pons::bidding::agreements::Agreements::default()).against(),
-        "dutch" => dutch(&pons::bidding::agreements::Agreements::default()).against(),
+    let partnership: Partnership = match args.system.as_str() {
+        "american" => american(&pons::bidding::agreements::Agreements::default()).bind(),
+        "dutch" => dutch(&pons::bidding::agreements::Agreements::default()).bind(),
         other => anyhow::bail!("--system must be american|dutch, got {other:?}"),
     };
     let deals = pons::pdd::load_slice(&args.deals, args.skip, args.boards)?;
@@ -172,7 +172,7 @@ fn main() -> anyhow::Result<()> {
             let seat = Seat::ALL[(dealer + auction.len()) % 4];
             let hand = deal[seat];
             let rel = relative(vul, seat);
-            let Some(mut logits) = stance.classify(hand, rel, &auction) else {
+            let Some(mut logits) = partnership.classify(hand, rel, &auction) else {
                 auction.push(Call::Pass);
                 continue;
             };
@@ -182,14 +182,14 @@ fn main() -> anyhow::Result<()> {
                 }
             }
 
-            let inferences = stance.infer(rel, &auction);
+            let inferences = partnership.infer(rel, &auction);
             let sampled = if args.bare {
                 sample_layouts(hand, seat, &inferences, &mut rng, args.layouts)
             } else {
                 sample_layouts_replay(
                     hand,
                     seat,
-                    &stance,
+                    &partnership,
                     rel,
                     &auction,
                     &inferences,

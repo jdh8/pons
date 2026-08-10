@@ -1,7 +1,7 @@
 //! Measure a point-count scale change: an A/B duplicate match.  Each board is
 //! bid twice, duplicate style: at table A the candidate pair sits North/South
 //! against a baseline pair (table B swaps seats), each side bidding off its own
-//! pinned stance.  Boards whose two auctions reach different
+//! pinned partnership.  Boards whose two auctions reach different
 //! contracts are solved double dummy once and scored with plain DD and
 //! perfect defense; `--sd` adds the blind-lead single-dummy bracket that sits
 //! between the two (DD is too pessimistic on part-scores), crediting the
@@ -40,7 +40,7 @@ use pons::bidding::agreements::Agreements;
 use pons::bidding::american::{TwoOverOneGate, WeakTwoEval};
 use pons::bidding::constraint::PointScale;
 use pons::bidding::context::relative;
-use pons::bidding::{Bidder, Inferences, Stance};
+use pons::bidding::{Bidder, Inferences, Partnership};
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd_tricks, ns_score_tricks};
 use pons::single_dummy::{LeadQuestion, single_dummy_leads};
 
@@ -284,7 +284,7 @@ enum Arms {
 
 impl Arms {
     /// Arm this side's knob, to be read by the `american()` build that follows
-    /// Move this arm's gauge on one built stance's own pinned profile
+    /// Move this arm's gauge on one built partnership's own pinned profile
     fn apply(self, profile: &mut pons::bidding::context::DecisionProfile, is_candidate: bool) {
         match self {
             Self::SupportPoints => profile.reading.support_points = is_candidate,
@@ -304,14 +304,14 @@ impl Arms {
 
 /// The highest-logit *legal* call, defaulting to a pass
 fn next_call(
-    stance: &Stance,
+    partnership: &Partnership,
     hand: Hand,
     dealer: Seat,
     vul: AbsoluteVulnerability,
     auction: &Auction,
 ) -> Call {
     let seat = seat_to_act(dealer, auction.len());
-    let Some(logits) = stance.classify(hand, relative(vul, seat), auction) else {
+    let Some(logits) = partnership.classify(hand, relative(vul, seat), auction) else {
         return Call::Pass;
     };
 
@@ -330,14 +330,14 @@ fn next_call(
 
 /// Bid out one deal, arming the candidate side per acting seat
 ///
-/// `stances` is `[baseline_book, candidate_book]`.  Every arm — the eval-time
+/// `partnerships` is `[baseline_book, candidate_book]`.  Every arm — the eval-time
 /// point scales as much as the build-time [`Arms::WeakTwoHcp`] gate — is baked
 /// into its own book by [`Arms::apply`] *before* the build, because the scale
-/// knobs are pinned into a stance and no longer read per call.  Each seat
+/// knobs are pinned into a partnership and no longer read per call.  Each seat
 /// classifies with the book for its side, so this stays correct on the main
 /// thread or a rayon worker (one board, one thread).
 fn bid_out(
-    stances: &[Stance; 2],
+    partnerships: &[Partnership; 2],
     candidate_is_ns: bool,
     dealer: Seat,
     vul: AbsoluteVulnerability,
@@ -350,7 +350,7 @@ fn bid_out(
         let seat_is_ns = matches!(seat, Seat::North | Seat::South);
         let is_candidate = seat_is_ns == candidate_is_ns;
         auction.push(next_call(
-            &stances[usize::from(is_candidate)],
+            &partnerships[usize::from(is_candidate)],
             deal[seat],
             dealer,
             vul,
@@ -368,10 +368,10 @@ type AuctionPair = [Auction; 2];
 type ContractPair = [Option<(Contract, Seat)>; 2];
 
 /// The (contract, declarer, leader-view inferences) of one auction, read through
-/// `stance`; `None` for a pass-out (sd score 0).  Mirrors `ab-fuzzy-strength`.
+/// `partnership`; `None` for a pass-out (sd score 0).  Mirrors `ab-fuzzy-strength`.
 fn lead_inputs(
     auction: &Auction,
-    stance: &Stance,
+    partnership: &Partnership,
     dealer: Seat,
     vul: AbsoluteVulnerability,
 ) -> Option<(Contract, Seat, Inferences)> {
@@ -383,7 +383,7 @@ fn lead_inputs(
     Some((
         contract,
         declarer,
-        stance.infer(relative(vul, leader), &auction[..cut]),
+        partnership.infer(relative(vul, leader), &auction[..cut]),
     ))
 }
 
@@ -498,23 +498,23 @@ fn main() {
     // matter, so a single reading serves both arms (a deliberate simplification —
     // we do not flip the knob for inference, unlike the per-arm books below).
     // Built first, before any arm is armed, so it is the default-flag book.
-    let infer_stance = american(&pons::bidding::agreements::Agreements::default()).against();
+    let infer_partnership = american(&pons::bidding::agreements::Agreements::default()).bind();
 
     // Two books, `[baseline, candidate]`.  Every arm bakes its difference in at
-    // build — the scale knobs are pinned into a stance, so a per-call flip would
+    // build — the scale knobs are pinned into a partnership, so a per-call flip would
     // be inert.
-    let stances = match arms {
+    let partnerships = match arms {
         Arms::WeakTwoHcp { band } => {
             let shipped = pons::bidding::agreements::Agreements::default();
-            let baseline = american(&shipped).against();
+            let baseline = american(&shipped).bind();
             let mut armed = shipped;
             armed.opening.weak_two_hcp = Some(band);
-            let candidate = american(&armed).against();
+            let candidate = american(&armed).bind();
             [baseline, candidate]
         }
         Arms::GateFix { fix } => {
-            let baseline = american(&fix.set(false)).against();
-            let candidate = american(&fix.set(true)).against();
+            let baseline = american(&fix.set(false)).bind();
+            let candidate = american(&fix.set(true)).bind();
             // Restores the cells the fix wrote; the returned value is spent.
             fix.set(false);
             [baseline, candidate]
@@ -523,7 +523,7 @@ fn main() {
         // defaults and only the classify-time gauge differs, so the measurement
         // prices the scale rather than the whole system it would also rebuild.
         // `profile_mut` is what keeps that expressible — it moves the gauge on a
-        // built stance without touching the book underneath, and each arm edits
+        // built partnership without touching the book underneath, and each arm edits
         // only its own copy, so neither can leak into the other or outlive the run.
         // ponytail: one known cost, inert for this binary — `support_points`
         // defaults *on*, so the baseline arm mismatches the compiled rule
@@ -532,8 +532,8 @@ fn main() {
         // projection bake is the fix.
         _ => {
             let shipped = pons::bidding::agreements::Agreements::default();
-            let mut baseline = american(&shipped).against();
-            let mut candidate = american(&shipped).against();
+            let mut baseline = american(&shipped).bind();
+            let mut candidate = american(&shipped).bind();
             arms.apply(baseline.profile_mut(), false);
             arms.apply(candidate.profile_mut(), true);
             [baseline, candidate]
@@ -561,7 +561,7 @@ fn main() {
         None => (seeded_deals(base, args.count), None),
     };
 
-    // Each side bids off its own pinned stance, so board bidding parallelizes;
+    // Each side bids off its own pinned partnership, so board bidding parallelizes;
     // the DD solver stays on the main thread below.  Retain both
     // tables' auctions (index 0 = table_b/off, 1 = table_a/on — the same order
     // as `contracts`) so the single-dummy pass can read each auction from the
@@ -571,8 +571,8 @@ fn main() {
         .enumerate()
         .map(|(index, deal)| {
             let dealer = Seat::ALL[index % 4];
-            let table_a = bid_out(&stances, true, dealer, vul, deal);
-            let table_b = bid_out(&stances, false, dealer, vul, deal);
+            let table_a = bid_out(&partnerships, true, dealer, vul, deal);
+            let table_b = bid_out(&partnerships, false, dealer, vul, deal);
             // Credit the candidate team: [off = table_b (candidate EW),
             // on = table_a (candidate NS)], matching report_brackets' on − off.
             let contracts = [
@@ -648,7 +648,7 @@ fn main() {
     }
 
     if args.sd {
-        // One default-profile reading serves both arms (see `infer_stance`
+        // One default-profile reading serves both arms (see `infer_partnership`
         // above); bare contexts use `ReadingProfile::default()`.
         // Blind-lead pass: on each divergent board price both arms' auctions —
         // the opening lead is chosen single-dummy over `sd_worlds` sampled worlds
@@ -662,7 +662,7 @@ fn main() {
             // (is_on, table index): 1 = table_a/on (candidate NS), 0 = table_b/off.
             for (is_on, idx) in [(true, 1usize), (false, 0usize)] {
                 if let Some((contract, declarer, inferences)) =
-                    lead_inputs(&auctions[i][idx], &infer_stance, dealer, vul)
+                    lead_inputs(&auctions[i][idx], &infer_partnership, dealer, vul)
                 {
                     pending.push((i, is_on, contract, declarer));
                     questions.push(LeadQuestion {

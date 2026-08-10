@@ -1,4 +1,4 @@
-use super::{DEAL_CACHE_MIN_DEPTH, Phase, StanceDealState, performance_support};
+use super::{DEAL_CACHE_MIN_DEPTH, PartnershipDealState, Phase, performance_support};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
 
@@ -12,19 +12,21 @@ fn table_deal_state_activates_the_causal_cache_at_deep_prefixes() {
     use crate::bidding::american::american_book;
     use contract_bridge::auction::RelativeVulnerability;
 
-    let stance = american_book(&crate::bidding::agreements::Agreements::default()).against();
+    let partnership = american_book(&crate::bidding::agreements::Agreements::default()).bind();
     let hand = "AKQ2.K53.QJ4.T92".parse().expect("valid hand");
-    let mut state = stance.new_deal_state().expect("stance deal state");
+    let mut state = partnership
+        .new_deal_state()
+        .expect("partnership deal state");
     assert!(
         state
-            .downcast_ref::<StanceDealState>()
-            .expect("typed stance state")
+            .downcast_ref::<PartnershipDealState>()
+            .expect("typed partnership state")
             .authoring
             .is_none()
     );
 
     let shallow = vec![Call::Pass; DEAL_CACHE_MIN_DEPTH - 1];
-    let _ = stance.classify_in_deal(
+    let _ = partnership.classify_in_deal(
         hand,
         RelativeVulnerability::NONE,
         &shallow,
@@ -32,15 +34,15 @@ fn table_deal_state_activates_the_causal_cache_at_deep_prefixes() {
     );
     assert!(
         state
-            .downcast_ref::<StanceDealState>()
-            .expect("typed stance state")
+            .downcast_ref::<PartnershipDealState>()
+            .expect("typed partnership state")
             .authoring
             .is_none(),
         "shallow auctions should avoid cache setup",
     );
 
     let deep = vec![Call::Pass; DEAL_CACHE_MIN_DEPTH];
-    let _ = stance.classify_in_deal(
+    let _ = partnership.classify_in_deal(
         hand,
         RelativeVulnerability::NONE,
         &deep,
@@ -48,8 +50,8 @@ fn table_deal_state_activates_the_causal_cache_at_deep_prefixes() {
     );
     assert!(
         state
-            .downcast_ref::<StanceDealState>()
-            .expect("typed stance state")
+            .downcast_ref::<PartnershipDealState>()
+            .expect("typed partnership state")
             .authoring
             .is_some(),
         "deep auctions should enter the append-only causal cache",
@@ -61,7 +63,7 @@ fn finalized_decoder_matches_legacy_resolution_on_frozen_corpus() {
     use crate::bidding::american::american_book;
     use crate::bidding::context::{Context, flipped};
 
-    let stance = american_book(&crate::bidding::agreements::Agreements::default()).against();
+    let partnership = american_book(&crate::bidding::agreements::Agreements::default()).bind();
     let corpus = performance_support::parse_corpus().expect("valid frozen corpus");
     for position in corpus {
         for depth in 0..=position.auction.len() {
@@ -72,8 +74,8 @@ fn finalized_decoder_matches_legacy_resolution_on_frozen_corpus() {
                 flipped(position.vul)
             };
             let context = Context::new(vul, prefix);
-            let legacy = stance.trie_for(prefix).resolve(&context, prefix);
-            let compiled = stance.decoder_for(prefix).resolve(&context, prefix);
+            let legacy = partnership.trie_for(prefix).resolve(&context, prefix);
+            let compiled = partnership.decoder_for(prefix).resolve(&context, prefix);
             match (legacy, compiled) {
                 (None, None) => {}
                 (Some((legacy, legacy_provenance)), Some(compiled)) => {
@@ -119,9 +121,9 @@ fn compiled_authored_projection_matches_legacy_on_frozen_corpus() {
         agreements.decision.reading.pass_exclusion = exclusion;
         agreements.decision.reading.announced = announced;
         agreements.decision.reading.table_alerts = table;
-        let stance = american_book(&agreements).against();
+        let partnership = american_book(&agreements).bind();
         for position in &corpus {
-            let context = stance.prefixed_context(position.vul, &position.auction);
+            let context = partnership.prefixed_context(position.vul, &position.auction);
             assert_compiled_authoring_projection_parity(&context);
         }
     }
@@ -133,7 +135,7 @@ fn append_only_step_cache_matches_from_scratch_frozen_prefixes() {
     use crate::bidding::context::flipped;
     use crate::bidding::inference::{AuthoringStepCache, assert_step_cache_projection_parity};
 
-    let stance = american_book(&crate::bidding::agreements::Agreements::default()).against();
+    let partnership = american_book(&crate::bidding::agreements::Agreements::default()).bind();
     let corpus = performance_support::parse_corpus().expect("valid frozen corpus");
     let mut cache_hits = 0usize;
     for position in corpus {
@@ -145,7 +147,7 @@ fn append_only_step_cache_matches_from_scratch_frozen_prefixes() {
                 flipped(position.vul)
             };
             cache_hits += usize::from(assert_step_cache_projection_parity(
-                &stance,
+                &partnership,
                 vul,
                 &position.auction[..depth],
                 &mut caches[depth % 2],
@@ -158,8 +160,8 @@ fn append_only_step_cache_matches_from_scratch_frozen_prefixes() {
     );
 }
 
-/// A stance pins its reading profile, so a mid-deal setting flip reaches this
-/// cache only through [`Stance::profile_mut`] — which invalidates the stance's
+/// A partnership pins its reading profile, so a mid-deal setting flip reaches this
+/// cache only through [`Partnership::profile_mut`] — which invalidates the partnership's
 /// cache identity, and with it the deal cache.  The profile arm of `prepare`'s
 /// guard is therefore belt-and-braces: no path moves a pinned profile without
 /// also bumping the identity checked just before it.
@@ -169,41 +171,41 @@ fn step_cache_drops_to_legacy_after_middeal_edit() {
     use crate::bidding::inference::AuthoringStepCache;
     use contract_bridge::auction::RelativeVulnerability;
 
-    let mut stance = american_book(&crate::bidding::agreements::Agreements::default()).against();
+    let mut partnership = american_book(&crate::bidding::agreements::Agreements::default()).bind();
     let auction = [bid(1, Strain::Notrump), Call::Pass];
     let mut cache = AuthoringStepCache::new();
     assert!(
         cache
-            .prepare(&stance, RelativeVulnerability::NONE, &[])
+            .prepare(&partnership, RelativeVulnerability::NONE, &[])
             .is_some()
     );
     assert!(
         cache
-            .prepare(&stance, RelativeVulnerability::NONE, &auction)
+            .prepare(&partnership, RelativeVulnerability::NONE, &auction)
             .is_some(),
         "extending the auction must not disturb this deal cache"
     );
-    stance.profile_mut().reading.envelope_union = false;
+    partnership.profile_mut().reading.envelope_union = false;
     assert!(
         cache
-            .prepare(&stance, RelativeVulnerability::NONE, &auction)
+            .prepare(&partnership, RelativeVulnerability::NONE, &auction)
             .is_none(),
         "moving the pinned profile must disable this deal cache"
     );
 }
 
 #[test]
-fn step_cache_is_bound_to_stance_identity_and_probe_revision() {
+fn step_cache_is_bound_to_partnership_identity_and_probe_revision() {
     use crate::bidding::american::american_book;
     use crate::bidding::inference::AuthoringStepCache;
     use contract_bridge::auction::RelativeVulnerability;
 
-    let stance = american_book(&crate::bidding::agreements::Agreements::default()).against();
-    let clone = stance.clone();
+    let partnership = american_book(&crate::bidding::agreements::Agreements::default()).bind();
+    let clone = partnership.clone();
     let mut clone_cache = AuthoringStepCache::new();
     assert!(
         clone_cache
-            .prepare(&stance, RelativeVulnerability::NONE, &[])
+            .prepare(&partnership, RelativeVulnerability::NONE, &[])
             .is_some()
     );
     assert!(
@@ -214,24 +216,24 @@ fn step_cache_is_bound_to_stance_identity_and_probe_revision() {
                 &[Call::Pass, Call::Pass],
             )
             .is_some(),
-        "a clone preserves the stance cache identity"
+        "a clone preserves the partnership cache identity"
     );
 
-    let other = american_book(&crate::bidding::agreements::Agreements::default()).against();
+    let other = american_book(&crate::bidding::agreements::Agreements::default()).bind();
     let mut other_cache = AuthoringStepCache::new();
     assert!(
         other_cache
-            .prepare(&stance, RelativeVulnerability::NONE, &[])
+            .prepare(&partnership, RelativeVulnerability::NONE, &[])
             .is_some()
     );
     assert!(
         other_cache
             .prepare(&other, RelativeVulnerability::NONE, &[])
             .is_none(),
-        "a cache must not cross independently bound stances"
+        "a cache must not cross independently bound partnerships"
     );
 
-    let mut probed = stance.clone();
+    let mut probed = partnership.clone();
     let mut probe_cache = AuthoringStepCache::new();
     assert!(
         probe_cache
@@ -243,39 +245,39 @@ fn step_cache_is_bound_to_stance_identity_and_probe_revision() {
         probe_cache
             .prepare(&probed, RelativeVulnerability::NONE, &[])
             .is_none(),
-        "probing must replace the stance cache identity"
+        "probing must replace the partnership cache identity"
     );
 }
 
-/// [`Stance::probe`] stores boxes for high-traffic keys; the knob-on
+/// [`Partnership::probe`] stores boxes for high-traffic keys; the knob-on
 /// reading tightens and the knob-off reading is byte-identical to an
-/// unprobed stance.  The **floorless** book keeps the self-play cheap in
+/// unprobed partnership.  The **floorless** book keeps the self-play cheap in
 /// debug (rule evaluation only — the neural floor is ~75 ms/board
 /// unoptimized); 2,000 boards give the `1♦ -` key ~240 expected samples,
-/// clearing the [`Stance::MIN_SAMPLES`] floor.
+/// clearing the [`Partnership::MIN_SAMPLES`] floor.
 #[test]
 fn probe_stores_and_reads_high_traffic_keys() {
     use contract_bridge::auction::RelativeVulnerability;
 
-    let mut stance =
+    let mut partnership =
         crate::bidding::american::american_book(&crate::bidding::agreements::Agreements::default())
-            .against();
+            .bind();
     let plain =
         crate::bidding::american::american_book(&crate::bidding::agreements::Agreements::default())
-            .against();
-    let report = stance.probe(2000, 0x9B0BE);
+            .bind();
+    let report = partnership.probe(2000, 0x9B0BE);
     assert!(report.keys > 0, "probe stored nothing");
     assert!(report.drifted <= report.keys);
 
     let auction = [bid(1, Strain::Diamonds), Call::Pass];
-    // Knob off — byte-identical to an unprobed stance.
-    let off = stance.infer(RelativeVulnerability::NONE, &auction);
+    // Knob off — byte-identical to an unprobed partnership.
+    let off = partnership.infer(RelativeVulnerability::NONE, &auction);
     let unprobed = plain.infer(RelativeVulnerability::NONE, &auction);
     assert_eq!(off.rho(), unprobed.rho());
 
-    stance.profile_mut().reading.probed = true;
-    let on = stance.infer(RelativeVulnerability::NONE, &auction);
-    stance.profile_mut().reading.probed = false;
+    partnership.profile_mut().reading.probed = true;
+    let on = partnership.infer(RelativeVulnerability::NONE, &auction);
+    partnership.profile_mut().reading.probed = false;
     // The probed box only tightens the symbolic band — and it reads suit
     // lengths on the passer, which no symbolic path can (the pass gate is
     // points-only).
@@ -336,9 +338,9 @@ fn probed_vacuous_fills_only_open_axes_on_contested_own_calls() {
 
     use crate::bidding::{Envelope, Range};
 
-    let mut stance =
+    let mut partnership =
         crate::bidding::american::american_book(&crate::bidding::agreements::Agreements::default())
-            .against();
+            .bind();
     let boxed = |spades: Range, points: Range| {
         let mut envelope = Envelope::unknown();
         envelope.lengths[Suit::Spades as usize] = spades;
@@ -346,26 +348,26 @@ fn probed_vacuous_fills_only_open_axes_on_contested_own_calls() {
         envelope
     };
     // Partner's free bid in a contested prefix — the served key.
-    stance.probed.insert(
+    partnership.probed.insert(
         vec![ONE_DIAMOND, TWO_CLUBS, TWO_SPADES],
         boxed(Range::new(4, 8), Range::new(8, 16)),
     );
     // Their overcall — an opponent's key, never served.
-    stance.probed.insert(
+    partnership.probed.insert(
         vec![ONE_DIAMOND, TWO_CLUBS],
         boxed(Range::new(0, 2), Range::new(6, 14)),
     );
     // Our opening — a key through a still-constructive prefix, never served.
-    stance.probed.insert(
+    partnership.probed.insert(
         vec![ONE_DIAMOND],
         boxed(Range::new(0, 3), Range::new(10, 20)),
     );
 
     let auction = [ONE_DIAMOND, TWO_CLUBS, TWO_SPADES, P];
-    let off = stance.infer(RelativeVulnerability::NONE, &auction);
-    stance.profile_mut().reading.probed_vacuous = true;
-    let on = stance.infer(RelativeVulnerability::NONE, &auction);
-    stance.profile_mut().reading.probed_vacuous = false;
+    let off = partnership.infer(RelativeVulnerability::NONE, &auction);
+    partnership.profile_mut().reading.probed_vacuous = true;
+    let on = partnership.infer(RelativeVulnerability::NONE, &auction);
+    partnership.profile_mut().reading.probed_vacuous = false;
 
     assert_eq!(on.rho(), off.rho(), "an opponent's probed box folded");
     assert_eq!(on.me(), off.me(), "a constructive-prefix key folded");
@@ -446,12 +448,12 @@ fn explain_call_names_book_and_floor_rules() {
     use contract_bridge::Hand;
     use contract_bridge::auction::RelativeVulnerability;
 
-    let stance = american_instinct(&crate::bidding::agreements::Agreements::default()).against();
+    let partnership = american_instinct(&crate::bidding::agreements::Agreements::default()).bind();
 
     // A book decision: the routine 1♠ opening resolves at the exact root
     // node (no fallback taken) and names the rule that produced it.
     let opener: Hand = "AKJ84.K52.Q4.982".parse().expect("valid test hand");
-    let (provenance, rule) = stance
+    let (provenance, rule) = partnership
         .explain_call(opener, RelativeVulnerability::NONE, &[], ONE_SPADE)
         .expect("an opening classifies");
     assert_eq!(provenance.fallback, None);
@@ -468,7 +470,7 @@ fn explain_call_names_book_and_floor_rules() {
         TWO_HEARTS, // they raise; opener holds a self-sufficient 7-card suit
     ];
     let one_suiter: Hand = "765.A.AKJT984.63".parse().expect("valid test hand");
-    let (provenance, rule) = stance
+    let (provenance, rule) = partnership
         .explain_call(
             one_suiter,
             RelativeVulnerability::NONE,
@@ -490,13 +492,13 @@ fn explanation_reuses_decision_initializers() {
     use contract_bridge::Hand;
     use contract_bridge::auction::RelativeVulnerability;
 
-    let stance = american_instinct(&crate::bidding::agreements::Agreements::default()).against();
+    let partnership = american_instinct(&crate::bidding::agreements::Agreements::default()).bind();
     let auction = [bid(1, Strain::Diamonds), ONE_HEART, P, TWO_HEARTS];
     let hand: Hand = "765.A.AKJT984.63".parse().expect("valid test hand");
-    let context = stance.decision_context(hand, RelativeVulnerability::NONE, &auction);
+    let context = partnership.decision_context(hand, RelativeVulnerability::NONE, &auction);
     assert_eq!(context.decision_cache_init_counts(), Some((0, 0, 0)));
 
-    let explained = stance
+    let explained = partnership
         .explain_call_in_context(hand, &context, bid(3, Strain::Diamonds))
         .expect("the scoped public helper explains the floor");
     assert!(explained.0.fallback.is_some());
@@ -515,7 +517,7 @@ fn explanation_reuses_decision_initializers() {
     // Re-running the same helper cannot initialize anything again.  This
     // is the exact helper public `explain_call` invokes after entering its
     // decision scope, rather than a hand-copied approximation of that path.
-    let repeated = stance
+    let repeated = partnership
         .explain_call_in_context(hand, &context, bid(3, Strain::Diamonds))
         .expect("the scoped public helper explains twice");
     assert_eq!(repeated.0, explained.0);
@@ -534,12 +536,12 @@ fn public_paths_match_uncached_reference_bit_for_bit() {
     use contract_bridge::Hand;
     use contract_bridge::auction::RelativeVulnerability;
 
-    let stance = american_instinct(&crate::bidding::agreements::Agreements::default()).against();
+    let partnership = american_instinct(&crate::bidding::agreements::Agreements::default()).bind();
     let assert_classification = |hand: Hand, auction: &[Call]| {
-        let (actual, actual_provenance) = stance
+        let (actual, actual_provenance) = partnership
             .classify_with_provenance(hand, RelativeVulnerability::NONE, auction)
             .expect("the public path classifies");
-        let (reference, reference_provenance) = stance
+        let (reference, reference_provenance) = partnership
             .classify_with_provenance_uncached(hand, RelativeVulnerability::NONE, auction)
             .expect("the legacy path classifies");
 
@@ -571,10 +573,10 @@ fn public_paths_match_uncached_reference_bit_for_bit() {
     assert_classification(one_suiter, &auction);
 
     let assert_explanation = |hand: Hand, auction: &[Call], call: Call| {
-        let (actual_provenance, actual) = stance
+        let (actual_provenance, actual) = partnership
             .explain_call(hand, RelativeVulnerability::NONE, auction, call)
             .expect("the public path explains");
-        let (reference_provenance, reference) = stance
+        let (reference_provenance, reference) = partnership
             .explain_call_uncached(hand, RelativeVulnerability::NONE, auction, call)
             .expect("the legacy path explains");
         assert_eq!(actual_provenance, reference_provenance);
@@ -704,16 +706,16 @@ fn cached_reference_parity_across_reading_and_evaluator_profiles() {
         agreements.decision.instinct.bilans_floor = profile.bilans;
         agreements.decision.instinct.net_collar = profile.collar;
 
-        let stance = if profile.configured {
-            american(&agreements).against()
+        let partnership = if profile.configured {
+            american(&agreements).bind()
         } else {
-            american_instinct(&agreements).against()
+            american_instinct(&agreements).bind()
         };
         let vul = vulnerabilities[index % vulnerabilities.len()];
-        let cached = stance
+        let cached = partnership
             .classify_with_provenance(hand, vul, &auction)
             .expect("cached profile classifies");
-        let uncached = stance
+        let uncached = partnership
             .classify_with_provenance_uncached(hand, vul, &auction)
             .expect("reference profile classifies");
         assert_eq!(cached.1, uncached.1, "profile {index}");
@@ -834,14 +836,14 @@ fn cached_and_uncached_match_frozen_performance_corpus() {
 
     let positions = performance_support::parse_corpus().expect("valid frozen corpus");
     assert_eq!(positions.len(), performance_support::POSITION_COUNT);
-    let stance = american(&crate::bidding::agreements::Agreements::default()).against();
+    let partnership = american(&crate::bidding::agreements::Agreements::default()).bind();
 
     for position in positions {
         let id = position.id;
         let hand = position.hand;
         let auction = position.auction.as_slice();
-        let cached_context = stance.decision_context(hand, position.vul, auction);
-        let uncached_context = stance.prefixed_context(position.vul, auction);
+        let cached_context = partnership.decision_context(hand, position.vul, auction);
+        let uncached_context = partnership.prefixed_context(position.vul, auction);
 
         let cached_inferences = cached_context.inferences();
         let uncached_inferences = Inferences::read(&uncached_context);
@@ -883,13 +885,13 @@ fn cached_and_uncached_match_frozen_performance_corpus() {
             "auction interpretation at position {id}"
         );
 
-        let cached = stance
+        let cached = partnership
             .trie_for(auction)
             .classify_floored(hand, &cached_context, auction)
-            .expect("the cached default stance is total");
-        let uncached = stance
+            .expect("the cached default partnership is total");
+        let uncached = partnership
             .classify_with_provenance_uncached(hand, position.vul, auction)
-            .expect("the uncached default stance is total");
+            .expect("the uncached default partnership is total");
         assert_eq!(cached.1, uncached.1, "provenance at position {id}");
         assert_logits_bits(&cached.0, &uncached.0, auction, id);
 
@@ -897,8 +899,8 @@ fn cached_and_uncached_match_frozen_performance_corpus() {
         let uncached_call = legal_call(&uncached.0, auction);
         assert_eq!(cached_call, uncached_call, "legal call at position {id}");
         assert_explanation_identity(
-            stance.explain_call_in_context(hand, &cached_context, cached_call),
-            stance.explain_call_uncached(hand, position.vul, auction, uncached_call),
+            partnership.explain_call_in_context(hand, &cached_context, cached_call),
+            partnership.explain_call_uncached(hand, position.vul, auction, uncached_call),
             id,
         );
 
@@ -949,7 +951,7 @@ fn cached_and_uncached_match_over_twenty_thousand_deals() {
             .unwrap_or(Call::Pass)
     }
 
-    let stance = american(&crate::bidding::agreements::Agreements::default()).against();
+    let partnership = american(&crate::bidding::agreements::Agreements::default()).bind();
     let vulnerabilities = [
         AbsoluteVulnerability::NONE,
         AbsoluteVulnerability::NS,
@@ -969,12 +971,12 @@ fn cached_and_uncached_match_over_twenty_thousand_deals() {
         while !auction.has_ended() {
             let seat = Seat::ALL[(dealer as usize + auction.len()) % 4];
             let vul = relative(table_vul, seat);
-            let cached = stance
+            let cached = partnership
                 .classify_with_provenance(deal[seat], vul, &auction)
-                .expect("the default stance is total");
-            let uncached = stance
+                .expect("the default partnership is total");
+            let uncached = partnership
                 .classify_with_provenance_uncached(deal[seat], vul, &auction)
-                .expect("the reference stance is total");
+                .expect("the reference partnership is total");
 
             assert_eq!(cached.1, uncached.1, "provenance on board {board}");
             for ((call, actual), (reference_call, reference)) in
@@ -1020,18 +1022,18 @@ fn a_declared_opponent_reads_their_calls_in_their_books() {
     use contract_bridge::auction::RelativeVulnerability;
 
     let auction = [bid(1, Strain::Clubs), Call::Pass, bid(2, Strain::Diamonds)];
-    let ours = american_book(&crate::bidding::agreements::Agreements::default()).against();
-    let dutch = dutch_book(&crate::bidding::agreements::Agreements::default()).against();
+    let ours = american_book(&crate::bidding::agreements::Agreements::default()).bind();
+    let dutch = dutch_book(&crate::bidding::agreements::Agreements::default()).bind();
 
-    let read = |stance: &super::Stance| {
-        *stance
+    let read = |partnership: &super::Partnership| {
+        *partnership
             .infer(RelativeVulnerability::NONE, &auction)
             .get(Relative::Rho)
     };
     let undeclared = read(&ours);
     let declared = read(
         &american_book(&crate::bidding::agreements::Agreements::default())
-            .against()
+            .bind()
             .with_opponents(&dutch),
     );
 
@@ -1048,7 +1050,7 @@ fn a_declared_opponent_reads_their_calls_in_their_books() {
             "{:?}",
             read(
                 &american_book(&crate::bidding::agreements::Agreements::default())
-                    .against()
+                    .bind()
                     .with_opponents(&ours)
             )
         ),
@@ -1056,7 +1058,7 @@ fn a_declared_opponent_reads_their_calls_in_their_books() {
     );
 }
 
-/// The keystone of the pin-at-build campaign: two pairs built from one armed
+/// The keystone of the pin-at-build campaign: two systems built from one armed
 /// [`Agreements`][crate::bidding::agreements::Agreements] answer identically on
 /// the building thread and a second thread. Any classify-time read that
 /// bypasses the pinned [`DecisionProfile`][super::DecisionProfile] diverges
@@ -1069,7 +1071,7 @@ fn a_declared_opponent_reads_their_calls_in_their_books() {
 /// nobody plays — because what is under test is only that both threads see the
 /// *same* one.
 #[test]
-fn stance_pins_knobs_across_threads() {
+fn partnership_pins_knobs_across_threads() {
     use crate::bidding::american;
     use crate::bidding::table::Table;
     use contract_bridge::auction::AbsoluteVulnerability;
@@ -1091,7 +1093,7 @@ fn stance_pins_knobs_across_threads() {
 
     let ns = american(&agreements);
     let ew = american(&agreements);
-    let table = Table::of_pairs(&ns, &ew, Seat::North, AbsoluteVulnerability::NONE);
+    let table = Table::of_systems(&ns, &ew, Seat::North, AbsoluteVulnerability::NONE);
     let deals: Vec<FullDeal> = (0..24)
         .map(|seed| contract_bridge::deck::full_deal(&mut rand::rngs::StdRng::seed_from_u64(seed)))
         .collect();

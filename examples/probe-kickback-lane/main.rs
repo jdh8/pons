@@ -1,4 +1,4 @@
-//! Walk one keycard auction under the Kickback stance, reporting at every seat what
+//! Walk one keycard auction under the Kickback partnership, reporting at every seat what
 //! the bidder chose, what else it considered, and — the question a phantom
 //! contract always turns on — whether the position is **authored** or the floor.
 //!
@@ -14,7 +14,7 @@ use contract_bridge::{AbsoluteVulnerability, Hand, Seat};
 use pons::bidding::agreements::Agreements;
 use pons::bidding::context::relative;
 use pons::bidding::instinct::RkcbVariant;
-use pons::bidding::{Bidder, Stance, american};
+use pons::bidding::{Bidder, Partnership, american};
 use pons::scoring::final_contract;
 
 #[path = "../common/mod.rs"]
@@ -56,7 +56,7 @@ fn agreements(kickback: bool) -> Agreements {
 fn main() {
     let args = Args::parse();
     let kickback = !args.baseline;
-    let stance: Stance = american(&agreements(kickback)).against();
+    let partnership: Partnership = american(&agreements(kickback)).bind();
 
     let hands: Vec<Hand> = args
         .hands
@@ -79,10 +79,10 @@ fn main() {
     while !auction.has_ended() {
         let seat = seat_to_act(dealer, auction.len());
         let hand = hands[seat as usize];
-        let authored = stance.authored_at(relative(vul, seat), &auction);
-        let call = next_call(&stance, hand, dealer, vul, &auction);
+        let authored = partnership.authored_at(relative(vul, seat), &auction);
+        let call = next_call(&partnership, hand, dealer, vul, &auction);
 
-        let mut top: Vec<(Call, f32)> = stance
+        let mut top: Vec<(Call, f32)> = partnership
             .classify(hand, relative(vul, seat), &auction)
             .map(|logits| {
                 logits

@@ -10,7 +10,7 @@ use common::*;
 #[test]
 fn test_cue_bid_limit_raise() {
     // 1♥ (2♣) ?: 12 HCP, four hearts → 3♣ (cue bid = limit-plus raise)
-    let system = stance();
+    let system = partnership();
     assert_eq!(
         best_call(
             &system,
@@ -24,7 +24,7 @@ fn test_cue_bid_limit_raise() {
 #[test]
 fn test_preemptive_jump_raise() {
     // 1♥ (2♣) ?: 6 HCP, four hearts → 3♥ (preemptive jump raise)
-    let system = stance();
+    let system = partnership();
     assert_eq!(
         best_call(
             &system,
@@ -38,7 +38,7 @@ fn test_preemptive_jump_raise() {
 #[test]
 fn test_competitive_single_raise() {
     // 1♥ (2♣) ?: 8 HCP, three hearts → 2♥ (single raise)
-    let system = stance();
+    let system = partnership();
     assert_eq!(
         best_call(
             &system,
@@ -52,7 +52,7 @@ fn test_competitive_single_raise() {
 #[test]
 fn test_negative_double_over_overcall() {
     // 1♥ (2♣) ?: 10 HCP, four spades → Double (negative double)
-    let system = stance();
+    let system = partnership();
     assert_eq!(
         best_call(
             &system,
@@ -70,7 +70,7 @@ fn test_negative_double_over_overcall() {
 #[test]
 fn test_support_double() {
     // 1♦ - 1♠ (2♣): 13 HCP, exactly 3 spades → Double (support double)
-    let system = stance();
+    let system = partnership();
     assert_eq!(
         best_call(
             &system,
@@ -89,7 +89,7 @@ fn test_support_double() {
 #[test]
 fn test_support_raise() {
     // 1♦ - 1♠ (2♣): 13 HCP, four spades → 2♠ (natural raise)
-    let system = stance();
+    let system = partnership();
     assert_eq!(
         best_call(
             &system,
@@ -108,7 +108,7 @@ fn test_support_raise() {
 #[test]
 fn test_support_redouble() {
     // 1♦ - 1♠ (X): 13 HCP, exactly 3 spades → Redouble (support redouble)
-    let system = stance();
+    let system = partnership();
     assert_eq!(
         best_call(
             &system,
@@ -131,7 +131,7 @@ fn test_support_redouble() {
 #[test]
 fn test_answer_negative_double_bids_other_major() {
     // `1♥ (2♣) X -`: 12 HCP, four spades → 2♠ (answering the negative double)
-    let system = stance();
+    let system = partnership();
     assert_eq!(
         best_call(
             &system,
@@ -151,11 +151,11 @@ fn test_answer_negative_double_bids_other_major() {
 // Section 5: the (2♦)-as-Multi counter-defense toggle (`defense_2d_multi`)
 // ---------------------------------------------------------------------------
 
-/// A stance whose competitive book reads their `(2♦)` over our `1NT` as a Multi
-fn stance_with_2d_multi(on: bool) -> Stance {
+/// A partnership whose competitive book reads their `(2♦)` over our `1NT` as a Multi
+fn partnership_with_2d_multi(on: bool) -> Partnership {
     let mut arm = pons::bidding::agreements::Agreements::default();
     arm.competition.defense_2d_multi = on;
-    american(&arm).against()
+    american(&arm).bind()
 }
 
 #[test]
@@ -165,14 +165,14 @@ fn test_multi_2d_double_is_values() {
     // four-diamond hand cannot fire and responder does not double. With the Multi
     // counter-defense on, 2♦ shows an unknown major and this values hand takes the
     // workhorse double. The field is read at book construction, so each arm builds
-    // its own stance. (Four diamonds, not three: under the default Optional
+    // its own partnership. (Four diamonds, not three: under the default Optional
     // style — 2-3 cards — a three-diamond hand would optional-double in *both* arms,
     // erasing the contrast.)
     let auction = &[call(1, Strain::Notrump), call(2, Strain::Diamonds)];
     let hand = "KJ4.Q73.J762.Q53";
 
-    let off = best_call(&stance_with_2d_multi(false), auction, hand);
-    let on = best_call(&stance_with_2d_multi(true), auction, hand);
+    let off = best_call(&partnership_with_2d_multi(false), auction, hand);
+    let on = best_call(&partnership_with_2d_multi(true), auction, hand);
 
     assert_eq!(
         on,
@@ -187,12 +187,12 @@ fn competitive_4333_knob_gates_the_cue_stayman() {
     // 1NT (2♥): a flat 4-3-3-3 with four spades and game values cues 3♥ (Stayman)
     // to dig out the 4-4 spade fit.  The competitive-4333 knob governs whether that
     // flat hand still cues, or is diverted to 3NT (the constructive 4333 rule).  The
-    // field is read at book construction, so each arm builds its own stance.
+    // field is read at book construction, so each arm builds its own partnership.
     use pons::bidding::american::Competitive4333;
     let arm = |school| {
         let mut agreements = pons::bidding::agreements::Agreements::default();
         agreements.competition.competitive_4333 = school;
-        american(&agreements).against()
+        american(&agreements).bind()
     };
     let auction = &[call(1, Strain::Notrump), call(2, Strain::Hearts)];
     let cue = call(3, Strain::Hearts);
@@ -237,10 +237,10 @@ fn competitive_rebid_reaches_the_missed_game() {
     // With the competitive rebid on, West shows the suit — and the *existing*
     // raise ladder then carries East (14 opposite a shown 6+) to the cold
     // diamond game (5♦ makes 11 tricks double-dummy). Both sides through the
-    // real stance: the fix is opener's rebid alone, responder was never broken.
+    // real partnership: the fix is opener's rebid alone, responder was never broken.
     let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.instinct.competitive_rebid = true;
-    let system = american(&agreements).against();
+    let system = american(&agreements).bind();
 
     let after_raise = [
         call(1, Strain::Diamonds),
@@ -276,7 +276,7 @@ fn competitive_rebid_reaches_the_missed_game() {
     );
     let mut legacy_agreements = pons::bidding::agreements::Agreements::default();
     legacy_agreements.decision.reading.envelope_union = false;
-    let legacy_system = american(&legacy_agreements).against();
+    let legacy_system = american(&legacy_agreements).bind();
     assert_eq!(
         best_call(&legacy_system, &after_rebid, "AKQ.T95.Q73.QJ95"),
         call(5, Strain::Diamonds),
@@ -313,7 +313,7 @@ fn doubled_splinter_runs_systems_on() {
     let arm = |systems_on| {
         let mut agreements = pons::bidding::agreements::Agreements::default();
         agreements.competition.splinter_doubled = systems_on;
-        american(&agreements).against()
+        american(&agreements).bind()
     };
     let off = best_call(&arm(false), &auction, hand);
     let on = best_call(&arm(true), &auction, hand);

@@ -77,10 +77,10 @@ fn main() {
     let gated = |gate| {
         let mut agreements = Agreements::default();
         agreements.response.two_over_one_gate = gate;
-        american(&agreements).against()
+        american(&agreements).bind()
     };
-    let baseline_stance = gated(TwoOverOneGate::Hcp13);
-    let candidate_stance = gated(TwoOverOneGate::Points12);
+    let baseline_partnership = gated(TwoOverOneGate::Hcp13);
+    let candidate_partnership = gated(TwoOverOneGate::Points12);
 
     let deals = seeded_deals(seed, count);
     let mut qualifying: Vec<Board> = Vec::new();
@@ -107,11 +107,11 @@ fn main() {
             continue;
         }
 
-        let baseline = bid_uncontested(&baseline_stance, dealer, vul, deal);
+        let baseline = bid_uncontested(&baseline_partnership, dealer, vul, deal);
         let Some(major) = dealer_opens_major(&baseline) else {
             continue;
         };
-        let candidate = bid_uncontested(&candidate_stance, dealer, vul, deal);
+        let candidate = bid_uncontested(&candidate_partnership, dealer, vul, deal);
 
         // Only the boards where the candidate floor actually admits the hand
         // into the 2/1 (baseline does not — else this isn't a "my gate"

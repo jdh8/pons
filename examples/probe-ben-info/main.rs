@@ -149,7 +149,7 @@ fn main() -> anyhow::Result<()> {
         agreements.decision.reading.table_alerts = true;
         agreements.decision.reading.pass = true;
     }
-    let stance = american(&agreements).against();
+    let partnership = american(&agreements).bind();
     let seed = args.seed.unwrap_or_else(rand::random);
     let mut rng = StdRng::seed_from_u64(seed);
     let vul = args.vulnerability;
@@ -167,14 +167,14 @@ fn main() -> anyhow::Result<()> {
         let mut auction = Auction::new();
         while !auction.has_ended() {
             let seat = seat_to_act(dealer, auction.len());
-            auction.push(next_call(&stance, deal[seat], dealer, vul, &auction));
+            auction.push(next_call(&partnership, deal[seat], dealer, vul, &auction));
         }
 
         // Every non-empty decision point (the empty prefix reads as all-unknown
         // on our side — no signal to compare).
         for prefix in 1..auction.len() {
             let actor = seat_to_act(dealer, prefix);
-            let inferences = stance.infer(relative(vul, actor), &auction[..prefix]);
+            let inferences = partnership.infer(relative(vul, actor), &auction[..prefix]);
             let hidden_seat = |who: Relative| Seat::ALL[(actor as usize + who as usize) % 4];
             let row = Row {
                 board,

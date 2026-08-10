@@ -10,7 +10,7 @@ default floor and the v3 twins were deleted (2026-08-05)** — see
 
 **Phases 0–4** — the `set_conv` read-back guard; `features_v4`
 and `Context::with_config`; `dump-teacher --configured --cell` with sliced bank
-reads, per-side cards/stances/teachers, prefixed-context extraction and the
+reads, per-side cards/partnerships/teachers, prefixed-context extraction and the
 enriched slice; the trained artifact and its flip diagnostic; and the crate
 wiring, then `american_configured()`, now folded into `american()` itself.
 Still open: the foreign-`.bbsa` → `SCHEMA`
@@ -397,11 +397,11 @@ headroom, and scaling the enriched draw is the lever if gate 2 disappoints.
 | --- | --- |
 | forward pass at 368 inputs | `neural::classify_bba_v4` |
 | the safety shell over it | `neural_floor::ConfiguredFloorBba` |
-| the 2/1 pair standing on it | `american()` itself since phase 6, and `american_with_config(config)` for a mixed table |
+| the 2/1 system standing on it | `american()` itself since phase 6, and `american_with_config(config)` for a mixed table |
 | the A/B arms | `ab-kickback`'s `v4` and `v4-kickback` |
 
 **The cell is captured when the floor is built, not per decision.** A card is an
-agreement, and a stance is already built per A/B arm with that arm's knobs
+agreement, and a partnership is already built per A/B arm with that arm's knobs
 armed — so the [`Config`] is read there, and the per-decision path reads no
 ambient state that could silently change what a feature vector means. The floor
 attaches its config to the trie's context on the way into the extractor.
@@ -662,7 +662,7 @@ only transfers if v4 is what ships.
 **Decision (jdh8, 2026-08-03): take 2, leave 1.** `set_kickback` is back to
 opt-in, so the shipped default is the plain-4NT arm again; the
 kickback case is closed until a scorer exists that fights DD's slam optimism the
-way sd-lead fights its defensive optimism. Reverting the knob restores a stance
+way sd-lead fights its defensive optimism. Reverting the knob restores a partnership
 the shipped twins already serve correctly, so it did not have to wait on 1 after
 all.
 

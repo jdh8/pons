@@ -9,7 +9,7 @@
 //! the largest samples for free, with no per-node rejection sampling at all.
 //!
 //! Per key the report shows the observed distribution beside the reading the
-//! stance currently publishes for that seat (the `announced` envelope the nets
+//! partnership currently publishes for that seat (the `announced` envelope the nets
 //! and sampler consume), so the two soundness-critical judgments are visible:
 //!
 //! - **separation** — where the observed mass sits well inside the published
@@ -163,11 +163,11 @@ fn main() {
     let args = Args::parse();
     let base = args.seed.unwrap_or_else(rand::random);
     let vul = AbsoluteVulnerability::NONE;
-    let stance = american(&pons::bidding::agreements::Agreements::default()).against();
+    let partnership = american(&pons::bidding::agreements::Agreements::default()).bind();
 
     let per_board = |board: usize, deal: &contract_bridge::FullDeal| {
         let dealer = Seat::ALL[board % 4];
-        let auction = bid_out(&stance, &stance, true, dealer, vul, deal);
+        let auction = bid_out(&partnership, &partnership, true, dealer, vul, deal);
         let mut keys: HashMap<String, KeyAgg> = HashMap::new();
         for index in 0..auction.len() {
             let prefix = &auction[..=index];
@@ -225,7 +225,7 @@ fn main() {
         // actor (the census surface): the caller is that actor's RHO.
         let cut = agg.prefix.len();
         let reader = seat_to_act(agg.dealer, cut);
-        let read = stance.infer(relative(vul, reader), &agg.prefix);
+        let read = partnership.infer(relative(vul, reader), &agg.prefix);
         let shown: &Envelope = read.announced(Relative::Rho);
 
         let Some((min, p1, mean, p99, max)) = stats(&agg.points) else {

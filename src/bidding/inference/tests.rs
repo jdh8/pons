@@ -26,7 +26,7 @@ pub(super) fn read_with(
 
 /// Read on a *prefixed* context, the trie access the projection pass needs to
 /// read a convention off its authored rule — what the production search floor
-/// hands `Inferences::read` (cf. `Stance::prefixed_context`).  The plain `read`
+/// hands `Inferences::read` (cf. `Partnership::prefixed_context`).  The plain `read`
 /// above is keyless, so it sees no convention overlay.
 pub(super) fn read_booked(auction: &[Call]) -> Inferences {
     read_booked_with(&crate::bidding::agreements::Agreements::default(), auction)
@@ -39,15 +39,19 @@ pub(super) fn read_booked_with(
     agreements: &crate::bidding::agreements::Agreements,
     auction: &[Call],
 ) -> Inferences {
-    let stance = crate::american(agreements).against();
-    Inferences::read(&stance.prefixed_context(RelativeVulnerability::NONE, auction))
+    let partnership = crate::american(agreements).bind();
+    Inferences::read(&partnership.prefixed_context(RelativeVulnerability::NONE, auction))
 }
 
 /// The system's own choice at `auction` — the highest finite logit, book
 /// and floor together (the in-crate twin of `examples/common::next_call`,
 /// minus the legality filter: every call these tests expect is legal).
-pub(super) fn chosen_call(stance: &crate::bidding::Stance, hand: Hand, auction: &[Call]) -> Call {
-    let (logits, _) = stance
+pub(super) fn chosen_call(
+    partnership: &crate::bidding::Partnership,
+    hand: Hand,
+    auction: &[Call],
+) -> Call {
+    let (logits, _) = partnership
         .classify_with_provenance(hand, RelativeVulnerability::NONE, auction)
         .expect("the Gladiator node classifies");
     (&logits.0)
@@ -90,7 +94,7 @@ fn gladiator_readings_admit_the_bidder() {
     // box.  Fixed by teaching the walk that our 1NT *overcall* takes the
     // same three-level reading as an opening 1NT (`over_one_notrump`), and
     // pinned here so the two layers cannot drift apart again.
-    let check = |stance: &crate::bidding::Stance,
+    let check = |partnership: &crate::bidding::Partnership,
                  failures: &mut Vec<String>,
                  hand: Hand,
                  auction: &[Call],
@@ -98,7 +102,7 @@ fn gladiator_readings_admit_the_bidder() {
         let mut read: Vec<Call> = auction.to_vec();
         read.push(made);
         read.push(Call::Pass);
-        let inferences = stance.infer(RelativeVulnerability::NONE, &read);
+        let inferences = partnership.infer(RelativeVulnerability::NONE, &read);
         if !inferences.admits(Relative::Partner, hand) && failures.len() < 16 {
             failures.push(format!(
                 "[{}] reading excludes the hand that bid it: {hand}",
@@ -117,10 +121,10 @@ fn gladiator_readings_admit_the_bidder() {
         } else {
             ReadingScope::Alerted
         };
-        let stance = crate::american(&agreements).against();
+        let partnership = crate::american(&agreements).bind();
         for &hand in &hands {
-            let made = chosen_call(&stance, hand, &node);
-            check(&stance, &mut failures, hand, &node, made);
+            let made = chosen_call(&partnership, hand, &node);
+            check(&partnership, &mut failures, hand, &node, made);
             // Relayers carry on through the forced 2♦ — the only route to
             // the delayed cue, whose stamp is the other narrowing one.
             if made != bid(2, Strain::Clubs) {
@@ -136,8 +140,8 @@ fn gladiator_readings_admit_the_bidder() {
                     Call::Pass,
                 ])
                 .collect();
-            let continued = chosen_call(&stance, hand, &sorted);
-            check(&stance, &mut failures, hand, &sorted, continued);
+            let continued = chosen_call(&partnership, hand, &sorted);
+            check(&partnership, &mut failures, hand, &sorted, continued);
         }
         // The runout branch too — `(1♠) 1NT (X)` is authored, so its
         // escapes are read by the walk like any other natural call.
@@ -147,8 +151,8 @@ fn gladiator_readings_admit_the_bidder() {
             Call::Double,
         ];
         for &hand in &hands {
-            let made = chosen_call(&stance, hand, &doubled);
-            check(&stance, &mut failures, hand, &doubled, made);
+            let made = chosen_call(&partnership, hand, &doubled);
+            check(&partnership, &mut failures, hand, &doubled, made);
         }
     }
     assert!(
@@ -349,24 +353,24 @@ fn readings_admit_the_bidder() {
         } else {
             ReadingScope::Alerted
         };
-        let stance = crate::american(&agreements).against();
+        let partnership = crate::american(&agreements).bind();
         for &(what, node) in nodes {
             for &hand in &hands {
                 // Honest route only: the seat's earlier calls in the
                 // script must be the ones this hand actually chooses.
                 if (node.len() % 4..node.len())
                     .step_by(4)
-                    .any(|i| chosen_call(&stance, hand, &node[..i]) != node[i])
+                    .any(|i| chosen_call(&partnership, hand, &node[..i]) != node[i])
                 {
                     continue;
                 }
-                let made = chosen_call(&stance, hand, node);
+                let made = chosen_call(&partnership, hand, node);
                 // After `made` and a pass, the seat to act is the bidder's
                 // partner, so `Relative::Partner` is the seat replayed.
                 let mut read: Vec<Call> = node.to_vec();
                 read.push(made);
                 read.push(Call::Pass);
-                let inferences = stance.infer(RelativeVulnerability::NONE, &read);
+                let inferences = partnership.infer(RelativeVulnerability::NONE, &read);
                 if !inferences.admits(Relative::Partner, hand) && failures.len() < 16 {
                     failures.push(format!(
                         "{what} [{}] (natural-reading {natural}) excludes the hand that bid it: {hand}",
@@ -579,12 +583,12 @@ fn artificial_calls_are_alerted() {
     use crate::bidding::american::american;
 
     let agreements = crate::bidding::agreements::Agreements::default();
-    let pair = american(&agreements);
+    let system = american(&agreements);
     let mut worklist = Vec::new();
     for (phase, trie) in [
-        ("constructive", &pair.constructive.0),
-        ("competitive", &pair.competitive.0),
-        ("defensive", &pair.defensive.0),
+        ("constructive", &system.constructive.0),
+        ("competitive", &system.competitive.0),
+        ("defensive", &system.defensive.0),
     ] {
         worklist.extend(unalerted_artificial(phase, trie, agreements.decision));
     }
@@ -599,13 +603,13 @@ fn deviation_knobs_preserve_alert_invariant() {
     agreements.opening.one_notrump_offshape = true;
     agreements.opening.weak_two_wild = true;
     agreements.defense.overcall_four_card = true;
-    let pair = american(&agreements);
+    let system = american(&agreements);
 
     let mut worklist = Vec::new();
     for (phase, trie) in [
-        ("constructive", &pair.constructive.0),
-        ("competitive", &pair.competitive.0),
-        ("defensive", &pair.defensive.0),
+        ("constructive", &system.constructive.0),
+        ("competitive", &system.competitive.0),
+        ("defensive", &system.defensive.0),
     ] {
         worklist.extend(unalerted_artificial(phase, trie, agreements.decision));
     }
@@ -634,9 +638,13 @@ fn alerted_call_sites_match_the_disclosure_fixture() {
     use std::collections::BTreeMap;
 
     let agreements = crate::bidding::agreements::Agreements::default();
-    let pair = american(&agreements);
+    let system = american(&agreements);
     let mut counts: BTreeMap<&str, usize> = BTreeMap::new();
-    for trie in [&pair.constructive.0, &pair.competitive.0, &pair.defensive.0] {
+    for trie in [
+        &system.constructive.0,
+        &system.competitive.0,
+        &system.defensive.0,
+    ] {
         for_each_authored_rule(trie, agreements.decision, |_auction, _context, rule| {
             if let Some(alert) = rule.alert() {
                 *counts.entry(alert.0).or_default() += 1;
@@ -1280,11 +1288,11 @@ fn gladiator_artificial_calls_are_alerted() {
 
     let mut agreements = crate::bidding::agreements::Agreements::default();
     agreements.decision.reading.nt_overcall_gladiator = true;
-    let pair = american(&agreements);
+    let system = american(&agreements);
 
     assert_all_alerted(
         "Gladiator",
-        unalerted_artificial("defensive", &pair.defensive.0, agreements.decision),
+        unalerted_artificial("defensive", &system.defensive.0, agreements.decision),
     );
 }
 
@@ -1298,10 +1306,10 @@ fn dutch_artificial_calls_are_alerted() {
     use crate::bidding::dutch::dutch;
 
     let agreements = crate::bidding::agreements::Agreements::default();
-    let pair = dutch(&agreements);
+    let system = dutch(&agreements);
     assert_all_alerted(
         "Dutch",
-        unalerted_artificial("constructive", &pair.constructive.0, agreements.decision),
+        unalerted_artificial("constructive", &system.constructive.0, agreements.decision),
     );
 }
 
@@ -1315,11 +1323,11 @@ fn new_minor_forcing_artificial_calls_are_alerted() {
 
     let mut agreements = crate::bidding::agreements::Agreements::default();
     agreements.rebid.new_minor_forcing = true;
-    let pair = american(&agreements);
+    let system = american(&agreements);
 
     assert_all_alerted(
         "New Minor Forcing",
-        unalerted_artificial("constructive", &pair.constructive.0, agreements.decision),
+        unalerted_artificial("constructive", &system.constructive.0, agreements.decision),
     );
 }
 
@@ -1332,10 +1340,10 @@ fn choice_of_games_artificial_calls_are_alerted() {
 
     let mut agreements = crate::bidding::agreements::Agreements::default();
     agreements.response.major_choice_of_games = true;
-    let pair = american(&agreements);
+    let system = american(&agreements);
 
     assert_all_alerted(
         "choice-of-games",
-        unalerted_artificial("constructive", &pair.constructive.0, agreements.decision),
+        unalerted_artificial("constructive", &system.constructive.0, agreements.decision),
     );
 }

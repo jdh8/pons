@@ -3,7 +3,7 @@ use contract_bridge::{Bid, Hand, Level, Strain};
 use pons::bidding::agreements::Agreements;
 use pons::bidding::array::Logits;
 use pons::bidding::trie::classifier;
-use pons::bidding::{Bidder, Competitive, Constructive, Defensive, Pair};
+use pons::bidding::{Bidder, Competitive, Constructive, Defensive, System};
 
 const fn bid(level: u8, strain: Strain) -> Call {
     Call::Bid(Bid {
@@ -65,7 +65,7 @@ fn assert_marker_eq(actual: f32, expected: f32) {
 }
 
 #[test]
-fn test_stance_routes_by_phase() {
+fn test_partnership_routes_by_phase() {
     let one_s = bid(1, Strain::Spades);
     let two_h = bid(2, Strain::Hearts);
 
@@ -79,16 +79,20 @@ fn test_stance_routes_by_phase() {
     let mut defensive = Defensive::new();
     defensive.insert(&[one_s], classifier(|_, _| marker_logits(3.0)));
 
-    let stance = Pair::new(constructive, competitive, defensive, Agreements::default()).against();
+    let partnership =
+        System::new(constructive, competitive, defensive, Agreements::default()).bind();
 
     // Nobody has opened: the opening decision is constructive.
-    assert_eq!(classify_marker(&stance, &[]), Some(1.0));
+    assert_eq!(classify_marker(&partnership, &[]), Some(1.0));
     // We opened 1♠ and they only passed: still constructive.
-    assert_eq!(classify_marker(&stance, &[one_s, Call::Pass]), Some(2.0));
+    assert_eq!(
+        classify_marker(&partnership, &[one_s, Call::Pass]),
+        Some(2.0)
+    );
     // We opened 1♠ and they overcalled 2♥: competitive.
-    assert_eq!(classify_marker(&stance, &[one_s, two_h]), Some(4.0));
+    assert_eq!(classify_marker(&partnership, &[one_s, two_h]), Some(4.0));
     // They opened 1♠: the defensive book answers.
-    assert_eq!(classify_marker(&stance, &[one_s]), Some(3.0));
+    assert_eq!(classify_marker(&partnership, &[one_s]), Some(3.0));
 }
 
 #[test]

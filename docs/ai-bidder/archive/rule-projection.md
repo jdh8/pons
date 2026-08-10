@@ -14,7 +14,7 @@
 > - **M6.2c — wire + retire declarative** (done): the keyless leak was a *single*
 >   site — `SearchBook::classify` (`search_floor.rs:241`); the floors already get
 >   the book's prefixed context and the other keyless `Inferences::read` callers are
->   `#[cfg(test)]`. So `Stance::prefixed_context` is made real, `SearchBook` prefixes
+>   `#[cfg(test)]`. So `Partnership::prefixed_context` is made real, `SearchBook` prefixes
 >   itself, and `Inferences::read` folds in `project_authored` — the artificial
 >   detector drives both the suppression and the recording. `transfer_major_reading`,
 >   `leaping_michaels_reading`, `landy_reading` (and `LandyReading`) are **deleted**;
@@ -175,11 +175,11 @@ keyless construction that feeds `Inferences::read`/`features` is
 [`SearchBook::classify`](../../../src/bidding/search_floor.rs#L241), which re-derived a
 fresh `Context::new`; every other keyless `Inferences::read` caller is
 `#[cfg(test)]`. So the wire is one line — `SearchBook` builds
-`self.stance.prefixed_context(...)` instead — no `Bidder`-trait accessor needed.
+`self.partnership.prefixed_context(...)` instead — no `Bidder`-trait accessor needed.
 
 What shipped:
 
-1. `Stance::prefixed_context` made real (was `#[cfg(test)]`);
+1. `Partnership::prefixed_context` made real (was `#[cfg(test)]`);
 2. `SearchBook::classify` prefixes its search context;
 3. `Inferences::read` folds in `project_authored` — one prefix walk yields both the
    per-seat recording overlay and a bitset of artificial indices to suppress;
@@ -199,7 +199,7 @@ regression.
   on the convention auctions, assert per-player `Inference` equal (or new ⊆ old).
   The keyless convention unit tests in `inference.rs` already assert the exact
   ranges and are the oracle — but note they are keyless, so the equivalence
-  harness must build *prefixed* contexts (via `Stance` classification).
+  harness must build *prefixed* contexts (via `Partnership` classification).
 - **Re-author guard** — `verify::compare` the `described()` closure against its
   `len`-conjunct replacement; must agree on every sampled hand.
 - **IMPs/board A/B** — `examples/ab-landy` for the deterministic forward-reader

@@ -107,15 +107,15 @@ fn main() {
     // baseline (it *replaces* XYZ on four slots), so `--nmf` turns XYZ on in
     // both arms; every other treatment is measured against the bare floor.
     let baseline_xyz = args.nmf;
-    let baseline = american(&agreements_for(false, false, baseline_xyz, false)).against();
+    let baseline = american(&agreements_for(false, false, baseline_xyz, false)).bind();
     let treatment = american(&agreements_for(
         args.longer_major,
         args.up_the_line,
         args.xyz || args.nmf,
         args.nmf,
     ))
-    .against();
-    let stances = [baseline, treatment];
+    .bind();
+    let partnerships = [baseline, treatment];
 
     // Deals are seeded per board (base + index) so any arm of the experiment
     // replays the identical deal set; bidding is pure and parallelizes, the
@@ -128,8 +128,8 @@ fn main() {
             let dealer = Seat::ALL[index % 4];
             std::array::from_fn(|arm| {
                 // Every knob, construction-time or classify-time, is already
-                // captured into `stances[arm]` by `agreements_for` above.
-                let auction = bid_uncontested(&stances[arm], dealer, vul, deal);
+                // captured into `partnerships[arm]` by `agreements_for` above.
+                let auction = bid_uncontested(&partnerships[arm], dealer, vul, deal);
                 final_contract(&auction, dealer)
             })
         })
@@ -188,8 +188,8 @@ fn main() {
         );
         for &(i, swing) in scored.iter().take(args.dump_worst) {
             let dealer = Seat::ALL[i % 4];
-            let baseline_auction = bid_uncontested(&stances[0], dealer, vul, &deals[i]);
-            let treatment_auction = bid_uncontested(&stances[1], dealer, vul, &deals[i]);
+            let baseline_auction = bid_uncontested(&partnerships[0], dealer, vul, &deals[i]);
+            let treatment_auction = bid_uncontested(&partnerships[1], dealer, vul, &deals[i]);
             println!("board {i}  swing {swing:+} IMPs (treatment − baseline)  dealer {dealer:?}",);
             println!(
                 "  N {}   S {}",

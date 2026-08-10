@@ -22,7 +22,7 @@ fn after_1nt(tail: &[Call]) -> Vec<Call> {
 
 #[test]
 fn flat_four_three_three_three_game_force_bids_3nt() {
-    let system = stance();
+    let system = partnership();
     // Flat 4-3-3-3 (four spades), 11 HCP: no Puppet, no Stayman — a flat hand has
     // no ruffing value, so it plays 3NT rather than hunt a major fit.
     assert_eq!(
@@ -33,7 +33,7 @@ fn flat_four_three_three_three_game_force_bids_3nt() {
 
 #[test]
 fn balanced_three_card_major_game_force_still_puppets() {
-    let system = stance();
+    let system = partnership();
     // 4♠-3♥-4♦-2♣ (a club doubleton), 11 HCP: a *non-flat* balanced game force
     // still Puppets (3♣, outranking Stayman) — only the flat 4-3-3-3 is diverted
     // to 3NT.
@@ -45,7 +45,7 @@ fn balanced_three_card_major_game_force_still_puppets() {
 
 #[test]
 fn four_four_game_force_uses_stayman() {
-    let system = stance();
+    let system = partnership();
     // 4-4 in the majors: plain Stayman (no three-card major to Puppet with).
     assert_eq!(
         best_call(&system, &after_1nt(&[]), "KJ54.KQ32.43.Q92"),
@@ -55,7 +55,7 @@ fn four_four_game_force_uses_stayman() {
 
 #[test]
 fn flat_four_three_three_three_eight_passes() {
-    let system = stance();
+    let system = partnership();
     // A flat 4-3-3-3, bare 8: it neither Staymans (no ruff — plays 3NT, not the 4-4
     // fit) nor invites.  The flat shape is its high cards and nothing more, so it
     // plays a level too high opposite a 15-17; a double-dummy probe scores passing
@@ -68,7 +68,7 @@ fn flat_four_three_three_three_eight_passes() {
 
 #[test]
 fn flat_minor_four_three_three_three_game_force_bids_3nt() {
-    let system = stance();
+    let system = partnership();
     // 3-3 majors, four clubs, balanced 11: a flat 4-3-3-3 — no Puppet to hunt a
     // five-card major, it just plays 3NT.
     assert_eq!(
@@ -81,7 +81,7 @@ fn flat_minor_four_three_three_three_game_force_bids_3nt() {
 
 #[test]
 fn opener_shows_a_five_card_major_over_puppet() {
-    let system = stance();
+    let system = partnership();
     let auction = after_1nt(&[call(3, Strain::Clubs)]);
     // 17 HCP balanced with five hearts: 3♥.
     assert_eq!(
@@ -92,7 +92,7 @@ fn opener_shows_a_five_card_major_over_puppet() {
 
 #[test]
 fn responder_raises_the_five_three_fit_to_game() {
-    let system = stance();
+    let system = partnership();
     let auction = after_1nt(&[call(3, Strain::Clubs), call(3, Strain::Hearts)]);
     // Three-card heart support opposite opener's five: an eight-card fit, 4♥.
     assert_eq!(
@@ -105,7 +105,7 @@ fn responder_raises_the_five_three_fit_to_game() {
 
 #[test]
 fn opener_denies_a_five_card_major_with_three_diamonds() {
-    let system = stance();
+    let system = partnership();
     let auction = after_1nt(&[call(3, Strain::Clubs)]);
     // 3-3-4-3, no five-card major: deny with the artificial 3♦.
     assert_eq!(
@@ -116,7 +116,7 @@ fn opener_denies_a_five_card_major_with_three_diamonds() {
 
 #[test]
 fn responder_bids_the_short_major_to_find_a_four_four() {
-    let system = stance();
+    let system = partnership();
     let auction = after_1nt(&[call(3, Strain::Clubs), call(3, Strain::Diamonds)]);
     // 4♠-3♥: bid the shorter major (3♥) to show the four spades, Smolen-style.
     assert_eq!(
@@ -127,7 +127,7 @@ fn responder_bids_the_short_major_to_find_a_four_four() {
 
 #[test]
 fn opener_completes_the_four_four_spade_fit() {
-    let system = stance();
+    let system = partnership();
     // `1NT - 3♣ - 3♦ - 3♥ -` named four spades; opener with four raises to 4♠.
     let auction = after_1nt(&[
         call(3, Strain::Clubs),
@@ -142,7 +142,7 @@ fn opener_completes_the_four_four_spade_fit() {
 
 #[test]
 fn responder_signs_off_in_3nt_without_a_four_card_major() {
-    let system = stance();
+    let system = partnership();
     let auction = after_1nt(&[call(3, Strain::Clubs), call(3, Strain::Diamonds)]);
     // 3-3 majors, no four-card major: nothing to find, settle in 3NT.
     assert_eq!(
@@ -155,7 +155,7 @@ fn responder_signs_off_in_3nt_without_a_four_card_major() {
 
 #[test]
 fn opener_completes_the_diamond_transfer_with_a_fit() {
-    let system = stance();
+    let system = partnership();
     let auction = after_1nt(&[call(2, Strain::Notrump)]);
     // Three diamonds: complete to 3♦ (an assured eight-card fit).
     assert_eq!(
@@ -166,7 +166,7 @@ fn opener_completes_the_diamond_transfer_with_a_fit() {
 
 #[test]
 fn opener_pass_or_corrects_the_diamond_transfer_when_short() {
-    let system = stance();
+    let system = partnership();
     let auction = after_1nt(&[call(2, Strain::Notrump)]);
     // Doubleton diamond: bid 3♣ instead, pass-or-correct.
     assert_eq!(
@@ -177,7 +177,7 @@ fn opener_pass_or_corrects_the_diamond_transfer_when_short() {
 
 #[test]
 fn weak_diamond_transfer_passes_the_partscore() {
-    let system = stance();
+    let system = partnership();
     let auction = after_1nt(&[call(2, Strain::Notrump), call(3, Strain::Diamonds)]);
     // Six diamonds, sub-game values: pass the 3♦ partscore.
     assert_eq!(best_call(&system, &auction, "xx.xx.KJxxxx.xxx"), P);
@@ -187,7 +187,7 @@ fn weak_diamond_transfer_passes_the_partscore() {
 
 #[test]
 fn opener_shows_strength_over_two_spades() {
-    let system = stance();
+    let system = partnership();
     let auction = after_1nt(&[call(2, Strain::Spades)]);
     // Maximum (17): 3♣.
     assert_eq!(
@@ -203,7 +203,7 @@ fn opener_shows_strength_over_two_spades() {
 
 #[test]
 fn weak_clubs_signs_off_over_either_reply() {
-    let system = stance();
+    let system = partnership();
     // Over the minimum 2NT: correct to 3♣.
     let after_min = after_1nt(&[call(2, Strain::Spades), call(2, Strain::Notrump)]);
     assert_eq!(
@@ -217,7 +217,7 @@ fn weak_clubs_signs_off_over_either_reply() {
 
 #[test]
 fn balanced_invite_plays_2nt_opposite_a_minimum() {
-    let system = stance();
+    let system = partnership();
     let auction = after_1nt(&[call(2, Strain::Spades), call(2, Strain::Notrump)]);
     // Balanced 8, no four-card major: opener is minimum, settle in 2NT.
     assert_eq!(best_call(&system, &auction, "Kxx.Qxx.Qxx.Jxxx"), P);
@@ -225,7 +225,7 @@ fn balanced_invite_plays_2nt_opposite_a_minimum() {
 
 #[test]
 fn game_going_clubs_splinter_for_the_better_game() {
-    let system = stance();
+    let system = partnership();
     let auction = after_1nt(&[call(2, Strain::Spades), call(3, Strain::Clubs)]);
     // Six clubs, game values, a singleton spade: splinter 3♠ so opener picks
     // between 3NT and 5♣.
@@ -239,7 +239,7 @@ fn game_going_clubs_splinter_for_the_better_game() {
 
 #[test]
 fn game_forcing_five_four_takes_stayman_not_a_transfer() {
-    let system = stance();
+    let system = partnership();
     // 5♠-4♥, 14 HCP: kept off the spade transfer so it can Smolen via 2♣.
     assert_eq!(
         best_call(&system, &after_1nt(&[]), "AQJxx.KJxx.Kx.xx"),
@@ -249,7 +249,7 @@ fn game_forcing_five_four_takes_stayman_not_a_transfer() {
 
 #[test]
 fn five_four_smolens_over_the_stayman_denial() {
-    let system = stance();
+    let system = partnership();
     // `1NT - 2♣ - 2♦ -`: after the no-major denial, jump to 3♥ to show
     // five spades and four hearts.
     let auction = after_1nt(&[call(2, Strain::Clubs), call(2, Strain::Diamonds)]);
@@ -266,15 +266,15 @@ fn five_four_smolens_over_the_stayman_denial() {
 // `examples/ab-long-minor-force`).  It is a field of the captured agreements,
 // so arming it touches nothing global.
 
-fn stance_forcing_long_minors() -> Stance {
+fn partnership_forcing_long_minors() -> Partnership {
     let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.notrump.long_minor_force = true;
-    american(&agreements).against()
+    american(&agreements).bind()
 }
 
 #[test]
 fn long_minor_eight_transfers_by_default() {
-    let system = stance();
+    let system = partnership();
     // 8 HCP, seven clubs: by default (force off) it shows the suit via the 2♠
     // Puppet transfer — which drives to the making 5♣ game — not a 3NT gamble.
     assert_eq!(
@@ -285,7 +285,7 @@ fn long_minor_eight_transfers_by_default() {
 
 #[test]
 fn long_minor_eight_forces_3nt_when_opted_in() {
-    let system = stance_forcing_long_minors();
+    let system = partnership_forcing_long_minors();
     // Armed: seven clubs (a source by length) and a six-card minor with two top
     // honors both jump to 3NT, outranking the 2♠ transfer.
     assert_eq!(
@@ -300,7 +300,7 @@ fn long_minor_eight_forces_3nt_when_opted_in() {
 
 #[test]
 fn six_card_minor_one_honor_eight_stays_a_transfer() {
-    let system = stance_forcing_long_minors();
+    let system = partnership_forcing_long_minors();
     // Even armed, a six-card minor with only one top honor is not a source of
     // tricks, so the honor gate keeps it on the 2♠ transfer.
     assert_eq!(

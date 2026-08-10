@@ -154,8 +154,8 @@ fn main() {
     } else {
         "C1 sum"
     };
-    // The knob is captured into a stance at build, so the probe needs one book
-    // per setting: `stances[0]` knob-off (it also does the bidding), `[1]` on.
+    // The knob is captured into a partnership at build, so the probe needs one book
+    // per setting: `partnerships[0]` knob-off (it also does the bidding), `[1]` on.
     let mut off_agreements = pons::bidding::agreements::Agreements::default();
     off_agreements.decision.reading.gauge_membership = args.gauge;
     let mut on_agreements = off_agreements;
@@ -169,11 +169,11 @@ fn main() {
         off_agreements.decision.reading.sum_closure = false;
         on_agreements.decision.reading.sum_closure = true;
     }
-    let stances = [
-        american(&off_agreements).against(),
-        american(&on_agreements).against(),
+    let partnerships = [
+        american(&off_agreements).bind(),
+        american(&on_agreements).bind(),
     ];
-    let stance = &stances[0];
+    let partnership = &partnerships[0];
 
     // Per column kind: every |Δ| that was nonzero, plus every value seen
     // knob-off (for the corpus σ that puts the movement on the net's scale).
@@ -188,14 +188,14 @@ fn main() {
         let dealer = Seat::ALL[board % 4];
         // Bid under the baseline in both arms: the corpus of readings is fixed,
         // so this isolates the encoding perturbation from any bidding change.
-        let auction = bid_out(stance, stance, true, dealer, vul, &deal);
+        let auction = bid_out(partnership, partnership, true, dealer, vul, &deal);
 
         for cut in 1..=auction.len() {
             let seat = seat_to_act(dealer, cut);
             let prefix = &auction[..cut];
             let rel = relative(vul, seat);
 
-            let read = |on: bool| stances[usize::from(on)].infer(rel, prefix);
+            let read = |on: bool| partnerships[usize::from(on)].infer(rel, prefix);
             let (off, on) = (read(false), read(true));
             let (a, b) = (
                 features_eval_shape(deal[seat], &off, prefix),

@@ -542,7 +542,7 @@ fn gladiator_stolen_relay_double_is_read_as_the_relay() {
 #[test]
 fn gladiator_advances_follow_the_card() {
     let agreements = gladiator_agreements();
-    let stance = crate::american(&agreements).against();
+    let partnership = crate::american(&agreements).bind();
     let node = [bid(1, Strain::Spades), bid(1, Strain::Notrump), Call::Pass];
     // After the relay and its forced 2♦ puppet: the XYZ-style sort.
     let sorted: Vec<Call> = node
@@ -649,7 +649,7 @@ fn gladiator_advances_follow_the_card() {
     let mut failures: Vec<String> = Vec::new();
     for &(text, auction, expected, what) in rows {
         let hand: Hand = text.parse().expect("a hand");
-        let made = chosen_call(&stance, hand, auction);
+        let made = chosen_call(&partnership, hand, auction);
         if made != expected {
             failures.push(format!("{text} ({what}): bid {made}, carded {expected}"));
         }
@@ -670,7 +670,7 @@ fn gladiator_advances_follow_the_card() {
 #[test]
 fn gladiator_runs_out_of_the_doubled_overcall() {
     let agreements = gladiator_agreements();
-    let stance = crate::american(&agreements).against();
+    let partnership = crate::american(&agreements).bind();
     let node = [
         bid(1, Strain::Spades),
         bid(1, Strain::Notrump),
@@ -698,7 +698,7 @@ fn gladiator_runs_out_of_the_doubled_overcall() {
     let mut failures: Vec<String> = Vec::new();
     for &(text, expected, what) in rows {
         let hand: Hand = text.parse().expect("a hand");
-        let made = chosen_call(&stance, hand, &node);
+        let made = chosen_call(&partnership, hand, &node);
         if made != expected {
             failures.push(format!("{text} ({what}): bid {made}, carded {expected}"));
         }
@@ -723,7 +723,7 @@ fn gladiator_runs_out_of_the_doubled_overcall() {
 #[test]
 fn gladiator_continuations_are_authored_to_the_leaf() {
     let agreements = gladiator_agreements();
-    let stance = crate::american(&agreements).against();
+    let partnership = crate::american(&agreements).bind();
     let p = Call::Pass;
     let base = [bid(1, Strain::Spades), bid(1, Strain::Notrump), p];
     let seq =
@@ -821,7 +821,7 @@ fn gladiator_continuations_are_authored_to_the_leaf() {
     let mut failures: Vec<String> = Vec::new();
     for (auction, text, expected, what) in rows {
         let hand: Hand = text.parse().expect("a hand");
-        let made = chosen_call(&stance, hand, &auction);
+        let made = chosen_call(&partnership, hand, &auction);
         if made != expected {
             failures.push(format!("{text} ({what}): bid {made}, wanted {expected}"));
         }

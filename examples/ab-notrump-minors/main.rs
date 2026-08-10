@@ -28,7 +28,7 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::american::{EUROPEAN, PUPPET};
 use pons::bidding::context::relative;
-use pons::bidding::{Inferences, Stance};
+use pons::bidding::{Inferences, Partnership};
 use pons::scoring::{
     final_contract, imps, ns_score_contract, ns_score_pd, ns_score_pd_tricks, ns_score_tricks,
 };
@@ -71,10 +71,10 @@ struct Args {
 type ArmBids = [(Auction, Option<(Contract, Seat)>); 2];
 
 /// The (contract, declarer, leader-view inferences) of one auction, read through
-/// `stance`; `None` for a pass-out (sd score 0).  Mirrors `ab-dump-sd`.
+/// `partnership`; `None` for a pass-out (sd score 0).  Mirrors `ab-dump-sd`.
 fn lead_inputs(
     auction: &Auction,
-    stance: &Stance,
+    partnership: &Partnership,
     dealer: Seat,
     vul: AbsoluteVulnerability,
 ) -> Option<(Contract, Seat, Inferences)> {
@@ -86,7 +86,7 @@ fn lead_inputs(
     Some((
         contract,
         declarer,
-        stance.infer(relative(vul, leader), &auction[..cut]),
+        partnership.infer(relative(vul, leader), &auction[..cut]),
     ))
 }
 
@@ -97,16 +97,16 @@ fn main() {
     // arm 0 = European (the opt-in alternative), arm 1 = Puppet (the shipped
     // default).  Both keep every other shipped default.  The scheme is read both
     // at book construction *and* per decision, so build each arm under its own
-    // setting: the baked tries and the stance's pinned profile are then
+    // setting: the baked tries and the partnership's pinned profile are then
     // independent, and the European arm no longer classifies under whatever the
     // thread was left holding.
     let mut european_agreements = pons::bidding::agreements::Agreements::default();
     european_agreements.decision.reading.notrump_minors = EUROPEAN;
-    let european = american(&european_agreements).against();
+    let european = american(&european_agreements).bind();
     let mut puppet_agreements = pons::bidding::agreements::Agreements::default();
     puppet_agreements.decision.reading.notrump_minors = PUPPET;
-    let puppet = american(&puppet_agreements).against();
-    let stances = [european, puppet];
+    let puppet = american(&puppet_agreements).bind();
+    let partnerships = [european, puppet];
 
     // Both arms bid the same deal; the only difference is the 1NT minor table.
     // Deal sequentially (cheap), then bid in parallel — bidding is pure (the
@@ -120,7 +120,7 @@ fn main() {
         .map(|(index, deal)| {
             let dealer = Seat::ALL[index % 4];
             std::array::from_fn(|arm| {
-                let auction = bid_uncontested(&stances[arm], dealer, vul, deal);
+                let auction = bid_uncontested(&partnerships[arm], dealer, vul, deal);
                 let contract = final_contract(&auction, dealer);
                 (auction, contract)
             })
@@ -186,7 +186,7 @@ fn main() {
             let dealer = Seat::ALL[i % 4];
             for (arm_on, arm) in [(true, 1usize), (false, 0usize)] {
                 if let Some((contract, declarer, inferences)) =
-                    lead_inputs(&bids[i][arm].0, &stances[arm], dealer, vul)
+                    lead_inputs(&bids[i][arm].0, &partnerships[arm], dealer, vul)
                 {
                     pending.push((i, arm_on, contract, declarer));
                     questions.push(LeadQuestion {

@@ -20,7 +20,7 @@
 //! It reproduces at `f719be9`.
 //!
 //! Gate 2 is the fair comparison the first three arms cannot give.  Under the v3
-//! floor the kickback stance swaps the weights as well as the rules, so `kickback −
+//! floor the kickback partnership swaps the weights as well as the rules, so `kickback −
 //! minors` prices a convention *and* a differently-trained net — §7.12 measured
 //! 93.5% of its divergent boards with no keycard ask by either side.  The v4 arms
 //! share one artifact and differ by the `Kickback 1430` row of the card they are
@@ -59,7 +59,7 @@
 //! build time — the reading's `alerted` test is structural, so an always-present
 //! alerted rule on 4♥/4♠ would suppress the natural reading of those calls even
 //! in the off arm — *and* the recognizers at classification time.  Both halves
-//! are captured into the stance at build, so one stance per arm carries the
+//! are captured into the partnership at build, so one partnership per arm carries the
 //! whole arm: the bidding loop picks by side and arms nothing.
 //!
 //! `--dump DIR` writes the divergent boards as a `common::Dump` shard —
@@ -89,7 +89,7 @@ use contract_bridge::auction::{Auction, Call};
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat, Suit};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::Accumulator;
-use pons::bidding::Stance;
+use pons::bidding::Partnership;
 use pons::bidding::american::american_with_config;
 use pons::bidding::card::{Card, american_card};
 use pons::bidding::features::Config;
@@ -331,7 +331,7 @@ fn card(arm: Arm) -> Card {
     american_card(&arm_agreements(arm))
 }
 
-/// Build one stance per arm. `ReadingProfile::rkcb_variant` is read at build time for rule
+/// Build one partnership per arm. `ReadingProfile::rkcb_variant` is read at build time for rule
 /// presence, and `keycard_minors` by the book's RKCB row packages, so the
 /// arms cannot share a book.
 ///
@@ -341,17 +341,17 @@ fn card(arm: Arm) -> Card {
 /// arm would claim the other relocates exactly as it does, on precisely the
 /// mixed boards this experiment measures.  The cards are read *before* the knobs
 /// are armed for the build, because `american_card` reads the same knobs.
-fn build(arm: Arm, opponent: Arm) -> Stance {
+fn build(arm: Arm, opponent: Arm) -> Partnership {
     let cell = Config::new(&card(arm), &card(opponent));
-    american_with_config(&arm_agreements(arm), cell).against()
+    american_with_config(&arm_agreements(arm), cell).bind()
 }
 
-/// Bid one deal, the feature arm seated N-S or E-W.  Each stance carries both
+/// Bid one deal, the feature arm seated N-S or E-W.  Each partnership carries both
 /// halves of its arm's knobs — build-time and classify-time — from [`build`].
 fn bid_out(
     args: &Args,
-    feature: &Stance,
-    baseline: &Stance,
+    feature: &Partnership,
+    baseline: &Partnership,
     feature_is_ns: bool,
     dealer: Seat,
     deal: &FullDeal,
@@ -361,9 +361,9 @@ fn bid_out(
         let seat = seat_to_act(dealer, auction.len());
         let seat_is_ns = matches!(seat, Seat::North | Seat::South);
         let feature_side = seat_is_ns == feature_is_ns;
-        let stance = if feature_side { feature } else { baseline };
+        let partnership = if feature_side { feature } else { baseline };
         auction.push(next_call(
-            stance,
+            partnership,
             deal[seat],
             dealer,
             args.vulnerability,
@@ -478,8 +478,8 @@ fn rescore(args: &Args, path: &str) {
         .collect();
 
     // The sd endpoints, sequential per board (the playout cannot pool); the
-    // feature stance reads for both tables, as in the live --sd row.
-    let stance = build(feature, baseline);
+    // feature partnership reads for both tables, as in the live --sd row.
+    let partnership = build(feature, baseline);
     let mut rng = StdRng::seed_from_u64(args.sd_seed);
     let sd: Vec<Option<[common::SdScores; 2]>> = dump
         .boards
@@ -492,7 +492,7 @@ fn rescore(args: &Args, path: &str) {
                         auction,
                         board.dealer,
                         &board.deal,
-                        &stance,
+                        &partnership,
                         vul,
                         &mut rng,
                         args.sd_worlds,
@@ -766,7 +766,7 @@ fn main() {
         }
     }
 
-    // The sd-declarer playout row reads with the feature stance on both tables:
+    // The sd-declarer playout row reads with the feature partnership on both tables:
     // the arms differ in what they *bid*, and range reading is shared.
     let swings_sd = args.sd.then(|| {
         let mut rng = StdRng::seed_from_u64(args.sd_seed);

@@ -12,21 +12,21 @@
 //!    and IMPs — the floor's regret against its own absence, sign-flipped.
 //! 2. **Where does the floor fire?**  Every call the floored side classifies
 //!    is checked for floor provenance
-//!    ([`Stance::classify_with_provenance`]); the most-hit off-book auctions
+//!    ([`Partnership::classify_with_provenance`]); the most-hit off-book auctions
 //!    are the next nodes worth authoring properly.
 //!
 //! ```text
 //! cargo run --example ab-instinct-floor -- --count 200 --vulnerability ns
 //! ```
 //!
-//! [`Stance::classify_with_provenance`]: pons::bidding::Stance::classify_with_provenance
+//! [`Partnership::classify_with_provenance`]: pons::bidding::Partnership::classify_with_provenance
 
 use clap::Parser;
 use contract_bridge::auction::{Auction, Call, display_calls};
 use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use pons::american;
-use pons::bidding::Stance;
+use pons::bidding::Partnership;
 use pons::bidding::american::american_book;
 use pons::bidding::context::relative;
 use pons::scoring::{final_contract, ns_score_contract};
@@ -91,7 +91,7 @@ fn auction_key(auction: &[Call]) -> String {
 /// telemetry tap: when `telemetry` is given (the floored side is acting),
 /// the classification's provenance is recorded.
 fn next_call(
-    stance: &Stance,
+    partnership: &Partnership,
     hand: contract_bridge::Hand,
     dealer: Seat,
     vul: AbsoluteVulnerability,
@@ -100,7 +100,7 @@ fn next_call(
 ) -> Call {
     let seat = seat_to_act(dealer, auction.len());
     let Some((logits, provenance)) =
-        stance.classify_with_provenance(hand, relative(vul, seat), auction)
+        partnership.classify_with_provenance(hand, relative(vul, seat), auction)
     else {
         return Call::Pass;
     };
@@ -133,8 +133,8 @@ fn next_call(
 
 /// Bid out one deal, tapping telemetry for the floored side only
 fn bid_out(
-    floored: &Stance,
-    bare: &Stance,
+    floored: &Partnership,
+    bare: &Partnership,
     floored_is_ns: bool,
     dealer: Seat,
     vul: AbsoluteVulnerability,
@@ -146,12 +146,19 @@ fn bid_out(
     while !auction.has_ended() {
         let seat = seat_to_act(dealer, auction.len());
         let seat_is_ns = matches!(seat, Seat::North | Seat::South);
-        let (stance, tap) = if seat_is_ns == floored_is_ns {
+        let (partnership, tap) = if seat_is_ns == floored_is_ns {
             (floored, Some(&mut *telemetry))
         } else {
             (bare, None)
         };
-        auction.push(next_call(stance, deal[seat], dealer, vul, &auction, tap));
+        auction.push(next_call(
+            partnership,
+            deal[seat],
+            dealer,
+            vul,
+            &auction,
+            tap,
+        ));
     }
     auction
 }
@@ -164,8 +171,8 @@ fn bid_out(
 fn main() {
     let args = Args::parse();
     let mut rng = rand::rng();
-    let floored = american(&pons::bidding::agreements::Agreements::default()).against();
-    let bare = american_book(&pons::bidding::agreements::Agreements::default()).against();
+    let floored = american(&pons::bidding::agreements::Agreements::default()).bind();
+    let bare = american_book(&pons::bidding::agreements::Agreements::default()).bind();
     let mut telemetry = Telemetry::default();
 
     // Bid every board at both tables, dealer rotating per board.

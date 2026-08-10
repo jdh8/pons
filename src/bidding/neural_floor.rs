@@ -69,7 +69,7 @@ use std::sync::Arc;
 ///
 /// The [`Config`] is captured **once, when the floor is built**, from whatever
 /// the knobs said at that moment (see
-/// [`american`][super::american::american]).  A stance is
+/// [`american`][super::american::american]).  A partnership is
 /// built per A/B arm and a card is an agreement, not a per-call decision, so
 /// this is the right granularity — and it keeps the per-decision path from
 /// reading ambient state that could silently change what a feature vector
@@ -79,9 +79,9 @@ use std::sync::Arc;
 /// way, as a constructor argument rather than a process-wide `LazyLock`:
 /// [`instinct()`][super::instinct::instinct] reads the pinned profile at build
 /// time too (its RKCB fields pick the kickback ladder over the plain one), so
-/// a process that builds two differently-knobbed pairs must not share one ladder
+/// a process that builds two differently-knobbed systems must not share one ladder
 /// frozen at whichever came first.
-/// `common::with_floor` builds it once per pair and gives the same `Arc` to the
+/// `common::with_floor` builds it once per system and gives the same `Arc` to the
 /// constructive book.
 #[derive(Clone, Debug)]
 pub struct ConfiguredFloorBba(Config, Arc<Rules>);

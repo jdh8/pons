@@ -1,6 +1,6 @@
 //! Finalized reader-side routing for authored classifiers
 //!
-//! [`Trie`][super::trie::Trie] stays mutable and authoritative while a pair is
+//! [`Trie`][super::trie::Trie] stays mutable and authoritative while a system is
 //! assembled.  Once bound, this module snapshots its mechanics into sparse,
 //! immutable nodes and attaches the preserved row grammar to each surviving
 //! site.  Resolution deliberately mirrors `Trie::resolve_at`; the first gate

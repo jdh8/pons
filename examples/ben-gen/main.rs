@@ -429,7 +429,7 @@ fn main() -> anyhow::Result<()> {
     agreements.decision.reading.length_soundness = !args.no_ns_length_soundness;
     agreements.decision.reading.table_alerts = !args.no_ns_table_alert_reading;
     agreements.decision.reading.pass = !args.no_ns_pass_reading;
-    let our_floor = american(&agreements).against();
+    let our_floor = american(&agreements).bind();
     let epbot = if args.calibrate_epbot {
         let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());
         Some(BbaOracle::load(&path, SYSTEM_2_OVER_1, Vec::new())?)

@@ -1008,8 +1008,8 @@ fn a_convention_knob_moves_the_card_block() {
 /// this test fails and the skew note should come out of both docs.
 #[test]
 fn bare_and_prefixed_contexts_disagree() {
-    let stance =
-        crate::bidding::american(&crate::bidding::agreements::Agreements::default()).against();
+    let partnership =
+        crate::bidding::american(&crate::bidding::agreements::Agreements::default()).bind();
     // An artificial call whose meaning lives in its authoring rule: the
     // Jacoby 2NT game-forcing raise.  A bare context cannot project it.
     let auction = [
@@ -1023,7 +1023,7 @@ fn bare_and_prefixed_contexts_disagree() {
     let bare = features_v3(hand, &Context::new(RelativeVulnerability::NONE, &auction));
     let served = features_v3(
         hand,
-        &stance.prefixed_context(RelativeVulnerability::NONE, &auction),
+        &partnership.prefixed_context(RelativeVulnerability::NONE, &auction),
     );
 
     let moved: Vec<usize> = (0..FEATURES_LEN_V3)
@@ -1150,7 +1150,7 @@ fn one_hot_blocks_are_exclusive() {
 /// `from_card` reads row names; `capture` reads the knobs those rows are
 /// generated from.  A disagreement at the shipped defaults means a wrong
 /// row-name mapping — which would feed a v5 net a system nobody plays.  The
-/// Dutch pair also pins the system-header path (`dutch` rides `Card::system`,
+/// Dutch system also pins the system-header path (`dutch` rides `Card::system`,
 /// not a row).
 #[test]
 fn projection_agrees_with_capture_at_defaults() {

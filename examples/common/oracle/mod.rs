@@ -3,7 +3,7 @@
 //! [`BbaOracle`] wraps EPBot's C ABI (`libEPBot.so`, no Wine) — the BBA
 //! reference bidder used by `bba-gen` and by `ben-gen --calibrate-epbot`.
 //! [`next_call`]/[`bid_out`] are the `&dyn Bidder` match drivers shared by
-//! every oracle-vs-oracle generator (the `Stance`-based variants in
+//! every oracle-vs-oracle generator (the `Partnership`-based variants in
 //! [`mod.rs`](super) serve the self-play harnesses instead).
 //!
 //! Moved verbatim out of `examples/bba-gen/main.rs`; the S.0 spike documents

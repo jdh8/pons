@@ -81,10 +81,10 @@ fn main() {
     let vul = AbsoluteVulnerability::NONE;
 
     // Two books, built once — the knob is read at construction, not classify time.
-    let baseline = american(&Agreements::default()).against();
+    let baseline = american(&Agreements::default()).bind();
     let mut light = Agreements::default();
     light.response.two_over_one_heart_light = true;
-    let candidate = american(&light).against();
+    let candidate = american(&light).bind();
 
     let deals = seeded_deals(seed, count);
     let mut qualifying: Vec<Board> = Vec::new();

@@ -42,7 +42,7 @@ use pons::bidding::american::{DoubleStyle, LebensohlStyle};
 use pons::bidding::constraint::point_count;
 use pons::bidding::context::{Context, relative};
 use pons::bidding::ev::ev_all;
-use pons::bidding::{Bidder, Stance};
+use pons::bidding::{Bidder, Partnership};
 use pons::scoring::{final_contract, imps, ns_score_contract};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -225,7 +225,7 @@ fn overcalled_2c(auction: &Auction) -> bool {
 /// each decision for distilling that gate into a static floor.
 #[allow(clippy::too_many_arguments)]
 fn next_call_ns(
-    stance: &Stance,
+    partnership: &Partnership,
     hand: Hand,
     dealer: Seat,
     vul: AbsoluteVulnerability,
@@ -237,7 +237,7 @@ fn next_call_ns(
     log_relay: bool,
     seed: u64,
 ) -> Call {
-    let base = next_call(stance, hand, dealer, vul, auction);
+    let base = next_call(partnership, hand, dealer, vul, auction);
     let Some(over) = relay_node_over(auction) else {
         return base;
     };
@@ -260,7 +260,14 @@ fn next_call_ns(
     let calls = [base, Call::Pass];
     let mut rng = StdRng::seed_from_u64(seed);
     let evs = ev_all(
-        hand, seat, vul, &context, &calls, stance, &mut rng, pd_layouts,
+        hand,
+        seat,
+        vul,
+        &context,
+        &calls,
+        partnership,
+        &mut rng,
+        pd_layouts,
     );
     // Defend only when both lines scored and defending strictly wins; otherwise
     // keep the book call (NaN = no signal → trust the book).
@@ -450,14 +457,14 @@ fn parse_len(s: &str, spec: &str) -> usize {
 
 /// The highest-logit *legal* call, defaulting to a pass
 fn next_call(
-    stance: &Stance,
+    partnership: &Partnership,
     hand: Hand,
     dealer: Seat,
     vul: AbsoluteVulnerability,
     auction: &Auction,
 ) -> Call {
     let seat = seat_to_act(dealer, auction.len());
-    let Some(logits) = stance.classify(hand, relative(vul, seat), auction) else {
+    let Some(logits) = partnership.classify(hand, relative(vul, seat), auction) else {
         return Call::Pass;
     };
     let mut scored: Vec<(Call, f32)> = logits
@@ -482,7 +489,7 @@ fn prefix_auction(calls: &[Call]) -> Auction {
     auction
 }
 
-/// The measured pair's first call the baseline stance would not have made
+/// The measured pair's first call the baseline partnership would not have made
 ///
 /// Replays `auction` (the measured/Lebensohl pair sits NS when `is_ns`); at each
 /// of that pair's turns it compares the actual call to what `baseline` would
@@ -492,7 +499,7 @@ fn prefix_auction(calls: &[Call]) -> Auction {
 /// completing a transfer). `None` if the pair never diverged at this table.
 fn first_divergent(
     auction: &Auction,
-    baseline: &Stance,
+    baseline: &Partnership,
     dealer: Seat,
     vul: AbsoluteVulnerability,
     deal: &FullDeal,
@@ -519,8 +526,8 @@ fn first_divergent(
 /// Bid one deal with the Lebensohl pair on the side picked by `lebensohl_is_ns`
 #[allow(clippy::too_many_arguments)]
 fn bid_out(
-    lebensohl: &Stance,
-    baseline: &Stance,
+    lebensohl: &Partnership,
+    baseline: &Partnership,
     lebensohl_is_ns: bool,
     dealer: Seat,
     vul: AbsoluteVulnerability,
@@ -566,7 +573,7 @@ fn main() {
     arm.competition.trap_pass = args.ew_trap == "on";
     let (ew_h, ew_p) = floor_from(&args.ew_floor);
     arm.competition.natural_floor = (ew_h, ew_p);
-    let baseline = american(&arm).against();
+    let baseline = american(&arm).bind();
     arm.competition.lebensohl_style = style_from(&args.ns);
     apply_double(&mut arm.competition, &args.ns_dbl);
     arm.competition.direct_3nt_stopper = args.ns_3nt_stopper != "off";
@@ -574,7 +581,7 @@ fn main() {
     arm.competition.penalty_double_leave_in = args.ns_penalty_leave_in != "off";
     let (ns_h, ns_p) = floor_from(&args.ns_floor);
     arm.competition.natural_floor = (ns_h, ns_p);
-    let lebensohl = american(&arm).against();
+    let lebensohl = american(&arm).bind();
 
     // Phase 1 (sequential, cheap): deal + the shape-only filter until `count`
     // boards pass. The RNG stays single-threaded so a seed reproduces a run.

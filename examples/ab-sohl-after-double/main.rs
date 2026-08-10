@@ -123,11 +123,11 @@ fn main() {
     let mut ew = pons::bidding::agreements::Agreements::default();
     ew.defense.advance_sohl_style = style_from(&args.ew);
     ew.competition.delayed_cue = false;
-    let baseline = american(&ew).against();
+    let baseline = american(&ew).bind();
     let mut ns = pons::bidding::agreements::Agreements::default();
     ns.defense.advance_sohl_style = style_from(&args.ns);
     ns.competition.delayed_cue = args.delayed_cue;
-    let sohl = american(&ns).against();
+    let sohl = american(&ns).bind();
 
     // Phase 1 (sequential, cheap): deal + the shape-only filter until `count`
     // boards pass. The RNG stays single-threaded so a seed reproduces a run.

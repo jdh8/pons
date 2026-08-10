@@ -88,7 +88,7 @@ fn main() {
     let args = Args::parse();
     let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.notrump.stayman_minor_slam_try = args.treatment;
-    let sys = american(&agreements).against();
+    let sys = american(&agreements).bind();
     let boards = boards(args.seed, args.count);
 
     let contracts: Vec<Option<(Contract, Seat)>> = boards

@@ -14,7 +14,7 @@ use super::inference::Inferences;
 use super::rules::Rules;
 use super::trie::Classifier;
 use super::trie::Provenance;
-use super::{Bidder, Stance};
+use super::{Bidder, Partnership};
 use contract_bridge::Hand;
 use contract_bridge::auction::Auction;
 use contract_bridge::auction::{Call, RelativeVulnerability};
@@ -25,24 +25,25 @@ use contract_bridge::auction::{Call, RelativeVulnerability};
 /// treatment against its same-process semantic reference.
 #[must_use]
 pub fn classify_with_provenance_uncached(
-    stance: &Stance,
+    partnership: &Partnership,
     hand: Hand,
     vul: RelativeVulnerability,
     auction: &[Call],
 ) -> Option<(Logits, Provenance)> {
-    stance.classify_with_provenance_uncached(hand, vul, auction)
+    partnership.classify_with_provenance_uncached(hand, vul, auction)
 }
 
 /// Whether serving delegates this floor position bit-for-bit to deterministic instinct.
 #[must_use]
 pub fn is_deterministic_instinct_floor(
-    stance: &Stance,
-    deterministic: &Stance,
+    partnership: &Partnership,
+    deterministic: &Partnership,
     hand: Hand,
     vul: RelativeVulnerability,
     auction: &[Call],
 ) -> bool {
-    let Some((logits, provenance)) = stance.classify_with_provenance(hand, vul, auction) else {
+    let Some((logits, provenance)) = partnership.classify_with_provenance(hand, vul, auction)
+    else {
         return false;
     };
     if provenance.depth != 0 || provenance.fallback.is_none() {
@@ -86,7 +87,7 @@ impl ActiveEvaluatorFeatures {
 /// Extract features through the same variant selection as public convenience
 /// serving, using the shipped
 /// [`ReadingProfile::default`](crate::bidding::inference::ReadingProfile::default)
-/// envelope-union regime. Stance-bound serving selects from its explicit pinned
+/// envelope-union regime. Partnership-bound serving selects from its explicit pinned
 /// profile.
 #[must_use]
 pub fn active_evaluator_features(
@@ -125,16 +126,16 @@ pub fn select_legal_call(logits: Logits, auction: &Auction) -> Call {
 /// Classify the deterministic instinct ladder under one fresh decision scope.
 #[must_use]
 pub fn classify_instinct_scoped(
-    stance: &Stance,
+    partnership: &Partnership,
     ladder: &Rules,
     hand: Hand,
     vul: RelativeVulnerability,
     auction: &[Call],
 ) -> Logits {
-    let trie = stance.trie_for(auction);
+    let trie = partnership.trie_for(auction);
     let context = Context::new(vul, auction)
         .with_prefixes(trie.common_prefixes(auction))
-        .with_system(stance)
+        .with_system(partnership)
         .with_decision_cache(hand);
     ladder.classify(hand, &context)
 }
@@ -142,15 +143,15 @@ pub fn classify_instinct_scoped(
 /// Classify the deterministic instinct ladder under the pre-cache context.
 #[must_use]
 pub fn classify_instinct_uncached(
-    stance: &Stance,
+    partnership: &Partnership,
     ladder: &Rules,
     hand: Hand,
     vul: RelativeVulnerability,
     auction: &[Call],
 ) -> Logits {
-    let trie = stance.trie_for(auction);
+    let trie = partnership.trie_for(auction);
     let context = Context::new(vul, auction)
         .with_prefixes(trie.common_prefixes(auction))
-        .with_system(stance);
+        .with_system(partnership);
     ladder.classify(hand, &context)
 }

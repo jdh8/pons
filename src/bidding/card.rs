@@ -496,7 +496,7 @@ fn american_row(name: &str, a: &Agreements) -> i32 {
         | "Kickback 0123"
         | "Kickback 0314"
         | "Exclusion" => 0,
-        // We play 1430, and under the Kickback stance we play it **relocated**
+        // We play 1430, and under the Kickback partnership we play it **relocated**
         // — so this row has to ride the knob.  Hardcoding it to 0 disclosed a
         // system in which our 4♥ is natural while our own side treated it as a
         // diamond ask: an undisclosed convention, which is a fairness problem

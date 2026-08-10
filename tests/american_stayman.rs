@@ -22,7 +22,7 @@ fn after_stayman(tail: &[Call]) -> Vec<Call> {
 
 #[test]
 fn responder_signs_off_in_the_major_game_with_a_fit() {
-    let system = stance();
+    let system = partnership();
     let auction = after_stayman(&[call(2, Strain::Hearts)]);
     // Four hearts, game values, unbalanced (singleton spade): sign off in 4♥.
     assert_eq!(
@@ -33,7 +33,7 @@ fn responder_signs_off_in_the_major_game_with_a_fit() {
 
 #[test]
 fn responder_invites_with_a_fit_and_eight() {
-    let system = stance();
+    let system = partnership();
     let auction = after_stayman(&[call(2, Strain::Hearts)]);
     // Four hearts, a flat 8 with no shortness: support points stay 8 (no ruffing
     // upgrade opposite the fit), an invitational raise to 3♥.
@@ -45,7 +45,7 @@ fn responder_invites_with_a_fit_and_eight() {
 
 #[test]
 fn responder_bids_3om_as_a_slam_try_with_a_balanced_fit() {
-    let system = stance();
+    let system = partnership();
     let auction = after_stayman(&[call(2, Strain::Hearts)]);
     // Four hearts, balanced, game-forcing: the artificial 3♠ (other major).
     assert_eq!(
@@ -56,7 +56,7 @@ fn responder_bids_3om_as_a_slam_try_with_a_balanced_fit() {
 
 #[test]
 fn responder_reverts_to_quantitative_4nt_without_a_fit() {
-    let system = stance();
+    let system = partnership();
     let auction = after_stayman(&[call(2, Strain::Hearts)]);
     // Four spades (no heart fit), balanced 16: 4NT exactly as over a bare 1NT.
     assert_eq!(
@@ -69,7 +69,7 @@ fn responder_reverts_to_quantitative_4nt_without_a_fit() {
 
 #[test]
 fn opener_answers_3om_by_shape_and_strength() {
-    let system = stance();
+    let system = partnership();
     let auction = after_stayman(&[call(2, Strain::Hearts), call(3, Strain::Spades)]);
 
     // Flat 4-3-3-3: choose notrump.
@@ -93,7 +93,7 @@ fn opener_answers_3om_by_shape_and_strength() {
 
 #[test]
 fn responder_keycards_or_signs_off_over_openers_cue() {
-    let system = stance();
+    let system = partnership();
     // `1NT - 2♣ - 2♥ - 3♠ - 4♣`: responder tries for slam, and a
     // maximum opener cues a club control.
     let auction = after_stayman(&[
@@ -117,7 +117,7 @@ fn responder_keycards_or_signs_off_over_openers_cue() {
 
 #[test]
 fn responder_jumps_smolen_over_two_diamonds() {
-    let system = stance();
+    let system = partnership();
     let auction = after_stayman(&[call(2, Strain::Diamonds)]);
     // Five spades, four hearts, game-forcing: 3♥ shows the five-card spade suit.
     assert_eq!(
@@ -128,7 +128,7 @@ fn responder_jumps_smolen_over_two_diamonds() {
 
 #[test]
 fn opener_completes_smolen_into_the_long_major() {
-    let system = stance();
+    let system = partnership();
     let auction = after_stayman(&[
         call(2, Strain::Diamonds),
         call(3, Strain::Hearts), // Smolen: responder holds five spades
@@ -149,7 +149,7 @@ fn opener_completes_smolen_into_the_long_major() {
 
 #[test]
 fn opener_accepts_the_invitational_raise_into_the_major_with_a_maximum() {
-    let system = stance();
+    let system = partnership();
     // 1NT - 2♣ - 2♥ - 3♥ - — responder invited with a fit.
     let auction = after_stayman(&[call(2, Strain::Hearts), call(3, Strain::Hearts)]);
     // Maximum 17, four hearts, not flat: accept in the major game.
@@ -161,7 +161,7 @@ fn opener_accepts_the_invitational_raise_into_the_major_with_a_maximum() {
 
 #[test]
 fn opener_accepts_the_invitational_raise_in_notrump_when_flat() {
-    let system = stance();
+    let system = partnership();
     let auction = after_stayman(&[call(2, Strain::Hearts), call(3, Strain::Hearts)]);
     // Maximum 17 but a flat 4-3-3-3: choose 3NT over the eight-card fit.
     assert_eq!(
@@ -172,7 +172,7 @@ fn opener_accepts_the_invitational_raise_in_notrump_when_flat() {
 
 #[test]
 fn opener_declines_the_invitational_raise_with_a_minimum() {
-    let system = stance();
+    let system = partnership();
     let auction = after_stayman(&[call(2, Strain::Hearts), call(3, Strain::Hearts)]);
     // Minimum 15 with four hearts: pass the partscore.
     assert_eq!(best_call(&system, &auction, "Kxx.KQJx.Axx.Qxx"), P);
@@ -182,7 +182,7 @@ fn opener_declines_the_invitational_raise_with_a_minimum() {
 
 #[test]
 fn opener_accepts_the_no_fit_quantitative_with_a_maximum() {
-    let system = stance();
+    let system = partnership();
     let auction = after_stayman(&[call(2, Strain::Diamonds), call(4, Strain::Notrump)]);
     // 17 balanced, no four-card major (opener denied one with 2♦): bid 6NT.
     assert_eq!(
@@ -195,7 +195,7 @@ fn opener_accepts_the_no_fit_quantitative_with_a_maximum() {
 
 #[test]
 fn smolen_works_at_the_two_notrump_level() {
-    let system = stance();
+    let system = partnership();
     // 2NT - 3♣ - 3♦ - — opener denied a major; responder jumps Smolen.
     let auction = &[
         call(2, Strain::Notrump),
@@ -216,19 +216,19 @@ fn smolen_works_at_the_two_notrump_level() {
 // All three values are fields of the captured agreements. Defaults: garbage on, both-majors
 // on, five-card-max on.
 
-fn stance_with(garbage: bool, both_majors: bool, five_card_max: bool) -> Stance {
+fn partnership_with(garbage: bool, both_majors: bool, five_card_max: bool) -> Partnership {
     let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.reading.garbage_stayman = garbage;
     agreements.notrump.stayman_both_majors = both_majors;
     agreements.notrump.stayman_5card_max = five_card_max;
-    american(&agreements).against()
+    american(&agreements).bind()
 }
 
 // --- Max-only both-majors relay (2NT = 16-17, 3♣/3♦ name responder's major) --
 
 #[test]
 fn both_majors_responder_relays_hearts_via_3c() {
-    let system = stance_with(false, true, false);
+    let system = partnership_with(false, true, false);
     // Opener showed both majors, maximum (2NT); responder with four hearts names
     // them via 3♣ so opener declares (right-siding).
     let auction = after_stayman(&[call(2, Strain::Notrump)]);
@@ -240,7 +240,7 @@ fn both_majors_responder_relays_hearts_via_3c() {
 
 #[test]
 fn both_majors_opener_completes_relay_to_hearts() {
-    let system = stance_with(false, true, false);
+    let system = partnership_with(false, true, false);
     // Responder relayed 3♣ (hearts); opener completes 3♥ so opener declares.
     let auction = after_stayman(&[call(2, Strain::Notrump), call(3, Strain::Clubs)]);
     assert_eq!(
@@ -251,7 +251,7 @@ fn both_majors_opener_completes_relay_to_hearts() {
 
 #[test]
 fn both_majors_responder_raises_completion_to_game() {
-    let system = stance_with(false, true, false);
+    let system = partnership_with(false, true, false);
     // Over opener's 3♥ completion, responder with game values raises to 4♥.
     let auction = after_stayman(&[
         call(2, Strain::Notrump),
@@ -266,7 +266,7 @@ fn both_majors_responder_raises_completion_to_game() {
 
 #[test]
 fn garbage_weak_both_majors_staymans() {
-    let system = stance_with(true, false, false);
+    let system = partnership_with(true, false, false);
     // 6 HCP, 4-4-4-1 (short clubs): too weak for constructive Stayman, but with
     // garbage on it bids 2♣ to escape 1NT.
     assert_eq!(
@@ -277,7 +277,7 @@ fn garbage_weak_both_majors_staymans() {
 
 #[test]
 fn garbage_responder_passes_opener_answer() {
-    let system = stance_with(true, false, false);
+    let system = partnership_with(true, false, false);
     // A weak 4-4-major hand: over opener's 2♥ it sits in the 4-4 fit (drop-dead).
     // Flat (no ruffing shortness), so support points stay 7 — below the invite floor.
     let auction = after_stayman(&[call(2, Strain::Hearts)]);
@@ -286,7 +286,7 @@ fn garbage_responder_passes_opener_answer() {
 
 #[test]
 fn garbage_off_the_weak_hand_passes_one_nt() {
-    let system = stance_with(false, false, false);
+    let system = partnership_with(false, false, false);
     // With garbage off, the weak hand has no Stayman and passes 1NT.
     assert_eq!(
         best_call(&system, &[call(1, Strain::Notrump), P], "Qxxx.Jxxx.Kxxx.x"),
@@ -296,7 +296,7 @@ fn garbage_off_the_weak_hand_passes_one_nt() {
 
 #[test]
 fn both_majors_minimum_opener_bids_2h() {
-    let system = stance_with(false, true, false);
+    let system = partnership_with(false, true, false);
     // 15 HCP, 4-4-3-2 both majors, minimum: 2♥ up-the-line (no jump).
     let auction = after_stayman(&[]);
     assert_eq!(
@@ -307,7 +307,7 @@ fn both_majors_minimum_opener_bids_2h() {
 
 #[test]
 fn both_majors_maximum_opener_bids_2nt() {
-    let system = stance_with(false, true, false);
+    let system = partnership_with(false, true, false);
     // 16 HCP, 4-4-2-3 both majors, maximum: jump to 2NT.
     let auction = after_stayman(&[]);
     assert_eq!(
@@ -318,7 +318,7 @@ fn both_majors_maximum_opener_bids_2nt() {
 
 #[test]
 fn both_majors_off_opener_bids_2h_up_the_line() {
-    let system = stance_with(false, false, false);
+    let system = partnership_with(false, false, false);
     // Toggles off: the both-majors hand answers 2♥ up-the-line, as today.
     let auction = after_stayman(&[]);
     assert_eq!(
@@ -329,7 +329,7 @@ fn both_majors_off_opener_bids_2h_up_the_line() {
 
 #[test]
 fn five_card_max_opener_jumps_3h() {
-    let system = stance_with(false, false, true);
+    let system = partnership_with(false, false, true);
     // 16 HCP, 3-5-3-2 (five hearts), maximum: jump to 3♥.
     let auction = after_stayman(&[]);
     assert_eq!(
@@ -340,7 +340,7 @@ fn five_card_max_opener_jumps_3h() {
 
 #[test]
 fn five_card_minimum_opener_bids_2h() {
-    let system = stance_with(false, false, true);
+    let system = partnership_with(false, false, true);
     // 15 HCP, 3-5-3-2 (five hearts), minimum: natural 2♥ (no jump).
     let auction = after_stayman(&[]);
     assert_eq!(
@@ -351,7 +351,7 @@ fn five_card_minimum_opener_bids_2h() {
 
 #[test]
 fn both_majors_responder_relays_spades_via_3d() {
-    let system = stance_with(false, true, false);
+    let system = partnership_with(false, true, false);
     // Opener showed both majors, maximum (2NT); responder with four spades names
     // them via 3♦ so opener declares.
     let auction = after_stayman(&[call(2, Strain::Notrump)]);

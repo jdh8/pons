@@ -199,7 +199,7 @@ Worth stealing for **pons's floor** (not its book):
    once with a variable; pons's `Constraint` DSL largely repeats per suit.
    Templating the *floor* over suits would cut authoring without touching the
    book — directly in line with
-   [the "smarten the keyless floor" stance](../../CLAUDE.md) and
+   [the "smarten the keyless floor" partnership](../../CLAUDE.md) and
    `feedback_instinct_floor_over_node_authoring`.
 2. **Inline parametric decisions.** BBA's floor *computes* the bid from
    `#0(seat,suit)` arithmetic (HCP/length) rather than enumerating. pons's

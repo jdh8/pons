@@ -21,7 +21,7 @@
 //!   answer position itself (own weak two, partner's 2NT relay). Slice: NT
 //!   game-or-better cells on contested rows.
 //! - **shortness**: *book* = a rule pinning some suit to `≤1`; *envelope* =
-//!   the live [`Stance::infer`] envelope already caps some suit of that seat
+//!   the live [`Partnership::infer`] envelope already caps some suit of that seat
 //!   at ≤ 1 — splinters project, so this is the portion *already realized* by
 //!   the range features. Slice: suit-strain game-or-better cells.
 //! - **controls**: *book* = a rule whose prose mentions "control" (the
@@ -45,7 +45,7 @@ use contract_bridge::auction::{Auction, Call};
 use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Seat, Strain, Suit};
 use ddss::TrickCountTable;
 use pons::bidding::context::relative;
-use pons::bidding::{Bidder, Phase, Stance};
+use pons::bidding::{Bidder, Partnership, Phase};
 use pons::{american, dutch, gib};
 use rand::rngs::StdRng;
 use rand::{RngExt, SeedableRng};
@@ -200,7 +200,7 @@ fn argmax_legal(logits: &pons::bidding::array::Logits) -> Call {
         .map_or(Call::Pass, |(call, _)| call)
 }
 
-/// Bid one auction under `stance` and fold its rows into `acc` (the legacy
+/// Bid one auction under `partnership` and fold its rows into `acc` (the legacy
 /// keycard counters) and `survey`. `rkcb` is prebuilt so the hot loop only
 /// compares `Call`s: `[0..4]` are the four `5♣/♦/♥/♠` responses, `[4]` is the
 /// `4NT` ask.
@@ -208,7 +208,7 @@ fn argmax_legal(logits: &pons::bidding::array::Logits) -> Call {
 fn walk(
     acc: &mut [u64; N],
     survey: &mut Survey,
-    stance: &Stance,
+    partnership: &Partnership,
     dealer: usize,
     vul: AbsoluteVulnerability,
     deal: &FullDeal,
@@ -228,7 +228,7 @@ fn walk(
         let hand = deal[seat];
         let rel = relative(vul, seat);
 
-        let Some(mut logits) = stance.classify(hand, rel, &auction) else {
+        let Some(mut logits) = partnership.classify(hand, rel, &auction) else {
             // Forced pass: dump-evaluator emits no row here, so neither do we.
             auction.push(Call::Pass);
             continue;
@@ -254,7 +254,7 @@ fn walk(
                 n[axis][kind] = hidden.iter().filter(|&&t| seats[t as usize]).count() as u64;
             }
         }
-        let inferences = stance.infer(rel, &auction);
+        let inferences = partnership.infer(rel, &auction);
         n[SHORTNESS][STRUCT] = [inferences.lho(), inferences.partner(), inferences.rho()]
             .iter()
             .filter(|inf| inf.lengths.iter().any(|range| range.max <= 1))
@@ -300,7 +300,7 @@ fn walk(
         let call = argmax_legal(&logits);
         // One attribution per decision serves every book latch: the prose of
         // the rule that actually produced the call.
-        let desc = stance
+        let desc = partnership
             .explain_call(hand, rel, &auction, call)
             .and_then(|(_, rule)| rule)
             .map_or(String::new(), |rule| rule.description);
@@ -365,8 +365,8 @@ fn main() -> anyhow::Result<()> {
     eprintln!("axis-reach: {} deals × 2 systems", deals.len());
 
     let systems = [
-        american(&pons::bidding::agreements::Agreements::default()).against(),
-        dutch(&pons::bidding::agreements::Agreements::default()).against(),
+        american(&pons::bidding::agreements::Agreements::default()).bind(),
+        dutch(&pons::bidding::agreements::Agreements::default()).bind(),
     ];
     let rkcb = [
         Call::Bid(Bid::new(5, Strain::Clubs)),
@@ -386,11 +386,11 @@ fn main() -> anyhow::Result<()> {
             let vul = VULS[rng.random_range(0..4usize)];
             let mut acc = [0u64; N];
             let mut survey = Survey::default();
-            for stance in &systems {
+            for partnership in &systems {
                 walk(
                     &mut acc,
                     &mut survey,
-                    stance,
+                    partnership,
                     dealer,
                     vul,
                     deal,

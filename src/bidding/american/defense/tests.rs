@@ -46,7 +46,7 @@ fn row_package_invariants() {
 pub(super) fn best_call(auction: &[Call], hand: &str) -> (Call, bool) {
     let hand: Hand = hand.parse().expect("valid test hand");
     let (logits, prov) = american(&crate::bidding::agreements::Agreements::default())
-        .against()
+        .bind()
         .classify_with_provenance(hand, RelativeVulnerability::NONE, auction)
         .expect("a legal auction classifies");
     let best = (&logits.0)
@@ -67,7 +67,7 @@ pub(super) fn best_call_with(
 ) -> (Call, bool) {
     let hand: Hand = hand.parse().expect("valid test hand");
     let (logits, prov) = american(agreements)
-        .against()
+        .bind()
         .classify_with_provenance(hand, RelativeVulnerability::NONE, auction)
         .expect("a legal auction classifies");
     let best = (&logits.0)
@@ -82,7 +82,7 @@ pub(super) fn best_call_with(
 pub(super) fn best_call_vul(auction: &[Call], hand: &str, vul: RelativeVulnerability) -> Call {
     let hand: Hand = hand.parse().expect("valid test hand");
     let (logits, _) = american(&crate::bidding::agreements::Agreements::default())
-        .against()
+        .bind()
         .classify_with_provenance(hand, vul, auction)
         .expect("a legal auction classifies");
     (&logits.0)

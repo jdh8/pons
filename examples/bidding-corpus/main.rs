@@ -8,7 +8,7 @@ use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat};
 use pons::bidding::book::Phase;
 use pons::bidding::context::relative;
-use pons::bidding::{Bidder, Stance};
+use pons::bidding::{Bidder, Partnership};
 use pons::{american, american_instinct};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -109,7 +109,7 @@ fn same_logits(one: &pons::bidding::array::Logits, two: &pons::bidding::array::L
         })
 }
 
-fn annotate_categories(stance: &Stance, deterministic: &Stance, rows: &mut [Row]) {
+fn annotate_categories(partnership: &Partnership, deterministic: &Partnership, rows: &mut [Row]) {
     fn mark(rows: &mut [Row], category: Category, predicate: impl Fn(&Row) -> bool) {
         let row = rows
             .iter_mut()
@@ -119,7 +119,7 @@ fn annotate_categories(stance: &Stance, deterministic: &Stance, rows: &mut [Row]
     }
     let is_pons = |row: &Row| row.origin == Origin::Pons;
     let provenance = |row: &Row| {
-        stance
+        partnership
             .classify_with_provenance(row.hand, row.vul, &row.auction)
             .expect("the shipped floor is total")
             .1
@@ -129,7 +129,7 @@ fn annotate_categories(stance: &Stance, deterministic: &Stance, rows: &mut [Row]
         provenance.depth == 0 && provenance.fallback.is_some()
     };
     let matches_instinct = |row: &Row| {
-        let pons = stance
+        let pons = partnership
             .classify(row.hand, row.vul, &row.auction)
             .expect("Pons logits");
         let instinct = deterministic
@@ -238,14 +238,14 @@ fn harvest_deal(
 
 fn main() -> anyhow::Result<()> {
     // NativeAOT EPBot stays on this main thread throughout.
-    let stance: Stance = american(&pons::bidding::agreements::Agreements::default()).against();
-    let deterministic =
-        american_instinct(&pons::bidding::agreements::Agreements::default()).against();
+    let partnership: Partnership =
+        american(&pons::bidding::agreements::Agreements::default()).bind();
+    let deterministic = american_instinct(&pons::bidding::agreements::Agreements::default()).bind();
     let bba = BbaOracle::load(DEFAULT_LIB, SYSTEM_2_OVER_1, Vec::new())?;
     let mut rows = Vec::with_capacity(support::POSITION_COUNT);
-    harvest(Origin::Pons, &stance, &mut rows);
+    harvest(Origin::Pons, &partnership, &mut rows);
     harvest(Origin::Bba, &bba, &mut rows);
-    annotate_categories(&stance, &deterministic, &mut rows);
+    annotate_categories(&partnership, &deterministic, &mut rows);
     rows.sort_by_key(|row| (row.origin, row.bin, row.category));
 
     println!("# pons bidding performance corpus v1");

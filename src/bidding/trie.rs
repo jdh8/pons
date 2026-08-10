@@ -345,8 +345,8 @@ impl Trie {
 
     /// Consume the pending authoring ledger while finalizing a runtime book.
     ///
-    /// This is the production path used by `Pair::against`: stale objects and
-    /// pre-finalization key lists are dropped before the trie enters a stance.
+    /// This is the production path used by `System::bind`: stale objects and
+    /// pre-finalization key lists are dropped before the trie enters a partnership.
     #[cfg(test)]
     pub(crate) fn take_finalized_authoring(&mut self) -> AuthoringCatalog {
         let ledger = self.take_authoring_ledger();
@@ -520,7 +520,7 @@ impl Trie {
 
     /// [`classify_floored`][Self::classify_floored], also yielding the winning
     /// classifier itself — the attribution hook (which node or floor rule
-    /// answered), used by [`Stance::explain_call`][super::book::Stance::explain_call]
+    /// answered), used by [`Partnership::explain_call`][super::book::Partnership::explain_call]
     pub(crate) fn resolve_floored(
         &self,
         hand: Hand,

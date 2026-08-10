@@ -215,7 +215,7 @@ fn systems_on_over_double(key: &str, bid: &str) -> Entry {
 /// opener's answers to negative doubles of minor overcalls
 ///
 /// Standalone, the system-on rebase has nothing to land on; bind through
-/// [`Pair::against`][crate::bidding::Pair::against] (as [`american`][super::american] is meant to be
+/// [`System::bind`][crate::bidding::System::bind] (as [`american`][super::american] is meant to be
 /// used) so it resolves into the uncontested core.
 #[must_use]
 pub fn competition(agreements: &Agreements) -> Competitive {

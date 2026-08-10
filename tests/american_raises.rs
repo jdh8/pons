@@ -7,7 +7,7 @@ use common::*;
 
 #[test]
 fn test_splinter_over_one_spade() {
-    let system = stance();
+    let system = partnership();
     let after_1s = &[call(1, Strain::Spades), Call::Pass][..];
 
     // 10 HCP, singleton heart, four-card spade support -> support points 12 (the
@@ -28,7 +28,7 @@ fn test_splinter_over_one_spade() {
 
 #[test]
 fn test_wjs_over_one_heart() {
-    let system = stance();
+    let system = partnership();
     let after_1h = &[call(1, Strain::Hearts), Call::Pass][..];
 
     // 3 HCP, six spades -> 2♠ weak jump shift.
@@ -42,7 +42,7 @@ fn test_wjs_over_one_heart() {
 
 #[test]
 fn test_inverted_minor_raises_over_one_diamond() {
-    let system = stance();
+    let system = partnership();
     let after_1d = &[call(1, Strain::Diamonds), Call::Pass][..];
 
     // 12 HCP, five diamonds, no major -> inverted strong raise (2♦ forcing).
@@ -61,7 +61,7 @@ fn test_inverted_minor_raises_over_one_diamond() {
 
 #[test]
 fn test_opener_rebid_after_inverted_raise() {
-    let system = stance();
+    let system = partnership();
     let after_inv_raise = &[
         call(1, Strain::Diamonds),
         Call::Pass,

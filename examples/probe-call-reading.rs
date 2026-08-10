@@ -2,7 +2,7 @@
 //!
 //! `probe-reading-census` counts how many of the five axes are ⊤; this prints
 //! the ranges themselves for one auction, so a key off the census's worklist can
-//! be inspected directly. Reads through [`Stance::infer`] and reports the
+//! be inspected directly. Reads through [`Partnership::infer`] and reports the
 //! `announced()` envelope — exactly what `features::push_inference` encodes.
 //!
 //! Each argument is an auction; the reading shown is of its **last** call, from
@@ -62,7 +62,7 @@ fn main() {
     agreements.defense.weak_two_jump_overcall = args.weak_two_v2;
     agreements.defense.weak_two_cue = args.weak_two_v2;
     let vul = AbsoluteVulnerability::NONE;
-    let stance = american(&agreements).against();
+    let partnership = american(&agreements).bind();
 
     for text in &args.auctions {
         let auction: Vec<Call> = text
@@ -81,7 +81,7 @@ fn main() {
             vul,
             seat_to_act(contract_bridge::Seat::North, auction.len()),
         );
-        let read = stance.infer(rel, &auction);
+        let read = partnership.infer(rel, &auction);
         println!("{text:<12} {}", render(read.announced(Relative::Rho)));
     }
 }

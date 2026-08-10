@@ -12,7 +12,7 @@ use common::*;
 /// advances partner's takeout double instead of passing it out
 #[test]
 fn test_advance_of_takeout_double_over_preempt() {
-    let system = stance();
+    let system = partnership();
     assert_eq!(
         best_call(
             &system,
@@ -28,7 +28,7 @@ fn test_advance_of_takeout_double_over_preempt() {
 /// (3♦) direct seat: takeout double on shape with opening values
 #[test]
 fn test_takeout_double_of_preempt() {
-    let system = stance();
+    let system = partnership();
     assert_eq!(
         best_call(&system, &[call(3, Strain::Diamonds)], "KQ32.AJ53.2.A942"),
         Call::Double,
@@ -38,7 +38,7 @@ fn test_takeout_double_of_preempt() {
 /// (3♦) direct seat: nothing to say with a weak hand
 #[test]
 fn test_pass_of_preempt_without_values() {
-    let system = stance();
+    let system = partnership();
     assert_eq!(
         best_call(&system, &[call(3, Strain::Diamonds)], "Q5432.J53.942.92"),
         Call::Pass,
@@ -59,7 +59,7 @@ fn test_pass_of_preempt_without_values() {
 /// biggest gainer (see `docs/ai-bidder/evaluator-net.md`).
 #[test]
 fn test_raise_over_jump_overcall() {
-    let system = stance();
+    let system = partnership();
     assert_eq!(
         best_call(
             &system,
@@ -73,7 +73,7 @@ fn test_raise_over_jump_overcall() {
 /// A deep contested continuation no book authors still gets an answer
 #[test]
 fn test_deep_contested_auction_is_covered() {
-    let system = stance();
+    let system = partnership();
     let auction = [
         call(1, Strain::Hearts),
         call(2, Strain::Spades),
@@ -98,10 +98,10 @@ fn test_deep_contested_auction_is_covered() {
 // these three enable it explicitly; the knob-off default is pinned by
 // `rubens_disabled_reverts_to_natural_advances` in `instinct.rs`.
 
-fn rubens_stance() -> Stance {
+fn rubens_partnership() -> Partnership {
     let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.reading.rubens_advances = true;
-    american(&agreements).against()
+    american(&agreements).bind()
 }
 
 /// `(1♣) 1♠ -`: advancing with our own five-card diamond suit and a good 9
@@ -109,7 +109,7 @@ fn rubens_stance() -> Stance {
 /// that the book authors no `advances`.
 #[test]
 fn test_rubens_new_suit_transfer_through_system() {
-    let system = rubens_stance();
+    let system = rubens_partnership();
     assert_eq!(
         best_call(
             &system,
@@ -124,7 +124,7 @@ fn test_rubens_new_suit_transfer_through_system() {
 /// suit — 2♥, not a direct 2♠.
 #[test]
 fn test_rubens_limit_raise_through_system() {
-    let system = rubens_stance();
+    let system = rubens_partnership();
     assert_eq!(
         best_call(
             &system,
@@ -138,7 +138,7 @@ fn test_rubens_limit_raise_through_system() {
 /// `(1♦) 1♠ -`: a weak six-card raise jumps preemptively to game.
 #[test]
 fn test_rubens_preemptive_raise_through_system() {
-    let system = stance();
+    let system = partnership();
     assert_eq!(
         best_call(
             &system,
@@ -157,7 +157,7 @@ fn test_rubens_preemptive_raise_through_system() {
 /// (2♠) is the limit-plus club raise.
 #[test]
 fn test_rubens_cue_raise_through_system() {
-    let system = rubens_stance();
+    let system = rubens_partnership();
     assert_eq!(
         best_call(
             &system,
@@ -172,7 +172,7 @@ fn test_rubens_cue_raise_through_system() {
 /// answers from the defensive book
 #[test]
 fn test_authored_rules_still_win() {
-    let system = stance();
+    let system = partnership();
     // A light five-card major overcalls 1♠ over (1♦) — the authored
     // `defense_to_suit` answer, not an instinct one.
     assert_eq!(

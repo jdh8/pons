@@ -23,7 +23,7 @@ use contract_bridge::deck::{fill_deals, full_deal};
 use contract_bridge::eval::{self, HandEvaluator as _, SimpleEvaluator};
 use contract_bridge::{AbsoluteVulnerability, Builder, Contract, FullDeal, Seat, Strain, Suit};
 use ddss::{NonEmptyStrainFlags, Solver, StrainFlags, TrickCountTable};
-use pons::bidding::{Pair, Table};
+use pons::bidding::{System, Table};
 use pons::scoring::{final_contract, ns_score_contract};
 use pons::{american, american_instinct};
 
@@ -104,8 +104,8 @@ enum Floor {
     Instinct,
 }
 
-/// Build a fresh 2/1 pair for the chosen floor
-fn build_pair(floor: Floor) -> Pair {
+/// Build a fresh 2/1 system for the chosen floor
+fn build_system(floor: Floor) -> System {
     match floor {
         Floor::American => american(&pons::bidding::agreements::Agreements::default()),
         Floor::Instinct => american_instinct(&pons::bidding::agreements::Agreements::default()),
@@ -325,9 +325,9 @@ fn main() {
         );
 
         // Build the table fresh per board so dealer/vul are correct
-        let ns = build_pair(args.floor);
-        let ew = build_pair(args.floor);
-        let table = Table::of_pairs(&ns, &ew, dealer, args.vulnerability);
+        let ns = build_system(args.floor);
+        let ew = build_system(args.floor);
+        let table = Table::of_systems(&ns, &ew, dealer, args.vulnerability);
 
         let mut auction = Auction::new();
         let mut quit_session = false;

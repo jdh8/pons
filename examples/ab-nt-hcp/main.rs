@@ -32,7 +32,7 @@ use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::Accumulator;
 use pons::american;
-use pons::bidding::Stance;
+use pons::bidding::Partnership;
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -71,10 +71,10 @@ struct Args {
 
 /// Bid out one deal, arming the raw-HCP notrump read only for the feature side
 ///
-/// Both knobs are pinned into a stance at build, so the two sides bid off two
-/// pre-built stances rather than one stance and a per-call flag.
+/// Both knobs are pinned into a partnership at build, so the two sides bid off two
+/// pre-built partnerships rather than one partnership and a per-call flag.
 fn bid_out(
-    stances: &[Stance; 2],
+    partnerships: &[Partnership; 2],
     args: &Args,
     feature_is_ns: bool,
     dealer: Seat,
@@ -85,9 +85,9 @@ fn bid_out(
         let seat = seat_to_act(dealer, auction.len());
         let seat_is_ns = matches!(seat, Seat::North | Seat::South);
         // Edit 2 treatment: raw-HCP notrump milestones fire only for the feature side.
-        let stance = &stances[usize::from(seat_is_ns == feature_is_ns)];
+        let partnership = &partnerships[usize::from(seat_is_ns == feature_is_ns)];
         auction.push(next_call(
-            stance,
+            partnership,
             deal[seat],
             dealer,
             args.vulnerability,
@@ -105,9 +105,9 @@ fn main() {
     let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.instinct.bilans_floor = !args.no_bilans;
     agreements.decision.instinct.nt_hcp_read = false;
-    let plain = american(&agreements).against();
+    let plain = american(&agreements).bind();
     agreements.decision.instinct.nt_hcp_read = true;
-    let stances = [plain, american(&agreements).against()];
+    let partnerships = [plain, american(&agreements).bind()];
 
     // Deal sequentially (seeded, reproducible); bid both tables in parallel.
     let mut rng = StdRng::seed_from_u64(args.seed);
@@ -119,8 +119,8 @@ fn main() {
         .map(|&(dealer, deal)| Board {
             deal,
             dealer,
-            table_a: bid_out(&stances, &args, true, dealer, &deal),
-            table_b: bid_out(&stances, &args, false, dealer, &deal),
+            table_a: bid_out(&partnerships, &args, true, dealer, &deal),
+            table_b: bid_out(&partnerships, &args, false, dealer, &deal),
         })
         .collect();
 

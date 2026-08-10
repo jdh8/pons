@@ -30,7 +30,7 @@
 #
 # So it is not a natural-vs-artificial split: no setting on *our* book reaches
 # the blind leader's model here.  `lead_inputs` reads via
-# `stance.infer(relative(vul, leader), ..)` from the LEADER's seat, and the
+# `partnership.infer(relative(vul, leader), ..)` from the LEADER's seat, and the
 # leader is an opponent — the prime suspect is that inference from the opposing
 # seat never consults our book (cf. the wrong-seat trap in dnf-migration.md).
 #

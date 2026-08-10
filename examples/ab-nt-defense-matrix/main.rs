@@ -57,7 +57,7 @@ use pons::bidding::american::{DoubleStyle, NotrumpDefense};
 use pons::bidding::context::relative;
 use pons::bidding::inference::ReadingProfile;
 use pons::bidding::instinct::InstinctProfile;
-use pons::bidding::{Inferences, Stance};
+use pons::bidding::{Inferences, Partnership};
 use pons::scoring::{
     final_contract, imps, ns_score_contract, ns_score_pd, ns_score_pd_tricks, ns_score_tricks,
 };
@@ -137,7 +137,7 @@ struct Knobs {
 /// at book-construction time, so each build resets them first and captures after
 /// `configure`; the rest are fields of the [`Agreements`] the build is handed,
 /// edited from `default()`.
-fn build_books() -> (Vec<Stance>, Vec<Stance>) {
+fn build_books() -> (Vec<Partnership>, Vec<Partnership>) {
     let build = |configure: &dyn Fn(&mut Knobs)| {
         let mut knobs = Knobs {
             competition: CompetitionKnobs::default(),
@@ -157,7 +157,7 @@ fn build_books() -> (Vec<Stance>, Vec<Stance>) {
             },
             ..Default::default()
         };
-        american(&agreements).against()
+        american(&agreements).bind()
     };
     // The DONT parity config (docs/ai-bidder/1nt-defense-dont.md): 6+ one-suiter
     // minimum; DONT owns 2♣/2NT, so it carries its own both-minors band.  The
@@ -206,14 +206,14 @@ fn build_books() -> (Vec<Stance>, Vec<Stance>) {
             k.competition.penalty_pass = None;
         }),
         // Sit: the runout flags are the only difference, and they are captured
-        // into the stance at build like every other knob.
+        // into the partnership at build like every other knob.
         build(&|knobs| set_column_flags(knobs, 3)),
     ];
     (rows, cols)
 }
 
 /// The "sit" column disables the doubled-1NT runout.  The flags are read at
-/// classification time but captured into the stance at build, so this runs
+/// classification time but captured into the partnership at build, so this runs
 /// inside [`build_books`] rather than per cell.
 fn set_column_flags(knobs: &mut Knobs, col: usize) {
     let runout = col != 3;
@@ -311,8 +311,8 @@ struct BoardOut {
 
 /// Bid one candidate deal through every cell; `None` if EW never opened 1NT
 fn bid_board(
-    rows: &[Stance],
-    cols: &[Stance],
+    rows: &[Partnership],
+    cols: &[Partnership],
     dealer: Seat,
     vul: AbsoluteVulnerability,
     deal: FullDeal,
@@ -366,14 +366,14 @@ fn bid_board(
 fn lead_inputs(
     auction: &Auction,
     reader: Reader,
-    rows: &[Stance],
-    cols: &[Stance],
+    rows: &[Partnership],
+    cols: &[Partnership],
     dealer: Seat,
     vul: AbsoluteVulnerability,
 ) -> Option<(Contract, Seat, Inferences)> {
     let (contract, declarer) = final_contract(auction, dealer)?;
     let leader = declarer.lho();
-    let stance = match reader {
+    let partnership = match reader {
         Reader::Row(row) => &rows[row],
         Reader::Col(col) => &cols[col],
         Reader::PassOut => unreachable!("a contract implies a lead reader"),
@@ -387,7 +387,7 @@ fn lead_inputs(
     Some((
         contract,
         declarer,
-        stance.infer(relative(vul, leader), &auction[..cut]),
+        partnership.infer(relative(vul, leader), &auction[..cut]),
     ))
 }
 

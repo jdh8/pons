@@ -131,7 +131,7 @@ static NT_INF: LazyLock<Inferences> =
     LazyLock::new(|| Inferences::read(&Context::new(RelativeVulnerability::NONE, &PRIOR)));
 
 /// The same reading, built through the **trie-prefixed** context a live bidder
-/// serves (`Stance::infer`) rather than a bare `Context`.
+/// serves (`Partnership::infer`) rather than a bare `Context`.
 ///
 /// `evaluator_v3`/`v4` were fit on the tightened prefixed readings a knob-on
 /// bidder produces, so feeding them the bare-context twin above would be
@@ -140,7 +140,7 @@ static NT_INF: LazyLock<Inferences> =
 /// 2026-07-22 verdict, and moving their input would forfeit the comparison.
 static NT_INF_PREFIXED: LazyLock<Inferences> = LazyLock::new(|| {
     american(&pons::bidding::agreements::Agreements::default())
-        .against()
+        .bind()
         .infer(RelativeVulnerability::NONE, &PRIOR)
 });
 

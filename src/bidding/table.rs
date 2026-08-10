@@ -13,7 +13,7 @@
 
 use super::Bidder;
 use super::array::{CALL_VARIANTS, Logits, encode_call};
-use super::book::{Pair, Stance};
+use super::book::{Partnership, System};
 use super::context::relative;
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat};
@@ -227,14 +227,14 @@ impl<N: Bidder, E: Bidder> Table<N, E> {
     }
 }
 
-impl Table<Stance, Stance> {
-    /// Seat two pairs, binding each into its [`Stance`]
+impl Table<Partnership, Partnership> {
+    /// Seat two systems, binding each into its [`Partnership`]
     ///
-    /// This is the usual table assembly: each pair is bound with
-    /// [`against`][Pair::against].
+    /// This is the usual table assembly: each system is bound with
+    /// [`bind`][System::bind].
     #[must_use]
-    pub fn of_pairs(ns: &Pair, ew: &Pair, dealer: Seat, vul: AbsoluteVulnerability) -> Self {
-        Self::new(ns.against(), ew.against(), dealer, vul)
+    pub fn of_systems(ns: &System, ew: &System, dealer: Seat, vul: AbsoluteVulnerability) -> Self {
+        Self::new(ns.bind(), ew.bind(), dealer, vul)
     }
 
     /// Read what `auction` has shown, from the seat about to act
@@ -242,7 +242,7 @@ impl Table<Stance, Stance> {
     /// The routing twin of [`classify`][Self::classify]: same seat rotation,
     /// same absolute-to-relative vulnerability conversion, but it returns the
     /// shown ranges instead of the logits.  Goes through
-    /// [`Stance::infer`][Stance::infer], **not** a bare
+    /// [`Partnership::infer`][Partnership::infer], **not** a bare
     /// [`Inferences::read`][super::Inferences::read] — a keyless context
     /// silently skips every projection-based reading and hands back a vacuous
     /// `0..=37`.  Consumers wanting what the bidder actually sees must enter

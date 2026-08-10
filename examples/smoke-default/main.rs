@@ -33,11 +33,11 @@ struct Args {
 
 fn main() {
     let args = Args::parse();
-    let stance = american_default().against();
-    // Rayon is safe here because a built stance pins the knob state it was
-    // built under: the workers read the stance, never their own thread-locals.
+    let partnership = american_default().bind();
+    // Rayon is safe here because a built partnership pins the knob state it was
+    // built under: the workers read the partnership, never their own thread-locals.
     // A harness that arms a *non*-default knob does the same — arm, build,
-    // hand the stance to the workers.
+    // hand the partnership to the workers.
     //
     // Collected in board order before printing, so the dump is byte-stable
     // across runs and thread counts.  That is the whole point of the file.
@@ -61,7 +61,7 @@ fn main() {
             let mut auction = Auction::new();
             while !auction.has_ended() {
                 let seat = seat_to_act(dealer, auction.len());
-                auction.push(next_call(&stance, deal[seat], dealer, vul, &auction));
+                auction.push(next_call(&partnership, deal[seat], dealer, vul, &auction));
             }
             let calls: Vec<String> = auction.iter().map(|call| format!("{call}")).collect();
             format!("{index}\t{}", calls.join(" "))

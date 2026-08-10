@@ -15,7 +15,7 @@ fn opener_rebid_1s_2c_four_diamonds() {
         Call::Pass,
     ];
     assert_eq!(
-        best_call(&stance(), auction, "AQJ52.32.KQ54.92"),
+        best_call(&partnership(), auction, "AQJ52.32.KQ54.92"),
         call(2, Strain::Diamonds),
     );
 }
@@ -31,7 +31,7 @@ fn opener_rebid_1s_2c_six_spades() {
         Call::Pass,
     ];
     assert_eq!(
-        best_call(&stance(), auction, "AQJ752.A2.Q54.92"),
+        best_call(&partnership(), auction, "AQJ752.A2.Q54.92"),
         call(2, Strain::Spades),
     );
 }
@@ -46,7 +46,7 @@ fn opener_rebid_1s_2c_balanced() {
         Call::Pass,
     ];
     assert_eq!(
-        best_call(&stance(), auction, "AQJ52.K32.Q54.Q9"),
+        best_call(&partnership(), auction, "AQJ52.K32.Q54.Q9"),
         call(2, Strain::Notrump),
     );
 }
@@ -61,7 +61,7 @@ fn opener_rebid_1s_2c_club_support() {
         Call::Pass,
     ];
     assert_eq!(
-        best_call(&stance(), auction, "AQJ52.32.K5.Q942"),
+        best_call(&partnership(), auction, "AQJ52.32.K5.Q942"),
         call(3, Strain::Clubs),
     );
 }
@@ -80,7 +80,7 @@ fn responder_rebid_three_spades() {
         Call::Pass,
     ];
     assert_eq!(
-        best_call(&stance(), auction, "K32.A2.Q54.AKJ92"),
+        best_call(&partnership(), auction, "K32.A2.Q54.AKJ92"),
         call(3, Strain::Spades),
     );
 }
@@ -97,7 +97,7 @@ fn responder_rebid_raise_diamonds() {
         Call::Pass,
     ];
     assert_eq!(
-        best_call(&stance(), auction, "Q2.A32.KQ54.AQ92"),
+        best_call(&partnership(), auction, "Q2.A32.KQ54.AQ92"),
         call(3, Strain::Diamonds),
     );
 }
@@ -118,7 +118,7 @@ fn opener_third_sign_off() {
         Call::Pass,
     ];
     assert_eq!(
-        best_call(&stance(), auction, "AQJ52.32.KQ54.92"),
+        best_call(&partnership(), auction, "AQJ52.32.KQ54.92"),
         call(4, Strain::Spades),
     );
 }
@@ -137,7 +137,7 @@ fn opener_third_keycard_ask() {
         Call::Pass,
     ];
     assert_eq!(
-        best_call(&stance(), auction, "AQJ52.A2.KQJ4.92"),
+        best_call(&partnership(), auction, "AQJ52.A2.KQJ4.92"),
         call(4, Strain::Notrump),
     );
 }
@@ -160,7 +160,7 @@ fn second_suit_agreed_minimum_bids_3nt() {
         Call::Pass,
     ];
     assert_eq!(
-        best_call(&stance(), auction, "AQJ52.32.KQ54.92"),
+        best_call(&partnership(), auction, "AQJ52.32.KQ54.92"),
         call(3, Strain::Notrump),
     );
 }
@@ -179,7 +179,7 @@ fn second_suit_agreed_extras_asks_rkcb() {
         Call::Pass,
     ];
     assert_eq!(
-        best_call(&stance(), auction, "AKJ52.A2.AQ54.K2"),
+        best_call(&partnership(), auction, "AKJ52.A2.AQ54.K2"),
         call(4, Strain::Notrump),
     );
 }

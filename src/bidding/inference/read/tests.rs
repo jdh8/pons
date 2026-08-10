@@ -781,9 +781,9 @@ fn systems_on_stripped_read_is_separate_from_the_full_decision_cache() {
         Call::Pass,
     ];
     let hand: Hand = "AQ32.K53.QJ4.A92".parse().expect("valid test hand");
-    let stance = crate::american(&crate::bidding::agreements::Agreements::default()).against();
-    let uncached = stance.infer(RelativeVulnerability::NONE, &auction);
-    let context = stance
+    let partnership = crate::american(&crate::bidding::agreements::Agreements::default()).bind();
+    let uncached = partnership.infer(RelativeVulnerability::NONE, &auction);
+    let context = partnership
         .prefixed_context(RelativeVulnerability::NONE, &auction)
         .with_decision_cache(hand);
     let cached = context.inferences();
@@ -1022,7 +1022,7 @@ fn kickback_relocated_ask_still_reads_as_the_convention() {
 }
 
 /// The default-system twin of the kickback poison: the plain 1430 answers
-/// (5♣–5♠) and DOPI/ROPI/DEPO on X/XX are present in every stance and
+/// (5♣–5♠) and DOPI/ROPI/DEPO on X/XX are present in every partnership and
 /// always alerted, so a **natural** floor 5♦ — no ask anywhere on the
 /// face — reads as a keycard answer: the union with the answer rules' ⊤
 /// projection erases partner's diamond floor and the `alerted` bit
@@ -1359,7 +1359,7 @@ fn their_checkback_is_disclosed_to_the_table() {
 fn choice_of_games_three_notrump_reads_support() {
     let mut agreements = crate::bidding::agreements::Agreements::default();
     agreements.response.major_choice_of_games = true;
-    let stance = crate::american(&agreements).against();
+    let partnership = crate::american(&agreements).bind();
 
     let auction = [
         bid(1, Strain::Hearts),
@@ -1367,7 +1367,8 @@ fn choice_of_games_three_notrump_reads_support() {
         bid(3, Strain::Notrump),
         Call::Pass,
     ];
-    let read = Inferences::read(&stance.prefixed_context(RelativeVulnerability::NONE, &auction));
+    let read =
+        Inferences::read(&partnership.prefixed_context(RelativeVulnerability::NONE, &auction));
     assert!(read.partner().length(Suit::Hearts).min >= 3);
     assert!(read.partner().length(Suit::Diamonds).min >= 3);
     assert!(read.partner().length(Suit::Clubs).min >= 3);

@@ -13,7 +13,7 @@ use pons::bidding::benchmark::{
 };
 use pons::bidding::evaluator::trick_estimates_with_auction;
 use pons::bidding::inference::Inferences;
-use pons::bidding::{Bidder, Pair, Stance, Table, instinct};
+use pons::bidding::{Bidder, Partnership, System, Table, instinct};
 use pons::{american, american_instinct};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -29,7 +29,7 @@ const DEAL_SEED: u64 = 1;
 const DEALS: usize = 64;
 
 #[derive(Clone, Copy)]
-struct Legacy<'a>(&'a Stance);
+struct Legacy<'a>(&'a Partnership);
 
 impl Bidder for Legacy<'_> {
     fn classify(
@@ -72,9 +72,13 @@ fn same_logits(one: &Logits, two: &Logits) -> bool {
         })
 }
 
-fn validate_categories(stance: &Stance, deterministic: &Stance, positions: &[Position]) {
+fn validate_categories(
+    partnership: &Partnership,
+    deterministic: &Partnership,
+    positions: &[Position],
+) {
     for position in positions {
-        let (logits, provenance) = stance
+        let (logits, provenance) = partnership
             .classify_with_provenance(position.hand, position.vul, &position.auction)
             .unwrap_or_else(|| panic!("corpus position {} is uncovered", position.id));
         match position.category {
@@ -154,17 +158,17 @@ fn cursor<'a>(positions: &'a [&'a Position]) -> impl FnMut() -> &'a Position {
 
 #[allow(clippy::too_many_arguments)]
 fn allocation_report(
-    stance: &Stance,
+    partnership: &Partnership,
     positions: &[Position],
     contexts: &[pons::bidding::Context<'_>],
     inferences: &[Inferences],
     features: &[ActiveEvaluatorFeatures],
     ladder: &Rules,
-    pair: &Pair,
+    system: &System,
     logits: &[Logits],
     auctions: &[Auction],
     deals: &[FullDeal],
-    tables: &[Table<&Stance, &Stance>],
+    tables: &[Table<&Partnership, &Partnership>],
     legacy_tables: &[Table<Legacy<'_>, Legacy<'_>>],
     hot_instinct: &[&Position],
 ) {
@@ -210,7 +214,7 @@ fn allocation_report(
     measured("instinct-scoped", positions.len(), || {
         for position in positions {
             black_box(classify_instinct_scoped(
-                stance,
+                partnership,
                 ladder,
                 black_box(position.hand),
                 position.vul,
@@ -221,7 +225,7 @@ fn allocation_report(
     measured("instinct-legacy", positions.len(), || {
         for position in positions {
             black_box(classify_instinct_uncached(
-                stance,
+                partnership,
                 ladder,
                 black_box(position.hand),
                 position.vul,
@@ -231,7 +235,7 @@ fn allocation_report(
     });
     measured("full-classification", positions.len(), || {
         for position in positions {
-            black_box(stance.classify_with_provenance(
+            black_box(partnership.classify_with_provenance(
                 black_box(position.hand),
                 position.vul,
                 black_box(&position.auction),
@@ -240,7 +244,7 @@ fn allocation_report(
     });
     measured("hot-instinct-cached", hot_instinct.len(), || {
         for position in hot_instinct {
-            black_box(stance.classify_with_provenance(
+            black_box(partnership.classify_with_provenance(
                 black_box(position.hand),
                 position.vul,
                 black_box(&position.auction),
@@ -250,7 +254,7 @@ fn allocation_report(
     measured("hot-instinct-legacy", hot_instinct.len(), || {
         for position in hot_instinct {
             black_box(classify_with_provenance_uncached(
-                stance,
+                partnership,
                 black_box(position.hand),
                 position.vul,
                 black_box(&position.auction),
@@ -272,23 +276,22 @@ fn allocation_report(
             black_box(table.bid_out(black_box(deal)));
         }
     });
-    measured("stance-construction", 1, || {
-        black_box(pair.against());
+    measured("partnership-construction", 1, || {
+        black_box(system.bind());
     });
 }
 
 fn bidding(c: &mut Criterion) {
     let positions = support::parse_corpus().expect("valid frozen bidding corpus");
-    let pair = american(&pons::bidding::agreements::Agreements::default());
-    let stance = pair.against();
-    let deterministic =
-        american_instinct(&pons::bidding::agreements::Agreements::default()).against();
-    validate_categories(&stance, &deterministic, &positions);
+    let system = american(&pons::bidding::agreements::Agreements::default());
+    let partnership = system.bind();
+    let deterministic = american_instinct(&pons::bidding::agreements::Agreements::default()).bind();
+    validate_categories(&partnership, &deterministic, &positions);
     let hot_instinct: Vec<_> = positions
         .iter()
         .filter(|position| {
             is_deterministic_instinct_floor(
-                &stance,
+                &partnership,
                 &deterministic,
                 position.hand,
                 position.vul,
@@ -306,7 +309,7 @@ fn bidding(c: &mut Criterion) {
     );
     let contexts: Vec<_> = positions
         .iter()
-        .map(|position| stance.prefixed_context(position.vul, &position.auction))
+        .map(|position| partnership.prefixed_context(position.vul, &position.auction))
         .collect();
     let inferences: Vec<_> = contexts.iter().map(Inferences::read).collect();
     let features: Vec<_> = positions
@@ -319,7 +322,7 @@ fn bidding(c: &mut Criterion) {
     let logits: Vec<_> = positions
         .iter()
         .map(|position| {
-            stance
+            partnership
                 .classify(position.hand, position.vul, &position.auction)
                 .expect("floor is total")
         })
@@ -338,8 +341,8 @@ fn bidding(c: &mut Criterion) {
     let tables: Vec<_> = (0..deals.len())
         .map(|index| {
             Table::new(
-                &stance,
-                &stance,
+                &partnership,
+                &partnership,
                 Seat::ALL[index % 4],
                 vulnerabilities[index / 4 % 4],
             )
@@ -348,8 +351,8 @@ fn bidding(c: &mut Criterion) {
     let legacy_tables: Vec<_> = (0..deals.len())
         .map(|index| {
             Table::new(
-                Legacy(&stance),
-                Legacy(&stance),
+                Legacy(&partnership),
+                Legacy(&partnership),
                 Seat::ALL[index % 4],
                 vulnerabilities[index / 4 % 4],
             )
@@ -366,26 +369,26 @@ fn bidding(c: &mut Criterion) {
     ));
     let ladder = instinct(&pons::bidding::agreements::Agreements::default());
     black_box(classify_instinct_scoped(
-        &stance,
+        &partnership,
         &ladder,
         positions[0].hand,
         positions[0].vul,
         &positions[0].auction,
     ));
-    black_box(stance.classify_with_provenance(
+    black_box(partnership.classify_with_provenance(
         positions[0].hand,
         positions[0].vul,
         &positions[0].auction,
     ));
 
     allocation_report(
-        &stance,
+        &partnership,
         &positions,
         &contexts,
         &inferences,
         &features,
         &ladder,
-        &pair,
+        &system,
         &logits,
         &auctions,
         &deals,
@@ -453,7 +456,7 @@ fn bidding(c: &mut Criterion) {
             let index = scoped_instinct_index.get();
             scoped_instinct_index.set((index + 1) % positions.len());
             black_box(classify_instinct_scoped(
-                &stance,
+                &partnership,
                 &ladder,
                 black_box(positions[index].hand),
                 positions[index].vul,
@@ -467,7 +470,7 @@ fn bidding(c: &mut Criterion) {
             let index = legacy_instinct_index.get();
             legacy_instinct_index.set((index + 1) % positions.len());
             black_box(classify_instinct_uncached(
-                &stance,
+                &partnership,
                 &ladder,
                 black_box(positions[index].hand),
                 positions[index].vul,
@@ -477,19 +480,19 @@ fn bidding(c: &mut Criterion) {
     });
     instinct_group.finish();
     let classify_index = Cell::new(0_usize);
-    c.bench_function("stance/full-classification", |b| {
+    c.bench_function("partnership/full-classification", |b| {
         b.iter(|| {
             let index = classify_index.get();
             classify_index.set((index + 1) % positions.len());
             let position = &positions[index];
-            black_box(stance.classify_with_provenance(
+            black_box(partnership.classify_with_provenance(
                 black_box(position.hand),
                 position.vul,
                 black_box(&position.auction),
             ))
         });
     });
-    let mut categories = c.benchmark_group("stance/classification-by-category");
+    let mut categories = c.benchmark_group("partnership/classification-by-category");
     for category in [
         Category::AuthoredShallow,
         Category::AuthoredDeep,
@@ -510,7 +513,7 @@ fn bidding(c: &mut Criterion) {
                 let current = index.get();
                 index.set((current + 1) % selected.len());
                 let position = selected[current];
-                black_box(stance.classify_with_provenance(
+                black_box(partnership.classify_with_provenance(
                     black_box(position.hand),
                     position.vul,
                     black_box(&position.auction),
@@ -526,7 +529,7 @@ fn bidding(c: &mut Criterion) {
             let index = cached_hot_index.get();
             cached_hot_index.set((index + 1) % hot_instinct.len());
             let position = hot_instinct[index];
-            black_box(stance.classify_with_provenance(
+            black_box(partnership.classify_with_provenance(
                 black_box(position.hand),
                 position.vul,
                 black_box(&position.auction),
@@ -540,7 +543,7 @@ fn bidding(c: &mut Criterion) {
             legacy_hot_index.set((index + 1) % hot_instinct.len());
             let position = hot_instinct[index];
             black_box(classify_with_provenance_uncached(
-                &stance,
+                &partnership,
                 black_box(position.hand),
                 position.vul,
                 black_box(&position.auction),
@@ -580,8 +583,8 @@ fn bidding(c: &mut Criterion) {
     });
     whole.finish();
 
-    c.bench_function("stance/Pair::against", |b| {
-        b.iter(|| black_box(pair.against()));
+    c.bench_function("partnership/System::bind", |b| {
+        b.iter(|| black_box(system.bind()));
     });
 }
 

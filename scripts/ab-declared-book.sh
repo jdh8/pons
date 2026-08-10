@@ -4,8 +4,8 @@
 #
 # Both arms seat the same mixed table — our american floor against a pons dutch
 # book (`--their-floor dutch`) — and differ only in `--declare-their-book`,
-# which points our reader's opponent channel at the dutch stance
-# (`Stance::with_opponents`).  Our bidding table does not move; only what we
+# which points our reader's opponent channel at the dutch partnership
+# (`Partnership::with_opponents`).  Our bidding table does not move; only what we
 # believe their alerted calls and passes showed.  Asymmetric on purpose: the
 # dutch side keeps reading us as dutch in both arms, so every IMP is ours.
 #

@@ -1,7 +1,7 @@
 //! A 2/1 game-forcing bidding system
 //!
 //! [`american()`][crate::bidding::american::american] assembles a
-//! [`Pair`] for the Two-over-One Game Forcing system, the modern North
+//! [`System`] for the Two-over-One Game Forcing system, the modern North
 //! American standard: five-card majors, a strong 15–17 notrump, the strong
 //! artificial 2♣, and — the defining feature — a new suit at the two level in
 //! response to a one-of-a-major opening is **game forcing**.
@@ -62,7 +62,7 @@
 
 use super::agreements::Agreements;
 use super::common::{call, other_major, with_floor, with_floor_v5, with_instinct_floor};
-use super::{Competitive, Constructive, Defensive, Pair};
+use super::{Competitive, Constructive, Defensive, System};
 
 pub(in crate::bidding) mod competition;
 pub(in crate::bidding) mod defense;
@@ -95,10 +95,10 @@ pub use responses::{TwoOverOneGate, major_responses, minor_responses};
 // Assembly
 // ---------------------------------------------------------------------------
 
-/// Build the basic 2/1 game-forcing system as one side's [`Pair`]
+/// Build the basic 2/1 game-forcing system as one side's [`System`]
 ///
-/// Bind it with [`against`][Pair::against] for a playable system, and seat
-/// two pairs with [`Table::of_pairs`][super::Table::of_pairs] for a full
+/// Bind it with [`bind`][System::bind] for a playable partnership, and seat
+/// two systems with [`Table::of_systems`][super::Table::of_systems] for a full
 /// table.
 ///
 /// The contested books stand on
@@ -107,8 +107,8 @@ pub use responses::{TwoOverOneGate, major_responses, minor_responses};
 /// [`ConventionCard`][super::features::ConventionCard], **captured here, at build
 /// time**, from the `agreements` value in the same expression that reads it for
 /// [`american_book`].  That is what keeps regime and rules from disagreeing:
-/// one value serves the card, the books, and — since the pair carries it —
-/// the classify-time half that [`Pair::against`] pins.  Opponents are modeled as playing our own
+/// one value serves the card, the books, and — since the system carries it —
+/// the classify-time half that [`System::bind`] pins.  Opponents are modeled as playing our own
 /// agreements, matching every other undeclared-opposition default in the
 /// crate; a genuinely mixed table wants [`american_with_config`], which also
 /// remains the card-input v4 floor's entry point.  The v5 floor became the
@@ -122,9 +122,9 @@ pub use responses::{TwoOverOneGate, major_responses, minor_responses};
 /// use contract_bridge::auction::{Call, RelativeVulnerability};
 /// use contract_bridge::{Bid, Strain};
 ///
-/// let stance = american_default().against();
+/// let partnership = american_default().bind();
 /// let hand = "AQ32.K53.QJ4.A92".parse().unwrap(); // 16 HCP, balanced
-/// let logits = stance
+/// let logits = partnership
 ///     .classify(hand, RelativeVulnerability::NONE, &[])
 ///     .expect("an opening decision");
 /// let best = (&logits.0)
@@ -135,7 +135,7 @@ pub use responses::{TwoOverOneGate, major_responses, minor_responses};
 /// assert_eq!(best, Call::Bid(Bid::new(1, Strain::Notrump)));
 /// ```
 #[must_use]
-pub fn american(agreements: &Agreements) -> Pair {
+pub fn american(agreements: &Agreements) -> System {
     with_floor_v5(
         book(agreements),
         super::features::CompactConfig::symmetric(&super::features::ConventionCard::capture(
@@ -167,7 +167,7 @@ pub fn american(agreements: &Agreements) -> Pair {
 /// wants [`american_with_card`] instead — an arm built here and compared
 /// against one built by [`american`] measures the two nets, not the declaration.
 #[must_use]
-pub fn american_with_config(agreements: &Agreements, config: super::features::Config) -> Pair {
+pub fn american_with_config(agreements: &Agreements, config: super::features::Config) -> System {
     with_floor(book(agreements), config, agreements)
 }
 
@@ -190,7 +190,7 @@ pub fn american_with_config(agreements: &Agreements, config: super::features::Co
 pub fn american_with_card(
     agreements: &Agreements,
     theirs: &super::features::ConventionCard,
-) -> Pair {
+) -> System {
     with_floor_v5(
         book(agreements),
         super::features::CompactConfig::new(
@@ -208,11 +208,11 @@ pub fn american_with_card(
 /// shipped it, so the name is kept only so harnesses and scripts written
 /// against `--our-floor american-v5` keep meaning what they measured.
 #[must_use]
-pub fn american_v5(agreements: &Agreements) -> Pair {
+pub fn american_v5(agreements: &Agreements) -> System {
     american(agreements)
 }
 
-/// The 2/1 pair with the deterministic **instinct** floor (the pre-BBA default)
+/// The 2/1 system with the deterministic **instinct** floor (the pre-BBA default)
 ///
 /// Exactly [`american`] but for the floor: the learned
 /// [`ConfiguredFloorBba`][crate::bidding::neural_floor::ConfiguredFloorBba]
@@ -223,11 +223,11 @@ pub fn american_v5(agreements: &Agreements) -> Pair {
 /// on.  It is also the distillation teacher: the nets clone *this*, never the
 /// net-floored [`american`].
 #[must_use]
-pub fn american_instinct(agreements: &Agreements) -> Pair {
+pub fn american_instinct(agreements: &Agreements) -> System {
     with_instinct_floor(book(agreements), agreements)
 }
 
-/// The 2/1 pair with **no authored book** — every call comes from the floor
+/// The 2/1 system with **no authored book** — every call comes from the floor
 ///
 /// Exactly [`american`] but for the books: all three are empty, so every
 /// auction falls straight through to the same floor wiring [`american`] uses —
@@ -251,9 +251,9 @@ pub fn american_instinct(agreements: &Agreements) -> Pair {
 /// `features_v3` inference block collapses to unknown — the measured gap is the
 /// book as authored calls **and** as disclosure, not the calls alone.
 #[must_use]
-pub fn american_floor(agreements: &Agreements) -> Pair {
+pub fn american_floor(agreements: &Agreements) -> System {
     with_floor_v5(
-        Pair::new(
+        System::new(
             Constructive::new(),
             Competitive::new(),
             Defensive::new(),
@@ -266,12 +266,12 @@ pub fn american_floor(agreements: &Agreements) -> Pair {
     )
 }
 
-/// Build the 2/1 pair as the **authored books alone**, with no floor
+/// Build the 2/1 system as the **authored books alone**, with no floor
 ///
 /// The book half of [`american`], and the ablation handle for measuring the
-/// floor: a driver seating this pair passes whenever the books run out — the
+/// floor: a driver seating this system passes whenever the books run out — the
 /// pre-floor behavior, including passing partner's takeout double on a
-/// worthless hand.  [`american`] is exactly this pair with the BBA-distilled
+/// worthless hand.  [`american`] is exactly this system with the BBA-distilled
 /// net attached to both contested books, and [`american_floor`] is the
 /// complementary ablation (the floor alone, with no book at all); see the
 /// `instinct-floor` example for an A/B match.
@@ -280,7 +280,7 @@ pub fn american_floor(agreements: &Agreements) -> Pair {
 /// [`NotrumpShape::Wide6322`] — a 5422 or 6322 with a long minor also opens
 /// 1NT).
 #[must_use]
-pub fn american_book(agreements: &Agreements) -> Pair {
+pub fn american_book(agreements: &Agreements) -> System {
     book(agreements)
 }
 
@@ -289,25 +289,25 @@ pub fn american_book(agreements: &Agreements) -> Pair {
 /// The `_default()` twin exists because [`Agreements`] implements [`Default`];
 /// it is that call spelled once, not a second way to configure the system.
 #[must_use]
-pub fn american_default() -> Pair {
+pub fn american_default() -> System {
     american(&Agreements::default())
 }
 
 /// [`american_book`] on the shipped agreements — see [`american_default`]
 #[must_use]
-pub fn american_book_default() -> Pair {
+pub fn american_book_default() -> System {
     american_book(&Agreements::default())
 }
 
 /// [`american_instinct`] on the shipped agreements — see [`american_default`]
 #[must_use]
-pub fn american_instinct_default() -> Pair {
+pub fn american_instinct_default() -> System {
     american_instinct(&Agreements::default())
 }
 
 /// [`american_floor`] on the shipped agreements — see [`american_default`]
 #[must_use]
-pub fn american_floor_default() -> Pair {
+pub fn american_floor_default() -> System {
     american_floor(&Agreements::default())
 }
 
@@ -315,7 +315,7 @@ pub fn american_floor_default() -> Pair {
 ///
 /// The floor is built from the same value, so a book and the ladder under it
 /// can never come from two different reads of the knobs.
-pub(in crate::bidding) fn book(agreements: &Agreements) -> Pair {
+pub(in crate::bidding) fn book(agreements: &Agreements) -> System {
     let agreements = *agreements;
     let mut c = Constructive::new();
 
@@ -329,7 +329,7 @@ pub(in crate::bidding) fn book(agreements: &Agreements) -> Pair {
     strong_two::register(&mut c, &agreements);
     weak_twos::register(&mut c, &agreements);
 
-    Pair::new(
+    System::new(
         c,
         competition::competition(&agreements),
         defense::defensive(&agreements),

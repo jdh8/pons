@@ -22,7 +22,7 @@ phases are.
 | Constructive — ported | The American `weak_twos.rs`, `xyz.rs`, `nmf.rs`, `strong_two.rs`, and the `openings`, `notrump`, `rebids`, `raises`, `responses`, `game_force` and `slam` module trees, plus both Dutch override packages. American and Dutch each have a `row_package_invariants` test. |
 | RKCB | A row **producer**: `slam::rkcb_rows(prefix, trump) -> Vec<Entry>`. All 25 production callers and the three test fixtures use it directly; `install_rkcb` is retired. |
 | Phase 1.5 (floating agreements) | **Cancelled, not deferred** — see below. |
-| Phase 2 (cross-side assembly) | **Both halves built and REFUTED** 2026-08-07, both default off. 2a — the net's card channel (`--declare-opponents`). A follow-up run the same day priced a **one-bit off-manifold** `theirs` perturbation at −0.01 plain / −0.02 PD per board; it was *meant* to be the in-distribution cell-B test and is not one, so the retrain reopen path stands and **cell B at scale is still owed**. 2b — the reader's (`Stance::with_opponents`, `--declare-their-book`). See below. The book-selection third leg (`defense_vs`, `competitive_vs`, `Table::compose`) is **not built and not wanted**: `defensive_vs` already existed, had zero production consumers, and went out with `Family`. |
+| Phase 2 (cross-side assembly) | **Both halves built and REFUTED** 2026-08-07, both default off. 2a — the net's card channel (`--declare-opponents`). A follow-up run the same day priced a **one-bit off-manifold** `theirs` perturbation at −0.01 plain / −0.02 PD per board; it was *meant* to be the in-distribution cell-B test and is not one, so the retrain reopen path stands and **cell B at scale is still owed**. 2b — the reader's (`Partnership::with_opponents`, `--declare-their-book`). See below. The book-selection third leg (`defense_vs`, `competitive_vs`, `Table::compose`) is **not built and not wanted**: `defensive_vs` already existed, had zero production consumers, and went out with `Family`. |
 | Phase 3 (knob migration) | **Gate ran 2026-08-08 and answered yes — but v5 collected the payoff without the migration**, so it stays *not scheduled*, and so does the knob field table. See below for both. It does not depend on Phase 2 — restated below. Thread-locals untouched: **221 across 74 files** — the earlier figures here (27 `competition/`, 19 `defense/`, 12 `inference.rs`, 9 each `notrump/` / `rebids/`) were a stale undercount by ~3× (`defense/` is 53, `notrump/` 23). Reproduce with `rg -c --no-heading '^\s+static\s+[A-Z0-9_]+:' -g '*.rs' src` and the same over `'^pub fn set_'`; both total 221, so statics and public setters match 1:1. The by-agreement file split makes this *easier*: each agreement module's thread-locals are exactly the contents of its config struct. |
 
 **Escape hatches: 9, and the convertible set is empty.** A `guarded` row carries
@@ -55,7 +55,7 @@ Not cosmetics. The bidding-engine recovery (stages 1–6, archived at
 [docs/archive/bidding-performance-handoff.md](archive/bidding-performance-handoff.md))
 **compiles row grammar.** Stage 3 keeps a `Pattern`/`Row` authoring ledger alive
 through trie mutation, graft, merge and floor, and consumes it at
-`Pair::against()`; stages 4–5 turn exact patterns into direct transitions and
+`System::bind()`; stages 4–5 turn exact patterns into direct transitions and
 first-call guards into dispatch.
 
 Everything that is *not* a row falls to the legacy slow path — the opaque
@@ -66,7 +66,7 @@ now declarative.
 ## The floor coupling (read before touching knobs)
 
 The floor's **attachment point is unchanged**: `common::with_floor` writes a root
-`Always` fallback into the mutable competitive and defensive tries, `Pair::against()`
+`Always` fallback into the mutable competitive and defensive tries, `System::bind()`
 finalizes around it, and the classifier stays opaque to `CompiledRuleRegistry`
 and `AuthoringDecoder`.
 
@@ -106,7 +106,7 @@ ladder is a *third* artifact that has to be built under the same knob state as
 the book and the card. It used to be a process-wide `LazyLock` in
 `neural_floor`, frozen at the first forced classification anywhere, while
 `with_floor` gave the constructive book a fresh one; the two floors of a single
-`Pair` could therefore disagree. Since 2026-08-07 `with_floor` builds one
+`System` could therefore disagree. Since 2026-08-07 `with_floor` builds one
 `Arc<Rules>` and hands it to both, and `ConfiguredFloorBba::new` takes it. The
 scheduling point stands: **anything Phase 3 threads a config into must reach
 `instinct()` as well as `american_book()` and `Agreements::capture()`** — and
@@ -124,11 +124,11 @@ already exist, and **both default to *the opponents play us***.
 
 | Channel | Consumer | Default |
 | --- | --- | --- |
-| `Context::their_system: Option<&Stance>` | the reading layer, `project_authored` | `Stance::prefixed_context` attaches self |
+| `Context::their_system: Option<&Partnership>` | the reading layer, `project_authored` | `Partnership::prefixed_context` attaches self |
 | `Context::config: Option<&Config>` | the net, `features_v4` | `Config::symmetric` |
 | book selection | — | **does not exist; this is Phase 2** |
 
-`Table::of_pairs` already seats two independently-built `Pair`s, so a mixed table
+`Table::of_systems` already seats two independently-built `System`s, so a mixed table
 is expressible today; `examples/ab-kickback`'s `build()` is a working prototype of
 the floor-side half.
 
@@ -315,7 +315,7 @@ compiled-rule lookups); one resolves the opponents' alerted calls; two —
 the pass walk and the probed overlay — do both, per index parity. So the field
 split into `own_system` (always ours) and `their_system` (declared, else ours),
 one builder `Context::with_system(ours)` setting both from
-[`Stance::opponents`]. `Stance::with_opponents(them)` is the only way to make
+[`Partnership::opponents`]. `Partnership::with_opponents(them)` is the only way to make
 them differ; the incremental reader (`AuthoringStepCache::prepare`) declines to
 serve a declared opponent and falls back to the full walk, which routes by
 side already.
@@ -358,21 +358,21 @@ migrate one at a time; thread-locals retire last. Byte-identity at every stage.
 **What the pin-at-build campaign already collected (2026-08-09).** Phase 3's
 *thread-safety* payoff is banked without the migration. The ~84 classify-time
 knobs — `ReadingProfile`'s 42, `InstinctProfile`'s 31, and `DecisionProfile`'s
-own 11 — are captured into the `Stance` at `Pair::against()`, and every
+own 11 — are captured into the `Partnership` at `System::bind()`, and every
 classify-time reader now consults that pin instead of the thread. A built
-stance is a pure `Send + Sync` value: arm the knobs, build, hand it to the
+partnership is a pure `Send + Sync` value: arm the knobs, build, hand it to the
 workers. The thread-locals stay as the sole authoring API (set → build), with
-`Stance::profile_mut` for a deliberate eval-time-only edit and
+`Partnership::profile_mut` for a deliberate eval-time-only edit and
 `pons::bidding::scoped` for a build on virgin defaults. What Phase 3 still owns is the *other* half:
 deleting the ambient state, making the card read total, and the generated
 CLI/UI surfaces. The hazard the campaign closes is "one knob state, four
 readers, joined only by call-site discipline" — the readers now join on the
-stance.
+partnership.
 
 ⚠ **Disclosed behavior change.** `bba-gen --their-ns` built the opponents'
 book under their knobs but the *classify-time* half leaked across seats: both
 sides read under whatever the thread last held, so the second seat classified
-under the first's knobs. Each seat now reads under its own stance's pin.
+under the first's knobs. Each seat now reads under its own partnership's pin.
 Dumps produced with `--their-ns` before 2026-08-09 differ from ones produced
 after wherever the two seats disagree on a classify-time knob; corpora drawn
 with matching `--ns-*`/`--their-ns` (the usual case) are unaffected.
@@ -393,7 +393,7 @@ The whole Phase-2 surface is knob-free — `Config` / `Config::new` /
 `Agreements::from_card` ([features.rs](../src/bidding/features.rs)),
 `Card::row` / `foreign_card` ([card.rs](../src/bidding/card.rs)),
 `BbaOracle::card()`, `ConfiguredFloorBba`, `ConfiguredFloorV5`,
-`Stance::with_opponents`, and `Context::{own_system, their_system, config,
+`Partnership::with_opponents`, and `Context::{own_system, their_system, config,
 compact}`. Phase 3 can start whenever.
 
 ⚠ This section used to end "exactly one function in that path reads a

@@ -131,7 +131,7 @@ row.
 
 **Known limitation — `ab-dump-sd` does not price disclosure** (measured
 2026-07-26, unfixed). The dump-rescore harness reads each arm's auctions for the
-blind leader via `stance.infer(relative(vul, leader), …)`, and its `--on-ns-*`
+blind leader via `partnership.infer(relative(vul, leader), …)`, and its `--on-ns-*`
 flags are meant to make the leader read the ON arm under the ON arm's system.
 **They are inert.** Rescoring `nt-defense-band-9-14` with `--on-ns-overcall
 20:37` — claiming the overcaller holds 20–37 HCP rather than 9–14 — reproduces
@@ -309,7 +309,7 @@ orders of magnitude apart:
 **Conditioning costs the duplicate swap.** Accepting on a named seat means the
 table-A/table-B rotation no longer measures the same thing; the comparison
 becomes the same deal bid twice, our side feature vs baseline, opponents fixed
-on the baseline stance both times.
+on the baseline partnership both times.
 
 **Reading the verdict.** The headline is IMPs per *accepted* deal, and the
 [decision table](#the-decision-table) applies to it unchanged — plain DD and PD
@@ -555,15 +555,15 @@ for when to reach for one and how to read it. Worked example:
 New-harness rules (the Rayon pattern, commits `8f549ed`/`eadb654`):
 
 - Deal generation sequential (seeded, reproducible); **bidding** parallelized
-  with `rayon::par_iter` (classify is pure; `Stance` is `Sync`).
+  with `rayon::par_iter` (classify is pure; `Partnership` is `Sync`).
 - The ddss `Solver` stays on the **main thread** — `Solver::lock(None).solve_deals`
   batches and parallelizes internally; never call it inside a worker.
-- **Arm the knobs, then build; one stance per arm.** Both kinds of knob —
-  book-construction and classify-time — are captured into the `Stance` at
+- **Arm the knobs, then build; one partnership per arm.** Both kinds of knob —
+  book-construction and classify-time — are captured into the `Partnership` at
   build, so a `set_*` inside a worker closure reaches nothing and both arms
   bid identically (a clean wash on every board, meaning nothing by it). If an
   arm must differ only at eval time, build both on the defaults and edit each
-  one's own pin with `Stance::profile_mut`.
+  one's own pin with `Partnership::profile_mut`.
 - Solve only the **divergent** boards; score both plain and PD from the same
   solved table (near-free — loop the summary over both swing vectors).
 - Verify determinism: same seed twice → bit-identical summary.

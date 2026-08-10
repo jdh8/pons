@@ -14,17 +14,17 @@
 mod openings;
 mod responses;
 
-use super::Pair;
+use super::System;
 use super::agreements::Agreements;
 use super::card::dutch_card;
 use super::common::{with_floor, with_floor_v5, with_instinct_floor};
 use super::features::{CompactConfig, Config, ConventionCard};
 use super::rows::compile_into;
 
-/// Build the Dutch system as one side's [`Pair`]
+/// Build the Dutch system as one side's [`System`]
 ///
-/// Bind it with [`Pair::against`] and seat two pairs with
-/// [`Table::of_pairs`][super::Table::of_pairs], exactly like `american()`.
+/// Bind it with [`System::bind`] and seat two systems with
+/// [`Table::of_systems`][super::Table::of_systems], exactly like `american()`.
 ///
 /// The contested books stand on
 /// [`ConfiguredFloorBba`][super::neural_floor::ConfiguredFloorBba] under
@@ -39,9 +39,9 @@ use super::rows::compile_into;
 /// use contract_bridge::auction::{Call, RelativeVulnerability};
 /// use contract_bridge::{Bid, Strain};
 ///
-/// let stance = dutch_default().against();
+/// let partnership = dutch_default().bind();
 /// let hand = "AQ32.K53.QJ4.A92".parse().unwrap(); // 16 HCP, balanced
-/// let logits = stance
+/// let logits = partnership
 ///     .classify(hand, RelativeVulnerability::NONE, &[])
 ///     .expect("an opening decision");
 /// let best = (&logits.0)
@@ -52,14 +52,14 @@ use super::rows::compile_into;
 /// assert_eq!(best, Call::Bid(Bid::new(1, Strain::Notrump)));
 /// ```
 #[must_use]
-pub fn dutch(agreements: &Agreements) -> Pair {
+pub fn dutch(agreements: &Agreements) -> System {
     dutch_with_config(agreements, Config::symmetric(&dutch_card(agreements)))
 }
 
 /// [`dutch`] on the shipped agreements — see
 /// [`american_default`][super::american::american_default]
 #[must_use]
-pub fn dutch_default() -> Pair {
+pub fn dutch_default() -> System {
     dutch(&Agreements::default())
 }
 
@@ -75,7 +75,7 @@ pub fn dutch_default() -> Pair {
 /// against bare `american()` declares *both* sides symmetric, so each net is
 /// told the opposition plays its own system — false at every seat.
 #[must_use]
-pub fn dutch_with_config(agreements: &Agreements, config: Config) -> Pair {
+pub fn dutch_with_config(agreements: &Agreements, config: Config) -> System {
     with_floor(book(agreements), config, agreements)
 }
 
@@ -85,9 +85,9 @@ pub fn dutch_with_config(agreements: &Agreements, config: Config) -> Pair {
 /// `dutch` dim is live in the v5 corpus (the `DEFAULT_CELLS` rotation), so
 /// this cell is in distribution.  Unlike the American twin, this cell has
 /// **no gate A/B of its own** — [`dutch`] stays on the v4 floor until one
-/// runs (clone `scripts/ab-v5-floor.sh` with the dutch pair).
+/// runs (clone `scripts/ab-v5-floor.sh` with the dutch system).
 #[must_use]
-pub fn dutch_v5(agreements: &Agreements) -> Pair {
+pub fn dutch_v5(agreements: &Agreements) -> System {
     with_floor_v5(
         book(agreements),
         CompactConfig::symmetric(&ConventionCard::capture(agreements, true)),
@@ -95,7 +95,7 @@ pub fn dutch_v5(agreements: &Agreements) -> Pair {
     )
 }
 
-/// The Dutch pair with the deterministic **instinct** floor (the pre-swap default)
+/// The Dutch system with the deterministic **instinct** floor (the pre-swap default)
 ///
 /// Exactly [`dutch`] but for the floor: the BBA-distilled
 /// [`ConfiguredFloorBba`][super::neural_floor::ConfiguredFloorBba] gives way to the
@@ -106,20 +106,20 @@ pub fn dutch_v5(agreements: &Agreements) -> Pair {
 ///
 /// The floor is the *only* difference; both share the same authored books.
 #[must_use]
-pub fn dutch_instinct(agreements: &Agreements) -> Pair {
+pub fn dutch_instinct(agreements: &Agreements) -> System {
     with_instinct_floor(book(agreements), agreements)
 }
 
 /// [`dutch_instinct`] on the shipped agreements — see
 /// [`american_default`][super::american::american_default]
 #[must_use]
-pub fn dutch_instinct_default() -> Pair {
+pub fn dutch_instinct_default() -> System {
     dutch_instinct(&Agreements::default())
 }
 
-/// Build the Dutch pair as the authored books alone, with no floor
+/// Build the Dutch system as the authored books alone, with no floor
 ///
-/// Takes a full [`american_book`][super::american::american_book] pair and compiles two ungated row packages
+/// Takes a full [`american_book`][super::american::american_book] system and compiles two ungated row packages
 /// onto its constructive trie. `dutch-openings` replaces the opening table;
 /// `dutch-wide-one-club` carries the wide-1♣ responses, relay continuations,
 /// and both natural minor-response structures. Across their 17 exact patterns,
@@ -128,29 +128,29 @@ pub fn dutch_instinct_default() -> Pair {
 /// / 21–23 `2♦!` continuations stay American's — projection discloses their
 /// strength; see `docs/dutch-system.md`.
 #[must_use]
-pub fn dutch_book(agreements: &Agreements) -> Pair {
+pub fn dutch_book(agreements: &Agreements) -> System {
     book(agreements)
 }
 
 /// [`dutch_book`] on the shipped agreements — see
 /// [`american_default`][super::american::american_default]
 #[must_use]
-pub fn dutch_book_default() -> Pair {
+pub fn dutch_book_default() -> System {
     dutch_book(&Agreements::default())
 }
 
 /// [`dutch_book`] on an explicit capture — see [`american::book`][super::american::book]
-pub(in crate::bidding) fn book(agreements: &Agreements) -> Pair {
+pub(in crate::bidding) fn book(agreements: &Agreements) -> System {
     let agreements = *agreements;
-    let mut pair = super::american::book(&agreements);
+    let mut system = super::american::book(&agreements);
     // Compile after American: these packages intentionally replace eight
     // inherited exact nodes and add nine Dutch-only continuations.
     compile_into(
-        &mut pair.constructive.0,
+        &mut system.constructive.0,
         &agreements,
         &[openings::package(), responses::package()],
     );
-    pair
+    system
 }
 
 #[cfg(test)]

@@ -134,7 +134,7 @@ fn weak_two_notrump_relay_reads_as_diamonds_not_clubs() {
 
     let mut arm = Agreements::default();
     arm.defense.weak_two_notrump_advances_enabled = true;
-    let read = american(&arm).against().infer(
+    let read = american(&arm).bind().infer(
         RelativeVulnerability::NONE,
         &[
             call(2, Strain::Hearts),

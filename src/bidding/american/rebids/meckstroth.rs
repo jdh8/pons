@@ -16,7 +16,7 @@ use super::*;
 use crate::bidding::american::slam;
 
 // ponytail: construction-time toggle, read during `register()`; set it before
-// building the `Pair`.  A classify-time flag (like
+// building the `System`.  A classify-time flag (like
 // `DecisionProfile::fifths_companion`) would
 // not work — the adjunct changes which *nodes exist*, baked once at build time.
 // ponytail: a second gate on the *same* adjunct, so its two halves can be

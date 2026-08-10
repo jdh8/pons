@@ -15,7 +15,7 @@ use common::*;
 /// Auction: 2♥ - 2NT - ?
 #[test]
 fn test_ogust_answers_after_two_hearts() {
-    let system = stance();
+    let system = partnership();
     // Opener is in seat 1; responder's 2NT is after one opponent pass.
     let auction = &[
         call(2, Strain::Hearts),
@@ -78,7 +78,7 @@ fn test_ogust_answers_after_two_hearts() {
 /// Auction: 2♥ - ?
 #[test]
 fn test_responses_to_two_hearts() {
-    let system = stance();
+    let system = partnership();
     let auction = &[call(2, Strain::Hearts), Call::Pass][..];
 
     // 16 HCP, three-card heart support → Ogust 2NT.
@@ -112,7 +112,7 @@ fn test_responses_to_two_hearts() {
 /// Auction: 2♥ - 2♠ - ?
 #[test]
 fn test_opener_reply_to_two_spades_over_two_hearts() {
-    let system = stance();
+    let system = partnership();
     let auction = &[
         call(2, Strain::Hearts),
         Call::Pass,

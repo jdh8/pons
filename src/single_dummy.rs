@@ -104,7 +104,7 @@ pub fn single_dummy(
 /// double-dummy on the **actual** `deal`.
 ///
 /// `inferences` must be read from the **leader's** perspective (e.g. via
-/// [`Stance::infer`][crate::bidding::Stance::infer] on an auction prefix that
+/// [`Partnership::infer`][crate::bidding::Partnership::infer] on an auction prefix that
 /// puts the leader on lead), so the sampled worlds respect both sides'
 /// disclosures — an overcall directs partner's lead here in precisely the way
 /// plain DD scoring erases.  If the reading is too tight to sample from, the
@@ -494,7 +494,7 @@ impl Playout<'_> {
 /// - **Forced turns** (one legal sequence) are played without solving.
 ///
 /// `inferences` must be read from **declarer's** perspective (e.g. via
-/// [`Stance::infer`][crate::bidding::Stance::infer] on an auction prefix that
+/// [`Partnership::infer`][crate::bidding::Partnership::infer] on an auction prefix that
 /// puts declarer to act), so the sampled worlds respect both defenders'
 /// disclosures.
 ///

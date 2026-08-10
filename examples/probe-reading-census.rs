@@ -43,7 +43,7 @@ use contract_bridge::auction::Call;
 use contract_bridge::{AbsoluteVulnerability, Seat, Suit};
 use pons::american;
 use pons::bidding::context::relative;
-use pons::bidding::{Context, Envelope, Inferences, Range, Relative, Stance};
+use pons::bidding::{Context, Envelope, Inferences, Partnership, Range, Relative};
 use rayon::prelude::*;
 use std::collections::HashMap;
 
@@ -79,8 +79,8 @@ struct Args {
     #[arg(long)]
     exclusion: bool,
 
-    /// Probe the stance over this many self-play boards first and census with
-    /// the probed reading on (`Stance::probe` + `ReadingProfile::probed`)
+    /// Probe the partnership over this many self-play boards first and census with
+    /// the probed reading on (`Partnership::probe` + `ReadingProfile::probed`)
     #[arg(long, default_value = "0")]
     probe: usize,
 }
@@ -237,7 +237,7 @@ impl Census {
 
 /// Census every decision node of one bid-out auction
 fn census_auction(
-    stance: &Stance,
+    partnership: &Partnership,
     dealer: Seat,
     vul: AbsoluteVulnerability,
     auction: &[Call],
@@ -247,8 +247,8 @@ fn census_auction(
     for cut in 1..auction.len() {
         let rel = relative(vul, seat_to_act(dealer, cut));
         let prefix = &auction[..cut];
-        let read = stance.infer(rel, prefix);
-        // The control: the same auction without the trie prefixes `Stance`
+        let read = partnership.infer(rel, prefix);
+        // The control: the same auction without the trie prefixes `Partnership`
         // attaches, so every projection-based reading is skipped.
         let bare = Inferences::read(&Context::new(rel, prefix));
 
@@ -290,27 +290,27 @@ fn main() {
     let vul = AbsoluteVulnerability::NONE;
     let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.reading.pass_exclusion = args.exclusion;
-    let mut stance = american(&agreements).against();
+    let mut partnership = american(&agreements).bind();
     if args.probe > 0 {
-        let report = stance.probe(args.probe, base.wrapping_add(0x9B0BE));
+        let report = partnership.probe(args.probe, base.wrapping_add(0x9B0BE));
         eprintln!(
             "probed {} boards: {} keys stored, {} drifted between iterations",
             args.probe, report.keys, report.drifted,
         );
         // Filling the store and *reading* from it are separate settings, and
         // the second can only be turned on after the probe — so it moves on
-        // this stance's own pin, without rebuilding the book.
-        stance.profile_mut().reading.probed = true;
+        // this partnership's own pin, without rebuilding the book.
+        partnership.profile_mut().reading.probed = true;
     }
-    let stance = stance;
+    let partnership = partnership;
 
     let census = seeded_deals(base, args.count)
         .par_iter()
         .enumerate()
         .map(|(board, deal)| {
             let dealer = Seat::ALL[board % 4];
-            let auction = bid_out(&stance, &stance, true, dealer, vul, deal);
-            census_auction(&stance, dealer, vul, &auction)
+            let auction = bid_out(&partnership, &partnership, true, dealer, vul, deal);
+            census_auction(&partnership, dealer, vul, &auction)
         })
         .reduce(Census::default, Census::merge);
 
@@ -322,7 +322,7 @@ fn main() {
     // the census would report zero headroom for entirely the wrong reason.
     assert!(
         census.bare.top >= all.top,
-        "bare context read tighter than Stance::infer ({} vs {} ⊤ axes) — read path broken",
+        "bare context read tighter than Partnership::infer ({} vs {} ⊤ axes) — read path broken",
         census.bare.top,
         all.top,
     );

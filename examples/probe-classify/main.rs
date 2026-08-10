@@ -49,17 +49,17 @@ fn main() {
     let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.instinct.competitive_rebid = !args.no_competitive_rebid;
     agreements.decision.reading.envelope_union = !args.no_envelope_union;
-    let stance = american(&agreements).against();
+    let partnership = american(&agreements).bind();
     let seat = Seat::ALL[auction.len() % 4];
     let vul = relative(args.vulnerability, seat);
     // The prefixed reading — what the bidder actually sees (a bare
     // `Context::new` skips the projection overlay; see `Inferences::read`).
     println!(
-        "inferences via Stance::infer (envelope_union={}):\n{:#?}",
+        "inferences via Partnership::infer (envelope_union={}):\n{:#?}",
         !args.no_envelope_union,
-        stance.infer(vul, &auction)
+        partnership.infer(vul, &auction)
     );
-    match stance.classify_with_provenance(hand, vul, &auction) {
+    match partnership.classify_with_provenance(hand, vul, &auction) {
         None => println!("no classification (auction off-book, floor rejected)"),
         Some((logits, provenance)) => {
             println!("provenance: {provenance:?}");

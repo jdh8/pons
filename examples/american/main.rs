@@ -62,7 +62,7 @@ fn main() {
     let args = Args::parse();
     let ns = american(&pons::bidding::agreements::Agreements::default());
     let ew = american(&pons::bidding::agreements::Agreements::default());
-    let table = Table::of_pairs(&ns, &ew, args.dealer, args.vulnerability);
+    let table = Table::of_systems(&ns, &ew, args.dealer, args.vulnerability);
     let mut rng = rand::rng();
 
     for index in 1..=args.count {

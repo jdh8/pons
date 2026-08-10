@@ -8,7 +8,7 @@
 //!
 //! - **features** — [`features_eval`][pons::bidding::features::features_eval]:
 //!   54 floats of own-hand honour decomposition plus the LHO/partner/RHO range
-//!   blocks read by [`Stance::infer`]. No auction, no seat, no vulnerability:
+//!   blocks read by [`Partnership::infer`]. No auction, no seat, no vulnerability:
 //!   the auction enters only through the ranges, which is what makes the
 //!   evaluator bidding-system agnostic. `--encoding onehot` swaps the 24-float
 //!   hand block for 52 card bits (the texture ablation), same walk;
@@ -47,7 +47,7 @@ use pons::bidding::features::{
     features_eval_v4, features_v3,
 };
 use pons::bidding::tags::derive;
-use pons::bidding::{Bidder, Inferences, Phase, Stance};
+use pons::bidding::{Bidder, Inferences, Partnership, Phase};
 use pons::{american, dutch, gib};
 use rand::rngs::StdRng;
 use rand::{RngExt, SeedableRng};
@@ -279,31 +279,31 @@ fn main() -> anyhow::Result<()> {
         };
     let row_len = features_len + DD_LEN;
 
-    let systems: Vec<(&str, Stance)> = args
+    let systems: Vec<(&str, Partnership)> = args
         .systems
         .split(',')
         .map(|name| match name.trim() {
-            "american" => Ok(("american", american(&agreements).against())),
-            "dutch" => Ok(("dutch", dutch(&agreements).against())),
+            "american" => Ok(("american", american(&agreements).bind())),
+            "dutch" => Ok(("dutch", dutch(&agreements).bind())),
             other => anyhow::bail!("--systems entries must be american|dutch, got {other:?}"),
         })
         .collect::<anyhow::Result<_>>()?;
     anyhow::ensure!(systems.len() <= 2, "the tag byte holds two system slots");
 
     // `--closed-hulls` turns the hull closures on for the *reading* only, and
-    // the knobs are captured into a stance at build — so each system gets a
-    // second stance for `infer`.  `classify` keeps using the knob-off one, so
+    // the knobs are captured into a partnership at build — so each system gets a
+    // second partnership for `infer`.  `classify` keeps using the knob-off one, so
     // the auctions never move.
     let mut reader_agreements = agreements;
     reader_agreements.decision.reading.sum_closure = args.closed_hulls;
     reader_agreements.decision.reading.upgrade_closure = args.closed_hulls;
-    let readers: Vec<Stance> = systems
+    let readers: Vec<Partnership> = systems
         .iter()
         .map(|(name, _)| {
             if *name == "dutch" {
-                dutch(&reader_agreements).against()
+                dutch(&reader_agreements).bind()
             } else {
-                american(&reader_agreements).against()
+                american(&reader_agreements).bind()
             }
         })
         .collect();
@@ -346,7 +346,7 @@ fn main() -> anyhow::Result<()> {
                 let mut bytes = Vec::new();
                 let mut tag_bytes = Vec::new();
                 let mut forced = 0u64;
-                for (sys_idx, (_, stance)) in systems.iter().enumerate() {
+                for (sys_idx, (_, partnership)) in systems.iter().enumerate() {
                     let mut auction = Auction::new();
                     // Parallel to the auction under `--auction`: the alert of
                     // each call's winning rule, `None` for forced or rule-less
@@ -357,7 +357,7 @@ fn main() -> anyhow::Result<()> {
                         let hand = deal[seat];
                         let rel = relative(vul, seat);
 
-                        let Some(mut logits) = stance.classify(hand, rel, &auction) else {
+                        let Some(mut logits) = partnership.classify(hand, rel, &auction) else {
                             forced += 1;
                             if args.auction {
                                 alerts.push(None);
@@ -374,7 +374,7 @@ fn main() -> anyhow::Result<()> {
                         // The trie-prefixed reading, so conventional calls
                         // decode off their authoring rules rather than as
                         // natural suits.  Under `--closed-hulls` `readers` is
-                        // the knob-on twin of `stance`; `classify` above ran
+                        // the knob-on twin of `partnership`; `classify` above ran
                         // knob-off, so the auctions never move.
                         let inferences = readers[sys_idx].infer(rel, &auction);
                         encode(&mut row[..base_len], hand, &inferences, &auction, encoding);
@@ -404,7 +404,7 @@ fn main() -> anyhow::Result<()> {
                             // (not rule-backed) or an unalerted (natural) rule
                             // won.
                             alerts.push(
-                                stance
+                                partnership
                                     .explain_call(hand, rel, &auction, call)
                                     .and_then(|(_, rule)| rule)
                                     .and_then(|rule| rule.alert),

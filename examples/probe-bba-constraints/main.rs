@@ -47,7 +47,7 @@ use contract_bridge::{Bid, Strain};
 use contract_bridge::{Builder, Hand, Rank, Seat, Suit};
 use libloading::Library;
 use pons::american;
-use pons::bidding::Stance;
+use pons::bidding::Partnership;
 use pons::bidding::constraint::{point_count, support_point_count_in};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -213,13 +213,18 @@ fn call_to_code(call: Call) -> c_int {
 /// that only fits our own agreement should be side-gated or dropped outright.
 /// The book rule may be `-∞` for a hand and the floor still choose the call, so
 /// this replays the whole bidder, not the rule (docs/ai-bidder/sampled-projection.md).
-fn our_call(stance: &Stance, prefix: &[c_int], hand: Hand, vul: AbsoluteVulnerability) -> Call {
+fn our_call(
+    partnership: &Partnership,
+    prefix: &[c_int],
+    hand: Hand,
+    vul: AbsoluteVulnerability,
+) -> Call {
     let mut auction = Auction::new();
     for &code in prefix {
         let call = code_to_call(code).expect("probe prefixes are legal calls");
         auction.push(call);
     }
-    next_call(stance, hand, Seat::North, vul, &auction)
+    next_call(partnership, hand, Seat::North, vul, &auction)
 }
 
 /// Decode an EPBot bid code into a label, or `None` for an error/illegal code
@@ -574,7 +579,7 @@ fn main() -> Result<()> {
     }
     let ours = args
         .ours
-        .then(|| american(&pons::bidding::agreements::Agreements::default()).against());
+        .then(|| american(&pons::bidding::agreements::Agreements::default()).bind());
 
     let overrides = parse_conv(&args.conv)?;
     let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());
@@ -612,7 +617,7 @@ fn main() -> Result<()> {
             filter_prefix,
             trump,
             support,
-            ours.as_ref().map(|stance| (stance, vul_abs)),
+            ours.as_ref().map(|partnership| (partnership, vul_abs)),
             vul,
             args.samples,
             args.seed,
@@ -641,7 +646,7 @@ fn run(
     filter_prefix: &[c_int],
     trump: Option<Suit>,
     support: Option<Suit>,
-    ours: Option<(&Stance, AbsoluteVulnerability)>,
+    ours: Option<(&Partnership, AbsoluteVulnerability)>,
     vul: c_int,
     samples: usize,
     seed: u64,
@@ -665,7 +670,9 @@ fn run(
             continue;
         }
         let code = match ours {
-            Some((stance, vul_abs)) => call_to_code(our_call(stance, prefix, hand, vul_abs)),
+            Some((partnership, vul_abs)) => {
+                call_to_code(our_call(partnership, prefix, hand, vul_abs))
+            }
             None => bba.call(actor, prefix, hand, vul),
         };
         if decode(code).is_none() {

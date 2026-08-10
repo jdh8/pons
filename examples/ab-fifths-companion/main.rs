@@ -24,7 +24,7 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::constraint::{FifthsCompanion, PointScale};
 use pons::bidding::context::relative;
-use pons::bidding::{Bidder, Stance};
+use pons::bidding::{Bidder, Partnership};
 use pons::scoring::final_contract;
 use rayon::prelude::*;
 
@@ -52,14 +52,14 @@ struct Args {
 
 /// The highest-logit *legal* call, defaulting to a pass
 fn next_call(
-    stance: &Stance,
+    partnership: &Partnership,
     hand: Hand,
     dealer: Seat,
     vul: AbsoluteVulnerability,
     auction: &Auction,
 ) -> Call {
     let seat = seat_to_act(dealer, auction.len());
-    let Some(logits) = stance.classify(hand, relative(vul, seat), auction) else {
+    let Some(logits) = partnership.classify(hand, relative(vul, seat), auction) else {
         return Call::Pass;
     };
 
@@ -79,11 +79,11 @@ fn next_call(
 /// Bid out one deal, switching the Fifths companion per acting side
 ///
 /// Both teams keep the shipped fuzzy gauges; only the companion differs.  The
-/// companion is pinned into a stance at build, so the two sides bid off two
-/// pre-built stances (`[Bumrap, Hcp]`) rather than one stance and a flag set
+/// companion is pinned into a partnership at build, so the two sides bid off two
+/// pre-built partnerships (`[Bumrap, Hcp]`) rather than one partnership and a flag set
 /// per call.  Both are plain values, so a board still bids on any thread.
 fn bid_out(
-    stances: &[Stance; 2],
+    partnerships: &[Partnership; 2],
     hcp_is_ns: bool,
     dealer: Seat,
     vul: AbsoluteVulnerability,
@@ -94,8 +94,8 @@ fn bid_out(
     while !auction.has_ended() {
         let seat = seat_to_act(dealer, auction.len());
         let seat_is_ns = matches!(seat, Seat::North | Seat::South);
-        let stance = &stances[usize::from(seat_is_ns == hcp_is_ns)];
-        auction.push(next_call(stance, deal[seat], dealer, vul, &auction));
+        let partnership = &partnerships[usize::from(seat_is_ns == hcp_is_ns)];
+        auction.push(next_call(partnership, deal[seat], dealer, vul, &auction));
     }
     auction
 }
@@ -105,21 +105,21 @@ fn main() {
     let args = Args::parse();
     let base = args.seed.unwrap_or_else(rand::random);
     let vul = args.vulnerability;
-    // Both stances keep the shipped fuzzy gauges; `[Bumrap, Hcp]` differ only in
+    // Both partnerships keep the shipped fuzzy gauges; `[Bumrap, Hcp]` differ only in
     // the companion, indexed by the acting side.
     let mut bumrap_agreements = pons::bidding::agreements::Agreements::default();
     bumrap_agreements.decision.fuzzy_fifths = true;
     bumrap_agreements.decision.fifths_companion = FifthsCompanion::Bumrap;
     bumrap_agreements.decision.reading.point_scale = PointScale::PointCount;
-    let bumrap = american(&bumrap_agreements).against();
+    let bumrap = american(&bumrap_agreements).bind();
     let mut hcp_agreements = pons::bidding::agreements::Agreements::default();
     hcp_agreements.decision.fuzzy_fifths = true;
     hcp_agreements.decision.fifths_companion = FifthsCompanion::Hcp;
     hcp_agreements.decision.reading.point_scale = PointScale::PointCount;
-    let stances = [bumrap, american(&hcp_agreements).against()];
+    let partnerships = [bumrap, american(&hcp_agreements).bind()];
 
     // Deals are seeded per board (base + index) so every arm/vul replays the
-    // identical stream.  Both stances are plain values, so board bidding
+    // identical stream.  Both partnerships are plain values, so board bidding
     // parallelizes; the DD solver stays on the main thread below.
     let deals = seeded_deals(base, args.count);
     let contracts: Vec<[_; 2]> = deals
@@ -127,8 +127,8 @@ fn main() {
         .enumerate()
         .map(|(index, deal)| {
             let dealer = Seat::ALL[index % 4];
-            let table_a = bid_out(&stances, true, dealer, vul, deal);
-            let table_b = bid_out(&stances, false, dealer, vul, deal);
+            let table_a = bid_out(&partnerships, true, dealer, vul, deal);
+            let table_b = bid_out(&partnerships, false, dealer, vul, deal);
             // Credit the HCP team: [off = table_b (HCP EW), on = table_a
             // (HCP NS)], matching report_brackets' on − off (positive = HCP
             // beats BUM-RAP).

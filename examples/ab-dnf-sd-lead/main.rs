@@ -45,7 +45,7 @@ use contract_bridge::auction::Auction;
 use contract_bridge::{AbsoluteVulnerability, Contract, Seat};
 use pons::american;
 use pons::bidding::context::relative;
-use pons::bidding::{Inferences, Stance};
+use pons::bidding::{Inferences, Partnership};
 use pons::scoring::{final_contract, imps, ns_score_tricks};
 use pons::single_dummy::{LeadQuestion, single_dummy_leads};
 use rand::SeedableRng;
@@ -83,10 +83,10 @@ struct Args {
 }
 
 /// The (contract, declarer, leader-view inferences) of one auction, read through
-/// `stance`; `None` for a pass-out (sd score 0).  Mirrors `ab-notrump-minors`.
+/// `partnership`; `None` for a pass-out (sd score 0).  Mirrors `ab-notrump-minors`.
 fn lead_inputs(
     auction: &Auction,
-    stance: &Stance,
+    partnership: &Partnership,
     dealer: Seat,
     vul: AbsoluteVulnerability,
 ) -> Option<(Contract, Seat, Inferences)> {
@@ -98,7 +98,7 @@ fn lead_inputs(
     Some((
         contract,
         declarer,
-        stance.infer(relative(vul, leader), &auction[..cut]),
+        partnership.infer(relative(vul, leader), &auction[..cut]),
     ))
 }
 
@@ -107,28 +107,37 @@ fn main() {
     let args = Args::parse();
     let base = args.seed.unwrap_or_else(rand::random);
     let vul = args.vulnerability;
-    let stance = american(&pons::bidding::agreements::Agreements::default()).against();
+    let partnership = american(&pons::bidding::agreements::Agreements::default()).bind();
     let deals = seeded_deals(base, args.count);
 
     // Bidding is knob-independent (the floor+net bidder never samples), so bid
-    // once.  All four seats bid `american` (both `bid_out` stances identical), so
+    // once.  All four seats bid `american` (both `bid_out` partnerships identical), so
     // the auction is fully contested and two-suiter overcalls fire.
     let auctions: Vec<Auction> = deals
         .par_iter()
         .enumerate()
-        .map(|(i, deal)| bid_out(&stance, &stance, true, Seat::ALL[i % 4], vul, deal))
+        .map(|(i, deal)| {
+            bid_out(
+                &partnership,
+                &partnership,
+                true,
+                Seat::ALL[i % 4],
+                vul,
+                deal,
+            )
+        })
         .collect();
 
     // Price the opening lead for one arm: read the leader's inferences and
     // sample worlds *under the arm's knobs* (disjunctive boxes and/or gauge
-    // membership).  Both knobs are captured into a stance at build, so the arm
+    // membership).  Both knobs are captured into a partnership at build, so the arm
     // gets its own `reader`; the sampler inside `single_dummy_leads` runs on the
     // main thread and follows the `Inferences` that reader produced.
     let score_arm = |envelope_union: bool, gauge: bool| -> Vec<i64> {
         let mut agreements = pons::bidding::agreements::Agreements::default();
         agreements.decision.reading.envelope_union = envelope_union;
         agreements.decision.reading.gauge_membership = gauge;
-        let reader = american(&agreements).against();
+        let reader = american(&agreements).bind();
         let mut pending: Vec<(usize, Contract, Seat)> = Vec::new();
         let mut questions: Vec<LeadQuestion> = Vec::new();
         for (i, auction) in auctions.iter().enumerate() {

@@ -232,7 +232,7 @@ impl TrickEstimates {
 
 /// Evaluate a hand against what the auction has shown about the other three.
 ///
-/// Take `inferences` from [`Stance::infer`][super::Stance::infer], which routes
+/// Take `inferences` from [`Partnership::infer`][super::Partnership::infer], which routes
 /// the auction through the book's trie so conventional calls decode off their
 /// authoring rules; a bare [`Context`][super::Context] reading is looser and is
 /// not the distribution this net was fit on.
@@ -249,7 +249,7 @@ pub fn trick_estimates(hand: Hand, inferences: &Inferences) -> TrickEstimates {
 }
 
 /// [`trick_estimates`] on an explicit decision profile — the classify-time
-/// entry point, so a stance scores a hand the same way on any thread.
+/// entry point, so a partnership scores a hand the same way on any thread.
 #[must_use]
 fn trick_estimates_on(
     profile: &DecisionProfile,
@@ -284,7 +284,7 @@ pub fn trick_estimates_with_auction(
 
 /// [`trick_estimates_with_auction`] on an explicit decision profile — what
 /// [`Context::trick_estimates`][super::Context::trick_estimates] serves, so the
-/// twin and weight set a stance selects are the ones pinned into it at build.
+/// twin and weight set a partnership selects are the ones pinned into it at build.
 #[must_use]
 #[doc(hidden)]
 pub fn trick_estimates_with_auction_on(

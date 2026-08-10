@@ -58,12 +58,12 @@ struct Node<'a> {
 }
 
 fn main() {
-    let system = "american";
-    let pair = american_book(&pons::bidding::agreements::Agreements::default());
+    let system_name = "american";
+    let system = american_book(&pons::bidding::agreements::Agreements::default());
     let books: [(&'static str, &Trie); 3] = [
-        ("constructive", &pair.constructive.0),
-        ("competitive", &pair.competitive.0),
-        ("defensive", &pair.defensive.0),
+        ("constructive", &system.constructive.0),
+        ("competitive", &system.competitive.0),
+        ("defensive", &system.defensive.0),
     ];
 
     let mut seen: HashSet<usize> = HashSet::new();
@@ -86,7 +86,7 @@ fn main() {
             }
             nodes += 1;
             let node = Node {
-                system,
+                system: system_name,
                 book,
                 auction: auction.to_vec(),
                 rules,
@@ -107,7 +107,7 @@ fn main() {
     }
 
     eprintln!(
-        "export-corpus: system {system}, {nodes} authored nodes, {records} \
+        "export-corpus: system {system_name}, {nodes} authored nodes, {records} \
          (node,call) records ({} constructive, {} competitive, {} defensive), \
          {specific} with a specific (non-NAT/NF) tag, {opaque} with an opaque \
          constraint.",

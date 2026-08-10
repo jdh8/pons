@@ -18,10 +18,10 @@ fn responds(open: Call, hand: &str) -> Call {
 
 /// Responder's call over `open` -, under `agreements`
 fn responds_with(agreements: &Agreements, open: Call, hand: &str) -> Call {
-    let stance = american(agreements).against();
+    let partnership = american(agreements).bind();
     let table = Table::new(
-        stance.clone(),
-        stance,
+        partnership.clone(),
+        partnership,
         Seat::North,
         AbsoluteVulnerability::NONE,
     );

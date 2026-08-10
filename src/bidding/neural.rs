@@ -94,7 +94,7 @@ fn forward<const IN: usize>(weights: &[f32], x: &[f32]) -> Logits {
 // ── The configured floor: v4 features, one net for every regime ──────────────
 // `docs/ai-bidder/configured-net.md`.  The convention card is an *input* here,
 // so a regime needs no weights artifact of its own.  That is what retired the v3
-// twin pair — one net per kickback stance, selected per decision by the knob —
+// twin pair — one net per kickback partnership, selected per decision by the knob —
 // on gate 1's verdict (configured-net.md phase 6).
 
 /// Input width of `american_bba_v4`, pinned to the artifact (= [`FEATURES_LEN_V4`]).

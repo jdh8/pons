@@ -17,7 +17,7 @@ const P: Call = Call::Pass;
 #[test]
 fn test_2nt_transfer_to_spades() {
     // Five spades → 3♥ (transfer to spades) over 2NT.
-    let system = stance();
+    let system = partnership();
     let auction = &[call(2, Strain::Notrump), P][..];
     assert_eq!(
         best_call(&system, auction, "KJ542.Q32.943.92"),
@@ -28,7 +28,7 @@ fn test_2nt_transfer_to_spades() {
 #[test]
 fn test_2nt_stayman() {
     // 9 HCP, 4-4 majors → 3♣ (Stayman) over 2NT.
-    let system = stance();
+    let system = partnership();
     let auction = &[call(2, Strain::Notrump), P][..];
     assert_eq!(
         best_call(&system, auction, "KJ54.Q932.K43.83"),
@@ -41,7 +41,7 @@ fn test_2nt_stayman() {
 #[test]
 fn test_system_on_after_2c_2d_2nt() {
     // `2♣ - 2♦ - 2NT -`: five spades → 3♥ (transfer), system on.
-    let system = stance();
+    let system = partnership();
     let auction = &[
         call(2, Strain::Clubs),
         P,
@@ -61,7 +61,7 @@ fn test_system_on_after_2c_2d_2nt() {
 #[test]
 fn test_1nt_quantitative_4nt() {
     // 17 HCP balanced, no four-card major → 4NT (quantitative) over 1NT.
-    let system = stance();
+    let system = partnership();
     let auction = &[call(1, Strain::Notrump), P][..];
     assert_eq!(
         best_call(&system, auction, "KQ5.AQ3.KJ42.J92"),
@@ -74,7 +74,7 @@ fn test_1nt_quantitative_4nt() {
 #[test]
 fn test_1nt_accept_quantitative_4nt() {
     // 17 HCP → accept with 6NT (maximum 15–17 range).
-    let system = stance();
+    let system = partnership();
     let auction = &[call(1, Strain::Notrump), P, call(4, Strain::Notrump), P][..];
     assert_eq!(
         best_call(&system, auction, "AQ32.KQ5.KJ4.Q92"),
@@ -85,7 +85,7 @@ fn test_1nt_accept_quantitative_4nt() {
 #[test]
 fn test_1nt_decline_quantitative_4nt() {
     // 15 HCP → decline (pass) the quantitative 4NT invite.
-    let system = stance();
+    let system = partnership();
     let auction = &[call(1, Strain::Notrump), P, call(4, Strain::Notrump), P][..];
     assert_eq!(best_call(&system, auction, "AQ32.KQ5.QJ4.J92"), Call::Pass,);
 }
@@ -95,7 +95,7 @@ fn test_1nt_decline_quantitative_4nt() {
 #[test]
 fn test_rebid_2nt_response_3nt() {
     // 1♥ - 1♠ - 2NT: 10 HCP → bid 3NT opposite opener's 18–19.
-    let system = stance();
+    let system = partnership();
     let auction = &[
         call(1, Strain::Hearts),
         P,

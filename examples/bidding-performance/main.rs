@@ -12,7 +12,7 @@ use pons::bidding::array::Logits;
 use pons::bidding::benchmark::{
     classify_with_provenance_uncached, is_deterministic_instinct_floor,
 };
-use pons::bidding::{Bidder, Stance, Table};
+use pons::bidding::{Bidder, Partnership, Table};
 use pons::{american, american_instinct};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -60,7 +60,7 @@ struct Args {
     /// Return success despite CV >2%; diagnostic only, never an acceptance run.
     #[arg(long)]
     allow_unstable: bool,
-    /// Report allocator-trimmed RSS retained by `Pair::against`, then exit.
+    /// Report allocator-trimmed RSS retained by `System::bind`, then exit.
     #[arg(long)]
     retained_memory_only: bool,
 }
@@ -78,7 +78,7 @@ const WHOLE_CACHED_LOOPS: usize = 16;
 const WHOLE_LEGACY_LOOPS: usize = 1;
 
 #[derive(Clone, Copy)]
-struct Legacy<'a>(&'a Stance);
+struct Legacy<'a>(&'a Partnership);
 
 impl Bidder for Legacy<'_> {
     fn classify(
@@ -140,13 +140,13 @@ fn trimmed_rss_kib() -> anyhow::Result<u64> {
 
 #[cfg(all(target_os = "linux", target_env = "gnu"))]
 fn report_retained_memory() -> anyhow::Result<()> {
-    let pair = american(&pons::bidding::agreements::Agreements::default());
+    let system = american(&pons::bidding::agreements::Agreements::default());
     let before = trimmed_rss_kib()?;
-    let stance = pair.against();
-    black_box(&stance);
+    let partnership = system.bind();
+    black_box(&partnership);
     let after = trimmed_rss_kib()?;
     println!(
-        "Pair::against retained memory: before={before} KiB after={after} KiB delta={} KiB",
+        "System::bind retained memory: before={before} KiB after={after} KiB delta={} KiB",
         after.saturating_sub(before),
     );
     Ok(())
@@ -306,11 +306,11 @@ fn fixed_deals() -> Vec<FullDeal> {
         .collect()
 }
 
-fn timed_hot_cached(stance: &Stance, positions: &[&Position], loops: usize) -> f64 {
+fn timed_hot_cached(partnership: &Partnership, positions: &[&Position], loops: usize) -> f64 {
     let start = Instant::now();
     for _ in 0..loops {
         for position in positions {
-            black_box(stance.classify_with_provenance(
+            black_box(partnership.classify_with_provenance(
                 black_box(position.hand),
                 position.vul,
                 black_box(&position.auction),
@@ -320,12 +320,12 @@ fn timed_hot_cached(stance: &Stance, positions: &[&Position], loops: usize) -> f
     micros_per_decision(start.elapsed(), loops * positions.len())
 }
 
-fn timed_hot_legacy(stance: &Stance, positions: &[&Position], loops: usize) -> f64 {
+fn timed_hot_legacy(partnership: &Partnership, positions: &[&Position], loops: usize) -> f64 {
     let start = Instant::now();
     for _ in 0..loops {
         for position in positions {
             black_box(classify_with_provenance_uncached(
-                stance,
+                partnership,
                 black_box(position.hand),
                 position.vul,
                 black_box(&position.auction),
@@ -335,7 +335,11 @@ fn timed_hot_legacy(stance: &Stance, positions: &[&Position], loops: usize) -> f
     micros_per_decision(start.elapsed(), loops * positions.len())
 }
 
-fn timed_whole_cached(tables: &[Table<&Stance, &Stance>], deals: &[FullDeal], loops: usize) -> f64 {
+fn timed_whole_cached(
+    tables: &[Table<&Partnership, &Partnership>],
+    deals: &[FullDeal],
+    loops: usize,
+) -> f64 {
     let start = Instant::now();
     for _ in 0..loops {
         for (table, deal) in tables.iter().zip(deals) {
@@ -367,18 +371,17 @@ struct CacheAcceptance {
 }
 
 fn run_cache_acceptance(
-    stance: &Stance,
+    partnership: &Partnership,
     positions: &[Position],
     warmups: usize,
     repetitions: usize,
 ) -> anyhow::Result<CacheAcceptance> {
-    let deterministic =
-        american_instinct(&pons::bidding::agreements::Agreements::default()).against();
+    let deterministic = american_instinct(&pons::bidding::agreements::Agreements::default()).bind();
     let hot: Vec<_> = positions
         .iter()
         .filter(|position| {
             is_deterministic_instinct_floor(
-                stance,
+                partnership,
                 &deterministic,
                 position.hand,
                 position.vul,
@@ -402,8 +405,8 @@ fn run_cache_acceptance(
     let tables: Vec<_> = (0..deals.len())
         .map(|index| {
             Table::new(
-                stance,
-                stance,
+                partnership,
+                partnership,
                 Seat::ALL[index % 4],
                 vulnerabilities[index / 4 % 4],
             )
@@ -412,8 +415,8 @@ fn run_cache_acceptance(
     let legacy_tables: Vec<_> = (0..deals.len())
         .map(|index| {
             Table::new(
-                Legacy(stance),
-                Legacy(stance),
+                Legacy(partnership),
+                Legacy(partnership),
                 Seat::ALL[index % 4],
                 vulnerabilities[index / 4 % 4],
             )
@@ -424,16 +427,16 @@ fn run_cache_acceptance(
     // executable: both arms must perform the same decisions and finish each
     // fixed deal on the same auction before their durations are comparable.
     for position in &hot {
-        let cached = stance
+        let cached = partnership
             .classify_with_provenance(position.hand, position.vul, &position.auction)
-            .expect("the shipped stance is total");
+            .expect("the shipped partnership is total");
         let legacy = classify_with_provenance_uncached(
-            stance,
+            partnership,
             position.hand,
             position.vul,
             &position.auction,
         )
-        .expect("the legacy stance is total");
+        .expect("the legacy partnership is total");
         anyhow::ensure!(
             cached.1 == legacy.1
                 && cached.0.iter().zip(legacy.0.iter()).all(
@@ -460,8 +463,8 @@ fn run_cache_acceptance(
         deals.len()
     );
     for _ in 0..warmups {
-        black_box(timed_hot_cached(stance, &hot, 1));
-        black_box(timed_hot_legacy(stance, &hot, 1));
+        black_box(timed_hot_cached(partnership, &hot, 1));
+        black_box(timed_hot_legacy(partnership, &hot, 1));
         black_box(timed_whole_cached(&tables, &deals, 1));
         black_box(timed_whole_legacy(&legacy_tables, &deals, 1));
     }
@@ -472,8 +475,8 @@ fn run_cache_acceptance(
     let mut whole_legacy = Vec::with_capacity(repetitions);
     for repetition in 0..repetitions {
         if repetition % 2 == 0 {
-            hot_cached.push(timed_hot_cached(stance, &hot, hot_cached_loops));
-            hot_legacy.push(timed_hot_legacy(stance, &hot, hot_legacy_loops));
+            hot_cached.push(timed_hot_cached(partnership, &hot, hot_cached_loops));
+            hot_legacy.push(timed_hot_legacy(partnership, &hot, hot_legacy_loops));
             whole_cached.push(timed_whole_cached(&tables, &deals, WHOLE_CACHED_LOOPS));
             whole_legacy.push(timed_whole_legacy(
                 &legacy_tables,
@@ -481,8 +484,8 @@ fn run_cache_acceptance(
                 WHOLE_LEGACY_LOOPS,
             ));
         } else {
-            hot_legacy.push(timed_hot_legacy(stance, &hot, hot_legacy_loops));
-            hot_cached.push(timed_hot_cached(stance, &hot, hot_cached_loops));
+            hot_legacy.push(timed_hot_legacy(partnership, &hot, hot_legacy_loops));
+            hot_cached.push(timed_hot_cached(partnership, &hot, hot_cached_loops));
             whole_legacy.push(timed_whole_legacy(
                 &legacy_tables,
                 &deals,
@@ -534,23 +537,23 @@ fn main() -> anyhow::Result<()> {
 
     let use_pons = matches!(args.engine, Engine::Both | Engine::Pons);
     let use_bba = matches!(args.engine, Engine::Both | Engine::Bba);
-    let stance: Option<Stance> =
-        use_pons.then(|| american(&pons::bidding::agreements::Agreements::default()).against());
+    let partnership: Option<Partnership> =
+        use_pons.then(|| american(&pons::bidding::agreements::Agreements::default()).bind());
     // EPBot is loaded and driven only from this main thread.
     let bba = use_bba
         .then(|| BbaOracle::load(&args.bba_lib, SYSTEM_2_OVER_1, Vec::new()))
         .transpose()?;
 
     for _ in 0..args.warmups {
-        if let Some(stance) = &stance {
-            classify_all(stance, &positions, ENGINE_SAMPLE_LOOPS);
+        if let Some(partnership) = &partnership {
+            classify_all(partnership, &positions, ENGINE_SAMPLE_LOOPS);
         }
         if let Some(bba) = &bba {
             classify_all(bba, &positions, ENGINE_SAMPLE_LOOPS);
         }
     }
 
-    let pons_alloc = stance
+    let pons_alloc = partnership
         .as_ref()
         .filter(|_| !args.skip_allocations)
         .map(|system| allocated(system, &positions));
@@ -564,7 +567,7 @@ fn main() -> anyhow::Result<()> {
         // Alternate order to keep monotonic thermal/frequency drift out of the
         // paired log-ratio estimate.
         if repetition % 2 == 0 {
-            if let Some(system) = &stance {
+            if let Some(system) = &partnership {
                 pons_samples.push(micros_per_decision(
                     timed(system, &positions, ENGINE_SAMPLE_LOOPS),
                     positions.len() * ENGINE_SAMPLE_LOOPS,
@@ -583,7 +586,7 @@ fn main() -> anyhow::Result<()> {
                     positions.len() * ENGINE_SAMPLE_LOOPS,
                 ));
             }
-            if let Some(system) = &stance {
+            if let Some(system) = &partnership {
                 pons_samples.push(micros_per_decision(
                     timed(system, &positions, ENGINE_SAMPLE_LOOPS),
                     positions.len() * ENGINE_SAMPLE_LOOPS,
@@ -607,9 +610,11 @@ fn main() -> anyhow::Result<()> {
     let pons_bba =
         (use_pons && use_bba).then(|| paired_ratio("Pons/BBA", &pons_samples, &bba_samples));
     let cache_acceptance = if !args.skip_cache_acceptance {
-        stance
+        partnership
             .as_ref()
-            .map(|stance| run_cache_acceptance(stance, &positions, args.warmups, args.repetitions))
+            .map(|partnership| {
+                run_cache_acceptance(partnership, &positions, args.warmups, args.repetitions)
+            })
             .transpose()?
     } else {
         None

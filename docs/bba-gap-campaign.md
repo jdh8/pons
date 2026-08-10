@@ -40,7 +40,7 @@ Three facts drive the design (researched 2026-07-07):
 ## Pillar A — anchor and decompose (SHIPPED; first anchor run 2026-07-06)
 
 **Tooling** (landed 2026-07-07): `bba-gen` dumps now record `seed` +
-`gen_args`; `Stance::explain_call` (book.rs) attributes any call to its
+`gen_args`; `Partnership::explain_call` (book.rs) attributes any call to its
 provenance and winning rule; `examples/bba-decompose` turns shard dumps into a
 ranked-bucket `report.md` + `boards.jsonl`; `scripts/anchor.sh` orchestrates.
 
@@ -480,7 +480,7 @@ then **the decisive new gate — the real routing**: paired `bba-gen` runs
 `ab-dump-diff` plain+PD.  A floor that wins self-play but bleeds vs the
 mature reference does not advance.
 
-**Promotion stance (user, 2026-07-07): harness default only.**  If the
+**Promotion partnership (user, 2026-07-07): harness default only.**  If the
 routing gate passes, campaign measurement runs adopt the champion floor as
 the default arm; the **crate default stays `instinct()`** — the disclosure
 objection stands (the net cannot `describe`/`project` its calls).  Revisit
@@ -557,7 +557,7 @@ fits them unchanged; `neural::classify_bba` + `NeuralFloorBba` +
   5-level competing / slam tries, fewer takeout doubles). No book nodes added,
   so `artificial_calls_are_alerted` is untouched — disclosure posture identical
   to the shipped `neural-v3` floor.
-- **Stance → PROMOTED (2026-07-19, the floor swap):** the routing-gate win
+- **Partnership → PROMOTED (2026-07-19, the floor swap):** the routing-gate win
   shipped as the **crate default** — `american()` now floors off-book with the
   BBA net, and the deterministic pre-swap system is `american_instinct()` (the
   anchor's new pons side, the distillation teacher, and the integration-test
@@ -592,8 +592,8 @@ MC-cardplay effort, explicitly out of scope here.
 
 - Library: promote `ns_score_tricks` (from `ab-nt-defense-matrix`) into
   `src/scoring.rs`; add `LeadQuestion::read(deal, dealer, vul, auction,
-  stance)` to `src/single_dummy.rs` (owns the leader-prefix cut +
-  `Stance::infer`).
+  partnership)` to `src/single_dummy.rs` (owns the leader-prefix cut +
+  `Partnership::infer`).
 - Pipelines: `bba-score` + `ab-dump-diff` gain `--score sd`, `--sd-worlds`
   (default 16, the validated GTO setting), `--sd-seed`, `--sd-sanity`
   (Pavlicek anchor, must land ≈ +0.2..+0.4 tricks at the 1–2 level).

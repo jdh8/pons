@@ -154,7 +154,7 @@ pub(crate) enum PreservedTarget {
 ///
 /// The concrete classifier/guard/rewrite `Arc`s already live in the finalized
 /// trie and decoder.  Keeping them a second time in the catalog would retain
-/// overwritten authoring objects and make every `Stance` clone heavier.
+/// overwritten authoring objects and make every `Partnership` clone heavier.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum PreservedTargetKind {
     Rules,
@@ -266,7 +266,7 @@ impl AuthoringCatalog {
     }
 }
 
-/// Whole-book ledger of row patterns, retained until `Pair::against()`
+/// Whole-book ledger of row patterns, retained until `System::bind()`
 #[derive(Clone, Debug)]
 pub(crate) struct AuthoringLedger {
     patterns: Vec<LedgerPattern>,

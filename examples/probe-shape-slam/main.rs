@@ -98,7 +98,7 @@ struct Board {
 
 fn main() {
     let args = Args::parse();
-    let stance = american(&pons::bidding::agreements::Agreements::default()).against();
+    let partnership = american(&pons::bidding::agreements::Agreements::default()).bind();
     let deals = seeded_deals(args.seed, args.count);
     let vul = args.vulnerability;
 
@@ -116,7 +116,7 @@ fn main() {
                 let call = if matches!(seat, Seat::East | Seat::West) {
                     contract_bridge::auction::Call::Pass
                 } else {
-                    common::next_call(&stance, deal[seat], dealer, vul, &auction)
+                    common::next_call(&partnership, deal[seat], dealer, vul, &auction)
                 };
                 auction.push(call);
             }

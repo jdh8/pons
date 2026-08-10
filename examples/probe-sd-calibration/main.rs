@@ -238,7 +238,7 @@ fn pavlicek(level: u8, class: Option<usize>) -> (f64, f64, u32) {
 
 fn main() {
     let args = Args::parse();
-    let stance = american(&pons::bidding::agreements::Agreements::default()).against();
+    let partnership = american(&pons::bidding::agreements::Agreements::default()).bind();
     let mut rows: Vec<Row> = Vec::new();
     let mut playouts_at = [[0usize; 3]; 8];
 
@@ -251,7 +251,14 @@ fn main() {
             .enumerate()
             .map(|(i, deal)| {
                 let dealer = Seat::ALL[i % 4];
-                let auction = bid_out(&stance, &stance, true, dealer, args.vulnerability, &deal);
+                let auction = bid_out(
+                    &partnership,
+                    &partnership,
+                    true,
+                    dealer,
+                    args.vulnerability,
+                    &deal,
+                );
                 (dealer, deal, auction)
             })
             .collect();
@@ -274,7 +281,7 @@ fn main() {
             let cut = (auction.len().saturating_sub(3)..=auction.len())
                 .find(|&len| seat_to_act(dealer, len) == seat)
                 .expect("one of four consecutive lengths reaches every seat");
-            stance.infer(relative(args.vulnerability, seat), &auction[..cut])
+            partnership.infer(relative(args.vulnerability, seat), &auction[..cut])
         };
         let questions: Vec<LeadQuestion> = reached
             .iter()

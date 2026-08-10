@@ -8,7 +8,7 @@ use common::*;
 /// Opener shows a singleton club (3♣ = shortness) over 1♠ - 2NT
 #[test]
 fn jacoby_1s_rebid_shortness_club_singleton() {
-    let system = stance();
+    let system = partnership();
     // 13 HCP, 5332 in spades with singleton club → 3♣ (shortness)
     assert_eq!(
         best_call(
@@ -28,7 +28,7 @@ fn jacoby_1s_rebid_shortness_club_singleton() {
 /// Opener shows a good five-card diamond suit (4♦) over 1♠ - 2NT
 #[test]
 fn jacoby_1s_rebid_second_suit_diamonds() {
-    let system = stance();
+    let system = partnership();
     // 14 HCP, five good diamonds (KQJ) beats showing the heart singleton
     assert_eq!(
         best_call(
@@ -48,7 +48,7 @@ fn jacoby_1s_rebid_second_suit_diamonds() {
 /// Opener shows a big balanced hand (3♠) over 1♠ - 2NT
 #[test]
 fn jacoby_1s_rebid_big_balanced() {
-    let system = stance();
+    let system = partnership();
     // 19 HCP, no shortness → 3♠ (18+ balanced-ish)
     assert_eq!(
         best_call(
@@ -68,7 +68,7 @@ fn jacoby_1s_rebid_big_balanced() {
 /// Opener shows a medium balanced hand (3NT) over 1♠ - 2NT
 #[test]
 fn jacoby_1s_rebid_medium_balanced() {
-    let system = stance();
+    let system = partnership();
     // 16 HCP (16.6 Fifths), 5-4-2-2, no shortness → 3NT (15–17)
     assert_eq!(
         best_call(
@@ -88,7 +88,7 @@ fn jacoby_1s_rebid_medium_balanced() {
 /// Opener shows a minimum hand (4♠) over 1♠ - 2NT
 #[test]
 fn jacoby_1s_rebid_minimum() {
-    let system = stance();
+    let system = partnership();
     // 12 HCP, minimum opener → 4♠
     assert_eq!(
         best_call(
@@ -110,7 +110,7 @@ fn jacoby_1s_rebid_minimum() {
 /// Responder with 16 HCP bids 4NT (slam try) after opener's 3♣ shortness bid
 #[test]
 fn jacoby_responder_slam_try_after_shortness() {
-    let system = stance();
+    let system = partnership();
     // 16 HCP → 4NT (slam try) after opener showed club shortness
     assert_eq!(
         best_call(
@@ -132,7 +132,7 @@ fn jacoby_responder_slam_try_after_shortness() {
 /// Responder with 14 HCP settles in game (4♠) after opener's 3♣ shortness bid
 #[test]
 fn jacoby_responder_game_only_after_shortness() {
-    let system = stance();
+    let system = partnership();
     // 14 HCP → 4♠ (game only) after opener showed club shortness
     assert_eq!(
         best_call(

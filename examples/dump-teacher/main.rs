@@ -7,7 +7,7 @@
 //!
 //! The teacher is deliberately the **deterministic** pair, never the net-floored
 //! `american()` — that is what keeps distillation from feeding a net its own
-//! output. `american()` does appear here, as the *reader* stance that builds the
+//! output. `american()` does appear here, as the *reader* partnership that builds the
 //! prefixed context, but a floor projects nothing (`Classifier::as_rules` is
 //! `None`), so which floor is attached cannot reach the features.  Note that
 //! stops being true the day the floor gains a reading.
@@ -46,7 +46,7 @@ use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use ddss::TrickCountTable;
-use pons::bidding::Stance;
+use pons::bidding::Partnership;
 use pons::bidding::agreements::Agreements;
 use pons::bidding::american::{EUROPEAN, LebensohlStyle, NotrumpDefense, NotrumpShape, PUPPET};
 use pons::bidding::card::{american_card, dutch_card};
@@ -169,7 +169,7 @@ struct Args {
     ///
     /// Conflicts with `--kickback`: mixing supplies *both* regimes, so a fixed
     /// one would be ignored — and the sidecar's `our_kickback` would then
-    /// record a stance the corpus never used.
+    /// record a partnership the corpus never used.
     #[arg(long, conflicts_with = "kickback")]
     mix_kickback: bool,
     /// Emit the **configured** vector [`features_v4`] instead of `features_v3`
@@ -572,7 +572,7 @@ fn main() -> anyhow::Result<()> {
     let row_len = features_len + SOFTMAX_LEN + dd_len;
     // Both sides play the same system; the classifier handles whichever seat is
     // to act (vulnerability passed in relative). `american()` routes by phase
-    // through a Stance; `bba` is the vendored EPBot 2/1 oracle — a fresh
+    // through a Partnership; `bba` is the vendored EPBot 2/1 oracle — a fresh
     // single-threaded FFI bot per decision.
     if args.mix_kickback && args.conv.is_empty() {
         anyhow::bail!("--mix-kickback needs --conv to say what the ON regime is");
@@ -600,8 +600,8 @@ fn main() -> anyhow::Result<()> {
             // Letting them drift apart writes rows labelled with a system the
             // teacher was not playing -- the mislabeling that `verify_card`
             // guards against for BBA, one level up and just as invisible.
-            "american" if args.system == "dutch" => Box::new(dutch_instinct(&agreements).against()),
-            "american" => Box::new(american_instinct(&agreements).against()),
+            "american" if args.system == "dutch" => Box::new(dutch_instinct(&agreements).bind()),
+            "american" => Box::new(american_instinct(&agreements).bind()),
             "bba" => {
                 let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());
                 let card = args.card.as_deref().map(load_bbsa).transpose()?;
@@ -632,7 +632,7 @@ fn main() -> anyhow::Result<()> {
     };
 
     // ── Configured mode: the table configurations, and one set of artifacts
-    // per *ordered* side pair.  Built once here rather than per board: a Stance
+    // per *ordered* side pair.  Built once here rather than per board: a Partnership
     // bakes in rule presence at construction, so each must be built with its own
     // cell's knobs armed.
     let cells: Vec<(SideConfig, SideConfig)> = if !args.cells.is_empty() {
@@ -692,8 +692,8 @@ fn main() -> anyhow::Result<()> {
         }
     }
     let v5 = feature_version == FEATURES_VERSION_V5;
-    // Per side: its card and the stance that reads its auctions.
-    let mut per_side: BTreeMap<String, (pons::bidding::card::Card, Stance)> = BTreeMap::new();
+    // Per side: its card and the partnership that reads its auctions.
+    let mut per_side: BTreeMap<String, (pons::bidding::card::Card, Partnership)> = BTreeMap::new();
     // v5 only: the same knob state [`pons::bidding::features::ConventionCard`]-shaped.  Captured at the
     // exact point the card is rendered — same arming — so card, compact block
     // and book cannot drift.
@@ -701,7 +701,7 @@ fn main() -> anyhow::Result<()> {
         BTreeMap::new();
     for side in &sides {
         // The side's full agreements — recognizer and flip axes — so its card,
-        // stance and (per pair, below) teacher are all built from the same
+        // partnership and (per pair, below) teacher are all built from the same
         // value.
         let mut agreements = arm_flips(side.flips);
         agreements.decision.reading.rkcb_variant = rkcb_variant(side.kickback);
@@ -712,12 +712,12 @@ fn main() -> anyhow::Result<()> {
                 pons::bidding::features::ConventionCard::capture(&agreements, side.dutch),
             );
         }
-        let stance = if side.dutch {
-            dutch(&agreements).against()
+        let partnership = if side.dutch {
+            dutch(&agreements).bind()
         } else {
-            american(&agreements).against()
+            american(&agreements).bind()
         };
-        per_side.insert(side.label(), (card, stance));
+        per_side.insert(side.label(), (card, partnership));
     }
     // Per ordered pair: the feature-side config, and the teacher that plays it.
     let mut per_pair: BTreeMap<(String, String), (Config, Box<dyn Bidder>)> = BTreeMap::new();
@@ -746,8 +746,8 @@ fn main() -> anyhow::Result<()> {
         let mut agreements = arm_flips(a.flips);
         agreements.decision.reading.rkcb_variant = rkcb_variant(a.kickback);
         let teacher: Box<dyn Bidder> = match args.teacher.as_str() {
-            "american" if a.dutch => Box::new(dutch_instinct(&agreements).against()),
-            "american" => Box::new(american_instinct(&agreements).against()),
+            "american" if a.dutch => Box::new(dutch_instinct(&agreements).bind()),
+            "american" => Box::new(american_instinct(&agreements).bind()),
             "bba" => {
                 let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());
                 let ours = to_convention_card(&ours)?;
@@ -817,16 +817,17 @@ fn main() -> anyhow::Result<()> {
                 Ok(Config::new(&ours, &theirs))
             })
             .transpose()?;
-        // The stance that *reads* the auction.  Built after the knobs are armed,
+        // The partnership that *reads* the auction.  Built after the knobs are armed,
         // for the same reason the card is: rule presence is decided at build.
-        let reader: Option<Stance> = (args.configured && cells.is_empty() && !args.bare_context)
-            .then(|| -> anyhow::Result<Stance> {
-                Ok(match args.system.as_str() {
-                    "dutch" => dutch(&regime_agreements).against(),
-                    _ => american(&regime_agreements).against(),
+        let reader: Option<Partnership> =
+            (args.configured && cells.is_empty() && !args.bare_context)
+                .then(|| -> anyhow::Result<Partnership> {
+                    Ok(match args.system.as_str() {
+                        "dutch" => dutch(&regime_agreements).bind(),
+                        _ => american(&regime_agreements).bind(),
+                    })
                 })
-            })
-            .transpose()?;
+                .transpose()?;
         let teacher = teachers[regime].as_ref();
         // The table(s) this board is played at.  The dealer's side plays
         // `cell.0`, so a random dealer also randomises which physical side holds
@@ -912,7 +913,7 @@ fn main() -> anyhow::Result<()> {
                     _ => reader.as_ref(),
                 };
                 let mut context = match acting_reader {
-                    Some(stance) => stance.prefixed_context(rel, &auction),
+                    Some(partnership) => partnership.prefixed_context(rel, &auction),
                     None => {
                         let profile = match acting {
                             Some((ours, _)) => {

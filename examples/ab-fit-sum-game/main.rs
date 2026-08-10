@@ -23,7 +23,7 @@
 //! `--baseline` (the shipped `31` by default).  Each board is bid twice, duplicate style: at
 //! table A the feature pair sits North/South against a baseline pair, at table B
 //! the teams swap seats.  Both sides play the same book; the threshold is pinned
-//! into a stance at build, so each side bids off its own pre-built stance.
+//! into a partnership at build, so each side bids off its own pre-built partnership.
 //! Divergent boards are scored two ways from the same DD table:
 //! [`ns_score_contract`] (plain DD) and [`ns_score_pd`] (perfect defense, which
 //! prices a failing game as doubled) — a looser game gate can bid a game that
@@ -42,7 +42,7 @@ use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::Accumulator;
 use pons::american;
-use pons::bidding::Stance;
+use pons::bidding::Partnership;
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -100,10 +100,10 @@ struct Args {
 
 /// Bid out one deal, arming the fit-sum game gate only for the feature side
 ///
-/// All three knobs are pinned into a stance at build, so the two sides bid off
-/// two pre-built stances rather than one stance and a per-call flag.
+/// All three knobs are pinned into a partnership at build, so the two sides bid off
+/// two pre-built partnerships rather than one partnership and a per-call flag.
 fn bid_out(
-    stances: &[Stance; 2],
+    partnerships: &[Partnership; 2],
     args: &Args,
     feature_is_ns: bool,
     dealer: Seat,
@@ -113,9 +113,9 @@ fn bid_out(
     while !auction.has_ended() {
         let seat = seat_to_act(dealer, auction.len());
         let seat_is_ns = matches!(seat, Seat::North | Seat::South);
-        let stance = &stances[usize::from(seat_is_ns == feature_is_ns)];
+        let partnership = &partnerships[usize::from(seat_is_ns == feature_is_ns)];
         auction.push(next_call(
-            stance,
+            partnership,
             deal[seat],
             dealer,
             args.vulnerability,
@@ -138,11 +138,11 @@ fn main() {
     agreements.decision.instinct.bilans_floor = !args.no_bilans;
     agreements.decision.instinct.fit_sum_game = args.baseline;
     agreements.decision.instinct.fit_sum_support_read = false;
-    let plain = american(&agreements).against();
+    let plain = american(&agreements).bind();
     // Edit 1 treatment: the support-gauge read fires only for the feature side.
     agreements.decision.instinct.fit_sum_game = args.threshold;
     agreements.decision.instinct.fit_sum_support_read = args.support_read;
-    let stances = [plain, american(&agreements).against()];
+    let partnerships = [plain, american(&agreements).bind()];
 
     // Deal sequentially (seeded, reproducible); bid both tables in parallel.
     let mut rng = StdRng::seed_from_u64(args.seed);
@@ -154,8 +154,8 @@ fn main() {
         .map(|&(dealer, deal)| Board {
             deal,
             dealer,
-            table_a: bid_out(&stances, &args, true, dealer, &deal),
-            table_b: bid_out(&stances, &args, false, dealer, &deal),
+            table_a: bid_out(&partnerships, &args, true, dealer, &deal),
+            table_b: bid_out(&partnerships, &args, false, dealer, &deal),
         })
         .collect();
 

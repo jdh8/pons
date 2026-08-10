@@ -57,7 +57,7 @@ fn american_floored_with(agreements: &Agreements, auction: &[Call], hand: &str) 
     use crate::bidding::american::american_instinct;
     let hand: Hand = hand.parse().expect("valid test hand");
     let (logits, provenance) = american_instinct(agreements)
-        .against()
+        .bind()
         .classify_with_provenance(hand, RelativeVulnerability::NONE, auction)
         .expect("a legal auction classifies");
     let call = (&logits.0)
@@ -625,7 +625,7 @@ fn fit_sum_reads_a_four_four_major_fit() {
     // fixture's own sampling supports.  Since the recalibrated ask gate
     // (the face rung keys the jump-shift spades; the support-lifted
     // shown floor clears the `combined_points(29)` conversation floor
-    // under this stance's readings), the slam is claimed *through RKCB*
+    // under this partnership's readings), the slam is claimed *through RKCB*
     // rather than blind — 66.3% includes the boards off two keycards.
     assert_eq!(bid, call(4, Strain::Notrump));
     let mut legacy_agreements = Agreements::default();
@@ -737,7 +737,7 @@ fn break_even_keys_the_collar_direction() {
 
 /// The bilans knob prices the same known fit the point sum reaches: the
 /// 4-4 fit-sum board must land where the shipped evaluator prices it when
-/// the net does the arithmetic (Stance path, so the net sees the
+/// the net does the arithmetic (Partnership path, so the net sees the
 /// trie-prefixed reading it was trained on).
 #[test]
 fn bilans_floor_still_bids_the_known_fit_game() {
@@ -775,7 +775,7 @@ fn bilans_floor_still_bids_the_known_fit_game() {
 /// This is the F1 forensic's 6NT-blast family (docs/dnf-migration.md, chop
 /// F1, traced at `combined_hcp(33)` false), reached from the other side: F1
 /// fixed the net's *inputs*, the collar restores the point floor the net was
-/// allowed to ignore.  Stance path, so the net sees the trie-prefixed
+/// allowed to ignore.  Partnership path, so the net sees the trie-prefixed
 /// reading it was trained on.
 #[test]
 fn net_collar_vetoes_the_notrump_slam_below_thirty_three() {
@@ -2168,11 +2168,11 @@ fn rkcb_historical_prefix_does_not_reuse_the_full_auction_reading() {
         Call::Double,
     ];
     let hand: Hand = "KQ.9.AQ9875.T764".parse().expect("valid test hand");
-    let stance = american_instinct(&crate::bidding::agreements::Agreements::default()).against();
-    let uncached_context = stance.prefixed_context(RelativeVulnerability::NONE, &auction);
+    let partnership = american_instinct(&crate::bidding::agreements::Agreements::default()).bind();
+    let uncached_context = partnership.prefixed_context(RelativeVulnerability::NONE, &auction);
     let reference = answer_trump(hand, &uncached_context, 8);
 
-    let cached_context = stance
+    let cached_context = partnership
         .prefixed_context(RelativeVulnerability::NONE, &auction)
         .with_decision_cache(hand);
     let cached = answer_trump(hand, &cached_context, 8);

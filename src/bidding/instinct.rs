@@ -113,7 +113,7 @@ pub enum LatchStyle {
 }
 
 /// The classify-time instinct knobs, snapshotted into a
-/// [`DecisionProfile`] when a stance is built
+/// [`DecisionProfile`] when a partnership is built
 ///
 /// One field per agreement the floor reads *during* classification.  Build-time
 /// cells (`COMPETITIVE_REBID`, `REOPENING_NOTRUMP`, `DOUBLER_XX_RUNOUT`) are
@@ -364,7 +364,7 @@ pub struct InstinctProfile {
     /// [`floor_slam_entry`][Self::floor_slam_entry] point floor.
     ///
     /// The net was fit on trie-prefixed readings, so it wants a real
-    /// [`Stance`][super::Stance] behind the decision; a bare [`Context`] hands
+    /// [`Partnership`][super::Partnership] behind the decision; a bare [`Context`] hands
     /// it the looser projection-less ranges it was not trained on.
     ///
     /// The name tips the hat to Edward Piwowar: *bilans* (Polish for "balance")
@@ -512,7 +512,7 @@ impl Default for InstinctProfile {
 
 impl InstinctProfile {
     /// Every field driven off its shipped default, for the keystone pinning
-    /// test (`stance_pins_knobs_across_threads`).
+    /// test (`partnership_pins_knobs_across_threads`).
     #[cfg(test)]
     pub(crate) fn nondefault() -> Self {
         Self {
@@ -554,9 +554,9 @@ impl InstinctProfile {
 /// The floor's knobs as pinned for this decision
 ///
 /// Every classify-time knob read in this module goes through here, so the
-/// floor's answer depends only on the [`Stance`][super::Stance] serving the
+/// floor's answer depends only on the [`Partnership`][super::Partnership] serving the
 /// decision — never on which thread is asking.  A bare context (a rule table
-/// classified without a stance) gets the shipped default; tests that vary the
+/// classified without a partnership) gets the shipped default; tests that vary the
 /// profile pin their explicit value with [`Context::with_profile`].
 fn pinned(context: &Context<'_>) -> InstinctProfile {
     context.decision_profile().instinct
@@ -1803,7 +1803,7 @@ fn kickback_ladder(auction: &[Call], ask: usize, variant: RkcbVariant) -> [Optio
 /// the auction through the opponent's call over the ask — already justified
 /// it by the same provable-eight-or-own-seven bar the rungs themselves
 /// hold.  The prefix is read on a bare context, which under-reads authored
-/// calls (a keyed prefix needs the stance, unreachable from a rule); the
+/// calls (a keyed prefix needs the partnership, unreachable from a rule); the
 /// lanes that lean on them (transfers, Jacoby) recover through the face
 /// rung, whose completion or agreement evidence survives truncation.
 fn answer_trump(hand: Hand, context: &Context<'_>, ask: usize) -> Option<Suit> {
@@ -2445,7 +2445,7 @@ fn keycard_asked_over_bid(hand: Hand, context: &Context<'_>) -> Option<(Suit, Bi
 /// window
 ///
 /// The 1430 answers (5♣–5♠ over a plain 4NT) and the ROPI/DOPI/DEPO rules on
-/// X/XX/Pass are installed in **every** stance and every one is alerted, so
+/// X/XX/Pass are installed in **every** partnership and every one is alerted, so
 /// without this an ordinary 5♦ with no ask anywhere on the auction reads as a
 /// keycard answer: the union over rules sharing the call picks up the answer
 /// rule's ⊤ projection and collapses partner's diamond floor, and the
@@ -5076,7 +5076,7 @@ pub fn instinct(agreements: &Agreements) -> Rules {
     // `alerted` test is structural — it asks whether any rule on the made call
     // carries an alert (evaluating only the face gate) — so an always-present
     // alerted rule on 4♥/4♠ would suppress the natural reading of every
-    // floor-classified 4♥/4♠ even with kickback off.  Build one stance per arm.
+    // floor-classified 4♥/4♠ even with kickback off.  Build one partnership per arm.
     //
     // ROPI's two-keycard step and DOPI's ride the same landing set: both are
     // "the cheapest bid", one counted from the ask and one from their
@@ -5234,7 +5234,7 @@ pub fn instinct(agreements: &Agreements) -> Rules {
     // Rule *presence* is what the knob gates, not just the constraint: the
     // reading's `alerted` test is structural, so an always-present alerted
     // rule on 4♠ would suppress the natural reading of every floor-classified
-    // 4♠ even with the knob off.  Build one stance per arm.  Within the arm,
+    // 4♠ even with the knob off.  Build one partnership per arm.  Within the arm,
     // the face-only conjuncts live in the `Rules::face` gate — `Rule::eval`
     // consults it, so the bidder is unchanged, and the reader skips the rule
     // on faces where the ladder claims nothing, so a natural 4♠ keeps its

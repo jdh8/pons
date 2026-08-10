@@ -124,7 +124,7 @@ fn decode(line: &str) -> Option<(Contract, Seat)> {
 
 fn main() {
     let args = Args::parse();
-    let sys = american(&pons::bidding::agreements::Agreements::default()).against();
+    let sys = american(&pons::bidding::agreements::Agreements::default()).bind();
     let boards = boards(args.seed, args.count);
 
     let contracts: Vec<Option<(Contract, Seat)>> = boards

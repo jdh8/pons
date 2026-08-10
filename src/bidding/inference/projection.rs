@@ -361,7 +361,7 @@ struct AuthoringStepRecord {
 /// actor in constant work.  A profile change, non-prefix query, or selected
 /// opaque/dynamic route permanently drops this deal to the legacy reader.
 pub(crate) struct AuthoringStepCache {
-    stance_identity: Option<std::sync::Arc<crate::bidding::book::StanceCacheIdentity>>,
+    partnership_identity: Option<std::sync::Arc<crate::bidding::book::PartnershipCacheIdentity>>,
     profile: Option<ReadingProfile>,
     vul: Option<contract_bridge::auction::RelativeVulnerability>,
     reader_parity: Option<usize>,
@@ -386,7 +386,7 @@ pub(crate) struct AuthoringStepCache {
 impl Default for AuthoringStepCache {
     fn default() -> Self {
         Self {
-            stance_identity: None,
+            partnership_identity: None,
             profile: None,
             vul: None,
             reader_parity: None,
@@ -433,7 +433,7 @@ impl AuthoringStepCache {
     #[cfg(test)]
     fn assert_new_route_records_match_one_shot(
         &self,
-        stance: &crate::bidding::book::Stance,
+        partnership: &crate::bidding::book::Partnership,
         vul: contract_bridge::auction::RelativeVulnerability,
         auction: &[Call],
         first_new: usize,
@@ -463,8 +463,8 @@ impl AuthoringStepCache {
                     "own",
                     index,
                     record.own,
-                    stance.decoder_for_phase(phase),
-                    stance.trie_for(auction),
+                    partnership.decoder_for_phase(phase),
+                    partnership.trie_for(auction),
                     &full_context,
                     prefix,
                 );
@@ -488,8 +488,8 @@ impl AuthoringStepCache {
                     "routed",
                     index,
                     record.routed,
-                    stance.decoder_for(prefix),
-                    stance.trie_for(prefix),
+                    partnership.decoder_for(prefix),
+                    partnership.trie_for(prefix),
                     &at_time,
                     prefix,
                 );
@@ -532,30 +532,33 @@ impl AuthoringStepCache {
 
     pub(crate) fn prepare<'a>(
         &'a mut self,
-        stance: &crate::bidding::book::Stance,
+        partnership: &crate::bidding::book::Partnership,
         vul: contract_bridge::auction::RelativeVulnerability,
         auction: &[Call],
     ) -> Option<&'a AuthoredProjection> {
         if self.disabled {
             return None;
         }
-        // ponytail: a declared opponent ([`Stance::with_opponents`]) falls back to the
+        // ponytail: a declared opponent ([`Partnership::with_opponents`]) falls back to the
         // full-auction reader, which already routes each call to the books of
         // the side that made it.  Splitting this incremental walk's `routed`
         // cursors the same way is straightforward — six slots instead of
         // three — but a mixed table is an A/B instrument, not a hot path.
-        if !std::ptr::eq(stance.opponents(), stance) {
+        if !std::ptr::eq(partnership.opponents(), partnership) {
             return self.disable();
         }
-        match &self.stance_identity {
-            None => self.stance_identity = Some(std::sync::Arc::clone(stance.cache_identity())),
-            Some(identity) if std::sync::Arc::ptr_eq(identity, stance.cache_identity()) => {}
+        match &self.partnership_identity {
+            None => {
+                self.partnership_identity =
+                    Some(std::sync::Arc::clone(partnership.cache_identity()))
+            }
+            Some(identity) if std::sync::Arc::ptr_eq(identity, partnership.cache_identity()) => {}
             Some(_) => return self.disable(),
         }
-        // The stance's pinned reading, not bare-context defaults: this walk
-        // serves that stance, and `Stance::profile_mut` invalidates the cache
+        // The partnership's pinned reading, not bare-context defaults: this walk
+        // serves that partnership, and `Partnership::profile_mut` invalidates the cache
         // identity checked just above, so a deliberate edit still resets it.
-        let profile = stance.profile().reading;
+        let profile = partnership.profile().reading;
         let reader_parity = auction.len() % 2;
         match (self.profile, self.vul, self.reader_parity) {
             (None, None, None) => {
@@ -623,7 +626,7 @@ impl AuthoringStepCache {
             };
             let at_time = scan_context_cursor.context(actor_vul, prefix);
 
-            let own_decoder = stance.decoder_for_phase(phase);
+            let own_decoder = partnership.decoder_for_phase(phase);
             let own_answer = if fallback_projection {
                 match own_decoder.resolve_checked_with_cursor(
                     &mut scan_own_cursor,
@@ -642,11 +645,12 @@ impl AuthoringStepCache {
             let own_exact = if fallback_projection {
                 None
             } else {
-                stance.trie_for(auction).get(prefix)
+                partnership.trie_for(auction).get(prefix)
             };
             let own_classifier = own_answer.map(|answer| answer.classifier).or(own_exact);
-            let own_compiled = own_classifier
-                .and_then(|classifier| stance.compiled_rules_for(auction, classifier, profile));
+            let own_compiled = own_classifier.and_then(|classifier| {
+                partnership.compiled_rules_for(auction, classifier, profile)
+            });
             if own_classifier.is_some_and(|classifier| {
                 !authored_effect_is_reusable(made, classifier, own_compiled, profile)
             }) {
@@ -657,7 +661,7 @@ impl AuthoringStepCache {
             let routed_needed = (table_alerts && opponent)
                 || (read_passes && made == Call::Pass && (!opponent || table_alerts));
             let routed_phase = scan_context_cursor.phase();
-            let routed_decoder = stance.decoder_for_phase(routed_phase);
+            let routed_decoder = partnership.decoder_for_phase(routed_phase);
             let routed_answer = if routed_needed {
                 match routed_decoder.resolve_checked_with_cursor(
                     &mut scan_routed_cursors[Self::phase_index(routed_phase)],
@@ -674,8 +678,9 @@ impl AuthoringStepCache {
             {
                 return self.disable();
             }
-            let routed_compiled = routed_answer
-                .and_then(|answer| stance.compiled_rules_for(prefix, answer.classifier, profile));
+            let routed_compiled = routed_answer.and_then(|answer| {
+                partnership.compiled_rules_for(prefix, answer.classifier, profile)
+            });
             if routed_answer.is_some_and(|answer| {
                 !authored_effect_is_reusable(made, answer.classifier, routed_compiled, profile)
             }) {
@@ -779,7 +784,7 @@ impl AuthoringStepCache {
             }
 
             if profile.probed
-                && let Some(&box_) = stance.probed_box(&auction[..=index])
+                && let Some(&box_) = partnership.probed_box(&auction[..=index])
             {
                 let union = EnvelopeUnion::from(box_);
                 self.probed.push(
@@ -933,15 +938,15 @@ fn assert_cached_route_matches_one_shot(
 
 #[cfg(test)]
 pub(crate) fn assert_step_cache_projection_parity(
-    stance: &crate::bidding::book::Stance,
+    partnership: &crate::bidding::book::Partnership,
     vul: contract_bridge::auction::RelativeVulnerability,
     auction: &[Call],
     cache: &mut AuthoringStepCache,
 ) -> bool {
-    let expected = project_authored_legacy(&stance.prefixed_context(vul, auction));
+    let expected = project_authored_legacy(&partnership.prefixed_context(vul, auction));
     let old_phase = cache.phase;
     let old_record_count = cache.records.len();
-    let Some(actual) = cache.prepare(stance, vul, auction).cloned() else {
+    let Some(actual) = cache.prepare(partnership, vul, auction).cloned() else {
         return false;
     };
     let first_new = if old_phase == cache.phase {
@@ -949,7 +954,7 @@ pub(crate) fn assert_step_cache_projection_parity(
     } else {
         0
     };
-    cache.assert_new_route_records_match_one_shot(stance, vul, auction, first_new);
+    cache.assert_new_route_records_match_one_shot(partnership, vul, auction, first_new);
     assert_eq!(actual.unions, expected.0, "step-cache projection differs");
     assert_eq!(
         actual.announced_unions, expected.1,
@@ -1025,7 +1030,7 @@ fn project_authored_with(
     // the scans separate and in legacy category order: besides avoiding work
     // when a reading mode is disabled, public opaque guards may be stateful.
     // Each at-the-time context inherits the reader's pinned knob state: they
-    // carry no stance of their own, so without the pin they would decode under
+    // carry no partnership of their own, so without the pin they would decode under
     // the *thread's* live knobs (the shipped defaults on a rayon worker).
     let pin = context.decision_profile();
     let at_times: Vec<Context<'_>> = if compiled_reader {
@@ -1045,15 +1050,15 @@ fn project_authored_with(
     .into_iter()
     .map(|at| at.with_profile(pin))
     .collect();
-    let stance = compiled_reader.then(|| context.own_system()).flatten();
-    // The opponents' books — ours unless the stance declares an opponent
-    // ([`Stance::with_opponents`]).  Every decode below picks by the *side that made the
-    // call*: our own calls resolve in `stance`, theirs in `their_stance`.
-    let their_stance = compiled_reader.then(|| context.their_system()).flatten();
+    let partnership = compiled_reader.then(|| context.own_system()).flatten();
+    // The opponents' books — ours unless the partnership declares an opponent
+    // ([`Partnership::with_opponents`]).  Every decode below picks by the *side that made the
+    // call*: our own calls resolve in `partnership`, theirs in `their_partnership`.
+    let their_partnership = compiled_reader.then(|| context.their_system()).flatten();
 
     let decoded_own = if fallback_projection {
-        if let Some(stance) = stance {
-            let mut own_cursor = stance.decoder_for(auction).cursor_with_capacity(len);
+        if let Some(partnership) = partnership {
+            let mut own_cursor = partnership.decoder_for(auction).cursor_with_capacity(len);
             let mut own = Vec::with_capacity(len);
             for index in 0..len {
                 let prefix = &auction[..index];
@@ -1073,13 +1078,13 @@ fn project_authored_with(
     };
     let decode_routed = table_alerts || read_passes;
     let decoded_routed = if decode_routed {
-        if let (Some(stance), Some(their_stance)) = (stance, their_stance) {
+        if let (Some(partnership), Some(their_partnership)) = (partnership, their_partnership) {
             // Six cursors, `[side][phase]`: a declared opponent decodes their
             // calls in their own books, so the routed walk cannot share one
             // cursor set across the table.  Each already sees a *subsequence*
             // of the prefixes (the `!needed` skip below), so splitting one
             // more way costs nothing but the slots.
-            let mut cursors = [stance, their_stance].map(|books| {
+            let mut cursors = [partnership, their_partnership].map(|books| {
                 [
                     crate::bidding::book::Phase::Constructive,
                     crate::bidding::book::Phase::Competitive,
@@ -1129,9 +1134,9 @@ fn project_authored_with(
             for (index, answer) in own.iter().enumerate() {
                 let Some(answer) = answer else { continue };
                 let classifier = answer.classifier;
-                let compiled = context
-                    .own_system()
-                    .and_then(|stance| stance.compiled_rules_for(auction, classifier, profile));
+                let compiled = context.own_system().and_then(|partnership| {
+                    partnership.compiled_rules_for(auction, classifier, profile)
+                });
                 project_call(&at_times[index], index, classifier, compiled, false);
             }
         } else {
@@ -1150,7 +1155,9 @@ fn project_authored_with(
             let compiled = compiled_reader
                 .then(|| context.own_system())
                 .flatten()
-                .and_then(|stance| stance.compiled_rules_for(auction, classifier, profile));
+                .and_then(|partnership| {
+                    partnership.compiled_rules_for(auction, classifier, profile)
+                });
             project_call(
                 &at_times[prefix.len()],
                 prefix.len(),
@@ -1163,7 +1170,7 @@ fn project_authored_with(
 
     // Alerts are table-wide disclosure: the opponents' alerted calls are
     // explained to us, so decode them too — each resolved in *their*
-    // phase-routed book (declared with [`Stance::with_opponents`], else our own books
+    // phase-routed book (declared with [`Partnership::with_opponents`], else our own books
     // model them) under their at-the-time context, exactly as it was
     // classified when made.  Their unalerted (natural) calls keep the natural
     // walk.
@@ -1191,8 +1198,8 @@ fn project_authored_with(
     // slice-relative `trie_for` on the auction cut at its index, under its
     // at-the-time context — the reader's own side always, the opponents' only
     // under table-wide disclosure.  Each pass resolves in the books of the
-    // side that *made* it, which are the same books twice unless the stance
-    // declares an opponent ([`Stance::with_opponents`]).
+    // side that *made* it, which are the same books twice unless the partnership
+    // declares an opponent ([`Partnership::with_opponents`]).
     if read_passes
         && let (Some(ours), Some(theirs)) = (context.own_system(), context.their_system())
     {

@@ -120,17 +120,17 @@ fn the_default_floor_reads_the_live_agreements() {
         Call::Pass,
     ];
     let hand: Hand = "92.K53.AQJ42.962".parse().expect("valid test hand");
-    let logits = |stance: &crate::bidding::Stance| {
-        stance
+    let logits = |partnership: &crate::bidding::Partnership| {
+        partnership
             .classify(hand, RelativeVulnerability::NONE, &auction)
             .expect("the floor always answers")
     };
 
     let plain_agreements = crate::bidding::agreements::Agreements::default();
-    let plain = logits(&american(&plain_agreements).against());
+    let plain = logits(&american(&plain_agreements).bind());
     let mut relocated_agreements = plain_agreements;
     relocated_agreements.decision.reading.rkcb_variant = RkcbVariant::Kickback;
-    let relocated = logits(&american(&relocated_agreements).against());
+    let relocated = logits(&american(&relocated_agreements).bind());
 
     assert_ne!(
         plain.0.into_iter().collect::<Vec<_>>(),

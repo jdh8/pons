@@ -9,7 +9,7 @@
 //! alone.  System interpretation (such as forcing status) deliberately does
 //! not live here — it belongs to classifiers, which know their system.
 
-use super::book::Stance;
+use super::book::Partnership;
 use super::constraint::FifthsCompanion;
 use super::evaluator::{TrickEstimates, trick_estimates_with_auction_on};
 use super::features::{CompactConfig, Config};
@@ -78,8 +78,8 @@ pub struct Context<'a> {
     partner_passed_hand: bool,
     opening_index: Option<usize>,
     prefixes: Option<CommonPrefixes<'a, 'a>>,
-    own_system: Option<&'a Stance>,
-    their_system: Option<&'a Stance>,
+    own_system: Option<&'a Partnership>,
+    their_system: Option<&'a Partnership>,
     config: Option<&'a Config>,
     compact: Option<&'a CompactConfig>,
     authored_projection: Option<&'a AuthoredProjection>,
@@ -87,9 +87,9 @@ pub struct Context<'a> {
     ///
     /// One value, always present: [`Context::new`] starts it at the shipped
     /// [`DecisionProfile::default`], [`Context::with_system`] replaces it with
-    /// the attached stance's pin, and [`Context::with_profile`] sets it
+    /// the attached partnership's pin, and [`Context::with_profile`] sets it
     /// directly — which is how a context built off the reader's auction
-    /// (`Context::at_each_turn`), carrying no stance, still reads under the
+    /// (`Context::at_each_turn`), carrying no partnership, still reads under the
     /// reader's settings.  There is no ambient fallback: since 0.11 no bidding
     /// knob lives on a thread.
     profile: DecisionProfile,
@@ -100,9 +100,9 @@ pub struct Context<'a> {
 /// The knob inputs whose values must stay fixed during one decision
 ///
 /// Taken from the [`Agreements`][super::agreements::Agreements] when a
-/// [`Stance`] is built ([`Pair::against`][super::book::Pair::against]) and
-/// pinned there: every classify-time knob read serves off the stance's copy,
-/// so a built stance is a pure value that any thread can classify through.  A
+/// [`Partnership`] is built ([`System::bind`][super::book::System::bind]) and
+/// pinned there: every classify-time knob read serves off the partnership's copy,
+/// so a built partnership is a pure value that any thread can classify through.  A
 /// A bare context with no attached system uses [`DecisionProfile::default`].
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct DecisionProfile {
@@ -596,10 +596,10 @@ impl<'a> Context<'a> {
     /// Serve this decision under an explicit knob state
     ///
     /// The reading walks each turn of the auction through a context of its own
-    /// (`at_each_turn`), and those carry no stance; without this they would
+    /// (`at_each_turn`), and those carry no partnership; without this they would
     /// read under shipped defaults rather than the profile the reader was built
     /// from.  Diagnostic contexts use it the same way, to classify a rule table
-    /// under settings no stance is holding.
+    /// under settings no partnership is holding.
     ///
     /// Attaching a system sets the profile too, from that system's pin, so
     /// attach it first if you mean to override.
@@ -625,8 +625,8 @@ impl<'a> Context<'a> {
     ///
     /// Two channels from one argument, because they must not disagree: the
     /// reader's own calls resolve in `ours`, and the opponents' in
-    /// [`Stance::opponents`] — which is `ours` again unless the stance was
-    /// built against a declared opponent ([`Stance::with_opponents`]). Alerts are
+    /// [`Partnership::opponents`] — which is `ours` again unless the partnership was
+    /// built against a declared opponent ([`Partnership::with_opponents`]). Alerts are
     /// disclosure to the whole table, so the reading layer may decode the
     /// opponents' alerted calls off their authoring rules; modeling them as
     /// playing our own books is exact in self-play and an approximation
@@ -634,10 +634,10 @@ impl<'a> Context<'a> {
     /// behind
     /// [`table_alerts`][field@crate::bidding::ReadingProfile::table_alerts].
     #[must_use]
-    pub(crate) fn with_system(mut self, ours: &'a Stance) -> Self {
+    pub(crate) fn with_system(mut self, ours: &'a Partnership) -> Self {
         self.own_system = Some(ours);
         self.their_system = Some(ours.opponents());
-        // The stance's pin *is* this decision's knob state — taking it here is
+        // The partnership's pin *is* this decision's knob state — taking it here is
         // what leaves one profile field instead of a precedence chain.
         self.profile = ours.profile();
         self.revision = self.revision.wrapping_add(1);
@@ -646,13 +646,13 @@ impl<'a> Context<'a> {
 
     /// The reader's own books, if attached ([`Self::with_system`])
     #[must_use]
-    pub(crate) const fn own_system(&self) -> Option<&'a Stance> {
+    pub(crate) const fn own_system(&self) -> Option<&'a Partnership> {
         self.own_system
     }
 
     /// The opponents' modeled system, if attached ([`Self::with_system`])
     #[must_use]
-    pub(crate) const fn their_system(&self) -> Option<&'a Stance> {
+    pub(crate) const fn their_system(&self) -> Option<&'a Partnership> {
         self.their_system
     }
 
@@ -718,7 +718,7 @@ impl<'a> Context<'a> {
 
     /// Enter a serving decision with fixed slots for compiled pure face gates.
     ///
-    /// The stance-wide compiler assigns the slots. Standalone public rule
+    /// The partnership-wide compiler assigns the slots. Standalone public rule
     /// tables keep using [`Self::with_decision_cache`] with zero slots and
     /// retain opaque face evaluation semantics.
     #[must_use]
@@ -766,7 +766,7 @@ impl<'a> Context<'a> {
     /// node, so it stays the cheapest thing it can be.
     ///
     /// Until 0.11 this was a four-arm cascade — decision cache, attached
-    /// stance, explicit pin, thread-local — because knobs could still be armed
+    /// partnership, explicit pin, thread-local — because knobs could still be armed
     /// ambiently and a decision had to freeze them.  With one home per knob
     /// there is nothing left to disagree.
     pub(crate) const fn reading_profile(&self) -> ReadingProfile {
@@ -776,7 +776,7 @@ impl<'a> Context<'a> {
     /// Every knob governing this decision, not just the reading half
     ///
     /// What the [instinct floor][super::instinct()] reads from inside a
-    /// predicate: the closures run per decision and must use the stance's pin.
+    /// predicate: the closures run per decision and must use the partnership's pin.
     pub(crate) const fn decision_profile(&self) -> DecisionProfile {
         self.profile
     }

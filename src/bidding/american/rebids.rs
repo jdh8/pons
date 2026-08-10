@@ -48,7 +48,7 @@ pub(super) use meckstroth::{
 pub(super) use two_suiter::forcing_nt_two_suiter_continuations;
 
 // ponytail: same construction-time toggle as the Meckstroth adjunct — read
-// during `register()`, so set it before building the `Pair`.
+// during `register()`, so set it before building the `System`.
 /// The cheapest level at which `strain` may be bid over `highest`
 fn cheapest_level_over(highest: Bid, strain: Strain) -> u8 {
     if strain > highest.strain {

@@ -32,7 +32,7 @@ default = ["dd"]
 # `web/` wasm crate) builds with `default-features = false`.
 dd = ["dep:ddss"]
 serde = ["dep:serde", "contract-bridge/serde", "ddss?/serde", "bitflags/serde"]
-# Fan `Stance::probe`'s self-play harvest across rayon's pool. Off by default:
+# Fan `Partnership::probe`'s self-play harvest across rayon's pool. Off by default:
 # the wasm front end builds `default-features = false`, and a caller that owns
 # its own threads should keep the choice. Behaviour is identical either way —
 # boards are seeded individually and the per-key merge is order-insensitive.

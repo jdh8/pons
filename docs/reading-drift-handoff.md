@@ -485,7 +485,7 @@ section below (SHIPPED, 8f71f0e).
 
 jdh8's question, aimed at the vacuous-contested follow-up: *can the floor
 author the readings — calls read as how the floor decides them, as close as
-possible?* The machinery exists (`Stance::probe`, Stage B of
+possible?* The machinery exists (`Partnership::probe`, Stage B of
 docs/ai-bidder/sampled-projection.md): a probed key's box **is** "the hands
 the bidder actually chose this call with", and it is the only reader that
 reaches the floor's calls. What was refuted (v1, 2026-07-30) was the
@@ -516,7 +516,7 @@ failure-free slice:
   8% fired, +0.015 [±0.212] — competitive judgment moving in both
   directions, which is the A/B's question.
 
-`Stance::probe`'s fixed-point iteration now serves through whichever fold
+`Partnership::probe`'s fixed-point iteration now serves through whichever fold
 is armed (the vacuous knob is set *before* probing), so the boxes are
 fixed-pointed under the serving policy that consumes them; 100k probe
 boards store 527 keys, 203 drifting between iterations.
@@ -569,7 +569,7 @@ joining the one batched A/B:
   the stripped auction on a bare keyless `Context::new`; `project_authored`
   needs the trie prefixes, so it silently skipped *every* authored rule at
   stripped nodes and the walk's off-book arm stamped the alerted both-majors
-  `3♦` as natural `♦5..`. Re-keyed through the attached stance —
+  `3♦` as natural `♦5..`. Re-keyed through the attached partnership —
   `(1♠) 1NT - 3♦` now reads byte-identical to `1NT - 3♦`, and the repair
   covers every authored-alerted call at stripped nodes (runout, Puppet,
   splinters, Texas), not just `3♦`. No bidder bug: the "5-HCP" witnesses are
@@ -670,7 +670,7 @@ trump it is counted against.**
   reading (`Context::new` over `auction[..ask + 2]`, me/partner mapped by
   seat parity): the suit survives only if a real fit or shown 5+ predates
   the answer. Ceiling: a bare prefix context under-reads authored calls
-  (no stance keys) — the transfer/Jacoby lanes recover through the face
+  (no partnership keys) — the transfer/Jacoby lanes recover through the face
   rung, which is why the corroboration filters rungs 1–2 only.
 - Over their double of a cramped answer the asker escapes rather than
   sits — *we never play a suit we have no fit in* (jdh8's rule): hand-seen

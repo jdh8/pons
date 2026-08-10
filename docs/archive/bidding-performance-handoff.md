@@ -35,11 +35,11 @@ therefore cache those mechanics aggressively without changing meaning.
 The solution has two complementary parts:
 
 - Cache hand-dependent computations once per classification, and auction-dependent state once per deal, appended step by step.
-- Compile routing, rule indexes, projections, and reader metadata from the row data when a complete `Stance` is built.
+- Compile routing, rule indexes, projections, and reader metadata from the row data when a complete `Partnership` is built.
 
 Data flow:
 
-`Rows/legacy authoring → mutable Pair/Trie → Pair::against() finalization → compiled rule/reader plans → per-deal auction step cache → per-decision cache`
+`Rows/legacy authoring → mutable System/Trie → System::bind() finalization → compiled rule/reader plans → per-deal auction step cache → per-decision cache`
 
 This document records both the staged design and its implementation status.
 Stages 1–6 and the intervening RKCB phase 1.5 are implemented. The final
@@ -72,7 +72,7 @@ compiled — stage 4 falls back to the legacy path on a profile mismatch.
 ### 1. Establish the performance and parity harness
 
 - Add fixed position corpora covering shallow/deep authored nodes, neural floors, constructive and forced instinct floors, RKCB/slam tails, and inference depths 2/4/8/12+.
-- Construct the stance and warm model weights outside timed regions. Benchmark `Inferences`, evaluator features, evaluator forward, `instinct`, full classification, legal-call selection, and whole-deal bidding separately.
+- Construct the partnership and warm model weights outside timed regions. Benchmark `Inferences`, evaluator features, evaluator forward, `instinct`, full classification, legal-call selection, and whole-deal bidding separately.
 - Record allocations and bytes alongside time. Use hardware counters where permissions allow.
 - Preserve the current implementation as an internal reference path so optimized and legacy results can be compared in one process.
 
@@ -113,7 +113,7 @@ The row layer currently lowers rows immediately through the legacy verbs into ty
 - Concrete seat-fanned keys and declaration order.
 - Rule-table identity independent of rendered labels or diagnostic samples.
 
-Do not globally compile inside `rows::compile_into`; books are still mutated, grafted, merged, and floored afterward. Finalize in `Pair::against()`, after the constructive/competitive merge and all fallbacks are present.
+Do not globally compile inside `rows::compile_into`; books are still mutated, grafted, merged, and floored afterward. Finalize in `System::bind()`, after the constructive/competitive merge and all fallbacks are present.
 
 The resulting internal runtime book contains:
 
@@ -125,11 +125,11 @@ BoundBook
   reading-profile identity
 ```
 
-Mutable standalone `Trie` values retain the legacy path. Public `Pair`, `Stance`, `Trie`, `Bidder`, `Classifier::classify`, and `Context::new` behavior remains unchanged.
+Mutable standalone `Trie` values retain the legacy path. Public `System`, `Partnership`, `Trie`, `Bidder`, `Classifier::classify`, and `Context::new` behavior remains unchanged.
 
 The implementation keeps an authoring ledger through trie mutation, grafting,
 merging, and flooring. Finalization consumes that ledger only in
-`Pair::against()`, validates each preserved target against the authoritative
+`System::bind()`, validates each preserved target against the authoritative
 live `Arc`, and emits the flat decoder metadata. Stale overwritten or collided
 sites are discarded rather than compiled. The test-only catalog finalizer
 remains an independent oracle.
@@ -162,12 +162,12 @@ The implemented `CompiledRules` sidecar contains the declaration-order call
 groups, alert and Pass indexes, pass-exclusion ceiling, stable explanation
 indexes, four distinct projection plans, and conservative dependency masks.
 Context-independent pure projections are eagerly evaluated and interned across
-the stance; a runtime profile mismatch uses the legacy folds.
+the partnership; a runtime profile mismatch uses the legacy folds.
 
 Level-2 projection specialization per concrete seat-fanned key and
 vulnerability is deliberately deferred. The deal cache already evaluates a
 dynamic projection only once for the call that made it, while eager
-site-by-vulnerability expansion would spend the limited compiled-stance memory
+site-by-vulnerability expansion would spend the limited compiled-partnership memory
 headroom before demonstrating an additional serving benefit. Revisit it only
 with an interned representation and the same construction-time and memory
 gates.
@@ -175,7 +175,7 @@ gates.
 The current explicitly shareable face predicates are the RKCB recognizers in
 the root instinct classifier. That classifier covers an unbounded set of
 auction routes, so there is no finite concrete-route face mask to freeze in the
-shipped stance. They therefore take the designed dynamic path: an explicit
+shipped partnership. They therefore take the designed dynamic path: an explicit
 `FaceId` is evaluated lazily once in an immutable decision and reused by
 classification and explanation; historical reader contexts use an
 effect-scoped memo. Public opaque `Rules::face` closures remain observable and
@@ -199,7 +199,7 @@ resolutions were replaced with one forward auction scan. That scan:
 - Produces each call’s authoring classifier and at-the-time context.
 - Reuses results for own-side projection, opponent alerts, Pass reading, cue/control reading, and probed overlays.
 - Incrementally maintains opening, phase, last bid, penalty, strain masks, and passed-hand state.
-- Keys opponent decoding by the actual modeled stance and reading profile.
+- Keys opponent decoding by the actual modeled partnership and reading profile.
 
 This removes the former roughly quadratic prefix resolution and repeated `Context::new` scans.
 
@@ -218,7 +218,7 @@ intersection. Thus the deep auction-dependent share becomes depth-constant and
 the cached tail is depth-linear instead of repeatedly re-reading every prefix,
 without regressing ordinary short deals. The fold order equals auction order,
 so appending reproduces box order bit-for-bit. The cache is deal-scoped and
-append-only, keyed by stance and reading profile; a profile change, non-prefix
+append-only, keyed by partnership and reading profile; a profile change, non-prefix
 query, or opaque/cache-unstable resolution mid-deal drops that deal to the
 legacy path. Historical-prefix questions such as RKCB pre-answer decoding keep
 their separate results, and stage 2's classification-scoped cache remains for
@@ -288,7 +288,7 @@ After caching and compiled decoding are measured:
   SHA-256 `33dd53efa4b796e2e1c4d3f809ddb1476112e1a1ca0092721b9ba86e6f78dd7b`
 - `render-book`: byte-identical,
   SHA-256 `759527867f98600961e6ed9b3d757cb91f0d30dd7f72dbb1cd8e22e80be35bde`
-- Profile, vulnerability, opaque-route, typed-rebase, hook-order, stance/probe
+- Profile, vulnerability, opaque-route, typed-rebase, hook-order, partnership/probe
   identity, and cache-drop focused coverage: **passed**
 
 ### Final performance record
@@ -302,8 +302,8 @@ After caching and compiled decoding are measured:
 | Depth-12 / depth-4 latency | 2.27× | 2.25× | Pass |
 | Whole-deal cache/reference upper CI | 0.1436 | 0.1426 | Pass |
 
-- `Pair::against()` construction ratio: **1.62×** (35.667 ms / 22.047 ms), pass.
-- Compiled-stance retained-memory growth: **22.95%** (33,260 KiB /
+- `System::bind()` construction ratio: **1.62×** (35.667 ms / 22.047 ms), pass.
+- Compiled-partnership retained-memory growth: **22.95%** (33,260 KiB /
   27,052 KiB allocator-trimmed RSS delta), pass.
 - Full-classification Rust allocations: **99.158 allocations and 7,922.4
   requested bytes per decision**; whole-deal serving: **798.547 allocations
@@ -353,7 +353,7 @@ native EPBot allocations remain outside the counter.
 | Hot instinct, cached | 368.167 / 21,590.1 | 18.458 / 4,869.3 |
 | Legal selection | 2.625 / 285.8 | 0 / 0 |
 | Whole deal | 798.547 / 68,609.8 | 148.312 / 35,608.1 |
-| `Pair::against` construction | 155,528 / 54,528,334 | 139,342 / 53,579,542 |
+| `System::bind` construction | 155,528 / 54,528,334 | 139,342 / 53,579,542 |
 
 Thus full-classification allocation count falls **83.7%** and requested bytes
 **51.8%**; whole-deal allocation count falls **81.4%** and requested bytes
@@ -377,7 +377,7 @@ ten measured repetitions.
 | Full classification | 13.031 → 12.952 µs | 12.499 → 12.314 µs |
 | Production legal selection | 233.25 → 105.81 ns | 219.09 → 109.22 ns |
 | Whole deal | 108.57 → 104.11 µs | 104.66 → 99.447 µs |
-| `Pair::against` | 24.999 → 22.782 ms | 34.938 → 33.737 ms |
+| `System::bind` | 24.999 → 22.782 ms | 34.938 → 33.737 ms |
 
 The allocation-first union trade moves the isolated depth-8 inference
 microbenchmark by about +7% while reducing its allocations by 81%. It is not
@@ -415,8 +415,8 @@ same-session Stage 5 binary on CPU 4 / CPU 14. The CPU-4 result is 1.03× the
 measurement.
 Five allocator-trimmed samples from the new
 `bidding-performance --retained-memory-only` mode gave the same median
-**32,432 KiB** `Pair::against` RSS delta on CPU 4 and CPU 14. That is 2.5% below
-the Stage 5 compiled stance and **19.9%** above the 27,052 KiB reference, inside
+**32,432 KiB** `System::bind` RSS delta on CPU 4 and CPU 14. That is 2.5% below
+the Stage 5 compiled partnership and **19.9%** above the 27,052 KiB reference, inside
 the 25% retained-memory cap.
 
 ### Final correctness record
@@ -470,7 +470,7 @@ and allocator-trimmed retained RSS form the completed Stage 6 evidence record.
 - Target final median: `Pons/BBA ≤ 0.80` on both CCDs.
 - Depth-8+ inference must improve by at least 2×, and depth-12 latency must be no more than 3× depth-4 latency.
 - No representative hot path may regress by more than 5%; no whole workload may regress by more than 3%.
-- `Pair::against()` construction time may grow by at most 2× and compiled stance memory by at most 25%. Compilation must be eager there, with no first-decision compilation pause.
+- `System::bind()` construction time may grow by at most 2× and compiled partnership memory by at most 25%. Compilation must be eager there, with no first-decision compilation pause.
 
 ## Assumptions
 

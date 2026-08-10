@@ -124,7 +124,7 @@ fn unread_compiled_effects_preserve_opaque_face_and_projection_hooks() {
 
 #[test]
 fn deal_cache_rejects_observable_faces_and_projections_before_hooks_run() {
-    use crate::bidding::book::Pair;
+    use crate::bidding::book::System;
     use crate::bidding::rules::{Alert, Rules};
     use crate::bidding::trie::Classifier;
 
@@ -146,40 +146,40 @@ fn deal_cache_rejects_observable_faces_and_projections_before_hooks_run() {
                 true
             }),
     );
-    let mut pair = Pair {
+    let mut system = System {
         agreements: Agreements::default(),
         ..Default::default()
     };
-    pair.agreements.decision.reading.scope = ReadingScope::Alerted;
-    pair.agreements.decision.reading.pass = false;
-    pair.agreements.decision.reading.pass_exclusion = false;
-    pair.agreements.decision.reading.table_alerts = false;
-    pair.agreements.decision.reading.announced = false;
-    pair.agreements.decision.reading.probed = false;
-    pair.constructive.insert_arc(&[], classifier);
+    system.agreements.decision.reading.scope = ReadingScope::Alerted;
+    system.agreements.decision.reading.pass = false;
+    system.agreements.decision.reading.pass_exclusion = false;
+    system.agreements.decision.reading.table_alerts = false;
+    system.agreements.decision.reading.announced = false;
+    system.agreements.decision.reading.probed = false;
+    system.constructive.insert_arc(&[], classifier);
     let auction = [one_club, Call::Pass];
 
     for fallback_projection in [true, false] {
-        pair.agreements.decision.reading.fallback_projection = fallback_projection;
-        let stance = pair.against();
+        system.agreements.decision.reading.fallback_projection = fallback_projection;
+        let partnership = system.bind();
         let mut cache = AuthoringStepCache::new();
 
         assert!(
             cache
-                .prepare(&stance, RelativeVulnerability::NONE, &auction)
+                .prepare(&partnership, RelativeVulnerability::NONE, &auction)
                 .is_none(),
             "observable route was cached with fallback projection {fallback_projection}",
         );
         assert!(events.lock().unwrap().is_empty());
         assert!(
             cache
-                .prepare(&stance, RelativeVulnerability::NONE, &auction)
+                .prepare(&partnership, RelativeVulnerability::NONE, &auction)
                 .is_none(),
             "a disabled cache became live again",
         );
         assert!(events.lock().unwrap().is_empty());
 
-        let context = stance.prefixed_context(RelativeVulnerability::NONE, &auction);
+        let context = partnership.prefixed_context(RelativeVulnerability::NONE, &auction);
         let expected = project_authored_legacy(&context);
         let expected_events = core::mem::take(&mut *events.lock().unwrap());
         assert_eq!(expected_events, ["face", "project", "face"]);
@@ -195,7 +195,7 @@ fn deal_cache_rejects_observable_faces_and_projections_before_hooks_run() {
 
 #[test]
 fn opaque_routes_keep_legacy_invocation_order_and_disable_step_cache() {
-    use crate::bidding::book::Pair;
+    use crate::bidding::book::System;
     use crate::bidding::fallback::{Fallback, guard};
     use crate::bidding::rules::{Alert, Rules};
     use crate::bidding::trie::Classifier;
@@ -218,28 +218,28 @@ fn opaque_routes_keep_legacy_invocation_order_and_disable_step_cache() {
         })
     };
 
-    let mut pair = Pair {
+    let mut system = System {
         agreements: Agreements::default(),
         ..Default::default()
     };
-    pair.agreements.decision.reading.scope = ReadingScope::Alerted;
-    pair.agreements.decision.reading.fallback_projection = true;
-    pair.agreements.decision.reading.pass = true;
-    pair.agreements.decision.reading.table_alerts = true;
-    pair.constructive.fallback_at(
+    system.agreements.decision.reading.scope = ReadingScope::Alerted;
+    system.agreements.decision.reading.fallback_projection = true;
+    system.agreements.decision.reading.pass = true;
+    system.agreements.decision.reading.table_alerts = true;
+    system.constructive.fallback_at(
         &[],
         make_guard(Arc::clone(&calls)),
         Fallback::Classify(Arc::clone(&classifier)),
     );
-    pair.defensive.fallback_at(
+    system.defensive.fallback_at(
         &[],
         make_guard(Arc::clone(&calls)),
         Fallback::Classify(classifier),
     );
-    let stance = pair.against();
+    let partnership = system.bind();
 
     let auction = [bid(1, Strain::Clubs), bid(1, Strain::Diamonds)];
-    let context = stance.prefixed_context(RelativeVulnerability::NONE, &auction);
+    let context = partnership.prefixed_context(RelativeVulnerability::NONE, &auction);
     calls.store(0, Ordering::SeqCst);
     let compiled_entry = project_authored(&context);
     let compiled_calls = calls.load(Ordering::SeqCst);
@@ -254,7 +254,7 @@ fn opaque_routes_keep_legacy_invocation_order_and_disable_step_cache() {
     let mut cache = AuthoringStepCache::new();
     assert!(
         cache
-            .prepare(&stance, RelativeVulnerability::NONE, &auction)
+            .prepare(&partnership, RelativeVulnerability::NONE, &auction)
             .is_none()
     );
     assert_eq!(calls.load(Ordering::SeqCst), 0);
@@ -262,7 +262,7 @@ fn opaque_routes_keep_legacy_invocation_order_and_disable_step_cache() {
 
 #[test]
 fn later_opaque_route_does_not_speculatively_consult_an_earlier_face() {
-    use crate::bidding::book::Pair;
+    use crate::bidding::book::System;
     use crate::bidding::fallback::{Fallback, guard};
     use crate::bidding::rules::{Alert, Rules};
     use crate::bidding::trie::Classifier;
@@ -289,17 +289,17 @@ fn later_opaque_route_does_not_speculatively_consult_an_earlier_face() {
     let observed_guard = Arc::clone(&guard_calls);
     let opaque_target: Arc<dyn Classifier> = Arc::new(Rules::new());
 
-    let mut pair = Pair {
+    let mut system = System {
         agreements: Agreements::default(),
         ..Default::default()
     };
-    pair.agreements.decision.reading.scope = ReadingScope::Alerted;
-    pair.agreements.decision.reading.fallback_projection = true;
-    pair.agreements.decision.reading.pass = false;
-    pair.agreements.decision.reading.table_alerts = false;
-    pair.agreements.decision.reading.announced = false;
-    pair.constructive.insert_arc(&[], root);
-    pair.competitive.fallback_at(
+    system.agreements.decision.reading.scope = ReadingScope::Alerted;
+    system.agreements.decision.reading.fallback_projection = true;
+    system.agreements.decision.reading.pass = false;
+    system.agreements.decision.reading.table_alerts = false;
+    system.agreements.decision.reading.announced = false;
+    system.constructive.insert_arc(&[], root);
+    system.competitive.fallback_at(
         &[],
         guard(move |_: &Context<'_>, _: &[Call]| {
             observed_guard.fetch_add(1, Ordering::SeqCst);
@@ -307,12 +307,12 @@ fn later_opaque_route_does_not_speculatively_consult_an_earlier_face() {
         }),
         Fallback::Classify(opaque_target),
     );
-    let stance = pair.against();
+    let partnership = system.bind();
     // The same side's deal cache sees both calls in one append: the root
     // exact classifier authors 1♣, then the next prefix reaches the opaque
     // competitive fallback.
     let auction = [bid(1, Strain::Clubs), bid(1, Strain::Diamonds)];
-    let context = stance.prefixed_context(RelativeVulnerability::NONE, &auction);
+    let context = partnership.prefixed_context(RelativeVulnerability::NONE, &auction);
 
     let expected = project_authored_legacy(&context);
     let expected_face_calls = face_calls.swap(0, Ordering::SeqCst);
@@ -323,7 +323,7 @@ fn later_opaque_route_does_not_speculatively_consult_an_earlier_face() {
     let mut cache = AuthoringStepCache::new();
     assert!(
         cache
-            .prepare(&stance, RelativeVulnerability::NONE, &auction)
+            .prepare(&partnership, RelativeVulnerability::NONE, &auction)
             .is_none()
     );
     assert_eq!(face_calls.load(Ordering::SeqCst), 0);
@@ -337,7 +337,7 @@ fn later_opaque_route_does_not_speculatively_consult_an_earlier_face() {
 
 #[test]
 fn opaque_route_on_unused_routed_prefix_is_never_invoked() {
-    use crate::bidding::book::Pair;
+    use crate::bidding::book::System;
     use crate::bidding::fallback::{Fallback, guard};
     use crate::bidding::rules::Rules;
     use crate::bidding::trie::Classifier;
@@ -348,15 +348,15 @@ fn opaque_route_on_unused_routed_prefix_is_never_invoked() {
     let observed = Arc::clone(&calls);
     let classifier: Arc<dyn Classifier> =
         Arc::new(Rules::new().rule(Call::Pass, 0, crate::bidding::constraint::hcp(0..)));
-    let mut pair = Pair {
+    let mut system = System {
         agreements: Agreements::default(),
         ..Default::default()
     };
-    pair.agreements.decision.reading.scope = ReadingScope::Alerted;
-    pair.agreements.decision.reading.fallback_projection = false;
-    pair.agreements.decision.reading.pass = true;
-    pair.agreements.decision.reading.table_alerts = true;
-    pair.constructive.fallback_at(
+    system.agreements.decision.reading.scope = ReadingScope::Alerted;
+    system.agreements.decision.reading.fallback_projection = false;
+    system.agreements.decision.reading.pass = true;
+    system.agreements.decision.reading.table_alerts = true;
+    system.constructive.fallback_at(
         &[],
         guard(move |_: &Context<'_>, _: &[Call]| {
             observed.fetch_add(1, Ordering::SeqCst);
@@ -364,14 +364,14 @@ fn opaque_route_on_unused_routed_prefix_is_never_invoked() {
         }),
         Fallback::Classify(classifier),
     );
-    let stance = pair.against();
+    let partnership = system.bind();
     let auction = [
         bid(1, Strain::Clubs),
         bid(1, Strain::Spades),
         Call::Double,
         Call::Pass,
     ];
-    let context = stance.prefixed_context(RelativeVulnerability::NONE, &auction);
+    let context = partnership.prefixed_context(RelativeVulnerability::NONE, &auction);
     let compiled_entry = project_authored(&context);
     assert_eq!(calls.load(Ordering::SeqCst), 0);
     let legacy = project_authored_legacy(&context);
@@ -381,7 +381,7 @@ fn opaque_route_on_unused_routed_prefix_is_never_invoked() {
     let mut cache = AuthoringStepCache::new();
     assert!(
         cache
-            .prepare(&stance, RelativeVulnerability::NONE, &auction)
+            .prepare(&partnership, RelativeVulnerability::NONE, &auction)
             .is_some()
     );
     assert_eq!(calls.load(Ordering::SeqCst), 0);

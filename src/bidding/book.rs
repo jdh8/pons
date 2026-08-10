@@ -1,6 +1,6 @@
-//! Role-aware pair books
+//! Role-aware system books
 //!
-//! A pair writes its notes from its own side of the table.  The natural split
+//! A partnership writes its system from its own side of the table.  The natural split
 //! is by the [`Phase`] of the auction — who opened, and whether the opponents
 //! have intervened:
 //!
@@ -17,10 +17,10 @@
 //! they deref to it, so [`insert`][Trie::insert],
 //! [`fallback_at`][Trie::fallback_at], and friends are available directly.
 //! What the newtype adds is a *gated* [`Bidder`] implementation that answers
-//! only for its phase.  A [`Pair`] assembles the three books **and the
+//! only for its phase.  A [`System`] assembles the three books **and the
 //! [`Agreements`][crate::bidding::agreements::Agreements] they were baked
-//! from**; binding it with [`Pair::against`] yields a [`Stance`], the system
-//! that actually classifies, with the classify-time half of those agreements
+//! from**; binding it with [`System::bind`] yields the [`Partnership`] that
+//! actually classifies, with the classify-time half of those agreements
 //! pinned into it from the same value.
 //! There is no whole-system identity label: a system announces itself through
 //! its calls' own [`Alert`][super::Alert]s and their readings.
@@ -29,7 +29,7 @@
 //!
 //! The books occupy disjoint keys by construction: every opposing call in a
 //! constructive key is a pass, while a competitive key contains an opposing
-//! non-pass call.  [`Pair::against`] exploits this to merge a clone of the
+//! non-pass call.  [`System::bind`] exploits this to merge a clone of the
 //! constructive trie into the bound competitive trie collision-free, which is
 //! what lets a competitive rebase land in the uncontested core.
 //!
@@ -59,7 +59,7 @@ use std::sync::Arc;
 
 /// Resolve `auction` against `trie` exactly like the bare table model
 ///
-/// The standalone book impls route here; a bare trie has no [`Stance`], so no
+/// The standalone book impls route here; a bare trie has no [`Partnership`], so no
 /// opponents' system is attached and the table-wide alert decode abstains.
 fn resolve(
     trie: &Trie,
@@ -155,7 +155,7 @@ impl Bidder for Defensive {
 
 /// The role of the side to act, given who opened
 ///
-/// Each phase selects one of a pair's three books.  [`Phase::of`] is also the
+/// Each phase selects one of a system's three books.  [`Phase::of`] is also the
 /// **single point** that assumes a standard pass: a leading pass is neutral and
 /// the opener is whoever makes the first non-pass call.  A future strong-pass
 /// router would replace this one function; until then, author such systems as
@@ -209,7 +209,7 @@ impl Phase {
 /// [`Bidder`] it answers only in its [`Phase`].
 ///
 /// Standalone, a rebase ([`Fallback::Rebase`][super::fallback::Fallback]) sees
-/// only this trie; bind through [`Pair::against`] so that "system on" rebases
+/// only this trie; bind through [`System::bind`] so that "system on" rebases
 /// reach the uncontested core.
 #[derive(Clone, Debug, Default)]
 pub struct Competitive(pub Trie);
@@ -244,13 +244,13 @@ impl Bidder for Competitive {
     }
 }
 
-/// One pair's authored system: its three books and the agreements behind them
+/// One authored system: its three books and the agreements behind them
 ///
-/// A pair writes a [`Constructive`] book (strictly uncontested), a
+/// A system contains a [`Constructive`] book (strictly uncontested), a
 /// [`Competitive`] book (we open, they intervene), and a [`Defensive`] book
-/// (they open).  A pair is *authoring material*, not yet a [`Bidder`]: bind
-/// it with [`against`][Self::against] — once, at table assembly — to get a
-/// [`Stance`] that classifies.
+/// (they open).  A system is *authoring material*, not yet a [`Bidder`]: bind
+/// it with [`bind`][Self::bind] — once, at table assembly — to get a
+/// [`Partnership`] that classifies.
 ///
 /// The books occupy disjoint keys by construction: a constructive key has all
 /// opposing calls as passes, while a competitive key contains an opposing
@@ -262,26 +262,26 @@ impl Bidder for Competitive {
 /// what it was baked from, and roughly half of what a partnership agrees is read
 /// while classifying rather than while building — which readings decode, what
 /// the deterministic floor plays.  Carrying the value the books came from is
-/// what lets [`against`][Self::against] pin that half from the same source, in
+/// what lets [`bind`][Self::bind] pin that half from the same source, in
 /// the same expression.  Before it did, the two came from different places: the
 /// books from this value and the pin from whatever the *building thread's*
 /// knobs happened to hold.
 #[derive(Clone, Debug, Default)]
-pub struct Pair {
+pub struct System {
     /// The book for the strictly uncontested auctions
     pub constructive: Constructive,
     /// The book for when we open and they intervene
     pub competitive: Competitive,
     /// The book for when they open
     pub defensive: Defensive,
-    /// What this pair agreed to play — the value the three books were baked
+    /// What this system specifies — the value the three books were baked
     /// from, and the source of the classify-time half that
-    /// [`against`][Self::against] pins into the [`Stance`]
+    /// [`bind`][Self::bind] pins into the [`Partnership`]
     pub agreements: Agreements,
 }
 
-impl Pair {
-    /// Assemble a pair from its three books and the agreements behind them
+impl System {
+    /// Assemble a system from its three books and the agreements behind them
     ///
     /// `agreements` must be the value the books were built from; nothing checks
     /// it, and a mismatch means the rules play one system while the readings
@@ -302,7 +302,7 @@ impl Pair {
         }
     }
 
-    /// Bind this pair into a playable [`Stance`]
+    /// Bind this system into a playable [`Partnership`]
     ///
     /// Merges a clone of the constructive trie into the bound competitive
     /// trie ([`Trie::merge`], classifiers stay shared), so that competitive
@@ -315,7 +315,7 @@ impl Pair {
     /// classify the same exact auction; by the key disjointness above, such a
     /// collision is an authoring bug.
     #[must_use]
-    pub fn against(&self) -> Stance {
+    pub fn bind(&self) -> Partnership {
         let constructive = self.constructive.0.clone();
         let mut bound = self.competitive.0.clone();
         let collisions = bound.merge(constructive.clone());
@@ -348,13 +348,13 @@ impl Pair {
             Arc::clone(&compiled_rules),
         );
         let defensive = BoundBook::new(defensive_trie, defensive_decoder, compiled_rules);
-        Stance {
+        Partnership {
             constructive,
             competitive,
             defensive,
             probed: HashMap::new(),
             opponents: None,
-            cache_identity: Arc::new(StanceCacheIdentity),
+            cache_identity: Arc::new(PartnershipCacheIdentity),
             agreements: self.agreements,
         }
     }
@@ -456,7 +456,7 @@ impl CompiledRuleRegistry {
     /// Bake every rule table under `profile`
     ///
     /// `profile` comes from the same [`Agreements`] the books were built from,
-    /// so the sidecar cannot bake under one reading while the stance pins
+    /// so the sidecar cannot bake under one reading while the partnership pins
     /// another.  It also reaches the bare context below, which is what the
     /// projection fold consults per node.
     fn compile<'a>(
@@ -523,7 +523,7 @@ impl Default for BoundBook {
     }
 }
 
-/// Clone-stable identity for stance-local data consumed by deal caches.
+/// Clone-stable identity for partnership-local data consumed by deal caches.
 ///
 /// The identity *is* the allocation: consumers compare with `Arc::ptr_eq`, and
 /// a deal cache retains its own clone, which keeps the allocation alive — so
@@ -531,11 +531,11 @@ impl Default for BoundBook {
 /// comparison still means anything.  There is deliberately nothing to compare
 /// inside; a counter here would be written and never read.
 #[derive(Debug)]
-pub struct StanceCacheIdentity;
+pub struct PartnershipCacheIdentity;
 
-/// A pair's system, bound and ready to classify
+/// A system bound to a partnership and ready to classify
 ///
-/// Built by [`Pair::against`].  As a [`Bidder`] it routes each query by
+/// Built by [`System::bind`].  As a [`Bidder`] it routes each query by
 /// [`Phase`]: the constructive trie answers the strictly uncontested auctions,
 /// the bound competitive trie (which contains the uncontested core for its
 /// rebases) answers when they intervene over our opening, and the defensive
@@ -543,7 +543,7 @@ pub struct StanceCacheIdentity;
 /// constructive trie, so no competitive fallback can leak into undisturbed
 /// auctions.
 #[derive(Clone)]
-pub struct Stance {
+pub struct Partnership {
     constructive: BoundBook,
     competitive: BoundBook,
     defensive: BoundBook,
@@ -555,20 +555,20 @@ pub struct Stance {
     /// The books the *opponents* are declared to play, for reading their
     /// calls ([`with_opponents`][Self::with_opponents]).  [`None`] — the default — models them as
     /// playing ours, which is exact in self-play.
-    opponents: Option<Arc<Stance>>,
-    /// Stable across clones, replaced whenever stance-local reading data
+    opponents: Option<Arc<Partnership>>,
+    /// Stable across clones, replaced whenever partnership-local reading data
     /// changes. Deal caches retain this small token, so an allocator cannot
     /// recycle a raw address into a false identity match.
-    cache_identity: Arc<StanceCacheIdentity>,
-    /// What this stance plays, pinned at build ([`Pair::against`]) from the
+    cache_identity: Arc<PartnershipCacheIdentity>,
+    /// What this partnership plays, pinned at build ([`System::bind`]) from the
     /// same value the books were baked from.  Classify-time reads serve off
-    /// this copy, so the stance answers identically on every thread.  Moved
+    /// this copy, so the partnership answers identically on every thread.  Moved
     /// only by [`profile_mut`][Self::profile_mut].
     agreements: Agreements,
 }
 
-impl Default for Stance {
-    /// An empty stance pinned to the building thread's current knob state
+impl Default for Partnership {
+    /// An empty partnership pinned to the building thread's current knob state
     fn default() -> Self {
         Self {
             constructive: BoundBook::default(),
@@ -576,15 +576,15 @@ impl Default for Stance {
             defensive: BoundBook::default(),
             probed: HashMap::new(),
             opponents: None,
-            cache_identity: Arc::new(StanceCacheIdentity),
+            cache_identity: Arc::new(PartnershipCacheIdentity),
             agreements: Agreements::default(),
         }
     }
 }
 
-impl core::fmt::Debug for Stance {
+impl core::fmt::Debug for Partnership {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        f.debug_struct("Stance")
+        f.debug_struct("Partnership")
             .field("constructive", &self.constructive.trie)
             .field("competitive", &self.competitive.trie)
             .field("defensive", &self.defensive.trie)
@@ -594,12 +594,12 @@ impl core::fmt::Debug for Stance {
     }
 }
 
-impl Stance {
-    pub(crate) fn cache_identity(&self) -> &Arc<StanceCacheIdentity> {
+impl Partnership {
+    pub(crate) fn cache_identity(&self) -> &Arc<PartnershipCacheIdentity> {
         &self.cache_identity
     }
 
-    /// What this stance plays — the agreements pinned into it at build
+    /// What this partnership plays — the agreements pinned into it at build
     ///
     /// A built system can be asked what it plays, which is what lets a caller
     /// disclose it without hand-carrying a matching value alongside.
@@ -612,25 +612,25 @@ impl Stance {
         self.agreements.decision
     }
 
-    /// Edit the knob state pinned into this stance
+    /// Edit the knob state pinned into this partnership
     ///
-    /// A stance pins the classify-time knob state when it is built
-    /// ([`Pair::against`]), which is what lets it classify identically on any
+    /// A partnership pins the classify-time knob state when it is built
+    /// ([`System::bind`]), which is what lets it classify identically on any
     /// thread.  This is the deliberate escape hatch for the eval-time-only arm:
-    /// move one setting on an already-built stance without rebuilding the books
+    /// move one setting on an already-built partnership without rebuilding the books
     /// under it.  Prefer rebuilding when the setting also *shapes* the books —
     /// this moves only the classify-time reads.
     ///
-    /// The returned borrow invalidates the stance's cache identity eagerly, so
+    /// The returned borrow invalidates the partnership's cache identity eagerly, so
     /// a caller that takes it and changes nothing pays one cache miss and
     /// nothing else.
     ///
     /// ```
     /// use pons::american_default;
     ///
-    /// let mut stance = american_default().against();
-    /// stance.profile_mut().reading.blind_opponents = true;
-    /// assert!(stance.profile().reading.blind_opponents);
+    /// let mut partnership = american_default().bind();
+    /// partnership.profile_mut().reading.blind_opponents = true;
+    /// assert!(partnership.profile().reading.blind_opponents);
     /// ```
     pub fn profile_mut(&mut self) -> &mut DecisionProfile {
         self.invalidate_cache_identity();
@@ -663,7 +663,7 @@ impl Stance {
     }
 
     fn invalidate_cache_identity(&mut self) {
-        self.cache_identity = Arc::new(StanceCacheIdentity);
+        self.cache_identity = Arc::new(PartnershipCacheIdentity);
     }
 
     fn bound_for(&self, auction: &[Call]) -> &BoundBook {
@@ -880,7 +880,7 @@ impl Stance {
     }
 }
 
-/// The winning rule behind one call — [`Stance::explain_call`]'s attribution
+/// The winning rule behind one call — [`Partnership::explain_call`]'s attribution
 #[derive(Clone, Debug)]
 pub struct ExplainedRule {
     /// Index of the rule in its [`Rules`][super::rules::Rules] table, in
@@ -895,8 +895,8 @@ pub struct ExplainedRule {
     pub alert: Option<&'static str>,
 }
 
-impl Stance {
-    /// The prefixed [`Context`] this stance classifies an auction under
+impl Partnership {
+    /// The prefixed [`Context`] this partnership classifies an auction under
     ///
     /// The same trie-routed, prefix-bearing context the [`Bidder`] impl builds
     /// (cf. [`classify_with_provenance`][Self::classify_with_provenance]).  It
@@ -921,7 +921,7 @@ impl Stance {
             .with_system(self)
     }
 
-    /// Read what an auction has shown, exactly as this stance would at the table
+    /// Read what an auction has shown, exactly as this partnership would at the table
     ///
     /// Builds the same trie-routed, prefix-bearing [`Context`] classification
     /// uses, then reads it with [`Inferences::read`] — so alerted conventional
@@ -937,7 +937,7 @@ impl Stance {
     }
 }
 
-/// What one [`Stance::probe`] run stored, and how stable the fixed point was
+/// What one [`Partnership::probe`] run stored, and how stable the fixed point was
 #[derive(Clone, Copy, Debug)]
 pub struct ProbeReport {
     /// Prefix keys with a stored box (≥ the sample floor, binding some axis)
@@ -1032,7 +1032,7 @@ fn stripped(prefix: &[Call]) -> Option<&[Call]> {
     Some(&prefix[start..])
 }
 
-impl Stance {
+impl Partnership {
     /// The probed box for a prefix, if [`probe`][Self::probe] stored one
     pub(crate) fn probed_box(&self, prefix: &[Call]) -> Option<&Envelope> {
         if self.probed.is_empty() {
@@ -1041,7 +1041,7 @@ impl Stance {
         self.probed.get(stripped(prefix)?)
     }
 
-    /// Probe this stance's own behavior and store the answers as readings
+    /// Probe this partnership's own behavior and store the answers as readings
     ///
     /// The sampled-projection derivation
     /// (docs/ai-bidder/sampled-projection.md), keyed by **traffic** rather
@@ -1064,7 +1064,7 @@ impl Stance {
     /// and consumption — the boxes bake in the knob state at probe time.
     ///
     /// Under the non-default `rayon` feature the per-board harvest fans across
-    /// rayon's pool.  The stance answers off its pinned profile, so a worker
+    /// rayon's pool.  The partnership answers off its pinned profile, so a worker
     /// thread bids exactly as this one does and the report is unchanged.
     pub fn probe(&mut self, boards: usize, seed: u64) -> ProbeReport {
         // Each board is seeded on its own and harvested through `&self`, so the
@@ -1081,13 +1081,13 @@ impl Stance {
             }
             into
         };
-        let harvest = |stance: &Self| -> HashMap<Vec<Call>, Observed> {
+        let harvest = |partnership: &Self| -> HashMap<Vec<Call>, Observed> {
             let one = |board: usize| {
                 let deal = contract_bridge::deck::full_deal(&mut {
                     use rand::SeedableRng as _;
                     rand::rngs::StdRng::seed_from_u64(seed.wrapping_add(board as u64))
                 });
-                stance.harvest_board(board, &deal)
+                partnership.harvest_board(board, &deal)
             };
             #[cfg(feature = "rayon")]
             {
@@ -1110,16 +1110,16 @@ impl Stance {
                 .collect()
         };
 
-        // The two passes differ only in whether the stance reads its own
+        // The two passes differ only in whether the partnership reads its own
         // probed map, which is now a bit of its pinned profile rather than a
-        // thread-local — so the fixed point is driven by mutating this stance,
+        // thread-local — so the fixed point is driven by mutating this partnership,
         // and a probe on one thread no longer leaks into another's readings.
         // The second pass must serve the first pass's boxes through the fold
         // consumption will use: build with `ReadingProfile::probed_vacuous` and
         // the fixed point runs under the vacuous scope (the full-fold toggle
         // stays off); otherwise the full fold serves, as before.  A re-probe
-        // of a stance with a stale map would serve that map in its first pass
-        // — probe fresh stances.
+        // of a partnership with a stale map would serve that map in its first pass
+        // — probe fresh partnerships.
         let was = self.agreements.decision.reading.probed;
         let vacuous = self.agreements.decision.reading.probed_vacuous;
         self.profile_mut().reading.probed = false;
@@ -1151,7 +1151,7 @@ impl Stance {
 
     /// One self-play board's harvest: `(stripped key → actor's hand)` per call
     fn harvest_board(&self, board: usize, deal: &FullDeal) -> HashMap<Vec<Call>, Observed> {
-        // The stance's own pinned scale, so a harvest gauges the same points on
+        // The partnership's own pinned scale, so a harvest gauges the same points on
         // any thread — `probe` is the one bidding loop meant to fan out.
         let scale = self.profile().reading.point_scale;
         let mut auction = Auction::new();
@@ -1191,11 +1191,11 @@ impl Stance {
 const DEAL_CACHE_MIN_DEPTH: usize = 8;
 
 #[derive(Default)]
-struct StanceDealState {
+struct PartnershipDealState {
     authoring: Option<AuthoringStepCache>,
 }
 
-impl Bidder for Stance {
+impl Bidder for Partnership {
     fn classify(&self, hand: Hand, vul: RelativeVulnerability, auction: &[Call]) -> Option<Logits> {
         self.classify_with_provenance(hand, vul, auction)
             .map(|(logits, _)| logits)
@@ -1207,7 +1207,7 @@ impl Bidder for Stance {
     }
 
     fn new_deal_state(&self) -> Option<Box<dyn std::any::Any>> {
-        Some(Box::new(StanceDealState::default()))
+        Some(Box::new(PartnershipDealState::default()))
     }
 
     fn classify_in_deal(
@@ -1217,7 +1217,8 @@ impl Bidder for Stance {
         auction: &[Call],
         state: Option<&mut dyn std::any::Any>,
     ) -> Option<Logits> {
-        let Some(state) = state.and_then(|state| state.downcast_mut::<StanceDealState>()) else {
+        let Some(state) = state.and_then(|state| state.downcast_mut::<PartnershipDealState>())
+        else {
             return self.classify(hand, vul, auction);
         };
         if auction.len() < DEAL_CACHE_MIN_DEPTH {

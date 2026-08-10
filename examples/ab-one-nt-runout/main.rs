@@ -9,8 +9,8 @@
 //!
 //! Each board is bid twice, duplicate style: at table A the feature pair sits
 //! North/South against a pair without it; at table B the teams swap seats.
-//! Both pairs play the very same books; the knob is pinned into a stance at
-//! build, so each side bids off its own pre-built stance.  Boards whose two
+//! Both pairs play the very same books; the knob is pinned into a partnership at
+//! build, so each side bids off its own pre-built partnership.  Boards whose two
 //! auctions reach different contracts
 //! are scored double dummy ([`ns_score_contract`], the actual penalty as bid),
 //! and the swing is credited to the feature team.
@@ -44,7 +44,7 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::context::relative;
 use pons::bidding::instinct::Unusual2nt;
-use pons::bidding::{Inferences, Stance};
+use pons::bidding::{Inferences, Partnership};
 use pons::scoring::{
     final_contract, imps, ns_score_contract, ns_score_pd, ns_score_pd_tricks, ns_score_tricks,
 };
@@ -166,16 +166,16 @@ struct Args {
     show: usize,
 }
 
-/// Arm the measured configuration for one side, then build that side's stance
+/// Arm the measured configuration for one side, then build that side's partnership
 ///
-/// Every knob here is an [`InstinctProfile`] member, pinned into the stance at
+/// Every knob here is an [`InstinctProfile`] member, pinned into the partnership at
 /// build — so this runs once per arm, not once per call.  For the `Runout` axis
 /// the base runout itself toggles per side (the original measure); for every
 /// other axis the base runout is on for both sides and only the named
 /// sub-feature flips, isolating its marginal value.
 ///
 /// [`InstinctProfile`]: pons::bidding::instinct::InstinctProfile
-fn arm(args: &Args, on: bool) -> Stance {
+fn arm(args: &Args, on: bool) -> Partnership {
     let mut agreements = pons::bidding::agreements::Agreements::default();
     let instinct = &mut agreements.decision.instinct;
     instinct.runout_xx_min = args.xx_min;
@@ -221,15 +221,15 @@ fn arm(args: &Args, on: bool) -> Stance {
     instinct.preempt_4m_top_honors = p4_honors;
     instinct.preempt_4m_require_ace = p4_ace;
 
-    american(&agreements).against()
+    american(&agreements).bind()
 }
 
 /// Bid out one deal, flipping the measured feature per acting side
 ///
-/// `stances` is `[baseline, feature]`; each side bids off its own pre-built
-/// stance rather than one stance and a per-call flag.
+/// `partnerships` is `[baseline, feature]`; each side bids off its own pre-built
+/// partnership rather than one partnership and a per-call flag.
 fn bid_out(
-    stances: &[Stance; 2],
+    partnerships: &[Partnership; 2],
     args: &Args,
     feature_is_ns: bool,
     dealer: Seat,
@@ -239,9 +239,9 @@ fn bid_out(
     while !auction.has_ended() {
         let seat = seat_to_act(dealer, auction.len());
         let seat_is_ns = matches!(seat, Seat::North | Seat::South);
-        let stance = &stances[usize::from(seat_is_ns == feature_is_ns)];
+        let partnership = &partnerships[usize::from(seat_is_ns == feature_is_ns)];
         auction.push(next_call(
-            stance,
+            partnership,
             deal[seat],
             dealer,
             args.vulnerability,
@@ -277,8 +277,8 @@ fn responder_over_double(auction: &Auction, dealer: Seat) -> Option<(Call, Seat)
     Some((responder_call, seat_to_act(dealer, nt + 2)))
 }
 
-/// Build the coverage stance: the full gambling package on for every seat
-fn arm_coverage(args: &Args) -> Stance {
+/// Build the coverage partnership: the full gambling package on for every seat
+fn arm_coverage(args: &Args) -> Partnership {
     let mut agreements = pons::bidding::agreements::Agreements::default();
     let instinct = &mut agreements.decision.instinct;
     instinct.runout_xx_min = args.xx_min;
@@ -291,16 +291,16 @@ fn arm_coverage(args: &Args) -> Stance {
     instinct.gambling_3nt_top_honors = 2;
     instinct.gambling_3nt_require_ace = true;
     instinct.preempt_4m_over_double = true;
-    american(&agreements).against()
+    american(&agreements).bind()
 }
 
 /// Bid one deal with the full gambling package on for every seat (coverage mode)
-fn bid_coverage(stance: &Stance, args: &Args, dealer: Seat, deal: &FullDeal) -> Auction {
+fn bid_coverage(partnership: &Partnership, args: &Args, dealer: Seat, deal: &FullDeal) -> Auction {
     let mut auction = Auction::new();
     while !auction.has_ended() {
         let seat = seat_to_act(dealer, auction.len());
         auction.push(next_call(
-            stance,
+            partnership,
             deal[seat],
             dealer,
             args.vulnerability,
@@ -314,11 +314,11 @@ fn bid_coverage(stance: &Stance, args: &Args, dealer: Seat, deal: &FullDeal) -> 
 /// and HCP, with the full gambling package armed.  Every strong *balanced* hand
 /// should land on the business redouble — none should leak to the gamble.
 #[allow(clippy::cast_precision_loss)]
-fn run_coverage(stance: &Stance, args: &Args, deals: &[(Seat, FullDeal)]) {
+fn run_coverage(partnership: &Partnership, args: &Args, deals: &[(Seat, FullDeal)]) {
     let rows: Vec<(bool, u8, Call)> = deals
         .par_iter()
         .filter_map(|&(dealer, deal)| {
-            let auction = bid_coverage(stance, args, dealer, &deal);
+            let auction = bid_coverage(partnership, args, dealer, &deal);
             responder_over_double(&auction, dealer)
                 .map(|(call, seat)| (is_balanced(deal[seat]), hand_hcp(deal[seat]), call))
         })
@@ -362,14 +362,14 @@ fn run_coverage(stance: &Stance, args: &Args, deals: &[(Seat, FullDeal)]) {
 
 #[allow(clippy::cast_precision_loss)]
 /// The (contract, declarer, leader-view inferences) of one auction, read through
-/// `stance`; `None` for a pass-out (sd score 0).  Mirrors `ab-dump-sd`.
+/// `partnership`; `None` for a pass-out (sd score 0).  Mirrors `ab-dump-sd`.
 ///
 /// ponytail: read under the shipped defaults, not each table's runout toggle —
 /// the escape calls the two tables differ on are natural suit bids either way,
 /// so the leader's reading of them barely moves.
 fn lead_inputs(
     auction: &Auction,
-    stance: &Stance,
+    partnership: &Partnership,
     dealer: Seat,
     vul: AbsoluteVulnerability,
 ) -> Option<(Contract, Seat, Inferences)> {
@@ -381,7 +381,7 @@ fn lead_inputs(
     Some((
         contract,
         declarer,
-        stance.infer(relative(vul, leader), &auction[..cut]),
+        partnership.infer(relative(vul, leader), &auction[..cut]),
     ))
 }
 
@@ -406,15 +406,15 @@ fn main() {
     }
 
     // `[baseline, feature]`, each armed and built once.
-    let stances = [arm(&args, false), arm(&args, true)];
+    let partnerships = [arm(&args, false), arm(&args, true)];
 
     let boards: Vec<Board> = deals
         .par_iter()
         .map(|&(dealer, deal)| Board {
             deal,
             dealer,
-            table_a: bid_out(&stances, &args, true, dealer, &deal),
-            table_b: bid_out(&stances, &args, false, dealer, &deal),
+            table_a: bid_out(&partnerships, &args, true, dealer, &deal),
+            table_b: bid_out(&partnerships, &args, false, dealer, &deal),
         })
         .collect();
 
@@ -503,9 +503,9 @@ fn main() {
             for (is_a, auction) in [(true, &board.table_a), (false, &board.table_b)] {
                 if let Some((contract, declarer, inferences)) =
                     // Every flipped knob is an `InstinctProfile` (floor) member;
-                    // `infer` reads the `ReadingProfile`, so both stances read
+                    // `infer` reads the `ReadingProfile`, so both partnerships read
                     // this auction identically and either serves.
-                    lead_inputs(auction, &stances[0], board.dealer, vul)
+                    lead_inputs(auction, &partnerships[0], board.dealer, vul)
                 {
                     pending.push((index, is_a, contract, declarer));
                     questions.push(LeadQuestion {

@@ -162,7 +162,7 @@ passed hand at ~6.3 mean HCP.
   to the natural walk. `set_table_alert_reading` (**SHIPPED default-on 2026-07-18** as bid-inert
   reading soundness — see the inertness-probe entry; `--no-ns-table-alert-reading`
   is the off-switch)
-  resolves each opponent call in *their* phase-routed book — the stance
+  resolves each opponent call in *their* phase-routed book — the partnership
   models them as playing our own books, exact in self-play, an approximation
   vs BBA/BEN — under their at-the-time context, and decodes it when the rule
   alerts it; their natural calls keep the walk. Same-seed probe: seat-suit

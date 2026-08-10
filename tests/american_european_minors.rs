@@ -12,13 +12,13 @@ use common::*;
 
 use pons::american::EUROPEAN;
 
-/// The American 2/1 stance with the **European** minor scheme selected
+/// The American 2/1 partnership with the **European** minor scheme selected
 ///
-/// Each call builds a stance whose agreements select the European book.
-fn stance() -> Stance {
+/// Each call builds a partnership whose agreements select the European book.
+fn partnership() -> Partnership {
     let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.reading.notrump_minors = EUROPEAN;
-    american(&agreements).against()
+    american(&agreements).bind()
 }
 
 const P: Call = Call::Pass;
@@ -37,7 +37,7 @@ fn after_1nt(tail: &[Call]) -> Vec<Call> {
 
 #[test]
 fn two_spades_is_a_transfer_to_clubs() {
-    let system = stance();
+    let system = partnership();
     // Six clubs, sub-game: the European club transfer, 2♠ (not the natural-spades
     // bid, and not Stayman — there is no four-card major).
     assert_eq!(
@@ -48,7 +48,7 @@ fn two_spades_is_a_transfer_to_clubs() {
 
 #[test]
 fn opener_completes_the_club_transfer() {
-    let system = stance();
+    let system = partnership();
     let auction = after_1nt(&[call(2, Strain::Spades)]);
     // Opener always completes the transfer to 3♣ (no super-accept).
     assert_eq!(
@@ -59,7 +59,7 @@ fn opener_completes_the_club_transfer() {
 
 #[test]
 fn weak_clubs_pass_the_completion() {
-    let system = stance();
+    let system = partnership();
     let auction = after_1nt(&[call(2, Strain::Spades), call(3, Strain::Clubs)]);
     // Weak six-card club one-suiter: pass the club partscore.
     assert_eq!(best_call(&system, &auction, "xxx.xxx.x.KQxxxx"), P);
@@ -67,7 +67,7 @@ fn weak_clubs_pass_the_completion() {
 
 #[test]
 fn game_going_clubs_splinter_over_the_completion() {
-    let system = stance();
+    let system = partnership();
     let auction = after_1nt(&[call(2, Strain::Spades), call(3, Strain::Clubs)]);
     // Six clubs, game values, a singleton spade: splinter 3♠ so opener picks
     // between 3NT and 5♣.
@@ -81,7 +81,7 @@ fn game_going_clubs_splinter_over_the_completion() {
 
 #[test]
 fn two_nt_is_a_balanced_invite() {
-    let system = stance();
+    let system = partnership();
     // Balanced 8, no four-card major, *not* a flat 4-3-3-3 (a 4-4 in the minors):
     // the European size ask, 2NT (the Puppet default would route this hand through
     // the two-way 2♠ instead).  A flat 4-3-3-3 eight would pass 1NT, not invite.
@@ -93,7 +93,7 @@ fn two_nt_is_a_balanced_invite() {
 
 #[test]
 fn opener_accepts_the_invite_with_a_maximum() {
-    let system = stance();
+    let system = partnership();
     let auction = after_1nt(&[call(2, Strain::Notrump)]);
     // Maximum (17): accept game, 3NT.
     assert_eq!(
@@ -108,7 +108,7 @@ fn opener_accepts_the_invite_with_a_maximum() {
 
 #[test]
 fn three_clubs_is_a_transfer_to_diamonds() {
-    let system = stance();
+    let system = partnership();
     // Six diamonds, sub-game: the European diamond transfer, 3♣ (no Puppet Stayman
     // claims 3♣ here).
     assert_eq!(
@@ -119,7 +119,7 @@ fn three_clubs_is_a_transfer_to_diamonds() {
 
 #[test]
 fn opener_completes_the_diamond_transfer() {
-    let system = stance();
+    let system = partnership();
     let auction = after_1nt(&[call(3, Strain::Clubs)]);
     // Opener always completes the diamond transfer to 3♦.
     assert_eq!(
@@ -130,7 +130,7 @@ fn opener_completes_the_diamond_transfer() {
 
 #[test]
 fn weak_diamonds_pass_the_completion() {
-    let system = stance();
+    let system = partnership();
     let auction = after_1nt(&[call(3, Strain::Clubs), call(3, Strain::Diamonds)]);
     // Six diamonds, sub-game: pass the 3♦ partscore.
     assert_eq!(best_call(&system, &auction, "xx.xxx.KQxxxx.xx"), P);
@@ -138,7 +138,7 @@ fn weak_diamonds_pass_the_completion() {
 
 #[test]
 fn game_going_diamonds_raise_to_3nt() {
-    let system = stance();
+    let system = partnership();
     let auction = after_1nt(&[call(3, Strain::Clubs), call(3, Strain::Diamonds)]);
     // Six diamonds, game values: bid 3NT over the completion.
     assert_eq!(
@@ -151,7 +151,7 @@ fn game_going_diamonds_raise_to_3nt() {
 
 #[test]
 fn game_force_three_card_major_bids_3nt() {
-    let system = stance();
+    let system = partnership();
     // 3-3 majors, balanced 11: the hand Puppet routes through 3♣ has no home in
     // the European scheme (3♣ is diamonds) — it simply bids 3NT.
     assert_eq!(
@@ -162,7 +162,7 @@ fn game_force_three_card_major_bids_3nt() {
 
 #[test]
 fn game_force_four_three_takes_stayman() {
-    let system = stance();
+    let system = partnership();
     // 4♠-3♥-4♦-2♣ game force (non-flat): with no Puppet, the 4-3 hand uses plain
     // Stayman (2♣).  A flat 4-3-3-3 would instead bid 3NT (see below).
     assert_eq!(
@@ -173,7 +173,7 @@ fn game_force_four_three_takes_stayman() {
 
 #[test]
 fn flat_four_three_three_three_game_force_bids_3nt() {
-    let system = stance();
+    let system = partnership();
     // Flat 4-3-3-3 (four spades) game force: no Stayman with a flat hand — it plays
     // 3NT, not the 4-4 fit (European has no Puppet either, so it simply bids 3NT).
     assert_eq!(

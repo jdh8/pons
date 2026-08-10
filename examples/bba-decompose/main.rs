@@ -31,7 +31,7 @@ use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat, Strain};
 use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
 use pons::bidding::american::american_instinct;
 use pons::bidding::context::relative;
-use pons::bidding::{Phase, Stance};
+use pons::bidding::{Partnership, Phase};
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
 use rayon::prelude::*;
 use std::collections::{BTreeMap, HashMap};
@@ -254,7 +254,7 @@ fn load_arms(inputs: &[String]) -> anyhow::Result<Vec<Arm>> {
 
 /// Replay every our-side call of the arm through the default books and count
 /// mismatches — the attribution-exactness guard
-fn replay_verify(stance: &Stance, arm: &Arm) -> (u64, u64) {
+fn replay_verify(partnership: &Partnership, arm: &Arm) -> (u64, u64) {
     arm.boards
         .par_iter()
         .map(|board| {
@@ -267,8 +267,13 @@ fn replay_verify(stance: &Stance, arm: &Arm) -> (u64, u64) {
                     let seat_ns = matches!(seat, Seat::North | Seat::South);
                     if seat_ns == ours_ns {
                         checked += 1;
-                        let replayed =
-                            next_call(stance, board.deal[seat], board.dealer, arm.vul, &prefix);
+                        let replayed = next_call(
+                            partnership,
+                            board.deal[seat],
+                            board.dealer,
+                            arm.vul,
+                            &prefix,
+                        );
                         mismatched += u64::from(replayed != call);
                     }
                     prefix.push(call);
@@ -291,7 +296,7 @@ fn main() -> anyhow::Result<()> {
     // Replay-verify through the deterministic reference: the anchor generates
     // with `--our-floor american-instinct`, and replay_verify demands 100%
     // bit-reproduction — the net floor's off-book calls don't reproduce.
-    let stance = american_instinct(&pons::bidding::agreements::Agreements::default()).against();
+    let partnership = american_instinct(&pons::bidding::agreements::Agreements::default()).bind();
 
     // DD cache: deal-keyed tables survive across anchors (same seeds → same
     // deals), so only newly-divergent boards ever need a fresh solve.
@@ -309,7 +314,7 @@ fn main() -> anyhow::Result<()> {
 
     for (arm_index, arm) in arms.iter().enumerate() {
         let count = arm.boards.len();
-        let (checked, mismatched) = replay_verify(&stance, arm);
+        let (checked, mismatched) = replay_verify(&partnership, arm);
         let verified = 100.0 * (checked - mismatched) as f64 / checked.max(1) as f64;
 
         let contracts: Vec<(Reached, Reached)> = arm
@@ -374,8 +379,12 @@ fn main() -> anyhow::Result<()> {
             } else {
                 (board.table_b[div_index], board.table_a[div_index])
             };
-            let explained =
-                stance.explain_call(board.deal[seat], relative(arm.vul, seat), prefix, our_call);
+            let explained = partnership.explain_call(
+                board.deal[seat],
+                relative(arm.vul, seat),
+                prefix,
+                our_call,
+            );
             let (prov, rule) = match &explained {
                 None => ("unresolved".into(), String::new()),
                 Some((p, rule)) => {

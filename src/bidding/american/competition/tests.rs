@@ -59,7 +59,7 @@ pub(super) fn best_call_with(
 ) -> (Call, bool) {
     let hand: Hand = hand.parse().expect("valid test hand");
     let (logits, prov) = american(agreements)
-        .against()
+        .bind()
         .classify_with_provenance(hand, RelativeVulnerability::NONE, auction)
         .expect("a legal auction classifies");
     let best = (&logits.0)

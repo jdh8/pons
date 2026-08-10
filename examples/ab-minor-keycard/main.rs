@@ -68,12 +68,12 @@ struct Args {
 #[allow(clippy::cast_precision_loss)]
 fn main() {
     let args = Args::parse();
-    // The agreement gates node insertion, so build one stance per arm.
+    // The agreement gates node insertion, so build one partnership per arm.
     let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.instinct.keycard_minors = true;
-    let feature = american(&agreements).against();
+    let feature = american(&agreements).bind();
     agreements.decision.instinct.keycard_minors = false;
-    let baseline = american(&agreements).against();
+    let baseline = american(&agreements).bind();
 
     let deals: Vec<(Seat, FullDeal)> = seeded_deals(args.seed, args.count)
         .into_iter()
@@ -137,7 +137,7 @@ fn main() {
         }
     }
 
-    // The sd-declarer playout row: reading uses the feature stance for both
+    // The sd-declarer playout row: reading uses the feature partnership for both
     // tables (the knob only gates book *nodes*; range reading is shared).
     let swings_sd = args.sd.then(|| {
         let mut rng = StdRng::seed_from_u64(args.sd_seed);

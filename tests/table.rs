@@ -7,7 +7,7 @@ use contract_bridge::{AbsoluteVulnerability, Bid, Hand, Level, Seat, Strain};
 use pons::bidding::agreements::Agreements;
 use pons::bidding::array::Logits;
 use pons::bidding::trie::classifier;
-use pons::bidding::{Bidder, Competitive, Constructive, Defensive, Pair, Table};
+use pons::bidding::{Bidder, Competitive, Constructive, Defensive, System, Table};
 
 const fn bid(level: u8, strain: Strain) -> Call {
     Call::Bid(Bid {
@@ -179,19 +179,19 @@ fn test_bid_out_from_continues_seed() {
 }
 
 #[test]
-fn test_of_pairs_binds_and_plays() {
+fn test_of_systems_binds_and_plays() {
     let mut constructive = Constructive::new();
     constructive.insert(&[], classifier(|_, _| single(ONE_CLUB, 1.0)));
 
-    let ns = Pair::new(
+    let ns = System::new(
         constructive,
         Competitive::new(),
         Defensive::new(),
         Agreements::default(),
     );
-    let ew = Pair::default();
+    let ew = System::default();
 
-    let table = Table::of_pairs(&ns, &ew, Seat::North, AbsoluteVulnerability::NONE);
+    let table = Table::of_systems(&ns, &ew, Seat::North, AbsoluteVulnerability::NONE);
     let deal = full_deal(&mut rand::rng());
 
     assert_eq!(

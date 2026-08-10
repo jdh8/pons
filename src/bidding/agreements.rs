@@ -11,7 +11,7 @@
 //! and the [`ReadingProfile`][crate::bidding::inference::ReadingProfile] — and
 //! until this value existed nothing but call-site discipline made them. Two defects were paid
 //! for by that gap: the forced rail froze into a process-wide `LazyLock` built
-//! by whichever pair came first, and a card disclosed rows the rules were not
+//! by whichever system came first, and a card disclosed rows the rules were not
 //! playing. Both become unrepresentable once one capture feeds all four.
 //!
 //! # Layout
@@ -24,8 +24,8 @@
 //! `decision` holds the settings read **per decision**, at classify time,
 //! rather than while the books are built.
 //! It is split out only because it is the snapshot a
-//! [`Stance`][crate::bidding::Stance] pins at
-//! [`Pair::against`][crate::bidding::Pair::against], so a stance decides
+//! [`Partnership`][crate::bidding::Partnership] pins at
+//! [`System::bind`][crate::bidding::System::bind], so a partnership decides
 //! identically on any thread; the eight build-time areas are baked into the
 //! rules a build returns and need no such pin.  A setting read at *both* times
 //! lives in `decision` and is read from there at build time too.
@@ -2239,11 +2239,11 @@ impl Default for InstinctKnobs {
 /// One field per area of the system, plus `decision` for the settings read while
 /// classifying rather than while building.  That last split is by *when* a
 /// value is read, not by what it means — a build-time area and `decision` are
-/// equally "what we agreed" — so it buys the `Stance` a small `Copy` snapshot
+/// equally "what we agreed" — so it buys the `Partnership` a small `Copy` snapshot
 /// to pin and nothing else.
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct Agreements {
-    /// The classify-time settings, pinned into the stance at `Pair::against`
+    /// The classify-time settings, pinned into the partnership at `System::bind`
     pub decision: DecisionProfile,
     /// What we play when they contest our auction
     pub competition: CompetitionKnobs,

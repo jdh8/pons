@@ -24,7 +24,7 @@ sample-and-solve loop `ev_all` pays ~1.4 s per decision for — compressed into 
 few thousand multiply-adds.
 
 ```rust
-let inferences = stance.infer(vul, &auction);
+let inferences = partnership.infer(vul, &auction);
 let t = trick_estimates(hand, &inferences);
 t.p_at_least(Strain::Spades, Relative::Me, 10)   // P(we make 4♠)
 ```
@@ -151,7 +151,7 @@ declarer `[me, lho, partner, rho]`, actor-relative like the input.
 
 The walk is **deal-major** so a contiguous validation tail stays deal-disjoint —
 the ~10 rows a board contributes all share one DD label, and a shuffled split
-would leak it. Ranges come from `Stance::infer`, never a bare `Context`: the
+would leak it. Ranges come from `Partnership::infer`, never a bare `Context`: the
 trie-prefixed reading is what decodes conventional calls off their authoring
 rules, and training on the looser reading would be training on the wrong
 distribution.
@@ -496,7 +496,7 @@ was spent: the evaluator's weights are now coupled to the auctions of the
 systems in the corpus (american + dutch), so routing changes owe the twin
 protocol one retrain, and future systems must be dumped into the pool.  The
 serving/training reading mismatch (bare `Context` at the call sites vs
-`Stance::infer` in the corpus) is inherited from v2, unchanged, and still
+`Partnership::infer` in the corpus) is inherited from v2, unchanged, and still
 open in the ledger.
 
 #### Hidden-seat axis survey
@@ -528,7 +528,7 @@ Harness (all off-crate; shipped crate byte-identical):
   `"of the top honors in"`, `"≤1 ♣/♦/♥/♠"`, `"control"`, `"stopper in"`) and a
   *structural* latch (Ogust answer position, strong 2♣ opening, 2NT/3NT over
   their shown suit) — except shortness, whose second kind is the live
-  **envelope** (`Stance::infer` already caps a suit at ≤1), i.e. the portion
+  **envelope** (`Partnership::infer` already caps a suit at ≤1), i.e. the portion
   the range features already realize. Survey reach is the **disclosed-seat
   fraction** of the 3 hidden seats. Scripted-auction tests pin every prose
   needle so a rewording fails the build instead of silently reading zero.

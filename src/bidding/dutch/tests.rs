@@ -5,9 +5,9 @@ use contract_bridge::{Bid, Strain};
 
 /// The Dutch opening for a first-seat hand.
 fn opens(hand: &str) -> Call {
-    let stance = dutch(&crate::bidding::agreements::Agreements::default()).against();
+    let partnership = dutch(&crate::bidding::agreements::Agreements::default()).bind();
     let hand = hand.parse().unwrap();
-    let logits = stance
+    let logits = partnership
         .classify(hand, RelativeVulnerability::NONE, &[])
         .expect("an opening decision");
     (&logits.0)
@@ -61,9 +61,9 @@ fn opening_partition() {
 
 /// The Dutch call after an undisturbed `auction`.
 fn responds(auction: &[Call], hand: &str) -> Call {
-    let stance = dutch(&crate::bidding::agreements::Agreements::default()).against();
+    let partnership = dutch(&crate::bidding::agreements::Agreements::default()).bind();
     let hand = hand.parse().unwrap();
-    let logits = stance
+    let logits = partnership
         .classify(hand, RelativeVulnerability::NONE, auction)
         .expect("a decision");
     (&logits.0)

@@ -37,7 +37,7 @@ fn key(calls: &[Call]) -> Vec<Call> {
 }
 
 fn main() {
-    let policy = american(&pons::bidding::agreements::Agreements::default()).against();
+    let policy = american(&pons::bidding::agreements::Agreements::default()).bind();
     let actor = Seat::North;
     let vul = RelativeVulnerability::NONE;
     let n = 50usize; // fill target; replay draws until REPLAY_DRAW_CAP (or gives

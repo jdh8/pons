@@ -286,7 +286,7 @@ discloses **nothing** — no length range, no point range — with ♦ length ru
 `pts:[6,29]`). So `american_bba` is a net that invents a diamond suit on Dutch's
 relay and the WJ net is not. That much held up.
 
-*The slot was the surprise.* `dutch()` is `with_floors(pair, NeuralFloorBba,
+*The slot was the surprise.* `dutch()` is `with_floors(system, NeuralFloorBba,
 instinct())` — the net wraps only the **contested** books, so uncontested
 `1♣ - 1♦ - …` was already floored by deterministic `instinct()`, which reads the
 alerted relay through projection and never invents diamonds. The misread the
@@ -554,7 +554,7 @@ fix.
 
 ### Phase 1 notes
 
-Phase 1 originally took the floorless American pair and **overwrote only the
+Phase 1 originally took the floorless American system and **overwrote only the
 opening node** with `dutch::openings::dutch_openings()`; every American
 continuation was reused verbatim. D1 now spells that override as the
 `dutch-openings` row package, compiled after American alongside the later

@@ -191,11 +191,11 @@ fn strength_dial_two_moves_points_antisymmetrically() {
     assert_reject(gate.eval(test_hand, &plain_responder));
 }
 
-/// A stance pins the dial it was built under, so the deviation panel's deviant
+/// A partnership pins the dial it was built under, so the deviation panel's deviant
 /// seat keeps its calibration after the harness resets the thread
 /// (`examples/common/mod.rs`'s `deviant_floor` arms, builds, and resets).
 #[test]
-fn strength_dial_survives_on_a_pinned_stance() {
+fn strength_dial_survives_on_a_pinned_partnership() {
     use crate::bidding::Bidder;
     use crate::bidding::american::american_book;
 
@@ -203,13 +203,13 @@ fn strength_dial_survives_on_a_pinned_stance() {
 
     let mut deviant_agreements = crate::bidding::agreements::Agreements::default();
     deviant_agreements.decision.reading.strength_dial = 2;
-    let deviant = american_book(&deviant_agreements).against();
+    let deviant = american_book(&deviant_agreements).bind();
     let plain_agreements = crate::bidding::agreements::Agreements::default();
-    let plain = american_book(&plain_agreements).against();
+    let plain = american_book(&plain_agreements).bind();
 
-    // An 11-count opens 1♥ only on the dialled stance; the plain one passes.
-    let opened = |stance: &crate::bidding::book::Stance| {
-        stance
+    // An 11-count opens 1♥ only on the dialled partnership; the plain one passes.
+    let opened = |partnership: &crate::bidding::book::Partnership| {
+        partnership
             .classify(hand, RelativeVulnerability::NONE, &[])
             .map(|logits| {
                 (&logits.0)
@@ -222,7 +222,7 @@ fn strength_dial_survives_on_a_pinned_stance() {
     assert_ne!(
         opened(&deviant),
         opened(&plain),
-        "the dial the deviant stance pinned must outlive the thread's reset"
+        "the dial the deviant partnership pinned must outlive the thread's reset"
     );
 }
 

@@ -43,7 +43,7 @@ use contract_bridge::auction::Call;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
 use pons::american;
 use pons::bidding::context::relative;
-use pons::bidding::{Bidder, Relative, Stance};
+use pons::bidding::{Bidder, Partnership, Relative};
 use std::collections::HashMap;
 use std::ffi::{CString, c_int};
 
@@ -190,7 +190,7 @@ fn our_card() -> EpbotCard {
 
 /// Every decision node of one bid-out deal, charged into `seats` and `keys`
 fn census(
-    stance: &Stance,
+    partnership: &Partnership,
     dealer: Seat,
     vul: AbsoluteVulnerability,
     deal: &FullDeal,
@@ -205,7 +205,7 @@ fn census(
         if !matches!(seat, Seat::North | Seat::South) {
             continue;
         }
-        let read = stance.infer(relative(vul, seat), &auction[..cut]);
+        let read = partnership.infer(relative(vul, seat), &auction[..cut]);
         for (slot, (_, who, back)) in HIDDEN.into_iter().enumerate() {
             let Some(last) = cut.checked_sub(back) else {
                 continue; // the seat has not called yet
@@ -234,7 +234,7 @@ fn main() -> anyhow::Result<()> {
     } else {
         pons::bidding::ReadingScope::Alerted
     };
-    let stance = american(&agreements).against();
+    let partnership = american(&agreements).bind();
 
     // The opponents: a perturbed pons book (deviation panel axes B/C) or, by
     // default, EPBot on whichever card `--system`/`--their-card` names (axis A).
@@ -293,8 +293,16 @@ fn main() -> anyhow::Result<()> {
     let mut keys: HashMap<String, Cell> = HashMap::new();
     for (board, deal) in seeded_deals(base, args.count).iter().enumerate() {
         let dealer = Seat::ALL[board % 4];
-        let auction = bid_out(&stance, opponent, true, dealer, vul, deal);
-        census(&stance, dealer, vul, deal, &auction, &mut seats, &mut keys);
+        let auction = bid_out(&partnership, opponent, true, dealer, vul, deal);
+        census(
+            &partnership,
+            dealer,
+            vul,
+            deal,
+            &auction,
+            &mut seats,
+            &mut keys,
+        );
     }
 
     println!("boards {}  seed {base}", args.count);

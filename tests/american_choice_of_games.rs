@@ -6,16 +6,16 @@ use common::*;
 use pons::bidding::agreements::Agreements;
 
 /// The opt-out 2/1 pair.
-fn no_cog_stance() -> Stance {
+fn no_cog_partnership() -> Partnership {
     let mut agreements = Agreements::default();
     agreements.response.major_choice_of_games = false;
-    american(&agreements).against()
+    american(&agreements).bind()
 }
 
 /// A flat (4333) 13-count with three hearts offers 3NT over 1♥
 #[test]
 fn responder_offers_three_notrump() {
-    let system = stance();
+    let system = partnership();
     assert_eq!(
         best_call(
             &system,
@@ -29,7 +29,7 @@ fn responder_offers_three_notrump() {
 /// Opted out, the same hand routes through the 2/1 in its four-card suit
 #[test]
 fn opt_out_routes_through_the_two_over_one() {
-    let system = no_cog_stance();
+    let system = no_cog_partnership();
     assert_eq!(
         best_call(
             &system,
@@ -44,7 +44,7 @@ fn opt_out_routes_through_the_two_over_one() {
 /// 5332, which the floor's ruffing-shortness correction would wrongly pull
 #[test]
 fn opener_passes_balanced() {
-    let system = stance();
+    let system = partnership();
     assert_eq!(
         best_call(
             &system,
@@ -63,7 +63,7 @@ fn opener_passes_balanced() {
 /// An unbalanced opener corrects to the major game — the 5-3 fit ruffs
 #[test]
 fn opener_corrects_to_four_hearts_with_shape() {
-    let system = stance();
+    let system = partnership();
     assert_eq!(
         best_call(
             &system,

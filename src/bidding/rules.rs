@@ -407,7 +407,7 @@ impl Rules {
     /// Mark the most recent rule with a repeated pure face recognizer.
     ///
     /// `id` is a semantic promise: every occurrence of the same identity in a
-    /// stance must return the same bit for one [`Context`].  Unlike the public
+    /// partnership must return the same bit for one [`Context`].  Unlike the public
     /// opaque [`Self::face`] escape hatch, compiled serving may reuse that bit
     /// across rules and a subsequent explanation of the same decision.
     #[must_use]
@@ -561,7 +561,7 @@ impl CompiledPassPlan {
 #[derive(Clone, Copy, Debug)]
 struct ProjectionPlan(RuleIndex);
 
-/// A compiled projection is borrowed from the stance-wide pool until a fold
+/// A compiled projection is borrowed from the partnership-wide pool until a fold
 /// genuinely needs owned mutable boxes; dynamic projections remain owned.
 pub(crate) enum ProjectedUnion<'a> {
     Borrowed(&'a EnvelopeUnion),
@@ -583,23 +583,23 @@ impl<'a> ProjectedUnion<'a> {
         }
     }
 
-    /// Fold two projections under the stance's pinned reading profile.
+    /// Fold two projections under the partnership's pinned reading profile.
     pub(crate) fn disjoin(self, other: Self, profile: ReadingProfile) -> Self {
         Self::Owned(self.into_owned().disjoin_with(other.into_owned(), profile))
     }
 }
 
-/// Whole-stance pool of projections already proved context-independent.
+/// Whole-partnership pool of projections already proved context-independent.
 ///
 /// Row tables are often cloned into several concrete routes while retaining
 /// the same constraint `Arc`. Computing and owning those boxes once keeps
-/// eager `Pair::against` compilation within its construction and memory gates.
+/// eager `System::bind` compilation within its construction and memory gates.
 #[derive(Default)]
 pub(crate) struct ProjectionCache {
     values: HashMap<(usize, u8), Arc<EnvelopeUnion>>,
 }
 
-/// Stance-wide slot assignment for explicitly shareable face recognizers.
+/// Partnership-wide slot assignment for explicitly shareable face recognizers.
 #[derive(Default)]
 pub(crate) struct FaceRegistry {
     slots: HashMap<FaceId, u32>,
@@ -620,7 +620,7 @@ impl ProjectionPlan {
     const DYNAMIC: Self = Self(RuleIndex::MAX);
 
     // Keep these inputs explicit: the dependency/purity promises, finalized
-    // context, and two stance-wide pools have independent semantics.
+    // context, and two partnership-wide pools have independent semantics.
     #[allow(clippy::too_many_arguments)]
     fn compile(
         rule: &Rule,
@@ -679,7 +679,7 @@ enum CompiledFacePlan {
 /// Stack-first memo for repeated explicit face identities under one identical
 /// context (for example, the three projection folds of one authored call).
 ///
-/// The shipped stance has fewer than 64 identities, so two bitsets cover its
+/// The shipped partnership has fewer than 64 identities, so two bitsets cover its
 /// memo without clearing a large stack array at every historical call. A
 /// future convention with more identities spills safely; the order of first
 /// evaluation remains authored order in either representation.
@@ -866,7 +866,7 @@ impl CompiledRules {
     }
 
     /// Compile while interning context-independent projections across every
-    /// rule table in one finalized stance.
+    /// rule table in one finalized partnership.
     #[must_use]
     pub(crate) fn compile_with_cache(
         authored: &Rules,

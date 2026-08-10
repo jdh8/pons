@@ -1272,7 +1272,7 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Hcp<R> {
     fn dependencies(&self) -> ConstraintDependencies {
         // `PROFILE` since the strength dial moved off the constructor: the
         // gauge is still raw HCP, but which band it checks depends on the
-        // classifying stance.
+        // classifying partnership.
         ConstraintDependencies::HAND
             | ConstraintDependencies::CONTEXT
             | ConstraintDependencies::PROFILE
@@ -1476,7 +1476,7 @@ pub fn point_count(hand: Hand) -> u8 {
 }
 
 /// [`point_count`] on an explicit scale — what every classify-time caller uses,
-/// so the count a stance gauges with is the one pinned into it at build rather
+/// so the count a partnership gauges with is the one pinned into it at build rather
 /// than whatever the classifying thread happens to hold.
 pub(crate) fn point_count_on(scale: PointScale, hand: Hand) -> u8 {
     match scale {

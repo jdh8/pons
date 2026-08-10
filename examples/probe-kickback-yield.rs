@@ -38,7 +38,7 @@ use clap::Parser;
 use contract_bridge::auction::Auction;
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat, Suit};
 use pons::american_instinct;
-use pons::bidding::Stance;
+use pons::bidding::Partnership;
 use pons::bidding::instinct::{RkcbVariant, keycard_ask_at};
 use rayon::prelude::*;
 
@@ -124,13 +124,18 @@ impl Tally {
 /// Bid the deal out with `kickback` armed on every seat.
 ///
 /// The knob gates rule *presence* at build time and the recognizers at
-/// classification time, and both halves are captured into the stance the caller
+/// classification time, and both halves are captured into the partnership the caller
 /// built for this arm — so the worker needs no arming of its own.
-fn bid_out(stance: &Stance, deal: &FullDeal, dealer: Seat, vul: AbsoluteVulnerability) -> Auction {
+fn bid_out(
+    partnership: &Partnership,
+    deal: &FullDeal,
+    dealer: Seat,
+    vul: AbsoluteVulnerability,
+) -> Auction {
     let mut auction = Auction::new();
     while !auction.has_ended() {
         let seat = common::seat_to_act(dealer, auction.len());
-        auction.push(next_call(stance, deal[seat], dealer, vul, &auction));
+        auction.push(next_call(partnership, deal[seat], dealer, vul, &auction));
     }
     auction
 }
@@ -154,9 +159,9 @@ const DEALERS: [Seat; 4] = [Seat::North, Seat::East, Seat::South, Seat::West];
 
 fn main() {
     let args = Args::parse();
-    // One stance per arm: the knob gates rule presence, so an off-arm stance
+    // One partnership per arm: the knob gates rule presence, so an off-arm partnership
     // built with it on would carry alerted rungs that erase natural readings.
-    let arm = |kickback| american_instinct(&agreements(kickback)).against();
+    let arm = |kickback| american_instinct(&agreements(kickback)).bind();
     let (on, off) = (arm(true), arm(false));
     let deals = seeded_deals(args.seed, args.count);
 

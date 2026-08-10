@@ -34,7 +34,7 @@ use contract_bridge::{AbsoluteVulnerability, Contract, Seat};
 use pons::american;
 use pons::bidding::american::{FreeBidStyle, NegativeDoubleShape};
 use pons::bidding::context::relative;
-use pons::bidding::{Inferences, Stance};
+use pons::bidding::{Inferences, Partnership};
 use pons::scoring::{final_contract, imps, ns_score_pd_tricks, ns_score_tricks};
 use pons::single_dummy::{LeadQuestion, single_dummy_leads};
 use rand::SeedableRng;
@@ -123,11 +123,11 @@ struct Args {
 }
 
 /// The (contract, declarer, leader-view inferences) of one auction, read
-/// through `stance`; `None` for a pass-out (sd score 0).  Mirrors
-/// `ab-nt-defense-matrix::lead_inputs` with a single stance.
+/// through `partnership`; `None` for a pass-out (sd score 0).  Mirrors
+/// `ab-nt-defense-matrix::lead_inputs` with a single partnership.
 fn lead_inputs(
     auction: &Auction,
-    stance: &Stance,
+    partnership: &Partnership,
     dealer: Seat,
     vul: AbsoluteVulnerability,
 ) -> Option<(Contract, Seat, Inferences)> {
@@ -142,7 +142,7 @@ fn lead_inputs(
     Some((
         contract,
         declarer,
-        stance.infer(relative(vul, leader), &auction[..cut]),
+        partnership.infer(relative(vul, leader), &auction[..cut]),
     ))
 }
 
@@ -154,7 +154,7 @@ fn main() {
     let vul = args.vulnerability.unwrap_or(on.vulnerability);
     let n = on.boards.len();
 
-    // Leader-view stances (knobs are read at book-construction time).  The OFF
+    // Leader-view partnerships (knobs are read at book-construction time).  The OFF
     // arm always reads with the default book; the ON arm discloses whatever
     // knobs its auctions were bid with.
     let shape = |name: &str| match name {
@@ -186,7 +186,7 @@ fn main() {
     on_arm.defense.two_level_minor_overcall_tight = args.on_ns_two_level_minor_overcall_tight;
     on_arm.defense.weak_two_notrump_points = band(&args.on_ns_weak_two_nt_points);
     on_arm.defense.weak_two_notrump_advances_enabled = args.on_ns_weak_two_nt_advances;
-    let stance_on = american(&on_arm).against();
+    let partnership_on = american(&on_arm).bind();
     let (lo, hi) = band(&args.off_ns_overcall);
     // The OFF arm is the shipped pole, spelled out rather than inherited.
     let mut off_arm = pons::bidding::agreements::Agreements::default();
@@ -198,7 +198,7 @@ fn main() {
     off_arm.defense.two_level_minor_overcall_tight = false;
     off_arm.defense.weak_two_notrump_points = band(&args.off_ns_weak_two_nt_points);
     off_arm.defense.weak_two_notrump_advances_enabled = args.off_ns_weak_two_nt_advances;
-    let stance_off = american(&off_arm).against();
+    let partnership_off = american(&off_arm).bind();
 
     let mut rng = StdRng::seed_from_u64(args.sd_seed);
     // Each entry is that board's `[plain, perfect-defense]` SD price — one
@@ -216,15 +216,15 @@ fn main() {
                 continue; // identical auction ⇒ identical playout ⇒ swing 0
             }
             fired += 1;
-            for (score, board, stance) in [
-                (&mut on_score[i], a, &stance_on),
-                (&mut off_score[i], b, &stance_off),
+            for (score, board, partnership) in [
+                (&mut on_score[i], a, &partnership_on),
+                (&mut off_score[i], b, &partnership_off),
             ] {
                 *score = common::sd_declarer_ns_score(
                     &board.table_a,
                     board.dealer,
                     &board.deal,
-                    stance,
+                    partnership,
                     vul,
                     &mut rng,
                     args.sd_worlds,
@@ -244,9 +244,11 @@ fn main() {
                 continue; // identical auction ⇒ identical blind lead ⇒ swing 0
             }
             fired += 1;
-            for (arm_on, board, stance) in [(true, a, &stance_on), (false, b, &stance_off)] {
+            for (arm_on, board, partnership) in
+                [(true, a, &partnership_on), (false, b, &partnership_off)]
+            {
                 if let Some((contract, declarer, inferences)) =
-                    lead_inputs(&board.table_a, stance, board.dealer, vul)
+                    lead_inputs(&board.table_a, partnership, board.dealer, vul)
                 {
                     pending.push((i, arm_on, contract, declarer));
                     questions.push(LeadQuestion {

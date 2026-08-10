@@ -183,7 +183,7 @@ fn assert_same_classification(
 }
 
 fn assert_deal_cache_parity(count: usize, seed: u64) -> DealCacheCoverage {
-    let stance = american_book(&crate::bidding::agreements::Agreements::default()).against();
+    let partnership = american_book(&crate::bidding::agreements::Agreements::default()).bind();
     let vulnerabilities = [
         AbsoluteVulnerability::NONE,
         AbsoluteVulnerability::NS,
@@ -195,8 +195,8 @@ fn assert_deal_cache_parity(count: usize, seed: u64) -> DealCacheCoverage {
         let mut rng = rand::rngs::StdRng::seed_from_u64(seed.wrapping_add(board as u64));
         let deal = contract_bridge::deck::full_deal(&mut rng);
         let table = Table::new(
-            stance.clone(),
-            stance.clone(),
+            partnership.clone(),
+            partnership.clone(),
             Seat::ALL[board % 4],
             vulnerabilities[board % 4],
         );
@@ -210,9 +210,13 @@ fn assert_deal_cache_parity(count: usize, seed: u64) -> DealCacheCoverage {
             let vul = relative(table.vul, seat);
             let hand = deal[seat];
             let side = usize::from(matches!(seat, Seat::East | Seat::West));
-            let expected = stance.classify_with_provenance(hand, vul, &auction);
-            let actual =
-                stance.classify_with_step_cache_provenance(hand, vul, &auction, &mut caches[side]);
+            let expected = partnership.classify_with_provenance(hand, vul, &auction);
+            let actual = partnership.classify_with_step_cache_provenance(
+                hand,
+                vul,
+                &auction,
+                &mut caches[side],
+            );
             assert_same_classification(board, &auction, expected, actual);
             let call = select_legal_call(actual.map(|(logits, _)| logits), &auction);
             auction.push(call);

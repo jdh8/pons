@@ -40,7 +40,7 @@ use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Seat, Strain};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::context::relative;
-use pons::bidding::{Inferences, Stance};
+use pons::bidding::{Inferences, Partnership};
 use pons::scoring::{
     final_contract, imps, ns_score_contract, ns_score_pd, ns_score_pd_tricks, ns_score_tricks,
 };
@@ -113,10 +113,10 @@ fn splinter_fired(auction: &Auction) -> bool {
 }
 
 /// The (contract, declarer, leader-view inferences) of one auction, read through
-/// `stance`; `None` for a pass-out (sd score 0).  Mirrors `ab-notrump-minors`.
+/// `partnership`; `None` for a pass-out (sd score 0).  Mirrors `ab-notrump-minors`.
 fn lead_inputs(
     auction: &Auction,
-    stance: &Stance,
+    partnership: &Partnership,
     dealer: Seat,
     vul: AbsoluteVulnerability,
 ) -> Option<(Contract, Seat, Inferences)> {
@@ -128,7 +128,7 @@ fn lead_inputs(
     Some((
         contract,
         declarer,
-        stance.infer(relative(vul, leader), &auction[..cut]),
+        partnership.infer(relative(vul, leader), &auction[..cut]),
     ))
 }
 
@@ -142,12 +142,12 @@ fn main() {
     // tries are independent thereafter.
     let mut off_agreements = pons::bidding::agreements::Agreements::default();
     off_agreements.decision.reading.nt_splinter = false;
-    let off = american(&off_agreements).against();
+    let off = american(&off_agreements).bind();
     let mut armed = pons::bidding::agreements::Agreements::default();
     armed.decision.reading.nt_splinter = true;
     armed.notrump.nt_splinter_floor = args.floor;
-    let on = american(&armed).against();
-    let stances = [off, on];
+    let on = american(&armed).bind();
+    let partnerships = [off, on];
 
     // Both arms bid the same deal; the only difference is the two 3M rules.
     // Deal sequentially (cheap, and seeded so arms are reproducible), then bid
@@ -162,7 +162,7 @@ fn main() {
         .map(|(index, deal)| {
             let dealer = Seat::ALL[index % 4];
             std::array::from_fn(|arm| {
-                let auction = bid_uncontested(&stances[arm], dealer, vul, deal);
+                let auction = bid_uncontested(&partnerships[arm], dealer, vul, deal);
                 let contract = final_contract(&auction, dealer);
                 (auction, contract)
             })
@@ -234,7 +234,7 @@ fn main() {
             let dealer = Seat::ALL[i % 4];
             for (arm_on, arm) in [(true, 1usize), (false, 0usize)] {
                 if let Some((contract, declarer, inferences)) =
-                    lead_inputs(&bids[i][arm].0, &stances[arm], dealer, vul)
+                    lead_inputs(&bids[i][arm].0, &partnerships[arm], dealer, vul)
                 {
                     pending.push((i, arm_on, contract, declarer));
                     questions.push(LeadQuestion {

@@ -92,7 +92,7 @@ struct Args {
 
     /// Tell our net the card the **opponents actually hold**, instead of our own
     ///
-    /// Phase 2a of docs/declarative-rows.md.  Off (the default) our stance is
+    /// Phase 2a of docs/declarative-rows.md.  Off (the default) our partnership is
     /// built by `american()`/`dutch()`, whose `Config::symmetric` declares that
     /// the opposition plays our card — against EPBot, simply false.  On, the
     /// opponents' half of the config is read back off their own bot
@@ -109,7 +109,7 @@ struct Args {
     declare_opponents: bool,
 
     /// Read the opponents' calls off **their** books, not ours — the reading
-    /// half of a declared opponent (`Stance::with_opponents`, rows Phase 2b)
+    /// half of a declared opponent (`Partnership::with_opponents`, rows Phase 2b)
     ///
     /// The reader's twin of `--declare-opponents`, and deliberately separate:
     /// that one moves the net's card inputs, this one moves the deterministic
@@ -374,7 +374,7 @@ struct Args {
     /// divergence.  See `docs/reading-drift-handoff.md`.
     ///
     /// One flag because the two bools this replaced had four cells for three
-    /// stances — the natural half short-circuited the alerted one.
+    /// partnerships — the natural half short-circuited the alerted one.
     #[arg(long, value_enum, default_value = "alerted")]
     ns_reading_scope: ReadingScopeArg,
 
@@ -398,8 +398,8 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_pass_exclusion: bool,
 
-    /// Probe our stance's behavior over this many self-play boards at startup
-    /// and read with the probed boxes on (`Stance::probe` +
+    /// Probe our partnership's behavior over this many self-play boards at startup
+    /// and read with the probed boxes on (`Partnership::probe` +
     /// `ReadingProfile::probed`, crate default off).  Fixed probe seed, so every
     /// shard of an arm carries the identical probed map.  0 = off.
     #[arg(long, default_value_t = 0)]
@@ -1888,7 +1888,7 @@ fn main() -> anyhow::Result<()> {
             }
         }
     }
-    // Our stance reads the live knobs for both its rules and its own card, so it
+    // Our partnership reads the live knobs for both its rules and its own card, so it
     // is built here, under the same "every `--ns-*` first" rule as `disclosure`.
     // The opponents' card is a property of *their* engine, so it comes off the
     // oracle actually seated opposite us — `--advertise-natural` swaps that
@@ -1943,9 +1943,9 @@ fn main() -> anyhow::Result<()> {
         // Fixed seed: every shard of an arm probes the identical map, so the
         // arm's readings are consistent across its shards.
         // Armed before the probe so its fixed-point iteration serves through
-        // the same fold consumption will (see `Stance::probe`).  Both settings
-        // are pinned into the stance at build and are only knowable after it,
-        // so each moves on this stance's own copy.
+        // the same fold consumption will (see `Partnership::probe`).  Both settings
+        // are pinned into the partnership at build and are only knowable after it,
+        // so each moves on this partnership's own copy.
         our_floor.profile_mut().reading.probed_vacuous = args.ns_probe_vacuous;
         let report = our_floor.probe(args.ns_probe, 0x9B0BE);
         eprintln!(
@@ -1982,7 +1982,7 @@ fn main() -> anyhow::Result<()> {
         None => None,
     };
     // The reading channel (Phase 2b), attached here because it needs the
-    // opponents' *stance*, which only exists once their deviation knobs have
+    // opponents' *partnership*, which only exists once their deviation knobs have
     // been applied and reset.  Probing above ran on our own books, which is
     // right: the probe measures what we bid, and our bidding table is what
     // this leaves alone.
@@ -1998,7 +1998,7 @@ fn main() -> anyhow::Result<()> {
         our_floor
     };
     // Blind arm of the deviation panel: our side reads with the two opponent
-    // seats' readings blanked.  The setting is pinned into a stance, so this is
+    // seats' readings blanked.  The setting is pinned into a partnership, so this is
     // a copy of our floor with one field moved rather than a global set — the
     // pons book seated opposite us keeps its own readings.  (A BBA oracle has no
     // pons readings to blank, so the flag only reaches the floor.)

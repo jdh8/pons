@@ -73,11 +73,11 @@ pub(super) const RKCB: Alert = Alert("rkcb");
 /// of resting in the 18–19 3NT) — while the floor lifts `keycard_trump`'s
 /// majors-only carve.  They used to be *two* knobs, `set_minor_keycard` here
 /// and `set_keycard_minors` there, whose four combinations included two
-/// stances no partnership could play: a book that asks on a minor over a floor
+/// partnerships no partnership could play: a book that asks on a minor over a floor
 /// that cannot answer, and the reverse.  Now one knob drives both, read at book
 /// construction here and at classification there.  A live relocation
 /// ([`RkcbVariant`][crate::bidding::instinct::RkcbVariant]) implies the reach
-/// the same way — its whole payoff is the minor lanes, so a stance that
+/// the same way — its whole payoff is the minor lanes, so a partnership that
 /// relocates them cannot leave the book unable to ask there.
 ///
 /// Measured against the pre-keycard book: **+6.80/+8.76 IMPs/divergent**
@@ -87,7 +87,7 @@ pub(super) const RKCB: Alert = Alert("rkcb");
 /// A *derived* reading, so it stays a function of the two fields it is made of
 /// rather than becoming a `Build` field — the same rule the competitive book's
 /// `free_bids_engaged` follows. Both fields are pinned classify-time state, so
-/// the build reads them back off the stance's [`DecisionProfile`], which is
+/// the build reads them back off the partnership's [`DecisionProfile`], which is
 /// exactly what [`minor_asks`][crate::bidding::instinct] does for the floor.
 pub(super) fn minor_keycard(agreements: &Agreements) -> bool {
     crate::bidding::instinct::minor_asks(&agreements.decision)

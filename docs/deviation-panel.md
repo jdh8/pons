@@ -58,11 +58,11 @@ partnership still stops in the same places and every authored continuation
 stays coherent. A one-sided "everything lighter" dial would just be a worse
 system, and we would be measuring its badness, not our misreading.
 
-The dial is **pinned into the stance** at `Pair::against`, so the harness idiom
-is unchanged: build our stance at defaults and theirs under the knob, on the
+The dial is **pinned into the partnership** at `System::bind`, so the harness idiom
+is unchanged: build our partnership at defaults and theirs under the knob, on the
 same thread. It was captured per *gauge* at book construction until 2026-08-10,
 because before the pin campaign a classify-time read would have leaked the dial
-into our own book. A stance now carries its own `ReadingProfile`, so the two
+into our own book. A partnership now carries its own `ReadingProfile`, so the two
 seats cannot see each other's dial — and the gauge constructors (`hcp`,
 `points`, `support_points`, called at ~1400 `.rule()` sites) no longer need a
 build-time argument to reach it. Only the magnitude is pinned; the direction is

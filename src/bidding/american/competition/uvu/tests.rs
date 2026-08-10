@@ -93,7 +93,7 @@ fn uvu_encircling_doubles_the_runout() {
     ];
     let hand: Hand = "K54.84.732.KQJT9".parse().expect("valid test hand");
     let (logits, _) = crate::bidding::american::american_instinct(&arm)
-        .against()
+        .bind()
         .classify_with_provenance(hand, RelativeVulnerability::NONE, &auction)
         .expect("a legal auction classifies");
     let c = (&logits.0)

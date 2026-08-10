@@ -63,7 +63,7 @@ well for the defenders, so every active defense is handicapped against it.
 The third scorer, **sd-lead** (`single_dummy_leads`), models exactly that seam
 and nothing else: the opening leader chooses a card *single-dummy* — maximizing
 mean defensive tricks over `n = 16` layouts consistent with the auction **as
-the leader's own book reads it** (`Stance::infer`: trie-routed, alert-decoding,
+the leader's own book reads it** (`Partnership::infer`: trie-routed, alert-decoding,
 so a Woolsey 2♥ samples as Muiderberg, not hearts) — and the play thereafter is
 double-dummy on the actual deal.  One batched trick-one `Target::Legal` solve
 per world prices all thirteen candidate leads; the actual deal rides in the

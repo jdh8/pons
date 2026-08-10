@@ -1,7 +1,7 @@
 //! Integration tests for the minor-opening continuation knobs: the
 //! longer-major response discipline (`ReadingProfile::longer_major_response`), the
 //! up-the-line completion (`ResponseKnobs::up_the_line`), and the XYZ two-way
-//! checkback (`ReadingProfile::xyz`). Each test builds its own stance with the knobs it
+//! checkback (`ReadingProfile::xyz`). Each test builds its own partnership with the knobs it
 //! needs, so the rest of the suite keeps measuring the shipped system.
 
 mod common;
@@ -11,20 +11,20 @@ use pons::bidding::agreements::Agreements;
 
 const P: Call = Call::Pass;
 
-/// A stance built with the given knobs.
-fn stance_with(longer_major: bool, up_the_line: bool, xyz: bool) -> Stance {
+/// A partnership built with the given knobs.
+fn partnership_with(longer_major: bool, up_the_line: bool, xyz: bool) -> Partnership {
     let mut agreements = Agreements::default();
     agreements.decision.reading.longer_major_response = longer_major;
     agreements.decision.reading.xyz = xyz;
     agreements.response.up_the_line = up_the_line;
-    american(&agreements).against()
+    american(&agreements).bind()
 }
 
 // --- Knob A: the longer-major response discipline ---------------------------
 
 #[test]
 fn longer_major_response_discipline() {
-    let system = stance_with(true, false, false);
+    let system = partnership_with(true, false, false);
     let one_club = [call(1, Strain::Clubs), P];
 
     // 5♠4♥ responds 1♠ (longest first) ...
@@ -51,7 +51,7 @@ fn longer_major_response_discipline() {
     // Opt-in off (`ReadingProfile::longer_major_response = false`): the historic
     // unconditional hearts-first responds 1♥ on 5♠4♥ — the simplification that
     // washed against the longer-major default and stays available as a knob.
-    let hearts_first = stance_with(false, false, false);
+    let hearts_first = partnership_with(false, false, false);
     assert_eq!(
         best_call(&hearts_first, &one_club, "AKxxx.QJxx.xx.xx"),
         call(1, Strain::Hearts),
@@ -62,7 +62,7 @@ fn longer_major_response_discipline() {
 
 #[test]
 fn up_the_line_completion() {
-    let system = stance_with(false, true, false);
+    let system = partnership_with(false, true, false);
     let one_club = [call(1, Strain::Clubs), P];
     let after_one_heart = [call(1, Strain::Clubs), P, call(1, Strain::Hearts), P];
     let after_one_diamond = [call(1, Strain::Clubs), P, call(1, Strain::Diamonds), P];
@@ -86,7 +86,7 @@ fn up_the_line_completion() {
     // Off: the diamond hand squeezes into 1NT, opener hides the spades
     // behind a 1NT rebid, and the six-card club hand lands in the
     // misdescribed 1NT catch-all.
-    let off = stance_with(false, false, false);
+    let off = partnership_with(false, false, false);
     assert_eq!(
         best_call(&off, &one_club, "xx.xxx.AQJxx.Kxx"),
         call(1, Strain::Notrump),
@@ -123,7 +123,7 @@ fn xyz_auction(response: Strain, tail: &[Call]) -> Vec<Call> {
 
 #[test]
 fn xyz_relay_signs_off_in_diamonds() {
-    let system = stance_with(false, false, true);
+    let system = partnership_with(false, false, true);
     let weak_diamonds = "x.Qxxx.KJxxxx.xx";
     let opener = "Axxx.Kxx.Qx.KJxx";
 
@@ -157,7 +157,7 @@ fn xyz_relay_signs_off_in_diamonds() {
 
 #[test]
 fn xyz_game_force_finds_the_spade_fit() {
-    let system = stance_with(false, false, true);
+    let system = partnership_with(false, false, true);
 
     // Game values check back with the artificial 2♦ ...
     assert_eq!(
@@ -181,7 +181,7 @@ fn xyz_game_force_finds_the_spade_fit() {
 
 #[test]
 fn xyz_invitation_accepted_to_game() {
-    let system = stance_with(false, false, true);
+    let system = partnership_with(false, false, true);
     let responder = "xx.AQJxx.Kxx.xxx";
     let opener = "Axx.Kxx.Qxx.AQxx";
 
@@ -222,22 +222,22 @@ fn xyz_invitation_accepted_to_game() {
 
 // --- Knob D: New Minor Forcing (the opt-in XYZ alternative) -------------------
 
-/// A stance running New Minor Forcing in place of XYZ, defaults restored
+/// A partnership running New Minor Forcing in place of XYZ, defaults restored
 ///
 /// NMF overrides XYZ on the four `1m - 1M - 1NT` slots; the tests only touch
 /// those, so `ReadingProfile::xyz` is left off to isolate the convention purely.
-fn nmf_stance() -> Stance {
+fn nmf_partnership() -> Partnership {
     let mut agreements = Agreements::default();
     agreements.decision.reading.longer_major_response = false;
     agreements.decision.reading.xyz = false;
     agreements.response.up_the_line = false;
     agreements.rebid.new_minor_forcing = true;
-    american(&agreements).against()
+    american(&agreements).bind()
 }
 
 #[test]
 fn new_minor_forcing_checks_back_with_a_five_card_major() {
-    let system = nmf_stance();
+    let system = nmf_partnership();
     let two_d = call(2, Strain::Diamonds);
 
     // Invitational with five hearts checks back with the new minor ...
@@ -280,7 +280,7 @@ fn new_minor_forcing_checks_back_with_a_five_card_major() {
 
 #[test]
 fn new_minor_forcing_opener_answers() {
-    let system = nmf_stance();
+    let system = nmf_partnership();
     let after_nmf = xyz_auction(Strain::Hearts, &[call(2, Strain::Diamonds)]);
 
     // Three-card support, minimum: a simple 2♥ ...
@@ -303,7 +303,7 @@ fn new_minor_forcing_opener_answers() {
 
 #[test]
 fn new_minor_forcing_finds_the_other_major() {
-    let system = nmf_stance();
+    let system = nmf_partnership();
 
     // Five spades and game values check back with 2♦ ...
     assert_eq!(
@@ -327,7 +327,7 @@ fn new_minor_forcing_finds_the_other_major() {
 
 #[test]
 fn new_minor_forcing_invitation_placed() {
-    let system = nmf_stance();
+    let system = nmf_partnership();
     let inviter = "Kx.AQJxx.Qxx.xxx"; // twelve with five hearts
 
     // Opener's minimum (the simple 2♥) declines: an invitational responder
@@ -359,7 +359,7 @@ fn new_minor_forcing_invitation_placed() {
 
 #[test]
 fn new_minor_forcing_accepts_the_natural_2nt_invitation() {
-    let system = nmf_stance();
+    let system = nmf_partnership();
     // With only four hearts responder cannot check back, so it invites naturally
     // with 2NT.  Opener must judge that invite: a maximum accepts to game, a
     // minimum passes.  (Without this authored acceptance the invite floated to

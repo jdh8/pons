@@ -6,8 +6,8 @@
 //! bidding over interference in a [`Competitive`] book (a negative-double
 //! package as a guarded fallback and "system on over their double" as a
 //! rebase), a small [`Defensive`] book of overcalls, and the three assembled
-//! into a [`Pair`] that is bound against the opponents with
-//! [`Pair::against`].
+//! into a [`System`] that is bound against the opponents with
+//! [`System::bind`].
 
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::{Bid, Hand, Strain, Suit};
@@ -15,7 +15,7 @@ use pons::bidding::agreements::Agreements;
 use pons::bidding::array::Logits;
 use pons::bidding::constraint::{balanced, hcp, len, nth_seat, support};
 use pons::bidding::fallback::{Fallback, FirstIs, OvercallAtMost, ReplaceNext};
-use pons::bidding::{Bidder, Competitive, Constructive, Defensive, Pair, Rules, Stance};
+use pons::bidding::{Bidder, Competitive, Constructive, Defensive, Partnership, Rules, System};
 
 const fn call(level: u8, strain: Strain) -> Call {
     Call::Bid(Bid::new(level, strain))
@@ -82,7 +82,7 @@ fn overcalls() -> Rules {
         .rule(Call::Pass, 0, hcp(0..))
 }
 
-fn demo_system() -> Pair {
+fn demo_system() -> System {
     let mut constructive = Constructive::new();
     let one_h = call(1, Strain::Hearts);
 
@@ -107,7 +107,7 @@ fn demo_system() -> Pair {
         Fallback::classify(negative_doubles()),
     );
     // System on over their double: the rebase lands in the uncontested core,
-    // which `Pair::against` merges into the bound competitive trie.
+    // which `System::bind` merges into the bound competitive trie.
     competitive.fallback_at(
         &[one_h],
         FirstIs(Call::Double),
@@ -118,12 +118,12 @@ fn demo_system() -> Pair {
     let mut defensive = Defensive::new();
     defensive.insert(&[call(1, Strain::Clubs)], overcalls());
 
-    Pair::new(constructive, competitive, defensive, Agreements::default())
+    System::new(constructive, competitive, defensive, Agreements::default())
 }
 
-/// The demo pair bound against natural opponents — bind once, then classify
-fn demo_stance() -> Stance {
-    demo_system().against()
+/// The demo system bound into a partnership — bind once, then classify
+fn demo_partnership() -> Partnership {
+    demo_system().bind()
 }
 
 fn best_call(system: &impl Bidder, auction: &[Call], hand: &str) -> Call {
@@ -151,7 +151,7 @@ const DOUBLER: &str = "KQ32.J5.A964.982";
 
 #[test]
 fn test_first_and_second_seat_openings_match() {
-    let system = demo_stance();
+    let system = demo_partnership();
 
     // Each seat is authored explicitly, but the same opening table makes 1st
     // and 2nd seat agree.
@@ -172,7 +172,7 @@ fn test_first_and_second_seat_openings_match() {
 
 #[test]
 fn test_light_third_seat_opening() {
-    let system = demo_stance();
+    let system = demo_partnership();
     let two_passes = [Call::Pass; 2];
 
     // The same 9-count opens 1♠ in 3rd seat: nth_seat(3) enables the light rule,
@@ -190,7 +190,7 @@ fn test_light_third_seat_opening() {
 
 #[test]
 fn test_responses_authored_for_each_opening_seat() {
-    let system = demo_stance();
+    let system = demo_partnership();
     let one_h = call(1, Strain::Hearts);
 
     // 1st-seat opening: 1♥ - ?
@@ -207,7 +207,7 @@ fn test_responses_authored_for_each_opening_seat() {
 
 #[test]
 fn test_negative_double_package() {
-    let system = demo_stance();
+    let system = demo_partnership();
     let one_h = call(1, Strain::Hearts);
 
     // 1♥ (2♣) ?: the package handles any overcall through 2♠.
@@ -223,7 +223,7 @@ fn test_negative_double_package() {
 
 #[test]
 fn test_system_on_over_their_double() {
-    let system = demo_stance();
+    let system = demo_partnership();
     let one_h = call(1, Strain::Hearts);
 
     // 1♥ (X) ?: the rebase maps onto the undisturbed responses.
@@ -235,7 +235,7 @@ fn test_system_on_over_their_double() {
 
 #[test]
 fn test_defensive_overcall_when_they_open() {
-    let system = demo_stance();
+    let system = demo_partnership();
 
     // (1♣) ?: the auction routes to the defensive book, where a 9-count with
     // five spades overcalls 1♠.

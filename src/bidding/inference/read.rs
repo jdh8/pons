@@ -109,10 +109,10 @@ pub struct Inferences {
     control_bid: Option<(u8, Suit)>,
     /// The reading settings this reading was produced under — the gauges and
     /// membership rule [`admits`][Self::admits] tests on.  Carried on the value
-    /// so the sampler's acceptance test runs on the stance's pinned settings
+    /// so the sampler's acceptance test runs on the partnership's pinned settings
     /// without every sampler entry point growing a profile argument.  Skipped
     /// by serde and refilled with the shipped default on deserialize, matching
-    /// how a reading loaded from a corpus is gauged without an attached stance.
+    /// how a reading loaded from a corpus is gauged without an attached partnership.
     #[cfg_attr(feature = "serde", serde(skip, default = "ReadingProfile::default"))]
     profile: ReadingProfile,
 }
@@ -294,11 +294,11 @@ impl Inferences {
     ///
     /// **A bare `Context::new` reads far less than the bidder does.**
     /// Projection-based reading — the pass bands, the authored-rule overlay —
-    /// needs the convention keys that only `Stance::prefixed_context` attaches,
+    /// needs the convention keys that only `Partnership::prefixed_context` attaches,
     /// so on a keyless context every one of them is skipped silently: no error,
     /// and `0..=37` is a perfectly well-formed answer. A pass that the bidder
     /// reads as `0..=11` comes back vacuous here. Diagnostics that want *what
-    /// the bidder actually sees* must go through `Stance::infer`; this entry
+    /// the bidder actually sees* must go through `Partnership::infer`; this entry
     /// point is for the hand-coded walk alone.
     #[must_use]
     pub fn read(context: &Context<'_>) -> Self {
@@ -306,7 +306,7 @@ impl Inferences {
         // auction with their opening stripped: the advancer plays the grafted
         // 1NT structure, so the hand-coded notrump walk reads its artificial
         // Stayman/transfer calls instead of the natural walk raising a phantom
-        // suit.  Re-key the stripped auction through the attached stance so the
+        // suit.  Re-key the stripped auction through the attached partnership so the
         // projection overlay survives the strip — a bare `Context::new` has no
         // trie prefixes, so `project_authored` silently skips every authored
         // rule, and the calls only the *book* knows are conventional (the
@@ -318,7 +318,9 @@ impl Inferences {
             systems_on_overcall_strip(context.auction(), context.reading_profile())
         {
             return match context.own_system() {
-                Some(stance) => Self::read(&stance.prefixed_context(context.vul(), &stripped)),
+                Some(partnership) => {
+                    Self::read(&partnership.prefixed_context(context.vul(), &stripped))
+                }
                 None => Self::read(&Context::new(context.vul(), &stripped)),
             };
         }

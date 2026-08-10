@@ -629,7 +629,7 @@ repairs are live in both arms of the coming re-measure.
 
 §7.3.1's mechanism was never kickback-specific: the plain 1430 answers
 (5♣–5♠) and the ROPI/DOPI/DEPO rules on X/XX/Pass carry `.alert(RKCB_FLOOR)`
-and are present in **every** stance, so the shipped default alerted every
+and are present in **every** partnership, so the shipped default alerted every
 floor-classified five-level bid, double and redouble on faces with no ask
 anywhere, erasing their natural readings (regression: on
 `1♦ - 1♠ - 2♦ - 5♦` partner's diamond floor read as erased, restored by the
@@ -729,7 +729,7 @@ reading of every 4♦/4♥/4♠ — is §7.3.1, and it is the one that mattered.
   4♥/4♠ even with the knob off. `set_kickback` consequently gates rule
   **presence** at `instinct()` build time — the regime `set_minor_keycard`
   already documents — *and* the recognizer at classification time. A harness
-  must arm both: build one stance per arm, and set the flag per call by side.
+  must arm both: build one partnership per arm, and set the flag per call by side.
 - **A 4NT that answers a relocated ask is an answer, not a new ask.** With
   hearts agreed 4♠ asks and 4NT is its step 1; unguarded, the asker's own
   partner reads that 4NT as a fresh ask and answers *it*, and the 1.9-weighted
@@ -1527,7 +1527,7 @@ ladder race.** `neural_floor` kept the deterministic ladder in a process-wide
 anywhere in the process — but `relocating_now()` is read at *build* time and
 selects `KICKBACK_ANSWERS` over `PLAIN_ANSWERS`. `examples/ab-kickback` holds
 both arms in one process and re-arms the knob per call, so which arm's ladder
-won the race varied run to run, and the loser's stance answered relocated asks
+won the race varied run to run, and the loser's partnership answered relocated asks
 off the other arm's answer table. Every other `ab-kickback`-family harness
 (`probe-kickback-lane`, `probe-kickback-yield`, `dump-teacher`) is affected the
 same way; `bba-gen` is not, since it is one process per arm with all `--ns-*`

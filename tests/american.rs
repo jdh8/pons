@@ -11,7 +11,7 @@ use rand::rngs::StdRng;
 
 #[test]
 fn test_openings() {
-    let system = stance();
+    let system = partnership();
     let open = &[][..];
 
     // 16 HCP balanced -> 1NT, even though 2♣ exists for the very strong.
@@ -72,7 +72,7 @@ fn test_light_third_seat_major() {
     // points assume (the 5-5 reads 11, not the point-count cap of 10).
     let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.reading.point_scale = PointScale::RuleOfNFloored;
-    let system = pons::american(&agreements).against();
+    let system = pons::american(&agreements).bind();
     // 9 HCP, 5-5-2-1 -> 11 points: short of the first-seat `points(12..)` but
     // clear of third seat's Rule-of-19 band, and 9 HCP clears the legal 8.
     let light = "AQ432.J8765.Q4.2";
@@ -92,7 +92,7 @@ fn test_light_third_seat_major() {
 
 #[test]
 fn test_major_responses() {
-    let system = stance();
+    let system = partnership();
     let after_1h = &[call(1, Strain::Hearts), Call::Pass][..];
 
     // 9 HCP, three-card support -> single raise.
@@ -126,7 +126,7 @@ fn test_major_responses() {
 
 #[test]
 fn test_minor_responses() {
-    let system = stance();
+    let system = partnership();
 
     // 1♣ - four hearts up the line -> 1♥.
     assert_eq!(
@@ -152,7 +152,7 @@ fn test_minor_responses() {
 
 #[test]
 fn test_notrump_responses_and_completions() {
-    let system = stance();
+    let system = partnership();
     let p = Call::Pass;
     let one_nt = call(1, Strain::Notrump);
 
@@ -192,7 +192,7 @@ fn test_notrump_responses_and_completions() {
 
 #[test]
 fn test_opener_rebid_raises_spades() {
-    let system = stance();
+    let system = partnership();
     let p = Call::Pass;
     // 1♥ - 1♠ - ?: 14 HCP with four spades raises to 2♠.
     assert_eq!(
@@ -209,7 +209,7 @@ fn test_opener_rebid_raises_spades() {
 
 #[test]
 fn test_negative_double_and_system_on() {
-    let system = stance();
+    let system = partnership();
     let one_h = call(1, Strain::Hearts);
 
     // 1♥ (2♣) ?: 10 HCP with four spades makes a negative double.
@@ -232,7 +232,7 @@ fn test_negative_double_and_system_on() {
 
 #[test]
 fn test_defense() {
-    let system = stance();
+    let system = partnership();
 
     // (1♣) ?: 9 HCP with five spades overcalls 1♠.
     assert_eq!(
@@ -261,7 +261,7 @@ fn test_defense() {
 
 #[test]
 fn test_more_openings() {
-    let system = stance();
+    let system = partnership();
     let open = &[][..];
 
     // 20 HCP balanced (20.4 Fifths) -> 2NT.
@@ -290,7 +290,7 @@ fn test_more_openings() {
 
 #[test]
 fn test_major_raise_grades() {
-    let system = stance();
+    let system = partnership();
     let after_1h = &[call(1, Strain::Hearts), Call::Pass][..];
 
     // 12 HCP, four-card support -> limit raise (limit raises promise four
@@ -304,7 +304,7 @@ fn test_major_raise_grades() {
 
 #[test]
 fn test_minor_raise() {
-    let system = stance();
+    let system = partnership();
     // 1♦ - eight-count with five-card support -> inverted minors flip the raise
     // meanings: 3♦ is the weak preemptive raise.
     assert_eq!(
@@ -319,7 +319,7 @@ fn test_minor_raise() {
 
 #[test]
 fn test_notrump_ladder() {
-    let system = stance();
+    let system = partnership();
     let after_1nt = &[call(1, Strain::Notrump), Call::Pass][..];
 
     // 11 HCP, flat 4-3-3-3 (four clubs): no Puppet — a flat hand plays 3NT, not
@@ -339,7 +339,7 @@ fn test_notrump_ladder() {
 
 #[test]
 fn test_defense_extras() {
-    let system = stance();
+    let system = partnership();
 
     // (1♦): 18 HCP with length in diamonds: double first, plan to bid again.
     assert_eq!(
@@ -359,7 +359,7 @@ fn test_defense_extras() {
 fn test_full_board_smoke() {
     // Two bound copies paired into a table: the dealer's side opens, the
     // other defends.
-    let table = stance().vs(stance());
+    let table = partnership().vs(partnership());
 
     assert_eq!(
         best_call(&table, &[], "AQ32.K53.QJ4.A92"),
@@ -379,10 +379,10 @@ fn test_full_board_smoke() {
 
 #[test]
 fn strength_dial_zero_preserves_american_logits() {
-    let baseline = pons::american(&pons::bidding::agreements::Agreements::default()).against();
+    let baseline = pons::american(&pons::bidding::agreements::Agreements::default()).bind();
     let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.reading.strength_dial = 0;
-    let dial_zero = pons::american(&agreements).against();
+    let dial_zero = pons::american(&agreements).bind();
     let mut rng = StdRng::seed_from_u64(0x5_7EED);
 
     for _ in 0..8 {
@@ -399,7 +399,7 @@ fn strength_dial_zero_preserves_american_logits() {
 #[test]
 fn test_jacoby_into_keycards() {
     // `1♠ - 2NT - 3♣ - 4NT`: Jacoby, then shortness, then RKCB; opener answers.
-    let system = stance();
+    let system = partnership();
     let p = Call::Pass;
     let auction = [
         call(1, Strain::Spades),
@@ -421,7 +421,7 @@ fn test_jacoby_into_keycards() {
 #[test]
 fn test_game_force_into_keycards() {
     // `1♠ - 2♣ - 2♦ - 3♠ - 4NT`: responder sets trump, then answers 1430.
-    let system = stance();
+    let system = partnership();
     let p = Call::Pass;
     let auction = [
         call(1, Strain::Spades),
@@ -445,7 +445,7 @@ fn test_game_force_into_keycards() {
 #[test]
 fn test_strong_two_system_on_transfer() {
     // `2♣ - 2♥ - 2NT`: after the double negative and 22–24 rebid, transfers stay on.
-    let system = stance();
+    let system = partnership();
     let p = Call::Pass;
     let auction = [
         call(2, Strain::Clubs),
@@ -492,7 +492,7 @@ fn test_competition_book_needs_binding() {
         Call::Double,
     );
     // ...but its system-on rebase lands in the uncontested core, which only
-    // the stance bound by `Pair::against` contains. Responder's *first* call
+    // the partnership bound by `System::bind` contains. Responder's *first* call
     // over the double is answered directly (the shipped Jordan/Truscott node),
     // so probe one step deeper: opener's rebid after a forcing 1♠ still rides
     // the rebase onto the uncontested tree.

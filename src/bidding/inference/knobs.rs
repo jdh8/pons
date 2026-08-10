@@ -1,7 +1,7 @@
 //! Reading agreements and the profile snapshot that keys the caches
 //!
 //! Every field here is read at **classify time**, not at book construction.
-//! A [`ReadingProfile`] is pinned into each stance so cached projections and
+//! A [`ReadingProfile`] is pinned into each partnership so cached projections and
 //! their readers agree about the settings they were computed under.
 
 /// How much of the authored book the projection pass decodes
@@ -137,7 +137,7 @@ pub struct ReadingProfile {
     /// Two hull regimes were measured (chop F1).  On a **bare**
     /// `Context::new` — no projection overlay, the `dump-teacher` path — the
     /// hulls are knob-invariant, byte-identical over a 21K-row dump.  On a
-    /// **prefixed** context (`Stance::infer`, what the bidder, the floor net
+    /// **prefixed** context (`Partnership::infer`, what the bidder, the floor net
     /// and the bilans evaluator actually see) the authored-projection overlay
     /// tightens with this on (⊤→box upgrades, `envelope_union_upgrade`), so
     /// those consumers' inputs move with it.
@@ -350,10 +350,10 @@ pub struct ReadingProfile {
     /// search-mode sampling, disclosure.
     pub pass_exclusion: bool,
 
-    /// Fold the stance's behaviorally probed boxes into the projection overlay
+    /// Fold the partnership's behaviorally probed boxes into the projection overlay
     ///
     /// **Default off.**  The sampled-projection derivation, stored:
-    /// [`Stance::probe`][crate::bidding::Stance::probe] bids self-play deals
+    /// [`Partnership::probe`][crate::bidding::Partnership::probe] bids self-play deals
     /// and records the widened bounding box of the hands that actually made
     /// each call, keyed by auction prefix.  On, the projection pass intersects
     /// each prior call's probed box into both overlays.  This is the only
@@ -363,7 +363,7 @@ pub struct ReadingProfile {
     ///
     /// The boxes are **behavioral estimates**, widened at the edges (a sample
     /// bound is not a rule bound) — see `Observed::boxed` in
-    /// [`book`][crate::bidding::Stance] for the exact slack.  A stance with an
+    /// [`book`][crate::bidding::Partnership] for the exact slack.  A partnership with an
     /// empty probed map reads identically either way.
     pub probed: bool,
 
@@ -389,7 +389,7 @@ pub struct ReadingProfile {
     /// `0..13`, docs/reading-drift-handoff.md), which no symbolic reader
     /// reaches.  A third gate scopes the fold to **contested prefixes** (both
     /// sides have acted): filling constructive axes smoke-tested at −0.67
-    /// IMPs/board of net-OOD grand blasts.  A stance with an empty probed map
+    /// IMPs/board of net-OOD grand blasts.  A partnership with an empty probed map
     /// reads identically either way; when both probed settings are on, the full
     /// fold wins.
     ///
@@ -524,7 +524,7 @@ pub struct ReadingProfile {
     /// It used to be baked into each gauge as the constraint was *built*, on
     /// the grounds that a classify-time read would leak the dial into the book
     /// seated opposite on the same thread.  Pinning removed that leak — the
-    /// deviant stance carries its own profile — so the dial reads from here
+    /// deviant partnership carries its own profile — so the dial reads from here
     /// like every other gauge setting, and no longer needs an `&Agreements` at
     /// 1431 `.rule()` sites to reach the three constructors.
     pub strength_dial: u8,
@@ -918,7 +918,7 @@ impl ReadingProfile {
     }
 
     /// Every field driven off its shipped default, for the cross-thread pinning
-    /// test (`stance_pins_knobs_across_threads`).
+    /// test (`partnership_pins_knobs_across_threads`).
     #[cfg(test)]
     pub(crate) fn nondefault() -> Self {
         Self {

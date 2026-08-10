@@ -33,7 +33,7 @@ struct Args {
 
 fn main() {
     let args = Args::parse();
-    let stance = dutch_default().against();
+    let partnership = dutch_default().bind();
     // Rayon is safe here precisely because this dump takes no knobs: the
     // thread-locals are `const`-initialised to the shipped defaults, so a
     // worker thread starts out holding exactly the system under test.  A
@@ -62,7 +62,7 @@ fn main() {
             let mut auction = Auction::new();
             while !auction.has_ended() {
                 let seat = seat_to_act(dealer, auction.len());
-                auction.push(next_call(&stance, deal[seat], dealer, vul, &auction));
+                auction.push(next_call(&partnership, deal[seat], dealer, vul, &auction));
             }
             let calls: Vec<String> = auction.iter().map(|call| format!("{call}")).collect();
             format!("{index}\t{}", calls.join(" "))

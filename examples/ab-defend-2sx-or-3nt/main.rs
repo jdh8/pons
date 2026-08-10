@@ -50,7 +50,7 @@ use contract_bridge::{
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::constraint::{Constraint, hcp, len, stopper_in, top_honors};
-use pons::bidding::{Context, Stance, Table};
+use pons::bidding::{Context, Partnership, Table};
 use pons::scoring::{final_contract, ns_score_contract};
 use std::collections::HashMap;
 
@@ -151,9 +151,9 @@ fn response_flavors() -> Vec<Flavor> {
 // ---------------------------------------------------------------------------
 
 /// Both pairs play 2/1 at a table with West dealing, at the CLI vulnerability
-fn build_table(vul: AbsoluteVulnerability) -> Table<Stance, Stance> {
-    let pair = american(&pons::bidding::agreements::Agreements::default());
-    Table::of_pairs(&pair, &pair, Seat::West, vul)
+fn build_table(vul: AbsoluteVulnerability) -> Table<Partnership, Partnership> {
+    let system = american(&pons::bidding::agreements::Agreements::default());
+    Table::of_systems(&system, &system, Seat::West, vul)
 }
 
 /// The auction seeded with `(2♠) X -` and South's `decision`
@@ -184,7 +184,7 @@ struct Collected {
 
 fn collect_deals(
     args: &Args,
-    table: &Table<Stance, Stance>,
+    table: &Table<Partnership, Partnership>,
     flavors: &[Flavor],
     rng: &mut (impl rand::Rng + ?Sized),
 ) -> Collected {
@@ -293,7 +293,7 @@ fn contract_key(result: Option<(Contract, Seat)>) -> String {
 }
 
 fn score_deals(
-    table: &Table<Stance, Stance>,
+    table: &Table<Partnership, Partnership>,
     deals: &[FullDeal],
     vulnerability: AbsoluteVulnerability,
 ) -> (Vec<Outcome>, BranchTelemetry) {

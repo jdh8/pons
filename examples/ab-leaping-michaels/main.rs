@@ -108,9 +108,9 @@ fn main() {
 
     let mut arm = pons::bidding::agreements::Agreements::default();
     arm.defense.leaping_michaels_enabled = on_from(&args.ew);
-    let baseline = american(&arm).against();
+    let baseline = american(&arm).bind();
     arm.defense.leaping_michaels_enabled = on_from(&args.ns);
-    let lm = american(&arm).against();
+    let lm = american(&arm).bind();
 
     // Phase 1 (sequential, cheap): deal + the shape-only filter until `count`
     // boards pass. The RNG stays single-threaded so a seed reproduces a run.

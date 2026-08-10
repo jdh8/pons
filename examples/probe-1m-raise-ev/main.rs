@@ -103,7 +103,7 @@ fn main() {
     let args = Args::parse();
     assert!(args.count > 0, "--count must be positive");
 
-    let stance = dutch(&pons::bidding::agreements::Agreements::default()).against();
+    let partnership = dutch(&pons::bidding::agreements::Agreements::default()).bind();
     let one_heart = Bid::new(1, Strain::Hearts);
     let mut rng = StdRng::seed_from_u64(args.seed);
     let mut attempts = 0usize;
@@ -113,7 +113,7 @@ fn main() {
         attempts += 1;
         let deal = full_deal(&mut rng);
         let north = deal[Seat::North];
-        let Some(logits) = stance.classify(north, RelativeVulnerability::NONE, &[]) else {
+        let Some(logits) = partnership.classify(north, RelativeVulnerability::NONE, &[]) else {
             continue;
         };
         let best = (&logits.0)

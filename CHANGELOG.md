@@ -9,6 +9,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **A partnership plays a system; anything that picks a call is a bidder.**
+  The authored `Pair` becomes `System`, the bound runtime `Stance` becomes
+  `Partnership`, `Pair::against()` becomes `System::bind()`, and
+  `Table::of_pairs` becomes `Table::of_systems`.
+
+  `Pair` had drifted by *subtraction*: it was authored as a `Family` label plus
+  three books, and `f7659fd` deleted `Family` — correctly, the label was
+  production-dead — stripping the arguments from both `Pair::new` and
+  `Pair::against` on the way out.  What was left was simply the system one side
+  plays, returned by every factory, while its doc still insisted it was "not yet
+  a system"; and `against` was a preposition whose object had been deleted.
+
+  **Breaking:** all four names move.  Behaviour does not: the seeded
+  `smoke-default` / `smoke-dutch` dumps (20 000 boards each) are byte-identical
+  and `cards/*.bbsa` regenerate unchanged.
+
 - **`Bidder` is the public adapter trait for bidding engines.** All bounds,
   implementations, trait objects, re-exports, and intra-doc links use the new
   name. This is an API-only rename; bidding logic, defaults, and behaviour are
@@ -16,27 +32,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **`bidding::scoped` and `Stance::profile_mut`** — the two authoring hooks of
-  the pin-at-build campaign.  `scoped(|| { set_…(); american().against() })` runs
+- **`bidding::scoped` and `Partnership::profile_mut`** — the two authoring hooks of
+  the pin-at-build campaign.  `scoped(|| { set_…(); american().bind() })` runs
   the build on a fresh thread, so it starts from the shipped defaults instead
   of inheriting whatever knobs the caller's thread was left holding; the
-  caller's own knob state is untouched.  `Stance::profile_mut` hands out the
-  stance's *own* pinned profile for editing, the deliberate escape hatch for an
-  eval-time-only arm — one setting moved on a built stance without rebuilding
+  caller's own knob state is untouched.  `Partnership::profile_mut` hands out the
+  partnership's *own* pinned profile for editing, the deliberate escape hatch for an
+  eval-time-only arm — one setting moved on a built partnership without rebuilding
   the book under it.  It edits rather than re-captures on purpose: an arm that
   had to arm a global, clone, re-capture and restore could only be correct if
-  the thread happened to hold what the stance was built under, and two arms
+  the thread happened to hold what the partnership was built under, and two arms
   sharing a thread could not be built independently.  Taking the borrow
-  invalidates the stance's cache identity eagerly, so no edit can outlive the
+  invalidates the partnership's cache identity eagerly, so no edit can outlive the
   deal cache that served the old value.  The inference, instinct,
   evaluator and point-scale layers now read that pinned profile rather than the
   thread, as do the book's own classify-time guards (the GF-majors transfer
-  structure caps and reroutes), so a stance decides identically on any thread —
+  structure caps and reroutes), so a partnership decides identically on any thread —
   and a reading, floor, evaluator, scale or classify-time book knob set *after*
-  `Pair::against` is inert until the next build.  A reading also carries the settings it was
+  `System::bind` is inert until the next build.  A reading also carries the settings it was
   gauged under, so the layout sampler's acceptance test (`Inferences::admits`)
-  runs on the stance's scale rather than the sampling thread's.  Knobs consumed
-  at book construction keep their old timing; a bare context with no stance
+  runs on the partnership's scale rather than the sampling thread's.  Knobs consumed
+  at book construction keep their old timing; a bare context with no partnership
   attached (unit tests, `resolve`, rows `verify`) still consults the thread;
   and the two corpus-only feature extractors (`features_eval_shape`,
   `features_eval_points`, both reached from `dump-evaluator` alone) keep
@@ -45,10 +61,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   The pin reaches the reading's *derived* contexts too.  The projection walks
   each turn of the auction through a context of its own, and those carry no
-  stance; they now inherit the reader's pinned profile
+  partnership; they now inherit the reader's pinned profile
   (`Context::with_profile`) instead of falling back to the thread.  Without it
   the whole authored-projection layer still decoded under whatever knobs the
-  thread held — the shipped defaults on a rayon worker — which is why a stance
+  thread held — the shipped defaults on a rayon worker — which is why a partnership
   built under a non-default `set_reading_scope` read exactly like one built
   under the default (measured: 0 of 3 984 prefixes moved by the pin, 2 880 by
   the thread-local; after the fix, 2 932 by the pin and 0 by the thread).  This
@@ -56,14 +72,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   unaffected, and it restores `ab-alert-reading` to the divergent-board count
   it had before the campaign (57 of 4 000, seed 7).
 
-  `stance_pins_knobs_across_threads` is the campaign's keystone and now runs
-  unignored, armed over all 84 pinned cells: a stance built under a system
+  `partnership_pins_knobs_across_threads` is the campaign's keystone and now runs
+  unignored, armed over all 84 pinned cells: a partnership built under a system
   nobody plays must bid 24 seeded deals identically on a virgin thread whose
   thread-locals hold the shipped defaults.  It is the cover for the derived-
   context gap above — with that one line reverted it fails on 2 of the 24.
 
-- **A non-default `rayon` feature fans `Stance::probe` across the pool.** The
-  pin's first dividend, and the reason it was worth doing: a built stance is a
+- **A non-default `rayon` feature fans `Partnership::probe` across the pool.** The
+  pin's first dividend, and the reason it was worth doing: a built partnership is a
   pure `Send + Sync` value, so the probe's self-play harvest is just a
   `par_iter` now.  Every board is seeded on its own
   (`seed.wrapping_add(board)`) and the per-key merge is a count sum and a
@@ -229,14 +245,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Five more A/B harnesses the pin-at-build sweeps had missed**, the same
-  idiom a third time: one stance built in `main`, the knob set inside the
+  idiom a third time: one partnership built in `main`, the knob set inside the
   per-call bidding loop, where the cell is a pinned `InstinctProfile` /
   `ReadingProfile` member — so both sides bid identically and the run reported
   a wash it had not measured.  `ab-nt-hcp` (`BILANS_FLOOR`, `NT_HCP_READ`),
   `ab-fit-sum-game` (`FIT_SUM_GAME`, `SUPPORT_POINTS`, `FIT_SUM_SUPPORT_READ`),
   `ab-bilans-floor` (`BILANS_FLOOR`), `ab-slam-entry` (`FLOOR_SLAM_ENTRY`) and
-  `ab-one-nt-runout` (13 runout/gambling cells) now hold a `[Stance; 2]` built
-  one arm at a time, indexed `stances[usize::from(seat_is_ns == feature_is_ns)]`
+  `ab-one-nt-runout` (13 runout/gambling cells) now hold a `[Partnership; 2]` built
+  one arm at a time, indexed `partnerships[usize::from(seat_is_ns == feature_is_ns)]`
   like their repaired siblings.  Measured at 3 000 deals, seed 0, against the
   unfixed parent: `ab-bilans-floor` 0 → 125 divergent boards, `ab-slam-entry`
   0 → 25, `ab-nt-hcp` 0 → 19, `ab-one-nt-runout` 0 → 8 (`--filter-1nt`),
@@ -301,14 +317,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Six A/B harnesses that the pin-at-build campaign had silently turned into
   no-ops.**  Each armed its candidate side by setting a knob just before every
-  classification, off a single stance built once — an idiom the pin made inert,
+  classification, off a single partnership built once — an idiom the pin made inert,
   so both sides bid identically and the run reported a clean wash on every board
   and meant nothing by it.  Measured against the campaign parent at 1500 deals,
   seed 7: `ab-fuzzy-strength` 245 → 0 divergent boards, `ab-inference-floor`
   39 → 0, `ab-point-count` 30 → 0, `ab-settle-floor` 29 → 0,
   `ab-fifths-companion` 7 → 0, `ab-stayman-net-force` 2 → 0.  Five share one
   shape — self-play with the knob flipped per acting seat — and now hold a
-  `[Stance; 2]` built one arm at a time, restoring the parent's exact divergent
+  `[Partnership; 2]` built one arm at a time, restoring the parent's exact divergent
   count in every case.  `ab-point-count`'s scale arms are *eval-time* by design
   (both books on the shipped defaults, only the classify-time gauge differing,
   so the run prices the scale rather than the whole system a rebuild would move),
@@ -320,33 +336,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   default-knob behaviour moved: the seeded smoke dumps stay byte-identical.
 
 - **A second sweep, over every remaining harness that set a knob after its
-  build.**  Same idiom, same fix — arm, build, hand the stance to the workers.
+  build.**  Same idiom, same fix — arm, build, hand the partnership to the workers.
   `ab-alert-reading` and `ab-nt-invite` flipped a reading knob per board off one
-  shared stance and now build one book per arm (`ab-alert-reading` is back to
+  shared partnership and now build one book per arm (`ab-alert-reading` is back to
   the parent's 57 divergent boards of 4 000 at seed 7; `ab-nt-invite` measured
   0 at the parent too, so its repair is structural).  `ab-landy` armed the
   penalty latch inside the worker, where it reached neither book; it is now set
   before both, as the single thread-local it replaced was.
   `ab-nt-defense-matrix` flipped the doubled-1NT runout per *cell*, so its
   "sit" column had stopped differing from the others; the flags are baked into
-  that column's stance.  `ab-dnf-sd-lead` and `probe-closure-features` each
-  arm a *reading* knob, so each arm now gets its own reader stance.
+  that column's partnership.  `ab-dnf-sd-lead` and `probe-closure-features` each
+  arm a *reading* knob, so each arm now gets its own reader partnership.
   `dump-evaluator`'s `--closed-hulls` reads through a knob-on twin of each
-  system (its `rayon::broadcast` is deleted — the workers read the stance now),
-  and `probe-reading-census` moves the stance's own `probed` bit after the
+  system (its `rayon::broadcast` is deleted — the workers read the partnership now),
+  and `probe-reading-census` moves the partnership's own `probed` bit after the
   probe, which is the only way to express "fill the store, then read from it".
   `ab-major-continuations`, `ab-minor-continuations`, `ab-kickback` and
-  `probe-kickback-yield` already built one stance per arm and only carried a
+  `probe-kickback-yield` already built one partnership per arm and only carried a
   now-redundant per-call re-arm, which is deleted; their divergent counts are
   unchanged against the parent.  `examples/common`'s `Blinded` wrapper is
-  replaced by `blinded(&stance)`, a copy with one setting moved — its one caller is
+  replaced by `blinded(&partnership)`, a copy with one setting moved — its one caller is
   `bba-gen`'s deviation panel, and a `&dyn Bidder` wrapper could no longer
-  blank a reading the stance had already pinned.
+  blank a reading the partnership had already pinned.
 
 - **`bba-gen --their-ns` no longer leaks our classify-time knobs onto their
   seat.**  The opponents' book was built under `--their-*` and then reset, but
   the classify-time half was read live, so whichever side classified second did
-  so under the other's knobs.  Each seat now reads under its own stance's pin.
+  so under the other's knobs.  Each seat now reads under its own partnership's pin.
   Dumps drawn with `--their-ns` before this differ from ones drawn after
   wherever the two seats disagree on a classify-time knob; the usual case,
   matching `--ns-*` and `--their-ns`, is unaffected.  `--ns-probe` likewise
@@ -503,7 +519,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   knobs of its own (`relocating_now()` installs `KICKBACK_ANSWERS` instead of
   `PLAIN_ANSWERS`; `hcp()` captures `strength_dial()`), and meanwhile
   `common::with_floor` gave the *constructive* book a fresh `instinct()` built at
-  the caller's moment — so the two floors of a single `Pair` could disagree, with
+  the caller's moment — so the two floors of a single `System` could disagree, with
   nothing asserting they agree.  The ladder is now an `Arc<Rules>` built once per
   `with_floor` call and shared by the shell and the constructive book, which
   makes the invariant structural rather than merely intended.  It bit any process
@@ -607,10 +623,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Seeded `smoke-default` / `smoke-dutch` dumps (20 000 boards each) are
   byte-identical to `4c3dce2`, and `cards/*.bbsa` regenerate unchanged.
 
-- **A `Pair` carries the `Agreements` its books were baked from, and binding
+- **A `System` carries the `Agreements` its books were baked from, and binding
   reads the classify-time half from that value instead of the thread.**  The
   constructors already took an `&Agreements` and built the books from it — then
-  dropped it.  `Pair::against` recovered the classify-time half by calling
+  dropped it.  `System::bind` recovered the classify-time half by calling
   `DecisionProfile::current()`, and the compiled-rule sidecar
   (`CompiledRuleRegistry::compile`, and `CompiledRules::compile_with_cache`
   below it, which reached past a `&Context` it already held) each read the
@@ -623,16 +639,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the entire point of the value — and the books play one system while the
   readings decode another.  The seeded dumps cannot see it either, since both
   smoke arms run shipped defaults in and shipped defaults out.  It is now
-  unrepresentable: `Pair::new` takes the value as a fourth argument, `against`
+  unrepresentable: `System::new` takes the value as a fourth argument, `bind`
   pins `self.agreements.decision`, and the sidecar bakes under the same value in
-  the same expression.  `Stance::agreements()` finally lets a built system be
+  the same expression.  `Partnership::agreements()` finally lets a built system be
   asked what it plays.
 
-  **Breaking:** `Pair::new` takes a trailing `Agreements`; `Pair` gains a public
+  **Breaking:** `System::new` takes a trailing `Agreements`; `System` gains a public
   `agreements` field; `Agreements::decision` is `pub`; `Agreements`,
   `DecisionProfile`, `InstinctProfile` and `FifthsCompanion` derive `Debug`.
 
-  Four projection tests armed a knob *between* `Pair::default()` and `against()`
+  Four projection tests armed a knob *between* `System::default()` and `bind()`
   and so were the only in-crate cover for the broken seam — one failed
   immediately on the change, which is the check that it was real.  All four now
   build from an explicit capture.  Seeded dumps stay byte-identical to
@@ -673,7 +689,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The floor's own tests gain `best_with(&agreements, …)`, which pins the
   profile into their bare context (`Context::with_profile`) rather than
   relying on the thread; the `best` it replaces could not have caught a read
-  escaping the pin.  The campaign keystone `stance_pins_knobs_across_threads`
+  escaping the pin.  The campaign keystone `partnership_pins_knobs_across_threads`
   still drives all thirty-one off their defaults, now through
   `InstinctProfile::nondefault()` assigned onto the value it builds from.
 
@@ -726,9 +742,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **A `Context` serves one profile, not a precedence chain.**  `pinned_profile:
   Option<DecisionProfile>` becomes `profile: DecisionProfile` — always present.
   `Context::new` starts it at the shipped default, `with_system` takes the
-  attached stance's pin, `with_profile` sets it directly.  The two four-arm
+  attached partnership's pin, `with_profile` sets it directly.  The two four-arm
   cascades behind `reading_profile()` and `decision_profile()` — decision cache,
-  attached stance, explicit pin, thread-local — collapse to a field read, and
+  attached partnership, explicit pin, thread-local — collapse to a field read, and
   both are now `const fn`.  That cascade existed because a knob could be armed
   ambiently mid-decision; with one home per knob there is nothing left to
   disagree.
@@ -770,8 +786,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   assert.  With one home per knob none of the three can fail;
   `no_knob_lives_in_two_homes` — which scans all eight build-time areas and all
   three classify-time profiles for a field name in two places — is what still
-  holds the line.  `stance_pins_knobs_across_threads` no longer arms anything:
-  it builds two pairs from one deliberately non-default `Agreements` and checks
+  holds the line.  `partnership_pins_knobs_across_threads` no longer arms anything:
+  it builds two systems from one deliberately non-default `Agreements` and checks
   24 seeded deals bid identically on a second thread.
 
   Seeded `smoke-default` / `smoke-dutch` dumps (20 000 boards each) are
@@ -838,7 +854,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `point_count_on` already read.  `assert_package_invariants` keeps its two
   regimes apart with two contexts instead of a save/restore around the cell.
 
-  The campaign keystone `stance_pins_knobs_across_threads` still drives all
+  The campaign keystone `partnership_pins_knobs_across_threads` still drives all
   forty-three reading fields off their defaults: nineteen through
   `ReadingProfile::nondefault()`, the rest through the cells it still arms.
 
@@ -852,7 +868,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **The three classify-time profiles are public, and documented.**
   `DecisionProfile`, `ReadingProfile` and `InstinctProfile` — the `Copy`
-  snapshots pinned into a `Stance` at `Pair::against`, so a stance classifies
+  snapshots pinned into a `Partnership` at `System::bind`, so a partnership classifies
   identically on any thread — are now `pub` with `pub` fields, and
   `bidding::inference::knobs` is a `pub mod`.  That is what lets the classify
   half of the campaign follow the build-time half: `pons-web` has to reach
@@ -1026,11 +1042,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the constraint was *constructed*, which put it out of reach of an
   `&Agreements`: `hcp`, `points` and `support_points` are called at ~1400
   `.rule()` sites with no capture in scope.  It is now a `ReadingProfile` field,
-  pinned into the stance at `Pair::against` like every other gauge setting.
+  pinned into the partnership at `System::bind` like every other gauge setting.
   Only the magnitude moved — the antisymmetric direction was already chosen per
   decision from the auction (`dial_shift`).  The harness idiom is unchanged
-  (arm, build the deviant pair, reset), and a new test
-  `strength_dial_survives_on_a_pinned_stance` pins that a deviant stance keeps
+  (arm, build the deviant system, reset), and a new test
+  `strength_dial_survives_on_a_pinned_partnership` pins that a deviant partnership keeps
   its dial after the thread resets.  The build-time capture existed because a
   classify-time read would once have leaked the dial into the book seated
   opposite on the same thread; the pin campaign removed that leak, and the docs
@@ -1098,7 +1114,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `rebids`, but they are opener's rebid machinery and share `RebidKnobs`.
   Three of the area's twelve cells are **not** among the nine —
   `OPENER_EXTRAS_LADDER`, `OPENER_MAJOR_JUMP_REBID` and `XYZ` are read at
-  classify time too, so they keep their single home in the `Stance`-pinned
+  classify time too, so they keep their single home in the `Partnership`-pinned
   `DecisionProfile` and their build sites read that through three new
   `ReadingProfile` accessors.  `MECKSTROTH_MINOR_JUMPS` had only a setter and a
   raw `Cell::get` at its use site; it gained a getter.  `meckstroth()`, a second
@@ -1119,7 +1135,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `&Agreements` like `openings`, `defensive` and `notrump_responses` before
   them.  `LONGER_MAJOR_RESPONSE` is **not** among the nine — the M6.4
   control-bid classifier reads the same discipline at classify time, so it
-  keeps its single home in the `Stance`-pinned `DecisionProfile` and the
+  keeps its single home in the `Partnership`-pinned `DecisionProfile` and the
   selector pair reads it from there through a new
   `ReadingProfile::longer_major_response` accessor.  `up_the_line` is read
   across the area boundary by two of opener's rebid tables, which now take an
@@ -1136,7 +1152,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `defense_to_suit` and `notrump_responses` before them.
   `TWO_NOTRUMP_WIDE` is **not** among the nine — `inference/readers.rs` caps
   the `2NT` opener's minor length on it at classify time, so it keeps its
-  single home in the `Stance`-pinned `DecisionProfile` and the shape gate reads
+  single home in the `Partnership`-pinned `DecisionProfile` and the shape gate reads
   it from there through a new `ReadingProfile::two_notrump_wide` accessor.
   Three cells that had only a setter (`ONE_NOTRUMP_FIFTHS`, `WEAK_TWO_HCP`,
   `WEAK_TWO_EVAL`) gained a raw getter so `capture()` could reach them, and
@@ -1155,7 +1171,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   casts, and the transfer-table activation tests.  Three of the subtree's 24
   cells are **not** here — `STAYMAN_NET_FORCE`, `TRANSFER_GF_MAJORS` and
   `TRANSFER_GF_HEARTS` are read at classify time too, so they keep their single
-  home in the `Stance`-pinned `DecisionProfile`, and their build-time sites read
+  home in the `Partnership`-pinned `DecisionProfile`, and their build-time sites read
   that pinned copy rather than duplicating them in `NotrumpKnobs`.  Setters,
   cells, and externally consumed getter signatures are untouched.
   Byte-identical.
@@ -1881,7 +1897,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   feeds `Inferences`, not the card block, and the inference block varies
   enormously in training.  User impact: none by default.
 
-- **`Stance::with_opponents(them)`: read the opponents' calls off *their*
+- **`Partnership::with_opponents(them)`: read the opponents' calls off *their*
   books (rows Phase 2b) — measured, REFUTED, default off.**  The reader's
   twin of the card channel above, and it needed a real split first:
   `Context::their_system` was serving two masters.  Five of its eight
@@ -2246,7 +2262,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   that with a fifth of a tenfold surplus is the trade the optimization existed
   to make available.
 
-  No gate fails: all three are *ratios* over the same stance, and Pons/BBA is
+  No gate fails: all three are *ratios* over the same partnership, and Pons/BBA is
   0.0972 / 0.0746 against a `< 1.0` bar. BBA-opposed A/Bs are unaffected — BBA
   dominates at 168–204 µs — so only self-play data-gen pays the ~20%, and that
   is the one number to watch if throughput ever binds again. **The recovery path
@@ -2695,7 +2711,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   downstream consumer (rule presence, recognizers, `classify_bba`'s weight
   selection, the `Kickback 1430` card row) is untouched. Zero bidding change:
   the default system is byte-identical (seeded 20k-board `smoke-default`
-  diff), and the Kickback stance replays the fixed-deal keycard probes
+  diff), and the Kickback partnership replays the fixed-deal keycard probes
   byte-identically. Neither deleted setter ever appeared in a published
   release. Surface renames: `bba-gen`'s `--ns-kickback`/`--ns-redwood` (which
   silently accepted both at once) become one `--ns-rkcb
@@ -2769,12 +2785,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `kickback_ladder`'s claim loop, so every recognizer and rule downstream
   inherits it. Opt-in and unmeasured as its own arm (the full-kickback loss
   charged the minor lanes per-lane, but a per-lane cut of one arm prices no
-  stance); while opt-in it rides the kickback twin's weights and the
+  partnership); while opt-in it rides the kickback twin's weights and the
   `Kickback 1430` card row, both documented approximations. The default
   system is byte-identical; `bba-gen` grows `--ns-redwood`.
   `classify_bba_v4` runs
   `american_bba_v4` at its 368-input width, `ConfiguredFloorBba` is the same
-  safety shell over it, and `american_configured()` is the 2/1 pair standing on
+  safety shell over it, and `american_configured()` is the 2/1 system standing on
   it. The floor captures the cell — both partnerships' cards — **once at build
   time**, so the per-decision path reads no ambient knob state and cannot
   silently change what a feature vector means;
@@ -2930,7 +2946,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reproduces the old behaviour for comparison only.
 
   `--cell OURS/THEIRS` (repeatable) interleaves table configurations, defaulting
-  to the six of `configured-net.md`. Each side gets its own card, reading stance
+  to the six of `configured-net.md`. Each side gets its own card, reading partnership
   and teacher, dispatched by the acting seat — so a **mixed table emits both
   asymmetric cells at once**, because a row is written from the acting seat's
   view. Verified end to end: six table configs produce exactly **8 distinct
@@ -3306,7 +3322,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reproduces the old behaviour for comparison only.
 
   `--cell OURS/THEIRS` (repeatable) interleaves table configurations, defaulting
-  to the six of `configured-net.md`. Each side gets its own card, reading stance
+  to the six of `configured-net.md`. Each side gets its own card, reading partnership
   and teacher, dispatched by the acting seat — so a **mixed table emits both
   asymmetric cells at once**, because a row is written from the acting seat's
   view. Verified end to end: six table configs produce exactly **8 distinct
@@ -3455,10 +3471,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   boolean "we play it", still true. Known cost: 2NT's projected reading still
   promises only "14+, 2+♦" and does not deny a major.
 
-- **The keycard answer rules are face-gated in every stance**
+- **The keycard answer rules are face-gated in every partnership**
   (unconditional): §7.3.1's union poison was
   never kickback-specific — the plain 1430 answers (5♣–5♠) and the
-  ROPI/DOPI/DEPO rules on X/XX/Pass are alerted and present in every stance,
+  ROPI/DOPI/DEPO rules on X/XX/Pass are alerted and present in every partnership,
   so the shipped default alerted every floor-classified five-level bid,
   double and redouble on faces with no keycard ask anywhere and erased their
   natural readings (on `1♦ - 1♠ - 2♦ - 5♦` partner's diamond floor read as
@@ -3602,7 +3618,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reproduces the old behaviour for comparison only.
 
   `--cell OURS/THEIRS` (repeatable) interleaves table configurations, defaulting
-  to the six of `configured-net.md`. Each side gets its own card, reading stance
+  to the six of `configured-net.md`. Each side gets its own card, reading partnership
   and teacher, dispatched by the acting seat — so a **mixed table emits both
   asymmetric cells at once**, because a row is written from the acting seat's
   view. Verified end to end: six table configs produce exactly **8 distinct
@@ -3735,7 +3751,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **The floor authors readings — the vacuous-scoped probed serving, opt-in.**
   `set_probed_vacuous_reading` (`--ns-probe N --ns-probe-vacuous`, default
-  **off**) serves `Stance::probe`'s behavioral boxes — "the hands the bidder
+  **off**) serves `Partnership::probe`'s behavioral boxes — "the hands the bidder
   actually chose this call with" — through the slice the refuted full fold
   (v1, 2026-07-30) could not survive: own-side calls only, onto axes the
   complete symbolic reading left fully open (the fold runs at the end of
@@ -3807,7 +3823,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reproduces the old behaviour for comparison only.
 
   `--cell OURS/THEIRS` (repeatable) interleaves table configurations, defaulting
-  to the six of `configured-net.md`. Each side gets its own card, reading stance
+  to the six of `configured-net.md`. Each side gets its own card, reading partnership
   and teacher, dispatched by the acting seat — so a **mixed table emits both
   asymmetric cells at once**, because a row is written from the acting seat's
   view. Verified end to end: six table configs produce exactly **8 distinct
@@ -3869,7 +3885,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - the systems-on **strip re-read keyless**, silently dropping every authored
     projection at stripped nodes (the alerted both-majors `3♦` read as natural
     `♦5+`, excluding its own 5-5-major bidders) — now re-keyed through the
-    attached stance, so `(1♠) 1NT - …` reads byte-identical to the opening;
+    attached partnership, so `(1♠) 1NT - …` reads byte-identical to the opening;
   - the **reader-context projection skew**: `support(...)` atoms projected
     under the reader's context landed on the wrong suit — cue raises stamped
     the *cue* suit (`1♣ (1♦) 2♦` excluded 24/24 of its bidders), the support
@@ -3952,7 +3968,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   both), 0.68% fired — the pre-registered C1 signature, a real plain loss on
   the net-visible surface. Stays off; re-measure after the feature retrain.
 
-- **Sampled projection, Stage B: the behavioral probe** (`Stance::probe` +
+- **Sampled projection, Stage B: the behavioral probe** (`Partnership::probe` +
   `set_probed_reading`, default off). The docs/ai-bidder/sampled-projection.md
   derivation, keyed by **traffic** rather than authorship: bid N deals in
   self-play, record the actor's hand at every decision, store a widened
@@ -4065,7 +4081,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reproduces the old behaviour for comparison only.
 
   `--cell OURS/THEIRS` (repeatable) interleaves table configurations, defaulting
-  to the six of `configured-net.md`. Each side gets its own card, reading stance
+  to the six of `configured-net.md`. Each side gets its own card, reading partnership
   and teacher, dispatched by the acting seat — so a **mixed table emits both
   asymmetric cells at once**, because a row is written from the acting seat's
   view. Verified end to end: six table configs produce exactly **8 distinct
@@ -4723,7 +4739,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   actually plays, which a static file could never do.
 
   `--disclose off` reproduces the blind series. Both arms of
-  `scripts/disclose-ab.sh` now name their stance explicitly, since neither is
+  `scripts/disclose-ab.sh` now name their partnership explicitly, since neither is
   the default any more. A BBA-vs-BBA run (`--our-system`) discloses nothing:
   our authored system is not at the table, so the generated card would describe
   a system nobody is bidding.
@@ -4854,7 +4870,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `probe-nt-invite-eval` **could not see them**: its `netNT`/`netPgame` columns
   call the bare `trick_estimates`, pinned to v2, where only
   `trick_estimates_with_auction` dispatches to v3/v4. Added `netNT3`/`netPgame3`
-  reading through a trie-prefixed `Stance::infer` reading (the distribution v3/v4
+  reading through a trie-prefixed `Partnership::infer` reading (the distribution v3/v4
   were fit on, not the bare-`Context` twin), plus a `--shape` flag serving v4. The
   v2 columns keep their bare reading verbatim as the pinned control.
 
@@ -5048,15 +5064,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- **Breaking: `Family` and `Pair::defensive_vs` are gone; `Pair::new` drops its
-  leading `Family` argument and `Pair::against` takes no argument** (rides the
+- **Breaking: `Family` and `System::defensive_vs` are gone; `System::new` drops its
+  leading `Family` argument and `System::bind` takes no argument** (rides the
   0.11.0-dev breaking window). The whole-system identity label was
   production-dead — its only branch, the `defensive_vs` lookup, had no
   non-test consumer — and conceptually redundant: a system announces itself
   through its calls' own alerts and readings (a strong club is itself an
   alerted opening). If a non-natural opponent book ever needs a dedicated
   defense, dispatch belongs in reading-gated rules, not a label argument. No
-  bidding change: every shipped pair was `Family::NATURAL`.
+  bidding change: every shipped system was `Family::NATURAL`.
 
 ### Changed
 
@@ -5084,7 +5100,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reproduces the old behaviour for comparison only.
 
   `--cell OURS/THEIRS` (repeatable) interleaves table configurations, defaulting
-  to the six of `configured-net.md`. Each side gets its own card, reading stance
+  to the six of `configured-net.md`. Each side gets its own card, reading partnership
   and teacher, dispatched by the acting seat — so a **mixed table emits both
   asymmetric cells at once**, because a row is written from the acting seat's
   view. Verified end to end: six table configs produce exactly **8 distinct
@@ -5100,7 +5116,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Fixed a stale doc link: `Stance::prefixed_context` referenced the retired
+- **Fixed a stale doc link: `Partnership::prefixed_context` referenced the retired
   `search_floor::SearchBook`** (module deleted with the M1–M3 live-search
   line); the doc now states the projection-pass purpose directly.
 
@@ -5443,7 +5459,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reproduces the old behaviour for comparison only.
 
   `--cell OURS/THEIRS` (repeatable) interleaves table configurations, defaulting
-  to the six of `configured-net.md`. Each side gets its own card, reading stance
+  to the six of `configured-net.md`. Each side gets its own card, reading partnership
   and teacher, dispatched by the acting seat — so a **mixed table emits both
   asymmetric cells at once**, because a row is written from the acting seat's
   view. Verified end to end: six table configs produce exactly **8 distinct
@@ -5483,7 +5499,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   from −1.500 / −1.683 at `973d681` — **+0.348 plain / +0.328 PD** across 109
   commits, the series' largest single-batch move, and broad rather than
   bucket-shaped (every phase and both provenances improved). The shipping
-  `american()` pair, same deals, scores **−1.021 plain / −1.254 PD**, so the BBA
+  `american()` system, same deals, scores **−1.021 plain / −1.254 PD**, so the BBA
   net floor adds +0.131 plain / +0.101 PD — but that splits into +0.167/+0.236
   at vul both against +0.094 plain and **−0.034 PD** at vul none, a
   plain-win/PD-loss shape worth a paired re-measure. Full table and the
@@ -5499,7 +5515,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   nets — four suit lengths and `points`, ⊤ when still at `Envelope::unknown`).
   Every decision node of a real self-play auction counts once, so firing
   frequency *is* the weight; no double-dummy, so 20,000 boards cost 1.4 s. One
-  runnable self-check asserts a bare `Context::new` scores ≥ the `Stance::infer`
+  runnable self-check asserts a bare `Context::new` scores ≥ the `Partnership::infer`
   ⊤ count, which fails loudly if the prefixed read path ever stops being wired —
   the failure that would report zero headroom for the wrong reason.
 
@@ -5923,7 +5939,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reproduces the old behaviour for comparison only.
 
   `--cell OURS/THEIRS` (repeatable) interleaves table configurations, defaulting
-  to the six of `configured-net.md`. Each side gets its own card, reading stance
+  to the six of `configured-net.md`. Each side gets its own card, reading partnership
   and teacher, dispatched by the acting seat — so a **mixed table emits both
   asymmetric cells at once**, because a row is written from the acting seat's
   view. Verified end to end: six table configs produce exactly **8 distinct
@@ -6017,9 +6033,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   on its training input rather than a synthetic envelope. Doubles as a
   reading-quality display: σ should tighten call by call, and a call that fails
   to narrow it is a reading bug visible while playing rather than only in a probe.
-- `Table::<Stance, Stance>::infer` — the routing twin of `Table::classify`,
+- `Table::<Partnership, Partnership>::infer` — the routing twin of `Table::classify`,
   returning what the auction has shown to the seat about to act. Goes through
-  `Stance::infer` rather than a bare `Inferences::read`, which on a keyless
+  `Partnership::infer` rather than a bare `Inferences::read`, which on a keyless
   context silently skips every projection-based reading and answers `0..=37`.
 - `examples/probe-trick-variance` grows **Cut C**, the pre-registered kill gate
   for the above: conditional σ of N-S notrump tricks at matched partnership HCP,
@@ -6054,7 +6070,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reproduces the old behaviour for comparison only.
 
   `--cell OURS/THEIRS` (repeatable) interleaves table configurations, defaulting
-  to the six of `configured-net.md`. Each side gets its own card, reading stance
+  to the six of `configured-net.md`. Each side gets its own card, reading partnership
   and teacher, dispatched by the acting seat — so a **mixed table emits both
   asymmetric cells at once**, because a row is written from the acting seat's
   view. Verified end to end: six table configs produce exactly **8 distinct
@@ -6247,7 +6263,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reproduces the old behaviour for comparison only.
 
   `--cell OURS/THEIRS` (repeatable) interleaves table configurations, defaulting
-  to the six of `configured-net.md`. Each side gets its own card, reading stance
+  to the six of `configured-net.md`. Each side gets its own card, reading partnership
   and teacher, dispatched by the acting seat — so a **mixed table emits both
   asymmetric cells at once**, because a row is written from the acting seat's
   view. Verified end to end: six table configs produce exactly **8 distinct
@@ -6532,7 +6548,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   default-on, ca18fb4) with the authored 33-count gate false. Root cause is
   a two-regime hull: bare-context readings (the `dump-teacher` feature path)
   are knob-invariant — measured byte-identical over a 21K-row dump — but
-  **prefixed**-context readings (`Stance::infer`, what the bidder, floor net
+  **prefixed**-context readings (`Partnership::infer`, what the bidder, floor net
   and bilans evaluator actually consume) tighten under `set_dnf_reading`
   (the traced board's partner gains ♠≤3 / sp≥13 from the C2 fit-split
   boxes), and the evaluator was fit on knob-off prefixed readings — knob-on
@@ -6542,7 +6558,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the policy floor net trains on bare-context features but serves on
   prefixed ones — a standing train/serve skew, knob aside. No bidding
   change; `probe-classify` gains `--dnf` and now prints the prefixed
-  `Stance::infer` reading (the bare read it printed before is not what the
+  `Partnership::infer` reading (the bare read it printed before is not what the
   bidder sees).
 
 - **DNF chop G0 harness and verdict: the wide-minor 2NT opening shape is a
@@ -6860,7 +6876,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reproduces the old behaviour for comparison only.
 
   `--cell OURS/THEIRS` (repeatable) interleaves table configurations, defaulting
-  to the six of `configured-net.md`. Each side gets its own card, reading stance
+  to the six of `configured-net.md`. Each side gets its own card, reading partnership
   and teacher, dispatched by the acting seat — so a **mixed table emits both
   asymmetric cells at once**, because a row is written from the acting seat's
   view. Verified end to end: six table configs produce exactly **8 distinct
@@ -7230,7 +7246,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reproduces the old behaviour for comparison only.
 
   `--cell OURS/THEIRS` (repeatable) interleaves table configurations, defaulting
-  to the six of `configured-net.md`. Each side gets its own card, reading stance
+  to the six of `configured-net.md`. Each side gets its own card, reading partnership
   and teacher, dispatched by the acting seat — so a **mixed table emits both
   asymmetric cells at once**, because a row is written from the acting seat's
   view. Verified end to end: six table configs produce exactly **8 distinct
@@ -7497,7 +7513,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   why the ABI check runs as `probe-bba-bilans --self-check` on the main thread
   instead of as a `#[test]`.
 
-- **`american_floor()` — the 2/1 pair with no authored book at all.** All three
+- **`american_floor()` — the 2/1 system with no authored book at all.** All three
   books are empty, so every auction falls through to exactly the floor wiring
   `american()` uses: `NeuralFloorBba` on the contested books, the deterministic
   `instinct()` ladder on the constructive one. It completes the ablation square
@@ -7739,7 +7755,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   previously-unbound `epbot_get_conventions` symbol and diffs any card against
   the engine defaults for its `System type`, so this class of drift is one
   command to check rather than an inference from behavior.
-- **`american_bba_constructive()` and `with_floors(pair, contested,
+- **`american_bba_constructive()` and `with_floors(system, contested,
   constructive)`.** `with_floor` attached the learned floor to the competitive
   and defensive books but hardcoded `instinct()` under the constructive one, so
   *every* learned floor in the crate — v1, v2, v3, search, BBA — was barred from
@@ -7752,7 +7768,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `american_bba_constructive()` plus `bba-gen --our-floor bba-constructive` and
   `scripts/constructive-floor-ab.sh` are the A/B arm for lifting the
   restriction.
-- **`dutch_instinct()` — the Dutch pair on the deterministic floor, and
+- **`dutch_instinct()` — the Dutch system on the deterministic floor, and
   `dutch()` moves to the BBA-distilled one.** When `american()` was promoted to
   `NeuralFloorBba` (2026-07-19, +0.11/+0.25 IMPs/board), `dutch()` was left on
   `with_instinct_floor` — so the campaign's claim that "Dutch's major openings
@@ -7869,7 +7885,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reproduces the old behaviour for comparison only.
 
   `--cell OURS/THEIRS` (repeatable) interleaves table configurations, defaulting
-  to the six of `configured-net.md`. Each side gets its own card, reading stance
+  to the six of `configured-net.md`. Each side gets its own card, reading partnership
   and teacher, dispatched by the acting seat — so a **mixed table emits both
   asymmetric cells at once**, because a row is written from the acting seat's
   view. Verified end to end: six table configs produce exactly **8 distinct
@@ -8044,7 +8060,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   A/B-measured — the ship gate is `dutch()` vs `american()`, dual-scored.
   Campaign ledger: `docs/dutch-system.md`.
 - **`dutch()` Phase 2.1 — the wide-1♣ response structure**. Overwrites two
-  nodes on the reused `bare_american` pair: responder's first call over `1♣`
+  nodes on the reused `bare_american` system: responder's first call over `1♣`
   and opener's rebid after the `1♦` relay. The `1♦!` response is an artificial
   **catch-all relay** (constructive values, or too short in clubs to pass, or a
   strong 16+ with no descriptive bid) — the gadget that lets the wide 1♣ carry
@@ -9189,7 +9205,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reproduces the old behaviour for comparison only.
 
   `--cell OURS/THEIRS` (repeatable) interleaves table configurations, defaulting
-  to the six of `configured-net.md`. Each side gets its own card, reading stance
+  to the six of `configured-net.md`. Each side gets its own card, reading partnership
   and teacher, dispatched by the acting seat — so a **mixed table emits both
   asymmetric cells at once**, because a row is written from the acting seat's
   view. Verified end to end: six table configs produce exactly **8 distinct
@@ -9439,8 +9455,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     candidates) directly.
   - `bidding::verify::compare_against_rules` — a per-rule "porting oracle" whose
     only consumer was its own test.
-  - `bidding::Pair::competitive_vs` — a competitive-book override builder that
-    was never called, so the override slot was always empty; `against()` now
+  - `bidding::System::competitive_vs` — a competitive-book override builder that
+    was never called, so the override slot was always empty; `bind()` now
     reads `self.competitive` directly. The used twin `defensive_vs` is unchanged.
 
 ### Changed
@@ -9536,11 +9552,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   holding by a unit test — renders as *"hearts longer than spades, or equal below
   five"*. Behavior-neutral (byte-identical bids); only the disclosed description
   changes.
-- Internal: consolidated the copy-pasted `call`/`stance`/`best_call` prelude
+- Internal: consolidated the copy-pasted `call`/`partnership`/`best_call` prelude
   shared by the `american_*` integration tests into `tests/common/mod.rs`
   (−485 lines net across the test tree). No test behavior changed; the two files
   with genuine variants (the legality-filtered `best_call` in
-  `american_defense`, the knob-setting `stance` in `american_european_minors`)
+  `american_defense`, the knob-setting `partnership` in `american_european_minors`)
   keep their local versions, which shadow the shared ones.
 - Internal: 12 `ab-*`/`bba-gen` measurement harnesses now import
   `seat_to_act`/`hand_hcp`/`Board` from `examples/common` instead of
@@ -9611,7 +9627,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reproduces the old behaviour for comparison only.
 
   `--cell OURS/THEIRS` (repeatable) interleaves table configurations, defaulting
-  to the six of `configured-net.md`. Each side gets its own card, reading stance
+  to the six of `configured-net.md`. Each side gets its own card, reading partnership
   and teacher, dispatched by the acting seat — so a **mixed table emits both
   asymmetric cells at once**, because a row is written from the acting seat's
   view. Verified end to end: six table configs produce exactly **8 distinct

@@ -23,7 +23,7 @@
 //!
 //! The deal is conditioned on North holding the opening, so the duplicate swap
 //! collapses: the comparison is the same deal bid twice, our side feature vs
-//! baseline, East/West on the baseline stance both times.
+//! baseline, East/West on the baseline partnership both times.
 //!
 //! Because the population is conditional, so is the headline: read the IMPs per
 //! *accepted* deal against the decision table, and use the printed per-board
@@ -42,7 +42,7 @@ use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Hand, Rank, Seat, St
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::Accumulator;
 use pons::american;
-use pons::bidding::Stance;
+use pons::bidding::Partnership;
 use pons::bidding::agreements::Agreements;
 use pons::bidding::constraint::point_count;
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
@@ -166,8 +166,8 @@ fn opened_weak_two(auction: &Auction, our: Suit) -> bool {
 /// Bid one accepted deal under both arms, keeping it only if the auction
 /// reached the face
 fn play(
-    feature: &Stance,
-    baseline: &Stance,
+    feature: &Partnership,
+    baseline: &Partnership,
     vul: AbsoluteVulnerability,
     deal: FullDeal,
     our: Suit,
@@ -185,29 +185,29 @@ fn play(
 fn main() {
     let args = Args::parse();
 
-    // Both knobs gate rule *construction*, so a stance is built per arm.
+    // Both knobs gate rule *construction*, so a partnership is built per arm.
     let feature = match args.mode {
         Mode::Tie => {
             let mut a = Agreements::default();
             a.opening.weak_two_longest_first = true;
-            american(&a).against()
+            american(&a).bind()
         }
         Mode::Ogust => {
             let mut a = Agreements::default();
             a.opening.weak_two_major_priority = true;
-            american(&a).against()
+            american(&a).bind()
         }
     };
     let baseline = match args.mode {
         Mode::Tie => {
             let mut a = Agreements::default();
             a.opening.weak_two_longest_first = false;
-            american(&a).against()
+            american(&a).bind()
         }
         Mode::Ogust => {
             let mut a = Agreements::default();
             a.opening.weak_two_major_priority = false;
-            american(&a).against()
+            american(&a).bind()
         }
     };
 

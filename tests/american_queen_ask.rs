@@ -1,5 +1,5 @@
 //! Integration tests for the queen relay: the whole
-//! conversation played through the real [`Stance`], not a bare rule table.
+//! conversation played through the real [`Partnership`], not a bare rule table.
 //!
 //! Per-node checks miss whole families, and a book node with finite mass
 //! shadows the floor completely — so the questions these answer are "does the
@@ -11,9 +11,9 @@ use common::*;
 
 const P: Call = Call::Pass;
 
-/// A stance built with the shipped default system (the queen relay is always on).
+/// A partnership built with the shipped default system (the queen relay is always on).
 fn armed() -> impl Bidder {
-    stance()
+    partnership()
 }
 
 /// `1♠ - 3♠ - 4NT - 5♣ -` — spades agreed by the limit raise, 4NT asks, and
@@ -36,7 +36,7 @@ fn after_the_answer() -> Vec<Call> {
 const QUEENLESS_ASKER: &str = "AKJ85.AK2.KJ2.42";
 
 #[test]
-fn relay_fires_through_the_stance() {
+fn relay_fires_through_the_partnership() {
     let system = armed();
     assert_eq!(
         best_call(&system, &after_the_answer(), QUEENLESS_ASKER),
@@ -234,7 +234,7 @@ fn king_ask_needs_the_grand_values() {
 /// reply stops at six.  The missing keycard vetoes both the six over a denial
 /// the one-or-four decode would bid and the seven its grand rule would try.
 #[test]
-fn none_or_three_decodes_the_total_through_the_stance() {
+fn none_or_three_decodes_the_total_through_the_partnership() {
     let system = armed();
 
     let mut auction = vec![

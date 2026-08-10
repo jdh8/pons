@@ -23,7 +23,7 @@ use contract_bridge::{AbsoluteVulnerability, FullDeal, Hand, Seat};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::context::relative;
-use pons::bidding::{Bidder, Stance};
+use pons::bidding::{Bidder, Partnership};
 use pons::scoring::final_contract;
 use rayon::prelude::*;
 
@@ -51,14 +51,14 @@ struct Args {
 
 /// The highest-logit *legal* call, defaulting to a pass
 fn next_call(
-    stance: &Stance,
+    partnership: &Partnership,
     hand: Hand,
     dealer: Seat,
     vul: AbsoluteVulnerability,
     auction: &Auction,
 ) -> Call {
     let seat = seat_to_act(dealer, auction.len());
-    let Some(logits) = stance.classify(hand, relative(vul, seat), auction) else {
+    let Some(logits) = partnership.classify(hand, relative(vul, seat), auction) else {
         return Call::Pass;
     };
 
@@ -77,11 +77,11 @@ fn next_call(
 
 /// Bid out one deal, flipping the floor's inference reading per acting side
 ///
-/// The flag is pinned into a stance at build, so the two sides bid off two
-/// pre-built stances (`[plain, aware]`) rather than one stance and a flag set
+/// The flag is pinned into a partnership at build, so the two sides bid off two
+/// pre-built partnerships (`[plain, aware]`) rather than one partnership and a flag set
 /// per call.  Both are plain values, so a board still bids on any thread.
 fn bid_out(
-    stances: &[Stance; 2],
+    partnerships: &[Partnership; 2],
     aware_is_ns: bool,
     dealer: Seat,
     vul: AbsoluteVulnerability,
@@ -92,8 +92,8 @@ fn bid_out(
     while !auction.has_ended() {
         let seat = seat_to_act(dealer, auction.len());
         let seat_is_ns = matches!(seat, Seat::North | Seat::South);
-        let stance = &stances[usize::from(seat_is_ns == aware_is_ns)];
-        auction.push(next_call(stance, deal[seat], dealer, vul, &auction));
+        let partnership = &partnerships[usize::from(seat_is_ns == aware_is_ns)];
+        auction.push(next_call(partnership, deal[seat], dealer, vul, &auction));
     }
     auction
 }
@@ -106,12 +106,12 @@ fn main() {
     // `[plain, aware]`, indexed by the acting side's flag.
     let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.instinct.inference_aware = false;
-    let plain = american(&agreements).against();
+    let plain = american(&agreements).bind();
     agreements.decision.instinct.inference_aware = true;
-    let stances = [plain, american(&agreements).against()];
+    let partnerships = [plain, american(&agreements).bind()];
 
     // Deals are seeded per board (base + index) so every arm/vul replays the
-    // identical stream.  Both stances are plain values, so board bidding
+    // identical stream.  Both partnerships are plain values, so board bidding
     // parallelizes; the DD solver stays on the main thread below.
     let deals = seeded_deals(base, args.count);
     let contracts: Vec<[_; 2]> = deals
@@ -119,8 +119,8 @@ fn main() {
         .enumerate()
         .map(|(index, deal)| {
             let dealer = Seat::ALL[index % 4];
-            let table_a = bid_out(&stances, true, dealer, vul, deal);
-            let table_b = bid_out(&stances, false, dealer, vul, deal);
+            let table_a = bid_out(&partnerships, true, dealer, vul, deal);
+            let table_b = bid_out(&partnerships, false, dealer, vul, deal);
             // Credit the inference-aware team: [off = table_b (aware EW),
             // on = table_a (aware NS)], matching report_brackets' on − off.
             [

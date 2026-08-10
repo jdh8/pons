@@ -208,7 +208,7 @@ default floor stays fast, the gated search bidder remains for maximum strength.
   in the **same `f32`/`.json`/`.tags` layout the trainer already reads** — a
   trainer-compatible *superset* of `teacher-dump`, identical on book nodes and
   upgraded off-book (the `.tags` byte gains `bit1` = off-book; activation read from
-  `Stance::classify_with_provenance`, `depth == 0 && fallback.is_some()`). Measure:
+  `Partnership::classify_with_provenance`, `depth == 0 && fallback.is_some()`). Measure:
   arg-max disagreement + mean total-variation vs both the deterministic teacher
   (`american`) and the raw net prior (`american_neural`), split off/on-book
   and contested/constructive. 40-board smoke: **~51 % arg-max disagreement, ~0.53
@@ -576,11 +576,11 @@ opt-in behind `search`.
   being terminal, reusing `shortlist`/`ev_all`/`blend` unchanged. Candidate set =
   **book finite calls ∪ neural top-k**, so DD can override a one-call rule.
   *Deliverable:* a new gated constructor (e.g. `american_search_book()`) alongside
-  `american_search()`; a `Pair`/`Trie`-level wrapper, not a `Trie::classify_floored`
+  `american_search()`; a `System`/`Trie`-level wrapper, not a `Trie::classify_floored`
   rewrite if avoidable. *Measure:* parity-or-better vs `american_search()` on
   contested (`search-floor` harness); the `instinct` rails stay green (forced →
   deterministic, before any search). *Deps:* none (the seam exists). **Done:**
-  `SearchBook` — a `Bidder` wrapping a *bound* `Stance` (search_floor.rs), plus
+  `SearchBook` — a `Bidder` wrapping a *bound* `Partnership` (search_floor.rs), plus
   `american_search_book(them)`. It runs the search at every **non-forced authored
   book leaf** (`provenance.fallback == None`, with mass), feeding the leaf logits
   through the existing seam: candidate set = the rule's finite calls ∪ the net's
@@ -588,7 +588,7 @@ opt-in behind `search`.
   (`price_and_blend`) was *extracted* from `SearchFloor::classify` — byte-identical
   refactor, the old `deterministic_given_a_decision` test is the guard — so both
   search bidders share one EV-pricing path. Rails inherited verbatim: a `forced`
-  auction delegates to the wrapped stance (no search), and an auction that falls
+  auction delegates to the wrapped partnership (no search), and an auction that falls
   past the book to a fallback floor (the `SearchFloor` on contested, `instinct` on
   constructive) is returned as that floor gave it — only a real authored leaf is
   re-priced. *Key:* the authored leaf still owns the **meaning** — an opening keeps

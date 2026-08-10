@@ -354,7 +354,7 @@ impl Envelope {
 
     /// [`intersect`][Self::intersect] on an explicit point scale — what every
     /// classify-time caller uses, so the fold runs on the scale pinned into the
-    /// stance rather than the classifying thread's.
+    /// partnership rather than the classifying thread's.
     #[must_use]
     pub(crate) fn intersect_on(&self, other: &Self, scale: PointScale) -> Self {
         let mut out = *self;
@@ -416,7 +416,7 @@ impl Envelope {
 
     /// [`admits`][Self::admits] on an explicit reading profile — what the
     /// sampler tests through, so acceptance runs on the settings pinned into
-    /// the stance rather than the sampling thread's.
+    /// the partnership rather than the sampling thread's.
     #[must_use]
     pub(crate) fn admits_on(&self, hand: Hand, profile: ReadingProfile) -> bool {
         Suit::ASC.into_iter().all(|suit| {

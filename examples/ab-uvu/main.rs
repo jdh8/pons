@@ -29,7 +29,7 @@ use contract_bridge::eval::hcp as holding_hcp;
 use contract_bridge::{AbsoluteVulnerability, Bid, FullDeal, Hand, Seat, Strain, Suit};
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::Stance;
+use pons::bidding::Partnership;
 use pons::scoring::{final_contract, imps, ns_score_contract};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
@@ -141,12 +141,12 @@ fn uvu_response(auction: &[Call], dealer: Seat) -> Option<(Call, bool)> {
 
 /// Bid out one table; the feature pair plays UvU, the other floors it
 ///
-/// Both stances are baked: the UvU responder structure and the opponents'
-/// both-minors 2NT overcall are read at book construction, so picking the stance
+/// Both partnerships are baked: the UvU responder structure and the opponents'
+/// both-minors 2NT overcall are read at book construction, so picking the partnership
 /// per seat is all that is needed (safe under Rayon — no per-call thread-locals).
 fn bid_out(
-    feature: &Stance,
-    baseline: &Stance,
+    feature: &Partnership,
+    baseline: &Partnership,
     feature_is_ns: bool,
     dealer: Seat,
     vul: AbsoluteVulnerability,
@@ -156,12 +156,12 @@ fn bid_out(
     while !auction.has_ended() {
         let seat = seat_to_act(dealer, auction.len());
         let seat_is_ns = matches!(seat, Seat::North | Seat::South);
-        let stance = if seat_is_ns == feature_is_ns {
+        let partnership = if seat_is_ns == feature_is_ns {
             feature
         } else {
             baseline
         };
-        auction.push(next_call(stance, deal[seat], dealer, vul, &auction));
+        auction.push(next_call(partnership, deal[seat], dealer, vul, &auction));
     }
     auction
 }
@@ -170,19 +170,19 @@ fn bid_out(
 fn main() {
     let args = Args::parse();
 
-    // Two stances differing only in the UvU responder structure; the opponents'
+    // Two partnerships differing only in the UvU responder structure; the opponents'
     // both-minors 2NT overcall (the environment that creates the auction) is on
     // for both, so the divergence isolates the UvU response.
     let range = Some((args.opp_lo, args.opp_hi));
     let mut arm = pons::bidding::agreements::Agreements::default();
     arm.defense.unusual_notrump_range = range;
     arm.competition.uvu = false;
-    let baseline = american(&arm).against();
+    let baseline = american(&arm).bind();
     arm.competition.uvu = true;
     arm.competition.uvu_x_floor = args.x_floor;
     arm.competition.uvu_cue_floor = args.cue_floor;
     arm.competition.uvu_natural_floor = args.natural_floor;
-    let feature = american(&arm).against();
+    let feature = american(&arm).bind();
 
     // Deal sequentially (seeded, reproducible); keep only deals where the
     // auction can arise, until `count` pass; bid both tables in parallel.

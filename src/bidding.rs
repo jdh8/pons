@@ -62,7 +62,7 @@ pub use american::{
 };
 pub use array::Array;
 pub use book::{
-    Competitive, Constructive, Defensive, ExplainedRule, Pair, Phase, ProbeReport, Stance,
+    Competitive, Constructive, Defensive, ExplainedRule, Partnership, Phase, ProbeReport, System,
 };
 pub use compose::{OrElse, Versus};
 pub use context::Context;
@@ -118,7 +118,7 @@ pub trait Bidder {
     /// Allocate optional state for one table-driven deal.
     ///
     /// Hidden serving hook: ordinary systems remain stateless, while finalized
-    /// stances use it for their append-only authored-reading cache.
+    /// partnerships use it for their append-only authored-reading cache.
     #[doc(hidden)]
     fn new_deal_state(&self) -> Option<Box<dyn std::any::Any>> {
         None
@@ -148,7 +148,7 @@ pub trait Bidder {
     /// enforces its reading only at authored nodes and abstains at the floor,
     /// deferring to the range reader (so a competitive raise/rebid the floor
     /// handles is read the old way).  Defaults to `true` (assume authored),
-    /// preserving behaviour for flat systems; structured ones like [`Stance`]
+    /// preserving behaviour for flat systems; structured ones like [`Partnership`]
     /// override it.  `vul` is needed only because resolution's fallback guards
     /// consult the context.
     fn authored_at(&self, vul: RelativeVulnerability, auction: &[Call]) -> bool {
@@ -217,8 +217,8 @@ impl<S: Bidder + ?Sized> Bidder for &S {
 /// an analysis fragment) or a system whose pass semantics the role-aware books
 /// cannot express (the [`Phase`] router assumes a standard pass).  Author a
 /// pair's notes from its own side with [`Constructive`], [`Competitive`], and
-/// [`Defensive`] instead, assembled into a [`Pair`] and bound with
-/// [`Pair::against`].
+/// [`Defensive`] instead, assembled into a [`System`] and bound with
+/// [`System::bind`].
 impl Bidder for Trie {
     fn classify(
         &self,

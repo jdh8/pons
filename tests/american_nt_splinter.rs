@@ -11,20 +11,20 @@
 mod common;
 use common::*;
 
-/// The 2/1 stance with the splinter authored
+/// The 2/1 partnership with the splinter authored
 ///
-/// Each call builds a stance whose agreements author the splinter.
-fn stance() -> Stance {
+/// Each call builds a partnership whose agreements author the splinter.
+fn partnership() -> Partnership {
     let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.reading.nt_splinter = true;
-    american(&agreements).against()
+    american(&agreements).bind()
 }
 
-/// The 2/1 stance with the splinter *not* authored — the pre-2026-07-28 ladder
-fn without() -> Stance {
+/// The 2/1 partnership with the splinter *not* authored — the pre-2026-07-28 ladder
+fn without() -> Partnership {
     let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.reading.nt_splinter = false;
-    american(&agreements).against()
+    american(&agreements).bind()
 }
 
 const P: Call = Call::Pass;
@@ -41,7 +41,7 @@ fn the_homeless_shape_splinters() {
     // ♠xxx ♥x ♦AQxx ♣KQxxx — 3-1-4-5, 11 HCP.  The hand this convention exists
     // for: too few majors for Stayman, too few diamonds for the 2NT transfer,
     // too few clubs for the 2♠ transfer, not `balanced()` for Puppet 3♣.
-    let system = stance();
+    let system = partnership();
     assert_eq!(
         best_call(&system, &after_1nt(), "xxx.x.AQxx.KQxxx"),
         call(3, Strain::Hearts),
@@ -63,7 +63,7 @@ fn the_same_hand_blasts_3nt_without_the_knob() {
 fn short_spades_splinters_in_spades() {
     // ♠x ♥xxx ♦AQxx ♣KQxxx — the mirror, 1-3-4-5.  Responder names the *short*
     // major (splinter, not fragment).
-    let system = stance();
+    let system = partnership();
     assert_eq!(
         best_call(&system, &after_1nt(), "x.xxx.AQxx.KQxxx"),
         call(3, Strain::Spades),
@@ -74,7 +74,7 @@ fn short_spades_splinters_in_spades() {
 fn a_void_splinters() {
     // ♠xxx ♥— ♦AQxx ♣KJxxxx — 3-0-4-6, 10 HCP.  Voids only occur in the ♣6 row,
     // since ♣5 forces the majors to 3-1.
-    let system = stance();
+    let system = partnership();
     assert_eq!(
         best_call(&system, &after_1nt(), "xxx..AQxx.KJxxxx"),
         call(3, Strain::Hearts),
@@ -86,7 +86,7 @@ fn the_six_four_outranks_the_club_transfer() {
     // ♠xx ♥x ♦Axxx ♣KQxxxx — 2-1-4-6, 9 HCP.  This *does* qualify for the 2♠
     // club transfer (♣6+), and the splinter takes it deliberately: after 2♠
     // responder can never show the four diamonds, which is the 6-4 slam lane.
-    let system = stance();
+    let system = partnership();
     assert_eq!(
         best_call(&system, &after_1nt(), "xx.x.Axxx.KQxxxx"),
         call(3, Strain::Hearts),
@@ -101,7 +101,7 @@ fn a_stiff_ace_does_not_splinter() {
     // ♥KQxx opposite our ♥A is three tricks, not wasted, and a stiff ace is a
     // real notrump stopper — so the hand belongs in 3NT, and `splinter_short`
     // (void or *low* singleton) keeps it there.
-    let system = stance();
+    let system = partnership();
     assert_eq!(
         best_call(&system, &after_1nt(), "xxx.A.KQxx.KJxxx"),
         call(3, Strain::Notrump),
@@ -112,7 +112,7 @@ fn a_stiff_ace_does_not_splinter() {
 fn five_diamonds_keeps_the_2nt_transfer() {
     // ♠xxx ♥x ♦AQxxx ♣KQxx — 3-1-5-4.  Pinning diamonds at exactly four is what
     // buys zero overlap: the diamond-long half of (31)(54) already has a home.
-    let system = stance();
+    let system = partnership();
     assert_eq!(
         best_call(&system, &after_1nt(), "xxx.x.AQxxx.KQxx"),
         call(2, Strain::Notrump),
@@ -123,7 +123,7 @@ fn five_diamonds_keeps_the_2nt_transfer() {
 fn seven_clubs_keeps_the_2s_transfer() {
     // ♠xx ♥— ♦Axxx ♣KQxxxxx — 2-0-4-7.  Past six clubs the hand is a one-suiter
     // and the 2♠ transfer, which agrees clubs a level lower, bids it better.
-    let system = stance();
+    let system = partnership();
     assert_eq!(
         best_call(&system, &after_1nt(), "xx..Axxx.KQxxxxx"),
         call(2, Strain::Spades),
@@ -135,7 +135,7 @@ fn a_four_card_other_major_staymans() {
     // ♠xxxx ♥x ♦AQxx ♣KQxx — four spades.  The four-card major is Stayman's
     // job; excluding it is the whole difference from BBA's GIB-form splinter,
     // which pins the other major at exactly four.
-    let system = stance();
+    let system = partnership();
     assert_eq!(
         best_call(&system, &after_1nt(), "xxxx.x.AQxx.KQxx"),
         call(2, Strain::Clubs),
@@ -153,7 +153,7 @@ fn a_four_card_other_major_staymans() {
 fn opener_takes_3nt_with_a_guard() {
     // ♥KQx opposite responder's stiff: wasted honors, but the opponents' nine
     // hearts are guarded, so nine tricks beat eleven.
-    let system = stance();
+    let system = partnership();
     let auction = vec![call(1, Strain::Notrump), P, call(3, Strain::Hearts), P];
     assert_eq!(
         best_call(&system, &auction, "AQx.KQx.Kxx.Axxx"),
@@ -165,7 +165,7 @@ fn opener_takes_3nt_with_a_guard() {
 fn opener_places_the_club_game_without_a_guard() {
     // ♥xxx opposite a stiff: the opponents cash out against 3NT.  Responder's
     // 5-6 clubs opposite three is a nine-card fit — take the eleven-trick game.
-    let system = stance();
+    let system = partnership();
     let auction = vec![call(1, Strain::Notrump), P, call(3, Strain::Hearts), P];
     assert_eq!(
         best_call(&system, &auction, "AQx.xxx.KQx.AKxx"),
@@ -176,7 +176,7 @@ fn opener_places_the_club_game_without_a_guard() {
 #[test]
 fn opener_prefers_diamonds_when_short_in_clubs() {
     // ♥xxx unguarded and only two clubs — the 4-4 diamond fit is the trump suit.
-    let system = stance();
+    let system = partnership();
     let auction = vec![call(1, Strain::Notrump), P, call(3, Strain::Hearts), P];
     assert_eq!(
         best_call(&system, &auction, "AQxx.xxx.KQxx.Ax"),
@@ -187,7 +187,7 @@ fn opener_prefers_diamonds_when_short_in_clubs() {
 #[test]
 fn opener_answers_the_spade_splinter_too() {
     // The mirror: 3♠ shows short spades, so the guard that matters is in spades.
-    let system = stance();
+    let system = partnership();
     let auction = vec![call(1, Strain::Notrump), P, call(3, Strain::Spades), P];
     assert_eq!(
         best_call(&system, &auction, "xxx.AQx.KQx.AKxx"),
@@ -202,7 +202,7 @@ fn the_eight_count_passes_at_the_default_floor() {
     // ♠Jxx ♥x ♦AQxx ♣Jxxxx — the shape at 8 HCP, one under the floor.  It still
     // passes 1NT holding a singleton opposite 15-17; whether that is right is
     // the 8-versus-9 sweep, not the shipped default.
-    let system = stance();
+    let system = partnership();
     assert_eq!(best_call(&system, &after_1nt(), "Jxx.x.AQxx.Jxxxx"), P);
 }
 
@@ -212,7 +212,7 @@ fn lowering_the_floor_catches_the_eight() {
     let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.reading.nt_splinter = true;
     agreements.notrump.nt_splinter_floor = 8;
-    let system = american(&agreements).against();
+    let system = american(&agreements).bind();
     let bid = best_call(&system, &after_1nt(), "Jxx.x.AQxx.Jxxxx");
     assert_eq!(bid, call(3, Strain::Hearts));
 }

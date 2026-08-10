@@ -7,7 +7,7 @@
 # transfer (Cachalot-style rotation of the non-jump 2-level slots; opener
 # completes and declares — the right-siding thesis, DD-blind, sd decides).
 # Pairs vs forcing with plain+pd, plus sd-lead 16 worlds with the ON arm's
-# style disclosed (OFF arm = forcing = ab-dump-sd's default stance).
+# style disclosed (OFF arm = forcing = ab-dump-sd's default partnership).
 #
 #   setsid nohup scripts/idle-run.sh scripts/ab-free-bid-style.sh \
 #       ab-results/free-bid-style >ab-results/free-bid-style.log 2>&1 &

@@ -27,7 +27,7 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::constraint::PointScale;
 use pons::bidding::context::relative;
-use pons::bidding::{Bidder, Inferences, Stance};
+use pons::bidding::{Bidder, Inferences, Partnership};
 use pons::scoring::{final_contract, ns_score_pd_tricks, ns_score_tricks};
 use pons::single_dummy::{LeadQuestion, single_dummy_leads};
 use rand::SeedableRng;
@@ -51,11 +51,11 @@ enum Policy {
 }
 
 impl Policy {
-    /// Build a stance with this policy's gauges armed as `enabled`
+    /// Build a partnership with this policy's gauges armed as `enabled`
     ///
-    /// Both gauges are pinned into the stance at build, so an arm is a whole
-    /// stance rather than a pair of flags set per call.
-    fn stance(self, enabled: bool) -> Stance {
+    /// Both gauges are pinned into the partnership at build, so an arm is a whole
+    /// partnership rather than a pair of flags set per call.
+    fn partnership(self, enabled: bool) -> Partnership {
         let (points, fifths) = match self {
             Self::Points => (enabled, false),
             Self::Fifths => (false, enabled),
@@ -69,7 +69,7 @@ impl Policy {
         let mut agreements = pons::bidding::agreements::Agreements::default();
         agreements.decision.fuzzy_fifths = fifths;
         agreements.decision.reading.point_scale = point_scale;
-        american(&agreements).against()
+        american(&agreements).bind()
     }
 }
 
@@ -110,14 +110,14 @@ struct Args {
 
 /// The highest-logit *legal* call, defaulting to a pass
 fn next_call(
-    stance: &Stance,
+    partnership: &Partnership,
     hand: Hand,
     dealer: Seat,
     vul: AbsoluteVulnerability,
     auction: &Auction,
 ) -> Call {
     let seat = seat_to_act(dealer, auction.len());
-    let Some(logits) = stance.classify(hand, relative(vul, seat), auction) else {
+    let Some(logits) = partnership.classify(hand, relative(vul, seat), auction) else {
         return Call::Pass;
     };
 
@@ -136,11 +136,11 @@ fn next_call(
 
 /// Bid out one deal, switching the strength gauge per acting side
 ///
-/// The fuzzy flags are pinned into a stance at build, so the two sides bid off
-/// two pre-built stances (`[off, on]`) rather than one stance and flags set per
+/// The fuzzy flags are pinned into a partnership at build, so the two sides bid off
+/// two pre-built partnerships (`[off, on]`) rather than one partnership and flags set per
 /// call.  Both are plain values, so a board still bids on any thread.
 fn bid_out(
-    stances: &[Stance; 2],
+    partnerships: &[Partnership; 2],
     fuzzy_is_ns: bool,
     dealer: Seat,
     vul: AbsoluteVulnerability,
@@ -151,8 +151,8 @@ fn bid_out(
     while !auction.has_ended() {
         let seat = seat_to_act(dealer, auction.len());
         let seat_is_ns = matches!(seat, Seat::North | Seat::South);
-        let stance = &stances[usize::from(seat_is_ns == fuzzy_is_ns)];
-        auction.push(next_call(stance, deal[seat], dealer, vul, &auction));
+        let partnership = &partnerships[usize::from(seat_is_ns == fuzzy_is_ns)];
+        auction.push(next_call(partnership, deal[seat], dealer, vul, &auction));
     }
     auction
 }
@@ -165,10 +165,10 @@ type AuctionPair = [Auction; 2];
 type ContractPair = [Option<(Contract, Seat)>; 2];
 
 /// The (contract, declarer, leader-view inferences) of one auction, read through
-/// `stance`; `None` for a pass-out (sd score 0).  Mirrors `ab-meckstroth-2nt`.
+/// `partnership`; `None` for a pass-out (sd score 0).  Mirrors `ab-meckstroth-2nt`.
 fn lead_inputs(
     auction: &Auction,
-    stance: &Stance,
+    partnership: &Partnership,
     dealer: Seat,
     vul: AbsoluteVulnerability,
 ) -> Option<(Contract, Seat, Inferences)> {
@@ -180,7 +180,7 @@ fn lead_inputs(
     Some((
         contract,
         declarer,
-        stance.infer(relative(vul, leader), &auction[..cut]),
+        partnership.infer(relative(vul, leader), &auction[..cut]),
     ))
 }
 
@@ -195,12 +195,12 @@ fn main() {
     // both arms (a deliberate simplification — we do not flip the fuzzy flags for
     // inference, unlike per-call bidding above).  Built first, before either arm
     // arms a gauge, so it stays the default-flag book it has always been.
-    let infer_stance = american(&pons::bidding::agreements::Agreements::default()).against();
+    let infer_partnership = american(&pons::bidding::agreements::Agreements::default()).bind();
     // `[off, on]` for this policy's gauges, indexed by the acting side.
-    let stances = [policy.stance(false), policy.stance(true)];
+    let partnerships = [policy.partnership(false), policy.partnership(true)];
 
     // Deals are seeded per board (base + index) so every arm/vul replays the
-    // identical stream.  Both stances are plain values, so board bidding
+    // identical stream.  Both partnerships are plain values, so board bidding
     // parallelizes; the DD solver stays on the main thread below.
     // Retain both tables' auctions (index 0 = table_b/off, 1 = table_a/on — the
     // same order as `contracts`) so the single-dummy pass can read each auction
@@ -211,8 +211,8 @@ fn main() {
         .enumerate()
         .map(|(index, deal)| {
             let dealer = Seat::ALL[index % 4];
-            let table_a = bid_out(&stances, true, dealer, vul, deal);
-            let table_b = bid_out(&stances, false, dealer, vul, deal);
+            let table_a = bid_out(&partnerships, true, dealer, vul, deal);
+            let table_b = bid_out(&partnerships, false, dealer, vul, deal);
             // Credit the fuzzy team: [off = table_b (fuzzy EW),
             // on = table_a (fuzzy NS)], matching report_brackets' on − off.
             let contracts = [
@@ -264,7 +264,7 @@ fn main() {
             // (is_on, table index): 1 = table_a/on (fuzzy NS), 0 = table_b/off.
             for (is_on, idx) in [(true, 1usize), (false, 0usize)] {
                 if let Some((contract, declarer, inferences)) =
-                    lead_inputs(&auctions[i][idx], &infer_stance, dealer, vul)
+                    lead_inputs(&auctions[i][idx], &infer_partnership, dealer, vul)
                 {
                     pending.push((i, is_on, contract, declarer));
                     questions.push(LeadQuestion {

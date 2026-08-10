@@ -4,10 +4,10 @@
 //! (`ResponseKnobs::limit_raise_acceptance`), the full continuations after
 //! `1♥ - 1♠` (`RebidKnobs::major_rebid_tails`), and fourth-suit-forcing riding
 //! that adjunct (`RebidKnobs::fourth_suit_forcing`).  Each test builds its own
-//! stance with the knobs it needs, so the rest of the suite keeps measuring the
+//! partnership with the knobs it needs, so the rest of the suite keeps measuring the
 //! shipped system.
 //!
-//! Every test plays a *whole* auction through the real stance — the opening
+//! Every test plays a *whole* auction through the real partnership — the opening
 //! bid through the final contract — rather than probing a bare rule table in
 //! isolation, so a hand's hcp/hand-shape choices are checked against every
 //! node they pass through, not just the one under test.
@@ -19,14 +19,14 @@ use pons::bidding::agreements::Agreements;
 
 const P: Call = Call::Pass;
 
-/// A stance built with the given knobs
-fn stance_with(tries: bool, limit: bool, tails: bool, fsf: bool) -> Stance {
+/// A partnership built with the given knobs
+fn partnership_with(tries: bool, limit: bool, tails: bool, fsf: bool) -> Partnership {
     let mut agreements = Agreements::default();
     agreements.response.major_game_tries = tries;
     agreements.response.limit_raise_acceptance = limit;
     agreements.rebid.major_rebid_tails = tails;
     agreements.rebid.fourth_suit_forcing = fsf;
-    american(&agreements).against()
+    american(&agreements).bind()
 }
 
 /// Append our call and the opponent's pass — the uncontested interleaving
@@ -44,7 +44,7 @@ fn extend(auction: &[Call], next: Call) -> Vec<Call> {
 
 #[test]
 fn game_try_reaches_game_on_help() {
-    let system = stance_with(true, false, false, false);
+    let system = partnership_with(true, false, false, false);
 
     // Kx.AKxxx.xx.AQJx: 17 HCP + 1 (unbalanced 5=2=2=4) = 18 points, 5
     // hearts, 4 clubs — a maximum single-raise try (16–18), short of the
@@ -81,7 +81,7 @@ fn game_try_reaches_game_on_help() {
 
 #[test]
 fn game_try_declined_stops_in_three() {
-    let system = stance_with(true, false, false, false);
+    let system = partnership_with(true, false, false, false);
 
     // Kx.AKxxx.xx.AQxx: 16 HCP + 1 (unbalanced 5=2=2=4) = 17 points, 4
     // clubs — enough to try, short of the opener_after_decline push (18+).
@@ -123,7 +123,7 @@ fn game_try_declined_stops_in_three() {
 
 #[test]
 fn single_raise_passed_without_extras() {
-    let system = stance_with(true, false, false, false);
+    let system = partnership_with(true, false, false, false);
 
     // KQx.AJxxx.Kxx.xx: 13 HCP, balanced (5=3=3=2) = 13 points — a flat
     // minimum with no side suit long enough for any try.
@@ -158,7 +158,7 @@ fn single_raise_passed_without_extras() {
 
 #[test]
 fn limit_raise_accepted_and_declined() {
-    let system = stance_with(false, true, false, false);
+    let system = partnership_with(false, true, false, false);
 
     // AKxxx.Kxx.Qxx.xx: 12 HCP, 5=3=3=2.  Opposite the known 9-card fit the
     // small club doubleton is a ruffing value, so support points read 13 (12 +
@@ -202,7 +202,7 @@ fn limit_raise_accepted_and_declined() {
 
 #[test]
 fn limit_raise_keycard_ladder() {
-    let system = stance_with(false, true, false, false);
+    let system = partnership_with(false, true, false, false);
 
     // AKQxx.AKx.Kxxx.x: 19 HCP + 1 (unbalanced 5=3=4=1) = 20 points, three
     // aces plus the spade king (3 keycards toward a spade trump).
@@ -250,7 +250,7 @@ fn limit_raise_keycard_ladder() {
 
 #[test]
 fn spade_raise_invite_accepted() {
-    let system = stance_with(false, false, true, false);
+    let system = partnership_with(false, false, true, false);
 
     // Kxxx.AKxxx.QJx.x: 13 HCP + 1 (unbalanced 4=5=3=1) = 14 points, four
     // spades — raises, then accepts the invite.
@@ -306,7 +306,7 @@ fn spade_raise_invite_accepted() {
 
 #[test]
 fn heart_rebid_preference_structure() {
-    let system = stance_with(false, false, true, false);
+    let system = partnership_with(false, false, true, false);
 
     // xx.AKQxxx.Kxx.xx: 12 HCP + 1 (unbalanced 2=6=3=2) = 13 points, six
     // hearts, fewer than four spades — a minimum that rebids hearts.
@@ -353,7 +353,7 @@ fn heart_rebid_preference_structure() {
 
 #[test]
 fn fourth_suit_forcing_end_to_end() {
-    let system = stance_with(false, false, true, true);
+    let system = partnership_with(false, false, true, true);
 
     // Kxx.AQxxx.x.Kxxx: 12 HCP + 1 (unbalanced 3=5=1=4) = 13 points, three
     // spades, four clubs — a minimum-ish hand that rebids the new minor.
@@ -417,25 +417,25 @@ fn fsf_without_tails_is_inert() {
     // Fourth-suit-forcing rides the major-rebid-tails adjunct: with tails
     // off, register_major_rebid_tails bails out before ever consulting the
     // fsf flag, so turning fsf on alone must not change a single call.
-    let fsf_only = stance_with(false, false, false, true);
-    let baseline = stance_with(false, false, false, false);
+    let fsf_only = partnership_with(false, false, false, true);
+    let baseline = partnership_with(false, false, false, false);
 
     assert_eq!(
         best_call(&fsf_only, &auction, responder),
         best_call(&baseline, &auction, responder),
-        "fsf without the tails adjunct must be inert — both stances fall to \
+        "fsf without the tails adjunct must be inert — both partnerships fall to \
          the same floor at 1♥ - 1♠ - 2♣"
     );
 }
 
 // =============================================================================
-// Default parity: a freshly-built stance carries all four shipped-on knobs
+// Default parity: a freshly-built partnership carries all four shipped-on knobs
 // =============================================================================
 
 #[test]
 fn default_state_matches_all_on() {
-    let all_on = stance_with(true, true, true, true);
-    let fresh = american(&pons::bidding::agreements::Agreements::default()).against();
+    let all_on = partnership_with(true, true, true, true);
+    let fresh = american(&pons::bidding::agreements::Agreements::default()).bind();
 
     // The 1♥ - 2♥ opener decision (the game-tries node): reuse
     // `single_raise_passed_without_extras`'s flat 13-point opener.
@@ -444,7 +444,7 @@ fn default_state_matches_all_on() {
     assert_eq!(
         best_call(&all_on, &raise_auction, opener),
         best_call(&fresh, &raise_auction, opener),
-        "a freshly built default stance must match stance_with(true, true, \
+        "a freshly built default partnership must match partnership_with(true, true, \
          true, true) at 1♥ - 2♥"
     );
 
@@ -462,11 +462,11 @@ fn default_state_matches_all_on() {
     assert_eq!(
         best_call(&fresh, &fsf_auction, responder),
         call(2, Strain::Diamonds),
-        "the default stance plays fourth-suit-forcing"
+        "the default partnership plays fourth-suit-forcing"
     );
     assert_eq!(
         best_call(&all_on, &fsf_auction, responder),
         call(2, Strain::Diamonds),
-        "stance_with(true, true, true, true) agrees"
+        "partnership_with(true, true, true, true) agrees"
     );
 }

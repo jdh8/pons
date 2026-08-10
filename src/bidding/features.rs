@@ -1331,7 +1331,7 @@ fn push_eval_base(out: &mut impl FeatureSink, blind: bool, hand: Hand, inference
 /// 5 HCP in three cards and now read differently — though spot-card *identity*
 /// below the ten still does not (T9x and T2x read alike), and the net absorbs
 /// that residue as spread.  Get the `Inferences` from
-/// [`Stance::infer`][super::Stance::infer], never from a bare [`Context`] — the
+/// [`Partnership::infer`][super::Partnership::infer], never from a bare [`Context`] — the
 /// trie-prefixed reading is what decodes conventional calls off their authoring
 /// rules.
 #[must_use]
@@ -1340,7 +1340,7 @@ pub fn features_eval(hand: Hand, inferences: &Inferences) -> [f32; FEATURES_LEN_
 }
 
 /// [`features_eval`] on an explicit blinding flag — what the classify-time
-/// evaluator extracts through, so the vector a stance is scored on does not
+/// evaluator extracts through, so the vector a partnership is scored on does not
 /// depend on the scoring thread.
 #[must_use]
 pub(crate) fn features_eval_on(

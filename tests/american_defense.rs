@@ -34,7 +34,7 @@ fn best_call(system: &impl Bidder, auction: &[Call], hand: &str) -> Call {
 /// (1♦) with 5-5 majors → Michaels 2♦
 #[test]
 fn test_michaels_over_minor() {
-    let system = stance();
+    let system = partnership();
     // 11 HCP, five spades and five hearts over their 1♦
     assert_eq!(
         best_call(&system, &[call(1, Strain::Diamonds)], "KQJ54.AJ965.2.92"),
@@ -47,7 +47,7 @@ fn test_michaels_over_minor() {
 /// (1♠) with 5-5 minors → Unusual 2NT
 #[test]
 fn test_unusual_2nt_over_spades() {
-    let system = stance();
+    let system = partnership();
     // 11 HCP, five diamonds and five clubs over their 1♠
     assert_eq!(
         best_call(&system, &[call(1, Strain::Spades)], "2.95.KQJ54.AJ965"),
@@ -60,7 +60,7 @@ fn test_unusual_2nt_over_spades() {
 /// (1♥) with spades + clubs → Michaels 2♥
 #[test]
 fn test_michaels_over_heart() {
-    let system = stance();
+    let system = partnership();
     // 11 HCP, five spades and five clubs over their 1♥
     assert_eq!(
         best_call(&system, &[call(1, Strain::Hearts)], "KQJ54.2.95.AJ965"),
@@ -73,7 +73,7 @@ fn test_michaels_over_heart() {
 /// (1♥) X (2♥) with 4-4 minors → responsive double
 #[test]
 fn test_responsive_double() {
-    let system = stance();
+    let system = partnership();
     // 11 HCP, four-four in clubs and diamonds; partner made takeout double
     assert_eq!(
         best_call(
@@ -105,14 +105,14 @@ fn test_responsive_overcall_double_toggle() {
     let mut on = Agreements::default();
     on.defense.responsive_overcall_enabled = true;
     assert_eq!(
-        best_call(&american(&on).against(), &auction, hand),
+        best_call(&american(&on).bind(), &auction, hand),
         Call::Double
     );
 
     let mut off = Agreements::default();
     off.defense.responsive_overcall_enabled = false;
     assert_ne!(
-        best_call(&american(&off).against(), &auction, hand),
+        best_call(&american(&off).bind(), &auction, hand),
         Call::Double
     );
 }
@@ -122,7 +122,7 @@ fn test_responsive_overcall_double_toggle() {
 /// (1♠) 2NT - with diamonds longer than clubs → 3♦
 #[test]
 fn test_unusual_nt_advance_longer_diamond() {
-    let system = stance();
+    let system = partnership();
     // 7 HCP, three diamonds and two clubs — prefer the longer suit
     assert_eq!(
         best_call(
@@ -143,7 +143,7 @@ fn test_unusual_nt_advance_longer_diamond() {
 /// (1♣) with only one five-card suit → 1♠, not a two-suited bid
 #[test]
 fn test_regression_single_suit_overcall() {
-    let system = stance();
+    let system = partnership();
     // 9 HCP, five spades only — should still overcall 1♠, not Michaels
     assert_eq!(
         best_call(&system, &[call(1, Strain::Clubs)], "AQJ32.853.Q42.92"),
@@ -156,7 +156,7 @@ fn test_regression_single_suit_overcall() {
 /// (2♠) with opening values and short spades → takeout double
 #[test]
 fn test_weak_two_takeout_double() {
-    let system = stance();
+    let system = partnership();
     // 14 HCP, a spade doubleton — the workhorse takeout double
     assert_eq!(
         best_call(&system, &[call(2, Strain::Spades)], "32.AKJ5.KJ54.Q92"),
@@ -167,7 +167,7 @@ fn test_weak_two_takeout_double() {
 /// (2♠) with 15–18 balanced and a stopper → natural 2NT overcall
 #[test]
 fn test_weak_two_notrump_overcall() {
-    let system = stance();
+    let system = partnership();
     // 17 HCP, 3=3=4=3 with a spade stopper
     assert_eq!(
         best_call(&system, &[call(2, Strain::Spades)], "KQ5.AQ5.KJ54.Q92"),
@@ -178,7 +178,7 @@ fn test_weak_two_notrump_overcall() {
 /// (2♠) with a five-card minor and modest values → natural 3♣ overcall
 #[test]
 fn test_weak_two_suit_overcall() {
-    let system = stance();
+    let system = partnership();
     // 11 HCP, five clubs — overcall at the cheapest level, a rung up
     assert_eq!(
         best_call(&system, &[call(2, Strain::Spades)], "432.32.K54.AKJ54"),
@@ -191,7 +191,7 @@ fn test_weak_two_suit_overcall() {
 /// (2♠) X - with a weak spade stack → pass for penalty
 #[test]
 fn test_advance_double_penalty_pass() {
-    let system = stance();
+    let system = partnership();
     // 6 HCP, KQJ9x of spades sitting over the weak two and nothing else — convert
     // for penalty. The default Transfer Lebensohl keeps this weak penalty pass;
     // only stopper-plus-game-values hands push on to 3NT (see below).
@@ -208,7 +208,7 @@ fn test_advance_double_penalty_pass() {
 /// (2♠) X - with a stopper and game values → 3NT
 #[test]
 fn test_advance_double_three_notrump() {
-    let system = stance();
+    let system = partnership();
     // 14 HCP, balanced with a spade stopper and no four-card major
     assert_eq!(
         best_call(
@@ -223,7 +223,7 @@ fn test_advance_double_three_notrump() {
 /// (2♠) X - with four hearts and game values → 3♠ cue (Stayman)
 #[test]
 fn test_advance_double_major_cue() {
-    let system = stance();
+    let system = partnership();
     // 14 HCP, four hearts opposite the takeout double — the default Transfer
     // Lebensohl bids the 3♠ cue (Stayman) to find the heart fit, rather than
     // jumping blind to 4♥.
@@ -243,7 +243,7 @@ fn test_advance_double_major_cue() {
 /// the fit (4♥, since 3♥ is below the 3♠ cue).
 #[test]
 fn test_recognize_delayed_cue_major_fit() {
-    let system = stance();
+    let system = partnership();
     let auction = [
         call(2, Strain::Spades),
         Call::Double,
@@ -271,7 +271,7 @@ fn test_recognize_delayed_cue_major_fit() {
 /// with a weak five-card major → cheapest-level natural advance 1♠
 #[test]
 fn test_advance_double_over_one_bid() {
-    let system = stance();
+    let system = partnership();
     // 6 HCP, five spades — pick the major at the one level
     assert_eq!(
         best_call(

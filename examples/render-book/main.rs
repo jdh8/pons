@@ -48,11 +48,11 @@ fn print_rules(rules: &Rules, opaque: &mut usize) {
 }
 
 fn main() {
-    let pair = american_book(&pons::bidding::agreements::Agreements::default());
+    let system = american_book(&pons::bidding::agreements::Agreements::default());
     let books: [(&str, &Trie); 3] = [
-        ("constructive", &pair.constructive.0),
-        ("competitive", &pair.competitive.0),
-        ("defensive", &pair.defensive.0),
+        ("constructive", &system.constructive.0),
+        ("competitive", &system.competitive.0),
+        ("defensive", &system.defensive.0),
     ];
 
     let mut seen: HashSet<usize> = HashSet::new();

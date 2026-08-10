@@ -97,9 +97,9 @@ fn main() {
     // Two systems: the knob is baked into the book, so build one each way.
     let mut arm = pons::bidding::agreements::Agreements::default();
     arm.notrump.long_minor_force = false;
-    let sys_off = american(&arm).against();
+    let sys_off = american(&arm).bind();
     arm.notrump.long_minor_force = true;
-    let sys_on = american(&arm).against();
+    let sys_on = american(&arm).bind();
 
     // Scan for a qualifying eight opposite partner's 1NT, bid both arms, keep the
     // deal plus each arm's final contract when they diverge.

@@ -26,7 +26,7 @@ pub(super) fn best_with(
 ) -> Call {
     let hand = hand.parse().expect("valid test hand");
     let logits = american(agreements)
-        .against()
+        .bind()
         .classify(hand, RelativeVulnerability::NONE, auction)
         .expect("a decision");
     (&logits.0)
@@ -49,7 +49,7 @@ fn systems_on_over_two_clubs() {
     let best_legal = |auction: &[Call], hand: &str| -> Call {
         let hand = hand.parse().expect("valid test hand");
         let logits = american(&crate::bidding::agreements::Agreements::default())
-            .against()
+            .bind()
             .classify(hand, RelativeVulnerability::NONE, auction)
             .expect("a decision");
         let mut played = Auction::new();

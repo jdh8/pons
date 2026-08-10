@@ -154,7 +154,7 @@ Mirror `bba-gen`'s anatomy; everything non-EPBot is reused as-is:
   connection-per-request (`Connection: close`) to localhost is fine.
   **Zero new dependencies.** If keep-alive/1.1 parsing gets annoying, `ureq`
   is the fallback — a new dep needs justifying at review.
-- **Knobs**: v1 takes the *default* stance plus `--count/--seed/--vul/
+- **Knobs**: v1 takes the *default* partnership plus `--count/--seed/--vul/
   --output/--port/--tier` only. Do **not** port bba-gen's ~120 flags;
   add a knob when a measurement needs it.
 - **Dump**: same `Dump { our_label, their_label, vulnerability, seed,

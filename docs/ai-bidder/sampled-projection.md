@@ -24,7 +24,7 @@
 > was a misdiagnosis — see the correction in the census section — and the two
 > fixes that actually move the blind head are `set_pass_exclusion_reading`
 > (symbolic: a pass excludes the strictly-heavier sibling gates it declined)
-> and **Stage B itself as `Stance::probe`** (behavioral: self-play boxes keyed
+> and **Stage B itself as `Partnership::probe`** (behavioral: self-play boxes keyed
 > by *traffic*, not authorship — which is what reaches the floor's passes, the
 > real residue). Viability gate cleared by `examples/probe-pass-meaning`:
 > one 100k-board self-play sweep gives ≥100 samples to 57.9% of decision
@@ -306,10 +306,10 @@ Three constraints:
   which is what is being computed. Iterate — v0 = today's symbolic projections,
   probe → v1, probe → v2 — and *assert* stability rather than assuming one pass
   converges.
-- **Hook it at `Stance` construction, not build time.** `const` cannot run a bidder
+- **Hook it at `Partnership` construction, not build time.** `const` cannot run a bidder
   and `build.rs` cannot see the knobs — and readings are knob-dependent (the whole
   bug is that `set_two_over_one_fit` changes what `2♣` means), so a baked table would
-  be wrong for every A/B arm. `american()` already builds a `Stance`. At ~1 s per
+  be wrong for every A/B arm. `american()` already builds a `Partnership`. At ~1 s per
   thousand-node book this amortizes to nothing across a 200k-board A/B.
 - **Reading-affecting knobs must be fixed at construction.** `ab-bilans-floor` flips
   `set_bilans_floor` *per seat per call*; that is safe only because it gates the
@@ -460,7 +460,7 @@ the nets (four suit lengths and `points`) are still at their
 numbers are commensurable. Frequency weighting is free — every node counts
 once — and there is no double-dummy: 20,000 boards cost **1.4 s**.
 
-20,000 boards, seed 1785200001, `american().against(NATURAL)`, 498,687
+20,000 boards, seed 1785200001, `american().bind(NATURAL)`, 498,687
 hidden-seat readings, shipped defaults:
 
 | read seat | readings | ⊤ axes / seat (of 5) | ⊤ on all five |
@@ -572,7 +572,7 @@ ties with) Pass, the knob-on projection must admit the hand. Expectation
 management: the band is equivalent to the refuted `weak_two_pass_gate`
 (C1-encoding loss pre-retrain), so it ships off, queued for the next retrain.
 
-**Stage B is `Stance::probe`** (+ `set_probed_reading`, default off), with
+**Stage B is `Partnership::probe`** (+ `set_probed_reading`, default off), with
 one design amendment over the staging above: coverage is keyed by
 **traffic**, not authorship. One self-play sweep records the actor's hand at
 every decision; every prefix key with ≥200 observations stores a widened
@@ -600,7 +600,7 @@ auctions, so a consumer that retrains on probed features must retrain on the
 *post-probe* auction distribution.
 
 A `--probe 100000` sweep is 200k self-play boards (two iterations). Build with
-`--features rayon` and the harvest fans across the pool — a stance is pinned at
+`--features rayon` and the harvest fans across the pool — a partnership is pinned at
 build, so a worker bids exactly as the main thread does, and the per-key merge
 is order-insensitive. Measured identical, report and census both, at
 `--probe 20000 --count 2000 --seed 424242`: 5.40 s → 0.53 s on 32 cores.
@@ -734,7 +734,7 @@ default off) serves the same probed map:
   retrain's worst-board signature at 30× the fired rate.  Contested-scoped,
   the same 200-board smoke reads 8% fired, +0.015 [±0.212].
 
-`Stance::probe` runs its fixed-point iteration under whichever fold is armed
+`Partnership::probe` runs its fixed-point iteration under whichever fold is armed
 (set the vacuous knob before probing), so the boxes are consistent with
 their serving policy.  The target population is the reading-drift ledger's
 coverage hole — contested free bids the walk stamps nothing for
@@ -848,7 +848,7 @@ anchors keep that honest:
    the number that decides viability.
 2. **Self-referential by construction.** "Hands partner would bid `2♣` with" means
    *our* system's partner. Correct for partner modelling, wrong for opponents playing
-   something else (`against(Family::NATURAL)`, the BBA exploit guard).
+   something else (`bind(Family::NATURAL)`, the BBA exploit guard).
 3. **Every ledger A/B baseline was measured blind** on game-force auctions. After
    Stage B, prior results involving a 2/1 are not strictly comparable to new ones.
 4. **`set_rule_accept` is the adjacent knob**, not this. It replays *authoring rules*

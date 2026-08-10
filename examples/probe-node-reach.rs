@@ -47,7 +47,7 @@ fn main() {
     let args = Args::parse();
     let base = args.seed.unwrap_or_else(rand::random);
     let vul = AbsoluteVulnerability::NONE;
-    let stance = american(&pons::bidding::agreements::Agreements::default()).against();
+    let partnership = american(&pons::bidding::agreements::Agreements::default()).bind();
 
     // The constructive book re-audit candidates (ben-gap-campaign.md), plus the
     // retired game backstop's own anchor as the calibration yardstick: it fired
@@ -121,7 +121,7 @@ fn main() {
         .enumerate()
         .map(|(index, deal)| {
             let dealer = Seat::ALL[index % 4];
-            let auction = bid_uncontested(&stance, dealer, vul, deal);
+            let auction = bid_uncontested(&partnership, dealer, vul, deal);
             // East/West passed throughout, so our side's calls are exactly the
             // ones made from a North/South seat — the book key's alphabet.
             let ours: Vec<Call> = auction

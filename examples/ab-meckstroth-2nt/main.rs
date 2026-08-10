@@ -30,7 +30,7 @@ use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
 use pons::bidding::agreements::Agreements;
 use pons::bidding::context::relative;
-use pons::bidding::{Inferences, Stance};
+use pons::bidding::{Inferences, Partnership};
 use pons::scoring::{
     final_contract, imps, ns_score_contract, ns_score_pd, ns_score_pd_tricks, ns_score_tricks,
 };
@@ -78,10 +78,10 @@ struct Args {
 type ArmBids = [(Auction, Option<(Contract, Seat)>); 2];
 
 /// The (contract, declarer, leader-view inferences) of one auction, read through
-/// `stance`; `None` for a pass-out (sd score 0).  Mirrors `ab-dump-sd`.
+/// `partnership`; `None` for a pass-out (sd score 0).  Mirrors `ab-dump-sd`.
 fn lead_inputs(
     auction: &Auction,
-    stance: &Stance,
+    partnership: &Partnership,
     dealer: Seat,
     vul: AbsoluteVulnerability,
 ) -> Option<(Contract, Seat, Inferences)> {
@@ -93,7 +93,7 @@ fn lead_inputs(
     Some((
         contract,
         declarer,
-        stance.infer(relative(vul, leader), &auction[..cut]),
+        partnership.infer(relative(vul, leader), &auction[..cut]),
     ))
 }
 
@@ -114,10 +114,10 @@ fn main() {
     let mut base = Agreements::default();
     base.rebid.meckstroth_adjunct = args.minor_jumps_only;
     base.rebid.meckstroth_minor_jumps = false;
-    let baseline = american(&base).against();
+    let baseline = american(&base).bind();
     // The shipped default (both on).
-    let adjunct = american(&Agreements::default()).against();
-    let stances = [baseline, adjunct];
+    let adjunct = american(&Agreements::default()).bind();
+    let partnerships = [baseline, adjunct];
 
     // Both arms bid the same deal; the only difference is opener's rebid table.
     // Deal sequentially (cheap), then bid in parallel — bidding is pure (the
@@ -131,7 +131,7 @@ fn main() {
         .map(|(index, deal)| {
             let dealer = Seat::ALL[index % 4];
             std::array::from_fn(|arm| {
-                let auction = bid_uncontested(&stances[arm], dealer, vul, deal);
+                let auction = bid_uncontested(&partnerships[arm], dealer, vul, deal);
                 let contract = final_contract(&auction, dealer);
                 (auction, contract)
             })
@@ -197,7 +197,7 @@ fn main() {
             let dealer = Seat::ALL[i % 4];
             for (arm_on, arm) in [(true, 1usize), (false, 0usize)] {
                 if let Some((contract, declarer, inferences)) =
-                    lead_inputs(&bids[i][arm].0, &stances[arm], dealer, vul)
+                    lead_inputs(&bids[i][arm].0, &partnerships[arm], dealer, vul)
                 {
                     pending.push((i, arm_on, contract, declarer));
                     questions.push(LeadQuestion {

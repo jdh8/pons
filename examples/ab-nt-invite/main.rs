@@ -54,13 +54,13 @@ fn main() {
     let base = args.seed.unwrap_or_else(rand::random);
     let vul = args.vulnerability;
 
-    // The flag is captured into a stance when it is built, so each arm gets its
+    // The flag is captured into a partnership when it is built, so each arm gets its
     // own book: `[off, on]`, indexed by the arm's flag.
     let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.reading.nt_invite = false;
-    let off = american(&agreements).against();
+    let off = american(&agreements).bind();
     agreements.decision.reading.nt_invite = true;
-    let sys = [off, american(&agreements).against()];
+    let sys = [off, american(&agreements).bind()];
 
     // Deals are seeded per board (base + index) so every arm/vul of the
     // experiment replays the identical stream.

@@ -44,7 +44,7 @@ use contract_bridge::{
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::bidding::{Context, Inferences, Range, Relative, american, sample_layouts};
 use pons::scoring::{final_contract, ns_score_contract};
-use pons::{Pair, Table};
+use pons::{System, Table};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 
@@ -213,7 +213,7 @@ fn main() {
         .try_extend(prior.iter().copied())
         .expect("1NT - is a legal prior auction");
     let dealer = Seat::North;
-    let book: Pair = american(&pons::bidding::agreements::Agreements::default());
+    let book: System = american(&pons::bidding::agreements::Agreements::default());
 
     let vuls = [
         ("none", AbsoluteVulnerability::NONE),
@@ -246,7 +246,7 @@ fn main() {
         for (vi, &(_, vul)) in vuls.iter().enumerate() {
             let oracle = verdict(game_is_good(&tables_lo, vul), game_is_good(&tables_hi, vul));
 
-            let table = Table::of_pairs(&book, &book, dealer, vul);
+            let table = Table::of_systems(&book, &book, dealer, vul);
             let frac_lo = reaches_game_frac(&table, &deals_lo, &seed_auction, dealer);
             let frac_hi = reaches_game_frac(&table, &deals_hi, &seed_auction, dealer);
             let booked = verdict(frac_lo >= 0.5, frac_hi >= 0.5);

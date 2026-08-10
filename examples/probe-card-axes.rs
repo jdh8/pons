@@ -13,7 +13,7 @@
 //! at dump time by `verify_card`.
 //!
 //! One rayon task per arm.  Each starts from `Agreements::default()`, applies
-//! its own flip to that value, and builds a stance whose classify-time state is
+//! its own flip to that value, and builds a partnership whose classify-time state is
 //! pinned independently of the worker thread.
 //!
 //! ```text
@@ -122,7 +122,7 @@ const AXES: [(&str, Flip); 16] = [
 
 /// Bid every deal sequentially under one agreements value
 fn bid_all(deals: &[FullDeal], agreements: &Agreements) -> Vec<String> {
-    let stance = american(agreements).against();
+    let partnership = american(agreements).bind();
     deals
         .iter()
         .enumerate()
@@ -137,7 +137,7 @@ fn bid_all(deals: &[FullDeal], agreements: &Agreements) -> Vec<String> {
             let mut auction = Auction::new();
             while !auction.has_ended() {
                 let seat = seat_to_act(dealer, auction.len());
-                auction.push(next_call(&stance, deal[seat], dealer, vul, &auction));
+                auction.push(next_call(&partnership, deal[seat], dealer, vul, &auction));
             }
             auction
                 .iter()

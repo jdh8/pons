@@ -118,9 +118,9 @@ fn main() {
 
     let mut arm = Agreements::default();
     configure(&mut arm, &args.conv, false);
-    let baseline = american(&arm).against();
+    let baseline = american(&arm).bind();
     configure(&mut arm, &args.conv, true);
-    let conv = american(&arm).against();
+    let conv = american(&arm).bind();
 
     // Phase 1 (sequential, cheap): deal + the shape-only filter until `count`
     // boards pass. The RNG stays single-threaded so a seed reproduces a run.

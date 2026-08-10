@@ -39,7 +39,7 @@ use contract_bridge::{
 };
 use ddss::{NonEmptyStrainFlags, Solver};
 use pons::american;
-use pons::bidding::Stance;
+use pons::bidding::Partnership;
 use pons::scoring::{final_contract, imps, ns_score_contract};
 
 #[path = "common/mod.rs"]
@@ -139,7 +139,7 @@ fn gadget_contract(opener: Hand, responder: Hand, major: Suit) -> Contract {
 // --- baseline bidder (opponents silent), lifted from `nt-shape-abc` -----------
 
 fn bid_uncontested(
-    stance: &Stance,
+    partnership: &Partnership,
     dealer: Seat,
     vul: AbsoluteVulnerability,
     deal: &FullDeal,
@@ -150,7 +150,7 @@ fn bid_uncontested(
         let call = if matches!(seat, Seat::East | Seat::West) {
             Call::Pass
         } else {
-            next_call(stance, deal[seat], dealer, vul, &auction)
+            next_call(partnership, deal[seat], dealer, vul, &auction)
         };
         auction.push(call);
     }
@@ -181,7 +181,7 @@ fn main() {
 
     let args = Args::parse();
     let mut rng = rand::rng();
-    let stance = american(&pons::bidding::agreements::Agreements::default()).against();
+    let partnership = american(&pons::bidding::agreements::Agreements::default()).bind();
 
     // Collect slam-try configurations (only the N/S partnership, so North/South
     // scoring stays sign-consistent), each with the deal for the batch solve.
@@ -215,7 +215,7 @@ fn main() {
         let strain = Strain::from(*major);
 
         // Baseline: the real bidder, opener on lead-out (dealer = opener).
-        let auction = bid_uncontested(&stance, *opener, args.vulnerability, deal);
+        let auction = bid_uncontested(&partnership, *opener, args.vulnerability, deal);
         let base = final_contract(&auction, *opener);
 
         // Gadget: modeled, responder-declared.

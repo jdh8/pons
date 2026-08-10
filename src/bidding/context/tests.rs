@@ -234,7 +234,7 @@ fn configured_clone_preserves_decision_cache() {
 fn structural_builders_reject_an_attached_cache() {
     let auction = [];
     let trie = Trie::new();
-    let stance = Stance::default();
+    let partnership = Partnership::default();
     let context =
         Context::new(RelativeVulnerability::NONE, &auction).with_decision_cache(test_hand());
     let cache = Arc::clone(context.decision_cache.as_ref().expect("attached cache"));
@@ -252,7 +252,7 @@ fn structural_builders_reject_an_attached_cache() {
         &cache,
     ));
 
-    let opposed = context.with_system(&stance);
+    let opposed = context.with_system(&partnership);
     assert_eq!(opposed.revision, cache.revision + 1);
     assert!(opposed.active_decision_cache().is_none());
 }
