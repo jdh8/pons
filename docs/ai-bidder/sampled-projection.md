@@ -1,15 +1,15 @@
 # Sampled projection — probe the bidder at authoring time, store the answer
 
-> Status (2026-07-22): **design only, no code.** Motivated by a measured bug (the
-> 2/1 reading is erased) and a measured feasibility probe, both below. Successor
-> to [`archive/rule-projection.md`](archive/rule-projection.md), which shipped
-> `Constraint::project` and recorded `Or`-disjunction as its wall. This is the
-> proposal for that wall.
->
-> Note: `constraint.rs:861` points at `docs/ai-bidder/rule-projection.md`; the file
-> is in `archive/`. Stale path — worth fixing when that comment is next touched,
-> since it is the comment justifying the vacuous `SupportPoints::project` this
-> design makes moot.
+> Status (2026-08-10): **built and measured; the serving knobs stay opt-in.**
+> Stage 0/A landed, Stage C (the `EnvelopeUnion` migration) shipped default-on
+> 2026-07-23; Stage B (`Partnership::probe`) is built and its servings are
+> measured — probed v1 and v2 both REFUTED as bidding inputs, and the
+> exclusion retrain washed, so `set_pass_exclusion_reading` and
+> `set_probed_vacuous_reading` remain opt-in. Originally motivated (2026-07-22)
+> by a measured bug (the 2/1 reading is erased) and priced by the negative
+> control at 0.65–1.27 IMPs/board. Successor to
+> [`archive/rule-projection.md`](archive/rule-projection.md), which shipped
+> `Constraint::project` and recorded `Or`-disjunction as its wall.
 >
 > Update (2026-07-26): the negative control below prices this design's prize at
 > **0.65–1.27 IMPs/board** — about the whole remaining gap to BBA. Build it.

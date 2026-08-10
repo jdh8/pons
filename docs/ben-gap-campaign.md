@@ -8,7 +8,7 @@ published −0.38 DD / −0.51 SD; details in
 [ben-gen-design.md](ben-gen-design.md), validation step 4). Phase 1's
 remaining items: Tier-F gap on the anchor seeds, then the 102.4k Tier-F
 decompose. The
-[survey](open-source-bidder-survey.md) refuted "pons is the strongest
+[survey](archive/open-source-bidder-survey.md) refuted "pons is the strongest
 open-source bidder": BEN (GPL-3.0, code + weights in-repo) beats EPBot by
 0.35–0.38 IMPs/deal DD in BBA's own cross-engine tables, and pons trails
 that same EPBot by ≈1.7–1.9. Chained estimate: **pons ≈2.1 IMPs/board behind
@@ -391,13 +391,16 @@ headline trail, as bba-gap-campaign.md does today.
 
 If Phase 1 shows the gap dominated by search-judgment buckets, the strategic
 answer converges with the AI-bidder roadmap: distil + search (BEN's own
-recipe, which pons has all the parts for). **The concrete plan now exists:**
-[ai-bidder/sound-search.md](ai-bidder/sound-search.md) (= AI-bidder
-Milestone 8) — refine the *built* search (`american_search` /
-`american_neural_search`) rather than build it: fix the sampler
-(uniform-reject → importance-weighted, reading-tightened), fix the scorer
-(single-dummy slam pricing in the offline teacher), re-distill; ordered by
-leverage with a do-not-retry list. It stays gated behind Phase 1's decompose,
+recipe). **The plan was drawn, then its machinery was deleted:**
+[ai-bidder/archive/sound-search.md](ai-bidder/archive/sound-search.md)
+(= AI-bidder Milestone 8) planned to refine the then-built search
+(`american_search` / `american_neural_search`), but the variant tidy-up
+removed that line — only the BBA-distilled floor survives, so re-deriving
+the search machinery is now a prerequisite for any M8 phase. The plan's
+substance stands: fix the sampler (uniform-reject → importance-weighted,
+reading-tightened), fix the scorer (single-dummy slam pricing in the
+offline teacher), re-distill; ordered by leverage with a do-not-retry
+list. It stays gated behind Phase 1's decompose,
 which decides whether the gap is search-judgment (→ Milestone 8) or shared
 book/floor buckets. Also deferred: a Rust Blue Chip
 table manager (unlocks WBridge5/GIB/BBA-as-member under one harness — the

@@ -3,6 +3,15 @@
 The half that does the floor's actual job: `(hand, auction) → Logits` over 38
 calls, learned instead of hand-written.
 
+> Status (2026-08-10): built, twice over. Phase 1 executed with a different
+> teacher — the shipped floors hard-clone the BBA/EPBot oracle (current: v5,
+> [`card-manifold.md`](card-manifold.md)), not `american()` self-distillation.
+> Phase 2's search was built as M2/M3 (`american_search`, `search_floor.rs`)
+> and then **deleted** in the variant tidy-up
+> ([`archive/sound-search.md`](archive/sound-search.md)); re-deriving it is
+> M8's prerequisite. The architecture and safety-shell design below remain the
+> reference.
+
 ---
 
 ## A 5-minute ML primer, in your terms

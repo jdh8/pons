@@ -1,7 +1,12 @@
 # The AI instinct bidder
 
-> A design effort, not yet code. Everything here is a plan. The crate is
-> untouched until a milestone in [`plan.md`](plan.md) is explicitly started.
+> Originally (2026-06) a design effort; much of it has since shipped. The
+> crate's default floor **is** a learned net — the BBA-distilled configured
+> net, v5 since 2026-08-08 ([`card-manifold.md`](card-manifold.md)) — and the
+> sampler, evaluator net, and DSL compiler are live. Milestone status is in
+> [`plan.md`](plan.md); this file and `01`–`04` keep the original design and
+> the ML glossary. Where execution diverged from the plan (notably the
+> distillation teacher — see the glossary row), the shipped record wins.
 
 ## The dream
 
@@ -76,7 +81,7 @@ these framings.
 | Attention (transformer) | For each position, a weighted average of all positions' vectors; the weights are `softmax` of learned dot-products. A differentiable, content-addressable lookup. |
 | Deep Sets / equivariance | If the input is a set (the 4 suits are exchangeable), apply one shared per-element function, then pool (sum/mean). Bakes the symmetry into the architecture. |
 | CNN | A small filter slid across positions; assumes *translation invariance*. Bad fit for card ranks (an Ace is not "a Two shifted up"). |
-| Distillation | Train a fast "student" to copy a "teacher"'s output distribution. Here: student net copies `american_instinct()`'s softmax (the deterministic system — never the net-floored `american()`, which would be circular). |
+| Distillation | Train a fast "student" to copy a "teacher"'s output distribution. As designed the teacher was `american_instinct()` (never the net-floored `american()`, which would be circular); as shipped, every default floor since 2026-07-19 clones the external **BBA/EPBot oracle** instead (`dump-teacher --teacher bba`; see [`bba-floor.md`](bba-floor.md)). |
 | Policy | A function: state → distribution over actions. **Your floor is already a (deterministic) policy.** The net is a learned one. |
 | Policy improvement / search | Use a slow accurate evaluator (DD over sampled layouts) to score each candidate call, then nudge the policy toward the higher-EV one. Iterate. Run it **at training time** (to make targets) *and* **at play time** (net+search beats the raw net). |
 | Prior policy | The cheap policy (the net's softmax) used to *propose* which calls are worth evaluating — search only the top-`k`. "Net proposes, search disposes." |
@@ -100,5 +105,13 @@ these framings.
   A/B IMPs harness.
 - [`plan.md`](plan.md) — the phased roadmap: small, well-specified, individually
   measurable chunks.
+
+The ledgers that grew alongside the design (the shipped reality lives there):
+[`bba-floor.md`](bba-floor.md), [`configured-net.md`](configured-net.md),
+[`card-manifold.md`](card-manifold.md) (the current v5 floor),
+[`evaluator-net.md`](evaluator-net.md), [`sampled-projection.md`](sampled-projection.md),
+[`dsl-spec.md`](dsl-spec.md), [`21gf-ledger.md`](21gf-ledger.md), plus the
+BBA reverse-engineering notes (`bba-*.md`). Closed campaigns are in
+[`archive/`](archive/).
 </content>
 </invoke>

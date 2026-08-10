@@ -67,10 +67,12 @@ Start at 2 (or 1 if it suffices). Escalate to 3 only when forced.
 
 The model attaches exactly where `instinct()` does: as the root `Always`
 fallback, behind the book, wrapped in the legality+safety shell from
-[`02-policy-net.md`](02-policy-net.md). A new constructor (say
-`american_neural()`) mirrors `american()` but swaps the floor. The
-deterministic `instinct()` stays as the default and the comparison baseline —
-nothing is removed, a new option is added.
+[`02-policy-net.md`](02-policy-net.md). *(As shipped the naming differs: the
+net floor is `american()`'s own default — v5 via the configured
+`ConfiguredFloorBba`, since 2026-08-05/08 — flooring the contested/defensive
+books only, with deterministic `instinct()` flooring the constructive book
+and available as the baseline through `american_with_config`. The design's
+`american_neural()` constructor was never used.)*
 
 ---
 
@@ -83,7 +85,9 @@ template: A/B duplicate match, divergent boards solved double-dummy, swing
 credited in **IMPs/board**, plus floor-activation telemetry (where the floor
 fires, which off-book auctions are most common). Every milestone reuses this
 pattern: the `neural-floor` and `search-floor` examples pit the *neural* and
-*search* floors against the *deterministic* floor and bare books.
+*search* floors against the *deterministic* floor and bare books *(the
+search-floor example went with the deleted search line —
+[`archive/sound-search.md`](archive/sound-search.md))*.
 
 ### What to measure each milestone
 

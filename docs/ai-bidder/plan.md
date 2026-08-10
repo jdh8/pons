@@ -659,10 +659,13 @@ under M6; the leaf-pricing thesis survives only as the optional M7.2 A/B.
 
 ## Milestone 8 — Sound search (closing the BEN gap: sampler + scorer)
 
-Full design: [`sound-search.md`](sound-search.md). The search machinery is built
-(M2.3 `american_search`, M3 distilled `american_neural_search`); the two BEN
-probes (bitmap ablation, Info-net) locate the −1.9 IMP gap in **search over
-sampled worlds + auction-state memory**, not the hand features. This milestone
+Full design: [`archive/sound-search.md`](archive/sound-search.md) —
+**superseded before execution**: the machinery it plans against (M2.3
+`american_search`, M3 `american_neural_search`, `search_floor.rs`) was deleted
+in the variant tidy-up, so re-deriving the search is a prerequisite for any M8
+phase. The diagnosis stands: the two BEN probes (bitmap ablation, Info-net)
+locate the −1.9 IMP gap in **search over sampled worlds + auction-state
+memory**, not the hand features. This milestone
 makes the existing search *sound* — it subsumes the one still-live M7 branch
 (M7.2 constructive leaves) and is the concrete Phase 3 of
 [ben-gap-campaign.md](../ben-gap-campaign.md). `instinct()` / `american()` stay
@@ -671,7 +674,7 @@ Tier-F primary + BBA plain-DD guard).
 
 The three-lever review behind M8 — *do we need BEN's features, more training, or
 search?* — with the pons↔BEN parameter comparison and the post-swap search
-re-basing (Phase 0), is [`stronger-floor.md`](stronger-floor.md).
+re-basing (Phase 0), is [`archive/stronger-floor.md`](archive/stronger-floor.md).
 
 - ⬜ **M8.1 Sampler soundness.** Tight, realistic worlds: land the reading knobs
   (`length_soundness` + the three reading-side washes); rule-replay sampling
@@ -681,7 +684,8 @@ re-basing (Phase 0), is [`stronger-floor.md`](stronger-floor.md).
   by our `Inferences`). *Measure:* EV variance/bias on a fixed set + the M8.4
   re-distill A/B. *Deps:* none (1a in flight as the reading-knobs A/Bs). Before
   M8.4, settle the search's prior + rollout continuation, which still point at the
-  pre-swap v1/M3 nets ([`stronger-floor.md`](stronger-floor.md) Phase 0).
+  pre-swap v1/M3 nets ([`archive/stronger-floor.md`](archive/stronger-floor.md)
+  Phase 0) — nets since deleted with the rest of the search line.
 - ⬜ **M8.2 Scorer soundness for slam.** An `SD_EVAL` offline scorer swapping
   `ev_all`'s DD trick source for the single-dummy declarer playout
   (`single_dummy_declarer_tricks`), consumed by the `dump-search` teacher, **not**
@@ -778,9 +782,11 @@ M6 (deeper deterministic floor) ─► absorbed ex-M7.1 decode sweep (Inferences
 S (BBA/EPBot) ─► external eval anchor (now) · teacher → M3 (optional)
 ```
 
-**Recommended first chunk:** all of **M0**. It is pure bridge/Rust, unblocks
-every branch, and produces three durable assets (corpus, feature spec, teacher
-dataset) that survive any later change of ML mind. After M0, **M1** is the
-smallest path to a real "the machine bids" result, and **M4.1–M4.2** can run in
-parallel since they only need the corpus.
+**Recommended first chunk (updated 2026-08-10):** the foundations are long
+done — M0–M4 and M6 are complete, M7 is demoted, and the shipped floor is the
+BBA-distilled configured net (v5 since 2026-08-08, `card-manifold.md`). The
+live frontier is **M8** (sound search, the BEN gap), which first needs its
+machinery re-derived — the search line it planned against was deleted in the
+variant tidy-up ([`archive/sound-search.md`](archive/sound-search.md)).
+M5.2/M5.3 stay open behind their own preconditions.
 </content>

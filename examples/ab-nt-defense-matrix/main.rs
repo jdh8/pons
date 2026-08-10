@@ -159,7 +159,7 @@ fn build_books() -> (Vec<Partnership>, Vec<Partnership>) {
         };
         american(&agreements).bind()
     };
-    // The DONT parity config (docs/ai-bidder/1nt-defense-dont.md): 6+ one-suiter
+    // The DONT parity config (docs/ai-bidder/archive/1nt-defense-dont.md): 6+ one-suiter
     // minimum; DONT owns 2♣/2NT, so it carries its own both-minors band.  The
     // `x_floor` variant raises only the one-suiter X floor (strong doubles only).
     let dont = |x_floor: u8| {

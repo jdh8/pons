@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **The docs shelf is triaged: five closed campaigns archived, and the ledgers
+  now say what the code does.**  A full-scan survey of all 45 docs moved
+  `open-source-bidder-survey` and `brl-book-extraction` to `docs/archive/` and
+  `sound-search`, `stronger-floor` and `1nt-defense-dont` to
+  `docs/ai-bidder/archive/` (each either self-bannered SUPERSEDED or closed
+  with its verdict delivered), updating all eight inbound links.  Ledger rows
+  that contradicted shipped state were corrected in place: CLAUDE.md's "design
+  only, no code yet" for the BEN harness (Phase 0 completed 2026-07-17, the
+  harness bids); `21gf-ledger`'s DOPI/ROPI rows ("gap → add" while `8ba8844`
+  shipped the machinery 2026-07-31) and its two "sd-vindicated" verdicts that
+  the SD-PD re-adjudication refuted (`set_meckstroth_minor_jumps`,
+  `set_forcing_nt_two_suiter` — **defaults untouched**, both still default-on
+  pending demotion per bidding-options.md); `declarative-rows`' "cell B at
+  scale is still owed" (it ran 2026-08-08, same doc); `sampled-projection`'s
+  "design only, no code" header (built and measured, serving knobs opt-in) and
+  its note about a `constraint.rs` stale path that no longer exists;
+  `plan.md`'s closing "start with M0" (frontier is M8, which first re-derives
+  the deleted search line); the ai-bidder `README`/`01`/`02`/`04` teacher
+  claim (`american()` self-distillation planned, BBA/EPBot cloning shipped)
+  plus their references to the deleted search examples; `ben-gap-campaign`'s
+  Phase-3 pointer to the "*built* search"; and `dutch-spec`'s two Muiderberg
+  lines (the 2026-07-20 decision is BBA's Multi 2♦ + Polish two-suiters).
+  No bidding change — the only non-doc edit is a comment path in
+  `examples/ab-nt-defense-matrix`.
+
 - **The vs-BBA A/B stops solving and parsing every cell twice, and eight serial
   example loops fan out.**  No bidding change — `src/` is untouched, so the
   bidder is byte-identical; this is harness wall-clock only.

@@ -1,11 +1,11 @@
 # The best (GTO) defense to a strong 1NT — a matrix-game tournament
 
-**Status: measured 2026-07-03** on three brackets — plain DD, perfect defense,
-and the **sd-lead** single-dummy-lead scorer added later the same day, whose
-headline was "Woolsey is the equilibrium at *both* vulnerabilities".
-**Re-adjudicated 2026-07-26 on the fourth bracket, sd-pd, which REFUTES that
-headline: always-pass is the equilibrium at both vuls** (see the SD-PD section);
-plain sd-lead never doubles, and the doubling was the whole effect. Harness:
+**Status: always-pass is the equilibrium at both vulnerabilities — the sd-pd
+re-adjudication of 2026-07-26** (see the SD-PD section). The original
+2026-07-03 measurement on three brackets (plain DD, perfect defense, sd-lead)
+had headlined "Woolsey is the equilibrium at *both* vulnerabilities"; the
+fourth bracket refuted that — plain sd-lead never doubles, and the doubling
+was the whole effect. Harness:
 [`examples/ab-nt-defense-matrix`](../../examples/ab-nt-defense-matrix/main.rs).
 
 ## Why "best defense" is a game, not an A/B
@@ -40,7 +40,7 @@ The two DD scorers assume perfect double-dummy cardplay, bracketed per
   real doubles are kept.
 
 **The obstruction wall applies** (`project_preemption-dd-negative`,
-[`1nt-defense-dont.md`](1nt-defense-dont.md)): perfect cardplay prices
+[`1nt-defense-dont.md`](archive/1nt-defense-dont.md)): perfect cardplay prices
 obstruction, pressure, and "they sit and die" at exactly zero, and prior work
 showed always-pass beats every defense on this measure. So the *expected* DD
 equilibrium is pass-heavy, and the informative outputs are the relative

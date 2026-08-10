@@ -264,8 +264,8 @@ is not grounds to change a ship decision (cf. DoubleStyle, Jordan/Truscott).
 | 58 | Fourth suit forcing | gap (floored) | add (Batch 3) | — | — |
 | 124 | Two-way game tries | gap; **our card wrongly declares it `1`** — the honest `0` measured plain −0.0174/−0.0130 per bd NV/vul (CI-clear, PD wash) because the v4 corpus froze the row, so it is a retrain fix | add (Batch 3) | `ab-results/game-tries-card`, 204 800 bd/arm/vul ×2 vuls, SEED_BASE 1786109782 | — |
 | 52 | Drury | gap | add (Batch 3) | — | — |
-| — | **Meckstroth adjunct** (complete, one knob): artificial 18+ GF `2NT` + `3♣`-relay shape-outs **and** invitational `3m` jumps | **shipped** (`set_meckstroth_adjunct`, default on; merged 2026-07-12 from the former `set_meckstroth_2nt` + misnomer `set_meckstroth_adjunct`, book byte-identical) | keep — plain-DD win on the `2NT` machine, sd-vindicated `3m` jumps; complements XYZ | 2NT: plain **+0.0075/+0.013**, PD +0.006/+0.011, **sd +0.010/+0.017** (`ab-meckstroth-2nt`, 200k×2 seeds, +2.7/+4.4 IMPs/div, fires 0.4%). 3m jumps: plain wash, PD −0.0036/−0.0019, **sd +0.0012/+0.0042** (SHA 22364c9) | — |
-| — | Forcing-1NT invitational major two-suiter: `1♥ - 1NT - 2♠` reverse (5+♥4+♠) + `1♠ - 1NT - 3♥` jump (5-5 majors), 15–17 | **shipped** (`set_forcing_nt_two_suiter`, default on) | keep — sd-vindicated (the `3m`-jump adjunct profile) | plain wash-NV/+0.001-vul (never neg), PD −0.0017/−0.0010 (over-punished), **sd-lead +0.0012/+0.0013 NV, +0.0026/+0.0029 vul** (`ab-forcing-nt-two-suiter`, 1M×2 seeds×2 vuls SHA 293ed53, all four sd cells CI-clean; +0.8/+2.1 IMPs/div; fires 0.14%) | — |
+| — | **Meckstroth adjunct** (complete, one knob): artificial 18+ GF `2NT` + `3♣`-relay shape-outs **and** invitational `3m` jumps | **shipped** (`set_meckstroth_adjunct`, default on; merged 2026-07-12 from the former `set_meckstroth_2nt` + misnomer `set_meckstroth_adjunct`, book byte-identical) | keep — the `2NT` machine **CONFIRMED on all four brackets** (SD-PD re-adjudication 2026-07-25); the `3m` jumps were split out (`set_meckstroth_minor_jumps`, 2026-07-26) and **REFUTED by SD-PD**, default-on pending demotion — verdicts in bidding-options.md | 2NT: plain **+0.0075/+0.013**, PD +0.006/+0.011, **sd +0.010/+0.017** (`ab-meckstroth-2nt`, 200k×2 seeds, +2.7/+4.4 IMPs/div, fires 0.4%). 3m jumps: the published sd win (+0.0012/+0.0042, SHA 22364c9) did not survive the isolated SD-PD arm: −0.0025 ±0.0009 / −0.0021 ±0.0011, CI-clear negative both | — |
+| — | Forcing-1NT invitational major two-suiter: `1♥ - 1NT - 2♠` reverse (5+♥4+♠) + `1♠ - 1NT - 3♥` jump (5-5 majors), 15–17 | **shipped** (`set_forcing_nt_two_suiter`, default on) | **REFUTED 2026-07-25 by SD-PD** (the sd redemption *was* the missing doubling; the "adjunct profile" grouping falsified) — default-on pending demotion, verdicts in bidding-options.md | plain wash-NV/+0.001-vul, PD −0.0017/−0.0010, sd-lead +0.0012/+0.0013 NV, +0.0026/+0.0029 vul (`ab-forcing-nt-two-suiter`, 1M×2 seeds×2 vuls SHA 293ed53) — superseded by SD-PD: **−0.0011 ±0.0005 NV (CI<0) / +0.0000 ±0.0007 vul (wash)** | — |
 
 ## Slam
 
@@ -276,8 +276,8 @@ is not grounds to change a ship decision (cf. DoubleStyle, Jordan/Truscott).
 | 35 | 5NT pick a slam | verify | — | — | — |
 | 64 | Gerber | gap | add (Batch 2) | — | — |
 | 53 | Exclusion | gap | add (Batch 2) | — | — |
-| 51 | DOPI | gap | add (Batch 2) | — | — |
-| 103 | ROPI | gap | add (Batch 2) | — | — |
+| 51 | DOPI | **shipped** 2026-07-31 (classic, over their bid across 4NT: X=0/P=1/steps; DEPO X=even/P=odd; asker decodes, rail delegates; card DEPO=1) | keep | NULL all 4 cells (13–16 fired/vul — BBA rarely bids over 4NT); ships on the pre-registered non-loss (card-honesty) rule. Ledger: reading-drift-handoff.md | 8ba8844 |
+| 103 | ROPI | **shipped** 2026-07-31 (same machinery as #51, over their X of 4NT: XX=0/P=1/5♣=2,3) | keep | see #51 | 8ba8844 |
 | 42 | BROMAD | gap (confirm meaning) | Batch 2 | — | — |
 | — | **Plain-4NT minor keycard** | shipped (small slam) | keep; grand-in-minor deferred | **vs floor: +5.41/+7.05 div** [`PD` 5611eac, 10M, 202 div] — HOLDS. Plain DD not re-run; constructive (reaches *making* slams), so the `PD` figure is the conservative bound. | 99da1b3 |
 

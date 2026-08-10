@@ -136,7 +136,11 @@ What does the net try to output? This is where the three training regimes differ
 (see [`02-policy-net.md`](02-policy-net.md)). For the foundation:
 
 - **Distillation target (Phase 1).** The teacher is the assembled
-  `american()` system. For a sampled `(hand, auction)`, the target is the
+  `american()` system. *(As executed: the M1 nets distilled pons's own system
+  as planned and were later deleted; every floor shipped since 2026-07-19 —
+  through the current v5 — instead hard-clones the external BBA/EPBot oracle.
+  See [`bba-floor.md`](bba-floor.md) and [`card-manifold.md`](card-manifold.md).)*
+  For a sampled `(hand, auction)`, the target is the
   teacher's **full softmax distribution** over calls — not just its argmax. The
   net minimizes cross-entropy to that distribution. Matching the *distribution*
   (soft targets) transfers far more than matching the single best call: it
