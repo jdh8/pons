@@ -83,12 +83,16 @@ pub struct Context<'a> {
     config: Option<&'a Config>,
     compact: Option<&'a CompactConfig>,
     authored_projection: Option<&'a AuthoredProjection>,
-    /// The pinned knob state a *derived* context inherits from its parent —
-    /// see [`Context::with_profile`].  `None` outranked by both the decision
-    /// cache and an attached stance; it is what keeps a context built off the
-    /// reader's auction (`Context::at_each_turn`) reading under the reader's
-    /// pin instead of the bare-context defaults.
-    pinned_profile: Option<DecisionProfile>,
+    /// The knob state this decision serves under
+    ///
+    /// One value, always present: [`Context::new`] starts it at the shipped
+    /// [`DecisionProfile::default`], [`Context::with_system`] replaces it with
+    /// the attached stance's pin, and [`Context::with_profile`] sets it
+    /// directly — which is how a context built off the reader's auction
+    /// (`Context::at_each_turn`), carrying no stance, still reads under the
+    /// reader's settings.  There is no ambient fallback: since 0.11 no bidding
+    /// knob lives on a thread.
+    profile: DecisionProfile,
     revision: u64,
     decision_cache: Option<Arc<DecisionCache>>,
 }
@@ -374,7 +378,7 @@ impl ContextCursor {
             config: None,
             compact: None,
             authored_projection: None,
-            pinned_profile: None,
+            profile: DecisionProfile::default(),
             revision: 0,
             decision_cache: None,
         }
@@ -523,7 +527,7 @@ impl<'a> Context<'a> {
             config: None,
             compact: None,
             authored_projection: None,
-            pinned_profile: None,
+            profile: DecisionProfile::default(),
             revision: 0,
             decision_cache: None,
         };
@@ -589,16 +593,19 @@ impl<'a> Context<'a> {
         contexts
     }
 
-    /// Inherit a parent context's pinned knob state
+    /// Serve this decision under an explicit knob state
     ///
     /// The reading walks each turn of the auction through a context of its own
-    /// (`at_each_turn`), and those carry no stance to pin
-    /// them.  Without this they would fall back to shipped defaults rather than
-    /// the profile the reader was built from.  An attached stance still
-    /// outranks it.
+    /// (`at_each_turn`), and those carry no stance; without this they would
+    /// read under shipped defaults rather than the profile the reader was built
+    /// from.  Diagnostic contexts use it the same way, to classify a rule table
+    /// under settings no stance is holding.
+    ///
+    /// Attaching a system sets the profile too, from that system's pin, so
+    /// attach it first if you mean to override.
     #[must_use]
     pub const fn with_profile(mut self, profile: DecisionProfile) -> Self {
-        self.pinned_profile = Some(profile);
+        self.profile = profile;
         self
     }
 
@@ -630,6 +637,9 @@ impl<'a> Context<'a> {
     pub(crate) fn with_system(mut self, ours: &'a Stance) -> Self {
         self.own_system = Some(ours);
         self.their_system = Some(ours.opponents());
+        // The stance's pin *is* this decision's knob state — taking it here is
+        // what leaves one profile field instead of a precedence chain.
+        self.profile = ours.profile();
         self.revision = self.revision.wrapping_add(1);
         self
     }
@@ -723,13 +733,7 @@ impl<'a> Context<'a> {
 
     fn install_decision_cache(&mut self, hand: Hand, rule_face_slots: usize) {
         let thread = thread::current().id();
-        // The profile pinned into the serving stance or explicit diagnostic
-        // context, falling back to shipped defaults only when bare.
-        let profile = match (self.own_system, self.pinned_profile) {
-            (Some(system), _) => system.profile(),
-            (None, Some(profile)) => profile,
-            (None, None) => DecisionProfile::default(),
-        };
+        let profile = self.profile;
         let reusable = self.decision_cache.as_deref().is_some_and(|cache| {
             cache.reusable(hand, self.revision, thread, profile, rule_face_slots)
         });
@@ -756,38 +760,25 @@ impl<'a> Context<'a> {
 
     /// The reading knobs governing this decision
     ///
-    /// Chain: the profile captured at decision entry, else the one pinned in
-    /// the attached system ([`Stance::infer`] attaches a system but enters no
-    /// decision scope), else — for a bare diagnostic context — the shipped
-    /// default reading profile. The bare arm returns only the reading profile:
-    /// constraint projection calls this per node, and a bare context (rows
-    /// verify, `probe`) should not pay for the instinct half of a
-    /// [`DecisionProfile`] it never looks at.
-    pub(crate) fn reading_profile(&self) -> ReadingProfile {
-        self.active_decision_cache().map_or_else(
-            || match (self.own_system, self.pinned_profile) {
-                (Some(system), _) => system.profile().reading,
-                (None, Some(profile)) => profile.reading,
-                (None, None) => ReadingProfile::default(),
-            },
-            |cache| cache.profile.reading,
-        )
+    /// One field read: whatever [`with_system`][Self::with_system] or
+    /// [`with_profile`][Self::with_profile] put there, or the shipped defaults
+    /// for a bare diagnostic context.  Constraint projection calls this per
+    /// node, so it stays the cheapest thing it can be.
+    ///
+    /// Until 0.11 this was a four-arm cascade — decision cache, attached
+    /// stance, explicit pin, thread-local — because knobs could still be armed
+    /// ambiently and a decision had to freeze them.  With one home per knob
+    /// there is nothing left to disagree.
+    pub(crate) const fn reading_profile(&self) -> ReadingProfile {
+        self.profile.reading
     }
 
-    /// Every knob governing this decision — [`reading_profile`][Self::reading_profile]'s
-    /// chain, over the whole profile
+    /// Every knob governing this decision, not just the reading half
     ///
     /// What the [instinct floor][super::instinct()] reads from inside a
     /// predicate: the closures run per decision and must use the stance's pin.
-    pub(crate) fn decision_profile(&self) -> DecisionProfile {
-        self.active_decision_cache().map_or_else(
-            || match (self.own_system, self.pinned_profile) {
-                (Some(system), _) => system.profile(),
-                (None, Some(profile)) => profile,
-                (None, None) => DecisionProfile::default(),
-            },
-            |cache| cache.profile,
-        )
+    pub(crate) const fn decision_profile(&self) -> DecisionProfile {
+        self.profile
     }
 
     /// Evaluate one explicitly pure compiled face gate at most once in this

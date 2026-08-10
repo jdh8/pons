@@ -676,6 +676,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Seeded `smoke-default` / `smoke-dutch` dumps (20 000 boards each) are
   byte-identical, and `cards/*.bbsa` regenerate unchanged.
 
+- **A `Context` serves one profile, not a precedence chain.**  `pinned_profile:
+  Option<DecisionProfile>` becomes `profile: DecisionProfile` — always present.
+  `Context::new` starts it at the shipped default, `with_system` takes the
+  attached stance's pin, `with_profile` sets it directly.  The two four-arm
+  cascades behind `reading_profile()` and `decision_profile()` — decision cache,
+  attached stance, explicit pin, thread-local — collapse to a field read, and
+  both are now `const fn`.  That cascade existed because a knob could be armed
+  ambiently mid-decision; with one home per knob there is nothing left to
+  disagree.
+
+  `reading_profile()` is called once per constraint node, so this also drops a
+  revision check and a debug assert from the crate's hottest read path.  The
+  decision cache keeps its own profile copy: it is what `reusable()` compares,
+  and so what stops a cached *reading* outliving a profile change.
+
 - **No bidding knob lives on a thread any more.**  The last seventeen cells go:
   the nine `DecisionProfile` scalars (`eval_auction`, `eval_shape`,
   `blind_inference`, `two_over_one_force`, `fuzzy_fifths`, `fifths_companion`,
