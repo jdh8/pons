@@ -104,8 +104,8 @@ fn defense_to_notrump_authors_one_rule_per_call() {
     let configs: [(&str, Configure); 7] = [
         ("natural+unusual2nt", |_| {}),
         ("natural+landy", |agreements| {
-            agreements.decision.reading.landy_range = Some((8, 15));
-            agreements.decision.reading.woolsey_points = (8, 15);
+            agreements.decision.reading.landy = true;
+            agreements.decision.reading.convention_points = (8, 15);
         }),
         ("woolsey", |agreements| {
             agreements.decision.reading.notrump_defense = NotrumpDefense::Woolsey;

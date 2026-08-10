@@ -436,10 +436,10 @@ fn american_row(name: &str, a: &Agreements) -> i32 {
         "Fourth suit" | "Fourth suit game force" => i32::from(a.rebid.fourth_suit_forcing),
         "Garbage Stayman" => i32::from(a.decision.reading.garbage_stayman),
         "Jordan Truscott 2NT" => i32::from(a.competition.jordan_truscott),
-        // `landy_range` carries the (min, max) two-suiter range when on; the
+        // `landy` carries the (min, max) two-suiter range when on; the
         // mutually-exclusive direct-seat system lives in `NotrumpDefense`.
         "Landy" => {
-            i32::from(a.decision.reading.landy_range.is_some() || a.decision.reading.notrump_defense == NotrumpDefense::DirectLandy)
+            i32::from(a.decision.reading.landy || a.decision.reading.notrump_defense == NotrumpDefense::DirectLandy)
         }
         "Multi-Landy" => i32::from(a.decision.reading.notrump_defense == NotrumpDefense::Woolsey),
         "Leaping Michaels" => i32::from(a.defense.leaping_michaels_enabled),

@@ -345,7 +345,7 @@ type Flip = fn(&mut Agreements);
 /// | 12 | `notrump_defense` | Natural/Woolsey |
 /// | 13 | `lebensohl_style` | Transfer/Off |
 /// | 14 | `notrump_minors` | PUPPET/EUROPEAN |
-/// | 15 | `landy_range` | None/Some((8, 14)) |
+/// | 15 | `landy` | None/Some((8, 14)) |
 ///
 /// [docs/ai-bidder/card-manifold.md]: ../../docs/ai-bidder/card-manifold.md
 const AXES: [(&str, Flip); 16] = [
@@ -411,13 +411,10 @@ const AXES: [(&str, Flip); 16] = [
         };
     }),
     ("Landy range", |a| {
-        a.decision.reading.landy_range = if a.decision.reading.landy_range.is_some() {
-            None
-        } else {
-            Some((8, 14))
-        };
-        if let Some(range) = a.decision.reading.landy_range {
-            a.decision.reading.woolsey_points = range;
+        a.decision.reading.landy = !a.decision.reading.landy;
+        if a.decision.reading.landy {
+            // The axis is named for a range, so it moves the shared band too.
+            a.decision.reading.convention_points = (8, 14);
         }
     }),
 ];

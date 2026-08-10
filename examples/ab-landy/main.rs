@@ -1,7 +1,7 @@
 //! Landy defense to their 1NT A/B, **contested**, plain-DD duplicate (the A/B
 //! standard `ns_score_contract`).
 //!
-//! Landy (`ReadingProfile::landy_range`) turns `2♣` into both majors (at least 5-4) and `2NT` into
+//! Landy (`ReadingProfile::landy`) turns `2♣` into both majors (at least 5-4) and `2NT` into
 //! both minors over an opponent's 1NT, replacing the natural `2♣` club overcall.
 //! The measured pair carries Landy on the configured points range; the baseline
 //! pair keeps today's default (natural overcalls + penalty double, Landy off).
@@ -34,6 +34,7 @@ use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::full_deal;
 use contract_bridge::{AbsoluteVulnerability, Bid, Contract, FullDeal, Hand, Seat, Strain, Suit};
 use pons::american;
+use pons::bidding::ReadingProfile;
 use pons::bidding::american::{DoubleShape, NotrumpDefense};
 use pons::bidding::instinct::LatchStyle;
 use pons::scoring::{final_contract, ns_score_bid, ns_score_contract};
@@ -419,7 +420,8 @@ fn main() {
         "optional" => LatchStyle::Optional,
         other => panic!("unknown --ns-latch-style {other:?} (use penalty or optional)"),
     };
-    let woolsey_range = parse_range(&args.ns_woolsey_range).unwrap_or((9, 19));
+    let woolsey_range =
+        parse_range(&args.ns_woolsey_range).unwrap_or(ReadingProfile::default().convention_points);
     let ns_penalty_pass = parse_penalty_pass(&args.ns_penalty_pass, "--ns-penalty-pass");
     let ew_penalty_pass = parse_penalty_pass(&args.ew_penalty_pass, "--ew-penalty-pass");
     let ns_doubled_escape = {
@@ -435,7 +437,7 @@ fn main() {
     let mut baseline_arm = pons::bidding::agreements::Agreements::default();
     baseline_arm.instinct.doubler_xx_runout = false;
     baseline_arm.decision.reading.penalty_latch = ns_penalty_latch;
-    baseline_arm.decision.reading.landy_range = None;
+    baseline_arm.decision.reading.landy = false;
     baseline_arm.decision.reading.notrump_defense = ew_defense;
     baseline_arm.decision.instinct.latch_style = ns_latch_style;
     baseline_arm.competition.penalty_pass = ew_penalty_pass;
@@ -456,8 +458,17 @@ fn main() {
         None if ns_defense == NotrumpDefense::DirectLandy => NotrumpDefense::Natural,
         None => ns_defense,
     };
-    measured_arm.decision.reading.landy_range = majors;
-    measured_arm.decision.reading.woolsey_points = woolsey_range;
+    measured_arm.decision.reading.landy = majors.is_some();
+    // One band serves both families, so each flag drives it only where its own
+    // doc says it applies.  Until 0.11 `--ns-woolsey-range` was written
+    // unconditionally *after* the Landy range, so `--ns-majors`' LO:HI was
+    // dead on every run: the band came from this flag's `(9, 19)` fallback
+    // whatever defense was measured.
+    measured_arm.decision.reading.convention_points = match (ns_defense, majors) {
+        (NotrumpDefense::Woolsey, _) => woolsey_range,
+        (_, Some(range)) => range,
+        _ => ReadingProfile::default().convention_points,
+    };
     measured_arm.decision.reading.woolsey_double_floor = args.ns_woolsey_x_floor;
     measured_arm.decision.instinct.latch_style = ns_latch_style;
     measured_arm.competition.penalty_pass = ns_penalty_pass;

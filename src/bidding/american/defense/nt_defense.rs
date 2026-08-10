@@ -173,7 +173,7 @@ fn chain_natural_base(rules: Rules, agreements: &Agreements) -> Rules {
             };
             chain_natural_overcalls(
                 rules.rule(Call::Pass, 0, hcp(0..)),
-                agreements.decision.reading.landy_range.is_some(),
+                agreements.decision.reading.landy,
                 agreements,
             )
         }
@@ -209,7 +209,7 @@ fn active_alerts(agreements: &Agreements) -> Vec<Alert> {
     // The Landy `2♣` overlay is the natural family's one convention, incompatible with
     // DONT / Meckwell / direct-Landy-X / Woolsey (each repurposes the `2♣` slot) — so
     // it rides only on the non-convention arms.
-    if agreements.decision.reading.landy_range.is_some()
+    if agreements.decision.reading.landy
         && matches!(system, NotrumpDefense::Natural | NotrumpDefense::Off)
     {
         alerts.push(LANDY_2C);

@@ -676,6 +676,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Seeded `smoke-default` / `smoke-dutch` dumps (20 000 boards each) are
   byte-identical, and `cards/*.bbsa` regenerate unchanged.
 
+- **Landy and Woolsey share one strength band.**  They are the same defense
+  apart from the double — Landy's `2♣` and Woolsey's are the identical
+  both-majors call, and Woolsey's `2♦`/`2♥`/`2♠` ride the same strength — so
+  `woolsey_points` becomes `convention_points` and serves both.  The doubles,
+  which is where the two differ, keep their separate floors
+  (`woolsey_double_floor`, `DefenseKnobs::direct_landy_double_floor`).
+
+  `landy_range: Option<(u8, u8)>` becomes `landy: bool`.  Its payload was never
+  read — all nine read sites tested `.is_some()` — because `set_landy` wrote the
+  band into the Woolsey cell as a side effect.  The type now says what the field
+  is: a switch, not a band.
+
+  **This exposed a dead A/B arm.**  `examples/ab-landy` wrote
+  `--ns-woolsey-range` unconditionally on the measured arm, *after* the Landy
+  range, since `c3fdfb2` — the commit that introduced Woolsey.  So
+  `--ns-majors LO:HI` had no effect on the band from that commit onward: every
+  Landy run took its strength from `--ns-woolsey-range`'s fallback, and that
+  fallback was `(9, 19)` against a shipped `(8, 19)` and its own doc's stated
+  `8:19`.  **Any majors-sweep result from this harness is void** except at the
+  on/off boundary; Woolsey-range sweeps were real, but their no-flag baseline
+  ran a floor of 9.  Each flag now drives the band only where its own doc says
+  it applies, falling back to the shipped default.
+
 - **`ReadingProfile` is read by field.**  Its thirty-two pass-through getters —
   `profile.xyz()`, `profile.pass_reading()`, `profile.woolsey_points()` and the
   rest — are deleted; the ~140 call sites read the `pub` field directly.  They

@@ -112,13 +112,10 @@ const AXES: [(&str, Flip); 16] = [
         };
     }),
     ("Landy range", |a| {
-        a.decision.reading.landy_range = if a.decision.reading.landy_range.is_some() {
-            None
-        } else {
-            Some((8, 14))
-        };
-        if let Some(range) = a.decision.reading.landy_range {
-            a.decision.reading.woolsey_points = range;
+        a.decision.reading.landy = !a.decision.reading.landy;
+        if a.decision.reading.landy {
+            // The axis is named for a range, so it moves the shared band too.
+            a.decision.reading.convention_points = (8, 14);
         }
     }),
 ];

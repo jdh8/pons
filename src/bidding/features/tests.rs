@@ -1096,7 +1096,7 @@ fn compact_layout_is_pinned() {
         1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, // 16..23: NotrumpDefense — Natural
         0.0, 0.0, 1.0, // 23..26: LebensohlStyle — Transfer
         0.0, // 26: minors_european — Puppet scheme by default
-        0.0, // 27: landy — `landy_range` off
+        0.0, // 27: landy — `landy` off
     ];
     assert_eq!(
         ConventionCard::capture(&crate::bidding::agreements::Agreements::default(), false).encode(),
@@ -1225,7 +1225,7 @@ fn features_v5_appends_both_blocks() {
 /// then classify.**  [`ConventionCard`] is `Copy`, so both arms can be captured up
 /// front and run under one ambient world — which makes the `features_v3` prefix
 /// bit-identical by construction.  Without that, `garbage_stayman`,
-/// `nt_splinter`, `notrump_defense`, `landy_range` and `notrump_minors` reach
+/// `nt_splinter`, `notrump_defense`, `landy` and `notrump_minors` reach
 /// the vector a second way, through the classify-time inference walk, and two of
 /// those are frozen axes whose inertness assertion would become
 /// auction-dependent.
@@ -1402,8 +1402,8 @@ fn each_compact_axis_moves_its_slots_and_only_live_ones_move_the_net() {
         (
             "landy",
             |a| {
-                a.decision.reading.landy_range = Some((8, 14));
-                a.decision.reading.woolsey_points = (8, 14);
+                a.decision.reading.landy = true;
+                a.decision.reading.convention_points = (8, 14);
             },
             &[27],
         ),

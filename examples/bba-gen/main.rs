@@ -1524,14 +1524,15 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.decision.reading.opener_major_jump_rebid = !args.no_ns_opener_major_jump_rebid;
     agreements.decision.reading.notrump_defense = ns_defense;
     if let Some(range) = woolsey_range {
-        agreements.decision.reading.woolsey_points = range;
+        agreements.decision.reading.convention_points = range;
         agreements.decision.reading.woolsey_double_floor = args.ns_woolsey_x_floor;
     }
-    agreements.decision.reading.landy_range = landy_range;
+    agreements.decision.reading.landy = landy_range.is_some();
     if let Some(range) = landy_range {
-        // Preserve Landy's historical coupling: the balancing
-        // Landy arm also supplied the shared Woolsey strength range.
-        agreements.decision.reading.woolsey_points = range;
+        // Landy and Woolsey share one strength band, so `--ns-landy LO:HI`
+        // names it; passed after `--ns-woolsey-range`, it wins, as it did
+        // when `set_landy` wrote the Woolsey cell.
+        agreements.decision.reading.convention_points = range;
     }
     agreements.decision.reading.rubens_transfer = !args.no_ns_rubens_reading;
     agreements.decision.reading.control_bid = !args.no_ns_control_bid_reading;

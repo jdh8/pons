@@ -1048,7 +1048,7 @@ pub struct DefenseKnobs {
     ///
     /// **Default `(6, 2)`**, the A/B-tuned shipped gate; the knob is
     /// `examples/landy-ab --ns-doubled-escape MIN:MAJ`.  Only reachable when
-    /// Landy is on ([`landy_range`][field@crate::bidding::inference::ReadingProfile::landy_range]), so the
+    /// Landy is on ([`landy`][field@crate::bidding::inference::ReadingProfile::landy]), so the
     /// convention stays opt-in.
     pub doubled_landy_escape: (usize, usize),
     /// Gauge the Landy band in HCP rather than points
@@ -1108,7 +1108,7 @@ pub struct DefenseKnobs {
     /// The both-minors `2NT` overcall of their `1NT`: `None` = off (the floor's
     /// natural — and near-useless — `2NT`); `Some((lo, hi))` = both minors (5-5)
     /// on `points(lo..=hi)`.  Independent of
-    /// [`landy_range`][field@crate::bidding::inference::ReadingProfile::landy_range]: a natural `2NT` over
+    /// [`landy`][field@crate::bidding::inference::ReadingProfile::landy]: a natural `2NT` over
     /// their strong `1NT` is nearly worthless, so this repurposes the bid as a
     /// two-suiter — purely additive, it sacrifices no natural call.
     ///

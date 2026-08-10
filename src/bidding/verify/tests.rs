@@ -310,8 +310,8 @@ fn projection_reproduces_the_declarative_readers() {
     // Landy: (1NT) 2♣ - = both majors, at least 4-4, 8+; partner at length 3.
     // `((len(♥,5..)&len(♠,4..)) | (len(♥,4..)&len(♠,5..))) & points(8..)`.
     let mut landy = Agreements::default();
-    landy.decision.reading.landy_range = Some((8, 15));
-    landy.decision.reading.woolsey_points = (8, 15);
+    landy.decision.reading.landy = true;
+    landy.decision.reading.convention_points = (8, 15);
     landy.defense.leaping_michaels_enabled = false;
     agree(
         &landy,

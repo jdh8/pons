@@ -2,7 +2,7 @@
 //!
 //! The both-majors `2♣` and everything below it: advancer's preference, the
 //! `2NT` game-force ask, the doubled runout and the SOS redouble.
-//! [`landy_range`][field@crate::bidding::inference::ReadingProfile::landy_range]
+//! [`landy`][field@crate::bidding::inference::ReadingProfile::landy]
 //! sets its band; [`NotrumpDefense::DirectLandy`] (with the shape
 //! flag `agreements.defense.direct_landy_four_four`) adds the direct-seat `X`.
 //! Woolsey reuses the same `2♣` call, so the both-majors shapes live here.
@@ -62,12 +62,12 @@ pub(super) fn landy_x(agreements: &Agreements) -> Rules {
 }
 
 /// Landy `2♣`: both majors, at least 5-4, on the shared two-suiter band
-/// ([`woolsey_points`][field@crate::bidding::inference::ReadingProfile::woolsey_points],
+/// ([`convention_points`][field@crate::bidding::inference::ReadingProfile::convention_points],
 /// coupled with Woolsey's identical `2♣`; see
-/// [`landy_range`][field@crate::bidding::inference::ReadingProfile::landy_range]),
+/// [`landy`][field@crate::bidding::inference::ReadingProfile::landy]),
 /// gauged as raw HCP or upgraded points per `agreements.defense.landy_use_hcp`.
 pub(super) fn landy_2c(agreements: &Agreements) -> Rules {
-    let (lo, hi) = agreements.decision.reading.woolsey_points;
+    let (lo, hi) = agreements.decision.reading.convention_points;
     let shape = five_four(Suit::Hearts, Suit::Spades);
     if agreements.defense.landy_use_hcp {
         Rules::new().rule(Bid::new(2, Strain::Clubs), 190, shape & hcp(lo..=hi))
@@ -344,11 +344,9 @@ fn landy_2nt_rebid(lo: u8, hi: u8) -> Rules {
 pub(super) fn landy_advance_package() -> Package {
     Package {
         name: "landy-advance",
-        gate: |agreements| {
-            agreements.decision.reading.landy_range.is_some() || woolsey_enabled(agreements)
-        },
+        gate: |agreements| agreements.decision.reading.landy || woolsey_enabled(agreements),
         entries: |agreements| {
-            let (lo, hi) = agreements.decision.reading.woolsey_points;
+            let (lo, hi) = agreements.decision.reading.convention_points;
             [
                 ("P* (1NT) 2♣ -", landy_advances(lo)),
                 ("P* (1NT) 2♣ - 2♦ -", landy_2d_rebid()),

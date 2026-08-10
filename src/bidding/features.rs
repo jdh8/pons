@@ -1052,7 +1052,7 @@ pub struct ConventionCard {
     /// The European 1NT minor scheme (`3♣` = diamonds) rather than Puppet
     /// (`ReadingProfile::notrump_minors`)
     pub minors_european: bool,
-    /// The balancing Landy 2♣ two-suiter (`ReadingProfile::landy_range`)
+    /// The balancing Landy 2♣ two-suiter (`ReadingProfile::landy`)
     pub landy: bool,
 }
 
@@ -1087,7 +1087,7 @@ impl ConventionCard {
             defense: a.decision.reading.notrump_defense,
             lebensohl: a.competition.lebensohl_style,
             minors_european: a.decision.reading.notrump_minors == EUROPEAN,
-            landy: a.decision.reading.landy_range.is_some(),
+            landy: a.decision.reading.landy,
         }
     }
 
@@ -1136,7 +1136,7 @@ impl ConventionCard {
             defense: if row("Multi-Landy") {
                 NotrumpDefense::Woolsey
             } else if row("Landy") {
-                // The `Landy` row also rides the balancing `landy_range`, so
+                // The `Landy` row also rides the balancing `landy`, so
                 // a balancing-only Landy projects onto the direct-seat system.
                 NotrumpDefense::DirectLandy
             } else {

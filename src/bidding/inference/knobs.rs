@@ -739,21 +739,28 @@ pub struct ReadingProfile {
     /// range.
     pub crawling_stayman: bool,
 
-    /// `(min, max)` inclusive `points` band on the Woolsey suit overcalls
+    /// `(min, max)` inclusive `points` band on our conventional 1NT defense
     ///
-    /// The `2♣`/`2♦`/`2♥`/`2♠` calls of the Woolsey defense; **default
-    /// (8, 19)**, level with the natural overcall floor.  A 2026-06-26
-    /// re-probe (continuations by then fully authored) found honest plain-DD
-    /// self-play *peaks at 8* and flattens below it — 6 and 7 add no value —
-    /// and the BBA head-to-head agrees; perfect defense still mildly prefers
-    /// 10, but PD over-deters by assuming a perfect doubler.  The conventions
-    /// only rearrange *which* call shows a hand, so the strength floor tracks
-    /// natural's 8.  Swept by `examples/ab-landy --ns-woolsey-range`; also the
-    /// points floor the inference engine reads for those overcalls.  No effect
-    /// unless [`notrump_defense`][field@Self::notrump_defense] is
-    /// [`Woolsey`][crate::bidding::american::NotrumpDefense::Woolsey], and
-    /// [`landy_range`][field@Self::landy_range] feeds this band when Landy is on.
-    pub woolsey_points: (u8, u8),
+    /// **One band for Landy and Woolsey**, because they are the same defense
+    /// apart from the double: Landy's `2♣` and Woolsey's are the identical
+    /// both-majors call, and Woolsey's `2♦`/`2♥`/`2♠` ride the same strength.
+    /// What differs is the `X` — Woolsey's has
+    /// [`woolsey_double_floor`][field@Self::woolsey_double_floor], Direct
+    /// Landy's has `DefenseKnobs::direct_landy_double_floor` — so the doubles
+    /// keep separate knobs and the strength does not.
+    ///
+    /// **Default (8, 19)**, level with the natural overcall floor.  A
+    /// 2026-06-26 re-probe (continuations by then fully authored) found honest
+    /// plain-DD self-play *peaks at 8* and flattens below it — 6 and 7 add no
+    /// value — and the BBA head-to-head agrees; perfect defense still mildly
+    /// prefers 10, but PD over-deters by assuming a perfect doubler.  The
+    /// conventions only rearrange *which* call shows a hand, so the strength
+    /// floor tracks natural's 8.  The advancer's invite/game thresholds and the
+    /// overcaller's min/med/max rebid track it, so a lighter overcall asks more
+    /// of the advancer; it is also the points floor the inference engine reads
+    /// for those overcalls.  Swept by `examples/ab-landy --ns-majors` (Landy)
+    /// and `--ns-woolsey-range` (Woolsey).  Inert unless one of the two is on.
+    pub convention_points: (u8, u8),
 
     /// `points` floor on the Woolsey takeout `X` (4-card major + longer minor)
     ///
@@ -792,24 +799,17 @@ pub struct ReadingProfile {
     /// another copy of its own — one value, one home.
     pub longer_major_response: bool,
 
-    /// The Landy `2♣` band, or `None` when Landy is off
+    /// Overlay the Landy `2♣`/`2NT` two-suiters on the defense
     ///
-    /// **Default `None`** — the natural defense's penalty double and natural
-    /// two-level suit overcalls stand.  `Some((lo, hi))` turns Landy on: `2♣`
-    /// shows at least 5-4 in the majors and `2NT` at least 5-4 in the minors,
-    /// both on `points(lo..=hi)`, at the cost of the natural `2♣` club
-    /// overcall.  The range is the A/B sweep knob (`examples/ab-landy
-    /// --ns-majors`); the advancer's invite/game thresholds and the
-    /// overcaller's min/med/max rebid track it, so a lighter overcall asks
-    /// more of the advancer.
-    ///
-    /// It shares the two-suiter band with Woolsey: Landy's and Woolsey's
-    /// both-majors `2♣` are the identical call. An arm enabling Landy therefore
-    /// assigns the same range to
-    /// [`woolsey_points`][field@Self::woolsey_points], preserving the former
-    /// setter's coupling. (Measured: the `:19` cap binds on ~0 hands and the
-    /// floor barely moves the IMPs, so one knob loses nothing.)
-    pub landy_range: Option<(u8, u8)>,
+    /// **Default off** — the natural defense's penalty double and natural
+    /// two-level suit overcalls stand.  On, `2♣` shows at least 5-4 in the
+    /// majors and `2NT` at least 5-4 in the minors, at the cost of the natural
+    /// `2♣` club overcall.  Their strength is
+    /// [`convention_points`][field@Self::convention_points], shared with
+    /// Woolsey — this field is the switch, not the band.  (Measured: the `:19`
+    /// cap binds on ~0 hands and the floor barely moves the IMPs, so one band
+    /// loses nothing.)
+    pub landy: bool,
 
     /// Which mutually-exclusive defense we play over their `1NT` opening
     ///
@@ -955,11 +955,11 @@ impl ReadingProfile {
             opener_major_jump_rebid: false,
             garbage_stayman: false,
             crawling_stayman: false,
-            woolsey_points: (9, 18),
+            convention_points: (9, 18),
             woolsey_double_floor: 13,
             natural_double_floor: 16,
             longer_major_response: false,
-            landy_range: Some((8, 14)),
+            landy: true,
             notrump_defense: crate::bidding::american::NotrumpDefense::Woolsey,
             natural_overcall_points: (9, 13),
             two_notrump_wide: true,
@@ -1014,11 +1014,11 @@ impl Default for ReadingProfile {
             opener_major_jump_rebid: true,
             garbage_stayman: true,
             crawling_stayman: true,
-            woolsey_points: (8, 19),
+            convention_points: (8, 19),
             woolsey_double_floor: 12,
             natural_double_floor: 15,
             longer_major_response: true,
-            landy_range: None,
+            landy: false,
             notrump_defense: crate::bidding::american::NotrumpDefense::Natural,
             natural_overcall_points: (8, 14),
             two_notrump_wide: false,

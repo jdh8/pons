@@ -110,8 +110,8 @@ fn landy_conditions_partner() {
     // (1NT) 2♣ -: the advancer reads partner's both-majors two-suiter (at
     // least 4-4 in the majors, 8+ points) rather than a natural club suit.
     let mut on = Agreements::default();
-    on.decision.reading.landy_range = Some((8, 15));
-    on.decision.reading.woolsey_points = (8, 15);
+    on.decision.reading.landy = true;
+    on.decision.reading.convention_points = (8, 15);
     on.defense.unusual_notrump_range = Some((8, 15));
     let advance = read_booked_with(
         &on,
@@ -148,7 +148,7 @@ fn landy_conditions_partner() {
     // unconstrained — the convention must not leak when off.  Landy is still a
     // agreement, so the disabled arm is built separately.
     let mut disabled = Agreements::default();
-    disabled.decision.reading.landy_range = None;
+    disabled.decision.reading.landy = false;
     disabled.defense.unusual_notrump_range = None;
     let off = read_booked_with(
         &disabled,
@@ -163,9 +163,9 @@ fn woolsey_conditions_partner() {
     use crate::bidding::american::NotrumpDefense;
     // Landy off, Woolsey on: the 2♣ must read through the Woolsey path.
     let mut arm = Agreements::default();
-    arm.decision.reading.landy_range = None;
+    arm.decision.reading.landy = false;
     arm.decision.reading.notrump_defense = NotrumpDefense::Woolsey;
-    arm.decision.reading.woolsey_points = (10, 19);
+    arm.decision.reading.convention_points = (10, 19);
     arm.defense.unusual_notrump_range = None;
 
     // (1NT) 2♣ -: Woolsey's 2♣ is both majors, 10+, never a natural club suit.
@@ -248,9 +248,9 @@ fn woolsey_conditions_partner() {
 fn woolsey_double_and_advances_read() {
     use crate::bidding::american::NotrumpDefense;
     let mut agreements = Agreements::default();
-    agreements.decision.reading.landy_range = None;
+    agreements.decision.reading.landy = false;
     agreements.decision.reading.notrump_defense = NotrumpDefense::Woolsey;
-    agreements.decision.reading.woolsey_points = (10, 19);
+    agreements.decision.reading.convention_points = (10, 19);
     agreements.decision.reading.woolsey_double_floor = 12;
 
     // (1NT) X -: the takeout double names no suit, so nothing is misread — but
@@ -305,7 +305,7 @@ fn woolsey_double_and_advances_read() {
 fn dont_overcalls_and_advances_read() {
     use crate::bidding::american::NotrumpDefense;
     let mut agreements = Agreements::default();
-    agreements.decision.reading.landy_range = None;
+    agreements.decision.reading.landy = false;
     agreements.decision.reading.notrump_defense = NotrumpDefense::DirectDont;
 
     // (1NT) X -: a one-suiter in ♣/♦/♥ — spades short (≤3, the one sound fact),
@@ -376,7 +376,7 @@ fn dont_overcalls_and_advances_read() {
 fn meckwell_overcalls_and_advances_read() {
     use crate::bidding::american::NotrumpDefense;
     let mut agreements = Agreements::default();
-    agreements.decision.reading.landy_range = None;
+    agreements.decision.reading.landy = false;
     agreements.decision.reading.notrump_defense = NotrumpDefense::Meckwell;
 
     // (1NT) X -: the two-way double (single 6+ minor OR both majors) shares no

@@ -10,7 +10,7 @@ fn woolsey(auction: &[Call], hand: &str) -> (Call, bool) {
     // The additive both-minors `2NT` is off for this arm so it cannot outrank
     // a Woolsey call.
     let mut arm = Agreements::default();
-    arm.decision.reading.woolsey_points = (9, 19);
+    arm.decision.reading.convention_points = (9, 19);
     arm.decision.reading.woolsey_double_floor = 11;
     arm.decision.reading.notrump_defense = NotrumpDefense::Woolsey;
     arm.defense.unusual_notrump_range = None;

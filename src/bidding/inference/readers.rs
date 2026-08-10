@@ -109,7 +109,7 @@ pub(super) fn rubens_reading(
 // ponytail: a relay projects no info, so suppress it by hand; the upgrade path is to
 // author the relay's rule with the negated lengths so the detector catches it too.
 pub(super) fn landy_advance_suppress(auction: &[Call], profile: ReadingProfile) -> Option<usize> {
-    let on = profile.landy_range.is_some() || profile.woolsey_enabled();
+    let on = profile.landy || profile.woolsey_enabled();
     if !on {
         return None;
     }
@@ -1123,7 +1123,7 @@ impl Readings {
                     players[who].narrow_length(other, Range::new(0, 3));
                 }
             }
-            let floor = profile.woolsey_points.0;
+            let floor = profile.convention_points.0;
             players[who].narrow_points(Range::at_least(floor, POINTS_CAP));
         }
 

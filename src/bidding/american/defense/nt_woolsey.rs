@@ -60,7 +60,7 @@ pub(super) fn woolsey_x(agreements: &Agreements) -> Rules {
 /// Multi `2♦` and keeping the bundle's uniform 1.9 weights disjoint).  A distinct
 /// block from [`landy_2c`] — same convention, load-bearing shape difference.
 pub(super) fn woolsey_2c(agreements: &Agreements) -> Rules {
-    let (lo, hi) = agreements.decision.reading.woolsey_points;
+    let (lo, hi) = agreements.decision.reading.convention_points;
     Rules::new().rule(
         Bid::new(2, Strain::Clubs),
         190,
@@ -70,7 +70,7 @@ pub(super) fn woolsey_2c(agreements: &Agreements) -> Rules {
 
 /// Woolsey Multi `2♦`: a single 6+ major.
 pub(super) fn multi_2d(agreements: &Agreements) -> Rules {
-    let (lo, hi) = agreements.decision.reading.woolsey_points;
+    let (lo, hi) = agreements.decision.reading.convention_points;
     Rules::new().rule(
         Bid::new(2, Strain::Diamonds),
         190,
@@ -80,7 +80,7 @@ pub(super) fn multi_2d(agreements: &Agreements) -> Rules {
 
 /// Woolsey Muiderberg `2♥`/`2♠`: exactly 5 in `major` + a 4+ minor.
 pub(super) fn muiderberg(major: Suit, agreements: &Agreements) -> Rules {
-    let (lo, hi) = agreements.decision.reading.woolsey_points;
+    let (lo, hi) = agreements.decision.reading.convention_points;
     Rules::new().rule(
         Bid::new(2, Strain::from(major)),
         190,
@@ -237,7 +237,7 @@ pub(super) fn woolsey_package() -> Package {
         name: "woolsey",
         gate: |agreements| woolsey_enabled(agreements),
         entries: |agreements| {
-            let lo = agreements.decision.reading.woolsey_points.0;
+            let lo = agreements.decision.reading.convention_points.0;
             let mut entries = Vec::new();
 
             // Multi 2♦.  The advance is the same over a pass or a double (it never

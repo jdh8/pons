@@ -4,17 +4,36 @@ use crate::bidding::american::NotrumpDefense;
 use contract_bridge::Strain;
 use contract_bridge::auction::Call;
 
-/// Coupling: a Landy range feeds the one shared two-suiter band, so Landy's and
-/// Woolsey's identical both-majors `2♣` can never carry divergent strengths.
+/// Landy and Woolsey are the same defense apart from the `X`, so their
+/// identical both-majors `2♣` reads one band: narrowing `convention_points`
+/// must silence the same hand under both families.
 #[test]
-fn landy_range_and_woolsey_use_the_shared_band() {
-    let mut agreements = Agreements::default();
-    agreements.decision.reading.landy_range = Some((9, 16));
-    agreements.decision.reading.woolsey_points = (9, 16);
-    assert_eq!(
-        agreements.decision.reading.landy_range,
-        Some(agreements.decision.reading.woolsey_points),
-    );
+fn landy_and_woolsey_share_one_strength_band() {
+    let nt = call(1, Strain::Notrump);
+    let two_clubs = call(2, Strain::Clubs);
+    // 5-4 majors, 9 points — inside the shipped 8..=19 band, below a 12 floor.
+    let nine = "AJ32.KQ876.32.32";
+
+    for family in [None, Some(NotrumpDefense::Woolsey)] {
+        let mut wide = Agreements::default();
+        match family {
+            Some(defense) => wide.decision.reading.notrump_defense = defense,
+            None => wide.decision.reading.landy = true,
+        }
+        let mut narrow = wide;
+        narrow.decision.reading.convention_points = (12, 19);
+
+        assert_eq!(
+            best_call_with(&wide, &[nt], nine).0,
+            two_clubs,
+            "{family:?}: a 9-count bids the both-majors 2♣ on the shipped band"
+        );
+        assert_ne!(
+            best_call_with(&narrow, &[nt], nine).0,
+            two_clubs,
+            "{family:?}: raising the shared floor to 12 must silence it"
+        );
+    }
 }
 
 #[test]
