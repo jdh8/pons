@@ -36,7 +36,12 @@ n=${JOBS:-$(nproc)}   # cap worker processes on a shared box; defaults to all co
 seed_base=${SEED_BASE:-$(date +%s)}
 bin="$(cd "$(dirname "$0")/.." && pwd)/target/release/examples/bba-gen"
 
-cargo build --release --features "${FEATURES:-serde}" --example bba-gen
+if [ "${SKIP_BUILD:-0}" != 1 ]; then
+    cargo build --release --features "${FEATURES:-serde}" --example bba-gen
+elif [ ! -x "$bin" ]; then
+    echo "SKIP_BUILD=1 but bba-gen binary is missing: $bin" >&2
+    exit 1
+fi
 mkdir -p "$outdir"
 for i in $(seq 0 $((n - 1))); do
     "$bin" --count "$count" --seed "$((seed_base + i))" --output "$outdir/shard-$i.json" "$@" &

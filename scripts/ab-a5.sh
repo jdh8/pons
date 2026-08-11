@@ -1,17 +1,12 @@
 #!/bin/sh
 # ab-a5.sh — measurements for the A5 pass of the bidding-options audit
 # (docs/bidding-options.md A5, "Defending their 1NT & their overcalls"). Isolates
-# the five A5 `unmeasured` worklist knobs.
+# the remaining archival A5 worklist knobs.
 #
-# Four carry a bba-gen flag → ab-lib.sh arm/diffpair (a4 template). All are
-# default-OFF, so the ON arm passes the flag and the OFF arm is bare — the arms
-# are byte-identical until the knob fires, so read IMPs off the fired set. Three
-# of the four are DD-blind or DD-negative for a real bridge reason (balancing /
-# passed-seat obstruction / lead-directing transfer), so they add an sd-lead read
-# (sddiff): ab-dump-sd reads the two natural ones correctly, but has no disclosure
-# flag for the artificial minor-transfer, so THAT sd figure is a floor, not a
-# verdict. The fifth knob, defense.responsive_overcall_enabled, has no bba-gen flag → self-play
-# ab-responsive (a3 template), scored perfect-defense vs the passing floor.
+# Two carry a bba-gen flag → ab-lib.sh arm/diffpair (a4 template). Both are
+# default-OFF and add an sd-lead read; minor-transfer disclosure is unavailable,
+# so that SD figure is a floor. `responsive_overcall_enabled` has no bba-gen
+# flag and uses self-play `ab-responsive` instead.
 #
 #   JOBS=12 setsid nohup scripts/idle-run.sh scripts/ab-a5.sh ab-results/a5 \
 #       >ab-results/a5.log 2>&1 < /dev/null &
@@ -55,8 +50,8 @@ bba_knob() {
     done
 }
 
-# Natural discipline, DD-visible → plain+PD only.
-bba_knob nt-overcall-no-major    -  --ns-nt-overcall-no-major       ""
+# The historical all-majors 1NT-overcall arm is no longer comparable: the knob
+# now means unbid majors only, and O1 is blocked by the failed reader gate.
 # Semi-natural balancing / natural passed-seat overcall → DD-blind/negative, add sd.
 bba_knob notrump-balancing       sd --ns-balancing                  ""
 # (passed-hand-overcall retired from this pass 2026-07-13: measured wash-positive

@@ -659,6 +659,14 @@ pub struct DefenseKnobs {
     /// restores the historical simple `1M` overcall; see
     /// `scripts/ab-direct-weak-jump-overcall.sh`.
     pub direct_weak_jump_overcall: bool,
+    /// Extend the weak single-jump treatment to `(1♣) 2♦`
+    ///
+    /// **On by default.**  An exactly six-card diamond suit with
+    /// `points(8..)` and at most 11 HCP jumps to `2♦` over their `1♣`
+    /// opening.  Five-card and 12+ HCP diamond hands retain the simple `1♦`
+    /// overcall.  No other minor-opening/overcall pair is affected. `false`
+    /// restores the simple `1♦` overcall.
+    pub direct_minor_weak_jump_overcall: bool,
     /// Allow a good four-card natural overcall
     ///
     /// A natural direct overcall on exactly four cards when the suit holds at
@@ -689,17 +697,36 @@ pub struct DefenseKnobs {
     /// obstruction the blind lead recovers.  `bba-gen
     /// --ns-two-level-minor-overcall-tight`.
     pub two_level_minor_overcall_tight: bool,
-    /// Bar a five-card major from the natural `1NT` overcall
+    /// Use suit quality in the two-level natural-overcall gate
+    ///
+    /// **Off by default.**  Reserved for the O4 quality-gate experiment; the
+    /// rule builder deliberately leaves it inert until that constraint and its
+    /// calibrated formula land.
+    pub two_level_overcall_quality: bool,
+    /// Bar an unbid five-card major from the natural `1NT` overcall
     ///
     /// `false` (the **default**) lets a 15–18 balanced hand with a five-card
-    /// major overcall `1NT`, burying the suit.  `true` requires both majors ≤4
-    /// for the `1NT` overcall, so a five-card major overcalls naturally
-    /// (`1♥`/`1♠`) and partner can raise the fit.
+    /// major overcall `1NT`, burying the suit.  `true` caps each **unbid** major
+    /// at four cards, so length in opener's major remains allowed but the other
+    /// major is shown naturally even when that requires a two-level overcall.
     ///
     /// An A/B candidate: the anchor shows 5-card majors buried in the `1NT`
     /// overcall missing the major game BBA reaches.  `bba-gen
     /// --ns-nt-overcall-no-major`.
     pub nt_overcall_no_major: bool,
+    /// Prefer a one-level major overcall to `1NT`
+    ///
+    /// **Off by default.**  Like [`nt_overcall_no_major`][Self::nt_overcall_no_major],
+    /// but caps an unbid five-card major only when it can be bid at the one
+    /// level.  Thus a five-card heart suit is still allowed in `1NT` over
+    /// `(1♠)`.  The stricter knob wins when both are set.
+    pub nt_overcall_prefer_one_level_major: bool,
+    /// Allow the natural `1NT` overcall without a stopper
+    ///
+    /// **Off by default.**  On, the balanced 15–18 HCP arm drops
+    /// `stopper_in_their_suits()` while retaining the configured major-suit
+    /// preference.
+    pub nt_overcall_without_stopper: bool,
     /// Optional HCP seam between natural overcalls and the strong double
     ///
     /// When `Some(n)`, the "too strong to overcall" partition edge is gauged in
@@ -1382,10 +1409,14 @@ impl Default for DefenseKnobs {
             suppress_5card_major_takeout: true,
             overcall_discipline: true,
             direct_weak_jump_overcall: true,
+            direct_minor_weak_jump_overcall: true,
             overcall_four_card: false,
             passed_hand_overcall: true,
             two_level_minor_overcall_tight: false,
+            two_level_overcall_quality: false,
             nt_overcall_no_major: false,
+            nt_overcall_prefer_one_level_major: false,
+            nt_overcall_without_stopper: false,
             strong_double_hcp: Some(18),
             direct_dont_one_suiter_min: 5,
             direct_dont_four_four: true,

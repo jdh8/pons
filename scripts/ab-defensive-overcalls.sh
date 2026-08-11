@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# Paired BBA experiments for docs/defensive-overcalls.md.  One mode per run,
+# one persistent fresh seed, sequential arms, DD/PD plus SD/SD-PD.
+set -euo pipefail
+
+MODE=${1:?usage: ab-defensive-overcalls.sh o3 RESULTS_DIR}
+BASE=${2:?usage: ab-defensive-overcalls.sh o3 RESULTS_DIR}
+case "$MODE" in
+o3) ;;
+reading|o1|o2)
+    echo "$MODE stopped: the direct-1NT reader gate failed" >&2
+    exit 2
+    ;;
+o4)
+    echo "O4 stopped: no probe model met the 95% held-out accuracy gate" >&2
+    exit 2
+    ;;
+*)
+    echo "unknown mode: $MODE (only o3 remains measurable)" >&2
+    exit 2
+    ;;
+esac
+R=$BASE/$MODE
+SHOW=${SHOW:-8}
+BUILD_EXTRA='--example ab-dump-sd'
+. "$(dirname "$0")/ab-lib.sh"
+# `ab-lib` built every current harness above; freeze those binaries for every
+# arm in this experiment.
+export SKIP_BUILD=1
+SEED_BASE=$(seed_for)
+
+# The shipped direct-major weak jump is present in every treatment here.  Pass
+# both systems symmetrically; `ab-dump-sd` currently does not price opponent
+# disclosure, so these flags are provenance rather than a disclosure claim.
+sdpair() {
+    sddiff "$@" --on-ns-direct-weak-jump-overcall --off-ns-direct-weak-jump-overcall
+}
+
+log "=== defensive-overcalls $MODE start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
+for vul in none both; do
+    arm control "$vul" --no-ns-direct-minor-weak-jump-overcall
+    arm minor "$vul"
+    diffpair minor control "$vul"
+    sdpair minor control "$vul" --on-ns-direct-minor-weak-jump-overcall
+done
+log "=== defensive-overcalls $MODE done"

@@ -980,11 +980,16 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_two_level_minor_overcall_tight: bool,
 
-    /// Bar a five-card major from the natural 1NT overcall (overcall the major
-    /// instead, to find the fit); off by default (A/B candidate — buried majors
-    /// miss the major game).
+    /// Bar an unbid five-card major from the natural 1NT overcall (overcall the
+    /// major instead, to find the fit); off by default.  A five-card opener's
+    /// major remains eligible, matching BBA's direct-overcall box.
     #[arg(long, default_value_t = false)]
     ns_nt_overcall_no_major: bool,
+
+    /// Disable the shipped exact-six 8+ points / at-most-11-HCP `(1♣) 2♦`
+    /// weak jump overcall.
+    #[arg(long, default_value_t = false)]
+    no_ns_direct_minor_weak_jump_overcall: bool,
 
     /// Disable systems-on advances after our 1NT overcall: on, the advancer plays
     /// the full opening-1NT structure (Stayman/transfers/Smolen) grafted below
@@ -1693,6 +1698,8 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.defense.passed_hand_overcall = !args.no_ns_passed_hand_overcall;
     agreements.defense.two_level_minor_overcall_tight = args.ns_two_level_minor_overcall_tight;
     agreements.defense.nt_overcall_no_major = args.ns_nt_overcall_no_major;
+    agreements.defense.direct_minor_weak_jump_overcall =
+        !args.no_ns_direct_minor_weak_jump_overcall;
     agreements.defense.notrump_balancing_enabled = args.ns_balancing;
     agreements.defense.stayman_defense_enabled = args.ns_defense_to_their_stayman;
     agreements.defense.rich_advance_double_enabled = !args.no_ns_rich_advance;

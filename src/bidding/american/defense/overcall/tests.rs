@@ -3,6 +3,64 @@ use crate::bidding::agreements::Agreements;
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::{Bid, Hand, Strain};
 
+#[test]
+fn direct_overcall_candidate_defaults() {
+    let defense = Agreements::default().defense;
+    assert!(!defense.nt_overcall_prefer_one_level_major);
+    assert!(!defense.nt_overcall_without_stopper);
+    assert!(defense.direct_minor_weak_jump_overcall);
+    assert!(!defense.two_level_overcall_quality);
+}
+
+#[test]
+fn suit_defense_rows_bind_every_opening_and_pass_fan() {
+    use crate::bidding::rows::compile_into;
+    use crate::bidding::trie::Trie;
+    use contract_bridge::Suit;
+
+    let agreements = Agreements::default();
+    let mut book = Trie::new();
+    compile_into(
+        &mut book,
+        &agreements,
+        &[super::overcall::suit_defense_package()],
+    );
+
+    for passes in 0..=3 {
+        for suit in Suit::ASC {
+            let strain = Strain::from(suit);
+            let opening = Bid::new(1, strain);
+            let direct: Vec<Call> = core::iter::repeat_n(Call::Pass, passes)
+                .chain([Call::Bid(opening)])
+                .collect();
+            let rules = book
+                .get(&direct)
+                .expect("direct defense row exists")
+                .as_rules()
+                .expect("direct row is authored Rules");
+            assert!(
+                rules
+                    .rules()
+                    .iter()
+                    .any(|rule| rule.call() == Call::Bid(Bid::new(2, strain))),
+                "{passes} leading pass(es), (1{suit}) bound the Michaels cue",
+            );
+
+            for continuation in [
+                [Call::Bid(Bid::new(2, strain)), Call::Pass],
+                [Call::Bid(Bid::new(2, Strain::Notrump)), Call::Pass],
+            ] {
+                let mut advance = direct.clone();
+                advance.extend(continuation);
+                assert!(
+                    book.get(&advance).is_some(),
+                    "{passes} leading pass(es), (1{suit}) advance row exists",
+                );
+            }
+        }
+    }
+}
+
 /// The direct-seat pass gate is the strong tier's complement, authored so
 /// the pass reading can project it — byte-identical to the old `hcp(0..)`
 /// catch-all: below the tier's floor the gate scores the same, above it
@@ -217,6 +275,105 @@ fn direct_weak_jump_overcall_is_disjoint_and_reads_exactly() {
 }
 
 #[test]
+fn direct_minor_weak_jump_is_exactly_one_club_two_diamonds() {
+    use crate::bidding::Relative;
+    use contract_bridge::Suit;
+
+    let over_1c = [call(1, Strain::Clubs)];
+    let weak_six = "T9.84.KQJ875.A97"; // 10 HCP, exactly six diamonds
+    let too_weak_six = "T9.84.JT9875.Q97"; // below the 8-point floor
+    let five = "T9.842.KQJ87.A97";
+    let strong_six = "T9.Q4.AQJ987.K87"; // exactly 12 HCP
+    let seven = "T9.8.KQJ8754.A97";
+
+    let mut off = Agreements::default();
+    off.defense.direct_minor_weak_jump_overcall = false;
+    assert_eq!(
+        best_call_with(&off, &over_1c, weak_six).0,
+        call(1, Strain::Diamonds)
+    );
+
+    let mut on = off;
+    on.defense.direct_minor_weak_jump_overcall = true;
+    let jump_rules = super::overcall::defense_to_suit(Bid::new(1, Strain::Clubs), &on);
+    let jump_rule = jump_rules
+        .rules()
+        .iter()
+        .find(|rule| rule.call() == call(2, Strain::Diamonds))
+        .expect("the candidate authors the 2♦ jump");
+    assert_eq!(jump_rule.alert(), Some(super::overcall::WEAK_JUMP_OVERCALL),);
+    assert_eq!(
+        best_call_with(&on, &over_1c, weak_six).0,
+        call(2, Strain::Diamonds)
+    );
+    assert_eq!(
+        best_call_with(&on, &over_1c, five).0,
+        call(1, Strain::Diamonds)
+    );
+    assert_ne!(
+        best_call_with(&on, &over_1c, too_weak_six).0,
+        call(2, Strain::Diamonds),
+    );
+    assert_eq!(
+        best_call_with(&on, &over_1c, strong_six).0,
+        call(1, Strain::Diamonds),
+    );
+    assert_ne!(
+        best_call_with(&on, &over_1c, seven).0,
+        call(2, Strain::Diamonds),
+        "seven diamonds stay outside the exact-six weak jump",
+    );
+
+    for opening in Suit::ASC {
+        let rules = super::overcall::defense_to_suit(Bid::new(1, opening.into()), &on);
+        for rule in rules
+            .rules()
+            .iter()
+            .filter(|rule| rule.alert() == Some(super::overcall::WEAK_JUMP_OVERCALL))
+        {
+            let Call::Bid(bid) = rule.call() else {
+                panic!("a weak jump alert belongs on a bid")
+            };
+            assert_eq!(bid.level.get(), 2, "O3 adds no three-level weak jump");
+            assert!(
+                bid.strain != Strain::Diamonds || opening == Suit::Clubs,
+                "the weak 2D alert exists only over 1C",
+            );
+        }
+    }
+
+    let read = crate::bidding::american::american(&on).bind().infer(
+        RelativeVulnerability::NONE,
+        &[
+            call(1, Strain::Clubs),
+            call(2, Strain::Diamonds),
+            Call::Pass,
+        ],
+    );
+    let overcaller = read.announced(Relative::Partner);
+    assert_eq!(overcaller.length(Suit::Diamonds).min, 6);
+    assert_eq!(overcaller.length(Suit::Diamonds).max, 6);
+    assert!(overcaller.strength.points.min >= 8);
+    assert!(overcaller.strength.hcp.max <= 11);
+
+    let (advance, floored) = best_call_with(
+        &on,
+        &[
+            call(1, Strain::Clubs),
+            call(2, Strain::Diamonds),
+            Call::Pass,
+        ],
+        "A42.T94.AKJ2.Q63",
+    );
+    assert_eq!(
+        advance,
+        call(2, Strain::Notrump),
+        "the general floor chooses the natural preempt continuation",
+    );
+    assert!(floored, "the preempt continuation belongs to the floor");
+}
+
+#[test]
 fn strong_double_hcp_repartitions_overcall_vs_double() {
     use crate::bidding::constraint::PointScale;
     // Calibrated to the rule-of-N+8 opt-out — the scale these example
@@ -253,10 +410,7 @@ fn strong_double_hcp_repartitions_overcall_vs_double() {
 }
 
 #[test]
-fn nt_overcall_no_major_routes_five_card_major_to_the_suit() {
-    // Over their (1♦): a 15-18 balanced hand with a five-card major overcalls
-    // 1NT by default (burying the suit); the knob bars that so it overcalls
-    // the major naturally, letting partner find the fit.
+fn nt_overcall_major_preference_respects_the_available_level() {
     let over_1d = [call(1, Strain::Diamonds)];
     let five_heart = "32.KQJ82.KQ4.A32"; // 15 HCP, 5332, 5 hearts, ♦ stopper
     let (default_call, _) = best_call(&over_1d, five_heart);
@@ -269,6 +423,9 @@ fn nt_overcall_no_major_routes_five_card_major_to_the_suit() {
     let mut no_major = Agreements::default();
     no_major.defense.nt_overcall_no_major = true;
     let (gated_call, _) = best_call_with(&no_major, &over_1d, five_heart);
+    let mut cheap_major = Agreements::default();
+    cheap_major.defense.nt_overcall_prefer_one_level_major = true;
+    let (cheap_call, _) = best_call_with(&cheap_major, &over_1d, five_heart);
     // 15 HCP 4333, no 5M
     let (flat_call, _) = best_call_with(&no_major, &over_1d, "A32.KQ4.KQ4.J432");
     assert_eq!(
@@ -276,11 +433,136 @@ fn nt_overcall_no_major_routes_five_card_major_to_the_suit() {
         call(1, Strain::Hearts),
         "5-card major overcalls the suit"
     );
+    assert_eq!(cheap_call, call(1, Strain::Hearts));
     assert_eq!(
         flat_call,
         call(1, Strain::Notrump),
         "no 5M still overcalls 1NT"
     );
+    assert_eq!(
+        best_call_with(&no_major, &over_1d, "AQ3.KJ4.KJ4.A432").0,
+        call(1, Strain::Notrump),
+        "the authored 18-HCP endpoint still overcalls 1NT",
+    );
+    assert_eq!(
+        best_call_with(&no_major, &[call(1, Strain::Spades)], "AQJ82.K32.KQ4.32").0,
+        call(1, Strain::Notrump),
+        "strict permits five cards in opener's major",
+    );
+
+    // Hearts are unbid over (1♠), but only available at the two level.  The
+    // cheap-major arm keeps 1NT; strict still shows hearts and wins if both are
+    // accidentally selected.
+    let over_1s = [call(1, Strain::Spades)];
+    let five_hearts_over_spades = "K32.AQJ82.KQ4.32";
+    assert_eq!(
+        best_call_with(&cheap_major, &over_1s, five_hearts_over_spades).0,
+        call(1, Strain::Notrump),
+    );
+    assert_eq!(
+        best_call_with(&no_major, &over_1s, five_hearts_over_spades).0,
+        call(2, Strain::Hearts),
+    );
+    let mut both = cheap_major;
+    both.defense.nt_overcall_no_major = true;
+    assert_eq!(
+        best_call_with(&both, &over_1s, five_hearts_over_spades).0,
+        call(2, Strain::Hearts),
+    );
+}
+
+#[test]
+fn nt_overcall_without_stopper_is_an_independent_balanced_arm() {
+    let over_1s = [call(1, Strain::Spades)];
+    let no_stopper = "T32.AQJ2.KQ4.K83"; // 15 HCP, 4333, no spade stopper
+    let off = Agreements::default();
+    assert_ne!(
+        best_call_with(&off, &over_1s, no_stopper).0,
+        call(1, Strain::Notrump),
+    );
+
+    let mut on = off;
+    on.defense.nt_overcall_without_stopper = true;
+    assert_eq!(
+        best_call_with(&on, &over_1s, no_stopper).0,
+        call(1, Strain::Notrump),
+    );
+}
+
+#[test]
+fn nt_overcall_opt_ins_keep_their_bidders_admitted() {
+    use crate::bidding::Relative;
+
+    let direct = [
+        call(1, Strain::Spades),
+        call(1, Strain::Notrump),
+        Call::Pass,
+    ];
+    let systems_on = [
+        call(1, Strain::Spades),
+        call(1, Strain::Notrump),
+        Call::Pass,
+        call(2, Strain::Diamonds),
+        Call::Pass,
+        call(2, Strain::Hearts),
+        Call::Pass,
+    ];
+    let gladiator = [
+        call(1, Strain::Spades),
+        call(1, Strain::Notrump),
+        Call::Pass,
+        call(2, Strain::Clubs),
+        Call::Pass,
+        call(2, Strain::Diamonds),
+        Call::Pass,
+    ];
+
+    type Configure = fn(&mut Agreements);
+    let cases: [(&str, Configure); 4] = [
+        ("AQ3.KJ4.KJ4.A432", |_| {}), // authored 18-HCP endpoint
+        ("AQJ82.K32.KQ4.32", |agreements| {
+            agreements.defense.nt_overcall_no_major = true;
+        }),
+        ("K32.AQJ82.KQ4.32", |agreements| {
+            agreements.defense.nt_overcall_prefer_one_level_major = true;
+        }),
+        ("T32.AQJ2.KQ4.K83", |agreements| {
+            agreements.defense.nt_overcall_without_stopper = true;
+        }),
+    ];
+
+    for (hand, configure) in cases {
+        let hand: Hand = hand.parse().expect("valid test hand");
+        let mut agreements = Agreements::default();
+        configure(&mut agreements);
+
+        agreements.decision.reading.nt_overcall_systems_on = false;
+        let partnership = crate::bidding::american::american(&agreements).bind();
+        assert!(
+            partnership
+                .infer(RelativeVulnerability::NONE, &direct)
+                .admits(Relative::Partner, hand),
+            "direct reading excludes {hand}",
+        );
+
+        agreements.decision.reading.nt_overcall_systems_on = true;
+        let partnership = crate::bidding::american::american(&agreements).bind();
+        assert!(
+            partnership
+                .infer(RelativeVulnerability::NONE, &systems_on)
+                .admits(Relative::Partner, hand),
+            "systems-on reading excludes {hand}",
+        );
+
+        agreements.decision.reading.nt_overcall_gladiator = true;
+        let partnership = crate::bidding::american::american(&agreements).bind();
+        assert!(
+            partnership
+                .infer(RelativeVulnerability::NONE, &gladiator)
+                .admits(Relative::Partner, hand),
+            "Gladiator reading excludes {hand}",
+        );
+    }
 }
 
 /// `DefenseKnobs::suppress_flat_4333_takeout` routes a weak flat 4-3-3-3 to Pass: a

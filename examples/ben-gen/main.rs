@@ -116,6 +116,10 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_direct_weak_jump_overcall: bool,
 
+    /// Disable the shipped exact-six weak `(1♣) 2♦` overcall.
+    #[arg(long, default_value_t = false)]
+    no_ns_direct_minor_weak_jump_overcall: bool,
+
     /// Free-form provenance recorded in gen_args (the launcher passes the
     /// server conf's sha256 here)
     #[arg(long)]
@@ -436,6 +440,8 @@ fn main() -> anyhow::Result<()> {
     agreements.decision.reading.table_alerts = !args.no_ns_table_alert_reading;
     agreements.decision.reading.pass = !args.no_ns_pass_reading;
     agreements.defense.direct_weak_jump_overcall = !args.no_ns_direct_weak_jump_overcall;
+    agreements.defense.direct_minor_weak_jump_overcall =
+        !args.no_ns_direct_minor_weak_jump_overcall;
     let our_floor = american(&agreements).bind();
     let epbot = if args.calibrate_epbot {
         let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());

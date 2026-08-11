@@ -23,6 +23,8 @@
 //! cargo run --release --example probe-bba-constraints -- --mode weak2-h --conv Ogust=1  # ...with BBA's Ogust on
 //! cargo run --release --example probe-bba-constraints -- --mode nt-resp --conv "1N-3M splinter"=1  # responses to BBA's own 1NT
 //! cargo run --release --example probe-bba-constraints -- --mode nt-3h --conv "1N-3M splinter"=1    # opener over 1NT - 3♥ -
+//! cargo run --release --example probe-bba-constraints -- --mode def1-s   # direct defense to (1♠)
+//! cargo run --release --example probe-bba-constraints -- --mode o4 --vul none,we,they,both  # fit the two-level overcall quality gate
 //! ```
 //!
 //! The `weak2-*` modes read a node we author as **Ogust** and BBA does not: its
@@ -44,13 +46,14 @@ use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::fill_deals;
 use contract_bridge::eval::{self, HandEvaluator, SimpleEvaluator};
 use contract_bridge::{Bid, Strain};
-use contract_bridge::{Builder, Hand, Rank, Seat, Suit};
+use contract_bridge::{Builder, Hand, Holding, Rank, Seat, Suit};
 use libloading::Library;
 use pons::american;
 use pons::bidding::Partnership;
 use pons::bidding::constraint::{point_count, support_point_count_in};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
+use rand::seq::{IndexedRandom, SliceRandom};
 use std::collections::BTreeMap;
 use std::ffi::{CString, c_char, c_int, c_void};
 use std::fmt::Write as _;
@@ -318,6 +321,18 @@ struct Args {
     #[arg(long)]
     ours: bool,
 
+    /// Inclusive whole-hand HCP range for the O4 controlled grid (LO:HI)
+    #[arg(long, default_value = "6:18")]
+    o4_hcp: String,
+
+    /// Independently generated controlled hands per O4 grid cell
+    #[arg(long, default_value_t = 2)]
+    o4_replicates: usize,
+
+    /// Held-out random one-suit hands per O4 (opening, candidate-suit) pair
+    #[arg(long, default_value_t = 1000)]
+    o4_holdout: usize,
+
     /// Optional output file (default: stdout)
     #[arg(long)]
     out: Option<String>,
@@ -327,6 +342,10 @@ fn main() -> Result<()> {
     let args = Args::parse();
     if !(0.0..0.5).contains(&args.trim) {
         bail!("--trim must be in [0.0, 0.5)");
+    }
+
+    if args.mode == "o4" {
+        return run_o4(&args);
     }
 
     // (actor seat, replayed prefix, self-consistency filter, heading) — dealer is
@@ -349,6 +368,30 @@ fn main() -> Result<()> {
             &[],
             None,
             "BBA's opening call in first seat — the 1NT bucket is the one to read",
+        ),
+        "def1-c" => (
+            1,
+            &[ONE_C],
+            None,
+            "BBA direct seat over (1♣) — X / 1NT / natural overcalls / cue bids",
+        ),
+        "def1-d" => (
+            1,
+            &[ONE_D],
+            None,
+            "BBA direct seat over (1♦) — X / 1NT / natural overcalls / cue bids",
+        ),
+        "def1-h" => (
+            1,
+            &[ONE_H],
+            None,
+            "BBA direct seat over (1♥) — X / 1NT / natural overcalls / cue bids",
+        ),
+        "def1-s" => (
+            1,
+            &[ONE_S],
+            None,
+            "BBA direct seat over (1♠) — X / 1NT / natural overcalls / cue bids",
         ),
         "multi" => (
             1,
@@ -540,7 +583,7 @@ fn main() -> Result<()> {
             "advancer over (1♣) 1♥ - — the 2♦ bucket is the transfer into partner's hearts",
         ),
         other => bail!(
-            "--mode must be open|multi|advance|counter|muider-h|muider-s|rebid-d|rebid-h|rebid-s|stayman|xfer-h|xfer-s|weak2-d|weak2-h|weak2-s|def2-d|def2-h|def2-s|nt-resp|nt-3h|nt-3s|ucb-sd|ucb-sc|ucb-dc|ucb-sh|rub-ch, got {other:?}"
+            "--mode must be open|def1-c|def1-d|def1-h|def1-s|multi|advance|counter|muider-h|muider-s|rebid-d|rebid-h|rebid-s|stayman|xfer-h|xfer-s|weak2-d|weak2-h|weak2-s|def2-d|def2-h|def2-s|nt-resp|nt-3h|nt-3s|ucb-sd|ucb-sc|ucb-dc|ucb-sh|rub-ch|o4, got {other:?}"
         ),
     };
 
@@ -581,7 +624,14 @@ fn main() -> Result<()> {
         .ours
         .then(|| american(&pons::bidding::agreements::Agreements::default()).bind());
 
-    let overrides = parse_conv(&args.conv)?;
+    // Direct one-suit probes match `bba-gen`'s stock 2/1 configuration.  The
+    // Multi-Landy defaults exist only to make the historical 1NT modes
+    // self-contained; they are irrelevant here and need not be forced.
+    let overrides = if args.conv.is_empty() && args.mode.starts_with("def1-") {
+        Vec::new()
+    } else {
+        parse_conv(&args.conv)?
+    };
     let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());
     let bba = Bba::load(&path, overrides)?;
 
@@ -711,6 +761,843 @@ fn run(
         }
     }
     buckets
+}
+
+/// One natural two-level overcall that is cheapest after a one-suit opening.
+/// There is no O4 candidate over 1♣: every unbid suit is still available at
+/// the one level, while (1♣) 2♦ belongs to the separate weak-jump item O3.
+#[derive(Clone, Copy)]
+struct O4Pair {
+    opening: Suit,
+    opening_code: c_int,
+    candidate: Suit,
+    candidate_code: c_int,
+}
+
+const O4_PAIRS: [O4Pair; 6] = [
+    O4Pair {
+        opening: Suit::Diamonds,
+        opening_code: ONE_D,
+        candidate: Suit::Clubs,
+        candidate_code: TWO_C,
+    },
+    O4Pair {
+        opening: Suit::Hearts,
+        opening_code: ONE_H,
+        candidate: Suit::Clubs,
+        candidate_code: TWO_C,
+    },
+    O4Pair {
+        opening: Suit::Hearts,
+        opening_code: ONE_H,
+        candidate: Suit::Diamonds,
+        candidate_code: TWO_D,
+    },
+    O4Pair {
+        opening: Suit::Spades,
+        opening_code: ONE_S,
+        candidate: Suit::Clubs,
+        candidate_code: TWO_C,
+    },
+    O4Pair {
+        opening: Suit::Spades,
+        opening_code: ONE_S,
+        candidate: Suit::Diamonds,
+        candidate_code: TWO_D,
+    },
+    O4Pair {
+        opening: Suit::Spades,
+        opening_code: ONE_S,
+        candidate: Suit::Hearts,
+        candidate_code: TWO_H,
+    },
+];
+
+const O4_HONORS: [(Rank, u8); 5] = [
+    (Rank::A, 4),
+    (Rank::K, 3),
+    (Rank::Q, 2),
+    (Rank::J, 1),
+    (Rank::T, 0),
+];
+
+#[derive(Clone, Copy)]
+struct O4Row {
+    points: u8,
+    suit_hcp: u8,
+    len: u8,
+    mask: u8,
+    vulnerable: bool,
+    pair: usize,
+    vul: usize,
+    bid: bool,
+}
+
+#[derive(Default)]
+struct O4Sample {
+    rows: Vec<O4Row>,
+    calls: usize,
+    alternatives: BTreeMap<c_int, usize>,
+}
+
+impl O4Sample {
+    fn observe(
+        &mut self,
+        bba: &Bba,
+        pair_index: usize,
+        vul_index: usize,
+        vul: c_int,
+        vulnerable: bool,
+        hand: Hand,
+    ) {
+        let pair = O4_PAIRS[pair_index];
+        let code = bba.call(1, &[pair.opening_code], hand, vul);
+        self.calls += 1;
+        let bid = if code == pair.candidate_code {
+            true
+        } else if code == PASS {
+            false
+        } else {
+            *self.alternatives.entry(code).or_default() += 1;
+            return;
+        };
+        self.rows.push(O4Row {
+            points: point_count(hand),
+            suit_hcp: holding_hcp(hand[pair.candidate]),
+            len: hand[pair.candidate].len() as u8,
+            mask: honor_mask(hand[pair.candidate]),
+            vulnerable,
+            pair: pair_index,
+            vul: vul_index,
+            bid,
+        });
+    }
+}
+
+/// All holdings of up to four cards, indexed by `[length][HCP]`, for exact
+/// construction of the three side suits in the controlled O4 grid.
+struct HoldingPools(Vec<Vec<Vec<Holding>>>);
+
+impl HoldingPools {
+    fn new() -> Self {
+        let mut pools = vec![vec![Vec::new(); 11]; 5];
+        for bits in 0_u16..(1 << 13) {
+            let holding = Holding::from_bits_retain(bits << 2);
+            let len = holding.len();
+            if len <= 4 {
+                pools[len][holding_hcp(holding) as usize].push(holding);
+            }
+        }
+        Self(pools)
+    }
+
+    fn get(&self, len: u8, hcp: u8) -> &[Holding] {
+        &self.0[len as usize][hcp as usize]
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+enum O4ModelKind {
+    SuitHcp,
+    SuitHcpLength,
+    HonorMaskLength,
+}
+
+impl O4ModelKind {
+    const ALL: [Self; 3] = [Self::SuitHcp, Self::SuitHcpLength, Self::HonorMaskLength];
+
+    const fn name(self) -> &'static str {
+        match self {
+            Self::SuitHcp => "raw suit HCP",
+            Self::SuitHcpLength => "suit HCP + length",
+            Self::HonorMaskLength => "AKQJT mask + length",
+        }
+    }
+
+    const fn keys(self) -> usize {
+        match self {
+            Self::SuitHcp => 2 * 11,
+            Self::SuitHcpLength => 2 * 2 * 11,
+            Self::HonorMaskLength => 2 * 2 * 32,
+        }
+    }
+
+    const fn key(self, row: O4Row) -> usize {
+        let vul = row.vulnerable as usize;
+        let len = (row.len - 5) as usize;
+        match self {
+            Self::SuitHcp => vul * 11 + row.suit_hcp as usize,
+            Self::SuitHcpLength => (vul * 2 + len) * 11 + row.suit_hcp as usize,
+            Self::HonorMaskLength => (vul * 2 + len) * 32 + row.mask as usize,
+        }
+    }
+}
+
+#[derive(Clone)]
+struct O4Model {
+    kind: O4ModelKind,
+    thresholds: Vec<u8>,
+}
+
+impl O4Model {
+    fn predicts(&self, row: O4Row) -> bool {
+        row.points >= self.thresholds[self.kind.key(row)]
+    }
+}
+
+#[derive(Clone, Copy, Default)]
+struct Confusion {
+    tp: usize,
+    tn: usize,
+    fp: usize,
+    fn_: usize,
+}
+
+impl Confusion {
+    fn push(&mut self, truth: bool, predicted: bool) {
+        match (truth, predicted) {
+            (true, true) => self.tp += 1,
+            (false, false) => self.tn += 1,
+            (false, true) => self.fp += 1,
+            (true, false) => self.fn_ += 1,
+        }
+    }
+
+    fn balanced_accuracy(self) -> f64 {
+        let positive = self.tp + self.fn_;
+        let negative = self.tn + self.fp;
+        if positive == 0 || negative == 0 {
+            return f64::NAN;
+        }
+        0.5 * (self.tp as f64 / positive as f64 + self.tn as f64 / negative as f64)
+    }
+}
+
+/// Run the O4 model-selection probe.  X, 1NT, and calls in another strain do
+/// not expose whether BBA's hidden natural-overcall gate accepted the hand, so
+/// the fit is deliberately conditional on the observable candidate-vs-Pass
+/// boundary and reports that coverage next to the score.
+fn run_o4(args: &Args) -> Result<()> {
+    if args.ours {
+        bail!("--ours is not meaningful for --mode o4");
+    }
+    if args.o4_replicates == 0 || args.o4_holdout == 0 {
+        bail!("--o4-replicates and --o4-holdout must be positive");
+    }
+    let (hcp_lo, hcp_hi) = parse_o4_hcp(&args.o4_hcp)?;
+    let vuls: Vec<(&str, c_int, bool)> = args
+        .vul
+        .split(',')
+        .map(str::trim)
+        .map(|token| Ok((token, vul_code(token, 1)?, matches!(token, "we" | "both"))))
+        .collect::<Result<_>>()?;
+    if vuls.is_empty() {
+        bail!("--vul must contain at least one vulnerability");
+    }
+
+    let overrides = if args.conv.is_empty() {
+        Vec::new()
+    } else {
+        parse_conv(&args.conv)?
+    };
+    let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());
+    let bba = Bba::load(&path, overrides)?;
+    let pools = HoldingPools::new();
+    let mut rng = StdRng::seed_from_u64(args.seed);
+    let mut controlled = O4Sample::default();
+
+    for (pair, pair_spec) in O4_PAIRS.iter().enumerate() {
+        for len in [5_u8, 6] {
+            for mask in 0_u8..32 {
+                let suit_hcp = mask_hcp(mask);
+                for total_hcp in hcp_lo.max(suit_hcp)..=hcp_hi {
+                    for _ in 0..args.o4_replicates {
+                        let hand = controlled_o4_hand(
+                            &mut rng,
+                            &pools,
+                            pair_spec.candidate,
+                            len,
+                            mask,
+                            total_hcp,
+                        )
+                        .expect("every feasible O4 HCP grid cell has a side-suit holding");
+                        assert_eq!(hcp(hand), total_hcp);
+                        assert_eq!(hand[pair_spec.candidate].len(), len as usize);
+                        assert_eq!(honor_mask(hand[pair_spec.candidate]), mask);
+                        for (vul_index, &(_, vul, vulnerable)) in vuls.iter().enumerate() {
+                            controlled.observe(&bba, pair, vul_index, vul, vulnerable, hand);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // A separate stream keeps model selection reproducible while ensuring the
+    // random validation hands were never used to fit a threshold.
+    let mut holdout_rng = StdRng::seed_from_u64(args.seed ^ 0x0f04_5eed_d15c_01a7);
+    let mut holdout = O4Sample::default();
+    for (pair, pair_spec) in O4_PAIRS.iter().enumerate() {
+        let hands = random_o4_hands(
+            &mut holdout_rng,
+            pair_spec.candidate,
+            hcp_lo,
+            hcp_hi,
+            args.o4_holdout,
+        );
+        for hand in hands {
+            for (vul_index, &(_, vul, vulnerable)) in vuls.iter().enumerate() {
+                holdout.observe(&bba, pair, vul_index, vul, vulnerable, hand);
+            }
+        }
+    }
+
+    if controlled.rows.iter().all(|row| row.bid)
+        || controlled.rows.iter().all(|row| !row.bid)
+        || holdout.rows.iter().all(|row| row.bid)
+        || holdout.rows.iter().all(|row| !row.bid)
+    {
+        bail!("O4 candidate-vs-Pass sample needs both classes in train and holdout");
+    }
+
+    let models: Vec<O4Model> = O4ModelKind::ALL
+        .into_iter()
+        .map(|kind| fit_o4_model(kind, &controlled.rows))
+        .collect();
+    let heldout_scores: Vec<Confusion> = models
+        .iter()
+        .map(|model| score_o4(model, &holdout.rows))
+        .collect();
+    let best = heldout_scores
+        .iter()
+        .map(|score| score.balanced_accuracy())
+        .fold(f64::NEG_INFINITY, f64::max);
+    let selected = models.iter().zip(&heldout_scores).find(|(model, score)| {
+        score.balanced_accuracy() >= 0.95
+            && score.balanced_accuracy() + 0.005 >= best
+            && o4_monotonicity_violations(model) == 0
+    });
+
+    let mut report = String::new();
+    let _ = writeln!(
+        report,
+        "# O4 live-BBA two-level-overcall model selection\n\n\
+         system: 0 (2/1 GF), conventions: {}\n\
+         seed: {}  controlled HCP: {hcp_lo}–{hcp_hi}  replicates: {}  \
+         held-out hands/pair: {}\n\
+         vulnerabilities: {}\n",
+        conv_summary(&bba.overrides),
+        args.seed,
+        args.o4_replicates,
+        args.o4_holdout,
+        vuls.iter()
+            .map(|(name, _, _)| *name)
+            .collect::<Vec<_>>()
+            .join(","),
+    );
+    let pairs = O4_PAIRS
+        .iter()
+        .map(|pair| format!("(1{}) 2{}", pair.opening, pair.candidate))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let _ = writeln!(report, "candidate pairs: {pairs}");
+    let _ = writeln!(
+        report,
+        "label: exact candidate natural overcall vs Pass. X, 1NT, and another \
+         strain are excluded because those higher-precedence routes hide whether \
+         the natural-overcall gate accepted; coverage is reported so the conditional \
+         accuracy cannot be mistaken for whole-node accuracy.\n"
+    );
+    render_o4_sample(&mut report, "controlled fit", &controlled);
+    render_o4_sample(&mut report, "held-out random", &holdout);
+
+    let _ = writeln!(
+        report,
+        "## Model comparison\n\n| model | fit BA | held-out BA | sensitivity | specificity | worst pair/vul BA | monotonicity |\n| --- | ---: | ---: | ---: | ---: | ---: | ---: |"
+    );
+    for (model, heldout_score) in models.iter().zip(&heldout_scores) {
+        let fit = score_o4(model, &controlled.rows);
+        let positive = heldout_score.tp + heldout_score.fn_;
+        let negative = heldout_score.tn + heldout_score.fp;
+        let sensitivity = heldout_score.tp as f64 / positive as f64;
+        let specificity = heldout_score.tn as f64 / negative as f64;
+        let worst = worst_o4_cell(model, &holdout.rows, O4_PAIRS.len(), vuls.len());
+        let _ = writeln!(
+            report,
+            "| {} | {:.2}% | {:.2}% | {:.2}% | {:.2}% | {:.2}% | {} |",
+            model.kind.name(),
+            100.0 * fit.balanced_accuracy(),
+            100.0 * heldout_score.balanced_accuracy(),
+            100.0 * sensitivity,
+            100.0 * specificity,
+            100.0 * worst,
+            o4_monotonicity_violations(model),
+        );
+    }
+
+    match selected {
+        Some((model, score)) => {
+            let _ = writeln!(
+                report,
+                "\n**QUALIFIES: `{}`** — {:.2}% held-out balanced accuracy; \
+                 simplest model within 0.5 percentage points of the best ({:.2}%), \
+                 with zero monotonicity violations.\n",
+                model.kind.name(),
+                100.0 * score.balanced_accuracy(),
+                100.0 * best,
+            );
+            render_o4_thresholds(&mut report, model);
+        }
+        None => {
+            let _ = writeln!(
+                report,
+                "\n**NO MODEL QUALIFIES** — best held-out balanced accuracy {:.2}%; \
+                 the gate requires at least 95%, within 0.5 percentage points \
+                 of best, and zero monotonicity violations.",
+                100.0 * best,
+            );
+        }
+    }
+
+    if let Some(out) = &args.out {
+        std::fs::write(out, &report)?;
+        eprintln!("wrote {out}");
+    } else {
+        print!("{report}");
+    }
+    Ok(())
+}
+
+fn parse_o4_hcp(text: &str) -> Result<(u8, u8)> {
+    let (lo, hi) = text
+        .split_once(':')
+        .ok_or_else(|| anyhow::anyhow!("--o4-hcp must be LO:HI, got {text:?}"))?;
+    let (lo, hi): (u8, u8) = (lo.parse()?, hi.parse()?);
+    if lo > hi || hi > 37 {
+        bail!("--o4-hcp must satisfy 0 <= LO <= HI <= 37");
+    }
+    Ok((lo, hi))
+}
+
+fn controlled_o4_hand(
+    rng: &mut StdRng,
+    pools: &HoldingPools,
+    suit: Suit,
+    len: u8,
+    mask: u8,
+    total_hcp: u8,
+) -> Option<Hand> {
+    let target = target_holding(rng, len, mask);
+    let outside_hcp = total_hcp.checked_sub(holding_hcp(target))?;
+    let mut side_lengths = if len == 5 { [4, 2, 2] } else { [3, 2, 2] };
+    side_lengths.shuffle(rng);
+    let side_suits: Vec<Suit> = Suit::ASC.into_iter().filter(|&s| s != suit).collect();
+
+    let mut partitions = Vec::new();
+    for a in 0..=10_u8 {
+        for b in 0..=10_u8 {
+            let Some(c) = outside_hcp.checked_sub(a + b) else {
+                continue;
+            };
+            if c <= 10
+                && !pools.get(side_lengths[0], a).is_empty()
+                && !pools.get(side_lengths[1], b).is_empty()
+                && !pools.get(side_lengths[2], c).is_empty()
+            {
+                partitions.push([a, b, c]);
+            }
+        }
+    }
+    let partition = *partitions.choose(rng)?;
+    let mut hand = Hand::EMPTY;
+    hand[suit] = target;
+    for i in 0..3 {
+        hand[side_suits[i]] = *pools
+            .get(side_lengths[i], partition[i])
+            .choose(rng)
+            .unwrap_or_else(|| unreachable!());
+    }
+    Some(hand)
+}
+
+fn target_holding(rng: &mut StdRng, len: u8, mask: u8) -> Holding {
+    let mut holding = Holding::EMPTY;
+    for (index, &(rank, _)) in O4_HONORS.iter().enumerate() {
+        if mask & (1 << index) != 0 {
+            holding.insert(rank);
+        }
+    }
+    let mut spots: Vec<Rank> = (2..=9).map(Rank::new).collect();
+    spots.shuffle(rng);
+    for rank in spots.into_iter().take(len as usize - holding.len()) {
+        holding.insert(rank);
+    }
+    holding
+}
+
+fn random_o4_hands(
+    rng: &mut StdRng,
+    suit: Suit,
+    hcp_lo: u8,
+    hcp_hi: u8,
+    count: usize,
+) -> Vec<Hand> {
+    let empty = Builder::new()
+        .build_partial()
+        .expect("an empty builder is a valid partial deal");
+    fill_deals(rng, empty)
+        .map(|deal| deal[Seat::North])
+        .filter(|&hand| {
+            let target = hand[suit].len();
+            (target == 5 || target == 6)
+                && Suit::ASC
+                    .into_iter()
+                    .filter(|&other| other != suit)
+                    .all(|other| hand[other].len() <= 4)
+                && !is_balanced(Suit::ASC.map(|s| hand[s].len() as u8))
+                && (hcp_lo..=hcp_hi).contains(&hcp(hand))
+        })
+        .take(count)
+        .collect()
+}
+
+fn holding_hcp(holding: Holding) -> u8 {
+    O4_HONORS
+        .iter()
+        .filter(|&&(rank, _)| holding.contains(rank))
+        .map(|&(_, value)| value)
+        .sum()
+}
+
+fn honor_mask(holding: Holding) -> u8 {
+    O4_HONORS
+        .iter()
+        .enumerate()
+        .fold(0, |mask, (i, &(rank, _))| {
+            mask | (u8::from(holding.contains(rank)) << i)
+        })
+}
+
+fn mask_hcp(mask: u8) -> u8 {
+    O4_HONORS
+        .iter()
+        .enumerate()
+        .filter(|&(i, _)| mask & (1 << i) != 0)
+        .map(|(_, &(_, value))| value)
+        .sum()
+}
+
+fn fit_o4_model(kind: O4ModelKind, rows: &[O4Row]) -> O4Model {
+    let positive = rows.iter().filter(|row| row.bid).count();
+    let negative = rows.len() - positive;
+    let points_lo = rows.iter().map(|row| row.points).min().unwrap_or(0);
+    let points_hi = rows.iter().map(|row| row.points).max().unwrap_or(37);
+    let mut buckets = vec![Vec::new(); kind.keys()];
+    for &row in rows {
+        buckets[kind.key(row)].push(row);
+    }
+    let mut thresholds = vec![points_hi.saturating_add(1); kind.keys()];
+    for (key, bucket) in buckets.iter().enumerate() {
+        let mut best = f64::NEG_INFINITY;
+        for threshold in points_lo..=points_hi.saturating_add(1) {
+            let utility: f64 = bucket
+                .iter()
+                .map(|row| match (row.bid, row.points >= threshold) {
+                    (true, true) => 1.0 / positive as f64,
+                    (false, false) => 1.0 / negative as f64,
+                    _ => 0.0,
+                })
+                .sum();
+            if utility > best || (utility == best && threshold > thresholds[key]) {
+                best = utility;
+                thresholds[key] = threshold;
+            }
+        }
+    }
+
+    let raw = O4Model { kind, thresholds };
+    let mut candidates = Vec::new();
+    if o4_monotonicity_violations(&raw) == 0 {
+        candidates.push(raw.clone());
+    }
+    candidates.push(close_o4_model(raw.clone(), true));
+    candidates.push(close_o4_model(raw, false));
+    candidates
+        .into_iter()
+        .max_by(|a, b| {
+            score_o4(a, rows)
+                .balanced_accuracy()
+                .total_cmp(&score_o4(b, rows).balanced_accuracy())
+        })
+        .unwrap_or_else(|| unreachable!())
+}
+
+/// Monotone closure in either conservative (raise the weaker threshold) or
+/// permissive (lower the stronger threshold) direction.  Vulnerability follows
+/// the same bridge order: vulnerable may demand more, never less.
+fn close_o4_model(mut model: O4Model, conservative: bool) -> O4Model {
+    let features = o4_features(model.kind);
+    loop {
+        let mut changed = false;
+        for (weak_key, &weak) in features.iter().enumerate() {
+            for (strong_key, &strong) in features.iter().enumerate() {
+                if weak.vulnerable == strong.vulnerable
+                    && o4_dominates(model.kind, strong, weak)
+                    && model.thresholds[strong_key] > model.thresholds[weak_key]
+                {
+                    if conservative {
+                        model.thresholds[weak_key] = model.thresholds[strong_key];
+                    } else {
+                        model.thresholds[strong_key] = model.thresholds[weak_key];
+                    }
+                    changed = true;
+                }
+                if !weak.vulnerable
+                    && strong.vulnerable
+                    && o4_same_quality(model.kind, strong, weak)
+                    && model.thresholds[strong_key] < model.thresholds[weak_key]
+                {
+                    if conservative {
+                        model.thresholds[strong_key] = model.thresholds[weak_key];
+                    } else {
+                        model.thresholds[weak_key] = model.thresholds[strong_key];
+                    }
+                    changed = true;
+                }
+            }
+        }
+        if !changed {
+            break;
+        }
+    }
+    model
+}
+
+#[derive(Clone, Copy)]
+struct O4Feature {
+    vulnerable: bool,
+    len: u8,
+    suit_hcp: u8,
+    mask: u8,
+}
+
+fn o4_features(kind: O4ModelKind) -> Vec<O4Feature> {
+    let mut features = Vec::with_capacity(kind.keys());
+    for vulnerable in [false, true] {
+        match kind {
+            O4ModelKind::SuitHcp => {
+                for suit_hcp in 0..=10 {
+                    features.push(O4Feature {
+                        vulnerable,
+                        len: 5,
+                        suit_hcp,
+                        mask: 0,
+                    });
+                }
+            }
+            O4ModelKind::SuitHcpLength => {
+                for len in [5, 6] {
+                    for suit_hcp in 0..=10 {
+                        features.push(O4Feature {
+                            vulnerable,
+                            len,
+                            suit_hcp,
+                            mask: 0,
+                        });
+                    }
+                }
+            }
+            O4ModelKind::HonorMaskLength => {
+                for len in [5, 6] {
+                    for mask in 0..32 {
+                        features.push(O4Feature {
+                            vulnerable,
+                            len,
+                            suit_hcp: mask_hcp(mask),
+                            mask,
+                        });
+                    }
+                }
+            }
+        }
+    }
+    features
+}
+
+fn o4_dominates(kind: O4ModelKind, strong: O4Feature, weak: O4Feature) -> bool {
+    match kind {
+        O4ModelKind::SuitHcp => strong.suit_hcp >= weak.suit_hcp,
+        O4ModelKind::SuitHcpLength => strong.suit_hcp >= weak.suit_hcp && strong.len >= weak.len,
+        O4ModelKind::HonorMaskLength => {
+            strong.len >= weak.len && mask_dominates(strong.mask, weak.mask)
+        }
+    }
+}
+
+fn mask_dominates(strong: u8, weak: u8) -> bool {
+    let mut strong_seen = 0;
+    let mut weak_seen = 0;
+    for i in 0..5 {
+        strong_seen += usize::from(strong & (1 << i) != 0);
+        weak_seen += usize::from(weak & (1 << i) != 0);
+        if strong_seen < weak_seen {
+            return false;
+        }
+    }
+    true
+}
+
+fn o4_same_quality(kind: O4ModelKind, a: O4Feature, b: O4Feature) -> bool {
+    match kind {
+        O4ModelKind::SuitHcp => a.suit_hcp == b.suit_hcp,
+        O4ModelKind::SuitHcpLength => a.suit_hcp == b.suit_hcp && a.len == b.len,
+        O4ModelKind::HonorMaskLength => a.mask == b.mask && a.len == b.len,
+    }
+}
+
+fn o4_monotonicity_violations(model: &O4Model) -> usize {
+    let features = o4_features(model.kind);
+    let mut violations = 0;
+    for (weak_key, &weak) in features.iter().enumerate() {
+        for (strong_key, &strong) in features.iter().enumerate() {
+            if weak.vulnerable == strong.vulnerable
+                && o4_dominates(model.kind, strong, weak)
+                && model.thresholds[strong_key] > model.thresholds[weak_key]
+            {
+                violations += 1;
+            }
+            if !weak.vulnerable
+                && strong.vulnerable
+                && o4_same_quality(model.kind, strong, weak)
+                && model.thresholds[strong_key] < model.thresholds[weak_key]
+            {
+                violations += 1;
+            }
+        }
+    }
+    violations
+}
+
+fn score_o4(model: &O4Model, rows: &[O4Row]) -> Confusion {
+    let mut score = Confusion::default();
+    for &row in rows {
+        score.push(row.bid, model.predicts(row));
+    }
+    score
+}
+
+fn worst_o4_cell(model: &O4Model, rows: &[O4Row], pairs: usize, vuls: usize) -> f64 {
+    let mut worst: f64 = 1.0;
+    for pair in 0..pairs {
+        for vul in 0..vuls {
+            let cell: Vec<O4Row> = rows
+                .iter()
+                .copied()
+                .filter(|row| row.pair == pair && row.vul == vul)
+                .collect();
+            let score = score_o4(model, &cell).balanced_accuracy();
+            if score.is_finite() {
+                worst = worst.min(score);
+            }
+        }
+    }
+    worst
+}
+
+fn render_o4_sample(report: &mut String, name: &str, sample: &O4Sample) {
+    let positives = sample.rows.iter().filter(|row| row.bid).count();
+    let negatives = sample.rows.len() - positives;
+    let coverage = sample.rows.len() as f64 / sample.calls as f64;
+    let alternatives = sample
+        .alternatives
+        .iter()
+        .map(|(&code, &n)| format!("{}:{n}", decode(code).unwrap_or_else(|| code.to_string())))
+        .collect::<Vec<_>>()
+        .join(" ");
+    let _ = writeln!(
+        report,
+        "- {name}: {} calls; {} labeled ({:.1}% coverage; bid {positives}, Pass {negatives}); alternate routes: {}",
+        sample.calls,
+        sample.rows.len(),
+        100.0 * coverage,
+        if alternatives.is_empty() {
+            "none"
+        } else {
+            &alternatives
+        },
+    );
+}
+
+fn render_o4_thresholds(report: &mut String, model: &O4Model) {
+    let _ = writeln!(
+        report,
+        "## Selected thresholds\n\nEach cell is the minimum whole-hand `points` for the natural overcall; a value above the probed point range means no bid."
+    );
+    let features = o4_features(model.kind);
+    for vulnerable in [false, true] {
+        let _ = writeln!(
+            report,
+            "\n- {}:",
+            if vulnerable {
+                "vulnerable"
+            } else {
+                "not vulnerable"
+            }
+        );
+        match model.kind {
+            O4ModelKind::SuitHcp => {
+                let cells = features
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, feature)| feature.vulnerable == vulnerable)
+                    .map(|(key, feature)| format!("{}:{}", feature.suit_hcp, model.thresholds[key]))
+                    .collect::<Vec<_>>()
+                    .join(" ");
+                let _ = writeln!(report, "  - suit-HCP:min-points {cells}");
+            }
+            O4ModelKind::SuitHcpLength => {
+                for len in [5, 6] {
+                    let cells = features
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, feature)| {
+                            feature.vulnerable == vulnerable && feature.len == len
+                        })
+                        .map(|(key, feature)| {
+                            format!("{}:{}", feature.suit_hcp, model.thresholds[key])
+                        })
+                        .collect::<Vec<_>>()
+                        .join(" ");
+                    let _ = writeln!(report, "  - {len} cards, suit-HCP:min-points {cells}");
+                }
+            }
+            O4ModelKind::HonorMaskLength => {
+                for len in [5, 6] {
+                    let cells = features
+                        .iter()
+                        .enumerate()
+                        .filter(|(_, feature)| {
+                            feature.vulnerable == vulnerable && feature.len == len
+                        })
+                        .map(|(key, feature)| {
+                            format!("{}:{}", mask_label(feature.mask), model.thresholds[key])
+                        })
+                        .collect::<Vec<_>>()
+                        .join(" ");
+                    let _ = writeln!(report, "  - {len} cards, mask:min-points {cells}");
+                }
+            }
+        }
+    }
+}
+
+fn mask_label(mask: u8) -> String {
+    let label: String = O4_HONORS
+        .iter()
+        .enumerate()
+        .filter_map(|(i, &(rank, _))| (mask & (1 << i) != 0).then_some(rank.letter()))
+        .collect();
+    if label.is_empty() { "-".into() } else { label }
 }
 
 /// One report section per vulnerability: the per-call buckets in DSL vocabulary.
@@ -919,6 +1806,9 @@ fn parse_conv(flags: &[String]) -> Result<Vec<(CString, c_int)>> {
 }
 
 fn conv_summary(overrides: &[(CString, c_int)]) -> String {
+    if overrides.is_empty() {
+        return "none".into();
+    }
     overrides
         .iter()
         .map(|(name, value)| format!("{}={value}", name.to_string_lossy()))

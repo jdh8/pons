@@ -10,6 +10,7 @@
 
 use super::michaels::{michaels_advances, unusual_nt_advances};
 use super::*;
+use crate::bidding::rows::expand;
 
 /// Exact disclosure for the opt-in weak direct jump: the generic natural walk
 /// can only infer "six-plus" because other jump overcalls may be strong.  This
@@ -66,6 +67,30 @@ pub enum TakeoutSupport {
     Strict,
 }
 
+/// Author the natural `1NT` rule with the configured major-suit preference
+fn one_notrump_overcall<C: Constraint + 'static>(
+    their_suit: Suit,
+    agreements: &Agreements,
+    when: Cons<C>,
+) -> Rules {
+    let strict = agreements.defense.nt_overcall_no_major;
+    let cheap = agreements.defense.nt_overcall_prefer_one_level_major;
+    // Strict always wins.  Otherwise the lighter arm denies a major only when
+    // it ranks above their opening and is therefore available at level one.
+    let deny = |major: Suit| major != their_suit && (strict || (cheap && major > their_suit));
+    let one_nt = Bid::new(1, Strain::Notrump);
+    match (deny(Suit::Hearts), deny(Suit::Spades)) {
+        (true, true) => Rules::new().rule(
+            one_nt,
+            150,
+            when & len(Suit::Hearts, ..=4) & len(Suit::Spades, ..=4),
+        ),
+        (true, false) => Rules::new().rule(one_nt, 150, when & len(Suit::Hearts, ..=4)),
+        (false, true) => Rules::new().rule(one_nt, 150, when & len(Suit::Spades, ..=4)),
+        (false, false) => Rules::new().rule(one_nt, 150, when),
+    }
+}
+
 /// Our action over their one-of-a-suit opening
 ///
 /// One decision: a natural overcall (five-card suit), a takeout double, a
@@ -88,16 +113,14 @@ pub fn defense_to_suit(their_opening: Bid, agreements: &Agreements) -> Rules {
     let theirs = their_opening.strain;
     let t = theirs.suit().expect("their opening is always a suit bid");
 
-    let one_nt = Bid::new(1, Strain::Notrump);
-    let nt_base = hcp(15..=18) & balanced() & stopper_in_their_suits();
-    let mut rules = if agreements.defense.nt_overcall_no_major {
-        Rules::new().rule(
-            one_nt,
-            150,
-            nt_base & len(Suit::Hearts, ..=4) & len(Suit::Spades, ..=4),
-        )
+    let mut rules = if agreements.defense.nt_overcall_without_stopper {
+        one_notrump_overcall(t, agreements, hcp(15..=18) & balanced())
     } else {
-        Rules::new().rule(one_nt, 150, nt_base)
+        one_notrump_overcall(
+            t,
+            agreements,
+            hcp(15..=18) & balanced() & stopper_in_their_suits(),
+        )
     };
 
     // 12+ takeout double, optionally gated on support for the unbid suits so an
@@ -157,15 +180,18 @@ pub fn defense_to_suit(their_opening: Bid, agreements: &Agreements) -> Rules {
         if strain != theirs {
             let level = if strain > theirs { 1 } else { 2 };
             let weight = if level == 1 { 140 } else { 100 };
-            // The exact shared BEN/BBA residual: with a weak six-card major,
-            // both references preempt 2M while we overcall 1M.  Keep the treatment
-            // disjoint from the ordinary overcall (five cards or 12+ HCP) and
-            // from the seven-card preempt floor.  Weight 150 only has to beat
-            // the 140 simple overcall on the overlapping six-card hands.
-            if agreements.defense.direct_weak_jump_overcall
+            // The exact shared BEN/BBA residual: with a weak six-card suit,
+            // both references preempt while we make the cheapest overcall.
+            // The shipped major family and opt-in `(1♣) 2♦` arm share the
+            // same disjoint box; seven-card preempts remain with the floor.
+            let weak_major = agreements.defense.direct_weak_jump_overcall
                 && level == 1
-                && matches!(suit, Suit::Hearts | Suit::Spades)
-            {
+                && matches!(suit, Suit::Hearts | Suit::Spades);
+            let weak_diamond = agreements.defense.direct_minor_weak_jump_overcall
+                && level == 1
+                && t == Suit::Clubs
+                && suit == Suit::Diamonds;
+            if weak_major || weak_diamond {
                 rules = rules
                     .rule(
                         Bid::new(2, strain),
@@ -334,24 +360,21 @@ pub(super) fn suit_defense_package() -> Package {
         name: "suit-defense",
         gate: |_| true,
         entries: |agreements| {
-            let mut entries = Vec::new();
-            for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
-                let theirs = Strain::from(suit);
-                let opening = Bid::new(1, theirs);
-                let key = format!("P* ({opening})");
-                entries.extend(rows_of(
-                    Pattern::node(&key),
-                    defense_to_suit(opening, agreements),
-                ));
-                entries.extend(rows_of(
-                    Pattern::node(&format!("{key} 2{theirs} -")),
-                    michaels_advances(suit),
-                ));
-                entries.extend(rows_of(
-                    Pattern::node(&format!("{key} 2NT -")),
-                    unusual_nt_advances(suit),
-                ));
-            }
+            let mut entries = expand(
+                "P* (1x)",
+                |_| true,
+                |b| defense_to_suit(Bid::new(1, b.suit('x').into()), agreements),
+            );
+            entries.extend(expand(
+                "P* (1x) 2x -",
+                |_| true,
+                |b| michaels_advances(b.suit('x')),
+            ));
+            entries.extend(expand(
+                "P* (1x) 2NT -",
+                |_| true,
+                |b| unusual_nt_advances(b.suit('x')),
+            ));
             entries
         },
     }

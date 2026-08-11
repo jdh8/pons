@@ -38,7 +38,7 @@ strong-2c:waiting 4
 takeout-double 56
 texas 80
 unusual-2nt 16
-weak-jump-overcall 20
+weak-jump-overcall 24
 weak-jump-shift 40
 xyz-completion 40
 xyz-game-force 40

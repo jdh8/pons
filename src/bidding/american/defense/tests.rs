@@ -41,6 +41,34 @@ fn row_package_invariants() {
     );
 }
 
+/// Defensive-overcall candidates and rollback modes must satisfy the row
+/// invariants too; checking only the shipped defaults misses those arms.
+#[test]
+fn defensive_overcall_variants_hold_row_invariants() {
+    use crate::bidding::agreements::Agreements;
+
+    type Configure = fn(&mut Agreements);
+    let configs: [Configure; 5] = [
+        |agreements| agreements.defense.nt_overcall_no_major = true,
+        |agreements| agreements.defense.nt_overcall_prefer_one_level_major = true,
+        |agreements| {
+            agreements.defense.nt_overcall_no_major = true;
+            agreements.defense.nt_overcall_prefer_one_level_major = true;
+        },
+        |agreements| agreements.defense.nt_overcall_without_stopper = true,
+        |agreements| agreements.defense.direct_minor_weak_jump_overcall = false,
+    ];
+
+    for configure in configs {
+        let mut agreements = Agreements::default();
+        configure(&mut agreements);
+        crate::bidding::rows::assert_package_invariants(
+            &agreements,
+            &[super::suit_defense_package()],
+        );
+    }
+}
+
 /// `american()`'s best call for a hand in an auction, and whether the instinct
 /// floor (not a book node) produced it
 pub(super) fn best_call(auction: &[Call], hand: &str) -> (Call, bool) {

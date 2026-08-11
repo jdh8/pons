@@ -9,16 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Defensive round-1 redesign designed** (docs only, nothing shipped):
-  [docs/defensive-overcalls.md](docs/defensive-overcalls.md) (1NT + suit
-  overcalls — `nt_overcall_no_major` re-measure, `X → 1NT` forensic, minor
-  weak-jump extension, 2-level suit-quality gate, opt-in 3-level jumps) and
-  [docs/takeout-double-layers.md](docs/takeout-double-layers.md) (the takeout
-  double as a 4-4-unbid-major-fit tool: X₄/X₃ precedence rungs, strain-split
-  1-level overcall weights, doubler-rebid rows disclosing the strong tiers).
-  Grounded in the BEN decompose residue of `Defensive/book/round-1` after the
-  weak-jump ship (11,160 rows, −3,994 plain / −7,432 PD) and BBA's MB.TXT
-  layering. Balancing seat explicitly stays with the floor lever.
+- **Defensive round-1 suit defenses now use declarative variable rows, with
+  each proposed treatment gated independently.** The four hand-expanded suit
+  openings are one `P* (1x)` row plus generic Michaels and Unusual-2NT advance
+  rows; at the row-only checkpoint, clean-HEAD `render-book` and 20k-board
+  `smoke-default` outputs were byte-identical (`4540cd9e…` / `a0816ca8…`). A
+  targeted direct-1NT reader was
+  implemented and measured in a working tree atop base SHA `1922df3`, seed
+  `1786449525`, then reverted:
+  its 204.8k-board BBA cells were plain wash but non-vulnerable PD lost
+  **−0.0016 ±0.0012** IMP/board; the same-seed 25.6k Tier-F cells all washed,
+  which cannot reverse that failed prerequisite. O1's strict-unbid-major and
+  cheap-one-level-major fields and O2's stopperless field remain opt-in and
+  unmeasured; their runners stop at the failed reader gate. The unsound
+  semi-balanced O2 arm was removed. O3 adds only the authored exact-six,
+  8+ points, ≤11-HCP `(1♣) 2♦` weak jump. Its fresh BBA run (seed
+  `1786465192`, 204.8k/arm/vul) washed non-negative in every honest cell: DD
+  +0.0000 ±0.0012 / +0.0002 ±0.0015, PD +0.0007 ±0.0014 / +0.0006
+  ±0.0017, and SD-PD +0.0003 ±0.0014 / +0.0005 ±0.0018. The same-seed
+  25.6k Tier-F guard did not refute it: DD +0.0004 ±0.0032 / +0.0004
+  ±0.0044, PD −0.0001 ±0.0040 / −0.0004 ±0.0054, and SD-PD +0.0005
+  ±0.0042 / +0.0010 ±0.0054. O3 therefore ships on by default; external
+  exact-six, 8+ points, ≤11-HCP disclosure is unavailable in the three
+  harnesses. O4
+  stopped before an atom or A/B: at seed `1786431801`, the best held-out
+  live-BBA quality model reached 94.29% balanced accuracy, below the
+  preregistered 95% floor, so its reserved field remains inert. O5/O6,
+  balancing, and takeout-double redesign remain out of scope; full evidence is
+  in
+  [docs/defensive-overcalls.md](docs/defensive-overcalls.md).
 
 - **`bba-decompose` can now attribute the shipped v5 floor exactly.**
   `--our-floor american|american-instinct` selects the generating floor and
