@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Defensive round-1 redesign designed** (docs only, nothing shipped):
+  [docs/defensive-overcalls.md](docs/defensive-overcalls.md) (1NT + suit
+  overcalls — `nt_overcall_no_major` re-measure, `X → 1NT` forensic, minor
+  weak-jump extension, 2-level suit-quality gate, opt-in 3-level jumps) and
+  [docs/takeout-double-layers.md](docs/takeout-double-layers.md) (the takeout
+  double as a 4-4-unbid-major-fit tool: X₄/X₃ precedence rungs, strain-split
+  1-level overcall weights, doubler-rebid rows disclosing the strong tiers).
+  Grounded in the BEN decompose residue of `Defensive/book/round-1` after the
+  weak-jump ship (11,160 rows, −3,994 plain / −7,432 PD) and BBA's MB.TXT
+  layering. Balancing seat explicitly stays with the floor lever.
+
 - **`bba-decompose` can now attribute the shipped v5 floor exactly.**
   `--our-floor american|american-instinct` selects the generating floor and
   defaults to `american-instinct`, keeping `scripts/anchor.sh` unchanged; BEN
