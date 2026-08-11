@@ -71,8 +71,8 @@ diffpair() {
 
 log "=== BEN direct-weak-jump-overcall A/B start, sha=$(git rev-parse --short HEAD), SEED_BASE=$SEED_BASE, ${SERVERS}x${PER_SHARD} bd/arm/vul, $NOTE"
 for vul in none both; do
-	arm off "$vul"
-	arm on "$vul" --ns-direct-weak-jump-overcall
+	arm off "$vul" --no-ns-direct-weak-jump-overcall
+	arm on "$vul"
 	diffpair "$vul"
 done
 log "=== BEN direct-weak-jump-overcall A/B done"

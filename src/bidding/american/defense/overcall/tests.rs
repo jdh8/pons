@@ -141,12 +141,17 @@ fn direct_weak_jump_overcall_is_disjoint_and_reads_exactly() {
     let five = "T9.KQJ87.43.A987"; // same values, only five hearts
     let strong_six = "T9.AKQJ87.4.A982"; // 14 HCP
 
-    let (off, off_floored) = best_call(&over_1d, weak_six);
+    let mut off_agreements = Agreements::default();
+    off_agreements.defense.direct_weak_jump_overcall = false;
+    let (off, off_floored) = best_call_with(&off_agreements, &over_1d, weak_six);
     assert_eq!(off, call(1, Strain::Hearts));
     assert!(!off_floored, "the baseline simple overcall is authored");
 
-    let mut on = Agreements::default();
-    on.defense.direct_weak_jump_overcall = true;
+    let on = Agreements::default();
+    assert!(
+        on.defense.direct_weak_jump_overcall,
+        "the measured treatment ships by default"
+    );
     let jump_rules = super::overcall::defense_to_suit(Bid::new(1, Strain::Diamonds), &on);
     let jump_rule = jump_rules
         .rules()

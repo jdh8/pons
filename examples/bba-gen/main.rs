@@ -963,11 +963,11 @@ struct Args {
     #[arg(long, default_value = "on")]
     ns_overcall_discipline: String,
 
-    /// With an exactly six-card major, 8+ points, and at most 11 HCP, make a
-    /// weak single-jump overcall (2M) instead of the simple 1M overcall. Off by
-    /// default; traced from the shared BEN/BBA defensive round-1 residual.
+    /// Disable the shipped direct weak jump overcall: with an exactly six-card
+    /// major, 8+ points, and at most 11 HCP, the default bids 2M instead of the
+    /// simple 1M overcall.
     #[arg(long, default_value_t = false)]
-    ns_direct_weak_jump_overcall: bool,
+    no_ns_direct_weak_jump_overcall: bool,
 
     /// Disable a passed hand's lighter (9+ not 11+) disciplined 2-level overcall
     /// (folded into base default-on in the A5 pass; see `defense.passed_hand_overcall`).
@@ -1689,7 +1689,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
         "off" => false,
         other => anyhow::bail!("--ns-overcall-discipline must be on|off, got {other:?}"),
     };
-    agreements.defense.direct_weak_jump_overcall = args.ns_direct_weak_jump_overcall;
+    agreements.defense.direct_weak_jump_overcall = !args.no_ns_direct_weak_jump_overcall;
     agreements.defense.passed_hand_overcall = !args.no_ns_passed_hand_overcall;
     agreements.defense.two_level_minor_overcall_tight = args.ns_two_level_minor_overcall_tight;
     agreements.defense.nt_overcall_no_major = args.ns_nt_overcall_no_major;

@@ -646,7 +646,7 @@ pub struct DefenseKnobs {
     pub overcall_discipline: bool,
     /// Use a weak single-jump overcall in an unbid major
     ///
-    /// **Off by default.**  When enabled, an exactly six-card major with
+    /// **On by default.**  An exactly six-card major with
     /// `points(8..)` and at most 11 HCP jumps one level over their one-of-a-suit
     /// opening instead of making the cheapest natural overcall.  The bands are
     /// disjoint: stronger six-card hands and every five-card hand retain the
@@ -654,8 +654,10 @@ pub struct DefenseKnobs {
     /// decision.  The jump is natural, weak, and non-forcing; its advance uses
     /// the existing natural-preempt floor rather than an artificial relay.
     ///
-    /// This is the A/B knob for `scripts/ab-direct-weak-jump-overcall.sh`,
-    /// traced from the shared BEN/BBA `Defensive/book/round-1` residual.
+    /// Shipped after the shared BEN/BBA `Defensive/book/round-1` residual won
+    /// or washed against both references and SD-PD did not refute it. `false`
+    /// restores the historical simple `1M` overcall; see
+    /// `scripts/ab-direct-weak-jump-overcall.sh`.
     pub direct_weak_jump_overcall: bool,
     /// Allow a good four-card natural overcall
     ///
@@ -1379,7 +1381,7 @@ impl Default for DefenseKnobs {
             suppress_4432_vs_minor: false,
             suppress_5card_major_takeout: true,
             overcall_discipline: true,
-            direct_weak_jump_overcall: false,
+            direct_weak_jump_overcall: true,
             overcall_four_card: false,
             passed_hand_overcall: true,
             two_level_minor_overcall_tight: false,

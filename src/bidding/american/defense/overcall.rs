@@ -158,7 +158,7 @@ pub fn defense_to_suit(their_opening: Bid, agreements: &Agreements) -> Rules {
             let level = if strain > theirs { 1 } else { 2 };
             let weight = if level == 1 { 140 } else { 100 };
             // The exact shared BEN/BBA residual: with a weak six-card major,
-            // both references preempt 2M while we overcall 1M.  Keep the trial
+            // both references preempt 2M while we overcall 1M.  Keep the treatment
             // disjoint from the ordinary overcall (five cards or 12+ HCP) and
             // from the seven-card preempt floor.  Weight 150 only has to beat
             // the 140 simple overcall on the overlapping six-card hands.

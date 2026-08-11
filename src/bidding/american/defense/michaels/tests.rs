@@ -10,6 +10,9 @@ fn two_suiter_hcp_floor_bars_garbage_michaels() {
     // hands' points assume (the 6-6 freak reads 9, not the point-count 7).
     let mut agreements = Agreements::default();
     agreements.decision.reading.point_scale = PointScale::RuleOfNFloored;
+    // Isolate the Michaels HCP floor from the now-shipped weak jump overcall,
+    // which legitimately moves this exactly-six-card spade hand to 2♠.
+    agreements.defense.direct_weak_jump_overcall = false;
     // Over their (1♥): a 5-HCP 6-6 freak reads 9 points and cues Michaels
     // at weight 2.0 straight into a penalty double (−17..−21 IMPs a board
     // in the remnant dump).  The documented gate was always "8+ HCP"; the

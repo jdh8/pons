@@ -403,16 +403,24 @@ do not share a missing continuation or downstream floor leak.
 
 The previously queued `set_two_level_minor_overcall_tight` is therefore not
 the candidate: pons's combined `2♣`/`2♦` slice is **+369 plain / −3,645 PD**
-against BEN, failing the required plain sign. The new minimal candidate is
-`direct_weak_jump_overcall`, default off: exactly six cards, 8+ points, ≤11 HCP
+against BEN, failing the required plain sign. The new minimal treatment is
+`direct_weak_jump_overcall`: exactly six cards, 8+ points, ≤11 HCP
 routes from `1M` to the natural weak `2M`; five-card, 12+ HCP, and seven-card
 paths stay byte-identical. Its exact disclosed box feeds the existing natural
 preempt continuation. The fresh 204.8k/arm/vulnerability BBA gate passed at
 seed `1786431801`: plain DD **+0.0002 ±0.0028 / +0.0031 ±0.0035**, PD
 **+0.0026 ±0.0032 / +0.0051 ±0.0040**, and SD-PD **+0.0032 ±0.0033 /
 +0.0057 ±0.0040** for none/both. Because it fired 1.16%/1.11%, the same seed
-advances to the fixed 16-server, 16×800×{none,both} Tier-F gate (25,600 boards
-per arm total). Default behavior remains byte-identical pending that result.
+advanced to the fixed 16-server, 16×800×{none,both} Tier-F gate (25,600 boards
+per arm total). All 64 shards validated with exact four-way deal streams,
+correct labels/seeds/config notes, and zero runner failures. It fired 145/143
+boards none/both: plain **+0.0098 ±0.0099 / +0.0013 ±0.0128**, PD
+**+0.0101 ±0.0120 / −0.0020 ±0.0154**, plain SD **+0.0073 ±0.0104 /
+−0.0041 ±0.0129**, and SD-PD **+0.0058 ±0.0120 / −0.0087 ±0.0147**.
+Every BEN cell is a wash, pooled point estimates are +0.0055 plain / +0.0040
+PD, and SD-PD does not refute it. The BBA-pass + BEN-wash rule therefore ships
+the treatment default-on; `false` / `--no-ns-direct-weak-jump-overcall`
+restore the historical simple `1M` overcall. No Tier-S run is added.
 
 ### Phase 2 — the loop
 

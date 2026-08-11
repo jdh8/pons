@@ -477,15 +477,22 @@ constructive round-2 is excluded as already worked/mined in this ledger, leaving
 unworked slice is our simple `1M` overcall versus the reference's weak `2M`
 jump: 4,895 boards, **−2.454 ±0.194 plain / −2.785 ±0.228 PD** per divergent
 board (BEN independently: 1,348, −1.102 ±0.345 / −0.976 ±0.416). More than 98%
-are exactly six-card majors and all are 6–11 HCP. The default-off
-`direct_weak_jump_overcall` candidate and fresh-seed runner are now authored;
+are exactly six-card majors and all are 6–11 HCP. The
+`direct_weak_jump_overcall` treatment and fresh-seed runner are now authored;
 the 204.8k/arm/vulnerability BBA gate passed at seed `1786431801`. It fired
 1.16%/1.11% none/both: plain **+0.0002 ±0.0028 / +0.0031 ±0.0035**, PD
 **+0.0026 ±0.0032 / +0.0051 ±0.0040**, plain SD **+0.0010 ±0.0030 /
 +0.0037 ±0.0036**, and SD-PD **+0.0032 ±0.0033 / +0.0057 ±0.0040**. All
 four arms contain 32×6,400 boards with identical deal streams and zero runner
 failures. The decision-table verdict is plain wash plus PD win/wash with no SD
-refutation, so the same-seed Tier-F gate is next; no default changes yet.
+refutation. The same-seed Tier-F gate then washed in every cell: plain
+**+0.0098 ±0.0099 / +0.0013 ±0.0128**, PD **+0.0101 ±0.0120 / −0.0020
+±0.0154**, and SD-PD **+0.0058 ±0.0120 / −0.0087 ±0.0147** none/both on
+12,800 boards per cell (145/143 fired). Its pooled point estimates are +0.0055
+plain / +0.0040 PD and no SD cell refutes it. The two-reference gate therefore
+ships the treatment default-on; `false` / `--no-ns-direct-weak-jump-overcall`
+restore the historical simple overcall. A fresh exact anchor follows the
+default flip.
 
 **What the *shipping* pair scores (`--our-floor american`, same deals, same
 seed, both arms generated at this sha):** pooled **−0.627 plain / −0.585 PD**
