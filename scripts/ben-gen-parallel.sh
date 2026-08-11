@@ -20,7 +20,12 @@ SEED_BASE="${SEED_BASE:-$(date +%s)}"
 echo "ben-gen-parallel: SEED_BASE=$SEED_BASE outdir=$outdir per-shard=$per args: $*"
 
 cd "$(dirname "$(readlink -f "$0")")/.."
-cargo build --release --features serde --example ben-gen
+if [ "${SKIP_BUILD:-0}" != 1 ]; then
+	cargo build --release --features serde --example ben-gen
+elif [ ! -x target/release/examples/ben-gen ]; then
+	echo "SKIP_BUILD=1 but target/release/examples/ben-gen is missing" >&2
+	exit 1
+fi
 mkdir -p "$outdir"
 
 # `|| true` absorbs the pipeline's pipefail status when no server matches, so

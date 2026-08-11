@@ -407,8 +407,12 @@ against BEN, failing the required plain sign. The new minimal candidate is
 `direct_weak_jump_overcall`, default off: exactly six cards, 8+ points, ≤11 HCP
 routes from `1M` to the natural weak `2M`; five-card, 12+ HCP, and seven-card
 paths stay byte-identical. Its exact disclosed box feeds the existing natural
-preempt continuation. BBA fresh-seed validation runs first; BEN wiring remains
-gated on that result.
+preempt continuation. The fresh 204.8k/arm/vulnerability BBA gate passed at
+seed `1786431801`: plain DD **+0.0002 ±0.0028 / +0.0031 ±0.0035**, PD
+**+0.0026 ±0.0032 / +0.0051 ±0.0040**, and SD-PD **+0.0032 ±0.0033 /
++0.0057 ±0.0040** for none/both. Because it fired 1.16%/1.11%, the same seed
+advances to the fixed 16-server, 16×800×{none,both} Tier-F gate (25,600 boards
+per arm total). Default behavior remains byte-identical pending that result.
 
 ### Phase 2 — the loop
 

@@ -110,6 +110,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_pass_reading: bool,
 
+    /// With an exactly six-card major, 8+ points, and at most 11 HCP, make a
+    /// weak single-jump overcall (2M) instead of the simple 1M overcall. Off by
+    /// default; the BEN/BBA shared-residual A/B candidate.
+    #[arg(long, default_value_t = false)]
+    ns_direct_weak_jump_overcall: bool,
+
     /// Free-form provenance recorded in gen_args (the launcher passes the
     /// server conf's sha256 here)
     #[arg(long)]
@@ -429,6 +435,7 @@ fn main() -> anyhow::Result<()> {
     agreements.decision.reading.length_soundness = !args.no_ns_length_soundness;
     agreements.decision.reading.table_alerts = !args.no_ns_table_alert_reading;
     agreements.decision.reading.pass = !args.no_ns_pass_reading;
+    agreements.defense.direct_weak_jump_overcall = args.ns_direct_weak_jump_overcall;
     let our_floor = american(&agreements).bind();
     let epbot = if args.calibrate_epbot {
         let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());

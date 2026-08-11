@@ -41,8 +41,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Raw report, JSONL, and 35,180-table DD cache remain ignored under the corpus
   directory.
 
-- **A default-off direct weak jump overcall is ready for the two-reference
-  validation.** Exact BEN+BBA forensics rejected the queued tight-minor
+- **A default-off direct weak jump overcall passed its BBA guard and is ready
+  for the paired Tier-F gate.** Exact BEN+BBA forensics rejected the queued tight-minor
   candidate (its combined `2♣`/`2♦` slice is +369 plain IMPs against BEN) and
   instead isolated pons `1M` versus both references' `2M`: BEN 1,348 boards,
   **−1.102 ±0.345 plain / −0.976 ±0.416 PD** per divergent board; BBA 4,895,
@@ -55,7 +55,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   alert, and full-auction tests. `bba-gen --ns-direct-weak-jump-overcall`,
   `ab-dump-sd --on-ns-direct-weak-jump-overcall`, and
   `scripts/ab-direct-weak-jump-overcall.sh` provide the fresh-seed BBA gate.
-  Default behavior remains byte-identical; measurement is pending.
+  At seed `1786431801`, its 204,800-board cells fired 1.16%/1.11%: plain
+  **+0.0002 ±0.0028 / +0.0031 ±0.0035**, PD **+0.0026 ±0.0032 /
+  +0.0051 ±0.0040**, and SD-PD **+0.0032 ±0.0033 / +0.0057 ±0.0040** for
+  none/both. This is a plain wash plus PD win/wash with no SD refutation.
+  `ben-gen` and a fixed-16-server runner expose the same candidate for its
+  same-seed Tier-F gate. Default behavior remains byte-identical.
 
 ### Fixed
 

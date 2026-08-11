@@ -479,7 +479,13 @@ jump: 4,895 boards, **−2.454 ±0.194 plain / −2.785 ±0.228 PD** per diverge
 board (BEN independently: 1,348, −1.102 ±0.345 / −0.976 ±0.416). More than 98%
 are exactly six-card majors and all are 6–11 HCP. The default-off
 `direct_weak_jump_overcall` candidate and fresh-seed runner are now authored;
-BBA validation is pending before any BEN arm is wired.
+the 204.8k/arm/vulnerability BBA gate passed at seed `1786431801`. It fired
+1.16%/1.11% none/both: plain **+0.0002 ±0.0028 / +0.0031 ±0.0035**, PD
+**+0.0026 ±0.0032 / +0.0051 ±0.0040**, plain SD **+0.0010 ±0.0030 /
++0.0037 ±0.0036**, and SD-PD **+0.0032 ±0.0033 / +0.0057 ±0.0040**. All
+four arms contain 32×6,400 boards with identical deal streams and zero runner
+failures. The decision-table verdict is plain wash plus PD win/wash with no SD
+refutation, so the same-seed Tier-F gate is next; no default changes yet.
 
 **What the *shipping* pair scores (`--our-floor american`, same deals, same
 seed, both arms generated at this sha):** pooled **−0.627 plain / −0.585 PD**
