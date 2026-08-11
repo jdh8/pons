@@ -494,6 +494,15 @@ ships the treatment default-on; `false` / `--no-ns-direct-weak-jump-overcall`
 restore the historical simple overcall. A fresh exact anchor follows the
 default flip.
 
+**Post-ship re-anchor `782f09e` (2026-08-11, persistent seed `1783375064`).**
+Both 204,800-board vulnerability arms replay exactly (0/2,112,342 and
+0/2,100,834 mismatched calls). The new headline is none **−0.9566 plain /
+−0.9991 PD**, both **−1.1608 / −1.4006**, pooled **−1.059/−1.200**. Against
+the exact `42454d2` pre-fix row, that is +0.010 plain / +0.006 PD pooled. The
+target bucket responds directly: `Defensive/book/round-1` falls from 52,523
+boards and −84,484 plain / −102,011 PD to 49,068 boards and **−74,202 /
+−90,593**. Report: `ab-results/anchor/2026-08-11-782f09e/report.md`.
+
 **What the *shipping* pair scores (`--our-floor american`, same deals, same
 seed, both arms generated at this sha):** pooled **−0.627 plain / −0.585 PD**
 (vul none −0.555 / −0.499, both −0.699 / −0.671).  This is the first shipping

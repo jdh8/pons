@@ -421,6 +421,10 @@ Every BEN cell is a wash, pooled point estimates are +0.0055 plain / +0.0040
 PD, and SD-PD does not refute it. The BBA-pass + BEN-wash rule therefore ships
 the treatment default-on; `false` / `--no-ns-direct-weak-jump-overcall`
 restore the historical simple `1M` overcall. No Tier-S run is added.
+The required post-ship BBA anchor at `782f09e` is exact on both 204.8k cells:
+pooled **−1.059 plain / −1.200 PD**, +0.010/+0.006 over the pre-fix anchor;
+the targeted defensive round-1 book bucket improves by +10,282 plain /
++11,418 PD IMPs. The retained Tier-S anchor remains untouched.
 
 ### Phase 2 — the loop
 

@@ -66,6 +66,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   +0.0055 plain / +0.0040 PD, and SD-PD does not refute the change. The
   pre-registered two-reference rule therefore ships it. `false` and the
   analysis `--no-*` switches restore the historical simple `1M` overcall.
+  The exact persistent-seed post-ship BBA anchor at `782f09e` has zero replay
+  mismatches and scores **−0.9566/−1.1608 plain, −0.9991/−1.4006 PD**
+  none/both (pooled **−1.059/−1.200**), improving +0.010 plain / +0.006 PD
+  over `42454d2`. The targeted `Defensive/book/round-1` bucket shrinks from
+  52,523 boards and −84,484/−102,011 IMPs to 49,068 and
+  **−74,202/−90,593** plain/PD.
 
 ### Fixed
 
