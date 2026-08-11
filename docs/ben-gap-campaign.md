@@ -1,15 +1,15 @@
 # The BEN gap campaign — closing pons↔BEN, with BBA as the exploit guard
 
-**Status: re-anchored at `0d8b755` (2026-08-10) — pons is
+**Status: Phase 1 complete; Tier-S anchor `0d8b755` retained (2026-08-10) — pons is
 −1.163 plain / −1.032 PD IMPs/board behind BEN Tier S** (20k boards; was
 −1.906 / −1.860 at `119675f`, so **+0.74 plain / +0.83 PD** since the first
 anchor — see trail below). Phase 0 is complete: the EPBot-vs-BEN calibration
 exit gate PASSED (plain DD −0.568 pooled from EPBot's side vs BBA's
 published −0.38 DD / −0.51 SD; details in
 [ben-gen-design.md](ben-gen-design.md), validation step 4). Phase 1's
-same-deal Tier-F calibration is now complete, and its fresh-seed 102.4k
-Tier-F raw corpus is validated at `42454d2`; exact attribution remains pending
-the floor-selectable decomposer's separately authorized clean checkpoint. The
+same-deal Tier-F calibration and fresh-seed exact 102.4k decomposition are now
+complete; the latter scores pooled **−0.276 plain / −0.330 PD** with zero replay
+mismatches and selects the first shared book residual below. The
 [survey](archive/open-source-bidder-survey.md) refuted "pons is the strongest
 open-source bidder": BEN (GPL-3.0, code + weights in-repo) beats EPBot by
 0.35–0.38 IMPs/deal DD in BBA's own cross-engine tables, and pons trails
@@ -355,18 +355,60 @@ vintage. Estimated effort: ~2–3 days code + 2–3 nights compute.
   delta (Tier F is expected to be weaker, so our number is less negative)
   calibrates how to read future Tier-F A/Bs; it is not attribution. Results
   and the historical different-seed row are in the anchor trail below.
-- **Decompose**: Tier F, 102.4k boards, through `bba-decompose --our-floor
-  american` — shipped v5 cannot be replayed through the decomposer's
+- **Decompose — COMPLETE 2026-08-11**: Tier F, 102.4k boards, through
+  `bba-decompose --our-floor american` — shipped v5 cannot be replayed through the decomposer's
   `american-instinct` BBA-anchor default. `explain_call` still attributes
   authored calls exactly; learned-floor calls have provenance `floor` and no
   synthetic rule number. The raw `16×3,200×{none,both}` corpus is complete at
   `ab-results/ben-decompose/2026-08-10-42454d2/` (seed `1786405693`, BEN
-  `v0.8.8.4`/`6097935`, Tier-F config SHA-256 `b48c0845…`). Exact replay,
-  dual scoring, and the ranked table wait for the selector implementation to
-  reach a clean committed checkpoint. Output: the ranked BEN buckets beside
-  the corrected exact BBA anchor. Buckets where BEN outbids us but BBA does
-  not are the search-judgment frontier; shared buckets are book/floor work
-  with a second price tag.
+  `v0.8.8.4`/`6097935`, Tier-F config SHA-256 `b48c0845…`). At clean checkpoint
+  `7af286d`, both cells replayed exactly: **0/533,520** and **0/530,024**
+  mismatched calls. None scored plain **−0.2639 [−0.3013, −0.2266]** and PD
+  **−0.3151 [−0.3602, −0.2699]**; both scored plain **−0.2882
+  [−0.3363, −0.2402]** and PD **−0.3442 [−0.4017, −0.2867]**. Equal-weight
+  pooled = **−0.276 plain / −0.330 PD**; contract divergence = 64%/63%.
+  The complete report has 64,756 divergent-board rows and 35,180 cached DD
+  tables. Leading authored buckets:
+
+  | bucket | boards | plain | plain/div ±95% CI | PD | PD/div ±95% CI |
+  | --- | ---: | ---: | ---: | ---: | ---: |
+  | Constructive / book / round-2 | 9,026 | −6,956 | −0.77 ±0.14 | −6,809 | −0.75 ±0.15 |
+  | Defensive / book / round-1 | 12,508 | −5,479 | −0.44 ±0.11 | −8,748 | −0.70 ±0.13 |
+  | Constructive / book / round-1 | 5,937 | −3,238 | −0.55 ±0.18 | −3,120 | −0.53 ±0.20 |
+  | Competitive / book / round-1 | 3,058 | −2,553 | −0.83 ±0.20 | −4,228 | −1.38 ±0.25 |
+  | Constructive / book / opening | 12,495 | −1,961 | −0.16 ±0.11 | +902 | +0.07 ±0.13 |
+
+  Raw report/JSONL/cache remain ignored in the corpus directory. Buckets where
+  BEN outbids us but BBA does not are the search-judgment frontier; shared
+  buckets are book/floor work with a second price tag.
+
+#### First shared residual — direct weak jump overcall
+
+The raw leader, `Constructive/book/round-2`, is not actionable: the BBA ledger
+already worked its opener-extras ladder, major jump rebid, balanced 1NT rebid,
+and second-suit agreement, then marked the bucket mined to residuals. The next
+eligible bucket is `Defensive/book/round-1`: BEN **−0.44 ±0.11 plain / −0.70
+±0.13 PD** per divergent board and exact BBA **−1.61 ±0.06 / −1.94 ±0.07**,
+with both plain CIs below zero and PD agreeing.
+
+Aggregation by our call, winning rule, vulnerability, and loss direction plus
+the 50 worst plain boards and 50 largest PD-over-plain penalties isolates one
+unworked initial-action slice: pons `1♥`/`1♠` while the reference chooses the
+single jump `2♥`/`2♠`. BEN has 1,348 such boards at **−1.102 ±0.345 plain /
+−0.976 ±0.416 PD**; BBA has 4,895 at **−2.454 ±0.194 / −2.785 ±0.228**. The
+sign and CI gates also hold separately at both vulnerabilities. Exactly
+six-card majors account for 1,343/1,348 BEN and 4,822/4,895 BBA boards, and
+every hand is 6–11 HCP. The first divergence is the defensive action; the tails
+do not share a missing continuation or downstream floor leak.
+
+The previously queued `set_two_level_minor_overcall_tight` is therefore not
+the candidate: pons's combined `2♣`/`2♦` slice is **+369 plain / −3,645 PD**
+against BEN, failing the required plain sign. The new minimal candidate is
+`direct_weak_jump_overcall`, default off: exactly six cards, 8+ points, ≤11 HCP
+routes from `1M` to the natural weak `2M`; five-card, 12+ HCP, and seven-card
+paths stay byte-identical. Its exact disclosed box feeds the existing natural
+preempt continuation. BBA fresh-seed validation runs first; BEN wiring remains
+gated on that result.
 
 ### Phase 2 — the loop
 

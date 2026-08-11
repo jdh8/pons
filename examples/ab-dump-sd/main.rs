@@ -93,6 +93,10 @@ struct Args {
     /// 15+ (`defense.two_level_minor_overcall_tight`)
     #[arg(long, default_value_t = false)]
     on_ns_two_level_minor_overcall_tight: bool,
+    /// Read the ON arm's direct single-jump major overcall as weak and natural
+    /// (`defense.direct_weak_jump_overcall`).
+    #[arg(long, default_value_t = false)]
+    on_ns_direct_weak_jump_overcall: bool,
     /// Read the ON arm's auctions with this natural 1NT-defense suit-overcall
     /// band `LO:HI` (`ReadingProfile::natural_overcall_points`; the band sweep's arms differ
     /// only here, so the blind leader must know which one bid)
@@ -184,6 +188,7 @@ fn main() {
     on_arm.competition.free_bid_style = style(&args.on_ns_free_bid_style);
     on_arm.competition.free_1nt_floor = args.on_ns_free_1nt_floor;
     on_arm.defense.two_level_minor_overcall_tight = args.on_ns_two_level_minor_overcall_tight;
+    on_arm.defense.direct_weak_jump_overcall = args.on_ns_direct_weak_jump_overcall;
     on_arm.defense.weak_two_notrump_points = band(&args.on_ns_weak_two_nt_points);
     on_arm.defense.weak_two_notrump_advances_enabled = args.on_ns_weak_two_nt_advances;
     let partnership_on = american(&on_arm).bind();
@@ -196,6 +201,7 @@ fn main() {
     off_arm.competition.free_bid_style = FreeBidStyle::Forcing;
     off_arm.competition.free_1nt_floor = 6;
     off_arm.defense.two_level_minor_overcall_tight = false;
+    off_arm.defense.direct_weak_jump_overcall = false;
     off_arm.defense.weak_two_notrump_points = band(&args.off_ns_weak_two_nt_points);
     off_arm.defense.weak_two_notrump_advances_enabled = args.off_ns_weak_two_nt_advances;
     let partnership_off = american(&off_arm).bind();

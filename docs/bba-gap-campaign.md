@@ -469,6 +469,18 @@ but this report replaces it for attribution. `Defensive/book/round-1` remains
 are constructive opening −66,313 and constructive round-2 −38,547. Report:
 `ab-results/anchor/2026-08-10-42454d2/report.md`.
 
+The report was re-emitted at clean `7af286d` with the new generic JSON fields
+and PD bucket CIs; the same cache reproduced every headline with zero new DD
+solves and zero replay mismatches. For the BEN Phase-1 shared-residual gate,
+constructive round-2 is excluded as already worked/mined in this ledger, leaving
+`Defensive/book/round-1` as the largest eligible authored bucket. Its clearest
+unworked slice is our simple `1M` overcall versus the reference's weak `2M`
+jump: 4,895 boards, **−2.454 ±0.194 plain / −2.785 ±0.228 PD** per divergent
+board (BEN independently: 1,348, −1.102 ±0.345 / −0.976 ±0.416). More than 98%
+are exactly six-card majors and all are 6–11 HCP. The default-off
+`direct_weak_jump_overcall` candidate and fresh-seed runner are now authored;
+BBA validation is pending before any BEN arm is wired.
+
 **What the *shipping* pair scores (`--our-floor american`, same deals, same
 seed, both arms generated at this sha):** pooled **−0.627 plain / −0.585 PD**
 (vul none −0.555 / −0.499, both −0.699 / −0.671).  This is the first shipping

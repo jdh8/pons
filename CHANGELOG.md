@@ -21,8 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   exact replay, generic reference wording, and JSON compatibility. Analysis
   CLI/report fields only; no public Rust API or bidding change.
 
-- **BEN Phase-1 measurement inputs advanced to the exact-decomposition
-  checkpoint.** The same-seed Tier-F calibration used exactly eight unchanged
+- **BEN Phase 1 is complete: current-system Tier-F now has an exact 102.4k
+  decomposition.** The same-seed Tier-F calibration used exactly eight unchanged
   `21GF/F` servers and `8×1,250×{none,both}` anchor boards: plain −0.295
   [−0.379, −0.212] / −0.330 [−0.438, −0.222], PD −0.292 [−0.392, −0.192] /
   −0.367 [−0.495, −0.238], equal-weight pooled −0.313/−0.329. Relative to the
@@ -30,9 +30,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   pooled — calibration, not attribution. A separate fresh-seed corpus at clean
   `42454d2` generated and validated 102,400 shipped-v5 boards
   (`16×3,200×{none,both}`, seed `1786405693`, BEN `v0.8.8.4`/`6097935`, Tier-F
-  config SHA-256 `b48c0845…`). Raw artifacts remain ignored; exact scoring and
-  Phase-1 completion wait for this implementation's separately authorized
-  clean checkpoint.
+  config SHA-256 `b48c0845…`). Replayed with `--our-floor american` at the clean
+  `7af286d` checkpoint, it matched **all 1,063,544 calls** (zero mismatches) and
+  scored plain **−0.2639 [−0.3013, −0.2266] / −0.2882 [−0.3363, −0.2402]**
+  and PD **−0.3151 [−0.3602, −0.2699] / −0.3442 [−0.4017, −0.2867]** for
+  none/both (equal-weight pooled **−0.276/−0.330**). The leading authored
+  buckets are `Constructive/book/round-2` (−6,956 plain / −6,809 PD) and
+  `Defensive/book/round-1` (−5,479 / −8,748); the former is already mined to
+  ledgered residuals, so the latter is the first actionable shared bucket.
+  Raw report, JSONL, and 35,180-table DD cache remain ignored under the corpus
+  directory.
+
+- **A default-off direct weak jump overcall is ready for the two-reference
+  validation.** Exact BEN+BBA forensics rejected the queued tight-minor
+  candidate (its combined `2♣`/`2♦` slice is +369 plain IMPs against BEN) and
+  instead isolated pons `1M` versus both references' `2M`: BEN 1,348 boards,
+  **−1.102 ±0.345 plain / −0.976 ±0.416 PD** per divergent board; BBA 4,895,
+  **−2.454 ±0.194 / −2.785 ±0.228**. More than 98% are exactly six-card
+  majors and every hand is 6–11 HCP. `direct_weak_jump_overcall` therefore
+  routes exactly-six-card `points(8..)`/≤11-HCP hands to the natural weak `2M`
+  jump, leaving five-card, 12+ HCP, and seven-card paths unchanged. Its
+  treatment-specific disclosure projects the exact box; the existing natural
+  preempt floor supplies the continuation, covered by first-call, inference,
+  alert, and full-auction tests. `bba-gen --ns-direct-weak-jump-overcall`,
+  `ab-dump-sd --on-ns-direct-weak-jump-overcall`, and
+  `scripts/ab-direct-weak-jump-overcall.sh` provide the fresh-seed BBA gate.
+  Default behavior remains byte-identical; measurement is pending.
 
 ### Fixed
 

@@ -11,6 +11,12 @@
 use super::michaels::{michaels_advances, unusual_nt_advances};
 use super::*;
 
+/// Exact disclosure for the opt-in weak direct jump: the generic natural walk
+/// can only infer "six-plus" because other jump overcalls may be strong.  This
+/// tag lets the authored projection carry the disjoint six-card/weak band to
+/// partner and the opponents without changing those other treatments.
+const WEAK_JUMP_OVERCALL: Alert = Alert("weak-jump-overcall");
+
 /// Which shapes qualify for the natural penalty double of their 1NT (the 15+ HCP
 /// floor is fixed; this only widens the *shape* gate).  Selected by
 /// `agreements.defense.natural_double_shape`.
@@ -151,6 +157,27 @@ pub fn defense_to_suit(their_opening: Bid, agreements: &Agreements) -> Rules {
         if strain != theirs {
             let level = if strain > theirs { 1 } else { 2 };
             let weight = if level == 1 { 140 } else { 100 };
+            // The exact shared BEN/BBA residual: with a weak six-card major,
+            // both references preempt 2M while we overcall 1M.  Keep the trial
+            // disjoint from the ordinary overcall (five cards or 12+ HCP) and
+            // from the seven-card preempt floor.  Weight 150 only has to beat
+            // the 140 simple overcall on the overlapping six-card hands.
+            if agreements.defense.direct_weak_jump_overcall
+                && level == 1
+                && matches!(suit, Suit::Hearts | Suit::Spades)
+            {
+                rules = rules
+                    .rule(
+                        Bid::new(2, strain),
+                        150,
+                        // Spell the HCP ceiling as the complement of the
+                        // 12+ tier: forward projection normally carries only
+                        // point floors, while a complemented lower bound
+                        // carries the exact ceiling the alert must disclose.
+                        len(suit, 6..=6) & points(8..) & !hcp(12..),
+                    )
+                    .alert(WEAK_JUMP_OVERCALL);
+            }
             // A passed hand may take the disciplined 2-level overcall lighter (9+):
             // it cannot hold opening values, so the 11+ floor would all but forbid
             // the safe light overcall.  Off by default; see `set_passed_hand_overcall`.

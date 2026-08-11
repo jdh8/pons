@@ -132,6 +132,86 @@ fn two_level_minor_overcall_tight_gates_the_minimum() {
 }
 
 #[test]
+fn direct_weak_jump_overcall_is_disjoint_and_reads_exactly() {
+    use crate::bidding::Relative;
+    use contract_bridge::Suit;
+
+    let over_1d = [call(1, Strain::Diamonds)];
+    let weak_six = "T9.KQJ875.4.A987"; // 10 HCP, exactly six hearts
+    let five = "T9.KQJ87.43.A987"; // same values, only five hearts
+    let strong_six = "T9.AKQJ87.4.A982"; // 14 HCP
+
+    let (off, off_floored) = best_call(&over_1d, weak_six);
+    assert_eq!(off, call(1, Strain::Hearts));
+    assert!(!off_floored, "the baseline simple overcall is authored");
+
+    let mut on = Agreements::default();
+    on.defense.direct_weak_jump_overcall = true;
+    let jump_rules = super::overcall::defense_to_suit(Bid::new(1, Strain::Diamonds), &on);
+    let jump_rule = jump_rules
+        .rules()
+        .iter()
+        .find(|rule| rule.call() == call(2, Strain::Hearts))
+        .expect("the candidate authors the 2♥ jump");
+    assert_eq!(
+        jump_rule.alert(),
+        Some(super::overcall::WEAK_JUMP_OVERCALL),
+        "the weak range must be disclosed to the inference reader"
+    );
+    let (jump, jump_floored) = best_call_with(&on, &over_1d, weak_six);
+    assert_eq!(jump, call(2, Strain::Hearts));
+    assert!(!jump_floored, "the candidate jump is an authored book call");
+    assert_eq!(
+        best_call_with(&on, &over_1d, five).0,
+        call(1, Strain::Hearts),
+        "five-card hands retain the simple overcall"
+    );
+    assert_eq!(
+        best_call_with(&on, &over_1d, strong_six).0,
+        call(1, Strain::Hearts),
+        "12+ HCP six-card hands retain the simple overcall"
+    );
+
+    // At the advancer's turn the authored projection is the disclosure: the
+    // jump promises exactly six hearts, 8+ points, and at most 11 HCP.  The
+    // call is natural, but its range-specific disclosure tag is what carries
+    // both ceilings; no artificial continuation is needed, and the existing
+    // preempt-advance floor consumes this reading.
+    let read = crate::bidding::american::american(&on).bind().infer(
+        RelativeVulnerability::NONE,
+        &[
+            call(1, Strain::Diamonds),
+            call(2, Strain::Hearts),
+            Call::Pass,
+        ],
+    );
+    let overcaller = read.announced(Relative::Partner);
+    assert_eq!(overcaller.length(Suit::Hearts).min, 6);
+    assert_eq!(overcaller.length(Suit::Hearts).max, 6);
+    assert!(overcaller.strength.points.min >= 8);
+    assert!(overcaller.strength.hcp.max <= 11);
+
+    let (advance, advance_floored) = best_call_with(
+        &on,
+        &[
+            call(1, Strain::Diamonds),
+            call(2, Strain::Hearts),
+            Call::Pass,
+        ],
+        "A42.T94.AKJ2.Q63",
+    );
+    assert_eq!(
+        advance,
+        call(3, Strain::Hearts),
+        "game values and three-card support advance the weak jump naturally"
+    );
+    assert!(
+        advance_floored,
+        "a natural preempt deliberately advances through the general floor"
+    );
+}
+
+#[test]
 fn strong_double_hcp_repartitions_overcall_vs_double() {
     use crate::bidding::constraint::PointScale;
     // Calibrated to the rule-of-N+8 opt-out — the scale these example
