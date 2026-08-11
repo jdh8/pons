@@ -7,8 +7,9 @@ anchor — see trail below). Phase 0 is complete: the EPBot-vs-BEN calibration
 exit gate PASSED (plain DD −0.568 pooled from EPBot's side vs BBA's
 published −0.38 DD / −0.51 SD; details in
 [ben-gen-design.md](ben-gen-design.md), validation step 4). Phase 1's
-remaining items: Tier-F gap on the anchor seeds, then the 102.4k Tier-F
-decompose. The
+same-deal Tier-F calibration is now complete, and its fresh-seed 102.4k
+Tier-F raw corpus is validated at `42454d2`; exact attribution remains pending
+the floor-selectable decomposer's separately authorized clean checkpoint. The
 [survey](archive/open-source-bidder-survey.md) refuted "pons is the strongest
 open-source bidder": BEN (GPL-3.0, code + weights in-repo) beats EPBot by
 0.35–0.38 IMPs/deal DD in BBA's own cross-engine tables, and pons trails
@@ -350,16 +351,22 @@ vintage. Estimated effort: ~2–3 days code + 2–3 nights compute.
   scored plain + PD (+ sd spot-checks). This number replaces the survey's
   chained ≈2.1 estimate. Do **not** expect it to equal the chain — different
   deal stream and protocol; sign and ballpark are the check.
-- **Tier gap, once**: same 20k seeds at Tier F. The delta (expected: Tier F
-  weaker, i.e. our number less negative) calibrates how to read all future
-  Tier-F A/Bs.
-- **Decompose**: Tier F, 102.4k boards, through `bba-decompose` unchanged
-  (`explain_call` attribution + replay verification are ours-side and
-  engine-agnostic). Output: the ranked bucket table for BEN, side by side
-  with the BBA anchor's. The interesting column is the *difference*: buckets
-  where BEN outbids us but BBA doesn't are the search-judgment frontier;
-  buckets shared with BBA are the already-understood book/floor work with a
-  new price tag.
+- **Tier gap, once — COMPLETE 2026-08-11**: same 20k seeds at Tier F. The
+  delta (Tier F is expected to be weaker, so our number is less negative)
+  calibrates how to read future Tier-F A/Bs; it is not attribution. Results
+  and the historical different-seed row are in the anchor trail below.
+- **Decompose**: Tier F, 102.4k boards, through `bba-decompose --our-floor
+  american` — shipped v5 cannot be replayed through the decomposer's
+  `american-instinct` BBA-anchor default. `explain_call` still attributes
+  authored calls exactly; learned-floor calls have provenance `floor` and no
+  synthetic rule number. The raw `16×3,200×{none,both}` corpus is complete at
+  `ab-results/ben-decompose/2026-08-10-42454d2/` (seed `1786405693`, BEN
+  `v0.8.8.4`/`6097935`, Tier-F config SHA-256 `b48c0845…`). Exact replay,
+  dual scoring, and the ranked table wait for the selector implementation to
+  reach a clean committed checkpoint. Output: the ranked BEN buckets beside
+  the corrected exact BBA anchor. Buckets where BEN outbids us but BBA does
+  not are the search-judgment frontier; shared buckets are book/floor work
+  with a second price tag.
 
 ### Phase 2 — the loop
 
@@ -446,13 +453,20 @@ Tier S, 20k boards (8×1,250 × {none, both}), persistent
 > its side moves too. It bundles ~3½ weeks of ships; it attributes nothing.
 > Attribution is the Tier-F decompose's job.
 
-**Tier-F gap** (one-time calibration, fresh seeds 1784294370, 102.4k/arm,
-sha 74d783d, `ab-results/reading-knobs/2026-07-17/`): plain **−0.879**
-(none) / **−1.092** (both), PD −1.122 / −1.519, divergence 71%. Vs the
-Tier-S rows above: **search is worth ≈0.8–1.1 IMPs/board to BEN** at this
-distance. Read Tier-F A/B deltas as directional; the Tier-S anchor stays
-the truth metric (different seed bases, so cross-tier comparison carries
-±0.05-ish deal-mix noise on top of the CIs).
+**Tier-F calibration trail:**
+
+| date | pons | deals | plain | PD | notes |
+| --- | --- | --- | --- | --- | --- |
+| 2026-07-17 | `74d783d` | fresh seed `1784294370`, 102.4k/arm | −0.879 none / −1.092 both | −1.122 / −1.519 | Historical first Tier-F result; different deals and a pre-v5 system, so preserve it but do not subtract it from the current Tier-S anchor. |
+| 2026-08-11 | `42454d2` | anchor seed `1784237746`, 10k/vul | **−0.295** [−0.379, −0.212] none / **−0.330** [−0.438, −0.222] both; pooled **−0.313** | **−0.292** [−0.392, −0.192] / **−0.367** [−0.495, −0.238]; pooled **−0.329** | Current shipped-v5 same-deal calibration, exactly eight unchanged `21GF/F` servers; divergence 63%/62%. Raw shards and scorer reports: `ab-results/ben-anchor/2026-08-10-tier-f-42454d2/`. |
+
+Against the retained `0d8b755` Tier-S row on the same deals, Tier F minus
+Tier S is **+0.703/+0.998 plain** and **+0.545/+0.859 PD** for none/both
+(equal-weight pooled **+0.850/+0.702**). This quantifies how much easier the
+policy-only reference is at this checkpoint; it does not attribute the delta
+to search because the two BEN configurations are separately bid engines, not
+paired ON/OFF calls. Tier-F A/B deltas remain directional and Tier S remains
+the truth metric.
 
 Cross-checks: the same-era BBA anchor reads −1.68/−1.73 plain, so BEN
 measures ≈0.2 harder than BBA — same sign, smaller than the naive chain

@@ -459,6 +459,16 @@ this boundary.  Report: `ab-results/anchor/2026-08-10-0d8b755/report.md`.
 > the crate's silently re-points every A/B at a system nobody plays, and only the
 > replay check ever notices.
 
+**Corrective re-anchor `42454d2` (2026-08-11 local / 2026-08-10 UTC) — exact
+again.** The persistent seed `1783375064` was regenerated after the `--no-uvu`
+fix: 204,800 boards per vulnerability, **0 replay mismatches** in both arms.
+The headline is pooled **−1.069 plain / −1.206 PD** (none −0.9673/−1.0061,
+both −1.1714/−1.4060), so the approximate row's gap estimate was unaffected,
+but this report replaces it for attribution. `Defensive/book/round-1` remains
+#1 at **52,523 boards, −84,484 plain / −102,011 PD**; the next authored buckets
+are constructive opening −66,313 and constructive round-2 −38,547. Report:
+`ab-results/anchor/2026-08-10-42454d2/report.md`.
+
 **What the *shipping* pair scores (`--our-floor american`, same deals, same
 seed, both arms generated at this sha):** pooled **−0.627 plain / −0.585 PD**
 (vul none −0.555 / −0.499, both −0.699 / −0.671).  This is the first shipping

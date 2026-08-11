@@ -1,8 +1,8 @@
-//! Decompose a pons-vs-BBA duplicate match into ranked IMP-loss buckets
+//! Decompose a pons-vs-reference duplicate match into ranked IMP-loss buckets
 //!
 //! The attribution half of the gap campaign
 //! ([docs/bba-gap-campaign.md](../../docs/bba-gap-campaign.md)): reads
-//! `bba-gen` shard dumps (one or both vulnerability arms of an anchor), finds
+//! `bba-gen`/`ben-gen` shard dumps (one or both vulnerability arms), finds
 //! each board's first divergent call, replays it through the live books to
 //! attribute it (phase × provenance × auction family × direction of loss),
 //! dual-scores the divergent boards — plain DD and perfect defense from the
@@ -11,10 +11,10 @@
 //!
 //! Our side is deterministic, so provenance is **derived by replay**, never
 //! recorded at generation time.  The printed replay-verification rate must be
-//! 100% (every our-side call reproduced by the default books) for the
-//! attribution to be exact; a lower rate means the dump was generated with
-//! non-default knobs (check its recorded `gen_args`) or at a different git
-//! revision — fix that before trusting the buckets.
+//! 100% (every our-side call reproduced by the selected floor) for the
+//! attribution to be exact.  Any mismatch aborts before scoring or writing a
+//! report: select the generating floor, check the recorded `gen_args`, and run
+//! at the generating git revision instead of trusting approximate buckets.
 //!
 //! `--dd-cache` makes re-anchoring cheap: DD tables key on the *deal*, which
 //! never changes under the anchor's fixed seed series, so a re-run after a
@@ -24,12 +24,12 @@
 #[allow(dead_code)]
 mod common;
 
-use clap::Parser;
+use clap::{Parser, ValueEnum};
 use common::{Dump, Reached, mean_with_ci, next_call, seat_to_act};
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat, Strain};
 use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
-use pons::bidding::american::american_instinct;
+use pons::bidding::american::{american, american_instinct};
 use pons::bidding::context::relative;
 use pons::bidding::{Partnership, Phase};
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
@@ -37,13 +37,37 @@ use rayon::prelude::*;
 use std::collections::{BTreeMap, HashMap};
 use std::fmt::Write as _;
 
-/// Decompose `bba-gen` anchor dumps into ranked IMP-loss buckets
+#[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
+enum OurFloor {
+    /// The shipped v5 learned floor used by `american()` and `ben-gen`
+    American,
+    /// The deterministic instinct floor used by the BBA anchor series
+    AmericanInstinct,
+}
+
+impl OurFloor {
+    fn partnership(self) -> Partnership {
+        let agreements = pons::bidding::agreements::Agreements::default();
+        match self {
+            Self::American => american(&agreements),
+            Self::AmericanInstinct => american_instinct(&agreements),
+        }
+        .bind()
+    }
+}
+
+/// Decompose duplicate-match dumps into ranked IMP-loss buckets
 #[derive(Parser)]
 struct Args {
-    /// Shard dumps from `bba-gen`: files, or directories whose `*.json` files
-    /// are the shards.  Both vulnerability arms of an anchor may be given
+    /// Shard dumps from `bba-gen`/`ben-gen`: files, or directories whose
+    /// `*.json` files are the shards. Both vulnerability arms may be given
     /// together; they are reported per arm and bucketed jointly.
     inputs: Vec<String>,
+
+    /// Our floor used to generate the dump. `american-instinct` keeps the BBA
+    /// anchor unchanged; BEN's shipped-v5 dumps require `american`.
+    #[arg(long, value_enum, default_value_t = OurFloor::AmericanInstinct)]
+    our_floor: OurFloor,
 
     /// DD-table cache (JSON file), created if absent and updated with new
     /// solves — the artifact that makes a re-anchor take minutes
@@ -116,7 +140,7 @@ fn makes(reached: Reached, table: &TrickCountTable, vul: AbsoluteVulnerability) 
 }
 
 /// Triage label for how our line lost the board, comparing what the same
-/// (table-A NS) cards did under our management (`a`) vs BBA's (`b`).
+/// (table-A NS) cards did under our management (`a`) vs the reference's (`b`).
 ///
 /// `ponytail:` a coarse heuristic for ranking, not an exhaustive taxonomy —
 /// the per-board dump under each bucket is the ground truth.
@@ -205,7 +229,7 @@ struct Row {
     family: &'static str,
     direction: &'static str,
     our_call: String,
-    bba_call: String,
+    their_call: String,
     hand: String,
 }
 
@@ -231,25 +255,31 @@ fn load_arms(inputs: &[String]) -> anyhow::Result<Vec<Arm>> {
     for file in files {
         let dump: Dump =
             serde_json::from_reader(std::io::BufReader::new(std::fs::File::open(&file)?))?;
-        let arm = match arms.iter_mut().find(|arm| arm.vul == dump.vulnerability) {
-            Some(arm) => arm,
-            None => {
-                arms.push(Arm {
-                    vul: dump.vulnerability,
-                    boards: Vec::new(),
-                    origin: Vec::new(),
-                    gen_args: dump.gen_args.clone(),
-                    our_label: dump.our_label.clone(),
-                    their_label: dump.their_label.clone(),
-                });
-                arms.last_mut().expect("just pushed")
-            }
-        };
-        arm.origin
-            .extend((0..dump.boards.len()).map(|i| (dump.seed, i)));
-        arm.boards.extend(dump.boards);
+        if let Some(arm) = arms.iter_mut().find(|arm| arm.vul == dump.vulnerability) {
+            anyhow::ensure!(
+                arm.our_label == dump.our_label && arm.their_label == dump.their_label,
+                "dump {file:?} has mismatched labels — won't merge different references",
+            );
+            arm.origin
+                .extend((0..dump.boards.len()).map(|i| (dump.seed, i)));
+            arm.boards.extend(dump.boards);
+        } else {
+            arms.push(arm_from_dump(dump));
+        }
     }
     Ok(arms)
+}
+
+fn arm_from_dump(dump: Dump) -> Arm {
+    let board_count = dump.boards.len();
+    Arm {
+        vul: dump.vulnerability,
+        boards: dump.boards,
+        origin: (0..board_count).map(|i| (dump.seed, i)).collect(),
+        gen_args: dump.gen_args,
+        our_label: dump.our_label,
+        their_label: dump.their_label,
+    }
 }
 
 /// Replay every our-side call of the arm through the default books and count
@@ -289,14 +319,57 @@ fn deal_key(deal: &FullDeal) -> String {
     serde_json::to_string(deal).expect("a deal serializes")
 }
 
+fn call_comparison(row: &Row, their_label: &str) -> String {
+    format!("{} ours vs {} {their_label}", row.our_call, row.their_call)
+}
+
+fn row_json(row: &Row, arm: &Arm) -> serde_json::Value {
+    let (seed, shard_index) = arm.origin[row.board];
+    serde_json::json!({
+        "vul": arm.vul.to_string(),
+        "seed": seed,
+        "board": shard_index,
+        "swing_plain": row.swing_plain,
+        "swing_pd": row.swing_pd,
+        "points": row.points,
+        "div_index": row.div_index,
+        "phase": format!("{:?}", row.phase),
+        "provenance": row.prov,
+        "rule": row.rule,
+        "family": row.family,
+        "direction": row.direction,
+        "our_call": row.our_call,
+        "their_call": row.their_call,
+        // Compatibility for consumers written before the decomposer accepted
+        // engines other than BBA. New code should read `their_call`.
+        "bba_call": row.their_call,
+        "hand": row.hand,
+    })
+}
+
 #[allow(clippy::too_many_lines, clippy::cast_precision_loss)]
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let arms = load_arms(&args.inputs)?;
-    // Replay-verify through the deterministic reference: the anchor generates
-    // with `--our-floor american-instinct`, and replay_verify demands 100%
-    // bit-reproduction — the net floor's off-book calls don't reproduce.
-    let partnership = american_instinct(&pons::bidding::agreements::Agreements::default()).bind();
+    let partnership = args.our_floor.partnership();
+
+    // Exactness is an acceptance gate, not a warning. Verify every arm before
+    // loading/solving DD tables so a wrong floor or revision cannot emit a
+    // plausible-looking approximate report.
+    let verification: Vec<(u64, u64)> = arms
+        .iter()
+        .map(|arm| replay_verify(&partnership, arm))
+        .collect();
+    for (arm, &(checked, mismatched)) in arms.iter().zip(&verification) {
+        anyhow::ensure!(
+            mismatched == 0,
+            "replay verification failed for {} vs {} at vulnerability {} with --our-floor {:?}: {mismatched} of {checked} our-side calls mismatched",
+            arm.our_label,
+            arm.their_label,
+            arm.vul,
+            args.our_floor,
+        );
+    }
 
     // DD cache: deal-keyed tables survive across anchors (same seeds → same
     // deals), so only newly-divergent boards ever need a fresh solve.
@@ -314,7 +387,7 @@ fn main() -> anyhow::Result<()> {
 
     for (arm_index, arm) in arms.iter().enumerate() {
         let count = arm.boards.len();
-        let (checked, mismatched) = replay_verify(&partnership, arm);
+        let (checked, mismatched) = verification[arm_index];
         let verified = 100.0 * (checked - mismatched) as f64 / checked.max(1) as f64;
 
         let contracts: Vec<(Reached, Reached)> = arm
@@ -374,7 +447,7 @@ fn main() -> anyhow::Result<()> {
             let prefix = &board.table_a[..div_index];
             let seat = seat_to_act(board.dealer, div_index);
             let ours_at_a = matches!(seat, Seat::North | Seat::South);
-            let (our_call, bba_call) = if ours_at_a {
+            let (our_call, their_call) = if ours_at_a {
                 (board.table_a[div_index], board.table_b[div_index])
             } else {
                 (board.table_b[div_index], board.table_a[div_index])
@@ -425,7 +498,7 @@ fn main() -> anyhow::Result<()> {
                 family: fam,
                 direction: direction(a, b, table, arm.vul, plain[i]),
                 our_call: call_label(our_call),
-                bba_call: call_label(bba_call),
+                their_call: call_label(their_call),
                 hand: board.deal[seat].to_string(),
             });
         }
@@ -458,12 +531,6 @@ fn main() -> anyhow::Result<()> {
         );
         print!("{headline}");
         let _ = writeln!(report, "{headline}");
-        if mismatched > 0 {
-            let warning = "WARNING: replay verification below 100% — attribution is approximate.\n\
-                 The dump was generated with non-default knobs or a different revision.\n";
-            print!("{warning}");
-            report.push_str(warning);
-        }
     }
 
     // IMP histogram over contract-divergent boards (plain scorer).
@@ -485,7 +552,8 @@ fn main() -> anyhow::Result<()> {
         n: usize,
         plain: i64,
         pd: i64,
-        swings: Vec<i64>,
+        plain_swings: Vec<i64>,
+        pd_swings: Vec<i64>,
         rows: Vec<usize>,
     }
     let mut buckets: BTreeMap<&str, Bucket> = BTreeMap::new();
@@ -494,13 +562,15 @@ fn main() -> anyhow::Result<()> {
             n: 0,
             plain: 0,
             pd: 0,
-            swings: Vec::new(),
+            plain_swings: Vec::new(),
+            pd_swings: Vec::new(),
             rows: Vec::new(),
         });
         bucket.n += 1;
         bucket.plain += row.swing_plain;
         bucket.pd += row.swing_pd;
-        bucket.swings.push(row.swing_plain);
+        bucket.plain_swings.push(row.swing_plain);
+        bucket.pd_swings.push(row.swing_pd);
         bucket.rows.push(index);
     }
     let mut ranked: Vec<(&str, &Bucket)> = buckets.iter().map(|(k, v)| (*k, v)).collect();
@@ -509,14 +579,16 @@ fn main() -> anyhow::Result<()> {
     let _ = writeln!(
         report,
         "\n## Ranked buckets (phase / provenance / family), losses first\n\n\
-         | bucket | boards | net plain IMPs | IMPs/divergent ±CI | net PD IMPs | flag |\n\
-         | --- | --- | --- | --- | --- | --- |"
+         | bucket | boards | net plain IMPs | plain IMPs/divergent ±CI | net PD IMPs | PD IMPs/divergent ±CI | flag |\n\
+         | --- | --- | --- | --- | --- | --- | --- |"
     );
     for (name, bucket) in &ranked {
         // `mean_with_ci` degenerates below two samples; the mean itself is
         // always well-defined, so compute it directly and keep only the CI.
         let mean = bucket.plain as f64 / bucket.n.max(1) as f64;
-        let (_, ci) = mean_with_ci(&bucket.swings);
+        let (_, ci) = mean_with_ci(&bucket.plain_swings);
+        let mean_pd = bucket.pd as f64 / bucket.n.max(1) as f64;
+        let (_, ci_pd) = mean_with_ci(&bucket.pd_swings);
         let noise = if mean.abs() <= ci || bucket.n < 2 {
             " ~noise"
         } else {
@@ -529,7 +601,7 @@ fn main() -> anyhow::Result<()> {
         };
         let _ = writeln!(
             report,
-            "| {name} | {} | {:+} | {mean:+.2} ±{ci:.2} | {:+} |{noise}{artifact} |",
+            "| {name} | {} | {:+} | {mean:+.2} ±{ci:.2} | {:+} | {mean_pd:+.2} ±{ci_pd:.2} |{noise}{artifact} |",
             bucket.n, bucket.plain, bucket.pd,
         );
     }
@@ -579,18 +651,17 @@ fn main() -> anyhow::Result<()> {
             let arm = &arms[row.arm];
             let board = &arm.boards[row.board];
             let (seed, shard_index) = arm.origin[row.board];
+            let comparison = call_comparison(row, &arm.their_label);
             let _ = writeln!(
                 report,
                 "[vul {}, seed {:?}, board {shard_index}] swing {:+} pts / {:+} IMPs (PD {:+}), \
-                 diverged at call {} ({} ours vs {} BBA), {}\n  rule: {}\n  {}\n  ours NS @ A: {}  -> {}\n  ours EW @ B: {}  -> {}\n",
+                 diverged at call {} ({comparison}), {}\n  rule: {}\n  {}\n  ours NS @ A: {}  -> {}\n  ours EW @ B: {}  -> {}\n",
                 arm.vul,
                 seed,
                 row.points,
                 row.swing_plain,
                 row.swing_pd,
                 row.div_index,
-                row.our_call,
-                row.bba_call,
                 row.direction,
                 if row.rule.is_empty() {
                     "(none)"
@@ -615,27 +686,7 @@ fn main() -> anyhow::Result<()> {
         use std::io::Write as _;
         for row in &rows {
             let arm = &arms[row.arm];
-            let (seed, shard_index) = arm.origin[row.board];
-            serde_json::to_writer(
-                &mut out,
-                &serde_json::json!({
-                    "vul": arm.vul.to_string(),
-                    "seed": seed,
-                    "board": shard_index,
-                    "swing_plain": row.swing_plain,
-                    "swing_pd": row.swing_pd,
-                    "points": row.points,
-                    "div_index": row.div_index,
-                    "phase": format!("{:?}", row.phase),
-                    "provenance": row.prov,
-                    "rule": row.rule,
-                    "family": row.family,
-                    "direction": row.direction,
-                    "our_call": row.our_call,
-                    "bba_call": row.bba_call,
-                    "hand": row.hand,
-                }),
-            )?;
+            serde_json::to_writer(&mut out, &row_json(row, arm))?;
             writeln!(out)?;
         }
         eprintln!("bba-decompose: {} rows written to {path}", rows.len());
@@ -652,4 +703,116 @@ fn main() -> anyhow::Result<()> {
         );
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn self_play_fixture(floor: OurFloor) -> Arm {
+        let partnership = floor.partnership();
+        let vul = AbsoluteVulnerability::NONE;
+        let boards = common::seeded_deals(0xD3C0_5EED, 8)
+            .into_iter()
+            .enumerate()
+            .map(|(index, deal)| {
+                let dealer = Seat::ALL[index % Seat::ALL.len()];
+                common::Board {
+                    table_a: common::bid_out(&partnership, &partnership, true, dealer, vul, &deal),
+                    table_b: common::bid_out(&partnership, &partnership, false, dealer, vul, &deal),
+                    deal,
+                    dealer,
+                }
+            })
+            .collect::<Vec<_>>();
+        arm_from_dump(Dump {
+            our_label: format!("fixture {floor:?}"),
+            their_label: "fixture reference".into(),
+            vulnerability: vul,
+            seed: Some(0xD3C0_5EED),
+            gen_args: Vec::new(),
+            boards,
+        })
+    }
+
+    fn sample_row() -> Row {
+        Row {
+            arm: 0,
+            board: 0,
+            swing_plain: -3,
+            swing_pd: -4,
+            points: -100,
+            div_index: 1,
+            phase: Phase::Defensive,
+            bucket: "Defensive / book / round-1".into(),
+            prov: "book".into(),
+            rule: "test rule".into(),
+            family: "round-1",
+            direction: "overbid",
+            our_call: "1♠".into(),
+            their_call: "P".into(),
+            hand: "fixture hand".into(),
+        }
+    }
+
+    #[test]
+    fn floor_cli_defaults_to_instinct_and_accepts_american() {
+        let default = Args::try_parse_from(["bba-decompose", "fixture.json"]).unwrap();
+        assert_eq!(default.our_floor, OurFloor::AmericanInstinct);
+        let american =
+            Args::try_parse_from(["bba-decompose", "fixture.json", "--our-floor", "american"])
+                .unwrap();
+        assert_eq!(american.our_floor, OurFloor::American);
+    }
+
+    #[test]
+    fn both_floor_selections_replay_their_small_fixture_exactly() {
+        for floor in [OurFloor::American, OurFloor::AmericanInstinct] {
+            let arm = self_play_fixture(floor);
+            let (checked, mismatched) = replay_verify(&floor.partnership(), &arm);
+            assert!(checked > 0);
+            assert_eq!(mismatched, 0, "{floor:?}");
+        }
+    }
+
+    #[test]
+    fn shipped_v5_replays_a_current_ben_gen_fixture_exactly() {
+        let dump: Dump = serde_json::from_str(include_str!("fixtures/ben-v5-shard.json")).unwrap();
+        let arm = arm_from_dump(dump);
+        let (checked, mismatched) = replay_verify(&OurFloor::American.partnership(), &arm);
+        assert!(checked > 0);
+        assert_eq!(mismatched, 0);
+        let (_, instinct_mismatches) =
+            replay_verify(&OurFloor::AmericanInstinct.partnership(), &arm);
+        assert!(instinct_mismatches > 0);
+    }
+
+    #[test]
+    fn report_comparison_uses_the_dump_reference_label() {
+        let rendered = call_comparison(&sample_row(), "BEN v0.8.8.4 21GF/F");
+        assert_eq!(rendered, "1♠ ours vs P BEN v0.8.8.4 21GF/F");
+        assert!(!rendered.contains("BBA"));
+    }
+
+    #[test]
+    fn json_emits_generic_call_and_compatibility_alias() {
+        let arm = arm_from_dump(Dump {
+            our_label: "ours".into(),
+            their_label: "BEN".into(),
+            vulnerability: AbsoluteVulnerability::NONE,
+            seed: Some(7),
+            gen_args: Vec::new(),
+            boards: Vec::new(),
+        });
+        let row = sample_row();
+        let json = row_json(
+            &row,
+            &Arm {
+                origin: vec![(Some(7), 11)],
+                ..arm
+            },
+        );
+        assert_eq!(json["their_call"], "P");
+        assert_eq!(json["bba_call"], json["their_call"]);
+    }
 }

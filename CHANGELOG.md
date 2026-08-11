@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`bba-decompose` can now attribute the shipped v5 floor exactly.**
+  `--our-floor american|american-instinct` selects the generating floor and
+  defaults to `american-instinct`, keeping `scripts/anchor.sh` unchanged; BEN
+  dumps use `--our-floor american`, matching `ben-gen`. Replay is now a hard
+  acceptance gate before any DD solve or report write: one mismatch aborts
+  instead of emitting approximate buckets. Report prose uses the dump's
+  reference label, JSONL adds generic `their_call` while retaining `bba_call`
+  as a compatibility alias, and every bucket now prints a PD mean and 95% CI
+  beside plain DD. Tests cover both selectors, a current shipped-v5 BEN shard's
+  exact replay, generic reference wording, and JSON compatibility. Analysis
+  CLI/report fields only; no public Rust API or bidding change.
+
+- **BEN Phase-1 measurement inputs advanced to the exact-decomposition
+  checkpoint.** The same-seed Tier-F calibration used exactly eight unchanged
+  `21GF/F` servers and `8×1,250×{none,both}` anchor boards: plain −0.295
+  [−0.379, −0.212] / −0.330 [−0.438, −0.222], PD −0.292 [−0.392, −0.192] /
+  −0.367 [−0.495, −0.238], equal-weight pooled −0.313/−0.329. Relative to the
+  retained same-deal Tier-S row, Tier-F−Tier-S is +0.850 plain / +0.702 PD
+  pooled — calibration, not attribution. A separate fresh-seed corpus at clean
+  `42454d2` generated and validated 102,400 shipped-v5 boards
+  (`16×3,200×{none,both}`, seed `1786405693`, BEN `v0.8.8.4`/`6097935`, Tier-F
+  config SHA-256 `b48c0845…`). Raw artifacts remain ignored; exact scoring and
+  Phase-1 completion wait for this implementation's separately authorized
+  clean checkpoint.
+
 ### Fixed
 
 - **`bba-gen`'s `--uvu` had inverted into a kill switch, so every A/B since
