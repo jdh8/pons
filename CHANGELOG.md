@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Measured
+
+- **Tight 2-level minor overcall — REFUTED on a fresh seed; the promotion is
+  cancelled** (`two_level_minor_overcall_tight` /
+  `bba-gen --ns-two-level-minor-overcall-tight`, default off, unchanged). The
+  2026-07-26 SD-PD rescore had reversed this knob's original reject and left it a
+  promotion candidate *pending confirmation on a fresh seed*. That confirmation
+  ran at `abdafcc` (seed `1786488117`, 409,600 boards/arm/vulnerability — double
+  the July count) and it fails: plain DD **−0.0102 ±0.0021 NV** / −0.0011 ±0.0027
+  vul, PD +0.0074 ±0.0026 / +0.0198 ±0.0034, plain SD −0.0157 ±0.0022 / −0.0096
+  ±0.0028, SD-PD **−0.0008 ±0.0026 NV** / +0.0090 ±0.0033 vul. The non-vulnerable
+  plain-DD interval lies entirely below zero, which is the veto: no BEN Tier-F
+  guard was run and the default is untouched. The NV SD-PD win collapsed to a
+  wash and only the vulnerable cell reproduced. A plain-DD loss beside a PD win
+  is the decision table's *artifact of PD's synthetic double*, not a win.
+
+  The July cells were measured at `daf6c0e`. `abdafcc` (generalize defensive
+  overcalls) widened the trigger from 1.43%/1.49% to **1.76%/1.75%** fired
+  (sd-lead 2.27%/2.29% → 2.50%/2.53%), so the two runs do not cover the same
+  hands and the reversal never described current code.
+
+  Forensics on the 20 worst non-vulnerable boards say **trigger-too-broad**, not
+  a missing continuation: 9–12 of 20 show the loose arm's 2m overcall enabling a
+  profitable doubled sacrifice against a making game — `1♥ 2♣ 3♣ - 4♥ - - 5♣ X`
+  on a 12-count with six clubs, where the tight arm simply passes and defends
+  `4♥` — and a smaller group shows the stranded hand re-entering later at a
+  higher level and being doubled. A flat points floor is the wrong gate for a
+  hand whose value is length, which is §O4's own diagnosis; this knob was only
+  ever the crude fallback for the `suit_quality` atom that failed its
+  model-selection gate. Stays opt-in, default byte-identical.
+
 ### Added
 
 - **Defensive round-1 suit defenses now use declarative variable rows, with

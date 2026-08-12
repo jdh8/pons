@@ -166,6 +166,29 @@ obstruction-wall artifact; kept opt-in, default byte-identical.
 > sd is the arbiter of nothing on its own, being optimistic on both the lead and
 > the doubling axis at once.  Default deliberately untouched.
 
+> **REFUTED 2026-08-12 on the fresh seed — promotion cancelled.**  The
+> confirmation the reversal asked for, run at `abdafcc` (seed `1786488117`,
+> 409,600 bd/arm/vul, double the July count): plain DD **−0.0102 ±0.0021 NV** /
+> −0.0011 ±0.0027 vul, PD +0.0074 ±0.0026 / +0.0198 ±0.0034, plain SD
+> −0.0157 ±0.0022 / −0.0096 ±0.0028, **SD-PD −0.0008 ±0.0026 NV / +0.0090 ±0.0033
+> vul**.  The NV plain-DD interval is entirely below zero, so the veto applies:
+> no Tier-F guard was run and the default is untouched.  The NV SD-PD win
+> collapsed to a wash; only the vul cell reproduced.  plain-DD loss beside a PD
+> win is the decision table's *artifact of PD's synthetic X*, not a win.
+>
+> The reversal never described current code.  July was measured at `daf6c0e`;
+> `abdafcc` (generalize defensive overcalls) widened the trigger from
+> 1.43%/1.49% to **1.76%/1.75%** fired (sd 2.27%/2.29% → 2.50%/2.53%), so the two
+> runs do not cover the same hands.  Forensics on the 20 worst NV boards:
+> **trigger-too-broad**, not a missing continuation.  9–12 of 20 show the loose
+> arm's 2m overcall enabling a profitable doubled sacrifice against a making game
+> (`1♥ 2♣ 3♣ - 4♥ - - 5♣ X` on a 12-count with six clubs; the tight arm passes
+> and defends `4♥`), and a smaller group shows the stranded hand re-entering
+> later at a higher level and being doubled.  A flat points floor is the wrong
+> gate for a hand whose value is length — §O4's own diagnosis, this knob having
+> only ever been its crude fallback.  Stays opt-in, default byte-identical.
+> Artifacts: `ab-results/two-level-minor-overcall-refresh/`.
+
 The lesson: the
 anchor's *ours-vs-BBA* sd deficit on the overcall does not mean *suppressing* it
 helps — the actionable A/B sd (suppress-vs-keep) washed because our own pass-line

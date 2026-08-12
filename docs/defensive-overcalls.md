@@ -294,6 +294,21 @@ generator exposes a CLI flag, and both defensive-overcall A/B runners reject
 The existing `two_level_minor_overcall_tight` promotion candidate remains a
 separate measured treatment, not evidence for inventing the failed atom.
 
+**That fallback is now refuted too, 2026-08-12** — and it fails in the direction
+this section predicted. A fresh-seed A/B at `abdafcc` (seed `1786488117`,
+409.6k bd/arm/vul) put the tightening at plain DD **−0.0102 ±0.0021 NV** /
+−0.0011 ±0.0027 vul with SD-PD **−0.0008 ±0.0026 NV** / +0.0090 ±0.0033 vul; the
+NV plain-DD veto stopped the promotion and no Tier-F guard was run
+(`docs/bba-gap-campaign.md`, `ab-results/two-level-minor-overcall-refresh/`).
+Forensics on the 20 worst NV boards read **trigger-too-broad**: 9–12 of them show
+the loose arm's 2m overcall buying a profitable doubled sacrifice against a
+making game that the 15-point arm never reaches. So both O4 levers have now
+failed, from opposite ends — the quality atom missed its accuracy gate, and the
+blunt points floor measures negative because *points are the wrong axis*, exactly
+as the opening paragraph argues. The `2♣ → P` −2,222 PD leak is unclaimed again,
+and nothing in the current toolbox addresses it; a future attempt needs the
+suit-quality axis this section could not fit, not another strength band.
+
 Attribution wrinkle, recorded so nobody re-litigates it: vs BEN this slice
 is plain-**positive** (+369) / PD −3,645, so it failed the *attribution
 eligibility* gate — but the *ship* gate is plain-wash + PD-win by the
