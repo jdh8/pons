@@ -374,6 +374,13 @@ is 89–90% *by construction* (the net floor's off-book calls do not reproduce
 through `american_instinct()`), so `report-american.md`'s bucket rows are not
 valid and only the IMP figures, which come from the recorded auctions, are.
 
+> **"By construction" was wrong (corrected 2026-08-12).** The replay was 89–90%
+> because these runs decomposed a v5 dump through `american_instinct()`. Since
+> `7af286d`, `bba-decompose --our-floor american` replays it through
+> `american()` and the mismatch is **zero** — the bucket rows of a shipping
+> report are valid, and `anchor.sh` passes the flag. The IMP figures in this
+> row are unaffected; only the "not valid" verdict on its buckets is.
+
 That total hides a split worth a re-measure: the floor is **+0.167 plain /
 +0.236 PD at vul both**, but at **vul none it is +0.094 plain and −0.034 PD** —
 it gains on plain DD while *losing* under perfect defense, the signature of
@@ -539,24 +546,87 @@ target bucket responds directly: `Defensive/book/round-1` falls from 52,523
 boards and −84,484 plain / −102,011 PD to 49,068 boards and **−74,202 /
 −90,593**. Report: `ab-results/anchor/2026-08-11-782f09e/report.md`.
 
-**What the *shipping* pair scores (`--our-floor american`, same deals, same
-seed, both arms generated at this sha):** pooled **−0.627 plain / −0.585 PD**
-(vul none −0.555 / −0.499, both −0.699 / −0.671).  This is the first shipping
-headline since `eb02d9d` (07-26, −1.021 / −1.254) and the first one *ever* taken
-under the v4→v5 configured floor — but it also crosses the `3c94802` disclosure
-flip, so **do not read the whole −0.394 / −0.669 as floor value**: the two
-snapshots are different series.  Report: `report-american.md` (bucket rows
-invalid by construction — replay is 90.19% / 90.99% because the net's off-book
-calls do not reproduce through `american_instinct()`; only the IMP figures are
-readable).
+> **Retracted 2026-08-12 — this paragraph's shipping numbers were `0d8b755`'s,
+> relabelled.** It read: *"What the shipping pair scores (`--our-floor
+> american`, same deals, same seed, both arms generated at this sha): pooled
+> −0.627 plain / −0.585 PD (vul none −0.555 / −0.499, both −0.699 / −0.671) …
+> replay is 90.19% / 90.99% … the net floor is worth +0.442 plain / +0.620 PD."*
+> No `american-*` arm was ever generated at `782f09e` — the snapshot dir has
+> only the two instinct arms, and every figure quoted is `ab-results/
+> anchor-american.log`'s `0d8b755` run rounded to three places (−0.5551,
+> −0.4991, −0.6993, −0.6713; replay 90.19% / 90.99% to the digit). The
+> "generated at this sha" claim is the one part that was not true, which is the
+> part that matters: it is the control-at-HEAD rule broken in the doc that
+> states the rule. `anchor.sh` now generates the shipping pair itself, in the
+> same snapshot, so the claim is structural rather than remembered.
 
-Against *this* anchor's own instinct arms — same deals, same sha, so the
-control-at-HEAD rule is satisfied — the net floor is worth **+0.442 plain /
-+0.620 PD**, against v4's paired +0.200 / +0.317 at `e650a86`.  Treat the
-magnitude as provisional: this is an unpaired difference of two absolute vs-BBA
-gaps, the loose instrument the `e650a86` note warns about; an `ab-dump-diff`
-paired arm-pair would tighten it and is cheap now that an arm generates in 100
-seconds.
+**Post-ship re-anchor `ea2cde9` (2026-08-12, persistent seed `1783375064`,
+snapshot `ab-results/anchor/2026-08-12-ea2cde9-dirty`).** The re-anchor for the
+competitive accountant, and the first one to carry all four arms — both
+instinct and both shipping — in one snapshot at one sha. "dirty" is honest: the
+tree carried the `bba-gen` flag-polarity fix the ship needed and had not got
+(see CHANGELOG), without which the `american-*` arms would have measured the
+pre-ship system. Whole run, generation through both decomposes and both paired
+diffs: **19 minutes**.
+
+| arm | vul | plain | perfect defense |
+| --- | --- | --- | --- |
+| `american-instinct` (decompose series) | none | −0.9539 | −0.9972 |
+| `american-instinct` | both | −1.1572 | −1.3983 |
+| **`american` (shipping)** | none | **−0.5383** | **−0.4944** |
+| **`american` (shipping)** | both | **−0.6702** | **−0.6630** |
+
+Pooled: instinct **−1.056 / −1.198**, shipping **−0.604 / −0.579**. All four
+arms replay **100.00%** (0 of 2.11–2.13M our-side calls mismatched, each arm).
+
+- *Instinct side*, against `782f09e`'s −1.059 / −1.200: **+0.003 / +0.002**,
+  i.e. flat, which is the expected reading — `competitive_gate` is reachable
+  only from `neural_floor.rs`, so the ship cannot touch this arm.
+- *Shipping side*, against the `0d8b755` run the paragraph above retracts:
+  **+0.023 plain / +0.006 PD** pooled. The accountant's own paired A/B claims
+  +0.0088 / +0.0140 → ≈ +0.011 pooled, so it is roughly half of the plain move
+  and the rest is `abdafcc` plus `782f09e`'s weak-jump-overcall ship. Loose
+  attribution by construction (a difference of absolute gaps across changed
+  code); the paired instrument below is the tight one.
+
+**The shipping report's bucket rows are valid now — the "89–90% by
+construction" claim was wrong.** Passing `--our-floor american` to
+`bba-decompose` (the flag `7af286d` added on 2026-08-11, hours before the
+`782f09e` anchor, and which the hand-rolled shipping runs never picked up)
+replays the v5 dumps through `american()` instead of `american_instinct()`, and
+the mismatch goes to zero. It was never a property of the net's off-book calls.
+So `report-american.md` now ranks the **shipped** system's losses, including
+rows the instinct-arm decomposition structurally cannot show — the net floor's
+own: `Defensive/floor/round-2` −13,891 plain, `Competitive/floor/round-2`
+−13,593, `Defensive/floor/round-1` −8,307. Head of the shipping table:
+
+| bucket | boards | net plain | net PD |
+| --- | --- | --- | --- |
+| Defensive / book / round-1 | 48,652 | −41,244 | −56,178 |
+| Constructive / book / round-2 | 39,688 | −40,693 | −45,496 |
+| Constructive / book / opening | 53,194 | −40,619 | −21,546 |
+| Constructive / book / round-1 | 24,891 | −24,661 | −27,838 |
+| Competitive / book / round-1 | 14,692 | −20,541 | −18,221 |
+
+`Defensive/book/round-1` stays #1 on the shipped system as it is on the instinct
+prior, at roughly half the instinct arm's −74,202 — the floor already eats half
+of the campaign's #1 bucket, and the def-r1 redesign
+([defensive-overcalls.md](defensive-overcalls.md)) is still aimed at the right
+place.
+
+**The net floor's paired worth (`ab-dump-diff`, same snapshot, same sha — the
+tight instrument the `e650a86` note asked for and no anchor had yet run):**
+
+| `american` − `american-instinct` | plain DD | perfect defense | fired |
+| --- | --- | --- | --- |
+| vul none | **+0.2141** ±0.0131 | **+0.2570** ±0.0157 | 26.81% |
+| vul both | **+0.2557** ±0.0165 | **+0.3752** ±0.0196 | 24.90% |
+
+Pooled **+0.235 plain / +0.316 PD**. That retires the retracted +0.442 / +0.620:
+the unpaired difference-of-gaps overstated the v5 floor by ≈1.9×, which is the
+`e650a86` warning landing a second time and much harder. Against v4's paired
++0.200 / +0.317 at `e650a86`, v5 is +0.035 plain and level on PD — but across
+87+ book commits, so read it as "v5 is not worse", not as a v4↔v5 measurement.
 
 ### First-anchor runbook (any machine with the BBA submodule)
 

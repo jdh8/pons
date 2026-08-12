@@ -323,15 +323,16 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_net_collar: bool,
 
-    /// Price the contested game-level decision for our side
-    /// (`InstinctProfile::competitive_accountant`, crate default off).  When
-    /// they buy a game or higher and a strain of ours is already named, the
-    /// floor's judgement logits are repriced against the score table — the
-    /// candidate bid, the penalty double and Pass, all three from the same
-    /// forward pass the constructive gates read.  Demotions only; the arm for
-    /// `scripts/ab-competitive-accountant.sh`.
+    /// Turn OFF the contested game-level pricing for our side
+    /// (`InstinctProfile::competitive_accountant`, crate default on — shipped
+    /// 2026-08-12, plain +0.0088/+0.0140 by vul with PD a wash).  On, when they
+    /// buy a game or higher and a strain of ours is already named, the floor's
+    /// judgement logits are repriced against the score table — the candidate
+    /// bid, the penalty double and Pass, all three from the same forward pass
+    /// the constructive gates read.  Demotions only; off restores the unpriced
+    /// judgement logits, the `off` arm of `scripts/ab-competitive-accountant.sh`.
     #[arg(long, default_value_t = false)]
-    ns_competitive_accountant: bool,
+    no_ns_competitive_accountant: bool,
 
     /// Turn OFF the v3 calls-tail evaluator for our side
     /// (`DecisionProfile::eval_auction`, crate default on — shipped 2026-07-27,
@@ -1586,7 +1587,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.decision.instinct.keycard_minors = !args.no_ns_rkcb_minors;
     agreements.decision.instinct.accountant_floor = !args.no_ns_accountant;
     agreements.decision.instinct.net_collar = args.ns_net_collar;
-    agreements.decision.instinct.competitive_accountant = args.ns_competitive_accountant;
+    agreements.decision.instinct.competitive_accountant = !args.no_ns_competitive_accountant;
     agreements.decision.instinct.two_over_one_slam_strength =
         !args.no_ns_two_over_one_slam_strength;
     agreements.decision.instinct.rein_advance_raise = !args.no_ns_rein_advance_raise;
@@ -2202,7 +2203,8 @@ fn main() -> anyhow::Result<()> {
         },
     );
     // One shard is one process, so an arm's attribution is the sum of these
-    // lines over its shards.  Silent unless `--ns-competitive-accountant` is on.
+    // lines over its shards.  Silent only when the gate is off
+    // (`--no-ns-competitive-accountant`) or nothing tripped it.
     let [vetoes, doubles, passes] = pons::bidding::instinct::competitive_counts();
     if vetoes | doubles | passes != 0 {
         eprintln!(

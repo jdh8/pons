@@ -11,7 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **The competitive accountant — the contested game-level decision, priced**
   (`InstinctProfile::competitive_accountant`, **default on**;
-  `bba-gen --ns-competitive-accountant`;
+  `bba-gen --no-ns-competitive-accountant`;
   `scripts/ab-competitive-accountant.sh`). Above the three-level our book is
   silent by construction — every double rule is gated `their_live_bid_at_most(3)`
   and the competitive raise ladder stops at four — so when the opponents buy a
@@ -137,7 +137,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `probe-doubling`'s `P(X)` column reproduces `q-table.py`'s gate-reached q from
   a different language and a stride-sampled subset.
 
+### Fixed
+
+- **`bba-gen` was still forcing the competitive accountant OFF, so every BBA
+  arm generated after `ea2cde9` measured the pre-ship system.** The ship flipped
+  `InstinctProfile::competitive_accountant` to `true` but left the harness flag
+  as the positive `--ns-competitive-accountant` writing
+  `= args.ns_competitive_accountant` — the exact stale-clap-default failure the
+  anchor runbook documents (`docs/bba-gap-campaign.md`, the `eb02d9d`
+  `--ns-two-over-one-gate` precedent). It is now the negative
+  `--no-ns-competitive-accountant` writing `= !args.no_…`, matching the
+  `--no-ns-accountant` idiom, and `scripts/ab-competitive-accountant.sh` carries
+  the flag on its `off` arm instead of its `capped` arm (the arms' *contents*
+  are unchanged, so the dumps already on disk still pair).
+  `examples/bba-gen`'s `default_args_arm_the_shipped_system` had been red on
+  `main` since the ship and named the drifted field precisely; it passes again.
+  No dump on disk is affected — the gate is reachable only from
+  `neural_floor.rs`, so the `--our-floor american-instinct` anchor arms could
+  never have fired it, and no `--our-floor american` arm had been generated
+  since the flip.
+- **`bba-decompose`'s `ben-v5-shard` replay fixture was stale for the same
+  ship** — likewise red on `main`. Regenerated from a live BEN v0.8.8.4 tier-F
+  run at the fixture's own seed (`1784237746`, conf sha256 `b48c0845…`, the same
+  8 deals): exactly one call moves, our `X` of their `4♥` on board 7 table B,
+  with BEN's `4♠` answer unchanged. Refreshed from a real run rather than
+  hand-patched, so the auction stays one BEN would actually produce.
+
 ### Changed
+
+- **`scripts/anchor.sh` now generates the shipping pair too**, instead of it
+  being hand-rolled per anchor as it was for `0d8b755` and `782f09e`: two
+  `--our-floor american` arms in the same snapshot, `report-american.md` (IMP
+  headline only — its bucket rows are invalid by construction at ~90% replay),
+  and a paired `ab-dump-diff` of the net floor against that same snapshot's
+  instinct arms. Same dir, same `SEED_BASE`, same sha is now structural rather
+  than a thing to remember, which is what the "regenerate the control at HEAD"
+  rule (`docs/bba-gap-campaign.md:403`) actually asks for. A dirty worktree also
+  now stamps the snapshot `<sha>-dirty` rather than claiming to be its `HEAD`.
 
 - **Renamed our learned floor gate from *bilans* to *accountant*.** The public
   field `InstinctProfile::bilans_floor` is now
@@ -159,6 +195,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (one module doc still said "default off pending its A/B").
 
 ### Measured
+
+- **Post-accountant re-anchor vs BBA, all four arms at one sha
+  (`ab-results/anchor/2026-08-12-ea2cde9-dirty`, persistent seed `1783375064`,
+  204,800 bd/arm/vul, 19 minutes end to end).** Shipping pair (`american`, the
+  v5 net floor) **−0.5383 plain / −0.4944 PD** at vul none and **−0.6702 /
+  −0.6630** at both, pooled **−0.604 / −0.579**; decompose series
+  (`american-instinct`) **−0.9539 / −0.9972** and **−1.1572 / −1.3983**, pooled
+  **−1.056 / −1.198**. Every arm replays 100.00%. The instinct side is flat
+  against `782f09e` (+0.003/+0.002), exactly as it should be — `competitive_gate`
+  is reachable only from `neural_floor.rs`. The shipping side gains **+0.023
+  plain / +0.006 PD** pooled, of which the accountant's own paired A/B accounts
+  for roughly half. Paired `ab-dump-diff` of the floor against that same
+  snapshot's instinct arms — the tight instrument, run for the first time under
+  v5 — puts the net floor at **+0.2141 ±0.0131 plain / +0.2570 ±0.0157 PD**
+  (none, 26.81% fired) and **+0.2557 ±0.0165 / +0.3752 ±0.0196** (both, 24.90%),
+  pooled +0.235 / +0.316. Full write-up and the retraction it forces:
+  [docs/bba-gap-campaign.md](docs/bba-gap-campaign.md).
+- **Two corrections to the campaign ledger, both found by running the pair
+  rather than by reading.** (1) The shipping headline recorded against
+  `782f09e` was `0d8b755`'s numbers relabelled — no `american-*` arm was ever
+  generated at that sha, and the paragraph's "both arms generated at this sha"
+  was the claim that failed. Retracted in place. (2) The long-standing "replay
+  verification is 89–90% *by construction*, so the shipping report's bucket rows
+  are invalid" is **false**: it was `--our-floor american` being missed
+  (`7af286d` added it), not a property of the net's off-book calls. With the
+  flag, replay is 0 mismatched of 2.13M calls and the bucket rows are valid — so
+  the shipped system's losses can now be attributed to buckets the instinct-arm
+  decomposition structurally cannot show, including the net floor's own
+  (`Defensive/floor/round-2` −13,891 plain, `Competitive/floor/round-2`
+  −13,593). The retracted unpaired estimate of the floor's worth (+0.442/+0.620)
+  overstated it by ≈1.9× against the paired +0.235/+0.316.
 
 - **Tight 2-level minor overcall — REFUTED on a fresh seed; the promotion is
   cancelled** (`two_level_minor_overcall_tight` /

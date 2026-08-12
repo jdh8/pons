@@ -22,11 +22,14 @@ cd "$(dirname "$0")/.."
 
 R=${1:-ab-results/anchor}
 mkdir -p "$R"
-SHA=$(git rev-parse --short HEAD)
+# A dirty tree is not the sha it claims to be, and a mislabelled snapshot is how
+# a control goes stale without anyone noticing (docs/bba-gap-campaign.md:403).
+SHA=$(git rev-parse --short HEAD)$(git diff --quiet HEAD || echo -dirty)
 SNAP="$R/$(date -u +%F)-$SHA"
 PER_SHARD=${PER_SHARD:-6400}
 
-cargo build --release --features serde --example bba-gen --example bba-decompose
+cargo build --release --features serde \
+    --example bba-gen --example bba-decompose --example ab-dump-diff
 
 log() { echo "$(date -u +%FT%TZ) $*" | tee -a "$R/log" >&2; }
 
@@ -38,7 +41,7 @@ export SEED_BASE
 log "=== anchor start, sha=$SHA, SEED_BASE=$SEED_BASE, $(nproc)x$PER_SHARD bd/arm/vul -> $SNAP"
 for vul in none both; do
     dir="$SNAP/$vul"
-    [ -d "$dir" ] && { log "skip $dir (exists)"; continue; }
+    [ -s "$dir/shard-0.json" ] && { log "skip $dir (exists)"; continue; }
     log "generate $dir"
     # --our-floor american-instinct: bba-decompose replays through the
     # deterministic books; american() now ships the non-decomposable net floor.
@@ -55,4 +58,43 @@ target/release/examples/bba-decompose "$SNAP/none" "$SNAP/both" \
     --report "$SNAP/report.md" \
     --jsonl "$SNAP/boards.jsonl" \
     2>&1 | tee -a "$R/log"
-log "=== anchor done: $SNAP/report.md"
+
+# The SHIPPING pair: what american() — the v5 net floor — actually scores.
+# Hand-rolled for the 0d8b755 anchor and never re-run since; in here because
+# every trap it hit was a "generated somewhere else" trap.  Note the decompose
+# below passes --our-floor american: replay is then 100% and the bucket rows
+# are VALID.  The ~90% replay the campaign doc long called "by construction"
+# was the flag being missed (7af286d added it), not a property of the net.
+# And never diff a fresh `american` arm against an older snapshot's instinct
+# arm; same $SNAP, same $SEED_BASE and same $SHA is what makes the paired delta
+# below the floor's value rather than the floor's value plus a batch of book
+# fixes (docs/bba-gap-campaign.md, the e650a86 note).
+for vul in none both; do
+    dir="$SNAP/american-$vul"
+    # -s a shard, not -d the dir: bba-gen-parallel mkdirs before it launches a
+    # worker, so an arm that died on startup leaves an empty dir that a -d test
+    # would silently resume past (the lesson ab-lib.sh's arm() records).
+    [ -s "$dir/shard-0.json" ] && { log "skip $dir (exists)"; continue; }
+    log "generate $dir"
+    scripts/bba-gen-parallel.sh "$dir" "$PER_SHARD" -v "$vul" \
+        --our-floor american >>"$R/log" 2>&1
+done
+
+log "decompose shipping -> $SNAP/report-american.md"
+target/release/examples/bba-decompose "$SNAP/american-none" "$SNAP/american-both" \
+    --our-floor american \
+    --dd-cache "$R/dd-cache.json" \
+    --report "$SNAP/report-american.md" \
+    2>&1 | tee -a "$R/log"
+
+# And the floor's own worth, paired: the tight instrument the e650a86 note asks
+# for, instead of subtracting two absolute vs-BBA gaps.
+for vul in none both; do
+    log "diff american vs american-instinct ($vul, plain+pd)"
+    target/release/examples/ab-dump-diff "$SNAP/american-$vul" "$SNAP/$vul" \
+        --score both \
+        --out-plain "$SNAP/diff.floor.$vul.plain.txt" \
+        --out-pd "$SNAP/diff.floor.$vul.pd.txt" >>"$R/log" 2>&1
+done
+
+log "=== anchor done: $SNAP/report.md + $SNAP/report-american.md"

@@ -233,7 +233,9 @@ pricing future work off the 8.3% figure alone.
 - `COMPETITIVE_MARGIN` and the q table as consts beside `break_even`, the
   table with a provenance comment (seed `1786488117`, sha `abdafcc`,
   `doubling-calibration.md`).
-- `bba-gen --ns-competitive-accountant`; runner
+- `bba-gen --no-ns-competitive-accountant` (a negative flag since the `ea2cde9`
+  default flip — the CLI default must track the crate default, which
+  `default_args_arm_the_shipped_system` pins); runner
   `scripts/ab-competitive-accountant.sh` modeled on `ab-net-collar.sh`
   (SEED_BASE persisted, arms sequential, `idle-run.sh` discipline).
 - Public-API addition (field + setter): **`cd web && cargo test` at
@@ -278,8 +280,8 @@ place the two differ.
 | `their_declarer` | `our_declarer`'s mirror, same section |
 | `competitive_gate(&mut Logits, Hand, &Context)` | same section, `pub(crate)` |
 | the call site | `neural_floor.rs`, one line after `mask_illegal` in **both** `ConfiguredFloorBba` (v4) and `ConfiguredFloorV5` |
-| knob | `InstinctProfile::competitive_accountant`, default off, plus `Default`/`nondefault()` |
-| harness | `bba-gen --ns-competitive-accountant`, `scripts/ab-competitive-accountant.sh` |
+| knob | `InstinctProfile::competitive_accountant`, default **on** since `ea2cde9` (built default off), plus `Default`/`nondefault()` |
+| harness | `bba-gen --no-ns-competitive-accountant`, `scripts/ab-competitive-accountant.sh` |
 | attribution | `instinct::competitive_counts() -> [u64; 3]` (vetoes, double masks, pass demotions) |
 
 Four deviations from the design above, all deliberate:
@@ -528,6 +530,26 @@ the four- and five-level; the worst-board lists still show `5♦ X` → `5♥` a
 veto + X-mask) is now a live question rather than a formality — this run says
 the pushed doubles at slam level were worth zero on the honest scorer, and it
 does not say the five-level ones are worth more.
+
+### A fourth leaf approximation, found post-ship *(2026-08-12)*
+
+Not one of the three the design recorded: **the gate prices *their* live bid as
+a contract even when it is artificial.** Refreshing `bba-decompose`'s stale
+`ben-v5-shard` fixture turned up the shipped gate's one behaviour change over
+those 8 deals, and it is this — `1♥ - (P) - 2♥ - (3♠) - P - (4♥)`, where their
+`4♥` is a cue agreeing spades, and we now double it. BEN duly bid `4♠` over the
+double; nobody was ever going to play `4♥`.
+
+Same family as the slam run-out `DOUBLE_PUSH_CEILING` fixed, and the same
+mechanism — EV(X) assumes the double ends the auction — but the trigger is
+*artificiality*, not level, so the level cap cannot catch it. Cheap guard if it
+matters: require their live bid to be one their disclosure reads as natural
+before pricing a double of it; we already carry the reading (`Inferences`,
+`alerted`) that says so. Unmeasured, and n = 1 board — it may be rare enough to
+ignore, and it is not obviously *losing* (a lead-directing double of a control
+bid is a real, if crude, action). Size it before building anything: count how
+many of the shipped arm's fired boards double an alerted call. If it is a
+material slice it belongs with arm 2, and if it is not, it is a v2 note.
 
 ## Out of scope (decided, not neglect)
 

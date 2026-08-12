@@ -12,8 +12,9 @@
 # double is the better bet.
 #
 # Two arms per vul, identical deals:
-#   off      the shipped default (judgement logits alone above the three-level)
-#   capped   --ns-competitive-accountant
+#   off      --no-ns-competitive-accountant (the pre-2026-08-12 default:
+#            judgement logits alone above the three-level)
+#   capped   the shipped default, on since `ea2cde9`
 #
 # `capped` is the same knob as the v1 `priced` arm plus `DOUBLE_PUSH_CEILING`:
 # no double is *pushed* over a slam, because the v1 run's whole loss tail was
@@ -46,8 +47,8 @@ SEED_BASE=$(seed_for)
 
 log "=== competitive accountant start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
 for vul in none both; do
-    arm off "$vul"
-    arm capped "$vul" --ns-competitive-accountant
+    arm off "$vul" --no-ns-competitive-accountant
+    arm capped "$vul"
     diffpair capped off "$vul"
     # The v1 uncapped arm, when this dir is its dir.
     if [ -s "$R/priced-$vul/shard-0.json" ]; then diffpair capped priced "$vul"; fi
