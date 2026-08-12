@@ -93,30 +93,110 @@ python3 scripts/ab-classify.py ab-results/two-level-minor-overcall-refresh/on-no
                                ab-results/two-level-minor-overcall-refresh/off-none
 ```
 
-## The q table — `P(doubled | we declare)` by level and vulnerability *(pending)*
+## The q table — `P(doubled | we declare)` by level and vulnerability *(filled 2026-08-12)*
 
-The number the gate consumes. Extraction: final-contract pass over the
-**default (loose) arms** of the retained dumps — `off-none` and `off-both` —
-recording (level, vulnerability, doubled) for every board we declare; a small
-extension of `ab-classify.py`. Fill:
+The number the gate consumes. Extraction: `scripts/q-table.py`, a single-arm
+final-contract pass over the **default (loose) arms** of the retained dumps —
+`off-none` and `off-both`, seed `1786488117`, sha `abdafcc` — recording (level,
+our vulnerability, doubled) for every contract we declare. It reads **both**
+tables: `bba-gen` seats our system N/S at table A and E/W at table B
+(`bid_out(…, conv_is_ns, …)`, `examples/common/mod.rs:122`), and that
+seat-parity flip is the only reason this is a separate script rather than a
+patch to `ab-classify.py` — which stays untouched as the record behind the
+population tables above. Wilson 95% intervals throughout; the n ≥ 200 rule
+stands and nothing needed pooling.
 
-| level | vul | n declared | n doubled | q | 95% CI |
+**Three populations; the third is the one that ships.** The design
+pre-registered the fired-only slice ("the population the gate acts on"); the
+all-boards slice was run to clear the thin-cell rule; the two disagreed by 4× at
+the 5-level, which is too much to wave through. The resolution was to stop
+proxying and count the population directly: contracts we declare in auctions
+that **passed through the gate's own trigger** — some seat of ours faced their
+live undoubled bid at level ≥ 4 with a strain of ours already named. That is
+what the gate conditions on, so that is what q must be conditioned on. All three
+are published; the marginal ones are now context, not candidates.
+
+**The table the gate ships** — contracts we declare in auctions that reached
+the trigger. Only levels 4 and 5+ can appear: the trigger requires their live
+bid at level ≥ 4, so any contract we then buy sits at 4 or higher.
+
+| level | vul_we | n declared | n doubled | **q** | 95% CI |
 | ---: | --- | ---: | ---: | ---: | --- |
-| 1–2 | none | | | | |
-| 3 | none | | | | |
-| 4 | none | | | | |
-| 5+ | none | | | | |
-| 1–2 | both | | | | |
-| 3 | both | | | | |
-| 4 | both | | | | |
-| 5+ | both | | | | |
+| 4 | none | 5,573 | 2,886 | **0.518** | 0.505–0.531 |
+| 5+ | none | 6,281 | 3,471 | **0.553** | 0.540–0.565 |
+| 4 | both | 2,466 | 1,202 | **0.487** | 0.468–0.507 |
+| 5+ | both | 3,710 | 1,965 | **0.530** | 0.514–0.546 |
 
-Rules: no cell ships on n < 200 declared — thin cells inherit the level-pooled
-rate; Wilson intervals (counts are small at 5+). Named caveats, accepted for v1:
-**opponent-specific** (BBA, the exploit guard — not BEN, the north star),
-**level-marginal** (no auction-shape conditioning), and drawn from boards where
-a knob fired (competitive-heavy by construction — which is the population the
-gate acts on).
+**q is flat at ≈0.52 across level and vulnerability** — the four cells span
+0.487–0.553, the widest CI is ±0.02, and every cell clears the n ≥ 200 rule by
+an order of magnitude, so nothing pools.
+
+That retires the "level-blind" objection to a constant q in the alternatives
+table below, but not in the direction that table assumed. At the gate's own node
+q genuinely *is* about constant — at **0.52, not 0.15**. The strong level
+gradient in the marginal table below (0.031 → 0.176) is a **composition
+effect**: higher contracts are more often contested, and being contested is what
+draws the double. Condition on the contest and the gradient disappears. A gate
+built on the marginal rate would have under-priced its own doubling risk by
+≈3.5× at the 4-level.
+
+### The two marginal slices, kept as contrast
+
+All boards dilutes with uncontested slam tries that land in 5♦/5♥ with nobody
+placed to double; the fired slice — the tables whose auction differs between the
+arms — over-selects the sacrifice boards the retired knob moved. They bracket
+the shipping number from either side.
+
+All boards, both tables: 785,789 contracts we declare, 37,798 doubled (4.81%).
+
+| level | vul_we | n declared | n doubled | q | 95% CI |
+| ---: | --- | ---: | ---: | ---: | --- |
+| 1–2 | none | 108,712 | 3,391 | 0.031 | 0.030–0.032 |
+| 3 | none | 152,385 | 6,112 | 0.040 | 0.039–0.041 |
+| 4 | none | 104,931 | 7,606 | 0.072 | 0.071–0.074 |
+| 5+ | none | 23,381 | 4,125 | 0.176 | 0.172–0.181 |
+| 1–2 | both | 123,163 | 3,987 | 0.032 | 0.031–0.033 |
+| 3 | both | 153,773 | 5,396 | 0.035 | 0.034–0.036 |
+| 4 | both | 98,512 | 4,646 | 0.047 | 0.046–0.049 |
+| 5+ | both | 20,932 | 2,535 | 0.121 | 0.117–0.126 |
+
+Fired tables only:
+
+| level | vul_we | n declared | n doubled | q | 95% CI |
+| ---: | --- | ---: | ---: | ---: | --- |
+| 1–2 | none | 2,033 | 235 | 0.116 | 0.102–0.130 |
+| 3 | none | 2,855 | 209 | 0.073 | 0.064–0.083 |
+| 4 | none | 1,633 | 217 | 0.133 | 0.117–0.150 |
+| 5+ | none | 648 | 469 | 0.724 | 0.688–0.757 |
+| 1–2 | both | 2,458 | 292 | 0.119 | 0.107–0.132 |
+| 3 | both | 3,015 | 179 | 0.059 | 0.051–0.068 |
+| 4 | both | 1,331 | 113 | 0.085 | 0.071–0.101 |
+| 5+ | both | 429 | 270 | 0.629 | 0.583–0.674 |
+
+**Reproduction gate, passed.** Pooling the fired NV rows gives 1,130 / 7,169 =
+**15.8%**, against the 15.6% the population pass above measured independently
+(`ab-classify.py`, table A only, score-diverged boards). Two scripts, two
+denominators, the same number — the parser and the seat-parity flip are sound.
+
+**Decision: ship the gate-reached table.** The two marginal slices bracket it
+(0.176 and 0.724 at 5+ NV) and neither is the gate's conditioning. The
+gate-reached slice is, it is the tightest of the three, and it needs no
+thin-cell pooling. The method lesson generalises past this table: **condition
+the calibration on the trigger, not on a proxy for it** — the same mistake in
+miniature as reading a mechanism off the worst 20 boards.
+
+Named caveats, accepted for v1: **opponent-specific** (BBA, the exploit guard —
+not BEN, the north star), **level-marginal** (no auction-shape conditioning),
+and drawn from a single knob's arms.
+
+Reproduce (~7 s, pure JSON, no DD solve):
+
+```sh
+python3 scripts/q-table.py ab-results/two-level-minor-overcall-refresh/off-none \
+                           ab-results/two-level-minor-overcall-refresh/off-both \
+    --fired ab-results/two-level-minor-overcall-refresh/on-none \
+            ab-results/two-level-minor-overcall-refresh/on-both
+```
 
 ## Were the doubles right — the one-DD-pass check *(pending)*
 
@@ -174,8 +254,8 @@ The canonical table; the design doc inherits it by reference.
 | --- | --- | --- |
 | always doubled (q = 1) | reproduces the PD bracket's behaviour, which on this exact knob measured as a **plain-DD loss** — the veto bracket. Right for `ev.rs`'s rollouts (its cardplay already assumes perfect defense, so undoubled penalties let the search chase phantom saves — a deliberate, internal-consistency choice) and wrong as a live-opponent model | `src/bidding/ev.rs` module doc; the refutation's plain/PD split |
 | never doubled (q = 0) | failing sacrifices priced at undoubled penalties → the M3.1 7NT sacrifice flood (grand:game reached 1.00 in self-play before PD-doubling fixed the rollouts) | `project_m31-7nt-sacrifice-instability`; `stats.rs` par has always used `min(normal, doubled)` |
-| constant q ≈ 0.15 | level-blind: overprices being doubled in partscore competition (where BBA rarely doubles) and underprices it at the 5-level (where sacrifices live) | the population pass, once the q table splits by level |
-| **empirical q(level, vul)** — chosen | opponent-specific (BBA); recalibration is data, not design — rerun the extraction per opponent | this doc |
+| constant q ≈ 0.15 | **wrong constant, right shape.** Drawn from the *marginal* rate, it underprices the gate's own node by ≈3.5×: conditioned on the trigger, q is 0.52. The level-blindness this row predicted turned out not to be the defect — see the q table above | the population pass; refuted by the gate-reached slice |
+| **empirical q(level, vul) on the gate-reached slice** — chosen | opponent-specific (BBA); recalibration is data, not design — rerun the extraction per opponent. Flat at ≈0.52, so the (level, vul) keying is currently carrying almost no signal and could collapse to a constant if a future slice stays flat | this doc |
 
 ## Out of scope (decided, not neglect)
 

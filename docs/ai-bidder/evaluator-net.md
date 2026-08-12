@@ -287,6 +287,74 @@ to the parameterization what belonged to fixed batch composition. Symmetry is
 holding better than recorded, which weakens rather than strengthens the case for
 categorical per-trick heads.
 
+### Declarer columns — the opponent half *(measured 2026-08-12)*
+
+The table above, and every slice this doc published before it, pools all 20
+targets. The four **declarer columns** had never been broken out, so the
+`Relative::Lho` / `Relative::Rho` estimates — computed on every forward pass and
+read by nothing until the competitive accountant
+([competitive-accountant.md](competitive-accountant.md)) — were entirely
+unvalidated. Nothing in the repo could score them: the trainer pools the
+targets, has no weight-load path (so it can only report a *fresh* net), and
+`examples/eval-evaluator` walks all four columns but folds them into one `Mean`,
+carries no coverage metric at all, and scores against the layout sampler rather
+than the deal.
+
+`examples/eval-columns` closes that gap. It bids deals out with `american()`,
+calls the shipped `trick_estimates_with_auction` — the same entry point
+`Context::trick_estimates` serves — and scores against the `.pdd` bank's own
+double-dummy tables. **No solver, no corpus file, no retrain**, and it is the
+shipped `evaluator_v3_dnf` weights being measured, not a proxy.
+
+200,000 deals of `22.pdd` from row 5,000,000 (past both burned ranges), 2.01M
+judgement nodes:
+
+| slice | column | n | MAE | RMSE | coverage |
+| --- | --- | ---: | ---: | ---: | ---: |
+| all | me | 10,033,600 | 1.3942 | 1.7728 | 47.99% |
+| all | lho | 10,033,600 | 1.3879 | 1.7665 | 48.06% |
+| all | partner | 10,033,600 | 1.4003 | 1.7808 | 48.00% |
+| all | rho | 10,033,600 | 1.4029 | 1.7851 | 48.03% |
+| contested | me | 6,278,175 | 1.3269 | 1.6809 | 47.82% |
+| contested | lho | 6,278,175 | 1.3254 | 1.6807 | 48.00% |
+| contested | partner | 6,278,175 | 1.3325 | 1.6883 | 47.82% |
+| contested | rho | 6,278,175 | 1.3412 | 1.7001 | 47.95% |
+| gate | me | 374,595 | 1.3781 | 1.7562 | 46.37% |
+| gate | lho | 374,595 | 1.3923 | 1.7801 | 46.89% |
+| gate | partner | 374,595 | 1.3811 | 1.7600 | 46.42% |
+| gate | rho | 374,595 | 1.4118 | 1.8042 | 46.73% |
+
+**The opponent columns are not worse.** Pooling me+partner against lho+rho, the
+their-side MAE penalty is **+0.0019** tricks over all nodes, **+0.0036**
+contested, and **+0.0225** on the gate slice — every one an order of magnitude
+inside the 0.15-trick bound the accountant pre-registered. Coverage runs
+*slightly better* for their columns (+0.05 / +0.16 / +0.42 points), so the σ
+inflation factor the fallback would apply comes out at 1.000 everywhere.
+
+That is the opposite of the standing worry, which reasoned from the reading
+soundness asymmetry — opponent boxes exclude the truth 8.3% of the time versus
+3.3% for partner (`probe-reading-sound`). A box that excludes the truth more
+often evidently does not translate into a worse trick estimate: the net is
+reading a wide envelope either way, and being wrong about *which* wide envelope
+costs little. Worth keeping in mind before pricing any future work on the
+strength of the soundness gap alone.
+
+The `all` rows also serve as an independent check on this doc's own numbers: the
+pooled MAE of 1.394 and coverage of 48.0% reproduce the `evaluator_v3_dnf.json`
+sidecar's 1.3925 / 48.46% from a completely different code path — bank labels
+and the shipped forward pass, versus the trainer's held-out tail.
+
+The `gate` slice is the accountant's trigger walked exactly (their live
+undoubled bid at level ≥ 4, our side has named a strain), not a feature-window
+approximation of it. It is the *hardest* slice for every column — MAE up ~0.05
+and coverage down ~1.6 points against the contested pool — which is what a
+crowded high-level auction should look like.
+
+```sh
+scripts/idle-run.sh cargo run --release --all-features --example eval-columns -- \
+    --deals /nfs2/jdh8/pons/22.pdd --skip 5000000 --count 200000
+```
+
 ### Ablations
 
 | variant | val NLL | MAE | RMSE | coverage |

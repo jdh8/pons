@@ -1,7 +1,8 @@
 # Competitive accountant — pricing the 5-level contested decision
 
-**Status: designed 2026-08-12; nothing implemented, nothing measured; both
-pre-A/B gates unrun; ships nothing until its A/B.** This is the design for the
+**Status: designed 2026-08-12; gates 0, 1 and 2 run the same day and all
+passed; no gate code written, nothing measured on boards, ships nothing until
+its A/B.** This is the design for the
 live remainder of [bba-floor.md](bba-floor.md) §7 row D — doubled-contract
 pricing and the contested decisions the constructive accountant deliberately
 left out. Evidence and every P(double) number live in the sibling
@@ -177,13 +178,20 @@ won twice as `accountant_floor`. Second difference: at the game/slam boundary
 there was an authored criterion to collar *toward*; at the contested 5-level
 there is none — the choice is not arithmetic-vs-net but **priced-vs-unpriced**.
 
-The honest caveat stays stated: the evaluator was trained on the corpus's
-auction mix, and its opponent-declarer columns have **never been validated**
+The honest caveat as first written: the evaluator was trained on the corpus's
+auction mix, and its opponent-declarer columns had **never been validated**
 separately — while the opponent inference boxes they condition on exclude the
 true hand ~8.3% of the time (vs 3.3% for partner; `probe-reading-sound`,
-`evaluator-net.md`). That risk is priced *before* boards are spent: it is
+`evaluator-net.md`). That risk was priced *before* boards were spent: it is
 pre-A/B gate 1, ε absorbs estimator error at the margin, and plain DD holds
 the veto at the end.
+
+**Measured 2026-08-12 and retired.** Gate 1 ran (`examples/eval-columns`,
+below): on the gate's own trigger slice the opponent columns cost **+0.0225
+tricks** of MAE against ours and cover *better* by 0.42 points — an order of
+magnitude inside the 0.15-trick bound, σ factor 1.000. The soundness asymmetry
+did not translate into worse physics, which is itself worth remembering before
+pricing future work off the 8.3% figure alone.
 
 ### Knobs and wiring
 
@@ -207,21 +215,77 @@ these calls are near-terminal, so the vacuous reading has almost no seat left
 to mislead — and recorded rather than fixed. If a continuation ever consumes
 this node's reading, the finite-criterion problem returns here first.
 
+## Decisions taken 2026-08-12 (grilling session, before any code)
+
+| decision | answer |
+| --- | --- |
+| order | both offline gates **before** any gate code |
+| v1 action set | all three (veto bid C, mask X, demote Pass) in one arm |
+| floors | **both** `ConfiguredFloorV5` and the v4 twin |
+| units | raw score points, `COMPETITIVE_MARGIN = 300` const |
+| q population | resolved past both candidates — q is conditioned on the **trigger itself** (sibling doc), and comes out flat at **≈0.52** |
+| gate-1 failure branch | **σ-inflate and keep all three actions** — *not* the collapse to veto-only this doc originally named |
+| σ factor | the coverage-matching scalar, off `eval-columns`' ratio histogram |
+| DD-rightness check | blocking, both vuls, both tables |
+| attribution | three `AtomicU64` + a plain `pub` accessor, written to the shard JSON |
+| coverage criterion | **relative** to the me/partner columns (±3 points); absolute reported beside it |
+| gate 0 (new) | trigger rate, pre-registered floor 1% of boards; below it, widen to 3NT-by-them |
+| dutch | ships on the `american()` A/B and v4 inherits; record in `docs/dutch-system.md` when the code lands |
+| `expected_double` | deferred past the A/B — it cannot change the implementation |
+
 ## Measurement plan
 
-Three gates, in order; the first two are offline and spend no boards.
+Four gates, in order; the first three are offline and spend no boards.
 
-1. **Their-columns reliability** (hard gate). Score the held-out evaluator
-   shard **per declarer column**, sliced to contested auctions with 4+-level
-   contracts: pass if the LHO/RHO columns' MAE is within **0.15 tricks** of
-   the me/partner columns on the same slice and their σ-coverage at
-   μ ± 0.6745σ stays within **45–55%** (bounds set now, before running).
-   Fallbacks if it fails, in preference order: inflate their-side σ by the
-   measured miscalibration factor; or replace the EV(pass)/EV(X) integrals
-   with a pessimistic they-make bound (μ + c·σ), keeping only the
-   anti-phantom-save veto.
-2. **q calibrated.** The sibling's q table and DD-rightness check are filled;
-   the failing-branch-vs-both question is answered there.
+0. **Trigger rate** *(added 2026-08-12; **PASS**)*. A gate that fires on a
+   sliver cannot be resolved by a standard A/B, and learning that after the
+   boards are spent is the expensive way. `examples/eval-columns` walks 200k
+   real auctions and counts the trigger: **74,919 nodes, 3.733% of judgement
+   nodes, touching 31,740 of 200,000 boards = 15.87%** — sixteen times the
+   pre-registered 1% floor. The trigger therefore stays at level ≥ 4 and
+   3NT-by-them remains a v2 extension. Caveat recorded: both sides bid
+   `american()` in that probe while the A/B's opponents are BBA, so it is a
+   self-play proxy for reach; the margin is wide enough that the proxy does not
+   matter.
+1. **Their-columns reliability** (hard gate) *(**PASS**)*. Score the shipped
+   `evaluator_v3_dnf` **per declarer column** on the gate's own trigger slice.
+   Both criteria are *relative*: LHO/RHO MAE within **0.15 tricks** of
+   me/partner, and their coverage at μ ± 0.6745σ within **3 points** of ours.
+
+   Two corrections to this gate as originally written, both made *before*
+   running it. First, it asked for an absolute 45–55% coverage band; the
+   shipped net sits at ≈48% pooled, so an absolute band mostly grades global
+   calibration — a property all four columns share — rather than the
+   their-columns question the gate asks. Second, it named "the held-out
+   evaluator shard", **an artifact that has not existed since the v3
+   campaign**: no `dump-evaluator` corpus survives anywhere on disk, the
+   trainer has no weight-load path (so it can only ever score a *fresh* net),
+   and `eval-evaluator` walks all four columns but folds them into one `Mean`,
+   carries no coverage metric, and scores against the layout sampler rather
+   than the deal. `examples/eval-columns` closes that gap — it scores the
+   shipped weights against the `.pdd` bank's own double-dummy labels, with no
+   solver and no corpus file.
+
+   Measured on 200k deals of `22.pdd` from row 5M (full table in
+   [evaluator-net.md](evaluator-net.md) § "Declarer columns"):
+
+   | slice | Δ MAE (theirs − ours) | Δ coverage | σ factor |
+   | --- | ---: | ---: | ---: |
+   | all | +0.0019 | +0.05pp | 1.000 |
+   | contested | +0.0036 | +0.16pp | 1.000 |
+   | **gate** | **+0.0225** | **+0.42pp** | **1.000** |
+
+   The opponent columns are **not worse** — an order of magnitude inside the
+   bound, with coverage marginally *better* — so no σ inflation applies and all
+   three gate actions stand. This contradicts the honest caveat recorded above,
+   which reasoned from the reading-soundness asymmetry (opponent boxes exclude
+   the truth 8.3% of the time versus 3.3% for partner). A box that is wrong
+   more often evidently still yields an equally good trick estimate; the caveat
+   is retired as measured, not as argued away.
+2. **q calibrated** *(filled)*. The sibling's q table is measured and its
+   DD-rightness check is run; the failing-branch-vs-both question is answered
+   there, as is the one live decision it left — which population q is drawn
+   from.
 3. **The A/B.** Standard scale (204.8k boards/arm/vul), fresh
    `SEED_BASE=$(date +%s)`, arms sequential under `scripts/idle-run.sh`, never
    rebuild mid-run, watch the runner PID. Score plain DD + PD, rescore SD-PD

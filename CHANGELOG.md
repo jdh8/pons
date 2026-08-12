@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Three calibration instruments for the competitive accountant, and the
+  offline gates they answer** (`examples/eval-columns`, `examples/probe-doubling`,
+  `scripts/q-table.py`). No bidding behaviour changes — every one of these is
+  read-only, and the gate they calibrate is still unwritten. Design in
+  [`docs/ai-bidder/competitive-accountant.md`](docs/ai-bidder/competitive-accountant.md),
+  evidence in
+  [`docs/ai-bidder/doubling-calibration.md`](docs/ai-bidder/doubling-calibration.md).
+
+  - **`examples/eval-columns` — gates 0 and 1.** Scores the **shipped**
+    `evaluator_v3_dnf` per declarer column against the `.pdd` bank's own
+    double-dummy labels: bids each deal out, calls
+    `trick_estimates_with_auction` (the entry point `Context::trick_estimates`
+    serves), no solver, no corpus file, no retrain. It exists because nothing
+    else could answer the question — no `dump-evaluator` corpus survives on
+    disk, the trainer has no weight-load path so it can only score a *fresh*
+    net, and `eval-evaluator` folds all four declarer columns into one `Mean`
+    with no coverage metric. **Gate 0 (trigger rate): PASS** — the accountant's
+    node is reached on **15.87%** of boards (3.733% of judgement nodes), sixteen
+    times the pre-registered 1% floor, so the trigger stays at level ≥ 4.
+    **Gate 1 (their-columns reliability): PASS** — on the trigger slice the
+    LHO/RHO columns cost **+0.0225 tricks** of MAE against me/partner (bound
+    0.15) and cover **0.42 points better** (bound ±3), σ inflation factor
+    1.000. The standing worry that the opponent columns would be worse — read
+    off the reading-soundness asymmetry, 8.3% of opponent boxes excluding the
+    truth versus 3.3% for partner — is **refuted as measured**. Its `all` rows
+    also reproduce `evaluator_v3_dnf.json`'s published 1.3925 MAE / 48.46%
+    coverage from a completely different code path.
+  - **`scripts/q-table.py` — gate 2a.** `P(doubled | we declare)` by level and
+    vulnerability off the retained `two_level_minor_overcall_tight` arms (seed
+    `1786488117`, sha `abdafcc`), reading **both** tables with the seat-parity
+    flip. `scripts/ab-classify.py` is untouched. The headline is a correction to
+    the design's own assumption: the marginal table climbs 0.031 → 0.176 with
+    level, but **conditioned on the gate's actual trigger q is flat at ≈0.52**
+    (0.487–0.553 across all four cells, every n ≥ 2,466). The level gradient was
+    a composition effect — higher contracts are more often contested, and being
+    contested is what draws the double. A gate built on the marginal rate would
+    have under-priced its own doubling risk by ≈3.5×. Method lesson recorded:
+    **condition the calibration on the trigger, not on a proxy for it.**
+
 ### Changed
 
 - **Renamed our learned floor gate from *bilans* to *accountant*.** The public
