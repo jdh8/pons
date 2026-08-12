@@ -13,7 +13,15 @@
 #
 # Two arms per vul, identical deals:
 #   off      the shipped default (judgement logits alone above the three-level)
-#   priced   --ns-competitive-accountant
+#   capped   --ns-competitive-accountant
+#
+# `capped` is the same knob as the v1 `priced` arm plus `DOUBLE_PUSH_CEILING`:
+# no double is *pushed* over a slam, because the v1 run's whole loss tail was
+# six- and seven-level doubles they ran out of.  Re-run into the v1 results dir
+# and the deals pair with it ($R/seed persists), the `off` arm is skipped as
+# already generated — knob-off is byte-identical across the cap, which
+# `smoke-default --count 20000 --seed 1` pins — and `capped vs priced` scores
+# the cap itself on the same boards.
 #
 # Everything except the trick estimate is closed form and was calibrated before
 # any board was spent: q = 0.33 making / 0.65 failing at this node's own trigger
@@ -39,7 +47,9 @@ SEED_BASE=$(seed_for)
 log "=== competitive accountant start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
 for vul in none both; do
     arm off "$vul"
-    arm priced "$vul" --ns-competitive-accountant
-    diffpair priced off "$vul"
+    arm capped "$vul" --ns-competitive-accountant
+    diffpair capped off "$vul"
+    # The v1 uncapped arm, when this dir is its dir.
+    if [ -s "$R/priced-$vul/shard-0.json" ]; then diffpair capped priced "$vul"; fi
 done
 log "=== competitive accountant done"

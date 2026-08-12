@@ -361,3 +361,46 @@ fn the_competitive_gate_vetoes_the_phantom_save() {
         "the veto prices the hand, not the auction"
     );
 }
+
+/// The accountant pushes a double at the five-level but not over a slam
+///
+/// `1♠ (5♥)` with a defensive 15-count: the economics beat passing by more
+/// than `COMPETITIVE_MARGIN`, so Pass is charged.  Lift the same auction to
+/// `6♥` — where the case for doubling is only stronger — and the gate keeps
+/// quiet, because past `DOUBLE_PUSH_CEILING` a double is an information
+/// transfer that runs them into the slam that makes (the first A/B's whole
+/// loss tail).  Pass must land exactly on its knob-off logit: the cap skips
+/// the action, it does not scale it.
+#[test]
+fn the_accountant_pushes_no_double_over_a_slam() {
+    let hand = "AQ.K94.AT42.KQ76";
+    let mut agreements = Agreements::default();
+    agreements.decision.instinct.competitive_accountant = true;
+
+    let five = [call(1, Strain::Spades), call(5, Strain::Hearts)];
+    let before = crate::bidding::instinct::competitive_counts()[2];
+    let pushed = shelled_with(&agreements, &five, hand);
+    assert!(
+        crate::bidding::instinct::competitive_counts()[2] > before,
+        "the five-level demotion is attributed"
+    );
+    assert!(
+        pushed.0[Call::Pass] < shelled(&five, hand).0[Call::Pass],
+        "Pass is charged when the double is the better bet"
+    );
+    assert!(pushed.has_mass(), "a distribution survives the stage");
+
+    let slam = [call(1, Strain::Spades), call(6, Strain::Hearts)];
+    let before = crate::bidding::instinct::competitive_counts()[2];
+    let capped = shelled_with(&agreements, &slam, hand);
+    assert_eq!(
+        crate::bidding::instinct::competitive_counts()[2],
+        before,
+        "no double is pushed over a slam"
+    );
+    assert_eq!(
+        capped.0[Call::Pass],
+        shelled(&slam, hand).0[Call::Pass],
+        "the cap skips the action rather than scaling it"
+    );
+}

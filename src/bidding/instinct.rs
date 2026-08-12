@@ -3507,6 +3507,16 @@ const COMPETITIVE_MARGIN: f32 = 300.0;
 /// ~3-nat convention.
 const PASS_DEMOTION: f32 = 3.0;
 
+/// The highest level at which [`competitive_gate`] will *push* a double
+///
+/// Above it a double is an information transfer no leaf model can price: our
+/// `X` tells them their slam is off, they correct to the one that is on, and
+/// the auction the economics assumed had ended runs on.  The first A/B's whole
+/// loss tail was six- and seven-level doubles run out of (`7♦ X` → `7♠`), so
+/// only *adding* a double is capped — masking one stays unconditional at every
+/// level, since that direction removes the call the tail blames.
+const DOUBLE_PUSH_CEILING: u8 = 5;
+
 /// Expected raw score of `bid`, signed to its **declaring** side, over that
 /// declarer's estimated trick distribution
 ///
@@ -3583,7 +3593,8 @@ fn their_live_game_bid(context: &Context<'_>) -> Option<Bid> {
 /// - veto a candidate bid whose expected score trails the better of defending
 ///   undoubled and defending doubled (the anti-phantom-save direction);
 /// - mask a phantom penalty double;
-/// - charge Pass [`PASS_DEMOTION`] when the double is the better bet.
+/// - charge Pass [`PASS_DEMOTION`] when the double is the better bet, and their
+///   contract is no higher than [`DOUBLE_PUSH_CEILING`].
 ///
 /// Candidates are the cheapest legal bid in each strain our side has already
 /// named.  Jumps and fresh strains stay the net's judgement, and three leaf
@@ -3625,7 +3636,7 @@ pub(crate) fn competitive_gate(logits: &mut Logits, hand: Hand, context: &Contex
     if double < pass - COMPETITIVE_MARGIN {
         logits.0[Call::Double] = f32::NEG_INFINITY;
         COMPETITIVE_FIRED[1].fetch_add(1, atomic::Ordering::Relaxed);
-    } else if double > pass + COMPETITIVE_MARGIN {
+    } else if double > pass + COMPETITIVE_MARGIN && theirs.level.get() <= DOUBLE_PUSH_CEILING {
         // Never `-∞`: a distribution must survive every stage (invariant §0.2).
         logits.0[Call::Pass] -= PASS_DEMOTION;
         COMPETITIVE_FIRED[2].fetch_add(1, atomic::Ordering::Relaxed);

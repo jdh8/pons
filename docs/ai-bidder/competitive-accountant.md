@@ -378,15 +378,122 @@ Four gates, in order; the first three are offline and spend no boards.
    double-count). Verdict from `measurement.md`'s decision table; **plain DD
    holds the veto**; honest-realism pair [plain DD, SD-PD].
 
-| arm | boards/vul | plain DD ±CI | PD ±CI | SD-PD ±CI | IMPs/fired | seed | sha | verdict |
-| --- | ---: | --- | --- | --- | ---: | --- | --- | --- |
-| `competitive_accountant` on vs off | | | | | | | | *unrun* |
+| arm | boards/vul | plain DD ±CI | PD ±CI | IMPs/fired (plain) | fired | seed | sha | verdict |
+| --- | ---: | --- | --- | ---: | ---: | --- | --- | --- |
+| all three actions, vul none | 204,800 | **+0.0092 ±0.0024** | −0.0022 ±0.0022 | +1.761 | 1,069 (0.52%) | 1786536281 | `2241092` | **win** (PD does not arbitrate — below) |
+| all three actions, vul both | 204,800 | **+0.0141 ±0.0030** | −0.0035 ±0.0027 | +2.204 | 1,314 (0.64%) | 1786536281 | `2241092` | **win** (PD does not arbitrate — below) |
+
+### Verdict — plain DD arbitrates this knob; PD cannot *(2026-08-12)*
+
+**First read, and wrong: `win | wash/loss` was scored off the decision table as
+the doubling-artifact row, "do not ship".** Corrected the same day (jdh8). That
+row exists for a knob that **bids more** — its stated rationale is "the win is
+reaching contracts a competent doubler would slaughter", i.e. plain DD letting
+*our* overbids off the hook. This gate issued **153,485 bid vetoes**; it bids
+*less*. The row was applied outside its domain.
+
+**Why PD structurally cannot price this knob.** `ns_score_pd`
+(`src/scoring.rs`) only ever *adds* a double to a failing **undoubled** contract,
+and keeps a real double even when the contract makes. For an action whose
+mechanism is *double more*, that is a one-way charge:
+
+| their contract | OFF (we pass) | ON (we double) |
+| --- | --- | --- |
+| fails | scored doubled **free** | scored doubled — **no gain** |
+| makes | undoubled | **doubled, kept — full cost** |
+
+PD hands the OFF arm every double it declined to make and bills the ON arm for
+every double that turned out wrong, then amplifies the run-out boards on top
+(they escape to a making contract, which PD scores undoubled, while the contract
+we would have defended gets a free synthetic X). The 4× gap between the two
+columns is not a bracket around the truth — it is one action's entire value,
+deleted by construction.
+
+Against BBA, plain DD is the *accurate* scorer here, not the optimistic one: it
+prices the actual table penalty on both sides, and the actual doubles BBA made
+are in the auction. Its known bias — that a better opponent would have doubled
+more — runs **against** the ON arm, since it also under-punishes the OFF arm's
+phantom saves (BBA doubles only ≈15% of the contracts we declare). Both scorers
+lean against the treatment; it wins CI-clear on both vuls anyway.
+
+Two caveats that stay on the record, neither blocking:
+
+- **Opponent-specific.** Part of +1.76/+2.20 IMPs per fired board is BBA running
+  badly after our double. BBA is the exploit guard, not the north star; against
+  BEN this is worth less and possibly negative. Same caveat q already carries.
+- **The tail is a leak plain DD is charging us for**, so removing it should make
+  the plain win *bigger*. See the next arm below.
+
+The trace names a mechanism worth acting on. In each cell's 40
+worst boards, **21–28 add one of our doubles**, and **15–24 of those are then run
+out of** — `7♦ X` → they bid 7♠, `6♥ X` → 7♦, `5♠ X` → 6♥. That is precisely the
+leaf approximation this design recorded and accepted: *EV(X) assumes the double
+ends the auction; pulled doubles unpriced*. It is wrong in the way the level
+makes obvious — `measurement.md` already says nobody doubles a voluntarily bid
+six, and the trigger's `level ≥ 4` admits every slam. On the −22 board the whole
+grand-slam auction is BBA's and our `X` of `7♦` is the only call the gate
+changed; BBA then corrected to a making `7♠`. A double at that level is an
+information transfer, which no expected-score model that assumes the auction
+ends can see.
+
+Of the three actions only **demote-Pass adds doubles**; the bid veto and the
+X-mask both subtract action, and the veto is the one the charter was written for
+(the anti-phantom-save direction, the `two_level_minor_overcall_tight`
+inheritance). The fire counts (`instinct::competitive_counts()`, summed over both
+priced arms, 409,600 boards): **153,485 bid vetoes, 41,150 X-masks, 36,170 Pass
+demotions**.
+
+So the v1 action set **ships on this evidence**, and the open question is not
+whether but how much is being left on the table. Next arms, in order of surgical
+precision — each judged on plain DD, with PD reported and read as the
+double-blind column it is here:
+
+1. **Cap the Pass demotion below slam** — the tail is entirely 6- and 7-level
+   doubles, and the level cap keeps the five-level doubles the charter wanted.
+   *(Built; see "Arm 1" below.)*
+2. **Drop the Pass demotion entirely** (keep veto + X-mask) if the cap says the
+   doubles never pay.
+3. Only then price pulled doubles properly — the chartered v2's equilibrium
+   loop, not a patch.
+
+Recorded against the design's own claim above ("Plain DD holds the veto if the
+approximations mislead"): plain DD held, and the approximation that misled is
+named and localised to the slam levels. What the run refutes is not the action
+set but the **assumption that PD would arbitrate it** — for a knob whose
+mechanism is *double more*, PD is not the pessimistic end of a bracket, and the
+measurement plan above should not have pre-registered it as the veto-holder's
+partner without checking that.
 
 Post-ship only: re-test `two_level_minor_overcall_tight` through the shipped
 gate — its measured loss was walking into unpriced 5-level decisions, so a
 priced floor is the first legitimate reason to re-open it. Any such re-measure
 diffs the fired rate against `abdafcc`'s 1.76%/1.75% first (two runs that fire
 differently do not cover the same hands).
+
+### Arm 1 — the below-slam cap *(2026-08-12)*
+
+`DOUBLE_PUSH_CEILING = 5`: the gate still *masks* a bad double at every level,
+but only *pushes* one when their contract is a five or lower. Above that a
+double is an information transfer — it tells them their slam is off and they
+correct to the one that is on — which no expected-score model that assumes the
+auction ends can price. The asymmetry is the point: masking removes the call
+the loss tail blames, pushing is what adds it.
+
+One line in `competitive_gate`, guarded by the same knob, so knob-off is again
+byte-identical (`smoke-default --count 20000 --seed 1` = `39a9a31a…`, unchanged
+across the cap). `the_accountant_pushes_no_double_over_a_slam` pins both halves
+on one hand: `1♠ (5♥)` charges Pass, the same hand over `6♥` — where the case
+for doubling is only *stronger* — lands exactly on its knob-off logit.
+
+Re-run into the v1 results dir, so `$R/seed` gives the same 409,600 deals and
+`off` is reused unregenerated (legitimate here only because the cap provably
+cannot move the knob-off path). Two diffs per vul: `capped vs off` is the ship
+number, `capped vs priced` prices the cap itself on identical boards.
+
+| vul | fired (Pass demotions) | plain DD, capped vs off | PD | plain DD, capped vs priced |
+| --- | --- | --- | --- | --- |
+| none | *(pending)* | | | |
+| both | *(pending)* | | | |
 
 ## Out of scope (decided, not neglect)
 

@@ -244,6 +244,32 @@ would produce a number that changes nothing.
 | wash | wash, treatment is *additive* (repurposes a useless call, sacrifices nothing) | May ship default-on if its value is DD-invisible (obstruction, lead-direction) — precedent: Unusual 2NT over their 1NT. |
 | wash | wash, two methods that *push each other* | Break the tie by **naturalness** (ship rules): a move *toward* established natural theory ships default-on; a *convention* trialled against natural stays opt-in. |
 
+**Domain addendum — name the knob's direction before you read a row**
+(2026-08-12, paid for by the competitive accountant). Every row above assumes
+a knob that changes **what we bid**. The `win | wash/loss` row in particular
+is written for a knob that *bids more*: its rationale is that plain DD lets
+**our** overbids off the hook while PD prices them.
+
+For a knob whose mechanism is **doubling them more**, PD is not the
+pessimistic end of a bracket — it is blind to the benefit while keeping the
+whole cost. `ns_score_pd` only ever *adds* a double to a failing
+**undoubled** contract, and keeps a real double when the contract makes:
+
+| their contract | OFF (we pass) | ON (we double) |
+| --- | --- | --- |
+| fails | scored doubled **free** | scored doubled — no gain |
+| makes | undoubled | **doubled, kept — full cost** |
+
+so the ON arm can only lose, and run-outs are amplified on top (they escape
+to a making contract, scored undoubled, while the contract we *would* have
+defended collects a free synthetic X). **A knob that adds doubles is
+arbitrated on plain DD**, with PD reported as a double-blind column — not
+netted against the plain figure, and not rescued or killed by a magnitude
+ratio between the two (the scorers are not commensurable). Plain DD's own
+known bias, that a better opponent would double more, runs *against* the ON
+arm here, so a plain-DD win is a floor. Worked case:
+[docs/ai-bidder/competitive-accountant.md](ai-bidder/competitive-accountant.md).
+
 **Slam-boundary addendum** (2026-07-16; reading rule revised same day after
 the calibration showed the playout is a 2–4× too-deep pessimist): for a knob
 whose ON arm bids **more slams** (a lowered slam gate, a new slam drive, a

@@ -40,9 +40,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   scores. Doubling rides **both** branches at the trigger's own measured rates
   (0.33 making, 0.65 failing), not the failing branch at the marginal 0.03–0.18.
   `instinct::competitive_counts()` attributes the three actions, printed per
-  shard by `bba-gen`. Nothing is measured on boards yet; the A/B is the next
-  step, with plain DD holding the veto. Design and the four deviations from it in
+  shard by `bba-gen`. Design and the four deviations from it in
   [`docs/ai-bidder/competitive-accountant.md`](docs/ai-bidder/competitive-accountant.md).
+
+  **Measured and it wins on the honest scorer** (seed `1786536281`, sha
+  `2241092`, 204,800 boards/arm/vul, opponents BBA at both tables). Plain DD
+  **+0.0092 ±0.0024** (none) and **+0.0141 ±0.0030** (both) — CI-clear on both
+  vuls, +1.76/+2.20 IMPs per fired board on 0.52%/0.64% fired. Perfect defense
+  reads −0.0022 ±0.0022 and −0.0035 ±0.0027, and **does not arbitrate this
+  knob**: `ns_score_pd` only ever *adds* a double to a failing undoubled
+  contract and keeps a real one that makes, so for an action whose mechanism is
+  *double more* it grants the OFF arm every declined double for free and bills
+  the ON arm for every wrong one — no upside, full downside. The decision
+  table's `win | loss` row is written for a knob that **bids more**; this one
+  issued 153,485 bid vetoes. Plain DD is the accurate scorer against BBA (actual
+  table penalties, and BBA's real doubles are in the auction), and its known
+  bias runs *against* the treatment, which under-punishes the OFF arm's phantom
+  saves. That last point is now a domain addendum under the decision table in
+  [`docs/measurement.md`](docs/measurement.md): name the knob's direction
+  before reading a row, and arbitrate a doubling knob on plain DD.
+
+  Known leak, priced and charged by plain DD already: 21–28 of each cell's 40
+  worst boards add one of *our* doubles and 15–24 of those are run out of
+  (`7♦ X` → `7♠`, `6♥ X` → `7♦`) — the design's recorded leaf approximation
+  (EV(X) assumes the double ends the auction) failing at the slam levels the
+  `level ≥ 4` trigger admits. So the gate now **pushes** a double only up to
+  the five-level (`DOUBLE_PUSH_CEILING`); *masking* a bad double stays
+  unconditional at every level, since that direction removes the call the tail
+  blames. A/B of the cap on the same 409,600 deals is in flight; the knob stays
+  default-off until it lands.
 
 - **Three calibration instruments for the competitive accountant, and the
   offline gates they answer** (`examples/eval-columns`, `examples/probe-doubling`,
