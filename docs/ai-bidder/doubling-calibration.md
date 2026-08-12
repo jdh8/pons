@@ -1,8 +1,11 @@
 # Doubling calibration — P(double) for the competitive accountant
 
-**Status: population pass done 2026-08-12 and recorded here (previously in no
-committed doc); q table pending; the were-the-doubles-right DD check pending;
-BBA's `expected_double` still unread.** This doc owns the *evidence and
+**Status: population pass, q table and the were-the-doubles-right DD check all
+done 2026-08-12 and recorded here; BBA's `expected_double` still unread and
+deliberately deferred past the gate's A/B.** Two of the design's stated
+assumptions did not survive contact with the data — q is ≈0.52 at the trigger
+rather than the marginal 0.03–0.18, and it belongs on **both** branches, not the
+failing one. This doc owns the *evidence and
 calibration* for the competitive accountant; the gate itself is designed in its
 sibling [competitive-accountant.md](competitive-accountant.md). It supersedes
 the committed **"trigger-too-broad"** forensic classification of the
@@ -198,25 +201,99 @@ python3 scripts/q-table.py ab-results/two-level-minor-overcall-refresh/off-none 
             ab-results/two-level-minor-overcall-refresh/on-both
 ```
 
-## Were the doubles right — the one-DD-pass check *(pending)*
+## Were the doubles right — the one-DD-pass check *(run 2026-08-12)*
 
-Converts the marginal 15% into what the gate actually needs:
-`P(X | we fail)` vs `P(X | we make)`. The dumps carry every deal and auction;
-solve just the **doubled final contracts** of the default arms double-dummy
-(~800 NV + the vul arms' share; minutes, `Solver` on the main thread) and fill:
+Converts the marginal rate into what the gate actually needs: `P(X | we fail)`
+versus `P(X | we make)`. `examples/probe-doubling` reads the retained dumps,
+takes every table-auction's final contract, stride-samples 81,920 boards per arm
+(both tables, both vulnerabilities), solves them double-dummy — `Solver` on the
+main thread — and tabulates. 163,840 boards solved.
 
-| slice | n doubled | made anyway | down 1 | down 2+ | net IMPs of the X |
+**The answer is "both branches", and that changes the EV formula.** At the
+*gate's own trigger* the doubles are only weakly failure-conditioned:
+
+| level | our vul | n | P(fail) | q = P(X) | **P(X \| fail)** | **P(X \| make)** | lift |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 4 | none | 1,146 | 0.597 | 0.519 | **0.613** | **0.381** | 1.6× |
+| 5+ | none | 1,238 | 0.635 | 0.566 | **0.698** | **0.336** | 2.1× |
+| 4 | both | 508 | 0.528 | 0.482 | **0.623** | **0.325** | 1.9× |
+| 5+ | both | 759 | 0.606 | 0.528 | **0.693** | **0.274** | 2.5× |
+
+A lift of 1.6–2.5× is not "overwhelmingly on failing contracts". **Roughly a
+third of the contracts we buy at this node get doubled even when they make**
+(0.274–0.381). The design's stated default — apply q to the failing branch only
+— is therefore refuted at the node it was written for, and `EV(bid C)` needs
+*two* rates keyed on the branch rather than one rate and a zero:
+
+```text
+EV(bid C) = Σₖ P(Tᵤₛ = k) · [ qₖ · score(C doubled, k) + (1 − qₖ) · score(C, k) ]
+            qₖ = P(X | make) ≈ 0.33   when k ≥ needed(C)
+            qₖ = P(X | fail) ≈ 0.65   otherwise
+```
+
+Note the two corrections pull in *opposite* directions, which is why guessing
+would not have worked. The higher failing-branch rate (0.65, not the marginal
+0.18) makes bidding on more expensive; but a doubled contract that **makes**
+scores *more* for us — insult bonus plus doubled overtricks — so pricing the
+making branch as never-doubled was systematically under-valuing bidding on. The
+gate has to carry both.
+
+Second reproduction gate, passed: the `q = P(X)` column here (0.519 / 0.566 /
+0.482 / 0.528) reproduces `q-table.py`'s gate-reached table (0.518 / 0.553 /
+0.487 / 0.530) from a different language, a different code path and a
+stride-sampled subset.
+
+Also measured: **`P(fail) = 0.53–0.64` at this node.** We fail the majority of
+the contracts we buy once they have bid to the 4-level and we bid on anyway —
+which is the blunt statement of why the gate is worth building.
+
+The marginal contrast, over all auctions, is the one that would have misled:
+
+| level | our vul | n | P(fail) | q = P(X) | P(X \| fail) | P(X \| make) | lift |
+| ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1–2 | none | 21,695 | 0.352 | 0.031 | 0.064 | 0.013 | 4.8× |
+| 3 | none | 30,328 | 0.340 | 0.040 | 0.091 | 0.013 | 6.8× |
+| 4 | none | 21,089 | 0.313 | 0.075 | 0.170 | 0.031 | 5.4× |
+| 5+ | none | 4,677 | 0.402 | 0.182 | 0.359 | 0.063 | 5.7× |
+| 1–2 | both | 24,561 | 0.346 | 0.033 | 0.073 | 0.012 | 6.2× |
+| 3 | both | 30,642 | 0.332 | 0.034 | 0.078 | 0.012 | 6.3× |
+| 4 | both | 19,824 | 0.288 | 0.048 | 0.113 | 0.021 | 5.4× |
+| 5+ | both | 4,182 | 0.364 | 0.126 | 0.277 | 0.039 | 7.0× |
+
+Marginally the lift is 4.8–7.0× — "overwhelmingly failure-conditioned", exactly
+the reading the design predicted, and **wrong for the gate's population**. The
+same conditioning error as the q table, in the same direction, found the same
+way.
+
+### What the doubles are worth, and the under-doubling asymmetry restated
+
+| slice | n doubled | made anyway | down 1 | down 2+ | mean IMPs of the X |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| they double us, NV | | | | | |
-| they double us, vul | | | | | |
-| we double them, NV | | | | | |
-| we double them, vul | | | | | |
+| we declare, NV | 4,307 | 1,088 (25.3%) | 1,181 | 2,038 | +2.24 |
+| we declare, vul | 3,323 | 844 (25.4%) | 877 | 1,602 | +3.06 |
+| they declare, NV | 4,399 | 1,177 (26.8%) | 1,178 | 2,044 | +2.17 |
+| they declare, vul | 3,193 | 908 (28.4%) | 877 | 1,408 | +2.59 |
 
-If BBA's doubles land overwhelmingly on failing contracts, the gate applies q to
-the failing branch only (`P(X | fail) ≈ q / P(fail)` , capped at 1); if they are
-indiscriminate, q applies to both branches and doubling matters less than the
-15% suggests. The we-double-them rows also price the missing-X leak: the net
-IMPs of the doubles we *did* find is the empirical value of extending them.
+A double is worth **+2.2 to +3.1 IMPs** to the side that makes it, and about a
+quarter of all doubled contracts make anyway — in both directions, so neither
+side's doubling is notably sharper than the other's.
+
+**This restates the "we under-double 4–12×" finding rather than confirming it.**
+Over the whole population the two directions are near-symmetric: they double
+7,630 of our contracts, we double 7,592 of theirs. The 1.2–3.6% versus
+14.6–15.6% asymmetry recorded above is a property of the **fired** (competitive)
+subpopulation, table A only — not of doubling in general. Both readings are
+correct on their own population; the under-doubling campaign in "out of scope"
+below should be scoped to the competitive population it was actually measured
+on, not to the book at large.
+
+Reproduce (~20 min, solver on the main thread):
+
+```sh
+scripts/idle-run.sh ./target/release/examples/probe-doubling \
+    ab-results/two-level-minor-overcall-refresh/off-none \
+    ab-results/two-level-minor-overcall-refresh/off-both --limit 100000
+```
 
 ## BBA's own estimator — `expected_double`, read *(pending)*
 

@@ -91,9 +91,17 @@ score(C,k) = Contract::score(k, vul)           contract-bridge crate, exact
 
 EV(pass)   = − Σₖ P(T'ₜₕₑₘ = k) · score(their contract,          k)
 EV(X)      = − Σₖ P(T'ₜₕₑₘ = k) · score(their contract doubled,  k)
-EV(bid C)  =   Σₖ P(Tᵤₛ    = k) · [ k ≥ needed(C) : score(C, k)
-                                   ; else : q·score(C doubled, k) + (1−q)·score(C, k) ]
+EV(bid C)  =   Σₖ P(Tᵤₛ    = k) · [ qₖ·score(C doubled, k) + (1−qₖ)·score(C, k) ]
+               qₖ = P(X | make) ≈ 0.33   when k ≥ needed(C)
+               qₖ = P(X | fail) ≈ 0.65   otherwise
 ```
+
+**`EV(bid C)` corrected 2026-08-12 by gate 2b.** As first written the making
+branch was priced `score(C, k)` outright — never doubled — with q on the failing
+branch only. The DD check measures `P(X | we make) = 0.27–0.38` at this exact
+node, so a third of the contracts we buy here are doubled *and make*. Both
+branches carry a rate; the numbers and their derivation are in
+[doubling-calibration.md](doubling-calibration.md).
 
 - `their_declarer(context, strain)` is the missing LHO/RHO mirror of
   `our_declarer` (first of their side to name the strain);
@@ -125,10 +133,30 @@ the units.
 
 ### The doubling model
 
-`q(level, vul)` — the sibling's calibrated table — applied to **the failing
-branch only** (pending the sibling's DD-rightness check, which decides whether
-BBA's doubles are failure-conditioned; if they are indiscriminate, q moves into
-both branches and shrinks). This realizes the dial the shipped code already
+**Measured 2026-08-12; both halves of this section's original claim were
+wrong, in opposite directions.** The sibling's calibration says:
+
+- **q at the trigger is ≈0.52, flat** across level and vulnerability
+  (0.487–0.553, four cells, every n ≥ 2,466) — not the 0.03–0.18 level ladder
+  the marginal table shows. That ladder is a composition effect: higher
+  contracts are more often contested, and being contested is what draws the
+  double. Keying the table on `(level, vul)` currently buys almost nothing and
+  could collapse to a constant if a second opponent's slice stays flat.
+- **q belongs on *both* branches.** The DD check measures a failure-conditioning
+  lift of only **1.6–2.5×** at this node — `P(X | fail) ≈ 0.65` against
+  `P(X | make) ≈ 0.33`. A third of the contracts we buy here are doubled and
+  *make*, so the failing-branch-only treatment below is retired. Marginally the
+  lift is 4.8–7.0×, which is the reading that would have been adopted without
+  conditioning on the trigger.
+
+Method lesson, standing and now twice-paid: **condition the calibration on the
+trigger, not on a proxy for it.** Both errors above came from reading a rate off
+the marginal population, and both would have shipped silently into the A/B —
+where, per this doc's own opening argument, an A/B cannot arbitrate them.
+
+The original text, kept because its reasoning is still the right reasoning:
+`q(level, vul)` — the sibling's calibrated table — applied to the failing
+branch only. This realizes the dial the shipped code already
 names: `break_even`'s game rows price the failing branch doubled outright — the
 comment at `instinct.rs:3404` calls `q = P(doubled | we fail)` interpolating
 the plain/doubled brackets "the upgrade if the gates measure close". The
@@ -271,7 +299,7 @@ Four gates, in order; the first three are offline and spend no boards.
 
    | slice | Δ MAE (theirs − ours) | Δ coverage | σ factor |
    | --- | ---: | ---: | ---: |
-   | all | +0.0019 | +0.05pp | 1.000 |
+   | all | −0.0019 | +0.05pp | 1.000 |
    | contested | +0.0036 | +0.16pp | 1.000 |
    | **gate** | **+0.0225** | **+0.42pp** | **1.000** |
 
@@ -282,10 +310,14 @@ Four gates, in order; the first three are offline and spend no boards.
    the truth 8.3% of the time versus 3.3% for partner). A box that is wrong
    more often evidently still yields an equally good trick estimate; the caveat
    is retired as measured, not as argued away.
-2. **q calibrated** *(filled)*. The sibling's q table is measured and its
-   DD-rightness check is run; the failing-branch-vs-both question is answered
-   there, as is the one live decision it left — which population q is drawn
-   from.
+2. **q calibrated** *(filled; **two design corrections**)*. The sibling's q
+   table is measured and its DD-rightness check is run. Both of this design's
+   stated assumptions failed: q at the trigger is **≈0.52 flat**, not the
+   marginal 0.03–0.18 ladder, and it belongs on **both branches**
+   (`P(X | fail) ≈ 0.65`, `P(X | make) ≈ 0.33`, lift only 1.6–2.5×), not the
+   failing one. `EV(bid C)` above is corrected accordingly. This is what the
+   gate ordering bought: both errors would otherwise have shipped into an A/B
+   that cannot arbitrate them.
 3. **The A/B.** Standard scale (204.8k boards/arm/vul), fresh
    `SEED_BASE=$(date +%s)`, arms sequential under `scripts/idle-run.sh`, never
    rebuild mid-run, watch the runner PID. Score plain DD + PD, rescore SD-PD

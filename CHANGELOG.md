@@ -47,6 +47,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     contested is what draws the double. A gate built on the marginal rate would
     have under-priced its own doubling risk by ≈3.5×. Method lesson recorded:
     **condition the calibration on the trigger, not on a proxy for it.**
+  - **`examples/probe-doubling` — gate 2b.** Solves the sampled final contracts
+    of the retained arms (163,840 boards, both tables, both vulnerabilities,
+    `Solver` on the main thread) and splits `P(X | we fail)` from
+    `P(X | we make)`. `examples/ab-dump-diff` is untouched, because
+    `scripts/sd-pd-dumps.sh` gates on its output not drifting. Result: at the
+    gate's trigger the doubles are only weakly failure-conditioned — lift
+    **1.6–2.5×**, `P(X | fail) ≈ 0.65` against `P(X | make) ≈ 0.33` — so a third
+    of the contracts we buy there are doubled *and make*. The design's
+    failing-branch-only treatment is **refuted** and `EV(bid C)` now carries a
+    rate on both branches. Marginally the lift reads 4.8–7.0×, i.e. exactly the
+    "overwhelmingly failure-conditioned" answer the design predicted and the
+    wrong one for the gate's population — the same conditioning error as the q
+    table, caught the same way. Two further findings recorded: `P(fail)` is
+    **0.53–0.64** at that node (we fail most contracts we buy after they reach
+    the 4-level), and the "we under-double 4–12×" asymmetry is a property of the
+    *fired* competitive subpopulation, not of the population at large, where the
+    two directions are near-symmetric (they double 7,630 of our contracts, we
+    double 7,592 of theirs).
+
+  Two independent reproduction gates passed en route: `eval-columns`' pooled
+  rows reproduce `evaluator_v3_dnf.json`'s published MAE/coverage, and
+  `probe-doubling`'s `P(X)` column reproduces `q-table.py`'s gate-reached q from
+  a different language and a stride-sampled subset.
 
 ### Changed
 

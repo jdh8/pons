@@ -325,7 +325,8 @@ judgement nodes:
 | gate | rho | 374,595 | 1.4118 | 1.8042 | 46.73% |
 
 **The opponent columns are not worse.** Pooling me+partner against lho+rho, the
-their-side MAE penalty is **+0.0019** tricks over all nodes, **+0.0036**
+their-side MAE penalty is **−0.0019** tricks over all nodes (i.e. their columns
+are *better* there), **+0.0036**
 contested, and **+0.0225** on the gate slice — every one an order of magnitude
 inside the 0.15-trick bound the accountant pre-registered. Coverage runs
 *slightly better* for their columns (+0.05 / +0.16 / +0.42 points), so the σ
