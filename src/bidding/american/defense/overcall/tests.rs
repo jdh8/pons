@@ -693,3 +693,27 @@ fn suppress_5card_major_takeout_overcalls() {
         "the knob overcalls the five-card major instead of doubling"
     );
 }
+
+/// `DefenseKnobs::suppress_long_minor_takeout` extends the same argument one card
+/// further: a 6-3-3-1 passes `TakeoutSupport::Strict` (three cards in every unbid
+/// suit) yet buries a minor long enough to overcall.  Opt-in, so the default arm
+/// still doubles.
+#[test]
+fn suppress_long_minor_takeout_overcalls() {
+    // 3♠-1♥-3♦-6♣, 14 HCP, short in their hearts — the residue's shape.
+    let over_1h = [call(1, Strain::Hearts)];
+    let hand = "AQ5.4.K87.AJT962";
+
+    let off_arm = Agreements::default();
+    let (off, _) = best_call_with(&off_arm, &over_1h, hand);
+    assert_eq!(off, Call::Double, "the default still doubles the 6-3-3-1");
+
+    let mut on_arm = Agreements::default();
+    on_arm.defense.suppress_long_minor_takeout = true;
+    let (on, _) = best_call_with(&on_arm, &over_1h, hand);
+    assert_eq!(
+        on,
+        call(2, Strain::Clubs),
+        "the knob overcalls the six-card minor instead of doubling"
+    );
+}

@@ -636,6 +636,36 @@ pub struct DefenseKnobs {
     /// +0.1129, sd-lead +0.0124 / +0.0413 IMPs/board; about 2% fired.  `false`
     /// restores the old double.
     pub suppress_5card_major_takeout: bool,
+    /// Suppress a takeout double with an unbid six-card minor
+    ///
+    /// The generalization of [`suppress_5card_major_takeout`]: bar the double
+    /// whenever we hold a suit long enough to overcall naturally — five for a
+    /// major, six for a minor.  `TakeoutSupport::Strict` demands three cards in
+    /// every unbid suit, so a 6-3-3-1 sails through the shape gate and buries
+    /// its long minor; 45 of the 69 boards in the BEN `X` → `2♦` residue
+    /// (−119 plain / −157 PD) hold exactly such a suit.  **Default off**
+    /// pending its A/B; on routes the hand to its natural overcall.
+    ///
+    /// [`suppress_5card_major_takeout`]: Self::suppress_5card_major_takeout
+    pub suppress_long_minor_takeout: bool,
+    /// Split the overcall/double seam by level, and author the doubler's rebids
+    ///
+    /// A hand too strong for a natural overcall has to double whatever its
+    /// shape — a strength problem, not a fitting one — but "too strong" is
+    /// cheaper at the one level than at the two.  `true` drops the strong
+    /// double's floor (and the **2-level** overcall's ceiling with it) by one
+    /// HCP while the 1-level ceiling stays put, so at the seam the cheap
+    /// 1-level overcall still outscores the double and only the awkward
+    /// two-level one-suiter moves.  Composes with the HCP-gauged partition
+    /// ([`strong_double_hcp`]) only; the legacy `points` path ignores it.
+    ///
+    /// The same switch authors the doubler's rebids over a minimum advance
+    /// (the `doubler-rebid` package), because routing those hands into a node
+    /// with no authored continuation is measuring an incomplete convention.
+    /// **Default off** pending its A/B.
+    ///
+    /// [`strong_double_hcp`]: Self::strong_double_hcp
+    pub defensive_seam_split: bool,
     /// Use disciplined strength bands for natural suit overcalls
     ///
     /// `true` (the **default**, the shipped fix) raises the 1-level cap to 17
@@ -1407,6 +1437,8 @@ impl Default for DefenseKnobs {
             suppress_4432_vs_major: false,
             suppress_4432_vs_minor: false,
             suppress_5card_major_takeout: true,
+            suppress_long_minor_takeout: false,
+            defensive_seam_split: false,
             overcall_discipline: true,
             direct_weak_jump_overcall: true,
             direct_minor_weak_jump_overcall: true,

@@ -731,6 +731,19 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_suppress_5card_major_takeout: bool,
 
+    /// Bar our takeout double on a hand with an unbid **six-card minor** — the
+    /// same argument as the five-card major, one card further (opt-in; see
+    /// `DefenseKnobs::suppress_long_minor_takeout`).
+    #[arg(long, default_value_t = false)]
+    ns_suppress_long_minor_takeout: bool,
+
+    /// Let the strong takeout double reach one HCP lower for hands that would
+    /// otherwise have to overcall at the **two** level, and author the doubler's
+    /// rebids over a minimum advance (opt-in; see
+    /// `DefenseKnobs::defensive_seam_split`).
+    #[arg(long, default_value_t = false)]
+    ns_defensive_seam_split: bool,
+
     /// Disable the **rich advance** of partner's takeout double of a one-opening
     /// (`(1t) X - ?`) — revert to the flat advance without the cue + notrump
     /// invite/force ladder (shipped default-on; see `defense.rich_advance_double_enabled`).
@@ -1494,6 +1507,8 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.defense.suppress_4432_vs_major = args.ns_suppress_4432_vs_major;
     agreements.defense.suppress_4432_vs_minor = args.ns_suppress_4432_vs_minor;
     agreements.defense.suppress_5card_major_takeout = !args.no_ns_suppress_5card_major_takeout;
+    agreements.defense.suppress_long_minor_takeout = args.ns_suppress_long_minor_takeout;
+    agreements.defense.defensive_seam_split = args.ns_defensive_seam_split;
     agreements.decision.two_over_one_force = !args.no_ns_two_over_one_force;
     agreements.instinct.competitive_rebid = !args.no_ns_competitive_rebid;
     agreements.instinct.reopening_notrump = !args.no_ns_reopening_notrump;

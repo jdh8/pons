@@ -7,7 +7,7 @@ cd "$(dirname "$(readlink -f "$0")")/.."
 MODE=${1:?usage: ab-ben-defensive-overcalls.sh o3 RESULTS_DIR}
 R=${2:?usage: ab-ben-defensive-overcalls.sh o3 RESULTS_DIR}
 case "$MODE" in
-o3) ;;
+o3 | bar | seam) ;;
 reading|o1|o2)
     echo "$MODE stopped: the direct-1NT reader gate failed" >&2
     exit 2
@@ -17,7 +17,7 @@ o4)
     exit 2
     ;;
 *)
-    echo "unknown mode: $MODE (only o3 remains measurable)" >&2
+    echo "unknown mode: $MODE (o3, bar, seam)" >&2
     exit 2
     ;;
 esac
@@ -69,8 +69,24 @@ compare() {
 
 log "=== BEN defensive-overcalls $MODE start, sha=$(git rev-parse --short HEAD), SEED_BASE=$SEED_BASE, ${SERVERS}x${PER_SHARD} bd/arm/vul, $NOTE"
 for vul in none both; do
-    arm control "$vul" --no-ns-direct-minor-weak-jump-overcall
-    arm minor "$vul"
-    compare minor control "$vul" --on-ns-direct-minor-weak-jump-overcall
+    case "$MODE" in
+    o3)
+        arm control "$vul" --no-ns-direct-minor-weak-jump-overcall
+        arm minor "$vul"
+        compare minor control "$vul" --on-ns-direct-minor-weak-jump-overcall
+        ;;
+    # docs/takeout-double-layers.md — both knobs default off, so the control
+    # arm is HEAD's defaults with no flag.
+    bar)
+        arm control "$vul"
+        arm on "$vul" --ns-suppress-long-minor-takeout
+        compare on control "$vul" --on-ns-suppress-long-minor-takeout
+        ;;
+    seam)
+        arm control "$vul"
+        arm on "$vul" --ns-defensive-seam-split
+        compare on control "$vul" --on-ns-defensive-seam-split
+        ;;
+    esac
 done
 log "=== BEN defensive-overcalls $MODE done"

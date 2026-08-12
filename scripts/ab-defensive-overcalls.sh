@@ -6,7 +6,7 @@ set -euo pipefail
 MODE=${1:?usage: ab-defensive-overcalls.sh o3 RESULTS_DIR}
 BASE=${2:?usage: ab-defensive-overcalls.sh o3 RESULTS_DIR}
 case "$MODE" in
-o3) ;;
+o3 | bar | seam) ;;
 reading|o1|o2)
     echo "$MODE stopped: the direct-1NT reader gate failed" >&2
     exit 2
@@ -16,7 +16,7 @@ o4)
     exit 2
     ;;
 *)
-    echo "unknown mode: $MODE (only o3 remains measurable)" >&2
+    echo "unknown mode: $MODE (o3, bar, seam)" >&2
     exit 2
     ;;
 esac
@@ -38,9 +38,27 @@ sdpair() {
 
 log "=== defensive-overcalls $MODE start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
 for vul in none both; do
-    arm control "$vul" --no-ns-direct-minor-weak-jump-overcall
-    arm minor "$vul"
-    diffpair minor control "$vul"
-    sdpair minor control "$vul" --on-ns-direct-minor-weak-jump-overcall
+    case "$MODE" in
+    o3)
+        arm control "$vul" --no-ns-direct-minor-weak-jump-overcall
+        arm minor "$vul"
+        diffpair minor control "$vul"
+        sdpair minor control "$vul" --on-ns-direct-minor-weak-jump-overcall
+        ;;
+    # docs/takeout-double-layers.md.  Both control arms are HEAD's defaults —
+    # each knob is off by default, so `arm control` needs no flag.
+    bar)
+        arm control "$vul"
+        arm on "$vul" --ns-suppress-long-minor-takeout
+        diffpair on control "$vul"
+        sdpair on control "$vul" --on-ns-suppress-long-minor-takeout
+        ;;
+    seam)
+        arm control "$vul"
+        arm on "$vul" --ns-defensive-seam-split
+        diffpair on control "$vul"
+        sdpair on control "$vul" --on-ns-defensive-seam-split
+        ;;
+    esac
 done
 log "=== defensive-overcalls $MODE done"

@@ -160,11 +160,23 @@ pub fn defense_to_suit(their_opening: Bid, agreements: &Agreements) -> Rules {
     // scores the same, above it the shape-free tier is finite at weight 1.2
     // and always outscores a weight-0 pass.  Authored so the pass reading
     // (`ReadingProfile::pass`) can project the band a passed hand sits within.
+    // `defensive_seam_split` lets the strong tier reach one HCP lower, but only
+    // for the hands that would otherwise have to overcall at the *two* level:
+    // the 1-level ceiling below is left alone, so at the seam the cheap 1-level
+    // overcall (weight 140) still outscores the double (120) and only the
+    // awkward two-level one-suiter moves.  Composes with the HCP-gauged
+    // partition only; the legacy `points` path ignores it.
+    let seam = u8::from(
+        agreements.defense.defensive_seam_split && agreements.defense.strong_double_hcp.is_some(),
+    );
     rules = match agreements.defense.strong_double_hcp {
-        Some(n) => rules
-            .rule(Call::Double, 120, hcp(n..))
-            .alert(TAKEOUT_DOUBLE)
-            .rule(Call::Pass, 0, hcp(..n)),
+        Some(n) => {
+            let floor = n.saturating_sub(seam);
+            rules
+                .rule(Call::Double, 120, hcp(floor..))
+                .alert(TAKEOUT_DOUBLE)
+                .rule(Call::Pass, 0, hcp(..floor))
+        }
         None => rules
             .rule(Call::Double, 120, points(17..))
             .alert(TAKEOUT_DOUBLE)
@@ -230,8 +242,16 @@ pub fn defense_to_suit(their_opening: Bid, agreements: &Agreements) -> Rules {
             };
             // The band top is the other face of the strong-tier floor: when the
             // partition is HCP-gauged it moves with it, so overflow lands in the
-            // tier instead of a shape-blind double on a five-card suit.
-            rules = match (agreements.defense.strong_double_hcp, relax_passed) {
+            // tier instead of a shape-blind double on a five-card suit.  Under
+            // `defensive_seam_split` only the 2-level top follows the tier down.
+            let top = agreements.defense.strong_double_hcp.map(|n| {
+                if level == 1 {
+                    n
+                } else {
+                    n.saturating_sub(seam)
+                }
+            });
+            rules = match (top, relax_passed) {
                 (Some(n), false) => rules.rule(
                     Bid::new(level, strain),
                     weight,
@@ -254,7 +274,7 @@ pub fn defense_to_suit(their_opening: Bid, agreements: &Agreements) -> Rules {
                 ),
             };
             if agreements.defense.overcall_four_card {
-                rules = match (agreements.defense.strong_double_hcp, relax_passed) {
+                rules = match (top, relax_passed) {
                     (Some(n), false) => rules.rule(
                         Bid::new(level, strain),
                         weight,

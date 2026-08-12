@@ -120,6 +120,16 @@ struct Args {
     #[arg(long, default_value_t = false)]
     no_ns_direct_minor_weak_jump_overcall: bool,
 
+    /// Bar our takeout double on a hand with an unbid **six-card minor**
+    /// (opt-in; see `DefenseKnobs::suppress_long_minor_takeout`).
+    #[arg(long, default_value_t = false)]
+    ns_suppress_long_minor_takeout: bool,
+
+    /// Split the overcall/double seam by level and author the doubler's rebids
+    /// (opt-in; see `DefenseKnobs::defensive_seam_split`).
+    #[arg(long, default_value_t = false)]
+    ns_defensive_seam_split: bool,
+
     /// Free-form provenance recorded in gen_args (the launcher passes the
     /// server conf's sha256 here)
     #[arg(long)]
@@ -442,6 +452,8 @@ fn main() -> anyhow::Result<()> {
     agreements.defense.direct_weak_jump_overcall = !args.no_ns_direct_weak_jump_overcall;
     agreements.defense.direct_minor_weak_jump_overcall =
         !args.no_ns_direct_minor_weak_jump_overcall;
+    agreements.defense.suppress_long_minor_takeout = args.ns_suppress_long_minor_takeout;
+    agreements.defense.defensive_seam_split = args.ns_defensive_seam_split;
     let our_floor = american(&agreements).bind();
     let epbot = if args.calibrate_epbot {
         let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());

@@ -17,6 +17,7 @@
 //! | [`advance_rich`] | the core cue ladder after partner's double |
 //! | [`advance_rubens`] | jump-cue Rubens transfers after partner's double |
 //! | [`advance_sohl`] | sohl advances after partner's double |
+//! | [`doubler_rebid`] | the doubler's rebid over a minimum advance |
 //! | [`responsive`] | the responsive double when they raise |
 //! | [`gladiator`] | the relay structure after our `1NT` overcall |
 //! | [`nt_defense`] | defending their `1NT` — the bundle and the natural chain |
@@ -27,7 +28,7 @@ use super::super::agreements::Agreements;
 use super::super::constraint::{
     Cons, Constraint, and, at_least_as_long, balanced, equal_length, hcp, len, length_box,
     long_suit_box, longer_suit, longest_unbid, min_level_is, or, passed_hand, points,
-    points_by_vul, shapes, short_in_their_suits, stopper_in_their_suits, suit_hcp,
+    points_by_vul, shapes, short_in_their_suits, stopper_in_their_suits, suit_hcp, support,
     takeout_double_shape_ok, top_honors, unbid_support,
 };
 use super::super::context::Context;
@@ -55,6 +56,7 @@ mod advance_minor_jump;
 mod advance_rich;
 mod advance_rubens;
 mod advance_sohl;
+mod doubler_rebid;
 mod gladiator;
 mod leaping_michaels;
 mod michaels;
@@ -71,6 +73,7 @@ mod weak_two_nt_advance;
 
 use advance_double::{advance_double_package, advance_of_double_package};
 use advance_rich::rich_advance_double_package;
+use doubler_rebid::doubler_rebid_package;
 use gladiator::{gladiator_package, gladiator_sohl_package};
 use leaping_michaels::leaping_michaels_package;
 use michaels::unusual_notrump_advance_package;
@@ -118,6 +121,10 @@ const ADVANCE_CUE: Alert = Alert("advance-cue");
 /// Advancer's jump-cue Rubens transfer — invitational-or-better with a 5+ unbid
 /// major (the suit one rank above the bid), asking the doubler to declare it
 const ADVANCE_TRANSFER: Alert = Alert("advance-transfer");
+
+/// The doubler's cue of their opening suit over a minimum advance — game-forcing
+/// extras with no clear direction, asking advancer to describe further
+const DOUBLER_CUE: Alert = Alert("doubler-cue");
 
 /// Unusual 2NT over a suit opening — 5-5 in the two lowest unbid suits
 const UNUSUAL: Alert = Alert("unusual-2nt");
@@ -264,6 +271,10 @@ pub fn defensive(agreements: &Agreements) -> Defensive {
         agreements,
         &[advance_double_package(), rich_advance_double_package()],
     );
+
+    // The doubler's rebid over that advance, when the seam split it completes
+    // is on.
+    compile_into(&mut d, agreements, &[doubler_rebid_package()]);
 
     // Advances of our 1NT overcall (`(1t) 1NT -`).  Over a MINOR the advancer
     // plays the full opening-1NT structure (Stayman/transfers/Smolen) grafted

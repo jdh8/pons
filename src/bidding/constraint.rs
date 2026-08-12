@@ -2943,6 +2943,7 @@ pub(crate) fn takeout_double_shape_ok(
     let suppress_4432_major = defense.suppress_4432_vs_major;
     let suppress_4432_minor = defense.suppress_4432_vs_minor;
     let suppress_5card_major = defense.suppress_5card_major_takeout;
+    let suppress_long_minor = defense.suppress_long_minor_takeout;
     described(
         "not a weak balanced hand diverted to Pass",
         move |hand: Hand, context: &Context<'_>| {
@@ -2958,6 +2959,14 @@ pub(crate) fn takeout_double_shape_ok(
                 && Suit::ASC.into_iter().any(|suit| {
                     Strain::from(suit).is_major()
                         && hand[suit].len() >= 5
+                        && !context.their_suits().any(|their| their == suit)
+                });
+            // Unbid six-card minor: the same argument one card longer — a
+            // 6-3-3-1 passes `TakeoutSupport::Strict` yet buries its long suit.
+            let reject_long_minor = suppress_long_minor
+                && Suit::ASC.into_iter().any(|suit| {
+                    Strain::from(suit).is_minor()
+                        && hand[suit].len() >= 6
                         && !context.their_suits().any(|their| their == suit)
                 });
             // Flat 4-3-3-3: no doubleton at all — suppressed 12–14 (its own knob).
@@ -2976,7 +2985,7 @@ pub(crate) fn takeout_double_shape_ok(
                 } else {
                     suppress_4432_minor
                 });
-            !(reject_4333 || reject_5332 || reject_4432 || reject_5card_major)
+            !(reject_4333 || reject_5332 || reject_4432 || reject_5card_major || reject_long_minor)
         },
     )
 }

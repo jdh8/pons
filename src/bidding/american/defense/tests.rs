@@ -48,7 +48,7 @@ fn defensive_overcall_variants_hold_row_invariants() {
     use crate::bidding::agreements::Agreements;
 
     type Configure = fn(&mut Agreements);
-    let configs: [Configure; 5] = [
+    let configs: [Configure; 7] = [
         |agreements| agreements.defense.nt_overcall_no_major = true,
         |agreements| agreements.defense.nt_overcall_prefer_one_level_major = true,
         |agreements| {
@@ -57,6 +57,8 @@ fn defensive_overcall_variants_hold_row_invariants() {
         },
         |agreements| agreements.defense.nt_overcall_without_stopper = true,
         |agreements| agreements.defense.direct_minor_weak_jump_overcall = false,
+        |agreements| agreements.defense.suppress_long_minor_takeout = true,
+        |agreements| agreements.defense.defensive_seam_split = true,
     ];
 
     for configure in configs {
@@ -64,7 +66,11 @@ fn defensive_overcall_variants_hold_row_invariants() {
         configure(&mut agreements);
         crate::bidding::rows::assert_package_invariants(
             &agreements,
-            &[super::suit_defense_package()],
+            &[
+                super::suit_defense_package(),
+                super::weak_two_defense_package(),
+                super::doubler_rebid_package(),
+            ],
         );
     }
 }

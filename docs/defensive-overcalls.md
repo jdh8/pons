@@ -168,6 +168,18 @@ either implemented arm. The prerequisite direct-1NT reader failed before this
 sweep ran. **O1 verdict: blocked; both fields remain default-off and the runner
 rejects `o1`.**
 
+**The trigger, when O1 unblocks (found 2026-08-13 while rebuilding
+[takeout-double-layers.md](takeout-double-layers.md)).** Across all 448 in-node
+boards where we overcall `1NT` (−446 plain / −1,002 PD), one cell — an **unbid
+five-card major at 15–17 HCP** — is 46% of the rows and **80% of both losses**,
+and BEN bids that exact major on 207 of the 256 such hands. That is the strict
+arm's cell, at a *narrower* HCP band than either implemented arm applies. 18
+HCP is 42% of the rows and the **least** lossy cell per board (−0.32 plain), so
+an arm that also displaces the 18-count is diluting itself; a band clause
+belongs on whichever arm runs. Note also that BBA's own `1NT` overcall is
+**16–18** (`MB.TXT:3466`, subject to that file's provenance caveat), narrower
+than our `hcp(15..=18)` at both edges.
+
 ### O2 — the `X → 1NT` forensic and independent widenings
 
 The 158 hands our X wins where BEN overcalls `1NT` all pass Strict takeout
@@ -417,6 +429,11 @@ SEED_BASE="$(<"$BASE/o3/seed")" \
 | O2 stopperless / semi-balanced | not run | not run | not run | stopperless blocked/OFF; semi-balanced removed |
 | O3 exact `(1♣) 2♦` | all cells wash, non-negative DD/PD | all cells wash, non-negative SD-PD | all cells wash; no refutation | **ship default-on** |
 | O4 quality gate | not run; stopped before A/B | not run | not run | no model, no atom, no active gate |
+
+The same two runners also carry the takeout-double package's arms — `bar`
+(`suppress_long_minor_takeout`) and `seam` (`defensive_seam_split`), both
+default-off. Their design, evidence, and verdict ledger live in
+[takeout-double-layers.md](takeout-double-layers.md), not here.
 
 ## Out of scope (decided, not deferred by neglect)
 

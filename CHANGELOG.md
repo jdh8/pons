@@ -9,6 +9,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The multi-layered takeout double — two opt-in knobs, both default off**
+  ([`docs/takeout-double-layers.md`](docs/takeout-double-layers.md)). The
+  design that doc carried since 2026-08-11 was organized around "the double is
+  a tool to find the 4-4 unbid-major fit"; pulling the boards behind its own
+  evidence table refuted the premise (the `2♣`→`X` slice is 13.6% 4-4 majors,
+  not "5m + both majors"; `X`→`3♣` is 100% weak-two openings, out of node; and
+  where we overcall `1NT` holding 4-4 majors we *win* +46 plain / +62 PD). The
+  rung table and the strain-split of the overcall's weight are deleted. What
+  the residue does support is built instead:
+
+  - `DefenseKnobs::suppress_long_minor_takeout` (`bba-gen`/`ben-gen`
+    `--ns-suppress-long-minor-takeout`, `ab-dump-sd --on/--off-…`,
+    `scripts/ab-defensive-overcalls.sh bar`) generalizes the shipped five-card-
+    major bar: a hand holding a suit long enough to overcall naturally should
+    overcall, and `TakeoutSupport::Strict` lets a 6-3-3-1 through today. In the
+    `X` → `2♦` residue (69 boards, −119 plain / −157 PD, 100% in-node) **45**
+    hold exactly that shape.
+  - `DefenseKnobs::defensive_seam_split` (`--ns-defensive-seam-split`,
+    `scripts/ab-defensive-overcalls.sh seam`) drops the strong double's floor
+    to 17 and the **2-level** overcall's ceiling with it, leaving the 1-level
+    ceiling at 18 — "too strong for a natural overcall" is cheaper at the one
+    level than at the two, and argmax keeps the 1-level overcall at the seam.
+    The same knob authors the `doubler-rebid` package (twelve nodes: four
+    openings × three unbid suits, at advancer's minimum advance), because
+    routing those hands into a node with no authored continuation is measuring
+    an incomplete convention. Five rungs — cheapest NT 19–21 with a stopper,
+    new suit 15+ on five cards, raise 15+ on four-card support, cue 17+
+    (artificial, `doubler-cue`), banded Pass — with every floor two HCP higher
+    when advancer was forced to the two level.
+
+  Neither knob ships: this is the built-and-measurable state, and the A/Bs are
+  next. **No user-visible behaviour change** — with both knobs off the system
+  is byte-identical to the previous commit (`render-book` `6fa476f9…`,
+  `smoke-default --count 20000 --seed 1` `b9cd64a7…`).
+
 - **The competitive accountant — the contested game-level decision, priced**
   (`InstinctProfile::competitive_accountant`, **default on**;
   `bba-gen --no-ns-competitive-accountant`;

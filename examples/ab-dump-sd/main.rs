@@ -106,6 +106,20 @@ struct Args {
     /// Read the OFF arm with the exact-six weak `(1♣) 2♦` extension.
     #[arg(long, default_value_t = false)]
     off_ns_direct_minor_weak_jump_overcall: bool,
+    /// Read the ON arm with the takeout double barred on a six-card unbid minor
+    /// (`defense.suppress_long_minor_takeout`).
+    #[arg(long, default_value_t = false)]
+    on_ns_suppress_long_minor_takeout: bool,
+    /// Read the OFF arm with the six-card-minor takeout bar.
+    #[arg(long, default_value_t = false)]
+    off_ns_suppress_long_minor_takeout: bool,
+    /// Read the ON arm with the level-split overcall/double seam and the authored
+    /// doubler rebids (`defense.defensive_seam_split`).
+    #[arg(long, default_value_t = false)]
+    on_ns_defensive_seam_split: bool,
+    /// Read the OFF arm with the level-split seam.
+    #[arg(long, default_value_t = false)]
+    off_ns_defensive_seam_split: bool,
     /// Read the ON arm's auctions with this natural 1NT-defense suit-overcall
     /// band `LO:HI` (`ReadingProfile::natural_overcall_points`; the band sweep's arms differ
     /// only here, so the blind leader must know which one bid)
@@ -199,6 +213,8 @@ fn main() {
     on_arm.defense.two_level_minor_overcall_tight = args.on_ns_two_level_minor_overcall_tight;
     on_arm.defense.direct_weak_jump_overcall = args.on_ns_direct_weak_jump_overcall;
     on_arm.defense.direct_minor_weak_jump_overcall = args.on_ns_direct_minor_weak_jump_overcall;
+    on_arm.defense.suppress_long_minor_takeout = args.on_ns_suppress_long_minor_takeout;
+    on_arm.defense.defensive_seam_split = args.on_ns_defensive_seam_split;
     on_arm.defense.weak_two_notrump_points = band(&args.on_ns_weak_two_nt_points);
     on_arm.defense.weak_two_notrump_advances_enabled = args.on_ns_weak_two_nt_advances;
     let partnership_on = american(&on_arm).bind();
@@ -213,6 +229,8 @@ fn main() {
     off_arm.defense.two_level_minor_overcall_tight = false;
     off_arm.defense.direct_weak_jump_overcall = args.off_ns_direct_weak_jump_overcall;
     off_arm.defense.direct_minor_weak_jump_overcall = args.off_ns_direct_minor_weak_jump_overcall;
+    off_arm.defense.suppress_long_minor_takeout = args.off_ns_suppress_long_minor_takeout;
+    off_arm.defense.defensive_seam_split = args.off_ns_defensive_seam_split;
     off_arm.defense.weak_two_notrump_points = band(&args.off_ns_weak_two_nt_points);
     off_arm.defense.weak_two_notrump_advances_enabled = args.off_ns_weak_two_nt_advances;
     let partnership_off = american(&off_arm).bind();
