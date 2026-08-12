@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **The competitive accountant — the contested game-level decision, priced**
-  (`InstinctProfile::competitive_accountant`, **default off**;
+  (`InstinctProfile::competitive_accountant`, **default on**;
   `bba-gen --ns-competitive-accountant`;
   `scripts/ab-competitive-accountant.sh`). Above the three-level our book is
   silent by construction — every double rule is gated `their_live_bid_at_most(3)`
@@ -28,13 +28,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   defence by more than `COMPETITIVE_MARGIN` (300 points, the anti-phantom-save
   direction), mask a phantom penalty double, and charge Pass a finite logit when
   the double is the better bet — never `-∞`, because a distribution must survive
-  every stage. It wraps both learned floors, so `dutch()` inherits it
-  ([`docs/dutch-system.md`](docs/dutch-system.md) records that it must not be
-  read as a Dutch result).
+  every stage. It wraps both learned floors, so `dutch()` inherits it — every
+  Dutch number measured before this predates the gate
+  ([`docs/dutch-system.md`](docs/dutch-system.md)).
 
-  **No user-visible behaviour change**: the stage returns before reading
-  anything when the knob is off, and `smoke-default --count 20000 --seed 1`
-  hashes identically at `7d8b23b` and here. Everything except the trick estimate
+  **This changes the default system** — `smoke-default --count 20000 --seed 1`
+  moves `39a9a31a…` → `b9cd64a7…`; knob off, the stage returns before reading
+  anything and the old hash comes back. Everything except the trick estimate
   is closed form, and every parameter was calibrated *before* any board was
   spent — an A/B cannot arbitrate the P(double) that decides the behaviour it
   scores. Doubling rides **both** branches at the trigger's own measured rates
@@ -43,12 +43,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   shard by `bba-gen`. Design and the four deviations from it in
   [`docs/ai-bidder/competitive-accountant.md`](docs/ai-bidder/competitive-accountant.md).
 
-  **Measured and it wins on the honest scorer** (seed `1786536281`, sha
-  `2241092`, 204,800 boards/arm/vul, opponents BBA at both tables). Plain DD
-  **+0.0092 ±0.0024** (none) and **+0.0141 ±0.0030** (both) — CI-clear on both
-  vuls, +1.76/+2.20 IMPs per fired board on 0.52%/0.64% fired. Perfect defense
-  reads −0.0022 ±0.0022 and −0.0035 ±0.0027, and **does not arbitrate this
-  knob**: `ns_score_pd` only ever *adds* a double to a failing undoubled
+  **Measured and it wins on the honest scorer** (seed `1786536281`, 204,800
+  boards/arm/vul, opponents BBA at both tables). Plain DD **+0.0088 ±0.0023**
+  (none) and **+0.0140 ±0.0029** (both) — CI-clear on both vuls, +1.89/+2.49
+  IMPs per fired board on 0.47%/0.56% fired. Perfect defense reads −0.0010
+  ±0.0022 and −0.0013 ±0.0026 — a wash — and **cannot arbitrate this knob**
+  either way: `ns_score_pd` only ever *adds* a double to a failing undoubled
   contract and keeps a real one that makes, so for an action whose mechanism is
   *double more* it grants the OFF arm every declined double for free and bills
   the ON arm for every wrong one — no upside, full downside. The decision
@@ -60,15 +60,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [`docs/measurement.md`](docs/measurement.md): name the knob's direction
   before reading a row, and arbitrate a doubling knob on plain DD.
 
-  Known leak, priced and charged by plain DD already: 21–28 of each cell's 40
-  worst boards add one of *our* doubles and 15–24 of those are run out of
-  (`7♦ X` → `7♠`, `6♥ X` → `7♦`) — the design's recorded leaf approximation
-  (EV(X) assumes the double ends the auction) failing at the slam levels the
-  `level ≥ 4` trigger admits. So the gate now **pushes** a double only up to
-  the five-level (`DOUBLE_PUSH_CEILING`); *masking* a bad double stays
-  unconditional at every level, since that direction removes the call the tail
-  blames. A/B of the cap on the same 409,600 deals is in flight; the knob stays
-  default-off until it lands.
+  **Shipped shape adds a slam cap** (`DOUBLE_PUSH_CEILING = 5`): a bad double
+  is *masked* at any level, but a double is only ever *pushed* below slam. The
+  first run's loss tail was six- and seven-level doubles they ran out of (`7♦ X`
+  → `7♠`, `6♥ X` → `7♦`) — the design's recorded leaf approximation, EV(X)
+  assumes the double ends the auction, failing at the slam levels the
+  `level ≥ 4` trigger admits. Re-measured on the same 409,600 deals (sha
+  `d1e9454`), the cap is a **plain-DD wash and a PD win**: capped vs uncapped is
+  −0.0004 ±0.0006 / −0.0001 ±0.0008 plain and **+0.0012 ±0.0005 / +0.0022
+  ±0.0006** PD. Doubling a slam that fails pays enough to offset the run-outs,
+  so the honest scorer is indifferent — while PD, which hands a failing contract
+  its double for free, charges the made and pulled ones in full. The shipped arm
+  therefore reads **plain win + PD wash** (−0.0010 ±0.0022 / −0.0013 ±0.0026)
+  where the uncapped one read plain win + PD loss, on a smaller divergent set
+  with a higher per-fired figure (1.76 → 1.89, 2.20 → 2.49).
 
 - **Three calibration instruments for the competitive accountant, and the
   offline gates they answer** (`examples/eval-columns`, `examples/probe-doubling`,

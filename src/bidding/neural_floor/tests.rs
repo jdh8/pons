@@ -333,6 +333,7 @@ fn the_competitive_gate_vetoes_the_phantom_save() {
     let auction = [call(1, Strain::Spades), call(5, Strain::Hearts)];
     let five_spades = call(5, Strain::Spades);
     let mut agreements = Agreements::default();
+    agreements.decision.instinct.competitive_accountant = false;
 
     let off = shelled_with(&agreements, &auction, "43.9862.7532.J864");
     assert!(
@@ -374,8 +375,9 @@ fn the_competitive_gate_vetoes_the_phantom_save() {
 #[test]
 fn the_accountant_pushes_no_double_over_a_slam() {
     let hand = "AQ.K94.AT42.KQ76";
-    let mut agreements = Agreements::default();
-    agreements.decision.instinct.competitive_accountant = true;
+    let agreements = Agreements::default();
+    let mut silent = agreements;
+    silent.decision.instinct.competitive_accountant = false;
 
     let five = [call(1, Strain::Spades), call(5, Strain::Hearts)];
     let before = crate::bidding::instinct::competitive_counts()[2];
@@ -385,7 +387,7 @@ fn the_accountant_pushes_no_double_over_a_slam() {
         "the five-level demotion is attributed"
     );
     assert!(
-        pushed.0[Call::Pass] < shelled(&five, hand).0[Call::Pass],
+        pushed.0[Call::Pass] < shelled_with(&silent, &five, hand).0[Call::Pass],
         "Pass is charged when the double is the better bet"
     );
     assert!(pushed.has_mass(), "a distribution survives the stage");
@@ -400,7 +402,7 @@ fn the_accountant_pushes_no_double_over_a_slam() {
     );
     assert_eq!(
         capped.0[Call::Pass],
-        shelled(&slam, hand).0[Call::Pass],
+        shelled_with(&silent, &slam, hand).0[Call::Pass],
         "the cap skips the action rather than scaling it"
     );
 }

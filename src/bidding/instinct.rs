@@ -417,9 +417,11 @@ pub struct InstinctProfile {
     /// vulnerability, the measured doubling rate) — and demotes calls the
     /// economics refuse.  It never introduces a call the net did not rank.
     ///
-    /// **Default off**, pending `scripts/ab-competitive-accountant.sh`; off
-    /// skips the stage entirely, so the output is byte-identical to today.
-    /// Designed in `docs/ai-bidder/competitive-accountant.md`, calibrated in
+    /// **Default on** since `scripts/ab-competitive-accountant.sh`: plain DD
+    /// +0.0088 ±0.0023 (none) and +0.0140 ±0.0029 (both) over 204,800
+    /// boards/arm/vul against BBA, perfect defense a wash either way.  Off
+    /// skips the stage entirely.  Designed in
+    /// `docs/ai-bidder/competitive-accountant.md`, calibrated in
     /// `docs/ai-bidder/doubling-calibration.md`.
     pub competitive_accountant: bool,
     /// Edit 1 — read partner's fit-known strength off the `support_points` gauge
@@ -521,7 +523,7 @@ impl Default for InstinctProfile {
             fit_sum_game: 31,
             accountant_floor: true,
             net_collar: false,
-            competitive_accountant: false,
+            competitive_accountant: true,
             fit_sum_support_read: false,
             nt_hcp_read: false,
             two_over_one_slam_strength: true,
@@ -563,7 +565,7 @@ impl InstinctProfile {
             fit_sum_game: 32,
             accountant_floor: false,
             net_collar: true,
-            competitive_accountant: true,
+            competitive_accountant: false,
             fit_sum_support_read: true,
             nt_hcp_read: true,
             two_over_one_slam_strength: false,

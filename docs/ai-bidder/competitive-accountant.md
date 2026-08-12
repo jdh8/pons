@@ -1,10 +1,13 @@
 # Competitive accountant — pricing the 5-level contested decision
 
-**Status: designed 2026-08-12; gates 0, 1 and 2 run the same day and all
-passed; the gate is built the same day behind
-`InstinctProfile::competitive_accountant` (default off, knob-off byte-identity
-proven — see "The gate as built"); nothing measured on boards, ships nothing
-until its A/B.** This is the design for the
+**Status: SHIPPED default-on 2026-08-12** — designed, calibrated (gates 0, 1,
+2), built and measured the same day. `InstinctProfile::competitive_accountant`
+is on in `InstinctProfile::default()`; plain DD **+0.0088 ±0.0023** (vul none)
+and **+0.0140 ±0.0029** (vul both) over 204,800 boards/arm/vul against BBA,
+perfect defense a wash on both. The shipped shape includes
+`DOUBLE_PUSH_CEILING` (arm 1): a double is *masked* at any level but *pushed*
+only below slam. Default smoke moves `39a9a31a…` → `b9cd64a7…`
+(`smoke-default --count 20000 --seed 1`). This is the design for the
 live remainder of [bba-floor.md](bba-floor.md) §7 row D — doubled-contract
 pricing and the contested decisions the constructive accountant deliberately
 left out. Evidence and every P(double) number live in the sibling
@@ -490,10 +493,41 @@ Re-run into the v1 results dir, so `$R/seed` gives the same 409,600 deals and
 cannot move the knob-off path). Two diffs per vul: `capped vs off` is the ship
 number, `capped vs priced` prices the cap itself on identical boards.
 
-| vul | fired (Pass demotions) | plain DD, capped vs off | PD | plain DD, capped vs priced |
+**Result — the cap is a plain-DD wash and a PD win, and it ships.** Same
+409,600 deals, sha `d1e9454`.
+
+| comparison | vul | divergent | plain DD | PD |
 | --- | --- | --- | --- | --- |
-| none | *(pending)* | | | |
-| both | *(pending)* | | | |
+| capped vs off | none | 959 (0.47%) | **+0.0088 ±0.0023** (+1.887/fired) | −0.0010 ±0.0022 |
+| capped vs off | both | 1,151 (0.56%) | **+0.0140 ±0.0029** (+2.493/fired) | −0.0013 ±0.0026 |
+| capped vs priced | none | 117 (0.06%) | −0.0004 ±0.0006 | **+0.0012 ±0.0005** |
+| capped vs priced | both | 170 (0.08%) | −0.0001 ±0.0008 | **+0.0022 ±0.0006** |
+
+**The prediction above was wrong, and the way it was wrong is the finding.**
+Capping was expected to *raise* the plain win, because the loss tail was all
+slam doubles. It does not: on plain DD the cap is a wash both vuls (CI
+straddles 0 on a 117/170-board divergent set, so this is a real wash, not an
+underpowered one). The traced boards were the *worst* boards, not the average
+one — doubling a slam that fails pays enough to offset the ones they run out
+of. What the cap collects is the **PD** column, cleanly and in the direction
+the structural argument predicts: a failing slam gets PD's synthetic double
+for free, so a real one adds nothing, while a made or pulled slam is charged
+in full. Pushing a double above the five-level is a PD-negative, plain-neutral
+action; removing it is free money in exactly one column.
+
+So the shipped arm reads **plain win + PD wash** on both vuls, where v1 read
+plain win + PD loss. The domain addendum still governs (PD cannot price this
+knob's benefit), but the ship no longer *rests* on it — with the cap, no
+scorer reads the treatment as negative. Per-fired rises on a smaller divergent
+set (1.761 → 1.887 and 2.204 → 2.493), which is the cap doing what a cap
+should: the same value from fewer, better-chosen actions.
+
+**Shipped default-on at this evidence.** The remaining pushed doubles are at
+the four- and five-level; the worst-board lists still show `5♦ X` → `5♥` and
+`5♣ X` → `5♠` run-outs, so next arm 2 (drop the Pass demotion entirely, keep
+veto + X-mask) is now a live question rather than a formality — this run says
+the pushed doubles at slam level were worth zero on the honest scorer, and it
+does not say the five-level ones are worth more.
 
 ## Out of scope (decided, not neglect)
 
