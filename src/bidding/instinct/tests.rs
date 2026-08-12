@@ -3609,3 +3609,34 @@ fn one_nt_runout_opener_passes_not_completes_phantom_transfer() {
     ];
     assert_eq!(best(&after_runout, "AQ4.KJ3.KQ52.432"), Call::Pass);
 }
+
+/// [`expected_score`] is `Σ P(T = k)·score(k)` over half-trick buckets, with
+/// both tails folded into 0 and 13
+///
+/// The reference numbers are computed outside the crate (`erf`, the same
+/// buckets, the published score table): a 4♠ estimate centred exactly on
+/// making, and one pushed far past the ceiling so only the fold can answer.
+#[test]
+fn expected_score_sums_the_trick_distribution() {
+    let four_spades = Bid::new(4, Strain::Spades);
+    let makes = Gaussian {
+        mean: 10.0,
+        sd: 0.5,
+    };
+    let priced = expected_score(makes, four_spades, false, |_| 0.0);
+    assert!(
+        (priced - 350.165).abs() < 0.5,
+        "4♠ non-vul on a tight estimate scores ≈350, got {priced}"
+    );
+
+    // Every bucket above 13 folds into 13, which is 4♠ plus three overtricks.
+    let absurd = Gaussian {
+        mean: 20.0,
+        sd: 1.0,
+    };
+    let folded = expected_score(absurd, four_spades, false, |_| 0.0);
+    assert!(
+        (folded - 510.0).abs() < 0.5,
+        "the upper tail folds into thirteen tricks, got {folded}"
+    );
+}

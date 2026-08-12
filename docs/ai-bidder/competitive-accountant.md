@@ -1,8 +1,10 @@
 # Competitive accountant — pricing the 5-level contested decision
 
 **Status: designed 2026-08-12; gates 0, 1 and 2 run the same day and all
-passed; no gate code written, nothing measured on boards, ships nothing until
-its A/B.** This is the design for the
+passed; the gate is built the same day behind
+`InstinctProfile::competitive_accountant` (default off, knob-off byte-identity
+proven — see "The gate as built"); nothing measured on boards, ships nothing
+until its A/B.** This is the design for the
 live remainder of [bba-floor.md](bba-floor.md) §7 row D — doubled-contract
 pricing and the contested decisions the constructive accountant deliberately
 left out. Evidence and every P(double) number live in the sibling
@@ -260,6 +262,56 @@ this node's reading, the finite-criterion problem returns here first.
 | gate 0 (new) | trigger rate, pre-registered floor 1% of boards; below it, widen to 3NT-by-them |
 | dutch | ships on the `american()` A/B and v4 inherits; record in `docs/dutch-system.md` when the code lands |
 | `expected_double` | deferred past the A/B — it cannot change the implementation |
+
+## The gate as built *(2026-08-12, Stage 2)*
+
+Everything above is the design; this section is what the code does, and every
+place the two differ.
+
+| piece | where |
+| --- | --- |
+| `Q_MAKE = 0.33`, `Q_FAIL = 0.65`, `COMPETITIVE_MARGIN = 300.0`, `PASS_DEMOTION = 3.0` | `src/bidding/instinct.rs`, beside `break_even` |
+| `expected_score(Gaussian, Bid, vul_declarer, double_rate)` | same section — `Σ P(T = k)·score(k)` over half-trick buckets, both tails folded into 0 and 13 |
+| `their_declarer` | `our_declarer`'s mirror, same section |
+| `competitive_gate(&mut Logits, Hand, &Context)` | same section, `pub(crate)` |
+| the call site | `neural_floor.rs`, one line after `mask_illegal` in **both** `ConfiguredFloorBba` (v4) and `ConfiguredFloorV5` |
+| knob | `InstinctProfile::competitive_accountant`, default off, plus `Default`/`nondefault()` |
+| harness | `bba-gen --ns-competitive-accountant`, `scripts/ab-competitive-accountant.sh` |
+| attribution | `instinct::competitive_counts() -> [u64; 3]` (vetoes, double masks, pass demotions) |
+
+Four deviations from the design above, all deliberate:
+
+1. **q ships as two constants, not a `(level, vul)` table.** Gate 2a measured
+   it flat at the trigger — the four cells span 0.487–0.553 for `P(X)` and the
+   make/fail split is 0.274–0.381 against 0.613–0.698. A table keyed on
+   coordinates that do not move the number is four rows of provenance for
+   nothing; the cell ranges are in the constants' doc comments, so a future
+   sweep starts from the same evidence.
+2. **The whole gate lives in `instinct.rs`**, not split across
+   `neural_floor.rs` as the plan had it. It needs `our_declarer`, `pinned`, and
+   the accountant constants — all private to that section — so hosting it there
+   keeps them private and the floor diff is one line per floor. Economics stayed
+   with the accountant either way, which was the actual constraint.
+3. **The counters print to `bba-gen`'s stderr summary, not the shard JSON.**
+   `scripts/ab-lib.sh` already captures shard stderr into the run log, and the
+   dump schema is parsed by every scorer — a new field there buys nothing and
+   risks the parsers. One shard is one process, so an arm's totals are a `grep`
+   and a sum.
+4. **No σ inflation**, gate 1 having passed — the failure branch's `k` never
+   materialised.
+
+Knob-off inertness is proven, not argued: `smoke-default --count 20000 --seed 1`
+hashes `39a9a31a707a2456f34be5f55dbfcc6510d7ce2344abbc464fb115fbf6ba84a6` at both
+`7d8b23b` and the gate commit.
+
+Checks that ship with it: `expected_score_sums_the_trick_distribution` (the
+kernel against an out-of-crate `erf` computation of the same sum, plus the
+13-trick fold) and `the_competitive_gate_vetoes_the_phantom_save` (`1♠ (5♥)` to
+a bust advancer — `5♠` masked, Pass finite, the counter incremented, and the
+same auction with a real hand untouched, so the veto prices the *hand*).
+
+Still unbuilt, by decision: the ε sweep (only if the A/B lands close) and
+everything in "Out of scope" below.
 
 ## Measurement plan
 

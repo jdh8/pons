@@ -24,7 +24,11 @@
 //! - **Judgement** — otherwise it returns the net's logits, legality-masked: any
 //!   call the laws forbid is set to `-∞`, while `Pass` (always legal) stays
 //!   finite so a distribution always exists.  This is the vast middle the net is
-//!   here to learn.
+//!   here to learn.  One optional stage follows the mask: `competitive_gate`
+//!   prices the contested game-level node against the score table when
+//!   `InstinctProfile::competitive_accountant` is on.  It only ever demotes, so
+//!   knob-off is byte-identical and the net keeps its monopoly on introducing
+//!   calls.
 //!
 //! Hand-conditioned game forces (a strong-notrump responder who *holds* game
 //! values) are deliberately left to the net — that is judgement, measured in
@@ -38,7 +42,7 @@ use super::Rules;
 use super::array::Logits;
 use super::context::Context;
 use super::features::{CompactConfig, Config};
-use super::instinct::forced;
+use super::instinct::{competitive_gate, forced};
 use super::trie::Classifier;
 use super::{features, neural};
 use contract_bridge::Hand;
@@ -107,6 +111,7 @@ impl Classifier for ConfiguredFloorBba {
         let configured = context.clone().with_config(&self.0);
         let mut logits = neural::classify_bba_v4(&features::features_v4(hand, &configured));
         mask_illegal(&mut logits, context.auction());
+        competitive_gate(&mut logits, hand, context);
         logits
     }
 }
@@ -150,6 +155,7 @@ impl Classifier for ConfiguredFloorV5 {
         let configured = context.clone().with_compact(&self.0);
         let mut logits = neural::classify_bba_v5(&features::features_v5(hand, &configured));
         mask_illegal(&mut logits, context.auction());
+        competitive_gate(&mut logits, hand, context);
         logits
     }
 }

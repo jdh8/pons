@@ -72,6 +72,18 @@ the floor's transfer-completion still holds.
 | WJ-floor | Distil BBA-WJ as the floor over Dutch's divergent minors | **A/B A WON** (floor swap, +0.18/+0.28 plain, shipped); **A/B B LOST** (WJ over 1♦, −0.005/−0.017 PD — inherited overbid); **A/B C LOST** (WJ as *constructive* floor under 1♣, −0.012/−0.029 — nets have no settle rail); both routings removed, net kept; Phase 3's two-level rows are the remaining arm |
 | rows | Port `dutch_book()` to declarative rows — batches D0 (Dutch inertness harness) and D1 | **DONE** — byte-identical smoke (`956b99de…`) and full-book render (`c1bf4a15…`); [campaign checklist](declarative-rows.md#port-checklist) complete |
 
+**Inherited, unmeasured: the competitive accountant** *(2026-08-12)*. The
+floor-side gate that prices the contested game-level node
+([ai-bidder/competitive-accountant.md](ai-bidder/competitive-accountant.md)) sits
+in `ConfiguredFloorV5` *and* the v4 twin `dutch()` stands on, so arming
+`InstinctProfile::competitive_accountant` moves Dutch's contested five-level
+decisions too. It ships — if it ships — on `american()`'s A/B; the gate reads
+only the score table, both declarers' trick estimates and the auction, none of
+which is system-specific, but its q was calibrated on american's contracts
+against BBA. Re-calibrating for Dutch is not owed until Dutch is a champion
+candidate; note the inheritance here so a Dutch A/B run with the knob on is not
+read as a Dutch result.
+
 Each phase gates on a paired-seed A/B via `examples/bba-gen` (dutch arm vs
 american arm), dual-scored (`ns_score_pd` + `ns_score_contract`), fresh
 `SEED_BASE`, run sequentially under `scripts/idle-run.sh`. Preemptive phases

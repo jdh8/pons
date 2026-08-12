@@ -317,3 +317,47 @@ fn doubles_only_their_live_bids() {
     assert_eq!(*logits.0.get(Call::Double), f32::NEG_INFINITY);
     assert!(logits.0.get(Call::Pass).is_finite());
 }
+
+/// The competitive accountant vetoes a hopeless five-level save, and only for
+/// the hand that deserves it
+///
+/// `1♠ (5♥)` to the advancer: with a bust the economics price `5♠` below
+/// defending `5♥` by more than `COMPETITIVE_MARGIN`, so the gate masks it —
+/// while Pass keeps a finite logit, because a distribution must survive every
+/// stage.  Knob-off is byte-identical by construction (the stage returns before
+/// reading anything), which the `off` row pins at the firing node itself.  The
+/// same auction with a real hand is left alone: this is a priced decision, not
+/// an auction-shaped rule.
+#[test]
+fn the_competitive_gate_vetoes_the_phantom_save() {
+    let auction = [call(1, Strain::Spades), call(5, Strain::Hearts)];
+    let five_spades = call(5, Strain::Spades);
+    let mut agreements = Agreements::default();
+
+    let off = shelled_with(&agreements, &auction, "43.9862.7532.J864");
+    assert!(
+        off.0[five_spades].is_finite(),
+        "knob-off leaves the net's own ranking alone"
+    );
+
+    agreements.decision.instinct.competitive_accountant = true;
+    let before = crate::bidding::instinct::competitive_counts()[0];
+    let bust = shelled_with(&agreements, &auction, "43.9862.7532.J864");
+    assert!(
+        crate::bidding::instinct::competitive_counts()[0] > before,
+        "the veto is attributed"
+    );
+    assert_eq!(
+        bust.0[five_spades],
+        f32::NEG_INFINITY,
+        "the save is priced out"
+    );
+    assert!(bust.0[Call::Pass].is_finite(), "Pass is always legal");
+    assert!(bust.has_mass(), "a distribution survives the stage");
+
+    let values = shelled_with(&agreements, &auction, "AQ32.5.QJ42.A932");
+    assert!(
+        values.0[five_spades].is_finite(),
+        "the veto prices the hand, not the auction"
+    );
+}

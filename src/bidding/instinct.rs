@@ -51,6 +51,7 @@
 
 use super::Rules;
 use super::agreements::Agreements;
+use super::array::Logits;
 use super::constraint::{
     Cons, Constraint, balanced, described, hcp, len, min_level_is, partner_shown_len,
     partner_suit_is, point_count_on, points, pred, short_in_their_suits, stopper_in_their_suits,
@@ -58,11 +59,13 @@ use super::constraint::{
     top_honors,
 };
 use super::context::{Context, DecisionProfile};
+use super::evaluator::Gaussian;
 use super::inference::{Inferences, ReadingProfile, Relative, relative_of};
 use super::rules::{Alert, FaceId};
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::eval::hcp as holding_hcp;
-use contract_bridge::{Bid, Hand, Penalty, Rank, Strain, Suit};
+use contract_bridge::{Bid, Contract, Hand, Penalty, Rank, Strain, Suit};
+use std::sync::atomic::{self, AtomicU64};
 
 /// The per-call alert for responder's gambling 3NT over a double of our 1NT: a
 /// long minor run, *not* a natural balanced 3NT.  Marks the call artificial so
@@ -403,6 +406,22 @@ pub struct InstinctProfile {
     /// **Default off** — byte-identical to the shipped mask in every
     /// [`accountant_floor`][Self::accountant_floor] state.
     pub net_collar: bool,
+    /// Price the contested game-level decision — the **competitive accountant**
+    ///
+    /// Above the 3-level nothing in the book acts: every double rule is gated
+    /// `their_live_bid_at_most(3)` and the competitive raise ladder stops at
+    /// four, so when they bid a game the floor's unpriced judgement logits are
+    /// alone.  On, `competitive_gate` reprices that node from the same
+    /// forward pass the constructive gates read — learned physics (both
+    /// declarers' trick Gaussians) composed with exact economics (score tables,
+    /// vulnerability, the measured doubling rate) — and demotes calls the
+    /// economics refuse.  It never introduces a call the net did not rank.
+    ///
+    /// **Default off**, pending `scripts/ab-competitive-accountant.sh`; off
+    /// skips the stage entirely, so the output is byte-identical to today.
+    /// Designed in `docs/ai-bidder/competitive-accountant.md`, calibrated in
+    /// `docs/ai-bidder/doubling-calibration.md`.
+    pub competitive_accountant: bool,
     /// Edit 1 — read partner's fit-known strength off the `support_points` gauge
     ///
     /// In the fit-sum game gate, take partner's shown strength from the
@@ -502,6 +521,7 @@ impl Default for InstinctProfile {
             fit_sum_game: 31,
             accountant_floor: true,
             net_collar: false,
+            competitive_accountant: false,
             fit_sum_support_read: false,
             nt_hcp_read: false,
             two_over_one_slam_strength: true,
@@ -543,6 +563,7 @@ impl InstinctProfile {
             fit_sum_game: 32,
             accountant_floor: false,
             net_collar: true,
+            competitive_accountant: true,
             fit_sum_support_read: true,
             nt_hcp_read: true,
             two_over_one_slam_strength: false,
@@ -3436,6 +3457,195 @@ fn our_declarer(context: &Context<'_>, strain: Strain) -> Relative {
             },
         )
         .unwrap_or(Relative::Me)
+}
+
+/// [`our_declarer`]'s mirror: who would declare a contract of *theirs* in
+/// `strain`.  The evaluator computes the opponent columns on every forward
+/// pass and nothing read them before [`competitive_gate`].
+fn their_declarer(context: &Context<'_>, strain: Strain) -> Relative {
+    let auction = context.auction();
+    auction
+        .iter()
+        .enumerate()
+        .find_map(
+            |(index, &call)| match (call, relative_of(auction.len(), index)) {
+                (Call::Bid(bid), who @ (Relative::Lho | Relative::Rho)) if bid.strain == strain => {
+                    Some(who)
+                }
+                _ => None,
+            },
+        )
+        .unwrap_or(Relative::Rho)
+}
+
+/// `P(they double | we buy this contract and make it)` at
+/// [`competitive_gate`]'s own trigger — 0.274–0.381 across the four
+/// (level, vulnerability) cells
+const Q_MAKE: f32 = 0.33;
+
+/// `P(they double | we buy this contract and fail)` at the same trigger —
+/// 0.613–0.698 across the same cells
+///
+/// The lift over [`Q_MAKE`] is only 1.6–2.5×, so **both** branches carry a
+/// rate: a third of the contracts we buy here are doubled *and* make.  Read
+/// marginally the lift is 4.8–7.0× and the rate itself 0.03–0.18 rather than
+/// ≈0.52 — the reading that would have shipped had the calibration not been
+/// conditioned on the trigger (`docs/ai-bidder/doubling-calibration.md`,
+/// seed `1786488117`, sha `abdafcc`).
+const Q_FAIL: f32 = 0.65;
+
+/// How far [`competitive_gate`]'s economics must separate two calls before it
+/// acts, in raw score points — about one trick at a doubled five-level
+/// contract, comfortably above the estimator's per-column error priced in
+/// points.  The competitive accountant's one underived constant, in the
+/// [`SLAM_ENTRY_P`] idiom; sweep it if the A/B lands close.
+const COMPETITIVE_MARGIN: f32 = 300.0;
+
+/// The logit [`competitive_gate`] charges Pass when the economics prefer the
+/// double.  Finite by invariant — Pass is always legal, so the missing-double
+/// lever tilts the argmax instead of forcing it — and sized in the book's
+/// ~3-nat convention.
+const PASS_DEMOTION: f32 = 3.0;
+
+/// Expected raw score of `bid`, signed to its **declaring** side, over that
+/// declarer's estimated trick distribution
+///
+/// The Gaussian twin of `average_ns_par`'s integer kernel (`stats.rs`): the
+/// same `Σ P(T = k)·score(k)`, with the histogram replaced by half-trick
+/// buckets off the fitted CDF and both tails folded into 0 and 13 so the
+/// weights sum to one.  `double_rate` is `P(the contract ends doubled)` per
+/// branch, taking whether the contract made — 0 or 1 for a penalty the auction
+/// has already settled, [`Q_MAKE`] / [`Q_FAIL`] for one we are contemplating
+/// buying.  Summing over the whole distribution rather than the mean is the
+/// point: a floor that cannot see the doubled-down-three branch is a floor that
+/// overbids.
+fn expected_score(
+    tricks: Gaussian,
+    bid: Bid,
+    vul_declarer: bool,
+    double_rate: impl Fn(bool) -> f32,
+) -> f32 {
+    let needed = bid.level.get() + 6;
+    let plain = Contract {
+        bid,
+        penalty: Penalty::Undoubled,
+    };
+    let doubled = Contract {
+        bid,
+        penalty: Penalty::Doubled,
+    };
+    (0..=13u8)
+        .map(|taken| {
+            let below = if taken == 0 {
+                0.0
+            } else {
+                tricks.cdf(f32::from(taken) - 0.5)
+            };
+            let above = if taken == 13 {
+                1.0
+            } else {
+                tricks.cdf(f32::from(taken) + 0.5)
+            };
+            let q = double_rate(taken >= needed);
+            let score = (1.0 - q) * plain.score(taken, vul_declarer) as f32
+                + q * doubled.score(taken, vul_declarer) as f32;
+            (above - below) * score
+        })
+        .sum()
+}
+
+/// Their live undoubled bid at the four-level or higher — the trigger half of
+/// [`competitive_gate`]
+fn their_live_game_bid(context: &Context<'_>) -> Option<Bid> {
+    let auction = context.auction();
+    let acted = auction.iter().rposition(|&call| call != Call::Pass)?;
+    let bid = context.last_bid()?;
+    // Undoubled and last acted by an opponent, so that last action *is* the bid.
+    (context.penalty() == Penalty::Undoubled
+        && bid.level.get() >= 4
+        && !(auction.len() - acted).is_multiple_of(2))
+    .then_some(bid)
+}
+
+/// Reprice the contested game-level node from the accountant's economics — the
+/// [`competitive_accountant`][InstinctProfile::competitive_accountant] stage of
+/// the learned floor
+///
+/// Runs in the floor's judgement path after the legality mask, and only when
+/// the last live undoubled bid is theirs at the four-level or higher and our
+/// side has already named a strain.  Above the three-level the book is silent
+/// by construction, so without this stage the node is decided by unpriced
+/// judgement logits alone.
+///
+/// Three actions, every one a **demotion** — the net stays the only physics and
+/// the gate never introduces a call the net did not rank:
+///
+/// - veto a candidate bid whose expected score trails the better of defending
+///   undoubled and defending doubled (the anti-phantom-save direction);
+/// - mask a phantom penalty double;
+/// - charge Pass [`PASS_DEMOTION`] when the double is the better bet.
+///
+/// Candidates are the cheapest legal bid in each strain our side has already
+/// named.  Jumps and fresh strains stay the net's judgement, and three leaf
+/// approximations are deliberate: the double ends the auction, we buy what we
+/// bid, and nobody saves over our save.  Pricing those exactly is the
+/// equilibrium loop `average_ns_par` already runs over histograms — the
+/// chartered v2, after this leaf gate's A/B says the physics holds.
+pub(crate) fn competitive_gate(logits: &mut Logits, hand: Hand, context: &Context<'_>) {
+    if !pinned(context).competitive_accountant {
+        return;
+    }
+    let Some(theirs) = their_live_game_bid(context) else {
+        return;
+    };
+    let estimates = context.trick_estimates(hand);
+    let vul = context.vul();
+
+    // Their contract is scored to them, so our side's price is its negation.
+    let defence = estimates.get(theirs.strain, their_declarer(context, theirs.strain));
+    let vul_them = vul.contains(RelativeVulnerability::THEY);
+    let pass = -expected_score(defence, theirs, vul_them, |_| 0.0);
+    let double = -expected_score(defence, theirs, vul_them, |_| 1.0);
+    let defend = pass.max(double);
+
+    let vul_we = vul.contains(RelativeVulnerability::WE);
+    for strain in Strain::ASC {
+        let Some(level) = context.min_level(strain).filter(|_| context.we_bid(strain)) else {
+            continue;
+        };
+        let bid = Bid { level, strain };
+        let ours = estimates.get(strain, our_declarer(context, strain));
+        let offence = expected_score(ours, bid, vul_we, |made| if made { Q_MAKE } else { Q_FAIL });
+        if offence < defend - COMPETITIVE_MARGIN {
+            logits.0[Call::Bid(bid)] = f32::NEG_INFINITY;
+            COMPETITIVE_FIRED[0].fetch_add(1, atomic::Ordering::Relaxed);
+        }
+    }
+
+    if double < pass - COMPETITIVE_MARGIN {
+        logits.0[Call::Double] = f32::NEG_INFINITY;
+        COMPETITIVE_FIRED[1].fetch_add(1, atomic::Ordering::Relaxed);
+    } else if double > pass + COMPETITIVE_MARGIN {
+        // Never `-∞`: a distribution must survive every stage (invariant §0.2).
+        logits.0[Call::Pass] -= PASS_DEMOTION;
+        COMPETITIVE_FIRED[2].fetch_add(1, atomic::Ordering::Relaxed);
+    }
+}
+
+/// [`competitive_gate`]'s per-action fire counts for this process
+static COMPETITIVE_FIRED: [AtomicU64; 3] = [const { AtomicU64::new(0) }; 3];
+
+/// How often each `competitive_gate` action has fired in this process — bid
+/// vetoes, masked doubles, demoted passes
+///
+/// Attribution for the gate's A/B, which sees only that an auction diverged: a
+/// pooled verdict cannot say whether the vetoes carried the demotions or the
+/// other way round.  One `bba-gen` shard is one process, so an arm's totals are
+/// the sum over its shards.  Monotone and never reset; `Relaxed` because the
+/// counts are read after the run, not raced on.
+#[must_use]
+pub fn competitive_counts() -> [u64; 3] {
+    std::array::from_fn(|action| COMPETITIVE_FIRED[action].load(atomic::Ordering::Relaxed))
 }
 
 /// The comparison made by a accountant trick gate

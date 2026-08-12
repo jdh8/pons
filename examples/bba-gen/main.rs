@@ -323,6 +323,16 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_net_collar: bool,
 
+    /// Price the contested game-level decision for our side
+    /// (`InstinctProfile::competitive_accountant`, crate default off).  When
+    /// they buy a game or higher and a strain of ours is already named, the
+    /// floor's judgement logits are repriced against the score table — the
+    /// candidate bid, the penalty double and Pass, all three from the same
+    /// forward pass the constructive gates read.  Demotions only; the arm for
+    /// `scripts/ab-competitive-accountant.sh`.
+    #[arg(long, default_value_t = false)]
+    ns_competitive_accountant: bool,
+
     /// Turn OFF the v3 calls-tail evaluator for our side
     /// (`DecisionProfile::eval_auction`, crate default on — shipped 2026-07-27,
     /// `win | win`, plain +0.018/+0.028 by vul).  The accountant game/slam gates
@@ -1576,6 +1586,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.decision.instinct.keycard_minors = !args.no_ns_rkcb_minors;
     agreements.decision.instinct.accountant_floor = !args.no_ns_accountant;
     agreements.decision.instinct.net_collar = args.ns_net_collar;
+    agreements.decision.instinct.competitive_accountant = args.ns_competitive_accountant;
     agreements.decision.instinct.two_over_one_slam_strength =
         !args.no_ns_two_over_one_slam_strength;
     agreements.decision.instinct.rein_advance_raise = !args.no_ns_rein_advance_raise;
@@ -2190,6 +2201,14 @@ fn main() -> anyhow::Result<()> {
             None => " to stdout".into(),
         },
     );
+    // One shard is one process, so an arm's attribution is the sum of these
+    // lines over its shards.  Silent unless `--ns-competitive-accountant` is on.
+    let [vetoes, doubles, passes] = pons::bidding::instinct::competitive_counts();
+    if vetoes | doubles | passes != 0 {
+        eprintln!(
+            "bba-gen: competitive accountant fired — {vetoes} bid vetoes, {doubles} double masks, {passes} pass demotions"
+        );
+    }
     Ok(())
 }
 

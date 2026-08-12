@@ -9,6 +9,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The competitive accountant — the contested game-level decision, priced**
+  (`InstinctProfile::competitive_accountant`, **default off**;
+  `bba-gen --ns-competitive-accountant`;
+  `scripts/ab-competitive-accountant.sh`). Above the three-level our book is
+  silent by construction — every double rule is gated `their_live_bid_at_most(3)`
+  and the competitive raise ladder stops at four — so when the opponents buy a
+  game, the learned floor's unpriced judgement logits decide alone. Knob on, a
+  new stage after the floor's legality mask reprices that node: from the one
+  forward pass the constructive gates already read, it takes **both** declarers'
+  trick Gaussians (the opponent columns, computed on every pass and never read
+  until now) and composes them with exact economics — the score table, our
+  vulnerability, and the measured doubling rate — into an expected raw score for
+  defending undoubled, defending doubled, and each candidate bid.
+
+  Three actions, every one a **demotion**, so the net keeps its monopoly on
+  introducing calls: veto a candidate bid whose expected score trails the better
+  defence by more than `COMPETITIVE_MARGIN` (300 points, the anti-phantom-save
+  direction), mask a phantom penalty double, and charge Pass a finite logit when
+  the double is the better bet — never `-∞`, because a distribution must survive
+  every stage. It wraps both learned floors, so `dutch()` inherits it
+  ([`docs/dutch-system.md`](docs/dutch-system.md) records that it must not be
+  read as a Dutch result).
+
+  **No user-visible behaviour change**: the stage returns before reading
+  anything when the knob is off, and `smoke-default --count 20000 --seed 1`
+  hashes identically at `7d8b23b` and here. Everything except the trick estimate
+  is closed form, and every parameter was calibrated *before* any board was
+  spent — an A/B cannot arbitrate the P(double) that decides the behaviour it
+  scores. Doubling rides **both** branches at the trigger's own measured rates
+  (0.33 making, 0.65 failing), not the failing branch at the marginal 0.03–0.18.
+  `instinct::competitive_counts()` attributes the three actions, printed per
+  shard by `bba-gen`. Nothing is measured on boards yet; the A/B is the next
+  step, with plain DD holding the veto. Design and the four deviations from it in
+  [`docs/ai-bidder/competitive-accountant.md`](docs/ai-bidder/competitive-accountant.md).
+
 - **Three calibration instruments for the competitive accountant, and the
   offline gates they answer** (`examples/eval-columns`, `examples/probe-doubling`,
   `scripts/q-table.py`). No bidding behaviour changes — every one of these is
