@@ -59,7 +59,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ever the crude fallback for the `suit_quality` atom that failed its
   model-selection gate. Stays opt-in, default byte-identical.
 
+  **Forensics corrected 2026-08-12, same day, by the population pass**
+  (`scripts/ab-classify.py` over all 10,250 auction-diverged NV boards of the
+  retained dumps): the worst-20 read above described the tail, not the
+  mechanism. The knob is a **declare-vs-defend switch** — the loose default
+  declares 35.1% of fired boards vs the tight arm's 10.5%, is doubled 3× as
+  often (7.8% vs 2.6%), and still wins 0.58 IMPs per score-diverged board under
+  plain DD. The improvable decision is the contested 5-level node the loose arm
+  walks into, not the 2-level entry; that node is now designed
+  (`docs/ai-bidder/competitive-accountant.md`, evidence in
+  `docs/ai-bidder/doubling-calibration.md`).
+
 ### Added
+
+- **Designed the competitive accountant; recorded the declare-vs-defend
+  post-mortem canonically** (docs + scripts only; no behavior change).
+  `docs/ai-bidder/competitive-accountant.md` designs a floor-side gate pricing
+  the contested 5-level decision — pass / bid on / double — as closed-form
+  expected scores over the evaluator's two sides (the opponent-declarer columns
+  are computed on every forward pass and were never read) with an empirical
+  `q = P(double | level, vul)`; it also settles the backend question: BBA-style
+  purely arithmetic accounting is not needed (arithmetic physics refused twice;
+  BBA's Stage 4 has no expected-score integral to copy; the arithmetic we keep
+  is the exact scoring economics we already own). Knob
+  `competitive_accountant`, default off, chartered behind two offline
+  calibration gates and its own A/B. `docs/ai-bidder/doubling-calibration.md`
+  records the population pass the refutation entry above was corrected by
+  (previously in no committed doc) and charters the q table, the
+  were-the-doubles-right DD check, and the `expected_double` read. Committed
+  the supporting tools: `scripts/ab-classify.py` (population classifier over
+  arm dumps, no DD) and `scripts/ab-score.awk` (bracket-aware pooling that
+  avoids `ab-aggregate.sh`'s documented `/^Delta/` double-count).
 
 - **Defensive round-1 suit defenses now use declarative variable rows, with
   each proposed treatment gated independently.** The four hand-expanded suit

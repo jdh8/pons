@@ -109,7 +109,10 @@ these framings.
 The ledgers that grew alongside the design (the shipped reality lives there):
 [`bba-floor.md`](bba-floor.md), [`configured-net.md`](configured-net.md),
 [`card-manifold.md`](card-manifold.md) (the current v5 floor),
-[`evaluator-net.md`](evaluator-net.md), [`sampled-projection.md`](sampled-projection.md),
+[`evaluator-net.md`](evaluator-net.md),
+[`competitive-accountant.md`](competitive-accountant.md) (the contested 5-level
+gate; evidence in [`doubling-calibration.md`](doubling-calibration.md)),
+[`sampled-projection.md`](sampled-projection.md),
 [`dsl-spec.md`](dsl-spec.md), [`21gf-ledger.md`](21gf-ledger.md), plus the
 BBA reverse-engineering notes (`bba-*.md`). Closed campaigns are in
 [`archive/`](archive/).

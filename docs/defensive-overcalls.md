@@ -309,6 +309,17 @@ as the opening paragraph argues. The `2♣ → P` −2,222 PD leak is unclaimed 
 and nothing in the current toolbox addresses it; a future attempt needs the
 suit-quality axis this section could not fit, not another strength band.
 
+**Forensics superseded 2026-08-12, same day, by the population pass** over all
+10,250 fired NV boards: the mechanism is a **declare-vs-defend switch**, not a
+broad trigger — the loose default declares 35.1% vs the tight arm's 10.5%, is
+doubled 3× as often, and still wins 0.58 IMPs per score-diverged board under
+plain DD. §O4's thesis stands and sharpens: points are the wrong axis, and so is
+the entry gate itself — the improvable decision is the contested 5-level node
+the loose overcall later walks into. That node's pricing is now designed in
+[ai-bidder/competitive-accountant.md](ai-bidder/competitive-accountant.md), with
+the population tables and P(double) calibration in
+[ai-bidder/doubling-calibration.md](ai-bidder/doubling-calibration.md).
+
 Attribution wrinkle, recorded so nobody re-litigates it: vs BEN this slice
 is plain-**positive** (+369) / PD −3,645, so it failed the *attribution
 eligibility* gate — but the *ship* gate is plain-wash + PD-win by the

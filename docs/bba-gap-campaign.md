@@ -189,6 +189,19 @@ obstruction-wall artifact; kept opt-in, default byte-identical.
 > only ever been its crude fallback.  Stays opt-in, default byte-identical.
 > Artifacts: `ab-results/two-level-minor-overcall-refresh/`.
 
+> **Forensics corrected 2026-08-12 — the population pass** (same day,
+> `scripts/ab-classify.py` over all 10,250 auction-diverged NV boards).  The
+> worst-20 "trigger-too-broad" read described the tail, not the mechanism: the
+> knob is a **declare-vs-defend switch**.  Loose declares 35.1% of fired boards
+> vs tight's 10.5%, is doubled 3× as often (7.8% vs 2.6%), and still wins
+> 0.58 IMPs per score-diverged board under plain DD — the profitable doubled
+> sacrifices *are* where the default earns its edge, and BBA doubles our
+> contracts at ≈15% in both arms while we double theirs at 1.2–3.6%.  The
+> improvable decision is the contested 5-level node, now designed:
+> [ai-bidder/competitive-accountant.md](ai-bidder/competitive-accountant.md),
+> evidence + P(double) calibration in
+> [ai-bidder/doubling-calibration.md](ai-bidder/doubling-calibration.md).
+
 The lesson: the
 anchor's *ours-vs-BBA* sd deficit on the overcall does not mean *suppressing* it
 helps — the actionable A/B sd (suppress-vs-keep) washed because our own pass-line
