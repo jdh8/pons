@@ -1,4 +1,4 @@
-//! Fit the trick evaluator (bilans session C): ranges → double-dummy trick mean
+//! Fit the trick evaluator (accountant session C): ranges → double-dummy trick mean
 //! and spread.
 // The export sidecar's `json!` literal outgrew the default macro recursion
 // limit when the survey slices joined it.
@@ -735,7 +735,7 @@ impl Arm {
 }
 
 #[derive(Parser)]
-#[command(about = "Fit the DD trick mean/spread evaluator (bilans session C)")]
+#[command(about = "Fit the DD trick mean/spread evaluator (accountant session C)")]
 struct Args {
     /// Corpus stem; reads `<stem>.f32`, `<stem>.json`, `<stem>.tags`
     #[arg(long, default_value = "../target/eval-train")]

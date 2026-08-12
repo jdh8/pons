@@ -25,7 +25,7 @@ cannot move — depends on which axes it reads:
   Arguably the old acceptance was the wrong one — but this is a reading change,
   and it must be measured as one.
 
-The remaining delta is `EnvelopeUnion::hull` — tighter, so the bilans evaluator and the
+The remaining delta is `EnvelopeUnion::hull` — tighter, so the accountant evaluator and the
 feature nets see tighter bands.  This is the intended effect, and also the known
 risk: the chop-F1 saga is precisely that tighter prefixed hulls put
 `trick_estimates` out of distribution for the evaluator net.  Budget the F2b

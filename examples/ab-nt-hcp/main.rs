@@ -62,11 +62,11 @@ struct Args {
     #[arg(long, default_value = "0")]
     show: usize,
 
-    /// Disable the bilans net floor on both sides (the ambient environment): the
+    /// Disable the accountant net floor on both sides (the ambient environment): the
     /// point-arithmetic `combined_hcp` milestone is shadowed by the net floor
     /// under the shipped default, so the raw-HCP read only bites with it off.
     #[arg(long, default_value_t = false)]
-    no_bilans: bool,
+    no_accountant: bool,
 }
 
 /// Bid out one deal, arming the raw-HCP notrump read only for the feature side
@@ -103,7 +103,7 @@ fn main() {
     // Ambient environment (both sides): optionally expose the point-arithmetic
     // milestone by disabling the net floor that otherwise shadows it.
     let mut agreements = pons::bidding::agreements::Agreements::default();
-    agreements.decision.instinct.bilans_floor = !args.no_bilans;
+    agreements.decision.instinct.accountant_floor = !args.no_accountant;
     agreements.decision.instinct.nt_hcp_read = false;
     let plain = american(&agreements).bind();
     agreements.decision.instinct.nt_hcp_read = true;

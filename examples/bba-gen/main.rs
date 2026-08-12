@@ -302,30 +302,30 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_sum_closure: bool,
 
-    /// Turn OFF the learned bilans floor for our side
-    /// (`InstinctProfile::bilans_floor`, crate default on): the converted game and
+    /// Turn OFF the learned accountant floor for our side
+    /// (`InstinctProfile::accountant_floor`, crate default on): the converted game and
     /// slam gates fall back to authored point arithmetic instead of asking the
     /// `evaluator_v2` net.  The isolation arm for any reading change suspected
     /// of putting the evaluator out of distribution (chop F1's mechanism) —
     /// run it on BOTH arms of the pair, so the delta that survives is the one
     /// the *authored* gates see.
     #[arg(long, default_value_t = false)]
-    no_ns_bilans: bool,
+    no_ns_accountant: bool,
 
-    /// Collar the bilans net for our side instead of letting it replace the
+    /// Collar the accountant net for our side instead of letting it replace the
     /// point arithmetic (`InstinctProfile::net_collar`, crate default off).  The
     /// shipped wiring masks the authored gate off and hands the net the whole
     /// criterion; with this on the arithmetic decides and the net rules on it in
     /// one direction only — accelerating at game (reaching at most 2 points
     /// below the threshold) and vetoing at slam, the split `break_even`'s own
-    /// key implies.  Pair it with `--no-ns-bilans` on neither arm: this is a
+    /// key implies.  Pair it with `--no-ns-accountant` on neither arm: this is a
     /// treatment of the net's licence, not of the net's presence.
     #[arg(long, default_value_t = false)]
     ns_net_collar: bool,
 
     /// Turn OFF the v3 calls-tail evaluator for our side
     /// (`DecisionProfile::eval_auction`, crate default on — shipped 2026-07-27,
-    /// `win | win`, plain +0.018/+0.028 by vul).  The bilans game/slam gates
+    /// `win | win`, plain +0.018/+0.028 by vul).  The accountant game/slam gates
     /// read trick estimates from the v3 artifact, whose input is the hull
     /// vector plus the last four call identities — the 0.038-NLL win of the
     /// auction-input ablation, served. Only honoured in the envelope-union reading
@@ -1574,7 +1574,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.decision.instinct.penalty_no_pull = !args.ns_allow_pull;
     agreements.decision.instinct.advancer_xx_runout = !args.no_ns_xx_runout;
     agreements.decision.instinct.keycard_minors = !args.no_ns_rkcb_minors;
-    agreements.decision.instinct.bilans_floor = !args.no_ns_bilans;
+    agreements.decision.instinct.accountant_floor = !args.no_ns_accountant;
     agreements.decision.instinct.net_collar = args.ns_net_collar;
     agreements.decision.instinct.two_over_one_slam_strength =
         !args.no_ns_two_over_one_slam_strength;

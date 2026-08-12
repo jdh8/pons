@@ -1,14 +1,17 @@
-# The trick evaluator — bilans session C, learned
+# The trick evaluator — accountant session C, learned
 
 > Status: net built, validated, and **shipped default-on**. The instinct
 > floor's game/slam boundary gates price `P(make)` through it, behind
-> `set_bilans_floor` (default *on* — `BILANS_FLOOR` is `Cell::new(true)`; the
-> knob now only turns it off). `examples/ab-bilans-floor` measured it twice, at
+> `InstinctProfile::accountant_floor` (default *on*; off recovers the point-gate
+> arithmetic). `examples/ab-accountant-floor` measured it twice, at
 > v1 and again at the v2 weights — see [Against the shipped
 > floor](#against-the-shipped-floor). The module is ungated and always builds;
 > an earlier revision of this line claimed an `evaluator` Cargo feature that
-> never existed, and a later one still called the knob default-off after it had
-> shipped.
+> never existed, a later one still called the knob default-off after it had
+> shipped, and another described a `BILANS_FLOOR` thread-local `Cell` that the
+> profile field has since replaced. The feature (and these session names) was
+> called *bilans* until the 2026-08-12 rename; unqualified *bilans* now always
+> means BBA's own engine.
 
 ## What it is
 
@@ -490,7 +493,7 @@ Both plain-DD CIs clear zero by 4–5×, so this ships **default-on** — and it
 is the counterexample to the `features_v2` precedent: an auction-input NLL
 win *can* survive the A/B when the consumer is the evaluator (whose μ/σ
 directly price game/slam boundaries) rather than the policy net.  The knob's
-consumers are only the bilans gates, so the divergences are re-priced
+consumers are only the accountant gates, so the divergences are re-priced
 game/slam decisions (1.3–1.6% of boards at +1.3 to +2.3 IMPs each).  What
 was spent: the evaluator's weights are now coupled to the auctions of the
 systems in the corpus (american + dutch), so routing changes owe the twin
@@ -692,7 +695,7 @@ scales.
 
 ### Against the shipped floor
 
-Calibration is not the ship gate; IMPs are. `examples/ab-bilans-floor` plays the
+Calibration is not the ship gate; IMPs are. `examples/ab-accountant-floor` plays the
 floor with the gates priced by the net against the same floor pricing them by
 point arithmetic. It has run twice, at 200k boards per vulnerability and the
 **same seed** (1784589590), once at the v1 weights and again at v2:
@@ -750,7 +753,7 @@ bought — shows up first as *fewer* contracts bid past their break-even.
   `unknown()`. The net learns how much a loose envelope really pins down — that
   *is* the spread.
 - **Wide envelopes bias the gates upward — the competitive-auction note.**
-  When the bilans floor shipped default-on (2026-07-21) it changed six floor
+  When the accountant floor shipped default-on (2026-07-21) it changed six floor
   positions, and *every* competitive one moved up a level: a limit raise over a
   jump overcall `3♥ → 4♥`, a game opposite a 3-level overcall `- → 4♥`, a 21-count
   opposite an overcall 4♠ → 6♠.
@@ -788,7 +791,7 @@ bought — shows up first as *fewer* contracts bid past their break-even.
 
 jdh8's question, after BBA's own engine turned out to be plain arithmetic
 ([`bba-floor.md`](bba-floor.md) §5.5): **is a learned net the right backend for
-bilans at all?** The worry was not speed — it was that the net is a black box
+accountant at all?** The worry was not speed — it was that the net is a black box
 that DNF chop C1 caught *degrading on a provably true input tightening*, with
 `--no-ns-bilans` attributing 47–64 % of that loss to the net alone.
 
@@ -868,7 +871,7 @@ Three of these are worth keeping in mind whatever the backend is:
 
 ### Consequences
 
-1. **`set_bilans_floor` keeps the net.** The doubt that opened this session is
+1. **`set_accountant_floor` keeps the net.** The doubt that opened this session is
    answered on the numbers, in the direction of the status quo.
 2. **The C1 fragility is not fixed by this and stays open.** An arithmetic
    backend would have been monotone in the reading by construction; the net is
@@ -891,7 +894,7 @@ Three of these are worth keeping in mind whatever the backend is:
 ## The reach ceiling — what a net gate publishes  *(2026-07-26)*
 
 Consequence 4 generalises, and following it out finds a defect in how
-`set_bilans_floor` is wired. Nothing measured here; this is a reading of the
+`set_accountant_floor` is wired. Nothing measured here; this is a reading of the
 code and of the projection algebra, recorded before it bites.
 
 ### The gate reads as nothing
@@ -899,7 +902,7 @@ code and of the projection algebra, recorded before it bites.
 [`instinct.rs:1985`](../../src/bidding/instinct.rs#L1985):
 
 ```rust
-(!bilans_floor() & authored) | net_break_even_gate(bilans_enabled, true, strain, tricks)
+(!accountant_floor() & authored) | net_break_even_gate(accountant_enabled, true, strain, tricks)
 ```
 
 `net_break_even_gate` is a `pred`, so it inherits the default
@@ -963,12 +966,12 @@ fn points_or_net(
     strain: Strain,
     tricks: u8,
 ) -> Cons<impl Constraint + Clone> {
-    authored | (collar & net_break_even_gate(bilans_enabled, true, strain, tricks))
+    authored | (collar & net_break_even_gate(accountant_enabled, true, strain, tricks))
 }
 ```
 
 Knob-off the net arm is `-∞`, so `collar & -∞` is `-∞` and the gate is exactly
-`authored` — byte-identical, and `!bilans_floor()` goes away. Call sites read
+`authored` — byte-identical, and `!accountant_floor()` goes away. Call sites read
 `points_or_net(combined_points(25), combined_points(23), strain, 11)`, which
 puts the collar in plain sight where the threshold is. 23 is not arbitrary: it
 is the invitational band, where a human already calls it judgment.
@@ -1071,7 +1074,7 @@ Byte-identity is *not* expressible as a unit test — the legacy expression no
 longer exists in the tree — so it was proven against a baseline worktree at the
 parent commit: 3200 boards × both vuls × identical seed, **0 boards differ**
 (the only delta is the output path echoed into `gen_args`). The four existing
-bilans pins are also unmoved.
+accountant pins are also unmoved.
 
 Smoke, same seed, knob-on vs knob-off (3200 bd/vul):
 

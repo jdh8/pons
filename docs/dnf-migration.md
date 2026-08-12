@@ -52,7 +52,7 @@ verdict. Design lives in the docs above and the code.
   answers both in ~2 s per 2000 boards, no DD, no training run (C-P row: C1
   displaces the evaluator's length ceilings by **1.9–3.9σ** of their own corpus
   spread while rejecting **0 of 409,708** sampled layouts) — and isolate the net
-  with `scripts/ab-closure-isolate.sh`'s `--no-ns-bilans` idiom, which splits
+  with `scripts/ab-closure-isolate.sh`'s `--no-ns-accountant` idiom, which splits
   the delta into what the net sees and what the authored gates see.
   Note the net is not *ignorant* of the prior — the MASS row proved the
   fitted `(μ, σ)` at a hull row already **is** the union-conditional, because

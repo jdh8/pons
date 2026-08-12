@@ -613,7 +613,7 @@ fn cached_reference_parity_across_reading_and_evaluator_profiles() {
         eval_auction: bool,
         eval_shape: bool,
         blind: bool,
-        bilans: bool,
+        accountant: bool,
         collar: bool,
         configured: bool,
     }
@@ -626,7 +626,7 @@ fn cached_reference_parity_across_reading_and_evaluator_profiles() {
             eval_auction: true,
             eval_shape: false,
             blind: false,
-            bilans: false,
+            accountant: false,
             collar: false,
             configured: false,
         },
@@ -637,7 +637,7 @@ fn cached_reference_parity_across_reading_and_evaluator_profiles() {
             eval_auction: false,
             eval_shape: false,
             blind: false,
-            bilans: false,
+            accountant: false,
             collar: false,
             configured: false,
         },
@@ -648,7 +648,7 @@ fn cached_reference_parity_across_reading_and_evaluator_profiles() {
             eval_auction: true,
             eval_shape: true,
             blind: false,
-            bilans: true,
+            accountant: true,
             collar: false,
             configured: false,
         },
@@ -659,7 +659,7 @@ fn cached_reference_parity_across_reading_and_evaluator_profiles() {
             eval_auction: true,
             eval_shape: false,
             blind: false,
-            bilans: true,
+            accountant: true,
             collar: true,
             configured: false,
         },
@@ -670,7 +670,7 @@ fn cached_reference_parity_across_reading_and_evaluator_profiles() {
             eval_auction: true,
             eval_shape: false,
             blind: false,
-            bilans: false,
+            accountant: false,
             collar: false,
             configured: true,
         },
@@ -681,7 +681,7 @@ fn cached_reference_parity_across_reading_and_evaluator_profiles() {
             eval_auction: true,
             eval_shape: true,
             blind: true,
-            bilans: false,
+            accountant: false,
             collar: false,
             configured: true,
         },
@@ -703,7 +703,7 @@ fn cached_reference_parity_across_reading_and_evaluator_profiles() {
         agreements.decision.reading.scope = profile.scope;
         agreements.decision.reading.envelope_union = profile.union;
         agreements.decision.reading.pass_exclusion = profile.exclusion;
-        agreements.decision.instinct.bilans_floor = profile.bilans;
+        agreements.decision.instinct.accountant_floor = profile.accountant;
         agreements.decision.instinct.net_collar = profile.collar;
 
         let partnership = if profile.configured {

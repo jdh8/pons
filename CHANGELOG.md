@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Renamed our learned floor gate from *bilans* to *accountant*.** The public
+  field `InstinctProfile::bilans_floor` is now
+  `InstinctProfile::accountant_floor`, and the private machinery
+  (`AccountantThreshold`, `accountant_accepts`, `accountant_trick_gate`), the
+  A/B harness (`examples/ab-accountant-floor`, `--no-accountant`,
+  `bba-gen --no-ns-accountant` plus the scripts that pass them) and the living
+  docs follow. Hard rename, no deprecated alias — it lands inside the
+  unreleased 0.11.0 bump. Behaviorally inert: the seeded 20,000-board
+  `smoke-default` dump is byte-identical across the rename. Motivation:
+  unqualified *bilans* now always means BBA's/EPBot's own engine (Piwowar's
+  term, `docs/ai-bidder/bba-floor.md` §5), which our feature's name kept
+  colliding with. Preserved as-is: historical changelog entries, seeded run
+  records quoting the old flags, and `examples/probe-bba-bilans`, which is
+  about BBA's engine and keeps the word. En route, two stale claims in
+  `docs/ai-bidder/evaluator-net.md` / `src/bidding/evaluator.rs` were
+  corrected: the knob is the `InstinctProfile` field (no `BILANS_FLOOR`
+  thread-local `Cell` exists), and it has shipped default-on since 2026-07-21
+  (one module doc still said "default off pending its A/B").
+
 ### Measured
 
 - **Tight 2-level minor overcall — REFUTED on a fresh seed; the promotion is

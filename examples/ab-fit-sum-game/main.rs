@@ -79,11 +79,11 @@ struct Args {
     #[arg(long, default_value_t = false)]
     support_read: bool,
 
-    /// Disable the bilans net floor on both sides (the ambient environment): the
+    /// Disable the accountant net floor on both sides (the ambient environment): the
     /// authored `fit_sum_game` leg of `points_or_net` is masked off while the net
     /// floor is on, so the threshold only bites with it off.
     #[arg(long, default_value_t = false)]
-    no_bilans: bool,
+    no_accountant: bool,
 
     /// Vulnerability: none, ns, ew, both
     #[arg(short, long, default_value = "none")]
@@ -135,7 +135,7 @@ fn main() {
     // with it off (src/bidding/instinct.rs, `points_or_net`).
     let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.reading.support_points = args.support_points;
-    agreements.decision.instinct.bilans_floor = !args.no_bilans;
+    agreements.decision.instinct.accountant_floor = !args.no_accountant;
     agreements.decision.instinct.fit_sum_game = args.baseline;
     agreements.decision.instinct.fit_sum_support_read = false;
     let plain = american(&agreements).bind();

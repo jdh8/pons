@@ -1,4 +1,4 @@
-//! The learned trick evaluator — bilans session C.
+//! The learned trick evaluator — accountant session C.
 //!
 //! One forward pass answers the question BBA's *bilans* engine answers by
 //! reconstructing hands and counting winners and losers: **how many
@@ -27,10 +27,9 @@
 //! smooth out into the tails where an interpolated one would have to clamp.
 //!
 //! Consumed by the instinct floor's game/slam boundary gates behind
-//! [`bilans_floor`][crate::bidding::instinct::InstinctProfile::bilans_floor]
-//! (bilans session D,
-//! default off pending its A/B); the module itself is ungated and always
-//! builds.
+//! [`accountant_floor`][crate::bidding::instinct::InstinctProfile::accountant_floor]
+//! (accountant session D, shipped default-on 2026-07-21); the module itself is
+//! ungated and always builds.
 
 use super::context::DecisionProfile;
 use super::features::{

@@ -1,7 +1,7 @@
 #!/bin/sh
 # ab-dnf-flip2.sh — DNF chop F2b: the `set_envelope_union_reading` flip re-measured with
 # the knob-matched evaluator (`evaluator_v2_dnf`, trained on knob-on prefixed
-# readings).  F1 traced the original flip's loss to the bilans evaluator
+# readings).  F1 traced the original flip's loss to the accountant evaluator
 # reading knob-tightened ranges it was never fit on (docs/dnf-migration.md);
 # the dnf arm now serves the retrained net automatically via `envelope_union_reading()`.
 #

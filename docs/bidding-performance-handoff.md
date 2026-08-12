@@ -8,7 +8,7 @@
 
 ## Summary
 
-Recover Pons’s bidding throughput without disabling bilans, envelope-union reading, fallback projection, or authored reading, and without changing any auction, logit, inference, alert, provenance, or explanation.
+Recover Pons’s bidding throughput without disabling accountant, envelope-union reading, fallback projection, or authored reading, and without changing any auction, logit, inference, alert, provenance, or explanation.
 
 Pre-stage-2 pinned-core baseline:
 
@@ -100,7 +100,7 @@ DecisionCache
 - Add crate-private `Context::inferences()` and `Context::trick_estimates(hand)` accessors. Public `Inferences::read` remains an uncached, owned-result API.
 - Migrate full-auction inference/evaluator consumers to these accessors. Genuinely different historical-prefix questions, such as RKCB pre-answer decoding, keep separate results.
 - Snapshot all thread-local reading/evaluator knobs at decision entry and assert in debug builds that the cache remains on its creating thread.
-- Convert bilans predicates into a named constraint using `Context::trick_estimates`; retain existing eager `And`/`Or`, rule order, and floating-point evaluation order in this stage.
+- Convert accountant predicates into a named constraint using `Context::trick_estimates`; retain existing eager `And`/`Or`, rule order, and floating-point evaluation order in this stage.
 
 Acceptance for this stage:
 
@@ -269,7 +269,7 @@ After caching and compiled decoding are measured:
   incrementally through whole deals. Selection scans canonical call order,
   accepts only finite legal logits, and replaces the winner only on strict
   improvement. `Auction::push` remains the final authority.
-- A decision-scoped four-state bilans/collar mode was implemented and measured,
+- A decision-scoped four-state accountant/collar mode was implemented and measured,
   but not retained: it changed no allocations and its paired 95% timing interval
   crossed no change. The established eager topology therefore remains.
 
@@ -334,7 +334,7 @@ checkpoints were taken in order so the gains below remain attributable.
 | Fixed evaluator arrays | `evaluator-features` and `evaluator-complete`: 2.000 allocations / 592.0 bytes → 0 / 0; old-`Vec` oracle equal element-by-element with `f32::to_bits` for v2/v3/v4/shape/points | Retained |
 | Inline unions, borrowed compiled projections, consuming intersections | From the post-array/post-laws checkpoint: inference 84.061 / 6,767.6 → 15.619 / 3,234.5; full classification 98.967 / 7,865.8 → 16.189 / 3,817.3; whole deal 773.484 / 65,758.8 → 148.312 / 35,608.1 (allocations / requested bytes) | Retained |
 | Incremental laws mask and canonical maximum | Legal selection 2.625 / 285.8 → 0 / 0; whole deal at that checkpoint 797.297 / 68,239.8 → 773.484 / 65,758.8 | Retained |
-| Decision-scoped bilans/collar mode | No allocation change; paired CPU-4 instinct-component timing change 95% interval **[−0.2084%, +0.9369%]**, p=0.24 | Rejected and fully reverted |
+| Decision-scoped accountant/collar mode | No allocation change; paired CPU-4 instinct-component timing change 95% interval **[−0.2084%, +0.9369%]**, p=0.24 | Rejected and fully reverted |
 
 The union candidate keeps `tidy` at the established binary combinator
 boundaries. More aggressive deferral was not mixed into the retained result:
@@ -460,7 +460,7 @@ and allocator-trimmed retained RSS form the completed Stage 6 evidence record.
   - Evaluator feature vectors.
   - Alerts, announcements, rendered books, and explanation rule indices.
 - Byte-compare `smoke-default --count 20000 --seed 1` and `render-book` before and after.
-- Repeat under envelope-union reading on/off, fallback projection on/off, Pass/table reading on/off, bilans/net-collar combinations, evaluator variants, all vulnerabilities, and configured/unconfigured floors.
+- Repeat under envelope-union reading on/off, fallback projection on/off, Pass/table reading on/off, accountant/net-collar combinations, evaluator variants, all vulnerabilities, and configured/unconfigured floors.
 - Test exact-node rejection followed by fallback, cloned configured contexts, different hands sharing a bare context, separate threads with different knob profiles, systems-on auction stripping, RKCB historical-prefix reads, typed guards, opaque guards, and rebases.
 - For every prefix in the fixed corpus, require the compiled authoring decoder to select the same classifier and provenance as legacy resolution.
 - For every prefix in the fixed corpus, require the appended step-cache state to equal the from-scratch read bit-for-bit — boxes, box order, and provenance — including a mid-deal knob change that must drop to the legacy path.

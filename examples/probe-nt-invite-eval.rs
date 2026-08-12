@@ -125,7 +125,7 @@ fn ev_controls(h: Hand) -> f64 {
 const PRIOR: [Call; 2] = [Call::Bid(Bid::new(1, Strain::Notrump)), Call::Pass];
 
 /// Responder's decision-time reading of `1NT -` — the same
-/// `Inferences::read(context)` the production `points_or_net` bilans gates feed
+/// `Inferences::read(context)` the production `points_or_net` accountant gates feed
 /// the net, so the screen matches the input distribution a wired gate would see.
 static NT_INF: LazyLock<Inferences> =
     LazyLock::new(|| Inferences::read(&Context::new(RelativeVulnerability::NONE, &PRIOR)));

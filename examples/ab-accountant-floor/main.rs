@@ -1,9 +1,9 @@
-//! Measure the bilans floor: an A/B duplicate match.
+//! Measure the accountant floor: an A/B duplicate match.
 //!
 //! The instinct floor's game/slam boundaries are point gates — combined 25 for
 //! game, the fit-sum 31, 33/37 for the slams, support-points 29 for the RKCB
-//! ask — all blind to vulnerability.  The bilans floor
-//! ([`bilans_floor`][pons::bidding::instinct::InstinctProfile::bilans_floor], **shipped
+//! ask — all blind to vulnerability.  The accountant floor
+//! ([`accountant_floor`][pons::bidding::instinct::InstinctProfile::accountant_floor], **shipped
 //! default-on** 2026-07-21 on the strength of this A/B — win/win on both
 //! scorers at both vulnerabilities, see the knob's docs) swaps the arithmetic
 //! inside those gates
@@ -15,7 +15,7 @@
 //! only the point sums move.  Vulnerability-awareness is the whole point, so
 //! measure at `--vulnerability none` **and** `both` before reading a verdict.
 //!
-//! Each board is bid twice, duplicate style: at table A the bilans pair sits
+//! Each board is bid twice, duplicate style: at table A the accountant pair sits
 //! North/South against a pair without it; at table B the teams swap seats.  Both
 //! pairs play the very same books; the knob is pinned into a partnership at build, so
 //! each side bids off its own pre-built partnership.  Divergent boards are scored two
@@ -25,9 +25,9 @@
 //! from the decision table in `docs/measurement.md`.
 //!
 //! ```text
-//! cargo run --release --example ab-bilans-floor -- --count 200000
-//! cargo run --release --example ab-bilans-floor -- --count 200000 --vulnerability both
-//! cargo run --release --example ab-bilans-floor -- --count 20000 --show 8
+//! cargo run --release --example ab-accountant-floor -- --count 200000
+//! cargo run --release --example ab-accountant-floor -- --count 200000 --vulnerability both
+//! cargo run --release --example ab-accountant-floor -- --count 20000 --show 8
 //! ```
 
 use clap::Parser;
@@ -48,7 +48,7 @@ use rayon::prelude::*;
 mod common;
 use common::{Board, next_call, seat_to_act};
 
-/// Measure the bilans floor: an A/B duplicate match
+/// Measure the accountant floor: an A/B duplicate match
 #[derive(Parser)]
 struct Args {
     /// Number of boards in the match (dealer rotates per board)
@@ -68,7 +68,7 @@ struct Args {
     show: usize,
 }
 
-/// Bid out one deal, enabling the bilans floor only for the feature side
+/// Bid out one deal, enabling the accountant floor only for the feature side
 ///
 /// The flag is pinned into a partnership at build, so the two sides bid off two
 /// pre-built partnerships rather than one partnership and a per-call flag.
@@ -99,9 +99,9 @@ fn bid_out(
 fn main() {
     let args = Args::parse();
     let mut agreements = pons::bidding::agreements::Agreements::default();
-    agreements.decision.instinct.bilans_floor = false;
+    agreements.decision.instinct.accountant_floor = false;
     let plain = american(&agreements).bind();
-    agreements.decision.instinct.bilans_floor = true;
+    agreements.decision.instinct.accountant_floor = true;
     let partnerships = [plain, american(&agreements).bind()];
 
     // Deal sequentially (seeded, reproducible); bid both tables in parallel.
@@ -120,7 +120,7 @@ fn main() {
         .collect();
 
     // Only boards whose tables reach different contracts can swing; solve those
-    // double dummy (on the main thread) and credit the swing to the bilans team
+    // double dummy (on the main thread) and credit the swing to the accountant team
     // (NS at table A, EW at table B).
     let contracts: Vec<_> = boards
         .iter()
@@ -137,7 +137,7 @@ fn main() {
     let deals: Vec<FullDeal> = divergent.iter().map(|&index| boards[index].deal).collect();
     let tables = Solver::lock(None).solve_deals(&deals, NonEmptyStrainFlags::ALL);
 
-    // Per-board IMP swing to the bilans team (0 on non-divergent boards), scored
+    // Per-board IMP swing to the accountant team (0 on non-divergent boards), scored
     // both ways from the same DD table per the measurement doctrine.
     let mut swings_pd = vec![0i64; args.count];
     let mut swings_dd = vec![0i64; args.count];
@@ -165,7 +165,7 @@ fn main() {
     }
 
     println!(
-        "\n=== Bilans-floor A/B: {} boards, vulnerability {} ===",
+        "\n=== Accountant-floor A/B: {} boards, vulnerability {} ===",
         args.count, args.vulnerability,
     );
     println!(
@@ -190,9 +190,9 @@ fn main() {
         let verdict = if (lo..=hi).contains(&0.0) {
             "parity"
         } else if mean > 0.0 {
-            "bilans ahead"
+            "accountant ahead"
         } else {
-            "bilans behind"
+            "accountant behind"
         };
         println!(
             "{label}: {total:+} IMPs, {mean:+.3}/board  95% CI [{lo:+.3}, {hi:+.3}]  ({verdict})",

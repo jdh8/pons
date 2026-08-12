@@ -541,10 +541,10 @@ fn fit_sum_game_counts_trump_length_toward_game() {
     let raise = "AK4.AQ2.KJ32.Q92";
 
     // Pin the point gate: this test is *about* `fit_sum_game` being read from
-    // the profile, and the bilans floor replaces that arithmetic with the net —
+    // the profile, and the accountant floor replaces that arithmetic with the net —
     // which would answer 4♠ at both thresholds and assert nothing.
     let mut agreements = Agreements::default();
-    agreements.decision.instinct.bilans_floor = false;
+    agreements.decision.instinct.accountant_floor = false;
 
     // Armed at 31 (the default): the ninth trump counts as points (fit-sum
     // 33 ≥ 31), lifting the hand to the major-suit game.
@@ -735,12 +735,12 @@ fn break_even_keys_the_collar_direction() {
     }
 }
 
-/// The bilans knob prices the same known fit the point sum reaches: the
+/// The accountant knob prices the same known fit the point sum reaches: the
 /// 4-4 fit-sum board must land where the shipped evaluator prices it when
 /// the net does the arithmetic (Partnership path, so the net sees the
 /// trie-prefixed reading it was trained on).
 #[test]
-fn bilans_floor_still_bids_the_known_fit_game() {
+fn accountant_floor_still_bids_the_known_fit_game() {
     let auction = [
         Call::Pass,
         call(1, Strain::Clubs),
@@ -877,11 +877,11 @@ fn slam_entry_floor_controls_the_rkcb_ask() {
     // 5-card spades, 20 points, opposite a 10+ limit raise → combined ~30:
     // below 33 (game), at or above the shipped 29 gate (ask).
     let opener = "AKQ85.AK2.KJ2.42";
-    // Pin the point gate: the bilans floor enters keycarding on
+    // Pin the point gate: the accountant floor enters keycarding on
     // `SLAM_ENTRY_P` instead of this point floor, so knob-on both thresholds
     // answer 4NT and the test stops testing what it names.
     let mut agreements = Agreements::default();
-    agreements.decision.instinct.bilans_floor = false;
+    agreements.decision.instinct.accountant_floor = false;
     agreements.decision.instinct.floor_slam_entry = 33;
     assert_eq!(
         best_with(&agreements, &auction, opener),
@@ -2513,7 +2513,7 @@ fn two_over_one_slam_strength_unblocks_the_ask() {
     let (chosen, floored) = american_floored_with(&agreements, &auction, "AKQJ2.AKQ.AQJ4.9");
     assert!(floored, "the deleted node leaves this to the floor");
     // Was `4♠`, and the comment called it "the defect: a 26-count game".
-    // The bilans floor (default-on) resolves it: 26 opposite a game-forcing
+    // The accountant floor (default-on) resolves it: 26 opposite a game-forcing
     // 2/1 with spade support is 39+ combined, and the net prices thirteen
     // tricks above the grand's break-even.  Knob-off this is still 4♠.
     assert_eq!(chosen, call(7, Strain::Spades), "the net finds the grand");
@@ -2573,11 +2573,11 @@ fn a_minimum_signs_off_opposite_an_established_two_over_one() {
 /// (1.75) outranks the ask (1.68) in *both* regimes (knob-off its
 /// combined 39 ≥ 37; knob-on the net clears the grand break-even) — and on
 /// the natural 1♠ - 3♠ raise the net's [`SLAM_ENTRY_P`] entry — the one
-/// bilans gate with no forcing rail behind it — still fires the keycard
+/// accountant gate with no forcing rail behind it — still fires the keycard
 /// ask.  The minimum's signoff moved to
 /// `a_minimum_signs_off_opposite_an_established_two_over_one`.
 #[test]
-fn bilans_floor_still_explores_the_rock_crusher_slam() {
+fn accountant_floor_still_explores_the_rock_crusher_slam() {
     let auction = [
         call(1, Strain::Spades),
         Call::Pass,
@@ -2824,7 +2824,7 @@ fn milestone_game_opposite_a_competitive_overcall() {
         call(3, Strain::Spades),
         Call::Pass,
     ];
-    // The bilans floor (default-on) prices the contract rather than the
+    // The accountant floor (default-on) prices the contract rather than the
     // point sum.  The hull-only twin liked twelve tricks better than even
     // money here; the shipped v3 calls-tail twin (2026-07-27), with the
     // 3♦ preempt and the 3♠ overcall in its input, likes thirteen — the

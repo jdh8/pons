@@ -138,7 +138,7 @@ pub struct ReadingProfile {
     /// `Context::new` — no projection overlay, the `dump-teacher` path — the
     /// hulls are knob-invariant, byte-identical over a 21K-row dump.  On a
     /// **prefixed** context (`Partnership::infer`, what the bidder, the floor net
-    /// and the bilans evaluator actually see) the authored-projection overlay
+    /// and the accountant evaluator actually see) the authored-projection overlay
     /// tightens with this on (⊤→box upgrades, `envelope_union_upgrade`), so
     /// those consumers' inputs move with it.
     pub envelope_union: bool,
@@ -207,7 +207,7 @@ pub struct ReadingProfile {
     /// `admits` already enforces, and every real 13-card hand satisfies
     /// `Σ len = 13` — zero rejections in either direction over 409,708 sampled
     /// layouts (`examples/probe-closure-features.rs`).  What does move is
-    /// `EnvelopeUnion::hull`: tighter, so the bilans evaluator and the feature
+    /// `EnvelopeUnion::hull`: tighter, so the accountant evaluator and the feature
     /// nets see tighter bands.
     pub sum_closure: bool,
 

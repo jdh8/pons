@@ -6,15 +6,15 @@
 # The closure is exact and membership-inert — pinned — so the sampler cannot be
 # the cause.  Two mechanisms remain:
 #
-#   (a) the bilans evaluator net reads hulls it was never fit on (chop F1), or
+#   (a) the accountant evaluator net reads hulls it was never fit on (chop F1), or
 #   (b) authored gates read the new `.min`/`.max` (fit_sum_game, keycard_trump,
 #       support_floor) and their thresholds were tuned without the closure.
 #
 # This pair takes the net out of BOTH arms.  The delta that survives is (b);
 # the delta that vanishes was (a).
 #
-#   nb-off   --no-ns-bilans
-#   nb-sum   --no-ns-bilans --ns-sum-closure
+#   nb-off   --no-ns-accountant
+#   nb-sum   --no-ns-accountant --ns-sum-closure
 #
 #   setsid nohup scripts/ab-closure-isolate.sh ab-results/closure-isolate \
 #       >ab-results/closure-isolate.log 2>&1 &
@@ -24,8 +24,8 @@ SEED_BASE=$(seed_for)
 
 log "=== closure isolate start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
 for vul in none both; do
-    arm nb-off "$vul" --no-ns-bilans
-    arm nb-sum "$vul" --no-ns-bilans --ns-sum-closure
+    arm nb-off "$vul" --no-ns-accountant
+    arm nb-sum "$vul" --no-ns-accountant --ns-sum-closure
     diffpair nb-sum nb-off "$vul"
 done
 log "=== closure isolate done"

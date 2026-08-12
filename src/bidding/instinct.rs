@@ -315,7 +315,7 @@ pub struct InstinctProfile {
     /// whose marginal fires overreach and dilute, and 33 restores the pre-knob
     /// gate.
     ///
-    /// Bypassed while [`bilans_floor`][Self::bilans_floor] is on: the ask then
+    /// Bypassed while [`accountant_floor`][Self::accountant_floor] is on: the ask then
     /// enters on the net's make probability instead of this point sum.
     pub floor_slam_entry: u8,
     /// Combined-points floor for a major game on a known eight-plus fit,
@@ -340,10 +340,10 @@ pub struct InstinctProfile {
     /// since-deleted global scale had suggested 32; the fit-known-only scale
     /// that shipped is narrower and refuted it.)
     pub fit_sum_game: u8,
-    /// The *bilans* floor — price the game/slam boundary gates with the learned
+    /// The *accountant* floor — price the game/slam boundary gates with the learned
     /// trick evaluator instead of point arithmetic
     ///
-    /// **Shipped default-on 2026-07-21.**  The `ab-bilans-floor` duplicate
+    /// **Shipped default-on 2026-07-21.**  The `ab-accountant-floor` duplicate
     /// match over 200 000 boards per arm put it ahead on *both* scorers at
     /// *both* vulnerabilities — non-vul **+0.036 IMPs/board plain DD** (95% CI
     /// [+0.030, +0.042]) and **+0.009 PD** ([+0.002, +0.016]); vulnerable
@@ -367,16 +367,17 @@ pub struct InstinctProfile {
     /// [`Partnership`][super::Partnership] behind the decision; a bare [`Context`] hands
     /// it the looser projection-less ranges it was not trained on.
     ///
-    /// The name tips the hat to Edward Piwowar: *bilans* (Polish for "balance")
-    /// is his term for the always-running deal evaluator inside EPBot, the
-    /// engine behind BBA, whose reverse-engineering
-    /// (`docs/ai-bidder/bba-floor.md` §5) inspired this floor.  His is analytic
-    /// winner/loser arithmetic on reconstructed hands; ours is the session-C
-    /// learned net over the same question.
-    pub bilans_floor: bool,
-    /// Collar the bilans net instead of letting it replace the point arithmetic
+    /// Formerly `bilans_floor`, tipping the hat to Edward Piwowar: *bilans*
+    /// (Polish for "balance") is his term for the always-running deal evaluator
+    /// inside EPBot, the engine behind BBA, whose reverse-engineering
+    /// (`docs/ai-bidder/bba-floor.md` §5) inspired this floor.  Renamed so that
+    /// *bilans* always means his engine and *accountant* always means ours:
+    /// his is analytic winner/loser arithmetic on reconstructed hands; ours is
+    /// the session-C learned net over the same question.
+    pub accountant_floor: bool,
+    /// Collar the accountant net instead of letting it replace the point arithmetic
     ///
-    /// [`bilans_floor`][Self::bilans_floor] as shipped masks the authored
+    /// [`accountant_floor`][Self::accountant_floor] as shipped masks the authored
     /// arithmetic *off* and hands the net the whole criterion — an unbounded
     /// veto over hands the point sums accept, and an unbounded reach below
     /// them.  With the collar on, the arithmetic is the criterion again and the
@@ -400,7 +401,7 @@ pub struct InstinctProfile {
     /// (`docs/ai-bidder/evaluator-net.md`, "The reach ceiling").
     ///
     /// **Default off** — byte-identical to the shipped mask in every
-    /// [`bilans_floor`][Self::bilans_floor] state.
+    /// [`accountant_floor`][Self::accountant_floor] state.
     pub net_collar: bool,
     /// Edit 1 — read partner's fit-known strength off the `support_points` gauge
     ///
@@ -499,7 +500,7 @@ impl Default for InstinctProfile {
             preempt_4m_require_ace: true,
             floor_slam_entry: 29,
             fit_sum_game: 31,
-            bilans_floor: true,
+            accountant_floor: true,
             net_collar: false,
             fit_sum_support_read: false,
             nt_hcp_read: false,
@@ -540,7 +541,7 @@ impl InstinctProfile {
             preempt_4m_require_ace: false,
             floor_slam_entry: 30,
             fit_sum_game: 32,
-            bilans_floor: false,
+            accountant_floor: false,
             net_collar: true,
             fit_sum_support_read: true,
             nt_hcp_read: true,
@@ -606,16 +607,16 @@ fn settle_floor() -> Cons<impl Constraint + Clone> {
     pred(|_: Hand, context: &Context<'_>| pinned(context).settle_floor)
 }
 
-/// The bilans floor is enabled (see
-/// [`bilans_floor`][InstinctProfile::bilans_floor])
-fn bilans_floor() -> Cons<impl Constraint + Clone> {
-    pred(|_: Hand, context: &Context<'_>| pinned(context).bilans_floor)
+/// The accountant floor is enabled (see
+/// [`accountant_floor`][InstinctProfile::accountant_floor])
+fn accountant_floor() -> Cons<impl Constraint + Clone> {
+    pred(|_: Hand, context: &Context<'_>| pinned(context).accountant_floor)
 }
 
-/// The bilans setting off a pinned profile — [`net_break_even_gate`]'s selector
+/// The accountant setting off a pinned profile — [`net_break_even_gate`]'s selector
 /// runs *inside* a predicate, where bare-context defaults are the wrong source
-fn bilans_pinned(profile: &DecisionProfile) -> bool {
-    profile.instinct.bilans_floor
+fn accountant_pinned(profile: &DecisionProfile) -> bool {
+    profile.instinct.accountant_floor
 }
 
 /// The net collar is enabled (see
@@ -3092,7 +3093,7 @@ fn king_reply(bid: Bid, more: bool) -> Cons<impl Constraint + Clone> {
 /// Grand-zone values: the authored point floor **and** the net's verdict
 ///
 /// [`points_and_net`] alone is not that.  With
-/// [`bilans_floor`][InstinctProfile::bilans_floor] on — the
+/// [`accountant_floor`][InstinctProfile::accountant_floor] on — the
 /// default — its authored arm is dead and the net's break-even test decides by
 /// itself, and the net calls a grand plausible on hands the point count puts
 /// nowhere near one: probing the `1♠ - 3♠ - 4NT - 5♣` asker, *every* hand strong
@@ -3309,17 +3310,17 @@ fn combined_hcp(threshold: u8) -> Cons<impl Constraint + Clone> {
 /// RKCB-ask threshold per call, matching the other floor knobs.
 fn slam_entry_reached() -> Cons<impl Constraint + Clone> {
     pred(|hand: Hand, context: &Context<'_>| {
-        // Bilans mode: enter keycarding once the small slam clears the entry
+        // Accountant mode: enter keycarding once the small slam clears the entry
         // probability — the net analogue of the support-point floor below.
-        if pinned(context).bilans_floor {
+        if pinned(context).accountant_floor {
             return keycard_trump(hand, context).is_some_and(|trump| {
                 let strain = Strain::from(trump);
-                bilans_accepts(
+                accountant_accepts(
                     hand,
                     context,
                     strain,
                     12,
-                    BilansThreshold::Inclusive(SLAM_ENTRY_P),
+                    AccountantThreshold::Inclusive(SLAM_ENTRY_P),
                 )
             });
         }
@@ -3375,16 +3376,16 @@ fn fit_sum_game(suit: Suit, slack: u8) -> Cons<impl Constraint + Clone> {
     })
 }
 
-/// Make probability of the small slam at which the bilans floor's RKCB ask
+/// Make probability of the small slam at which the accountant floor's RKCB ask
 /// fires — deliberately below [`break_even`]'s even-money decision line,
 /// because the ask buys information: inside the band the keycard answer
 /// converts the guess (two keycards missing → sign off at five, at most one →
-/// bid the slam).  The one bilans constant with no derivation behind it; sweep
+/// bid the slam).  The one accountant constant with no derivation behind it; sweep
 /// it if the A/B lands close.
 const SLAM_ENTRY_P: f32 = 0.35;
 
 /// The make probability at which bidding on breaks even in IMPs against
-/// stopping in the cold alternative — the economics half of the bilans floor
+/// stopping in the cold alternative — the economics half of the accountant floor
 ///
 /// A gate prices a *call*, and the house scoring split prices calls under
 /// perfect defense (`ns_score_bid` is the call scorer; the M3.1 7NT flood is
@@ -3417,7 +3418,7 @@ fn break_even(tricks: u8, strain: Strain, vul_we: bool) -> f32 {
 /// Who would declare a contract of ours in `strain`: the first of our side to
 /// have named it in the auction, else the actor (bidding it now would name it
 /// first).  The evaluator's trick columns are per-declarer — double-dummy
-/// tricks depend on who is on lead — so the bilans gates price the seat that
+/// tricks depend on who is on lead — so the accountant gates price the seat that
 /// would actually play the hand.
 fn our_declarer(context: &Context<'_>, strain: Strain) -> Relative {
     let auction = context.auction();
@@ -3437,34 +3438,34 @@ fn our_declarer(context: &Context<'_>, strain: Strain) -> Relative {
         .unwrap_or(Relative::Me)
 }
 
-/// The comparison made by a bilans trick gate
+/// The comparison made by a accountant trick gate
 ///
 /// Keep strict and inclusive thresholds distinct: several established rules
 /// intentionally disagree at exactly 0.5, and cache plumbing must not move
 /// that boundary.
 #[derive(Clone, Copy)]
-enum BilansThreshold {
+enum AccountantThreshold {
     Strict(f32),
     Inclusive(f32),
     BreakEven,
 }
 
-/// Evaluate one named bilans boundary from the decision-scoped forward pass
-fn bilans_accepts(
+/// Evaluate one named accountant boundary from the decision-scoped forward pass
+fn accountant_accepts(
     hand: Hand,
     context: &Context<'_>,
     strain: Strain,
     tricks: u8,
-    threshold: BilansThreshold,
+    threshold: AccountantThreshold,
 ) -> bool {
     let probability =
         context
             .trick_estimates(hand)
             .p_at_least(strain, our_declarer(context, strain), tricks);
     match threshold {
-        BilansThreshold::Strict(value) => probability > value,
-        BilansThreshold::Inclusive(value) => probability >= value,
-        BilansThreshold::BreakEven => {
+        AccountantThreshold::Strict(value) => probability > value,
+        AccountantThreshold::Inclusive(value) => probability >= value,
+        AccountantThreshold::BreakEven => {
             probability
                 >= break_even(
                     tricks,
@@ -3475,37 +3476,37 @@ fn bilans_accepts(
     }
 }
 
-/// A classification-time bilans constraint with one explicit boundary
+/// A classification-time accountant constraint with one explicit boundary
 ///
 /// The knob test remains ahead of the evaluator so disabled arms retain their
 /// historical short-circuit behavior even though surrounding `And`/`Or`
 /// constraints are eager.
-fn bilans_trick_gate(
+fn accountant_trick_gate(
     knob: fn(&DecisionProfile) -> bool,
     want: bool,
     strain: Strain,
     tricks: u8,
-    threshold: BilansThreshold,
+    threshold: AccountantThreshold,
 ) -> Cons<impl Constraint + Clone> {
     pred(move |hand: Hand, context: &Context<'_>| {
         knob(&context.decision_profile())
-            && want == bilans_accepts(hand, context, strain, tricks, threshold)
+            && want == accountant_accepts(hand, context, strain, tricks, threshold)
     })
 }
 
-/// With [`bilans_floor`][InstinctProfile::bilans_floor] on, the net likes
+/// With [`accountant_floor`][InstinctProfile::accountant_floor] on, the net likes
 /// `tricks` of ours in `strain` at
 /// better than even money
 ///
 /// Unlike [`points_or_net`] this converts no authored arithmetic — it is a gate
 /// that exists *only* knob-on, for a decision the point sums never priced.
 fn net_makes(strain: Strain, tricks: u8) -> Cons<impl Constraint + Clone> {
-    bilans_trick_gate(
-        bilans_pinned,
+    accountant_trick_gate(
+        accountant_pinned,
         true,
         strain,
         tricks,
-        BilansThreshold::Strict(0.5),
+        AccountantThreshold::Strict(0.5),
     )
 }
 
@@ -3517,7 +3518,7 @@ fn net_makes(strain: Strain, tricks: u8) -> Cons<impl Constraint + Clone> {
 /// - Both knobs off: exactly `authored`.  The net arm is `-∞` and falls out of
 ///   the [`Or`][super::constraint] max without touching the net (its predicate
 ///   short-circuits on the thread-local); the masking arms contribute `0.0`.
-/// - [`bilans_floor`][InstinctProfile::bilans_floor] on,
+/// - [`accountant_floor`][InstinctProfile::accountant_floor] on,
 ///   [`net_collar`][InstinctProfile::net_collar] off: exactly the net.  The
 ///   authored arm is masked to `-∞` and the gate is
 ///   `P(≥ tricks by our declarer in strain) ≥ break_even` — an unbounded reach
@@ -3540,8 +3541,8 @@ fn points_or_net(
     debug_assert!(tricks <= 11, "a game milestone, per break_even's own key");
     // ponytail: the `!net_collar()` legs are the legacy mask, byte-identical to
     // the shipped wiring; they die with the knob flip whichever way it lands.
-    (authored & (net_collar() | !bilans_floor()))
-        | ((!net_collar() | collar) & net_break_even_gate(bilans_pinned, true, strain, tricks))
+    (authored & (net_collar() | !accountant_floor()))
+        | ((!net_collar() | collar) & net_break_even_gate(accountant_pinned, true, strain, tricks))
 }
 
 /// A **slam** milestone's authored point arithmetic, which the evaluator net may
@@ -3550,7 +3551,7 @@ fn points_or_net(
 /// The mirror of [`points_or_net`]: slams break even at or *above* even money, so
 /// the cheap direction is to decline rather than to add.  Knob states, as there:
 /// both off is exactly `authored`;
-/// [`bilans_floor`][InstinctProfile::bilans_floor] alone is exactly the net
+/// [`accountant_floor`][InstinctProfile::accountant_floor] alone is exactly the net
 /// (the legacy mask); both on is `authored & net`, which needs no collar because
 /// it only ever shrinks the accepted set — and therefore keeps `authored`'s own
 /// reading, loose in the safe direction.
@@ -3561,11 +3562,11 @@ fn points_and_net(
 ) -> Cons<impl Constraint + Clone> {
     debug_assert!(tricks >= 12, "a slam milestone, per break_even's own key");
     // ponytail: as in `points_or_net`, the first two arms are the legacy mask.
-    (!net_collar() & !bilans_floor() & authored.clone())
-        | (!net_collar() & net_break_even_gate(bilans_pinned, true, strain, tricks))
+    (!net_collar() & !accountant_floor() & authored.clone())
+        | (!net_collar() & net_break_even_gate(accountant_pinned, true, strain, tricks))
         | (net_collar()
             & authored
-            & (!bilans_floor() | net_break_even_gate(bilans_pinned, true, strain, tricks)))
+            & (!accountant_floor() | net_break_even_gate(accountant_pinned, true, strain, tricks)))
 }
 
 /// The evaluator net's verdict on `tricks` of ours in `strain`, as a
@@ -3583,7 +3584,7 @@ pub(crate) fn net_break_even_gate(
     strain: Strain,
     tricks: u8,
 ) -> Cons<impl Constraint + Clone> {
-    bilans_trick_gate(knob, want, strain, tricks, BilansThreshold::BreakEven)
+    accountant_trick_gate(knob, want, strain, tricks, AccountantThreshold::BreakEven)
 }
 
 /// Partner opened a strong notrump of `level` (we are the responder)
@@ -4514,7 +4515,7 @@ pub fn instinct(agreements: &Agreements) -> Rules {
         one_nt_runout_enabled() & responder_one_nt_runout() & responder_has_xx_values(),
     );
 
-    // Runout, the bilans end: 1NT redoubled is a *contract*, and a making one
+    // Runout, the accountant end: 1NT redoubled is a *contract*, and a making one
     // outscores the slam the milestones would otherwise reach — 1NT×× +5 is
     // 160 + 100 insult + 300 game + five redoubled overtricks ≈ 2560 non-vul,
     // against 990 for 6NT=.  So when the net likes our seven tricks at better
@@ -4812,7 +4813,7 @@ pub fn instinct(agreements: &Agreements) -> Rules {
     // each game rule can price its own strand — the fitted major-game rule swaps
     // the plain `combined_points(25)` for the fit-length-adjusted
     // [`fit_sum_game`], and every milestone wraps its points in [`points_or_net`]
-    // (the bilans knob prices that contract's own strain and trick target) —
+    // (the accountant knob prices that contract's own strain and trick target) —
     // while these forces still apply untouched.
     let game_forces = (partner_strong_notrump(1)
         & (hcp(10..)
@@ -5055,7 +5056,7 @@ pub fn instinct(agreements: &Agreements) -> Rules {
                 // assume three combined keycards, and outside combined
                 // 3..=5 the 1430 steps are guesses — the round-1 A/B's
                 // worst boards were ~26-27-combined asks over limited
-                // raises, decoded high and six off two.  The bilans entry
+                // raises, decoded high and six off two.  The accountant entry
                 // prices tricks; this floor prices the *conversation*.
                 & combined_points(29)
                 & slam_entry_reached()

@@ -584,7 +584,7 @@ joining the one batched A/B:
   sound and tight); jump returns qualify only when the suit was bid twice —
   the guard that keeps the slam machinery intact (loosening jump returns to a
   once-shown 5-suit let the sampler deal doubleton responders and dragged the
-  bilans grand-slam estimate below break-even: the handoff's "a reading knob
+  accountant grand-slam estimate below break-even: the handoff's "a reading knob
   is a bidding knob" made live in a unit test).
 - **Rebid inflation through artificial calls — FIXED, two mechanisms.**
   (1) `over_one_notrump` now requires the lane's *first* bid, so post-transfer
@@ -849,7 +849,7 @@ is therefore one constraint on the **ask**, not a decode protocol:
 `combined_points(29)` joins the gate — the strength floor that buys the
 three-keycard assumption (at 29+ the opponents hold ≤ 11 HCP, and three
 keycards need 11 packed exactly — jdh8's "almost impossible").  The
-bilans entry prices tricks; this floor prices the *conversation*.  Every
+accountant entry prices tricks; this floor prices the *conversation*.  Every
 round-1 worst family dies at the floor (all were sub-29).  Discovered en
 route, filed: the invite re-raise (`1♦ - 1♥ - 2♥ - 3♥`) stamps **no
 strength** — an uncontested vacuous-reading instance that keeps the

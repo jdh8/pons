@@ -172,7 +172,7 @@ inherits the default `project` returning `unknown()`. Negation projects nothing.
 
 Consequences reach past the reading. A `0..=37` envelope is maximally wide, which
 maximises the evaluator's `σ`; with `μ` below target a fatter `σ` *raises*
-`P(≥ tricks)`, so the bilans slam gate over-fires — a 12-count opposite a 2/1 asked
+`P(≥ tricks)`, so the accountant slam gate over-fires — a 12-count opposite a 2/1 asked
 keycards instead of signing off in 4♠. Every A/B baseline touching a game force was
 measured against this blind envelope.
 
@@ -311,8 +311,8 @@ Three constraints:
   bug is that `set_two_over_one_fit` changes what `2♣` means), so a baked table would
   be wrong for every A/B arm. `american()` already builds a `Partnership`. At ~1 s per
   thousand-node book this amortizes to nothing across a 200k-board A/B.
-- **Reading-affecting knobs must be fixed at construction.** `ab-bilans-floor` flips
-  `set_bilans_floor` *per seat per call*; that is safe only because it gates the
+- **Reading-affecting knobs must be fixed at construction.** `ab-accountant-floor` flips
+  `accountant_floor` *per seat per call*; that is safe only because it gates the
   floor, not the book's rule tables. Assert the invariant — do not assume it.
 
 ### Why probing beats deriving symbolically
@@ -830,7 +830,7 @@ anchors keep that honest:
   policy**, and the probe is its synchronization step: train a node →
   re-probe its calls → downstream nodes see fresh readings → train them.
   Leaves are coordination-free (no downstream language to break) and
-  constructive leaves already proved out (bilans, M6.4); competitive leaves
+  constructive leaves already proved out (accountant, M6.4); competitive leaves
   are where the DD reward is most biased (the obstruction wall that killed
   M7).
 - **The walls are measured, not hypothetical**: DD reward bias unlearns

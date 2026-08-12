@@ -64,11 +64,11 @@ struct Args {
     #[arg(short, long, default_value = "28")]
     threshold: u8,
 
-    /// Disable the bilans net floor on both sides (the ambient environment):
-    /// `slam_entry_reached` short-circuits into the bilans branch when the net
+    /// Disable the accountant net floor on both sides (the ambient environment):
+    /// `slam_entry_reached` short-circuits into the accountant branch when the net
     /// floor is on, so this threshold only bites with it off.
     #[arg(long, default_value_t = false)]
-    no_bilans: bool,
+    no_accountant: bool,
 
     /// Vulnerability: none, ns, ew, both
     #[arg(short, long, default_value = "none")]
@@ -130,7 +130,7 @@ fn main() {
     // Ambient environment (both sides): the point floor is shadowed unless the
     // net floor is off (`slam_entry_reached`, src/bidding/instinct.rs).
     let mut agreements = pons::bidding::agreements::Agreements::default();
-    agreements.decision.instinct.bilans_floor = !args.no_bilans;
+    agreements.decision.instinct.accountant_floor = !args.no_accountant;
     agreements.decision.instinct.floor_slam_entry = BASELINE;
     let plain = american(&agreements).bind();
     agreements.decision.instinct.floor_slam_entry = args.threshold;

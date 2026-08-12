@@ -1280,7 +1280,7 @@ pub fn features_v5(hand: Hand, context: &Context<'_>) -> Vec<f32> {
     out
 }
 
-// ── The trick-evaluator extractor (bilans session C) ─────────────────────────
+// ── The trick-evaluator extractor (accountant session C) ─────────────────────────
 
 /// Layout version tag for the trick-evaluator extractor [`features_eval`]
 ///

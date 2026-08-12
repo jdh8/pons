@@ -15,7 +15,7 @@
 # The crossing is what makes that measurable.  Pre-measured at 3000 boards,
 # vul none, the closure's *bidding* footprint splits cleanly:
 #
-#   no net at all (--no-ns-bilans)  37.13%   samplers + authored gates
+#   no net at all (--no-ns-accountant)  37.13%   samplers + authored gates
 #   v3 endpoint net live            39.00%   the net adds +1.87 pts
 #   v4 shape net live               37.10%   the net adds -0.03 pts
 #

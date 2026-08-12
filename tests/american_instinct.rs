@@ -50,7 +50,7 @@ fn test_pass_of_preempt_without_values() {
 /// 1♥ (3♣): their jump overcall is past the negative-double package
 /// (`OvercallAtMost(2♠)`), but responder still raises with a limit hand
 ///
-/// The v1 bilans floor pushed this raise to game — "the third competitive
+/// The v1 accountant floor pushed this raise to game — "the third competitive
 /// auction to move up a level when the floor shipped".  The v2 weights hand it
 /// back: ten points with three trumps and no shortness is 22–24 combined
 /// opposite a 12–14 opener, so the limit raise is the call and 4♥ was the

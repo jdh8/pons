@@ -1,4 +1,4 @@
-//! Trick-evaluator corpus (bilans session C)
+//! Trick-evaluator corpus (accountant session C)
 //!
 //! Bids out pre-solved deals with our own books and records, at every decision
 //! point, a training row of `(features, dd_tricks)` for the **trick evaluator**

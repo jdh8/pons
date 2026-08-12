@@ -1,8 +1,8 @@
 #!/bin/sh
-# ab-net-collar.sh — collar the bilans net instead of letting it replace the
+# ab-net-collar.sh — collar the accountant net instead of letting it replace the
 # authored point arithmetic at the game and slam milestones.
 #
-# The shipped `set_bilans_floor` wiring masks the authored gate off and hands
+# The shipped `set_accountant_floor` wiring masks the authored gate off and hands
 # the net the whole criterion — an unbounded reach below the point threshold
 # *and* an unbounded veto over hands the point sums accept.  `set_net_collar`
 # gives the arithmetic the criterion back and lets the net rule on it in one
@@ -15,7 +15,7 @@
 #   off      the shipped default (net replaces the arithmetic)
 #   collar   --ns-net-collar
 #
-# NOT an arm: `--no-ns-bilans`.  This is a treatment of the net's *licence*, not
+# NOT an arm: `--no-ns-accountant`.  This is a treatment of the net's *licence*, not
 # of its presence, so both arms keep the net on.
 #
 # Read the verdict off docs/measurement.md's decision table, then read the

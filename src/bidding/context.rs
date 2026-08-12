@@ -179,7 +179,7 @@ pub struct DecisionProfile {
     /// ablation).  The A/B shipped it default-on with a `win | win` verdict:
     /// plain DD +0.0180 ± 0.0042 (none) / +0.0284 ± 0.0056 (both), PD +0.0222
     /// / +0.0360, on 204,800 boards/arm/vul at `SEED_BASE` 1785138816 — fired
-    /// 1.3–1.6%, +1.3 to +2.3 IMPs per fired board at the bilans game/slam
+    /// 1.3–1.6%, +1.3 to +2.3 IMPs per fired board at the accountant game/slam
     /// gates.
     ///
     /// The v3 twin was trained on the envelope-union reading regime only, so

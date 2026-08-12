@@ -113,7 +113,7 @@ fn in_slice(dealer: Seat, deal: &FullDeal) -> bool {
 /// Bid out one deal, enabling the net seams only for the feature side
 ///
 /// The flag is pinned into a partnership at build, so the two sides bid off two
-/// pre-built partnerships rather than one partnership and a per-call flag.  The bilans floor
+/// pre-built partnerships rather than one partnership and a per-call flag.  The accountant floor
 /// stays at its shipped default for **both** sides — only the Stayman seams move.
 fn bid_out(
     partnerships: &[Partnership; 2],
