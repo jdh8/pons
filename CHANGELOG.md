@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`gib read` takes a window: `--skip`/`--count`, or `--last N`.** On the
+  binary format the window is a *seek* through `pdd::load_slice`, so inspecting
+  the tail of a sealed 340 MB shard reads a few hundred bytes in 0.3 s instead
+  of decoding 10M deals — the check that was missing when a truncated shard
+  needed confirming and `gib verify` was the only tool on offer (it re-solves
+  every deal against an uncapped DDS pool, days of work to answer a question
+  about the last record). Deals are numbered by position in the file, not in
+  the window, so a tail print says *which* deals these are. GIB text has no
+  fixed row width to seek by, so a window there still parses the file and
+  slices the result; both formats agree on the numbering. An empty window
+  (`--skip` past the end) prints nothing and exits 0 — a fact about the file,
+  not an error.
+
 - **Diamond splinters after `1NT - 2NT` — default-on, +1.01/+1.23 IMPs/fired.**
   The Puppet `2NT` diamond transfer showed a full hand class (6+♦, or 5♦4♣) but
   responder's rebid over either of opener's answers was binary: `3NT` with game

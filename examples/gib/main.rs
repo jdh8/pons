@@ -21,6 +21,8 @@
 //! gib generate --append --count 100000 --seed 1 --out shard-1.pdd  # now 200k
 //! gib verify shard-1.pdd        # re-solve and confirm the cached tables
 //! gib read shard-1.pdd | head   # human-readable deal + DD grid
+//! gib read shard-1.pdd --last 3       # tail of a sealed shard, by seek
+//! gib read shard-1.pdd --skip 500 --count 10   # any window, likewise
 //! gib convert shard-1.pdd --out shard-1.txt   # binary <-> text
 //! ```
 
@@ -43,8 +45,24 @@ struct Args {
 
 #[derive(Subcommand)]
 enum Cmd {
-    /// Pretty-print every deal and its DD table.
-    Read { file: String },
+    /// Pretty-print deals and their DD tables, whole file or a window.
+    ///
+    /// On the binary format a window is a *seek*: inspecting the tail of a
+    /// sealed 340 MB shard reads a few hundred bytes, not the shard. GIB text
+    /// has no fixed row width to seek by, so a window there still parses the
+    /// file and slices the result.
+    Read {
+        file: String,
+        /// Skip this many deals before printing.
+        #[arg(long, default_value_t = 0)]
+        skip: u64,
+        /// Print at most this many deals (default: to end of file).
+        #[arg(long)]
+        count: Option<usize>,
+        /// Print the final N deals — `--skip` counted from the end.
+        #[arg(long, conflicts_with_all = ["skip", "count"])]
+        last: Option<u64>,
+    },
     /// Deal random boards, solve them, and write GIB lines.
     Generate {
         /// Number of deals to produce
@@ -91,7 +109,12 @@ const STRAINS: [(&str, Strain); 5] = [
 
 fn main() -> std::io::Result<()> {
     match Args::parse().cmd {
-        Cmd::Read { file } => read(&file),
+        Cmd::Read {
+            file,
+            skip,
+            count,
+            last,
+        } => read(&file, skip, count, last),
         Cmd::Generate {
             count,
             seed,
@@ -109,11 +132,54 @@ fn is_pdd(path: &str) -> bool {
     path.ends_with(".pdd")
 }
 
-fn read(file: &str) -> std::io::Result<()> {
+/// Whether `path` opens with the binary format's magic — the same test
+/// [`pdd::from_bytes`] makes, so a window seeks exactly when the bytes support
+/// it, whatever the extension says. A file too short to hold the magic is not
+/// binary; it is an empty or truncated text file, which `load` reads as text.
+fn is_binary(path: &str) -> std::io::Result<bool> {
+    let mut magic = [0; pdd::MAGIC.len()];
+    match std::io::Read::read_exact(&mut std::fs::File::open(path)?, &mut magic) {
+        Ok(()) => Ok(magic == pdd::MAGIC),
+        Err(e) if e.kind() == std::io::ErrorKind::UnexpectedEof => Ok(false),
+        Err(e) => Err(e),
+    }
+}
+
+/// Resolve a window against a deal count: `--last n` is `--skip (total - n)`,
+/// and the result is clamped to what the file holds, since a short window is a
+/// fact about the file rather than an error.
+fn window(total: u64, skip: u64, count: Option<usize>, last: Option<u64>) -> (u64, u64) {
+    let skip = last.map_or(skip, |n| total.saturating_sub(n)).min(total);
+    let room = total - skip;
+    // Clamp before widening: an unbounded `count` would overflow `load_slice`'s
+    // `count * ROW_LEN` byte budget.
+    (skip, count.map_or(room, |c| room.min(c as u64)))
+}
+
+fn read(file: &str, skip: u64, count: Option<usize>, last: Option<u64>) -> std::io::Result<()> {
+    let (first, deals) = if is_binary(file)? {
+        let total = pdd::rows_in(std::fs::metadata(file)?.len());
+        let (skip, take) = window(total, skip, count, last);
+        let take = usize::try_from(take).unwrap_or(usize::MAX);
+        (skip, pdd::load_slice(file, skip, take)?)
+    } else {
+        let all = pdd::load(file)?;
+        let (skip, take) = window(all.len() as u64, skip, count, last);
+        let cut = usize::try_from(skip).unwrap_or(usize::MAX);
+        let take = usize::try_from(take).unwrap_or(usize::MAX);
+        (skip, all[cut..][..take].to_vec())
+    };
     let stdout = std::io::stdout();
     let mut w = BufWriter::new(stdout.lock());
-    for (i, (deal, table)) in pdd::load(file)?.iter().enumerate() {
-        writeln!(w, "# {}: {}", i + 1, deal.display(Seat::West))?;
+    // Number deals by their position in the file, not in the window, so a tail
+    // print says which deals these are.
+    for (i, (deal, table)) in deals.iter().enumerate() {
+        writeln!(
+            w,
+            "# {}: {}",
+            first + i as u64 + 1,
+            deal.display(Seat::West)
+        )?;
         writeln!(w, "        N   E   S   W")?;
         for (label, strain) in STRAINS {
             let row = table[strain];
