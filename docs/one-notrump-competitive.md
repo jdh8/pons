@@ -255,6 +255,12 @@ not in the default system).
 
 ## Measurement discipline
 
+- **Counter-defense isolation gate:** on identical seeded deals, configuring
+  the candidate against a natural defense must leave the auction dump
+  byte-identical to the natural baseline.  Require natural interference to
+  occur and the targeted artificial-defense arm to diverge, so the check is
+  not vacuous; a face-call-wide reinterpretation (`2♣` always means Landy)
+  fails this gate.
 - **Enriched probing** is the default here: `bba-gen --filter-1nt` (raw-hand
   gate, balanced 15-17 somewhere, applied *before* any bidding). Headline is
   IMPs per **accepted** deal; publish `per-board = conditional mean × trigger
