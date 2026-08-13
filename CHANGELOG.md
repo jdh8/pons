@@ -39,9 +39,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     (artificial, `doubler-cue`), banded Pass — with every floor two HCP higher
     when advancer was forced to the two level.
 
-  Neither knob ships: this is the built-and-measurable state, and the A/Bs are
-  next. **No user-visible behaviour change** — with both knobs off the system
-  is byte-identical to the previous commit (`render-book` `6fa476f9…`,
+  **Both measured 2026-08-13, both wash on both references, so neither ships.**
+  Sequential fresh seeds (`bar` 1786562541, `seam` 1786563002), BBA 204.8k
+  bd/arm/vul then the same-seed 25.6k Tier-F BEN guard. `bar` BBA plain −0.0002
+  ±0.0008 / −0.0004 ±0.0009, BEN plain −0.0001 ±0.0018 / +0.0005 ±0.0023;
+  `seam` BBA plain +0.0011 ±0.0014 / +0.0011 ±0.0018, BEN plain +0.0003 ±0.0036
+  / +0.0003 ±0.0047. Both are doubling knobs — `bar` doubles less, `seam` more
+  — so each is read on plain DD, and the PD columns mirror accordingly. Every
+  cell's CI covers zero. `bar` additionally fires on only 0.07–0.10% of boards
+  (18 of 25,600 on the BEN guard), far under what its 69-board residue implied,
+  because that residue was counted over a differently scoped corpus; `seam`
+  leans positive in all four plain cells and is the bucket's best re-measure
+  candidate. **No user-visible behaviour change** — with both knobs off the
+  system is byte-identical to the previous commit (`render-book` `6fa476f9…`,
   `smoke-default --count 20000 --seed 1` `b9cd64a7…`).
 
 - **The competitive accountant — the contested game-level decision, priced**

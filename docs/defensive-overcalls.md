@@ -431,9 +431,14 @@ SEED_BASE="$(<"$BASE/o3/seed")" \
 | O4 quality gate | not run; stopped before A/B | not run | not run | no model, no atom, no active gate |
 
 The same two runners also carry the takeout-double package's arms — `bar`
-(`suppress_long_minor_takeout`) and `seam` (`defensive_seam_split`), both
-default-off. Their design, evidence, and verdict ledger live in
-[takeout-double-layers.md](takeout-double-layers.md), not here.
+(`suppress_long_minor_takeout`) and `seam` (`defensive_seam_split`). Both were
+measured 2026-08-13 on the full two-reference gate and **washed in every cell on
+both references**, so both stay opt-in, default-off. Their design, evidence, and
+verdict ledger live in [takeout-double-layers.md](takeout-double-layers.md), not
+here; the transferable lesson is there too — `bar` fired on 0.07–0.10% of boards
+(18 of 25,600 on the BEN guard), far below what its 69-board residue implied,
+because the residue was counted over a corpus scoped differently from the node's
+trigger. Price the trigger density before building.
 
 ## Out of scope (decided, not deferred by neglect)
 

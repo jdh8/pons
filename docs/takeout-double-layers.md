@@ -1,7 +1,8 @@
 # The multi-layered takeout double — design
 
 **Status: rebuilt 2026-08-13 on what the evidence actually says; both knobs
-built, default off, awaiting their A/Bs.** Second work package of the defensive
+built and measured 2026-08-13 — both wash on both references, so both stay
+opt-in, default off** ([verdicts](#verdicts)). Second work package of the defensive
 round-1 redesign; runs after [defensive-overcalls.md](defensive-overcalls.md)
 (which also holds the shared evidence table and measurement discipline). Same
 bucket, same campaign docs: [ben-gap-campaign.md](ben-gap-campaign.md),
@@ -226,5 +227,56 @@ default-on. **Split every divergence report by opening class** (1-level vs weak
 two, minor vs major opening) — the bar's minor-opening and weak-two subsets are
 both unmeasured, and "trigger-too-broad" is what killed the last defensive
 tightening in this bucket.
+
+## Verdicts
+
+Both ran 2026-08-13 at `aadd547`, sequential, fresh seeds (`bar` 1786562541,
+`seam` 1786563002), BBA 204.8k bd/arm/vul then the same-seed 25.6k Tier-F BEN
+guard. Results in `ab-results/takeout-double-layers/2026-08-13/`.
+
+Both knobs are **doubling** knobs — `bar` doubles less, `seam` doubles more — so
+each is judged on plain DD and the PD column is the bracket that cannot price
+them ([`feedback_pd-cannot-price-double-more`](measurement.md)). The signs are
+exactly the mirror image that reading predicts.
+
+| knob | ref | vul | fired | plain DD | PD | SD plain |
+| --- | --- | --- | --- | --- | --- | --- |
+| `suppress_long_minor_takeout` | BBA | none | 0.10% | −0.0002 ±0.0008 | +0.0004 ±0.0009 | −0.0000 ±0.0008 |
+| | BBA | both | 0.09% | −0.0004 ±0.0009 | +0.0003 ±0.0011 | −0.0003 ±0.0010 |
+| | BEN | none | 0.07% | −0.0001 ±0.0018 | −0.0007 ±0.0024 | −0.0003 ±0.0019 |
+| | BEN | both | 0.07% | +0.0005 ±0.0023 | +0.0003 ±0.0026 | +0.0007 ±0.0026 |
+| `defensive_seam_split` | BBA | none | 0.29% | +0.0011 ±0.0014 | −0.0001 ±0.0016 | +0.0009 ±0.0014 |
+| | BBA | both | 0.29% | +0.0011 ±0.0018 | −0.0005 ±0.0021 | +0.0014 ±0.0018 |
+| | BEN | none | 0.28% | +0.0003 ±0.0036 | −0.0025 ±0.0043 | +0.0012 ±0.0036 |
+| | BEN | both | 0.28% | +0.0003 ±0.0047 | −0.0005 ±0.0059 | +0.0016 ±0.0048 |
+
+**Every cell is a wash.** No refutation on either reference, no gain on either;
+both stay opt-in with the default system byte-identical, the house outcome for
+rejected-but-interesting treatments.
+
+`bar`'s failure is the instructive one, and it is a **stakes error made at design
+time, not a measured loss**. Its case was 45 of the 69 boards in the `X` → `2♦`
+residue; the knob fires on 0.07–0.10% of boards, which on the BEN guard is **18
+boards in 25,600**. The residue was counted over a corpus scoped differently from
+this node's trigger, so the 69-board figure never was 69 boards *of trigger*. At
+this density the clause cannot move the anchor whichever way it leans, and the
+split-by-opening-class report the plan owed it is moot: there is not enough mass
+in either half to attribute. Read the count before the sign — a trigger this thin
+is a reason not to build, and it was visible in the design.
+
+`seam` is the one that leans the right way and leans there consistently: plain DD
+positive in all four plain cells across both references. It is still inside its
+CI, so it does not ship — but it is the better of the two re-measure candidates,
+and the cheapest way to sharpen it is more boards on the BBA side rather than a
+redesign. One caveat against over-reading that consistency: `none` and `both`
+share a `SEED_BASE`, so they are the same deals priced at two vulnerabilities,
+and the SD cells re-score those same boards again. That is one ~200k-deal sample
+viewed four ways, not four independent confirmations.
+
+The weak-two scope leak the design flagged is **live and visible**: several of
+`bar`'s worst BBA divergences are over a weak two (`2♥ 3♣` vs `2♥ X`, `2♦ 3♣` vs
+`2♦ X`), because `takeout_double_shape_ok` is shared with
+[`weak_two_defense`](../src/bidding/american/defense/weak_two_defense.rs). Any
+future reopening of this clause must gate it on the opening's level first.
 
 [`advance_2nt`]: ../src/bidding/american/defense/advance_2nt.rs
