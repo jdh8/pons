@@ -331,23 +331,25 @@ fn landy_responder(agreements: &Agreements) -> Rules {
     // X = values, willing to defend whatever they run to.
     rules = rules.rule(Call::Double, 145, hcp(8..)).alert(LANDY_VALUES);
 
-    // Natural forcing 3-level minor one-suiter — a **six-card** suit, and ranked
-    // *above* 3NT.  Their 2♣ is artificial, so clubs are ours to bid; and with
-    // both majors against us, whether 3NT is playable turns on opener's major
-    // holdings, which only opener can see.  Showing the source of tricks and
-    // letting opener choose beats guessing.  (Five-card suits stay inside the
-    // 3NT/double partition: at 5-3-3-2 there is nothing for opener to choose.)
-    for s in [Suit::Clubs, Suit::Diamonds] {
-        let strain = Strain::from(s);
-        rules = rules.rule(Bid::new(3, strain), 175, len(s, 6..) & points(10..));
-    }
-
-    // GF minor cues — the N1b overlay (`defense_2c_landy_cues`): `2♥`/`2♠`,
-    // cues of their shown majors, name the corresponding unshown minor with a
-    // 5+ suit, game-forcing.  Ranked *below* the 6-card naturals (a one-suiter
-    // still shows its source of tricks directly) and *above* 3NT, so the
-    // 5-card game hands start low and let opener place the contract instead of
-    // guessing a stopperless 3NT.  `2♥` edges `2♠` so 5-5 minors cue cheaper.
+    // The minor one-suiters, split by the N1b overlay (`defense_2c_landy_cues`):
+    //
+    // - **Cues off** (the base counter): natural *forcing* `3♣`/`3♦` — a
+    //   **six-card** suit, ranked *above* 3NT.  Their 2♣ is artificial, so
+    //   clubs are ours to bid; and with both majors against us, whether 3NT is
+    //   playable turns on opener's major holdings, which only opener can see.
+    //   Showing the source of tricks and letting opener choose beats guessing.
+    //   (Five-card suits stay inside the 3NT/double partition: at 5-3-3-2
+    //   there is nothing for opener to choose.)
+    //
+    // - **Cues on**: the full [`michaels_cue_responder`][super::two_suiters]
+    //   skeleton — the cues (`2♥` = 5+♣, `2♠` = 5+♦, game-forcing) carry
+    //   *every* GF minor one-suiter, six-carders included, and the direct
+    //   `3♣`/`3♦` flip to natural **weak** escapes (a forcing 3m would be
+    //   redundant with the cue below it).  The weak `3♦` is mostly shadowed by
+    //   the cheaper `2♦` (140 > 110); it survives only below the 2♦ escape's
+    //   hcp floor.  `2♥` edges `2♠` so 5-5 minors cue cheaper — which also
+    //   means a GF hand with longer diamonds than clubs (6♦5♣) shows the
+    //   clubs; rare enough to leave.
     if agreements.competition.defense_2c_landy_cues {
         rules = rules
             .rule(
@@ -362,6 +364,15 @@ fn landy_responder(agreements: &Agreements) -> Rules {
                 len(Suit::Diamonds, 5..) & points(10..),
             )
             .alert(LANDY_CUE);
+        for s in [Suit::Clubs, Suit::Diamonds] {
+            let strain = Strain::from(s);
+            rules = rules.rule(Bid::new(3, strain), 110, len(s, 6..) & points(2..=9));
+        }
+    } else {
+        for s in [Suit::Clubs, Suit::Diamonds] {
+            let strain = Strain::from(s);
+            rules = rules.rule(Bid::new(3, strain), 175, len(s, 6..) & points(10..));
+        }
     }
 
     // Direct 3NT on game values, with **no stopper gate** — deliberately not
@@ -397,6 +408,60 @@ fn landy_responder(agreements: &Agreements) -> Rules {
 /// bid a phantom major.  Total by construction: one rule, no gate.
 fn landy_double_answer() -> Rules {
     Rules::new().rule(Call::Pass, 100, hcp(0..))
+}
+
+/// Opener's answer to the counter's weak sign-offs — pass, always
+///
+/// One of the `landy_natural_answers` trio.  Covers the weak `2♦` (and, under
+/// the N1b overlay, the weak `3♣`/`3♦`): responder is limited with a long
+/// suit, the sign-off is a minor, and minor game is out of a weak hand's reach,
+/// so there is no raise to probe for ([`lebensohl_signoff_raise`] excludes
+/// minors by the same doctrine).  Like [`landy_double_answer`], the node exists
+/// because the suffix would otherwise reach the floor, which cannot see the
+/// counter's regime (the knob has no net input slot) and completes the retired
+/// gadget instead — a phantom Jacoby `2♥` on 82% of audited `2♦` sign-offs.
+fn landy_signoff_answer() -> Rules {
+    Rules::new().rule(Call::Pass, 100, hcp(0..))
+}
+
+/// Opener's answer to the counter's natural `2NT` invite (`1NT (2♣) 2NT -`)
+///
+/// One of the `landy_natural_answers` trio.  The same size decision as the
+/// uncontested invite, keyed on the same knob
+/// ([`NotrumpKnobs::size_ask_accept_floor`][crate::bidding::agreements::NotrumpKnobs::size_ask_accept_floor],
+/// default 16): accept at `3NT` from the top of the range, else pass.  Without
+/// the node the floor answers the minor transfer the invite replaced (23%
+/// phantom `3♦`/`3♣` in the audited dumps).
+fn landy_invite_answer(agreements: &Agreements) -> Rules {
+    Rules::new()
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            100,
+            hcp(agreements.notrump.size_ask_accept_floor..),
+        )
+        .rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Opener's answer to the base counter's forcing `3♣`/`3♦` (`1NT (2♣) 3m -`)
+///
+/// One of the `landy_natural_answers` trio, wired only with the cues *off*
+/// (under N1b the direct minors are weak and take [`landy_signoff_answer`]).
+/// Responder shows a six-card source of tricks and game values, and opener
+/// chooses — the point of ranking the naturals above 3NT: `3NT` with both of
+/// their majors stopped, else raise.  The raise doubles as the finite
+/// catch-all — opener is balanced, so it never lands on fewer than two, and
+/// responder has six.  [`landy_cue_answer`] one level up; without the node the
+/// floor answers `3♣` as the Puppet Stayman it replaced (85% phantom `3♦`).
+fn landy_minor_answer(minor: Suit) -> Rules {
+    let strain = Strain::from(minor);
+    Rules::new()
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            150,
+            stopper_in(Suit::Hearts) & stopper_in(Suit::Spades),
+        )
+        .rule(Bid::new(4, strain), 100, len(minor, 3..))
+        .rule(Bid::new(4, strain), 20, hcp(0..))
 }
 
 /// Opener's answer to a Landy GF minor cue (`1NT (2♣) 2♥/2♠ -`)
@@ -508,9 +573,9 @@ pub(super) fn lebensohl_package() -> Package {
                 // the rebase registered would strip the 2♣ and remap our values
                 // X back onto the stolen 2♣ Stayman one round later, sending
                 // `1NT (2♣) X (2♥)` into the contested-Stayman package.  So the
-                // book claims responder's first call and opener's reply to the
-                // double, and every deeper auction is the floor's — which is
-                // where we want it: the floor already encircles their escape
+                // book claims responder's first call and opener's one answer to
+                // each of them, and every deeper auction is the floor's — which
+                // is where we want it: the floor already encircles their escape
                 // from our double (`penalize_escape_stack`/`_values`).
                 entries.extend(rows_of(
                     Pattern::after(NT, "(2♣)"),
@@ -520,6 +585,34 @@ pub(super) fn lebensohl_package() -> Package {
                     Pattern::after("P* 1NT (2♣)", "X -"),
                     landy_double_answer(),
                 ));
+                // `landy_natural_answers`: opener's one answer over each of the
+                // counter's natural calls.  The floor cannot see the counter's
+                // regime (no net input slot for the knob), so left to itself it
+                // completes each call as the default-system gadget it replaced
+                // — phantom Jacoby over `2♦`, phantom minor transfer over
+                // `2NT`, phantom Puppet answer over `3♣`.  A direct `3NT`
+                // needs no node: the audited dumps pass it out cleanly.
+                entries.extend(rows_of(
+                    Pattern::after("P* 1NT (2♣)", "2♦ -"),
+                    landy_signoff_answer(),
+                ));
+                entries.extend(rows_of(
+                    Pattern::after("P* 1NT (2♣)", "2NT -"),
+                    landy_invite_answer(agreements),
+                ));
+                for minor in [Suit::Clubs, Suit::Diamonds] {
+                    entries.extend(rows_of(
+                        Pattern::after("P* 1NT (2♣)", &format!("3{} -", Strain::from(minor))),
+                        // Under N1b the direct 3m is a weak escape (see
+                        // `landy_responder`), so opener sits; the forcing
+                        // 3NT-or-raise answer belongs to the base arm only.
+                        if agreements.competition.defense_2c_landy_cues {
+                            landy_signoff_answer()
+                        } else {
+                            landy_minor_answer(minor)
+                        },
+                    ));
+                }
                 if agreements.competition.defense_2c_landy_cues {
                     entries.extend(rows_of(
                         Pattern::after("P* 1NT (2♣)", "2♥ -"),

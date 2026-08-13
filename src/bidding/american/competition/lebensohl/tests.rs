@@ -160,10 +160,20 @@ fn landy_cues_name_the_unshown_minors_game_forcing() {
     assert_eq!(c, call(2, Strain::Spades));
     assert!(!floored, "the GF diamond cue must come from the book");
 
-    // A six-card suit still shows its source of tricks directly — the overlay
-    // sits below the forcing 3-level naturals.
+    // The cues carry the six-carders too: with a GF cue below it, a forcing 3m
+    // would be redundant, so the skeleton routes every GF one-suiter through
+    // the cue and frees the direct 3m for the weak escape.
     let (c, _) = bid_landy_cues(&auction, "32.43.A32.AKJ876");
+    assert_eq!(c, call(2, Strain::Hearts));
+
+    // The freed direct 3♣: a natural weak escape, as in Michaels' UvU twin.
+    let (c, floored) = bid_landy_cues(&auction, "32.43.432.QJ8765");
     assert_eq!(c, call(3, Strain::Clubs));
+    assert!(!floored, "the weak escape must come from the book");
+
+    // Under the base counter the same weak hand has no call — 3m is forcing.
+    let (c, _) = bid_landy(&auction, "32.43.432.QJ8765");
+    assert_eq!(c, Call::Pass);
 
     // Purity of the addition: the base counter sends the 5-card hand to 3NT.
     let (c, _) = bid_landy(&auction, "32.A3.K32.AQJ54");
@@ -188,6 +198,44 @@ fn landy_cue_answer_places_the_game() {
     // No spade stopper: raise the named minor instead.
     let (c, _) = bid_landy_cues(&after_cue, "543.KQ4.AQ54.KQ3");
     assert_eq!(c, call(3, Strain::Clubs));
+}
+
+#[test]
+fn landy_natural_answers_stop_the_phantom_completions() {
+    // Opener's answers over the counter's natural calls.  Left to the floor —
+    // which cannot see the counter's regime — each of these was completed as
+    // the default-system gadget it replaced (audit, ab-results/landy-counter).
+    let base = [call(1, Strain::Notrump), call(2, Strain::Clubs)];
+
+    // 2♦ is a weak sign-off: opener passes, even a maximum.  The floor bid the
+    // phantom Jacoby 2♥ here on 82% of the audited boards.
+    let after = [base[0], base[1], call(2, Strain::Diamonds), Call::Pass];
+    let (c, floored) = bid_landy(&after, "A54.AQ4.A954.K32");
+    assert_eq!(c, Call::Pass, "a minor sign-off is never raised");
+    assert!(!floored, "the sign-off answer must come from the book");
+
+    // 2NT is the natural invite: decline on 15, accept on 16 — the same
+    // size_ask_accept_floor as the uncontested invite.
+    let after = [base[0], base[1], call(2, Strain::Notrump), Call::Pass];
+    let (c, floored) = bid_landy(&after, "A54.KQ4.A954.Q32");
+    assert_eq!(c, Call::Pass, "a minimum declines the invite");
+    assert!(!floored, "the invite answer must come from the book");
+    let (c, _) = bid_landy(&after, "A54.KQ4.A954.K32");
+    assert_eq!(c, call(3, Strain::Notrump), "a maximum accepts the invite");
+
+    // Base-arm 3♣ is forcing with a six-card suit: 3NT with both of their
+    // majors stopped, else raise.  The floor answered phantom Puppet here.
+    let after = [base[0], base[1], call(3, Strain::Clubs), Call::Pass];
+    let (c, floored) = bid_landy(&after, "A54.KQ4.A954.K32");
+    assert_eq!(c, call(3, Strain::Notrump));
+    assert!(!floored, "the forcing-minor answer must come from the book");
+    let (c, _) = bid_landy(&after, "543.KQ4.AQ54.KQ3");
+    assert_eq!(c, call(4, Strain::Clubs), "no spade stopper: raise instead");
+
+    // Under the cues, the direct 3♣ is the weak escape — opener sits.
+    let (c, floored) = bid_landy_cues(&after, "A54.AQ4.A954.K32");
+    assert_eq!(c, Call::Pass, "a weak escape is never raised");
+    assert!(!floored, "the weak-escape answer must come from the book");
 }
 
 #[test]

@@ -198,8 +198,20 @@ Responder's table at `1NT (2♣)`, replacing the systems-on rebase
 | `2NT` | natural invite, `points(8..=9)` | 130 |
 | Pass | finite catch-all | 0 |
 
-Opener's single answer: `1NT (2♣) X -` → **Pass**, sitting for the values
-double. Everything deeper is the floor's, which is where we want it — the floor
+Opener's answers, one per responder call (`landy_natural_answers`, authored
+2026-08-14 after the first A/B traced the loss to their absence — the floor
+has no net input slot for the knob, so it completed each call as the
+default-system gadget it replaced):
+
+| After | Opener answers | Was (floor, audited in `ab-results/landy-counter`) |
+| --- | --- | --- |
+| `X -` | Pass, sitting for the values double | phantom stolen-Stayman answer |
+| `2♦ -` | Pass, always — a minor sign-off is never raised (`lebensohl_signoff_raise` doctrine) | phantom Jacoby `2♥` **82%** (742/902, `3♥`×149 super-accepts) |
+| `2NT -` | `3NT` at `hcp(size_ask_accept_floor..)` (default 16, the uncontested invite's own knob), else Pass | phantom minor transfers **23%** (`3♦`×27/`3♣`×19/`3♥3♠`×17 in 277) |
+| `3♣`/`3♦ -` | `3NT` with both majors stopped, else raise (the raise is the finite catch-all) | `3♣`: phantom Puppet `3♦` **85%** (272/320); `3♦`: passed the force 62% |
+| `3NT -` | *no node* — audited clean (530/530 passed out) | — |
+
+Everything deeper is the floor's, which is where we want it — the floor
 already encircles their escape from our double
 (`penalize_escape_stack`/`penalize_escape_values`, both default-on).
 
@@ -246,8 +258,9 @@ six cells — stays opt-in.** See the ledger row for numbers and the two named
 leaks: opener's unauthored answers to the counter's natural `2NT`/`2♦` (the
 floor phantom-completes them as the transfers they replaced), and the census
 misread — systems-on's minor transfers were *winning* the minor-partial
-boards, so deleting them gave those boards back. `landy_natural_answers` is
-owed before any re-measure.
+boards, so deleting them gave those boards back. The follow-up audit widened
+leak 1 to every non-`X` call (the table above); `landy_natural_answers`
+authored 2026-08-14, re-measure in `ab-results/landy-counter-v2`.
 
 **Inertness proven**: `smoke-default --count 20000 --seed 1` SHA-256
 `8ea2f5678a733cfe3ead79411d9cb31b8e95d37de52236e597fc38f9dec82bbb`, identical at
@@ -264,21 +277,30 @@ not in the default system).
 The overlay that makes N1's remaining free space earn its keep, and the
 falsifiable half of the **`1♣ (2♣)` analogy** (the theory that a counter to a
 both-majors overcall of a balanced-ish partner should carry the
-Unusual-vs-Unusual cue skeleton — see the verdict below). A pure addition to
-`landy_responder`; requires `defense_2c_landy`:
+Unusual-vs-Unusual cue skeleton — see the verdict below). Replaces N1's
+3-level minor structure; requires `defense_2c_landy`:
 
 | Call | Meaning | Weight |
 | --- | --- | --- |
 | `2♥` (cue) | GF, **5+ clubs** — alert `comp:landy-cue` | 173 |
 | `2♠` (cue) | GF, **5+ diamonds** — alert `comp:landy-cue` | 172 |
+| `3♣` / `3♦` | natural **weak** escape, 6+ suit, `points(2..=9)` — replaces N1's forcing 175 | 110 |
 
-Ranked below the 6-card forcing naturals (a one-suiter still shows its source
-of tricks at 175) and above the ungated `3NT` (170), so the *5-card* game
-hands — which under N1 must guess a stopperless `3NT` or stretch the values
-`X` — start low and let opener place the contract. Opener's one answer
-(`landy_cue_answer`): `2NT` with both majors stopped, else raise the named
-minor (the raise is the finite catch-all — opener is balanced, so it never
-lands on fewer than two). Everything deeper is the floor's.
+As first authored (measured 2026-08-14) the overlay was a pure addition below
+N1's forcing naturals, so six-carders bypassed the cue and weak minor hands
+still had no call — a half transplant. The user's review fixed it: with a GF
+cue below it a forcing 3m is redundant, so the cues carry *every* GF minor
+one-suiter (six-carders included, showing extras later) and the direct
+`3♣`/`3♦` flip to the weak escape, exactly the `michaels_cue_responder` twin
+(`two_suiters.rs`). The weak `3♦` is mostly shadowed by the cheaper `2♦`
+(140 > 110), surviving only below the 2♦ escape's hcp floor; a GF hand with
+6♦5♣ cues `2♥` (173 > 172) and shows the shorter minor — rare, left alone.
+The cues sit above the ungated `3NT` (170), so the game hands start low and
+let opener place the contract. Opener's one answer (`landy_cue_answer`):
+`2NT` with both majors stopped, else raise the named minor (the raise is the
+finite catch-all — opener is balanced, so it never lands on fewer than two);
+opener **passes** the weak `3♣`/`3♦` (`landy_signoff_answer`, replacing the
+base arm's forcing-minor answer). Everything deeper is the floor's.
 
 **Documentary basis (web survey 2026-08-14).** No published source draws the
 `1♣ (2♣)` analogy outright — the UvU literature scopes itself to suit
@@ -305,10 +327,12 @@ for coherence, unmeasurable vs the anchor (BBA never cues over a minor;
 def1-c/d probes 2026-08-14).
 
 **Deferred candidate N1c**: a Lebensohl `2NT` relay (weak sign-offs at `3♣`/
-`3♦`, hands that under N1/N1b must pass), the one lit-standard component both
-arms lack. It would move the natural invite, so it is its own package and its
-own A/B, only worth boards if the census still shows weak-minor passes
-leaking after N1/N1b ship or die.
+`3♦`). The completed N1b skeleton covers most of its ground — the cues arm
+now has direct weak escapes — so the relay's residual value is the *base*
+arm's weak minor hands (which still pass) and rescuing the invite band; it
+would move the natural invite, so it is its own package and its own A/B,
+only worth boards if the census still shows weak-minor passes leaking after
+N1/N1b ship or die.
 
 **Inertness**: `smoke-default --count 20000 --seed 1` SHA-256 `8ea2f567…`
 identical at HEAD with both knobs off — the N1 reference hash, unchanged.

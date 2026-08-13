@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`landy_natural_answers` — opener's answers over the Landy counter's
+  natural calls, and the N1b cues completed to the full UvU skeleton.** The
+  N1 A/B loss traced to unauthored continuations, and an audit of the run's
+  dumps showed every non-`X` responder call leaking: the floor — which has no
+  net input slot for the knob and so completes each call as the
+  default-system gadget it replaced — bid a phantom Jacoby `2♥` over the weak
+  `2♦` sign-off (82%), phantom minor transfers over the `2NT` invite (23%),
+  a phantom Puppet answer over the forcing `3♣` (85%), and passed the forcing
+  `3♦` (62%); only `3NT` passed out cleanly. Opener now answers by book: the
+  sign-offs are passed (minor game is out of a weak hand's reach —
+  `lebensohl_signoff_raise`'s doctrine), the invite is declined or accepted
+  at `3NT` on the same `size_ask_accept_floor` as the uncontested invite
+  (default 16), and the base counter's forcing `3♣`/`3♦` get `3NT` with both
+  majors stopped, else a raise. Under the N1b overlay the direct `3♣`/`3♦`
+  flip to natural **weak** escapes (`points(2..=9)`, six cards) and the GF
+  cues carry *every* minor one-suiter, six-carders included — a forcing 3m
+  above a GF cue was redundant, and the half-transplant left weak minor
+  hands with no call; the completed skeleton matches its Michaels twin
+  (`michaels_cue_responder`). No user impact yet: both knobs stay opt-in and
+  the defaults are byte-identical (smoke SHA `8ea2f567…` unchanged);
+  re-measure of the same three arms pending
+  (docs/one-notrump-competitive.md N1/N1b).
+
 - **GF minor cues on the Landy counter (`set_defense_to_2c_landy_cues`,
   opt-in), and their minor-opening twin — Unusual-vs-Unusual over `1m (2m)`
   Michaels (`set_uvu_over_minors`, opt-in).** Both packages instantiate one
