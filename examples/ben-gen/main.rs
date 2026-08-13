@@ -454,7 +454,19 @@ fn main() -> anyhow::Result<()> {
         !args.no_ns_direct_minor_weak_jump_overcall;
     agreements.defense.suppress_long_minor_takeout = args.ns_suppress_long_minor_takeout;
     agreements.defense.defensive_seam_split = args.ns_defensive_seam_split;
-    let our_floor = american(&agreements).bind();
+    // BEN's declared card plays the European minor scheme (`vendor/ben/BEN-21GF.bbsa`:
+    // `1N-2S transfer to clubs=1`, `1N-3C transfer to diamonds=1`,
+    // `1N-3C Puppet Stayman=0`), and so do EPBot's stock system-0 defaults it was
+    // distilled from.  Reading their `1NT - 2♠`/`3♣` as our Puppet relay is simply
+    // false, so declare that one axis — and *only* that one.  Declaring BEN's whole
+    // system is the Phase-2b treatment, which measured plain wash / PD −0.0070
+    // (docs/declarative-rows.md §2b); confining the opponent book to
+    // `notrump_minors` keeps that mechanism from firing.
+    let mut theirs = agreements;
+    theirs.decision.reading.notrump_minors = pons::bidding::american::EUROPEAN;
+    let our_floor = american(&agreements)
+        .bind()
+        .with_opponents(&american(&theirs).bind());
     let epbot = if args.calibrate_epbot {
         let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());
         Some(BbaOracle::load(&path, SYSTEM_2_OVER_1, Vec::new())?)

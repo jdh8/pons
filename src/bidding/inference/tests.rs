@@ -1354,3 +1354,23 @@ fn choice_of_games_artificial_calls_are_alerted() {
         unalerted_artificial("constructive", &system.constructive.0, agreements.decision),
     );
 }
+
+/// The same alert invariant for the opt-in **European** 1NT minor scheme — the
+/// opponent model in [`european`][crate::bidding::american::notrump::european].
+///
+/// `artificial_calls_are_alerted` walks `american()` at the Puppet default and
+/// never sees a European row, which is how that scheme's club-transfer
+/// continuations kept an unalerted rung for months.
+#[test]
+fn european_minors_artificial_calls_are_alerted() {
+    use crate::bidding::american::{EUROPEAN, american};
+
+    let mut agreements = crate::bidding::agreements::Agreements::default();
+    agreements.decision.reading.notrump_minors = EUROPEAN;
+    let system = american(&agreements);
+
+    assert_all_alerted(
+        "European minors",
+        unalerted_artificial("constructive", &system.constructive.0, agreements.decision),
+    );
+}

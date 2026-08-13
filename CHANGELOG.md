@@ -56,6 +56,91 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **European's club lane loses its splinters too, and the scheme finally gets a
+  reader.** Two halves of the same omission, both on the *opponent model* in
+  `src/bidding/american/notrump/european.rs`
+  ([`docs/ai-bidder/bba-1nt-minors.md`](docs/ai-bidder/bba-1nt-minors.md)).
+
+  **The club lane was never probed.** `probe-bba-constraints` had `nt-3c` and
+  `nt-3c-3d` and nothing for clubs, so `european_two_spade_rebid` shipped
+  `3♦`/`3♥`/`3♠` splinters at priority 100 on no evidence at all — inherited from
+  Puppet's two-way `2♠`, exactly the copy-paste the entry below removed from the
+  diamond lane. A new `--mode nt-2s-3c` (400k hands, 9929 at the node) returns the
+  diamond lane's finding verbatim: **no `3♦`/`3♥`/`3♠` bucket at any share**, and
+  indeed no three-level call but `3NT`. Shortness is void-only
+  (`4♠`/`5♥`/`5♦`, 0–0 on hard min *and* max), `4♦`/`4♥` are control cues and
+  `4NT` is keycard. EPBot's `3NT` bucket runs ♦1–4 ♥1–3 ♠1–3, **singletons
+  included**, so the old `club_no_shortness(8)` was wrong twice: it barred from
+  `3NT` precisely the hands it sent to a splinter EPBot never makes.
+  `european_two_spade_rebid` is now the exact twin of
+  `diamond_transfer_game(8, false)` — Pass `hcp(..8)` / `3NT` `hcp(8..)`, on
+  EPBot's exact boundary, covering 67.5% of the node. The dead
+  `1NT - 2♠ - 3♣ - 3x -` continuation goes with it. Cross-checked against BEN's
+  own auctions: **0 splinters in 6 splinter-eligible hands**, 0 three-level calls
+  but `3NT` in 23 hands at the node.
+
+  **The model had no reader.** Every setter of `notrump_minors` was our-side —
+  zero coverage on the `Partnership::with_opponents` path, the one thing the
+  scheme exists for. `Inferences::read` now takes a `side_profile` off
+  `Context::their_system()`, chosen by `opener_lane` parity, so responder's `2NT`
+  and the `1NT - 2♠`/`3♣` relay blanket answer from *the opening side's*
+  agreement instead of ours. It degrades to previous behaviour bit-for-bit when
+  no opponent is declared (`smoke-default --count 40000 --seed 1` is
+  byte-identical), and `Inferences.profile` stays one field — it also gauges
+  valuation in `admits`, where "our valuation of their hand" is defensible.
+
+  `examples/ben-gen` had no `with_opponents` call anywhere, so step 2 would have
+  been a no-op on exactly the boards that motivated it. It now declares an
+  opponent book identical to ours **except `notrump_minors = EUROPEAN`**,
+  default-on and with no flag: modelling BEN as playing our Puppet structure is
+  simply false, and BEN's card says so (`vendor/ben/BEN-21GF.bbsa:9-13`).
+  Declaring BEN's *whole* system is the Phase-2b treatment (plain wash, PD
+  −0.0070); confining the delta to one axis keeps that mechanism from firing.
+  `bba-gen` gets the axis as `--ns-european-minors`, reaching the opponent seat
+  through `--their-ns`. Model agreement on the mined BEN auctions rises
+  **52% → 65%** (the diamond lane sits at 70%).
+
+  **No A/B, deliberately** — same charter as the entry below. The gates are the
+  probe, four new pins in `tests/american_european_minors.rs`
+  (`no_three_level_splinter_over_the_club_completion` and three reader tests), a
+  new `european_minors_artificial_calls_are_alerted` invariant (the default walk
+  is Puppet and never sees a European row — the mechanism that let those club
+  splinters go unalerted), byte-identical `cards/*.bbsa`, and 39/39 test
+  binaries. The shipped default does not move.
+
+  Sizing, honestly: the misread covers ~0.8% of boards, all *uncontested*, so the
+  only cash-out is the opening lead and defence — which the double-dummy anchor
+  scorer cannot express. Budget if an sd-lead harness were built:
+  ~0.001–0.004 IMPs/board. Not worth harness work, and no anchor re-baseline: a
+  board-exact `ben-gen` diff on a shared seed (1920 boards) shows **2 changed
+  auctions of 3840**, which is stronger evidence than an anchor mean.
+
+  **Two known reader defects surfaced and are recorded, not fixed.**
+  `nt_structure_artificial` has no `opening_bid == 1NT` gate, so `1♣ (1♠) 3♣` and
+  `1♠ (2♦) 2♠` enter the notrump minor structure and get their continuations
+  blanketed as relays; and it has no `is_opening_side` gate, unlike both
+  neighbours. Adding the second alone moves **826 of 40000** default-system
+  boards (680 with no 1NT in them at all), so it was measured, backed out, and
+  written onto the function's doc comment — it is an A/B, not a cleanup. The same
+  defect is what makes both of `ben-gen`'s two changed auctions fall outside the
+  plan's confinement predicate: BEN opened `1♥` at each, with a `2NT` rebid that
+  Puppet's `entered` set claims and European's does not. The opponent book itself
+  differs in exactly one field, so the declaration is confined as designed.
+
+  Also settled while the FFI was warm, and consequential beyond this scheme:
+  **EPBot's compiled-in system-0 defaults are already European** (`1N-2S transfer
+  to clubs = 1`, `1N-3C transfer to diamonds = 1`, `1N-3C Puppet Stayman = 0`),
+  confirmed against the engine by `probe-bba-conventions --all`. No `=0` control
+  existed anywhere in `ab-results/`, and the sibling `1N-3M splinter` study found
+  card and engine disagreeing on exactly this kind of row — here they agree. The
+  consequence: every unconfigured BBA opponent in every A/B we have ever run has
+  been playing `2♠` = clubs and `3♣` = diamonds while our reader modelled Puppet.
+
+  The probe-EPBot-validate-against-BEN-shards method is written up in
+  [`docs/ben-gap-campaign.md`](docs/ben-gap-campaign.md), flagged **provisional
+  until a second node confirms it** — BEN is BBA *plus search*, and search is
+  what would make it deviate.
+
 - **European's `3♣` is a six-card diamond one-suiter, matching EPBot** — the
   scheme is now explicitly an *opponent model*, judged on fidelity rather than
   IMPs ([`docs/ai-bidder/bba-1nt-minors.md`](docs/ai-bidder/bba-1nt-minors.md)).

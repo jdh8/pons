@@ -1052,6 +1052,16 @@ struct Args {
     #[arg(long, value_enum, default_value = "natural")]
     ns_notrump_defense: NtDefenseArg,
 
+    /// Play (and read) the **European** 1NT minor scheme instead of Puppet:
+    /// `2♠` = clubs, `2NT` = balanced invite, `3♣` = diamonds (default off).
+    ///
+    /// A two-valued knob, so a bool rather than a `--ns-*` value enum. Its real
+    /// use is `--their-ns`: EPBot's stock system-0 defaults *already* carry this
+    /// scheme (`probe-bba-conventions`), so an opponent left at Puppet is being
+    /// misread. See `docs/ai-bidder/bba-1nt-minors.md`.
+    #[arg(long, default_value_t = false)]
+    ns_european_minors: bool,
+
     /// DONT one-suiter minimum length for the `X`/`2♠` (default 5; set 6 to insist
     /// only with a six-card suit). Only with `--ns-notrump-defense direct-dont`.
     #[arg(long, default_value_t = 5)]
@@ -1560,6 +1570,9 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.decision.reading.opener_extras_ladder = !args.no_ns_opener_extras_ladder;
     agreements.decision.reading.opener_major_jump_rebid = !args.no_ns_opener_major_jump_rebid;
     agreements.decision.reading.notrump_defense = ns_defense;
+    if args.ns_european_minors {
+        agreements.decision.reading.notrump_minors = pons::bidding::american::EUROPEAN;
+    }
     if let Some(range) = woolsey_range {
         agreements.decision.reading.convention_points = range;
         agreements.decision.reading.woolsey_double_floor = args.ns_woolsey_x_floor;

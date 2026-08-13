@@ -230,7 +230,7 @@ is not grounds to change a ship decision (cf. DoubleStyle, Jordan/Truscott).
 
 | # | Toggle | pons status | decision | A/B | commit |
 |---|--------|-------------|----------|-----|--------|
-| 9 | 1N-2♠ transfer to clubs | shipped (two-way 2♠) | keep | — | — |
+| 9 | 1N-2♠ transfer to clubs | shipped (two-way 2♠); European book = opponent model | keep the two-way 2♠ as ours; European pinned to the probe | **probe, not A/B** — EPBot's `2♠ - 3♣ -` node has no `3♦`/`3♥`/`3♠` bucket at any share; [bba-1nt-minors.md](bba-1nt-minors.md) §1d | 2026-08-13 |
 | 12 | 1N-3♣ transfer to ♦ | shipped (European book, opponent model) | keep Puppet as ours; European pinned to the probe | **probe, not A/B** — EPBot's `3♣` is ♦6–7 hard, no 5♦4♣ arm; [bba-1nt-minors.md](bba-1nt-minors.md) | 2026-08-13 |
 | 14 | 1N-3♦ majors | shipped | keep | — | — |
 | 18 | 1N-3M splinter | verify | — | — | — |

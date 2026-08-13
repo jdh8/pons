@@ -325,6 +325,14 @@ impl Inferences {
             };
         }
         let profile = context.reading_profile();
+        // The *opponents'* agreement, for the sites that decode a call off what
+        // the bidder's own side plays rather than off ours.  `Partnership::opponents`
+        // is ours again unless a foreign book was declared
+        // ([`Partnership::with_opponents`]), so an undeclared table reads
+        // bit-for-bit as before.
+        let their_profile = context
+            .their_system()
+            .map_or(profile, |them| them.profile().reading);
         let auction = context.auction();
         let len = auction.len();
         let mut players = [Envelope::unknown(); 4];
@@ -370,6 +378,16 @@ impl Inferences {
             );
         };
         let opener_lane = opening_index % 4;
+        // Whose scheme the opening side's 1NT structure runs on.  `is_opening_side`
+        // below is parity relative to the *opener*, not to us, so the notrump
+        // sites it gates fire just as happily on the opponents' auction — and
+        // must then answer from their agreement, not ours.  This is the whole
+        // point of an opponent model like `european.rs`.
+        let side_profile = if opener_lane % 2 == len % 2 {
+            profile
+        } else {
+            their_profile
+        };
         // SAFETY: at most three passes precede the opening, so the cast is safe.
         #[allow(clippy::cast_possible_truncation)]
         let opener_seat = opening_index as u8 + 1;
@@ -507,7 +525,10 @@ impl Inferences {
                         let nt_blanket = is_opening_side && opening_artificial && !over_one_notrump;
                         let chain = stayman_artificial
                             || nt_splinter_artificial
-                            || nt_structure_artificial(auction, index, opening_index, profile)
+                            // No `is_opening_side` gate, unlike its two neighbours
+                            // above — see `nt_structure_artificial`'s own doc for
+                            // why adding one is an A/B, not a cleanup.
+                            || nt_structure_artificial(auction, index, opening_index, side_profile)
                             || (index < 64 && suppressed >> index & 1 != 0)
                             || readings.suppresses(index);
 
@@ -795,7 +816,8 @@ impl Inferences {
                             // the search floor) judge responder.
                             match bid.level.get() {
                                 2 => {
-                                    if profile.notrump_minors == crate::bidding::american::EUROPEAN
+                                    if side_profile.notrump_minors
+                                        == crate::bidding::american::EUROPEAN
                                     {
                                         players[who].narrow_points(Range::new(8, 9));
                                     } else {
@@ -1315,6 +1337,27 @@ fn intersect_overlay(
 ///
 /// Positions assume the standard uncontested auction; a contested one shifts them
 /// and matches none.
+///
+/// `profile` is the **opening side's** scheme (`side_profile` at the call site),
+/// not necessarily ours: a European opponent's `1NT - 2♠` is their club transfer
+/// however we play the slot.
+///
+/// # Two known defects, both A/B-gated
+///
+/// This is measurably wrong twice over, and neither is fixable inside a
+/// fidelity-gated change (`docs/ai-bidder/bba-1nt-minors.md`):
+///
+/// 1. **No `opening_bid == 1NT` gate.** `entered` looks only at
+///    `opening_index + 2`, so `1♣ (1♠) 3♣` and `1♠ (2♦) 2♠` enter the notrump
+///    minor structure and get their whole continuation blanketed as relays.
+/// 2. **No `is_opening_side` gate,** unlike `nt_splinter_artificial` and
+///    `nt_blanket` beside it — so the *defenders'* suit bids are suppressed too.
+///
+/// Adding gate 2 alone moves **826 of 40000** boards of the shipped default
+/// (`smoke-default --count 40000 --seed 1`), 680 of them in auctions containing
+/// no 1NT at all — i.e. mostly defect 1 leaking through. That is a live bidding
+/// change and needs the A/B the iron rules demand, so both stay recorded here
+/// rather than half-fixed.
 fn nt_structure_artificial(
     auction: &[Call],
     index: usize,

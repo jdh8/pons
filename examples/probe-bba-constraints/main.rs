@@ -24,6 +24,7 @@
 //! cargo run --release --example probe-bba-constraints -- --mode nt-resp --conv "1N-3M splinter"=1  # responses to BBA's own 1NT
 //! cargo run --release --example probe-bba-constraints -- --mode nt-3h --conv "1N-3M splinter"=1    # opener over 1NT - 3♥ -
 //! cargo run --release --example probe-bba-constraints -- --mode nt-3c-3d --conv "1N-3C transfer to diamonds"=1 --conv "1N-3C Puppet Stayman"=0  # responder over 1NT - 3♣ - 3♦ -
+//! cargo run --release --example probe-bba-constraints -- --mode nt-2s-3c --conv "1N-2S transfer to clubs"=1  # responder over 1NT - 2♠ - 3♣ -
 //! cargo run --release --example probe-bba-constraints -- --mode def1-s   # direct defense to (1♠)
 //! cargo run --release --example probe-bba-constraints -- --mode o4 --vul none,we,they,both  # fit the two-level overcall quality gate
 //! ```
@@ -545,6 +546,17 @@ fn main() -> Result<()> {
             Some(ONE_NT),
             "BBA opener over 1NT - 3♣ - — a single 3♦ bucket means the completion is unconditional",
         ),
+        // The European minor scheme's **club** lane, one round on: `2♠` is the
+        // transfer and `3♣` the completion, so this reads **responder's** rebid
+        // — the node `european_two_spade_rebid` authors `3♦`/`3♥`/`3♠`
+        // splinters at.  Needs `1N-2S transfer to clubs`=1, or the `2♠` filter
+        // accepts nothing.
+        "nt-2s-3c" => (
+            2,
+            &[ONE_NT, PASS, TWO_S, PASS, THREE_C, PASS],
+            Some(TWO_S),
+            "BBA responder over 1NT - 2♠ - 3♣ - — a 3♦/3♥/3♠ bucket is the splinter",
+        ),
         // The European minor scheme's diamond lane, one round on: `3♣` is the
         // transfer and `3♦` the completion, so this reads **responder's** rebid.
         // A `3♥`/`3♠` bucket here is a splinter — the call our `european.rs`
@@ -607,7 +619,7 @@ fn main() -> Result<()> {
             "advancer over (1♣) 1♥ - — the 2♦ bucket is the transfer into partner's hearts",
         ),
         other => bail!(
-            "--mode must be open|def1-c|def1-d|def1-h|def1-s|multi|advance|counter|muider-h|muider-s|rebid-d|rebid-h|rebid-s|stayman|xfer-h|xfer-s|weak2-d|weak2-h|weak2-s|def2-d|def2-h|def2-s|nt-resp|nt-3h|nt-3s|nt-3c|nt-3c-3d|ucb-sd|ucb-sc|ucb-dc|ucb-sh|rub-ch|o4, got {other:?}"
+            "--mode must be open|def1-c|def1-d|def1-h|def1-s|multi|advance|counter|muider-h|muider-s|rebid-d|rebid-h|rebid-s|stayman|xfer-h|xfer-s|weak2-d|weak2-h|weak2-s|def2-d|def2-h|def2-s|nt-resp|nt-3h|nt-3s|nt-3c|nt-3c-3d|nt-2s-3c|ucb-sd|ucb-sc|ucb-dc|ucb-sh|rub-ch|o4, got {other:?}"
         ),
     };
 
@@ -632,6 +644,9 @@ fn main() -> Result<()> {
         // itself: keep only hands BBA bids `3♣` with over `1NT - `.  `trump`
         // is diamonds — the suit a splinter would be agreeing.
         "nt-3c-3d" => (&[ONE_NT, PASS], Some(Suit::Diamonds)),
+        // Likewise for the club lane: keep only hands BBA bids `2♠` with, and
+        // report top honours in clubs — the suit its splinters would agree.
+        "nt-2s-3c" => (&[ONE_NT, PASS], Some(Suit::Clubs)),
         _ => (&[ONE_NT], None),
     };
 

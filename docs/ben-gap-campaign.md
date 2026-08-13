@@ -102,6 +102,65 @@ Harness hook: `bba-gen --our-card/--their-card <file.bbsa>` loads a full
 card (system id from its `System type` header; explicit `--*-conv` singles
 still apply on top).
 
+### Probing EPBot as a cheap oracle for BEN's book (2026-08-13, **provisional**)
+
+The section above opens "there is no symbolic book in its source to extract".
+That is true of the *weights*, and it made the card the only lever. There is a
+third route, and it is cheap:
+
+> **BEN is a distilled BBA-8730, so probing EPBot with BEN's card rows forced on
+> is a legitimate oracle for BEN's book — validated against BEN auctions already
+> on disk.**
+
+Method, as applied to the European 1NT minor scheme
+([bba-1nt-minors.md](ai-bidder/bba-1nt-minors.md)):
+
+1. **Probe EPBot** at the node with the whole convention family pinned
+   (`probe-bba-constraints --conv ... --trim 0.0`). `--conv` *replaces* the
+   default set, so a partial list silently reverts the scheme. Hard min/max, not
+   percentiles — a class question wants the support, not the quantiles.
+2. **Validate against BEN shards** already in `ab-results/ben-anchor/`. Mining
+   auctions that reach the node costs nothing; probing BEN itself at ~9 bd/s
+   costs a day.
+3. **Ship on fidelity**, not IMPs, and only where the artefact is an *opponent
+   model*. No A/B gates such a change; a soundness argument does not outrank the
+   probe.
+
+It worked: EPBot's `1NT - 2♠ - 3♣ -` node has no `3♦`/`3♥`/`3♠` bucket at any
+share over 9929 hands, and BEN independently made **0 splinters in 6
+splinter-eligible hands** and **0 three-level calls other than `3NT`** in 23
+hands at the node. Both lanes of the scheme now match the probe.
+
+**Provisional until a second node confirms it.** BEN is BBA *plus search*, and
+search is exactly what would make it deviate — one node agreeing is one node. The
+natural second is the `1NT - 3M` splinter already flagged as owed above.
+
+**And the first crack is already visible.** The mining also priced where our new
+book still disagrees with BEN, and the residual is not noise-shaped: **four of
+four** hands at exactly **8 HCP** are passed by BEN where EPBot's probe puts a
+hard `3NT` minimum. The diamond node showed the same at n=4. Two independent
+lanes now say **BEN's Pass/`3NT` boundary is 9, not its teacher's 8** — a genuine
+distillation drift, and exactly the failure mode this method is provisional for.
+Not acted on: fidelity to the probe is `european.rs`'s charter, and moving the
+boundary wants a probe of *BEN* at the node, not more EPBot.
+
+One further signal from the same mining, recorded only — under-powered, and
+distillation smooths 0.4–2.3% tails: BEN passed 2 hands sitting inside the probed
+`4♠`/`5♣` void-show constraints (n=2).
+
+Also settled here, and consequential beyond this study: **EPBot's compiled-in
+system-0 defaults are already European** (`1N-2S transfer to clubs = 1`,
+`1N-3C transfer to diamonds = 1`, `1N-3C Puppet Stayman = 0`), confirmed by
+`probe-bba-conventions --all` against the engine, not the card. Every
+unconfigured BBA opponent in every A/B we have run has been playing that scheme.
+
+Anchors from commit-of-this-change forward include the `ben-gen` opponent
+declaration (`with_opponents`, `notrump_minors = EUROPEAN`, default-on and
+confined to that one axis). The change is invisible to double-dummy scoring by
+construction — the affected boards are uncontested, so the cash-out is the
+opening lead and defence — so an anchor that *moves* materially is evidence the
+confinement failed, not evidence of a gain.
+
 ### The Info-net probe (weights-side extraction)
 
 The card is BEN's *declared* book; its Info net (auction → predicted HCP +

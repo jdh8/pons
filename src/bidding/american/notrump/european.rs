@@ -6,9 +6,7 @@
 //! [`super::minor_transfers`] and [`super::puppet_stayman`] wholesale — the two schemes
 //! wire the same keys under complementary gates.
 
-use super::minor_transfers::{
-    club_no_shortness, club_splinter, diamond_transfer_game, pick_game_over_club_splinter,
-};
+use super::minor_transfers::diamond_transfer_game;
 use super::size_ask::{SizeAskEight, size_ask_eight_class};
 use super::*;
 
@@ -69,37 +67,25 @@ fn european_two_spade_answer() -> Rules {
 
 /// Responder's rebid after opener completes the European club transfer (`…2♠ - 3♣`)
 ///
-/// A weak six-card club one-suiter passes the partscore; a game-going hand
-/// splinters in its singleton, or bids 3NT with no shortness.  Reuses the two-way
-/// 2♠ club machinery minus its balanced-invite arm — that hand is the European 2NT.
+/// A weak six-card club one-suiter passes the partscore; game values bid 3NT.
+/// The exact twin of the diamond lane's [`diamond_transfer_game`]`(8, false)`,
+/// and for the same measured reason.
+///
+// ponytail: no splinter arm.  `--mode nt-2s-3c` (400k hands, 9929 reaching the
+// node) shows **no `3♦`/`3♥`/`3♠` bucket at all** — indeed no three-level call
+// but `3NT`.  EPBot shows shortness here only as a *void*, and only at `4♠`
+// (spades 0–0, 2.1%), `5♥` (hearts 0–0, 1.6%) and `5♦` (diamonds 0–0, 0.4%);
+// its `4♦`/`4♥` are control cues (1–4 / 1–3 cards in the bid suit) and `4NT` is
+// keycard.  The Pass/`3NT` split below sits on EPBot's exact boundary and covers
+// the node's two biggest buckets (47.7% at 0–7 HCP, 19.8% at 8–15); the void
+// shows, the cues, `4NT` and the `5♣` signoff (6.6%) are unmodelled.  The
+// splinter rungs this replaces were inherited from Puppet's two-way `2♠` on no
+// evidence — the same copy-paste `420d891` removed from the diamond lane.  See
+// docs/ai-bidder/bba-1nt-minors.md.
 fn european_two_spade_rebid() -> Rules {
     Rules::new()
-        .rule(Call::Pass, 0, len(Suit::Clubs, 6..) & hcp(..8))
-        .rule(
-            Bid::new(3, Strain::Diamonds),
-            100,
-            club_splinter(Suit::Diamonds, 8),
-        )
-        .alert(SPLINTER)
-        .rule(
-            Bid::new(3, Strain::Hearts),
-            100,
-            club_splinter(Suit::Hearts, 8),
-        )
-        .alert(SPLINTER)
-        .rule(
-            Bid::new(3, Strain::Spades),
-            100,
-            club_splinter(Suit::Spades, 8),
-        )
-        .alert(SPLINTER)
-        // Game-going clubs without a singleton: 3NT.  Artificial — it shows the
-        // club one-suiter, not notrump — and tagged with its own scheme's variant
-        // alert, mirroring `two_spade_over_min`'s identical rule under `PUPPET`.
-        // Pure disclosure here: this is a continuation node, not one of the
-        // `notrump_responses` that `gated(|a| a != dormant_minors())` filters.
-        .rule(Bid::new(3, Strain::Notrump), 90, club_no_shortness(8))
-        .alert(EUROPEAN)
+        .rule(Bid::new(3, Strain::Notrump), 90, hcp(8..))
+        .rule(Call::Pass, 0, hcp(..8))
 }
 
 /// Opener's reply to the European 2NT invite: `3NT` with a maximum, else pass
@@ -168,11 +154,6 @@ pub(crate) fn european_two_spade() -> Package {
             entries.extend(rows_of(
                 Pattern::node("P* 1NT - 2♠ - 3♣ -"),
                 european_two_spade_rebid(),
-            ));
-            entries.extend(expand(
-                "P* 1NT - 2♠ - 3♣ - 3x -",
-                |b| b.suit('x') != Suit::Clubs,
-                |b| pick_game_over_club_splinter(b.suit('x')),
             ));
             entries
         },

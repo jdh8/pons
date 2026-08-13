@@ -10,6 +10,7 @@
 mod common;
 use common::*;
 
+use contract_bridge::Suit;
 use pons::american::EUROPEAN;
 
 /// The American 2/1 partnership with the **European** minor scheme selected
@@ -66,15 +67,30 @@ fn weak_clubs_pass_the_completion() {
 }
 
 #[test]
-fn game_going_clubs_splinter_over_the_completion() {
+fn game_going_clubs_raise_to_3nt() {
     let system = partnership();
     let auction = after_1nt(&[call(2, Strain::Spades), call(3, Strain::Clubs)]);
-    // Six clubs, game values, a singleton spade: splinter 3♠ so opener picks
-    // between 3NT and 5♣.
+    // Six clubs, game values: 3NT over the completion — EPBot's whole 8–15 bucket.
     assert_eq!(
         best_call(&system, &auction, "x.Kxx.Kxx.AQxxxx"),
-        call(3, Strain::Spades),
+        call(3, Strain::Notrump),
     );
+}
+
+/// The club-lane twin of [`no_three_level_splinter_over_the_diamond_completion`].
+/// `--mode nt-2s-3c` (9929 hands reaching the node) has **no `3♦`/`3♥`/`3♠`
+/// bucket at all** — indeed no three-level call but `3NT`.  These rungs were
+/// inherited from Puppet's two-way `2♠` on no evidence and were the *last*
+/// unprobed copy-paste in the scheme.
+#[test]
+fn no_three_level_splinter_over_the_club_completion() {
+    let system = partnership();
+    let auction = after_1nt(&[call(2, Strain::Spades), call(3, Strain::Clubs)]);
+    // Six clubs, game values, a stiff spade — the Puppet twin's splinter hand.
+    let got = best_call(&system, &auction, "x.Kxx.Kxx.AQxxxx");
+    assert_ne!(got, call(3, Strain::Diamonds));
+    assert_ne!(got, call(3, Strain::Hearts));
+    assert_ne!(got, call(3, Strain::Spades));
 }
 
 // --- 2NT = balanced invitational (size ask) ---------------------------------
@@ -196,6 +212,117 @@ fn game_force_four_three_takes_stayman() {
     assert_eq!(
         best_call(&system, &after_1nt(&[]), "KJ54.Q32.K432.Q9"),
         call(2, Strain::Clubs),
+    );
+}
+
+// --- Reading a European *opponent* ------------------------------------------
+
+/// Our own (Puppet) partnership, told the opponents play European
+///
+/// `Partnership::with_opponents` is the reading half of a declared opponent: our
+/// own calls keep resolving in our books, theirs decode in this one.  Until this
+/// existed on the European axis, every setter of `notrump_minors` was our-side,
+/// so the scheme — an *opponent model* — had no coverage on the one path it is
+/// for.
+fn vs_european() -> Partnership {
+    partnership_us().with_opponents(&partnership())
+}
+
+/// Our shipped Puppet partnership, as the reader
+fn partnership_us() -> Partnership {
+    american(&pons::bidding::agreements::Agreements::default()).bind()
+}
+
+/// `(1NT) - (2♠) -` with us to act fourth: the opponents' auction, read from our seat
+fn their_auction(responder: Call) -> Vec<Call> {
+    vec![call(1, Strain::Notrump), P, responder]
+}
+
+#[test]
+fn a_declared_european_opponent_shows_clubs_on_two_spades() {
+    use pons::bidding::inference::Relative;
+
+    let auction = their_auction(call(2, Strain::Spades));
+    let vul = RelativeVulnerability::NONE;
+    // Declared European: `2♠` is the club transfer — six of them, guaranteed.
+    assert!(
+        vs_european()
+            .infer(vul, &auction)
+            .get(Relative::Rho)
+            .length(Suit::Clubs)
+            .min
+            >= 6,
+        "a declared European opponent's 2♠ must read as six-plus clubs",
+    );
+    // Undeclared, we model them as playing our Puppet two-way `2♠`, which the
+    // balanced invite also makes — so no six-card club promise.
+    assert!(
+        partnership_us()
+            .infer(vul, &auction)
+            .get(Relative::Rho)
+            .length(Suit::Clubs)
+            .min
+            < 6,
+        "our own two-way 2♠ promises no such thing; the declaration is what moves it",
+    );
+}
+
+#[test]
+fn a_declared_european_opponent_shows_diamonds_on_three_clubs() {
+    use pons::bidding::inference::Relative;
+
+    let auction = their_auction(call(3, Strain::Clubs));
+    let vul = RelativeVulnerability::NONE;
+    // Declared European: `3♣` is the diamond transfer, a six-card one-suiter.
+    assert!(
+        vs_european()
+            .infer(vul, &auction)
+            .get(Relative::Rho)
+            .length(Suit::Diamonds)
+            .min
+            >= 6,
+        "a declared European opponent's 3♣ must read as six-plus diamonds",
+    );
+    // Ours is Puppet Stayman there — artificial, and no diamond claim at all.
+    assert!(
+        partnership_us()
+            .infer(vul, &auction)
+            .get(Relative::Rho)
+            .length(Suit::Diamonds)
+            .min
+            < 6,
+        "our own 3♣ is Puppet Stayman; the declaration is what moves it",
+    );
+}
+
+/// The `read.rs` site that reads responder's `2NT` off the minor scheme is gated
+/// by `is_opening_side` — parity relative to the *opener*, not to us — so before
+/// `side_profile` it answered the opponents' auction out of our knob.
+#[test]
+fn a_declared_european_opponent_reads_two_notrump_as_the_size_ask() {
+    use pons::bidding::inference::Relative;
+
+    let auction = their_auction(call(2, Strain::Notrump));
+    let vul = RelativeVulnerability::NONE;
+    // European's `2NT` is a balanced invite; it says nothing about diamonds.
+    assert!(
+        vs_european()
+            .infer(vul, &auction)
+            .get(Relative::Rho)
+            .length(Suit::Diamonds)
+            .min
+            < 5,
+        "a declared European opponent's 2NT is the size ask, not a diamond transfer",
+    );
+    // Ours is the Puppet diamond transfer: five-plus diamonds.
+    assert!(
+        partnership_us()
+            .infer(vul, &auction)
+            .get(Relative::Rho)
+            .length(Suit::Diamonds)
+            .min
+            >= 5,
+        "our own 2NT is the diamond transfer; the declaration is what moves it",
     );
 }
 
