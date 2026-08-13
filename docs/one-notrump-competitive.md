@@ -176,15 +176,33 @@ is 5 calls; the most common runout point is after opener's transfer completion
 
 | # | Package | Knob | State |
 | --- | --- | --- | --- |
-| **N1** | **Landy `(2♣)` counter** | new | top loser, both scorers; mechanism named above |
+| **N1** | **Landy `(2♣)` counter** | `their.two_clubs_landy` | **SHIPPED 2026-08-14** (PD +0.0032/+0.0043); was the top loser, both scorers |
 | N2 | Muiderberg `(2♠)` calibration | — | −0.66/bd, PD −0.58 NV |
 | N3 | `(3+)` overcalls of our 1NT | new | floor-only today; −0.63/bd |
-| N4 | Multi `(2♦)` — finish + measure | `defense_2d_multi` | exists, half-built, gate bug above; plain-only loss |
+| N4 | Multi `(2♦)` — finish + measure | `defense_2d_multi` | exists, half-built, gate bug above; plain-only loss; **owed the `their` disclosure migration N1 got** |
 | N5 | Complete Jacoby, re-measure | `competition_over_transfer` | default-off on a measured loss *while missing its two most-fired cells* — a half-built loss, resumable |
 | N6 | `(2NT)` penalty discipline | `uvu_encircle` et al. | worst per-board rate, n=118 — needs boards before it needs code |
 | N7 | Absent responses contested | new | Puppet `3♣`, `3♦`, splinters, `3NT`, Texas, `4NT` — rarest in the system |
 
-## N1 — the Landy `(2♣)` counter (authored 2026-08-14, `defense_2c_landy`, default off)
+## N1 — the Landy `(2♣)` counter (**SHIPPED 2026-08-14** via the disclosure channel `their.two_clubs_landy`)
+
+**Not a knob.** What their `2♣` means is a fact about the opponents, so the
+engagement bit lives in `Agreements::their` — the disclosure channel — never
+in our own knob space (`competition.defense_2c_landy` existed for one day and
+was deleted; `defense_2d_multi` is owed the same migration). Undeclared
+defaults to natural (systems-on rebase; self-play and unknown fields), and a
+harness that knows its opponent derives the declaration: `bba-gen`'s
+`their_2c_landy` plays explicit `--their-card`/`--their-conv` Landy-family
+rows at **face value** (a declared no-Landy set reads natural — deviations
+behind a declaration are *their* infraction) and, with no declaration,
+defaults the 2/1 reference to Landy from its **measured behavior**, because
+its own card lies: `21GF.bbsa` declares `Cappelletti=1, Landy=0,
+Multi-Landy=0` while the engine bids Multi-Landy regardless (551-board
+census). `bba-decompose` applies the same correction when replaying BBA dumps
+(derived from the dump's opponent label; `--landy-counter false` for
+pre-ship dumps), keeping the replay contract exact — and the re-homing is
+proven inert: shard-0 of the measured on-arm regenerates board-for-board
+under `--their-2c-landy true` at the shipped sha.
 
 Responder's table at `1NT (2♣)`, replacing the systems-on rebase
 (`landy_responder`, `competition/lebensohl.rs`):
@@ -253,14 +271,22 @@ on : 1NT 2♣ X - - -                 (we double and defend)
 off: 1NT 2♣ X - 2♦ 2♠ - - -         (opener answers stolen Stayman; they find 2♠)
 ```
 
-**Verdict (2026-08-14, 76.8k bd/arm/vul, SEED_BASE 1786642613): LOSS on all
-six cells — stays opt-in.** See the ledger row for numbers and the two named
-leaks: opener's unauthored answers to the counter's natural `2NT`/`2♦` (the
-floor phantom-completes them as the transfers they replaced), and the census
-misread — systems-on's minor transfers were *winning* the minor-partial
-boards, so deleting them gave those boards back. The follow-up audit widened
-leak 1 to every non-`X` call (the table above); `landy_natural_answers`
-authored 2026-08-14, re-measure in `ab-results/landy-counter-v2`.
+**First verdict (2026-08-14, 76.8k bd/arm/vul, SEED_BASE 1786642613): LOSS on
+all six cells** — two named leaks: opener's unauthored answers (the floor
+phantom-completes the counter's natural calls as the gadgets they replaced),
+and the census misread (systems-on's minor transfers were *winning* the
+minor-partial boards). The follow-up audit widened leak 1 to every non-`X`
+call (the table above), and `landy_natural_answers` closed it.
+
+**Re-measure verdict (2026-08-14, 76.8k bd/arm/vul, SEED_BASE 1786644715,
+sha 40a0946, `ab-results/landy-counter-v2`): plain wash + PD CI-clear WIN in
+both vuls — SHIPPED.** NV plain +0.0005 ±0.0022 / PD **+0.0032 ±0.0028**
+(+1.10/fired), vul plain +0.0013 ±0.0026 / PD **+0.0043 ±0.0032**
+(+1.65/fired); 0.26–0.30% fired; SD-PD agrees (+0.0017/+0.0030, plain sd
+wash). The unauthored continuations were the entire first loss and then
+some. Shipped as the derived declaration above, not an engine default — the
+engine's undeclared read stays natural, which the first A/B's self-play
+argument demands (our own tables' `2♣` overcalls *are* natural).
 
 **Inertness proven**: `smoke-default --count 20000 --seed 1` SHA-256
 `8ea2f5678a733cfe3ead79411d9cb31b8e95d37de52236e597fc38f9dec82bbb`, identical at
@@ -269,16 +295,17 @@ HEAD and with the change. The default system is byte-identical.
 **Disclosure**: BBA's `.bbsa` schema has rows for whether *we* play Landy /
 Multi-Landy against *their* 1NT, but none for our counter to *their* Landy over
 *our* 1NT. Nothing to wire in `card.rs`; the golden cards and
-`alert-sites.txt` are unchanged (the knob is default-off, so the alert site is
-not in the default system).
+`alert-sites.txt` are unchanged (the counter rides the disclosure channel,
+which is undeclared in the default system, so the alert site is not in it).
 
-## N1b — the GF minor cues (`defense_2c_landy_cues`, authored 2026-08-14, default off)
+## N1b — the GF minor cues (`defense_2c_landy_cues`, measured 2026-08-14, stays opt-in)
 
 The overlay that makes N1's remaining free space earn its keep, and the
 falsifiable half of the **`1♣ (2♣)` analogy** (the theory that a counter to a
 both-majors overcall of a balanced-ish partner should carry the
 Unusual-vs-Unusual cue skeleton — see the verdict below). Replaces N1's
-3-level minor structure; requires `defense_2c_landy`:
+3-level minor structure; a knob of *ours* (which counter structure we play),
+riding the `their.two_clubs_landy` declaration:
 
 | Call | Meaning | Weight |
 | --- | --- | --- |
@@ -316,15 +343,22 @@ penalty axis is promoted. So the theory holds as *isomorphic, not identical*,
 and the published cue meanings are four-way incompatible (minors / stoppers /
 natural / other-major Stayman) — which is what the third A/B arm decides.
 
-**Verdict (2026-08-14, same run as N1): WASH in all six cells** (PD leans
-positive both vuls, sd leans negative, every CI ⊇ 0, 0.06–0.14% fired). The
-analogy's delta is neither confirmed nor refuted — and moot while the N1 base
-it rides loses. Re-read after N1's unauthored-continuation fix; the cue's
-value cannot be priced next to sibling calls the floor phantom-transfers.
-The minor-opening side of the same skeleton is P7 in
-[competitive-book.md](competitive-book.md) (`set_uvu_over_minors`) — authored
-for coherence, unmeasurable vs the anchor (BBA never cues over a minor;
-def1-c/d probes 2026-08-14).
+**First verdict (2026-08-14, pure cue addition, same run as N1's loss): WASH
+in all six cells** (PD leaned positive, sd negative, every CI ⊇ 0), read next
+to a floor that phantom-answered the cue's sibling calls — unpriceable.
+
+**Re-measure verdict (2026-08-14, full skeleton, same run as N1's win,
+cues↔on): WASH in all six cells, now leaning uniformly negative — stays
+opt-in.** NV plain −0.0005 ±0.0013 / PD −0.0006 ±0.0018, vul plain −0.0007
+±0.0016 / PD −0.0012 ±0.0021, sd −0.0004/−0.0012; −0.43…−1.25/fired on
+76–88 divergent boards (0.10–0.11% fired). Measured on a sane base this
+time — opener answers every sibling call by book — so the reading stands:
+the `1♣ (2♣)` analogy's delta is ≈0 with a negative tilt; the base counter's
+`X`-and-naturals core carries all the value, and the cue overlay adds
+nothing the 15-17 captaincy hasn't already re-spent. The minor-opening side
+of the same skeleton is P7 in [competitive-book.md](competitive-book.md)
+(`set_uvu_over_minors`) — authored for coherence, unmeasurable vs the anchor
+(BBA never cues over a minor; def1-c/d probes 2026-08-14).
 
 **Deferred candidate N1c**: a Lebensohl `2NT` relay (weak sign-offs at `3♣`/
 `3♦`). The completed N1b skeleton covers most of its ground — the cues arm
@@ -364,5 +398,5 @@ identical at HEAD with both knobs off — the N1 reference hash, unchanged.
 | Package | Knob | Status | Verdict (plain / PD, IMPs) |
 | --- | --- | --- | --- |
 | census tool | — | **shipped** | read-only; picked N1 over the pre-census guess |
-| N1 Landy `(2♣)` counter | `defense_2c_landy` | **measured 2026-08-14 — LOSS on all six cells, stays opt-in**; two named leaks, re-measure candidate | on↔off: NV plain **−0.0050 ±0.0024** / PD −0.0035 ±0.0030 / sd −0.0065 ±0.0025, vul plain **−0.0049 ±0.0028** / PD −0.0036 ±0.0034 / sd −0.0058 ±0.0029 (every CI<0; −1.1…−2.0/fired, 0.25–0.43% fired). 76.8k bd/arm/vul, SEED_BASE 1786642613, sha 8bc465a. **Leak 1 (unauthored continuation):** opener's rebid over the counter's natural `2NT`/`2♦` was left to the floor — 23% of on-arm `2NT` invites get a phantom answer (`3♦`×16, `3♣`×8, `3♥`/`3♠`×9 in 145), reading the invite as the uncontested transfer it replaced. **Leak 2 (the census misread):** under systems-on the minor transfers were quietly *winning* the minor-partial boards (`2♠`→`3♣`, `2NT`→`3♦` — worst on↔off boards are exactly these), so the census's −0.74/bd bucket was not the fault of the structure the counter deleted. Author `landy_natural_answers` (opener over `2♦`/`2NT`: pass / raise / 3NT max) before any re-measure. |
-| N1b GF minor cues | `defense_2c_landy_cues` | **measured 2026-08-14 — WASH on top of N1 in all six cells, stays opt-in**; the analogy's delta is neither confirmed nor refuted (and moot while N1 loses) | cues↔on: NV plain −0.0001 ±0.0010 / PD +0.0004 ±0.0013 / sd −0.0005 ±0.0011, vul plain +0.0001 ±0.0012 / PD +0.0005 ±0.0014 (+0.89/fired) / sd −0.0010 ±0.0013 (all CIs ⊇ 0; 0.06–0.14% fired). PD leans positive both vuls, sd leans negative — no cell clears. Same run as N1. Re-read after N1's leak-1 fix: a cue answered by a sane opener is a different treatment than a cue answered next to a floor that phantom-transfers the sibling calls. |
+| N1 Landy `(2♣)` counter | `their.two_clubs_landy` (disclosure, not a knob; `defense_2c_landy` deleted) | **SHIPPED 2026-08-14** — engine undeclared=natural; `bba-gen` derives the declaration (2/1 reference → Landy, its card lies) and `bba-decompose` replays it; re-homing proven board-identical on the measured arm | **v2 (with `landy_natural_answers`, full audit fix)** on↔off: NV plain +0.0005 ±0.0022 / PD **+0.0032 ±0.0028** (+1.10/fired) / sd −0.0006 ±0.0025, SD-PD +0.0017 ±0.0030; vul plain +0.0013 ±0.0026 / PD **+0.0043 ±0.0032** (+1.65/fired) / sd +0.0001 ±0.0029, SD-PD +0.0030 ±0.0034. 0.26–0.30% fired, 76.8k bd/arm/vul, SEED_BASE 1786644715, sha 40a0946 — plain wash + PD CI-clear both vuls = ship. **v1 (sha 8bc465a, SEED_BASE 1786642613): LOSS all six cells** (NV plain −0.0050 ±0.0024, vul −0.0049 ±0.0028, every CI<0) — leak 1: opener's answers unauthored, audit: phantom Jacoby `2♥` 82% over `2♦`, phantom minor-transfers 23% over `2NT`, phantom Puppet `3♦` 85% over `3♣`, passed force 62% over `3♦` (only `3NT` clean); leak 2: the census misread (systems-on's minor transfers were winning the minor-partial boards). |
+| N1b GF minor cues | `defense_2c_landy_cues` | **measured 2026-08-14 ×2 — WASH both times, stays opt-in**; v2 = the *full* UvU skeleton (cues carry all GF one-suiters, direct 3m weak) on the fixed base — the analogy's delta reads ≈0 with a negative tilt | **v2 (full skeleton, N1-win run)** cues↔on: NV plain −0.0005 ±0.0013 / PD −0.0006 ±0.0018, vul plain −0.0007 ±0.0016 / PD −0.0012 ±0.0021, sd −0.0004/−0.0012 (−0.43…−1.25/fired, 0.10–0.11% fired, all CIs ⊇ 0, every cell leaning negative). **v1 (pure cue addition, N1-loss run):** NV plain −0.0001 / PD +0.0004, vul plain +0.0001 / PD +0.0005, sd negative — unpriceable next to phantom sibling answers. |

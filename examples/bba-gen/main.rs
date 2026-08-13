@@ -268,12 +268,16 @@ struct Args {
     #[arg(long, default_value_t = false)]
     defense_2d_multi: bool,
 
-    /// Read a `2♣` overcall of our 1NT as Landy (both majors) and play the
-    /// counter-defense — X = values, everything else natural — instead of the
-    /// systems-on rebase.  BBA's 2/1 card overcalls 1NT with Multi-Landy, whose
-    /// `2♣` *is* Landy, so this is the live test.
-    #[arg(long, default_value_t = false)]
-    defense_2c_landy: bool,
+    /// Override the derived reading of their `2♣` overcall of our 1NT:
+    /// `true`/bare = Landy (both majors, engage the counter-defense),
+    /// `false` = natural (keep the systems-on rebase).  Unset, the reading is
+    /// **derived from their declaration** (`their_2c_landy`): explicit
+    /// `--their-conv`/`--their-card` Landy-family rows are honored at face
+    /// value, and with no declaration the 2/1 reference defaults to Landy —
+    /// its measured behavior (551-board census) — because its own card
+    /// mis-declares (21GF.bbsa: Cappelletti=1, Landy=0, Multi-Landy=0).
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    their_2c_landy: Option<bool>,
 
     /// Add the GF minor cues to the Landy counter (`2♥` = 5+ clubs, `2♠` = 5+
     /// diamonds, both game-forcing) — the third arm of the Landy A/B.  Does
@@ -1513,6 +1517,52 @@ fn seat_args(spec: &str) -> anyhow::Result<Args> {
 /// Returns the [`Agreements`] this seat plays. A build must be handed *this*,
 /// not a fresh `Agreements::default()`.
 #[allow(clippy::too_many_lines)]
+/// Derive whether their `2♣` overcall of our 1NT shows both majors — the
+/// disclosure that engages our Landy counter (`Agreements::their`)
+///
+/// Not a knob of ours: what their `2♣` means is a fact about the opponents,
+/// so it is read off their declaration.  Precedence:
+///
+/// 1. `--their-2c-landy [true|false]` — explicit operator override.
+/// 2. An explicit declaration: any of the 1NT-defense rows (`Multi-Landy`,
+///    `Landy`, `Cappelletti`) present in `--their-card`/`--their-conv` is
+///    played to at **face value** — both-majors rows engage the counter, a
+///    declared Cappelletti or no-Landy set reads natural.  A bot that bids
+///    Landy behind a declared no-Landy card commits *its* infraction, not
+///    ours.
+/// 3. No declaration: the 2/1 reference's **measured behavior** — Woolsey
+///    Multi-Landy (the 551-board census, docs/one-notrump-competitive.md).
+///    Its own card cannot serve here: `21GF.bbsa` declares `Cappelletti=1,
+///    Landy=0, Multi-Landy=0` while the engine bids Multi-Landy regardless,
+///    so the census outranks the card.  Other `--system`s have no census and
+///    default natural.
+fn their_2c_landy(args: &Args) -> anyhow::Result<bool> {
+    if let Some(forced) = args.their_2c_landy {
+        return Ok(forced);
+    }
+    // The effective declaration: card toggles first, `--their-conv` singles
+    // on top (same precedence as the oracle load in `main`), so a reversed
+    // search sees the strongest override first.
+    let mut declared = match &args.their_card {
+        Some(file) => load_bbsa(file)?.toggles,
+        None => Vec::new(),
+    };
+    declared.extend(args.their_conv.iter().cloned());
+    let row = |name: &[u8]| {
+        declared
+            .iter()
+            .rev()
+            .find(|(n, _)| n.as_bytes() == name)
+            .map(|&(_, v)| v != 0)
+    };
+    let rows = [row(b"Multi-Landy"), row(b"Landy"), row(b"Cappelletti")];
+    Ok(if rows.iter().all(Option::is_none) {
+        args.system == SYSTEM_2_OVER_1
+    } else {
+        rows[0].unwrap_or(false) || rows[1].unwrap_or(false)
+    })
+}
+
 fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     // Our side: the authored floor by default, or a second EPBot card when
     // `--our-system` is given (the BBA-vs-BBA experiment).
@@ -1649,7 +1699,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
         agreements.competition.uvu_cue_floor = args.uvu_cue_floor;
     }
     agreements.competition.defense_2d_multi = args.defense_2d_multi;
-    agreements.competition.defense_2c_landy = args.defense_2c_landy;
+    agreements.their.two_clubs_landy = their_2c_landy(args)?;
     agreements.competition.defense_2c_landy_cues = args.defense_2c_landy_cues;
     agreements.competition.competition_over_stayman = !args.no_ns_comp_over_stayman;
     agreements.competition.competitive_4333 = match args.ns_competitive_4333.as_str() {
@@ -2271,18 +2321,23 @@ mod tests {
     use clap::Parser;
     use pons::bidding::agreements::Agreements;
 
-    /// Default CLI arms exactly the shipped system — `bba-decompose`'s
-    /// replay contract.
+    /// Default CLI arms the shipped system **plus the vs-BBA disclosure
+    /// corrections** — `bba-decompose`'s replay contract.
     ///
-    /// The decompose replays a dump through `Agreements::default()` and
-    /// demands 100% bit-reproduction, so every board it attributes to a
-    /// bucket assumes this equality. When it broke (2026-08-10 anchor, 69
-    /// and 66 mismatched calls of ~2.1M) nothing failed loudly: the
-    /// replay-verified fraction just slipped below 100% in a report line.
+    /// The decompose replays a dump through the same
+    /// [`vs_bba_agreements`][super::common::vs_bba_agreements]-corrected
+    /// defaults and demands 100% bit-reproduction, so every board it
+    /// attributes to a bucket assumes this equality. When it broke
+    /// (2026-08-10 anchor, 69 and 66 mismatched calls of ~2.1M) nothing
+    /// failed loudly: the replay-verified fraction just slipped below 100%
+    /// in a report line.  The only sanctioned divergence from
+    /// `Agreements::default()` is the disclosure channel (`their`), derived
+    /// from the opponent this harness hardwires — keep the shared transform
+    /// and `their_2c_landy`'s no-declaration arm in lockstep.
     #[test]
     fn default_args_arm_the_shipped_system() {
         let armed = arm_knobs(&Args::parse_from(["bba-gen"])).unwrap();
-        let shipped = Agreements::default();
+        let shipped = super::common::vs_bba_agreements(Agreements::default());
         if armed != shipped {
             let (a, s) = (format!("{armed:#?}"), format!("{shipped:#?}"));
             let diff: Vec<_> = a

@@ -25,6 +25,30 @@ use pons::scoring::{
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 
+/// The vs-BBA disclosure corrections: our agreements as armed against the
+/// EPBot 2/1 reference with no explicit `--their-conv` declaration.
+///
+/// One correction today.  BBA's 2/1 **card** declares its 1NT defense as
+/// Cappelletti (`21GF.bbsa`: `Cappelletti = 1`, `Landy = 0`,
+/// `Multi-Landy = 0`), but its measured **behavior** is Woolsey Multi-Landy —
+/// the per-call census read 551 `(2♣)` overcalls of our 1NT as both-majors
+/// Landy (docs/one-notrump-competitive.md), and the rows stay inert for its
+/// own bidding even when set false.  The card lies, so the default read comes
+/// from the census: their `2♣` is Landy and our counter-defense engages
+/// (`Agreements::their.two_clubs_landy` — the disclosure channel, engine
+/// default *undeclared/natural* for unknown fields).  An explicit declaration
+/// overrides this — we play to disclosure, and a bot that bids Landy behind a
+/// declared no-Landy card commits *its* infraction.
+///
+/// Shared by `bba-gen` (arming, `their_2c_landy`) and `bba-decompose`
+/// (replay) so the replay contract — decompose reproduces the generating
+/// system bit for bit — survives the arming being derived rather than
+/// flagged.
+pub fn vs_bba_agreements(mut agreements: Agreements) -> Agreements {
+    agreements.their.two_clubs_landy = true;
+    agreements
+}
+
 /// Total HCP of a hand
 pub fn hand_hcp(hand: Hand) -> u8 {
     Suit::ASC.iter().map(|&s| holding_hcp::<u8>(hand[s])).sum()

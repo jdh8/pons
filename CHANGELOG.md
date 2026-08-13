@@ -9,6 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The Landy counter SHIPS — as a disclosure, not a knob:
+  `Agreements::their.two_clubs_landy` replaces the deleted
+  `competition.defense_2c_landy`.** The re-measure with
+  `landy_natural_answers` flipped the verdict: plain wash + PD CI-clear
+  **+0.0032/+0.0043** NV/vul IMPs/board (+1.10/+1.65 per fired board,
+  0.26–0.30% fired, 76.8k bd/arm/vul, SEED_BASE 1786644715, sha 40a0946) —
+  the first run's all-cell loss was entirely the unauthored opener answers.
+  Shipped per user review as a **declared fact about the opponents** rather
+  than an engine default or our-side knob: what their `2♣` means is their
+  disclosure, so the engine's new `their` channel defaults to
+  undeclared/natural (self-play tables overcall a natural `2♣`; smoke SHA
+  `8ea2f567…` byte-identical), `bba-gen` derives the declaration
+  (`their_2c_landy`: explicit `--their-card`/`--their-conv` Landy-family
+  rows at face value, else the 2/1 reference's census-proven Multi-Landy
+  behavior — its own card lies, declaring `Cappelletti=1, Landy=0,
+  Multi-Landy=0`), and `bba-decompose` applies the same correction when
+  replaying BBA-labeled dumps (`--landy-counter false` for pre-ship dumps).
+  The re-homing is proven inert (measured on-arm shard-0 regenerates
+  board-for-board under `--their-2c-landy true`), so the A/B verdict
+  transfers exactly. The web registry exposes it as `declare_their_2c_landy`
+  / `their_2c_landy`. `defense_2d_multi` is owed the same migration. The
+  N1b cue overlay (`defense_2c_landy_cues`, now the *full* UvU skeleton)
+  re-measured **wash in all six cells leaning negative** (−0.43…−1.25 per
+  fired, 0.10–0.11% fired) and stays opt-in: the `1♣ (2♣)` analogy's delta
+  is ≈0 — the counter's value lives in the `X`-and-naturals core, not the
+  cue skeleton (docs/one-notrump-competitive.md N1/N1b).
+
 - **`landy_natural_answers` — opener's answers over the Landy counter's
   natural calls, and the N1b cues completed to the full UvU skeleton.** The
   N1 A/B loss traced to unauthored continuations, and an audit of the run's
@@ -27,10 +54,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cues carry *every* minor one-suiter, six-carders included — a forcing 3m
   above a GF cue was redundant, and the half-transplant left weak minor
   hands with no call; the completed skeleton matches its Michaels twin
-  (`michaels_cue_responder`). No user impact yet: both knobs stay opt-in and
-  the defaults are byte-identical (smoke SHA `8ea2f567…` unchanged);
-  re-measure of the same three arms pending
-  (docs/one-notrump-competitive.md N1/N1b).
+  (`michaels_cue_responder`). Re-measured the same day and shipped — see the
+  entry above (the counter as a disclosure; smoke SHA `8ea2f567…` unchanged
+  throughout).
 
 - **GF minor cues on the Landy counter (`set_defense_to_2c_landy_cues`,
   opt-in), and their minor-opening twin — Unusual-vs-Unusual over `1m (2m)`

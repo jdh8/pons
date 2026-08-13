@@ -169,32 +169,23 @@ pub struct CompetitionKnobs {
     /// **Off by default**, opt-in pending the A/B; faithful for the A/B against
     /// BBA, whose `2♦` over our `1NT` is always a Multi.
     pub defense_2d_multi: bool,
-    /// Read a `2♣` overcall of our `1NT` as **Landy** (both majors)
-    ///
-    /// Replaces the systems-on rebase at `1NT (2♣)`.  Systems-on is right over
-    /// a *natural* `2♣` — it steals no room, so every transfer and relay still
-    /// sits above it — but against a both-majors overcall it keeps the one
-    /// useless call (Stayman, as the stolen `X`) and turns the Jacoby transfers
-    /// into bids of *their* suits.  The counter makes `X` a values double and
-    /// everything else natural in the suits they have not shown.
-    ///
-    /// **Off by default**, opt-in pending the A/B.  Faithful for the A/B
-    /// against BBA, whose `2♣` over our `1NT` is always Landy
-    /// (`docs/one-notrump-competitive.md`).
-    pub defense_2c_landy: bool,
     /// Add the game-forcing minor cues to the Landy counter (N1b)
     ///
     /// `2♥` = GF 5+ clubs, `2♠` = GF 5+ diamonds — cues of their shown majors
     /// naming the corresponding unshown minor (Cohen's counter-majors scheme;
     /// the Unusual-vs-Unusual cue shape with the raise half re-spent on the
-    /// notrump ladder).  A pure addition to [`Self::defense_2c_landy`], which
-    /// it requires: without the cues those hands guess a stopperless `3NT` or
-    /// stretch the values `X`, while the 6-card one-suiters keep their direct
-    /// forcing `3♣`/`3♦` above it.
+    /// notrump ladder).  The full skeleton on top of the counter-defense that
+    /// [`TheirDisclosures::two_clubs_landy`] engages: the cues carry *every*
+    /// GF minor one-suiter (six-carders included) and the direct `3♣`/`3♦`
+    /// flip to natural weak escapes, as in the Michaels twin
+    /// (`uvu_over_minors`).  This one *is* our choice — given their `2♣` is
+    /// Landy, which counter structure we play is an agreement — so it stays a
+    /// knob while the Landy fact itself lives in the disclosure channel.
     ///
-    /// **Off by default**, opt-in pending the A/B (the third arm of
-    /// `scripts/ab-landy-counter.sh`).  No effect while `defense_2c_landy` is
-    /// off.
+    /// **Off by default** — measured 2026-08-14 (the third arm of
+    /// `scripts/ab-landy-counter.sh`): wash in all six cells, leaning
+    /// negative, so the base counter ships without it.  No effect while
+    /// their `2♣` is undeclared or natural.
     pub defense_2c_landy_cues: bool,
     // --- competition/negative_double.rs
     /// Which negative-double school the minor openings play
@@ -533,7 +524,6 @@ impl Default for CompetitionKnobs {
             natural_floor: (5, 0),
             lebensohl_style: LebensohlStyle::Transfer,
             defense_2d_multi: false,
-            defense_2c_landy: false,
             defense_2c_landy_cues: false,
             negative_double_shape: NegativeDoubleShape::Modern,
             cachalot_contested_x: true,
@@ -2382,6 +2372,42 @@ impl Default for InstinctKnobs {
     }
 }
 
+/// What the opponents' disclosed methods say — facts about **them**, not
+/// choices of ours
+///
+/// Every other area of [`Agreements`] is something the partnership *chose*;
+/// fields here are set from the opponents' declaration (their convention
+/// card, their alerts) and default to *undeclared*, under which every reading
+/// falls back to natural.  A harness that knows its opponent derives them —
+/// `bba-gen`'s `their_2c_landy` reads the declared conventions with one
+/// documented behavior correction — and a bidder facing an unknown field
+/// leaves them alone.  Putting a fact about the opponents into our own knob
+/// space was the original sin of `competition.defense_2c_landy` (deleted
+/// 2026-08-14, the day after it shipped); this channel is its replacement,
+/// and `competition.defense_2d_multi` is owed the same migration.
+#[derive(Clone, Copy, PartialEq, Debug, Default)]
+pub struct TheirDisclosures {
+    /// Their `2♣` overcall of our `1NT` shows **both majors** (the
+    /// Landy / Multi-Landy family)
+    ///
+    /// Routes `1NT (2♣)` to the counter-defense — `X` = values, everything
+    /// else natural in the suits they have not shown, opener answering each
+    /// by book (`landy_natural_answers`) — instead of the systems-on rebase,
+    /// and reads their `2♣` as 5-4+ in the majors.  Undeclared (`false`)
+    /// keeps systems-on, which is right over a *natural* `2♣`: it steals no
+    /// room, so every transfer and relay still sits above it, while against
+    /// a both-majors overcall it would keep the one useless call (Stayman,
+    /// as the stolen `X`) and turn the Jacoby transfers into bids of *their*
+    /// suits.
+    ///
+    /// Measured 2026-08-14 vs the EPBot 2/1 reference (whose `2♣` **is**
+    /// Landy in behavior, its own card notwithstanding): plain wash + PD
+    /// CI-clear +0.0032/+0.0043 NV/vul, 76.8k bd/arm/vul — the first A/B
+    /// lost every cell on unauthored opener answers.  See
+    /// `docs/one-notrump-competitive.md`.
+    pub two_clubs_landy: bool,
+}
+
 /// Everything the partnership has agreed to play
 ///
 /// Constructed once per build and threaded down by reference. Cloning is cheap
@@ -2391,13 +2417,16 @@ impl Default for InstinctKnobs {
 /// classifying rather than while building.  That last split is by *when* a
 /// value is read, not by what it means — a build-time area and `decision` are
 /// equally "what we agreed" — so it buys the `Partnership` a small `Copy` snapshot
-/// to pin and nothing else.
+/// to pin and nothing else.  `their` is the one exception to "what we
+/// agreed": the opponents' disclosures, see [`TheirDisclosures`].
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct Agreements {
     /// The classify-time settings, pinned into the partnership at `System::bind`
     pub decision: DecisionProfile,
     /// What we play when they contest our auction
     pub competition: CompetitionKnobs,
+    /// What the opponents' disclosed methods say (facts, not choices)
+    pub their: TheirDisclosures,
     /// What we play when they open the auction
     pub defense: DefenseKnobs,
     /// What we play after our notrump openings and rebids
@@ -2420,6 +2449,7 @@ impl Default for Agreements {
         Self {
             decision: DecisionProfile::default(),
             competition: CompetitionKnobs::default(),
+            their: TheirDisclosures::default(),
             defense: DefenseKnobs::default(),
             notrump: NotrumpKnobs::default(),
             opening: OpeningKnobs::default(),

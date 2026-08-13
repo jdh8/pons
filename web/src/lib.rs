@@ -908,7 +908,9 @@ knob!(set_competition_over_stayman, competition_over_stayman, competition.compet
 knob!(set_competition_over_minor_transfer, competition_over_minor_transfer, competition.competition_over_minor_transfer: bool);
 knob!(set_competition_over_diamond_transfer, competition_over_diamond_transfer, competition.competition_over_diamond_transfer: bool);
 knob!(set_defense_to_2d_multi, defense_to_2d_multi, competition.defense_2d_multi: bool);
-knob!(set_defense_to_2c_landy, defense_to_2c_landy, competition.defense_2c_landy: bool);
+// Not a knob of ours: a declared fact about the opponents (their disclosed
+// 2♣ over our 1NT shows both majors), hence `declare_*`, not `set_*`.
+knob!(declare_their_2c_landy, their_2c_landy, their.two_clubs_landy: bool);
 knob!(set_defense_to_2c_landy_cues, defense_to_2c_landy_cues, competition.defense_2c_landy_cues: bool);
 
 // The classify-time half, on this value rather than the crate's thread-locals:
@@ -1365,7 +1367,9 @@ static SETTINGS: &[Setting] = &[
     gated("competition_over_minor_transfer", COMPETITION, "", true, set_competition_over_minor_transfer, competition_over_minor_transfer, "puppet_stayman"),
     gated("competition_over_diamond_transfer", COMPETITION, "", true, set_competition_over_diamond_transfer, competition_over_diamond_transfer, "puppet_stayman"),
     toggle("defense_to_2d_multi", COMPETITION, "", false, set_defense_to_2d_multi, defense_to_2d_multi),
-    toggle("defense_to_2c_landy", COMPETITION, "", false, set_defense_to_2c_landy, defense_to_2c_landy),
+    // A declared fact about the opponents, not an agreement of ours — the
+    // engine's `their` disclosure channel (engages the Landy counter).
+    toggle("their_2c_landy", COMPETITION, "Their 1NT-overcall 2♣ = Landy (declared)", false, declare_their_2c_landy, their_2c_landy),
     toggle("defense_to_2c_landy_cues", COMPETITION, "Landy counter: GF minor cues", false, set_defense_to_2c_landy_cues, defense_to_2c_landy_cues),
     toggle("leaping_michaels", COMPETITION, "Leaping Michaels", true, set_leaping_michaels, leaping_michaels),
     toggle("responsive_takeout", COMPETITION, "Responsive doubles", true, set_responsive_takeout, responsive_takeout),

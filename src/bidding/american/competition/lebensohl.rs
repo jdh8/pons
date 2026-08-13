@@ -116,9 +116,10 @@ fn defense_2d_multi(agreements: &Agreements) -> bool {
     agreements.competition.defense_2d_multi
 }
 
-/// Whether the `(2♣)`-as-Landy counter-defense is engaged
+/// Whether the `(2♣)`-as-Landy counter-defense is engaged — a fact about the
+/// opponents (their disclosed `2♣`), not a knob of ours
 fn defense_2c_landy(agreements: &Agreements) -> bool {
-    agreements.competition.defense_2c_landy
+    agreements.their.two_clubs_landy
 }
 
 /// The single unbid major when `over` is itself a major (the other major)
@@ -301,8 +302,8 @@ fn multi_responder(agreements: &Agreements) -> Rules {
 }
 
 /// Responder's counter-defense after `1NT (2♣)` when the `2♣` is read as
-/// **Landy** (both majors, 5-4 or better), engaged by
-/// `agreements.competition.defense_2c_landy`
+/// **Landy** (both majors, 5-4 or better), engaged by the opponents'
+/// disclosure (`agreements.their.two_clubs_landy`)
 ///
 /// Systems-on — the default here — is the right treatment over a *natural* `2♣`,
 /// which steals no room.  Over Landy it inverts: the stolen `X` asks for a

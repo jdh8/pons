@@ -69,6 +69,12 @@ struct Args {
     #[arg(long, value_enum, default_value_t = OurFloor::AmericanInstinct)]
     our_floor: OurFloor,
 
+    /// Replay with the vs-BBA disclosure corrections (their 2♣ read as
+    /// Landy).  Unset, derived from the dump's opponent label (BBA → on);
+    /// pass `false` to replay BBA dumps generated before 2026-08-14.
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    landy_counter: Option<bool>,
+
     /// DD-table cache (JSON file), created if absent and updated with new
     /// solves — the artifact that makes a re-anchor take minutes
     #[arg(long)]
@@ -351,7 +357,25 @@ fn row_json(row: &Row, arm: &Arm) -> serde_json::Value {
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let arms = load_arms(&args.inputs)?;
-    let partnership = args.our_floor.partnership();
+    // Replay under the agreements the generator armed.  BBA dumps carry the
+    // vs-BBA disclosure corrections (`bba-gen::their_2c_landy` derived, since
+    // 2026-08-14); BEN and fixture dumps replay the plain defaults.  Derived
+    // from the dump's own opponent label, `--landy-counter` to override —
+    // pass `false` to replay BBA dumps generated before the ship.
+    let landy = args
+        .landy_counter
+        .unwrap_or_else(|| arms.iter().any(|arm| arm.their_label.contains("BBA")));
+    let partnership = if landy {
+        let agreements =
+            common::vs_bba_agreements(pons::bidding::agreements::Agreements::default());
+        match args.our_floor {
+            OurFloor::American => american(&agreements),
+            OurFloor::AmericanInstinct => american_instinct(&agreements),
+        }
+        .bind()
+    } else {
+        args.our_floor.partnership()
+    };
 
     // Exactness is an acceptance gate, not a warning. Verify every arm before
     // loading/solving DD tables so a wrong floor or revision cannot emit a

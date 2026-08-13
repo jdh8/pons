@@ -31,9 +31,12 @@ SEED_BASE=$(seed_for landy)
 log "=== landy-counter SEED_BASE=$SEED_BASE sha=$SHA"
 
 for v in none both; do
-    arm landy-cues "$v" --defense-2c-landy --defense-2c-landy-cues --filter-1nt
-    arm landy-on   "$v" --defense-2c-landy                         --filter-1nt
-    arm landy-off  "$v"                                            --filter-1nt
+    # `--their-2c-landy` is a declaration override: bba-gen now DERIVES the
+    # Landy read from the opponents' declaration and defaults it ON vs the
+    # 2/1 reference, so the off arm must force the natural read explicitly.
+    arm landy-cues "$v" --their-2c-landy true  --defense-2c-landy-cues --filter-1nt
+    arm landy-on   "$v" --their-2c-landy true                          --filter-1nt
+    arm landy-off  "$v" --their-2c-landy false                         --filter-1nt
     # Three arms, two paired diffs: on↔off prices the base counter (N1), and
     # cues↔on prices the GF-minor-cue overlay (N1b) alone — the falsifiable
     # delta of the 1♣ (2♣) analogy (docs/one-notrump-competitive.md).
