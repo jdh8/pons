@@ -30,7 +30,7 @@ rkcb 17604
 shortness 24
 slam-try 80
 smolen 112
-splinter 304
+splinter 384
 stayman 80
 strong-2c 4
 strong-2c:negative 4

@@ -33,6 +33,16 @@
 //! cargo run --release --example ab-nt-splinter -- --count 200000 --seed "$SEED_BASE"
 //! ```
 //!
+//! `--diamond` measures a different empty slot with the same harness: responder's
+//! `3♥`/`3♠` splinter one round later, after the `2NT` diamond transfer
+//! ([`diamond_splinter`][field@pons::bidding::agreements::NotrumpKnobs::diamond_splinter]).
+//! Off, responder bids a blind `3NT`; on, opener places the game (`3NT` vs `5♦`)
+//! knowing where the shortness is. Self-play for the same reason — BBA has no
+//! counterpart toggle to advertise, so a gain measured against it would be partly
+//! an exploit of a misinformed opponent. The slot fires on 0.085% of boards, so
+//! IMPs/fired is even more clearly the primary read. **Shipped default-on** at
+//! plain +1.01/+1.23 IMPs/fired NV/vul, PD +1.20/+1.44 (6M per vulnerability).
+//!
 use clap::Parser;
 use contract_bridge::auction::{Auction, Call};
 use contract_bridge::deck::full_deal;
@@ -73,6 +83,11 @@ struct Args {
     #[arg(long, default_value_t = 9)]
     floor: u8,
 
+    /// Measure the diamond-transfer splinter (`1NT - 2NT - 3♦/3♣ - 3♥/3♠`)
+    /// instead of the direct `1NT - 3M` one; `--floor` is ignored
+    #[arg(long, default_value_t = false)]
+    diamond: bool,
+
     /// Also price the opening lead single-dummy on divergent boards (slower):
     /// the blind-lead scorer that sits between plain DD and perfect defense
     #[arg(long, default_value_t = false)]
@@ -90,12 +105,23 @@ struct Args {
 /// One board's two arms: each arm's uncontested auction and its final contract.
 type ArmBids = [(Auction, Option<(Contract, Seat)>); 2];
 
+/// Whether `auction[at]` is a three-level major bid — a splinter in either slot
+fn is_three_major(auction: &Auction, at: usize) -> bool {
+    matches!(
+        auction.get(at),
+        Some(Call::Bid(bid))
+            if bid.level.get() == 3 && matches!(bid.strain, Strain::Hearts | Strain::Spades)
+    )
+}
+
 /// Whether this uncontested auction actually contains the splinter
 ///
 /// Opponents are silenced, so the auction is a run of passes, then the opening,
 /// then alternating passes and our calls. Responder's first action is therefore
-/// two calls after the opening — the splinter is a `3♥`/`3♠` there over a 1NT.
-fn splinter_fired(auction: &Auction) -> bool {
+/// two calls after the opening — the direct splinter is a `3♥`/`3♠` there over a
+/// 1NT.  With `diamond`, responder instead bid the `2NT` transfer first, so the
+/// splinter is his *second* action — past opener's `3♣`/`3♦` answer, four calls on.
+fn splinter_fired(auction: &Auction, diamond: bool) -> bool {
     let Some(open) = auction.iter().position(|call| *call != Call::Pass) else {
         return false;
     };
@@ -103,13 +129,17 @@ fn splinter_fired(auction: &Auction) -> bool {
         auction.get(open),
         Some(Call::Bid(bid)) if bid.level.get() == 1 && bid.strain == Strain::Notrump
     );
-    is_one_nt
-        && matches!(
-            auction.get(open + 2),
-            Some(Call::Bid(bid))
-                if bid.level.get() == 3
-                    && matches!(bid.strain, Strain::Hearts | Strain::Spades)
-        )
+    if !is_one_nt {
+        return false;
+    }
+    if !diamond {
+        return is_three_major(auction, open + 2);
+    }
+    let transferred = matches!(
+        auction.get(open + 2),
+        Some(Call::Bid(bid)) if bid.level.get() == 2 && bid.strain == Strain::Notrump
+    );
+    transferred && is_three_major(auction, open + 6)
 }
 
 /// The (contract, declarer, leader-view inferences) of one auction, read through
@@ -141,11 +171,16 @@ fn main() {
     // construction time, so build each arm under its own setting; the baked
     // tries are independent thereafter.
     let mut off_agreements = pons::bidding::agreements::Agreements::default();
-    off_agreements.decision.reading.nt_splinter = false;
-    let off = american(&off_agreements).bind();
     let mut armed = pons::bidding::agreements::Agreements::default();
-    armed.decision.reading.nt_splinter = true;
-    armed.notrump.nt_splinter_floor = args.floor;
+    if args.diamond {
+        off_agreements.notrump.diamond_splinter = false;
+        armed.notrump.diamond_splinter = true;
+    } else {
+        off_agreements.decision.reading.nt_splinter = false;
+        armed.decision.reading.nt_splinter = true;
+        armed.notrump.nt_splinter_floor = args.floor;
+    }
+    let off = american(&off_agreements).bind();
     let on = american(&armed).bind();
     let partnerships = [off, on];
 
@@ -174,7 +209,10 @@ fn main() {
     // Boards where the convention actually fired — the denominator that matters
     // for a slot this thin. A fired board need not diverge (opener may land in
     // the same 3NT), and a divergent board is always a fired one here.
-    let fired = bids.iter().filter(|b| splinter_fired(&b[1].0)).count();
+    let fired = bids
+        .iter()
+        .filter(|b| splinter_fired(&b[1].0, args.diamond))
+        .count();
 
     // Only boards whose arms diverge can swing; solve those once.
     let divergent: Vec<usize> = (0..args.count)
@@ -199,9 +237,14 @@ fn main() {
         pd_imps += imps(pd_adj - pd_base);
     }
 
+    let slot = if args.diamond {
+        "1NT - 2NT - 3m - 3M".to_owned()
+    } else {
+        format!("1NT - 3M (floor {})", args.floor)
+    };
     println!(
-        "=== 1NT - 3M splinter A/B: {} boards, vulnerability {}, floor {}, seed {} ===",
-        args.count, args.vulnerability, args.floor, args.seed,
+        "=== {slot} splinter A/B: {} boards, vulnerability {}, seed {} ===",
+        args.count, args.vulnerability, args.seed,
     );
     println!("(opponents silenced — constructive value only)");
     println!(

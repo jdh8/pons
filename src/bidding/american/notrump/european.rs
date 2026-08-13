@@ -122,9 +122,12 @@ pub(crate) fn european_three_club() -> Package {
         gate: |agreements| european_scheme(agreements),
         entries: |_| {
             let mut entries = rows_of(Pattern::node("P* 1NT - 3♣ -"), european_three_club_answer());
+            // ponytail: no splinter arm here — European's `3♦` is a blind transfer
+            // completion, not a fit promise, so the Puppet lane's premise is absent.
+            // Revisit only if the diamond splinter measures a win under Puppet.
             entries.extend(rows_of(
                 Pattern::node("P* 1NT - 3♣ - 3♦ -"),
-                diamond_transfer_game(8),
+                diamond_transfer_game(8, false),
             ));
             entries
         },

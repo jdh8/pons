@@ -1097,7 +1097,14 @@ fn authored_calls_read_what_they_gate() {
         // the relay fire without the values).  See
         // docs/ai-bidder/bba-kickback.md §7.7.
         ("HCP", 20, 9),
-        ("length", 59, 0),
+        // 59 → 65 when the diamond splinters after `1NT - 2NT` went
+        // default-on (2026-08-13).  The six are the same two calls (`3♥`,
+        // `3♠`) in each of american constructive/defensive and dutch: they
+        // gate on the `2NT` transfer's shape class, whose `6+ ♦ | 5+ ♦ & 4+
+        // ♣` disjunction the legacy hull cannot pin on the length axis.
+        // Knob-on stays 0 — the envelope union projects the union exactly,
+        // which is the whole point of the DNF migration.
+        ("length", 65, 0),
         ("points", 9, 0),
         // 0/0 measured at birth (2026-07-25): every `suit_hcp` gate the
         // walk reaches (Ogust, the Lebensohl trap pass) is `&`-chained, and

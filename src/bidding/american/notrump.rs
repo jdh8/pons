@@ -5,16 +5,43 @@
 //! constants, the trunk table [`notrump_responses`], the base package, and
 //! [`register`] — while each agreement lives in its own submodule:
 //!
-//! | Module | Agreement |
+//! | Module | Agreement | Response weight |
+//! | --- | --- | --- |
+//! | [`stayman`], [`stayman_slam`], [`crawling_stayman`] | the `2♣` ask and what hangs off it | 150 |
+//! | [`both_majors`], [`invitational_majors`] | the 5-4 / 5-5 major hands | 210 (`3♦`) |
+//! | [`transfers`], [`transfer_gf`], [`transfer_slam`], [`sixcard_invitation`] | Jacoby `2♦`/`2♥` and its continuations | 200 |
+//! | [`texas`] | the `4♦`/`4♥` game transfers | 250, 260 (direct `4M`) |
+//! | [`splinter`], [`long_minor`] | `3♥`/`3♠` shortness, and the `3m` force | 170, 140 |
+//! | [`minor_transfers`], [`puppet_stayman`], [`european`] | the two rival minor schemes | 130, 160 (Puppet `3♣`) |
+//! | [`size_ask`] | the `2NT` size ask over a maximum | — (it is a pass) |
+//! | [`two_notrump`] | the 2NT-strength structures and the 18–19 rebid | — |
+//!
+//! # The response weight ladder
+//!
+//! Every module authors into the one trunk table [`notrump_responses`], so which
+//! bid a hand actually makes is decided by *weight*, not by module order.  The
+//! whole ladder, highest first — a hand matching several rules takes the highest:
+//!
+//! | Weight | Response |
 //! | --- | --- |
-//! | [`stayman`], [`stayman_slam`], [`crawling_stayman`] | the `2♣` ask and what hangs off it |
-//! | [`both_majors`], [`invitational_majors`] | the 5-4 / 5-5 major hands |
-//! | [`transfers`], [`transfer_gf`], [`transfer_slam`], [`sixcard_invitation`] | Jacoby `2♦`/`2♥` and its continuations |
-//! | [`texas`] | the `4♦`/`4♥` game transfers |
-//! | [`splinter`], [`long_minor`] | `3♥`/`3♠` shortness, and the `3m` force |
-//! | [`minor_transfers`], [`puppet_stayman`], [`european`] | the two rival minor schemes |
-//! | [`size_ask`] | the `2NT` size ask over a maximum |
-//! | [`two_notrump`] | the 2NT-strength structures and the 18–19 rebid |
+//! | 260 | direct `4♥`/`4♠` — the opener-decides slam try |
+//! | 250 | Texas `4♣`/`4♦` — the six-card major game blast |
+//! | 210 | both-majors `3♦` — 5-5, invitational+ |
+//! | 200 | Jacoby `2♦`/`2♥` |
+//! | 170 | `1NT - 3♥`/`3♠` splinter (opt-in) |
+//! | 160 | Puppet Stayman `3♣` |
+//! | 150 | Stayman `2♣` (garbage and Crawling reuse this) |
+//! | 140 | long-minor `3NT` force (opt-in, measured a loss) |
+//! | 130 | the minor scheme's `2♠`/`2NT`/`3♣` |
+//! | 120 | quantitative `4NT` |
+//! | 100 | natural `3NT` |
+//! | 0 | pass |
+//!
+//! Reading the ladder top-down is how a new rule's placement gets argued: the
+//! splinter sits at 170 precisely because it must outrank the `130` minor
+//! transfers its `♣5-6` shape would otherwise take, while staying under Stayman.
+//! Continuation tables (opener's answers, responder's rebids) have their own
+//! local weights and do not interact with this ladder.
 //!
 //! The public surface is [`register`], called once by
 //! [`american`][super::american] during system assembly.
@@ -28,7 +55,7 @@ use crate::bidding::constraint::{
 };
 use crate::bidding::inference::{EnvelopeUnion, Range};
 use crate::bidding::instinct::net_break_even_gate;
-use crate::bidding::rows::{Package, Pattern, compile_into, expand, rows_of};
+use crate::bidding::rows::{Bindings, Package, Pattern, compile_into, expand, rows_of};
 use crate::bidding::{Alert, Context, Rules, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Hand, Holding, Rank, Strain, Suit};

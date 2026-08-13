@@ -1767,6 +1767,28 @@ pub struct NotrumpKnobs {
     /// `2NT` transfer already reaches `3NT`).  So no shape forces; the transfer
     /// machinery bids these hands strictly better.
     pub long_minor_force: bool,
+    // --- notrump/minor_transfers.rs
+    /// Author responder's diamond splinters after the `2NT` transfer
+    ///
+    /// Over opener's `3♦` (fit) or `3♣` (short diamonds), responder's `3♥`/`3♠`
+    /// shows a game-forcing diamond hand with a void or low singleton in the bid
+    /// major, so opener places the game — `3NT` with the short suit stopped, else
+    /// `5♦`.  Without it the hand bids a blind `3NT`.  Mirrors the club side's
+    /// long-shipped splinter lane (`club_splinter`).
+    ///
+    /// The fit is assured differently at each node: after `3♦` opener holds 3+♦,
+    /// so both members of the `2NT` class (6+♦ and 5♦4♣) qualify; after `3♣`
+    /// there is no fit, so the splinter needs a self-sufficient 6+♦.
+    ///
+    /// **On by default.**  `ab-nt-splinter --diamond`, 6M boards per vulnerability,
+    /// seed 1786613240, 5103 fired (0.085%) / 650 divergent: plain DD
+    /// **+1.01/+1.23 IMPs/fired** (+0.0009/+0.0010 per board) NV/vul, PD
+    /// **+1.20/+1.44** — a win on both scorings, so no doubling artifact.  The
+    /// sd-lead bracket agrees (+0.0007/+0.0008 plain, +0.0008/+0.0010 PD per
+    /// board, 95% CI ±0.0001).  Self-play: BBA has no counterpart toggle, so a
+    /// measurement against it would price misinformation rather than the
+    /// treatment.
+    pub diamond_splinter: bool,
 }
 
 impl Default for NotrumpKnobs {
@@ -1789,6 +1811,7 @@ impl Default for NotrumpKnobs {
             stayman_cue_continuation: true,
             stayman_minor_slam_try: true,
             long_minor_force: false,
+            diamond_splinter: true,
         }
     }
 }

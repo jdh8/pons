@@ -9,6 +9,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Diamond splinters after `1NT - 2NT` — default-on, +1.01/+1.23 IMPs/fired.**
+  The Puppet `2NT` diamond transfer showed a full hand class (6+♦, or 5♦4♣) but
+  responder's rebid over either of opener's answers was binary: `3NT` with game
+  values, else pass or retreat to `3♦`. A game-forcing 6-4-2-1 with a stiff
+  spade opposite a *known eight-card diamond fit* had no way to say so — it bid
+  a blind `3NT`, and opener could not tell `3NT` from `5♦`. The club side of the
+  same scheme has had that lane since it was authored (`club_splinter` →
+  `pick_game_over_club_splinter`); the diamond side simply never got it.
+
+  Responder's `3♥`/`3♠` (weight 100, `SPLINTER`-alerted) now show a void or low
+  singleton in the bid major with game values, and opener places the game —
+  `3NT` with the short suit stopped, else `5♦` (`pick_game_over_diamond_splinter`).
+  `3NT` drops to the weight-90 catch-all at both nodes. The splinter is offered
+  only where the fit is assured, which differs per node: over opener's `3♦`
+  (three-card support) *both* members of the `2NT` class qualify, so a 5♦4♣ hand
+  splinters too; over the `3♣` denial it needs a self-sufficient 6+♦, and the
+  5♦4♣ hand bids `3NT`.
+
+  Shortness is [`splinter_short`], which excludes a stiff ace or king as a
+  working honor — opener's answer pivots on `stopper_in(short)`, and a singleton
+  ace is roughly that trick, so routing it out of `3NT` is exactly the error
+  that helper exists to prevent. The club side still uses bare `len(short, ..2)`
+  and *will* splinter on a stiff ace; that asymmetry is now documented in
+  `minor_transfers.rs` rather than silent, and aligning the two is its own A/B.
+
+  `ab-nt-splinter --diamond` (the direct-splinter harness, extended rather than
+  copied — same rarity profile, same self-play justification: BBA has no
+  counterpart toggle, so measuring against it would price misinformation instead
+  of the treatment). 6M boards per vulnerability, seed 1786613240, 5103 fired
+  (0.085%) / 650 divergent: **plain DD +1.01/+1.23 IMPs/fired** (+0.0009/+0.0010
+  per board) NV/vul, **PD +1.20/+1.44** — a win on both scorings, so no doubling
+  artifact; the sd-lead bracket agrees (+0.0007/+0.0008 plain, +0.0008/+0.0010
+  PD per board, 95% CI ±0.0001). `NotrumpKnobs::diamond_splinter` survives as
+  the A/B's off-arm.
+
+  The European scheme deliberately does **not** get the lane: its `3♦` is a
+  blind transfer completion (`hcp(0..)`), not a fit promise, so the premise is
+  absent. `cards/*.bbsa` are unchanged — BBA's schema has one generic
+  `Splinter` row, already set, and no per-slot toggle.
+
+  [`splinter_short`]: src/bidding/american/notrump/transfer_gf.rs
+
 - **The multi-layered takeout double — two opt-in knobs, both default off**
   ([`docs/takeout-double-layers.md`](docs/takeout-double-layers.md)). The
   design that doc carried since 2026-08-11 was organized around "the double is

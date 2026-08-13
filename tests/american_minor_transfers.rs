@@ -308,3 +308,118 @@ fn six_card_minor_one_honor_eight_stays_a_transfer() {
         call(2, Strain::Spades),
     );
 }
+
+// --- Diamond splinters after 1NT - 2NT (default-on) --------------------------
+//
+// `diamond_splinter` mirrors the club side's splinter lane onto the diamond
+// transfer, so opener places the game (3NT vs 5♦) on stopper knowledge instead of
+// responder guessing 3NT.  Shipped on at +1.01/+1.23 IMPs/fired plain DD; the
+// knob survives as the A/B's off-arm.
+
+fn partnership_no_diamond_splinter() -> Partnership {
+    let mut agreements = pons::bidding::agreements::Agreements::default();
+    agreements.notrump.diamond_splinter = false;
+    american(&agreements).bind()
+}
+
+/// `1NT - 2NT - 3♦ -`: opener completed the transfer (3+♦, an assured fit)
+fn after_completed_transfer() -> Vec<Call> {
+    after_1nt(&[call(2, Strain::Notrump), call(3, Strain::Diamonds)])
+}
+
+/// `1NT - 2NT - 3♣ -`: opener denied diamond support
+fn after_denied_transfer() -> Vec<Call> {
+    after_1nt(&[call(2, Strain::Notrump), call(3, Strain::Clubs)])
+}
+
+#[test]
+fn diamond_game_force_bids_blind_3nt_without_the_lane() {
+    let system = partnership_no_diamond_splinter();
+    // 6-4-2-1 game force with a stiff spade: with the knob off there is no way to
+    // show the shortness, so it guesses 3NT at both continuations.
+    assert_eq!(
+        best_call(&system, &after_completed_transfer(), "x.Kxxx.AQxxxx.Kx"),
+        call(3, Strain::Notrump),
+    );
+    assert_eq!(
+        best_call(&system, &after_denied_transfer(), "x.Kxxx.AQxxxx.Kx"),
+        call(3, Strain::Notrump),
+    );
+}
+
+#[test]
+fn diamond_game_force_splinters_at_both_continuations() {
+    let system = partnership();
+    // By default the same 6-4-2-1 splinters 3♠.  After 3♦ the fit is opener's three
+    // cards; after 3♣ it is responder's own six-card suit.
+    assert_eq!(
+        best_call(&system, &after_completed_transfer(), "x.Kxxx.AQxxxx.Kx"),
+        call(3, Strain::Spades),
+    );
+    assert_eq!(
+        best_call(&system, &after_denied_transfer(), "x.Kxxx.AQxxxx.Kx"),
+        call(3, Strain::Spades),
+    );
+}
+
+#[test]
+fn five_four_splinters_only_on_the_assured_fit() {
+    let system = partnership();
+    // A 5♦-4♣ game force short in hearts: opener's 3♦ promises the eighth trump,
+    // so it splinters…
+    assert_eq!(
+        best_call(&system, &after_completed_transfer(), "Kxx.x.AQxxx.Kxxx"),
+        call(3, Strain::Hearts),
+    );
+    // …but over the 3♣ denial there is no fit behind the splinter — bid 3NT.
+    assert_eq!(
+        best_call(&system, &after_denied_transfer(), "Kxx.x.AQxxx.Kxxx"),
+        call(3, Strain::Notrump),
+    );
+}
+
+#[test]
+fn singleton_ace_is_not_a_splinter() {
+    let system = partnership();
+    // A stiff ace is a working honor, not shortness to advertise (`splinter_short`):
+    // this hand belongs in 3NT, not 5♦.
+    assert_eq!(
+        best_call(&system, &after_completed_transfer(), "A.Kxxx.KQxxxx.Kx"),
+        call(3, Strain::Notrump),
+    );
+}
+
+#[test]
+fn opener_places_the_game_over_the_diamond_splinter() {
+    let system = partnership();
+    let auction = after_1nt(&[
+        call(2, Strain::Notrump),
+        call(3, Strain::Diamonds),
+        call(3, Strain::Spades),
+    ]);
+    // Spades stopped: 3NT.
+    assert_eq!(
+        best_call(&system, &auction, "AQx.Axx.Kxxx.Qxx"),
+        call(3, Strain::Notrump),
+    );
+    // Wasted spade values opposite the singleton: play the diamond game.
+    assert_eq!(
+        best_call(&system, &auction, "xxx.AQx.Kxxx.AQx"),
+        call(5, Strain::Diamonds),
+    );
+}
+
+#[test]
+fn weak_diamond_hands_are_untouched_by_the_splinter_lane() {
+    let system = partnership();
+    // Sub-game values still pass 3♦…
+    assert_eq!(
+        best_call(&system, &after_completed_transfer(), "x.xxx.KJxxxx.xxx"),
+        P
+    );
+    // …and still retreat to 3♦ over the 3♣ denial.
+    assert_eq!(
+        best_call(&system, &after_denied_transfer(), "x.xxx.KJxxxx.xxx"),
+        call(3, Strain::Diamonds),
+    );
+}
