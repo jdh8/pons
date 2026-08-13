@@ -9,6 +9,78 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The Landy cue becomes INV+ with strength-carrying stopper asks
+  (`defense_2c_landy_cues`, still opt-in).** After the sub-game fix the cue arm
+  still measured −0.34…−0.62 per fired board (76.8k bd/arm/vul, SEED_BASE
+  1786650492) and the residue was opener's blind `4m` — a minor game placed
+  without knowing whether the majors were stopped. The cue is now
+  invitational-or-better, a gated `3NT` (both majors stopped, no six-card
+  minor) outranks it at responder's first turn, and opener's answer carries
+  strength **by level**: cheap (`2NT`/`2♠`/`3m`) is a minimum, the 3-level
+  (`3♥`/`3♠`/`3NT`/`4m`) is a maximum, with the cue naming the major opener
+  *lacks* and promising minor tolerance. Over opener's stopper-less minimum
+  `3m`, responder may re-cue with a game force. Authored down to the placing
+  call throughout — `Inferences` carries no forcing channel, so any rung left
+  to the floor reads as bare length-and-points. Knob default-off; smoke SHA
+  `8ea2f567…` unchanged.
+
+  **Measured** (230.4k bd/arm/vul, SEED_BASE 1786653231): the first arm of this
+  package with a CI-clear positive and no negative cell — plain DD
+  **+0.0016 ±0.0010** NV / **+0.0014 ±0.0012** vul, plain SD +0.0018/+0.0024,
+  against v2's six negative cells. It stays opt-in because PD erases the plain
+  win (+0.0001/−0.0000), which is the decision table's artifact row.
+  `probe-divergence` splits it into four effects that replicate across both
+  vulnerabilities (IMPs per fired, boards we opened): the weak `3♣` escape
+  **+3.41/+2.98 plain, +0.71/+0.61 PD** — the hands that previously had no call
+  at all — and the `2♠` diamond cue **+1.87/+1.93** against the `2♥` club cue
+  (−0.76/−1.04 PD) and the weak `3♦` (−1.71/−0.55 PD, redundant with the
+  natural `2♦`). `2♥`'s whole loss is **nine boards** where we declare *hearts*:
+  `{cue} - {ask} (X)` passed out — every rung is registered over LHO's pass
+  only, so a double drops us out of book — and the floor bidding `4♥` itself on
+  continuations past the book. The other 162 are a wash.
+
+- **The shipped Landy counter confirmed at 3× n.** `their.two_clubs_landy`
+  shipped on 76.8k bd/arm/vul, and a later run at a fresh seed did not
+  reproduce it — pooling the two left only vulnerable PD alive. Re-run at
+  230.4k bd/arm/vul (SEED_BASE 1786653231) it **replicates and strengthens in
+  both vulnerabilities**: plain wash (−0.0002 ±0.0013 NV, +0.0003 ±0.0015 vul)
+  with PD **+0.0032 ±0.0017** / **+0.0028 ±0.0019** and SD-PD +0.0019/+0.0015.
+  Non-vulnerable is the stronger half, not the missing one; the
+  non-replication was seed noise.
+
+- **`examples/bba-gen --filter-landy`** — enrichment gate pairing the
+  `--filter-1nt` raw-hand test with a Landy-shaped **RHO** (5-4+ majors, 8+
+  HCP) in one scan, so the contested-`(2♣)` lane can be measured at a firing
+  density a band sweep can actually resolve. Deliberately looser than either
+  `convention_points` band: the overcaller is BBA, whose band we do not
+  control, and a gate tighter than the trigger biases the accepted set.
+
+- **`examples/probe-divergence --gate-opener ours|theirs`** — the
+  counter-defense isolation gate's ownership half, which was documented as a
+  gate and implemented nowhere. Exits non-zero unless every divergent board
+  was opened by the named side. Both shipped Landy A/Bs fail it.
+
+- **`examples/probe-divergence` — decompose an A/B wash instead of theorising
+  about it.** `ab-dump-diff` says how much an experiment moved; this says
+  *what changed*. It pairs the same two arm dirs already on disk and
+  classifies every divergent board — who bid differently first, whether our
+  call replaced a pass, whether a game was reached in one arm only, whether
+  declarer swapped sides, how much room the opponents got — with `--jsonl`
+  per-board records for package-specific filtering and `--imps` to price a
+  bucket. Counting needs **no solver at all** (the arms carry both auctions;
+  a contract derives from the auction and the dealer), and it reproduced the
+  Landy-cue A/B's published headline exactly before splitting it.
+
+  Its first use rewrote the N1b post-mortem. The published wash
+  (−0.0005…−0.0012) is three populations with different signs: the `2♥`/`2♠`
+  **cues lose −1.76 plain / −1.90 PD per fired board** (same sign both vuls,
+  both scorers), the weak `3♣`/`3♦` **escapes are plain-positive NV
+  (+1.13/fired) and PD-negative only vulnerable** (−3.26/fired — going for a
+  number), and **38% of the divergent boards are auctions the opponents
+  opened**. Two documented assumptions were wrong: `2♦` does not shadow the
+  weak diamonds (`3♦` fires 9–11 times), and the cue's loss is a missed
+  **slam**, not a missed game.
+
 - **The Landy counter SHIPS — as a disclosure, not a knob:
   `Agreements::their.two_clubs_landy` replaces the deleted
   `competition.defense_2c_landy`.** The re-measure with
@@ -306,6 +378,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   as measuring the pre-narrowing European.
 
 ### Fixed
+
+- **The Landy cue answer now places the game (`defense_2c_landy_cues`).**
+  Opener's answer to the `2♥`/`2♠` GF minor cue was `2NT`/`3m` —
+  `landy_minor_answer` shifted a level down to match the cheaper question.
+  `2NT` collapses into 3NT and the auction dies there; the base arm's `4m`
+  leaves a suit contract the floor cue-bids over and reaches `6♣`/`6♦`. Three
+  of the five worst boards in the measured arm were exactly that swap (e.g.
+  `1NT (2♣) 2♥ - 2NT - 3NT` against the base arm's
+  `1NT (2♣) 3♦ - 3NT - 4♦ … 6♦`, −12 IMPs). A sub-game answer under a
+  game-forcing call hands the auction to a floor whose `Inferences` carry no
+  forcing channel at all. The cue now takes `landy_minor_answer` unchanged;
+  `landy_cue_answer` is deleted. The knob is default-off, so the default
+  system is byte-identical (smoke SHA `8ea2f567…`).
 
 - **`docs/dnf-migration.md`'s axis-leak ledger had two missing re-pins.** The
   kickback queen relay (`f2434f5`, 2026-08-02) moved authored HCP **11/0 →

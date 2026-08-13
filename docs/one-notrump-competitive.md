@@ -288,6 +288,22 @@ some. Shipped as the derived declaration above, not an engine default — the
 engine's undeclared read stays natural, which the first A/B's self-play
 argument demands (our own tables' `2♣` overcalls *are* natural).
 
+**Confirmation at 3× n (2026-08-14, 230.4k bd/arm/vul, SEED_BASE 1786653231,
+`ab-results/landy-counter-v4`).** The ship verdict was re-run because the v3a
+run's `landy-on`↔`landy-off` pair did not reproduce it at a fresh seed, and
+pooling the two 76.8k runs left only vul PD alive. At 3× boards the shipped
+verdict **replicates and strengthens in both vulnerabilities**:
+
+| | plain DD | PD | plain SD | SD-PD |
+| --- | --- | --- | --- | --- |
+| NV | −0.0002 ±0.0013 | **+0.0032 ±0.0017** (+1.02/fired) | −0.0012 ±0.0014 | **+0.0019 ±0.0017** |
+| vul | +0.0003 ±0.0015 | **+0.0028 ±0.0019** (+1.09/fired) | −0.0010 ±0.0016 | +0.0015 ±0.0019 |
+
+Plain wash in all four plain cells, PD CI-clear in three of four (sd-PD vul
+straddles by 0.0004) — the decision table's `wash | win` row, at 3× the
+evidence and a fresh seed. The pooled-76.8k worry that NV was never there is
+retired: NV is the *stronger* vulnerability here. 0.26–0.32% fired.
+
 **Inertness proven**: `smoke-default --count 20000 --seed 1` SHA-256
 `8ea2f5678a733cfe3ead79411d9cb31b8e95d37de52236e597fc38f9dec82bbb`, identical at
 HEAD and with the change. The default system is byte-identical.
@@ -360,6 +376,177 @@ of the same skeleton is P7 in [competitive-book.md](competitive-book.md)
 (`set_uvu_over_minors`) — authored for coherence, unmeasurable vs the anchor
 (BBA never cues over a minor; def1-c/d probes 2026-08-14).
 
+### N1b post-mortem (`probe-divergence`, 2026-08-14) — what the wash was made of
+
+The wash was not one effect. [`examples/probe-divergence`](../examples/probe-divergence/main.rs)
+reclassified the measured arms off disk — no generation, no new solve beyond
+the 164 divergent boards — and reproduces the published headline exactly
+(plain −0.0005/−0.0007, PD −0.0006/−0.0012), then splits it:
+
+| Population | n (NV+vul) | plain | PD | per fired |
+| --- | --- | --- | --- | --- |
+| **cues** `2♥`/`2♠` (GF minors) | 51 | −90 | −97 | **−1.76 / −1.90** |
+| **weak escapes** `3♣`/`3♦` | 46 | +25 | −73 | +0.54 / −1.59 |
+| **they opened** — the mirror-read leak | 67 | −24 | +28 | −0.36 / +0.42 |
+
+Three findings, none of them what this section previously reasoned to.
+
+1. **The cues lose; the escapes do not.** −1.76 plain / −1.90 PD per fired
+   board, the same sign in both vulnerabilities and under both scorers (CI
+   ±1.87 / ±2.25 at n = 51 — consistent, not yet CI-clear). The weak escapes
+   are plain-**positive** NV (+1.13/fired) and PD-negative *only vulnerable*
+   (−3.26/fired): the signature of going for a number, not of a bad call. And
+   `3♦` fired 9–11 times, so `2♦` does **not** shadow the weak diamonds the way
+   this doc assumed — the escape band is a live question, the cue is not.
+2. **The cue's loss is a missed slam, not a missed game.** Opener's cue answer
+   was `2NT`/`3m` — `landy_minor_answer` shifted one level down to match the
+   cheaper question. `2NT` collapses into 3NT and the auction dies there; the
+   base arm's `4m` leaves a *suit* contract the floor cue-bids over. Three of
+   the five worst boards are that swap:
+
+   ```text
+   base: 1NT 2♣ 3♦ - 3NT - 4♦ - 4♠ - 4NT - 5♥ - 6♦ - - -   → 6♦
+   cues: 1NT 2♣ 2♥ - 2NT - 3NT - - -                        → 3NT   [−12 IMPs]
+   ```
+
+   A sub-game answer under a game-forcing call hands the auction to a floor
+   whose `Inferences` carry no forcing channel at all (`read.rs:84-118`).
+   **Fixed 2026-08-14**: the cue takes `landy_minor_answer` unchanged, so both
+   arms answer a game-forcing minor at game level. The game-buckets show no
+   systematic missed *game* — that hypothesis was wrong and the boards say so.
+3. **38% of the divergent boards are not our 1NT at all** — see the next
+   section. This is why the first two rows above are quoted over the
+   we-opened-1NT subset only.
+
+### The mirror-read leak — a counter knob changes how we read *their* auctions
+
+`read.rs` gates its 1NT sites on parity **relative to the opener, not to us**
+([read.rs:386-389](../src/bidding/inference/read.rs)), and `their_profile`
+falls back to *our own* profile whenever no foreign book is declared
+([read.rs:333-335](../src/bidding/inference/read.rs)) — which is every arm in
+this campaign. So when **they** open 1NT and **we** overcall `2♣` (our own
+Landy), their next call is read through *our* `1NT (2♣)` counter table: with
+the cues on, their natural `2♥` reads as our game-forcing club cue.
+
+Measured: 33/88 NV and 34/76 vul of N1b's divergent boards (38%), every one
+with a `2♥`/`2♠` before the divergence — and **47/227 (21%) of the shipped
+N1's**, so this is not specific to the cues. The IMP impact is roughly neutral
+(N1b: −24 plain / +28 PD pooled), so no shipped verdict flips; but neither A/B
+isolated what its ledger row claims — part of each was a reading change on the
+*defensive* side of the same boards.
+
+This is the failure the counter-defense isolation gate exists to catch, one
+level up from where the gate looks: the gate checks that a *natural* defense
+stays byte-identical, not that our counter stays out of auctions the opponents
+opened. Under the house rule that a knob picks what we bid, not how we read
+their bidding, the symmetric-opponent fallback quietly makes every counter
+knob a reading knob as well.
+
+**Now enforced**: `probe-divergence --gate-opener ours` exits non-zero unless
+every divergent board was opened by our side (`theirs` for a defensive
+package, whose ownership is the mirror image). It was pure discipline before —
+documented as a gate, implemented nowhere, and both Landy A/Bs shipped
+verdicts through it. Run it on every arm pair in this lane.
+
+### N1b-v4 — the INV+ cue with stopper asks (measured 2026-08-14, **two winners and two losers**)
+
+v3a (the game-level cue answer) halved the damage but did not flip the sign:
+NV plain −0.0004 ±0.0016 / PD −0.0006 ±0.0019, vul −0.0006 ±0.0017 /
+−0.0007 ±0.0020, sd −0.0003/−0.0004, **−0.34…−0.62 per fired** against v2's
+−0.43…−1.25 (76.8k bd/arm/vul, SEED_BASE 1786650492). The residue was the
+blind `4m` catch-all — opener placing a minor game with no idea whether the
+majors were stopped.
+
+v4 replaces the whole structure with an **invitational-or-better** cue and a
+strength-carrying ask, per the user's design:
+
+| Responder, over their `2♣` | | Weight |
+| --- | --- | --- |
+| `3NT` | game values, **both majors stopped, no six-card minor** | **180** |
+| `2♥` / `2♠` | **INV+**, 5+ clubs / 5+ diamonds | 173 / 172 |
+| `3NT` | game values, ungated — the base arm's rule, untouched | 170 |
+
+The gated `3NT` outranks the cues because **opener declares any notrump
+contract** (opener bid 1NT — Law 54), so responder's direct `3NT` costs no
+siding. Denying a six-card minor is the 5-vs-6 split: a six-carder is a source
+of tricks with slam play, so it always cues and lets opener place the contract.
+
+Opener's answer carries strength **by level** — cheap is minimum, the 3-level
+is maximum:
+
+| Opener | Shows |
+| --- | --- |
+| `3NT` (160) | both majors stopped, maximum |
+| `3♥` / `3♠` (155) | maximum, asks for a stopper in the major **opener lacks**, promises 3+ in the minor |
+| `4m` (150) | maximum, neither major stopped |
+| `2NT` (145) | both majors stopped, minimum |
+| `2♠` (140) | minimum ask — **club cue only**, the one rung below the 3-level |
+| `3m` (100/20) | minimum, no stopper shown (the finite catch-all) |
+
+Responder answers an ask by showing the stopper (cheaply on a minimum, so
+opener still judges game) or retreating to the minor opener's tolerance made
+safe. Over opener's minimum `3m` — the only rung showing *no* stopper —
+responder may **re-cue** `3♥`/`3♠` with a game force and a stopper worry;
+opener bids `3NT` holding it, else takes the minor. Over `2NT` there is
+nothing left to ask, so responder passes or bids `3NT`.
+
+Every rung is authored down to the placing call, because `Inferences` has no
+forcing channel: a rung left to the floor reads as bare "5+ ♣, 8+ points" with
+no notion of an invitation, which is exactly what cost −1.8 IMPs/fired.
+
+**Measured** (SEED_BASE 1786653231, 230.4k bd/arm/vul — 3× v2/v3a — sha
+`8873e9c`+dirty, 0.15–0.17% fired). v4 is the first arm of this package to put
+a **CI-clear positive** on the board, and the first with no negative cell:
+
+| | plain DD | PD | plain SD | SD-PD |
+| --- | --- | --- | --- | --- |
+| NV | **+0.0016 ±0.0010** | +0.0001 ±0.0013 | **+0.0018 ±0.0011** | +0.0006 ±0.0013 |
+| vul | **+0.0014 ±0.0012** | −0.0000 ±0.0014 | **+0.0024 ±0.0013** | **+0.0016 ±0.0015** |
+
+Against v2's six negative cells and v3a's four, that is a real move. It is
+still **not shippable**: the DD pair lands on the decision table's
+`win | wash` row (doubling artifact), and the SD pair splits — vul retains 67%
+of its plain-SD win CI-clear (*real effect*), NV retains 33% and straddles zero
+(*the win was the missing doubling*).
+
+`probe-divergence` says the package is **not one effect** but four, and the
+split replicates across both vulnerabilities (IMPs per fired, we-opened boards
+only, NV / vul):
+
+| our call | plain | PD | n | reading |
+| --- | --- | --- | --- | --- |
+| `3♣` weak clubs | **+3.41 / +2.98** | **+0.71 / +0.61** | 56 / 54 | the package's engine — S5's predicted gap, confirmed |
+| `2♠` diamond cue | **+1.87 / +1.93** | +0.48 / +0.12 | 114 / 82 | winner both scorers |
+| `2♥` club cue | −0.17 / +0.06 | **−0.76 / −1.04** | 102 / 69 | loser, and **9 boards carry all of it** |
+| `3♦` weak diamonds | −1.07 / +0.55 | **−1.71 / −0.55** | 28 / 29 | S5 called it — `2♦` already covers weak diamonds |
+
+The doubling artifact is **not** in the doubled boards: the *no double swing*
+bucket carries +1.38 / +1.81 plain against −0.17 / −0.27 PD. PD's synthetic
+doubles of our own failing undoubled contracts are what erase the win, i.e. we
+bid contracts that go down.
+
+**The `2♥` defect is nine boards, and it is an unauthored continuation.** All
+nine have us **declaring hearts** — the opponents' suit — after the cue, in two
+modes:
+
+- `1NT (2♣) 2♥ - 3♥ (X)` **passed out** — every rung in the registration block
+  ends in `-`, so RHO's double drops us out of book and the floor passes the
+  ask. We play `3♥` doubled, −16/−14 plain.
+- The floor **bidding `4♥` itself** after the escape is doubled
+  (`2♥ - 3♥ - 4♣ (X) 4♥`) or over their own hearts
+  (`2♥ - 2NT (3♥) - (3♠) 4♥`). A phantom-suit disaster on a non-book
+  continuation; v4 does not create it, it routes traffic into it.
+
+Strip those nine and `2♥`'s remaining 162 boards are +81 plain / −22 PD — a
+wash, not a loss. The `2♥`/`2♠` asymmetry is the reverse of what the extra room
+predicts (the club cue is the one *with* the cheap `2♠` ask and it is the
+loser), so the ask rungs, not the cue itself, are where the next fix goes.
+
+The mirror-read leak is unchanged and still unfixed: 25.2% (NV) / 31.4% (vul)
+of divergences were opened by *them*, and they are PD-positive (+0.52 / +0.36
+per fired) — noise from a path this package does not own. `--gate-opener ours`
+fails on both this pair and the shipped N1 pair.
+
 **Deferred candidate N1c**: a Lebensohl `2NT` relay (weak sign-offs at `3♣`/
 `3♦`). The completed N1b skeleton covers most of its ground — the cues arm
 now has direct weak escapes — so the relay's residual value is the *base*
@@ -378,7 +565,10 @@ identical at HEAD with both knobs off — the N1 reference hash, unchanged.
   byte-identical to the natural baseline.  Require natural interference to
   occur and the targeted artificial-defense arm to diverge, so the check is
   not vacuous; a face-call-wide reinterpretation (`2♣` always means Landy)
-  fails this gate.
+  fails this gate.  **Ownership half, automated:**
+  `probe-divergence --gate-opener ours` fails the pair unless every divergent
+  board was opened by our side — the half that caught nothing until
+  2026-08-14 because it was discipline with no implementation.
 - **Enriched probing** is the default here: `bba-gen --filter-1nt` (raw-hand
   gate, balanced 15-17 somewhere, applied *before* any bidding). Headline is
   IMPs per **accepted** deal; publish `per-board = conditional mean × trigger
@@ -388,7 +578,16 @@ identical at HEAD with both knobs off — the N1 reference hash, unchanged.
   `SEED_BASE=$(date +%s)` per experiment shared across its arms, never rebuild
   in flight.
 - Any **reading** change is a second, separate A/B on the same enriched boards,
-  so a loss attributes to calls or to reading, never to their sum.
+  so a loss attributes to calls or to reading, never to their sum. A counter
+  knob is *also* a reading change until the mirror-read leak above is closed.
+- **Decompose a wash before theorising about it.**
+  [`probe-divergence`](../examples/probe-divergence/main.rs) pairs two arm dirs
+  already on disk and classifies every divergent board — who bid differently
+  first, whether a game was reached in one arm only, whether declarer swapped
+  sides, how much room the opponents got — with `--jsonl` for per-board records
+  and `--imps` to price a bucket. It reproduced this campaign's published
+  headline exactly and then split it into three populations with different
+  signs. Counting needs no solver at all.
 - Ship rule: standard gate. Plain-DD wash + PD gain ships default-on; a CI-clear
   plain loss stays opt-in with the default byte-identical, and the leak gets
   named in the ledger.
@@ -398,5 +597,5 @@ identical at HEAD with both knobs off — the N1 reference hash, unchanged.
 | Package | Knob | Status | Verdict (plain / PD, IMPs) |
 | --- | --- | --- | --- |
 | census tool | — | **shipped** | read-only; picked N1 over the pre-census guess |
-| N1 Landy `(2♣)` counter | `their.two_clubs_landy` (disclosure, not a knob; `defense_2c_landy` deleted) | **SHIPPED 2026-08-14** — engine undeclared=natural; `bba-gen` derives the declaration (2/1 reference → Landy, its card lies) and `bba-decompose` replays it; re-homing proven board-identical on the measured arm | **v2 (with `landy_natural_answers`, full audit fix)** on↔off: NV plain +0.0005 ±0.0022 / PD **+0.0032 ±0.0028** (+1.10/fired) / sd −0.0006 ±0.0025, SD-PD +0.0017 ±0.0030; vul plain +0.0013 ±0.0026 / PD **+0.0043 ±0.0032** (+1.65/fired) / sd +0.0001 ±0.0029, SD-PD +0.0030 ±0.0034. 0.26–0.30% fired, 76.8k bd/arm/vul, SEED_BASE 1786644715, sha 40a0946 — plain wash + PD CI-clear both vuls = ship. **v1 (sha 8bc465a, SEED_BASE 1786642613): LOSS all six cells** (NV plain −0.0050 ±0.0024, vul −0.0049 ±0.0028, every CI<0) — leak 1: opener's answers unauthored, audit: phantom Jacoby `2♥` 82% over `2♦`, phantom minor-transfers 23% over `2NT`, phantom Puppet `3♦` 85% over `3♣`, passed force 62% over `3♦` (only `3NT` clean); leak 2: the census misread (systems-on's minor transfers were winning the minor-partial boards). |
-| N1b GF minor cues | `defense_2c_landy_cues` | **measured 2026-08-14 ×2 — WASH both times, stays opt-in**; v2 = the *full* UvU skeleton (cues carry all GF one-suiters, direct 3m weak) on the fixed base — the analogy's delta reads ≈0 with a negative tilt | **v2 (full skeleton, N1-win run)** cues↔on: NV plain −0.0005 ±0.0013 / PD −0.0006 ±0.0018, vul plain −0.0007 ±0.0016 / PD −0.0012 ±0.0021, sd −0.0004/−0.0012 (−0.43…−1.25/fired, 0.10–0.11% fired, all CIs ⊇ 0, every cell leaning negative). **v1 (pure cue addition, N1-loss run):** NV plain −0.0001 / PD +0.0004, vul plain +0.0001 / PD +0.0005, sd negative — unpriceable next to phantom sibling answers. |
+| N1 Landy `(2♣)` counter | `their.two_clubs_landy` (disclosure, not a knob; `defense_2c_landy` deleted) | **SHIPPED 2026-08-14** — engine undeclared=natural; `bba-gen` derives the declaration (2/1 reference → Landy, its card lies) and `bba-decompose` replays it; re-homing proven board-identical on the measured arm | **v2 (with `landy_natural_answers`, full audit fix)** on↔off: NV plain +0.0005 ±0.0022 / PD **+0.0032 ±0.0028** (+1.10/fired) / sd −0.0006 ±0.0025, SD-PD +0.0017 ±0.0030; vul plain +0.0013 ±0.0026 / PD **+0.0043 ±0.0032** (+1.65/fired) / sd +0.0001 ±0.0029, SD-PD +0.0030 ±0.0034. 0.26–0.30% fired, 76.8k bd/arm/vul, SEED_BASE 1786644715, sha 40a0946 — plain wash + PD CI-clear both vuls = ship. **Confirmed at 3× n** (230.4k bd/arm/vul, SEED_BASE 1786653231): NV plain −0.0002 ±0.0013 / PD **+0.0032 ±0.0017**, vul plain +0.0003 ±0.0015 / PD **+0.0028 ±0.0019**, sd-PD +0.0019/+0.0015 — the v3a run's non-replication was seed noise; NV is the stronger vul. **v1 (sha 8bc465a, SEED_BASE 1786642613): LOSS all six cells** (NV plain −0.0050 ±0.0024, vul −0.0049 ±0.0028, every CI<0) — leak 1: opener's answers unauthored, audit: phantom Jacoby `2♥` 82% over `2♦`, phantom minor-transfers 23% over `2NT`, phantom Puppet `3♦` 85% over `3♣`, passed force 62% over `3♦` (only `3NT` clean); leak 2: the census misread (systems-on's minor transfers were winning the minor-partial boards). |
+| N1b GF minor cues | `defense_2c_landy_cues` | **measured 2026-08-14 ×4 — stays opt-in, but v4 is the first arm with a CI-clear positive and no negative cell**. **v4** (INV+ cues + level-as-strength stopper asks, 230.4k bd/arm/vul, SEED_BASE 1786653231, sha 8873e9c+dirty): NV plain **+0.0016 ±0.0010** / PD +0.0001 ±0.0013, vul plain **+0.0014 ±0.0012** / PD −0.0000 ±0.0014, sd plain **+0.0018/+0.0024**, SD-PD +0.0006 / **+0.0016 ±0.0015**. Lands on `win \| wash` (artifact row); SD splits vul-real / NV-artifact. `probe-divergence` decomposes it into four independent effects, replicating across both vuls (per fired, we-opened, NV/vul): `3♣` weak clubs **+3.41/+2.98 plain, +0.71/+0.61 PD**; `2♠` diamond cue **+1.87/+1.93**, +0.48/+0.12; `2♥` club cue −0.17/+0.06, **−0.76/−1.04 PD**; `3♦` weak diamonds −1.07/+0.55, **−1.71/−0.55 PD**. `2♥`'s whole loss is **9 boards** where we declare *hearts* — `{cue} - {ask} (X)` passed out (every registration ends in `-`) and the floor bidding `4♥` itself on non-book continuations; the other 162 are +81/−22 = wash. Mirror leak persists at 25–31%, PD-positive, `--gate-opener ours` fails. v2 = the *full* UvU skeleton (cues carry all GF one-suiters, direct 3m weak) on the fixed base; the `probe-divergence` post-mortem decomposed the v2 wash — cues −1.76 plain/−1.90 PD per fired (missed *slams*, from a sub-game cue answer), weak escapes +0.54/−1.59 (PD-negative vul only = going for a number), and 38% of divergences on boards the opponents opened (the mirror-read leak). v3a = opener's cue answer restored to `landy_minor_answer` (game level), −0.34…−0.62/fired, still every cell negative | **v2 (full skeleton, N1-win run)** cues↔on: NV plain −0.0005 ±0.0013 / PD −0.0006 ±0.0018, vul plain −0.0007 ±0.0016 / PD −0.0012 ±0.0021, sd −0.0004/−0.0012 (−0.43…−1.25/fired, 0.10–0.11% fired, all CIs ⊇ 0, every cell leaning negative). **v1 (pure cue addition, N1-loss run):** NV plain −0.0001 / PD +0.0004, vul plain +0.0001 / PD +0.0005, sd negative — unpriceable next to phantom sibling answers. |

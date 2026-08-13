@@ -242,6 +242,28 @@ struct Args {
     #[arg(long, default_value_t = false)]
     filter_1nt: bool,
 
+    /// `--filter-1nt`, and additionally require that candidate's **RHO** to
+    /// hold a Landy-shaped hand (5-4+ majors, 8+ HCP) — the seat that would
+    /// overcall `2♣` over our 1NT.
+    ///
+    /// The contested-`(2♣)` lane fires on ~0.1% of `--filter-1nt` boards,
+    /// which is below the resolution of any band sweep (docs/one-notrump-competitive.md).
+    /// Pairing the two raw-hand tests raises the yield by orders of magnitude
+    /// for pure scan cost — still no bidding, no FFI, no solver.  Deliberately
+    /// **looser** than either `convention_points` band (9-18 / 8-19) and
+    /// uncapped above: the overcaller here is BBA, whose band we do not
+    /// control, and a gate tighter than the trigger would bias the accepted
+    /// set rather than merely shrink it.
+    ///
+    /// Still enrichment, not isolation: the balanced seat may never open 1NT
+    /// and the Landy-shaped seat may never overcall, so the headline stays
+    /// IMPs per *accepted* deal, rescaled by trigger density.  Changing the
+    /// acceptance predicate changes the accepted set, so arms under this flag
+    /// pair only with each other — never with a `--filter-1nt` run at the same
+    /// seed.
+    #[arg(long, default_value_t = false)]
+    filter_landy: bool,
+
     /// Disable our Unusual-vs-Unusual structure over 1NT (2NT) — BBA overcalls our
     /// 1NT with a both-minors 2NT (Multi-Landy), so this is the live test.  On by
     /// default (it ships): the responder structure + the encircling chase.
@@ -1478,6 +1500,18 @@ fn is_1nt_opener(hand: Hand) -> bool {
     balanced && (15..=17).contains(&hand_hcp(hand))
 }
 
+/// Landy-shaped: 4+ in both majors with the longer 5+, and overcall values —
+/// the raw-hand twin of `landy_2c`'s `five_four(♥, ♠) & points(..)`
+/// (`src/bidding/american/defense/nt_landy.rs`), for `--filter-landy`.
+///
+/// HCP rather than upgraded points, and 8+ uncapped, because this gates a
+/// *scan*, not a call: it must not reject a hand the opponents' own band would
+/// overcall on.  See `--filter-landy` for why loose is the safe direction.
+fn is_landy_shaped(hand: Hand) -> bool {
+    let (hearts, spades) = (hand[Suit::Hearts].len(), hand[Suit::Spades].len());
+    hearts.min(spades) >= 4 && hearts.max(spades) >= 5 && hand_hcp(hand) >= 8
+}
+
 /// If this auction's *opening* call is 1NT, its index and whether the opener is
 /// North/South.  The opening requirement (all prior calls passes) excludes a
 /// `1♣ - 1NT` rebid — we want 1NT *openings* only. Used by `--isolate-defense`
@@ -2238,6 +2272,18 @@ fn main() -> anyhow::Result<()> {
     while boards.len() < args.count {
         let deal = full_deal(&mut rng);
         scanned += 1;
+        // One paired scan, not two independent ones: `--filter-landy` must
+        // find a single seat that is both the 1NT candidate *and* has a
+        // Landy-shaped RHO, or it would accept deals where two unrelated seats
+        // satisfy the halves.  RHO is dealer-independent table geometry, which
+        // matters because `dealer` is only assigned below.
+        if args.filter_landy
+            && !Seat::ALL
+                .iter()
+                .any(|&seat| is_1nt_opener(deal[seat]) && is_landy_shaped(deal[seat.rho()]))
+        {
+            continue;
+        }
         if args.filter_1nt && !Seat::ALL.iter().any(|&seat| is_1nt_opener(deal[seat])) {
             continue;
         }

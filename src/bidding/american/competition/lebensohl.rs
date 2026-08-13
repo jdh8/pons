@@ -343,26 +343,54 @@ fn landy_responder(agreements: &Agreements) -> Rules {
     //   there is nothing for opener to choose.)
     //
     // - **Cues on**: the full [`michaels_cue_responder`][super::two_suiters]
-    //   skeleton — the cues (`2♥` = 5+♣, `2♠` = 5+♦, game-forcing) carry
-    //   *every* GF minor one-suiter, six-carders included, and the direct
-    //   `3♣`/`3♦` flip to natural **weak** escapes (a forcing 3m would be
-    //   redundant with the cue below it).  The weak `3♦` is mostly shadowed by
-    //   the cheaper `2♦` (140 > 110); it survives only below the 2♦ escape's
-    //   hcp floor.  `2♥` edges `2♠` so 5-5 minors cue cheaper — which also
-    //   means a GF hand with longer diamonds than clubs (6♦5♣) shows the
-    //   clubs; rare enough to leave.
+    //   skeleton — the cues (`2♥` = 5+♣, `2♠` = 5+♦, **invitational or
+    //   better**) carry every minor one-suiter worth showing, six-carders
+    //   included, and the direct `3♣`/`3♦` flip to natural **weak** escapes (a
+    //   forcing 3m would be redundant with the cue below it).  The weak `3♦`
+    //   survives below the 2♦ escape's floor and fired 9-11 times in the
+    //   measured arm, so `2♦` does *not* shadow it.  `2♥` edges `2♠` so 5-5
+    //   minors cue cheaper — which also means a hand with longer diamonds than
+    //   clubs (6♦5♣) shows the clubs; rare enough to leave.
+    //
+    //   INV+ rather than game-forcing because opener's ask
+    //   ([`landy_cue_answer`]) promises minor tolerance, so `3m`/`4m` are
+    //   landing spots and opener can decline.  That costs a full accept/decline
+    //   tree: `Inferences` carries no forcing channel (per-seat length/points
+    //   envelopes only), so a rung left to the floor reads as bare "5+ ♣, 8+
+    //   points" with no notion of an invitation — which is exactly how the
+    //   sub-game cue answer cost −1.8 IMPs/fired.  Every rung below is
+    //   authored for that reason.
     if agreements.competition.defense_2c_landy_cues {
+        // 3NT *above* the cues, and the only rung here that gates stoppers.
+        // Opener bid 1NT, so opener declares any notrump contract (Law 54) —
+        // responder's direct 3NT costs no siding, which is why it can outrank
+        // a cue that would otherwise let opener choose.  Denying a six-card
+        // minor is the 5-vs-6 split: a six-carder is a source of tricks with
+        // slam play, so it always cues and lets opener place the contract,
+        // where a 5-3-3-2 with both majors held has nothing to explore.
+        //
+        // The base arm's ungated 3NT (170, below) is untouched — this rule
+        // only outranks it, so a cues-off arm bids exactly what it always did.
+        rules = rules.rule(
+            Bid::new(3, Strain::Notrump),
+            180,
+            points(10..)
+                & stopper_in(Suit::Hearts)
+                & stopper_in(Suit::Spades)
+                & len(Suit::Clubs, ..=5)
+                & len(Suit::Diamonds, ..=5),
+        );
         rules = rules
             .rule(
                 Bid::new(2, Strain::Hearts),
                 173,
-                len(Suit::Clubs, 5..) & points(10..),
+                len(Suit::Clubs, 5..) & points(8..),
             )
             .alert(LANDY_CUE)
             .rule(
                 Bid::new(2, Strain::Spades),
                 172,
-                len(Suit::Diamonds, 5..) & points(10..),
+                len(Suit::Diamonds, 5..) & points(8..),
             )
             .alert(LANDY_CUE);
         for s in [Suit::Clubs, Suit::Diamonds] {
@@ -443,16 +471,27 @@ fn landy_invite_answer(agreements: &Agreements) -> Rules {
         .rule(Call::Pass, 0, hcp(0..))
 }
 
-/// Opener's answer to the base counter's forcing `3♣`/`3♦` (`1NT (2♣) 3m -`)
+/// Opener's answer to a game-forcing minor: the base counter's forcing
+/// `3♣`/`3♦` (`1NT (2♣) 3m -`), and under N1b the `2♥`/`2♠` cue that replaces
+/// it (`1NT (2♣) 2♥/2♠ -`)
 ///
-/// One of the `landy_natural_answers` trio, wired only with the cues *off*
-/// (under N1b the direct minors are weak and take [`landy_signoff_answer`]).
-/// Responder shows a six-card source of tricks and game values, and opener
-/// chooses — the point of ranking the naturals above 3NT: `3NT` with both of
-/// their majors stopped, else raise.  The raise doubles as the finite
-/// catch-all — opener is balanced, so it never lands on fewer than two, and
-/// responder has six.  [`landy_cue_answer`] one level up; without the node the
-/// floor answers `3♣` as the Puppet Stayman it replaced (85% phantom `3♦`).
+/// Responder shows a source of tricks and game values, and opener chooses —
+/// the point of ranking the naturals above 3NT: `3NT` with both of their
+/// majors stopped, else raise.  The raise doubles as the finite catch-all —
+/// opener is balanced, so it never lands on fewer than two.  Without the node
+/// the floor answers `3♣` as the Puppet Stayman it replaced (85% phantom
+/// `3♦`).
+///
+/// **The cue takes this same game-level answer, not a cheaper one.** Its first
+/// draft answered the cue at `2NT`/`3m`, one level down to match the cheaper
+/// question, and `probe-divergence`'s post-mortem of the 2026-08-14 A/B priced
+/// that at −1.8 IMPs per fired board on both scorers and both vulnerabilities:
+/// `2NT` collapses into 3NT and the auction dies there, where `4m` leaves a
+/// suit contract the floor can cue-bid over and reaches `6♣`/`6♦`.  Three of
+/// the five worst boards were exactly that swap, e.g. `1NT (2♣) 2♥ - 2NT -
+/// 3NT` for the base arm's `1NT (2♣) 3♦ - 3NT - 4♦ … 6♦`.  A sub-game answer
+/// under a game-forcing call hands the auction to a floor whose `Inferences`
+/// carry no forcing channel at all.
 fn landy_minor_answer(minor: Suit) -> Rules {
     let strain = Strain::from(minor);
     Rules::new()
@@ -465,23 +504,156 @@ fn landy_minor_answer(minor: Suit) -> Rules {
         .rule(Bid::new(4, strain), 20, hcp(0..))
 }
 
-/// Opener's answer to a Landy GF minor cue (`1NT (2♣) 2♥/2♠ -`)
+/// The cheapest bid of `strain` strictly above `floor`
 ///
-/// The cue is game-forcing with 5+ in the named minor, so opener describes:
-/// `2NT` with both majors stopped (keeping 3NT live from the strong side),
-/// else a raise of the minor.  The raise doubles as the finite catch-all —
-/// opener is balanced, so it never lands on fewer than two — and everything
-/// deeper is the floor's.
-fn landy_cue_answer(minor: Suit) -> Rules {
+/// The Landy cues sit at different heights (`2♥` for clubs, `2♠` for
+/// diamonds), so every rung above them — opener's stopper ask, responder's
+/// retreat to the minor — is one level higher on the diamond side.  Deriving
+/// the rung instead of tabulating it keeps one table shape for both cues.
+fn cheapest_above(strain: Strain, floor: Bid) -> Bid {
+    let level = floor.level.get();
+    if Bid::new(level, strain) > floor {
+        Bid::new(level, strain)
+    } else {
+        Bid::new(level + 1, strain)
+    }
+}
+
+/// Opener's answer to a Landy minor cue (`1NT (2♣) 2♥/2♠ -`)
+///
+/// The cue is invitational-or-better with 5+ in `minor`, and responder has
+/// already denied the hand that belongs in 3NT (both majors stopped, no
+/// six-card minor — it bids 3NT at its first turn).  So opener answers the two
+/// questions responder cannot: are the majors stopped, and is this worth game?
+///
+/// | Opener | Shows |
+/// | --- | --- |
+/// | `3NT` | both majors stopped, maximum — accepts |
+/// | `2NT` | both majors stopped, minimum — responder places it |
+/// | the **unstopped major** | exactly one major stopped, 3+ in the minor — asks responder to supply the other |
+/// | `4m` | neither major stopped, maximum |
+/// | `3m` | neither major stopped, minimum (and the finite catch-all) |
+///
+/// The ask names the major opener *lacks*, and promises tolerance for the
+/// minor, so responder without the stopper retreats to the minor rather than
+/// guessing at notrump ([`landy_ask_answer`]).
+fn landy_cue_answer(minor: Suit, cue: Bid, agreements: &Agreements) -> Rules {
     let strain = Strain::from(minor);
-    Rules::new()
-        .rule(
-            Bid::new(2, Strain::Notrump),
-            150,
-            stopper_in(Suit::Hearts) & stopper_in(Suit::Spades),
-        )
-        .rule(Bid::new(3, strain), 100, len(minor, 3..))
+    let max = agreements.notrump.size_ask_accept_floor;
+    let both = stopper_in(Suit::Hearts) & stopper_in(Suit::Spades);
+    let tolerance = len(minor, 3..);
+
+    // Maximum: the 3-level and above.
+    let mut rules = Rules::new().rule(Bid::new(3, Strain::Notrump), 160, both.clone() & hcp(max..));
+    for (held, lacked) in [(Suit::Hearts, Suit::Spades), (Suit::Spades, Suit::Hearts)] {
+        rules = rules
+            .rule(
+                Bid::new(3, Strain::from(lacked)),
+                155,
+                stopper_in(held) & !stopper_in(lacked) & tolerance.clone() & hcp(max..),
+            )
+            .alert(LANDY_CUE);
+    }
+    rules = rules.rule(Bid::new(4, strain), 150, tolerance.clone() & hcp(max..));
+
+    // Minimum: 2NT, the cheap ask, or the minor.
+    rules = rules.rule(Bid::new(2, Strain::Notrump), 145, both & hcp(..max));
+    // The club cue leaves `2♠` below the 3-level, so a *minimum* missing only
+    // the spade stopper can still ask.  There is no cheap rung for a minimum
+    // missing hearts (`3♥` would read as a maximum), and none at all over the
+    // diamond cue — that asymmetry is the price of letting level mean strength.
+    let cheap = Bid::new(2, Strain::Spades);
+    if cheap > cue {
+        rules = rules
+            .rule(
+                cheap,
+                140,
+                stopper_in(Suit::Hearts)
+                    & !stopper_in(Suit::Spades)
+                    & tolerance.clone()
+                    & hcp(..max),
+            )
+            .alert(LANDY_CUE);
+    }
+    rules
+        .rule(Bid::new(3, strain), 100, tolerance)
         .rule(Bid::new(3, strain), 20, hcp(0..))
+}
+
+/// Responder's rebid over opener's minimum `2NT` (`1NT (2♣) 2♥ - 2NT -`)
+///
+/// Opener has shown both majors stopped and a minimum, so nothing is left to
+/// ask: responder passes the invitation or bids the game it was hiding.
+fn landy_minimum_notrump_rebid() -> Rules {
+    Rules::new()
+        .rule(Bid::new(3, Strain::Notrump), 100, points(10..))
+        .rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Responder's rebid over opener's minimum `3m` (`1NT (2♣) 2♥ - 3♣ -`)
+///
+/// This is the one minimum showing *no* stopper, so it is the only place
+/// responder's own stopper worry can still be resolved — over `2NT` opener has
+/// both, and over the cheap `2♠` ask responder is answering, not asking.  With
+/// a game force responder bids `3NT` holding both majors itself, else cues the
+/// major it lacks (the cheaper cue wins when both are missing).  Invitational
+/// hands pass, which is what made the cue INV+ in the first place.
+fn landy_minimum_minor_rebid() -> Rules {
+    let mut rules = Rules::new().rule(
+        Bid::new(3, Strain::Notrump),
+        120,
+        points(10..) & stopper_in(Suit::Hearts) & stopper_in(Suit::Spades),
+    );
+    for (major, weight) in [(Suit::Hearts, 110), (Suit::Spades, 109)] {
+        rules = rules
+            .rule(
+                Bid::new(3, Strain::from(major)),
+                weight,
+                points(10..) & !stopper_in(major),
+            )
+            .alert(LANDY_CUE);
+    }
+    rules.rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Opener's answer to responder's re-cue (`1NT (2♣) 2♥ - 3♣ - 3♠ -`)
+///
+/// Responder is game-forcing and missing `asked`.  Opener bids the game
+/// holding it, else takes the minor — which opener's `3m` already promised.
+fn landy_recue_answer(minor: Suit, asked: Suit) -> Rules {
+    Rules::new()
+        .rule(Bid::new(3, Strain::Notrump), 100, stopper_in(asked))
+        .rule(Bid::new(4, Strain::from(minor)), 20, hcp(0..))
+}
+
+/// Responder's answer to opener's stopper ask (`1NT (2♣) 2♥ - 2♠ -`)
+///
+/// `asked` is the major opener lacks.  With it stopped responder shows
+/// notrump — cheaply on a minimum so opener can still decline
+/// ([`landy_invite_answer`] handles that), or straight to game with values
+/// it has not yet shown.  Without it, retreat to the minor at the cheapest
+/// level opener's ask left, which opener's tolerance made safe.
+///
+/// The cheap notrump rung only exists over the low ask (`2♠` over the club
+/// cue); over a 3-level ask there is nothing between it and 3NT, so the
+/// minimum and the maximum share the game bid and only the retreat splits.
+fn landy_ask_answer(minor: Suit, asked: Suit, ask: Bid) -> Rules {
+    let notrump = cheapest_above(Strain::Notrump, ask);
+    let retreat = cheapest_above(Strain::from(minor), ask);
+    let game = Bid::new(4, Strain::from(minor));
+    let mut rules = Rules::new().rule(
+        Bid::new(3, Strain::Notrump),
+        150,
+        stopper_in(asked) & points(10..),
+    );
+    if notrump < Bid::new(3, Strain::Notrump) {
+        rules = rules.rule(notrump, 145, stopper_in(asked) & points(..=9));
+    }
+    if retreat < game {
+        rules = rules.rule(game, 120, points(10..));
+        rules = rules.rule(retreat, 100, points(0..));
+    }
+    rules.rule(retreat, 20, hcp(0..))
 }
 
 /// Opener completes responder's Lebensohl `2NT` relay with the forced `3♣`
@@ -615,14 +787,82 @@ pub(super) fn lebensohl_package() -> Package {
                     ));
                 }
                 if agreements.competition.defense_2c_landy_cues {
-                    entries.extend(rows_of(
-                        Pattern::after("P* 1NT (2♣)", "2♥ -"),
-                        landy_cue_answer(Suit::Clubs),
-                    ));
-                    entries.extend(rows_of(
-                        Pattern::after("P* 1NT (2♣)", "2♠ -"),
-                        landy_cue_answer(Suit::Diamonds),
-                    ));
+                    // The INV+ cue's whole accept/decline tree, authored down
+                    // to the placing call.  The floor cannot carry any of it:
+                    // `Inferences` has no forcing channel, so every rung left
+                    // to it reads as bare length-and-points — the defect that
+                    // cost −1.8 IMPs/fired when opener's answer alone was
+                    // sub-game.
+                    for (minor, cue) in [
+                        (Suit::Clubs, Bid::new(2, Strain::Hearts)),
+                        (Suit::Diamonds, Bid::new(2, Strain::Spades)),
+                    ] {
+                        entries.extend(rows_of(
+                            Pattern::after("P* 1NT (2♣)", &format!("{cue} -")),
+                            landy_cue_answer(minor, cue, agreements),
+                        ));
+                        // Opener's minimums that are not asks: 2NT has both
+                        // stoppers, 3m has none — the only rung that leaves
+                        // responder's worry open, so the re-cue lives there.
+                        entries.extend(rows_of(
+                            Pattern::after("P* 1NT (2♣)", &format!("{cue} - 2NT -")),
+                            landy_minimum_notrump_rebid(),
+                        ));
+                        let min_minor = Bid::new(3, Strain::from(minor));
+                        entries.extend(rows_of(
+                            Pattern::after("P* 1NT (2♣)", &format!("{cue} - {min_minor} -")),
+                            landy_minimum_minor_rebid(),
+                        ));
+                        for asked in [Suit::Hearts, Suit::Spades] {
+                            entries.extend(rows_of(
+                                Pattern::after(
+                                    "P* 1NT (2♣)",
+                                    &format!(
+                                        "{cue} - {min_minor} - {} -",
+                                        Bid::new(3, Strain::from(asked))
+                                    ),
+                                ),
+                                landy_recue_answer(minor, asked),
+                            ));
+                        }
+
+                        // Opener's asks: the 3-level cue of the major opener
+                        // lacks (a maximum), plus the cheap `2♠` a minimum can
+                        // afford over the club cue only.
+                        let mut asks = vec![
+                            (Suit::Hearts, Bid::new(3, Strain::Hearts)),
+                            (Suit::Spades, Bid::new(3, Strain::Spades)),
+                        ];
+                        let cheap = Bid::new(2, Strain::Spades);
+                        if cheap > cue {
+                            asks.push((Suit::Spades, cheap));
+                        }
+                        for (asked, ask) in asks {
+                            let after = format!("{cue} - {ask} -");
+                            entries.extend(rows_of(
+                                Pattern::after("P* 1NT (2♣)", &after),
+                                landy_ask_answer(minor, asked, ask),
+                            ));
+                            // Responder's cheap notrump is a minimum with the
+                            // stopper, so opener still judges game — the same
+                            // question the natural 2NT invite asks, hence the
+                            // same table.
+                            let notrump = cheapest_above(Strain::Notrump, ask);
+                            if notrump < Bid::new(3, Strain::Notrump) {
+                                entries.extend(rows_of(
+                                    Pattern::after("P* 1NT (2♣)", &format!("{after} {notrump} -")),
+                                    landy_invite_answer(agreements),
+                                ));
+                            }
+                            // Responder's retreat to the minor is a sign-off
+                            // opener's ask already promised tolerance for.
+                            let retreat = cheapest_above(Strain::from(minor), ask);
+                            entries.extend(rows_of(
+                                Pattern::after("P* 1NT (2♣)", &format!("{after} {retreat} -")),
+                                landy_signoff_answer(),
+                            ));
+                        }
+                    }
                 }
             } else {
                 // Over a natural (2♣) overcall we play *systems on*, not

@@ -190,14 +190,59 @@ fn landy_cue_answer_places_the_game() {
         Call::Pass,
     ];
 
-    // Both majors stopped: 2NT keeps 3NT live from the strong side.
+    // Both majors stopped and a maximum: accept, and place the game.  A
+    // sub-game answer here let the auction die in 3NT where the base arm's
+    // game-level answer reaches 6♣/6♦ (see `landy_minor_answer`).
     let (c, floored) = bid_landy_cues(&after_cue, "A54.KQ4.A954.K32");
-    assert_eq!(c, call(2, Strain::Notrump));
+    assert_eq!(c, call(3, Strain::Notrump));
     assert!(!floored, "the cue answer must come from the book");
 
-    // No spade stopper: raise the named minor instead.
+    // Both majors stopped, minimum: 2NT, and responder places it — the cue is
+    // invitational-or-better, so opener may decline.
+    let (c, _) = bid_landy_cues(&after_cue, "A54.KQ4.AJ54.J32");
+    assert_eq!(c, call(2, Strain::Notrump));
+
+    // Only hearts stopped, with club tolerance — the ask names the major
+    // opener *lacks*, and its LEVEL carries opener's strength.  Maximum (16):
+    // the 3-level cue.
     let (c, _) = bid_landy_cues(&after_cue, "543.KQ4.AQ54.KQ3");
-    assert_eq!(c, call(3, Strain::Clubs));
+    assert_eq!(c, call(3, Strain::Spades));
+
+    // Same shape, minimum (13): the club cue leaves `2♠` below the 3-level, so
+    // a minimum can still ask.  Over the diamond cue there is no such rung.
+    let (c, _) = bid_landy_cues(&after_cue, "543.KQ4.AJ54.K32");
+    assert_eq!(c, call(2, Strain::Spades));
+}
+
+#[test]
+fn landy_re_cue_resolves_the_stopper_over_openers_minimum() {
+    // 1NT (2♣) 2♥ - 3♣ - : opener's 3♣ is the one minimum showing NO stopper,
+    // so responder's own worry can still be asked here.
+    let after_minimum = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        call(2, Strain::Hearts),
+        Call::Pass,
+        call(3, Strain::Clubs),
+        Call::Pass,
+    ];
+
+    // Game force with hearts stopped and spades wide open: cue the major we
+    // lack.  (With both stopped responder bids 3NT itself.)
+    let (c, floored) = bid_landy_cues(&after_minimum, "432.A5.KQ4.AQ765");
+    assert_eq!(c, call(3, Strain::Spades));
+    assert!(!floored, "the re-cue must come from the book");
+
+    // Opener holding the asked stopper bids the game...
+    let mut after_recue = after_minimum.to_vec();
+    after_recue.push(call(3, Strain::Spades));
+    after_recue.push(Call::Pass);
+    let (c, _) = bid_landy_cues(&after_recue, "AQ4.KQ4.J954.K32");
+    assert_eq!(c, call(3, Strain::Notrump));
+
+    // ...and without it takes the minor its own 3♣ already promised.
+    let (c, _) = bid_landy_cues(&after_recue, "432.KQ4.AJ54.KQ3");
+    assert_eq!(c, call(4, Strain::Clubs));
 }
 
 #[test]
