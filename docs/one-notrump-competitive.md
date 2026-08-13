@@ -241,7 +241,13 @@ on : 1NT 2♣ X - - -                 (we double and defend)
 off: 1NT 2♣ X - 2♦ 2♠ - - -         (opener answers stolen Stayman; they find 2♠)
 ```
 
-Not a verdict — `scripts/ab-landy-counter.sh` is the A/B, unrun.
+**Verdict (2026-08-14, 76.8k bd/arm/vul, SEED_BASE 1786642613): LOSS on all
+six cells — stays opt-in.** See the ledger row for numbers and the two named
+leaks: opener's unauthored answers to the counter's natural `2NT`/`2♦` (the
+floor phantom-completes them as the transfers they replaced), and the census
+misread — systems-on's minor transfers were *winning* the minor-partial
+boards, so deleting them gave those boards back. `landy_natural_answers` is
+owed before any re-measure.
 
 **Inertness proven**: `smoke-default --count 20000 --seed 1` SHA-256
 `8ea2f5678a733cfe3ead79411d9cb31b8e95d37de52236e597fc38f9dec82bbb`, identical at
@@ -287,6 +293,12 @@ a narrow 15-17 the raise half is re-spent on the `2NT`/`3NT` ladder and the
 penalty axis is promoted. So the theory holds as *isomorphic, not identical*,
 and the published cue meanings are four-way incompatible (minors / stoppers /
 natural / other-major Stayman) — which is what the third A/B arm decides.
+
+**Verdict (2026-08-14, same run as N1): WASH in all six cells** (PD leans
+positive both vuls, sd leans negative, every CI ⊇ 0, 0.06–0.14% fired). The
+analogy's delta is neither confirmed nor refuted — and moot while the N1 base
+it rides loses. Re-read after N1's unauthored-continuation fix; the cue's
+value cannot be priced next to sibling calls the floor phantom-transfers.
 The minor-opening side of the same skeleton is P7 in
 [competitive-book.md](competitive-book.md) (`set_uvu_over_minors`) — authored
 for coherence, unmeasurable vs the anchor (BBA never cues over a minor;
@@ -328,5 +340,5 @@ identical at HEAD with both knobs off — the N1 reference hash, unchanged.
 | Package | Knob | Status | Verdict (plain / PD, IMPs) |
 | --- | --- | --- | --- |
 | census tool | — | **shipped** | read-only; picked N1 over the pre-census guess |
-| N1 Landy `(2♣)` counter | `defense_2c_landy` | **authored, A/B queued** — default off, inertness proven | fires 0.57% of tables on `--filter-1nt`; `scripts/ab-landy-counter.sh` |
-| N1b GF minor cues | `defense_2c_landy_cues` | **authored, third A/B arm queued** — default off, rides N1's knob, inertness proven (same smoke SHA) | `scripts/ab-landy-counter.sh` now 3 arms: off / N1 / N1+cues — on↔off prices the counter, cues↔on prices the analogy's delta alone |
+| N1 Landy `(2♣)` counter | `defense_2c_landy` | **measured 2026-08-14 — LOSS on all six cells, stays opt-in**; two named leaks, re-measure candidate | on↔off: NV plain **−0.0050 ±0.0024** / PD −0.0035 ±0.0030 / sd −0.0065 ±0.0025, vul plain **−0.0049 ±0.0028** / PD −0.0036 ±0.0034 / sd −0.0058 ±0.0029 (every CI<0; −1.1…−2.0/fired, 0.25–0.43% fired). 76.8k bd/arm/vul, SEED_BASE 1786642613, sha 8bc465a. **Leak 1 (unauthored continuation):** opener's rebid over the counter's natural `2NT`/`2♦` was left to the floor — 23% of on-arm `2NT` invites get a phantom answer (`3♦`×16, `3♣`×8, `3♥`/`3♠`×9 in 145), reading the invite as the uncontested transfer it replaced. **Leak 2 (the census misread):** under systems-on the minor transfers were quietly *winning* the minor-partial boards (`2♠`→`3♣`, `2NT`→`3♦` — worst on↔off boards are exactly these), so the census's −0.74/bd bucket was not the fault of the structure the counter deleted. Author `landy_natural_answers` (opener over `2♦`/`2NT`: pass / raise / 3NT max) before any re-measure. |
+| N1b GF minor cues | `defense_2c_landy_cues` | **measured 2026-08-14 — WASH on top of N1 in all six cells, stays opt-in**; the analogy's delta is neither confirmed nor refuted (and moot while N1 loses) | cues↔on: NV plain −0.0001 ±0.0010 / PD +0.0004 ±0.0013 / sd −0.0005 ±0.0011, vul plain +0.0001 ±0.0012 / PD +0.0005 ±0.0014 (+0.89/fired) / sd −0.0010 ±0.0013 (all CIs ⊇ 0; 0.06–0.14% fired). PD leans positive both vuls, sd leans negative — no cell clears. Same run as N1. Re-read after N1's leak-1 fix: a cue answered by a sane opener is a different treatment than a cue answered next to a floor that phantom-transfers the sibling calls. |

@@ -22,8 +22,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   under N1's forcing 3-level naturals, with opener answering `2NT` with both
   majors stopped, else raising. `scripts/ab-landy-counter.sh` grows a third
   arm so the base counter and the cue overlay price separately; no user
-  impact until the A/B (defaults byte-identical, smoke SHA `8ea2f567…`
-  unchanged). The minor twin transplants the `uvu_major_responder` skeleton
+  impact (defaults byte-identical, smoke SHA `8ea2f567…` unchanged). The A/B
+  (2026-08-14, 76.8k bd/arm/vul): the N1 base counter **loses all six cells**
+  (plain −0.0050/−0.0049 NV/vul, CI<0) — opener's answers to the counter's
+  natural `2NT`/`2♦` were left to the floor, which phantom-completes them as
+  the transfers they replaced, and systems-on's minor transfers were quietly
+  winning the minor-partial boards — and the N1b cue overlay is a **wash** on
+  top (all CIs ⊇ 0). Both stay opt-in; `landy_natural_answers` is owed before
+  a re-measure (docs/one-notrump-competitive.md ledger). The minor twin transplants the `uvu_major_responder` skeleton
   (`2♥` = limit+ raise, `2♠` = GF unbid minor, `X` = values with a punishable
   major) and retires a live misbid — the generic negative double asking for
   4-4 majors against a cue that *shows* both. The first-ever `def1-c`/`def1-d`
