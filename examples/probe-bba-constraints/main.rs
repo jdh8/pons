@@ -23,6 +23,7 @@
 //! cargo run --release --example probe-bba-constraints -- --mode weak2-h --conv Ogust=1  # ...with BBA's Ogust on
 //! cargo run --release --example probe-bba-constraints -- --mode nt-resp --conv "1N-3M splinter"=1  # responses to BBA's own 1NT
 //! cargo run --release --example probe-bba-constraints -- --mode nt-3h --conv "1N-3M splinter"=1    # opener over 1NT - 3♥ -
+//! cargo run --release --example probe-bba-constraints -- --mode nt-3c-3d --conv "1N-3C transfer to diamonds"=1 --conv "1N-3C Puppet Stayman"=0  # responder over 1NT - 3♣ - 3♦ -
 //! cargo run --release --example probe-bba-constraints -- --mode def1-s   # direct defense to (1♠)
 //! cargo run --release --example probe-bba-constraints -- --mode o4 --vul none,we,they,both  # fit the two-level overcall quality gate
 //! ```
@@ -77,6 +78,8 @@ const TWO_D: c_int = 11; // 5 + 1*5 + 1
 const TWO_H: c_int = 12; // 5 + 1*5 + 2
 const TWO_S: c_int = 13; // 5 + 1*5 + 3
 const TWO_NT: c_int = 14; // 5 + 1*5 + 4
+const THREE_C: c_int = 15; // 5 + 2*5 + 0
+const THREE_D: c_int = 16; // 5 + 2*5 + 1
 const THREE_H: c_int = 17; // 5 + 2*5 + 2
 const THREE_S: c_int = 18; // 5 + 2*5 + 3
 
@@ -532,6 +535,27 @@ fn main() -> Result<()> {
             Some(ONE_NT),
             "BBA opener over 1NT - 3♠ - — a natural read raises spades, a splinter never does",
         ),
+        // Opener's answer to the European diamond transfer.  Our
+        // `european_three_club_answer` completes to `3♦` unconditionally
+        // (`hcp(0..)`); a second bucket here would mean a super-accept we do
+        // not model.
+        "nt-3c" => (
+            0,
+            &[ONE_NT, PASS, THREE_C, PASS],
+            Some(ONE_NT),
+            "BBA opener over 1NT - 3♣ - — a single 3♦ bucket means the completion is unconditional",
+        ),
+        // The European minor scheme's diamond lane, one round on: `3♣` is the
+        // transfer and `3♦` the completion, so this reads **responder's** rebid.
+        // A `3♥`/`3♠` bucket here is a splinter — the call our `european.rs`
+        // does not author.  Needs `1N-3C transfer to diamonds`=1 with
+        // `1N-3C Puppet Stayman`=0, or the `3♣` filter accepts nothing.
+        "nt-3c-3d" => (
+            2,
+            &[ONE_NT, PASS, THREE_C, PASS, THREE_D, PASS],
+            Some(THREE_C),
+            "BBA responder over 1NT - 3♣ - 3♦ - — a 3♥/3♠ bucket is the splinter",
+        ),
         // The **unassuming cue-raise**: BBA's advancer over our 1-of-a-suit
         // opening and its partner's simple *two-level* overcall.  This is the
         // one node where `rubens_reading` records a floor on an **opponent**
@@ -583,7 +607,7 @@ fn main() -> Result<()> {
             "advancer over (1♣) 1♥ - — the 2♦ bucket is the transfer into partner's hearts",
         ),
         other => bail!(
-            "--mode must be open|def1-c|def1-d|def1-h|def1-s|multi|advance|counter|muider-h|muider-s|rebid-d|rebid-h|rebid-s|stayman|xfer-h|xfer-s|weak2-d|weak2-h|weak2-s|def2-d|def2-h|def2-s|nt-resp|nt-3h|nt-3s|ucb-sd|ucb-sc|ucb-dc|ucb-sh|rub-ch|o4, got {other:?}"
+            "--mode must be open|def1-c|def1-d|def1-h|def1-s|multi|advance|counter|muider-h|muider-s|rebid-d|rebid-h|rebid-s|stayman|xfer-h|xfer-s|weak2-d|weak2-h|weak2-s|def2-d|def2-h|def2-s|nt-resp|nt-3h|nt-3s|nt-3c|nt-3c-3d|ucb-sd|ucb-sc|ucb-dc|ucb-sh|rub-ch|o4, got {other:?}"
         ),
     };
 
@@ -603,6 +627,11 @@ fn main() -> Result<()> {
         // opens 1NT" — an empty prefix, exactly like `weak2-*`.
         "nt-3h" => (&[], Some(Suit::Hearts)),
         "nt-3s" => (&[], Some(Suit::Spades)),
+        "nt-3c" => (&[], Some(Suit::Diamonds)),
+        // `nt-3c-3d` probes RESPONDER, so the filter replays the transfer
+        // itself: keep only hands BBA bids `3♣` with over `1NT - `.  `trump`
+        // is diamonds — the suit a splinter would be agreeing.
+        "nt-3c-3d" => (&[ONE_NT, PASS], Some(Suit::Diamonds)),
         _ => (&[ONE_NT], None),
     };
 

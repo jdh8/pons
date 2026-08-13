@@ -186,7 +186,7 @@ a verdict three ways, and the third is easy to miss:
 | --- | --- | --- |
 | ≈ equal (keeps most of its magnitude) | Real effect; plain SD happened to be right | `set_meckstroth_adjunct` — +0.0097/+0.0146 → +0.0073/+0.0120, ~75-80% retained, CI-clear |
 | **collapses, often sign-flipping** | The win *was* the missing doubling | `set_forcing_nt_two_suiter` — +0.0005/+0.0018 (CI>0) → **−0.0011 (CI<0) / +0.0000** |
-| **higher than plain SD** | Plain SD *understated* it: the treatment is the sounder bidder, so restoring the doubling punishes the **baseline** more | `set_notrump_minors` (Puppet) — +0.0003/+0.0005 (straddles 0) → **+0.0006/+0.0010, CI-clear both** |
+| **higher than plain SD** | Plain SD *understated* it: the treatment is the sounder bidder, so restoring the doubling punishes the **baseline** more | `decision.reading.notrump_minors` (Puppet) — +0.0003/+0.0005 (straddles 0) → **+0.0006/+0.0010, CI-clear both** |
 
 The first two rows also kill a grouping the ledger used to make. Knobs whose PD
 loss was "redeemed by sd" were filed as one profile; the batch split them —

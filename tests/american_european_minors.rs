@@ -117,6 +117,19 @@ fn three_clubs_is_a_transfer_to_diamonds() {
     );
 }
 
+/// The fidelity pin the scheme went years without: EPBot's `3♣` bucket is
+/// **diamonds 6–7, hard min/max** (`--mode nt-resp --trim 0.0`, n=1042), so a
+/// 5♦4♣ two-suiter never transfers.  It used to, on a class pasted over from
+/// Puppet's `2NT` — see docs/ai-bidder/bba-1nt-minors.md.
+#[test]
+fn five_diamond_four_club_two_suiter_does_not_transfer() {
+    let system = partnership();
+    assert_ne!(
+        best_call(&system, &after_1nt(&[]), "xx.xx.KQxxx.Qxxx"),
+        call(3, Strain::Clubs),
+    );
+}
+
 #[test]
 fn opener_completes_the_diamond_transfer() {
     let system = partnership();
@@ -145,6 +158,21 @@ fn game_going_diamonds_raise_to_3nt() {
         best_call(&system, &auction, "xx.Axx.KQJxxx.xx"),
         call(3, Strain::Notrump),
     );
+}
+
+/// The Puppet lane splinters `3♥`/`3♠` after its own diamond transfer; European
+/// must not copy it.  `--mode nt-3c-3d` (10260 hands reaching the node) has **no
+/// `3♥`/`3♠` bucket at all** — EPBot shows shortness only as a void, and only at
+/// `4♠`/`5♥`/`5♣`.  Pinned so a future mirror of the Puppet twin has to argue
+/// with the probe first.
+#[test]
+fn no_three_level_splinter_over_the_diamond_completion() {
+    let system = partnership();
+    let auction = after_1nt(&[call(3, Strain::Clubs), call(3, Strain::Diamonds)]);
+    // Six diamonds, game values, a stiff spade — the Puppet twin's splinter hand.
+    let got = best_call(&system, &auction, "x.Axx.KQJxxx.xxx");
+    assert_ne!(got, call(3, Strain::Spades));
+    assert_ne!(got, call(3, Strain::Hearts));
 }
 
 // --- No Puppet: the GF balanced / 4-3 hands route elsewhere ------------------

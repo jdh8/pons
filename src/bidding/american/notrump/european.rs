@@ -17,10 +17,17 @@ use super::*;
 ///
 /// `2♠` = transfer to clubs (a six-card one-suiter, weak-to-game).  `2NT` = a
 /// balanced invitational eight with no four-card major — the size ask, opener
-/// accepting game with a maximum.  `3♣` = transfer to diamonds (6+♦, or a 5♦-4♣
-/// two-suiter folded in — there is no room below 3♦ to show the clubs).  There is
-/// no Puppet Stayman: a game-forcing balanced hand with only a three-card major
-/// bids 3NT (the standard continental treatment).
+/// accepting game with a maximum.  `3♣` = transfer to diamonds, the same shape
+/// one suit over: a **six-card** one-suiter, weak-to-game.  There is no Puppet
+/// Stayman: a game-forcing balanced hand with only a three-card major bids 3NT
+/// (the standard continental treatment).
+///
+/// Both transfers are pinned to EPBot's measured buckets — `2♠` clubs 6–7, `3♣`
+/// diamonds 6–7, hard min/max on 40k probe hands
+/// ([bba-1nt-minors.md](../../../../docs/ai-bidder/bba-1nt-minors.md)).  This is
+/// an **opponent model**, not a system we play: fidelity to EPBot is the
+/// acceptance test, so the tables track the probe even where a soundness
+/// argument would author something else.
 pub(super) fn european_minors(agreements: &Agreements) -> Rules {
     // 2NT = the bare-8 size ask (no four-card major), gated on `size_ask_eight`:
     // `Shipped` excludes the flat 4-3-3-3 (it passes), `Invite` size-asks the whole
@@ -46,18 +53,14 @@ pub(super) fn european_minors(agreements: &Agreements) -> Rules {
         .rule(Bid::new(2, Strain::Spades), 130, len(Suit::Clubs, 6..))
         .alert(EUROPEAN)
         .chain(size_ask)
-        .rule(
-            Bid::new(3, Strain::Clubs),
-            130,
-            len(Suit::Diamonds, 6..) | (len(Suit::Diamonds, 5..) & len(Suit::Clubs, 4..)),
-        )
+        .rule(Bid::new(3, Strain::Clubs), 130, len(Suit::Diamonds, 6..))
         .alert(EUROPEAN)
 }
 
 //
-// ponytail: opener always completes the 2♠/3♣ transfers — no super-accept — and
-// the 5♦4♣ two-suiter is folded into the 3♣ diamond transfer (no room below 3♦ to
-// show the clubs).  Refine only if an A/B asks for it.
+// ponytail: opener always completes the 2♠/3♣ transfers — no super-accept.
+// Measured, not assumed: `probe-bba-constraints --mode nt-3c` returns a single
+// `3♦` bucket at 100.0% (n=2968, 15–17 HCP, 98% balanced).
 
 /// Opener completes the European club transfer: `3♣` (the 2♠ bidder has clubs)
 fn european_two_spade_answer() -> Rules {
@@ -122,9 +125,16 @@ pub(crate) fn european_three_club() -> Package {
         gate: |agreements| european_scheme(agreements),
         entries: |_| {
             let mut entries = rows_of(Pattern::node("P* 1NT - 3♣ -"), european_three_club_answer());
-            // ponytail: no splinter arm here — European's `3♦` is a blind transfer
-            // completion, not a fit promise, so the Puppet lane's premise is absent.
-            // Revisit only if the diamond splinter measures a win under Puppet.
+            // ponytail: no splinter arm here, and the Puppet lane's `3♥`/`3♠`
+            // rungs would be the wrong ones anyway.  `--mode nt-3c-3d` (400k
+            // hands, 10260 reaching the node) shows **no `3♥`/`3♠` bucket at
+            // all**: EPBot shows shortness only as a *void*, and only at `4♠`
+            // (spades 0–0, 2.3%), `5♥` (hearts 0–0, 1.6%) and `5♣` (clubs 0–0,
+            // 0.4%) — its `4♥`/`4♣` are control cues (1–3 / 1–4 in the bid
+            // suit).  The Pass/`3NT` split below covers the node's two biggest
+            // buckets (46.4% at 0–7 HCP, 19.7% at 8–14); the void shows and the
+            // `5♦` signoff (8.5%) are unmodelled.  See
+            // docs/ai-bidder/bba-1nt-minors.md.
             entries.extend(rows_of(
                 Pattern::node("P* 1NT - 3♣ - 3♦ -"),
                 diamond_transfer_game(8, false),

@@ -44,12 +44,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (+0.0007/+0.0008 plain, +0.0008/+0.0010 PD per board, 95% CI ±0.0001). `NotrumpKnobs::diamond_splinter` survives as
   the A/B's off-arm.
 
-  The European scheme deliberately does **not** get the lane: its `3♦` is a
-  blind transfer completion (`hcp(0..)`), not a fit promise, so the premise is
-  absent. `cards/*.bbsa` are unchanged — BBA's schema has one generic
-  `Splinter` row, already set, and no per-slot toggle.
+  The European scheme deliberately does **not** get the lane. The reason first
+  recorded here — "its `3♦` is a blind transfer completion (`hcp(0..)`), not a
+  fit promise" — was wrong, and is corrected in the entry below: responder holds
+  6+♦ opposite a balanced opener, which is an eight-card fit by arithmetic. The
+  real reason is that EPBot does not bid `3♥`/`3♠` there. `cards/*.bbsa` are
+  unchanged — BBA's schema has one generic `Splinter` row, already set, and no
+  per-slot toggle.
 
   [`splinter_short`]: src/bidding/american/notrump/transfer_gf.rs
+
+### Changed
+
+- **European's `3♣` is a six-card diamond one-suiter, matching EPBot** — the
+  scheme is now explicitly an *opponent model*, judged on fidelity rather than
+  IMPs ([`docs/ai-bidder/bba-1nt-minors.md`](docs/ai-bidder/bba-1nt-minors.md)).
+
+  `european_minors`'s `3♣` admitted `len(♦,6..) | (len(♦,5..) & len(♣,4..))`.
+  That disjunction was deleted from Puppet's `2NT` rule in `2bcbd3e` and pasted
+  byte-identically into *both* schemes, then rationalized in a doc comment ("no
+  room below 3♦ to show the clubs"). It was never probed, and no test pinned the
+  two-suiter arm. Probing it refutes it: `probe-bba-constraints --mode nt-resp`
+  at `--trim 0.0` (hard min/max, 40k hands) puts EPBot's whole `3♣` bucket at
+  **diamonds 6–7** over 1042 hands, with `2♠` likewise at clubs 6–7. EPBot sends
+  5♦ hands to `3♦` (5–6♦, 9+ HCP) or `3NT`, and 5-5 minors to `4♠`. The class is
+  now `len(♦,6..)`. Puppet keeps the disjunction — that class is measured, and
+  Puppet is a system we play.
+
+  Two continuations were probed with it. Opener's completion is unconditional:
+  `--mode nt-3c` returns a single `3♦` bucket at **100.0%** (n=2968), confirming
+  `european_three_club_answer`'s `hcp(0..)`. And responder's rebid
+  (`--mode nt-3c-3d`, 10260 hands at the node) has **no `3♥`/`3♠` bucket at all**
+  — EPBot shows shortness only as a *void* (0–0 on hard min and max) and only at
+  `4♠` / `5♥` / `5♣`, using `4♥`/`4♣` as ordinary control cues. So the rain check
+  `3d0f376` wrote against this node resolves to "no", for a reason unrelated to
+  the one it recorded. The shipped Pass/`3NT` split covers the node's two biggest
+  buckets (66.1%) at exactly EPBot's boundary; the `5♦` signoff, `4NT` keycard,
+  cues and void shows stay unmodelled.
+
+  **No A/B, deliberately.** European's acceptance test is fidelity to EPBot, not
+  IMPs — an opponent model that bids *better* than the opponent is a worse model.
+  The gates are the probe, two new pins in
+  `tests/american_european_minors.rs` (`five_diamond_four_club_two_suiter_does_not_transfer`,
+  `no_three_level_splinter_over_the_diamond_completion`), and byte-identical
+  `cards/*.bbsa`. Puppet is untouched, so the shipped default does not move.
+
+  Two new probe modes: `nt-3c` (opener over `1NT - 3♣ -`) and `nt-3c-3d`
+  (responder over `1NT - 3♣ - 3♦ -`, filtered to hands EPBot actually transfers
+  with). The `set_notrump_minors` verdict in `docs/bidding-options.md` is marked
+  as measuring the pre-narrowing European.
 
 ### Fixed
 

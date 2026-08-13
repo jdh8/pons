@@ -77,7 +77,7 @@ run() {
 run meckstroth-2nt ab-meckstroth-2nt        400000
 # set_forcing_nt_two_suiter — plain wash + PD -0.0017/-0.0010, sd-only
 run forcing-nt     ab-forcing-nt-two-suiter 1000000
-# set_notrump_minors      — Puppet leg, sd-lead weakly positive
+# decision.reading.notrump_minors — Puppet leg, sd-lead weakly positive
 run notrump-minors ab-notrump-minors        400000
 
 echo "=== sd-pd re-adjudication done $(date -Is)"
