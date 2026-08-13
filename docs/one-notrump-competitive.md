@@ -253,6 +253,54 @@ Multi-Landy against *their* 1NT, but none for our counter to *their* Landy over
 `alert-sites.txt` are unchanged (the knob is default-off, so the alert site is
 not in the default system).
 
+## N1b — the GF minor cues (`defense_2c_landy_cues`, authored 2026-08-14, default off)
+
+The overlay that makes N1's remaining free space earn its keep, and the
+falsifiable half of the **`1♣ (2♣)` analogy** (the theory that a counter to a
+both-majors overcall of a balanced-ish partner should carry the
+Unusual-vs-Unusual cue skeleton — see the verdict below). A pure addition to
+`landy_responder`; requires `defense_2c_landy`:
+
+| Call | Meaning | Weight |
+| --- | --- | --- |
+| `2♥` (cue) | GF, **5+ clubs** — alert `comp:landy-cue` | 173 |
+| `2♠` (cue) | GF, **5+ diamonds** — alert `comp:landy-cue` | 172 |
+
+Ranked below the 6-card forcing naturals (a one-suiter still shows its source
+of tricks at 175) and above the ungated `3NT` (170), so the *5-card* game
+hands — which under N1 must guess a stopperless `3NT` or stretch the values
+`X` — start low and let opener place the contract. Opener's one answer
+(`landy_cue_answer`): `2NT` with both majors stopped, else raise the named
+minor (the raise is the finite catch-all — opener is balanced, so it never
+lands on fewer than two). Everything deeper is the floor's.
+
+**Documentary basis (web survey 2026-08-14).** No published source draws the
+`1♣ (2♣)` analogy outright — the UvU literature scopes itself to suit
+openings — but the strongest expert counter-Landy structures independently
+reproduce its two load-bearing components: `X` = values / "can double at
+least one of their suits" (Cohen, Walker — N1's authored `X`), and cues = the
+two unshown suits, exactly this scheme (Cohen's advanced structure: `2♥` = GF
+clubs, `2♠` = GF diamonds). Where the record diverges is where the captaincy
+disanalogy predicts: over a wide-range nebulous `1♣` the UvU cues grade
+*raises* and the double stays informational (WJ2005 Sputnik), while opposite
+a narrow 15-17 the raise half is re-spent on the `2NT`/`3NT` ladder and the
+penalty axis is promoted. So the theory holds as *isomorphic, not identical*,
+and the published cue meanings are four-way incompatible (minors / stoppers /
+natural / other-major Stayman) — which is what the third A/B arm decides.
+The minor-opening side of the same skeleton is P7 in
+[competitive-book.md](competitive-book.md) (`set_uvu_over_minors`) — authored
+for coherence, unmeasurable vs the anchor (BBA never cues over a minor;
+def1-c/d probes 2026-08-14).
+
+**Deferred candidate N1c**: a Lebensohl `2NT` relay (weak sign-offs at `3♣`/
+`3♦`, hands that under N1/N1b must pass), the one lit-standard component both
+arms lack. It would move the natural invite, so it is its own package and its
+own A/B, only worth boards if the census still shows weak-minor passes
+leaking after N1/N1b ship or die.
+
+**Inertness**: `smoke-default --count 20000 --seed 1` SHA-256 `8ea2f567…`
+identical at HEAD with both knobs off — the N1 reference hash, unchanged.
+
 ## Measurement discipline
 
 - **Counter-defense isolation gate:** on identical seeded deals, configuring
@@ -281,3 +329,4 @@ not in the default system).
 | --- | --- | --- | --- |
 | census tool | — | **shipped** | read-only; picked N1 over the pre-census guess |
 | N1 Landy `(2♣)` counter | `defense_2c_landy` | **authored, A/B queued** — default off, inertness proven | fires 0.57% of tables on `--filter-1nt`; `scripts/ab-landy-counter.sh` |
+| N1b GF minor cues | `defense_2c_landy_cues` | **authored, third A/B arm queued** — default off, rides N1's knob, inertness proven (same smoke SHA) | `scripts/ab-landy-counter.sh` now 3 arms: off / N1 / N1+cues — on↔off prices the counter, cues↔on prices the analogy's delta alone |

@@ -342,6 +342,28 @@ fn landy_responder(agreements: &Agreements) -> Rules {
         rules = rules.rule(Bid::new(3, strain), 175, len(s, 6..) & points(10..));
     }
 
+    // GF minor cues — the N1b overlay (`defense_2c_landy_cues`): `2♥`/`2♠`,
+    // cues of their shown majors, name the corresponding unshown minor with a
+    // 5+ suit, game-forcing.  Ranked *below* the 6-card naturals (a one-suiter
+    // still shows its source of tricks directly) and *above* 3NT, so the
+    // 5-card game hands start low and let opener place the contract instead of
+    // guessing a stopperless 3NT.  `2♥` edges `2♠` so 5-5 minors cue cheaper.
+    if agreements.competition.defense_2c_landy_cues {
+        rules = rules
+            .rule(
+                Bid::new(2, Strain::Hearts),
+                173,
+                len(Suit::Clubs, 5..) & points(10..),
+            )
+            .alert(LANDY_CUE)
+            .rule(
+                Bid::new(2, Strain::Spades),
+                172,
+                len(Suit::Diamonds, 5..) & points(10..),
+            )
+            .alert(LANDY_CUE);
+    }
+
     // Direct 3NT on game values, with **no stopper gate** — deliberately not
     // `author_direct_3nt`, whose stopper and trap-pass tests both key on the
     // overcall's suit.  Their `2♣` is artificial: it promises the majors, not
@@ -375,6 +397,25 @@ fn landy_responder(agreements: &Agreements) -> Rules {
 /// bid a phantom major.  Total by construction: one rule, no gate.
 fn landy_double_answer() -> Rules {
     Rules::new().rule(Call::Pass, 100, hcp(0..))
+}
+
+/// Opener's answer to a Landy GF minor cue (`1NT (2♣) 2♥/2♠ -`)
+///
+/// The cue is game-forcing with 5+ in the named minor, so opener describes:
+/// `2NT` with both majors stopped (keeping 3NT live from the strong side),
+/// else a raise of the minor.  The raise doubles as the finite catch-all —
+/// opener is balanced, so it never lands on fewer than two — and everything
+/// deeper is the floor's.
+fn landy_cue_answer(minor: Suit) -> Rules {
+    let strain = Strain::from(minor);
+    Rules::new()
+        .rule(
+            Bid::new(2, Strain::Notrump),
+            150,
+            stopper_in(Suit::Hearts) & stopper_in(Suit::Spades),
+        )
+        .rule(Bid::new(3, strain), 100, len(minor, 3..))
+        .rule(Bid::new(3, strain), 20, hcp(0..))
 }
 
 /// Opener completes responder's Lebensohl `2NT` relay with the forced `3♣`
@@ -479,6 +520,16 @@ pub(super) fn lebensohl_package() -> Package {
                     Pattern::after("P* 1NT (2♣)", "X -"),
                     landy_double_answer(),
                 ));
+                if agreements.competition.defense_2c_landy_cues {
+                    entries.extend(rows_of(
+                        Pattern::after("P* 1NT (2♣)", "2♥ -"),
+                        landy_cue_answer(Suit::Clubs),
+                    ));
+                    entries.extend(rows_of(
+                        Pattern::after("P* 1NT (2♣)", "2♠ -"),
+                        landy_cue_answer(Suit::Diamonds),
+                    ));
+                }
             } else {
                 // Over a natural (2♣) overcall we play *systems on*, not
                 // Lebensohl: 2♣ steals no room (every transfer/relay still sits

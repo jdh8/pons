@@ -1,4 +1,4 @@
-use super::super::tests::{bid, bid_landy, bid_transfer, call};
+use super::super::tests::{bid, bid_landy, bid_landy_cues, bid_transfer, call};
 use contract_bridge::Strain;
 use contract_bridge::auction::Call;
 
@@ -143,6 +143,51 @@ fn landy_counter_bids_naturally_in_the_suits_they_did_not_show() {
     let (c, floored) = bid_landy(&auction, "32.43.A32.AKJ876");
     assert_eq!(c, call(3, Strain::Clubs));
     assert!(!floored, "the forcing minor must come from the book");
+}
+
+#[test]
+fn landy_cues_name_the_unshown_minors_game_forcing() {
+    let auction = [call(1, Strain::Notrump), call(2, Strain::Clubs)];
+
+    // Game values with five clubs: cue their hearts.  Without the overlay this
+    // hand has no call between a stopperless 3NT and a stretched values X.
+    let (c, floored) = bid_landy_cues(&auction, "32.A3.K32.AQJ54");
+    assert_eq!(c, call(2, Strain::Hearts));
+    assert!(!floored, "the GF club cue must come from the book");
+
+    // Game values with five diamonds: cue their spades.
+    let (c, floored) = bid_landy_cues(&auction, "32.A3.AQJ54.K32");
+    assert_eq!(c, call(2, Strain::Spades));
+    assert!(!floored, "the GF diamond cue must come from the book");
+
+    // A six-card suit still shows its source of tricks directly — the overlay
+    // sits below the forcing 3-level naturals.
+    let (c, _) = bid_landy_cues(&auction, "32.43.A32.AKJ876");
+    assert_eq!(c, call(3, Strain::Clubs));
+
+    // Purity of the addition: the base counter sends the 5-card hand to 3NT.
+    let (c, _) = bid_landy(&auction, "32.A3.K32.AQJ54");
+    assert_eq!(c, call(3, Strain::Notrump));
+}
+
+#[test]
+fn landy_cue_answer_places_the_game() {
+    // 1NT (2♣) 2♥ - : the cue is GF with 5+ clubs; opener describes.
+    let after_cue = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        call(2, Strain::Hearts),
+        Call::Pass,
+    ];
+
+    // Both majors stopped: 2NT keeps 3NT live from the strong side.
+    let (c, floored) = bid_landy_cues(&after_cue, "A54.KQ4.A954.K32");
+    assert_eq!(c, call(2, Strain::Notrump));
+    assert!(!floored, "the cue answer must come from the book");
+
+    // No spade stopper: raise the named minor instead.
+    let (c, _) = bid_landy_cues(&after_cue, "543.KQ4.AQ54.KQ3");
+    assert_eq!(c, call(3, Strain::Clubs));
 }
 
 #[test]

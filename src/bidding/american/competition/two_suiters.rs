@@ -2,11 +2,22 @@
 //!
 //! When they name two suits over our major opening, responder's raises and
 //! fourth-suit answers all change meaning.  Gated by
-//! `agreements.competition.uvu_over_majors`.
+//! `agreements.competition.uvu_over_majors`; the minor-opening twin
+//! ([`uvu_over_minors_package`]) is gated by
+//! `agreements.competition.uvu_over_minors`.
 
-use super::cue_raise::answer_cue_raise;
+use super::cue_raise::{answer_cue_minor_raise, answer_cue_raise};
 use super::lebensohl::unbid_major;
 use super::*;
+
+/// The minor the opening did not name
+fn unbid_minor(minor: Suit) -> Suit {
+    if minor == Suit::Clubs {
+        Suit::Diamonds
+    } else {
+        Suit::Clubs
+    }
+}
 
 /// Responder after our 1M and their both-minors `(2NT)` — unusual vs unusual
 ///
@@ -110,6 +121,130 @@ fn uvu_fourth_suit_answer(major: Suit) -> Rules {
         )
         .rule(Bid::new(4, m), 100, len(major, 6..))
         .rule(Bid::new(3, Strain::Notrump), 20, hcp(0..))
+}
+
+/// Responder after our 1m and their both-majors Michaels cue (`1♣ (2♣)` /
+/// `1♦ (2♦)` — 5+ in each major)
+///
+/// The [`uvu_major_responder`] skeleton re-keyed for a minor opening: the two
+/// cues of their shown suits split by strength and direction — `2♥` (their
+/// lower suit) is the limit-plus raise of our minor, `2♠` a game force with
+/// 5+ in the unbid minor.  `3NT` is to play with both majors stopped; `X`
+/// shows values and a major we can punish; `3m` stays the competitive raise.
+/// The weak escape in the fourth suit sits at whatever level survives: over
+/// `1♣ (2♣)` a natural `2♦`, over `1♦ (2♦)` a 6-card `3♣`.  Written with
+/// `len` rather than `support` so the alerted cues project.
+fn uvu_minor_responder(minor: Suit) -> Rules {
+    let m = Strain::from(minor);
+    let om = unbid_minor(minor);
+
+    let mut rules = Rules::new()
+        .rule(
+            Bid::new(2, Strain::Hearts),
+            200,
+            len(minor, 5..) & points(10..),
+        )
+        .alert(UVU_MINOR_RAISE)
+        .rule(
+            Bid::new(2, Strain::Spades),
+            190,
+            len(om, 5..) & points(13..),
+        )
+        .alert(UVU_MINOR_FOURTH)
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            150,
+            points(13..) & stopper_in(Suit::Hearts) & stopper_in(Suit::Spades),
+        )
+        .rule(
+            Call::Double,
+            140,
+            hcp(10..)
+                & (len(Suit::Hearts, 4..)
+                    | suit_hcp(Suit::Hearts, 4..)
+                    | len(Suit::Spades, 4..)
+                    | suit_hcp(Suit::Spades, 4..)),
+        )
+        .rule(Bid::new(3, m), 130, len(minor, 5..) & points(6..=9));
+
+    rules = if minor == Suit::Clubs {
+        rules.rule(
+            Bid::new(2, Strain::Diamonds),
+            110,
+            len(Suit::Diamonds, 5..) & points(2..=9),
+        )
+    } else {
+        rules.rule(
+            Bid::new(3, Strain::Clubs),
+            110,
+            len(Suit::Clubs, 6..) & points(2..=9),
+        )
+    };
+
+    rules.rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Opener's answer after `1m (2m) 2♠ -` — partner's game force with 5+ in
+/// the unbid minor
+///
+/// `3NT` with both majors stopped (the game this force is looking for), else
+/// raise the shown minor with 4+, else rebid a 6-card opening minor; the
+/// low-weight `3NT` is the finite catch-all (the node is forced).
+fn uvu_minor_fourth_answer(minor: Suit) -> Rules {
+    let om = unbid_minor(minor);
+
+    Rules::new()
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            150,
+            stopper_in(Suit::Hearts) & stopper_in(Suit::Spades),
+        )
+        .rule(Bid::new(3, Strain::from(om)), 120, len(om, 4..))
+        .rule(Bid::new(3, Strain::from(minor)), 100, len(minor, 6..))
+        .rule(Bid::new(3, Strain::Notrump), 20, hcp(0..))
+}
+
+/// Their both-majors Michaels over our `1m` as a row package
+/// (`agreements.competition.uvu_over_minors`)
+///
+/// The minor twin of [`uvu_over_majors_package`], same shadowing idiom: keyed
+/// at the concrete `1m (2m)` tables, so it shadows the minor direct-seat
+/// package — whose negative double (4-4+ majors) misfires against a cue that
+/// *shows* both majors, the defect P1 fixed over `1M (2M)`.
+///
+/// **Opt-in, and unmeasurable against the anchor**: the `def1-c`/`def1-d`
+/// probes (2026-08-14, 5000 hands each) show the live EPBot never bids a
+/// Michaels cue over a minor opening — the MB.TXT row is 2009 legacy — so no
+/// A/B has a trigger, and the default stays byte-identical for free.  The
+/// package exists for coherence with the Landy counter's cue overlay (the
+/// same skeleton over our 1NT) and for non-BBA fields, where Michaels over a
+/// minor is common.
+pub(super) fn uvu_over_minors_package() -> Package {
+    Package {
+        name: "uvu-over-minors",
+        gate: |agreements| agreements.competition.uvu_over_minors,
+        entries: |_| {
+            let mut entries = Vec::new();
+            for minor in [Suit::Clubs, Suit::Diamonds] {
+                let trump = Strain::from(minor);
+                let michaels = format!("P* 1{trump} (2{trump})");
+
+                entries.extend(rows_of(
+                    Pattern::table(&michaels),
+                    uvu_minor_responder(minor),
+                ));
+                entries.extend(rows_of(
+                    Pattern::after(&michaels, "2♥ -"),
+                    answer_cue_minor_raise(minor),
+                ));
+                entries.extend(rows_of(
+                    Pattern::after(&michaels, "2♠ -"),
+                    uvu_minor_fourth_answer(minor),
+                ));
+            }
+            entries
+        },
+    }
 }
 
 /// Section 6 as a row package: their two-suiters over our `1M`

@@ -31,12 +31,18 @@ SEED_BASE=$(seed_for landy)
 log "=== landy-counter SEED_BASE=$SEED_BASE sha=$SHA"
 
 for v in none both; do
-    arm landy-on  "$v" --defense-2c-landy --filter-1nt
-    arm landy-off "$v"                    --filter-1nt
-    diffpair landy-on landy-off "$v"        # ship gate: plain + PD in one solve
+    arm landy-cues "$v" --defense-2c-landy --defense-2c-landy-cues --filter-1nt
+    arm landy-on   "$v" --defense-2c-landy                         --filter-1nt
+    arm landy-off  "$v"                                            --filter-1nt
+    # Three arms, two paired diffs: on↔off prices the base counter (N1), and
+    # cues↔on prices the GF-minor-cue overlay (N1b) alone — the falsifiable
+    # delta of the 1♣ (2♣) analogy (docs/one-notrump-competitive.md).
+    diffpair landy-on   landy-off "$v"      # ship gate: plain + PD in one solve
+    diffpair landy-cues landy-on  "$v"
     # The counter is a constructive/defensive contract choice, not obstruction,
     # so plain+PD decide.  sd is read only as a tie-breaker if they disagree.
-    sddiff landy-on landy-off "$v"
+    sddiff landy-on   landy-off "$v"
+    sddiff landy-cues landy-on  "$v"
 done
 
 log "landy-counter done"

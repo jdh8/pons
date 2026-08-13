@@ -78,9 +78,37 @@ misread, record the two-suiter shape); that reader was retired as chop 1 of
 are owned generically: `set_cue_reading` (the natural walk records no length
 for a cue) and `set_table_alert_reading` (the projection decodes the alerted
 Michaels / unusual rules, and *adds* their `points ≥ 8` floor).
-Deferral: their-Michaels-over-our-minors (`1m (2m)`), same misread — but note
-`defense_to_suit(1♣/1♦)` authors the both-majors Michaels with the same alert,
-so the reading half may already be closed for free; check before authoring.
+~~Deferral: their-Michaels-over-our-minors (`1m (2m)`), same misread~~ —
+**authored 2026-08-14 as P7** (`set_uvu_over_minors`, below). The reading half
+was indeed already closed for free: `defense_to_suit(1♣/1♦)` authors the
+both-majors Michaels with the same alert.
+
+### P7 — their Michaels over our minors (`set_uvu_over_minors`, opt-in)
+
+The minor twin of P1, transplanted from the same skeleton
+(`two_suiters.rs::uvu_minor_responder`): over `1♣ (2♣)` / `1♦ (2♦)` showing
+both majors, `2♥` = limit+ raise of our minor (`comp:uvu-minor-raise`),
+`2♠` = GF with 5+ in the unbid minor (`comp:uvu-minor-fourth`), `3NT` needs
+both majors stopped, `X` = values with a punishable major, `3m` competitive,
+plus the surviving weak escape (`2♦` over `1♣ (2♣)`, `3♣` over `1♦ (2♦)`).
+Opener reuses `answer_cue_minor_raise` for the raise cue; a dedicated
+`uvu_minor_fourth_answer` (3NT with both majors stopped / raise the shown
+minor / rebid a 6-carder) answers the GF cue. The `direct_seat_package` guard
+now excludes the cue key for minors exactly as P1's did for majors, retiring
+the live misbid — the generic negative double (`4-4 majors, hcp 8+`) firing
+against a cue that *shows* both majors.
+
+Authored as the minor-side half of the **Landy-counter cue analogy**
+([one-notrump-competitive.md](one-notrump-competitive.md) N1b): the same
+cues-of-their-suits skeleton over our balanced-ish openings. **Unmeasurable
+against the anchor**: the never-before-run `def1-c`/`def1-d` probes
+(2026-08-14, 5000 hands per seat) show the live EPBot bids **zero** Michaels
+cues over a minor opening — its 5-5-major hands overcall `1M`, its club
+one-suiters over `(1♣)` simply pass — so the MB.TXT `2X`-over-minor row is
+2009 legacy, no A/B has a trigger, and the misbid it retires also never fired
+vs BBA (which is why no census ever surfaced it). Opt-in for non-BBA fields,
+where Michaels over a minor is common; the default system is byte-identical
+(`smoke-default --count 20000 --seed 1` = `8ea2f567…`, the N1 reference).
 
 ### P2 — contested weak twos (`set_weak_two_competition`) + strong 2♣ (`set_strong_two_competition`)
 
@@ -215,6 +243,7 @@ shape/suit-quality gate on *which* free bids to make, not a strength floor.
 | P3a 3-level overcalls | `set_high_overcall_responses` | **measured — stays opt-in**; leak named, re-measure candidate | plain −0.0012/−0.0007, PD −0.0005/−0.0006 (all CIs⊇0), −0.6…−0.2 IMPs/fired, 0.19% fired. Worst-board bucket: the minor-opening 3-level neg X (one-major `or` shape at 10+) is too light — try 12+ or 4-4 both majors and re-measure. 204.8k bd/arm/vul, SEED_BASE 1783286003, sha bc949dc. Follow-up: replace with a **Lebensohl** slow-3NT / fast-cue structure so responder splits competitive-no-game from GF at the 3-level (cures the named 3-level neg-X-too-light leak); keep opt-in until it beats the floor fallthrough. Reuse the existing Lebensohl machinery (A3 `set_lebensohl_style` / `set_advance_sohl_style`). |
 | P4 Jordan/Truscott over (X) | `set_jordan_truscott` | **SHIPPED default-on**; the campaign's largest per-board win | plain **+0.0041/+0.0067** IMPs/bd NV/vul, +0.51/+0.83 IMPs/fired; PD **+0.0049/+0.0065**, +0.62/+0.80 IMPs/fired; all four cells CI>0; 0.79/0.81% fired. 204.8k bd/arm/vul, SEED_BASE 1783286386, sha bc949dc |
 | P5 competitive long-suit rebid (floor) | `set_competitive_rebid` | **SHIPPED default-on**; the campaign's largest per-board win | Opener/overcaller rebids a 6+ suit we personally bid instead of the floor's forced takeout double; 2-level unconditional, 3-level needs 7 cards or a good six (2 of top 3 honors). plain **+0.047/+0.037** IMPs/bd NV/vul, PD **+0.040/+0.023**; all four cells CI>0; +0.67…+1.37 IMPs/fired, 3.4% fired. Blanket 3-level lost vul (opener-3 PD −0.016) → quality gate flipped it to +0.007, overcaller-3 to a wash. 102.4k bd/arm/vul, SEED_BASE 1783316036. Bucketed by `ab-dump-bucket`. Follow-up: "off-shape X stronger" (a separate hand class — competitive doubles *without* a long suit) is a candidate second treatment. |
+| P7 two-suiters over 1m | `set_uvu_over_minors` | **authored 2026-08-14, opt-in — unmeasurable vs anchor** (def1-c/d probes: 0 Michaels cues in 5000 hands/seat; the trigger never occurs, so no A/B and no default divergence). Retires the generic neg-X misbid at `1m (2m)`; minor-side half of the Landy-cue analogy (one-notrump-competitive.md N1b) | — (no trigger vs BBA; smoke-default byte-identical, `8ea2f567…`) |
 | P6 doubled-splinter systems-on | `set_splinter_doubled` | **SHIPPED default-on**; anchor bucket #4 tail | A double of our game-forcing splinter reroutes opener into the competitive book, where — unauthored — it fell to the floor and *passed* the doubled game force (a four-ace monster passing `4♣x` while the field bids `7♠`). A `FirstIs(Double)` rebase keyed at `1M - splinter` strips the double off the whole subtree so opener + responder's keycard answers resolve systems-on. plain **+0.0059/+0.0079** IMPs/bd NV/vul, PD **+0.0059/+0.0079** (plain ≈ PD — removing *our own* doubled contracts, no artifact); all four CIs>0; +15.4/+17.6 IMPs/fired, 0.04% fired. 204.8k bd/arm/vul, SEED_BASE 1783439089, `scripts/splinter-doubled-ab.sh`. Known tail: a *second* double (of the keycard response) still passes out — 1 board in 79, the standard rebase-tail limitation. |
 | alert invariant over fallbacks | — | follow-up | — |
 | Rubens-clean transfer advances | `FreeBidStyle::RubensClean` (unbuilt) | **deferred design** — the resumable retry of the lost P3f; see below | — |

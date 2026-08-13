@@ -182,6 +182,20 @@ pub struct CompetitionKnobs {
     /// against BBA, whose `2♣` over our `1NT` is always Landy
     /// (`docs/one-notrump-competitive.md`).
     pub defense_2c_landy: bool,
+    /// Add the game-forcing minor cues to the Landy counter (N1b)
+    ///
+    /// `2♥` = GF 5+ clubs, `2♠` = GF 5+ diamonds — cues of their shown majors
+    /// naming the corresponding unshown minor (Cohen's counter-majors scheme;
+    /// the Unusual-vs-Unusual cue shape with the raise half re-spent on the
+    /// notrump ladder).  A pure addition to [`Self::defense_2c_landy`], which
+    /// it requires: without the cues those hands guess a stopperless `3NT` or
+    /// stretch the values `X`, while the 6-card one-suiters keep their direct
+    /// forcing `3♣`/`3♦` above it.
+    ///
+    /// **Off by default**, opt-in pending the A/B (the third arm of
+    /// `scripts/ab-landy-counter.sh`).  No effect while `defense_2c_landy` is
+    /// off.
+    pub defense_2c_landy_cues: bool,
     // --- competition/negative_double.rs
     /// Which negative-double school the minor openings play
     ///
@@ -454,6 +468,22 @@ pub struct CompetitionKnobs {
     /// `docs/reader-retirement.md`), so the reading is now owned by
     /// [`table_alerts`][field@crate::bidding::ReadingProfile::table_alerts].
     pub uvu_over_majors: bool,
+    /// Unusual-vs-unusual over their both-majors Michaels of our **minor**
+    /// opening (`1♣ (2♣)` / `1♦ (2♦)`)
+    ///
+    /// The minor twin of [`Self::uvu_over_majors`]: `2♥` = limit-plus raise of
+    /// our minor, `2♠` = GF with 5+ in the unbid minor, `X` = values with a
+    /// major we can punish, naturals in the minors.  Also retires the generic
+    /// table's negative double at this node, which asks for 4-4 majors
+    /// against a cue that *shows* both majors.
+    ///
+    /// **Off by default, and unmeasurable against the anchor** — the live
+    /// EPBot never bids a Michaels cue over a minor opening (`def1-c`/`def1-d`
+    /// probes, 2026-08-14, zero cues in 5000 hands each; the MB.TXT row is
+    /// 2009 legacy), so no A/B has a trigger.  Authored for coherence with
+    /// `defense_2c_landy_cues` (the same cue skeleton over our 1NT) and for
+    /// non-BBA fields, where Michaels over a minor is common.
+    pub uvu_over_minors: bool,
     // --- competition/uvu.rs
     /// Author unusual-vs-unusual at all
     ///
@@ -504,6 +534,7 @@ impl Default for CompetitionKnobs {
             lebensohl_style: LebensohlStyle::Transfer,
             defense_2d_multi: false,
             defense_2c_landy: false,
+            defense_2c_landy_cues: false,
             negative_double_shape: NegativeDoubleShape::Modern,
             cachalot_contested_x: true,
             weak_two_competition: false,
@@ -523,6 +554,7 @@ impl Default for CompetitionKnobs {
             competitive_4333: Competitive4333::Suppress,
             major_support_double: true,
             uvu_over_majors: true,
+            uvu_over_minors: false,
             uvu: true,
             uvu_x_floor: 9,
             uvu_cue_floor: 8,

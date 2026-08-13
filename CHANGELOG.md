@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **GF minor cues on the Landy counter (`set_defense_to_2c_landy_cues`,
+  opt-in), and their minor-opening twin — Unusual-vs-Unusual over `1m (2m)`
+  Michaels (`set_uvu_over_minors`, opt-in).** Both packages instantiate one
+  skeleton — cues of their shown majors carrying our minor-suited game hands —
+  testing the theory that a counter to a both-majors overcall of a
+  balanced-ish partner (`1NT (2♣)` Landy, `1m (2m)` Michaels) should share a
+  structure. A web survey found the analogy published nowhere yet converged
+  upon everywhere: expert counter-Landy schemes (Cohen, Walker) independently
+  reproduce the UvU `X` = values and cues-as-unshown-suits components, so N1b
+  adds `2♥` = GF 5+ clubs / `2♠` = GF 5+ diamonds (alert `comp:landy-cue`)
+  under N1's forcing 3-level naturals, with opener answering `2NT` with both
+  majors stopped, else raising. `scripts/ab-landy-counter.sh` grows a third
+  arm so the base counter and the cue overlay price separately; no user
+  impact until the A/B (defaults byte-identical, smoke SHA `8ea2f567…`
+  unchanged). The minor twin transplants the `uvu_major_responder` skeleton
+  (`2♥` = limit+ raise, `2♠` = GF unbid minor, `X` = values with a punishable
+  major) and retires a live misbid — the generic negative double asking for
+  4-4 majors against a cue that *shows* both. The first-ever `def1-c`/`def1-d`
+  probes explain why that misbid went unnoticed and why the twin is
+  unmeasurable: the live EPBot bids **zero** Michaels cues over a minor in
+  5000 hands per seat (the MB.TXT row is 2009 legacy), so the node never
+  fires against the anchor; the package serves non-BBA fields and system
+  coherence (docs/one-notrump-competitive.md N1b,
+  docs/competitive-book.md P7).
+
 - **A per-call cost census for interference over our 1NT
   (`examples/probe-1nt-interference`), and the Landy `2♣` counter it picked
   (`set_defense_to_2c_landy`, opt-in).** The anchor report's ranked buckets

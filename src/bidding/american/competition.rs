@@ -77,7 +77,7 @@ use over_our_stayman::competition_over_stayman_package;
 use over_overcall::direct_seat_package;
 use over_their_double::{jordan_truscott_package, splinter_doubled_package};
 use support_double::support_double_package;
-use two_suiters::uvu_over_majors_package;
+use two_suiters::{uvu_over_majors_package, uvu_over_minors_package};
 use uvu::uvu_package;
 
 pub use free_bids::FreeBidStyle;
@@ -114,6 +114,10 @@ const MULTI_TAKEOUT: Alert = Alert("comp:multi-takeout");
 /// defend whichever major they run to.  Not the stolen Stayman it replaces:
 /// against a both-majors overcall there is no major left to ask for.
 const LANDY_VALUES: Alert = Alert("comp:landy-values");
+/// Landy cue — `2♥`/`2♠` over their `(2♣)` Landy: a cue of a shown major
+/// naming the corresponding unshown minor (`2♥` = clubs, `2♠` = diamonds),
+/// game-forcing with a 5+ suit.
+const LANDY_CUE: Alert = Alert("comp:landy-cue");
 /// Lebensohl `2NT` — the weak relay to `3♣` over their overcall of our `1NT`.
 const LEBENSOHL_RELAY: Alert = Alert("comp:lebensohl-relay");
 /// Lebensohl cue — a cue of their suit as game-forcing Stayman.
@@ -147,6 +151,12 @@ const UVU_MAJOR_RAISE: Alert = Alert("comp:uvu-major-raise");
 /// The second cue over their both-minors `(2NT)` — `3♦` as a game force with
 /// 5+ cards in the other major.
 const UVU_MAJOR_FOURTH: Alert = Alert("comp:uvu-major-fourth");
+/// Unusual-vs-unusual over our 1m and their both-majors Michaels cue — `2♥`
+/// (their lower suit) as a limit-plus raise of our minor.
+const UVU_MINOR_RAISE: Alert = Alert("comp:uvu-minor-raise");
+/// The second cue over their both-majors Michaels of our 1m — `2♠` as a game
+/// force with 5+ cards in the unbid minor.
+const UVU_MINOR_FOURTH: Alert = Alert("comp:uvu-minor-fourth");
 /// Business redouble of their takeout double of our weak two — 13+ values
 /// (redoubles are natural-by-default; the alert buys the points-floor decode).
 const WEAK_TWO_XX: Alert = Alert("comp:weak-two-xx");
@@ -259,8 +269,9 @@ pub fn competition(agreements: &Agreements) -> Competitive {
     // wrap slot → shown, completing a level higher on the wrap):
     compile_into(&mut book, agreements, &[transfer_free_bid_package()]);
 
-    // Section 6: their two-suiters over our 1M.
+    // Section 6: their two-suiters over our 1M — and the opt-in minor twin.
     compile_into(&mut book, agreements, &[uvu_over_majors_package()]);
+    compile_into(&mut book, agreements, &[uvu_over_minors_package()]);
 
     // Section 11: over their takeout double (`agreements.competition.jordan_truscott`, default
     // on). Responder's first call at the deeper `1x (X)` key — it wins over

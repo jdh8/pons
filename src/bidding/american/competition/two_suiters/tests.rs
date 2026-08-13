@@ -56,6 +56,46 @@ fn michaels_cue_of_our_major_gets_a_structure() {
 }
 
 #[test]
+fn uvu_minor_cues_split_raise_and_fourth_suit() {
+    let mut arm = Agreements::default();
+    arm.competition.uvu_over_minors = true;
+    // `1♣ (2♣)`: their 2♣ is Michaels, both majors.  A limit raise with 5+
+    // clubs cues their lower major.
+    let auction = [call(1, Strain::Clubs), call(2, Strain::Clubs)];
+    let (raise, floored) = best_call_with(&arm, &auction, "K5.Q52.A96.QJ432");
+    assert_eq!(raise, call(2, Strain::Hearts), "the cheap cue raises");
+    assert!(!floored, "an authored node, not the floor");
+    // 14-count with 5 diamonds → 2♠ = game force in the unbid minor.
+    let (fourth, _) = best_call_with(&arm, &auction, "A4.K52.AQJ54.965");
+    assert_eq!(fourth, call(2, Strain::Spades), "the second cue forces");
+    // The generic negative double — 4-4 majors against a cue that *shows*
+    // both majors — is retired at this node: values with a 4-card major
+    // double to punish, not to ask.
+    let (x, _) = best_call_with(&arm, &auction, "KQ42.KJ95.Q54.32");
+    assert_eq!(x, Call::Double, "values with a punishable major double");
+}
+
+#[test]
+fn opener_answers_the_uvu_minor_cues() {
+    let mut arm = Agreements::default();
+    arm.competition.uvu_over_minors = true;
+    // `1♣ (2♣) 2♠ -`: partner's game force with 5+ diamonds; both majors
+    // stopped bids the 3NT the force is looking for.
+    let auction = [
+        call(1, Strain::Clubs),
+        call(2, Strain::Clubs),
+        call(2, Strain::Spades),
+        Call::Pass,
+    ];
+    let (c, floored) = best_call_with(&arm, &auction, "A54.KQ4.954.AQJ32");
+    assert_eq!(c, call(3, Strain::Notrump));
+    assert!(!floored, "an authored node, not the floor");
+    // No spade stopper: raise partner's diamonds with 4+ instead.
+    let (c, _) = best_call_with(&arm, &auction, "543.AK4.Q954.AQ32");
+    assert_eq!(c, call(3, Strain::Diamonds));
+}
+
+#[test]
 fn opener_answers_the_uvu_major_cue() {
     let mut arm = Agreements::default();
     arm.competition.uvu_over_majors = true;

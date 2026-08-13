@@ -896,6 +896,7 @@ knob!(set_stayman_minor_slam_try, stayman_minor_slam_try, notrump.stayman_minor_
 knob!(set_splinter_doubled, splinter_doubled, competition.splinter_doubled: bool);
 knob!(set_uvu, uvu, competition.uvu: bool);
 knob!(set_uvu_over_majors, uvu_over_majors, competition.uvu_over_majors: bool);
+knob!(set_uvu_over_minors, uvu_over_minors, competition.uvu_over_minors: bool);
 knob!(set_direct_3nt_stopper, direct_3nt_stopper, competition.direct_3nt_stopper: bool);
 knob!(set_cue_raise_answer, cue_raise_answer, competition.cue_raise_answer: bool);
 knob!(set_cue_minor_raise_answer, cue_minor_raise_answer, competition.cue_minor_raise_answer: bool);
@@ -908,6 +909,7 @@ knob!(set_competition_over_minor_transfer, competition_over_minor_transfer, comp
 knob!(set_competition_over_diamond_transfer, competition_over_diamond_transfer, competition.competition_over_diamond_transfer: bool);
 knob!(set_defense_to_2d_multi, defense_to_2d_multi, competition.defense_2d_multi: bool);
 knob!(set_defense_to_2c_landy, defense_to_2c_landy, competition.defense_2c_landy: bool);
+knob!(set_defense_to_2c_landy_cues, defense_to_2c_landy_cues, competition.defense_2c_landy_cues: bool);
 
 // The classify-time half, on this value rather than the crate's thread-locals:
 // the system carries its agreements now, so a setter that wrote a global would
@@ -1351,6 +1353,7 @@ static SETTINGS: &[Setting] = &[
     toggle("passed_hand_overcall", COMPETITION, "", true, set_passed_hand_overcall, passed_hand_overcall),
     toggle("uvu", COMPETITION, "Unusual vs Unusual", true, set_uvu, uvu),
     toggle("uvu_over_majors", COMPETITION, "Unusual vs Unusual (over majors)", true, set_uvu_over_majors, uvu_over_majors),
+    toggle("uvu_over_minors", COMPETITION, "Unusual vs Unusual (over minors)", false, set_uvu_over_minors, uvu_over_minors),
     toggle("direct_3nt_stopper", COMPETITION, "", true, set_direct_3nt_stopper, direct_3nt_stopper),
     toggle("cue_raise_answer", COMPETITION, "", true, set_cue_raise_answer, cue_raise_answer),
     toggle("cue_minor_raise_answer", COMPETITION, "", true, set_cue_minor_raise_answer, cue_minor_raise_answer),
@@ -1363,6 +1366,7 @@ static SETTINGS: &[Setting] = &[
     gated("competition_over_diamond_transfer", COMPETITION, "", true, set_competition_over_diamond_transfer, competition_over_diamond_transfer, "puppet_stayman"),
     toggle("defense_to_2d_multi", COMPETITION, "", false, set_defense_to_2d_multi, defense_to_2d_multi),
     toggle("defense_to_2c_landy", COMPETITION, "", false, set_defense_to_2c_landy, defense_to_2c_landy),
+    toggle("defense_to_2c_landy_cues", COMPETITION, "Landy counter: GF minor cues", false, set_defense_to_2c_landy_cues, defense_to_2c_landy_cues),
     toggle("leaping_michaels", COMPETITION, "Leaping Michaels", true, set_leaping_michaels, leaping_michaels),
     toggle("responsive_takeout", COMPETITION, "Responsive doubles", true, set_responsive_takeout, responsive_takeout),
     toggle("rich_advance_double", COMPETITION, "", true, set_rich_advance_double, rich_advance_double),

@@ -275,6 +275,12 @@ struct Args {
     #[arg(long, default_value_t = false)]
     defense_2c_landy: bool,
 
+    /// Add the GF minor cues to the Landy counter (`2♥` = 5+ clubs, `2♠` = 5+
+    /// diamonds, both game-forcing) — the third arm of the Landy A/B.  Does
+    /// nothing without --defense-2c-landy.
+    #[arg(long, default_value_t = false)]
+    defense_2c_landy_cues: bool,
+
     /// Suppress our *own* 1NT opening (those 15-17 balanced hands open a minor),
     /// so every 1NT in the match is BBA's and our pair is purely the defender.
     #[arg(long, default_value_t = false)]
@@ -646,6 +652,13 @@ struct Args {
     /// `competition.uvu_over_majors`).
     #[arg(long, default_value_t = false)]
     no_ns_uvu_over_majors: bool,
+
+    /// Author responder's structure over their both-majors Michaels cue of our
+    /// minor (`1♣ (2♣)` / `1♦ (2♦)`) — cues split limit-raise/GF, X = values
+    /// with a punishable major (default off; unmeasurable vs BBA, whose live
+    /// engine never bids the cue; see `competition.uvu_over_minors`).
+    #[arg(long, default_value_t = false)]
+    ns_uvu_over_minors: bool,
 
     /// Author our contested weak twos — business XX + systems-on Ogust over
     /// their double, Ogust-when-legal / values-X / preemptive raises over
@@ -1637,6 +1650,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     }
     agreements.competition.defense_2d_multi = args.defense_2d_multi;
     agreements.competition.defense_2c_landy = args.defense_2c_landy;
+    agreements.competition.defense_2c_landy_cues = args.defense_2c_landy_cues;
     agreements.competition.competition_over_stayman = !args.no_ns_comp_over_stayman;
     agreements.competition.competitive_4333 = match args.ns_competitive_4333.as_str() {
         "allow" => pons::bidding::american::Competitive4333::Allow,
@@ -1652,6 +1666,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.competition.cue_raise_answer = !args.no_ns_cue_raise_answer;
     agreements.competition.cue_minor_raise_answer = !args.no_ns_cue_minor_raise_answer;
     agreements.competition.uvu_over_majors = !args.no_ns_uvu_over_majors;
+    agreements.competition.uvu_over_minors = args.ns_uvu_over_minors;
     agreements.competition.weak_two_competition = args.ns_weak_two_comp;
     agreements.competition.strong_two_competition = !args.no_ns_strong_two_comp;
     agreements.competition.major_support_double = !args.no_ns_major_support_double;

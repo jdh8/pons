@@ -469,10 +469,12 @@ pub(super) fn direct_seat_package() -> Package {
                     &format!("{key} (.x)"),
                     move |bindings| {
                         let overcall = bindings.bid('x');
+                        let engaged = match opening {
+                            Suit::Hearts | Suit::Spades => agreements.competition.uvu_over_majors,
+                            Suit::Clubs | Suit::Diamonds => agreements.competition.uvu_over_minors,
+                        };
                         overcall <= Bid::new(2, Strain::Spades)
-                            && !(matches!(opening, Suit::Hearts | Suit::Spades)
-                                && overcall == Bid::new(2, Strain::from(opening))
-                                && agreements.competition.uvu_over_majors)
+                            && !(overcall == Bid::new(2, Strain::from(opening)) && engaged)
                     },
                     move |bindings| over_their_overcall(opening, bindings.bid('x'), agreements),
                 ));
