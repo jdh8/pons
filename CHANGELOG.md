@@ -9,6 +9,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A per-call cost census for interference over our 1NT
+  (`examples/probe-1nt-interference`), and the Landy `2♣` counter it picked
+  (`set_defense_to_2c_landy`, opt-in).** The anchor report's ranked buckets
+  stop at `Competitive / book / round-1` — one number covering every contested
+  opening — so which interference call over our 1NT actually costs us was never
+  visible. The census splits that slice by RHO's call, reading an existing
+  anchor arm through the deal-keyed DD cache (seconds, no generation, no new
+  solve). Over 204,800 boards per vulnerability it says: we open 1NT on 6.5%
+  of boards and are contested on 12.4%/10.4% of those; the contested boards run
+  −0.74 NV / −0.30 vul IMPs/board against +0.09/−0.02 uncontested. So the whole
+  lane's headroom is ≈0.004 IMPs/board, and contested 1NT still loses *less*
+  than the −0.95/−1.16 board average — it is hygiene, not a gap.
+
+  Three buckets the numbers settled against expectation. Their **`X`** is fine
+  (−0.05/bd vul, PD +0.97): the floor's runout pays even though BBA's double is
+  Woolsey — a two-suiter they intend to pull — not the penalty double the
+  runout was measured against. Their **`2♦` Multi** is mild (PD −0.02 NV,
+  **+0.90** vul). Their **`2♣` Landy is the top loser** (−406 IMPs, −0.74/bd,
+  and the only bucket negative on *both* scorers).
+
+  Worst-board forensics named the mechanism: over their `2♣` we play a
+  systems-on rebase, which is right over a *natural* club overcall — it steals
+  no room — and inverted against Landy. It keeps the one useless call (Stayman,
+  as the stolen `X`, asking for a four-card major against a hand that has shown
+  both) and leaves `2♦`/`2♥` as Jacoby transfers *into* their suits; two of the
+  eight worst boards end in `4♠` doubled. The counter replaces the node: `X` =
+  values (`hcp(8..)`, alert `comp:landy-values`), natural bids in the suits they
+  have not shown, and opener sits for the double. Deeper auctions are the
+  floor's, which already encircles their escape. Default **off** pending
+  `scripts/ab-landy-counter.sh`; `smoke-default --count 20000 --seed 1` hashes
+  identically at HEAD, so the shipped system is byte-identical.
+  See [docs/one-notrump-competitive.md](docs/one-notrump-competitive.md).
+
 - **`gib read` takes a window: `--skip`/`--count`, or `--last N`.** On the
   binary format the window is a *seek* through `pdd::load_slice`, so inspecting
   the tail of a sealed 340 MB shard reads a few hundred bytes in 0.3 s instead

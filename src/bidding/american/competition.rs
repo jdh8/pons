@@ -110,6 +110,10 @@ const SUPPORT_DOUBLE: Alert = Alert("comp:support-double");
 /// major (8+).  Takeout by meaning, so alerted (the reading is a sound 8+ points
 /// floor — their suit is unknown, so no single side suit to floor).
 const MULTI_TAKEOUT: Alert = Alert("comp:multi-takeout");
+/// Landy values double — `X` of their `(2♣)` Landy, values (8+) willing to
+/// defend whichever major they run to.  Not the stolen Stayman it replaces:
+/// against a both-majors overcall there is no major left to ask for.
+const LANDY_VALUES: Alert = Alert("comp:landy-values");
 /// Lebensohl `2NT` — the weak relay to `3♣` over their overcall of our `1NT`.
 const LEBENSOHL_RELAY: Alert = Alert("comp:lebensohl-relay");
 /// Lebensohl cue — a cue of their suit as game-forcing Stayman.

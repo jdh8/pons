@@ -907,6 +907,7 @@ knob!(set_competition_over_stayman, competition_over_stayman, competition.compet
 knob!(set_competition_over_minor_transfer, competition_over_minor_transfer, competition.competition_over_minor_transfer: bool);
 knob!(set_competition_over_diamond_transfer, competition_over_diamond_transfer, competition.competition_over_diamond_transfer: bool);
 knob!(set_defense_to_2d_multi, defense_to_2d_multi, competition.defense_2d_multi: bool);
+knob!(set_defense_to_2c_landy, defense_to_2c_landy, competition.defense_2c_landy: bool);
 
 // The classify-time half, on this value rather than the crate's thread-locals:
 // the system carries its agreements now, so a setter that wrote a global would
@@ -1361,6 +1362,7 @@ static SETTINGS: &[Setting] = &[
     gated("competition_over_minor_transfer", COMPETITION, "", true, set_competition_over_minor_transfer, competition_over_minor_transfer, "puppet_stayman"),
     gated("competition_over_diamond_transfer", COMPETITION, "", true, set_competition_over_diamond_transfer, competition_over_diamond_transfer, "puppet_stayman"),
     toggle("defense_to_2d_multi", COMPETITION, "", false, set_defense_to_2d_multi, defense_to_2d_multi),
+    toggle("defense_to_2c_landy", COMPETITION, "", false, set_defense_to_2c_landy, defense_to_2c_landy),
     toggle("leaping_michaels", COMPETITION, "Leaping Michaels", true, set_leaping_michaels, leaping_michaels),
     toggle("responsive_takeout", COMPETITION, "Responsive doubles", true, set_responsive_takeout, responsive_takeout),
     toggle("rich_advance_double", COMPETITION, "", true, set_rich_advance_double, rich_advance_double),

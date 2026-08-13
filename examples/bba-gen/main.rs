@@ -268,6 +268,13 @@ struct Args {
     #[arg(long, default_value_t = false)]
     defense_2d_multi: bool,
 
+    /// Read a `2♣` overcall of our 1NT as Landy (both majors) and play the
+    /// counter-defense — X = values, everything else natural — instead of the
+    /// systems-on rebase.  BBA's 2/1 card overcalls 1NT with Multi-Landy, whose
+    /// `2♣` *is* Landy, so this is the live test.
+    #[arg(long, default_value_t = false)]
+    defense_2c_landy: bool,
+
     /// Suppress our *own* 1NT opening (those 15-17 balanced hands open a minor),
     /// so every 1NT in the match is BBA's and our pair is purely the defender.
     #[arg(long, default_value_t = false)]
@@ -1629,6 +1636,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
         agreements.competition.uvu_cue_floor = args.uvu_cue_floor;
     }
     agreements.competition.defense_2d_multi = args.defense_2d_multi;
+    agreements.competition.defense_2c_landy = args.defense_2c_landy;
     agreements.competition.competition_over_stayman = !args.no_ns_comp_over_stayman;
     agreements.competition.competitive_4333 = match args.ns_competitive_4333.as_str() {
         "allow" => pons::bidding::american::Competitive4333::Allow,

@@ -1,4 +1,4 @@
-use super::super::tests::{bid, call};
+use super::super::tests::{bid, bid_landy, bid_transfer, call};
 use contract_bridge::Strain;
 use contract_bridge::auction::Call;
 
@@ -104,4 +104,62 @@ fn lebensohl_maximum_raises_weak_signoff_to_game() {
 
     let (c, _) = bid(&after_signoff, "AK32.K43.KQ3.432");
     assert_eq!(c, Call::Pass, "a minimum passes the weak sign-off");
+}
+
+#[test]
+fn landy_counter_replaces_the_stolen_stayman_with_a_values_double() {
+    // 1NT (2♣ Landy = both majors).  Systems-on would classify this hand's X as
+    // the stolen 2♣ Stayman — asking for a four-card major against a hand that
+    // has shown both.  The counter makes it a values double instead.
+    let auction = [call(1, Strain::Notrump), call(2, Strain::Clubs)];
+    let (c, floored) = bid_landy(&auction, "KQ32.43.KJ32.432");
+    assert_eq!(c, Call::Double);
+    assert!(!floored, "the values double must come from the book");
+
+    // And opener sits for it — the double is values, not a question.  Under
+    // systems-on this node answers Stayman and bids a phantom major.
+    let after_double = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        Call::Double,
+        Call::Pass,
+    ];
+    let (c, _) = bid_landy(&after_double, "A54.AQ4.AQ54.K32");
+    assert_eq!(c, Call::Pass, "opener leaves the values double in");
+}
+
+#[test]
+fn landy_counter_bids_naturally_in_the_suits_they_did_not_show() {
+    let auction = [call(1, Strain::Notrump), call(2, Strain::Clubs)];
+
+    // Weak with long diamonds: natural 2♦, the one suit below their majors.
+    // Systems-on reads this bid as a Jacoby transfer to hearts — one of the two
+    // suits they just showed.
+    let (c, floored) = bid_landy(&auction, "32.43.KQJ876.432");
+    assert_eq!(c, call(2, Strain::Diamonds));
+    assert!(!floored, "the natural escape must come from the book");
+
+    // Game values with long clubs: natural forcing 3♣ (their 2♣ was artificial).
+    let (c, floored) = bid_landy(&auction, "32.43.A32.AKJ876");
+    assert_eq!(c, call(3, Strain::Clubs));
+    assert!(!floored, "the forcing minor must come from the book");
+}
+
+#[test]
+fn landy_counter_is_inert_when_the_knob_is_off() {
+    // The default arm keeps systems-on: the same values hand doubles as the
+    // stolen Stayman, and opener answers it.  This is the byte-identity guard —
+    // if it ever fails, the knob has stopped being opt-in.
+    let after_double = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        Call::Double,
+        Call::Pass,
+    ];
+    let (c, _) = bid_transfer(&after_double, "A54.AQ4.AQ54.K32");
+    assert_ne!(
+        c,
+        Call::Pass,
+        "systems-on answers the stolen Stayman; only the Landy arm sits"
+    );
 }

@@ -116,6 +116,11 @@ fn defense_2d_multi(agreements: &Agreements) -> bool {
     agreements.competition.defense_2d_multi
 }
 
+/// Whether the `(2♣)`-as-Landy counter-defense is engaged
+fn defense_2c_landy(agreements: &Agreements) -> bool {
+    agreements.competition.defense_2c_landy
+}
+
 /// The single unbid major when `over` is itself a major (the other major)
 ///
 /// `None` when `over` is a minor (then both majors are unbid) — the stopper-split
@@ -295,6 +300,83 @@ fn multi_responder(agreements: &Agreements) -> Rules {
     rules.rule(Call::Pass, 0, hcp(0..))
 }
 
+/// Responder's counter-defense after `1NT (2♣)` when the `2♣` is read as
+/// **Landy** (both majors, 5-4 or better), engaged by
+/// `agreements.competition.defense_2c_landy`
+///
+/// Systems-on — the default here — is the right treatment over a *natural* `2♣`,
+/// which steals no room.  Over Landy it inverts: the stolen `X` asks for a
+/// four-card major against a hand that has just shown **both**, and `2♦`/`2♥`
+/// are Jacoby transfers *into* their suits.  So drop the whole structure and
+/// play the hand for what it is — we hold 15-17 opposite a limited two-suiter,
+/// which makes defending the live option:
+///
+/// - `X` = values (8+), penalty-oriented.  They will usually run to a major,
+///   and the floor already encircles that escape (`penalize_escape_stack` /
+///   `penalize_escape_values`), so this hands a job to machinery that exists.
+/// - Natural bids in the suits they have **not** shown — `2♦`, `3♣`, `3♦` —
+///   plus the natural `2NT` invite and a direct `3NT`.
+/// - No major bid of our own: with 5-4 majors opposite, ours are dead.
+///
+/// The double is the **residual**, so it sits *below* every hand that has an
+/// offensive direction (`3NT`, the forcing 3-level minors) and above the ones
+/// that do not (the weak `2♦`, the `2NT` invite).  It is floored on `hcp`, not
+/// `points`: defending does not care about distribution, and a `points` floor
+/// would drag the shapely weak hands that belong in `2♦` into a double.
+fn landy_responder(agreements: &Agreements) -> Rules {
+    // No `over` binding: unlike every other node here, the call we sit over
+    // names no suit at all — their `2♣` is the majors.
+    let mut rules = Rules::new();
+
+    // X = values, willing to defend whatever they run to.
+    rules = rules.rule(Call::Double, 145, hcp(8..)).alert(LANDY_VALUES);
+
+    // Natural forcing 3-level minor one-suiter — a **six-card** suit, and ranked
+    // *above* 3NT.  Their 2♣ is artificial, so clubs are ours to bid; and with
+    // both majors against us, whether 3NT is playable turns on opener's major
+    // holdings, which only opener can see.  Showing the source of tricks and
+    // letting opener choose beats guessing.  (Five-card suits stay inside the
+    // 3NT/double partition: at 5-3-3-2 there is nothing for opener to choose.)
+    for s in [Suit::Clubs, Suit::Diamonds] {
+        let strain = Strain::from(s);
+        rules = rules.rule(Bid::new(3, strain), 175, len(s, 6..) & points(10..));
+    }
+
+    // Direct 3NT on game values, with **no stopper gate** — deliberately not
+    // `author_direct_3nt`, whose stopper and trap-pass tests both key on the
+    // overcall's suit.  Their `2♣` is artificial: it promises the majors, not
+    // clubs, so a club stopper is not the question and a club honour-stack is
+    // not a reason to trap.  (Demanding a *major* stopper instead is no use
+    // either — they hold both.)  This matches what systems-on already bid here,
+    // which keeps the A/B a test of the double rather than of 3NT discipline.
+    rules = rules.rule(Bid::new(3, Strain::Notrump), 170, points(10..));
+
+    // Weak natural `2♦` — the one suit below their majors we can still play in.
+    rules = rules.rule(
+        Bid::new(2, Strain::Diamonds),
+        140,
+        len(Suit::Diamonds, 5..)
+            & points(..=9)
+            & hcp(natural_floor_hcp(agreements)..)
+            & points(natural_floor_pts(agreements)..),
+    );
+
+    // Natural invitational 2NT.
+    rules = rules.rule(Bid::new(2, Strain::Notrump), 130, points(8..=9));
+
+    rules.rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Opener's answer to the Landy values double — sit for it
+///
+/// The double is values, not a question, so opener has nothing to answer and
+/// every hand passes.  The node exists because the `X -` suffix would otherwise
+/// reach `stayman_answers()` (the stolen-Stayman reply the counter replaces) and
+/// bid a phantom major.  Total by construction: one rule, no gate.
+fn landy_double_answer() -> Rules {
+    Rules::new().rule(Call::Pass, 100, hcp(0..))
+}
+
 /// Opener completes responder's Lebensohl `2NT` relay with the forced `3♣`
 pub(crate) fn complete_lebensohl_relay() -> Rules {
     Rules::new().rule(Bid::new(3, Strain::Clubs), 100, hcp(0..))
@@ -376,73 +458,99 @@ pub(super) fn lebensohl_package() -> Package {
             const NT: &str = "P* 1NT";
             let style = agreements.competition.lebensohl_style;
 
-            // Over a natural (2♣) overcall we play *systems on*, not Lebensohl:
-            // 2♣ steals no room (every transfer/relay still sits above it), so
-            // responder keeps the uncontested 1NT structure (Jacoby transfers,
-            // minor transfers, the 2NT invite, …) and shows the now-unbiddable
-            // 2♣ Stayman with a Double.  Rather than re-author all of that,
-            // rebase onto the uncontested tree: the (2♣) overcall maps to the
-            // opponent's pass, and a Double directly over it maps to the 2♣
-            // Stayman it replaces.  (So there is no natural 2♦/2♥/2♠ escape over
-            // 2♣ — those are transfers.)
-            let two_clubs = call(2, Strain::Clubs);
-            let mut entries = vec![rebase(
-                Pattern::first(NT, "2♣"),
-                described_rewrite(
-                    "systems on: their 2♣ is treated as a pass; X asks as the stolen 2♣ Stayman",
-                    rewriter(move |auction: &[Call], depth: usize| {
-                        if auction.get(depth) != Some(&two_clubs) {
-                            return None;
-                        }
-                        let mut rewritten = auction.to_vec();
-                        rewritten[depth] = Call::Pass; // (2♣) steals no room → systems on
-                        if auction.get(depth + 1) == Some(&Call::Double) {
-                            rewritten[depth + 1] = two_clubs; // stolen 2♣ Stayman = Double
-                        }
-                        Some(rewritten)
-                    }),
-                ),
-            )];
+            let mut entries = Vec::new();
 
-            // The rebase routes every *continuation*, but responder must be
-            // handed a finite logit on Double to *choose* the stolen Stayman
-            // (the rebase only offers the uncontested calls, where 2♣ is illegal
-            // here).  So classify responder's own call with the uncontested
-            // responses, moving the 2♣ Stayman logit onto Double: X *is* the
-            // stolen 2♣ — same weight, same constraint, nothing to drift if
-            // Stayman is retuned.  The empty-suffix table claims only
-            // responder's first call; deeper calls fall through to the rebase.
-            let responses = notrump_responses(agreements);
-            entries.push(classified(
-                Pattern::table("P* 1NT (2♣)"),
-                classifier(move |hand: Hand, context: &Context<'_>| {
-                    let mut logits = responses.classify(hand, context);
-                    let stayman = *logits.0.get(two_clubs);
-                    *logits.0.get_mut(two_clubs) = f32::NEG_INFINITY; // 2♣ is stolen
-                    *logits.0.get_mut(Call::Double) = stayman; // X inherits 2♣ exactly
-                    logits
-                }),
-            ));
-
-            // Opener's penalty-pass of that Double: after `1NT (2♣) X -`
-            // opener with good clubs sits to defend 2♣ doubled instead of
-            // answering the stolen Stayman.  Authored at the same `1NT (2♣)` node
-            // as the responder classifier (depth 2), so `resolve_at` reaches it
-            // *before* the depth-1 systems-on rebase; the disjoint suffix guard
-            // (`X -` vs the responder's empty suffix) keeps the two from
-            // colliding.  `stayman_answers()` rides along as the always-mass
-            // catch-all, so a hand failing the club gate just answers Stayman
-            // exactly as the rebase would (no silent pass).
-            if let Some((min_len, min_hcp, over_major)) = agreements.competition.penalty_pass {
-                let pass_logit = if over_major { 150 } else { 75 };
+            if defense_2c_landy(agreements) {
+                // Landy counter: their 2♣ shows both majors, so systems-on is
+                // exactly the wrong structure — see `landy_responder`.  This is
+                // an *either/or* with the rebase below, not an overlay: leaving
+                // the rebase registered would strip the 2♣ and remap our values
+                // X back onto the stolen 2♣ Stayman one round later, sending
+                // `1NT (2♣) X (2♥)` into the contested-Stayman package.  So the
+                // book claims responder's first call and opener's reply to the
+                // double, and every deeper auction is the floor's — which is
+                // where we want it: the floor already encircles their escape
+                // from our double (`penalize_escape_stack`/`_values`).
+                entries.extend(rows_of(
+                    Pattern::after(NT, "(2♣)"),
+                    landy_responder(agreements),
+                ));
                 entries.extend(rows_of(
                     Pattern::after("P* 1NT (2♣)", "X -"),
-                    stayman_answers().rule(
-                        Call::Pass,
-                        pass_logit,
-                        len(Suit::Clubs, min_len..) & suit_hcp(Suit::Clubs, min_hcp..),
+                    landy_double_answer(),
+                ));
+            } else {
+                // Over a natural (2♣) overcall we play *systems on*, not
+                // Lebensohl: 2♣ steals no room (every transfer/relay still sits
+                // above it), so responder keeps the uncontested 1NT structure
+                // (Jacoby transfers, minor transfers, the 2NT invite, …) and
+                // shows the now-unbiddable 2♣ Stayman with a Double.  Rather
+                // than re-author all of that, rebase onto the uncontested tree:
+                // the (2♣) overcall maps to the opponent's pass, and a Double
+                // directly over it maps to the 2♣ Stayman it replaces.  (So
+                // there is no natural 2♦/2♥/2♠ escape over 2♣ — those are
+                // transfers.)
+                let two_clubs = call(2, Strain::Clubs);
+                entries.push(rebase(
+                    Pattern::first(NT, "2♣"),
+                    described_rewrite(
+                        "systems on: their 2♣ is treated as a pass; X asks as the stolen 2♣ Stayman",
+                        rewriter(move |auction: &[Call], depth: usize| {
+                            if auction.get(depth) != Some(&two_clubs) {
+                                return None;
+                            }
+                            let mut rewritten = auction.to_vec();
+                            rewritten[depth] = Call::Pass; // (2♣) steals no room → systems on
+                            if auction.get(depth + 1) == Some(&Call::Double) {
+                                rewritten[depth + 1] = two_clubs; // stolen 2♣ Stayman = Double
+                            }
+                            Some(rewritten)
+                        }),
                     ),
                 ));
+
+                // The rebase routes every *continuation*, but responder must be
+                // handed a finite logit on Double to *choose* the stolen Stayman
+                // (the rebase only offers the uncontested calls, where 2♣ is
+                // illegal here).  So classify responder's own call with the
+                // uncontested responses, moving the 2♣ Stayman logit onto
+                // Double: X *is* the stolen 2♣ — same weight, same constraint,
+                // nothing to drift if Stayman is retuned.  The empty-suffix
+                // table claims only responder's first call; deeper calls fall
+                // through to the rebase.
+                let responses = notrump_responses(agreements);
+                entries.push(classified(
+                    Pattern::table("P* 1NT (2♣)"),
+                    classifier(move |hand: Hand, context: &Context<'_>| {
+                        let mut logits = responses.classify(hand, context);
+                        let stayman = *logits.0.get(two_clubs);
+                        *logits.0.get_mut(two_clubs) = f32::NEG_INFINITY; // 2♣ is stolen
+                        *logits.0.get_mut(Call::Double) = stayman; // X inherits 2♣ exactly
+                        logits
+                    }),
+                ));
+
+                // Opener's penalty-pass of that Double: after `1NT (2♣) X -`
+                // opener with good clubs sits to defend 2♣ doubled instead of
+                // answering the stolen Stayman.  Authored at the same `1NT (2♣)`
+                // node as the responder classifier (depth 2), so `resolve_at`
+                // reaches it *before* the depth-1 systems-on rebase; the
+                // disjoint suffix guard (`X -` vs the responder's empty suffix)
+                // keeps the two from colliding.  `stayman_answers()` rides along
+                // as the always-mass catch-all, so a hand failing the club gate
+                // just answers Stayman exactly as the rebase would (no silent
+                // pass).
+                if let Some((min_len, min_hcp, over_major)) = agreements.competition.penalty_pass {
+                    let pass_logit = if over_major { 150 } else { 75 };
+                    entries.extend(rows_of(
+                        Pattern::after("P* 1NT (2♣)", "X -"),
+                        stayman_answers().rule(
+                            Call::Pass,
+                            pass_logit,
+                            len(Suit::Clubs, min_len..) & suit_hcp(Suit::Clubs, min_hcp..),
+                        ),
+                    ));
+                }
             }
 
             // Lebensohl proper applies only over (2♦/2♥/2♠) — the overcalls that

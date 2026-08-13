@@ -169,6 +169,19 @@ pub struct CompetitionKnobs {
     /// **Off by default**, opt-in pending the A/B; faithful for the A/B against
     /// BBA, whose `2♦` over our `1NT` is always a Multi.
     pub defense_2d_multi: bool,
+    /// Read a `2♣` overcall of our `1NT` as **Landy** (both majors)
+    ///
+    /// Replaces the systems-on rebase at `1NT (2♣)`.  Systems-on is right over
+    /// a *natural* `2♣` — it steals no room, so every transfer and relay still
+    /// sits above it — but against a both-majors overcall it keeps the one
+    /// useless call (Stayman, as the stolen `X`) and turns the Jacoby transfers
+    /// into bids of *their* suits.  The counter makes `X` a values double and
+    /// everything else natural in the suits they have not shown.
+    ///
+    /// **Off by default**, opt-in pending the A/B.  Faithful for the A/B
+    /// against BBA, whose `2♣` over our `1NT` is always Landy
+    /// (`docs/one-notrump-competitive.md`).
+    pub defense_2c_landy: bool,
     // --- competition/negative_double.rs
     /// Which negative-double school the minor openings play
     ///
@@ -490,6 +503,7 @@ impl Default for CompetitionKnobs {
             natural_floor: (5, 0),
             lebensohl_style: LebensohlStyle::Transfer,
             defense_2d_multi: false,
+            defense_2c_landy: false,
             negative_double_shape: NegativeDoubleShape::Modern,
             cachalot_contested_x: true,
             weak_two_competition: false,

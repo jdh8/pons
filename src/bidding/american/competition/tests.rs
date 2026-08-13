@@ -84,6 +84,13 @@ pub(super) fn bid_transfer(auction: &[Call], hand: &str) -> (Call, bool) {
     best_call_with(&arm, auction, hand)
 }
 
+/// As [`best_call`], with the Landy `(2♣)` counter-defense pinned on
+pub(super) fn bid_landy(auction: &[Call], hand: &str) -> (Call, bool) {
+    let mut arm = Agreements::default();
+    arm.competition.defense_2c_landy = true;
+    best_call_with(&arm, auction, hand)
+}
+
 /// As [`best_call`], with the Unusual-vs-Unusual `(2NT)` structure pinned on
 /// at the default A/B floors
 pub(super) fn bid_uvu(auction: &[Call], hand: &str) -> (Call, bool) {
