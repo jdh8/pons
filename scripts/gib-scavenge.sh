@@ -21,9 +21,11 @@
 # pick the same shard and interleave appends into corruption.
 #
 # Knobs (env): GIB_OUT (dir), GIB_MIN_FREE_KIB (pause threshold), GIB_COUNT
-#              (deals per pass), GIB_CAP (deals per shard before rolling to a
-#              new seed), GIB_EXT (pdd|txt, default pdd — binary is 2.6x
-#              smaller), GIB_THREADS (DDS pool cap; Darwin defaults to the
+#              (deals per pass, the pass being clamped so the shard lands ON
+#              GIB_CAP, never past it), GIB_CAP (hard cap of deals per shard,
+#              after which a new seed is minted), GIB_EXT (pdd|txt, default
+#              pdd — binary is 2.6x smaller),
+#              GIB_THREADS (DDS pool cap; Darwin defaults to the
 #              E-core count to pair with the plist's Background QoS, empty =
 #              all cores).
 set -eu
@@ -34,7 +36,7 @@ COUNT="${GIB_COUNT:-1000000}"                    # deals appended per pass
 # A sealed shard must stay loadable whole: `gib convert` and `gib verify` use
 # pdd::load, ~48 B/deal decoded, so 10M deals is ~480 MB peak. Raising this
 # raises that; the sampling consumers use load_slice and don't care.
-CAP="${GIB_CAP:-10000000}"                       # ~340 MB per .pdd shard
+CAP="${GIB_CAP:-10000000}"                       # exactly 340,000,008 B per .pdd shard
 EXT="${GIB_EXT:-pdd}"                            # pdd (binary, 2.6x smaller) or txt
 BIN="$(cd "$(dirname "$0")/.." && pwd)/target/release/examples/gib"
 
@@ -47,10 +49,13 @@ if [ -z "${GIB_LOCKED:-}" ] && command -v flock > /dev/null 2>&1; then
     exec env GIB_LOCKED=1 flock -n "$OUT" "$0" "$@"
 fi
 
-# Size of a full shard, and hence the "still growable" threshold.
+# On-disk layout, so a shard's byte size converts to a deal count: the same
+# arithmetic `gib generate --append` does when it resumes.  A ragged tail from a
+# killed pass is under one record, so this floor divide ignores it exactly as
+# the trim there does.
 case "$EXT" in
-    pdd) cap_kib=$(( (8 + 34 * CAP + 1023) / 1024 )) ;;
-    *)   cap_kib=$(( (    89 * CAP + 1023) / 1024 )) ;;
+    pdd) head_len=8; rec_len=34 ;;
+    *)   head_len=0; rec_len=89 ;;
 esac
 
 # On Apple Silicon the plist runs us as ProcessType Background, which confines
@@ -68,10 +73,24 @@ while true; do
         sleep 600
         continue
     fi
-    # Grow the first undersized shard; `sort | head -1` keeps exactly one file
-    # hot, so every other shard is immutable and safe to convert or copy.
-    hot=$(find "$OUT" -maxdepth 1 -name "shard-*.$EXT" -size -"$cap_kib"k \
-          | sort | head -1)
+    # Grow the first undersized shard; the glob is sorted, and taking the first
+    # match keeps exactly one file hot, so every other shard is immutable and
+    # safe to convert or copy.  CAP is a HARD cap: the pass is clamped to the
+    # room left, because --count is deals *appended*, so an unclamped pass on a
+    # nearly-full shard would overshoot by up to COUNT-1 deals.
+    hot=""
+    count="$COUNT"
+    for f in "$OUT"/shard-*."$EXT"; do
+        [ -f "$f" ] || continue                  # no match: glob stayed literal
+        room=$(( CAP - ($(wc -c < "$f") - head_len) / rec_len ))
+        if [ "$room" -ge 1 ]; then
+            hot="$f"
+            if [ "$room" -lt "$count" ]; then
+                count="$room"
+            fi
+            break
+        fi
+    done
     if [ -n "$hot" ]; then
         seed=${hot##*/shard-}
         seed=${seed%.*}
@@ -79,6 +98,6 @@ while true; do
         seed=$(od -An -tu8 -N8 /dev/urandom | tr -d ' ')
         hot="$OUT/shard-$seed.$EXT"
     fi
-    "$BIN" generate --append --count "$COUNT" --seed "$seed" --out "$hot" \
+    "$BIN" generate --append --count "$count" --seed "$seed" --out "$hot" \
         ${THREADS:+--threads "$THREADS"}
 done

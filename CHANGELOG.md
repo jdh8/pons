@@ -370,6 +370,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`gib-scavenge`'s `GIB_CAP` is now a hard cap, not a "stop starting passes"
+  threshold.** `gib generate --count` is deals *appended*, and the shard was
+  selected before the pass, so a shard just under `GIB_CAP` still took a full
+  `GIB_COUNT` pass and sealed past the cap — up to `GIB_CAP + GIB_COUNT - 1`
+  deals, 374 MB against the documented 340 MB. This box has one such shard at
+  10,376,160 deals (352 MB); a `gib convert`/`gib verify` of it peaks near
+  500 MB decoded rather than the 480 MB the doc promises. Each pass is now
+  clamped to the room left under `GIB_CAP`, so a `.pdd` shard seals at exactly
+  `8 + 34 × GIB_CAP` bytes (340,000,008 B at the default). Shard selection also
+  drops the block-rounded `find -size` filter for the exact deal count the file
+  size implies — the same arithmetic `--append` does when it resumes, so the
+  script and the generator can no longer disagree about which shard is full,
+  and a ragged tail from a killed pass rounds down as it does there.
+  Over-cap shards already on disk are simply skipped, never grown further.
+
 - **`bba-gen` was still forcing the competitive accountant OFF, so every BBA
   arm generated after `ea2cde9` measured the pre-ship system.** The ship flipped
   `InstinctProfile::competitive_accountant` to `true` but left the harness flag

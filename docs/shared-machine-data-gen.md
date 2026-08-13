@@ -194,9 +194,12 @@ sidecars' feature/layout/SHA in agreement.
 To keep a machine growing the database whenever it's idle, supervise the
 one-shot `generate` instead of writing a daemon. The shared
 [`scripts/gib-scavenge.sh`](../scripts/gib-scavenge.sh) worker **grows an
-undersized shard** each pass — appending `GIB_COUNT` deals (default 1M) to the
-first one below `GIB_CAP` (default 10M deals, ~340 MB) — and only mints a fresh
-random 64-bit seed once every shard is full. Shards are named `shard-<seed>.pdd`
+undersized shard** each pass — appending up to `GIB_COUNT` deals (default 1M) to
+the first one below `GIB_CAP` (default 10M deals) — and only mints a fresh
+random 64-bit seed once every shard is full. `GIB_CAP` is a **hard** cap: the
+pass is clamped to the room left, so a `.pdd` shard seals at exactly
+`8 + 34 × GIB_CAP` bytes (340,000,008 B at the default), never up to a pass
+past it. Shards are named `shard-<seed>.pdd`
 (compact binary by default) and land in `~/gib-shards`; merge them with
 `gib convert shard-*.pdd --out all.pdd` whenever you want a combined database.
 Set `GIB_EXT=txt` for `cat`-mergeable GIB text.
