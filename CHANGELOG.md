@@ -39,9 +39,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   counterpart toggle, so measuring against it would price misinformation instead
   of the treatment). 6M boards per vulnerability, seed 1786613240, 5103 fired
   (0.085%) / 650 divergent: **plain DD +1.01/+1.23 IMPs/fired** (+0.0009/+0.0010
-  per board) NV/vul, **PD +1.20/+1.44** — a win on both scorings, so no doubling
-  artifact; the sd-lead bracket agrees (+0.0007/+0.0008 plain, +0.0008/+0.0010
-  PD per board, 95% CI ±0.0001). `NotrumpKnobs::diamond_splinter` survives as
+  per board) NV/vul, **PD +1.20/+1.44** (+0.0010/+0.0012 per board) — a win on
+  both scorings, so no doubling artifact; the sd-lead bracket agrees
+  (+0.0007/+0.0008 plain, +0.0008/+0.0010 PD per board, 95% CI ±0.0001). `NotrumpKnobs::diamond_splinter` survives as
   the A/B's off-arm.
 
   The European scheme deliberately does **not** get the lane: its `3♦` is a
@@ -50,6 +50,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Splinter` row, already set, and no per-slot toggle.
 
   [`splinter_short`]: src/bidding/american/notrump/transfer_gf.rs
+
+### Fixed
+
+- **`docs/dnf-migration.md`'s axis-leak ledger had two missing re-pins.** The
+  kickback queen relay (`f2434f5`, 2026-08-02) moved authored HCP **11/0 →
+  20/9** and never got a row — and it is the meter's only non-zero knob-on cell
+  since chop G, so the table read as "0 everywhere" while the test pinned a 9.
+  The two 2026-08-06 rows below it had copied the stale `11/0` forward. The
+  diamond splinter (`3d0f376`) moved length **59 → 65** with the same omission.
+  Both rows added, the stale cells corrected, and the intro now says a post-G
+  non-zero knob-on cell is an authoring defect owed a row, not migration debt.
+
+- The diamond-splinter A/B's **PD per-board figures were never recorded** — only
+  its per-fired pair — in the CHANGELOG, the knob doc and
+  `docs/bidding-options.md`. Added (+0.0010/+0.0012 NV/vul), which is what makes
+  the PD and plain brackets comparable on the same scale.
 
 - **The multi-layered takeout double — two opt-in knobs, both default off**
   ([`docs/takeout-double-layers.md`](docs/takeout-double-layers.md)). The

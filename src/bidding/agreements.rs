@@ -1783,11 +1783,11 @@ pub struct NotrumpKnobs {
     /// **On by default.**  `ab-nt-splinter --diamond`, 6M boards per vulnerability,
     /// seed 1786613240, 5103 fired (0.085%) / 650 divergent: plain DD
     /// **+1.01/+1.23 IMPs/fired** (+0.0009/+0.0010 per board) NV/vul, PD
-    /// **+1.20/+1.44** — a win on both scorings, so no doubling artifact.  The
-    /// sd-lead bracket agrees (+0.0007/+0.0008 plain, +0.0008/+0.0010 PD per
-    /// board, 95% CI ±0.0001).  Self-play: BBA has no counterpart toggle, so a
-    /// measurement against it would price misinformation rather than the
-    /// treatment.
+    /// **+1.20/+1.44** (+0.0010/+0.0012 per board) — a win on both scorings, so
+    /// no doubling artifact.  The sd-lead bracket agrees (+0.0007/+0.0008
+    /// plain, +0.0008/+0.0010 PD per board, 95% CI ±0.0001).  Self-play: BBA
+    /// has no counterpart toggle, so a measurement against it would price
+    /// misinformation rather than the treatment.
     pub diamond_splinter: bool,
 }
 

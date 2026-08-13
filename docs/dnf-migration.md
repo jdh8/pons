@@ -205,6 +205,8 @@ rule whose describe names an axis while **no box** of its band constrains
 it). Knob-off pins are the byte-identity guard (exact — must not move in
 either direction); knob-on pins are the migration meter later chops drive
 toward 0. Cells are knob-off/knob-on; knob-off never moved during the wave.
+Chop G reached 0 on every column; a knob-on cell that goes non-zero after it
+is an authoring defect owed a row below, not migration debt.
 
 | After chop | HCP | length | points | support | support points |
 | --- | --- | --- | --- | --- | --- |
@@ -215,8 +217,10 @@ toward 0. Cells are knob-off/knob-on; knob-off never moved during the wave.
 | D2 (wave tip) | 17/7 | 71/47 | 3/3 | 84/0 | 18/12 |
 | G | 17/**0** | 59/**0** | 3/**0** | 84/**0** | 18/**0** |
 | Points13 (2/1 gate, 2026-07-25) | **11**/0 | 59/0 | **9**/0 | 84/0 | 18/0 |
-| Direct-seat per-overcall (2026-08-06) | 11/0 | 59/0 | 9/0 | **107**/0 | 18/0 |
-| C6 escape-hatch batch (2026-08-06) | 11/0 | 59/0 | 9/0 | **115**/0 | 18/0 |
+| Kickback queen relay (2026-08-02, `f2434f5`) | **20**/**9** | 59/0 | 9/0 | 84/0 | 18/0 |
+| Direct-seat per-overcall (2026-08-06) | 20/9 | 59/0 | 9/0 | **107**/0 | 18/0 |
+| C6 escape-hatch batch (2026-08-06) | 20/9 | 59/0 | 9/0 | **115**/0 | 18/0 |
+| Diamond splinter (2026-08-13, `3d0f376`) | 20/9 | **65**/0 | 9/0 | 115/0 | 18/0 |
 
 The `Points13` row is **not a chop** — it is the shipped default flip of the
 major no-fit 2/1 gate (`hcp(13..)` → `points(13..)`, docs/bidding-options.md).
@@ -234,6 +238,28 @@ guards became exact per-column nodes (resolution-equivalence pinned by
 support sniff — authored knob-off support 107 → **115**, knob-on still 0,
 every other column unmoved (the retired guards contributed no fallback-walk
 leaks: the guard-key context sniffs no support atom).
+
+The `Kickback queen relay` row is the meter's **only non-zero knob-on cell
+since chop G**, and it is a recorded defect, not a chop: HCP 11/0 → **20/9**
+when the relay went default-on. The nine are the same three calls in each
+column — the asker's continuations over a 1430 answer, which *gate* on `19+
+HCP` (the grand-zone strength bar) but *read* as keycard counts and "the
+queen cannot change the call". The reading is the honest one; the HCP
+conjunct is a strength floor the reading deliberately does not project, so
+the meter scores it a leak. Closing it means either projecting the bar (which
+over-narrows partner at every keycard answer) or dropping it (which lets the
+relay fire without the values) — see
+[bba-kickback.md §7.7](ai-bidder/bba-kickback.md). *Added 2026-08-13: the
+re-pin landed in `f2434f5` without a ledger row, and the two 2026-08-06 rows
+below it copied the stale `11/0` HCP cell forward; both are corrected above.*
+
+The `Diamond splinter` row is a shipped default flip, like `Points13`:
+authored knob-off length 59 → **65** when responder's `3♥`/`3♠` after the
+`1NT - 2NT` transfer went default-on. The six are the same two calls in each
+of american constructive/defensive and dutch — they gate on the `2NT`
+transfer's shape class, whose `6+ ♦ | 5+ ♦ & 4+ ♣` disjunction the legacy
+hull cannot pin on the length axis. Knob-on stays **0**: the envelope union
+projects the disjunction exactly, which is the whole point of the migration.
 
 The SHCP chop adds a sixth pinned column, `suit HCP`, born **0/0** ("HCP in
 ♠" atoms against the per-suit HCP axis; the length column's "… in ♠"
