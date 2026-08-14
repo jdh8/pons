@@ -1,4 +1,8 @@
-use super::super::tests::{bid, bid_landy, bid_landy_cues, bid_landy_transfer, bid_transfer, call};
+use super::super::tests::{
+    best_call_with, bid, bid_landy, bid_landy_cues, bid_landy_n1, bid_landy_transfer, bid_transfer,
+    call,
+};
+use crate::bidding::agreements::Agreements;
 use contract_bridge::Strain;
 use contract_bridge::auction::Call;
 
@@ -377,6 +381,202 @@ fn landy_cue_gets_a_slam_try_over_openers_minimums() {
     // A plain game force with no extras still bids the game.
     let (c, _) = bid_landy_transfer(&after_notrump, "432.A5.K54.AQJ76");
     assert_eq!(c, call(3, Strain::Notrump));
+}
+
+#[test]
+fn landy_cue_floor_returns_the_eight_count_to_the_values_double() {
+    // 8 hcp, five clubs, ~9 total points: under N1c the cue's points(8..)
+    // floor takes it at weight 173 over the double's 145 — the poached-double
+    // rows the per-bid decomposition priced at −0.92/−2.53 PD per fired.
+    let auction = [call(1, Strain::Notrump), call(2, Strain::Clubs)];
+    let hand = "43.432.J32.AK432";
+    let (c, _) = bid_landy_transfer(&auction, hand);
+    assert_eq!(
+        c,
+        call(2, Strain::Hearts),
+        "N1c: the points(8..) cue takes it"
+    );
+    let (c, floored) = bid_landy_n1(true, false, false, &auction, hand);
+    assert_eq!(c, Call::Double, "N1d: it defends instead");
+    assert!(!floored, "the values double must come from the book");
+
+    // The ten-count still cues — the floor trims the bottom, nothing else.
+    let (c, _) = bid_landy_n1(true, false, false, &auction, "43.432.Q32.AKJ32");
+    assert_eq!(c, call(2, Strain::Hearts));
+}
+
+#[test]
+fn landy_fit_answers_offer_notrump_on_a_doubleton() {
+    // 1NT (2♣) 2♥ - holding two clubs and an unstopped major: the base
+    // table's weight-20 catch-all raises to 3♣ on the 5-2 — the fit
+    // forensic's −10.0/−8.2 PD per fired — where N1e answers notrump at the
+    // strength level, so the raises and asks come to promise 3+.
+    let after_cue = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        call(2, Strain::Hearts),
+        Call::Pass,
+    ];
+
+    // Minimum (15), hearts unstopped, doubleton club.
+    let hand = "AQ32.432.AK42.Q2";
+    let (c, _) = bid_landy_transfer(&after_cue, hand);
+    assert_eq!(
+        c,
+        call(3, Strain::Clubs),
+        "the base catch-all raises on two"
+    );
+    let (c, floored) = bid_landy_n1(false, true, false, &after_cue, hand);
+    assert_eq!(
+        c,
+        call(2, Strain::Notrump),
+        "N1e: notrump instead of the 5-2"
+    );
+    assert!(!floored, "the doubleton answer must come from the book");
+
+    // Maximum (17), same shape: the level still carries the strength.
+    let (c, _) = bid_landy_n1(false, true, false, &after_cue, "AQ32.432.AKQ2.Q2");
+    assert_eq!(c, call(3, Strain::Notrump));
+
+    // With three-card support nothing moves: the raise still promises a fit.
+    let (c, _) = bid_landy_n1(false, true, false, &after_cue, "AQ32.432.AK4.Q32");
+    assert_eq!(c, call(3, Strain::Clubs));
+}
+
+#[test]
+fn landy_competition_answers_the_doubled_cue_as_if_undoubled() {
+    // 1NT (2♣) 2♥ (X): their X takes no room.  Without N1f every registered
+    // suffix ends in `-`, so the whole node is the floor's — the priced
+    // interference hole.
+    let doubled_cue = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        call(2, Strain::Hearts),
+        Call::Double,
+    ];
+    let hand = "AQ32.KQ2.A432.32"; // both majors stopped, minimum
+    let (_, floored) = bid_landy_transfer(&doubled_cue, hand);
+    assert!(floored, "without N1f the doubled cue drops to the floor");
+    let (c, floored) = bid_landy_n1(false, false, true, &doubled_cue, hand);
+    assert_eq!(c, call(2, Strain::Notrump), "the clean ladder, verbatim");
+    assert!(!floored, "the doubled-cue answer must come from the book");
+
+    // And the systems-on rebase carries the whole subtree: deeper rungs
+    // answer as if the X had never happened — here the re-cue's 3NT with the
+    // asked stopper (compare `landy_re_cue_resolves_the_stopper…`).
+    let deep = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        call(2, Strain::Hearts),
+        Call::Double,
+        call(3, Strain::Clubs),
+        Call::Pass,
+        call(3, Strain::Hearts),
+        Call::Pass,
+    ];
+    let (c, floored) = bid_landy_n1(false, false, true, &deep, "AQ4.KQ4.J954.K32");
+    assert_eq!(c, call(3, Strain::Notrump));
+    assert!(!floored, "the rebase must reach the re-cue answer");
+}
+
+#[test]
+fn landy_competition_answers_the_raise_over_the_cue() {
+    // 1NT (2♣) 2♥ (2♠): the advancer's raise — 28 of the 47 priced
+    // interference boards.  The compressed ladder keeps what Pass cannot say:
+    // game with both of their majors stopped, and the fit, by size.  Pass is
+    // safe — responder is INV+ and guaranteed another turn — where the floor
+    // was bidding 3-5 card majors at the four level (−14…−18 PD).
+    let raised = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        call(2, Strain::Hearts),
+        call(2, Strain::Spades),
+    ];
+    let (c, floored) = bid_landy_n1(false, false, true, &raised, "AQ32.KQ2.AK42.32");
+    assert_eq!(c, call(3, Strain::Notrump), "both stopped, maximum: game");
+    assert!(!floored, "the raise answer must come from the book");
+    let (c, _) = bid_landy_n1(false, false, true, &raised, "A432.432.AKJ.QJ32");
+    assert_eq!(c, call(3, Strain::Clubs), "the fit, cheaply, on a minimum");
+    let (c, _) = bid_landy_n1(false, false, true, &raised, "AQ32.432.AKQ2.32");
+    assert_eq!(c, Call::Pass, "nothing to say: responder places it");
+
+    // Their jump raise leaves no 3-level raise, so the fit answer folds to a
+    // maximum 4♣.
+    let jumped = [raised[0], raised[1], raised[2], call(3, Strain::Spades)];
+    let (c, floored) = bid_landy_n1(false, false, true, &jumped, "A432.432.A2.AKQ32");
+    assert_eq!(c, call(4, Strain::Clubs));
+    assert!(!floored, "the jump-raise answer must come from the book");
+}
+
+#[test]
+fn landy_competition_rescues_the_doubled_ask() {
+    // 1NT (2♣) 2♥ - 3♠ (X): the nine-board defect — every registration ended
+    // in `-`, so the floor passed the doubled ask out and we played their
+    // major doubled.  Responder answers the ask exactly as if undoubled.
+    let doubled_ask = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        call(2, Strain::Hearts),
+        Call::Pass,
+        call(3, Strain::Spades),
+        Call::Double,
+    ];
+    let hand = "A2.32.J32.AQJ432";
+    let (_, floored) = bid_landy_transfer(&doubled_ask, hand);
+    assert!(floored, "without N1f the doubled ask is the floor's");
+    let (c, floored) = bid_landy_n1(false, false, true, &doubled_ask, hand);
+    assert_eq!(
+        c,
+        call(3, Strain::Notrump),
+        "the asked stopper, as if undoubled"
+    );
+    assert!(!floored, "the doubled-ask answer must come from the book");
+}
+
+#[test]
+fn landy_competition_completes_the_doubled_transfer() {
+    // 1NT (2♣) 2NT (X): the transfer is alerted and owed its tail on the
+    // meta-rule — opener completes anyway, and responder still signs off.
+    let doubled_transfer = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        call(2, Strain::Notrump),
+        Call::Double,
+    ];
+    let opener = "A54.KQ4.A954.K32";
+    let (_, floored) = bid_landy_transfer(&doubled_transfer, opener);
+    assert!(floored, "without N1f the doubled transfer is the floor's");
+    let (c, floored) = bid_landy_n1(false, false, true, &doubled_transfer, opener);
+    assert_eq!(c, call(3, Strain::Clubs), "the completion is still forced");
+    assert!(!floored, "the completion must come from the book");
+}
+
+#[test]
+fn landy_declaration_engages_the_shipped_stack() {
+    // The 2026-08-14 default flip: a bare declaration — no knobs touched —
+    // now plays the full N1c+N1d/e/f stack (the pooled two-seed win|win).
+    let mut arm = Agreements::default();
+    arm.their.two_clubs_landy = true;
+
+    // N1c: the weak six-card club hand transfers.
+    let auction = [call(1, Strain::Notrump), call(2, Strain::Clubs)];
+    let (c, _) = best_call_with(&arm, &auction, "32.43.432.QJ8765");
+    assert_eq!(c, call(2, Strain::Notrump));
+
+    // N1d: the 8-count with five clubs defends instead of cueing.
+    let (c, _) = best_call_with(&arm, &auction, "43.432.J32.AK432");
+    assert_eq!(c, Call::Double);
+
+    // N1f: the doubled cue is answered from the book, not the floor.
+    let doubled_cue = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        call(2, Strain::Hearts),
+        Call::Double,
+    ];
+    let (c, floored) = best_call_with(&arm, &doubled_cue, "AQ32.KQ2.A432.32");
+    assert_eq!(c, call(2, Strain::Notrump));
+    assert!(!floored, "the shipped stack answers the doubled cue");
 }
 
 #[test]

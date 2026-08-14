@@ -30,7 +30,7 @@
 
 use clap::Parser;
 use contract_bridge::auction::{Auction, Call, display_calls};
-use contract_bridge::{AbsoluteVulnerability, Contract, Seat, Strain};
+use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Seat, Strain, Suit};
 use pons::scoring::{final_contract, ns_score_contract, ns_score_pd};
 use std::io::Write;
 
@@ -116,6 +116,11 @@ struct Record {
     /// arm handed them
     opp_calls_on: usize,
     opp_calls_off: usize,
+    /// Combined trump length of the declaring pair, `null` for a pass-out or a
+    /// notrump contract — the N1c forensic's question ("did the cue land us in
+    /// 7-card fits?") asked of every divergent board
+    fit_on: Option<u8>,
+    fit_off: Option<u8>,
     /// `on − off`, present only under `--imps`
     imps_plain: Option<i64>,
     imps_pd: Option<i64>,
@@ -129,6 +134,15 @@ const fn is_game(contract: Contract) -> bool {
         Strain::Hearts | Strain::Spades => level >= 4,
         Strain::Clubs | Strain::Diamonds => level >= 5,
     }
+}
+
+/// Combined trump length of the declaring pair, `None` for a pass-out or a
+/// notrump contract
+fn fit(deal: &FullDeal, reached: Reached) -> Option<u8> {
+    let (contract, declarer) = reached?;
+    let suit = Suit::try_from(contract.bid.strain).ok()?;
+    let len = deal[declarer][suit].len() + deal[declarer.partner()][suit].len();
+    Some(u8::try_from(len).unwrap_or(u8::MAX))
 }
 
 /// Which pair a seat belongs to.  We sit North/South at table A, the auction
@@ -198,6 +212,8 @@ fn classify(index: usize, on: &Board, off: &Board, contracts: (Reached, Reached)
         call_off: call_at(&off.table_a, first_diff),
         opp_calls_on: opp_calls(&on.table_a, on.dealer, first_diff),
         opp_calls_off: opp_calls(&off.table_a, off.dealer, first_diff),
+        fit_on: fit(&on.deal, contracts.0),
+        fit_off: fit(&off.deal, contracts.1),
         imps_plain: None,
         imps_pd: None,
     }

@@ -131,8 +131,29 @@ fn landy_cues(agreements: &Agreements) -> bool {
 }
 
 /// Whether the Landy counter's minors are re-rung around the club transfer (N1c)
+///
+/// The N1d/N1e/N1f refinements below each imply it — they are increments over
+/// the N1c structure, and the A/B arms stack them in that order.
 fn landy_transfer(agreements: &Agreements) -> bool {
     agreements.competition.defense_2c_landy_transfer
+        || landy_cue_floor(agreements)
+        || landy_fit_answers(agreements)
+        || landy_competition(agreements)
+}
+
+/// Whether the Landy cues' floor is raised to `points(10..)` (N1d)
+fn landy_cue_floor(agreements: &Agreements) -> bool {
+    agreements.competition.defense_2c_landy_cue_floor
+}
+
+/// Whether opener answers a Landy cue in notrump on doubleton support (N1e)
+fn landy_fit_answers(agreements: &Agreements) -> bool {
+    agreements.competition.defense_2c_landy_fit_answers
+}
+
+/// Whether the Landy counter's interfered tails are authored (N1f)
+fn landy_competition(agreements: &Agreements) -> bool {
+    agreements.competition.defense_2c_landy_competition
 }
 
 /// The single unbid major when `over` is itself a major (the other major)
@@ -414,17 +435,25 @@ fn landy_responder(agreements: &Agreements) -> Rules {
                 rules = rules.rule(Bid::new(3, strain), weight, len(s, 6..) & points(8..=9));
             }
         }
+        // N1d raises the cues' floor to `points(10..)`: at `points(8..)` and
+        // weight 173/172 against the values double's 145, the cue took every
+        // 8+ point hand with a five-card minor, and the per-bid decomposition
+        // priced each hand that migrated `X` → cue at −0.92/−2.53 PD per
+        // fired.  With the floor up, 8-9 goes back to the double; sub-8-hcp
+        // shapely hands fall to `2♦`/the transfer/Pass, where a values
+        // double's doctrine wants them.
+        let cue_floor = if landy_cue_floor(agreements) { 10 } else { 8 };
         rules = rules
             .rule(
                 Bid::new(2, Strain::Hearts),
                 173,
-                len(Suit::Clubs, 5..) & points(8..),
+                len(Suit::Clubs, 5..) & points(cue_floor..),
             )
             .alert(LANDY_CUE)
             .rule(
                 Bid::new(2, Strain::Spades),
                 172,
-                len(Suit::Diamonds, 5..) & points(8..),
+                len(Suit::Diamonds, 5..) & points(cue_floor..),
             )
             .alert(LANDY_CUE);
         if landy_transfer(agreements) {
@@ -620,14 +649,32 @@ fn cheapest_above(strain: Strain, floor: Bid) -> Bid {
 /// try in [`landy_minimum_notrump_rebid`] / [`landy_minimum_minor_rebid`]:
 /// `Inferences` carry no forcing channel, so an auction handed to the floor
 /// below game reads as bare length-and-points.
+///
+/// Under N1e ([`CompetitionKnobs::defense_2c_landy_fit_answers`]) the two
+/// notrump rungs also take **doubleton support** at their strength level —
+/// *(both majors stopped, or ≤2-card support)* — and the catch-all flips to
+/// `2NT`, so every raise and ask comes to promise 3+.  The base table raises
+/// the cue's minor on two by design ("opener is balanced, so it never lands
+/// on fewer than two"), and the fit forensic priced those 5-2 finals at
+/// −10.0/−8.2 PD per fired board.  A stopper is then only guaranteed
+/// alongside a fit, which responder knows from the very rung that denied one.
 fn landy_cue_answer(minor: Suit, cue: Bid, agreements: &Agreements) -> Rules {
     let strain = Strain::from(minor);
     let max = agreements.notrump.size_ask_accept_floor;
+    let fit_answers = landy_fit_answers(agreements);
     let both = stopper_in(Suit::Hearts) & stopper_in(Suit::Spades);
     let tolerance = len(minor, 3..);
 
     // Maximum: the 3-level and above.
-    let mut rules = Rules::new().rule(Bid::new(3, Strain::Notrump), 160, both.clone() & hcp(max..));
+    let mut rules = if fit_answers {
+        Rules::new().rule(
+            Bid::new(3, Strain::Notrump),
+            160,
+            (both.clone() | len(minor, ..=2)) & hcp(max..),
+        )
+    } else {
+        Rules::new().rule(Bid::new(3, Strain::Notrump), 160, both.clone() & hcp(max..))
+    };
     for (held, lacked) in [(Suit::Hearts, Suit::Spades), (Suit::Spades, Suit::Hearts)] {
         rules = rules
             .rule(
@@ -640,7 +687,15 @@ fn landy_cue_answer(minor: Suit, cue: Bid, agreements: &Agreements) -> Rules {
     rules = rules.rule(Bid::new(4, strain), 150, tolerance.clone() & hcp(max..));
 
     // Minimum: 2NT, the cheap ask, or the minor.
-    rules = rules.rule(Bid::new(2, Strain::Notrump), 145, both & hcp(..max));
+    rules = if fit_answers {
+        rules.rule(
+            Bid::new(2, Strain::Notrump),
+            145,
+            (both | len(minor, ..=2)) & hcp(..max),
+        )
+    } else {
+        rules.rule(Bid::new(2, Strain::Notrump), 145, both & hcp(..max))
+    };
     // The club cue leaves `2♠` below the 3-level, so a *minimum* missing only
     // the spade stopper can still ask.  There is no cheap rung for a minimum
     // missing hearts (`3♥` would read as a maximum), and none at all over the
@@ -658,9 +713,45 @@ fn landy_cue_answer(minor: Suit, cue: Bid, agreements: &Agreements) -> Rules {
             )
             .alert(LANDY_CUE);
     }
-    rules
-        .rule(Bid::new(3, strain), 100, tolerance)
-        .rule(Bid::new(3, strain), 20, hcp(0..))
+    let rules = rules.rule(Bid::new(3, strain), 100, tolerance);
+    if fit_answers {
+        // The notrump rungs above took every doubleton and the 100-rung takes
+        // every 3+ fit, so this formal catch-all is unreachable in practice —
+        // but it must exist ("every table ends in a finite catch-all"), and
+        // notrump is the one call that never manufactures a 5-2.
+        rules.rule(Bid::new(2, Strain::Notrump), 20, hcp(0..))
+    } else {
+        rules.rule(Bid::new(3, strain), 20, hcp(0..))
+    }
+}
+
+/// Opener's answer when the opponents raise over a Landy cue
+/// (`1NT (2♣) 2♥ (2♠)` / `(3♥)` / `(3♠)`) — N1f only
+///
+/// The advancer's raise squeezes the clean ladder ([`landy_cue_answer`]) into
+/// the room it leaves, and hands opener a call the clean table refuses on
+/// purpose: **Pass**, which is safe here because responder is INV+ and
+/// guaranteed another turn.  So the compressed ladder keeps only the calls
+/// that say something Pass cannot — game with both of their majors stopped,
+/// and the fit, split by size where a 3-level raise still exists (their `2♠`
+/// over the club cue) and folded to a maximum `4m` where it does not.
+/// Everything else passes and lets responder place it; without this node the
+/// floor was bidding 3-5 card *majors* at the four level on these auctions
+/// (−14…−18 PD, the worst boards of the whole divergent set).
+fn landy_cue_overcalled(minor: Suit, over: Bid, agreements: &Agreements) -> Rules {
+    let strain = Strain::from(minor);
+    let max = agreements.notrump.size_ask_accept_floor;
+    let both = stopper_in(Suit::Hearts) & stopper_in(Suit::Spades);
+    let raise = cheapest_above(strain, over);
+    let mut rules = Rules::new().rule(Bid::new(3, Strain::Notrump), 150, both & hcp(max..));
+    if raise < Bid::new(4, strain) {
+        rules = rules
+            .rule(Bid::new(4, strain), 120, len(minor, 3..) & hcp(max..))
+            .rule(raise, 100, len(minor, 3..));
+    } else {
+        rules = rules.rule(raise, 100, len(minor, 3..) & hcp(max..));
+    }
+    rules.rule(Call::Pass, 0, hcp(0..))
 }
 
 /// Responder's rebid over opener's minimum `2NT` (`1NT (2♣) 2♥ - 2NT -`)
@@ -898,6 +989,19 @@ pub(super) fn lebensohl_package() -> Package {
                         Pattern::after("P* 1NT (2♣)", "2NT - 3♣ -"),
                         landy_signoff_answer(),
                     ));
+                    if landy_competition(agreements) {
+                        // N1f: their X of the transfer takes no room — opener
+                        // completes anyway, and responder still passes the
+                        // completion.
+                        entries.extend(rows_of(
+                            Pattern::after("P* 1NT (2♣)", "2NT (X)"),
+                            complete_lebensohl_relay(),
+                        ));
+                        entries.extend(rows_of(
+                            Pattern::after("P* 1NT (2♣)", "2NT (X) 3♣ -"),
+                            landy_signoff_answer(),
+                        ));
+                    }
                 } else {
                     entries.extend(rows_of(
                         Pattern::after("P* 1NT (2♣)", "2NT -"),
@@ -935,6 +1039,38 @@ pub(super) fn lebensohl_package() -> Package {
                             Pattern::after("P* 1NT (2♣)", &format!("{cue} -")),
                             landy_cue_answer(minor, cue, agreements),
                         ));
+                        if landy_competition(agreements) {
+                            // N1f: their X of the cue takes no room, so
+                            // opener's immediate answer is the clean ladder
+                            // verbatim — and every deeper X-then-bid suffix is
+                            // stripped back onto the clean subtree by the
+                            // systems-on rebase (the contested-Stayman idiom),
+                            // so the asks, rebids and re-cues all answer as if
+                            // undoubled.
+                            entries.extend(rows_of(
+                                Pattern::after("P* 1NT (2♣)", &format!("{cue} (X)")),
+                                landy_cue_answer(minor, cue, agreements),
+                            ));
+                            entries.push(systems_on_over_double(
+                                &format!("P* 1NT (2♣) {cue}"),
+                                &cheapest_above(Strain::Notrump, cue).to_string(),
+                            ));
+                            // Their raise over the cue — `(2♠)` exists over
+                            // the club cue only; `(4♠)` and higher stay the
+                            // floor's, deliberately.
+                            let mut overs =
+                                vec![Bid::new(3, Strain::Hearts), Bid::new(3, Strain::Spades)];
+                            let cheap_raise = Bid::new(2, Strain::Spades);
+                            if cheap_raise > cue {
+                                overs.push(cheap_raise);
+                            }
+                            for over in overs {
+                                entries.extend(rows_of(
+                                    Pattern::after("P* 1NT (2♣)", &format!("{cue} ({over})")),
+                                    landy_cue_overcalled(minor, over, agreements),
+                                ));
+                            }
+                        }
                         // Opener's minimums that are not asks: 2NT has both
                         // stoppers, 3m has none — the only rung that leaves
                         // responder's worry open, so the re-cue lives there.
@@ -977,6 +1113,21 @@ pub(super) fn lebensohl_package() -> Package {
                                 Pattern::after("P* 1NT (2♣)", &after),
                                 landy_ask_answer(minor, asked, ask),
                             ));
+                            if landy_competition(agreements) {
+                                // N1f: the doubled ask — the nine-board
+                                // `3♥x`-passed-out defect.  Their X takes no
+                                // room: responder answers the ask verbatim,
+                                // and deeper X-then-bid suffixes rebase onto
+                                // the clean subtree.
+                                entries.extend(rows_of(
+                                    Pattern::after("P* 1NT (2♣)", &format!("{cue} - {ask} (X)")),
+                                    landy_ask_answer(minor, asked, ask),
+                                ));
+                                entries.push(systems_on_over_double(
+                                    &format!("P* 1NT (2♣) {cue} - {ask}"),
+                                    &cheapest_above(Strain::Notrump, ask).to_string(),
+                                ));
+                            }
                             // Responder's cheap notrump is a minimum with the
                             // stopper, so opener still judges game — the same
                             // question the natural 2NT invite asks, hence the

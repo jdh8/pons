@@ -43,10 +43,19 @@ Come back here only if the fix means authoring new nodes — then steps 3–11 a
    builders/nodes before writing new ones.
 3. **Author the WHOLE convention, both sides.** The bid, partner's advances and
    continuations, opener/overcaller rebids, and the contested tails (they
-   double it, they overcall it). A relay whose saved space is never spent — or
-   an advance left to the floor — measures as a loss even when the idea wins.
-   Watch rule weights: an overlapping cheaper rule (e.g. a transfer) can
-   swallow the hands your new rule was written for.
+   double it, they overcall it). **The contested tails are the most-skipped
+   half, and skipping them has never been free**: registration is suffix-exact,
+   so an artificial forcing call whose registered suffixes all end in `-` drops
+   to the floor the moment an opponent acts — and the floor has no forcing
+   channel, so it passes out a doubled ask or bids a phantom suit. Measured
+   twice in one campaign: N1b's doubled stopper-ask passed out in `3♥x`, N1c's
+   interference hole at −4.68 PD/fired vul
+   (docs/one-notrump-competitive.md). A `systems_on_over_double` rebase often
+   covers the whole `(X)` tail for free; the overcalls the opponents actually
+   make need their own small tables. A relay whose saved space is never
+   spent — or an advance left to the floor — measures as a loss even when the
+   idea wins. Watch rule weights: an overlapping cheaper rule (e.g. a
+   transfer) can swallow the hands your new rule was written for.
 4. **Alert + reading, same change.**
    - Artificial calls get `.alert(Alert("kebab-slug"))`; the invariant test
      `artificial_calls_are_alerted` fails on a missed one. Pick a const name

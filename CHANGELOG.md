@@ -9,6 +9,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **N1d/e/f: the Landy-counter cue repairs — SHIPPED DEFAULT-ON, the
+  package's first `win | win`** (`defense_2c_landy_cue_floor`,
+  `defense_2c_landy_fit_answers`, `defense_2c_landy_competition`, each
+  implying `defense_2c_landy_transfer`; all four defaults flipped to true).
+  The stack engages only under the `their.two_clubs_landy` declaration, so
+  the default system is byte-identical (`smoke-default` SHA `8ea2f567…`
+  unchanged); against a declared/derived-Landy opponent the engine now plays
+  the full N1c structure with three repairs:
+
+  - **N1d** raises the cues' floor from `points(8..)` to `points(10..)`,
+    returning the 8-9 five-card-minor hands to the values double. The
+    increment alone is plain-wash + PD CI-clear at both vulnerabilities
+    (`d↔xfer`, 230.4k bd/vul: PD **+0.0009 ±0.0008** NV / **+0.0015 ±0.0009**
+    vul, +1.21/+2.49 per fired), with cue→X 55-60% of all divergence at
+    +2.0…+5.1 PD per fired — the per-bid decomposition's poached-double rows,
+    reversed on cue.
+  - **N1e** answers a cue in notrump on doubleton support (`3NT`/`2NT` become
+    *both majors stopped, or ≤2-card support* at max/min; every raise and ask
+    now promises 3+; the catch-all flips to `2NT`). The fit forensic priced
+    the doubleton raise it deletes at −10.0/−8.2 PD per fired 5-2; after N1d
+    the increment fired 3+1 boards, shipped on the naturalness tiebreak.
+  - **N1f** authors the interfered tails the doc priced at −4.68 PD/fired
+    vul: their X of a cue or ask is answered verbatim and deeper X-then-bid
+    suffixes rebase onto the clean subtree (`systems_on_over_double`, the
+    contested-Stayman idiom); their raise over a cue gets a compressed
+    ladder with Pass safe (responder is INV+); the doubled club transfer
+    still completes. Known residue: their *second* call still drops to the
+    floor (one −17 PD phantom-major board) — a floor-discipline item, not a
+    node item.
+
+  **Ship verdict** (`f↔on` vs the shipped base counter, pooled seeds
+  1786694464 + 1786695954, 460.8k bd/vul, 0.11-0.14% fired): plain DD
+  **+0.00068 ±0.00062** NV / **+0.00085 ±0.00072** vul, PD +0.00075 ±0.00077
+  NV / **+0.00100 ±0.00087** vul; our-opened subset stronger (NV PD
+  **+0.00077 ±0.00064** CI-clear); 8/8 sd cells positive; no negative cell
+  in 24 readings — the decision table's `win | win` row. Isolation gate: the
+  N1e/N1f increments pass at zero foreign boards; the cue-floor pairs carry
+  the known mirror-read leak (18-43%), which *depresses* the headline
+  (foreign boards net ≈0). Harness contract: `bba-gen`'s stack flags became
+  `Option<bool>` (unset = engine default; pre-ship arms spell
+  `--defense-2c-landy-<knob> false`), and `bba-decompose` gained
+  `--landy-stack false` to replay dumps generated between the base-counter
+  ship and this one.
+
+- **`probe-divergence` records the declaring side's combined trump length**
+  (`fit_on`/`fit_off`, null for notrump or a pass-out). Built for the N1c fit
+  forensic — 60% of cue boards land in notrump (the poached-double bleed),
+  ≤7-card fits are 7% of them at a catastrophic −10.0/−8.2 PD per fired,
+  split between the doubleton catch-all raise and interference-hole floor
+  majors (docs/one-notrump-competitive.md §fit forensic).
+
+- **The interfered-tails iron rule, documented in three places** after the
+  N1b/N1c evidence (a doubled ask passed out in `3♥x`; the −4.68 PD/fired
+  hole): an artificial forcing call is not finished until its `(X)` and
+  cheap-overcall tails are authored — registration is suffix-exact and the
+  floor has no forcing channel. CLAUDE.md's measurement iron rule, the
+  author-convention skill's step 3 (with the "every suffix ends in `-`" tell
+  and the `systems_on_over_double` shortcut), and
+  docs/bidding-architecture.md §Resolution and shadowing (scoped against the
+  smarter-floor rule: deep *clean* continuations stay the floor's).
+
 - **N1c: the Landy counter's minors re-rung around a club transfer
   (`defense_2c_landy_transfer`, opt-in, A/B owed).** The knob implies
   `defense_2c_landy_cues` — the `2♥`/`2♠` cues are kept verbatim — and re-spends

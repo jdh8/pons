@@ -81,6 +81,19 @@ auction + hand
   Deep conventional continuations that run off-book should be caught by a
   *smarter floor*, not by authoring a node per artificial bid (whack-a-mole;
   one attempt authored 42 nodes and still missed a family).
+- **An artificial forcing call is not finished until its interfered tails are
+  authored.** Registration is suffix-exact: a table registered on `{call} -`
+  covers only the clean continuation, so the moment an opponent doubles or
+  overcalls, the auction drops to a floor whose `Inferences` carry no forcing
+  channel — it passes out the doubled ask, or bids a phantom suit off the bare
+  envelope. This is distinct from the smarter-floor rule above: deep *clean*
+  continuations belong to the floor, but the `(X)` and cheap-overcall tails of
+  a forcing gadget are part of the convention itself. A
+  `systems_on_over_double` rebase often covers the whole `(X)` tail for free;
+  registration blocks whose every suffix ends in `-` are the tell. Priced
+  twice in one campaign (N1b's doubled ask passed out in `3♥x`; N1c's
+  interference hole, −4.68 PD/fired vul —
+  [one-notrump-competitive.md](one-notrump-competitive.md)).
 
 ## The Constraint DSL (`constraint.rs`)
 

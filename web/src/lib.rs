@@ -913,6 +913,9 @@ knob!(set_defense_to_2d_multi, defense_to_2d_multi, competition.defense_2d_multi
 knob!(declare_their_2c_landy, their_2c_landy, their.two_clubs_landy: bool);
 knob!(set_defense_to_2c_landy_cues, defense_to_2c_landy_cues, competition.defense_2c_landy_cues: bool);
 knob!(set_defense_to_2c_landy_transfer, defense_to_2c_landy_transfer, competition.defense_2c_landy_transfer: bool);
+knob!(set_defense_to_2c_landy_cue_floor, defense_to_2c_landy_cue_floor, competition.defense_2c_landy_cue_floor: bool);
+knob!(set_defense_to_2c_landy_fit_answers, defense_to_2c_landy_fit_answers, competition.defense_2c_landy_fit_answers: bool);
+knob!(set_defense_to_2c_landy_competition, defense_to_2c_landy_competition, competition.defense_2c_landy_competition: bool);
 
 // The classify-time half, on this value rather than the crate's thread-locals:
 // the system carries its agreements now, so a setter that wrote a global would
@@ -1373,7 +1376,13 @@ static SETTINGS: &[Setting] = &[
     toggle("their_2c_landy", COMPETITION, "Their 1NT-overcall 2♣ = Landy (declared)", false, declare_their_2c_landy, their_2c_landy),
     toggle("defense_to_2c_landy_cues", COMPETITION, "Landy counter: GF minor cues", false, set_defense_to_2c_landy_cues, defense_to_2c_landy_cues),
     // Implies the cues row above (N1c keeps them and re-rungs what is below).
-    toggle("defense_to_2c_landy_transfer", COMPETITION, "Landy counter: club transfer + INV minors", false, set_defense_to_2c_landy_transfer, defense_to_2c_landy_transfer),
+    // The stack below it shipped default-on 2026-08-14 (pooled two-seed
+    // win|win vs the base counter); all four engage only under the
+    // `their_2c_landy` declaration.
+    toggle("defense_to_2c_landy_transfer", COMPETITION, "Landy counter: club transfer + INV minors", true, set_defense_to_2c_landy_transfer, defense_to_2c_landy_transfer),
+    toggle("defense_to_2c_landy_cue_floor", COMPETITION, "Landy counter: 10+ cue floor", true, set_defense_to_2c_landy_cue_floor, defense_to_2c_landy_cue_floor),
+    toggle("defense_to_2c_landy_fit_answers", COMPETITION, "Landy counter: notrump on doubleton support", true, set_defense_to_2c_landy_fit_answers, defense_to_2c_landy_fit_answers),
+    toggle("defense_to_2c_landy_competition", COMPETITION, "Landy counter: interfered tails", true, set_defense_to_2c_landy_competition, defense_to_2c_landy_competition),
     toggle("leaping_michaels", COMPETITION, "Leaping Michaels", true, set_leaping_michaels, leaping_michaels),
     toggle("responsive_takeout", COMPETITION, "Responsive doubles", true, set_responsive_takeout, responsive_takeout),
     toggle("rich_advance_double", COMPETITION, "", true, set_rich_advance_double, rich_advance_double),

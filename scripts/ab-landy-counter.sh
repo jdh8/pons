@@ -33,28 +33,40 @@ log "=== landy-counter SEED_BASE=$SEED_BASE sha=$SHA"
 for v in none both; do
     # `--their-2c-landy` is a declaration override: bba-gen now DERIVES the
     # Landy read from the opponents' declaration and defaults it ON vs the
-    # 2/1 reference, so the off arm must force the natural read explicitly.
-    arm landy-xfer "$v" --their-2c-landy true  --defense-2c-landy-transfer --filter-1nt
-    arm landy-cues "$v" --their-2c-landy true  --defense-2c-landy-cues     --filter-1nt
-    arm landy-on   "$v" --their-2c-landy true                              --filter-1nt
-    arm landy-off  "$v" --their-2c-landy false                             --filter-1nt
-    # Four arms, three paired diffs, each pricing one increment: on↔off is the
-    # base counter (N1), cues↔on is the GF-minor-cue overlay (N1b) alone — the
-    # falsifiable delta of the 1♣ (2♣) analogy — and xfer↔cues is N1c, the
-    # re-rung minors on top of the cues (docs/one-notrump-competitive.md).
-    diffpair landy-on   landy-off  "$v"     # ship gate: plain + PD in one solve
-    diffpair landy-cues landy-on   "$v"
-    diffpair landy-xfer landy-cues "$v"
+    # 2/1 reference, so an off arm must force the natural read explicitly.
+    #
+    # Round 5 (N1d/e/f, 2026-08-14): the cue repairs, stacked in evidence
+    # order on top of N1c.  Earlier rounds' arms (landy-cues, landy-off) and
+    # their diffs live in ab-results/landy-counter*/ and ab-results/landy-n1c*/;
+    # this round regenerates its control at HEAD (a shared seed pairs DEALS,
+    # not code).
+    # Since the 2026-08-14 stack ship the engine default IS landy-f, so the
+    # other arms are spelled by switching pieces OFF (the flags are
+    # Option<bool>: `--defense-2c-landy-<knob> false`).
+    arm landy-xfer "$v" --their-2c-landy true --defense-2c-landy-cue-floor false \
+        --defense-2c-landy-fit-answers false --defense-2c-landy-competition false --filter-1nt
+    arm landy-d "$v" --their-2c-landy true \
+        --defense-2c-landy-fit-answers false --defense-2c-landy-competition false --filter-1nt
+    arm landy-e "$v" --their-2c-landy true --defense-2c-landy-competition false --filter-1nt
+    arm landy-f "$v" --their-2c-landy true --filter-1nt
+    arm landy-on "$v" --their-2c-landy true --defense-2c-landy-transfer false \
+        --defense-2c-landy-cue-floor false --defense-2c-landy-fit-answers false \
+        --defense-2c-landy-competition false --filter-1nt
+    # Three increments and the ship comparison: d↔xfer is the cue floor alone
+    # (N1d), e↔d the doubleton-notrump answers on top (N1e), f↔e the
+    # interfered tails on top (N1f) — expected CI-wide on its own, the hole
+    # fired on 47/460k boards — and f↔on is what decides shipping: the full
+    # stack against the shipped counter (docs/one-notrump-competitive.md).
+    diffpair landy-d landy-xfer "$v"
+    diffpair landy-e landy-d "$v"
+    diffpair landy-f landy-e "$v"
+    diffpair landy-f landy-on "$v"
     # The counter is a constructive/defensive contract choice, not obstruction,
     # so plain+PD decide.  sd is read only as a tie-breaker if they disagree.
-    #
-    # N1c caveat: DD is blind to right-siding, so the club transfer's headline
-    # gain (the 1NT opener declaring 3♣) measures ZERO here by construction.
-    # What xfer↔cues actually prices is 3m as INV rather than weak, the deleted
-    # weak 3♦, the deleted natural 2NT invite, and the 4m slam try.
-    sddiff landy-on   landy-off  "$v"
-    sddiff landy-cues landy-on   "$v"
-    sddiff landy-xfer landy-cues "$v"
+    sddiff landy-d landy-xfer "$v"
+    sddiff landy-e landy-d "$v"
+    sddiff landy-f landy-e "$v"
+    sddiff landy-f landy-on "$v"
 done
 
 log "landy-counter done"

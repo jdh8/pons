@@ -41,17 +41,33 @@ fn row_package_invariants() {
     );
 }
 
-/// The Landy counter's three arms are all opt-in, so the default-agreements
-/// run above never walks a single one of their rows.  Probe each arm on its
-/// own — this is the only place the counter's totality and alert invariants are
-/// checked at all.
+/// The Landy counter's arms are all opt-in, so the default-agreements run
+/// above never walks a single one of their rows.  Probe each arm on its own —
+/// this is the only place the counter's totality and alert invariants are
+/// checked at all.  The tuples are (cues, transfer, cue_floor, fit_answers,
+/// competition): the three original arms, each N1d/e/f refinement alone, and
+/// the stacked A/B arms d → d+e → d+e+f.
 #[test]
 fn landy_counter_package_invariants() {
-    for (cues, transfer) in [(false, false), (true, false), (false, true)] {
+    for (cues, transfer, cue_floor, fit_answers, competition) in [
+        (false, false, false, false, false),
+        (true, false, false, false, false),
+        (false, true, false, false, false),
+        (false, false, true, false, false),
+        (false, false, false, true, false),
+        (false, false, false, false, true),
+        (false, false, true, true, false),
+        (false, false, true, true, true),
+        // The shipped default since 2026-08-14: the whole stack.
+        (false, true, true, true, true),
+    ] {
         let mut arm = Agreements::default();
         arm.their.two_clubs_landy = true;
         arm.competition.defense_2c_landy_cues = cues;
         arm.competition.defense_2c_landy_transfer = transfer;
+        arm.competition.defense_2c_landy_cue_floor = cue_floor;
+        arm.competition.defense_2c_landy_fit_answers = fit_answers;
+        arm.competition.defense_2c_landy_competition = competition;
         crate::bidding::rows::assert_package_invariants(&arm, &[super::lebensohl_package()]);
     }
 }
@@ -99,27 +115,53 @@ pub(super) fn bid_transfer(auction: &[Call], hand: &str) -> (Call, bool) {
     best_call_with(&arm, auction, hand)
 }
 
-/// As [`best_call`], with the opponents' `2♣` declared as Landy (so the
-/// counter-defense engages)
+/// The declared-Landy agreements with the measured arms' historical knob
+/// state pinned explicitly — the 2026-08-14 default flip turned the whole
+/// N1d/e/f stack on, so a helper that wants the *base* counter (or a single
+/// overlay) must say so rather than ride the defaults.
+fn landy_arm(cues: bool, transfer: bool) -> Agreements {
+    let mut arm = Agreements::default();
+    arm.their.two_clubs_landy = true;
+    arm.competition.defense_2c_landy_cues = cues;
+    arm.competition.defense_2c_landy_transfer = transfer;
+    arm.competition.defense_2c_landy_cue_floor = false;
+    arm.competition.defense_2c_landy_fit_answers = false;
+    arm.competition.defense_2c_landy_competition = false;
+    arm
+}
+
+/// As [`best_call`], with the opponents' `2♣` declared as Landy and the
+/// **base** counter pinned (the pre-stack N1 arm)
 pub(super) fn bid_landy(auction: &[Call], hand: &str) -> (Call, bool) {
-    let mut arm = Agreements::default();
-    arm.their.two_clubs_landy = true;
-    best_call_with(&arm, auction, hand)
+    best_call_with(&landy_arm(false, false), auction, hand)
 }
 
-/// As [`bid_landy`], with the N1b GF-minor-cue overlay on
+/// As [`bid_landy`], with the N1b GF-minor-cue overlay on (alone)
 pub(super) fn bid_landy_cues(auction: &[Call], hand: &str) -> (Call, bool) {
-    let mut arm = Agreements::default();
-    arm.their.two_clubs_landy = true;
-    arm.competition.defense_2c_landy_cues = true;
-    best_call_with(&arm, auction, hand)
+    best_call_with(&landy_arm(true, false), auction, hand)
 }
 
-/// As [`bid_landy`], with the N1c re-rung minors on (which imply the cues)
+/// As [`bid_landy`], with the N1c re-rung minors on (which imply the cues),
+/// N1d/e/f pinned off — the arm the N1c A/B measured
 pub(super) fn bid_landy_transfer(auction: &[Call], hand: &str) -> (Call, bool) {
+    best_call_with(&landy_arm(false, true), auction, hand)
+}
+
+/// As [`bid_landy_transfer`], with any of the N1d/N1e/N1f refinements on —
+/// the cue floor, the doubleton-notrump answers, the interfered tails.  Each
+/// implies N1c on its own.
+pub(super) fn bid_landy_n1(
+    cue_floor: bool,
+    fit_answers: bool,
+    competition: bool,
+    auction: &[Call],
+    hand: &str,
+) -> (Call, bool) {
     let mut arm = Agreements::default();
     arm.their.two_clubs_landy = true;
-    arm.competition.defense_2c_landy_transfer = true;
+    arm.competition.defense_2c_landy_cue_floor = cue_floor;
+    arm.competition.defense_2c_landy_fit_answers = fit_answers;
+    arm.competition.defense_2c_landy_competition = competition;
     best_call_with(&arm, auction, hand)
 }
 

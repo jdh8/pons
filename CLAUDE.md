@@ -82,7 +82,9 @@ two docs above hold the full story; the rules survive summarizing:
 - Before declaring a measured loss dead, trace the worst divergent boards —
   the usual culprits are an unauthored continuation or an over-broad trigger.
 - Measure against the **real routing** (the contract those hands actually
-  reach), and complete the convention — both sides' continuations — first.
+  reach), and complete the convention first — both sides' continuations
+  **and the interfered tails** (they double it, they overcall it): an
+  artificial call with only constructive responses authored is not complete.
 
 ### Architecture (details: [docs/bidding-architecture.md](docs/bidding-architecture.md))
 

@@ -204,9 +204,74 @@ pub struct CompetitionKnobs {
     /// - `4♣`/`4♦` over opener's minimum rebids = a slam try on the six-card
     ///   source of tricks, which the cue skeleton had no rung for.
     ///
-    /// **Off by default**, opt-in pending the A/B.  No effect while their `2♣`
-    /// is undeclared or natural.
+    /// **Default on since 2026-08-14**, as part of the N1c+N1d/e/f stack: the
+    /// stack vs the base counter measured plain-DD **win** + PD **win** pooled
+    /// over two seeds (460.8k bd/vul; NV plain +0.00068 ±0.00062, vul plain
+    /// +0.00085 ±0.00072 / PD +0.00100 ±0.00087, every SD cell positive) —
+    /// the decision table's `win | win` row.  No effect while their `2♣` is
+    /// undeclared or natural, so the default *system* is unchanged; the arm
+    /// engages exactly where the disclosure does.
     pub defense_2c_landy_transfer: bool,
+    /// Raise the Landy cues' floor from `points(8..)` to `points(10..)` (N1d)
+    ///
+    /// Implies [`Self::defense_2c_landy_transfer`].  The per-bid decomposition
+    /// of N1c against the shipped counter found the cue poaching the values
+    /// double: at `points(8..)` and weight 173/172 against the double's 145,
+    /// the cue takes **every** 8+ point hand with a five-card minor, and every
+    /// hand that migrated `X` → cue measured −0.92 PD NV / −2.53 PD vul per
+    /// fired board.  The floor returns the 8-9 five-card-minor hands to the
+    /// double; sub-8-hcp shapely hands fall to `2♦`/the transfer/Pass, which is
+    /// where a values double's doctrine wants them.
+    ///
+    /// **Default on since 2026-08-14.**  The increment alone measured plain
+    /// wash + PD CI-clear win at both vulnerabilities (d↔xfer, 230.4k bd/vul:
+    /// PD +0.0009 ±0.0008 NV / +0.0015 ±0.0009 vul; our-opened subset
+    /// stronger still), the cue→X migration carrying +2.0…+5.1 PD per fired —
+    /// the poached-double rows reversed, exactly as the per-bid decomposition
+    /// predicted.  No effect while their `2♣` is undeclared or natural.
+    pub defense_2c_landy_cue_floor: bool,
+    /// Answer a Landy cue in notrump on doubleton support (N1e)
+    ///
+    /// Implies [`Self::defense_2c_landy_transfer`].  The base
+    /// `landy_cue_answer` catch-all raises the cue's minor on **two** — by
+    /// design ("opener is balanced, so it never lands on fewer than two") —
+    /// and the fit forensic priced the resulting 5-2 finals at −10.0/−8.2 PD
+    /// per fired board (docs/one-notrump-competitive.md, the fit forensic).
+    /// With this on, the notrump rungs take doubleton hands at both strength
+    /// levels — `3NT`/`2NT` become *(both majors stopped, or ≤2-card
+    /// support)*, keeping level-as-strength — and every raise and ask
+    /// therefore promises 3+.  A stopper is only guaranteed when opener also
+    /// holds a fit; responder places the final contract knowing which.
+    ///
+    /// **Default on since 2026-08-14**, riding the stack's `win | win`
+    /// verdict.  Its own increment was a 1-3 board wash after the cue floor
+    /// (N1d already removes most doubleton-raise cues), shipped on the
+    /// naturalness tiebreak: raises promising 3+ support is the established
+    /// doctrine, and the alternative was a priced −10.0/−8.2 PD per fired
+    /// 5-2.  No effect while their `2♣` is undeclared or natural.
+    pub defense_2c_landy_fit_answers: bool,
+    /// Author the Landy counter's interfered tails (N1f)
+    ///
+    /// Implies [`Self::defense_2c_landy_transfer`].  Every registered suffix
+    /// of the counter ends in `-`, so an opponent call over a cue or an ask
+    /// drops the auction to a floor with no forcing channel — the priced
+    /// interference hole (−4.68 PD/fired vul; a doubled ask passed out in
+    /// `3♥x`; the floor bidding 3-5 card majors at the four level for
+    /// −14…−18).  With this on: their `X` of a cue or an ask is stripped by
+    /// the systems-on rebase (it takes no room, so the whole clean subtree
+    /// answers verbatim), their raise over a cue gets opener's compressed
+    /// answer (`landy_cue_overcalled`), and the doubled club transfer is
+    /// still completed.
+    ///
+    /// **Default on since 2026-08-14**, riding the stack's `win | win`
+    /// verdict; its own increment (17/11 fired) is a wash, shipped as
+    /// convention-completion — the iron rule's interfered tails, whose
+    /// absence was priced at −4.68 PD/fired vul.  Known residue: their
+    /// *second* call (a re-raise over opener's answer) still drops to the
+    /// floor, which can bid a phantom major one level deeper on freak boards;
+    /// that fix is floor discipline, not more nodes.  No effect while their
+    /// `2♣` is undeclared or natural.
+    pub defense_2c_landy_competition: bool,
     // --- competition/negative_double.rs
     /// Which negative-double school the minor openings play
     ///
@@ -545,7 +610,10 @@ impl Default for CompetitionKnobs {
             lebensohl_style: LebensohlStyle::Transfer,
             defense_2d_multi: false,
             defense_2c_landy_cues: false,
-            defense_2c_landy_transfer: false,
+            defense_2c_landy_transfer: true,
+            defense_2c_landy_cue_floor: true,
+            defense_2c_landy_fit_answers: true,
+            defense_2c_landy_competition: true,
             negative_double_shape: NegativeDoubleShape::Modern,
             cachalot_contested_x: true,
             weak_two_competition: false,

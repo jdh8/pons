@@ -308,11 +308,37 @@ struct Args {
     defense_2c_landy_cues: bool,
 
     /// N1c: re-rung the Landy counter's minors around a club transfer (`2NT` =
-    /// weak 6+ clubs, `3♣`/`3♦` = INV 6+, `4♣`/`4♦` = slam try) — the fourth
-    /// arm of the Landy A/B.  Implies --defense-2c-landy-cues; does nothing
-    /// without --their-2c-landy.
-    #[arg(long, default_value_t = false)]
-    defense_2c_landy_transfer: bool,
+    /// weak 6+ clubs, `3♣`/`3♦` = INV 6+, `4♣`/`4♦` = slam try).  Implies
+    /// --defense-2c-landy-cues; does nothing without --their-2c-landy.
+    /// **Engine default ON since 2026-08-14** (the stack's win|win); pass
+    /// `false` for the pre-stack arm.  Unset = the engine default.
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    defense_2c_landy_transfer: Option<bool>,
+
+    /// N1d: raise the Landy cues' floor to `points(10..)`, returning the 8-9
+    /// five-card-minor hands to the values double.  Implies
+    /// --defense-2c-landy-transfer; does nothing without --their-2c-landy.
+    /// **Engine default ON since 2026-08-14**; pass `false` for the pre-N1d
+    /// arm.  Unset = the engine default.
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    defense_2c_landy_cue_floor: Option<bool>,
+
+    /// N1e: answer a Landy cue in notrump on doubleton support (the notrump
+    /// rungs become "both majors stopped, or ≤2-card support"; raises and asks
+    /// promise 3+).  Implies --defense-2c-landy-transfer; does nothing without
+    /// --their-2c-landy.  **Engine default ON since 2026-08-14**; pass `false`
+    /// for the pre-N1e arm.  Unset = the engine default.
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    defense_2c_landy_fit_answers: Option<bool>,
+
+    /// N1f: author the Landy counter's interfered tails (their X of a cue/ask
+    /// answered as if undoubled via the systems-on rebase, their raise over a
+    /// cue answered by the compressed ladder, the doubled transfer still
+    /// completed).  Implies --defense-2c-landy-transfer; does nothing without
+    /// --their-2c-landy.  **Engine default ON since 2026-08-14**; pass `false`
+    /// for the pre-N1f arm.  Unset = the engine default.
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    defense_2c_landy_competition: Option<bool>,
 
     /// Suppress our *own* 1NT opening (those 15-17 balanced hands open a minor),
     /// so every 1NT in the match is BBA's and our pair is purely the defender.
@@ -1742,7 +1768,21 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.competition.defense_2d_multi = args.defense_2d_multi;
     agreements.their.two_clubs_landy = their_2c_landy(args)?;
     agreements.competition.defense_2c_landy_cues = args.defense_2c_landy_cues;
-    agreements.competition.defense_2c_landy_transfer = args.defense_2c_landy_transfer;
+    // The stack knobs are engine-default ON (2026-08-14): only an explicit
+    // flag overrides, so a plain vs-BBA run generates the shipped stack and a
+    // pre-ship arm is spelled `--defense-2c-landy-<knob> false`.
+    if let Some(v) = args.defense_2c_landy_transfer {
+        agreements.competition.defense_2c_landy_transfer = v;
+    }
+    if let Some(v) = args.defense_2c_landy_cue_floor {
+        agreements.competition.defense_2c_landy_cue_floor = v;
+    }
+    if let Some(v) = args.defense_2c_landy_fit_answers {
+        agreements.competition.defense_2c_landy_fit_answers = v;
+    }
+    if let Some(v) = args.defense_2c_landy_competition {
+        agreements.competition.defense_2c_landy_competition = v;
+    }
     agreements.competition.competition_over_stayman = !args.no_ns_comp_over_stayman;
     agreements.competition.competitive_4333 = match args.ns_competitive_4333.as_str() {
         "allow" => pons::bidding::american::Competitive4333::Allow,

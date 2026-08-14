@@ -75,6 +75,14 @@ struct Args {
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
     landy_counter: Option<bool>,
 
+    /// Replay the Landy counter as the N1c+N1d/e/f stack (the engine default
+    /// since the 2026-08-14 stack ship).  Pass `false` to replay dumps
+    /// generated between the base-counter ship and the stack ship, whose `on`
+    /// arms played the base counter.  Meaningless when the counter itself is
+    /// off.
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    landy_stack: Option<bool>,
+
     /// DD-table cache (JSON file), created if absent and updated with new
     /// solves — the artifact that makes a re-anchor take minutes
     #[arg(long)]
@@ -366,8 +374,18 @@ fn main() -> anyhow::Result<()> {
         .landy_counter
         .unwrap_or_else(|| arms.iter().any(|arm| arm.their_label.contains("BBA")));
     let partnership = if landy {
-        let agreements =
+        let mut agreements =
             common::vs_bba_agreements(pons::bidding::agreements::Agreements::default());
+        if !args.landy_stack.unwrap_or(true) {
+            // Dumps from between the base-counter ship and the stack ship:
+            // the declaration was already derived, but the arms played the
+            // base counter — zero the stack knobs the 2026-08-14 default
+            // flip turned on.
+            agreements.competition.defense_2c_landy_transfer = false;
+            agreements.competition.defense_2c_landy_cue_floor = false;
+            agreements.competition.defense_2c_landy_fit_answers = false;
+            agreements.competition.defense_2c_landy_competition = false;
+        }
         match args.our_floor {
             OurFloor::American => american(&agreements),
             OurFloor::AmericanInstinct => american_instinct(&agreements),
