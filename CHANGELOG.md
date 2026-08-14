@@ -22,6 +22,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **N1* post-ship decompose: the "their second call still floors us" residue
+  sized, node deletion closed.** The decompose the N1g ship owed
+  (`ab-results/landy-postship-decompose/`, arms regenerated at HEAD on the
+  three ship seeds — the pre-94daa30 dumps no longer replay): 148 failing
+  our-side contracts on 97 deals across 2 653 Landy-lane boards, −1 256 PD
+  duplicate swing. 84 are hopeless 3NTs (game judgment); 17 suit contracts
+  sat on ≤5-card combined holdings — the phantom class survives N1g, and
+  73% of the PD loss follows *covered* their-calls (true-envelope floor
+  indiscipline), 27% an unread one. Verdict recorded in
+  [docs/one-notrump-competitive.md](docs/one-notrump-competitive.md)
+  §Residue: build the M6.4-style rail (envelope-gated new-suit veto) before
+  the `their_profile` split; deleting the cue-response nodes stays closed
+  (completeness rule + the floor beneath still phantom-bids). Analysis only
+  — no behavior change.
+
 - **The alert question, settled: derivation-as-checking**
   (docs/reader-retirement.md §The alert question). A design grill asked
   whether DNF box unions could retire the alert; the answer — derive-at-decode

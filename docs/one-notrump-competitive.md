@@ -395,6 +395,28 @@ edits fail. Run it on every arm pair in this lane; the real fix is splitting
   is the true floor-discipline residue — an M6.4-style rail
   (conversation-in-motion → instinct, or an envelope-gated new-suit veto
   scoped off agreed fits), not another node ring.
+  - **Post-ship decompose RUN 2026-08-14**
+    (`ab-results/landy-postship-decompose/`, `lane-residue.py`; arms
+    regenerated at HEAD on the three N1g ship seeds — the 27003c6 dumps do
+    **not** replay at 94daa30, 122/2.26M calls moved). 2 653 lane boards in
+    460.8k enriched; **148 failing our-side contracts (97 deals, −1 256 PD
+    duplicate swing** — table-B share included): 84 hopeless 3NTs (game
+    judgment, a different lever), 64 suit contracts of which **17 sat on
+    ≤5-card combined holdings — the phantom class persists** (worst repeat
+    offender: `1NT (2♣) 2♥ (2♠) 3♣ (3♠) 4♣ - 4♥` on a 2–2 fit, −18 PD;
+    also `{cue} - 2NT - 4♦ - 4♠` on 4–1, the slam-try continuation the book
+    deliberately leaves to the floor). By reader coverage: **118 boards /
+    −921 PD had only *covered* their-calls** (true-envelope floor
+    indiscipline — several phantom majors bid *into* suits the 2♣ envelope
+    already gives the opponents), 30 / −335 PD followed an unread
+    their-call. **Verdict: rail first** — the false-envelope share is the
+    minority, and an envelope-gated new-suit veto catches both classes; the
+    `their_profile` split stays the structural upgrade path. **Deleting the
+    cue-response nodes is CLOSED**: responses-only deletion breaks
+    convention completeness, whole-tree deletion re-litigates the shipped
+    win|win, and the floor beneath still phantom-bids. The alert-derivation
+    campaign (94daa30) is orthogonal to this lane — all three of its pieces
+    act on *our* rules' alerts.
 - **The `3♣`→`2♥` row is CLOSED** (re-probed 2026-08-14 against the shipped
   stack on the N1g dumps, `read-on ↔ landy-on`): the pre-stack −1.09/−3.26 PD
   loss is gone — vul both **+3.12 plain / +2.38 PD per fired**, NV a small
