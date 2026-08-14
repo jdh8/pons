@@ -910,7 +910,11 @@ knob!(set_competition_over_diamond_transfer, competition_over_diamond_transfer, 
 knob!(set_defense_to_2d_multi, defense_to_2d_multi, competition.defense_2d_multi: bool);
 // Not a knob of ours: a declared fact about the opponents (their disclosed
 // 2♣ over our 1NT shows both majors), hence `declare_*`, not `set_*`.
-knob!(declare_their_2c_landy, their_2c_landy, their.two_clubs_landy: bool);
+knob!(declare_their_2c_landy, their_2c_landy, decision.their.two_clubs_landy: bool);
+// The declaration's read-side wiring: their 2♣ reads as both majors instead
+// of the natural walk's clubs.  Default on (shipped 2026-08-14, plain wash |
+// PD win); a no-op unless the disclosure is declared.
+knob!(set_their_landy_reading, their_landy_reading, decision.reading.their_landy_reading: bool);
 knob!(set_defense_to_2c_landy_cues, defense_to_2c_landy_cues, competition.defense_2c_landy_cues: bool);
 knob!(set_defense_to_2c_landy_transfer, defense_to_2c_landy_transfer, competition.defense_2c_landy_transfer: bool);
 knob!(set_defense_to_2c_landy_cue_floor, defense_to_2c_landy_cue_floor, competition.defense_2c_landy_cue_floor: bool);
@@ -946,6 +950,9 @@ knob!(set_advancer_xx_runout, advancer_xx_runout, decision.instinct.advancer_xx_
 knob!(set_doubler_xx_runout, doubler_xx_runout, instinct.doubler_xx_runout: bool);
 knob!(set_negative_double_shape, negative_double_shape, competition.negative_double_shape: american::NegativeDoubleShape);
 knob!(set_lebensohl_style, lebensohl_style, competition.lebensohl_style: american::LebensohlStyle);
+// The forced 3♣ completion's alert (reads as a puppet, not clubs).  Off
+// pending its A/B — it moves the default system.
+knob!(set_lebensohl_completion_alert, lebensohl_completion_alert, competition.lebensohl_completion_alert: bool);
 knob!(set_passed_hand_overcall, passed_hand_overcall, defense.passed_hand_overcall: bool);
 knob!(set_leaping_michaels, leaping_michaels, defense.leaping_michaels_enabled: bool);
 knob!(set_responsive_takeout, responsive_takeout, defense.responsive_takeout_enabled: bool);

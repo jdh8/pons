@@ -65,7 +65,16 @@ Come back here only if the fix means authoring new nodes — then steps 3–11 a
      the real shape. Gate the reading on the convention's toggle. Without it,
      the floor "raises" the phantom suit into a doubled disaster the moment
      opponents intervene past the book.
-5. **Gate with a `set_*` knob** (thread-local read at book construction),
+   - A call constrained to nothing (`hcp(0..)` — a forced puppet) projects
+     nothing, so the `artificial_calls_are_alerted` witness cannot see it:
+     alert it by hand or the walk reads it as a real suit
+     (`lebensohl_completion_alert` is the precedent).
+   - If the convention is **theirs** (a `their.*` disclosure), wire the read
+     side too: a disclosure that moves only the book leaves the floor bidding
+     on a false opponent envelope (docs/one-notrump-competitive.md §N1g). The
+     reader must be seat-gated to their calls only.
+5. **Gate with an `Agreements` knob** (a field in the matching area struct, or
+   `decision.reading` for read-side switches; no thread-locals since 0.11),
    default **off** while measuring, off-state byte-identical. Wire it into the
    relevant `ab-*` example and/or `bba-gen` as a CLI flag.
 6. **State shapes with the DSL, not ad-hoc closures.** Two-suiter minimums

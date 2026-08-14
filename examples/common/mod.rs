@@ -35,7 +35,7 @@ use rand::rngs::StdRng;
 /// Landy (docs/one-notrump-competitive.md), and the rows stay inert for its
 /// own bidding even when set false.  The card lies, so the default read comes
 /// from the census: their `2♣` is Landy and our counter-defense engages
-/// (`Agreements::their.two_clubs_landy` — the disclosure channel, engine
+/// (`Agreements::decision.their.two_clubs_landy` — the disclosure channel, engine
 /// default *undeclared/natural* for unknown fields).  An explicit declaration
 /// overrides this — we play to disclosure, and a bot that bids Landy behind a
 /// declared no-Landy card commits *its* infraction.
@@ -45,7 +45,7 @@ use rand::rngs::StdRng;
 /// system bit for bit — survives the arming being derived rather than
 /// flagged.
 pub fn vs_bba_agreements(mut agreements: Agreements) -> Agreements {
-    agreements.their.two_clubs_landy = true;
+    agreements.decision.their.two_clubs_landy = true;
     agreements
 }
 

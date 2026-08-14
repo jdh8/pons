@@ -177,6 +177,7 @@ is 5 calls; the most common runout point is after opener's transfer completion
 | # | Package | Knob | State |
 | --- | --- | --- | --- |
 | **N1** | **Landy `(2♣)` counter + N1c/d/e/f stack** | `their.two_clubs_landy` | **SHIPPED 2026-08-14** (base `wash \| win`, stack `win \| win`); was the top loser, both scorers |
+| N1g | Landy **read-side** wiring — their `2♣` = majors in the floor's envelopes | `reading.their_landy_reading` | **SHIPPED DEFAULT-ON 2026-08-14** (`plain wash \| PD win` ×3 seeds, isolation gate 0 foreign); see §N1g |
 | N2 | Muiderberg `(2♠)` calibration | — | −0.66/bd, PD −0.58 NV |
 | N3 | `(3+)` overcalls of our 1NT | new | floor-only today; −0.63/bd |
 | N4 | Multi `(2♦)` — finish + measure | `defense_2d_multi` | exists, half-built, gate bug above; plain-only loss; **owed the `their` disclosure migration N1 got** |
@@ -385,19 +386,77 @@ edits fail. Run it on every arm pair in this lane; the real fix is splitting
 
 ### Residue
 
-- **Their *second* call still floors us**: N1f's worst board is
-  `1NT (2♣) 2♥ (2♠) 3♣ (3♠) 4♦ - 4♠ X` — the authored answer to the first
-  raise, then their re-raise, then the floor bidding a phantom `4♠` one level
-  deeper than the hole N1f closed (−17 PD). One authored round was the priced
-  fix; the deeper fix is the floor's phantom-suit discipline, per the
-  architecture doc's smarter-floor rule, not another node ring.
-- **The `3♣`→`2♥` row is open**: GF six-carders routed through the cue
-  measured −1.09/−3.26 PD against the base counter's forcing `3♣`. A forcing
-  3m above the cue is structurally awkward (one `3m -` answer table cannot
-  both sit on an 8-9 invitation and never pass a game force) — re-read the
-  row against the shipped stack before considering it as its own arm.
+- **Their *second* call still floors us** — **diagnosed and half-closed by
+  N1g** (next section): N1f's worst board was
+  `1NT (2♣) 2♥ (2♠) 3♣ (3♠) 4♦ - 4♠ X` — the floor bidding a phantom `4♠`
+  off an envelope that claimed LHO held five clubs (−17 PD). The wiring
+  fixes the inputs (and the N1g probes show phantom contracts being
+  *corrected*); whatever phantom-bidding remains after a post-ship decompose
+  is the true floor-discipline residue — an M6.4-style rail
+  (conversation-in-motion → instinct, or an envelope-gated new-suit veto
+  scoped off agreed fits), not another node ring.
+- **The `3♣`→`2♥` row is CLOSED** (re-probed 2026-08-14 against the shipped
+  stack on the N1g dumps, `read-on ↔ landy-on`): the pre-stack −1.09/−3.26 PD
+  loss is gone — vul both **+3.12 plain / +2.38 PD per fired**, NV a small
+  mixed wash (+0.42/−0.25), n=20 flips. No forcing-3m arm is warranted; the
+  residual worst boards are the known `{cue}`→`4♥`-instead-of-3NT artifact,
+  2-3 per vul.
 - `{cue} - 3NT -` and `{cue} - 4m -` (opener's maximum rungs) remain
   unauthored; never surfaced in a dump.
+
+### N1g — the read-side wiring (**SHIPPED DEFAULT-ON 2026-08-14**)
+
+Decomposing the residue found **the floor's inputs are lies in this lane**:
+`their.two_clubs_landy` had *zero read-side consumers*.  The disclosure moved
+the book only; opponent-call decoding falls back to our own profile
+([read.rs:333-335](../src/bidding/inference/read.rs)), whose shipped defaults
+read their `2♣` through the natural walk as **5+♣, 8+** — so on every board
+of this lane the learned floor's LHO envelope (its `features_v5` inference
+block) claimed five clubs while LHO held both majors.  The residue boards are
+exactly the floor's boards; the phantom `4♠` was bid off a false deal
+picture, before any question of the net's weights.
+
+The wiring, `ReadingProfile::their_landy_reading` (**default on**; the
+pre-ship arm is `bba-gen --ns-their-landy-read false`): under the declaration
+their `2♣` reads 4-4+ in the majors with no strength claim, their
+`2♦`/`2♥`/`2♠` advances and direct `3M` raises are natural-suppressed (a
+preference plays on a doubleton; the `3M` would otherwise read as a weak-jump
+six-carder).  Implemented as a seat-gated hand reader
+(`inference/readers.rs::their_landy_reading`) that fires only when the `1NT`
+opener is on the *reader's* side — our own `2♣` overcalls cannot match — and
+that does **not** extrapolate through the systems-on strip.  The disclosure
+itself re-homed to `DecisionProfile::their` per the dual-read house rule,
+proven byte-identical (smoke `8ea2f567…` unchanged).
+
+**Ship evidence** (three seeds pooled, 230.4k bd/vul, `read-on ↔ read-off`,
+`scripts/ab-landy-read.sh`, seeds 1786704432 / 1786705413 / 1786705763):
+plain **wash** (NV −0.00051 ±0.00072, vul +0.00001 ±0.00078), PD **win both
+vuls** (NV **+0.00104 ±0.00097**, vul **+0.00112 ±0.00104**; ≈ +1.0/+1.5 per
+fired at 0.07–0.11% fired), sd agreeing in sign (sd-PD +0.00065/+0.00076,
+sd-plain wash) — the decision table's `plain-wash + PD-win` ship row.  The
+**isolation gate passed at zero foreign boards in both vuls** — the first
+pair in this campaign to do so.  Mechanism (from the divergence probes): a
+conservative shift off true envelopes — fewer thin NV games/slams (plain DD,
+the optimism bound, dislikes exactly those; PD likes them), and partner's
+phantom-`4♥` contracts *corrected* to the real fit (+17 PD boards).
+
+Two lessons paid for en route: **seed 1 of the fixed build showed a CI-clear
+NV-plain loss that seeds 2–3 refuted** (single-seed negatives are not design
+inputs — again), and **v1 of the reader leaked through the systems-on
+strip**: in `(1♣) 1NT (2♣)` lanes the strip re-reads our 1NT overcall as an
+opening, the seat gate passed, and their *responder's* 2♣ read as Landy.  The
+v1 worst boards were all this leak; the fix pins the disclosure out of the
+strip recursion (`read.rs`, regression-tested).
+
+A sibling defect found in the same sweep: the forced `3♣` completion of a
+sohl `2NT` relay is `hcp(0..)` — it projects nothing, dodges the alert
+invariant's artificiality witness, and reads as **four real clubs** where no
+blanket covers it.  That lane is *advance-sohl* (their weak two, our takeout
+`X`, the relay), not this one — after our own `1NT` opening the walk blankets
+the whole structure, so plain Lebensohl and the N1c transfer completion are
+latent.  `competition.lebensohl_completion_alert` (**default off pending its
+own A/B** — it moves the default system) alerts the puppet, which decodes as
+⊤ and suppresses the club read.  Never fold its arm into N1g's.
 
 ### How it got here — exploration digest
 
@@ -479,3 +538,4 @@ package ever measured was an unauthored continuation, never the idea.
 | N1b GF minor cues | `defense_2c_landy_cues` | **measured 2026-08-14 ×4 — stays opt-in, but v4 is the first arm with a CI-clear positive and no negative cell**. **v4** (INV+ cues + level-as-strength stopper asks, 230.4k bd/arm/vul, SEED_BASE 1786653231, sha 8873e9c+dirty): NV plain **+0.0016 ±0.0010** / PD +0.0001 ±0.0013, vul plain **+0.0014 ±0.0012** / PD −0.0000 ±0.0014, sd plain **+0.0018/+0.0024**, SD-PD +0.0006 / **+0.0016 ±0.0015**. Lands on `win \| wash` (artifact row); SD splits vul-real / NV-artifact. `probe-divergence` decomposes it into four independent effects, replicating across both vuls (per fired, we-opened, NV/vul): `3♣` weak clubs **+3.41/+2.98 plain, +0.71/+0.61 PD**; `2♠` diamond cue **+1.87/+1.93**, +0.48/+0.12; `2♥` club cue −0.17/+0.06, **−0.76/−1.04 PD**; `3♦` weak diamonds −1.07/+0.55, **−1.71/−0.55 PD**. `2♥`'s whole loss is **9 boards** where we declare *hearts* — `{cue} - {ask} (X)` passed out (every registration ends in `-`) and the floor bidding `4♥` itself on non-book continuations; the other 162 are +81/−22 = wash. Mirror leak persists at 25–31%, PD-positive, `--gate-opener ours` fails. v2 = the *full* UvU skeleton (cues carry all GF one-suiters, direct 3m weak) on the fixed base; the `probe-divergence` post-mortem decomposed the v2 wash — cues −1.76 plain/−1.90 PD per fired (missed *slams*, from a sub-game cue answer), weak escapes +0.54/−1.59 (PD-negative vul only = going for a number), and 38% of divergences on boards the opponents opened (the mirror-read leak). v3a = opener's cue answer restored to `landy_minor_answer` (game level), −0.34…−0.62/fired, still every cell negative | **v2 (full skeleton, N1-win run)** cues↔on: NV plain −0.0005 ±0.0013 / PD −0.0006 ±0.0018, vul plain −0.0007 ±0.0016 / PD −0.0012 ±0.0021, sd −0.0004/−0.0012 (−0.43…−1.25/fired, 0.10–0.11% fired, all CIs ⊇ 0, every cell leaning negative). **v1 (pure cue addition, N1-loss run):** NV plain −0.0001 / PD +0.0004, vul plain +0.0001 / PD +0.0005, sd negative — unpriceable next to phantom sibling answers. |
 | N1c club transfer + INV minors | `defense_2c_landy_transfer` (implies the cues) | **measured 2026-08-14 — opt-in for a day on the artifact row, then SHIPPED DEFAULT-ON 2026-08-14 as part of the N1d/e/f stack (next row), whose pooled `win \| win` retired the PD hesitation.** Increment over N1b (`xfer↔cues`, 230.4k bd/arm/vul, SEED_BASE 1786657996, sha f313f3d+dirty, 0.06–0.07% fired): plain wash + **PD +0.0008 ±0.0008 NV / +0.0011 ±0.0008 vul** (+1.10/+1.90 per fired), SD wash both. **Passes the isolation gate in substance** — 1 of 132 divergent boards opened by them (0.8%) vs 27% for N1b. Against the *shipped* counter (`xfer↔on`), pooled over two seeds (1786657996 + 1786659297, 460.8k bd/vul): plain **+0.0013 ±0.0007** NV / +0.0007 ±0.0008 vul, PD +0.0005 ±0.0009 / −0.0005 ±0.0010, plain SD **+0.0018 ±0.0008** / **+0.0011 ±0.0009**, SD-PD **+0.0012 ±0.0009** / +0.0000 ±0.0010 — four CI-clear positives, no CI-clear negative; seed 1's vul-PD −0.0010 did NOT replicate (−0.0001). Opt-in because plain/SD-win + PD-wash is the artifact row. Residue named: the cue poaches the values double (`X`→`2♠` −3.83 PD/fired vul, `X`→`2♥` −2.63) because it is `points(8..)` at weight 173 against X's 145 — N1c wins by pulling hands off it (`2♠`→`3♦` +6.06, `3♦`→pass +3.38, `2♥`→`3♣` +2.22, transfer +0.67). **N1d = raise the cue floor to `points(10..)`.** | `xfer↔cues` NV plain +0.0002 ±0.0006 / PD +0.0008 ±0.0008 / sd −0.0002 / sd-PD +0.0002; vul plain +0.0003 ±0.0006 / PD +0.0011 ±0.0008 / sd −0.0003 / sd-PD +0.0002. |
 | N1d/e/f cue repairs | `defense_2c_landy_cue_floor` + `_fit_answers` + `_competition` (each implies `_transfer`; all four now default **true**) | **SHIPPED DEFAULT-ON 2026-08-14** — the package's first `win \| win`. Stack vs shipped base (`f↔on`), pooled seeds 1786694464 + 1786695954, 460.8k bd/vul: **six of eight DD cells CI-clear positive, 8/8 sd cells positive, no negative cell in 24 readings** (table in §Ship evidence). Engages only under the `their.two_clubs_landy` declaration — default system byte-identical, smoke `8ea2f567…` unchanged; `bba-gen` stack flags are `Option<bool>` (pre-ship arm = `--defense-2c-landy-<knob> false`), `bba-decompose --landy-stack false` replays between-ships dumps. Increment attribution: **N1d is the engine** (`d↔xfer` plain wash + PD **+0.0009 ±0.0008** NV / **+0.0015 ±0.0009** vul, cue→X = 55-60% of divergence at +2.0…+5.1 PD/fired — the poached-double rows reversed); N1e fired 3+1 boards post-floor (ships on naturalness: raises promise 3+); N1f the expected CI-wide wash (ships as the iron rule's convention-completion). Isolation gate: e/f pass at 0 foreign; d and f↔on fail at 18-43% (the cue-constraint mirror leak), foreign boards *depress* the headline — our-opened figures are stronger. Residue: their **second** call still floors us (phantom `4♠` one level deeper, −17 PD, 1 board); the `3♣`→`2♥` GF-six-carder row unread against the shipped stack. | `f↔on` pooled: NV plain **+0.00068 ±0.00062** / PD +0.00075 ±0.00077, vul plain **+0.00085 ±0.00072** / PD **+0.00100 ±0.00087**; ours-only NV plain **+0.00091 ±0.00052** / PD **+0.00077 ±0.00064**, vul plain **+0.00075 ±0.00058** / PD +0.00060 ±0.00070. |
+| N1g read-side wiring | `reading.their_landy_reading` (default **true**) | **SHIPPED DEFAULT-ON 2026-08-14** — the disclosure finally read: their `2♣` = ♥4+/♠4+ (no strength claim), advances + direct-3M suppressed, via a seat-gated hand reader that cannot fire on our own `2♣` and does not extrapolate through the systems-on strip (v1 leaked there — `(1♣) 1NT (2♣)` read responder's 2♣ as Landy; fixed + regression test). `TheirDisclosures` re-homed to `DecisionProfile::their`, byte-identical. Pooled 3 seeds (1786704432/1786705413/1786705763, 230.4k bd/vul, 0.07-0.11% fired): plain wash, **PD win both vuls**, sd agreeing in sign — the `plain-wash \| PD-win` ship row. **Isolation gate: 0 foreign boards, both vuls — the campaign's first.** Mechanism: conservative shift off true envelopes (fewer thin NV games; phantom `4♥` corrected to the real fit). Fixed-build seed 1 showed a CI-clear NV-plain loss that seeds 2-3 refuted. The `3♣`→`2♥` re-probe rode the same dumps and closed (wash-to-win). | pooled: NV plain −0.00051 ±0.00072 / PD **+0.00104 ±0.00097**, vul plain +0.00001 ±0.00078 / PD **+0.00112 ±0.00104**; sd-plain −0.00053/−0.00024, sd-PD +0.00065/+0.00076. |

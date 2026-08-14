@@ -812,6 +812,31 @@ pub struct ReadingProfile {
     /// loses nothing.)
     pub landy: bool,
 
+    /// Read the opponents' disclosed Landy `2♣` over our `1NT` as what it is
+    ///
+    /// The read-side half of
+    /// [`TheirDisclosures::two_clubs_landy`][crate::bidding::agreements::TheirDisclosures::two_clubs_landy]:
+    /// with both on, their `2♣` overcall of our `1NT` reads as 4-4+ in the
+    /// majors (no strength claim — their band is undeclared) instead of the
+    /// natural walk's 5+ clubs and 8+, and their advances read as preferences
+    /// rather than natural suits.  Without this wiring the disclosure moves
+    /// only the *book*, and every learned-floor decision in the lane runs on
+    /// a false LHO envelope.  Seat-correct by construction: it decodes the
+    /// *defending* side's `2♣` over the *reading* side's `1NT`, so our own
+    /// natural `2♣` overcalls are untouched — and it does not extrapolate
+    /// through the systems-on strip, where their `2♣` is responder's call.
+    ///
+    /// **Default on — SHIPPED 2026-08-14** (N1g, `plain wash | PD win`
+    /// pooled over three seeds, 230.4k boards/vul: PD **+0.00104 ±0.00097**
+    /// NV / **+0.00112 ±0.00104** vul, ≈ +1.0/+1.5 per fired; plain
+    /// −0.00051 ±0.00072 / +0.00001 ±0.00078; the isolation gate passed at
+    /// zero foreign boards).  The mechanism is a conservative shift off true
+    /// envelopes: fewer thin games, phantom contracts corrected.  A no-op
+    /// unless the disclosure is declared, so the default system is
+    /// byte-identical; the pre-ship arm is `bba-gen --ns-their-landy-read
+    /// false`.
+    pub their_landy_reading: bool,
+
     /// Which mutually-exclusive defense we play over their `1NT` opening
     ///
     /// **Default [`Natural`][crate::bidding::american::NotrumpDefense::Natural]**
@@ -961,6 +986,7 @@ impl ReadingProfile {
             natural_double_floor: 16,
             longer_major_response: false,
             landy: true,
+            their_landy_reading: false,
             notrump_defense: crate::bidding::american::NotrumpDefense::Woolsey,
             natural_overcall_points: (9, 13),
             two_notrump_wide: true,
@@ -1020,6 +1046,7 @@ impl Default for ReadingProfile {
             natural_double_floor: 15,
             longer_major_response: true,
             landy: false,
+            their_landy_reading: true,
             notrump_defense: crate::bidding::american::NotrumpDefense::Natural,
             natural_overcall_points: (8, 14),
             two_notrump_wide: false,

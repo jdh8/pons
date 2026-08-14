@@ -9,6 +9,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **N1g: the Landy disclosure's read-side wiring — SHIPPED DEFAULT-ON**
+  (`ReadingProfile::their_landy_reading`; off arm `bba-gen
+  --ns-their-landy-read false`, replay `bba-decompose --their-landy-read`,
+  web `set_their_landy_reading`). Diagnosing the N1 residue ("their *second*
+  call still floors us") found `their.two_clubs_landy` had **zero read-side
+  consumers**: the disclosure moved the book while their `2♣` kept decoding
+  through the natural walk as 5+♣ 8+, so the learned floor's LHO envelope
+  claimed five clubs on every board where they actually held both majors —
+  the phantom-`4♠` residue board bid off a false deal picture. On, under the
+  declaration, their `2♣` reads 4-4+ majors (no strength claim), and their
+  `2♦`/`2♥`/`2♠` and direct-`3M` advances are natural-suppressed. The reader
+  (`inference/readers.rs::their_landy_reading`) is seat-gated — it fires only
+  when the `1NT` is the reader's own side's, so our own `2♣` overcalls cannot
+  match — and does not extrapolate through the systems-on strip, where their
+  `2♣` is responder's call (round 1's worst boards were exactly that leak;
+  fixed with a regression test before the counted seeds).
+
+  **Ship verdict** (`scripts/ab-landy-read.sh`, three seeds pooled — bases
+  1786704432/1786705413/1786705763 — 230,400 boards/arm/vul vs the EPBot 2/1
+  reference, enriched `--filter-1nt`, fired 0.07–0.13%): plain DD washes
+  (NV −0.00051 ±0.00072, vul +0.00001 ±0.00078) while perfect-defense is
+  **CI-clear positive at both vulnerabilities** — PD **+0.00104 ±0.00097** NV
+  / **+0.00112 ±0.00104** vul (≈ +1.0/+1.5 IMPs per fired; all six PD seed
+  readings positive) — the decision table's plain-wash + PD-win ship row,
+  with sd-lead agreeing in sign. The forensic mechanism is a conservative
+  shift off true envelopes: fewer thin games and phantom contracts corrected
+  (`4♥`-on-a-cue escaped to `5♣`), which DD's optimism dislikes and perfect
+  defense rewards. **The isolation gate passed at zero foreign boards in both
+  vulnerabilities** — the campaign's first arm pair to do so. The owed
+  `3♣`→`2♥` re-probe rode the same run: against the shipped stack the row is
+  a wash-to-win (vul +3.12 plain / +2.38 PD per fired, NV +0.42/−0.25,
+  n=20), so no forcing-3m arm is warranted. `TheirDisclosures` re-homed from
+  `Agreements::their` to `DecisionProfile::their` (the dual-read house rule;
+  every path updated). Default system byte-identical throughout (smoke SHA
+  `8ea2f567…` — the wiring is a no-op unless the disclosure is declared).
+- **`competition.lebensohl_completion_alert`** (**default off pending its own
+  A/B**, `bba-gen --ns-lebensohl-completion-alert`): the forced `3♣`
+  completion of a sohl `2NT` relay is constrained `hcp(0..)`, so it projects
+  nothing, dodges `artificial_calls_are_alerted`'s artificiality witness, and
+  is read by the natural walk as **four real clubs** in the lanes no blanket
+  covers — advance-sohl (their weak two, our takeout `X`) and the Gladiator
+  relay; after our own `1NT` opening the structure blanket already hides it.
+  On, the completion is alerted, decodes as ⊤, and suppresses the club read.
+  Moves the default system (smoke diverges), hence its own arm — never folded
+  into N1g's.
+
 - **N1d/e/f: the Landy-counter cue repairs — SHIPPED DEFAULT-ON, the
   package's first `win | win`** (`defense_2c_landy_cue_floor`,
   `defense_2c_landy_fit_answers`, `defense_2c_landy_competition`, each

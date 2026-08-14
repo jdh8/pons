@@ -125,6 +125,12 @@ const LANDY_CUE: Alert = Alert("comp:landy-cue");
 const LANDY_TRANSFER: Alert = Alert("comp:landy-transfer");
 /// Lebensohl `2NT` — the weak relay to `3♣` over their overcall of our `1NT`.
 const LEBENSOHL_RELAY: Alert = Alert("comp:lebensohl-relay");
+/// Opener's forced `3♣` completion of the Lebensohl relay — a puppet, not
+/// clubs.  Constrained `hcp(0..)`, so its projection claims nothing: the
+/// alert exists to *suppress* the natural walk, which would otherwise read
+/// the completion as a club holding (the invariant's artificiality witness
+/// cannot see a vacuous constraint, so this alert is by hand).
+const LEBENSOHL_COMPLETION: Alert = Alert("comp:lebensohl-completion");
 /// Lebensohl cue — a cue of their suit as game-forcing Stayman.
 const LEBENSOHL_CUE: Alert = Alert("comp:lebensohl-cue");
 /// Transfer-Lebensohl 3-level transfer — bids the next suit up *through* the

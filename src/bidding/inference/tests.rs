@@ -1374,3 +1374,42 @@ fn european_minors_artificial_calls_are_alerted() {
         unalerted_artificial("constructive", &system.constructive.0, agreements.decision),
     );
 }
+
+/// `competition.lebensohl_completion_alert` — the forced `3♣` completion of a
+/// sohl `2NT` relay is a puppet, but constrained `hcp(0..)` it projects
+/// nothing, dodges the artificiality witness, and (unalerted) is read by the
+/// natural walk as a **club holding**.  The knob alerts it, which decodes it
+/// as ⊤ and suppresses the club read.
+///
+/// Asserted in the lane where the defect is *live*: advance-sohl, where our
+/// side did not open and no notrump-structure blanket applies.  (After our
+/// own `1NT` opening the whole structure is already walk-blanketed, so the
+/// same completion is latent there under every minors scheme.)
+#[test]
+fn lebensohl_completion_alert_suppresses_the_club_reading() {
+    use crate::bidding::inference::envelope::Range;
+
+    // (2♠) X - 2NT - 3♣ -: their weak two, our takeout double, the advancer's
+    // sohl relay, and partner's forced completion; advancer to act.
+    let auction = [
+        bid(2, Strain::Spades),
+        Call::Double,
+        Call::Pass,
+        bid(2, Strain::Notrump),
+        Call::Pass,
+        bid(3, Strain::Clubs),
+        Call::Pass,
+    ];
+    let mut arm = crate::bidding::agreements::Agreements::default();
+
+    // On: the double claimed no shape, and the puppet claims none either.
+    arm.competition.lebensohl_completion_alert = true;
+    let on = read_booked_with(&arm, &auction);
+    assert_eq!(on.partner().length(Suit::Clubs), Range::FULL_LENGTH);
+
+    // Off — the shipped default — is the defect this knob exists to fix: the
+    // forced completion reads as four real clubs.
+    arm.competition.lebensohl_completion_alert = false;
+    let off = read_booked_with(&arm, &auction);
+    assert_eq!(off.partner().length(Suit::Clubs), Range::new(4, 13));
+}

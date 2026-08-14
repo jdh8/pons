@@ -38,6 +38,19 @@ section** while constructive and defensive were rich. Two causes:
 - **Renderability is an invariant.** Every guard and rebase must
   `describe()` (test `competitive_fallbacks_are_renderable`): use `SuffixIs`
   for exact suffixes, `described_guard`/`described_rewrite` around closures.
+- **A `their.*` disclosure drives both the book and the reading.** The N1
+  lesson: `their.two_clubs_landy` gated the book for a month while the
+  reading walk kept decoding their `2♣` as natural clubs — every learned-floor
+  decision in the lane ran on a false LHO envelope
+  (docs/one-notrump-competitive.md §N1g).  A disclosure with no read-side
+  consumer is half-wired; the read half is seat-gated (fires only on *their*
+  call under *their* declared agreement), which is what makes it
+  mirror-leak-proof.
+- **A vacuous-constraint artificial call must be alerted by hand.** The alert
+  invariant's artificiality witness keys on the projection flooring a suit
+  the call did not name; a forced completion constrained `hcp(0..)` projects
+  nothing, dodges the witness, and reads as a natural holding wherever no
+  walk blanket covers it (`competition.lebensohl_completion_alert`).
 
 ## Workstream 0 — render the competitive book ✅
 

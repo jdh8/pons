@@ -319,7 +319,19 @@ impl Inferences {
         {
             return match context.own_system() {
                 Some(partnership) => {
-                    Self::read(&partnership.prefixed_context(context.vul(), &stripped))
+                    // The stripped 1NT is an *overcall*: their next call is by
+                    // the side that OPENED, so the `two_clubs_landy` disclosure
+                    // (their defense to our 1NT *opening*) must not extrapolate
+                    // through the strip — over our overcall their 2♣ is
+                    // responder's natural call, never Landy.  The first A/B's
+                    // worst boards were exactly this leak.
+                    let mut profile = context.decision_profile();
+                    profile.their.two_clubs_landy = false;
+                    Self::read(
+                        &partnership
+                            .prefixed_context(context.vul(), &stripped)
+                            .with_profile(profile),
+                    )
                 }
                 None => Self::read(&Context::new(context.vul(), &stripped)),
             };
@@ -422,7 +434,7 @@ impl Inferences {
         // Every hand-written convention reader, run once over the auction: which
         // calls name a suit their bidder need not hold, and what each really
         // showed (recorded post-walk).  `docs/reader-retirement.md` is the ledger.
-        let readings = Readings::read(auction, len, profile);
+        let readings = Readings::read(auction, len, profile, context.decision_profile().their);
 
         // The three declarative conventions — Jacoby transfers over our notrump,
         // Leaping Michaels, and Landy's 2♣ — are read straight off their authored

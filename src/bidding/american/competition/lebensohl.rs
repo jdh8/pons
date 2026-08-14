@@ -119,7 +119,7 @@ fn defense_2d_multi(agreements: &Agreements) -> bool {
 /// Whether the `(2♣)`-as-Landy counter-defense is engaged — a fact about the
 /// opponents (their disclosed `2♣`), not a knob of ours
 fn defense_2c_landy(agreements: &Agreements) -> bool {
-    agreements.their.two_clubs_landy
+    agreements.decision.their.two_clubs_landy
 }
 
 /// Whether the Landy counter carries the N1b minor cues
@@ -337,7 +337,7 @@ fn multi_responder(agreements: &Agreements) -> Rules {
 
 /// Responder's counter-defense after `1NT (2♣)` when the `2♣` is read as
 /// **Landy** (both majors, 5-4 or better), engaged by the opponents'
-/// disclosure (`agreements.their.two_clubs_landy`)
+/// disclosure (`agreements.decision.their.two_clubs_landy`)
 ///
 /// Systems-on — the default here — is the right treatment over a *natural* `2♣`,
 /// which steals no room.  Over Landy it inverts: the stolen `X` asks for a
@@ -864,8 +864,17 @@ fn landy_ask_answer(minor: Suit, asked: Suit, ask: Bid) -> Rules {
 }
 
 /// Opener completes responder's Lebensohl `2NT` relay with the forced `3♣`
-pub(crate) fn complete_lebensohl_relay() -> Rules {
-    Rules::new().rule(Bid::new(3, Strain::Clubs), 100, hcp(0..))
+///
+/// Under `competition.lebensohl_completion_alert` the completion is alerted:
+/// constrained `hcp(0..)` it projects nothing, so the alert's whole effect is
+/// to suppress the natural walk's club reading of a forced puppet.
+pub(crate) fn complete_lebensohl_relay(agreements: &Agreements) -> Rules {
+    let rules = Rules::new().rule(Bid::new(3, Strain::Clubs), 100, hcp(0..));
+    if agreements.competition.lebensohl_completion_alert {
+        rules.alert(LEBENSOHL_COMPLETION)
+    } else {
+        rules
+    }
 }
 
 /// Responder's rebid after the `2NT` relay is completed at `3♣`
@@ -983,7 +992,7 @@ pub(super) fn lebensohl_package() -> Package {
                     // one forced-`3♣` table in the file.
                     entries.extend(rows_of(
                         Pattern::after("P* 1NT (2♣)", "2NT -"),
-                        complete_lebensohl_relay(),
+                        complete_lebensohl_relay(agreements),
                     ));
                     entries.extend(rows_of(
                         Pattern::after("P* 1NT (2♣)", "2NT - 3♣ -"),
@@ -995,7 +1004,7 @@ pub(super) fn lebensohl_package() -> Package {
                         // completion.
                         entries.extend(rows_of(
                             Pattern::after("P* 1NT (2♣)", "2NT (X)"),
-                            complete_lebensohl_relay(),
+                            complete_lebensohl_relay(agreements),
                         ));
                         entries.extend(rows_of(
                             Pattern::after("P* 1NT (2♣)", "2NT (X) 3♣ -"),
@@ -1270,7 +1279,7 @@ pub(super) fn lebensohl_package() -> Package {
                 // over it (the weak relay sign-off).
                 entries.extend(rows_of(
                     Pattern::after(NT, &format!("{their} 2NT -")),
-                    complete_lebensohl_relay(),
+                    complete_lebensohl_relay(agreements),
                 ));
                 let relay = format!("{their} 2NT - 3♣ -");
                 entries.extend(rows_of(

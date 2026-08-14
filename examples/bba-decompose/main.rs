@@ -83,6 +83,21 @@ struct Args {
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
     landy_stack: Option<bool>,
 
+    /// Replay with the disclosed-Landy *reading* (`--ns-their-landy-read`) —
+    /// their `2♣` as both majors instead of natural clubs.  Unset tracks the
+    /// engine default (**on since the 2026-08-14 N1g ship**); pass `false` to
+    /// replay dumps generated between the stack ship and the read-side ship,
+    /// whose arms bid on the natural-club envelope.  Meaningless when the
+    /// counter itself is off.
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    their_landy_read: Option<bool>,
+
+    /// Replay with the Lebensohl completion alert
+    /// (`--ns-lebensohl-completion-alert`).  Unset tracks the engine default
+    /// (off pending its A/B); pass `true` to replay alert-on arms.
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    lebensohl_completion_alert: Option<bool>,
+
     /// DD-table cache (JSON file), created if absent and updated with new
     /// solves — the artifact that makes a re-anchor take minutes
     #[arg(long)]
@@ -385,6 +400,12 @@ fn main() -> anyhow::Result<()> {
             agreements.competition.defense_2c_landy_cue_floor = false;
             agreements.competition.defense_2c_landy_fit_answers = false;
             agreements.competition.defense_2c_landy_competition = false;
+        }
+        if let Some(read) = args.their_landy_read {
+            agreements.decision.reading.their_landy_reading = read;
+        }
+        if let Some(alert) = args.lebensohl_completion_alert {
+            agreements.competition.lebensohl_completion_alert = alert;
         }
         match args.our_floor {
             OurFloor::American => american(&agreements),

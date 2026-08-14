@@ -28,6 +28,7 @@
 //!
 //! [docs/bidding-performance-handoff.md]: ../../../docs/bidding-performance-handoff.md
 
+use super::agreements::TheirDisclosures;
 use super::book::Partnership;
 use super::constraint::FifthsCompanion;
 use super::evaluator::{TrickEstimates, trick_estimates_with_auction_on};
@@ -162,6 +163,13 @@ pub struct DecisionProfile {
     /// One field per setting the reading walk consults while turning the auction
     /// into [`Inferences`]; see [`ReadingProfile`] for the membership rule.
     pub reading: ReadingProfile,
+    /// What the opponents' disclosed methods say — facts about them, not
+    /// choices of ours; see [`TheirDisclosures`]
+    ///
+    /// Consulted by the book while building (`1NT (2♣)` routing) and by the
+    /// reading walk while classifying, so it lives here per the dual-read
+    /// house rule and is part of every decision's cache identity.
+    pub their: TheirDisclosures,
     /// The settings the deterministic floor consults *during* classification
     ///
     /// Build-time settings are deliberately absent: each is read only inside
@@ -341,6 +349,7 @@ impl Default for DecisionProfile {
     fn default() -> Self {
         Self {
             reading: ReadingProfile::default(),
+            their: TheirDisclosures::default(),
             instinct: InstinctProfile::default(),
             eval_auction: true,
             eval_shape: false,

@@ -1315,3 +1315,125 @@ fn rubens_transfer_reading_knob_recovers_suppress_only() {
     assert_eq!(inf.partner().length(Suit::Hearts), Range::FULL_LENGTH);
     assert_eq!(inf.partner().strength.points, Range::FULL_POINTS);
 }
+
+fn their_landy_agreements() -> Agreements {
+    let mut agreements = Agreements::default();
+    agreements.decision.their.two_clubs_landy = true;
+    agreements.decision.reading.their_landy_reading = true;
+    agreements
+}
+
+#[test]
+fn their_disclosed_landy_conditions_the_overcaller() {
+    // 1NT (2♣): under the disclosure + wiring, responder reads RHO's 2♣ as
+    // 4-4+ in the majors with no club or strength claim — not the natural
+    // walk's 5+ clubs and 8+.
+    let on = their_landy_agreements();
+    let reading = read_booked_with(&on, &[bid(1, Strain::Notrump), bid(2, Strain::Clubs)]);
+    assert_eq!(reading.rho().length(Suit::Hearts), Range::new(4, 13));
+    assert_eq!(reading.rho().length(Suit::Spades), Range::new(4, 13));
+    assert_eq!(reading.rho().length(Suit::Clubs), Range::FULL_LENGTH);
+    assert_eq!(reading.rho().strength.points, Range::FULL_POINTS);
+
+    // The disclosure without the wiring — the pre-N1g state — was the false
+    // envelope the wiring fixed: natural 5+ clubs, 8+.
+    let mut unwired = Agreements::default();
+    unwired.decision.their.two_clubs_landy = true;
+    unwired.decision.reading.their_landy_reading = false;
+    let legacy = read_booked_with(&unwired, &[bid(1, Strain::Notrump), bid(2, Strain::Clubs)]);
+    assert_eq!(legacy.rho().length(Suit::Clubs), Range::new(5, 13));
+    assert_eq!(legacy.rho().strength.points, Range::new(8, 37));
+}
+
+#[test]
+fn their_disclosed_landy_suppresses_the_advances() {
+    let on = their_landy_agreements();
+
+    // 1NT (2♣) X (2♥), opener to act: RHO's 2♥ is a preference among
+    // partner's majors, playable on a doubleton — suppressed, nothing
+    // recorded.  LHO (the overcaller) still reads 4-4+.
+    let advance = read_booked_with(
+        &on,
+        &[
+            bid(1, Strain::Notrump),
+            bid(2, Strain::Clubs),
+            Call::Double,
+            bid(2, Strain::Hearts),
+        ],
+    );
+    assert_eq!(advance.lho().length(Suit::Hearts), Range::new(4, 13));
+    assert_eq!(advance.lho().length(Suit::Spades), Range::new(4, 13));
+    assert_eq!(advance.rho().length(Suit::Hearts), Range::FULL_LENGTH);
+
+    // 1NT (2♣) - (3♥): the direct raise would otherwise read as a weak-jump
+    // six-carder — false under Landy, where it is an invitational preference.
+    let jump = read_booked_with(
+        &on,
+        &[
+            bid(1, Strain::Notrump),
+            bid(2, Strain::Clubs),
+            Call::Pass,
+            bid(3, Strain::Hearts),
+        ],
+    );
+    assert_eq!(jump.rho().length(Suit::Hearts), Range::FULL_LENGTH);
+}
+
+#[test]
+fn their_landy_reading_is_seat_gated() {
+    // The mirror image — (1NT) 2♣ (P), OUR 2♣ overcall of THEIR 1NT — must
+    // stay the natural walk's club overcall even with the disclosure + wiring
+    // on: the disclosure is a fact about the *reader's* opponents.  This is
+    // the seat-correctness the cue-constraint arms' mirror leak lacked.
+    let on = their_landy_agreements();
+    let mirror = read_booked_with(
+        &on,
+        &[bid(1, Strain::Notrump), bid(2, Strain::Clubs), Call::Pass],
+    );
+    assert_eq!(mirror.partner().length(Suit::Clubs), Range::new(5, 13));
+    assert_eq!(mirror.partner().length(Suit::Spades), Range::FULL_LENGTH);
+    assert_eq!(mirror.partner().strength.points, Range::new(8, 37));
+}
+
+#[test]
+fn their_landy_reading_needs_the_disclosure() {
+    // The knob without the declared disclosure is inert: flipping it off
+    // changes nothing about an undeclared 2♣, seat by seat (the `Inferences`
+    // values differ only in their embedded profile).
+    let mut knob_only = Agreements::default();
+    knob_only.decision.reading.their_landy_reading = false;
+    let auction = [bid(1, Strain::Notrump), bid(2, Strain::Clubs)];
+    let with_knob = read_booked_with(&knob_only, &auction);
+    let plain = read_booked_with(&Agreements::default(), &auction);
+    for who in [
+        Relative::Me,
+        Relative::Lho,
+        Relative::Partner,
+        Relative::Rho,
+    ] {
+        assert_eq!(with_knob.get(who), plain.get(who), "{who:?}");
+        assert_eq!(with_knob.announced(who), plain.announced(who), "{who:?}");
+    }
+}
+
+#[test]
+fn their_landy_reading_does_not_extrapolate_through_the_strip() {
+    // (1♣) 1NT (2♣): the systems-on strip re-reads this as an opening-1NT
+    // auction, where the seat gate alone would pass — but their 2♣ here is
+    // *responder's* call on the side that opened, never a Landy defense.
+    // The disclosure must not reach through the strip: their 2♣ stays the
+    // natural walk's club overcall (the first A/B's worst boards were this
+    // leak firing on `(1♣) 1NT (2♣)` lanes).
+    let on = their_landy_agreements();
+    let reading = read_booked_with(
+        &on,
+        &[
+            bid(1, Strain::Clubs),
+            bid(1, Strain::Notrump),
+            bid(2, Strain::Clubs),
+        ],
+    );
+    assert_eq!(reading.rho().length(Suit::Clubs), Range::new(5, 13));
+    assert_eq!(reading.rho().length(Suit::Hearts), Range::FULL_LENGTH);
+    assert_eq!(reading.rho().length(Suit::Spades), Range::FULL_LENGTH);
+}

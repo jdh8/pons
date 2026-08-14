@@ -443,6 +443,23 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_announced_reading: bool,
 
+    /// Read the opponents' *declared* Landy `2♣` over our `1NT` as both majors
+    /// (4-4+), and their advances as preferences, instead of the natural
+    /// walk's 5+ clubs and 8+.  The read-side half of the `two_clubs_landy`
+    /// disclosure — a no-op unless that declaration is in force
+    /// (`--their-2c-landy` or the derived default).  **Engine default ON
+    /// since the 2026-08-14 N1g ship**; the pre-ship arm is
+    /// `--ns-their-landy-read false`.  Unset = the engine default.
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    ns_their_landy_read: Option<bool>,
+
+    /// Alert the forced `3♣` completion of a Lebensohl `2NT` relay, so the
+    /// reading suppresses the natural walk's club holding on a puppet (shared
+    /// by plain/transfer Lebensohl, advance-sohl, and the N1c club transfer).
+    /// Off pending its A/B — this one moves the default system.
+    #[arg(long, default_value_t = false)]
+    ns_lebensohl_completion_alert: bool,
+
     /// How much of the authored book our projection decodes
     /// (`ReadingProfile::scope`, crate default `alerted`).
     ///
@@ -1731,6 +1748,9 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.decision.reading.envelope_union = !args.no_ns_envelope_union;
     agreements.decision.reading.gauge_membership = args.ns_gauge_membership;
     agreements.decision.reading.announced = args.ns_announced_reading;
+    if let Some(v) = args.ns_their_landy_read {
+        agreements.decision.reading.their_landy_reading = v;
+    }
     agreements.decision.reading.scope = args.ns_reading_scope.into();
     agreements.decision.reading.sum_closure = args.ns_sum_closure;
     agreements.decision.reading.upgrade_closure = args.ns_upgrade_closure;
@@ -1766,7 +1786,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
         agreements.competition.uvu_cue_floor = args.uvu_cue_floor;
     }
     agreements.competition.defense_2d_multi = args.defense_2d_multi;
-    agreements.their.two_clubs_landy = their_2c_landy(args)?;
+    agreements.decision.their.two_clubs_landy = their_2c_landy(args)?;
     agreements.competition.defense_2c_landy_cues = args.defense_2c_landy_cues;
     // The stack knobs are engine-default ON (2026-08-14): only an explicit
     // flag overrides, so a plain vs-BBA run generates the shipped stack and a
@@ -1783,6 +1803,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     if let Some(v) = args.defense_2c_landy_competition {
         agreements.competition.defense_2c_landy_competition = v;
     }
+    agreements.competition.lebensohl_completion_alert = args.ns_lebensohl_completion_alert;
     agreements.competition.competition_over_stayman = !args.no_ns_comp_over_stayman;
     agreements.competition.competitive_4333 = match args.ns_competitive_4333.as_str() {
         "allow" => pons::bidding::american::Competitive4333::Allow,

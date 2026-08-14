@@ -157,6 +157,24 @@ pub struct CompetitionKnobs {
     ///
     /// Section 5 of the competitive book; default [`LebensohlStyle::Transfer`].
     pub lebensohl_style: LebensohlStyle,
+    /// Alert the forced `3♣` completion of a Lebensohl `2NT` relay
+    ///
+    /// The completion is constrained `hcp(0..)`, so its projection claims
+    /// nothing and the alert invariant's artificiality witness cannot see it:
+    /// unalerted, it is not natural-suppressed and the reading walk takes
+    /// opener's forced `3♣` as a **club holding** — a false partner envelope
+    /// for every net decision downstream, the same defect class as the
+    /// undisclosed Landy `2♣`
+    /// ([`their_landy_reading`][field@crate::bidding::ReadingProfile::their_landy_reading]).
+    /// On, the completion carries an alert, which decodes it as ⊤ (a puppet —
+    /// says nothing) and suppresses the natural read.  Shared by plain and
+    /// transfer Lebensohl, advance-sohl, and the N1c Landy club transfer.
+    ///
+    /// **Default off pending its A/B** (`bba-gen --ns-lebensohl-completion-alert`):
+    /// a reading change is a bidding change under the neural floor, and this
+    /// one moves the default system (smoke diverges), so it ships only
+    /// through the decision table.
+    pub lebensohl_completion_alert: bool,
     /// Read a `(2♦)` overcall of our `1NT` as a Multi
     ///
     /// Responder treats their `2♦` as an unknown single-suited major and
@@ -608,6 +626,7 @@ impl Default for CompetitionKnobs {
             direct_3nt_stopper: true,
             natural_floor: (5, 0),
             lebensohl_style: LebensohlStyle::Transfer,
+            lebensohl_completion_alert: false,
             defense_2d_multi: false,
             defense_2c_landy_cues: false,
             defense_2c_landy_transfer: true,
@@ -2464,17 +2483,23 @@ impl Default for InstinctKnobs {
 /// What the opponents' disclosed methods say — facts about **them**, not
 /// choices of ours
 ///
-/// Every other area of [`Agreements`] is something the partnership *chose*;
-/// fields here are set from the opponents' declaration (their convention
-/// card, their alerts) and default to *undeclared*, under which every reading
-/// falls back to natural.  A harness that knows its opponent derives them —
-/// `bba-gen`'s `their_2c_landy` reads the declared conventions with one
-/// documented behavior correction — and a bidder facing an unknown field
-/// leaves them alone.  Putting a fact about the opponents into our own knob
-/// space was the original sin of `competition.defense_2c_landy` (deleted
-/// 2026-08-14, the day after it shipped); this channel is its replacement,
-/// and `competition.defense_2d_multi` is owed the same migration.
-#[derive(Clone, Copy, PartialEq, Debug, Default)]
+/// Every area of [`Agreements`] is something the partnership *chose*; fields
+/// here are set from the opponents' declaration (their convention card, their
+/// alerts) and default to *undeclared*, under which every reading falls back
+/// to natural.  A harness that knows its opponent derives them — `bba-gen`'s
+/// `their_2c_landy` reads the declared conventions with one documented
+/// behavior correction — and a bidder facing an unknown field leaves them
+/// alone.  Putting a fact about the opponents into our own knob space was the
+/// original sin of `competition.defense_2c_landy` (deleted 2026-08-14, the
+/// day after it shipped); this channel is its replacement, and
+/// `competition.defense_2d_multi` is owed the same migration.
+///
+/// Lives in [`DecisionProfile`] rather than as an [`Agreements`] area: the
+/// book reads it while building (`1NT (2♣)` routing) **and** the reading walk
+/// consults it while classifying (what their `2♣` *means*), and the house
+/// rule for dual-read settings is one home — the classify profile — with the
+/// book reading it from there.
+#[derive(Clone, Copy, PartialEq, Eq, Debug, Default)]
 pub struct TheirDisclosures {
     /// Their `2♣` overcall of our `1NT` shows **both majors** (the
     /// Landy / Multi-Landy family)
@@ -2506,16 +2531,15 @@ pub struct TheirDisclosures {
 /// classifying rather than while building.  That last split is by *when* a
 /// value is read, not by what it means — a build-time area and `decision` are
 /// equally "what we agreed" — so it buys the `Partnership` a small `Copy` snapshot
-/// to pin and nothing else.  `their` is the one exception to "what we
-/// agreed": the opponents' disclosures, see [`TheirDisclosures`].
+/// to pin and nothing else.  The opponents' disclosures
+/// ([`TheirDisclosures`]) ride `decision.their`: both the book and the
+/// reading walk consult them.
 #[derive(Clone, Copy, PartialEq, Debug)]
 pub struct Agreements {
     /// The classify-time settings, pinned into the partnership at `System::bind`
     pub decision: DecisionProfile,
     /// What we play when they contest our auction
     pub competition: CompetitionKnobs,
-    /// What the opponents' disclosed methods say (facts, not choices)
-    pub their: TheirDisclosures,
     /// What we play when they open the auction
     pub defense: DefenseKnobs,
     /// What we play after our notrump openings and rebids
@@ -2538,7 +2562,6 @@ impl Default for Agreements {
         Self {
             decision: DecisionProfile::default(),
             competition: CompetitionKnobs::default(),
-            their: TheirDisclosures::default(),
             defense: DefenseKnobs::default(),
             notrump: NotrumpKnobs::default(),
             opening: OpeningKnobs::default(),

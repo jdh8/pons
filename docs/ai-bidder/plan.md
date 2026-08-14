@@ -703,6 +703,17 @@ re-basing (Phase 0), is [`archive/stronger-floor.md`](archive/stronger-floor.md)
   sampler + scorer + leaf coverage, retrain in the off-crate `trainer/`, ship
   weights back via `include_bytes!`, A/B vs the prior champion (accept only gains)
   under the dual-reference guard. *Deps:* any of M8.1–M8.3.
+  **Two riders from the 2026-08-14 N1-residue diagnosis** (the BBA teacher
+  cannot label continuations of gadgets BBA does not play — the Checkback
+  zero-signal axis is the measured proof, and the phantom-`4♠` residue the
+  cost): (i) **fix the F1 bare-`Context` dump skew in the same stroke** — the
+  corpus features must carry the authored projections the serve path sees, or
+  the net keeps leaning on raw-auction correlations exactly where our
+  artificial calls poison them; (ii) **consider a forcing/conversation-open
+  feature channel** while the feature space is open anyway — `Inferences` has
+  no forcing axis, so an INV+ cue and a signoff project identically and the
+  net cannot tell a conversation in motion from a settled one (today only the
+  M6.4 `forced()` rail covers the difference, and only for RKCB).
 - ⬜ **M8.5 Auction-state memory (horizon).** The second probe leg: the
   sequence-model policy (M5.2) for auction memory, plus cheap `SearchFloor`
   mechanics — IMP-space candidate ranking and prior fold-back / confidence gate

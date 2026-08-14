@@ -62,7 +62,7 @@ fn landy_counter_package_invariants() {
         (false, true, true, true, true),
     ] {
         let mut arm = Agreements::default();
-        arm.their.two_clubs_landy = true;
+        arm.decision.their.two_clubs_landy = true;
         arm.competition.defense_2c_landy_cues = cues;
         arm.competition.defense_2c_landy_transfer = transfer;
         arm.competition.defense_2c_landy_cue_floor = cue_floor;
@@ -121,7 +121,7 @@ pub(super) fn bid_transfer(auction: &[Call], hand: &str) -> (Call, bool) {
 /// overlay) must say so rather than ride the defaults.
 fn landy_arm(cues: bool, transfer: bool) -> Agreements {
     let mut arm = Agreements::default();
-    arm.their.two_clubs_landy = true;
+    arm.decision.their.two_clubs_landy = true;
     arm.competition.defense_2c_landy_cues = cues;
     arm.competition.defense_2c_landy_transfer = transfer;
     arm.competition.defense_2c_landy_cue_floor = false;
@@ -158,7 +158,7 @@ pub(super) fn bid_landy_n1(
     hand: &str,
 ) -> (Call, bool) {
     let mut arm = Agreements::default();
-    arm.their.two_clubs_landy = true;
+    arm.decision.their.two_clubs_landy = true;
     arm.competition.defense_2c_landy_cue_floor = cue_floor;
     arm.competition.defense_2c_landy_fit_answers = fit_answers;
     arm.competition.defense_2c_landy_competition = competition;

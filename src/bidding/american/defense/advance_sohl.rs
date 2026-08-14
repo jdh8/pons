@@ -38,7 +38,10 @@ pub(super) fn sohl_rows_over(
 
     // Partner completes the 2NT relay with a forced 3♣; advancer then signs off.
     let relay = format!("{base} 2NT -");
-    entries.extend(rows_of(Pattern::node(&relay), complete_lebensohl_relay()));
+    entries.extend(rows_of(
+        Pattern::node(&relay),
+        complete_lebensohl_relay(agreements),
+    ));
     entries.extend(rows_of(
         Pattern::node(&format!("{relay} 3♣ -")),
         lebensohl_relay_rebid(over, agreements),

@@ -556,7 +556,7 @@ fn landy_declaration_engages_the_shipped_stack() {
     // The 2026-08-14 default flip: a bare declaration — no knobs touched —
     // now plays the full N1c+N1d/e/f stack (the pooled two-seed win|win).
     let mut arm = Agreements::default();
-    arm.their.two_clubs_landy = true;
+    arm.decision.their.two_clubs_landy = true;
 
     // N1c: the weak six-card club hand transfers.
     let auction = [call(1, Strain::Notrump), call(2, Strain::Clubs)];

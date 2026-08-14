@@ -9,6 +9,7 @@ use super::envelope::{Envelope, Range, Relative, relative_of};
 use super::knobs::ReadingProfile;
 use super::read::support_band_to_points;
 use super::{LENGTH_CAP, POINTS_CAP};
+use crate::bidding::agreements::TheirDisclosures;
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
 
@@ -135,6 +136,108 @@ pub(super) fn landy_advance_suppress(auction: &[Call], profile: ReadingProfile) 
         .flatten()?;
 
     advancer_artificial(auction, overcall_index, opener_parity)
+}
+
+/// The opponents' disclosed Landy `2♣` over **our** `1NT`, and its advances
+///
+/// [`TheirDisclosures::two_clubs_landy`] is a fact about the reader's
+/// opponents, so unlike every symmetric reader above it is seat-gated: it
+/// fires only when the `1NT` opener is on the *reader's* side and the `2♣` is
+/// the other side's first action.  The mirror image — our own `2♣` overcall
+/// of their `1NT` — is our agreement, governed by our own knobs, and never
+/// matches.
+#[derive(Clone, Copy)]
+pub(super) struct TheirLandyReading {
+    /// Their both-majors `2♣`: its natural club reading is suppressed and
+    /// 4-4+ in the majors is recorded post-walk (no strength claim — their
+    /// band is undeclared).
+    pub(super) overcall_index: usize,
+    /// Their advancer's first `2♦`/`2♥`/`2♠` — a relay or a preference among
+    /// partner's majors, playable on a doubleton, so its natural reading is
+    /// suppressed.
+    advance: Option<usize>,
+    /// Their advancer's direct `3♥`/`3♠` — an invitational raise of a shown
+    /// major, which the walk would otherwise read as a weak-jump six-carder.
+    /// Suppressed; nothing recorded (their raise style is undeclared).
+    jump_advance: Option<usize>,
+}
+
+/// Read their disclosed Landy `2♣` over our `1NT`
+/// ([`ReadingProfile::their_landy_reading`] is the wiring switch)
+// ponytail: a hand reader, not a projection — their calls have no authored rule
+// of ours to project; the upgrade path is the declared-opponent their_profile
+// split, which would decode their 2♣ off their own declared book.
+pub(super) fn their_landy_reading(
+    auction: &[Call],
+    len: usize,
+    profile: ReadingProfile,
+    their: TheirDisclosures,
+) -> Option<TheirLandyReading> {
+    if !(profile.their_landy_reading && their.two_clubs_landy) {
+        return None;
+    }
+    let opening_index = auction.iter().position(|&c| c != Call::Pass)?;
+    if auction[opening_index] != Call::Bid(Bid::new(1, Strain::Notrump)) {
+        return None;
+    }
+    // The seat gate: the disclosure applies only when the 1NT is ours.
+    let opener_parity = opening_index % 2;
+    if opener_parity != len % 2 {
+        return None;
+    }
+
+    // Their 2♣ must be the defending side's first action — direct or
+    // balancing; any other first action (their X, our responder acting first)
+    // is not the disclosed Landy.
+    let overcall_index = auction
+        .iter()
+        .enumerate()
+        .skip(opening_index + 1)
+        .find_map(|(index, &call)| match call {
+            Call::Pass => None,
+            Call::Bid(bid) if index % 2 != opener_parity => {
+                Some((bid == Bid::new(2, Strain::Clubs)).then_some(index))
+            }
+            _ => Some(None),
+        })
+        .flatten()?;
+
+    // The advancer's first bid, wherever it sits: the scan jumps over every
+    // call of ours (pass, double, or a competing bid), as
+    // `advancer_artificial` does.
+    let first_advance = auction
+        .iter()
+        .enumerate()
+        .skip(overcall_index + 1)
+        .find_map(|(index, &call)| match call {
+            Call::Bid(bid) if index % 2 != opener_parity => Some((index, bid)),
+            _ => None,
+        });
+    let (advance, jump_advance) = match first_advance {
+        Some((index, bid)) if bid.level.get() == 2 && bid.strain != Strain::Notrump => {
+            (Some(index), None)
+        }
+        Some((index, bid))
+            if bid.level.get() == 3 && matches!(bid.strain, Strain::Hearts | Strain::Spades) =>
+        {
+            (None, Some(index))
+        }
+        _ => (None, None),
+    };
+    Some(TheirLandyReading {
+        overcall_index,
+        advance,
+        jump_advance,
+    })
+}
+
+impl TheirLandyReading {
+    /// Whether the call at `index` names a suit its bidder need not hold
+    fn suppresses(&self, index: usize) -> bool {
+        self.overcall_index == index
+            || self.advance == Some(index)
+            || self.jump_advance == Some(index)
+    }
 }
 
 /// The index of the advancer's first `2♦`/`2♥`/`2♠` response over a both-majors /
@@ -957,7 +1060,7 @@ fn is_american(opening: Bid, response: Bid) -> bool {
         }
 }
 
-/// The ten hand-written convention readings of one auction, taken together
+/// The eleven hand-written convention readings of one auction, taken together
 ///
 /// Each field is one reader's verdict, and `docs/reader-retirement.md` is the
 /// ledger of which are still owed a chop.  Bundling them here makes a
@@ -968,6 +1071,7 @@ pub(super) struct Readings {
     rubens_cue: Option<(usize, Suit)>,
     rubens_transfer: Option<(usize, Suit, u8)>,
     landy_relay: Option<usize>,
+    their_landy: Option<TheirLandyReading>,
     multi: Option<MultiReading>,
     woolsey_x: Option<WoolseyXReading>,
     dont: Option<DontReading>,
@@ -980,7 +1084,12 @@ pub(super) struct Readings {
 
 impl Readings {
     /// Run every hand-written reader over `auction`
-    pub(super) fn read(auction: &[Call], len: usize, profile: ReadingProfile) -> Self {
+    pub(super) fn read(
+        auction: &[Call],
+        len: usize,
+        profile: ReadingProfile,
+        their: TheirDisclosures,
+    ) -> Self {
         // Rubens advances name relay suits; identify them so the natural reading
         // skips them, and capture a cue-raise's strength to apply afterwards.
         let (rubens_suppress, rubens_cue, rubens_transfer) = rubens_reading(auction, profile);
@@ -992,6 +1101,11 @@ impl Readings {
             // `2♥ - 2♠` preference over a Landy/Woolsey both-majors 2♣ names no length of its
             // own, so its rule projects nothing — suppress it by hand (the doc's stub).
             landy_relay: landy_advance_suppress(auction, profile),
+            // The opponents' *disclosed* Landy 2♣ over our 1NT: their 2♣ is 4-4+
+            // majors, not the natural walk's 5+ clubs and 8+, and their advances
+            // are preferences.  Seat-gated on the disclosure, unlike the
+            // symmetric readers around it.
+            their_landy: their_landy_reading(auction, len, profile, their),
             // The Woolsey Multi family: 2♦ (a single 6+ major — its diamond reading
             // suppressed) and the 2♥/2♠ Muiderberg, recorded post-walk.
             multi: multi_reading(auction, profile),
@@ -1030,6 +1144,7 @@ impl Readings {
     pub(super) fn suppresses(&self, index: usize) -> bool {
         self.rubens_suppress.contains(&Some(index))
             || self.landy_relay == Some(index)
+            || self.their_landy.is_some_and(|t| t.suppresses(index))
             || self.multi.is_some_and(|m| m.suppresses(index))
             || self.woolsey_x.is_some_and(|w| w.suppresses(index))
             || self.dont.is_some_and(|d| d.suppresses(index))
@@ -1183,6 +1298,18 @@ impl Readings {
                 }
             }
             players[who].narrow_points(Range::at_least(meckwell.floor, POINTS_CAP));
+        }
+
+        // Their disclosed Landy 2♣ over our 1NT: both majors, ≥ 4-4 (the natural
+        // 5+ club and 8+ point readings were suppressed above).  No strength
+        // claim and no club cap — their band and style are undeclared, and the
+        // 5-4/4-5 split is a disjunction the per-suit framework cannot pin, so
+        // the residual carries it (the same loose handling our own Landy uses).
+        // The advances stay suppression-only: a preference can be a doubleton.
+        if let Some(their_landy) = self.their_landy {
+            let who = relative_of(len, their_landy.overcall_index) as usize;
+            players[who].narrow_length(Suit::Hearts, Range::at_least(4, LENGTH_CAP));
+            players[who].narrow_length(Suit::Spades, Range::at_least(4, LENGTH_CAP));
         }
 
         // Our Gladiator advance: record the real shape the suppressed call hid.
