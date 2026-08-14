@@ -7,7 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Distilled BBA's counter-defense to its own methods — the 1NT opener's side
+  of Woolsey Multi-Landy.** Twelve new `probe-bba-constraints` modes read the
+  seat we had never probed: BBA as the **1NT opener** answering each call of
+  the defense it plays itself (`counter-x`, `counter-c`, `counter-h`,
+  `counter-s`, `counter-2nt`, `counter-3c`/`-3d`/`-3h`/`-3s`, joining the
+  existing `counter` = the `2♦` Multi lane), plus eight `opener-*` modes one
+  round deeper. Two new flags: `--meanings N` prints EPBot's own prose label
+  for each forced call (`epbot_get_info_meaning`, previously bound only in
+  `probe-bba-kickback`), and `--their-conv NAME=0|1` sets a convention on the
+  side facing the probed seat only. Findings in
+  [docs/ai-bidder/bba-1nt-counter-defense.md](docs/ai-bidder/bba-1nt-counter-defense.md):
+  over their Landy `2♣` BBA plays a **notrump ladder with no double at all**
+  plus the two minor transfers (`2♠`→♣, `3♣`→♦, opener completing 100%),
+  dropping every major-seeking call; over Muiderberg it plays **plain
+  Lebensohl** (forced `3♣`, 100%) with a takeout `X` showing the *other* major;
+  over their double it runs **full systems-on** with a business `XX`; and its
+  three-level calls over 1NT are **natural seven-card preempts**, not
+  artificial — which renames campaign package N3. Its counter routes on the
+  opponents' declared system essentially only in the `2♣` lane (59.4% of the
+  call distribution moves, against ≤ 8% everywhere else), and `--their-conv`
+  shows why: EPBot reads a call through the convention object on the
+  **caller's own side**, so there is no separate disclosure input — setting
+  Multi-Landy on the defenders' seats alone reproduces the declared table board
+  for board. `bba-gen --advertise-landy` was always the right lever. Confirms
+  `Transfers if RHO bids clubs` against the live engine, closing a
+  [21gf-ledger](docs/ai-bidder/21gf-ledger.md) gap that the disclosure sweep
+  had filed as cosmetic. Read-only: examples and docs only, no `src/` change,
+  so the default system is byte-identical by construction.
+
 ### Fixed
+
+- **`docs/takeout-double-layers.md` mislabelled `bba-multi-2d.md`'s 41%
+  takeout-double row** as the *advancer's* X over a Multi. The probe's seat
+  index says otherwise: `--mode counter` is actor seat 2, the 1NT opener's
+  partner. The warning now names the right node.
+
 
 - **`bba-gen` disclosure regression: A/B arms disclosed default `decision` and
   `rebid` rows.** `disclosure()` rebuilt the card's `Agreements` from

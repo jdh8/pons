@@ -101,8 +101,12 @@ survives, and is Package C.
 `examples/probe-bba-constraints` have never been run and recorded, so every
 claim above about BBA's direct-seat double is a reading of the 2009 `MB.TXT`
 export, which is orphaned from the live engine. `bba-multi-2d.md`'s 41%
-takeout-double row is the *advancer's* X over a Multi `2♦` — a different node,
-and a trap for the next grep.
+takeout-double row is a different node and a trap for the next grep: it is the
+X by the **1NT opener's partner** over a Multi `2♦` overcall (`--mode counter`,
+actor seat 2), not a direct-seat double of a suit opening. (This warning
+previously called it the *advancer's* X, which is a third node again — the
+probe's seat index settles it; the full counter-defense set is in
+[ai-bidder/bba-1nt-counter-defense.md](ai-bidder/bba-1nt-counter-defense.md).)
 
 ## Design
 

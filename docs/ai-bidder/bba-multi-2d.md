@@ -95,3 +95,15 @@ Prior: competitive/defensive conventions usually lose on plain-DD (obstruction
 wall), but *constructive* responses to interference can win (the 1NT-doubled
 runout and UvU both shipped DD-positive). Genuinely open; measured on
 `bba-match --defense-2d-multi`.
+
+## 5. The rest of the set
+
+§3 is one lane of BBA's counter-defense. The other five —
+`(X)`, `(2♣)`, `(2♥)`, `(2♠)`, `(2NT)`, the three-level preempts, and opener's
+answer one round deeper in each — are in
+[bba-1nt-counter-defense.md](bba-1nt-counter-defense.md), which reproduces §3's
+table unchanged. Two facts from there bear on this lane: opener **never passes**
+the 41% double (`2♥`/`2♠` with a four-card major, else `3♦`), and this lane's
+counter moves only **7.9%** between the declared and undeclared readings of the
+`2♦`, against 59.4% for the Landy `2♣` — so a Multi package here is buying much
+less reading than N1 did.

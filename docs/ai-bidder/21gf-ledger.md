@@ -292,7 +292,17 @@ is not grounds to change a ship decision (cf. DoubleStyle, Jordan/Truscott).
 | 71 | Jordan/Truscott 2NT | tried — DD-negative | **keep floor** (don't ship) | **vs floor: −1.0/−1.5 div** [`PD`, jordan-ab 500k] (2NT-only half −4.2/−4.4) — reverted, obstruction is DD-blind. | reverted |
 | 117 | Support double/redouble | shipped | keep | — | — |
 | 28/30 | 1X-(Y)-2Z forcing/weak | partial | verify | — | — |
-| 122 | Transfers if RHO bids clubs | gap | add (Batch 1) | — | — |
+| 122 | Transfers if RHO bids clubs | **confirmed** | add (Batch 1) | — | probed 2026-08-15 |
+
+**Row 122 is real, and selective.** The disclosure sweep filed
+`Transfers if RHO bids clubs` as cosmetic (0 of 8406 decisions moved), which
+only meant the sweep never reached the node. Driven directly, BBA's responder
+over `1NT (2♣)` runs the uncontested **minor** transfers (`2♠`→♣ and `3♣`→♦,
+opener completing 100%) and the notrump ladder on top of the overcall, while
+dropping every major-seeking call — and its `2NT` there stays a *natural
+invite*, where over a `(2♥)`/`(2♠)` overcall the same `2NT` is a forced-`3♣`
+Lebensohl relay. Distilled in
+[bba-1nt-counter-defense.md](bba-1nt-counter-defense.md).
 
 **Transfer Lebensohl (80) — Rubensohl take 2, shipped as default.** The first
 Rubensohl attempt lost (−1.68/div) by stranding game hands in partscores. Larry

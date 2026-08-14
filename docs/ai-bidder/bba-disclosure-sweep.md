@@ -42,6 +42,14 @@
 
 ## Cosmetic (224 rows)
 
+> **"Cosmetic" means the sweep never reached the node, not that the row is
+> inert.** `Transfers if RHO bids clubs` sits here at 0 of 8406 decisions moved,
+> yet driving BBA directly at `1NT (2♣) ?` shows it governing a real structure
+> — see [bba-1nt-counter-defense.md](bba-1nt-counter-defense.md). Anchor dumps
+> are dominated by uncontested auctions, so a row that only fires under a
+> specific interference call cannot show up here. Treat this table as a
+> frequency floor, and probe the node before concluding a row does nothing.
+
 | row | card value | decisions moved |
 | --- | --- | --- |
 | (1X)-1Y-(1Z)-2Z natural | 0 | 0 |

@@ -25,6 +25,15 @@ BBA-8730 and plays the same family):
 | `2♥` / `2♠` | **Muiderberg** — exactly 5 in the major + a 4+ minor | natural 5+ major → Cohen Transfer Lebensohl |
 | natural 2m | **never bid** — a 6-card minor one-suiter passes | — |
 
+The mirror of that table — what BBA does as the **1NT opener** facing each of
+those calls — is distilled in
+[bba-1nt-counter-defense.md](ai-bidder/bba-1nt-counter-defense.md). Its two
+load-bearing readings for this campaign: over their Landy `2♣` BBA plays a
+**notrump ladder with no double and only the minor transfers**, and over
+Muiderberg it plays **plain Lebensohl** with a takeout `X` showing the other
+major. It routes on the opponents' declared system only in the `2♣` lane
+(59.4% of the call distribution moves; every other lane ≤ 8%).
+
 **Stated assumption.** We optimize for an artificial-defense field and accept
 being wrong against a DONT/Cappelletti `2♦` that holds real diamonds. Routing
 by the opponents' declared system is the `--declare-their-book` channel, which
@@ -179,11 +188,11 @@ is 5 calls; the most common runout point is after opener's transfer completion
 | **N1** | **Landy `(2♣)` counter + N1c/d/e/f stack** | `their.two_clubs_landy` | **SHIPPED 2026-08-14** (base `wash \| win`, stack `win \| win`); was the top loser, both scorers |
 | N1g | Landy **read-side** wiring — their `2♣` = majors in the floor's envelopes | `reading.their_landy_reading` | **SHIPPED DEFAULT-ON 2026-08-14** (`plain wash \| PD win` ×3 seeds, isolation gate 0 foreign); see §N1g |
 | N1h / N1i | Landy counter's minor rungs re-priced — a point lower, then regraded on `hcp` | `defense_2c_landy_low_minors`, `defense_2c_landy_hcp_rungs` | **both REFUTED 2026-08-15, both opt-in; lane closed.** `cue ← X` negative in both, so N1d's cue floor is settled — see §N1h / N1i |
-| N2 | Muiderberg `(2♠)` calibration | — | −0.66/bd, PD −0.58 NV |
-| N3 | `(3+)` overcalls of our 1NT | new | floor-only today; −0.63/bd |
+| N2 | Muiderberg `(2♠)` calibration | — | −0.66/bd, PD −0.58 NV; **BBA plays plain Lebensohl here, we play Cohen Transfer** — a concrete A/B, see the [counter-defense reference](ai-bidder/bba-1nt-counter-defense.md) |
+| N3 | `(3+)` overcalls of our 1NT | new | floor-only today; −0.63/bd. **Misnamed: their three-level calls are natural 7-card preempts**, not artificial — this is `defense_to_preempt`'s lane, not a counter-defense |
 | N4 | Multi `(2♦)` — finish + measure | `defense_2d_multi` | exists, half-built, gate bug above; plain-only loss; **owed the `their` disclosure migration N1 got** |
 | N5 | Complete Jacoby, re-measure | `competition_over_transfer` | default-off on a measured loss *while missing its two most-fired cells* — a half-built loss, resumable |
-| N6 | `(2NT)` penalty discipline | `uvu_encircle` et al. | worst per-board rate, n=118 — needs boards before it needs code |
+| N6 | `(2NT)` penalty discipline | `uvu_encircle` et al. | worst per-board rate, n=118 — needs boards before it needs code. Mechanism now priced: **BBA doubles 46.7%** and cues `3♣` for both majors ([reference](ai-bidder/bba-1nt-counter-defense.md)) |
 | N7 | Absent responses contested | new | Puppet `3♣`, `3♦`, splinters, `3NT`, Texas, `4NT` — rarest in the system |
 
 ## N1* — the Landy `(2♣)` counter (**SHIPPED DEFAULT-ON 2026-08-14**)

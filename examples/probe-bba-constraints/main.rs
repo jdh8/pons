@@ -19,6 +19,8 @@
 //! cargo run --release --example probe-bba-constraints -- --mode rebid-h  # 2♥-overcaller's rebid after the 2NT ask
 //! cargo run --release --example probe-bba-constraints -- --mode rebid-s  # 2♠-overcaller's rebid after the 2NT ask
 //! cargo run --release --example probe-bba-constraints -- --mode counter --vul none,both  # our-side counter-defense
+//! cargo run --release --example probe-bba-constraints -- --mode counter-c --meanings 200  # ...over their Landy 2♣, with BBA's own reading of it
+//! cargo run --release --example probe-bba-constraints -- --mode counter-c --conv "Multi-Landy=0" --conv "Cappelletti=0" --conv "Landy=0"  # ...undeclared: the same forced 2♣, read as natural
 //! cargo run --release --example probe-bba-constraints -- --mode weak2-h  # opener's rebid over 2♥ - 2NT -
 //! cargo run --release --example probe-bba-constraints -- --mode weak2-h --conv Ogust=1  # ...with BBA's Ogust on
 //! cargo run --release --example probe-bba-constraints -- --mode nt-resp --conv "1N-3M splinter"=1  # responses to BBA's own 1NT
@@ -69,6 +71,7 @@ const DEFAULT_LIB: &str = "vendor/bba/Native-libraries/linux/x64/libEPBot.so";
 
 // EPBot bid codes: Pass = 0, X = 1; a bid is 5 + (level-1)*5 + strain (♣..NT).
 const PASS: c_int = 0;
+const DOUBLE: c_int = 1;
 const ONE_C: c_int = 5; // 5 + 0*5 + 0
 const ONE_D: c_int = 6; // 5 + 0*5 + 1
 const ONE_H: c_int = 7; // 5 + 0*5 + 2
@@ -92,6 +95,7 @@ type NewHandFn =
 type SetBidFn = unsafe extern "C" fn(*mut c_void, c_int, c_int, *const c_char);
 type GetBidFn = unsafe extern "C" fn(*mut c_void) -> c_int;
 type SetConvFn = unsafe extern "C" fn(*mut c_void, c_int, *const c_char, c_int) -> c_int;
+type GetMeaningFn = unsafe extern "C" fn(*mut c_void, c_int, *mut c_char, c_int) -> c_int;
 
 /// Cached EPBot entry points (copied out of the [`Library`], which we keep alive)
 struct Bba {
@@ -103,12 +107,20 @@ struct Bba {
     set_bid: SetBidFn,
     get_bid: GetBidFn,
     set_conv: SetConvFn,
-    /// Named conventions forced on all four seats after `set_system`.
+    get_meaning: GetMeaningFn,
+    /// Named conventions forced on **both sides** after `set_system`.
     overrides: Vec<(CString, c_int)>,
+    /// Named conventions forced on the side *facing* the actor only — what the
+    /// opponents are declared to play, as distinct from what everyone plays.
+    their_overrides: Vec<(CString, c_int)>,
 }
 
 impl Bba {
-    fn load(path: &str, overrides: Vec<(CString, c_int)>) -> Result<Self> {
+    fn load(
+        path: &str,
+        overrides: Vec<(CString, c_int)>,
+        their_overrides: Vec<(CString, c_int)>,
+    ) -> Result<Self> {
         // SAFETY: loading a trusted native library; symbol signatures match the
         // ABI confirmed by `bba-match`/`probe-bba-1nt`.
         let lib = unsafe { Library::new(path) }?;
@@ -121,9 +133,46 @@ impl Bba {
                 set_bid: *lib.get::<SetBidFn>(b"epbot_set_bid\0")?,
                 get_bid: *lib.get::<GetBidFn>(b"epbot_get_bid\0")?,
                 set_conv: *lib.get::<SetConvFn>(b"epbot_set_conventions\0")?,
+                get_meaning: *lib.get::<GetMeaningFn>(b"epbot_get_info_meaning\0")?,
                 _lib: lib,
                 overrides,
+                their_overrides,
             })
+        }
+    }
+
+    /// A fresh bot configured for `actor` holding `hand`, before any call
+    ///
+    /// # Safety
+    ///
+    /// The returned bot must be passed to `self.destroy` exactly once, and
+    /// `suits` must outlive the `new_hand` call the caller has already made —
+    /// which it does, because that call happens here.
+    unsafe fn make_bot(&self, actor: c_int, suits: &CString, vul: c_int) -> *mut c_void {
+        // SAFETY: the caller's contract; all argument types match the confirmed ABI.
+        unsafe {
+            let bot = (self.create)();
+            assert!(!bot.is_null(), "epbot_create returned null");
+            for seat in 0..4 {
+                (self.set_system)(bot, seat, 0);
+            }
+            // `epbot_set_conventions`'s second argument is a **side**, not a seat:
+            // the engine's `cc` array has two entries, so 2/3 return -2 and write
+            // nothing (`probe-bba-kickback`, `probe-set-conv`).  `--conv` sets both
+            // sides — what everyone plays — and `--their-conv` only the side facing
+            // the actor, which is the disclosure channel: what *they* are declared
+            // to play while we are not told.
+            let theirs = 1 - actor % 2;
+            for (name, value) in &self.overrides {
+                for side in 0..2 {
+                    (self.set_conv)(bot, side, name.as_ptr(), *value);
+                }
+            }
+            for (name, value) in &self.their_overrides {
+                (self.set_conv)(bot, theirs, name.as_ptr(), *value);
+            }
+            (self.new_hand)(bot, actor, suits.as_ptr(), 0, vul, 0, 0);
+            bot
         }
     }
 
@@ -133,26 +182,46 @@ impl Bba {
     fn call(&self, actor: c_int, prefix: &[c_int], hand: Hand, vul: c_int) -> c_int {
         let suits = hand_to_suits(hand);
         let empty = c"".as_ptr();
-        // SAFETY: a fresh bot used and destroyed here; all argument types match
-        // the confirmed ABI; `suits` outlives the `new_hand` call.
+        // SAFETY: the bot is created and destroyed here; `suits` outlives it.
         unsafe {
-            let bot = (self.create)();
-            assert!(!bot.is_null(), "epbot_create returned null");
-            for seat in 0..4 {
-                (self.set_system)(bot, seat, 0);
-            }
-            for (name, value) in &self.overrides {
-                for seat in 0..4 {
-                    (self.set_conv)(bot, seat, name.as_ptr(), *value);
-                }
-            }
-            (self.new_hand)(bot, actor, suits.as_ptr(), 0, vul, 0, 0);
+            let bot = self.make_bot(actor, &suits, vul);
             for (index, &code) in prefix.iter().enumerate() {
                 (self.set_bid)(bot, (index % 4) as c_int, code, empty);
             }
             let code = (self.get_bid)(bot);
             (self.destroy)(bot);
             code
+        }
+    }
+
+    /// BBA's own prose label for each call of `prefix`, in its own words
+    ///
+    /// A seat's meaning slot holds that seat's **latest** call's label and is
+    /// refreshed by `set_bid`, so it is read right after each replayed call
+    /// (`docs/ai-bidder/bba-kickback.md` §ABI).  This is the direct read of what
+    /// the engine thinks the opponents' call *means*, as opposed to the
+    /// statistical read of what it then does about it.
+    fn meanings(&self, actor: c_int, prefix: &[c_int], hand: Hand, vul: c_int) -> Vec<String> {
+        let suits = hand_to_suits(hand);
+        let empty = c"".as_ptr();
+        // SAFETY: as `call`, plus the meaning ABI recovered in `probe-bba-kickback`
+        // (own stack buffer, capacity passed in bytes).
+        unsafe {
+            let bot = self.make_bot(actor, &suits, vul);
+            let labels = prefix
+                .iter()
+                .enumerate()
+                .map(|(index, &code)| {
+                    let seat = (index % 4) as c_int;
+                    (self.set_bid)(bot, seat, code, empty);
+                    let mut buf = [0_u8; 1024];
+                    (self.get_meaning)(bot, seat, buf.as_mut_ptr().cast::<c_char>(), 1024);
+                    let end = buf.iter().position(|&b| b == 0).unwrap_or(0);
+                    String::from_utf8_lossy(&buf[..end]).into_owned()
+                })
+                .collect();
+            (self.destroy)(bot);
+            labels
         }
     }
 }
@@ -321,6 +390,15 @@ struct Args {
     #[arg(long = "conv")]
     conv: Vec<String>,
 
+    /// Force a named convention on the side *facing* the probed seat only:
+    /// NAME=0|1 (repeatable). Applied on top of `--conv` — the disclosure arm
+    #[arg(long = "their-conv")]
+    their_conv: Vec<String>,
+
+    /// Print BBA's own prose label for each forced call, over this many hands
+    #[arg(long, default_value_t = 0)]
+    meanings: usize,
+
     /// Probe **our own** bidder at the same node instead of BBA's (`ucb-*` only)
     #[arg(long)]
     ours: bool,
@@ -414,6 +492,122 @@ fn main() -> Result<()> {
             &[ONE_NT, TWO_D],
             None,
             "BBA responder's counter-defense over 1NT (2♦)",
+        ),
+        // The rest of the counter-defense set: BBA as the 1NT **opener's
+        // partner**, facing each remaining call of its own Multi-Landy defense.
+        // `counter` above is the `2♦` Multi lane and keeps its name so
+        // `docs/ai-bidder/bba-multi-2d.md`'s published command still reproduces.
+        // These are the mirror of `--mode multi`: the same five calls read from
+        // the other side of the table, plus the two BBA makes below 1% (the
+        // both-minors `2NT` and the four natural seven-card preempts), which
+        // together are the census's `2NT` and `3+` buckets.
+        "counter-x" => (
+            2,
+            &[ONE_NT, DOUBLE],
+            None,
+            "BBA responder's counter-defense over 1NT (X) — their X is Woolsey, not penalty",
+        ),
+        "counter-c" => (
+            2,
+            &[ONE_NT, TWO_C],
+            None,
+            "BBA responder's counter-defense over 1NT (2♣) — their 2♣ is Landy, both majors",
+        ),
+        "counter-h" => (
+            2,
+            &[ONE_NT, TWO_H],
+            None,
+            "BBA responder's counter-defense over 1NT (2♥) — their 2♥ is Muiderberg",
+        ),
+        "counter-s" => (
+            2,
+            &[ONE_NT, TWO_S],
+            None,
+            "BBA responder's counter-defense over 1NT (2♠) — their 2♠ is Muiderberg",
+        ),
+        "counter-2nt" => (
+            2,
+            &[ONE_NT, TWO_NT],
+            None,
+            "BBA responder's counter-defense over 1NT (2NT) — their 2NT is both minors, 5-5",
+        ),
+        "counter-3c" => (
+            2,
+            &[ONE_NT, THREE_C],
+            None,
+            "BBA responder over 1NT (3♣) — a natural seven-card preempt, not an artificial call",
+        ),
+        "counter-3d" => (
+            2,
+            &[ONE_NT, THREE_D],
+            None,
+            "BBA responder over 1NT (3♦) — a natural seven-card preempt",
+        ),
+        "counter-3h" => (
+            2,
+            &[ONE_NT, THREE_H],
+            None,
+            "BBA responder over 1NT (3♥) — a natural seven-card preempt",
+        ),
+        "counter-3s" => (
+            2,
+            &[ONE_NT, THREE_S],
+            None,
+            "BBA responder over 1NT (3♠) — a natural seven-card preempt",
+        ),
+        // One round deeper: the 1NT **opener** answering its partner's counter.
+        // These read the seat our own book leaves to the floor after opener's one
+        // answer, and they are the only way to tell a Lebensohl relay from a
+        // natural invite — the two look identical from responder's side.  Being
+        // opener-seat probes they take the `weak2-*` self-consistency filter
+        // (`Some(ONE_NT)` over an empty prefix): a random hand is not a 1NT bid.
+        "opener-c-2nt" => (
+            0,
+            &[ONE_NT, TWO_C, TWO_NT, PASS],
+            Some(ONE_NT),
+            "BBA opener over 1NT (2♣ Landy) 2NT - — natural invite, or a relay?",
+        ),
+        "opener-c-2s" => (
+            0,
+            &[ONE_NT, TWO_C, TWO_S, PASS],
+            Some(ONE_NT),
+            "BBA opener over 1NT (2♣ Landy) 2♠ - — a 3♣ answer is the club transfer, systems on",
+        ),
+        "opener-c-3c" => (
+            0,
+            &[ONE_NT, TWO_C, THREE_C, PASS],
+            Some(ONE_NT),
+            "BBA opener over 1NT (2♣ Landy) 3♣ - — a 3♦ answer is the diamond transfer",
+        ),
+        "opener-d-x" => (
+            0,
+            &[ONE_NT, TWO_D, DOUBLE, PASS],
+            Some(ONE_NT),
+            "BBA opener over 1NT (2♦ Multi) X - — sitting for the counter's 41% double, or pulling it",
+        ),
+        "opener-h-2nt" => (
+            0,
+            &[ONE_NT, TWO_H, TWO_NT, PASS],
+            Some(ONE_NT),
+            "BBA opener over 1NT (2♥ Muiderberg) 2NT - — a forced 3♣ is Lebensohl",
+        ),
+        "opener-s-2nt" => (
+            0,
+            &[ONE_NT, TWO_S, TWO_NT, PASS],
+            Some(ONE_NT),
+            "BBA opener over 1NT (2♠ Muiderberg) 2NT - — a forced 3♣ is Lebensohl",
+        ),
+        "opener-h-x" => (
+            0,
+            &[ONE_NT, TWO_H, DOUBLE, PASS],
+            Some(ONE_NT),
+            "BBA opener over 1NT (2♥ Muiderberg) X - — sitting for the counter's double",
+        ),
+        "opener-2nt-x" => (
+            0,
+            &[ONE_NT, TWO_NT, DOUBLE, PASS],
+            Some(ONE_NT),
+            "BBA opener over 1NT (2NT both minors) X - — the census's worst bucket, from their side",
         ),
         "muider-h" => (
             3,
@@ -619,7 +813,7 @@ fn main() -> Result<()> {
             "advancer over (1♣) 1♥ - — the 2♦ bucket is the transfer into partner's hearts",
         ),
         other => bail!(
-            "--mode must be open|def1-c|def1-d|def1-h|def1-s|multi|advance|counter|muider-h|muider-s|rebid-d|rebid-h|rebid-s|stayman|xfer-h|xfer-s|weak2-d|weak2-h|weak2-s|def2-d|def2-h|def2-s|nt-resp|nt-3h|nt-3s|nt-3c|nt-3c-3d|nt-2s-3c|ucb-sd|ucb-sc|ucb-dc|ucb-sh|rub-ch|o4, got {other:?}"
+            "--mode must be open|def1-c|def1-d|def1-h|def1-s|multi|advance|counter|counter-x|counter-c|counter-h|counter-s|counter-2nt|counter-3c|counter-3d|counter-3h|counter-3s|opener-c-2nt|opener-c-2s|opener-c-3c|opener-d-x|opener-h-2nt|opener-s-2nt|opener-h-x|opener-2nt-x|muider-h|muider-s|rebid-d|rebid-h|rebid-s|stayman|xfer-h|xfer-s|weak2-d|weak2-h|weak2-s|def2-d|def2-h|def2-s|nt-resp|nt-3h|nt-3s|nt-3c|nt-3c-3d|nt-2s-3c|ucb-sd|ucb-sc|ucb-dc|ucb-sh|rub-ch|o4, got {other:?}"
         ),
     };
 
@@ -640,6 +834,11 @@ fn main() -> Result<()> {
         "nt-3h" => (&[], Some(Suit::Hearts)),
         "nt-3s" => (&[], Some(Suit::Spades)),
         "nt-3c" => (&[], Some(Suit::Diamonds)),
+        // The `opener-*` modes probe the 1NT OPENER at its second turn, so — like
+        // `weak2-*` — the filter is "a hand BBA opens 1NT with", an empty prefix.
+        // Leaving them on the `&[ONE_NT]` default would filter the wrong seat and
+        // accept almost nothing.
+        mode if mode.starts_with("opener-") => (&[], None),
         // `nt-3c-3d` probes RESPONDER, so the filter replays the transfer
         // itself: keep only hands BBA bids `3♣` with over `1NT - `.  `trump`
         // is diamonds — the suit a splinter would be agreeing.
@@ -677,7 +876,14 @@ fn main() -> Result<()> {
         parse_conv(&args.conv)?
     };
     let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());
-    let bba = Bba::load(&path, overrides)?;
+    // `parse_conv` substitutes the Multi-Landy defaults for an empty list, which
+    // is right for `--conv` and wrong here: no `--their-conv` means no asymmetry.
+    let their_overrides = if args.their_conv.is_empty() {
+        Vec::new()
+    } else {
+        parse_conv(&args.their_conv)?
+    };
+    let bba = Bba::load(&path, overrides, their_overrides)?;
 
     let mut report = String::new();
     let _ = writeln!(
@@ -687,10 +893,21 @@ fn main() -> Result<()> {
         conv_summary(&bba.overrides),
         args.samples,
     );
+    if !bba.their_overrides.is_empty() {
+        let _ = writeln!(
+            report,
+            "their side only: {}\n",
+            conv_summary(&bba.their_overrides)
+        );
+    }
     let _ = writeln!(
         report,
         "Hands summarised in DSL vocabulary; `sketch` is a *candidate* to verify, not a proof.\n"
     );
+
+    if args.meanings > 0 {
+        render_meanings(&mut report, &bba, actor, prefix, args.meanings, args.seed);
+    }
 
     for token in args.vul.split(',').map(str::trim) {
         let vul = vul_code(token, actor)?;
@@ -726,6 +943,54 @@ fn main() -> Result<()> {
         print!("{report}");
     }
     Ok(())
+}
+
+/// What BBA thinks each forced call *means*, in its own words
+///
+/// The bucket tables below read the counter-defense behaviourally — what the
+/// engine *does* about a call.  This reads the other half directly: the label
+/// EPBot attaches to the call itself.  Labels are tallied over `hands` sampled
+/// actor hands because the reading is filtered by the reader's own cards (a
+/// "both majors" claim narrows against a hand holding five of one), so a single
+/// hand is an anecdote.  Vulnerability is fixed at none — a meaning is not
+/// vul-sensitive, and the bucket tables carry the vul split.
+fn render_meanings(
+    report: &mut String,
+    bba: &Bba,
+    actor: c_int,
+    prefix: &[c_int],
+    hands: usize,
+    seed: u64,
+) {
+    let mut rng = StdRng::seed_from_u64(seed);
+    let empty = Builder::new()
+        .build_partial()
+        .expect("an empty builder is a valid (all-unknown) partial deal");
+    let mut tallies: Vec<BTreeMap<String, usize>> = vec![BTreeMap::new(); prefix.len()];
+    for deal in fill_deals(&mut rng, empty).take(hands) {
+        for (tally, label) in
+            tallies
+                .iter_mut()
+                .zip(bba.meanings(actor, prefix, deal[Seat::North], 0))
+        {
+            *tally.entry(label).or_default() += 1;
+        }
+    }
+
+    let _ = writeln!(
+        report,
+        "## What BBA reads the auction as (`epbot_get_info_meaning`, {hands} hands)\n"
+    );
+    let _ = writeln!(report, "| call | BBA's label | hands |");
+    let _ = writeln!(report, "| --- | --- | ---: |");
+    for (&code, tally) in prefix.iter().zip(&tallies) {
+        let call = decode(code).unwrap_or_else(|| format!("?{code}"));
+        for (label, count) in tally {
+            let shown = if label.is_empty() { "*(none)*" } else { label };
+            let _ = writeln!(report, "| {call} | {shown} | {count} |");
+        }
+    }
+    report.push('\n');
 }
 
 /// Deal `samples` random hands, drive BBA, and bucket by its returned call.
@@ -1045,7 +1310,8 @@ fn run_o4(args: &Args) -> Result<()> {
         parse_conv(&args.conv)?
     };
     let path = std::env::var("BBA_LIB").unwrap_or_else(|_| DEFAULT_LIB.into());
-    let bba = Bba::load(&path, overrides)?;
+    // The O4 grid is a one-sided quality fit, so there is no disclosure arm.
+    let bba = Bba::load(&path, overrides, Vec::new())?;
     let pools = HoldingPools::new();
     let mut rng = StdRng::seed_from_u64(args.seed);
     let mut controlled = O4Sample::default();
