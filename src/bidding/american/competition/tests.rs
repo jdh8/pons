@@ -45,22 +45,33 @@ fn row_package_invariants() {
 /// above never walks a single one of their rows.  Probe each arm on its own —
 /// this is the only place the counter's totality and alert invariants are
 /// checked at all.  The tuples are (cues, transfer, cue_floor, fit_answers,
-/// competition): the three original arms, each N1d/e/f refinement alone, and
-/// the stacked A/B arms d → d+e → d+e+f.
+/// competition, low_minors, hcp_rungs): the three original arms, each N1d/e/f
+/// refinement alone, the stacked A/B arms d → d+e → d+e+f, and N1h / N1i each
+/// alone and stacked.
 #[test]
 fn landy_counter_package_invariants() {
-    for (cues, transfer, cue_floor, fit_answers, competition) in [
-        (false, false, false, false, false),
-        (true, false, false, false, false),
-        (false, true, false, false, false),
-        (false, false, true, false, false),
-        (false, false, false, true, false),
-        (false, false, false, false, true),
-        (false, false, true, true, false),
-        (false, false, true, true, true),
+    for (cues, transfer, cue_floor, fit_answers, competition, low_minors, hcp_rungs) in [
+        (false, false, false, false, false, false),
+        (true, false, false, false, false, false),
+        (false, true, false, false, false, false),
+        (false, false, true, false, false, false),
+        (false, false, false, true, false, false),
+        (false, false, false, false, true, false),
+        (false, false, true, true, false, false),
+        (false, false, true, true, true, false),
         // The shipped default since 2026-08-14: the whole stack.
-        (false, true, true, true, true),
-    ] {
+        (false, true, true, true, true, false),
+        // N1h alone, and the A/B's ON arm (the stack plus N1h).
+        (false, false, false, false, false, true),
+        (false, true, true, true, true, true),
+    ]
+    .into_iter()
+    .map(|(c, t, cf, fa, comp, low)| (c, t, cf, fa, comp, low, false))
+    // N1i alone, and stacked — the `hcp` regrading of the same rungs.
+    .chain([
+        (false, false, false, false, false, false, true),
+        (false, true, true, true, true, false, true),
+    ]) {
         let mut arm = Agreements::default();
         arm.decision.their.two_clubs_landy = true;
         arm.competition.defense_2c_landy_cues = cues;
@@ -68,6 +79,8 @@ fn landy_counter_package_invariants() {
         arm.competition.defense_2c_landy_cue_floor = cue_floor;
         arm.competition.defense_2c_landy_fit_answers = fit_answers;
         arm.competition.defense_2c_landy_competition = competition;
+        arm.competition.defense_2c_landy_low_minors = low_minors;
+        arm.competition.defense_2c_landy_hcp_rungs = hcp_rungs;
         crate::bidding::rows::assert_package_invariants(&arm, &[super::lebensohl_package()]);
     }
 }

@@ -406,6 +406,95 @@ fn landy_cue_floor_returns_the_eight_count_to_the_values_double() {
 }
 
 #[test]
+fn landy_low_minors_prices_every_minor_rung_a_point_lower() {
+    // The N1h arm: the shipped stack, plus the point off each minor rung.
+    let mut arm = Agreements::default();
+    arm.decision.their.two_clubs_landy = true;
+    arm.competition.defense_2c_landy_low_minors = true;
+    let auction = [call(1, Strain::Notrump), call(2, Strain::Clubs)];
+    let low = |hand| best_call_with(&arm, &auction, hand);
+    let shipped = |hand| bid_landy_n1(true, true, true, &auction, hand);
+
+    // 9 points, five clubs: N1d's floor(10) defends, N1h's floor(9) cues.
+    // This is the slice N1h deliberately takes back off the values double.
+    let hand = "43.432.Q32.AK432";
+    assert_eq!(shipped(hand).0, Call::Double, "N1d: it defends");
+    let (c, floored) = low(hand);
+    assert_eq!(c, call(2, Strain::Hearts), "N1h: the cue reaches it");
+    assert!(!floored, "the cue must come from the book");
+
+    // The eight-count is still below both floors — one point, not two.
+    assert_eq!(low("43.432.J32.AK432").0, Call::Double);
+
+    // 7 points, six diamonds: the weak 2♦ under the shipped band, the
+    // invitational 3♦ once the band drops to 7-8.
+    let hand = "32.43.KQJ876.432";
+    assert_eq!(shipped(hand).0, call(2, Strain::Diamonds));
+    let (c, floored) = low(hand);
+    assert_eq!(
+        c,
+        call(3, Strain::Diamonds),
+        "N1h: the invitation reaches it"
+    );
+    assert!(!floored, "the invitational minor must come from the book");
+
+    // 9 points, six diamonds: the band shifts whole, so the top of the old
+    // rung falls through to the cue rather than overlapping it.
+    let hand = "32.43.AKJ876.432";
+    assert_eq!(shipped(hand).0, call(3, Strain::Diamonds));
+    assert_eq!(low(hand).0, call(2, Strain::Spades), "N1h: 3♦ caps at 8");
+
+    // The eight-count six-carder is inside both bands and does not move.
+    let hand = "32.43.AQJ876.432";
+    assert_eq!(shipped(hand).0, call(3, Strain::Diamonds));
+    assert_eq!(low(hand).0, call(3, Strain::Diamonds));
+}
+
+#[test]
+fn landy_hcp_rungs_regrade_the_minors_on_high_cards() {
+    // The N1i arm: the shipped stack, with the minors cut on `hcp` into three
+    // non-overlapping bands — cue 9+, 3m INV 7-8, weak 2♦/2NT 0-6.
+    let mut arm = Agreements::default();
+    arm.decision.their.two_clubs_landy = true;
+    arm.competition.defense_2c_landy_hcp_rungs = true;
+    let auction = [call(1, Strain::Notrump), call(2, Strain::Clubs)];
+    let hcp_arm = |hand| best_call_with(&arm, &auction, hand);
+    let shipped = |hand| bid_landy_n1(true, true, true, &auction, hand);
+
+    // 9 hcp, five clubs: the cue's own band, where `points` needed 10.
+    let hand = "43.432.Q32.AK432";
+    assert_eq!(shipped(hand).0, Call::Double, "points(10..): it defends");
+    let (c, floored) = hcp_arm(hand);
+    assert_eq!(c, call(2, Strain::Hearts), "hcp(9..): the cue takes it");
+    assert!(!floored, "the cue must come from the book");
+
+    // 8 hcp is below the cue and lands on the values double, which floors on
+    // the same scale — the two rungs now partition instead of overlapping.
+    assert_eq!(hcp_arm("43.432.J32.AK432").0, Call::Double);
+
+    // 7 hcp, six diamonds: the invitational rung.  Under `points` the
+    // unbalanced upgrade made this hand an 8 and it still bid 3♦; under
+    // `hcp` the shape no longer votes.
+    let hand = "32.43.AQJ876.432";
+    assert_eq!(shipped(hand).0, call(3, Strain::Diamonds));
+    let (c, floored) = hcp_arm(hand);
+    assert_eq!(c, call(3, Strain::Diamonds), "7 hcp is inside 7-8");
+    assert!(!floored, "the invitational minor must come from the book");
+
+    // 6 hcp, six diamonds: below the invitation, so the weak 2♦ — and the
+    // 2NT club transfer keeps its own 0-6 band.
+    assert_eq!(hcp_arm("32.43.KQJ876.432").0, call(2, Strain::Diamonds));
+    assert_eq!(hcp_arm("32.43.432.QJ8765").0, call(2, Strain::Notrump));
+
+    // The known hole, pinned so it cannot be lost silently: 7 hcp with a
+    // *five*-card diamond suit clears neither the 2♦ ceiling (6) nor the
+    // double's floor (8), so it passes where `points` bid 2♦.
+    let hand = "432.432.AK432.43";
+    assert_eq!(shipped(hand).0, call(2, Strain::Diamonds));
+    assert_eq!(hcp_arm(hand).0, Call::Pass, "N1i's deliberate hole");
+}
+
+#[test]
 fn landy_fit_answers_offer_notrump_on_a_doubleton() {
     // 1NT (2♣) 2♥ - holding two clubs and an unstopped major: the base
     // table's weight-20 catch-all raises to 3♣ on the 5-2 — the fit

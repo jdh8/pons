@@ -323,6 +323,21 @@ struct Args {
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
     defense_2c_landy_cue_floor: Option<bool>,
 
+    /// N1h: price the Landy counter's minor rungs a point lower — the `2♥`/`2♠`
+    /// cues to `points(9..)`, the `3♣`/`3♦` invitational six-carders to
+    /// `points(7..=8)`.  Implies --defense-2c-landy-transfer; does nothing
+    /// without --their-2c-landy.  Opt-in, pending its A/B.
+    #[arg(long, default_value_t = false)]
+    defense_2c_landy_low_minors: bool,
+
+    /// N1i: grade the Landy counter's minor rungs on `hcp` instead of
+    /// `points` — cue `hcp(9..)`, `3♣`/`3♦` INV `hcp(7..=8)`, weak `2♦` and
+    /// the `2NT` club transfer `hcp(..=6)`.  Implies
+    /// --defense-2c-landy-transfer and supersedes --defense-2c-landy-low-minors;
+    /// does nothing without --their-2c-landy.  Opt-in, pending its A/B.
+    #[arg(long, default_value_t = false)]
+    defense_2c_landy_hcp_rungs: bool,
+
     /// N1e: answer a Landy cue in notrump on doubleton support (the notrump
     /// rungs become "both majors stopped, or ≤2-card support"; raises and asks
     /// promise 3+).  Implies --defense-2c-landy-transfer; does nothing without
@@ -1789,6 +1804,8 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.competition.defense_2d_multi = args.defense_2d_multi;
     agreements.decision.their.two_clubs_landy = their_2c_landy(args)?;
     agreements.competition.defense_2c_landy_cues = args.defense_2c_landy_cues;
+    agreements.competition.defense_2c_landy_low_minors = args.defense_2c_landy_low_minors;
+    agreements.competition.defense_2c_landy_hcp_rungs = args.defense_2c_landy_hcp_rungs;
     // The stack knobs are engine-default ON (2026-08-14): only an explicit
     // flag overrides, so a plain vs-BBA run generates the shipped stack and a
     // pre-ship arm is spelled `--defense-2c-landy-<knob> false`.

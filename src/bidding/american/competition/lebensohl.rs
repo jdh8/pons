@@ -139,11 +139,23 @@ fn landy_transfer(agreements: &Agreements) -> bool {
         || landy_cue_floor(agreements)
         || landy_fit_answers(agreements)
         || landy_competition(agreements)
+        || landy_low_minors(agreements)
+        || landy_hcp_rungs(agreements)
 }
 
 /// Whether the Landy cues' floor is raised to `points(10..)` (N1d)
 fn landy_cue_floor(agreements: &Agreements) -> bool {
     agreements.competition.defense_2c_landy_cue_floor
+}
+
+/// Whether the Landy counter's minor rungs are priced a point lower (N1h)
+fn landy_low_minors(agreements: &Agreements) -> bool {
+    agreements.competition.defense_2c_landy_low_minors
+}
+
+/// Whether the Landy counter's minor rungs are graded on `hcp` (N1i)
+fn landy_hcp_rungs(agreements: &Agreements) -> bool {
+    agreements.competition.defense_2c_landy_hcp_rungs
 }
 
 /// Whether opener answers a Landy cue in notrump on doubleton support (N1e)
@@ -430,9 +442,24 @@ fn landy_responder(agreements: &Agreements) -> Rules {
             // otherwise take it: opener's cue answer promises tolerance and
             // hunts for stoppers on the assumption of a five-card suit, where
             // a six-bagger just wants a yes/no on 3NT.
+            // N1h shifts the whole band down a point rather than just its
+            // floor, so the 9-count six-carder falls through to the cue (INV+,
+            // and opener places the contract) instead of overlapping it.
+            let (inv_lo, inv_hi) = if landy_low_minors(agreements) {
+                (7, 8)
+            } else {
+                (8, 9)
+            };
             for (s, weight) in [(Suit::Clubs, 176), (Suit::Diamonds, 175)] {
                 let strain = Strain::from(s);
-                rules = rules.rule(Bid::new(3, strain), weight, len(s, 6..) & points(8..=9));
+                let bid = Bid::new(3, strain);
+                // N1i regrades the rung on `hcp` — the scale the values double
+                // it competes with already uses.
+                rules = if landy_hcp_rungs(agreements) {
+                    rules.rule(bid, weight, len(s, 6..) & hcp(7..=8))
+                } else {
+                    rules.rule(bid, weight, len(s, 6..) & points(inv_lo..=inv_hi))
+                };
             }
         }
         // N1d raises the cues' floor to `points(10..)`: at `points(8..)` and
@@ -442,33 +469,55 @@ fn landy_responder(agreements: &Agreements) -> Rules {
         // fired.  With the floor up, 8-9 goes back to the double; sub-8-hcp
         // shapely hands fall to `2♦`/the transfer/Pass, where a values
         // double's doctrine wants them.
-        let cue_floor = if landy_cue_floor(agreements) { 10 } else { 8 };
-        rules = rules
-            .rule(
-                Bid::new(2, Strain::Hearts),
-                173,
-                len(Suit::Clubs, 5..) & points(cue_floor..),
-            )
-            .alert(LANDY_CUE)
-            .rule(
-                Bid::new(2, Strain::Spades),
-                172,
-                len(Suit::Diamonds, 5..) & points(cue_floor..),
-            )
-            .alert(LANDY_CUE);
+        // N1h takes a point off whatever floor is in force, so the two knobs
+        // compose instead of one silently overriding the other.
+        let cue_floor = if landy_cue_floor(agreements) { 10 } else { 8 }
+            - if landy_low_minors(agreements) { 1 } else { 0 };
+        rules = if landy_hcp_rungs(agreements) {
+            rules
+                .rule(
+                    Bid::new(2, Strain::Hearts),
+                    173,
+                    len(Suit::Clubs, 5..) & hcp(9..),
+                )
+                .alert(LANDY_CUE)
+                .rule(
+                    Bid::new(2, Strain::Spades),
+                    172,
+                    len(Suit::Diamonds, 5..) & hcp(9..),
+                )
+                .alert(LANDY_CUE)
+        } else {
+            rules
+                .rule(
+                    Bid::new(2, Strain::Hearts),
+                    173,
+                    len(Suit::Clubs, 5..) & points(cue_floor..),
+                )
+                .alert(LANDY_CUE)
+                .rule(
+                    Bid::new(2, Strain::Spades),
+                    172,
+                    len(Suit::Diamonds, 5..) & points(cue_floor..),
+                )
+                .alert(LANDY_CUE)
+        };
         if landy_transfer(agreements) {
             // The weak club escape, moved down a level and right-sided.  Same
             // weight the direct `3♣` carried, so the values double still takes
             // the 8-9 hcp hands and only the *rung* changes.  There is no
             // diamond twin: the weak `2♦` below already covers it, and N1b's
             // weak `3♦` measured negative trying to duplicate it.
-            rules = rules
-                .rule(
-                    Bid::new(2, Strain::Notrump),
-                    110,
-                    len(Suit::Clubs, 6..) & points(2..=9),
-                )
-                .alert(LANDY_TRANSFER);
+            let transfer = Bid::new(2, Strain::Notrump);
+            rules = if landy_hcp_rungs(agreements) {
+                rules
+                    .rule(transfer, 110, len(Suit::Clubs, 6..) & hcp(..=6))
+                    .alert(LANDY_TRANSFER)
+            } else {
+                rules
+                    .rule(transfer, 110, len(Suit::Clubs, 6..) & points(2..=9))
+                    .alert(LANDY_TRANSFER)
+            };
         } else {
             for s in [Suit::Clubs, Suit::Diamonds] {
                 let strain = Strain::from(s);
@@ -492,14 +541,21 @@ fn landy_responder(agreements: &Agreements) -> Rules {
     rules = rules.rule(Bid::new(3, Strain::Notrump), 170, points(10..));
 
     // Weak natural `2♦` — the one suit below their majors we can still play in.
-    rules = rules.rule(
-        Bid::new(2, Strain::Diamonds),
-        140,
-        len(Suit::Diamonds, 5..)
-            & points(..=9)
-            & hcp(natural_floor_hcp(agreements)..)
-            & points(natural_floor_pts(agreements)..),
-    );
+    // N1i caps it on `hcp` instead, which is a *narrowing*: the 7-8 hcp
+    // five-card-diamond hand it drops reaches neither the `X` (floor 8 hcp,
+    // and only at 8) nor the cue, so it passes.  That hole is deliberate and
+    // is the first row to read if the arm loses.
+    let escape = Bid::new(2, Strain::Diamonds);
+    let floors = hcp(natural_floor_hcp(agreements)..) & points(natural_floor_pts(agreements)..);
+    rules = if landy_hcp_rungs(agreements) {
+        rules.rule(escape, 140, len(Suit::Diamonds, 5..) & hcp(..=6) & floors)
+    } else {
+        rules.rule(
+            escape,
+            140,
+            len(Suit::Diamonds, 5..) & points(..=9) & floors,
+        )
+    };
 
     // Natural invitational 2NT — dropped under N1c, which spends the call on
     // the club transfer.  It costs almost nothing: the values double outranks

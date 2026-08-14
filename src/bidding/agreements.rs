@@ -229,7 +229,46 @@ pub struct CompetitionKnobs {
     /// stronger still), the cue→X migration carrying +2.0…+5.1 PD per fired —
     /// the poached-double rows reversed, exactly as the per-bid decomposition
     /// predicted.  No effect while their `2♣` is undeclared or natural.
+    ///
+    /// **Settled — do not probe this floor again.**  N1h and N1i both lowered
+    /// it (to 9 on `points`, then to 9 on `hcp`) and both measured the
+    /// `cue ← X` migration negative (−1.80, then −2.96/−4.04 PD per fired).
+    /// Three experiments, two directions, one answer.
     pub defense_2c_landy_cue_floor: bool,
+    /// Price the Landy counter's minor rungs one point lower (N1h)
+    ///
+    /// Implies [`Self::defense_2c_landy_transfer`].  The `2♥`/`2♠` cues drop
+    /// from [`Self::defense_2c_landy_cue_floor`]'s `points(10..)` to
+    /// `points(9..)`, and the `3♣`/`3♦` invitational six-carders from
+    /// `points(8..=9)` to `points(7..=8)` — the whole band, so the 9-count
+    /// six-carder falls to the cue rather than overlapping it.  The floor
+    /// arithmetic subtracts from whichever cue floor is in force, so the two
+    /// knobs compose.
+    ///
+    /// **Measured 2026-08-15, REFUTED, opt-in** (`plain wash | PD loss`, vul
+    /// PD −0.00081 ±0.00074 over three seeds).  Its `cue ← X` migration cost
+    /// −1.80 PD per fired across 96 boards — N1d's win run backwards.  See
+    /// `docs/one-notrump-competitive.md` §N1h/N1i for the full decompose; the
+    /// lane is closed.
+    pub defense_2c_landy_low_minors: bool,
+    /// Grade the Landy counter's minor rungs on **`hcp`**, not `points` (N1i)
+    ///
+    /// Implies [`Self::defense_2c_landy_transfer`] and supersedes
+    /// [`Self::defense_2c_landy_low_minors`] on every rung it touches.  The
+    /// minor structure is re-cut on the scale the values `X` already uses,
+    /// into three non-overlapping bands: cue `hcp(9..)`, `3♣`/`3♦`
+    /// `hcp(7..=8)`, weak `2♦` and the `2NT` club transfer `hcp(..=6)`.  The
+    /// motive was that every rung competing with the double floored on
+    /// `points`, so shape alone could pull a hand off it.
+    ///
+    /// **Measured 2026-08-15, REFUTED, opt-in** (no CI-clear cell, all eight
+    /// leaning negative).  Notable: the 7-8 hcp five-card-diamond hand it
+    /// drops from the weak `2♦` reaches neither rung and passes, and that
+    /// `2♦ → Pass` row was the largest *positive* in either arm (+2.40 PD per
+    /// fired over 52 boards, per-seed +4.50/+1.33/−1.09 — a lead, not a
+    /// result).  See `docs/one-notrump-competitive.md` §N1h/N1i; the lane is
+    /// closed.
+    pub defense_2c_landy_hcp_rungs: bool,
     /// Answer a Landy cue in notrump on doubleton support (N1e)
     ///
     /// Implies [`Self::defense_2c_landy_transfer`].  The base
@@ -612,6 +651,8 @@ impl Default for CompetitionKnobs {
             defense_2c_landy_cues: false,
             defense_2c_landy_transfer: true,
             defense_2c_landy_cue_floor: true,
+            defense_2c_landy_low_minors: false,
+            defense_2c_landy_hcp_rungs: false,
             defense_2c_landy_fit_answers: true,
             defense_2c_landy_competition: true,
             negative_double_shape: NegativeDoubleShape::Modern,

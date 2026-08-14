@@ -22,6 +22,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **N1h / N1i: the Landy counter's minor rungs re-priced — both measured, both
+  REFUTED, both kept opt-in; the lane is closed.** Two new default-off knobs
+  over the same four rungs of our counter to their declared Landy `2♣`:
+  `competition.defense_2c_landy_low_minors` (N1h — cue `points(9..)`,
+  `3♣`/`3♦` `points(7..=8)`) and `competition.defense_2c_landy_hcp_rungs`
+  (N1i — the whole minor structure regraded on `hcp`: cue `9..`, `3m` `7..=8`,
+  weak `2♦` and the `2NT` club transfer `..=6`). Each implies N1c; N1i
+  supersedes N1h on the rungs both touch. Measured on three shared seeds,
+  230.4k bd/vul: N1h lands on `plain wash | PD loss` (vul PD −0.00081
+  ±0.00074), N1i on no CI-clear cell with all eight leaning negative.
+  **No user impact** — default-off, `smoke-default` byte-identical, and the
+  shipped Landy arm verified board-for-board identical.
+
+  The finding worth keeping: **`cue ← X` measured negative in both arms**
+  (−1.80 PD/fired over 96 boards, −2.96/−4.04 over 46) against N1d's original
+  +2.0…+5.1 for the same migration in the opposite direction. Three
+  independent experiments agree that hands do not belong on the cue at the
+  values double's expense, so N1d's `points(10..)` is settled and should not be
+  probed again. Smaller rows recorded as leads, not pursued: `Pass ← 2♦` +2.40
+  PD over 52 boards, `3♦ ← 2♦` +3.96 plain / +3.11 PD over 27, `3♣ ← 2NT`
+  −2.19 PD (the club transfer's right-siding outweighs the invitation), and
+  `cue ← 3♣` −2.88 PD (shifting a band whole costs more than lowering its
+  floor). Full tables in
+  [docs/one-notrump-competitive.md](docs/one-notrump-competitive.md) §N1h/N1i.
+
 - **N1* post-ship decompose: the "their second call still floors us" residue
   sized, node deletion closed.** The decompose the N1g ship owed
   (`ab-results/landy-postship-decompose/`, arms regenerated at HEAD on the
