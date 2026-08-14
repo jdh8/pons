@@ -41,6 +41,21 @@ fn row_package_invariants() {
     );
 }
 
+/// The Landy counter's three arms are all opt-in, so the default-agreements
+/// run above never walks a single one of their rows.  Probe each arm on its
+/// own — this is the only place the counter's totality and alert invariants are
+/// checked at all.
+#[test]
+fn landy_counter_package_invariants() {
+    for (cues, transfer) in [(false, false), (true, false), (false, true)] {
+        let mut arm = Agreements::default();
+        arm.their.two_clubs_landy = true;
+        arm.competition.defense_2c_landy_cues = cues;
+        arm.competition.defense_2c_landy_transfer = transfer;
+        crate::bidding::rows::assert_package_invariants(&arm, &[super::lebensohl_package()]);
+    }
+}
+
 /// `american()`'s best call for a hand in an auction, and whether the instinct
 /// floor (not a book node) produced it
 pub(super) fn best_call(auction: &[Call], hand: &str) -> (Call, bool) {
@@ -97,6 +112,14 @@ pub(super) fn bid_landy_cues(auction: &[Call], hand: &str) -> (Call, bool) {
     let mut arm = Agreements::default();
     arm.their.two_clubs_landy = true;
     arm.competition.defense_2c_landy_cues = true;
+    best_call_with(&arm, auction, hand)
+}
+
+/// As [`bid_landy`], with the N1c re-rung minors on (which imply the cues)
+pub(super) fn bid_landy_transfer(auction: &[Call], hand: &str) -> (Call, bool) {
+    let mut arm = Agreements::default();
+    arm.their.two_clubs_landy = true;
+    arm.competition.defense_2c_landy_transfer = true;
     best_call_with(&arm, auction, hand)
 }
 

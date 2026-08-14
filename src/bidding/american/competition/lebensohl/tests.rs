@@ -1,4 +1,4 @@
-use super::super::tests::{bid, bid_landy, bid_landy_cues, bid_transfer, call};
+use super::super::tests::{bid, bid_landy, bid_landy_cues, bid_landy_transfer, bid_transfer, call};
 use contract_bridge::Strain;
 use contract_bridge::auction::Call;
 
@@ -281,6 +281,102 @@ fn landy_natural_answers_stop_the_phantom_completions() {
     let (c, floored) = bid_landy_cues(&after, "A54.AQ4.A954.K32");
     assert_eq!(c, Call::Pass, "a weak escape is never raised");
     assert!(!floored, "the weak-escape answer must come from the book");
+}
+
+#[test]
+fn landy_transfer_re_rungs_the_minors_around_a_club_transfer() {
+    let auction = [call(1, Strain::Notrump), call(2, Strain::Clubs)];
+
+    // Weak with six clubs — N1b's biggest earner, moved a level down and
+    // right-sided: 2NT transfers, opener declares 3♣.
+    let (c, floored) = bid_landy_transfer(&auction, "32.43.432.QJ8765");
+    assert_eq!(c, call(2, Strain::Notrump));
+    assert!(!floored, "the club transfer must come from the book");
+
+    let after_transfer = [auction[0], auction[1], call(2, Strain::Notrump), Call::Pass];
+    let (c, floored) = bid_landy_transfer(&after_transfer, "A54.KQ4.A954.K32");
+    assert_eq!(c, call(3, Strain::Clubs), "the transfer is forced");
+    assert!(!floored, "the completion must come from the book");
+
+    // ...and responder, who has already said everything, passes.
+    let mut after_completion = after_transfer.to_vec();
+    after_completion.push(call(3, Strain::Clubs));
+    after_completion.push(Call::Pass);
+    let (c, floored) = bid_landy_transfer(&after_completion, "32.43.432.QJ8765");
+    assert_eq!(c, Call::Pass);
+    assert!(!floored, "the transfer sign-off must come from the book");
+
+    // Weak with six diamonds still bids the weak 2♦ below — N1b's weak 3♦ was
+    // redundant with it, and measured negative trying to duplicate it.
+    let (c, _) = bid_landy_transfer(&auction, "32.43.KQJ876.432");
+    assert_eq!(c, call(2, Strain::Diamonds));
+
+    // The freed direct 3m: invitational with a six-card suit.
+    let (c, floored) = bid_landy_transfer(&auction, "32.43.AQJ876.432");
+    assert_eq!(c, call(3, Strain::Diamonds));
+    assert!(!floored, "the invitational minor must come from the book");
+
+    // The game-forcing six-carder still cues — 3m is capped at the invitation.
+    let (c, _) = bid_landy_transfer(&auction, "32.43.A32.AKJ876");
+    assert_eq!(c, call(2, Strain::Hearts));
+
+    // Opener answers the invitation with the same size decision as any other:
+    // 3NT from the top of the range with both of their majors stopped...
+    let after_invite = [
+        auction[0],
+        auction[1],
+        call(3, Strain::Diamonds),
+        Call::Pass,
+    ];
+    let (c, floored) = bid_landy_transfer(&after_invite, "A54.KQ4.A954.K32");
+    assert_eq!(c, call(3, Strain::Notrump));
+    assert!(!floored, "the invite answer must come from the book");
+
+    // ...else sit for the partscore, since minor game is out of reach.
+    let (c, _) = bid_landy_transfer(&after_invite, "A54.KQ4.A954.Q32");
+    assert_eq!(c, Call::Pass, "a minimum declines the invitation");
+    let (c, _) = bid_landy_transfer(&after_invite, "543.KQ4.AQ54.KQ3");
+    assert_eq!(c, Call::Pass, "no spade stopper: 3NT is not on offer");
+}
+
+#[test]
+fn landy_cue_gets_a_slam_try_over_openers_minimums() {
+    // 1NT (2♣) 2♥ - 3♣ - : opener's minimum with no stopper.  A six-card source
+    // of tricks opposite 15-17 is worth more than the 3NT that is not even on;
+    // 4♣ leaves a suit contract the floor can cue-bid over.
+    let after_minimum = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        call(2, Strain::Hearts),
+        Call::Pass,
+        call(3, Strain::Clubs),
+        Call::Pass,
+    ];
+    let (c, floored) = bid_landy_transfer(&after_minimum, "3.A5.AK4.AQJ8765");
+    assert_eq!(c, call(4, Strain::Clubs));
+    assert!(!floored, "the slam try must come from the book");
+
+    // N1b had no rung for it and settled for the game.
+    let (c, _) = bid_landy_cues(&after_minimum, "3.A5.AK4.AQJ8765");
+    assert_ne!(c, call(4, Strain::Clubs), "the slam try is N1c only");
+
+    // Over opener's minimum 2NT (both stoppers) the same hand tries too, rather
+    // than signing off in the 3NT that ranks below it.
+    let after_notrump = [
+        after_minimum[0],
+        after_minimum[1],
+        after_minimum[2],
+        Call::Pass,
+        call(2, Strain::Notrump),
+        Call::Pass,
+    ];
+    let (c, floored) = bid_landy_transfer(&after_notrump, "3.A5.AK4.AQJ8765");
+    assert_eq!(c, call(4, Strain::Clubs));
+    assert!(!floored, "the slam try must come from the book");
+
+    // A plain game force with no extras still bids the game.
+    let (c, _) = bid_landy_transfer(&after_notrump, "432.A5.K54.AQJ76");
+    assert_eq!(c, call(3, Strain::Notrump));
 }
 
 #[test]

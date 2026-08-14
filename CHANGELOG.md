@@ -9,6 +9,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **N1c: the Landy counter's minors re-rung around a club transfer
+  (`defense_2c_landy_transfer`, opt-in, A/B owed).** The knob implies
+  `defense_2c_landy_cues` — the `2♥`/`2♠` cues are kept verbatim — and re-spends
+  the two rungs below them on N1b's own `probe-divergence` decomposition.
+  `2NT` becomes a **transfer to clubs** on a weak six-card suit: that escape was
+  the package's biggest earner (+3.41/+2.98 plain per fired board), their `2♣`
+  is artificial so clubs are ours, and transferring puts it a level lower *and*
+  right-sides it into the 15-17 hand. It is paid for by dropping the natural
+  `2NT` invite, which cost almost nothing — the values double at weight 145
+  outranked it at 130 on every hand with 8+ hcp. `3♣`/`3♦` become
+  **invitational with six**, replacing the weak `3♦` that measured −1.71 PD
+  duplicating the `2♦` below it; opener answers with the usual 1NT size decision
+  (`3NT` from the top of the range with both majors stopped, else sit, since
+  minor game is out of a 23-26 count's reach). Finally `4♣`/`4♦` over opener's
+  minimum rebids is a **slam try** — the cue ladder had no rung for a six-card
+  source of tricks with slam values and could only land in game.
+
+  No user impact by default: the knob is off, and it is inert even when on
+  unless the opponents' `2♣` is declared as Landy.
+
+  **Measured 2026-08-14** (230.4k bd/arm/vul, SEED_BASE 1786657996, sha
+  `f313f3d`+dirty, `landy-xfer` the fourth arm of
+  `scripts/ab-landy-counter.sh`). The increment over N1b (`xfer↔cues`, 0.06–0.07%
+  fired) is **plain wash + PD gain at both vulnerabilities** — plain
+  +0.0002 ±0.0006 NV / +0.0003 ±0.0006 vul, PD **+0.0008 ±0.0008** NV /
+  **+0.0011 ±0.0008** vul (+1.10 / +1.90 per fired), SD a wash both ways. It is
+  also the first arm of this package to *pass* the isolation gate in substance:
+  1 of 132 divergent boards was opened by the opponents (0.8%), against 27% for
+  N1b — the mirror-read leak barely touches it.
+
+  Against the **shipped** counter (`xfer↔on`, i.e. N1b+N1c together), pooled
+  over two seeds (1786657996 and 1786659297, 460.8k bd/vul): plain DD
+  **+0.0013 ±0.0007** NV / +0.0007 ±0.0008 vul, PD +0.0005 ±0.0009 /
+  −0.0005 ±0.0010, plain SD **+0.0018 ±0.0008** / **+0.0011 ±0.0009**, SD-PD
+  **+0.0012 ±0.0009** / +0.0000 ±0.0010 — four CI-clear positive cells and no
+  CI-clear negative. The first seed's vul-PD −0.0010 did not replicate (−0.0001).
+
+  **It stays opt-in** for the same reason N1b did: plain/SD win with PD a wash
+  is the decision table's artifact row. `probe-divergence` names the residue —
+  on boards we opened, the cue *poaches hands from the values double*
+  (`X`→`2♠` −3.83 PD per fired vul, −2.14 NV; `X`→`2♥` −2.63 / −0.87), because
+  the cue is `points(8..)` at weight 173/172 against the double's 145 and so
+  takes every 8+ point hand with a five-card minor. N1c wins precisely by
+  pulling hands *off* that call (`2♠`→`3♦` **+6.06** PD/fired, `3♦`→pass
+  **+3.38**, `2♥`→`3♣` +2.22, transfer `3♣`→`2NT` +0.67). Raising the cue's
+  floor to `points(10..)` is the named next lever.
+
 - **The Landy cue becomes INV+ with strength-carrying stopper asks
   (`defense_2c_landy_cues`, still opt-in).** After the sub-game fix the cue arm
   still measured −0.34…−0.62 per fired board (76.8k bd/arm/vul, SEED_BASE

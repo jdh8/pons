@@ -1,5 +1,5 @@
 #!/bin/sh
-# ab-landy-counter.sh — N1 of the competitive-1NT campaign
+# ab-landy-counter.sh — N1 / N1b / N1c of the competitive-1NT campaign
 # (docs/one-notrump-competitive.md): our counter-defense when their 2♣ overcall
 # of our 1NT is Landy (both majors) instead of natural clubs.
 #
@@ -34,18 +34,27 @@ for v in none both; do
     # `--their-2c-landy` is a declaration override: bba-gen now DERIVES the
     # Landy read from the opponents' declaration and defaults it ON vs the
     # 2/1 reference, so the off arm must force the natural read explicitly.
-    arm landy-cues "$v" --their-2c-landy true  --defense-2c-landy-cues --filter-1nt
-    arm landy-on   "$v" --their-2c-landy true                          --filter-1nt
-    arm landy-off  "$v" --their-2c-landy false                         --filter-1nt
-    # Three arms, two paired diffs: on↔off prices the base counter (N1), and
-    # cues↔on prices the GF-minor-cue overlay (N1b) alone — the falsifiable
-    # delta of the 1♣ (2♣) analogy (docs/one-notrump-competitive.md).
-    diffpair landy-on   landy-off "$v"      # ship gate: plain + PD in one solve
-    diffpair landy-cues landy-on  "$v"
+    arm landy-xfer "$v" --their-2c-landy true  --defense-2c-landy-transfer --filter-1nt
+    arm landy-cues "$v" --their-2c-landy true  --defense-2c-landy-cues     --filter-1nt
+    arm landy-on   "$v" --their-2c-landy true                              --filter-1nt
+    arm landy-off  "$v" --their-2c-landy false                             --filter-1nt
+    # Four arms, three paired diffs, each pricing one increment: on↔off is the
+    # base counter (N1), cues↔on is the GF-minor-cue overlay (N1b) alone — the
+    # falsifiable delta of the 1♣ (2♣) analogy — and xfer↔cues is N1c, the
+    # re-rung minors on top of the cues (docs/one-notrump-competitive.md).
+    diffpair landy-on   landy-off  "$v"     # ship gate: plain + PD in one solve
+    diffpair landy-cues landy-on   "$v"
+    diffpair landy-xfer landy-cues "$v"
     # The counter is a constructive/defensive contract choice, not obstruction,
     # so plain+PD decide.  sd is read only as a tie-breaker if they disagree.
-    sddiff landy-on   landy-off "$v"
-    sddiff landy-cues landy-on  "$v"
+    #
+    # N1c caveat: DD is blind to right-siding, so the club transfer's headline
+    # gain (the 1NT opener declaring 3♣) measures ZERO here by construction.
+    # What xfer↔cues actually prices is 3m as INV rather than weak, the deleted
+    # weak 3♦, the deleted natural 2NT invite, and the 4m slam try.
+    sddiff landy-on   landy-off  "$v"
+    sddiff landy-cues landy-on   "$v"
+    sddiff landy-xfer landy-cues "$v"
 done
 
 log "landy-counter done"

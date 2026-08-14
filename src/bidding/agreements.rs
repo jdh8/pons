@@ -187,6 +187,26 @@ pub struct CompetitionKnobs {
     /// negative, so the base counter ships without it.  No effect while
     /// their `2♣` is undeclared or natural.
     pub defense_2c_landy_cues: bool,
+    /// Re-rung the Landy counter's minors around a club transfer (N1c)
+    ///
+    /// Implies [`Self::defense_2c_landy_cues`] — the `2♥`/`2♠` cues are kept
+    /// verbatim — and re-spends the two rungs below them on the evidence
+    /// `probe-divergence` extracted from N1b's aggregate wash:
+    ///
+    /// - `2NT` = **transfer to clubs**, weak 6+.  N1b's weak `3♣` was the
+    ///   package's biggest earner, and their `2♣` is artificial, so clubs are
+    ///   ours to transfer into — one level cheaper, and right-sided into the
+    ///   `1NT` opener's hand.  The natural `2NT` invite it replaces is already
+    ///   all but dead: the values double outranks it on every 8+ hcp hand.
+    /// - `3♣`/`3♦` = **invitational**, 6+.  N1b's weak `3♦` measured negative
+    ///   and was redundant with the weak `2♦` below it, so the whole rung is
+    ///   re-spent on the invitational six-carder the cue handles clumsily.
+    /// - `4♣`/`4♦` over opener's minimum rebids = a slam try on the six-card
+    ///   source of tricks, which the cue skeleton had no rung for.
+    ///
+    /// **Off by default**, opt-in pending the A/B.  No effect while their `2♣`
+    /// is undeclared or natural.
+    pub defense_2c_landy_transfer: bool,
     // --- competition/negative_double.rs
     /// Which negative-double school the minor openings play
     ///
@@ -525,6 +545,7 @@ impl Default for CompetitionKnobs {
             lebensohl_style: LebensohlStyle::Transfer,
             defense_2d_multi: false,
             defense_2c_landy_cues: false,
+            defense_2c_landy_transfer: false,
             negative_double_shape: NegativeDoubleShape::Modern,
             cachalot_contested_x: true,
             weak_two_competition: false,

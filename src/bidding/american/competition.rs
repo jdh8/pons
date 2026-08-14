@@ -116,8 +116,13 @@ const MULTI_TAKEOUT: Alert = Alert("comp:multi-takeout");
 const LANDY_VALUES: Alert = Alert("comp:landy-values");
 /// Landy cue — `2♥`/`2♠` over their `(2♣)` Landy: a cue of a shown major
 /// naming the corresponding unshown minor (`2♥` = clubs, `2♠` = diamonds),
-/// game-forcing with a 5+ suit.
+/// invitational or better with a 5+ suit.  Also the stopper-ask and re-cue
+/// rungs above it, which name a major nobody holds.
 const LANDY_CUE: Alert = Alert("comp:landy-cue");
+/// Landy club transfer — `2NT` over their `(2♣)` Landy under the N1c re-rung
+/// minors: a weak six-card club escape, transferred so the `1NT` opener
+/// declares.  Their `2♣` is artificial, so clubs are ours to transfer into.
+const LANDY_TRANSFER: Alert = Alert("comp:landy-transfer");
 /// Lebensohl `2NT` — the weak relay to `3♣` over their overcall of our `1NT`.
 const LEBENSOHL_RELAY: Alert = Alert("comp:lebensohl-relay");
 /// Lebensohl cue — a cue of their suit as game-forcing Stayman.

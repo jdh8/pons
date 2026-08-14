@@ -547,16 +547,147 @@ of divergences were opened by *them*, and they are PD-positive (+0.52 / +0.36
 per fired) — noise from a path this package does not own. `--gate-opener ours`
 fails on both this pair and the shipped N1 pair.
 
-**Deferred candidate N1c**: a Lebensohl `2NT` relay (weak sign-offs at `3♣`/
-`3♦`). The completed N1b skeleton covers most of its ground — the cues arm
-now has direct weak escapes — so the relay's residual value is the *base*
-arm's weak minor hands (which still pass) and rescuing the invite band; it
-would move the natural invite, so it is its own package and its own A/B,
-only worth boards if the census still shows weak-minor passes leaking after
-N1/N1b ship or die.
-
 **Inertness**: `smoke-default --count 20000 --seed 1` SHA-256 `8ea2f567…`
 identical at HEAD with both knobs off — the N1 reference hash, unchanged.
+
+## N1c — the club transfer and invitational minors (`defense_2c_landy_transfer`, measured 2026-08-14, **stays opt-in — but it is the best arm this package has produced**)
+
+The earlier N1c sketch was a Lebensohl `2NT` relay, and it was deferred as
+mostly redundant with the completed N1b skeleton. The v4 decomposition above
+replaces that guess with numbers, and they point somewhere else: keep the cues
+verbatim, and re-spend **the two rungs below them** — one is the package's
+biggest earner sitting a level too high, the other is its second-worst loser.
+
+| Responder, over their `2♣` | | Weight | vs N1b |
+| --- | --- | --- | --- |
+| `3NT` | game values, both majors stopped, no six-card minor | 180 | — |
+| `3♣` / `3♦` | **INV (8-9), 6+ suit** | **176 / 175** | was the weak escape at 110 |
+| `2♥` / `2♠` | INV+, 5+ clubs / 5+ diamonds | 173 / 172 | — |
+| `X` | values, 8+ hcp | 145 | — |
+| `2♦` | weak, 5+ diamonds | 140 | — |
+| `2NT` | **transfer to clubs, weak 6+** | **110** | was the natural invite at 130 |
+| `3NT` | game values, ungated | 170 | — |
+
+Three moves, one package:
+
+- **`2NT` = transfer to clubs.** The weak `3♣` escape was the engine
+  (+3.41/+2.98 plain, +0.71/+0.61 PD per fired). Their `2♣` is artificial, so
+  clubs are ours; transferring puts the escape a level lower *and* right-sides
+  it into the 15-17 hand. Opener's completion reuses
+  `complete_lebensohl_relay()` — the same forced `3♣` table the relay uses —
+  and responder passes it.
+- **The natural `2NT` invite is dropped**, which is what pays for the transfer.
+  It cost almost nothing: the values `X` at 145 outranks it at 130 on every
+  hand with 8+ hcp, so all it ever carried was the 8-9 *point* hand with fewer
+  than 8 hcp. That hand now passes unless it has a suit — and shape points are
+  exactly what a values double should not be floored on.
+- **`3♣`/`3♦` = invitational with six.** The weak `3♦` measured −1.07/+0.55
+  plain and −1.71/−0.55 PD, duplicating the `2♦` below it, so both direct 3m
+  rungs are re-spent on the invitational six-carder. That hand cues badly: the
+  cue's accept/decline tree hunts stoppers on the assumption of a five-card
+  suit, where a six-bagger wants a yes/no on 3NT. Opener answers with the same
+  size decision as every other 1NT invite (`size_ask_accept_floor`, 16): `3NT`
+  from the top with both majors stopped, else sit — minor game is the five
+  level and out of reach of a combined 23-26. The game-forcing six-carder
+  still cues, since `3m` is capped at 9.
+
+And one repair the user named directly: **`4♣`/`4♦` over opener's minimum
+rebids is a slam try** (13+ with the six-card suit), ranked above the `3NT` it
+displaces. The cue ladder had no rung for a six-card source of tricks with slam
+values — it could only land in game. Opener's continuation is deliberately the
+floor's, and this is the one place the measurements say that is right: the
+boards that cost the cue's first draft −1.8 IMPs/fired were exactly the ones
+where a `4m` suit contract let the floor cue-bid on to `6♦` while the notrump
+rung died in 3NT. The slam try is gated on **N1c only**, not on the cues,
+because the two rebid tables are shared with N1b and the four-arm A/B only
+attributes cleanly if the cues arm stays the structure that was measured.
+
+`2NT` is the one new artificial call (`comp:landy-transfer`); it projects
+`len(♣,6..) & points(..=9)`, tight enough for `project_authored`, so no hand
+reader. Opener's completion is natural in the target and unalerted, per the
+`complete_advance_transfer` doctrine.
+
+**How much of the transfer the harness can see.** `ab-dump-diff` pairs
+`final_contract`, which returns `(Contract, Seat)` — declarer included — and
+`ns_score_with` indexes the DD table by declarer, so right-siding *is* priced
+to the extent it moves the double-dummy trick count. What DD cannot see is the
+**lead** half: it hands the defence a perfect lead against either declarer, so
+the tenace protection that is the whole point of transferring is invisible.
+That half is what the 16-world SD pass prices, which makes the SD row unusually
+load-bearing here. (An earlier draft of this section said the transfer measures
+zero by construction. It does not — that was wrong.)
+
+### N1c measured (2026-08-14)
+
+230.4k bd/arm/vul, SEED_BASE 1786657996, sha `f313f3d`+dirty, 0.06–0.07% fired.
+The increment over N1b:
+
+| `xfer↔cues` | plain DD | PD | plain SD | SD-PD |
+| --- | --- | --- | --- | --- |
+| NV | +0.0002 ±0.0006 | **+0.0008 ±0.0008** | −0.0002 ±0.0006 | +0.0002 ±0.0008 |
+| vul | +0.0003 ±0.0006 | **+0.0011 ±0.0008** | −0.0003 ±0.0007 | +0.0002 ±0.0008 |
+
+PD **+1.10 / +1.90 per fired** — plain wash with a PD gain replicating at both
+vulnerabilities, the shape N1 itself shipped on.
+
+**And it is the first arm here that substantially passes the isolation gate**:
+`probe-divergence --gate-opener ours` finds **1 of 132** divergent boards opened
+by the opponents (0.8%), against **27%** for N1b. The mirror-read leak barely
+touches N1c.
+
+Against the **shipped** counter — the comparison that actually decides shipping,
+since N1b is opt-in — pooled over two seeds (1786657996, 1786659297; 460.8k
+bd/vul; the second seed run as `landy-xfer ↔ landy-on` only):
+
+| `xfer↔on` | plain DD | PD | plain SD | SD-PD |
+| --- | --- | --- | --- | --- |
+| NV | **+0.0013 ±0.0007** | +0.0005 ±0.0009 | **+0.0018 ±0.0008** | **+0.0012 ±0.0009** |
+| vul | +0.0007 ±0.0008 | −0.0005 ±0.0010 | **+0.0011 ±0.0009** | +0.0000 ±0.0010 |
+
+Four CI-clear positive cells, no CI-clear negative. Seed 1 alone showed a vul PD
+of −0.0010 ±0.0014 and it **did not replicate** (seed 2: −0.0001 ±0.0013) — a
+reminder to confirm a single-seed negative before designing against it.
+
+**It stays opt-in** for the reason N1b did: plain/SD win with PD a wash is the
+decision table's artifact row.
+
+### What is still bleeding — the cue poaches the double
+
+`probe-divergence`, boards *we* opened, vul (NV in parentheses), N1b against the
+base counter. Gating on `ours` makes the loss **worse**, not better
+(−0.0017/bd of the −0.0020), so this is not the mirror leak:
+
+| base → cues | n | plain/fired | PD/fired |
+| --- | --- | --- | --- |
+| `X` → `2♠` | 40 | −0.47 | **−3.83** (−2.14) |
+| `X` → `2♥` | 38 | +1.05 | **−2.63** (−0.87) |
+| `2♥` → `3NT` | 8 | −6.38 | −4.00 |
+
+Plain DD *likes* the cue; PD prices the contract we reach as failing and
+doubled, against defending their Landy contract. It scales with vulnerability,
+as giving up a red double should. The cue is `points(8..)` at weight 173/172
+against the double's 145, so it takes **every** 8+ point hand with a five-card
+minor.
+
+N1c wins by pulling hands *off* that call — which is why its gains land exactly
+where the design predicted (cues → xfer, vul, boards we opened):
+
+| cues → xfer | n | plain/fired | PD/fired |
+| --- | --- | --- | --- |
+| `2♠` → `3♦` (INV six-card ♦ off the cue) | 16 | +3.75 | **+6.06** |
+| `3♦` → pass (weak `3♦` deleted) | 21 | +0.71 | **+3.38** |
+| `2♥` → `3♣` (INV six-card ♣ off the cue) | 23 | +1.78 | **+2.22** |
+| `3♣` → `2NT` (the transfer itself) | 61 | −0.52 | +0.67 |
+
+**Named next lever (N1d):** raise the cue's floor from `points(8..)` to
+`points(10..)`, leaving the 8-9 five-card-minor hands to the values double.
+One line, directly targeted at the −3.83/−2.63, and it makes the cue's INV+
+accept/decline tree partly redundant — so price the tree's simplification in the
+same A/B.
+
+Two known holes are inherited unchanged: every registered suffix still ends in
+`-`, so `1NT (2♣) 2NT (2♥)` and friends drop to the floor, and `{cue} - 3NT -` /
+`{cue} - 4m -` (opener's maximum rungs) are still unauthored.
 
 ## Measurement discipline
 
@@ -599,3 +730,4 @@ identical at HEAD with both knobs off — the N1 reference hash, unchanged.
 | census tool | — | **shipped** | read-only; picked N1 over the pre-census guess |
 | N1 Landy `(2♣)` counter | `their.two_clubs_landy` (disclosure, not a knob; `defense_2c_landy` deleted) | **SHIPPED 2026-08-14** — engine undeclared=natural; `bba-gen` derives the declaration (2/1 reference → Landy, its card lies) and `bba-decompose` replays it; re-homing proven board-identical on the measured arm | **v2 (with `landy_natural_answers`, full audit fix)** on↔off: NV plain +0.0005 ±0.0022 / PD **+0.0032 ±0.0028** (+1.10/fired) / sd −0.0006 ±0.0025, SD-PD +0.0017 ±0.0030; vul plain +0.0013 ±0.0026 / PD **+0.0043 ±0.0032** (+1.65/fired) / sd +0.0001 ±0.0029, SD-PD +0.0030 ±0.0034. 0.26–0.30% fired, 76.8k bd/arm/vul, SEED_BASE 1786644715, sha 40a0946 — plain wash + PD CI-clear both vuls = ship. **Confirmed at 3× n** (230.4k bd/arm/vul, SEED_BASE 1786653231): NV plain −0.0002 ±0.0013 / PD **+0.0032 ±0.0017**, vul plain +0.0003 ±0.0015 / PD **+0.0028 ±0.0019**, sd-PD +0.0019/+0.0015 — the v3a run's non-replication was seed noise; NV is the stronger vul. **v1 (sha 8bc465a, SEED_BASE 1786642613): LOSS all six cells** (NV plain −0.0050 ±0.0024, vul −0.0049 ±0.0028, every CI<0) — leak 1: opener's answers unauthored, audit: phantom Jacoby `2♥` 82% over `2♦`, phantom minor-transfers 23% over `2NT`, phantom Puppet `3♦` 85% over `3♣`, passed force 62% over `3♦` (only `3NT` clean); leak 2: the census misread (systems-on's minor transfers were winning the minor-partial boards). |
 | N1b GF minor cues | `defense_2c_landy_cues` | **measured 2026-08-14 ×4 — stays opt-in, but v4 is the first arm with a CI-clear positive and no negative cell**. **v4** (INV+ cues + level-as-strength stopper asks, 230.4k bd/arm/vul, SEED_BASE 1786653231, sha 8873e9c+dirty): NV plain **+0.0016 ±0.0010** / PD +0.0001 ±0.0013, vul plain **+0.0014 ±0.0012** / PD −0.0000 ±0.0014, sd plain **+0.0018/+0.0024**, SD-PD +0.0006 / **+0.0016 ±0.0015**. Lands on `win \| wash` (artifact row); SD splits vul-real / NV-artifact. `probe-divergence` decomposes it into four independent effects, replicating across both vuls (per fired, we-opened, NV/vul): `3♣` weak clubs **+3.41/+2.98 plain, +0.71/+0.61 PD**; `2♠` diamond cue **+1.87/+1.93**, +0.48/+0.12; `2♥` club cue −0.17/+0.06, **−0.76/−1.04 PD**; `3♦` weak diamonds −1.07/+0.55, **−1.71/−0.55 PD**. `2♥`'s whole loss is **9 boards** where we declare *hearts* — `{cue} - {ask} (X)` passed out (every registration ends in `-`) and the floor bidding `4♥` itself on non-book continuations; the other 162 are +81/−22 = wash. Mirror leak persists at 25–31%, PD-positive, `--gate-opener ours` fails. v2 = the *full* UvU skeleton (cues carry all GF one-suiters, direct 3m weak) on the fixed base; the `probe-divergence` post-mortem decomposed the v2 wash — cues −1.76 plain/−1.90 PD per fired (missed *slams*, from a sub-game cue answer), weak escapes +0.54/−1.59 (PD-negative vul only = going for a number), and 38% of divergences on boards the opponents opened (the mirror-read leak). v3a = opener's cue answer restored to `landy_minor_answer` (game level), −0.34…−0.62/fired, still every cell negative | **v2 (full skeleton, N1-win run)** cues↔on: NV plain −0.0005 ±0.0013 / PD −0.0006 ±0.0018, vul plain −0.0007 ±0.0016 / PD −0.0012 ±0.0021, sd −0.0004/−0.0012 (−0.43…−1.25/fired, 0.10–0.11% fired, all CIs ⊇ 0, every cell leaning negative). **v1 (pure cue addition, N1-loss run):** NV plain −0.0001 / PD +0.0004, vul plain +0.0001 / PD +0.0005, sd negative — unpriceable next to phantom sibling answers. |
+| N1c club transfer + INV minors | `defense_2c_landy_transfer` (implies the cues) | **measured 2026-08-14 — stays opt-in, and it is the best arm this package has produced.** Increment over N1b (`xfer↔cues`, 230.4k bd/arm/vul, SEED_BASE 1786657996, sha f313f3d+dirty, 0.06–0.07% fired): plain wash + **PD +0.0008 ±0.0008 NV / +0.0011 ±0.0008 vul** (+1.10/+1.90 per fired), SD wash both. **Passes the isolation gate in substance** — 1 of 132 divergent boards opened by them (0.8%) vs 27% for N1b. Against the *shipped* counter (`xfer↔on`), pooled over two seeds (1786657996 + 1786659297, 460.8k bd/vul): plain **+0.0013 ±0.0007** NV / +0.0007 ±0.0008 vul, PD +0.0005 ±0.0009 / −0.0005 ±0.0010, plain SD **+0.0018 ±0.0008** / **+0.0011 ±0.0009**, SD-PD **+0.0012 ±0.0009** / +0.0000 ±0.0010 — four CI-clear positives, no CI-clear negative; seed 1's vul-PD −0.0010 did NOT replicate (−0.0001). Opt-in because plain/SD-win + PD-wash is the artifact row. Residue named: the cue poaches the values double (`X`→`2♠` −3.83 PD/fired vul, `X`→`2♥` −2.63) because it is `points(8..)` at weight 173 against X's 145 — N1c wins by pulling hands off it (`2♠`→`3♦` +6.06, `3♦`→pass +3.38, `2♥`→`3♣` +2.22, transfer +0.67). **N1d = raise the cue floor to `points(10..)`.** | `xfer↔cues` NV plain +0.0002 ±0.0006 / PD +0.0008 ±0.0008 / sd −0.0002 / sd-PD +0.0002; vul plain +0.0003 ±0.0006 / PD +0.0011 ±0.0008 / sd −0.0003 / sd-PD +0.0002. |

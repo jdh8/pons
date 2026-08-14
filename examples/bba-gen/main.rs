@@ -307,6 +307,13 @@ struct Args {
     #[arg(long, default_value_t = false)]
     defense_2c_landy_cues: bool,
 
+    /// N1c: re-rung the Landy counter's minors around a club transfer (`2NT` =
+    /// weak 6+ clubs, `3♣`/`3♦` = INV 6+, `4♣`/`4♦` = slam try) — the fourth
+    /// arm of the Landy A/B.  Implies --defense-2c-landy-cues; does nothing
+    /// without --their-2c-landy.
+    #[arg(long, default_value_t = false)]
+    defense_2c_landy_transfer: bool,
+
     /// Suppress our *own* 1NT opening (those 15-17 balanced hands open a minor),
     /// so every 1NT in the match is BBA's and our pair is purely the defender.
     #[arg(long, default_value_t = false)]
@@ -1735,6 +1742,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.competition.defense_2d_multi = args.defense_2d_multi;
     agreements.their.two_clubs_landy = their_2c_landy(args)?;
     agreements.competition.defense_2c_landy_cues = args.defense_2c_landy_cues;
+    agreements.competition.defense_2c_landy_transfer = args.defense_2c_landy_transfer;
     agreements.competition.competition_over_stayman = !args.no_ns_comp_over_stayman;
     agreements.competition.competitive_4333 = match args.ns_competitive_4333.as_str() {
         "allow" => pons::bidding::american::Competitive4333::Allow,

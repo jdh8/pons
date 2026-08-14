@@ -912,6 +912,7 @@ knob!(set_defense_to_2d_multi, defense_to_2d_multi, competition.defense_2d_multi
 // 2♣ over our 1NT shows both majors), hence `declare_*`, not `set_*`.
 knob!(declare_their_2c_landy, their_2c_landy, their.two_clubs_landy: bool);
 knob!(set_defense_to_2c_landy_cues, defense_to_2c_landy_cues, competition.defense_2c_landy_cues: bool);
+knob!(set_defense_to_2c_landy_transfer, defense_to_2c_landy_transfer, competition.defense_2c_landy_transfer: bool);
 
 // The classify-time half, on this value rather than the crate's thread-locals:
 // the system carries its agreements now, so a setter that wrote a global would
@@ -1371,6 +1372,8 @@ static SETTINGS: &[Setting] = &[
     // engine's `their` disclosure channel (engages the Landy counter).
     toggle("their_2c_landy", COMPETITION, "Their 1NT-overcall 2♣ = Landy (declared)", false, declare_their_2c_landy, their_2c_landy),
     toggle("defense_to_2c_landy_cues", COMPETITION, "Landy counter: GF minor cues", false, set_defense_to_2c_landy_cues, defense_to_2c_landy_cues),
+    // Implies the cues row above (N1c keeps them and re-rungs what is below).
+    toggle("defense_to_2c_landy_transfer", COMPETITION, "Landy counter: club transfer + INV minors", false, set_defense_to_2c_landy_transfer, defense_to_2c_landy_transfer),
     toggle("leaping_michaels", COMPETITION, "Leaping Michaels", true, set_leaping_michaels, leaping_michaels),
     toggle("responsive_takeout", COMPETITION, "Responsive doubles", true, set_responsive_takeout, responsive_takeout),
     toggle("rich_advance_double", COMPETITION, "", true, set_rich_advance_double, rich_advance_double),
