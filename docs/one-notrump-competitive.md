@@ -685,9 +685,110 @@ One line, directly targeted at the −3.83/−2.63, and it makes the cue's INV+
 accept/decline tree partly redundant — so price the tree's simplification in the
 same A/B.
 
-Two known holes are inherited unchanged: every registered suffix still ends in
-`-`, so `1NT (2♣) 2NT (2♥)` and friends drop to the floor, and `{cue} - 3NT -` /
-`{cue} - 4m -` (opener's maximum rungs) are still unauthored.
+### Per-bid decomposition against the shipped counter (`xfer↔on`, 2026-08-14)
+
+The tables above price the two increments separately. This one prices the whole
+of N1c+N1b against what we ship, on the seed-1786657996 pair — 406 divergent NV
+and 321 vul. Boards we opened only; the mirror leak is broken out below. IMPs
+per fired board throughout.
+
+**Per counter bid.** Every divergent board is keyed twice: once on the call N1c
+makes over their `2♣`, and once on the call N1 made on the same hand. Read the
+first table as *what each of our rungs is worth when we choose it*, and the
+second as *what we gave up to choose it*.
+
+| N1c's call | n (NV/vul) | plain NV | PD NV | plain vul | PD vul |
+| --- | --- | --- | --- | --- | --- |
+| `3♦` INV six-card ♦ | 18 / 16 | +3.00 | **+3.33** | +4.38 | **+4.44** |
+| `3♣` INV six-card ♣ | 33 / 26 | +3.12 | **+3.30** | +3.35 | **+2.46** |
+| pass (natural `2NT` deleted) | 5 / 5 | +1.80 | +4.40 | +2.20 | +3.40 |
+| `2NT` club transfer | 64 / 57 | **+2.27** | **+1.17** | +1.72 | −0.04 |
+| `2♠` ♦ cue | 81 / 53 | +1.33 | −0.37 | +0.47 | **−2.06** |
+| `2♥` ♣ cue | 93 / 72 | +0.23 | **−0.84** | −1.01 | **−2.79** |
+
+| N1's call it replaced | n (NV/vul) | plain NV | PD NV | plain vul | PD vul |
+| --- | --- | --- | --- | --- | --- |
+| `2NT` natural invite | 33 / 28 | +1.88 | **+3.18** | +2.75 | **+2.64** |
+| pass (no call existed) | 64 / 57 | +2.27 | +1.17 | +1.72 | −0.04 |
+| `2♦` weak ♦ | 31 / 27 | +2.13 | +1.84 | +2.26 | +1.15 |
+| `3♦` forcing ♦ | 17 / 11 | +1.59 | +0.59 | +2.18 | +1.18 |
+| `X` values | 108 / 78 | +1.53 | **−0.92** | +0.67 | **−2.53** |
+| `3NT` | 19 / 9 | −0.16 | +1.79 | −4.22 | −1.89 |
+| `3♣` forcing ♣ | 22 / 19 | −1.00 | **−1.09** | −2.95 | **−3.26** |
+
+The two tables agree on one verdict: **the three new invitational/transfer rungs
+are all clearly positive on both scorers at both vulnerabilities, and the two
+cues are the only negative rungs in the package.** The `X` row is the same
+finding seen from the other side — every hand the cue takes from the values
+double is worth −0.92 PD NV and −2.53 PD vul.
+
+Keyed on the *first diverging call* instead, so each row is one substitution:
+
+| N1 → N1c | n (NV/vul) | plain NV | PD NV | plain vul | PD vul |
+| --- | --- | --- | --- | --- | --- |
+| `3NT` → `2♠` | 7 / 1 | +5.14 | **+6.86** | +13.00 | **+15.00** |
+| `2NT` → `3♣` (natural invite → INV six-card ♣) | 15 / 14 | +3.07 | **+4.60** | +3.50 | **+3.57** |
+| `X` → `3♦` | 6 / 5 | +3.33 | **+5.17** | +3.60 | **+3.80** |
+| `2♦` → `3♦` | 12 / 11 | +2.83 | +2.42 | +4.73 | **+4.73** |
+| `X` → `3♣` | 16 / 11 | +3.19 | +2.25 | +3.27 | +1.45 |
+| `2NT` → pass (natural invite deleted) | 5 / 5 | +1.80 | +4.40 | +2.20 | +3.40 |
+| **pass → `2NT`** (the club transfer itself) | **64 / 57** | **+2.27** | **+1.17** | **+1.72** | **−0.04** |
+| `3♦` → `2♠` | 16 / 9 | +1.31 | +0.25 | +1.11 | −0.11 |
+| `3NT` → `2♥` | 12 / 8 | −3.25 | −1.17 | **−6.38** | **−4.00** |
+| `3♣` → `2♥` | 22 / 19 | −1.00 | −1.09 | **−2.95** | **−3.26** |
+| `X` → `2♥` | 38 / 28 | +1.26 | **−2.21** | +0.14 | **−4.00** |
+| `X` → `2♠` | 48 / 34 | +0.96 | **−1.71** | −0.18 | **−3.53** |
+
+Three things these settle that the increment tables could not:
+
+- **The transfer is the single biggest earner, and it is mostly a new call, not
+  a re-rung one.** 64 NV / 57 vul boards where N1 *passed* now bid `2NT` —
+  the weak six-card club hand had no call at all under the base counter
+  (`X` needs 8 hcp, `2♦` needs diamonds). That is +145 plain / +75 PD NV. It is
+  a wash on PD vul, which is the honest reading of a weak escape at red.
+- **Every call that migrates *into* the cue loses, and every call that migrates
+  *out of* it wins.** Splitting the our-opened set on `call_on ∈ {2♥, 2♠}`:
+
+  | | n (NV/vul) | plain/fired | PD/fired | → IMPs/board |
+  | --- | --- | --- | --- | --- |
+  | into the cue | 174 / 125 | +0.74 / −0.38 | **−0.62 / −2.48** | −0.0005 / **−0.0013** |
+  | everything else | 120 / 104 | +2.59 / +2.56 | **+2.22 / +1.44** | **+0.0012 / +0.0007** |
+
+  The cue is the *whole* vul-PD deficit and then some. N1d is no longer a
+  hypothesis about the `X` rows — it is the arithmetic of the package.
+- **The `3♣` → `2♥` row is a design error of mine, not a floor gap.** The
+  partition I authored sends the GF six-card minor to the cue on the 5-vs-6
+  doctrine ("`3m` is capped at 9, so the six-card GF still cues"). Measured, the
+  base counter's forcing `3♣` beat that on both scorers at both vulnerabilities
+  (−1.09 / −3.26 PD). N1d should raise the cue's floor **and** restore a
+  forcing `3♣`/`3♦` above it, not merely trim the bottom.
+
+The mirror leak (`read.rs:333-335`) carried 112 of 406 NV and 92 of 321 vul
+divergent boards — 27.6% / 28.7%, unchanged from N1b, exactly as predicted. It
+is worth −73 plain / +9 PD NV and −71 / −71 vul, i.e. it *depresses* the
+headline; the our-opened figures above are the honest ones.
+
+### The interference hole, now priced
+
+Every registered suffix still ends in `-`, so the moment an opponent bids over
+one of our rungs the auction drops to the floor. That is not hypothetical: in
+the divergent set the opponents bid over our cue on 47 boards — `2♥` → `(2♠)`
+28 times, a raise to `3♥`/`3♠` 18 times, `(4♠)` once. Splitting the cue-entry
+boards on whether the cue was interfered with:
+
+| | n (NV/vul) | plain/fired | PD/fired |
+| --- | --- | --- | --- |
+| cue interfered | 25 / 22 | −1.48 / **−3.91** | −0.52 / **−4.68** |
+| cue clean | 149 / 103 | +1.11 / +0.37 | −0.64 / −2.01 |
+
+So the hole is real and expensive vul — but it is the *smaller* problem. The
+clean cue loses PD on its own (−0.64 NV, −2.01 vul) on six times the volume.
+Authoring `{cue} (X)` and `{cue} (2♠/3M)` continuations would recover perhaps a
+fifth of the cue's deficit; raising its floor addresses the rest. Do N1d first,
+then re-price the hole against whatever cue survives.
+
+`{cue} - 3NT -` and `{cue} - 4m -` (opener's maximum rungs) also remain
+unauthored, and did not surface in this dump.
 
 ## Measurement discipline
 
