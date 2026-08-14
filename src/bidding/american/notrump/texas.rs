@@ -63,8 +63,10 @@ pub(super) fn texas_strength_gate(
 ///
 /// `4♣ → 4♥`, `4♦ → 4♠`.  Responder showed 6+ with game-no-slam values, so
 /// opener simply names the game and declares.
-fn complete_texas(into: Suit) -> Rules {
-    Rules::new().rule(Bid::new(4, Strain::from(into)), 100, hcp(0..))
+fn complete_texas(into: Suit, agreements: &Agreements) -> Rules {
+    Rules::new()
+        .rule(Bid::new(4, Strain::from(into)), 100, hcp(0..))
+        .alert_if(agreements.decision.reading.completion_alerts, COMPLETION)
 }
 
 /// South African Texas transfers, direct slam tries, and their RKCB subtrees
@@ -72,13 +74,16 @@ pub(crate) fn texas_transfers() -> Package {
     Package {
         name: "texas-transfers",
         gate: |_| true,
-        entries: |_| {
+        entries: |agreements| {
             let heart_slam = "P* 1NT - 4♥ -";
             let spade_slam = "P* 1NT - 4♠ -";
-            let mut entries = rows_of(Pattern::node("P* 1NT - 4♣ -"), complete_texas(Suit::Hearts));
+            let mut entries = rows_of(
+                Pattern::node("P* 1NT - 4♣ -"),
+                complete_texas(Suit::Hearts, agreements),
+            );
             entries.extend(rows_of(
                 Pattern::node("P* 1NT - 4♦ -"),
-                complete_texas(Suit::Spades),
+                complete_texas(Suit::Spades, agreements),
             ));
             entries.extend(rows_of(Pattern::node(heart_slam), slam_try_answer()));
             entries.extend(rows_of(Pattern::node(spade_slam), slam_try_answer()));

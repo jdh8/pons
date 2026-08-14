@@ -90,7 +90,9 @@ pub(super) fn meckwell_natural_major(major: Suit) -> Cons<impl Constraint + Clon
 /// the doubler then names its minor or shows both majors.  A single relay resolves the
 /// two-way double's ambiguity; the advancer's own suits wait for the doubler's answer.
 fn meckwell_x_advance() -> Rules {
-    Rules::new().rule(Bid::new(2, Strain::Clubs), 100, hcp(0..))
+    Rules::new()
+        .rule(Bid::new(2, Strain::Clubs), 100, hcp(0..))
+        .alert(MECKWELL_RELAY)
 }
 
 /// The Meckwell doubler naming its hand after the `2♣` relay (`… (1NT) X - 2♣ -`):

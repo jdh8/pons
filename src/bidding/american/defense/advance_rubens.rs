@@ -36,14 +36,18 @@ pub(super) fn advance_major_transfers(theirs: Strain) -> Vec<(Bid, Suit)> {
 /// The transfer promised a 5+ `target` major; the doubler bids it (declaring —
 /// the right-siding point), jumping to game (`4M`) with a maximum and support.
 /// The completion is a finite catch-all so the artificial transfer is never
-/// passed out.  Both bids are natural (`target`), so neither is alerted.
-fn complete_advance_transfer(target: Suit) -> Rules {
+/// passed out.  Both bids are natural (`target`), so neither carries an
+/// unconditional alert; under `completion_alerts` both take the family tag.
+fn complete_advance_transfer(target: Suit, agreements: &Agreements) -> Rules {
+    let completion_alerts = agreements.decision.reading.completion_alerts;
     let strain = Strain::from(target);
     Rules::new()
         // Super-accept: maximum with support jumps to game.
         .rule(Bid::new(4, strain), 130, len(target, 4..) & points(15..))
+        .alert_if(completion_alerts, COMPLETION)
         // Complete the transfer (always) — never pass the artificial call.
         .rule(Bid::new(3, strain), 100, hcp(0..))
+        .alert_if(completion_alerts, COMPLETION)
 }
 
 /// Advancer's rebid after the doubler completed the transfer
@@ -72,7 +76,7 @@ pub(super) fn advance_rubens_rows(
                 let after_xfer = format!("{base} {bid} {rho}");
                 entries.extend(rows_of(
                     Pattern::node(&after_xfer),
-                    complete_advance_transfer(target),
+                    complete_advance_transfer(target, agreements),
                 ));
                 entries.extend(rows_of(
                     Pattern::node(&format!("{after_xfer} {completion} -")),

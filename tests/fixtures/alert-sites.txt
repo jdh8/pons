@@ -1,14 +1,27 @@
 1ntd:unusual-2nt 4
+1ntx:gambling-3nt 2
 advance-cue 56
 both-majors 120
 choice-of-games-3nt 8
 comp:cue-raise 72
-comp:leaping-michaels 8
-comp:lebensohl-cue 8
-comp:lebensohl-relay 12
-comp:lebensohl-transfer 36
+comp:jordan 16
+comp:leaping-michaels 16
+comp:lebensohl-completion 24
+comp:lebensohl-cue 16
+comp:lebensohl-relay 24
+comp:lebensohl-transfer 72
 comp:negative-double 80
-comp:stayman 4
+comp:smolen 8
+comp:stayman 8
+comp:stayman-redouble 4
+comp:support-double 40
+comp:uvu-cue 8
+comp:uvu-major-fourth 8
+comp:uvu-major-raise 16
+comp:uvu-splinter 8
+comp:value-redouble 16
+completion 696
+floor:rkcb 77
 fourth-suit-forcing 4
 game-force 24
 inv-5card-major 60
@@ -29,7 +42,7 @@ responsive-double 32
 rkcb 17604
 shortness 24
 slam-try 80
-smolen 112
+smolen 120
 splinter 384
 stayman 80
 strong-2c 4
@@ -43,3 +56,10 @@ weak-jump-shift 40
 xyz-completion 40
 xyz-game-force 40
 xyz-relay 40
+
+[their-landy]
+comp:landy-cue 0 -> 64
+comp:landy-transfer 0 -> 4
+comp:landy-values 0 -> 4
+comp:lebensohl-completion 24 -> 32
+completion 696 -> 684

@@ -46,7 +46,7 @@ use super::competition::{
 };
 use super::notrump::{flat_4333, smolen_at_three, smolen_completion};
 use super::openings::two_notrump_wide_shape;
-use super::{call, other_major};
+use super::{COMPLETION, call, other_major};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Hand, Strain, Suit};
 
@@ -209,6 +209,33 @@ const MECKWELL_X: Alert = Alert("1ntd:meckwell-x");
 const MECKWELL_2C: Alert = Alert("1ntd:meckwell-2c");
 /// Meckwell `2♦` — diamonds + a major (5-4+).
 const MECKWELL_2D: Alert = Alert("1ntd:meckwell-2d");
+
+// The 1NT-defense *advance* alerts (reader-retirement chops 2–5): each relay,
+// pass-or-correct or ask names a strain its bidder need not hold, so the tag
+// is what suppresses the natural walk and decodes the rule's own projection —
+// the hand-written readers these replaced are gone from `inference/readers.rs`.
+
+/// Advancer's `2♥`/`2♠` pass-or-correct over the Multi `2♦` — a preference
+/// among the overcaller's unknown major, playable on a doubleton.
+const MULTI_PC: Alert = Alert("1ntd:multi-pc");
+/// Advancer's `2NT` game-force ask over the Multi `2♦` (overcaller jumps to
+/// game in its 6-card major).
+const MULTI_ASK: Alert = Alert("1ntd:multi-ask");
+/// Advancer's `2NT` minor-ask over a Muiderberg `2M` (quiet: INV+ with no fit;
+/// doubled: any-strength no-fit escape).
+const MUIDERBERG_ASK: Alert = Alert("1ntd:muiderberg-ask");
+/// Advancer's `2♣` "name your minor" relay over the Woolsey takeout `X`.
+const WOOLSEY_X_RELAY: Alert = Alert("1ntd:woolsey-x-relay");
+/// Advancer's `2NT` game-ask over the Woolsey takeout `X` (doubler names its
+/// 4-card major).
+const WOOLSEY_X_ASK: Alert = Alert("1ntd:woolsey-x-ask");
+/// The DONT pass-or-correct steps — the `2♣` relay over the one-suiter `X`,
+/// each "name your higher suit" step over `2♣`/`2♦`, and the `2♠` preference
+/// over the both-majors `2♥`.  One slug for the family; Meckwell's `2♣`/`2♦`
+/// advances reuse these rules and carry it too.
+const DONT_PC: Alert = Alert("1ntd:dont-pc");
+/// Advancer's `2♣` relay over the Meckwell two-way `X`.
+const MECKWELL_RELAY: Alert = Alert("1ntd:meckwell-relay");
 /// Lead-directing double of the opponents' 2♣ Stayman — shows clubs (the bid
 /// suit), not takeout.
 const STAYMAN_DEFENSE_X: Alert = Alert("staydef:x-clubs");

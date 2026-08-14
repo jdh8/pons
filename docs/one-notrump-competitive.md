@@ -454,9 +454,14 @@ invariant's artificiality witness, and reads as **four real clubs** where no
 blanket covers it.  That lane is *advance-sohl* (their weak two, our takeout
 `X`, the relay), not this one — after our own `1NT` opening the walk blankets
 the whole structure, so plain Lebensohl and the N1c transfer completion are
-latent.  `competition.lebensohl_completion_alert` (**default off pending its
-own A/B** — it moves the default system) alerts the puppet, which decodes as
-⊤ and suppresses the club read.  Never fold its arm into N1g's.
+latent.  The knob grew into the family `reading.completion_alerts`
+(2026-08-14, superseding `lebensohl_completion_alert`; **shipped default-on
+the same day** — `scripts/ab-completion-alerts.sh`, unfiltered, pooled over
+three seeds at 614.4k boards/cell: vul plain +0.0005 ±0.0004 and vul PD
++0.0006 ±0.0005 both CI-clear, NV positive, sd sign-agreed): it alerts the
+puppet (decodes ⊤, suppresses the club read)
+and the rest of the completion family with it.  Never fold its arm into
+N1g's.
 
 ### How it got here — exploration digest
 

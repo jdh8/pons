@@ -952,7 +952,7 @@ knob!(set_negative_double_shape, negative_double_shape, competition.negative_dou
 knob!(set_lebensohl_style, lebensohl_style, competition.lebensohl_style: american::LebensohlStyle);
 // The forced 3♣ completion's alert (reads as a puppet, not clubs).  Off
 // pending its A/B — it moves the default system.
-knob!(set_lebensohl_completion_alert, lebensohl_completion_alert, competition.lebensohl_completion_alert: bool);
+knob!(set_completion_alerts, completion_alerts, decision.reading.completion_alerts: bool);
 knob!(set_passed_hand_overcall, passed_hand_overcall, defense.passed_hand_overcall: bool);
 knob!(set_leaping_michaels, leaping_michaels, defense.leaping_michaels_enabled: bool);
 knob!(set_responsive_takeout, responsive_takeout, defense.responsive_takeout_enabled: bool);

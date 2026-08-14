@@ -185,11 +185,11 @@ pub(crate) fn two_notrump_structure() -> Package {
                 ));
                 entries.extend(rows_of(
                     Pattern::node(&extend3(three_c, three_d, three_h)),
-                    smolen_completion(Suit::Spades),
+                    smolen_completion(Suit::Spades, agreements),
                 ));
                 entries.extend(rows_of(
                     Pattern::node(&extend3(three_c, three_d, three_s)),
-                    smolen_completion(Suit::Hearts),
+                    smolen_completion(Suit::Hearts, agreements),
                 ));
             }
 

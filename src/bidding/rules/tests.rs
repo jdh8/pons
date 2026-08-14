@@ -114,15 +114,50 @@ fn test_alert_marks_block_and_gated_filters() {
     assert_eq!(rules.rules()[2].alert(), Some(EUROPEAN));
 
     // Gating to Puppet keeps the unalerted rule and the Puppet block only.
-    let puppet = rules.clone().gated(|alert| alert == PUPPET);
+    let puppet = rules.clone().gated(&[PUPPET]);
     assert_eq!(puppet.rules().len(), 2);
     assert_eq!(puppet.rules()[0].alert(), None);
     assert_eq!(puppet.rules()[1].alert(), Some(PUPPET));
 
     // Gating to European keeps the unalerted rule and the European block.
-    let european = rules.gated(|alert| alert == EUROPEAN);
+    let european = rules.gated(&[EUROPEAN]);
     assert_eq!(european.rules().len(), 2);
     assert_eq!(european.rules()[1].alert(), Some(EUROPEAN));
+}
+
+/// A slug in the active set that no rule carries is a stale gate entry — the
+/// silent variant-drop footgun the explicit-set API exists to catch.
+#[test]
+#[should_panic(expected = "stale slug in the active set")]
+fn gated_panics_on_a_dead_slug() {
+    let _ = Rules::new()
+        .rule(Call::Pass, 0, hcp(0..))
+        .gated(&[Alert("never-attached")]);
+}
+
+/// Two variants surviving one gate onto the same call is the other silent
+/// failure mode (a missing tag or an over-wide set) — build-time panic.
+#[test]
+#[should_panic(expected = "two variants at once")]
+fn gated_panics_when_two_variants_share_a_call() {
+    const A: Alert = Alert("variant-a");
+    const B: Alert = Alert("variant-b");
+    let _ = Rules::new()
+        .rule(Bid::new(3, Strain::Clubs), 100, hcp(9..))
+        .alert(A)
+        .rule(Bid::new(3, Strain::Clubs), 100, hcp(9..))
+        .alert(B)
+        .gated(&[A, B]);
+}
+
+/// `gated_out`'s dead-slug check: a dormant slug nothing carries panics
+/// rather than silently dropping nothing.
+#[test]
+#[should_panic(expected = "stale slug in the dormant set")]
+fn gated_out_panics_on_a_dead_slug() {
+    let _ = Rules::new()
+        .rule(Call::Pass, 0, hcp(0..))
+        .gated_out(&[Alert("never-attached")]);
 }
 
 #[test]

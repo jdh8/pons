@@ -46,7 +46,7 @@
 //! The public surface is [`register`], called once by
 //! [`american`][super::american] during system assembly.
 
-use super::{call, other_major, slam};
+use super::{COMPLETION, call, other_major, slam};
 use crate::bidding::agreements::Agreements;
 use crate::bidding::constraint::{
     Cons, Constraint, balanced, described, envelope_union_upgrade, equal_length, hcp, len,
@@ -401,7 +401,7 @@ pub fn notrump_responses(agreements: &Agreements) -> Rules {
         .chain(garbage_stayman_rule(agreements))
         // Crawling Stayman (superset of garbage): 4-4 majors short in diamonds.
         .chain(crawling_stayman_rule(agreements))
-        .gated(move |alert| alert != dormant)
+        .gated_out(&[dormant])
 }
 
 /// The minor scheme *not* selected — the one [`notrump_responses`] gates out
@@ -476,11 +476,11 @@ pub(super) fn base() -> Package {
             ));
             entries.extend(rows_of(
                 Pattern::node("P* 1NT - 2♣ - 2♦ - 3♥ -"),
-                smolen_completion(Suit::Spades),
+                smolen_completion(Suit::Spades, agreements),
             ));
             entries.extend(rows_of(
                 Pattern::node("P* 1NT - 2♣ - 2♦ - 3♠ -"),
-                smolen_completion(Suit::Hearts),
+                smolen_completion(Suit::Hearts, agreements),
             ));
 
             // Opener accepts or declines responder's invitations.

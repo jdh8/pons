@@ -116,7 +116,9 @@ pub(super) fn dont_both_majors(allow_44: bool) -> Cons<impl Constraint + Clone> 
 /// which suit.  (A passed advancer is too weak to introduce its own suit, so the
 /// single relay covers it.)
 fn passed_dont_x_advance() -> Rules {
-    Rules::new().rule(Bid::new(2, Strain::Clubs), 100, hcp(0..))
+    Rules::new()
+        .rule(Bid::new(2, Strain::Clubs), 100, hcp(0..))
+        .alert(DONT_PC)
 }
 
 /// Doubler naming the one-suiter after the `2♣` relay (`… (1NT) X - 2♣ -`): pass
@@ -134,6 +136,7 @@ fn passed_dont_x_rebid() -> Rules {
 pub(super) fn passed_dont_2c_advance() -> Rules {
     Rules::new()
         .rule(Bid::new(2, Strain::Diamonds), 100, len(Suit::Clubs, ..=2))
+        .alert(DONT_PC)
         .rule(Call::Pass, 0, hcp(0..))
 }
 
@@ -151,6 +154,7 @@ pub(super) fn passed_dont_2c_rebid() -> Rules {
 pub(super) fn passed_dont_2d_advance() -> Rules {
     Rules::new()
         .rule(Bid::new(2, Strain::Hearts), 100, len(Suit::Diamonds, ..=2))
+        .alert(DONT_PC)
         .rule(Call::Pass, 0, hcp(0..))
 }
 
@@ -168,6 +172,7 @@ pub(super) fn passed_dont_2h_advance() -> Rules {
     let spades_longer = longer_suit(Suit::Spades, Suit::Hearts);
     Rules::new()
         .rule(Bid::new(2, Strain::Spades), 100, spades_longer)
+        .alert(DONT_PC)
         .rule(Call::Pass, 0, hcp(0..))
 }
 

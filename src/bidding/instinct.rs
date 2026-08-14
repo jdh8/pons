@@ -4585,7 +4585,8 @@ pub fn instinct(agreements: &Agreements) -> Rules {
         // bid suit: an artificial overcall (Woolsey 2♣ = both majors, 2♦ = a major)
         // shows its named minor short, so the floor never raises the phantom suit
         // into a doubled disaster.  A natural overcall is shown 5+, so it is
-        // unaffected.  See `inference::multi_reading`.
+        // unaffected.  The Woolsey readings come off the alerted rules' own
+        // projections (`inference::projection`, reader-retirement chops 2–5).
         //
         // The rein (`rein_advance_raise`, default on) blocks the three-level+
         // rung when partner's suit was a forced advance of *our* takeout double:

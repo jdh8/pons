@@ -185,7 +185,7 @@ fn woolsey_conditions_partner() {
     // ≥5 reading is suppressed and BOTH minors narrow to ≤4 — the floor can no
     // longer "raise diamonds" into a doubled 5♦ (the 6+ major falls out of the
     // residual the per-suit framework cannot pin).
-    let multi = read_with(
+    let multi = read_booked_with(
         &arm,
         &[
             bid(1, Strain::Notrump),
@@ -197,7 +197,7 @@ fn woolsey_conditions_partner() {
     assert_eq!(multi.partner().length(Suit::Clubs), Range::new(0, 4));
 
     // (1NT) 2♥ -: Muiderberg — exactly 5 hearts, ≤3 spades.
-    let muiderberg = read_with(
+    let muiderberg = read_booked_with(
         &arm,
         &[bid(1, Strain::Notrump), bid(2, Strain::Hearts), Call::Pass],
     );
@@ -207,7 +207,7 @@ fn woolsey_conditions_partner() {
     // The advancer's 2♥/2♠ over 2♣ (both majors) or 2♦ (Multi) is a PREFERENCE
     // among partner's two majors — not own length — so its natural ≥4 reading is
     // suppressed throughout (here, read from the advancer's seat as partner).
-    let pref_2c = read_with(
+    let pref_2c = read_booked_with(
         &arm,
         &[
             bid(1, Strain::Notrump),
@@ -218,7 +218,7 @@ fn woolsey_conditions_partner() {
         ],
     );
     assert_eq!(pref_2c.partner().length(Suit::Hearts), Range::FULL_LENGTH);
-    let pref_2d = read_with(
+    let pref_2d = read_booked_with(
         &arm,
         &[
             bid(1, Strain::Notrump),
@@ -233,7 +233,7 @@ fn woolsey_conditions_partner() {
     // Off: the Multi 2♦ reads as a natural diamond one-suiter again (≥5) — the
     // convention must not leak when disabled.
     arm.decision.reading.notrump_defense = NotrumpDefense::Natural;
-    let off = read_with(
+    let off = read_booked_with(
         &arm,
         &[
             bid(1, Strain::Notrump),
@@ -256,7 +256,7 @@ fn woolsey_double_and_advances_read() {
     // (1NT) X -: the takeout double names no suit, so nothing is misread — but
     // the doubler's strength (12+) is recorded, where a bare double of 1NT would
     // otherwise read as nothing.
-    let x = read_with(
+    let x = read_booked_with(
         &agreements,
         &[bid(1, Strain::Notrump), Call::Double, Call::Pass],
     );
@@ -264,7 +264,7 @@ fn woolsey_double_and_advances_read() {
 
     // (1NT) X - 2♣ -: the advancer's 2♣ is a "name your minor" relay, not own
     // clubs, so its natural ≥4 reading is suppressed (read from the advancer seat).
-    let relay = read_with(
+    let relay = read_booked_with(
         &agreements,
         &[
             bid(1, Strain::Notrump),
@@ -276,10 +276,11 @@ fn woolsey_double_and_advances_read() {
     );
     assert_eq!(relay.partner().length(Suit::Clubs), Range::FULL_LENGTH);
 
-    // (1NT) 2♥ - 2NT -: the Muiderberg minor-ask 2NT is a relay in a
-    // COMPETITIVE auction (our side already overcalled), so it is never read as a
-    // natural notrump invite — the advancer's points stay unconstrained.
-    let ask = read_with(
+    // (1NT) 2♥ - 2NT -: the Muiderberg minor-ask 2NT is a relay, never read as
+    // a natural notrump invite.  Alerted, its own rule decodes: no-fit (≤2
+    // hearts) and invitational-plus — `20 - lo` = 10 here — where the retired
+    // reader could only suppress and left the points unconstrained.
+    let ask = read_booked_with(
         &agreements,
         &[
             bid(1, Strain::Notrump),
@@ -289,12 +290,13 @@ fn woolsey_double_and_advances_read() {
             Call::Pass,
         ],
     );
-    assert_eq!(ask.partner().strength.points, Range::new(0, 37));
+    assert_eq!(ask.partner().strength.points, Range::new(10, 37));
+    assert_eq!(ask.partner().length(Suit::Hearts), Range::new(0, 2));
 
     // Off: the Woolsey 12+ reading must not leak — the double now falls through to
     // the default-on natural penalty reading (15+), not Woolsey's 12+.
     agreements.decision.reading.notrump_defense = NotrumpDefense::Natural;
-    let off = read_with(
+    let off = read_booked_with(
         &agreements,
         &[bid(1, Strain::Notrump), Call::Double, Call::Pass],
     );
@@ -311,7 +313,7 @@ fn dont_overcalls_and_advances_read() {
     // (1NT) X -: a one-suiter in ♣/♦/♥ — spades short (≤3, the one sound fact),
     // strength recorded (the default 8+ overcall floor) where a bare double of 1NT
     // would otherwise read as nothing.
-    let x = read_with(
+    let x = read_booked_with(
         &agreements,
         &[bid(1, Strain::Notrump), Call::Double, Call::Pass],
     );
@@ -320,7 +322,7 @@ fn dont_overcalls_and_advances_read() {
 
     // (1NT) X - 2♣ -: the advancer's 2♣ is a "name your suit" relay, not own
     // clubs, so its natural ≥4 reading is suppressed (read from the advancer seat).
-    let relay = read_with(
+    let relay = read_booked_with(
         &agreements,
         &[
             bid(1, Strain::Notrump),
@@ -334,7 +336,7 @@ fn dont_overcalls_and_advances_read() {
 
     // (1NT) 2♣ -: a real ≥4 club suit + an unknown major.  The natural ≥5 reading
     // is suppressed (a 4-club / 5-major DONT hand makes this call), re-pinned to ≥4.
-    let two_c = read_with(
+    let two_c = read_booked_with(
         &agreements,
         &[bid(1, Strain::Notrump), bid(2, Strain::Clubs), Call::Pass],
     );
@@ -343,7 +345,7 @@ fn dont_overcalls_and_advances_read() {
 
     // (1NT) 2♣ - 2♦ -: the advancer's 2♦ is a "name your higher suit" relay,
     // not own diamonds — suppressed.
-    let pref = read_with(
+    let pref = read_booked_with(
         &agreements,
         &[
             bid(1, Strain::Notrump),
@@ -356,7 +358,7 @@ fn dont_overcalls_and_advances_read() {
     assert_eq!(pref.partner().length(Suit::Diamonds), Range::FULL_LENGTH);
 
     // (1NT) 2♥ -: both majors, ≥4-4 — exactly a Landy two-suiter on the 2♥ bid.
-    let two_h = read_with(
+    let two_h = read_booked_with(
         &agreements,
         &[bid(1, Strain::Notrump), bid(2, Strain::Hearts), Call::Pass],
     );
@@ -365,7 +367,7 @@ fn dont_overcalls_and_advances_read() {
 
     // Off: the 2♣ reads as a natural club one-suiter again (≥5) — no leak.
     agreements.decision.reading.notrump_defense = NotrumpDefense::Natural;
-    let off = read_with(
+    let off = read_booked_with(
         &agreements,
         &[bid(1, Strain::Notrump), bid(2, Strain::Clubs), Call::Pass],
     );
@@ -382,7 +384,7 @@ fn meckwell_overcalls_and_advances_read() {
     // (1NT) X -: the two-way double (single 6+ minor OR both majors) shares no
     // sound per-suit fact, so ONLY the points floor is recorded — no length is
     // narrowed (unlike DONT's X, which pins spades ≤ 3).
-    let x = read_with(
+    let x = read_booked_with(
         &agreements,
         &[bid(1, Strain::Notrump), Call::Double, Call::Pass],
     );
@@ -392,7 +394,7 @@ fn meckwell_overcalls_and_advances_read() {
 
     // (1NT) X - 2♣ -: the advancer's 2♣ is a "name your suit" relay, not own
     // clubs, so its natural ≥ 4 reading is suppressed.
-    let relay = read_with(
+    let relay = read_booked_with(
         &agreements,
         &[
             bid(1, Strain::Notrump),
@@ -406,7 +408,7 @@ fn meckwell_overcalls_and_advances_read() {
 
     // (1NT) 2♣ -: a real ≥ 4 club suit + an unknown major.  The natural ≥ 5
     // reading is suppressed (a 4-club / 5-major hand makes this call), re-pinned ≥ 4.
-    let two_c = read_with(
+    let two_c = read_booked_with(
         &agreements,
         &[bid(1, Strain::Notrump), bid(2, Strain::Clubs), Call::Pass],
     );
@@ -414,7 +416,7 @@ fn meckwell_overcalls_and_advances_read() {
     assert_eq!(two_c.partner().strength.points, Range::new(8, 37));
 
     // (1NT) 2♦ -: diamonds + a major, real ≥ 4.
-    let two_d = read_with(
+    let two_d = read_booked_with(
         &agreements,
         &[
             bid(1, Strain::Notrump),
@@ -426,7 +428,7 @@ fn meckwell_overcalls_and_advances_read() {
 
     // (1NT) 2♥ -: NATURAL hearts (Meckwell's 2♥ is a single-suiter, not DONT's
     // both-majors), so spades are not floored — the DONT-vs-Meckwell fork.
-    let two_h = read_with(
+    let two_h = read_booked_with(
         &agreements,
         &[bid(1, Strain::Notrump), bid(2, Strain::Hearts), Call::Pass],
     );
@@ -438,7 +440,7 @@ fn meckwell_overcalls_and_advances_read() {
 
     // Off: the 2♣ reads as a natural club one-suiter again (≥ 5) — no leak.
     agreements.decision.reading.notrump_defense = NotrumpDefense::Natural;
-    let off = read_with(
+    let off = read_booked_with(
         &agreements,
         &[bid(1, Strain::Notrump), bid(2, Strain::Clubs), Call::Pass],
     );

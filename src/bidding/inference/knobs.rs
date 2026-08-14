@@ -837,6 +837,31 @@ pub struct ReadingProfile {
     /// false`.
     pub their_landy_reading: bool,
 
+    /// Alert every forced completion, transfer completion and conventional
+    /// answer — the uniform completion-alert doctrine
+    ///
+    /// A completion's constraint is often vacuous (`hcp(0..)`) or names a
+    /// strain its bidder need not hold, so the projection's artificiality
+    /// witness cannot see it and, unalerted, the walk reads the call at face
+    /// value — opener's forced Lebensohl `3♣` as a **club holding**, a false
+    /// partner envelope for every net decision downstream.  This knob attaches
+    /// the alert across the family in one move: Jacoby/Texas completions and
+    /// super-accepts, Stayman/Puppet/minor-transfer answers, Smolen and
+    /// Rubensohl completions, the contested Jacoby tails, and the Lebensohl
+    /// `3♣` (which the retired `competition.lebensohl_completion_alert`
+    /// covered alone).  Alerted, each decodes its own rule's projection —
+    /// vacuous rules as ⊤, answers as their real boxes (a super-accept starts
+    /// reading `4+ / 17+`) — and suppresses the natural walk.
+    ///
+    /// **Default on — SHIPPED 2026-08-14** (pooled over three seeds,
+    /// 614.4k boards/cell, sha `d22b60e`+tree: vul plain **+0.0005 ±0.0004**
+    /// and vul PD **+0.0006 ±0.0005** both CI-clear, NV plain +0.0002 ±0.0004
+    /// / NV PD +0.0004 ±0.0004 positive; the sd bracket agrees in sign in all
+    /// four pooled cells).  A reading change is a bidding change under the
+    /// neural floor, and this one moves the default system (smoke diverges) —
+    /// the pre-ship arm is `bba-gen --ns-completion-alerts false`.
+    pub completion_alerts: bool,
+
     /// Which mutually-exclusive defense we play over their `1NT` opening
     ///
     /// **Default [`Natural`][crate::bidding::american::NotrumpDefense::Natural]**
@@ -928,16 +953,6 @@ impl ReadingProfile {
         self.notrump_defense == crate::bidding::american::NotrumpDefense::Woolsey
     }
 
-    /// Whether the Meckwell defense is the active notrump defense.
-    pub(crate) fn meckwell_enabled(self) -> bool {
-        self.notrump_defense == crate::bidding::american::NotrumpDefense::Meckwell
-    }
-
-    /// Whether direct-seat DONT is the active notrump defense.
-    pub(crate) fn direct_dont_enabled(self) -> bool {
-        self.notrump_defense == crate::bidding::american::NotrumpDefense::DirectDont
-    }
-
     /// Whether the natural defense is the active notrump defense.
     pub(crate) fn natural_defense_enabled(self) -> bool {
         self.notrump_defense == crate::bidding::american::NotrumpDefense::Natural
@@ -987,6 +1002,7 @@ impl ReadingProfile {
             longer_major_response: false,
             landy: true,
             their_landy_reading: false,
+            completion_alerts: false,
             notrump_defense: crate::bidding::american::NotrumpDefense::Woolsey,
             natural_overcall_points: (9, 13),
             two_notrump_wide: true,
@@ -1047,6 +1063,7 @@ impl Default for ReadingProfile {
             longer_major_response: true,
             landy: false,
             their_landy_reading: true,
+            completion_alerts: true,
             notrump_defense: crate::bidding::american::NotrumpDefense::Natural,
             natural_overcall_points: (8, 14),
             two_notrump_wide: false,

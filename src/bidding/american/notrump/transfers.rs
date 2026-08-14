@@ -18,15 +18,20 @@ use super::*;
 // ponytail: a plain jump super-accept; fit-/shortness-showing super-accepts are
 // the upgrade path if the A/B asks for them.
 pub(crate) fn complete_transfer(into: Suit, agreements: &Agreements) -> Rules {
+    let alerts = agreements.decision.reading.completion_alerts;
     let mut rules = Rules::new();
     if agreements.notrump.transfer_super_accept {
-        rules = rules.rule(
-            Bid::new(3, Strain::from(into)),
-            150,
-            len(into, 4..) & hcp(17..),
-        );
+        rules = rules
+            .rule(
+                Bid::new(3, Strain::from(into)),
+                150,
+                len(into, 4..) & hcp(17..),
+            )
+            .alert_if(alerts, COMPLETION);
     }
-    rules.rule(Bid::new(2, Strain::from(into)), 100, hcp(0..))
+    rules
+        .rule(Bid::new(2, Strain::from(into)), 100, hcp(0..))
+        .alert_if(alerts, COMPLETION)
 }
 
 /// Responder's invitational 5-4 rebid after the heart transfer completes

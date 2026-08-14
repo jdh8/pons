@@ -50,7 +50,12 @@ section** while constructive and defensive were rich. Two causes:
   invariant's artificiality witness keys on the projection flooring a suit
   the call did not name; a forced completion constrained `hcp(0..)` projects
   nothing, dodges the witness, and reads as a natural holding wherever no
-  walk blanket covers it (`competition.lebensohl_completion_alert`).
+  walk blanket covers it.  The cure is now the family knob
+  `reading.completion_alerts` (2026-08-14, superseding
+  `lebensohl_completion_alert`): every completion, transfer completion and
+  conventional answer alerts in one move, and
+  `completion_readings_admit_the_bidder` replays the bidder over the lanes so
+  a future untagged completion goes red instead of lying.
 
 ## Workstream 0 — render the competitive book ✅
 

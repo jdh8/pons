@@ -14,13 +14,17 @@ use super::*;
 /// responder re-asks below), or `XX` when the doubled transfer suit (`bid`) is
 /// opener's own and it wants to defend.
 fn transfer_doubled_opener(major: Suit, bid: Suit, agreements: &Agreements) -> Rules {
+    let completion_alerts = agreements.decision.reading.completion_alerts;
     let strain = Strain::from(major);
     let mut rules = Rules::new();
     if agreements.notrump.transfer_super_accept {
-        rules = rules.rule(Bid::new(3, strain), 150, len(major, 4..) & hcp(17..));
+        rules = rules
+            .rule(Bid::new(3, strain), 150, len(major, 4..) & hcp(17..))
+            .alert_if(completion_alerts, COMPLETION);
     }
     rules
         .rule(Bid::new(2, strain), 100, len(major, 3..))
+        .alert_if(completion_alerts, COMPLETION)
         .rule(Call::Redouble, 60, len(bid, 5..) & suit_hcp(bid, 5..))
         .rule(Call::Pass, 25, len(major, ..3))
 }
@@ -44,7 +48,12 @@ fn transfer_pass_reask(major: Suit) -> Rules {
 /// Super-accept the `major` at the cheapest level above their `over_suit` with
 /// four-card support; else `X` shows length in their suit (cards); else Pass.
 /// Responder stays captain.
-fn transfer_overcalled_opener(major: Suit, over_suit: Suit, over_level: u8) -> Rules {
+fn transfer_overcalled_opener(
+    major: Suit,
+    over_suit: Suit,
+    over_level: u8,
+    agreements: &Agreements,
+) -> Rules {
     let strain = Strain::from(major);
     let lvl = if strain > Strain::from(over_suit) {
         over_level
@@ -57,6 +66,7 @@ fn transfer_overcalled_opener(major: Suit, over_suit: Suit, over_level: u8) -> R
             100,
             min_level_is(lvl, strain) & len(major, 4..),
         )
+        .alert_if(agreements.decision.reading.completion_alerts, COMPLETION)
         .rule(Call::Double, 60, len(over_suit, 4..))
         .rule(Call::Pass, 20, hcp(0..))
 }
@@ -104,7 +114,7 @@ pub(super) fn competition_over_transfer_package() -> Package {
                 for &(over_suit, over_level) in overcalls {
                     entries.extend(rows_of(
                         Pattern::after(&key, &format!("({over_level}{})", Strain::from(over_suit))),
-                        transfer_overcalled_opener(major, over_suit, over_level),
+                        transfer_overcalled_opener(major, over_suit, over_level, agreements),
                     ));
                 }
             }

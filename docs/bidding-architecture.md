@@ -216,8 +216,20 @@ seat-carrying `project` or the sampled projection.
   carries the disjunction itself, so the hand-written readers are being retired
   one measured chop at a time — see
   [reader-retirement.md](reader-retirement.md).
-- Footgun: `Rules::gated` blocks keyed on an alert slug **silently drop** the
-  rule when the slug isn't in the active set.
+- `Rules::gated` takes an **explicit slug set** (2026-08-14; `gated_out` is
+  its complement for "everything except the dormant scheme").  The old
+  closure form silently dropped a rule whose slug wasn't active; now a stale
+  slug in the set panics at build, and two variants surviving onto one call
+  panic instead of shipping into one trie.
+- The completeness limit of the artificial-call invariant — a vacuous
+  (`hcp(0..)`) forced completion derives as natural, which is why derivation
+  left the decode gate — is covered behaviourally:
+  `completion_readings_admit_the_bidder` replays the bidder through the
+  completion lanes under `reading.completion_alerts` (the family knob that
+  alerts every completion/answer uniformly; shipped default-on 2026-08-14) and
+  requires every reading to admit its own bidder.  The verdict history and
+  the whole alert-vs-derivation question live in
+  [reader-retirement.md](reader-retirement.md) §The alert question.
 
 ## Samplers (`sampler.rs`)
 

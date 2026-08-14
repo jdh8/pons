@@ -246,7 +246,7 @@ pub fn defense_to_notrump(agreements: &Agreements) -> Rules {
         .chain(meckwell_2c(agreements).alert(MECKWELL_2C))
         .chain(meckwell_2d(agreements).alert(MECKWELL_2D))
         .chain(unusual_2nt(agreements).alert(UNUSUAL_2NT))
-        .gated(move |t| alerts.contains(&t))
+        .gated(&alerts)
 }
 
 /// Defense to their `1NT` opening, direct and balancing seat

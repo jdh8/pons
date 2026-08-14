@@ -96,7 +96,7 @@ struct Args {
     /// (`--ns-lebensohl-completion-alert`).  Unset tracks the engine default
     /// (off pending its A/B); pass `true` to replay alert-on arms.
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
-    lebensohl_completion_alert: Option<bool>,
+    completion_alerts: Option<bool>,
 
     /// DD-table cache (JSON file), created if absent and updated with new
     /// solves — the artifact that makes a re-anchor take minutes
@@ -404,8 +404,8 @@ fn main() -> anyhow::Result<()> {
         if let Some(read) = args.their_landy_read {
             agreements.decision.reading.their_landy_reading = read;
         }
-        if let Some(alert) = args.lebensohl_completion_alert {
-            agreements.competition.lebensohl_completion_alert = alert;
+        if let Some(alert) = args.completion_alerts {
+            agreements.decision.reading.completion_alerts = alert;
         }
         match args.our_floor {
             OurFloor::American => american(&agreements),

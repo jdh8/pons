@@ -61,8 +61,10 @@ pub(super) fn european_minors(agreements: &Agreements) -> Rules {
 // `3♦` bucket at 100.0% (n=2968, 15–17 HCP, 98% balanced).
 
 /// Opener completes the European club transfer: `3♣` (the 2♠ bidder has clubs)
-fn european_two_spade_answer() -> Rules {
-    Rules::new().rule(Bid::new(3, Strain::Clubs), 0, hcp(0..))
+fn european_two_spade_answer(agreements: &Agreements) -> Rules {
+    Rules::new()
+        .rule(Bid::new(3, Strain::Clubs), 0, hcp(0..))
+        .alert_if(agreements.decision.reading.completion_alerts, COMPLETION)
 }
 
 /// Responder's rebid after opener completes the European club transfer (`…2♠ - 3♣`)
@@ -100,8 +102,10 @@ fn european_two_nt_answer(agreements: &Agreements) -> Rules {
 }
 
 /// Opener completes the European diamond transfer: `3♦`
-fn european_three_club_answer() -> Rules {
-    Rules::new().rule(Bid::new(3, Strain::Diamonds), 0, hcp(0..))
+fn european_three_club_answer(agreements: &Agreements) -> Rules {
+    Rules::new()
+        .rule(Bid::new(3, Strain::Diamonds), 0, hcp(0..))
+        .alert_if(agreements.decision.reading.completion_alerts, COMPLETION)
 }
 
 /// European 1NT - 3♣ diamond transfer and responder's game decision
@@ -109,8 +113,11 @@ pub(crate) fn european_three_club() -> Package {
     Package {
         name: "european-three-club",
         gate: |agreements| european_scheme(agreements),
-        entries: |_| {
-            let mut entries = rows_of(Pattern::node("P* 1NT - 3♣ -"), european_three_club_answer());
+        entries: |agreements| {
+            let mut entries = rows_of(
+                Pattern::node("P* 1NT - 3♣ -"),
+                european_three_club_answer(agreements),
+            );
             // ponytail: no splinter arm here, and the Puppet lane's `3♥`/`3♠`
             // rungs would be the wrong ones anyway.  `--mode nt-3c-3d` (400k
             // hands, 10260 reaching the node) shows **no `3♥`/`3♠` bucket at
@@ -149,8 +156,11 @@ pub(crate) fn european_two_spade() -> Package {
     Package {
         name: "european-two-spade",
         gate: |agreements| european_scheme(agreements),
-        entries: |_| {
-            let mut entries = rows_of(Pattern::node("P* 1NT - 2♠ -"), european_two_spade_answer());
+        entries: |agreements| {
+            let mut entries = rows_of(
+                Pattern::node("P* 1NT - 2♠ -"),
+                european_two_spade_answer(agreements),
+            );
             entries.extend(rows_of(
                 Pattern::node("P* 1NT - 2♠ - 3♣ -"),
                 european_two_spade_rebid(),

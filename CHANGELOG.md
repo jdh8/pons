@@ -22,6 +22,60 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The alert question, settled: derivation-as-checking**
+  (docs/reader-retirement.md §The alert question). A design grill asked
+  whether DNF box unions could retire the alert; the answer — derive-at-decode
+  was the original design, retired for incompleteness — became a
+  checking-completeness campaign. Shipped default system byte-identical
+  throughout (`smoke-default` 20k-board diff at every leg):
+  - **Reader-retirement chops 2–5**: `meckwell_reading`, `dont_reading`,
+    `woolsey_x_reading` and `multi_reading` deleted; their advance
+    relays/asks now carry alerts (`1ntd:meckwell-relay`, `1ntd:dont-pc`,
+    `1ntd:woolsey-x-{relay,ask}`, `1ntd:multi-{pc,ask}`,
+    `1ntd:muiderberg-ask`) and the projection decodes the rules themselves.
+    Subset-confirmed by the booked output tests pre- and post-deletion;
+    all four conventions are default-off. Seven readers remain
+    (ledger + endgame classification in the doc).
+  - **Gate-blind invariants fixed**: `gated_profiles_preserve_alert_invariant`
+    sweeps the anchor's `TheirDisclosures` profile, the four 1NT-defense
+    variants and the RKCB relocation; the alert invariant and the disclosure
+    fixture now walk **fallback-attached** rules too (the Landy counter has
+    no exact node), with the instinct floor's `(always)` rails and
+    suffix-guarded doubles exempted. `tests/fixtures/alert-sites.txt` gains
+    11 previously-uncounted fallback slugs and a `[their-landy]` anchor-delta
+    section — the tripwire now watches the system the anchor actually fields.
+  - **`reading.completion_alerts`** (default **on** — shipped 2026-08-14;
+    `scripts/ab-completion-alerts.sh`, unfiltered, pooled over three seeds
+    `1786712795`/`1786713275`/`1786714610` at 614.4k boards/cell on
+    `d22b60e`+tree: vul plain **+0.0005 ±0.0004** and vul PD **+0.0006
+    ±0.0005** both CI-clear, NV plain +0.0002 ±0.0004 / NV PD +0.0004
+    ±0.0004 positive, the sd bracket sign-agreed in all four pooled cells;
+    ≈ +2 IMPs per fired board at ~0.04% fired): the uniform
+    completion-alert doctrine. Alerts every forced completion, transfer
+    completion and conventional answer (Jacoby/Texas + super-accepts,
+    Stayman/Puppet/minor-transfer/European answers, Smolen and Rubensohl
+    completions, contested Jacoby tails, the Lebensohl `3♣`) via
+    `Rules::alert_if` + the shared `completion` slug. Supersedes
+    `competition.lebensohl_completion_alert` (web pair renamed
+    `set_completion_alerts`; bba-gen flag `--ns-completion-alerts`).
+    Alerted, each call decodes its own rule — super-accepts start reading
+    `4+/17+`, the Muiderberg ask reads `≤2` major + INV+ — and the
+    advance-sohl `3♣` stops reading as four clubs.
+  - **`completion_readings_admit_the_bidder`**: the behavioural completeness
+    invariant (no structural predicate can see a vacuous completion — that is
+    why derivation retired). Replays the bidder through ten completion lanes
+    on the knob-on build; red-teamed both directions (untagging the Lebensohl
+    `3♣` fails on the advance-sohl lane; the blanketed constructive lanes
+    cannot witness a missing tag, which localises the family's live cost).
+
+### Changed
+
+- **`Rules::gated` takes an explicit slug set** (with `gated_out` as the
+  complement for the 1NT minor-scheme site). A stale slug in the set — the
+  silent variant-drop footgun — now panics at build, as do two variants
+  surviving onto one call. Panic paths pinned by three `should_panic` tests;
+  byte-identity proven by the seeded smoke diff.
+
 - **N1g: the Landy disclosure's read-side wiring — SHIPPED DEFAULT-ON**
   (`ReadingProfile::their_landy_reading`; off arm `bba-gen
   --ns-their-landy-read false`, replay `bba-decompose --their-landy-read`,

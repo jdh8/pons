@@ -157,24 +157,6 @@ pub struct CompetitionKnobs {
     ///
     /// Section 5 of the competitive book; default [`LebensohlStyle::Transfer`].
     pub lebensohl_style: LebensohlStyle,
-    /// Alert the forced `3♣` completion of a Lebensohl `2NT` relay
-    ///
-    /// The completion is constrained `hcp(0..)`, so its projection claims
-    /// nothing and the alert invariant's artificiality witness cannot see it:
-    /// unalerted, it is not natural-suppressed and the reading walk takes
-    /// opener's forced `3♣` as a **club holding** — a false partner envelope
-    /// for every net decision downstream, the same defect class as the
-    /// undisclosed Landy `2♣`
-    /// ([`their_landy_reading`][field@crate::bidding::ReadingProfile::their_landy_reading]).
-    /// On, the completion carries an alert, which decodes it as ⊤ (a puppet —
-    /// says nothing) and suppresses the natural read.  Shared by plain and
-    /// transfer Lebensohl, advance-sohl, and the N1c Landy club transfer.
-    ///
-    /// **Default off pending its A/B** (`bba-gen --ns-lebensohl-completion-alert`):
-    /// a reading change is a bidding change under the neural floor, and this
-    /// one moves the default system (smoke diverges), so it ships only
-    /// through the decision table.
-    pub lebensohl_completion_alert: bool,
     /// Read a `(2♦)` overcall of our `1NT` as a Multi
     ///
     /// Responder treats their `2♦` as an unknown single-suited major and
@@ -626,7 +608,6 @@ impl Default for CompetitionKnobs {
             direct_3nt_stopper: true,
             natural_floor: (5, 0),
             lebensohl_style: LebensohlStyle::Transfer,
-            lebensohl_completion_alert: false,
             defense_2d_multi: false,
             defense_2c_landy_cues: false,
             defense_2c_landy_transfer: true,

@@ -35,12 +35,12 @@ use super::super::rows::{
 };
 use super::super::trie::{Classifier, classifier};
 use super::super::{Alert, Competitive, Rules};
-use super::call;
 use super::notrump::{
     PUPPET, complete_transfer, notrump_responses, smolen_at_three, smolen_completion,
     stayman_answers,
 };
 use super::weak_twos;
+use super::{COMPLETION, call};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Hand, Strain, Suit};
 

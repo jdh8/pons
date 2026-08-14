@@ -64,6 +64,15 @@ use super::agreements::Agreements;
 use super::common::{call, other_major, with_floor, with_floor_v5, with_instinct_floor};
 use super::{Competitive, Constructive, Defensive, System};
 
+/// The family tag of [`ReadingProfile::completion_alerts`][crate::bidding::ReadingProfile::completion_alerts]:
+/// forced completions, transfer completions and conventional answers whose
+/// face the walk must not read literally.  Attached with
+/// [`Rules::alert_if`][crate::bidding::rules::Rules::alert_if] so the tag is
+/// absent — not merely inert — when the knob is off; sites that predate the
+/// family knob (xyz, Gladiator, weak-two-2NT, Lebensohl) keep their own slugs.
+pub(in crate::bidding) const COMPLETION: crate::bidding::rules::Alert =
+    crate::bidding::rules::Alert("completion");
+
 pub(in crate::bidding) mod competition;
 pub(in crate::bidding) mod defense;
 pub(in crate::bidding) mod game_force;

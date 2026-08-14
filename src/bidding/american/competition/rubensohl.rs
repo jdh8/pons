@@ -250,22 +250,25 @@ pub(crate) fn transfer_lebensohl_responder(
 /// A transfer to a major is INV+, so opener is driven to **game**: `4M` with a
 /// fit, else `3NT`. A transfer to a minor (rare — long minor, no stopper) is
 /// completed at the 3 level, or `3NT` with a stopper; responder drives on.
-pub(crate) fn transfer_completion(target: Suit, over: Suit) -> Rules {
+pub(crate) fn transfer_completion(target: Suit, over: Suit, agreements: &Agreements) -> Rules {
+    let completion_alerts = agreements.decision.reading.completion_alerts;
     let t = Strain::from(target);
     let mut rules = Rules::new();
     if matches!(target, Suit::Hearts | Suit::Spades) {
-        rules = rules.rule(Bid::new(4, t), 160, len(target, 3..)).rule(
-            Bid::new(3, Strain::Notrump),
-            140,
-            len(target, ..3),
-        );
+        rules = rules
+            .rule(Bid::new(4, t), 160, len(target, 3..))
+            .alert_if(completion_alerts, COMPLETION)
+            .rule(Bid::new(3, Strain::Notrump), 140, len(target, ..3))
+            .alert_if(completion_alerts, COMPLETION);
     } else {
         // ponytail: minor-target 5m / slam exploration is left to the floor;
         // 3NT-or-complete covers the common game. Author it if the A/B shows
         // minor transfers matter.
         rules = rules
             .rule(Bid::new(3, Strain::Notrump), 150, stopper_in(over))
-            .rule(Bid::new(3, t), 130, len(target, 3..));
+            .alert_if(completion_alerts, COMPLETION)
+            .rule(Bid::new(3, t), 130, len(target, 3..))
+            .alert_if(completion_alerts, COMPLETION);
     }
     rules.rule(Call::Pass, 0, hcp(0..))
 }
@@ -450,10 +453,13 @@ pub(crate) fn stayman_2d_fit_rebid(major: Suit) -> Rules {
 //
 // ponytail: minor-suit slam exploration is left to the floor; 3NT-or-5♣ covers
 // the common game. Author a keycard ladder here only if the A/B shows it matters.
-pub(crate) fn clubs_transfer_completion(over: Suit) -> Rules {
+pub(crate) fn clubs_transfer_completion(over: Suit, agreements: &Agreements) -> Rules {
+    let completion_alerts = agreements.decision.reading.completion_alerts;
     Rules::new()
         .rule(Bid::new(3, Strain::Notrump), 140, stopper_in(over))
+        .alert_if(completion_alerts, COMPLETION)
         .rule(Bid::new(5, Strain::Clubs), 50, hcp(0..))
+        .alert_if(completion_alerts, COMPLETION)
 }
 
 /// Opener's reply to Leaping Michaels `4♦` (both majors, 5-5 game-forcing)

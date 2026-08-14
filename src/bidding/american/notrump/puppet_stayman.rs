@@ -9,19 +9,23 @@ use super::*;
 /// Puppet is balanced and game-forcing, so opener always cooperates — name a
 /// five-card major (`3♥`/`3♠`), otherwise bid `3♦`, denying five but possibly
 /// holding a four-card major for the Smolen-style 4-4 hunt below.
-fn puppet_answers() -> Rules {
+fn puppet_answers(agreements: &Agreements) -> Rules {
+    let completion_alerts = agreements.decision.reading.completion_alerts;
     Rules::new()
         .rule(Bid::new(3, Strain::Hearts), 100, len(Suit::Hearts, 5..))
+        .alert_if(completion_alerts, COMPLETION)
         .rule(
             Bid::new(3, Strain::Spades),
             100,
             len(Suit::Spades, 5..) & len(Suit::Hearts, ..5),
         )
+        .alert_if(completion_alerts, COMPLETION)
         .rule(
             Bid::new(3, Strain::Diamonds),
             50,
             len(Suit::Hearts, ..5) & len(Suit::Spades, ..5),
         )
+        .alert_if(completion_alerts, COMPLETION)
 }
 
 /// Responder's rebid after opener names a five-card major over Puppet
@@ -63,14 +67,17 @@ fn puppet_deny_rebid() -> Rules {
 ///
 /// Responder's short-major bid named four cards in `shown_major`; raise to game
 /// with four-card support, else 3NT.
-fn puppet_smolen_completion(shown_major: Suit) -> Rules {
+fn puppet_smolen_completion(shown_major: Suit, agreements: &Agreements) -> Rules {
+    let completion_alerts = agreements.decision.reading.completion_alerts;
     Rules::new()
         .rule(
             Bid::new(4, Strain::from(shown_major)),
             100,
             len(shown_major, 4..),
         )
+        .alert_if(completion_alerts, COMPLETION)
         .rule(Bid::new(3, Strain::Notrump), 50, len(shown_major, ..4))
+        .alert_if(completion_alerts, COMPLETION)
 }
 
 /// Puppet Stayman responses and continuations after the 1NT - 3♣ ask
@@ -78,8 +85,8 @@ pub(crate) fn puppet() -> Package {
     Package {
         name: "puppet-stayman",
         gate: |agreements| puppet_scheme(agreements),
-        entries: |_| {
-            let mut entries = rows_of(Pattern::node("P* 1NT - 3♣ -"), puppet_answers());
+        entries: |agreements| {
+            let mut entries = rows_of(Pattern::node("P* 1NT - 3♣ -"), puppet_answers(agreements));
             entries.extend(expand(
                 "P* 1NT - 3♣ - 3M -",
                 |_| true,
@@ -94,11 +101,11 @@ pub(crate) fn puppet() -> Package {
             // these derived-suit completions stay literal.
             entries.extend(rows_of(
                 Pattern::node("P* 1NT - 3♣ - 3♦ - 3♥ -"),
-                puppet_smolen_completion(Suit::Spades),
+                puppet_smolen_completion(Suit::Spades, agreements),
             ));
             entries.extend(rows_of(
                 Pattern::node("P* 1NT - 3♣ - 3♦ - 3♠ -"),
-                puppet_smolen_completion(Suit::Hearts),
+                puppet_smolen_completion(Suit::Hearts, agreements),
             ));
             entries
         },

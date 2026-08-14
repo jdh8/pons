@@ -67,8 +67,11 @@ Come back here only if the fix means authoring new nodes — then steps 3–11 a
      opponents intervene past the book.
    - A call constrained to nothing (`hcp(0..)` — a forced puppet) projects
      nothing, so the `artificial_calls_are_alerted` witness cannot see it:
-     alert it by hand or the walk reads it as a real suit
-     (`lebensohl_completion_alert` is the precedent).
+     alert it by hand or the walk reads it as a real suit.  Use
+     `.alert_if(agreements.decision.reading.completion_alerts, COMPLETION)`
+     for completion-family calls (the uniform doctrine; the invariant
+     `completion_readings_admit_the_bidder` covers the lanes), a bespoke
+     always-on alert for anything else.
    - If the convention is **theirs** (a `their.*` disclosure), wire the read
      side too: a disclosure that moves only the book leaves the floor bidding
      on a false opponent envelope (docs/one-notrump-competitive.md §N1g). The

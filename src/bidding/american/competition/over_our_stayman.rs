@@ -89,7 +89,7 @@ pub(super) fn competition_over_stayman_package() -> Package {
     Package {
         name: "competition-over-stayman",
         gate: |agreements| agreements.competition.competition_over_stayman,
-        entries: |_| {
+        entries: |agreements| {
             const STAYMAN: &str = "P* 1NT - 2♣";
             // A.1 — our Stayman doubled.  Opener's coded reply, then the
             // systems-on rebase off his stopper-bid.
@@ -104,7 +104,7 @@ pub(super) fn competition_over_stayman_package() -> Package {
             ));
             entries.extend(rows_of(
                 Pattern::after(STAYMAN, "(X) - - XX -"),
-                stayman_answers(),
+                stayman_answers(agreements),
             ));
 
             // A.1c — opener's 2-level answer (2♦/2♥/2♠) doubled.  The double

@@ -381,6 +381,22 @@ impl Rules {
         self
     }
 
+    /// [`alert`][Self::alert] the most recently added rule when `on` — the
+    /// knob-conditional alert idiom
+    ///
+    /// The tag must be **absent** (not merely inert) when the knob is off: the
+    /// decode gate and the natural-walk suppression are structural on rule
+    /// *presence* (the kickback §7.4 trap), so an always-present tag would
+    /// move readings with the knob off.
+    ///
+    /// # Panics
+    ///
+    /// Panics if no rule has been added yet.
+    #[must_use]
+    pub fn alert_if(self, on: bool, alert: Alert) -> Self {
+        if on { self.alert(alert) } else { self }
+    }
+
     /// Gate the most recently added rule on a face-of-auction predicate
     ///
     /// Chains after [`rule`][Self::rule], mirroring [`alert`][Self::alert].
@@ -432,15 +448,72 @@ impl Rules {
         self
     }
 
-    /// Drop rules whose [`alert`][Rule::alert] is set but not `active`
+    /// Keep only the rules whose [`alert`][Rule::alert] is in the `active` set
     ///
-    /// Unalerted rules (`alert: None`) always survive; an alerted rule lives only
-    /// when `active(alert)` holds.  Called before trie insertion so a book that
-    /// authored two convention variants ships only the selected one — the
+    /// Unalerted rules (`alert: None`) always survive; an alerted rule lives
+    /// only when its slug is listed.  Called before trie insertion so a book
+    /// that authored two convention variants ships only the selected one — the
     /// build-time gate that keeps `classify()` free of any variant check.
+    ///
+    /// The set is explicit (not a closure) so the build can check it: a slug
+    /// in `active` that no rule carries is a stale gate entry — the silent
+    /// failure mode where a renamed or never-attached alert dropped its whole
+    /// variant everywhere — and panics here instead.  After the retain, no two
+    /// surviving rules may author the same call under *different* slugs: that
+    /// is two variants shipping into one node (the other silent failure mode,
+    /// a missing tag or an over-wide set).
+    ///
+    /// # Panics
+    ///
+    /// Panics on a dead slug in `active`, or when two retained rules share a
+    /// call under different alerts.
     #[must_use]
-    pub fn gated(mut self, active: impl Fn(Alert) -> bool) -> Self {
-        self.rules.retain(|rule| rule.alert.is_none_or(&active));
+    pub fn gated(mut self, active: &[Alert]) -> Self {
+        for alert in active {
+            assert!(
+                self.rules.iter().any(|rule| rule.alert == Some(*alert)),
+                "gated: no rule carries {alert:?} — stale slug in the active set",
+            );
+        }
+        self.rules
+            .retain(|rule| rule.alert.is_none_or(|alert| active.contains(&alert)));
+        for (i, rule) in self.rules.iter().enumerate() {
+            if let Some(alert) = rule.alert
+                && let Some(twin) = self.rules[i + 1..].iter().find(|other| {
+                    other.call == rule.call && other.alert.is_some_and(|a| a != alert)
+                })
+            {
+                panic!(
+                    "gated: {} is authored by two variants at once ({alert:?} and {:?})",
+                    rule.call,
+                    twin.alert.expect("matched is_some"),
+                );
+            }
+        }
+        self
+    }
+
+    /// [`gated`][Self::gated]'s complement: drop the rules tagged with a
+    /// `dormant` slug, keep everything else
+    ///
+    /// For the two-variant table whose natural form is "everything except the
+    /// inactive scheme" (the 1NT minor-scheme selection).  The same dead-slug
+    /// check applies: a `dormant` slug no rule carries is a stale entry and
+    /// panics rather than silently dropping nothing.
+    ///
+    /// # Panics
+    ///
+    /// Panics on a dead slug in `dormant`.
+    #[must_use]
+    pub fn gated_out(mut self, dormant: &[Alert]) -> Self {
+        for alert in dormant {
+            assert!(
+                self.rules.iter().any(|rule| rule.alert == Some(*alert)),
+                "gated_out: no rule carries {alert:?} — stale slug in the dormant set",
+            );
+        }
+        self.rules
+            .retain(|rule| rule.alert.is_none_or(|alert| !dormant.contains(&alert)));
         self
     }
 

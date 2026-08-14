@@ -67,7 +67,7 @@ pub(super) fn sohl_rows_over(
                     cue_stayman_answer(over)
                 }
             } else if let Some(target) = transfer_target(bid_suit, over) {
-                transfer_completion(target, over)
+                transfer_completion(target, over, agreements)
             } else {
                 continue; // the lowest suit has no transfer target — floored
             };
@@ -93,15 +93,21 @@ pub(super) fn sohl_rows_over(
             // 3♣ Stayman, partner's answer; then Smolen after the 3♦ denial.
             ("3♣ -", stayman_2d_answer()),
             ("3♣ - 3♦ -", smolen_at_three()),
-            ("3♣ - 3♦ - 3♥ -", smolen_completion(Suit::Spades)),
-            ("3♣ - 3♦ - 3♠ -", smolen_completion(Suit::Hearts)),
+            (
+                "3♣ - 3♦ - 3♥ -",
+                smolen_completion(Suit::Spades, agreements),
+            ),
+            (
+                "3♣ - 3♦ - 3♠ -",
+                smolen_completion(Suit::Hearts, agreements),
+            ),
             // Partner showed a 4-card major over Stayman; advancer places.
             ("3♣ - 3♥ -", stayman_2d_fit_rebid(Suit::Hearts)),
             ("3♣ - 3♠ -", stayman_2d_fit_rebid(Suit::Spades)),
             // Jacoby transfers: 3♦→♥, 3♥→♠ (auto-driven), 3♠→♣ (forced GF).
-            ("3♦ -", transfer_completion(Suit::Hearts, over)),
-            ("3♥ -", transfer_completion(Suit::Spades, over)),
-            ("3♠ -", clubs_transfer_completion(over)),
+            ("3♦ -", transfer_completion(Suit::Hearts, over, agreements)),
+            ("3♥ -", transfer_completion(Suit::Spades, over, agreements)),
+            ("3♠ -", clubs_transfer_completion(over, agreements)),
             // Leaping Michaels: 4♦ both majors, 4♣ clubs + a major (ask).
             ("4♦ -", lm_2d_both_majors_advance()),
             ("4♣ -", lm_2d_clubs_ask()),

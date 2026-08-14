@@ -456,9 +456,11 @@ struct Args {
     /// Alert the forced `3♣` completion of a Lebensohl `2NT` relay, so the
     /// reading suppresses the natural walk's club holding on a puppet (shared
     /// by plain/transfer Lebensohl, advance-sohl, and the N1c club transfer).
-    /// Off pending its A/B — this one moves the default system.
-    #[arg(long, default_value_t = false)]
-    ns_lebensohl_completion_alert: bool,
+    /// **Engine default ON since the 2026-08-14 ship** (pooled 3 seeds:
+    /// vul plain/PD CI-clear, NV positive); the pre-ship arm is
+    /// `--ns-completion-alerts false`.  Unset = the engine default.
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    ns_completion_alerts: Option<bool>,
 
     /// How much of the authored book our projection decodes
     /// (`ReadingProfile::scope`, crate default `alerted`).
@@ -1802,7 +1804,9 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     if let Some(v) = args.defense_2c_landy_competition {
         agreements.competition.defense_2c_landy_competition = v;
     }
-    agreements.competition.lebensohl_completion_alert = args.ns_lebensohl_completion_alert;
+    if let Some(v) = args.ns_completion_alerts {
+        agreements.decision.reading.completion_alerts = v;
+    }
     agreements.competition.competition_over_stayman = !args.no_ns_comp_over_stayman;
     agreements.competition.competitive_4333 = match args.ns_competitive_4333.as_str() {
         "allow" => pons::bidding::american::Competitive4333::Allow,

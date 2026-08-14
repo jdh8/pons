@@ -865,16 +865,16 @@ fn landy_ask_answer(minor: Suit, asked: Suit, ask: Bid) -> Rules {
 
 /// Opener completes responder's Lebensohl `2NT` relay with the forced `3♣`
 ///
-/// Under `competition.lebensohl_completion_alert` the completion is alerted:
-/// constrained `hcp(0..)` it projects nothing, so the alert's whole effect is
-/// to suppress the natural walk's club reading of a forced puppet.
+/// Under `reading.completion_alerts` the completion is alerted: constrained
+/// `hcp(0..)` it projects nothing, so the alert's whole effect is to suppress
+/// the natural walk's club reading of a forced puppet.
 pub(crate) fn complete_lebensohl_relay(agreements: &Agreements) -> Rules {
-    let rules = Rules::new().rule(Bid::new(3, Strain::Clubs), 100, hcp(0..));
-    if agreements.competition.lebensohl_completion_alert {
-        rules.alert(LEBENSOHL_COMPLETION)
-    } else {
-        rules
-    }
+    Rules::new()
+        .rule(Bid::new(3, Strain::Clubs), 100, hcp(0..))
+        .alert_if(
+            agreements.decision.reading.completion_alerts,
+            LEBENSOHL_COMPLETION,
+        )
 }
 
 /// Responder's rebid after the `2NT` relay is completed at `3♣`
@@ -1223,7 +1223,7 @@ pub(super) fn lebensohl_package() -> Package {
                     let pass_logit = if over_major { 150 } else { 75 };
                     entries.extend(rows_of(
                         Pattern::after("P* 1NT (2♣)", "X -"),
-                        stayman_answers().rule(
+                        stayman_answers(agreements).rule(
                             Call::Pass,
                             pass_logit,
                             len(Suit::Clubs, min_len..) & suit_hcp(Suit::Clubs, min_hcp..),
@@ -1339,9 +1339,9 @@ pub(super) fn lebensohl_package() -> Package {
                         let reply = if bid_suit == over {
                             cue_stayman_answer(over)
                         } else if let Some(target) = transfer_target(bid_suit, over) {
-                            transfer_completion(target, over)
+                            transfer_completion(target, over, agreements)
                         } else if over != Suit::Clubs {
-                            clubs_transfer_completion(over) // top step → clubs (forced GF)
+                            clubs_transfer_completion(over, agreements) // top step → clubs (forced GF)
                         } else {
                             continue; // over (2♣): clubs is their suit — floored
                         };
@@ -1373,15 +1373,21 @@ pub(super) fn lebensohl_package() -> Package {
                         // 3♣ Stayman, opener's answer; then Smolen after the 3♦ denial.
                         ("3♣ -", stayman_2d_answer()),
                         ("3♣ - 3♦ -", smolen_at_three()),
-                        ("3♣ - 3♦ - 3♥ -", smolen_completion(Suit::Spades)),
-                        ("3♣ - 3♦ - 3♠ -", smolen_completion(Suit::Hearts)),
+                        (
+                            "3♣ - 3♦ - 3♥ -",
+                            smolen_completion(Suit::Spades, agreements),
+                        ),
+                        (
+                            "3♣ - 3♦ - 3♠ -",
+                            smolen_completion(Suit::Hearts, agreements),
+                        ),
                         // Opener showed a 4-card major over Stayman; responder places.
                         ("3♣ - 3♥ -", stayman_2d_fit_rebid(Suit::Hearts)),
                         ("3♣ - 3♠ -", stayman_2d_fit_rebid(Suit::Spades)),
                         // Jacoby transfers: 3♦→♥, 3♥→♠ (auto-driven), 3♠→♣ (forced GF).
-                        ("3♦ -", transfer_completion(Suit::Hearts, over)),
-                        ("3♥ -", transfer_completion(Suit::Spades, over)),
-                        ("3♠ -", clubs_transfer_completion(over)),
+                        ("3♦ -", transfer_completion(Suit::Hearts, over, agreements)),
+                        ("3♥ -", transfer_completion(Suit::Spades, over, agreements)),
+                        ("3♠ -", clubs_transfer_completion(over, agreements)),
                         // Leaping Michaels: 4♦ both majors, 4♣ clubs + a major (ask).
                         ("4♦ -", lm_2d_both_majors_advance()),
                         ("4♣ -", lm_2d_clubs_ask()),

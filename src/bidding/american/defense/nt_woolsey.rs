@@ -9,7 +9,9 @@ use super::nt_defense::NotrumpDefense;
 use super::*;
 
 /// Whether the Woolsey defense is the active system (read by the inference engine
-/// to decode our artificial 2♣/2♦/2♥/2♠ overcalls; see `inference::multi_reading`)
+/// to decode our artificial 2♣/2♦/2♥/2♠ overcalls — the alerted rules project
+/// their own meaning; `inference::readers::landy_advance_suppress` still keys
+/// its both-majors advance stub on this)
 pub(super) fn woolsey_enabled(agreements: &Agreements) -> bool {
     agreements.decision.reading.notrump_defense == NotrumpDefense::Woolsey
 }
@@ -109,10 +111,13 @@ fn multi_advances(lo: u8) -> Rules {
     Rules::new()
         // Game-force: ask the overcaller to name its 6-card major (it jumps to 4M).
         .rule(Bid::new(2, Strain::Notrump), 100, points(game..))
+        .alert(MULTI_ASK)
         // Constructive pass-or-correct: overcaller passes spades / 2NT-relays hearts.
         .rule(Bid::new(2, Strain::Spades), 95, points(invite..game))
+        .alert(MULTI_PC)
         // Weak pass-or-correct: overcaller passes hearts / corrects 2♠ / jumps with 7+.
         .rule(Bid::new(2, Strain::Hearts), 90, points(..invite))
+        .alert(MULTI_PC)
 }
 
 /// Overcaller over the weak `2♥` pass-or-correct (`(1NT) 2♦ - 2♥ -`): pass
@@ -165,6 +170,7 @@ fn muiderberg_advances(major: Suit, lo: u8) -> Rules {
             100,
             len(major, ..=2) & points(invite..),
         )
+        .alert(MUIDERBERG_ASK)
         .rule(Call::Pass, 0, hcp(0..))
 }
 
@@ -184,6 +190,7 @@ fn muiderberg_advances_doubled(major: Suit, lo: u8) -> Rules {
         )
         // No fit → escape to the 4+ minor (any strength); a fit sits 2Mx.
         .rule(Bid::new(2, Strain::Notrump), 50, len(major, ..=2))
+        .alert(MUIDERBERG_ASK)
         .rule(Call::Pass, 0, len(major, 3..))
 }
 
@@ -207,8 +214,10 @@ fn woolsey_x_advance(lo: u8) -> Rules {
         .rule(Bid::new(2, Strain::Hearts), 110, len(Suit::Hearts, 5..))
         // Game-going: ask the doubler to name its 4-card major.
         .rule(Bid::new(2, Strain::Notrump), 100, points(game..))
+        .alert(WOOLSEY_X_ASK)
         // Weak / no major of our own: name your minor, I pass or correct.
         .rule(Bid::new(2, Strain::Clubs), 90, hcp(0..))
+        .alert(WOOLSEY_X_RELAY)
 }
 
 /// Doubler over the `2♣` minor relay (`(1NT) X - 2♣ -`): pass with the club

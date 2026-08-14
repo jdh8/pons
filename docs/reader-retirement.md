@@ -36,26 +36,31 @@ All in `src/bidding/inference/readers.rs`, with their tests in
 `src/bidding/inference/readers/tests.rs` (grep the names; line numbers drift). Each
 is gated by its convention's own enable knob — confirm the exact wiring when
 its chop starts. The `blocker` column is what stands between the reader and its
-chop; four of them are one missing `.alert(...)` away.
+chop; the four that were one missing `.alert(...)` away retired together on 2026-08-14 (ledger 2–5).
 
 | reader | what it reads | blocker |
 | --- | --- | --- |
 | ~~`two_suiter_reading`~~ | ~~their Michaels/Unusual over our 1M~~ | **retired, ledger 1** |
-| `meckwell_reading` | our Meckwell over their 1NT | `meckwell_x_advance`'s 2♣ relay is unalerted, so the projection cannot suppress it |
-| `dont_reading` | our DONT over their 1NT | same, ×4 (`passed_dont_{x,2c,2d,2h}_advance`) |
-| `woolsey_x_reading` | our Woolsey X (4M + longer minor) | same (`woolsey_x_advance`'s 2♣) |
-| `multi_reading` | the Multi 2♦ in our Woolsey defense | same (`multi_advances` pass-or-correct) |
-| `landy_advance_suppress` | advances of our Landy 2♣ | same, plus `equal_majors` is an opaque `equal_length` predicate that projects nothing |
+| ~~`meckwell_reading`~~ | ~~our Meckwell over their 1NT~~ | **retired, ledger 2** |
+| ~~`dont_reading`~~ | ~~our DONT over their 1NT~~ | **retired, ledger 3** |
+| ~~`woolsey_x_reading`~~ | ~~our Woolsey X (4M + longer minor)~~ | **retired, ledger 4** |
+| ~~`multi_reading`~~ | ~~the Multi 2♦ in our Woolsey defense~~ | **retired, ledger 5** |
+| `landy_advance_suppress` | advances of our Landy 2♣ | the relay projects nothing (the ledger 2–5 cure — alert the advance — applies), plus `equal_majors` is an opaque `equal_length` predicate that projects nothing |
 | `their_landy_reading` | **their disclosed** Landy 2♣ over our 1NT (`their.two_clubs_landy` + `reading.their_landy_reading`, added 2026-08-14) | the one reader that *cannot* retire into projection: their calls have no authored rule of ours to project. Its chop is the declared-opponent `their_profile` split (decode their 2♣ off their own declared book — the 2b reader half declarative-rows.md keeps open); until then it is the seat-gated twin of the stub above |
 | `rubens_reading` | Rubens advances of our overcall | two knobs (`rubens_advances_enabled` + `rubens_transfer_reading`); the only reader touching the `support_points` axis. **Silent under the default** since the layer lost its re-measure (2026-07-31) — the reader shares `rubens_advances_enabled`. Reachable only through `--ns-rubens`, where its length claims are measured unsound on *both* sides; see §The Rubens layer below |
 | `gladiator_reading` | Gladiator responses to our 1NT overcall | the `(2♣)`→`Pass` auction rebase and self-recursion, which no box can carry — a permanent **partial** retirement. The relay's `points 0..9` drift is **fixed** (2026-07-31): the band is gone, the projection's union carries the strength. No A/B was owed — `set_nt_overcall_gladiator` is default-off, so the change is byte-identical in the shipped system; see §The Gladiator relay below |
 | `responder_overcall_double_reading` | responder's X of their overcall | no knob at all, and its `points ≥ 8` is a hand-derived intersection across three `DoubleStyle` variants — a real authoring job, not a delete |
 | `penalty_latch_double_reading` | penalty doubles under the latch | reconstructs a latch by carrying `last_suit_bid` across calls, and its `penalty_x_reading` helper has an agreement contract with the floor (`instinct.rs`). Retire last, or never |
 
-Out of scope here: the FBM census's six `as_rules() == None` classifiers
-(the seat-fanned `1NT (2♣)` closure ×4 and the two root `(always)` floors).
-Those are invisible to projection *entirely* — converting them is the
+Out of scope here: the FBM census's six opaque classifiers (the seat-fanned
+`1NT (2♣)` closure ×4 and the two root `(always)` floors). Those are invisible
+to projection *entirely* — converting them is the
 [sampled-projection](ai-bidder/sampled-projection.md) campaign's ground.
+(Stale detail, noticed 2026-08-14: the root `(always)` floor rails now **do**
+expose `as_rules()` — the compiled-rule path changed that — but they stay out
+of scope and the alert invariants exempt them: an always-present alerted rule
+on a floor rail would suppress the natural reading of every floor-classified
+call, the kickback §7.3.1 poison.)
 
 ## The migration rule (per reader)
 
@@ -292,8 +297,64 @@ hand", where the floor is right on all six probed and a bare `Pass` node would
 only shadow its slam machinery — pinned either way by
 `gladiator_continuations_are_authored_to_the_leaf`.
 
+## The alert question (settled 2026-08-14)
+
+A design grill asked whether the envelope-union projection could retire not
+just the readers but the **alert itself** — derive artificiality from the
+rules and drop the tag.  The answer is no, and the crate had already proven
+it: derive-at-decode was the *original* design, retired because the witness is
+sound-sufficient but incomplete (`projection.rs::artificial` — an opaque-shape
+takeout double or a vacuous `hcp(0..)` completion derives as "natural" though
+it is not).  The settled architecture is **derivation-as-checking**: the
+runtime tag stays structural (decode gate, walk suppression, announce filter,
+`Rules::gated` variant selection), and the derivation powers the invariants
+instead.  What this session made of that:
+
+- **The invariants now walk what the system actually fields.**
+  `artificial_calls_are_alerted` and the disclosure fixture built at
+  `Agreements::default()` only — a gadget behind a non-default gate
+  (`TheirDisclosures`: the Landy counter, live in the anchor) was invisible to
+  both, and *fallback-attached* rules (every `Pattern::after`/`node` row —
+  the Landy counter has no exact node at all) were walked by neither.
+  `gated_profiles_preserve_alert_invariant` sweeps the gated profiles, both
+  walks now include fallback rules (`(always)` floor rails and suffix-guarded
+  doubles exempted — the rails are the instinct floor, not disclosure, and a
+  double's strain is not derivable from a fallback's node key), and the
+  fixture carries a `[their-landy]` anchor-delta section.  Two stale claims
+  this exposed: the root `(always)` floors now **do** expose `as_rules()`
+  (the FBM census note below predates the compiled-rule path), and the old
+  fixture had never counted a fallback-attached alert.
+- **The underivable class got a family knob and a behavioural invariant.**
+  No predicate can tell a forced completion (`hcp(0..)`) from natural — that
+  is *why* derivation retired — so the check is behavioural:
+  `completion_readings_admit_the_bidder` replays the bidder through the
+  completion lanes on the `reading.completion_alerts` build and requires every
+  reading to admit its own bidder.  Red-teamed both ways: untagging the
+  Lebensohl `3♣` goes red on the advance-sohl lane (the one outside the 1NT
+  walk blankets — the blanketed constructive lanes cannot witness a missing
+  tag, which is exactly why the family's live cost concentrates there).
+  `reading.completion_alerts` (**shipped default-on 2026-08-14**: pooled over
+  three seeds at 614.4k boards/cell, vul plain +0.0005 ±0.0004 and vul PD
+  +0.0006 ±0.0005 both CI-clear, NV positive, sd bracket sign-agreed) alerts
+  the whole family uniformly — the user's doctrine: the bot needs alerts to recognise
+  relays and pass-or-correct structures, and alerting completions is an
+  accepted table style.  It replaces `competition.lebensohl_completion_alert`.
+- **`Rules::gated` takes an explicit slug set** (and `gated_out` its
+  complement): a stale slug panics at build instead of silently dropping a
+  variant everywhere, and two variants surviving onto one call panic instead
+  of shipping into one trie.
+- **BBA-illegible gadgets are accepted and documented** (card.rs's
+  no-possible-row record): EPBot's schema names conventions of ours, so a
+  defense keyed on a fact about *their* call (the Landy counter) cannot be
+  disclosed — BBA defends it against a plausible wrong meaning.  The
+  asymmetry is mutual; their card lies about Multi-Landy and we census them.
+
 ## Ledger
 
 | # | reader | chop | verdict |
 | --- | --- | --- | --- |
 | 1 | `two_suiter_reading` | Deleted whole — suppression and recording together (~85 lines). Their Michaels cue of our 1M and their unusual `(2NT)` now read solely from `project_authored`'s table-alert decode of the `.alert(MICHAELS)` / `.alert(UNUSUAL)` rules in `defense_to_suit`. `set_uvu_over_majors` keeps its book half only | **NO-OP, adopted unmeasured** (the subset escape). Michaels projects to two boxes `{om≥5, ♣≥5, pts≥8} ∪ {om≥5, ♦≥5, pts≥8}`, hull `{om≥5, pts≥8}`; unusual to one box `{♣≥5, ♦≥5, pts≥8}`. Both hulls **contain** the reader's whole claim and add the rule's `pts ≥ 8`, and the boxes pin the unknown Michaels minor the reader conceded it could not. Residue: **none** — the only suppression target (the cue) is alerted, so `project_call` sets the bit anyway, and the `(2NT)` never needed one. Verified by `retired_two_suiter_reader_is_subsumed_by_the_projection` (5 auctions × both reading seats) and a byte-identical `probe-call-reading` diff over 9 auctions. Loss confined to keyless contexts and the `--no-ns-table-alert-reading` off arm, where it is sound-but-looser (arguably a fix — that arm silently kept half the disclosure the flag claims to remove) |
+| 2 | `meckwell_reading` | The advancer's `2♣` relay over the two-way X gained `.alert(MECKWELL_RELAY)` (`1ntd:meckwell-relay`); the X/2♣/2♦ overcalls were already alerted at the `defense_to_notrump` bundle, so the projection carries the whole meaning — hulls: X → points floor only (the two-way disjunction's boxes add the major split the reader conceded), 2♣/2♦ → minor ≥4 + floor.  Reader, `MeckwellKind`, its `Readings` field, arm and apply block deleted | **Subset-confirmed, adopted unmeasured.**  Empirical witness: the output tests (`meckwell_overcalls_and_advances_read`) were swapped to booked contexts and ran green with readers *and* alerts both live (idempotent intersect), then again after the deletion — identical assertions.  Keyless contexts lose the reading (sound-but-looser), the ledger-1 precedent.  Default-off convention ⇒ shipped bytes identical (`smoke-default` 20k byte-identical) |
+| 3 | `dont_reading` | The four pass-or-correct steps gained `.alert(DONT_PC)` (`1ntd:dont-pc`, one slug for the family; Meckwell's 2♣/2♦ advances reuse the rules and the slug).  Hulls subsume every reader claim (X → spades ≤3 via all three one-suiter boxes + floor; 2♣/2♦ → minor ≥4; 2♥ → 4-4 majors), and the chop *fixes* a latent drift: the reader recorded `natural_overcall_points.0` unconditionally while the rule reads the configured `direct_dont_x_floor` | **Subset-confirmed, adopted unmeasured** (same witness protocol as ledger 2) |
+| 4 | `woolsey_x_reading` | `woolsey_x_advance`'s `2♣` relay → `1ntd:woolsey-x-relay`, its `2NT` game-ask → `1ntd:woolsey-x-ask`.  The X itself was already alerted; its boxes now decode the full 4M+longer-minor shape where the reader recorded points alone | **Subset-confirmed, adopted unmeasured** (same protocol) |
+| 5 | `multi_reading` | `multi_advances` 2♥/2♠ pass-or-correct → `1ntd:multi-pc`, the 2NT game-force ask → `1ntd:multi-ask`; the Muiderberg 2NT minor-asks (quiet + doubled) → `1ntd:muiderberg-ask`.  The 2♦/2M overcalls were already alerted; their boxes subsume the reader's minor caps / 5-exact claims and add the band caps the reader never recorded.  One reading *tightened* to the truth and is pinned: the Muiderberg ask now decodes `≤2` in the major and INV+ where the reader left the advancer unconstrained | **Subset-confirmed, adopted unmeasured** (same protocol; the ask tightening is asserted in `woolsey_double_and_advances_read`) |

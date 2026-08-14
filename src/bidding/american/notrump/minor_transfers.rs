@@ -98,10 +98,13 @@ fn pass_out() -> Rules {
 /// Three-card diamond support is an assured eight-card fit — complete the
 /// transfer.  Short diamonds bid `3♣` instead, pass-or-correct, letting a 5♦4♣
 /// responder pick the better minor.
-fn diamond_transfer_answer() -> Rules {
+fn diamond_transfer_answer(agreements: &Agreements) -> Rules {
+    let completion_alerts = agreements.decision.reading.completion_alerts;
     Rules::new()
         .rule(Bid::new(3, Strain::Diamonds), 100, len(Suit::Diamonds, 3..))
+        .alert_if(completion_alerts, COMPLETION)
         .rule(Bid::new(3, Strain::Clubs), 50, len(Suit::Diamonds, ..3))
+        .alert_if(completion_alerts, COMPLETION)
 }
 
 /// Responder's major splinters over opener's answer to the `2NT` transfer
@@ -287,7 +290,10 @@ pub(crate) fn diamond_transfer() -> Package {
         gate: |agreements| puppet_scheme(agreements),
         entries: |agreements| {
             let splinter = agreements.notrump.diamond_splinter;
-            let mut entries = rows_of(Pattern::node("P* 1NT - 2NT -"), diamond_transfer_answer());
+            let mut entries = rows_of(
+                Pattern::node("P* 1NT - 2NT -"),
+                diamond_transfer_answer(agreements),
+            );
             entries.extend(rows_of(
                 Pattern::node("P* 1NT - 2NT - 3♦ -"),
                 diamond_transfer_game(8, splinter),

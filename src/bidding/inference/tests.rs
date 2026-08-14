@@ -538,17 +538,51 @@ fn unalerted_artificial(
 ) -> Vec<String> {
     profile.reading.envelope_union = false;
     let mut worklist = Vec::new();
-    for_each_authored_rule(trie, profile, |auction, context, rule| {
-        let made = rule.call();
-        let doubled = context.last_bid().map(|last| last.strain);
-        if super::artificial(&rule.project(context), made, doubled) && rule.alert().is_none() {
-            worklist.push(format!(
-                "{label}: [{}] {made}  (label: {:?})",
-                contract_bridge::auction::display_calls(auction),
-                rule.label(),
-            ));
+    let mut visit =
+        |auction: &[Call], context: &Context<'_>, rule: &crate::bidding::rules::Rule| {
+            let made = rule.call();
+            let doubled = context.last_bid().map(|last| last.strain);
+            if super::artificial(&rule.project(context), made, doubled) && rule.alert().is_none() {
+                worklist.push(format!(
+                    "{label}: [{}] {made}  (label: {:?})",
+                    contract_bridge::auction::display_calls(auction),
+                    rule.label(),
+                ));
+            }
+        };
+    for_each_authored_rule(trie, profile, &mut visit);
+    // Row packages lower `Pattern::after`/`table` entries to guarded
+    // fallbacks, so a convention wired that way (the Landy counter, the
+    // interference tails) is invisible to the exact-node walk above.  Two
+    // exemptions, both structural:
+    //
+    // - the `(always)` rails are the instinct floor's rule tables, not book
+    //   disclosure — their Stayman/transfer rules are deliberately unalerted
+    //   (an always-present alerted rule would suppress the natural reading of
+    //   every floor-classified call — the kickback §7.3.1 poison);
+    // - `Double`/`Redouble` rules are checked at exact nodes only: the
+    //   node-key context cannot witness the strain a suffix-guarded double
+    //   actually doubles (a penalty X of their `(2♦)` overcall would read as
+    //   doubling partner's `2♣` at the key), so `artificial`'s named suit is
+    //   wrong exactly there.
+    for (auction, guard, fallback) in trie.fallbacks() {
+        if guard.describe().as_deref() == Some("(always)") {
+            continue;
         }
-    });
+        let crate::bidding::fallback::Fallback::Classify(classifier) = fallback else {
+            continue;
+        };
+        let Some(rules) = classifier.as_rules() else {
+            continue;
+        };
+        let auction: &[Call] = &auction;
+        let context = node_context(trie, auction, profile);
+        for rule in rules.rules() {
+            if !matches!(rule.call(), Call::Double | Call::Redouble) {
+                visit(auction, &context, rule);
+            }
+        }
+    }
     worklist
 }
 
@@ -616,6 +650,226 @@ fn deviation_knobs_preserve_alert_invariant() {
     assert_all_alerted("american deviation knobs", worklist);
 }
 
+/// The same alert invariant over gated books the default walk never builds:
+/// profiles a shipped arm can actually field.
+///
+/// [`artificial_calls_are_alerted`] walks `Agreements::default()`, so a rule
+/// behind a non-default gate is invisible to it.  The proof this matters: the
+/// Landy counter (`their.two_clubs_landy` — **true in the anchor**, derived
+/// off BBA's measured behavior in `bba-gen`) shipped a whole alerted subtree
+/// no default-build sweep ever visited.  Each 1NT-defense variant and the
+/// RKCB relocation are the other gates a live arm fields; any gadget added
+/// behind a new `TheirDisclosures` field (`defense_2d_multi` is queued)
+/// belongs in this list.
+#[test]
+fn gated_profiles_preserve_alert_invariant() {
+    use crate::bidding::agreements::Agreements;
+    use crate::bidding::american::{NotrumpDefense, american};
+
+    let mut profiles: Vec<(&str, Agreements)> = Vec::new();
+    let base = Agreements::default();
+    {
+        let mut a = base;
+        a.decision.their.two_clubs_landy = true;
+        profiles.push(("their-landy", a));
+    }
+    for (name, defense) in [
+        ("woolsey", NotrumpDefense::Woolsey),
+        ("meckwell", NotrumpDefense::Meckwell),
+        ("direct-dont", NotrumpDefense::DirectDont),
+        ("direct-landy", NotrumpDefense::DirectLandy),
+    ] {
+        let mut a = base;
+        a.decision.reading.notrump_defense = defense;
+        profiles.push((name, a));
+    }
+    {
+        let mut a = base;
+        a.decision.reading.floor_rkcb = true;
+        profiles.push(("kickback", a));
+    }
+
+    let mut worklist = Vec::new();
+    for (name, agreements) in profiles {
+        let system = american(&agreements);
+        for (phase, trie) in [
+            ("constructive", &system.constructive.0),
+            ("competitive", &system.competitive.0),
+            ("defensive", &system.defensive.0),
+        ] {
+            worklist.extend(unalerted_artificial(
+                &format!("{name}/{phase}"),
+                trie,
+                agreements.decision,
+            ));
+        }
+    }
+    assert_all_alerted("gated profiles", worklist);
+}
+
+/// Under `completion_alerts`, every completion lane's reading admits the
+/// hand that bid it — the completion-family twin of
+/// [`readings_admit_the_bidder`]
+///
+/// The structural `artificial` witness cannot see a forced completion (its
+/// constraint is vacuous, so nothing floors a foreign suit), which is exactly
+/// how the Lebensohl `3♣` read as four clubs for months.  No predicate can
+/// derive "this face is not a holding" from a `hcp(0..)` rule — so the check
+/// is behavioural instead: replay the *bidder* through each completion lane
+/// on the knob-on build and require the reading to admit the hand.  A future
+/// completion authored without its `.alert_if(completion_alerts, ...)` tag
+/// goes red here (the walk stamps its face suit; real hands get excluded)
+/// rather than silently lying to every net downstream.
+///
+/// Knob-on only: at the default (off) the family deliberately keeps the old
+/// readings until its A/B ships — this test is the repair's pin, not the
+/// default's.
+#[test]
+fn completion_readings_admit_the_bidder() {
+    use rand::SeedableRng as _;
+
+    let mut agreements = crate::bidding::agreements::Agreements::default();
+    agreements.decision.reading.envelope_union = true;
+    agreements.decision.reading.completion_alerts = true;
+
+    let nodes: &[(&str, &[Call])] = &[
+        (
+            "Jacoby heart completion",
+            &[
+                bid(1, Strain::Notrump),
+                Call::Pass,
+                bid(2, Strain::Diamonds),
+                Call::Pass,
+            ],
+        ),
+        (
+            "Jacoby spade completion",
+            &[
+                bid(1, Strain::Notrump),
+                Call::Pass,
+                bid(2, Strain::Hearts),
+                Call::Pass,
+            ],
+        ),
+        (
+            "Jacoby completion over their double",
+            &[
+                bid(1, Strain::Notrump),
+                Call::Pass,
+                bid(2, Strain::Diamonds),
+                Call::Double,
+            ],
+        ),
+        (
+            "Stayman answer",
+            &[
+                bid(1, Strain::Notrump),
+                Call::Pass,
+                bid(2, Strain::Clubs),
+                Call::Pass,
+            ],
+        ),
+        (
+            "Texas completion",
+            &[
+                bid(1, Strain::Notrump),
+                Call::Pass,
+                bid(4, Strain::Diamonds),
+                Call::Pass,
+            ],
+        ),
+        (
+            "minor-transfer answer (2♠ → clubs)",
+            &[
+                bid(1, Strain::Notrump),
+                Call::Pass,
+                bid(2, Strain::Spades),
+                Call::Pass,
+            ],
+        ),
+        (
+            "diamond-transfer answer (2NT)",
+            &[
+                bid(1, Strain::Notrump),
+                Call::Pass,
+                bid(2, Strain::Notrump),
+                Call::Pass,
+            ],
+        ),
+        (
+            "Puppet answer",
+            &[
+                bid(1, Strain::Notrump),
+                Call::Pass,
+                bid(3, Strain::Clubs),
+                Call::Pass,
+            ],
+        ),
+        (
+            "advance-sohl completion (their weak two, our X)",
+            &[
+                bid(2, Strain::Spades),
+                Call::Double,
+                Call::Pass,
+                bid(2, Strain::Notrump),
+                Call::Pass,
+            ],
+        ),
+        (
+            "lebensohl-family completion over their 2♠",
+            &[
+                bid(1, Strain::Notrump),
+                bid(2, Strain::Spades),
+                bid(2, Strain::Notrump),
+                Call::Pass,
+            ],
+        ),
+    ];
+
+    let mut rng = rand::rngs::StdRng::seed_from_u64(0xC0);
+    let hands: Vec<Hand> = crate::bidding::verify::random_hands(&mut rng)
+        .take(256)
+        .collect();
+
+    let mut failures: Vec<String> = Vec::new();
+    for natural in [false, true] {
+        agreements.decision.reading.scope = if natural {
+            ReadingScope::All
+        } else {
+            ReadingScope::Alerted
+        };
+        let partnership = crate::american(&agreements).bind();
+        for &(what, node) in nodes {
+            for &hand in &hands {
+                // Honest route only, as in `readings_admit_the_bidder`.
+                if (node.len() % 4..node.len())
+                    .step_by(4)
+                    .any(|i| chosen_call(&partnership, hand, &node[..i]) != node[i])
+                {
+                    continue;
+                }
+                let made = chosen_call(&partnership, hand, node);
+                let mut read: Vec<Call> = node.to_vec();
+                read.push(made);
+                read.push(Call::Pass);
+                let inferences = partnership.infer(RelativeVulnerability::NONE, &read);
+                if !inferences.admits(Relative::Partner, hand) && failures.len() < 16 {
+                    failures.push(format!(
+                        "{what} [{}] (natural-reading {natural}) excludes the hand that bid it: {hand}",
+                        contract_bridge::auction::display_calls(&read),
+                    ));
+                }
+            }
+        }
+    }
+    assert!(
+        failures.is_empty(),
+        "{} completion readings exclude their own bidders:\n{}",
+        failures.len(),
+        failures.join("\n"),
+    );
+}
+
 /// Disclosure tripwire: the alerted call sites of the default `american()`
 /// book, counted per alert slug, against `tests/fixtures/alert-sites.txt`
 ///
@@ -632,29 +886,65 @@ fn deviation_knobs_preserve_alert_invariant() {
 /// that *works* — `Alert("splinter")` is shared by the major-raise splinter
 /// and the 1NT splinter, so the slug **set** was unchanged when
 /// `ReadingProfile::nt_splinter` shipped, and only the count moved.
+///
+/// The `[their-landy]` section is the **anchor delta**: the fixture's flat
+/// list is the default build, but the anchor arms `their.two_clubs_landy`
+/// (derived off BBA's measured 2♣ in `bba-gen`), and a gadget gated on a
+/// `TheirDisclosures` field is invisible to the default count — the Landy
+/// counter shipped three slugs this file never carried.  The section lists
+/// each slug whose count moves under that gate, so the fielded system's
+/// disclosure surface is what the tripwire actually watches.
 #[test]
 fn alerted_call_sites_match_the_disclosure_fixture() {
+    use crate::bidding::agreements::Agreements;
     use crate::bidding::american::american;
-    use std::collections::BTreeMap;
+    use std::collections::{BTreeMap, BTreeSet};
 
-    let agreements = crate::bidding::agreements::Agreements::default();
-    let system = american(&agreements);
-    let mut counts: BTreeMap<&str, usize> = BTreeMap::new();
-    for trie in [
-        &system.constructive.0,
-        &system.competitive.0,
-        &system.defensive.0,
-    ] {
-        for_each_authored_rule(trie, agreements.decision, |_auction, _context, rule| {
-            if let Some(alert) = rule.alert() {
-                *counts.entry(alert.0).or_default() += 1;
-            }
-        });
+    fn alert_site_counts(agreements: &Agreements) -> BTreeMap<&'static str, usize> {
+        let system = american(agreements);
+        let mut counts: BTreeMap<&'static str, usize> = BTreeMap::new();
+        for trie in [
+            &system.constructive.0,
+            &system.competitive.0,
+            &system.defensive.0,
+        ] {
+            let mut visit =
+                |_auction: &[Call], _context: &Context<'_>, rule: &crate::bidding::rules::Rule| {
+                    if let Some(alert) = rule.alert() {
+                        *counts.entry(alert.0).or_default() += 1;
+                    }
+                };
+            for_each_authored_rule(trie, agreements.decision, &mut visit);
+            // Fallback-attached rules too: row packages lower their patterns
+            // to guarded fallbacks, and an exact-node count under-describes
+            // the fielded book (the Landy counter has no exact node at all).
+            for_each_fallback_rule(trie, agreements.decision, &mut visit, |_auction, _guard| {});
+        }
+        counts
     }
-    let found = counts
+
+    let default_counts = alert_site_counts(&Agreements::default());
+    let mut anchor = Agreements::default();
+    anchor.decision.their.two_clubs_landy = true;
+    let anchor_counts = alert_site_counts(&anchor);
+
+    let mut found = default_counts
         .iter()
         .map(|(slug, count)| format!("{slug} {count}\n"))
         .collect::<String>();
+    found.push_str("\n[their-landy]\n");
+    let slugs: BTreeSet<&str> = default_counts
+        .keys()
+        .chain(anchor_counts.keys())
+        .copied()
+        .collect();
+    for slug in slugs {
+        let before = default_counts.get(slug).copied().unwrap_or_default();
+        let after = anchor_counts.get(slug).copied().unwrap_or_default();
+        if before != after {
+            found.push_str(&format!("{slug} {before} -> {after}\n"));
+        }
+    }
     assert_eq!(
         found,
         include_str!("../../../tests/fixtures/alert-sites.txt"),
@@ -1375,7 +1665,7 @@ fn european_minors_artificial_calls_are_alerted() {
     );
 }
 
-/// `competition.lebensohl_completion_alert` — the forced `3♣` completion of a
+/// `reading.completion_alerts` (né `lebensohl_completion_alert`) — the forced `3♣` completion of a
 /// sohl `2NT` relay is a puppet, but constrained `hcp(0..)` it projects
 /// nothing, dodges the artificiality witness, and (unalerted) is read by the
 /// natural walk as a **club holding**.  The knob alerts it, which decodes it
@@ -1403,13 +1693,13 @@ fn lebensohl_completion_alert_suppresses_the_club_reading() {
     let mut arm = crate::bidding::agreements::Agreements::default();
 
     // On: the double claimed no shape, and the puppet claims none either.
-    arm.competition.lebensohl_completion_alert = true;
+    arm.decision.reading.completion_alerts = true;
     let on = read_booked_with(&arm, &auction);
     assert_eq!(on.partner().length(Suit::Clubs), Range::FULL_LENGTH);
 
     // Off — the shipped default — is the defect this knob exists to fix: the
     // forced completion reads as four real clubs.
-    arm.competition.lebensohl_completion_alert = false;
+    arm.decision.reading.completion_alerts = false;
     let off = read_booked_with(&arm, &auction);
     assert_eq!(off.partner().length(Suit::Clubs), Range::new(4, 13));
 }

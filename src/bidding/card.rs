@@ -123,6 +123,24 @@ const fn not_defined() -> usize {
 // agreements we author — so no row exists to set and none is missing.  The
 // schema's double rows (Snapdragon, Responsive, Maximal, Support) and its
 // `Cue bid` (keycard interference) are different conventions.
+//
+// `comp:landy-values` / `comp:landy-transfer` / `comp:landy-cue` (the
+// `their.two_clubs_landy` counter, the fixture's `[their-landy]` section):
+// EPBot's schema names *conventions of ours*, and these are a defense keyed
+// on a fact about the opponents' 2♣ — no schema name exists, and the `Landy`
+// row is our own Landy over *their* 1NT, a different convention.  BBA
+// therefore defends the counter against a plausible wrong meaning (its model
+// of us resolves our 2NT as lebensohl-ish); accepted 2026-08-14 — the
+// asymmetry is mutual, since BBA's own card mis-declares its Multi-Landy and
+// we read its 2♣ off a measured census instead.  See
+// `docs/one-notrump-competitive.md`.
+//
+// `completion` (the uniform completion-alert family, default-on 2026-08-14):
+// no possible row.  The alert marks *forced completions* of conventions the
+// card already declares (Jacoby/Texas/Stayman/Puppet answers, lebensohl 3♣,
+// …) — EPBot's schema names the conventions themselves, and declaring the
+// convention row *is* the disclosure of its forced completions.  The tag is
+// read-side bookkeeping for our own decode, not a new agreement.
 const PONS_SCHEMA: &[&str] = &["South African Texas", "Queen ask by available bid"];
 
 /// The value of a [`PONS_SCHEMA`] row under the live knob state

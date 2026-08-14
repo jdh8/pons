@@ -57,19 +57,23 @@ pub(super) fn garbage_stayman_rule(agreements: &Agreements) -> Rules {
 ///
 /// `pub(super)` so the competitive book can reuse it as the always-mass catch-all
 /// when authoring opener's penalty-pass over a `(2♣)` overcall (systems on).
-pub(crate) fn stayman_answers() -> Rules {
+pub(crate) fn stayman_answers(agreements: &Agreements) -> Rules {
+    let completion_alerts = agreements.decision.reading.completion_alerts;
     Rules::new()
         .rule(Bid::new(2, Strain::Hearts), 100, len(Suit::Hearts, 4..))
+        .alert_if(completion_alerts, COMPLETION)
         .rule(
             Bid::new(2, Strain::Spades),
             100,
             len(Suit::Spades, 4..) & len(Suit::Hearts, ..4),
         )
+        .alert_if(completion_alerts, COMPLETION)
         .rule(
             Bid::new(2, Strain::Diamonds),
             50,
             len(Suit::Hearts, ..4) & len(Suit::Spades, ..4),
         )
+        .alert_if(completion_alerts, COMPLETION)
 }
 
 /// Opener's Stayman answer at the *uncontested* `1NT - 2♣` node
@@ -95,20 +99,25 @@ pub(super) fn stayman_answers_uncontested(agreements: &Agreements) -> Rules {
     }
     if agreements.notrump.stayman_5card_max {
         // Five-card major, maximum (16-17): jump.  Natural (names and shows its
-        // own suit), so unalerted — alerting would make alert-reading suppress it.
+        // own suit), so no unconditional alert; under `completion_alerts` the
+        // family tag both suppresses the literal walk and decodes the rule's own
+        // 5-card+max boxes — the suppression worry held only for the
+        // unconditional-tag world.
         rules = rules
             .rule(
                 Bid::new(3, Strain::Hearts),
                 110,
                 len(Suit::Hearts, 5..) & hcp(16..),
             )
+            .alert_if(agreements.decision.reading.completion_alerts, COMPLETION)
             .rule(
                 Bid::new(3, Strain::Spades),
                 110,
                 len(Suit::Spades, 5..) & hcp(16..),
-            );
+            )
+            .alert_if(agreements.decision.reading.completion_alerts, COMPLETION);
     }
-    rules.chain(stayman_answers())
+    rules.chain(stayman_answers(agreements))
 }
 
 /// One side of a Stayman-rebid invite/force seam: knob-off exactly
@@ -353,13 +362,16 @@ pub(super) fn stayman_no_major_rebid(agreements: &Agreements) -> Rules {
 }
 
 /// Opener completes Smolen by bidding game in responder's shown five-card major
-pub(crate) fn smolen_completion(five_card: Suit) -> Rules {
+pub(crate) fn smolen_completion(five_card: Suit, agreements: &Agreements) -> Rules {
     let strain = Strain::from(five_card);
+    let completion_alerts = agreements.decision.reading.completion_alerts;
     Rules::new()
         // Eight-card fit: bid game in the long major so opener declares.
         .rule(Bid::new(4, strain), 100, len(five_card, 3..))
+        .alert_if(completion_alerts, COMPLETION)
         // No fit: notrump game.
         .rule(Bid::new(3, Strain::Notrump), 50, len(five_card, ..3))
+        .alert_if(completion_alerts, COMPLETION)
 }
 
 /// Smolen at the three level: responder's jump after opener denies a major

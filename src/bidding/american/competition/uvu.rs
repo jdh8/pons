@@ -147,12 +147,18 @@ pub(super) fn uvu_package() -> Package {
                 // 3♣ Stayman/5+♠: opener answers, then symmetric Smolen / fit rebids.
                 ("(2NT) 3♣ -", stayman_2d_answer()),
                 ("(2NT) 3♣ - 3♦ -", uvu_smolen()),
-                ("(2NT) 3♣ - 3♦ - 3♥ -", smolen_completion(Suit::Spades)),
-                ("(2NT) 3♣ - 3♦ - 3♠ -", smolen_completion(Suit::Hearts)),
+                (
+                    "(2NT) 3♣ - 3♦ - 3♥ -",
+                    smolen_completion(Suit::Spades, agreements),
+                ),
+                (
+                    "(2NT) 3♣ - 3♦ - 3♠ -",
+                    smolen_completion(Suit::Hearts, agreements),
+                ),
                 ("(2NT) 3♣ - 3♥ -", uvu_rebid_over_3h()),
                 ("(2NT) 3♣ - 3♠ -", stayman_2d_fit_rebid(Suit::Spades)),
                 // 3♦ = 5+♥: opener raises with a fit, else 3NT.
-                ("(2NT) 3♦ -", smolen_completion(Suit::Hearts)),
+                ("(2NT) 3♦ -", smolen_completion(Suit::Hearts, agreements)),
                 // 4♣/4♦ = FG+ 5-5-majors splinters: opener bids the better major game.
                 ("(2NT) 4♣ -", lm_2d_both_majors_advance()),
                 ("(2NT) 4♦ -", lm_2d_both_majors_advance()),
