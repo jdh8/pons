@@ -108,6 +108,95 @@ fn opener_leaves_in_responder_penalty_double_when_penalty_style() {
     );
 }
 
+/// `competition.two_diamond_double` replaces the cooperative `(2♦)` double with a
+/// real diamond penalty double, and opener sits on it.
+#[test]
+fn two_diamond_double_swaps_the_gate() {
+    let auction = [call(1, Strain::Notrump), call(2, Strain::Diamonds)];
+    // 5+ diamonds, 4+ HCP in the suit, 9+ overall.
+    let mut armed = Agreements::default();
+    armed.competition.two_diamond_double = Some((5, 4, 9));
+
+    // ♦KQ654 with 10 HCP: the armed double fires, from the book.
+    let (c, floored) = best_call_with(&armed, &auction, "K32.32.KQ654.Q32");
+    assert_eq!(c, Call::Double, "a good five-card diamond suit doubles");
+    assert!(!floored, "the diamond penalty double must be a book node");
+
+    // ♦432 with 10 HCP and no major: today's Optional gate doubles it (2-3 in
+    // their suit), the armed gate does not.
+    let flat = "KQ3.K32.432.Q432";
+    let (c, _) = best_call_with(&armed, &auction, flat);
+    assert_ne!(
+        c,
+        Call::Double,
+        "three small cannot penalty-double diamonds"
+    );
+    let (c, _) = best_call_with(&Agreements::default(), &auction, flat);
+    assert_eq!(c, Call::Double, "unarmed, the optional double is unchanged");
+}
+
+#[test]
+fn opener_sits_for_the_two_diamond_penalty_double() {
+    // `1NT (2♦) X -` — responder promised the diamonds, so opener defends.
+    let auction = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Diamonds),
+        Call::Double,
+        Call::Pass,
+    ];
+    let mut armed = Agreements::default();
+    armed.competition.two_diamond_double = Some((5, 4, 9));
+    // A maximum with a diamond stopper — exactly the hand the floor pulls to 3NT.
+    let (c, floored) = best_call_with(&armed, &auction, "AQ2.AQ2.A32.Q432");
+    assert_eq!(c, Call::Pass, "opener leaves in the diamond penalty double");
+    assert!(!floored, "the leave-in must be a book node, not the floor");
+}
+
+/// The gate is only half the convention: opener and the floor must *see* the
+/// diamonds it promises.  `project_authored` decodes alerted calls only, so an
+/// unalerted version of this rule read as `points 8..` with every suit ⊤ — opener
+/// competing over their runout blind to the suit it was told about.
+#[test]
+fn the_two_diamond_double_reads_as_diamonds() {
+    use crate::bidding::Relative;
+    use contract_bridge::Suit;
+    use contract_bridge::auction::RelativeVulnerability;
+
+    // `1NT (2♦) X -`, read from our opener's seat: the doubler is partner.
+    let auction = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Diamonds),
+        Call::Double,
+        Call::Pass,
+    ];
+    let mut armed = Agreements::default();
+    armed.competition.two_diamond_double = Some((5, 4, 9));
+    let read = crate::bidding::american::american(&armed)
+        .bind()
+        .infer(RelativeVulnerability::NONE, &auction);
+    let shown = read.announced(Relative::Partner);
+    assert_eq!(
+        shown.length(Suit::Diamonds).min,
+        5,
+        "the double must read as the diamond length it promised"
+    );
+    assert!(
+        shown.strength.points.min >= 9,
+        "the double must read as its strength floor"
+    );
+
+    // Unarmed, the cooperative double claims no suit — the contrast that makes
+    // the assertion above meaningful rather than a tautology.
+    let bare = crate::bidding::american::american(&Agreements::default())
+        .bind()
+        .infer(RelativeVulnerability::NONE, &auction);
+    assert_eq!(
+        bare.announced(Relative::Partner).length(Suit::Diamonds).min,
+        0,
+        "the optional double never promised a suit"
+    );
+}
+
 #[test]
 fn opener_cooperates_with_responder_optional_double() {
     use super::penalty_double::DoubleStyle;

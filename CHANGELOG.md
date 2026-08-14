@@ -90,6 +90,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **N4b: `1NT (2♦) X` as a diamond penalty double — built and opt-in, sweep in
+  flight.** New default-off knob `competition.two_diamond_double:
+  Option<(min_len, min_suit_hcp, hcp_floor)>`. Armed, responder's double of a
+  `(2♦)` overcall of our 1NT promises that diamond holding and opener sits on
+  it; unset, the cooperative `DoubleStyle` double is unchanged. Harness flag
+  `bba-gen --ns-2d-double LEN:SUITHCP:HCP`.
+
+  What it replaces: the shipped double is `len(♦, 2..=3) & hcp(8..)`
+  (`DoubleStyle::Optional`) — a *cooperative* double keyed on a suit nobody
+  holds, since BBA's `2♦` over our 1NT is a Multi (a single-suited six-card
+  major of ≈12-15). The `(2♦)` structure also spends `3♦` on the Jacoby
+  transfer to hearts, leaving responder no way to bid diamonds below `3NT`, so
+  the double is the only channel. Sound against a natural `2♦` too, which is
+  why it needs no `TheirDisclosures` migration.
+
+  **No user impact** — default-off, `smoke-default --count 20000 --seed 1`
+  byte-identical to HEAD (`18aba5ce…`). **Measured 2026-08-15 and the sweep is a
+  NULL**: eight arms around `5:0:9`, two vuls, 230.4k bd/arm/vul
+  (`scripts/ab-2d-double.sh`, SEED_BASE 1786733434). The raw headline was
+  CI-clear positive in **all 28 cells** (plain +0.0016…+0.0048/bd, PD
+  +0.0037…+0.0086/bd) — four to eight times N1g's shipped effect, and **84.9% of
+  it foreign**: `probe-divergence --gate-opener ours` fails at 652 of 768
+  divergent boards, the documented `their_profile` mirror fallback reading
+  *their* double of our `2♦` overcall through *our* agreement. On the boards the
+  package owns there is **no CI-clear cell in 28** (plain +0.0001…+0.0004, PD
+  −0.0002…−0.0006, n=62–157/cell). No axis separated, so there is no "best gate";
+  the weak direction is that tighter wins (`hcp11`/`len6`/`qual6` lead, `len4` is
+  the only arm negative on both scorers).
+
+  The build's one real finding: **the alert is what makes the gate a reading.**
+  Left unalerted — on the reasoning that a natural call needs none — the rule
+  read as `points 8..` with every suit ⊤, *identical armed and unarmed*, because
+  `project_authored` decodes alerted calls only. Opener would have competed over
+  their runout blind to the diamonds it had just been shown, the same phantom
+  N1g existed to kill. With the alert it reads `points 9.., ♦ 5..13`. Also
+  measured, against the standing assumption that a Multi overcaller always runs:
+  over `1NT (2♦) X` they **pass 43% of the time** (6 of 14 fires in 20k filtered
+  boards), so the penalty is collectible and plain DD can see it.
+
+  The leak is worth more than the convention and is now a queued candidate:
+  reading *a defender's double of a `2♦` overcall* as diamonds-and-values is
+  worth up to +0.0086 PD/board. That is a fact about a call **they** make, so it
+  belongs on the `TheirDisclosures` channel with its own reader and its own A/B —
+  it has never been measured as itself.
+
 - **N1h / N1i: the Landy counter's minor rungs re-priced — both measured, both
   REFUTED, both kept opt-in; the lane is closed.** Two new default-off knobs
   over the same four rungs of our counter to their declared Landy `2♣`:

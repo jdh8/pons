@@ -535,6 +535,32 @@ pub struct CompetitionKnobs {
     /// continuum instead of the four discrete styles.  `None` (the default)
     /// uses the named [`DoubleStyle`].
     pub double_override: Option<(usize, usize, u8)>,
+    /// `(min_diamond_len, min_diamond_hcp, hcp_floor)` redefining responder's
+    /// double of a `(2♦)` overcall of our 1NT as a **diamond penalty double**
+    ///
+    /// `None` (the default) leaves the [`DoubleStyle`] double in place — over
+    /// `(2♦)` that is `len(♦, 2..=3) & hcp(8..)`, a *cooperative* double asking
+    /// opener to decide.  Against the reference opponent that gate is keyed on a
+    /// suit nobody holds: BBA's `2♦` over our 1NT is a **Multi**, a single-suited
+    /// six-card major of about 12-15 (`docs/ai-bidder/bba-multi-2d.md`), so the
+    /// diamonds the double claims to cooperate about sit in *our* hands, not
+    /// theirs.  Meanwhile the shipped `(2♦)` structure spends `3♦` on a Jacoby
+    /// transfer to hearts, leaving responder with **no way to bid diamonds below
+    /// `3NT`** — the double is the only channel.
+    ///
+    /// Armed, the double instead promises `min_diamond_len`+ diamonds with
+    /// `min_diamond_hcp`+ high-card points *in the suit* and `hcp_floor`+ overall,
+    /// and opener sits (`opener_leaves_in_penalty_double`).  Sound either way:
+    /// over a *natural* `2♦` it is a textbook penalty double, and over the Multi
+    /// they cannot sit — so the disclosure migration
+    /// [`TheirDisclosures::two_clubs_landy`] got is not needed here.
+    ///
+    /// A **replacement**, not an addition: every 2-3-diamond eight-count that
+    /// doubles today stops doubling and has nowhere else to go (`2♥`/`2♠` want a
+    /// five-card major, the `2NT` relay wants a long suit, `3♦` is the transfer),
+    /// so it passes.  That orphaning is the sweep's chief risk, not an artifact
+    /// — see `docs/convention-tuning.md`.
+    pub two_diamond_double: Option<(usize, u8, u8)>,
     /// `(min_club_len, min_club_hcp, convert_over_major)` on the stolen-Stayman pass
     ///
     /// After `1NT (2♣) X -` — where the systems-on double is the stolen `2♣`
@@ -700,6 +726,7 @@ impl Default for CompetitionKnobs {
             double_style: DoubleStyle::Optional,
             penalty_double_leave_in: true,
             double_override: None,
+            two_diamond_double: None,
             penalty_pass: Some((4, 4, true)),
             trap_pass: true,
             competitive_4333: Competitive4333::Suppress,

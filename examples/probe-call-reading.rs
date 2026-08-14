@@ -44,6 +44,11 @@ struct Args {
     /// shape, the sub-3NT jump overcall, and the Michaels cue
     #[arg(long, default_value_t = false)]
     weak_two_v2: bool,
+
+    /// Arm the `(2♦)` diamond penalty double (`competition.two_diamond_double`)
+    /// as `LEN:SUITHCP:HCP`, so its projection can be read off `1N (2D) X`
+    #[arg(long)]
+    ns_2d_double: Option<String>,
 }
 
 fn render(shown: &Envelope) -> String {
@@ -61,6 +66,11 @@ fn main() {
     agreements.defense.weak_two_notrump_shape = args.weak_two_v2;
     agreements.defense.weak_two_jump_overcall = args.weak_two_v2;
     agreements.defense.weak_two_cue = args.weak_two_v2;
+    agreements.competition.two_diamond_double = args.ns_2d_double.as_deref().map(|spec| {
+        let mut parts = spec.split(':').map(|p| p.parse::<u8>().expect("a number"));
+        let mut next = || parts.next().expect("LEN:SUITHCP:HCP");
+        (usize::from(next()), next(), next())
+    });
     let vul = AbsoluteVulnerability::NONE;
     let partnership = american(&agreements).bind();
 
@@ -82,6 +92,17 @@ fn main() {
             seat_to_act(contract_bridge::Seat::North, auction.len()),
         );
         let read = partnership.infer(rel, &auction);
-        println!("{text:<12} {}", render(read.announced(Relative::Rho)));
+        println!(
+            "{text:<12} rho     {}",
+            render(read.announced(Relative::Rho))
+        );
+        // Our own side's view of the same auction: a reader gated on "the 1NT is
+        // ours" is silent from an opponent's seat, so a call can look vacuous
+        // here and be read fine one seat over.
+        println!(
+            "{:<12} partner {}",
+            "",
+            render(read.announced(Relative::Partner))
+        );
     }
 }

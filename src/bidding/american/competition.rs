@@ -106,6 +106,13 @@ const CUE_RAISE: Alert = Alert("comp:cue-raise");
 const NEGATIVE_DOUBLE: Alert = Alert("comp:negative-double");
 /// Support double / redouble — opener's `X`/`XX` showing exactly three-card support.
 const SUPPORT_DOUBLE: Alert = Alert("comp:support-double");
+/// Diamond penalty double — `X` of their `(2♦)` overcall of our 1NT under
+/// `competition.two_diamond_double`: a real diamond suit with values, not the
+/// cooperative double it replaces.  Alerted because the *reading* rides on it —
+/// `project_authored` decodes alerted calls only, so without this the length and
+/// suit-quality the gate promises never reach opener or the floor, and opener
+/// competes over their runout blind to the diamonds it was told about.
+const TWO_DIAMOND_PENALTY: Alert = Alert("comp:two-diamond-penalty");
 /// Landy values double — `X` of their `(2♣)` Landy, values (8+) willing to
 /// defend whichever major they run to.  Not the stolen Stayman it replaces:
 /// against a both-majors overcall there is no major left to ask for.

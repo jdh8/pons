@@ -397,7 +397,27 @@ pub(crate) fn transfer_stayman_2d_responder(gate_4333: bool, agreements: &Agreem
         150,
         points(10..) & stopper_in(Suit::Diamonds),
     );
-    rules = responder_double(rules, Suit::Diamonds, agreements);
+    // The double.  Armed, `two_diamond_double` replaces the cooperative
+    // [`DoubleStyle`] gate with a real diamond penalty double — the only channel
+    // responder has for a diamond suit here, since `3♦` is the heart transfer.
+    // Same weight, so nothing else in the table re-ranks.
+    //
+    // Alerted: `project_authored` decodes alerted calls only, and measured on
+    // `probe-call-reading "1N (2D) X (P)"` the unalerted rule read as `points 8..`
+    // with every suit ⊤ — the length and quality never reached opener.  The alert
+    // is what turns the gate into a reading.
+    rules = match agreements.competition.two_diamond_double {
+        Some((min_len, min_suit_hcp, floor)) => rules
+            .rule(
+                Call::Double,
+                155,
+                len(Suit::Diamonds, min_len..)
+                    & suit_hcp(Suit::Diamonds, min_suit_hcp..)
+                    & hcp(floor..),
+            )
+            .alert(TWO_DIAMOND_PENALTY),
+        None => responder_double(rules, Suit::Diamonds, agreements),
+    };
     for s in [Suit::Hearts, Suit::Spades] {
         let strain = Strain::from(s);
         rules = rules.rule(

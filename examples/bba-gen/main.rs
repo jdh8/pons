@@ -283,6 +283,13 @@ struct Args {
     #[arg(long)]
     seed: Option<u64>,
 
+    /// Redefine responder's double of a `(2♦)` overcall of our 1NT as a diamond
+    /// penalty double, `LEN:SUITHCP:HCP` (e.g. `5:4:9` — five-plus diamonds, four
+    /// HCP in the suit, nine overall).  Unset keeps the shipped cooperative
+    /// double, whose 2-3 diamond gate names a suit BBA's Multi `2♦` never holds.
+    #[arg(long)]
+    ns_2d_double: Option<String>,
+
     /// Override the derived reading of their `2♣` overcall of our 1NT:
     /// `true`/bare = Landy (both majors, engage the counter-defense),
     /// `false` = natural (keep the systems-on rebase).  Unset, the reading is
@@ -1813,6 +1820,25 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
         agreements.competition.uvu_x_floor = args.uvu_x_floor;
         agreements.competition.uvu_cue_floor = args.uvu_cue_floor;
     }
+    agreements.competition.two_diamond_double = args
+        .ns_2d_double
+        .as_deref()
+        .map(|spec| {
+            let mut parts = spec.split(':');
+            let mut next = || parts.next().and_then(|p| p.parse::<u8>().ok());
+            let gate = (next()?, next()?, next()?);
+            parts.next().is_none().then_some(gate)
+        })
+        .map(|gate| {
+            gate.map(|(len, suit_hcp, floor)| (usize::from(len), suit_hcp, floor))
+                .ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "--ns-2d-double must be LEN:SUITHCP:HCP, got {:?}",
+                        args.ns_2d_double
+                    )
+                })
+        })
+        .transpose()?;
     agreements.decision.their.two_clubs_landy = their_2c_landy(args)?;
     agreements.competition.defense_2c_landy_cues = args.defense_2c_landy_cues;
     agreements.competition.defense_2c_landy_low_minors = args.defense_2c_landy_low_minors;

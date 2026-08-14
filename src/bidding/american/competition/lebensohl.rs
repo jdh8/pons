@@ -1661,6 +1661,13 @@ pub(super) fn lebensohl_package() -> Package {
                 // cooperates (stand on a fit, run with a doubleton); takeout
                 // keeps the floor's advance.  Gated on the leave-in knob.
                 let opener_reply = match agreements.competition.double_style {
+                    // The armed `(2♦)` diamond penalty double promised the trumps,
+                    // whatever the ambient style says, so opener sits on it.
+                    _ if over == Suit::Diamonds
+                        && agreements.competition.two_diamond_double.is_some() =>
+                    {
+                        Some(opener_leaves_in_penalty_double())
+                    }
                     DoubleStyle::Penalty | DoubleStyle::PenaltyLight => {
                         Some(opener_leaves_in_penalty_double())
                     }
