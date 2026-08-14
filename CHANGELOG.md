@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`bba-gen` disclosure regression: A/B arms disclosed default `decision` and
+  `rebid` rows.** `disclosure()` rebuilt the card's `Agreements` from
+  `Default::default()`, copying only `competition`/`defense` — a leftover of
+  the fe3a35e thread-local retirement, where `Agreements::current()` used to
+  carry the other halves implicitly. Card rows that read `decision.reading.*`
+  or `rebid.*` (Landy, Multi-Landy, `1N-3M splinter`, Garbage Stayman,
+  NMF/XYZ, Kickback 1430) therefore disclosed the *default* value to BBA
+  whatever the arm actually played, biasing decision-side A/Bs by exactly the
+  mis-disclosure. The armed value now flows through whole. Measurement
+  integrity only — the shipped default system's card is byte-identical.
+
 ### Added
 
 - **N1g: the Landy disclosure's read-side wiring — SHIPPED DEFAULT-ON**

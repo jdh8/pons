@@ -1458,8 +1458,12 @@ fn parse_override(spec: &str) -> Result<(CString, c_int), String> {
 ///
 /// Call **after** every `--ns-*` knob is written into `armed`: a generated card
 /// is a function of that [`Agreements`] value, so building it early would
-/// describe a system this run then reconfigures. The card intentionally copies
-/// only the competitive and defensive knobs it discloses.
+/// describe a system this run then reconfigures. The whole armed value flows
+/// into the generator — card rows read `decision.reading.*` and `rebid.*` too,
+/// so rebuilding from `Agreements::default()` here would disclose an arm's
+/// *default* Landy/splinter/Stayman/NMF/Kickback rows whatever the arm plays
+/// (the fe3a35e regression: the thread-local era's `Agreements::current()`
+/// carried those halves implicitly, and the field migration dropped them).
 ///
 /// A `--our-floor` with no card generator is a hard error rather than a fall
 /// back to American's card or to silence — disclosing the wrong card
@@ -1467,11 +1471,6 @@ fn parse_override(spec: &str) -> Result<(CString, c_int), String> {
 /// silently reverting to blind would make the two arms of a cross-system A/B
 /// incomparable.
 fn disclosure(args: &Args, armed: &Agreements) -> anyhow::Result<Option<EpbotCard>> {
-    let armed = || Agreements {
-        competition: armed.competition,
-        defense: armed.defense,
-        ..Default::default()
-    };
     let mut card = match args.disclose.as_str() {
         "off" => return Ok(None),
         // A BBA-vs-BBA arm does not play our authored system at all, so the
@@ -1483,8 +1482,8 @@ fn disclosure(args: &Args, armed: &Agreements) -> anyhow::Result<Option<EpbotCar
             // The floor names the system; `-book`/`-instinct`/`-floor` variants
             // differ only in the floor, which no card row can express.
             let card = match args.our_floor.split('-').next().unwrap_or_default() {
-                "american" => pons::bidding::card::american_card(&armed()),
-                "dutch" => pons::bidding::card::dutch_card(&armed()),
+                "american" => pons::bidding::card::american_card(armed),
+                "dutch" => pons::bidding::card::dutch_card(armed),
                 other => anyhow::bail!(
                     "--disclose generated: no card generator for system `{other}` \
                      (known: american, dutch).  Write one in `src/bidding/card.rs` \
