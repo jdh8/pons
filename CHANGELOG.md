@@ -9,9 +9,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **N4 — their `(2♦)` over our 1NT as a Multi, on the disclosure channel —
-  built and measured through five rounds; opt-in by the letter of the gate,
-  one line from default.** New `TheirDisclosures::two_diamonds_multi` (default
+- **N4 — their `(2♦)` over our 1NT as a Multi, on the disclosure channel:
+  SHIPPED (v7) — default-on against BBA via the census, engine default
+  undeclared.** Two more rounds on top of the five below. **v4 decomposed
+  per call** (owned, 3 seeds): the values `X` was PD's best call *and* the
+  whole plain loss (NV −0.00121/bd), all of it the doubler's *second* turn —
+  8–9 with 4–5 spades and 10–12 without a stopper selling out at −2.9/−3.8
+  plain a board. **BBA probed at the seats its advancer actually gives** (new
+  `probe-bba-constraints` modes `opener-d-x2h`/`-x2s`, `counter-d-x2h`/
+  `-x2h2s`/`-x2s`, and a generic `--mode custom --seat/--calls/--filter-call/
+  --filter-prefix`; `docs/ai-bidder/bba-multi-2d.md` §3a): its double is
+  `hcp 5–17`, its opener passes the pass-or-correct 92%, and the doubler
+  describes next — blind `3NT` 9–15, **takeout `X` = exactly four of the
+  other major and 1–2 of theirs** ("reopening double"), `2NT` 8–9, `4NT`
+  16+, `2♠`/`3♠`/`3m` naturals; after they run to `2♠` the double is
+  penalty. **v6** mimicked that whole: plain win / **PD loss** both vuls (NV
+  +0.00224/−0.00062, vul +0.00110/**−0.00163 ±0.00075**) — the takeout `X`
+  real on both scorers (+2.4 plain / +1.6 PD per fired vs v4), the blind
+  `3NT`, the invite and the `3♠` try the DD-declarer artifact (PD −2.5 to
+  −6.9 per fired), v2/v3/v5's finding a third time. **v7** = BBA's structure
+  minus those rungs — `multi_responder_rebid(M, ran)`: `4NT` 16+, `2♠` five
+  weak spades, `X` = takeout of the resolved major (`comp:multi-takeout`; in
+  the ran-to-spades shape four spades and 7+, `comp:multi-penalty`), `3NT`
+  with a stopper, pass; first-turn `X` at BBA's `hcp(6..)`, weighted below
+  the relay and the natural `2M`; opener over `X -` shows a four-card major
+  else passes (`multi_pass_answer` — BBA cues `3♦`, the user's call was
+  pass), over the takeout double sits with four of theirs / bids the 4-4
+  fit / a four-card minor / `2NT` (`multi_takeout_answer`), `6NT` with 17
+  over `4NT` (`multi_quant_answer`). **v7 pooled 3 seeds, owned, vs base: NV
+  `plain wash | PD win` (+0.00019 ±0.00053 / +0.00100 ±0.00067) — the ship
+  row; vul plain +0.00061 ±0.00056 | PD +0.00061 ±0.00069; both-vul pool
+  win|win (+0.00040 ±0.00039 / +0.00081 ±0.00048); paired vs v4 better on 3
+  of 4 cells** (NV +0.00075 ±0.00031 / +0.00020 ±0.00038, vul +0.00041
+  ±0.00034 / −0.00022 ±0.00043). Ship: `their_2d_multi` derives the
+  declaration from the 2/1 census like `their_2c_landy` (`--their-2d-multi
+  false` = pre-ship arm), `vs_bba_agreements` sets it (`bba-decompose`
+  replays it by default; `--multi-counter false` for older dumps), the
+  `[their-landy]` alert-sites anchor arms it (fixture re-blessed: three new
+  slugs), `card.rs` records the no-schema-row reasoning; smoke `18aba5ce…`
+  unchanged. Left on the table: the 10–12 no-stopper sell-out after they
+  *run* to `2♠` (plain −4.0/fired, PD flat) — a stopper-ask cue, not built.
+  v4's base arms were reused by symlink for v6/v7 (same code, same seeds —
+  the default is byte-identical, not a stale control).
+
+  The five earlier rounds, as recorded before the ship: New `TheirDisclosures::two_diamonds_multi` (default
   undeclared, byte-identical: smoke `18aba5ce…`), engaging a Multi leg
   either/or with the natural Transfer-Lebensohl `(2♦)` table
   (`multi_2d_responder`, `rubensohl.rs`): the constructive calls shared
@@ -30,7 +71,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and their competition over it are fenced (`multi_signoff_pass`,
   `Pattern::up_to`). Both doubles probed to read (`points 8..` / `♥ 4..`).
   Harness: `bba-gen --their-2d-multi` (`their_2d_multi` honours an explicit
-  `Multi-Landy` row, otherwise undeclared — no census default), `bba-decompose
+  `Multi-Landy` row, otherwise undeclared — no census default *until v7*), `bba-decompose
   --multi-counter`, web `declare_their_2d_multi`, `probe-call-reading
   --their-2d-multi`, `scripts/ab-2d-multi.sh`; new `probe-bba-constraints`
   modes `advance-x`, `rebid-d-x`, `rebid-d-x2h`; ten unit tests.

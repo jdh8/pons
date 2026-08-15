@@ -28,7 +28,7 @@ use rand::rngs::StdRng;
 /// The vs-BBA disclosure corrections: our agreements as armed against the
 /// EPBot 2/1 reference with no explicit `--their-conv` declaration.
 ///
-/// One correction today.  BBA's 2/1 **card** declares its 1NT defense as
+/// Two corrections, one family.  BBA's 2/1 **card** declares its 1NT defense as
 /// Cappelletti (`21GF.bbsa`: `Cappelletti = 1`, `Landy = 0`,
 /// `Multi-Landy = 0`), but its measured **behavior** is Woolsey Multi-Landy —
 /// the per-call census read 551 `(2♣)` overcalls of our 1NT as both-majors
@@ -38,7 +38,9 @@ use rand::rngs::StdRng;
 /// (`Agreements::decision.their.two_clubs_landy` — the disclosure channel, engine
 /// default *undeclared/natural* for unknown fields).  An explicit declaration
 /// overrides this — we play to disclosure, and a bot that bids Landy behind a
-/// declared no-Landy card commits *its* infraction.
+/// declared no-Landy card commits *its* infraction.  Its `2♦` is the same
+/// convention's Multi (`their.two_diamonds_multi`, N4 — shipped 2026-08-15
+/// on the same census; `bba-gen`'s `their_2d_multi`).
 ///
 /// Shared by `bba-gen` (arming, `their_2c_landy`) and `bba-decompose`
 /// (replay) so the replay contract — decompose reproduces the generating
@@ -46,6 +48,8 @@ use rand::rngs::StdRng;
 /// flagged.
 pub fn vs_bba_agreements(mut agreements: Agreements) -> Agreements {
     agreements.decision.their.two_clubs_landy = true;
+    // N4 (v7, 2026-08-15): the same census reads its `2♦` as the Multi.
+    agreements.decision.their.two_diamonds_multi = true;
     agreements
 }
 

@@ -39,6 +39,10 @@
 # agreement).  A disclosure keyed on their 2♦ cannot fire on boards they open,
 # but the gate is the proof, not the design.
 #
+# Since the v7 ship the census default is ON, so the base arm is spelled
+# `--their-2d-multi false` (a v6/v7-style rerun can symlink an existing base
+# arm: the default system is byte-identical, same seeds → same boards).
+#
 # Resumable: an existing arm dir or diff file is skipped, and SEED_BASE persists
 # in $R/2d-multi.seed.  Iron rule: do NOT rebuild binaries while this runs.
 R=${1:?usage: ab-2d-multi.sh RESULTS_DIR}
@@ -49,7 +53,7 @@ SEED_BASE=$(seed_for 2d-multi)
 log "=== 2d-multi SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD bd/arm/vul"
 
 for v in none both; do
-    arm base  "$v" --filter-1nt
+    arm base  "$v" --their-2d-multi false --filter-1nt
     arm multi "$v" --their-2d-multi --filter-1nt
     diffpair multi base "$v"
     sddiff multi base "$v"

@@ -63,5 +63,8 @@ comp:landy-spl 0 -> 8
 comp:landy-tko 0 -> 8
 comp:landy-transfer 0 -> 8
 comp:landy-values 0 -> 4
-comp:lebensohl-completion 24 -> 40
-completion 696 -> 684
+comp:lebensohl-completion 24 -> 44
+comp:multi-penalty 0 -> 16
+comp:multi-takeout 0 -> 8
+comp:multi-values 0 -> 4
+completion 696 -> 680

@@ -270,11 +270,14 @@ fn multi_double_is_values_not_diamonds() {
     assert_eq!(
         c,
         Call::Double,
-        "8+ with nothing better doubles under the Multi"
+        "9 with nothing better doubles under the Multi"
     );
     assert!(!floored, "the values double must be a book node");
-    // 7 HCP flat: nothing to say.
+    // 7 HCP flat: BBA's band (5–17) — still the double (v6).
     let (c, _) = best_call_with(&multi_arm(), &auction, "Q32.K32.432.Q432");
+    assert_eq!(c, Call::Double, "7 flat doubles: BBA's values band");
+    // 5 HCP flat: nothing to say.
+    let (c, _) = best_call_with(&multi_arm(), &auction, "Q32.J32.432.Q432");
     assert_eq!(c, Call::Pass);
     // Four diamonds to the AKJ and 8 HCP: still the values double — no
     // diamond gate either way.
@@ -338,7 +341,11 @@ fn multi_three_notrump_needs_both_majors_stopped() {
         call(2, Strain::Spades),
     ];
     let (c, floored) = best_call_with(&multi_arm(), &spades_confirmed, "432.Q32.KJ43.AQ3");
-    assert_eq!(c, Call::Pass, "spades named and open: nothing to say");
+    assert_eq!(
+        c,
+        Call::Pass,
+        "spades named and open, three spades: nothing to say (BBA's blind 3NT was PD-refused in v6)"
+    );
     assert!(!floored);
 }
 
@@ -407,9 +414,13 @@ fn multi_opener_sits_then_doubles_with_four_trumps() {
         Call::Double,
         Call::Pass,
     ];
-    // A maximum with both majors: the floor would pull to game; the book waits.
+    // v6: BBA's answer with the 3♦ cue replaced by a pass — a four-card
+    // major is shown (hearts first), nothing else pulls the double.
     let (c, floored) = best_call_with(&multi_arm(), &sat, "AQ32.AQ32.K3.Q32");
-    assert_eq!(c, Call::Pass, "opener sits for the values double");
+    assert_eq!(c, call(2, Strain::Hearts), "opener shows a four-card major");
+    assert!(!floored, "the answer must be a book node");
+    let (c, floored) = best_call_with(&multi_arm(), &sat, "AQ3.KQ3.K432.Q32");
+    assert_eq!(c, Call::Pass, "no four-card major: sit (BBA cues 3♦)");
     assert!(!floored, "the sit must be a book node");
 
     let advanced = [
@@ -448,8 +459,8 @@ fn multi_doubles_read_as_values_and_as_trumps() {
     );
     let partner = read.announced(Relative::Partner);
     assert!(
-        partner.strength.hcp.min >= 8,
-        "the values double reads as 8+"
+        partner.strength.hcp.min >= 6,
+        "the values double reads as 6+ (BBA's band)"
     );
     assert_eq!(
         partner.length(Suit::Diamonds).min,
@@ -522,19 +533,39 @@ fn multi_double_family_continuations_are_book_nodes() {
     let d = call(2, Strain::Diamonds);
     let h = call(2, Strain::Hearts);
     let s = call(2, Strain::Spades);
-    // Opener sat, they passed 2♥ (hearts confirmed): four hearts double, three pass.
+    // Opener sat, they passed 2♥ (hearts confirmed) — v7, BBA's table less
+    // the PD-refused rungs: four spades short in hearts is the takeout
+    // double; five weak spades bid 2♠; game values with a heart stopper 3NT;
+    // everything else (the 8-9 hand, the stopperless 10-count) sells out.
     let hearts_confirmed = [nt, d, Call::Double, h, Call::Pass, Call::Pass];
-    let (c, floored) = best_call_with(&multi_arm(), &hearts_confirmed, "K32.QJ32.K32.432");
-    assert_eq!(c, Call::Double, "four hearts: penalty");
-    assert!(!floored);
-    let (c, floored) = best_call_with(&multi_arm(), &hearts_confirmed, "K32.Q32.K432.432");
+    let (c, floored) = best_call_with(&multi_arm(), &hearts_confirmed, "K32.QJ32.Q32.432");
     assert_eq!(
         c,
         Call::Pass,
-        "three hearts, 8 HCP: sell out (v5's 2NT invite was refuted on PD)"
+        "8 HCP: sell out (BBA's 2NT invite was PD-refused twice)"
     );
+    assert!(!floored);
+    let (c, floored) = best_call_with(&multi_arm(), &hearts_confirmed, "KQ32.2.K432.Q432");
+    assert_eq!(
+        c,
+        Call::Double,
+        "four spades, one heart: takeout showing spades"
+    );
+    assert!(!floored);
+    let (c, floored) = best_call_with(&multi_arm(), &hearts_confirmed, "KQ32.432.K432.Q4");
+    assert_eq!(
+        c,
+        Call::Pass,
+        "four spades with heart length, 9: no try (PD-refused), sell out"
+    );
+    assert!(!floored);
+    let (c, floored) = best_call_with(&multi_arm(), &hearts_confirmed, "KJ432.32.Q432.32");
+    assert_eq!(c, call(2, Strain::Spades), "five weak spades: 2♠ to play");
+    assert!(!floored);
+    let (c, floored) = best_call_with(&multi_arm(), &hearts_confirmed, "K32.Q32.J432.432");
+    assert_eq!(c, Call::Pass, "6 HCP flat: sell out");
     assert!(!floored, "the sell-out is a book node too");
-    // Opener sat, they corrected to 2♠: four spades double.
+    // Opener sat, they corrected to 2♠: four spades and 7+ double (penalty).
     let corrected = [nt, d, Call::Double, h, Call::Pass, s];
     let (c, floored) = best_call_with(&multi_arm(), &corrected, "QJ32.32.K432.K32");
     assert_eq!(c, Call::Double, "four spades over the correction");
@@ -544,7 +575,8 @@ fn multi_double_family_continuations_are_book_nodes() {
     let (c, floored) = best_call_with(&multi_arm(), &opener_doubled, "K32.32.KQ432.432");
     assert_eq!(c, Call::Pass, "responder sits for opener's penalty double");
     assert!(!floored);
-    // Responder doubled the confirmed 2♥: opener sits, even with a fit elsewhere.
+    // Responder's takeout double of the confirmed 2♥: opener sits with four
+    // hearts, bids the 4-4 spade fit, else a four-card minor, else 2NT.
     let responder_doubled = [
         nt,
         d,
@@ -555,8 +587,54 @@ fn multi_double_family_continuations_are_book_nodes() {
         Call::Double,
         Call::Pass,
     ];
-    let (c, floored) = best_call_with(&multi_arm(), &responder_doubled, "AKQ32.2.AJ32.K32");
-    assert_eq!(c, Call::Pass, "opener sits for responder's penalty double");
+    for (hand, expected, why) in [
+        ("AQ3.KJ32.K32.Q32", Call::Pass, "four hearts: sit"),
+        ("AKQ32.2.AJ32.K32", call(2, Strain::Spades), "the spade fit"),
+        (
+            "AQ3.K32.KJ32.Q32",
+            call(3, Strain::Diamonds),
+            "a four-card minor",
+        ),
+        (
+            "AQ3.K32.KJ3.Q432",
+            call(3, Strain::Clubs),
+            "clubs when only clubs are four",
+        ),
+    ] {
+        let (c, floored) = best_call_with(&multi_arm(), &responder_doubled, hand);
+        assert_eq!(c, expected, "{why}");
+        assert!(!floored, "{why}: book node");
+    }
+    // Opener sits for the penalty double after they ran to spades.
+    let ran_doubled = [
+        nt,
+        d,
+        Call::Double,
+        h,
+        Call::Pass,
+        s,
+        Call::Double,
+        Call::Pass,
+    ];
+    let (c, floored) = best_call_with(&multi_arm(), &ran_doubled, "AKQ32.2.AJ32.K32");
+    assert_eq!(c, Call::Pass, "opener sits for the penalty double of 2♠");
+    assert!(!floored);
+    // The quantitative 4NT is answered from the book.
+    let quant = [
+        nt,
+        d,
+        Call::Double,
+        h,
+        Call::Pass,
+        Call::Pass,
+        call(4, Strain::Notrump),
+        Call::Pass,
+    ];
+    let (c, floored) = best_call_with(&multi_arm(), &quant, "AQ5.A32.KQ4.KJ32");
+    assert_eq!(c, call(6, Strain::Notrump), "17 opposite 16+: slam");
+    assert!(!floored);
+    let (c, floored) = best_call_with(&multi_arm(), &quant, "AQ5.A32.KQ4.J432");
+    assert_eq!(c, Call::Pass, "15 declines");
     assert!(!floored);
 }
 

@@ -893,11 +893,12 @@ fn completion_readings_admit_the_bidder() {
 ///
 /// The `[their-landy]` section is the **anchor delta**: the fixture's flat
 /// list is the default build, but the anchor arms `their.two_clubs_landy`
-/// (derived off BBA's measured 2♣ in `bba-gen`), and a gadget gated on a
-/// `TheirDisclosures` field is invisible to the default count — the Landy
-/// counter shipped three slugs this file never carried.  The section lists
-/// each slug whose count moves under that gate, so the fielded system's
-/// disclosure surface is what the tripwire actually watches.
+/// and `their.two_diamonds_multi` (derived off BBA's measured 2♣/2♦ in
+/// `bba-gen`), and a gadget gated on a `TheirDisclosures` field is invisible
+/// to the default count — the Landy counter shipped three slugs this file
+/// never carried, the Multi counter three more.  The section lists each slug
+/// whose count moves under that gate, so the fielded system's disclosure
+/// surface is what the tripwire actually watches.
 #[test]
 fn alerted_call_sites_match_the_disclosure_fixture() {
     use crate::bidding::agreements::Agreements;
@@ -930,6 +931,7 @@ fn alerted_call_sites_match_the_disclosure_fixture() {
     let default_counts = alert_site_counts(&Agreements::default());
     let mut anchor = Agreements::default();
     anchor.decision.their.two_clubs_landy = true;
+    anchor.decision.their.two_diamonds_multi = true;
     let anchor_counts = alert_site_counts(&anchor);
 
     let mut found = default_counts

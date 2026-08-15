@@ -489,12 +489,7 @@ pub(crate) fn multi_2d_responder(gate_4333: bool, agreements: &Agreements) -> Ru
             Bid::new(3, Strain::Notrump),
             150,
             points(10..) & stopper_in(Suit::Hearts) & stopper_in(Suit::Spades),
-        )
-        // Weight below 3NT (150) and the 3♠→♣ game-force (145): a hand with a
-        // placing call places.  Above the natural 2M (140) and the relay
-        // (135), which the 8-HCP boundary can meet.
-        .rule(Call::Double, 143, hcp(8..))
-        .alert(MULTI_VALUES);
+        );
     rules = natural_major_escapes(rules, agreements);
     rules = rules
         .rule(
@@ -502,7 +497,14 @@ pub(crate) fn multi_2d_responder(gate_4333: bool, agreements: &Agreements) -> Ru
             135,
             points(..=8) & multi_relay_shape(),
         )
-        .alert(LEBENSOHL_RELAY);
+        .alert(LEBENSOHL_RELAY)
+        // v6 (BBA mimic): BBA's `hcp 5–17` values double, the 41% workhorse
+        // of its counter — 6 is where its Pass bucket (median 5) ends.  Below
+        // the natural 2M (140) and the relay (135) so a weak hand with a 5+
+        // suit still escapes or relays; every placing call above it places.
+        // What the double does next is [`multi_responder_rebid`].
+        .rule(Call::Double, 130, hcp(6..))
+        .alert(MULTI_VALUES);
     rules.rule(Call::Pass, 0, hcp(0..))
 }
 
@@ -544,23 +546,100 @@ pub(crate) fn multi_signoff_pass() -> Rules {
 /// Responder's second call once their pass-or-correct has resolved the major
 /// (`1NT (2♦) X (2♥) - (-)`, `… X (2♥) - (2♠)`, `… X (2♠) - (-)`, `… X (2♥) X (2♠)`)
 ///
-/// Now the suit is known: `3NT` with game values and a stopper *in it*, `X`
-/// with four trumps (nominal penalty), else pass — the 8-9 hand sells out.
-/// v1 left this seat to the floor, which sold out with 10+; v2/v3 blasted 3NT
-/// blind instead and lost it on perfect defense.  The sell-out is plain-DD's
-/// one complaint about the package (−2.5 a board over three seeds, PD +0.8);
-/// v5 tried a natural `2NT` invite there and perfect defense refused the thin
-/// games it bought (PD −0.9 NV / −4.8 vul per invite) — the DD-declarer
-/// artifact, so the sell-out stays.
-pub(crate) fn multi_responder_rebid(major: Suit) -> Rules {
-    Rules::new()
+/// `major` is their resolved suit; `ran` is the `X (2♥) - (2♠)` shape — the
+/// weak advancer's pass-or-correct corrected to spades.  v7: BBA's own
+/// second-turn structure (probed at `counter-d-x2h`, `counter-d-x2h2s`,
+/// `counter-d-x2s`) **minus the rungs perfect defense refused** when v6
+/// mimicked it whole (docs/one-notrump-competitive.md §N4 v6):
+///
+/// - `4NT` — quantitative, `hcp 16+` (BBA 16–21).
+/// - `2♠` (hearts resolved only) — five spades, `hcp 6–8`, to play.
+/// - `X` — **takeout showing the other major**: BBA's X here is exactly four
+///   of the other major and 1–2 of theirs, `hcp 6–17`, its label "reopening
+///   double"; the one BBA rung that measured positive on *both* scorers
+///   (v6 vs v4: +2.4 plain / +1.6 PD per fired NV).  In the `ran` shape it is
+///   spade length instead (BBA: 3–5, median 4) — penalty.
+/// - `3NT` — game values **with a stopper in the resolved major**, v4's gate.
+///   BBA's `3NT` is the bare `hcp 9–15`; v6 played it and perfect defense
+///   refused it at every seat (−2.5 to −4.6 per fired), the same DD-declarer
+///   artifact v2/v3 measured.
+/// - Pass — the rest.  BBA's `2NT` invite (8–9, −3.0/−6.9 PD per invite),
+///   its `3♠` try (−2.3/−3.6) and its natural `3m` (7–8, a wash) were in v6
+///   and are not here; the 8-9 hand sells out, as v5 already established.
+pub(crate) fn multi_responder_rebid(major: Suit, ran: bool) -> Rules {
+    let other = if major == Suit::Hearts {
+        Suit::Spades
+    } else {
+        Suit::Hearts
+    };
+    let mut rules = Rules::new().rule(Bid::new(4, Strain::Notrump), 160, hcp(16..));
+    if !ran && major == Suit::Hearts {
+        // Above the takeout double: BBA's X is exactly four spades, its 2♠
+        // five weak ones.
+        rules = rules.rule(
+            Bid::new(2, Strain::Spades),
+            156,
+            len(Suit::Spades, 5..) & hcp(..=8),
+        );
+    }
+    if ran {
+        rules = rules
+            .rule(Call::Double, 155, len(Suit::Spades, 4..) & hcp(7..))
+            .alert(MULTI_PENALTY);
+    } else {
+        rules = rules
+            .rule(Call::Double, 155, len(other, 4..) & len(major, ..=2))
+            .alert(MULTI_TAKEOUT);
+    }
+    rules
         .rule(
             Bid::new(3, Strain::Notrump),
             150,
             points(10..) & stopper_in(major),
         )
-        .rule(Call::Double, 140, len(major, 4..))
-        .alert(MULTI_PENALTY)
+        .rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Opener's answer to responder's takeout double of the resolved major
+/// (`1NT (2♦) X (2♥) - (-) X -`, `… X (2♠) - (-) X -`)
+///
+/// BBA's own answers here are opaque (`2NT` 34% even holding four of the
+/// other major, `3m` with four, a penalty pass with 4+ of theirs), so this is
+/// the bridge answer to a double that showed four of the other major and
+/// shortness in theirs: sit with four of their suit, bid the 4-4 fit, else
+/// the longer four-card minor, else `2NT`.  Total.
+pub(crate) fn multi_takeout_answer(major: Suit) -> Rules {
+    let other = if major == Suit::Hearts {
+        Suit::Spades
+    } else {
+        Suit::Hearts
+    };
+    let level = if other == Suit::Spades { 2 } else { 3 };
+    Rules::new()
+        .rule(Call::Pass, 150, len(major, 4..))
+        .rule(Bid::new(level, Strain::from(other)), 140, len(other, 4..))
+        .rule(Bid::new(3, Strain::Clubs), 130, len(Suit::Clubs, 4..))
+        .rule(Bid::new(3, Strain::Diamonds), 130, len(Suit::Diamonds, 4..))
+        .rule(Bid::new(2, Strain::Notrump), 100, hcp(0..))
+}
+
+/// Opener's answer to responder's quantitative `4NT` (16+ opposite 15–17):
+/// `6NT` from the top, else pass.  Total.
+pub(crate) fn multi_quant_answer() -> Rules {
+    Rules::new()
+        .rule(Bid::new(6, Strain::Notrump), 140, hcp(17..))
+        .rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Opener over responder's Multi values double when the advancer passes it
+/// (`1NT (2♦) X -`) — a seat BBA's advancer never gives us (0.0% at
+/// `advance-x`), kept for other opponents.  BBA's opener shows a four-card
+/// major, else cues `3♦`; the cue is replaced by a pass — the double was
+/// values and 2♦x with 23+ is a fine spot.  Total.
+pub(crate) fn multi_pass_answer() -> Rules {
+    Rules::new()
+        .rule(Bid::new(2, Strain::Hearts), 141, len(Suit::Hearts, 4..))
+        .rule(Bid::new(2, Strain::Spades), 140, len(Suit::Spades, 4..))
         .rule(Call::Pass, 0, hcp(0..))
 }
 

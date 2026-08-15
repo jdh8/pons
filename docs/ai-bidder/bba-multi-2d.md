@@ -11,6 +11,8 @@ seats (`--conv "Multi-Landy=1"`, `Cappelletti=0`) so BBA both *bids* and
 cargo run --release --example probe-bba-constraints -- --mode multi
 cargo run --release --example probe-bba-constraints -- --mode advance
 cargo run --release --example probe-bba-constraints -- --mode counter --vul none,both
+cargo run --release --example probe-bba-constraints -- --mode counter-d-x2h --vul none,both   # the doubler's rebid (§3a)
+cargo run --release --example probe-bba-constraints -- --mode custom --seat 0 --calls "1NT 2♦ X 2♥ - - X -" --filter-call 1NT --meanings 12
 ```
 
 Every `sketch:` is a **candidate** to verify and hand-author, not a proof of
@@ -87,6 +89,49 @@ the balanced invitational zone, 3NT to play, 4M the long-major shot, Pass the
 junk. This is the standard expert answer to a Multi: **X = values, naturals
 everywhere else.**
 
+### 3a. The double's second turn — the seats BBA's advancer actually gives us (added 2026-08-15, N4 v6)
+
+`opener-d-x` (§5) is the `X -` node, which BBA's advancer never produces
+(`advance-x`: pass 0.0%). The reachable seats, probed with the new modes
+`opener-d-x2h` / `opener-d-x2s` (opener over `X (2M)`), `counter-d-x2h` /
+`counter-d-x2h2s` / `counter-d-x2s` (the doubler's rebid, hands filtered to
+BBA's own first-turn double), and `--mode custom --seat N --calls "…"
+--filter-call X --filter-prefix "1NT 2♦"` for one-off nodes:
+
+**Opener over the pass-or-correct is passive.** `1NT (2♦) X (2♥) ?`: Pass
+92.3%, `2NT` 6.0% (`hcp 17`, balanced), `2♠` 1.7% (five spades, 16–17);
+over `X (2♠)` Pass 93.0% / `2NT` 7.0%. It never doubles `2M`. The double's
+work is done by the doubler:
+
+| after `X (2♥) - (-)` | share | band | reading |
+| --- | ---: | --- | --- |
+| `3NT` | 29.5% | `hcp 9–15` (med 12), hearts 3–4, spades 2–4 | to play — **no stopper gate**, the length in their suit is what correlates |
+| Pass | 26.8% | `hcp 5–9` (med 6) | — |
+| **`X`** | 12.6% | `hcp 6–17`, **spades 4–4, hearts 1–2** | BBA's label: *reopening double* — takeout of hearts showing spades |
+| `2NT` | 8.0% | `hcp 8–9`, hearts 4–5 | natural invite |
+| `4NT` | 7.6% | `hcp 16–21` | quantitative |
+| `2♠` | 5.9% | five spades, `hcp 6–8` | to play |
+| `3♠` | 5.2% | four spades, hearts 2–3, `hcp 9–13` | a spade game try |
+| `3♦` / `3♣` | 1.6% / 1.5% | 5–6 cards, `hcp 7–13` (med 8) | natural |
+
+After `X (2♠) - (-)`: Pass 34.4%, `3NT` 28.9% (9–15), `X` 13.4% (**hearts
+4–5, spades 1–2** — the mirror takeout), `2NT` 8.8% (8–9), `4NT` 7.4%, `3♣`
+2.9%, `3♦` 2.8%; no `3♥`/`2♥` analogue above 1%. After `X (2♥) - (2♠)` (the
+weak pass-or-correct corrected to spades): **`X` 32.6%** (`hcp 5–16`, spades
+3–5 med 4, hearts 2–4 — **penalty**, not takeout), `3NT` 23.6% (9–15), Pass
+21.4% (5–10), `2NT` 7.2% (8–10), `4NT` 6.1%, `3♦`/`3♣` 4%/3.6%. Vulnerability
+moves nothing beyond a point of pass/2NT.
+
+**Opener over the reopening double** (`1NT (2♦) X (2♥) - (-) X -`, `custom`,
+`--meanings`) is opaque: `2NT` 33.7% (balanced, spades 2–5 med 4), `3♣` 26.3%
+(4+), `3♦` 23.5% (4+), Pass 16.4% (hearts 3–5 med 4 — the penalty pass),
+`3NT` 5.8% vul with 16–17; **never `2♠`**, even though its partner's double
+showed exactly four. Over the penalty double after they ran to spades
+(`X (2♥) - (2♠) X -`) opener passes 100%.
+
+The overcaller facing our double (`rebid-d-x2h`, §2) is unchanged: pass with
+six hearts, `2♠` with six spades, `3M` with seven.
+
 ## 4. Candidate counter-defense to author (to A/B, default opt-in)
 
 Distilled from §3 + Multi theory, for our responder after `1NT (2♦)` *when we
@@ -111,8 +156,12 @@ relay gains a natural `3♦`, opener sits over their pass of the double and
 doubles the pass-or-correct `2M` with four trumps. This natural sketch — 3x
 natural single-suiters, natural `2NT` — was **not run** as an arm; it stays
 here as the recorded alternative. Engagement is `their.two_diamonds_multi`
-(`TheirDisclosures`), `bba-gen --their-2d-multi`, undeclared by default until
-the package ships.
+(`TheirDisclosures`), `bba-gen --their-2d-multi`. **Shipped 2026-08-15 as v7**:
+responder's second turn is §3a's table minus its PD-refused game bids —
+the takeout X of the resolved major, `3NT` with a stopper, `4NT`, the weak
+`2♠` — and the first-turn double is BBA's `hcp 6+`; `bba-gen` now derives
+the declaration from the census (`their_2d_multi`), engine default still
+undeclared.
 
 ## 5. The rest of the set
 

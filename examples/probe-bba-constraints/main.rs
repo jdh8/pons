@@ -415,9 +415,58 @@ struct Args {
     #[arg(long, default_value_t = 1000)]
     o4_holdout: usize,
 
+    /// `--mode custom`: the actor's seat (0 = 1NT opener/dealer, 1 = overcaller,
+    /// 2 = responder, 3 = advancer)
+    #[arg(long, default_value_t = 0)]
+    seat: c_int,
+
+    /// `--mode custom`: the replayed auction, space-delimited (`1NT 2♦ X 2♥ - -`),
+    /// `-`/`P` = pass, `X`, `XX`
+    #[arg(long, default_value = "")]
+    calls: String,
+
+    /// `--mode custom`: keep only actor hands BBA makes this call with over
+    /// `--filter-prefix` (e.g. `--filter-call X --filter-prefix "1NT 2♦"`)
+    #[arg(long)]
+    filter_call: Option<String>,
+
+    /// `--mode custom`: the auction the `--filter-call` is replayed over
+    #[arg(long, default_value = "")]
+    filter_prefix: String,
+
     /// Optional output file (default: stdout)
     #[arg(long)]
     out: Option<String>,
+}
+
+/// EPBot bid code for one auction token: `-`/`P` = 0, `X` = 1, `XX` = 2, else
+/// `5 + (level-1)*5 + strain` (♣ ♦ ♥ ♠ NT).
+fn parse_call(token: &str) -> Result<c_int> {
+    match token {
+        "-" | "P" => return Ok(PASS),
+        "X" => return Ok(DOUBLE),
+        "XX" => return Ok(2),
+        _ => {}
+    }
+    let level = token
+        .chars()
+        .next()
+        .and_then(|c| c.to_digit(10))
+        .filter(|l| (1..=7).contains(l))
+        .ok_or_else(|| anyhow::anyhow!("bad call {token:?}"))?;
+    let strain = match &token[1..] {
+        "♣" | "C" => 0,
+        "♦" | "D" => 1,
+        "♥" | "H" => 2,
+        "♠" | "S" => 3,
+        "NT" | "N" => 4,
+        other => bail!("bad strain {other:?} in {token:?}"),
+    };
+    Ok(5 + (level as c_int - 1) * 5 + strain)
+}
+
+fn parse_calls(auction: &str) -> Result<Vec<c_int>> {
+    auction.split_whitespace().map(parse_call).collect()
 }
 
 fn main() -> Result<()> {
@@ -435,10 +484,30 @@ fn main() -> Result<()> {
     // make over (1NT) to be kept; `None` accepts every hand (the advancer's hand is
     // unconstrained, so its modes need no filter).  The `rebid-*` modes read the
     // overcaller's own seat, so they keep only hands BBA would actually overcall.
+    // `--mode custom`: any (seat, auction, filter) — the per-seat modes below
+    // are the documented ones; this is for one-off reads without a new arm.
+    let custom_calls = parse_calls(&args.calls)?;
+    let custom_filter_prefix = parse_calls(&args.filter_prefix)?;
+    let custom_filter = args.filter_call.as_deref().map(parse_call).transpose()?;
+    let custom_what = format!(
+        "BBA seat {} over `{}`{}",
+        args.seat,
+        args.calls,
+        args.filter_call
+            .as_deref()
+            .map(|c| format!(" — hands that bid `{c}` over `{}`", args.filter_prefix))
+            .unwrap_or_default()
+    );
     let (actor, prefix, filter, what): (c_int, &[c_int], Option<c_int>, &str) = match args
         .mode
         .as_str()
     {
+        "custom" => (
+            args.seat,
+            custom_calls.as_slice(),
+            custom_filter,
+            custom_what.as_str(),
+        ),
         // Dealer opening, nothing replayed.  Reads what the `1NT opening *`
         // rows of a `.bbsa` card actually do — `1NT opening natural` and
         // `1NT opening NT style` move BBA's calls when disclosed
@@ -606,6 +675,45 @@ fn main() -> Result<()> {
             &[ONE_NT, TWO_D, DOUBLE, PASS],
             Some(ONE_NT),
             "BBA opener over 1NT (2♦ Multi) X - — sitting for the counter's 41% double, or pulling it",
+        ),
+        // N4 follow-up: the seats BBA's advancer actually gives us — opener
+        // over the pass-or-correct `2M`, and responder's rebid once the major
+        // is resolved (or opener has answered the double as takeout).
+        "opener-d-x2h" => (
+            0,
+            &[ONE_NT, TWO_D, DOUBLE, TWO_H],
+            Some(ONE_NT),
+            "BBA opener over 1NT (2♦ Multi) X (2♥) — answering the values double over the weak pass-or-correct",
+        ),
+        "opener-d-x2s" => (
+            0,
+            &[ONE_NT, TWO_D, DOUBLE, TWO_S],
+            Some(ONE_NT),
+            "BBA opener over 1NT (2♦ Multi) X (2♠) — answering the values double over the invitational pass-or-correct",
+        ),
+        "counter-d-x2h" => (
+            2,
+            &[ONE_NT, TWO_D, DOUBLE, TWO_H, PASS, PASS],
+            Some(DOUBLE),
+            "BBA responder over 1NT (2♦) X (2♥) - (-) — hearts resolved, opener passed",
+        ),
+        "counter-d-x2h2s" => (
+            2,
+            &[ONE_NT, TWO_D, DOUBLE, TWO_H, PASS, TWO_S],
+            Some(DOUBLE),
+            "BBA responder over 1NT (2♦) X (2♥) - (2♠) — spades resolved, opener passed",
+        ),
+        "counter-d-x2s" => (
+            2,
+            &[ONE_NT, TWO_D, DOUBLE, TWO_S, PASS, PASS],
+            Some(DOUBLE),
+            "BBA responder over 1NT (2♦) X (2♠) - (-) — the invitational pass-or-correct sat, opener passed",
+        ),
+        "counter-d-x2h-2s" => (
+            2,
+            &[ONE_NT, TWO_D, DOUBLE, TWO_H, TWO_S, PASS],
+            Some(DOUBLE),
+            "BBA responder over 1NT (2♦) X (2♥) 2♠ (-) — opener answered the double with four spades",
         ),
         "opener-h-2nt" => (
             0,
@@ -835,7 +943,7 @@ fn main() -> Result<()> {
             "advancer over (1♣) 1♥ - — the 2♦ bucket is the transfer into partner's hearts",
         ),
         other => bail!(
-            "--mode must be open|def1-c|def1-d|def1-h|def1-s|multi|advance|advance-x|counter|counter-x|counter-c|counter-h|counter-s|counter-2nt|counter-3c|counter-3d|counter-3h|counter-3s|opener-c-2nt|opener-c-2s|opener-c-3c|opener-d-x|opener-h-2nt|opener-s-2nt|opener-h-x|opener-2nt-x|muider-h|muider-s|rebid-d|rebid-d-x|rebid-d-x2h|rebid-h|rebid-s|stayman|xfer-h|xfer-s|weak2-d|weak2-h|weak2-s|def2-d|def2-h|def2-s|nt-resp|nt-3h|nt-3s|nt-3c|nt-3c-3d|nt-2s-3c|ucb-sd|ucb-sc|ucb-dc|ucb-sh|rub-ch|o4, got {other:?}"
+            "--mode must be custom|open|def1-c|def1-d|def1-h|def1-s|multi|advance|advance-x|counter|counter-x|counter-c|counter-h|counter-s|counter-2nt|counter-3c|counter-3d|counter-3h|counter-3s|opener-c-2nt|opener-c-2s|opener-c-3c|opener-d-x|opener-d-x2h|opener-d-x2s|counter-d-x2h|counter-d-x2h2s|counter-d-x2s|counter-d-x2h-2s|opener-h-2nt|opener-s-2nt|opener-h-x|opener-2nt-x|muider-h|muider-s|rebid-d|rebid-d-x|rebid-d-x2h|rebid-h|rebid-s|stayman|xfer-h|xfer-s|weak2-d|weak2-h|weak2-s|def2-d|def2-h|def2-s|nt-resp|nt-3h|nt-3s|nt-3c|nt-3c-3d|nt-2s-3c|ucb-sd|ucb-sc|ucb-dc|ucb-sh|rub-ch|o4, got {other:?}"
         ),
     };
 
@@ -860,7 +968,11 @@ fn main() -> Result<()> {
         // `weak2-*` — the filter is "a hand BBA opens 1NT with", an empty prefix.
         // Leaving them on the `&[ONE_NT]` default would filter the wrong seat and
         // accept almost nothing.
+        "custom" => (custom_filter_prefix.as_slice(), None),
         mode if mode.starts_with("opener-") => (&[], None),
+        // The `counter-d-x*` modes probe RESPONDER at its second turn: keep only
+        // hands BBA doubled the Multi with.
+        mode if mode.starts_with("counter-d-x") => (&[ONE_NT, TWO_D], None),
         // `nt-3c-3d` probes RESPONDER, so the filter replays the transfer
         // itself: keep only hands BBA bids `3♣` with over `1NT - `.  `trump`
         // is diamonds — the suit a splinter would be agreeing.

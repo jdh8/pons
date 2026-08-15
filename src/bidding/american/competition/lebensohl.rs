@@ -10,10 +10,11 @@ use super::penalty_double::{
 };
 use super::rubensohl::{
     clubs_transfer_completion, cue_stayman_answer, lm_2d_both_majors_advance, lm_2d_clubs_ask,
-    lm_2d_clubs_major, multi_2d_responder, multi_clubs_transfer_completion, multi_penalty_answer,
-    multi_relay_rebid, multi_responder_rebid, multi_signoff_pass, stayman_2d_answer,
-    stayman_2d_fit_rebid, transfer_completion, transfer_lebensohl_responder,
-    transfer_stayman_2d_responder, transfer_target,
+    lm_2d_clubs_major, multi_2d_responder, multi_clubs_transfer_completion, multi_pass_answer,
+    multi_penalty_answer, multi_quant_answer, multi_relay_rebid, multi_responder_rebid,
+    multi_signoff_pass, multi_takeout_answer, stayman_2d_answer, stayman_2d_fit_rebid,
+    transfer_completion, transfer_lebensohl_responder, transfer_stayman_2d_responder,
+    transfer_target,
 };
 use super::*;
 
@@ -1682,15 +1683,15 @@ pub(super) fn lebensohl_package() -> Package {
                 let multi = over == Suit::Diamonds && defense_2d_multi(agreements);
                 if multi {
                     // N4: responder's double was values, waiting for them to
-                    // name the major.  Over their pass opener sits — they sit
-                    // 43% of the time over the double (n=14, N4b), and we hold
-                    // 23+ — and over the pass-or-correct 2M opener doubles
-                    // with four trumps, else waits.  Structural, so it does not
-                    // ride `penalty_double_leave_in`.  Q3 of the design left
-                    // "show a four-card major instead" as the arm to decompose.
+                    // name the major.  Over their pass (a seat BBA's advancer
+                    // never gives — 0.0% at `advance-x`) opener shows a
+                    // four-card major, else sits (v6: BBA's answer with its
+                    // `3♦` cue replaced by the pass); over the pass-or-correct
+                    // 2M opener doubles with four trumps, else waits.
+                    // Structural, so it does not ride `penalty_double_leave_in`.
                     entries.extend(rows_of(
                         Pattern::after(NT, &format!("{their} X -")),
-                        opener_leaves_in_penalty_double(),
+                        multi_pass_answer(),
                     ));
                     for major in [Suit::Hearts, Suit::Spades] {
                         entries.extend(rows_of(
@@ -1710,21 +1711,40 @@ pub(super) fn lebensohl_package() -> Package {
                     // one the double keys on.
                     let sit = multi_signoff_pass();
                     // Responder, opener having sat: they passed (2♥ or 2♠ is
-                    // theirs) or corrected 2♥ to 2♠.
+                    // theirs) or corrected 2♥ to 2♠.  v7: BBA's own second-turn
+                    // table ([`multi_responder_rebid`]) less the rungs perfect
+                    // defense refused — the takeout X of the resolved major,
+                    // 3NT with a stopper, 4NT, the weak 2♠ — and opener's
+                    // answers to each, so no seat of the family is floored.
+                    let resolved = [
+                        ("X (2♥) - (-)", Suit::Hearts, false),
+                        ("X (2♥) - (2♠)", Suit::Spades, true),
+                        ("X (2♠) - (-)", Suit::Spades, false),
+                        ("X (2♥) X (2♠)", Suit::Spades, true),
+                    ];
+                    for (path, major, ran) in resolved {
+                        entries.extend(rows_of(
+                            Pattern::after(NT, &format!("{their} {path}")),
+                            multi_responder_rebid(major, ran),
+                        ));
+                        entries.extend(rows_of(
+                            Pattern::after(NT, &format!("{their} {path} X -")),
+                            if ran {
+                                sit.clone()
+                            } else {
+                                multi_takeout_answer(major)
+                            },
+                        ));
+                        entries.extend(rows_of(
+                            Pattern::after(NT, &format!("{their} {path} 4NT -")),
+                            multi_quant_answer(),
+                        ));
+                    }
                     entries.extend(rows_of(
-                        Pattern::after(NT, &format!("{their} X (2♥) - (-)")),
-                        multi_responder_rebid(Suit::Hearts),
+                        Pattern::after(NT, &format!("{their} X (2♥) - (-) 2♠ -")),
+                        sit.clone(),
                     ));
-                    entries.extend(rows_of(
-                        Pattern::after(NT, &format!("{their} X (2♥) - (2♠)")),
-                        multi_responder_rebid(Suit::Spades),
-                    ));
-                    entries.extend(rows_of(
-                        Pattern::after(NT, &format!("{their} X (2♠) - (-)")),
-                        multi_responder_rebid(Suit::Spades),
-                    ));
-                    // Responder, opener having doubled: sit, or double the
-                    // correction with four of the new suit.
+                    // Responder, opener having doubled and the advancer sat: sit.
                     for major in [Suit::Hearts, Suit::Spades] {
                         entries.extend(rows_of(
                             Pattern::after(
@@ -1734,27 +1754,10 @@ pub(super) fn lebensohl_package() -> Package {
                             sit.clone(),
                         ));
                     }
-                    entries.extend(rows_of(
-                        Pattern::after(NT, &format!("{their} X (2♥) X (2♠)")),
-                        multi_responder_rebid(Suit::Spades),
-                    ));
                     // Their 2NT over the doubled/undoubled 2♠ is the
                     // overcaller's heart relay (bba-1nt-defense.md): nothing
                     // to say until they place it — the floor cued 3♠.
                     for path in ["X (2♠) X (2NT)", "X (2♠) - (2NT)"] {
-                        entries.extend(rows_of(
-                            Pattern::after(NT, &format!("{their} {path}")),
-                            sit.clone(),
-                        ));
-                    }
-                    // Opener sits for responder's penalty double, whichever
-                    // path produced it.
-                    for path in [
-                        "X (2♥) - (-) X -",
-                        "X (2♥) - (2♠) X -",
-                        "X (2♠) - (-) X -",
-                        "X (2♥) X (2♠) X -",
-                    ] {
                         entries.extend(rows_of(
                             Pattern::after(NT, &format!("{their} {path}")),
                             sit.clone(),

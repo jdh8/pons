@@ -148,8 +148,9 @@ Worth a look once the top buckets are done; not actionable at this n.
 | `(2NT)` | Unusual-vs-Unusual | `uvu.rs:139`, `:21`, `:145-161` |
 | `(3♣)`+ | **floor** — `high_overcall_responses` covers suit openings only | `high_overcall.rs:152` |
 
-The Multi counter is [§N4](#n4--their-2-as-a-multi-built--measured-2026-08-15--v4-opt-in-one-line-from-default)
-(`their.two_diamonds_multi`, built 2026-08-15, measuring). Its predecessor
+The Multi counter is [§N4](#n4--their-2-as-a-multi-shipped-2026-08-15--v7-seven-rounds-default-on-vs-bba-via-the-census)
+(`their.two_diamonds_multi`, **shipped 2026-08-15** — engine undeclared, `bba-gen`
+derives it from the census like `their_2c_landy`). Its predecessor
 `competition.defense_2d_multi` + `multi_responder` were **deleted 2026-08-15**:
 never measured, and half-built — the continuation block fired on
 `style == Transfer && over == Diamonds` **without checking the Multi flag**, so
@@ -192,7 +193,7 @@ is 5 calls; the most common runout point is after opener's transfer completion
 | **N1j** | **BBA-ladder counter** — the anchor-aligned table, replacing the stack — **+ the weak-2♦ cap** | `defense_2c_landy_bba`, `defense_2c_landy_weak_2d_cap` | **both SHIPPED DEFAULT-ON 2026-08-15** — the ladder at its pinned non-inferiority gate (`wash \| wash`, all eight DD cells leaning positive), the cap at the standard gate (`plain wash \| PD win`, 0 foreign); see §N1j |
 | N2 | Muiderberg `(2♠)` calibration | — | −0.66/bd, PD −0.58 NV; **BBA plays plain Lebensohl here, we play Cohen Transfer** — a concrete A/B, see the [counter-defense reference](ai-bidder/bba-1nt-counter-defense.md) |
 | N3 | `(3+)` overcalls of our 1NT | new | floor-only today; −0.63/bd. **Misnamed: their three-level calls are natural 7-card preempts**, not artificial — this is `defense_to_preempt`'s lane, not a counter-defense |
-| N4 | Multi `(2♦)` — the Transfer leg re-keyed for a Multi, the double family and relay authored to the seat | `their.two_diamonds_multi` (disclosure) | **built + measured 2026-08-15 (five rounds, v4 pooled 3 seeds): vul `plain wash \| PD win`, NV `PD win \| plain −0.00055 ±0.00050` — opt-in by the letter of the gate, one line from default**; see [§N4](#n4--their-2-as-a-multi-built--measured-2026-08-15--v4-opt-in-one-line-from-default) |
+| N4 | Multi `(2♦)` — the Transfer leg re-keyed for a Multi, the double family and relay authored to the seat; **v7 = BBA's own second-turn structure minus its PD-refused game bids** (takeout X of the resolved major, `hcp 6+` values double) | `their.two_diamonds_multi` (disclosure) | **SHIPPED 2026-08-15 (seven rounds, v7 pooled 3 seeds): NV `plain wash \| PD win` (+0.00100 ±0.00067), vul plain +0.00061 ±0.00056 \| PD +0.00061 ±0.00069; both-vul pool win\|win; paired vs v4 better on 3 of 4 cells** — census default in `their_2d_multi` + `vs_bba_agreements`; see [§N4](#n4--their-2-as-a-multi-shipped-2026-08-15--v7-seven-rounds-default-on-vs-bba-via-the-census) |
 | N4b | `(2♦)` **diamond penalty double** — the cheap half of N4, no disclosure needed | `two_diamond_double` | **measured 2026-08-15 — sweep NULL, stays opt-in.** Raw headline was CI-clear positive in all 28 cells but **84.9% foreign** (isolation gate failed); owned subset is a wash. Spun off a real candidate: reading *their* double of a `2♦` overcall as diamonds — see §N4b |
 | N5 | Complete Jacoby, re-measure | `competition_over_transfer` | default-off on a measured loss *while missing its two most-fired cells* — a half-built loss, resumable |
 | N6 | `(2NT)` penalty discipline | `uvu_encircle` et al. | worst per-board rate, n=118 — needs boards before it needs code. Mechanism now priced: **BBA doubles 46.7%** and cues `3♣` for both majors ([reference](ai-bidder/bba-1nt-counter-defense.md)) |
@@ -702,7 +703,7 @@ replicate); and an artificial call is not complete until both sides'
 continuations *and the interfered tails* are authored — every loss this
 package ever measured was an unauthored continuation, never the idea.
 
-## N4 — their `(2♦)` as a Multi (**built + measured 2026-08-15 — v4 opt-in, one line from default**)
+## N4 — their `(2♦)` as a Multi (**SHIPPED 2026-08-15 — v7, seven rounds; default-on vs BBA via the census**)
 
 The rebuild of the deleted `defense_2d_multi`, on the disclosure channel N1
 uses and with the continuations gated. Not the natural table
@@ -737,12 +738,12 @@ it hunts are in the major they do *not* hold. What moves:
 
 | call | natural leg | Multi leg | why |
 | --- | --- | --- | --- |
-| `X` | `DoubleStyle::Optional`: `len(♦, 2..=3) & hcp(8..)`, opener cooperates (pass, or run to a 5-card suit with ≤2♦) | **`hcp(8..)`**, alerted `comp:multi-values`, weight 143 (below `3NT` 150 and `3♠`→♣ 145, above `2M` 140 / relay 135) | invitational-plus values, no diamond claim — the *waiting* call; they name the major, we act on it. BBA's own counter doubles at 5+ (41% of hands); 8+ is the invitational floor opposite 15–17. Read: `points 8..`, every suit ⊤ (probed) |
+| `X` | `DoubleStyle::Optional`: `len(♦, 2..=3) & hcp(8..)`, opener cooperates (pass, or run to a 5-card suit with ≤2♦) | **`hcp(6..)`** (v7; v1–v5 `hcp(8..)` at 143), alerted `comp:multi-values`, weight 130 — below `3NT` 150, `3♠`→♣ 145, the natural `2M` 140 and the relay 135, so a weak 5+ suit still escapes or relays | BBA's own values double (`hcp 5–17`, 41% of its hands, median 9), no diamond claim — the *waiting* call; they name the major, we act on it (`multi_responder_rebid`). Read: `points 6..`, every suit ⊤ |
 | direct `3NT` | `points(10..) & stopper_in(♦)` | `points(10..) & stopper_in(♥) & stopper_in(♠)` | the blast that needs no more information; one major open → double first |
 | `2NT` relay shape | 5+ in ♣/♥/♠, `hcp 6+` | 5+ in **any** suit, `hcp 6+` | diamonds are ours to sign off in |
 | after `2NT - 3♣ -` | `3♥`/`3♠` (5+) or pass | **`3♦`**/`3♥`/`3♠` (5+) or pass (`multi_relay_rebid`) | the rung the natural leg cannot have |
 | `3♠`→♣ completion | `3NT` with a ♦ stopper else `5♣` | `3NT` outright | no stopper to key on; `5♣` on a 6-2 fit is the worse guess |
-| opener over `X -` | cooperate | **pass** (`opener_leaves_in_penalty_double`) | structural — see below |
+| opener over `X -` | cooperate | a four-card major (`2♥` first), else **pass** (`multi_pass_answer`, v7 — BBA shows the major and cues `3♦` otherwise; the cue is the pass) | a seat BBA's advancer never gives (0.0% at `advance-x`) — see below |
 | opener over `X (2♥)` / `X (2♠)` | floor | **`X` = `len(M, 4..)`** alerted `comp:multi-penalty`, else **pass** (`multi_penalty_answer`) | nominally penalty; when the overcaller's major is the other one they correct, and partner has been told where our trumps are. Read: `♥ 4..` / `♠ 4..` (probed) |
 | `two_diamond_double` | armed = diamond penalty double | ignored | a diamond penalty double of a Multi is the gate N4b measured null |
 
@@ -757,9 +758,10 @@ authors, all under the same gate —
 
 | seat | table |
 | --- | --- |
-| responder after `X (2♥) - (-)`, `X (2♥) - (2♠)`, `X (2♠) - (-)`, `X (2♥) X (2♠)` | `multi_responder_rebid(M)` on the *resolved* major: `3NT` = `points(10..) & stopper_in(M)`, `X` = `len(M, 4..)` (`comp:multi-penalty`), else pass |
+| responder after `X (2♥) - (-)`, `X (2♥) - (2♠)`, `X (2♠) - (-)`, `X (2♥) X (2♠)` | `multi_responder_rebid(M, ran)` on the *resolved* major — **v7 (shipped)**: `4NT` = `hcp(16..)`; `2♠` = five spades `hcp ≤8` (hearts resolved); `X` = **takeout**, four of the other major and ≤2 of theirs (`comp:multi-takeout`) — in the `ran` shape (`X (2♥) - (2♠)`, `X (2♥) X (2♠)`) four spades and 7+ (`comp:multi-penalty`); `3NT` = `points(10..) & stopper_in(M)`; else pass. (v4: `3NT` stopper / `X` = `len(M, 4..)` penalty / pass.) |
 | responder after `X (2M) X -` | sit |
-| opener after responder's penalty double, every path | sit |
+| opener after responder's takeout double (`X (2M) - (-) X -`) | `multi_takeout_answer(M)`: sit with four of theirs, bid the 4-4 fit (`2♠`/`3♥`), else a four-card minor, else `2NT` |
+| opener after responder's `ran`-shape penalty double, `2♠`, `4NT` | sit / sit / `6NT` with 17 else pass (`multi_quant_answer`) |
 | both after the overcaller's `2NT` heart relay over `2♠` (`X (2♠) X/- (2NT)`) | pass |
 | the doubled relay: `2NT (X)`, `2NT (X) 3♣ -`, `2NT - 3♣ (X)` | completion / `multi_relay_rebid` |
 | opener over every relay sign-off (`3♦`/`3♥`/`3♠`, all three relay paths), their X of it, their bid over it; responder over their balance | pass (`multi_signoff_pass`, `Pattern::up_to … 7♠`) |
@@ -946,30 +948,192 @@ vul −0.00005 ±0.00054 / +0.00009 ±0.00062. The DD-declarer artifact in one
 rung; v4's PD win was the thing worth keeping. Code reverted to v4
 (`multi_invite_answer` deleted; the rebid table's sell-out documented).
 
-### Verdict — v4 is the candidate; **opt-in by the letter of the gate, one line from default**
+### v4 decomposed per call — the double is PD's best call and plain's whole loss
 
-Pooled three seeds, owned boards, v4: **vul `plain wash | PD win`** (the ship
-row); **NV `PD win | plain −0.00055 ±0.00050`** — a CI-clear plain loss by
-0.00005. The rule as written ("a CI-clear plain loss stays opt-in") puts N4 on
-the artifact-adjacent row; the whole NV plain deficit is the 8-9 hand's
-sell-out after their pass-or-correct, a compete-or-defend decision that PD
-(the bid-decision scorer, `docs/measurement.md`'s domain split) prices
-**positive**, and every double path is plain-positive. Both PD wins are
-CI-clear both vuls. So: `their.two_diamonds_multi` stays **undeclared by
-default** — `bba-gen --their-2d-multi` arms it, `their_2d_multi` honours an
-explicit `Multi-Landy` row — and shipping is the one-line flip of that
-derivation's bottom arm to the 2/1 census default (plus `vs_bba_agreements`,
-the alert-sites anchor, and a `card.rs` note), the user's call. sd-lead
-could not arbitrate: `ab-dump-sd` has no owner split and the raw sd is
-leak-inflated like everything else here.
+Owned boards, v4 pooled three seeds (691.2k bd/vul), by responder's first
+call in the Multi arm (`/bd` = the call's contribution to the headline):
 
-What the five rounds established, beyond the numbers: **the floor cannot hold
-any seat of this structure** — it sold out with 10+, raised a weak sign-off to
-game, pulled both sides' penalty doubles, and cued their relay — because it
-reads their `2♦` as diamonds and their `2M` as natural. Every one of those
-seats is now a book node (the "copy nodes" the design round argued against
-and the measurement demanded), and the read-side follow-up (their `2♦` as
-`6+♥ ∪ 6+♠`) is what would let the floor own them again.
+| call | vul | n | plain /fired | plain /bd | PD /fired | PD /bd |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| **X** | NV | 615 | −1.36 | **−0.00121 ±0.00044** | +0.60 | +0.00054 ±0.00049 |
+| `2NT` relay | NV | 304 | +1.13 | +0.00050 ±0.00021 | +0.53 | +0.00023 |
+| `3NT` | NV | 20 | +5.70 | +0.00016 | +2.40 | +0.00007 |
+| `3♠`→♣ | NV | 22 | 0 | 0 | −0.18 | 0 |
+| **X** | vul | 396 | −0.18 | −0.00011 ±0.00045 | +1.63 | **+0.00094 ±0.00049** |
+| `2NT` relay | vul | 238 | +0.45 | +0.00015 | −0.37 | −0.00013 |
+| `3NT` | vul | 16 | +6.00 | +0.00014 | −0.69 | −0.00002 |
+| `3♠`→♣ | vul | 13 | +3.23 | +0.00006 | +2.46 | +0.00005 |
+
+The double itself is fine — where it ends in a penalty pass (`2♥x`/`2♠x`) it
+is +4.7 plain a board. The loss is **responder's rebid after their
+pass-or-correct**, v4's `3NT (stopper) / X (four trumps) / pass`:
+
+| seat | responder hand | n (NV) | plain | PD |
+| --- | --- | ---: | ---: | ---: |
+| `X (2♥) - (-) ?` passes | 8–9, 4–5 spades, no ♥ stopper | 109 | **−2.9** | −0.4 |
+| same | 10–12, 2–3 spades, no ♥ stopper | 63 | **−3.2** | +0.8 |
+| same | 8–9, ♥ stopper | 53 | +0.8 | +2.0 |
+| `X (2♥) - (2♠) ?` / `X (2♥) X (2♠) ?` passes | 10–12, 2–3 hearts, no ♠ stopper | 68 | **−3.8** | 0.0 |
+| same | 8–9, 2–3 hearts, no ♠ stopper | 33 | **−3.0** | **−1.7** |
+| `X (2♠) - (-) ?` passes | 8–9 | 28 | −0.4 | +1.3 |
+
+Two holes: no natural spade bid once hearts are resolved (opener's pass over
+`2♥` already denied four hearts), and 10–12 without a stopper in the resolved
+major sells out at the two-level holding 25–27 combined. Vulnerable the same
+seats are plain-smaller and PD-positive (BBA's vulnerable `2♥` is worth
+defending) except the spades-resolved 8–9 no-stopper hand, negative on both.
+
+### v6 — BBA's own second-turn structure mimicked whole (**measured 2026-08-15 ×3 seeds: plain win / PD LOSS — the artifact row** — `2d-multi-v6`, `-v6s2`, `-v6s3`)
+
+The user's call: mimic BBA's double *and what it bids after it*, with a pass
+where BBA cues `3♦`. Probed at the seats BBA's advancer actually gives us
+(`probe-bba-constraints --mode opener-d-x2h|opener-d-x2s|counter-d-x2h|
+counter-d-x2h2s|counter-d-x2s`, plus the new `--mode custom --seat/--calls/
+--filter-call/--filter-prefix` for one-off nodes; findings distilled in
+[bba-multi-2d.md §3a](ai-bidder/bba-multi-2d.md)):
+
+- **Their X is takeout/Stayman-shaped, yes** — `hcp 5–17` (median 9), and at
+  the unreachable `X -` node opener shows a four-card major, else cues `3♦`,
+  never passes. But over the pass-or-correct **BBA's opener passes 92%**
+  (`2NT` with a 17-count 6%, `2♠` with five 2%; it never doubles `2M`) and
+  **the doubler describes at its second turn**:
+
+  | after `X (2♥) - (-)` | share | BBA's hand |
+  | --- | ---: | --- |
+  | `3NT` | 29.5% | `hcp 9–15`, **no stopper gate** (3–4 hearts, 2–4 spades) |
+  | Pass | 26.8% | `hcp 5–9` |
+  | `X` | 12.6% | **exactly four spades, 1–2 hearts**, `hcp 6–17` — labelled "reopening double", i.e. takeout showing the other major |
+  | `2NT` | 8.0% | `hcp 8–9`, natural invite |
+  | `4NT` | 7.6% | `hcp 16–21`, quantitative |
+  | `2♠` | 5.9% | five spades, `hcp 6–8` |
+  | `3♠` | 5.2% | four spades, 2–3 hearts, `hcp 9–13` |
+  | `3♣`/`3♦` | 1.5% each | 5+, `hcp 7–13` (median 8) |
+
+  After `X (2♠) - (-)` the mirror (X = 4–5 hearts, 1–2 spades; no `3♥`/`2♥`
+  analogue above 1%). After `X (2♥) - (2♠)` — the weak advancer's
+  pass-or-correct corrected to spades — the double is **penalty** (spades
+  3–5, median 4, `hcp 5–16`, 33%), `3NT` 9–15, `2NT` 8–10, the rest as above.
+  BBA's opener over the takeout double is opaque (`2NT` 34% even holding four
+  of the other major, `3m` with four, a penalty pass with 4+ of theirs, never
+  the 4-4 fit).
+
+The v6 table (`multi_responder_rebid(M, ran)`, per resolved major, `ran` =
+the corrected-to-spades shape) mimics responder rung for rung — `4NT` 16+,
+`2♠` five weak spades (hearts resolved), `X` = four of the other major and
+≤2 of theirs (`comp:multi-takeout`; in the `ran` shape four spades and 7+,
+`comp:multi-penalty`), `3♠` = four spades with heart length 9–13, **`3NT` =
+`hcp 9–15` blind**, `3m` = 5+ and 7–8, `2NT` = 8–9, pass. First-turn `X` drops
+to BBA's band, `hcp(6..)`, weighted *below* the natural `2M` and the relay so
+weak 5+ suits still escape. Opener: over `X -` a four-card major (hearts
+first) else **pass** (BBA's `3♦` cue replaced, `multi_pass_answer`); over
+`X (2M)` the v4 four-trump double stays (its sat path measured +2.5/+1.4 NV,
++4.1/+1.9 vul, the one place v4 beat BBA's pass); over the takeout double
+sit with four of theirs, bid the 4-4 fit, else a four-card minor, else `2NT`
+(`multi_takeout_answer`); `3♠` → `4♠` with four else `3NT`; `2NT` → the Landy
+invite answer; `4NT` → `6NT` with 17; `2♠`/`3m` → pass; the `ran` double
+sat. Everything past those is the floor's. Unit tests re-pinned
+(`multi_double_family_continuations_are_book_nodes` walks the whole family).
+
+Run: v4's base arms are re-used by symlink (the default system is
+byte-identical, smoke `18aba5ce…` re-verified after the edit — the same code
+on the same seeds, not a stale control), only the Multi arm regenerates per
+seed, and each seed is priced both against base and **paired against v4's
+Multi arm** (`probe-divergence multi-v6 multi-v4`).
+
+
+**v6 measured** (three seeds, owned boards, 691.2k bd/vul): **plain win /
+PD loss** — the DD-declarer-artifact row, both vuls:
+
+| v6 vs | vul | n | plain /bd | PD /bd |
+| --- | --- | ---: | ---: | ---: |
+| base | NV | 1300 | **+0.00224 ±0.00054** | −0.00062 ±0.00069 |
+| base | vul | 963 | **+0.00110 ±0.00059** | **−0.00163 ±0.00075** |
+| v4 (paired) | NV | 1098 | **+0.00287 ±0.00051** | **−0.00139 ±0.00064** |
+| v4 (paired) | vul | 763 | +0.00097 ±0.00054 | **−0.00248 ±0.00069** |
+
+Per rung, v6 vs v4 (plain / PD per fired, NV then vul):
+
+| rung | n | NV | vul | verdict |
+| --- | ---: | --- | --- | --- |
+| takeout `X` after `X (2♥) - (-)` | 116 / 82 | **+2.44 / +1.58** | **+2.22 / +0.62** | the real gain — both scorers, both vuls |
+| takeout `X` after `X (2♠) - (-)` | 41 / 42 | +1.83 / +0.29 | +0.33 / −1.12 | wash |
+| blind `3NT` after `X (2♥) - (-)` | 166 / 99 | +1.83 / **−2.45** | +0.16 / **−4.64** | artifact |
+| blind `3NT` after `X (2♥) X (2♠)` | 100 / 67 | +2.20 / **−2.46** | +0.73 / **−4.15** | artifact |
+| blind `3NT` after `X (2♥) - (2♠)` | 116 / 73 | +3.95 / +0.09 | +3.08 / −1.79 | artifact-leaning |
+| `2NT` invite (all seats) | 128 / 84 | +0.3 / **−3.2** | −1.9 / **−6.3** | v5's refutation, again |
+| `3♠` try | 23 / 17 | +2.00 / −2.30 | +1.53 / −3.59 | artifact |
+| `3♣` / `3♦` natural | 38 / 26 | +2.5 / +0.7 | +1.7 / −0.9 | wash, tiny |
+| first-turn re-order (`2NT` relay / `2M` before `X`) | 212 / 161 | +1.6 / −0.2 | +0.8 / −1.0 | wash |
+
+So BBA's *double* is right and BBA's *game bids* are what double-dummy
+likes and perfect defense refuses — the third time this package has measured
+that (v2/v3 blind 3NT, v5 invite). **v7** keeps BBA's structure minus those
+rungs: `X` = takeout of the resolved major (four of the other, ≤2 of theirs;
+penalty spade length in the `ran` shape), `2♠` five weak spades, `4NT` 16+,
+`3NT` back to v4's `points(10..) & stopper_in(M)`, pass the rest; first-turn
+`X` stays BBA's `hcp(6..)`; opener's takeout answer, quant answer and the
+sits stay, the invite/try/3m answers go with their calls.
+
+### v7 — BBA's structure minus the artifacts (**measured 2026-08-15 ×3 seeds: SHIPPED** — `2d-multi-v7`, `-v7s2`, `-v7s3`)
+
+Same run shape (v4 base arms by symlink, Multi arm regenerated, priced vs
+base and paired vs v4), owned boards, 691.2k bd/vul:
+
+| v7 vs | vul | n | plain /bd | PD /bd | row |
+| --- | --- | ---: | ---: | ---: | --- |
+| base | NV | 1162 | +0.00019 ±0.00053 | **+0.00100 ±0.00067** | `plain wash \| PD win` — **ship** |
+| base | vul | 835 | **+0.00061 ±0.00056** | +0.00061 ±0.00069 | plain win (CI-clear by 0.00005) \| PD wash leaning + |
+| base | both pooled | 1997 | **+0.00040 ±0.00039** | **+0.00081 ±0.00048** | win \| win |
+| v4 (paired) | NV | 501 | **+0.00075 ±0.00031** | +0.00020 ±0.00038 | better |
+| v4 (paired) | vul | 377 | **+0.00041 ±0.00034** | −0.00022 ±0.00043 | plain better, PD wash |
+
+The vul row is `win | wash` — the "doubling artifact, suspect" row as written,
+but its domain addendum applies: v7's mechanism is *doubling them more* (the
+takeout X, +2.4/+1.6 per fired NV and +2.2/+0.6 vul against v4, and the
+penalty passes it produces), the case where PD is blind to the benefit and
+plain DD is the arbiter — and PD is not negative anyway. No cell of the
+eight is negative; the NV headline is the ship row by the letter; the
+both-vul pool is `win | win`. **Shipped.**
+
+What is left on the table (v7 vs base, NV, plain / PD per fired): the
+sell-out after they *run* to `2♠` — `X (2♥) - (2♠) -` **−4.03 / −0.57**
+(n=65) and `X (2♥) X (2♠) -` −3.61 / +0.56 (n=59) — is the 10–12 hand with
+no spade stopper and fewer than four spades, still passing; BBA's blind
+`3NT` there was the one blind blast PD tolerated (+0.09 NV, −1.79 vul, plain
++3.9/+3.1). A stopper-ask cue (`3♠`) is the honest candidate; not built.
+The `X (2♥) - (-) -` sell-out itself is now plain −2.05 / PD **+2.02** NV
+and +0.32 / **+5.01** vul — perfect defense wants us defending BBA's `2♥`,
+and the takeout X takes the hands that should not.
+
+Ship mechanics: `their_2d_multi`'s bottom arm is the 2/1 census default
+(`--their-2d-multi false` is the pre-ship arm; an explicit Landy-family
+declaration without `Multi-Landy` reads as a declared no-Multi),
+`vs_bba_agreements` sets `two_diamonds_multi` (so `bba-decompose` replays it
+by default — `--multi-counter false` for dumps generated before), the
+`[their-landy]` alert-sites anchor arms it (three slugs: `comp:multi-values`
+4, `comp:multi-penalty` 16, `comp:multi-takeout` 8; the fenced relay tail
+moves `comp:lebensohl-completion` 24 → 44 and `completion` 696 → 680), and
+`card.rs` records why no EPBot schema row exists. Engine default stays
+undeclared: smoke `18aba5ce…` unchanged.
+
+### Verdict — v7 shipped; v4's numbers, and the read-side follow-up, for the record
+
+v4 (three seeds, owned): **vul `plain wash | PD win`**; **NV `PD win | plain
+−0.00055 ±0.00050`** — opt-in by the letter of the gate. Its per-call
+decomposition (above) put the whole NV plain deficit on the doubler's second
+turn; v6 mimicked BBA's second turn whole and found BBA's takeout double
+real and BBA's game bids the DD-declarer artifact; v7 kept the one and
+dropped the others and clears the gate. sd-lead could not arbitrate any
+round: `ab-dump-sd` has no owner split and the raw sd is leak-inflated like
+everything else here.
+
+What the seven rounds established, beyond the numbers: **the floor cannot
+hold any seat of this structure** — it sold out with 10+, raised a weak
+sign-off to game, pulled both sides' penalty doubles, and cued their relay —
+because it reads their `2♦` as diamonds and their `2M` as natural. Every one
+of those seats is now a book node (the "copy nodes" the design round argued
+against and the measurement demanded), and the read-side follow-up (their
+`2♦` as `6+♥ ∪ 6+♠`) is what would let the floor own them again. Not built.
 
 ## N4b — the `(2♦)` diamond penalty double (**built 2026-08-15, sweeping**)
 
@@ -1142,6 +1306,6 @@ prices to roughly nothing — it is neither the win nor a hidden loss.
 | N1d/e/f cue repairs | `defense_2c_landy_cue_floor` + `_fit_answers` + `_competition` (each implies `_transfer`; all four now default **true**) | **SHIPPED DEFAULT-ON 2026-08-14** — the package's first `win \| win`. Stack vs shipped base (`f↔on`), pooled seeds 1786694464 + 1786695954, 460.8k bd/vul: **six of eight DD cells CI-clear positive, 8/8 sd cells positive, no negative cell in 24 readings** (table in §Ship evidence). Engages only under the `their.two_clubs_landy` declaration — default system byte-identical, smoke `8ea2f567…` unchanged; `bba-gen` stack flags are `Option<bool>` (pre-ship arm = `--defense-2c-landy-<knob> false`), `bba-decompose --landy-stack false` replays between-ships dumps. Increment attribution: **N1d is the engine** (`d↔xfer` plain wash + PD **+0.0009 ±0.0008** NV / **+0.0015 ±0.0009** vul, cue→X = 55-60% of divergence at +2.0…+5.1 PD/fired — the poached-double rows reversed); N1e fired 3+1 boards post-floor (ships on naturalness: raises promise 3+); N1f the expected CI-wide wash (ships as the iron rule's convention-completion). Isolation gate: e/f pass at 0 foreign; d and f↔on fail at 18-43% (the cue-constraint mirror leak), foreign boards *depress* the headline — our-opened figures are stronger. Residue: their **second** call still floors us (phantom `4♠` one level deeper, −17 PD, 1 board); the `3♣`→`2♥` GF-six-carder row unread against the shipped stack. | `f↔on` pooled: NV plain **+0.00068 ±0.00062** / PD +0.00075 ±0.00077, vul plain **+0.00085 ±0.00072** / PD **+0.00100 ±0.00087**; ours-only NV plain **+0.00091 ±0.00052** / PD **+0.00077 ±0.00064**, vul plain **+0.00075 ±0.00058** / PD +0.00060 ±0.00070. |
 | N1g read-side wiring | `reading.their_landy_reading` (default **true**) | **SHIPPED DEFAULT-ON 2026-08-14** — the disclosure finally read: their `2♣` = ♥4+/♠4+ (no strength claim), advances + direct-3M suppressed, via a seat-gated hand reader that cannot fire on our own `2♣` and does not extrapolate through the systems-on strip (v1 leaked there — `(1♣) 1NT (2♣)` read responder's 2♣ as Landy; fixed + regression test). `TheirDisclosures` re-homed to `DecisionProfile::their`, byte-identical. Pooled 3 seeds (1786704432/1786705413/1786705763, 230.4k bd/vul, 0.07-0.11% fired): plain wash, **PD win both vuls**, sd agreeing in sign — the `plain-wash \| PD-win` ship row. **Isolation gate: 0 foreign boards, both vuls — the campaign's first.** Mechanism: conservative shift off true envelopes (fewer thin NV games; phantom `4♥` corrected to the real fit). Fixed-build seed 1 showed a CI-clear NV-plain loss that seeds 2-3 refuted. The `3♣`→`2♥` re-probe rode the same dumps and closed (wash-to-win). | pooled: NV plain −0.00051 ±0.00072 / PD **+0.00104 ±0.00097**, vul plain +0.00001 ±0.00078 / PD **+0.00112 ±0.00104**; sd-plain −0.00053/−0.00024, sd-PD +0.00065/+0.00076. |
 | N4b `(2♦)` diamond penalty double | `competition.two_diamond_double` (`Option<(min_len, min_suit_hcp, hcp_floor)>`, default `None`) | **measured 2026-08-15 — sweep NULL, stays opt-in, default byte-identical (`18aba5ce…`).** Eight arms (length 4/5/6, floor 8/9/11, quality 0/4/6) around `5:0:9`, two vuls, 230.4k bd/arm/vul, SEED_BASE 1786733434, `scripts/ab-2d-double.sh`. Raw: **all 28 cells CI-clear positive** (plain +0.0016…+0.0048, PD +0.0037…+0.0086) — and **all of it a leak**: `--gate-opener ours` fails at 652/768 (84.9%) foreign, the `their_profile` mirror fallback reading *their* double of our `2♦` overcall through *our* agreement. Owned subset: **no CI-clear cell in 28**, plain +0.0001…+0.0004 (len4 −0.0006), PD −0.0002…−0.0006, n=62–157/cell. Two build findings kept: the **alert is what makes the gate a reading** (unalerted it read `points 8..`, every suit ⊤, identical armed and unarmed — `project_authored` decodes alerted calls only), and over `1NT (2♦) X` ~~they sit 43%~~ — **retracted 2026-08-15**: the count mixed the foreign lane; on our-opened boards the advancer passed 0 of 141 (§N4). Direction if resumed: tighter, start `6:6:11`, buy power (3 seeds × 460.8k → owned n ~600/cell). | owned, NV: len5 plain +0.00024 ±0.00049 / PD −0.00020 ±0.00061; hcp11 plain +0.00043 ±0.00042 / PD −0.00032 ±0.00052; len4 plain **−0.00061 ±0.00063** / PD −0.00038 ±0.00074. Raw (leaked) len5 NV plain +0.0025 ±0.0014 / PD +0.0054 ±0.0017. |
-| N4 their `(2♦)` as a Multi | `their.two_diamonds_multi` (disclosure; `bba-gen --their-2d-multi`, **undeclared by default** — shipping = the one-line census default in `their_2d_multi`) | **built + measured 2026-08-15, five rounds** (`scripts/ab-2d-multi.sh`, 230.4k bd/arm/vul, `ab-results/2d-multi{,-v2,-v3,-v4,-v4s2,-v4s3,-v5,-v5s2,-v5s3}`). Every raw headline was 60-70% foreign (the mirror-read leak on their double of *our* `2♦`); verdicts are owner-split. v1 (waiting X, both-stopper 3NT, floored continuations) **LOSS** both scorers — the floor sold out with 10+ and raised the relay sign-off to 3NT; v2/v3 (blind 3NT, sign-off passes, doubled tail, double-family + relay fences) plain **win** both vuls / PD wash — the blind blast PD −3.7/−4.3; **v4** (both-stopper blast + authored second call `multi_responder_rebid`) pooled 3 seeds: **vul plain wash \| PD win, NV PD win \| plain loss by 0.00005** — the 8-9 sell-out (plain −2.5/bd, PD +0.8); v5 (natural 2NT invite there) **REFUTED** — PD −0.9/−4.8 per invite, four-way wash; reverted to v4. **Opt-in by the letter of the gate.** | v4 pooled owned: NV plain **−0.00055 ±0.00050** / PD **+0.00083 ±0.00059**; vul plain +0.00025 ±0.00052 / PD **+0.00084 ±0.00061**. Per seed NV plain −0.00005 / −0.00104 / −0.00055; vul PD +0.00112 / +0.00021 / +0.00119. |
+| N4 their `(2♦)` as a Multi | `their.two_diamonds_multi` (disclosure; `bba-gen` derives it from the 2/1 census like `their_2c_landy`, `--their-2d-multi false` = pre-ship arm; engine default undeclared) | **SHIPPED 2026-08-15 — v7, seven rounds** (`scripts/ab-2d-multi.sh`, 230.4k bd/arm/vul, `ab-results/2d-multi{,-v2,-v3,-v4,-v4s2,-v4s3,-v5,-v5s2,-v5s3,-v6,-v6s2,-v6s3,-v7,-v7s2,-v7s3}`). Every raw headline was 60-70% foreign (the mirror-read leak on their double of *our* `2♦`); verdicts are owner-split. v1 (waiting X, both-stopper 3NT, floored continuations) **LOSS** both scorers — the floor sold out with 10+ and raised the relay sign-off to 3NT; v2/v3 (blind 3NT, sign-off passes, doubled tail, double-family + relay fences) plain **win** both vuls / PD wash — the blind blast PD −3.7/−4.3; **v4** (both-stopper blast + authored second call `multi_responder_rebid`) pooled 3 seeds: **vul plain wash \| PD win, NV PD win \| plain loss by 0.00005** — the 8-9 sell-out (plain −2.5/bd, PD +0.8); v5 (natural 2NT invite there) **REFUTED** — PD −0.9/−4.8 per invite, four-way wash; reverted to v4 (opt-in by the letter of the gate). **v4 decomposed per call: X = PD's best call and the whole plain loss, all of it the doubler's second turn.** v6 (BBA's own second turn mimicked whole — takeout X, blind 3NT 9–15, 2NT invite 8–9, 3♠ try, 3m, 4NT; first-turn X `hcp 6+`) plain win / **PD loss** both vuls — the takeout X real (+2.4/+1.6 per fired), the game bids the artifact (PD −2.5 to −6.9); **v7** = v6 minus the game bids (3NT back to stopper-gated) **SHIPPED**: NV `plain wash \| PD win`, vul plain win \| PD wash-leaning-+, both-vul pool win\|win, paired vs v4 better on 3 of 4 cells. | v7 vs base owned: NV plain +0.00019 ±0.00053 / PD **+0.00100 ±0.00067**; vul plain **+0.00061 ±0.00056** / PD +0.00061 ±0.00069; pooled vuls plain **+0.00040 ±0.00039** / PD **+0.00081 ±0.00048**. v7 vs v4 paired: NV **+0.00075 ±0.00031** / +0.00020 ±0.00038, vul **+0.00041 ±0.00034** / −0.00022 ±0.00043. v6 vs base: NV +0.00224 ±0.00054 / −0.00062 ±0.00069, vul +0.00110 ±0.00059 / **−0.00163 ±0.00075**. v4: NV **−0.00055 ±0.00050** / **+0.00083 ±0.00059**, vul +0.00025 ±0.00052 / **+0.00084 ±0.00061**. |
 | N1h / N1i minor-rung re-pricing | `defense_2c_landy_low_minors`, `defense_2c_landy_hcp_rungs` | **both REFUTED 2026-08-15, both opt-in — the lane is closed.** Three shared seeds, 230.4k bd/vul, shared `low-off` baseline (verified board-identical before reuse); `ab-results/landy-low{,-v2,-v3}`, `scripts/ab-landy-rungs.sh`. N1h (cue `points(9..)`, `3m` `points(7..=8)`) = `plain wash \| PD loss`, vul PD **−0.00081 ±0.00074**. N1i (cue `hcp(9..)`, `3m` `hcp(7..=8)`, `2♦`/`2NT` `hcp(..=6)`) = no CI-clear cell, all eight leaning negative. **`cue ← X` negative in both** (−1.80 ×96, −2.96/−4.04 ×46) against N1d's original +2.0…+5.1 the other way — the cue floor is settled, do not probe it again. Leads recorded but not pursued: `Pass ← 2♦` +2.40 PD ×52 (per-seed +4.50/+1.33/−1.09), `3♦ ← 2♦` +3.96 plain/+3.11 PD ×27, `3♣ ← 2NT` −2.19 PD (the transfer's right-siding wins), `cue ← 3♣` −2.88 (shifting a band whole costs more than lowering its floor). | N1h pooled: NV plain +0.00036 ±0.00051 / PD −0.00044 ±0.00066, vul plain +0.00002 ±0.00061 / PD −0.00081 ±0.00074. N1i pooled: NV plain −0.00029 ±0.00043 / PD −0.00039 ±0.00062, vul plain −0.00014 ±0.00052 / PD −0.00036 ±0.00068; sd both arms ≈0. |
 | N1j BBA-ladder counter + weak-2♦ cap | `defense_2c_landy_bba`, `defense_2c_landy_weak_2d_cap` | **both SHIPPED DEFAULT-ON 2026-08-15** — the anchor-aligned table replacing the stack (which stays wired behind `--defense-2c-landy-bba false`).  The ladder shipped at its **pre-pinned non-inferiority gate** (rationale: structural alignment; a wash ships) and beat it — zero CI-clear negatives, all 16 DD+sd cells leaning positive; the `2M ← X` guard passed **vacuously** (no hand left the values double for the takeout family, the three-experiments finding untouched); mirror leak 36-38% foreign, depressing (ours-only stronger: NV +182/+215, vul +171/+202 raw IMPs).  The cap shipped at the **standard** gate: plain wash \| PD win both vuls, sd sign-agreed, isolation gate **0 foreign** (second ever), every divergence the predicted `2♦ → Pass` (+2.58/+4.54 PD per fired ×59 — the N1i lead confirmed).  Engine: `2♦ → 3♣` diamond-transfer right-siding (+5.18/+6.06 PD per fired).  Smoke `18aba5ce…` unchanged through the flip; `[their-landy]` fixture re-blessed; 3 seeds 1786753231/1786753518/1786753808, 230.4k bd/vul, `scripts/ab-landy-bba.sh`.  See §N1j. | ladder (`on↔off`) pooled: NV plain +0.00083 ±0.00085 / PD +0.00083 ±0.00110, vul plain +0.00080 ±0.00100 / PD +0.00073 ±0.00123; sd-plain +0.00080/+0.00103, sd-PD +0.00070/+0.00113. cap (`cap↔on`) pooled: NV plain −0.00003 ±0.00027 / PD **+0.00037 ±0.00033**, vul plain +0.00017 ±0.00024 / PD **+0.00050 ±0.00035**; sd-PD +0.00017/+0.00033. |

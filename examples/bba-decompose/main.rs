@@ -75,10 +75,10 @@ struct Args {
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
     landy_counter: Option<bool>,
 
-    /// Replay with their `2♦` read as a Multi (the N4 table, `bba-gen
-    /// --their-2d-multi`).  Not derived: the table is unmeasured, so a BBA
-    /// dump replays natural unless the arm that generated it was told
-    /// otherwise — pass `true` to replay an N4 candidate arm.
+    /// Replay with their `2♦` read as a Multi (the N4 counter, `bba-gen
+    /// --their-2d-multi`).  Unset tracks the engine default (**on since the
+    /// 2026-08-15 v7 ship**, via `vs_bba_agreements`); pass `false` to
+    /// replay BBA dumps generated before it.
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
     multi_counter: Option<bool>,
 

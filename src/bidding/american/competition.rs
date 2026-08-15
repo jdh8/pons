@@ -114,8 +114,8 @@ const SUPPORT_DOUBLE: Alert = Alert("comp:support-double");
 /// competes over their runout blind to the diamonds it was told about.
 const TWO_DIAMOND_PENALTY: Alert = Alert("comp:two-diamond-penalty");
 /// Multi values double — `X` of their `(2♦)` Multi (one unknown six-card
-/// major, `their.two_diamonds_multi`): invitational-plus values (`hcp 8+`),
-/// no diamond claim, willing to defend whichever major they land in.
+/// major, `their.two_diamonds_multi`): values (`hcp 6+`, BBA's own band),
+/// no diamond claim, describing once they name the major.
 /// Alerted so it *reads*: an unalerted double is not decoded at all, and the
 /// cooperative diamond double it replaces would otherwise be what opener and
 /// the floor believe was bid.
@@ -126,6 +126,11 @@ const MULTI_VALUES: Alert = Alert("comp:multi-values");
 /// the double has told partner where our trumps are.  Alerted for the same
 /// reason as [`MULTI_VALUES`] — the length is the whole message.
 const MULTI_PENALTY: Alert = Alert("comp:multi-penalty");
+/// Multi takeout double — responder's second `X` once their pass-or-correct
+/// has resolved the major (`1NT (2♦) X (2M) - (-) X`): four of the *other*
+/// major and 1–2 of theirs, BBA's "reopening double".  Alerted so opener
+/// reads the other major, not a penalty holding.
+const MULTI_TAKEOUT: Alert = Alert("comp:multi-takeout");
 /// Landy values double — `X` of their `(2♣)` Landy, values (8+) willing to
 /// defend whichever major they run to.  Not the stolen Stayman it replaces:
 /// against a both-majors overcall there is no major left to ask for.

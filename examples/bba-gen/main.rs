@@ -1696,17 +1696,18 @@ fn their_2c_landy(args: &Args) -> anyhow::Result<bool> {
 /// Derive whether their `2♦` overcall of our 1NT is a Multi — the disclosure
 /// that engages the N4 Multi table (`Agreements::their`)
 ///
-/// Same channel and precedence as [`their_2c_landy`], one difference at the
-/// bottom: **no census default.**  BBA's 2/1 reference does bid the Multi
-/// (`docs/ai-bidder/bba-multi-2d.md`), but the table it engages is unmeasured,
-/// so with no declaration the reading stays undeclared (natural diamonds) and
-/// the candidate arm is spelled `--their-2d-multi`.  When N4 ships, this
-/// arm flips to the census default in lockstep with `their_2c_landy`.
+/// Same channel and precedence as [`their_2c_landy`], and since N4 shipped
+/// (v7, 2026-08-15, docs/one-notrump-competitive.md §N4) the same census
+/// default at the bottom: BBA's 2/1 reference bids the Multi
+/// (`docs/ai-bidder/bba-multi-2d.md`) whatever its card says.  The pre-ship
+/// arm is spelled `--their-2d-multi false`.
 ///
 /// 1. `--their-2d-multi [true|false]` — explicit operator override.
 /// 2. An explicit `Multi-Landy` row in `--their-card`/`--their-conv`, at
-///    face value (the only row of the family whose `2♦` is a Multi).
-/// 3. Otherwise undeclared.
+///    face value (the only row of the family whose `2♦` is a Multi); a
+///    declared family without it (`Landy`/`Cappelletti` rows only) is a
+///    declared no-Multi, read as such.
+/// 3. No declaration at all: the 2/1 reference's measured behavior.
 fn their_2d_multi(args: &Args) -> anyhow::Result<bool> {
     if let Some(forced) = args.their_2d_multi {
         return Ok(forced);
@@ -1716,11 +1717,19 @@ fn their_2d_multi(args: &Args) -> anyhow::Result<bool> {
         None => Vec::new(),
     };
     declared.extend(args.their_conv.iter().cloned());
-    Ok(declared
-        .iter()
-        .rev()
-        .find(|(n, _)| n.as_bytes() == b"Multi-Landy")
-        .is_some_and(|&(_, v)| v != 0))
+    let row = |name: &[u8]| {
+        declared
+            .iter()
+            .rev()
+            .find(|(n, _)| n.as_bytes() == name)
+            .map(|&(_, v)| v != 0)
+    };
+    let rows = [row(b"Multi-Landy"), row(b"Landy"), row(b"Cappelletti")];
+    Ok(if rows.iter().all(Option::is_none) {
+        args.system == SYSTEM_2_OVER_1
+    } else {
+        rows[0].unwrap_or(false)
+    })
 }
 
 fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
