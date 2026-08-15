@@ -1444,6 +1444,10 @@ fallback Some(0)` — the floor — and bids `3NT` 1.400 over Pass 0.  Two cause
 Nothing here is BBA-alignment (BBA's plain Lebensohl earns nothing at table
 B); the lane's headroom is our own weak calls being *unread*.
 
+The reading defect is the whole book's, not N2's — the campaign to fix it is
+[authored-reading-handoff.md](authored-reading-handoff.md), with this lane as
+its testbed (N2a stays a book node in its own right).
+
 ## Measurement discipline
 
 - **Counter-defense isolation gate:** on identical seeded deals, configuring

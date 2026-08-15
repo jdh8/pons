@@ -210,7 +210,10 @@ has attributed that 3.3% to specific nodes.
 
 **Opened 2026-07-31.** Scope fixed with jdh8: steps 1–3 of the program above;
 step 4 (measuring `set_natural_reading` as a default, with its knob-matched
-evaluator twin) deferred to its own campaign. Repair policy this pass: **walk
+evaluator twin) deferred to its own campaign. **That campaign is
+[authored-reading-handoff.md](authored-reading-handoff.md) (2026-08-15), which
+also takes the floor-only `Points::project` leak below — the N2 forensic
+found both binding at one node.** Repair policy this pass: **walk
 fixes only** — genuinely-conventional offenders are *filed* as alert-candidates,
 not alerted. All walk fixes ship through **one batched A/B** (non-loss ships
 default-on; a loss gets its divergent boards traced first). Sweep rows land

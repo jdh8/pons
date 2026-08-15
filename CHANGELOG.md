@@ -135,6 +135,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   every suit `0..13`).  Opener facing BBA's artificial `2NT` ask is a wash
   (81 boards); BBA's plain Lebensohl earns nothing on its constructive calls
   at table B.  Packages N2a–d queued.
+- **`docs/authored-reading-handoff.md`** — the general problem behind N2:
+  the reading of an authored call is switched by its *alert* (`ReadingScope::
+  Alerted`), strength projects floor-only (244 authored ceilings read as
+  `..37` on made bids), and the natural walk overrides what a rule says.
+  Principle (jdh8): alert is disclosure, authored nodes speak for themselves.
+  Phased program — ceilings → `ReadingScope::All` → substitute-not-intersect
+  → negative inference → `features_v6` retrain — each an A/B with N2 as the
+  local testbed and a `legacy_view` arm to hold the frozen nets
+  on-distribution.  Read-before row added to CLAUDE.md.
 
 - **N1j — the BBA-ladder Landy counter, shipped default-on with its weak-2♦
   cap.** Over `1NT (2♣)`-as-Landy, responder's table is re-shaped to the
