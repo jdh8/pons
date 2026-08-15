@@ -81,6 +81,17 @@ fn landy_counter_package_invariants() {
         arm.competition.defense_2c_landy_competition = competition;
         arm.competition.defense_2c_landy_low_minors = low_minors;
         arm.competition.defense_2c_landy_hcp_rungs = hcp_rungs;
+        // The stack arms under test, not the N1j ladder that now defaults on.
+        arm.competition.defense_2c_landy_bba = false;
+        crate::bidding::rows::assert_package_invariants(&arm, &[super::lebensohl_package()]);
+    }
+    // N1j: the BBA ladder alone, and with its weak-2♦ cap arm.  The stack
+    // knobs are inert under it, so two arms cover the whole surface.
+    for cap in [false, true] {
+        let mut arm = Agreements::default();
+        arm.decision.their.two_clubs_landy = true;
+        arm.competition.defense_2c_landy_bba = true;
+        arm.competition.defense_2c_landy_weak_2d_cap = cap;
         crate::bidding::rows::assert_package_invariants(&arm, &[super::lebensohl_package()]);
     }
 }
@@ -140,6 +151,9 @@ fn landy_arm(cues: bool, transfer: bool) -> Agreements {
     arm.competition.defense_2c_landy_cue_floor = false;
     arm.competition.defense_2c_landy_fit_answers = false;
     arm.competition.defense_2c_landy_competition = false;
+    // The 2026-08-15 flip made the N1j ladder the default; these helpers
+    // pin the historical stack arms.
+    arm.competition.defense_2c_landy_bba = false;
     arm
 }
 
@@ -175,6 +189,17 @@ pub(super) fn bid_landy_n1(
     arm.competition.defense_2c_landy_cue_floor = cue_floor;
     arm.competition.defense_2c_landy_fit_answers = fit_answers;
     arm.competition.defense_2c_landy_competition = competition;
+    arm.competition.defense_2c_landy_bba = false;
+    best_call_with(&arm, auction, hand)
+}
+
+/// As [`bid_landy`], with the N1j BBA ladder on (optionally with the weak-2♦
+/// `hcp(..=6)` cap).  The N1b–N1i stack knobs are inert under it.
+pub(super) fn bid_landy_bba(cap: bool, auction: &[Call], hand: &str) -> (Call, bool) {
+    let mut arm = Agreements::default();
+    arm.decision.their.two_clubs_landy = true;
+    arm.competition.defense_2c_landy_bba = true;
+    arm.competition.defense_2c_landy_weak_2d_cap = cap;
     best_call_with(&arm, auction, hand)
 }
 

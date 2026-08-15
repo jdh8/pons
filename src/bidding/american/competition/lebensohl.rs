@@ -168,6 +168,16 @@ fn landy_competition(agreements: &Agreements) -> bool {
     agreements.competition.defense_2c_landy_competition
 }
 
+/// Whether the Landy counter is the N1j BBA ladder
+///
+/// When on, responder's whole table and its continuations are
+/// [`landy_bba_responder`]'s ([`landy_bba_entries`] registers instead of the
+/// stack), and every N1b–N1i structure knob above is **inert** — this table
+/// replaces the one they modify.
+fn landy_bba(agreements: &Agreements) -> bool {
+    agreements.competition.defense_2c_landy_bba
+}
+
 /// The single unbid major when `over` is itself a major (the other major)
 ///
 /// `None` when `over` is a minor (then both majors are unbid) — the stopper-split
@@ -919,6 +929,397 @@ fn landy_ask_answer(minor: Suit, asked: Suit, ask: Bid) -> Rules {
     rules.rule(retreat, 20, hcp(0..))
 }
 
+// --- N1j: the BBA-ladder counter (`defense_2c_landy_bba`) -------------------
+
+/// Responder's N1j BBA-ladder table over `1NT (2♣)` Landy
+///
+/// The anchor's own counter structure
+/// (`docs/ai-bidder/bba-1nt-counter-defense.md`: a notrump ladder, wide
+/// forced minor transfers, no gadget cues) with two deliberate deviations,
+/// both evidence-backed — the values `X` is kept byte-identical (BBA never
+/// doubles Landy; three experiments defended the row), and a game-forcing
+/// both-minors takeout/splinter family occupies the cues' former slots.  The
+/// club transfer sits on `2NT` rather than BBA's `2♠` because the takeout
+/// pair spends both major cues; the reading ceiling that creates is priced in
+/// the campaign doc — BBA decodes this lane through *our disclosed
+/// uncontested scheme* (`Transfers if RHO bids clubs`), so exact readability
+/// was never on the table.
+///
+/// | Call | Meaning | Weight |
+/// | --- | --- | --- |
+/// | `3NT` | game values, both majors stopped, no six-card minor | 180 |
+/// | `2♥`/`2♠` | **GF takeout**, 4+♦ 4+♣, exactly two in the bid major (2-2 bids `2♥`) | 178/177 |
+/// | `3♥`/`3♠` | **GF splinter**, 4+♦ 4+♣, 0-1 in the bid major | 176/175 |
+/// | `2NT` / `3♣` | transfers to ♣/♦, 6+, **any strength** | 174/173 |
+/// | `3NT` | game values, ungated | 168 |
+/// | `X` | values, `hcp(8..)` — the stack's row verbatim | 145 |
+/// | `2♦` | weak natural 5+ — verbatim (`hcp(..=6)` under the cap arm) | 140 |
+/// | Pass | finite catch-all | 0 |
+///
+/// The two-suited family outranks the transfers so a 6-4 minor hand shows the
+/// whole picture; the transfers outrank the values double so a six-carder
+/// never defends; a hand with a doubleton in one major and 0-1 in the other
+/// splinters — the shortness is the message with more play in it.  No `6NT`
+/// blast rung (BBA's 2.9%): opposite our 15-17 with a live Landy overcall, an
+/// 18+ responder is arithmetic-impossible in the lane.
+fn landy_bba_responder(agreements: &Agreements) -> Rules {
+    let both_minors = len(Suit::Clubs, 4..) & len(Suit::Diamonds, 4..);
+
+    // The gated 3NT — the stack's rung verbatim (see `landy_responder` for
+    // why it outranks everything and takes no stopper gate on clubs).
+    let mut rules = Rules::new().rule(
+        Bid::new(3, Strain::Notrump),
+        180,
+        points(10..)
+            & stopper_in(Suit::Hearts)
+            & stopper_in(Suit::Spades)
+            & len(Suit::Clubs, ..=5)
+            & len(Suit::Diamonds, ..=5),
+    );
+
+    // The GF both-minors family.  The takeout names the doubleton (so `2♠` is
+    // exactly 2=3=4=4) and the splinter names the 0-1; the takeout therefore
+    // requires 2+ in the *other* major too, or the splinter would lose its
+    // singleton hands to the cheaper call.
+    rules = rules
+        .rule(
+            Bid::new(2, Strain::Hearts),
+            178,
+            both_minors.clone() & len(Suit::Hearts, 2..=2) & len(Suit::Spades, 2..) & points(10..),
+        )
+        .alert(LANDY_TKO)
+        .rule(
+            Bid::new(2, Strain::Spades),
+            177,
+            both_minors.clone() & len(Suit::Spades, 2..=2) & len(Suit::Hearts, 3..) & points(10..),
+        )
+        .alert(LANDY_TKO)
+        .rule(
+            Bid::new(3, Strain::Hearts),
+            176,
+            both_minors.clone() & len(Suit::Hearts, ..=1) & points(10..),
+        )
+        .alert(LANDY_SPL)
+        .rule(
+            Bid::new(3, Strain::Spades),
+            175,
+            both_minors.clone() & len(Suit::Spades, ..=1) & points(10..),
+        )
+        .alert(LANDY_SPL);
+
+    // BBA's wide minor transfers, completed 100%: the whole one-suiter lane,
+    // weak sign-off through game force.  The N1c band's ceiling is removed
+    // and the INV `3♣`/`3♦` rungs are deleted — their hands ride the
+    // completion and rebid instead, which deliberately spends the invitation
+    // on right-siding (the measured N1h/N1i trade: `3♣ ← 2NT` −2.19 PD).
+    rules = rules
+        .rule(
+            Bid::new(2, Strain::Notrump),
+            174,
+            len(Suit::Clubs, 6..) & points(2..),
+        )
+        .alert(LANDY_TRANSFER)
+        .rule(
+            Bid::new(3, Strain::Clubs),
+            173,
+            len(Suit::Diamonds, 6..) & points(2..),
+        )
+        .alert(LANDY_TRANSFER);
+
+    // The ungated 3NT, the values X and the weak 2♦: the stack's rows,
+    // byte-identical — except the 2♦ band under the cap arm, the N1i
+    // `2♦ → Pass` lead isolated (the dropped 7-9 point hands pass).
+    rules = rules.rule(Bid::new(3, Strain::Notrump), 168, points(10..));
+    rules = rules.rule(Call::Double, 145, hcp(8..)).alert(LANDY_VALUES);
+    let escape = Bid::new(2, Strain::Diamonds);
+    let floors = hcp(natural_floor_hcp(agreements)..) & points(natural_floor_pts(agreements)..);
+    rules = if agreements.competition.defense_2c_landy_weak_2d_cap {
+        rules.rule(escape, 140, len(Suit::Diamonds, 5..) & hcp(..=6) & floors)
+    } else {
+        rules.rule(
+            escape,
+            140,
+            len(Suit::Diamonds, 5..) & points(..=9) & floors,
+        )
+    };
+    rules.rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Opener completes the N1j `3♣` diamond transfer with the forced `3♦`
+///
+/// The diamond twin of [`complete_lebensohl_relay`]: constrained `hcp(0..)`
+/// it projects nothing, and under `reading.completion_alerts` the alert
+/// suppresses the natural walk's diamond reading of a forced puppet.
+fn landy_bba_diamond_completion(agreements: &Agreements) -> Rules {
+    Rules::new()
+        .rule(Bid::new(3, Strain::Diamonds), 100, hcp(0..))
+        .alert_if(
+            agreements.decision.reading.completion_alerts,
+            LEBENSOHL_COMPLETION,
+        )
+}
+
+/// Responder's rebid after a completed N1j minor transfer
+/// (`1NT (2♣) 2NT - 3♣ -` / `… 3♣ - 3♦ -`)
+///
+/// Pass is the weak sign-off — and the invitational hand's stop, the wide
+/// band's deliberate trade of the invitation for right-siding.  With game
+/// values: show the one major stopper held (`3♥`/`3♠`, a cue not length —
+/// opener supplies 3NT holding the other, [`landy_recue_answer`]), bid `3NT`
+/// holding both, or start the `4m` slam try on the six-card source of tricks
+/// — opener's continuation is deliberately the floor's, the cue stack's
+/// measured 6♦ lesson.  A game force with neither stopper takes its chances
+/// in `3NT`: opener opened a balanced 15-17, and five of a minor needs more
+/// than most of these hands hold.
+fn landy_bba_transfer_rebid(minor: Suit) -> Rules {
+    let mut rules = Rules::new();
+    for (held, other, weight) in [
+        (Suit::Hearts, Suit::Spades, 150),
+        (Suit::Spades, Suit::Hearts, 149),
+    ] {
+        rules = rules
+            .rule(
+                Bid::new(3, Strain::from(held)),
+                weight,
+                points(10..) & stopper_in(held) & !stopper_in(other),
+            )
+            .alert(LANDY_CUE);
+    }
+    rules
+        .rule(
+            Bid::new(4, Strain::from(minor)),
+            130,
+            points(13..) & len(minor, 6..),
+        )
+        .rule(Bid::new(3, Strain::Notrump), 120, points(10..))
+        .rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Opener's answer to an N1j takeout or splinter (`1NT (2♣) 2M/3M -`)
+///
+/// Notrump = the bid (short) major stopped **or** no four-card minor:
+/// responder knows its own holding in the unbid major, so opener answers only
+/// the unknown, and the minor-less branch doubles as the forced catch-all —
+/// it leaves opener with seven-plus major cards, stopper-rich.  A minor pick
+/// is 4+ (cheaper first with both) and denies the short-major stopper.
+fn landy_bba_takeout_answer(short: Suit, over: Bid) -> Rules {
+    let notrump = cheapest_above(Strain::Notrump, over);
+    let no_minor = len(Suit::Clubs, ..=3) & len(Suit::Diamonds, ..=3);
+    let mut rules = Rules::new().rule(notrump, 150, stopper_in(short) | no_minor);
+    for (minor, weight) in [(Suit::Clubs, 100), (Suit::Diamonds, 99)] {
+        rules = rules.rule(
+            cheapest_above(Strain::from(minor), over),
+            weight,
+            len(minor, 4..),
+        );
+    }
+    // The two branches above are already total; the formal catch-all restates
+    // the union.
+    rules.rule(notrump, 20, hcp(0..))
+}
+
+/// Responder's placement over opener's notrump answer (`1NT (2♣) 2M - 2NT -`)
+///
+/// Opener claimed the short-major stopper (or minor-less majors), and the
+/// unbid major is the holding responder judges itself — so the one probe left
+/// is the cue of *that* major without its stopper ([`landy_bba_ask_answer`]
+/// resolves it).  Else place: `4m` with a fifth card and slam interest (the
+/// floor continues), `3NT` otherwise — a game force has nowhere lower to
+/// stop.
+fn landy_bba_takeout_rebid(other: Suit) -> Rules {
+    let mut rules = Rules::new()
+        .rule(
+            Bid::new(3, Strain::from(other)),
+            150,
+            !stopper_in(other) & points(10..),
+        )
+        .alert(LANDY_CUE);
+    for (minor, weight) in [(Suit::Clubs, 130), (Suit::Diamonds, 129)] {
+        rules = rules.rule(
+            Bid::new(4, Strain::from(minor)),
+            weight,
+            points(14..) & len(minor, 5..),
+        );
+    }
+    rules.rule(Bid::new(3, Strain::Notrump), 100, hcp(0..))
+}
+
+/// Opener's answer to responder's stopper ask (`1NT (2♣) 2M - 2NT - 3M' -`)
+///
+/// `asked` is the unbid major responder cannot stop: `3NT` holding it, else
+/// the cheapest four-card minor at the four level.  The game force is
+/// committed, and responder's continuation over a `4m` suit contract is
+/// deliberately the floor's (the slam-exploration doctrine).
+fn landy_bba_ask_answer(asked: Suit) -> Rules {
+    let mut rules = Rules::new().rule(Bid::new(3, Strain::Notrump), 100, stopper_in(asked));
+    for (minor, weight) in [(Suit::Clubs, 60), (Suit::Diamonds, 59)] {
+        rules = rules.rule(Bid::new(4, Strain::from(minor)), weight, len(minor, 4..));
+    }
+    rules.rule(Bid::new(4, Strain::Clubs), 20, hcp(0..))
+}
+
+/// Responder's placement over opener's three-level minor pick
+/// (`1NT (2♣) 2M - 3m -`)
+///
+/// Opener denied the short-major stopper, so `3NT` needs both majors held in
+/// responder's own hand; `4m` re-opens the slam zone with extras (the floor
+/// continues); else the game force lands in `5m` on the guaranteed 4-4.
+fn landy_bba_pick_rebid(minor: Suit) -> Rules {
+    Rules::new()
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            120,
+            points(10..) & stopper_in(Suit::Hearts) & stopper_in(Suit::Spades),
+        )
+        .rule(Bid::new(4, Strain::from(minor)), 110, points(14..))
+        .rule(Bid::new(5, Strain::from(minor)), 100, hcp(0..))
+}
+
+/// Opener's answer when the advancer raises over an N1j takeout or splinter
+/// (`1NT (2♣) 2♥ (2♠/3♥/3♠) …`)
+///
+/// [`landy_cue_overcalled`]'s doctrine compressed further: notrump with the
+/// short major stopped, the cheapest minor pick, and Pass for the rest — safe
+/// because responder's game force guarantees another turn.
+fn landy_bba_takeout_overcalled(short: Suit, over: Bid) -> Rules {
+    let notrump = cheapest_above(Strain::Notrump, over);
+    let mut rules = Rules::new();
+    if notrump <= Bid::new(3, Strain::Notrump) {
+        rules = rules.rule(notrump, 150, stopper_in(short));
+    }
+    for (minor, weight) in [(Suit::Clubs, 100), (Suit::Diamonds, 99)] {
+        rules = rules.rule(
+            cheapest_above(Strain::from(minor), over),
+            weight,
+            len(minor, 4..),
+        );
+    }
+    rules.rule(Call::Pass, 0, hcp(0..))
+}
+
+/// The N1j BBA-ladder registration — responder's table, opener's answers, the
+/// transfer completions and rebids, and the interfered tails
+///
+/// Registered *instead of* the stack's entries ([`lebensohl_package`]
+/// branches): the two tables disagree on nearly every rung, so an overlay
+/// would leave stack rows shadowing ladder rows.  The tails follow the N1f
+/// idiom — their `X` takes no room, so the immediate answer re-registers
+/// verbatim and every deeper `X`-then-bid suffix rebases onto the clean
+/// subtree; their raise gets the compressed ladder; the doubled transfers are
+/// still completed.  The splinter's answers land at game or in the slam zone,
+/// where the floor takes over, so only the two-level takeout carries authored
+/// placements.
+fn landy_bba_entries(agreements: &Agreements) -> Vec<Entry> {
+    const OVER: &str = "P* 1NT (2♣)";
+    let mut entries = Vec::new();
+
+    entries.extend(rows_of(
+        Pattern::after("P* 1NT", "(2♣)"),
+        landy_bba_responder(agreements),
+    ));
+    entries.extend(rows_of(Pattern::after(OVER, "X -"), landy_double_answer()));
+    entries.extend(rows_of(
+        Pattern::after(OVER, "2♦ -"),
+        landy_signoff_answer(),
+    ));
+
+    // The wide transfers: forced completion (doubled or not), responder's
+    // rebid, and opener's answer to the stopper show.
+    for (minor, transfer) in [(Suit::Clubs, "2NT"), (Suit::Diamonds, "3♣")] {
+        let done = Bid::new(3, Strain::from(minor));
+        for suffix in [format!("{transfer} -"), format!("{transfer} (X)")] {
+            let completion = if minor == Suit::Clubs {
+                complete_lebensohl_relay(agreements)
+            } else {
+                landy_bba_diamond_completion(agreements)
+            };
+            entries.extend(rows_of(Pattern::after(OVER, &suffix), completion));
+        }
+        entries.push(systems_on_over_double(
+            &format!("{OVER} {transfer}"),
+            &done.to_string(),
+        ));
+        let completed = format!("{transfer} - {done} -");
+        entries.extend(rows_of(
+            Pattern::after(OVER, &completed),
+            landy_bba_transfer_rebid(minor),
+        ));
+        for (held, asked) in [(Suit::Hearts, Suit::Spades), (Suit::Spades, Suit::Hearts)] {
+            entries.extend(rows_of(
+                Pattern::after(
+                    OVER,
+                    &format!("{completed} {} -", Bid::new(3, Strain::from(held))),
+                ),
+                landy_recue_answer(minor, asked),
+            ));
+        }
+    }
+
+    // The GF both-minors family: answers, the doubled call verbatim plus the
+    // rebase, and the compressed ladder over their raises.
+    for (short, level) in [
+        (Suit::Hearts, 2),
+        (Suit::Spades, 2),
+        (Suit::Hearts, 3),
+        (Suit::Spades, 3),
+    ] {
+        let call = Bid::new(level, Strain::from(short));
+        entries.extend(rows_of(
+            Pattern::after(OVER, &format!("{call} -")),
+            landy_bba_takeout_answer(short, call),
+        ));
+        entries.extend(rows_of(
+            Pattern::after(OVER, &format!("{call} (X)")),
+            landy_bba_takeout_answer(short, call),
+        ));
+        entries.push(systems_on_over_double(
+            &format!("{OVER} {call}"),
+            &cheapest_above(Strain::Notrump, call).to_string(),
+        ));
+        // Their raise: `(2♠)` exists over `2♥` only, the 3M raises over
+        // whatever sits below them; the four level stays the floor's.
+        let mut raises = vec![Bid::new(3, Strain::Hearts), Bid::new(3, Strain::Spades)];
+        let cheap = Bid::new(2, Strain::Spades);
+        if cheap > call {
+            raises.push(cheap);
+        }
+        for over in raises.into_iter().filter(|o| *o > call) {
+            entries.extend(rows_of(
+                Pattern::after(OVER, &format!("{call} ({over})")),
+                landy_bba_takeout_overcalled(short, over),
+            ));
+        }
+    }
+
+    // The two-level takeout's authored placements: over the notrump answer
+    // (with the one remaining stopper ask) and over a minor pick.
+    for (short, other) in [(Suit::Hearts, Suit::Spades), (Suit::Spades, Suit::Hearts)] {
+        let tko = Bid::new(2, Strain::from(short));
+        entries.extend(rows_of(
+            Pattern::after(OVER, &format!("{tko} - 2NT -")),
+            landy_bba_takeout_rebid(other),
+        ));
+        entries.extend(rows_of(
+            Pattern::after(
+                OVER,
+                &format!("{tko} - 2NT - {} -", Bid::new(3, Strain::from(other))),
+            ),
+            landy_bba_ask_answer(other),
+        ));
+        for minor in [Suit::Clubs, Suit::Diamonds] {
+            entries.extend(rows_of(
+                Pattern::after(
+                    OVER,
+                    &format!("{tko} - {} -", Bid::new(3, Strain::from(minor))),
+                ),
+                landy_bba_pick_rebid(minor),
+            ));
+        }
+    }
+
+    entries
+}
+
 /// Opener completes responder's Lebensohl `2NT` relay with the forced `3♣`
 ///
 /// Under `reading.completion_alerts` the completion is alerted: constrained
@@ -1011,7 +1412,10 @@ pub(super) fn lebensohl_package() -> Package {
 
             let mut entries = Vec::new();
 
-            if defense_2c_landy(agreements) {
+            if defense_2c_landy(agreements) && landy_bba(agreements) {
+                // N1j: the whole table swaps — see `landy_bba_entries`.
+                entries.extend(landy_bba_entries(agreements));
+            } else if defense_2c_landy(agreements) {
                 // Landy counter: their 2♣ shows both majors, so systems-on is
                 // exactly the wrong structure — see `landy_responder`.  This is
                 // an *either/or* with the rebase below, not an overlay: leaving

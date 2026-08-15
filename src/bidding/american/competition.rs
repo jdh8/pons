@@ -123,6 +123,15 @@ const LANDY_CUE: Alert = Alert("comp:landy-cue");
 /// minors: a weak six-card club escape, transferred so the `1NT` opener
 /// declares.  Their `2♣` is artificial, so clubs are ours to transfer into.
 const LANDY_TRANSFER: Alert = Alert("comp:landy-transfer");
+/// Landy both-minors takeout — `2♥`/`2♠` over their `(2♣)` Landy under the
+/// N1j BBA ladder: game-forcing with 4+ in both minors and exactly a doubleton
+/// in the bid major (2-2 bids `2♥`, so `2♠` promises three hearts).  Opener
+/// answers in notrump with that major stopped or no four-card minor, else
+/// picks a minor.
+const LANDY_TKO: Alert = Alert("comp:landy-tko");
+/// Landy both-minors splinter — `3♥`/`3♠` over their `(2♣)` Landy under the
+/// N1j BBA ladder: the takeout hand with 0-1 in the bid major.
+const LANDY_SPL: Alert = Alert("comp:landy-spl");
 /// Lebensohl `2NT` — the weak relay to `3♣` over their overcall of our `1NT`.
 const LEBENSOHL_RELAY: Alert = Alert("comp:lebensohl-relay");
 /// Opener's forced `3♣` completion of the Lebensohl relay — a puppet, not

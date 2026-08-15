@@ -355,6 +355,25 @@ struct Args {
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
     defense_2c_landy_competition: Option<bool>,
 
+    /// N1j: play the BBA-ladder Landy counter — responder's whole table over
+    /// their `2♣` re-shaped to the anchor's own counter structure (notrump
+    /// ladder + wide 6+ minor transfers, `2NT`→♣ / `3♣`→♦), keeping the
+    /// values X verbatim and adding the GF both-minors takeout/splinter
+    /// family on `2♥`/`2♠` and `3♥`/`3♠`.  The N1b–N1i stack knobs are inert
+    /// under it.  Does nothing without --their-2c-landy.  **Engine default ON
+    /// since 2026-08-15** (non-inferiority ship, zero CI-clear negatives);
+    /// pass `false` for the pre-N1j stack arm.  Unset = the engine default.
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    defense_2c_landy_bba: Option<bool>,
+
+    /// N1j's third arm: cap the BBA ladder's weak natural `2♦` at `hcp(..=6)`
+    /// (the N1i `2♦ → Pass` lead, isolated — the dropped 7-9 point hands
+    /// pass).  Read only under --defense-2c-landy-bba.  **Engine default ON
+    /// since 2026-08-15** (standard gate: plain wash | PD win, 0 foreign);
+    /// pass `false` for the uncapped ladder.  Unset = the engine default.
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    defense_2c_landy_weak_2d_cap: Option<bool>,
+
     /// Suppress our *own* 1NT opening (those 15-17 balanced hands open a minor),
     /// so every 1NT in the match is BBA's and our pair is purely the defender.
     #[arg(long, default_value_t = false)]
@@ -1821,6 +1840,12 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     if let Some(v) = args.defense_2c_landy_competition {
         agreements.competition.defense_2c_landy_competition = v;
     }
+    if let Some(v) = args.defense_2c_landy_bba {
+        agreements.competition.defense_2c_landy_bba = v;
+    }
+    if let Some(v) = args.defense_2c_landy_weak_2d_cap {
+        agreements.competition.defense_2c_landy_weak_2d_cap = v;
+    }
     if let Some(v) = args.ns_completion_alerts {
         agreements.decision.reading.completion_alerts = v;
     }
@@ -2087,6 +2112,16 @@ fn main() -> anyhow::Result<()> {
             let on = (name == "Landy" && args.advertise_landy) as c_int;
             conv.push((CString::new(name).expect("a literal name has no NUL"), on));
         }
+        // ⚠ Known gap (found 2026-08-15): this oracle never receives
+        // `.with_opponents(disclosure)`, so beyond the three rows above it
+        // falls back to modelling us as playing its own system (the
+        // undeclared-opponents default in `oracle/mod.rs`).  Handing it the
+        // disclosure card is NOT a safe one-line fix: the generated card
+        // carries its own Landy-family rows, and the push order against these
+        // load-time rows is unverified — a card push after load would clobber
+        // the advertisement and silently break `--advertise-landy`.  Priced
+        // as a known mis-model of the advertise-* lanes; fixing it needs a
+        // probe of EPBot's row-push order first.
         Some(BbaOracle::load(&path, args.system, conv)?)
     } else {
         None

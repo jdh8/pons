@@ -9,6 +9,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **N1j — the BBA-ladder Landy counter, shipped default-on with its weak-2♦
+  cap.** Over `1NT (2♣)`-as-Landy, responder's table is re-shaped to the
+  structure BBA itself plays as a 1NT opener facing Landy: wide forced minor
+  transfers (`2NT`→♣, `3♣`→♦, 6+, weak sign-off through game force — the INV
+  `3♣`/`3♦` rungs and the one-minor cues deleted), the values `X` and weak
+  `2♦` kept byte-identical, plus a game-forcing both-minors family — `2♥`/`2♠`
+  takeout (4+♦ 4+♣, doubleton in the bid major, 2-2 bids `2♥`) and `3♥`/`3♠`
+  splinters (0-1 there), opener answering in notrump with the bid (short)
+  major stopped or no four-card minor.  `defense_2c_landy_bba` (the N1b–N1i
+  stack knobs are inert under it; the stack stays wired behind
+  `--defense-2c-landy-bba false`), plus `defense_2c_landy_weak_2d_cap`
+  narrowing `2♦` to `hcp(..=6)`.  **The ladder shipped at a pre-pinned
+  non-inferiority gate** — the rationale is structural alignment with the
+  anchor (a win on gadgets the opponent's model cannot represent is
+  exploit-flavored), and BBA reads the whole lane through our disclosed
+  *uncontested* scheme regardless (row 122), so a wash ships: pooled three
+  seeds at 230.4k boards/vul it in fact leaned positive in all sixteen
+  DD+sd cells (plain +0.00083 ±0.00085 NV / +0.00080 ±0.00100 vul), with the
+  guarded `2M ← X` migration **empty** — no hand left the values double.
+  **The cap shipped at the standard gate**: plain wash + PD CI-clear win at
+  both vulnerabilities (+0.00037 ±0.00033 NV, +0.00050 ±0.00035 vul; +2.6 to
+  +4.5 PD per fired), isolation gate at zero foreign boards, every divergence
+  the predicted `2♦ → Pass` row — the N1i lead confirmed as a result.
+  Default system byte-identical (smoke `18aba5ce…`, verified against clean
+  HEAD by stash/pop seeded diff).  Details, movers, and the reading ceiling
+  in [docs/one-notrump-competitive.md](docs/one-notrump-competitive.md) §N1j.
+  Found en route, flagged in code rather than blind-fixed: `bba-gen`'s
+  `--advertise-natural`/`--advertise-landy` oracle drops our disclosure card
+  (it never receives `.with_opponents`), so advertise-lane runs model us as
+  playing BBA beyond the three advertised rows.
+
 - **Distilled BBA's counter-defense to its own methods — the 1NT opener's side
   of Woolsey Multi-Landy.** Twelve new `probe-bba-constraints` modes read the
   seat we had never probed: BBA as the **1NT opener** answering each call of

@@ -83,6 +83,15 @@ struct Args {
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
     landy_stack: Option<bool>,
 
+    /// Replay with the N1j BBA-ladder counter (`--defense-2c-landy-bba`,
+    /// which carries the weak-2♦ cap with it) — the anchor-aligned table
+    /// that replaces the stack.  Unset tracks the engine default (**on since
+    /// the 2026-08-15 N1j ship**); pass `false` to replay dumps generated
+    /// between the stack ship and the N1j ship, whose arms played the stack.
+    /// Meaningless when the counter itself is off.
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    landy_bba: Option<bool>,
+
     /// Replay with the disclosed-Landy *reading* (`--ns-their-landy-read`) —
     /// their `2♣` as both majors instead of natural clubs.  Unset tracks the
     /// engine default (**on since the 2026-08-14 N1g ship**); pass `false` to
@@ -400,6 +409,9 @@ fn main() -> anyhow::Result<()> {
             agreements.competition.defense_2c_landy_cue_floor = false;
             agreements.competition.defense_2c_landy_fit_answers = false;
             agreements.competition.defense_2c_landy_competition = false;
+        }
+        if let Some(bba) = args.landy_bba {
+            agreements.competition.defense_2c_landy_bba = bba;
         }
         if let Some(read) = args.their_landy_read {
             agreements.decision.reading.their_landy_reading = read;

@@ -188,6 +188,7 @@ is 5 calls; the most common runout point is after opener's transfer completion
 | **N1** | **Landy `(2♣)` counter + N1c/d/e/f stack** | `their.two_clubs_landy` | **SHIPPED 2026-08-14** (base `wash \| win`, stack `win \| win`); was the top loser, both scorers |
 | N1g | Landy **read-side** wiring — their `2♣` = majors in the floor's envelopes | `reading.their_landy_reading` | **SHIPPED DEFAULT-ON 2026-08-14** (`plain wash \| PD win` ×3 seeds, isolation gate 0 foreign); see §N1g |
 | N1h / N1i | Landy counter's minor rungs re-priced — a point lower, then regraded on `hcp` | `defense_2c_landy_low_minors`, `defense_2c_landy_hcp_rungs` | **both REFUTED 2026-08-15, both opt-in; lane closed.** `cue ← X` negative in both, so N1d's cue floor is settled — see §N1h / N1i |
+| **N1j** | **BBA-ladder counter** — the anchor-aligned table, replacing the stack — **+ the weak-2♦ cap** | `defense_2c_landy_bba`, `defense_2c_landy_weak_2d_cap` | **both SHIPPED DEFAULT-ON 2026-08-15** — the ladder at its pinned non-inferiority gate (`wash \| wash`, all eight DD cells leaning positive), the cap at the standard gate (`plain wash \| PD win`, 0 foreign); see §N1j |
 | N2 | Muiderberg `(2♠)` calibration | — | −0.66/bd, PD −0.58 NV; **BBA plays plain Lebensohl here, we play Cohen Transfer** — a concrete A/B, see the [counter-defense reference](ai-bidder/bba-1nt-counter-defense.md) |
 | N3 | `(3+)` overcalls of our 1NT | new | floor-only today; −0.63/bd. **Misnamed: their three-level calls are natural 7-card preempts**, not artificial — this is `defense_to_preempt`'s lane, not a counter-defense |
 | N4 | Multi `(2♦)` — finish + measure | `defense_2d_multi` | exists, half-built, gate bug above; plain-only loss; **owed the `their` disclosure migration N1 got** |
@@ -198,8 +199,16 @@ is 5 calls; the most common runout point is after opener's transfer completion
 ## N1* — the Landy `(2♣)` counter (**SHIPPED DEFAULT-ON 2026-08-14**)
 
 The census's top loser, closed in five measured rounds in one day. This
-section is the **shipped state**; the exploration that produced it is digested
-at the end, and every measured verdict lives in the [ledger](#ledger).
+section is the 2026-08-14 shipped state; the exploration that produced it is
+digested at the end, and every measured verdict lives in the
+[ledger](#ledger).
+
+> **Superseded as the default 2026-08-15 by [§N1j](#n1j--the-bba-ladder-counter-shipped-default-on-2026-08-15)** —
+> the BBA-ladder table now rides the bare declaration; the stack below
+> remains fully wired behind `defense_2c_landy_bba = false`
+> (`bba-gen --defense-2c-landy-bba false`) and is the A/B baseline N1j was
+> measured against.  The engagement, disclosure, and mirror-leak subsections
+> here still govern both tables.
 
 ### Engagement — a disclosure, not a knob
 
@@ -228,7 +237,11 @@ the cues, `defense_2c_landy_cues`) plus the three repairs
 so the default *system* is byte-identical: `smoke-default --count 20000
 --seed 1` SHA-256
 `8ea2f5678a733cfe3ead79411d9cb31b8e95d37de52236e597fc38f9dec82bbb`, unchanged
-by every ship in this package. `bba-gen`'s stack flags are `Option<bool>`
+by every ship in this package.  (That constant later moved **outside** the
+package — `reading.completion_alerts` shipped default-on 2026-08-14 (94daa30)
+and re-based the default dump.  The current constant, re-verified for N1j by
+a stash/pop seeded diff against clean HEAD, is
+`18aba5ce4d7d7e3b5fe3f26a453da96a53ae0a239f1bd56dfa201ae84034b60a`.) `bba-gen`'s stack flags are `Option<bool>`
 (unset = engine default; a pre-ship arm is spelled
 `--defense-2c-landy-<knob> false`).
 
@@ -539,6 +552,117 @@ Three smaller rows worth keeping, all ours-only, PD per fired:
   rather than lowering only its floor cost real IMPs.
 
 
+### N1j — the BBA-ladder counter (**SHIPPED DEFAULT-ON 2026-08-15**)
+
+With the rung lane closed, the next probe was the *shape* of the table.  The
+shipped stack beats BBA partly on gadgets the anchor's model of us cannot
+represent — an exploit-flavored win, which matters now that BBA's role is
+exploit guard for the BEN campaign.  N1j re-shapes responder's whole table to
+the structure BBA itself plays as a 1NT opener facing Landy
+([bba-1nt-counter-defense.md](ai-bidder/bba-1nt-counter-defense.md)), and its
+ship gate was pinned **before the run** as non-inferiority — zero CI-clear
+negative cells across pooled {NV,vul}×{plain,PD} — because the rationale is
+structural alignment, not IMPs.  `defense_2c_landy_bba`; the N1b–N1i
+structure knobs are **inert** under it, and the stack stays wired behind
+`--defense-2c-landy-bba false` as the measured baseline.
+
+| Call | Meaning | Weight |
+| --- | --- | --- |
+| `3NT` | game values, both majors stopped, no six-card minor | 180 |
+| `2♥` / `2♠` | **GF takeout**, 4+♦ 4+♣, exactly two in the bid major (2-2 bids `2♥`, so `2♠` = 2=3=4=4) — alert `comp:landy-tko` | 178/177 |
+| `3♥` / `3♠` | **GF splinter**, 4+♦ 4+♣, 0-1 in the bid major — alert `comp:landy-spl` | 176/175 |
+| `2NT` / `3♣` | transfers to ♣/♦, 6+, **any strength** (weak sign-off through GF) — alert `comp:landy-transfer` | 174/173 |
+| `3NT` | game values, ungated | 168 |
+| `X` | values `hcp(8..)` — the stack's row **byte-identical** | 145 |
+| `2♦` | weak natural 5+ — `hcp(..=6)` under the shipped cap (`defense_2c_landy_weak_2d_cap`), `points(..=9)` without it | 140 |
+| Pass | finite catch-all | 0 |
+
+Deviations from BBA verbatim, each deliberate: the values `X` stays (BBA
+never doubles Landy; N1d/N1h/N1i all defended the row), the club transfer
+sits on `2NT` rather than BBA's `2♠` (the takeout pair spends both major
+cues), and the GF both-minors family is ours (BBA has no call for the hand).
+The two-suiter family outranks the transfers so a 6-4 hand shows the whole
+picture; a hand with a doubleton in one major and 0-1 in the other splinters.
+No `6NT` blast (BBA's 2.9%): opposite our 15-17 with a live overcall, an 18+
+responder is arithmetic-impossible in the lane.
+
+**Continuations** (the authored minimum): opener answers a takeout/splinter
+in **notrump with the bid (short) major stopped or no four-card minor** —
+responder knows its own holding in the unbid major, so opener answers only
+the unknown, and the minor-less branch doubles as the forced catch-all — else
+picks a 4+ minor cheapest-first, denying that stopper.  Over the notrump
+answer responder's cue of the *other* major asks it (3NT holding it, else a
+four-level minor, floor continues); over a three-level pick responder places
+(3NT on its own double stopper / `4m` slam re-open at 14+ / `5m` on the
+guaranteed 4-4).  The wide transfers complete forced — the `3♦` completion
+joins the `completion_alerts` family — and responder's rebid shows the one
+major stopper held (`landy_recue_answer` supplies 3NT with the other), `4m`
+slam-tries at 13+, else 3NT; the invitational one-suiter deliberately dies at
+the completed three level, the N1h/N1i trade of the invite for right-siding.
+Tails are the N1f idiom: doubled calls answered verbatim plus the systems-on
+rebase, raises get a compressed ladder (NT = stopper / minor pick / Pass,
+safe under the game force), doubled transfers still complete.
+
+**The reading ceiling — why "aligned" cannot mean "readable".**  The
+disclosure channel for this lane is real and live: `Transfers if RHO bids
+clubs = 1` (row 122) is on our generated cards
+([card.rs](../src/bidding/card.rs), emitted from `lebensohl_style != Off`)
+and pushed per-side into EPBot's model of us.  But it projects our
+**uncontested Puppet scheme** onto the counter lane, so BBA decodes our
+counter calls as: `2♦` → Jacoby-♥, `2♥` → Jacoby-♠, `2♠` → ♣-transfer,
+`2NT` → ♦-transfer, `3♣` → Puppet Stayman — regardless of what we author.
+Exact readability would need European minors uncontested (out of scope;
+lying on the card is not an option).  The alignment claim is therefore
+**structural** — we play the ladder shape the anchor itself chose, with no
+rungs it cannot conceive of — not literal.  Found en route and flagged in
+code, not fixed: `bba-gen`'s `--advertise-natural`/`--advertise-landy`
+oracle never receives `.with_opponents(disclosure)`, so those lanes model us
+as playing BBA beyond the three advertised rows; a blind fix risks the card
+push clobbering the advertisement (row-push order unverified).
+
+**Ship evidence** (pooled seeds 1786753231 / 1786753518 / 1786753808,
+230.4k bd/vul, 76.8k bd/arm/vul/seed, enriched `--filter-1nt`,
+`scripts/ab-landy-bba.sh`):
+
+| pair | NV plain | NV PD | vul plain | vul PD |
+| --- | --- | --- | --- | --- |
+| `bba-on ↔ bba-off` (the ladder) | +0.00083 ±0.00085 | +0.00083 ±0.00110 | +0.00080 ±0.00100 | +0.00073 ±0.00123 |
+| `bba-cap ↔ bba-on` (the 2♦ cap) | −0.00003 ±0.00027 | **+0.00037 ±0.00033** | +0.00017 ±0.00024 | **+0.00050 ±0.00035** |
+
+- **The ladder ships at its pinned gate and beats it**: zero CI-clear
+  negative cells, and *all eight* DD cells (plus all eight sd cells) lean
+  positive — NV plain misses CI-clear by 0.00002.  Fired 280/234 (NV/vul).
+- **The cap ships at the standard gate**, not the relaxed one: plain wash +
+  PD CI-clear win at both vuls, sd sign-agreed, **isolation gate 0 foreign
+  boards both vuls** (the campaign's second after N1g), and every divergence
+  is the predicted `2♦ → Pass` row (×59 pooled, +2.58/+4.54 PD per fired) —
+  the N1i lead (+2.40) replicated as a result.
+- **The `2M ← X` guard passed vacuously**: not one hand left the values
+  double for the takeout family in 460.8k boards.  The family's boards came
+  off the old *cues* (`2♥/2♠ → 3♥/3♠/2NT` rows, all plain-positive), so the
+  three-experiments finding (`cue ← X` negative) was never touched.
+- **Movers** (ours-only, PD per fired): `2♦ → 3♣` **+5.18/+6.06** (×17/×16)
+  — the diamond transfer's right-siding is the bundle's engine, mooting the
+  N1h 3♦-invite lead; `3♦ → 3♣` +1.48/+2.27 (×31/×26); the cue→family rows
+  all positive.  Costs: `3♣ → 2NT` (INV clubs riding the wide transfer)
+  −0.15 NV / +1.14 vul ×40/×35 — a wash; `Pass → 3♣` (new weak transfers)
+  plain-positive, PD-mixed (+1.94/−0.06 NV, +1.54/−0.79 vul) — the
+  obstruction shape plain DD likes.
+- **Mirror leak as predicted**: 36%/38% foreign (the ladder deletes the cue
+  constraints), foreign PD sums −21/−29 — depressing the headline, so the
+  ours-only figures are stronger (NV +182 plain / +215 PD over 180 boards;
+  vul +171/+202 over 146).  Same shape as N1d/N1f; the `their_profile`
+  split stays the structural fix.
+
+Bookkeeping: default system byte-identical through both flips (smoke
+`18aba5ce…` verified against clean HEAD by stash/pop before the run and
+re-verified after the flip); golden cards and `alert-sites.txt`'s default
+section unchanged, the `[their-landy]` fixture section re-blessed (cue
+64→24, tko/spl 0→8, transfer 4→8, completion 32→40); `comp:landy-tko`/
+`comp:landy-spl` recorded in `card.rs` as schema-inexpressible.  Replay:
+`bba-gen --defense-2c-landy-bba false` is the pre-N1j stack arm,
+`bba-decompose --landy-bba false` replays between-ships dumps.
+
 ### How it got here — exploration digest
 
 Five measured rounds, all 2026-08-14; numbers in the ledger, probe files in
@@ -621,3 +745,4 @@ package ever measured was an unauthored continuation, never the idea.
 | N1d/e/f cue repairs | `defense_2c_landy_cue_floor` + `_fit_answers` + `_competition` (each implies `_transfer`; all four now default **true**) | **SHIPPED DEFAULT-ON 2026-08-14** — the package's first `win \| win`. Stack vs shipped base (`f↔on`), pooled seeds 1786694464 + 1786695954, 460.8k bd/vul: **six of eight DD cells CI-clear positive, 8/8 sd cells positive, no negative cell in 24 readings** (table in §Ship evidence). Engages only under the `their.two_clubs_landy` declaration — default system byte-identical, smoke `8ea2f567…` unchanged; `bba-gen` stack flags are `Option<bool>` (pre-ship arm = `--defense-2c-landy-<knob> false`), `bba-decompose --landy-stack false` replays between-ships dumps. Increment attribution: **N1d is the engine** (`d↔xfer` plain wash + PD **+0.0009 ±0.0008** NV / **+0.0015 ±0.0009** vul, cue→X = 55-60% of divergence at +2.0…+5.1 PD/fired — the poached-double rows reversed); N1e fired 3+1 boards post-floor (ships on naturalness: raises promise 3+); N1f the expected CI-wide wash (ships as the iron rule's convention-completion). Isolation gate: e/f pass at 0 foreign; d and f↔on fail at 18-43% (the cue-constraint mirror leak), foreign boards *depress* the headline — our-opened figures are stronger. Residue: their **second** call still floors us (phantom `4♠` one level deeper, −17 PD, 1 board); the `3♣`→`2♥` GF-six-carder row unread against the shipped stack. | `f↔on` pooled: NV plain **+0.00068 ±0.00062** / PD +0.00075 ±0.00077, vul plain **+0.00085 ±0.00072** / PD **+0.00100 ±0.00087**; ours-only NV plain **+0.00091 ±0.00052** / PD **+0.00077 ±0.00064**, vul plain **+0.00075 ±0.00058** / PD +0.00060 ±0.00070. |
 | N1g read-side wiring | `reading.their_landy_reading` (default **true**) | **SHIPPED DEFAULT-ON 2026-08-14** — the disclosure finally read: their `2♣` = ♥4+/♠4+ (no strength claim), advances + direct-3M suppressed, via a seat-gated hand reader that cannot fire on our own `2♣` and does not extrapolate through the systems-on strip (v1 leaked there — `(1♣) 1NT (2♣)` read responder's 2♣ as Landy; fixed + regression test). `TheirDisclosures` re-homed to `DecisionProfile::their`, byte-identical. Pooled 3 seeds (1786704432/1786705413/1786705763, 230.4k bd/vul, 0.07-0.11% fired): plain wash, **PD win both vuls**, sd agreeing in sign — the `plain-wash \| PD-win` ship row. **Isolation gate: 0 foreign boards, both vuls — the campaign's first.** Mechanism: conservative shift off true envelopes (fewer thin NV games; phantom `4♥` corrected to the real fit). Fixed-build seed 1 showed a CI-clear NV-plain loss that seeds 2-3 refuted. The `3♣`→`2♥` re-probe rode the same dumps and closed (wash-to-win). | pooled: NV plain −0.00051 ±0.00072 / PD **+0.00104 ±0.00097**, vul plain +0.00001 ±0.00078 / PD **+0.00112 ±0.00104**; sd-plain −0.00053/−0.00024, sd-PD +0.00065/+0.00076. |
 | N1h / N1i minor-rung re-pricing | `defense_2c_landy_low_minors`, `defense_2c_landy_hcp_rungs` | **both REFUTED 2026-08-15, both opt-in — the lane is closed.** Three shared seeds, 230.4k bd/vul, shared `low-off` baseline (verified board-identical before reuse); `ab-results/landy-low{,-v2,-v3}`, `scripts/ab-landy-rungs.sh`. N1h (cue `points(9..)`, `3m` `points(7..=8)`) = `plain wash \| PD loss`, vul PD **−0.00081 ±0.00074**. N1i (cue `hcp(9..)`, `3m` `hcp(7..=8)`, `2♦`/`2NT` `hcp(..=6)`) = no CI-clear cell, all eight leaning negative. **`cue ← X` negative in both** (−1.80 ×96, −2.96/−4.04 ×46) against N1d's original +2.0…+5.1 the other way — the cue floor is settled, do not probe it again. Leads recorded but not pursued: `Pass ← 2♦` +2.40 PD ×52 (per-seed +4.50/+1.33/−1.09), `3♦ ← 2♦` +3.96 plain/+3.11 PD ×27, `3♣ ← 2NT` −2.19 PD (the transfer's right-siding wins), `cue ← 3♣` −2.88 (shifting a band whole costs more than lowering its floor). | N1h pooled: NV plain +0.00036 ±0.00051 / PD −0.00044 ±0.00066, vul plain +0.00002 ±0.00061 / PD −0.00081 ±0.00074. N1i pooled: NV plain −0.00029 ±0.00043 / PD −0.00039 ±0.00062, vul plain −0.00014 ±0.00052 / PD −0.00036 ±0.00068; sd both arms ≈0. |
+| N1j BBA-ladder counter + weak-2♦ cap | `defense_2c_landy_bba`, `defense_2c_landy_weak_2d_cap` | **both SHIPPED DEFAULT-ON 2026-08-15** — the anchor-aligned table replacing the stack (which stays wired behind `--defense-2c-landy-bba false`).  The ladder shipped at its **pre-pinned non-inferiority gate** (rationale: structural alignment; a wash ships) and beat it — zero CI-clear negatives, all 16 DD+sd cells leaning positive; the `2M ← X` guard passed **vacuously** (no hand left the values double for the takeout family, the three-experiments finding untouched); mirror leak 36-38% foreign, depressing (ours-only stronger: NV +182/+215, vul +171/+202 raw IMPs).  The cap shipped at the **standard** gate: plain wash \| PD win both vuls, sd sign-agreed, isolation gate **0 foreign** (second ever), every divergence the predicted `2♦ → Pass` (+2.58/+4.54 PD per fired ×59 — the N1i lead confirmed).  Engine: `2♦ → 3♣` diamond-transfer right-siding (+5.18/+6.06 PD per fired).  Smoke `18aba5ce…` unchanged through the flip; `[their-landy]` fixture re-blessed; 3 seeds 1786753231/1786753518/1786753808, 230.4k bd/vul, `scripts/ab-landy-bba.sh`.  See §N1j. | ladder (`on↔off`) pooled: NV plain +0.00083 ±0.00085 / PD +0.00083 ±0.00110, vul plain +0.00080 ±0.00100 / PD +0.00073 ±0.00123; sd-plain +0.00080/+0.00103, sd-PD +0.00070/+0.00113. cap (`cap↔on`) pooled: NV plain −0.00003 ±0.00027 / PD **+0.00037 ±0.00033**, vul plain +0.00017 ±0.00024 / PD **+0.00050 ±0.00035**; sd-PD +0.00017/+0.00033. |

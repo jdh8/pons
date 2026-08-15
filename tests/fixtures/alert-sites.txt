@@ -58,8 +58,10 @@ xyz-game-force 40
 xyz-relay 40
 
 [their-landy]
-comp:landy-cue 0 -> 64
-comp:landy-transfer 0 -> 4
+comp:landy-cue 0 -> 24
+comp:landy-spl 0 -> 8
+comp:landy-tko 0 -> 8
+comp:landy-transfer 0 -> 8
 comp:landy-values 0 -> 4
-comp:lebensohl-completion 24 -> 32
+comp:lebensohl-completion 24 -> 40
 completion 696 -> 684

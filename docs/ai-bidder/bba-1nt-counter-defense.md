@@ -225,6 +225,14 @@ Read as evidence about the anchor, not as a design to copy — nothing here has
 been measured in our system, and [measurement.md](../measurement.md)'s gate
 applies to any of it.
 
+- **Adopted 2026-08-15 as N1j** (`defense_2c_landy_bba`, default-on): our
+  counter now plays this lane's ladder shape — wide minor transfers, no
+  gadget cues — with the values `X` kept and a GF both-minors
+  takeout/splinter family added.  Shipped at a pre-pinned non-inferiority
+  gate on the structural-alignment rationale;
+  [one-notrump-competitive.md](../one-notrump-competitive.md) §N1j holds the
+  verdicts and the reading ceiling (row 122 projects our *uncontested*
+  Puppet scheme onto the lane, so alignment is structural, never literal).
 - **N1 (shipped) agrees with BBA on the ladder and disagrees on the double.**
   Our counter's gated `3NT` outranking the cues, and N1c's weak-6+ minor
   transfer, both have BBA analogues (`3NT` 49.7%; `2♠`→♣ and `3♣`→♦ completed

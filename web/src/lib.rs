@@ -922,6 +922,8 @@ knob!(set_defense_to_2c_landy_fit_answers, defense_to_2c_landy_fit_answers, comp
 knob!(set_defense_to_2c_landy_competition, defense_to_2c_landy_competition, competition.defense_2c_landy_competition: bool);
 knob!(set_defense_to_2c_landy_low_minors, defense_to_2c_landy_low_minors, competition.defense_2c_landy_low_minors: bool);
 knob!(set_defense_to_2c_landy_hcp_rungs, defense_to_2c_landy_hcp_rungs, competition.defense_2c_landy_hcp_rungs: bool);
+knob!(set_defense_to_2c_landy_bba, defense_to_2c_landy_bba, competition.defense_2c_landy_bba: bool);
+knob!(set_defense_to_2c_landy_weak_2d_cap, defense_to_2c_landy_weak_2d_cap, competition.defense_2c_landy_weak_2d_cap: bool);
 
 // The classify-time half, on this value rather than the crate's thread-locals:
 // the system carries its agreements now, so a setter that wrote a global would

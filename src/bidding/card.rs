@@ -135,6 +135,16 @@ const fn not_defined() -> usize {
 // we read its 2♣ off a measured census instead.  See
 // `docs/one-notrump-competitive.md`.
 //
+// `comp:landy-tko` / `comp:landy-spl` (the N1j BBA-ladder counter's GF
+// both-minors takeout/splinter family, default since 2026-08-15): same
+// record — the same no-schema-name reasoning covers them, and the ceiling
+// is *sharper* here: `Transfers if RHO bids clubs = 1` (row 122, live on
+// our card) makes EPBot decode this whole lane through our disclosed
+// *uncontested* Puppet scheme, so our counter 2♥/2♠/2NT/3♣ read as
+// Jacoby-♠/♣-transfer/♦-transfer/Puppet regardless of what we author.
+// N1j's alignment claim is structural, not literal readability — see
+// `docs/one-notrump-competitive.md` §N1j.
+//
 // `completion` (the uniform completion-alert family, default-on 2026-08-14):
 // no possible row.  The alert marks *forced completions* of conventions the
 // card already declares (Jacoby/Texas/Stayman/Puppet answers, lebensohl 3♣,

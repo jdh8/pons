@@ -1,6 +1,6 @@
 use super::super::tests::{
-    best_call_with, bid, bid_landy, bid_landy_cues, bid_landy_n1, bid_landy_transfer, bid_transfer,
-    call,
+    best_call_with, bid, bid_landy, bid_landy_bba, bid_landy_cues, bid_landy_n1,
+    bid_landy_transfer, bid_transfer, call,
 };
 use crate::bidding::agreements::Agreements;
 use contract_bridge::Strain;
@@ -411,6 +411,7 @@ fn landy_low_minors_prices_every_minor_rung_a_point_lower() {
     let mut arm = Agreements::default();
     arm.decision.their.two_clubs_landy = true;
     arm.competition.defense_2c_landy_low_minors = true;
+    arm.competition.defense_2c_landy_bba = false; // the stack arm, not N1j
     let auction = [call(1, Strain::Notrump), call(2, Strain::Clubs)];
     let low = |hand| best_call_with(&arm, &auction, hand);
     let shipped = |hand| bid_landy_n1(true, true, true, &auction, hand);
@@ -457,6 +458,7 @@ fn landy_hcp_rungs_regrade_the_minors_on_high_cards() {
     let mut arm = Agreements::default();
     arm.decision.their.two_clubs_landy = true;
     arm.competition.defense_2c_landy_hcp_rungs = true;
+    arm.competition.defense_2c_landy_bba = false; // the stack arm, not N1j
     let auction = [call(1, Strain::Notrump), call(2, Strain::Clubs)];
     let hcp_arm = |hand| best_call_with(&arm, &auction, hand);
     let shipped = |hand| bid_landy_n1(true, true, true, &auction, hand);
@@ -641,22 +643,28 @@ fn landy_competition_completes_the_doubled_transfer() {
 }
 
 #[test]
-fn landy_declaration_engages_the_shipped_stack() {
-    // The 2026-08-14 default flip: a bare declaration — no knobs touched —
-    // now plays the full N1c+N1d/e/f stack (the pooled two-seed win|win).
+fn landy_declaration_engages_the_default_counter() {
+    // The 2026-08-15 default flip: a bare declaration — no knobs touched —
+    // now plays the N1j BBA ladder (which superseded the 2026-08-14 stack
+    // default).  The three probes hold across both flips: each hand's call
+    // is the same under stack and ladder, so this test watches the
+    // declaration's engagement, not the arm choice.
     let mut arm = Agreements::default();
     arm.decision.their.two_clubs_landy = true;
 
-    // N1c: the weak six-card club hand transfers.
+    // The weak six-card club hand transfers (N1c's rung; the ladder widens
+    // its band without moving this hand).
     let auction = [call(1, Strain::Notrump), call(2, Strain::Clubs)];
     let (c, _) = best_call_with(&arm, &auction, "32.43.432.QJ8765");
     assert_eq!(c, call(2, Strain::Notrump));
 
-    // N1d: the 8-count with five clubs defends instead of cueing.
+    // The 8-count with five clubs defends — the stack's N1d floor kept it
+    // off the cue; the ladder has no cue at all.
     let (c, _) = best_call_with(&arm, &auction, "43.432.J32.AK432");
     assert_eq!(c, Call::Double);
 
-    // N1f: the doubled cue is answered from the book, not the floor.
+    // The doubled 2♥ (stack: the club cue; ladder: the GF takeout) is
+    // answered 2NT from the book either way, not floored.
     let doubled_cue = [
         call(1, Strain::Notrump),
         call(2, Strain::Clubs),
@@ -665,7 +673,7 @@ fn landy_declaration_engages_the_shipped_stack() {
     ];
     let (c, floored) = best_call_with(&arm, &doubled_cue, "AQ32.KQ2.A432.32");
     assert_eq!(c, call(2, Strain::Notrump));
-    assert!(!floored, "the shipped stack answers the doubled cue");
+    assert!(!floored, "the default counter answers the doubled call");
 }
 
 #[test]
@@ -685,4 +693,184 @@ fn landy_counter_is_inert_when_the_knob_is_off() {
         Call::Pass,
         "systems-on answers the stolen Stayman; only the Landy arm sits"
     );
+}
+
+#[test]
+fn landy_bba_ladder_routes_the_both_minor_family() {
+    let auction = [call(1, Strain::Notrump), call(2, Strain::Clubs)];
+    // 2=2=4=5 game force: the takeout names the doubleton, and 2-2 bids 2♥.
+    let (c, floored) = bid_landy_bba(false, &auction, "A3.43.KQ32.AJ432");
+    assert_eq!(c, call(2, Strain::Hearts));
+    assert!(!floored, "the takeout must come from the book");
+    // 2=3=4=4 — the spade doubleton with three hearts — is the whole of 2♠.
+    let (c, _) = bid_landy_bba(false, &auction, "43.K43.KQ32.A432");
+    assert_eq!(c, call(2, Strain::Spades));
+    // 0-1 in a major splinters instead, even holding a doubleton in the
+    // other, and even holding a six-card minor the transfer would take.
+    let (c, _) = bid_landy_bba(false, &auction, "4.K432.KQ32.A432");
+    assert_eq!(c, call(3, Strain::Spades));
+    let (c, _) = bid_landy_bba(false, &auction, "K432.4.KQ32.A432");
+    assert_eq!(c, call(3, Strain::Hearts));
+    let (c, _) = bid_landy_bba(false, &auction, "A3.4.KQ32.AJ5432");
+    assert_eq!(c, call(3, Strain::Hearts));
+}
+
+#[test]
+fn landy_bba_wide_transfers_carry_every_one_suiter() {
+    let auction = [call(1, Strain::Notrump), call(2, Strain::Clubs)];
+    // The weak six-card club escape still transfers (the N1c earner) …
+    let (c, floored) = bid_landy_bba(false, &auction, "32.43.432.QJ8765");
+    assert_eq!(c, call(2, Strain::Notrump));
+    assert!(!floored, "the transfer must come from the book");
+    // … and the game force rides the *same* call — the one-minor cues and the
+    // INV 3♣/3♦ rungs are gone.
+    let (c, _) = bid_landy_bba(false, &auction, "32.A43.K2.AQJ876");
+    assert_eq!(c, call(2, Strain::Notrump));
+    // Six diamonds → the 3♣ transfer, BBA's own slot.
+    let (c, _) = bid_landy_bba(false, &auction, "32.A43.AQJ876.K2");
+    assert_eq!(c, call(3, Strain::Clubs));
+    // Opener completes both, forced.
+    let club_xfer = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        call(2, Strain::Notrump),
+        Call::Pass,
+    ];
+    let (c, _) = bid_landy_bba(false, &club_xfer, "AQ32.KQ54.A4.432");
+    assert_eq!(c, call(3, Strain::Clubs));
+    let diamond_xfer = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        call(3, Strain::Clubs),
+        Call::Pass,
+    ];
+    let (c, _) = bid_landy_bba(false, &diamond_xfer, "AQ32.KQ54.A4.432");
+    assert_eq!(c, call(3, Strain::Diamonds));
+    // Over the completion the game force shows its one major stopper, and
+    // opener supplies 3NT holding the other.
+    let completed = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        call(2, Strain::Notrump),
+        Call::Pass,
+        call(3, Strain::Clubs),
+        Call::Pass,
+    ];
+    let (c, floored) = bid_landy_bba(false, &completed, "32.A43.K2.AQJ876");
+    assert_eq!(c, call(3, Strain::Hearts));
+    assert!(!floored, "the stopper show must come from the book");
+    let shown = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        call(2, Strain::Notrump),
+        Call::Pass,
+        call(3, Strain::Clubs),
+        Call::Pass,
+        call(3, Strain::Hearts),
+        Call::Pass,
+    ];
+    let (c, _) = bid_landy_bba(false, &shown, "KQ32.Q54.A43.K32");
+    assert_eq!(c, call(3, Strain::Notrump));
+}
+
+#[test]
+fn landy_bba_keeps_the_values_double_and_sweeps_the_escape() {
+    let auction = [call(1, Strain::Notrump), call(2, Strain::Clubs)];
+    // The values X is byte-identical to the stack's row.
+    let (c, floored) = bid_landy_bba(false, &auction, "KQ32.43.KJ32.432");
+    assert_eq!(c, Call::Double);
+    assert!(!floored, "the values double must come from the book");
+    // The weak 2♦ survives at the shipped band …
+    let (c, _) = bid_landy_bba(false, &auction, "32.43.KQJ87.J432");
+    assert_eq!(c, call(2, Strain::Diamonds));
+    // … and the cap arm narrows it to hcp(..=6): the 7-count passes, the
+    // 6-count keeps its escape.
+    let (c, _) = bid_landy_bba(true, &auction, "32.43.KQJ87.J432");
+    assert_eq!(c, Call::Pass);
+    let (c, _) = bid_landy_bba(true, &auction, "32.43.KQJ87.5432");
+    assert_eq!(c, call(2, Strain::Diamonds));
+}
+
+#[test]
+fn landy_bba_takeout_answers_notrump_for_the_short_stopper() {
+    let base = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        call(2, Strain::Hearts),
+        Call::Pass,
+    ];
+    // Opener with the bid (short) major stopped answers notrump even holding
+    // a four-card minor …
+    let (c, floored) = bid_landy_bba(false, &base, "A543.AJ4.KQ32.Q2");
+    assert_eq!(c, call(2, Strain::Notrump));
+    assert!(!floored, "the answer must come from the book");
+    // … without it, the cheapest four-card minor …
+    let (c, _) = bid_landy_bba(false, &base, "AQ54.432.AQ32.K2");
+    assert_eq!(c, call(3, Strain::Diamonds));
+    // … and with neither stopper nor minor, notrump is the forced catch-all.
+    let (c, _) = bid_landy_bba(false, &base, "AQ54.5432.A32.K2");
+    assert_eq!(c, call(2, Strain::Notrump));
+    // The splinter answer is the same rule a level up.
+    let spl = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        call(3, Strain::Hearts),
+        Call::Pass,
+    ];
+    let (c, _) = bid_landy_bba(false, &spl, "A543.AJ4.KQ32.Q2");
+    assert_eq!(c, call(3, Strain::Notrump));
+}
+
+#[test]
+fn landy_bba_tails_survive_their_interference() {
+    // Their X of a takeout takes no room: opener answers verbatim.
+    let doubled = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        call(2, Strain::Hearts),
+        Call::Double,
+    ];
+    let (c, floored) = bid_landy_bba(false, &doubled, "A543.AJ4.KQ32.Q2");
+    assert_eq!(c, call(2, Strain::Notrump));
+    assert!(!floored, "the doubled takeout must still be answered");
+    // Their raise gets the compressed ladder: notrump with the short-major
+    // stopper, else the minor, else Pass — responder's game force comes again.
+    let raised = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        call(2, Strain::Hearts),
+        call(2, Strain::Spades),
+    ];
+    let (c, _) = bid_landy_bba(false, &raised, "A543.AJ4.KQ32.Q2");
+    assert_eq!(c, call(2, Strain::Notrump));
+    let (c, _) = bid_landy_bba(false, &raised, "AQ54.432.AQ32.K2");
+    assert_eq!(c, call(3, Strain::Diamonds));
+    let (c, _) = bid_landy_bba(false, &raised, "AQ543.5432.A2.K2");
+    assert_eq!(c, Call::Pass);
+    // The doubled club transfer is still completed.
+    let doubled_xfer = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Clubs),
+        call(2, Strain::Notrump),
+        Call::Double,
+    ];
+    let (c, _) = bid_landy_bba(false, &doubled_xfer, "AQ32.KQ54.A4.432");
+    assert_eq!(c, call(3, Strain::Clubs));
+}
+
+#[test]
+fn landy_bba_makes_the_stack_knobs_inert() {
+    let auction = [call(1, Strain::Notrump), call(2, Strain::Clubs)];
+    // The GF five-card-minor hand the stack cues bids BBA's ungated 3NT on
+    // the ladder — with or without the stack knobs armed on top.
+    let hand = "432.A43.K32.AQJ54";
+    let (c, _) = bid_landy_bba(false, &auction, hand);
+    assert_eq!(c, call(3, Strain::Notrump));
+    let mut arm = Agreements::default();
+    arm.decision.their.two_clubs_landy = true;
+    arm.competition.defense_2c_landy_bba = true;
+    arm.competition.defense_2c_landy_cues = true;
+    arm.competition.defense_2c_landy_hcp_rungs = true;
+    let (c, _) = best_call_with(&arm, &auction, hand);
+    assert_eq!(c, call(3, Strain::Notrump));
 }

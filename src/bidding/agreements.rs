@@ -311,6 +311,48 @@ pub struct CompetitionKnobs {
     /// that fix is floor discipline, not more nodes.  No effect while their
     /// `2♣` is undeclared or natural.
     pub defense_2c_landy_competition: bool,
+    /// Play the BBA-ladder Landy counter (N1j) — the anchor-aligned table
+    ///
+    /// Re-shapes responder's whole table over their Landy `2♣` to the
+    /// structure BBA itself plays as a 1NT opener facing Landy
+    /// (`docs/ai-bidder/bba-1nt-counter-defense.md`): the notrump ladder plus
+    /// **wide** forced minor transfers (`2NT`→♣ 6+, `3♣`→♦ 6+, weak sign-off
+    /// through game force), with the one-minor cues and the INV `3♣`/`3♦`
+    /// rungs deleted.  Two deliberate deviations, both evidence-backed: the
+    /// values `X` stays byte-identical (BBA never doubles Landy; three
+    /// experiments defended the row), and a low-frequency game-forcing
+    /// both-minors family occupies the cues' former slots — `2♥`/`2♠` = 4+♦
+    /// 4+♣ with exactly a doubleton in the bid major (2-2 bids `2♥`, so `2♠`
+    /// promises three hearts), `3♥`/`3♠` = the same hand with 0-1 there.
+    /// Opener answers a takeout/splinter in notrump with the bid (short)
+    /// major stopped or no four-card minor, else picks a minor.
+    ///
+    /// When on, the N1b–N1i structure knobs ([`Self::defense_2c_landy_cues`]
+    /// through [`Self::defense_2c_landy_hcp_rungs`]) are **inert** — this
+    /// table replaces the one they modify.  No effect while their `2♣` is
+    /// undeclared or natural.  **Default on since 2026-08-15**, at the
+    /// non-inferiority gate its rationale set (structural alignment with the
+    /// anchor rather than IMPs — a wash ships): pooled three seeds at 230.4k
+    /// bd/vul, **all eight DD cells lean positive with zero CI-clear
+    /// negatives** (plain +0.00083 ±0.00085 NV / +0.00080 ±0.00100 vul, PD
+    /// +0.00083 / +0.00073), sd sign-agreed, and the `2M ← X` guard passed
+    /// **vacuously** — not one hand left the values double for the takeout
+    /// family, so the three-experiments finding stays untouched.  See
+    /// `docs/one-notrump-competitive.md` §N1j.
+    pub defense_2c_landy_bba: bool,
+    /// Cap the BBA ladder's weak natural `2♦` at `hcp(..=6)` (N1j's 2♦ arm)
+    ///
+    /// Read only under [`Self::defense_2c_landy_bba`].  The N1i decompose's
+    /// one positive lead was `2♦ → Pass` (+2.40 PD per fired over 52 boards,
+    /// per-seed +4.50/+1.33/−1.09): the 7-9 point five-card-diamond escape
+    /// may be worth less than passing.  This is that lead isolated — the
+    /// shipped `points(..=9)` band narrows to `hcp(..=6)` and the dropped
+    /// hands pass.  **Default on since 2026-08-15** — and on the *standard*
+    /// gate, not the bundle's relaxed one: plain wash + PD CI-clear win at
+    /// both vulnerabilities (NV +0.00037 ±0.00033, vul +0.00050 ±0.00035;
+    /// +2.6 to +4.5 PD per fired), the isolation gate at **zero foreign
+    /// boards**, and every divergence the predicted `2♦ → Pass` row.
+    pub defense_2c_landy_weak_2d_cap: bool,
     // --- competition/negative_double.rs
     /// Which negative-double school the minor openings play
     ///
@@ -655,6 +697,8 @@ impl Default for CompetitionKnobs {
             defense_2c_landy_hcp_rungs: false,
             defense_2c_landy_fit_answers: true,
             defense_2c_landy_competition: true,
+            defense_2c_landy_bba: true,
+            defense_2c_landy_weak_2d_cap: true,
             negative_double_shape: NegativeDoubleShape::Modern,
             cachalot_contested_x: true,
             weak_two_competition: false,
