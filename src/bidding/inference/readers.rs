@@ -5,7 +5,7 @@
 //! the ledger; every function here is a chop candidate, and the tail helpers
 //! below serve the natural walk in [`super::read`].
 
-use super::envelope::{Envelope, Range, Relative, relative_of};
+use super::envelope::{Envelope, EnvelopeUnion, Range, Relative, relative_of};
 use super::knobs::ReadingProfile;
 use super::read::support_band_to_points;
 use super::{LENGTH_CAP, POINTS_CAP};
@@ -162,6 +162,33 @@ pub(super) struct TheirLandyReading {
     jump_advance: Option<usize>,
 }
 
+/// Locate a disclosed call made by the opponents over our `1NT`
+///
+/// Returns the opening side's parity and the call's index.  The call must be
+/// the defending side's first non-pass action; the seat gate prevents a fact
+/// about *their* defense from decoding our mirror-image overcall.
+fn their_disclosed_overcall(auction: &[Call], len: usize, wanted: Bid) -> Option<(usize, usize)> {
+    let opening_index = auction.iter().position(|&c| c != Call::Pass)?;
+    if auction[opening_index] != Call::Bid(Bid::new(1, Strain::Notrump)) {
+        return None;
+    }
+    let opener_parity = opening_index % 2;
+    if opener_parity != len % 2 {
+        return None;
+    }
+    let overcall_index = auction
+        .iter()
+        .enumerate()
+        .skip(opening_index + 1)
+        .find_map(|(index, &call)| match call {
+            Call::Pass => None,
+            Call::Bid(bid) if index % 2 != opener_parity => Some((bid == wanted).then_some(index)),
+            _ => Some(None),
+        })
+        .flatten()?;
+    Some((opener_parity, overcall_index))
+}
+
 /// Read their disclosed Landy `2♣` over our `1NT`
 /// ([`ReadingProfile::their_landy_reading`] is the wiring switch)
 // ponytail: a hand reader, not a projection — their calls have no authored rule
@@ -176,31 +203,8 @@ pub(super) fn their_landy_reading(
     if !(profile.their_landy_reading && their.two_clubs_landy) {
         return None;
     }
-    let opening_index = auction.iter().position(|&c| c != Call::Pass)?;
-    if auction[opening_index] != Call::Bid(Bid::new(1, Strain::Notrump)) {
-        return None;
-    }
-    // The seat gate: the disclosure applies only when the 1NT is ours.
-    let opener_parity = opening_index % 2;
-    if opener_parity != len % 2 {
-        return None;
-    }
-
-    // Their 2♣ must be the defending side's first action — direct or
-    // balancing; any other first action (their X, our responder acting first)
-    // is not the disclosed Landy.
-    let overcall_index = auction
-        .iter()
-        .enumerate()
-        .skip(opening_index + 1)
-        .find_map(|(index, &call)| match call {
-            Call::Pass => None,
-            Call::Bid(bid) if index % 2 != opener_parity => {
-                Some((bid == Bid::new(2, Strain::Clubs)).then_some(index))
-            }
-            _ => Some(None),
-        })
-        .flatten()?;
+    let (opener_parity, overcall_index) =
+        their_disclosed_overcall(auction, len, Bid::new(2, Strain::Clubs))?;
 
     // The advancer's first bid, wherever it sits: the scan jumps over every
     // call of ours (pass, double, or a competing bid), as
@@ -228,6 +232,42 @@ pub(super) fn their_landy_reading(
         overcall_index,
         advance,
         jump_advance,
+    })
+}
+
+/// The opponents' disclosed Multi `2♦` and pass-or-correct advance
+#[derive(Clone, Copy)]
+pub(super) struct TheirMultiReading {
+    /// Their artificial `2♦`: one unknown six-card major.
+    overcall_index: usize,
+    /// Their advancer's first `2♥`/`2♠`, which names no holding of its own.
+    advance: Option<usize>,
+}
+
+impl TheirMultiReading {
+    fn suppresses(self, index: usize) -> bool {
+        self.overcall_index == index || self.advance == Some(index)
+    }
+}
+
+/// Read their disclosed Multi `2♦` over our `1NT`
+///
+/// ponytail: this hand reader exists only because BBA has no declared opponent
+/// book to project; delete it when `their_profile` can decode that foreign book.
+fn their_multi_reading(
+    auction: &[Call],
+    len: usize,
+    profile: ReadingProfile,
+    their: TheirDisclosures,
+) -> Option<TheirMultiReading> {
+    if !(profile.their_multi_reading && their.two_diamonds_multi) {
+        return None;
+    }
+    let (opener_parity, overcall_index) =
+        their_disclosed_overcall(auction, len, Bid::new(2, Strain::Diamonds))?;
+    Some(TheirMultiReading {
+        overcall_index,
+        advance: advancer_artificial(auction, overcall_index, opener_parity),
     })
 }
 
@@ -677,7 +717,7 @@ fn is_american(opening: Bid, response: Bid) -> bool {
         }
 }
 
-/// The seven hand-written convention readings of one auction, taken together
+/// The hand-written convention readings of one auction, taken together
 ///
 /// Each field is one reader's verdict, and `docs/reader-retirement.md` is the
 /// ledger of which are still owed a chop (the Multi/Woolsey-X/DONT/Meckwell
@@ -691,6 +731,7 @@ pub(super) struct Readings {
     rubens_transfer: Option<(usize, Suit, u8)>,
     landy_relay: Option<usize>,
     their_landy: Option<TheirLandyReading>,
+    their_multi: Option<TheirMultiReading>,
     penalty_x: Option<usize>,
     penalty_latch_doubles: Vec<(usize, Suit)>,
     overcall_double: Option<usize>,
@@ -721,6 +762,9 @@ impl Readings {
             // are preferences.  Seat-gated on the disclosure, unlike the
             // symmetric readers around it.
             their_landy: their_landy_reading(auction, len, profile, their),
+            // The disclosed foreign Multi has no authored opponent rule to
+            // project, so preserve its `6+♥ | 6+♠` disjunction here.
+            their_multi: their_multi_reading(auction, len, profile, their),
             // Our natural penalty double of their 1NT (15+): a double names no suit, so the
             // generic walk reads it as nothing — the points floor is recorded post-walk.
             penalty_x: penalty_x_reading_with_profile(auction, profile),
@@ -747,6 +791,7 @@ impl Readings {
         self.rubens_suppress.contains(&Some(index))
             || self.landy_relay == Some(index)
             || self.their_landy.is_some_and(|t| t.suppresses(index))
+            || self.their_multi.is_some_and(|t| t.suppresses(index))
             || self.gladiator.is_some_and(|g| g.suppresses(index))
     }
 
@@ -755,14 +800,16 @@ impl Readings {
     /// **The order of the blocks below is load-bearing.**  `Range::intersect`
     /// widens to the span on disjoint bounds rather than going empty, so it is
     /// not a meet and these narrowings do not commute.  The two Rubens blocks
-    /// run *before* `overlay` is folded into `players`; the other nine run
-    /// after.  `docs/reader-retirement.md` turns that ordering into the fifth
+    /// run *before* `overlay` is folded into `players`; the remaining readers
+    /// run after.  `docs/reader-retirement.md` turns that ordering into the fifth
     /// condition of its subset escape — a reader ahead of the fold can widen an
     /// axis that the same narrowing applied after the fold would not.
     pub(super) fn apply(
         &self,
         players: &mut [Envelope; 4],
         overlay: &[Envelope; 4],
+        overlay_unions: &mut [EnvelopeUnion; 4],
+        agreement_unions: &mut [EnvelopeUnion; 4],
         len: usize,
         profile: ReadingProfile,
     ) {
@@ -817,6 +864,24 @@ impl Readings {
             let who = relative_of(len, their_landy.overcall_index) as usize;
             players[who].narrow_length(Suit::Hearts, Range::at_least(4, LENGTH_CAP));
             players[who].narrow_length(Suit::Spades, Range::at_least(4, LENGTH_CAP));
+        }
+
+        // Their disclosed Multi: one true union, not the hull that would admit
+        // a 5-4 hand.  The natural diamond and pass-or-correct readings were
+        // suppressed above; no strength or side-suit claim is added.
+        if let Some(their_multi) = self.their_multi {
+            let who = relative_of(len, their_multi.overcall_index) as usize;
+            let mut hearts = Envelope::unknown();
+            hearts.narrow_length(Suit::Hearts, Range::at_least(6, LENGTH_CAP));
+            let mut spades = Envelope::unknown();
+            spades.narrow_length(Suit::Spades, Range::at_least(6, LENGTH_CAP));
+            // This disclosure is inherently disjunctive, not an optional
+            // projection refinement: preserve both boxes even under the
+            // legacy single-envelope projection setting.
+            let shown = EnvelopeUnion::from(hearts).union(EnvelopeUnion::from(spades));
+            players[who] = players[who].intersect(&shown.hull());
+            overlay_unions[who].intersect_assign(&shown, profile);
+            agreement_unions[who].intersect_assign(&shown, profile);
         }
 
         // Our Gladiator advance: record the real shape the suppressed call hid.

@@ -194,6 +194,7 @@ is 5 calls; the most common runout point is after opener's transfer completion
 | N2 | Muiderberg `(2♠)` calibration | — | −0.66/bd, PD −0.58 NV; **BBA plays plain Lebensohl here, we play Cohen Transfer** — a concrete A/B, see the [counter-defense reference](ai-bidder/bba-1nt-counter-defense.md) |
 | N3 | `(3+)` overcalls of our 1NT | new | floor-only today; −0.63/bd. **Misnamed: their three-level calls are natural 7-card preempts**, not artificial — this is `defense_to_preempt`'s lane, not a counter-defense |
 | N4 | Multi `(2♦)` — the Transfer leg re-keyed for a Multi, the double family and relay authored to the seat; **v7 = BBA's own second-turn structure minus its PD-refused game bids** (takeout X of the resolved major, `hcp 6+` values double) | `their.two_diamonds_multi` (disclosure) | **SHIPPED 2026-08-15 (seven rounds, v7 pooled 3 seeds): NV `plain wash \| PD win` (+0.00100 ±0.00067), vul plain +0.00061 ±0.00056 \| PD +0.00061 ±0.00069; both-vul pool win\|win; paired vs v4 better on 3 of 4 cells** — census default in `their_2d_multi` + `vs_bba_agreements`; see [§N4](#n4--their-2-as-a-multi-shipped-2026-08-15--v7-seven-rounds-default-on-vs-bba-via-the-census) |
+| N4 residue | Read their disclosed Multi as exactly `6+♥ ∪ 6+♠`; test the honest `3♠` stopper ask after the correction to spades | `reading.their_multi_reading`, `competition.multi_stopper_ask` | **Reader SHIPPED DEFAULT-ON 2026-08-16** (`plain wash \| PD win`, 0 foreign). **Stopper ask REFUTED as a default** (`plain win \| PD wash` for both continuations); `FitSearch` and `OpenerPlaces` remain explicit opt-ins, default `Off`. See §N4 residue below |
 | N4b | `(2♦)` **diamond penalty double** — the cheap half of N4, no disclosure needed | `two_diamond_double` | **measured 2026-08-15 — sweep NULL, stays opt-in.** Raw headline was CI-clear positive in all 28 cells but **84.9% foreign** (isolation gate failed); owned subset is a wash. Spun off a real candidate: reading *their* double of a `2♦` overcall as diamonds — see §N4b |
 | N5 | Complete Jacoby, re-measure | `competition_over_transfer` | default-off on a measured loss *while missing its two most-fired cells* — a half-built loss, resumable |
 | N6 | `(2NT)` penalty discipline | `uvu_encircle` et al. | worst per-board rate, n=118 — needs boards before it needs code. Mechanism now priced: **BBA doubles 46.7%** and cues `3♣` for both majors ([reference](ai-bidder/bba-1nt-counter-defense.md)) |
@@ -718,9 +719,8 @@ six-card major (BBA's 2/1 reference: `hcp 9–18`, median 13,
 [bba-multi-2d.md](ai-bidder/bba-multi-2d.md)). Undeclared keeps the natural
 leg, byte-identical (smoke `18aba5ce…` re-verified from the worktree).
 `bba-gen --their-2d-multi` arms it; `their_2d_multi` derives it from an
-explicit `Multi-Landy` row at face value and **otherwise leaves it undeclared
-until this package ships** — unlike `their_2c_landy`, no census default yet, so
-a plain vs-BBA run is the *base* arm and the candidate is spelled out.
+explicit `Multi-Landy` row at face value and otherwise uses the shipped 2/1
+census default. `--their-2d-multi false` names the pre-N4 arm.
 `bba-decompose --multi-counter` replays a candidate dump; `web`
 `declare_their_2d_multi`; `probe-call-reading --their-2d-multi`.
 
@@ -1100,7 +1100,8 @@ sell-out after they *run* to `2♠` — `X (2♥) - (2♠) -` **−4.03 / −0.5
 (n=65) and `X (2♥) X (2♠) -` −3.61 / +0.56 (n=59) — is the 10–12 hand with
 no spade stopper and fewer than four spades, still passing; BBA's blind
 `3NT` there was the one blind blast PD tolerated (+0.09 NV, −1.79 vul, plain
-+3.9/+3.1). A stopper-ask cue (`3♠`) is the honest candidate; not built.
++3.9/+3.1). The honest stopper-ask cue (`3♠`) is measured in the residue
+round below.
 The `X (2♥) - (-) -` sell-out itself is now plain −2.05 / PD **+2.02** NV
 and +0.32 / **+5.01** vul — perfect defense wants us defending BBA's `2♥`,
 and the takeout X takes the hands that should not.
@@ -1130,10 +1131,67 @@ everything else here.
 What the seven rounds established, beyond the numbers: **the floor cannot
 hold any seat of this structure** — it sold out with 10+, raised a weak
 sign-off to game, pulled both sides' penalty doubles, and cued their relay —
-because it reads their `2♦` as diamonds and their `2M` as natural. Every one
+because it read their `2♦` as diamonds and their `2M` as natural. Every one
 of those seats is now a book node (the "copy nodes" the design round argued
 against and the measurement demanded), and the read-side follow-up (their
-`2♦` as `6+♥ ∪ 6+♠`) is what would let the floor own them again. Not built.
+`2♦` as `6+♥ ∪ 6+♠`) now gives the remaining floor decisions the same
+fact.
+
+### N4 residue — reader shipped; stopper ask stays opt-in (**measured 2026-08-16**)
+
+The temporary reader fires only when our side opened `1NT`, the opponents'
+first action is their disclosed Multi `2♦`, and
+`reading.their_multi_reading` is on. It suppresses both the natural-diamond
+read and the advancer's first `2♥`/`2♠` pass-or-correct read, then intersects
+the same exact two-box union into sampler and announced inference:
+`{ ♥6+ } ∪ { ♠6+ }`. It claims no strength, minor length, or other-major
+length. The systems-on overcall strip clears the disclosure, so
+`(1x) 1NT (2♦)` cannot enter this lane. It is temporary until a declared-
+opponent profile can project the opponents' own authored book.
+
+The independently gated `competition.multi_stopper_ask` has three modes:
+`Off`, `FitSearch`, and `OpenerPlaces`. In only the two `ran=true` corrections
+to spades, responder may bid alerted `3♠` with 10–12 points, at most three
+spades, and no spade stopper. Opener bids `3NT` with a stopper; otherwise it
+uses the ordinary deterministic longest-side-suit choice. `FitSearch` lets
+responder pass `4♥`, raise a known minor fit to game, or name a remaining
+four-card side suit, with the lone `4♣–4♦` branch placed in `5♦` with support
+and `5♣` otherwise. `OpenerPlaces` chooses `4♥` or `5m` immediately.
+
+Their double of the ask rebases to the same answers and continuations. Over
+their `4♠`, opener doubles with a stopper or four spades and otherwise makes
+a forcing pass; after two opposing passes responder names its longest
+four-plus side suit at the five level. All resulting games, penalty doubles,
+and doubled signoffs are book-owned terminal passes, fenced from the floor.
+
+`scripts/ab-2d-multi-residue.sh` ran four aligned arms — shipped v7,
+reader-only, `FitSearch`-only, and `OpenerPlaces`-only — with the other residue
+knob pinned off. Three independent seeds (1786812881, 1786813975,
+1786815052), 230.4k accepted boards per arm/vulnerability/seed, both
+vulnerabilities, `--filter-1nt`, plain DD and PD: 691.2k boards per table row.
+Every pair/seed/vulnerability passed `probe-divergence --gate-opener ours`
+with **zero foreign boards**.
+
+| arm vs shipped v7 | vul | fired | plain /bd | PD /bd | verdict |
+| --- | --- | ---: | ---: | ---: | --- |
+| reader | NV | 321 | −0.0001 ±0.0003 | +0.0004 ±0.0004 | wash \| wash |
+| reader | both | 174 | +0.0001 ±0.0003 | **+0.0006 ±0.0004** | wash \| win |
+| `FitSearch` | NV | 84 | **+0.0006 ±0.0002** | +0.0001 ±0.0002 | win \| wash |
+| `FitSearch` | both | 58 | **+0.0004 ±0.0002** | −0.0001 ±0.0002 | win \| wash |
+| `OpenerPlaces` | NV | 84 | **+0.0006 ±0.0002** | +0.0001 ±0.0002 | win \| wash |
+| `OpenerPlaces` | both | 58 | **+0.0004 ±0.0002** | −0.0001 ±0.0002 | win \| wash |
+
+Across both vulnerabilities the reader summed **−29 plain / +643 PD IMPs**
+on 1.3824m boards: no honest-score downside and a CI-clear pooled PD gain.
+That is the repository's `plain wash | PD win` ship row, so
+`their_multi_reading` is default-on (still inert without the disclosure).
+
+Both stopper continuations instead land on the table's `plain win | PD wash`
+doubling-artifact row, so the ask remains default `Off`. Their direct paired
+comparison was a statistical tie: NV only two contracts differed
+(`FitSearch − OpenerPlaces` +4 plain / −4 PD IMPs); vulnerable, none did.
+Because no stopper mode passed independently, there is no selected reader +
+stopper stack and the conditional combined confirmation arm was skipped.
 
 ## N4b — the `(2♦)` diamond penalty double (**built 2026-08-15, sweeping**)
 

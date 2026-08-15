@@ -89,8 +89,9 @@ pub struct Inferences {
     players: [Envelope; 4],
     /// Per-seat union-of-boxes reading; the sampler tests any-box under
     /// [`envelope_union`][field@crate::bidding::ReadingProfile::envelope_union].
-    /// Off, every entry is a single box equal to
-    /// `players[i]`.
+    /// Off, projection produces a single box equal to `players[i]`; a reader
+    /// may still install an inherently disjunctive foreign disclosure such as
+    /// their Multi.
     unions: [EnvelopeUnion; 4],
     /// Per-seat hull of `announced_unions` — the *agreement* twin of `players`, and
     /// what [`features`][crate::bidding::features] hands the nets.  Equal to `players`
@@ -219,15 +220,15 @@ impl Inferences {
 
     /// Whether `hand` is consistent with one seat's reading
     ///
-    /// Under [`envelope_union`][field@crate::bidding::inference::ReadingProfile::envelope_union]
-    /// a hand must lie in *some* box of that seat's union
-    /// (tighter — pins two-suiters / Multi / the fit-split); off, it need only
-    /// lie in the bounding-box hull (today's acceptance).  The sampler's per-seat
-    /// test.
+    /// Under [`envelope_union`][field@crate::bidding::inference::ReadingProfile::envelope_union],
+    /// or when a reader explicitly preserved more than one box, a hand must
+    /// lie in *some* box of that seat's union. Otherwise it need only lie in
+    /// the bounding-box hull. The sampler's per-seat test.
     #[must_use]
     pub fn admits(&self, who: Relative, hand: Hand) -> bool {
-        if self.profile.envelope_union() {
-            self.unions[who as usize].contains_on(hand, self.profile)
+        let union = &self.unions[who as usize];
+        if self.profile.envelope_union() || union.boxes().len() > 1 {
+            union.contains_on(hand, self.profile)
         } else {
             self.players[who as usize].admits_on(hand, self.profile)
         }
@@ -327,6 +328,7 @@ impl Inferences {
                     // worst boards were exactly this leak.
                     let mut profile = context.decision_profile();
                     profile.their.two_clubs_landy = false;
+                    profile.their.two_diamonds_multi = false;
                     Self::read(
                         &partnership
                             .prefixed_context(context.vul(), &stripped)
@@ -1030,7 +1032,14 @@ impl Inferences {
 
         // Record what the suppressed conventional calls genuinely showed.  The
         // block order inside `apply` is load-bearing — see its doc comment.
-        readings.apply(&mut players, &overlay, len, profile);
+        readings.apply(
+            &mut players,
+            &overlay,
+            &mut overlay_unions,
+            &mut agreement_unions,
+            len,
+            profile,
+        );
 
         // The vacuous-scoped probed overlay (`ReadingProfile::probed_vacuous`):
         // own-side calls in *contested* prefixes only, folded onto axes every

@@ -96,6 +96,22 @@ fn landy_counter_package_invariants() {
     }
 }
 
+/// The Multi stopper ask is default-off, so probe both opt-in packages
+/// explicitly.  This checks every guarded continuation is total and every
+/// artificial row (the `3♠` ask) carries its alert.
+#[test]
+fn multi_stopper_package_invariants() {
+    for mode in [
+        super::MultiStopperAsk::FitSearch,
+        super::MultiStopperAsk::OpenerPlaces,
+    ] {
+        let mut arm = Agreements::default();
+        arm.decision.their.two_diamonds_multi = true;
+        arm.competition.multi_stopper_ask = mode;
+        crate::bidding::rows::assert_package_invariants(&arm, &[super::lebensohl_package()]);
+    }
+}
+
 /// `american()`'s best call for a hand in an auction, and whether the instinct
 /// floor (not a book node) produced it
 pub(super) fn best_call(auction: &[Call], hand: &str) -> (Call, bool) {

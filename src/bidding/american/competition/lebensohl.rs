@@ -10,11 +10,12 @@ use super::penalty_double::{
 };
 use super::rubensohl::{
     clubs_transfer_completion, cue_stayman_answer, lm_2d_both_majors_advance, lm_2d_clubs_ask,
-    lm_2d_clubs_major, multi_2d_responder, multi_clubs_transfer_completion, multi_pass_answer,
-    multi_penalty_answer, multi_quant_answer, multi_relay_rebid, multi_responder_rebid,
-    multi_signoff_pass, multi_takeout_answer, stayman_2d_answer, stayman_2d_fit_rebid,
-    transfer_completion, transfer_lebensohl_responder, transfer_stayman_2d_responder,
-    transfer_target,
+    lm_2d_clubs_major, multi_2d_responder, multi_clubs_transfer_completion, multi_fit_search_place,
+    multi_fit_search_rebid, multi_pass_answer, multi_penalty_answer, multi_quant_answer,
+    multi_relay_rebid, multi_responder_rebid, multi_signoff_pass, multi_stopper_answer,
+    multi_stopper_forcing_rebid, multi_stopper_over_four_spades, multi_takeout_answer,
+    stayman_2d_answer, stayman_2d_fit_rebid, transfer_completion, transfer_lebensohl_responder,
+    transfer_stayman_2d_responder, transfer_target,
 };
 use super::*;
 
@@ -1725,7 +1726,11 @@ pub(super) fn lebensohl_package() -> Package {
                     for (path, major, ran) in resolved {
                         entries.extend(rows_of(
                             Pattern::after(NT, &format!("{their} {path}")),
-                            multi_responder_rebid(major, ran),
+                            multi_responder_rebid(
+                                major,
+                                ran,
+                                agreements.competition.multi_stopper_ask,
+                            ),
                         ));
                         entries.extend(rows_of(
                             Pattern::after(NT, &format!("{their} {path} X -")),
@@ -1739,6 +1744,115 @@ pub(super) fn lebensohl_package() -> Package {
                             Pattern::after(NT, &format!("{their} {path} 4NT -")),
                             multi_quant_answer(),
                         ));
+                        let ask_mode = agreements.competition.multi_stopper_ask;
+                        if ran && ask_mode != MultiStopperAsk::Off {
+                            let ask = format!("{their} {path} 3♠");
+                            let ask_key = format!("{NT} {ask}");
+                            entries.extend(rows_of(
+                                Pattern::after(NT, &format!("{ask} -")),
+                                multi_stopper_answer(ask_mode),
+                            ));
+                            // Their double of the ask consumes no bidding room:
+                            // strip it to a pass for this whole subtree.
+                            entries.push(rebase(
+                                Pattern::first(&ask_key, "X"),
+                                ReplaceNext(Call::Pass),
+                            ));
+
+                            // Their 4♠ obstruction: double with a stopper or
+                            // four trumps; otherwise Pass is forcing.
+                            entries.extend(rows_of(
+                                Pattern::after(NT, &format!("{ask} (4♠)")),
+                                multi_stopper_over_four_spades(),
+                            ));
+                            entries.extend(rows_of(
+                                Pattern::after(NT, &format!("{ask} (4♠) X -")),
+                                sit.clone(),
+                            ));
+                            entries.extend(rows_of(
+                                Pattern::after(NT, &format!("{ask} (4♠) - (-)")),
+                                multi_stopper_forcing_rebid(),
+                            ));
+                            for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
+                                let game = format!("5{}", Strain::from(suit));
+                                for their_call in ["-", "(X)"] {
+                                    entries.extend(rows_of(
+                                        Pattern::after(
+                                            NT,
+                                            &format!("{ask} (4♠) - (-) {game} {their_call}"),
+                                        ),
+                                        sit.clone(),
+                                    ));
+                                }
+                            }
+
+                            if ask_mode == MultiStopperAsk::FitSearch {
+                                // 3NT and 4♥ are already the final game.
+                                for game in ["3NT", "4♥"] {
+                                    for their_call in ["-", "(X)"] {
+                                        entries.extend(rows_of(
+                                            Pattern::after(
+                                                NT,
+                                                &format!("{ask} - {game} {their_call}"),
+                                            ),
+                                            sit.clone(),
+                                        ));
+                                    }
+                                }
+                                // A minor answer searches for responder's fit
+                                // or longest remaining four-card side suit.
+                                for shown in [Suit::Clubs, Suit::Diamonds] {
+                                    let answer = format!("4{}", Strain::from(shown));
+                                    entries.extend(rows_of(
+                                        Pattern::after(NT, &format!("{ask} - {answer} -")),
+                                        multi_fit_search_rebid(shown),
+                                    ));
+                                }
+                                // Every search continuation except 4♣–4♦
+                                // is game and terminal, even when doubled.
+                                for continuation in
+                                    ["4♣ - 5♣", "4♣ - 4♥", "4♦ - 5♦", "4♦ - 4♥", "4♦ - 5♣"]
+                                {
+                                    for their_call in ["-", "(X)"] {
+                                        entries.extend(rows_of(
+                                            Pattern::after(
+                                                NT,
+                                                &format!("{ask} - {continuation} {their_call}"),
+                                            ),
+                                            sit.clone(),
+                                        ));
+                                    }
+                                }
+                                entries.extend(rows_of(
+                                    Pattern::after(NT, &format!("{ask} - 4♣ - 4♦ -")),
+                                    multi_fit_search_place(),
+                                ));
+                                for game in ["5♣", "5♦"] {
+                                    for their_call in ["-", "(X)"] {
+                                        entries.extend(rows_of(
+                                            Pattern::after(
+                                                NT,
+                                                &format!("{ask} - 4♣ - 4♦ - {game} {their_call}"),
+                                            ),
+                                            sit.clone(),
+                                        ));
+                                    }
+                                }
+                            } else {
+                                // Opener placed the contract immediately.
+                                for game in ["3NT", "4♥", "5♣", "5♦"] {
+                                    for their_call in ["-", "(X)"] {
+                                        entries.extend(rows_of(
+                                            Pattern::after(
+                                                NT,
+                                                &format!("{ask} - {game} {their_call}"),
+                                            ),
+                                            sit.clone(),
+                                        ));
+                                    }
+                                }
+                            }
+                        }
                     }
                     entries.extend(rows_of(
                         Pattern::after(NT, &format!("{their} X (2♥) - (-) 2♠ -")),

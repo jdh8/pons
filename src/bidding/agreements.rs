@@ -31,8 +31,8 @@
 //! lives in `decision` and is read from there at build time too.
 
 use super::american::{
-    Competitive4333, DoubleShape, DoubleStyle, FreeBidStyle, LebensohlStyle, NegativeDoubleShape,
-    NotrumpShape, SizeAskEight, TakeoutSupport, TwoOverOneGate, WeakTwoEval,
+    Competitive4333, DoubleShape, DoubleStyle, FreeBidStyle, LebensohlStyle, MultiStopperAsk,
+    NegativeDoubleShape, NotrumpShape, SizeAskEight, TakeoutSupport, TwoOverOneGate, WeakTwoEval,
 };
 use super::context::DecisionProfile;
 
@@ -608,6 +608,19 @@ pub struct CompetitionKnobs {
     /// Default [`Competitive4333::Suppress`]; `--ns-competitive-4333` in
     /// `bba-gen` for the other arms.
     pub competitive_4333: Competitive4333,
+    /// Responder's `3♠` stopper ask after the Multi corrects to spades
+    ///
+    /// The ask is available only in the two `ran=true` N4 auctions.  [`Off`]
+    /// preserves shipped v7; [`FitSearch`] lets responder search after opener
+    /// names a side suit, while [`OpenerPlaces`] has opener choose the game
+    /// immediately.  **Off by default**: both modes measured `plain win | PD
+    /// wash` in the aligned N4 residue A/B, the repository's doubling-artifact
+    /// row.  Their direct comparison was a statistical tie.
+    ///
+    /// [`Off`]: MultiStopperAsk::Off
+    /// [`FitSearch`]: MultiStopperAsk::FitSearch
+    /// [`OpenerPlaces`]: MultiStopperAsk::OpenerPlaces
+    pub multi_stopper_ask: MultiStopperAsk,
     // --- competition/support_double.rs
     /// Support doubles/redoubles for the majors
     ///
@@ -730,6 +743,7 @@ impl Default for CompetitionKnobs {
             penalty_pass: Some((4, 4, true)),
             trap_pass: true,
             competitive_4333: Competitive4333::Suppress,
+            multi_stopper_ask: MultiStopperAsk::Off,
             major_support_double: true,
             uvu_over_majors: true,
             uvu_over_minors: false,

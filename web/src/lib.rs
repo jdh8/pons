@@ -913,10 +913,12 @@ knob!(declare_their_2c_landy, their_2c_landy, decision.their.two_clubs_landy: bo
 // Same channel: their disclosed 2♦ over our 1NT is a Multi (one unknown
 // six-card major) — the N4 table engages, default undeclared/natural.
 knob!(declare_their_2d_multi, their_2d_multi, decision.their.two_diamonds_multi: bool);
+knob!(set_multi_stopper_ask, multi_stopper_ask, competition.multi_stopper_ask: american::MultiStopperAsk);
 // The declaration's read-side wiring: their 2♣ reads as both majors instead
 // of the natural walk's clubs.  Default on (shipped 2026-08-14, plain wash |
 // PD win); a no-op unless the disclosure is declared.
 knob!(set_their_landy_reading, their_landy_reading, decision.reading.their_landy_reading: bool);
+knob!(set_their_multi_reading, their_multi_reading, decision.reading.their_multi_reading: bool);
 knob!(set_defense_to_2c_landy_cues, defense_to_2c_landy_cues, competition.defense_2c_landy_cues: bool);
 knob!(set_defense_to_2c_landy_transfer, defense_to_2c_landy_transfer, competition.defense_2c_landy_transfer: bool);
 knob!(set_defense_to_2c_landy_cue_floor, defense_to_2c_landy_cue_floor, competition.defense_2c_landy_cue_floor: bool);
@@ -1246,6 +1248,40 @@ fn get_negative_double_choice() -> &'static str {
     }
 }
 
+/// The two independently measured continuations of the Multi stopper ask.
+static MULTI_STOPPER_ASK_VARIANTS: &[Variant] = &[
+    Variant {
+        value: "off",
+        label: "Off (N4 v7)",
+    },
+    Variant {
+        value: "search",
+        label: "Fit search",
+    },
+    Variant {
+        value: "place",
+        label: "Opener places",
+    },
+];
+
+fn set_multi_stopper_ask_choice(value: &str) {
+    use american::MultiStopperAsk;
+    set_multi_stopper_ask(match value {
+        "search" => MultiStopperAsk::FitSearch,
+        "place" => MultiStopperAsk::OpenerPlaces,
+        _ => MultiStopperAsk::Off,
+    });
+}
+
+fn get_multi_stopper_ask_choice() -> &'static str {
+    use american::MultiStopperAsk;
+    match multi_stopper_ask() {
+        MultiStopperAsk::FitSearch => "search",
+        MultiStopperAsk::OpenerPlaces => "place",
+        MultiStopperAsk::Off => "off",
+    }
+}
+
 /// The keycard ask's relocation stance — variants map onto
 /// `instinct::RkcbVariant`.  Each widens the one before it: plain 4NT, then
 /// the minor asks relocate (Redwood), then hearts relocate to 4♠ as well.
@@ -1386,6 +1422,8 @@ static SETTINGS: &[Setting] = &[
     // A declared fact about the opponents, not an agreement of ours — the
     // engine's `their` disclosure channel (engages the Landy counter).
     toggle("their_2c_landy", COMPETITION, "Their 1NT-overcall 2♣ = Landy (declared)", false, declare_their_2c_landy, their_2c_landy),
+    toggle("their_2d_multi", COMPETITION, "Their 1NT-overcall 2♦ = Multi (declared)", false, declare_their_2d_multi, their_2d_multi),
+    Setting::Choice { key: "multi_stopper_ask", section: COMPETITION, label: "Multi 3♠ stopper ask", variants: MULTI_STOPPER_ASK_VARIANTS, default: "off", requires: Some("their_2d_multi"), set: set_multi_stopper_ask_choice, get: get_multi_stopper_ask_choice },
     toggle("defense_to_2c_landy_cues", COMPETITION, "Landy counter: GF minor cues", false, set_defense_to_2c_landy_cues, defense_to_2c_landy_cues),
     // Implies the cues row above (N1c keeps them and re-rungs what is below).
     // The stack below it shipped default-on 2026-08-14 (pooled two-seed
@@ -1453,6 +1491,7 @@ static SETTINGS: &[Setting] = &[
     toggle("advancer_xx_runout", FLOOR, "", true, set_advancer_xx_runout, advancer_xx_runout),
     toggle("doubler_xx_runout", FLOOR, "", true, set_doubler_xx_runout, doubler_xx_runout),
     // Inference (auction reading)
+    gated("their_multi_reading", INFERENCE, "Read their Multi as 6+♥ or 6+♠", true, set_their_multi_reading, their_multi_reading, "their_2d_multi"),
     toggle("nt_invite_inference", INFERENCE, "", true, set_nt_invite, nt_invite),
     gated("rubens_transfer_reading", INFERENCE, "", true, set_rubens_transfer, rubens_transfer, "rubens_advances"),
     toggle("fallback_projection", INFERENCE, "", true, set_fallback_projection, fallback_projection),

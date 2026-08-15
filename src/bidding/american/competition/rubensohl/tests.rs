@@ -255,6 +255,34 @@ fn multi_arm() -> crate::bidding::agreements::Agreements {
     arm
 }
 
+fn multi_stopper_arm(mode: super::MultiStopperAsk) -> crate::bidding::agreements::Agreements {
+    let mut arm = multi_arm();
+    arm.competition.multi_stopper_ask = mode;
+    arm
+}
+
+fn multi_corrected() -> Vec<Call> {
+    vec![
+        call(1, Strain::Notrump),
+        call(2, Strain::Diamonds),
+        Call::Double,
+        call(2, Strain::Hearts),
+        Call::Pass,
+        call(2, Strain::Spades),
+    ]
+}
+
+fn multi_corrected_over_double() -> Vec<Call> {
+    vec![
+        call(1, Strain::Notrump),
+        call(2, Strain::Diamonds),
+        Call::Double,
+        call(2, Strain::Hearts),
+        Call::Double,
+        call(2, Strain::Spades),
+    ]
+}
+
 fn one_nt_two_diamonds() -> [Call; 2] {
     [call(1, Strain::Notrump), call(2, Strain::Diamonds)]
 }
@@ -661,5 +689,216 @@ fn multi_relay_signoff_is_fenced_against_their_competition() {
     balanced.extend([Call::Pass, Call::Pass, call(3, Strain::Spades)]);
     let (c, floored) = best_call_with(&multi_arm(), &balanced, "32.432.KQJ765.32");
     assert_eq!(c, Call::Pass, "responder passes their balance");
+    assert!(!floored);
+}
+
+#[test]
+fn multi_stopper_ask_is_confined_to_the_two_corrected_paths() {
+    use super::super::tests::best_call_with;
+    let ask_hand = "32.Q32.KJ43.A432"; // 10 points, no spade stopper
+    for mode in [
+        super::MultiStopperAsk::FitSearch,
+        super::MultiStopperAsk::OpenerPlaces,
+    ] {
+        let arm = multi_stopper_arm(mode);
+        for auction in [multi_corrected(), multi_corrected_over_double()] {
+            let (c, floored) = best_call_with(&arm, &auction, ask_hand);
+            assert_eq!(c, call(3, Strain::Spades), "{mode:?} in {auction:?}");
+            assert!(!floored, "the artificial ask must be book-owned");
+        }
+
+        let non_ran = [
+            call(1, Strain::Notrump),
+            call(2, Strain::Diamonds),
+            Call::Double,
+            call(2, Strain::Hearts),
+            Call::Pass,
+            Call::Pass,
+        ];
+        let (c, _) = best_call_with(&arm, &non_ran, "32.432.AKJ4.QJ43");
+        assert_ne!(c, call(3, Strain::Spades), "the non-ran path has no ask");
+    }
+
+    let (c, _) = best_call_with(
+        &multi_stopper_arm(super::MultiStopperAsk::Off),
+        &multi_corrected(),
+        ask_hand,
+    );
+    assert_ne!(c, call(3, Strain::Spades), "mode Off preserves N4 v7");
+}
+
+#[test]
+fn multi_stopper_ask_rejects_wrong_strength_stopper_and_four_spades() {
+    use super::super::tests::best_call_with;
+    let arm = multi_stopper_arm(super::MultiStopperAsk::FitSearch);
+    let auction = multi_corrected();
+    for (hand, expected, why) in [
+        ("32.Q32.J543.K432", Call::Pass, "below 10 points"),
+        ("32.AQ2.KJ43.A432", Call::Pass, "above 12 points"),
+        (
+            "Q32.432.KJ43.A432",
+            call(3, Strain::Notrump),
+            "a spade stopper",
+        ),
+        (
+            "9876.Q2.AJ43.KQ3",
+            Call::Double,
+            "four spades keep the penalty double",
+        ),
+    ] {
+        let (c, floored) = best_call_with(&arm, &auction, hand);
+        assert_eq!(c, expected, "{why}");
+        assert!(!floored, "{why}: the continuation must be book-owned");
+    }
+}
+
+#[test]
+fn multi_stopper_answers_and_places_directly() {
+    use super::super::tests::best_call_with;
+    let mut asked = multi_corrected();
+    asked.extend([call(3, Strain::Spades), Call::Pass]);
+
+    for mode in [
+        super::MultiStopperAsk::FitSearch,
+        super::MultiStopperAsk::OpenerPlaces,
+    ] {
+        let arm = multi_stopper_arm(mode);
+        let (c, floored) = best_call_with(&arm, &asked, "AQ2.K32.KJ43.Q32");
+        assert_eq!(c, call(3, Strain::Notrump), "a stopper answers 3NT");
+        assert!(!floored);
+    }
+
+    let fit = multi_stopper_arm(super::MultiStopperAsk::FitSearch);
+    let place = multi_stopper_arm(super::MultiStopperAsk::OpenerPlaces);
+    for (hand, searched, placed) in [
+        (
+            "32.AQ2.KQ2.AKJ43",
+            call(4, Strain::Clubs),
+            call(5, Strain::Clubs),
+        ),
+        (
+            "32.AQ2.AKJ43.KQ2",
+            call(4, Strain::Diamonds),
+            call(5, Strain::Diamonds),
+        ),
+        (
+            "32.AKJ43.AQ2.KQ2",
+            call(4, Strain::Hearts),
+            call(4, Strain::Hearts),
+        ),
+        // No four-card side suit: the same deterministic longest-suit
+        // partition supplies the finite fallback (equal threes prefer hearts).
+        (
+            "T987.AQ2.AK2.KQ2",
+            call(4, Strain::Hearts),
+            call(4, Strain::Hearts),
+        ),
+    ] {
+        let (c, floored) = best_call_with(&fit, &asked, hand);
+        assert_eq!(c, searched, "FitSearch: {hand}");
+        assert!(!floored);
+        let (c, floored) = best_call_with(&place, &asked, hand);
+        assert_eq!(c, placed, "OpenerPlaces: {hand}");
+        assert!(!floored);
+    }
+}
+
+#[test]
+fn multi_fit_search_finishes_and_fences_every_game() {
+    use super::super::tests::best_call_with;
+    let arm = multi_stopper_arm(super::MultiStopperAsk::FitSearch);
+    let ask = multi_corrected();
+
+    let mut after_clubs = ask.clone();
+    after_clubs.extend([
+        call(3, Strain::Spades),
+        Call::Pass,
+        call(4, Strain::Clubs),
+        Call::Pass,
+    ]);
+    for (hand, expected) in [
+        ("32.Q32.KJ43.A432", call(5, Strain::Clubs)),
+        ("32.432.AKJ43.Q32", call(4, Strain::Diamonds)),
+        ("32.AQJ43.KJ3.432", call(4, Strain::Hearts)),
+    ] {
+        let (c, floored) = best_call_with(&arm, &after_clubs, hand);
+        assert_eq!(c, expected, "{hand}");
+        assert!(!floored);
+    }
+
+    let mut unfinished = after_clubs;
+    unfinished.extend([call(4, Strain::Diamonds), Call::Pass]);
+    let (c, floored) = best_call_with(&arm, &unfinished, "2.AQ2.KJ43.AQJ43");
+    assert_eq!(c, call(5, Strain::Diamonds), "diamond support places 5♦");
+    assert!(!floored);
+    let (c, floored) = best_call_with(&arm, &unfinished, "32.AQ2.KJ2.AQJ43");
+    assert_eq!(
+        c,
+        call(5, Strain::Clubs),
+        "without support opener returns to 5♣"
+    );
+    assert!(!floored);
+
+    let mut signed = ask;
+    signed.extend([
+        call(3, Strain::Spades),
+        Call::Pass,
+        call(4, Strain::Clubs),
+        Call::Pass,
+        call(5, Strain::Clubs),
+        Call::Double,
+    ]);
+    let (c, floored) = best_call_with(&arm, &signed, "32.AQ2.KJ43.AQ32");
+    assert_eq!(c, Call::Pass, "a doubled game is terminal");
+    assert!(!floored, "the terminal pass must be book-owned");
+}
+
+#[test]
+fn multi_stopper_ask_double_rebases_the_whole_search() {
+    use super::super::tests::best_call_with;
+    let arm = multi_stopper_arm(super::MultiStopperAsk::FitSearch);
+    let mut doubled = multi_corrected();
+    doubled.extend([call(3, Strain::Spades), Call::Double]);
+    let (c, floored) = best_call_with(&arm, &doubled, "32.AQ2.KQ2.AKJ43");
+    assert_eq!(c, call(4, Strain::Clubs));
+    assert!(!floored);
+
+    doubled.extend([call(4, Strain::Clubs), Call::Pass]);
+    let (c, floored) = best_call_with(&arm, &doubled, "32.Q32.KJ43.A432");
+    assert_eq!(c, call(5, Strain::Clubs));
+    assert!(!floored, "the continuation must also ride the rebase");
+}
+
+#[test]
+fn multi_stopper_four_spade_raise_uses_the_forcing_pass() {
+    use super::super::tests::best_call_with;
+    let arm = multi_stopper_arm(super::MultiStopperAsk::OpenerPlaces);
+    let mut raised = multi_corrected();
+    raised.extend([call(3, Strain::Spades), call(4, Strain::Spades)]);
+
+    for hand in ["AQ2.K32.KJ43.Q32", "T987.AQ2.AK2.KQ2"] {
+        let (c, floored) = best_call_with(&arm, &raised, hand);
+        assert_eq!(c, Call::Double, "stopper or four spades doubles: {hand}");
+        assert!(!floored);
+    }
+    let (c, floored) = best_call_with(&arm, &raised, "32.AQ2.KQ2.AKJ43");
+    assert_eq!(c, Call::Pass, "without either, Pass is forcing");
+    assert!(!floored);
+
+    let mut after_pass = raised.clone();
+    after_pass.extend([Call::Pass, Call::Pass]);
+    let (c, floored) = best_call_with(&arm, &after_pass, "32.Q32.KJ43.A432");
+    assert_eq!(c, call(5, Strain::Diamonds), "the longest side suit");
+    assert!(!floored);
+
+    let mut after_double = raised;
+    after_double.extend([Call::Double, Call::Pass]);
+    let (c, floored) = best_call_with(&arm, &after_double, "32.Q32.KJ43.A432");
+    assert_eq!(c, Call::Pass, "partner passes the penalty double");
+    assert!(!floored);
+
+    after_pass.extend([call(5, Strain::Diamonds), Call::Double]);
+    let (c, floored) = best_call_with(&arm, &after_pass, "32.AQ2.KQ2.AKJ43");
+    assert_eq!(c, Call::Pass, "the doubled five-level signoff is fenced");
     assert!(!floored);
 }

@@ -898,7 +898,9 @@ fn completion_readings_admit_the_bidder() {
 /// to the default count — the Landy counter shipped three slugs this file
 /// never carried, the Multi counter three more.  The section lists each slug
 /// whose count moves under that gate, so the fielded system's disclosure
-/// surface is what the tripwire actually watches.
+/// surface is what the tripwire actually watches.  `[multi-stopper]` is the
+/// default-off stopper-ask delta; both continuation modes must expose the
+/// same artificial ask sites.
 #[test]
 fn alerted_call_sites_match_the_disclosure_fixture() {
     use crate::bidding::agreements::Agreements;
@@ -933,6 +935,16 @@ fn alerted_call_sites_match_the_disclosure_fixture() {
     anchor.decision.their.two_clubs_landy = true;
     anchor.decision.their.two_diamonds_multi = true;
     let anchor_counts = alert_site_counts(&anchor);
+    let mut search = anchor;
+    search.competition.multi_stopper_ask = crate::bidding::american::MultiStopperAsk::FitSearch;
+    let search_counts = alert_site_counts(&search);
+    let mut place = anchor;
+    place.competition.multi_stopper_ask = crate::bidding::american::MultiStopperAsk::OpenerPlaces;
+    let place_counts = alert_site_counts(&place);
+    assert_eq!(
+        search_counts, place_counts,
+        "both stopper continuations must expose the same artificial calls"
+    );
 
     let mut found = default_counts
         .iter()
@@ -947,6 +959,19 @@ fn alerted_call_sites_match_the_disclosure_fixture() {
     for slug in slugs {
         let before = default_counts.get(slug).copied().unwrap_or_default();
         let after = anchor_counts.get(slug).copied().unwrap_or_default();
+        if before != after {
+            found.push_str(&format!("{slug} {before} -> {after}\n"));
+        }
+    }
+    found.push_str("\n[multi-stopper]\n");
+    let slugs: BTreeSet<&str> = anchor_counts
+        .keys()
+        .chain(search_counts.keys())
+        .copied()
+        .collect();
+    for slug in slugs {
+        let before = anchor_counts.get(slug).copied().unwrap_or_default();
+        let after = search_counts.get(slug).copied().unwrap_or_default();
         if before != after {
             found.push_str(&format!("{slug} {before} -> {after}\n"));
         }

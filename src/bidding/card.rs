@@ -135,12 +135,13 @@ const fn not_defined() -> usize {
 // we read its 2♣ off a measured census instead.  See
 // `docs/one-notrump-competitive.md`.
 //
-// `comp:multi-values` / `comp:multi-penalty` / `comp:multi-takeout` (the
-// `their.two_diamonds_multi` counter, N4 v7, default since 2026-08-15): the
-// same record as the Landy counter — a defense keyed on a fact about the
-// opponents' 2♦, no schema name; BBA reads our double through its own
-// counter (it labels it "negative double") and our second double as its
-// "reopening double", which is what it is.
+// `comp:multi-values` / `comp:multi-penalty` / `comp:multi-takeout` /
+// `comp:multi-stopper-ask` (the `their.two_diamonds_multi` counter, N4 v7 and
+// its opt-in stopper-ask residue): the same record as the Landy counter — a defense
+// keyed on a fact about the opponents' 2♦, no schema name; BBA reads our
+// double through its own counter (it labels it "negative double") and our
+// second double as its "reopening double", which is what it is.  Its schema
+// has no row for the later 3♠ stopper ask either.
 //
 // `comp:landy-tko` / `comp:landy-spl` (the N1j BBA-ladder counter's GF
 // both-minors takeout/splinter family, default since 2026-08-15): same

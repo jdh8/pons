@@ -24,9 +24,9 @@
 
 use super::super::agreements::Agreements;
 use super::super::constraint::{
-    Cons, Constraint, balanced, described, has_stopper, hcp, len, min_level_is, partner_suit_is,
-    points, stopper_in, stopper_in_their_suits, suit_hcp, support, they_bid, top_honors,
-    vulnerable,
+    Cons, Constraint, at_least_as_long, balanced, described, has_stopper, hcp, len, longer_suit,
+    longest_unbid, min_level_is, partner_suit_is, points, stopper_in, stopper_in_their_suits,
+    suit_hcp, support, they_bid, top_honors, vulnerable,
 };
 use super::super::context::Context;
 use super::super::fallback::{ReplaceNext, described_guard, described_rewrite, guard, rewriter};
@@ -85,7 +85,7 @@ pub use lebensohl::LebensohlStyle;
 pub(super) use lebensohl::{complete_lebensohl_relay, lebensohl_relay_rebid, lebensohl_responder};
 pub use negative_double::NegativeDoubleShape;
 pub use penalty_double::DoubleStyle;
-pub use rubensohl::Competitive4333;
+pub use rubensohl::{Competitive4333, MultiStopperAsk};
 pub(super) use rubensohl::{
     clubs_transfer_completion, cue_stayman_answer, cue_stayman_answer_no_stopper,
     lm_2d_both_majors_advance, lm_2d_clubs_ask, lm_2d_clubs_major, stayman_2d_answer,
@@ -131,6 +131,10 @@ const MULTI_PENALTY: Alert = Alert("comp:multi-penalty");
 /// major and 1–2 of theirs, BBA's "reopening double".  Alerted so opener
 /// reads the other major, not a penalty holding.
 const MULTI_TAKEOUT: Alert = Alert("comp:multi-takeout");
+/// Multi stopper ask — responder's `3♠` after the opponents correct their
+/// disclosed Multi to spades.  It denies a spade stopper and asks opener to
+/// bid `3NT` with one or place the contract in a side suit.
+const MULTI_STOPPER_ASK: Alert = Alert("comp:multi-stopper-ask");
 /// Landy values double — `X` of their `(2♣)` Landy, values (8+) willing to
 /// defend whichever major they run to.  Not the stolen Stayman it replaces:
 /// against a both-majors overcall there is no major left to ask for.

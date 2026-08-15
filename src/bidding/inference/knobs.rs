@@ -837,6 +837,24 @@ pub struct ReadingProfile {
     /// false`.
     pub their_landy_reading: bool,
 
+    /// Read the opponents' disclosed Multi `2♦` over our `1NT`
+    ///
+    /// With this and
+    /// [`TheirDisclosures::two_diamonds_multi`][crate::bidding::agreements::TheirDisclosures::two_diamonds_multi]
+    /// on, their `2♦` reads as a genuine union (`6+♥` or `6+♠`) instead
+    /// of natural diamonds, and their advancer's first `2♥`/`2♠` is
+    /// suppressed as pass-or-correct.  No strength is claimed.
+    ///
+    /// **Default on — SHIPPED 2026-08-16** (N4 residue, `plain wash | PD
+    /// win` pooled over three seeds and both vulnerabilities; the isolation
+    /// gate reported zero foreign boards).  It is inert without the
+    /// disclosure.  The pre-ship arm is `bba-gen --ns-their-multi-read
+    /// false`.
+    ///
+    /// ponytail: temporary until a declared-opponent profile can project the
+    /// foreign call from its own authored book.
+    pub their_multi_reading: bool,
+
     /// Alert every forced completion, transfer completion and conventional
     /// answer — the uniform completion-alert doctrine
     ///
@@ -1002,6 +1020,7 @@ impl ReadingProfile {
             longer_major_response: false,
             landy: true,
             their_landy_reading: false,
+            their_multi_reading: false,
             completion_alerts: false,
             notrump_defense: crate::bidding::american::NotrumpDefense::Woolsey,
             natural_overcall_points: (9, 13),
@@ -1063,6 +1082,7 @@ impl Default for ReadingProfile {
             longer_major_response: true,
             landy: false,
             their_landy_reading: true,
+            their_multi_reading: true,
             completion_alerts: true,
             notrump_defense: crate::bidding::american::NotrumpDefense::Natural,
             natural_overcall_points: (8, 14),

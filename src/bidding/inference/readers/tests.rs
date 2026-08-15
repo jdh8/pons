@@ -1439,3 +1439,118 @@ fn their_landy_reading_does_not_extrapolate_through_the_strip() {
     assert_eq!(reading.rho().length(Suit::Hearts), Range::FULL_LENGTH);
     assert_eq!(reading.rho().length(Suit::Spades), Range::FULL_LENGTH);
 }
+
+fn their_multi_agreements() -> Agreements {
+    let mut agreements = Agreements::default();
+    agreements.decision.their.two_diamonds_multi = true;
+    agreements.decision.reading.their_multi_reading = true;
+    agreements
+}
+
+#[test]
+fn their_disclosed_multi_is_a_two_box_union() {
+    let six_spades: Hand = "AKQJ32.KQ4.32.32".parse().unwrap();
+    let six_hearts: Hand = "KQ4.AKQJ32.32.32".parse().unwrap();
+    let five_four: Hand = "AKQJ3.KQ42.32.32".parse().unwrap();
+    for envelope_union in [true, false] {
+        let mut on = their_multi_agreements();
+        on.decision.reading.envelope_union = envelope_union;
+        let reading = read_booked_with(&on, &[bid(1, Strain::Notrump), bid(2, Strain::Diamonds)]);
+        let boxes = reading.announced_union(Relative::Rho);
+        assert_eq!(boxes.boxes().len(), 2, "one box per possible major");
+        assert!(reading.admits(Relative::Rho, six_spades));
+        assert!(reading.admits(Relative::Rho, six_hearts));
+        assert!(!reading.admits(Relative::Rho, five_four));
+        assert_eq!(reading.rho().length(Suit::Diamonds), Range::FULL_LENGTH);
+        assert_eq!(reading.rho().strength.points, Range::FULL_POINTS);
+    }
+}
+
+#[test]
+fn their_disclosed_multi_suppresses_pass_or_correct() {
+    let on = their_multi_agreements();
+    for advance in [Strain::Hearts, Strain::Spades] {
+        let reading = read_booked_with(
+            &on,
+            &[
+                bid(1, Strain::Notrump),
+                bid(2, Strain::Diamonds),
+                Call::Double,
+                bid(2, advance),
+            ],
+        );
+        assert_eq!(
+            reading.rho().length(advance.suit().unwrap()),
+            Range::FULL_LENGTH,
+            "the advance is a preference, not a holding",
+        );
+        assert_eq!(
+            reading.lho().length(Suit::Diamonds),
+            Range::FULL_LENGTH,
+            "the overcall names no diamonds",
+        );
+    }
+}
+
+#[test]
+fn their_multi_reader_is_disclosure_and_seat_gated() {
+    let auction = [bid(1, Strain::Notrump), bid(2, Strain::Diamonds)];
+
+    let mut unwired = their_multi_agreements();
+    unwired.decision.reading.their_multi_reading = false;
+    let legacy = read_booked_with(&unwired, &auction);
+    assert_eq!(legacy.rho().length(Suit::Diamonds), Range::new(5, 13));
+
+    let mut undeclared = their_multi_agreements();
+    undeclared.decision.their.two_diamonds_multi = false;
+    let without_disclosure = read_booked_with(&undeclared, &auction);
+    assert_eq!(
+        without_disclosure.rho().length(Suit::Diamonds),
+        Range::new(5, 13)
+    );
+
+    // Mirror image: our natural 2♦ overcall of their 1NT is not their Multi.
+    let mirror = read_booked_with(
+        &their_multi_agreements(),
+        &[
+            bid(1, Strain::Notrump),
+            bid(2, Strain::Diamonds),
+            Call::Pass,
+        ],
+    );
+    assert_eq!(mirror.partner().length(Suit::Diamonds), Range::new(5, 13));
+    assert_eq!(mirror.partner().length(Suit::Hearts), Range::FULL_LENGTH);
+
+    // Their first action was X, so a later 2♦ cannot be the disclosed call.
+    let wrong_first_action = [
+        bid(1, Strain::Notrump),
+        Call::Double,
+        Call::Pass,
+        bid(2, Strain::Diamonds),
+    ];
+    let on = read_booked_with(&their_multi_agreements(), &wrong_first_action);
+    let off = read_booked_with(&unwired, &wrong_first_action);
+    for who in [
+        Relative::Me,
+        Relative::Lho,
+        Relative::Partner,
+        Relative::Rho,
+    ] {
+        assert_eq!(on.get(who), off.get(who), "{who:?}");
+    }
+}
+
+#[test]
+fn their_multi_reader_does_not_extrapolate_through_the_strip() {
+    let reading = read_booked_with(
+        &their_multi_agreements(),
+        &[
+            bid(1, Strain::Clubs),
+            bid(1, Strain::Notrump),
+            bid(2, Strain::Diamonds),
+        ],
+    );
+    assert_eq!(reading.rho().length(Suit::Diamonds), Range::new(5, 13));
+    assert_eq!(reading.rho().length(Suit::Hearts), Range::FULL_LENGTH);
+    assert_eq!(reading.rho().length(Suit::Spades), Range::FULL_LENGTH);
+}

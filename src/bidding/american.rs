@@ -88,7 +88,8 @@ mod weak_twos;
 mod xyz;
 
 pub use competition::{
-    Competitive4333, DoubleStyle, FreeBidStyle, LebensohlStyle, NegativeDoubleShape, competition,
+    Competitive4333, DoubleStyle, FreeBidStyle, LebensohlStyle, MultiStopperAsk,
+    NegativeDoubleShape, competition,
 };
 pub use defense::{
     DoubleShape, NotrumpDefense, TakeoutSupport, advance_double, defense_to_suit,

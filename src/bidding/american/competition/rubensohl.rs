@@ -34,6 +34,17 @@ pub enum Competitive4333 {
     SuppressWithStopper,
 }
 
+/// Responder's stopper ask after a disclosed Multi has corrected to spades.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum MultiStopperAsk {
+    /// Shipped default: no `3♠` ask.
+    Off,
+    /// Opener names its longest side suit; responder searches for the game.
+    FitSearch,
+    /// Opener immediately places the contract in `4♥` or five of a minor.
+    OpenerPlaces,
+}
+
 /// Gate ANDed into each competitive cue-Stayman rule: satisfied unless the active
 /// [`Competitive4333`] mode diverts this flat 4-3-3-3 to 3NT.  Four suits all 3
 /// or 4 cards long sum to 13 only as a 4-3-3-3, so that test *is* "flat 4333".
@@ -566,13 +577,22 @@ pub(crate) fn multi_signoff_pass() -> Rules {
 /// - Pass — the rest.  BBA's `2NT` invite (8–9, −3.0/−6.9 PD per invite),
 ///   its `3♠` try (−2.3/−3.6) and its natural `3m` (7–8, a wash) were in v6
 ///   and are not here; the 8-9 hand sells out, as v5 already established.
-pub(crate) fn multi_responder_rebid(major: Suit, ran: bool) -> Rules {
+pub(crate) fn multi_responder_rebid(major: Suit, ran: bool, stopper_ask: MultiStopperAsk) -> Rules {
     let other = if major == Suit::Hearts {
         Suit::Spades
     } else {
         Suit::Hearts
     };
     let mut rules = Rules::new().rule(Bid::new(4, Strain::Notrump), 160, hcp(16..));
+    if ran && stopper_ask != MultiStopperAsk::Off {
+        rules = rules
+            .rule(
+                Bid::new(3, Strain::Spades),
+                158,
+                points(10..=12) & len(Suit::Spades, ..=3) & !stopper_in(Suit::Spades),
+            )
+            .alert(MULTI_STOPPER_ASK);
+    }
     if !ran && major == Suit::Hearts {
         // Above the takeout double: BBA's X is exactly four spades, its 2♠
         // five weak ones.
@@ -598,6 +618,114 @@ pub(crate) fn multi_responder_rebid(major: Suit, ran: bool) -> Rules {
             points(10..) & stopper_in(major),
         )
         .rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Opener's answer to the Multi `3♠` stopper ask.
+///
+/// A stopper bids `3NT`.  Otherwise [`FitSearch`][MultiStopperAsk::FitSearch]
+/// names the longest side suit at the four level, while
+/// [`OpenerPlaces`][MultiStopperAsk::OpenerPlaces] places the minor games
+/// immediately.  [`longest_unbid`] is a partition, so it is also the finite
+/// fallback when opener's four spades leave only three-card side suits.
+pub(crate) fn multi_stopper_answer(mode: MultiStopperAsk) -> Rules {
+    let mut rules = Rules::new().rule(Bid::new(3, Strain::Notrump), 160, stopper_in(Suit::Spades));
+    for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
+        let level = if mode == MultiStopperAsk::OpenerPlaces
+            && matches!(suit, Suit::Clubs | Suit::Diamonds)
+        {
+            5
+        } else {
+            4
+        };
+        rules = rules.rule(
+            Bid::new(level, Strain::from(suit)),
+            140,
+            longest_unbid(suit, Suit::Spades),
+        );
+    }
+    rules
+}
+
+/// Responder continues the fit-search after opener names a minor.
+pub(crate) fn multi_fit_search_rebid(shown: Suit) -> Rules {
+    match shown {
+        Suit::Clubs => Rules::new()
+            .rule(Bid::new(5, Strain::Clubs), 160, len(Suit::Clubs, 4..))
+            .rule(
+                Bid::new(4, Strain::Hearts),
+                150,
+                len(Suit::Hearts, 4..) & at_least_as_long(Suit::Hearts, Suit::Diamonds),
+            )
+            .rule(
+                Bid::new(4, Strain::Diamonds),
+                150,
+                len(Suit::Diamonds, 4..) & longer_suit(Suit::Diamonds, Suit::Hearts),
+            )
+            .rule(
+                Bid::new(4, Strain::Hearts),
+                100,
+                at_least_as_long(Suit::Hearts, Suit::Diamonds),
+            )
+            .rule(
+                Bid::new(4, Strain::Diamonds),
+                100,
+                longer_suit(Suit::Diamonds, Suit::Hearts),
+            ),
+        Suit::Diamonds => Rules::new()
+            .rule(Bid::new(5, Strain::Diamonds), 160, len(Suit::Diamonds, 4..))
+            .rule(
+                Bid::new(4, Strain::Hearts),
+                150,
+                len(Suit::Hearts, 4..) & at_least_as_long(Suit::Hearts, Suit::Clubs),
+            )
+            .rule(
+                Bid::new(5, Strain::Clubs),
+                150,
+                len(Suit::Clubs, 4..) & longer_suit(Suit::Clubs, Suit::Hearts),
+            )
+            .rule(
+                Bid::new(4, Strain::Hearts),
+                100,
+                at_least_as_long(Suit::Hearts, Suit::Clubs),
+            )
+            .rule(
+                Bid::new(5, Strain::Clubs),
+                100,
+                longer_suit(Suit::Clubs, Suit::Hearts),
+            ),
+        _ => unreachable!("the fit-search names only a minor below 4♥"),
+    }
+}
+
+/// Place the sole unfinished fit-search branch, `4♣–4♦`.
+pub(crate) fn multi_fit_search_place() -> Rules {
+    Rules::new()
+        .rule(Bid::new(5, Strain::Diamonds), 150, len(Suit::Diamonds, 4..))
+        .rule(Bid::new(5, Strain::Clubs), 100, hcp(0..))
+}
+
+/// Opener's action when the opponents raise the stopper ask to `4♠`.
+pub(crate) fn multi_stopper_over_four_spades() -> Rules {
+    Rules::new()
+        .rule(
+            Call::Double,
+            150,
+            stopper_in(Suit::Spades) | len(Suit::Spades, 4..),
+        )
+        .rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Responder's forcing continuation after opener passes their `4♠` raise.
+pub(crate) fn multi_stopper_forcing_rebid() -> Rules {
+    let mut rules = Rules::new();
+    for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts] {
+        rules = rules.rule(
+            Bid::new(5, Strain::from(suit)),
+            140,
+            longest_unbid(suit, Suit::Spades),
+        );
+    }
+    rules
 }
 
 /// Opener's answer to responder's takeout double of the resolved major

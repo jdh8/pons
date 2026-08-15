@@ -9,6 +9,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **N4 residue: the disclosed-Multi reader ships; the `3♠` stopper ask stays
+  opt-in.** `ReadingProfile::their_multi_reading` now reads the opponents'
+  first disclosed `2♦` over our `1NT` as the exact two-box union
+  `6+♥ ∪ 6+♠`, suppresses the false natural-diamond and first
+  pass-or-correct readings, and makes no strength or side-suit claim. The
+  systems-on overcall strip clears the disclosure. The reader is temporary
+  until declared-opponent profiles can project their own rules. It is
+  **default-on** after three independent 230.4k-board seeds/vulnerability,
+  `--filter-1nt`, and zero foreign divergences: NV plain −0.0001 ±0.0003 /
+  PD +0.0004 ±0.0004; vulnerable plain +0.0001 ±0.0003 / **PD +0.0006
+  ±0.0004**; both-vulnerability sum −29 plain / +643 PD IMPs — the
+  `plain wash | PD win` ship row.
+
+  `CompetitionKnobs::multi_stopper_ask` adds `Off`, `FitSearch`, and
+  `OpenerPlaces`. The alerted `comp:multi-stopper-ask` `3♠` is confined to
+  the two corrected-to-spades paths and to 10–12-point hands with at most
+  three spades and no stopper. Stopper/non-stopper answers, both placement
+  trees, doubled-ask rebase, their `4♠` forcing-pass/penalty-double branch,
+  and terminal doubled signoffs are book-owned. Both active modes measured
+  **plain win | PD wash** (NV about +0.0006/+0.0001, vul
+  +0.0004/−0.0001, ±0.0002), so the decision table keeps the default
+  `Off`; their direct paired comparison was a tie (two NV divergences, none
+  vulnerable). No combined arm was owed because no stopper mode passed.
+  Harness/replay/web controls are `--ns-their-multi-read [true|false]` and
+  `--ns-multi-stopper-ask off|search|place`; the four-arm runner is
+  `scripts/ab-2d-multi-residue.sh`.
+
 - **N4 — their `(2♦)` over our 1NT as a Multi, on the disclosure channel:
   SHIPPED (v7) — default-on against BBA via the census, engine default
   undeclared.** Two more rounds on top of the five below. **v4 decomposed
@@ -48,7 +75,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `[their-landy]` alert-sites anchor arms it (fixture re-blessed: three new
   slugs), `card.rs` records the no-schema-row reasoning; smoke `18aba5ce…`
   unchanged. Left on the table: the 10–12 no-stopper sell-out after they
-  *run* to `2♠` (plain −4.0/fired, PD flat) — a stopper-ask cue, not built.
+  *run* to `2♠` (plain −4.0/fired, PD flat) — the residue round above
+  built and measured its stopper-ask cue.
   v4's base arms were reused by symlink for v6/v7 (same code, same seeds —
   the default is byte-identical, not a stale control).
 

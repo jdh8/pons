@@ -306,11 +306,16 @@ struct Args {
     /// Multi table), `false` = natural diamonds (the Transfer-Lebensohl
     /// leg).  Unset, the reading is **derived from their declaration**
     /// (`their_2d_multi`): an explicit `Multi-Landy` row is honored at face
-    /// value, and with no declaration the reading stays *undeclared/natural*
-    /// until N4 ships — unlike `--their-2c-landy`, the 2/1 reference's
-    /// measured Multi does not engage by default yet.
+    /// value, and with no declaration the reading stays *undeclared/natural*.
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
     their_2d_multi: Option<bool>,
+
+    /// Read the opponents' disclosed Multi `2♦` as the exact union `6+♥ |
+    /// 6+♠`, suppressing the natural-diamond and first pass-or-correct
+    /// readings.  Unset tracks the shipped engine default (on); pass `false`
+    /// for the pre-reader arm.
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    ns_their_multi_read: Option<bool>,
 
     /// Add the GF minor cues to the Landy counter (`2♥` = 5+ clubs, `2♠` = 5+
     /// diamonds, both game-forcing) — the third arm of the Landy A/B.  Does
@@ -610,6 +615,12 @@ struct Args {
         value_name = "suppress|allow|suppress-stopper"
     )]
     ns_competitive_4333: String,
+
+    /// Responder's `3♠` stopper ask after their Multi corrects to spades:
+    /// `off` (shipped default), `search` (responder searches after opener names
+    /// a side suit), or `place` (opener places the game immediately).
+    #[arg(long, default_value = "off", value_name = "off|search|place")]
+    ns_multi_stopper_ask: String,
 
     /// Author our defense to the opponents' 2♣ Stayman (`(1NT) - (2♣)`): X =
     /// lead-directing clubs, natural overcalls, strong 3♣ (default off; opt-in A/B).
@@ -1891,6 +1902,9 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
         .transpose()?;
     agreements.decision.their.two_clubs_landy = their_2c_landy(args)?;
     agreements.decision.their.two_diamonds_multi = their_2d_multi(args)?;
+    if let Some(read) = args.ns_their_multi_read {
+        agreements.decision.reading.their_multi_reading = read;
+    }
     agreements.competition.defense_2c_landy_cues = args.defense_2c_landy_cues;
     agreements.competition.defense_2c_landy_low_minors = args.defense_2c_landy_low_minors;
     agreements.competition.defense_2c_landy_hcp_rungs = args.defense_2c_landy_hcp_rungs;
@@ -1928,6 +1942,12 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
                 "--ns-competitive-4333 must be allow|suppress|suppress-stopper, got {other:?}"
             )
         }
+    };
+    agreements.competition.multi_stopper_ask = match args.ns_multi_stopper_ask.as_str() {
+        "off" => pons::bidding::american::MultiStopperAsk::Off,
+        "search" => pons::bidding::american::MultiStopperAsk::FitSearch,
+        "place" => pons::bidding::american::MultiStopperAsk::OpenerPlaces,
+        other => anyhow::bail!("--ns-multi-stopper-ask must be off|search|place, got {other:?}"),
     };
     agreements.competition.competition_over_transfer = args.ns_comp_over_transfer;
     agreements.competition.cue_raise_answer = !args.no_ns_cue_raise_answer;
