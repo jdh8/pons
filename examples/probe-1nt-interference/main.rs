@@ -23,6 +23,13 @@
 //! solved every board this reads.  Without it, every divergent board is solved
 //! fresh (`bba-decompose`'s idiom, same key function).
 //!
+//! One call deeper — `--bucket 2♠ --responses 8` — splits that bucket by our
+//! response (table A) and by BBA's response to *our* `2♠` overcall of its 1NT
+//! (table B), then by response / advancer / opener, and classifies the hands
+//! that passed by which authored call they fell between.  `--show N --next
+//! "P P P"` dumps the worst boards of one continuation with the dealer,
+//! responder's hand and the DD makes.
+//!
 //! **What this can and cannot say.**  The swing is the *board's* IMPs, not the
 //! interference decision's: the same deal may also have BBA opening 1NT at
 //! table B with us defending, and every later call is in there too.  So the
@@ -32,7 +39,7 @@
 
 use clap::Parser;
 use contract_bridge::auction::Call;
-use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat};
+use contract_bridge::{AbsoluteVulnerability, FullDeal, Seat, Strain};
 use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
 use pons::scoring::{final_contract, imps, ns_score_contract, ns_score_pd};
 use std::collections::HashMap;
@@ -58,6 +65,15 @@ struct Args {
     /// Which bucket `--show` dumps, e.g. `2♣`, `X`, `3+`
     #[arg(long, default_value = "")]
     bucket: String,
+    /// Split `--bucket` by the next calls — responder / advancer / opener — at
+    /// table A (our response) and at table B (BBA's response to *our* overcall
+    /// of its 1NT).  Sub-rows with fewer boards than this fold into `other`.
+    #[arg(long)]
+    responses: Option<usize>,
+    /// With `--show`: only boards whose table-A calls after the overcall
+    /// start with this, e.g. `"P P P"` or `"2NT"`
+    #[arg(long, default_value = "")]
+    next: String,
 }
 
 /// A deal's cache key: its serde string, as `bba-decompose` writes it
@@ -98,32 +114,102 @@ enum Class {
     Other,
     /// We opened 1NT and RHO passed.
     Uncontested,
-    /// We opened 1NT and RHO acted; the label is that action.
-    Contested(String),
+    /// We opened 1NT and RHO acted; the label is that action, the index the
+    /// opening's position in the auction.
+    Contested(String, usize),
 }
 
 /// Classify a board by RHO's action over our table-A 1NT opening.
 fn classify(board: &Board) -> Class {
-    let Some(open) = board.table_a.iter().position(|&c| c != Call::Pass) else {
+    classify_auction(&board.table_a, board.dealer)
+}
+
+/// Classify one table's auction by RHO's action over a North/South 1NT opening.
+fn classify_auction(auction: &[Call], dealer: Seat) -> Class {
+    let Some(open) = auction.iter().position(|&c| c != Call::Pass) else {
         return Class::Other;
     };
-    if !matches!(seat_to_act(board.dealer, open), Seat::North | Seat::South) {
+    if !matches!(seat_to_act(dealer, open), Seat::North | Seat::South) {
         return Class::Other;
     }
-    let Call::Bid(bid) = board.table_a[open] else {
+    let Call::Bid(bid) = auction[open] else {
         return Class::Other;
     };
     if bid.level.get() != 1 || bid.strain.is_suit() {
         return Class::Other;
     }
-    match board.table_a.get(open + 1) {
+    match auction.get(open + 1) {
         None | Some(&Call::Pass) => Class::Uncontested,
-        Some(&Call::Redouble) => Class::Contested("XX".to_owned()),
-        Some(&Call::Double) => Class::Contested("X".to_owned()),
+        Some(&Call::Redouble) => Class::Contested("XX".to_owned(), open),
+        Some(&Call::Double) => Class::Contested("X".to_owned(), open),
         // ponytail: everything above 2NT is one bucket — the whole 3+ region is
         // floor-only today, so splitting it cannot change which package is next.
-        Some(&Call::Bid(rho)) if rho.level.get() > 2 => Class::Contested("3+".to_owned()),
-        Some(&Call::Bid(rho)) => Class::Contested(rho.to_string()),
+        Some(&Call::Bid(rho)) if rho.level.get() > 2 => Class::Contested("3+".to_owned(), open),
+        Some(&Call::Bid(rho)) => Class::Contested(rho.to_string(), open),
+    }
+}
+
+/// The `n` calls after position `at`, space-joined; `.` past the auction's end.
+fn next_calls(auction: &[Call], at: usize, n: usize) -> String {
+    (1..=n)
+        .map(|k| {
+            auction
+                .get(at + k)
+                .map_or(".".to_owned(), ToString::to_string)
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+/// One sub-table of `(key, plain, pd)` rows, sorted by plain total, keys with
+/// fewer than `min` boards folded into `other`.
+#[allow(clippy::cast_precision_loss)]
+fn sub_table(title: &str, rows: &[(String, i64, i64)], min: usize) {
+    /// The plain and PD swings of one key's boards
+    type Swings = (Vec<i64>, Vec<i64>);
+    let mut buckets: std::collections::BTreeMap<&str, Swings> = std::collections::BTreeMap::new();
+    for (key, p, d) in rows {
+        let e = buckets.entry(key.as_str()).or_default();
+        e.0.push(*p);
+        e.1.push(*d);
+    }
+    let mut other: Swings = Default::default();
+    let mut kept: Vec<(&str, &Swings)> = Vec::new();
+    for (k, v) in &buckets {
+        if v.0.len() < min {
+            other.0.extend(&v.0);
+            other.1.extend(&v.1);
+        } else {
+            kept.push((k, v));
+        }
+    }
+    kept.sort_by_key(|(_, v)| v.0.iter().sum::<i64>());
+    println!("\n--- {title}: {} boards ---", rows.len());
+    println!(
+        "{:<44} {:>6} {:>7} {:>18} {:>18} {:>9} {:>9}",
+        "next calls", "boards", "share", "plain/bd", "PD/bd", "plain tot", "PD tot"
+    );
+    let n = rows.len().max(1) as f64;
+    let line = |label: &str, p: &[i64], d: &[i64]| {
+        let (pm, pc) = mean_with_ci(p);
+        let (dm, dc) = mean_with_ci(d);
+        println!(
+            "{label:<44} {:>6} {:>6.1}% {:>10.3} ±{:.3} {:>10.3} ±{:.3} {:>9} {:>9}",
+            p.len(),
+            100.0 * p.len() as f64 / n,
+            pm,
+            pc,
+            dm,
+            dc,
+            p.iter().sum::<i64>(),
+            d.iter().sum::<i64>(),
+        );
+    };
+    for (k, v) in kept {
+        line(k, &v.0, &v.1);
+    }
+    if !other.0.is_empty() {
+        line("other", &other.0, &other.1);
     }
 }
 
@@ -192,7 +278,7 @@ fn main() {
         match classify(board) {
             Class::Other => {}
             Class::Uncontested => quiet.push(plain[index]),
-            Class::Contested(label) => {
+            Class::Contested(label, _) => {
                 if label == args.bucket {
                     shown.push(index);
                 }
@@ -261,18 +347,228 @@ fn main() {
         "\nreference — our uncontested 1NT: {uncontested} boards, plain {um:.4} ±{uc:.4} IMPs/bd"
     );
 
+    if let Some(min) = args.responses {
+        // Table A: we opened 1NT and RHO made `--bucket`; split by our
+        // response, then by response / advancer / opener.  Table B: BBA
+        // opened 1NT and *we* (EW) made the same call; split by BBA's
+        // response.  A board can sit in both, so the "-only" cuts drop the
+        // boards where the other table also contested a 1NT.  IMPs stay
+        // ours (table-A NS) throughout — a negative table-B row is BBA's gain.
+        let contested =
+            |a: &[Call], d: Seat| matches!(classify_auction(a, d), Class::Contested(..));
+        let mut a1 = Vec::new();
+        let mut a3 = Vec::new();
+        let mut a1_only = Vec::new();
+        let mut a3_only = Vec::new();
+        let mut b1 = Vec::new();
+        let mut b3 = Vec::new();
+        let mut b1_only = Vec::new();
+        let mut b3_only = Vec::new();
+        for (i, b) in boards.iter().enumerate() {
+            let row =
+                |a: &[Call], open: usize, n: usize| (next_calls(a, open + 1, n), plain[i], pd[i]);
+            if let Class::Contested(label, open) = classify_auction(&b.table_a, b.dealer)
+                && label == args.bucket
+            {
+                a1.push(row(&b.table_a, open, 1));
+                a3.push(row(&b.table_a, open, 3));
+                if !contested(&b.table_b, b.dealer) {
+                    a1_only.push(row(&b.table_a, open, 1));
+                    a3_only.push(row(&b.table_a, open, 3));
+                }
+            }
+            if let Class::Contested(label, open) = classify_auction(&b.table_b, b.dealer)
+                && label == args.bucket
+            {
+                b1.push(row(&b.table_b, open, 1));
+                b3.push(row(&b.table_b, open, 3));
+                if !contested(&b.table_a, b.dealer) {
+                    b1_only.push(row(&b.table_b, open, 1));
+                    b3_only.push(row(&b.table_b, open, 3));
+                }
+            }
+        }
+        let bk = &args.bucket;
+        println!(
+            "\n=== responses over ({bk}) — IMPs are OUR (table-A NS) swing on both tables ==="
+        );
+        sub_table(
+            &format!("table A, we open 1NT ({bk}): OUR response"),
+            &a1,
+            min,
+        );
+        sub_table(
+            "table A, A-only (BBA's 1NT uncontested/absent): OUR response",
+            &a1_only,
+            min,
+        );
+        sub_table("table A: our response / advancer / opener", &a3, min);
+        sub_table(
+            "table A, A-only: our response / advancer / opener",
+            &a3_only,
+            min,
+        );
+        sub_table(
+            &format!("table B, BBA opens 1NT, we overcall ({bk}): BBA's response"),
+            &b1,
+            min,
+        );
+        sub_table(
+            "table B, B-only (our 1NT uncontested/absent): BBA's response",
+            &b1_only,
+            min,
+        );
+        sub_table(
+            "table B: BBA's response / our advance / BBA opener",
+            &b3,
+            min,
+        );
+        sub_table(
+            "table B, B-only: BBA's response / our advance / BBA opener",
+            &b3_only,
+            min,
+        );
+    }
+
+    if args.responses.is_some() {
+        // Why did responder pass?  Classify responder's hand on the boards
+        // where our first call over `--bucket` was Pass, by which of the
+        // book's calls it fell between (over = their suit).
+        let over = args.bucket.chars().last().and_then(|c| match c {
+            '♣' => Some(contract_bridge::Suit::Clubs),
+            '♦' => Some(contract_bridge::Suit::Diamonds),
+            '♥' => Some(contract_bridge::Suit::Hearts),
+            '♠' => Some(contract_bridge::Suit::Spades),
+            _ => None,
+        });
+        if let Some(over) = over {
+            let mut rows = Vec::new();
+            for (i, b) in boards.iter().enumerate() {
+                let Class::Contested(label, open) = classify(b) else {
+                    continue;
+                };
+                if label != args.bucket || b.table_a.get(open + 2) != Some(&Call::Pass) {
+                    continue;
+                }
+                let hand = b.deal[seat_to_act(b.dealer, open + 2)];
+                let suits = [
+                    contract_bridge::Suit::Clubs,
+                    contract_bridge::Suit::Diamonds,
+                    contract_bridge::Suit::Hearts,
+                    contract_bridge::Suit::Spades,
+                ];
+                let hcp: u8 = suits
+                    .iter()
+                    .map(|&s| contract_bridge::eval::hcp::<u8>(hand[s]))
+                    .sum();
+                let pts = pons::bidding::constraint::point_count(hand);
+                let long = suits
+                    .iter()
+                    .filter(|&&s| s != over)
+                    .map(|&s| hand[s].len())
+                    .max()
+                    .unwrap_or(0);
+                let theirs = hand[over].len();
+                let their_hcp = contract_bridge::eval::hcp::<u8>(hand[over]);
+                let key = if hcp >= 10 && their_hcp >= 5 {
+                    "trap-pass (10+, 5+ hcp in theirs)"
+                } else if hcp >= 8 && theirs <= 1 {
+                    "8+ hcp, 0-1 in theirs: X needs 2-3"
+                } else if hcp >= 8 && theirs >= 4 {
+                    "8+ hcp, 4+ in theirs: X needs 2-3"
+                } else if hcp >= 8 {
+                    "8+ hcp, 2-3 in theirs — X was available?"
+                } else if hcp <= 5 && long >= 6 {
+                    "≤5 hcp, 6+ suit: relay floor is hcp 6"
+                } else if hcp <= 5 && long == 5 {
+                    "≤5 hcp, 5-card suit: relay floor"
+                } else if (6..=7).contains(&hcp) && long >= 5 && pts >= 9 {
+                    "6-7 hcp, 5+ suit, points 9+: relay ceiling"
+                } else if (6..=7).contains(&hcp) && long >= 5 {
+                    "6-7 hcp, 5+ suit, points ≤8 — relay was available?"
+                } else if hcp <= 7 {
+                    "≤7 hcp, no 5-card suit: nothing to say"
+                } else {
+                    "other"
+                };
+                rows.push((key.to_owned(), plain[i], pd[i]));
+            }
+            sub_table(
+                &format!("table A: WHY responder passed over ({})", args.bucket),
+                &rows,
+                1,
+            );
+        }
+    }
+
     if args.show > 0 {
         shown.sort_by_key(|&i| plain[i]);
         println!(
             "\n--- {} worst plain boards in {} ---",
             args.show, args.bucket
         );
-        for &i in shown.iter().take(args.show) {
+        let picked: Vec<usize> = shown
+            .iter()
+            .copied()
+            .filter(|&i| {
+                let Class::Contested(_, open) = classify(&boards[i]) else {
+                    return false;
+                };
+                next_calls(&boards[i].table_a, open + 1, 3).starts_with(&args.next)
+            })
+            .take(args.show)
+            .collect();
+        for &i in &picked {
             let b = &boards[i];
+            let Class::Contested(_, open) = classify(b) else {
+                unreachable!()
+            };
+            let responder = seat_to_act(b.dealer, open + 2);
+            let hand = b.deal[responder];
+            let hcp: u8 = [
+                contract_bridge::Suit::Clubs,
+                contract_bridge::Suit::Diamonds,
+                contract_bridge::Suit::Hearts,
+                contract_bridge::Suit::Spades,
+            ]
+            .into_iter()
+            .map(|s| contract_bridge::eval::hcp::<u8>(hand[s]))
+            .sum();
+            let table = cache.get(&deal_key(&b.deal));
+            let dd = |seat: Seat| {
+                table.map_or("?".to_owned(), |t| {
+                    [
+                        Strain::Notrump,
+                        Strain::Spades,
+                        Strain::Hearts,
+                        Strain::Diamonds,
+                        Strain::Clubs,
+                    ]
+                    .into_iter()
+                    .map(|s| format!("{}{}", s, t[s].get(seat).get()))
+                    .collect::<Vec<_>>()
+                    .join(" ")
+                })
+            };
             println!(
-                "[{:+} plain / {:+} PD] {}\n  us:  {}\n  bba: {}",
-                plain[i], pd[i], b.deal, b.table_a, b.table_b
+                "[{:+} plain / {:+} PD] dealer {:?}, responder {responder:?} {hand} ({hcp} hcp)\n  {}\n  us:  {}\n  bba: {}\n  DD N: {}   E: {}",
+                plain[i],
+                pd[i],
+                b.dealer,
+                b.deal,
+                b.table_a,
+                b.table_b,
+                dd(Seat::North),
+                dd(Seat::East),
             );
         }
+        let p: Vec<i64> = picked.iter().map(|&i| plain[i]).collect();
+        let d: Vec<i64> = picked.iter().map(|&i| pd[i]).collect();
+        println!(
+            "shown {}: plain {} / PD {} total",
+            picked.len(),
+            p.iter().sum::<i64>(),
+            d.iter().sum::<i64>()
+        );
     }
 }

@@ -191,7 +191,7 @@ is 5 calls; the most common runout point is after opener's transfer completion
 | N1g | Landy **read-side** wiring — their `2♣` = majors in the floor's envelopes | `reading.their_landy_reading` | **SHIPPED DEFAULT-ON 2026-08-14** (`plain wash \| PD win` ×3 seeds, isolation gate 0 foreign); see §N1g |
 | N1h / N1i | Landy counter's minor rungs re-priced — a point lower, then regraded on `hcp` | `defense_2c_landy_low_minors`, `defense_2c_landy_hcp_rungs` | **both REFUTED 2026-08-15, both opt-in; lane closed.** `cue ← X` negative in both, so N1d's cue floor is settled — see §N1h / N1i |
 | **N1j** | **BBA-ladder counter** — the anchor-aligned table, replacing the stack — **+ the weak-2♦ cap** | `defense_2c_landy_bba`, `defense_2c_landy_weak_2d_cap` | **both SHIPPED DEFAULT-ON 2026-08-15** — the ladder at its pinned non-inferiority gate (`wash \| wash`, all eight DD cells leaning positive), the cap at the standard gate (`plain wash \| PD win`, 0 foreign); see §N1j |
-| N2 | Muiderberg `(2♠)` calibration | — | −0.66/bd, PD −0.58 NV; **BBA plays plain Lebensohl here, we play Cohen Transfer** — a concrete A/B, see the [counter-defense reference](ai-bidder/bba-1nt-counter-defense.md) |
+| N2 | Muiderberg `(2♠)` calibration | — | −0.66/bd, PD −0.58 NV; **census by response run 2026-08-15 (§N2)**: `X` wins, the `2NT` relay and Pass lose, opener bids `3NT` over the relay's minor sign-off 16/18 because weak calls read as *unlimited* (floor-only projections) — N2a–d queued, BBA's plain Lebensohl earns nothing at table B |
 | N3 | `(3+)` overcalls of our 1NT | new | floor-only today; −0.63/bd. **Misnamed: their three-level calls are natural 7-card preempts**, not artificial — this is `defense_to_preempt`'s lane, not a counter-defense |
 | N4 | Multi `(2♦)` — the Transfer leg re-keyed for a Multi, the double family and relay authored to the seat; **v7 = BBA's own second-turn structure minus its PD-refused game bids** (takeout X of the resolved major, `hcp 6+` values double) | `their.two_diamonds_multi` (disclosure) | **SHIPPED 2026-08-15 (seven rounds, v7 pooled 3 seeds): NV `plain wash \| PD win` (+0.00100 ±0.00067), vul plain +0.00061 ±0.00056 \| PD +0.00061 ±0.00069; both-vul pool win\|win; paired vs v4 better on 3 of 4 cells** — census default in `their_2d_multi` + `vs_bba_agreements`; see [§N4](#n4--their-2-as-a-multi-shipped-2026-08-15--v7-seven-rounds-default-on-vs-bba-via-the-census) |
 | N4 residue | Read their disclosed Multi as exactly `6+♥ ∪ 6+♠`; test the honest `3♠` stopper ask after the correction to spades | `reading.their_multi_reading`, `competition.multi_stopper_ask` | **Reader SHIPPED DEFAULT-ON 2026-08-16** (`plain wash \| PD win`, 0 foreign). **Stopper ask REFUTED as a default** (`plain win \| PD wash` for both continuations); `FitSearch` and `OpenerPlaces` remain explicit opt-ins, default `Off`. See §N4 residue below |
@@ -1318,6 +1318,117 @@ doubling, and its outs are shut (`2♥`/`2♠` want a five-card major, the `2NT`
 wants a long suit, `3♦` is the transfer), so it passes. 76.8% of divergences are
 "passed where the baseline bid". That is the orphaning, and on the owned subset it
 prices to roughly nothing — it is neither the win nor a hidden loss.
+## N2 — Muiderberg `(2♥)/(2♠)`: the census by response (2026-08-15)
+
+Same anchor arm as the census above (`2026-08-12-ea2cde9-dirty`, 204,800
+boards/vul, deal-keyed DD cache), split one call deeper with
+`probe-1nt-interference --bucket 2♠ --responses 8`: table A by **our**
+response to their Muiderberg (and by response / advancer / opener), table B by
+**BBA's** response to *our* natural `2M` overcall of its 1NT.  IMPs are ours
+(table-A NS) on both tables, so a negative table-B row is BBA's gain.  Same
+attribution ceiling as the census — these rank, they do not isolate.
+
+### Table A — our response, pooled NV + vul
+
+| lane | our call | boards | plain | PD | plain/bd |
+| --- | --- | ---: | ---: | ---: | ---: |
+| `(2♠)` (430 bd, −284) | **Pass** | 242 | **−282** | +47 | −1.17 |
+| | **`2NT` relay** | 68 | **−114** | **−184** | −1.68 |
+| | `3♦` (→♥) | 56 | −15 | −46 | −0.27 |
+| | **`X`** | 43 | **+110** | +97 | **+2.56** |
+| | other | 21 | +17 | +4 | |
+| `(2♥)` (393 bd, −43) | Pass | 194 | −107 | +153 | −0.55 |
+| | **`2NT` relay** | 21 | **−45** | **−105** | −2.14 |
+| | `2♠` natural | 50 | +7 | −5 | |
+| | `3♦` (→♠) | 45 | +6 | −11 | |
+| | `X` | 58 | +54 | +86 | +0.93 |
+| | other | 25 | +42 | +45 | |
+
+Three signs are consistent across all four cells (lane × vul):
+
+1. **`X` wins everywhere** (+1.8 / +3.5 / +0.3 / +1.8 per board).  The Optional
+   double (`2-3` in their suit, 8+) followed by opener sitting (`X P P`: +2.2 /
+   +4.0 / +0.4 / +2.4) is the lane's best call.  BBA's own `X` here shows the
+   other major and is a *loser* for BBA over `(2♥)` (table B `X` +357 for us).
+2. **The `2NT` relay loses everywhere** (−0.9 / −2.6 / −0.9 / −3.5 plain,
+   −1.9 / −3.7 / −3.8 / −6.3 PD).  Its own decomposition, `(2♠)` both vuls:
+   sign-off `3♥` then opener passes −45 (20 bd); relay then pass `3♣` −42
+   (21 bd); **sign-off `3♦` then opener bids `3NT` on 16 of 18 boards, −52
+   plain / −125 PD** across all four cells — see the mechanism below.
+3. **Pass** loses NV plain (−1.65 / −1.01 per board), is a wash vul, and is
+   PD-*positive* vul (their `2M` fails and PD doubles it).  Its hand classes,
+   `(2♠)` NV+vul: `≤5 hcp with a 6+ suit` (the relay's 6-HCP floor) **31 bd,
+   −120 plain, −3.9/bd** — the single worst class in the lane, `2♠` making
+   opposite our 9-11-trick heart/diamond spots (BBA at table B, un-overcalled,
+   transfers there); `≤7 hcp, no 5-card suit` 109 bd, −43 (nothing to say —
+   the obstruction the Muiderberg buys); `≤5 hcp, 5-card suit` 89 bd, −54;
+   `8+ hcp with 0-1 or 4+ in their suit` **11 bd, −53** — hands with **no
+   call at all**: `X` needs 2-3 trumps, the relay needs `points ≤ 8`
+   (a 6-card suit's upgrade pushes an 8-count to 9), the club transfer needs
+   `10+`.  `T.JT6.AQ85.QT963` and `4.K92.K97.Q98542` passed.
+
+### Table B — BBA's response to our natural `2M`, pooled NV + vul
+
+BBA plays plain Lebensohl here ([counter-defense](ai-bidder/bba-1nt-counter-defense.md)):
+
+| lane | BBA's call | boards | plain | note |
+| --- | --- | ---: | ---: | --- |
+| `(2♠)` (2291 bd) | Pass | 880 | −772 | our overcall failing (vul −1.48/bd; PD −4.8/bd = the auto-double) — the defensive-overcall lane's business, not this one |
+| | `X` (= ♥4+) | 734 | −151 | BBA's one gain from a call |
+| | `3♠` cue | 178 | **+216** | |
+| | `3♥`, `2NT` relay, `3♦`, `4♥` | 138 / 145 / 70 / 16 | +72 / +66 / +7 / +68 | every constructive call is ours to gain |
+| `(2♥)` (2423 bd) | Pass | 798 | −483 | same |
+| | `X` (= ♠4+) | 790 | **+357** | |
+| | `3♥` cue, `3♦`, `3NT`, `3♣`, `2NT` | 146 / 75 / 65 / 91 / 201 | +194 / +102 / +49 / +10 / +18 | |
+| | `2♠` natural | 140 | −93 | |
+
+BBA's Lebensohl earns it nothing on its constructive calls; its edge is our
+overcalls going down (and, over `(2♠)`, its takeout `X`).
+
+### Opener facing BBA's advances — not a leak
+
+Advancer acts on ~15% of table-A boards.  Opener over the artificial `2NT`
+minor-ask (`P 2NT P`) is a wash: 81 boards, −16 / −8 / +1 / 0.  Every other
+advancer row is single digits of boards.  **The opener defects are after our
+own weak calls**, whose ceilings the floor cannot see:
+
+- `2NT - 3♣ - 3♦ -` → opener `3NT` (16/18, above);
+- `2NT (3♥) X` — opener doubles their raise of the relay, 5 bd, −25 / −54 PD;
+- `2♠ (3♥) 3♠` (`(2♥)` lane) — opener competes over our weak natural `2♠`,
+  12 bd, mixed.
+
+### The mechanism — weak calls read as unlimited
+
+`probe-decision "Q93.K43.AKJT.Q42" "1NT 2♠ 2NT - 3♣ - 3♦ -"` reads partner as
+**`hcp 6..37, points 6..37, every suit 0..13`**, provenance `depth 0,
+fallback Some(0)` — the floor — and bids `3NT` 1.400 over Pass 0.  Two causes:
+
+1. **`Points::project` and `Hcp::project` are floor-only** by design
+   ([constraint.rs](../src/bidding/constraint.rs), "floor only, matching every
+   hand-written reader"; the two-sided `project_band` serves only the *pass*
+   reading).  So `points(..=8)` on the relay and on the natural 2-level call
+   projects to `0..37`; a weak sign-off is read as unlimited by every net
+   downstream.  The uncontested 1NT structure is protected by the hand-coded
+   notrump walk (`1NT - 2♣ - 2♦ - 2NT -` reads `8..9`); the Lebensohl lane has
+   no such reader, so only the relay's `hcp(6..)` floor survives.  `1NT 2♥ 2♠ -`
+   (our weak natural `2♠`) reads as **nothing at all**.
+2. **The relay's minor sign-off has no opener node.**  `lebensohl_signoff_raise`
+   is wired for the major sign-off only (`(2♠) 2NT - 3♣ - 3♥ -`); `3♦` and the
+   `3♣` pass fall to the floor, which — reading an unlimited partner opposite
+   15-17 — bids `3NT`.  The `3♦` rebid rule itself carries `len(♦, 5..)`, and
+   that length is not in the reading either (♦ `0..13`).
+
+### N2 packages, from the census
+
+| # | Package | Class | Evidence | Note |
+| --- | --- | ---: | ---: | --- |
+| **N2a** | opener **passes** the relay's minor sign-off — `{relay} 3♦ -` over `(2♥)`/`(2♠)` (the relay-then-pass-`3♣` is already terminal), a `landy_signoff_answer`-style node | book, one node | −52 plain / −125 PD on 18 bd, 16 of them the same wrong call | cheapest, cleanest; also gates the `2NT (3♥) X` |
+| N2b | read the relay / sign-off / natural-2-level ceilings — a Lebensohl reader, or a `points_band` two-sided projection at these rules | reading | the general defect behind N2a and the `X` of their raise; touches every weak call in the system | reader-retirement campaign says *fewer* readers; a two-sided projection knob is the honest fix, and it is a bidding knob under the floor |
+| N2c | the no-call 8-9-count with 0-1 / 4+ in their suit — widen the relay to `points ≤ 9` with a 6-card suit, or let a singleton double | book | 11 bd, −53 | small n; the Optional > Takeout verdict was measured pons-vs-pons |
+| N2d | relay with a 6+ suit below 6 HCP (over `(2♠)` only, where the weak major has no 2-level call) | book | 31 bd, −120, −3.9/bd | contradicts the PD-distilled floor ([`lebensohl_relay_shape`](../src/bidding/american/competition/lebensohl.rs)), measured pons-vs-pons; against Muiderberg the alternative is a making `2♠`, and BBA at table B bids these hands un-overcalled. Needs the A/B, not a re-derivation |
+
+Nothing here is BBA-alignment (BBA's plain Lebensohl earns nothing at table
+B); the lane's headroom is our own weak calls being *unread*.
 
 ## Measurement discipline
 

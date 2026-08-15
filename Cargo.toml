@@ -158,6 +158,10 @@ path = "examples/probe-1nt-interference/main.rs"
 required-features = ["serde"]
 
 [[example]]
+name = "probe-decision"
+path = "examples/probe-decision/main.rs"
+
+[[example]]
 name = "probe-divergence"
 path = "examples/probe-divergence/main.rs"
 required-features = ["serde"]

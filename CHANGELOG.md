@@ -118,6 +118,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   advancer never passes our double** — the N4b "they sit 43%" was the foreign
   lane, retracted (0 of 141 on our-opened boards; `advance-x` 0.0%). The
   natural §4 sketch in `bba-multi-2d.md` was not run.
+- **N2 forensic — the Muiderberg `(2♥)/(2♠)` lane by response.**
+  `probe-1nt-interference` gains `--responses N` (split one bucket by our
+  response and by BBA's response to our overcall at the mirrored table, then
+  by response / advancer / opener, and classify the hands that passed by the
+  authored call they fell between) and `--show N --next "P P P"` (worst
+  boards of one continuation with dealer, responder's hand and DD makes).
+  New `probe-decision` example: one decision explained — partner/RHO
+  readings, provenance, top logits with the rule behind each.  Findings
+  (docs/one-notrump-competitive.md §N2, no bidding change): our Optional
+  `X` wins in every cell (+2.56/bd over `(2♠)`), the `2NT` relay loses in
+  every cell (−1.7…−2.1/bd plain, worse PD), Pass loses NV; **opener bids
+  `3NT` over the relay's weak `3♦` sign-off on 16 of 18 boards** because the
+  minor sign-off has no opener node and `Points`/`Hcp` projections are
+  floor-only — the floor reads a weak sign-off as *unlimited* (`hcp 6..37`,
+  every suit `0..13`).  Opener facing BBA's artificial `2NT` ask is a wash
+  (81 boards); BBA's plain Lebensohl earns nothing on its constructive calls
+  at table B.  Packages N2a–d queued.
 
 - **N1j — the BBA-ladder Landy counter, shipped default-on with its weak-2♦
   cap.** Over `1NT (2♣)`-as-Landy, responder's table is re-shaped to the
