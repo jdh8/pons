@@ -44,6 +44,21 @@ fn main() {
     if std::env::var("PROBE_SCOPE").as_deref() == Ok("all") {
         agreements.decision.reading.scope = pons::bidding::inference::ReadingScope::All;
     }
+    // Each made call's strength ceilings, not just its floors — on by default
+    // since 2026-08-16, so `PROBE_CEILINGS=0` is the interesting one: it puts
+    // the sign-off above back to reading `hcp 6..37`.
+    match std::env::var("PROBE_CEILINGS").as_deref() {
+        Ok("0") => agreements.decision.reading.strength_ceilings = false,
+        Ok("1") => agreements.decision.reading.strength_ceilings = true,
+        _ => {}
+    }
+    // The nets' pre-ceilings reading, likewise default on; `PROBE_LEGACY_VIEW=0`
+    // prints the raw (unheld-nets) arm of the same board.
+    match std::env::var("PROBE_LEGACY_VIEW").as_deref() {
+        Ok("0") => agreements.decision.legacy_view = false,
+        Ok("1") => agreements.decision.legacy_view = true,
+        _ => {}
+    }
     let partnership = american(&agreements).bind();
     let inf = partnership.infer(vul, &auction);
     let p = inf.partner();

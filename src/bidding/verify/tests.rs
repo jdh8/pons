@@ -307,7 +307,9 @@ fn projection_reproduces_the_declarative_readers() {
         Range::new(14, 37),
     );
 
-    // Landy: (1NT) 2♣ - = both majors, at least 4-4, 8+; partner at length 3.
+    // Landy: (1NT) 2♣ - = both majors, at least 4-4, 8-15 (the ceiling is
+    // `convention_points`, read since `strength_ceilings` shipped); partner at
+    // length 3.
     // `((len(♥,5..)&len(♠,4..)) | (len(♥,4..)&len(♠,5..))) & points(8..)`.
     let mut landy = Agreements::default();
     landy.decision.reading.landy = true;
@@ -321,6 +323,6 @@ fn projection_reproduces_the_declarative_readers() {
             (Suit::Hearts, Range::new(4, 13)),
             (Suit::Spades, Range::new(4, 13)),
         ],
-        Range::new(8, 37),
+        Range::new(8, 15),
     );
 }

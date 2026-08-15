@@ -77,9 +77,20 @@ fn project_band_carries_ceilings() {
         hcp(..6).project_band(&context).hull().strength.points,
         Range::new(0, 7)
     );
-    // `project` itself stays floor-only — the alert path is untouched.
+    // `project` is the band under the shipped
+    // [`strength_ceilings`][field@ReadingProfile::strength_ceilings]...
     assert_eq!(
         hcp(..6).project(&context).hull().strength.points,
+        Range::new(0, 7)
+    );
+    // ...and floor-only with it off, which is what `legacy_view` serves the
+    // nets.
+    let floor_only = empty_context_with(|profile| {
+        profile.envelope_union = false;
+        profile.strength_ceilings = false;
+    });
+    assert_eq!(
+        hcp(..6).project(&floor_only).hull().strength.points,
         Range::FULL_POINTS
     );
     // Composition is tight per arm: the 1NT pass gate (`notrump.rs`) — an
@@ -1037,4 +1048,181 @@ fn combinator_eval_remains_eager_and_left_to_right() {
     });
     assert_pass(disjunction.eval(test_hand, &context));
     assert_eq!(sequence.load(Ordering::SeqCst), 2);
+}
+
+// ── Phase 1: the two-sided forward folds ───────────────────────────────────
+// docs/authored-reading-handoff.md.  Under
+// [`strength_ceilings`][field@ReadingProfile::strength_ceilings] `points`,
+// `hcp` and `support_points` project their *band* forward instead of
+// `floor..=37`.  These three tests are that switch's soundness gate, and they
+// run before any A/B: the fold arithmetic (below), then the whole-book
+// behavioural sweep in `crate::bidding::inference::tests`.
+
+/// The four scales, in one place, so a new one cannot quietly skip the gate.
+const POINT_SCALES: [PointScale; 4] = [
+    PointScale::Hcp,
+    PointScale::PointCount,
+    PointScale::RuleOfN,
+    PointScale::RuleOfNFloored,
+];
+
+/// `count` seeded hands, four to a deal.
+fn seeded_hands(count: usize) -> Vec<Hand> {
+    use rand::SeedableRng as _;
+    let mut rng = rand::rngs::StdRng::seed_from_u64(0x5EED_C0DE);
+    let mut hands = Vec::with_capacity(count);
+    while hands.len() < count {
+        let deal = contract_bridge::deck::full_deal(&mut rng);
+        for seat in contract_bridge::Seat::ALL {
+            hands.push(deal[seat]);
+        }
+    }
+    hands.truncate(count);
+    hands
+}
+
+/// The arithmetic every two-sided strength projection rests on: on **any**
+/// scale, for **any** hand, [`point_count_on`] sits within
+/// `[−flat_hcp_slack, +hcp_ceiling_slack]` of raw HCP.
+///
+/// [`hcp_band`] widens an authored raw-HCP band by exactly those two slacks,
+/// so this bound *is* the soundness of `hcp`'s forward ceiling under
+/// [`strength_ceilings`][field@ReadingProfile::strength_ceilings] — and of
+/// `points`' forward HCP band, which uses them the other way round.  Rule of
+/// N+8 is the only scale that can read *under* raw HCP (a flat 4-3-3-3 has
+/// seven cards in its two longest suits), and the only one that reaches +5.
+///
+/// The strength dial is deliberately out of scope: it shifts `eval` and
+/// nothing else *by design* (eval-only, default 0), so no projection claims to
+/// track it and none of the folds here are dial-sound in either direction.
+#[test]
+fn point_scale_slacks_bound_the_upgrade() {
+    let hands = seeded_hands(20_000);
+    for scale in POINT_SCALES {
+        let (mut low, mut high) = (0i16, 0i16);
+        for &hand in &hands {
+            let delta = i16::from(point_count_on(scale, hand)) - i16::from(raw_hcp(hand));
+            assert!(
+                delta >= -i16::from(flat_hcp_slack(scale))
+                    && delta <= i16::from(hcp_ceiling_slack(scale)),
+                "{scale:?} read {delta} off raw HCP on {hand}, outside \
+                 [-{}, {}]",
+                flat_hcp_slack(scale),
+                hcp_ceiling_slack(scale),
+            );
+            low = low.min(delta);
+            high = high.max(delta);
+        }
+        // The slacks must also be *tight enough to matter*: a scale whose
+        // observed spread never reaches its declared slack is claiming a
+        // looser band than it needs, which is sound but wasteful.  Rule of
+        // N+8's −1 needs a flat 4-3-3-3 and its +5 a 13-card fit, so only
+        // the observed side of each is asserted here.
+        assert_eq!(
+            (low < 0, high > 0),
+            (
+                flat_hcp_slack(scale) > 0,
+                hcp_ceiling_slack(scale) > 0 && scale != PointScale::Hcp
+            ),
+            "{scale:?} observed spread {low}..={high} disagrees with its slacks"
+        );
+    }
+}
+
+/// Sound by construction, made executable: with the ceilings on, every hand a
+/// strength gate *accepts* still lies inside the box that gate projects.
+///
+/// This is the property the sampler depends on — a reading tighter than the
+/// truth makes it exclude hands we actually hold — and the one a forward
+/// ceiling could plausibly break, since the projection axis (`point_count`)
+/// and the gate's own scalar (raw HCP, support points) are different numbers.
+/// Run on every scale, both envelope-union regimes, and the combinators, with
+/// [`gauge_membership`][field@ReadingProfile::gauge_membership] **on** so that
+/// the `hcp`, `support_points` and `suit_hcp` axes are checked too rather than
+/// waved through.
+#[test]
+fn forward_ceilings_admit_every_accepted_hand() {
+    let hands = seeded_hands(2_000);
+    // Bands that bracket the real book: a weak sign-off ceiling, an
+    // invitational window, and a floor-only opening gate.
+    let bands: [(u8, u8); 3] = [(0, 8), (11, 13), (17, 37)];
+    for scale in POINT_SCALES {
+        for envelope_union in [false, true] {
+            let context = empty_context_with(|profile| {
+                profile.strength_ceilings = true;
+                profile.gauge_membership = true;
+                profile.point_scale = scale;
+                profile.envelope_union = envelope_union;
+            });
+            let reading = context.reading_profile();
+            for (lo, hi) in bands {
+                let cases: [(&str, Box<dyn Constraint>); 6] = [
+                    ("points", Box::new(points(lo..=hi))),
+                    ("hcp", Box::new(hcp(lo..=hi))),
+                    (
+                        "support_points",
+                        Box::new(support_points(Suit::Hearts, lo..=hi)),
+                    ),
+                    ("points & hcp", Box::new(points(lo..=hi) & hcp(lo..=hi))),
+                    ("points | hcp", Box::new(points(lo..=hi) | hcp(lo..=hi))),
+                    ("!points", Box::new(!points(lo..=hi))),
+                ];
+                for (name, constraint) in cases {
+                    let projected = constraint.project(&context);
+                    for &hand in &hands {
+                        if !constraint.eval(hand, &context).is_finite() {
+                            continue;
+                        }
+                        assert!(
+                            projected.contains_on(hand, reading),
+                            "{name}({lo}..={hi}) accepts {hand} but does not project it \
+                             ({scale:?}, envelope_union {envelope_union})"
+                        );
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// With the knob on the three forward folds *are* their bands — the one-line
+/// claim the whole phase rests on — and a trivial catch-all still claims
+/// nothing, so a table's finite fall-through stays a fall-through.
+#[test]
+fn forward_projection_is_the_band_under_ceilings() {
+    for envelope_union in [false, true] {
+        let context = empty_context_with(|profile| {
+            profile.strength_ceilings = true;
+            profile.envelope_union = envelope_union;
+        });
+        let same = |name: &str, constraint: &dyn Constraint| {
+            assert!(
+                constraint.project(&context) == constraint.project_band(&context),
+                "{name} projects something other than its band"
+            );
+        };
+        same("points", &points(..=8));
+        same("hcp", &hcp(6..=9));
+        same("support_points", &support_points(Suit::Spades, 10..=12));
+        // The combinators compose the fold for free, so the identity survives
+        // conjunction, disjunction and the pass reading's own entry point.
+        same("points & hcp", &(points(..=8) & hcp(6..)));
+        same("points | hcp", &(points(20..) | hcp(19..)));
+
+        // The N2 sign-off, the call that found this: a `2NT` relay gated
+        // `points(..=8) & hcp(6..)` now reads as at most eight, where it read
+        // as unlimited.
+        let relay = points(..=8) & hcp(6..);
+        let box_ = relay.project(&context).hull();
+        assert_eq!(box_.strength.points, Range::new(6, 8));
+
+        // A catch-all is still ⊤: `bound_range` caps an open end at the
+        // scale's own maximum, which is what an `Envelope` calls "unbounded".
+        assert_eq!(
+            points(0..).project(&context).hull(),
+            Envelope::unknown(),
+            "an all-hands gate must keep claiming nothing"
+        );
+        assert_eq!(hcp(0..).project(&context).hull(), Envelope::unknown());
+    }
 }

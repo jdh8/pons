@@ -61,6 +61,23 @@ pub(super) fn chosen_call(
         .expect("array is never empty")
 }
 
+/// The regime grid every behavioural reading sweep runs: reading scope ×
+/// whether the forward strength folds keep their ceilings.
+///
+/// Phase 1 of docs/authored-reading-handoff.md added the second axis.  A
+/// forward ceiling can only *tighten* a box, so it is the axis that can newly
+/// exclude a hand its own bidder holds — either because a hand-written walk
+/// stamp contradicts the rule it sits on, or because a gate's own gauge and
+/// the axis it projects into are different numbers.  All four cells must be
+/// green before the knob is measured, let alone shipped; this grid is the
+/// general soundness gate the N2 testbed waits on.
+const READING_REGIMES: [(ReadingScope, bool); 4] = [
+    (ReadingScope::Alerted, false),
+    (ReadingScope::Alerted, true),
+    (ReadingScope::All, false),
+    (ReadingScope::All, true),
+];
+
 /// Every Gladiator reading admits the hand that actually made the call.
 ///
 /// The behavioural analogue of `authored_rules_eval_within_projection`,
@@ -96,6 +113,7 @@ fn gladiator_readings_admit_the_bidder() {
     // pinned here so the two layers cannot drift apart again.
     let check = |partnership: &crate::bidding::Partnership,
                  failures: &mut Vec<String>,
+                 regime: &str,
                  hand: Hand,
                  auction: &[Call],
                  made: Call| {
@@ -105,7 +123,7 @@ fn gladiator_readings_admit_the_bidder() {
         let inferences = partnership.infer(RelativeVulnerability::NONE, &read);
         if !inferences.admits(Relative::Partner, hand) && failures.len() < 16 {
             failures.push(format!(
-                "[{}] reading excludes the hand that bid it: {hand}",
+                "[{}] ({regime}) reading excludes the hand that bid it: {hand}",
                 contract_bridge::auction::display_calls(&read),
             ));
         }
@@ -115,16 +133,14 @@ fn gladiator_readings_admit_the_bidder() {
     // authoring rule *on top of* the walk's reading, so a walk claim that
     // contradicts the rule empties the box instead of quietly overriding it
     // — the sweep is how `set_natural_reading` gets adjudicated per node.
-    for natural in [false, true] {
-        agreements.decision.reading.scope = if natural {
-            ReadingScope::All
-        } else {
-            ReadingScope::Alerted
-        };
+    for (scope, ceilings) in READING_REGIMES {
+        agreements.decision.reading.scope = scope;
+        agreements.decision.reading.strength_ceilings = ceilings;
+        let regime = format!("{scope:?} scope, ceilings {ceilings}");
         let partnership = crate::american(&agreements).bind();
         for &hand in &hands {
             let made = chosen_call(&partnership, hand, &node);
-            check(&partnership, &mut failures, hand, &node, made);
+            check(&partnership, &mut failures, &regime, hand, &node, made);
             // Relayers carry on through the forced 2♦ — the only route to
             // the delayed cue, whose stamp is the other narrowing one.
             if made != bid(2, Strain::Clubs) {
@@ -141,7 +157,14 @@ fn gladiator_readings_admit_the_bidder() {
                 ])
                 .collect();
             let continued = chosen_call(&partnership, hand, &sorted);
-            check(&partnership, &mut failures, hand, &sorted, continued);
+            check(
+                &partnership,
+                &mut failures,
+                &regime,
+                hand,
+                &sorted,
+                continued,
+            );
         }
         // The runout branch too — `(1♠) 1NT (X)` is authored, so its
         // escapes are read by the walk like any other natural call.
@@ -152,7 +175,7 @@ fn gladiator_readings_admit_the_bidder() {
         ];
         for &hand in &hands {
             let made = chosen_call(&partnership, hand, &doubled);
-            check(&partnership, &mut failures, hand, &doubled, made);
+            check(&partnership, &mut failures, &regime, hand, &doubled, made);
         }
     }
     assert!(
@@ -347,12 +370,9 @@ fn readings_admit_the_bidder() {
     .collect();
 
     let mut failures: Vec<String> = Vec::new();
-    for natural in [false, true] {
-        agreements.decision.reading.scope = if natural {
-            ReadingScope::All
-        } else {
-            ReadingScope::Alerted
-        };
+    for (scope, ceilings) in READING_REGIMES {
+        agreements.decision.reading.scope = scope;
+        agreements.decision.reading.strength_ceilings = ceilings;
         let partnership = crate::american(&agreements).bind();
         for &(what, node) in nodes {
             for &hand in &hands {
@@ -373,7 +393,7 @@ fn readings_admit_the_bidder() {
                 let inferences = partnership.infer(RelativeVulnerability::NONE, &read);
                 if !inferences.admits(Relative::Partner, hand) && failures.len() < 16 {
                     failures.push(format!(
-                        "{what} [{}] (natural-reading {natural}) excludes the hand that bid it: {hand}",
+                        "{what} [{}] ({scope:?} scope, ceilings {ceilings}) excludes the hand that bid it: {hand}",
                         contract_bridge::auction::display_calls(&read),
                     ));
                 }
@@ -836,12 +856,9 @@ fn completion_readings_admit_the_bidder() {
         .collect();
 
     let mut failures: Vec<String> = Vec::new();
-    for natural in [false, true] {
-        agreements.decision.reading.scope = if natural {
-            ReadingScope::All
-        } else {
-            ReadingScope::Alerted
-        };
+    for (scope, ceilings) in READING_REGIMES {
+        agreements.decision.reading.scope = scope;
+        agreements.decision.reading.strength_ceilings = ceilings;
         let partnership = crate::american(&agreements).bind();
         for &(what, node) in nodes {
             for &hand in &hands {
@@ -859,7 +876,7 @@ fn completion_readings_admit_the_bidder() {
                 let inferences = partnership.infer(RelativeVulnerability::NONE, &read);
                 if !inferences.admits(Relative::Partner, hand) && failures.len() < 16 {
                     failures.push(format!(
-                        "{what} [{}] (natural-reading {natural}) excludes the hand that bid it: {hand}",
+                        "{what} [{}] ({scope:?} scope, ceilings {ceilings}) excludes the hand that bid it: {hand}",
                         contract_bridge::auction::display_calls(&read),
                     ));
                 }
@@ -1227,6 +1244,39 @@ fn authored_rules_eval_within_projection() {
             agreements.decision,
             |auction, context, rule| {
                 check(&mut failures, &hands, system, auction, context, rule);
+            },
+            |_, _| {},
+        );
+    }
+
+    // Phase 1's general soundness gate: the same book-wide claim with the
+    // forward strength folds two-sided
+    // ([`strength_ceilings`][field@crate::bidding::ReadingProfile::strength_ceilings]).
+    //
+    // The algebra says this must hold — under the knob the three point
+    // gauges' forward fold *is* `project_band`, which the sweep above
+    // already replays book-wide, and every combinator builds its forward
+    // fold out of its arms' — but "must hold" is exactly the reasoning that
+    // put a floor-only ceiling in the book for two years.  A quarter of the
+    // hand pool, because the sweep is hand-proportional and this axis only
+    // moves the strength bounds: 36 hands over ~110k (auction, rule) pairs
+    // still replays every ceiling in the book many times over.
+    let ceilinged = &hands[..32.min(hands.len())]
+        .iter()
+        .copied()
+        .chain(hands[hands.len() - 4..].iter().copied())
+        .collect::<Vec<Hand>>();
+    let mut with_ceilings = agreements.decision;
+    with_ceilings.reading.strength_ceilings = true;
+    for (system, trie) in tries {
+        for_each_authored_rule(trie, with_ceilings, |auction, context, rule| {
+            check(&mut failures, ceilinged, system, auction, context, rule);
+        });
+        for_each_fallback_rule(
+            trie,
+            with_ceilings,
+            |auction, context, rule| {
+                check(&mut failures, ceilinged, system, auction, context, rule);
             },
             |_, _| {},
         );

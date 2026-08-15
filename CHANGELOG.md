@@ -9,6 +9,126 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Two-sided strength projection: `ReadingProfile::strength_ceilings` and
+  `DecisionProfile::legacy_view` ship default-on.** Off,
+  `points`, `hcp` and `support_points` project `floor..=37`, so every made
+  bid's strength *ceiling* is discarded: the N2 lebensohl relay gated
+  `points(..=8)` read as `6..=37` to the sampler, the authored gates, the
+  instinct floor and the nets, which is how opener blasts `3NT` opposite a
+  hand that promised at most eight (docs/authored-reading-handoff.md §2).
+  On, each of the three forward folds *is* its `project_band` — the
+  two-sided arithmetic the pass reading has always used — and the relay
+  reads `points 6..=8`.
+
+  Phase 1 of the handoff, ordered soundness-first at jdh8's request. The
+  gate is green before any measurement: two new fold-arithmetic tests
+  (`point_scale_slacks_bound_the_upgrade` over 20k hands × 4 point scales;
+  `forward_ceilings_admit_every_accepted_hand` over the band grid × scales ×
+  both envelope-union regimes × `&`/`|`/`!`, with `gauge_membership` on),
+  the identity test `forward_projection_is_the_band_under_ceilings`, the
+  book-wide E0 sweep `authored_rules_eval_within_projection` extended to a
+  second pass under the ceilings profile (every authored rule of `american()`
+  and `dutch()` plus the fallback layer; 53.8s → 69.7s), and all three
+  behavioural `*_admit_the_bidder` sweeps generalised from two reading
+  regimes to the 4-cell `READING_REGIMES` grid `{Alerted, All} × {ceilings
+  off, on}`. `probe-reading-sound` re-baselined and run as four paired arms
+  (40,000 boards, seed 20260816): our own side's exclusion rate **falls**,
+  2.114% → 2.105% under `Alerted` and 2.135% → 2.111% under `All`, with the
+  partner worklist's top 30 byte-identical under `Alerted` — no repair queue.
+  Reading *their* calls gets wronger by 0.4pp (`Alerted`) to 0.7pp (`All`),
+  the honest price of reading a foreign system with tighter meanings and the
+  recorded risk for the A/B. The soundness gate ran with the knob still
+  defaulted off, so the default system was byte-identical (smoke
+  `18aba5ce…`) throughout it.
+
+  **Measured on four arms across four seeds.**
+  Whole-book A/B, 204,800 boards/arm/vul per seed (1786827680 / 1786828611 /
+  1786829005), firing on 0.10–0.11% of boards. Pooled per vulnerability (the
+  two vulnerabilities re-price the *same* deals, so they are not independent
+  and are not pooled together): NV plain −0.00033 ±0.00052 / PD +0.00031
+  ±0.00058; vulnerable plain −0.00051 ±0.00069 / PD +0.00023 ±0.00081. Every
+  CI straddles zero — the letter of "non-loss" — but plain DD never came out
+  positive on any seed at either vulnerability while PD leans the other way,
+  which is the decision table's *"artifact of PD's synthetic X, not a win"*
+  shape. The N2-enriched population (`--filter-1nt`, seed 1786828220) is the
+  one that leans positive throughout (+0.0002/+0.0006 NV, +0.0004/+0.0007
+  vul, all washes). The firing rate is the finding: **almost nothing reads a strength ceiling today.**
+  `Strength` has no ceiling accessor at all (`hcp_floor`, `support_floor`,
+  `shown_floor` each return a `.min`); `instinct.rs` contains zero
+  strength-`.max` reads; the authored gate `PartnerShownPoints` tests
+  `shown.min`; `Envelope::admits_on` *is* two-sided but `sample_layouts` is
+  reached only from opening-lead sampling and `ev_all`, so it moves sd-lead,
+  not the bidding decision. What the A/B priced is therefore a stale-net
+  input perturbation, which is exactly the confound `legacy_view` exists to
+  separate — and the `legacy_view` arm then measured that confound directly:
+  holding the nets at the pre-ceilings reading drops the firing rate ~70×,
+  from 212 boards to **3 in 204,800**, with all four cells positive (+10 NV
+  plain, +11 NV PD, +12 vul plain, +13 vul PD; seed 1786829479). The nets are
+  therefore **98.6% of the divergence**, and the census was right in kind but
+  not complete: the surviving 1.4% is a gate/slam-ask channel it did not
+  predict. Those three boards are one lane — `1♦ - 3♦ - 3NT` on, against
+  `1♦ - 3♦ - 4NT - 5♦ - 6♦` off — an invitational jump read as unlimited
+  driving a phantom keycard ask into a failing slam. They are the first
+  measured IMPs from a lost ceiling, and the ceilings win all three. The
+  reading is now true and Phases 2-5 depend on it. Warn: flipping
+  `nt_hcp_read` or `fit_sum_support_read` would silently make this knob a
+  floor-behaviour knob, since `hcp_floor()`/`support_floor()` stop returning
+  `None` under it.
+
+  The N2 node that motivated the phase is **not** fixed by it, and the probe
+  says why: `opener_forced_past_invitation` (`src/bidding/instinct.rs:3820`)
+  sets `forced_to_game` off *"our strong 1NT + partner's last call is a
+  three-level non-notrump bid"* — pure auction shape, blind to the ≤8 a
+  Lebensohl sign-off promises. That rail bypasses the net and
+  `auction_forces_game()` pre-satisfies the game-milestone `Or`, so
+  `combined_hcp` never runs; a 12-HCP opener still bids `3NT`, and the only
+  hand-dependent gate on the node is `stopper_in_their_suits()`. Filed as N2e
+  in docs/one-notrump-competitive.md and Phase 0b in the handoff.
+
+  `DecisionProfile::legacy_view` ships alongside, also on, as the
+  frozen-net hedge: `Context::net_inferences` feeds `features` and the
+  evaluator's trick estimates a second reading taken with the ceilings off,
+  while the sampler, the gates and the floor keep the true one, so an A/B
+  loss can be read as "the reading is wrong" versus "the nets are stale".
+  It is byte-exact — `legacy_view_reproduces_the_pre_ceilings_feature_vector`
+  pins the held `features_v5` vector to the shipped one, and the A/B
+  corroborates at the decision level: the competitive accountant's counters
+  under ceilings+legacy match baseline exactly (1489 bid vetoes / 164 double
+  masks / 291 pass demotions) while ceilings-only differs (1487 / 161 / 296).
+  The second reading walk is uncompiled — `get_for_profile` returns `None` on
+  profile mismatch — but it is memoised per decision behind a `OnceLock` and
+  costs **~1%** end to end (4000 deals, seed 777: 22.68s against 22.42s), not
+  the 4× its doc comment feared. Judge it on that number, not on A/B
+  wall-clock: the legacy arm finishes *faster* than the raw arm because
+  divergent boards are what cost DD time.
+
+  **Both ship on**, on the legacy arm — the evidence ranks the arms
+  legacy > raw > baseline, and the pre-agreed read-out did not cleanly cover
+  that (it branches on "raw loss" vs "raw non-loss" and raw is neither, every
+  CI straddling zero while plain DD leans negative 3/3). Shipping makes the
+  default reading *true* and retires a standing two-arm cross from every
+  Phase 2-5 A/B. The measured gain is three boards, so this is a correctness
+  ship, not a strength ship.
+
+  User-visible: the default system changes. `smoke-default --count 20000
+  --seed 1` re-bases from `18aba5ce…` to `cf583ff5…`; a 20,000-board arm diff
+  against `--ns-strength-ceilings false --ns-legacy-view false` moves **2
+  boards**, both the predicted lane (`1♣ - 3♣ - 4♣` for `1♣ - 3♣ - 4NT - 5♣ -
+  6♣`, and `1♦ - 3♦ - 3NT` for `1♦ - 3♦ - 4NT - 5♦`). The `.bbsa` cards are
+  byte-identical, which is the "reading, not disclosure" claim surviving the
+  ship. Six tests moved and five were pinning the old bug: `landy_conditions_partner`
+  `points 8..37` → `8..15` and `woolsey_conditions_partner` `10..37` → `10..19`,
+  each matching the `convention_points` its own fixture configures;
+  `projection_reproduces_the_declarative_readers` moved reader and projection
+  *together*, so the oracle still holds. Leaping Michaels kept `14..37` — its
+  rule carries no ceiling — which is the control. Controls: the
+  `bba-gen` flags `--ns-strength-ceilings` / `--ns-legacy-view` and
+  `probe-reading-sound --ns-strength-ceilings` are `Option<bool>` on the
+  shipped-knob idiom (unset = engine default; a pre-ship arm is spelled
+  `--ns-strength-ceilings false`); `probe-decision` takes `PROBE_CEILINGS=0` /
+  `PROBE_LEGACY_VIEW=0` to go back; and the `set_strength_ceilings` /
+  `set_legacy_view` web knobs expose both.
+
 - **N4 residue: the disclosed-Multi reader ships; the `3♠` stopper ask stays
   opt-in.** `ReadingProfile::their_multi_reading` now reads the opponents'
   first disclosed `2♦` over our `1NT` as the exact two-box union

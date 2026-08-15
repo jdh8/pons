@@ -768,7 +768,7 @@ fn push_context(out: &mut impl FeatureSink, context: &Context<'_>) {
     out.push(f32::from(context.we_opened()));
 
     // ── Inferences (40 values) ──────────────────────────────────────────────
-    let inf = context.inferences();
+    let inf = context.net_inferences();
 
     for who in [
         Relative::Me,

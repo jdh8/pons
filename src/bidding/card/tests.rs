@@ -211,3 +211,27 @@ fn a_foreign_card_mirrors_the_schema_and_zeroes_the_pons_rows() {
 fn setting_an_unknown_row_panics() {
     american_card(&crate::bidding::agreements::Agreements::default()).set("Ghestem Cuebid", 1);
 }
+
+/// A **reading** knob cannot move the card
+///
+/// The counterpart of [`a_knob_moves_its_row`]: `strength_ceilings` changes
+/// how we *read* a call we have already agreed and disclosed, so by the
+/// campaign's own principle (docs/authored-reading-handoff.md — alerts and
+/// `.bbsa` cards are disclosure, the reading is derived from the rules) it
+/// must be invisible to BBA.  Cheap to assert, and it is the claim three docs
+/// rest on; the same holds for the nets-side `legacy_view`, which never
+/// reaches the book at all.
+#[test]
+fn a_reading_knob_leaves_the_card_alone() {
+    let shipped = american_card(&Agreements::default()).to_string();
+    for arm in ["ceilings", "legacy view", "both"] {
+        let mut agreements = Agreements::default();
+        agreements.decision.reading.strength_ceilings = arm != "legacy view";
+        agreements.decision.legacy_view = arm != "ceilings";
+        assert_eq!(
+            american_card(&agreements).to_string(),
+            shipped,
+            "the {arm} arm moved the disclosed card",
+        );
+    }
+}

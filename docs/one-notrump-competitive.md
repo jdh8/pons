@@ -191,7 +191,7 @@ is 5 calls; the most common runout point is after opener's transfer completion
 | N1g | Landy **read-side** wiring — their `2♣` = majors in the floor's envelopes | `reading.their_landy_reading` | **SHIPPED DEFAULT-ON 2026-08-14** (`plain wash \| PD win` ×3 seeds, isolation gate 0 foreign); see §N1g |
 | N1h / N1i | Landy counter's minor rungs re-priced — a point lower, then regraded on `hcp` | `defense_2c_landy_low_minors`, `defense_2c_landy_hcp_rungs` | **both REFUTED 2026-08-15, both opt-in; lane closed.** `cue ← X` negative in both, so N1d's cue floor is settled — see §N1h / N1i |
 | **N1j** | **BBA-ladder counter** — the anchor-aligned table, replacing the stack — **+ the weak-2♦ cap** | `defense_2c_landy_bba`, `defense_2c_landy_weak_2d_cap` | **both SHIPPED DEFAULT-ON 2026-08-15** — the ladder at its pinned non-inferiority gate (`wash \| wash`, all eight DD cells leaning positive), the cap at the standard gate (`plain wash \| PD win`, 0 foreign); see §N1j |
-| N2 | Muiderberg `(2♠)` calibration | — | −0.66/bd, PD −0.58 NV; **census by response run 2026-08-15 (§N2)**: `X` wins, the `2NT` relay and Pass lose, opener bids `3NT` over the relay's minor sign-off 16/18 because weak calls read as *unlimited* (floor-only projections) — N2a–d queued, BBA's plain Lebensohl earns nothing at table B |
+| N2 | Muiderberg `(2♠)` calibration | — | −0.66/bd, PD −0.58 NV; **census by response run 2026-08-15 (§N2)**: `X` wins, the `2NT` relay and Pass lose, opener bids `3NT` over the relay's minor sign-off 16/18. **Cause corrected 2026-08-16**: not the unlimited reading (built and measured as `strength_ceilings`, the node does not move) but `opener_forced_past_invitation`, which forces to game off any three-level suit bid — N2e. N2a–d queued, BBA's plain Lebensohl earns nothing at table B |
 | N3 | `(3+)` overcalls of our 1NT | new | floor-only today; −0.63/bd. **Misnamed: their three-level calls are natural 7-card preempts**, not artificial — this is `defense_to_preempt`'s lane, not a counter-defense |
 | N4 | Multi `(2♦)` — the Transfer leg re-keyed for a Multi, the double family and relay authored to the seat; **v7 = BBA's own second-turn structure minus its PD-refused game bids** (takeout X of the resolved major, `hcp 6+` values double) | `their.two_diamonds_multi` (disclosure) | **SHIPPED 2026-08-15 (seven rounds, v7 pooled 3 seeds): NV `plain wash \| PD win` (+0.00100 ±0.00067), vul plain +0.00061 ±0.00056 \| PD +0.00061 ±0.00069; both-vul pool win\|win; paired vs v4 better on 3 of 4 cells** — census default in `their_2d_multi` + `vs_bba_agreements`; see [§N4](#n4--their-2-as-a-multi-shipped-2026-08-15--v7-seven-rounds-default-on-vs-bba-via-the-census) |
 | N4 residue | Read their disclosed Multi as exactly `6+♥ ∪ 6+♠`; test the honest `3♠` stopper ask after the correction to spades | `reading.their_multi_reading`, `competition.multi_stopper_ask` | **Reader SHIPPED DEFAULT-ON 2026-08-16** (`plain wash \| PD win`, 0 foreign). **Stopper ask REFUTED as a default** (`plain win \| PD wash` for both continuations); `FitSearch` and `OpenerPlaces` remain explicit opt-ins, default `Off`. See §N4 residue below |
@@ -243,9 +243,11 @@ so the default *system* is byte-identical: `smoke-default --count 20000
 `8ea2f5678a733cfe3ead79411d9cb31b8e95d37de52236e597fc38f9dec82bbb`, unchanged
 by every ship in this package.  (That constant later moved **outside** the
 package — `reading.completion_alerts` shipped default-on 2026-08-14 (94daa30)
-and re-based the default dump.  The current constant, re-verified for N1j by
-a stash/pop seeded diff against clean HEAD, is
-`18aba5ce4d7d7e3b5fe3f26a453da96a53ae0a239f1bd56dfa201ae84034b60a`.) `bba-gen`'s stack flags are `Option<bool>`
+and re-based the default dump.  That constant was
+`18aba5ce4d7d7e3b5fe3f26a453da96a53ae0a239f1bd56dfa201ae84034b60a` from N1j
+until `reading.strength_ceilings` + `DecisionProfile::legacy_view` shipped
+default-on 2026-08-16; the current constant is
+`cf583ff5f46d7e7ffdf0ab065dcb285680a6b7d865df42cf5e139f0b74ab7b90`.) `bba-gen`'s stack flags are `Option<bool>`
 (unset = engine default; a pre-ship arm is spelled
 `--defense-2c-landy-<knob> false`).
 
@@ -1437,7 +1439,8 @@ fallback Some(0)` — the floor — and bids `3NT` 1.400 over Pass 0.  Two cause
 | # | Package | Class | Evidence | Note |
 | --- | --- | ---: | ---: | --- |
 | **N2a** | opener **passes** the relay's minor sign-off — `{relay} 3♦ -` over `(2♥)`/`(2♠)` (the relay-then-pass-`3♣` is already terminal), a `landy_signoff_answer`-style node | book, one node | −52 plain / −125 PD on 18 bd, 16 of them the same wrong call | cheapest, cleanest; also gates the `2NT (3♥) X` |
-| N2b | read the relay / sign-off / natural-2-level **ceilings** (a two-sided strength projection at these rules, or a Lebensohl reader) **and lengths** (`ReadingScope::All`, or exempt the sohl lane from `nt_blanket`) | reading | the general defect behind N2a and the `X` of their raise; touches every weak call in the system | reader-retirement campaign says *fewer* readers; a two-sided projection knob is the honest fix, and it is a bidding knob under the floor. Ceiling first — `All` alone leaves the `3NT` in place |
+| **N2e** | teach `opener_forced_past_invitation` ([instinct.rs:3820](../src/bidding/instinct.rs)) that a Lebensohl **sign-off** is not a game force | floor, one predicate | traced 2026-08-16: the predicate is *"our strong 1NT + partner's last call is a three-level non-notrump bid"*, pure auction shape | **the actual cause of the `3NT`.** It sets `forced_to_game`, so the rail bypasses the net *and* `auction_forces_game()` pre-satisfies the game-milestone `Or` — `combined_hcp` never runs. Verified: a 12-HCP opener still bids `3NT`; the only hand-dependent gate is `stopper_in_their_suits()`. Smaller than N2a and fixes every sign-off lane at once |
+| N2b | read the relay / sign-off / natural-2-level **ceilings** (a two-sided strength projection at these rules, or a Lebensohl reader) **and lengths** (`ReadingScope::All`, or exempt the sohl lane from `nt_blanket`) | reading | the general defect behind N2a and the `X` of their raise; touches every weak call in the system | **BUILT 2026-08-16** as `ReadingProfile::strength_ceilings`, soundness-proved book-wide, whole-book A/B a 4-cell wash — and it does **not** move this node, because nothing in the floor or the book reads a strength ceiling (see the handoff's consumer census). Necessary, not sufficient; N2e is the sufficient half |
 | N2c | the no-call 8-9-count with 0-1 / 4+ in their suit — widen the relay to `points ≤ 9` with a 6-card suit, or let a singleton double | book | 11 bd, −53 | small n; the Optional > Takeout verdict was measured pons-vs-pons |
 | N2d | relay with a 6+ suit below 6 HCP (over `(2♠)` only, where the weak major has no 2-level call) | book | 31 bd, −120, −3.9/bd | contradicts the PD-distilled floor ([`lebensohl_relay_shape`](../src/bidding/american/competition/lebensohl.rs)), measured pons-vs-pons; against Muiderberg the alternative is a making `2♠`, and BBA at table B bids these hands un-overcalled. Needs the A/B, not a re-derivation |
 
@@ -1447,6 +1450,15 @@ B); the lane's headroom is our own weak calls being *unread*.
 The reading defect is the whole book's, not N2's — the campaign to fix it is
 [authored-reading-handoff.md](authored-reading-handoff.md), with this lane as
 its testbed (N2a stays a book node in its own right).
+
+**Correction (2026-08-16).** The census read the `3NT` as a consequence of the
+weak call reading *unlimited*. Phase 1 of the handoff built the two-sided
+reading, proved it sound book-wide, and measured it — and the `3NT` does not
+move. The reading was genuinely wrong and is now right, but it was never what
+decided this node: `opener_forced_past_invitation` forces to game off the
+*shape* of partner's call, and no floor rule or authored gate reads a strength
+ceiling at all. N2e is the fix; N2b is the prerequisite that makes a
+ceiling-reading rule expressible.
 
 ## Measurement discipline
 

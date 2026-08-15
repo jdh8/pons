@@ -541,6 +541,21 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_blind_inference: bool,
 
+    /// Serve our nets the **pre-ceilings** reading (`DecisionProfile::legacy_view`,
+    /// crate default on) — the hedge for `--ns-strength-ceilings`.  Every shipped
+    /// net trained on floor-only strength boxes, so tightening the reading moves
+    /// their inputs off the training distribution even where the tighter reading
+    /// is the true one.  On, only the nets (`features` and the evaluator's trick
+    /// estimates) eat a second `Inferences` read with the ceilings switched back
+    /// off; the sampler, the authored gates and the instinct floor keep the true
+    /// one.  That isolates "the reading was wrong" from "the nets are stale".
+    /// A no-op without the ceilings.  **Engine default ON since 2026-08-16**,
+    /// shipped with them; pass `false` for the raw (unheld-nets) arm.  Unset =
+    /// the engine default.  The second read is a second, *uncompiled* walk, and
+    /// costs ~1% end to end.
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    ns_legacy_view: Option<bool>,
+
     /// Read our side's passes with sibling-gate exclusion
     /// (`ReadingProfile::pass_exclusion`, crate default off).  A pass proves the
     /// hand outside every table sibling whose weight strictly beats every
@@ -571,6 +586,25 @@ struct Args {
     /// scale's global slack.  DNF-ledger chop C2.
     #[arg(long, default_value_t = false)]
     ns_upgrade_closure: bool,
+
+    /// Our side reads every made call for its strength **ceilings**, not just its
+    /// floors (`ReadingProfile::strength_ceilings`, crate default on): `points`,
+    /// `hcp` and `support_points` each project their two-sided band instead of
+    /// `floor..=37`, so a weak sign-off stops reading as *unlimited* — the N2
+    /// `2NT` relay gates on `points(..=8)` and opener blasts `3NT` opposite it
+    /// anyway, because nothing downstream ever saw the eight.  Reading, not
+    /// disclosure: the alerts and the `.bbsa` cards are untouched, and under the
+    /// shipped `--ns-reading-scope` the ceilings reach **alerted** calls only.
+    ///
+    /// It tightens how we read *their* calls too, and there our meanings are an
+    /// approximation of a system they are not playing: `probe-reading-sound`
+    /// measured LHO/RHO exclusions up 0.41/0.37pp against our own side's rate
+    /// going *down* (40k boards, seed 20260816).  Phase 1 of
+    /// docs/authored-reading-handoff.md; `--ns-legacy-view` is its nets-side
+    /// hedge.  **Engine default ON since 2026-08-16**; pass `false` for the
+    /// pre-ceilings arm.  Unset = the engine default.
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    ns_strength_ceilings: Option<bool>,
 
     /// Open the strong 2NT (20-21) on the wide-minor shape `{M 2..=4, m 2..=6}`
     /// for our side (`ReadingProfile::two_notrump_wide`, crate default off): drops the
@@ -1753,6 +1787,9 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.decision.eval_auction = !args.no_ns_eval_auction;
     agreements.decision.eval_shape = args.ns_eval_shape;
     agreements.decision.blind_inference = args.ns_blind_inference;
+    if let Some(v) = args.ns_legacy_view {
+        agreements.decision.legacy_view = v;
+    }
     let (oc_lo, oc_hi) = args
         .ns_overcall
         .split_once(':')
@@ -1850,6 +1887,9 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.decision.reading.scope = args.ns_reading_scope.into();
     agreements.decision.reading.sum_closure = args.ns_sum_closure;
     agreements.decision.reading.upgrade_closure = args.ns_upgrade_closure;
+    if let Some(v) = args.ns_strength_ceilings {
+        agreements.decision.reading.strength_ceilings = v;
+    }
     agreements.decision.reading.pass_exclusion = args.ns_pass_exclusion;
     agreements.decision.instinct.uvu_encircle = !args.no_uvu;
     agreements.decision.instinct.settle_floor = !args.no_settle_floor;

@@ -1,6 +1,7 @@
 use super::*;
 use crate::bidding::card::american_card;
 use crate::bidding::trie::Trie;
+use crate::bidding::{Range, Relative};
 
 const fn bid(level: u8, strain: Strain) -> Call {
     Call::Bid(Bid {
@@ -300,7 +301,15 @@ fn wrong_hand_does_not_fill_scoped_trick_cache() {
 
     let _ = context.trick_estimates(other);
     let cache = context.decision_cache.as_deref().expect("attached cache");
-    assert_eq!(context.decision_cache_init_counts(), Some((1, 0, 0)));
+    // `trick_estimates` reads through `net_inferences`, so under the shipped
+    // `legacy_view` the one read lands in the legacy slot rather than the
+    // plain one.  Either way it is exactly one, and the *trick* cache — the
+    // hand-scoped one this test is about — stays empty for a foreign hand.
+    let (plain, tricks, interpretations) = context
+        .decision_cache_init_counts()
+        .expect("attached cache");
+    assert_eq!(plain + context.legacy_inference_inits().unwrap_or(0), 1);
+    assert_eq!((tricks, interpretations), (0, 0));
     assert!(cache.trick_estimates.get().is_none());
 }
 
@@ -352,4 +361,73 @@ fn threads_use_their_explicit_profiles() {
 
     let profiles = handles.map(|handle| handle.join().expect("profile thread"));
     assert_eq!(profiles, [false, true]);
+}
+
+/// `legacy_view` hands the **nets** the pre-ceilings reading while every other
+/// consumer keeps the true one.
+///
+/// The fixture is the call that found the whole problem (N2 of
+/// docs/one-notrump-competitive.md): over their Muiderberg `2♠`, our `2♠`
+/// lebensohl relay is gated `points(..=8)`, and until
+/// [`strength_ceilings`][field@crate::bidding::ReadingProfile::strength_ceilings]
+/// partner read it as `6..=37` — unlimited.  With the ceilings on it reads
+/// `6..=8`; with `legacy_view` on as well, `net_inferences` still says
+/// `6..=37`, because every shipped net was trained on floor-only boxes.
+#[test]
+fn legacy_view_serves_the_nets_the_pre_ceilings_reading() {
+    // `1NT (2♠) 2NT (P)` — the seat two back (`Relative::Partner`) relayed.
+    let auction = [
+        bid(1, Strain::Notrump),
+        bid(2, Strain::Spades),
+        bid(2, Strain::Notrump),
+        Call::Pass,
+    ];
+    let hand = test_hand();
+    let partner_points = |legacy_view: bool, ceilings: bool| {
+        let mut agreements = crate::bidding::agreements::Agreements::default();
+        agreements.decision.reading.strength_ceilings = ceilings;
+        agreements.decision.legacy_view = legacy_view;
+        let partnership = crate::american(&agreements).bind();
+        // The prefix-bearing context `Partnership::infer` builds — without
+        // the trie's common prefixes the relay never routes to its rule.
+        let context = partnership
+            .prefixed_context(RelativeVulnerability::NONE, &auction)
+            .with_decision_cache(hand);
+        let truth = context
+            .inferences()
+            .announced(Relative::Partner)
+            .strength
+            .points;
+        let served = context
+            .net_inferences()
+            .announced(Relative::Partner)
+            .strength
+            .points;
+        // Memoised: two more reads must not re-walk the auction.
+        let _ = context.net_inferences();
+        let _ = context.net_inferences();
+        let inits = context.legacy_inference_inits().expect("an active cache");
+        assert_eq!(inits, usize::from(legacy_view), "legacy reads");
+        (truth, served)
+    };
+
+    // Ceilings off: the knob is inert, and the view has nothing to hold back.
+    assert_eq!(
+        partner_points(false, false),
+        (Range::new(6, 37), Range::new(6, 37))
+    );
+    assert_eq!(
+        partner_points(true, false),
+        (Range::new(6, 37), Range::new(6, 37))
+    );
+    // Ceilings on: the truth carries the eight.
+    assert_eq!(
+        partner_points(false, true),
+        (Range::new(6, 8), Range::new(6, 8))
+    );
+    // …and the view hands the nets the pre-ceilings box while it stays true.
+    assert_eq!(
+        partner_points(true, true),
+        (Range::new(6, 8), Range::new(6, 37))
+    );
 }

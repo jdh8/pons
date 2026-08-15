@@ -1064,9 +1064,9 @@ fn a_declared_opponent_reads_their_calls_in_their_books() {
 /// bypasses the pinned [`DecisionProfile`][super::DecisionProfile] diverges
 /// here.
 ///
-/// Live since stage 5, armed over all three layers: `ReadingProfile`'s 43
-/// fields (the 24 former foreign cells plus the other 19 value-owned fields),
-/// `InstinctProfile`'s 31 fields, and the nine scalar fields `DecisionProfile`
+/// Live since stage 5, armed over all three layers: `ReadingProfile`'s 44
+/// fields (the 24 former foreign cells plus the other 20 value-owned fields),
+/// `InstinctProfile`'s 31 fields, and the ten scalar fields `DecisionProfile`
 /// holds directly.  The values are deliberately meaningless — this arms a system
 /// nobody plays — because what is under test is only that both threads see the
 /// *same* one.
@@ -1084,6 +1084,7 @@ fn partnership_pins_knobs_across_threads() {
     agreements.decision.eval_auction = false;
     agreements.decision.eval_shape = true;
     agreements.decision.blind_inference = true;
+    agreements.decision.legacy_view = false;
     agreements.decision.two_over_one_force = false;
     agreements.decision.fuzzy_fifths = true;
     agreements.decision.fifths_companion = crate::bidding::constraint::FifthsCompanion::Hcp;

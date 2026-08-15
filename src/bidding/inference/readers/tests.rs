@@ -120,7 +120,9 @@ fn landy_conditions_partner() {
     assert_eq!(advance.partner().length(Suit::Hearts), Range::new(4, 13));
     assert_eq!(advance.partner().length(Suit::Spades), Range::new(4, 13));
     assert_eq!(advance.partner().length(Suit::Clubs), Range::FULL_LENGTH);
-    assert_eq!(advance.partner().strength.points, Range::new(8, 37));
+    // 8-15, not 8+: `convention_points` caps it and `strength_ceilings` reads
+    // the cap.
+    assert_eq!(advance.partner().strength.points, Range::new(8, 15));
 
     // (1NT) 2NT -: both minors, 5-5 (the independent unusual-2NT toggle).
     let minors = read_booked_with(
@@ -179,7 +181,7 @@ fn woolsey_conditions_partner() {
     assert_eq!(two_c.partner().length(Suit::Hearts), Range::new(4, 5));
     assert_eq!(two_c.partner().length(Suit::Spades), Range::new(4, 5));
     assert_eq!(two_c.partner().length(Suit::Clubs), Range::FULL_LENGTH);
-    assert_eq!(two_c.partner().strength.points, Range::new(10, 37));
+    assert_eq!(two_c.partner().strength.points, Range::new(10, 19));
 
     // (1NT) 2♦ -: the Multi names diamonds it does NOT hold, so the natural
     // ≥5 reading is suppressed and BOTH minors narrow to ≤4 — the floor can no

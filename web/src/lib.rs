@@ -942,8 +942,13 @@ knob!(set_penalty_latch, penalty_latch, decision.reading.penalty_latch: bool);
 knob!(set_nt_invite, nt_invite, decision.reading.nt_invite: bool);
 knob!(set_rubens_transfer, rubens_transfer, decision.reading.rubens_transfer: bool);
 knob!(set_fallback_projection, fallback_projection, decision.reading.fallback_projection: bool);
+knob!(set_strength_ceilings, strength_ceilings, decision.reading.strength_ceilings: bool);
 knob!(set_control_bid, control_bid, decision.reading.control_bid: bool);
 knob!(set_rule_accept, rule_accept, decision.reading.rule_accept: bool);
+// The nets-side hedge for `strength_ceilings` above: on, only the nets are fed
+// the pre-ceilings reading, so a divergence separates "the reading was wrong"
+// from "the nets are stale".  A no-op unless the ceilings are on.
+knob!(set_legacy_view, legacy_view, decision.legacy_view: bool);
 knob!(set_transfer_gf_majors, transfer_gf_majors, decision.transfer_gf_majors: bool);
 knob!(set_transfer_gf_hearts, transfer_gf_hearts, decision.transfer_gf_hearts: bool);
 knob!(set_two_over_one_force, two_over_one_force, decision.two_over_one_force: bool);

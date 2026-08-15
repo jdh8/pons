@@ -14,6 +14,11 @@ impl ReadingProfile {
     pub(crate) const fn envelope_union(self) -> bool {
         self.envelope_union
     }
+
+    /// Whether the forward strength folds keep their ceilings in this profile.
+    pub(crate) const fn strength_ceilings(self) -> bool {
+        self.strength_ceilings
+    }
 }
 
 /// An inclusive `[min, max]` range of a shown quantity — a length or points

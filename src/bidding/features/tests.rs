@@ -1430,3 +1430,63 @@ fn features_v5_without_a_compact_config_is_zero_padded() {
     assert_eq!(out.len(), FEATURES_LEN_V5);
     assert!(out[OFFSET_OUR_COMPACT..].iter().all(|value| *value == 0.0));
 }
+
+/// `legacy_view` is byte-exact: the nets see the pre-ceilings vector even
+/// while the sampler, the gates and the floor see the tightened one.
+///
+/// That exactness is the whole point of the hedge — if the held view drifted
+/// from a genuine ceilings-off read, its A/B arm would price a third thing
+/// rather than isolating "the reading was wrong" from "the nets are stale".
+/// It is not free: `net_inferences` reads the auction a second time, off the
+/// uncompiled projection path, because a compiled plan serves only the
+/// profile it was compiled under.
+#[test]
+fn legacy_view_reproduces_the_pre_ceilings_feature_vector() {
+    use crate::bidding::features::{CompactConfig, ConventionCard, features_v5};
+    // `1NT (2♠) 2NT (P)` — over their Muiderberg, our lebensohl relay is
+    // gated `points(..=8)`, the ceiling N2 found missing.
+    let auction = [
+        Call::Bid(Bid {
+            level: Level::new(1),
+            strain: Strain::Notrump,
+        }),
+        Call::Bid(Bid {
+            level: Level::new(2),
+            strain: Strain::Spades,
+        }),
+        Call::Bid(Bid {
+            level: Level::new(2),
+            strain: Strain::Notrump,
+        }),
+        Call::Pass,
+    ];
+    let cards = hand("AQ32.K53.QJ4.A92");
+    let vector = |ceilings: bool, legacy_view: bool| {
+        let mut agreements = crate::bidding::agreements::Agreements::default();
+        agreements.decision.reading.strength_ceilings = ceilings;
+        agreements.decision.legacy_view = legacy_view;
+        let compact = CompactConfig::symmetric(&ConventionCard::capture(&agreements, true));
+        let partnership = crate::american(&agreements).bind();
+        let context = partnership
+            .prefixed_context(RelativeVulnerability::NONE, &auction)
+            .with_compact(&compact)
+            .with_decision_cache(cards);
+        features_v5(cards, &context)
+    };
+
+    let shipped = vector(false, false);
+    assert_eq!(
+        vector(true, true),
+        shipped,
+        "the held view must reproduce the shipped vector bit for bit"
+    );
+    assert_ne!(
+        vector(true, false),
+        shipped,
+        "with the view off the ceilings must reach the nets — otherwise the \
+         two A/B arms measure the same thing"
+    );
+    // The view is a *net* redirection only: the reading everything else
+    // consumes still carries the ceiling.
+    assert_ne!(vector(false, true), vector(true, false));
+}

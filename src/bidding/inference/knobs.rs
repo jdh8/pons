@@ -235,6 +235,32 @@ pub struct ReadingProfile {
     /// one.  Requires [`envelope_union`][field@Self::envelope_union].
     pub upgrade_closure: bool,
 
+    /// Read a made call's strength **ceilings**, not just its floors
+    ///
+    /// **Default on since 2026-08-16** (Phase 1 of
+    /// docs/authored-reading-handoff.md; shipped with
+    /// [`legacy_view`][field@crate::bidding::context::DecisionProfile::legacy_view],
+    /// which holds the nets at the pre-ceilings reading).  Off,
+    /// [`points`][crate::bidding::constraint::points],
+    /// [`hcp`][crate::bidding::constraint::hcp] and
+    /// [`support_points`][crate::bidding::constraint::support_points] project
+    /// `floor..=37`, so a weak sign-off reads *unlimited*: the `2NT` relay of
+    /// docs/one-notrump-competitive.md's N2 gates on `points(..=8)` and the
+    /// opener still blasts `3NT` opposite it, because the sampler, the
+    /// authored gates, the instinct floor and the nets never saw the eight.
+    /// On, each of the three forward folds *is* its
+    /// [`project_band`][crate::bidding::constraint::Constraint::project_band]
+    /// — the two-sided arithmetic the pass reading has used all along, under
+    /// the same soundness contract (a finite `eval` implies membership), with
+    /// the upgrade slack `hcp_ceiling_slack` owes the upgraded points scale.
+    ///
+    /// Reading, not disclosure: `.alert(...)` and the `.bbsa` cards are
+    /// untouched — an authored call already speaks for itself, and this only
+    /// stops us discarding half of what it said.  Under the shipped
+    /// [`scope`][field@Self::scope] the ceilings reach **alerted** calls only;
+    /// widening that is Phase 2 of the same handoff.
+    pub strength_ceilings: bool,
+
     /// Read a high (four-plus level) new suit as a control bid, not to-play
     ///
     /// **Default on** (M6.4).  The deterministic rule, distilled from Bridge
@@ -990,6 +1016,7 @@ impl ReadingProfile {
             gauge_membership: true,
             sum_closure: true,
             upgrade_closure: true,
+            strength_ceilings: false,
             control_bid: false,
             cue: false,
             length_soundness: false,
@@ -1052,6 +1079,7 @@ impl Default for ReadingProfile {
             gauge_membership: false,
             sum_closure: false,
             upgrade_closure: false,
+            strength_ceilings: true,
             control_bid: true,
             cue: true,
             length_soundness: true,

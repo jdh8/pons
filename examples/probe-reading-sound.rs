@@ -124,6 +124,15 @@ struct Args {
     /// `docs/reading-drift-handoff.md`)
     #[arg(long)]
     ns_natural_reading: bool,
+
+    /// Our seats read each made call's strength **ceilings**, not just its floors
+    /// (`ReadingProfile::strength_ceilings` — Phase 1 of
+    /// `docs/authored-reading-handoff.md`).  Tightening a box can only *lose*
+    /// soundness, so this sweep is the ceilings' soundness gate.  **Engine
+    /// default ON since 2026-08-16**; pass `false` for the pre-ceilings
+    /// baseline.  Unset = the engine default.
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    ns_strength_ceilings: Option<bool>,
 }
 
 /// Readings taken, and how many excluded the truth — on both predicates
@@ -234,6 +243,9 @@ fn main() -> anyhow::Result<()> {
     } else {
         pons::bidding::ReadingScope::Alerted
     };
+    if let Some(v) = args.ns_strength_ceilings {
+        agreements.decision.reading.strength_ceilings = v;
+    }
     let partnership = american(&agreements).bind();
 
     // The opponents: a perturbed pons book (deviation panel axes B/C) or, by

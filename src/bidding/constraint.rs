@@ -270,11 +270,15 @@ pub trait Constraint: Send + Sync {
 
     /// Project the constraint into its **two-sided** [`EnvelopeUnion`]
     ///
-    /// The ceiling-carrying sibling of [`project`][Self::project]: `project`
-    /// deliberately claims floors only for the point gauges (a made call is
-    /// read by what it *promises*), while a **declined** call — the negative
-    /// inference of a pass — is read by what the gate would have *allowed*,
-    /// which needs the ceilings back.  Same soundness contract: a finite
+    /// The ceiling-carrying sibling of [`project`][Self::project]: under the
+    /// shipped profile `project` claims floors only for the point gauges (a
+    /// made call was read by what it *promises*), while a **declined** call —
+    /// the negative inference of a pass — is read by what the gate would have
+    /// *allowed*, which needs the ceilings back.  With
+    /// [`strength_ceilings`][field@ReadingProfile::strength_ceilings] on, the
+    /// three point gauges' forward folds *are* this one, and the distinction
+    /// survives only for [`balanced`] and the pass-exclusion path.  Same
+    /// soundness contract either way: a finite
     /// `eval(hand, context)` implies `hand` lies within the band.  The
     /// default reuses `project`, so every constraint whose projection is
     /// already two-sided ([`len`] and the suit-set combinators) or opaque
@@ -1287,8 +1291,15 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Hcp<R> {
     }
 
     fn project(&self, context: &Context<'_>) -> EnvelopeUnion {
-        // ponytail: floor only — points = raw HCP + upgrade ≥ raw HCP, so an
-        // HCP *ceiling* is unsound on the upgraded-points scale an `Envelope`
+        if context.reading_profile().strength_ceilings() {
+            // The band *is* the sound forward reading: the ceiling is only
+            // unsound on the upgraded-points scale until it is widened by
+            // [`hcp_ceiling_slack`], which is exactly what `project_band`
+            // does.  See [`strength_ceilings`][field@ReadingProfile::strength_ceilings].
+            return self.project_band(context);
+        }
+        // Floor only — points = raw HCP + upgrade ≥ raw HCP, so a *raw* HCP
+        // ceiling would be unsound on the upgraded-points scale an `Envelope`
         // records; the floor is exact.  Rule of N+8 reads a flat 4-3-3-3 one
         // under its HCP, so that scale gives the floor back 1.  The ceiling
         // returns in [`project_band`][Constraint::project_band], widened by
@@ -1538,6 +1549,12 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for Points<R> {
 
     fn project(&self, context: &Context<'_>) -> EnvelopeUnion {
         let profile = context.reading_profile();
+        if profile.strength_ceilings() {
+            // Both bounds gauge the same `point_count` scalar the `Envelope`
+            // records, so the band is sound forward as well as backward — see
+            // [`strength_ceilings`][field@ReadingProfile::strength_ceilings].
+            return self.project_band(context);
+        }
         // Floor only, matching every hand-written reader (`at_least(floor,
         // CAP)`): sound whether or not the fuzzy-strength upgrade is on, since
         // the upgraded point count is never below the band's floor.
@@ -1702,8 +1719,9 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> SupportPoints<R> {
 impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for SupportPoints<R> {
     fn eval(&self, hand: Hand, context: &Context<'_>) -> f32 {
         // Clamp the measured value at the scale cap: a capped ceiling means
-        // "unbounded", so the clamp keeps a freak hand inside every
-        // floor-only band.
+        // "unbounded", so the clamp keeps a freak hand inside every band whose
+        // ceiling is the cap — which is every floor-only band, and every
+        // projected box, whose axis is capped the same way.
         let profile = context.reading_profile();
         let value =
             support_point_count_in_on(profile.support_points, profile.point_scale, hand, self.suit);
@@ -1735,7 +1753,12 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for SupportPoints<R> {
         describe_int_range(&self.range, "support points")
     }
 
-    fn project(&self, _: &Context<'_>) -> EnvelopeUnion {
+    fn project(&self, context: &Context<'_>) -> EnvelopeUnion {
+        if context.reading_profile().strength_ceilings() {
+            // Exact on the dedicated gauge in both directions — see
+            // [`strength_ceilings`][field@ReadingProfile::strength_ceilings].
+            return self.project_band(context);
+        }
         // Floor into the dedicated per-suit `support_points` gauge, which
         // measures this same value — so, unlike a projection into the legacy
         // `points` gauge (which records `point_count`, no lower bound on the
@@ -2090,9 +2113,10 @@ impl<R: RangeBounds<u8> + Clone + Send + Sync> Constraint for SuitHcp<R> {
 
     fn project(&self, _: &Context<'_>) -> EnvelopeUnion {
         // Both bounds are exact — the axis records the very scalar the gate
-        // evaluates, so unlike `Hcp` (whose ceiling is unsound on the upgraded
-        // points scale) the *forward* projection keeps its ceiling.  Intended;
-        // do not "fix" the asymmetry in either direction.
+        // evaluates, so this forward projection keeps its ceiling
+        // unconditionally, where `Hcp`'s needs the upgrade slack (and, until
+        // [`strength_ceilings`][field@ReadingProfile::strength_ceilings], kept
+        // no ceiling at all).
         EnvelopeUnion::from(suit_hcp_box(
             self.suit,
             bound_range(&self.range, SUIT_HCP_CAP),
