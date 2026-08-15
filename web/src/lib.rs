@@ -910,6 +910,9 @@ knob!(set_competition_over_diamond_transfer, competition_over_diamond_transfer, 
 // Not a knob of ours: a declared fact about the opponents (their disclosed
 // 2♣ over our 1NT shows both majors), hence `declare_*`, not `set_*`.
 knob!(declare_their_2c_landy, their_2c_landy, decision.their.two_clubs_landy: bool);
+// Same channel: their disclosed 2♦ over our 1NT is a Multi (one unknown
+// six-card major) — the N4 table engages, default undeclared/natural.
+knob!(declare_their_2d_multi, their_2d_multi, decision.their.two_diamonds_multi: bool);
 // The declaration's read-side wiring: their 2♣ reads as both majors instead
 // of the natural walk's clubs.  Default on (shipped 2026-08-14, plain wash |
 // PD win); a no-op unless the disclosure is declared.

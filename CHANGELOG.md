@@ -9,6 +9,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **N4 — their `(2♦)` over our 1NT as a Multi, on the disclosure channel —
+  built and measured through five rounds; opt-in by the letter of the gate,
+  one line from default.** New `TheirDisclosures::two_diamonds_multi` (default
+  undeclared, byte-identical: smoke `18aba5ce…`), engaging a Multi leg
+  either/or with the natural Transfer-Lebensohl `(2♦)` table
+  (`multi_2d_responder`, `rubensohl.rs`): the constructive calls shared
+  verbatim (`stayman_2d_constructive` — `3♣` Stayman + Smolen, `3♦`→♥,
+  `3♥`→♠, `3♠`→♣, Leaping Michaels), and only what named diamonds moves — `X`
+  = invitational-plus values `hcp(8..)` (alerted `comp:multi-values`, weight
+  143 below `3NT`), `3NT` = both majors stopped, the `2NT` relay takes any 5+
+  suit and gains a natural `3♦` sign-off (`multi_relay_rebid`), the `3♠`→♣
+  completion is `3NT` outright, `two_diamond_double` ignored. **And the seats
+  the measurement proved the floor cannot hold** — opener sits over their pass
+  of the double and doubles the advancer's pass-or-correct `2M` with four
+  trumps (`comp:multi-penalty`); responder, once their major is resolved,
+  bids `3NT` with a stopper in it, doubles with four trumps, else passes
+  (`multi_responder_rebid`), and sits over opener's double; opener sits for
+  every responder penalty double; the doubled relay tail, the sign-off passes
+  and their competition over it are fenced (`multi_signoff_pass`,
+  `Pattern::up_to`). Both doubles probed to read (`points 8..` / `♥ 4..`).
+  Harness: `bba-gen --their-2d-multi` (`their_2d_multi` honours an explicit
+  `Multi-Landy` row, otherwise undeclared — no census default), `bba-decompose
+  --multi-counter`, web `declare_their_2d_multi`, `probe-call-reading
+  --their-2d-multi`, `scripts/ab-2d-multi.sh`; new `probe-bba-constraints`
+  modes `advance-x`, `rebid-d-x`, `rebid-d-x2h`; ten unit tests.
+  **Measured** (`docs/one-notrump-competitive.md` §N4; every raw headline
+  60-70% foreign via the mirror-read leak on their double of *our* `2♦`, so
+  verdicts are owner-split): v1 (floored continuations) lost both scorers —
+  the floor sold out with 10+ and raised the weak sign-off to `3NT`; v2/v3
+  (blind `3NT`) plain win / PD wash; **v4 pooled three seeds: vul plain wash
+  \| PD win (+0.00084 ±0.00061), NV PD win (+0.00083 ±0.00059) over a plain
+  loss by 0.00005 (−0.00055 ±0.00050)** — the 8-9 hand's sell-out after their
+  pass-or-correct, a compete-or-defend decision PD prices positive; v5 (a
+  natural `2NT` invite there) refuted on PD (−4.8/invite vul) and reverted.
+  **Corrections recorded:** BBA's advancer relay is split by strength (`2♥`
+  weak / `2♠` invitational, both pass-or-correct; over `2♠` the overcaller
+  relays `2NT` with hearts, never `3♥`), no advancer `3M` exists, and **BBA's
+  advancer never passes our double** — the N4b "they sit 43%" was the foreign
+  lane, retracted (0 of 141 on our-opened boards; `advance-x` 0.0%). The
+  natural §4 sketch in `bba-multi-2d.md` was not run.
+
 - **N1j — the BBA-ladder Landy counter, shipped default-on with its weak-2♦
   cap.** Over `1NT (2♣)`-as-Landy, responder's table is re-shaped to the
   structure BBA itself plays as a 1NT opener facing Landy: wide forced minor

@@ -301,6 +301,17 @@ struct Args {
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
     their_2c_landy: Option<bool>,
 
+    /// Override the derived reading of their `2♦` overcall of our 1NT:
+    /// `true`/bare = Multi (one unknown six-card major, engage the N4
+    /// Multi table), `false` = natural diamonds (the Transfer-Lebensohl
+    /// leg).  Unset, the reading is **derived from their declaration**
+    /// (`their_2d_multi`): an explicit `Multi-Landy` row is honored at face
+    /// value, and with no declaration the reading stays *undeclared/natural*
+    /// until N4 ships — unlike `--their-2c-landy`, the 2/1 reference's
+    /// measured Multi does not engage by default yet.
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    their_2d_multi: Option<bool>,
+
     /// Add the GF minor cues to the Landy counter (`2♥` = 5+ clubs, `2♠` = 5+
     /// diamonds, both game-forcing) — the third arm of the Landy A/B.  Does
     /// nothing without --defense-2c-landy.
@@ -1682,6 +1693,36 @@ fn their_2c_landy(args: &Args) -> anyhow::Result<bool> {
     })
 }
 
+/// Derive whether their `2♦` overcall of our 1NT is a Multi — the disclosure
+/// that engages the N4 Multi table (`Agreements::their`)
+///
+/// Same channel and precedence as [`their_2c_landy`], one difference at the
+/// bottom: **no census default.**  BBA's 2/1 reference does bid the Multi
+/// (`docs/ai-bidder/bba-multi-2d.md`), but the table it engages is unmeasured,
+/// so with no declaration the reading stays undeclared (natural diamonds) and
+/// the candidate arm is spelled `--their-2d-multi`.  When N4 ships, this
+/// arm flips to the census default in lockstep with `their_2c_landy`.
+///
+/// 1. `--their-2d-multi [true|false]` — explicit operator override.
+/// 2. An explicit `Multi-Landy` row in `--their-card`/`--their-conv`, at
+///    face value (the only row of the family whose `2♦` is a Multi).
+/// 3. Otherwise undeclared.
+fn their_2d_multi(args: &Args) -> anyhow::Result<bool> {
+    if let Some(forced) = args.their_2d_multi {
+        return Ok(forced);
+    }
+    let mut declared = match &args.their_card {
+        Some(file) => load_bbsa(file)?.toggles,
+        None => Vec::new(),
+    };
+    declared.extend(args.their_conv.iter().cloned());
+    Ok(declared
+        .iter()
+        .rev()
+        .find(|(n, _)| n.as_bytes() == b"Multi-Landy")
+        .is_some_and(|&(_, v)| v != 0))
+}
+
 fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     // Our side: the authored floor by default, or a second EPBot card when
     // `--our-system` is given (the BBA-vs-BBA experiment).
@@ -1840,6 +1881,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
         })
         .transpose()?;
     agreements.decision.their.two_clubs_landy = their_2c_landy(args)?;
+    agreements.decision.their.two_diamonds_multi = their_2d_multi(args)?;
     agreements.competition.defense_2c_landy_cues = args.defense_2c_landy_cues;
     agreements.competition.defense_2c_landy_low_minors = args.defense_2c_landy_low_minors;
     agreements.competition.defense_2c_landy_hcp_rungs = args.defense_2c_landy_hcp_rungs;

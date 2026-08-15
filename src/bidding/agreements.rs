@@ -2599,6 +2599,26 @@ pub struct TheirDisclosures {
     /// lost every cell on unauthored opener answers.  See
     /// `docs/one-notrump-competitive.md`.
     pub two_clubs_landy: bool,
+    /// Their `2♦` overcall of our `1NT` is a **Multi** — a single six-card
+    /// major, unknown which (Woolsey Multi-Landy; the 2/1 reference bids
+    /// `hcp 9-18`, median 13, and its advancer answers `2♥` weak / `2♠`
+    /// invitational pass-or-correct)
+    ///
+    /// Routes `1NT (2♦)` to the Multi table (campaign package N4, see
+    /// `docs/one-notrump-competitive.md`): the Transfer-Lebensohl leg keeps
+    /// its Stayman/Smolen/Jacoby/Leaping-Michaels calls, but every gate that
+    /// named *diamonds* — the cooperative double, the `3NT` stopper, the
+    /// relay shape, the clubs-transfer completion — is re-keyed, `X` becomes
+    /// invitational-plus values (`hcp 8+`), the `2NT` relay adds a natural
+    /// `3♦` sign-off, and opener answers the double by sitting over their
+    /// pass and doubling their pass-or-correct major with four trumps.
+    /// Undeclared (`false`) keeps the natural-diamonds leg, byte-identical.
+    ///
+    /// Sound only when their `2♦` is a Multi: against a natural `2♦` the
+    /// diamond-keyed leg is right, so this must never be inferred from a
+    /// silent card — `bba-gen`'s `their_2d_multi` derives it from an explicit
+    /// `Multi-Landy` row and otherwise leaves it undeclared until N4 ships.
+    pub two_diamonds_multi: bool,
 }
 
 /// Everything the partnership has agreed to play

@@ -320,8 +320,9 @@ pub(crate) fn cue_stayman_answer_no_stopper(over: Suit) -> Rules {
     rules.rule(Bid::new(3, Strain::Notrump), 100, hcp(0..))
 }
 
-/// Responder's action after our `1NT` and a `(2♦)` overcall, the `(2♦)`-only
-/// Smolen leg of the [`LebensohlStyle::Transfer`] package
+/// The constructive half of responder's `(2♦)` table, shared by the natural
+/// and Multi legs: `3♣` Stayman, the direct Jacoby transfers, the forced
+/// `3♠`→♣ game-force, and Leaping Michaels
 ///
 /// `2♦` leaves `3♣` free below the cue, so Stayman moves there (with Smolen after
 /// opener's `3♦` denial) and the transfers shift down to direct Jacoby: `3♦`→♥,
@@ -329,12 +330,8 @@ pub(crate) fn cue_stayman_answer_no_stopper(over: Suit) -> Rules {
 /// [`transfer_completion`]; the `3♠`→♣ leg is a *forced* game-force (its completion
 /// is `4♣`, so `3♣` is unplayable). Leaping Michaels `4♦` (both majors) and `4♣`
 /// (clubs + a major) show 5-5 game-forcing two-suiters — partner opened `1NT`, so
-/// `points(10..)` (≈ 8 HCP after the 5-5 upgrade) already forces game. The weak
-/// outlets (natural 2-level, `2NT` relay, penalty double, direct `3NT`) match
-/// `Transfer` so the A/B isolates the constructive change.
-pub(crate) fn transfer_stayman_2d_responder(gate_4333: bool, agreements: &Agreements) -> Rules {
-    let mut rules = Rules::new();
-
+/// `points(10..)` (≈ 8 HCP after the 5-5 upgrade) already forces game.
+fn stayman_2d_constructive(mut rules: Rules, gate_4333: bool, agreements: &Agreements) -> Rules {
     // 3♣ = Stayman: game-forcing with *exactly* a 4-card major. A single 5-card
     // major transfers instead; a 5-4 GF hand has its 4-card major here and so comes
     // to Stayman (for Smolen) — hence weight above the transfers, which it also fits.
@@ -375,7 +372,7 @@ pub(crate) fn transfer_stayman_2d_responder(gate_4333: bool, agreements: &Agreem
         .alert(LEBENSOHL_TRANSFER);
 
     // Leaping Michaels: 5-5 game-forcing two-suiters.
-    rules = rules
+    rules
         .rule(
             Bid::new(4, Strain::Diamonds),
             200,
@@ -389,7 +386,36 @@ pub(crate) fn transfer_stayman_2d_responder(gate_4333: bool, agreements: &Agreem
                 & (len(Suit::Hearts, 5..) | len(Suit::Spades, 5..))
                 & points(10..),
         )
-        .alert(LEAPING_MICHAELS);
+        .alert(LEAPING_MICHAELS)
+}
+
+/// The weak natural major escapes at the two level, shared by both `(2♦)` legs
+fn natural_major_escapes(mut rules: Rules, agreements: &Agreements) -> Rules {
+    for s in [Suit::Hearts, Suit::Spades] {
+        let strain = Strain::from(s);
+        rules = rules.rule(
+            Bid::new(2, strain),
+            140,
+            min_level_is(2, strain)
+                & len(s, 5..)
+                & points(..=8)
+                & hcp(natural_floor_hcp(agreements)..)
+                & points(natural_floor_pts(agreements)..),
+        );
+    }
+    rules
+}
+
+/// Responder's action after our `1NT` and a `(2♦)` overcall, the `(2♦)`-only
+/// Smolen leg of the [`LebensohlStyle::Transfer`] package
+///
+/// The constructive calls are [`stayman_2d_constructive`]; the weak outlets
+/// (natural 2-level, `2NT` relay, penalty double, direct `3NT`) match
+/// `Transfer` so the A/B isolates the constructive change.  Every gate here
+/// keys on *diamonds* as their suit — the Multi leg
+/// ([`multi_2d_responder`]) is the same table with those gates re-keyed.
+pub(crate) fn transfer_stayman_2d_responder(gate_4333: bool, agreements: &Agreements) -> Rules {
+    let mut rules = stayman_2d_constructive(Rules::new(), gate_4333, agreements);
 
     // Weak / to-play outlets — identical to `transfer_lebensohl_responder(Diamonds)`.
     rules = rules.rule(
@@ -418,18 +444,7 @@ pub(crate) fn transfer_stayman_2d_responder(gate_4333: bool, agreements: &Agreem
             .alert(TWO_DIAMOND_PENALTY),
         None => responder_double(rules, Suit::Diamonds, agreements),
     };
-    for s in [Suit::Hearts, Suit::Spades] {
-        let strain = Strain::from(s);
-        rules = rules.rule(
-            Bid::new(2, strain),
-            140,
-            min_level_is(2, strain)
-                & len(s, 5..)
-                & points(..=8)
-                & hcp(natural_floor_hcp(agreements)..)
-                & points(natural_floor_pts(agreements)..),
-        );
-    }
+    rules = natural_major_escapes(rules, agreements);
     // Relay shape: 6+ suit, or a 5-carder with the PD-distilled 6-HCP floor,
     // never their diamonds (see [`lebensohl_relay_shape`]).
     let long_suit = lebensohl_relay_shape(Suit::Diamonds);
@@ -438,6 +453,143 @@ pub(crate) fn transfer_stayman_2d_responder(gate_4333: bool, agreements: &Agreem
         .alert(LEBENSOHL_RELAY);
 
     rules.rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Responder's action after our `1NT` and their `(2♦)` **Multi** — one
+/// unknown six-card major (`their.two_diamonds_multi`, campaign package N4)
+///
+/// [`stayman_2d_constructive`] verbatim — the fits it hunts are in the major
+/// they do *not* hold — with every diamond-keyed gate re-keyed, because their
+/// `2♦` names a suit nobody holds:
+///
+/// - `X` = invitational-plus values (`hcp 8+`), no diamond claim: the waiting
+///   call.  They will name the major (their advancer answers pass-or-correct;
+///   over the double they sit 43% of the time), and opener sits or doubles by
+///   what they show — see [`multi_penalty_answer`].  BBA's own counter doubles
+///   at 5+ (41% of hands); 8+ is the invitational floor opposite 15-17.
+/// - `3NT` = game values with **both majors** stopped — the blast that needs no
+///   more information.  A game hand with a major open doubles and places after
+///   they name the suit ([`multi_responder_rebid`]).  v2/v3 blasted
+///   unconditionally: plain DD liked it, perfect defense did not (−3.7/−4.3 a
+///   board on the ex-doublers) — the stopperless-3NT DD fragility.
+/// - The `2NT` relay adds diamonds to its shape ([`multi_relay_shape`]) and a
+///   natural `3♦` sign-off after opener's `3♣` ([`multi_relay_rebid`]).
+/// - `two_diamond_double` is ignored — a diamond penalty double of a Multi is
+///   the gate N4b measured null.
+pub(crate) fn multi_2d_responder(gate_4333: bool, agreements: &Agreements) -> Rules {
+    let mut rules = stayman_2d_constructive(Rules::new(), gate_4333, agreements);
+    rules = rules
+        // v4: back to the both-majors gate for the *direct* blast — the v2/v3
+        // unconditional 3NT was the package's one PD-negative rung (−3.7/−4.3
+        // per board vs perfect defense on the ex-doublers, +1.6 plain: the
+        // DD-fragile stopperless game).  A game hand with a major open doubles
+        // and places once they name the suit ([`multi_responder_rebid`]) —
+        // the v1 idea, now with the second call authored instead of floored.
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            150,
+            points(10..) & stopper_in(Suit::Hearts) & stopper_in(Suit::Spades),
+        )
+        // Weight below 3NT (150) and the 3♠→♣ game-force (145): a hand with a
+        // placing call places.  Above the natural 2M (140) and the relay
+        // (135), which the 8-HCP boundary can meet.
+        .rule(Call::Double, 143, hcp(8..))
+        .alert(MULTI_VALUES);
+    rules = natural_major_escapes(rules, agreements);
+    rules = rules
+        .rule(
+            Bid::new(2, Strain::Notrump),
+            135,
+            points(..=8) & multi_relay_shape(),
+        )
+        .alert(LEBENSOHL_RELAY);
+    rules.rule(Call::Pass, 0, hcp(0..))
+}
+
+/// The `2NT`-relay shape over their Multi: a 5+ suit in *any* suit with the
+/// same PD-distilled 6-HCP floor as [`lebensohl_relay_shape`] — diamonds are
+/// ours to sign off in, since their `2♦` never held them
+fn multi_relay_shape() -> Cons<impl Constraint + Clone> {
+    (len(Suit::Clubs, 5..)
+        | len(Suit::Diamonds, 5..)
+        | len(Suit::Hearts, 5..)
+        | len(Suit::Spades, 5..))
+        & hcp(6..)
+}
+
+/// Responder's rebid after `1NT (2♦ Multi) 2NT - 3♣ -`: pass with clubs, or a
+/// natural sign-off in a 5+ suit — `3♦` included, the one rung the natural
+/// leg's [`lebensohl_relay_rebid`] cannot have.  Opener then passes
+/// ([`multi_signoff_pass`]): the first A/B left that seat to the floor, which
+/// raised the weak `3♦` to `3NT` on 45 of 52 relay boards.
+pub(crate) fn multi_relay_rebid() -> Rules {
+    let mut rules = Rules::new();
+    for s in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+        let strain = Strain::from(s);
+        rules = rules.rule(
+            Bid::new(3, strain),
+            100,
+            min_level_is(3, strain) & len(s, 5..),
+        );
+    }
+    rules.rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Opener passes responder's weak relay sign-off — a total table on purpose:
+/// responder showed at most eight, and the floor's alternative was `3NT`
+pub(crate) fn multi_signoff_pass() -> Rules {
+    Rules::new().rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Responder's second call once their pass-or-correct has resolved the major
+/// (`1NT (2♦) X (2♥) - (-)`, `… X (2♥) - (2♠)`, `… X (2♠) - (-)`, `… X (2♥) X (2♠)`)
+///
+/// Now the suit is known: `3NT` with game values and a stopper *in it*, `X`
+/// with four trumps (nominal penalty), else pass — the 8-9 hand sells out.
+/// v1 left this seat to the floor, which sold out with 10+; v2/v3 blasted 3NT
+/// blind instead and lost it on perfect defense.  The sell-out is plain-DD's
+/// one complaint about the package (−2.5 a board over three seeds, PD +0.8);
+/// v5 tried a natural `2NT` invite there and perfect defense refused the thin
+/// games it bought (PD −0.9 NV / −4.8 vul per invite) — the DD-declarer
+/// artifact, so the sell-out stays.
+pub(crate) fn multi_responder_rebid(major: Suit) -> Rules {
+    Rules::new()
+        .rule(
+            Bid::new(3, Strain::Notrump),
+            150,
+            points(10..) & stopper_in(major),
+        )
+        .rule(Call::Double, 140, len(major, 4..))
+        .alert(MULTI_PENALTY)
+        .rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Opener's answer to the advancer's pass-or-correct `2♥`/`2♠` after
+/// responder's Multi values double (`1NT (2♦) X (2M) ?`)
+///
+/// `X` with four-plus trumps — nominally penalty; if the overcaller's major
+/// is the other one they correct, and partner has been told where our trumps
+/// are.  Everything else passes: their suit is not yet known, so opener's own
+/// bids here are phantoms, and responder — who showed 8+ — speaks next with
+/// the auction resolved.  Deliberately a total table (the wait is the call).
+pub(crate) fn multi_penalty_answer(major: Suit) -> Rules {
+    Rules::new()
+        .rule(Call::Double, 150, len(major, 4..))
+        .alert(MULTI_PENALTY)
+        .rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Opener's completion of the `3♠`→♣ game-force over the Multi
+///
+/// The natural leg's [`clubs_transfer_completion`] picks `3NT` on a *diamond*
+/// stopper — meaningless here, and opener cannot know which major to hold — so
+/// it is `3NT` outright: responder's six clubs are the source of tricks either
+/// way, and `5♣` on a 6-2 fit is the worse guess.
+pub(crate) fn multi_clubs_transfer_completion(agreements: &Agreements) -> Rules {
+    let completion_alerts = agreements.decision.reading.completion_alerts;
+    Rules::new()
+        .rule(Bid::new(3, Strain::Notrump), 140, hcp(0..))
+        .alert_if(completion_alerts, COMPLETION)
 }
 
 /// Opener's answer to `3♣` Stayman over `(2♦)`: a 4-card major, else `3♦`

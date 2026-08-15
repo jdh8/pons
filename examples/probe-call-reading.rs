@@ -49,6 +49,11 @@ struct Args {
     /// as `LEN:SUITHCP:HCP`, so its projection can be read off `1N (2D) X`
     #[arg(long)]
     ns_2d_double: Option<String>,
+
+    /// Declare their `2♦` a Multi (`their.two_diamonds_multi`), so the N4
+    /// table's values double and opener's trump double read off `1N (2D) X`
+    #[arg(long, default_value_t = false)]
+    their_2d_multi: bool,
 }
 
 fn render(shown: &Envelope) -> String {
@@ -71,6 +76,7 @@ fn main() {
         let mut next = || parts.next().expect("LEN:SUITHCP:HCP");
         (usize::from(next()), next(), next())
     });
+    agreements.decision.their.two_diamonds_multi = args.their_2d_multi;
     let vul = AbsoluteVulnerability::NONE;
     let partnership = american(&agreements).bind();
 

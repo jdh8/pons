@@ -250,9 +250,10 @@ applies to any of it.
 - **N4 gains opener's side of the double**: over `1NT (2♦) X`, BBA's *opener*
   **never passes** — it shows a four-card major, else cues `3♦`. A penalty
   double of the Multi is answered by opener, not sat for, so pricing one has to
-  count opener's pull. (A separate probe of the *overcalling* side, on the
-  `n4b-two-diamond-double` branch, found they sit 43% of the time over our own
-  double — a different seat, and both hold.)
+  count opener's pull. (~~A separate probe of the *overcalling* side found
+  they sit 43% of the time over our own double.~~ **Retracted 2026-08-15**:
+  that count mixed in the foreign lane; `--mode advance-x` shows BBA's
+  advancer never passes our double — see docs/one-notrump-competitive.md §N4.)
 - **N6 (`2NT`, n=118) now has a mechanism**: BBA doubles 46.7% and plays UvU
   with `3♣` as the both-majors cue. Still needs boards before it needs code.
 

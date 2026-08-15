@@ -672,6 +672,11 @@ fn gated_profiles_preserve_alert_invariant() {
         a.decision.their.two_clubs_landy = true;
         profiles.push(("their-landy", a));
     }
+    {
+        let mut a = base;
+        a.decision.their.two_diamonds_multi = true;
+        profiles.push(("their-multi", a));
+    }
     for (name, defense) in [
         ("woolsey", NotrumpDefense::Woolsey),
         ("meckwell", NotrumpDefense::Meckwell),

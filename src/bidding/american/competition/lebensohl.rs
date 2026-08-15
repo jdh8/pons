@@ -10,8 +10,10 @@ use super::penalty_double::{
 };
 use super::rubensohl::{
     clubs_transfer_completion, cue_stayman_answer, lm_2d_both_majors_advance, lm_2d_clubs_ask,
-    lm_2d_clubs_major, stayman_2d_answer, stayman_2d_fit_rebid, transfer_completion,
-    transfer_lebensohl_responder, transfer_stayman_2d_responder, transfer_target,
+    lm_2d_clubs_major, multi_2d_responder, multi_clubs_transfer_completion, multi_penalty_answer,
+    multi_relay_rebid, multi_responder_rebid, multi_signoff_pass, stayman_2d_answer,
+    stayman_2d_fit_rebid, transfer_completion, transfer_lebensohl_responder,
+    transfer_stayman_2d_responder, transfer_target,
 };
 use super::*;
 
@@ -115,6 +117,14 @@ pub(super) fn natural_floor_pts(agreements: &Agreements) -> u8 {
 /// opponents (their disclosed `2♣`), not a knob of ours
 fn defense_2c_landy(agreements: &Agreements) -> bool {
     agreements.decision.their.two_clubs_landy
+}
+
+/// Whether their `(2♦)` is a Multi (campaign package N4) — the same channel:
+/// a fact about the opponents' disclosed `2♦`.  Only the Transfer style has a
+/// `(2♦)` leg to re-key; Plain keeps its natural table.
+fn defense_2d_multi(agreements: &Agreements) -> bool {
+    agreements.decision.their.two_diamonds_multi
+        && agreements.competition.lebensohl_style == LebensohlStyle::Transfer
 }
 
 /// Whether the Landy counter carries the N1b minor cues
@@ -1644,6 +1654,15 @@ pub(super) fn lebensohl_package() -> Package {
                 entries.extend(rows_of(
                     Pattern::after(NT, &their),
                     match style {
+                        // N4: their 2♦ is a Multi — the same constructive leg
+                        // with every diamond-keyed gate re-keyed.  Either/or
+                        // with the natural leg, never an overlay: the deleted
+                        // first build gated the responder table and left the
+                        // continuations natural, so opener answered a natural
+                        // 3♦ with a transfer completion.
+                        _ if over == Suit::Diamonds && defense_2d_multi(agreements) => {
+                            multi_2d_responder(true, agreements)
+                        }
                         LebensohlStyle::Transfer if over == Suit::Diamonds => {
                             // gate_4333 = true: our 1NT overcalled, partner is balanced.
                             transfer_stayman_2d_responder(true, agreements)
@@ -1660,7 +1679,90 @@ pub(super) fn lebensohl_package() -> Package {
                 // advance and pulls — the documented leak); the optional style
                 // cooperates (stand on a fit, run with a doubleton); takeout
                 // keeps the floor's advance.  Gated on the leave-in knob.
+                let multi = over == Suit::Diamonds && defense_2d_multi(agreements);
+                if multi {
+                    // N4: responder's double was values, waiting for them to
+                    // name the major.  Over their pass opener sits — they sit
+                    // 43% of the time over the double (n=14, N4b), and we hold
+                    // 23+ — and over the pass-or-correct 2M opener doubles
+                    // with four trumps, else waits.  Structural, so it does not
+                    // ride `penalty_double_leave_in`.  Q3 of the design left
+                    // "show a four-card major instead" as the arm to decompose.
+                    entries.extend(rows_of(
+                        Pattern::after(NT, &format!("{their} X -")),
+                        opener_leaves_in_penalty_double(),
+                    ));
+                    for major in [Suit::Hearts, Suit::Spades] {
+                        entries.extend(rows_of(
+                            Pattern::after(NT, &format!("{their} X (2{})", Strain::from(major))),
+                            multi_penalty_answer(major),
+                        ));
+                    }
+                    // v3: the double family's continuations, all of them the
+                    // same two-rule table or a sit.  The first two runs left
+                    // every seat past opener's answer to the floor, which reads
+                    // their 2♦ as diamonds and their 2M as a natural suit —
+                    // and pulled the penalty doubles (responder's X of 2♥
+                    // pulled to 4♥ by opener; opener's X of 2♠ pulled to 3♥
+                    // by responder), the "consequent doubles are nominal
+                    // penalty" structure the design named.  Their pass-or-
+                    // correct resolves the major, so the resolved suit is the
+                    // one the double keys on.
+                    let sit = multi_signoff_pass();
+                    // Responder, opener having sat: they passed (2♥ or 2♠ is
+                    // theirs) or corrected 2♥ to 2♠.
+                    entries.extend(rows_of(
+                        Pattern::after(NT, &format!("{their} X (2♥) - (-)")),
+                        multi_responder_rebid(Suit::Hearts),
+                    ));
+                    entries.extend(rows_of(
+                        Pattern::after(NT, &format!("{their} X (2♥) - (2♠)")),
+                        multi_responder_rebid(Suit::Spades),
+                    ));
+                    entries.extend(rows_of(
+                        Pattern::after(NT, &format!("{their} X (2♠) - (-)")),
+                        multi_responder_rebid(Suit::Spades),
+                    ));
+                    // Responder, opener having doubled: sit, or double the
+                    // correction with four of the new suit.
+                    for major in [Suit::Hearts, Suit::Spades] {
+                        entries.extend(rows_of(
+                            Pattern::after(
+                                NT,
+                                &format!("{their} X (2{}) X -", Strain::from(major)),
+                            ),
+                            sit.clone(),
+                        ));
+                    }
+                    entries.extend(rows_of(
+                        Pattern::after(NT, &format!("{their} X (2♥) X (2♠)")),
+                        multi_responder_rebid(Suit::Spades),
+                    ));
+                    // Their 2NT over the doubled/undoubled 2♠ is the
+                    // overcaller's heart relay (bba-1nt-defense.md): nothing
+                    // to say until they place it — the floor cued 3♠.
+                    for path in ["X (2♠) X (2NT)", "X (2♠) - (2NT)"] {
+                        entries.extend(rows_of(
+                            Pattern::after(NT, &format!("{their} {path}")),
+                            sit.clone(),
+                        ));
+                    }
+                    // Opener sits for responder's penalty double, whichever
+                    // path produced it.
+                    for path in [
+                        "X (2♥) - (-) X -",
+                        "X (2♥) - (2♠) X -",
+                        "X (2♠) - (-) X -",
+                        "X (2♥) X (2♠) X -",
+                    ] {
+                        entries.extend(rows_of(
+                            Pattern::after(NT, &format!("{their} {path}")),
+                            sit.clone(),
+                        ));
+                    }
+                }
                 let opener_reply = match agreements.competition.double_style {
+                    _ if multi => None,
                     // The armed `(2♦)` diamond penalty double promised the trumps,
                     // whatever the ambient style says, so opener sits on it.
                     _ if over == Suit::Diamonds
@@ -1689,8 +1791,65 @@ pub(super) fn lebensohl_package() -> Package {
                 let relay = format!("{their} 2NT - 3♣ -");
                 entries.extend(rows_of(
                     Pattern::after(NT, &relay),
-                    lebensohl_relay_rebid(over, agreements),
+                    if multi {
+                        // N4: their 2♦ held no diamonds, so 3♦ is ours to
+                        // sign off in.
+                        multi_relay_rebid()
+                    } else {
+                        lebensohl_relay_rebid(over, agreements)
+                    },
                 ));
+                if multi {
+                    // N4's interfered tail (the iron rule: they double it).
+                    // The Multi leg sends weak diamond hands through the relay
+                    // too, and the first run's worst board was responder
+                    // passing their double of the forced 3♣ with five
+                    // diamonds — the suffix was unauthored, so the floor sat.
+                    // Their X of the relay takes no room: opener completes
+                    // anyway; their X of the completion leaves responder the
+                    // same sign-off table.
+                    entries.extend(rows_of(
+                        Pattern::after(NT, &format!("{their} 2NT (X)")),
+                        complete_lebensohl_relay(agreements),
+                    ));
+                    for doubled in ["2NT (X) 3♣ -", "2NT - 3♣ (X)"] {
+                        entries.extend(rows_of(
+                            Pattern::after(NT, &format!("{their} {doubled}")),
+                            multi_relay_rebid(),
+                        ));
+                    }
+                    // Opener passes the sign-off — every relay path, every
+                    // suit.  Left to the floor in the first A/B, opener raised
+                    // the weak 3♦ to 3NT on 45 of 52 relay boards (PD −2.9/−4.3
+                    // per board): the relay's whole loss was that seat.
+                    for path in ["2NT - 3♣ -", "2NT (X) 3♣ -", "2NT - 3♣ (X)"] {
+                        for suit in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
+                            let signoff = format!("{their} {path} 3{}", Strain::from(suit));
+                            entries.extend(rows_of(
+                                Pattern::after(NT, &format!("{signoff} -")),
+                                multi_signoff_pass(),
+                            ));
+                            // v3: and over their competition, both of us.  The
+                            // second run's relay residue was `3♦ - - (3♠) 4♣ -
+                            // 4♥` — responder correcting a weak sign-off to a
+                            // four-level phantom, opener raising it.  Their X
+                            // of the sign-off, their bid over it, and their
+                            // balance after two passes: pass, pass, pass.
+                            entries.extend(rows_of(
+                                Pattern::after(NT, &format!("{signoff} (X)")),
+                                multi_signoff_pass(),
+                            ));
+                            entries.extend(rows_of(
+                                Pattern::up_to(&format!("{NT} {signoff}"), "7♠"),
+                                multi_signoff_pass(),
+                            ));
+                            entries.extend(rows_of(
+                                Pattern::up_to(&format!("{NT} {signoff} - -"), "7♠"),
+                                multi_signoff_pass(),
+                            ));
+                        }
+                    }
+                }
 
                 // Opener's reply to a weak major sign-off: pass, or stretch to
                 // game with a maximum + fit (see [`lebensohl_signoff_raise`]).
@@ -1792,7 +1951,15 @@ pub(super) fn lebensohl_package() -> Package {
                         // Jacoby transfers: 3♦→♥, 3♥→♠ (auto-driven), 3♠→♣ (forced GF).
                         ("3♦ -", transfer_completion(Suit::Hearts, over, agreements)),
                         ("3♥ -", transfer_completion(Suit::Spades, over, agreements)),
-                        ("3♠ -", clubs_transfer_completion(over, agreements)),
+                        (
+                            "3♠ -",
+                            if multi {
+                                // N4: no diamond stopper to key on — 3NT outright.
+                                multi_clubs_transfer_completion(agreements)
+                            } else {
+                                clubs_transfer_completion(over, agreements)
+                            },
+                        ),
                         // Leaping Michaels: 4♦ both majors, 4♣ clubs + a major (ask).
                         ("4♦ -", lm_2d_both_majors_advance()),
                         ("4♣ -", lm_2d_clubs_ask()),

@@ -75,6 +75,13 @@ struct Args {
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
     landy_counter: Option<bool>,
 
+    /// Replay with their `2♦` read as a Multi (the N4 table, `bba-gen
+    /// --their-2d-multi`).  Not derived: the table is unmeasured, so a BBA
+    /// dump replays natural unless the arm that generated it was told
+    /// otherwise — pass `true` to replay an N4 candidate arm.
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    multi_counter: Option<bool>,
+
     /// Replay the Landy counter as the N1c+N1d/e/f stack (the engine default
     /// since the 2026-08-14 stack ship).  Pass `false` to replay dumps
     /// generated between the base-counter ship and the stack ship, whose `on`
@@ -415,6 +422,9 @@ fn main() -> anyhow::Result<()> {
         }
         if let Some(read) = args.their_landy_read {
             agreements.decision.reading.their_landy_reading = read;
+        }
+        if let Some(multi) = args.multi_counter {
+            agreements.decision.their.two_diamonds_multi = multi;
         }
         if let Some(alert) = args.completion_alerts {
             agreements.decision.reading.completion_alerts = alert;

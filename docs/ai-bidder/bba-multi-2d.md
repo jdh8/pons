@@ -47,8 +47,23 @@ the relay below confirm it is genuinely either major.
 | 2♥ | 33% | `hcp 2–14 (median 6)`, weak — pass-or-correct (overcaller passes with ♥, corrects to ♠) |
 
 This confirms 2♦ resolves to **one unknown major**: advancer's 2♥ is the weak
-pass-or-correct and 2♠ the strength-showing/spade-tolerant catch-all. The exact
-mechanics are the convention's *offense* and don't bear on our counter-defense.
+pass-or-correct and 2♠ the strength-showing/spade-tolerant catch-all — a split
+by **strength**, not the textbook "bid the shorter major". The correction
+mechanics ([bba-1nt-defense.md](bba-1nt-defense.md)): over 2♥ the overcaller
+passes with hearts, corrects to 2♠ with spades, jumps 3M with a seven-carder;
+over 2♠ it bids **2NT as a heart relay** (never 3♥) and the advancer places.
+
+### Over our double (`advance-x`, `rebid-d-x2h` — added 2026-08-15 for N4)
+
+`--mode advance-x` probes the advancer at `1NT 2♦ X`, with our side declared
+natural (`--their-conv Multi-Landy=0` etc., how `bba-gen` models us; BBA
+labels our X "negative double"): **2♠ 66.9% / 2♥ 33.0% / pass 0.0%** — the
+undoubled relay verbatim. **BBA's advancer never sits for our double**; the
+"they sit 43%" once recorded for N4b was the foreign lane (see
+docs/one-notrump-competitive.md §N4). `--mode rebid-d-x2h` (overcaller at
+`1NT 2♦ X 2♥ -`): pass 36.7% (6 hearts), 2♠ 49.8% (6 spades), 3♠ 7.7% /
+3♥ 5.8% (7+). `--mode rebid-d-x` (overcaller after `X - -`) exists but the
+node is unreachable against BBA.
 
 ## 3. BBA's counter-defense (`counter`, 1NT-opener side over the Multi)
 
@@ -88,16 +103,16 @@ Multi). Tighten BBA's loose floors slightly for DD penalty discipline:
 - **4♥/4♠** — long (6+) major to game.
 - **Pass** — everything else (weak), handled by the floor.
 
-Open question the A/B answers: does this beat pons's *current* `1NT (2♦)`
-handling (the Lebensohl/Transfer package in `competition.rs`, which treats 2♦ as
-**natural diamonds** — wrong-sided against a hand that actually holds a major)?
-Prior: competitive/defensive conventions usually lose on plain-DD (obstruction
-wall), but *constructive* responses to interference can win (the 1NT-doubled
-runout and UvU both shipped DD-positive). Still genuinely open — **and still
-unbuilt**: the half-built `defense_2d_multi` knob was deleted 2026-08-15 without
-ever being measured (its continuations were never gated on it). This design is
-the spec for the rebuild, which belongs on the `their` disclosure channel
-(`TheirDisclosures`), not in our own knob space.
+**Superseded 2026-08-15 by N4 (docs/one-notrump-competitive.md §N4)**, which
+kept the shipped Transfer-Lebensohl `(2♦)` leg's constructive calls (Stayman +
+Smolen, Jacoby transfers, Leaping Michaels) and re-keyed only the diamond-keyed
+gates: `X` = values `hcp(8..)` as above, `3NT` = both majors stopped, the `2NT`
+relay gains a natural `3♦`, opener sits over their pass of the double and
+doubles the pass-or-correct `2M` with four trumps. This natural sketch — 3x
+natural single-suiters, natural `2NT` — was **not run** as an arm; it stays
+here as the recorded alternative. Engagement is `their.two_diamonds_multi`
+(`TheirDisclosures`), `bba-gen --their-2d-multi`, undeclared by default until
+the package ships.
 
 ## 5. The rest of the set
 
