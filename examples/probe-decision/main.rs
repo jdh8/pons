@@ -38,7 +38,13 @@ fn main() {
                 "they" => RelativeVulnerability::THEY,
                 _ => RelativeVulnerability::NONE,
             });
-    let partnership = american(&Agreements::default()).bind();
+    let mut agreements = Agreements::default();
+    // `PROBE_SCOPE=all` decodes unalerted authored rules too (the unmeasured
+    // `ReadingScope::All`), to see what the alert gate is hiding.
+    if std::env::var("PROBE_SCOPE").as_deref() == Ok("all") {
+        agreements.decision.reading.scope = pons::bidding::inference::ReadingScope::All;
+    }
+    let partnership = american(&agreements).bind();
     let inf = partnership.infer(vul, &auction);
     let p = inf.partner();
     println!(

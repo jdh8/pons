@@ -1412,18 +1412,32 @@ fallback Some(0)` — the floor — and bids `3NT` 1.400 over Pass 0.  Two cause
    notrump walk (`1NT - 2♣ - 2♦ - 2NT -` reads `8..9`); the Lebensohl lane has
    no such reader, so only the relay's `hcp(6..)` floor survives.  `1NT 2♥ 2♠ -`
    (our weak natural `2♠`) reads as **nothing at all**.
-2. **The relay's minor sign-off has no opener node.**  `lebensohl_signoff_raise`
-   is wired for the major sign-off only (`(2♠) 2NT - 3♣ - 3♥ -`); `3♦` and the
-   `3♣` pass fall to the floor, which — reading an unlimited partner opposite
-   15-17 — bids `3NT`.  The `3♦` rebid rule itself carries `len(♦, 5..)`, and
-   that length is not in the reading either (♦ `0..13`).
+2. **The sign-off's own length is dropped too** — the reading of responder's
+   `3♦`/`3♥` after `2NT - 3♣` is wrong on both axes.  The natural walk
+   *blankets* every suit bid on the opening side after a 1NT opening except a
+   lane's first three-level call (`nt_blanket` in
+   [read.rs](../src/bidding/inference/read.rs) — right for the uncontested
+   transfer structure, where a lane's second bid is a completion), so the
+   sign-off can only be read from its authored rule
+   `min_level_is(3, ♦) & len(♦, 5..)`; but that rule is natural (unalerted),
+   and the shipped `ReadingScope::Alerted` decodes **alerted** rules only.
+   The call falls between the two regimes — the
+   [reading-drift](reading-drift-handoff.md) story exactly.  Verified with
+   `PROBE_SCOPE=all probe-decision …` (`ReadingScope::All`, unmeasured):
+   ♦ `5..13` comes back, `1NT 2♥ 2♠ -` regains ♠ `5..13` and `hcp 5+`, but the
+   ceiling stays `..37` (cause 1) and **the floor still bids `3NT` 1.400** (and
+   `4♦` 1.200) — the missing ceiling is the binding defect, the missing length
+   an independent one.
+3. **The relay's minor sign-off has no opener node.**  `lebensohl_signoff_raise`
+   is wired for the major sign-off only (`(2♠) 2NT - 3♣ - 3♥ -`); `3♦` falls to
+   the floor, which — reading an unlimited partner opposite 15-17 — bids `3NT`.
 
 ### N2 packages, from the census
 
 | # | Package | Class | Evidence | Note |
 | --- | --- | ---: | ---: | --- |
 | **N2a** | opener **passes** the relay's minor sign-off — `{relay} 3♦ -` over `(2♥)`/`(2♠)` (the relay-then-pass-`3♣` is already terminal), a `landy_signoff_answer`-style node | book, one node | −52 plain / −125 PD on 18 bd, 16 of them the same wrong call | cheapest, cleanest; also gates the `2NT (3♥) X` |
-| N2b | read the relay / sign-off / natural-2-level ceilings — a Lebensohl reader, or a `points_band` two-sided projection at these rules | reading | the general defect behind N2a and the `X` of their raise; touches every weak call in the system | reader-retirement campaign says *fewer* readers; a two-sided projection knob is the honest fix, and it is a bidding knob under the floor |
+| N2b | read the relay / sign-off / natural-2-level **ceilings** (a two-sided strength projection at these rules, or a Lebensohl reader) **and lengths** (`ReadingScope::All`, or exempt the sohl lane from `nt_blanket`) | reading | the general defect behind N2a and the `X` of their raise; touches every weak call in the system | reader-retirement campaign says *fewer* readers; a two-sided projection knob is the honest fix, and it is a bidding knob under the floor. Ceiling first — `All` alone leaves the `3NT` in place |
 | N2c | the no-call 8-9-count with 0-1 / 4+ in their suit — widen the relay to `points ≤ 9` with a 6-card suit, or let a singleton double | book | 11 bd, −53 | small n; the Optional > Takeout verdict was measured pons-vs-pons |
 | N2d | relay with a 6+ suit below 6 HCP (over `(2♠)` only, where the weak major has no 2-level call) | book | 31 bd, −120, −3.9/bd | contradicts the PD-distilled floor ([`lebensohl_relay_shape`](../src/bidding/american/competition/lebensohl.rs)), measured pons-vs-pons; against Muiderberg the alternative is a making `2♠`, and BBA at table B bids these hands un-overcalled. Needs the A/B, not a re-derivation |
 
