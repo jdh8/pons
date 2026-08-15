@@ -93,8 +93,11 @@ handling (the Lebensohl/Transfer package in `competition.rs`, which treats 2♦ 
 **natural diamonds** — wrong-sided against a hand that actually holds a major)?
 Prior: competitive/defensive conventions usually lose on plain-DD (obstruction
 wall), but *constructive* responses to interference can win (the 1NT-doubled
-runout and UvU both shipped DD-positive). Genuinely open; measured on
-`bba-match --defense-2d-multi`.
+runout and UvU both shipped DD-positive). Still genuinely open — **and still
+unbuilt**: the half-built `defense_2d_multi` knob was deleted 2026-08-15 without
+ever being measured (its continuations were never gated on it). This design is
+the spec for the rebuild, which belongs on the `their` disclosure channel
+(`TheirDisclosures`), not in our own knob space.
 
 ## 5. The rest of the set
 

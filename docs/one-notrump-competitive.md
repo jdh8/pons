@@ -148,13 +148,13 @@ Worth a look once the top buckets are done; not actionable at this n.
 | `(2NT)` | Unusual-vs-Unusual | `uvu.rs:139`, `:21`, `:145-161` |
 | `(3♣)`+ | **floor** — `high_overcall_responses` covers suit openings only | `high_overcall.rs:152` |
 
-Multi counter exists but is **half-built**: `defense_2d_multi`
-(`agreements.rs:171`, default `false`) swaps in `multi_responder`
-(`lebensohl.rs:256`), but the continuation block at `lebensohl.rs:584` fires on
-`style == Transfer && over == Diamonds` **without checking the Multi flag** —
-so with the knob on, opener answers a natural `3♦` with
-`transfer_completion(Hearts, ♦)`. Same mismatch for `Plain` + Multi at `:540`.
-Dormant only because the knob defaults off.
+No Multi counter today. `competition.defense_2d_multi` + `multi_responder`
+were **deleted 2026-08-15**: never measured, and half-built — the continuation
+block fired on `style == Transfer && over == Diamonds` **without checking the
+Multi flag**, so with the knob on opener answered a natural `3♦` with
+`transfer_completion(Hearts, ♦)` (same mismatch for `Plain` + Multi). N4 rebuilds
+it from the design in [bba-multi-2d.md](ai-bidder/bba-multi-2d.md), on the
+`their` disclosure channel and with the continuations gated.
 
 ### Lane 2 — `1NT - resp (..)`, they interfere after our response
 
@@ -191,7 +191,7 @@ is 5 calls; the most common runout point is after opener's transfer completion
 | **N1j** | **BBA-ladder counter** — the anchor-aligned table, replacing the stack — **+ the weak-2♦ cap** | `defense_2c_landy_bba`, `defense_2c_landy_weak_2d_cap` | **both SHIPPED DEFAULT-ON 2026-08-15** — the ladder at its pinned non-inferiority gate (`wash \| wash`, all eight DD cells leaning positive), the cap at the standard gate (`plain wash \| PD win`, 0 foreign); see §N1j |
 | N2 | Muiderberg `(2♠)` calibration | — | −0.66/bd, PD −0.58 NV; **BBA plays plain Lebensohl here, we play Cohen Transfer** — a concrete A/B, see the [counter-defense reference](ai-bidder/bba-1nt-counter-defense.md) |
 | N3 | `(3+)` overcalls of our 1NT | new | floor-only today; −0.63/bd. **Misnamed: their three-level calls are natural 7-card preempts**, not artificial — this is `defense_to_preempt`'s lane, not a counter-defense |
-| N4 | Multi `(2♦)` — finish + measure | `defense_2d_multi` | exists, half-built, gate bug above; plain-only loss; **owed the `their` disclosure migration N1 got** |
+| N4 | Multi `(2♦)` — build + measure | new (`their` disclosure) | the half-built `defense_2d_multi` was **deleted 2026-08-15** (never measured, gate bug above); plain-only loss; rebuild on the disclosure channel N1 uses, continuations gated |
 | N5 | Complete Jacoby, re-measure | `competition_over_transfer` | default-off on a measured loss *while missing its two most-fired cells* — a half-built loss, resumable |
 | N6 | `(2NT)` penalty discipline | `uvu_encircle` et al. | worst per-board rate, n=118 — needs boards before it needs code. Mechanism now priced: **BBA doubles 46.7%** and cues `3♣` for both majors ([reference](ai-bidder/bba-1nt-counter-defense.md)) |
 | N7 | Absent responses contested | new | Puppet `3♣`, `3♦`, splinters, `3NT`, Texas, `4NT` — rarest in the system |
@@ -215,7 +215,7 @@ digested at the end, and every measured verdict lives in the
 What their `2♣` means is a fact about the opponents, so the engagement bit is
 **`their.two_clubs_landy`** in `Agreements::their` — the disclosure channel,
 never our own knob space (`competition.defense_2c_landy` existed for one day
-and was deleted; `defense_2d_multi` is owed the same migration). Undeclared
+and was deleted; `defense_2d_multi` was deleted outright). Undeclared
 defaults to natural — the systems-on rebase — which self-play demands: our own
 tables' `2♣` overcalls *are* natural.
 
@@ -256,8 +256,8 @@ reflects the cue rows onto auctions *they* open; gate every arm pair.
 
 `landy_responder` + overlays, `competition/lebensohl.rs`. Either/or with the
 systems-on rebase, **not** an overlay — leaving the rebase registered would
-remap the values `X` onto stolen Stayman a round later (the `defense_2d_multi`
-gate bug).
+remap the values `X` onto stolen Stayman a round later — the ungated-continuation
+bug that sank the deleted Multi counter.
 
 | Call | Meaning | Weight |
 | --- | --- | --- |

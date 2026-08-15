@@ -147,41 +147,6 @@ fn test_answer_negative_double_bids_other_major() {
     );
 }
 
-// ---------------------------------------------------------------------------
-// Section 5: the (2♦)-as-Multi counter-defense toggle (`defense_2d_multi`)
-// ---------------------------------------------------------------------------
-
-/// A partnership whose competitive book reads their `(2♦)` over our `1NT` as a Multi
-fn partnership_with_2d_multi(on: bool) -> Partnership {
-    let mut arm = pons::bidding::agreements::Agreements::default();
-    arm.competition.defense_2d_multi = on;
-    american(&arm).bind()
-}
-
-#[test]
-fn test_multi_2d_double_is_values() {
-    // 1NT (2♦) ?: 9 HCP, no five-card suit, four diamonds. Default (off) reads
-    // 2♦ as natural diamonds; the default Optional double needs 2-3 of them, so a
-    // four-diamond hand cannot fire and responder does not double. With the Multi
-    // counter-defense on, 2♦ shows an unknown major and this values hand takes the
-    // workhorse double. The field is read at book construction, so each arm builds
-    // its own partnership. (Four diamonds, not three: under the default Optional
-    // style — 2-3 cards — a three-diamond hand would optional-double in *both* arms,
-    // erasing the contrast.)
-    let auction = &[call(1, Strain::Notrump), call(2, Strain::Diamonds)];
-    let hand = "KJ4.Q73.J762.Q53";
-
-    let off = best_call(&partnership_with_2d_multi(false), auction, hand);
-    let on = best_call(&partnership_with_2d_multi(true), auction, hand);
-
-    assert_eq!(
-        on,
-        Call::Double,
-        "Multi counter-defense doubles with values"
-    );
-    assert_ne!(off, Call::Double, "the natural-diamond default does not");
-}
-
 #[test]
 fn competitive_4333_knob_gates_the_cue_stayman() {
     // 1NT (2♥): a flat 4-3-3-3 with four spades and game values cues 3♥ (Stayman)

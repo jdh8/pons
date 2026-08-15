@@ -157,18 +157,6 @@ pub struct CompetitionKnobs {
     ///
     /// Section 5 of the competitive book; default [`LebensohlStyle::Transfer`].
     pub lebensohl_style: LebensohlStyle,
-    /// Read a `(2♦)` overcall of our `1NT` as a Multi
-    ///
-    /// Responder treats their `2♦` as an unknown single-suited major and
-    /// answers with the Multi counter-defense — double = values, everything
-    /// else natural, distilled from BBA's Multi-Landy counter
-    /// (`docs/ai-bidder/bba-multi-2d.md`) — instead of the natural-diamond
-    /// Transfer/Lebensohl package.  It overrides only the `(2♦)` responder
-    /// node; the shared `2NT` relay machinery is unchanged.
-    ///
-    /// **Off by default**, opt-in pending the A/B; faithful for the A/B against
-    /// BBA, whose `2♦` over our `1NT` is always a Multi.
-    pub defense_2d_multi: bool,
     /// Add the game-forcing minor cues to the Landy counter (N1b)
     ///
     /// `2♥` = GF 5+ clubs, `2♠` = GF 5+ diamonds — cues of their shown majors
@@ -689,7 +677,6 @@ impl Default for CompetitionKnobs {
             direct_3nt_stopper: true,
             natural_floor: (5, 0),
             lebensohl_style: LebensohlStyle::Transfer,
-            defense_2d_multi: false,
             defense_2c_landy_cues: false,
             defense_2c_landy_transfer: true,
             defense_2c_landy_cue_floor: true,
@@ -2557,8 +2544,7 @@ impl Default for InstinctKnobs {
 /// behavior correction — and a bidder facing an unknown field leaves them
 /// alone.  Putting a fact about the opponents into our own knob space was the
 /// original sin of `competition.defense_2c_landy` (deleted 2026-08-14, the
-/// day after it shipped); this channel is its replacement, and
-/// `competition.defense_2d_multi` is owed the same migration.
+/// day after it shipped); this channel is its replacement.
 ///
 /// Lives in [`DecisionProfile`] rather than as an [`Agreements`] area: the
 /// book reads it while building (`1NT (2♣)` routing) **and** the reading walk

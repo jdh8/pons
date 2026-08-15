@@ -111,11 +111,6 @@ pub(super) fn natural_floor_pts(agreements: &Agreements) -> u8 {
     agreements.competition.natural_floor.1
 }
 
-/// Whether the `(2♦)`-as-Multi counter-defense is engaged
-fn defense_2d_multi(agreements: &Agreements) -> bool {
-    agreements.competition.defense_2d_multi
-}
-
 /// Whether the `(2♣)`-as-Landy counter-defense is engaged — a fact about the
 /// opponents (their disclosed `2♣`), not a knob of ours
 fn defense_2c_landy(agreements: &Agreements) -> bool {
@@ -300,60 +295,6 @@ pub(crate) fn lebensohl_responder(over: Suit, agreements: &Agreements) -> Rules 
         .alert(LEBENSOHL_RELAY);
 
     // Pass — weak, nothing constructive to say.
-    rules.rule(Call::Pass, 0, hcp(0..))
-}
-
-/// Responder's counter-defense after `1NT (2♦)` when the `2♦` is read as a
-/// **Multi** (an unknown single-suited major), engaged by
-/// `agreements.competition.defense_2d_multi`
-///
-/// Distilled from BBA's Multi-Landy counter (`docs/ai-bidder/bba-multi-2d.md`):
-/// **double = values / takeout** of the unknown major (BBA's 41% workhorse), and
-/// everything else **natural**. Unlike the natural-diamond treatments, both
-/// majors are biddable naturally at the 2 level and `2♦` steals no major room, so
-/// there is no Stayman cue — the diamond bid that would be the cue is just natural
-/// diamonds. The `2NT` relay and its `3♣` completion are the shared Lebensohl
-/// machinery (registered for `(2♦)` regardless of this toggle), so weak
-/// club/diamond one-suiters keep their sign-off.
-fn multi_responder(agreements: &Agreements) -> Rules {
-    let over = Suit::Diamonds; // the call we sit over; their real suit is a major
-    let mut rules = Rules::new();
-
-    // X = values / takeout of the unknown major — BBA's backbone (41%). Floored
-    // at 8 (a touch above BBA's loose ~5) for doubled-contract discipline.
-    rules = rules
-        .rule(Call::Double, 155, points(8..))
-        .alert(MULTI_TAKEOUT);
-
-    // Natural forcing 3-level single-suiter (incl. natural 3♦ — diamonds is not
-    // their suit, so no cue).
-    for s in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
-        let strain = Strain::from(s);
-        rules = rules.rule(Bid::new(3, strain), 180, len(s, 5..) & points(10..));
-    }
-
-    // Direct 3NT to play (default toggles → plain game values).
-    rules = author_direct_3nt(rules, 170, over, agreements);
-
-    // Natural weak 2-level major — both majors clear the `2♦` overcall.
-    for s in [Suit::Hearts, Suit::Spades] {
-        let strain = Strain::from(s);
-        rules = rules.rule(
-            Bid::new(2, strain),
-            150,
-            len(s, 5..)
-                & points(..=9)
-                & hcp(natural_floor_hcp(agreements)..)
-                & points(natural_floor_pts(agreements)..),
-        );
-    }
-
-    // 2NT = Lebensohl relay to 3♣ (weak long minor / suit below the majors).
-    let long_suit = lebensohl_relay_shape(over);
-    rules = rules
-        .rule(Bid::new(2, Strain::Notrump), 140, points(..=9) & long_suit)
-        .alert(LEBENSOHL_RELAY);
-
     rules.rule(Call::Pass, 0, hcp(0..))
 }
 
@@ -1703,9 +1644,6 @@ pub(super) fn lebensohl_package() -> Package {
                 entries.extend(rows_of(
                     Pattern::after(NT, &their),
                     match style {
-                        _ if over == Suit::Diamonds && defense_2d_multi(agreements) => {
-                            multi_responder(agreements)
-                        }
                         LebensohlStyle::Transfer if over == Suit::Diamonds => {
                             // gate_4333 = true: our 1NT overcalled, partner is balanced.
                             transfer_stayman_2d_responder(true, agreements)

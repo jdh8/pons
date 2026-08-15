@@ -176,6 +176,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     `3♣` fails on the advance-sohl lane; the blanketed constructive lanes
     cannot witness a missing tag, which localises the family's live cost).
 
+### Removed
+
+- **`competition.defense_2d_multi` and its `multi_responder` table** (web
+  `set_defense_to_2d_multi`/`defense_to_2d_multi`, `bba-gen
+  --defense-2d-multi`, the `comp:multi-takeout` alert, and the toggle's
+  integration test). Shipped opt-in in 2025 and never measured in the year
+  since — and half-built the whole time: the `(2♦)` continuation block gates on
+  `style == Transfer && over == Diamonds` without consulting the flag, so with
+  the knob on opener answered responder's *natural* `3♦` with
+  `transfer_completion(Hearts, ♦)`. Deleting beats fixing a dormant arm nobody
+  ran; the design survives in
+  [docs/ai-bidder/bba-multi-2d.md](docs/ai-bidder/bba-multi-2d.md) as the spec
+  for N4, which rebuilds it where it belongs — on the `TheirDisclosures`
+  channel (what their `2♦` means is *their* fact, the lesson `defense_2c_landy`
+  paid for), with the continuations gated. **No user impact:** the knob
+  defaulted off, and the default system is byte-identical (smoke `18aba5ce…`,
+  unchanged).
+
 ### Changed
 
 - **`Rules::gated` takes an explicit slug set** (with `gated_out` as the
@@ -430,7 +448,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The re-homing is proven inert (measured on-arm shard-0 regenerates
   board-for-board under `--their-2c-landy true`), so the A/B verdict
   transfers exactly. The web registry exposes it as `declare_their_2c_landy`
-  / `their_2c_landy`. `defense_2d_multi` is owed the same migration. The
+  / `their_2c_landy`. (`defense_2d_multi`, which was owed the same migration,
+  was deleted instead — see Removed.) The
   N1b cue overlay (`defense_2c_landy_cues`, now the *full* UvU skeleton)
   re-measured **wash in all six cells leaning negative** (−0.43…−1.25 per
   fired, 0.10–0.11% fired) and stays opt-in: the `1♣ (2♣)` analogy's delta

@@ -283,13 +283,6 @@ struct Args {
     #[arg(long)]
     seed: Option<u64>,
 
-    /// Read a `(2♦)` overcall of our 1NT as a Multi (an unknown major) and use our
-    /// Multi counter-defense.  BBA's 2/1 card overcalls 1NT with Multi-Landy, whose
-    /// 2♦ *is* a Multi, so this is the live test — pair with
-    /// `--their-conv "Multi-Landy=1"` to be sure BBA bids it.
-    #[arg(long, default_value_t = false)]
-    defense_2d_multi: bool,
-
     /// Override the derived reading of their `2♣` overcall of our 1NT:
     /// `true`/bare = Landy (both majors, engage the counter-defense),
     /// `false` = natural (keep the systems-on rebase).  Unset, the reading is
@@ -1820,7 +1813,6 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
         agreements.competition.uvu_x_floor = args.uvu_x_floor;
         agreements.competition.uvu_cue_floor = args.uvu_cue_floor;
     }
-    agreements.competition.defense_2d_multi = args.defense_2d_multi;
     agreements.decision.their.two_clubs_landy = their_2c_landy(args)?;
     agreements.competition.defense_2c_landy_cues = args.defense_2c_landy_cues;
     agreements.competition.defense_2c_landy_low_minors = args.defense_2c_landy_low_minors;

@@ -907,7 +907,6 @@ knob!(set_delayed_cue, delayed_cue, competition.delayed_cue: bool);
 knob!(set_competition_over_stayman, competition_over_stayman, competition.competition_over_stayman: bool);
 knob!(set_competition_over_minor_transfer, competition_over_minor_transfer, competition.competition_over_minor_transfer: bool);
 knob!(set_competition_over_diamond_transfer, competition_over_diamond_transfer, competition.competition_over_diamond_transfer: bool);
-knob!(set_defense_to_2d_multi, defense_to_2d_multi, competition.defense_2d_multi: bool);
 // Not a knob of ours: a declared fact about the opponents (their disclosed
 // 2♣ over our 1NT shows both majors), hence `declare_*`, not `set_*`.
 knob!(declare_their_2c_landy, their_2c_landy, decision.their.two_clubs_landy: bool);
@@ -1381,7 +1380,6 @@ static SETTINGS: &[Setting] = &[
     toggle("competition_over_stayman", COMPETITION, "", true, set_competition_over_stayman, competition_over_stayman),
     gated("competition_over_minor_transfer", COMPETITION, "", true, set_competition_over_minor_transfer, competition_over_minor_transfer, "puppet_stayman"),
     gated("competition_over_diamond_transfer", COMPETITION, "", true, set_competition_over_diamond_transfer, competition_over_diamond_transfer, "puppet_stayman"),
-    toggle("defense_to_2d_multi", COMPETITION, "", false, set_defense_to_2d_multi, defense_to_2d_multi),
     // A declared fact about the opponents, not an agreement of ours — the
     // engine's `their` disclosure channel (engages the Landy counter).
     toggle("their_2c_landy", COMPETITION, "Their 1NT-overcall 2♣ = Landy (declared)", false, declare_their_2c_landy, their_2c_landy),

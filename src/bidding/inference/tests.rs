@@ -659,8 +659,7 @@ fn deviation_knobs_preserve_alert_invariant() {
 /// off BBA's measured behavior in `bba-gen`) shipped a whole alerted subtree
 /// no default-build sweep ever visited.  Each 1NT-defense variant and the
 /// RKCB relocation are the other gates a live arm fields; any gadget added
-/// behind a new `TheirDisclosures` field (`defense_2d_multi` is queued)
-/// belongs in this list.
+/// behind a new `TheirDisclosures` field belongs in this list.
 #[test]
 fn gated_profiles_preserve_alert_invariant() {
     use crate::bidding::agreements::Agreements;

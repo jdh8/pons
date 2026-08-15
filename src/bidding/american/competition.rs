@@ -106,10 +106,6 @@ const CUE_RAISE: Alert = Alert("comp:cue-raise");
 const NEGATIVE_DOUBLE: Alert = Alert("comp:negative-double");
 /// Support double / redouble — opener's `X`/`XX` showing exactly three-card support.
 const SUPPORT_DOUBLE: Alert = Alert("comp:support-double");
-/// Multi takeout double — `X` of their `(2♦)` Multi, values/takeout of the unknown
-/// major (8+).  Takeout by meaning, so alerted (the reading is a sound 8+ points
-/// floor — their suit is unknown, so no single side suit to floor).
-const MULTI_TAKEOUT: Alert = Alert("comp:multi-takeout");
 /// Landy values double — `X` of their `(2♣)` Landy, values (8+) willing to
 /// defend whichever major they run to.  Not the stolen Stayman it replaces:
 /// against a both-majors overcall there is no major left to ask for.

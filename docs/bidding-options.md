@@ -408,7 +408,7 @@ The options whose policy verdict can't be read off a fresh isolated A/B. Work
 these buckets per [measurement.md](measurement.md).
 
 **Never isolated (`unmeasured`):** set_delayed_cue,
-set_defense_to_2d_multi, set_defense_to_2c_landy, set_suppress_4432_vs_major,
+set_defense_to_2c_landy, set_suppress_4432_vs_major,
 set_suppress_4432_vs_minor, set_direct_3nt_stopper.
 
 `set_defense_to_2c_landy` is authored and queued, not stale: run
