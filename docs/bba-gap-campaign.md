@@ -873,3 +873,20 @@ Iron hygiene throughout: one `SEED_BASE` per experiment shared across arms
 (anchor series excepted, documented above); arms sequential under
 `scripts/idle-run.sh`; never rebuild during a run; both scorers always; ship
 by the decision table; CHANGELOG + ledger for every measured result.
+
+## Ledger (memory compaction, 2026-08-16)
+
+- **Historical full-disclosure diagnostic (2026-06-24, superseded by the
+  per-table `--advertise-natural` harness):** with BBA reading our natural `2♣`
+  as Multi-Landy, the bucket appeared **+2.01 IMPs/bd**. Turning
+  `Multi-Landy=0, Cappelletti=0` on all four seats moved that bucket **+328 →
+  −64 IMPs** and the isolated defense **+0.013/bd → −0.274/bd**, CI
+  [−0.41,−0.14]. That run also changed the all-BBA reference table and is
+  confounded — the diagnostic that exposed the artifact, not the honest
+  verdict; the per-table result in `CHANGELOG.md` supersedes its magnitude.
+- `bba-decompose`'s `boards.jsonl` `board` field is an index **within its
+  shard**, paired with that shard's `seed`, not a flat arm index — flat
+  concatenation produced impossible 0-HCP hands for 12+-HCP rules. The emitted
+  actor `hand` field (S.H.D.C) is canonical; re-run decompose when an older
+  dump lacks it, and sanity-check hand-derived analyses against the rule's
+  stated HCP floor.

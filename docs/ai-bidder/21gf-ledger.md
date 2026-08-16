@@ -744,3 +744,10 @@ override) · Polish two-suiters (97) · Wilkosz (134) · Kickback (72-74) /
 Crosswood (45-47) · New Minor Forcing (94) / plain Checkback (44) ·
 Soloway jump shifts (111-112) · Snapdragon (110) · weak jump shifts off in
 21GF (130-131 — pons keeps weak JS regardless).
+
+## Ledger (memory compaction, 2026-08-16)
+
+- The plain-DD re-baseline was recorded at commit `54f28e0` on 2026-06-21:
+  rows #80, #82/#106, #100 and #79 were re-run as eight none/both comparisons
+  (200k filtered boards, 40k for Leaping Michaels). Floor/off figures moved or
+  flipped, convention-vs-convention choices held, and no ship decision changed.

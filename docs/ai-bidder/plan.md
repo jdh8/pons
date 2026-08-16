@@ -230,7 +230,16 @@ default floor stays fast, the gated search bidder remains for maximum strength.
   [+0.718, +0.857]), +0.700 vs the deterministic floor, +0.816 vs bare — a decisive
   gain by the harness metric. *Caveat:* 75 % divergence from the v1 net and a
   DD-scored A/B (like the teacher) mean the magnitude likely overstates real-table
-  value; the gain concentrates off-book/competitive, as M3 intended. **Round 2
+  value; the gain concentrates off-book/competitive, as M3 intended. Round-1
+  integration was committed as `fd54f77` (2026-06-16). **Post-Rubens diagnostic
+  (2026-06-17):** after `792710c`, a 10k-board search-net vs deterministic rerun
+  read **+0.833** [0.732, 0.933] plain / **+0.851 PD** NV and **+1.469**
+  [1.346, 1.592] / **+2.262 PD** vul. Tightening the new-suit transfer from
+  `points(8..)` to `points(10..)` narrowed those cells to **+0.735/+0.700** and
+  **+1.172/+1.947** (plain/PD): the thin-side-suit overbid was real and
+  vulnerability-sensitive, but the net remained ahead. The overlapping
+  `american_strawberry` book variant was deleted so the floor was the sole
+  Rubens source. **Round 2
   done (promoted):** regenerated the search-dump with the round-1 net as the
   rollout continuation policy *and* the doubling-aware `ev_all` (104 476 rows / 10k
   boards, git_sha `6a4ae96`), retrained identically (val-CE 0.967, top-1 88.1 %
@@ -253,7 +262,8 @@ default floor stays fast, the gated search bidder remains for maximum strength.
   +1.716 vul both (CI [+1.608, +1.824]), and is positive on the optimistic
   double-dummy bound too (+0.123 / +0.583). It is the in-place production search net
   (`american_neural_search()`, gated `neural-floor`); `instinct()` stays the
-  default and baseline, this is the optional learned floor it intended.
+  default and baseline, this is the optional learned floor it intended. The
+  promotion landed in `dc22de3` + `079ae4c` (2026-06-17).
 
 Exit M3: ✅ a floor that beats the hand-written one on cardplay-grounded evidence —
 decisively on the default perfect-defense measure, and at parity-or-better on the
@@ -367,6 +377,18 @@ measures against — *without authoring a node per sequence*
 (`feedback_instinct_floor_over_node_authoring`); `instinct()` stays default and
 the rails stay green. Each chunk's measure is IMPs/board on the `instinct-floor`
 A/B vs baseline, and the BBA gap (S.1's −2.6) on the relevant auctions.
+
+**Earlier floor experiments, closed 2026-06-17.** A keyless invitational tier
+(`combined_max(25) & !combined_points(25)`) lost **−0.05 IMPs/board** over 6,000
+boards (≈−0.8 per divergent board): loose upper bounds plus heuristic acceptance
+pushed 23–24 combined points too high. Invitations are two-sided agreements and
+belong in authored book nodes. A second arm, `SearchFloor::augment_instinct`,
+inserted the deterministic milestone call into the live search shortlist; it
+moved <1% of 280 boards at `k = 3` and `k = 8` (**+0.02–0.04 IMPs/board**, noise)
+because the call was already in the net's top-k and `ev_all` already promoted it.
+Reverted to `ec0fd2d` and `40bb4e8`, respectively. A cuebid tier remains
+postponed: its continuation needs a shared off-book decoding protocol, whose
+unbounded forced-high failure mode is not justified without a regret baseline.
 
 - ✅ **M6.1 Parametric auction inferences.** Push the floor deeper by *deriving*
   facts from the auction rather than authoring, via the existing `Inferences` /
@@ -608,7 +630,11 @@ opt-in behind `search`.
   as expected — it doubles the overbids. Baseline context: `american_search` itself
   is only −1.050 vs `american` under perfect defense, CI [−2.237, +0.137] — the live
   search's edge over the floor was a scoring artifact, so leaf-pricing builds on a
-  shaky base.) The divergent dump is unambiguous: all three
+  shaky base.) ⚠ **Historical discrepancy (preserved 2026-08-16):** the first-pass
+  diagnosis below blamed missing decode and prescribed M7.1. The demotion banner
+  above is the current verdict: decode quality matters, but cannot rescue
+  competitive leaf pricing from the scorer's structural obstruction wall. The
+  divergent dump is unambiguous: all three
   worst losses are leaf-pricing reaching a **redoubled grand (`7♣xx`)** that fails,
   in wild *competitive* auctions. This is the **M7.1 soundness gate** biting (§3 of
   05-search-at-every-leaf.md): competitive leaves are mostly *undecoded*, so the
@@ -770,6 +796,20 @@ rule-based, ~100%-reproducible engine; we drive it as a black box (native
 Slots in: S.1 → eval harness (now). S.2 dropped (M3 closed).
 
 ---
+
+**EPBot FFI is not thread-safe (verified 2026-06-23).** Per-board Rayon calls
+hung the library despite one bot per decision: 200 boards took 1.8 s with
+`RAYON_NUM_THREADS=1` but exceeded 150 s at 8; a 1,500-board, 16-thread run
+burned 9.5 h on ~11 cores. Keep bidding sequential; scale only with separate
+processes (`scripts/bba-gen-parallel.sh`). DD scoring already parallelizes and
+saturates the box, so serial FFI is cheap (~7.5 ms/board).
+
+**Permission provenance:** Edward Piwowar's 2026-06-14/15 email grants free
+non-commercial use **and redistribution** without further permission and
+explicitly permits publishing aggregate comparison numbers with EPBot credit
+(hence README's wording). Upstream `github.com/EdwardPiwowar/BBA`; the vendored
+submodule was pinned at `2969bbf`. Native libraries cover Linux x64/arm64, macOS
+arm64, Windows x64/arm64 and wasm; macOS Intel is the missing target.
 
 ## Critical path and what to do first
 

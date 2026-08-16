@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Docs: memory compaction — the durable record now lives in `docs/`.**
+  Claude's per-project memory (217 files, ~800 KB of verdicts, mechanisms and
+  reference distillations) was folded into the checked-in docs; memory keeps
+  only transient state (76 files, ~70 KB of "owed / in flight" pointers). New
+  [docs/one-notrump-constructive.md](docs/one-notrump-constructive.md) — the
+  canonical ledger for our 1NT opening, responses, slam structure and the
+  evaluator verdicts at its seams (wired into the CLAUDE.md read-list). Ledger
+  sections dated 2026-08-16 were appended to the other campaign docs where a
+  memory held a number the doc lacked; `docs/measurement.md` gained the
+  regenerate-the-control-at-HEAD / fired-rate-drift rule and the prove-a-
+  refactor-inert rule; `CLAUDE.md` gained the visibility, tests-in-own-file
+  and module-doc-link conventions. Corrections surfaced during the fold are
+  recorded, not silently applied: `docs/bidding-options.md` "Corrections found
+  at memory compaction" (`set_reopening_notrump` vs `set_rein_advance_raise`
+  figures swapped; `set_notrump_balancing` superseded by the `c23e000` run;
+  the 4432-suppress pair is measured, not unmeasured), the EPBot
+  `probable_levels` / `get_sd_tricks` notes in `docs/ai-bidder/bba-floor.md`,
+  the `set_dnf_reading` default in `docs/dnf-migration.md`'s knob matrix, and
+  BEN's training provenance in `docs/ben-gap-campaign.md`. No code change.
+
 - **The ceiling consumers censused and both REFUSED — `nt_hcp_read` and
   `fit_sum_support_read` stay opt-in.** The two knobs that read a strength
   *ceiling* (`combined_hcp` rides `hcp_floor()`, `fit_sum_game` rides

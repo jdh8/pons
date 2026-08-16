@@ -649,3 +649,27 @@ Each is one editorial decision spread over bools; none has bitten yet.
   `direct_dont_x_floor(8)` ≡ `(0)`, because `0` means "inherit
   `natural_overcall_points().0`", which is 8. Documented as byte-identical, but
   it means a harness's off-arm and one on-arm are the same cell.
+
+## Corrections found at memory compaction (2026-08-16)
+
+- ⚠ `set_reopening_notrump`: the row above reports plain +0.0163/+0.0332, but
+  the feature's own Q1 measured plain **+0.0018/+0.0027** IMPs/board
+  (+2.29/+2.94/fired) NV/vul. +0.0163/+0.0332 belongs to
+  `set_rein_advance_raise` (CHANGELOG.md records it that way).
+- ⚠ `set_notrump_balancing`: after the indexed A5 wash, a later fallible-BBA
+  tournament (`scripts/weak-two-balancing-ab.sh`, 205k bd/arm/vul, sha
+  `c23e000`) again washed on plain (+0.0005/−0.0004) but lost on PD (−0.0010
+  NV, touching zero; −0.0023 vul, CI [−0.0038,−0.0008]). Keep hidden and
+  opt-in; there was no obstruction gain.
+- ⚠ `set_suppress_4432_vs_major` / `set_suppress_4432_vs_minor`: not
+  unmeasured — the opener-split A/B is complete. Vs a minor the plain result
+  washed; vs a major the vulnerable +0.0269 plain apparent gain traced to an
+  unrelated competitive floor X and an unauthored response. Both stay
+  default-off because suppressing a textbook 4432 takeout double papers over
+  the continuation bug.
+- Gladiator's contested-continuation authoring landed as commit `fea2bcf`
+  (2026-07-13); the verdict and re-measures live in the
+  `set_nt_overcall_gladiator` row.
+- `[project_*]` / `[feedback_*]` labels throughout this index name Claude
+  memory files that were folded into the docs on 2026-08-16; the verdicts are
+  inline here, the labels are provenance only.

@@ -674,3 +674,15 @@ without the A/B in [`../measurement.md`](../measurement.md).
     `strings` misses them (this is why `calculated bid` needed a byte scan).
 - FFI/ABI reused from `examples/bba-match` + the removed `bba-wj-reference`
   spike (git `7d82918`).
+
+## Ledger (memory compaction, 2026-08-16)
+
+- ⚠ **`probable_levels` index discrepancy.** The session-7A binding record says
+  the 9 entries are strains at **0–4**, a live undecoded entry **5**, and zeros at
+  **6–8**. §6 currently says "0..5 are the strains" and "6..9 are always 0",
+  which cannot fit nine entries. Preserve the measured 0–4/5/6–8 record pending
+  a fresh ABI self-check.
+- ⚠ **`get_sd_tricks` interpretation discrepancy.** §6 calls its two returned
+  arrays "a distribution", while §5.5's decompile says BBA carries no trick
+  distribution and only evaluates `deviation ∈ {−1,0,+1}`. The function remains
+  unbound, so both claims stay recorded until its two arrays are decoded.

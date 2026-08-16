@@ -279,3 +279,9 @@ no win there), which makes it much smaller than it looked. Recommended order:
 
 Phases 3 and 5 wait on the gate-check (does M6 already reach the slams?) and on
 M5.2 respectively.
+
+## Ledger (memory compaction, 2026-08-16)
+
+- Rule replay first shipped default-off in `d8146c9`; rebasing-aware
+  authored-node gating landed in `22e6680` and `432054c` before the documented
+  default-on flip in `74d783d`.

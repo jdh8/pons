@@ -618,3 +618,31 @@ nudge. Any dump delta is a translation bug: fix it, never re-bless.
 
 The port campaign is complete. Phase 2 cross-side assembly and Phase 3 knob
 migration remain open above.
+
+## Ledger (memory compaction, 2026-08-16)
+
+- Historical commit map omitted by the batch summaries: Phase 0 was `60e5695`
+  (layer + sections 1–2), `aa8e997` (fine-grained rows + section 11), and
+  `cd0464f` (exact nodes + weak-two defense); Phase-1 batch 1 was `debe656` /
+  `2d0cad4`, batch 2 `318981b`, batches 3–4 `8da6a78`, Woolsey `501c0a4`, and
+  the first batch-7 classifier payload `829d26d`.
+- The 2026-08-06 variable-row sequence was C0 `ba99cd9` (grammar), C1
+  `6ae2c82` (per-overcall direct seat), C2 `d2e0561` (`other_major`), C3
+  `1f1cbda` (dash), C4 `5ab2e5f` (`points_by_vul`), C5 `e7621f2` (weak-twos
+  pilot), C6 `d506ebb` (hatches batch 1), then C7 hatches batch 2 with A/B
+  `SEED_BASE=1785989504`. At C7 close the hatch census was seven (three
+  rebases, two wildcard tails, two logit transplants); the current census is
+  nine because the two game-backstop wildcard tails arrived later.
+- A `classified` table converted to authored `Rules` is reading-inert under the
+  shipped alerted-only scope only while those rules remain **unalerted**;
+  adding `.alert(…)` is a reading change and needs measurement. C7's Cachalot
+  conversion relied on this, not on classifier opacity.
+- RKCB's allocation-only renderer jump was 3 526 → 4 390 nodes, 3 906 added
+  lines and zero deleted: 864 tables previously hidden by pointer-identity
+  deduplication. Use an auction-keyed no-dedup dump when a port changes `Arc`
+  sharing. The historical verification arms had to turn
+  `major_game_tries`, `limit_raise_acceptance`, and `rkcb_minors` **off** because
+  all three defaults were on; `RkcbVariant::Kickback` moved no book node.
+- For two-binary A/Bs, build the base worktree with its own target directory
+  and `cmp` the binaries before launch. Sharing `CARGO_TARGET_DIR` once let
+  Cargo reuse the candidate build and produced two identical binaries.

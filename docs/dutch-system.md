@@ -72,6 +72,11 @@ the floor's transfer-completion still holds.
 | WJ-floor | Distil BBA-WJ as the floor over Dutch's divergent minors | **A/B A WON** (floor swap, +0.18/+0.28 plain, shipped); **A/B B LOST** (WJ over 1♦, −0.005/−0.017 PD — inherited overbid); **A/B C LOST** (WJ as *constructive* floor under 1♣, −0.012/−0.029 — nets have no settle rail); both routings removed, net kept; Phase 3's two-level rows are the remaining arm |
 | rows | Port `dutch_book()` to declarative rows — batches D0 (Dutch inertness harness) and D1 | **DONE** — byte-identical smoke (`956b99de…`) and full-book render (`c1bf4a15…`); [campaign checklist](declarative-rows.md#port-checklist) complete |
 
+Implementation provenance for the early imperative campaign: Phases 0–1
+`5219b5b`; Phase 2.1 `945c1ae`; Wide6322 correction `f92b906`; Phase 2.2
+increment 1 `abe8d0c`; increment 2 opener-only cut `7c38091`, completed
+responder side `7122756`.
+
 **Inherited, now default-on: the competitive accountant** *(2026-08-12)*. The
 floor-side gate that prices the contested game-level node
 ([ai-bidder/competitive-accountant.md](ai-bidder/competitive-accountant.md)) sits
@@ -352,6 +357,9 @@ the question rather than re-litigating which net floors it.
 `bba-wj-reference` binary, which records EPBot's own
 `get_info_meaning_extended` disclosure beside each hand):
 
+Harvest provenance: seed `20260720`; the source was deleted in `6d3fc62`, but
+the binary survives at `target/release/examples/bba-wj-reference`.
+
 | BBA-WJ opening | What it actually is |
 | --- | --- |
 | `2♦` (n=9166) | `Multi`, **weak-only** — declared `H/S [0,6]`, pts `[4,10]`; observed HCP 1–10, always a 6+ major. No strong variant at all |
@@ -563,6 +571,19 @@ game cap leaking slams. Everything responder bids here is natural (notrump / pas
 projecting no suit), so no alert is carried and `dutch_artificial_calls_are_alerted`
 passes untouched. The `responder_continues_after_opener_rebid` test locks in the
 fix.
+
+**Historical RKCB probe — tried and abandoned (2026-07-19).** The probe reused
+`american::slam::install_rkcb` on the `1♣ - 2♦` diamond fit, splitting opener's
+raise into `3♦` (≤16) / `4♦` (17+) and gating responder's ask on support points.
+A git-arms run (640k boards × 2 vulnerabilities) was marginally positive:
+plain +0.0002/+0.0003 per board, +2.98/+3.78 IMPs/fired, but fired on only
+~0.01% (~44 boards). The signal rested on an unsound wide-minimum `3♦` ask:
+high `5♥`/`5♠` answers cramped the minor auction above 5♦ and forced 6♦ off
+keycards (`no_room_six`, −10…−13), while a double of the artificial `5♥`
+answer stranded the floor in `5♥X` on a phantom heart misfit (−15…−18).
+Every disaster was on `3♦`; the clean `4♦` branch was too rare to price alone.
+Verdict: retain the game cap; do not ask keycards opposite a wide minimum in a
+minor, and remember that doubled artificial answers need an authored escape.
 
 ### Phase 1 notes
 

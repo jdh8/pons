@@ -67,7 +67,13 @@ auction + hand
   rule-less is not enough if any catch-all matches). Adding a smart floor rule
   under a live book node is dead code. Verify a floor rule fires through the
   full `Partnership`, not bare `instinct()` — the `ab-instinct-floor` telemetry
-  shows activations.
+  shows activations. Corollary: a node whose catch-all is finite for every
+  hand (`Pass, 0.0, hcp(0..)`, as `defense_to_suit` at `[1X]`) shadows the
+  floor for *every* deeper auction resolving back to it, so stripping its
+  other rules does not make it floor-transparent — **delete the node**. Rubens
+  advances paid for this seam in commit `792710c`, which removed the
+  finite-catch-all `advances()` nodes from both defenses so the floor could
+  own those calls; re-adding a book `advances()` node would shadow them again.
 - **Every rule table ends in a finite catch-all** — a table that can reject
   every hand once produced a degenerate best-call (the 7NT bug). The flip
   side: rejecting is *how* a node hands a position to the floor, so an
@@ -75,7 +81,10 @@ auction + hand
 - **The floor partition**: learned floors (neural, live search) wrap the
   competitive and defensive books **only**; the constructive book is floored
   by deterministic `instinct()`. Measured, not just triage: the net on
-  constructive play loses 0.8 IMPs/board to `instinct()`. Keep the partition.
+  constructive play loses 0.8 IMPs/board to `instinct()`. The 2026-06
+  `constructive-abc` run used 2 000 none-vulnerable boards: live `SearchFloor`
+  tied at +0.002 but was about 1 000× slower; only ~28% of the old corpus was
+  constructive, and its teacher used `instinct()` there. Keep the partition.
 - `instinct()` is keyless except for reading **our own strong notrump**: it
   completes Jacoby/Texas transfers and refuses to pass out a forced game.
   Deep conventional continuations that run off-book should be caught by a
@@ -94,6 +103,31 @@ auction + hand
   twice in one campaign (N1b's doubled ask passed out in `3♥x`; N1c's
   interference hole, −4.68 PD/fired vul —
   [one-notrump-competitive.md](one-notrump-competitive.md)).
+
+### Settle floor and the rejected TTL
+
+The shipped settle floor (`set_settle_floor`, default on, commit `9badc15`)
+treats Pass as playing the current contract with its real X/XX, permits a
+penalty pass of partner's takeout double, and requires values for a voluntary
+four-level free bid. Its 200 000-board Stage-1 verdict and plain-DD recheck are
+recorded in `CHANGELOG.md` under “Pass = play the top bid.” Because this is a
+deterministic-floor change, changing its scorer alone does not imply retraining;
+only feeding that scorer into the search teacher would.
+
+⚠ Two PD figures exist for that shipped run: a later plain-DD recheck quotes
+the same **+0.178/+0.294** plain result against **+0.270/+0.379 PD**, while
+`CHANGELOG.md` records **+0.264/+0.372 PD** (200 000 boards). No second seed
+was recorded, so both stand until their provenance is identified.
+
+The proposed Stage 2 “the floor buys the contract once” TTL was built and
+reverted. It used off-book bid count, excluding authored bids through
+`Context::prefixes()` book depth. Bare TTL measured **+0.851 PD but −0.401
+plain DD IMPs/board**; a level-≥4 gate still measured **−0.018 plain**, and
+level ≥5 was inert (**0.00**). The PD win came from `ns_score_pd` synthetically
+doubling the competitive contracts TTL declined to bid. A hop limit keyed on
+climb distance damps makeable and failing jumps alike, so it is orthogonal to
+double-dummy make-ness; its obstruction/judgement thesis needs single-dummy
+evidence. The design was therefore judged unsound, not deferred.
 
 ## The Constraint DSL (`constraint.rs`)
 

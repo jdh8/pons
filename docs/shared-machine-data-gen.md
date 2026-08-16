@@ -85,6 +85,41 @@ single run saturates the cores cleanly. **Chain multi-config sweeps sequentially
 (`for … do …; done` or `&&`); only genuinely single-threaded jobs are safe to
 idle-run in parallel.
 
+## Check for live A/Bs before building or editing
+
+Parallel sessions use this checkout. Before any `cargo build`/`test`/`run`, or
+any source edit under `src/` or `examples/`, check both the process list and
+fresh result mtimes:
+
+```sh
+pgrep -af 'bba-gen-parallel|examples/bba-gen|scripts/ab-'
+find ab-results -type f -mmin -5 -print
+```
+
+If an A/B is live, do not rebuild or edit its source until it finishes. Match
+the actual runner/script names: the binary is `bba-gen` (hyphenated), and BEN
+`gameapi.py` servers can also sit below `idle-run.sh`, so `idle-run` alone is
+not evidence of a bidding A/B. This check caught a parallel session running
+`ab-completion-alerts` on 2026-08-14; a resumed runner can rebuild through
+`ab-lib.sh`, so even a source-only edit can poison its later arm.
+
+## The poker worker on this box
+
+The systemd user unit `poker-worker@lines-mtt89.service` (`solve-gen tables`)
+shares the CPU. jdh8 granted standing authorization on 2026-07-29 to stop it
+before a CPU-intensive bidding run and restore it immediately afterward:
+
+```sh
+systemctl --user stop poker-worker@lines-mtt89.service
+systemctl --user start poker-worker@lines-mtt89.service
+systemctl --user status poker-worker@lines-mtt89.service
+```
+
+Prefer `systemctl stop` to `kill -STOP`: measured 2026-07-30, the worker held
+~19.6 GiB RSS on a 61 GiB no-swap box with ~9 GiB available, and a stopped
+process keeps that memory pinned. The bidding run still belongs under
+`scripts/idle-run.sh`; other users share the machine too.
+
 ## Seed hygiene: fresh hands per experiment
 
 Reusing the same small seeds (`--seed 0..31`, the old `bba-gen-parallel.sh`

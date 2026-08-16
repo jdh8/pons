@@ -1,7 +1,8 @@
 # The `.pdd` deal banks — standing rules and the slice ledger
 
-The banks at `/nfs2/jdh8/pons/` are pre-solved deals: each row is a deal plus
-its double-dummy table, so a consumer reads them with **no solver running**.
+The banks moved to `/nfs2/jdh8/pons/` on 2026-07-23. They are pre-solved
+deals: each row is a deal plus its double-dummy table, so a consumer reads them
+with **no solver running**.
 That is the whole point — the solver is the expensive part of every experiment,
 and the bank is a few gigabytes of it already paid for.
 
@@ -27,8 +28,10 @@ Both halves matter, for different reasons:
   satisfy this by construction, at the cost of running the solver live. That
   cost is the price of an honest number.
 
-**Keep `24.pdd` and `22.pdd` byte-stable.** Experiments cite them by row
-offset; appending or rewriting invalidates every recorded slice in this repo.
+**Keep `24.pdd` and `22.pdd` byte-stable.** Their generating seeds were not
+recorded, and experiments cite them by absolute row offset; deleting,
+regenerating, appending, or rewriting either bank invalidates every recorded
+slice and prevents exact net reproduction.
 
 ### Training draws do not advance the never-replay cursor
 

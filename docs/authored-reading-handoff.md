@@ -690,3 +690,11 @@ the `2NT` relay row no longer the lane's worst per board; `1NT 2♥ 2♠ -` read
 | 2026-08-16 | Phase 0b **reach census**: only alerted ceilings project, so the fix touches **one lane** | the four floor-workaround nodes do not qualify — `pass_out`×2 are Phase 2 near-misses, the other two need a ceiling authored, `accept_invitation` was never in scope (its node sits over a level-2 notrump call; docstring corrected) |
 | 2026-08-16 | **C2 (`reading.upgrade_closure`) re-measured on the trigger Phase 1 met** — `scripts/ab-upgrade-closure.sh`, 3 seeds × 204,800 bd/arm/vul | **SHIPPED default-on**: 12/12 cells positive (+0.00015 plain / +0.00024 PD NV, +0.00016 / +0.00022 vul). `legacy_view`'s clone now folds C2 off too — unshielded it measures **−0.0037/bd on 18 of 20,480 deals** (talks the evaluator out of slams), shielded **+0.0006 on 2**. Smoke `f33d8caf…` → `edb618b8…`; exclusion 2.114% → 2.114% |
 | 2026-08-16 | **SHIPPED both default-on** on jdh8's call — branch 2 by intent, not branch 1 by letter | 6 tests moved, 5 of them pinning the old bug (Landy `8..37`→`8..15`, Woolsey `10..37`→`10..19`, both matching their own configured `convention_points`); cards byte-identical; smoke `18aba5ce…` → `cf583ff5…`; example flags converted to `Option<bool>` opt-outs |
+
+### Memory compaction notes (2026-08-16)
+
+- The refused ceiling consumers shipped as opt-in surfaces in `f6a6657b`; the
+  canonical refusal write-up was recorded in `7451c4f0`. The one-off census
+  script was deliberately not retained.
+- Older notes calling `strength_ceilings` and `legacy_view` "default-off
+  pending a ship call" are stale: both shipped default-on 2026-08-16.

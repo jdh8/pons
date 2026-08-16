@@ -184,6 +184,17 @@ earlier point-count distillation (K ≈ 2.5, Q ≈ 1.4, J ≈ 0.75, T ≈ 0.3) f
 different basis — honour *sets* per holding rather than free per-honour counts.
 Work 4-3-2-1 overvalues the king and ignores the ten.
 
+The earlier `examples/eval-pointcount` fit used 200k pre-solved pair samples.
+Free honour weights improved R² by only **0.017** (about **0.05 tricks σ**) over
+calibrated 4-3-2-1, while one shortness term bought about **0.17 tricks σ** in
+suit contracts and nothing in notrump. Its raw data-count 1NT band selected
+9.51% of hands versus Work's 10.13%; widening it to about 14.5–17.6 matched
+10.14%, and the resulting ace/ten-rich-for-K/Q/J-rich boundary swap was
+**+0.030 ± 0.042 tricks/hand**, statistically zero. The useful property of a
+one-hand point count is therefore partnership coordination, not a tiny increase
+in fit accuracy; extra precision pays when a captain can also use partner's
+inferred range.
+
 Held-out RMSE against single realised deals, tricks:
 
 | model | RMSE |

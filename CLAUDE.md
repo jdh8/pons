@@ -31,6 +31,7 @@ played a long time and read a lot. For 5-card major systems, see my
 | A rule's constraint and its reading disagree; a "reading-only" change moved calls | [docs/reading-drift-handoff.md](docs/reading-drift-handoff.md) — the three reading regimes, why the historical DNF campaign left one uncovered, and why a reading knob is a bidding knob under a neural floor |
 | An authored call reads as less than its rule says (a natural bid reads as nothing, a weak call reads as unlimited); anything touching `ReadingScope`, `Points::project`, or the walk's blankets | [docs/authored-reading-handoff.md](docs/authored-reading-handoff.md) — alert is disclosure, not the reading switch; the floor-only ceilings; the phased program (ceilings → `All` → substitute → retrain) with N2 as the testbed |
 | Competitive book (we open, they interfere) | [docs/competitive-book.md](docs/competitive-book.md) — wiring idiom, package designs, campaign ledger |
+| Our 1NT constructive (opening shape/range, Stayman family, transfers, Puppet, slam structure, the invite/GF seams and their evaluator verdicts) | [docs/one-notrump-constructive.md](docs/one-notrump-constructive.md) — the shipped structure, its knobs, and the A/Bs that chose them; the flat-4333 curse; the BBA comparison |
 | Our 1NT contested (`1NT (2x)`, `1NT - resp (..)`) | [docs/one-notrump-competitive.md](docs/one-notrump-competitive.md) — **their overcalls are artificial** (BBA plays Woolsey Multi-Landy); per-call cost census, book/floor line, package queue |
 | Defensive round-1 redesign (they open, we act: overcalls, 1NT, takeout X) | [docs/defensive-overcalls.md](docs/defensive-overcalls.md) — 1NT + suit overcalls, first package; then [docs/takeout-double-layers.md](docs/takeout-double-layers.md) — the 4-4-major rung table and doubler rebids |
 | Competitive/sacrifice accountant (the contested 5-level decision; P(double), q) | [docs/ai-bidder/competitive-accountant.md](docs/ai-bidder/competitive-accountant.md) — the floor-side gate design; evidence + q calibration in [docs/ai-bidder/doubling-calibration.md](docs/ai-bidder/doubling-calibration.md) |
@@ -120,6 +121,17 @@ two docs above hold the full story; the rules survive summarizing:
   its machines), never a "botnet".
 - Rejected-but-interesting treatments stay as opt-in `set_*` knobs with the
   default system byte-identical — many are single-dummy re-measure candidates.
+- Visibility: plain `pub` by default; `pub(crate)`/`pub(super)` only for a
+  genuine implementation detail that must cross a module boundary (widening
+  to `pub` so `web/` can reach an item is the expected move, not a concession).
+- Tests live in their own file (`foo/tests.rs` beside `foo.rs`, declared
+  `mod tests;`) — never a new inline `mod tests { … }`; move one out when met.
+- In a `//!` module doc whose `pub mod` line the parent also documents, the two
+  blocks merge and resolve in the **parent** scope: fully qualify intra-doc
+  links (`` [`x`][crate::bidding::neural::x] ``) or the rustdoc gate fails
+  without a file:line (grep the quoted text). Links on private items are
+  unchecked. The CI `test` matrix pins stable + 1.93 on ubuntu/macos/windows;
+  a proptest can fail on one cell by RNG luck.
 
 ## Working with me
 
@@ -127,4 +139,15 @@ I am expert in bridge, math, and low-level programming, and I am **learning
 ML** — teach ML concepts grounded in those (inference = matmuls in Rust;
 softmax/logits already live in `src/bidding/array.rs`). Divide big tasks into
 small well-specified chunks for cheaper subagents; keep design and integration
-in the main loop.
+in the main loop. Repetitive, well-specified edits (the same change across N
+files, bulk ledger rows) go to `codex exec` (my Codex subscription), one
+invocation per file, every diff reviewed — Claude subagents are for reasoning,
+not transcription.
+
+Flag dead/unreachable code and doc/spec/code discrepancies explicitly, with a
+proposed reversible default — never silently resolve or ship them. I may need
+time, or a discussion with other players, to decide; keep authoring the rest.
+
+Memory discipline: durable facts (verdicts, numbers, mechanisms, reference
+distillations, rules) belong in these checked-in docs; Claude's memory holds
+only transient state (in flight, owed) plus pointers into the docs.

@@ -311,3 +311,10 @@ and prefer the sound partition).** Classify first, sweep second.
 5. Read the sweep with the table above. Prefer a bridge-sound partition to a
    DD peak that strands a point-band.
 6. Disclosability and soundness can veto a real DD gain — ship the honest card.
+
+## Ledger (memory compaction, 2026-08-16)
+
+- **Reference calibration (2026-06-13):** `contract-bridge` 0.1.3 published
+  `eval::cccc` (Kaplan–Rubens CCCC), validated bit-for-bit against Pavlicek's
+  full table. Pavlicek's summary box has typos; the table's true mean/sd are
+  **10.8724 / 4.7223**.

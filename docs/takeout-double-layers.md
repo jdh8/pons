@@ -283,4 +283,27 @@ The weak-two scope leak the design flagged is **live and visible**: several of
 [`weak_two_defense`](../src/bidding/american/defense/weak_two_defense.rs). Any
 future reopening of this clause must gate it on the opening's level first.
 
+## Ledger (memory compaction, 2026-08-16)
+
+- **Advancer penalty-pass strength cap, 2026-07-29:** narrowing the rich
+  book's conversion with `--ns-advance-penalty-pass-cap {13,15,17}` was
+  refuted (sha 808b7af, seed 1785313075, 32×6400 boards/arm, NV). Cap 13 lost
+  plain −0.0006 ± 0.0005 (−1.95/fired) and PD −0.0008 ± 0.0006
+  (−2.64/fired); cap 15 was similar. Both strong and very weak trump-stack
+  sits earn, so the later major-yield and suit-quality sweeps correctly kept
+  the wide strength band while testing other axes. BBA converted only 8.6% of
+  these advancer hands (median 12 HCP) against our 22.5% (median 11), and
+  shrinking our rate toward BBA's lost the head-to-head A/B. Tooling caveat:
+  `ab-dump-diff`/`ab-dump-sd` print a stale `Delta (run − sit)` label; the
+  reported delta is always ON−OFF.
+- **4432 suppression is measured, not pending.** Minor-opening plain was a
+  wash; the apparent vulnerable major-opening gain (+0.0269 plain) came from
+  an unrelated competitive floor X and its unauthored response, not an
+  unsound opening takeout double. Both `set_suppress_4432_vs_major` and
+  `set_suppress_4432_vs_minor` therefore stay opt-in/default-off. ⚠ The global
+  `docs/bidding-options.md` rows still label both arms “unmeasured”; see the
+  compaction overflow for the index correction.
+- Advance package provenance: `ee63c4b` (5332 discipline), `48badf5` (rich
+  advance), `af66ba7` (Rubens layer), and `8657b22` (longest-first DNF rewrite).
+
 [`advance_2nt`]: ../src/bidding/american/defense/advance_2nt.rs

@@ -150,6 +150,12 @@ Every knob has a [bidding-options.md](bidding-options.md) Engine row and a
 `bba-gen` arm flag (`--no-ns-dnf`, `--ns-gauge-membership`,
 `--ns-sum-closure`, `--ns-upgrade-closure`).
 
+> ⚠ discrepancy (memory compaction, 2026-08-16): the historical matrix
+> above still says `set_dnf_reading` defaults off, while the later FLIP row and
+> current options index record its renamed successor,
+> `set_envelope_union_reading`, **default on since 2026-07-23**. The old cell is
+> preserved as campaign-era state.
+
 ## Chops
 
 Byte-identical chops keep the default system byte-identical (dual-knob
@@ -356,3 +362,13 @@ blind spot above: the floor is wired as `Fallback::classify`.  See
 ceiling", and the 2026-07-26 correction under it — for why they are survivable
 where they sit (every converted site is a mostly-terminal milestone) and what
 each fix costs.
+
+## Ledger (memory compaction, 2026-08-16)
+
+- Commit provenance: the A→E0 wave
+  landed in `10fef18`, chop G in `8a58694`, and the gauge-membership code in
+  `6a87c98`.
+- ⚠ discrepancy: the C1 screen originally called C1 membership-inert from the **0 / 409,708** screen. The later union-level test
+  above found **1,487 / 10,624,694** rejections: exactness holds per box, not for
+  the hulled union. Both measurements are retained because their sample sizes
+  explain the correction.

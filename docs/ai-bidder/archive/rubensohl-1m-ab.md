@@ -80,3 +80,19 @@ The convention-override lever lives in `bba-match` itself: `--our-conv` /
 `--their-conv` take `NAME=0|1` (repeatable), so any named toggle can be flipped on
 either side and IMP'd. The named-convention ABI was ground-truthed (240/258
 round-trip vs 21GF.bbsa) by a throwaway `bba-conv-probe` spike, since removed.
+
+## Ledger (memory compaction, 2026-08-16)
+
+- ⚠ **Correction to the ABI note above:** `epbot_{get,set}_conventions`
+  addresses a **side** (0/1), not a seat; indices ≥2 return −2 from both getter
+  and setter. `epbot_{get,set}_system_type` is per-side too (two slots,
+  defaults `{0, 0}`; index ≥2 reads −2 / writes no-op). The slots are
+  independent. Apply overrides after `set_system`; unknown convention names
+  return 0 and read back 0, so only write/read verification detects a bad row.
+  This supersedes the "seat + name" / "−2 means convention index" explanation.
+- Two 40,000-board follow-ups (2026-06-20). Rubensohl vs Lebensohl after 1m:
+  none **−0.000** CI [−0.005,+0.005], both **−0.001** CI [−0.007,+0.005],
+  ~0.6% divergent. Rubensohl vs both OFF: none **+0.003** CI [−0.003,+0.008],
+  both **−0.002** CI [−0.008,+0.004], ~0.6% divergent. With toggle-105 vs
+  default, all three are DD dead heats; choose on structure/single-dummy
+  evidence.

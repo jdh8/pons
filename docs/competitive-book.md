@@ -226,7 +226,9 @@ shape/suit-quality gate on *which* free bids to make, not a strength floor.
   forcing-or-not both open, and it interacts with the negative double's range —
   so it is deferred to the post-refactor competitive revision, not fixed in a
   port batch. Note that §4d's answer table has no legal rung over a three-level
-  free bid either, so the rung and its answer must be authored together.
+  free bid either, so the rung and its answer must be authored together. The
+  row-layer totality probe first produced an impossible yarborough witness;
+  the gap was logged only after reproducing it with real opening hands.
 
 ## Measurement discipline per package
 
@@ -246,7 +248,7 @@ shape/suit-quality gate on *which* free bids to make, not a strength floor.
 | --- | --- | --- | --- |
 | WS0 renderer | — | **shipped** | render-only, node output byte-identical |
 | P1 two-suiters over 1M | `set_uvu_over_majors` | **SHIPPED default-on** | plain **+0.0019/+0.0018** IMPs/bd NV/vul (CI>0), +1.43/+1.58 IMPs/fired, 0.13/0.11% fired; PD +0.0009/+0.0006 (same sign, CI touches 0). 204.8k bd/arm/vul, SEED_BASE 1783284454, sha bc949dc |
-| P2a weak twos contested | `set_weak_two_competition` | **measured — stays opt-in**; forensic follow-up before re-measure | plain −0.0012/−0.0015 (wash, CI⊇0); PD **−0.0097/−0.0116** (CI<0), −1.50/−1.94 IMPs/fired, 0.64/0.60% fired. Worst-board buckets: values-X over their overcall (no trump gate — leak), contested Ogust (too eager at 14+ — leak), preemptive raises over (X) (obstruction wall — park for sd-lead). 204.8k bd/arm/vul, SEED_BASE 1783284838, sha bc949dc |
+| P2a weak twos contested | `set_weak_two_competition` | **measured — stays opt-in**; forensic follow-up before re-measure | plain −0.0012/−0.0015 (wash, CI⊇0); PD **−0.0097/−0.0116** (CI<0), −1.50/−1.94 IMPs/fired, 0.64/0.60% fired. Worst-board buckets: values-X over their overcall (no trump gate — leak), contested Ogust (too eager at 14+ — leak), preemptive raises over (X) (obstruction wall — park for sd-lead). 204.8k bd/arm/vul, SEED_BASE 1783284838, sha bc949dc. A later fallible-BBA tournament confirmed no hidden obstruction value: plain −0.0002 [−0.0029,+0.0024] / −0.0011 [−0.0043,+0.0022] (wash), PD **−0.0085 [−0.0114,−0.0056] / −0.0102 [−0.0137,−0.0066]** (CI<0), −1.4…−1.8 IMPs/fired at 0.6% fire; 205k bd/arm/vul, sha c23e000, `scripts/weak-two-balancing-ab.sh`. |
 | P2b strong 2♣ contested | `set_strong_two_competition` | **SHIPPED default-on** | plain **+0.0009/+0.0013** IMPs/bd NV/vul, +1.86/+2.79 IMPs/fired; PD **+0.0010/+0.0014**, +2.00/+2.93 IMPs/fired; all four cells CI>0; 0.05% fired. 204.8k bd/arm/vul, SEED_BASE 1783285250, sha bc949dc |
 | P3c major support double | `set_major_support_double` | **SHIPPED default-on** (plain-wash + PD-gain row) | plain −0.0004/+0.0004 (wash, CIs⊇0); PD +0.0009/**+0.0016** (vul CI>0), +0.97/+1.69 IMPs/fired; 0.10% fired. 204.8k bd/arm/vul, SEED_BASE 1783285623, sha bc949dc |
 | P3b free bids | `set_free_bids` | **measured — stays opt-in**; floor sweep done (P3b′) | vs off: plain +0.29 NV (CI>0) / **−0.30 vul (CI<0)**; PD −0.31/−0.88 (CI<0 both). ~2.0% fired. Worst-board bucket: 1-level free bids + the free 1NT get PD-punished vul. SEED_BASE 1783286814, sha bc949dc |
@@ -265,6 +267,19 @@ shape/suit-quality gate on *which* free bids to make, not a strength floor.
 | P6 doubled-splinter systems-on | `set_splinter_doubled` | **SHIPPED default-on**; anchor bucket #4 tail | A double of our game-forcing splinter reroutes opener into the competitive book, where — unauthored — it fell to the floor and *passed* the doubled game force (a four-ace monster passing `4♣x` while the field bids `7♠`). A `FirstIs(Double)` rebase keyed at `1M - splinter` strips the double off the whole subtree so opener + responder's keycard answers resolve systems-on. plain **+0.0059/+0.0079** IMPs/bd NV/vul, PD **+0.0059/+0.0079** (plain ≈ PD — removing *our own* doubled contracts, no artifact); all four CIs>0; +15.4/+17.6 IMPs/fired, 0.04% fired. 204.8k bd/arm/vul, SEED_BASE 1783439089, `scripts/splinter-doubled-ab.sh`. Known tail: a *second* double (of the keycard response) still passes out — 1 board in 79, the standard rebase-tail limitation. |
 | alert invariant over fallbacks | — | follow-up | — |
 | Rubens-clean transfer advances | `FreeBidStyle::RubensClean` (unbuilt) | **deferred design** — the resumable retry of the lost P3f; see below | — |
+
+### Provenance recovered during memory compaction (2026-08-16)
+
+- Campaign authoring commits: WS0 renderer `d6f8d06`; P1 `c97ecbb`; P2
+  `b3eddfb`; P3 `e43424c`; P4 `d3c5a79`.
+- Free-1NT package: isolated range sweep sha `4b7c984`, seed 1783687304; the
+  later anchor at `5b5115d` carried `852e593` (natural 2NT jump), `4002bb0`
+  (reopening NT) and `5847cb0` (rein forced-advance), with the rein sweep at
+  seed 1783696365.
+- Cue-raise first runs: major, seed 1783268095 and 409.6k bd/arm, plain
+  +0.0288/+0.0368 and PD +0.0423/+0.0481 NV/vul; minor, seed 1783271283 and
+  614.4k bd/arm, plain +0.0138/+0.0189 and PD +0.0220/+0.0262. Later A4
+  reruns in `docs/bidding-options.md` are separate measurements.
 
 ## Deferred designs
 

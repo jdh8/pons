@@ -202,6 +202,17 @@ pairing (a watcher that scaled early forced killing 24 unpaired shards).
 Size arms to the fired rate: a 0.2%-firing knob needs 100k+ boards, a
 1–5%-firing convention change reads fine at 25.6k (~30 min at 32-wide).
 
+Detailed throughput sweep on the 32-logical-core box: unpinned 32 instances
+delivered **9.7 boards/s**; pinned 32 and pinned 24 both **9.2 boards/s**;
+pinned 4 delivered **3.0 boards/s**. Throughput saturates around 16 instances,
+so 24 is the efficient steady state when cores/RAM should remain free. Raising
+`TF_NUM_INTRAOP_THREADS` did not help: **101.3 ms/bid at 1 thread vs 104.6
+ms/bid at 8** (100 sequential bids); the launcher's one-thread TF/OMP pin is
+hygiene against idle thread pools, not a speedup. EPBot self-play measured
+~**1760 boards/s**, about **190×** Tier F; that gap is why BBA is the per-fix
+loop and BEN the periodic north-star measurement. Tier F does not invoke DDS;
+for Tier S, use `dds_max_threads=1` with roughly one server per core.
+
 ## Validation plan (ordered; each gates the next)
 
 1. **Live probe at the pinned tag** — **DONE 2026-07-16**: vul absolute,

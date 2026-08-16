@@ -183,6 +183,18 @@ of the archetype finding already recorded in
 is read as Woolsey or as ordinary takeout** (0.7%): BBA's runout does not care
 what the double meant.
 
+**Reading the runout was measured and is inert in the deterministic BBA
+match.** On 2026-06-27, `set_read_their_runout` narrowed responder's transferred
+major after `1NT X 2♦/2♥`; over 20,000 same-seed isolated-defense boards it
+fired on **127 boards and changed 0 auctions**. The reason is structural:
+`instinct()` consumes `partner().points` at its two inference sites and never
+reads an opponent's suit length. Opponent-shape readings belong in the sampled
+DD search path, not this book+instinct path. Bridge-wise the immediate defensive
+actions are also runout-agnostic: double the suit you hold whether their call is
+natural or a transfer, and the completion discloses the real suit one round
+later. Do not retry this as a vs-BBA bidding lever unless the measured path has a
+consumer for opponent shape.
+
 ### `(2NT)` both minors — X, then majors
 
 The census's worst per-board bucket (−1.18/bd, n=118), from their side:

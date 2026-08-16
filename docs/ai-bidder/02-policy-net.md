@@ -215,4 +215,21 @@ rejected. The harness is the judge, not the training loss.
 Next: [`03-description-lm.md`](03-description-lm.md) for Component A, or
 [`04-integration-and-eval.md`](04-integration-and-eval.md) for how this net ships
 and is measured.
+
+## Ledger (memory compaction, 2026-08-16)
+
+- **Policy `upgrade` ablation, round 1 (2026-07-24): keep the fused scalar.**
+  Dropping feature 88 (`features_v3` 88→87) scored plain **−0.027/−0.056** and
+  PD **−0.136/−0.150** NV/vul against the shipped net; a fresh 88-wide control
+  scored plain **−0.019/−0.029**, PD **−0.035/−0.046**, isolating ≈**−0.10 PD**
+  to the feature. The policy suit block `(len, suit_hcp)` cannot distinguish QJ
+  doubleton from Kx, while `upgrade` carries that wasted-honour texture. Near-
+  identical top-1/CE did not predict the IMP loss.
+- **Round 2: decomposing the scalar was worse, not richer.** At `b089f05`, the
+  91-wide `wasted×4` arm scored **−0.040/−0.115** NV and **−0.066/−0.138** vul
+  (plain/PD). Adding `big_two_suiter` in the 92-wide arm lost across all four
+  GPU-seeded draws: means **−0.050/−0.154** NV and **−0.089/−0.180** vul. For a
+  small distiller, the teacher-aligned `upgrade/2` is better conditioned than
+  asking the net to relearn its gated nonlinear formula. `--init-seed` fixed
+  the earlier unseeded ≈0.02–0.05 IMPs/board retrain variance.
 </content>

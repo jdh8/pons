@@ -450,3 +450,30 @@ trigger. Price the trigger density before building.
   minimum): a new dependency class for `Constraint` serving only the
   balancing seat — dead until balancing is book work, which it is not.
 - **`P → X` volume** — see [takeout-double-layers.md](takeout-double-layers.md).
+
+## Ledger (memory compaction, 2026-08-16)
+
+- **Strong-double gauge, 2026-07-29:** `StrongDoubleEdge::Points(18)` stays
+  opt-in; `Hcp(18)` remains shipped. On 1M boards/vul (24.pdd rows
+  44.1M–46.1M; 1.11%/0.96% divergent), Points lost plain −0.0034 ± 0.0014 /
+  −0.0026 ± 0.0016 and PD −0.0057 ± 0.0017 / −0.0043 ± 0.0019 NV/vul (all
+  CIs below zero). The
+  mechanism was the changed direct-Pass projection (`points(..n)` vs
+  `hcp(..n)`), not evidence that pulling 16–17 HCP hands into the strong X was
+  itself wrong: balancing `1♠ → P` lost −4.68/fired ×19, sandwich `P → 1♠`
+  −2.92 ×25, and even constructive `4♠ → 6♠` −9.00 ×13. Price the gate
+  separately from the Pass reading before trying another gauge.
+- **Stopperless residual X, 2026-07-29:** the proposed 16+ direct-seat double
+  with no stopper, no five-card suit and no takeout shape was rejected on
+  theory and reverted. Its residue is a 4333 with four in opener's suit or a
+  4432 with the doubleton in an unbid suit — both are trap passes with strength
+  over opener; doubling only gives opener an escape suit. Every no-five-card
+  residue is balanced, so a stopper already routes it to the 1NT overcall; a
+  16–17 cap is behaviorally inert because 18+ already reaches the strong-X
+  tier. The observed fire rate was ~0.05% (0/6400), bounding aggregate impact
+  near ±0.0005 IMPs/bd, so absence from the table was not evidence of a
+  coverage hole.
+- **Weights and distillation:** swapping the disjoint strong-X and natural
+  two-level-overcall weights is behaviorally inert, but not corpus-inert:
+  `examples/dump-teacher` softmaxes the logits, so such a weight edit changes
+  teacher targets even when argmax never changes.

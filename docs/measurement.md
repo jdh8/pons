@@ -42,6 +42,20 @@ the parts that do not churn: protocol, interpretation, and ship rules.
 5. **Seed hygiene.** `export SEED_BASE=$(date +%s)` **once per experiment**;
    every arm of the experiment reuses it (paired diffs need identical deals).
    The *next* experiment takes a fresh base. Never replay fixed seeds 0..31.
+   **Regenerate the control at HEAD, on that same `SEED_BASE`.** A shared seed
+   buys *deal*-pairing, not *code*-pairing: diffing a fresh treatment arm
+   against an older snapshot's control (e.g. `ab-results/anchor`'s
+   `2026-07-28-3c94802` `american-instinct` arm, 87 `src/bidding` commits
+   stale) read +0.1905/+0.2832 NV where the same-sha control read
+   +0.1745/+0.2540 — a ≈9–11% overstatement, sign not guaranteed. Control
+   generation is ~2 min per vul against hours of DD; snapshot arms are for
+   *longitudinal* series (the anchor), never same-experiment controls.
+   Sibling: when re-measuring to *confirm an older verdict*, diff the **fired
+   rate** against the prior run first — `two_level_minor_overcall_tight`'s
+   2026-07-26 SD-PD reversal (`daf6c0e`) re-run at `abdafcc` went 1.43%/1.49%
+   → 1.76%/1.75% fired (the trigger had widened) and plain DD flipped
+   +0.0015 → −0.0102 ±0.0021 NV; a fired-rate drift means the two runs never
+   covered the same hands, so the "reversal" was a different experiment.
 6. **Run politely and sequentially.** Wrap heavy runs in
    `scripts/idle-run.sh`; run arms one after another, never in parallel (each
    run already saturates the box); **never `cargo build` while an A/B is
@@ -57,6 +71,20 @@ the parts that do not churn: protocol, interpretation, and ship rules.
    where the treatment doesn't apply — all fixable, none "the idea is bad."
 10. **Ship per the [ship rules](#ship-rules)**; record the result in
     `CHANGELOG.md` (and the relevant `docs/ai-bidder/*ledger*` if applicable).
+11. **A refactor claimed inert must be *proven* inert** — a seeded
+    byte-identity diff of the default system across the two commits
+    (`smoke-default`), never an argument from knob defaults: the RKCB knob
+    cull's `announced()` overlay was inert only because an unrelated global
+    split happened to be off ([bba-kickback.md](ai-bidder/bba-kickback.md)
+    ledger).
+
+`ab-dump-diff --show N` is a **selected worst tail**, not a sample. Use it to
+find boards to trace, never to claim a population mechanism until the claim is
+counted over the full arm dumps (`boards[].table_a` / `table_b`). This caught
+two false Texas stories on 2026-07-20: the full 409,600-auction census showed
+SAT's `4♣` was actually the most-doubled call (9.25% vs 8.75%), with doubling
+tracking level rather than variant. If a full count is unavailable, label the
+tail observation unverified.
 
 ## Watching a run
 
@@ -82,6 +110,10 @@ Two failure modes this avoids, both paid for on the Gladiator v6 run:
 - **Chaining the report into the watcher loses the report.** Killing a stuck
   watcher throws away the `ab-dump-diff` output it was going to print. Watch,
   then read the results in a separate command.
+
+**Watcher self-match (2026-07-30):** `while pgrep -f "pass-reading-ab.sh"`
+matched its *own* command line and looped forever. Use a `pgrep -f` pattern
+that cannot occur in the watcher's command, or track the worker PID directly.
 
 ## Scorers (`src/scoring.rs`)
 

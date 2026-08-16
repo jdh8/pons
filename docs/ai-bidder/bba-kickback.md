@@ -1542,3 +1542,13 @@ the card row perturbing the net — part of the knob's price under the
 configured-net design, but not evidence about relocation mechanics. Artifacts:
 dumps and rescore logs under `/mnt/hdd-data/jdh8/pons-ab-results/`
 (`kickback-fair-cell-{none,both}/`, `kickback-rescore-{none,both}.log`).
+
+## Ledger (memory compaction, 2026-08-16)
+
+- The RKCB knob cull's `announced()` overlay changed the fallback `points` leak
+  count 8 → 0; it was bidding-inert only because the global announce-reading
+  split was default-off. This is the concrete reason an inert-refactor claim
+  needs the seeded cross-commit `smoke-default` byte-identity diff, not
+  reasoning from knob defaults. An old harness divergence count is not a
+  substitute: both arms drifted 63,203 → 63,411 after the cull while the
+  shipped system stayed byte-identical.

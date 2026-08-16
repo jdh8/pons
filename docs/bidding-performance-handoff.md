@@ -483,3 +483,56 @@ and allocator-trimmed retained RSS form the completed Stage 6 evidence record.
 - Auction- and hand-dependent inference/evaluator results are cached per decision, or per deal in the append-only step cache, never baked into the trie.
 - No bidding feature, model, reading mode, or convention is disabled to meet the performance target.
 - The historical 17.73 µs figure is a stretch reference, not a release gate; the controlled two-CCD BBA comparison and bit-identical behavior are the shipping criteria.
+
+## Ledger (memory compaction, 2026-08-16)
+
+### E0 test-wallclock diagnosis (fixed 2026-08-09)
+
+- Arming the book-rule walkers' node context with
+  `with_decision_cache(Hand::EMPTY)` cut `cargo nextest run --all-features`
+  from 704 s to **98.9 s**, and
+  `authored_rules_eval_within_projection` from 685 s to **80 s in-suite / 72 s
+  solo**. `Inferences::read` calls fell **1 261 746 → 5 042**. Arm the scope
+  after `with_prefixes`, whose revision bump would otherwise invalidate it.
+- The separate `node_context_memoises_the_uncached_read` check is load-bearing:
+  poisoning the shared read can leave E0 green because eval and projection
+  widen together. `Hand::EMPTY` deliberately misses every 13-card probe, so
+  the hand-dependent trick-estimate slot remains live; `rule_face_slots = 0`
+  likewise keeps face gates live.
+- The residual 72 s is the sweep itself: 110 368 `(auction, rule)` pairs × 132
+  hands; `Envelope::accepts` took 41 s over 13.88M calls (~3 µs each), including
+  6.1 s rereading ~42 thread-local profile cells per box per hand; `Rule::eval`
+  took 29 s, projection 0.7 s, and reads 1.9 s (2.6%). Making one read cheaper
+  was therefore closed as not worth it. Do not cache the two sibling tests:
+  `passes_read_within_their_table` measured 28.08 s → 28.41 s solo, while
+  `deal_cache_preserves_whole_auction` must retain uncached oracles.
+
+### Solver platform decisions
+
+- `pons` stays on the C++-FFI `ddss` solver. The reverted pure-Rust `pons-dds`
+  swap measured on `examples/average-ns-par -c 9990` (2026-05-31): **21.1 s
+  wall / 9m38s CPU** for ddss versus **37.9 s wall / 15m13s CPU** for pons-dds,
+  about 80% slower wall-clock in the real workload. Reconsider only after that
+  gap closes. The retained `AbsoluteVulnerability` API change is recorded in
+  `CHANGELOG.md` under the breaking `stats::average_ns_par` entry.
+- Porting gotchas from that reverted swap: pons-dds is solver-only — no
+  `Vulnerability`, `NonEmptyStrainFlags`, `calculate_par`, or `serde` feature.
+  Its `TrickCountTable` uses `get(strain, seat) -> u8`, not strain indexing or
+  a `TrickCount` newtype. The historical `check-zar` / `check-nltc` examples
+  therefore kept ddss for `calculate_par` (`check-nltc` was later renamed).
+- On the 16-core/32-thread Ryzen 9 7950X3D, pons-dds was ~13% slower serially
+  and ~33% slower in parallel; “32 cores” in the old README meant SMT threads
+  on one NUMA node. The gap was a per-node Rust/C++ floor, not scheduling:
+  PR #2 / `parallel-solver-pool` (persistent large-stack pool, bounded-depth
+  work stealing, notrump-first dispatch) was neutral at 16 cores, though it
+  fixed a latent stack overflow on Rayon's ~2 MiB workers.
+- Search-shape probes closed the cheap alternatives. Move ordering already had
+  98.2% first-move cutoffs and mean cutoff index 1.023. Same-side aspiration
+  seeding cut bisection probes 24% (**3.88 → 2.96**) but ran **4.3% slower**
+  because far probes warmed the transposition table before the expensive
+  boundary; probe count is not probe cost. The serial profile was broad:
+  40% `ab_search_0`, 36% move generation/ordering, 15% TT, with no allocation
+  hotspot. Further gains require uncertain instruction-level hot-loop work.
+- The 7950X3D thermally throttles under sustained load, moving criterion runs
+  by several percent. Compare old/new in the same epoch or cool down; never
+  judge against a stale stored baseline.

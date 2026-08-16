@@ -323,6 +323,24 @@ grep -rn "expected_double\|probable_kontra\|potencjalny_zapis\|korekta_kontraktu
 cargo run --features serde --example probe-bba-bilans -- --self-check
 ```
 
+### Historical calibration incident — the M3.1 7NT flood (2026-06-15)
+
+The seed-1, 3,000-board M3.1 search dump chose **7NT about 1,020 times** at
+off-book advances. `grand-probe` falsified the initial DD-slam-optimism diagnosis:
+the 12/12 sampled nodes were runaway competitive-save auctions, with mean **0.2%
+DD make rate** and ≈**5.1 NT tricks**. Under the points objective 7NT could be the
+least-bad undoubled save (for example −490 rather than pass at −1053); an IMP
+recompute chose the small slam in **12/12**, mean −2.53 IMPs.
+
+Across `target/search-data.f32`, level-7 and level-4 argmax counts were **2,889
+and 2,902** (grand:game **1.00**), 10% of advances were slam+, and 19% were
+doubles (median peak 0.96). The root cause was under-doubled self-play feeding a
+raw-points scorer, not grands that DD expected to make. Pricing every DD-failing
+contract doubled (`ns_score_doubling_failures`, later folded into `ns_score`)
+collapsed a 50-board census from **12.6%→0.4% slam+**, **6.2%→0% grands**, and
+**62% fewer off-book decisions**. This is why q=1 is correct inside the
+perfect-defense rollout even though it is wrong as a live-opponent model below.
+
 ## Named alternatives and their failure modes
 
 The canonical table; the design doc inherits it by reference.

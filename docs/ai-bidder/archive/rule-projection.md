@@ -218,3 +218,9 @@ regression.
   `described()` shapes (deferred, Stage 4)
 - [`verify.rs`](../../../src/bidding/verify.rs) — soundness test (shipped) +
   re-author guards (deferred)
+
+## Ledger (memory compaction, 2026-08-16)
+
+- Fallback projection shipped gated in `596a34b` and default-on in `2a2ac28`
+  (2026-06-28); the temporary `transfer_lebensohl_reading` band-aid (`5497c3e`)
+  was retired in its favor.

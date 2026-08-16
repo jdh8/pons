@@ -83,6 +83,12 @@ Provenance and its limits:
 - BEN's training data is GIB-bid hands, so its *learned* book is
   GIB‑2/1‑shaped; the card above is its *declared* system. The two mostly
   agree — kin to `american()` either way.
+- **⚠ Unresolved provenance discrepancy (carried forward 2026-08-16).**
+  [ben-architecture.md](ben-architecture.md) identifies the bidder as trained
+  on **BBA-8730** auctions from the `-8730-` model names, while this campaign
+  records **GIB-bid hands**. The available vendored/inference-only material
+  does not settle which statement is authoritative; retain both until the
+  upstream training provenance is verified.
 - **Weights-vs-card caveat**: EPBot loaded with BEN's card is BEN's
   *skeleton*, not BEN — EPBot measures ≈0.35 IMPs/bd behind BEN, and that
   edge lives in the weights (search over sampled worlds), not the card.

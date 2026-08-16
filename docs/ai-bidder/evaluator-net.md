@@ -42,6 +42,12 @@ blocks (30 floats) — no calls, no seat, no vulnerability. The auction enters
 hand block does not touch this commitment; it is a claim about the auction, not
 about width.
 
+⚠ **Historical discrepancy (preserved 2026-08-16):** the paragraph above is the
+v1/v2 design commitment, but it is no longer the shipped interface. Evaluator v3
+added the last four bare call identities and won its A/B; see
+[Auction-input ablation](#auction-input-ablation-2026-07-27-the-gate-passes).
+Keep the old rationale as the hypothesis that experiment overturned.
+
 That is what makes the evaluator **bidding-system agnostic**: (own cards,
 ranges) → tricks is physics, true under `american()`, `dutch()`, or any future
 book, so corpora generated under different systems pool into one training set
@@ -212,6 +218,17 @@ A capacity ladder that ends in memorisation rather than in a plateau is a
 binding constraint at 256 units, which is what makes streaming the corpus worth
 building. The rival reading — that 40 input floats are the ceiling and more deals
 would not help either — this ladder cannot exclude.
+
+**The 1M-deal check excluded that rival reading (2026-07-22), but did not ship.**
+At hidden 256, a single-run comparison moved held-out MAE from **1.471** on 100k
+deals to **1.451** on 1M; the **0.020-trick** data gain exceeded the whole
+hidden-64→256 width gain (**0.013**). The artifact is byte-compatible with the
+40-column v1 extractor, but a minimum 2/1 hand (`AQJ52.32.KQ54.92`) moved from
+4♠ to the 4NT keycard ask because that auction read partner as `0..=37`; the
+sharper net exposed the wide-envelope bug. A bundled A/B (seed **1784653232**,
+200k/arm) read plain **+0.078/+0.124** and PD **+0.062/+0.090**, but included a
+since-deleted safety gate. Fix the reading before the still-owed weights-only
+rerun; do not move the bridge-judgment tests to bless the artifact.
 
 **Cost is no longer the objection.** MLP-256 is 86,016 MACs against MLP-64's
 9,216, but since the forward pass moved to nalgebra (`9023796`) a 256-wide
@@ -821,6 +838,15 @@ bought — shows up first as *fewer* contracts bid past their break-even.
   consistent hand falls inside the envelope, and opaque predicates project to
   `unknown()`. The net learns how much a loose envelope really pins down — that
   *is* the spread.
+- **Use value estimates where the caller is captain, not where it describes.**
+  An opener/overcaller should disclose a range crisply; a scalar value net earns
+  its keep when responder/advancer integrates that range and chooses the
+  contract. The deterministic floor substitutes `partner.points.min` for
+  `E[score | partner range]`, so its downward bias grows with a describer's
+  width (small opposite 15–17 NT, large opposite a 10–20 one-level opening).
+  Slice the disclosed range, locate where the best contract flips, then author
+  the extraction dialogue or acceptance boundary; do not hide a value net
+  inside a constructive rule that must project its meaning.
 - **Wide envelopes bias the gates upward — the competitive-auction note.**
   When the accountant floor shipped default-on (2026-07-21) it changed six floor
   positions, and *every* competitive one moved up a level: a limit raise over a

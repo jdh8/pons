@@ -845,3 +845,16 @@ verdicts get corrected in the ledgers, flips are a separate decision.
 
 These were live filtered BBA runs, not `24.pdd` slices: the campaign cursor
 remains **38,700,000**.
+
+## Ledger (memory compaction, 2026-08-16)
+
+- **2026-07-14 continuous-upgrade experiment (unmeasured).**
+  `set_continuous_upgrade` was implemented default-off and byte-identical when
+  off: `round(½·(2·l3 + l2 − l0 − 10))`, minus 1 per wasted short suit; flat
+  4333 = −1 and wild shapes can exceed +2. It rounded at the `point_count`
+  boundary, and `Hcp::project` dropped its floor by `MAX_HCP_DOWNGRADE = 2`. A
+  full-floor dual-score A/B remained owed; on a loss, compare
+  `fit_sum(raw_hcp)` with `fit_sum(point_count)` to isolate the fit-sum gate's
+  length double-counting. As of 2026-08-16 the symbol is absent from code and
+  checked-in docs — reconcile whether it was intentionally dropped before
+  attempting the A/B.
