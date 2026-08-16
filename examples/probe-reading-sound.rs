@@ -365,5 +365,37 @@ fn main() -> anyhow::Result<()> {
             cell.bad_announced,
         );
     }
+
+    // The same nodes ranked by *rate*.  Ranking by count alone hid the
+    // side-blind 1NT-overcall strip — ~90% wrong across a few dozen readings,
+    // so it sat below `1♦` at 1.5% of 4,056 — and a node that is nearly always
+    // wrong is the interesting one however rarely it is reached.  The floor
+    // keeps single-digit nodes, whose rate is noise, out of the top slots.
+    const RATE_FLOOR: u64 = 10;
+    keys.retain(|(_, cell)| cell.readings >= RATE_FLOOR);
+    let rated = keys.len();
+    keys.sort_unstable_by(|a, b| {
+        (b.1.pct(b.1.bad))
+            .total_cmp(&a.1.pct(a.1.bad))
+            .then_with(|| b.1.bad.cmp(&a.1.bad))
+            .then_with(|| a.0.cmp(&b.0))
+    });
+    println!(
+        "\npartner worklist: top {} nodes by excluded *rate* (of {rated} with ≥ {RATE_FLOOR} readings)\n",
+        args.top.min(rated),
+    );
+    println!(
+        "{:>9} {:>10} {:>10} {:>10}  node (auction through partner's call)",
+        "%", "admits✗", "readings", "announce✗"
+    );
+    for (key, cell) in keys.iter().take(args.top) {
+        println!(
+            "{:>8.2}% {:>10} {:>10} {:>10}  {key}",
+            cell.pct(cell.bad),
+            cell.bad,
+            cell.readings,
+            cell.bad_announced,
+        );
+    }
     Ok(())
 }

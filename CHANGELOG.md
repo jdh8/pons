@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`probe-reading-sound` ranks its partner worklist by rate as well as
+  count.** A second table sorts the same nodes by excluded-reading *rate*
+  with a floor of 10 readings — a node that is nearly always wrong now
+  surfaces however rarely it is reached, which is what ranking by count alone
+  hid about the side-blind 1NT-overcall strip. Print-only, no new flag.
+
+  Its first run files three ~always-wrong nodes that the count table buried:
+  `1♥ - 2NT - 4♥` (25/25) and `1♠ - 2NT - 4♠` (17/17), where the Jacoby
+  minimum 4M is authored as a bare `hcp(0..)` catch-all, so it projects
+  nothing and the walk's jump ladder reads opener at 16–21 points — the
+  inverse of "minimum"; and the Ogust `3♣` answer (77–95% across `2♦/2♥/2♠`),
+  which is unread and so reads as a natural four-card club suit. Filed, not
+  fixed: each is a bidding change owing its own A/B.
+
 - **The web UI now keeps independent North–South and East–West system
   settings.** Practice and Demo seat both profiles with their opponent cards
   and books declared, while Book has an NS/EW selector for the exact authored
