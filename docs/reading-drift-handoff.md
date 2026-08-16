@@ -168,10 +168,13 @@ has attributed that 3.3% to specific nodes.
    - the rule is genuinely conventional → alert it, and let regime 1 read it.
      Cheaper to write, but it changes disclosure and the `.bbsa` cards, so it
      is an A/B, not a desk fix.
-4. **Regime 2 projects under `ReadingScope::All`, default held at `Alerted`**
-   (`bba-gen --ns-reading-scope all`). This was originally built on 2026-07-31
-   as `set_natural_reading`; Phase 2 replaced the old boolean CLI and measured
-   the complete arm. Two implementation choices remain worth knowing:
+4. **Regime 2 projects under `ReadingScope::All`, the default since
+   2026-08-16** (`bba-gen --ns-reading-scope alerted` is the old arm). This was
+   originally built on 2026-07-31 as `set_natural_reading`; Phase 2 replaced
+   the old boolean CLI, measured the complete arm, held it on a PD loss, traced
+   the loss to the side-blind systems-on strip, fixed that, and re-measured
+   12/12 cells positive (docs/authored-reading-handoff.md). Two implementation
+   choices remain worth knowing:
 
    - It **intersects with** the walk rather than replacing it: an unalerted call
      does **not** set its suppression bit. Suppressing a natural call would

@@ -590,7 +590,7 @@ soundness correction; a loss traces its worst boards before any conclusion.
 | 0b | **`opener_forced_past_invitation` learns the sign-off** | instinct.rs forces to game off *any* partner three-level suit bid over our strong 1NT, Lebensohl sign-offs included; the rail then bypasses the net and pre-satisfies the milestone `Or` | `instinct.forcing_ceiling_read`, default off; `bba-gen --ns-forcing-ceiling-read`, `PROBE_FORCING_CEILING=1`, web knob | standard; **a wash ships it** (pre-agreed with jdh8 before the numbers) | **SHIPPED default-on 2026-08-16.** Probe: `P 9.001` over `3NT 7.792`. Reach censused at **one lane** — the four "workaround" nodes do not qualify, `pass_out` re-files to Phase 2. A/B 3 seeds × 204,800 bd/arm/vul, **12/12 cells positive** (+0.0001 plain / +0.0003 PD both vuls), firing 0.01%. Smoke `cf583ff5…` → `f33d8caf…`; cards byte-identical |
 | 0 | **N2a** — opener passes the relay's minor sign-off | book node (`{relay} 3♦ -` → `Pass`, a `landy_signoff_answer` twin) shadows the floor; independent of every reading phase | knobless; measure on `--filter-1nt` | standard | queued — cheapest, fixes 16/18 regardless |
 | 1 | **Strength ceilings** | `Points::project` / `Hcp::project` / `SupportPoints::project` → band | `reading.strength_ceilings` **+ `DecisionProfile::legacy_view`, both default-on since 2026-08-16**; pre-ship arm is `bba-gen --ns-strength-ceilings false --ns-legacy-view false` | admits sweep + `probe-reading-sound` unchanged-or-better; A/B | **SHIPPED 2026-08-16.** Soundness gate green (E0 book-wide + 4-cell behavioural grid + probe partner 2.114→2.105%); A/B 3 seeds raw + 1 legacy — raw leans plain-DD-negative, **legacy arm 3 boards/204,800, 4/4 cells positive, ~1% cost**. Shipped on the legacy arm. Cards byte-identical; smoke re-based `18aba5ce…` → `cf583ff5…`. C2's re-open trigger ("a two-sided forward projection") is met by it — **and C2 shipped on it the same day**, 12/12 cells positive once `legacy_view` shields the nets from it too (ledger below) |
-| 2 | **`ReadingScope::All`** as default | built; drop the alert gate | `--ns-reading-scope all`; omission inherits `Alerted` | clear the empty-box worklist before measuring (`probe-reading-sound --ns-reading-scope all`, bucketed); whole-book non-loss under plain DD and PD at both vulnerabilities | **HELD 2026-08-16.** Soundness passed and plain DD leaned positive, but PD lost at both vulnerabilities on all three whole-book seeds. `Alerted` remains the default and the two `pass_out` nodes remain; explicit `All`, the scope CLI, and complete `legacy_view` are retained for diagnosis/retest. |
+| 2 | **`ReadingScope::All`** as default | built; drop the alert gate | `--ns-reading-scope all` (default); `alerted` is the off arm | clear the empty-box worklist before measuring (`probe-reading-sound --ns-reading-scope all`, bucketed); whole-book non-loss under plain DD and PD at both vulnerabilities | **SHIPPED default-on 2026-08-16.** First run held (PD loss, all six cells); its forensic found the whole loss in the four `1x (1NT)` lanes — the side-blind systems-on strip — and with that fixed (nets held by `legacy_view`) 3 seeds × 204,800 bd/arm/vul read **12/12 cells positive**, plain +0.0078…+0.0125 / PD +0.0073…+0.0111. Smoke `edb618b8…` → `bdd1a80e…`; cards byte-identical. The two `pass_out` nodes stay (their deletion is its own A/B) |
 | 3 | **Substitute, don't intersect** | authored calls set suppression; walk bookkeeping from the projection; retire `nt_blanket` & co. for authored calls | two-binary (a refactor, not a knob) | byte-identity where projection ⊇ walk is *not* expected — this moves readings by design; A/B | queued behind 2 |
 | 4 | Negative inference | fold `project_complement` of higher rules | knob | admits sweep (must stay green — it tightens) | later |
 | 5 | **features_v6 + retrain** | honest reading in, `legacy_view` and `net_points` fold out | F2b recipe (dump, held-out gate, twin, flip) | held-out NLL/MAE ≥ shipped; A/B of the flip | after 1-3 land |
@@ -601,7 +601,11 @@ makes possible (once every authored call projects, the walk's exceptions have
 nothing left to protect); 5 last because it is the only phase that cannot be
 undone with a knob.
 
-## Phase 2 measurement — held
+## Phase 2 measurement — held, then shipped
+
+*(The hold below stood for an afternoon; the forensic that follows it found
+the loss was one lane's reading bug, and `All` shipped default-on the same
+day.  Kept as written: the numbers and the trap are the record.)*
 
 The paired binaries were built from control HEAD
 `c9a69ad20fd55d9619af1c5bd83ccc87170ffffb`. No treatment commit was created;
@@ -652,6 +656,114 @@ The shipped package therefore preserves the deliberately rebased
 `edb618b8cba3aec2a4d434680039a176d4276392059ddd4555cbac511490e804`.
 The generated American and Dutch cards and the alert-site fixture remain
 byte-identical.
+
+### The forensic — one lane, one bug (2026-08-16)
+
+The iron rule ("trace the worst boards before declaring a loss dead") paid
+out in an afternoon.  `ab-dump-bucket --by lane` (new: buckets every
+divergent board by the opening and the first call over it, PD-sorted) on the
+arms above, no regeneration:
+
+| cell | `1♣ (1NT)` | `1♦ (1NT)` | `1♥ (1NT)` | `1♠ (1NT)` | **four lanes** | **rest of the book** | total PD |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| s1 NV | −650 | −500 | −896 | −459 | **−2,505** | **+1,672** | −833 |
+| s2 vul | −687 | −650 | −648 | −636 | **−2,621** | **+1,272** | −1,349 |
+| s3 NV | −474 | −547 | −376 | −651 | **−2,048** | **+1,552** | −496 |
+
+**We open a suit, BBA overcalls 1NT** is the whole loss; every other lane —
+1NT openings, 2/1, weak twos, contested minors, our own 1NT overcalls — is
+net positive under `All` on both scorers.  Not a retune, not a retrain, not
+Phase 3: `probe-decision "K6542.Q5.KT8.A96" "- 1♠ 1NT X -"` read partner's
+negative double as **`points 15+`** under `Alerted` and **`hcp 15+, every suit
+2–5`** under `All`, and RHO's `1NT` overcall as ⊤ under `All`.
+
+Root cause: [`systems_on_overcall_strip`](../src/bidding/inference/read.rs)
+matched *shape* only — "a one-suit opening immediately overcalled 1NT" —
+never *side*.  When they overcall our opening it stripped **our** opening
+and read the rest as an opening-1NT auction *by them*: partner's negative X
+became `penalty_x_reading`'s "our penalty double of their 1NT" (15+ under
+`Alerted`; under `All` the defensive book's own `(1NT) X` rule projected on
+top — 15+ balanced), partner's free bid an overcall of a 1NT opening, and
+opener's own suit vanished.  Nothing hand-authored at `P* 1x (1NT)` was ever
+read — including the *alerted* negative double.  So the bug also lives on
+`main`; `All` merely sharpened a loose wrong box into a tight wrong one and
+sent opener pulling the "penalty" double into doubled partscores
+(−3/fired across the lane).  The soundness probe's top-20 worklist missed it
+because the node is rare per prefix (a few dozen readings in 40k boards)
+though ~90% wrong when it fires — a **rate**, not a **count**, worklist would
+have caught it; noted under Decisions.
+
+Fix (`read.rs`): the strip fires only when the 1NT overcaller is our side
+(`(len − (open+1))` even), and the walk reads *their* direct 1NT overcall of
+our one-suit opening off their scheme's opening-1NT box (`apply_opening` with
+`their_profile`) — the very box the strip used to deliver by accident, so
+responder still sees 15–17 balanced.  Pinned by
+`their_one_notrump_overcall_does_not_strip_our_opening` (fails on the old
+strip: partner read `hcp 15..`).  Their advancer's calls now read off the
+natural walk instead of the stripped 1NT-response structure (probed: their
+`2♣` reads ⊤ before and after, their `2♥` still reads as a spade transfer) —
+opponents' seat, left for the declared-opponent program.
+
+**Measured** (204,800 boards/arm/vul each; IMPs/board ±95% CI):
+
+| arm | seed | vul | plain DD | PD | fired |
+| --- | --- | --- | ---: | ---: | ---: |
+| **A-raw**: fix alone vs `main`, nets unshielded | 1786890931 | NV | −0.0007 ±0.0009 | −0.0016 ±0.0012 | 333 (0.16%) |
+| | | vul | −0.0014 ±0.0012 | −0.0025 ±0.0015 | ~290 |
+| **B-raw**: `All` on the raw fix, vs the raw fix | 1786891656 | NV | **+0.0092 ±0.0024** | **+0.0087 ±0.0025** | 1,014 (0.50%) |
+| | | vul | **+0.0131 ±0.0030** | **+0.0118 ±0.0032** | ~1,110 |
+
+Two lessons.  **B**: with the lane fixed, Phase 2 is a clean win on both
+scorers, both vulnerabilities — seven times the size of the held run's
+plain-DD lean, PD now *agreeing* with plain.  **A**: the fix alone loses
+through the **frozen nets** — `probe-decision "AQ63.QT4.Q.KQ763" "- - 1♣ 1NT
+- -"`: the truth now reads partner's pass as `0..11` where the strip read ⊤,
+and the v5 floor, fit on ⊤ at that node, reopens `2♠` on a four-card suit
+(`2♠ 7.79 / P 6.63`; on `main` `P 8.00 / 2♠ 5.99`).  The same mechanism as
+Phase 1's raw arm, so the same remedy: `legacy_view` now also serves the nets
+the **side-blind strip** (`ReadingProfile::strip_side_blind`, default off; the
+view sets it) — the training-time reading, byte-exact again — while the
+sampler, gates and instinct read the fixed lane.  With the view on the probe's
+truth still reads `0..11` and the floor passes as before.  Retired with the
+view at Phase 5.
+
+**Shielded re-run** — fix binary SHA-256 `1cf2b7e270cf1ade…`, sequential
+under `idle-run` (`ab-results/p2-rescue-run2.sh`), 204,800 boards/arm/vul:
+
+*A′* — the shielded fix alone vs the pinned `main` control (`aeefbc79…`),
+`ab-results/p2-strip-fix-shield-s1`, seed 1786892476: **0 boards fired**
+at either vulnerability.  With the nets held on the side-blind strip and no
+truth consumer acting on the corrected lane, the fix is byte-identical to
+`main` under `Alerted`; `smoke-default --count 20000 --seed 1` stays
+`edb618b8…`.  Seeds 2–3 skipped as redundant.  It ships to `main` on the
+smoke proof.
+
+*B′* — `All` on the shielded fix (`ab-results/p2-reading-all-v2-shield-s{1,2,3}`):
+
+| seed | vul | plain DD | PD | fired |
+| --- | --- | ---: | ---: | ---: |
+| 1786893145 | NV | +0.0078 ±0.0024 | +0.0073 ±0.0025 | 1,069 (0.52%) |
+| 1786893145 | both | +0.0102 ±0.0031 | +0.0088 ±0.0032 | 1,153 (0.56%) |
+| 1786893844 | NV | +0.0087 ±0.0025 | +0.0082 ±0.0026 | 1,103 (0.54%) |
+| 1786893844 | both | +0.0125 ±0.0032 | +0.0111 ±0.0033 | 1,190 (0.58%) |
+| 1786894518 | NV | +0.0085 ±0.0024 | +0.0081 ±0.0026 | 1,029 (0.50%) |
+| 1786894518 | both | +0.0123 ±0.0031 | +0.0107 ±0.0033 | 1,136 (0.55%) |
+
+**12/12 cells positive, every CI clear of zero, PD tracking plain** —
++1.4…+2.2 IMPs per fired board.  `ReadingScope::All` is the default;
+`Alerted` remains selectable (`--ns-reading-scope alerted`,
+`PROBE_SCOPE=alerted`) and is what `legacy_view` serves the nets.  Smoke
+re-based `edb618b8…` → `bdd1a80ebe7d90ee6dc26ed8915b8d0ee5017d2e24e004fd88534871c72ac507`
+(a reading flip moves calls by design); the generated cards are byte-identical
+(`the_checked_in_cards_match_the_generator`).  Three tests that pinned the
+alert-gated regime moved with it: the queen-relay integration tests now agree
+spades with a *single* raise (the limit raise's own `support(4..)` makes a
+nine-card fit and `queen_moot` fires — correct, so the relay is exercised
+where the queen is a live question), the optional-double contrast asserts "not
+the promised five" instead of "nothing", and `probed_vacuous` pins `Alerted`
+explicitly (the hole it fills is closed under `All`).
+
+The two `pass_out` retreat nodes remain; deleting them is a separate A/B.
 
 ## The N2 testbed — exact recipe
 
@@ -724,6 +836,13 @@ the `2NT` relay row no longer the lane's worst per board; `1NT 2♥ 2♠ -` read
    exact N2 signal Phase 1 is being measured on. It is the fallback if a
    `3NT` survives the ceilings.
 
+5. `probe-reading-sound`'s partner worklist ranks nodes by excluded
+   **count**; the strip bug (~90% wrong, a few dozen readings) sat below the
+   top 20 while `1♦` (1.5% wrong, 4,056 readings) led it.  Proposal: a second
+   table ranked by **rate** with a small count floor (≥ 10 readings), so a
+   node that is nearly always wrong surfaces regardless of how rarely it is
+   reached.  Reversible (a print, not a knob); not built yet.
+
 ## Ledger
 
 | date | item | status |
@@ -745,6 +864,8 @@ the `2NT` relay row no longer the lane's worst per board; `1NT 2♥ 2♠ -` read
 | 2026-08-16 | **C2 (`reading.upgrade_closure`) re-measured on the trigger Phase 1 met** — `scripts/ab-upgrade-closure.sh`, 3 seeds × 204,800 bd/arm/vul | **SHIPPED default-on**: 12/12 cells positive (+0.00015 plain / +0.00024 PD NV, +0.00016 / +0.00022 vul). `legacy_view`'s clone now folds C2 off too — unshielded it measures **−0.0037/bd on 18 of 20,480 deals** (talks the evaluator out of slams), shielded **+0.0006 on 2**. Smoke `f33d8caf…` → `edb618b8…`; exclusion 2.114% → 2.114% |
 | 2026-08-16 | **SHIPPED both default-on** on jdh8's call — branch 2 by intent, not branch 1 by letter | 6 tests moved, 5 of them pinning the old bug (Landy `8..37`→`8..15`, Woolsey `10..37`→`10..19`, both matching their own configured `convention_points`); cards byte-identical; smoke `18aba5ce…` → `cf583ff5…`; example flags converted to `Option<bool>` opt-outs |
 | 2026-08-16 | **Phase 2 `ReadingScope::All` measured and HELD** | soundness 2.114%→2.109%; N2 diagnostic loses all four cells; three 204,800-board whole-book seeds lean plain-positive but PD loses all six seed/vulnerability cells (pooled −0.00391/−0.00379 NV/vul). Default stays `Alerted`, both retreat nodes stay, cards/alerts byte-identical, smoke remains `edb618b8…` |
+| 2026-08-16 | **Phase 2 forensic**: `ab-dump-bucket --by lane` on the held arms — the loss is the four `1x (1NT)` lanes (−2.0k…−2.6k PD/cell), the rest of the book +1.3k…+1.7k | root cause `systems_on_overcall_strip` firing on *their* 1NT overcall (side-blind); fixed ours-only + explicit their-1NT-overcall walk box; two A/Bs in flight (A: fix alone vs `main`; B: `All` on the fix) — see *The forensic — one lane, one bug* |
+| 2026-08-16 | **Phase 2 `ReadingScope::All` SHIPPED default-on** — strip fixed ours-only, nets held (`strip_side_blind` under `legacy_view`), 3 seeds × 204,800 bd/arm/vul | **12/12 cells positive** (plain +0.0078…+0.0125, PD +0.0073…+0.0111); the fix alone is byte-identical to `main` (0 fired, smoke `edb618b8…` unchanged); flip re-bases smoke to `bdd1a80e…`; cards byte-identical |
 
 ### Memory compaction notes (2026-08-16)
 

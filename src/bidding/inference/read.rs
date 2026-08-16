@@ -42,6 +42,16 @@ pub(super) fn systems_on_overcall_strip(
     if auction.get(open + 1) != Some(&Call::Bid(Bid::new(1, Strain::Notrump))) {
         return None;
     }
+    // Only *our* overcall plays the graft.  When they overcall 1NT over our
+    // opening the same shape appears, and stripping our opening would read the
+    // rest as an opening-1NT auction *by them*: partner's negative double
+    // became "our penalty double of their 1NT, 15+", partner's free bid an
+    // overcall of a 1NT opening, and our opener's suit vanished.  Phase 2's
+    // whole-book loss was this lane (`1x (1NT)`, every seed, every vul); see
+    // docs/authored-reading-handoff.md.
+    if !profile.strip_side_blind && !(auction.len() - (open + 1)).is_multiple_of(2) {
+        return None;
+    }
     // Over a MAJOR, Gladiator replaces the opening-1NT graft with a differently
     // shaped structure (cue = Stayman, 2♣ = relay), so the strip identity fails
     // — but only where Gladiator actually *has* that structure.  RHO's call over
@@ -507,8 +517,24 @@ impl Inferences {
                     side_acted[lane % 2] = true;
                 }
                 Call::Bid(bid) => {
+                    // Their direct 1NT overcall of our one-suit opening: natural,
+                    // the strong-notrump band, read off their scheme's opening
+                    // 1NT.  Until 2026-08-16 `systems_on_overcall_strip` fired
+                    // on this shape too and delivered exactly this box by
+                    // reading the stripped auction as their 1NT *opening* — while
+                    // misreading every call of ours in the lane; the strip is
+                    // now ours-only, so the walk keeps their box explicitly.
+                    // Our own 1NT overcall is authored (15–18) and stays with
+                    // the projection.
+                    let their_direct_nt_overcall = index == opening_index + 1
+                        && bid == Bid::new(1, Strain::Notrump)
+                        && opening_bid.level.get() == 1
+                        && opening_bid.strain.is_suit()
+                        && matches!(relative_of(len, index), Relative::Lho | Relative::Rho);
                     if index == opening_index {
                         apply_opening(&mut players[who], bid, opener_seat, profile);
+                    } else if their_direct_nt_overcall {
+                        apply_opening(&mut players[who], bid, 1, their_profile);
                     } else if let Some(suit) = bid.strain.suit() {
                         // A three-level suit bid over our 1NT is off-book and
                         // forcing — the instinct reading takes it as natural,

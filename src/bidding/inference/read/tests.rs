@@ -818,8 +818,8 @@ fn all_reading_publishes_an_unalerted_rules_promise() {
     let mut agreements = Agreements::default();
     agreements.decision.reading.nt_overcall_gladiator = true;
     agreements.decision.reading.envelope_union = true;
-    agreements.decision.reading.scope = ReadingScope::default();
-    assert_eq!(agreements.decision.reading.scope, ReadingScope::Alerted);
+    assert_eq!(ReadingScope::default(), ReadingScope::All);
+    agreements.decision.reading.scope = ReadingScope::Alerted;
     let off = read_booked_with(&agreements, &auction);
     agreements.decision.reading.scope = ReadingScope::All;
     let on = read_booked_with(&agreements, &auction);

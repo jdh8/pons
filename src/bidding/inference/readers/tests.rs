@@ -898,6 +898,55 @@ fn gladiator_keeps_the_strip_where_it_has_no_structure() {
     );
 }
 
+/// The systems-on strip is **ours-only**: when *they* overcall 1NT over our
+/// opening, the same shape must not strip our opening and read the rest as
+/// their 1NT *opening* — that read partner's negative double as "our penalty
+/// double of their 1NT, 15+" and dropped opener's suit (Phase 2's whole-book
+/// loss lived entirely in this lane; docs/authored-reading-handoff.md).  The
+/// walk keeps their overcall's own box explicitly.
+#[test]
+fn their_one_notrump_overcall_does_not_strip_our_opening() {
+    let one_s = bid(1, Strain::Spades);
+    let one_nt = bid(1, Strain::Notrump);
+    let default = Agreements::default();
+    assert!(
+        default.decision.reading.nt_overcall_systems_on,
+        "the strip is on by default"
+    );
+    // 1♠ (1NT) X - : opener reads partner's negative double, not a 15+ penalty
+    // double of a 1NT opening.
+    let inf = read_booked(&[one_s, one_nt, Call::Double, Call::Pass]);
+    assert!(
+        inf.partner().length(Suit::Hearts).min >= 4,
+        "{:?}",
+        inf.partner()
+    );
+    assert!(inf.partner().strength.hcp.min <= 8, "{:?}", inf.partner());
+    // 1♠ (1NT) : responder still reads their overcall as the strong notrump.
+    let inf = read_booked(&[one_s, one_nt]);
+    assert!(
+        inf.rho().strength.hcp.min >= 15 && inf.rho().strength.hcp.max <= 18,
+        "{:?}",
+        inf.rho()
+    );
+    assert!(inf.rho().length(Suit::Spades).max <= 5);
+    // and partner's opening suit survives.
+    assert!(
+        inf.partner().length(Suit::Spades).min >= 5,
+        "{:?}",
+        inf.partner()
+    );
+    // Our own overcall still strips: (1♠) 1NT - 2♣ - reads the grafted Stayman
+    // — clubs unpromised.
+    let inf = read_booked(&[one_s, one_nt, Call::Pass, bid(2, Strain::Clubs), Call::Pass]);
+    assert_eq!(
+        inf.partner().length(Suit::Clubs).min,
+        0,
+        "{:?}",
+        inf.partner()
+    );
+}
+
 #[test]
 fn gladiator_contested_transfer_lebensohl_pins_the_target() {
     // `(1♠) 1NT (2♥) 3♦ -`: over RHO's 2♥ there is no room for the relay
@@ -1396,7 +1445,9 @@ fn their_landy_reading_is_seat_gated() {
     );
     assert_eq!(mirror.partner().length(Suit::Clubs), Range::new(5, 13));
     assert_eq!(mirror.partner().length(Suit::Spades), Range::FULL_LENGTH);
-    assert_eq!(mirror.partner().strength.points, Range::new(8, 37));
+    // The floor is the walk's; the ceiling arrives from the overcall's own
+    // rule under `ReadingScope::All`.
+    assert_eq!(mirror.partner().strength.points.min, 8);
 }
 
 #[test]

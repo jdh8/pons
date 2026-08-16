@@ -39,10 +39,19 @@ fn main() {
                 _ => RelativeVulnerability::NONE,
             });
     let mut agreements = Agreements::default();
-    // `PROBE_SCOPE=all` decodes unalerted authored rules too (the unmeasured
-    // `ReadingScope::All`), to see what the alert gate is hiding.
-    if std::env::var("PROBE_SCOPE").as_deref() == Ok("all") {
-        agreements.decision.reading.scope = pons::bidding::inference::ReadingScope::All;
+    // `ReadingScope::All` is the default since 2026-08-16; `PROBE_SCOPE=alerted`
+    // (or `none`) shows what the alert gate used to hide.
+    match std::env::var("PROBE_SCOPE").as_deref() {
+        Ok("all") => {
+            agreements.decision.reading.scope = pons::bidding::inference::ReadingScope::All
+        }
+        Ok("alerted") => {
+            agreements.decision.reading.scope = pons::bidding::inference::ReadingScope::Alerted;
+        }
+        Ok("none") => {
+            agreements.decision.reading.scope = pons::bidding::inference::ReadingScope::None
+        }
+        _ => {}
     }
     // Each made call's strength ceilings, not just its floors — on by default
     // since 2026-08-16, so `PROBE_CEILINGS=0` is the interesting one: it puts

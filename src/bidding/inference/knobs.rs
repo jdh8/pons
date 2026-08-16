@@ -24,12 +24,13 @@ pub enum ReadingScope {
 
     /// Decode a call when its authoring rule carries an
     /// [`Alert`][crate::bidding::Alert], on top of the structural
-    /// "points at a suit it did not name" test — the shipped default, and the
-    /// per-call defense
+    /// "points at a suit it did not name" test — the shipped default until
+    /// 2026-08-16, and the per-call defense
     /// switch: the floor recognises every alerted convention and reads it as the
     /// convention rather than as a natural suit, so a player switches its
-    /// treatment the moment an opponent's alerted call lands.
-    #[default]
+    /// treatment the moment an opponent's alerted call lands.  Still the
+    /// reading [`legacy_view`][field@crate::bidding::context::DecisionProfile::legacy_view]
+    /// serves the frozen nets.
     Alerted,
 
     /// Decode **every** authored call, unalerted ones too.
@@ -58,10 +59,17 @@ pub enum ReadingScope {
     ///   alert gate had been hiding.  Sweep with the `admits` invariant before
     ///   reading anything into an A/B.
     ///
-    /// **Measured but held after Phase 2 of
-    /// `docs/authored-reading-handoff.md`.**  Three whole-book seeds improved
-    /// plain DD but lost under perfect defense, so this remains an explicit
-    /// diagnostic until a subsequent non-loss result.
+    /// **Default since 2026-08-16** (Phase 2 of
+    /// `docs/authored-reading-handoff.md`).  The first whole-book run was
+    /// held — plain DD up, perfect defense down on every seed — and its
+    /// forensic put the *entire* loss in the four `1x (1NT)` lanes, where the
+    /// side-blind systems-on strip was reading partner's negative double as a
+    /// 15+ penalty double of a 1NT opening (`hcp 15+` balanced under `All`).
+    /// With the strip ours-only, three seeds × 204,800 boards/arm/vul, nets
+    /// held on their training view: **12/12 cells positive**, plain
+    /// +0.0078…+0.0125, PD +0.0073…+0.0111 IMPs/board, ~+1.4…+2.2 per fired
+    /// board at ~0.5% firing.  `Alerted` remains the frozen nets' view.
+    #[default]
     All,
 }
 
@@ -242,6 +250,22 @@ pub struct ReadingProfile {
     /// it was inert on 3,000 boards.  Requires
     /// [`envelope_union`][field@Self::envelope_union].
     pub upgrade_closure: bool,
+
+    /// Let `systems_on_overcall_strip` fire on **their** 1NT overcall too — the
+    /// side-blind strip the v5 nets were trained on
+    ///
+    /// **Default off**: the strip is ours-only (2026-08-16), because on their
+    /// 1NT overcall of our one-suit opening it stripped *our* opening and read
+    /// the lane as their opening-1NT auction — partner's negative double as
+    /// "our penalty double of their 1NT, 15+", partner's free bid as an
+    /// overcall of a 1NT opening, opener's suit as nothing.  The nets were fit
+    /// on that reading, so
+    /// [`legacy_view`][field@crate::bidding::context::DecisionProfile::legacy_view]
+    /// turns this on for the reading it serves them (the frozen-net hedge; the
+    /// raw fix measured plain −0.0007 / PD −0.0016 IMPs/board on 204,800
+    /// boards through the unshielded nets).  Retired with the view at Phase 5
+    /// of docs/authored-reading-handoff.md.
+    pub strip_side_blind: bool,
 
     /// Read a made call's strength **ceilings**, not just its floors
     ///
@@ -1017,13 +1041,14 @@ impl ReadingProfile {
         Self {
             nt_invite: false,
             rubens_transfer: false,
-            scope: ReadingScope::All,
+            scope: ReadingScope::Alerted,
             fallback_projection: false,
             envelope_union: false,
             blind_opponents: true,
             gauge_membership: true,
             sum_closure: true,
             upgrade_closure: false,
+            strip_side_blind: true,
             strength_ceilings: false,
             control_bid: false,
             cue: false,
@@ -1080,13 +1105,14 @@ impl Default for ReadingProfile {
         Self {
             nt_invite: true,
             rubens_transfer: true,
-            scope: ReadingScope::Alerted,
+            scope: ReadingScope::All,
             fallback_projection: true,
             envelope_union: true,
             blind_opponents: false,
             gauge_membership: false,
             sum_closure: false,
             upgrade_closure: true,
+            strip_side_blind: false,
             strength_ceilings: true,
             control_bid: true,
             cue: true,

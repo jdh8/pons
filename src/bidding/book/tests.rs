@@ -341,6 +341,10 @@ fn probed_vacuous_fills_only_open_axes_on_contested_own_calls() {
     let mut partnership =
         crate::bidding::american::american_book(&crate::bidding::agreements::Agreements::default())
             .bind();
+    // The hole this knob fills exists under the alert-gated reading; under the
+    // shipped `ReadingScope::All` the free bid's own rule already publishes
+    // its suit, so pin the regime the knob was built for.
+    partnership.profile_mut().reading.scope = crate::bidding::inference::ReadingScope::Alerted;
     let boxed = |spades: Range, points: Range| {
         let mut envelope = Envelope::unknown();
         envelope.lengths[Suit::Spades as usize] = spades;

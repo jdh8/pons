@@ -940,6 +940,8 @@ impl<'a> Context<'a> {
             // ([`upgrade_closure`][field@crate::bidding::ReadingProfile::upgrade_closure]).
             // Inert until that knob ships.
             legacy.profile.reading.upgrade_closure = false;
+            // ...and on the side-blind 1NT-overcall strip (fixed 2026-08-16).
+            legacy.profile.reading.strip_side_blind = true;
             legacy.authored_projection = None;
             legacy.decision_cache = None;
             Inferences::read(&legacy)

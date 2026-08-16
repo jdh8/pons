@@ -513,7 +513,8 @@ struct Args {
     ns_completion_alerts: Option<bool>,
 
     /// How much of the authored book our projection decodes
-    /// (`ReadingProfile::scope`, crate default `alerted`).
+    /// (`ReadingProfile::scope`, crate default `all` since 2026-08-16;
+    /// `alerted` is the pre-Phase-2 arm and the frozen nets' view).
     ///
     /// `alerted` decodes a call when its rule alerts it; `none` is the
     /// pre-alert arm, where a strength-showing artificial reads as a natural

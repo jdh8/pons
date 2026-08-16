@@ -190,9 +190,11 @@ fn the_two_diamond_double_reads_as_diamonds() {
     let bare = crate::bidding::american::american(&Agreements::default())
         .bind()
         .infer(RelativeVulnerability::NONE, &auction);
-    assert_eq!(
-        bare.announced(Relative::Partner).length(Suit::Diamonds).min,
-        0,
+    // (Under the shipped `ReadingScope::All` the optional double's own
+    // `len(over, 2..=3)` publishes the doubleton-or-tripleton, so the contrast
+    // is "never the promised five", not "nothing".)
+    assert!(
+        bare.announced(Relative::Partner).length(Suit::Diamonds).min < 5,
         "the optional double never promised a suit"
     );
 }

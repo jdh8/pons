@@ -16,6 +16,13 @@
 //! ```text
 //! cargo run --release --features serde --example ab-dump-bucket -- ON_DIR OFF_DIR
 //! ```
+//!
+//! `--by node|lane` is the reading-knob variant (Phase 2 forensic,
+//! docs/authored-reading-handoff.md): instead of the competitive-rebid roles it
+//! buckets every divergent board by the auction prefix through the first
+//! differing call (`node`, `prefix ⟨ON vs OFF⟩`) or by the opening and the first
+//! call over it (`lane`), and prints the buckets sorted by PD total so the loss
+//! is attributed to nodes rather than read off a single number.
 
 use clap::Parser;
 use contract_bridge::auction::Call;
@@ -37,6 +44,14 @@ struct Args {
     /// Re-price at this vulnerability instead of the dump's
     #[arg(short, long)]
     vulnerability: Option<AbsoluteVulnerability>,
+    /// Bucket by `node` (prefix through the first differing call, ON vs OFF)
+    /// or `lane` (opening + the first non-pass call over it) instead of the
+    /// competitive-rebid roles
+    #[arg(long)]
+    by: Option<String>,
+    /// Buckets to print in `--by` mode (sorted by PD total, worst first)
+    #[arg(long, default_value_t = 40)]
+    top: usize,
 }
 
 /// Which of our seats made the rebid, and where in the auction it opened.
@@ -113,10 +128,134 @@ fn classify(on: &Board, off: &Board) -> Option<Bucket> {
     })
 }
 
+/// A `--by` key for a divergent board; `None` when the auctions do not differ.
+fn key_of(by: &str, on: &Board, off: &Board) -> Option<String> {
+    let a = &on.table_a;
+    let b = &off.table_a;
+    let i = (0..a.len().min(b.len())).find(|&i| a[i] != b[i])?;
+    let show = |c: &Call| match c {
+        Call::Pass => "-".to_string(),
+        c => c.to_string(),
+    };
+    Some(match by {
+        "node" => {
+            let prefix: Vec<String> = a[..i].iter().map(show).collect();
+            format!("{} ⟨{} vs {}⟩", prefix.join(" "), show(&a[i]), show(&b[i]))
+        }
+        _ => {
+            // opening + the first non-pass call over it, e.g. `1♠ (1NT)`; the
+            // parenthesis marks the other side.
+            let mut it = a
+                .iter()
+                .enumerate()
+                .filter(|(_, c)| !matches!(c, Call::Pass));
+            let Some((oi, open)) = it.next() else {
+                return Some("all pass".into());
+            };
+            let over = it.next().map_or("-".to_string(), |(k, c)| {
+                if (k - oi) % 2 == 0 {
+                    show(c)
+                } else {
+                    format!("({})", show(c))
+                }
+            });
+            format!("{} {over}", show(open))
+        }
+    })
+}
+
+/// `--by` report: every bucket's fired count and plain/PD totals, worst PD first.
+fn report_by(by: &str, on: &[Board], off: &[Board], vul: AbsoluteVulnerability, top: usize) {
+    let mut deals = Vec::with_capacity(on.len());
+    let contracts: Vec<(Reached, Reached)> = on
+        .iter()
+        .zip(off)
+        .map(|(a, b)| {
+            assert_eq!(a.deal, b.deal, "arms not seed-aligned");
+            deals.push(a.deal);
+            (
+                final_contract(&a.table_a, a.dealer),
+                final_contract(&b.table_a, b.dealer),
+            )
+        })
+        .collect();
+    let scored = score_boards(&contracts, &deals, vul, ns_score_contract);
+    let mut pd = vec![0i64; contracts.len()];
+    for (k, &idx) in scored.divergent.iter().enumerate() {
+        let (con, coff) = contracts[idx];
+        pd[idx] = imps(
+            ns_score_pd(con, &scored.tables[k], vul) - ns_score_pd(coff, &scored.tables[k], vul),
+        );
+    }
+    // key → (call-divergent, contract-divergent, plain, pd)
+    let mut buckets: std::collections::HashMap<String, (usize, usize, i64, i64)> =
+        std::collections::HashMap::new();
+    let mut divergent = vec![false; contracts.len()];
+    for &i in &scored.divergent {
+        divergent[i] = true;
+    }
+    for (i, (a, b)) in on.iter().zip(off).enumerate() {
+        let Some(key) = key_of(by, a, b) else {
+            continue;
+        };
+        let e = buckets.entry(key).or_default();
+        e.0 += 1;
+        e.1 += usize::from(divergent[i]);
+        e.2 += scored.board_imps[i];
+        e.3 += pd[i];
+    }
+    let n = on.len() as f64;
+    let plain_total: i64 = scored.board_imps.iter().sum();
+    let pd_total: i64 = pd.iter().sum();
+    println!(
+        "== --by {by}: {} boards, vul {vul}, {} call-divergent, {} contract-divergent; plain {plain_total:+} ({:+.4}/bd), PD {pd_total:+} ({:+.4}/bd) ==",
+        on.len(),
+        buckets.values().map(|e| e.0).sum::<usize>(),
+        scored.divergent.len(),
+        plain_total as f64 / n,
+        pd_total as f64 / n,
+    );
+    let mut rows: Vec<_> = buckets.into_iter().collect();
+    rows.sort_by_key(|(_, e)| e.3);
+    println!(
+        "{:>6} {:>6} {:>8} {:>8} {:>8}  bucket",
+        "calls", "fired", "plain", "PD", "PD/fired"
+    );
+    for (key, (calls, fired, plain, pdv)) in rows.iter().take(top) {
+        let per = if *fired == 0 {
+            0.0
+        } else {
+            *pdv as f64 / *fired as f64
+        };
+        println!("{calls:>6} {fired:>6} {plain:>+8} {pdv:>+8} {per:>+8.2}  {key}");
+    }
+    let shown: i64 = rows.iter().take(top).map(|(_, e)| e.3).sum();
+    println!(
+        "(top {} buckets of {} carry PD {shown:+} of {pd_total:+})",
+        top.min(rows.len()),
+        rows.len()
+    );
+}
+
 fn main() {
     let args = Args::parse();
     let (on_vul, on) = load_dir(&args.on_dir);
     let (_, off) = load_dir(&args.off_dir);
+    if let Some(by) = &args.by {
+        assert_eq!(
+            on.len(),
+            off.len(),
+            "arms must be aligned (same board count)"
+        );
+        report_by(
+            by,
+            &on,
+            &off,
+            args.vulnerability.unwrap_or(on_vul),
+            args.top,
+        );
+        return;
+    }
     assert_eq!(
         on.len(),
         off.len(),

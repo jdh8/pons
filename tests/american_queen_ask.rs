@@ -16,14 +16,17 @@ fn armed() -> impl Bidder {
     partnership()
 }
 
-/// `1♠ - 3♠ - 4NT - 5♣ -` — spades agreed by the limit raise, 4NT asks, and
+/// `1♠ - 2♠ - 4NT - 5♣ -` — spades agreed by the single raise, 4NT asks, and
 /// partner's 5♣ is one-or-four.  Three keycards of our own decodes to four
 /// combined: one keycard missing, and the trump queen still an open question.
+/// (The single raise reads three-plus, an eight-card fit; the limit raise's
+/// own rule reads four-plus under the shipped `ReadingScope::All`, and nine
+/// trumps make the queen moot — `queen_moot` — so the relay never fires there.)
 fn after_the_answer() -> Vec<Call> {
     vec![
         call(1, Strain::Spades),
         P,
-        call(3, Strain::Spades),
+        call(2, Strain::Spades),
         P,
         call(4, Strain::Notrump),
         P,
@@ -240,7 +243,7 @@ fn none_or_three_decodes_the_total_through_the_partnership() {
     let mut auction = vec![
         call(1, Strain::Spades),
         P,
-        call(3, Strain::Spades),
+        call(2, Strain::Spades),
         P,
         call(4, Strain::Notrump),
         P,

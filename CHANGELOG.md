@@ -9,8 +9,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`ReadingScope::All` is the default: every authored call reads as its
+  own rules, alerted or not** (Phase 2 of docs/authored-reading-handoff.md).
+  Unblocked by the strip fix below.  Three seeds × 204,800 boards/arm/vul, nets
+  held on their training view: **12/12 cells positive** — plain
+  **+0.0078…+0.0125**, PD **+0.0073…+0.0111** IMPs/board NV/vul, +1.4…+2.2
+  per fired board at ~0.5% firing.  `Alerted` stays selectable
+  (`bba-gen --ns-reading-scope alerted`, `PROBE_SCOPE=alerted`) and is what
+  `legacy_view` serves the frozen nets.  Smoke re-based `edb618b8…` →
+  `bdd1a80e…`; generated cards byte-identical.  The queen-relay integration
+  tests now agree spades with a single raise (a limit raise's own `support(4..)`
+  reads a nine-card fit, and the relay is correctly moot there).
+
+- **The systems-on 1NT-overcall strip is ours-only; the walk reads their
+  1NT overcall.** `systems_on_overcall_strip` matched shape, not side: when
+  *they* overcalled 1NT over *our* one-suit opening it stripped our opening
+  and read the rest as their opening-1NT auction — partner's negative double
+  became "our penalty double of their 1NT, 15+" (`hcp 15+` balanced under
+  `ReadingScope::All`, the defensive book's `(1NT) X` rule), partner's free
+  bid an overcall of a 1NT opening, opener's suit vanished, and the alerted
+  negative double at `P* 1x (1NT)` was never read.  Now the strip fires only
+  for our own overcall, and their direct 1NT overcall reads off their
+  scheme's opening-1NT box (15–17 balanced, what the strip used to deliver by
+  accident).  Found by the Phase 2 forensic — `ab-dump-bucket --by lane|node`
+  (new modes) put the *entire* held run's PD loss in the four `1x (1NT)`
+  lanes, the rest of the book positive.  The nets were fit on the side-blind
+  strip, so `legacy_view` serves it to them (`ReadingProfile::strip_side_blind`,
+  default off; the view sets it): the raw fix measured plain −0.0007/−0.0014,
+  PD −0.0016/−0.0025 through the unshielded nets; shielded it is
+  **byte-identical to the previous default** (0 boards fired in 204,800/vul;
+  smoke `edb618b8…` unchanged).  Pinned by
+  `their_one_notrump_overcall_does_not_strip_our_opening`.
+
 - **Phase 2 authored reading is implemented as an explicit arm, but held by
-  its ship gate.** `bba-gen` and `probe-reading-sound` now accept optional
+  its ship gate** *(superseded the same day — see the two entries above: the
+  hold traced to one lane's reading bug, and `All` shipped default-on)*. `bba-gen` and `probe-reading-sound` now accept optional
   `--ns-reading-scope none|alerted|all`; omission inherits the engine default,
   and the probe's legacy `--ns-natural-reading` boolean is retired. `All`
   projects every authored call for both declared partnerships, with the
