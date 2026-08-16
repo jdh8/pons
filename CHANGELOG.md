@@ -650,6 +650,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A slam-zone bid in competition read as a suit rebid, hijacking the trump
+  suit.** With a fit already agreed, a four- or five-level bid of another suit
+  is a control bid — but `classify_high_bid`, the only control-bid detector, is
+  gated off the moment the opponents act, so in competition every slam-zone bid
+  fell through to the walk's rebid or raise arm and claimed length. The reading
+  then invented a suit for the keycard ask to key on: after
+  `- 1♣ (1♠) 2♥ - 3♥ - 3♠ - 4♣ -` opener's *floor* `4♣` read as six clubs, so
+  `keycard_trump` preferred ♣ (3 + 6) to ♥ (5 + 3) and responder bid `6♣`
+  doubled in a seven-card fit instead of `6♥` in an eight-card fit holding AKQ.
+
+  The walk now claims no length for a 4–5 level bid when another suit is
+  already agreed in that lane pair, on the raise arm as well as the rebid arm —
+  a control bid in partner's suit is not a raise either. It loosens only, so it
+  is sound by construction, and it also stops a keycard *answer* from reading
+  as a raise of a suit only the opponents hold.
+
+  **3 seeds × 204,800 boards/arm/vulnerability: 12/12 cells positive**, pooled
+  **+764 IMPs plain / +827 PD** over 1,228,800 boards (+0.00062 / +0.00067 per
+  board) on 255 diverging boards, ≈ +3.0 / +3.2 IMPs per fired board; six cells
+  have a CI clear of zero and none is negative. Every diverging board was
+  inspected, as a 0.02%-firing change requires: the trade is two-sided, 140 up
+  against 85 down, the wins being the phantom-strain slams and games that used
+  to park below a cold 4-4 fit, the losses the loosening's mirror image — with
+  the control bid claiming nothing, the floor probes one level too far. Smoke
+  re-based `cb090e54…` → `7aa33d58…` (4 of 20,000 auctions); cards
+  byte-identical.
+
 - **`cargo +nightly doc` is green again under `-D warnings`.** Fourteen
   `rustdoc::redundant_explicit_links` in module-level `//!` docs now drop their
   explicit targets and let the label resolve. They were invisible on stable

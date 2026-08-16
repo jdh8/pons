@@ -356,3 +356,42 @@ fn lebensohl_signoff_is_not_a_game_force() {
         "the ceiling read is inert where partner is unlimited"
     );
 }
+
+/// A slam-zone bid in competition is a control bid, not a rebid — so the
+/// keycard ask keys on the eight-card fit, not the suit somebody merely named.
+///
+/// The Phase 3 A′′ run's worst board (docs/authored-reading-handoff.md):
+/// `- 1♣ (1♠) 2♥ - 3♥ - 3♠ - 4♣ - 4NT - 5♠ -`, both vulnerable.  Reading
+/// opener's floor `4♣` as a six-card club rebid made `keycard_trump` prefer
+/// ♣ (3 + 6) to ♥ (5 + 3), so responder bid `6♣` doubled in a seven-card fit
+/// instead of `6♥` in an eight-card fit holding AKQ: −18 IMPs.
+#[test]
+fn test_slam_zone_control_bid_does_not_hijack_the_trump_suit() {
+    let system = partnership();
+    // ♠A9 ♥A9874 ♦AJ8 ♣K84, opposite the 1♣ opener's ♠Q842 ♥KQ6 ♦93 ♣AJ73.
+    let responder = "A9.A9874.AJ8.K84";
+    let auction = [
+        Call::Pass,
+        call(1, Strain::Clubs),
+        call(1, Strain::Spades),
+        call(2, Strain::Hearts),
+        Call::Pass,
+        call(3, Strain::Hearts),
+        Call::Pass,
+        call(3, Strain::Spades),
+        Call::Pass,
+        call(4, Strain::Clubs),
+        Call::Pass,
+        call(4, Strain::Notrump),
+        Call::Pass,
+        call(5, Strain::Spades),
+        Call::Pass,
+    ];
+    // Which call replaces it is the floor's business; only the phantom strain
+    // is this test's business.
+    assert_ne!(
+        best_call(&system, &auction, responder),
+        call(6, Strain::Clubs),
+        "a 4♣ control bid opposite an agreed heart fit is not a club suit"
+    );
+}

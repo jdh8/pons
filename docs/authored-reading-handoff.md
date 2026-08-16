@@ -904,8 +904,8 @@ answers `6♣` at the six-level node, so the chain is:
 
 1. N's `4♣` is **unauthored floor** — a control bid with hearts agreed.
 2. ♣ is in `lane_suits[N]` from the substituted `1♣` opening's face suit, so
-   `4♣` hits the walk's own-suit **rebid** arm ([read.rs:770-820]) and takes
-   its floor of 6 ([read.rs:815]) — S now reads partner for a six-card club
+   `4♣` hits the walk's own-suit **rebid** arm ([read.rs:804-854]) and takes
+   its floor of 6 ([read.rs:849]) — S now reads partner for a six-card club
    suit that partner never showed.
 3. [`keycard_trump`] maximises `our length + partner's shown floor` over all
    four suits, so ♣ (3+6=9) outranks ♥ (5+3=8) and the ask keys on clubs.
@@ -913,27 +913,62 @@ answers `6♣` at the six-level node, so the chain is:
 The same board carries a **second, pre-existing phantom**: after N's `5♠`
 (the 1430 answer) S's read of partner's spades moves `0..4` → `3..4`, because
 S's own `3♠` cue was written to `lane_suits[S]` by the unconditional
-bid-history write at [read.rs:1154-1155], making `5♠` a *raise* of a suit
+bid-history write at [read.rs:1188-1189], making `5♠` a *raise* of a suit
 only the opponents hold. Not Phase 3's doing and not on this board's critical
-path — recorded here, owed its own arm.
+path — recorded here, and **closed the same day** by the control-bid guard
+below, which reads a level-5 bid with hearts agreed as a control and so raises
+nothing: partner's ♠ goes back to `0..4`.
 
 Trump selection *already* prefers length — that lever is a no-op. The real
 one is step 2: `classify_high_bid`, the only control-bid detector, is gated
-off in every contested auction ([read.rs:694], `!side_acted[defending_parity]`),
+off in every contested auction ([read.rs:706], `!side_acted[defending_parity]`),
 so in competition a slam-zone bid of a named suit can only read as a rebid.
 
-**Queued refinement, unmeasured:** teach the walk that a 4–5 level bid of a
-suit is a *control bid, not a rebid*, when another suit is already agreed in
-that lane pair — the same guard on the `partner_bid_it` raise arm, since a
-control bid in partner's suit is not a raise either. Loosens only, so it is
-soundness-safe by construction. Its own arm, never a rider. (The alternative,
-gating the face-suit record on the projection not contradicting it, tightens
-and would have to clear the soundness probe first.)
+**The refinement SHIPPED 2026-08-17 — 12/12 cells positive.** The walk now
+reads a 4–5 level bid of a suit as a *control bid, not a rebid*, when another
+suit is already agreed in that lane pair, and the same guard covers the
+`partner_bid_it` raise arm (a control bid in partner's suit is not a raise
+either). It loosens only, so it is soundness-safe by construction. The
+alternative — gating the face-suit record on the projection not contradicting
+it — tightens, and was not needed.
 
-[read.rs:770-820]: ../src/bidding/inference/read.rs#L770-L820
-[read.rs:815]: ../src/bidding/inference/read.rs#L815
-[read.rs:694]: ../src/bidding/inference/read.rs#L694
-[read.rs:1154-1155]: ../src/bidding/inference/read.rs#L1154-L1155
+It fixes both phantoms on the −18 board at once: partner's ♣ goes `6..13` →
+`3..13`, partner's ♠ goes `3..4` → `0..4` (the `5♠` keycard answer stops
+reading as a raise of the opponents' suit), and responder bids `6♥` instead of
+`6♣` doubled. The second was filed as a separate pre-existing phantom owing its
+own arm; the guard subsumes it, so that arm is closed.
+
+| cell | plain | PD | fired |
+| --- | ---: | ---: | ---: |
+| s1 NV  | +93 (+0.0005) | +113 (+0.0006) | 45 |
+| s1 vul | +129 (+0.0006) | +140 (+0.0007) | 39 |
+| s2 NV  | +143 (+0.0007) | +141 (+0.0007) | 55 |
+| s2 vul | +225 (+0.0011) | +236 (+0.0012) | 49 |
+| s3 NV  | +67 (+0.0003) | +80 (+0.0004) | 26 |
+| s3 vul | +107 (+0.0005) | +117 (+0.0006) | 41 |
+
+3 seeds (`1786919041`/`1786919440`/`1786919838`) × 204,800 bd/arm/vul vs `main`
+HEAD `2ca2c6bb`; pooled **+764 IMPs plain / +827 PD** over 1,228,800 boards
+(+0.00062 / +0.00067 per board) on **255 diverging boards**, ≈ +3.0 / +3.2 per
+fired board. Six of the twelve cells have a CI clear of zero, and no cell is
+negative on either scorer at either vulnerability. Smoke `cb090e54…` →
+`7aa33d58…` (4 of 20,000 auctions), cards byte-identical.
+
+**Board inspection** (the plan's gate, since IMPs/board cannot decide a
+0.02%-firing change): the trade is two-sided, 140 boards positive against 85
+negative in the shown tails, and the classes are exactly the ones predicted.
+The wins are the target bug — `- 1♣ (1♠) 2♥ - 3♥ - 3♠ - 4♣ - 4NT - 5♥ -` now
+passes where it used to bid `6♣`, and `1♠ - 2♣ (2♥) 3♦ - 3♠ - 4♦ - 4♥ - 4♠ -
+4NT - 5♣ -` reaches `6♠` — plus a family where the auction no longer parks
+below a cold 4-4 major game. The losses are the mirror image of the loosening:
+with the control bid claiming nothing, the floor keeps probing and buys one
+level too many (`… 4♠ - 6♣` where the base stopped at `4♠`). That is the honest
+cost of reading less, and it is outweighed three to one.
+
+[read.rs:804-854]: ../src/bidding/inference/read.rs#L804-L854
+[read.rs:849]: ../src/bidding/inference/read.rs#L849
+[read.rs:706]: ../src/bidding/inference/read.rs#L706
+[read.rs:1188-1189]: ../src/bidding/inference/read.rs#L1188-L1189
 [`keycard_trump`]: ../src/bidding/instinct.rs#L1642-L1658
 
 **2. REFUTED — "substitution had no knob, so the nets saw it."**
@@ -1117,6 +1152,7 @@ the `2NT` relay row no longer the lane's worst per board; `1NT 2♥ 2♠ -` read
 | 2026-08-17 | **Second phantom on the same board, pre-existing**: N's `5♠` 1430 answer reads as a spade **raise** (partner ♠ `0..4`→`3..4`) | S's own `3♠` cue is written to `lane_suits[S]` by the unconditional bid-history write (`read.rs:1154-1155`), so the answer looks like a raise of a suit only the opponents hold. Off Phase 3's critical path; recorded, owed its own arm |
 | 2026-08-17 | **Rate-ranked partner worklist built** (`probe-reading-sound`, second table, `bad/readings` desc, floor ≥ 10 readings, same `--top`, no new flag) | Print-only, reversible. Ranking by count alone is what hid the side-blind strip bug; the floor keeps single-digit noise out of the top slots |
 | 2026-08-17 | **Phase 3 soundness re-baseline** at `ba8f7305` (40,000 boards, seed 20260816, same flags as the recorded pair) | partner **2,211/168,086 = 1.315%** (was 2,199/168,085 = **1.308%** at `a376c324`), LHO 7.749% (7.748%), RHO 7.834% (7.834%). The face-suit record costs **+12 partner exclusions, +0.007pp** — the expected direction: a record that says *more* excludes *more*, which is the doc's own caveat that a falling exclusion rate never on its own proves a reading got better |
+| 2026-08-17 | **B — control bid, not rebid, in competition: SHIPPED, 12/12 cells positive.** A 4–5 level bid with another suit already agreed in the lane pair claims no length, on both the rebid and the raise arm | 3 seeds × 204,800 bd/arm/vul vs `2ca2c6bb`, pooled **+764 IMPs plain / +827 PD** on 255 diverging boards (+0.00062/+0.00067 per board, ≈+3.0/+3.2 per fired), 6/12 cells with CI clear of zero, none negative. Board inspection clean: wins are the phantom-strain slams and the games that used to park below a 4-4 fit; losses are the loosening's mirror (the floor probes one level too far), 140 up against 85 down. Fixes the `5♠`-as-raise phantom too, closing that queued arm. Smoke `cb090e54…`→`7aa33d58…` (4/20,000 auctions), cards byte-identical |
 | 2026-08-17 | **C — fit write-back drop measured alone: the lines were DEAD.** `read.rs:538-541` deleted; own arm, 3 seeds × 204,800 bd/arm/vul, both vuls, both scorers | **12/12 cells at 0 fired, 1,228,800 boards** (seeds `1786916914`/`1786917382`/`1786917783`), `smoke-default` byte-identical `cb090e5479…` (unchanged), cards byte-identical. Unreachable for two structural reasons: `natural_lane_suits ⊆ lane_suits` makes the natural-sourced half a no-op, and the `partner_projected` half needs a substituted call that floors a suit at three while neither naming it nor projecting four — the shipped book has none. Both feared consequences were already blocked anyway: `agreed_re_raise` suppresses the six-claim exactly when the write-back fires, and `opponents_natural` is a side union that `shown ⊇ fit` already covers. Shipped on KR2 with a KR1 byte-identity proof; no behavioural test, because there is no behaviour |
 | 2026-08-17 | **Rate table's first catch, filed not fixed**: three ~always-wrong partner nodes, all invisible in the count table | `1♥ - 2NT - 4♥` **25/25 = 100%** and `1♠ - 2NT - 4♠` **17/17 = 100%** — the Jacoby minimum 4M is authored as the pure catch-all `rule(4M, 50, hcp(0..))` (`raises/jacoby.rs:74`), so it projects nothing, falls back to the walk, and the walk's jump ladder reads opener at **`points 16..21`** — the exact inverse of "minimum". `2♥/2♠/2♦ - 2NT - 3♣` **95%/77%/86%** — the Ogust `3♣` answer is unread, so it reads as a natural **♣4..13** phantom suit (corroborates the queued Ogust reader fix). Also `2♦ 2♥ - 3♦ - 3♥` 10/10. Each is a book/reading change owing its own A/B |
 

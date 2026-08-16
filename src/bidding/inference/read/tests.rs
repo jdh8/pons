@@ -153,6 +153,70 @@ fn authored_projection_substitutes_and_keeps_lane_bookkeeping() {
     );
 }
 
+/// A slam-zone bid with another suit already agreed is a control bid, and a
+/// control bid claims no length in the suit it names.
+///
+/// The auction is the Phase 3 A′′ run's worst board,
+/// `- 1♣ (1♠) 2♥ - 3♥ - 3♠ - 4♣ - 4NT - 5♠ -` (docs/authored-reading-handoff.md):
+/// hearts are agreed by the `2♥`/`3♥` pair, so opener's unauthored floor `4♣`
+/// is a club control, not a six-card club rebid, and the `5♠` keycard answer is
+/// not a raise of a suit only the opponents hold.  `classify_high_bid` cannot
+/// say so — it is gated off the moment the opponents act.
+#[test]
+fn a_slam_zone_bid_with_a_fit_agreed_reads_as_a_control_bid() {
+    let contested = [
+        Call::Pass,
+        bid(1, Strain::Clubs),
+        bid(1, Strain::Spades),
+        bid(2, Strain::Hearts),
+        Call::Pass,
+        bid(3, Strain::Hearts),
+        Call::Pass,
+        bid(3, Strain::Spades),
+        Call::Pass,
+        bid(4, Strain::Clubs),
+        Call::Pass,
+    ];
+    let inf = read_booked(&contested);
+    assert_eq!(
+        inf.partner().length(Suit::Clubs).min,
+        3,
+        "opener's 4♣ with hearts agreed is a control, not a club rebid — reading \
+         it as six clubs keyed the ask on a 7-card club fit over an 8-card heart one"
+    );
+
+    // The keycard answer, two calls later, is not a spade raise either.
+    let answered: Vec<Call> = contested
+        .iter()
+        .copied()
+        .chain([bid(4, Strain::Notrump), Call::Pass, bid(5, Strain::Spades)])
+        .collect();
+    assert_eq!(
+        read_booked(&answered).partner().length(Suit::Spades).min,
+        0,
+        "the 1430 answer names the opponents' suit; it raises nothing"
+    );
+
+    // Control: outside the slam zone the rebid still shows a sixth card.
+    let uncontested = [
+        Call::Pass,
+        bid(1, Strain::Diamonds),
+        bid(1, Strain::Spades),
+        bid(2, Strain::Hearts),
+        Call::Pass,
+        bid(3, Strain::Diamonds),
+        Call::Pass,
+    ];
+    assert_eq!(
+        read_booked(&uncontested)
+            .partner()
+            .length(Suit::Diamonds)
+            .min,
+        6,
+        "a three-level rebid is below the control-bid window and still claims six"
+    );
+}
+
 #[test]
 fn top_authored_projection_falls_back_to_the_walk() {
     let one_nt = bid(1, Strain::Notrump);

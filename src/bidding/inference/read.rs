@@ -778,8 +778,30 @@ impl Inferences {
                             let opponents_natural = natural_lane_suits[(lane + 1) % 4]
                                 | natural_lane_suits[(lane + 3) % 4];
                             let opponents_shown_it = read_cues && opponents_natural & mask != 0;
+                            // A slam-zone bid made with a *different* suit
+                            // already agreed in this lane pair is a control
+                            // bid, and a control bid claims no length in the
+                            // suit it names.  [`classify_high_bid`] (M6.4) is
+                            // the real classifier, but it is gated off the
+                            // moment the opponents act
+                            // (`!side_acted[defending_parity]`), so in
+                            // competition every slam-zone bid fell through to
+                            // the rebid or raise arm below and claimed length.
+                            // The Phase 3 A′′ worst board is exactly that: with
+                            // hearts agreed, opener's floor `4♣` read as a club
+                            // *rebid* (♣6+, `read.rs`'s floor of 6), so the
+                            // keycard ask keyed on a seven-card club fit over
+                            // an eight-card heart fit holding AKQ, and the slam
+                            // went two down doubled for −18 IMPs.  Which call
+                            // the floor makes instead is the floor's business;
+                            // this only stops the reading inventing the suit.
+                            let control_bid = (4..=5).contains(&bid.level.get())
+                                && lane_suits[lane] & lane_suits[(lane + 2) % 4] & !mask != 0;
 
-                            if i_bid_it {
+                            if control_bid && (i_bid_it || partner_bid_it) {
+                                // No length claim, either way: a control bid in
+                                // partner's suit is not a raise of it.
+                            } else if i_bid_it {
                                 // Rebidding our own suit shows a sixth card —
                                 // except (`ReadingProfile::length_soundness`) a re-raise of
                                 // a suit partner has also bid (agreed, so no new
