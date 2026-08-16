@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The web UI now keeps independent North–South and East–West system
+  settings.** Practice and Demo seat both profiles with their opponent cards
+  and books declared, while Book has an NS/EW selector for the exact authored
+  system on display. Existing global browser overrides migrate to both pairs;
+  Woolsey's Landy/Multi disclosures are derived from the opposing profile.
+
 - **Authored calls now substitute for the natural inference walk** (Phase 3
   of `docs/authored-reading-handoff.md`). An informative projection owns the
   call's reading; projection-derived suit floors retain chronological shown-

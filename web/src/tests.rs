@@ -151,14 +151,67 @@ fn set_option_reroutes_the_bidding() {
         "default opens 1NT",
     );
 
-    set_option("open_one_notrump", false);
+    set_option("ns", "open_one_notrump", false);
     let off = parse(&table.deal_pbn(PBN, "N", "none"));
     assert_ne!(
         on["auction"][0], off["auction"][0],
         "toggling the knob changes North's opening",
     );
 
-    set_option("open_one_notrump", true); // restore for a reused test thread
+    set_option("ns", "open_one_notrump", true); // restore for a reused test thread
+}
+
+#[test]
+fn settings_are_partnership_scoped() {
+    set_option("ns", "open_one_notrump", false);
+    let [ns, ew] = agreements();
+    assert!(!ns.opening.open_one_notrump);
+    assert!(ew.opening.open_one_notrump);
+
+    set_option("unknown", "open_one_notrump", false);
+    assert_eq!(agreements(), [ns, ew], "an unknown pair is a no-op");
+    set_option("ns", "open_one_notrump", true);
+}
+
+#[test]
+fn opponent_disclosures_are_derived_from_their_profile() {
+    set_choice("ew", "notrump_defense", "woolsey");
+    let [ns, ew] = declared_agreements();
+    assert!(ns.decision.their.two_clubs_landy);
+    assert!(ns.decision.their.two_diamonds_multi);
+    assert_eq!(ew.decision.their, TheirDisclosures::default());
+    set_choice("ew", "notrump_defense", "natural");
+}
+
+#[test]
+fn asymmetric_table_reads_the_opponents_actual_book() {
+    use contract_bridge::Suit;
+
+    set_choice("ew", "notrump_defense", "woolsey");
+    let (ns, ew) = partnerships();
+    let table = Table::new(ns, ew, Seat::North, AbsoluteVulnerability::NONE);
+    let auction = [
+        Call::Bid(Bid::new(1, Strain::Notrump)),
+        Call::Bid(Bid::new(2, Strain::Clubs)),
+    ];
+    let inferences = table.infer(&auction);
+    let rho = inferences.get(Relative::Rho);
+    assert!(rho.lengths[Suit::Hearts as usize].min >= 4);
+    assert!(rho.lengths[Suit::Spades as usize].min >= 4);
+    set_choice("ew", "notrump_defense", "natural");
+}
+
+#[test]
+fn default_mixed_table_matches_the_old_symmetric_table() {
+    const PBN: &str = "N:AK72.K65.K43.Q82 QJT.AQJ.AQJ.AKJT 986.T987.T98.976 543.432.7652.543";
+    let deal: FullDeal = PBN.parse().expect("valid deal");
+    let defaults = Agreements::default();
+    let system = american(&defaults);
+    let baseline = Table::of_systems(&system, &system, Seat::North, AbsoluteVulnerability::NONE)
+        .bid_out(&deal);
+    let (ns, ew) = partnerships();
+    let mixed = Table::new(ns, ew, Seat::North, AbsoluteVulnerability::NONE).bid_out(&deal);
+    assert_eq!(mixed, baseline);
 }
 
 #[test]
@@ -211,6 +264,7 @@ fn registry_is_well_formed() {
         let Some(spec) = setting.requires() else {
             continue;
         };
+        let spec = spec.strip_prefix("opponent:").unwrap_or(spec);
         let (key, want) = match spec.split_once('=') {
             Some((key, value)) => (key, Some(value)),
             None => (spec, None),
@@ -232,7 +286,7 @@ fn registry_is_well_formed() {
     }
 }
 
-/// Every registry `default` must mirror the engine's `Cell::new(...)`.
+/// Every registry `default` must mirror [`Agreements::default`].
 ///
 /// Not cosmetic: `app.js` stores only *deltas* against these values, and the
 /// Settings reset button pushes them into the engine — so a drifted row rebids
@@ -240,34 +294,29 @@ fn registry_is_well_formed() {
 /// `rubens_advances` and `fuzzy_fifths` all contradicted the engine for weeks
 /// (see `docs/bidding-options.md`); nothing but CI's absence hid them.
 ///
-/// Runs on its own thread because the knobs are thread-locals: that reads a
-/// virgin engine whatever order the suite ran in, and dirties nothing for
-/// whichever test the runner schedules next on this one.
-///
-/// Reads each cell back rather than bidding boards and diffing the auctions.
-/// The sampling form was built first and measured: flipping each row in turn,
-/// 32 of 69 never moved an auction in 600 boards — the slam tries, the runouts,
-/// the Stayman follow-ups and the whole inference block need a specific auction
-/// that random deals rarely deal. It missed `rubens_advances`, one of the three
-/// bugs above, and cost 210 s of CI to miss it. This is exact and instant; the
-/// price was widening those getters to `pub`, which is arguably a fix in its own
-/// right, since the paired `set_*` were public already.
+/// Reads each field back rather than bidding boards and diffing auctions: many
+/// continuations need a specific sequence that random deals rarely reach.
 #[test]
 fn registry_defaults_match_the_engine() {
-    std::thread::spawn(|| {
-        for setting in SETTINGS {
-            match setting {
-                Setting::Toggle {
-                    key, default, get, ..
-                } => assert_eq!(get(), *default, "toggle {key} contradicts the engine"),
-                Setting::Choice {
-                    key, default, get, ..
-                } => assert_eq!(get(), *default, "choice {key} contradicts the engine"),
-            }
+    let agreements = Agreements::default();
+    for setting in SETTINGS {
+        match setting {
+            Setting::Toggle {
+                key, default, get, ..
+            } => assert_eq!(
+                get(&agreements),
+                *default,
+                "toggle {key} contradicts the engine"
+            ),
+            Setting::Choice {
+                key, default, get, ..
+            } => assert_eq!(
+                get(&agreements),
+                *default,
+                "choice {key} contradicts the engine"
+            ),
         }
-    })
-    .join()
-    .expect("the registry-drift thread reads a pristine engine");
+    }
 }
 
 /// Each row's `get` must observe its own `set` — not a neighbour's cell.
@@ -279,37 +328,45 @@ fn registry_defaults_match_the_engine() {
 /// are the type case — adjacent, identically defaulted, one letter apart.
 #[test]
 fn every_registry_getter_observes_its_own_setter() {
-    std::thread::spawn(|| {
-        for setting in SETTINGS {
-            match setting {
-                Setting::Toggle {
-                    key, default, get, ..
-                } => {
-                    set_option(key, !*default);
-                    assert_eq!(get(), !*default, "toggle {key} does not read its own cell");
-                    set_option(key, *default);
-                }
-                Setting::Choice {
-                    key,
-                    default,
-                    variants,
-                    get,
-                    ..
-                } => {
-                    let other = variants
-                        .iter()
-                        .map(|v| v.value)
-                        .find(|v| v != default)
-                        .expect("a choice has a second variant");
-                    set_choice(key, other);
-                    assert_eq!(get(), other, "choice {key} does not read its own cell");
-                    set_choice(key, default);
-                }
+    for setting in SETTINGS {
+        let mut agreements = Agreements::default();
+        match setting {
+            Setting::Toggle {
+                key,
+                default,
+                get,
+                set,
+                ..
+            } => {
+                set(&mut agreements, !*default);
+                assert_eq!(
+                    get(&agreements),
+                    !*default,
+                    "toggle {key} does not read its own field"
+                );
+            }
+            Setting::Choice {
+                key,
+                default,
+                variants,
+                get,
+                set,
+                ..
+            } => {
+                let other = variants
+                    .iter()
+                    .map(|v| v.value)
+                    .find(|v| v != default)
+                    .expect("a choice has a second variant");
+                set(&mut agreements, other);
+                assert_eq!(
+                    get(&agreements),
+                    other,
+                    "choice {key} does not read its own field"
+                );
             }
         }
-    })
-    .join()
-    .expect("the getter-wiring thread runs clean");
+    }
 }
 
 #[test]
@@ -320,10 +377,10 @@ fn set_choice_reroutes_the_defense() {
     const PBN: &str = "N:AK72.K65.K43.Q82 QJT.AQJ.AQJ.AKJT 986.T987.T98.976 543.432.7652.543";
     let mut table = WebTable::new("1");
 
-    set_choice("notrump_defense", "natural");
+    set_choice("ew", "notrump_defense", "natural");
     let natural = parse(&table.deal_pbn(PBN, "N", "none"));
 
-    set_choice("notrump_defense", "always_pass");
+    set_choice("ew", "notrump_defense", "always_pass");
     let always_pass = parse(&table.deal_pbn(PBN, "N", "none"));
 
     assert_ne!(
@@ -331,7 +388,7 @@ fn set_choice_reroutes_the_defense() {
         "always-pass defense changes East's action over North's 1NT",
     );
 
-    set_choice("notrump_defense", "natural"); // restore for a reused test thread
+    set_choice("ew", "notrump_defense", "natural"); // restore for a reused test thread
 }
 
 #[test]
@@ -342,7 +399,7 @@ fn set_choice_reroutes_the_notrump_shape() {
     const PBN: &str = "N:Q2.K3.AQ4.KQ8765 AKJT9.AQJ.KJT.A9 876.T987.987.JT4 543.6542.6532.32";
     let mut table = WebTable::new("1");
 
-    set_choice("notrump_shape", "wide6322");
+    set_choice("ns", "notrump_shape", "wide6322");
     let wide = parse(&table.deal_pbn(PBN, "N", "none"));
     assert!(
         wide["auction"][0]
@@ -352,14 +409,14 @@ fn set_choice_reroutes_the_notrump_shape() {
         "wide6322 opens 1NT on a 6322 with a six-card minor",
     );
 
-    set_choice("notrump_shape", "balanced");
+    set_choice("ns", "notrump_shape", "balanced");
     let balanced = parse(&table.deal_pbn(PBN, "N", "none"));
     assert_ne!(
         wide["auction"][0], balanced["auction"][0],
         "balanced-only shape opens a minor, not 1NT",
     );
 
-    set_choice("notrump_shape", "wide6322"); // restore for a reused test thread
+    set_choice("ns", "notrump_shape", "wide6322"); // restore for a reused test thread
 }
 
 #[test]
@@ -521,7 +578,7 @@ fn oracle_is_practice_only() {
 
 #[test]
 fn book_is_json_with_described_nodes() {
-    let nodes: serde_json::Value = serde_json::from_str(&book()).expect("book is valid JSON");
+    let nodes: serde_json::Value = serde_json::from_str(&book("ns")).expect("book is valid JSON");
     let nodes = nodes.as_array().expect("book is an array");
     assert!(
         nodes.len() > 100,
@@ -536,13 +593,21 @@ fn book_is_json_with_described_nodes() {
     }
 }
 
+#[test]
+fn book_uses_the_selected_partnership() {
+    set_option("ns", "open_one_notrump", false);
+    assert_ne!(book("ns"), book("ew"));
+    assert_eq!(book("unknown"), "[]");
+    set_option("ns", "open_one_notrump", true);
+}
+
 /// The 1NT-overcall systems-on graft renders under **every** opening — not
 /// just the one that wins the pointer dedup.  Each `(1x) 1NT` re-roots the
 /// same grafted `Arc`s, so a book display keyed on the pointer alone showed
 /// only spades; the seat-invariant-auction key restores all four.
 #[test]
 fn book_renders_1nt_overcall_advances_per_opening() {
-    let nodes: serde_json::Value = serde_json::from_str(&book()).expect("book is valid JSON");
+    let nodes: serde_json::Value = serde_json::from_str(&book("ns")).expect("book is valid JSON");
     let nodes = nodes.as_array().expect("book is an array");
     for opening in ["1♣", "1♦", "1♥", "1♠"] {
         // The advancer's response menu after their opening, our 1NT overcall,
@@ -561,7 +626,7 @@ fn book_renders_1nt_overcall_advances_per_opening() {
 /// the guard's condition folded into the auction heading.
 #[test]
 fn book_renders_the_competitive_fallbacks() {
-    let nodes: serde_json::Value = serde_json::from_str(&book()).expect("book is valid JSON");
+    let nodes: serde_json::Value = serde_json::from_str(&book("ns")).expect("book is valid JSON");
     let competitive: Vec<&serde_json::Value> = nodes
         .as_array()
         .expect("book is an array")

@@ -16,7 +16,8 @@ const ORACLE_CHUNK = 2; // per JS task, so the page keeps painting between them
 let game;
 let current = null; // the snapshot on screen
 let boardCount = 0; // practice deals so far — drives the "Rotate" dealer
-let bookNodes = null; // [{el, haystack}] built once from book()
+let bookNodes = null; // [{el, haystack}] for the selected partnership
+let bookPair = 'ns';
 let demoTimer = 0;
 let boardGen = 0; // bumped per deal; stale async DD/oracle loops check it
 let analysisGen = -1; // last boardGen whose DD + oracle were kicked off
@@ -28,7 +29,10 @@ async function main() {
   game = new WebTable(String(Math.floor(Math.random() * 2 ** 53)));
   OPTIONS = JSON.parse(describe_options()); // the Settings registry, from wasm
   // Replay saved overrides: booleans are toggles, strings are radio-choice values.
-  for (const [key, value] of Object.entries(stored)) applyOption(key, value);
+  for (const pair of PAIRS) {
+    for (const [key, value] of Object.entries(stored[pair])) applyOption(pair, key, value);
+  }
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(stored)); // persist legacy migration
   buildBiddingBox();
   for (const b of document.querySelectorAll('nav button')) {
     b.onclick = () => { location.hash = b.dataset.tab; };
@@ -39,6 +43,7 @@ async function main() {
   id('d-deal').onclick = dealDemo;
   id('d-edit').onclick = editDemo;
   id('b-filter').oninput = filterBook;
+  id('b-pair').onchange = (ev) => { bookPair = ev.target.value; loadBook(); };
   initEdit();
   initBinky();
   showTab(location.hash.slice(1));
@@ -332,8 +337,9 @@ function updateBiddingBox(s) {
 // --- book browser --------------------------------------------------------------
 
 function loadBook() {
-  const nodes = JSON.parse(book());
+  const nodes = JSON.parse(book(bookPair));
   const frag = document.createDocumentFragment();
+  id('b-results').replaceChildren();
   bookNodes = nodes.map((node) => {
     const el = document.createElement('div');
     el.className = 'node panel';
@@ -524,12 +530,24 @@ function editGridHTML() {
 // one row per bidding knob, grouped by section, so a convention added in Rust shows
 // up here automatically.  A "toggle" is a checkbox; a "choice" is a mutually-
 // exclusive radio family (e.g. defense to their 1NT), backed by one engine enum.
-// Only *deviations* from a row's default are persisted to localStorage and replayed
-// onto the wasm state at startup (applyOption routes by kind).
+// Only *deviations* from a row's default are persisted per partnership and
+// replayed onto the wasm state at startup (applyOption routes by kind).
 
 const STORAGE_KEY = 'pons-settings';
-let stored = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; // {key: value}, defaults omitted
+const PAIRS = ['ns', 'ew'];
+const PAIR_NAMES = { ns: 'North–South', ew: 'East–West' };
+const rawStored = JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+const asOverrides = (value) => value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+const oldOverrides = asOverrides(rawStored);
+let stored = ('ns' in oldOverrides || 'ew' in oldOverrides)
+  ? { ns: asOverrides(oldOverrides.ns), ew: asOverrides(oldOverrides.ew) }
+  : { ns: { ...oldOverrides }, ew: { ...oldOverrides } };
+for (const pair of PAIRS) {
+  delete stored[pair].their_2c_landy;
+  delete stored[pair].their_2d_multi;
+}
 let OPTIONS = []; // [{key, section, kind, label, default, variants?}] — filled after init()
+let settingsPair = 'ns';
 
 const ACRONYMS = { nt: 'NT', xyz: 'XYZ', rkcb: 'RKCB', dont: 'DONT', uvu: 'UvU', hcp: 'HCP', gf: 'GF', '1nt': '1NT', '3nt': '3NT', '4m': '4M', '2d': '2♦' };
 const humanize = (key) => key.split('_')
@@ -537,25 +555,29 @@ const humanize = (key) => key.split('_')
 const labelOf = (opt) => opt.label || humanize(opt.key);
 
 // The effective current value of an option (stored override, else its default).
-const valueOf = (opt) => (opt.key in stored ? stored[opt.key] : opt.default);
+const valueOf = (opt, pair = settingsPair) =>
+  (opt.key in stored[pair] ? stored[pair][opt.key] : opt.default);
 
-// Whether a row's master is armed. `requires` is either "key" (that toggle must
-// be on) or "key=value" (that choice must equal value); a row without one is
-// always live. The engine ignores a gated knob while its master is off, so the
-// UI greys it out instead of offering a checkbox that does nothing.
-function isLive(opt) {
+// Whether a row's master is armed. `requires` is "key" or "key=value" on this
+// partnership; an `opponent:` prefix reads the other profile instead.
+function isLive(opt, pair = settingsPair) {
   if (!opt.requires) return true;
-  const [key, want] = opt.requires.split('=');
+  let requires = opt.requires;
+  if (requires.startsWith('opponent:')) {
+    pair = pair === 'ns' ? 'ew' : 'ns';
+    requires = requires.slice('opponent:'.length);
+  }
+  const [key, want] = requires.split('=');
   const master = OPTIONS.find((o) => o.key === key);
   if (!master) return true;
-  const cur = valueOf(master);
+  const cur = valueOf(master, pair);
   return want === undefined ? cur === true : cur === want;
 }
 
 // Push one saved value to the wasm bidder — booleans are toggles, strings choices.
-function applyOption(key, value) {
-  if (typeof value === 'boolean') set_option(key, value);
-  else set_choice(key, value);
+function applyOption(pair, key, value) {
+  if (typeof value === 'boolean') set_option(pair, key, value);
+  else set_choice(pair, key, value);
 }
 
 // One option's HTML: a checkbox, or a radio set for a mutually-exclusive family.
@@ -563,7 +585,7 @@ function optHTML(opt) {
   const live = isLive(opt);
   const dis = live ? '' : ' disabled';
   const dim = live ? '' : ' dimmed';
-  const needs = live ? '' : ` title="needs ${escapeHTML(opt.requires.replace('=', ': '))}"`;
+  const needs = live ? '' : ` title="needs ${escapeHTML(opt.requires.replace('opponent:', 'opponent ').replace('=', ': '))}"`;
   if (opt.kind === 'choice') {
     const cur = valueOf(opt);
     const radios = opt.variants.map((v) =>
@@ -595,22 +617,29 @@ function renderSettings() {
   id('settings').addEventListener('change', (ev) => {
     const el = ev.target.closest('input[type=checkbox], input[type=radio]');
     if (!el) return;
-    setOption(el.dataset.key, el.type === 'radio' ? el.value : el.checked);
+    setOption(settingsPair, el.dataset.key, el.type === 'radio' ? el.value : el.checked);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
     renderInputs(); // this row may be some other row's master
   });
 
+  id('s-pair').onchange = (ev) => {
+    settingsPair = ev.target.value;
+    renderInputs();
+  };
+
   id('s-reset').onclick = () => {
-    if (!confirm('Reset all convention settings to defaults?')) return;
-    stored = {};
-    for (const opt of OPTIONS) applyOption(opt.key, opt.default);
+    if (!confirm(`Reset ${PAIR_NAMES[settingsPair]} convention settings to defaults?`)) return;
+    stored[settingsPair] = {};
+    for (const opt of OPTIONS) applyOption(settingsPair, opt.key, opt.default);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
+    bookNodes = null;
     renderInputs(); // repaint checked/selected from the (now empty) overrides
   };
 }
 
 // Reflect the current values onto the existing inputs without rebuilding listeners.
 function renderInputs() {
+  id('s-reset').textContent = `Reset ${PAIR_NAMES[settingsPair]} to defaults`;
   for (const opt of OPTIONS) {
     const cur = valueOf(opt);
     const live = isLive(opt);
@@ -627,11 +656,12 @@ function renderInputs() {
 
 // Apply one option to the wasm bidder and update the delta store (default-valued
 // entries are dropped so localStorage only holds overrides).
-function setOption(key, value) {
-  applyOption(key, value);
+function setOption(pair, key, value) {
+  applyOption(pair, key, value);
   const opt = OPTIONS.find((o) => o.key === key);
-  if (opt && value === opt.default) delete stored[key];
-  else stored[key] = value;
+  if (opt && value === opt.default) delete stored[pair][key];
+  else stored[pair][key] = value;
+  bookNodes = null;
 }
 
 main();

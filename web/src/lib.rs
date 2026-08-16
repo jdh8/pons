@@ -21,11 +21,12 @@ use contract_bridge::eval::{self, HandEvaluator as _, SimpleEvaluator};
 use contract_bridge::{
     AbsoluteVulnerability, Bid, Builder, Contract, FullDeal, Hand, Seat, Strain,
 };
-use pons::bidding::agreements::Agreements;
+use pons::bidding::agreements::{Agreements, TheirDisclosures};
 use pons::bidding::american::american_book;
 use pons::bidding::evaluator::trick_estimates;
 use pons::bidding::fallback::Fallback;
-use pons::bidding::{Partnership, Relative, Table, american, instinct};
+use pons::bidding::features::ConventionCard;
+use pons::bidding::{Partnership, Relative, Table, american, american_with_card, instinct};
 use pons::scoring::{final_contract, imps};
 use pons_dds::{Par, Solver, TrickCountTable, Vulnerability, calculate_par, solve_deal_on};
 use rand::SeedableRng as _;
@@ -665,10 +666,9 @@ impl WebTable {
     ) -> String {
         let dealer = dealer.parse().unwrap_or(Seat::North);
         let vul = vul.parse().unwrap_or(AbsoluteVulnerability::NONE);
-        let ns = pons::american(&agreements());
-        let ew = pons::american(&agreements());
+        let (ns, ew) = partnerships();
         let mut board = Board {
-            table: Table::of_systems(&ns, &ew, dealer, vul),
+            table: Table::new(ns, ew, dealer, vul),
             deal,
             dealer,
             vul,
@@ -707,15 +707,19 @@ struct RuleJson {
     label: &'static str,
 }
 
-/// The authored 2/1 books as JSON, for the browser's book tab
+/// One partnership's authored 2/1 books as JSON, for the browser's book tab
 ///
 /// Port of `examples/render-book`: walks the floor-less books and reads each
 /// rule's call, weight, and the constraint's own English description, deduping
-/// seat variants that share one authored table.
+/// seat variants that share one authored table. `pair` is `"ns"` or `"ew"`;
+/// anything else returns an empty list.
 #[wasm_bindgen]
 #[must_use]
-pub fn book() -> String {
-    let system = american_book(&agreements());
+pub fn book(pair: &str) -> String {
+    let Some(index) = pair_index(pair) else {
+        return "[]".to_string();
+    };
+    let system = american_book(&declared_agreements()[index]);
     let books: [(&str, &pons::Trie); 3] = [
         ("constructive", &system.constructive.0),
         ("competitive", &system.competitive.0),
@@ -840,39 +844,82 @@ fn rule_json(rules: &pons::bidding::Rules) -> Vec<RuleJson> {
 // so it lives here, where it belongs: a web app holding what the user picked
 // is app state, not a hidden configuration channel.
 //
-// Wasm is single-threaded, so this cell is effectively a global.  It seeds
-// from `Agreements::default()` and every registry setter edits that value.
+// Wasm is single-threaded, so this cell is effectively global app state.  NS
+// and EW start identical, then each registry setter edits only the named pair.
 thread_local! {
-    static AGREEMENTS: std::cell::Cell<Agreements> =
-        std::cell::Cell::new(Agreements::default());
+    static AGREEMENTS: std::cell::Cell<[Agreements; 2]> =
+        std::cell::Cell::new([Agreements::default(); 2]);
 }
 
-/// The agreements a deal is bid under
-fn agreements() -> Agreements {
+/// `ns` / `ew` to the corresponding slot in [`AGREEMENTS`].
+fn pair_index(pair: &str) -> Option<usize> {
+    match pair {
+        "ns" => Some(0),
+        "ew" => Some(1),
+        _ => None,
+    }
+}
+
+/// The two user-selected profiles before opponent disclosures are derived.
+fn agreements() -> [Agreements; 2] {
     AGREEMENTS.with(std::cell::Cell::get)
 }
 
-/// Edit the settings value in place
-fn amend(edit: impl FnOnce(&mut Agreements)) {
+/// Edit one partnership's settings; an unknown partnership is a no-op.
+fn amend(pair: &str, edit: impl FnOnce(&mut Agreements)) {
+    let Some(index) = pair_index(pair) else {
+        return;
+    };
     AGREEMENTS.with(|cell| {
-        let mut value = cell.get();
-        edit(&mut value);
-        cell.set(value);
+        let mut values = cell.get();
+        edit(&mut values[index]);
+        cell.set(values);
     });
+}
+
+/// What `ours` must be told about `theirs` before its book is built.
+fn disclosures(theirs: &Agreements) -> TheirDisclosures {
+    use american::NotrumpDefense;
+
+    let defense = theirs.decision.reading.notrump_defense;
+    TheirDisclosures {
+        two_clubs_landy: defense == NotrumpDefense::Woolsey
+            || (theirs.decision.reading.landy
+                && matches!(defense, NotrumpDefense::Natural | NotrumpDefense::Off)),
+        two_diamonds_multi: defense == NotrumpDefense::Woolsey,
+    }
+}
+
+/// Both profiles with facts about the opposing profile filled in.
+fn declared_agreements() -> [Agreements; 2] {
+    let [mut ns, mut ew] = agreements();
+    ns.decision.their = disclosures(&ew);
+    ew.decision.their = disclosures(&ns);
+    [ns, ew]
+}
+
+/// Bind a genuinely mixed table: each side sees the other's card and books.
+fn partnerships() -> (Partnership, Partnership) {
+    let [ns_agreements, ew_agreements] = declared_agreements();
+    let ns_card = ConventionCard::capture(&ns_agreements, false);
+    let ew_card = ConventionCard::capture(&ew_agreements, false);
+    let ns = american_with_card(&ns_agreements, &ew_card).bind();
+    let ew = american_with_card(&ew_agreements, &ns_card).bind();
+    (ns.clone().with_opponents(&ew), ew.with_opponents(&ns))
 }
 
 /// Define a registry row's `set`/`get` system over one [`Agreements`] field
 ///
 /// One line per knob whose engine cell has been deleted.  The system keeps the
-/// `fn(bool)` / `fn() -> bool` shape [`Setting::Toggle`] stores, so migrating a
-/// knob costs a line here and nothing in the 65-row table.
+/// `fn(&mut Agreements, bool)` / `fn(&Agreements) -> bool` shape
+/// [`Setting::Toggle`] stores, so the same registry edits either partnership.
 macro_rules! knob {
     ($set:ident, $get:ident, $($field:ident).+ : $ty:ty) => {
-        fn $set(value: $ty) {
-            amend(|a| a.$($field).+ = value);
+        fn $set(agreements: &mut Agreements, value: $ty) {
+            agreements.$($field).+ = value;
         }
-        fn $get() -> $ty {
-            agreements().$($field).+
+        fn $get(agreements: &Agreements) -> $ty {
+            agreements.$($field).+
         }
     };
 }
@@ -907,12 +954,6 @@ knob!(set_delayed_cue, delayed_cue, competition.delayed_cue: bool);
 knob!(set_competition_over_stayman, competition_over_stayman, competition.competition_over_stayman: bool);
 knob!(set_competition_over_minor_transfer, competition_over_minor_transfer, competition.competition_over_minor_transfer: bool);
 knob!(set_competition_over_diamond_transfer, competition_over_diamond_transfer, competition.competition_over_diamond_transfer: bool);
-// Not a knob of ours: a declared fact about the opponents (their disclosed
-// 2♣ over our 1NT shows both majors), hence `declare_*`, not `set_*`.
-knob!(declare_their_2c_landy, their_2c_landy, decision.their.two_clubs_landy: bool);
-// Same channel: their disclosed 2♦ over our 1NT is a Multi (one unknown
-// six-card major) — the N4 table engages, default undeclared/natural.
-knob!(declare_their_2d_multi, their_2d_multi, decision.their.two_diamonds_multi: bool);
 knob!(set_multi_stopper_ask, multi_stopper_ask, competition.multi_stopper_ask: american::MultiStopperAsk);
 // The declaration's read-side wiring: their 2♣ reads as both majors instead
 // of the natural walk's clubs.  Default on (shipped 2026-08-14, plain wash |
@@ -985,14 +1026,14 @@ knob!(set_advance_sohl_style, advance_sohl_style, defense.advance_sohl_style: am
 /// [`describe_options`] serialises it for the JS renderer, so adding a convention
 /// to the UI needs only one row here (plus the engine `set_*` it points at) — the
 /// old hand-synced JS `CURATED` / `MORE` arrays are gone.  Each `set_*` is a
-/// module-level thread-local flag read when a deal rebuilds `american()` in
-/// `deal_with`; wasm is single-threaded, so the thread-local is effectively a global.
+/// field on the selected partnership's [`Agreements`] value.
 /// A row's `requires`: the master this control is dead without.
 ///
-/// Two forms, both resolved in JS against the *current* state of the named row:
-/// `"key"` (that toggle must be on) and `"key=value"` (that choice must equal
-/// `value`).  The engine has plenty of knobs that read nothing while another is
-/// off — `set_advance_rubens` under `set_rich_advance_double`,
+/// The usual forms resolve against the current partnership: `"key"` (that
+/// toggle must be on) and `"key=value"` (that choice must equal `value`).
+/// Prefixing either with `"opponent:"` resolves it against the other pair.
+/// The engine has plenty of knobs that read nothing while another is off —
+/// `set_advance_rubens` under `set_rich_advance_double`,
 /// `set_penalty_no_pull` under the latch, `set_uvu_encircle` under `set_uvu` —
 /// and rendering those as equal, independently clickable peers (often in a
 /// different section from their master) is a lie the UI tells about what the
@@ -1012,11 +1053,11 @@ enum Setting {
         /// See [`Requires`].
         requires: Requires,
         #[serde(skip)]
-        set: fn(bool),
-        /// Reads the engine cell `set` writes, so a test can prove `default`
-        /// still mirrors it.  See `registry_defaults_match_the_engine`.
+        set: fn(&mut Agreements, bool),
+        /// Reads the field `set` writes, so a test can prove `default` still
+        /// mirrors it. See `registry_defaults_match_the_engine`.
         #[serde(skip)]
-        get: fn() -> bool,
+        get: fn(&Agreements) -> bool,
     },
     /// A mutually-exclusive family, rendered as radio buttons.  Exactly one variant
     /// is active; the engine backs it with a single enum (e.g. [`NotrumpDefense`]).
@@ -1032,11 +1073,11 @@ enum Setting {
         /// See [`Requires`].
         requires: Requires,
         #[serde(skip)]
-        set: fn(&str),
-        /// The `value` of the variant the engine currently holds.  See
+        set: fn(&mut Agreements, &str),
+        /// The `value` of the variant the profile currently holds. See
         /// [`Setting::Toggle::get`].
         #[serde(skip)]
-        get: fn() -> &'static str,
+        get: fn(&Agreements) -> &'static str,
     },
 }
 
@@ -1069,8 +1110,8 @@ const fn toggle(
     section: &'static str,
     label: &'static str,
     default: bool,
-    set: fn(bool),
-    get: fn() -> bool,
+    set: fn(&mut Agreements, bool),
+    get: fn(&Agreements) -> bool,
 ) -> Setting {
     Setting::Toggle {
         key,
@@ -1090,8 +1131,8 @@ const fn gated(
     section: &'static str,
     label: &'static str,
     default: bool,
-    set: fn(bool),
-    get: fn() -> bool,
+    set: fn(&mut Agreements, bool),
+    get: fn(&Agreements) -> bool,
     requires: &'static str,
 ) -> Setting {
     Setting::Toggle {
@@ -1139,24 +1180,20 @@ static NOTRUMP_DEFENSE_VARIANTS: &[Variant] = &[
 ];
 
 /// Select the mutually-exclusive 1NT defense from its registry `value`.
-fn set_notrump_defense_choice(value: &str) {
+fn set_notrump_defense_choice(agreements: &mut Agreements, value: &str) {
     use american::NotrumpDefense;
     // DirectLandy carries a shape flag; select the measured-winning 5-4 form.
     if value == "direct_landy" {
-        amend(|a| {
-            a.defense.direct_landy_four_four = false;
-            a.decision.reading.notrump_defense = NotrumpDefense::DirectLandy;
-        });
+        agreements.defense.direct_landy_four_four = false;
+        agreements.decision.reading.notrump_defense = NotrumpDefense::DirectLandy;
         return;
     }
-    amend(|a| {
-        a.decision.reading.notrump_defense = match value {
-            "direct_dont" => NotrumpDefense::DirectDont,
-            "woolsey" => NotrumpDefense::Woolsey,
-            "always_pass" => NotrumpDefense::AlwaysPass,
-            _ => NotrumpDefense::Natural,
-        };
-    });
+    agreements.decision.reading.notrump_defense = match value {
+        "direct_dont" => NotrumpDefense::DirectDont,
+        "woolsey" => NotrumpDefense::Woolsey,
+        "always_pass" => NotrumpDefense::AlwaysPass,
+        _ => NotrumpDefense::Natural,
+    };
 }
 
 /// The 1NT defense the engine currently holds, as its registry `value`.
@@ -1166,9 +1203,9 @@ fn set_notrump_defense_choice(value: &str) {
 /// flag rides on the agreements, the variant on the one cell that answers here.
 /// Variants with no registry row read as the default, which is what the radio
 /// group can display.
-fn get_notrump_defense_choice() -> &'static str {
+fn get_notrump_defense_choice(agreements: &Agreements) -> &'static str {
     use american::NotrumpDefense;
-    match agreements().decision.reading.notrump_defense {
+    match agreements.decision.reading.notrump_defense {
         NotrumpDefense::DirectDont => "direct_dont",
         NotrumpDefense::Woolsey => "woolsey",
         NotrumpDefense::AlwaysPass => "always_pass",
@@ -1196,19 +1233,22 @@ static NOTRUMP_SHAPE_VARIANTS: &[Variant] = &[
 ];
 
 /// Select the 1NT opening shape from its registry `value`.
-fn set_notrump_shape_choice(value: &str) {
+fn set_notrump_shape_choice(agreements: &mut Agreements, value: &str) {
     use american::NotrumpShape;
-    set_notrump_shape(match value {
-        "balanced" => NotrumpShape::Balanced,
-        "wide" => NotrumpShape::Wide,
-        _ => NotrumpShape::Wide6322,
-    });
+    set_notrump_shape(
+        agreements,
+        match value {
+            "balanced" => NotrumpShape::Balanced,
+            "wide" => NotrumpShape::Wide,
+            _ => NotrumpShape::Wide6322,
+        },
+    );
 }
 
 /// The 1NT opening shape the engine currently holds, as its registry `value`.
-fn get_notrump_shape_choice() -> &'static str {
+fn get_notrump_shape_choice(agreements: &Agreements) -> &'static str {
     use american::NotrumpShape;
-    match notrump_shape_setting() {
+    match notrump_shape_setting(agreements) {
         NotrumpShape::Balanced => "balanced",
         NotrumpShape::Wide => "wide",
         _ => "wide6322",
@@ -1234,20 +1274,23 @@ static NEGATIVE_DOUBLE_VARIANTS: &[Variant] = &[
 ];
 
 /// Select the negative-double school from its registry `value`.
-fn set_negative_double_choice(value: &str) {
+fn set_negative_double_choice(agreements: &mut Agreements, value: &str) {
     use american::NegativeDoubleShape;
-    set_negative_double_shape(match value {
-        "sputnik" => NegativeDoubleShape::Sputnik,
-        "cachalot" => NegativeDoubleShape::Cachalot,
-        _ => NegativeDoubleShape::Modern,
-    });
+    set_negative_double_shape(
+        agreements,
+        match value {
+            "sputnik" => NegativeDoubleShape::Sputnik,
+            "cachalot" => NegativeDoubleShape::Cachalot,
+            _ => NegativeDoubleShape::Modern,
+        },
+    );
 }
 
 /// The negative-double school the engine currently holds, as its registry
 /// `value`.  The unoffered pre-Modern `BothMajors` reads as `modern`.
-fn get_negative_double_choice() -> &'static str {
+fn get_negative_double_choice(agreements: &Agreements) -> &'static str {
     use american::NegativeDoubleShape;
-    match negative_double_shape() {
+    match negative_double_shape(agreements) {
         NegativeDoubleShape::Sputnik => "sputnik",
         NegativeDoubleShape::Cachalot => "cachalot",
         _ => "modern",
@@ -1270,18 +1313,21 @@ static MULTI_STOPPER_ASK_VARIANTS: &[Variant] = &[
     },
 ];
 
-fn set_multi_stopper_ask_choice(value: &str) {
+fn set_multi_stopper_ask_choice(agreements: &mut Agreements, value: &str) {
     use american::MultiStopperAsk;
-    set_multi_stopper_ask(match value {
-        "search" => MultiStopperAsk::FitSearch,
-        "place" => MultiStopperAsk::OpenerPlaces,
-        _ => MultiStopperAsk::Off,
-    });
+    set_multi_stopper_ask(
+        agreements,
+        match value {
+            "search" => MultiStopperAsk::FitSearch,
+            "place" => MultiStopperAsk::OpenerPlaces,
+            _ => MultiStopperAsk::Off,
+        },
+    );
 }
 
-fn get_multi_stopper_ask_choice() -> &'static str {
+fn get_multi_stopper_ask_choice(agreements: &Agreements) -> &'static str {
     use american::MultiStopperAsk;
-    match multi_stopper_ask() {
+    match multi_stopper_ask(agreements) {
         MultiStopperAsk::FitSearch => "search",
         MultiStopperAsk::OpenerPlaces => "place",
         MultiStopperAsk::Off => "off",
@@ -1307,22 +1353,20 @@ static RKCB_VARIANT_VARIANTS: &[Variant] = &[
 ];
 
 /// Select the keycard relocation stance from its registry `value`.
-fn set_rkcb_variant_choice(value: &str) {
+fn set_rkcb_variant_choice(agreements: &mut Agreements, value: &str) {
     use instinct::RkcbVariant;
-    amend(|a| {
-        a.decision.reading.rkcb_variant = match value {
-            "redwood" => RkcbVariant::Redwood,
-            "kickback" => RkcbVariant::Kickback,
-            _ => RkcbVariant::Plain,
-        };
-    });
+    agreements.decision.reading.rkcb_variant = match value {
+        "redwood" => RkcbVariant::Redwood,
+        "kickback" => RkcbVariant::Kickback,
+        _ => RkcbVariant::Plain,
+    };
 }
 
 /// The keycard relocation stance the engine currently holds, as its registry
 /// `value`.
-fn get_rkcb_variant_choice() -> &'static str {
+fn get_rkcb_variant_choice(agreements: &Agreements) -> &'static str {
     use instinct::RkcbVariant;
-    match agreements().decision.reading.rkcb_variant {
+    match agreements.decision.reading.rkcb_variant {
         RkcbVariant::Redwood => "redwood",
         RkcbVariant::Kickback => "kickback",
         _ => "plain",
@@ -1332,56 +1376,60 @@ fn get_rkcb_variant_choice() -> &'static str {
 /// Lebensohl as an on/off toggle: on = Transfer Lebensohl (the shipped package),
 /// off = none.  `LebensohlStyle::Plain` is deliberately unreachable here — it is a
 /// measured-worse arm, kept for A/B only.
-fn set_lebensohl_toggle(on: bool) {
+fn set_lebensohl_toggle(agreements: &mut Agreements, on: bool) {
     use american::LebensohlStyle;
-    set_lebensohl_style(if on {
-        LebensohlStyle::Transfer
-    } else {
-        LebensohlStyle::Off
-    });
+    set_lebensohl_style(
+        agreements,
+        if on {
+            LebensohlStyle::Transfer
+        } else {
+            LebensohlStyle::Off
+        },
+    );
 }
 
 /// Whether Lebensohl is live.  See [`advance_sohl_toggle`] on `Plain`.
-fn lebensohl_toggle() -> bool {
-    lebensohl_style() != american::LebensohlStyle::Off
+fn lebensohl_toggle(agreements: &Agreements) -> bool {
+    lebensohl_style(agreements) != american::LebensohlStyle::Off
 }
 
 /// Advancer's Lebensohl (after partner's takeout double is overcalled) as an on/off
 /// toggle: on = Transfer Lebensohl (the shipped default), off = none.
-fn set_advance_sohl_toggle(on: bool) {
+fn set_advance_sohl_toggle(agreements: &mut Agreements, on: bool) {
     use american::LebensohlStyle;
-    set_advance_sohl_style(if on {
-        LebensohlStyle::Transfer
-    } else {
-        LebensohlStyle::Off
-    });
+    set_advance_sohl_style(
+        agreements,
+        if on {
+            LebensohlStyle::Transfer
+        } else {
+            LebensohlStyle::Off
+        },
+    );
 }
 
 /// Whether advancer's Lebensohl is live.  `Plain` is unreachable from the UI but
 /// counts as on, so an A/B that selected it is not reported as "off".
-fn advance_sohl_toggle() -> bool {
-    advance_sohl_style() != american::LebensohlStyle::Off
+fn advance_sohl_toggle(agreements: &Agreements) -> bool {
+    advance_sohl_style(agreements) != american::LebensohlStyle::Off
 }
 
 /// Puppet Stayman as an on/off toggle: on = Puppet (the shipped default, 3♣ Puppet
 /// Stayman), off = European transfers (2♠ club transfer, 2NT natural, 3♣ diamond).
-fn set_puppet_stayman(on: bool) {
-    amend(|a| {
-        a.decision.reading.notrump_minors = if on {
-            american::PUPPET
-        } else {
-            american::EUROPEAN
-        };
-    });
+fn set_puppet_stayman(agreements: &mut Agreements, on: bool) {
+    agreements.decision.reading.notrump_minors = if on {
+        american::PUPPET
+    } else {
+        american::EUROPEAN
+    };
 }
 
 /// Whether the 1NT minor scheme is Puppet rather than European transfers.
-fn puppet_stayman() -> bool {
-    agreements().decision.reading.notrump_minors == american::PUPPET
+fn puppet_stayman(agreements: &Agreements) -> bool {
+    agreements.decision.reading.notrump_minors == american::PUPPET
 }
 
-/// The registry.  Each `default` mirrors its engine `Cell::new(...)` — keep the two
-/// in sync by hand when a knob's default changes (there is no automatic guard).
+/// The registry. Each `default` mirrors [`Agreements::default`]; the test below
+/// keeps them in sync when a knob's default changes.
 ///
 /// `rustfmt::skip` keeps every row on one line — rustfmt otherwise explodes each
 /// `toggle(...)` whose call exceeds the width into a seven-line block; the table
@@ -1425,11 +1473,7 @@ static SETTINGS: &[Setting] = &[
     toggle("competition_over_stayman", COMPETITION, "", true, set_competition_over_stayman, competition_over_stayman),
     gated("competition_over_minor_transfer", COMPETITION, "", true, set_competition_over_minor_transfer, competition_over_minor_transfer, "puppet_stayman"),
     gated("competition_over_diamond_transfer", COMPETITION, "", true, set_competition_over_diamond_transfer, competition_over_diamond_transfer, "puppet_stayman"),
-    // A declared fact about the opponents, not an agreement of ours — the
-    // engine's `their` disclosure channel (engages the Landy counter).
-    toggle("their_2c_landy", COMPETITION, "Their 1NT-overcall 2♣ = Landy (declared)", false, declare_their_2c_landy, their_2c_landy),
-    toggle("their_2d_multi", COMPETITION, "Their 1NT-overcall 2♦ = Multi (declared)", false, declare_their_2d_multi, their_2d_multi),
-    Setting::Choice { key: "multi_stopper_ask", section: COMPETITION, label: "Multi 3♠ stopper ask", variants: MULTI_STOPPER_ASK_VARIANTS, default: "off", requires: Some("their_2d_multi"), set: set_multi_stopper_ask_choice, get: get_multi_stopper_ask_choice },
+    Setting::Choice { key: "multi_stopper_ask", section: COMPETITION, label: "Multi 3♠ stopper ask", variants: MULTI_STOPPER_ASK_VARIANTS, default: "off", requires: Some("opponent:notrump_defense=woolsey"), set: set_multi_stopper_ask_choice, get: get_multi_stopper_ask_choice },
     toggle("defense_to_2c_landy_cues", COMPETITION, "Landy counter: GF minor cues", false, set_defense_to_2c_landy_cues, defense_to_2c_landy_cues),
     // Implies the cues row above (N1c keeps them and re-rungs what is below).
     // The stack below it shipped default-on 2026-08-14 (pooled two-seed
@@ -1498,7 +1542,7 @@ static SETTINGS: &[Setting] = &[
     toggle("forcing_ceiling_read", FLOOR, "", true, set_forcing_ceiling_read, forcing_ceiling_read),
     toggle("doubler_xx_runout", FLOOR, "", true, set_doubler_xx_runout, doubler_xx_runout),
     // Inference (auction reading)
-    gated("their_multi_reading", INFERENCE, "Read their Multi as 6+♥ or 6+♠", true, set_their_multi_reading, their_multi_reading, "their_2d_multi"),
+    gated("their_multi_reading", INFERENCE, "Read their Multi as 6+♥ or 6+♠", true, set_their_multi_reading, their_multi_reading, "opponent:notrump_defense=woolsey"),
     toggle("nt_invite_inference", INFERENCE, "", true, set_nt_invite, nt_invite),
     gated("rubens_transfer_reading", INFERENCE, "", true, set_rubens_transfer, rubens_transfer, "rubens_advances"),
     toggle("fallback_projection", INFERENCE, "", true, set_fallback_projection, fallback_projection),
@@ -1614,21 +1658,21 @@ impl Binky {
     }
 }
 
-/// Flip a boolean bidding knob for the **next** deal (the Settings tab).  Unknown
-/// keys are a no-op.
+/// Flip one partnership's boolean bidding knob for the **next** deal.
+/// Unknown partnership names and keys are a no-op.
 #[wasm_bindgen]
-pub fn set_option(key: &str, on: bool) {
+pub fn set_option(pair: &str, key: &str, on: bool) {
     if let Some(Setting::Toggle { set, .. }) = SETTINGS.iter().find(|s| s.key() == key) {
-        set(on);
+        amend(pair, |agreements| set(agreements, on));
     }
 }
 
-/// Select a variant of a mutually-exclusive choice (a radio family, e.g. defense to
-/// their 1NT) for the **next** deal.  Unknown keys are a no-op.
+/// Select one partnership's mutually-exclusive choice for the **next** deal.
+/// Unknown partnership names and keys are a no-op.
 #[wasm_bindgen]
-pub fn set_choice(key: &str, value: &str) {
+pub fn set_choice(pair: &str, key: &str, value: &str) {
     if let Some(Setting::Choice { set, .. }) = SETTINGS.iter().find(|s| s.key() == key) {
-        set(value);
+        amend(pair, |agreements| set(agreements, value));
     }
 }
 

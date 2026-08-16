@@ -62,15 +62,18 @@ Five tabs:
   then see the double-dummy table and the contract's actual-layout verdict.
 - **Book** — the authored 2/1 books (constructive/competitive/defensive),
   every node's rules with weights and the constraints' own English
-  descriptions, filterable.
+  descriptions, filterable.  An NS/EW selector chooses which partnership's
+  current book is shown.
 - **Edit** — a PBN field two-way-synced with a card palette; build a deal by
   hand, then "Bid it out in Demo".
 - **Settings** — toggle bidding conventions, grouped by area.  The whole tab is
   generated from the Rust registry (`describe_options()` in `src/lib.rs`), so a
   convention added there appears here automatically; mutually-exclusive families
   (e.g. defense to their 1NT) render as radio buttons backed by one engine enum.
-  Each control flips a thread-local `set_*` knob read when the **next** deal
-  rebuilds `american()`, so changes apply from the next Practice/Demo board on.
+  NS and EW have separate profiles; each control edits the selected partnership
+  and changes apply when the next Practice/Demo board rebuilds both systems.
+  The two profiles are also disclosed to each other, so each side reads the
+  opponent's artificial calls from the opponent's actual book.
   See [Settings coverage](#settings-coverage) for what is not exposed yet.
 
 Suit colors are CSS variables in `style.css` (`--club`, `--diamond`, …) —
@@ -84,13 +87,18 @@ which `describe_options()` serialises for the JS renderer.  Adding a knob to the
 UI is **one registry row** (see the top of that file); adding an engine `set_*`
 alone does *not* surface it.
 
+Only overrides are stored in `localStorage`, separately for NS and EW.  A
+pre-split global value is copied to both profiles on first load, preserving the
+old symmetric behavior.  Opponent disclosures such as Woolsey's Landy `2♣`
+and Multi `2♦` are derived from the other profile rather than user-editable.
+
 The registry is **curated by measurement**: it offers every convention that A/B's
 as a win or a wash, and hides options that measure *worse* — the engine keeps
 those as opt-in re-measure knobs, but a player is never offered a setting that
 loses.  So an absent knob is usually a deliberate omission, not a gap.
 `NotrumpDefense` (`src/bidding/american/defense.rs`) is the worked example of a
-radio family: one `Cell<enum>`, a `set_*(enum)` setter, and a `Setting::Choice`
-whose `set` maps the registry `value` string onto a variant.
+radio family: one enum field and a `Setting::Choice` whose `set` maps the
+registry `value` string onto a variant.
 
 ### Hidden because the option measures worse
 

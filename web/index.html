@@ -70,6 +70,10 @@
     </section>
     <section id="book" class="hidden">
       <div class="controls">
+        <label>Partnership <select id="b-pair">
+          <option value="ns" selected>North–South</option>
+          <option value="ew">East–West</option>
+        </select></label>
         <input id="b-filter" type="search" placeholder="Filter by auction or rule text…">
         <span id="b-count" class="count"></span>
       </div>
@@ -123,8 +127,14 @@
     </section>
     <section id="settings" class="hidden">
       <div class="boardinfo">Toggle conventions, then Deal in Practice or Demo — changes apply to the next deal.</div>
+      <div class="controls">
+        <label>Partnership <select id="s-pair">
+          <option value="ns" selected>North–South</option>
+          <option value="ew">East–West</option>
+        </select></label>
+      </div>
       <div id="s-options"></div>
-      <button id="s-reset" class="secondary">Reset to defaults</button>
+      <button id="s-reset" class="secondary">Reset North–South to defaults</button>
     </section>
   </main>
   <script type="module" src="app.js"></script>
