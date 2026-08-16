@@ -76,7 +76,9 @@ the parts that do not churn: protocol, interpretation, and ship rules.
     (`smoke-default`), never an argument from knob defaults: the RKCB knob
     cull's `announced()` overlay was inert only because an unrelated global
     split happened to be off ([bba-kickback.md](ai-bidder/bba-kickback.md)
-    ledger).
+    ledger). The same bar covers a **performance** change: if it moves any
+    call it needs the A/B non-loss on both scorers, not a speed number
+    (CLAUDE.md § Objective — KR2/KR3 wins prove KR1 non-inferiority).
 
 `ab-dump-diff --show N` is a **selected worst tail**, not a sample. Use it to
 find boards to trace, never to claim a population mechanism until the claim is
@@ -567,6 +569,12 @@ These produced actual wrong conclusions; each has a memory/ledger trail.
   get an off-switch spelled `--no-ns-*` when shipped default-on.
 - **Default-on** requires: plain-DD win, or plain wash + PD win, or additive +
   DD-invisible value (table above). **Plain-DD loss never ships default-on.**
+- **Park branch** (`park/<slug>`, CLAUDE.md § Workflow): a non-win whose flip
+  needs more *work* — a retrain, unauthored siblings, a redesign — parks the
+  whole idea on a branch instead of shipping scaffolding on `main`. Finished
+  code whose only owed work is a re-measure stays an opt-in knob (above).
+  Rebase onto `main` before re-measuring; control = `main` HEAD on the same
+  `SEED_BASE`; merge on a win. Wins already on `main` stand regardless.
 - **The wash tiebreak — naturalness.** When two methods push each other (both
   scorers wash), *direction relative to natural bidding* picks the default. The
   default is the least-surprising agreement an unknown American / online partner

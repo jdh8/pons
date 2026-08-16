@@ -12,6 +12,19 @@ ask me questions about bidding theory. I am not an expert (yet), but I have
 played a long time and read a lot. For 5-card major systems, see my
 [Strawberry Polish Club](https://polish.club/).
 
+## Objective
+
+Make `pons` the best open-source bridge engine. Key results, in order:
+
+1. **KR1 — bridge score** (IMPs, measured per [docs/measurement.md](docs/measurement.md)).
+2. **KR2 — clean software architecture.**
+3. **KR3 — acceptable performance.**
+
+KR1 is the objective's direct proxy and outranks the rest: a KR2 or KR3 win
+ships only with a KR1 **non-inferiority proof** — a seeded `smoke-default`
+byte-identity of the default system, or an A/B that is a non-loss on both
+scorers (measurement.md, checklist item 11).
+
 ## Read before working
 
 | Task | Read first |
@@ -48,7 +61,16 @@ treatment) and `measure-ab` (running and interpreting an A/B). Use them.
 
 ## Workflow (non-negotiable)
 
-- Develop and commit **directly on `main`** — no feature branches.
+- Develop and commit **directly on `main`** — every win, however small,
+  lands on `main`, and a shipped win **stands** even if later parts of its
+  plan fail. A feature branch has exactly one use: to **park a whole idea**
+  that starts as a non-win (measured loss or wash) when a credible follow-up
+  plan (a retrain, unauthored siblings, a redesign) could flip it to a win.
+  Name it `park/<slug>`, push it, put the numbers and the flip plan in its
+  last commit plus one row in the owning campaign doc; `git branch --list
+  'park/*'` is the whole index. Rebase onto `main` before re-measuring
+  (control = `main` HEAD, same `SEED_BASE`); it merges when the A/B reads a
+  win.
 - Only commit or push when asked.
 - After updating the codebase:
   1. `cargo fmt`
@@ -121,6 +143,9 @@ two docs above hold the full story; the rules survive summarizing:
   its machines), never a "botnet".
 - Rejected-but-interesting treatments stay as opt-in `set_*` knobs with the
   default system byte-identical — many are single-dummy re-measure candidates.
+  The split with a `park/` branch: **finished code, owed measurement → knob**;
+  **unfinished idea, owed work → branch**. A knob that exists only to
+  neutralise another knob is scaffolding — the smell that says "branch".
 - Visibility: plain `pub` by default; `pub(crate)`/`pub(super)` only for a
   genuine implementation detail that must cross a module boundary (widening
   to `pub` so `web/` can reach an item is the expected move, not a concession).

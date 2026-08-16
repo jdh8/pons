@@ -45,6 +45,9 @@ read it now if this session hasn't. This skill is the run procedure.
    two big artifacts: PD-only win = doubling artifact; DD loss on an
    obstructive/concealment idea = harness blindness, park it opt-in for a
    single-dummy re-measure (`single_dummy_leads` prices the blind-lead seam).
+   Third disposition: a non-win whose flip needs more *work* (retrain,
+   unauthored siblings, redesign) parks the whole idea on a `park/<slug>`
+   branch, not as scaffolding on `main` (CLAUDE.md § Workflow).
    **The SD bracket is a pair too** — plain (`ns_score_tricks`) *and* SD-PD
    (`ns_score_pd_tricks`, failures doubled), exactly as DD pairs plain with PD.
    Quote both, read the verdict from SD-PD: plain SD relaxes the lead *and*

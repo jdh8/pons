@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Docs: the objective, its key results, and the branch-parking rule.**
+  `CLAUDE.md` gains an *Objective* section — the best open-source bridge
+  engine, with KR1 bridge score (IMPs) outranking KR2 clean architecture and
+  KR3 acceptable performance: a KR2/KR3 win ships only with a KR1
+  non-inferiority proof (`smoke-default` byte-identity, or an A/B non-loss
+  on both scorers; `docs/measurement.md` item 11 now says so for performance
+  changes too). The workflow rule "directly on `main`, no feature branches"
+  is refined, not reversed: every win, however small, lands on `main` and
+  stands even if later parts of its plan fail; a feature branch has one use —
+  to **park a whole idea** that starts as a non-win when a credible follow-up
+  plan (retrain, unauthored siblings, redesign) could flip it, on
+  `park/<slug>`, rebased onto `main` before re-measuring and merged on a win.
+  The split with the existing opt-in-knob rule: finished code with an owed
+  re-measure stays a knob; an unfinished idea with owed work parks; a knob
+  that exists only to neutralise another knob is the scaffolding smell that
+  says "branch". Ship rules in `docs/measurement.md` and both repo skills
+  carry the third disposition. Forward-looking only — nothing on `main`
+  moves. No code change.
+
 - **Docs: memory compaction — the durable record now lives in `docs/`.**
   Claude's per-project memory (217 files, ~800 KB of verdicts, mechanisms and
   reference distillations) was folded into the checked-in docs; memory keeps

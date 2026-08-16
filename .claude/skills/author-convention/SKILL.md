@@ -96,7 +96,8 @@ Come back here only if the fix means authoring new nodes — then steps 3–11 a
 10. **Ship decision** per the decision table in
     [docs/measurement.md](../../../docs/measurement.md): default-on for a
     plain-DD win or plain-wash+PD-win; rejected treatments stay opt-in with the
-    default byte-identical. Flipping a default updates the integration tests
+    default byte-identical; a non-win whose flip needs more work parks on a
+    `park/<slug>` branch. Flipping a default updates the integration tests
     that encoded the old one.
 11. **Disclose it.** `src/bidding/card.rs` generates our `.bbsa` cards from the
     live knob state, so BBA reads our alerts correctly. If BBA's schema has a row
@@ -107,7 +108,8 @@ Come back here only if the fix means authoring new nodes — then steps 3–11 a
     `tests/fixtures/alert-sites.txt` — the tripwire that fired to send you here.
 12. **Record**: CHANGELOG entry with the measured numbers (IMPs/board,
     IMPs/fired, board count, vulnerabilities); ledger row if it's a tracked
-    campaign item; propose the commit message (commit directly on `main`).
+    campaign item; propose the commit message (on `main`; a parked non-win
+    lives on its `park/<slug>` branch).
 
 ## Delegation
 
