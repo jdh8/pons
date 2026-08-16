@@ -9,6 +9,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The ceiling consumers censused and both REFUSED — `nt_hcp_read` and
+  `fit_sum_support_read` stay opt-in.** The two knobs that read a strength
+  *ceiling* (`combined_hcp` rides `hcp_floor()`, `fit_sum_game` rides
+  `support_floor(suit)`) were expected to come alive once `strength_ceilings`
+  and `upgrade_closure` populated those gauges. They did not, and the reason is
+  structural rather than statistical.
+
+  Every call site of both sits inside `points_or_net` / `points_and_net`, whose
+  authored arm carries the guard `net_collar() | !accountant_floor()`. Shipped
+  defaults are `accountant_floor: true`, `net_collar: false`, so that guard is
+  **constant false**: the evaluator net owns the game and slam milestones
+  outright and the point arithmetic these knobs edit is masked out entirely.
+  The collar arm is dead for the mirror reason — `(!net_collar() | collar)`
+  short-circuits to true. Measured: **0 of 20,480 boards fired** for either
+  knob, and the dedicated `examples/ab-nt-hcp` agrees at 0 of 20,000. So no
+  ceiling the reading program populates can reach these gates while the
+  accountant is uncollared.
+
+  Re-run under `--ns-net-collar`, the one configuration where the authored arm
+  is live, `nt_hcp_read` fires 0.16% and **loses on both scorers** —
+  −0.0085/bd plain, −0.0081/bd PD, 32 boards, CI-clear at 20,480. Every one of
+  the five worst divergences is a *slam no longer bid* (`6NT`→`3NT`,
+  `7NT`→`6NT`) on a shapely hand: `AKQT83` opposite a void, six-card suits
+  facing shortness. The knob's premise — "length and shortness are worthless in
+  notrump" — holds for a ruffing value and fails for a long **running** suit,
+  which is a source of notrump tricks the raw-HCP count cannot see. The
+  milestone it damages is precisely the one where the upgrade was doing honest
+  work. `fit_sum_support_read` fires **0 even collared**.
+
+  Both fail the pre-registered ship rule (jdh8, before the numbers: plain win +
+  PD non-loss, or plain wash + PD win). Neither earned a three-seed run. The
+  knobs stay opt-in as single-dummy re-measure candidates.
+
+  Reproduction: paired `bba-gen` arms on identical deals, 640 bd × 32 shards,
+  one vulnerability — a default pair to show the mask, then the same pair under
+  `--ns-net-collar` for the knobs' real reach.
+
+  Consequence for the reading program: the ⚠ at
+  `docs/authored-reading-handoff.md:420` — that flipping either knob would
+  retroactively make `strength_ceilings`/`upgrade_closure` into floor-behaviour
+  knobs — is **moot under shipped defaults**. It becomes live only if the
+  accountant is ever collared.
+
 - **The shape-upgrade closure ships default-on:
   `ReadingProfile::upgrade_closure` (DNF chop C2).** `points` is `hcp` plus a
   shape-and-honour upgrade, and *balanced hands never upgrade* — so a box whose

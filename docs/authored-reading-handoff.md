@@ -307,7 +307,7 @@ book has few ceilings. It is that **almost nothing reads one**:
 | --- | --- | --- |
 | instinct floor | **no** | zero strength-`.max` reads in `instinct.rs`; `Strength` has no ceiling accessor at all — `hcp_floor()`, `support_floor()`, `shown_floor()` all return a `.min`, and the first two touch `.max` only as a *populated* test |
 | authored book | **no** | `PartnerShownPoints::eval` (constraint.rs:2717) tests `shown.min`; `PartnerShownLen` likewise |
-| `hcp_floor()` / `support_floor()` flipping `None → Some` | gated off | their only consumers sit behind `nt_hcp_read: false` and `fit_sum_support_read: false` (instinct.rs:527-528) |
+| `hcp_floor()` / `support_floor()` flipping `None → Some` | **structurally dead**, not merely gated off | their only consumers sit behind `nt_hcp_read: false` and `fit_sum_support_read: false` — *and* inside `points_or_net`/`points_and_net`, whose authored arm is constant-false under the shipped accountant defaults. Flipping the knobs does not revive them; see the resolution below |
 | sampler (`Envelope::admits_on`) | yes, genuinely two-sided — but `sample_layouts` is reached only from `single_dummy.rs:187` and `ev::ev_all`, so it moves **sd-lead**, not the bidding decision |
 | nets | **yes**, and this is the dominant live channel: `features.rs` pushes `points.max` / `hcp.max`, fed through `Context::net_inferences`. Measured at **98.6%** of the divergence — see the `legacy_view` arm below |
 | gates / slam asks | **yes, thinly** — the `legacy_view` arm leaves 3 boards in 204,800, all phantom keycard asks. Not predicted by this census; the gate sites keep `inferences()` by design |
@@ -422,6 +422,30 @@ ceilings on, `hcp_floor()`/`support_floor()` stop returning `None`, so either
 flip silently makes `strength_ceilings` a floor-behaviour knob. `support_floor(suit)`
 returns that suit's slot min, which is ≤ `shown_floor()`, so `fit_sum_game`
 would get *more conservative* as a side effect.
+
+**Resolved 2026-08-16 — the warning is moot under shipped defaults, and both
+knobs are refused.** Censused on paired `bba-gen` arms over identical deals
+(640 bd × 32 shards): each fires **0 of 20,480 boards**, because every call
+site of both consumers
+sits inside `points_or_net`/`points_and_net`, whose authored arm is guarded by
+`net_collar() | !accountant_floor()`. Shipped defaults (`accountant_floor:
+true`, `net_collar: false`) make that guard constant false — the evaluator net
+owns the game and slam milestones and the point arithmetic is masked out. So
+**no ceiling this program populates can reach these two gates** while the
+accountant is uncollared; the ⚠ above goes live only if the collar ships.
+
+Under `--ns-net-collar`, the one live configuration, `nt_hcp_read` fires 0.16%
+and loses on both scorers (−0.0085 plain / −0.0081 PD per board, 32 boards,
+CI-clear). All five worst divergences are slams no longer bid (`6NT`→`3NT`,
+`7NT`→`6NT`) on hands with a long running suit — the raw-HCP premise holds for
+a ruffing value and fails for a source of notrump tricks.
+`fit_sum_support_read` fires 0 even collared. Both stay opt-in.
+
+The transferable lesson: the consumer census in the table above asked *which
+channels read a ceiling* and found these two "gated off" by their knob
+defaults. It should also have asked whether the **surrounding rule arm** is
+reachable. A knob default of `false` and a constant-false guard look identical
+from the knob's side, and only the second is unfixable by flipping the knob.
 
 ### N2's `3NT` is not a strength decision at all
 

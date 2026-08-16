@@ -430,6 +430,13 @@ pub struct InstinctProfile {
     /// dedicated `support_points` gauge, falling back to the length-scale
     /// `points` when it is unpopulated.  **Default off** — byte-identical to
     /// reading `points`.  The on arm of `ab-fit-sum-game`.
+    ///
+    /// **Refused 2026-08-16**: 0 of 20,480 boards fired, and 0 again under
+    /// `--ns-net-collar`.  Its consumer `fit_sum_game` sits inside
+    /// `points_or_net`, whose authored arm is constant-false while
+    /// [`accountant_floor`][Self::accountant_floor] is on and
+    /// [`net_collar`][Self::net_collar] is off — the shipped pair.  Reviving it
+    /// takes a collar, not a flip; see `docs/authored-reading-handoff.md`.
     pub fit_sum_support_read: bool,
     /// Edit 2 — value the notrump milestones on raw HCP
     ///
@@ -437,6 +444,13 @@ pub struct InstinctProfile {
     /// plus partner's crisp `hcp` gauge — instead of the length-upgraded
     /// `point_count`.  **Default off**, in which state the combined-HCP read is
     /// the combined-points read verbatim.  An A/B knob.
+    ///
+    /// **Refused 2026-08-16**: masked out under the shipped accountant defaults
+    /// exactly as [`fit_sum_support_read`][Self::fit_sum_support_read] is (0 of
+    /// 20,480 fired), and under `--ns-net-collar` it fires 0.16% and *loses*
+    /// (−0.0085/bd plain, −0.0081 PD).  Every worst board is a slam it talks us
+    /// out of on a hand with a long running suit: raw HCP is right that a
+    /// ruffing value is worthless in notrump and wrong that length is.
     pub nt_hcp_read: bool,
     /// Edit 3 — a partner who denied the values has not forced us to game
     ///
