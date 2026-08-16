@@ -595,7 +595,7 @@ soundness correction; a loss traces its worst boards before any conclusion.
 | 0 | **N2a** — opener passes the relay's minor sign-off | book node (`{relay} 3♦ -` → `Pass`, a `landy_signoff_answer` twin) shadows the floor; independent of every reading phase | knobless; measure on `--filter-1nt` | standard | queued — cheapest, fixes 16/18 regardless |
 | 1 | **Strength ceilings** | `Points::project` / `Hcp::project` / `SupportPoints::project` → band | `reading.strength_ceilings` **+ `DecisionProfile::legacy_view`, both default-on since 2026-08-16**; pre-ship arm is `bba-gen --ns-strength-ceilings false --ns-legacy-view false` | admits sweep + `probe-reading-sound` unchanged-or-better; A/B | **SHIPPED 2026-08-16.** Soundness gate green (E0 book-wide + 4-cell behavioural grid + probe partner 2.114→2.105%); A/B 3 seeds raw + 1 legacy — raw leans plain-DD-negative, **legacy arm 3 boards/204,800, 4/4 cells positive, ~1% cost**. Shipped on the legacy arm. Cards byte-identical; smoke re-based `18aba5ce…` → `cf583ff5…`. C2's re-open trigger ("a two-sided forward projection") is met by it — **and C2 shipped on it the same day**, 12/12 cells positive once `legacy_view` shields the nets from it too (ledger below) |
 | 2 | **`ReadingScope::All`** as default | built; drop the alert gate | `--ns-reading-scope all` (default); `alerted` is the off arm | clear the empty-box worklist before measuring (`probe-reading-sound --ns-reading-scope all`, bucketed); whole-book non-loss under plain DD and PD at both vulnerabilities | **SHIPPED default-on 2026-08-16.** First run held (PD loss, all six cells); its forensic found the whole loss in the four `1x (1NT)` lanes — the side-blind systems-on strip — and with that fixed (nets held by `legacy_view`) 3 seeds × 204,800 bd/arm/vul read **12/12 cells positive**, plain +0.0078…+0.0125 / PD +0.0073…+0.0111. Smoke `edb618b8…` → `bdd1a80e…`; cards byte-identical. The two `pass_out` nodes stay (their deletion is its own A/B) |
-| 3 | **Substitute, don't intersect** | authored calls set suppression; walk bookkeeping from the projection; retire `nt_blanket` & co. for authored calls | two-binary (a refactor, not a knob) | byte-identity where projection ⊇ walk is *not* expected — this moves readings by design; A/B | **SHIPPED 2026-08-17.** Partner exclusions 1.877%→1.308%; N2 4/4 cells non-negative; two 204,800-board whole-book seeds are wash/wash at both vuls (pooled NV +0.00023/+0.00052 plain/PD, vul −0.00072/−0.00064). Smoke `bdd1a80e…`→`d532f04b…`.  **Polish A′ 2026-08-17: LOST 12/12 cells** vs `a376c324` (three seeds, both scorers, both vuls) — the bundle was face-suit record + `substitute_authored` net shield + fit-write-back drop + mask refactor. Shield and write-back drop **reverted**; face-suit record + refactor re-measuring alone (`ab-results/bd-only-s{1,2,3}`, smoke `d532f04b…`→`cb090e54…`). See *Why the wash* |
+| 3 | **Substitute, don't intersect** | authored calls set suppression; walk bookkeeping from the projection; retire `nt_blanket` & co. for authored calls | two-binary (a refactor, not a knob) | byte-identity where projection ⊇ walk is *not* expected — this moves readings by design; A/B | **SHIPPED 2026-08-17.** Partner exclusions 1.877%→1.308%; N2 4/4 cells non-negative; two 204,800-board whole-book seeds are wash/wash at both vuls (pooled NV +0.00023/+0.00052 plain/PD, vul −0.00072/−0.00064). Smoke `bdd1a80e…`→`d532f04b…`.  **Polish A′ 2026-08-17: LOST 12/12 cells** vs `a376c324` (three seeds, both scorers, both vuls) — the bundle was face-suit record + `substitute_authored` net shield + fit-write-back drop + mask refactor. Shield and write-back drop **reverted**. **Polish A′′ 2026-08-17: WASH, shipped on KR2** — face-suit record + `CallMasks` refactor alone vs `a376c324`, 3 seeds × 204,800 bd/arm/vul, 9/12 cells positive, pooled +112 IMPs plain (+0.00009/bd) / +101 PD (+0.00008/bd) on 58 diverging boards, every cell's CI straddling zero (`ab-results/bd-only-s{1,2,3}`, smoke `d532f04b…`→`cb090e54…`, cards byte-identical). The fix over-registers in the opposite direction — its worst board is traced to the walk's rebid arm firing on a floor control bid in competition — so a refinement is queued as its own arm. See *Why the wash* |
 | 4 | Negative inference | fold `project_complement` of higher rules | knob | admits sweep (must stay green — it tightens) | later |
 | 5 | **features_v6 + retrain** | honest reading in, `legacy_view` and `net_points` fold out | F2b recipe (dump, held-out gate, twin, flip) | held-out NLL/MAE ≥ shipped; A/B of the flip | after 1-3 land |
 
@@ -851,16 +851,90 @@ slams in a phantom strain. Both directions appear in the diverging boards:
 ```
 1♦ (2♠) X (3♠) 4♦ - 4NT - 5♠ -     fix 6♦   control 6♥   +14   ♥98 opposite a void
 1♦ - 1♥ (3♠) 4♦ - 4NT - 5♠ -       fix 6♦   control 6♥X  +19   same shape
-- (1♦) 1♠ (2♥) - 3♦ - 4NT - 5♣ -   fix 6♦X  control 5♦   −11   fix emboldened into a bad slam
+- 1♦ (1♠) 2♥ - 3♦ - 4NT - 5♣ -     fix 6♦X  control 5♦   −11   fix emboldened into a bad slam
 ```
 
 So the repair is **not** one-directional: fixing trump identity moves slam
 decisions both ways, and the two-sided tail is the honest picture. Because the
 trigger needs a substituted natural bid whose projection floor is short, it
-fires on ~0.004% of boards (6–10 per 204,800-board cell) at ≈4 IMPs each — an
+fires on ~0.005% of boards (6–13 per 204,800-board cell) at 2–4 IMPs each — an
 inert fleet score carrying a real correctness win, and far too few boards for
 the per-fired mean to be worth reading. Judge this class of fix by inspecting
 its boards, not by its IMPs/board.
+
+**A′′ verdict (`ba8f7305` vs `a376c324`, 3 seeds × 204,800 bd/arm/vul):**
+
+| cell | plain | PD | fired |
+| --- | ---: | ---: | ---: |
+| s1 NV  | +34 (+0.0002) | +35 (+0.0002) | 9 |
+| s1 vul | +36 (+0.0002) | +41 (+0.0002) | 10 |
+| s2 NV  | +2 (+0.0000) | −4 (−0.0000) | 6 |
+| s2 vul | −24 (−0.0001) | −40 (−0.0002) | 8 |
+| s3 NV  | +24 (+0.0001) | +29 (+0.0001) | 12 |
+| s3 vul | +40 (+0.0002) | +40 (+0.0002) | 13 |
+
+**9/12 cells positive**, the three negatives totalling −68 IMPs and none
+reaching 0.0002 IMPs/board against per-cell CIs of ±0.0002…±0.0004 — every
+cell straddles zero. (Read raw IMPs here, not the per-board column: at 0.00%
+firing the fourth decimal hides the sign, which is how the count first went
+down as "10/12 non-negative".) Pooled over 1,228,800 boards/scorer, +112 IMPs
+plain (+0.00009/bd) and +101 PD (+0.00008/bd) on 58 diverging boards. So this
+is a **wash** — non-loss on both scorers at both vulnerabilities, shipped on
+KR2 under the objective's rule.
+
+**The fix has its own failure mode: it over-registers.** Recording the named
+face suit unconditionally makes `i_bid_it` true *more* often, and a merely
+named suit can then outrank a genuine fit. The worst board in the run is this,
+not the bug it repairs:
+
+```
+- 1♣ (1♠) 2♥ - 3♥ - 3♠ - 4♣ - 4NT - 5♠ -      fix 6♣X   control 6♥   −18
+      ♠Q842 ♥KQ6 ♦93 ♣AJ73   opposite   ♠A9 ♥A9874 ♦AJ8 ♣K84
+```
+
+♥KQ6 opposite ♥A9874 is an 8-card fit holding AKQ; the fix parks it in a
+7-card club fit and is doubled. The two arms of the trade — suits wrongly
+forgotten (the `6♦` boards, +14/+19/+21) against suits wrongly promoted (this
+one) — very nearly cancel, which is exactly why the pooled number is zero
+rather than the win seed 1 alone suggested.
+
+**Traced 2026-08-17, and the guessed lever was wrong.** `probe-decision` on S
+(dealer W, pons N-S, both vul) reads partner as `♣ 6..13` at the `4NT` and
+answers `6♣` at the six-level node, so the chain is:
+
+1. N's `4♣` is **unauthored floor** — a control bid with hearts agreed.
+2. ♣ is in `lane_suits[N]` from the substituted `1♣` opening's face suit, so
+   `4♣` hits the walk's own-suit **rebid** arm ([read.rs:770-820]) and takes
+   its floor of 6 ([read.rs:815]) — S now reads partner for a six-card club
+   suit that partner never showed.
+3. [`keycard_trump`] maximises `our length + partner's shown floor` over all
+   four suits, so ♣ (3+6=9) outranks ♥ (5+3=8) and the ask keys on clubs.
+
+The same board carries a **second, pre-existing phantom**: after N's `5♠`
+(the 1430 answer) S's read of partner's spades moves `0..4` → `3..4`, because
+S's own `3♠` cue was written to `lane_suits[S]` by the unconditional
+bid-history write at [read.rs:1154-1155], making `5♠` a *raise* of a suit
+only the opponents hold. Not Phase 3's doing and not on this board's critical
+path — recorded here, owed its own arm.
+
+Trump selection *already* prefers length — that lever is a no-op. The real
+one is step 2: `classify_high_bid`, the only control-bid detector, is gated
+off in every contested auction ([read.rs:694], `!side_acted[defending_parity]`),
+so in competition a slam-zone bid of a named suit can only read as a rebid.
+
+**Queued refinement, unmeasured:** teach the walk that a 4–5 level bid of a
+suit is a *control bid, not a rebid*, when another suit is already agreed in
+that lane pair — the same guard on the `partner_bid_it` raise arm, since a
+control bid in partner's suit is not a raise either. Loosens only, so it is
+soundness-safe by construction. Its own arm, never a rider. (The alternative,
+gating the face-suit record on the projection not contradicting it, tightens
+and would have to clear the soundness probe first.)
+
+[read.rs:770-820]: ../src/bidding/inference/read.rs#L770-L820
+[read.rs:815]: ../src/bidding/inference/read.rs#L815
+[read.rs:694]: ../src/bidding/inference/read.rs#L694
+[read.rs:1154-1155]: ../src/bidding/inference/read.rs#L1154-L1155
+[`keycard_trump`]: ../src/bidding/instinct.rs#L1642-L1658
 
 **2. REFUTED — "substitution had no knob, so the nets saw it."**
 [`legacy_view`][net-shield] reconstructs the training-time reading by flipping
@@ -1009,7 +1083,10 @@ the `2NT` relay row no longer the lane's worst per board; `1NT 2♥ 2♠ -` read
 | 2026-08-16 | **Phase 2 forensic**: `ab-dump-bucket --by lane` on the held arms — the loss is the four `1x (1NT)` lanes (−2.0k…−2.6k PD/cell), the rest of the book +1.3k…+1.7k | root cause `systems_on_overcall_strip` firing on *their* 1NT overcall (side-blind); fixed ours-only + explicit their-1NT-overcall walk box; two A/Bs in flight (A: fix alone vs `main`; B: `All` on the fix) — see *The forensic — one lane, one bug* |
 | 2026-08-16 | **Phase 2 `ReadingScope::All` SHIPPED default-on** — strip fixed ours-only, nets held (`strip_side_blind` under `legacy_view`), 3 seeds × 204,800 bd/arm/vul | **12/12 cells positive** (plain +0.0078…+0.0125, PD +0.0073…+0.0111); the fix alone is byte-identical to `main` (0 fired, smoke `edb618b8…` unchanged); flip re-bases smoke to `bdd1a80e…`; cards byte-identical |
 | 2026-08-17 | **Phase 3 substitute-don't-intersect SHIPPED** — in-place walker, projection-derived lane bookkeeping, top fallback | Soundness partner exclusions 1.877%→1.308%; N2 4/4 non-negative; two 204,800-board whole-book seeds wash/wash at both vuls (pooled NV +0.00023/+0.00052 plain/PD, vul −0.00072/−0.00064); smoke `bdd1a80e…`→`d532f04b…` |
-| 2026-08-17 | **Phase 3 polish A′ — MEASURED LOSS, bundle split** | The review's four changes went out as one arm vs `a376c324` and lost **12/12 cells** (3 seeds × 204,800 bd/arm/vul; NV −0.0035/−0.0034, −0.0007/−0.0006, −0.0017/−0.0016; vul −0.0024/−0.0015, −0.0025/−0.0025, −0.0006/−0.0008 plain/PD), on 0.46–0.58% of boards at −0.13…−0.30 IMPs/fired. Bundling four changes in one arm was the process error. **Reverted:** `reading.substitute_authored` (net shield — refuted, and scaffolding by house rule) and the fit-write-back drop (unmeasured rider; still an open soundness question, owed its own arm). **Kept, ungated as shipped:** the `!authored_call` blanket escape (sound, and pinned by `top_authored_projection_falls_back_to_the_walk`). **Re-measuring alone:** the face-suit `lane_suits` record + the `CallMasks` refactor — `ab-results/bd-only-s{1,2,3}`, smoke `d532f04b…`→`cb090e54…`, cards byte-identical |
+| 2026-08-17 | **Phase 3 polish A′ — MEASURED LOSS, bundle split** | The review's four changes went out as one arm vs `a376c324` and lost **12/12 cells** (3 seeds × 204,800 bd/arm/vul; NV −0.0035/−0.0034, −0.0007/−0.0006, −0.0017/−0.0016; vul −0.0024/−0.0015, −0.0025/−0.0025, −0.0006/−0.0008 plain/PD), on 0.46–0.58% of boards at −0.13…−0.30 IMPs/fired. Bundling four changes in one arm was the process error. **Reverted:** `reading.substitute_authored` (net shield — refuted, and scaffolding by house rule) and the fit-write-back drop (unmeasured rider; still an open soundness question, owed its own arm). **Kept, ungated as shipped:** the `!authored_call` blanket escape (sound, and pinned by `top_authored_projection_falls_back_to_the_walk`). **Re-measured alone:** the face-suit `lane_suits` record + the `CallMasks` refactor — `ab-results/bd-only-s{1,2,3}`, smoke `d532f04b…`→`cb090e54…`, cards byte-identical |
+| 2026-08-17 | **Phase 3 polish A′′ — the split arm measured**, `ba8f7305` vs `a376c324`, 3 seeds × 204,800 bd/arm/vul, both scorers, both vuls | **WASH, shipped on KR2.** 9/12 cells positive (+34/+35, +36/+41, +2/−4, −24/−40, +24/+29, +40/+40 plain/PD), pooled +112 plain (+0.00009/bd) / +101 PD (+0.00008/bd) on 58 diverging boards; every cell's CI (±0.0002…±0.0004) straddles zero. Splitting the A′ bundle was the whole lesson: alone the change is a non-loss, bundled it was 12/12 down |
+| 2026-08-17 | **A′′ worst board (−18) traced** with `probe-decision` — the guessed lever was wrong | Not trump selection (`keycard_trump` already maximises *length* + partner's floor). N's `4♣` is unauthored floor; the substituted `1♣`'s face suit puts ♣ in `lane_suits[N]`, so the walk's own-suit **rebid** arm claims ♣6+ and the ask keys on a 7-card club fit over an 8-card heart fit holding AKQ. Root cause: `classify_high_bid` is gated off in every contested auction (`!side_acted[defending_parity]`), so in competition a slam-zone bid can only read as a rebid. Refinement queued as its own arm: 4–5 level bid + another suit already agreed in the lane pair ⇒ control bid, no length, on both the rebid and raise arms |
+| 2026-08-17 | **Second phantom on the same board, pre-existing**: N's `5♠` 1430 answer reads as a spade **raise** (partner ♠ `0..4`→`3..4`) | S's own `3♠` cue is written to `lane_suits[S]` by the unconditional bid-history write (`read.rs:1154-1155`), so the answer looks like a raise of a suit only the opponents hold. Off Phase 3's critical path; recorded, owed its own arm |
 
 ### Memory compaction notes (2026-08-16)
 

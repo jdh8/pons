@@ -631,9 +631,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   their pre-Phase-3 `5♦`.
 
   Fleet impact is inert by construction — the bug needs a substituted natural
-  bid whose projection floor is short, so it fires on ~0.004% of boards — but
-  each is a slam-level swing (≈4 IMPs). Measured non-loss vs `a376c324` on the
-  cells scored so far; the correction is a soundness repair, shipped on KR2.
+  bid whose projection floor is short, so it fires on ~0.005% of boards — but
+  each is a slam-level swing. Measured a **wash** vs `a376c324` (3 seeds ×
+  204,800 bd/arm/vul, 9/12 cells positive, pooled +112 IMPs plain
+  (+0.00009/bd) / +101 PD (+0.00008/bd) on 58 diverging boards, every cell's
+  CI straddling zero); shipped on KR2 as a soundness repair. The fix
+  over-registers in the opposite direction —
+  a merely named suit can now outrank a genuine fit — which is what cancels the
+  win; see `docs/authored-reading-handoff.md` for the board and the queued
+  refinement.
 
 - **`docs/takeout-double-layers.md` mislabelled `bba-multi-2d.md`'s 41%
   takeout-double row** as the *advancer's* X over a Multi. The probe's seat
