@@ -294,3 +294,63 @@ fn doubled_splinter_runs_systems_on() {
         "systems-on drives Keycard Blackwood, never passing the game force"
     );
 }
+
+#[test]
+fn lebensohl_signoff_is_not_a_game_force() {
+    // `1NT (2♠) 2NT - 3♣ - 3♦ -` — partner relayed with at most nine points and
+    // signed off in the minor.  `opener_forced_past_invitation` reads the force
+    // off auction *shape*, so it cannot tell this from a game-forcing
+    // three-level bid: the flag makes the floor take its deterministic rail and
+    // blast `3NT` on a bare minimum.  That is the N2 node — 16 of 18 boards,
+    // −52 plain / −125 PD (docs/one-notrump-competitive.md §N2).
+    //
+    // The knob has to be exercised through the *book*, not the bare instinct
+    // harness: partner's `points ≤ 8` comes from the alerted `2NT` relay's
+    // projection, and a context with no authored overlay reads `0..37`.
+    let signoff = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Spades),
+        call(2, Strain::Notrump),
+        Call::Pass,
+        call(3, Strain::Clubs),
+        Call::Pass,
+        call(3, Strain::Diamonds),
+        Call::Pass,
+    ];
+    // A 15-count minimum holding the spade stopper the `3NT` rule gates on.
+    // Even facing partner's *ceiling* this is 23 — two short of game.
+    let minimum = "Q93.K43.AKJT.Q42";
+
+    let arm = |ceiling_read| {
+        let mut agreements = pons::bidding::agreements::Agreements::default();
+        agreements.decision.instinct.forcing_ceiling_read = ceiling_read;
+        american(&agreements).bind()
+    };
+
+    assert_eq!(
+        best_call(&arm(false), &signoff, minimum),
+        call(3, Strain::Notrump),
+        "off, the shape-only force blasts game over a sign-off"
+    );
+    // On, assert only that the blast is gone: which call replaces it is the
+    // floor's business and moves with every retrain.
+    assert_ne!(
+        best_call(&arm(true), &signoff, minimum),
+        call(3, Strain::Notrump),
+        "a partner capped below ten has not forced us to game"
+    );
+
+    // The control: partner's *direct* three-level suit promises `points(10..)`,
+    // so the knob must leave that force alone.  Same seat, same hand.
+    let forcing = [
+        call(1, Strain::Notrump),
+        call(2, Strain::Spades),
+        call(3, Strain::Diamonds),
+        Call::Pass,
+    ];
+    assert_eq!(
+        best_call(&arm(true), &forcing, minimum),
+        best_call(&arm(false), &forcing, minimum),
+        "the ceiling read is inert where partner is unlimited"
+    );
+}

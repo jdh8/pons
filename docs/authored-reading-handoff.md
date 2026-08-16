@@ -38,7 +38,7 @@ after responder's weak Lebensohl relay and sign-off, both authored:
 
 | what responder's calls say | rule | what opener reads |
 | --- | --- | --- |
-| `2NT` relay | `points(..=8) & (5+ suit not theirs) & hcp(6..)`, alerted | `hcp 6..37`, `points 6..37`, suits `0..13` |
+| `2NT` relay | `points(..=9) & (5+ suit not theirs) & hcp(6..)`, alerted | `hcp 6..37`, `points 6..37`, suits `0..13` |
 | `3♦` sign-off | `min_level_is(3,♦) & len(♦,5..)`, natural | nothing added — ♦ `0..13` |
 | decision | — | floor (`depth 0, fallback 0`) bids **`3NT` 1.400** over Pass 0 |
 
@@ -221,7 +221,10 @@ knob default: `smoke-default --count 20000 --seed 1` still hashed
 `18aba5ce…`.  Both knobs shipped default-on 2026-08-16 and the constant is now
 `cf583ff5f46d7e7ffdf0ab065dcb285680a6b7d865df42cf5e139f0b74ab7b90`
 — a *deliberate* re-base, and the first thing to re-verify if a later
-"byte-identical" claim in this repo cites the old hash.
+"byte-identical" claim in this repo cites the old hash. (Phase 0b re-based it
+again the same day, to
+`f33d8caf785b5f8eda1d5bae0380748675a544b946aa1b02b905a4acfce8e9a4`; `cf583ff5…`
+is Phase 1's number, not the current constant.)
 
 E0 cost 53.8s → 69.7s (a quarter hand pool on the second pass; the sweep is
 hand-proportional and this axis only moves strength bounds).
@@ -447,10 +450,104 @@ stopper away and the `3NT` vanishes). The rule's own doc comment says it out
 loud — *"so passing below game is wrong, whatever our hand"*.
 
 **The predicate cannot tell a game-forcing three-level bid from a Lebensohl
-sign-off** — the one three-level suit call that promises at most eight. That
-is the N2 defect. It is independent of this whole campaign, it is a smaller
-change than N2a, and it fixes every sign-off lane at once rather than one
-node. It is now Phase 0b below.
+sign-off** — the one three-level suit call that promises at most nine (the rule
+is `points(..=9)`; the *reading* at the sign-off is `6..=8`, both confirmed on
+the probe). That is the N2 defect. It is independent of this whole campaign and
+it is a smaller change than N2a. It is now Phase 0b below.
+
+⚠ The first draft of this section also claimed it "fixes every sign-off lane at
+once". **That is a Phase 2 claim, not a Phase 0b one** — see the reach census in
+Phase 0b below.
+
+## Phase 0b — the predicate learns the sign-off (2026-08-16)
+
+`InstinctProfile::forcing_ceiling_read`, **shipped default-on 2026-08-16**. On,
+`opener_forced_past_invitation` keeps its auction-shape test and additionally
+requires partner's projected `points` ceiling to reach `DIRECT_THREE_LEVEL_POINTS`
+= 10 — the points the *direct* three-level suit promises
+(`lebensohl.rs` forcing arm, `points(10..)`) and the disturbed game-force floor
+in `game_forces` (`hcp(10..)`, whose nine-count sibling is guarded by
+`undisturbed()`). **Not** `nt_responder_game_floor`: that is 9, the relay's cap
+is 9, and `9 < 9` would never fire.
+
+This is the **first consumer of a strength ceiling in `instinct.rs`** — the
+census in Phase 1 found none. It therefore makes `strength_ceilings` a
+floor-behaviour knob deliberately, which is the same coupling the ⚠ above
+raises for `nt_hcp_read` / `fit_sum_support_read`.
+
+Dropping the force cannot *bar* game: the milestone `Or`'s sibling arm then
+prices `points_or_net(combined_hcp(25), …)` on the actual hands.
+
+Probe, shipped defaults, `PROBE_FORCING_CEILING=1`:
+
+```
+partner read: hcp 6..8  points 6..8          # the alerted relay's ceiling
+  P    9.001   (floor / no rule)             # was 3NT 1.400 on the rail
+  3NT  7.792
+```
+
+### The reach census — Phase 0b touches exactly one lane
+
+Only **alerted** calls project their rules under the shipped `Alerted` scope, so
+the fix bites only where partner's envelope already carries a ceiling below 10.
+Measured per node:
+
+| node | ceiling reaching partner's read | fires? |
+| --- | --- | --- |
+| Lebensohl relay sign-off | `points(..=9)` from the alerted `2NT` relay, monotone through the unalerted sign-off | **yes** |
+| `1NT - 2NT - 3♣ - 3♦` (`pass_out`) | own rule's `hcp(..8)` is **unalerted**; the alerted `2NT` is shape-only | no |
+| `1NT - 2♠ - 2NT - 3♣` (`pass_out`) | own rule's `hcp(..8)` unalerted; the alerted `2♠` is a disjunction with an unbounded clubs arm | no |
+| `1NT - 2♦ - 2♥ - 3♥` (`accept_sixcard_invitation`) | none — the rule has no upper bound in any form ("No upper bound is needed") | no |
+| `1NT - 3♦` (`five_five_major_answer`) | alerted, but `points(8..)` is a floor and the `≤16` cap is inside a `described` closure, which projects ⊤ | no |
+
+So the four book nodes documented as floor workarounds are **not retired by this
+phase**. Two of them (`pass_out`'s sites) are near misses whose own `hcp(..8)`
+would project `points ≤ 9` once Phase 2 drops the alert gate — they are Phase 2
+cleanup. `accept_sixcard_invitation` and `five_five_major_answer` would each
+need a ceiling *authored* first. And `accept_invitation`
+(`1NT - 2♣ - 2x - 2NT -`) was never in scope at all: its node sits over a
+level-two notrump call, so the predicate cannot fire there — its docstring was
+simply wrong and has been corrected.
+
+**Do not fix this by alerting the two retreats.** Alert is disclosure; alerting a
+natural call to buy a reading is the move this whole handoff exists to stop.
+
+### Test
+
+`lebensohl_signoff_is_not_a_game_force` (`tests/american_competition.rs`).
+It lives in the *integration* suite by necessity: `instinct/tests.rs`'s
+`best_with` builds a bare `Context` with no authored overlay, so partner reads
+`0..37` there and no reading-dependent floor predicate can be exercised at all.
+Worth knowing before writing the next one.
+
+The test pins the off arm exactly (`3NT`) and the on arm only by `assert_ne!` —
+which call replaces the blast is the floor's business and moves with every
+retrain — plus a control that the genuinely forcing direct `3♦` is untouched.
+
+### The A/B — three seeds, 12/12 cells positive
+
+`--ns-forcing-ceiling-read` against the same binary, 204,800 boards/arm/vul per
+seed (`ab-results/p0b-forcing-ceiling{,-s2,-s3}`, seeds 1786835216 /
+1786835669 / 1786836059), firing on 0.01%:
+
+| cell | Σ IMPs (3 seeds) | per board | per-seed signs |
+| --- | ---: | ---: | --- |
+| NV plain | +62 | +0.00010 | `+ + +` |
+| NV PD | +162 | +0.00026 | `+ + +` |
+| vul plain | +74 | +0.00012 | `+ + +` |
+| vul PD | +172 | +0.00028 | `+ + +` |
+
+Seed 3's CIs clear zero in all four cells. Per fired board: +0.5 to +3.4 plain,
++3.4 to +8.0 PD; 9-10 of the 13 divergent boards win outright and the losses are
+the ordinary "sometimes the blast makes anyway" variance. **Plain DD leans
+positive on every seed at both vulnerabilities** — the opposite of Phase 1's raw
+arm, and the signature of a floor correction rather than an input perturbation.
+
+The read-out was pre-agreed with jdh8 *before* the numbers (a wash would have
+shipped it as a correctness fix — the discipline Phase 1's ship decision
+lacked). It beat that bar. Smoke re-bases `cf583ff5…` →
+`f33d8caf785b5f8eda1d5bae0380748675a544b946aa1b02b905a4acfce8e9a4`; the `.bbsa`
+cards are byte-identical, so this is a floor change and not disclosure.
 
 ## Program
 
@@ -464,7 +561,7 @@ soundness correction; a loss traces its worst boards before any conclusion.
 
 | # | Phase | Mechanism | Knob / protocol | Gate | Status |
 | --- | --- | --- | --- | --- | --- |
-| 0b | **`opener_forced_past_invitation` learns the sign-off** | instinct.rs:3820 forces to game off *any* partner three-level suit bid over our strong 1NT, Lebensohl sign-offs included; the rail then bypasses the net and pre-satisfies the milestone `Or` | knob or straight fix; measure on `--filter-1nt` | standard | **found 2026-08-16 by the Phase 1 probe** — the actual N2 defect, independent of every reading phase, and strictly smaller than N2a |
+| 0b | **`opener_forced_past_invitation` learns the sign-off** | instinct.rs forces to game off *any* partner three-level suit bid over our strong 1NT, Lebensohl sign-offs included; the rail then bypasses the net and pre-satisfies the milestone `Or` | `instinct.forcing_ceiling_read`, default off; `bba-gen --ns-forcing-ceiling-read`, `PROBE_FORCING_CEILING=1`, web knob | standard; **a wash ships it** (pre-agreed with jdh8 before the numbers) | **SHIPPED default-on 2026-08-16.** Probe: `P 9.001` over `3NT 7.792`. Reach censused at **one lane** — the four "workaround" nodes do not qualify, `pass_out` re-files to Phase 2. A/B 3 seeds × 204,800 bd/arm/vul, **12/12 cells positive** (+0.0001 plain / +0.0003 PD both vuls), firing 0.01%. Smoke `cf583ff5…` → `f33d8caf…`; cards byte-identical |
 | 0 | **N2a** — opener passes the relay's minor sign-off | book node (`{relay} 3♦ -` → `Pass`, a `landy_signoff_answer` twin) shadows the floor; independent of every reading phase | knobless; measure on `--filter-1nt` | standard | queued — cheapest, fixes 16/18 regardless |
 | 1 | **Strength ceilings** | `Points::project` / `Hcp::project` / `SupportPoints::project` → band | `reading.strength_ceilings` **+ `DecisionProfile::legacy_view`, both default-on since 2026-08-16**; pre-ship arm is `bba-gen --ns-strength-ceilings false --ns-legacy-view false` | admits sweep + `probe-reading-sound` unchanged-or-better; A/B | **SHIPPED 2026-08-16.** Soundness gate green (E0 book-wide + 4-cell behavioural grid + probe partner 2.114→2.105%); A/B 3 seeds raw + 1 legacy — raw leans plain-DD-negative, **legacy arm 3 boards/204,800, 4/4 cells positive, ~1% cost**. Shipped on the legacy arm. Cards byte-identical; smoke re-based `18aba5ce…` → `cf583ff5…`. C2's re-open trigger ("a two-sided forward projection") is met by it |
 | 2 | **`ReadingScope::All`** as default | built; drop the alert gate | `--ns-reading-scope all`; same two-arm protocol | clear the empty-box worklist *before* measuring (`probe-reading-sound --ns-natural-reading`, bucketed) | queued behind 1 |
@@ -564,4 +661,7 @@ the `2NT` relay row no longer the lane's worst per board; `1NT 2♥ 2♠ -` read
 | 2026-08-16 | **`legacy_view` arm** (seed 1786829479, 204,800 bd/arm/vul) | **3 boards fired, 4/4 cells positive** (+10/+11/+12/+13 IMPs) — census confirmed, nets are 98.6% of the divergence |
 | 2026-08-16 | `legacy_view` runtime cost measured directly (4000 deals, seed 777) | **~1%** (22.68s vs 22.42s), not the 4× the doc comment feared; accountant counters byte-identical to baseline |
 | 2026-08-16 | 3 surviving boards are one lane: `1♦ - 3♦ - 3NT` vs `1♦ - 3♦ - 4NT - 5♦ - 6♦` | first measured IMPs from a lost ceiling — invitational jump read as unlimited drives a phantom keycard ask; ceilings win all 3 |
+| 2026-08-16 | **Phase 0b built**: `instinct.forcing_ceiling_read`, threshold 10, first ceiling read in `instinct.rs` | default byte-identical (smoke `cf583ff5…`); probe moves the node to `P` |
+| 2026-08-16 | **Phase 0b SHIPPED default-on**, 3 seeds × 204,800 bd/arm/vul | **12/12 cells positive**, +0.0001 plain / +0.0003 PD both vuls, fires 0.01% at +2 to +6 IMPs each; plain DD positive on every seed — a floor correction, not a net perturbation. Smoke → `f33d8caf…`, cards byte-identical |
+| 2026-08-16 | Phase 0b **reach census**: only alerted ceilings project, so the fix touches **one lane** | the four floor-workaround nodes do not qualify — `pass_out`×2 are Phase 2 near-misses, the other two need a ceiling authored, `accept_invitation` was never in scope (its node sits over a level-2 notrump call; docstring corrected) |
 | 2026-08-16 | **SHIPPED both default-on** on jdh8's call — branch 2 by intent, not branch 1 by letter | 6 tests moved, 5 of them pinning the old bug (Landy `8..37`→`8..15`, Woolsey `10..37`→`10..19`, both matching their own configured `convention_points`); cards byte-identical; smoke `18aba5ce…` → `cf583ff5…`; example flags converted to `Option<bool>` opt-outs |

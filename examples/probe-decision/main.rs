@@ -52,6 +52,14 @@ fn main() {
         Ok("1") => agreements.decision.reading.strength_ceilings = true,
         _ => {}
     }
+    // The instinct force's ceiling read is default ON since 2026-08-16, so
+    // `PROBE_FORCING_CEILING=0` is the interesting one: it puts the Lebensohl
+    // sign-off above back to forcing us to game on auction shape alone.
+    match std::env::var("PROBE_FORCING_CEILING").as_deref() {
+        Ok("0") => agreements.decision.instinct.forcing_ceiling_read = false,
+        Ok("1") => agreements.decision.instinct.forcing_ceiling_read = true,
+        _ => {}
+    }
     // The nets' pre-ceilings reading, likewise default on; `PROBE_LEGACY_VIEW=0`
     // prints the raw (unheld-nets) arm of the same board.
     match std::env::var("PROBE_LEGACY_VIEW").as_deref() {

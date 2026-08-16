@@ -1936,9 +1936,18 @@ pub(super) fn lebensohl_package() -> Package {
                         ));
                     }
                     // Opener passes the sign-off — every relay path, every
-                    // suit.  Left to the floor in the first A/B, opener raised
-                    // the weak 3♦ to 3NT on 45 of 52 relay boards (PD −2.9/−4.3
-                    // per board): the relay's whole loss was that seat.
+                    // suit *of the Multi lane*.  Left to the floor in the first
+                    // A/B, opener raised the weak 3♦ to 3NT on 45 of 52 relay
+                    // boards (PD −2.9/−4.3 per board): the relay's whole loss
+                    // was that seat.
+                    //
+                    // The natural-overcall lane below wires only opener's reply
+                    // to a *major* sign-off ([`lebensohl_signoff_raise`]) and
+                    // leaves its minor sign-off to the floor, where the same
+                    // pathology cost 16 of 18 boards — N2 in
+                    // docs/one-notrump-competitive.md.  That asymmetry is being
+                    // fixed floor-side (Phase 0b), not by widening this loop:
+                    // a node here would shadow the floor it is measured against.
                     for path in ["2NT - 3♣ -", "2NT (X) 3♣ -", "2NT - 3♣ (X)"] {
                         for suit in [Suit::Diamonds, Suit::Hearts, Suit::Spades] {
                             let signoff = format!("{their} {path} 3{}", Strain::from(suit));

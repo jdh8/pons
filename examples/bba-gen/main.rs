@@ -606,6 +606,14 @@ struct Args {
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
     ns_strength_ceilings: Option<bool>,
 
+    /// The instinct floor forces to game off any three-level suit bid over our
+    /// strong notrump, which cannot tell a game force from a Lebensohl sign-off.
+    /// On, the force also requires partner's read `points` ceiling to reach ten.
+    /// **Engine default ON since 2026-08-16**; pass `false` for the
+    /// shape-only-force arm.  Unset = the engine default.
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    ns_forcing_ceiling_read: Option<bool>,
+
     /// Open the strong 2NT (20-21) on the wide-minor shape `{M 2..=4, m 2..=6}`
     /// for our side (`ReadingProfile::two_notrump_wide`, crate default off): drops the
     /// 5M(332) balanced hands (they open one-of-a-major) and adds the wide
@@ -1891,6 +1899,9 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
         agreements.decision.reading.strength_ceilings = v;
     }
     agreements.decision.reading.pass_exclusion = args.ns_pass_exclusion;
+    if let Some(v) = args.ns_forcing_ceiling_read {
+        agreements.decision.instinct.forcing_ceiling_read = v;
+    }
     agreements.decision.instinct.uvu_encircle = !args.no_uvu;
     agreements.decision.instinct.settle_floor = !args.no_settle_floor;
     agreements.decision.instinct.nt_responder_game_floor = args.ns_nt_responder_game_floor;

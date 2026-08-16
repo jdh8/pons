@@ -782,7 +782,7 @@ keycard term, depth ≥ 3. Ranked crudest-first.
 | 4 | `nmf.rs` `placement_over_support` / `placement_no_fit`, `maxed` branches | 5 | a *single* unconditional rule — every other call −∞ | none |
 | 5 | `weak_twos.rs` `asker_after_max_major` | 3 | one unconditional 4M; no slam path after a maximum Ogust answer | none |
 | 6 | `strong_two.rs` `opener_after_*_raise` | 4 | bare `hcp(27..)` / `hcp(28..)` trigger, else unconditional 4M / 5m | none |
-| 7 | `notrump.rs` `pass_out` | 4 | one unconditional `Pass`; the docstring self-declares it exists only to override the floor | none |
+| 7 | `notrump/minor_transfers.rs` `pass_out` | 4 | one unconditional `Pass`; the docstring self-declares it exists only to override the floor. **Phase 0b census 2026-08-16**: it is a genuine floor workaround, but the corrected predicate cannot retire it under the shipped `Alerted` scope — its `hcp(..8)` sits on an *unalerted* rule, so nothing projects. A `ReadingScope::All` (Phase 2) candidate | none |
 
 *Excluded deliberately:* `slam.rs`'s asker continuations and the relay
 completions (`xyz_completion`, `complete_texas`, …). Their unconditional rules

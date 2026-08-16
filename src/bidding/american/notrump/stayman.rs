@@ -396,9 +396,13 @@ pub(crate) fn smolen_at_three() -> Rules {
 /// Opener accepts a no-fit (2NT) Stayman invitation with a maximum, else passes
 ///
 /// Responder invited with a bare 8, so a 1NT opener needs its 17 for game (8+17
-/// = 25).  Authored rather than left to the floor: the keyless floor reads a
-/// three-level suit response over our 1NT as forcing and so cannot *decline* an
-/// invitational raise.
+/// = 25).  Authored rather than left to the floor because the floor has no
+/// invitational arithmetic of its own at this node.
+///
+/// The docstring here used to blame `opener_forced_past_invitation`, which
+/// cannot fire on this auction at all: that predicate wants partner's *last*
+/// call to be a three-level suit bid, and the call it sits over is `2NT`
+/// (level two, notrump).  Corrected 2026-08-16 by the Phase 0b census.
 pub(super) fn accept_invitation(game: Bid) -> Rules {
     Rules::new()
         .rule(game, 100, hcp(17..))

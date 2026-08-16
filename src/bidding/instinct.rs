@@ -438,6 +438,26 @@ pub struct InstinctProfile {
     /// `point_count`.  **Default off**, in which state the combined-HCP read is
     /// the combined-points read verbatim.  An A/B knob.
     pub nt_hcp_read: bool,
+    /// Edit 3 — a partner who denied the values has not forced us to game
+    ///
+    /// The floor forces to game off *pure auction shape* — our strong notrump
+    /// and any three-level suit bid by partner —
+    /// which cannot tell a game force from a Lebensohl **sign-off**, the one
+    /// three-level suit call that promises at most nine.  On, the force also
+    /// requires partner's projected `points` ceiling to leave game in reach.
+    ///
+    /// **Default on since 2026-08-16**, on three independent seeds ×
+    /// 204,800 boards/arm/vulnerability: **12 of 12 cells positive**, pooled
+    /// +0.0001 plain / +0.0003 PD both vulnerabilities, firing on 0.01% of
+    /// boards at +2 to +6 IMPs each.
+    ///
+    /// This is the first consumer of a strength *ceiling* in
+    /// this file, so it only bites where partner's envelope carries one — under
+    /// the shipped [`ReadingScope::Alerted`][super::inference::ReadingScope]
+    /// that means an alerted call with a two-sided band, and it rides
+    /// [`strength_ceilings`][field@super::inference::ReadingProfile::strength_ceilings]
+    /// the way [`nt_hcp_read`][field@Self::nt_hcp_read] rides `hcp_floor()`.
+    pub forcing_ceiling_read: bool,
     /// A live 2/1 floors partner's shown strength for the slam-entry gate
     ///
     /// **Default on since 2026-07-20.**  The 2/1 response is alerted, so the
@@ -526,6 +546,7 @@ impl Default for InstinctProfile {
             competitive_accountant: true,
             fit_sum_support_read: false,
             nt_hcp_read: false,
+            forcing_ceiling_read: true,
             two_over_one_slam_strength: true,
             keycard_minors: true,
             rein_advance_raise: true,
@@ -568,6 +589,7 @@ impl InstinctProfile {
             competitive_accountant: false,
             fit_sum_support_read: true,
             nt_hcp_read: true,
+            forcing_ceiling_read: false,
             two_over_one_slam_strength: false,
             keycard_minors: false,
             rein_advance_raise: false,
@@ -3815,12 +3837,34 @@ fn partner_strong_notrump(level: u8) -> Cons<impl Constraint + Clone> {
     pred(move |_: Hand, context: &Context<'_>| our_strong_notrump(context, level, true))
 }
 
+/// The points a *direct* three-level suit bid over our strong notrump promises
+///
+/// The forcing arm of the Lebensohl table gates on `points(10..)`, and the same
+/// ten is the disturbed game-force floor in the milestone rules (the nine-count
+/// seam beside it is guarded by `undisturbed()`).  A partner whose reading caps
+/// them below this bid a limited hand, not a force.
+const DIRECT_THREE_LEVEL_POINTS: u8 = 10;
+
 /// We opened a strong notrump and partner forced past invitation with a
 /// three-level suit bid — so passing below game is wrong, whatever our hand
+///
+/// The shape test alone cannot tell a game force from a Lebensohl **sign-off**,
+/// the one three-level suit call that promises at most nine: the flag makes
+/// [`forced`] take the deterministic rail (the net never runs) *and*
+/// pre-satisfies the game milestone's `Or`, so `combined_hcp` never evaluates
+/// and a twelve-count opener bids `3NT` opposite a hand that denied the values.
+/// With [`forcing_ceiling_read`][InstinctProfile::forcing_ceiling_read] on the
+/// force additionally requires partner's projected ceiling to leave game in
+/// reach ([`DIRECT_THREE_LEVEL_POINTS`]).
+///
+/// Dropping the force cannot *bar* game: the milestone's sibling arm then
+/// prices the actual hands through `combined_hcp(25)`.
 fn opener_forced_past_invitation(context: &Context<'_>) -> bool {
     (our_strong_notrump(context, 1, false) || our_strong_notrump(context, 2, false))
         && partner_last_call(context.auction())
             .is_some_and(|bid| bid.level.get() == 3 && bid.strain != Strain::Notrump)
+        && (!pinned(context).forcing_ceiling_read
+            || context.inferences().partner().strength.points.max >= DIRECT_THREE_LEVEL_POINTS)
 }
 
 /// Our side opened a strong 2♣ and responder answered past the double negative
@@ -3870,10 +3914,14 @@ fn penalizing(context: &Context<'_>) -> bool {
 /// deliberately omits, reconstructed from the immutable auction on demand
 ///
 /// Each flag is recovered by a short walk of the auction and memoized by a
-/// classification-scoped [`Context`]. Every flag here is *hand-independent* —
-/// it follows from the calls alone — so hand-conditioned forces (a
-/// strong-notrump responder who holds game values) stay as ordinary
-/// [`Constraint`]s rather than living here.
+/// classification-scoped [`Context`]. Every flag here is a function of the
+/// auction alone — the calls, and what those calls *promised* under the
+/// inference reading — so hand-conditioned forces (a strong-notrump responder
+/// who holds game values) stay as ordinary [`Constraint`]s rather than living
+/// here. Reading the auction's promises is what
+/// [`forcing_ceiling_read`][InstinctProfile::forcing_ceiling_read] adds; it
+/// keeps the flags independent of *our* hand, which is what the memoization
+/// needs.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct Interpretation {
     /// Our side is committed to at least game by a prior call: a strong 2♣

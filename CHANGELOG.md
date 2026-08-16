@@ -9,6 +9,92 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **A Lebensohl sign-off no longer forces us to game:
+  `InstinctProfile::forcing_ceiling_read` ships default-on.**
+  `opener_forced_past_invitation` decided the game force on *pure auction
+  shape* — "we opened a strong notrump and partner's last call is a
+  three-level non-notrump bid" — which cannot tell a game-forcing three-level
+  bid from a Lebensohl **sign-off**, the one three-level suit call that
+  promises at most nine. The flag made `forced()` take the deterministic rail
+  (so the net never ran) *and* `auction_forces_game()` pre-satisfy the
+  game-milestone `Or` (so `combined_hcp` never ran), leaving
+  `stopper_in_their_suits()` as the only hand-dependent gate: a **12-HCP**
+  opener blasted `3NT` opposite a hand that had denied the values. That is the
+  N2 node — 16 of 18 boards, −52 plain / −125 PD
+  (docs/one-notrump-competitive.md §N2). On, the force additionally requires
+  partner's projected `points` ceiling to reach `DIRECT_THREE_LEVEL_POINTS`.
+
+  The threshold is **10**, and it is a book fact with two homes: the forcing
+  arm of the Lebensohl table gates on `points(10..)`, and the same ten is the
+  disturbed game-force floor in `game_forces` (`hcp(10..)`, whose nine-count
+  sibling is guarded by `undisturbed()`). It is deliberately **not**
+  `nt_responder_game_floor` — that is 9, the relay's cap is 9, and `9 < 9`
+  would never have fired. Dropping the force cannot *bar* game: the milestone's
+  sibling arm then prices `points_or_net(combined_hcp(25), …)` on the real
+  hands.
+
+  This is the **first consumer of a strength ceiling in `instinct.rs`** — the
+  Phase 1 census found none, which is why the shipped `strength_ceilings` had
+  measured as a stale-net perturbation rather than a floor correction. Phase 1
+  is what makes this readable: `probe-decision` shows the relay reading
+  `points 6..=8` and the decision moving from `3NT 1.400` on the rail to
+  `P 9.001` over `3NT 7.792`. ⚠ It also makes `strength_ceilings` a
+  *floor-behaviour* knob, the same coupling the handoff's standing warning
+  raises for `nt_hcp_read` / `fit_sum_support_read`.
+
+  **The reach is one lane, and the census is the finding.** Only *alerted*
+  calls project their rules under the shipped `ReadingScope::Alerted`, so the
+  fix bites only where partner's envelope already carries a ceiling below ten.
+  The Lebensohl relay qualifies — `points(..=9)` from the alerted `2NT`
+  survives monotonically through the unalerted sign-off. The four book nodes
+  documented as floor workarounds **do not**: `pass_out`'s two sites carry
+  `hcp(..8)` on *unalerted* rules, `accept_sixcard_invitation`'s feeder has no
+  upper bound in any form, and `five_five_major_answer`'s only cap sits inside
+  a `described` closure, which projects ⊤. So the handoff's original claim that
+  this "fixes every sign-off lane at once" is a **Phase 2** claim, not this
+  one's; `pass_out` is re-filed there. `accept_invitation` was never in scope
+  at all — its node is `1NT - 2♣ - 2x - 2NT -`, and `2NT` is level two and
+  notrump, so the predicate cannot fire there; its docstring said otherwise and
+  has been corrected.
+
+  **Measured on three independent seeds**, 204,800 boards/arm/vulnerability
+  each (`ab-results/p0b-forcing-ceiling{,-s2,-s3}`, seeds 1786835216 /
+  1786835669 / 1786836059), firing on 0.01% of boards. **All 12 cells
+  positive** — pooled per vulnerability (the two vulnerabilities re-price the
+  *same* deals, so they are not independent and are not pooled together): NV
+  plain **+62 IMPs, +0.00010/board**; NV PD **+162, +0.00026**; vulnerable
+  plain **+74, +0.00012**; vulnerable PD **+172, +0.00028**. Per-seed signs are
+  `+ + +` in every cell, and the third seed's CIs clear zero on all four. Per
+  fired board that is +0.5 to +3.4 IMPs plain and +3.4 to +8.0 PD; 9-10 of the
+  13 divergent boards win outright, the losses being the ordinary "sometimes
+  the blast makes anyway" variance. Unlike Phase 1's raw arm, plain DD leans
+  **positive** here, on every seed at both vulnerabilities — this is a floor
+  correction, not an input perturbation. The read-out was pre-agreed before the
+  numbers landed (a wash would have shipped it as a correctness fix); it beat
+  that bar.
+
+  Every fired auction is the predicted lane, e.g.
+  `- 1NT 2♥ 2NT - 3♣ - 3♦ - - -` on against
+  `- 1NT 2♥ 2NT - 3♣ - 3♦ - 3NT - - -` off.
+
+  The test, `lebensohl_signoff_is_not_a_game_force`, lives in
+  `tests/american_competition.rs` **by necessity**: `instinct/tests.rs`'s
+  `best_with` builds a bare `Context` with no authored overlay, so partner
+  reads `0..37` there and *no* reading-dependent floor predicate can be
+  exercised from that harness. It pins the off arm exactly (`3NT`), the on arm
+  only by `assert_ne!` — which call replaces the blast is the floor's business
+  and moves with every retrain — and controls that the genuinely forcing direct
+  `3♦` (`points(10..)`) is untouched.
+
+  User-visible: the default system changes. `smoke-default --count 20000
+  --seed 1` re-bases from `cf583ff5…` to
+  `f33d8caf785b5f8eda1d5bae0380748675a544b946aa1b02b905a4acfce8e9a4`. The
+  `.bbsa` cards are **byte-identical** (`bba-card` re-run, no diff) — this is a
+  floor change, not disclosure. Controls: `bba-gen --ns-forcing-ceiling-read`
+  on the shipped-knob `Option<bool>` idiom (unset = engine default; the
+  pre-ship arm is `--ns-forcing-ceiling-read false`), `PROBE_FORCING_CEILING=0`
+  for `probe-decision`, and the `set_forcing_ceiling_read` web knob.
+
 - **Two-sided strength projection: `ReadingProfile::strength_ceilings` and
   `DecisionProfile::legacy_view` ship default-on.** Off,
   `points`, `hcp` and `support_points` project `floor..=37`, so every made
