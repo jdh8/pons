@@ -43,21 +43,12 @@ pub enum ReadingScope {
     /// duplicate that can and does contradict it.  See
     /// `docs/reading-drift-handoff.md`.
     ///
-    /// Here an unalerted call's rules project the same sound union as an alerted
-    /// one's, and it is **intersected with** the walk's natural reading rather
-    /// than replacing it — the call keeps its suppression bit clear, so the
-    /// walk's bookkeeping (natural-suit lanes, agreed fits, later cue detection)
-    /// is untouched and only the rule's own claim is added.  Two consequences
-    /// follow from intersecting rather than substituting:
-    ///
-    /// - Where the walk is *right* the reading strictly tightens: the rule's
-    ///   strength band (which the walk usually has no way to know) lands on a
-    ///   call that previously published only a length floor.
-    /// - Where the walk is *wrong* the boxes can go **empty**, because a wrong
-    ///   walk claim intersected with a sound rule claim is still wrong.  That is
-    ///   a diagnostic, not a regression of this arm: it surfaces walk defects the
-    ///   alert gate had been hiding.  Sweep with the `admits` invariant before
-    ///   reading anything into an A/B.
+    /// Here every informative authored projection owns the call's reading and
+    /// replaces the natural walk's guess.  Suit and fit bookkeeping comes from
+    /// that projection, so later natural calls still see shown suits, rebids,
+    /// and agreements.  An unalerted top projection contributes no information
+    /// and falls back to the walk; an alerted top stays suppressed because its
+    /// face is disclosed as artificial.
     ///
     /// **Default since 2026-08-16** (Phase 2 of
     /// `docs/authored-reading-handoff.md`).  The first whole-book run was
@@ -104,7 +95,7 @@ pub struct ReadingProfile {
 
     /// How much of the authored book the projection pass decodes
     ///
-    /// **Default [`ReadingScope::Alerted`]**; see the enum for the three
+    /// **Default [`ReadingScope::All`]**; see the enum for the three
     /// stances and what each one leaves unread.
     pub scope: ReadingScope,
 

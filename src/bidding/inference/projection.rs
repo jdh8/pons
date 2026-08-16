@@ -8,9 +8,10 @@
 use super::envelope::{Envelope, EnvelopeUnion, relative_of};
 use super::knobs::*;
 use crate::bidding::context::Context;
-use contract_bridge::auction::Call;
 #[cfg(test)]
-use contract_bridge::{Strain, Suit};
+use contract_bridge::Strain;
+use contract_bridge::Suit;
+use contract_bridge::auction::Call;
 
 /// One table's pass reading: the union of its Pass rules' bands, knob-on
 /// intersected with the complements of the sibling gates the passer declined
@@ -91,9 +92,23 @@ pub(super) fn project_pass<'a>(
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct AuthoredProjection {
-    unions: [EnvelopeUnion; 4],
-    announced_unions: [EnvelopeUnion; 4],
-    suppressed: u64,
+    pub(super) unions: [EnvelopeUnion; 4],
+    pub(super) announced_unions: [EnvelopeUnion; 4],
+    /// Calls whose natural-walk meaning must be skipped: an informative
+    /// authored projection, or an alerted call whose projection is top.
+    pub(super) suppressed: u64,
+    /// Non-pass calls resolved to a live authored rule, including projections
+    /// that are top and must fall back to the walk.
+    pub(super) authored: u64,
+    /// Calls whose informative authored projection substitutes for the walk.
+    pub(super) substituted: u64,
+    /// Per-suit call masks whose projection promises at least three through six cards.
+    /// The walk consumes these chronologically to retain fit, rebid and cue
+    /// bookkeeping without deriving meaning from the call's face.
+    pub(super) three_plus: [u64; 4],
+    pub(super) four_plus: [u64; 4],
+    pub(super) five_plus: [u64; 4],
+    pub(super) six_plus: [u64; 4],
 }
 
 impl AuthoredProjection {
@@ -102,6 +117,12 @@ impl AuthoredProjection {
             unions: std::array::from_fn(|_| EnvelopeUnion::unknown()),
             announced_unions: std::array::from_fn(|_| EnvelopeUnion::unknown()),
             suppressed: 0,
+            authored: 0,
+            substituted: 0,
+            three_plus: [0; 4],
+            four_plus: [0; 4],
+            five_plus: [0; 4],
+            six_plus: [0; 4],
         }
     }
 
@@ -115,27 +136,42 @@ impl AuthoredProjection {
         let who = relative_of(len, index) as usize;
         self.announced_unions[who].intersect_assign(effect.agreement(), profile);
         self.unions[who].intersect_assign(effect.projection.as_union(), profile);
-        if effect.suppresses_natural && index < 64 {
-            self.suppressed |= 1 << index;
+        if index < 64 {
+            let bit = 1 << index;
+            if effect.authored {
+                self.authored |= bit;
+            }
+            if effect.substitutes_natural {
+                self.substituted |= bit;
+                let projected = effect.projection.as_union().hull();
+                for suit in Suit::ASC {
+                    let length = projected.length(suit).min;
+                    if length >= 3 {
+                        self.three_plus[suit as usize] |= bit;
+                    }
+                    if length >= 4 {
+                        self.four_plus[suit as usize] |= bit;
+                    }
+                    if length >= 5 {
+                        self.five_plus[suit as usize] |= bit;
+                    }
+                    if length >= 6 {
+                        self.six_plus[suit as usize] |= bit;
+                    }
+                }
+            }
+            if effect.suppresses_natural {
+                self.suppressed |= bit;
+            }
         }
-    }
-
-    fn into_parts(self) -> ([EnvelopeUnion; 4], [EnvelopeUnion; 4], u64) {
-        (self.unions, self.announced_unions, self.suppressed)
-    }
-
-    fn cloned_parts(&self) -> ([EnvelopeUnion; 4], [EnvelopeUnion; 4], u64) {
-        (
-            self.unions.clone(),
-            self.announced_unions.clone(),
-            self.suppressed,
-        )
     }
 }
 
 struct AuthoredEffect<'a> {
     projection: crate::bidding::rules::ProjectedUnion<'a>,
     agreement: Option<crate::bidding::rules::ProjectedUnion<'a>>,
+    authored: bool,
+    substitutes_natural: bool,
     suppresses_natural: bool,
 }
 
@@ -249,10 +285,13 @@ fn authored_effect<'a>(
     } else {
         None
     };
+    let substitutes_natural = !is_pass && projection.as_union() != &EnvelopeUnion::unknown();
     Some(AuthoredEffect {
         projection,
         agreement,
-        suppresses_natural: alerted,
+        authored: !is_pass,
+        substitutes_natural,
+        suppresses_natural: alerted || substitutes_natural,
     })
 }
 
@@ -261,6 +300,12 @@ struct AbsoluteProjection {
     unions: [EnvelopeUnion; 4],
     announced_unions: [EnvelopeUnion; 4],
     suppressed: u64,
+    authored: u64,
+    substituted: u64,
+    three_plus: [u64; 4],
+    four_plus: [u64; 4],
+    five_plus: [u64; 4],
+    six_plus: [u64; 4],
 }
 
 impl AbsoluteProjection {
@@ -269,6 +314,12 @@ impl AbsoluteProjection {
             unions: std::array::from_fn(|_| EnvelopeUnion::unknown()),
             announced_unions: std::array::from_fn(|_| EnvelopeUnion::unknown()),
             suppressed: 0,
+            authored: 0,
+            substituted: 0,
+            three_plus: [0; 4],
+            four_plus: [0; 4],
+            five_plus: [0; 4],
+            six_plus: [0; 4],
         }
     }
 
@@ -276,8 +327,32 @@ impl AbsoluteProjection {
         let seat = index % 4;
         self.unions[seat].intersect_assign(effect.projection.as_union(), profile);
         self.announced_unions[seat].intersect_assign(effect.agreement(), profile);
-        if effect.suppresses_natural && index < 64 {
-            self.suppressed |= 1 << index;
+        if index < 64 {
+            let bit = 1 << index;
+            if effect.authored {
+                self.authored |= bit;
+            }
+            if effect.substitutes_natural {
+                self.substituted |= bit;
+                let projected = effect.projection.as_union().hull();
+                for suit in Suit::ASC {
+                    if projected.length(suit).min >= 3 {
+                        self.three_plus[suit as usize] |= bit;
+                    }
+                    if projected.length(suit).min >= 4 {
+                        self.four_plus[suit as usize] |= bit;
+                    }
+                    if projected.length(suit).min >= 5 {
+                        self.five_plus[suit as usize] |= bit;
+                    }
+                    if projected.length(suit).min >= 6 {
+                        self.six_plus[suit as usize] |= bit;
+                    }
+                }
+            }
+            if effect.suppresses_natural {
+                self.suppressed |= bit;
+            }
         }
     }
 }
@@ -808,6 +883,8 @@ impl AuthoringStepCache {
                     AuthoredEffect {
                         projection: crate::bidding::rules::ProjectedUnion::Owned(union),
                         agreement: None,
+                        authored: false,
+                        substitutes_natural: false,
                         suppresses_natural: false,
                     },
                     profile,
@@ -836,6 +913,14 @@ impl AuthoringStepCache {
                 snapshot.announced_unions[relative]
                     .intersect_assign(&category.announced_unions[absolute], profile);
                 snapshot.suppressed |= category.suppressed;
+                snapshot.authored |= category.authored;
+                snapshot.substituted |= category.substituted;
+                for suit in 0..4 {
+                    snapshot.three_plus[suit] |= category.three_plus[suit];
+                    snapshot.four_plus[suit] |= category.four_plus[suit];
+                    snapshot.five_plus[suit] |= category.five_plus[suit];
+                    snapshot.six_plus[suit] |= category.six_plus[suit];
+                }
             }
         }
         self.snapshot = snapshot;
@@ -847,18 +932,16 @@ impl AuthoringStepCache {
     }
 }
 
-pub(super) fn project_authored(
-    context: &Context<'_>,
-) -> ([EnvelopeUnion; 4], [EnvelopeUnion; 4], u64) {
+pub(super) fn project_authored(context: &Context<'_>) -> AuthoredProjection {
     if let Some(projection) = context.authored_projection() {
-        return projection.cloned_parts();
+        return projection.clone();
     }
     project_authored_with(context, true)
 }
 
 /// Same-process semantic oracle retained for compilation parity tests.
 #[cfg(test)]
-fn project_authored_legacy(context: &Context<'_>) -> ([EnvelopeUnion; 4], [EnvelopeUnion; 4], u64) {
+fn project_authored_legacy(context: &Context<'_>) -> AuthoredProjection {
     project_authored_with(context, false)
 }
 
@@ -866,9 +949,7 @@ fn project_authored_legacy(context: &Context<'_>) -> ([EnvelopeUnion; 4], [Envel
 pub(crate) fn assert_compiled_authoring_projection_parity(context: &Context<'_>) {
     let compiled = project_authored(context);
     let legacy = project_authored_legacy(context);
-    assert_eq!(compiled.0, legacy.0, "authored projection boxes differ");
-    assert_eq!(compiled.1, legacy.1, "authored announcement boxes differ");
-    assert_eq!(compiled.2, legacy.2, "authored suppression mask differs");
+    assert_eq!(compiled, legacy, "authored projection differs");
 }
 
 #[cfg(test)]
@@ -971,28 +1052,52 @@ pub(crate) fn assert_step_cache_projection_parity(
         0
     };
     cache.assert_new_route_records_match_one_shot(partnership, vul, auction, first_new);
-    assert_eq!(actual.unions, expected.0, "step-cache projection differs");
     assert_eq!(
-        actual.announced_unions, expected.1,
+        actual.unions, expected.unions,
+        "step-cache projection differs"
+    );
+    assert_eq!(
+        actual.announced_unions, expected.announced_unions,
         "step-cache announcement differs"
     );
     assert_eq!(
-        actual.suppressed, expected.2,
+        actual.suppressed, expected.suppressed,
         "step-cache suppression differs"
+    );
+    assert_eq!(
+        actual.authored, expected.authored,
+        "step-cache authored mask differs"
+    );
+    assert_eq!(
+        actual.substituted, expected.substituted,
+        "step-cache substitution mask differs"
+    );
+    assert_eq!(
+        actual.three_plus, expected.three_plus,
+        "step-cache three-card bookkeeping differs"
+    );
+    assert_eq!(
+        actual.four_plus, expected.four_plus,
+        "step-cache four-card bookkeeping differs"
+    );
+    assert_eq!(
+        actual.five_plus, expected.five_plus,
+        "step-cache five-card bookkeeping differs"
+    );
+    assert_eq!(
+        actual.six_plus, expected.six_plus,
+        "step-cache six-card bookkeeping differs"
     );
     true
 }
 
-fn project_authored_with(
-    context: &Context<'_>,
-    compiled_reader: bool,
-) -> ([EnvelopeUnion; 4], [EnvelopeUnion; 4], u64) {
+fn project_authored_with(context: &Context<'_>, compiled_reader: bool) -> AuthoredProjection {
     let auction = context.auction();
     let len = auction.len();
     let mut projection = AuthoredProjection::unknown();
 
     let Some(prefixes) = context.prefixes() else {
-        return projection.into_parts();
+        return projection;
     };
 
     let profile = context.reading_profile();
@@ -1287,7 +1392,7 @@ fn project_authored_with(
         }
     }
 
-    projection.into_parts()
+    projection
 }
 
 /// Whether a call's projection floors a suit other than the one it names

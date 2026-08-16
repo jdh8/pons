@@ -1,9 +1,11 @@
 use super::*;
 use crate::bidding::agreements::Agreements;
-use crate::bidding::constraint::point_count;
+use crate::bidding::book::System;
+use crate::bidding::constraint::{hcp, len, point_count};
 use crate::bidding::context::Context;
 use crate::bidding::inference::tests::{bid, read, read_booked, read_booked_with, read_with};
 use crate::bidding::inference::{Envelope, EnvelopeUnion, Inferences, Range, Relative};
+use crate::bidding::rules::Rules;
 use contract_bridge::auction::{Call, RelativeVulnerability};
 use contract_bridge::{Hand, Strain, Suit};
 use proptest::prelude::*;
@@ -120,6 +122,67 @@ fn opening_shapes() {
     let one_club = read(&[bid(1, Strain::Clubs)]);
     assert_eq!(one_club.rho().length(Suit::Clubs), Range::new(3, 13));
     assert_eq!(one_club.rho().length(Suit::Hearts), Range::new(0, 4));
+}
+
+#[test]
+fn authored_projection_substitutes_and_keeps_lane_bookkeeping() {
+    let one_heart = bid(1, Strain::Hearts);
+    let auction = [one_heart, Call::Pass, bid(2, Strain::Hearts), Call::Pass];
+    let mut system = System {
+        agreements: Agreements::default(),
+        ..Default::default()
+    };
+    system.constructive.insert(
+        &[],
+        Rules::new()
+            .rule(one_heart, 100, len(Suit::Hearts, 4..))
+            .rule(Call::Pass, 0, hcp(0..)),
+    );
+    let partnership = system.bind();
+    let inf = partnership.infer(RelativeVulnerability::NONE, &auction);
+
+    assert_eq!(
+        inf.me().length(Suit::Hearts),
+        Range::new(4, 13),
+        "the authored four-card opening replaces the walk's five-card guess"
+    );
+    assert_eq!(
+        inf.partner().length(Suit::Hearts).min,
+        3,
+        "the later unauthored raise sees the projected suit as partner's"
+    );
+}
+
+#[test]
+fn top_authored_projection_falls_back_to_the_walk() {
+    let one_nt = bid(1, Strain::Notrump);
+    let two_hearts = bid(2, Strain::Hearts);
+    let mut system = System {
+        agreements: Agreements::default(),
+        ..Default::default()
+    };
+    system.constructive.insert(
+        &[],
+        Rules::new()
+            .rule(one_nt, 100, hcp(15..=17))
+            .rule(Call::Pass, 0, hcp(0..)),
+    );
+    system.constructive.insert(
+        &[one_nt, Call::Pass],
+        Rules::new()
+            .rule(two_hearts, 100, hcp(0..))
+            .rule(Call::Pass, 0, hcp(0..)),
+    );
+    let inf = system.bind().infer(
+        RelativeVulnerability::NONE,
+        &[one_nt, Call::Pass, two_hearts, Call::Pass],
+    );
+
+    assert_eq!(
+        inf.partner().length(Suit::Hearts),
+        Range::new(4, 13),
+        "a top projection leaves the natural bid to the walk, past the 1NT blanket"
+    );
 }
 
 /// A two-over-one denies four-card support, and the reading now says so.

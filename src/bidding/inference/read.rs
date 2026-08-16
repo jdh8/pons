@@ -406,12 +406,12 @@ impl Inferences {
             // see `ReadingProfile::pass`).  The walk below needs an opening, so
             // apply the overlay here and return.
             if profile.pass {
-                let (overlay, agreement, _) = project_authored(context);
-                for (player, projected) in players.iter_mut().zip(&overlay) {
+                let projection = project_authored(context);
+                for (player, projected) in players.iter_mut().zip(&projection.unions) {
                     *player = player.intersect(&projected.hull());
                 }
-                overlay_unions = overlay;
-                agreement_unions = agreement;
+                overlay_unions = projection.unions;
+                agreement_unions = projection.announced_unions;
             }
             return Self::assemble(
                 players,
@@ -477,15 +477,21 @@ impl Inferences {
         // showed (recorded post-walk).  `docs/reader-retirement.md` is the ledger.
         let readings = Readings::read(auction, len, profile, context.decision_profile().their);
 
-        // The three declarative conventions — Jacoby transfers over our notrump,
-        // Leaping Michaels, and Landy's 2♣ — are read straight off their authored
-        // rule's projection rather than re-derived by hand (M6.2c).  `overlay`
-        // records each artificial call's projected shape (applied post-walk);
-        // `suppressed` is a bitset of the indices whose natural single-suit reading
-        // the walk must skip.
-        let (overlay_boxes, agreement_boxes, suppressed) = project_authored(context);
-        overlay_unions = overlay_boxes;
-        agreement_unions = agreement_boxes;
+        // Authored calls with an informative projection own their reading.  The
+        // projection supplies both the post-walk overlay and the per-call masks
+        // that let the walk retain only mechanical lane bookkeeping.  A live
+        // unalerted authored rule whose projection is top falls back to the
+        // walk; an alerted top stays suppressed as artificial.
+        let projection = project_authored(context);
+        let suppressed = projection.suppressed;
+        let authored = projection.authored;
+        let substituted = projection.substituted;
+        let projected_three_plus = projection.three_plus;
+        let projected_four_plus = projection.four_plus;
+        let projected_five_plus = projection.five_plus;
+        let projected_six_plus = projection.six_plus;
+        overlay_unions = projection.unions;
+        agreement_unions = projection.announced_unions;
         // The hulled overlay the natural walk consumes (`shown_suit`, the post-walk
         // intersect); the boxes are re-combined into `unions` at the return.
         let overlay: [Envelope; 4] = std::array::from_fn(|i| overlay_unions[i].hull());
@@ -494,19 +500,70 @@ impl Inferences {
         // convention readers, the notrump-structure blanket, control bids) —
         // the control-bid classifier scans it for the agreed suit (M6.4).
         let mut suppressed_so_far = 0u64;
+        // Suits a substituted projection has promised at three-plus.  Four-plus
+        // is a naturally shown suit; matching three-plus promises by partners
+        // establish a fit even when a short minor opening itself promised only
+        // three.
+        let mut projected_lane_lengths = [[0u8; 4]; 4];
 
         for (index, &call) in auction.iter().enumerate() {
             let lane = index % 4;
             let who = relative_of(len, index) as usize;
             let is_opening_side = lane % 2 == opener_lane % 2;
             let first_action_of_side = !side_acted[lane % 2];
+            let substituted_call = index < 64 && substituted >> index & 1 != 0;
+            let authored_call = index < 64 && authored >> index & 1 != 0;
+
+            if substituted_call {
+                let bit = 1 << index;
+                let mut three_plus = 0u8;
+                let mut four_plus = 0u8;
+                for suit in Suit::ASC {
+                    let mask = 1u8 << suit as u8;
+                    let floor = if projected_six_plus[suit as usize] & bit != 0 {
+                        6
+                    } else if projected_five_plus[suit as usize] & bit != 0 {
+                        5
+                    } else if projected_four_plus[suit as usize] & bit != 0 {
+                        4
+                    } else if projected_three_plus[suit as usize] & bit != 0 {
+                        3
+                    } else {
+                        0
+                    };
+                    projected_lane_lengths[lane][suit as usize] =
+                        projected_lane_lengths[lane][suit as usize].max(floor);
+                    if floor >= 3 {
+                        three_plus |= mask;
+                    }
+                    if floor >= 4 {
+                        four_plus |= mask;
+                    }
+                }
+                let partner_lane = (lane + 2) % 4;
+                let partner_projected = Suit::ASC.into_iter().fold(0u8, |mask, suit| {
+                    mask | (u8::from(projected_lane_lengths[partner_lane][suit as usize] >= 3)
+                        << suit as u8)
+                });
+                let fit = three_plus & (natural_lane_suits[partner_lane] | partner_projected);
+                let shown = four_plus | fit;
+                rebid_lane_suits[lane] |= four_plus & natural_lane_suits[lane];
+                lane_suits[lane] |= shown;
+                natural_lane_suits[lane] |= shown;
+                if fit != 0 {
+                    lane_suits[partner_lane] |= fit;
+                    natural_lane_suits[partner_lane] |= fit;
+                }
+                suppressed_so_far |= bit;
+            }
 
             match call {
                 Call::Pass | Call::Redouble => {}
                 Call::Double => {
                     // A direct double of a natural suit opening, the defending
                     // side's first action, reads as takeout: opening values.
-                    if !is_opening_side
+                    if !substituted_call
+                        && !is_opening_side
                         && first_action_of_side
                         && index != opening_index
                         && opening_bid.strain.is_suit()
@@ -517,6 +574,14 @@ impl Inferences {
                     side_acted[lane % 2] = true;
                 }
                 Call::Bid(bid) => {
+                    if substituted_call {
+                        lane_bids[lane] += 1;
+                        side_acted[lane % 2] = true;
+                        if highest.is_none_or(|h| outranks(bid, h)) {
+                            highest = Some(bid);
+                        }
+                        continue;
+                    }
                     // Their direct 1NT overcall of our one-suit opening: natural,
                     // the strong-notrump band, read off their scheme's opening
                     // 1NT.  Until 2026-08-16 `systems_on_overcall_strip` fired
@@ -591,13 +656,22 @@ impl Inferences {
                             && index == opening_index + 2
                             && bid.level.get() == 3
                             && matches!(bid.strain, Strain::Hearts | Strain::Spades);
-                        let nt_blanket = is_opening_side && opening_artificial && !over_one_notrump;
-                        let chain = stayman_artificial
-                            || nt_splinter_artificial
+                        let nt_blanket = !authored_call
+                            && is_opening_side
+                            && opening_artificial
+                            && !over_one_notrump;
+                        let chain = (!authored_call
+                            && (stayman_artificial
+                                || nt_splinter_artificial
                             // No `is_opening_side` gate, unlike its two neighbours
                             // above — see `nt_structure_artificial`'s own doc for
                             // why adding one is an A/B, not a cleanup.
-                            || nt_structure_artificial(auction, index, opening_index, side_profile)
+                                || nt_structure_artificial(
+                                    auction,
+                                    index,
+                                    opening_index,
+                                    side_profile,
+                                )))
                             || (index < 64 && suppressed >> index & 1 != 0)
                             || readings.suppresses(index);
 
@@ -756,7 +830,10 @@ impl Inferences {
                                 // partner has bid the suit twice; direct raises
                                 // and raises of 4-card or unknown-length suits
                                 // keep the three-card claim.
-                                let partner_length = players[(who + 2) % 4].length(suit).min;
+                                let partner_length = players[(who + 2) % 4]
+                                    .length(suit)
+                                    .min
+                                    .max(projected_lane_lengths[(lane + 2) % 4][suit as usize]);
                                 if partner_length < 6 {
                                     let partner_rebid_it =
                                         rebid_lane_suits[(lane + 2) % 4] & mask != 0;
@@ -1186,7 +1263,9 @@ impl Inferences {
 #[cfg(test)]
 #[must_use]
 pub(crate) fn authored_reading(context: &Context<'_>) -> Inferences {
-    let (unions, announced_unions, _) = project_authored(context);
+    let projection = project_authored(context);
+    let unions = projection.unions;
+    let announced_unions = projection.announced_unions;
     Inferences {
         players: std::array::from_fn(|i| unions[i].hull()),
         announced_players: std::array::from_fn(|i| announced_unions[i].hull()),

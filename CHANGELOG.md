@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Authored calls now substitute for the natural inference walk** (Phase 3
+  of `docs/authored-reading-handoff.md`). An informative projection owns the
+  call's reading; projection-derived suit floors retain chronological shown-
+  suit, fit, rebid, cue and raise bookkeeping, while an unalerted top projection
+  falls back to the walk. The 40k soundness census improves partner exclusions
+  **1.877%→1.308%**. Two seeds × 204,800 boards/arm/vul are wash/wash on plain
+  DD and PD (pooled NV +0.00023/+0.00052, vulnerable −0.00072/−0.00064
+  IMPs/board), meeting the pre-registered non-loss bar. Smoke moves 248/20,000
+  auctions, `bdd1a80e…`→`d532f04b…`.
+
 - **`ReadingScope::All` is the default: every authored call reads as its
   own rules, alerted or not** (Phase 2 of docs/authored-reading-handoff.md).
   Unblocked by the strip fix below.  Three seeds × 204,800 boards/arm/vul, nets

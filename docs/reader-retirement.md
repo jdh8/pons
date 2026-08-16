@@ -4,9 +4,9 @@ Campaign: replace each hand-written convention reader in
 `src/bidding/inference/readers.rs` with the authored rules' own envelope-union projection,
 one measured chop at a time. This is the correctly-aimed half of "envelope-union
 reading obsoletes the special cases" — the *readers* are the pre-campaign legacy, not the
-alerts (the alert is what makes projection decoding sound: it gates the
-decode, drives the natural-walk suppression, and selects rule variants at
-build time; see [bidding-architecture.md](bidding-architecture.md)
+alerts (the alert remains disclosure metadata and selects rule variants at
+build time; every informative authored projection now drives natural-walk
+suppression directly; see [bidding-architecture.md](bidding-architecture.md)
 §Disclosure).
 
 The ledger at the bottom records verdicts. A retirement normally changes
@@ -71,7 +71,7 @@ call, the kickback §7.3.1 poison.)
    where a leg is context-sensitive or the composite projects loose — boxes
    pinned statically to the node's own suits (the Jacoby idiom;
    authoring-time boxes use `union`, never `disjoin`). The `.alert(...)`
-   stays on the rule — it triggers the decode and the suppression.
+   stays on the rule — it discloses the convention and selects its variants.
 2. **Diff the reader's residue before deleting.** What does it do beyond the
    projection? Extra suppression indices, two-sided narrowing (candidate:
    `project_band`), advance-side effects (`landy_advance_suppress`),

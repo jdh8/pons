@@ -99,6 +99,10 @@ first bullet".
 
 ### 3. The walk overrides, and the projection only intersects
 
+**Superseded by Phase 3 on 2026-08-17.** This section records the old failure
+mode. Informative authored projections now substitute for the walk, while
+projection-derived suit and fit state preserves the lane bookkeeping.
+
 [read.rs](../src/bidding/inference/read.rs): after a 1NT opening the walk
 *blankets* every suit bid on the opening side except a lane's first
 three-level call (`nt_blanket`, `over_one_notrump`, `stayman_artificial`,
@@ -591,7 +595,7 @@ soundness correction; a loss traces its worst boards before any conclusion.
 | 0 | **N2a** — opener passes the relay's minor sign-off | book node (`{relay} 3♦ -` → `Pass`, a `landy_signoff_answer` twin) shadows the floor; independent of every reading phase | knobless; measure on `--filter-1nt` | standard | queued — cheapest, fixes 16/18 regardless |
 | 1 | **Strength ceilings** | `Points::project` / `Hcp::project` / `SupportPoints::project` → band | `reading.strength_ceilings` **+ `DecisionProfile::legacy_view`, both default-on since 2026-08-16**; pre-ship arm is `bba-gen --ns-strength-ceilings false --ns-legacy-view false` | admits sweep + `probe-reading-sound` unchanged-or-better; A/B | **SHIPPED 2026-08-16.** Soundness gate green (E0 book-wide + 4-cell behavioural grid + probe partner 2.114→2.105%); A/B 3 seeds raw + 1 legacy — raw leans plain-DD-negative, **legacy arm 3 boards/204,800, 4/4 cells positive, ~1% cost**. Shipped on the legacy arm. Cards byte-identical; smoke re-based `18aba5ce…` → `cf583ff5…`. C2's re-open trigger ("a two-sided forward projection") is met by it — **and C2 shipped on it the same day**, 12/12 cells positive once `legacy_view` shields the nets from it too (ledger below) |
 | 2 | **`ReadingScope::All`** as default | built; drop the alert gate | `--ns-reading-scope all` (default); `alerted` is the off arm | clear the empty-box worklist before measuring (`probe-reading-sound --ns-reading-scope all`, bucketed); whole-book non-loss under plain DD and PD at both vulnerabilities | **SHIPPED default-on 2026-08-16.** First run held (PD loss, all six cells); its forensic found the whole loss in the four `1x (1NT)` lanes — the side-blind systems-on strip — and with that fixed (nets held by `legacy_view`) 3 seeds × 204,800 bd/arm/vul read **12/12 cells positive**, plain +0.0078…+0.0125 / PD +0.0073…+0.0111. Smoke `edb618b8…` → `bdd1a80e…`; cards byte-identical. The two `pass_out` nodes stay (their deletion is its own A/B) |
-| 3 | **Substitute, don't intersect** | authored calls set suppression; walk bookkeeping from the projection; retire `nt_blanket` & co. for authored calls | two-binary (a refactor, not a knob) | byte-identity where projection ⊇ walk is *not* expected — this moves readings by design; A/B | queued behind 2 |
+| 3 | **Substitute, don't intersect** | authored calls set suppression; walk bookkeeping from the projection; retire `nt_blanket` & co. for authored calls | two-binary (a refactor, not a knob) | byte-identity where projection ⊇ walk is *not* expected — this moves readings by design; A/B | **SHIPPED 2026-08-17.** Partner exclusions 1.877%→1.308%; N2 4/4 cells non-negative; two 204,800-board whole-book seeds are wash/wash at both vuls (pooled NV +0.00023/+0.00052 plain/PD, vul −0.00072/−0.00064). Smoke `bdd1a80e…`→`d532f04b…` |
 | 4 | Negative inference | fold `project_complement` of higher rules | knob | admits sweep (must stay green — it tightens) | later |
 | 5 | **features_v6 + retrain** | honest reading in, `legacy_view` and `net_points` fold out | F2b recipe (dump, held-out gate, twin, flip) | held-out NLL/MAE ≥ shipped; A/B of the flip | after 1-3 land |
 
@@ -765,6 +769,47 @@ explicitly (the hole it fills is closed under `All`).
 
 The two `pass_out` retreat nodes remain; deleting them is a separate A/B.
 
+## Phase 3 measurement — shipped (2026-08-17)
+
+Phase 3 was refactored in place: an informative authored projection suppresses
+the natural semantic walk, and per-call projected 3+/4+/5+/6+ suit masks retain
+chronological fit, shown-suit, rebid, cue and raise bookkeeping. An unalerted
+authored rule whose projection is top falls back to the walk; an alerted top
+stays suppressed as artificial. This also retires the notrump blanket and its
+structural exceptions for authored calls; they remain only for unauthored calls.
+No second walker or runtime knob was added.
+
+Control was HEAD `bccb6e3d746d2a5f5ab4fbf19298a76576e5a8cf`. The pinned
+`bba-gen` SHA-256 hashes were `084c484fa23229cb298e3e315ae62e76f876b5db351644f8951c73f215cfeb95`
+(control) and `e7d729b5d35b219aa6ff53c9c5863ee13f59cbbdd487891af07ffe26bf788886`
+(treatment). Every arm used the prebuilt binaries sequentially under
+`scripts/idle-run.sh`.
+
+The 40,000-board soundness probe at seed `20260816` passed: partner exclusions
+fell from 3,156/168,138 (**1.877%**) to 2,199/168,085 (**1.308%**). LHO/RHO
+exclusions also fell, 8.059%→7.748% and 8.111%→7.834%. The N2 diagnostic at
+seed `1786905331`, 19,200 boards/arm/vulnerability, fired 31–32 boards and was
+non-negative in all four cells: NV +0.0008 plain / +0.0014 PD, vulnerable
++0.0044 / +0.0056, with every CI spanning zero. The exact Lebensohl witness
+remained Pass over `3NT`, with partner read as 6–8 and five-plus diamonds.
+
+The whole-book A/B used seeds `1786905418` and `1786906127`, each 204,800
+boards/arm/vulnerability:
+
+| Seed | Vul | Plain DD | PD | Fired |
+| --- | --- | ---: | ---: | ---: |
+| 1786905418 | none | −0.0008 ±0.0023 | −0.0005 ±0.0026 | 1,383 (0.68%) |
+| 1786905418 | both | −0.0013 ±0.0027 | −0.0009 ±0.0030 | 1,160 (0.57%) |
+| 1786906127 | none | +0.0013 ±0.0022 | +0.0016 ±0.0025 | 1,295 (0.63%) |
+| 1786906127 | both | −0.0002 ±0.0027 | −0.0004 ±0.0030 | 1,173 (0.57%) |
+
+Pooled over 409,600 boards/vulnerability: NV +0.00023 plain / +0.00052 PD;
+vulnerable −0.00072 / −0.00064. This is wash/wash at both vulnerabilities and
+passes the pre-registered non-loss bar for a soundness correction. The shipped
+default smoke changes 248/20,000 auctions and re-bases
+`bdd1a80ebe7d90ee6dc26ed8915b8d0ee5017d2e24e004fd88534871c72ac507` to
+`d532f04b5a5d0ba11b15c8a777f4e4fbab466ec59f361618fcd495f844253915`.
+
 ## The N2 testbed — exact recipe
 
 ```bash
@@ -829,8 +874,9 @@ the `2NT` relay row no longer the lane's worst per board; `1NT 2♥ 2♠ -` read
    non-loss**. Read-out: raw non-loss → ship ceilings, view stays opt-in;
    raw loss ∧ legacy non-loss → ship both, Phase 5 retires the view; both
    lose → trace before any conclusion.
-3. Phase 3's walk-bookkeeping-from-projection: refactor in place, or a
-   parallel `walk_v2` behind the two-binary protocol until it wins?
+3. ~~Phase 3's walk-bookkeeping-from-projection~~ — **answered 2026-08-17**:
+   refactored in place; the two-binary measurement met the non-loss gate, so a
+   parallel `walk_v2` and permanent knob would be dead scaffolding.
 4. ~~Whether N2a lands now~~ — **answered 2026-08-16**: it **waits**. A book
    node with finite mass shadows the floor, so authoring it would shadow the
    exact N2 signal Phase 1 is being measured on. It is the fallback if a
@@ -866,6 +912,7 @@ the `2NT` relay row no longer the lane's worst per board; `1NT 2♥ 2♠ -` read
 | 2026-08-16 | **Phase 2 `ReadingScope::All` measured and HELD** | soundness 2.114%→2.109%; N2 diagnostic loses all four cells; three 204,800-board whole-book seeds lean plain-positive but PD loses all six seed/vulnerability cells (pooled −0.00391/−0.00379 NV/vul). Default stays `Alerted`, both retreat nodes stay, cards/alerts byte-identical, smoke remains `edb618b8…` |
 | 2026-08-16 | **Phase 2 forensic**: `ab-dump-bucket --by lane` on the held arms — the loss is the four `1x (1NT)` lanes (−2.0k…−2.6k PD/cell), the rest of the book +1.3k…+1.7k | root cause `systems_on_overcall_strip` firing on *their* 1NT overcall (side-blind); fixed ours-only + explicit their-1NT-overcall walk box; two A/Bs in flight (A: fix alone vs `main`; B: `All` on the fix) — see *The forensic — one lane, one bug* |
 | 2026-08-16 | **Phase 2 `ReadingScope::All` SHIPPED default-on** — strip fixed ours-only, nets held (`strip_side_blind` under `legacy_view`), 3 seeds × 204,800 bd/arm/vul | **12/12 cells positive** (plain +0.0078…+0.0125, PD +0.0073…+0.0111); the fix alone is byte-identical to `main` (0 fired, smoke `edb618b8…` unchanged); flip re-bases smoke to `bdd1a80e…`; cards byte-identical |
+| 2026-08-17 | **Phase 3 substitute-don't-intersect SHIPPED** — in-place walker, projection-derived lane bookkeeping, top fallback | Soundness partner exclusions 1.877%→1.308%; N2 4/4 non-negative; two 204,800-board whole-book seeds wash/wash at both vuls (pooled NV +0.00023/+0.00052 plain/PD, vul −0.00072/−0.00064); smoke `bdd1a80e…`→`d532f04b…` |
 
 ### Memory compaction notes (2026-08-16)
 

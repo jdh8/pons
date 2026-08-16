@@ -120,8 +120,7 @@ struct Args {
     their_wild_weak_two: bool,
 
     /// Override how much of the authored book our seats read.  Unset uses the
-    /// engine default (`alerted`; the Phase-2 `all` arm is held after its ship
-    /// gate).
+    /// engine default (`all` since Phase 2).
     #[arg(long, value_enum)]
     ns_reading_scope: Option<common::ReadingScopeArg>,
 
