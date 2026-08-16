@@ -5,10 +5,10 @@
 //! ambient thread state.
 //!
 //! That join is the point. Four readers must agree about what we play —
-//! [`american_book`][crate::bidding::american::american_book],
+//! [`american_book`],
 //! [`instinct`][crate::bidding::instinct()],
 //! [`ConventionCard::capture`][crate::bidding::features::ConventionCard::capture]
-//! and the [`ReadingProfile`][crate::bidding::inference::ReadingProfile] — and
+//! and the [`ReadingProfile`] — and
 //! until this value existed nothing but call-site discipline made them. Two defects were paid
 //! for by that gap: the forced rail froze into a process-wide `LazyLock` built
 //! by whichever system came first, and a card disclosed rows the rules were not
@@ -24,8 +24,8 @@
 //! `decision` holds the settings read **per decision**, at classify time,
 //! rather than while the books are built.
 //! It is split out only because it is the snapshot a
-//! [`Partnership`][crate::bidding::Partnership] pins at
-//! [`System::bind`][crate::bidding::System::bind], so a partnership decides
+//! [`Partnership`] pins at
+//! [`System::bind`], so a partnership decides
 //! identically on any thread; the eight build-time areas are baked into the
 //! rules a build returns and need no such pin.  A setting read at *both* times
 //! lives in `decision` and is read from there at build time too.

@@ -5,7 +5,7 @@
 //! double-dummy tricks does each declarer take in each strain**, given my own
 //! cards and the range envelopes the auction has put on the other three hands?
 //!
-//! It is an amortization of [`sample_layouts`][crate::bidding::sampler::sample_layouts] +
+//! It is an amortization of [`sample_layouts`] +
 //! `solve_deals` — the sample-and-solve loop that costs ~1.4 s per decision,
 //! learned offline into a few thousand multiply-adds. Its input
 //! ([`features_eval`]) carries **no auction, no seat and no vulnerability**: the

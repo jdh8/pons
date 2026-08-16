@@ -1,6 +1,6 @@
 //! What the calls have shown, accumulated across an auction
 //!
-//! [`Context`][crate::bidding::context::Context] gives the *laws-only* facts of an
+//! [`Context`] gives the *laws-only* facts of an
 //! auction; the authored books and the [instinct floor][super::instinct()] read
 //! *system intent* off the calls on demand (see
 //! [`Interpretation`][super::instinct()]).  This module is the richest such

@@ -1,17 +1,17 @@
 //! A 2/1 game-forcing bidding system
 //!
-//! [`american()`][crate::bidding::american::american] assembles a
+//! [`american()`] assembles a
 //! [`System`] for the Two-over-One Game Forcing system, the modern North
 //! American standard: five-card majors, a strong 15–17 notrump, the strong
 //! artificial 2♣, and — the defining feature — a new suit at the two level in
 //! response to a one-of-a-major opening is **game forcing**.
 //!
 //! The system is authored entirely from the constraint vocabulary
-//! ([`constraint`][crate::bidding::constraint]), the [`Rules`] classifier, and
+//! ([`constraint`]), the [`Rules`] classifier, and
 //! the role-aware books — the strictly uncontested core in a [`Constructive`]
 //! book, [`competition()`][crate::bidding::american::competition] over our
-//! openings in a [`Competitive`][super::Competitive] book, and our actions
-//! over their openings in a [`Defensive`][super::Defensive] book; nothing here
+//! openings in a [`Competitive`] book, and our actions
+//! over their openings in a [`Defensive`] book; nothing here
 //! is system infrastructure.
 //!
 //! # Conventions

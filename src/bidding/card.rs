@@ -34,14 +34,14 @@
 //!
 //! The card describes the **authored book**, and since the configured net
 //! shipped it is *also* what the default floor reads: `american()` encodes this
-//! card into [`Config`][crate::bidding::features::Config] and hands it to
+//! card into [`Config`] and hands it to
 //! [`ConfiguredFloorBba`][crate::bidding::neural_floor::ConfiguredFloorBba].  So
 //! a row here moves three things at once — what we disclose, what the rules
 //! play, and what the net is told it is playing.  That is the point: a knob
 //! cannot change the system without the disclosure and the net following.
 //!
 //! It still cannot express *which* floor is attached, so `american()` and
-//! [`american_instinct`][crate::american_instinct] generate the same card and a
+//! [`american_instinct`] generate the same card and a
 //! `--our-floor` swap is not disclosed.  BBA's own defaults approximate the
 //! distilled floor; no row exists for it.
 

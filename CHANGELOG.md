@@ -614,6 +614,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **`cargo +nightly doc` is green again under `-D warnings`.** Fourteen
+  `rustdoc::redundant_explicit_links` in module-level `//!` docs now drop their
+  explicit targets and let the label resolve. They were invisible on stable
+  1.97.1 and, on nightly, reported with **no `file:line`** — every span
+  mis-maps to the `pub mod` line in `src/bidding.rs` that documents the module,
+  because a `//!` block merges with the parent's `///` and resolves in the
+  parent's scope. That merge is also why they were redundant at all: the same
+  paths spelled out on an item's own `///` doc are *not*. Rendered docs and the
+  public API are unchanged; no `#[allow]` was added.
+
 - **Phase 3 substitution dropped a suit from the lane's bid-history, losing
   track of the agreed trump suit.** A substituted call recorded only the suits
   its projection promised at four-plus, so a `1♦` opening whose rule union

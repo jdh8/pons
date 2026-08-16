@@ -1,12 +1,12 @@
 //! Deterministic safety shell over the distilled neural floor — AI-bidder M1.3.
 //!
-//! [`neural::classify_bba_v4`][crate::bidding::neural::classify_bba_v4] is a
+//! [`neural::classify_bba_v4`] is a
 //! bare MLP: it emits a finite logit for every one of the 38 calls, with no
 //! built-in respect for the laws or for the floor's non-negotiable
 //! forced-situation rails.
 //! [`ConfiguredFloorBba`][crate::bidding::neural_floor::ConfiguredFloorBba]
 //! wraps it so it is safe to
-//! attach as the floor, exactly where [`instinct()`][super::instinct::instinct]
+//! attach as the floor, exactly where [`instinct()`]
 //! attaches (see [`american`][super::american::american]).
 //!
 //! The shell has two paths:
@@ -35,7 +35,7 @@
 //! aggregate by the A/B examples, not guarded here.
 //!
 //! Both paths are book-independent, so this shell is also what
-//! [`american_floor`][super::american::american_floor] stands on with no
+//! [`american_floor`] stands on with no
 //! authored book at all.
 
 use super::Rules;

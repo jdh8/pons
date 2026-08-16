@@ -23,7 +23,7 @@
 //! actually classifies, with the classify-time half of those agreements
 //! pinned into it from the same value.
 //! There is no whole-system identity label: a system announces itself through
-//! its calls' own [`Alert`][super::Alert]s and their readings.
+//! its calls' own [`Alert`]s and their readings.
 //!
 //! # Key disjointness
 //!

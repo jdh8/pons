@@ -4,7 +4,7 @@
 //! `docs/ai-bidder/wbf-abbreviations.md`) naming its meaning — `FG` for a game
 //! force, `T/O` for a takeout double, `TRF` for a transfer.  They are **derived
 //! structurally** from the auction [`Context`] and the call, the same keyless
-//! reading already encoded in [`Inferences`](crate::bidding::inference::Inferences); no
+//! reading already encoded in [`Inferences`]; no
 //! tag is stored on a node.
 //!
 //! This is the single source of truth for that reading.  Its consumer is the
