@@ -44,7 +44,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
   Reproduction: paired `bba-gen` arms on identical deals, 640 bd × 32 shards,
   one vulnerability — a default pair to show the mask, then the same pair under
-  `--ns-net-collar` for the knobs' real reach.
+  `--ns-net-collar` for the knobs' real reach. The two arms are armed by the new
+  `--ns-nt-hcp` / `--ns-fit-sum-support` flags, on the shipped-knob
+  `Option<bool>` idiom (unset = the engine default, so smoke is unchanged at
+  `edb618b8cba3aec2a4d434680039a176d4276392059ddd4555cbac511490e804`).
 
   Consequence for the reading program: the ⚠ at
   `docs/authored-reading-handoff.md:420` — that flipping either knob would

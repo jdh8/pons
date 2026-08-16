@@ -616,6 +616,21 @@ struct Args {
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
     ns_forcing_ceiling_read: Option<bool>,
 
+    /// Value the floor's notrump milestones on raw HCP — our own hand plus
+    /// partner's crisp `hcp` gauge — instead of the length-upgraded
+    /// `point_count`, whose long-suit bonus is a ruffing value worth nothing in
+    /// notrump.  Rides `hcp_floor()`, so it only bites where the ceilings
+    /// populate that gauge.  **Engine default OFF**; unset = the engine default.
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    ns_nt_hcp: Option<bool>,
+
+    /// In the fit-sum game gate, take partner's shown strength from the
+    /// dedicated `support_points` gauge instead of the length-scale `points`.
+    /// The slot min is at most `shown_floor()`, so this gate gets *more*
+    /// conservative.  **Engine default OFF**; unset = the engine default.
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    ns_fit_sum_support: Option<bool>,
+
     /// Open the strong 2NT (20-21) on the wide-minor shape `{M 2..=4, m 2..=6}`
     /// for our side (`ReadingProfile::two_notrump_wide`, crate default off): drops the
     /// 5M(332) balanced hands (they open one-of-a-major) and adds the wide
@@ -1905,6 +1920,12 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.decision.reading.pass_exclusion = args.ns_pass_exclusion;
     if let Some(v) = args.ns_forcing_ceiling_read {
         agreements.decision.instinct.forcing_ceiling_read = v;
+    }
+    if let Some(v) = args.ns_nt_hcp {
+        agreements.decision.instinct.nt_hcp_read = v;
+    }
+    if let Some(v) = args.ns_fit_sum_support {
+        agreements.decision.instinct.fit_sum_support_read = v;
     }
     agreements.decision.instinct.uvu_encircle = !args.no_uvu;
     agreements.decision.instinct.settle_floor = !args.no_settle_floor;
