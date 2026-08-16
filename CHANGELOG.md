@@ -9,6 +9,51 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **The shape-upgrade closure ships default-on:
+  `ReadingProfile::upgrade_closure` (DNF chop C2).** `points` is `hcp` plus a
+  shape-and-honour upgrade, and *balanced hands never upgrade* — so a box whose
+  own lengths force balanced reads `points == hcp` instead of carrying the
+  scale's global 2-HCP slack at each end. Exact: it drops no hand the box
+  claims. Pass of our 1NT, for one, now reads `points 0..=9` instead of
+  `0..=10`.
+
+  C2 landed in 2026-07 and measured **bidding-inert (0/3000 boards)** for a
+  reason that expired yesterday: the forward folds wrote *floors* only, so its
+  `points.max ← hcp.max + ceiling` leg had no ceiling to bite. `strength_ceilings`
+  shipped default-on 2026-08-16 and made all four legs live; C2's own re-open
+  trigger ("a two-sided forward projection") named it verbatim. It now fires.
+
+  Measured, 3 seeds × 204,800 bd/arm/vul × 2 vuls, `scripts/ab-upgrade-closure.sh`:
+  **12/12 cells positive** — pooled **+0.00015 plain / +0.00024 PD** (NV) and
+  **+0.00016 plain / +0.00022 PD** (vul), ~12 boards fired per arm-vul at
+  +2.3…+7.6 IMPs per fired board. Ship rule was pre-registered in the runner
+  header before the numbers (non-loss ships, the reading-drift bar).
+
+  The channel matters more than the size. C2 is shielded from the **frozen
+  nets** by `legacy_view`, whose legacy clone now folds C2 off as well as the
+  ceilings (`Context::net_inferences`) — the nets were fit before either. On the
+  same 20,480 deals, unshielded C2 moves **18 boards for −0.0037/bd** (it talks
+  the evaluator out of slams: `6♠` for `7♠`, a passed `3NT` for `6NT`), shielded
+  C2 moves **2 for +0.0006/bd**. Same reading, opposite verdict — the C1/F1
+  lesson (a *truer* reading loses through a net that was never fit on it),
+  reproduced deliberately and priced. What ships is the sampler-and-gate channel
+  alone.
+
+  Soundness: `probe-reading-sound -c 40000` partner exclusion **2.114% →
+  2.114%**, worklist identical. The narrowing cannot exclude a true hand —
+  every hand in the box satisfies `hcp ≤ points ≤ hcp + upgrade_ceiling`, and
+  `upgrade_ceiling` returns `None` on exactly the scale (`RuleOfN*`) where that
+  can fail.
+
+  User-visible: the default system changes. `smoke-default --count 20000
+  --seed 1` re-bases from `f33d8caf…` to
+  `edb618b8cba3aec2a4d434680039a176d4276392059ddd4555cbac511490e804`; 7 of
+  20,000 auctions move. The `.bbsa` cards are **byte-identical** (`bba-card`
+  re-run, no diff) — a reading change, not disclosure. Controls:
+  `bba-gen --ns-upgrade-closure` on the shipped-knob `Option<bool>` idiom (the
+  pre-ship arm is `--ns-upgrade-closure false`), `PROBE_UPGRADE_CLOSURE=1` for
+  `probe-decision`, and `probe-reading-sound --ns-upgrade-closure`.
+
 - **A Lebensohl sign-off no longer forces us to game:
   `InstinctProfile::forcing_ceiling_read` ships default-on.**
   `opener_forced_past_invitation` decided the game force on *pure auction

@@ -60,6 +60,14 @@ fn main() {
         Ok("1") => agreements.decision.instinct.forcing_ceiling_read = true,
         _ => {}
     }
+    // `PROBE_UPGRADE_CLOSURE=1` closes `hcp` against `points` through the shape
+    // upgrade (C2 of docs/dnf-migration.md): a box whose lengths force balanced
+    // reads `points == hcp` instead of carrying the scale's 2-HCP slack.
+    match std::env::var("PROBE_UPGRADE_CLOSURE").as_deref() {
+        Ok("0") => agreements.decision.reading.upgrade_closure = false,
+        Ok("1") => agreements.decision.reading.upgrade_closure = true,
+        _ => {}
+    }
     // The nets' pre-ceilings reading, likewise default on; `PROBE_LEGACY_VIEW=0`
     // prints the raw (unheld-nets) arm of the same board.
     match std::env::var("PROBE_LEGACY_VIEW").as_deref() {

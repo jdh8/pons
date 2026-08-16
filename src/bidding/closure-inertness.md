@@ -23,7 +23,11 @@ cannot move — depends on which axes it reads:
   10-counts it was accepting outside the stated band.  Same probe: 249
   rejections in 8,576 layouts (pinned by `upgrade_closure_gives_hcp_teeth`).
   Arguably the old acceptance was the wrong one — but this is a reading change,
-  and it must be measured as one.
+  and it must be measured as one.  It was, twice: bidding-inert in 2026-07
+  (nothing bit its `points.max` leg), then **shipped default-on 2026-08-16**
+  once `strength_ceilings` made that leg live — 12/12 A/B cells positive with
+  the frozen nets shielded by `legacy_view`, and −0.0037/bd without that shield.
+  See docs/dnf-migration.md C2.
 
 The remaining delta is `EnvelopeUnion::hull` — tighter, so the accountant evaluator and the
 feature nets see tighter bands.  This is the intended effect, and also the known

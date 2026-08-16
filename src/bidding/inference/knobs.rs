@@ -213,7 +213,8 @@ pub struct ReadingProfile {
 
     /// C2: close `hcp` against `points` through the shape upgrade
     ///
-    /// **Default off** (chop C of docs/dnf-migration.md).  `points` is `hcp`
+    /// **Default on since 2026-08-16** (chop C2 of docs/dnf-migration.md).
+    /// `points` is `hcp`
     /// plus a shape-and-honor
     /// [`upgrade`][crate::bidding::constraint::upgrade], and *balanced hands
     /// never upgrade* (every balanced shape holds at most 9 cards in its two
@@ -231,8 +232,15 @@ pub struct ReadingProfile {
     /// its lengths force balanced, and the sampler stops dealing the 9- and
     /// 10-counts it was accepting outside the stated band: 249 rejections in
     /// 8,576 layouts on the same probe.  Arguably the old acceptance was the
-    /// wrong one — but this is a reading change, and it must be measured as
-    /// one.  Requires [`envelope_union`][field@Self::envelope_union].
+    /// wrong one — and the measurement agreed: 12/12 A/B cells positive once
+    /// the frozen nets are shielded by
+    /// [`legacy_view`][field@crate::bidding::context::DecisionProfile::legacy_view]
+    /// (3 seeds × 204,800 bd/arm/vul, +0.0002 plain / +0.0002 PD).  It bit
+    /// nothing until the two-sided
+    /// [`strength_ceilings`][field@Self::strength_ceilings] gave its
+    /// `points.max ← hcp.max + ceiling` leg a ceiling to work on; before that
+    /// it was inert on 3,000 boards.  Requires
+    /// [`envelope_union`][field@Self::envelope_union].
     pub upgrade_closure: bool,
 
     /// Read a made call's strength **ceilings**, not just its floors
@@ -1015,7 +1023,7 @@ impl ReadingProfile {
             blind_opponents: true,
             gauge_membership: true,
             sum_closure: true,
-            upgrade_closure: true,
+            upgrade_closure: false,
             strength_ceilings: false,
             control_bid: false,
             cue: false,
@@ -1078,7 +1086,7 @@ impl Default for ReadingProfile {
             blind_opponents: false,
             gauge_membership: false,
             sum_closure: false,
-            upgrade_closure: false,
+            upgrade_closure: true,
             strength_ceilings: true,
             control_bid: true,
             cue: true,

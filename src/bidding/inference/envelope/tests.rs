@@ -359,7 +359,10 @@ fn upgrade_closure_gives_hcp_teeth() {
     // Outside the `hcp(..=8)` claim, yet the loose reading admits it,
     // because `points` was slacked to `hcp + hcp_ceiling_slack()`.
     let hand: Hand = "AKQ2.J43.432.432".parse().expect("valid hand");
-    let loose = reading_with(|profile| profile.envelope_union = true);
+    let loose = reading_with(|profile| {
+        profile.envelope_union = true;
+        profile.upgrade_closure = false;
+    });
     let decision = crate::bidding::context::DecisionProfile {
         reading: loose,
         ..Default::default()

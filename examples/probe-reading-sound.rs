@@ -133,6 +133,12 @@ struct Args {
     /// baseline.  Unset = the engine default.
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
     ns_strength_ceilings: Option<bool>,
+
+    /// Our seats close `hcp` against `points` through the shape upgrade
+    /// (`ReadingProfile::upgrade_closure` — C2 of `docs/dnf-migration.md`).  It
+    /// only ever *tightens* a box, so this sweep is its soundness gate too.
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    ns_upgrade_closure: Option<bool>,
 }
 
 /// Readings taken, and how many excluded the truth — on both predicates
@@ -245,6 +251,9 @@ fn main() -> anyhow::Result<()> {
     };
     if let Some(v) = args.ns_strength_ceilings {
         agreements.decision.reading.strength_ceilings = v;
+    }
+    if let Some(v) = args.ns_upgrade_closure {
+        agreements.decision.reading.upgrade_closure = v;
     }
     let partnership = american(&agreements).bind();
 

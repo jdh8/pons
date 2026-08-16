@@ -12,10 +12,11 @@
 #   off   the shipped default (no closure)
 #   sum   --ns-sum-closure
 #
-# C2 (`--ns-upgrade-closure`) is NOT an arm: measured 0/3000 boards divergent,
-# because nothing consumes `Envelope::strength.hcp` at default settings
-# (`gauge_membership` off, and the feature/evaluator nets read lengths +
-# `points` only).  See docs/dnf-migration.md.
+# C2 (`--ns-upgrade-closure`) is NOT an arm here: it measured 0/3000 boards
+# divergent when this script was written, because the forward folds wrote
+# floors only and its `points.max` leg had no ceiling to bite.  The ceilings
+# shipped 2026-08-16 and it fires now — it has its own runner,
+# scripts/ab-upgrade-closure.sh.
 #
 #   setsid nohup scripts/ab-closure.sh ab-results/closure \
 #       >ab-results/closure.log 2>&1 &

@@ -917,7 +917,7 @@ impl<'a> Context<'a> {
 
     /// The reading the **nets** are fed — [`inferences`][Self::inferences]
     /// unless [`legacy_view`][DecisionProfile::legacy_view] asks for the
-    /// pre-ceilings one
+    /// training-time one (pre-ceilings, pre-closure)
     ///
     /// Only the net-facing callers use this: the sampler, the authored gates
     /// and the instinct floor read [`inferences`][Self::inferences] and see
@@ -933,6 +933,11 @@ impl<'a> Context<'a> {
         let legacy = || {
             let mut legacy = self.clone();
             legacy.profile.reading.strength_ceilings = false;
+            // The nets were fit before C2 too, so the training-time reading is
+            // the pre-closure one as well
+            // ([`upgrade_closure`][field@crate::bidding::ReadingProfile::upgrade_closure]).
+            // Inert until that knob ships.
+            legacy.profile.reading.upgrade_closure = false;
             legacy.authored_projection = None;
             legacy.decision_cache = None;
             Inferences::read(&legacy)

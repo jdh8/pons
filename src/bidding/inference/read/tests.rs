@@ -224,13 +224,16 @@ fn pass_reading_caps_the_notrump_signoff() {
     let mut agreements = Agreements::default();
     agreements.decision.reading.pass = true;
     // Pass of partner's 1NT: the authored union of the weak arm and the
-    // flat-eight arm — at most 10 points (the flat-eight arm's 8 HCP + the
-    // point-count max upgrade 2), no six-card major.
+    // flat-eight arm — at most 9 points, no six-card major.  The flat-eight
+    // arm's own 8 HCP would slack to 10 on the point-count scale, but its
+    // lengths force balanced and balanced hands never upgrade, so C2
+    // (`upgrade_closure`, default-on since 2026-08-16) hands the band back the
+    // point it never had; the 9 is the weaker arm's.
     let nt = read_booked_with(
         &agreements,
         &[bid(1, Strain::Notrump), Call::Pass, Call::Pass, Call::Pass],
     );
-    assert_eq!(nt.partner().strength.points, Range::new(0, 10));
+    assert_eq!(nt.partner().strength.points, Range::new(0, 9));
     assert!(nt.partner().length(Suit::Hearts).max <= 5);
     assert!(nt.partner().length(Suit::Spades).max <= 5);
 }

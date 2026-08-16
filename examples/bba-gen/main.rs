@@ -581,11 +581,13 @@ struct Args {
     ns_probe_vacuous: bool,
 
     /// Close our side's read `hcp` against `points` through the shape upgrade
-    /// (`ReadingProfile::upgrade_closure`, crate default off): balanced hands never
-    /// upgrade, so a balanced box reads `points == hcp` instead of carrying the
-    /// scale's global slack.  DNF-ledger chop C2.
-    #[arg(long, default_value_t = false)]
-    ns_upgrade_closure: bool,
+    /// (`ReadingProfile::upgrade_closure`, crate default **on** since
+    /// 2026-08-16): balanced hands never upgrade, so a balanced box reads
+    /// `points == hcp` instead of carrying the scale's global slack.  DNF-ledger
+    /// chop C2; the pre-ship arm is `--ns-upgrade-closure false`.  Unset = the
+    /// engine default.
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    ns_upgrade_closure: Option<bool>,
 
     /// Our side reads every made call for its strength **ceilings**, not just its
     /// floors (`ReadingProfile::strength_ceilings`, crate default on): `points`,
@@ -1894,7 +1896,9 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     }
     agreements.decision.reading.scope = args.ns_reading_scope.into();
     agreements.decision.reading.sum_closure = args.ns_sum_closure;
-    agreements.decision.reading.upgrade_closure = args.ns_upgrade_closure;
+    if let Some(v) = args.ns_upgrade_closure {
+        agreements.decision.reading.upgrade_closure = v;
+    }
     if let Some(v) = args.ns_strength_ceilings {
         agreements.decision.reading.strength_ceilings = v;
     }
