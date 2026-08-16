@@ -247,5 +247,8 @@ name = "ab-kickback"
 path = "examples/ab-kickback/main.rs"
 required-features = ["serde"]
 
+[profile.dev]
+debug = "line-tables-only"
+
 [profile.dev.package."*"]
 opt-level = 2
