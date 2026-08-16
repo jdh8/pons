@@ -608,6 +608,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Phase 3 substitution dropped a suit from the lane's bid-history, losing
+  track of the agreed trump suit.** A substituted call recorded only the suits
+  its projection promised at four-plus, so a `1♦` opening whose rule union
+  admits a three-card diamond recorded *nothing* in `lane_suits`, the lane's
+  mechanical bid-history. Everything keyed on that set went wrong downstream:
+  opener's own `3♦` rebid read as a first showing (♦4+) rather than a rebid
+  (♦6+), costing the cold `1♦ (1♥) - 2♥; 3♦ -` raise a level (`5♦`→`4♦`,
+  `competitive_rebid_reaches_the_missed_game`, silently re-pinned when Phase 3
+  landed rather than traced) — and, more expensively, `i_bid_it` /
+  `partner_bid_it` misidentified the **trump suit** after a keycard ask, so
+  slams landed in a phantom strain (`1♦ (2♠) X (3♠) 4♦ - 4NT - 5♠ -` bidding
+  `6♥` on a doubleton opposite a void, where `6♦` is cold). A substituted
+  **natural** bid now also records the suit it *named*; artificial calls still
+  do not, so a transfer's face suit stays a phantom. Both pins are back at
+  their pre-Phase-3 `5♦`.
+
+  Fleet impact is inert by construction — the bug needs a substituted natural
+  bid whose projection floor is short, so it fires on ~0.004% of boards — but
+  each is a slam-level swing (≈4 IMPs). Measured non-loss vs `a376c324` on the
+  cells scored so far; the correction is a soundness repair, shipped on KR2.
+
 - **`docs/takeout-double-layers.md` mislabelled `bba-multi-2d.md`'s 41%
   takeout-double row** as the *advancer's* X over a Multi. The probe's seat
   index says otherwise: `--mode counter` is actor seat 2, the 1NT opener's

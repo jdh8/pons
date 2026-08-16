@@ -595,7 +595,7 @@ soundness correction; a loss traces its worst boards before any conclusion.
 | 0 | **N2a** — opener passes the relay's minor sign-off | book node (`{relay} 3♦ -` → `Pass`, a `landy_signoff_answer` twin) shadows the floor; independent of every reading phase | knobless; measure on `--filter-1nt` | standard | queued — cheapest, fixes 16/18 regardless |
 | 1 | **Strength ceilings** | `Points::project` / `Hcp::project` / `SupportPoints::project` → band | `reading.strength_ceilings` **+ `DecisionProfile::legacy_view`, both default-on since 2026-08-16**; pre-ship arm is `bba-gen --ns-strength-ceilings false --ns-legacy-view false` | admits sweep + `probe-reading-sound` unchanged-or-better; A/B | **SHIPPED 2026-08-16.** Soundness gate green (E0 book-wide + 4-cell behavioural grid + probe partner 2.114→2.105%); A/B 3 seeds raw + 1 legacy — raw leans plain-DD-negative, **legacy arm 3 boards/204,800, 4/4 cells positive, ~1% cost**. Shipped on the legacy arm. Cards byte-identical; smoke re-based `18aba5ce…` → `cf583ff5…`. C2's re-open trigger ("a two-sided forward projection") is met by it — **and C2 shipped on it the same day**, 12/12 cells positive once `legacy_view` shields the nets from it too (ledger below) |
 | 2 | **`ReadingScope::All`** as default | built; drop the alert gate | `--ns-reading-scope all` (default); `alerted` is the off arm | clear the empty-box worklist before measuring (`probe-reading-sound --ns-reading-scope all`, bucketed); whole-book non-loss under plain DD and PD at both vulnerabilities | **SHIPPED default-on 2026-08-16.** First run held (PD loss, all six cells); its forensic found the whole loss in the four `1x (1NT)` lanes — the side-blind systems-on strip — and with that fixed (nets held by `legacy_view`) 3 seeds × 204,800 bd/arm/vul read **12/12 cells positive**, plain +0.0078…+0.0125 / PD +0.0073…+0.0111. Smoke `edb618b8…` → `bdd1a80e…`; cards byte-identical. The two `pass_out` nodes stay (their deletion is its own A/B) |
-| 3 | **Substitute, don't intersect** | authored calls set suppression; walk bookkeeping from the projection; retire `nt_blanket` & co. for authored calls | two-binary (a refactor, not a knob) | byte-identity where projection ⊇ walk is *not* expected — this moves readings by design; A/B | **SHIPPED 2026-08-17.** Partner exclusions 1.877%→1.308%; N2 4/4 cells non-negative; two 204,800-board whole-book seeds are wash/wash at both vuls (pooled NV +0.00023/+0.00052 plain/PD, vul −0.00072/−0.00064). Smoke `bdd1a80e…`→`d532f04b…` |
+| 3 | **Substitute, don't intersect** | authored calls set suppression; walk bookkeeping from the projection; retire `nt_blanket` & co. for authored calls | two-binary (a refactor, not a knob) | byte-identity where projection ⊇ walk is *not* expected — this moves readings by design; A/B | **SHIPPED 2026-08-17.** Partner exclusions 1.877%→1.308%; N2 4/4 cells non-negative; two 204,800-board whole-book seeds are wash/wash at both vuls (pooled NV +0.00023/+0.00052 plain/PD, vul −0.00072/−0.00064). Smoke `bdd1a80e…`→`d532f04b…`.  **Polish A′ 2026-08-17: LOST 12/12 cells** vs `a376c324` (three seeds, both scorers, both vuls) — the bundle was face-suit record + `substitute_authored` net shield + fit-write-back drop + mask refactor. Shield and write-back drop **reverted**; face-suit record + refactor re-measuring alone (`ab-results/bd-only-s{1,2,3}`, smoke `d532f04b…`→`cb090e54…`). See *Why the wash* |
 | 4 | Negative inference | fold `project_complement` of higher rules | knob | admits sweep (must stay green — it tightens) | later |
 | 5 | **features_v6 + retrain** | honest reading in, `legacy_view` and `net_points` fold out | F2b recipe (dump, held-out gate, twin, flip) | held-out NLL/MAE ≥ shipped; A/B of the flip | after 1-3 land |
 
@@ -810,6 +810,102 @@ default smoke changes 248/20,000 auctions and re-bases
 `bdd1a80ebe7d90ee6dc26ed8915b8d0ee5017d2e24e004fd88534871c72ac507` to
 `d532f04b5a5d0ba11b15c8a777f4e4fbab466ec59f361618fcd495f844253915`.
 
+### Why the wash — the polish pass (2026-08-17)
+
+A soundness correction of that size measuring as a wash is the Phase-1-raw and
+Phase-2-A-raw signature, and the review of the shipped commit proposed two
+causes. **Only the first survived measurement.** The second — that the frozen
+nets needed shielding from substitution — was refuted by its own A/B and is
+recorded below as a dead end, kept because the reasoning looked identical to
+Phases 1 and 2 and will look tempting again.
+
+**1. The lane lost the suit.** The substituted branch recorded a call's suits
+from its *projection floors* only — `four_plus`, plus a fit. A `1♦` opening
+whose rule union admits a three-card diamond projects no floor at all, so
+diamonds never entered `lane_suits`, the lane's mechanical bid-history. The
+walk's `i_bid_it` keys on exactly that set, so opener's own `3♦` rebid read as
+a **first showing** (♦4+) instead of a rebid (♦6+). The measured cost is on
+disk in the commit itself: `competitive_rebid_reaches_the_missed_game` fell
+`5♦` → `4♦` on *both* its arms — the cold game the fixture's own comment calls
+11 tricks double-dummy — and was re-pinned rather than traced.
+
+The fix keeps Phase 3's rule intact — the projection owns *meaning* — while
+restoring the one thing the projection cannot state: which suit the call
+**named**. A substituted natural bid now writes its face suit into
+`lane_suits` (never `natural_lane_suits`, which stays the projection's). The
+artificial calls are excluded by a new `CallMasks::artificial` bit, since a
+transfer's face suit is precisely the phantom holding suppression exists to
+kill. Both pins are back at `5♦`.
+
+This also reframes the probe: a **weaker** reading trivially excludes fewer
+hands, so 1.877%→1.308% measured the correction *and* the lost inference
+together. Re-run it paired after any change to what substitution records.
+
+**The bug was wider than the rebid ladder — it lost the trump suit.** The
+`5♦`→`4♦` fixture is the cheap symptom; the expensive one showed up only when
+the fix was measured alone. `lane_suits` also feeds `i_bid_it` /
+`partner_bid_it`, which is how the engine knows *which suit is agreed*, so a
+dropped face suit misidentified the trump suit after a keycard ask and put
+slams in a phantom strain. Both directions appear in the diverging boards:
+
+```
+1♦ (2♠) X (3♠) 4♦ - 4NT - 5♠ -     fix 6♦   control 6♥   +14   ♥98 opposite a void
+1♦ - 1♥ (3♠) 4♦ - 4NT - 5♠ -       fix 6♦   control 6♥X  +19   same shape
+- (1♦) 1♠ (2♥) - 3♦ - 4NT - 5♣ -   fix 6♦X  control 5♦   −11   fix emboldened into a bad slam
+```
+
+So the repair is **not** one-directional: fixing trump identity moves slam
+decisions both ways, and the two-sided tail is the honest picture. Because the
+trigger needs a substituted natural bid whose projection floor is short, it
+fires on ~0.004% of boards (6–10 per 204,800-board cell) at ≈4 IMPs each — an
+inert fleet score carrying a real correctness win, and far too few boards for
+the per-fired mean to be worth reading. Judge this class of fix by inspecting
+its boards, not by its IMPs/board.
+
+**2. REFUTED — "substitution had no knob, so the nets saw it."**
+[`legacy_view`][net-shield] reconstructs the training-time reading by flipping
+*reading knobs* on a clone — `scope`, `strength_ceilings`, `upgrade_closure`,
+`strip_side_blind`. Substitution was unconditional, so the clone substituted
+too and stopped reproducing the hull the v5 nets were fit on: a substituted
+call skips `apply_opening` (the strong `2♣`), the alerted takeout-double floor
+and the whole strength tail (`nt_invite`, opener's notrump rebid bands, the
+responder raise bands, the extras ladder, Stayman). The inference — shield the
+nets and Phase 3's wash becomes a win, exactly as the Phase 2 strip fix went
+from −0.0007/−0.0016 raw to +0.0078…+0.0125 shielded — was **wrong**.
+
+A `substitute_authored` knob folded off in `net_inferences`, bundled with the
+face-suit fix and the write-back drop, measured **12/12 cells negative** over
+three 204,800-board seeds against `a376c324` (NV −0.0035/−0.0034,
+−0.0007/−0.0006, −0.0017/−0.0016; vul −0.0024/−0.0015, −0.0025/−0.0025,
+−0.0006/−0.0008 plain/PD). Divergence was narrow and expensive — 0.46–0.58% of
+boards fired, at −0.13…−0.30 IMPs each — i.e. a specific mechanism misfiring,
+not broad drift. The knob and the write-back drop were reverted; the face-suit
+fix went back out alone.
+
+The knob was also wrong by house rule before it was wrong by measurement: it
+existed *only* to neutralise Phase 3 for the nets, which CLAUDE.md calls
+scaffolding rather than a knob, and `legacy_view` is itself scheduled for
+demolition at Phase 5. The standing hypothesis for the loss — untested, and
+not worth runs on reverted code — is that a net and a sampler reading
+*different* auctions costs more than both reading the same off-distribution
+one. If shielding is ever revisited, that is the thing to test first, and it
+should be measured **alone**, not bundled.
+
+Two review findings did **not** survive the code, and a third did not survive
+measurement. The `!authored_call` gate on the notrump blanket is sound and *is*
+tested — an authored call reaching it has a live rule and no alert, so
+`artificial_calls_are_alerted` makes it natural, and
+`top_authored_projection_falls_back_to_the_walk` pins it; kept, ungated as it
+shipped. Dropping the fit write-back into partner's lane was argued from
+analysis alone — `fit` can be sourced from a partner's **3+** projection, and
+promoting that to "partner naturally showed it" makes their later unauthored
+rebid claim six (`i_bid_it`) and an opponent's bid of the suit read as a cue —
+but it went into the losing bundle unmeasured and was reverted with it. It
+remains a live, *unmeasured* soundness question: re-propose it as its own arm,
+never as a rider.
+
+[net-shield]: ../src/bidding/context.rs
+
 ## The N2 testbed — exact recipe
 
 ```bash
@@ -913,6 +1009,7 @@ the `2NT` relay row no longer the lane's worst per board; `1NT 2♥ 2♠ -` read
 | 2026-08-16 | **Phase 2 forensic**: `ab-dump-bucket --by lane` on the held arms — the loss is the four `1x (1NT)` lanes (−2.0k…−2.6k PD/cell), the rest of the book +1.3k…+1.7k | root cause `systems_on_overcall_strip` firing on *their* 1NT overcall (side-blind); fixed ours-only + explicit their-1NT-overcall walk box; two A/Bs in flight (A: fix alone vs `main`; B: `All` on the fix) — see *The forensic — one lane, one bug* |
 | 2026-08-16 | **Phase 2 `ReadingScope::All` SHIPPED default-on** — strip fixed ours-only, nets held (`strip_side_blind` under `legacy_view`), 3 seeds × 204,800 bd/arm/vul | **12/12 cells positive** (plain +0.0078…+0.0125, PD +0.0073…+0.0111); the fix alone is byte-identical to `main` (0 fired, smoke `edb618b8…` unchanged); flip re-bases smoke to `bdd1a80e…`; cards byte-identical |
 | 2026-08-17 | **Phase 3 substitute-don't-intersect SHIPPED** — in-place walker, projection-derived lane bookkeeping, top fallback | Soundness partner exclusions 1.877%→1.308%; N2 4/4 non-negative; two 204,800-board whole-book seeds wash/wash at both vuls (pooled NV +0.00023/+0.00052 plain/PD, vul −0.00072/−0.00064); smoke `bdd1a80e…`→`d532f04b…` |
+| 2026-08-17 | **Phase 3 polish A′ — MEASURED LOSS, bundle split** | The review's four changes went out as one arm vs `a376c324` and lost **12/12 cells** (3 seeds × 204,800 bd/arm/vul; NV −0.0035/−0.0034, −0.0007/−0.0006, −0.0017/−0.0016; vul −0.0024/−0.0015, −0.0025/−0.0025, −0.0006/−0.0008 plain/PD), on 0.46–0.58% of boards at −0.13…−0.30 IMPs/fired. Bundling four changes in one arm was the process error. **Reverted:** `reading.substitute_authored` (net shield — refuted, and scaffolding by house rule) and the fit-write-back drop (unmeasured rider; still an open soundness question, owed its own arm). **Kept, ungated as shipped:** the `!authored_call` blanket escape (sound, and pinned by `top_authored_projection_falls_back_to_the_walk`). **Re-measuring alone:** the face-suit `lane_suits` record + the `CallMasks` refactor — `ab-results/bd-only-s{1,2,3}`, smoke `d532f04b…`→`cb090e54…`, cards byte-identical |
 
 ### Memory compaction notes (2026-08-16)
 

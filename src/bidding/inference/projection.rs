@@ -90,25 +90,88 @@ pub(super) fn project_pass<'a>(
     ))
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct AuthoredProjection {
-    pub(super) unions: [EnvelopeUnion; 4],
-    pub(super) announced_unions: [EnvelopeUnion; 4],
+/// The per-call bits an authored reading leaves for the walk, indexed by
+/// position in the auction (positions past 63 are unrepresentable and simply
+/// carry no bits — the walk then reads them naturally)
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(super) struct CallMasks {
     /// Calls whose natural-walk meaning must be skipped: an informative
     /// authored projection, or an alerted call whose projection is top.
     pub(super) suppressed: u64,
     /// Non-pass calls resolved to a live authored rule, including projections
-    /// that are top and must fall back to the walk.
+    /// that are top and must fall back to the walk.  Such a call is natural by
+    /// the `artificial_calls_are_alerted` invariant, so the notrump-structure
+    /// blanket — a guess for calls nothing is known about — must not erase it.
     pub(super) authored: u64,
     /// Calls whose informative authored projection substitutes for the walk.
     pub(super) substituted: u64,
-    /// Per-suit call masks whose projection promises at least three through six cards.
+    /// Calls a live authored rule alerts — the artificial ones.  A substituted
+    /// call still records the suit it *named* in the lane's mechanical
+    /// bid-history, so a later rebid, raise or cue still recognises it; an
+    /// artificial one must not, or a transfer's face suit becomes a phantom
+    /// holding.
+    pub(super) artificial: u64,
+    /// Per-suit call masks whose projection promises at least three through
+    /// six cards: `length_floor[i]` holds the calls promising `i + 3`-plus.
     /// The walk consumes these chronologically to retain fit, rebid and cue
     /// bookkeeping without deriving meaning from the call's face.
-    pub(super) three_plus: [u64; 4],
-    pub(super) four_plus: [u64; 4],
-    pub(super) five_plus: [u64; 4],
-    pub(super) six_plus: [u64; 4],
+    pub(super) length_floor: [[u64; 4]; 4],
+}
+
+impl CallMasks {
+    fn record(&mut self, index: usize, effect: &AuthoredEffect<'_>) {
+        if index >= 64 {
+            return;
+        }
+        let bit = 1 << index;
+        if effect.authored {
+            self.authored |= bit;
+        }
+        if effect.substitutes_natural {
+            self.substituted |= bit;
+            let projected = effect.projection.as_union().hull();
+            for suit in Suit::ASC {
+                let length = usize::from(projected.length(suit).min);
+                for floor in self.length_floor.iter_mut().take(length.saturating_sub(2)) {
+                    floor[suit as usize] |= bit;
+                }
+            }
+        }
+        if effect.artificial {
+            self.artificial |= bit;
+        }
+        if effect.suppresses_natural {
+            self.suppressed |= bit;
+        }
+    }
+
+    fn merge(&mut self, other: Self) {
+        self.suppressed |= other.suppressed;
+        self.authored |= other.authored;
+        self.substituted |= other.substituted;
+        self.artificial |= other.artificial;
+        for (mine, theirs) in self.length_floor.iter_mut().zip(other.length_floor) {
+            for (mine, theirs) in mine.iter_mut().zip(theirs) {
+                *mine |= theirs;
+            }
+        }
+    }
+
+    /// The length floor this call promises in `suit`, or zero
+    pub(super) fn floor(self, index: usize, suit: Suit) -> u8 {
+        let bit = 1u64 << index;
+        self.length_floor
+            .iter()
+            .rposition(|floor| floor[suit as usize] & bit != 0)
+            .map_or(0, |i| i as u8 + 3)
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct AuthoredProjection {
+    pub(super) unions: [EnvelopeUnion; 4],
+    pub(super) announced_unions: [EnvelopeUnion; 4],
+    pub(super) masks: CallMasks,
 }
 
 impl AuthoredProjection {
@@ -116,13 +179,7 @@ impl AuthoredProjection {
         Self {
             unions: std::array::from_fn(|_| EnvelopeUnion::unknown()),
             announced_unions: std::array::from_fn(|_| EnvelopeUnion::unknown()),
-            suppressed: 0,
-            authored: 0,
-            substituted: 0,
-            three_plus: [0; 4],
-            four_plus: [0; 4],
-            five_plus: [0; 4],
-            six_plus: [0; 4],
+            masks: CallMasks::default(),
         }
     }
 
@@ -136,34 +193,7 @@ impl AuthoredProjection {
         let who = relative_of(len, index) as usize;
         self.announced_unions[who].intersect_assign(effect.agreement(), profile);
         self.unions[who].intersect_assign(effect.projection.as_union(), profile);
-        if index < 64 {
-            let bit = 1 << index;
-            if effect.authored {
-                self.authored |= bit;
-            }
-            if effect.substitutes_natural {
-                self.substituted |= bit;
-                let projected = effect.projection.as_union().hull();
-                for suit in Suit::ASC {
-                    let length = projected.length(suit).min;
-                    if length >= 3 {
-                        self.three_plus[suit as usize] |= bit;
-                    }
-                    if length >= 4 {
-                        self.four_plus[suit as usize] |= bit;
-                    }
-                    if length >= 5 {
-                        self.five_plus[suit as usize] |= bit;
-                    }
-                    if length >= 6 {
-                        self.six_plus[suit as usize] |= bit;
-                    }
-                }
-            }
-            if effect.suppresses_natural {
-                self.suppressed |= bit;
-            }
-        }
+        self.masks.record(index, &effect);
     }
 }
 
@@ -171,6 +201,7 @@ struct AuthoredEffect<'a> {
     projection: crate::bidding::rules::ProjectedUnion<'a>,
     agreement: Option<crate::bidding::rules::ProjectedUnion<'a>>,
     authored: bool,
+    artificial: bool,
     substitutes_natural: bool,
     suppresses_natural: bool,
 }
@@ -290,6 +321,7 @@ fn authored_effect<'a>(
         projection,
         agreement,
         authored: !is_pass,
+        artificial: alerted,
         substitutes_natural,
         suppresses_natural: alerted || substitutes_natural,
     })
@@ -299,13 +331,7 @@ fn authored_effect<'a>(
 struct AbsoluteProjection {
     unions: [EnvelopeUnion; 4],
     announced_unions: [EnvelopeUnion; 4],
-    suppressed: u64,
-    authored: u64,
-    substituted: u64,
-    three_plus: [u64; 4],
-    four_plus: [u64; 4],
-    five_plus: [u64; 4],
-    six_plus: [u64; 4],
+    masks: CallMasks,
 }
 
 impl AbsoluteProjection {
@@ -313,13 +339,7 @@ impl AbsoluteProjection {
         Self {
             unions: std::array::from_fn(|_| EnvelopeUnion::unknown()),
             announced_unions: std::array::from_fn(|_| EnvelopeUnion::unknown()),
-            suppressed: 0,
-            authored: 0,
-            substituted: 0,
-            three_plus: [0; 4],
-            four_plus: [0; 4],
-            five_plus: [0; 4],
-            six_plus: [0; 4],
+            masks: CallMasks::default(),
         }
     }
 
@@ -327,33 +347,7 @@ impl AbsoluteProjection {
         let seat = index % 4;
         self.unions[seat].intersect_assign(effect.projection.as_union(), profile);
         self.announced_unions[seat].intersect_assign(effect.agreement(), profile);
-        if index < 64 {
-            let bit = 1 << index;
-            if effect.authored {
-                self.authored |= bit;
-            }
-            if effect.substitutes_natural {
-                self.substituted |= bit;
-                let projected = effect.projection.as_union().hull();
-                for suit in Suit::ASC {
-                    if projected.length(suit).min >= 3 {
-                        self.three_plus[suit as usize] |= bit;
-                    }
-                    if projected.length(suit).min >= 4 {
-                        self.four_plus[suit as usize] |= bit;
-                    }
-                    if projected.length(suit).min >= 5 {
-                        self.five_plus[suit as usize] |= bit;
-                    }
-                    if projected.length(suit).min >= 6 {
-                        self.six_plus[suit as usize] |= bit;
-                    }
-                }
-            }
-            if effect.suppresses_natural {
-                self.suppressed |= bit;
-            }
-        }
+        self.masks.record(index, &effect);
     }
 }
 
@@ -884,6 +878,7 @@ impl AuthoringStepCache {
                         projection: crate::bidding::rules::ProjectedUnion::Owned(union),
                         agreement: None,
                         authored: false,
+                        artificial: false,
                         substitutes_natural: false,
                         suppresses_natural: false,
                     },
@@ -912,15 +907,7 @@ impl AuthoringStepCache {
                 snapshot.unions[relative].intersect_assign(&category.unions[absolute], profile);
                 snapshot.announced_unions[relative]
                     .intersect_assign(&category.announced_unions[absolute], profile);
-                snapshot.suppressed |= category.suppressed;
-                snapshot.authored |= category.authored;
-                snapshot.substituted |= category.substituted;
-                for suit in 0..4 {
-                    snapshot.three_plus[suit] |= category.three_plus[suit];
-                    snapshot.four_plus[suit] |= category.four_plus[suit];
-                    snapshot.five_plus[suit] |= category.five_plus[suit];
-                    snapshot.six_plus[suit] |= category.six_plus[suit];
-                }
+                snapshot.masks.merge(category.masks);
             }
         }
         self.snapshot = snapshot;
@@ -1060,34 +1047,7 @@ pub(crate) fn assert_step_cache_projection_parity(
         actual.announced_unions, expected.announced_unions,
         "step-cache announcement differs"
     );
-    assert_eq!(
-        actual.suppressed, expected.suppressed,
-        "step-cache suppression differs"
-    );
-    assert_eq!(
-        actual.authored, expected.authored,
-        "step-cache authored mask differs"
-    );
-    assert_eq!(
-        actual.substituted, expected.substituted,
-        "step-cache substitution mask differs"
-    );
-    assert_eq!(
-        actual.three_plus, expected.three_plus,
-        "step-cache three-card bookkeeping differs"
-    );
-    assert_eq!(
-        actual.four_plus, expected.four_plus,
-        "step-cache four-card bookkeeping differs"
-    );
-    assert_eq!(
-        actual.five_plus, expected.five_plus,
-        "step-cache five-card bookkeeping differs"
-    );
-    assert_eq!(
-        actual.six_plus, expected.six_plus,
-        "step-cache six-card bookkeeping differs"
-    );
+    assert_eq!(actual.masks, expected.masks, "step-cache call masks differ");
     true
 }
 

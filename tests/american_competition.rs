@@ -228,13 +228,17 @@ fn competitive_rebid_reaches_the_missed_game() {
         Call::Pass,
     ];
     // The raise's *level* is the evaluator's, and it has moved with each
-    // measured reading regime. Phase 3's authored projection owns the opening
-    // instead of intersecting the walk's guess, and the calls-tail twin stops
-    // in 4♦. What this test guards is that the rebid still puts the raise
-    // ladder in motion at all.
+    // measured regime: the legacy hull read carried to the 5♦ game, the F2b
+    // hull-only twin stopped in 4♦, and the shipped v3 calls-tail twin
+    // (2026-07-27, `win | win`) carries to 5♦ again — the game this very
+    // fixture calls cold (11 tricks double-dummy).  Phase 3 briefly dropped it
+    // back to 4♦: the substituted `1♦` opening stopped recording diamonds in
+    // the lane's bid-history, so its own `3♦` rebid read as a *first* showing
+    // (♦4+) instead of a rebid (♦6+).  All pins deliberate; what this test
+    // guards is that the rebid puts the raise ladder in motion at all.
     assert_eq!(
         best_call(&system, &after_rebid, "AKQ.T95.Q73.QJ95"),
-        call(4, Strain::Diamonds),
+        call(5, Strain::Diamonds),
         "responder raises the shown suit"
     );
     let mut legacy_agreements = pons::bidding::agreements::Agreements::default();
@@ -242,8 +246,8 @@ fn competitive_rebid_reaches_the_missed_game() {
     let legacy_system = american(&legacy_agreements).bind();
     assert_eq!(
         best_call(&legacy_system, &after_rebid, "AKQ.T95.Q73.QJ95"),
-        call(4, Strain::Diamonds),
-        "legacy hull read still raises diamonds"
+        call(5, Strain::Diamonds),
+        "legacy hull read raises to the diamond game"
     );
 }
 

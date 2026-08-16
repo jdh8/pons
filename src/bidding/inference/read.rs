@@ -483,13 +483,8 @@ impl Inferences {
         // unalerted authored rule whose projection is top falls back to the
         // walk; an alerted top stays suppressed as artificial.
         let projection = project_authored(context);
-        let suppressed = projection.suppressed;
-        let authored = projection.authored;
-        let substituted = projection.substituted;
-        let projected_three_plus = projection.three_plus;
-        let projected_four_plus = projection.four_plus;
-        let projected_five_plus = projection.five_plus;
-        let projected_six_plus = projection.six_plus;
+        let masks = projection.masks;
+        let suppressed = masks.suppressed;
         overlay_unions = projection.unions;
         agreement_unions = projection.announced_unions;
         // The hulled overlay the natural walk consumes (`shown_suit`, the post-walk
@@ -511,26 +506,16 @@ impl Inferences {
             let who = relative_of(len, index) as usize;
             let is_opening_side = lane % 2 == opener_lane % 2;
             let first_action_of_side = !side_acted[lane % 2];
-            let substituted_call = index < 64 && substituted >> index & 1 != 0;
-            let authored_call = index < 64 && authored >> index & 1 != 0;
+            let substituted_call = index < 64 && masks.substituted >> index & 1 != 0;
+            let artificial_call = index < 64 && masks.artificial >> index & 1 != 0;
+            let authored_call = index < 64 && masks.authored >> index & 1 != 0;
 
             if substituted_call {
-                let bit = 1 << index;
                 let mut three_plus = 0u8;
                 let mut four_plus = 0u8;
                 for suit in Suit::ASC {
                     let mask = 1u8 << suit as u8;
-                    let floor = if projected_six_plus[suit as usize] & bit != 0 {
-                        6
-                    } else if projected_five_plus[suit as usize] & bit != 0 {
-                        5
-                    } else if projected_four_plus[suit as usize] & bit != 0 {
-                        4
-                    } else if projected_three_plus[suit as usize] & bit != 0 {
-                        3
-                    } else {
-                        0
-                    };
+                    let floor = masks.floor(index, suit);
                     projected_lane_lengths[lane][suit as usize] =
                         projected_lane_lengths[lane][suit as usize].max(floor);
                     if floor >= 3 {
@@ -554,7 +539,23 @@ impl Inferences {
                     lane_suits[partner_lane] |= fit;
                     natural_lane_suits[partner_lane] |= fit;
                 }
-                suppressed_so_far |= bit;
+                // The suit the call *named*, in the lane's mechanical
+                // bid-history only.  Meaning comes from the projection above,
+                // but "this lane has bid diamonds" is what happened at the
+                // table, and the walk's later rebid/raise/cue arms key on it:
+                // a `1♦` opening whose rule-union admits a three-card diamond
+                // projects no length floor at all, so without this its own
+                // three-level rebid read as a *first* showing (♦4+, not ♦6+)
+                // and the raise ladder lost a level.  Artificial calls are
+                // excluded — a transfer's face suit is exactly the phantom
+                // holding suppression exists to kill.
+                if !artificial_call
+                    && let Call::Bid(bid) = call
+                    && let Some(suit) = bid.strain.suit()
+                {
+                    lane_suits[lane] |= 1 << suit as u8;
+                }
+                suppressed_so_far |= 1 << index;
             }
 
             match call {
@@ -656,6 +657,11 @@ impl Inferences {
                             && index == opening_index + 2
                             && bid.level.get() == 3
                             && matches!(bid.strain, Strain::Hearts | Strain::Spades);
+                        // The blanket and its structural exceptions are guesses
+                        // about calls nothing is known about.  An authored call
+                        // reaching here has a live rule and no alert, so
+                        // `artificial_calls_are_alerted` makes it natural —
+                        // `top_authored_projection_falls_back_to_the_walk`.
                         let nt_blanket = !authored_call
                             && is_opening_side
                             && opening_artificial
