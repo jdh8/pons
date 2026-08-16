@@ -318,7 +318,7 @@ impl Inferences {
         if let Some(stripped) =
             systems_on_overcall_strip(context.auction(), context.reading_profile())
         {
-            return match context.own_system() {
+            let mut reading = match context.own_system() {
                 Some(partnership) => {
                     // The stripped 1NT is an *overcall*: their next call is by
                     // the side that OPENED, so the `two_clubs_landy` disclosure
@@ -337,6 +337,35 @@ impl Inferences {
                 }
                 None => Self::read(&Context::new(context.vul(), &stripped)),
             };
+            if context.reading_profile().scope != ReadingScope::All {
+                return reading;
+            }
+            // Stripping makes the overcall look like an opening 1NT. Preserve
+            // the grafted advance reading, but restore the overcaller's own
+            // 15–18 authored box from the unstripped auction.
+            let mut profile = context.decision_profile();
+            profile.reading.nt_overcall_systems_on = false;
+            let unstripped = match context.own_system() {
+                Some(partnership) => Self::read(
+                    &partnership
+                        .prefixed_context(context.vul(), context.auction())
+                        .with_profile(profile),
+                ),
+                None => Self::read(
+                    &Context::new(context.vul(), context.auction()).with_profile(profile),
+                ),
+            };
+            let opening = context
+                .auction()
+                .iter()
+                .position(|&call| call != Call::Pass)
+                .expect("the strip found an opening");
+            let overcaller = relative_of(context.auction().len(), opening + 1) as usize;
+            reading.players[overcaller] = unstripped.players[overcaller];
+            reading.unions[overcaller] = unstripped.unions[overcaller].clone();
+            reading.announced_players[overcaller] = unstripped.announced_players[overcaller];
+            reading.announced_unions[overcaller] = unstripped.announced_unions[overcaller].clone();
+            return reading;
         }
         let profile = context.reading_profile();
         // The *opponents'* agreement, for the sites that decode a call off what

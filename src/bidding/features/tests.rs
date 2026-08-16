@@ -1443,6 +1443,7 @@ fn features_v5_without_a_compact_config_is_zero_padded() {
 #[test]
 fn legacy_view_reproduces_the_pre_ceilings_feature_vector() {
     use crate::bidding::features::{CompactConfig, ConventionCard, features_v5};
+    use crate::bidding::inference::ReadingScope;
     // `1NT (2♠) 2NT (P)` — over their Muiderberg, our lebensohl relay is
     // gated `points(..=8)`, the ceiling N2 found missing.
     let auction = [
@@ -1463,6 +1464,8 @@ fn legacy_view_reproduces_the_pre_ceilings_feature_vector() {
     let cards = hand("AQ32.K53.QJ4.A92");
     let vector = |ceilings: bool, legacy_view: bool| {
         let mut agreements = crate::bidding::agreements::Agreements::default();
+        // Isolate the Phase 1 ceiling hedge in its historical reading scope.
+        agreements.decision.reading.scope = ReadingScope::Alerted;
         agreements.decision.reading.strength_ceilings = ceilings;
         agreements.decision.legacy_view = legacy_view;
         let compact = CompactConfig::symmetric(&ConventionCard::capture(&agreements, true));
@@ -1489,4 +1492,41 @@ fn legacy_view_reproduces_the_pre_ceilings_feature_vector() {
     // The view is a *net* redirection only: the reading everything else
     // consumes still carries the ceiling.
     assert_ne!(vector(false, true), vector(true, false));
+}
+
+/// Phase 2 extends `legacy_view` across the reading-scope flip: frozen v5 nets
+/// keep the alerted-only representation while direct consumers see every
+/// authored natural call.
+#[test]
+fn legacy_view_reproduces_the_pre_all_feature_vector() {
+    use crate::bidding::features::{CompactConfig, ConventionCard, features_v5};
+    use crate::bidding::inference::ReadingScope;
+
+    let auction = [
+        Call::Bid(Bid::new(1, Strain::Spades)),
+        Call::Bid(Bid::new(1, Strain::Notrump)),
+        Call::Pass,
+        Call::Bid(Bid::new(3, Strain::Diamonds)),
+        Call::Pass,
+    ];
+    let cards = hand("AQ32.K53.QJ4.A92");
+    let vector = |scope: ReadingScope, legacy_view: bool| {
+        let mut agreements = crate::bidding::agreements::Agreements::default();
+        agreements.decision.reading.nt_overcall_gladiator = true;
+        agreements.decision.reading.scope = scope;
+        agreements.decision.reading.strength_ceilings = false;
+        agreements.decision.reading.upgrade_closure = false;
+        agreements.decision.legacy_view = legacy_view;
+        let compact = CompactConfig::symmetric(&ConventionCard::capture(&agreements, true));
+        let partnership = crate::american(&agreements).bind();
+        let context = partnership
+            .prefixed_context(RelativeVulnerability::NONE, &auction)
+            .with_compact(&compact)
+            .with_decision_cache(cards);
+        features_v5(cards, &context)
+    };
+
+    let trained = vector(ReadingScope::Alerted, false);
+    assert_eq!(vector(ReadingScope::All, true), trained);
+    assert_ne!(vector(ReadingScope::All, false), trained);
 }

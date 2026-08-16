@@ -234,4 +234,8 @@ fn a_reading_knob_leaves_the_card_alone() {
             "the {arm} arm moved the disclosed card",
         );
     }
+
+    let mut all = Agreements::default();
+    all.decision.reading.scope = crate::bidding::inference::ReadingScope::All;
+    assert_eq!(american_card(&all).to_string(), shipped);
 }

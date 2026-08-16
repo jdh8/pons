@@ -168,10 +168,10 @@ has attributed that 3.3% to specific nodes.
    - the rule is genuinely conventional → alert it, and let regime 1 read it.
      Cheaper to write, but it changes disclosure and the `.bbsa` cards, so it
      is an A/B, not a desk fix.
-4. **Regime 2 projects on a knob now — `set_natural_reading`, default off**
-   (`bba-gen --ns-natural-reading`). Built 2026-07-31 on jdh8's call that *every*
-   call should be read by its envelope union. Two implementation choices worth knowing before
-   measuring it:
+4. **Regime 2 projects under `ReadingScope::All`, default held at `Alerted`**
+   (`bba-gen --ns-reading-scope all`). This was originally built on 2026-07-31
+   as `set_natural_reading`; Phase 2 replaced the old boolean CLI and measured
+   the complete arm. Two implementation choices remain worth knowing:
 
    - It **intersects with** the walk rather than replacing it: an unalerted call
      does **not** set its suppression bit. Suppressing a natural call would
@@ -225,7 +225,7 @@ only together with the repair that makes them green.
 already substantially built — the probe bucketed by `(seat, prefix)` before
 this campaign, contrary to the freshly-written section above):
 
-- `--ns-natural-reading` runs the census under the regime-2 knob;
+- `--ns-reading-scope all` runs the census under the regime-2 scope;
 - every cell counts **both predicates** — `Inferences::admits` (the table
   reading every in-crate consumer sits on; the invariant's predicate) and
   `announced_union().contains` (the recorded baseline). Under default knobs the

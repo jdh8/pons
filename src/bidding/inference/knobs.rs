@@ -58,10 +58,10 @@ pub enum ReadingScope {
     ///   alert gate had been hiding.  Sweep with the `admits` invariant before
     ///   reading anything into an A/B.
     ///
-    /// **Unmeasured**, hence not the default: it tightens thousands of readings
-    /// at once, and per `docs/dnf-migration.md`'s C1 finding a tightening that
-    /// moves *endpoints* without moving *mass* is close to pure feature
-    /// perturbation for the frozen nets.
+    /// **Measured but held after Phase 2 of
+    /// `docs/authored-reading-handoff.md`.**  Three whole-book seeds improved
+    /// plain DD but lost under perfect defense, so this remains an explicit
+    /// diagnostic until a subsequent non-loss result.
     All,
 }
 

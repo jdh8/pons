@@ -13,7 +13,7 @@ use super::super::Alert;
 use super::super::Rules;
 use super::super::Trie;
 use super::super::constraint::{
-    balanced, envelope_union_upgrade, hcp, len, points, support, support_points,
+    balanced, envelope_union_upgrade, hcp, len, points, reads_as, support, support_points,
 };
 use crate::bidding::agreements::Agreements;
 use crate::bidding::inference::{Envelope, EnvelopeUnion, Range};
@@ -215,7 +215,14 @@ pub fn minor_responses(minor: Suit, agreements: &Agreements) -> Rules {
         .rule(
             Bid::new(3, Strain::Notrump),
             100,
-            hcp(13..) & balanced() & len(Suit::Hearts, ..4) & len(Suit::Spades, ..4),
+            reads_as(
+                hcp(13..) & balanced() & len(Suit::Hearts, ..4) & len(Suit::Spades, ..4),
+                // The exact table is partial: 11+ unbalanced hands with no
+                // four-card major can fall through to the shared floor, which
+                // may also choose 3NT.  Keep evaluation unchanged while making
+                // the same-call authored reading cover that entire seam.
+                hcp(11..) & len(Suit::Hearts, ..4) & len(Suit::Spades, ..4),
+            ),
         )
         .rule(
             Bid::new(2, Strain::Notrump),
@@ -273,6 +280,7 @@ pub fn minor_responses(minor: Suit, agreements: &Agreements) -> Rules {
             )
             .alert(GAME_FORCE);
     }
+
     rules
 }
 

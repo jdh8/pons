@@ -9,6 +9,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Phase 2 authored reading is implemented as an explicit arm, but held by
+  its ship gate.** `bba-gen` and `probe-reading-sound` now accept optional
+  `--ns-reading-scope none|alerted|all`; omission inherits the engine default,
+  and the probe's legacy `--ns-natural-reading` boolean is retired. `All`
+  projects every authored call for both declared partnerships, with the
+  existing natural-walk intersection; `legacy_view` now reconstructs the
+  complete v5 training view (`Alerted`, ceilings off, upgrade closure off).
+  Tests pin unalerted length/strength publication, explicit `Alerted`, and the
+  byte-exact legacy feature vector.
+
+  The soundness gate passed after two `All`-only seam repairs: paired 40k
+  boards at seed 20260816 improved partner exclusions 2.114%→2.109%, and the
+  Lebensohl ♦ sign-off / natural spade witness read ♦5+ / ♠5+ with its ceiling.
+  The bidding gate did not. Three 204,800-board whole-book seeds
+  (1786883097/1786883532/1786883968) pooled +0.00135/+0.00181 plain DD but
+  **−0.00391/−0.00379 PD IMPs/board** NV/vulnerable, with PD negative in all
+  six seed/vulnerability cells. Therefore `ReadingScope::Alerted` remains the
+  default and both proposed `pass_out` deletions remain. Alerts and generated
+  cards are unchanged; shipped-default smoke remains `edb618b8…`. Full
+  measurements and binary hashes are recorded in
+  [docs/authored-reading-handoff.md](docs/authored-reading-handoff.md#phase-2-measurement--held).
+
 - **Docs: the objective, its key results, and the branch-parking rule.**
   `CLAUDE.md` gains an *Objective* section — the best open-source bridge
   engine, with KR1 bridge score (IMPs) outranking KR2 clean architecture and

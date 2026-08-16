@@ -648,12 +648,19 @@ impl AuthoringStepCache {
                 partnership.trie_for(auction).get(prefix)
             };
             let own_classifier = own_answer.map(|answer| answer.classifier).or(own_exact);
-            let own_compiled = own_classifier.and_then(|classifier| {
-                partnership.compiled_rules_for(auction, classifier, profile)
-            });
-            if own_classifier.is_some_and(|classifier| {
-                !authored_effect_is_reusable(made, classifier, own_compiled, profile)
-            }) {
+            let own_needed = profile.scope != ReadingScope::All || index % 2 == reader_parity;
+            let own_compiled =
+                own_needed
+                    .then_some(own_classifier)
+                    .flatten()
+                    .and_then(|classifier| {
+                        partnership.compiled_rules_for(auction, classifier, profile)
+                    });
+            if own_needed
+                && own_classifier.is_some_and(|classifier| {
+                    !authored_effect_is_reusable(made, classifier, own_compiled, profile)
+                })
+            {
                 return self.disable();
             }
 
@@ -726,7 +733,11 @@ impl AuthoringStepCache {
             };
             let at_time = self.context_cursor.context(actor_vul, prefix);
 
-            if let Some(answer) = pending.own {
+            let own_side = index % 2 == reader_parity;
+
+            if (profile.scope != ReadingScope::All || own_side)
+                && let Some(answer) = pending.own
+            {
                 if let Some(effect) = authored_effect(
                     made,
                     &at_time,
@@ -737,7 +748,8 @@ impl AuthoringStepCache {
                 ) {
                     self.own.push(index, effect, profile);
                 }
-            } else if !fallback_projection
+            } else if (profile.scope != ReadingScope::All || own_side)
+                && !fallback_projection
                 && let Some(classifier) = pending.own_exact
                 && let Some(effect) = authored_effect(
                     made,
@@ -758,7 +770,11 @@ impl AuthoringStepCache {
                     && opponent
                     && let Some(effect) = authored_effect(
                         made,
-                        &at_time,
+                        &at_time.clone().with_profile({
+                            let mut decision = partnership.profile();
+                            decision.reading.scope = ReadingScope::Alerted;
+                            decision
+                        }),
                         answer.classifier,
                         pending.routed_compiled,
                         false,
@@ -984,6 +1000,10 @@ fn project_authored_with(
     let table_alerts = profile.table_alerts;
     let fallback_projection = profile.fallback_projection;
     let announce_split = profile.announced;
+    let declared_opponent_all = profile.scope == ReadingScope::All
+        && context
+            .own_system()
+            .is_some_and(crate::bidding::book::Partnership::has_declared_opponents);
 
     // Project the call made at `index`, authored by `classifier`, into the
     // overlay, evaluating its rules under `ctx` — always the bidder's
@@ -1076,7 +1096,7 @@ fn project_authored_with(
     } else {
         None
     };
-    let decode_routed = table_alerts || read_passes;
+    let decode_routed = table_alerts || read_passes || declared_opponent_all;
     let decoded_routed = if decode_routed {
         if let (Some(partnership), Some(their_partnership)) = (partnership, their_partnership) {
             // Six cursors, `[side][phase]`: a declared opponent decodes their
@@ -1096,7 +1116,7 @@ fn project_authored_with(
             for index in 0..len {
                 let prefix = &auction[..index];
                 let opponent = index % 2 != len % 2;
-                let needed = (table_alerts && opponent)
+                let needed = ((table_alerts || declared_opponent_all) && opponent)
                     || (read_passes && auction[index] == Call::Pass && (!opponent || table_alerts));
                 if !needed {
                     routed.push(None);
@@ -1132,6 +1152,9 @@ fn project_authored_with(
         // the Lebensohl cue) survive later competition without a per-convention reader.
         if let Some(own) = &decoded_own {
             for (index, answer) in own.iter().enumerate() {
+                if profile.scope == ReadingScope::All && index % 2 != len % 2 {
+                    continue;
+                }
                 let Some(answer) = answer else { continue };
                 let classifier = answer.classifier;
                 let compiled = context.own_system().and_then(|partnership| {
@@ -1142,6 +1165,9 @@ fn project_authored_with(
         } else {
             let trie = prefixes.root();
             for index in 0..len {
+                if profile.scope == ReadingScope::All && index % 2 != len % 2 {
+                    continue;
+                }
                 if let Some(classifier) = trie.authoring_classifier(context, &auction[..index]) {
                     project_call(&at_times[index], index, classifier, None, false);
                 }
@@ -1152,6 +1178,9 @@ fn project_authored_with(
         // default, takes the branch above); fallback-authored conventions are
         // then read by the hand-written readers in [`Inferences::read`].
         for (prefix, classifier) in prefixes.clone() {
+            if profile.scope == ReadingScope::All && prefix.len() % 2 != len % 2 {
+                continue;
+            }
             let compiled = compiled_reader
                 .then(|| context.own_system())
                 .flatten()
@@ -1174,20 +1203,29 @@ fn project_authored_with(
     // model them) under their at-the-time context, exactly as it was
     // classified when made.  Their unalerted (natural) calls keep the natural
     // walk.
-    if table_alerts && let Some(them) = context.their_system() {
+    if (table_alerts || declared_opponent_all)
+        && let Some(them) = context.their_system()
+    {
         for index in ((len + 1) % 2..len).step_by(2) {
             let prefix = &auction[..index];
+            let at_time = if declared_opponent_all {
+                at_times[index].clone()
+            } else {
+                let mut decision = context.decision_profile();
+                decision.reading.scope = ReadingScope::Alerted;
+                at_times[index].clone().with_profile(decision)
+            };
             let answer = decoded_routed.as_ref().and_then(|routed| routed[index]);
             if let Some(answer) = answer {
                 let classifier = answer.classifier;
-                let compiled = them.compiled_rules_for(prefix, classifier, profile);
-                project_call(&at_times[index], index, classifier, compiled, false);
+                let compiled =
+                    them.compiled_rules_for(prefix, classifier, at_time.reading_profile());
+                project_call(&at_time, index, classifier, compiled, false);
             } else if decoded_routed.is_none()
-                && let Some(classifier) = them
-                    .trie_for(prefix)
-                    .authoring_classifier(&at_times[index], prefix)
+                && let Some(classifier) =
+                    them.trie_for(prefix).authoring_classifier(&at_time, prefix)
             {
-                project_call(&at_times[index], index, classifier, None, false);
+                project_call(&at_time, index, classifier, None, false);
             }
         }
     }

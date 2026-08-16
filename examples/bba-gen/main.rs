@@ -527,8 +527,8 @@ struct Args {
     ///
     /// One flag because the two bools this replaced had four cells for three
     /// partnerships — the natural half short-circuited the alerted one.
-    #[arg(long, value_enum, default_value = "alerted")]
-    ns_reading_scope: ReadingScopeArg,
+    #[arg(long, value_enum)]
+    ns_reading_scope: Option<ReadingScopeArg>,
 
     /// Blank every reading our nets see (`DecisionProfile::blind_inference`, crate
     /// default off — diagnostic, never ship it on).  The reading program's
@@ -541,8 +541,9 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_blind_inference: bool,
 
-    /// Serve our nets the **pre-ceilings** reading (`DecisionProfile::legacy_view`,
-    /// crate default on) — the hedge for `--ns-strength-ceilings`.  Every shipped
+    /// Serve our nets the **training-time** reading (`DecisionProfile::legacy_view`,
+    /// crate default on): alerted-only, pre-ceilings and pre-upgrade-closure.
+    /// This is the hedge for reading changes. Every shipped
     /// net trained on floor-only strength boxes, so tightening the reading moves
     /// their inputs off the training distribution even where the tighter reading
     /// is the true one.  On, only the nets (`features` and the evaluator's trick
@@ -596,7 +597,7 @@ struct Args {
     /// `2NT` relay gates on `points(..=8)` and opener blasts `3NT` opposite it
     /// anyway, because nothing downstream ever saw the eight.  Reading, not
     /// disclosure: the alerts and the `.bbsa` cards are untouched, and under the
-    /// shipped `--ns-reading-scope` the ceilings reach **alerted** calls only.
+    /// shipped `ReadingScope::Alerted` the ceilings reach **alerted** calls only.
     ///
     /// It tightens how we read *their* calls too, and there our meanings are an
     /// approximation of a system they are not playing: `probe-reading-sound`
@@ -1909,7 +1910,9 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     if let Some(v) = args.ns_their_landy_read {
         agreements.decision.reading.their_landy_reading = v;
     }
-    agreements.decision.reading.scope = args.ns_reading_scope.into();
+    if let Some(scope) = args.ns_reading_scope {
+        agreements.decision.reading.scope = scope.into();
+    }
     agreements.decision.reading.sum_closure = args.ns_sum_closure;
     if let Some(v) = args.ns_upgrade_closure {
         agreements.decision.reading.upgrade_closure = v;

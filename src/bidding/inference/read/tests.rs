@@ -784,7 +784,9 @@ fn systems_on_stripped_read_is_separate_from_the_full_decision_cache() {
         Call::Pass,
     ];
     let hand: Hand = "AQ32.K53.QJ4.A92".parse().expect("valid test hand");
-    let partnership = crate::american(&crate::bidding::agreements::Agreements::default()).bind();
+    let mut agreements = crate::bidding::agreements::Agreements::default();
+    agreements.decision.reading.scope = ReadingScope::All;
+    let partnership = crate::american(&agreements).bind();
     let uncached = partnership.infer(RelativeVulnerability::NONE, &auction);
     let context = partnership
         .prefixed_context(RelativeVulnerability::NONE, &auction)
@@ -793,17 +795,18 @@ fn systems_on_stripped_read_is_separate_from_the_full_decision_cache() {
 
     assert_eq!(*cached, uncached);
     assert_eq!(context.decision_cache_init_counts(), Some((1, 0, 0)));
+    assert_eq!(cached.me().strength.hcp, Range::new(15, 18));
     assert_eq!(cached.partner().length(Suit::Diamonds), Range::FULL_LENGTH);
 }
 
-/// `set_natural_reading` publishes what an unalerted authored rule promises.
+/// `ReadingScope::All` publishes what an unalerted authored rule promises.
 ///
 /// `gladiator_advances` authors the game-forcing `3♦` as
 /// `len(♦, 5..) & points(game..)`.  It is natural, so it carries no alert and
 /// the projection pass skips it: the walk supplies a length floor and the
 /// game force is simply lost.  Knob-on the rule's own box is intersected in.
 #[test]
-fn natural_reading_publishes_an_unalerted_rules_promise() {
+fn all_reading_publishes_an_unalerted_rules_promise() {
     let auction = [
         bid(1, Strain::Spades),
         bid(1, Strain::Notrump),
@@ -815,7 +818,8 @@ fn natural_reading_publishes_an_unalerted_rules_promise() {
     let mut agreements = Agreements::default();
     agreements.decision.reading.nt_overcall_gladiator = true;
     agreements.decision.reading.envelope_union = true;
-    agreements.decision.reading.scope = ReadingScope::Alerted;
+    agreements.decision.reading.scope = ReadingScope::default();
+    assert_eq!(agreements.decision.reading.scope, ReadingScope::Alerted);
     let off = read_booked_with(&agreements, &auction);
     agreements.decision.reading.scope = ReadingScope::All;
     let on = read_booked_with(&agreements, &auction);

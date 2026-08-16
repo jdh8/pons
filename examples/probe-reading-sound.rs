@@ -119,11 +119,11 @@ struct Args {
     #[arg(long)]
     their_wild_weak_two: bool,
 
-    /// Our seats read **every** authored call, not only the alerted ones
-    /// (`ReadingProfile::scope = ReadingScope::All` — the regime-2 diagnostic; see
-    /// `docs/reading-drift-handoff.md`)
-    #[arg(long)]
-    ns_natural_reading: bool,
+    /// Override how much of the authored book our seats read.  Unset uses the
+    /// engine default (`alerted`; the Phase-2 `all` arm is held after its ship
+    /// gate).
+    #[arg(long, value_enum)]
+    ns_reading_scope: Option<common::ReadingScopeArg>,
 
     /// Our seats read each made call's strength **ceilings**, not just its floors
     /// (`ReadingProfile::strength_ceilings` — Phase 1 of
@@ -244,11 +244,9 @@ fn main() -> anyhow::Result<()> {
     let base = args.seed.unwrap_or_else(rand::random);
     let vul = AbsoluteVulnerability::NONE;
     let mut agreements = pons::bidding::agreements::Agreements::default();
-    agreements.decision.reading.scope = if args.ns_natural_reading {
-        pons::bidding::ReadingScope::All
-    } else {
-        pons::bidding::ReadingScope::Alerted
-    };
+    if let Some(scope) = args.ns_reading_scope {
+        agreements.decision.reading.scope = scope.into();
+    }
     if let Some(v) = args.ns_strength_ceilings {
         agreements.decision.reading.strength_ceilings = v;
     }
@@ -328,9 +326,9 @@ fn main() -> anyhow::Result<()> {
 
     println!("boards {}  seed {base}", args.count);
     println!(
-        "disclosure {}  natural-reading {}\n",
+        "disclosure {}  reading-scope {:?}\n",
         if args.no_disclose { "off" } else { "generated" },
-        if args.ns_natural_reading { "on" } else { "off" },
+        agreements.decision.reading.scope,
     );
     println!(
         "{:<16} {:>10} {:>10} {:>9} {:>10} {:>9}",

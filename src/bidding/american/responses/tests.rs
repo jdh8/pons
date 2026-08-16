@@ -54,6 +54,30 @@ fn major_responses_run_the_2_over_1_ladder() {
 }
 
 #[test]
+fn minor_response_three_notrump_reads_the_partial_table_floor_seam() {
+    use crate::bidding::context::Context;
+    use crate::bidding::trie::Classifier;
+    use contract_bridge::Hand;
+    use contract_bridge::auction::RelativeVulnerability;
+
+    let rules = minor_responses(Suit::Diamonds, &Agreements::default());
+    let auction = [call(1, Strain::Diamonds), Call::Pass];
+    let context = Context::new(RelativeVulnerability::NONE, &auction);
+    let fallthrough: Hand = "T53.4.A74.AK6542".parse().expect("valid hand");
+    assert!(!rules.classify(fallthrough, &context).has_mass());
+
+    let reading = rules
+        .rules()
+        .iter()
+        .find(|rule| rule.call() == call(3, Strain::Notrump))
+        .expect("3NT rule")
+        .project(&context);
+    assert_eq!(reading.strength.hcp, Range::new(11, Range::FULL_POINTS.max));
+    assert_eq!(reading.lengths[Suit::Hearts as usize].max, 3);
+    assert_eq!(reading.lengths[Suit::Spades as usize].max, 3);
+}
+
+#[test]
 fn choice_of_games_three_notrump() {
     let a = [call(1, Strain::Hearts), Call::Pass];
     let on = major_responses(Suit::Hearts, &Agreements::default());

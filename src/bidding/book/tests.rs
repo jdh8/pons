@@ -1058,6 +1058,40 @@ fn a_declared_opponent_reads_their_calls_in_their_books() {
     );
 }
 
+#[test]
+fn all_scope_reads_unalerted_calls_from_both_declared_partnerships() {
+    use crate::bidding::american::american_book;
+    use crate::bidding::inference::{Range, ReadingScope, Relative};
+    use contract_bridge::auction::RelativeVulnerability;
+
+    let auction = [
+        bid(1, Strain::Spades),
+        bid(1, Strain::Notrump),
+        Call::Pass,
+        bid(3, Strain::Diamonds),
+    ];
+    let mut agreements = crate::bidding::agreements::Agreements::default();
+    agreements.decision.reading.scope = ReadingScope::All;
+    agreements.decision.reading.nt_overcall_gladiator = true;
+    let their_books = american_book(&agreements).bind();
+
+    let read = |partnership: &super::Partnership| {
+        *partnership
+            .infer(RelativeVulnerability::NONE, &auction)
+            .get(Relative::Rho)
+    };
+    let undeclared = read(&american_book(&agreements).bind());
+    let declared = read(
+        &american_book(&agreements)
+            .bind()
+            .with_opponents(&their_books),
+    );
+
+    assert_eq!(undeclared.strength.points, Range::FULL_POINTS);
+    assert!(declared.lengths[Suit::Diamonds as usize].min >= 5);
+    assert!(declared.strength.points.min >= 10);
+}
+
 /// The keystone of the pin-at-build campaign: two systems built from one armed
 /// [`Agreements`][crate::bidding::agreements::Agreements] answer identically on
 /// the building thread and a second thread. Any classify-time read that

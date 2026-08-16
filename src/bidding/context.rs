@@ -240,7 +240,7 @@ pub struct DecisionProfile {
     ///
     /// Diagnostic only, **off by default**; never ship it on.
     pub blind_inference: bool,
-    /// Serve the nets the **pre-ceilings** reading (**default on**)
+    /// Serve the nets their **training-time** reading (**default on**)
     ///
     /// The hedge for
     /// [`strength_ceilings`][field@crate::bidding::ReadingProfile::strength_ceilings]:
@@ -248,10 +248,11 @@ pub struct DecisionProfile {
     /// tightening the reading moves their inputs off the training
     /// distribution even where the tighter reading is the true one.  On, the
     /// nets — [`features`][super::features] and the evaluator's trick
-    /// estimates — are fed a second [`Inferences`] read with the ceilings
-    /// switched back off, while the sampler, the authored gates and the
-    /// instinct floor keep the true one.  That isolates "the reading was
-    /// wrong" from "the nets are stale".  It shipped **on** with the ceilings
+    /// estimates — are fed a second [`Inferences`] read with authored calls
+    /// limited to alerted ones and the ceilings switched back off, while the
+    /// sampler, the authored gates and the instinct floor keep the true one.
+    /// That isolates "the reading was wrong" from "the nets are stale".  It
+    /// shipped **on** with the ceilings
     /// on 2026-08-16 because that isolation is what the measurement liked:
     /// held nets, the ceilings move 3 boards in 204,800 and win all four
     /// scoring cells, against a raw arm that leans plain-DD-negative on three
@@ -917,7 +918,7 @@ impl<'a> Context<'a> {
 
     /// The reading the **nets** are fed — [`inferences`][Self::inferences]
     /// unless [`legacy_view`][DecisionProfile::legacy_view] asks for the
-    /// training-time one (pre-ceilings, pre-closure)
+    /// training-time one (alerted-only, pre-ceilings, pre-closure)
     ///
     /// Only the net-facing callers use this: the sampler, the authored gates
     /// and the instinct floor read [`inferences`][Self::inferences] and see
@@ -932,6 +933,7 @@ impl<'a> Context<'a> {
         // filled under the other profile), then read the auction again.
         let legacy = || {
             let mut legacy = self.clone();
+            legacy.profile.reading.scope = super::inference::ReadingScope::Alerted;
             legacy.profile.reading.strength_ceilings = false;
             // The nets were fit before C2 too, so the training-time reading is
             // the pre-closure one as well

@@ -807,13 +807,13 @@ impl From<NtDefenseArg> for pons::bidding::american::NotrumpDefense {
 }
 
 /// CLI face of [`pons::bidding::ReadingScope`], same reason as [`NtDefenseArg`]
-#[derive(Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, clap::ValueEnum)]
 pub enum ReadingScopeArg {
     /// Decode nothing authored — the natural walk alone
     None,
     /// Decode alerted calls only (the shipped default)
     Alerted,
-    /// Decode every authored call, unalerted ones too
+    /// Decode every authored call, unalerted ones too (the held Phase-2 arm)
     All,
 }
 

@@ -61,11 +61,13 @@ let decode = match scope {
 };
 ```
 
-`ReadingProfile::scope` ([knobs.rs](../src/bidding/inference/knobs.rs)) is
-`Alerted` by default. `All` is built (`bba-gen --ns-reading-scope all`,
-`probe-reading-sound --ns-natural-reading`), *intersects* the rule with the
-walk (does not set the suppression bit), and is **unmeasured** — deferred by
-the reading-drift ledger to "its own campaign". This is it.
+`ReadingProfile::scope` ([knobs.rs](../src/bidding/inference/knobs.rs)) remains
+`Alerted` by default. `All` is selected explicitly with
+`bba-gen --ns-reading-scope all` or
+`probe-reading-sound --ns-reading-scope all`; omission inherits the engine
+default. It *intersects* the rule with the walk (does not set the suppression
+bit). Phase 2 measured this arm and held it after the whole-book PD gate lost;
+see [Phase 2 measurement — held](#phase-2-measurement--held).
 
 Size: `src/bidding/{american,dutch}` hold ~1,400 `.rule(` calls and ~350
 `.alert(` tags. Roughly **a thousand authored rules project nothing** under
@@ -588,7 +590,7 @@ soundness correction; a loss traces its worst boards before any conclusion.
 | 0b | **`opener_forced_past_invitation` learns the sign-off** | instinct.rs forces to game off *any* partner three-level suit bid over our strong 1NT, Lebensohl sign-offs included; the rail then bypasses the net and pre-satisfies the milestone `Or` | `instinct.forcing_ceiling_read`, default off; `bba-gen --ns-forcing-ceiling-read`, `PROBE_FORCING_CEILING=1`, web knob | standard; **a wash ships it** (pre-agreed with jdh8 before the numbers) | **SHIPPED default-on 2026-08-16.** Probe: `P 9.001` over `3NT 7.792`. Reach censused at **one lane** — the four "workaround" nodes do not qualify, `pass_out` re-files to Phase 2. A/B 3 seeds × 204,800 bd/arm/vul, **12/12 cells positive** (+0.0001 plain / +0.0003 PD both vuls), firing 0.01%. Smoke `cf583ff5…` → `f33d8caf…`; cards byte-identical |
 | 0 | **N2a** — opener passes the relay's minor sign-off | book node (`{relay} 3♦ -` → `Pass`, a `landy_signoff_answer` twin) shadows the floor; independent of every reading phase | knobless; measure on `--filter-1nt` | standard | queued — cheapest, fixes 16/18 regardless |
 | 1 | **Strength ceilings** | `Points::project` / `Hcp::project` / `SupportPoints::project` → band | `reading.strength_ceilings` **+ `DecisionProfile::legacy_view`, both default-on since 2026-08-16**; pre-ship arm is `bba-gen --ns-strength-ceilings false --ns-legacy-view false` | admits sweep + `probe-reading-sound` unchanged-or-better; A/B | **SHIPPED 2026-08-16.** Soundness gate green (E0 book-wide + 4-cell behavioural grid + probe partner 2.114→2.105%); A/B 3 seeds raw + 1 legacy — raw leans plain-DD-negative, **legacy arm 3 boards/204,800, 4/4 cells positive, ~1% cost**. Shipped on the legacy arm. Cards byte-identical; smoke re-based `18aba5ce…` → `cf583ff5…`. C2's re-open trigger ("a two-sided forward projection") is met by it — **and C2 shipped on it the same day**, 12/12 cells positive once `legacy_view` shields the nets from it too (ledger below) |
-| 2 | **`ReadingScope::All`** as default | built; drop the alert gate | `--ns-reading-scope all`; same two-arm protocol | clear the empty-box worklist *before* measuring (`probe-reading-sound --ns-natural-reading`, bucketed) | queued behind 1 |
+| 2 | **`ReadingScope::All`** as default | built; drop the alert gate | `--ns-reading-scope all`; omission inherits `Alerted` | clear the empty-box worklist before measuring (`probe-reading-sound --ns-reading-scope all`, bucketed); whole-book non-loss under plain DD and PD at both vulnerabilities | **HELD 2026-08-16.** Soundness passed and plain DD leaned positive, but PD lost at both vulnerabilities on all three whole-book seeds. `Alerted` remains the default and the two `pass_out` nodes remain; explicit `All`, the scope CLI, and complete `legacy_view` are retained for diagnosis/retest. |
 | 3 | **Substitute, don't intersect** | authored calls set suppression; walk bookkeeping from the projection; retire `nt_blanket` & co. for authored calls | two-binary (a refactor, not a knob) | byte-identity where projection ⊇ walk is *not* expected — this moves readings by design; A/B | queued behind 2 |
 | 4 | Negative inference | fold `project_complement` of higher rules | knob | admits sweep (must stay green — it tightens) | later |
 | 5 | **features_v6 + retrain** | honest reading in, `legacy_view` and `net_points` fold out | F2b recipe (dump, held-out gate, twin, flip) | held-out NLL/MAE ≥ shipped; A/B of the flip | after 1-3 land |
@@ -598,6 +600,58 @@ length, is what the floor spends; 2 before 3 because 3 is the cleanup that 2
 makes possible (once every authored call projects, the walk's exceptions have
 nothing left to protect); 5 last because it is the only phase that cannot be
 undone with a knob.
+
+## Phase 2 measurement — held
+
+The paired binaries were built from control HEAD
+`c9a69ad20fd55d9619af1c5bd83ccc87170ffffb`. No treatment commit was created;
+the exact executables used are pinned instead: control `bba-gen` SHA-256
+`aeefbc79a7a319e47b7775ac070c162925d21aec6975a53d560aa56e7772f06b`,
+treatment `bba-gen` SHA-256
+`12575355ed9734224aa73df9c064f884aba50cc150feaa37aa189fdab3dda87d`.
+All arms used prebuilt binaries sequentially under `scripts/idle-run.sh`.
+
+The paired 40,000-board soundness probe at seed `20260816` passed: the
+`Alerted` control excluded the true partner on 3,551/168,006 readings
+(2.114%), while repaired `All` excluded 3,548/168,211 (2.109%). Repairs were
+limited to seams newly exposed by `All`, including the partial minor-response
+table's shared-floor 3NT reading and the systems-on 1NT-overcall strip. The
+witnesses read as required: the Lebensohl ♦ sign-off publishes ♦5+, and
+`1NT 2♥ 2♠ -` publishes ♠5+ with its strength ceiling.
+
+The N2 diagnostic used seed `1786882843`, 19,200 boards/arm/vulnerability and
+`--filter-1nt`. It failed before the whole-book run: NV plain
+−0.0191 ±0.0151, PD −0.0461 ±0.0192; vulnerable plain
+−0.0317 ±0.0201, PD −0.0538 ±0.0244; firing was about 3.2%. The exact
+`(2♠)` table-A lane was byte-identical over its 101 matched boards; the loss
+was concentrated in other 1NT contexts, especially 1NT overcalls.
+
+Whole-book results below are IMPs/board ±95% CI; each row is 204,800 paired
+boards per arm and vulnerability. `Fired` is divergent boards and rate.
+
+| Seed | Vul | Plain DD | PD | Fired |
+| --- | --- | ---: | ---: | ---: |
+| 1786883097 | none | +0.0024 ±0.0030 | −0.0041 ±0.0035 | 2,144 (1.05%) |
+| 1786883097 | both | +0.0035 ±0.0038 | −0.0030 ±0.0043 | 2,133 (1.04%) |
+| 1786883532 | none | −0.0003 ±0.0030 | −0.0053 ±0.0035 | 2,190 (1.07%) |
+| 1786883532 | both | −0.0009 ±0.0039 | −0.0066 ±0.0044 | 2,237 (1.09%) |
+| 1786883968 | none | +0.0020 ±0.0030 | −0.0024 ±0.0035 | 2,123 (1.04%) |
+| 1786883968 | both | +0.0028 ±0.0038 | −0.0018 ±0.0044 | 2,156 (1.05%) |
+
+Pooled over 614,400 boards/vulnerability: NV plain +830 IMPs,
+**+0.00135 ±0.00173/board**, +0.129/fired at 6,457/614,400 (1.051%);
+NV PD −2,405, **−0.00391 ±0.00202**, −0.372/fired. Vulnerable plain
++1,110, **+0.00181 ±0.00221**, +0.170/fired at 6,526/614,400 (1.062%);
+vulnerable PD −2,331, **−0.00379 ±0.00252**, −0.357/fired. The recurring
+worst divergences were competitive continuations after our 1NT overcall and
+`All`-triggered suit grand slams replacing 6NT. Because PD lost at both
+vulnerabilities on every seed, the package failed the stated non-loss gate:
+the default and the two retreat-node deletions were rolled back together.
+The shipped package therefore preserves the deliberately rebased
+`smoke-default --count 20000 --seed 1` SHA-256
+`edb618b8cba3aec2a4d434680039a176d4276392059ddd4555cbac511490e804`.
+The generated American and Dutch cards and the alert-site fixture remain
+byte-identical.
 
 ## The N2 testbed — exact recipe
 
@@ -690,6 +744,7 @@ the `2NT` relay row no longer the lane's worst per board; `1NT 2♥ 2♠ -` read
 | 2026-08-16 | Phase 0b **reach census**: only alerted ceilings project, so the fix touches **one lane** | the four floor-workaround nodes do not qualify — `pass_out`×2 are Phase 2 near-misses, the other two need a ceiling authored, `accept_invitation` was never in scope (its node sits over a level-2 notrump call; docstring corrected) |
 | 2026-08-16 | **C2 (`reading.upgrade_closure`) re-measured on the trigger Phase 1 met** — `scripts/ab-upgrade-closure.sh`, 3 seeds × 204,800 bd/arm/vul | **SHIPPED default-on**: 12/12 cells positive (+0.00015 plain / +0.00024 PD NV, +0.00016 / +0.00022 vul). `legacy_view`'s clone now folds C2 off too — unshielded it measures **−0.0037/bd on 18 of 20,480 deals** (talks the evaluator out of slams), shielded **+0.0006 on 2**. Smoke `f33d8caf…` → `edb618b8…`; exclusion 2.114% → 2.114% |
 | 2026-08-16 | **SHIPPED both default-on** on jdh8's call — branch 2 by intent, not branch 1 by letter | 6 tests moved, 5 of them pinning the old bug (Landy `8..37`→`8..15`, Woolsey `10..37`→`10..19`, both matching their own configured `convention_points`); cards byte-identical; smoke `18aba5ce…` → `cf583ff5…`; example flags converted to `Option<bool>` opt-outs |
+| 2026-08-16 | **Phase 2 `ReadingScope::All` measured and HELD** | soundness 2.114%→2.109%; N2 diagnostic loses all four cells; three 204,800-board whole-book seeds lean plain-positive but PD loses all six seed/vulnerability cells (pooled −0.00391/−0.00379 NV/vul). Default stays `Alerted`, both retreat nodes stay, cards/alerts byte-identical, smoke remains `edb618b8…` |
 
 ### Memory compaction notes (2026-08-16)
 

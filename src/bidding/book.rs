@@ -662,6 +662,10 @@ impl Partnership {
         self.opponents.as_deref().unwrap_or(self)
     }
 
+    pub(crate) const fn has_declared_opponents(&self) -> bool {
+        self.opponents.is_some()
+    }
+
     fn invalidate_cache_identity(&mut self) {
         self.cache_identity = Arc::new(PartnershipCacheIdentity);
     }
