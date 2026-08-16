@@ -626,6 +626,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   had filed as cosmetic. Read-only: examples and docs only, no `src/` change,
   so the default system is byte-identical by construction.
 
+### Removed
+
+- **The fit write-back into partner's lane sets, measured dead.** A substituted
+  call recorded its projection-sourced fit in *partner's* shown-suit sets as
+  well as its own. Dropping that was an open soundness question since the
+  Phase 3 polish bundle; measured alone it fires on **0 of 1,228,800 boards**
+  (3 seeds × 204,800/arm/vulnerability, both scorers, both vulnerabilities) with `smoke-default` byte-identical
+  and the `.bbsa` cards unchanged — so it shipped on architecture with a
+  byte-identity proof.
+
+  It is unreachable for two structural reasons, both now recorded at the
+  deletion site: `natural_lane_suits` is a subset of `lane_suits` everywhere, so
+  a fit sourced from partner's natural set was already in both; and a fit
+  sourced from partner's *projection* needs a substituted call that floors a
+  suit at three while neither naming it nor projecting four, which no call in
+  the shipped book does. The two consequences the review feared were blocked
+  independently — `agreed_re_raise` suppresses the six-card rebid claim exactly
+  when a fit exists, and cue detection reads a side-wide union the bidding lane
+  already sets. The deletion still decides the question for any future book that
+  does reach it: a suit partner promised only through a projection never becomes
+  a suit partner showed.
+
 ### Fixed
 
 - **`cargo +nightly doc` is green again under `-D warnings`.** Fourteen

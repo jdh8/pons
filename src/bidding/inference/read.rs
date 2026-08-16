@@ -535,10 +535,22 @@ impl Inferences {
                 rebid_lane_suits[lane] |= four_plus & natural_lane_suits[lane];
                 lane_suits[lane] |= shown;
                 natural_lane_suits[lane] |= shown;
-                if fit != 0 {
-                    lane_suits[partner_lane] |= fit;
-                    natural_lane_suits[partner_lane] |= fit;
-                }
+                // The fit is *this* lane's showing; it is deliberately not
+                // written back into partner's lane sets.  Half of such a
+                // write-back is a no-op by construction — `natural_lane_suits`
+                // is a subset of `lane_suits` at every site, so a `fit` sourced
+                // from partner's *natural* set is already in both — and the
+                // other half, a `fit` sourced from `partner_projected`, needs a
+                // substituted call that floors a suit at three while neither
+                // naming it (the face-suit record below) nor projecting four
+                // (`four_plus`).  No call in the shipped book does that, and
+                // dropping the write-back measured **0 diverging boards in
+                // 1,228,800** with `smoke-default` byte-identical
+                // (`docs/authored-reading-handoff.md`, 2026-08-17).  So the
+                // deletion settles the open question in the loosening direction
+                // for any future book that does reach it: a suit partner
+                // promised only through a projection never becomes a suit
+                // partner *showed*.
                 // The suit the call *named*, in the lane's mechanical
                 // bid-history only.  Meaning comes from the projection above,
                 // but "this lane has bid diamonds" is what happened at the

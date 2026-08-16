@@ -974,9 +974,38 @@ shipped. Dropping the fit write-back into partner's lane was argued from
 analysis alone — `fit` can be sourced from a partner's **3+** projection, and
 promoting that to "partner naturally showed it" makes their later unauthored
 rebid claim six (`i_bid_it`) and an opponent's bid of the suit read as a cue —
-but it went into the losing bundle unmeasured and was reverted with it. It
-remains a live, *unmeasured* soundness question: re-propose it as its own arm,
-never as a rider.
+but it went into the losing bundle unmeasured and was reverted with it.
+
+**Measured alone 2026-08-17, and the argument was wrong twice over: the write-back
+is unreachable.** Its own arm (3 seeds `1786916914`/`1786917382`/`1786917783`, 204,800
+bd/arm/vul, both vuls, both scorers) read **12/12 cells at 0 fired — 1,228,800
+boards** — and `smoke-default` is byte-identical at `cb090e5479…`. Two independent reasons, both structural:
+
+- **The `natural`-sourced half is a no-op.** `natural_lane_suits` is a subset of
+  `lane_suits` at every site that writes either, so a `fit` already in partner's
+  natural set is already in both sets. Only a `fit` sourced from
+  `partner_projected` can add anything, and that needs a *substituted* call that
+  floors a suit at three while neither **naming** it (else the face-suit record
+  has it) nor **projecting four** (else `four_plus` has it). The shipped book has
+  no such call: the natural calls that floor a suit at three also name it, and
+  the suitless ones (`1NT`, `2NT`) floor every suit at two.
+- **Both feared consequences were already blocked.** The six-claim cannot happen:
+  the rebid arm suppresses it under `agreed_re_raise = sound_lengths &&
+  partner_bid_it`, and the write-back only fires when a fit exists — which is
+  exactly when `partner_bid_it` is true (`length_soundness` is on in the shipped
+  `ReadingProfile`). The cue reading cannot see it either: `opponents_natural` is
+  the **union over a side**, and `shown ⊇ fit` already sets `natural_lane_suits`
+  for the bidding lane, so the union is unchanged whether or not partner's own
+  slot is written.
+
+So the three lines were dead code, and the deletion ships on KR2 with a KR1
+byte-identity proof. It is not a pure no-op for the *future*: it settles the
+question in the loosening direction for any later book that does reach it — a
+suit partner promised only through a projection never becomes a suit partner
+showed. The reasoning is recorded at the deletion site, not only here.
+
+No behavioural test was added, deliberately: there is no behaviour to pin. The
+check is the zero-divergence arm plus the byte-identical smoke hash.
 
 [net-shield]: ../src/bidding/context.rs
 
@@ -1088,6 +1117,7 @@ the `2NT` relay row no longer the lane's worst per board; `1NT 2♥ 2♠ -` read
 | 2026-08-17 | **Second phantom on the same board, pre-existing**: N's `5♠` 1430 answer reads as a spade **raise** (partner ♠ `0..4`→`3..4`) | S's own `3♠` cue is written to `lane_suits[S]` by the unconditional bid-history write (`read.rs:1154-1155`), so the answer looks like a raise of a suit only the opponents hold. Off Phase 3's critical path; recorded, owed its own arm |
 | 2026-08-17 | **Rate-ranked partner worklist built** (`probe-reading-sound`, second table, `bad/readings` desc, floor ≥ 10 readings, same `--top`, no new flag) | Print-only, reversible. Ranking by count alone is what hid the side-blind strip bug; the floor keeps single-digit noise out of the top slots |
 | 2026-08-17 | **Phase 3 soundness re-baseline** at `ba8f7305` (40,000 boards, seed 20260816, same flags as the recorded pair) | partner **2,211/168,086 = 1.315%** (was 2,199/168,085 = **1.308%** at `a376c324`), LHO 7.749% (7.748%), RHO 7.834% (7.834%). The face-suit record costs **+12 partner exclusions, +0.007pp** — the expected direction: a record that says *more* excludes *more*, which is the doc's own caveat that a falling exclusion rate never on its own proves a reading got better |
+| 2026-08-17 | **C — fit write-back drop measured alone: the lines were DEAD.** `read.rs:538-541` deleted; own arm, 3 seeds × 204,800 bd/arm/vul, both vuls, both scorers | **12/12 cells at 0 fired, 1,228,800 boards** (seeds `1786916914`/`1786917382`/`1786917783`), `smoke-default` byte-identical `cb090e5479…` (unchanged), cards byte-identical. Unreachable for two structural reasons: `natural_lane_suits ⊆ lane_suits` makes the natural-sourced half a no-op, and the `partner_projected` half needs a substituted call that floors a suit at three while neither naming it nor projecting four — the shipped book has none. Both feared consequences were already blocked anyway: `agreed_re_raise` suppresses the six-claim exactly when the write-back fires, and `opponents_natural` is a side union that `shown ⊇ fit` already covers. Shipped on KR2 with a KR1 byte-identity proof; no behavioural test, because there is no behaviour |
 | 2026-08-17 | **Rate table's first catch, filed not fixed**: three ~always-wrong partner nodes, all invisible in the count table | `1♥ - 2NT - 4♥` **25/25 = 100%** and `1♠ - 2NT - 4♠` **17/17 = 100%** — the Jacoby minimum 4M is authored as the pure catch-all `rule(4M, 50, hcp(0..))` (`raises/jacoby.rs:74`), so it projects nothing, falls back to the walk, and the walk's jump ladder reads opener at **`points 16..21`** — the exact inverse of "minimum". `2♥/2♠/2♦ - 2NT - 3♣` **95%/77%/86%** — the Ogust `3♣` answer is unread, so it reads as a natural **♣4..13** phantom suit (corroborates the queued Ogust reader fix). Also `2♦ 2♥ - 3♦ - 3♥` 10/10. Each is a book/reading change owing its own A/B |
 
 ### Memory compaction notes (2026-08-16)
