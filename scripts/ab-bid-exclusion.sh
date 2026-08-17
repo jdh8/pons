@@ -13,8 +13,14 @@
 # `points 16..21` off the walk, wrong for every hand that bid it.
 #
 # Two arms per vul, identical deals:
-#   off   the shipped default
+#   off   --ns-bid-exclusion=false (the pre-2026-08-17 default; the knob
+#         SHIPPED default-on on the run below, so the off arm now spells it)
 #   bex   --ns-bid-exclusion
+#
+# MEASURED 2026-08-17 (sha 0cf06c67, seeds 1786968900/1786969295/1786969688,
+# 204,800 bd/arm/vul): wash on both scorers at both vuls in every cell — 93
+# diverging boards in 1,228,800, +36 plain / +51 PD pooled — the pre-registered
+# non-loss; shipped default-on.  docs/authored-reading-handoff.md § Phase 4.
 #
 # The frozen nets are shielded by `legacy_view` (default on; `context.rs` folds
 # the knob off in the legacy clone), so this pair prices the SAMPLER +
@@ -37,7 +43,7 @@ SEED_BASE=$(seed_for)
 
 log "=== Phase 4 bid-exclusion start, sha=$SHA, SEED_BASE=$SEED_BASE, ${SHARDS}x${PER_SHARD} bd/arm/vul"
 for vul in none both; do
-    arm off "$vul"
+    arm off "$vul" --ns-bid-exclusion=false
     arm bex "$vul" --ns-bid-exclusion
     diffpair bex off "$vul"
 done

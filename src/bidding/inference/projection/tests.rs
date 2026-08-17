@@ -84,7 +84,9 @@ fn unread_compiled_effects_preserve_opaque_face_and_projection_hooks() {
         .is_none()
     );
     assert_eq!(*projection_events.lock().unwrap(), legacy_projection_events);
-    assert_eq!(legacy_projection_events, ["project"]);
+    // Under the shipped `bid_exclusion` an undecoded call is never projected —
+    // the fold defers every projection past the decode gate, in both paths.
+    assert_eq!(legacy_projection_events, [] as [&str; 0]);
 
     let pass_events = Arc::new(Mutex::new(Vec::new()));
     let pass_rules = Rules::new().rule(
@@ -183,7 +185,9 @@ fn deal_cache_rejects_observable_faces_and_projections_before_hooks_run() {
         let context = partnership.prefixed_context(RelativeVulnerability::NONE, &auction);
         let expected = project_authored_legacy(&context);
         let expected_events = core::mem::take(&mut *events.lock().unwrap());
-        assert_eq!(expected_events, ["face", "project", "face"]);
+        // Shipped `bid_exclusion` order: the fold consults the face for the
+        // live-rule list and again for the alert gate, then projects.
+        assert_eq!(expected_events, ["face", "face", "project"]);
 
         for _ in 0..2 {
             let actual = project_authored(&context);

@@ -62,10 +62,11 @@ fn main() {
         _ => {}
     }
     // Sibling-gate exclusion on made bids (Phase 4 of
-    // docs/authored-reading-handoff.md) is default OFF, so
-    // `PROBE_BID_EXCLUSION=1` is the interesting one: a bid made through one
-    // rule then reads as outside every strictly-heavier sibling gate it
-    // declined.
+    // docs/authored-reading-handoff.md) is default ON since 2026-08-17, so
+    // `PROBE_BID_EXCLUSION=0` is the interesting one: it puts a bid made
+    // through one rule back to reading only that rule (plus the natural walk
+    // where the rule was a catch-all), instead of also outside every
+    // strictly-heavier sibling gate it declined.
     match std::env::var("PROBE_BID_EXCLUSION").as_deref() {
         Ok("0") => agreements.decision.reading.bid_exclusion = false,
         Ok("1") => agreements.decision.reading.bid_exclusion = true,

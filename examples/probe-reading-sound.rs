@@ -135,13 +135,14 @@ struct Args {
 
     /// Our seats read each made bid with **sibling-gate exclusion**
     /// (`ReadingProfile::bid_exclusion` — Phase 4 of
-    /// `docs/authored-reading-handoff.md`, crate default off).  Argmax means a
-    /// bid made through one rule proves the hand outside every sibling rule on
-    /// another call whose weight strictly beats it.  It only ever *tightens* a
-    /// box, so this sweep is its soundness gate: partner's exclusion rate must
-    /// not rise.
-    #[arg(long, default_value_t = false)]
-    ns_bid_exclusion: bool,
+    /// `docs/authored-reading-handoff.md`).  Argmax means a bid made through
+    /// one rule proves the hand outside every sibling rule on another call
+    /// whose weight strictly beats it.  It only ever *tightens* a box, so this
+    /// sweep is its soundness gate: partner's exclusion rate must not rise.
+    /// **Engine default ON since 2026-08-17**; pass `false` for the pre-fold
+    /// baseline.  Unset = the engine default.
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    ns_bid_exclusion: Option<bool>,
 
     /// Our seats close `hcp` against `points` through the shape upgrade
     /// (`ReadingProfile::upgrade_closure` — C2 of `docs/dnf-migration.md`).  It
@@ -259,7 +260,9 @@ fn main() -> anyhow::Result<()> {
     if let Some(v) = args.ns_strength_ceilings {
         agreements.decision.reading.strength_ceilings = v;
     }
-    agreements.decision.reading.bid_exclusion = args.ns_bid_exclusion;
+    if let Some(v) = args.ns_bid_exclusion {
+        agreements.decision.reading.bid_exclusion = v;
+    }
     if let Some(v) = args.ns_upgrade_closure {
         agreements.decision.reading.upgrade_closure = v;
     }

@@ -32,8 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Negative inference for made bids** (`ReadingProfile::bid_exclusion`,
-  `--ns-bid-exclusion`, `PROBE_BID_EXCLUSION=1`, `set_bid_exclusion`;
-  **default off, pending its A/B** — Phase 4 of
+  `--ns-bid-exclusion[=false]`, `PROBE_BID_EXCLUSION=0`, `set_bid_exclusion`;
+  **shipped default-on 2026-08-17** — Phase 4 of
   `docs/authored-reading-handoff.md`). Selection is argmax over legal calls
   with finite logits, and a book logit is `weight/100` or −∞, so "the table
   made `C` through rule *i*" says exactly that every sibling rule strictly
@@ -59,8 +59,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Bidding-inert against BBA at the default: **2 diverging boards in 20,000**
   (0.01%), both the fold buying an ask the floor used to skip — so, like
   `pass`/`cue`/`table_alerts` before it, its A/B is close to a wash by
-  construction and the soundness census is the real gate. **Still default
-  off pending that A/B.**
+  construction and the soundness census is the real gate.
+
+  **A/B (`scripts/ab-bid-exclusion.sh`, `0cf06c67`, three seeds
+  1786968900 / 1786969295 / 1786969688, 204,800 bd/arm/vul against BBA,
+  plain DD + PD): wash on both scorers at both vulnerabilities in every
+  cell — 93 diverging boards in 1,228,800 (0.0076%), pooled +36 IMPs plain /
+  +51 PD, per-seed sums (both vuls) plain 0 / −73 / +109, PD +3 / −77 /
+  +125; every cell's 95% CI (±0.0003–0.0004 IMPs/board) straddles zero;
+  arm times 96–102 s on vs off (KR3 nil).** Pre-registered as a soundness
+  correction (non-loss ships), so it ships default-on. `smoke-default
+  --count 20000 --seed 1` re-based `7aa33d58…` → `9c56a4b2…` (3 of 20,000
+  auctions, all `1M - 1NT - 2NT! - 4M` → the floor's `4NT` ask); cards
+  byte-identical.
+
+  Every diverging board is a slam decision (`ab-dump-bucket --by node`, all
+  six cells): (a) `1M - 1NT - 2NT! - 4M` (61 boards, +16/+31): the fold reads
+  the Meckstroth sign-off's bidder as `support_points[M] 10..12` — a 3-card
+  hand that bypassed `1M - 2M` and then bid the ≤9-point `4M` — which lifts
+  `Strength::shown_floor` 6 → 10 and trips the floor's `combined_points(29)`
+  ask gate on 19-count openers: asking instead of blasting `6M` gains (+37/+58
+  on 24), asking then bidding `6M` on 27 HCP 5-3 loses (−21/−27 on 37);
+  (b) `1♠ - 2m - 2x - 3m` (14 boards, **+56/+58**): the 2/1 responder's
+  minor rebid read `points 0..37` and now reads `hcp 11+, points 13+, ♠ ≤2`
+  off the declined siblings, so opener asks with slam values; (c) two RKCB
+  decodes (−31/−33) that keyed the **wrong trump** — S's `2♠` over Michaels
+  and N's raise-then-`4♣` are `hcp(0..)` catch-alls whose *walk* length floor
+  (`♠ 3+`, `♥ 3+`) the fold's projection now replaces without one, so
+  `answer_trump`'s provable-eight rung fails and the face rung keys a suit the
+  asker holds 0–1 of (a passed `5♦` answer on a singleton, a `6♣` sign-off
+  on a void). Both filed as follow-ups (walk length floors under the fold —
+  the plan's Q4 reversal — and a floor guard on the face rung); neither
+  moves the verdict.
 
   The Pass-side twin (`pass_exclusion`) now shares the same fold, which
   **changes its semantics**: multi-box complements are folded under a box

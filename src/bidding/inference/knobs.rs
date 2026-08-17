@@ -404,7 +404,11 @@ pub struct ReadingProfile {
 
     /// A **bid** also excludes the sibling gates its bidder declined
     ///
-    /// **Default off, pending its A/B.**  The general form of
+    /// **Default on** since 2026-08-17 (A/B: three seeds × 204,800 boards/arm/vul
+    /// against BBA, wash on plain DD and PD at both vulnerabilities — 93
+    /// divergent boards in 1,228,800, +36/+51 IMPs pooled, every cell's CI
+    /// straddling zero — and the 40k soundness census's partner exclusions
+    /// 1.302% → 1.180%; a soundness correction ships on non-loss).  The general form of
     /// [`pass_exclusion`][field@Self::pass_exclusion], for every non-Pass
     /// authored call.  Selection is argmax over legal calls with finite logits
     /// (`table::select_with_legal_state`) and a book logit is `weight/100` or
@@ -1095,7 +1099,7 @@ impl ReadingProfile {
             length_soundness: false,
             pass: false,
             pass_exclusion: true,
-            bid_exclusion: true,
+            bid_exclusion: false,
             probed: true,
             probed_vacuous: true,
             announced: true,
@@ -1160,7 +1164,7 @@ impl Default for ReadingProfile {
             length_soundness: true,
             pass: true,
             pass_exclusion: false,
-            bid_exclusion: false,
+            bid_exclusion: true,
             probed: false,
             probed_vacuous: false,
             announced: false,

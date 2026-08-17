@@ -568,16 +568,18 @@ struct Args {
     ns_pass_exclusion: bool,
 
     /// Read our side's made bids with sibling-gate exclusion
-    /// (`ReadingProfile::bid_exclusion`, crate default off).  The made-bid
+    /// (`ReadingProfile::bid_exclusion`, crate default on).  The made-bid
     /// generalisation of `--ns-pass-exclusion`: selection is argmax over
     /// `weight/100 + eval`, so a bid made through one rule proves the hand
     /// outside every sibling rule on another call whose weight strictly beats
     /// it.  The book's non-Pass `hcp(0..)` catch-alls then read what the
     /// heavier tiers denied instead of nothing at all (Jacoby `1M - 2NT - 4M`
     /// stops reading opener as `points 16..21` off the natural walk).
-    /// Phase 4 of docs/authored-reading-handoff.md.
-    #[arg(long, default_value_t = false)]
-    ns_bid_exclusion: bool,
+    /// Phase 4 of docs/authored-reading-handoff.md.  **Engine default ON since
+    /// 2026-08-17** (A/B wash on both scorers, three seeds); pass `false` for
+    /// the pre-fold arm.  Unset = the engine default.
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    ns_bid_exclusion: Option<bool>,
 
     /// Probe our partnership's behavior over this many self-play boards at startup
     /// and read with the probed boxes on (`Partnership::probe` +
@@ -1934,7 +1936,9 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
         agreements.decision.reading.strength_ceilings = v;
     }
     agreements.decision.reading.pass_exclusion = args.ns_pass_exclusion;
-    agreements.decision.reading.bid_exclusion = args.ns_bid_exclusion;
+    if let Some(v) = args.ns_bid_exclusion {
+        agreements.decision.reading.bid_exclusion = v;
+    }
     if let Some(v) = args.ns_forcing_ceiling_read {
         agreements.decision.instinct.forcing_ceiling_read = v;
     }

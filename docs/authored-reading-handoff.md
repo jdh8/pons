@@ -596,7 +596,7 @@ soundness correction; a loss traces its worst boards before any conclusion.
 | 1 | **Strength ceilings** | `Points::project` / `Hcp::project` / `SupportPoints::project` → band | `reading.strength_ceilings` **+ `DecisionProfile::legacy_view`, both default-on since 2026-08-16**; pre-ship arm is `bba-gen --ns-strength-ceilings false --ns-legacy-view false` | admits sweep + `probe-reading-sound` unchanged-or-better; A/B | **SHIPPED 2026-08-16.** Soundness gate green (E0 book-wide + 4-cell behavioural grid + probe partner 2.114→2.105%); A/B 3 seeds raw + 1 legacy — raw leans plain-DD-negative, **legacy arm 3 boards/204,800, 4/4 cells positive, ~1% cost**. Shipped on the legacy arm. Cards byte-identical; smoke re-based `18aba5ce…` → `cf583ff5…`. C2's re-open trigger ("a two-sided forward projection") is met by it — **and C2 shipped on it the same day**, 12/12 cells positive once `legacy_view` shields the nets from it too (ledger below) |
 | 2 | **`ReadingScope::All`** as default | built; drop the alert gate | `--ns-reading-scope all` (default); `alerted` is the off arm | clear the empty-box worklist before measuring (`probe-reading-sound --ns-reading-scope all`, bucketed); whole-book non-loss under plain DD and PD at both vulnerabilities | **SHIPPED default-on 2026-08-16.** First run held (PD loss, all six cells); its forensic found the whole loss in the four `1x (1NT)` lanes — the side-blind systems-on strip — and with that fixed (nets held by `legacy_view`) 3 seeds × 204,800 bd/arm/vul read **12/12 cells positive**, plain +0.0078…+0.0125 / PD +0.0073…+0.0111. Smoke `edb618b8…` → `bdd1a80e…`; cards byte-identical. **The two `pass_out` nodes STAY — probed 2026-08-17 and the question is settled asymmetrically.** With both sites removed, `1NT - 2NT - 3♣ - 3♦ -` falls to the root fallback and the floor offers *only* `P` (every hand, both vuls), so that node's `pass_out` is redundant; but `1NT - 2♠ - 2NT - 3♣ -` falls to the floor's **support-raise** rule and bids **`4♣` at 1.200 over `P` at 0.000** on all six probe hands at both vulnerabilities — it raises partner's weak club sign-off to the four level off "3+ support, 13+ points", with nothing gating on partner being capped at `points 0..9`. The pre-registered rule was "any hand still blasts → leave both", so both stay. Splitting node 1 out is a follow-up owing its own arm; the real repair is the floor-side settle rail (same family as Phase 0b's `opener_forced_past_invitation`) |
 | 3 | **Substitute, don't intersect** | authored calls set suppression; walk bookkeeping from the projection; retire `nt_blanket` & co. for authored calls | two-binary (a refactor, not a knob) | byte-identity where projection ⊇ walk is *not* expected — this moves readings by design; A/B | **SHIPPED 2026-08-17.** Partner exclusions 1.877%→1.308%; N2 4/4 cells non-negative; two 204,800-board whole-book seeds are wash/wash at both vuls (pooled NV +0.00023/+0.00052 plain/PD, vul −0.00072/−0.00064). Smoke `bdd1a80e…`→`d532f04b…`.  **Polish A′ 2026-08-17: LOST 12/12 cells** vs `a376c324` (three seeds, both scorers, both vuls) — the bundle was face-suit record + `substitute_authored` net shield + fit-write-back drop + mask refactor. Shield and write-back drop **reverted**. **Polish A′′ 2026-08-17: WASH, shipped on KR2** — face-suit record + `CallMasks` refactor alone vs `a376c324`, 3 seeds × 204,800 bd/arm/vul, 9/12 cells positive, pooled +112 IMPs plain (+0.00009/bd) / +101 PD (+0.00008/bd) on 58 diverging boards, every cell's CI straddling zero (`ab-results/bd-only-s{1,2,3}`, smoke `d532f04b…`→`cb090e54…`, cards byte-identical). The fix over-registers in the opposite direction — its worst board is traced to the walk's rebid arm firing on a floor control bid in competition — so a refinement is queued as its own arm. Paired soundness re-baseline at `ba8f7305`: partner 1.308%→**1.315%** (+12 exclusions), LHO/RHO flat — a record that says more excludes more. See *Why the wash* |
-| 4 | **Negative inference** | a made bid excludes the strictly-heavier sibling gates its bidder declined | `reading.bid_exclusion`, default off; `--ns-bid-exclusion`, `PROBE_BID_EXCLUSION=1`, `set_bid_exclusion` | admits sweep (must stay green — it tightens) + `probe-reading-sound` partner not rising; A/B | **BUILT 2026-08-17, soundness green, A/B not yet run.** New book-wide gate `bids_read_within_their_table`; `readings_admit_the_bidder` grew an exclusion axis (8 cells). Probe partner **1.302%→1.180%**, the worklist's whole head cleared; throughput +0.8%; smoke byte-identical. **Held on one finding:** the entire behavioural footprint is 12/20,000 boards and eleven are the floor dropping its Blackwood ask after `1M - 2x - 3M - 4M -` — see *Phase 4* below |
+| 4 | **Negative inference** | a made bid excludes the strictly-heavier sibling gates its bidder declined | `reading.bid_exclusion`, **default on since 2026-08-17**; `--ns-bid-exclusion[=false]`, `PROBE_BID_EXCLUSION=0`, `set_bid_exclusion` | admits sweep (must stay green — it tightens) + `probe-reading-sound` partner not rising; A/B | **SHIPPED 2026-08-17.** Soundness green in every gate (probe partner **1.302%→1.180%**, the worklist's whole head cleared, book-wide `bids_read_within_their_table`); A/B 3 seeds × 204,800 bd/arm/vul vs BBA a **wash on both scorers at both vuls** (93 diverging boards in 1.23M, +36/+51 pooled, every CI straddling zero) — the pre-registered non-loss; smoke `7aa33d58…`→`9c56a4b2…` (3/20,000), cards byte-identical. Two follow-ups filed (walk length floors under the fold; the RKCB face-rung guard) — see *Phase 4* below |
 | 5 | **features_v6 + retrain** | honest reading in, `legacy_view` and `net_points` fold out | F2b recipe (dump, held-out gate, twin, flip) | held-out NLL/MAE ≥ shipped; A/B of the flip | after 1-3 land |
 
 Why this order: 1 before 2 because at N2 the missing ceiling, not the missing
@@ -1157,6 +1157,7 @@ the `2NT` relay row no longer the lane's worst per board; `1NT 2♥ 2♠ -` read
 | 2026-08-17 | **C — fit write-back drop measured alone: the lines were DEAD.** `read.rs:538-541` deleted; own arm, 3 seeds × 204,800 bd/arm/vul, both vuls, both scorers | **12/12 cells at 0 fired, 1,228,800 boards** (seeds `1786916914`/`1786917382`/`1786917783`), `smoke-default` byte-identical `cb090e5479…` (unchanged), cards byte-identical. Unreachable for two structural reasons: `natural_lane_suits ⊆ lane_suits` makes the natural-sourced half a no-op, and the `partner_projected` half needs a substituted call that floors a suit at three while neither naming it nor projecting four — the shipped book has none. Both feared consequences were already blocked anyway: `agreed_re_raise` suppresses the six-claim exactly when the write-back fires, and `opponents_natural` is a side union that `shown ⊇ fit` already covers. Shipped on KR2 with a KR1 byte-identity proof; no behavioural test, because there is no behaviour |
 | 2026-08-17 | **Rate table's first catch, filed not fixed**: three ~always-wrong partner nodes, all invisible in the count table | `1♥ - 2NT - 4♥` **25/25 = 100%** and `1♠ - 2NT - 4♠` **17/17 = 100%** — the Jacoby minimum 4M is authored as the pure catch-all `rule(4M, 50, hcp(0..))` (`raises/jacoby.rs:74`), so it projects nothing, falls back to the walk, and the walk's jump ladder reads opener at **`points 16..21`** — the exact inverse of "minimum". `2♥/2♠/2♦ - 2NT - 3♣` **95%/77%/86%** — the Ogust `3♣` answer is unread, so it reads as a natural **♣4..13** phantom suit (corroborates the queued Ogust reader fix). Also `2♦ 2♥ - 3♦ - 3♥` 10/10. Each is a book/reading change owing its own A/B |
 
+| 2026-08-17 | **Phase 4 SHIPPED — `reading.bid_exclusion` default on.** A/B 3 seeds × 204,800 bd/arm/vul vs BBA: **wash on both scorers at both vuls** in every cell, 93 diverging boards in 1,228,800 (0.0076%), pooled +36 plain / +51 PD, per-seed (both vuls) plain 0 / −73 / +109; the pre-registered non-loss. All divergence is slam decisions: Meckstroth `4M` sign-off now reads `sp 10..12` (asks: +16/+31 net), the erased 2/1 minor-rebid reading repaired (+56/+58), and two RKCB wrong-trump decodes (−31/−33) traced to the fold replacing a catch-all's *walk* length floor — filed, not blocking. Smoke `7aa33d58…`→`9c56a4b2…` (3/20,000), cards byte-identical, gates green (two hook-order literals updated: an undecoded call is no longer projected under the fold) | see *Phase 4 — the A/B* |
 | 2026-08-17 | **Phase 4 built — `reading.bid_exclusion`, default off.** Soundness green in every gate; A/B **not** run | Probe partner **1.302%→1.180%** (seed 20260816, 40k), the worklist's whole head cleared (`1♥ - 2NT - 4♥` 25/25→0, `1♠ - 2NT - 4♠` 17/17→0, Ogust `3♣` 77–95%→0); throughput **+0.2%**; smoke byte-identical `7aa33d58…`. First footprint was 12 boards/20,000 and eleven were the floor dropping its Blackwood ask — root-caused **not** to the floor but to `Strength::intersect_nonempty` widening a crossed gauge instead of emptying its box; with that fixed the footprint is **2/20,000**, both the fold buying an ask. See *Phase 4* below |
 
 ### Memory compaction notes (2026-08-16)
@@ -1169,8 +1170,8 @@ the `2NT` relay row no longer the lane's worst per board; `1NT 2♥ 2♠ -` read
 
 ## Phase 4 — negative inference for made bids (2026-08-17)
 
-`ReadingProfile::bid_exclusion`, **default off**. The Pass half
-(`pass_exclusion`) generalised to every non-Pass authored call.
+`ReadingProfile::bid_exclusion`, **default on since 2026-08-17** (A/B below).
+The Pass half (`pass_exclusion`) generalised to every non-Pass authored call.
 
 ### The argument
 
@@ -1316,10 +1317,90 @@ board 17034  OFF  - 1♥ 2♥ - 2♠ - 3♣ - 3♦ - 4NT - 5♦ X 5♥ - - -
 **Consequence for the ship gate.** At 0.01% the knob is bidding-inert against
 BBA, so its A/B is close to a wash by construction — the
 `pass`/`cue`/`table_alerts` precedent, where the ship gate was the probe's
-soundness numbers rather than IMPs. The A/B is still owed; it is no longer the
-instrument that can decide much on its own.
+soundness numbers rather than IMPs. The A/B was then run to confirm the
+non-loss, and did.
+
+### The A/B — three seeds, wash everywhere, shipped (2026-08-17)
+
+`scripts/ab-bid-exclusion.sh` at `0cf06c67`, BBA opponents, 204,800 bd/arm/vul,
+plain DD + PD, pre-registered (Q8): non-loss ships default-on.
+
+| seed | vul | fired | plain | PD | IMPs/board (95% CI) |
+| --- | --- | ---: | ---: | ---: | --- |
+| 1786968900 | none | 16 | +6 | +8 | +0.0000 ± 0.0003/0.0004 |
+| 1786968900 | both | 18 | −6 | −5 | −0.0000 ± 0.0004 |
+| 1786969295 | none | 17 | −27 | −29 | −0.0001 ± 0.0004 |
+| 1786969295 | both | 18 | −46 | −48 | −0.0002 ± 0.0004 |
+| 1786969688 | none | 12 | +49 | +56 | +0.0002/+0.0003 ± 0.0003 |
+| 1786969688 | both | 12 | +60 | +69 | +0.0003 ± 0.0003 (PD lower bound −0.000004 from the 12 boards) |
+| **pooled** | | **93 / 1,228,800 (0.0076%)** | **+36** | **+51** | ≈ +0.00003 ± 0.00017 |
+
+Per-seed sums (both vuls) swing plain 0 / −73 / +109 on single 11–17 IMP
+slam boards; arm times 96–102 s on vs off (KR3 nil). Every cell a wash on both
+scorers → **shipped default-on**; `smoke-default --count 20000 --seed 1`
+`7aa33d58…` → `9c56a4b2…` (3 auctions, all `1M - 1NT - 2NT! - 4M` → the
+floor's `4NT`), `cards/*.bbsa` byte-identical.
+
+**Where the 93 boards are** (`ab-dump-bucket --by node`, all six cells) —
+every one a slam decision; the fold's other catch-alls never move a call:
+
+| family | fired | plain | PD | mechanism |
+| --- | ---: | ---: | ---: | --- |
+| `1M - 1NT - 2NT! - 4M ⟨4NT vs 6M⟩` | 24 | +37 | +58 | opener asks instead of blasting `6M` |
+| `1M - 1NT - 2NT! - 4M ⟨4NT vs –⟩` | 37 | −21 | −27 | opener asks where it passed `4M`; then `6M` on 27 HCP 5-3 |
+| `1♠ - 2m - 2x - 3m ⟨4NT vs 3NT⟩` | 14 | +56 | +58 | the fold **repairs the erased 2/1 reading** |
+| `1♥ - 1♠ - 1NT - 2♦ - 2♠ ⟨4M/6♠ vs 4NT⟩` | 6 | −2 | −2 | noise |
+| RKCB answer / sign-off | 12 | −34 | −36 | two decodes keyed the **wrong trump** (below) |
+
+*Meckstroth 4M.* `1♠ - 1NT - 2NT - 4♠ -` reads responder off `hcp 6..9,
+♠ 3..13, shown_floor 6`; on `♠ 3..3, support_points[♠] 10..12, shown_floor
+10` — a 3-card hand that bypassed `1♠ - 2♠` (SP 6–9) and then bid the
+≤9-point `4♠` is SP 10–12 (sound: e.g. `QJ2.T852.T.AJ876`). That lifts
+`Strength::shown_floor` 6 → 10 and trips the floor's `combined_points(29)`
+ask gate (`instinct.rs`, the RKCB rule) on 19-count openers. Floor
+calibration, not a fold defect; the family nets +16/+31.
+
+*2/1 minor rebid.* `1♠ - 2♣ - 2♦ - 3♣ -` read `hcp 0..37, points 0..37`
+(the erased two-over-one reading; the GF lived only in `support_points[♠]
+11..`) and now reads `hcp 11+, points 13+, ♠ ≤2, other minor ≤3` off the
+declined siblings — opener with slam values asks. A genuine repair.
+
+*The two wrong-trump decodes — real regressions, both the same shape:*
+
+- `1♥ (2♥) - 2♠ - 3♣ - 3♦ - 4NT - 5♦ - ⟨P vs 5♠⟩` (−14/−16). S's `2♠`
+  over Michaels is the `hcp(0..)` catch-all; off, the walk read it `♠ 3+`;
+  on, the fold's projection is ≠ ⊤ so `substitutes_natural` suppresses the
+  walk and the exclusion carries **no spade floor** → `♠ 0..13`.
+  `answer_trump`'s provable-eight rung fails, the face rung keys
+  **diamonds** (S's last suit), and N with a singleton passes the `5♦`
+  "minor answer" (probe: on `P 1.80, 6♦ 0.30`; off `5♠ 1.82`).
+- `1♥ (1♠) 2♣ - 2♥ - 2♠ - 3♣ - 4♣ - 4NT - 5♠ - ⟨6♣ vs 6♥⟩` (−14/−17).
+  Same: N's `♥ 3+` walk floor lost, S decodes on the face (clubs, bid by
+  both) and signs off in **`6♣` with a void**. Here the walk floor was
+  actually *wrong* (N held `K9`), so the fold was sound; the loss is the
+  derivation ladder (`face_trump` via `answer_trump`) keying a trump the
+  asker holds 0–1 of.
+
+Neither moves the verdict (without them the fold is +70/+87, still a wash);
+both are filed below.
 
 ### Owed
+
+- **Walk length floors under the fold** (the Q4 reversal the plan named:
+  an `excluded` field, `length_floor` from the positive union). When a
+  rule's positive projection is ⊤, the fold currently *replaces* the walk's
+  natural reading and loses its length floors; keep them (intersect the
+  fold with the walk's lengths, or feed `CallMasks::length_floor` from the
+  walk-substituted union). Pin `1♥ (2♥) - 2♠` partner `♠ 3+` surviving the
+  fold. Caveat from the second board: walk length floors are not always
+  sound, so this is precision, not soundness.
+- **Floor guard on the RKCB face rung**: `answer_trump`/`face_trump` must
+  never key a keycard trump the asker holds fewer than two of (prefer the
+  hand-seen fit); both regressions above are the passed-out / void-sign-off
+  catastrophe measurement.md names.
+- The Meckstroth `4M` ask on a fold-derived `support_points` floor opposite
+  a limited sign-off (`combined_points(29)` at 19 + 10): calibration, left as
+  is — the family nets positive.
 
 - The `pass_exclusion` **re-measure**: its semantics moved with the shared
   fold (multi-box complements now folded under the budget; face-dead and
