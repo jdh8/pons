@@ -466,6 +466,28 @@ and allocator-trimmed retained RSS form the completed Stage 6 evidence record.
 - For every prefix in the fixed corpus, require the appended step-cache state to equal the from-scratch read bit-for-bit — boxes, box order, and provenance — including a mid-deal knob change that must drop to the legacy path.
 - Any changed output ends the performance-only track; it becomes a separate bidding change requiring fresh paired bidding A/B measurement.
 
+### Open flag — the pass fold has two implementations (filed 2026-08-18, undecided)
+
+Inherited from the closed [authored-reading campaign](authored-reading-handoff.md#phase-4--the-pass_exclusion-probes-2026-08-17),
+which hit it while measuring a their-seat gate. The Pass-side reading fold is
+written twice — incrementally in `AuthoringStepCache`, and in a batch loop in
+`projection.rs` — and the **batch path is the one that runs** for a whole-deal
+read. A profile-dependent gate added to one site and not the other therefore
+compiles clean, passes review, and silently does nothing: that arm came back
+byte-identical to its control and cost a measurement round to diagnose.
+
+The parity assertions above do not appear to cover the pass fold's profile
+handling, which is what would have caught it. Each site needs its own
+predicate: `index % 2 != reader_parity` incrementally, `index % 2 == len % 2` in
+the batch loop.
+
+Proposed reversible defaults, **jdh8's call, no change made**: either extend the
+compiled↔legacy parity comparison to the pass fold under differing reading
+profiles, or leave a comment at each site naming its twin. The knob that
+exposed this (`reading.pass_exclusion`) has since been deleted, so nothing is
+currently broken — the hazard is structural and waits for the next
+profile-dependent pass reading.
+
 ### Performance
 
 - Use at least ten warmed release repetitions, pinned to CPU4 and CPU14 with SMT siblings idle; require coefficient of variation no greater than 2%.

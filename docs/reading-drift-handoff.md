@@ -130,10 +130,12 @@ convention.
 
 ## The other three known leaks (unchanged, listed for completeness)
 
-- **`Points::project` is floor-only** ([constraint.rs](../src/bidding/constraint.rs)).
-  No `points(..X)` ceiling survives projection, so every alerted call reads with
-  an unbounded top. Fixing it is a book-wide reading change → its own A/B.
-  (Made bids only: passes fold through `project_band`, which keeps both bounds.)
+- ~~**`Points::project` is floor-only**~~ ([constraint.rs](../src/bidding/constraint.rs)).
+  No `points(..X)` ceiling survived projection, so every alerted call read with
+  an unbounded top. **Fixed 2026-08-16** as `reading.strength_ceilings`, shipped
+  default-on with all three gauges folding through `project_band`
+  ([authored-reading-handoff.md](authored-reading-handoff.md) Phase 1) — and it
+  was a book-wide reading change with its own A/B, as predicted.
 - **Negations project nothing.** `!flat_4333()` and friends contribute ⊤, so a
   box is always looser than its rule. Sound, so not a defect — but it means
   "the projection *is* the rule" is false even in regime 1.
@@ -176,24 +178,34 @@ has attributed that 3.3% to specific nodes.
    12/12 cells positive (docs/authored-reading-handoff.md). Two implementation
    choices remain worth knowing:
 
-   - It **intersects with** the walk rather than replacing it: an unalerted call
-     does **not** set its suppression bit. Suppressing a natural call would
-     delete the walk's lane bookkeeping — natural-suit masks, agreed fits, the
-     cue detection later calls depend on — which is a far bigger change than the
-     reading itself.
-   - So where the walk is *wrong*, the box can go **empty**: a wrong walk claim
-     intersected with a sound rule claim is still wrong, and now visibly so. That
-     is a *diagnostic* — it converts silent regime-2 drift into a hard failure
-     the `admits` sweep catches — but it means step 1's work-list should be
-     cleared before the knob is measured, not after. `set_natural_reading(true)`
-     is the cheapest instrument for step 1 there is.
+   - As shipped it **intersected with** the walk rather than replacing it: an
+     unalerted call did **not** set its suppression bit, because suppressing a
+     natural call deletes the walk's lane bookkeeping — natural-suit masks,
+     agreed fits, the cue detection later calls depend on. **Phase 3 (2026-08-17)
+     did the bigger change**: an informative authored projection now substitutes
+     for the walk, and the lane bookkeeping is derived from the projection
+     instead of the bid's face.
+   - So while it intersected, a *wrong* walk could make the box go **empty**: a
+     wrong walk claim intersected with a sound rule claim is still wrong, and now
+     visibly so. That was a *diagnostic* — it converted silent regime-2 drift
+     into a hard failure the `admits` sweep catches — and it is why step 1's
+     work-list had to be cleared before the knob was measured, not after.
 
-   Still the most dangerous change in this file, and still unmeasured: it
-   tightens thousands of readings at once, and per dnf-migration.md's C1 finding
-   a tightening that moves *endpoints without mass* is close to pure feature
-   perturbation for the frozen nets. Expect it to need the knob-matched
-   evaluator twin (F2b), exactly as `set_envelope_union_reading` did — the bare flip lost
-   there and the twin is what made it ship.
+   It was the most dangerous change in this file — it tightens thousands of
+   readings at once, and per dnf-migration.md's C1 finding a tightening that
+   moves *endpoints without mass* is close to pure feature perturbation for the
+   frozen nets. That prediction held: it needed the nets shielded on their
+   training view to ship, exactly as `set_envelope_union_reading` did, and the
+   shield came out with Phase 5's honest-reading retrain.
+
+5. **Shadow-table fold (Q5)** — *inherited 2026-08-18 when
+   [authored-reading-handoff.md](authored-reading-handoff.md) closed; that doc's
+   Phase 4 argument has the derivation.* Argmax proves more than Phase 4 folds:
+   a bid excludes the heavier **sibling rules** it declined, but a *declined
+   primary table* also proves all of its own rules false. Folding that
+   complement is the same arithmetic one level up. Sound by the same argument,
+   so it is earnable — and per the two mechanisms above it is a bidding change
+   owing its own A/B, not a soundness desk-fix. Nothing is built.
 
 ## Do not conclude from this
 

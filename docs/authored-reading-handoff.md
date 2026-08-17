@@ -51,23 +51,29 @@ natural `1NT 2♥ 2♠ -` reads as *nothing at all* under the default.
 
 ### 1. The scope gate: reading is switched by the alert
 
+**Superseded by Phase 2 on 2026-08-16.** This section records the state the
+campaign opened on. `ReadingProfile::scope` is `ReadingScope::All` by default
+now (`knobs.rs`, `Default for ReadingProfile`), so every authored call projects
+and `--ns-reading-scope alerted` is the historical off arm.
+
 [projection.rs `authored_effect`](../src/bidding/inference/projection.rs):
 
 ```rust
 let decode = match scope {
     ReadingScope::None    => false,
-    ReadingScope::Alerted => alerted,   // shipped default
-    ReadingScope::All     => true,
+    ReadingScope::Alerted => alerted,   // the default until 2026-08-16
+    ReadingScope::All     => true,      // shipped default
 };
 ```
 
-`ReadingProfile::scope` ([knobs.rs](../src/bidding/inference/knobs.rs)) remains
-`Alerted` by default. `All` is selected explicitly with
-`bba-gen --ns-reading-scope all` or
-`probe-reading-sound --ns-reading-scope all`; omission inherits the engine
-default. It *intersects* the rule with the walk (does not set the suppression
-bit). Phase 2 measured this arm and held it after the whole-book PD gate lost;
-see [Phase 2 measurement — held](#phase-2-measurement--held).
+`ReadingProfile::scope` ([knobs.rs](../src/bidding/inference/knobs.rs)) was
+`Alerted` by default while this section was written; `All` then had to be
+selected explicitly with `bba-gen --ns-reading-scope all` or
+`probe-reading-sound --ns-reading-scope all`. It *intersected* the rule with the
+walk (did not set the suppression bit) — Phase 3 made informative projections
+substitute instead. Phase 2 measured this arm, held it when the whole-book PD
+gate lost, then shipped it after the forensic; see
+[Phase 2 measurement — held, then shipped](#phase-2-measurement--held-then-shipped).
 
 Size: `src/bidding/{american,dutch}` hold ~1,400 `.rule(` calls and ~350
 `.alert(` tags. Roughly **a thousand authored rules project nothing** under
@@ -75,10 +81,15 @@ the default; each is a regime-2 row of the reading-drift table.
 
 ### 2. Strength projects floor-only — every made-bid ceiling is lost
 
+**Superseded by Phase 1 on 2026-08-16.** This section records the defect, not
+the code: under the shipped profile `Points::project`, `Hcp::project` and
+`SupportPoints::project` **are** their `project_band`, so a made bid carries its
+ceiling. `--ns-strength-ceilings false` is the historical off arm.
+
 [constraint.rs](../src/bidding/constraint.rs) `Points::project` /
-`Hcp::project` write `floor..=37` ("floor only, matching every hand-written
+`Hcp::project` wrote `floor..=37` ("floor only, matching every hand-written
 reader; the ceiling returns in `project_band`, widened by
-`hcp_ceiling_slack`"). `project_band` — the two-sided one — is used **only for
+`hcp_ceiling_slack`"). `project_band` — the two-sided one — was used **only for
 the pass reading** (`project_pass`).
 
 The rationale is stale. The rule evaluates `point_count(hand) ≤ 8` on the same
@@ -628,8 +639,15 @@ under plain DD and perfect defense. American won all four cells (plain
 the accepted v5 precedent. Both defaults now use the matched v6 policy and
 honest evaluator. `DecisionProfile::legacy_view`, its second inference cache,
 and `ReadingProfile::strip_side_blind` are deleted; the correct side-aware strip
-is unconditional. Historical v5 entry points retain the old policy artifacts,
-but cannot recreate the deliberately deleted frozen reading view.
+is unconditional.
+
+The **v5 policy floor went with them** (`f33bef3e`): its factories, feature
+extractor, `scripts/dump-v5.sh`, `scripts/ab-v5-floor.sh` and 476 KB of
+weights/metadata are deleted, and the smoke dump plus both cards are
+byte-identical across the removal. No v5 policy arm can be re-run from this
+tree, and no arm of any vintage can recreate the deliberately deleted frozen
+reading view. What survives the `v5` name is the **evaluator**:
+`features_eval_v5` is the shipped 118-input extractor, now fed honest readings.
 
 ## Phase 2 measurement — held, then shipped
 
@@ -1414,10 +1432,37 @@ both are filed below.
 
 ### Follow-ups outside this campaign
 
-- **Shadow-table fold (Q5):** a declined primary table also proves its rules false; owned by this handoff's [Phase 4 argument](#the-argument) and owes its own A/B.
-- **Their-seat gating (Q9):** the foreign-system exclusion rise remains informational; owned by the [Phase 4 soundness record](#the-soundness-gates--all-green), with the failed pass-specific gate recorded under [Arm 3c](#arm-3c-refuted--the-confirming-seeds-2026-08-18).
-- **Floor-side settle rail:** required before a learned constructive floor can safely replace `instinct()`; owned by [the Dutch WJ-floor campaign](dutch-system.md#the-wj-floor-campaign--bbas-polish-club-as-dutchs-teacher).
-- **Ogust `3♣` answer reader:** the remaining phantom-club reading package; owned by the [CHANGELOG Phase 4 record](../CHANGELOG.md#changed) and owes its own A/B.
+**Re-homed 2026-08-18 with the campaign's closure.** This handoff is a record,
+not a queue: every live item below is filed in a doc that still has a next
+phase, and the mechanism stays here for whoever picks it up.
+
+- **Shadow-table fold (Q5):** a declined primary table also proves its rules
+  false — the [Phase 4 argument](#the-argument) has the derivation; it owes its
+  own A/B. Filed in [reading-drift-handoff.md](reading-drift-handoff.md), which
+  owns the reading regimes.
+- **Their-seat gating (Q9):** the foreign-system exclusion rise stays
+  informational — see the [Phase 4 soundness record](#the-soundness-gates--all-green).
+  **Closed as a work item**: the one gate anyone built for it is refuted under
+  [Arm 3c](#arm-3c-refuted--the-confirming-seeds-2026-08-18).
+- **Floor-side settle rail:** required before a learned constructive floor can
+  safely replace `instinct()`; owned by [the Dutch WJ-floor campaign](dutch-system.md#the-wj-floor-campaign--bbas-polish-club-as-dutchs-teacher).
+  Also the real repair for the surviving `1NT - 2♠ - 2NT - 3♣ -` `pass_out`
+  node (Phase 2's row).
+- **Ogust `3♣` answer reader:** the remaining phantom-club reading package (the
+  answer is unread, so it reads as a natural ♣ `4..13`). Filed in
+  [bidding-options.md](bidding-options.md)'s `set_weak_two_major_priority` row,
+  beside the 2NT-reading gap; owes its own A/B.
+- **Solo deletion of `1NT - 2NT - 3♣ - 3♦ -`'s `pass_out`:** probed redundant
+  (the root fallback offers `P` alone), but it was left in place because its
+  twin node blasts — see Phase 2's row. Filed in
+  [one-notrump-competitive.md](one-notrump-competitive.md)'s package queue; owes
+  its own arm.
+- **The pass fold has two implementations** ([the `pass_exclusion` probes](#phase-4--the-pass_exclusion-probes-2026-08-17)):
+  a profile-dependent gate added to one site and not the other compiles clean
+  and silently does nothing. `pass_exclusion` is deleted, but the hazard is
+  structural and outlives it. Filed as an open flag in
+  [bidding-performance-handoff.md](bidding-performance-handoff.md), which owns
+  the compiled↔legacy parity assertions; jdh8's call, still unmade.
 
 ## Phase 4 — the follow-ups (2026-08-17)
 
