@@ -1,8 +1,9 @@
 # The BBA gap campaign — closing pons↔BBA, especially via the floor
 
 The standing plan for the campaign metric: `american()` vs BBA's 2/1 card,
-IMPs/board.  **Standing at `0d8b755` (2026-08-10): −0.627 plain / −0.585 PD for
-what ships, −1.069 / −1.205 for the deterministic side the buckets decompose.**
+IMPs/board.  **Standing at `53a3c254` (2026-08-18): −0.528 plain / −0.533 PD for
+what ships, −0.997 / −1.131 for the deterministic side the buckets decompose.**
+(Was −0.627 / −0.585 and −1.069 / −1.205 at `0d8b755`, 2026-08-10.)
 **As of 2026-07-19 (the floor swap, B4) the anchor's pons side is
 `american_instinct()`** — `american()` now ships the BBA-distilled net floor,
 whose off-book calls do not decompose into book buckets, so the
@@ -627,6 +628,92 @@ the unpaired difference-of-gaps overstated the v5 floor by ≈1.9×, which is th
 `e650a86` warning landing a second time and much harder. Against v4's paired
 +0.200 / +0.317 at `e650a86`, v5 is +0.035 plain and level on PD — but across
 87+ book commits, so read it as "v5 is not worse", not as a v4↔v5 measurement.
+
+**Post-ship re-anchor `53a3c254` (2026-08-18 local / 2026-08-17 UTC, persistent
+seed `1783375064`, snapshot `ab-results/anchor/2026-08-17-53a3c254`).** The
+re-anchor for the closed [authored-reading campaign](authored-reading-handoff.md).
+Read the window before the numbers: it is `ea2cde9..53a3c254`, ~50 commits and
+six days, holding **both** that campaign (Phases 0b/1/2/3/4 and Phase 5's v6
+policy + honest evaluator) **and** the 1NT competitive package (N1c–N1j, N4 v7,
+N4b) and the European lane changes. Nothing below attributes to one of them.
+
+| arm | vul | plain | perfect defense |
+| --- | --- | --- | --- |
+| `american-instinct` (decompose series) | none | −0.9027 | −0.9387 |
+| `american-instinct` | both | −1.0903 | −1.3241 |
+| **`american` (shipping)** | none | **−0.4761** | **−0.4503** |
+| **`american` (shipping)** | both | **−0.5807** | **−0.6157** |
+
+Pooled: instinct **−0.997 / −1.131**, shipping **−0.528 / −0.533**. All four
+arms replay **100.00%** (0 of 2.11–2.14M our-side calls each), so both bucket
+tables are valid. Against `ea2cde9`'s instinct −1.056 / −1.198 and shipping
+−0.604 / −0.579: **instinct +0.059 plain / +0.066 PD, shipping +0.076 / +0.046**
+— every cell of every arm improved, and this is the largest single-window move
+the series has recorded. Auction divergence falls with it: 90%/89% → **85%/84%**
+on the shipping arm, i.e. we and BBA now agree on one more auction in twenty.
+
+The shipping arm gains **more** than the instinct arm on plain DD at both-vul
+(+0.090 vs +0.067), which is where Phase 5's policy flip lives — the instinct
+arm cannot see it, but shares the honest evaluator. Loose attribution as always
+(a difference of absolute gaps across ~50 commits); the paired diff below is the
+tight instrument.
+
+Bucket movement, compared **on `/div`** as this doc requires, since fired counts
+moved too:
+
+| bucket | plain/div | PD/div |
+| --- | --- | --- |
+| Defensive / book / round-1 | −1.50 → **−1.43** | −1.84 → −1.76 |
+| Constructive / book / opening | −1.22 → **−1.16** | −0.90 → −0.83 |
+| Constructive / book / round-2 | −1.07 → **−0.98** | −1.21 → −1.13 |
+| Competitive / book / round-1 | −2.32 → **−2.26** | −2.57 → −2.50 |
+| Constructive / book / round-1 | −1.26 → **−1.09** | −1.52 → −1.36 |
+| Defensive / floor#3 / round-1 | −2.53 → **−2.30** | −1.54 → −1.28 |
+
+`Defensive/book/round-1` holds #1 on both arms, so
+[defensive-overcalls.md](defensive-overcalls.md) keeps the top slot.
+`Competitive/book/round-1` — our 1NT contested, the
+[one-notrump-competitive](one-notrump-competitive.md) lane — stays the worst
+book bucket **per divergent board** at −2.26/−2.50 on 15,334 boards, and moved
+least of the five (+0.06/div). Its queue's price tags (N2c, N2d) predate this
+snapshot and should be re-derived from its `boards.jsonl` before either is
+authored.
+
+**The campaign's honest price, and it is a real finding: 35 of 487 buckets got
+worse on at least one scorer, and every one of them is a `floor#N` bucket.** No
+book bucket regressed. Worst: `Competitive/floor#46/round-2` (PD −0.75/div),
+`Defensive/floor#146/round-1` (positive → negative on both scorers),
+`Defensive/floor#382/balancing` (PD −0.51), `Competitive/floor#3/round-1`
+(−0.29 plain / −0.49 PD, and the only one in the top 20 by net). That is
+reading-drift's second mechanism arriving on schedule — a reading knob is a
+bidding knob, and tightening what the floor reads moves floor rules both ways.
+Two caveats keep this a forensic queue rather than a regression list: bucket
+membership itself moves when auctions change, so some rows are different boards
+rather than worse play; and each is 300–2,200 boards against a +0.06–0.08/board
+aggregate gain.
+
+**The net floor's paired worth at v6** (`ab-dump-diff`, same snapshot, same sha
+— the instrument the `e650a86` note asks for, against v5's +0.235 plain / +0.316
+PD pooled at `ea2cde9`):
+
+| `american` − `american-instinct` | plain DD | perfect defense | fired |
+| --- | --- | --- | --- |
+| vul none | **+0.2219** ±0.0130 | **+0.2519** ±0.0157 | 26.58% |
+| vul both | **+0.2718** ±0.0164 | **+0.3655** ±0.0195 | 24.65% |
+
+Pooled **+0.247 plain / +0.309 PD**, against v5's +0.235 / +0.316 — **level**,
++0.012 plain and −0.007 PD. Read that carefully, because it is the opposite of
+what the four-arm table says and both are right: this instrument measures the
+floor's worth *over instinct*, and Phase 5 lifted the instinct arm too (it
+shares the honest evaluator and the honest reading). The v6 policy's gain is
+therefore in the absolute gaps, not in this delta. A flat paired diff across a
+floor retrain means the retrain did not widen the floor's margin over the
+deterministic system — not that it did nothing.
+
+Whole run **29 minutes**: four arms and both decomposes in 12, the two paired
+diffs the slow tail at 11 and 6 (they re-solve each divergent board on the
+main-thread solver), on a box already saturated by an unrelated job under
+`idle-run.sh`. 423 new DD tables, cache now 177,498.
 
 ### First-anchor runbook (any machine with the BBA submodule)
 
