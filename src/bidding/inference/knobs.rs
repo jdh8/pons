@@ -388,18 +388,41 @@ pub struct ReadingProfile {
     /// under the box budget (multi-box included) instead of single-box only,
     /// and a sibling counts only when it is **face-live and legal** at that
     /// turn — the two latent quirks the Pass-only path carried.  Both fixes
-    /// are corrections; the budget one *tightens* the reading.  The
-    /// `evaluator_v3_exclusion` weights (served automatically under this
-    /// setting, `evaluator.rs`) were fit on the single-box regime, so **a
-    /// re-measure is owed** before this knob is read as previously measured.
+    /// are corrections; the budget one *tightens* the reading.
     ///
-    /// It stays off because the feature retrain (`evaluator_v3_exclusion`)
-    /// recovered the net-OOD half of the
-    /// pre-retrain loss but the re-measure A/B was a **wash in all four
-    /// cells** — no PD win, no ship (details:
-    /// `docs/ai-bidder/sampled-projection.md` § "The exclusion retrain").  Its
-    /// payoff is wherever readings are consumed directly: sd-lead pricing,
-    /// search-mode sampling, disclosure.
+    /// It stayed off after the 2026-07-30 feature retrain
+    /// (`evaluator_v3_exclusion`) recovered the net-OOD half of the pre-retrain
+    /// loss but left the A/B a **wash in all four cells** — no PD win, no ship
+    /// (`docs/ai-bidder/sampled-projection.md` § "The exclusion retrain").
+    ///
+    /// **Re-measured 2026-08-17 under the shared fold and it is now a clear
+    /// LOSS, not a wash** — `scripts/ab-reading-drift.sh` with
+    /// `FIX_ARGS=--ns-pass-exclusion` at `37f5f3fa`, 204,800 bd/arm/vul against
+    /// BBA, three seeds: **3.8% of boards fired**, plain −0.0070/−0.0086 and PD
+    /// −0.0204/−0.0201 IMPs/board (none/both) on seed 1, confirmed at
+    /// −0.0191/−0.0204 and −0.0223/−0.0210 PD on seeds 2 and 3.  PD is clear of
+    /// zero in all six cells; plain straddles in two of seed 2's.
+    ///
+    /// **The evaluator twin is not the cause** (probed 2026-08-17, three arms on
+    /// one `SEED_BASE`, `docs/authored-reading-handoff.md` § *Phase 4 — the
+    /// pass_exclusion probes*).  Serving the *default* `WEIGHTS_V3_UNION_READING`
+    /// under the knob leaves the loss intact (PD −0.0179/−0.0220, damage per
+    /// fired board *rising* to −0.837), so the natural reading of the first
+    /// re-measure — stale weights fed out-of-distribution readings — is refuted,
+    /// and refitting `evaluator_v3_exclusion` would not have recovered it.  The
+    /// tightening is what costs, and it is the tightening of *their* seats.
+    /// Backing the Pass side off the budget fold to single-box complements
+    /// recovers about two thirds on its own (PD −0.0047/−0.0069, still a loss);
+    /// adding a their-seat gate on top — an opponent's pass reads its band
+    /// without the exclusion fold — takes it to **PD −0.0023/−0.0019, a wash at
+    /// both vulnerabilities** (plain −0.0035/−0.0055; one seed, two more owed).
+    /// The mechanism is arithmetic: capping the two hands we cannot see pushes
+    /// the unseen honours into partner, and the slam machinery blasts.
+    ///
+    /// So the repair is known and no retrain is queued behind it; what the knob
+    /// still owes is the confirming seeds and the two-line change itself.  Its
+    /// payoff is unchanged: wherever readings are consumed directly — sd-lead
+    /// pricing, search-mode sampling, disclosure.
     pub pass_exclusion: bool,
 
     /// A **bid** also excludes the sibling gates its bidder declined

@@ -9,6 +9,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A `⊤`-projecting call keeps the walk's shape under the exclusion fold**
+  (`CallMasks::walk_shape`; Phase 4 follow-up 1 of
+  `docs/authored-reading-handoff.md`). A reading has two halves and the fold
+  only knows one. When a made call's positive rule is a `hcp(0..)` catch-all
+  its projection is ⊤ — it promises *nothing* — and the natural walk supplied
+  the reading; `bid_exclusion` then made `⊤ ∩ ¬(heavier siblings)` informative,
+  `substitutes_natural` fired, and the walk was suppressed. What the fold knows
+  is **strength**, so the call's lengths went out with the walk: `1♥ (2♥) - 2♠`
+  read the Michaels advance `♠ 0..13` instead of `♠ 3..13`, `answer_trump`'s
+  provable-eight rung failed, and the keycard ladder keyed a suit the asker
+  held 0–1 of (the two RKCB decodes Phase 4's own census filed at −31/−33).
+
+  `substitutes_natural` is now keyed off the **positive** union rather than the
+  folded one, and such calls get a mask bit of their own instead: the walk
+  reads their shape exactly as it did knob-off, and the strength it guesses
+  along the way is rolled back at the top of the next iteration. The fold's
+  band — the half it alone knows — stays in the overlay. So `1♥ - 2NT - 4♥`
+  still discards the walk's `points 16..21` guess (Phase 4's whole payoff,
+  pinned by `bid_exclusion_admits_the_jacoby_sign_off`) while `1♥ (2♥) - 2♠`
+  gets its `♠ 3+` back. With `bid_exclusion` off the bit is structurally
+  unreachable, so that path is byte-identical by construction.
+
+  **A/B (`scripts/ab-walk-shape.sh`, two-binary vs `37f5f3fa`, three seeds
+  1786975666 / 1786976493 / 1786977186, 204,800 bd/arm/vul against BBA, plain
+  DD + PD): a wash on both scorers at both vulnerabilities — 7 diverging
+  boards in 1,228,800 (0.0006%), +10 IMPs plain / +10 PD, three of the six
+  cells never firing at all.** `smoke-default --count 20000 --seed 1` is byte-identical
+  (`9c56a4b2…`) and `cards/*.bbsa` unchanged, so self-play never reaches it.
+  Every board that moved is a keycard decision; the seed-1 loss is the fix
+  being right (it keys the real 5-4 spade fit, counts a keycard and the trump
+  queen missing, and signs off in `5♠` while the unfixed arm blundered into a
+  `6♠` that makes on a void).
+
+  Cost, stated: `probe-reading-sound -s 20260816 -c 40000` partner exclusions
+  **1.180% → 1.238%**. The walk's `♠ 3+` is genuinely wrong at
+  `1♥ (2♥) - 2♠` (17/27) — that advance is a *preference* to partner's shown
+  five-card suit and is routinely made on a doubleton. Authoring that call's
+  real reading is filed as the repair that retires the walk floor there.
+
 - **A crossed strength gauge now empties its box instead of widening it**
   (`Strength::intersect_nonempty`, `inference/envelope.rs`). Box-emptiness
   was gated on the `points` gauge alone — a deliberate inertness choice from
@@ -88,16 +127,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`♠ 3+`, `♥ 3+`) the fold's projection now replaces without one, so
   `answer_trump`'s provable-eight rung fails and the face rung keys a suit the
   asker holds 0–1 of (a passed `5♦` answer on a singleton, a `6♣` sign-off
-  on a void). Both filed as follow-ups (walk length floors under the fold —
-  the plan's Q4 reversal — and a floor guard on the face rung); neither
-  moves the verdict.
+  on a void). Neither moves the verdict. Both were filed as follow-ups and
+  both are now answered: the walk-length-floor repair is above, and it
+  retires both boards; the floor guard on the face rung is **refuted** —
+  `answer_trump`'s `corroborated` bar extended to that rung measured
+  −56/−105 IMPs (a 4NT ask's 1430 steps *are* `5♣`–`5♠`, so an agreed
+  major's own answer names its own trump and the guard vetoes true
+  agreements), and the literal "asker holds fewer than two" bar makes the
+  asker **pass** a doubled artificial answer, which is the catastrophe the
+  rung exists to prevent. Details in `docs/authored-reading-handoff.md`
+  § *Phase 4 — the follow-ups*.
 
   The Pass-side twin (`pass_exclusion`) now shares the same fold, which
   **changes its semantics**: multi-box complements are folded under a box
   budget instead of being skipped, and face-dead or illegal siblings are no
-  longer excluded (two latent quirks, both corrections). Its
-  `evaluator_v3_exclusion` weights were fit on the single-box regime, so a
-  re-measure is owed before that knob is read as previously measured.
+  longer excluded (two latent quirks, both corrections). That re-measure has
+  since been run and **the knob's old "wash" verdict is superseded by a clear
+  loss** — 3.8% of boards fired, plain −0.0070/−0.0086 and PD −0.0204/−0.0201
+  IMPs/board at the two vulnerabilities, confirmed on two further seeds. Three
+  follow-up arms on one `SEED_BASE` then **refuted the evaluator explanation**:
+  serving the default `WEIGHTS_V3_UNION_READING` under the knob leaves the loss
+  intact (PD −0.0179/−0.0220), so refitting `evaluator_v3_exclusion` would not
+  have recovered it and no retrain is queued behind this knob. The tightening
+  is what costs, and specifically the tightening of *their* seats: single-box
+  complements on the Pass side recover about two thirds on their own (PD
+  −0.0047/−0.0069), and adding a their-seat gate takes it to **PD
+  −0.0023/−0.0019, a wash at both vulnerabilities** (one seed, two owed). The
+  four hands share 40 HCP but each seat is read as an independent box, so
+  capping the two we cannot see just moves the implied mass into partner and
+  the slam machinery spends it. The knob was and stays default-off; only its
+  doc changed here — the repair itself is not yet in the tree.
 
 - **`probe-reading-sound` ranks its partner worklist by rate as well as
   count.** A second table sorts the same nodes by excluded-reading *rate*
