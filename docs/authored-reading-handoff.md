@@ -592,12 +592,15 @@ soundness correction; a loss traces its worst boards before any conclusion.
 | # | Phase | Mechanism | Knob / protocol | Gate | Status |
 | --- | --- | --- | --- | --- | --- |
 | 0b | **`opener_forced_past_invitation` learns the sign-off** | instinct.rs forces to game off *any* partner three-level suit bid over our strong 1NT, Lebensohl sign-offs included; the rail then bypasses the net and pre-satisfies the milestone `Or` | `instinct.forcing_ceiling_read`, default off; `bba-gen --ns-forcing-ceiling-read`, `PROBE_FORCING_CEILING=1`, web knob | standard; **a wash ships it** (pre-agreed with jdh8 before the numbers) | **SHIPPED default-on 2026-08-16.** Probe: `P 9.001` over `3NT 7.792`. Reach censused at **one lane** — the four "workaround" nodes do not qualify, `pass_out` re-files to Phase 2. A/B 3 seeds × 204,800 bd/arm/vul, **12/12 cells positive** (+0.0001 plain / +0.0003 PD both vuls), firing 0.01%. Smoke `cf583ff5…` → `f33d8caf…`; cards byte-identical |
-| 0 | **N2a** — opener passes the relay's minor sign-off | book node (`{relay} 3♦ -` → `Pass`, a `landy_signoff_answer` twin) shadows the floor; independent of every reading phase | knobless; measure on `--filter-1nt` | standard | queued — cheapest, fixes 16/18 regardless |
+| 0 | **N2a** — opener passes the relay's minor sign-off | book node (`{relay} 3♦ -` → `Pass`, a `landy_signoff_answer` twin) shadows the floor; independent of every reading phase | knobless; measure on `--filter-1nt` | standard | **RETIRED 2026-08-18.** Phase 0b removed the `3NT` this node would insure against; adding finite book mass here would now only shadow the floor |
 | 1 | **Strength ceilings** | `Points::project` / `Hcp::project` / `SupportPoints::project` → band | `reading.strength_ceilings` **+ `DecisionProfile::legacy_view`, both default-on since 2026-08-16**; pre-ship arm is `bba-gen --ns-strength-ceilings false --ns-legacy-view false` | admits sweep + `probe-reading-sound` unchanged-or-better; A/B | **SHIPPED 2026-08-16.** Soundness gate green (E0 book-wide + 4-cell behavioural grid + probe partner 2.114→2.105%); A/B 3 seeds raw + 1 legacy — raw leans plain-DD-negative, **legacy arm 3 boards/204,800, 4/4 cells positive, ~1% cost**. Shipped on the legacy arm. Cards byte-identical; smoke re-based `18aba5ce…` → `cf583ff5…`. C2's re-open trigger ("a two-sided forward projection") is met by it — **and C2 shipped on it the same day**, 12/12 cells positive once `legacy_view` shields the nets from it too (ledger below) |
 | 2 | **`ReadingScope::All`** as default | built; drop the alert gate | `--ns-reading-scope all` (default); `alerted` is the off arm | clear the empty-box worklist before measuring (`probe-reading-sound --ns-reading-scope all`, bucketed); whole-book non-loss under plain DD and PD at both vulnerabilities | **SHIPPED default-on 2026-08-16.** First run held (PD loss, all six cells); its forensic found the whole loss in the four `1x (1NT)` lanes — the side-blind systems-on strip — and with that fixed (nets held by `legacy_view`) 3 seeds × 204,800 bd/arm/vul read **12/12 cells positive**, plain +0.0078…+0.0125 / PD +0.0073…+0.0111. Smoke `edb618b8…` → `bdd1a80e…`; cards byte-identical. **The two `pass_out` nodes STAY — probed 2026-08-17 and the question is settled asymmetrically.** With both sites removed, `1NT - 2NT - 3♣ - 3♦ -` falls to the root fallback and the floor offers *only* `P` (every hand, both vuls), so that node's `pass_out` is redundant; but `1NT - 2♠ - 2NT - 3♣ -` falls to the floor's **support-raise** rule and bids **`4♣` at 1.200 over `P` at 0.000** on all six probe hands at both vulnerabilities — it raises partner's weak club sign-off to the four level off "3+ support, 13+ points", with nothing gating on partner being capped at `points 0..9`. The pre-registered rule was "any hand still blasts → leave both", so both stay. Splitting node 1 out is a follow-up owing its own arm; the real repair is the floor-side settle rail (same family as Phase 0b's `opener_forced_past_invitation`) |
 | 3 | **Substitute, don't intersect** | authored calls set suppression; walk bookkeeping from the projection; retire `nt_blanket` & co. for authored calls | two-binary (a refactor, not a knob) | byte-identity where projection ⊇ walk is *not* expected — this moves readings by design; A/B | **SHIPPED 2026-08-17.** Partner exclusions 1.877%→1.308%; N2 4/4 cells non-negative; two 204,800-board whole-book seeds are wash/wash at both vuls (pooled NV +0.00023/+0.00052 plain/PD, vul −0.00072/−0.00064). Smoke `bdd1a80e…`→`d532f04b…`.  **Polish A′ 2026-08-17: LOST 12/12 cells** vs `a376c324` (three seeds, both scorers, both vuls) — the bundle was face-suit record + `substitute_authored` net shield + fit-write-back drop + mask refactor. Shield and write-back drop **reverted**. **Polish A′′ 2026-08-17: WASH, shipped on KR2** — face-suit record + `CallMasks` refactor alone vs `a376c324`, 3 seeds × 204,800 bd/arm/vul, 9/12 cells positive, pooled +112 IMPs plain (+0.00009/bd) / +101 PD (+0.00008/bd) on 58 diverging boards, every cell's CI straddling zero (`ab-results/bd-only-s{1,2,3}`, smoke `d532f04b…`→`cb090e54…`, cards byte-identical). The fix over-registers in the opposite direction — its worst board is traced to the walk's rebid arm firing on a floor control bid in competition — so a refinement is queued as its own arm. Paired soundness re-baseline at `ba8f7305`: partner 1.308%→**1.315%** (+12 exclusions), LHO/RHO flat — a record that says more excludes more. See *Why the wash* |
 | 4 | **Negative inference** | a made bid excludes the strictly-heavier sibling gates its bidder declined | `reading.bid_exclusion`, **default on since 2026-08-17**; `--ns-bid-exclusion[=false]`, `PROBE_BID_EXCLUSION=0`, `set_bid_exclusion` | admits sweep (must stay green — it tightens) + `probe-reading-sound` partner not rising; A/B | **SHIPPED 2026-08-17.** Soundness green in every gate (probe partner **1.302%→1.180%**, the worklist's whole head cleared, book-wide `bids_read_within_their_table`); A/B 3 seeds × 204,800 bd/arm/vul vs BBA a **wash on both scorers at both vuls** (93 diverging boards in 1.23M, +36/+51 pooled, every CI straddling zero) — the pre-registered non-loss; smoke `7aa33d58…`→`9c56a4b2…` (3/20,000), cards byte-identical. Two follow-ups filed and both now answered (walk length floors under the fold — built, wash, `CallMasks::walk_shape`; the RKCB face-rung guard — **refuted both ways**) — see *Phase 4 — the follow-ups* below |
 | 5 | **features_v6 + retrain** | honest reading in; `legacy_view`, `strip_side_blind`, and the shipped `net_points` fold out | F2b recipe (dump, held-out gate, twin, flip) | held-out NLL/MAE ≥ shipped; A/B of the flip | **SHIPPED 2026-08-18.** Policy v6 CE **0.30098** vs v5 **0.30487**; evaluator v5 held-out NLL **−1.55642** / MAE **1.38468** vs shipped **−1.54872** / **1.39248**. Fresh 204,800-board gates: American plain **+0.0297/+0.0374**, PD **+0.0164/+0.0171** IMP/bd (none/both); Dutch plain **+0.0551/+0.0429**, PD **+0.0122/−0.0080**, with both Dutch PD CIs crossing zero. Defaults flipped to the matched v6 policy + honest evaluator; both compatibility views deleted. |
+
+**Campaign closed 2026-08-18:** every program phase shipped; row 0 retired as
+obsolete rather than becoming a new floor-shadowing book node.
 
 Why this order: 1 before 2 because at N2 the missing ceiling, not the missing
 length, is what the floor spends; 2 before 3 because 3 is the cleanup that 2
@@ -1409,38 +1412,12 @@ declined siblings — opener with slam values asks. A genuine repair.
 Neither moves the verdict (without them the fold is +70/+87, still a wash);
 both are filed below.
 
-### Owed
+### Follow-ups outside this campaign
 
-- **Walk length floors under the fold** — *built and measured 2026-08-17,
-  see [Follow-up 1](#follow-up-1--the-walk-owns-shape-the-fold-owns-strength)
-  below.*
-- **Floor guard on the RKCB face rung** — *built both ways and REFUTED
-  2026-08-17, no code shipped; see
-  [Follow-up 2](#follow-up-2--the-rkcb-face-rung-refuted-both-variants-no-code-shipped)
-  below.*
-- The Meckstroth `4M` ask on a fold-derived `support_points` floor opposite
-  a limited sign-off (`combined_points(29)` at 19 + 10): calibration, left as
-  is — the family nets positive.
-
-- The `pass_exclusion` **re-measure** — *done 2026-08-17, see
-  [Follow-up 3](#follow-up-3--pass_exclusion-re-measured-a-loss-under-the-shared-fold)
-  below. The knob stays off. The retrain precondition was withdrawn by arm 1,
-  and the their-seat repair that replaced it was itself refuted on two fresh
-  seeds — see [Arm 3c refuted](#arm-3c-refuted--the-confirming-seeds-2026-08-18).*
-- **Michaels advance reading — done 2026-08-18.** The `2♠`/`3♥` preference
-  now carries the exact complement of the heavier game raise, so it promises
-  no length in partner's shown five-card suit. The targeted nodes leave the
-  worklist and partner exclusions improve **1.238%→1.212%**, but the earlier
-  prediction that this would return the whole Follow-up-1 cost to 1.180% was
-  false; other families account for the residual. Three-seed A/B: one
-  divergence in 1,228,800, +11 plain / +11 PD.
-- The **shadow-table fold** (Q5): a table that declines the whole primary
-  table proves that table's rules false too — filed as its own arm.
-- **Their-seat gating** (Q9): LHO/RHO exclusions rise ~0.6pp. Informational
-  until the A/B says otherwise.
-- The pre-existing forward unsoundness of trap 7 (an all-−∞ table's call
-  attributed to that table) is recorded, not fixed here; the *fold* stays
-  sound there.
+- **Shadow-table fold (Q5):** a declined primary table also proves its rules false; owned by this handoff's [Phase 4 argument](#the-argument) and owes its own A/B.
+- **Their-seat gating (Q9):** the foreign-system exclusion rise remains informational; owned by the [Phase 4 soundness record](#the-soundness-gates--all-green), with the failed pass-specific gate recorded under [Arm 3c](#arm-3c-refuted--the-confirming-seeds-2026-08-18).
+- **Floor-side settle rail:** required before a learned constructive floor can safely replace `instinct()`; owned by [the Dutch WJ-floor campaign](dutch-system.md#the-wj-floor-campaign--bbas-polish-club-as-dutchs-teacher).
+- **Ogust `3♣` answer reader:** the remaining phantom-club reading package; owned by the [CHANGELOG Phase 4 record](../CHANGELOG.md#changed) and owes its own A/B.
 
 ## Phase 4 — the follow-ups (2026-08-17)
 
@@ -1689,7 +1666,6 @@ over-cap.
 That closes the concept, not just the arm. Gating our own seats too would make
 `pass_exclusion` a no-op, so the honest end-state was to **delete the knob**
 together with `evaluator_v3_exclusion`. They were removed on 2026-08-18. The
-arm-3c patch is preserved outside the tree (`pass-exclusion-arm3c.patch`,
-session scratchpad) should a joint-constraint reading ever make the exclusion
-true rather than merely tighter; the arithmetic objection above is what such a
-reading would have to fix.
+two-edit arm-3c patch was not preserved: it depended on the deleted knob and is
+already obsolete. The arithmetic objection above is the durable result a future
+joint-constraint reading would have to fix.

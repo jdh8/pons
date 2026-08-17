@@ -119,7 +119,7 @@ pub struct Context<'a> {
     /// The system we model the opponents as playing — our own unless the
     /// partnership was built against a declared opponent
     their_system: Option<&'a Partnership>,
-    /// Both sides' convention cards, as the `features_v5` net block reads them
+    /// Both sides' compact convention cards, as the `features_v6` net reads them
     config: Option<&'a Config>,
     /// The compact card encoding, the smaller sibling of `config`
     compact: Option<&'a CompactConfig>,
@@ -737,10 +737,10 @@ impl<'a> Context<'a> {
     }
 
     /// Attach both partnerships' compact agreements, for
-    /// [`features_v5`][super::features::features_v5]
+    /// [`features_v6`][super::features::features_v6]
     ///
-    /// The v5 sibling of [`Self::with_config`]: the same seam with a narrower
-    /// payload — the axes pons owns instead of the whole `.bbsa` card.
+    /// The compact sibling of [`Self::with_config`]: the same seam with the
+    /// axes pons owns instead of the whole `.bbsa` card.
     /// Carried by reference and encoded once per configuration cell, so the
     /// per-decision path neither allocates nor reads ambient knob state.
     #[must_use]

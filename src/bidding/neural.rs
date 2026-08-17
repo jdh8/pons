@@ -3,7 +3,7 @@
 //! An `f32` matmul + ReLU evaluation of the MLP that `trainer/` fits off-crate.
 //! There is no ML runtime: the weights are embedded with [`include_bytes!`] and
 //! the arithmetic is three `nalgebra` gemvs. The configured BBA-distilled net
-//! ([`classify_bba_v4`][crate::bidding::neural::classify_bba_v4]) backs the
+//! ([`classify_bba_v6`][crate::bidding::neural::classify_bba_v6]) backs the
 //! default [`american`][crate::american()]
 //! floor, and runs on the contested off-book decisions — the hand-rolled scalar
 //! loops this replaced were ~60% of the crate's bidding time on their own.
@@ -14,7 +14,7 @@
 //! that the arg-max (the chosen call) matches exactly.
 
 use super::array::Logits;
-use super::features::{FEATURES_LEN_V4, FEATURES_LEN_V5, FEATURES_LEN_V6};
+use super::features::{FEATURES_LEN_V4, FEATURES_LEN_V6};
 use nalgebra::{SMatrixView, SVector, SVectorView};
 use std::sync::LazyLock;
 
@@ -134,45 +134,6 @@ static WEIGHTS_BBA_V4: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_BBA_V4))
 pub fn classify_bba_v4(features: &[f32]) -> Logits {
     assert_eq!(features.len(), IN_V4, "expected {IN_V4} features");
     forward::<IN_V4>(&WEIGHTS_BBA_V4, features)
-}
-
-// ── The compact-config floor: v5 features ────────────────────────────────────
-// `docs/ai-bidder/card-manifold.md` §"The retrain".  The 280-float card blocks
-// gave way to two 28-slot `ConventionCard` vectors: every input is an axis the
-// corpus can vary, so the frozen-coordinate disease that motivated the fold is
-// structurally impossible here.  Disclosure (`.bbsa`) is untouched — only the
-// net's input stops being the card.
-
-/// Input width of `american_bba_v5`, pinned to the artifact (= [`FEATURES_LEN_V5`]).
-const IN_V5: usize = FEATURES_LEN_V5;
-
-/// Embedded compact-config weights: v5 layout (88 disclosable inputs + both
-/// sides' [`ConventionCard`][super::features::ConventionCard]), EPBot 2/1 teacher,
-/// corpus = the six `{American, Dutch} × {kickback}` cells plus an enriched
-/// slam slice and eight single-axis flip shards (22.pdd rows 3.25M–4.16M).
-static RAW_BBA_V5: &[u8] = include_bytes!("weights/american_bba_v5.f32");
-const _: () = assert!(
-    RAW_BBA_V5.len() == total(IN_V5) * 4,
-    "compact-config BBA weights artifact size mismatch"
-);
-
-/// [`RAW_BBA_V5`] decoded to `f32` once, on first use.
-static WEIGHTS_BBA_V5: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_BBA_V5));
-
-/// Evaluate the **compact-config** BBA-distilled floor: 144 features → 38 logits.
-///
-/// The v5 sibling of [`classify_bba_v4`], and the shipped floor's net since
-/// the 2026-08-08 gate A/B.  Deterministic — fixed weights, no RNG.  Legality
-/// masking and the forced rails belong to the shell
-/// ([`ConfiguredFloorV5`][super::neural_floor::ConfiguredFloorV5]).
-///
-/// # Panics
-///
-/// Panics if `features.len()` is not the pinned v5 [`FEATURES_LEN_V5`] (144).
-#[must_use]
-pub fn classify_bba_v5(features: &[f32]) -> Logits {
-    assert_eq!(features.len(), IN_V5, "expected {IN_V5} features");
-    forward::<IN_V5>(&WEIGHTS_BBA_V5, features)
 }
 
 // ── The honest-reading compact floor: v6 features ────────────────────────────

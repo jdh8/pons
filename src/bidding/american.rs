@@ -61,9 +61,7 @@
 //! the weights order them so the more descriptive bid wins.
 
 use super::agreements::Agreements;
-use super::common::{
-    call, other_major, with_floor, with_floor_v5, with_floor_v6, with_instinct_floor,
-};
+use super::common::{call, other_major, with_floor, with_floor_v6, with_instinct_floor};
 use super::{Competitive, Constructive, Defensive, System};
 
 /// The family tag of [`ReadingProfile::completion_alerts`][crate::bidding::ReadingProfile::completion_alerts]:
@@ -207,22 +205,6 @@ pub fn american_with_card(
             &super::features::ConventionCard::capture(agreements, false),
             theirs,
         ),
-        agreements,
-    )
-}
-
-/// [`american`] on the historical v5 floor.
-///
-/// Kept so harnesses and scripts written against `--our-floor american-v5`
-/// can retain the old policy artifact after the Phase-5 v6 swap. Its retired
-/// frozen reading view is intentionally unavailable.
-#[must_use]
-pub fn american_v5(agreements: &Agreements) -> System {
-    with_floor_v5(
-        book(agreements),
-        super::features::CompactConfig::symmetric(&super::features::ConventionCard::capture(
-            agreements, false,
-        )),
         agreements,
     )
 }

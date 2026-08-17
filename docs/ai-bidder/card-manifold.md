@@ -3,6 +3,8 @@
 > Historical v4/v5 record. Phase 5's honest-reading v6 policy superseded v5 as
 > the American and Dutch default on 2026-08-18; see
 > [`authored-reading-handoff.md`](../authored-reading-handoff.md#phase-5--honest-reading-retrain-shipped-2026-08-18).
+> The 2026-08-18 closeout removed the v5 serving path, artifacts, and harnesses;
+> all v5 names and commands below are historical.
 
 **Status: the fold is SHIPPED, all three experiments ran, and the v5 retrain
 is TRAINED and WIRED (2026-08-08). E1 ✓ E2 ✓ (cell A → 0 fired); E3 = plain
@@ -237,7 +239,7 @@ read the verdict off `measurement.md`'s decision table. E2 reuses
 > `Agreements::from_card` projects a foreign card onto the axes — lossy by
 > design, and E2 above is the measurement of why the dropped rows cost
 > nothing. The `.bbsa` disclosure channel is untouched. Corpus:
-> `scripts/dump-v5.sh` (v4-shaped bulk + 8 axis shards over the probe's top-8,
+> the now-retired `scripts/dump-v5.sh` (v4-shaped bulk + 8 axis shards over the probe's top-8,
 > 2-cell `--replay` mixed tables), window registered in the bank ledger.
 > The sections below stand as the axis-selection method and the gate stack;
 > read "thaw axis" as "vary the corresponding compact dim".
@@ -395,7 +397,7 @@ Ran 2026-08-08, all on the `scripts/dump-v5.sh` corpus (6,768,279 rows,
   `american_v5()` / `dutch_v5()` (both cells in distribution), harness names
   `--our-floor american-v5|dutch-v5`. `matches_candle_fixture_bba_v5` passes
   on the folded blob. v4 stays the default floor.
-- **The shipping gate — ran 2026-08-08** (`scripts/ab-v5-floor.sh`,
+- **The shipping gate — ran 2026-08-08** (the now-retired `scripts/ab-v5-floor.sh`,
   204,800 bd/arm/vul both vuls, seed 1786137947, v5-at-defaults vs shipped
   v4, both vs BBA, dual scoring):
 

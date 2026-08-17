@@ -96,6 +96,8 @@ pub struct ReadingProfile {
     ///
     /// **Default [`ReadingScope::All`]**; see the enum for the three
     /// stances and what each one leaves unread.
+    /// Any off arm is now off-distribution for the v6 nets, so measuring it
+    /// prices a net perturbation, not only the reading.
     pub scope: ReadingScope,
 
     /// Decode calls authored by *guarded fallbacks*, not just exact-node
@@ -238,6 +240,8 @@ pub struct ReadingProfile {
     /// `points.max ← hcp.max + ceiling` leg a ceiling to work on; before that
     /// it was inert on 3,000 boards.  Requires
     /// [`envelope_union`][field@Self::envelope_union].
+    /// The off arm is now off-distribution for the v6 nets, so measuring it
+    /// prices a net perturbation, not only the reading.
     pub upgrade_closure: bool,
 
     /// Read a made call's strength **ceilings**, not just its floors
@@ -261,8 +265,9 @@ pub struct ReadingProfile {
     /// Reading, not disclosure: `.alert(...)` and the `.bbsa` cards are
     /// untouched — an authored call already speaks for itself, and this only
     /// stops us discarding half of what it said.  Under the shipped
-    /// [`scope`][field@Self::scope] the ceilings reach **alerted** calls only;
-    /// widening that is Phase 2 of the same handoff.
+    /// [`scope`][field@Self::scope] the ceilings reach every informative
+    /// authored call. The off arm is now off-distribution for the v6 nets, so
+    /// measuring it prices a net perturbation, not only the reading.
     pub strength_ceilings: bool,
 
     /// Read a high (four-plus level) new suit as a control bid, not to-play
@@ -397,6 +402,8 @@ pub struct ReadingProfile {
     ///
     /// The pre-v6 compatibility view folded this off; the v6 nets are trained
     /// with the shipped default on.
+    /// The off arm is now off-distribution for those nets, so measuring it
+    /// prices a net perturbation, not only the reading.
     pub bid_exclusion: bool,
 
     /// Fold the partnership's behaviorally probed boxes into the projection overlay

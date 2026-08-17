@@ -638,13 +638,10 @@ pub fn seat_floor(name: &str, agreements: &Agreements) -> anyhow::Result<Partner
         // The book ablation: no authored book at all, the same floor wiring
         // `american` uses.  `american` − `american-floor` prices the book.
         "american-floor" => pons::american_floor(agreements).bind(),
-        // Historical compact-config v5 floors, retained for measured A/Bs.
-        "american-v5" => pons::bidding::american::american_v5(agreements).bind(),
-        "dutch-v5" => pons::bidding::dutch::dutch_v5(agreements).bind(),
         "american-v6" => pons::bidding::american::american_v6(agreements).bind(),
         "dutch-v6" => pons::bidding::dutch::dutch_v6(agreements).bind(),
         other => anyhow::bail!(
-            "floor must be american|american-book|american-instinct|american-floor|american-v5|american-v6|dutch|dutch-instinct|dutch-v5|dutch-v6, got {other:?}"
+            "floor must be american|american-book|american-instinct|american-floor|american-v6|dutch|dutch-instinct|dutch-v6, got {other:?}"
         ),
     })
 }

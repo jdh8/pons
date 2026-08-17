@@ -462,7 +462,7 @@ Decomposing the residue found **the floor's inputs are lies in this lane**:
 the book only; opponent-call decoding falls back to our own profile
 ([read.rs:333-335](../src/bidding/inference/read.rs)), whose shipped defaults
 read their `2♣` through the natural walk as **5+♣, 8+** — so on every board
-of this lane the learned floor's LHO envelope (its `features_v5` inference
+of this lane the learned floor's LHO envelope (its then-live `features_v5` inference
 block) claimed five clubs while LHO held both majors.  The residue boards are
 exactly the floor's boards; the phantom `4♠` was bid off a false deal
 picture, before any question of the net's weights.

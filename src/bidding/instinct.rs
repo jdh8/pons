@@ -467,10 +467,12 @@ pub struct InstinctProfile {
     ///
     /// This is the first consumer of a strength *ceiling* in
     /// this file, so it only bites where partner's envelope carries one — under
-    /// the shipped [`ReadingScope::Alerted`][super::inference::ReadingScope]
-    /// that means an alerted call with a two-sided band, and it rides
+    /// the shipped [`ReadingScope::All`][super::inference::ReadingScope]
+    /// that means an informative authored call with a two-sided band, and it rides
     /// [`strength_ceilings`][field@super::inference::ReadingProfile::strength_ceilings]
     /// the way [`nt_hcp_read`][field@Self::nt_hcp_read] rides `hcp_floor()`.
+    /// The off arm is now off-distribution for the v6 nets, so measuring it
+    /// prices a net perturbation, not only this rail.
     pub forcing_ceiling_read: bool,
     /// A live 2/1 floors partner's shown strength for the slam-entry gate
     ///

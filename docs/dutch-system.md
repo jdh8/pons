@@ -80,7 +80,7 @@ responder side `7122756`.
 **Inherited, now default-on: the competitive accountant** *(2026-08-12)*. The
 floor-side gate that prices the contested game-level node
 ([ai-bidder/competitive-accountant.md](ai-bidder/competitive-accountant.md)) sits
-in `ConfiguredFloorV5` *and* the v4 twin `dutch()` stands on, so shipping
+in `ConfiguredFloorV6` and its explicit v4 twin `ConfiguredFloorBba`, so shipping
 `InstinctProfile::competitive_accountant` moved Dutch's contested five-level
 decisions too — **every Dutch number measured before 2026-08-12 predates it**,
 and a Dutch A/B that straddles the flip is comparing two floors. It shipped on

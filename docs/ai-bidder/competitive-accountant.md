@@ -256,7 +256,7 @@ this node's reading, the finite-criterion problem returns here first.
 | --- | --- |
 | order | both offline gates **before** any gate code |
 | v1 action set | all three (veto bid C, mask X, demote Pass) in one arm |
-| floors | **both** `ConfiguredFloorV5` and the v4 twin |
+| floors | **both** the then-shipped `ConfiguredFloorV5` and the v4 twin |
 | units | raw score points, `COMPETITIVE_MARGIN = 300` const |
 | q population | resolved past both candidates — q is conditioned on the **trigger itself** (sibling doc), and comes out flat at **≈0.52** |
 | gate-1 failure branch | **σ-inflate and keep all three actions** — *not* the collapse to veto-only this doc originally named |
@@ -279,7 +279,7 @@ place the two differ.
 | `expected_score(Gaussian, Bid, vul_declarer, double_rate)` | same section — `Σ P(T = k)·score(k)` over half-trick buckets, both tails folded into 0 and 13 |
 | `their_declarer` | `our_declarer`'s mirror, same section |
 | `competitive_gate(&mut Logits, Hand, &Context)` | same section, `pub(crate)` |
-| the call site | `neural_floor.rs`, one line after `mask_illegal` in **both** `ConfiguredFloorBba` (v4) and `ConfiguredFloorV5` |
+| the call site | `neural_floor.rs`, one line after `mask_illegal` in **both** `ConfiguredFloorBba` (v4) and `ConfiguredFloorV6` |
 | knob | `InstinctProfile::competitive_accountant`, default **on** since `ea2cde9` (built default off), plus `Default`/`nondefault()` |
 | harness | `bba-gen --no-ns-competitive-accountant`, `scripts/ab-competitive-accountant.sh` |
 | attribution | `instinct::competitive_counts() -> [u64; 3]` (vetoes, double masks, pass demotions) |

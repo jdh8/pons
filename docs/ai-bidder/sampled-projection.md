@@ -22,7 +22,8 @@
 > Update (2026-07-30): **both census work items landed, defensive-first, both
 > default-off pending A/B.** The census's "missing machinery" mechanism story
 > was a misdiagnosis — see the correction in the census section — and the two
-> fixes that actually move the blind head are `set_pass_exclusion_reading`
+> fixes that actually moved the blind head were `set_pass_exclusion_reading`
+> (later refuted and deleted; see [Arm 3c refuted](../authored-reading-handoff.md#arm-3c-refuted--the-confirming-seeds-2026-08-18))
 > (symbolic: a pass excludes the strictly-heavier sibling gates it declined)
 > and **Stage B itself as `Partnership::probe`** (behavioral: self-play boxes keyed
 > by *traffic*, not authorship — which is what reaches the floor's passes, the
@@ -513,7 +514,8 @@ blindness decomposes instead as:
 - **≈7,000 readings, vacuous authored gates** — projection *runs* and
   honestly reports the `hcp(0..)` catch-all Pass gate (weak-two and 1NT
   defenses, `over_their_overcall`). Fixed symbolically by
-  `set_pass_exclusion_reading` (below).
+  the since-deleted `set_pass_exclusion_reading` (see
+  [Arm 3c refuted](../authored-reading-handoff.md#arm-3c-refuted--the-confirming-seeds-2026-08-18)).
 - **≈4,700 readings, the neural floor's passes** — `2NT -`, `2♣ -`,
   fourth-seat `1x - 1y -`: chosen by the net, nothing to expose. **Only the
   probe reads these.**
@@ -558,7 +560,8 @@ Two separate pieces of work, in cost order:
 
 ## What landed (2026-07-30) — and what the A/B still owes
 
-**Pass-exclusion** (`set_pass_exclusion_reading`, default off) is the sound
+**Pass-exclusion** (`set_pass_exclusion_reading`, later refuted and deleted;
+see [Arm 3c refuted](../authored-reading-handoff.md#arm-3c-refuted--the-confirming-seeds-2026-08-18)) was the sound
 symbolic completion of the pass reading: under argmax a pass proves the hand
 outside every sibling gate whose weight strictly beats every Pass rule's, so
 the pass band is intersected with those gates' complements — single-box
@@ -781,12 +784,13 @@ eval3 --envelope-union --pass-exclusion` (new flag, sidecar records the regime) 
 they should); trainer `--hidden 256 --epochs 150 --batch 4096 --lr 0.001
 --seed 1`. **Held-out gate passed: val NLL −1.55010 / MAE 1.391 tricks** on
 the knob-on deal-disjoint tail vs the dnf twin's −1.54872 on its own regime —
-the OOD penalty gone at better-than-equal fit. Serving keys on
-`pass_exclusion_reading()` inside the v3 calls-tail path
+the OOD penalty gone at better-than-equal fit. Serving keyed on the
+since-deleted `pass_exclusion_reading()` inside the v3 calls-tail path
 (`trick_estimates_with_auction`), so the ON arm of any A/B picks the twin up
 through the thread-local knob with no harness change; knob-off is
 structurally byte-identical (`exclusion_matches_candle_fixture`,
-`exclusion_knob_swaps_v3_weights`).
+`exclusion_knob_swaps_v3_weights`). This path was later removed after
+[Arm 3c was refuted](../authored-reading-handoff.md#arm-3c-refuted--the-confirming-seeds-2026-08-18).
 
 **Re-measure DONE 2026-07-30**: `scripts/ab-exclusion-retrain.sh`
 (`ab-results/exclusion-retrain/`), base vs `--ns-pass-exclusion`, 204,800

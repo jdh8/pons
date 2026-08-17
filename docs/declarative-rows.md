@@ -72,18 +72,18 @@ and `AuthoringDecoder`.
 
 The floor's **kind** changed when the configured net became the default.
 `NeuralFloorBba` was a unit struct — knob-independent, order-independent.
-`ConfiguredFloorV5(CompactConfig)` carries both sides' `Agreements`, built by
-`Agreements::capture(false)` from the *same* thread-locals that a `Package`'s
+`ConfiguredFloorV6(CompactConfig)` carries both sides' `ConventionCard` values,
+built by `ConventionCard::capture` from the *same* thread-locals that a `Package`'s
 `gate` and `entries` read at `compile_into` — 17 knob getters, replacing the
 v4 shape's `american_card()` row-by-row read of the same state. So `american()`
 is two knob readers producing one artifact, joined only by being called in one
 expression — which its doc comment asserts and the test
 `the_default_floor_reads_the_live_agreements` pins, with
-`each_compact_axis_moves_its_slots_and_only_live_ones_move_the_net` pinning the
-per-axis chain underneath it. `american_with_config` (the surviving v4 entry
+`compact_layout_is_pinned` pinning the feature layout underneath it.
+`american_with_config` (the surviving v4 entry
 point) cannot do that much: a card claiming an agreement the rules do not play is
-a misdisclosure to the net, and nothing checks it. Its v5 successor
-`american_with_agreements` narrows the seam to the opponents' half, so our own
+a misdisclosure to the net, and nothing checks it. Its compact successor
+`american_with_card` narrows the seam to the opponents' half, so our own
 side cannot be misdeclared at all.
 
 **A sibling that does not follow the floor is a fabricated verdict.** The
@@ -389,10 +389,10 @@ step the migration turns on.
 ### It does not depend on Phase 2
 
 The whole Phase-2 surface is knob-free — `Config` / `Config::new` /
-`Config::symmetric` / `encode_card` and their v5 siblings `CompactConfig` /
-`Agreements::from_card` ([features.rs](../src/bidding/features.rs)),
+`Config::symmetric` / `encode_card` and their compact siblings `CompactConfig` /
+`ConventionCard::from_card` ([features.rs](../src/bidding/features.rs)),
 `Card::row` / `foreign_card` ([card.rs](../src/bidding/card.rs)),
-`BbaOracle::card()`, `ConfiguredFloorBba`, `ConfiguredFloorV5`,
+`BbaOracle::card()`, `ConfiguredFloorBba`, `ConfiguredFloorV6`,
 `Partnership::with_opponents`, and `Context::{own_system, their_system, config,
 compact}`. Phase 3 can start whenever.
 

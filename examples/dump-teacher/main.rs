@@ -52,9 +52,8 @@ use pons::bidding::american::{EUROPEAN, LebensohlStyle, NotrumpDefense, NotrumpS
 use pons::bidding::card::{american_card, dutch_card};
 use pons::bidding::context::{Context, relative};
 use pons::bidding::features::{
-    CompactConfig, Config, FEATURES_LEN_V3, FEATURES_LEN_V4, FEATURES_LEN_V5, FEATURES_LEN_V6,
-    FEATURES_VERSION_V3, FEATURES_VERSION_V4, FEATURES_VERSION_V5, FEATURES_VERSION_V6,
-    features_v3, features_v4, features_v5, features_v6,
+    CompactConfig, Config, FEATURES_LEN_V3, FEATURES_LEN_V4, FEATURES_LEN_V6, FEATURES_VERSION_V3,
+    FEATURES_VERSION_V4, FEATURES_VERSION_V6, features_v3, features_v4, features_v6,
 };
 use pons::bidding::{Bidder, Phase};
 use pons::gib;
@@ -192,12 +191,9 @@ struct Args {
     ///
     /// `4` (the default) keeps today's meaning exactly — [`features_v4`] under
     /// `--configured`, [`features_v3`] otherwise — so every existing invocation
-    /// stays byte-identical.  `5` emits the card-manifold retrain vector
-    /// ([`features_v5`]): the compact per-axis config of
+    /// stays byte-identical. `6` uses the compact per-axis configuration from
     /// [docs/ai-bidder/card-manifold.md](../../docs/ai-bidder/card-manifold.md)
-    /// §"The retrain" replaces the frozen 280-row card blocks, and the varied
-    /// axes come from each `--cell` side's `+HEX` flips. `6` keeps that compact
-    /// configuration and serves the live authored reading, with each suit's
+    /// and serves the live authored reading, with each suit's
     /// support-point range separate from whole-hand points. Requires
     /// `--configured`.
     #[arg(long, default_value_t = 4)]
@@ -568,17 +564,12 @@ fn main() -> anyhow::Result<()> {
         // under the default flag value must stay byte-identical.
         (4, true) => (FEATURES_VERSION_V4, FEATURES_LEN_V4),
         (4, false) => (FEATURES_VERSION_V3, FEATURES_LEN_V3),
-        (5, true) => (FEATURES_VERSION_V5, FEATURES_LEN_V5),
         (6, true) => (FEATURES_VERSION_V6, FEATURES_LEN_V6),
-        (5, false) => anyhow::bail!(
-            "--feature-version 5 varies table configuration, which only the \
-             configured context can express — pass --configured"
-        ),
         (6, false) => anyhow::bail!(
             "--feature-version 6 varies table configuration, which only the \
              configured context can express — pass --configured"
         ),
-        (other, _) => anyhow::bail!("--feature-version must be 4, 5, or 6, got {other}"),
+        (other, _) => anyhow::bail!("--feature-version must be 4 or 6, got {other}"),
     };
     // DD label only exists when deals come from a GIB file (cached, no solving).
     let dd_len = if args.deals.is_some() { 20 } else { 0 };
@@ -704,10 +695,10 @@ fn main() -> anyhow::Result<()> {
             }
         }
     }
-    let compact_features = matches!(feature_version, FEATURES_VERSION_V5 | FEATURES_VERSION_V6);
+    let compact_features = feature_version == FEATURES_VERSION_V6;
     // Per side: its card and the partnership that reads its auctions.
     let mut per_side: BTreeMap<String, (pons::bidding::card::Card, Partnership)> = BTreeMap::new();
-    // v5 only: the same knob state [`pons::bidding::features::ConventionCard`]-shaped.  Captured at the
+    // v6 only: the same knob state [`pons::bidding::features::ConventionCard`]-shaped.  Captured at the
     // exact point the card is rendered — same arming — so card, compact block
     // and book cannot drift.
     let mut per_side_agreements: BTreeMap<String, pons::bidding::features::ConventionCard> =
@@ -734,7 +725,7 @@ fn main() -> anyhow::Result<()> {
     }
     // Per ordered pair: the feature-side config, and the teacher that plays it.
     let mut per_pair: BTreeMap<(String, String), (Config, Box<dyn Bidder>)> = BTreeMap::new();
-    // v5 only: the compact config the extractor reads instead of the card
+    // v6 only: the compact config the extractor reads instead of the card
     // blocks, from the same per-side captures the cards came from.
     let mut per_pair_compact: BTreeMap<(String, String), CompactConfig> = BTreeMap::new();
     for (a, b) in cells.iter().flat_map(|(a, b)| [(*a, *b), (*b, *a)]) {
@@ -806,7 +797,7 @@ fn main() -> anyhow::Result<()> {
     let mut file_iter = file_deals.iter().copied();
 
     // ponytail: serial on purpose, and not a rayon candidate.  The live corpus
-    // path is `--teacher bba` (scripts/dump-v5.sh), which bids through the
+    // path is `--teacher bba` (scripts/dump-v6.sh), which bids through the
     // single-threaded EPBot FFI one decision at a time; the sanctioned way to
     // fill the box is one process per shard, as that script already does.  Only
     // `--teacher american` could fan out, and nothing draws a corpus with it.
@@ -953,14 +944,6 @@ fn main() -> anyhow::Result<()> {
                     context =
                         context.with_compact(&per_pair_compact[&(ours.label(), theirs.label())]);
                     features_v6(hand, &context)
-                } else if feature_version == FEATURES_VERSION_V5 {
-                    // `--feature-version 5` implies `--configured`, which
-                    // implies cell tables, so the acting pair — and its
-                    // compact config — always exist on a v5 row.
-                    let (ours, theirs) = acting.expect("v5 rows are cell rows");
-                    context =
-                        context.with_compact(&per_pair_compact[&(ours.label(), theirs.label())]);
-                    features_v5(hand, &context)
                 } else if args.configured {
                     features_v4(hand, &context)
                 } else {

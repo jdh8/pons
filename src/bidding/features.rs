@@ -1008,10 +1008,7 @@ pub fn features_v4(hand: Hand, context: &Context<'_>) -> Vec<f32> {
     out
 }
 
-// ── The compact-config extractor (docs/ai-bidder/card-manifold.md) ───────────
-
-/// Layout version tag for the compact-config extractor [`features_v5`]
-pub const FEATURES_VERSION_V5: u32 = 5;
+// ── Compact system configuration (docs/ai-bidder/card-manifold.md) ────────────
 
 /// One side's compact agreements vector: the axes pons owns, and nothing else
 ///
@@ -1020,22 +1017,13 @@ pub const FEATURES_VERSION_V5: u32 = 5;
 /// draw — the ≈ −0.015 IMP/board/bit tax priced in
 /// `docs/ai-bidder/card-manifold.md`), this block carries only the axes a pons
 /// knob can genuinely vary.  A v5 corpus can therefore reach *every*
-/// coordinate, so no slot has to be folded away to become safe.
+/// coordinate, so no slot has to be folded away to become safe. The live v6
+/// policy retains this compact block alongside its honest reading.
 ///
 /// Pinned by `compact_layout_is_pinned`: a slot added or moved silently
 /// misaligns an artifact against its extractor with no symptom other than
 /// worse bidding.
 pub const LEN_COMPACT: usize = 28;
-
-/// Number of `f32` values returned by [`features_v5`]: every value
-/// [`features_v3`] produces, then both partnerships' compact agreements.
-pub const FEATURES_LEN_V5: usize = FEATURES_LEN_V3 + 2 * LEN_COMPACT;
-
-/// Offset of our own compact block in [`features_v5`]
-pub const OFFSET_OUR_COMPACT: usize = FEATURES_LEN_V3;
-
-/// Offset of the opponents' compact block in [`features_v5`]
-pub const OFFSET_THEIR_COMPACT: usize = OFFSET_OUR_COMPACT + LEN_COMPACT;
 
 /// One side's agreements over the axes pons owns
 ///
@@ -1245,10 +1233,11 @@ impl ConventionCard {
 
 /// Both partnerships' compact agreements, encoded once per configuration cell
 ///
-/// The v5 sibling of [`Config`]: the same both-sides seam — a mixed table is
+/// The compact sibling of [`Config`]: the same both-sides seam — a mixed table is
 /// the normal case in an A/B, so a net blind to the opposition's agreements is
 /// out of distribution on exactly the boards a measurement is about — carrying
 /// [`LEN_COMPACT`]-slot [`ConventionCard`] blocks instead of whole `.bbsa` cards.
+/// The shipped [`features_v6`] policy reads this form.
 ///
 /// Encoded once per cell and attached to a [`Context`] by reference, so the
 /// per-decision path neither allocates nor consults ambient knob state.
@@ -1277,40 +1266,6 @@ impl CompactConfig {
     pub fn symmetric(side: &ConventionCard) -> Self {
         Self::new(side, side)
     }
-}
-
-/// [`features_v3`] plus both partnerships' compact agreements
-///
-/// Returns exactly [`FEATURES_LEN_V5`] finite values.  The compact blocks are
-/// verbatim `0.0`/`1.0` slots, so the feature vector remains the disclosure —
-/// a configured net cannot learn from an agreement it would not show an
-/// opponent.  Unlike [`features_v4`]'s card blocks, every slot here is an axis
-/// a v5 corpus can vary, so none need the constant-input fold to be safe.
-///
-/// With no [`CompactConfig`] attached the compact blocks are zero, which is why
-/// [`Context::with_compact`] belongs on every dump and serving path.
-#[must_use]
-pub fn features_v5(hand: Hand, context: &Context<'_>) -> Vec<f32> {
-    let mut out = features_v3(hand, context);
-    out.reserve_exact(2 * LEN_COMPACT);
-    // ponytail: an absent compact config encodes as zeros, which is
-    // indistinguishable from a side that genuinely plays no conventions.
-    // Harmless while every caller attaches one (the assert below catches a
-    // miss in tests); if an undeclared side ever becomes a real state, give it
-    // its own flag column rather than overloading the all-zero block.
-    debug_assert!(
-        context.compact().is_some(),
-        "features_v5 wants a CompactConfig attached; see Context::with_compact"
-    );
-    match context.compact() {
-        Some(compact) => {
-            out.extend_from_slice(&compact.ours);
-            out.extend_from_slice(&compact.theirs);
-        }
-        None => out.resize(FEATURES_LEN_V5, 0.0),
-    }
-    debug_assert_eq!(out.len(), FEATURES_LEN_V5);
-    out
 }
 
 // ── The honest-reading compact extractor ─────────────────────────────────────

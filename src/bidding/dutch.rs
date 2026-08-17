@@ -16,7 +16,7 @@ mod responses;
 
 use super::System;
 use super::agreements::Agreements;
-use super::common::{with_floor, with_floor_v5, with_floor_v6, with_instinct_floor};
+use super::common::{with_floor, with_floor_v6, with_instinct_floor};
 use super::features::{CompactConfig, Config, ConventionCard};
 use super::rows::compile_into;
 
@@ -84,21 +84,6 @@ pub fn dutch_with_card(agreements: &Agreements, theirs: &ConventionCard) -> Syst
     with_floor_v6(
         book(agreements),
         CompactConfig::new(&ConventionCard::capture(agreements, true), theirs),
-        agreements,
-    )
-}
-
-/// [`dutch`] on the historical **compact-config (v5)** floor.
-///
-/// The Dutch twin of [`american_v5`][super::american::american_v5]; the
-/// `dutch` dim is live in the v5 corpus (the `DEFAULT_CELLS` rotation), so
-/// this cell is in distribution. The name remains for artifact comparisons;
-/// the retired frozen reading view is intentionally unavailable.
-#[must_use]
-pub fn dutch_v5(agreements: &Agreements) -> System {
-    with_floor_v5(
-        book(agreements),
-        CompactConfig::symmetric(&ConventionCard::capture(agreements, true)),
         agreements,
     )
 }

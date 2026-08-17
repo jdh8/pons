@@ -20,8 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   wins all four plain-DD/perfect-defense cells; Dutch wins both plain-DD cells
   and washes under perfect defense. `DecisionProfile::legacy_view`, its second
   inference cache, and `ReadingProfile::strip_side_blind` are removed. The
-  correct side-aware systems-on strip is now unconditional; v5 factories remain
-  only for historical A/B reproduction.
+  correct side-aware systems-on strip is now unconditional.
+
+- **The superseded v5 policy floor is removed.** Its factories, feature
+  extractor, harnesses, and 476 KB of weights/metadata are gone; the v5 honest
+  evaluator remains. The 20,000-board default smoke output and generated
+  American/Dutch cards are byte-identical across the removal.
 
 ### Fixed
 

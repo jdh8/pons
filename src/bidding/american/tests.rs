@@ -96,10 +96,10 @@ fn row_package_invariants() {
 /// from the *live* knobs, so a knob that moves a compact slot moves the default
 /// floor's inputs.
 ///
-/// That test shells [`ConfiguredFloorV5`][crate::bidding::neural_floor::ConfiguredFloorV5]
+/// That test shells [`ConfiguredFloorV6`][crate::bidding::neural_floor::ConfiguredFloorV6]
 /// directly, to isolate the net from the book; this one deliberately does not,
 /// so it is the only cover for `american()`'s own capture expression and
-/// `common::with_floor_v5`.
+/// `common::with_floor_v6`.
 ///
 /// Asserts on the logit vector, never on the chosen call — `relocating`
 /// (compact slot 1) decides roughly one auction in seven hundred, so a

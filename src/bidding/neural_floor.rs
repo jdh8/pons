@@ -1,10 +1,10 @@
 //! Deterministic safety shell over the distilled neural floor — AI-bidder M1.3.
 //!
-//! [`neural::classify_bba_v4`] is a
+//! [`neural::classify_bba_v6`] is a
 //! bare MLP: it emits a finite logit for every one of the 38 calls, with no
 //! built-in respect for the laws or for the floor's non-negotiable
 //! forced-situation rails.
-//! [`ConfiguredFloorBba`][crate::bidding::neural_floor::ConfiguredFloorBba]
+//! [`ConfiguredFloorV6`][crate::bidding::neural_floor::ConfiguredFloorV6]
 //! wraps it so it is safe to
 //! attach as the floor, exactly where [`instinct()`]
 //! attaches (see [`american`][super::american::american]).
@@ -51,10 +51,10 @@ use std::sync::Arc;
 
 /// The **configured** BBA-distilled floor — the card-input (v4) floor
 ///
-/// The shipped default until 2026-08-08, when [`ConfiguredFloorV5`] won its
-/// gate A/B.  It stays reachable through
+/// The shipped default until the compact v5 floor won its 2026-08-08 gate A/B.
+/// It stays reachable through
 /// [`american_with_config`][super::american::american_with_config] and
-/// [`dutch`][crate::dutch()], whose own gate has not run.
+/// [`dutch_with_config`][super::dutch::dutch_with_config].
 ///
 /// A [`Classifier`] drop-in for [`instinct()`][super::instinct::instinct]: the
 /// learned net in the judgement middle, the deterministic rails preserved by
@@ -116,32 +116,6 @@ impl Classifier for ConfiguredFloorBba {
     }
 }
 
-/// The historical **compact-config** v5 BBA-distilled floor.
-///
-/// Exactly [`ConfiguredFloorBba`] but for the regime input: a
-/// [`CompactConfig`] (both sides' [`ConventionCard`][features::ConventionCard], 28
-/// slots each) instead of a 280-float card pair, feeding
-/// [`neural::classify_bba_v5`] through
-/// [`features_v5`][features::features_v5].  Same rails, same mask, same
-/// build-time capture granularity.
-///
-/// It shipped from 2026-08-08 until the v6 retrain on 2026-08-18. Unlike
-/// v4's card blocks, every slot it reads is an axis a corpus varied, so the
-/// 13 trained ones per side move the logits and the rest are folded to zero —
-/// `each_compact_axis_moves_its_slots_and_only_live_ones_move_the_net` pins
-/// both halves.
-#[derive(Clone, Debug)]
-pub struct ConfiguredFloorV5(CompactConfig, Arc<Rules>);
-
-impl ConfiguredFloorV5 {
-    /// Attach the floor to one configuration cell over one deterministic
-    /// ladder for the forced rails
-    #[must_use]
-    pub const fn new(compact: CompactConfig, ladder: Arc<Rules>) -> Self {
-        Self(compact, ladder)
-    }
-}
-
 /// The shipped compact-config floor retrained on the live authored reading.
 #[derive(Clone, Debug)]
 pub struct ConfiguredFloorV6(CompactConfig, Arc<Rules>);
@@ -161,20 +135,6 @@ impl Classifier for ConfiguredFloorV6 {
         }
         let configured = context.clone().with_compact(&self.0);
         let mut logits = neural::classify_bba_v6(&features::features_v6(hand, &configured));
-        mask_illegal(&mut logits, context.auction());
-        competitive_gate(&mut logits, hand, context);
-        logits
-    }
-}
-
-impl Classifier for ConfiguredFloorV5 {
-    fn classify(&self, hand: Hand, context: &Context<'_>) -> Logits {
-        if forced(context) {
-            // Rails: trust the deterministic floor, never the net.
-            return self.1.classify(hand, context);
-        }
-        let configured = context.clone().with_compact(&self.0);
-        let mut logits = neural::classify_bba_v5(&features::features_v5(hand, &configured));
         mask_illegal(&mut logits, context.auction());
         competitive_gate(&mut logits, hand, context);
         logits
