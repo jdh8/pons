@@ -43,21 +43,21 @@ pub(super) fn michaels_advances(t: Suit) -> Rules {
                 .rule(Bid::new(2, Strain::Spades), 100, spades_longer)
         }
         // Partner shows spades + a minor: bid spades.
-        Suit::Hearts => Rules::new()
-            .rule(
-                Bid::new(4, Strain::Spades),
-                130,
-                points(10..) & len(Suit::Spades, 3..),
-            )
-            .rule(Bid::new(2, Strain::Spades), 50, hcp(0..)),
+        Suit::Hearts => {
+            let game = points(10..) & len(Suit::Spades, 3..);
+            Rules::new()
+                .rule(Bid::new(4, Strain::Spades), 130, game.clone())
+                // A preference for partner's shown five-card suit promises no
+                // length.  Its exact reading is the game raise's complement.
+                .rule(Bid::new(2, Strain::Spades), 50, !game)
+        }
         // Partner shows hearts + a minor: bid hearts.
-        Suit::Spades => Rules::new()
-            .rule(
-                Bid::new(4, Strain::Hearts),
-                130,
-                points(10..) & len(Suit::Hearts, 3..),
-            )
-            .rule(Bid::new(3, Strain::Hearts), 50, hcp(0..)),
+        Suit::Spades => {
+            let game = points(10..) & len(Suit::Hearts, 3..);
+            Rules::new()
+                .rule(Bid::new(4, Strain::Hearts), 130, game.clone())
+                .rule(Bid::new(3, Strain::Hearts), 50, !game)
+        }
     }
 }
 

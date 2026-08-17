@@ -227,6 +227,7 @@ is an authoring defect owed a row below, not migration debt.
 | Direct-seat per-overcall (2026-08-06) | 20/9 | 59/0 | 9/0 | **107**/0 | 18/0 |
 | C6 escape-hatch batch (2026-08-06) | 20/9 | 59/0 | 9/0 | **115**/0 | 18/0 |
 | Diamond splinter (2026-08-13, `3d0f376`) | 20/9 | **65**/0 | 9/0 | 115/0 | 18/0 |
+| Michaels preference (2026-08-18) | 20/9 | **67**/0 | **11**/0 | 115/0 | 18/0 |
 
 The `Points13` row is **not a chop** — it is the shipped default flip of the
 major no-fit 2/1 gate (`hcp(13..)` → `points(13..)`, docs/bidding-options.md).
@@ -266,6 +267,13 @@ of american constructive/defensive and dutch — they gate on the `2NT`
 transfer's shape class, whose `6+ ♦ | 5+ ♦ & 4+ ♣` disjunction the legacy
 hull cannot pin on the length axis. Knob-on stays **0**: the envelope union
 projects the disjunction exactly, which is the whole point of the migration.
+
+The `Michaels preference` row authors the cheap `2♠`/`3♥` advance as
+the exact complement of its `10+ points & 3+ trumps` game raise.  The two
+rules add one legacy-hull leak apiece on both length and points, while the
+shipped envelope-union reading preserves both disjuncts exactly.  The
+three-seed A/B was a wash (+11 plain and PD on the sole divergence in
+1,228,800 boards), so the knob-off re-pin is measured rather than accidental.
 
 The SHCP chop adds a sixth pinned column, `suit HCP`, born **0/0** ("HCP in
 ♠" atoms against the per-suit HCP axis; the length column's "… in ♠"

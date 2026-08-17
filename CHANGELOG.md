@@ -9,6 +9,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **A cheap Michaels advance no longer promises three-card support.** Over a
+  major opening, `michaels_advances` now authors the `2♠`/`3♥` preference as
+  the exact complement of its heavier `10+ points & 3+ trumps` game raise.
+  This partitions the same hands and leaves the selected bid unchanged, but
+  publishes the real reading: weak with any length, or stronger with at most a
+  doubleton. The natural walk therefore no longer invents a three-card fit in
+  partner's already-shown five-card suit.
+
+  `probe-reading-sound -s 20260816 -c 40000` moves partner exclusions
+  **1.238% → 1.212%** (44 fewer in 168,097 readings), and both Michaels
+  preferences leave the rate-ranked worklist. This repairs the named defect
+  but does **not** return the whole Follow-up-1 increase to its 1.180% baseline;
+  the handoff's prediction that this one family accounted for all 97 extra
+  exclusions was wrong.
+
+  **A/B (two binaries vs `97206fcc`, three seeds 1786993552 / 1786993946 /
+  1786994335, 204,800 bd/arm/vul against BBA, plain DD + PD): wash on both
+  scorers at both vulnerabilities. One board diverged in 1,228,800
+  (0.00008%), +11 IMPs plain and PD; the corrected reading decoded the 1430
+  answer and stopped in `5♠`, while the old phantom fit blasted a failing
+  `6♠`.** `smoke-default --count 20000 --seed 1` stays byte-identical at
+  `9c56a4b2…`; cards are unchanged.
+
 - **A `⊤`-projecting call keeps the walk's shape under the exclusion fold**
   (`CallMasks::walk_shape`; Phase 4 follow-up 1 of
   `docs/authored-reading-handoff.md`). A reading has two halves and the fold
@@ -45,8 +68,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Cost, stated: `probe-reading-sound -s 20260816 -c 40000` partner exclusions
   **1.180% → 1.238%**. The walk's `♠ 3+` is genuinely wrong at
   `1♥ (2♥) - 2♠` (17/27) — that advance is a *preference* to partner's shown
-  five-card suit and is routinely made on a doubleton. Authoring that call's
-  real reading is filed as the repair that retires the walk floor there.
+  five-card suit and is routinely made on a doubleton. Its authored reading
+  is now repaired above; the probe falls to 1.212%, not all the way back to
+  1.180%, so other `walk_shape` families account for the residual.
 
 - **A crossed strength gauge now empties its box instead of widening it**
   (`Strength::intersect_nonempty`, `inference/envelope.rs`). Box-emptiness

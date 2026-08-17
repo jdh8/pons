@@ -496,34 +496,43 @@ fn bid_exclusion_admits_the_jacoby_sign_off() {
     }
 }
 
-/// The other half of the fold's contract: a ⊤ projection promised *nothing*,
-/// so the walk still reads the call's shape — only the strength it guesses
-/// along the way gives way to the fold.
-///
-/// `1♥ (2♥) - 2♠` is the Michaels advance, authored `2♠ @50 "0+ HCP"`.  When
-/// the fold substituted the walk wholesale it read ♠ 0..13, and the keycard
-/// ladder went on to key a suit the asker was void in (−16 and −17 IMP boards;
-/// `docs/authored-reading-handoff.md`, Phase 4 → Owed).
+/// A cheap Michaels advance is preference for partner's shown five-card suit,
+/// not a promise of three-card support.  Its authored reading is the exact
+/// complement of the heavier game raise: weak with any length, or stronger
+/// with at most a doubleton.
 #[test]
-fn bid_exclusion_keeps_the_walk_length_floor() {
-    let auction = [
-        bid(1, Strain::Hearts),
-        bid(2, Strain::Hearts),
-        Call::Pass,
-        bid(2, Strain::Spades),
-        Call::Pass,
+fn michaels_preference_does_not_promise_three_cards() {
+    let cases = [
+        (
+            Suit::Spades,
+            bid(1, Strain::Hearts),
+            bid(2, Strain::Hearts),
+            bid(2, Strain::Spades),
+            "AK.432.AQJ.98765",
+            "AK2.432.AQJ.9876",
+        ),
+        (
+            Suit::Hearts,
+            bid(1, Strain::Spades),
+            bid(2, Strain::Spades),
+            bid(3, Strain::Hearts),
+            "432.AK.AQJ.98765",
+            "432.AK2.AQJ.9876",
+        ),
     ];
-    for exclusion in [false, true] {
-        let mut agreements = crate::bidding::agreements::Agreements::default();
-        agreements.decision.reading.envelope_union = true;
-        agreements.decision.reading.bid_exclusion = exclusion;
-        let inferences = read_booked_with(&agreements, &auction);
-        let spades = inferences.partner().length(Suit::Spades);
-        assert!(
-            spades.min >= 3,
-            "[{}] with exclusion {exclusion}: the advance still shows spades, read {spades:?}",
-            contract_bridge::auction::display_calls(&auction),
-        );
+    for (suit, opening, cue, preference, strong_two, strong_three) in cases {
+        let auction = [opening, cue, Call::Pass, preference, Call::Pass];
+        for exclusion in [false, true] {
+            let mut agreements = crate::bidding::agreements::Agreements::default();
+            agreements.decision.reading.envelope_union = true;
+            agreements.decision.reading.bid_exclusion = exclusion;
+            let inferences = read_booked_with(&agreements, &auction);
+            assert_eq!(inferences.partner().length(suit), Range::FULL_LENGTH);
+            let weak_three: Hand = "432.432.432.5432".parse().expect("a hand");
+            assert!(inferences.admits(Relative::Partner, weak_three));
+            assert!(inferences.admits(Relative::Partner, strong_two.parse().expect("a hand")));
+            assert!(!inferences.admits(Relative::Partner, strong_three.parse().expect("a hand")));
+        }
     }
 }
 
@@ -1491,8 +1500,11 @@ fn authored_calls_read_what_they_gate() {
         // ♣` disjunction the legacy hull cannot pin on the length axis.
         // Knob-on stays 0 — the envelope union projects the union exactly,
         // which is the whole point of the DNF migration.
-        ("length", 65, 0),
-        ("points", 9, 0),
+        // 65 → 67 and points 9 → 11 when the two Michaels preferences
+        // acquired their exact `!(10+ points & 3+ trumps)` readings.  The
+        // legacy hull cannot preserve either disjunct; envelope union does.
+        ("length", 67, 0),
+        ("points", 11, 0),
         // 0/0 measured at birth (2026-07-25): every `suit_hcp` gate the
         // walk reaches (Ogust, the Lebensohl trap pass) is `&`-chained, and
         // the exact base-axis projection is ungated, so even the knob-off

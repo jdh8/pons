@@ -1159,6 +1159,7 @@ the `2NT` relay row no longer the lane's worst per board; `1NT 2♥ 2♠ -` read
 
 | 2026-08-17 | **Phase 4 SHIPPED — `reading.bid_exclusion` default on.** A/B 3 seeds × 204,800 bd/arm/vul vs BBA: **wash on both scorers at both vuls** in every cell, 93 diverging boards in 1,228,800 (0.0076%), pooled +36 plain / +51 PD, per-seed (both vuls) plain 0 / −73 / +109; the pre-registered non-loss. All divergence is slam decisions: Meckstroth `4M` sign-off now reads `sp 10..12` (asks: +16/+31 net), the erased 2/1 minor-rebid reading repaired (+56/+58), and two RKCB wrong-trump decodes (−31/−33) traced to the fold replacing a catch-all's *walk* length floor — filed, not blocking. Smoke `7aa33d58…`→`9c56a4b2…` (3/20,000), cards byte-identical, gates green (two hook-order literals updated: an undecoded call is no longer projected under the fold) | see *Phase 4 — the A/B* |
 | 2026-08-17 | **Phase 4 built — `reading.bid_exclusion`, default off.** Soundness green in every gate; A/B **not** run | Probe partner **1.302%→1.180%** (seed 20260816, 40k), the worklist's whole head cleared (`1♥ - 2NT - 4♥` 25/25→0, `1♠ - 2NT - 4♠` 17/17→0, Ogust `3♣` 77–95%→0); throughput **+0.2%**; smoke byte-identical `7aa33d58…`. First footprint was 12 boards/20,000 and eleven were the floor dropping its Blackwood ask — root-caused **not** to the floor but to `Strength::intersect_nonempty` widening a crossed gauge instead of emptying its box; with that fixed the footprint is **2/20,000**, both the fold buying an ask. See *Phase 4* below |
+| 2026-08-18 | **Michaels major-suit preferences authored as the exact complement of their game raises** | Selected calls unchanged; `1♥ (2♥) - 2♠` / `1♠ (2♠) - 3♥` make no three-card-fit promise. Soundness partner **1.238%→1.212%** (44 fewer / 168,097), so the predicted full return to 1.180% was false. A/B vs `97206fcc`, seeds 1786993552 / 1786993946 / 1786994335, 3 × 204,800 bd/arm/vul: **one divergence in 1,228,800, +11 plain / +11 PD**; smoke remains `9c56a4b2…`, cards unchanged |
 
 ### Memory compaction notes (2026-08-16)
 
@@ -1402,14 +1403,13 @@ both are filed below.
   below. The knob stays off. The retrain precondition was withdrawn by arm 1,
   and the their-seat repair that replaced it was itself refuted on two fresh
   seeds — see [Arm 3c refuted](#arm-3c-refuted--the-confirming-seeds-2026-08-18).*
-- **Author the Michaels advance's reading** (`american/defense/michaels.rs`,
-  the `2♠ @50 hcp(0..)` / `3♥ @50 hcp(0..)` catch-alls). It is the head of the
-  partner worklist under Follow-up 1 at 17/27, because the walk reads a
-  *preference* to partner's shown suit as a three-card holding. The reading
-  the call actually carries is "no length promise, capped strength"; the fit
-  the keycard ladder needs is on the **cue**, which already promised five.
-  Retiring the walk floor there is what would let Follow-up 1's soundness cost
-  go back to zero.
+- **Michaels advance reading — done 2026-08-18.** The `2♠`/`3♥` preference
+  now carries the exact complement of the heavier game raise, so it promises
+  no length in partner's shown five-card suit. The targeted nodes leave the
+  worklist and partner exclusions improve **1.238%→1.212%**, but the earlier
+  prediction that this would return the whole Follow-up-1 cost to 1.180% was
+  false; other families account for the residual. Three-seed A/B: one
+  divergence in 1,228,800, +11 plain / +11 PD.
 - The **shadow-table fold** (Q5): a table that declines the whole primary
   table proves that table's rules false too — filed as its own arm.
 - **Their-seat gating** (Q9): LHO/RHO exclusions rise ~0.6pp. Informational
@@ -1477,16 +1477,14 @@ and the seed-2 loss is a keyed club fit of six preferred over ten diamonds.
 **The soundness cost, stated.** `probe-reading-sound -s 20260816 -c 40000`
 partner exclusions **1.180% → 1.238%** (+97 excluded readings in 168,097) —
 this phase *raises* the rate, which the gate above says must be cleared, not
-excused. The defect it exposes is real and now visible at the head of the
-partner worklist: `1♥ (2♥) - 2♠` at **17/27 (63%)**. Our Michaels advance is
-authored `2♠ @50 hcp(0..)` opposite a `4♠ @130 points(10..) & len(♠,3..)`
-(`american/defense/michaels.rs`), and the walk's `♠ 3+` is simply wrong for it
-— a `2♠` advance is a *preference* to partner's already-shown five-card suit
-and is routinely made on a doubleton. Phase 4's `♠ 0..13` was the sounder
-reading; the walk floor is what the keycard ladder happens to need, because
-the ladder asks the advancer for length instead of the cue-bidder for the
-suit the cue already promised. Filed below as the repair that should retire
-this floor at that node.
+excused. Its head, `1♥ (2♥) - 2♠` at **17/27 (63%)**, was the Michaels
+preference: routinely a doubleton, not three-card support. On 2026-08-18 its
+catch-all was replaced by the exact complement of the `10+ & 3+` game raise,
+preserving every selected bid while suppressing the natural walk. The node
+left the worklist and partner exclusions fell to **1.212%** (44 fewer), but
+not to 1.180%: the earlier claim that Michaels accounted for the entire
+Follow-up-1 cost was too strong. The residual belongs to other `walk_shape`
+families, not this reading.
 
 ### Follow-up 2 — the RKCB face rung: REFUTED, both variants, no code shipped
 
