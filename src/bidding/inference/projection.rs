@@ -193,7 +193,13 @@ fn exclude_siblings(
 }
 
 /// One call's reading, each live rule intersected with what its own
-/// strictly-heavier siblings deny
+/// strictly-heavier siblings deny, paired with whether the *positive* reading
+/// (the pre-fold union, what the knob-off projection would have been) was top
+///
+/// The flag is what keeps the natural walk alive under the fold: a `hcp(0..)`
+/// catch-all projects ⊤ and hands its call to the walk, but `⊤ ∩ ¬(heavier
+/// siblings)` is not ⊤, so keying `substitutes_natural` off the *folded* union
+/// would suppress that walk and lose its length floors along with it.
 ///
 /// [`None`] when the call has no live rule — the caller's "this table says
 /// nothing here" signal.
@@ -205,20 +211,21 @@ fn excluded_union(
     live: &[(RuleIndex, i16)],
     kind: ProjectionKind,
     memo: &mut FaceMemo,
-) -> Option<EnvelopeUnion> {
+) -> Option<(EnvelopeUnion, bool)> {
     let profile = ctx.reading_profile();
     let floor = live.iter().map(|&(_, weight)| weight).min()?;
     let complements = sibling_complements(rules, compiled, ctx, made, floor, memo);
-    live.iter()
+    // A disjunction containing ⊤ *is* ⊤, so one top rule tops the union.
+    let mut positive_top = false;
+    let folded = live
+        .iter()
         .map(|&(index, weight)| {
-            exclude_siblings(
-                rule_union(rules, compiled, index, ctx, kind).into_owned(),
-                &complements,
-                weight,
-                profile,
-            )
+            let positive = rule_union(rules, compiled, index, ctx, kind).into_owned();
+            positive_top |= positive == EnvelopeUnion::unknown();
+            exclude_siblings(positive, &complements, weight, profile)
         })
-        .reduce(|a, b| a.disjoin_with(b, profile))
+        .reduce(|a, b| a.disjoin_with(b, profile))?;
+    Some((folded, positive_top))
 }
 
 /// One table's pass reading: the union of its Pass rules' bands, knob-on
@@ -312,6 +319,11 @@ pub(super) struct CallMasks {
     /// The walk consumes these chronologically to retain fit, rebid and cue
     /// bookkeeping without deriving meaning from the call's face.
     pub(super) length_floor: [[u64; 4]; 4],
+    /// Calls whose *positive* rule promised nothing and whose reading is the
+    /// exclusion fold alone: the walk reads their shape as it always did, and
+    /// the strength it guesses on the way is rolled back afterwards, leaving
+    /// the fold — which knows what the heavier siblings deny — to say it.
+    pub(super) walk_shape: u64,
 }
 
 impl CallMasks {
@@ -336,6 +348,9 @@ impl CallMasks {
         if effect.artificial {
             self.artificial |= bit;
         }
+        if effect.walk_shape {
+            self.walk_shape |= bit;
+        }
         if effect.suppresses_natural {
             self.suppressed |= bit;
         }
@@ -346,6 +361,7 @@ impl CallMasks {
         self.authored |= other.authored;
         self.substituted |= other.substituted;
         self.artificial |= other.artificial;
+        self.walk_shape |= other.walk_shape;
         for (mine, theirs) in self.length_floor.iter_mut().zip(other.length_floor) {
             for (mine, theirs) in mine.iter_mut().zip(theirs) {
                 *mine |= theirs;
@@ -398,6 +414,7 @@ struct AuthoredEffect<'a> {
     agreement: Option<crate::bidding::rules::ProjectedUnion<'a>>,
     authored: bool,
     artificial: bool,
+    walk_shape: bool,
     substitutes_natural: bool,
     suppresses_natural: bool,
 }
@@ -529,7 +546,7 @@ fn authored_effect<'a>(
                 ProjectionKind::Announcement,
                 &mut face_memo,
             )
-            .map(ProjectedUnion::Owned)
+            .map(|(union, _)| ProjectedUnion::Owned(union))
         } else if let Some(compiled) = compiled {
             compiled
                 .alerted_rule_indices(made)
@@ -548,10 +565,13 @@ fn authored_effect<'a>(
     } else {
         None
     };
-    let projection = match projection {
-        Some(projection) => projection,
-        None => ProjectedUnion::Owned(
-            excluded_union(
+    let (projection, positive_top) = match projection {
+        Some(projection) => {
+            let top = projection.as_union() == &EnvelopeUnion::unknown();
+            (projection, top)
+        }
+        None => {
+            let (union, positive_top) = excluded_union(
                 rules,
                 compiled,
                 ctx,
@@ -560,15 +580,25 @@ fn authored_effect<'a>(
                 ProjectionKind::Forward,
                 &mut face_memo,
             )
-            .expect("a non-empty live-rule list folds to a projection"),
-        ),
+            .expect("a non-empty live-rule list folds to a projection");
+            (ProjectedUnion::Owned(union), positive_top)
+        }
     };
-    let substitutes_natural = !is_pass && projection.as_union() != &EnvelopeUnion::unknown();
+    let informative = !is_pass && projection.as_union() != &EnvelopeUnion::unknown();
+    // A `hcp(0..)` catch-all projects ⊤ and hands its call to the walk; the
+    // fold then makes `⊤ ∩ ¬(heavier siblings)` informative, and substituting
+    // it wholesale threw the walk's *lengths* away with its strength guess —
+    // `1♥ (2♥) - 2♠` read ♠0+, and the keycard ladder keyed a void.  Such a
+    // call is natural (`artificial_calls_are_alerted`), so the walk reads its
+    // shape and the fold keeps the strength it alone knows.
+    let walk_shape = informative && positive_top && !alerted;
+    let substitutes_natural = informative && !walk_shape;
     Some(AuthoredEffect {
         projection,
         agreement,
         authored: !is_pass,
         artificial: alerted,
+        walk_shape,
         substitutes_natural,
         suppresses_natural: alerted || substitutes_natural,
     })
@@ -1126,6 +1156,7 @@ impl AuthoringStepCache {
                         agreement: None,
                         authored: false,
                         artificial: false,
+                        walk_shape: false,
                         substitutes_natural: false,
                         suppresses_natural: false,
                     },

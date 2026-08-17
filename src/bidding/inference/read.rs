@@ -500,10 +500,22 @@ impl Inferences {
         // establish a fit even when a short minor opening itself promised only
         // three.
         let mut projected_lane_lengths = [[0u8; 4]; 4];
+        // A call whose authoring rule promised nothing reads its shape off the
+        // walk as it always did, but its *strength* is the exclusion fold's to
+        // state (`CallMasks::walk_shape`): the walk's guess is rolled back at
+        // the top of the next iteration, which is where every `continue` in
+        // the arms below lands.
+        let mut roll_back: Option<(usize, Strength)> = None;
 
         for (index, &call) in auction.iter().enumerate() {
+            if let Some((seat, strength)) = roll_back.take() {
+                players[seat].strength = strength;
+            }
             let lane = index % 4;
             let who = relative_of(len, index) as usize;
+            if index < 64 && masks.walk_shape >> index & 1 != 0 {
+                roll_back = Some((who, players[who].strength));
+            }
             let is_opening_side = lane % 2 == opener_lane % 2;
             let first_action_of_side = !side_acted[lane % 2];
             let substituted_call = index < 64 && masks.substituted >> index & 1 != 0;
@@ -1200,6 +1212,10 @@ impl Inferences {
                     }
                 }
             }
+        }
+
+        if let Some((seat, strength)) = roll_back {
+            players[seat].strength = strength;
         }
 
         // Record what the suppressed conventional calls genuinely showed.  The

@@ -496,6 +496,37 @@ fn bid_exclusion_admits_the_jacoby_sign_off() {
     }
 }
 
+/// The other half of the fold's contract: a ⊤ projection promised *nothing*,
+/// so the walk still reads the call's shape — only the strength it guesses
+/// along the way gives way to the fold.
+///
+/// `1♥ (2♥) - 2♠` is the Michaels advance, authored `2♠ @50 "0+ HCP"`.  When
+/// the fold substituted the walk wholesale it read ♠ 0..13, and the keycard
+/// ladder went on to key a suit the asker was void in (−16 and −17 IMP boards;
+/// `docs/authored-reading-handoff.md`, Phase 4 → Owed).
+#[test]
+fn bid_exclusion_keeps_the_walk_length_floor() {
+    let auction = [
+        bid(1, Strain::Hearts),
+        bid(2, Strain::Hearts),
+        Call::Pass,
+        bid(2, Strain::Spades),
+        Call::Pass,
+    ];
+    for exclusion in [false, true] {
+        let mut agreements = crate::bidding::agreements::Agreements::default();
+        agreements.decision.reading.envelope_union = true;
+        agreements.decision.reading.bid_exclusion = exclusion;
+        let inferences = read_booked_with(&agreements, &auction);
+        let spades = inferences.partner().length(Suit::Spades);
+        assert!(
+            spades.min >= 3,
+            "[{}] with exclusion {exclusion}: the advance still shows spades, read {spades:?}",
+            contract_bridge::auction::display_calls(&auction),
+        );
+    }
+}
+
 /// Arm the node context's decision cache so one `Inferences::read` serves the
 /// whole node
 ///
