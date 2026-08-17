@@ -380,39 +380,6 @@ fn pass_reading_skips_trap_and_trivial_passes() {
     assert_eq!(trap.rho().strength.points, Range::FULL_POINTS);
 }
 
-/// [`ReadingProfile::pass_exclusion`] caps the direct-seat pass
-/// over their weak two off the *declined* shape-free double tier
-/// (`points(17..)`, weight 1.2) — the catch-all `hcp(0..)` Pass gate says
-/// nothing on its own, which is why this key read 100% blind in the census.
-/// Shaped siblings (the overcalls, the 2NT arm) complement to unions or ⊤
-/// and are skipped by the single-box filter, so the lengths stay ⊤.
-#[test]
-fn pass_exclusion_caps_the_weak_two_defender() {
-    let auction = [bid(2, Strain::Spades), Call::Pass, Call::Pass];
-    let mut agreements = Agreements::default();
-    agreements.decision.reading.pass = true;
-    agreements.decision.reading.table_alerts = false;
-
-    // Knob off — today's identity: the catch-all gate reads nothing.
-    agreements.decision.reading.pass_exclusion = false;
-    let off = read_booked_with(&agreements, &auction);
-    assert_eq!(off.partner().strength.points, Range::FULL_POINTS);
-
-    // Knob on — declining the 17+ double caps the passer.
-    agreements.decision.reading.pass_exclusion = true;
-    let on = read_booked_with(&agreements, &auction);
-    assert_eq!(on.partner().strength.points, Range::new(0, 16));
-    // The overcall complements are multi-box and skipped: no length claim.
-    assert_eq!(on.partner().length(Suit::Hearts), Range::new(0, 13));
-
-    // Off again is byte-identical to never having been on.
-    agreements.decision.reading.pass_exclusion = false;
-    assert_eq!(
-        read_booked_with(&agreements, &auction).partner(),
-        off.partner()
-    );
-}
-
 #[test]
 fn opener_extras_ladder_reads_extras() {
     let mut agreements = Agreements::default();

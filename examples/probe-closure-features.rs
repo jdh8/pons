@@ -77,13 +77,6 @@ struct Args {
     #[arg(long)]
     upgrade: bool,
 
-    /// Probe the pass-exclusion reading (`ReadingProfile::pass_exclusion`)
-    /// instead — not a closure: it narrows the described hand set, so
-    /// membership rejections are the earnable picture, C1's (0 rejections)
-    /// the unearnable one
-    #[arg(long, conflicts_with = "upgrade")]
-    pass_exclusion: bool,
-
     /// Give the strength gauges membership teeth in *both* arms
     /// ([`gauge_membership`][field@pons::bidding::ReadingProfile::gauge_membership]).  C2's membership effect should vanish
     /// under it: C2 bounds `points` by `hcp + upgrade_ceiling(lengths)`, and
@@ -147,22 +140,13 @@ fn main() {
     let args = Args::parse();
     let base = args.seed.unwrap_or_else(rand::random);
     let vul = AbsoluteVulnerability::NONE;
-    let name = if args.pass_exclusion {
-        "pass-exclusion"
-    } else if args.upgrade {
-        "C2 upgrade"
-    } else {
-        "C1 sum"
-    };
+    let name = if args.upgrade { "C2 upgrade" } else { "C1 sum" };
     // The knob is captured into a partnership at build, so the probe needs one book
     // per setting: `partnerships[0]` knob-off (it also does the bidding), `[1]` on.
     let mut off_agreements = pons::bidding::agreements::Agreements::default();
     off_agreements.decision.reading.gauge_membership = args.gauge;
     let mut on_agreements = off_agreements;
-    if args.pass_exclusion {
-        off_agreements.decision.reading.pass_exclusion = false;
-        on_agreements.decision.reading.pass_exclusion = true;
-    } else if args.upgrade {
+    if args.upgrade {
         off_agreements.decision.reading.upgrade_closure = false;
         on_agreements.decision.reading.upgrade_closure = true;
     } else {

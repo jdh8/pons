@@ -4,8 +4,8 @@
 > Stage 0/A landed, Stage C (the `EnvelopeUnion` migration) shipped default-on
 > 2026-07-23; Stage B (`Partnership::probe`) is built and its servings are
 > measured — probed v1 and v2 both REFUTED as bidding inputs, and the
-> exclusion retrain washed, so `set_pass_exclusion_reading` and
-> `set_probed_vacuous_reading` remain opt-in. Originally motivated (2026-07-22)
+> exclusion retrain was later refuted and removed; `set_probed_vacuous_reading`
+> remains opt-in. Originally motivated (2026-07-22)
 > by a measured bug (the 2/1 reading is erased) and priced by the negative
 > control at 0.65–1.27 IMPs/board. Successor to
 > [`archive/rule-projection.md`](archive/rule-projection.md), which shipped

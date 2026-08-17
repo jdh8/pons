@@ -1399,7 +1399,9 @@ both are filed below.
 
 - The `pass_exclusion` **re-measure** — *done 2026-08-17, see
   [Follow-up 3](#follow-up-3--pass_exclusion-re-measured-a-loss-under-the-shared-fold)
-  below. The knob stays off; a retrain is now a precondition, not a polish.*
+  below. The knob stays off. The retrain precondition was withdrawn by arm 1,
+  and the their-seat repair that replaced it was itself refuted on two fresh
+  seeds — see [Arm 3c refuted](#arm-3c-refuted--the-confirming-seeds-2026-08-18).*
 - **Author the Michaels advance's reading** (`american/defense/michaels.rs`,
   the `2♠ @50 hcp(0..)` / `3♥ @50 hcp(0..)` catch-alls). It is the head of the
   partner worklist under Follow-up 1 at 17/27, because the walk reads a
@@ -1627,11 +1629,45 @@ implied mass into partner, and the slam machinery spends it. Capping only the
 seats whose system we actually know keeps the exclusion sound and drops the
 artefact.
 
-If the confirming seeds hold, the change to land is two edits behind the
-existing knob — the single-box `retain` in `project_pass`, and the their-seat
-profile override at *both* pass-fold sites. `pass_exclusion` is default-off, so
-the default system stays byte-identical and the ship gate is a `smoke-default`
-identity check rather than a whole-book A/B. Guard the override with
-`own_side || !profile.pass_exclusion` so the knob-off path does not even build a
-new `Context`, keeping that identity true by construction rather than by
-measurement.
+The change that would have landed is two edits behind the existing knob — the
+single-box `retain` in `project_pass`, and the their-seat profile override at
+*both* pass-fold sites, guarded `own_side || !profile.pass_exclusion` so the
+knob-off path never builds a `Context` and default byte-identity holds by
+construction. It is **not** landing: the confirming seeds refuted it.
+
+### Arm 3c refuted — the confirming seeds (2026-08-18)
+
+Two fresh `SEED_BASE`s (1786988361, 1787088364) re-ran arm 3c against the same
+retained binaries, 204,800 bd/arm/vul. **All twelve cells are negative** (sign
+test alone: p = 2⁻¹²), and pooling the three seeds — 614,400 bd/vul — clears
+zero on three of four:
+
+| cell | seed 1 | seed 2 | seed 3 | pooled ± CI | |
+| --- | ---: | ---: | ---: | ---: | --- |
+| plain, none | −0.0035 | −0.0019 | −0.0063 | −0.0039 ± 0.0024 | loss |
+| PD, none | −0.0023 | −0.0001 | −0.0069 | −0.0031 ± 0.0025 | loss |
+| plain, both | −0.0055 | −0.0025 | −0.0037 | −0.0039 ± 0.0031 | loss |
+| PD, both | −0.0019 | −0.0012 | −0.0013 | −0.0015 ± 0.0032 | wash |
+
+Seed 1 was the optimistic draw, not the verdict. The repair is real — it takes
+PD from −0.020 to −0.003 and the fired rate from 3.8% to 1.4% — but a smaller
+loss is still a loss, and the decision table rejects it.
+
+The residual is the *same class* the arm-2 census named, now living **inside**
+the gate: `ab-dump-bucket --by node` on seed 3's none-vul cell puts 47% of the
+PD loss in its top 15 of 2,343 buckets, and they are uncontested constructive
+slam boundaries — `1♦ - 2♦ - 2NT - 3♦ - ⟨3NT vs -⟩`, `- 1♠ - 2♦ - 2♠ - 4♠ -
+⟨6♠ vs -⟩`, `2♣ - 2♦ - 2NT - 3♣ - 3♥ - ⟨6♥ vs 4♥⟩`. Their seats are already
+un-capped there, so what remains is our own side's passes (partner's, and our
+own earlier ones) moving the same slam decisions — and seed 2's both-vul census
+shows it moving them *both ways* (`⟨6♠ vs -⟩` and `⟨- vs 6♠⟩` in the same top
+eight), a calibration wobble at the slam boundary rather than a one-sided
+over-cap.
+
+That closes the concept, not just the arm. Gating our own seats too would make
+`pass_exclusion` a no-op, so the honest end-state was to **delete the knob**
+together with `evaluator_v3_exclusion`. They were removed on 2026-08-18. The
+arm-3c patch is preserved outside the tree (`pass-exclusion-arm3c.patch`,
+session scratchpad) should a joint-constraint reading ever make the exclusion
+true rather than merely tighter; the arithmetic objection above is what such a
+reading would have to fix.

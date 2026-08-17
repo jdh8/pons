@@ -108,17 +108,16 @@ fn compiled_authored_projection_matches_legacy_on_frozen_corpus() {
 
     let corpus = performance_support::parse_corpus().expect("valid frozen corpus");
     let profiles = [
-        (ReadingScope::Alerted, true, true, true, false, false, true),
-        (ReadingScope::All, false, false, false, false, true, false),
-        (ReadingScope::None, true, true, true, true, true, true),
+        (ReadingScope::Alerted, true, true, true, false, true),
+        (ReadingScope::All, false, false, false, true, false),
+        (ReadingScope::None, true, true, true, true, true),
     ];
-    for (scope, union, fallback, pass, exclusion, announced, table) in profiles {
+    for (scope, union, fallback, pass, announced, table) in profiles {
         let mut agreements = crate::bidding::agreements::Agreements::default();
         agreements.decision.reading.scope = scope;
         agreements.decision.reading.envelope_union = union;
         agreements.decision.reading.fallback_projection = fallback;
         agreements.decision.reading.pass = pass;
-        agreements.decision.reading.pass_exclusion = exclusion;
         agreements.decision.reading.announced = announced;
         agreements.decision.reading.table_alerts = table;
         let partnership = american_book(&agreements).bind();
@@ -613,7 +612,6 @@ fn cached_reference_parity_across_reading_and_evaluator_profiles() {
     struct Profile {
         scope: ReadingScope,
         union: bool,
-        exclusion: bool,
         eval_auction: bool,
         eval_shape: bool,
         blind: bool,
@@ -626,7 +624,6 @@ fn cached_reference_parity_across_reading_and_evaluator_profiles() {
         Profile {
             scope: ReadingScope::Alerted,
             union: true,
-            exclusion: false,
             eval_auction: true,
             eval_shape: false,
             blind: false,
@@ -637,7 +634,6 @@ fn cached_reference_parity_across_reading_and_evaluator_profiles() {
         Profile {
             scope: ReadingScope::None,
             union: false,
-            exclusion: false,
             eval_auction: false,
             eval_shape: false,
             blind: false,
@@ -648,7 +644,6 @@ fn cached_reference_parity_across_reading_and_evaluator_profiles() {
         Profile {
             scope: ReadingScope::All,
             union: true,
-            exclusion: true,
             eval_auction: true,
             eval_shape: true,
             blind: false,
@@ -659,7 +654,6 @@ fn cached_reference_parity_across_reading_and_evaluator_profiles() {
         Profile {
             scope: ReadingScope::Alerted,
             union: true,
-            exclusion: false,
             eval_auction: true,
             eval_shape: false,
             blind: false,
@@ -670,7 +664,6 @@ fn cached_reference_parity_across_reading_and_evaluator_profiles() {
         Profile {
             scope: ReadingScope::Alerted,
             union: true,
-            exclusion: false,
             eval_auction: true,
             eval_shape: false,
             blind: false,
@@ -681,7 +674,6 @@ fn cached_reference_parity_across_reading_and_evaluator_profiles() {
         Profile {
             scope: ReadingScope::Alerted,
             union: true,
-            exclusion: false,
             eval_auction: true,
             eval_shape: true,
             blind: true,
@@ -706,7 +698,6 @@ fn cached_reference_parity_across_reading_and_evaluator_profiles() {
         agreements.decision.blind_inference = profile.blind;
         agreements.decision.reading.scope = profile.scope;
         agreements.decision.reading.envelope_union = profile.union;
-        agreements.decision.reading.pass_exclusion = profile.exclusion;
         agreements.decision.instinct.accountant_floor = profile.accountant;
         agreements.decision.instinct.net_collar = profile.collar;
 

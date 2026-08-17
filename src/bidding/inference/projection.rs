@@ -228,19 +228,10 @@ fn excluded_union(
     Some((folded, positive_top))
 }
 
-/// One table's pass reading: the union of its Pass rules' bands, knob-on
-/// intersected with the complements of the sibling gates the passer declined
+/// One table's pass reading: the union of its Pass rules' bands.
 ///
-/// The exclusion half (see
-/// [`pass_exclusion`][field@crate::bidding::ReadingProfile::pass_exclusion])
-/// leans on argmax
-/// selection: a hand inside a sibling gate whose weight strictly beats
-/// **every** Pass rule's weight could not have let Pass win, so the passer
-/// lies in that gate's complement.  The Pass *band* deliberately unions every
-/// authored Pass rule, face-gated ones included — a wider band is sound — but
-/// the siblings excluded are the face-live, legal ones only, and they fold
-/// through the same budget as a made bid's
-/// ([`bid_exclusion`][field@crate::bidding::ReadingProfile::bid_exclusion]).
+/// The Pass band deliberately unions every authored Pass rule, face-gated
+/// ones included — a wider band is sound.
 /// [`None`] when the table authors no Pass rule at all (the projection pass
 /// then records nothing, as before).
 #[inline]
@@ -266,31 +257,7 @@ pub(super) fn project_pass<'a>(
                 .reduce(|a, b| a.disjoin_with(b, profile))?,
         )
     };
-    if !profile.pass_exclusion {
-        return Some(band);
-    }
-    let ceiling = if let Some(compiled) = compiled {
-        compiled
-            .pass_plan()
-            .expect("Pass indices imply a Pass plan")
-            .max_weight()
-    } else {
-        rules
-            .rules()
-            .iter()
-            .filter(|rule| rule.call() == Call::Pass)
-            .map(crate::bidding::rules::Rule::weight)
-            .max()
-            .unwrap_or(i16::MIN)
-    };
-    let mut memo = FaceMemo::new();
-    let complements = sibling_complements(rules, compiled, ctx, Call::Pass, ceiling, &mut memo);
-    Some(ProjectedUnion::Owned(exclude_siblings(
-        band.into_owned(),
-        &complements,
-        ceiling,
-        profile,
-    )))
+    Some(band)
 }
 
 /// The per-call bits an authored reading leaves for the walk, indexed by
@@ -450,7 +417,7 @@ fn authored_effect<'a>(
     // non-compiled oracle's evaluation order intact for opaque public hooks.
     if let Some(compiled) = compiled {
         if is_pass {
-            if !decode_pass && compiled.can_skip_pass_effect(profile) {
+            if !decode_pass && compiled.can_skip_pass_effect() {
                 return None;
             }
         } else {

@@ -105,21 +105,6 @@ const _: () = assert!(
 static WEIGHTS_V3_UNION_READING: LazyLock<Vec<f32>> =
     LazyLock::new(|| decode(RAW_V3_UNION_READING));
 
-/// The pass-exclusion twin of the v3 artifact — same architecture and recipe,
-/// corpus regenerated with [`pass_exclusion`][field@crate::bidding::ReadingProfile::pass_exclusion]
-/// enabled on top of the
-/// envelope-union regime (val NLL −1.55010 vs the union-reading twin's −1.54872 on its own
-/// regime).  The explicit-profile serving path selects it only when that field
-/// is enabled.
-static RAW_V3_EXCLUSION: &[u8] = include_bytes!("weights/evaluator_v3_exclusion.f32");
-const _: () = assert!(
-    RAW_V3_EXCLUSION.len() == TOTAL_V3 * 4,
-    "exclusion evaluator weights artifact size mismatch"
-);
-
-/// [`RAW_V3_EXCLUSION`] decoded once, on first use.
-static WEIGHTS_V3_EXCLUSION: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_V3_EXCLUSION));
-
 /// Input width of the v4 (shape-reading) artifact.
 const IN_V4: usize = FEATURES_LEN_EVAL_V4;
 
@@ -266,8 +251,7 @@ fn trick_estimates_on(
 /// Under [`DecisionProfile::eval_auction`] **and** the
 /// [`envelope_union`][field@crate::bidding::inference::ReadingProfile::envelope_union] regime the v3 twin
 /// was trained on, this serves [`features_eval_v3`][super::features::features_eval_v3] — the same vector plus the
-/// last four call identities — from the weight set matching the explicit
-/// profile's [`pass_exclusion`][field@crate::bidding::ReadingProfile::pass_exclusion] regime.  Under [`DecisionProfile::eval_shape`] it
+/// last four call identities. Under [`DecisionProfile::eval_shape`] it
 /// serves [`features_eval_v4`][super::features::features_eval_v4] instead, which carries that tail and reads each
 /// hidden seat as a shape distribution rather than a bounding box.  Anywhere
 /// else it is exactly [`trick_estimates`], byte for byte, so call sites can
@@ -307,14 +291,7 @@ pub fn trick_estimates_with_auction_on(
     }
     let x = features_eval_v3_on(profile.blind_inference, hand, inferences, calls);
     debug_assert_eq!(x.len(), IN_V3);
-    // The exclusion twin was fit on readings carrying the pass-exclusion caps;
-    // serving it only under its knob keeps knob-off byte-identical.
-    let weights = if profile.reading.pass_exclusion {
-        &WEIGHTS_V3_EXCLUSION
-    } else {
-        &WEIGHTS_V3_UNION_READING
-    };
-    reshape(forward_with::<IN_V3>(weights, &x))
+    reshape(forward_with::<IN_V3>(&WEIGHTS_V3_UNION_READING, &x))
 }
 
 /// Reshape the raw head-major outputs — all 20 means, then all 20 log
@@ -348,17 +325,11 @@ fn forward_on(union_reading: bool, x: &[f32]) -> [f32; OUT] {
     forward_with::<IN>(weights, x)
 }
 
-/// Benchmark-only forward half of the v3 calls-tail evaluator, serving the
-/// shipped [`ReadingProfile::default`] pass-exclusion regime.
+/// Benchmark-only forward half of the v3 calls-tail evaluator.
 #[cfg(feature = "bench-internals")]
 pub(super) fn forward_v3(x: &[f32]) -> [f32; OUT] {
     assert_eq!(x.len(), IN_V3, "v3 evaluator feature width");
-    let weights = if ReadingProfile::default().pass_exclusion {
-        &WEIGHTS_V3_EXCLUSION
-    } else {
-        &WEIGHTS_V3_UNION_READING
-    };
-    forward_with::<IN_V3>(weights, x)
+    forward_with::<IN_V3>(&WEIGHTS_V3_UNION_READING, x)
 }
 
 /// Benchmark-only forward half of the active v4 shape evaluator.

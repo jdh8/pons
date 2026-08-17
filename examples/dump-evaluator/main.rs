@@ -208,11 +208,6 @@ struct Args {
     /// what a knob-on bidder serves the evaluator.
     #[arg(long)]
     envelope_union: bool,
-    /// Bid and read with `ReadingProfile::pass_exclusion = true` — the exclusion
-    /// twin's corpus. Like `--envelope-union`, auctions and range features both come
-    /// from the knob-on regime.
-    #[arg(long)]
-    pass_exclusion: bool,
     /// Fold both box closures (`ReadingProfile::sum_closure` +
     /// `ReadingProfile::upgrade_closure`) into
     /// the hulls the features see — the canonicalized-reading corpus. The
@@ -237,7 +232,6 @@ fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.reading.envelope_union = args.envelope_union;
-    agreements.decision.reading.pass_exclusion = args.pass_exclusion;
     let encoding = match args.encoding.as_str() {
         "summary" => Encoding::Summary,
         "onehot" => Encoding::Onehot,
@@ -474,7 +468,6 @@ fn main() -> anyhow::Result<()> {
         "deal_rng": "per-deal StdRng(seed ^ index·0x9E3779B97F4A7C15); \
                      not byte-compatible with pre-parallel sequential dumps",
         "envelope_union": args.envelope_union,
-        "pass_exclusion": args.pass_exclusion,
         "rows": rows,
         "contested_rows": contested,
         "forced_pass_decisions": forced_pass,

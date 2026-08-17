@@ -75,10 +75,6 @@ struct Args {
     #[arg(long, default_value = "30")]
     top: usize,
 
-    /// Read passes with sibling-gate exclusion (`ReadingProfile::pass_exclusion`)
-    #[arg(long)]
-    exclusion: bool,
-
     /// Read made bids with sibling-gate exclusion (`ReadingProfile::bid_exclusion`,
     /// engine default on since 2026-08-17; pass `false` for the pre-fold census)
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
@@ -294,7 +290,6 @@ fn main() {
     let base = args.seed.unwrap_or_else(rand::random);
     let vul = AbsoluteVulnerability::NONE;
     let mut agreements = pons::bidding::agreements::Agreements::default();
-    agreements.decision.reading.pass_exclusion = args.exclusion;
     if let Some(v) = args.bid_exclusion {
         agreements.decision.reading.bid_exclusion = v;
     }

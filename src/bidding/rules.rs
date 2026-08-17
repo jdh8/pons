@@ -255,11 +255,9 @@ impl Rule {
     /// The two-sided band of this rule's **negation** as a union of boxes
     /// ([`Constraint::project_complement`])
     ///
-    /// What *declining* this rule asserts: under argmax selection a hand
-    /// inside a gate that outweighs every Pass rule cannot have passed, so
-    /// the passer lies in the gate's complement.  The reading-side fold
-    /// behind
-    /// [`pass_exclusion`][field@crate::bidding::ReadingProfile::pass_exclusion].
+    /// What a made bid asserts about a sibling rule it declined: under argmax
+    /// selection a hand inside a strictly heavier sibling gate could not have
+    /// made this bid, so it lies in the gate's complement.
     #[must_use]
     pub fn project_complement_union(
         &self,
@@ -583,7 +581,6 @@ pub(crate) struct CompiledCallPlan {
     call: Call,
     rules: IndexRange,
     alerted: IndexRange,
-    max_weight: i16,
 }
 
 impl CompiledCallPlan {
@@ -593,35 +590,16 @@ impl CompiledCallPlan {
     pub(crate) const fn call(&self) -> Call {
         self.call
     }
-
-    /// The authored-order maximum rule weight for this call, in centinats.
-    #[must_use]
-    #[cfg(test)]
-    pub(crate) const fn max_weight(&self) -> i16 {
-        self.max_weight
-    }
 }
 
-/// Pass-specific exclusion inputs.
+/// Pass-specific projection inputs.
 ///
 /// Pass indices deliberately include face-gated rules without checking their
 /// face: the band they project is what a passer *may* hold, and a wider band
-/// is sound.  Their [`max_weight`][Self::max_weight] is the exclusion
-/// threshold — sibling selection itself lives in
-/// [`CompiledRules::stronger_siblings`], shared with the made-bid fold, and
-/// does check face and legality.
+/// is sound.
 #[derive(Clone, Debug)]
 pub(crate) struct CompiledPassPlan {
     rules: IndexRange,
-    max_weight: i16,
-}
-
-impl CompiledPassPlan {
-    /// The authored-order maximum over Pass weights, in centinats.
-    #[must_use]
-    pub(crate) const fn max_weight(&self) -> i16 {
-        self.max_weight
-    }
 }
 
 /// Index into a table-wide intern pool; `u32::MAX` denotes a live virtual fold.
@@ -832,7 +810,7 @@ impl CompiledRulePlan {
                 // Any rule can be a made bid's stronger sibling, so the
                 // made-bid fold wants every complement frozen, not just the
                 // ones above the Pass ceiling.
-                ProjectionKind::Complement => profile.pass_exclusion || profile.bid_exclusion,
+                ProjectionKind::Complement => profile.bid_exclusion,
                 ProjectionKind::Announcement => rule.alert.is_some() && profile.announced,
             };
             ProjectionPlan::compile(
@@ -950,14 +928,11 @@ impl CompiledRules {
         let profile = context.reading_profile();
         let mut by_call: Map<usize> = Map::new();
         let mut alerted_by_call: Map<usize> = Map::new();
-        let mut max_weight_by_call: Map<i16> = Map::new();
         for rule in &authored.rules {
             *by_call.entry(rule.call).get_or_insert(0) += 1;
             if rule.alert.is_some() {
                 *alerted_by_call.entry(rule.call).get_or_insert(0) += 1;
             }
-            let maximum = max_weight_by_call.entry(rule.call);
-            *maximum = Some(maximum.map_or(rule.weight, |value| value.max(rule.weight)));
         }
 
         let mut rules = Vec::with_capacity(authored.rules.len());
@@ -1005,9 +980,6 @@ impl CompiledRules {
                 call,
                 rules: rules_range,
                 alerted: alerted_range,
-                max_weight: *max_weight_by_call
-                    .get(call)
-                    .expect("a call group has a maximum"),
             });
         }
         for (index, rule) in authored.rules.iter().enumerate() {
@@ -1031,10 +1003,7 @@ impl CompiledRules {
         let pass = calls
             .iter()
             .find(|plan| plan.call == Call::Pass)
-            .map(|plan| CompiledPassPlan {
-                rules: plan.rules,
-                max_weight: plan.max_weight,
-            });
+            .map(|plan| CompiledPassPlan { rules: plan.rules });
 
         Self {
             #[cfg(test)]
@@ -1087,12 +1056,6 @@ impl CompiledRules {
             .map_or(&[], |plan| plan.alerted.slice(&self.alerted_indices))
     }
 
-    /// Pass exclusion plan, if this table authors Pass.
-    #[must_use]
-    pub(crate) const fn pass_plan(&self) -> Option<&CompiledPassPlan> {
-        self.pass.as_ref()
-    }
-
     /// Pass indices in authored order, deliberately unfiltered by face.
     #[must_use]
     pub(crate) fn pass_rule_indices(&self) -> &[RuleIndex] {
@@ -1135,7 +1098,7 @@ impl CompiledRules {
 
     /// Whether dropping an unread Pass effect can omit only explicitly pure
     /// projection folds. Pass projection does not consult rule faces.
-    pub(crate) fn can_skip_pass_effect(&self, profile: ReadingProfile) -> bool {
+    pub(crate) fn can_skip_pass_effect(&self) -> bool {
         let Some(pass) = &self.pass else {
             return true;
         };
@@ -1143,7 +1106,6 @@ impl CompiledRules {
             .slice(&self.grouped_indices)
             .iter()
             .all(|&index| self.rules[index as usize].projection_dependencies.is_pure())
-            && (!profile.pass_exclusion || self.siblings_pure(Call::Pass, pass.max_weight))
     }
 
     /// Whether dropping an unread non-Pass effect can omit only explicit pure
@@ -1172,7 +1134,7 @@ impl CompiledRules {
     /// observable, while explicitly shared faces and pure folds are reusable.
     pub(crate) fn can_reuse_authored_effect(&self, call: Call, profile: ReadingProfile) -> bool {
         if call == Call::Pass {
-            self.can_skip_pass_effect(profile)
+            self.can_skip_pass_effect()
         } else {
             self.can_skip_nonpass_effect(call, profile)
         }

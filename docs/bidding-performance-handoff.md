@@ -146,7 +146,7 @@ Each plan contains:
 
 - Declaration-order rule indices grouped by output call.
 - Alerted-rule indices grouped by call.
-- Pass-rule indices, maximum Pass weight, and stronger non-Pass rules needed by pass exclusion.
+- Pass-rule indices for the Pass-band reading.
 - Separate forward, band, complement, and announcement projection plans.
 - A dependency mask for hand summaries, context facts, inference, and trick estimates.
 - Stable original rule indices for `explain_call`.
@@ -163,8 +163,8 @@ Precompute projection data in two levels:
 Keep `project`, `project_band`, `project_complement`, and `announce` distinct. Compile the active/default reading profile; if runtime knobs do not match it, use the legacy projection path. Additional profiles may be compiled later if their benchmarks justify the memory.
 
 The implemented `CompiledRules` sidecar contains the declaration-order call
-groups, alert and Pass indexes, pass-exclusion ceiling, stable explanation
-indexes, four distinct projection plans, and conservative dependency masks.
+groups, alert and Pass indexes, stable explanation indexes, four distinct
+projection plans, and conservative dependency masks.
 Context-independent pure projections are eagerly evaluated and interned across
 the partnership; a runtime profile mismatch uses the legacy folds.
 

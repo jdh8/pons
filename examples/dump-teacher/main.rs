@@ -153,8 +153,7 @@ struct Args {
     /// `Inferences::read`, and the recognizer is what decides whether a
     /// relocated 4♥ reads as a diamond ask or as natural hearts.  Distilling a
     /// kickback teacher through a kickback-blind extractor trains the net on
-    /// readings it will never be served — the same out-of-distribution trap the
-    /// `evaluator_v3_exclusion` twin was regenerated to escape.
+    /// readings it will never be served — an out-of-distribution trap.
     #[arg(long)]
     kickback: bool,
     /// Alternate the kickback regime **per board**: even boards get the plain

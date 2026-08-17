@@ -958,9 +958,8 @@ records `card: engine defaults`, i.e. a teacher with kickback **off**, and
 a splinter.  No ladder rule, reader, or guard can repair that — the ladder fixes
 what a bid *means*, the net chooses what gets *bid*.  The next move is therefore
 a **retrained twin**, `dump-teacher --teacher bba --conv "Kickback 1430=1"`,
-selected inside `classify_bba` under `kickback_now()` exactly as
-`evaluator_v3_exclusion` is selected under `pass_exclusion_reading` — knob-off
-byte-identical.  Residual risk to watch: BBA reverts to 4NT precisely where
+selected inside `classify_bba` under `kickback_now()` with knob-off
+byte-identical. Residual risk to watch: BBA reverts to 4NT precisely where
 jdh8's ladder *walks up* (after `1♦ - 1♥ - 3♦` we ask 4♠, BBA asks 4NT), so a
 BBA-taught net will call that 4♠ a cue while our reader calls it an ask — the
 same disease, in the lane the walk-up exists for.

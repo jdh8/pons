@@ -320,7 +320,7 @@ fn opaque_public_faces_keep_every_consult() {
 }
 
 #[test]
-fn compiled_groups_alerts_and_pass_exclusion_keep_authored_indices() {
+fn compiled_groups_alerts_and_passes_keep_authored_indices() {
     const ARTIFICIAL: Alert = Alert("test artificial");
     let one_club = Call::Bid(Bid::new(1, Strain::Clubs));
     let one_diamond = Call::Bid(Bid::new(1, Strain::Diamonds));
@@ -344,23 +344,8 @@ fn compiled_groups_alerts_and_pass_exclusion_keep_authored_indices() {
         compiled.call_plan(one_club).map(CompiledCallPlan::call),
         Some(one_club)
     );
-    assert_eq!(
-        compiled
-            .call_plan(one_club)
-            .map(CompiledCallPlan::max_weight),
-        Some(300)
-    );
-
-    let pass = compiled.pass_plan().expect("Pass was authored");
     // Face-dead Pass rule 0 remains in the reading plan by design.
     assert_eq!(compiled.pass_rule_indices(), [0, 2]);
-    assert_eq!(pass.max_weight(), 200);
-    assert_eq!(
-        compiled
-            .stronger_siblings(Call::Pass, pass.max_weight())
-            .collect::<Vec<_>>(),
-        [3, 4]
-    );
     // A made bid's own siblings exclude its own call at every weight.
     assert_eq!(
         compiled
@@ -385,7 +370,6 @@ fn projection_folds_compile_independently_and_profile_mismatch_falls_back() {
     let auction = [Call::Bid(Bid::new(1, Strain::Hearts)), Call::Pass];
     let mut agreements = crate::bidding::agreements::Agreements::default();
     agreements.decision.reading.envelope_union = false;
-    agreements.decision.reading.pass_exclusion = true;
     agreements.decision.reading.announced = true;
     let context =
         Context::new(RelativeVulnerability::NONE, &auction).with_profile(agreements.decision);

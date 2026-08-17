@@ -558,19 +558,10 @@ struct Args {
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
     ns_legacy_view: Option<bool>,
 
-    /// Read our side's passes with sibling-gate exclusion
-    /// (`ReadingProfile::pass_exclusion`, crate default off).  A pass proves the
-    /// hand outside every table sibling whose weight strictly beats every
-    /// Pass rule's; single-box complements fold into the pass band, so the
-    /// catch-all defensive passes (their weak twos) read ≤16 points instead
-    /// of ⊤.
-    #[arg(long, default_value_t = false)]
-    ns_pass_exclusion: bool,
-
     /// Read our side's made bids with sibling-gate exclusion
     /// (`ReadingProfile::bid_exclusion`, crate default on).  The made-bid
-    /// generalisation of `--ns-pass-exclusion`: selection is argmax over
-    /// `weight/100 + eval`, so a bid made through one rule proves the hand
+    /// selection is argmax over `weight/100 + eval`, so a bid made through one
+    /// rule proves the hand
     /// outside every sibling rule on another call whose weight strictly beats
     /// it.  The book's non-Pass `hcp(0..)` catch-alls then read what the
     /// heavier tiers denied instead of nothing at all (Jacoby `1M - 2NT - 4M`
@@ -1935,7 +1926,6 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     if let Some(v) = args.ns_strength_ceilings {
         agreements.decision.reading.strength_ceilings = v;
     }
-    agreements.decision.reading.pass_exclusion = args.ns_pass_exclusion;
     if let Some(v) = args.ns_bid_exclusion {
         agreements.decision.reading.bid_exclusion = v;
     }

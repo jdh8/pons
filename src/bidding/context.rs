@@ -1165,8 +1165,7 @@ impl<'a> Context<'a> {
     /// bidder's argmax applies
     ///
     /// The reading-side twin of `table::LegalCalls`: negative inference
-    /// ([`bid_exclusion`][field@super::ReadingProfile::bid_exclusion],
-    /// [`pass_exclusion`][field@super::ReadingProfile::pass_exclusion]) may
+    /// ([`bid_exclusion`][field@super::ReadingProfile::bid_exclusion]) may
     /// exclude a sibling gate only if its call could really have won, and an
     /// insufficient bid or an inadmissible double never reached the argmax at
     /// all.  Every reading walk asks this of the prefix *before* the call it

@@ -277,7 +277,7 @@ pub trait Constraint: Send + Sync {
     /// *allowed*, which needs the ceilings back.  With
     /// [`strength_ceilings`][field@ReadingProfile::strength_ceilings] on, the
     /// three point gauges' forward folds *are* this one, and the distinction
-    /// survives only for [`balanced`] and the pass-exclusion path.  Same
+    /// survives only for [`balanced`] and the Pass-band path.  Same
     /// soundness contract either way: a finite
     /// `eval(hand, context)` implies `hand` lies within the band.  The
     /// default reuses `project`, so every constraint whose projection is

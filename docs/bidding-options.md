@@ -613,7 +613,7 @@ Packages with no web row, recorded here for completeness:
 `set_fuzzy_fifths`→`set_fifths_companion` (entirely dormant at shipped
 defaults); `set_nt_overcall_systems_on`→`set_nt_overcall_gladiator`;
 `envelope_union_reading()`→`sum_closure` / `upgrade_closure` / `eval_shape` /
-`eval_auction` / `pass_exclusion_reading`. Note `set_advancer_xx_runout` and
+`eval_auction`. Note `set_advancer_xx_runout` and
 `set_doubler_xx_runout` are *siblings* of the 1NT runout, not payloads — they
 survive `set_one_nt_runout(false)`.
 
@@ -636,15 +636,11 @@ Each is one editorial decision spread over bools; none has bitten yet.
 - `NOTRUMP_MINORS` selects a variant by `Alert("puppet")` / `Alert("european")`
   string tag — the one non-enum variant selector left. Higher stakes than the
   first pass implied: it also gates two default-on bool knobs and six card rows.
-- **The evaluator's artifact cascade** — four bools (`envelope_union_reading`,
-  `eval_shape`, `eval_auction`, `pass_exclusion_reading`) selecting one of five
-  weight blobs, i.e. 16 cells for 5 artifacts.  `eval_shape` *supersedes*
-  `eval_auction`, so `(shape on, auction off)` is a duplicate cell; and
-  `pass_exclusion_reading` selects weights **outside its own reading gate**, so
-  `(pass_reading off, pass_exclusion on)` serves the exclusion-trained evaluator
-  for a reading regime that is switched off. The largest remaining
-  mis-encoding, and the one that costs a retrain to fix — hence deferred, not
-  done.
+- **The evaluator's artifact cascade** — three bools (`envelope_union_reading`,
+  `eval_shape`, `eval_auction`) selecting four weight blobs, i.e. eight cells.
+  `eval_shape` *supersedes* `eval_auction`, so `(shape on, auction off)` is a
+  duplicate cell. The rejected pass-exclusion branch and its fifth artifact
+  were removed on 2026-08-18.
 - Sentinel duplicates in the u8 payloads: `meckwell_x_floor(8)` ≡ `(0)` and
   `direct_dont_x_floor(8)` ≡ `(0)`, because `0` means "inherit
   `natural_overcall_points().0`", which is 8. Documented as byte-identical, but

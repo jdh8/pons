@@ -197,8 +197,8 @@ fn push_points(out: &mut impl FeatureSink, shown: &Envelope) {
 /// its support-scale band verbatim onto the legacy `points` axis.  The
 /// reader now keeps that axis sound (`support_band_to_points` — a 4-point
 /// shapely raise sits inside the box), which would hand a trained net an
-/// off-distribution widening at every raise auction — the pass-exclusion
-/// lesson: a reading change the net consumes is a retrain, not a free edit.
+/// off-distribution widening at every raise auction — a reading change the
+/// net consumes is a retrain, not a free edit.
 /// Folding the slots back in reconstructs the training-time hull exactly at
 /// those nodes and is a no-op elsewhere (an unnarrowed slot is ⊤, and
 /// `canonicalize` seeds slot floors only from the raw-HCP floor the `points`

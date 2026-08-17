@@ -68,6 +68,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   back to the widened hull-intersect, so a union is never emptied.
   `smoke-default` is byte-identical (`7aa33d58…`).
 
+### Removed
+
+- **Rejected pass-side exclusion.** `ReadingProfile::pass_exclusion`, its
+  `bba-gen`/corpus/probe arms, and the unused `evaluator_v3_exclusion` artifact
+  are gone. Its three-seed repair remained a loss; ordinary Pass-band readings
+  and the shipped made-bid `bid_exclusion` fold are unchanged.
+
 ### Added
 
 - **Negative inference for made bids** (`ReadingProfile::bid_exclusion`,

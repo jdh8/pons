@@ -42,65 +42,6 @@ fn v3_matches_candle_fixture() {
     );
 }
 
-/// The pass-exclusion twin of the v3 artifact against its own fixture.
-#[test]
-fn exclusion_matches_candle_fixture() {
-    check_fixture(
-        include_str!("../weights/evaluator_v3_exclusion.fixture.json"),
-        3,
-        IN_V3,
-        |x| forward_with::<IN_V3>(&WEIGHTS_V3_EXCLUSION, x),
-    );
-}
-
-/// The exclusion knob's serving contract: with the reading held fixed,
-/// knob on swaps the v3 path onto the exclusion twin and knob off is
-/// byte-identical to the union-reading twin. Restores the crate default (off).
-#[test]
-fn exclusion_knob_swaps_v3_weights() {
-    use contract_bridge::{Bid, Level};
-    let auction = [
-        Call::Bid(Bid {
-            level: Level::new(1),
-            strain: Strain::Spades,
-        }),
-        Call::Pass,
-    ];
-    let ctx = Context::new(RelativeVulnerability::NONE, &auction);
-    let inf = Inferences::read(&ctx);
-    let h = hand("AQ32.K53.QJ4.A92");
-
-    let mut profile = DecisionProfile::default();
-    profile.reading.envelope_union = true;
-    profile.reading.pass_exclusion = false;
-    let union_reading = trick_estimates_with_auction_on(&profile, h, &inf, &auction);
-
-    profile.reading.pass_exclusion = true;
-    let exclusion = trick_estimates_with_auction_on(&profile, h, &inf, &auction);
-
-    assert_ne!(
-        exclusion, union_reading,
-        "the twin should not shadow the envelope-union weights"
-    );
-    assert_eq!(
-        trick_estimates_with_auction_on(
-            &DecisionProfile {
-                reading: ReadingProfile {
-                    envelope_union: true,
-                    pass_exclusion: false,
-                    ..profile.reading
-                },
-                ..profile
-            },
-            h,
-            &inf,
-            &auction,
-        ),
-        union_reading,
-        "knob off must be byte-identical"
-    );
-}
-
 /// The v4 shape-reading artifact against its own fixture.
 #[test]
 fn v4_matches_candle_fixture() {

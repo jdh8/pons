@@ -32,7 +32,6 @@ fn unread_compiled_effects_preserve_opaque_face_and_projection_hooks() {
     let one_club = bid(1, Strain::Clubs);
     let mut agreements = Agreements::default();
     agreements.decision.reading.scope = ReadingScope::Alerted;
-    agreements.decision.reading.pass_exclusion = false;
     agreements.decision.reading.announced = false;
     let context = Context::new(RelativeVulnerability::NONE, &[]).with_profile(agreements.decision);
 
@@ -122,7 +121,7 @@ fn unread_compiled_effects_preserve_opaque_face_and_projection_hooks() {
             .can_skip_nonpass_effect(one_club, profile)
     );
     let pure_pass = Rules::new().rule(Call::Pass, 0, hcp(0..));
-    assert!(pure_pass.compile(&context).can_skip_pass_effect(profile));
+    assert!(pure_pass.compile(&context).can_skip_pass_effect());
 }
 
 #[test]
@@ -155,7 +154,6 @@ fn deal_cache_rejects_observable_faces_and_projections_before_hooks_run() {
     };
     system.agreements.decision.reading.scope = ReadingScope::Alerted;
     system.agreements.decision.reading.pass = false;
-    system.agreements.decision.reading.pass_exclusion = false;
     system.agreements.decision.reading.table_alerts = false;
     system.agreements.decision.reading.announced = false;
     system.agreements.decision.reading.probed = false;
