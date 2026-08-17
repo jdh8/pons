@@ -605,28 +605,22 @@ impl CompiledCallPlan {
 /// Pass-specific exclusion inputs.
 ///
 /// Pass indices deliberately include face-gated rules without checking their
-/// face, matching the existing `project_pass` quirk.  Stronger siblings are
-/// likewise selected solely by authored call and strict weight comparison.
+/// face: the band they project is what a passer *may* hold, and a wider band
+/// is sound.  Their [`max_weight`][Self::max_weight] is the exclusion
+/// threshold — sibling selection itself lives in
+/// [`CompiledRules::stronger_siblings`], shared with the made-bid fold, and
+/// does check face and legality.
 #[derive(Clone, Debug)]
 pub(crate) struct CompiledPassPlan {
     rules: IndexRange,
-    #[allow(dead_code)] // retained as authored pass-plan metadata
     max_weight: i16,
-    stronger_nonpass: Box<[RuleIndex]>,
 }
 
 impl CompiledPassPlan {
     /// The authored-order maximum over Pass weights, in centinats.
     #[must_use]
-    #[cfg(test)]
     pub(crate) const fn max_weight(&self) -> i16 {
         self.max_weight
-    }
-
-    /// Non-Pass rules whose weight is strictly above the Pass ceiling.
-    #[must_use]
-    pub(crate) fn stronger_nonpass_indices(&self) -> &[RuleIndex] {
-        &self.stronger_nonpass
     }
 }
 
@@ -835,7 +829,10 @@ impl CompiledRulePlan {
             let eager = match kind {
                 ProjectionKind::Forward => eager_forward,
                 ProjectionKind::Band => rule.call == Call::Pass && profile.pass,
-                ProjectionKind::Complement => profile.pass_exclusion,
+                // Any rule can be a made bid's stronger sibling, so the
+                // made-bid fold wants every complement frozen, not just the
+                // ones above the Pass ceiling.
+                ProjectionKind::Complement => profile.pass_exclusion || profile.bid_exclusion,
                 ProjectionKind::Announcement => rule.alert.is_some() && profile.announced,
             };
             ProjectionPlan::compile(
@@ -1034,22 +1031,9 @@ impl CompiledRules {
         let pass = calls
             .iter()
             .find(|plan| plan.call == Call::Pass)
-            .map(|plan| {
-                let ceiling = plan.max_weight;
-                let stronger_nonpass = authored
-                    .rules
-                    .iter()
-                    .enumerate()
-                    .filter(|(_, rule)| rule.call != Call::Pass && rule.weight > ceiling)
-                    .map(|(index, _)| {
-                        RuleIndex::try_from(index).expect("a rule table fits in u32 indices")
-                    })
-                    .collect();
-                CompiledPassPlan {
-                    rules: plan.rules,
-                    max_weight: ceiling,
-                    stronger_nonpass,
-                }
+            .map(|plan| CompiledPassPlan {
+                rules: plan.rules,
+                max_weight: plan.max_weight,
             });
 
         Self {
@@ -1117,9 +1101,41 @@ impl CompiledRules {
             .map_or(&[], |pass| pass.rules.slice(&self.grouped_indices))
     }
 
+    /// Authored indices of the rules on *other* calls whose weight strictly
+    /// beats `threshold`, in authored order.
+    ///
+    /// The exclusion fold's candidate set (see
+    /// [`bid_exclusion`][field@crate::bidding::ReadingProfile::bid_exclusion]):
+    /// under argmax over `weight/100 + eval`, a rule the bidder passed over
+    /// that outweighs the one they used must have been false.  Face liveness
+    /// and legality are the reader's to check — both need a [`Context`], and
+    /// both only *shrink* this set.
+    pub(crate) fn stronger_siblings(
+        &self,
+        call: Call,
+        threshold: i16,
+    ) -> impl Iterator<Item = RuleIndex> + '_ {
+        self.rules
+            .iter()
+            .filter(move |plan| plan.call != call && plan.weight > threshold)
+            .map(|plan| plan.authored_index)
+    }
+
+    /// Whether every [`stronger_sibling`][Self::stronger_siblings] of `call`
+    /// is safe to leave unevaluated — no opaque face callback, no opaque
+    /// projection fold.
+    fn siblings_pure(&self, call: Call, threshold: i16) -> bool {
+        self.rules.iter().all(|plan| {
+            plan.call == call
+                || plan.weight <= threshold
+                || (!matches!(plan.face, CompiledFacePlan::Opaque)
+                    && plan.projection_dependencies.is_pure())
+        })
+    }
+
     /// Whether dropping an unread Pass effect can omit only explicitly pure
     /// projection folds. Pass projection does not consult rule faces.
-    pub(crate) fn can_skip_pass_effect(&self, pass_exclusion: bool) -> bool {
+    pub(crate) fn can_skip_pass_effect(&self, profile: ReadingProfile) -> bool {
         let Some(pass) = &self.pass else {
             return true;
         };
@@ -1127,21 +1143,25 @@ impl CompiledRules {
             .slice(&self.grouped_indices)
             .iter()
             .all(|&index| self.rules[index as usize].projection_dependencies.is_pure())
-            && (!pass_exclusion
-                || pass
-                    .stronger_nonpass
-                    .iter()
-                    .all(|&index| self.rules[index as usize].projection_dependencies.is_pure()))
+            && (!profile.pass_exclusion || self.siblings_pure(Call::Pass, pass.max_weight))
     }
 
     /// Whether dropping an unread non-Pass effect can omit only explicit pure
     /// faces and forward projections. Public `Rules::face` callbacks remain
     /// observable and therefore keep the legacy reader walk.
-    pub(crate) fn can_skip_nonpass_effect(&self, call: Call) -> bool {
-        self.rule_indices(call).iter().all(|&index| {
+    pub(crate) fn can_skip_nonpass_effect(&self, call: Call, profile: ReadingProfile) -> bool {
+        let indices = self.rule_indices(call);
+        indices.iter().all(|&index| {
             let plan = &self.rules[index as usize];
             !matches!(plan.face, CompiledFacePlan::Opaque) && plan.projection_dependencies.is_pure()
-        })
+        }) && (!profile.bid_exclusion
+            // The lowest of the call's own weights is the widest sibling set
+            // any of its per-rule thresholds can draw.
+            || indices
+                .iter()
+                .map(|&index| self.rules[index as usize].weight)
+                .min()
+                .is_none_or(|threshold| self.siblings_pure(call, threshold)))
     }
 
     /// Whether one authored effect is observationally pure and may be retained
@@ -1150,11 +1170,11 @@ impl CompiledRules {
     /// This deliberately shares the stricter proof used by the structural skip
     /// paths: public face callbacks and opaque custom projection folds remain
     /// observable, while explicitly shared faces and pure folds are reusable.
-    pub(crate) fn can_reuse_authored_effect(&self, call: Call, pass_exclusion: bool) -> bool {
+    pub(crate) fn can_reuse_authored_effect(&self, call: Call, profile: ReadingProfile) -> bool {
         if call == Call::Pass {
-            self.can_skip_pass_effect(pass_exclusion)
+            self.can_skip_pass_effect(profile)
         } else {
-            self.can_skip_nonpass_effect(call)
+            self.can_skip_nonpass_effect(call, profile)
         }
     }
 

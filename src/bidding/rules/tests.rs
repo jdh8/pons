@@ -355,7 +355,19 @@ fn compiled_groups_alerts_and_pass_exclusion_keep_authored_indices() {
     // Face-dead Pass rule 0 remains in the reading plan by design.
     assert_eq!(compiled.pass_rule_indices(), [0, 2]);
     assert_eq!(pass.max_weight(), 200);
-    assert_eq!(pass.stronger_nonpass_indices(), [3, 4]);
+    assert_eq!(
+        compiled
+            .stronger_siblings(Call::Pass, pass.max_weight())
+            .collect::<Vec<_>>(),
+        [3, 4]
+    );
+    // A made bid's own siblings exclude its own call at every weight.
+    assert_eq!(
+        compiled
+            .stronger_siblings(one_club, 200)
+            .collect::<Vec<_>>(),
+        [4]
+    );
 }
 
 #[test]

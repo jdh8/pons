@@ -234,21 +234,38 @@ impl Strength {
         }
     }
 
-    /// Bounded intersection; `None` only when the `points` gauge is disjoint
+    /// Bounded intersection; `None` when **any** gauge is disjoint
     ///
-    /// **Only `points` gates box-emptiness**, exactly as the pre-`Strength` box
-    /// algebra did.  The new gauges combine by the widening [`Range::intersect`]
-    /// so they never drop a box a `points`/length reading would have kept — they
-    /// are inert until Edits 1/2, and must not perturb the [`EnvelopeUnion`] the sampler
-    /// reads through `admits` (which reads `points` only).
+    /// Every gauge gates box-emptiness, not just `points`.  Two promises about
+    /// the same scalar that cross describe no hand, so the *box* is empty — the
+    /// widening [`Range::intersect`] is right for a whole reading (drop no truth
+    /// when one inference was unsound) and wrong for one product of a union,
+    /// where a sibling box holds the truth instead.
+    ///
+    /// `points`-only emptiness was the pre-`Strength` behaviour, kept while the
+    /// other gauges were inert.  Negative inference
+    /// ([`bid_exclusion`][field@crate::bidding::ReadingProfile::bid_exclusion])
+    /// ended that: a complement that crosses a made call's `support_points`
+    /// promise used to survive as a box widened to ⊤ on that axis, which
+    /// [`EnvelopeUnion::tidy`]'s containment prune then preferred over the
+    /// correctly-narrowed sibling — so the fold *lost* information it was
+    /// supposed to add.  Dropping the box is exact, not a heuristic; a
+    /// conjunction whose every product is empty still falls back to the widened
+    /// hull-intersect in [`EnvelopeUnion::intersect_owned`], so the union is
+    /// never emptied.
     fn intersect_nonempty(self, other: Self, scale: PointScale) -> Option<Self> {
+        let mut support_points = [Range::FULL_POINTS; 4];
+        let mut suit_hcp = [Range::FULL_POINTS; 4];
+        for i in 0..4 {
+            support_points[i] =
+                self.support_points[i].intersect_nonempty(other.support_points[i])?;
+            suit_hcp[i] = self.suit_hcp[i].intersect_nonempty(other.suit_hcp[i])?;
+        }
         let mut out = Self {
-            hcp: self.hcp.intersect(other.hcp),
+            hcp: self.hcp.intersect_nonempty(other.hcp)?,
             points: self.points.intersect_nonempty(other.points)?,
-            support_points: core::array::from_fn(|i| {
-                self.support_points[i].intersect(other.support_points[i])
-            }),
-            suit_hcp: core::array::from_fn(|i| self.suit_hcp[i].intersect(other.suit_hcp[i])),
+            support_points,
+            suit_hcp,
         };
         out.canonicalize(scale);
         Some(out)

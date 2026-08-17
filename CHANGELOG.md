@@ -7,7 +7,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **A crossed strength gauge now empties its box instead of widening it**
+  (`Strength::intersect_nonempty`, `inference/envelope.rs`). Box-emptiness
+  was gated on the `points` gauge alone — a deliberate inertness choice from
+  when the other gauges were new — so a product whose `hcp`,
+  `support_points` or `suit_hcp` promises *crossed* survived as a box widened
+  to ⊤ on that axis, and `EnvelopeUnion::tidy`'s containment prune then
+  preferred that ghost over the correctly-narrowed sibling box.
+
+  Latent until negative inference (below) started intersecting unions with
+  complements, where it inverted the whole point: folding Jacoby's
+  `support_points(13..)` complement into the 2/1 fit-split union destroyed
+  responder's `support_points[♠] 11..37` promise, `Strength::shown_floor()`
+  fell 11 → 0, and the floor's `combined_points(29)` gate silently stopped
+  asking Blackwood — 11 of the 12 boards that knob then moved, at least one a
+  clear loss (blasting `6♠` off the trump ace where the ask had stopped in
+  five). Dropping the box is exact, not a heuristic: the two promises bound
+  the same scalar, and a conjunction whose every product is empty still falls
+  back to the widened hull-intersect, so a union is never emptied.
+  `smoke-default` is byte-identical (`7aa33d58…`).
+
 ### Added
+
+- **Negative inference for made bids** (`ReadingProfile::bid_exclusion`,
+  `--ns-bid-exclusion`, `PROBE_BID_EXCLUSION=1`, `set_bid_exclusion`;
+  **default off, pending its A/B** — Phase 4 of
+  `docs/authored-reading-handoff.md`). Selection is argmax over legal calls
+  with finite logits, and a book logit is `weight/100` or −∞, so "the table
+  made `C` through rule *i*" says exactly that every sibling rule strictly
+  heavier than *i* was **false**; `C`'s reading may then be intersected with
+  those siblings' complements. The threshold is **per rule**, and a sibling
+  counts only when it was **face-live and legal** at that turn. The default
+  system is byte-identical (`smoke-default --count 20000 --seed 1` stays
+  `7aa33d58…`).
+
+  This is what the book's non-Pass `hcp(0..)` catch-alls needed: they project
+  ⊤, so the call falls back to the natural walk, which then guesses. The three
+  worst nodes the rate-ranked worklist filed above are all fixed — partner
+  exclusions at `1♥ - 2NT - 4♥` **25/25 → 0**, `1♠ - 2NT - 4♠` 17/17 → 0, the
+  Ogust `3♣` answer 77–95% → 0 — and the 40k soundness census improves overall
+  partner exclusions **1.302% → 1.180%** (seed 20260816; their seats rise
+  7.635→8.251% LHO / 7.714→8.298% RHO, expected: our meanings model a system
+  they are not playing). Opener's Jacoby sign-off reads `points 11..21` and
+  ♣/♦/♠ `2..13` instead of the walk's `points 16..21`; the Ogust sign-off
+  reads `hcp 12..16` instead of `12..37`; the strong-`2♣` retreat reads
+  ♥ `0..2` instead of `0..13`. Throughput cost **+0.2%** (`bba-gen` 6400
+  bd, three interleaved pairs).
+
+  Bidding-inert against BBA at the default: **2 diverging boards in 20,000**
+  (0.01%), both the fold buying an ask the floor used to skip — so, like
+  `pass`/`cue`/`table_alerts` before it, its A/B is close to a wash by
+  construction and the soundness census is the real gate. **Still default
+  off pending that A/B.**
+
+  The Pass-side twin (`pass_exclusion`) now shares the same fold, which
+  **changes its semantics**: multi-box complements are folded under a box
+  budget instead of being skipped, and face-dead or illegal siblings are no
+  longer excluded (two latent quirks, both corrections). Its
+  `evaluator_v3_exclusion` weights were fit on the single-box regime, so a
+  re-measure is owed before that knob is read as previously measured.
 
 - **`probe-reading-sound` ranks its partner worklist by rate as well as
   count.** A second table sorts the same nodes by excluded-reading *rate*

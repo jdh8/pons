@@ -112,14 +112,15 @@ fn unread_compiled_effects_preserve_opaque_face_and_projection_hooks() {
     assert_eq!(*pass_events.lock().unwrap(), legacy_pass_events);
     assert_eq!(legacy_pass_events, ["project"]);
 
+    let profile = context.reading_profile();
     let pure_nonpass = Rules::new().rule(one_club, 0, hcp(0..));
     assert!(
         pure_nonpass
             .compile(&context)
-            .can_skip_nonpass_effect(one_club)
+            .can_skip_nonpass_effect(one_club, profile)
     );
     let pure_pass = Rules::new().rule(Call::Pass, 0, hcp(0..));
-    assert!(pure_pass.compile(&context).can_skip_pass_effect(false));
+    assert!(pure_pass.compile(&context).can_skip_pass_effect(profile));
 }
 
 #[test]
@@ -385,4 +386,196 @@ fn opaque_route_on_unused_routed_prefix_is_never_invoked() {
             .is_some()
     );
     assert_eq!(calls.load(Ordering::SeqCst), 0);
+}
+
+/// Bid-exclusion soundness: wherever a table's argmax is (or ties with) a
+/// non-Pass call, the knob-on reading of that call must admit the hand.
+///
+/// The made-bid twin of `passes_read_within_their_table`.  Both replay the
+/// argmax rather than one rule, because the claim is about the **table** — "no
+/// bidder of `C` holds a hand a strictly-heavier sibling gate accepts".  This
+/// one also filters by legality, exactly as `table::select_with_legal_state`
+/// does: an insufficient bid never reached the argmax, so its gate proves
+/// nothing.  Ties count as wins (stricter than the driver, which keeps the
+/// earliest), which is why the exclusion threshold is a strict `>` on weight.
+#[test]
+fn bids_read_within_their_table() {
+    use crate::bidding::american::american;
+    use crate::bidding::dutch::dutch;
+    use rand::SeedableRng as _;
+
+    let mut rng = rand::rngs::StdRng::seed_from_u64(0x81D5);
+    let mut hands: Vec<Hand> = crate::bidding::verify::random_hands(&mut rng)
+        .take(128)
+        .collect();
+    hands.extend(
+        ["AKQJ.AKQJ.AKQ.AK", "AKQ2.K53.QJ4.T92"]
+            .map(|text| text.parse::<Hand>().unwrap_or_else(|_| unreachable!())),
+    );
+
+    let mut failures: Vec<String> = Vec::new();
+    let check = |system: &str,
+                 auction: &[Call],
+                 context: &Context<'_>,
+                 rules: &crate::bidding::rules::Rules,
+                 failures: &mut Vec<String>| {
+        // The serving path: a compiled plan interns each rule's complement, so
+        // the per-rule sibling scan reads the pool instead of re-projecting.
+        // The uncompiled twin is pinned by
+        // `bid_exclusion_folds_only_live_legal_stronger_siblings`.
+        let compiled = rules.compile(context);
+        // A reading is hand-independent, so decode each call once per node and
+        // replay every hand against the memo.
+        let mut readings: std::collections::HashMap<Call, Option<EnvelopeUnion>> =
+            std::collections::HashMap::new();
+        for &hand in &hands {
+            let logits = compiled.classify(rules, hand, context);
+            let best = logits
+                .iter()
+                .filter(|(call, logit)| logit.is_finite() && context.allows(*call))
+                .fold(f32::NEG_INFINITY, |best, (_, &logit)| best.max(logit));
+            if !best.is_finite() {
+                continue;
+            }
+            for (call, &logit) in logits.iter() {
+                if call == Call::Pass || logit < best || !context.allows(call) {
+                    continue;
+                }
+                let reading = readings.entry(call).or_insert_with(|| {
+                    authored_effect(call, context, rules, Some(&compiled), false, false)
+                        .map(|effect| effect.projection.into_owned())
+                });
+                let Some(reading) = reading else { continue };
+                if !reading.boxes().iter().any(|box_| box_.accepts(hand)) && failures.len() < 16 {
+                    failures.push(format!(
+                        "{system}: [{}] {call} reading excludes the hand that bid it: {hand}",
+                        contract_bridge::auction::display_calls(auction),
+                    ));
+                }
+            }
+        }
+    };
+
+    // The shipped regime only: ceilings on is the *tighter* reading, so it is
+    // the binding cell — a hand this sweep admits with ceilings on is admitted
+    // without them too.
+    let mut agreements = Agreements::default();
+    agreements.decision.reading.envelope_union = true;
+    agreements.decision.reading.bid_exclusion = true;
+    let american = american(&agreements);
+    let dutch = dutch(&agreements);
+    let tries: [(&str, &crate::bidding::trie::Trie); 4] = [
+        ("american constructive", &american.constructive.0),
+        ("american competitive", &american.competitive.0),
+        ("american defensive", &american.defensive.0),
+        ("dutch constructive", &dutch.constructive.0),
+    ];
+    // `Hand::EMPTY` arms the node's decision scope so one `Inferences::read`
+    // serves every rule and every probe hand — the same saving `node_context`
+    // buys the sibling sweeps in `inference/tests.rs`.  Without it the deep
+    // keycard nodes, whose gates consult the reading, re-derive it per rule
+    // per hand: 1.75s for a six-rule table.
+    for (system, trie) in tries {
+        for (auction, classifier) in trie {
+            if let Some(rules) = classifier.as_rules() {
+                let context = Context::new(RelativeVulnerability::NONE, &auction)
+                    .with_prefixes(trie.common_prefixes(&auction))
+                    .with_profile(agreements.decision)
+                    .with_decision_cache(Hand::EMPTY);
+                check(system, &auction, &context, rules, &mut failures);
+            }
+        }
+        for (auction, _, fallback) in trie.fallbacks() {
+            let crate::bidding::fallback::Fallback::Classify(classifier) = fallback else {
+                continue;
+            };
+            if let Some(rules) = classifier.as_rules() {
+                let context = Context::new(RelativeVulnerability::NONE, &auction)
+                    .with_prefixes(trie.common_prefixes(&auction))
+                    .with_profile(agreements.decision)
+                    .with_decision_cache(Hand::EMPTY);
+                check(system, &auction, &context, rules, &mut failures);
+            }
+        }
+    }
+    assert!(
+        failures.is_empty(),
+        "bid-exclusion excludes hands that bid:\n{}",
+        failures.join("\n"),
+    );
+}
+
+/// The exclusion fold's arithmetic, pinned rule by rule.
+///
+/// Two of these are the latent quirks the Pass-only path carried and this
+/// phase fixed: a **face-dead** sibling never bids, and an **illegal** one was
+/// filtered before the argmax ever saw it, so neither may be excluded.
+#[test]
+fn bid_exclusion_folds_only_live_legal_stronger_siblings() {
+    use crate::bidding::constraint::{hcp, len, points, pred};
+    use crate::bidding::inference::Range;
+    use crate::bidding::rules::Rules;
+
+    let one_heart = bid(1, Strain::Hearts);
+    let one_spade = bid(1, Strain::Spades);
+    let two_hearts = bid(2, Strain::Hearts);
+    let three_clubs = bid(3, Strain::Clubs);
+    // Their `1♠` is on the table, so `1♥` is insufficient and `2♥` is not.
+    let auction = [one_spade];
+
+    let mut agreements = Agreements::default();
+    agreements.decision.reading.envelope_union = true;
+    agreements.decision.reading.bid_exclusion = true;
+    let context =
+        Context::new(RelativeVulnerability::NONE, &auction).with_profile(agreements.decision);
+
+    let read = |rules: &Rules| {
+        authored_effect(two_hearts, &context, rules, None, false, false)
+            .expect("2♥ is authored")
+            .projection
+            .into_owned()
+    };
+
+    // The catch-all alone reads nothing — today's identity.
+    let bare = Rules::new().rule(two_hearts, 50, hcp(0..));
+    assert_eq!(read(&bare), EnvelopeUnion::unknown());
+
+    // A strictly-heavier legal sibling excludes its own gate.
+    let excluded = bare.clone().rule(three_clubs, 100, points(17..));
+    assert_eq!(read(&excluded).hull().strength.points, Range::new(0, 16));
+
+    // ...but a face-dead one never bids,
+    let face_dead = bare
+        .clone()
+        .rule(three_clubs, 100, points(17..))
+        .face(|_| false);
+    assert_eq!(read(&face_dead), EnvelopeUnion::unknown());
+
+    // ...an insufficient one never reached the argmax,
+    let illegal = bare.clone().rule(one_heart, 100, points(17..));
+    assert_eq!(read(&illegal), EnvelopeUnion::unknown());
+
+    // ...an equally-weighted one loses the tie to the earlier call,
+    let tied = bare.clone().rule(three_clubs, 50, points(17..));
+    assert_eq!(read(&tied), EnvelopeUnion::unknown());
+
+    // ...and an opaque gate complements to ⊤, which is dropped before folding.
+    let opaque = bare.clone().rule(three_clubs, 100, pred(|_, _| true));
+    assert_eq!(read(&opaque), EnvelopeUnion::unknown());
+
+    // The threshold is **per rule**: a second `2♥` rule heavier than the
+    // sibling keeps its own arm of the union unexcluded, so the union reopens.
+    let per_rule = excluded.clone().rule(two_hearts, 150, hcp(0..));
+    assert_eq!(read(&per_rule), EnvelopeUnion::unknown());
+
+    // Many disjunctive complements stay inside the budget without losing a
+    // bidder that satisfies none of the declined gates.
+    let mut wide = bare.clone().rule(three_clubs, 100, hcp(5..=10));
+    for suit in Suit::ASC {
+        wide = wide.rule(three_clubs, 100, len(suit, 2..=3));
+    }
+    let folded = read(&wide);
+    assert!(folded.boxes().len() <= 16, "{} boxes", folded.boxes().len());
+    let outside: Hand = "AKQJT.AKQJ.AKQJ.".parse().expect("a 5-4-4-0");
+    assert!(folded.boxes().iter().any(|box_| box_.accepts(outside)));
 }

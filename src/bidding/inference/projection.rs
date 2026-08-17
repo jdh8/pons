@@ -5,13 +5,221 @@
 //! convention reads exactly what its rules promise.  [`AuthoringStepCache`] is
 //! the per-auction memo that keeps the replay affordable.
 
-use super::envelope::{Envelope, EnvelopeUnion, relative_of};
+#[cfg(test)]
+use super::envelope::Envelope;
+use super::envelope::{EnvelopeUnion, relative_of};
 use super::knobs::*;
+use crate::bidding::constraint::ProjectionKind;
 use crate::bidding::context::Context;
+use crate::bidding::rules::{CompiledRules, FaceMemo, ProjectedUnion, RuleIndex, Rules};
 #[cfg(test)]
 use contract_bridge::Strain;
 use contract_bridge::Suit;
 use contract_bridge::auction::Call;
+
+/// How many boxes one call's exclusion fold may leave behind
+///
+/// A complement is a *disjunction* (`!(A & B) = !A | !B`), so folding several
+/// multiplies terms.  Sixteen is comfortably above what the shipped book
+/// produces and comfortably below `intersect_owned`'s own `debug_assert!(<
+/// 64)`.  Dropping a complement costs precision, never soundness.
+///
+// ponytail: one flat cap for every table.  If some table's fold genuinely
+// needs more, the upgrade path is a per-table budget or a precision-ranked
+// fold order — not a bigger constant.
+const EXCLUSION_BOX_BUDGET: usize = 16;
+
+/// One rule's projection fold, through the compiled constant pool when there
+/// is one and off the authored rule when there is not
+fn rule_union<'a>(
+    rules: &Rules,
+    compiled: Option<&'a CompiledRules>,
+    index: RuleIndex,
+    ctx: &Context<'_>,
+    kind: ProjectionKind,
+) -> ProjectedUnion<'a> {
+    if let Some(compiled) = compiled {
+        return match kind {
+            ProjectionKind::Forward => compiled.project_union_matched(rules, index, ctx),
+            ProjectionKind::Band => compiled.project_band_union_matched(rules, index, ctx),
+            ProjectionKind::Complement => {
+                compiled.project_complement_union_matched(rules, index, ctx)
+            }
+            ProjectionKind::Announcement => compiled.announce_union_matched(rules, index, ctx),
+        };
+    }
+    let rule = &rules.rules()[index as usize];
+    ProjectedUnion::Owned(match kind {
+        ProjectionKind::Forward => rule.project_union(ctx),
+        ProjectionKind::Band => rule.project_band_union(ctx),
+        ProjectionKind::Complement => rule.project_complement_union(ctx),
+        ProjectionKind::Announcement => rule.announce_union(ctx),
+    })
+}
+
+/// A call's face-live rules with their weights, in authored order
+///
+/// `alerted` restricts to the rules carrying an [`Alert`][crate::bidding::rules::Alert]
+/// — the announcement overlay's half.
+fn live_rules(
+    rules: &Rules,
+    compiled: Option<&CompiledRules>,
+    ctx: &Context<'_>,
+    made: Call,
+    alerted: bool,
+    memo: &mut FaceMemo,
+) -> Vec<(RuleIndex, i16)> {
+    if let Some(compiled) = compiled {
+        let indices = if alerted {
+            compiled.alerted_rule_indices(made)
+        } else {
+            compiled.rule_indices(made)
+        };
+        return indices
+            .iter()
+            .filter(|&&index| compiled.face_live_memoized(rules, index, ctx, memo))
+            .map(|&index| (index, rules.rules()[index as usize].weight()))
+            .collect();
+    }
+    rules
+        .rules()
+        .iter()
+        .enumerate()
+        .filter(|(_, rule)| {
+            rule.call() == made && (!alerted || rule.alert().is_some()) && rule.face_live(ctx)
+        })
+        .map(|(index, rule)| {
+            (
+                RuleIndex::try_from(index).expect("a rule table fits in u32 indices"),
+                rule.weight(),
+            )
+        })
+        .collect()
+}
+
+/// The complements of the gates a bidder could have chosen instead of `made`,
+/// each paired with the weight it must be compared against
+///
+/// Selection is argmax over legal calls with finite logits and a book logit is
+/// `weight/100` or −∞, so a rule on another call whose weight strictly beats
+/// the one that produced `made` must have been **false** — otherwise it, not
+/// `made`, would have won.  A sibling counts only when it could really have
+/// won: face-live ([`Rules::face`][crate::bidding::rules::Rules::face]) and
+/// legal at this turn ([`Context::allows`]).
+///
+/// `floor` is the *lowest* threshold any caller will apply — the widest set —
+/// so one gather serves every rule of the call, each filtering by its own
+/// weight in [`exclude_siblings`].  ⊤ complements are dropped here, and the
+/// rest sorted cheapest-first once: a one-box complement never grows the
+/// product, so folding it before a disjunctive one buys the most exclusions
+/// per box of budget.  The sort is stable, so authored order breaks ties.
+fn sibling_complements<'a>(
+    rules: &Rules,
+    compiled: Option<&'a CompiledRules>,
+    ctx: &Context<'_>,
+    made: Call,
+    floor: i16,
+    memo: &mut FaceMemo,
+) -> Vec<(i16, ProjectedUnion<'a>)> {
+    let mut complements: Vec<(i16, ProjectedUnion<'a>)> = Vec::new();
+    let mut push = |index: RuleIndex, memo: &mut FaceMemo| {
+        let rule = &rules.rules()[index as usize];
+        if !ctx.allows(rule.call()) {
+            return;
+        }
+        let live = match compiled {
+            Some(compiled) => compiled.face_live_memoized(rules, index, ctx, memo),
+            None => rule.face_live(ctx),
+        };
+        if !live {
+            return;
+        }
+        let complement = rule_union(rules, compiled, index, ctx, ProjectionKind::Complement);
+        if complement.as_union() != &EnvelopeUnion::unknown() {
+            complements.push((rule.weight(), complement));
+        }
+    };
+    if let Some(compiled) = compiled {
+        for index in compiled.stronger_siblings(made, floor).collect::<Vec<_>>() {
+            push(index, memo);
+        }
+    } else {
+        for (index, rule) in rules.rules().iter().enumerate() {
+            if rule.call() != made && rule.weight() > floor {
+                push(
+                    RuleIndex::try_from(index).expect("a rule table fits in u32 indices"),
+                    memo,
+                );
+            }
+        }
+    }
+    complements.sort_by_key(|(_, complement)| complement.as_union().boxes().len());
+    complements
+}
+
+/// Intersect one rule's reading with what its strictly-heavier siblings deny
+///
+/// A complement is skipped when its transient product would reach
+/// `intersect_owned`'s 64-box wall, or when the tidied result would exceed
+/// [`EXCLUSION_BOX_BUDGET`].
+fn exclude_siblings(
+    positive: EnvelopeUnion,
+    complements: &[(i16, ProjectedUnion<'_>)],
+    threshold: i16,
+    profile: ReadingProfile,
+) -> EnvelopeUnion {
+    let mut acc = positive;
+    for (weight, complement) in complements {
+        if *weight <= threshold {
+            continue;
+        }
+        let complement = complement.as_union();
+        let product = acc.boxes().len() * complement.boxes().len();
+        if product >= 64 {
+            continue;
+        }
+        // `intersect_owned` only ever drops or merges boxes, so a product
+        // within budget cannot leave a result above it — no trial fold needed.
+        if product <= EXCLUSION_BOX_BUDGET {
+            acc = acc.intersect_owned(complement, profile);
+            continue;
+        }
+        let next = acc.clone().intersect_owned(complement, profile);
+        if next.boxes().len() <= EXCLUSION_BOX_BUDGET {
+            acc = next;
+        }
+    }
+    acc
+}
+
+/// One call's reading, each live rule intersected with what its own
+/// strictly-heavier siblings deny
+///
+/// [`None`] when the call has no live rule — the caller's "this table says
+/// nothing here" signal.
+fn excluded_union(
+    rules: &Rules,
+    compiled: Option<&CompiledRules>,
+    ctx: &Context<'_>,
+    made: Call,
+    live: &[(RuleIndex, i16)],
+    kind: ProjectionKind,
+    memo: &mut FaceMemo,
+) -> Option<EnvelopeUnion> {
+    let profile = ctx.reading_profile();
+    let floor = live.iter().map(|&(_, weight)| weight).min()?;
+    let complements = sibling_complements(rules, compiled, ctx, made, floor, memo);
+    live.iter()
+        .map(|&(index, weight)| {
+            exclude_siblings(
+                rule_union(rules, compiled, index, ctx, kind).into_owned(),
+                &complements,
+                weight,
+                profile,
+            )
+        })
+        .reduce(|a, b| a.disjoin_with(b, profile))
+}
 
 /// One table's pass reading: the union of its Pass rules' bands, knob-on
 /// intersected with the complements of the sibling gates the passer declined
@@ -21,17 +229,20 @@ use contract_bridge::auction::Call;
 /// leans on argmax
 /// selection: a hand inside a sibling gate whose weight strictly beats
 /// **every** Pass rule's weight could not have let Pass win, so the passer
-/// lies in that gate's complement.  Single-box complements only — the
-/// shape-free tiers; skipping the rest costs precision, never soundness, and
-/// holds the box count down.  [`None`] when the table authors no Pass rule at
-/// all (the projection pass then records nothing, as before).
+/// lies in that gate's complement.  The Pass *band* deliberately unions every
+/// authored Pass rule, face-gated ones included — a wider band is sound — but
+/// the siblings excluded are the face-live, legal ones only, and they fold
+/// through the same budget as a made bid's
+/// ([`bid_exclusion`][field@crate::bidding::ReadingProfile::bid_exclusion]).
+/// [`None`] when the table authors no Pass rule at all (the projection pass
+/// then records nothing, as before).
 #[inline]
 pub(super) fn project_pass<'a>(
-    rules: &crate::bidding::rules::Rules,
-    compiled: Option<&'a crate::bidding::rules::CompiledRules>,
+    rules: &Rules,
+    compiled: Option<&'a CompiledRules>,
     ctx: &Context<'_>,
     profile: ReadingProfile,
-) -> Option<crate::bidding::rules::ProjectedUnion<'a>> {
+) -> Option<ProjectedUnion<'a>> {
     let band = if let Some(compiled) = compiled {
         compiled
             .pass_rule_indices()
@@ -39,7 +250,7 @@ pub(super) fn project_pass<'a>(
             .map(|&index| compiled.project_band_union_matched(rules, index, ctx))
             .reduce(|a, b| a.disjoin(b, profile))?
     } else {
-        crate::bidding::rules::ProjectedUnion::Owned(
+        ProjectedUnion::Owned(
             rules
                 .rules()
                 .iter()
@@ -51,43 +262,28 @@ pub(super) fn project_pass<'a>(
     if !profile.pass_exclusion {
         return Some(band);
     }
-    if let Some(compiled) = compiled {
-        let pass = compiled
+    let ceiling = if let Some(compiled) = compiled {
+        compiled
             .pass_plan()
-            .expect("Pass indices imply a Pass plan");
-        return Some(crate::bidding::rules::ProjectedUnion::Owned(
-            pass.stronger_nonpass_indices()
-                .iter()
-                .map(|&index| compiled.project_complement_union_matched(rules, index, ctx))
-                .filter(|complement| {
-                    complement.as_union().boxes().len() == 1
-                        && complement.as_union().boxes()[0] != Envelope::unknown()
-                })
-                .fold(band.into_owned(), |acc, complement| {
-                    acc.intersect_owned(complement.as_union(), profile)
-                }),
-        ));
-    }
-    let ceiling = rules
-        .rules()
-        .iter()
-        .filter(|rule| rule.call() == Call::Pass)
-        .map(crate::bidding::rules::Rule::weight)
-        .max()
-        .unwrap_or(i16::MIN);
-    Some(crate::bidding::rules::ProjectedUnion::Owned(
+            .expect("Pass indices imply a Pass plan")
+            .max_weight()
+    } else {
         rules
             .rules()
             .iter()
-            .filter(|rule| rule.call() != Call::Pass && rule.weight() > ceiling)
-            .map(|rule| rule.project_complement_union(ctx))
-            .filter(|complement| {
-                complement.boxes().len() == 1 && complement.boxes()[0] != Envelope::unknown()
-            })
-            .fold(band.into_owned(), |acc, complement| {
-                acc.intersect_owned(&complement, profile)
-            }),
-    ))
+            .filter(|rule| rule.call() == Call::Pass)
+            .map(crate::bidding::rules::Rule::weight)
+            .max()
+            .unwrap_or(i16::MIN)
+    };
+    let mut memo = FaceMemo::new();
+    let complements = sibling_complements(rules, compiled, ctx, Call::Pass, ceiling, &mut memo);
+    Some(ProjectedUnion::Owned(exclude_siblings(
+        band.into_owned(),
+        &complements,
+        ceiling,
+        profile,
+    )))
 }
 
 /// The per-call bits an authored reading leaves for the walk, indexed by
@@ -237,15 +433,17 @@ fn authored_effect<'a>(
     // non-compiled oracle's evaluation order intact for opaque public hooks.
     if let Some(compiled) = compiled {
         if is_pass {
-            if !decode_pass && compiled.can_skip_pass_effect(profile.pass_exclusion) {
+            if !decode_pass && compiled.can_skip_pass_effect(profile) {
                 return None;
             }
         } else {
             match scope.expect("non-pass reading scope") {
-                ReadingScope::None if compiled.can_skip_nonpass_effect(made) => return None,
+                ReadingScope::None if compiled.can_skip_nonpass_effect(made, profile) => {
+                    return None;
+                }
                 ReadingScope::Alerted
                     if compiled.alerted_rule_indices(made).is_empty()
-                        && compiled.can_skip_nonpass_effect(made) =>
+                        && compiled.can_skip_nonpass_effect(made, profile) =>
                 {
                     return None;
                 }
@@ -254,23 +452,42 @@ fn authored_effect<'a>(
         }
     }
 
-    let projection = if is_pass {
-        project_pass(rules, compiled, ctx, profile)
-    } else if let Some(compiled) = compiled {
-        compiled
-            .rule_indices(made)
-            .iter()
-            .filter(|&&index| compiled.face_live_memoized(rules, index, ctx, &mut face_memo))
-            .map(|&index| compiled.project_union_matched(rules, index, ctx))
-            .reduce(|a, b| a.disjoin(b, profile))
+    // Knob-on, each of `made`'s rules is intersected with what *its own*
+    // strictly-heavier siblings deny, so the fold needs the rules kept apart
+    // instead of unioned here — and it waits until the decode gate below has
+    // passed, so an undecoded call never evaluates a sibling.
+    let excluding = profile.bid_exclusion && !is_pass;
+    let live = if excluding {
+        live_rules(rules, compiled, ctx, made, false, &mut face_memo)
     } else {
-        rules
-            .rules()
-            .iter()
-            .filter(|rule| rule.call() == made && rule.face_live(ctx))
-            .map(|rule| crate::bidding::rules::ProjectedUnion::Owned(rule.project_union(ctx)))
-            .reduce(|a, b| a.disjoin(b, profile))
-    }?;
+        Vec::new()
+    };
+    let projection = if excluding {
+        if live.is_empty() {
+            return None;
+        }
+        None
+    } else if is_pass {
+        Some(project_pass(rules, compiled, ctx, profile)?)
+    } else if let Some(compiled) = compiled {
+        Some(
+            compiled
+                .rule_indices(made)
+                .iter()
+                .filter(|&&index| compiled.face_live_memoized(rules, index, ctx, &mut face_memo))
+                .map(|&index| compiled.project_union_matched(rules, index, ctx))
+                .reduce(|a, b| a.disjoin(b, profile))?,
+        )
+    } else {
+        Some(
+            rules
+                .rules()
+                .iter()
+                .filter(|rule| rule.call() == made && rule.face_live(ctx))
+                .map(|rule| ProjectedUnion::Owned(rule.project_union(ctx)))
+                .reduce(|a, b| a.disjoin(b, profile))?,
+        )
+    };
 
     let alerted = !is_pass
         && if let Some(compiled) = compiled {
@@ -298,7 +515,22 @@ fn authored_effect<'a>(
     }
 
     let agreement = if announce_split && !is_pass {
-        if let Some(compiled) = compiled {
+        if excluding {
+            // The announced agreement is a second overlay off the same rules,
+            // so it folds through the same siblings — one alerted rule at a
+            // time, each against its own threshold.
+            let alerted_live = live_rules(rules, compiled, ctx, made, true, &mut face_memo);
+            excluded_union(
+                rules,
+                compiled,
+                ctx,
+                made,
+                &alerted_live,
+                ProjectionKind::Announcement,
+                &mut face_memo,
+            )
+            .map(ProjectedUnion::Owned)
+        } else if let Some(compiled) = compiled {
             compiled
                 .alerted_rule_indices(made)
                 .iter()
@@ -310,11 +542,26 @@ fn authored_effect<'a>(
                 .rules()
                 .iter()
                 .filter(|rule| rule.call() == made && rule.alert().is_some() && rule.face_live(ctx))
-                .map(|rule| crate::bidding::rules::ProjectedUnion::Owned(rule.announce_union(ctx)))
+                .map(|rule| ProjectedUnion::Owned(rule.announce_union(ctx)))
                 .reduce(|a, b| a.disjoin(b, profile))
         }
     } else {
         None
+    };
+    let projection = match projection {
+        Some(projection) => projection,
+        None => ProjectedUnion::Owned(
+            excluded_union(
+                rules,
+                compiled,
+                ctx,
+                made,
+                &live,
+                ProjectionKind::Forward,
+                &mut face_memo,
+            )
+            .expect("a non-empty live-rule list folds to a projection"),
+        ),
     };
     let substitutes_natural = !is_pass && projection.as_union() != &EnvelopeUnion::unknown();
     Some(AuthoredEffect {
@@ -406,7 +653,7 @@ fn authored_effect_is_reusable(
     profile: ReadingProfile,
 ) -> bool {
     classifier.as_rules().is_none()
-        || compiled.is_some_and(|plan| plan.can_reuse_authored_effect(made, profile.pass_exclusion))
+        || compiled.is_some_and(|plan| plan.can_reuse_authored_effect(made, profile))
 }
 
 /// The per-call audit trail [`AuthoringStepCache`] appends as it walks

@@ -79,6 +79,10 @@ struct Args {
     #[arg(long)]
     exclusion: bool,
 
+    /// Read made bids with sibling-gate exclusion (`ReadingProfile::bid_exclusion`)
+    #[arg(long)]
+    bid_exclusion: bool,
+
     /// Probe the partnership over this many self-play boards first and census with
     /// the probed reading on (`Partnership::probe` + `ReadingProfile::probed`)
     #[arg(long, default_value = "0")]
@@ -290,6 +294,7 @@ fn main() {
     let vul = AbsoluteVulnerability::NONE;
     let mut agreements = pons::bidding::agreements::Agreements::default();
     agreements.decision.reading.pass_exclusion = args.exclusion;
+    agreements.decision.reading.bid_exclusion = args.bid_exclusion;
     let mut partnership = american(&agreements).bind();
     if args.probe > 0 {
         let report = partnership.probe(args.probe, base.wrapping_add(0x9B0BE));

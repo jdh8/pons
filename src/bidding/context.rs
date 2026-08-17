@@ -942,6 +942,9 @@ impl<'a> Context<'a> {
             legacy.profile.reading.upgrade_closure = false;
             // ...and on the side-blind 1NT-overcall strip (fixed 2026-08-16).
             legacy.profile.reading.strip_side_blind = true;
+            // ...and before any made bid excluded the gates it declined
+            // ([`bid_exclusion`][field@crate::bidding::ReadingProfile::bid_exclusion]).
+            legacy.profile.reading.bid_exclusion = false;
             legacy.authored_projection = None;
             legacy.decision_cache = None;
             Inferences::read(&legacy)
@@ -1155,6 +1158,45 @@ impl<'a> Context<'a> {
             None => Some(Level::new(1)),
             Some(last) if strain > last.strain => Some(last.level),
             Some(last) => Level::try_new(last.level.get() + 1).ok(),
+        }
+    }
+
+    /// Whether `call` was on offer at this auction — the laws filter the
+    /// bidder's argmax applies
+    ///
+    /// The reading-side twin of `table::LegalCalls`: negative inference
+    /// ([`bid_exclusion`][field@super::ReadingProfile::bid_exclusion],
+    /// [`pass_exclusion`][field@super::ReadingProfile::pass_exclusion]) may
+    /// exclude a sibling gate only if its call could really have won, and an
+    /// insufficient bid or an inadmissible double never reached the argmax at
+    /// all.  Every reading walk asks this of the prefix *before* the call it
+    /// is decoding ([`at_each_turn`][Self::at_each_turn]), which is exactly the
+    /// state that bidder faced.
+    ///
+    // ponytail: no `has_ended` arm — the caller holds a prefix that a real
+    // call follows, so the auction is live by construction.  Add one if this
+    // ever grows a caller that asks about a completed auction.
+    #[must_use]
+    pub(crate) fn allows(&self, call: Call) -> bool {
+        match call {
+            Call::Pass => true,
+            Call::Bid(bid) => self.last_bid.is_none_or(|last| bid > last),
+            // Mirrors `Auction::can_double`/`can_redouble`: the last non-pass
+            // call must be an opponent's (an even number of calls back) and of
+            // the right kind.
+            Call::Double | Call::Redouble => self
+                .auction
+                .iter()
+                .rev()
+                .position(|&prior| prior != Call::Pass)
+                .is_some_and(|back| {
+                    back.is_multiple_of(2)
+                        && match self.auction[self.auction.len() - 1 - back] {
+                            Call::Bid(_) => call == Call::Double,
+                            Call::Double => call == Call::Redouble,
+                            Call::Pass | Call::Redouble => false,
+                        }
+                }),
         }
     }
 

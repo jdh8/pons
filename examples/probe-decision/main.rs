@@ -61,6 +61,16 @@ fn main() {
         Ok("1") => agreements.decision.reading.strength_ceilings = true,
         _ => {}
     }
+    // Sibling-gate exclusion on made bids (Phase 4 of
+    // docs/authored-reading-handoff.md) is default OFF, so
+    // `PROBE_BID_EXCLUSION=1` is the interesting one: a bid made through one
+    // rule then reads as outside every strictly-heavier sibling gate it
+    // declined.
+    match std::env::var("PROBE_BID_EXCLUSION").as_deref() {
+        Ok("0") => agreements.decision.reading.bid_exclusion = false,
+        Ok("1") => agreements.decision.reading.bid_exclusion = true,
+        _ => {}
+    }
     // The instinct force's ceiling read is default ON since 2026-08-16, so
     // `PROBE_FORCING_CEILING=0` is the interesting one: it puts the Lebensohl
     // sign-off above back to forcing us to game on auction shape alone.

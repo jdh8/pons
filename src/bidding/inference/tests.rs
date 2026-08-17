@@ -340,6 +340,34 @@ fn readings_admit_the_bidder() {
             "cue raise over their 1♦",
             &[bid(1, Strain::Clubs), bid(1, Strain::Diamonds)],
         ),
+        // Two of the three Phase 4 witnesses — nodes whose top tier is a
+        // catch-all reading ⊤ until the exclusion fold hands it the heavier
+        // tiers' complements.  (The third, opener's rebid over Jacoby, is red
+        // in *both* exclusion arms under the legacy `Alerted` scope, where the
+        // call is never decoded at all; it is pinned as a knob-off/knob-on
+        // witness by `bid_exclusion_admits_the_jacoby_sign_off` instead.)
+        (
+            "asker's sign-off after the Ogust answer",
+            &[
+                bid(2, Strain::Hearts),
+                Call::Pass,
+                bid(2, Strain::Notrump),
+                Call::Pass,
+                bid(3, Strain::Clubs),
+                Call::Pass,
+            ],
+        ),
+        (
+            "responder's action over the strong 2♣ opener's 2♥",
+            &[
+                bid(2, Strain::Clubs),
+                Call::Pass,
+                bid(2, Strain::Diamonds),
+                Call::Pass,
+                bid(2, Strain::Hearts),
+                Call::Pass,
+            ],
+        ),
         (
             "advance of our 1NT overcall (systems on)",
             &[bid(1, Strain::Spades), bid(1, Strain::Notrump), Call::Pass],
@@ -370,32 +398,37 @@ fn readings_admit_the_bidder() {
     .collect();
 
     let mut failures: Vec<String> = Vec::new();
-    for (scope, ceilings) in READING_REGIMES {
-        agreements.decision.reading.scope = scope;
-        agreements.decision.reading.strength_ceilings = ceilings;
-        let partnership = crate::american(&agreements).bind();
-        for &(what, node) in nodes {
-            for &hand in &hands {
-                // Honest route only: the seat's earlier calls in the
-                // script must be the ones this hand actually chooses.
-                if (node.len() % 4..node.len())
-                    .step_by(4)
-                    .any(|i| chosen_call(&partnership, hand, &node[..i]) != node[i])
-                {
-                    continue;
-                }
-                let made = chosen_call(&partnership, hand, node);
-                // After `made` and a pass, the seat to act is the bidder's
-                // partner, so `Relative::Partner` is the seat replayed.
-                let mut read: Vec<Call> = node.to_vec();
-                read.push(made);
-                read.push(Call::Pass);
-                let inferences = partnership.infer(RelativeVulnerability::NONE, &read);
-                if !inferences.admits(Relative::Partner, hand) && failures.len() < 16 {
-                    failures.push(format!(
-                        "{what} [{}] ({scope:?} scope, ceilings {ceilings}) excludes the hand that bid it: {hand}",
-                        contract_bridge::auction::display_calls(&read),
-                    ));
+    // Phase 4's fold only ever *tightens* a box, so it is the third axis this
+    // sweep has to gate — same discipline as the ceilings.
+    for exclusion in [false, true] {
+        agreements.decision.reading.bid_exclusion = exclusion;
+        for (scope, ceilings) in READING_REGIMES {
+            agreements.decision.reading.scope = scope;
+            agreements.decision.reading.strength_ceilings = ceilings;
+            let partnership = crate::american(&agreements).bind();
+            for &(what, node) in nodes {
+                for &hand in &hands {
+                    // Honest route only: the seat's earlier calls in the
+                    // script must be the ones this hand actually chooses.
+                    if (node.len() % 4..node.len())
+                        .step_by(4)
+                        .any(|i| chosen_call(&partnership, hand, &node[..i]) != node[i])
+                    {
+                        continue;
+                    }
+                    let made = chosen_call(&partnership, hand, node);
+                    // After `made` and a pass, the seat to act is the bidder's
+                    // partner, so `Relative::Partner` is the seat replayed.
+                    let mut read: Vec<Call> = node.to_vec();
+                    read.push(made);
+                    read.push(Call::Pass);
+                    let inferences = partnership.infer(RelativeVulnerability::NONE, &read);
+                    if !inferences.admits(Relative::Partner, hand) && failures.len() < 16 {
+                        failures.push(format!(
+                            "{what} [{}] ({scope:?} scope, ceilings {ceilings}, exclusion {exclusion}) excludes the hand that bid it: {hand}",
+                            contract_bridge::auction::display_calls(&read),
+                        ));
+                    }
                 }
             }
         }
@@ -405,6 +438,62 @@ fn readings_admit_the_bidder() {
         "readings exclude their own bidders:\n{}",
         failures.join("\n"),
     );
+}
+
+/// Phase 4's sharpest witness: opener's sign-off over Jacoby `2NT`.
+///
+/// `4♥` is authored `hcp(0..)` at weight 50 under four heavier tiers (the
+/// `3x` splinters at 220/200, the `3M` extras rebid at 150, `3NT` at 140), so
+/// its projection is ⊤ and the call falls back to the natural walk — which
+/// guesses a Jacoby rebid at `points 16..21` and excludes every minimum that
+/// actually signs off.  Under
+/// [`bid_exclusion`][crate::bidding::ReadingProfile::bid_exclusion] it reads
+/// what those tiers *denied* instead, and the minimum is admitted.
+///
+/// Not a row in [`readings_admit_the_bidder`]: the repair only reaches the
+/// shipped [`ReadingScope::All`], and under the legacy `Alerted` scope this
+/// call carries no alert, is never decoded, and keeps the walk's guess in
+/// both arms.
+#[test]
+fn bid_exclusion_admits_the_jacoby_sign_off() {
+    let node = [
+        bid(1, Strain::Hearts),
+        Call::Pass,
+        bid(2, Strain::Notrump),
+        Call::Pass,
+    ];
+    // Two 4-5-2-2 twelve-counts: sound openers, nowhere near a slam try.
+    let hands: Vec<Hand> = ["AK72.JT873.A7.T9", "AT62.JT943.K5.K8"]
+        .iter()
+        .map(|text| text.parse().expect("a hand"))
+        .collect();
+
+    for exclusion in [false, true] {
+        let mut agreements = crate::bidding::agreements::Agreements::default();
+        agreements.decision.reading.envelope_union = true;
+        agreements.decision.reading.bid_exclusion = exclusion;
+        let partnership = crate::american(&agreements).bind();
+        for &hand in &hands {
+            assert_eq!(
+                chosen_call(&partnership, hand, &[]),
+                bid(1, Strain::Hearts),
+                "{hand} must open 1♥ for this witness to be about its rebid",
+            );
+            let made = chosen_call(&partnership, hand, &node);
+            assert_eq!(made, bid(4, Strain::Hearts), "{hand} signs off in 4♥");
+            let mut read: Vec<Call> = node.to_vec();
+            read.push(made);
+            read.push(Call::Pass);
+            let inferences = partnership.infer(RelativeVulnerability::NONE, &read);
+            assert_eq!(
+                inferences.admits(Relative::Partner, hand),
+                exclusion,
+                "[{}] with exclusion {exclusion}: the walk's 16..21 guess must \
+                 hold off and the fold must admit {hand} on",
+                contract_bridge::auction::display_calls(&read),
+            );
+        }
+    }
 }
 
 /// Arm the node context's decision cache so one `Inferences::read` serves the

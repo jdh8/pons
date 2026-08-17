@@ -984,6 +984,7 @@ knob!(set_nt_invite, nt_invite, decision.reading.nt_invite: bool);
 knob!(set_rubens_transfer, rubens_transfer, decision.reading.rubens_transfer: bool);
 knob!(set_fallback_projection, fallback_projection, decision.reading.fallback_projection: bool);
 knob!(set_strength_ceilings, strength_ceilings, decision.reading.strength_ceilings: bool);
+knob!(set_bid_exclusion, bid_exclusion, decision.reading.bid_exclusion: bool);
 knob!(set_control_bid, control_bid, decision.reading.control_bid: bool);
 knob!(set_rule_accept, rule_accept, decision.reading.rule_accept: bool);
 // The nets-side hedge for `strength_ceilings` above: on, only the nets are fed

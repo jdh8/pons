@@ -1530,3 +1530,48 @@ fn legacy_view_reproduces_the_pre_all_feature_vector() {
     assert_eq!(vector(ReadingScope::All, true), trained);
     assert_ne!(vector(ReadingScope::All, false), trained);
 }
+
+/// Phase 4 extends `legacy_view` across the negative-inference fold: frozen v5
+/// nets keep the pre-exclusion representation while direct consumers see what
+/// the bidder's declined siblings deny.
+#[test]
+fn legacy_view_reproduces_the_pre_exclusion_feature_vector() {
+    use crate::bidding::features::{CompactConfig, ConventionCard, features_v5};
+
+    // `1♥ - 2NT - 4♥ -`: opener's sign-off is `hcp(0..)` under four heavier
+    // tiers, so the fold is what stops it reading as ⊤.
+    let auction = [
+        Call::Bid(Bid::new(1, Strain::Hearts)),
+        Call::Pass,
+        Call::Bid(Bid::new(2, Strain::Notrump)),
+        Call::Pass,
+        Call::Bid(Bid::new(4, Strain::Hearts)),
+        Call::Pass,
+    ];
+    let cards = hand("AQ32.K53.QJ4.A92");
+    let vector = |bid_exclusion: bool, legacy_view: bool| {
+        let mut agreements = crate::bidding::agreements::Agreements::default();
+        agreements.decision.reading.bid_exclusion = bid_exclusion;
+        agreements.decision.legacy_view = legacy_view;
+        let compact = CompactConfig::symmetric(&ConventionCard::capture(&agreements, true));
+        let partnership = crate::american(&agreements).bind();
+        let context = partnership
+            .prefixed_context(RelativeVulnerability::NONE, &auction)
+            .with_compact(&compact)
+            .with_decision_cache(cards);
+        features_v5(cards, &context)
+    };
+
+    let trained = vector(false, false);
+    assert_eq!(
+        vector(true, true),
+        trained,
+        "the held view must reproduce the pre-exclusion vector bit for bit"
+    );
+    assert_ne!(
+        vector(true, false),
+        trained,
+        "with the view off the fold must reach the nets — otherwise the two \
+         A/B arms measure the same thing"
+    );
+}

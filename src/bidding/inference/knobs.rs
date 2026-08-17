@@ -383,21 +383,70 @@ pub struct ReadingProfile {
     /// ([`Rule::project_complement_union`][crate::bidding::rules::Rule::project_complement_union]),
     /// and the pass band may be intersected with it.
     ///
-    /// Only **single-box** complements are folded in — a shape-free
-    /// single-conjunct tier, such as the weak-two defense's `points(17..)`
-    /// strong double, whose complement is exactly `points(..=16)`.  A shaped
-    /// or bounded gate complements to a union (or to ⊤ via an off-axis atom),
-    /// where the per-box precision is not worth the term growth; skipping it
-    /// costs precision, never soundness.
+    /// **Semantics moved 2026-08-17**, when Phase 4 made the fold shared with
+    /// [`bid_exclusion`][field@Self::bid_exclusion]: complements are now folded
+    /// under the box budget (multi-box included) instead of single-box only,
+    /// and a sibling counts only when it is **face-live and legal** at that
+    /// turn — the two latent quirks the Pass-only path carried.  Both fixes
+    /// are corrections; the budget one *tightens* the reading.  The
+    /// `evaluator_v3_exclusion` weights (served automatically under this
+    /// setting, `evaluator.rs`) were fit on the single-box regime, so **a
+    /// re-measure is owed** before this knob is read as previously measured.
     ///
-    /// It stays off because the feature retrain (`evaluator_v3_exclusion`,
-    /// served automatically under this setting) recovered the net-OOD half of the
+    /// It stays off because the feature retrain (`evaluator_v3_exclusion`)
+    /// recovered the net-OOD half of the
     /// pre-retrain loss but the re-measure A/B was a **wash in all four
     /// cells** — no PD win, no ship (details:
     /// `docs/ai-bidder/sampled-projection.md` § "The exclusion retrain").  Its
     /// payoff is wherever readings are consumed directly: sd-lead pricing,
     /// search-mode sampling, disclosure.
     pub pass_exclusion: bool,
+
+    /// A **bid** also excludes the sibling gates its bidder declined
+    ///
+    /// **Default off, pending its A/B.**  The general form of
+    /// [`pass_exclusion`][field@Self::pass_exclusion], for every non-Pass
+    /// authored call.  Selection is argmax over legal calls with finite logits
+    /// (`table::select_with_legal_state`) and a book logit is `weight/100` or
+    /// −∞, so "the table made `C` through rule `i`" says exactly that **every
+    /// sibling rule strictly heavier than `i` was false** — and `C`'s reading
+    /// may be intersected with those siblings'
+    /// [complements][crate::bidding::rules::Rule::project_complement_union].
+    ///
+    /// The threshold is **per rule**, not per call:
+    ///
+    /// ```text
+    /// reading(C) = ⋃_i [ project(r_i) ∩ ⋂ { ¬r' : call(r') ≠ C, weight(r') > weight(r_i) } ]
+    /// ```
+    ///
+    /// over `C`'s face-live rules `r_i`.  A sibling counts only when it could
+    /// really have won: **face-live** (a dead
+    /// [`face`][crate::bidding::rules::Rules::face] gate never bids) and
+    /// **legal** at that turn (an insufficient bid or an inadmissible double is
+    /// filtered before the argmax).  Siblings come from the **same table** —
+    /// a shadowed table's rules are a separate, filed question.
+    ///
+    /// The payoff is the book's non-Pass catch-alls: `rule(4M, 50, hcp(0..))`
+    /// under a heavier `3M`/`3NT` tier reads ⊤ today and falls back to the
+    /// natural walk, which then guesses (Jacoby `1♥ - 2NT - 4♥` reads opener
+    /// `points 16..21`, wrong for every hand that bid it).  On, it reads what
+    /// the heavier tiers denied.  The seat-level intersection then turns a
+    /// fold-derived denial plus an earlier disjunction into a positive with no
+    /// reader at all.
+    ///
+    /// Compound complements need
+    /// [`envelope_union`][field@Self::envelope_union]: `!(A & B)` is the
+    /// *disjunction* `!A | !B`, which the hull path cannot hold, so `And`
+    /// complements to ⊤ with that knob off.  Multi-box complements are folded
+    /// under a budget (box-count ascending, then authored order; a complement
+    /// whose transient product would reach 64 boxes, or whose tidied result
+    /// would exceed `EXCLUSION_BOX_BUDGET`, is skipped) — skipping costs
+    /// precision, never soundness.
+    ///
+    /// Folded **off** in
+    /// [`legacy_view`][field@crate::bidding::context::DecisionProfile::legacy_view]'s
+    /// clone: the shipped nets were fit before any of this existed.
+    pub bid_exclusion: bool,
 
     /// Fold the partnership's behaviorally probed boxes into the projection overlay
     ///
@@ -1046,6 +1095,7 @@ impl ReadingProfile {
             length_soundness: false,
             pass: false,
             pass_exclusion: true,
+            bid_exclusion: true,
             probed: true,
             probed_vacuous: true,
             announced: true,
@@ -1110,6 +1160,7 @@ impl Default for ReadingProfile {
             length_soundness: true,
             pass: true,
             pass_exclusion: false,
+            bid_exclusion: false,
             probed: false,
             probed_vacuous: false,
             announced: false,
