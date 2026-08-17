@@ -22,9 +22,7 @@
 # diverging boards in 1,228,800, +36 plain / +51 PD pooled — the pre-registered
 # non-loss; shipped default-on.  docs/authored-reading-handoff.md § Phase 4.
 #
-# The frozen nets are shielded by `legacy_view` (default on; `context.rs` folds
-# the knob off in the legacy clone), so this pair prices the SAMPLER +
-# AUTHORED-GATE + INSTINCT channel, not the net encoding.
+# Historical Phase-4 gate: this run predates the honest-reading v6 retrain.
 #
 # PRE-REGISTERED (jdh8, before the numbers): this is a soundness/information
 # correction, so it takes the reading-drift bar — **non-loss ships it**

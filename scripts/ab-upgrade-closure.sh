@@ -17,9 +17,7 @@
 #   off   the shipped default
 #   upg   --ns-upgrade-closure
 #
-# The frozen nets are shielded from the closure by `legacy_view` (default on,
-# `context.rs` folds C2 off in the legacy clone), so this pair prices the
-# SAMPLER + AUTHORED-GATE channel — the one Phase 1 left in.
+# Historical Phase-3 gate: this run predates the honest-reading v6 retrain.
 #
 # PRE-REGISTERED (jdh8, before the numbers): C2 is a soundness/information
 # correction, so it takes the reading-drift bar — **non-loss ships it**

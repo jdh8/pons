@@ -52,8 +52,9 @@ use pons::bidding::american::{EUROPEAN, LebensohlStyle, NotrumpDefense, NotrumpS
 use pons::bidding::card::{american_card, dutch_card};
 use pons::bidding::context::{Context, relative};
 use pons::bidding::features::{
-    CompactConfig, Config, FEATURES_LEN_V3, FEATURES_LEN_V4, FEATURES_LEN_V5, FEATURES_VERSION_V3,
-    FEATURES_VERSION_V4, FEATURES_VERSION_V5, features_v3, features_v4, features_v5,
+    CompactConfig, Config, FEATURES_LEN_V3, FEATURES_LEN_V4, FEATURES_LEN_V5, FEATURES_LEN_V6,
+    FEATURES_VERSION_V3, FEATURES_VERSION_V4, FEATURES_VERSION_V5, FEATURES_VERSION_V6,
+    features_v3, features_v4, features_v5, features_v6,
 };
 use pons::bidding::{Bidder, Phase};
 use pons::gib;
@@ -195,7 +196,9 @@ struct Args {
     /// ([`features_v5`]): the compact per-axis config of
     /// [docs/ai-bidder/card-manifold.md](../../docs/ai-bidder/card-manifold.md)
     /// §"The retrain" replaces the frozen 280-row card blocks, and the varied
-    /// axes come from each `--cell` side's `+HEX` flips.  Requires
+    /// axes come from each `--cell` side's `+HEX` flips. `6` keeps that compact
+    /// configuration and serves the live authored reading, with each suit's
+    /// support-point range separate from whole-hand points. Requires
     /// `--configured`.
     #[arg(long, default_value_t = 4)]
     feature_version: u8,
@@ -566,11 +569,16 @@ fn main() -> anyhow::Result<()> {
         (4, true) => (FEATURES_VERSION_V4, FEATURES_LEN_V4),
         (4, false) => (FEATURES_VERSION_V3, FEATURES_LEN_V3),
         (5, true) => (FEATURES_VERSION_V5, FEATURES_LEN_V5),
+        (6, true) => (FEATURES_VERSION_V6, FEATURES_LEN_V6),
         (5, false) => anyhow::bail!(
             "--feature-version 5 varies table configuration, which only the \
              configured context can express — pass --configured"
         ),
-        (other, _) => anyhow::bail!("--feature-version must be 4 or 5, got {other}"),
+        (6, false) => anyhow::bail!(
+            "--feature-version 6 varies table configuration, which only the \
+             configured context can express — pass --configured"
+        ),
+        (other, _) => anyhow::bail!("--feature-version must be 4, 5, or 6, got {other}"),
     };
     // DD label only exists when deals come from a GIB file (cached, no solving).
     let dd_len = if args.deals.is_some() { 20 } else { 0 };
@@ -696,7 +704,7 @@ fn main() -> anyhow::Result<()> {
             }
         }
     }
-    let v5 = feature_version == FEATURES_VERSION_V5;
+    let compact_features = matches!(feature_version, FEATURES_VERSION_V5 | FEATURES_VERSION_V6);
     // Per side: its card and the partnership that reads its auctions.
     let mut per_side: BTreeMap<String, (pons::bidding::card::Card, Partnership)> = BTreeMap::new();
     // v5 only: the same knob state [`pons::bidding::features::ConventionCard`]-shaped.  Captured at the
@@ -711,7 +719,7 @@ fn main() -> anyhow::Result<()> {
         let mut agreements = arm_flips(side.flips);
         agreements.decision.reading.rkcb_variant = rkcb_variant(side.kickback);
         let card = card_for(side.system(), &agreements)?;
-        if v5 {
+        if compact_features {
             per_side_agreements.insert(
                 side.label(),
                 pons::bidding::features::ConventionCard::capture(&agreements, side.dutch),
@@ -737,7 +745,7 @@ fn main() -> anyhow::Result<()> {
         let ours = per_side[&a.label()].0.clone();
         let theirs = per_side[&b.label()].0.clone();
         let config = Config::new(&ours, &theirs);
-        if v5 {
+        if compact_features {
             let compact = CompactConfig::new(
                 &per_side_agreements[&a.label()],
                 &per_side_agreements[&b.label()],
@@ -940,7 +948,12 @@ fn main() -> anyhow::Result<()> {
                 if let Some(config) = cell_artifacts.map(|(config, _)| config).or(config.as_ref()) {
                     context = context.with_config(config);
                 }
-                let feats = if v5 {
+                let feats = if feature_version == FEATURES_VERSION_V6 {
+                    let (ours, theirs) = acting.expect("v6 rows are cell rows");
+                    context =
+                        context.with_compact(&per_pair_compact[&(ours.label(), theirs.label())]);
+                    features_v6(hand, &context)
+                } else if feature_version == FEATURES_VERSION_V5 {
                     // `--feature-version 5` implies `--configured`, which
                     // implies cell tables, so the acting pair — and its
                     // compact config — always exist on a v5 row.

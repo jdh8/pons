@@ -1,5 +1,9 @@
 # The card manifold — four trained coordinates out of 280
 
+> Historical v4/v5 record. Phase 5's honest-reading v6 policy superseded v5 as
+> the American and Dutch default on 2026-08-18; see
+> [`authored-reading-handoff.md`](../authored-reading-handoff.md#phase-5--honest-reading-retrain-shipped-2026-08-18).
+
 **Status: the fold is SHIPPED, all three experiments ran, and the v5 retrain
 is TRAINED and WIRED (2026-08-08). E1 ✓ E2 ✓ (cell A → 0 fired); E3 = plain
 wash + PD win, marginal → user chose GO, then pivoted to the compact config.

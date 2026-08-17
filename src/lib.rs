@@ -34,8 +34,8 @@ pub use bidding::{
     Rules, System, Table, Trie, Versus, american, american_book, american_book_default,
     american_default, american_floor, american_floor_default, american_instinct,
     american_instinct_default, american_with_card, american_with_config, dutch, dutch_book,
-    dutch_book_default, dutch_default, dutch_instinct, dutch_instinct_default, dutch_with_config,
-    instinct,
+    dutch_book_default, dutch_default, dutch_instinct, dutch_instinct_default, dutch_with_card,
+    dutch_with_config, instinct,
 };
 #[cfg(feature = "dd")]
 pub use single_dummy::{

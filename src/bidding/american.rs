@@ -61,7 +61,9 @@
 //! the weights order them so the more descriptive bid wins.
 
 use super::agreements::Agreements;
-use super::common::{call, other_major, with_floor, with_floor_v5, with_instinct_floor};
+use super::common::{
+    call, other_major, with_floor, with_floor_v5, with_floor_v6, with_instinct_floor,
+};
 use super::{Competitive, Constructive, Defensive, System};
 
 /// The family tag of [`ReadingProfile::completion_alerts`][crate::bidding::ReadingProfile::completion_alerts]:
@@ -112,7 +114,7 @@ pub use responses::{TwoOverOneGate, major_responses, minor_responses};
 /// table.
 ///
 /// The contested books stand on
-/// [`ConfiguredFloorV5`][crate::bidding::neural_floor::ConfiguredFloorV5] —
+/// [`ConfiguredFloorV6`][crate::bidding::neural_floor::ConfiguredFloorV6] —
 /// one artifact whose convention-regime input is both partnerships'
 /// [`ConventionCard`][super::features::ConventionCard], **captured here, at build
 /// time**, from the `agreements` value in the same expression that reads it for
@@ -121,10 +123,8 @@ pub use responses::{TwoOverOneGate, major_responses, minor_responses};
 /// the classify-time half that [`System::bind`] pins.  Opponents are modeled as playing our own
 /// agreements, matching every other undeclared-opposition default in the
 /// crate; a genuinely mixed table wants [`american_with_config`], which also
-/// remains the card-input v4 floor's entry point.  The v5 floor became the
-/// default 2026-08-08 on its gate A/B (+0.0353/+0.0262 plain DD per board at
-/// none/both vul, PD wash — `docs/ai-bidder/card-manifold.md` §"The retrain,
-/// measured").
+/// remains the card-input v4 floor's entry point. The honest-reading v6 floor
+/// became the default on its 2026-08-18 held-out and playing gates.
 ///
 /// ```
 /// use pons::american_default;
@@ -146,7 +146,7 @@ pub use responses::{TwoOverOneGate, major_responses, minor_responses};
 /// ```
 #[must_use]
 pub fn american(agreements: &Agreements) -> System {
-    with_floor_v5(
+    with_floor_v6(
         book(agreements),
         super::features::CompactConfig::symmetric(&super::features::ConventionCard::capture(
             agreements, false,
@@ -181,9 +181,9 @@ pub fn american_with_config(agreements: &Agreements, config: super::features::Co
     with_floor(book(agreements), config, agreements)
 }
 
-/// [`american`] against a **declared** opponent, on the shipped v5 floor
+/// [`american`] against a **declared** opponent, on the shipped v6 floor
 ///
-/// The v5 twin of [`american_with_config`], and a strictly narrower seam: only
+/// The compact-config twin of [`american_with_config`], and a strictly narrower seam: only
 /// `theirs` is declared, while our own half is captured from the live knobs in
 /// the same expression as the book.  So unlike the v4 entry point this *cannot*
 /// misdisclose our own side — the mistake it warns about is unavailable here —
@@ -201,7 +201,7 @@ pub fn american_with_card(
     agreements: &Agreements,
     theirs: &super::features::ConventionCard,
 ) -> System {
-    with_floor_v5(
+    with_floor_v6(
         book(agreements),
         super::features::CompactConfig::new(
             &super::features::ConventionCard::capture(agreements, false),
@@ -211,14 +211,25 @@ pub fn american_with_card(
     )
 }
 
-/// Alias of [`american`] — the v5 floor is the default since 2026-08-08
+/// [`american`] on the historical v5 floor.
 ///
-/// This was the retrain candidate's entry point while the v5-vs-v4 gate A/B
-/// ran (`docs/ai-bidder/card-manifold.md` §"The retrain, measured"); the gate
-/// shipped it, so the name is kept only so harnesses and scripts written
-/// against `--our-floor american-v5` keep meaning what they measured.
+/// Kept so harnesses and scripts written against `--our-floor american-v5`
+/// can retain the old policy artifact after the Phase-5 v6 swap. Its retired
+/// frozen reading view is intentionally unavailable.
 #[must_use]
 pub fn american_v5(agreements: &Agreements) -> System {
+    with_floor_v5(
+        book(agreements),
+        super::features::CompactConfig::symmetric(&super::features::ConventionCard::capture(
+            agreements, false,
+        )),
+        agreements,
+    )
+}
+
+/// Alias of [`american`], whose v6 floor shipped on the Phase-5 gate.
+#[must_use]
+pub fn american_v6(agreements: &Agreements) -> System {
     american(agreements)
 }
 
@@ -241,7 +252,7 @@ pub fn american_instinct(agreements: &Agreements) -> System {
 ///
 /// Exactly [`american`] but for the books: all three are empty, so every
 /// auction falls straight through to the same floor wiring [`american`] uses —
-/// [`ConfiguredFloorV5`][crate::bidding::neural_floor::ConfiguredFloorV5] on
+/// [`ConfiguredFloorV6`][crate::bidding::neural_floor::ConfiguredFloorV6] on
 /// the contested books, the deterministic [`instinct`][crate::bidding::instinct()]
 /// ladder on the constructive one.  The ablation handle that prices the
 /// authored book: `american` − `american_floor` is what [`american_book`] is
@@ -258,11 +269,11 @@ pub fn american_instinct(agreements: &Agreements) -> System {
 /// Note it prices the book's *total* contribution.  An empty book also stops
 /// projecting authored constraints into
 /// [`Inferences`][crate::bidding::inference::Inferences], so the net's
-/// `features_v3` inference block collapses to unknown — the measured gap is the
+/// inference block collapses to unknown — the measured gap is the
 /// book as authored calls **and** as disclosure, not the calls alone.
 #[must_use]
 pub fn american_floor(agreements: &Agreements) -> System {
-    with_floor_v5(
+    with_floor_v6(
         System::new(
             Constructive::new(),
             Competitive::new(),

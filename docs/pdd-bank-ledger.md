@@ -73,11 +73,11 @@ scores a net on deals it was fitted to.
 
 | bank | rows | fitted models |
 | --- | --- | --- |
-| `22.pdd` | 0..1,000,000 | evaluator corpora — `evaluator_v2`, `v3`, `v4` and their `_dnf`/`_exclusion` variants (drawn `--count` from the front at `--seed 1`: 100k, 400k, 500k and 1M deals across campaigns) |
+| `22.pdd` | 0..1,000,000 | evaluator corpora — `evaluator_v2`, `v3`, `v4`, Phase-5 `evaluator_v5_honest` (train 0..450k, held-out 450k..500k), and their `_dnf`/`_exclusion` variants (drawn `--count` from the front: 100k, 400k, 500k and 1M deals across campaigns) |
 | `22.pdd` | 2,000,000..2,220,000 | **no fit** — configured-net corpus instrumentation (`dump-teacher --replay`, the 400/20k/20k slices behind the pair-rate numbers in `docs/ai-bidder/configured-net.md`). Recorded so the same rows are not later mistaken for a training draw |
 | `22.pdd` | 2,500,000..3,250,000 | `american_bba_v4` — the configured net's mixture corpus (250k uniform + 500k drawn enriched, 3,362,892 rows). Its two gates score on freshly generated deals, never here |
 | `22.pdd` | 5,000,000..5,200,000 | **no fit** — `examples/eval-columns`, the per-declarer-column scoring of the *shipped* `evaluator_v3_dnf` (gates 0 and 1 of [`docs/ai-bidder/competitive-accountant.md`](ai-bidder/competitive-accountant.md), measured 2026-08-12). Deliberately past every registered draw so the net is scored on deals it never saw; that is the whole point of the range, so keep the probe's `--skip 5000000` default clear of future training draws |
-| `22.pdd` | 3,250,000..4,200,000 | **registered 2026-08-08, drawing now**: `american_bba_v5` (compact-config extractor, `FEATURES_LEN_V5 = 144`) — v4-shaped bulk (250k uniform rows 3.25M..3.5M + 500k enriched-draw rows 3.5M..4.0M) plus 8 axis shards (one per top-8 knob axis, 20k deals each, rows 4.0M..4.16M, 2-cell `--replay`; `scripts/dump-v5.sh`). Gates score on fresh deals, never here |
+| `22.pdd` | 3,250,000..4,200,000 | `american_bba_v5` and Phase-5 `american_bba_v6` (registered 2026-08-18; the same compact-config mixture regenerated through the honest-reading extractor) — v4-shaped bulk (250k uniform rows 3.25M..3.5M + 500k enriched-draw rows 3.5M..4.0M) plus 8 axis shards (one per top-8 knob axis, 20k deals each, rows 4.0M..4.16M, 2-cell `--replay`; `scripts/dump-v5.sh`, `scripts/dump-v6.sh`). Gates score on fresh deals, never here |
 
 `24.pdd` has no training draws recorded; its consumption is A/B slices only.
 

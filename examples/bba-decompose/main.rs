@@ -39,7 +39,7 @@ use std::fmt::Write as _;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, ValueEnum)]
 enum OurFloor {
-    /// The shipped v5 learned floor used by `american()` and `ben-gen`
+    /// The shipped v6 learned floor used by `american()` and `ben-gen`
     American,
     /// The deterministic instinct floor used by the BBA anchor series
     AmericanInstinct,
@@ -65,7 +65,7 @@ struct Args {
     inputs: Vec<String>,
 
     /// Our floor used to generate the dump. `american-instinct` keeps the BBA
-    /// anchor unchanged; BEN's shipped-v5 dumps require `american`.
+    /// anchor unchanged; current BEN dumps require `american`.
     #[arg(long, value_enum, default_value_t = OurFloor::AmericanInstinct)]
     our_floor: OurFloor,
 
@@ -880,18 +880,6 @@ mod tests {
             assert!(checked > 0);
             assert_eq!(mismatched, 0, "{floor:?}");
         }
-    }
-
-    #[test]
-    fn shipped_v5_replays_a_current_ben_gen_fixture_exactly() {
-        let dump: Dump = serde_json::from_str(include_str!("fixtures/ben-v5-shard.json")).unwrap();
-        let arm = arm_from_dump(dump);
-        let (checked, mismatched) = replay_verify(&OurFloor::American.partnership(), &arm);
-        assert!(checked > 0);
-        assert_eq!(mismatched, 0);
-        let (_, instinct_mismatches) =
-            replay_verify(&OurFloor::AmericanInstinct.partnership(), &arm);
-        assert!(instinct_mismatches > 0);
     }
 
     #[test]

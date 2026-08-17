@@ -116,7 +116,7 @@ impl Classifier for ConfiguredFloorBba {
     }
 }
 
-/// The **compact-config** BBA-distilled floor — the v5 candidate
+/// The historical **compact-config** v5 BBA-distilled floor.
 ///
 /// Exactly [`ConfiguredFloorBba`] but for the regime input: a
 /// [`CompactConfig`] (both sides' [`ConventionCard`][features::ConventionCard], 28
@@ -125,11 +125,7 @@ impl Classifier for ConfiguredFloorBba {
 /// [`features_v5`][features::features_v5].  Same rails, same mask, same
 /// build-time capture granularity.
 ///
-/// **The shipped floor** since its 2026-08-08 gate A/B (+0.0353/+0.0262 plain
-/// DD per board at none/both vul, PD wash): it floors
-/// [`american`][super::american::american],
-/// [`american_with_card`][super::american::american_with_card] and
-/// the [`american_floor`][super::american::american_floor] ablation.  Unlike
+/// It shipped from 2026-08-08 until the v6 retrain on 2026-08-18. Unlike
 /// v4's card blocks, every slot it reads is an axis a corpus varied, so the
 /// 13 trained ones per side move the logits and the rest are folded to zero —
 /// `each_compact_axis_moves_its_slots_and_only_live_ones_move_the_net` pins
@@ -143,6 +139,31 @@ impl ConfiguredFloorV5 {
     #[must_use]
     pub const fn new(compact: CompactConfig, ladder: Arc<Rules>) -> Self {
         Self(compact, ladder)
+    }
+}
+
+/// The shipped compact-config floor retrained on the live authored reading.
+#[derive(Clone, Debug)]
+pub struct ConfiguredFloorV6(CompactConfig, Arc<Rules>);
+
+impl ConfiguredFloorV6 {
+    /// Attach the v6 floor to one compact configuration cell and rail ladder.
+    #[must_use]
+    pub const fn new(compact: CompactConfig, ladder: Arc<Rules>) -> Self {
+        Self(compact, ladder)
+    }
+}
+
+impl Classifier for ConfiguredFloorV6 {
+    fn classify(&self, hand: Hand, context: &Context<'_>) -> Logits {
+        if forced(context) {
+            return self.1.classify(hand, context);
+        }
+        let configured = context.clone().with_compact(&self.0);
+        let mut logits = neural::classify_bba_v6(&features::features_v6(hand, &configured));
+        mask_illegal(&mut logits, context.auction());
+        competitive_gate(&mut logits, hand, context);
+        logits
     }
 }
 

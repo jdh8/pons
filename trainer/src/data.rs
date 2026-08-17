@@ -18,10 +18,11 @@ pub const SOFTMAX_LEN: usize = 38;
 /// (`pons::bidding::features`): v1 is the 160-float vector, v2 adds the tag
 /// block, v3 is the restrictive disclosable-only vector (88 floats), v4 appends
 /// the two 140-wide convention cards (368 floats), v5 replaces the cards with
-/// the two 28-wide compact-config blocks (144 floats). The actual
+/// the two 28-wide compact-config blocks (144 floats), and v6 widens each
+/// reading with four suit-specific support-point ranges (176 floats). The actual
 /// `features_len` is read from the dump sidecar and the model input is sized
 /// from it, so every supported version trains unchanged.
-pub const SUPPORTED_FEATURE_VERSIONS: [u32; 5] = [1, 2, 3, 4, 5];
+pub const SUPPORTED_FEATURE_VERSIONS: [u32; 6] = [1, 2, 3, 4, 5, 6];
 
 /// Fields of the teacher-dump JSON sidecar that we care about (serde ignores
 /// the rest).

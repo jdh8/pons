@@ -219,21 +219,13 @@ fn setting_an_unknown_row_panics() {
 /// campaign's own principle (docs/authored-reading-handoff.md — alerts and
 /// `.bbsa` cards are disclosure, the reading is derived from the rules) it
 /// must be invisible to BBA.  Cheap to assert, and it is the claim three docs
-/// rest on; the same holds for the nets-side `legacy_view`, which never
-/// reaches the book at all.
+/// rest on.
 #[test]
 fn a_reading_knob_leaves_the_card_alone() {
     let shipped = american_card(&Agreements::default()).to_string();
-    for arm in ["ceilings", "legacy view", "both"] {
-        let mut agreements = Agreements::default();
-        agreements.decision.reading.strength_ceilings = arm != "legacy view";
-        agreements.decision.legacy_view = arm != "ceilings";
-        assert_eq!(
-            american_card(&agreements).to_string(),
-            shipped,
-            "the {arm} arm moved the disclosed card",
-        );
-    }
+    let mut ceilings_off = Agreements::default();
+    ceilings_off.decision.reading.strength_ceilings = false;
+    assert_eq!(american_card(&ceilings_off).to_string(), shipped);
 
     let mut all = Agreements::default();
     all.decision.reading.scope = crate::bidding::inference::ReadingScope::All;

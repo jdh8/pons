@@ -17,7 +17,7 @@ use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
 use pons::bidding::agreements::Agreements;
 use pons::bidding::card::{Card, american_card, dutch_card};
 use pons::bidding::context::relative;
-use pons::bidding::features::{Config, ConventionCard};
+use pons::bidding::features::ConventionCard;
 use pons::bidding::{Bidder, Partnership};
 use pons::scoring::{
     final_contract, imps, ns_score_contract, ns_score_pd, ns_score_pd_tricks, ns_score_tricks,
@@ -638,12 +638,13 @@ pub fn seat_floor(name: &str, agreements: &Agreements) -> anyhow::Result<Partner
         // The book ablation: no authored book at all, the same floor wiring
         // `american` uses.  `american` − `american-floor` prices the book.
         "american-floor" => pons::american_floor(agreements).bind(),
-        // The compact-config (v5) candidates: same books, the regime reaches
-        // the net as both sides' `ConventionCard` instead of the card blocks.
+        // Historical compact-config v5 floors, retained for measured A/Bs.
         "american-v5" => pons::bidding::american::american_v5(agreements).bind(),
         "dutch-v5" => pons::bidding::dutch::dutch_v5(agreements).bind(),
+        "american-v6" => pons::bidding::american::american_v6(agreements).bind(),
+        "dutch-v6" => pons::bidding::dutch::dutch_v6(agreements).bind(),
         other => anyhow::bail!(
-            "floor must be american|american-book|american-instinct|american-floor|american-v5|dutch|dutch-instinct|dutch-v5, got {other:?}"
+            "floor must be american|american-book|american-instinct|american-floor|american-v5|american-v6|dutch|dutch-instinct|dutch-v5|dutch-v6, got {other:?}"
         ),
     })
 }
@@ -677,8 +678,7 @@ pub fn floor_card(name: &str, agreements: &Agreements) -> anyhow::Result<Card> {
 /// of a `--declare-opponents` A/B measure the net swap rather than the
 /// declaration — which is exactly what happened for one commit after the
 /// 2026-08-08 v5 ship, at 3.5× `scripts/ab-declared-opponents.sh`'s own CI.  So
-/// `american` is the compact-config v5 floor on both paths, and `dutch` is the
-/// card-input v4 floor on both, until `dutch()`'s own gate A/B runs.
+/// Both shipped names use the honest-reading v6 floor on both paths.
 ///
 /// Our own half rides `agreements`, captured by the caller once every `--ns-*`
 /// cell is armed — the same "set every `--ns-*` first" rule that applies to
@@ -703,9 +703,7 @@ pub fn seat_floor_vs(
         "american" => {
             pons::american_with_card(agreements, &ConventionCard::from_card(theirs)).bind()
         }
-        "dutch" => {
-            pons::dutch_with_config(agreements, Config::new(&dutch_card(agreements), theirs)).bind()
-        }
+        "dutch" => pons::dutch_with_card(agreements, &ConventionCard::from_card(theirs)).bind(),
         other => anyhow::bail!(
             "--declare-opponents needs a net floor to declare them to: \
              floor must be american|dutch, got {other:?}"

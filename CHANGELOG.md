@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **The American and Dutch defaults now use the Phase-5 honest-reading neural
+  twins.** Policy feature version 6 keeps raw whole-hand points and each suit's
+  support-point band separate (176 inputs); evaluator feature version 5 carries
+  the same honest strength axes with the calls tail (118 inputs). The policy's
+  held-out CE improves from 0.30487 to 0.30098, while the evaluator improves
+  NLL from −1.54872 to −1.55642 and MAE from 1.39248 to 1.38468 tricks.
+
+  Fresh 204,800-board A/Bs per arm and vulnerability pass the flip: American
+  wins all four plain-DD/perfect-defense cells; Dutch wins both plain-DD cells
+  and washes under perfect defense. `DecisionProfile::legacy_view`, its second
+  inference cache, and `ReadingProfile::strip_side_blind` are removed. The
+  correct side-aware systems-on strip is now unconditional; v5 factories remain
+  only for historical A/B reproduction.
+
 ### Fixed
 
 - **A cheap Michaels advance no longer promises three-card support.** Over a

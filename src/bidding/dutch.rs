@@ -16,8 +16,7 @@ mod responses;
 
 use super::System;
 use super::agreements::Agreements;
-use super::card::dutch_card;
-use super::common::{with_floor, with_floor_v5, with_instinct_floor};
+use super::common::{with_floor, with_floor_v5, with_floor_v6, with_instinct_floor};
 use super::features::{CompactConfig, Config, ConventionCard};
 use super::rows::compile_into;
 
@@ -26,12 +25,8 @@ use super::rows::compile_into;
 /// Bind it with [`System::bind`] and seat two systems with
 /// [`Table::of_systems`][super::Table::of_systems], exactly like `american()`.
 ///
-/// The contested books stand on
-/// [`ConfiguredFloorBba`][super::neural_floor::ConfiguredFloorBba] under
-/// [`dutch_card`], so the net is told it is bidding
-/// Dutch rather than 2/1 — the v4 corpus covers both base systems.  Before the
-/// configured net this was `NeuralFloorBba`, which had never seen a WJ card and
-/// invented a diamond suit over the `1♦` relay.
+/// The contested books stand on the compact v6 floor retrained on the live
+/// authored reading. Its regime input identifies Dutch rather than 2/1.
 ///
 /// ```
 /// use pons::dutch_default;
@@ -53,7 +48,11 @@ use super::rows::compile_into;
 /// ```
 #[must_use]
 pub fn dutch(agreements: &Agreements) -> System {
-    dutch_with_config(agreements, Config::symmetric(&dutch_card(agreements)))
+    with_floor_v6(
+        book(agreements),
+        CompactConfig::symmetric(&ConventionCard::capture(agreements, true)),
+        agreements,
+    )
 }
 
 /// [`dutch`] on the shipped agreements — see
@@ -79,13 +78,22 @@ pub fn dutch_with_config(agreements: &Agreements, config: Config) -> System {
     with_floor(book(agreements), config, agreements)
 }
 
-/// [`dutch`] on the **compact-config (v5)** floor — opt-in, ungated
+/// [`dutch`] against a declared opponent, on the shipped v6 floor.
+#[must_use]
+pub fn dutch_with_card(agreements: &Agreements, theirs: &ConventionCard) -> System {
+    with_floor_v6(
+        book(agreements),
+        CompactConfig::new(&ConventionCard::capture(agreements, true), theirs),
+        agreements,
+    )
+}
+
+/// [`dutch`] on the historical **compact-config (v5)** floor.
 ///
 /// The Dutch twin of [`american_v5`][super::american::american_v5]; the
 /// `dutch` dim is live in the v5 corpus (the `DEFAULT_CELLS` rotation), so
-/// this cell is in distribution.  Unlike the American twin, this cell has
-/// **no gate A/B of its own** — [`dutch`] stays on the v4 floor until one
-/// runs (clone `scripts/ab-v5-floor.sh` with the dutch system).
+/// this cell is in distribution. The name remains for artifact comparisons;
+/// the retired frozen reading view is intentionally unavailable.
 #[must_use]
 pub fn dutch_v5(agreements: &Agreements) -> System {
     with_floor_v5(
@@ -93,6 +101,12 @@ pub fn dutch_v5(agreements: &Agreements) -> System {
         CompactConfig::symmetric(&ConventionCard::capture(agreements, true)),
         agreements,
     )
+}
+
+/// Alias of [`dutch`], whose v6 floor shipped on the Phase-5 gate.
+#[must_use]
+pub fn dutch_v6(agreements: &Agreements) -> System {
+    dutch(agreements)
 }
 
 /// The Dutch system with the deterministic **instinct** floor (the pre-swap default)

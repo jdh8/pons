@@ -240,34 +240,6 @@ pub struct DecisionProfile {
     ///
     /// Diagnostic only, **off by default**; never ship it on.
     pub blind_inference: bool,
-    /// Serve the nets their **training-time** reading (**default on**)
-    ///
-    /// The hedge for
-    /// [`strength_ceilings`][field@crate::bidding::ReadingProfile::strength_ceilings]:
-    /// every shipped net was trained on floor-only strength boxes, so
-    /// tightening the reading moves their inputs off the training
-    /// distribution even where the tighter reading is the true one.  On, the
-    /// nets — [`features`][super::features] and the evaluator's trick
-    /// estimates — are fed a second [`Inferences`] read with authored calls
-    /// limited to alerted ones and the ceilings switched back off, while the
-    /// sampler, the authored gates and the instinct floor keep the true one.
-    /// That isolates "the reading was wrong" from "the nets are stale".  It
-    /// shipped **on** with the ceilings
-    /// on 2026-08-16 because that isolation is what the measurement liked:
-    /// held nets, the ceilings move 3 boards in 204,800 and win all four
-    /// scoring cells, against a raw arm that leans plain-DD-negative on three
-    /// independent seeds.  **This is scaffolding**: Phase 5 of
-    /// docs/authored-reading-handoff.md retires it by retraining the nets on
-    /// honest readings, and it should not outlive that.
-    ///
-    /// ponytail: the second reading is a second walk on the *uncompiled*
-    /// projection path — a compiled rule plan is served only to the profile
-    /// it was compiled under, and this one deliberately differs.  Measured at
-    /// **~1%** end to end (4,000 deals: 22.68s against 22.42s), because it is
-    /// memoised per decision behind a `OnceLock` and double-dummy solving
-    /// dominates regardless.  A second compiled registry would buy that 1%
-    /// back and is not worth it while Phase 5 is the plan.
-    pub legacy_view: bool,
     /// The floor's two-over-one game force (**on by default**)
     ///
     /// The authored book has always held this invariant by *omission* — no
@@ -382,7 +354,6 @@ impl Default for DecisionProfile {
             eval_auction: true,
             eval_shape: false,
             blind_inference: false,
-            legacy_view: true,
             two_over_one_force: true,
             fuzzy_fifths: false,
             fifths_companion: FifthsCompanion::Bumrap,
@@ -400,8 +371,6 @@ struct DecisionCache {
     thread: ThreadId,
     profile: DecisionProfile,
     inferences: OnceLock<Inferences>,
-    /// The nets' reading under `legacy_view`; never initialised without it
-    legacy_inferences: OnceLock<Inferences>,
     trick_estimates: OnceLock<TrickEstimates>,
     interpretation: OnceLock<Interpretation>,
     rule_face_slots: usize,
@@ -410,7 +379,6 @@ struct DecisionCache {
     #[cfg(test)]
     inference_inits: AtomicUsize,
     #[cfg(test)]
-    legacy_inference_inits: AtomicUsize,
     #[cfg(test)]
     trick_estimate_inits: AtomicUsize,
     #[cfg(test)]
@@ -532,7 +500,6 @@ impl DecisionCache {
             thread,
             profile,
             inferences: OnceLock::new(),
-            legacy_inferences: OnceLock::new(),
             trick_estimates: OnceLock::new(),
             interpretation: OnceLock::new(),
             rule_face_slots,
@@ -541,7 +508,6 @@ impl DecisionCache {
             #[cfg(test)]
             inference_inits: AtomicUsize::new(0),
             #[cfg(test)]
-            legacy_inference_inits: AtomicUsize::new(0),
             #[cfg(test)]
             trick_estimate_inits: AtomicUsize::new(0),
             #[cfg(test)]
@@ -916,65 +882,22 @@ impl<'a> Context<'a> {
         }))
     }
 
-    /// The reading the **nets** are fed — [`inferences`][Self::inferences]
-    /// unless [`legacy_view`][DecisionProfile::legacy_view] asks for the
-    /// training-time one (alerted-only, pre-ceilings, pre-closure)
-    ///
-    /// Only the net-facing callers use this: the sampler, the authored gates
-    /// and the instinct floor read [`inferences`][Self::inferences] and see
-    /// the truth.
-    #[must_use]
-    pub(crate) fn net_inferences(&self) -> Cow<'_, Inferences> {
-        if !self.profile.legacy_view {
-            return self.inferences();
-        }
-        // A context is not reusable across profiles: drop the precomputed
-        // overlay (it carries the ceilings) and the memo (its slots were
-        // filled under the other profile), then read the auction again.
-        let legacy = || {
-            let mut legacy = self.clone();
-            legacy.profile.reading.scope = super::inference::ReadingScope::Alerted;
-            legacy.profile.reading.strength_ceilings = false;
-            // The nets were fit before C2 too, so the training-time reading is
-            // the pre-closure one as well
-            // ([`upgrade_closure`][field@crate::bidding::ReadingProfile::upgrade_closure]).
-            // Inert until that knob ships.
-            legacy.profile.reading.upgrade_closure = false;
-            // ...and on the side-blind 1NT-overcall strip (fixed 2026-08-16).
-            legacy.profile.reading.strip_side_blind = true;
-            // ...and before any made bid excluded the gates it declined
-            // ([`bid_exclusion`][field@crate::bidding::ReadingProfile::bid_exclusion]).
-            legacy.profile.reading.bid_exclusion = false;
-            legacy.authored_projection = None;
-            legacy.decision_cache = None;
-            Inferences::read(&legacy)
-        };
-        let Some(cache) = self.active_decision_cache() else {
-            return Cow::Owned(legacy());
-        };
-        Cow::Borrowed(cache.legacy_inferences.get_or_init(|| {
-            #[cfg(test)]
-            cache.legacy_inference_inits.fetch_add(1, Ordering::Relaxed);
-            legacy()
-        }))
-    }
-
     /// Evaluate tricks once for the hand that owns this decision scope
     #[must_use]
     pub(crate) fn trick_estimates(&self, hand: Hand) -> TrickEstimates {
         let profile = self.decision_profile();
         let Some(cache) = self.active_decision_cache() else {
-            let inferences = self.net_inferences();
+            let inferences = self.inferences();
             return trick_estimates_with_auction_on(&profile, hand, &inferences, self.auction());
         };
         if cache.hand != hand {
-            let inferences = self.net_inferences();
+            let inferences = self.inferences();
             return trick_estimates_with_auction_on(&profile, hand, &inferences, self.auction());
         }
         *cache.trick_estimates.get_or_init(|| {
             #[cfg(test)]
             cache.trick_estimate_inits.fetch_add(1, Ordering::Relaxed);
-            let inferences = self.net_inferences();
+            let inferences = self.inferences();
             trick_estimates_with_auction_on(&profile, hand, &inferences, self.auction())
         })
     }
@@ -990,16 +913,6 @@ impl<'a> Context<'a> {
             cache.interpretation_inits.fetch_add(1, Ordering::Relaxed);
             Interpretation::read(self)
         })
-    }
-
-    /// Test-only initialization count for the `legacy_view` reading
-    #[cfg(test)]
-    pub(crate) fn legacy_inference_inits(&self) -> Option<usize> {
-        Some(
-            self.active_decision_cache()?
-                .legacy_inference_inits
-                .load(Ordering::Relaxed),
-        )
     }
 
     /// Test-only initialization counts for the active decision cache

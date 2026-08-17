@@ -26,7 +26,7 @@ cannot move — depends on which axes it reads:
   and it must be measured as one.  It was, twice: bidding-inert in 2026-07
   (nothing bit its `points.max` leg), then **shipped default-on 2026-08-16**
   once `strength_ceilings` made that leg live — 12/12 A/B cells positive with
-  the frozen nets shielded by `legacy_view`, and −0.0037/bd without that shield.
+  the then-frozen nets held on their training view, and −0.0037/bd without it.
   See docs/dnf-migration.md C2.
 
 The remaining delta is `EnvelopeUnion::hull` — tighter, so the accountant evaluator and the

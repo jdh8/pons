@@ -1113,7 +1113,6 @@ fn partnership_pins_knobs_across_threads() {
     agreements.decision.eval_auction = false;
     agreements.decision.eval_shape = true;
     agreements.decision.blind_inference = true;
-    agreements.decision.legacy_view = false;
     agreements.decision.two_over_one_force = false;
     agreements.decision.fuzzy_fifths = true;
     agreements.decision.fifths_companion = crate::bidding::constraint::FifthsCompanion::Hcp;

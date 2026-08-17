@@ -49,7 +49,7 @@ pub(super) fn systems_on_overcall_strip(
     // overcall of a 1NT opening, and our opener's suit vanished.  Phase 2's
     // whole-book loss was this lane (`1x (1NT)`, every seed, every vul); see
     // docs/authored-reading-handoff.md.
-    if !profile.strip_side_blind && !(auction.len() - (open + 1)).is_multiple_of(2) {
+    if !(auction.len() - (open + 1)).is_multiple_of(2) {
         return None;
     }
     // Over a MAJOR, Gladiator replaces the opening-1NT graft with a differently

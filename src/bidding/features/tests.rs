@@ -1203,6 +1203,50 @@ fn features_v5_appends_both_blocks() {
     );
 }
 
+/// v6 keeps a fit-specific support promise out of the whole-hand points axis.
+#[test]
+fn features_v6_keeps_points_and_support_axes_separate() {
+    let cards = hand("AQ32.K53.QJ4.A92");
+    let auction = [
+        bid(1, Strain::Spades),
+        Call::Pass,
+        bid(2, Strain::Spades),
+        Call::Pass,
+    ];
+    let agreements = crate::bidding::agreements::Agreements::default();
+    let compact = CompactConfig::symmetric(&ConventionCard::capture(&agreements, false));
+    let partnership = crate::american(&agreements).bind();
+    let context = partnership
+        .prefixed_context(RelativeVulnerability::NONE, &auction)
+        .with_compact(&compact);
+    let inferences = context.inferences();
+    let partner = inferences.announced(Relative::Partner);
+    let features = features_v6(cards, &context);
+
+    assert_eq!(FEATURES_LEN_V6, 176);
+    assert_eq!(features.len(), FEATURES_LEN_V6);
+    let partner_at = LEN_HAND_V3 + LEN_CONTEXT + 2 * LEN_INFERENCE_V6;
+    assert_eq!(
+        features[partner_at + 8..partner_at + 10],
+        [
+            partner.strength.points.min as f32 / 37.0,
+            partner.strength.points.max as f32 / 37.0,
+        ]
+    );
+    let spades_at = partner_at + 10 + Suit::Spades as usize * 2;
+    assert_eq!(
+        features[spades_at..spades_at + 2],
+        [
+            partner.strength.support_points[Suit::Spades as usize].min as f32 / 37.0,
+            partner.strength.support_points[Suit::Spades as usize].max as f32 / 37.0,
+        ]
+    );
+    assert_ne!(
+        &features[partner_at + 8..partner_at + 10],
+        &features[spades_at..spades_at + 2]
+    );
+}
+
 /// Every axis moves its own slots, and only the **trained** ones reach the net
 ///
 /// The two-sided contract the per-axis knob A/Bs stand on, and neither half is
@@ -1431,17 +1475,9 @@ fn features_v5_without_a_compact_config_is_zero_padded() {
     assert!(out[OFFSET_OUR_COMPACT..].iter().all(|value| *value == 0.0));
 }
 
-/// `legacy_view` is byte-exact: the nets see the pre-ceilings vector even
-/// while the sampler, the gates and the floor see the tightened one.
-///
-/// That exactness is the whole point of the hedge — if the held view drifted
-/// from a genuine ceilings-off read, its A/B arm would price a third thing
-/// rather than isolating "the reading was wrong" from "the nets are stale".
-/// It is not free: `net_inferences` reads the auction a second time, off the
-/// uncompiled projection path, because a compiled plan serves only the
-/// profile it was compiled under.
+/// The legacy v5 layout still follows the active strength-ceiling reading.
 #[test]
-fn legacy_view_reproduces_the_pre_ceilings_feature_vector() {
+fn features_v5_reads_strength_ceilings() {
     use crate::bidding::features::{CompactConfig, ConventionCard, features_v5};
     use crate::bidding::inference::ReadingScope;
     // `1NT (2♠) 2NT (P)` — over their Muiderberg, our lebensohl relay is
@@ -1462,12 +1498,11 @@ fn legacy_view_reproduces_the_pre_ceilings_feature_vector() {
         Call::Pass,
     ];
     let cards = hand("AQ32.K53.QJ4.A92");
-    let vector = |ceilings: bool, legacy_view: bool| {
+    let vector = |ceilings: bool| {
         let mut agreements = crate::bidding::agreements::Agreements::default();
         // Isolate the Phase 1 ceiling hedge in its historical reading scope.
         agreements.decision.reading.scope = ReadingScope::Alerted;
         agreements.decision.reading.strength_ceilings = ceilings;
-        agreements.decision.legacy_view = legacy_view;
         let compact = CompactConfig::symmetric(&ConventionCard::capture(&agreements, true));
         let partnership = crate::american(&agreements).bind();
         let context = partnership
@@ -1477,28 +1512,12 @@ fn legacy_view_reproduces_the_pre_ceilings_feature_vector() {
         features_v5(cards, &context)
     };
 
-    let shipped = vector(false, false);
-    assert_eq!(
-        vector(true, true),
-        shipped,
-        "the held view must reproduce the shipped vector bit for bit"
-    );
-    assert_ne!(
-        vector(true, false),
-        shipped,
-        "with the view off the ceilings must reach the nets — otherwise the \
-         two A/B arms measure the same thing"
-    );
-    // The view is a *net* redirection only: the reading everything else
-    // consumes still carries the ceiling.
-    assert_ne!(vector(false, true), vector(true, false));
+    assert_ne!(vector(false), vector(true));
 }
 
-/// Phase 2 extends `legacy_view` across the reading-scope flip: frozen v5 nets
-/// keep the alerted-only representation while direct consumers see every
-/// authored natural call.
+/// The legacy v5 layout follows the active authored-reading scope.
 #[test]
-fn legacy_view_reproduces_the_pre_all_feature_vector() {
+fn features_v5_reads_all_authored_calls() {
     use crate::bidding::features::{CompactConfig, ConventionCard, features_v5};
     use crate::bidding::inference::ReadingScope;
 
@@ -1510,13 +1529,12 @@ fn legacy_view_reproduces_the_pre_all_feature_vector() {
         Call::Pass,
     ];
     let cards = hand("AQ32.K53.QJ4.A92");
-    let vector = |scope: ReadingScope, legacy_view: bool| {
+    let vector = |scope: ReadingScope| {
         let mut agreements = crate::bidding::agreements::Agreements::default();
         agreements.decision.reading.nt_overcall_gladiator = true;
         agreements.decision.reading.scope = scope;
         agreements.decision.reading.strength_ceilings = false;
         agreements.decision.reading.upgrade_closure = false;
-        agreements.decision.legacy_view = legacy_view;
         let compact = CompactConfig::symmetric(&ConventionCard::capture(&agreements, true));
         let partnership = crate::american(&agreements).bind();
         let context = partnership
@@ -1526,16 +1544,12 @@ fn legacy_view_reproduces_the_pre_all_feature_vector() {
         features_v5(cards, &context)
     };
 
-    let trained = vector(ReadingScope::Alerted, false);
-    assert_eq!(vector(ReadingScope::All, true), trained);
-    assert_ne!(vector(ReadingScope::All, false), trained);
+    assert_ne!(vector(ReadingScope::Alerted), vector(ReadingScope::All));
 }
 
-/// Phase 4 extends `legacy_view` across the negative-inference fold: frozen v5
-/// nets keep the pre-exclusion representation while direct consumers see what
-/// the bidder's declined siblings deny.
+/// The legacy v5 layout follows sibling-gate exclusion.
 #[test]
-fn legacy_view_reproduces_the_pre_exclusion_feature_vector() {
+fn features_v5_reads_bid_exclusion() {
     use crate::bidding::features::{CompactConfig, ConventionCard, features_v5};
 
     // `1♥ - 2NT - 4♥ -`: opener's sign-off is `hcp(0..)` under four heavier
@@ -1549,10 +1563,9 @@ fn legacy_view_reproduces_the_pre_exclusion_feature_vector() {
         Call::Pass,
     ];
     let cards = hand("AQ32.K53.QJ4.A92");
-    let vector = |bid_exclusion: bool, legacy_view: bool| {
+    let vector = |bid_exclusion: bool| {
         let mut agreements = crate::bidding::agreements::Agreements::default();
         agreements.decision.reading.bid_exclusion = bid_exclusion;
-        agreements.decision.legacy_view = legacy_view;
         let compact = CompactConfig::symmetric(&ConventionCard::capture(&agreements, true));
         let partnership = crate::american(&agreements).bind();
         let context = partnership
@@ -1562,16 +1575,5 @@ fn legacy_view_reproduces_the_pre_exclusion_feature_vector() {
         features_v5(cards, &context)
     };
 
-    let trained = vector(false, false);
-    assert_eq!(
-        vector(true, true),
-        trained,
-        "the held view must reproduce the pre-exclusion vector bit for bit"
-    );
-    assert_ne!(
-        vector(true, false),
-        trained,
-        "with the view off the fold must reach the nets — otherwise the two \
-         A/B arms measure the same thing"
-    );
+    assert_ne!(vector(false), vector(true));
 }

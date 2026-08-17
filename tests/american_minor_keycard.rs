@@ -122,7 +122,8 @@ fn opener_passes_the_minor_slam_placement() {
 
 /// With `keycard_minors = false`, the pre-keycard book returns: the strong-2♣
 /// monster blind-jumps 6♣ (27+) instead of asking, and the inverted-minor
-/// responder rests in the 18–19 3NT instead of launching 4NT.
+/// responder's v6 floor bids the values slam directly instead of launching
+/// minor keycard.
 #[test]
 fn knob_off_restores_the_pre_keycard_book() {
     let mut agreements = pons::bidding::agreements::Agreements::default();
@@ -152,5 +153,8 @@ fn knob_off_restores_the_pre_keycard_book() {
         call(3, Strain::Notrump),
         P,
     ];
-    assert_eq!(best_call(&system, &inverted, "Qx.Kxx.Kx.AQJxxx"), P);
+    assert_eq!(
+        best_call(&system, &inverted, "Qx.Kxx.Kx.AQJxxx"),
+        call(6, Strain::Notrump)
+    );
 }

@@ -53,6 +53,17 @@ fn v4_matches_candle_fixture() {
     );
 }
 
+/// The honest-reading evaluator against its exported held-out fixture.
+#[test]
+fn v5_honest_matches_candle_fixture() {
+    check_fixture(
+        include_str!("../weights/evaluator_v5_honest.fixture.json"),
+        u64::from(crate::bidding::features::FEATURES_VERSION_EVAL_V5),
+        IN_V5,
+        |x| forward_with::<IN_V5>(&WEIGHTS_V5_HONEST, x),
+    );
+}
+
 /// The v4 knob's contract: off it changes nothing, on it supersedes v3 and
 /// still lands in the plausible band.  Restores the crate defaults.
 #[test]

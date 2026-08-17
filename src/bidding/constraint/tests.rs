@@ -83,8 +83,7 @@ fn project_band_carries_ceilings() {
         hcp(..6).project(&context).hull().strength.points,
         Range::new(0, 7)
     );
-    // ...and floor-only with it off, which is what `legacy_view` serves the
-    // nets.
+    // ...and floor-only with the reading knob off.
     let floor_only = empty_context_with(|profile| {
         profile.envelope_union = false;
         profile.strength_ceilings = false;

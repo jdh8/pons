@@ -53,8 +53,14 @@ pub const OFFSET_INFERENCES: usize = OFFSET_CONTEXT + LEN_CONTEXT;
 pub const LEN_INFERENCE: usize = 8 + LEN_POINTS;
 /// Values one player's shown `points` range contributes: `{min, max}` ÷ 37.
 pub const LEN_POINTS: usize = 2;
+/// Values one player's four suit-specific support-point ranges contribute.
+pub const LEN_SUPPORT_POINTS: usize = 4 * LEN_POINTS;
+/// Honest v6 inference width: lengths, raw points, then four support ranges.
+pub const LEN_INFERENCE_V6: usize = LEN_INFERENCE + LEN_SUPPORT_POINTS;
 /// Length of the inferences block (all four seats)
 pub const LEN_INFERENCES: usize = 4 * LEN_INFERENCE;
+/// Length of the honest v6 inferences block (all four seats).
+pub const LEN_INFERENCES_V6: usize = 4 * LEN_INFERENCE_V6;
 
 /// Offset of the vulnerability block (2 values)
 pub const OFFSET_VUL: usize = OFFSET_INFERENCES + LEN_INFERENCES;
@@ -178,6 +184,27 @@ fn push_inference(out: &mut impl FeatureSink, blind: bool, player: &Envelope) {
     push_points(out, player);
 }
 
+/// Push one player's honest v6 ranges: lengths, raw points, then support
+/// points for clubs through spades.  Keeping the support axes separate avoids
+/// manufacturing a whole-hand point promise from a fit-specific agreement.
+fn push_inference_v6(out: &mut impl FeatureSink, blind: bool, player: &Envelope) {
+    let player = shown(blind, player);
+    for suit in Suit::ASC {
+        let range = player.length(suit);
+        out.push(range.min as f32 / 13.0);
+        out.push(range.max as f32 / 13.0);
+    }
+    push_range(out, player.strength.points);
+    for range in player.strength.support_points {
+        push_range(out, range);
+    }
+}
+
+fn push_range(out: &mut impl FeatureSink, range: Range) {
+    out.push(range.min as f32 / 37.0);
+    out.push(range.max as f32 / 37.0);
+}
+
 /// Push one player's shown `points` range ([`LEN_POINTS`] values) — the half of
 /// [`push_inference`] the shape distribution does *not* replace, because
 /// `points` couples to shape only weakly, through [`upgrade`].
@@ -185,9 +212,7 @@ fn push_inference(out: &mut impl FeatureSink, blind: bool, player: &Envelope) {
 /// Takes the [`shown`] envelope, not the raw one: [`push_inference`] has already
 /// resolved the blind knob by the time it delegates here.
 fn push_points(out: &mut impl FeatureSink, shown: &Envelope) {
-    let points = net_points(shown);
-    out.push(points.min as f32 / 37.0);
-    out.push(points.max as f32 / 37.0);
+    push_range(out, net_points(shown));
 }
 
 /// The points hull served to the nets: the legacy axis with every per-suit
@@ -725,7 +750,7 @@ fn push_bid_encoding(out: &mut impl FeatureSink, bid: Option<contract_bridge::Bi
 /// Everything here is derivable from the *public* auction and the partnership's
 /// disclosed agreements (the [`Inferences`] ranges), so it stays in the
 /// restrictive v3 vector unchanged.
-fn push_context(out: &mut impl FeatureSink, context: &Context<'_>) {
+fn push_context(out: &mut impl FeatureSink, context: &Context<'_>, v6: bool) {
     // ── Context (36 values) ─────────────────────────────────────────────────
 
     // our_strains: 5 bits
@@ -767,8 +792,8 @@ fn push_context(out: &mut impl FeatureSink, context: &Context<'_>) {
     // we-opened bit: 1 value
     out.push(f32::from(context.we_opened()));
 
-    // ── Inferences (40 values) ──────────────────────────────────────────────
-    let inf = context.net_inferences();
+    // ── Inferences (40 legacy / 72 honest values) ───────────────────────────
+    let inf = context.inferences();
 
     for who in [
         Relative::Me,
@@ -780,11 +805,19 @@ fn push_context(out: &mut impl FeatureSink, context: &Context<'_>) {
         // the partnership announces, and that is what a reasoning seat should be
         // fed.  Identical to `get` unless `ReadingProfile::announced` is on and some
         // rule split the two — a net-decided call, whose sound projection is ⊤.
-        push_inference(
-            out,
-            context.decision_profile().blind_inference,
-            inf.announced(who),
-        );
+        if v6 {
+            push_inference_v6(
+                out,
+                context.decision_profile().blind_inference,
+                inf.announced(who),
+            );
+        } else {
+            push_inference(
+                out,
+                context.decision_profile().blind_inference,
+                inf.announced(who),
+            );
+        }
     }
 
     // ── Vulnerability (2 values) ────────────────────────────────────────────
@@ -821,7 +854,7 @@ pub fn features_v3(hand: Hand, context: &Context<'_>) -> Vec<f32> {
     debug_assert_eq!(out.len(), LEN_HAND_V3);
 
     // ── Shared context / inferences / vulnerability (78 values) ─────────────
-    push_context(&mut out, context);
+    push_context(&mut out, context, false);
 
     debug_assert_eq!(out.len(), FEATURES_LEN_V3);
     out
@@ -1280,6 +1313,40 @@ pub fn features_v5(hand: Hand, context: &Context<'_>) -> Vec<f32> {
     out
 }
 
+// ── The honest-reading compact extractor ─────────────────────────────────────
+
+/// Layout version tag for the honest-reading extractor [`features_v6`].
+pub const FEATURES_VERSION_V6: u32 = 6;
+
+/// Number of `f32` values returned by [`features_v6`].
+pub const FEATURES_LEN_V6: usize =
+    LEN_HAND_V3 + LEN_CONTEXT + LEN_INFERENCES_V6 + LEN_VUL + 2 * LEN_COMPACT;
+
+/// Extract the compact configured vector from the live authored reading.
+///
+/// Unlike v5, each seat carries the raw whole-hand `points` range and four
+/// independent support-point ranges. The extractor reads the live `Context`
+/// inferences directly, so serving and training share the same reading profile.
+#[must_use]
+pub fn features_v6(hand: Hand, context: &Context<'_>) -> Vec<f32> {
+    let mut out = Vec::with_capacity(FEATURES_LEN_V6);
+    push_hand(&mut out, hand);
+    push_context(&mut out, context, true);
+    debug_assert!(
+        context.compact().is_some(),
+        "features_v6 wants a CompactConfig attached; see Context::with_compact"
+    );
+    match context.compact() {
+        Some(compact) => {
+            out.extend_from_slice(&compact.ours);
+            out.extend_from_slice(&compact.theirs);
+        }
+        None => out.resize(FEATURES_LEN_V6, 0.0),
+    }
+    debug_assert_eq!(out.len(), FEATURES_LEN_V6);
+    out
+}
+
 // ── The trick-evaluator extractor (accountant session C) ─────────────────────────
 
 /// Layout version tag for the trick-evaluator extractor [`features_eval`]
@@ -1431,6 +1498,50 @@ pub(crate) fn features_eval_v3_on(
 ) -> [f32; FEATURES_LEN_EVAL_V3] {
     let mut out = FixedFeatures::new();
     push_eval_base(&mut out, blind, hand, inferences);
+    for age in 1..=CALLS_EVAL_V3 {
+        let call = auction.len().checked_sub(age).map(|j| auction[j]);
+        push_call_identity(&mut out, call);
+    }
+    out.finish()
+}
+
+// ── The honest-reading trick-evaluator extractor ─────────────────────────────
+
+/// Feature version tag of [`features_eval_v5`].
+pub const FEATURES_VERSION_EVAL_V5: u32 = 5;
+
+/// Number of `f32` values returned by [`features_eval_v5`].
+pub const FEATURES_LEN_EVAL_V5: usize =
+    LEN_HAND_EVAL + 3 * LEN_INFERENCE_V6 + CALLS_EVAL_V3 * LEN_CALL_EVAL_V3;
+
+/// The shipped calls-tail evaluator layout with honest strength axes: raw
+/// whole-hand points and four separate support-point ranges per hidden seat.
+#[must_use]
+pub fn features_eval_v5(
+    hand: Hand,
+    inferences: &Inferences,
+    auction: &[Call],
+) -> [f32; FEATURES_LEN_EVAL_V5] {
+    features_eval_v5_on(
+        DecisionProfile::default().blind_inference,
+        hand,
+        inferences,
+        auction,
+    )
+}
+
+#[must_use]
+pub(crate) fn features_eval_v5_on(
+    blind: bool,
+    hand: Hand,
+    inferences: &Inferences,
+    auction: &[Call],
+) -> [f32; FEATURES_LEN_EVAL_V5] {
+    let mut out = FixedFeatures::new();
+    push_hand_eval(&mut out, hand);
+    for who in [Relative::Lho, Relative::Partner, Relative::Rho] {
+        push_inference_v6(&mut out, blind, inferences.announced(who));
+    }
     for age in 1..=CALLS_EVAL_V3 {
         let call = auction.len().checked_sub(age).map(|j| auction[j]);
         push_call_identity(&mut out, call);

@@ -8,10 +8,10 @@
 //! It is an amortization of [`sample_layouts`] +
 //! `solve_deals` — the sample-and-solve loop that costs ~1.4 s per decision,
 //! learned offline into a few thousand multiply-adds. Its input
-//! ([`features_eval`]) carries **no auction, no seat and no vulnerability**: the
-//! auction enters only through the [`Inferences`] the book distilled from it, so
-//! the same weights serve any bidding system. Score, vulnerability and doubling
-//! are economics and belong to the caller; this module is physics.
+//! The shipped [`features_eval_v5`][crate::bidding::features::features_eval_v5] input
+//! carries the last four call identities alongside the hidden-hand readings;
+//! it still carries no vulnerability. Score, vulnerability and doubling are
+//! economics and belong to the caller; this module is physics.
 //!
 //! Uncertainty comes back as a **Gaussian per contract**, not a point estimate:
 //! two heads per target, mean and `ln σ`, fit by negative log-likelihood on
@@ -32,9 +32,11 @@
 //! ungated and always builds.
 
 use super::context::DecisionProfile;
+#[cfg(any(test, feature = "bench-internals"))]
+use super::features::FEATURES_LEN_EVAL_V3;
 use super::features::{
-    FEATURES_LEN_EVAL, FEATURES_LEN_EVAL_V3, FEATURES_LEN_EVAL_V4, features_eval, features_eval_on,
-    features_eval_v3_on, features_eval_v4_on,
+    FEATURES_LEN_EVAL, FEATURES_LEN_EVAL_V4, FEATURES_LEN_EVAL_V5, features_eval, features_eval_on,
+    features_eval_v4_on, features_eval_v5_on,
 };
 use super::inference::{Inferences, ReadingProfile, Relative};
 use super::neural::{affine, decode, relu};
@@ -87,21 +89,26 @@ static WEIGHTS: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW));
 static WEIGHTS_UNION_READING: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_UNION_READING));
 
 /// Input width of the v3 (calls-tail) artifact.
+#[cfg(any(test, feature = "bench-internals"))]
 const IN_V3: usize = FEATURES_LEN_EVAL_V3;
 
 /// Float count of the v3 MLP — same architecture, wider first layer.
+#[cfg(any(test, feature = "bench-internals"))]
 const TOTAL_V3: usize = HID * IN_V3 + HID + HID * HID + HID + OUT * HID + OUT;
 
 /// The calls-tail evaluator (`features_eval_v3`), trained on the envelope-union
 /// reading regime — the only regime it serves; see
 /// [`trick_estimates_with_auction`].
+#[cfg(any(test, feature = "bench-internals"))]
 static RAW_V3_UNION_READING: &[u8] = include_bytes!("weights/evaluator_v3_dnf.f32");
+#[cfg(any(test, feature = "bench-internals"))]
 const _: () = assert!(
     RAW_V3_UNION_READING.len() == TOTAL_V3 * 4,
     "v3 evaluator weights artifact size mismatch"
 );
 
 /// [`RAW_V3_UNION_READING`] decoded once, on first use.
+#[cfg(any(test, feature = "bench-internals"))]
 static WEIGHTS_V3_UNION_READING: LazyLock<Vec<f32>> =
     LazyLock::new(|| decode(RAW_V3_UNION_READING));
 
@@ -123,6 +130,17 @@ const _: () = assert!(
 /// [`RAW_V4_UNION_READING`] decoded once, on first use.
 static WEIGHTS_V4_UNION_READING: LazyLock<Vec<f32>> =
     LazyLock::new(|| decode(RAW_V4_UNION_READING));
+
+/// Input width of the honest calls-tail artifact.
+const IN_V5: usize = FEATURES_LEN_EVAL_V5;
+const TOTAL_V5: usize = HID * IN_V5 + HID + HID * HID + HID + OUT * HID + OUT;
+
+static RAW_V5_HONEST: &[u8] = include_bytes!("weights/evaluator_v5_honest.f32");
+const _: () = assert!(
+    RAW_V5_HONEST.len() == TOTAL_V5 * 4,
+    "honest evaluator weights artifact size mismatch"
+);
+static WEIGHTS_V5_HONEST: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_V5_HONEST));
 
 /// The strain order the training label uses (`gib::relativized_tricks`, itself
 /// the GIB tail order). [`Strain`]'s own discriminants ascend ♣♦♥♠NT, so this
@@ -245,13 +263,11 @@ fn trick_estimates_on(
     reshape(forward_on(profile.reading.envelope_union(), &x))
 }
 
-/// [`trick_estimates`], with the raw auction available for the v3 calls-tail
-/// artifact.
+/// [`trick_estimates`], with the raw auction available for calls-tail artifacts.
 ///
 /// Under [`DecisionProfile::eval_auction`] **and** the
-/// [`envelope_union`][field@crate::bidding::inference::ReadingProfile::envelope_union] regime the v3 twin
-/// was trained on, this serves [`features_eval_v3`][super::features::features_eval_v3] — the same vector plus the
-/// last four call identities. Under [`DecisionProfile::eval_shape`] it
+/// [`envelope_union`][field@crate::bidding::inference::ReadingProfile::envelope_union] regime the shipped honest
+/// twin was trained on, this serves [`features_eval_v5`][super::features::features_eval_v5]. Under [`DecisionProfile::eval_shape`] it
 /// serves [`features_eval_v4`][super::features::features_eval_v4] instead, which carries that tail and reads each
 /// hidden seat as a shape distribution rather than a bounding box.  Anywhere
 /// else it is exactly [`trick_estimates`], byte for byte, so call sites can
@@ -276,8 +292,8 @@ pub fn trick_estimates_with_auction_on(
     inferences: &Inferences,
     calls: &[Call],
 ) -> TrickEstimates {
-    // Both twins were fit on the tightened prefixed readings a knob-on bidder
-    // serves, and v4's shape block conditions on the box union itself.
+    // All auction twins were fit on the tightened prefixed readings a knob-on
+    // bidder serves; v4's shape block conditions on the box union itself.
     if !profile.reading.envelope_union() {
         return trick_estimates_on(profile, hand, inferences);
     }
@@ -289,9 +305,9 @@ pub fn trick_estimates_with_auction_on(
     if !profile.eval_auction {
         return trick_estimates_on(profile, hand, inferences);
     }
-    let x = features_eval_v3_on(profile.blind_inference, hand, inferences, calls);
-    debug_assert_eq!(x.len(), IN_V3);
-    reshape(forward_with::<IN_V3>(&WEIGHTS_V3_UNION_READING, &x))
+    let x = features_eval_v5_on(profile.blind_inference, hand, inferences, calls);
+    debug_assert_eq!(x.len(), IN_V5);
+    reshape(forward_with::<IN_V5>(&WEIGHTS_V5_HONEST, &x))
 }
 
 /// Reshape the raw head-major outputs — all 20 means, then all 20 log

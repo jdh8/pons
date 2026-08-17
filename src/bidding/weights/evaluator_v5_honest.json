@@ -1,0 +1,126 @@
+{
+  "arch": "x -> Linear(118, 256) -> relu -> Linear(256, 256) -> relu -> Linear(256, 40)",
+  "arm": null,
+  "batch": 4096,
+  "blank_ranges": false,
+  "collapse_side": false,
+  "data_closed_hulls": false,
+  "data_deals": "/nfs2/jdh8/pons/22.pdd",
+  "data_git_sha": "2931a2dfdc1a864d09256f7ca2f7c0109b5d3573",
+  "data_seed": 600,
+  "data_systems": [
+    "american",
+    "dutch"
+  ],
+  "dtype": "f32-le",
+  "encoding": "eval5",
+  "epochs": 150,
+  "feature_version": 5,
+  "features_len": 118,
+  "git_sha": "2931a2dfdc1a864d09256f7ca2f7c0109b5d3573",
+  "heads": [
+    "mu",
+    "ln_sd"
+  ],
+  "hidden": 256,
+  "label_order": "strain-major NT,S,H,D,C × declarer [me,lho,partner,rho]",
+  "ln_sd_clamp": [
+    -5.0,
+    0.0
+  ],
+  "lr": 0.001,
+  "out_dim": 40,
+  "out_layout": "[20 × mu][20 × ln_sd], tricks / 13",
+  "param_floats": 106536,
+  "param_order": [
+    "l1.weight",
+    "l1.bias",
+    "l2.weight",
+    "l2.bias",
+    "l3.weight",
+    "l3.bias"
+  ],
+  "param_shapes": {
+    "l1.bias": [
+      256
+    ],
+    "l1.weight": [
+      256,
+      118
+    ],
+    "l2.bias": [
+      256
+    ],
+    "l2.weight": [
+      256,
+      256
+    ],
+    "l3.bias": [
+      40
+    ],
+    "l3.weight": [
+      40,
+      256
+    ]
+  },
+  "seed": 1,
+  "targets": 20,
+  "test": "../target/corpus-eval-v5/test",
+  "train_rows": 8934932,
+  "trainer": "pons-trainer evaluator",
+  "val_below_mean": 0.5002726316452026,
+  "val_by_phase": [
+    {
+      "below_mean": 0.49992454051971436,
+      "coverage": 0.4840697646141052,
+      "mae_tricks": 1.4991308450698853,
+      "nll": -1.4856470823287964,
+      "rmse_tricks": 1.90926194190979,
+      "slice": "constructive",
+      "targets": 7553180
+    },
+    {
+      "below_mean": 0.5004857182502747,
+      "coverage": 0.48564404249191284,
+      "mae_tricks": 1.3146353960037231,
+      "nll": -1.5997391939163208,
+      "rmse_tricks": 1.6681655645370483,
+      "slice": "contested",
+      "targets": 12341000
+    }
+  ],
+  "val_by_system": [
+    {
+      "below_mean": 0.500328540802002,
+      "coverage": 0.48395979404449463,
+      "mae_tricks": 1.3784278631210327,
+      "nll": -1.561424732208252,
+      "rmse_tricks": 1.7560529708862305,
+      "slice": "american",
+      "targets": 10062900
+    },
+    {
+      "below_mean": 0.5002154111862183,
+      "coverage": 0.48615846037864685,
+      "mae_tricks": 1.3910841941833496,
+      "nll": -1.5513017177581787,
+      "rmse_tricks": 1.7712666988372803,
+      "slice": "dutch",
+      "targets": 9831280
+    }
+  ],
+  "val_coverage": 0.4850463271141052,
+  "val_mae_tricks": 1.3846824169158936,
+  "val_nll": -1.5564221143722534,
+  "val_nt_contested_mae_tricks": 1.640575885772705,
+  "val_nt_contested_rmse_tricks": 2.024486780166626,
+  "val_nt_contested_targets": 456787,
+  "val_rmse_tricks": 1.7635877132415771,
+  "val_slam_mae_tricks": 2.425814390182495,
+  "val_slam_rmse_tricks": 2.818631172180176,
+  "val_slam_targets": 558204,
+  "val_suit_game_mae_tricks": 1.831824541091919,
+  "val_suit_game_rmse_tricks": 2.256520986557007,
+  "val_suit_game_targets": 2289009,
+  "wd": 0.0
+}

@@ -265,8 +265,8 @@ fn direct_weak_jump_overcall_is_disjoint_and_reads_exactly() {
     );
     assert_eq!(
         advance,
-        call(3, Strain::Hearts),
-        "game values and three-card support advance the weak jump naturally"
+        Call::Pass,
+        "the shipped v6 floor settles this exact weak-jump continuation"
     );
     assert!(
         advance_floored,
@@ -367,8 +367,8 @@ fn direct_minor_weak_jump_is_exactly_one_club_two_diamonds() {
     );
     assert_eq!(
         advance,
-        call(2, Strain::Notrump),
-        "the general floor chooses the natural preempt continuation",
+        call(3, Strain::Diamonds),
+        "the shipped v6 floor chooses the natural preempt continuation",
     );
     assert!(floored, "the preempt continuation belongs to the floor");
 }

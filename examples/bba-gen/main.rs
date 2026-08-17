@@ -542,22 +542,6 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_blind_inference: bool,
 
-    /// Serve our nets the **training-time** reading (`DecisionProfile::legacy_view`,
-    /// crate default on): alerted-only, pre-ceilings and pre-upgrade-closure.
-    /// This is the hedge for reading changes. Every shipped
-    /// net trained on floor-only strength boxes, so tightening the reading moves
-    /// their inputs off the training distribution even where the tighter reading
-    /// is the true one.  On, only the nets (`features` and the evaluator's trick
-    /// estimates) eat a second `Inferences` read with the ceilings switched back
-    /// off; the sampler, the authored gates and the instinct floor keep the true
-    /// one.  That isolates "the reading was wrong" from "the nets are stale".
-    /// A no-op without the ceilings.  **Engine default ON since 2026-08-16**,
-    /// shipped with them; pass `false` for the raw (unheld-nets) arm.  Unset =
-    /// the engine default.  The second read is a second, *uncompiled* walk, and
-    /// costs ~1% end to end.
-    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
-    ns_legacy_view: Option<bool>,
-
     /// Read our side's made bids with sibling-gate exclusion
     /// (`ReadingProfile::bid_exclusion`, crate default on).  The made-bid
     /// selection is argmax over `weight/100 + eval`, so a bid made through one
@@ -1819,9 +1803,6 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.decision.eval_auction = !args.no_ns_eval_auction;
     agreements.decision.eval_shape = args.ns_eval_shape;
     agreements.decision.blind_inference = args.ns_blind_inference;
-    if let Some(v) = args.ns_legacy_view {
-        agreements.decision.legacy_view = v;
-    }
     let (oc_lo, oc_hi) = args
         .ns_overcall
         .split_once(':')

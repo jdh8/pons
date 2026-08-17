@@ -833,9 +833,10 @@ M6 (deeper deterministic floor) ─► absorbed ex-M7.1 decode sweep (Inferences
 S (BBA/EPBot) ─► external eval anchor (now) · teacher → M3 (optional)
 ```
 
-**Recommended first chunk (updated 2026-08-10):** the foundations are long
+**Recommended first chunk (updated 2026-08-18):** the foundations are long
 done — M0–M4 and M6 are complete, M7 is demoted, and the shipped floor is the
-BBA-distilled configured net (v5 since 2026-08-08, `card-manifold.md`). The
+BBA-distilled configured v6 net retrained on honest authored readings
+(`../authored-reading-handoff.md`). The
 live frontier is **M8** (sound search, the BEN gap), which first needs its
 machinery re-derived — the search line it planned against was deleted in the
 variant tidy-up ([`archive/sound-search.md`](archive/sound-search.md)).

@@ -14,7 +14,7 @@
 //! that the arg-max (the chosen call) matches exactly.
 
 use super::array::Logits;
-use super::features::{FEATURES_LEN_V4, FEATURES_LEN_V5};
+use super::features::{FEATURES_LEN_V4, FEATURES_LEN_V5, FEATURES_LEN_V6};
 use nalgebra::{SMatrixView, SVector, SVectorView};
 use std::sync::LazyLock;
 
@@ -173,6 +173,28 @@ static WEIGHTS_BBA_V5: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_BBA_V5))
 pub fn classify_bba_v5(features: &[f32]) -> Logits {
     assert_eq!(features.len(), IN_V5, "expected {IN_V5} features");
     forward::<IN_V5>(&WEIGHTS_BBA_V5, features)
+}
+
+// ── The honest-reading compact floor: v6 features ────────────────────────────
+
+/// Input width of `american_bba_v6`, pinned to the artifact.
+const IN_V6: usize = FEATURES_LEN_V6;
+
+/// Compact-config weights retrained on the live authored reading.  Whole-hand
+/// points and the four fit-specific support ranges are separate inputs.
+static RAW_BBA_V6: &[u8] = include_bytes!("weights/american_bba_v6.f32");
+const _: () = assert!(
+    RAW_BBA_V6.len() == total(IN_V6) * 4,
+    "honest-reading BBA weights artifact size mismatch"
+);
+
+static WEIGHTS_BBA_V6: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_BBA_V6));
+
+/// Evaluate the v6 BBA-distilled floor: 176 features → 38 logits.
+#[must_use]
+pub fn classify_bba_v6(features: &[f32]) -> Logits {
+    assert_eq!(features.len(), IN_V6, "expected {IN_V6} features");
+    forward::<IN_V6>(&WEIGHTS_BBA_V6, features)
 }
 
 #[cfg(test)]

@@ -2,7 +2,8 @@
 
 > Originally (2026-06) a design effort; much of it has since shipped. The
 > crate's default floor **is** a learned net — the BBA-distilled configured
-> net, v5 since 2026-08-08 ([`card-manifold.md`](card-manifold.md)) — and the
+> v6 net retrained on honest authored readings since 2026-08-18
+> ([`../authored-reading-handoff.md`](../authored-reading-handoff.md)) — and the
 > sampler, evaluator net, and DSL compiler are live. Milestone status is in
 > [`plan.md`](plan.md); this file and `01`–`04` keep the original design and
 > the ML glossary. Where execution diverged from the plan (notably the
@@ -108,7 +109,7 @@ these framings.
 
 The ledgers that grew alongside the design (the shipped reality lives there):
 [`bba-floor.md`](bba-floor.md), [`configured-net.md`](configured-net.md),
-[`card-manifold.md`](card-manifold.md) (the current v5 floor),
+[`card-manifold.md`](card-manifold.md) (the compact-config v5 history),
 [`evaluator-net.md`](evaluator-net.md),
 [`competitive-accountant.md`](competitive-accountant.md) (the contested 5-level
 gate; evidence in [`doubling-calibration.md`](doubling-calibration.md)),

@@ -597,13 +597,36 @@ soundness correction; a loss traces its worst boards before any conclusion.
 | 2 | **`ReadingScope::All`** as default | built; drop the alert gate | `--ns-reading-scope all` (default); `alerted` is the off arm | clear the empty-box worklist before measuring (`probe-reading-sound --ns-reading-scope all`, bucketed); whole-book non-loss under plain DD and PD at both vulnerabilities | **SHIPPED default-on 2026-08-16.** First run held (PD loss, all six cells); its forensic found the whole loss in the four `1x (1NT)` lanes — the side-blind systems-on strip — and with that fixed (nets held by `legacy_view`) 3 seeds × 204,800 bd/arm/vul read **12/12 cells positive**, plain +0.0078…+0.0125 / PD +0.0073…+0.0111. Smoke `edb618b8…` → `bdd1a80e…`; cards byte-identical. **The two `pass_out` nodes STAY — probed 2026-08-17 and the question is settled asymmetrically.** With both sites removed, `1NT - 2NT - 3♣ - 3♦ -` falls to the root fallback and the floor offers *only* `P` (every hand, both vuls), so that node's `pass_out` is redundant; but `1NT - 2♠ - 2NT - 3♣ -` falls to the floor's **support-raise** rule and bids **`4♣` at 1.200 over `P` at 0.000** on all six probe hands at both vulnerabilities — it raises partner's weak club sign-off to the four level off "3+ support, 13+ points", with nothing gating on partner being capped at `points 0..9`. The pre-registered rule was "any hand still blasts → leave both", so both stay. Splitting node 1 out is a follow-up owing its own arm; the real repair is the floor-side settle rail (same family as Phase 0b's `opener_forced_past_invitation`) |
 | 3 | **Substitute, don't intersect** | authored calls set suppression; walk bookkeeping from the projection; retire `nt_blanket` & co. for authored calls | two-binary (a refactor, not a knob) | byte-identity where projection ⊇ walk is *not* expected — this moves readings by design; A/B | **SHIPPED 2026-08-17.** Partner exclusions 1.877%→1.308%; N2 4/4 cells non-negative; two 204,800-board whole-book seeds are wash/wash at both vuls (pooled NV +0.00023/+0.00052 plain/PD, vul −0.00072/−0.00064). Smoke `bdd1a80e…`→`d532f04b…`.  **Polish A′ 2026-08-17: LOST 12/12 cells** vs `a376c324` (three seeds, both scorers, both vuls) — the bundle was face-suit record + `substitute_authored` net shield + fit-write-back drop + mask refactor. Shield and write-back drop **reverted**. **Polish A′′ 2026-08-17: WASH, shipped on KR2** — face-suit record + `CallMasks` refactor alone vs `a376c324`, 3 seeds × 204,800 bd/arm/vul, 9/12 cells positive, pooled +112 IMPs plain (+0.00009/bd) / +101 PD (+0.00008/bd) on 58 diverging boards, every cell's CI straddling zero (`ab-results/bd-only-s{1,2,3}`, smoke `d532f04b…`→`cb090e54…`, cards byte-identical). The fix over-registers in the opposite direction — its worst board is traced to the walk's rebid arm firing on a floor control bid in competition — so a refinement is queued as its own arm. Paired soundness re-baseline at `ba8f7305`: partner 1.308%→**1.315%** (+12 exclusions), LHO/RHO flat — a record that says more excludes more. See *Why the wash* |
 | 4 | **Negative inference** | a made bid excludes the strictly-heavier sibling gates its bidder declined | `reading.bid_exclusion`, **default on since 2026-08-17**; `--ns-bid-exclusion[=false]`, `PROBE_BID_EXCLUSION=0`, `set_bid_exclusion` | admits sweep (must stay green — it tightens) + `probe-reading-sound` partner not rising; A/B | **SHIPPED 2026-08-17.** Soundness green in every gate (probe partner **1.302%→1.180%**, the worklist's whole head cleared, book-wide `bids_read_within_their_table`); A/B 3 seeds × 204,800 bd/arm/vul vs BBA a **wash on both scorers at both vuls** (93 diverging boards in 1.23M, +36/+51 pooled, every CI straddling zero) — the pre-registered non-loss; smoke `7aa33d58…`→`9c56a4b2…` (3/20,000), cards byte-identical. Two follow-ups filed and both now answered (walk length floors under the fold — built, wash, `CallMasks::walk_shape`; the RKCB face-rung guard — **refuted both ways**) — see *Phase 4 — the follow-ups* below |
-| 5 | **features_v6 + retrain** | honest reading in, `legacy_view` and `net_points` fold out | F2b recipe (dump, held-out gate, twin, flip) | held-out NLL/MAE ≥ shipped; A/B of the flip | after 1-3 land |
+| 5 | **features_v6 + retrain** | honest reading in; `legacy_view`, `strip_side_blind`, and the shipped `net_points` fold out | F2b recipe (dump, held-out gate, twin, flip) | held-out NLL/MAE ≥ shipped; A/B of the flip | **SHIPPED 2026-08-18.** Policy v6 CE **0.30098** vs v5 **0.30487**; evaluator v5 held-out NLL **−1.55642** / MAE **1.38468** vs shipped **−1.54872** / **1.39248**. Fresh 204,800-board gates: American plain **+0.0297/+0.0374**, PD **+0.0164/+0.0171** IMP/bd (none/both); Dutch plain **+0.0551/+0.0429**, PD **+0.0122/−0.0080**, with both Dutch PD CIs crossing zero. Defaults flipped to the matched v6 policy + honest evaluator; both compatibility views deleted. |
 
 Why this order: 1 before 2 because at N2 the missing ceiling, not the missing
 length, is what the floor spends; 2 before 3 because 3 is the cleanup that 2
 makes possible (once every authored call projects, the walk's exceptions have
 nothing left to protect); 5 last because it is the only phase that cannot be
 undone with a knob.
+
+## Phase 5 — honest-reading retrain shipped (2026-08-18)
+
+The F2b sequence completed end to end. `scripts/dump-v6.sh` reproduced the v5
+mixture at feature version 6: 6,768,279 rows (4,235,171 contested), with raw
+whole-hand points and four support-point bands kept as separate inputs. The
+176→256→256→38 policy beat the shipped v5 artifact on its held-out split
+(CE 0.30098 vs 0.30487; top-1 89.276%). Thirty constant inputs were folded.
+
+The evaluator used a deal-disjoint slice of `22.pdd`: 8,934,932 training rows
+and 994,709 held-out rows across American and Dutch. Its honest 118-input
+artifact beat the shipped evaluator on both registered gates: NLL −1.55642 vs
+−1.54872 and MAE 1.38468 vs 1.39248 tricks.
+
+The twin then ran on fresh deals, 204,800 boards per arm per vulnerability,
+under plain DD and perfect defense. American won all four cells (plain
++0.0297/+0.0374, PD +0.0164/+0.0171 IMP/bd at none/both). Dutch won plain DD
+(+0.0551/+0.0429); PD was a wash (+0.0122 ±0.0128 / −0.0080 ±0.0152), matching
+the accepted v5 precedent. Both defaults now use the matched v6 policy and
+honest evaluator. `DecisionProfile::legacy_view`, its second inference cache,
+and `ReadingProfile::strip_side_blind` are deleted; the correct side-aware strip
+is unconditional. Historical v5 entry points retain the old policy artifacts,
+but cannot recreate the deliberately deleted frozen reading view.
 
 ## Phase 2 measurement — held, then shipped
 
@@ -1160,6 +1183,7 @@ the `2NT` relay row no longer the lane's worst per board; `1NT 2♥ 2♠ -` read
 | 2026-08-17 | **Phase 4 SHIPPED — `reading.bid_exclusion` default on.** A/B 3 seeds × 204,800 bd/arm/vul vs BBA: **wash on both scorers at both vuls** in every cell, 93 diverging boards in 1,228,800 (0.0076%), pooled +36 plain / +51 PD, per-seed (both vuls) plain 0 / −73 / +109; the pre-registered non-loss. All divergence is slam decisions: Meckstroth `4M` sign-off now reads `sp 10..12` (asks: +16/+31 net), the erased 2/1 minor-rebid reading repaired (+56/+58), and two RKCB wrong-trump decodes (−31/−33) traced to the fold replacing a catch-all's *walk* length floor — filed, not blocking. Smoke `7aa33d58…`→`9c56a4b2…` (3/20,000), cards byte-identical, gates green (two hook-order literals updated: an undecoded call is no longer projected under the fold) | see *Phase 4 — the A/B* |
 | 2026-08-17 | **Phase 4 built — `reading.bid_exclusion`, default off.** Soundness green in every gate; A/B **not** run | Probe partner **1.302%→1.180%** (seed 20260816, 40k), the worklist's whole head cleared (`1♥ - 2NT - 4♥` 25/25→0, `1♠ - 2NT - 4♠` 17/17→0, Ogust `3♣` 77–95%→0); throughput **+0.2%**; smoke byte-identical `7aa33d58…`. First footprint was 12 boards/20,000 and eleven were the floor dropping its Blackwood ask — root-caused **not** to the floor but to `Strength::intersect_nonempty` widening a crossed gauge instead of emptying its box; with that fixed the footprint is **2/20,000**, both the fold buying an ask. See *Phase 4* below |
 | 2026-08-18 | **Michaels major-suit preferences authored as the exact complement of their game raises** | Selected calls unchanged; `1♥ (2♥) - 2♠` / `1♠ (2♠) - 3♥` make no three-card-fit promise. Soundness partner **1.238%→1.212%** (44 fewer / 168,097), so the predicted full return to 1.180% was false. A/B vs `97206fcc`, seeds 1786993552 / 1786993946 / 1786994335, 3 × 204,800 bd/arm/vul: **one divergence in 1,228,800, +11 plain / +11 PD**; smoke remains `9c56a4b2…`, cards unchanged |
+| 2026-08-18 | **Phase 5 features_v6 + honest evaluator retrain SHIPPED** | Both held-out gates improve; fresh American A/B wins all four cells, Dutch wins plain with PD wash. `american()` and `dutch()` flipped to v6; `legacy_view`, its duplicate cache, and `strip_side_blind` deleted. See *Phase 5 — honest-reading retrain shipped*. |
 
 ### Memory compaction notes (2026-08-16)
 

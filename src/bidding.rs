@@ -68,7 +68,7 @@ pub use compose::{OrElse, Versus};
 pub use context::Context;
 pub use dutch::{
     dutch, dutch_book, dutch_book_default, dutch_default, dutch_instinct, dutch_instinct_default,
-    dutch_with_config,
+    dutch_with_card, dutch_with_config,
 };
 #[cfg(feature = "dd")]
 pub use ev::ev_all;

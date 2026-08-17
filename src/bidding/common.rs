@@ -9,7 +9,7 @@ use super::agreements::Agreements;
 use super::fallback::{Always, Fallback, Guard};
 use super::features::{CompactConfig, Config};
 use super::instinct::instinct;
-use super::neural_floor::{ConfiguredFloorBba, ConfiguredFloorV5};
+use super::neural_floor::{ConfiguredFloorBba, ConfiguredFloorV5, ConfiguredFloorV6};
 use super::{Rules, System, Trie};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
@@ -92,10 +92,9 @@ fn with_floors(mut system: System, ladder: &Arc<Rules>, contested: Fallback) -> 
 
 /// Attach the card-input (v4) BBA-distilled floor to a system's contested books
 ///
-/// Since the 2026-08-08 swap this backs [`dutch`][super::dutch::dutch] (whose
-/// v5 twin is ungated) and the declared-opponent entry point
-/// [`american_with_config`][super::american::american_with_config];
-/// [`american`][super::american::american] moved to [`with_floor_v5`].
+/// This remains the explicit card-input v4 entry point behind
+/// [`american_with_config`][super::american::american_with_config] and
+/// [`dutch_with_config`][super::dutch::dutch_with_config].
 pub(in crate::bidding) fn with_floor(
     system: System,
     config: Config,
@@ -108,9 +107,8 @@ pub(in crate::bidding) fn with_floor(
 
 /// Attach the compact-config (v5) BBA-distilled floor to a system's contested books
 ///
-/// [`with_floor`]'s v5 sibling — the shipped default for
-/// [`american`][super::american::american] since its 2026-08-08 gate A/B, and
-/// the opt-in behind [`dutch_v5`][super::dutch::dutch_v5].
+/// [`with_floor`]'s historical v5 sibling, retained for the explicit v5
+/// factories and their measured A/Bs.
 pub(in crate::bidding) fn with_floor_v5(
     system: System,
     compact: CompactConfig,
@@ -118,6 +116,17 @@ pub(in crate::bidding) fn with_floor_v5(
 ) -> System {
     let ladder = Arc::new(instinct(agreements));
     let contested = Fallback::classify(ConfiguredFloorV5::new(compact, Arc::clone(&ladder)));
+    with_floors(system, &ladder, contested)
+}
+
+/// Attach the shipped compact-config v6 floor and honest evaluator twin.
+pub(in crate::bidding) fn with_floor_v6(
+    system: System,
+    compact: CompactConfig,
+    agreements: &Agreements,
+) -> System {
+    let ladder = Arc::new(instinct(agreements));
+    let contested = Fallback::classify(ConfiguredFloorV6::new(compact, Arc::clone(&ladder)));
     with_floors(system, &ladder, contested)
 }
 

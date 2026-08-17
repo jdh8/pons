@@ -1287,9 +1287,9 @@ impl Dataset {
         // every `--encoding`, so summary, onehot and bits corpora are
         // indistinguishable here. `features_len` and `meta.encoding` are what
         // actually identify the layout. v1 corpora on disk stay readable.
-        if !matches!(meta.feature_version, 1..=4) {
+        if !matches!(meta.feature_version, 1..=5) {
             bail!(
-                "evaluator feature_version {} unsupported (this trainer knows 1 to 4)",
+                "evaluator feature_version {} unsupported (this trainer knows 1 to 5)",
                 meta.feature_version
             );
         }

@@ -42,9 +42,9 @@ use ddss::TrickCountTable;
 use pons::bidding::context::{Context, relative};
 use pons::bidding::features::{
     FEATURES_LEN_EVAL, FEATURES_LEN_EVAL_POINTS, FEATURES_LEN_EVAL_SHAPE, FEATURES_LEN_EVAL_V3,
-    FEATURES_LEN_EVAL_V4, FEATURES_VERSION_EVAL, FEATURES_VERSION_EVAL_V4, LEN_HAND_EVAL,
-    LEN_HAND_V3, features_eval, features_eval_points, features_eval_shape, features_eval_v3,
-    features_eval_v4, features_v3,
+    FEATURES_LEN_EVAL_V4, FEATURES_LEN_EVAL_V5, FEATURES_VERSION_EVAL, FEATURES_VERSION_EVAL_V4,
+    FEATURES_VERSION_EVAL_V5, LEN_HAND_EVAL, LEN_HAND_V3, features_eval, features_eval_points,
+    features_eval_shape, features_eval_v3, features_eval_v4, features_eval_v5, features_v3,
 };
 use pons::bidding::tags::derive;
 use pons::bidding::{Bidder, Inferences, Partnership, Phase};
@@ -144,6 +144,8 @@ enum Encoding {
     /// shape-reading evaluator, so the corpus and the crate agree by
     /// construction
     Eval4,
+    /// `features_eval_v5` verbatim: calls tail plus honest points/support axes.
+    Eval5,
     /// `features_eval_points` verbatim (136 floats): the strength-reading
     /// research superset — the `eval4` vector with each hidden seat's raw-HCP
     /// endpoints and strength distribution spliced in beside its `points`
@@ -178,7 +180,8 @@ struct Args {
     /// `eval4` (features_eval_v4's 97 floats — the shape-reading serving
     /// extractor, verbatim), or `points` (features_eval_points' 136 floats —
     /// the strength-reading superset: `eval4` plus raw-HCP endpoints and the
-    /// strength distribution per seat)
+    /// strength distribution per seat), or `eval5` (features_eval_v5's honest
+    /// points/support ranges plus the calls tail)
     #[arg(long, default_value = "summary")]
     encoding: String,
     /// Append the Phase-3 honour oracle: 8 columns of partner's *true*
@@ -239,9 +242,10 @@ fn main() -> anyhow::Result<()> {
         "eval3" => Encoding::Eval3,
         "shape" => Encoding::Shape,
         "eval4" => Encoding::Eval4,
+        "eval5" => Encoding::Eval5,
         "points" => Encoding::Points,
         other => anyhow::bail!(
-            "--encoding must be summary|onehot|bits|eval3|shape|eval4|points, got {other:?}"
+            "--encoding must be summary|onehot|bits|eval3|shape|eval4|eval5|points, got {other:?}"
         ),
     };
     let base_len = match encoding {
@@ -251,6 +255,7 @@ fn main() -> anyhow::Result<()> {
         Encoding::Eval3 => FEATURES_LEN_EVAL_V3,
         Encoding::Shape => FEATURES_LEN_EVAL_SHAPE,
         Encoding::Eval4 => FEATURES_LEN_EVAL_V4,
+        Encoding::Eval5 => FEATURES_LEN_EVAL_V5,
         Encoding::Points => FEATURES_LEN_EVAL_POINTS,
     };
     anyhow::ensure!(
@@ -260,6 +265,10 @@ fn main() -> anyhow::Result<()> {
     anyhow::ensure!(
         !args.auction || matches!(encoding, Encoding::Bits),
         "--auction only extends the `bits` superset the trainer arms mask over"
+    );
+    anyhow::ensure!(
+        !matches!(encoding, Encoding::Eval5) || args.envelope_union,
+        "--encoding eval5 is the honest F2b profile and requires --envelope-union"
     );
     let features_len = base_len
         + if args.oracle_all {
@@ -289,8 +298,10 @@ fn main() -> anyhow::Result<()> {
     // second partnership for `infer`.  `classify` keeps using the knob-off one, so
     // the auctions never move.
     let mut reader_agreements = agreements;
-    reader_agreements.decision.reading.sum_closure = args.closed_hulls;
-    reader_agreements.decision.reading.upgrade_closure = args.closed_hulls;
+    if !matches!(encoding, Encoding::Eval5) {
+        reader_agreements.decision.reading.sum_closure = args.closed_hulls;
+        reader_agreements.decision.reading.upgrade_closure = args.closed_hulls;
+    }
     let readers: Vec<Partnership> = systems
         .iter()
         .map(|(name, _)| {
@@ -430,6 +441,7 @@ fn main() -> anyhow::Result<()> {
             Encoding::Eval3 | Encoding::Shape => 3,
             // `points` splices its superset around the same v4 blocks.
             Encoding::Eval4 | Encoding::Points => FEATURES_VERSION_EVAL_V4,
+            Encoding::Eval5 => FEATURES_VERSION_EVAL_V5,
             _ => FEATURES_VERSION_EVAL,
         },
         "features_len": features_len,
@@ -512,6 +524,10 @@ fn encode(
             out.copy_from_slice(&features_eval_v4(hand, inferences, calls));
             return;
         }
+        Encoding::Eval5 => {
+            out.copy_from_slice(&features_eval_v5(hand, inferences, calls));
+            return;
+        }
         Encoding::Points => {
             out.copy_from_slice(&features_eval_points(hand, inferences, calls));
             return;
@@ -521,7 +537,11 @@ fn encode(
     let feats = features_eval(hand, inferences);
     let (hand_block, ranges) = feats.split_at(LEN_HAND_EVAL);
     let cut = match encoding {
-        Encoding::Eval3 | Encoding::Shape | Encoding::Eval4 | Encoding::Points => {
+        Encoding::Eval3
+        | Encoding::Shape
+        | Encoding::Eval4
+        | Encoding::Eval5
+        | Encoding::Points => {
             unreachable!("returned above")
         }
         Encoding::Summary => {

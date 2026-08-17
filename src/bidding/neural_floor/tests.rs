@@ -145,14 +145,7 @@ fn configured_floor_clone_reuses_the_decision_cache() {
             .collect::<Vec<_>>()
     );
     assert_eq!(context.decision_cache_init_counts(), Some(after_first));
-    // Under the shipped `legacy_view` the nets' single read lands in the
-    // legacy slot instead of the plain one; the invariant is that it happens
-    // once, not which slot holds it.
-    assert_eq!(
-        after_first.0 + context.legacy_inference_inits().unwrap_or(0),
-        1,
-        "configured features read inference once"
-    );
+    assert_eq!(after_first.0, 1, "configured features read inference once");
     assert!(after_first.1 <= 1);
     assert!(after_first.2 <= 1);
 }

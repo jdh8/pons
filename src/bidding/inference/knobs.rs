@@ -28,9 +28,8 @@ pub enum ReadingScope {
     /// 2026-08-16, and the per-call defense
     /// switch: the floor recognises every alerted convention and reads it as the
     /// convention rather than as a natural suit, so a player switches its
-    /// treatment the moment an opponent's alerted call lands.  Still the
-    /// reading [`legacy_view`][field@crate::bidding::context::DecisionProfile::legacy_view]
-    /// serves the frozen nets.
+    /// treatment the moment an opponent's alerted call lands.  This was also
+    /// the frozen nets' training scope before the Phase-5 v6 retrain.
     Alerted,
 
     /// Decode **every** authored call, unalerted ones too.
@@ -231,10 +230,9 @@ pub struct ReadingProfile {
     /// its lengths force balanced, and the sampler stops dealing the 9- and
     /// 10-counts it was accepting outside the stated band: 249 rejections in
     /// 8,576 layouts on the same probe.  Arguably the old acceptance was the
-    /// wrong one — and the measurement agreed: 12/12 A/B cells positive once
-    /// the frozen nets are shielded by
-    /// [`legacy_view`][field@crate::bidding::context::DecisionProfile::legacy_view]
-    /// (3 seeds × 204,800 bd/arm/vul, +0.0002 plain / +0.0002 PD).  It bit
+    /// wrong one — and the measurement agreed: 12/12 A/B cells positive with
+    /// the then-frozen nets held on their training view (3 seeds × 204,800
+    /// bd/arm/vul, +0.0002 plain / +0.0002 PD).  It bit
     /// nothing until the two-sided
     /// [`strength_ceilings`][field@Self::strength_ceilings] gave its
     /// `points.max ← hcp.max + ceiling` leg a ceiling to work on; before that
@@ -242,28 +240,11 @@ pub struct ReadingProfile {
     /// [`envelope_union`][field@Self::envelope_union].
     pub upgrade_closure: bool,
 
-    /// Let `systems_on_overcall_strip` fire on **their** 1NT overcall too — the
-    /// side-blind strip the v5 nets were trained on
-    ///
-    /// **Default off**: the strip is ours-only (2026-08-16), because on their
-    /// 1NT overcall of our one-suit opening it stripped *our* opening and read
-    /// the lane as their opening-1NT auction — partner's negative double as
-    /// "our penalty double of their 1NT, 15+", partner's free bid as an
-    /// overcall of a 1NT opening, opener's suit as nothing.  The nets were fit
-    /// on that reading, so
-    /// [`legacy_view`][field@crate::bidding::context::DecisionProfile::legacy_view]
-    /// turns this on for the reading it serves them (the frozen-net hedge; the
-    /// raw fix measured plain −0.0007 / PD −0.0016 IMPs/board on 204,800
-    /// boards through the unshielded nets).  Retired with the view at Phase 5
-    /// of docs/authored-reading-handoff.md.
-    pub strip_side_blind: bool,
-
     /// Read a made call's strength **ceilings**, not just its floors
     ///
     /// **Default on since 2026-08-16** (Phase 1 of
-    /// docs/authored-reading-handoff.md; shipped with
-    /// [`legacy_view`][field@crate::bidding::context::DecisionProfile::legacy_view],
-    /// which holds the nets at the pre-ceilings reading).  Off,
+    /// docs/authored-reading-handoff.md).  The Phase-5 v6 nets are trained on
+    /// this live reading.  Off,
     /// [`points`][crate::bidding::constraint::points],
     /// [`hcp`][crate::bidding::constraint::hcp] and
     /// [`support_points`][crate::bidding::constraint::support_points] project
@@ -414,9 +395,8 @@ pub struct ReadingProfile {
     /// would exceed `EXCLUSION_BOX_BUDGET`, is skipped) — skipping costs
     /// precision, never soundness.
     ///
-    /// Folded **off** in
-    /// [`legacy_view`][field@crate::bidding::context::DecisionProfile::legacy_view]'s
-    /// clone: the shipped nets were fit before any of this existed.
+    /// The pre-v6 compatibility view folded this off; the v6 nets are trained
+    /// with the shipped default on.
     pub bid_exclusion: bool,
 
     /// Fold the partnership's behaviorally probed boxes into the projection overlay
@@ -1059,7 +1039,6 @@ impl ReadingProfile {
             gauge_membership: true,
             sum_closure: true,
             upgrade_closure: false,
-            strip_side_blind: true,
             strength_ceilings: false,
             control_bid: false,
             cue: false,
@@ -1123,7 +1102,6 @@ impl Default for ReadingProfile {
             gauge_membership: false,
             sum_closure: false,
             upgrade_closure: true,
-            strip_side_blind: false,
             strength_ceilings: true,
             control_bid: true,
             cue: true,
