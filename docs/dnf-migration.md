@@ -228,6 +228,7 @@ is an authoring defect owed a row below, not migration debt.
 | C6 escape-hatch batch (2026-08-06) | 20/9 | 59/0 | 9/0 | **115**/0 | 18/0 |
 | Diamond splinter (2026-08-13, `3d0f376`) | 20/9 | **65**/0 | 9/0 | 115/0 | 18/0 |
 | Michaels preference (2026-08-18) | 20/9 | **67**/0 | **11**/0 | 115/0 | 18/0 |
+| N3 `1NT (3x)` table (2026-08-18) | 20/9 | **75**/0 | 11/0 | 115/0 | 18/0 |
 
 The `Points13` row is **not a chop** — it is the shipped default flip of the
 major no-fit 2/1 gate (`hcp(13..)` → `points(13..)`, docs/bidding-options.md).

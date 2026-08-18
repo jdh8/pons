@@ -231,6 +231,27 @@ The counter is an ordinary competitive scheme, invariant to the declaration
 - **X** 7–24%: over `(3♥)` it is `len(♠, 4..)` — takeout showing the other
   major; over `(3♣)`/`(3♦)` it is `balanced()`, values; over `(3♠)` ungated.
 
+#### `(3♣)` per call — **no transfers** (`--mode counter-3c`, 8k/vul, 2026-08-18)
+
+Recorded because our N3 `(3♣)` transfer arm needs the answer: does BBA read
+`3♦`/`3♥`/`3♠` over its own `3♣` as transfers?  It does not — all three are
+plain naturals, and the shares are vulnerability-flat.
+
+| call | share (none/both) | band | reading |
+| --- | ---: | --- | --- |
+| Pass | 31.8% / 33.3% | `hcp 2–9` / `2–11` | — |
+| `3NT` | 24.9% / 23.3% | `hcp 9–17`, bal 67% | to play, no stopper gate |
+| `3♠` | 11.8% / 11.8% | `len(♠, 5..)`, `hcp 7–18` | **natural** |
+| `3♥` | 11.3% / 11.4% | `len(♥, 5..)`, `hcp 8–18` | **natural** |
+| `3♦` | 10.7% / 10.6% | `len(♦, 5..)`, `hcp 7–18` | **natural** |
+| `X` | 7.6% / 7.7% | `hcp 7–19`, bal 86% | values |
+| `6NT` | 1.1% / 1.1% | `hcp 18–21` | to play |
+
+So our transfer arm ([one-notrump-competitive.md](../one-notrump-competitive.md)
+§N3) is not an alignment move: it wins or loses on its own merit, and what it
+buys is the invitational five-card major (which the natural table can only show
+as `X` or a pass) plus right-siding, which double dummy cannot price.
+
 ## What this says about our packages
 
 Read as evidence about the anchor, not as a design to copy — nothing here has

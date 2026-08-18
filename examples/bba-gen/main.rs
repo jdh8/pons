@@ -904,6 +904,39 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_high_overcall: bool,
 
+    /// Author responder's structure over their three-level overcall of our
+    /// `1NT` (`(3♣)`–`(3♠)`, natural seven-card preempts): forcing three-level
+    /// suits, natural four-level bids, takeout `X`, `3NT`, and opener's one
+    /// answer to each.  **Engine default ON since 2026-08-18**; pass `false`
+    /// for the pre-ship arm.  Unset = the engine default; see
+    /// `competition.nt_high_overcall_responses`.
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    ns_nt_high_overcall: Option<bool>,
+
+    /// Require a stopper for responder's direct `3NT` over their *three-level*
+    /// overcall of our `1NT` — the three-level table's own copy of
+    /// --ns-direct-3nt-stopper, which it cannot share (the paired arm that
+    /// dropped the shared bit won this lane and lost the takeout-double advance
+    /// the shared bit also governs).  Unset tracks the engine default (on);
+    /// pass `false` for the no-gate arm.
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    ns_nt_high_overcall_3nt_stopper: Option<bool>,
+
+    /// Play transfers over their `(3♣)` overcall of our `1NT` (`3♦`/`3♥` to
+    /// the majors, INV+ and completed at game; `3♠` to diamonds).  Implies
+    /// --ns-nt-high-overcall; does nothing without it.  Unset = the engine
+    /// default (off while the A/B runs); see `competition.nt_3c_transfers`.
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    ns_nt_3c_transfers: Option<bool>,
+
+    /// Require a stopper for responder's *direct* `3NT` over their overcall of
+    /// our `1NT`.  Unset tracks the shipped engine default (on); pass `false`
+    /// for the no-gate arm ("partner can hold the stopper").  Shared by the
+    /// two-level Lebensohl lane and the three-level table; see
+    /// `competition.direct_3nt_stopper`.
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    ns_direct_3nt_stopper: Option<bool>,
+
     /// Re-enable our takeout double on a flat 4-3-3-3 weaker than a 1NT opening
     /// (12–14 HCP flat 4333) — the default suppresses it and routes to Pass
     /// (shipped default-on; see `DefenseKnobs::suppress_flat_4333_takeout`).
@@ -2046,6 +2079,18 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
         }
     };
     agreements.competition.high_overcall_responses = args.ns_high_overcall;
+    if let Some(v) = args.ns_nt_high_overcall {
+        agreements.competition.nt_high_overcall_responses = v;
+    }
+    if let Some(v) = args.ns_nt_high_overcall_3nt_stopper {
+        agreements.competition.nt_high_overcall_3nt_stopper = v;
+    }
+    if let Some(v) = args.ns_nt_3c_transfers {
+        agreements.competition.nt_3c_transfers = v;
+    }
+    if let Some(v) = args.ns_direct_3nt_stopper {
+        agreements.competition.direct_3nt_stopper = v;
+    }
     agreements.competition.cachalot_contested_x = !args.no_ns_cachalot_contested_x;
     agreements.competition.jordan_truscott = !args.no_ns_jordan_truscott;
     agreements.competition.splinter_doubled = !args.no_ns_splinter_doubled;

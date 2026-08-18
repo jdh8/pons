@@ -9,6 +9,64 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Responder's structure over their three-level overcall of our `1NT`**
+  (`competition.nt_high_overcall_responses`, **shipped default-on**;
+  `bba-gen --ns-nt-high-overcall false` for the pre-ship arm). The lane was
+  floor-only and the 1NT census's top loser — the four three-level suits are 362
+  boards for **−345 plain IMPs** in the `2026-08-17-53a3c254` anchor, with
+  `(3♣)` at −1.92/board and perfect defense negative at both vulnerabilities.
+  New book module `american/competition/nt_high_overcall.rs`, keyed
+  `P* 1NT (3x)`: responder's forcing five-card suit at the three level, a
+  six-card major at game, takeout `X` with a four-card major and `points(8..)`,
+  `3NT`, and a natural four-level minor priced *under* `3NT`; plus opener's one
+  answer to each. Everything deeper stays with the floor. Each natural-suit
+  family is gated `at_least_as_long` against its rivals and weighted by suit
+  rank, so a 6-5 bids its six-carder and a 5-5 bids the higher — without that, a
+  family authored at one weight is decided by the call encoding's iteration
+  order and bids the *lower* suit. Their three-level calls are natural
+  seven-card preempts, so nothing here keys on a disclosure.
+
+  **Measured: owned plain +0.00208 ±0.00126 (NV) / +0.00293 ±0.00160 (vul)
+  IMPs/board, both CI-clear; perfect defense +0.00079 ±0.00145 / +0.00180
+  ±0.00182; single-dummy leads +0.0019/+0.0028 plain and +0.0008/+0.0015 PD.**
+  Sixteen readings, no negative cell. `scripts/ab-nt-high-overcall.sh`,
+  `SEED_BASE=1787055415`, 230,400 bd/arm/vul, `--filter-1nt`. Fires on 0.19%/0.20%
+  of accepted boards at +1.10/+1.47 plain IMPs per fired.
+
+  What it fixes: responder's new suit read as *nothing* to opener
+  (`- 1NT 3♣ 3♠ -` gave partner `hcp 0..37` and every suit `0..13`, and opener
+  passed a board where `6♠` was cold); the floor's own top call on that same hand
+  at responder's seat was **`4♥` on a doubleton**; the floor doubled on 6–7 HCP
+  over `(3♥)` but had no call for a 9–11 4-4-4-1 over `(3♣)`; and it blasted
+  `6♣`/`5♦` on 8–11 HCP over `(3♠)`. The default system moves, so
+  `smoke-default` goes `babb6234…` → `39ca60a2…` (cards byte-identical, and the
+  `comp:negative-double` alert-site count 80 → 96 is re-blessed).
+
+- **`competition.nt_high_overcall_3nt_stopper`** — the three-level table's own
+  copy of `direct_3nt_stopper` (default `true`, the shipped gate;
+  `bba-gen --ns-nt-high-overcall-3nt-stopper`). The shared bit could not be
+  reused: the arm that dropped it wins *this* lane (+2.20/+1.62 plain IMPs per
+  fired, PD +0.66/+0.38) and loses the other lane it governs — advancing
+  partner's takeout double of a weak two, where `2M X - 3NT` came in at
+  −1.23/−1.92 PD per fired. The private bit's own A/B is owed.
+
+- **Transfers over their `(3♣)` overcall of our `1NT`** (`competition.nt_3c_transfers`,
+  default off, rides the knob above; `bba-gen --ns-nt-3c-transfers`). `(3♣)` is
+  the one three-level overcall that leaves steps below `3NT`: `3♦`/`3♥` transfer
+  to the majors (INV+, driven to game at the completion), `3♠` to diamonds. Buys
+  the invitational five-card major — which the natural table can only show as `X`
+  or a pass — and right-siding. BBA plays all three naturally (per-suit census in
+  `docs/ai-bidder/bba-1nt-counter-defense.md`), so the arm is judged on its own
+  merit. Default off; measured IMPs pending.
+
+- **`bba-gen --ns-direct-3nt-stopper`** — the arm flag for responder's direct
+  `3NT` over their overcall of our `1NT`, so "does the direct `3NT` need its own
+  stopper, or does `X` show it?" is spellable. `Option<bool>`, unset tracks the
+  shipped engine default (on).
+
+- **`probe-decision` gains `PROBE_NT_HIGH_OVERCALL=1|transfers`** — engages the
+  two default-off knobs above so their readings can be probed before the ship.
+
 - **`scripts/anchor-diff.py` — the cross-snapshot anchor forensic.** Joins two
   anchor snapshots' `boards.jsonl` on `(vul, seed, board)` and decomposes every
   bucket's move into the boards that stayed, entered and left, so a re-anchor's
@@ -87,6 +145,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   default remains unchanged.
 
 ### Changed
+
+- **`probe-1nt-interference` splits the three-level suits.** The `3+` bucket was
+  one number over the whole floor-only region; it is now one bucket per RHO suit
+  (`3♣`…`3♠`) with `3NT` and above folded into `4+`. This is what let the census
+  rank the four suits apart and name `(3♣)` as the lane's engine.
 
 - **`docs/bba-gap-campaign.md` compacted 1248 → ~300 lines and split.** The live
   doc now holds only what the next re-anchor session needs: the standing numbers

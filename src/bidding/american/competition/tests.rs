@@ -25,6 +25,7 @@ fn row_package_invariants() {
             super::cue_minor_raise_answer_package(),
             super::free_bid_answer_package(),
             super::high_overcall_package(),
+            super::nt_high_overcall_package(),
             super::weak_two_competition_package(),
             super::strong_two_competition_package(),
             super::jordan_truscott_package(),
@@ -39,6 +40,16 @@ fn row_package_invariants() {
             super::competition_over_diamond_transfer_package(),
         ],
     );
+}
+
+/// The `(3♣)` transfer variant replaces rows the default walk above does see,
+/// so its arm needs its own totality / alert / weight-tie check.
+#[test]
+fn nt_high_overcall_transfer_package_invariants() {
+    let mut arm = Agreements::default();
+    arm.competition.nt_high_overcall_responses = true;
+    arm.competition.nt_3c_transfers = true;
+    crate::bidding::rows::assert_package_invariants(&arm, &[super::nt_high_overcall_package()]);
 }
 
 /// The Landy counter's arms are all opt-in, so the default-agreements run

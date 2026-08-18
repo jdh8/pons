@@ -9,6 +9,8 @@
 //!
 //! `PROBE_FLOOR=instinct` swaps the shipped net floor for the deterministic one,
 //! which is what an anchor `floor#N` row was generated under.
+//! `PROBE_NT_HIGH_OVERCALL=1` (or `=transfers`) engages the default-off N3
+//! package over their three-level overcall of our `1NT`.
 //!
 //! Born on the N2 forensic (`docs/one-notrump-competitive.md` §N2): opener
 //! after the weak Lebensohl sign-off read partner as `hcp 6..37`, every suit
@@ -89,6 +91,18 @@ fn main() {
     match std::env::var("PROBE_UPGRADE_CLOSURE").as_deref() {
         Ok("0") => agreements.decision.reading.upgrade_closure = false,
         Ok("1") => agreements.decision.reading.upgrade_closure = true,
+        _ => {}
+    }
+    // N3's `1NT (3x)` package is default-off while its A/B runs, so probing
+    // its readings needs the knob (`=transfers` also engages the `(3♣)`
+    // transfer variant).
+    match std::env::var("PROBE_NT_HIGH_OVERCALL").as_deref() {
+        Ok("transfers") => {
+            agreements.competition.nt_high_overcall_responses = true;
+            agreements.competition.nt_3c_transfers = true;
+        }
+        Ok("1") => agreements.competition.nt_high_overcall_responses = true,
+        Ok("0") => agreements.competition.nt_high_overcall_responses = false,
         _ => {}
     }
     // The anchor's instinct arm (`bba-gen --our-floor american-instinct`) is what

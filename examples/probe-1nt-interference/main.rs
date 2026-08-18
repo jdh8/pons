@@ -10,7 +10,8 @@
 //!
 //! Our pair sits NS at table A, so a board counts when `table_a` opens 1NT from
 //! North or South and East/West act over it.  The bucket is that action: `X`,
-//! `2♣`…`2NT`, or `3+`.  Both brackets are reported off one solve.
+//! `2♣`…`2NT`, one of the four three-level suits, or `4+` (`3NT` and above).
+//! Both brackets are reported off one solve.
 //!
 //! ```text
 //! cargo run --release --features serde --example probe-1nt-interference -- \
@@ -62,7 +63,7 @@ struct Args {
     /// Dump this many worst plain-DD boards from `--bucket`
     #[arg(long, default_value_t = 0)]
     show: usize,
-    /// Which bucket `--show` dumps, e.g. `2♣`, `X`, `3+`
+    /// Which bucket `--show` dumps, e.g. `2♣`, `X`, `3♠`, `4+`
     #[arg(long, default_value = "")]
     bucket: String,
     /// Split `--bucket` by the next calls — responder / advancer / opener — at
@@ -142,9 +143,14 @@ fn classify_auction(auction: &[Call], dealer: Seat) -> Class {
         None | Some(&Call::Pass) => Class::Uncontested,
         Some(&Call::Redouble) => Class::Contested("XX".to_owned(), open),
         Some(&Call::Double) => Class::Contested("X".to_owned(), open),
-        // ponytail: everything above 2NT is one bucket — the whole 3+ region is
-        // floor-only today, so splitting it cannot change which package is next.
-        Some(&Call::Bid(rho)) if rho.level.get() > 2 => Class::Contested("3+".to_owned(), open),
+        // The three-level *suits* split per suit — N3 authors one table per
+        // overcall, so the census has to price them apart.  `3NT` and the
+        // four-level calls stay one `4+` bucket: still floor-only, still too
+        // rare to rank.
+        Some(&Call::Bid(rho)) if rho.level.get() == 3 && rho.strain.is_suit() => {
+            Class::Contested(rho.to_string(), open)
+        }
+        Some(&Call::Bid(rho)) if rho.level.get() > 2 => Class::Contested("4+".to_owned(), open),
         Some(&Call::Bid(rho)) => Class::Contested(rho.to_string(), open),
     }
 }

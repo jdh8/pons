@@ -123,6 +123,42 @@ pub struct CompetitionKnobs {
     /// floor.  **Default off** while the A/B runs (`--ns-high-overcall` in
     /// `bba-gen` for the on arm).
     pub high_overcall_responses: bool,
+    // --- competition/nt_high_overcall.rs
+    /// Author responder's structure over their three-level overcall of our `1NT`
+    ///
+    /// The `(3♣)`–`(3♠)` lane, floor-only before this and the 1NT census's top
+    /// loser (`docs/one-notrump-competitive.md` §N3): responder's forcing
+    /// three-level suit, the four-level natural bids, the takeout `X`, `3NT`,
+    /// and opener's one answer to each.  Their calls there are natural
+    /// seven-card preempts, so this is an ordinary competitive scheme, not a
+    /// counter-defense.  **Shipped default-on 2026-08-18** — owned plain
+    /// **+0.0021/+0.0029 IMPs/board** (NV/vul, both CI-clear) with perfect
+    /// defense +0.0008/+0.0018 and single-dummy agreeing in sign on all four
+    /// cells; `--ns-nt-high-overcall false` for the pre-ship arm.
+    pub nt_high_overcall_responses: bool,
+    /// Require a stopper for responder's direct `3NT` over their *three-level*
+    /// overcall of our `1NT`
+    ///
+    /// The three-level table's own copy of
+    /// [`direct_3nt_stopper`][Self::direct_3nt_stopper], which it cannot share:
+    /// the paired arm that dropped the shared bit won this lane
+    /// (**+2.20/+1.62 plain IMPs per fired**, perfect defense +0.66/+0.38) and
+    /// lost the *other* lane it also governs — advancing partner's takeout
+    /// double of a weak two, where `2M X - 3NT` came in at **−1.23/−1.92 PD per
+    /// fired**.  **Default `true`** (the shipped gate) until this bit has an arm
+    /// of its own; `--ns-nt-high-overcall-3nt-stopper false` is that arm.
+    pub nt_high_overcall_3nt_stopper: bool,
+    /// Play transfers over their `(3♣)` overcall of our `1NT`
+    ///
+    /// The minority expert treatment of "systems on over `3♣`" — the one
+    /// three-level overcall that leaves steps below `3NT`: `3♦`/`3♥` transfer
+    /// to the majors (INV+, completed at game), `3♠` to diamonds.  Rides on
+    /// [`nt_high_overcall_responses`][Self::nt_high_overcall_responses] and
+    /// does nothing without it.  BBA plays all three naturally
+    /// (`docs/ai-bidder/bba-1nt-counter-defense.md`), so the arm is judged on
+    /// its own merit.  **Default off** while the A/B runs
+    /// (`--ns-nt-3c-transfers` in `bba-gen`).
+    pub nt_3c_transfers: bool,
     // --- competition/lebensohl.rs
     /// Require a stopper for the direct `3NT` over their overcall
     ///
@@ -713,6 +749,9 @@ impl Default for CompetitionKnobs {
             free_bid_quality: false,
             free_bid_style: FreeBidStyle::Forcing,
             high_overcall_responses: false,
+            nt_high_overcall_responses: true,
+            nt_high_overcall_3nt_stopper: true,
+            nt_3c_transfers: false,
             direct_3nt_stopper: true,
             natural_floor: (5, 0),
             lebensohl_style: LebensohlStyle::Transfer,

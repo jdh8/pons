@@ -10,7 +10,7 @@ comp:lebensohl-completion 24
 comp:lebensohl-cue 16
 comp:lebensohl-relay 24
 comp:lebensohl-transfer 72
-comp:negative-double 80
+comp:negative-double 96
 comp:smolen 8
 comp:stayman 8
 comp:stayman-redouble 4

@@ -1503,7 +1503,13 @@ fn authored_calls_read_what_they_gate() {
         // 65 → 67 and points 9 → 11 when the two Michaels preferences
         // acquired their exact `!(10+ points & 3+ trumps)` readings.  The
         // legacy hull cannot preserve either disjunct; envelope union does.
-        ("length", 67, 0),
+        // 67 → 75 when N3's `1NT (3x)` table shipped default-on (2026-08-18):
+        // its seven natural-suit rules gate `at_least_as_long`, a comparative
+        // staircase the legacy hull cannot pin on the length axis, and its
+        // takeout `X` over a minor gates the `4+ ♥ | 4+ ♠` disjunction.  The
+        // fielded reading is unaffected — `envelope_union` ships on and its
+        // column stays 0, which is what the migration bought.
+        ("length", 75, 0),
         ("points", 11, 0),
         // 0/0 measured at birth (2026-07-25): every `suit_hcp` gate the
         // walk reaches (Ogust, the Lebensohl trap pass) is `&`-chained, and

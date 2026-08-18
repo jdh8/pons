@@ -1139,6 +1139,21 @@ the `2NT` relay row no longer the lane's worst per board; `1NT 2♥ 2♠ -` read
 - **The strip** (`systems_on_overcall_strip`) is a claim that two structures
   coincide; phase 3 must keep it scoped per RHO call exactly as
   `gladiator_keeps_the_strip_where_it_has_no_structure` pins.
+- **The reader reaches auctions the classifier declines** — found 2026-08-18 by
+  N3's isolation gate ([one-notrump-competitive.md](one-notrump-competitive.md)
+  §N3). N3's package keys `P* 1NT (3x)`, an exact node with a leading-*pass*
+  fan, so over `1♠ 1NT 3♠` — our `1NT` an **overcall** of their opening, not an
+  opening — `classify` correctly falls to the floor (`Provenance { depth: 0 }`).
+  The **inference walk** does not: `1♠ 1NT 3♠ 4♣ -` reads partner as
+  `♣ 5.., points 10.., ♥ ..3` off that table's rule, because a made call is
+  keyed from the caller's own first call while `classify` keys from the
+  auction's start. Priced on N3's arms at 16 NV / 12 vul boards
+  (3.5% / 2.5% of divergences), −1/+4 and +47/+43 IMPs — small, and *plausibly
+  benign* here (our 1NT overcall is 15–18 balanced, and partner really does hold
+  the long minor), which is exactly why it needs to be inventoried rather than
+  trusted: the next package to key `P* <our call> (…)` may not be so lucky.
+  This is a scope mismatch between the two walks, not the mirror-read leak
+  (which reads *our* book onto *their* calls).
 
 ## Decisions for jdh8
 

@@ -122,7 +122,16 @@ const fn not_defined() -> usize {
 // cue raise of their overcall are its unconditional baseline — the same
 // agreements we author — so no row exists to set and none is missing.  The
 // schema's double rows (Snapdragon, Responsive, Maximal, Support) and its
-// `Cue bid` (keycard interference) are different conventions.
+// `Cue bid` (keycard interference) are different conventions.  N3's takeout
+// `X` over their three-level preempt of our `1NT` (shipped 2026-08-18, the
+// slug's count 80 → 96) rides the same slug and the same record: EPBot's own
+// responder doubles there unconditionally (`hcp 7–19` balanced over `(3m)`,
+// `len(♠, 4..)` over `(3♥)` — docs/ai-bidder/bba-1nt-counter-defense.md), so
+// there is no optional row to set.  The rest of that package is natural and
+// unalerted; its opt-in `(3♣)` transfer variant (`nt_3c_transfers`, default
+// off) would ride `comp:lebensohl-transfer` with no honest row either — the
+// Landy/Multi record again — and that asymmetry belongs in its ship row if it
+// ever ships.
 //
 // `comp:landy-values` / `comp:landy-transfer` / `comp:landy-cue` (the
 // `their.two_clubs_landy` counter, the fixture's `[their-landy]` section):

@@ -949,6 +949,9 @@ knob!(set_cue_raise_answer, cue_raise_answer, competition.cue_raise_answer: bool
 knob!(set_cue_minor_raise_answer, cue_minor_raise_answer, competition.cue_minor_raise_answer: bool);
 knob!(set_major_support_double, major_support_double, competition.major_support_double: bool);
 knob!(set_high_overcall_responses, high_overcall_responses, competition.high_overcall_responses: bool);
+knob!(set_nt_high_overcall_responses, nt_high_overcall_responses, competition.nt_high_overcall_responses: bool);
+knob!(set_nt_high_overcall_3nt_stopper, nt_high_overcall_3nt_stopper, competition.nt_high_overcall_3nt_stopper: bool);
+knob!(set_nt_3c_transfers, nt_3c_transfers, competition.nt_3c_transfers: bool);
 knob!(set_jordan_truscott, jordan_truscott, competition.jordan_truscott: bool);
 knob!(set_delayed_cue, delayed_cue, competition.delayed_cue: bool);
 knob!(set_competition_over_stayman, competition_over_stayman, competition.competition_over_stayman: bool);
@@ -1465,6 +1468,9 @@ static SETTINGS: &[Setting] = &[
     toggle("cue_minor_raise_answer", COMPETITION, "", true, set_cue_minor_raise_answer, cue_minor_raise_answer),
     toggle("major_support_double", COMPETITION, "", true, set_major_support_double, major_support_double),
     toggle("high_overcall_responses", COMPETITION, "", false, set_high_overcall_responses, high_overcall_responses),
+    toggle("nt_high_overcall_responses", COMPETITION, "Over their 3-level overcall of our 1NT", true, set_nt_high_overcall_responses, nt_high_overcall_responses),
+    gated("nt_high_overcall_3nt_stopper", COMPETITION, "…direct 3NT needs its own stopper", true, set_nt_high_overcall_3nt_stopper, nt_high_overcall_3nt_stopper, "nt_high_overcall_responses"),
+    gated("nt_3c_transfers", COMPETITION, "…transfers over their (3♣)", false, set_nt_3c_transfers, nt_3c_transfers, "nt_high_overcall_responses"),
     toggle("jordan_truscott", COMPETITION, "Jordan / Truscott 2NT", true, set_jordan_truscott, jordan_truscott),
     toggle("delayed_cue", COMPETITION, "", false, set_delayed_cue, delayed_cue),
     toggle("competition_over_stayman", COMPETITION, "", true, set_competition_over_stayman, competition_over_stayman),

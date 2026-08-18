@@ -14,6 +14,7 @@
 //! | [`support_double`] | opener's three-card-support `X`/`XX` |
 //! | [`over_their_double`] | Jordan/Truscott, and our doubled splinter |
 //! | [`high_overcall`] | their jump and three-level overcalls |
+//! | [`nt_high_overcall`] | their three-level overcall of our `1NT` |
 //! | [`two_suiters`] | Michaels / unusual `2NT` over our `1M` |
 //! | [`our_preempts`] | our contested weak twos and strong `2♣` |
 //! | [`lebensohl`], [`rubensohl`], [`uvu`] | over their overcall of our `1NT` |
@@ -49,6 +50,7 @@ mod free_bids;
 mod high_overcall;
 mod lebensohl;
 mod negative_double;
+mod nt_high_overcall;
 mod our_preempts;
 mod over_our_diamond_transfer;
 mod over_our_jacoby;
@@ -69,6 +71,7 @@ use lebensohl::lebensohl_package;
 use negative_double::{
     answer_negative_double_package, cachalot_package, sputnik_residual_answer_package,
 };
+use nt_high_overcall::nt_high_overcall_package;
 use our_preempts::{strong_two_competition_package, weak_two_competition_package};
 use over_our_diamond_transfer::competition_over_diamond_transfer_package;
 use over_our_jacoby::competition_over_transfer_package;
@@ -332,6 +335,14 @@ pub fn competition(agreements: &Agreements) -> Competitive {
     // cue of our own suit are excluded (the first is a two-suiter, the second
     // is rare enough for the floor).
     compile_into(&mut book, agreements, &[high_overcall_package()]);
+
+    // Section 12: their three-level overcall of our 1NT
+    // (`agreements.competition.nt_high_overcall_responses`, default off).
+    // Exact `1NT (3x)` nodes — the Lebensohl package stops at the two level and
+    // the `(2NT)` Unusual-vs-Unusual node is a different key, so nothing races
+    // them.  Responder's one call and opener's one answer; everything deeper is
+    // the floor's.
+    compile_into(&mut book, agreements, &[nt_high_overcall_package()]);
 
     // Section 9: opener's Cachalot answers (`NegativeDoubleShape::Cachalot`
     // only). Section 9b: opener's answers to the Sputnik residual double.
