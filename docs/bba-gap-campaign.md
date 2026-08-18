@@ -933,16 +933,36 @@ a fix to the rule its bucket is named after**.
   fully blind `both_majors` relay choices `1NT - 2♣ - 2NT - 3♣/3♦`;
   `longer_major` and Texas retain explicit named-suit floors. No sibling was
   changed here; the relay needs its own A/B.
-- **B2.5 — an unalerted natural call must not read weaker than its own rule.**
-  `floor#64`'s 1♠ (`5+ ♠, 8–16 points` → `♠4+, 0+`) and `floor#20`'s balancing 2♣
-  (`5+ ♣, 10–16 points` → nothing) are the reproducible probes.
-- **B2.6 — nor stronger.** `fallback@4`'s simple raise reading `♠3..3`, and its pass
-  raising a point floor, are the over-reading half.
-- **B2.7 — the milestone's net arm.** `points_or_net` collapses to the net under
-  the shipped `accountant_floor`/`net_collar` pair, so rules #148/#141 are decided
-  by a break-even the window retrained. Measure `net_collar` on — it restores the
-  authored `fit_sum_game` veto — and bisect `floor#64`'s `4♠`→`2♠` across
-  `ea2cde9..53a3c254` to confirm the evaluator swap is the mover.
+- **B2.5 — RETRAIN-GATED (2026-08-18).** The extended authored-reading
+  soundness sweep passes the two weak-reading probes: `floor#64`'s 1♠
+  (`5+ ♠, 8–16 points` → `♠4+, 0+`) and `floor#20`'s balancing 2♣
+  (`5+ ♣, 10–16 points` → nothing) are sound but loose. `probe-decision`
+  locates both at the union over all face-live rules for that call in the
+  monolithic instinct table, which tops the more precise natural walk. A fifth
+  isolated tightening arm is pre-refuted by the four-loss ledger above. At the
+  next matched policy/evaluator retrain, widen the existing `walk_shape` bit to
+  an axis mask so the walk survives only on axes the authored union leaves open.
+- **B2.6 — SOUND; NO REPAIR (2026-08-18).**
+  `bids_read_within_their_table` now includes Pass and the four exact instinct
+  contexts for `floor#64`, `floor#20`, and `fallback@4`'s simple raise and later
+  Pass. All 133 probe hands are admitted wherever they win or tie the table.
+  The simple raise's `♠3..3` is the sound intersection of the authored
+  `3+ ♠, 6–9 points` rule and declining the heavier four-card raise; the later Pass
+  adds no further band on the anchor witness. The 40,000-board census remains
+  exactly 2194/168,957 partner exclusions (1.299%), and `smoke-default` remains
+  `babb6234…`. The conditional B2.6 repair, knob, A/B and re-anchor therefore
+  do not exist.
+- **B2.7 — REJECTED (2026-08-18).** Turning `net_collar` on to restore the
+  authored `fit_sum_game` veto lost all 12 cells across fresh seeds 1787044967 /
+  1787045416 / 1787045860 at `4767a5ef`, 204,800
+  boards/arm/vulnerability each. Pooled over 614,400 boards/vulnerability,
+  plain/PD were **−0.0323 ± 0.0025 / −0.0320 ± 0.0026** IMPs/board
+  non-vulnerable and **−0.0445 ± 0.0032 / −0.0419 ± 0.0033** vulnerable; fired
+  rates were 1.09% and 1.19%. The worst-tail trace repeatedly shows the collar
+  suppressing making games and slams that the v6 evaluator's break-even accepts
+  (including cold 7♥/7NT contracts). Keep the shipped net-only default; this
+  confirms the forensic's decision-calibration diagnosis rather than an
+  unsound reading defect.
 - **Accepted as churn:** the other 21 rows, no floor work.
 
 ### First-anchor runbook (any machine with the BBA submodule)

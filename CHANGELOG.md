@@ -73,6 +73,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The candidate smoke hash was `babb6234…` → `ac0bb20e…`; generated cards were
   byte-identical, so the shipped hash and behavior remain unchanged.
 
+- **The remaining B2.5–B2.7 reading-floor work is classified and closed.** The
+  authored-reading soundness sweep now covers Pass plus four exact instinct
+  anchor contexts. All sampled winning hands remain inside their call's read:
+  `floor#64` and `floor#20` are sound-but-loose and defer to the next matched
+  policy/evaluator retrain; `fallback@4`'s exact three-card raise is
+  tight-but-sound, so no B2.6 repair or knob was added.
+
+  The independent B2.7 `net_collar` arm lost all 12 cells across three fresh
+  seeds and 614,400 boards/vulnerability: pooled plain/perfect-defense deltas
+  were **−0.0323 ± 0.0025 / −0.0320 ± 0.0026** IMPs/board non-vulnerable and
+  **−0.0445 ± 0.0032 / −0.0419 ± 0.0033** vulnerable. The shipped net-only
+  default remains unchanged.
+
 ### Changed
 
 - **The American and Dutch defaults now use the Phase-5 honest-reading neural

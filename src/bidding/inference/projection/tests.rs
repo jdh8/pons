@@ -390,15 +390,16 @@ fn opaque_route_on_unused_routed_prefix_is_never_invoked() {
     assert_eq!(calls.load(Ordering::SeqCst), 0);
 }
 
-/// Bid-exclusion soundness: wherever a table's argmax is (or ties with) a
-/// non-Pass call, the knob-on reading of that call must admit the hand.
+/// Authored-reading soundness: wherever a table's argmax is (or ties with) a
+/// call, the reading of that call must admit the hand.
 ///
-/// The made-bid twin of `passes_read_within_their_table`.  Both replay the
-/// argmax rather than one rule, because the claim is about the **table** — "no
-/// bidder of `C` holds a hand a strictly-heavier sibling gate accepts".  This
-/// one also filters by legality, exactly as `table::select_with_legal_state`
+/// Replay the argmax rather than one rule, because the claim is about the
+/// **table** — "no bidder of `C` holds a hand a strictly-heavier sibling gate
+/// accepts". The sweep also filters by legality, exactly as
+/// `table::select_with_legal_state`
 /// does: an insufficient bid never reached the argmax, so its gate proves
-/// nothing.  Ties count as wins (stricter than the driver, which keeps the
+/// nothing. Passes exercise their authored band; bids also exercise sibling
+/// exclusion. Ties count as wins (stricter than the driver, which keeps the
 /// earliest), which is why the exclusion threshold is a strict `>` on weight.
 #[test]
 fn bids_read_within_their_table() {
@@ -411,8 +412,14 @@ fn bids_read_within_their_table() {
         .take(128)
         .collect();
     hands.extend(
-        ["AKQJ.AKQJ.AKQ.AK", "AKQ2.K53.QJ4.T92"]
-            .map(|text| text.parse::<Hand>().unwrap_or_else(|_| unreachable!())),
+        [
+            "AKQJ.AKQJ.AKQ.AK",
+            "AKQ2.K53.QJ4.T92",
+            "AK98762.Q82..976",
+            "AJ.843.A82.KQ975",
+            "Q54.AJ874.76.T86",
+        ]
+        .map(|text| text.parse::<Hand>().unwrap_or_else(|_| unreachable!())),
     );
 
     let mut failures: Vec<String> = Vec::new();
@@ -440,12 +447,19 @@ fn bids_read_within_their_table() {
                 continue;
             }
             for (call, &logit) in logits.iter() {
-                if call == Call::Pass || logit < best || !context.allows(call) {
+                if logit < best || !context.allows(call) {
                     continue;
                 }
                 let reading = readings.entry(call).or_insert_with(|| {
-                    authored_effect(call, context, rules, Some(&compiled), false, false)
-                        .map(|effect| effect.projection.into_owned())
+                    authored_effect(
+                        call,
+                        context,
+                        rules,
+                        Some(&compiled),
+                        call == Call::Pass,
+                        false,
+                    )
+                    .map(|effect| effect.projection.into_owned())
                 });
                 let Some(reading) = reading else { continue };
                 if !reading.boxes().iter().any(|box_| box_.accepts(hand)) && failures.len() < 16 {
@@ -500,9 +514,46 @@ fn bids_read_within_their_table() {
             }
         }
     }
+    // Anchor witnesses live in the monolithic instinct table rather than any
+    // book trie, so sweep their exact decision contexts too.
+    let floor = crate::bidding::instinct::instinct(&agreements);
+    let floor_system = crate::bidding::american::american_instinct(&agreements).bind();
+    let floor_nodes: [(&str, &[Call]); 4] = [
+        (
+            "instinct floor#64 1S",
+            &[bid(1, Strain::Diamonds), Call::Pass, bid(1, Strain::Hearts)],
+        ),
+        (
+            "instinct floor#20 balancing 2C",
+            &[bid(1, Strain::Diamonds), Call::Pass, Call::Pass],
+        ),
+        (
+            "instinct fallback@4 simple raise",
+            &[Call::Pass, Call::Pass, bid(1, Strain::Spades), Call::Double],
+        ),
+        (
+            "instinct fallback@4 pass",
+            &[
+                Call::Pass,
+                Call::Pass,
+                bid(1, Strain::Spades),
+                Call::Double,
+                bid(2, Strain::Spades),
+                Call::Pass,
+                Call::Pass,
+                Call::Double,
+            ],
+        ),
+    ];
+    for (name, auction) in floor_nodes {
+        let context = floor_system
+            .prefixed_context(RelativeVulnerability::ALL, auction)
+            .with_decision_cache(Hand::EMPTY);
+        check(name, auction, &context, &floor, &mut failures);
+    }
     assert!(
         failures.is_empty(),
-        "bid-exclusion excludes hands that bid:\n{}",
+        "authored reading excludes hands that made the call:\n{}",
         failures.join("\n"),
     );
 }
