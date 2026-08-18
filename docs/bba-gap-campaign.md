@@ -47,7 +47,8 @@ one sha, then two decomposes and the paired `ab-dump-diff` of the floor. One
 persistent `SEED_BASE` (`ab-results/anchor/seed`) for the whole **series**: the
 sanctioned exception to fresh-seed-per-experiment, because successive anchors
 are arms of one longitudinal paired experiment (every ~3rd re-anchor should get
-a fresh-seed confirmation — none is recorded yet, see *Open work*). Headline
+a fresh-seed confirmation — first one confirmed 2026-08-18, see *Open work*
+item 8). Headline
 pooled CI ≈ ±0.02 IMPs/board; a 0.3%-fired bucket still resolves. **The
 anchor tracks and attributes; it never ships** — ship decisions are per-fix
 fresh-seed A/Bs under [measurement.md](measurement.md).
@@ -291,6 +292,15 @@ In bucket order; each item is its own fresh-seed A/B per
    axes the authored union leaves open (`floor#64`'s 1♠ and `floor#20`'s
    balancing 2♣ read sound but loose under `ReadingScope::All`).
 8. **Owed measurements:** disclosure's isolated cost against the *generated*
-   card (`ab-disclose.sh`; −0.009/bd was the static card); a fresh-seed
+   card (`ab-disclose.sh`; −0.009/bd was the static card); ~~a fresh-seed
    confirmation of the series (protocol asks for one every ~3rd re-anchor; none
-   recorded).
+   recorded)~~ **confirmed 2026-08-18.** Fresh seed `1787064872` (was
+   `1783375064`), HEAD `9cfb464b` (the requested post-N3 HEAD), all four
+   arms replay 100.00% / 0 mismatched. Pooled headline vs. the `53a3c254` row,
+   all within the ±0.02 IMPs/board pooled CI: instinct −0.989 / −1.114 (row:
+   −0.997 / −1.131), shipping −0.535 / −0.536 (row: −0.528 / −0.533), floor
+   paired worth +0.243 / +0.297 (row: +0.247 / +0.309). Ranking agrees too —
+   instinct arm's top three are still Defensive/book/round-1, Constructive/
+   book/opening, Constructive/book/round-2 in that order, and def-r1 is #1 by
+   net PD on both arms. No seed bias found; snapshot in
+   `ab-results/anchor-confirm/2026-08-18-9cfb464b/`.

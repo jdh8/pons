@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Measured
+
+- **Fresh-seed confirmation of the BBA anchor series** (protocol item, owed
+  since the series began; none had ever been recorded across 14 snapshots).
+  `ab-results/anchor-confirm/2026-08-18-9cfb464b/`, fresh seed `1787064872`
+  (series seed `1783375064` untouched), requested post-N3 HEAD `9cfb464b`.
+  204,800 boards/vulnerability/arm; all four arms replay 100.00% / 0
+  mismatched. Pooled
+  headline agrees with the `53a3c254` series row inside its ±0.02 IMPs/board
+  CI: instinct −0.989 / −1.114 (row −0.997 / −1.131), shipping −0.535 / −0.536
+  (row −0.528 / −0.533), paired floor worth +0.243 / +0.297 (row +0.247 /
+  +0.309). Bucket ranking agrees too — instinct arm top three unchanged
+  (Defensive/book/round-1, Constructive/book/opening, Constructive/book/
+  round-2), def-r1 #1 by net PD on both arms. No seed bias found; the series
+  headline trail stands. [bba-gap-campaign.md](docs/bba-gap-campaign.md)
+  item 8.
+
 ### Added
 
 - **Responder's structure over their three-level overcall of our `1NT`**
