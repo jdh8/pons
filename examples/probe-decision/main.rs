@@ -7,14 +7,17 @@
 //! cargo run --release --example probe-decision -- "Q93.K43.AKJT.Q42" "1NT 2♠ 2NT - 3♣ - 3♦ -" [none|both|we|they]
 //! ```
 //!
+//! `PROBE_FLOOR=instinct` swaps the shipped net floor for the deterministic one,
+//! which is what an anchor `floor#N` row was generated under.
+//!
 //! Born on the N2 forensic (`docs/one-notrump-competitive.md` §N2): opener
 //! after the weak Lebensohl sign-off read partner as `hcp 6..37`, every suit
 //! `0..13`, and the floor bid `3NT`.
 
 use contract_bridge::Hand;
 use contract_bridge::auction::{Call, RelativeVulnerability};
-use pons::american;
 use pons::bidding::agreements::Agreements;
+use pons::{american, american_instinct};
 
 fn main() {
     let mut args = std::env::args().skip(1);
@@ -88,7 +91,16 @@ fn main() {
         Ok("1") => agreements.decision.reading.upgrade_closure = true,
         _ => {}
     }
-    let partnership = american(&agreements).bind();
+    // The anchor's instinct arm (`bba-gen --our-floor american-instinct`) is what
+    // `boards.jsonl`'s `floor#N` provenance names, so replaying one of its rows
+    // needs the same floor: under the shipped net floor a `floor#N` row prints
+    // `(floor / no rule)` and the forensic stalls (scripts/anchor-diff.py).
+    let system = if std::env::var("PROBE_FLOOR").as_deref() == Ok("instinct") {
+        american_instinct(&agreements)
+    } else {
+        american(&agreements)
+    };
+    let partnership = system.bind();
     let inf = partnership.infer(vul, &auction);
     let p = inf.partner();
     println!(

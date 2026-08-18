@@ -715,6 +715,202 @@ diffs the slow tail at 11 and 6 (they re-solve each divergent board on the
 main-thread solver), on a box already saturated by an unrelated job under
 `idle-run.sh`. 423 new DD tables, cache now 177,498.
 
+### Regressed `floor#N` rows — forensic (2026-08-18)
+
+The 35 rows above were filed as a queue, not a regression list.
+`scripts/anchor-diff.py` turns one into a verdict: it joins two snapshots'
+`boards.jsonl` on `(vul, seed, board)` — the seed series deals the same boards
+forever — and splits each bucket's move into the boards that stayed, entered and
+left.
+
+```sh
+python3 scripts/anchor-diff.py ab-results/anchor/2026-08-12-ea2cde9-dirty \
+                               ab-results/anchor/2026-08-17-53a3c254
+python3 scripts/anchor-diff.py A B --bucket 'Defensive / floor#20 / balancing' \
+                               --lane here --show 8
+```
+
+It reproduces the 35 exactly — the threshold behind that number is **≥300
+divergent boards in both snapshots**; without it, 215 of the 465 shared buckets
+are worse on a scorer — and Σ over its buckets matches `report.md` to the IMP
+(−432,364 → −408,168 plain, −490,599 → −463,429 PD, the +24,196 / +27,170 the arm
+gained). Mechanisms were named by replaying each board against a build of
+`ea2cde9` (`git worktree add`, `probe-decision` back-ported — it did not exist
+then) using `PROBE_FLOOR=instinct`, which this pass added to
+[probe-decision](../examples/probe-decision/main.rs): under the shipped net floor
+a `floor#N` row prints `(floor / no rule)` and the forensic stalls.
+
+**Three corrections to the paragraph above.**
+
+1. *"every one of them is a `floor#N` bucket"* is wrong: three of the 35 are
+   guarded fallbacks — `Competitive/fallback@3/round-1`, `fallback@3/round-2` and
+   `fallback@4/round-2`, the last the largest genuine regression in the set.
+   *"No book bucket regressed"* does hold.
+2. The two caveats named (churn, small n) miss the largest mislabeller, below.
+3. The drift runs the **opposite** way from the guess. It is not that
+   "tightening what the floor reads moves floor rules both ways" — the reads that
+   moved mostly got **looser**, and the loosening is what costs.
+
+#### The third confound: which table the rule bid at
+
+A board is bid twice — at `table_a` our pair sits N/S, at `table_b` it sits E/W
+(`bid_out(ours, opponent, conv_is_ns)`) — and `div_index` is the first index at
+which the two auctions differ. A row's `our_call` is therefore taken from
+*whichever table our pair held that seat at*, so a `floor#N` rule fired at exactly
+one of the two tables. A bucket's Δ can then move entirely because of our bidding
+at the **other** table, on a board the bucket does not own.
+`Defensive/floor#64/round-1` is the clean case: of its −306/−400, only −79/−99 is
+the slice its own rule can be blamed for; −130/−188 is the other table. The script
+splits `stayed` into `here` and `other-table` for this reason, and `--lane here`
+keeps only the boards a bucket owns.
+
+**The split over all 35:**
+
+| slice | plain | PD | reading |
+| --- | --- | --- | --- |
+| churn (entered/left) | **−1700** | **−2121** | not these rules — an *earlier* call moved and the boards changed buckets |
+| other-table | −278 | −201 | our bidding at the table this rule did not bid at |
+| `here` | **−845** | **−900** | the only floor work in the set |
+
+Twenty-one of the 35 rows are churn, nine other-table, **five** carry their loss
+on boards they own. The window's honest price is **−845 plain / −900 PD** over
+~750 boards against +24,196 / +27,170 gained — **3.5%**, not a regression list.
+
+**Three of the four rows the re-anchor named worst are churn**, and the script
+names where their boards came from:
+
+| bucket | Δ plain = here + other + churn | the churn |
+| --- | --- | --- |
+| `Defensive/floor#146/round-1` | −91 = **+18** + 1 − 110 | 18 boards newly divergent, 9 in from `Defensive/floor#3/round-1`; 8 out to `floor#148/round-1` |
+| `Defensive/floor#382/balancing` | −187 = −32 − 16 − 139 | **59 in from `Competitive/floor#3/round-2`**, 11 from `floor#30/round-2`; 42 out to `Competitive/floor#61/round-2` |
+| `Competitive/floor#3/round-1` | −526 = −32 + 9 − 503 | **44 in from `Competitive/floor#31/round-1`**, 23 newly divergent |
+
+`floor#146` actually got *better* on the boards it kept. Only
+`Competitive/floor#46/round-2` of the four is real, and even there the loss is a
+continuation, not the `floor#46` call.
+
+#### The rule that names the bucket is never the rule that moved
+
+Across every bucket traced, the `floor#N` call itself replays byte-identically in
+both arms; the changed call is always a **later continuation**, usually partner's
+answer. Counted exhaustively per bucket: 146/146 boards for
+`Defensive/floor#20/balancing`, 84/84 for `Defensive/floor#61/round-2`, 78/78 for
+`Competitive/floor#382/balancing`, 42/42 for `Defensive/floor#64/round-1`, 40/40
+for `Competitive/floor#46/round-2` — **0 "at the bucket call" in every one.** A
+`floor#N` bucket names where the auction diverged from BBA, not where our play got
+worse. Fixing the named rule would have been wasted work in all five.
+
+#### Mechanism, part 1: `ReadingScope::All` displaces the natural walk
+
+Replaying the 175 worst `here` boards across seven buckets, **175/175 reproduce**
+their arm under the paired builds, and `PROBE_SCOPE=alerted` alone recovers the
+pre-window call on **106**. None of `PROBE_CEILINGS=0`, `PROBE_BID_EXCLUSION=0`,
+`PROBE_FORCING_CEILING=0` moves anything on its own; `PROBE_UPGRADE_CLOSURE=0` is
+occasionally needed beside the scope flip.
+
+| bucket | here plain/PD | here boards | `SCOPE=alerted` restores the call | verdict |
+| --- | --- | --- | --- | --- |
+| `Competitive/fallback@4/round-2` | −143/−282 | 171 | 24/25 sampled, upheld on a 40-board audit | reading drift |
+| `Defensive/floor#20/balancing` | −154/+11 | 146 | **131/146** (exhaustive) | reading drift |
+| `Competitive/floor#382/balancing` | −134/−136 | 78 | **61/61** of the dominant family | reading drift |
+| `Competitive/floor#46/round-2` | −96/−136 | 69 | 16/25 | mixed |
+| `Defensive/floor#46/round-2` | −66/−81 | 27 | 9/25 | mixed |
+| `Defensive/floor#61/round-2` | −69/−164 | 84 | **25/84** with all five knobs (exhaustive) | not reading |
+| `Defensive/floor#64/round-1` | −79/−99 | 42 | **4/42** — while the *read* is restored 42/42 | not reading |
+
+Each row was re-derived by an independent pass told to refute it, on boards the
+first pass had not cited. Two survived unchanged (`fallback@4`, `floor#382`), one
+was corrected from "one cause" to "three, one of them outside the reading layer"
+(`floor#20`, 131 of 146), and `floor#64`'s reading verdict was overturned outright
+— see part 2.
+
+The defect is the one [authored-reading-handoff.md](authored-reading-handoff.md)
+predicts: under `All`, an **unalerted natural call's authored rule takes over its
+reading and projects weaker than the natural walk it displaced**. `floor#64`'s own
+rule reads `1♠ is the cheapest bid, 5+ ♠, 8–16 points`, yet partner reads that same
+1♠ as `♠ 4..13, points 0..37` — weaker than the rule's own constraint, and weaker
+than `PROBE_SCOPE=none`'s `♠ 5..13, points 8..37`. `floor#20`'s balancing 2♣
+(`5+ ♣, 10–16 points`) projects to *nothing*. It runs the other way too:
+`fallback@4` has an unalerted simple raise read as an exact `♠3..3` and a pass read
+with a raised point floor.
+
+**The sharpest instance, and it is not confined to these buckets: the `1♦` opening
+loses its length floor under the shipped default.**
+
+| opening | `scope=All` | `scope=Alerted`/`None` |
+| --- | --- | --- |
+| `1♣` | `♣3..13`, pts 12..21 | `♣3..13`, pts 10..21 |
+| **`1♦`** | **`♦0..13`**, pts 12..21 | **`♦3..13`**, pts 10..21 |
+| `1♥` | `♥5..13`, pts 11..21 | `♥5..13`, pts 10..21 |
+| `1♠` | `♠5..13`, pts 11..21 | `♠5..13`, pts 10..21 |
+
+Only `1♦`. `All` buys a real strength read (an `hcp` floor and a tighter `points`
+floor) and pays a length floor — and that length floor is what gates
+`3+ ♦ shown by partner` on the raise rules, so the loss lands on **every 1♦
+auction in the system**, not only the balancing bucket that surfaced it.
+
+#### Mechanism, part 2: the reading feeds a net whose break-even is the decision
+
+Sixty-nine of the 175 boards do not come back under any reading knob, and the
+per-bucket restoration rate swings from 131/146 to 4/42 under the *same* knob.
+That spread is the clue, and the refutation pass found what unifies it.
+
+`Defensive/floor#64/round-1` states the puzzle: swept over **all 42** of its `here`
+boards, `PROBE_SCOPE=alerted` restores partner's and RHO's read to A's
+**byte-for-byte on 42/42** and restores the *call* on **4**. Restoring the read is
+therefore not sufficient — so the read is an input to something else, not the
+decision.
+
+That something is the evaluator net. Under the shipped pair
+`accountant_floor: true` / `net_collar: false` — identical in both arms —
+`points_or_net` ([instinct.rs](../src/bidding/instinct.rs), the `points_or_net`
+helper) collapses to its **net arm alone**: the authored arithmetic leg never gets
+to veto, so the game milestones that answer these floor calls (the fitted-major
+rule #148 at weight 150, its 3NT sibling #141 at 140, and the `fit_sum_game` family
+generally) are decided by the net's break-even verdict. The window swapped that net
+(`evaluator_v3_exclusion` → `evaluator_v5_honest`). So `ReadingScope::All` and the
+evaluator swap are **not two independent mechanisms**: the reading change moves the
+net's input, and whether the old call comes back depends on which side of the new
+net's decision boundary the moved input lands. Where the boundary is far, flipping
+the read restores the call (`floor#20`, 131/146); where it is near, restoring the
+read changes nothing (`floor#64`, 4/42).
+
+This is the refutation pass's finding, not the first pass's: two independent
+skeptics reached it from opposite ends — `Competitive/floor#46/round-2` by showing
+the authored strength leg the first trace blamed is *dead code* under the shipped
+knobs (rule #148's strength arm is `fit_sum_game`, not `combined_points`), and
+`Defensive/floor#61/round-2` by sweeping its whole 84-board lane: **all five
+reading knobs together restore the read on 82/84 and the call on 25**, so a
+reading-layer mechanism is falsified on 68% of it. `net_collar` is the standing
+lever — turning it on lets the authored `fit_sum_game` arithmetic veto the net.
+
+**What this does not prove.** The five `PROBE_*` knobs do not span the window's
+reading changes: `pass_exclusion` was **deleted** in the window (`97206fcc`) and
+nothing restores it, `their_landy_reading` / `their_multi_reading` /
+`completion_alerts` have no knob, and `probe-decision` prints partner's and RHO's
+reads but not LHO's. So the unrestorable boards are proven "not the partner/RHO
+read", not "not any reading". A ea2cde9-build replay is the only complete
+counterfactual, which is why the recipe leads with the worktree.
+
+#### Work items
+
+Each is its own fresh-seed A/B per [measurement.md](measurement.md), and **none is
+a fix to the rule its bucket is named after**.
+
+- **B2.4 — the `1♦` length floor.** Restore `♦3..13` under `ReadingScope::All`.
+  Widest blast radius of anything here, and independent of the anchor.
+- **B2.5 — an unalerted natural call must not read weaker than its own rule.**
+  `floor#64`'s 1♠ (`5+ ♠, 8–16 points` → `♠4+, 0+`) and `floor#20`'s balancing 2♣
+  (`5+ ♣, 10–16 points` → nothing) are the reproducible probes.
+- **B2.6 — nor stronger.** `fallback@4`'s simple raise reading `♠3..3`, and its pass
+  raising a point floor, are the over-reading half.
+- **B2.7 — the milestone's net arm.** `points_or_net` collapses to the net under
+  the shipped `accountant_floor`/`net_collar` pair, so rules #148/#141 are decided
+  by a break-even the window retrained. Measure `net_collar` on — it restores the
+  authored `fit_sum_game` veto — and bisect `floor#64`'s `4♠`→`2♠` across
+  `ea2cde9..53a3c254` to confirm the evaluator swap is the mover.
+- **Accepted as churn:** the other 21 rows, no floor work.
+
 ### First-anchor runbook (any machine with the BBA submodule)
 
 ```sh
@@ -767,6 +963,20 @@ guarded fallback at depth d.  The steady-state loop:
 anchor report → worst bucket → trace its boards → fix (floor / book / node)
 → fresh-seed ship A/B (measure-ab skill) → re-anchor (~5 min) → next bucket
 ```
+
+Comparing two snapshots is a **different** loop, because a bucket that got worse
+usually did not:
+
+```text
+scripts/anchor-diff.py A B          → churn / other-table / here per bucket
+  --bucket X --lane here --show 8   → only the boards X actually owns
+replay each emitted probe-decision line against a build of the older commit
+  (git worktree add; PROBE_FLOOR=instinct) before blaming a rule
+```
+
+The [2026-08-18 forensic](#regressed-floorn-rows--forensic-2026-08-18) found 21 of
+35 "regressed" rows to be churn and **none** of them regressed at the call the
+bucket is named after.
 
 ## Pillar B — the floor track
 
@@ -823,6 +1033,11 @@ unshadowed):
 3. **Floor 5NT king-ask + book minors king-ask** (missed-grands theme):
    extend the M6.4 floor-RKCB ladder (instinct decodes instinct, same
    derived-trump gates); low fired-rate × huge swing → read IMPs/fired.
+
+Items **4–7** come from the [2026-08-18
+forensic](#regressed-floorn-rows--forensic-2026-08-18) and are reading repairs
+rather than ladder work: the `1♦` length floor, the two bounds on what an
+unalerted natural call may read, and the non-reading residue's bisect.
 
 Backlog (only if Pillar A shows the buckets bleeding): misfit runout pull,
 advancer 4-4 bust escape.

@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`scripts/anchor-diff.py` — the cross-snapshot anchor forensic.** Joins two
+  anchor snapshots' `boards.jsonl` on `(vul, seed, board)` and decomposes every
+  bucket's move into the boards that stayed, entered and left, so a re-anchor's
+  "this bucket got worse" can be told apart from "these are different boards".
+  `stayed` splits again by *which of the two tables* the bucket's rule actually
+  bid at — a `floor#N` row's `our_call` comes from `table_a` or `table_b`
+  depending on the diverging seat, so a bucket's delta can move entirely from our
+  bidding at the table it did not bid at. `--bucket X --lane here --show N` prints
+  the worst boards a bucket genuinely owns, both auctions, the first index where
+  our call differs, and a paste-ready `probe-decision` line for the acting seat.
+
+- **`probe-decision` gains `PROBE_FLOOR=instinct`.** Replays a decision through
+  `american_instinct` instead of the shipped net floor, which is what an anchor
+  `floor#N` row was generated under; without it such a row prints
+  `(floor / no rule)` and cannot be traced to its rule.
+
+- **What the two found**, applied to the `ea2cde9 → 53a3c254` window
+  (`docs/bba-gap-campaign.md`, "Regressed `floor#N` rows — forensic"): of the 35
+  buckets recorded as worse, **21 are churn and 9 are the other table**; the genuine cost is **−845 plain /
+  −900 PD IMPs** against the window's +24,196 / +27,170 gain, and in **none** of
+  the five real cases did the rule the bucket is named after change its call —
+  the damage is always a later continuation. `ReadingScope::All` accounts for 106
+  of 175 traced boards: an unalerted natural call's authored rule displaces the
+  natural walk and projects weaker than its own constraint. Sharpest instance,
+  and not confined to the anchor: **the `1♦` opening reads as `♦0..13` under the
+  shipped default where `Alerted`/`None` read `♦3..13`** — 1♣, 1♥ and 1♠ keep
+  their floors — which disables `3+ ♦ shown by partner` on the raise rules across
+  every 1♦ auction. The residue is not a second mechanism: under the shipped
+  `accountant_floor`/`net_collar` pair `points_or_net` collapses to its net arm,
+  so the reading moves an *input* to the evaluator net whose break-even decides
+  the game milestones — restoring the read leaves the call unchanged on 25/84 of
+  `floor#61`'s lane and 4/42 of `floor#64`'s. No behaviour changed in this entry;
+  the fixes are queued as their own A/Bs.
+
 ### Changed
 
 - **The American and Dutch defaults now use the Phase-5 honest-reading neural
