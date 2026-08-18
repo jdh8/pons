@@ -1,971 +1,125 @@
-# The BBA gap campaign — closing pons↔BBA, especially via the floor
-
-The standing plan for the campaign metric: `american()` vs BBA's 2/1 card,
-IMPs/board.  **Standing at `53a3c254` (2026-08-18): −0.528 plain / −0.533 PD for
-what ships, −0.997 / −1.131 for the deterministic side the buckets decompose.**
-(Was −0.627 / −0.585 and −1.069 / −1.205 at `0d8b755`, 2026-08-10.)
-**As of 2026-07-19 (the floor swap, B4) the anchor's pons side is
-`american_instinct()`** — `american()` now ships the BBA-distilled net floor,
-whose off-book calls do not decompose into book buckets, so the
-decompose-and-rank series stays on the deterministic system; the net floor's
-one-step gap reduction (+0.11 non-vul / +0.25 vul) is recorded in B4.
-History: **−2.59** (S.1 anchor, 2000 boards, 2026-06-15) →
-**−1.997** after M6.1 alone (4000 boards) → **first seeded, decomposed anchor**
-(2026-07-06, sha `62cf5c5`, `SEED_BASE=1783375064`, 204.8k boards,
-replay-verified 100%): **vul none −1.675 / vul both −2.310**, pooled **−1.99
-plain / −2.40 PD** (findings and re-ranking below) → **re-anchored 2026-07-07,
-sha `5f16e68`, 409.6k boards** (buckets #2–#4 shipped): pooled **−1.99 plain /
-−2.36 PD** — the metric held, the fixes moved mostly PD.  **From 2026-07-28
-(`3c94802`) the anchor runs with disclosure on** — BBA is told what we play — so
-anchors before and after that date are different series; see the `3c94802`
-re-anchor below.  This doc holds the
-campaign structure, the anchor protocol, and the runbook; ship rules stay in
-[measurement.md](measurement.md), per-treatment history in
-[ai-bidder/21gf-ledger.md](ai-bidder/21gf-ledger.md) and
-[competitive-book.md](competitive-book.md).
-
-Three facts drive the design (researched 2026-07-07):
-
-1. **The gap was never attributed.** Until now no seeded anchor was persisted
-   and no general decomposition existed — "the gap concentrates in competitive
-   auctions" was anecdote.  Pillar A fixed this, and **the first anchor
-   overturned the anecdote**: the gap is *book-dominated* and concentrated in
-   *defensive* first-round bidding, not competitive (see the findings below).
-2. **The learned champion is stale but ship-grade.** `american_neural_search()`
-   (M3.3 round 2) beats the deterministic floor on both scorers in self-play,
-   but was trained before M6.3/M6.4 and has never been measured on the real
-   vs-BBA routing.  Pillar B refreshes and gates it.
-3. **A scorer wall parks real value.** DD/PD are blind to obstruction and
-   right-siding; ~9 treatment families wait as opt-in knobs.  `single_dummy_leads`
-   already flipped the Woolsey verdict but isn't in the generic pipelines.
-   Pillar C wires it.
-
-## Pillar A — anchor and decompose (SHIPPED; first anchor run 2026-07-06)
-
-**Tooling** (landed 2026-07-07): `bba-gen` dumps now record `seed` +
-`gen_args`; `Partnership::explain_call` (book.rs) attributes any call to its
-provenance and winning rule; `examples/bba-decompose` turns shard dumps into a
-ranked-bucket `report.md` + `boards.jsonl`; `scripts/anchor.sh` orchestrates.
-
-**Protocol**: 16 shards × 6,400 boards × {vul none, both} = 204.8k boards,
-one persistent `SEED_BASE` for the whole anchor **series** (the sanctioned
-exception to fresh-seed-per-experiment: successive anchors are arms of one
-longitudinal paired experiment; every ~3rd re-anchor, run a fresh-seed
-confirmation).  Headline pooled CI ≈ ±0.023 IMPs/board; a 0.3%-fired bucket
-still resolves.  **Ship decisions stay per-fix fresh-seed A/Bs** — the anchor
-tracks and attributes, it never ships.
-
-### First anchor findings and re-ranking (2026-07-06, sha `62cf5c5`)
-
-204.8k boards, `SEED_BASE=1783375064`, both arms replay-verified 100%.
-Report: `ab-results/anchor/2026-07-06-62cf5c5/report.md` (committed).
-
-**The headline finding overturns the going-in assumptions.**  The gap is
-**book-dominated, not floor-dominated**, and concentrated in **defensive**,
-not competitive, auctions:
-
-- **By provenance:** `book` −248k IMPs vs the *entire* `instinct()` floor
-  ~−160k spread over dozens of rules.  The single largest floor rule is
-  `floor#3` (the opaque *pass*) at −38k; no other floor rule exceeds −17k.
-- **By phase:** Defensive −171k **>** Constructive −155k **>** Competitive −82k.
-  "Concentrates in competitive" was wrong.
-- **By family:** round-1 −213k, round-2 −110k, opening −68k, balancing −11k,
-  deep −6k.  Balancing is the 2nd-*smallest* family — the B2 "balancing is
-  highest expected value" guess is **falsified**; deprioritize it.
-- **By direction** (net): overbid −129k, missed-game −89k, sold-out −77k,
-  wrong-strain −45k, missed-slam −40k, missed-grand −6k, doubling −6k; we
-  *gain* +248k on 44.8k boards, so the −408k net is a two-sided distribution.
-
-**Ranked losing buckets — latest anchor `5f16e68`, 409.6k boards (work these
-top-down):**
-
-| # | bucket | boards | plain IMPs | /div | PD IMPs |
-| --- | --- | --- | --- | --- | --- |
-| 1 | Defensive / book / round-1 | 59437 | −142733 | −2.40 | −188939 |
-| 2 | Constructive / book / opening | 47692 | −103480 | −2.17 | −106037 |
-| 3 | Constructive / book / round-2 | 43212 | −98201 | −2.27 | −98215 |
-| 4 | Constructive / book / round-1 | 29727 | −76291 | −2.57 | −86039 |
-| 5 | Competitive / fallback@1 / round-1 | 13846 | −44169 | −3.19 | −47594 |
-| 6 | Competitive / fallback@2 / round-1 | 12606 | −42221 | −3.35 | −48671 |
-| 7 | Defensive / floor#3 / round-2 | 9900 | −31665 | −3.20 | −34371 |
-| 8 | Defensive / floor#3 / round-1 | 8597 | −29193 | −3.40 | −26309 |
-
-Source: `ab-results/anchor/2026-07-07-5f16e68/report.md`.  This anchor doubled
-the board count to 409.6k (32 shards/vul), so the **raw IMP totals are ~2× the
-first anchor's — compare buckets on `/div`**, which held: defensive book is
-still #1 at −2.40/div, Constructive/opening *improved* −2.34→−2.17/div
-(Rule-of-20 light openings, bucket #2), the rest within noise.  Pooled held
-−1.99 plain / −2.36 PD.  **Per-fix "after fix" numbers live in the CHANGELOG
-A/Bs, not here** — the anchor tracks and re-ranks, it never measures a single
-fix (bucket #5, flat-4333, shipped after this anchor and lands in the next re-run).
-
-**Re-anchor `4afc985` (2026-07-08, 409.6k boards, same seed):** the 5332 +
-flat-4333 takeout-discipline ships landed — bucket #1 shrank to −2.29/div
-(−188939→−167653 PD), pooled **−1.89 plain / −2.11 PD** (was −1.99 / −2.36).
-Ranking otherwise held; the top *un-worked* book bucket was #3
-`Constructive/book/round-2` (−98269 plain ≈ −97924 PD, never traced), now
-**worked**: opener's minimum natural rebid had no upper strength bound, so
-monsters underbid (`5+ ♦` alone −20k, 2578/2636 a flat `2♦`).  Fix = opener's
-extras ladder (jump-rebid / reverse / jump-shift) in the two minor-opening
-nodes, **shipped default-on** (+0.0203/+0.0332 plain, +0.0181/+0.0297 PD, all
-CIs>0; see the CHANGELOG and 21gf-ledger).  Source:
-`ab-results/anchor/2026-07-08-4afc985/report.md`.  Follow-ups: the two
-major-opening rebid nodes (Meckstroth `3m` collision) and the `5+ ♣`/`6+ ♠`/`6+
-♥` residual.
-
-**Re-anchor `c864bad` (2026-07-08, 409.6k boards, same seed):** the minor extras
-ladder folded in — pooled **−1.84 plain / −2.07 PD** (was −1.89 / −2.11).
-Re-ranked and traced the residual: bucket #1 `Defensive/book/round-1` (PD *worse*
-by 31k → obstruction wall, Pillar-C territory); #2 `opening` (light-open frontier
-+ already-refuted weak-twos); #4 `round-1` dominant leak (`1♥ → 1♠`, −9295) is
-`set_longer_major_response`, an *already-measured null* (compression pays a level
-on the heart fits). The one plain-workable, un-refuted lever was #3's own
-residual — the `6+ ♥`/`6+ ♠` major single-suiter underbids — **worked**:
-opener's major jump-rebid `3M` (6+/16+) + responder's continuation, **shipped
-default-on** (+0.0059/+0.0125 plain, +0.0046/+0.0104 PD, all CIs>0; the bare rung
-without the continuation LOST −0.005/−0.009 — see CHANGELOG and 21gf-ledger).
-Source: `ab-results/anchor/2026-07-08-c864bad/report.md`.
-
-**Re-anchor `308bbd1` (2026-07-09, 409.6k boards, same seed):** the major
-jump-rebid folded in — pooled **−1.827 plain / −2.056 PD** (was −1.84 / −2.07).
-The re-rank showed the DD-workable *book* buckets mined to residuals (round-2 =
-mixed RKCB slam accuracy, M6.4 territory; round-1's top lever the already-null
-`1♥ → 1♠`), leaving ~57% of the gap (−233k) in the two "obstruction wall" buckets
-(#1 defensive round-1, #2 opening). **Pillar C was built and used to price them
-(sd-lead, 5000 bd/vul × 16 worlds, ours-vs-BBA via synthetic dumps into
-`ab-dump-sd`).  Verdict: BOTH are REAL losses, not DD artifacts** — def-r1 sd
-−1.82/−2.72 ≈ plain (−1.79/−2.67); opening sd −1.98/−2.58 *worse* than plain
-(−1.68/−2.42: a realistic blind lead can't beat BBA's thin light-open
-contracts).  This settles the #1 label in favour of overreach (below), not
-obstruction: sd-lead's payoff here is **diagnostic** (which walls are real →
-fix with plain DD, which sd validates as fair-or-optimistic), not
-value-unlocking.  The next DD-workable lever it surfaces is **overcall /
-competition structure** — within def-r1, our own positive calls
-(overcall/1NT/raise) are −90735 plain / −122908 PD (67% of the bucket, PD-worse
-⇒ real); the genuine-obstruction remainder (we pass, BBA competes) is only
-−29k.  See `project_sd-wall-diagnosis` and `ab-results/sd-wall/`.
-
-**First overcall slice (2-level minor overcall) — sd-wash REJECT.**  The `2♣`/`2♦`
-overcall (5+, 11+) bleeds ~−2/bd across every points/shape/vul band, so
-`set_two_level_minor_overcall_tight` raises its floor to 15 (losing 11–14
-minimums → -).  A/B vs BBA: plain +0.0015 NV / +0.0061 vul, PD +0.0075 /
-+0.0131 — **but sd-lead washes both** (−0.0021 [±0.0031] NV, +0.0025 [±0.0040]
-vul).  For a competitive range sd is the arbiter, so the plain/PD gains are the
-obstruction-wall artifact; kept opt-in, default byte-identical.
-
-> **REVERSED 2026-07-26 by SD-PD** (dump rescore, `sd-pd-dumps.sh`, 204800
-> boards/vul, 2.27%/2.29% fired).  Plain sd never doubles, and here the *looser*
-> arm is the default — so plain sd let the 11–14 overcalls it keeps fail
-> unpunished, and the "wash" was the missing axe.  Repricing the same trick
-> counts with failures doubled: plain SD +0.0010 ±0.0030 NV / +0.0019 ±0.0039
-> vul (washes, as published), **SD-PD +0.0063 ±0.0037 NV / +0.0081 ±0.0047 vul —
-> CI-clear positive both, tracking PD (+0.0075/+0.0131)**.  Plain DD is
-> non-negative both vuls, so this is the house pattern *plain-DD wash + PD win →
-> shippable default-on*, and the tighten is a **promotion candidate from opt-in
-> to default-on** (confirm on a fresh seed before flipping — this is a rescore of
-> one board set).  "For a competitive range sd is the arbiter" is retired: plain
-> sd is the arbiter of nothing on its own, being optimistic on both the lead and
-> the doubling axis at once.  Default deliberately untouched.
-
-> **REFUTED 2026-08-12 on the fresh seed — promotion cancelled.**  The
-> confirmation the reversal asked for, run at `abdafcc` (seed `1786488117`,
-> 409,600 bd/arm/vul, double the July count): plain DD **−0.0102 ±0.0021 NV** /
-> −0.0011 ±0.0027 vul, PD +0.0074 ±0.0026 / +0.0198 ±0.0034, plain SD
-> −0.0157 ±0.0022 / −0.0096 ±0.0028, **SD-PD −0.0008 ±0.0026 NV / +0.0090 ±0.0033
-> vul**.  The NV plain-DD interval is entirely below zero, so the veto applies:
-> no Tier-F guard was run and the default is untouched.  The NV SD-PD win
-> collapsed to a wash; only the vul cell reproduced.  plain-DD loss beside a PD
-> win is the decision table's *artifact of PD's synthetic X*, not a win.
->
-> The reversal never described current code.  July was measured at `daf6c0e`;
-> `abdafcc` (generalize defensive overcalls) widened the trigger from
-> 1.43%/1.49% to **1.76%/1.75%** fired (sd 2.27%/2.29% → 2.50%/2.53%), so the two
-> runs do not cover the same hands.  Forensics on the 20 worst NV boards:
-> **trigger-too-broad**, not a missing continuation.  9–12 of 20 show the loose
-> arm's 2m overcall enabling a profitable doubled sacrifice against a making game
-> (`1♥ 2♣ 3♣ - 4♥ - - 5♣ X` on a 12-count with six clubs; the tight arm passes
-> and defends `4♥`), and a smaller group shows the stranded hand re-entering
-> later at a higher level and being doubled.  A flat points floor is the wrong
-> gate for a hand whose value is length — §O4's own diagnosis, this knob having
-> only ever been its crude fallback.  Stays opt-in, default byte-identical.
-> Artifacts: `ab-results/two-level-minor-overcall-refresh/`.
-
-> **Forensics corrected 2026-08-12 — the population pass** (same day,
-> `scripts/ab-classify.py` over all 10,250 auction-diverged NV boards).  The
-> worst-20 "trigger-too-broad" read described the tail, not the mechanism: the
-> knob is a **declare-vs-defend switch**.  Loose declares 35.1% of fired boards
-> vs tight's 10.5%, is doubled 3× as often (7.8% vs 2.6%), and still wins
-> 0.58 IMPs per score-diverged board under plain DD — the profitable doubled
-> sacrifices *are* where the default earns its edge, and BBA doubles our
-> contracts at ≈15% in both arms while we double theirs at 1.2–3.6%.  The
-> improvable decision is the contested 5-level node, now designed:
-> [ai-bidder/competitive-accountant.md](ai-bidder/competitive-accountant.md),
-> evidence + P(double) calibration in
-> [ai-bidder/doubling-calibration.md](ai-bidder/doubling-calibration.md).
-
-The lesson: the
-anchor's *ours-vs-BBA* sd deficit on the overcall does not mean *suppressing* it
-helps — the actionable A/B sd (suppress-vs-keep) washed because our own pass-line
-is equally bad.  The recoverable def-r1 value, if any, is the CONSTRUCTIVE
-`1NT`-overcall slice (`1NT → X`, PD-worse −8958) or the takeout doubles (−16k,
-PD-worse), not overcall suppression.
-
-**1NT-overcall systems on — def-r1's first WIN (shipped default-on).**  The
-`(1t) 1NT -` advance was **unauthored** (the floor guessed), the one distinct
-mechanism the three washed call-swaps could not reach — because it *adds
-capability* rather than swapping a call.  `set_nt_overcall_systems_on` grafts the
-full opening-1NT response structure (Stayman, Jacoby/minor transfers, Smolen)
-verbatim below `(1t) 1NT`, so `(1♦) 1NT` = `(1♣) 1NT` = an opening 1NT — 4-4 major
-fits found, right-sided through transfers.  Mechanism: one re-rooting
-`Trie::graft` shares the constructive `register_one_nt` subtree (the defensive
-book cannot rebase across to the constructive `1NT` node — the keys collide,
-they-open-`1NT` vs we-open-`1NT` — so the subtree is grafted, not rebased); the
-`Inferences` reading strips their opening (`(len−index)%4` is seat-invariant
-under the removal) so the floor reads the advancer's artificial calls.  A/B vs
-BBA (32×6400 bd/arm/vul, minor vs major split): **sd-lead — the arbiter for a
-competitive range — is a clean WIN in all four cells** (minor +0.0079 NV /
-+0.0156 vul, major +0.0083 / +0.0133), and **sd exceeds plain everywhere** (the
-signature of right-siding value DD undercounts, the opposite of the wall-wash);
-plain never loses (+0.0051/+0.0112 minor win, +0.0013/+0.0044 major wash).  The
-`Inferences` reading (strip their opening, read the advance as an opening-1NT
-auction) strengthened the sd win over a no-reading run — keeping the floor off a
-phantom suit in the contested tails is real, sd-visible value.  This is
-the campaign's first def-r1 lever to clear the sd arbiter — the "obstruction
-wall, skip" verdict was wrong for the *capability-adding* slice.  Of the
-remaining def-r1 takeout-double mass (−16k), the **five-card-major slice** was
-NOT wall-bound (below); the we-pass-they-compete −29k stays wall-bound.
-
-**Five-card-major takeout discipline — def-r1's second WIN (shipped default-on,
-`5f9d6c2`).**  Doubling with a biddable unbid five-card+ major buries the suit
-and risks partner responding in our short suit (the def-r1 overbid/wrong-strain
-leak).  `set_suppress_5card_major_takeout` (default on) rejects such hands in the
-book takeout-double shape gate so they route to the natural major overcall,
-extending the 5332/flat-4333 disciplines; the live leak is over a **weak two**,
-where the 12+ shapely double (weight 1.3) outguns the two-level overcall (1.0),
-and only the 12–16 range is redirected (17+ falls through to the separate
-`points(17..)` double).  A/B vs BBA (409.6k bd/arm/vul, both vuls): a **plain +
-PD + sd-lead WIN at both vulnerabilities, every CI > 0** — plain +0.0190 NV /
-+0.0493 vul, PD +0.0892 / +0.1129, sd-lead +0.0124 / +0.0413 IMPs/bd.
-Plain-positive rules out a doubling artifact; sd (the competitive-range arbiter)
-confirms the right-siding.  The sibling 5-card-**minor** (textbook double) and
-17+ single-suiter (needs an authored strong overcall-then-jump) slices stay
-deferred.
-
-**Re-anchor `5f9d6c2` (2026-07-09, 409.6k boards, same seed):** the
-five-card-major discipline folded in — pooled **−1.758 plain / −1.864 PD** (was
-−1.827 / −2.056 at `308bbd1`), replay-verified 100%.  Def-r1 shrank to −127014
-plain / −146649 PD (was −134k / −164k; the discipline pulled its targeted
-PD-heavy slice).  Re-rank: the DD-workable **book** buckets stay mined to
-residuals (`opening` = refuted light-open wall; `round-2` = RKCB slam accuracy /
-M6.4; `round-1` = the null `1♥ → 1♠` + splinter-slam).  The biggest **un-worked**
-prize is now the two-sided **Competitive `fallback@1`/`fallback@2` round-1** pair
-(−41021 + −37151 plain / −35146 + −34548 PD): our opening + their interference
-where the floor's `0+ HCP` catch-all sells out — a Pillar-D classify + sd-lead
-sub-campaign, not a one-shot fix.  Report:
-`ab-results/anchor/2026-07-09-5f9d6c2/report.md`.
-
-**Gladiator over the major-opening 1NT overcall — completed, WASH (parked opt-in).**
-Over `1♥`/`1♠` the systems-on graft is only an sd win (plain/PD wash) — one
-major is *theirs*, so symmetric both-major Stayman + two transfers misfire.
-Gladiator (`set_nt_overcall_gladiator`, Belladonna/Helms shape economy, aligned
-to the Crowborough write-up as an XYZ two-way relay: `2♣` = weak takeout **or**
-any invitational hand, cue-of-their-major = Stayman for the one unbid major,
-`2♦`/`2O` natural exactly-5 INV, `2NT` weak-6`♣` transfer, direct `3X`
-game-forcing, splinter + Leaping Michaels) was the hypothesised fix.  First
-measured a **loss on all three scorers both vuls** (major NV plain/PD/sd
-−0.0075/−0.0120/−0.0102, vul −0.0135/−0.0152/−0.0178), diagnosed by branch as
-the `2♣` relay + jump continuations dying **unauthored** below game while the
-graft's full opening-1NT tree drove the same hands to 3NT/4M.  **Completing both
-sides** (every overcaller answer + invitational relay rebids + the weak-club
-transfer) erased the loss: re-measured A/B vs BBA (32×6400, minor/major split)
-is a **wash on all three scorers both vuls** — major NV plain/PD/sd
-+0.0006/−0.0004/+0.0004, vul +0.0005/+0.0027/−0.0015 (every CI straddles zero;
-minor split 0-fired).  The diagnosis held: unauthored continuations were the
-whole loss.  But completion only reaches **parity** — sd, the arbiter here, is
-flat, so there is no measured win to justify flipping the graft default.  Kept
-byte-identical opt-in as a faithful, complete alternative structure and a
-single-dummy re-measure candidate.  Lesson restated: a half-authored replacement
-loses to a fully-authored graft; a fully-authored one draws.
-
-**Re-anchor `50ad20b` (2026-07-10, 409.6k boards, same seed):** Fix 1 of the
-fallback@1/@2 sub-campaign folded in (Modern negative doubles + forcing free
-bids + `answer_free_bid`, default-on) — pooled **−1.732 plain / −1.891 PD**
-(was −1.758 / −1.864 at `5f9d6c2`), replay-verified 100%.  Plain moved +0.026
-(NV +0.039 / vul +0.013, matching the fresh-seed A/B); PD −0.027 is the
-already-adjudicated vul-PD artifact the sd arbiter overruled.  The target pair
-**Competitive `fallback@1`/`fallback@2` round-1** shrank −78.2k → **−51.7k
-plain** (−27105 + −24572; PD −28288 + −27451) and drops to ranks 6/8 — Fix 1
-cashed ~26k, the residual is Fix 2 (cue-context raises + Jordan rejection) +
-Fix 4 (strong-values action) territory.  Re-rank: the top of the table is back
-to the mined book buckets (def-r1 −126113, constructive opening/r2/r1 −94k /
-−81k / −70k), then `Defensive floor#3` (r2+r1 ≈ −57k pass discipline).  Next
-in queue ahead of those residuals: the **school tournament** (1-level Modern
-vs Cachalot vs Sputnik, 2-level forcing vs NFB vs transfers) now that Fix 1
-completed the books — P3d′/P3d″ were both-incomplete comparisons.  Report:
-`ab-results/anchor/2026-07-10-50ad20b/report.md`.
-
-**Re-anchor `5b5115d` (2026-07-10, 409.6k boards, same seed):** the
-post-`50ad20b` batch folded in — the natural 11-12 `2NT` jump over a 1-level
-overcall, opener's balanced-18-19 notrump in a contested `1X (1Y)` auction, and
-the rein on a minimum takeout doubler over-raising a *forced* advance (all
-default-on; the Cachalot contested-`X` fix is opt-in, so it leaves the default
-anchor unmoved) — pooled **−1.684 plain / −1.765 PD** (was −1.732 / −1.891 at
-`50ad20b`), replay-verified 100%.  Plain moved +0.048, PD +0.126 (the vul-PD
-doubling artifact the sd arbiter had overruled unwinds as the thin doubled games
-clear).  Re-rank: the head is unchanged — def-r1 `Defensive/book/round-1` still
-#1 but shrank −126113 → **−123392 plain** (−141682 PD), then constructive
-`opening`/`round-2`/`round-1` (−93067 / −81168 / −69526), then `Defensive
-floor#3` r2+r1 (≈ −55.5k pass discipline).  The target **Competitive
-`fallback@1`/`fallback@2` round-1** pair holds ≈ flat (−26434 + −23647 = −50.1k
-plain) — this batch was competitive-reopening + floor work, not the fallback
-classify (Fix 2/4).  The **school tournament** resolved: Modern + Forcing keep
-the defaults; Cachalot and Sputnik ship opt-in and are now surfaced as a radio
-family on the web Settings tab.  Report:
-`ab-results/anchor/2026-07-10-5b5115d/report.md`.
-
-**Re-anchor `973d681` (2026-07-19, 409.6k boards, same seed):** first anchor
-after the floor swap — `american()` now ships the non-decomposable BBA net, so
-the harness was repointed to the deterministic side (`anchor.sh` generates with
-`--our-floor american-instinct`, `bba-decompose` replays through
-`american_instinct()`); replay-verified **100%** (0 of 4.24M calls mismatched),
-confirming the reference is bit-reproducible again.  Pooled **−1.500 plain /
-−1.683 PD** (vul none −1.300 / −1.390, both −1.700 / −1.976), from −1.684 / −1.765
-at `5b5115d`.  The **+0.184 plain / +0.082 PD** is the interim default-on batch —
-the constructive gate/eval ships (fit-split 2/1 + `1M - 3NT` choice of games, the
-fit-sum major-game gate, points-as-rule-of-N+8 + `support_points` + the four
-point-count gate fixes, Wide6322 as the default 1NT, the forcing-1NT major
-two-suiter, the Meckstroth adjunct) plus the advance-of-`X` / passed-hand-overcall
-competitive work.  Re-rank: the head order is unchanged but every book bucket
-shrank as those ships landed — def-r1 `Defensive/book/round-1` still #1 at
-**−111127** (was −123392), then constructive `opening`/`round-2`/`round-1`
-(−86728 / −64692 / −49912, from −93067 / −81168 / −69526); the competitive
-`fallback@1`/`fallback@2` round-1 pair holds ≈ flat (−24201 + −21439).  The
-**shipped** floor is the BBA net on top of this deterministic prior: +0.11 NV /
-+0.25 vul (B4), which does not decompose and is measured as a separate
-routing-gate A/B.  Report: `ab-results/anchor/2026-07-19-973d681/report.md`.
-
-**Re-anchor `eb02d9d` (2026-07-26, 409.6k boards, same seed):** 109 commits of
-default-on ships since `973d681`, none of them individually anchored — pooled
-**−1.152 plain / −1.355 PD** (vul none −1.024 / −1.116, both −1.279 / −1.593),
-from −1.500 / −1.683.  Both arms replay-verified **100%** (0 of 4.23M calls).
-The **+0.348 plain / +0.328 PD** is the largest single-batch move the series has
-recorded, and unlike earlier batches it is *not* concentrated: every phase
-improved (Defensive −251275 → −194513, Constructive −232496 → −168727,
-Competitive −130622 → −108429) and so did both provenances (`book` −322470 →
-−245400, `floor#3` −85435 → −64160).  The batch is the shared-vocabulary work —
-`points` → `PointCount`, suit-indexed `support_points`, the DNF projection flip
-(which moves the floor twice: tightened hulls into `partner_shown_*`, and a
-swapped weight artifact into the bilans evaluator) and bilans itself going
-default-on — so it lifts every consumer at once rather than one bucket.
-
-Re-rank: **the head order is unchanged for the fourth anchor running** — def-r1
-`Defensive/book/round-1` still #1 at **−85805** (was −111127), then constructive
-`opening`/`round-2`/`round-1` (−71779 / −45155 / −35084, from −86728 / −64692 /
-−49912); `floor#3` defensive pass discipline r2+r1 −51372 → −40338; the
-competitive `fallback@1`/`fallback@2` round-1 pair −45640 → −38645.  One row
-moved differently from the rest: `Constructive/book/opening` gained **+29348
-PD** against only +14949 plain (PD −88698 → −59350), i.e. the openings we now
-avoid were the ones getting doubled — a PD-shaped win that plain DD understates.
-
-**What the *shipping* pair scores (`--our-floor american`, same deals, same
-seed):** pooled **−1.021 plain / −1.254 PD** (vul none −0.929 / −1.150, both
-−1.112 / −1.357), i.e. the BBA net floor is worth **+0.131 plain / +0.101 PD**
-on top of the deterministic prior.  Read the headline only — replay verification
-is 89–90% *by construction* (the net floor's off-book calls do not reproduce
-through `american_instinct()`), so `report-american.md`'s bucket rows are not
-valid and only the IMP figures, which come from the recorded auctions, are.
-
-> **"By construction" was wrong (corrected 2026-08-12).** The replay was 89–90%
-> because these runs decomposed a v5 dump through `american_instinct()`. Since
-> `7af286d`, `bba-decompose --our-floor american` replays it through
-> `american()` and the mismatch is **zero** — the bucket rows of a shipping
-> report are valid, and `anchor.sh` passes the flag. The IMP figures in this
-> row are unaffected; only the "not valid" verdict on its buckets is.
-
-That total hides a split worth a re-measure: the floor is **+0.167 plain /
-+0.236 PD at vul both**, but at **vul none it is +0.094 plain and −0.034 PD** —
-it gains on plain DD while *losing* under perfect defense, the signature of
-calls that buy the contract and then get doubled.  The unpaired CIs overlap
-([−1.1754, −1.1248] vs [−1.1416, −1.0905]), so this is suggestive rather than
-decided; the arms share deals, so a paired NV A/B of the floor's routing gate
-would settle it cheaply.  For context, B4's routing gate recorded +0.11 NV /
-+0.25 vul at `7122756`, eight net-floor commits ago.
-
-> **Settled 2026-08-06 under the configured floor — the NV pathology is gone.**
-> The paired A/B this paragraph asked for, run at `e650a86` on the anchor seed
-> (1783375064, 204 800 bd/vul), with **both arms generated at the same sha**:
->
-> | `american` − `american-instinct`, v4 floor | plain DD | perfect defense | fired |
-> | --- | --- | --- | --- |
-> | vul none | **+0.1745** ±0.0128 | **+0.2540** ±0.0156 | 26.15% |
-> | vul both | **+0.2247** ±0.0162 | **+0.3802** ±0.0194 | 24.33% |
->
-> NV perfect defense goes **−0.034 → +0.2540**: the calls that bought the
-> contract and got doubled are no longer there, and the floor now wins on both
-> scorers at both vulnerabilities. Pooled, the floor is worth **+0.200 plain /
-> +0.317 PD** against v3's +0.131 / +0.101.
->
-> Two method notes, both of which cut against over-reading the improvement.
-> First, v3's figure was a **difference of two absolute vs-BBA gaps** (hence
-> "the unpaired CIs overlap"); the table above is a **paired** `ab-dump-diff`,
-> same quantity but a much tighter instrument. Second, **do not diff a fresh
-> `--our-floor american` arm against an older snapshot's `american-instinct`
-> arm.** Doing exactly that against `3c94802` — 87 `src/bidding` commits back,
-> several of them behaviour-changing for `american_instinct()` itself — reads
-> **+0.1905/+0.2832 NV and +0.2489/+0.4214 vul**, overstating the floor by
-> ≈9–11% because the *baseline* had improved in the interval. Regenerate the
-> control at HEAD.
-
-**Re-anchor `3c94802` (2026-07-28, 409.6k boards, same seed) — and the series
-changes meaning here.**  `bba-gen --disclose` now defaults to `generated`, so
-from this snapshot on **BBA is told what we play**: every earlier anchor faced a
-BBA that took us for a BBA, and part of what those numbers measured was its
-misreading of our conventions.  Pooled **−1.113 plain / −1.273 PD** (vul none
-−1.004 / −1.064, both −1.222 / −1.481), from −1.152 / −1.355.  Both arms
-replay-verified **100%**.
-
-**Do not read the +0.039 / +0.083 as disclosure's effect.**  Thirty commits
-landed between the snapshots — the v3 calls-tail evaluator (+0.018/+0.028
-measured), the 1NT 3♥/3♠ splinter, the vulnerable weak-two overcall gate, the
-card-generator fixes — so the batch confounds them with the flip.  Disclosure's
-isolated cost remains `ab-disclose.sh`'s −0.009/board, measured with the old
-static card; re-running it against the *generated* card is the outstanding
-question, and cheap now that a full anchor generates in 12 minutes.
-
-The re-rank is the tell.  Every phase improved (Defensive −194513 → −192542,
-Constructive −168727 → −156731, Competitive −108429 → −106717) and so did both
-provenances (`book` −245400 → −238966, `floor#3` −64160 → −60087) — but
-**`Defensive/book/round-1`, the #1 bucket, went the other way**: −85805 →
-−88313, the only head bucket to lose ground in a batch that lifted everything
-else.  That is exactly where disclosure should bite.  We defend by overcalling
-and doubling, and those are the calls the card now explains to them.  Head order
-otherwise unchanged for the fifth anchor running: constructive
-`opening`/`round-2`/`round-1` −69131 / −40047 / −33747 (from −71779 / −45155 /
-−35084), `floor#3` defensive r2+r1 −40338 → −37776, the competitive
-`fallback@1`/`fallback@2` round-1 pair −38645 → −38179.
-
-*Caveat on cross-anchor `floor#N`*: the labels are only stable within a build.
-`floor#3` carries identical rule text in both reports so its row is comparable;
-`floor#246`/`floor#247` rows are new numbering and are **not** to be diffed
-against `973d681`.
-
-**#1 is the real prize and it is a *book* item, not a floor item.**  Our
-defensive first-round structure — overcalls, takeout doubles, two-suiters
-over their opening — bleeds −2.40/div (−142733 raw at 409.6k bd), and PD is
-*worse* (−188939), so it is genuine overreach, not a doubling artifact (the
-worst boards are our own 3♥x / 4♣x / 2♥x going down).  The biggest *floor*
-lever is `floor#3` pass discipline in defense (buckets 7–8, ~−61k combined:
-our floor passes where BBA acts).  This
-re-ranks the campaign: **Pillar D defensive book first (bucket 1), then
-constructive openings/rebids (2–4); Pillar B2 balancing drops to backlog and
-its floor effort points at `floor#3` pass discipline instead.**
-
-**Re-anchor `0d8b755` (2026-08-10, 409.6k boards, same seed).**  Pooled
-**−1.069 plain / −1.205 PD** (vul none −0.967 / −1.006, both −1.171 / −1.405),
-from −1.113 / −1.273 — **+0.044 plain / +0.068 PD** for the deterministic side.
-The batch is the reading-drift tail (face-trump, cramped-doubled, DOPI/ROPI/DEPO,
-rung-2, ask-gate recalibration, cue-face + the NT dichotomy) plus the knob-home
-refactors; the v4/v5 floor swaps are invisible here **by construction** — this
-series bids `american_instinct()`.  For what ships, see the companion below.
-
-Head order unchanged for the sixth anchor running: `Defensive/book/round-1`
-**−84479** (from −88313), then constructive `opening`/`round-2` −66278 / −38547
-(−69131 / −40047), and constructive `round-1` −31669 (−33747).  `floor#3`
-defensive r2+r1 −37776 → −37219.  One row moved provenance rather than value:
-**`Competitive/book/round-1` enters the head at −32251 while `fallback@1`
-collapses −38179 → −440** — the shipped competitive-book packages now author
-calls the fallback used to catch, so the loss moved rows without moving the
-total.  Compare competitive rows on the *phase*, not the provenance, across
-this boundary.  Report: `ab-results/anchor/2026-08-10-0d8b755/report.md`.
-
-> **Replay verification stopped being exact, and that is a defect.**  Both arms
-> report 69 and 66 mismatched calls (of 2.12M and 2.10M — 3×10⁻⁵, so the
-> printed rate still rounds to 100.00%, but the sub-100% warning fires).  Every
-> earlier anchor in the series replayed **0** mismatched.  The IMP headline is
-> unaffected (it is computed from the recorded auctions), but bucket attribution
-> is approximate at that rate for this row only.  **Cause found and fixed
-> (2026-08-11).**  `bba-gen` builds our floor from `arm_knobs(args)` — the CLI's
-> *armed* `Agreements` — while `bba-decompose` replays
-> `american_instinct(&Agreements::default())`, so the series has always relied on
-> `arm_knobs(default args) == Agreements::default()`.  `--uvu` broke it: the flag
-> dates from when Unusual-vs-Unusual was opt-in and read `if args.uvu {
-> set_uvu(true); … }`, which a default run skipped, leaving the shipped default
-> intact.  `2a18843` ("one home for the competitive knobs") rewrote it as the
-> unconditional `agreements.competition.uvu = args.uvu`, and `default_value_t =
-> false` turned a force-on flag into a kill switch — so every arm at this sha bid
-> UvU off (the shipping companion below too — same `bba-gen`, and its numbers are
-> therefore a hair pessimistic)
-> while the replay bid it on, and the mismatch rate is exactly what an auction
-> needing our 1NT *and* their both-minors 2NT should cost.  Renamed `--no-uvu`;
-> the equality is now a `bba-gen` unit test
-> (`default_args_arm_the_shipped_system`), which prints the offending field pair.
-> **Read this as a rule, not an incident:** a flag whose default disagrees with
-> the crate's silently re-points every A/B at a system nobody plays, and only the
-> replay check ever notices.
-
-**Corrective re-anchor `42454d2` (2026-08-11 local / 2026-08-10 UTC) — exact
-again.** The persistent seed `1783375064` was regenerated after the `--no-uvu`
-fix: 204,800 boards per vulnerability, **0 replay mismatches** in both arms.
-The headline is pooled **−1.069 plain / −1.206 PD** (none −0.9673/−1.0061,
-both −1.1714/−1.4060), so the approximate row's gap estimate was unaffected,
-but this report replaces it for attribution. `Defensive/book/round-1` remains
-#1 at **52,523 boards, −84,484 plain / −102,011 PD**; the next authored buckets
-are constructive opening −66,313 and constructive round-2 −38,547. Report:
-`ab-results/anchor/2026-08-10-42454d2/report.md`.
-
-The report was re-emitted at clean `7af286d` with the new generic JSON fields
-and PD bucket CIs; the same cache reproduced every headline with zero new DD
-solves and zero replay mismatches. For the BEN Phase-1 shared-residual gate,
-constructive round-2 is excluded as already worked/mined in this ledger, leaving
-`Defensive/book/round-1` as the largest eligible authored bucket. Its clearest
-unworked slice is our simple `1M` overcall versus the reference's weak `2M`
-jump: 4,895 boards, **−2.454 ±0.194 plain / −2.785 ±0.228 PD** per divergent
-board (BEN independently: 1,348, −1.102 ±0.345 / −0.976 ±0.416). More than 98%
-are exactly six-card majors and all are 6–11 HCP. The
-`direct_weak_jump_overcall` treatment and fresh-seed runner are now authored;
-the 204.8k/arm/vulnerability BBA gate passed at seed `1786431801`. It fired
-1.16%/1.11% none/both: plain **+0.0002 ±0.0028 / +0.0031 ±0.0035**, PD
-**+0.0026 ±0.0032 / +0.0051 ±0.0040**, plain SD **+0.0010 ±0.0030 /
-+0.0037 ±0.0036**, and SD-PD **+0.0032 ±0.0033 / +0.0057 ±0.0040**. All
-four arms contain 32×6,400 boards with identical deal streams and zero runner
-failures. The decision-table verdict is plain wash plus PD win/wash with no SD
-refutation. The same-seed Tier-F gate then washed in every cell: plain
-**+0.0098 ±0.0099 / +0.0013 ±0.0128**, PD **+0.0101 ±0.0120 / −0.0020
-±0.0154**, and SD-PD **+0.0058 ±0.0120 / −0.0087 ±0.0147** none/both on
-12,800 boards per cell (145/143 fired). Its pooled point estimates are +0.0055
-plain / +0.0040 PD and no SD cell refutes it. The two-reference gate therefore
-ships the treatment default-on; `false` / `--no-ns-direct-weak-jump-overcall`
-restore the historical simple overcall. A fresh exact anchor follows the
-default flip.
-
-**Post-ship re-anchor `782f09e` (2026-08-11, persistent seed `1783375064`).**
-Both 204,800-board vulnerability arms replay exactly (0/2,112,342 and
-0/2,100,834 mismatched calls). The new headline is none **−0.9566 plain /
-−0.9991 PD**, both **−1.1608 / −1.4006**, pooled **−1.059/−1.200**. Against
-the exact `42454d2` pre-fix row, that is +0.010 plain / +0.006 PD pooled. The
-target bucket responds directly: `Defensive/book/round-1` falls from 52,523
-boards and −84,484 plain / −102,011 PD to 49,068 boards and **−74,202 /
-−90,593**. Report: `ab-results/anchor/2026-08-11-782f09e/report.md`.
-
-> **Retracted 2026-08-12 — this paragraph's shipping numbers were `0d8b755`'s,
-> relabelled.** It read: *"What the shipping pair scores (`--our-floor
-> american`, same deals, same seed, both arms generated at this sha): pooled
-> −0.627 plain / −0.585 PD (vul none −0.555 / −0.499, both −0.699 / −0.671) …
-> replay is 90.19% / 90.99% … the net floor is worth +0.442 plain / +0.620 PD."*
-> No `american-*` arm was ever generated at `782f09e` — the snapshot dir has
-> only the two instinct arms, and every figure quoted is `ab-results/
-> anchor-american.log`'s `0d8b755` run rounded to three places (−0.5551,
-> −0.4991, −0.6993, −0.6713; replay 90.19% / 90.99% to the digit). The
-> "generated at this sha" claim is the one part that was not true, which is the
-> part that matters: it is the control-at-HEAD rule broken in the doc that
-> states the rule. `anchor.sh` now generates the shipping pair itself, in the
-> same snapshot, so the claim is structural rather than remembered.
-
-**Post-ship re-anchor `ea2cde9` (2026-08-12, persistent seed `1783375064`,
-snapshot `ab-results/anchor/2026-08-12-ea2cde9-dirty`).** The re-anchor for the
-competitive accountant, and the first one to carry all four arms — both
-instinct and both shipping — in one snapshot at one sha. "dirty" is honest: the
-tree carried the `bba-gen` flag-polarity fix the ship needed and had not got
-(see CHANGELOG), without which the `american-*` arms would have measured the
-pre-ship system. Whole run, generation through both decomposes and both paired
-diffs: **19 minutes**.
-
-| arm | vul | plain | perfect defense |
-| --- | --- | --- | --- |
-| `american-instinct` (decompose series) | none | −0.9539 | −0.9972 |
-| `american-instinct` | both | −1.1572 | −1.3983 |
-| **`american` (shipping)** | none | **−0.5383** | **−0.4944** |
-| **`american` (shipping)** | both | **−0.6702** | **−0.6630** |
-
-Pooled: instinct **−1.056 / −1.198**, shipping **−0.604 / −0.579**. All four
-arms replay **100.00%** (0 of 2.11–2.13M our-side calls mismatched, each arm).
-
-- *Instinct side*, against `782f09e`'s −1.059 / −1.200: **+0.003 / +0.002**,
-  i.e. flat, which is the expected reading — `competitive_gate` is reachable
-  only from `neural_floor.rs`, so the ship cannot touch this arm.
-- *Shipping side*, against the `0d8b755` run the paragraph above retracts:
-  **+0.023 plain / +0.006 PD** pooled. The accountant's own paired A/B claims
-  +0.0088 / +0.0140 → ≈ +0.011 pooled, so it is roughly half of the plain move
-  and the rest is `abdafcc` plus `782f09e`'s weak-jump-overcall ship. Loose
-  attribution by construction (a difference of absolute gaps across changed
-  code); the paired instrument below is the tight one.
-
-**The shipping report's bucket rows are valid now — the "89–90% by
-construction" claim was wrong.** Passing `--our-floor american` to
-`bba-decompose` (the flag `7af286d` added on 2026-08-11, hours before the
-`782f09e` anchor, and which the hand-rolled shipping runs never picked up)
-replays the v5 dumps through `american()` instead of `american_instinct()`, and
-the mismatch goes to zero. It was never a property of the net's off-book calls.
-So `report-american.md` now ranks the **shipped** system's losses, including
-rows the instinct-arm decomposition structurally cannot show — the net floor's
-own: `Defensive/floor/round-2` −13,891 plain, `Competitive/floor/round-2`
-−13,593, `Defensive/floor/round-1` −8,307. Head of the shipping table:
-
-| bucket | boards | net plain | net PD |
-| --- | --- | --- | --- |
-| Defensive / book / round-1 | 48,652 | −41,244 | −56,178 |
-| Constructive / book / round-2 | 39,688 | −40,693 | −45,496 |
-| Constructive / book / opening | 53,194 | −40,619 | −21,546 |
-| Constructive / book / round-1 | 24,891 | −24,661 | −27,838 |
-| Competitive / book / round-1 | 14,692 | −20,541 | −18,221 |
-
-`Defensive/book/round-1` stays #1 on the shipped system as it is on the instinct
-prior, at roughly half the instinct arm's −74,202 — the floor already eats half
-of the campaign's #1 bucket, and the def-r1 redesign
-([defensive-overcalls.md](defensive-overcalls.md)) is still aimed at the right
-place.
-
-**The net floor's paired worth (`ab-dump-diff`, same snapshot, same sha — the
-tight instrument the `e650a86` note asked for and no anchor had yet run):**
-
-| `american` − `american-instinct` | plain DD | perfect defense | fired |
-| --- | --- | --- | --- |
-| vul none | **+0.2141** ±0.0131 | **+0.2570** ±0.0157 | 26.81% |
-| vul both | **+0.2557** ±0.0165 | **+0.3752** ±0.0196 | 24.90% |
-
-Pooled **+0.235 plain / +0.316 PD**. That retires the retracted +0.442 / +0.620:
-the unpaired difference-of-gaps overstated the v5 floor by ≈1.9×, which is the
-`e650a86` warning landing a second time and much harder. Against v4's paired
-+0.200 / +0.317 at `e650a86`, v5 is +0.035 plain and level on PD — but across
-87+ book commits, so read it as "v5 is not worse", not as a v4↔v5 measurement.
-
-**Post-ship re-anchor `53a3c254` (2026-08-18 local / 2026-08-17 UTC, persistent
-seed `1783375064`, snapshot `ab-results/anchor/2026-08-17-53a3c254`).** The
-re-anchor for the closed [authored-reading campaign](authored-reading-handoff.md).
-Read the window before the numbers: it is `ea2cde9..53a3c254`, ~50 commits and
-six days, holding **both** that campaign (Phases 0b/1/2/3/4 and Phase 5's v6
-policy + honest evaluator) **and** the 1NT competitive package (N1c–N1j, N4 v7,
-N4b) and the European lane changes. Nothing below attributes to one of them.
-
-| arm | vul | plain | perfect defense |
-| --- | --- | --- | --- |
-| `american-instinct` (decompose series) | none | −0.9027 | −0.9387 |
-| `american-instinct` | both | −1.0903 | −1.3241 |
-| **`american` (shipping)** | none | **−0.4761** | **−0.4503** |
-| **`american` (shipping)** | both | **−0.5807** | **−0.6157** |
-
-Pooled: instinct **−0.997 / −1.131**, shipping **−0.528 / −0.533**. All four
-arms replay **100.00%** (0 of 2.11–2.14M our-side calls each), so both bucket
-tables are valid. Against `ea2cde9`'s instinct −1.056 / −1.198 and shipping
-−0.604 / −0.579: **instinct +0.059 plain / +0.066 PD, shipping +0.076 / +0.046**
-— every cell of every arm improved, and this is the largest single-window move
-the series has recorded. Auction divergence falls with it: 90%/89% → **85%/84%**
-on the shipping arm, i.e. we and BBA now agree on one more auction in twenty.
-
-The shipping arm gains **more** than the instinct arm on plain DD at both-vul
-(+0.090 vs +0.067), which is where Phase 5's policy flip lives — the instinct
-arm cannot see it, but shares the honest evaluator. Loose attribution as always
-(a difference of absolute gaps across ~50 commits); the paired diff below is the
-tight instrument.
-
-Bucket movement, compared **on `/div`** as this doc requires, since fired counts
-moved too:
-
-| bucket | plain/div | PD/div |
-| --- | --- | --- |
-| Defensive / book / round-1 | −1.50 → **−1.43** | −1.84 → −1.76 |
-| Constructive / book / opening | −1.22 → **−1.16** | −0.90 → −0.83 |
-| Constructive / book / round-2 | −1.07 → **−0.98** | −1.21 → −1.13 |
-| Competitive / book / round-1 | −2.32 → **−2.26** | −2.57 → −2.50 |
-| Constructive / book / round-1 | −1.26 → **−1.09** | −1.52 → −1.36 |
-| Defensive / floor#3 / round-1 | −2.53 → **−2.30** | −1.54 → −1.28 |
-
-`Defensive/book/round-1` holds #1 on both arms, so
-[defensive-overcalls.md](defensive-overcalls.md) keeps the top slot.
-`Competitive/book/round-1` — our 1NT contested, the
-[one-notrump-competitive](one-notrump-competitive.md) lane — stays the worst
-book bucket **per divergent board** at −2.26/−2.50 on 15,334 boards, and moved
-least of the five (+0.06/div). Its queue's price tags (N2c, N2d) predate this
-snapshot and should be re-derived from its `boards.jsonl` before either is
-authored.
-
-**The campaign's honest price, and it is a real finding: 35 of 487 buckets got
-worse on at least one scorer, and every one of them is a `floor#N` bucket.** No
-book bucket regressed. Worst: `Competitive/floor#46/round-2` (PD −0.75/div),
-`Defensive/floor#146/round-1` (positive → negative on both scorers),
-`Defensive/floor#382/balancing` (PD −0.51), `Competitive/floor#3/round-1`
-(−0.29 plain / −0.49 PD, and the only one in the top 20 by net). That is
-reading-drift's second mechanism arriving on schedule — a reading knob is a
-bidding knob, and tightening what the floor reads moves floor rules both ways.
-Two caveats keep this a forensic queue rather than a regression list: bucket
-membership itself moves when auctions change, so some rows are different boards
-rather than worse play; and each is 300–2,200 boards against a +0.06–0.08/board
-aggregate gain.
-
-**The net floor's paired worth at v6** (`ab-dump-diff`, same snapshot, same sha
-— the instrument the `e650a86` note asks for, against v5's +0.235 plain / +0.316
-PD pooled at `ea2cde9`):
-
-| `american` − `american-instinct` | plain DD | perfect defense | fired |
-| --- | --- | --- | --- |
-| vul none | **+0.2219** ±0.0130 | **+0.2519** ±0.0157 | 26.58% |
-| vul both | **+0.2718** ±0.0164 | **+0.3655** ±0.0195 | 24.65% |
-
-Pooled **+0.247 plain / +0.309 PD**, against v5's +0.235 / +0.316 — **level**,
-+0.012 plain and −0.007 PD. Read that carefully, because it is the opposite of
-what the four-arm table says and both are right: this instrument measures the
-floor's worth *over instinct*, and Phase 5 lifted the instinct arm too (it
-shares the honest evaluator and the honest reading). The v6 policy's gain is
-therefore in the absolute gaps, not in this delta. A flat paired diff across a
-floor retrain means the retrain did not widen the floor's margin over the
-deterministic system — not that it did nothing.
-
-Whole run **29 minutes**: four arms and both decomposes in 12, the two paired
-diffs the slow tail at 11 and 6 (they re-solve each divergent board on the
-main-thread solver), on a box already saturated by an unrelated job under
-`idle-run.sh`. 423 new DD tables, cache now 177,498.
-
-### Regressed `floor#N` rows — forensic (2026-08-18)
-
-The 35 rows above were filed as a queue, not a regression list.
-`scripts/anchor-diff.py` turns one into a verdict: it joins two snapshots'
-`boards.jsonl` on `(vul, seed, board)` — the seed series deals the same boards
-forever — and splits each bucket's move into the boards that stayed, entered and
-left.
-
-```sh
-python3 scripts/anchor-diff.py ab-results/anchor/2026-08-12-ea2cde9-dirty \
-                               ab-results/anchor/2026-08-17-53a3c254
-python3 scripts/anchor-diff.py A B --bucket 'Defensive / floor#20 / balancing' \
-                               --lane here --show 8
-```
-
-It reproduces the 35 exactly — the threshold behind that number is **≥300
-divergent boards in both snapshots**; without it, 215 of the 465 shared buckets
-are worse on a scorer — and Σ over its buckets matches `report.md` to the IMP
-(−432,364 → −408,168 plain, −490,599 → −463,429 PD, the +24,196 / +27,170 the arm
-gained). Mechanisms were named by replaying each board against a build of
-`ea2cde9` (`git worktree add`, `probe-decision` back-ported — it did not exist
-then) using `PROBE_FLOOR=instinct`, which this pass added to
-[probe-decision](../examples/probe-decision/main.rs): under the shipped net floor
-a `floor#N` row prints `(floor / no rule)` and the forensic stalls.
-
-**Three corrections to the paragraph above.**
-
-1. *"every one of them is a `floor#N` bucket"* is wrong: three of the 35 are
-   guarded fallbacks — `Competitive/fallback@3/round-1`, `fallback@3/round-2` and
-   `fallback@4/round-2`, the last the largest genuine regression in the set.
-   *"No book bucket regressed"* does hold.
-2. The two caveats named (churn, small n) miss the largest mislabeller, below.
-3. The drift runs the **opposite** way from the guess. It is not that
-   "tightening what the floor reads moves floor rules both ways" — the reads that
-   moved mostly got **looser**, and the loosening is what costs.
-
-#### The third confound: which table the rule bid at
-
-A board is bid twice — at `table_a` our pair sits N/S, at `table_b` it sits E/W
-(`bid_out(ours, opponent, conv_is_ns)`) — and `div_index` is the first index at
-which the two auctions differ. A row's `our_call` is therefore taken from
-*whichever table our pair held that seat at*, so a `floor#N` rule fired at exactly
-one of the two tables. A bucket's Δ can then move entirely because of our bidding
-at the **other** table, on a board the bucket does not own.
-`Defensive/floor#64/round-1` is the clean case: of its −306/−400, only −79/−99 is
-the slice its own rule can be blamed for; −130/−188 is the other table. The script
-splits `stayed` into `here` and `other-table` for this reason, and `--lane here`
-keeps only the boards a bucket owns.
-
-**The split over all 35:**
-
-| slice | plain | PD | reading |
-| --- | --- | --- | --- |
-| churn (entered/left) | **−1700** | **−2121** | not these rules — an *earlier* call moved and the boards changed buckets |
-| other-table | −278 | −201 | our bidding at the table this rule did not bid at |
-| `here` | **−845** | **−900** | the only floor work in the set |
-
-Twenty-one of the 35 rows are churn, nine other-table, **five** carry their loss
-on boards they own. The window's honest price is **−845 plain / −900 PD** over
-~750 boards against +24,196 / +27,170 gained — **3.5%**, not a regression list.
-
-**Three of the four rows the re-anchor named worst are churn**, and the script
-names where their boards came from:
-
-| bucket | Δ plain = here + other + churn | the churn |
-| --- | --- | --- |
-| `Defensive/floor#146/round-1` | −91 = **+18** + 1 − 110 | 18 boards newly divergent, 9 in from `Defensive/floor#3/round-1`; 8 out to `floor#148/round-1` |
-| `Defensive/floor#382/balancing` | −187 = −32 − 16 − 139 | **59 in from `Competitive/floor#3/round-2`**, 11 from `floor#30/round-2`; 42 out to `Competitive/floor#61/round-2` |
-| `Competitive/floor#3/round-1` | −526 = −32 + 9 − 503 | **44 in from `Competitive/floor#31/round-1`**, 23 newly divergent |
-
-`floor#146` actually got *better* on the boards it kept. Only
-`Competitive/floor#46/round-2` of the four is real, and even there the loss is a
-continuation, not the `floor#46` call.
-
-#### The rule that names the bucket is never the rule that moved
-
-Across every bucket traced, the `floor#N` call itself replays byte-identically in
-both arms; the changed call is always a **later continuation**, usually partner's
-answer. Counted exhaustively per bucket: 146/146 boards for
-`Defensive/floor#20/balancing`, 84/84 for `Defensive/floor#61/round-2`, 78/78 for
-`Competitive/floor#382/balancing`, 42/42 for `Defensive/floor#64/round-1`, 40/40
-for `Competitive/floor#46/round-2` — **0 "at the bucket call" in every one.** A
-`floor#N` bucket names where the auction diverged from BBA, not where our play got
-worse. Fixing the named rule would have been wasted work in all five.
-
-#### Mechanism, part 1: `ReadingScope::All` displaces the natural walk
-
-Replaying the 175 worst `here` boards across seven buckets, **175/175 reproduce**
-their arm under the paired builds, and `PROBE_SCOPE=alerted` alone recovers the
-pre-window call on **106**. None of `PROBE_CEILINGS=0`, `PROBE_BID_EXCLUSION=0`,
-`PROBE_FORCING_CEILING=0` moves anything on its own; `PROBE_UPGRADE_CLOSURE=0` is
-occasionally needed beside the scope flip.
-
-| bucket | here plain/PD | here boards | `SCOPE=alerted` restores the call | verdict |
-| --- | --- | --- | --- | --- |
-| `Competitive/fallback@4/round-2` | −143/−282 | 171 | 24/25 sampled, upheld on a 40-board audit | reading drift |
-| `Defensive/floor#20/balancing` | −154/+11 | 146 | **131/146** (exhaustive) | reading drift |
-| `Competitive/floor#382/balancing` | −134/−136 | 78 | **61/61** of the dominant family | reading drift |
-| `Competitive/floor#46/round-2` | −96/−136 | 69 | 16/25 | mixed |
-| `Defensive/floor#46/round-2` | −66/−81 | 27 | 9/25 | mixed |
-| `Defensive/floor#61/round-2` | −69/−164 | 84 | **25/84** with all five knobs (exhaustive) | not reading |
-| `Defensive/floor#64/round-1` | −79/−99 | 42 | **4/42** — while the *read* is restored 42/42 | not reading |
-
-Each row was re-derived by an independent pass told to refute it, on boards the
-first pass had not cited. Two survived unchanged (`fallback@4`, `floor#382`), one
-was corrected from "one cause" to "three, one of them outside the reading layer"
-(`floor#20`, 131 of 146), and `floor#64`'s reading verdict was overturned outright
-— see part 2.
-
-The defect is the one [authored-reading-handoff.md](authored-reading-handoff.md)
-predicts: under `All`, an **unalerted natural call's authored rule takes over its
-reading and projects weaker than the natural walk it displaced**. `floor#64`'s own
-rule reads `1♠ is the cheapest bid, 5+ ♠, 8–16 points`, yet partner reads that same
-1♠ as `♠ 4..13, points 0..37` — weaker than the rule's own constraint, and weaker
-than `PROBE_SCOPE=none`'s `♠ 5..13, points 8..37`. `floor#20`'s balancing 2♣
-(`5+ ♣, 10–16 points`) projects to *nothing*. It runs the other way too:
-`fallback@4` has an unalerted simple raise read as an exact `♠3..3` and a pass read
-with a raised point floor.
-
-**The sharpest instance, and it is not confined to these buckets: the `1♦` opening
-loses its length floor under the shipped default.**
-
-| opening | `scope=All` | `scope=Alerted`/`None` |
-| --- | --- | --- |
-| `1♣` | `♣3..13`, pts 12..21 | `♣3..13`, pts 10..21 |
-| **`1♦`** | **`♦0..13`**, pts 12..21 | **`♦3..13`**, pts 10..21 |
-| `1♥` | `♥5..13`, pts 11..21 | `♥5..13`, pts 10..21 |
-| `1♠` | `♠5..13`, pts 11..21 | `♠5..13`, pts 10..21 |
-
-Only `1♦`. `All` buys a real strength read (an `hcp` floor and a tighter `points`
-floor) and pays a length floor — and that length floor is what gates
-`3+ ♦ shown by partner` on the raise rules, so the loss lands on **every 1♦
-auction in the system**, not only the balancing bucket that surfaced it.
-
-#### Mechanism, part 2: the reading feeds a net whose break-even is the decision
-
-Sixty-nine of the 175 boards do not come back under any reading knob, and the
-per-bucket restoration rate swings from 131/146 to 4/42 under the *same* knob.
-That spread is the clue, and the refutation pass found what unifies it.
-
-`Defensive/floor#64/round-1` states the puzzle: swept over **all 42** of its `here`
-boards, `PROBE_SCOPE=alerted` restores partner's and RHO's read to A's
-**byte-for-byte on 42/42** and restores the *call* on **4**. Restoring the read is
-therefore not sufficient — so the read is an input to something else, not the
-decision.
-
-That something is the evaluator net. Under the shipped pair
-`accountant_floor: true` / `net_collar: false` — identical in both arms —
-`points_or_net` ([instinct.rs](../src/bidding/instinct.rs), the `points_or_net`
-helper) collapses to its **net arm alone**: the authored arithmetic leg never gets
-to veto, so the game milestones that answer these floor calls (the fitted-major
-rule #148 at weight 150, its 3NT sibling #141 at 140, and the `fit_sum_game` family
-generally) are decided by the net's break-even verdict. The window swapped that net
-(`evaluator_v3_exclusion` → `evaluator_v5_honest`). So `ReadingScope::All` and the
-evaluator swap are **not two independent mechanisms**: the reading change moves the
-net's input, and whether the old call comes back depends on which side of the new
-net's decision boundary the moved input lands. Where the boundary is far, flipping
-the read restores the call (`floor#20`, 131/146); where it is near, restoring the
-read changes nothing (`floor#64`, 4/42).
-
-This is the refutation pass's finding, not the first pass's: two independent
-skeptics reached it from opposite ends — `Competitive/floor#46/round-2` by showing
-the authored strength leg the first trace blamed is *dead code* under the shipped
-knobs (rule #148's strength arm is `fit_sum_game`, not `combined_points`), and
-`Defensive/floor#61/round-2` by sweeping its whole 84-board lane: **all five
-reading knobs together restore the read on 82/84 and the call on 25**, so a
-reading-layer mechanism is falsified on 68% of it. `net_collar` is the standing
-lever — turning it on lets the authored `fit_sum_game` arithmetic veto the net.
-
-**What this does not prove.** The five `PROBE_*` knobs do not span the window's
-reading changes: `pass_exclusion` was **deleted** in the window (`97206fcc`) and
-nothing restores it, `their_landy_reading` / `their_multi_reading` /
-`completion_alerts` have no knob, and `probe-decision` prints partner's and RHO's
-reads but not LHO's. So the unrestorable boards are proven "not the partner/RHO
-read", not "not any reading". A ea2cde9-build replay is the only complete
-counterfactual, which is why the recipe leads with the worktree.
-
-#### Work items
-
-Each is its own fresh-seed A/B per [measurement.md](measurement.md), and **none is
-a fix to the rule its bucket is named after**.
-
-- **B2.4 — the `1♦` length floor — REJECTED in isolation (2026-08-18).** The
-  exact candidate added the implied `len(Diamonds, 3..)` atom, restoring
-  `♦3..13` under `ReadingScope::All`; it passed the projection/evaluation
-  gates and improved fixed-seed partner exclusions from 1.299% to 1.293%
-  (2194 → 2184). The pre-registered non-loss A/B did not pass: three seeds
-  (1787039750 / 1787040222 / 1787040684), each 204,800 boards/arm/vul, were
-  negative in 11/12 cells. Pooled over 614,400 boards/vul, plain/PD were
-  **−0.0010 ± 0.0016 / −0.0022 ± 0.0020** IMPs/board non-vulnerable and
-  **−0.0024 ± 0.0020 / −0.0024 ± 0.0024** vulnerable; the PD
-  non-vulnerable and plain vulnerable CIs exclude zero. Fired rates were
-  1.26–1.41%.
-
-  A side split rules out an opponent-reading artifact. All 10,691/9,480
-  call-divergent boards (none/both) followed **our pair's** `1♦` opening; the
-  aligned BBA-opener subsets (71,869/72,160 boards) had zero call and contract
-  divergences. This is expected: `ReadingScope::All` projects our side's
-  unalerted calls, while an undeclared opponent's unalerted natural calls stay
-  on the walk. The loss is therefore the partner-reading effect the item meant
-  to repair, not the candidate helping BBA or tightening our model of them.
-
-  The required `--by node` trace says this is decision calibration downstream
-  of a sound read. The largest repeated vulnerable bucket is
-  `1♦ - 3♦ 3♠ - - ⟨4♦ vs -⟩` (15 boards, −120 PD IMPs); on a traced
-  board responder really has six diamonds opposite four, but the restored
-  floor lifts `4♦` only 0.70 logits over Pass. The worst tail (−21 PD) has
-  a genuine three-card-diamond opener and four-card responder: the candidate
-  cues `4♠` and reaches `6♦`, while control doubles `3♠`. The atom and test
-  do not ship; revisit the floor only with an attributable fit/competition
-  calibration arm. Candidate smoke `babb6234…` → `ac0bb20e…`; cards and the
-  rendered-atom ratchet were byte-identical, contrary to the plan's expected
-  re-bless, because the BBA card has only four-/five-card-diamond booleans.
-
-  The read-only sibling census found the same opaque-comparator hole in the
-  fully blind `both_majors` relay choices `1NT - 2♣ - 2NT - 3♣/3♦`;
-  `longer_major` and Texas retain explicit named-suit floors. No sibling was
-  changed here; the relay needs its own A/B.
-- **B2.5 — RETRAIN-GATED (2026-08-18).** The extended authored-reading
-  soundness sweep passes the two weak-reading probes: `floor#64`'s 1♠
-  (`5+ ♠, 8–16 points` → `♠4+, 0+`) and `floor#20`'s balancing 2♣
-  (`5+ ♣, 10–16 points` → nothing) are sound but loose. `probe-decision`
-  locates both at the union over all face-live rules for that call in the
-  monolithic instinct table, which tops the more precise natural walk. A fifth
-  isolated tightening arm is pre-refuted by the four-loss ledger above. At the
-  next matched policy/evaluator retrain, widen the existing `walk_shape` bit to
-  an axis mask so the walk survives only on axes the authored union leaves open.
-- **B2.6 — SOUND; NO REPAIR (2026-08-18).**
-  `bids_read_within_their_table` now includes Pass and the four exact instinct
-  contexts for `floor#64`, `floor#20`, and `fallback@4`'s simple raise and later
-  Pass. All 133 probe hands are admitted wherever they win or tie the table.
-  The simple raise's `♠3..3` is the sound intersection of the authored
-  `3+ ♠, 6–9 points` rule and declining the heavier four-card raise; the later Pass
-  adds no further band on the anchor witness. The 40,000-board census remains
-  exactly 2194/168,957 partner exclusions (1.299%), and `smoke-default` remains
-  `babb6234…`. The conditional B2.6 repair, knob, A/B and re-anchor therefore
-  do not exist.
-- **B2.7 — REJECTED (2026-08-18).** Turning `net_collar` on to restore the
-  authored `fit_sum_game` veto lost all 12 cells across fresh seeds 1787044967 /
-  1787045416 / 1787045860 at `4767a5ef`, 204,800
-  boards/arm/vulnerability each. Pooled over 614,400 boards/vulnerability,
-  plain/PD were **−0.0323 ± 0.0025 / −0.0320 ± 0.0026** IMPs/board
-  non-vulnerable and **−0.0445 ± 0.0032 / −0.0419 ± 0.0033** vulnerable; fired
-  rates were 1.09% and 1.19%. The worst-tail trace repeatedly shows the collar
-  suppressing making games and slams that the v6 evaluator's break-even accepts
-  (including cold 7♥/7NT contracts). Keep the shipped net-only default; this
-  confirms the forensic's decision-calibration diagnosis rather than an
-  unsound reading defect.
-- **Accepted as churn:** the other 21 rows, no floor work.
-
-### First-anchor runbook (any machine with the BBA submodule)
+# The BBA gap campaign — the pons↔BBA anchor and its bucket ranking
+
+**Standing at `53a3c254` (2026-08-18): −0.528 plain / −0.533 PD IMPs/board for
+what ships (`american()`), −0.997 / −1.131 for the deterministic side
+(`american_instinct()`) whose buckets the series decomposes.** Persistent seed
+`1783375064`, 204,800 boards per vulnerability per arm, all four arms replay
+100%.
+
+**Role.** BBA is the *reference*, not the target: [ben-gap-campaign.md](ben-gap-campaign.md)
+holds the north star, and this loop is re-subordinated to it as the cheap,
+precise, independent yardstick — the exploit guard and the microscope. This doc
+holds the anchor protocol, the rules the series taught, the runbook, the current
+ranking, and the headline trail. Ship rules stay in [measurement.md](measurement.md);
+per-treatment verdicts in [bidding-options.md](bidding-options.md) and the
+CHANGELOG; the chronological narrative (every re-anchor paragraph, the sagas,
+the retractions, the 2026-07-07 pillar plan) is archived in
+[archive/bba-gap-anchor-history.md](archive/bba-gap-anchor-history.md) and the
+closed floor forensic in
+[archive/bba-gap-floor-forensic.md](archive/bba-gap-floor-forensic.md).
+
+## What the series established
+
+- **The gap is book-dominated and concentrated in defensive round-1** —
+  overcalls, takeout doubles, two-suiters over their opening. That bucket has
+  been #1 on the deterministic arm in every anchor since the first (2026-07-06);
+  the going-in "concentrates in competitive auctions" was an anecdote the first
+  anchor overturned. Balancing and deep are the two *smallest* families.
+- **The floor is a minority of the deterministic gap** (`floor#3`, the opaque
+  pass, is the one floor rule that matters: −56k of the instinct arm's −408k).
+  The shipped net floor is worth ≈ +0.25 plain / +0.31 PD over
+  `american_instinct()` (paired table below) and eats about half of the #1
+  bucket.
+- **The two "obstruction wall" buckets (def-r1, opening) are real losses**, not
+  DD artifacts — sd-lead priced both ≈ plain or worse. Within def-r1 the
+  recoverable value was *capability-adding* structure (systems-on over the 1NT
+  overcall, takeout discipline), never suppression of our own overcalls: a
+  suppress-vs-keep A/B washes when our pass-line is equally bad.
+- **Every re-anchor move is a batch, never a fix.** Per-fix numbers live in
+  that fix's fresh-seed A/B (CHANGELOG); the anchor tracks and re-ranks.
+
+## Protocol
+
+16 shards × 6,400 boards × {vul none, both} per arm; **four arms per
+snapshot** — `american-instinct` (the decompose series) and `american` (the
+shipping system) — all generated by `scripts/anchor.sh` in one snapshot dir at
+one sha, then two decomposes and the paired `ab-dump-diff` of the floor. One
+persistent `SEED_BASE` (`ab-results/anchor/seed`) for the whole **series**: the
+sanctioned exception to fresh-seed-per-experiment, because successive anchors
+are arms of one longitudinal paired experiment (every ~3rd re-anchor should get
+a fresh-seed confirmation — none is recorded yet, see *Open work*). Headline
+pooled CI ≈ ±0.02 IMPs/board; a 0.3%-fired bucket still resolves. **The
+anchor tracks and attributes; it never ships** — ship decisions are per-fix
+fresh-seed A/Bs under [measurement.md](measurement.md).
+
+Since the floor swap (2026-07-19) `american()` floors off-book with the
+BBA-distilled net, so the bucket *history* is on the `american-instinct` arm.
+`bba-decompose --our-floor american` (since `7af286d`) replays the shipping
+dumps exactly, so the shipping report's bucket rows are valid too; there the
+net's off-book calls appear as the unnumbered provenance `floor`.
+
+## Rules the series taught
+
+Each was paid for; the story behind each is in the archive.
+
+1. **Replay verification must read 100.00% with 0 mismatches.** Below that the
+   dump was generated with non-default knobs or a drifted revision — fix before
+   trusting buckets. The usual cause is a `bba-gen` clap default that disagrees
+   with the crate default; since 2026-08-11 the equality is a unit test
+   (`default_args_arm_the_shipped_system`, run by `cargo test`). Its two catches:
+   `--ns-two-over-one-gate` still `hcp13` a day after `points13` shipped
+   (`eb02d9d`, 0.034% mismatched — a *tiny* miss looks like this), and `--uvu`
+   rewritten from an `if args.uvu { set_uvu(true) }` guard into an unconditional
+   assignment, turning a force-on flag into a kill switch (`0d8b755`, 3×10⁻⁵).
+   When you flip a crate default, grep `examples/bba-gen/main.rs` in the same
+   commit; watch for that shape whenever an opt-in knob's arming is rewritten.
+2. **Control at HEAD.** Never diff a fresh `american` arm against an older
+   snapshot's instinct arm: a difference of two absolute vs-BBA gaps across
+   changed code overstated the v5 floor by ≈1.9× (+0.442 / +0.620 claimed vs
+   +0.235 / +0.316 paired) and the v4 floor by ≈10%. The paired `ab-dump-diff`
+   in the same snapshot at the same sha is the instrument; `anchor.sh` does this
+   structurally, and a dirty tree stamps the snapshot `<sha>-dirty` rather than
+   claiming to be `HEAD`.
+3. **Disclosure series break at `3c94802` (2026-07-28).** From there BBA is told
+   what we play (`bba-gen --disclose generated`); every earlier anchor faced a
+   BBA that took us for a BBA. Disclosure's isolated cost was −0.009/board with
+   the old static card; against the generated card it is unmeasured.
+4. **Compare buckets on `/div`, never raw IMPs** — board counts moved when the
+   shard count doubled and move whenever auctions change. `floor#N` labels are
+   stable only within a build. Across the book/fallback provenance boundary
+   (`0d8b755`: `fallback@1` −38k → −0.4k as the competitive book took the calls
+   the fallback used to catch) compare competitive rows on the *phase*.
+5. **A bucket that got worse usually did not.** `scripts/anchor-diff.py A B`
+   splits a bucket's move into churn (boards that entered or left), other-table
+   (a board is bid at both tables and `our_call` comes from whichever table our
+   pair held that seat, so a bucket's Δ can be our bidding at the table its rule
+   did *not* bid at) and `here`. In the one forensic run (`ea2cde9` →
+   `53a3c254`) 21 of 35 "regressed" rows were churn, 9 other-table, 5 real —
+   −845 / −900 IMPs against +24,196 / +27,170 gained — and **the `floor#N` call
+   itself replayed byte-identically in every traced bucket; the mover was always
+   a later continuation.** Replay against a worktree build of the older commit
+   (`PROBE_FLOOR=instinct`) before blaming a rule; reading knobs alone cannot
+   reproduce the older arm.
+6. **sd-lead is diagnostic here, and plain SD is not an arbiter** (SD-PD is —
+   [measurement.md](measurement.md) §"Plain SD is not an arbiter"; the tight
+   2-level minor overcall went plain-sd wash → SD-PD reversal → fresh-seed
+   refutation without ever shipping). Preempt-shaped defensive buckets are
+   DD-pessimistic: sd-check
+   before working them. Same-contract divergences (right-siding) are counted and
+   excluded from the ranking.
+7. **The instinct arm cannot see floor work.** `competitive_gate`, the net
+   collar, a floor retrain — anything reachable only from `neural_floor.rs`
+   leaves the decompose series flat and shows up in the shipping arm and the
+   paired diff. A flat paired diff across a retrain means the retrain did not
+   widen the floor's margin over `instinct()`, not that it did nothing (v5 → v6
+   lifted both arms through the shared honest evaluator).
+8. **Anchor outputs stay untracked** (`ab-results/` is gitignored; `6a5cbdb`
+   dropped the 21 committed reports). Every snapshot regenerates from the series
+   seed + the sha; the repo carries the headline (the series table below and a
+   CHANGELOG line). The DD cache (`ab-results/anchor/dd-cache.json`) keys on
+   deals and never invalidates.
+
+## Runbook
 
 ```sh
 git pull && git submodule update --init vendor/bba
@@ -973,53 +127,22 @@ setsid nohup scripts/idle-run.sh scripts/anchor.sh \
     >ab-results/anchor.log 2>&1 &
 ```
 
-Generation ≈ minutes; the one-time DD solve of the divergent union is the
-bottleneck (tens of minutes).  Re-anchors after a batch of fixes take ~5
-minutes: the DD cache (`ab-results/anchor/dd-cache.json`) keys on deals,
-which never change under the fixed seed.  Afterwards:
+A re-anchor is ~30 minutes on a busy box (four arms and both decomposes ≈12,
+the two paired diffs the slow tail — they re-solve each divergent board on the
+main-thread solver); only the first ever run pays the DD solve of the divergent
+union. Snapshot: `ab-results/anchor/<date>-<sha>/` with `report.md` (instinct),
+`report-american.md` (shipping), `boards.jsonl`, `diff.floor.<vul>.<scorer>.txt`.
+Afterwards: check **both** reports' replay = 100.00% (rule 1); add a row to the
+series table below and a CHANGELOG line; re-rank.
 
-1. Check `report.md`'s **replay verification = 100%** — below that the dump
-   was generated with non-default knobs or a drifted revision; fix before
-   trusting buckets.  **The usual cause is a stale `bba-gen` clap default.**
-   `bba-gen` applies ~130 `set_*` knobs from CLI defaults while `bba-decompose`
-   replays on crate defaults, so when a crate default flips and the matching
-   `default_value` is not updated in the same commit, an unflagged run silently
-   measures a system we do not ship.  That is what a *tiny* miss looks like
-   (`eb02d9d`: 1447 of 4.23M calls, 0.034%, from `--ns-two-over-one-gate` still
-   defaulting to `hcp13` a day after `39a5eb6` shipped `points13`) — a knob that
-   is wholly on or off mismatches far more loudly.  Confirm it is systematic by
-   re-running the decompose on one shard twice: an identical count is drift, a
-   varying one would be nondeterminism.  **When you flip a crate default, grep
-   `examples/bba-gen/main.rs` for its `set_*` in the same commit.**  Since
-   2026-08-11 the equality itself is a unit test —
-   `default_args_arm_the_shipped_system` in `bba-gen`, run by `cargo test`
-   (`[[example]] test = true`) — so this class of drift fails the build instead
-   of a report line.  Its first catch was `--uvu`, which `2a18843` inverted from
-   a force-on into a kill switch by rewriting an `if args.uvu { … }` guard as an
-   unconditional assignment; watch for that shape whenever an opt-in knob's
-   arming is mechanically rewritten.
-2. Anchor outputs stay **untracked**. `/ab-results` is gitignored and `6a5cbdb`
-   dropped the 21 previously-committed reports: every snapshot regenerates from
-   the series `seed` + the SHA, so the repo carries the headline (here and in
-   CHANGELOG.md), not the artefact.
-3. Record the headline in the 21gf-ledger campaign-metric line and
-   CHANGELOG.md.
-
-**Reading the report**: rank on plain DD, PD printed beside (a plain/PD sign
-flip is flagged as a doubling artifact); preempt-shaped defensive buckets are
-DD-pessimistic (obstruction wall) — sd-lead re-check before working them;
-same-contract divergences (right-siding) are counted and excluded.  The
-composite key is *phase / provenance / family*: `floor#N` names the exact
-instinct rule (stable within a build), `book` an exact node, `fallback@d` a
-guarded fallback at depth d.  The steady-state loop:
+Steady-state loop:
 
 ```text
 anchor report → worst bucket → trace its boards → fix (floor / book / node)
-→ fresh-seed ship A/B (measure-ab skill) → re-anchor (~5 min) → next bucket
+→ fresh-seed ship A/B (measure-ab skill) → re-anchor → next bucket
 ```
 
-Comparing two snapshots is a **different** loop, because a bucket that got worse
-usually did not:
+Comparing two snapshots is a **different** loop (rule 5):
 
 ```text
 scripts/anchor-diff.py A B          → churn / other-table / here per bucket
@@ -1028,221 +151,146 @@ replay each emitted probe-decision line against a build of the older commit
   (git worktree add; PROBE_FLOOR=instinct) before blaming a rule
 ```
 
-The [2026-08-18 forensic](#regressed-floorn-rows--forensic-2026-08-18) found 21 of
-35 "regressed" rows to be churn and **none** of them regressed at the call the
-bucket is named after.
+Reading a report: rank on plain DD, PD printed beside (a plain/PD sign flip is
+flagged as a doubling artifact). The bucket key is *phase / provenance /
+family*: `floor#N` the exact instinct rule, `book` an exact node, `fallback@d` a
+guarded fallback at depth d, `floor` (shipping arm) the net's off-book call.
+`boards.jsonl`'s `board` is an index within its shard, paired with that shard's
+`seed`; the emitted actor `hand` (S.H.D.C) is canonical.
 
-## Pillar B — the floor track
+## Current ranking (`53a3c254`, 2026-08-18)
 
-### B1. Learned-floor round 3
+**Instinct arm** — the decompose series (`boards` = auction-divergent):
 
-The round-2 champion's training data predates the current books;
-`search_floor.rs` already pins the round-2 net as the rollout policy, so
-regenerating the search-dump today *is* the M3.2 iteration.  Wiring (half a
-day): `dump-search --features-version 2` (mirror `dump-teacher`), trainer
-`--truncate-features 160` (train v1 + the v2-tagged head from one dump —
-tests M5.1's "tags pay off on the search target"), `bba-gen --our-floor
-neural-search` (one cfg'd arm next to `neural-v3`, main.rs ~1167),
-`bba-gen-parallel.sh` `FEATURES` passthrough.  Data: 10k boards ≈ 27–30 h
-single-stream under idle-run (never concurrent with another heavy job).
-Acceptance (accept-only-gains): `ab-neural-floor` 20k × both vuls × both
-scorers, round-3 ≥ round-2 and ≥ the round-2 bar vs the deterministic floor;
-then **the decisive new gate — the real routing**: paired `bba-gen` runs
-(`--our-floor american` vs `neural-search`), ~102.4k boards/arm, both vuls,
-`ab-dump-diff` plain+PD.  A floor that wins self-play but bleeds vs the
-mature reference does not advance.
+| # | bucket | boards | plain | /div | PD | /div | lane |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | Defensive / book / round-1 | 48,700 | −69,501 | −1.43 | −85,825 | −1.76 | [defensive-overcalls.md](defensive-overcalls.md) → [takeout-double-layers.md](takeout-double-layers.md) |
+| 2 | Constructive / book / opening | 53,336 | −61,879 | −1.16 | −44,425 | −0.83 | mined: light-open wall + weak-twos both refuted; PD-shaped wins landing |
+| 3 | Constructive / book / round-2 | 35,664 | −34,784 | −0.98 | −40,213 | −1.13 | mined: extras ladder + major jump-rebid shipped; residual is RKCB slam accuracy |
+| 4 | Competitive / book / round-1 | 15,334 | −34,664 | −2.26 | −38,259 | −2.50 | [one-notrump-competitive.md](one-notrump-competitive.md) — worst per divergent board, moved least (+0.06/div) |
+| 5 | Constructive / book / round-1 | 24,996 | −27,267 | −1.09 | −34,112 | −1.36 | mined: `1♥ → 1♠` compression is a measured null; splinter-slam residual |
+| 6 | Defensive / floor#3 / round-2 | 8,166 | −20,364 | −2.49 | −17,165 | −2.10 | open — floor pass discipline (never worked) |
+| 7 | Competitive / book / round-2 | 7,344 | −14,538 | −1.98 | −17,993 | −2.45 | [competitive-book.md](competitive-book.md) |
+| 8 | Defensive / floor#3 / round-1 | 6,185 | −14,211 | −2.30 | −7,934 | −1.28 | as 6 |
 
-**Promotion partnership (user, 2026-07-07): harness default only.**  If the
-routing gate passes, campaign measurement runs adopt the champion floor as
-the default arm; the **crate default stays `instinct()`** — the disclosure
-objection stands (the net cannot `describe`/`project` its calls).  Revisit
-only if Pillar A shows floor buckets dominating the remaining gap.
+By phase: Defensive −166,051 (102,306 bd) > Constructive −131,096 (128,185) >
+Competitive −111,021 (50,073). By provenance: `book` −249,628, `floor#3` −55,694,
+nothing else below −15k. The top three have held their order since the first
+anchor.
 
-### B2. Deterministic `instinct()` improvements
+**Shipping arm** (`american()`):
 
-**Re-prioritized by the first anchor.**  The floor is a *minority* of the gap
-(~−160k vs the book's −248k), so B2 is second in line behind the defensive
-book (Pillar D).  The three themes below were pre-anchor guesses; the anchor's
-actual largest floor lever is **`floor#3` pass discipline in defense** (a new
-item 0, ~−25k: our floor passes where BBA acts — reopens, doubles, competes),
-and balancing-*seat* value is small (−11k family), so old item 1 drops to
-backlog.  Author parametrically on the ladder (suit loops + context
-predicates, never a node per sequence), one `set_*` knob + `bba-gen` flag
-each, measured per the M6.4 protocol (~204.8k boards/round vs BBA, both vuls,
-both scorers, `ab-instinct-floor` telemetry to confirm the rule fires
-unshadowed):
+| # | bucket | boards | plain | /div | PD | /div |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | Constructive / book / round-2 | 38,784 | −36,936 | −0.95 | −41,603 | −1.07 |
+| 2 | Constructive / book / opening | 53,059 | −36,482 | −0.69 | −19,043 | −0.36 |
+| 3 | Defensive / book / round-1 | 48,555 | −36,401 | −0.75 | −52,540 | −1.08 |
+| 4 | Constructive / book / round-1 | 24,778 | −19,695 | −0.79 | −22,911 | −0.92 |
+| 5 | Competitive / book / round-1 | 14,651 | −17,617 | −1.20 | −16,238 | −1.11 |
+| 6 | Defensive / floor / round-2 | 13,260 | −11,940 | −0.90 | −10,024 | −0.76 |
+| 7 | Competitive / floor / round-2 | 10,285 | −11,741 | −1.14 | −11,898 | −1.16 |
+| 8 | Competitive / book / round-2 | 7,013 | −7,862 | −1.12 | −8,357 | −1.19 |
 
-0. **`floor#3` pass discipline in Defensive round-1/round-2** (the anchor's
-   top floor lever): trace buckets 7–8 — where our floor passes and BBA
-   reopens/doubles/competes for gain — and tighten the pass predicate.  PD is
-   the honest scorer.
-1. **Balancing/reopening block** (backlog — small per the anchor; `defense.rs`
-   notes the "toxic balancing doubles"): a `pass_out_seat()` predicate,
-   reopening ranges ~3 points lighter than direct seat, borrowed-king X on
-   shortness, balancing 1NT band, and an explicit *sit* rule (trump
-   stack/misfit → defend).  PD is the honest scorer.
-2. **Help-suit trials over Rubens advances** (instinct.rs `ponytail:` at the
-   Rubens block): parametric try-bid + accept/sign-off — DD-visible
-   constructive value in the competitive-advances theme.
-3. **Floor 5NT king-ask + book minors king-ask** (missed-grands theme):
-   extend the M6.4 floor-RKCB ladder (instinct decodes instinct, same
-   derived-trump gates); low fired-rate × huge swing → read IMPs/fired.
+By phase: Constructive −99,951 > Defensive −64,383 > Competitive −52,096; by
+provenance `book` −160,992, `floor` −42,700. The net floor halves def-r1
+(−69.5k → −36.4k plain) so the shipped head is constructive by plain DD — but
+def-r1 is still #1 by PD on both arms, and the def-r1 redesign stays aimed at
+the right place. Auction divergence vs BBA: 89% (instinct) / 85–84% (shipping).
 
-Items **4–7** come from the [2026-08-18
-forensic](#regressed-floorn-rows--forensic-2026-08-18) and are reading repairs
-rather than ladder work: the `1♦` length floor, the two bounds on what an
-unalerted natural call may read, and the non-reading residue's bisect.
+**The net floor's paired worth** (`ab-dump-diff`, `american` −
+`american-instinct`, same snapshot, same sha; pooled plain / PD):
 
-Backlog (only if Pillar A shows the buckets bleeding): misfit runout pull,
-advancer 4-4 bust escape.
+| floor | snapshot | instrument | plain | PD |
+| --- | --- | --- | --- | --- |
+| v3 | `eb02d9d` | unpaired difference of gaps | +0.131 | +0.101 |
+| v4 | `e650a86` (paired A/B on the anchor seed) | paired | +0.200 | +0.317 |
+| v5 | `ea2cde9` | paired | +0.235 | +0.316 |
+| v6 | `53a3c254` | paired | +0.247 | +0.309 |
 
-### B3. BBA steal-list verdicts (settled — don't re-derive)
+v6 cells: +0.2219 ±0.0130 / +0.2519 ±0.0157 NV, +0.2718 ±0.0164 / +0.3655
+±0.0195 vul, ~25–27% fired. Level from v5 for the reason in rule 7.
 
-Suit templating and parametric rules: **already pons house style** (Rust
-suit loops = BBA's templates; `partner_shown_len`/derived trump = "calculated
-bid") — no work item.  Weighted-table vs strict precedence: **dropped** —
-M7.0's −2.96 regression plus the provability of the shadowing invariants;
-keep only a *shadowing audit* (when a bucket bleeds, check worst boards for a
-book node shadowing a smarter floor and fix that node locally).
+## Series (headline trail)
 
-### B4. BBA-distilled floor (`neural-bba`) — routing gate PASSED (2026-07-19, sha `7122756`)
+Pre-series: **−2.59** (S.1, 2,000 bd vul none, 2026-06-15) → **−1.997** (4,000
+bd, after M6.1). Seeded series, `SEED_BASE=1783375064`, pooled IMPs/board
+plain / PD; 204.8k boards per vulnerability per arm from `5f16e68` on (102.4k
+at `62cf5c5`); replay 100% unless noted.
 
-The B1 wiring, realized against the **BBA** teacher instead of the search
-teacher. `dump-teacher --teacher bba` dumps `(features_v3, BBA-argmax)` rows —
-one-hot targets, since the oracle exposes only its chosen call, so this is hard
-behavioral cloning, not soft-target distillation; the existing candle trainer
-fits them unchanged; `neural::classify_bba` + `NeuralFloorBba` +
-`american_bba_neural()` seat the net in the same disclosable-v3 shell as
-`neural-v3`; `bba-gen --our-floor neural-bba` is the cfg'd arm;
-`bba-gen-parallel.sh` gained a `FEATURES` passthrough.
+| date | sha | instinct | shipping | landed in the window |
+| --- | --- | --- | --- | --- |
+| 2026-07-06 | `62cf5c5` | −1.99 / −2.40 | — | first seeded, decomposed anchor (none −1.675, both −2.310); book-dominated, def-r1 #1 |
+| 07-07 | `5f16e68` | −1.99 / −2.36 | — | shard count doubled; buckets #2–#4 shipped (moved mostly PD) |
+| 07-08 | `4afc985` | −1.89 / −2.11 | — | 5332 + flat-4333 takeout discipline |
+| 07-08 | `c864bad` | −1.84 / −2.07 | — | minor-opening extras ladder |
+| 07-09 | `308bbd1` | −1.827 / −2.056 | — | major jump-rebid 3M; sd-lead prices the two walls — both real |
+| 07-09 | `5f9d6c2` | −1.758 / −1.864 | — | five-card-major takeout discipline; 1NT-overcall systems-on |
+| 07-10 | `50ad20b` | −1.732 / −1.891 | — | Fix 1: Modern negative doubles + forcing free bids (fallback pair −78k → −52k) |
+| 07-10 | `5b5115d` | −1.684 / −1.765 | — | contested 2NT / 18-19 NT / doubler rein; school tournament resolved |
+| 07-19 | `973d681` | −1.500 / −1.683 | — (v3 routing gate +0.11 NV / +0.25 vul) | **floor swap** — series repointed to `american-instinct`; constructive gate/eval ships |
+| 07-26 | `eb02d9d` | −1.152 / −1.355 | −1.021 / −1.254 (v3, unpaired) | 109 commits: shared vocabulary (`PointCount`, support points, DNF projection, bilans on); every phase moved |
+| *— disclosure on from here (`--disclose generated`) —* | | | | |
+| 07-28 | `3c94802` | −1.113 / −1.273 | — | 30 commits confounded with the flip; def-r1 the only head bucket to lose ground |
+| 08-10 | `0d8b755` | −1.069 / −1.205 | −0.627 / −0.585 (hand-rolled; UvU off, buckets invalid) | reading-drift tail; replay 69/66 mismatched — the `--uvu` kill switch |
+| 08-11 | `42454d2` | −1.069 / −1.206 | — | corrective re-anchor after the `--no-uvu` fix; exact again |
+| 08-11 | `782f09e` | −1.059 / −1.200 | — | direct weak jump overcall shipped; def-r1 52.5k → 49.1k boards |
+| 08-12 | `ea2cde9-dirty` | −1.056 / −1.198 | −0.604 / −0.579 | competitive accountant; first four-arm snapshot |
+| 08-18 | `53a3c254` | −0.997 / −1.131 | −0.528 / −0.533 | authored-reading campaign + the 1NT competitive package; largest window move on record |
 
-- **Learnability:** held-out top-1 vs BBA 85.9% (constructive 86.7%, contested
-  85.4%), 40k-board dump. Below v3's 95.3% cloning `american()` — the one-hot
-  argmax target + disclosable-only features, as predicted; `val_ce` bottomed
-  ~epoch 170 then overfit, so capacity is not the limit.
-- **Routing gate (the decisive one):** paired `bba-gen --our-floor american` vs
-  `neural-bba` vs live BBA, two seeds (1784412234 × 51.2k, 1784414157 × 102.4k
-  per cell), both vuls, `ab-dump-diff` plain+PD. **`neural-bba − american`:
-  +0.12/+0.13 (none plain), +0.10/+0.09 (none PD), +0.23/+0.22 (both plain),
-  +0.29/+0.26 (both PD) IMPs/bd** — every cell a plain-AND-PD win, both seeds,
-  CIs excluding 0 by 3.5–9σ, fired ~27–29%. PD ≥ plain ⇒ not a doubling
-  artifact. Teacher-isolation vs `neural-v3`: +0.32…+0.47 (clears the
-  american-distilled net cleanly).
-- **Disclosure audit (clean):** neural-bba's call distribution matches
-  `american`'s in shape — same 38 calls, no new artificial-call class, no gadget
-  spike (4NT 0.37% vs 0.34%); the extra IMPs come from natural aggression (more
-  5-level competing / slam tries, fewer takeout doubles). No book nodes added,
-  so `artificial_calls_are_alerted` is untouched — disclosure posture identical
-  to the shipped `neural-v3` floor.
-- **Partnership → PROMOTED (2026-07-19, the floor swap):** the routing-gate win
-  shipped as the **crate default** — `american()` now floors off-book with the
-  BBA net, and the deterministic pre-swap system is `american_instinct()` (the
-  anchor's new pons side, the distillation teacher, and the integration-test
-  target). `american_bba_neural()` is now an alias of `american()`; the BBA net
-  path is always compiled. The earlier follow-on "(a) contested-only partition"
-  was **dropped as backwards**: the floor has no phase gate — it already floors
-  *constructive* off-book decisions too (the net was trained on the whole
-  auction; `instinct()` is a shallow heuristic exactly where the auction runs
-  past the book), so routing constructive→instinct would *give back* measured
-  IMPs. Remaining follow-on: reach *past* BBA by putting the live DD search on
-  top of this stronger prior (M8). Not compared against the search champion
-  `neural-search` — different category.
-- **SUPERSEDED 2026-08-05 by the configured net.** The v3 artifact this section
-  shipped (and its later kickback twin) were deleted when `ConfiguredFloorBba`
-  over `american_bba_v4` became the default floor, on gate 1's
-  +0.1933/+0.2469 plain and +0.5256/+0.5358 PD at 2M fresh boards per cell
-  (`docs/ai-bidder/configured-net.md` phase 6). Two figures here are now
-  historical: B4's own routing-gate numbers, and the **+0.131 plain / +0.101 PD**
-  shipping-pair side-run below, which priced the v3 floor against
-  `american_instinct()` on the anchor's deals. A re-run of that side-run is owed
-  — gate 1 measured v4 winning on *both* scorers at *both* vulnerabilities,
-  which is evidence the NV PD loss recorded there is gone. **The anchor series
-  itself is unaffected**: it is anchored on `american_instinct()` precisely
-  because `american()` carries a net floor, and `bba-decompose` hard-codes that.
+## Worked buckets (verdicts; the prose is in the archive)
 
-## Pillar C — measurement unlock (sd-lead third scorer)
+| bucket | treatment | verdict | home |
+| --- | --- | --- | --- |
+| Def / book / r1 | 5332 + flat-4333 takeout discipline | shipped default-on | [takeout-double-layers.md](takeout-double-layers.md) |
+| Def / book / r1 | five-card-major takeout discipline (`suppress_5card_major_takeout`) | shipped — plain + PD + sd win, both vuls | takeout-double-layers.md |
+| Def / book / r1 | 1NT-overcall systems-on (`nt_overcall_systems_on`) | shipped — sd win in all four cells, plain never loses | bidding-options.md |
+| Def / book / r1 | Gladiator over the major-opening 1NT overcall | completed both sides → wash on all three scorers; opt-in | bidding-options.md |
+| Def / book / r1 | tight 2-level minor overcall (`two_level_minor_overcall_tight`) | refuted on the fresh seed (NV plain-DD loss); a declare-vs-defend switch — the improvable node is the contested 5-level decision | [ai-bidder/competitive-accountant.md](ai-bidder/competitive-accountant.md), [doubling-calibration.md](ai-bidder/doubling-calibration.md) |
+| Def / book / r1 | direct weak jump overcall (`direct_weak_jump_overcall`) | shipped — two-reference gate | CHANGELOG, [ben-gap-campaign.md](ben-gap-campaign.md) |
+| Const / book / r2 | opener's extras ladder (minor openings) | shipped default-on | [ai-bidder/21gf-ledger.md](ai-bidder/21gf-ledger.md) |
+| Const / book / r2 | opener's major jump-rebid 3M + responder continuation | shipped (the bare rung lost) | 21gf-ledger.md |
+| Const / book / opening | Rule-of-20 light openings; flat-4333 1NT | shipped | CHANGELOG |
+| Comp / fallback@1,@2 / r1 | Fix 1: Modern negative doubles + forcing free bids + `answer_free_bid` | shipped; ~26k cashed | [competitive-book.md](competitive-book.md) |
+| Comp / fallback / r1 | school tournament (Modern / Cachalot / Sputnik; Forcing / NFB / transfers) | Modern + Forcing keep the defaults; Cachalot, Sputnik opt-in | competitive-book.md |
+| Comp / book / r1 | 1NT contested: N1c–N1j, N4 v7, N4b | shipped in the `53a3c254` window | [one-notrump-competitive.md](one-notrump-competitive.md) |
+| Const / book / r1 | `1♥ → 1♠` compression (`longer_major_response`) | measured null | bidding-options.md |
+| `floor#N` "regressions" (`ea2cde9` → `53a3c254`) | B2.4 `1♦` length floor / B2.5 weak-reading bounds / B2.6 strong-reading bound / B2.7 `net_collar` | rejected / retrain-gated / sound, no repair / rejected | [archive/bba-gap-floor-forensic.md](archive/bba-gap-floor-forensic.md) |
 
-Wire `single_dummy_leads` into the generic pipelines; it plausibly
-adjudicates 7 of 9 parked families (lead direction, disclosure, trick-one
-right-siding).  Mid-play concealment stays unmeasurable — that is the future
-MC-cardplay effort, explicitly out of scope here.
+## Open work
 
-- Library: promote `ns_score_tricks` (from `ab-nt-defense-matrix`) into
-  `src/scoring.rs`; add `LeadQuestion::read(deal, dealer, vul, auction,
-  partnership)` to `src/single_dummy.rs` (owns the leader-prefix cut +
-  `Partnership::infer`).
-- Pipelines: `bba-score` + `ab-dump-diff` gain `--score sd`, `--sd-worlds`
-  (default 16, the validated GTO setting), `--sd-seed`, `--sd-sanity`
-  (Pavlicek anchor, must land ≈ +0.2..+0.4 tricks at the 1–2 level).
-  Divergence granularity becomes *auction* divergence; each arm's auctions
-  are read by **its own arm's book**, rebuilt from the dump's `gen_args`
-  (kills silent knob drift).  Shared chunk helper in `examples/common/sd.rs`;
-  split `bba-gen`'s `Args`+knob application into `examples/bba-gen/args.rs`
-  for reuse.
-- Decision table extension (measurement.md; **plain-DD loss never ships**
-  stays iron): new row *wash/wash + sd-win (CI>0) → shippable default-on*;
-  plain-loss + sd-win re-classifies to "sd-positive, blocked on plain loss"
-  with mandatory forensics.  sd verdicts count for competitive/lead-shaped
-  treatments below slam level only.
-  **RETIRED 2026-07-25 — the "sd-win" here meant *plain* SD, which is not an
-  arbiter.**  Plain SD relaxes the defenders' lead *and* leaves every failing
-  contract undoubled, so it is friendlier to aggression than plain DD itself;
-  this rule is how several defaults shipped over a negative PD.  The sd-win now
-  has to be an **SD-PD** win (`ns_score_pd_tricks`, failures doubled), quoted
-  beside its plain-SD twin, and the plain-SD number alone decides nothing.  See
-  measurement.md §"Plain SD is not an arbiter"; the verdicts this rule produced
-  are on the re-adjudication queue.
-- Exploitation guard: a vs-BBA sd win must be confirmed by self-play sd or an
-  advertised rerun (`--advertise-*`); on sign disagreement, ship on the
-  self-play side.
-- Re-adjudication queue (mass × decidability): 1NT-defense closeout →
-  Cachalot/Sputnik right-siding (also the go/no-go for resurrecting
-  Rubensohl) → P2a preemptive raises + Jordan 3o flip (fix the two named P2a
-  leaks first) → DoubleStyle/responsive-overcall → delayed-cue → free-bid
-  family (authoring-blocked: shape gate first).
+In bucket order; each item is its own fresh-seed A/B per
+[measurement.md](measurement.md).
 
-## Pillar D — book batches (ledger-driven)
-
-Work the [21gf-ledger](ai-bidder/21gf-ledger.md) batches, re-ranked by the
-Pillar-A report after each anchor: Batch 1 competitive (Woolsey #43, Unusual
-1NT #126, two-suit T/O X #123, Rubensohl-after-1m #105, maximal doubles #83,
-transfers-if-RHO-bids-clubs #122), Batch 2 slam tools (Gerber, Exclusion,
-DOPI/ROPI, BROMAD), Batch 3 constructive (Drury, two-way game tries, Garbage
-Stayman, Bergen/mixed-raise, Namyats), plus the competitive-book follow-ups
-(P2a leak fixes, P3a 12+ re-measure, P3b shape gate, "off-shape X stronger",
-alert invariant over `Trie::fallbacks()`, P4 contested tails, balancing-seat
-two-suiter reading) and the bba-multi-2d counter-defense.  Process per item:
-the `author-convention` + `measure-ab` skills, unchanged.
-
-## Sequencing
-
-```text
-DONE 2026-07-06:               first anchor run + committed (findings above)
-next, data-driven:             bucket 1 (Defensive/book/round-1) → trace →
-                               fix defensive book → ship A/B → re-anchor (~5m)
-then:                          constructive openings/rebids (buckets 2–4)
-in parallel (idle box):        B1 wiring + round-3 dump (27-30 h) → gates
-when a bucket hits the wall:   build Pillar C, drain the sd queue
-```
-
-Iron hygiene throughout: one `SEED_BASE` per experiment shared across arms
-(anchor series excepted, documented above); arms sequential under
-`scripts/idle-run.sh`; never rebuild during a run; both scorers always; ship
-by the decision table; CHANGELOG + ledger for every measured result.
-
-## Ledger (memory compaction, 2026-08-16)
-
-- **Historical full-disclosure diagnostic (2026-06-24, superseded by the
-  per-table `--advertise-natural` harness):** with BBA reading our natural `2♣`
-  as Multi-Landy, the bucket appeared **+2.01 IMPs/bd**. Turning
-  `Multi-Landy=0, Cappelletti=0` on all four seats moved that bucket **+328 →
-  −64 IMPs** and the isolated defense **+0.013/bd → −0.274/bd**, CI
-  [−0.41,−0.14]. That run also changed the all-BBA reference table and is
-  confounded — the diagnostic that exposed the artifact, not the honest
-  verdict; the per-table result in `CHANGELOG.md` supersedes its magnitude.
-- `bba-decompose`'s `boards.jsonl` `board` field is an index **within its
-  shard**, paired with that shard's `seed`, not a flat arm index — flat
-  concatenation produced impossible 0-HCP hands for 12+-HCP rules. The emitted
-  actor `hand` field (S.H.D.C) is canonical; re-run decompose when an older
-  dump lacks it, and sanity-check hand-derived analyses against the rule's
-  stated HCP floor.
+1. **Def / book / round-1** — the redesign lane
+   ([defensive-overcalls.md](defensive-overcalls.md), then
+   [takeout-double-layers.md](takeout-double-layers.md)). Priced slices: our own
+   positive calls (overcall / 1NT / raise) are ~2/3 of the bucket and PD-worse
+   ⇒ real; the we-pass-they-compete remainder (≈−29k) is wall-bound; the
+   five-card-*minor* and 17+ single-suiter takeout slices are deferred; the
+   contested 5-level decision is the accountant's
+   ([ai-bidder/competitive-accountant.md](ai-bidder/competitive-accountant.md)).
+2. **Const / book / opening, round-2, round-1** — mined to residuals (light-open
+   wall refuted; RKCB slam accuracy; splinter-slam). Work only with a new lever.
+3. **Comp / book / round-1** — the [one-notrump-competitive.md](one-notrump-competitive.md)
+   queue; re-derive N2c/N2d's price tags from `53a3c254`'s `boards.jsonl`
+   before authoring either.
+4. **Def / floor#3 round-2, round-1, balancing** (−39k plain across the three;
+   `Defensive / floor / …` −11.9k / −6.7k / −3.2k on the shipping arm) — floor
+   pass discipline: our floor passes where BBA reopens, doubles, competes. Never
+   worked. Trace on the shipping arm; author parametrically (suit loops +
+   context predicates, never a node per sequence), one `set_*` knob + `bba-gen`
+   flag; PD is the honest scorer.
+5. **Comp / fallback@2, @3, @4** (−5.3k / −4.8k / −4.8k plain) — Fix 2
+   (cue-context raises + Jordan rejection) and Fix 4 (strong-values action),
+   [competitive-book.md](competitive-book.md).
+6. **Floor backlog** (small per every anchor): balancing block (pass-out-seat
+   ranges, sit rule); help-suit trials over Rubens advances; floor 5NT king-ask +
+   book minor king-ask; misfit runout pull; advancer 4-4 bust escape.
+7. **B2.5, retrain-gated:** at the next matched policy/evaluator retrain, widen
+   the `walk_shape` bit to an axis mask so the natural walk survives only on the
+   axes the authored union leaves open (`floor#64`'s 1♠ and `floor#20`'s
+   balancing 2♣ read sound but loose under `ReadingScope::All`).
+8. **Owed measurements:** disclosure's isolated cost against the *generated*
+   card (`ab-disclose.sh`; −0.009/bd was the static card); a fresh-seed
+   confirmation of the series (protocol asks for one every ~3rd re-anchor; none
+   recorded).

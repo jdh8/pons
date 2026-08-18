@@ -10,25 +10,9 @@ Target spec for "author pons's 2/1 about as deep as BBA". One row per relevant
 `out` (out of scope).
 
 **Campaign metric:** IMPs/board vs BBA 2/1, plain DD (perfect defense beside).
-History: **−2.59** (2000 bd, vul none, S.1) → **−1.997** (4000 bd) → first
-**seeded, decomposed anchor** (2026-07-06, sha `62cf5c5`,
-`SEED_BASE=1783375064`, 204.8k bd via `scripts/anchor.sh`, replay-verified
-**100%**): **vul none −1.675 / vul both −2.310**, pooled **−1.99 plain /
-−2.40 PD**. Vul-none improved −2.59→−1.67 across the M6.x + competitive-book
-streak; the pooled figure newly folds in the harder both-vul arm.
-Re-anchored `4afc985` (2026-07-08, 409.6k bd, same seed): pooled **−1.89 plain /
-−2.11 PD** after the bucket-#1 takeout-discipline and bucket-#3 opener-ladder
-ships (progress log below).  Re-anchor `5f9d6c2` (2026-07-09, same seed):
-pooled **−1.758 plain / −1.864 PD** — the five-card-major takeout discipline
-(overcall an unbid 5-card major instead of doubling) folded in; def-r1 −127k
-plain / −147k PD.  **Latest re-anchor `eb02d9d` (2026-07-26, 409.6k bd, same
-seed, replay-verified 100%): pooled −1.152 plain / −1.355 PD** (vul none
-−1.024 / −1.116, both −1.279 / −1.593), +0.348 plain / +0.328 PD over
-`973d681` — the shared-vocabulary batch (`PointCount`, suit-indexed
-`support_points`, the DNF flip, bilans default-on) lifting every phase and both
-provenances at once.  Biggest un-worked prize is still def-r1
-`Defensive/book/round-1` (−85805 plain / −112255 PD), with Competitive
-`fallback@1/@2` round-1 (−38645 plain) behind it.
+The headline trail (every anchor from **−2.59** at S.1 to the current standing)
+is the series table in [../bba-gap-campaign.md](../bba-gap-campaign.md) — one
+home; this ledger no longer repeats it.
 
 **What the first anchor overturns (read before picking work):** the gap is
 **book-dominated, not floor-dominated** — `book` −248k IMPs vs the entire

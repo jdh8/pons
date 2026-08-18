@@ -88,6 +88,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`docs/bba-gap-campaign.md` compacted 1248 → ~300 lines and split.** The live
+  doc now holds only what the next re-anchor session needs: the standing numbers
+  and the doc's role under the BEN north star, the protocol, the eight rules the
+  series taught (replay = 100% and the `bba-gen` default trap, control at HEAD,
+  the disclosure series break, compare on `/div`, churn / other-table / here,
+  plain SD is not an arbiter, the instinct arm cannot see floor work, outputs
+  untracked), the runbook with both loops, the `53a3c254` ranking on both arms
+  from the real reports, the net floor's paired-worth table, the headline trail
+  as one 16-row series table, a worked-buckets verdict table, and the open-work
+  list. The chronological narrative (every re-anchor paragraph, the per-treatment
+  sagas, the retractions, the 2026-07-07 pillar plan) is archived verbatim in
+  `docs/archive/bba-gap-anchor-history.md`, and the closed `ea2cde9 → 53a3c254`
+  floor forensic (B2.4 rejected, B2.5 retrain-gated, B2.6 sound, B2.7 rejected)
+  in `docs/archive/bba-gap-floor-forensic.md`. The stale intro ("three facts"),
+  Pillar B1 (never run), B4 (superseded), Pillar C's retired ship rule and the
+  2026-07-06 sequencing block are gone from the live doc. One home for the
+  headline trail: the 21gf-ledger's "Campaign metric" paragraph (stale at
+  `eb02d9d`) is now a pointer to the series table, and the runbook records a new
+  anchor as one table row + one CHANGELOG line. `scripts/anchor.sh` and
+  `scripts/anchor-diff.py` cite section headings instead of a line number
+  (`bba-gap-campaign.md:403` had already drifted) and a pillar; the CLAUDE.md
+  row hook, `ben-gap-campaign.md`, `bidding-options.md` and
+  `defensive-overcalls.md` pointers follow the split. No bidding change.
+
 - **The American and Dutch defaults now use the Phase-5 honest-reading neural
   twins.** Policy feature version 6 keeps raw whole-hand points and each suit's
   support-point band separate (176 inputs); evaluator feature version 5 carries

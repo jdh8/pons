@@ -30,7 +30,7 @@ scorers (measurement.md, checklist item 11).
 | Task | Read first |
 | --- | --- |
 | Any change to `src/bidding` | [docs/bidding-architecture.md](docs/bidding-architecture.md) — the book/floor/inference layer cake and its invariants |
-| Closing the gap vs BBA (the anchor, floor roadmap, sd-lead) | [docs/bba-gap-campaign.md](docs/bba-gap-campaign.md) — the campaign plan; run `scripts/anchor.sh`, work the report's buckets |
+| Closing the gap vs BBA (the anchor, its rules, the bucket ranking) | [docs/bba-gap-campaign.md](docs/bba-gap-campaign.md) — protocol, rules, runbook, current ranking, headline trail; run `scripts/anchor.sh`, work the report's buckets. History in `docs/archive/bba-gap-*.md` |
 | Closing the gap vs BEN (the new north star; BBA = exploit guard) | [docs/ben-gap-campaign.md](docs/ben-gap-campaign.md), harness built (`examples/ben-gen`, design in [docs/ben-gen-design.md](docs/ben-gen-design.md)); how BEN bids in [docs/ben-architecture.md](docs/ben-architecture.md) |
 | Disclosing our system to BBA (`.bbsa` cards) | [src/bidding/card.rs](src/bidding/card.rs) — cards are **generated** from the live knob state; `cards/*.bbsa` are golden snapshots, re-blessed with `cargo run --example bba-card` |
 | A knob A/B moves the floor's regime input, or a floor swap needs its siblings moved | [docs/ai-bidder/card-manifold.md](docs/ai-bidder/card-manifold.md) — the compact regime input reads **`Agreements`, not card rows**. Phase 5's v6 retrain is the shipped floor; the document holds the v4/v5 history, bias fold, and sibling-factory rule — a system name must reach the same net on its declared and undeclared paths |

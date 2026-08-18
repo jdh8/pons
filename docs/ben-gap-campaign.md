@@ -20,8 +20,9 @@ target to **reference**: a cheap, precise, independent yardstick whose job
 is to catch us exploiting BEN's quirks instead of getting better at bridge.
 
 The harness engineering lives in [ben-gen-design.md](ben-gen-design.md).
-Ship rules stay in [measurement.md](measurement.md); the BBA anchor runbook
-and its bucket history stay in [bba-gap-campaign.md](bba-gap-campaign.md) —
+Ship rules stay in [measurement.md](measurement.md); the BBA anchor runbook,
+ranking and headline trail stay in [bba-gap-campaign.md](bba-gap-campaign.md)
+(its narrative history in [archive/bba-gap-anchor-history.md](archive/bba-gap-anchor-history.md)) —
 that loop is not retired, it is re-subordinated.
 
 ## Know the enemy

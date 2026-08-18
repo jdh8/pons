@@ -311,7 +311,7 @@ this section predicted. A fresh-seed A/B at `abdafcc` (seed `1786488117`,
 409.6k bd/arm/vul) put the tightening at plain DD **−0.0102 ±0.0021 NV** /
 −0.0011 ±0.0027 vul with SD-PD **−0.0008 ±0.0026 NV** / +0.0090 ±0.0033 vul; the
 NV plain-DD veto stopped the promotion and no Tier-F guard was run
-(`docs/bba-gap-campaign.md`, `ab-results/two-level-minor-overcall-refresh/`).
+(`docs/archive/bba-gap-anchor-history.md`, `ab-results/two-level-minor-overcall-refresh/`).
 Forensics on the 20 worst NV boards read **trigger-too-broad**: 9–12 of them show
 the loose arm's 2m overcall buying a profitable doubled sacrifice against a
 making game that the 15-point arm never reaches. So both O4 levers have now

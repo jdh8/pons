@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Join two anchor snapshots' `boards.jsonl` and split each bucket's move into
-churn vs same-board regression (docs/bba-gap-campaign.md, Pillar A forensic).
+churn vs same-board regression (docs/bba-gap-campaign.md, rule 5; the worked
+example is docs/archive/bba-gap-floor-forensic.md).
 
     python3 scripts/anchor-diff.py A_SNAP B_SNAP
     python3 scripts/anchor-diff.py A_SNAP B_SNAP \
