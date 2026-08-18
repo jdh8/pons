@@ -824,21 +824,30 @@ pub(crate) fn stayman_2d_fit_rebid(major: Suit) -> Rules {
         .rule(Bid::new(3, Strain::Notrump), 50, hcp(0..))
 }
 
-/// Opener's completion of the top-step→clubs transfer (a forced game-force)
+/// Opener's completion of a top-step minor transfer (a forced game-force)
 ///
-/// Responder has 6+ clubs, no stopper in `over`, game values. Opener bids `3NT`
-/// with a stopper of its own, else raises to `5♣` — `3♣` is unplayable below the
-/// top step, so the auction must reach game. (`5♣` is the finite catch-all.)
+/// Responder has 6+ cards in `target`, no stopper in `over`, and game values.
+/// Opener bids `3NT` with a stopper of its own, else raises to five of the minor.
+/// The three-level completion is below the top step, so the auction must reach
+/// game; five of the minor is the finite catch-all.
 //
-// ponytail: minor-suit slam exploration is left to the floor; 3NT-or-5♣ covers
+// ponytail: minor-suit slam exploration is left to the floor; 3NT-or-5m covers
 // the common game. Author a keycard ladder here only if the A/B shows it matters.
-pub(crate) fn clubs_transfer_completion(over: Suit, agreements: &Agreements) -> Rules {
+pub(crate) fn minor_transfer_completion(
+    target: Suit,
+    over: Suit,
+    agreements: &Agreements,
+) -> Rules {
     let completion_alerts = agreements.decision.reading.completion_alerts;
     Rules::new()
         .rule(Bid::new(3, Strain::Notrump), 140, stopper_in(over))
         .alert_if(completion_alerts, COMPLETION)
-        .rule(Bid::new(5, Strain::Clubs), 50, hcp(0..))
+        .rule(Bid::new(5, Strain::from(target)), 50, hcp(0..))
         .alert_if(completion_alerts, COMPLETION)
+}
+
+pub(crate) fn clubs_transfer_completion(over: Suit, agreements: &Agreements) -> Rules {
+    minor_transfer_completion(Suit::Clubs, over, agreements)
 }
 
 /// Opener's reply to Leaping Michaels `4♦` (both majors, 5-5 game-forcing)

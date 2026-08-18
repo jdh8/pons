@@ -81,7 +81,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Transfers over their `(3♣)` overcall of our `1NT`** (`competition.nt_3c_transfers`,
   default off, rides the knob above; `bba-gen --ns-nt-3c-transfers`). `(3♣)` is
   the one three-level overcall that leaves steps below `3NT`: `3♦`/`3♥` transfer
-  to the majors (INV+, driven to game at the completion), `3♠` to diamonds. Buys
+  to the majors (INV+, driven to game at the completion), `3♠` to 6+ diamonds,
+  game-forcing. The top step now exactly mirrors `1NT (2♦) 3♠` with the minors
+  swapped: opener bids `3NT` with a club stopper, otherwise `5♦`. Responder
+  holding the club stopper prefers direct `3NT`, matching the `(2♦)` tree as
+  well. Buys
   the invitational five-card major — which the natural table can only show as `X`
   or a pass — and right-siding. BBA plays all three naturally (per-suit census in
   `docs/ai-bidder/bba-1nt-counter-defense.md`), so the arm is judged on its own
@@ -91,7 +95,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   order of magnitude inside their CI. Seed 1 looked like a vul win with PD above
   plain (the right-siding signature); seed 2 reversed it. A convention trialled
   against natural that measures a wash stays opt-in. Both arms ran against a
-  *gated* `3NT` baseline, so a re-measure owes a fresh one.
+  *gated* `3NT` baseline; the fresh re-measure below pays that caveat.
+
+  **Fresh-baseline re-measure after the minor-symmetry fix (2026-08-19): still
+  wash | wash and opt-in.** Two fresh seeds (`1787072350`/`1787073219`),
+  460,800 boards/arm/vulnerability pooled, sha `4740bcc3`+dirty. Owned NV:
+  plain +0.00008 ±0.00027 / PD +0.00008 ±0.00030 IMPs/board; vulnerable:
+  plain +0.00019 ±0.00033 / PD +0.00020 ±0.00037. The exact `3♠`→♦
+  branch fired only 3 NV + 2 vulnerable owned boards. Major-transfer
+  continuations are unchanged and share the same completion helper as the
+  `(2♦)` tree. The current shipped, stopperless `3NT` baseline was regenerated;
+  the earlier caveat is paid. Default behavior remains byte-identical:
+  `smoke-default --count 20000 --seed 1` stays `39ca60a251e0…`.
 
 - **`bba-gen --ns-direct-3nt-stopper`** — the arm flag for responder's direct
   `3NT` over their overcall of our `1NT`, so "does the direct `3NT` need its own

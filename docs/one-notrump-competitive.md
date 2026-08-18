@@ -859,7 +859,11 @@ replaces the natural three-level rows in the `(3♣)` instance only:
 | --- | ---: | --- | --- |
 | `3♦` | 180 | `len(♥, 5..) & points(9..)` | transfer to ♥, INV+ |
 | `3♥` | 180 | `len(♠, 5..) & points(9..)` | transfer to ♠, INV+ |
-| `3♠` | 145 | `len(♦, 5..) & points(10..)` | transfer to ♦, GF |
+| `3♠` | 145 | `len(♦, 6..) & points(10..)` | transfer to ♦, GF |
+
+As over `1NT (2♦)`, responder with the long minor **and** a stopper in their
+suit prefers direct `3NT`; without one, the top-step transfer wins over the
+general stopperless `3NT` fallback.
 
 All three `.alert(LEBENSOHL_TRANSFER)`, so `project_authored` decodes the rule's
 own constraint — no new reader. INV+ is driven to game at the completion (the
@@ -873,11 +877,11 @@ right-siding — DD-blind, so the plain scorer will not credit it.
 
 Two build traps the design walked into and out of:
 
-- `rubensohl::transfer_completion`'s **minor arm cannot be reused**. Responder's
-  transfer to diamonds is `3♠`, so the completion is `4♦` — that table's `3♦` is
-  *illegal* here, and its `Pass` catch-all would leave us playing `3♠` on a
-  phantom suit. `nt_3c_diamond_completion` is `3NT` 150 with a club stopper,
-  `4♦` 130 with three, `3NT` 100 as the finite catch-all.
+- The top-step minor transfer now shares `rubensohl::minor_transfer_completion`
+  with `1NT (2♦) 3♠`, with the minors swapped: `3NT` with a stopper in their
+  suit, otherwise five of the target minor as the finite catch-all. Thus
+  `1NT (3♣) 3♠ -` is `3NT` with a club stopper, otherwise `5♦`; the
+  three-level completion is below the artificial `3♠` and therefore illegal.
 - The interfered tails are authored per the iron rule: their `X` of a transfer
   steals no room, so the completion re-registers verbatim; their `(4♣)` raise
   takes every step, so opener completes at the four level with tolerance
@@ -981,9 +985,36 @@ the pool is flat. That is the decision table's `wash | wash, a convention
 trialled against natural` row: **stays opt-in**, default off, finished code with
 its measurement paid.
 
-One caveat if it is ever revisited: both `xfer` arms were measured against a
-**gated** `3NT` baseline, since they ran before the `nogate` flip. A re-measure
-owes a fresh baseline.
+Both `xfer` arms were measured against a **gated** `3NT` baseline, since they
+ran before the `nogate` flip. Round 3 below pays that fresh-baseline caveat.
+
+### Round 3 — top-step minor symmetry, still opt-in (2026-08-19)
+
+The owed fresh-baseline run makes `1NT (3♣) 3♠` exactly the minor-swapped
+twin of `1NT (2♦) 3♠`: responder now shows **6+♦** (not 5+), and opener
+bids `3NT` with a club stopper, otherwise `5♦` (replacing the old
+`3NT`/`4♦` table). Responder's club stopper instead selects direct `3NT`, as
+in the `(2♦)` tree. The major transfers are unchanged and still share
+`rubensohl::transfer_completion`: `4M` with three-card support, otherwise
+`3NT`, including the doubled-transfer tail.
+
+Fresh seeds `1787072350` / `1787073219`, sha `4740bcc3`+dirty, 230,400
+boards/arm/vulnerability/seed, `--filter-1nt`; new `xfer` versus the current
+shipped `stop` baseline (`nt_high_overcall_3nt_stopper false`). Owned boards:
+
+| vul | fired | plain/bd | PD/bd | plain/fired | PD/fired |
+| --- | ---: | --- | --- | ---: | ---: |
+| none | 180 | +0.00008 ±0.00027 | +0.00008 ±0.00030 | +0.200 | +0.200 |
+| both | 176 | +0.00019 ±0.00033 | +0.00020 ±0.00037 | +0.500 | +0.528 |
+
+Every cell leans positive and every CI contains zero: still **wash | wash**.
+The raw SD pair also leans positive in all four pooled cells, but the exact
+top-step `3♠`→♦ branch fired on only 3 NV + 2 vulnerable owned boards. The
+isolation gate found 6/4 and 8/9 foreign divergences by seed (the known
+reader-scope leak); they are excluded above. This is still a convention
+trialled against natural, so a wash keeps `nt_3c_transfers` opt-in/default-off.
+The shipped system is byte-identical: `smoke-default --count 20000 --seed 1`
+stays `39ca60a251e03e558cfe44659b44ae45b1fe296d806e90cb3ed1cc9338bf72cd`.
 
 ### Disclosure — what BBA is told
 
@@ -1822,7 +1853,7 @@ ceiling-reading rule expressible.
 | N4 their `(2♦)` as a Multi | `their.two_diamonds_multi` (disclosure; `bba-gen` derives it from the 2/1 census like `their_2c_landy`, `--their-2d-multi false` = pre-ship arm; engine default undeclared) | **SHIPPED 2026-08-15 — v7, seven rounds** (`scripts/ab-2d-multi.sh`, 230.4k bd/arm/vul, `ab-results/2d-multi{,-v2,-v3,-v4,-v4s2,-v4s3,-v5,-v5s2,-v5s3,-v6,-v6s2,-v6s3,-v7,-v7s2,-v7s3}`). Every raw headline was 60-70% foreign (the mirror-read leak on their double of *our* `2♦`); verdicts are owner-split. v1 (waiting X, both-stopper 3NT, floored continuations) **LOSS** both scorers — the floor sold out with 10+ and raised the relay sign-off to 3NT; v2/v3 (blind 3NT, sign-off passes, doubled tail, double-family + relay fences) plain **win** both vuls / PD wash — the blind blast PD −3.7/−4.3; **v4** (both-stopper blast + authored second call `multi_responder_rebid`) pooled 3 seeds: **vul plain wash \| PD win, NV PD win \| plain loss by 0.00005** — the 8-9 sell-out (plain −2.5/bd, PD +0.8); v5 (natural 2NT invite there) **REFUTED** — PD −0.9/−4.8 per invite, four-way wash; reverted to v4 (opt-in by the letter of the gate). **v4 decomposed per call: X = PD's best call and the whole plain loss, all of it the doubler's second turn.** v6 (BBA's own second turn mimicked whole — takeout X, blind 3NT 9–15, 2NT invite 8–9, 3♠ try, 3m, 4NT; first-turn X `hcp 6+`) plain win / **PD loss** both vuls — the takeout X real (+2.4/+1.6 per fired), the game bids the artifact (PD −2.5 to −6.9); **v7** = v6 minus the game bids (3NT back to stopper-gated) **SHIPPED**: NV `plain wash \| PD win`, vul plain win \| PD wash-leaning-+, both-vul pool win\|win, paired vs v4 better on 3 of 4 cells. | v7 vs base owned: NV plain +0.00019 ±0.00053 / PD **+0.00100 ±0.00067**; vul plain **+0.00061 ±0.00056** / PD +0.00061 ±0.00069; pooled vuls plain **+0.00040 ±0.00039** / PD **+0.00081 ±0.00048**. v7 vs v4 paired: NV **+0.00075 ±0.00031** / +0.00020 ±0.00038, vul **+0.00041 ±0.00034** / −0.00022 ±0.00043. v6 vs base: NV +0.00224 ±0.00054 / −0.00062 ±0.00069, vul +0.00110 ±0.00059 / **−0.00163 ±0.00075**. v4: NV **−0.00055 ±0.00050** / **+0.00083 ±0.00059**, vul +0.00025 ±0.00052 / **+0.00084 ±0.00061**. |
 | N1h / N1i minor-rung re-pricing | `defense_2c_landy_low_minors`, `defense_2c_landy_hcp_rungs` | **both REFUTED 2026-08-15, both opt-in — the lane is closed.** Three shared seeds, 230.4k bd/vul, shared `low-off` baseline (verified board-identical before reuse); `ab-results/landy-low{,-v2,-v3}`, `scripts/ab-landy-rungs.sh`. N1h (cue `points(9..)`, `3m` `points(7..=8)`) = `plain wash \| PD loss`, vul PD **−0.00081 ±0.00074**. N1i (cue `hcp(9..)`, `3m` `hcp(7..=8)`, `2♦`/`2NT` `hcp(..=6)`) = no CI-clear cell, all eight leaning negative. **`cue ← X` negative in both** (−1.80 ×96, −2.96/−4.04 ×46) against N1d's original +2.0…+5.1 the other way — the cue floor is settled, do not probe it again. Leads recorded but not pursued: `Pass ← 2♦` +2.40 PD ×52 (per-seed +4.50/+1.33/−1.09), `3♦ ← 2♦` +3.96 plain/+3.11 PD ×27, `3♣ ← 2NT` −2.19 PD (the transfer's right-siding wins), `cue ← 3♣` −2.88 (shifting a band whole costs more than lowering its floor). | N1h pooled: NV plain +0.00036 ±0.00051 / PD −0.00044 ±0.00066, vul plain +0.00002 ±0.00061 / PD −0.00081 ±0.00074. N1i pooled: NV plain −0.00029 ±0.00043 / PD −0.00039 ±0.00062, vul plain −0.00014 ±0.00052 / PD −0.00036 ±0.00068; sd both arms ≈0. |
 | N1j BBA-ladder counter + weak-2♦ cap | `defense_2c_landy_bba`, `defense_2c_landy_weak_2d_cap` | **both SHIPPED DEFAULT-ON 2026-08-15** — the anchor-aligned table replacing the stack (which stays wired behind `--defense-2c-landy-bba false`).  The ladder shipped at its **pre-pinned non-inferiority gate** (rationale: structural alignment; a wash ships) and beat it — zero CI-clear negatives, all 16 DD+sd cells leaning positive; the `2M ← X` guard passed **vacuously** (no hand left the values double for the takeout family, the three-experiments finding untouched); mirror leak 36-38% foreign, depressing (ours-only stronger: NV +182/+215, vul +171/+202 raw IMPs).  The cap shipped at the **standard** gate: plain wash \| PD win both vuls, sd sign-agreed, isolation gate **0 foreign** (second ever), every divergence the predicted `2♦ → Pass` (+2.58/+4.54 PD per fired ×59 — the N1i lead confirmed).  Engine: `2♦ → 3♣` diamond-transfer right-siding (+5.18/+6.06 PD per fired).  Smoke `18aba5ce…` unchanged through the flip; `[their-landy]` fixture re-blessed; 3 seeds 1786753231/1786753518/1786753808, 230.4k bd/vul, `scripts/ab-landy-bba.sh`.  See §N1j. | ladder (`on↔off`) pooled: NV plain +0.00083 ±0.00085 / PD +0.00083 ±0.00110, vul plain +0.00080 ±0.00100 / PD +0.00073 ±0.00123; sd-plain +0.00080/+0.00103, sd-PD +0.00070/+0.00113. cap (`cap↔on`) pooled: NV plain −0.00003 ±0.00027 / PD **+0.00037 ±0.00033**, vul plain +0.00017 ±0.00024 / PD **+0.00050 ±0.00035**; sd-PD +0.00017/+0.00033. |
-| N3 `(3♣)`–`(3♠)` preempt of our 1NT | `competition.nt_high_overcall_responses` (default **true**), `competition.nt_high_overcall_3nt_stopper` (**false** — no gate), `competition.nt_3c_transfers` (**false**) | **SHIPPED DEFAULT-ON 2026-08-18** (`scripts/ab-nt-high-overcall.sh`, `SEED_BASE=1787055415`, 230,400 bd/arm/vul). Owned plain CI-clear both vuls, PD positive both, sd sign-agreeing on all four cells — **zero negative cells in sixteen readings**. Isolation gate fails small (16 NV / 12 vul foreign, 3.5%/2.5%) through a reader-scope mismatch, not the mirror leak: the node correctly declines to bid over our 1NT *overcall*, but the inference walk still reads a call made there through this table's rule; priced at −1/+4 (NV) and +47/+43 (vul) IMPs, so the owned figures stand. The shared `direct_3nt_stopper` was **not** flipped — its `nostop` arm sums this lane (+2.20/+1.62 plain per fired) with the takeout-double advance lane (−1.23/−1.92 PD per fired); the three-level table got its own bit instead, and **round 2 shipped it off** — pooled over two seeds, plain **+0.00065 ±0.00036** NV / **+0.00052 ±0.00047** vul, PD **+0.00043 ±0.00041** / +0.00016 ±0.00053, sd positive on all eight cells, and `--gate-opener ours` **passing at 0 foreign on all four seed × vul cells**. Round 2's other arm, the `(3♣)` transfers, is a **measured wash across two seeds** (pooled owned plain +0.00002/+0.00007, PD +0.00007/+0.00009) — seed 1's vul lean reversed at seed 2 — so `nt_3c_transfers` stays opt-in. Post-ship anchor check at `9cfb464b`, fresh seed `1787064872`: 410 boards, −273 plain (−0.67/bd), −186 PD (−0.45/bd); attribution only, not a replacement verdict. Build findings kept: the pre-package floor **bid `4♥` on a doubleton** over `(3♣)` holding `KQJT742` spades (responder's new suit read as nothing, so the floor guessed); `rubensohl::transfer_completion`'s minor arm is unusable in the `(3♣)` lane (its `3♦` is illegal below `3♠`, its `Pass` catch-all leaves us in a phantom `3♠`); and a natural-suit family authored at **one** weight bids the *lower* suit on a 6-5, because equal logits are broken by the call encoding's iteration order — the first run was killed at its first arm and relaunched once `at_least_as_long` + rank-ordered weights were in. Deviation from the plan of record: `4m` priced at 120, under `3NT`/`X`, not 170 — see §N3. Smoke `babb6234…` → `39ca60a2…`; cards byte-identical; `comp:negative-double` 80 → 96 re-blessed; dnf `length` ratchet re-pinned 67 → 75 (knob-on stays 0) | owned NV plain **+0.00208 ±0.00126** / PD +0.00079 ±0.00145; owned vul plain **+0.00293 ±0.00160** / PD +0.00180 ±0.00182; sd-plain +0.0019/+0.0028, sd-PD +0.0008/+0.0015 |
+| N3 `(3♣)`–`(3♠)` preempt of our 1NT | `competition.nt_high_overcall_responses` (default **true**), `competition.nt_high_overcall_3nt_stopper` (**false** — no gate), `competition.nt_3c_transfers` (**false**) | **SHIPPED DEFAULT-ON 2026-08-18** (`scripts/ab-nt-high-overcall.sh`, `SEED_BASE=1787055415`, 230,400 bd/arm/vul). Owned plain CI-clear both vuls, PD positive both, sd sign-agreeing on all four cells — **zero negative cells in sixteen readings**. Isolation gate fails small (16 NV / 12 vul foreign, 3.5%/2.5%) through a reader-scope mismatch, not the mirror leak: the node correctly declines to bid over our 1NT *overcall*, but the inference walk still reads a call made there through this table's rule; priced at −1/+4 (NV) and +47/+43 (vul) IMPs, so the owned figures stand. The shared `direct_3nt_stopper` was **not** flipped — its `nostop` arm sums this lane (+2.20/+1.62 plain per fired) with the takeout-double advance lane (−1.23/−1.92 PD per fired); the three-level table got its own bit instead, and **round 2 shipped it off** — pooled over two seeds, plain **+0.00065 ±0.00036** NV / **+0.00052 ±0.00047** vul, PD **+0.00043 ±0.00041** / +0.00016 ±0.00053, sd positive on all eight cells, and `--gate-opener ours` **passing at 0 foreign on all four seed × vul cells**. Round 2's other arm, the `(3♣)` transfers, was a **measured wash across two seeds** (pooled owned plain +0.00002/+0.00007, PD +0.00007/+0.00009). **Round 3 made `3♠`→♦ exactly the 6+ GF / `3NT`-or-`5m` twin of `1NT (2♦) 3♠` and regenerated the current stopperless baseline; it remains wash | wash** (owned plain +0.00008/+0.00019, PD +0.00008/+0.00020, every CI crossing zero), so `nt_3c_transfers` stays opt-in. Post-ship anchor check at `9cfb464b`, fresh seed `1787064872`: 410 boards, −273 plain (−0.67/bd), −186 PD (−0.45/bd); attribution only, not a replacement verdict. Build findings kept: the pre-package floor **bid `4♥` on a doubleton** over `(3♣)` holding `KQJT742` spades (responder's new suit read as nothing, so the floor guessed); a top-step minor transfer must jump to game because its three-level completion is illegal; and a natural-suit family authored at **one** weight bids the *lower* suit on a 6-5, because equal logits are broken by the call encoding's iteration order — the first run was killed at its first arm and relaunched once `at_least_as_long` + rank-ordered weights were in. Deviation from the plan of record: `4m` priced at 120, under `3NT`/`X`, not 170 — see §N3. Smoke `babb6234…` → `39ca60a2…`; cards byte-identical; `comp:negative-double` 80 → 96 re-blessed; dnf `length` ratchet re-pinned 67 → 75 (knob-on stays 0) | owned NV plain **+0.00208 ±0.00126** / PD +0.00079 ±0.00145; owned vul plain **+0.00293 ±0.00160** / PD +0.00180 ±0.00182; sd-plain +0.0019/+0.0028, sd-PD +0.0008/+0.0015 |
 
 ### Memory compaction notes (2026-08-16)
 

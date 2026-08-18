@@ -112,4 +112,28 @@ fn the_three_club_transfers_are_authored() {
         call(4, Strain::Hearts),
         "the doubled transfer completes"
     );
+
+    // The top step exactly mirrors 1NT (2♦) 3♠, with the minors swapped:
+    // six-card game force, then 3NT with a stopper or five of the minor.
+    let (diamonds, floored) = best_call_with(&agreements, &auction, "K5.43.AKQJ86.432");
+    assert_eq!(diamonds, call(3, Strain::Spades), "transfer to diamonds");
+    assert!(!floored, "the diamond transfer must come from the book");
+    let (stopped, _) = best_call_with(&agreements, &auction, "K5.43.AKQJ86.K32");
+    assert_eq!(stopped, call(3, Strain::Notrump), "club stopper → 3NT");
+    let (five, _) = best_call_with(&agreements, &auction, "K5.43.AKQJ8.5432");
+    assert_eq!(
+        five,
+        call(3, Strain::Notrump),
+        "five diamonds is not enough"
+    );
+    let diamond_transfer = [
+        call(1, Strain::Notrump),
+        call(3, Strain::Clubs),
+        call(3, Strain::Spades),
+        Call::Pass,
+    ];
+    let (notrump, _) = best_call_with(&agreements, &diamond_transfer, "A432.KQ5.A32.K32");
+    assert_eq!(notrump, call(3, Strain::Notrump), "club stopper → 3NT");
+    let (game, _) = best_call_with(&agreements, &diamond_transfer, "A432.KQ5.AK3.432");
+    assert_eq!(game, call(5, Strain::Diamonds), "no stopper → 5♦");
 }

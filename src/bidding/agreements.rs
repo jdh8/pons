@@ -158,11 +158,12 @@ pub struct CompetitionKnobs {
     ///
     /// The minority expert treatment of "systems on over `3♣`" — the one
     /// three-level overcall that leaves steps below `3NT`: `3♦`/`3♥` transfer
-    /// to the majors (INV+, completed at game), `3♠` to diamonds.  Rides on
+    /// to the majors (INV+, completed at game), `3♠` to 6+ diamonds (GF;
+    /// `3NT` with a club stopper, otherwise `5♦`).  Rides on
     /// [`nt_high_overcall_responses`][Self::nt_high_overcall_responses] and
     /// does nothing without it.  BBA plays all three naturally
     /// (`docs/ai-bidder/bba-1nt-counter-defense.md`), so the arm is judged on
-    /// its own merit.  **Default off** while the A/B runs
+    /// its own merit.  **Measured wash; default off**
     /// (`--ns-nt-3c-transfers` in `bba-gen`).
     pub nt_3c_transfers: bool,
     // --- competition/lebensohl.rs

@@ -14,6 +14,7 @@
 //! over our *suit* openings.  It keys `1x`, never `1NT`, so the two never race.
 
 use super::lebensohl::author_direct_3nt;
+use super::rubensohl::minor_transfer_completion;
 use super::*;
 
 /// Responder's direct `3NT` over their three-level overcall
@@ -188,14 +189,14 @@ fn nt_3c_transfer_responder(agreements: &Agreements) -> Rules {
             )
             .alert(LEBENSOHL_TRANSFER);
     }
-    // The diamond transfer sits below 3NT's weight: a long minor with a club
-    // stopper still plays notrump.  (`rubensohl`'s minor targets are priced
-    // the same way.)
+    // The diamond transfer sits between two 3NT rungs: a long minor with a
+    // club stopper still plays notrump; without one it transfers rather than
+    // taking the lane's general stopperless 3NT fallback.
     rules = rules
         .rule(
             Bid::new(3, Strain::Spades),
             145,
-            len(Suit::Diamonds, 5..) & points(10..),
+            len(Suit::Diamonds, 6..) & points(10..),
         )
         .alert(LEBENSOHL_TRANSFER);
 
@@ -213,6 +214,9 @@ fn nt_3c_transfer_responder(agreements: &Agreements) -> Rules {
             (len(Suit::Hearts, 4..) | len(Suit::Spades, 4..)) & points(8..),
         )
         .alert(NEGATIVE_DOUBLE);
+    let mut stopper = *agreements;
+    stopper.competition.direct_3nt_stopper = true;
+    rules = author_direct_3nt(rules, 149, Suit::Clubs, &stopper);
     rules = nt_direct_3nt(rules, 140, Suit::Clubs, agreements);
     rules.rule(Call::Pass, 0, hcp(0..))
 }
@@ -294,23 +298,6 @@ fn nt_answer_double(over: Suit) -> Rules {
     rules.rule(notrump, 15, hcp(0..))
 }
 
-/// Opener completes the `(3♣)`-lane transfer to diamonds
-///
-/// `rubensohl::transfer_completion`'s minor arm cannot be reused: responder's
-/// transfer is `3♠`, so the completion is `4♦` and its `3♦` is illegal — and
-/// its `Pass` catch-all would leave us playing `3♠` on a phantom suit.  `3NT`
-/// is both the first choice and the finite catch-all instead.
-fn nt_3c_diamond_completion(agreements: &Agreements) -> Rules {
-    let alerts = agreements.decision.reading.completion_alerts;
-    let notrump = Bid::new(3, Strain::Notrump);
-    Rules::new()
-        .rule(notrump, 150, stopper_in_their_suits())
-        .alert_if(alerts, COMPLETION)
-        .rule(Bid::new(4, Strain::Diamonds), 130, len(Suit::Diamonds, 3..))
-        .alert_if(alerts, COMPLETION)
-        .rule(notrump, 100, hcp(0..))
-}
-
 /// Opener completes a `(3♣)`-lane transfer the advancer has raised to `4♣`
 ///
 /// The raise takes every step: complete at the four level with tolerance, else
@@ -384,7 +371,7 @@ pub(super) fn nt_high_overcall_package() -> Package {
                         entries.extend(rows_of(
                             Pattern::node(&format!("P* 1NT (3♣) {bid} {their}")),
                             if target == Suit::Diamonds {
-                                nt_3c_diamond_completion(agreements)
+                                minor_transfer_completion(target, Suit::Clubs, agreements)
                             } else {
                                 transfer_completion(target, Suit::Clubs, agreements)
                             },
