@@ -43,6 +43,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `floor#61`'s lane and 4/42 of `floor#64`'s. No behaviour changed in this entry;
   the fixes are queued as their own A/Bs.
 
+- **B2.4's exact `1♦` reading repair was measured and rejected.** The
+  candidate added the implied `len(Diamonds, 3..)` atom to the natural opening:
+  default `ReadingScope::All` then read `♦3..13`, the fixed-seed soundness
+  census improved partner exclusions from **1.299% to 1.293%** (2194 → 2184
+  of 168,957/168,974 readings), and every projection/evaluation gate passed.
+  It nevertheless failed the pre-registered non-loss bar against `04bd6432`.
+  Across three seeds (1787039750 / 1787040222 / 1787040684), 204,800
+  boards/arm/vulnerability each, 11/12 cells were negative; the 614,400-board
+  pools were plain/PD **−0.0010 ± 0.0016 / −0.0022 ± 0.0020** IMPs/board
+  non-vulnerable and **−0.0024 ± 0.0020 / −0.0024 ± 0.0024**
+  vulnerable. The candidate fired on 1.26–1.41% of boards.
+
+  This is entirely the **partner-opening** path, not an opponent buff: all
+  10,691/9,480 call-divergent boards (non-vulnerable/vulnerable) followed our
+  N/S pair's `1♦`; the aligned 71,869/72,160-board subsets where BBA opened
+  `1♦` had zero call or contract divergences. That matches the reader: `All`
+  projects our side's unalerted calls, while unalerted opponent calls retain the
+  natural walk unless their system is explicitly declared.
+
+  `ab-dump-bucket --by node` locates the cost in fit-driven competition and
+  slam boundaries, not an unsound promise. The largest repeated vulnerable
+  node is `1♦ - 3♦ 3♠ - - ⟨4♦ vs -⟩` (−120 PD IMPs); on a traced
+  nine-card-fit board the restored floor ranks `4♦` only 0.70 logits above
+  Pass. The worst tail has a genuine three-card-diamond opener: the candidate
+  cues over `3♠` and reaches `6♦`, while control doubles `3♠` (−21 PD IMPs).
+  The isolated atom and its regression test were therefore reverted; only the
+  reproducible `scripts/ab-diamond-floor.sh` harness and this result remain.
+  The candidate smoke hash was `babb6234…` → `ac0bb20e…`; generated cards were
+  byte-identical, so the shipped hash and behavior remain unchanged.
+
 ### Changed
 
 - **The American and Dutch defaults now use the Phase-5 honest-reading neural

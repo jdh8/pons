@@ -897,8 +897,42 @@ counterfactual, which is why the recipe leads with the worktree.
 Each is its own fresh-seed A/B per [measurement.md](measurement.md), and **none is
 a fix to the rule its bucket is named after**.
 
-- **B2.4 — the `1♦` length floor.** Restore `♦3..13` under `ReadingScope::All`.
-  Widest blast radius of anything here, and independent of the anchor.
+- **B2.4 — the `1♦` length floor — REJECTED in isolation (2026-08-18).** The
+  exact candidate added the implied `len(Diamonds, 3..)` atom, restoring
+  `♦3..13` under `ReadingScope::All`; it passed the projection/evaluation
+  gates and improved fixed-seed partner exclusions from 1.299% to 1.293%
+  (2194 → 2184). The pre-registered non-loss A/B did not pass: three seeds
+  (1787039750 / 1787040222 / 1787040684), each 204,800 boards/arm/vul, were
+  negative in 11/12 cells. Pooled over 614,400 boards/vul, plain/PD were
+  **−0.0010 ± 0.0016 / −0.0022 ± 0.0020** IMPs/board non-vulnerable and
+  **−0.0024 ± 0.0020 / −0.0024 ± 0.0024** vulnerable; the PD
+  non-vulnerable and plain vulnerable CIs exclude zero. Fired rates were
+  1.26–1.41%.
+
+  A side split rules out an opponent-reading artifact. All 10,691/9,480
+  call-divergent boards (none/both) followed **our pair's** `1♦` opening; the
+  aligned BBA-opener subsets (71,869/72,160 boards) had zero call and contract
+  divergences. This is expected: `ReadingScope::All` projects our side's
+  unalerted calls, while an undeclared opponent's unalerted natural calls stay
+  on the walk. The loss is therefore the partner-reading effect the item meant
+  to repair, not the candidate helping BBA or tightening our model of them.
+
+  The required `--by node` trace says this is decision calibration downstream
+  of a sound read. The largest repeated vulnerable bucket is
+  `1♦ - 3♦ 3♠ - - ⟨4♦ vs -⟩` (15 boards, −120 PD IMPs); on a traced
+  board responder really has six diamonds opposite four, but the restored
+  floor lifts `4♦` only 0.70 logits over Pass. The worst tail (−21 PD) has
+  a genuine three-card-diamond opener and four-card responder: the candidate
+  cues `4♠` and reaches `6♦`, while control doubles `3♠`. The atom and test
+  do not ship; revisit the floor only with an attributable fit/competition
+  calibration arm. Candidate smoke `babb6234…` → `ac0bb20e…`; cards and the
+  rendered-atom ratchet were byte-identical, contrary to the plan's expected
+  re-bless, because the BBA card has only four-/five-card-diamond booleans.
+
+  The read-only sibling census found the same opaque-comparator hole in the
+  fully blind `both_majors` relay choices `1NT - 2♣ - 2NT - 3♣/3♦`;
+  `longer_major` and Texas retain explicit named-suit floors. No sibling was
+  changed here; the relay needs its own A/B.
 - **B2.5 — an unalerted natural call must not read weaker than its own rule.**
   `floor#64`'s 1♠ (`5+ ♠, 8–16 points` → `♠4+, 0+`) and `floor#20`'s balancing 2♣
   (`5+ ♣, 10–16 points` → nothing) are the reproducible probes.
