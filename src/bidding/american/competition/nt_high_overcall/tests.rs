@@ -59,12 +59,26 @@ fn the_four_level_rungs_are_priced_under_three_notrump() {
     let over_spades = [call(1, Strain::Notrump), call(3, Strain::Spades)];
     let (game, _) = best_call_with(&arm(), &over_spades, "5.KQJ842.K93.T74");
     assert_eq!(game, call(4, Strain::Hearts), "six hearts play game");
-    // A five-card club suit with game values and a stopper bids 3NT, not 4♣.
+    // A five-card club suit with game values bids 3NT, not 4♣ — with a stopper
+    // under either setting, and without one under the shipped default, which
+    // leans on partner's 1NT for the stop.
     let (notrump, _) = best_call_with(&arm(), &over_spades, "A93.K4.Q82.KJ964");
     assert_eq!(notrump, call(3, Strain::Notrump), "the stopper plays 3NT");
-    // Without one, the minor is the fallback.
-    let (minor, _) = best_call_with(&arm(), &over_spades, "943.KQ.Q82.AKJ96");
-    assert_eq!(minor, call(4, Strain::Clubs), "no stopper, no major → 4♣");
+    let (blind, _) = best_call_with(&arm(), &over_spades, "943.KQ.Q82.AKJ96");
+    assert_eq!(
+        blind,
+        call(3, Strain::Notrump),
+        "no stopper still plays 3NT"
+    );
+    // Gate the direct 3NT (the pre-flip arm) and the minor is the fallback.
+    let mut gated = arm();
+    gated.competition.nt_high_overcall_3nt_stopper = true;
+    let (minor, _) = best_call_with(&gated, &over_spades, "943.KQ.Q82.AKJ96");
+    assert_eq!(
+        minor,
+        call(4, Strain::Clubs),
+        "gated: no stopper, no major → 4♣"
+    );
 }
 
 /// The `(3♣)` transfer variant: `3♦` shows hearts, and opener completes at

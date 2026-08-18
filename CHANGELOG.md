@@ -42,13 +42,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `smoke-default` goes `babb6234…` → `39ca60a2…` (cards byte-identical, and the
   `comp:negative-double` alert-site count 80 → 96 is re-blessed).
 
-- **`competition.nt_high_overcall_3nt_stopper`** — the three-level table's own
-  copy of `direct_3nt_stopper` (default `true`, the shipped gate;
-  `bba-gen --ns-nt-high-overcall-3nt-stopper`). The shared bit could not be
-  reused: the arm that dropped it wins *this* lane (+2.20/+1.62 plain IMPs per
-  fired, PD +0.66/+0.38) and loses the other lane it governs — advancing
-  partner's takeout double of a weak two, where `2M X - 3NT` came in at
-  −1.23/−1.92 PD per fired. The private bit's own A/B is owed.
+- **Responder's direct `3NT` over their three-level overcall of our `1NT` no
+  longer needs its own stopper** (`competition.nt_high_overcall_3nt_stopper`,
+  **shipped default-off**; `bba-gen --ns-nt-high-overcall-3nt-stopper true` for
+  the pre-flip arm). Partner opened `1NT`, so the stop is usually theirs to
+  hold. This is the three-level table's **own** copy of `direct_3nt_stopper`,
+  which could not be reused: the arm that dropped the shared bit wins *this*
+  lane and loses the other lane it governs — advancing partner's takeout double
+  of a weak two, where `2M X - 3NT` came in at −1.23/−1.92 PD per fired.
+
+  **Measured, pooled over two seeds (460,800 bd/vul): plain +0.00065 ±0.00036
+  (NV) / +0.00052 ±0.00047 (vul), perfect defense +0.00043 ±0.00041 / +0.00016
+  ±0.00053** — three of four DD cells CI-clear — with single-dummy leads
+  positive on all eight per-seed cells and `probe-divergence --gate-opener ours`
+  **passing at 0 foreign on all four seed × vulnerability cells**. +2.37/+1.65
+  plain IMPs per fired. `smoke-default` is unchanged at `39ca60a2…`: the lane
+  fires on 0.03% of `--filter-1nt` boards and the smoke set is unfiltered, so a
+  byte-identical smoke is not evidence of inertness at this rate — the A/B is
+  the witness.
 
 - **Transfers over their `(3♣)` overcall of our `1NT`** (`competition.nt_3c_transfers`,
   default off, rides the knob above; `bba-gen --ns-nt-3c-transfers`). `(3♣)` is
@@ -57,7 +68,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the invitational five-card major — which the natural table can only show as `X`
   or a pass — and right-siding. BBA plays all three naturally (per-suit census in
   `docs/ai-bidder/bba-1nt-counter-defense.md`), so the arm is judged on its own
-  merit. Default off; measured IMPs pending.
+  merit. **Measured a wash across two seeds and stays opt-in** (default off):
+  pooled owned plain +0.00002 ±0.00026 (NV) / +0.00007 ±0.00034 (vul), perfect
+  defense +0.00007 ±0.00029 / +0.00009 ±0.00037 — all four cells positive and an
+  order of magnitude inside their CI. Seed 1 looked like a vul win with PD above
+  plain (the right-siding signature); seed 2 reversed it. A convention trialled
+  against natural that measures a wash stays opt-in. Both arms ran against a
+  *gated* `3NT` baseline, so a re-measure owes a fresh one.
 
 - **`bba-gen --ns-direct-3nt-stopper`** — the arm flag for responder's direct
   `3NT` over their overcall of our `1NT`, so "does the direct `3NT` need its own

@@ -917,8 +917,9 @@ struct Args {
     /// overcall of our `1NT` — the three-level table's own copy of
     /// --ns-direct-3nt-stopper, which it cannot share (the paired arm that
     /// dropped the shared bit won this lane and lost the takeout-double advance
-    /// the shared bit also governs).  Unset tracks the engine default (on);
-    /// pass `false` for the no-gate arm.
+    /// the shared bit also governs).  **Engine default OFF since 2026-08-18**
+    /// — no stopper needed, because partner opened 1NT; pass `true` for the
+    /// pre-flip arm.  Unset = the engine default.
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
     ns_nt_high_overcall_3nt_stopper: Option<bool>,
 

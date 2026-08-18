@@ -81,6 +81,9 @@ fi
 # Round 2: the two increments over the shipped default, against `stop`.
 if [ "${ROUND:-1}" = 2 ]; then
     for v in none both; do
+        # Skipped in round 1's dir (already there); generated in a fresh
+        # pooling seed's dir, where `stop` IS the shipped default.
+        arm stop   "$v" --filter-1nt
         arm xfer   "$v" --filter-1nt --ns-nt-3c-transfers true
         arm nogate "$v" --filter-1nt --ns-nt-high-overcall-3nt-stopper false
         diffpair xfer   stop "$v"

@@ -1469,7 +1469,7 @@ static SETTINGS: &[Setting] = &[
     toggle("major_support_double", COMPETITION, "", true, set_major_support_double, major_support_double),
     toggle("high_overcall_responses", COMPETITION, "", false, set_high_overcall_responses, high_overcall_responses),
     toggle("nt_high_overcall_responses", COMPETITION, "Over their 3-level overcall of our 1NT", true, set_nt_high_overcall_responses, nt_high_overcall_responses),
-    gated("nt_high_overcall_3nt_stopper", COMPETITION, "…direct 3NT needs its own stopper", true, set_nt_high_overcall_3nt_stopper, nt_high_overcall_3nt_stopper, "nt_high_overcall_responses"),
+    gated("nt_high_overcall_3nt_stopper", COMPETITION, "…direct 3NT needs its own stopper", false, set_nt_high_overcall_3nt_stopper, nt_high_overcall_3nt_stopper, "nt_high_overcall_responses"),
     gated("nt_3c_transfers", COMPETITION, "…transfers over their (3♣)", false, set_nt_3c_transfers, nt_3c_transfers, "nt_high_overcall_responses"),
     toggle("jordan_truscott", COMPETITION, "Jordan / Truscott 2NT", true, set_jordan_truscott, jordan_truscott),
     toggle("delayed_cue", COMPETITION, "", false, set_delayed_cue, delayed_cue),

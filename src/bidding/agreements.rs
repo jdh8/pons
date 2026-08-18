@@ -145,8 +145,14 @@ pub struct CompetitionKnobs {
     /// (**+2.20/+1.62 plain IMPs per fired**, perfect defense +0.66/+0.38) and
     /// lost the *other* lane it also governs — advancing partner's takeout
     /// double of a weak two, where `2M X - 3NT` came in at **−1.23/−1.92 PD per
-    /// fired**.  **Default `true`** (the shipped gate) until this bit has an arm
-    /// of its own; `--ns-nt-high-overcall-3nt-stopper false` is that arm.
+    /// fired**.  Its own arm then confirmed it: **default `false` since
+    /// 2026-08-18** — responder's direct `3NT` over a three-level preempt needs
+    /// no stopper of its own, because partner opened `1NT`.  Pooled over two
+    /// seeds (460,800 bd/vul), plain **+0.00065 ±0.00036** NV / **+0.00052
+    /// ±0.00047** vul and perfect defense **+0.00043 ±0.00041** / +0.00016
+    /// ±0.00053, with `probe-divergence --gate-opener ours` passing at **0
+    /// foreign** on all four seed × vulnerability cells.  Pass
+    /// `--ns-nt-high-overcall-3nt-stopper true` for the pre-flip arm.
     pub nt_high_overcall_3nt_stopper: bool,
     /// Play transfers over their `(3♣)` overcall of our `1NT`
     ///
@@ -750,7 +756,7 @@ impl Default for CompetitionKnobs {
             free_bid_style: FreeBidStyle::Forcing,
             high_overcall_responses: false,
             nt_high_overcall_responses: true,
-            nt_high_overcall_3nt_stopper: true,
+            nt_high_overcall_3nt_stopper: false,
             nt_3c_transfers: false,
             direct_3nt_stopper: true,
             natural_floor: (5, 0),
