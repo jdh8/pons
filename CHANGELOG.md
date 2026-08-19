@@ -26,6 +26,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`bba-gen --filter-preempt`** — the `--filter-landy` twin for the `1NT (3x)`
+  lane: keep only deals where some 1NT-opener candidate's **LHO** holds a
+  seven-card suit and at most 12 HCP. Deal-level only, no bidding, no FFI, no
+  solver. Measured on 2,000 accepted boards at seed 424242: **14.8%** of them
+  reach `1NT (3x)` against 0.60% under a plain `--filter-1nt` run — a 25×
+  enrichment for 179 scanned deals per accepted board. As with `--filter-landy`,
+  it changes the accepted set, so arms under it pair only with each other.
+
 - **Responder's structure over their three-level overcall of our `1NT`**
   (`competition.nt_high_overcall_responses`, **shipped default-on**;
   `bba-gen --ns-nt-high-overcall false` for the pre-ship arm). The lane was
@@ -260,6 +268,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   American/Dutch cards are byte-identical across the removal.
 
 ### Fixed
+
+- **`bba-gen --filter-landy` paired on the wrong opponent.** The flag requires a
+  1NT-opener candidate whose partner-of-the-overcaller seat is Landy-shaped, but
+  it tested `seat.rho()` — the seat that acts one call *before* the opener.
+  Bidding moves clockwise, so the hand that overcalls a 1NT opening is its
+  **LHO**; a Landy-shaped RHO opens the bidding itself and our candidate never
+  opens 1NT at all. Measured on 2,000 accepted boards at seed 424242: the direct
+  `1NT (2♣)` lane was **0.00%** of accepted boards under `rho()` — *below* the
+  0.50% of a plain `--filter-1nt` run — against **17.8%** under `lho()`. **No
+  shipped verdict is affected**: no `scripts/ab-*.sh` runner passes the flag and
+  no arm dump on disk records it in `gen_args`, so it had never been used for a
+  measurement — it would have enriched a *balancing*-seat Landy and excluded the
+  direct lane it was built for.
 
 - **A cheap Michaels advance no longer promises three-card support.** Over a
   major opening, `michaels_advances` now authors the `2♠`/`3♥` preference as

@@ -241,11 +241,21 @@ struct Args {
     #[arg(long, default_value_t = false)]
     filter_1nt: bool,
 
-    /// `--filter-1nt`, and additionally require that candidate's **RHO** to
+    /// `--filter-1nt`, and additionally require that candidate's **LHO** to
     /// hold a Landy-shaped hand (5-4+ majors, 8+ HCP) — the seat that would
     /// overcall `2♣` over our 1NT.
     ///
-    /// The contested-`(2♣)` lane fires on ~0.1% of `--filter-1nt` boards,
+    /// LHO, not RHO: bidding moves clockwise, so the hand that acts *over* a
+    /// 1NT opening is the opener's left-hand opponent.  Until 2026-08-19 this
+    /// paired on `rho()`, which is the seat that acts one call *before* the
+    /// opener — a Landy-shaped hand there opens the bidding itself, so our
+    /// candidate never opened 1NT and, when it did (dealer = the candidate),
+    /// the Landy hand was in the balancing seat.  Measured on 2,000 accepted
+    /// boards at seed 424242: the direct `1NT (2♣)` lane was **0.00%** of
+    /// accepted boards under `rho()` — *below* the 0.50% of a plain
+    /// `--filter-1nt` run — against **17.8%** under `lho()`.
+    ///
+    /// The contested-`(2♣)` lane fires on ~0.1% of unfiltered boards,
     /// which is below the resolution of any band sweep (docs/one-notrump-competitive.md).
     /// Pairing the two raw-hand tests raises the yield by orders of magnitude
     /// for pure scan cost — still no bidding, no FFI, no solver.  Deliberately
@@ -262,6 +272,30 @@ struct Args {
     /// seed.
     #[arg(long, default_value_t = false)]
     filter_landy: bool,
+
+    /// `--filter-1nt`, and additionally require that candidate's **LHO** to
+    /// hold a preempt-shaped hand (a seven-card suit, no more than 12 HCP) —
+    /// the seat that would overcall our 1NT at the three level.
+    ///
+    /// The twin of [`Args::filter_landy`] for the `1NT (3x)` lane
+    /// (docs/one-notrump-competitive.md §N3), whose four buckets together are
+    /// 410 boards out of 204,800 per vulnerability in the anchor — 0.2%, below
+    /// the resolution of any per-suit read.  Measured on 2,000 accepted boards
+    /// at seed 424242: **14.8%** of them reach `1NT (3x)` against 0.60% under
+    /// a plain `--filter-1nt` run, for 179 scanned deals per accepted board.  BBA's three-level overcalls of a
+    /// 1NT opening are natural **seven-card** preempts at `hcp 4–10`
+    /// (docs/ai-bidder/bba-1nt-counter-defense.md), and the cap here is
+    /// deliberately above that band for the same reason `--filter-landy` is
+    /// looser than `convention_points`: this gates a *scan*, not a call, and
+    /// must not reject a hand the opponents' own band would preempt on.
+    ///
+    /// Enrichment, not isolation: the balanced seat may never open 1NT and the
+    /// preempt-shaped seat may never overcall, so the headline stays IMPs per
+    /// *accepted* deal.  Changing the acceptance predicate changes the accepted
+    /// set, so arms under this flag pair **only with each other** — never with
+    /// a `--filter-1nt` or `--filter-landy` run at the same seed.
+    #[arg(long, default_value_t = false)]
+    filter_preempt: bool,
 
     /// Disable our Unusual-vs-Unusual structure over 1NT (2NT) — BBA overcalls our
     /// 1NT with a both-minors 2NT (Multi-Landy), so this is the live test.  On by
@@ -1702,6 +1736,16 @@ fn is_landy_shaped(hand: Hand) -> bool {
     hearts.min(spades) >= 4 && hearts.max(spades) >= 5 && hand_hcp(hand) >= 8
 }
 
+/// Preempt-shaped: a seven-card suit and no more than 12 HCP — the raw-hand
+/// twin of BBA's natural three-level overcall of a 1NT opening, for
+/// `--filter-preempt`.
+///
+/// HCP rather than upgraded points, and no floor, because this gates a *scan*,
+/// not a call.  See `--filter-preempt` for why loose is the safe direction.
+fn is_preempt_shaped(hand: Hand) -> bool {
+    Suit::ASC.iter().any(|&suit| hand[suit].len() >= 7) && hand_hcp(hand) <= 12
+}
+
 /// If this auction's *opening* call is 1NT, its index and whether the opener is
 /// North/South.  The opening requirement (all prior calls passes) excludes a
 /// `1♣ - 1NT` rebid — we want 1NT *openings* only. Used by `--isolate-defense`
@@ -2600,13 +2644,22 @@ fn main() -> anyhow::Result<()> {
         scanned += 1;
         // One paired scan, not two independent ones: `--filter-landy` must
         // find a single seat that is both the 1NT candidate *and* has a
-        // Landy-shaped RHO, or it would accept deals where two unrelated seats
-        // satisfy the halves.  RHO is dealer-independent table geometry, which
+        // Landy-shaped LHO, or it would accept deals where two unrelated seats
+        // satisfy the halves.  LHO is dealer-independent table geometry, which
         // matters because `dealer` is only assigned below.
         if args.filter_landy
             && !Seat::ALL
                 .iter()
-                .any(|&seat| is_1nt_opener(deal[seat]) && is_landy_shaped(deal[seat.rho()]))
+                .any(|&seat| is_1nt_opener(deal[seat]) && is_landy_shaped(deal[seat.lho()]))
+        {
+            continue;
+        }
+        // Same paired scan as `--filter-landy`: one seat must be both the 1NT
+        // candidate and hold the preempt-shaped LHO.
+        if args.filter_preempt
+            && !Seat::ALL
+                .iter()
+                .any(|&seat| is_1nt_opener(deal[seat]) && is_preempt_shaped(deal[seat.lho()]))
         {
             continue;
         }
