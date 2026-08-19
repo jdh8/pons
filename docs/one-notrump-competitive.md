@@ -1179,6 +1179,64 @@ the whole loss on `4♦ ← 3NT` (−310/−348 and −420/−429). Over `(3♠)
 prices the `4♦` substitution, not the `4♥` rung. The un-bundled half is
 untested, and the census cell it targets is the lane's biggest.
 
+### Round 5 — opener's answer to the takeout double: the fit rung **ships**, the leave-in is **refuted** (2026-08-19)
+
+Two knobs, one control, one seed. `ab-results/nt-answer-x-v2/`, seed
+`1787145997`, sha `7f8fa998`+patch (round 4 shipped), **716,800 boards per arm
+per vulnerability** under the new `--filter-preempt`, 28 shards × 25,600.
+`scripts/ab-nt-high-overcall.sh` `ROUND=4`.
+
+*Read the per-board figures against `--filter-preempt`'s density, not
+`--filter-1nt`'s.* The `1NT (3x)` lane is **13.7%** of accepted boards here
+against 0.60% there, so these per-board numbers are ~23× more concentrated than
+the round-1/2 rows above and are **not** comparable to them. Per-fired is.
+
+#### `fit` — `nt_high_overcall_x_major_at_four`, **SHIPPED DEFAULT-ON**
+
+| vul | fired | plain/bd | PD/bd | plain/fired | PD/fired | sd plain/fired | sd-PD/fired |
+| --- | ---: | --- | --- | ---: | ---: | ---: | ---: |
+| none | 1103 (0.15%) | **+0.0018 ±0.0007** | **+0.0034 ±0.0008** | +1.141 | +2.182 | +0.243 | +0.889 |
+| both | 1340 (0.19%) | **+0.0032 ±0.0009** | **+0.0062 ±0.0011** | +1.687 | +3.322 | +0.352 | +1.578 |
+
+Four of four double-dummy cells CI-clear positive, all four sd-lead cells
+positive, `probe-divergence --gate-opener ours` **0 foreign of 1103 / 1340**.
+This is `win | win` on the decision table, so it ships default-on. One rung:
+over `(3♠)`, `4♥` at 140 with four hearts — the fit responder's takeout double
+promised, which the ladder previously buried under `3NT@130` because hearts sit
+*below* their suit and the cheap `3M` rung does not exist there.
+
+The census cell it targets (`(3♠) X (P) 3NT`, 20 bd / −94 plain / −123 PD) is
+the one the "BBA-style double continuation" arm also touched and lost on. The
+difference is the un-bundling: that arm replaced `3NT` with `3♦`/`4♦` when
+opener had *no* four-card major, and its own decomposition put the whole loss on
+`4♦ ← 3NT`. Keeping `3NT` for the no-major hands and adding only the fit rung
+turns the same cell from a −4.4/board loser into a +1.1/+1.7-per-fired winner.
+**A fresh-seed confirmation is owed** before this row is treated as settled.
+
+#### `pass` — `nt_high_overcall_x_leave_in`, **REFUTED, kept opt-in**
+
+| vul | fired | plain/bd | PD/bd | sd plain/bd | sd-PD/bd |
+| --- | ---: | --- | --- | --- | --- |
+| none | 9157 (1.28%) | **−0.0048 ±0.0019** | +0.0078 ±0.0021 | **−0.0263 ±0.0019** | **−0.0184 ±0.0021** |
+| both | 10493 (1.46%) | +0.0072 ±0.0026 | +0.0295 ±0.0028 | **−0.0257 ±0.0027** | **−0.0099 ±0.0027** |
+
+Double dummy splits by vulnerability — a CI-clear plain **loss** NV, a CI-clear
+plain win vulnerable — and perfect defense is a large win in both. That pattern
+is precisely the doubling artifact [measurement.md](measurement.md) names, and
+the **sd-lead tie-breaker settles it: CI-clear negative in all four cells**,
+−1.75 to −2.06 IMPs per fired. Isolation was clean (0 foreign of 9157 / 10493),
+so this is the treatment, not a leak.
+
+The bridge reading of the split is the honest one: with 15–17 opposite a
+takeout double's 8+, we hold 23+ and belong in **game**, not defending a doubled
+three-level partscore for +200. The vulnerable column is the exception that
+proves it — +500 instead of +200 is what flips double-dummy's sign, and even
+that does not survive a realistic opening lead. The knob stays default-off; the
+only live follow-up is a **vulnerability-gated** variant, and it inherits the
+sd-lead result as its prior. Probe evidence that the leave-in *can* fire (the
+advancer sits 97–100% of realized boards) was correct and irrelevant: the
+question was never whether they run, it was whether defending beats bidding.
+
 ### Disclosure — what BBA is told
 
 No card row exists for this lane. `card.rs`'s `SCHEMA` has no slot for

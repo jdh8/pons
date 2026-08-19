@@ -69,6 +69,89 @@ fn the_double_answer_picks_the_longer_major() {
     );
 }
 
+/// `nt_high_overcall_x_major_at_four` (**shipped default-on**): under their
+/// `(3♠)` the shown major's cheapest level is four, and the pre-ship ladder had
+/// no rung there.
+///
+/// The hand is the census board — `1NT (3♠) X (P)` with `3NT` three down while
+/// hearts were worth nine tricks (`docs/one-notrump-competitive.md` §N3).
+#[test]
+fn the_four_level_major_rung_bids_the_fit() {
+    let auction = [
+        call(1, Strain::Notrump),
+        call(3, Strain::Spades),
+        Call::Double,
+        Call::Pass,
+    ];
+    let hand = "K5.QJ84.A92.KQ92";
+    let (rung, floored) = best_call_with(&arm(), &auction, hand);
+    assert_eq!(
+        rung,
+        call(4, Strain::Hearts),
+        "the shipped rung bids the 4-4 fit the double promised"
+    );
+    assert!(!floored, "an authored node, not the floor");
+    let mut off = arm();
+    off.competition.nt_high_overcall_x_major_at_four = false;
+    assert_eq!(
+        best_call_with(&off, &auction, hand).0,
+        call(3, Strain::Notrump),
+        "the pre-ship arm punts to 3NT on one stopper"
+    );
+    // Their `(3♥)` already has a cheap rung, so the knob is inert there.
+    let over_hearts = [
+        call(1, Strain::Notrump),
+        call(3, Strain::Hearts),
+        Call::Double,
+        Call::Pass,
+    ];
+    let spades = "QJ84.K5.A92.KQ92";
+    assert_eq!(
+        best_call_with(&arm(), &over_hearts, spades).0,
+        best_call_with(&off, &over_hearts, spades).0,
+        "the knob touches only the arm with no three-level rung"
+    );
+}
+
+/// `nt_high_overcall_x_leave_in`: opener converts the takeout double to
+/// penalty without a four-card major and without two of the top three honors
+/// in their seven-card suit.
+#[test]
+fn the_leave_in_is_opt_in() {
+    let auction = [
+        call(1, Strain::Notrump),
+        call(3, Strain::Clubs),
+        Call::Double,
+        Call::Pass,
+    ];
+    let mut on = arm();
+    on.competition.nt_high_overcall_x_leave_in = true;
+    // One top honor in their suit: `3NT` by default, Pass under the knob.
+    let thin = "AQ3.J72.AQJ4.K92";
+    assert_eq!(
+        best_call_with(&arm(), &auction, thin).0,
+        call(3, Strain::Notrump),
+        "the default punts to 3NT on the single stopper"
+    );
+    let (left_in, floored) = best_call_with(&on, &auction, thin);
+    assert_eq!(left_in, Call::Pass, "the knob defends instead");
+    assert!(!floored, "an authored node, not the floor");
+    // Two top honors: `3NT` is a real contract, so the row does not fire.
+    let solid = "AQ3.J72.QJ54.AK9";
+    assert_eq!(
+        best_call_with(&on, &auction, solid).0,
+        call(3, Strain::Notrump),
+        "two of the top three honors keep 3NT"
+    );
+    // A four-card major outranks the leave-in on both settings.
+    let fit = "AQ32.J72.QJ4.T92";
+    assert_eq!(
+        best_call_with(&on, &auction, fit).0,
+        call(3, Strain::Spades),
+        "a fit is still bid"
+    );
+}
+
 /// The double is the 4-4 major finder, and its `points(8..)` floor is the
 /// census repair — the floor doubled on 6–7 and opener drove to a bad game.
 #[test]

@@ -34,6 +34,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   enrichment for 179 scanned deals per accepted board. As with `--filter-landy`,
   it changes the accepted set, so arms under it pair only with each other.
 
+- **Opener answers their `(3♠)` takeout double in hearts at the four level**
+  (`competition.nt_high_overcall_x_major_at_four`, **shipped default-on**;
+  `bba-gen --ns-nt-high-overcall-x-major-at-four false` for the pre-ship arm).
+  Hearts sit *below* their suit, so `nt_answer_double`'s cheap `3M` rung does
+  not exist over `(3♠)` and a 15–16 with four hearts answered `3NT` on one
+  stopper — burying the 4-4 fit responder's double promised, against a seven-card
+  suit. On the worst census board opener held `K5.QJ84.A92.KQ92` opposite
+  `Q6.A972.K8643.63` and `3NT` went three down while hearts were worth nine
+  tricks; the `(3♠) X (P) 3NT` cell is 20 boards for −94 plain / −123 PD on the
+  fresh-seed anchor, N3's largest single loss.
+
+  **A/B (seed `1787145997`, 716,800 bd/arm/vul against BBA under
+  `--filter-preempt`): `win | win`, four of four CI-clear.** Plain +0.0018
+  ±0.0007 NV / +0.0032 ±0.0009 vulnerable, perfect defense +0.0034 ±0.0008 /
+  +0.0062 ±0.0011; +1.141 / +2.182 and +1.687 / +3.322 IMPs per fired (1103 /
+  1340 fired); sd-lead positive in all four cells. Isolation 0 foreign of 1103
+  and of 1340. This is the un-bundled half of the refuted "BBA-style double
+  continuation" — that arm also replaced `3NT` with `3♦`/`4♦` when opener had no
+  four-card major, and its own decomposition put the whole loss there. A
+  fresh-seed confirmation is owed.
+
+- **`competition.nt_high_overcall_x_leave_in`** — opener may convert responder's
+  takeout double of their three-level overcall to penalty, with at most one of
+  A/K/Q in their seven-card suit. **Measured and refuted; default off, kept
+  opt-in.** Same run: double dummy splits by vulnerability (plain −0.0048
+  ±0.0019 NV, +0.0072 ±0.0026 vulnerable; PD +0.0078 ±0.0021 / +0.0295 ±0.0028),
+  but the sd-lead tie-breaker is CI-clear negative in all four cells (−1.75 to
+  −2.06 IMPs per fired) — the doubling artifact `docs/measurement.md` names.
+  With 23+ combined we belong in game, not defending a doubled partscore. BBA's
+  advancer does sit for the double (97–100% of realized boards), so the probe
+  that queued this was right about the mechanism and irrelevant to the verdict.
+  A vulnerability-gated variant is the only live follow-up.
+
 - **Responder's structure over their three-level overcall of our `1NT`**
   (`competition.nt_high_overcall_responses`, **shipped default-on**;
   `bba-gen --ns-nt-high-overcall false` for the pre-ship arm). The lane was

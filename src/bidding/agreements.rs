@@ -166,6 +166,53 @@ pub struct CompetitionKnobs {
     /// its own merit.  **Measured wash; default off**
     /// (`--ns-nt-3c-transfers` in `bba-gen`).
     pub nt_3c_transfers: bool,
+    /// Opener answers the takeout double in the shown major at its **cheapest
+    /// legal** level, even when that is the four level
+    ///
+    /// Only their `(3♠)` has such a level: hearts sit *below* their suit, so
+    /// `nt_answer_double`'s cheap `3M` rung does not exist there and the ladder
+    /// runs `4♥` (four hearts **and** 17+ points), `3NT` on one stopper, then
+    /// the three-card tolerance.  Opener with four hearts and 15–16 therefore
+    /// answers `3NT` and buries the 4-4 fit responder's double promised — the
+    /// `(3♠) X (P) 3NT` cell is 20 boards and −94 plain / −123 PD on the
+    /// fresh-seed anchor, N3's largest single loss
+    /// (`docs/one-notrump-competitive.md` §N3).  This knob adds the one missing
+    /// rung, `4♥` at 140 with four hearts, above `3NT`.  Rides on
+    /// [`nt_high_overcall_responses`][Self::nt_high_overcall_responses].
+    ///
+    /// **Shipped default-on 2026-08-19**: seed `1787145997`, 716,800
+    /// bd/arm/vulnerability under `--filter-preempt`, plain **+0.0018 ±0.0007**
+    /// NV / **+0.0032 ±0.0009** vulnerable and perfect defense **+0.0034
+    /// ±0.0008** / **+0.0062 ±0.0011** — four of four CI-clear, +1.14/+2.18 and
+    /// +1.69/+3.32 IMPs per fired, sd-lead positive in all four cells, and
+    /// `probe-divergence --gate-opener ours` at 0 foreign of 1103 / 1340.  Pass
+    /// `--ns-nt-high-overcall-x-major-at-four false` in `bba-gen` for the
+    /// pre-ship arm.
+    pub nt_high_overcall_x_major_at_four: bool,
+    /// Opener may **leave in** responder's takeout double of their three-level
+    /// overcall
+    ///
+    /// The double is takeout, so passing it converts it to penalty.  Probed
+    /// 2026-08-19: BBA's advancer sits for that double on **88%** of hands over
+    /// a minor preempt and ~50% over a major, and its preemptor never bids
+    /// again (`docs/ai-bidder/bba-1nt-counter-defense.md`), so the leave-in
+    /// really does buy a doubled contract.  Gated on
+    /// `top_honors(their suit, ..=1)` — with at most one of A/K/Q in a suit
+    /// they have shown seven of, `3NT` is a fantasy and the four-level tolerance
+    /// rung is a 4-3 fit.  Priced above `3NT` and below the four-card-major
+    /// rungs: a fit is still bid, a stopperless punt is not.  Rides on
+    /// [`nt_high_overcall_responses`][Self::nt_high_overcall_responses].
+    ///
+    /// **Measured 2026-08-19 and REFUTED; default off, kept opt-in.**  Same run
+    /// as its sibling: double dummy splits by vulnerability (plain **−0.0048
+    /// ±0.0019** NV, **+0.0072 ±0.0026** vulnerable; perfect defense +0.0078
+    /// ±0.0021 / +0.0295 ±0.0028), but the **sd-lead** tie-breaker is CI-clear
+    /// negative in all four cells (−0.0263/−0.0184 NV, −0.0257/−0.0099
+    /// vulnerable — −1.75 to −2.06 IMPs per fired).  The PD-only half is the
+    /// doubling artifact `docs/measurement.md` names: with 23+ combined we
+    /// belong in game, not defending a doubled three-level partscore.  A
+    /// vulnerability-gated variant is the only live follow-up.
+    pub nt_high_overcall_x_leave_in: bool,
     // --- competition/lebensohl.rs
     /// Require a stopper for the direct `3NT` over their overcall
     ///
@@ -759,6 +806,8 @@ impl Default for CompetitionKnobs {
             nt_high_overcall_responses: true,
             nt_high_overcall_3nt_stopper: false,
             nt_3c_transfers: false,
+            nt_high_overcall_x_major_at_four: true,
+            nt_high_overcall_x_leave_in: false,
             direct_3nt_stopper: true,
             natural_floor: (5, 0),
             lebensohl_style: LebensohlStyle::Transfer,

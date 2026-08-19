@@ -93,4 +93,27 @@ if [ "${ROUND:-1}" = 2 ]; then
     done
 fi
 
+# Round 4 (`ROUND=4`): the two census-queued increments to opener's answer to
+# responder's takeout double, each its own knob, both against a common control.
+# `--filter-preempt` replaces `--filter-1nt` here: the `1NT (3x)` lane is 14.8%
+# of its accepted boards against 0.60%, so an arm buys ~25x the owned sample for
+# 33x the (bidding-free) scan.  Arms under it pair only with each other.
+#   fit   opener answers their `(3♠)` double `4♥` with four hearts — the rung
+#         the default ladder has no room for, and the `(3♠) X (P) 3NT` cell it
+#         targets is 20 bd / -94 plain / -123 PD on the fresh-seed anchor.
+#   pass  opener may leave the double in with at most one of A/K/Q in their
+#         seven-card suit.  BBA's advancer sits for it on 88% (minor) / ~50%
+#         (major) and its preemptor never bids again.
+if [ "${ROUND:-1}" = 4 ]; then
+    for v in none both; do
+        arm base "$v" --filter-preempt
+        arm fit  "$v" --filter-preempt --ns-nt-high-overcall-x-major-at-four true
+        arm pass "$v" --filter-preempt --ns-nt-high-overcall-x-leave-in true
+        diffpair fit  base "$v"
+        diffpair pass base "$v"
+        sddiff   fit  base "$v"
+        sddiff   pass base "$v"
+    done
+fi
+
 log "nt-high-overcall done"

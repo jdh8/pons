@@ -302,7 +302,13 @@ fn nt_answer_forcing_minor(over: Suit, minor: Suit) -> Rules {
 /// 15–17 notrump: the shown major at its cheapest level with four, jumped to
 /// game with a maximum, then `3NT` on a stopper, then the three-card tolerance,
 /// with a low-weight `3NT` as the finite catch-all.
-fn nt_answer_double(over: Suit) -> Rules {
+///
+/// Two knobs sit in this ladder, both queued by the 2026-08-19 census
+/// decomposition: `nt_high_overcall_x_major_at_four` (**default on**) adds the
+/// four-level rung their `(3♠)` leaves missing, and
+/// `nt_high_overcall_x_leave_in` (default off, measured and refuted) lets
+/// opener convert the double to penalty.
+fn nt_answer_double(over: Suit, agreements: &Agreements) -> Rules {
     let notrump = Bid::new(3, Strain::Notrump);
     let mut rules = Rules::new();
     for major in [Suit::Hearts, Suit::Spades] {
@@ -322,7 +328,18 @@ fn nt_answer_double(over: Suit) -> Rules {
         if major > over {
             let cheap = Bid::new(3, strain);
             rules = major_row(rules, cheap, 140, major, over, len(major, 4..));
+        } else if agreements.competition.nt_high_overcall_x_major_at_four {
+            // Their `(3♠)`: the shown major's cheapest level *is* four, so
+            // without this rung a 15-16 with four hearts answers `3NT` on one
+            // stopper and buries the 4-4 fit the double promised.
+            rules = major_row(rules, jump, 140, major, over, len(major, 4..));
         }
+    }
+    if agreements.competition.nt_high_overcall_x_leave_in {
+        // Between the four-card-major rungs and `3NT`: a fit is still bid, a
+        // stopperless punt is not.  Two of the top three honors in a suit they
+        // have shown seven of is the whole case for declaring.
+        rules = rules.rule(Call::Pass, 135, top_honors(over, ..=1));
     }
     rules = rules.rule(notrump, 130, stopper_in_their_suits());
     for major in [Suit::Hearts, Suit::Spades] {
@@ -398,7 +415,7 @@ pub(super) fn nt_high_overcall_package() -> Package {
             entries.extend(expand(
                 "P* 1NT (3x) X -",
                 |_| true,
-                |bindings| nt_answer_double(bindings.suit('x')),
+                move |bindings| nt_answer_double(bindings.suit('x'), agreements),
             ));
 
             if transfers {

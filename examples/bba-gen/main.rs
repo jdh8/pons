@@ -964,6 +964,22 @@ struct Args {
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
     ns_nt_3c_transfers: Option<bool>,
 
+    /// Opener answers responder's takeout double of their three-level overcall
+    /// in the shown major at its **cheapest legal** level, even when that is
+    /// the four level — only their `(3♠)` has one.  Implies
+    /// --ns-nt-high-overcall; does nothing without it.  **Engine default ON
+    /// since 2026-08-19**; pass `false` for the pre-ship arm.  Unset = the
+    /// engine default; see `competition.nt_high_overcall_x_major_at_four`.
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    ns_nt_high_overcall_x_major_at_four: Option<bool>,
+
+    /// Opener may leave in responder's takeout double of their three-level
+    /// overcall, converting it to penalty, with at most one of A/K/Q in their
+    /// suit.  Implies --ns-nt-high-overcall; does nothing without it.  Unset =
+    /// the engine default (off); see `competition.nt_high_overcall_x_leave_in`.
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    ns_nt_high_overcall_x_leave_in: Option<bool>,
+
     /// Require a stopper for responder's *direct* `3NT` over their overcall of
     /// our `1NT`.  Unset tracks the shipped engine default (on); pass `false`
     /// for the no-gate arm ("partner can hold the stopper").  Shared by the
@@ -2132,6 +2148,12 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     }
     if let Some(v) = args.ns_nt_3c_transfers {
         agreements.competition.nt_3c_transfers = v;
+    }
+    if let Some(v) = args.ns_nt_high_overcall_x_major_at_four {
+        agreements.competition.nt_high_overcall_x_major_at_four = v;
+    }
+    if let Some(v) = args.ns_nt_high_overcall_x_leave_in {
+        agreements.competition.nt_high_overcall_x_leave_in = v;
     }
     if let Some(v) = args.ns_direct_3nt_stopper {
         agreements.competition.direct_3nt_stopper = v;
