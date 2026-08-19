@@ -107,7 +107,10 @@ not evidence of a bidding A/B. This check caught a parallel session running
 
 The systemd user unit `poker-worker@lines-mtt89.service` (`solve-gen tables`)
 shares the CPU. jdh8 granted standing authorization on 2026-07-29 to stop it
-before a CPU-intensive bidding run and restore it immediately afterward:
+before a CPU-intensive bidding run and restore it immediately afterward.
+`scripts/idle-run.sh` does this automatically via
+`~/.config/pons/idle-run.local.sh`; run the commands by hand only for a job
+launched outside `idle-run.sh`:
 
 ```sh
 systemctl --user stop poker-worker@lines-mtt89.service

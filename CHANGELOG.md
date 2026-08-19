@@ -207,6 +207,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`scripts/idle-run.sh` now supports a machine-local politeness hook.** On
+  this box, `~/.config/pons/idle-run.local.sh` pauses the 20 GiB poker worker
+  around heavy runs and restores it on success, failure, or interruption.
+  Long-lived BEN servers explicitly skip the hook. No bidding change.
+
 - **`probe-1nt-interference` splits the three-level suits.** The `3+` bucket was
   one number over the whole floor-only region; it is now one bucket per RHO suit
   (`3♣`…`3♠`) with `3NT` and above folded into `4+`. This is what let the census

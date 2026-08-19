@@ -6,16 +6,14 @@
 #
 # Fix-vs-shipped (`--fix`, fit leg ON both arms) so only misfit 2/1s move.
 # `--sd` prices the BLIND opening lead single-dummy (16 MC worlds) on divergent
-# boards only — LIVE-SOLVING, so the poker worker MUST be stopped first. Arms
-# strictly sequential; one fresh sd-seed shared across all arms; do NOT rebuild
-# while running.
+# boards only — LIVE-SOLVING. `idle-run.sh`'s machine-local hook stops and
+# restores the poker worker. Arms strictly sequential; one fresh sd-seed shared
+# across all arms; do NOT rebuild while running.
 #
-#   systemctl --user stop poker-worker@lines-mtt89.service
 #   cargo build --release --example ab-point-count
 #   setsid nohup scripts/idle-run.sh scripts/ab-two-over-one-gate-sd.sh \
 #       ab-results/two-over-one-gate-sd \
 #       >ab-results/two-over-one-gate-sd.log 2>&1 </dev/null &
-#   # ... then: systemctl --user start poker-worker@lines-mtt89.service
 #
 # Resumable: a non-empty result file is skipped; sd-seed persists in $R/sd-seed.
 # Fresh slice 36M..40M of 24.pdd (past the 35M plain+PD cursor; bank = 61.70M).

@@ -57,7 +57,7 @@ start)
 			cd "$BEN_DIR/src"
 			# ponytail: batch-of-1 small-LSTM inference gains nothing from an intra-op
 			# pool; pin to 1 so N instances pack onto N cores, not N*32 threads thrashing.
-			setsid nohup env TF_NUM_INTRAOP_THREADS=1 TF_NUM_INTEROP_THREADS=1 OMP_NUM_THREADS=1 \
+			setsid nohup env TF_NUM_INTRAOP_THREADS=1 TF_NUM_INTEROP_THREADS=1 OMP_NUM_THREADS=1 PONS_IDLE_LOCAL= \
 				"$here/idle-run.sh" "$BEN_DIR/.venv/bin/python" gameapi.py \
 				--config "$conf" --port "$port" --seed 42 --nolimit true --record false \
 				>"$BEN_DIR/run/server-$port.log" 2>&1 </dev/null &
