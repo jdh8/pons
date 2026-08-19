@@ -974,11 +974,19 @@ struct Args {
     ns_nt_high_overcall_x_major_at_four: Option<bool>,
 
     /// Opener may leave in responder's takeout double of their three-level
-    /// overcall, converting it to penalty, with at most one of A/K/Q in their
-    /// suit.  Implies --ns-nt-high-overcall; does nothing without it.  Unset =
+    /// overcall, converting it to penalty, holding FOUR cards in their suit.
+    /// Implies --ns-nt-high-overcall; does nothing without it.  Unset =
     /// the engine default (off); see `competition.nt_high_overcall_x_leave_in`.
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
     ns_nt_high_overcall_x_leave_in: Option<bool>,
+
+    /// Extend that leave-in to three cards headed by two of the top three
+    /// honors, i.e. the full v2 candidate gate rather than the length half.
+    /// Implies --ns-nt-high-overcall-x-leave-in; does nothing without it.
+    /// Unset = the engine default (off); see
+    /// `competition.nt_high_overcall_x_leave_in_three`.
+    #[arg(long, num_args = 0..=1, default_missing_value = "true")]
+    ns_nt_high_overcall_x_leave_in_three: Option<bool>,
 
     /// Require a stopper for responder's *direct* `3NT` over their overcall of
     /// our `1NT`.  Unset tracks the shipped engine default (on); pass `false`
@@ -2154,6 +2162,9 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     }
     if let Some(v) = args.ns_nt_high_overcall_x_leave_in {
         agreements.competition.nt_high_overcall_x_leave_in = v;
+    }
+    if let Some(v) = args.ns_nt_high_overcall_x_leave_in_three {
+        agreements.competition.nt_high_overcall_x_leave_in_three = v;
     }
     if let Some(v) = args.ns_direct_3nt_stopper {
         agreements.competition.direct_3nt_stopper = v;

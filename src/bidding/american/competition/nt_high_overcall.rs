@@ -306,8 +306,8 @@ fn nt_answer_forcing_minor(over: Suit, minor: Suit) -> Rules {
 /// Two knobs sit in this ladder, both queued by the 2026-08-19 census
 /// decomposition: `nt_high_overcall_x_major_at_four` (**default on**) adds the
 /// four-level rung their `(3♠)` leaves missing, and
-/// `nt_high_overcall_x_leave_in` (default off, measured and refuted) lets
-/// opener convert the double to penalty.
+/// `nt_high_overcall_x_leave_in` (default off; the wide v1 gate was refuted,
+/// this is the length/quality v2) lets opener convert the double to penalty.
 fn nt_answer_double(over: Suit, agreements: &Agreements) -> Rules {
     let notrump = Bid::new(3, Strain::Notrump);
     let mut rules = Rules::new();
@@ -337,9 +337,33 @@ fn nt_answer_double(over: Suit, agreements: &Agreements) -> Rules {
     }
     if agreements.competition.nt_high_overcall_x_leave_in {
         // Between the four-card-major rungs and `3NT`: a fit is still bid, a
-        // stopperless punt is not.  Two of the top three honors in a suit they
-        // have shown seven of is the whole case for declaring.
-        rules = rules.rule(Call::Pass, 135, top_honors(over, ..=1));
+        // stopperless punt is not.  The gate is **trump tricks**, not the
+        // absence of a stopper.  v1 read the honors the other way round — pass
+        // on at most one of A/K/Q in their suit, i.e. on essentially every
+        // no-major hand — and was refuted at −1.75 to −2.06 IMPs per fired on
+        // the sd-lead bracket: with 15-17 opposite a takeout double's 8+ we
+        // hold 23+ and belong in game, and a stopperless punt to `3NT` still
+        // beat defending a doubled partscore for +200.
+        //
+        // The re-slice of that arm by opener's holding
+        // (`docs/one-notrump-competitive.md` §N3, "Round 6") put the whole
+        // surviving case in **length**: four cards in a suit they have shown
+        // seven of is the best cell in the table at both vulnerabilities, while
+        // at fixed length every measured honor step *costs*.  So the two
+        // candidate disjuncts are separate knobs, and the A/B reads them as
+        // separate arms — bundled, a win would ship the bad half and a loss
+        // would bury the good one.  One row either way: a second `Pass` at 135
+        // is a weight tie the row invariants reject.
+        let long = len(over, 4..);
+        rules = if agreements.competition.nt_high_overcall_x_leave_in_three {
+            rules.rule(
+                Call::Pass,
+                135,
+                long | (len(over, 3..=3) & top_honors(over, 2..)),
+            )
+        } else {
+            rules.rule(Call::Pass, 135, long)
+        };
     }
     rules = rules.rule(notrump, 130, stopper_in_their_suits());
     for major in [Suit::Hearts, Suit::Spades] {

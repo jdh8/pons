@@ -17,6 +17,12 @@
 //! cargo run --release --features serde --example ab-dump-bucket -- ON_DIR OFF_DIR
 //! ```
 //!
+//! `--by holding` is the `1NT (3x) X -` leave-in slice
+//! (docs/one-notrump-competitive.md §N3): every divergent board keyed by
+//! opener's holding in **their** suit — length x top honors x whether today's
+//! four-card-major rung already outbids the `Pass`.  `ON_DIR` must be the
+//! leave-in arm, and the `(other)` bucket must read zero.
+//!
 //! `--by node|lane` is the reading-knob variant (Phase 2 forensic,
 //! docs/authored-reading-handoff.md): instead of the competitive-rebid roles it
 //! buckets every divergent board by the auction prefix through the first
@@ -44,8 +50,9 @@ struct Args {
     /// Re-price at this vulnerability instead of the dump's
     #[arg(short, long)]
     vulnerability: Option<AbsoluteVulnerability>,
-    /// Bucket by `node` (prefix through the first differing call, ON vs OFF)
-    /// or `lane` (opening + the first non-pass call over it) instead of the
+    /// Bucket by `node` (prefix through the first differing call, ON vs OFF),
+    /// `lane` (opening + the first non-pass call over it), or `holding`
+    /// (opener's holding in their suit over `1NT (3x) X -`) instead of the
     /// competitive-rebid roles
     #[arg(long)]
     by: Option<String>,
@@ -130,6 +137,9 @@ fn classify(on: &Board, off: &Board) -> Option<Bucket> {
 
 /// A `--by` key for a divergent board; `None` when the auctions do not differ.
 fn key_of(by: &str, on: &Board, off: &Board) -> Option<String> {
+    if by == "holding" {
+        return common::holding_key(on, off);
+    }
     let a = &on.table_a;
     let b = &off.table_a;
     let i = (0..a.len().min(b.len())).find(|&i| a[i] != b[i])?;
@@ -142,7 +152,7 @@ fn key_of(by: &str, on: &Board, off: &Board) -> Option<String> {
             let prefix: Vec<String> = a[..i].iter().map(show).collect();
             format!("{} ⟨{} vs {}⟩", prefix.join(" "), show(&a[i]), show(&b[i]))
         }
-        _ => {
+        "lane" => {
             // opening + the first non-pass call over it, e.g. `1♠ (1NT)`; the
             // parenthesis marks the other side.
             let mut it = a
@@ -161,6 +171,9 @@ fn key_of(by: &str, on: &Board, off: &Board) -> Option<String> {
             });
             format!("{} {over}", show(open))
         }
+        // A silent fall-through to `lane` turned a typo'd mode into a plausible
+        // table read as the mode that was asked for.
+        other => panic!("unknown --by {other}"),
     })
 }
 
@@ -218,16 +231,21 @@ fn report_by(by: &str, on: &[Board], off: &[Board], vul: AbsoluteVulnerability, 
     let mut rows: Vec<_> = buckets.into_iter().collect();
     rows.sort_by_key(|(_, e)| e.3);
     println!(
-        "{:>6} {:>6} {:>8} {:>8} {:>8}  bucket",
-        "calls", "fired", "plain", "PD", "PD/fired"
+        "{:>6} {:>6} {:>8} {:>8} {:>10} {:>8}  bucket",
+        "calls", "fired", "plain", "PD", "plain/fired", "PD/fired"
     );
     for (key, (calls, fired, plain, pdv)) in rows.iter().take(top) {
-        let per = if *fired == 0 {
-            0.0
-        } else {
-            *pdv as f64 / *fired as f64
+        let per = |total: i64| {
+            if *fired == 0 {
+                0.0
+            } else {
+                total as f64 / *fired as f64
+            }
         };
-        println!("{calls:>6} {fired:>6} {plain:>+8} {pdv:>+8} {per:>+8.2}  {key}");
+        let (per_plain, per_pd) = (per(*plain), per(*pdv));
+        println!(
+            "{calls:>6} {fired:>6} {plain:>+8} {pdv:>+8} {per_plain:>+10.2} {per_pd:>+8.2}  {key}"
+        );
     }
     let shown: i64 = rows.iter().take(top).map(|(_, e)| e.3).sum();
     println!(

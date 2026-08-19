@@ -23,6 +23,10 @@
 //! optimistic for the arm bidding more slams.  Sequential per board (no
 //! cross-board pooling), so reserve it for slam-sized divergent sets.
 //!
+//! `--by holding` splits the same delta into the `1NT (3x) X -` leave-in slice
+//! (`common::holding_key`), so the sd bracket — the one that settled the v1
+//! refutation — can be read per holding instead of as one number.
+//!
 //! ```text
 //! cargo run --release --features serde --example ab-dump-sd -- on.json off.json
 //! cargo run --release --features serde --example ab-dump-sd -- --sd-declarer on.json off.json
@@ -144,6 +148,10 @@ struct Args {
     /// Same for the OFF arm
     #[arg(long, default_value_t = false)]
     off_ns_weak_two_nt_advances: bool,
+    /// Split the delta by `holding` — opener's holding in their suit over
+    /// `1NT (3x) X -` (`common::holding_key`); ON must be the leave-in arm
+    #[arg(long)]
+    by: Option<String>,
     /// Show this many of the biggest swings (each way)
     #[arg(long, default_value_t = 8)]
     show: usize,
@@ -351,6 +359,42 @@ fn main() {
             println!(
                 "{tag}: {total:+} IMPs, {mean:+.4} IMPs/board [95% CI ±{ci:.4}], {:+.3} IMPs/fired",
                 total as f64 / fired.max(1) as f64,
+            );
+        }
+    }
+
+    #[allow(clippy::cast_precision_loss)]
+    if let Some(by) = &args.by {
+        // key -> (fired, sd-plain, sd-PD).  The key is `Some` on exactly the
+        // auction-divergent boards, which is exactly this harness's `fired`
+        // set, so the bucket counts must re-sum to it.
+        let mut buckets: std::collections::HashMap<String, (usize, i64, i64)> =
+            std::collections::HashMap::new();
+        for (i, (a, b)) in on.boards.iter().zip(&off.boards).enumerate() {
+            let key = match by.as_str() {
+                "holding" => common::holding_key(a, b),
+                other => panic!("unknown --by {other}"),
+            };
+            let Some(key) = key else { continue };
+            let entry = buckets.entry(key).or_default();
+            entry.0 += 1;
+            entry.1 += board_imps[i];
+            entry.2 += pd_imps[i];
+        }
+        let mut rows: Vec<_> = buckets.into_iter().collect();
+        rows.sort_by_key(|(_, entry)| entry.1);
+        let counted: usize = rows.iter().map(|(_, entry)| entry.0).sum();
+        println!("--- --by {by} ({counted} keyed of {fired} fired) ---");
+        println!(
+            "{:>7} {:>8} {:>10} {:>8} {:>9}  bucket",
+            "fired", "plain", "plain/fired", "PD", "PD/fired"
+        );
+        for (key, (count, plain, pd)) in &rows {
+            let per = |total: i64| total as f64 / *count as f64;
+            println!(
+                "{count:>7} {plain:>+8} {:>+10.2} {pd:>+8} {:>+9.2}  {key}",
+                per(*plain),
+                per(*pd)
             );
         }
     }

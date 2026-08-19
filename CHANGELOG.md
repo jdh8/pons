@@ -9,6 +9,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Measured
 
+- **The refuted `1NT (3x) X` leave-in, re-sliced by opener's holding** — v1's
+  own dumps (`ab-results/nt-answer-x-v2/`, seed `1787145997`, 716,800 bd/arm/vul)
+  re-read through the new `--by holding` key, no new bidding run.  Verification
+  passed: the `(other)` bucket is **empty** (0 foreign) and the 30 buckets
+  re-sum to the published headline exactly (9157 fired, plain −3431, PD +5558).
+  Three findings, all per fired board, NV / vulnerable:
+  - **Length is the whole case.** `len(their suit, 4..)` reads plain **+1.92 /
+    +3.58**, PD +2.68 / +4.36 — the best cell in the table at both
+    vulnerabilities, against v1's headline of −0.375 / +0.49.  All eight
+    suit-by-honor sub-buckets are positive on both scorers.
+  - **The honor axis runs the other way.** At fixed length every measured
+    honor step in their suit *costs*: `len3 hon0` +0.62 / +1.85 against
+    `len3 hon1` −0.75 / +0.37, and `len2` repeats it (+0.15 / +0.88 against
+    −1.05 / −0.46).  The mechanism is `stopper_in_their_suits` — at three
+    cards an A/K/Q in their suit **is** the stopper, so honors there mark the
+    boards where the `3NT` being given up was a real stopper-backed game
+    rather than a punt.  `hon2+` was never passed by v1's `top_honors(..=1)`
+    gate, so it is unmeasured rather than refuted, but the trend makes it the
+    *worst* three-card cell rather than the best.
+  - **v1's headline was partly pricing boards `main` no longer passes.** The
+    `4M` block — what the since-shipped `nt_high_overcall_x_major_at_four`
+    rung now outbids — is plain −1.14 / −1.02 per fired, the worst block in
+    the table.
+
+  On **sd-lead**, the bracket that refuted v1, the same ordering holds and is
+  what makes the re-gate worth an A/B: `len4+` reads −0.13 / +1.09 plain
+  against the subset's −1.93 / −1.55, the only cell clearing v1's −2.06
+  IMPs/fired prior, while `len3 hon1` is −2.66 / −2.33, the worst three-card
+  cell.  The DD tables re-sum to Round 5's published headline exactly; the sd
+  totals land ~1% off (−18,645 / −18,472 against −18,835) because the ON arm's
+  blind lead is fed by *our* book and `main` has moved since — recorded as
+  reproduced-to-1%-with-cause, and every conclusion here is a within-slice
+  contrast that drift does not touch.
+  [one-notrump-competitive.md](docs/one-notrump-competitive.md) §N3.
+
 - **Fresh-seed confirmation of the BBA anchor series** (protocol item, owed
   since the series began; none had ever been recorded across 14 snapshots).
   `ab-results/anchor-confirm/2026-08-18-9cfb464b/`, fresh seed `1787064872`
@@ -25,6 +60,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   item 8.
 
 ### Added
+
+- **`ab-dump-bucket --by holding` / `ab-dump-sd --by holding`** — the
+  `1NT (3x) X -` leave-in slice.  A shared `common::holding_key` keys every
+  divergent board by the 1NT opener's holding in **their** suit: suit x length
+  bucket x count of A/K/Q x whether today's four-card-major rung already
+  outbids the `Pass`.  Anything outside that five-call window keys `(other)`,
+  which must read zero on a leave-in dump — the key is a check, not just a
+  label.  `ab-dump-bucket` also grew a `plain/fired` column, and an unknown
+  `--by` value now panics instead of silently falling through to `lane`.
+
+- **`competition.nt_high_overcall_x_leave_in_three`** (default off;
+  `bba-gen --ns-nt-high-overcall-x-leave-in-three`) — extends the leave-in gate
+  with `len(their suit, 3..=3) & top_honors(their suit, 2..)`.  Inert unless
+  `nt_high_overcall_x_leave_in` is on.  It is a **separate** knob rather than a
+  second disjunct so the A/B can price the two candidate halves as separate
+  arms: the re-slice above puts the whole surviving case in length while the
+  honor trend runs against this half, and bundled, a win would ship the bad
+  half and a loss would bury the good one.
+
+- **`nt_high_overcall_leave_in_package_invariants`** — the leave-in arm adds a
+  `Pass` row the default walk never reaches, so no totality / alert /
+  weight-tie invariant covered it.  Now checked with the leave-in on, and again
+  with the three-card extension on.
 
 - **`bba-gen --filter-preempt`** — the `--filter-landy` twin for the `1NT (3x)`
   lane: keep only deals where some 1NT-opener candidate's **LHO** holds a
@@ -247,6 +305,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   default remains unchanged.
 
 ### Changed
+
+- **`competition.nt_high_overcall_x_leave_in` re-gated on length** (still
+  default off).  v1's `top_honors(their suit, ..=1)` — pass on at most one of
+  A/K/Q, i.e. on essentially every no-major hand — was measured and refuted
+  2026-08-19 (sd-lead CI-clear negative in all four cells, −1.75 to −2.06
+  IMPs/fired).  v2 is `len(their suit, 4..)`: trump tricks rather than the
+  absence of a stopper.  Chosen from the re-slice above, so it is **in-sample**
+  and owes an out-of-sample A/B (`scripts/ab-nt-high-overcall.sh` `ROUND=5`,
+  arms `base` / `length` / `three`) before any default flip.  The knob's
+  mechanism is *adding doubles*, so per
+  [measurement.md](docs/measurement.md)'s domain addendum plain DD is the
+  arbiter, sd-lead the tie-break, and perfect defense a double-blind column.
 
 - **`scripts/idle-run.sh` now supports a machine-local politeness hook.** On
   this box, `~/.config/pons/idle-run.local.sh` pauses the 20 GiB poker worker

@@ -196,23 +196,62 @@ pub struct CompetitionKnobs {
     /// 2026-08-19: BBA's advancer sits for that double on **88%** of hands over
     /// a minor preempt and ~50% over a major, and its preemptor never bids
     /// again (`docs/ai-bidder/bba-1nt-counter-defense.md`), so the leave-in
-    /// really does buy a doubled contract.  Gated on
-    /// `top_honors(their suit, ..=1)` — with at most one of A/K/Q in a suit
-    /// they have shown seven of, `3NT` is a fantasy and the four-level tolerance
-    /// rung is a 4-3 fit.  Priced above `3NT` and below the four-card-major
-    /// rungs: a fit is still bid, a stopperless punt is not.  Rides on
+    /// really does buy a doubled contract.  Priced above `3NT` and below the
+    /// four-card-major rungs: a fit is still bid, a stopperless punt is not.
+    /// Rides on
     /// [`nt_high_overcall_responses`][Self::nt_high_overcall_responses].
     ///
-    /// **Measured 2026-08-19 and REFUTED; default off, kept opt-in.**  Same run
-    /// as its sibling: double dummy splits by vulnerability (plain **−0.0048
-    /// ±0.0019** NV, **+0.0072 ±0.0026** vulnerable; perfect defense +0.0078
-    /// ±0.0021 / +0.0295 ±0.0028), but the **sd-lead** tie-breaker is CI-clear
-    /// negative in all four cells (−0.0263/−0.0184 NV, −0.0257/−0.0099
-    /// vulnerable — −1.75 to −2.06 IMPs per fired).  The PD-only half is the
-    /// doubling artifact `docs/measurement.md` names: with 23+ combined we
-    /// belong in game, not defending a doubled three-level partscore.  A
-    /// vulnerability-gated variant is the only live follow-up.
+    /// **v1 — `top_honors(their suit, ..=1)` — measured 2026-08-19 and
+    /// REFUTED.**  That gate passed on at most one of A/K/Q in their suit, i.e.
+    /// on essentially every no-major hand, and read: double dummy split by
+    /// vulnerability (plain **−0.0048 ±0.0019** NV, **+0.0072 ±0.0026**
+    /// vulnerable; perfect defense +0.0078 ±0.0021 / +0.0295 ±0.0028) while the
+    /// **sd-lead** tie-breaker was CI-clear negative in all four cells
+    /// (−0.0263/−0.0184 NV, −0.0257/−0.0099 vulnerable — **−1.75 to −2.06 IMPs
+    /// per fired**).  The PD-only half is the doubling artifact
+    /// `docs/measurement.md` names: with 15-17 opposite a takeout double's 8+
+    /// we hold 23+ and belong in game, not defending a doubled three-level
+    /// partscore for +200.
+    ///
+    /// **v2 (this gate, unmeasured, default off)** — `len(their suit, 4..)`.
+    /// v1's refutation says the *absence of a stopper* is not a reason to
+    /// defend; it says nothing about the hand that can actually beat them.  The
+    /// gate is now **trump tricks**: four cards in a suit they have shown seven
+    /// of.  Re-slicing v1's own dumps by opener's holding
+    /// (`docs/one-notrump-competitive.md` §N3, "Round 6") makes that the best
+    /// cell in the table — plain **+1.92** NV / **+3.58** vulnerable IMPs per
+    /// fired, against v1's headline −0.375 / +0.49 — and it fires ~9x more
+    /// rarely.  The three-card half of the original candidate is
+    /// [`nt_high_overcall_x_leave_in_three`][Self::nt_high_overcall_x_leave_in_three],
+    /// its own knob so the A/B can read the two as separate arms.
+    ///
+    /// Ships only on `docs/measurement.md`'s decision table, with the sd-lead
+    /// bracket as arbiter and **−2.06 IMPs/fired the prior to beat**; the
+    /// knob's mechanism is *adding doubles*, so perfect defense is a
+    /// double-blind column here (measurement.md's domain addendum), not a
+    /// rescuer.
     pub nt_high_overcall_x_leave_in: bool,
+    /// Extend the leave-in to three cards headed by two of the top three
+    ///
+    /// Adds `len(their suit, 3..=3) & top_honors(their suit, 2..)` to
+    /// [`nt_high_overcall_x_leave_in`][Self::nt_high_overcall_x_leave_in]'s
+    /// gate, making it the full candidate the v2 plan proposed.  Inert unless
+    /// that knob is on, and it stays a **separate** knob because the evidence
+    /// points the other way: the re-slice of v1's dumps shows that at fixed
+    /// length every measured honor step in their suit *costs* — `len3 hon0`
+    /// reads +0.62 / +1.85 plain IMPs per fired against `len3 hon1`'s −0.75 /
+    /// +0.37, and `len2` repeats it (+0.15 / +0.88 against −1.05 / −0.46).
+    ///
+    /// `hon2+` was never passed by v1's `top_honors(..=1)` gate, so it is
+    /// genuinely unmeasured rather than refuted — but the extrapolation makes
+    /// this the *worst* three-card cell, not the best.  The mechanism is
+    /// [`stopper_in_their_suits`][crate::bidding::constraint::stopper_in_their_suits]:
+    /// at three cards an A/K/Q in their suit **is** the stopper, so honors
+    /// there mark the boards where the `3NT` we are giving up was a real
+    /// stopper-backed game rather than a punt.  Bundling this into the length
+    /// gate would let a win ship the bad half and a loss bury the good one,
+    /// hence the split.
+    pub nt_high_overcall_x_leave_in_three: bool,
     // --- competition/lebensohl.rs
     /// Require a stopper for the direct `3NT` over their overcall
     ///
@@ -808,6 +847,7 @@ impl Default for CompetitionKnobs {
             nt_3c_transfers: false,
             nt_high_overcall_x_major_at_four: true,
             nt_high_overcall_x_leave_in: false,
+            nt_high_overcall_x_leave_in_three: false,
             direct_3nt_stopper: true,
             natural_floor: (5, 0),
             lebensohl_style: LebensohlStyle::Transfer,

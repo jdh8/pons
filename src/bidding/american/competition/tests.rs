@@ -52,6 +52,20 @@ fn nt_high_overcall_transfer_package_invariants() {
     crate::bidding::rows::assert_package_invariants(&arm, &[super::nt_high_overcall_package()]);
 }
 
+/// The leave-in arm adds a `Pass` row the default walk never sees, so it needs
+/// its own totality / alert / weight-tie check — without this, a second `Pass`
+/// row at the same weight (the shape a "cells" extension of the gate wants)
+/// would tie undetected.
+#[test]
+fn nt_high_overcall_leave_in_package_invariants() {
+    let mut arm = Agreements::default();
+    arm.competition.nt_high_overcall_responses = true;
+    arm.competition.nt_high_overcall_x_leave_in = true;
+    crate::bidding::rows::assert_package_invariants(&arm, &[super::nt_high_overcall_package()]);
+    arm.competition.nt_high_overcall_x_leave_in_three = true;
+    crate::bidding::rows::assert_package_invariants(&arm, &[super::nt_high_overcall_package()]);
+}
+
 /// The Landy counter's arms are all opt-in, so the default-agreements run
 /// above never walks a single one of their rows.  Probe each arm on its own —
 /// this is the only place the counter's totality and alert invariants are

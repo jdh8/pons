@@ -745,9 +745,91 @@ three-level partscore for +200. The vulnerable column is the exception that
 proves it — +500 instead of +200 is what flips double-dummy's sign, and even
 that does not survive a realistic opening lead. The knob stays default-off; the
 only live follow-up is a **vulnerability-gated** variant, and it inherits the
-sd-lead result as its prior. Probe evidence that the leave-in *can* fire (the
+sd-lead result as its prior.  Round 6 below re-slices these same dumps and
+finds a second, better-supported follow-up: the loss is not uniform, and a
+length gate keeps the part that pays. Probe evidence that the leave-in *can* fire (the
 advancer sits 97–100% of realized boards) was correct and irrelevant: the
 question was never whether they run, it was whether defending beats bidding.
+
+### Round 6 — the leave-in re-sliced (2026-08-20)
+
+Round 5 refuted the v1 gate as one number. Before discarding the idea, the
+**existing** dumps (`ab-results/nt-answer-x-v2/{pass,base}-{none,both}`, seed
+1787145997, 716,800 bd/arm/vul) were re-scored — no new bidding run — through a
+new `--by holding` bucket key shared by `ab-dump-bucket` and `ab-dump-sd`
+(`common::holding_key`). The key is opener's holding in **their** seven-card
+suit: `len` {≤2, 3, 4+} × `top_honors` {0, 1, 2+} × whether the `4M` fit rung
+fires.
+
+The window is exact: 9157/9157 (NV) and 10493/10493 (vul) divergent boards key
+to a real bucket, ON always passing and OFF always bidding, so the `(other)`
+bucket reads zero. `len0-1` never appears and never will — a balanced 15–17
+opener holds no singleton or void.
+
+**Read the `no4M` rows, not the totals.** The `pass` arm predates the fit rung,
+so its dumps still route to `Pass` on boards where today's shipped
+`nt_high_overcall_x_major_at_four` (weight 140) outbids `Pass` (weight 135).
+Those boards cannot diverge in Round 7 — both arms bid `4M` — so every figure
+below is the `no4M` subset, which is what a fresh A/B against today's default
+will actually see. The `4M` block is quoted separately as finding 3.
+
+**IMPs per fired, NV / vulnerable** (`no4M` subset; n = NV/vul):
+
+| bucket | n | DD plain | DD PD | sd plain | sd PD |
+| --- | ---: | --- | --- | --- | --- |
+| whole subset | 7870 / 8916 | −0.25 / +0.76 | +0.80 / +2.33 | −1.93 / −1.55 | −1.25 / −0.44 |
+| `len2 hon1` | 2165 / 2476 | −1.05 / −0.46 | +0.22 / +1.66 | −2.53 / −2.70 | −1.76 / −1.28 |
+| `len2 hon0` | 980 / 1162 | +0.15 / +0.88 | +0.88 / +1.73 | −1.01 / −0.54 | −0.39 / +0.21 |
+| `len3 hon1` | 2995 / 3287 | −0.75 / +0.37 | +0.27 / +2.05 | −2.66 / −2.33 | −2.06 / −1.18 |
+| `len3 hon0` | 698 / 843 | +0.62 / +1.85 | +2.02 / +3.42 | −0.88 / −0.16 | +0.21 / +1.19 |
+| **`len4+`** | **1032 / 1148** | **+1.92 / +3.58** | **+2.68 / +4.36** | **−0.13 / +1.09** | **+0.33 / +1.65** |
+
+Three findings, in order of what they cost:
+
+1. **The whole surviving case is length.** `len4+` is the best cell at both
+   vulnerabilities on every scorer, and the only one that clears Round 5's
+   −2.06 IMPs/fired sd prior: flat NV (−0.13) and genuinely positive vulnerable
+   (+1.09), against the subset's −1.93 / −1.55. It is 13% of the subset, so v1
+   spent roughly seven bad boards to buy each good one.
+
+2. **The honor axis runs the wrong way.** At fixed length every measured honor
+   step *costs*, on both scorers: `len3 hon0` +0.62 vs `len3 hon1` −0.75 (DD,
+   NV) and −0.88 vs −2.66 (sd, NV); `len2` repeats it. The mechanism is
+   `has_stopper` — A, Kx, Qxx, or Jxxx — so at three cards an A/K/Q in their
+   suit **is** the stopper, and honors there mark the boards where the `3NT` we
+   gave up was a stopper-backed game rather than a punt. `hon2+` is genuinely
+   unmeasured (v1's gate was `top_honors(..=1)`), so it is not refuted; but the
+   trend extrapolates to the *worst* three-card cell, not the best.
+
+3. **v1's headline partly priced boards `main` no longer passes.** The `4M`
+   block is DD −1.14 / −1.02 and sd −2.69 / −2.92 per fired — the worst block
+   in the slice — and the fit rung shipped in Round 5 already outbids it. Any
+   re-measure must use today's default as `base`, which Round 7 does.
+
+**Consequence — v2 is two knobs, not one.** `nt_high_overcall_x_leave_in` is
+re-gated to `len(over, 4..)`; the honor disjunct becomes its own
+`nt_high_overcall_x_leave_in_three` (`len4+ | (len3 & hon2+)`). Finding 2 says
+the two disjuncts have opposite signs, so bundling them would let a win ship
+the bad half or a loss bury the good one. Round 7 runs them as separate arms
+(`scripts/ab-nt-high-overcall.sh`, `ROUND=5`: `base` / `length` / `three`), with
+`three vs length` reading the extension's own price. A 4000-board preflight
+confirms the arms are nested as designed — `length` diverges from `base` on 9
+boards, `three` on 17, `three` from `length` on the remaining 8.
+
+**Reproduction caveat.** The DD tables re-sum to Round 5's published headline
+exactly (9157 fired, plain −3431, PD +5558). The **sd** totals do not: −18,645
+(NV) / −18,472 (vul) against the published −18,835, i.e. −2.036 vs −2.057 per
+fired, ~1% off. Cause, not noise: in the ON arm *they* declare the doubled
+partscore, so the opening leader is **our** side and our own book feeds the
+blind lead, and `main` has moved since Round 5 (the weight-tie guard
+`1ecac19d`, the fit rung `30ea36ba`). Recorded as reproduced-to-1%-with-cause;
+every conclusion above is a *within-slice* contrast, which that drift does not
+touch.
+
+**In-sample warning.** The re-gate was chosen on these dumps, so it is
+in-sample and ships nothing until Round 7's fresh-seed A/B confirms it
+out-of-sample on plain DD, per [measurement.md](measurement.md)'s domain
+addendum for a knob whose mechanism is adding doubles.
 
 ### Disclosure — what BBA is told
 
@@ -1211,6 +1293,8 @@ edits fail. Run it on every arm pair in this lane; the real fix is splitting
 | [N1h / N1i minor-rung re-pricing](archive/one-notrump-competitive-closed.md#n1h--n1i--the-minor-rungs-re-priced-both-refuted-both-opt-in) | `defense_2c_landy_low_minors`, `defense_2c_landy_hcp_rungs` | **both REFUTED 2026-08-15, both opt-in — the lane is closed.** Three shared seeds, 230.4k bd/vul, shared `low-off` baseline (verified board-identical before reuse); `ab-results/landy-low{,-v2,-v3}`, `scripts/ab-landy-rungs.sh`. N1h (cue `points(9..)`, `3m` `points(7..=8)`) = `plain wash \| PD loss`, vul PD **−0.00081 ±0.00074**. N1i (cue `hcp(9..)`, `3m` `hcp(7..=8)`, `2♦`/`2NT` `hcp(..=6)`) = no CI-clear cell, all eight leaning negative. **`cue ← X` negative in both** (−1.80 ×96, −2.96/−4.04 ×46) against N1d's original +2.0…+5.1 the other way — the cue floor is settled, do not probe it again. Leads recorded but not pursued: `Pass ← 2♦` +2.40 PD ×52 (per-seed +4.50/+1.33/−1.09), `3♦ ← 2♦` +3.96 plain/+3.11 PD ×27, `3♣ ← 2NT` −2.19 PD (the transfer's right-siding wins), `cue ← 3♣` −2.88 (shifting a band whole costs more than lowering its floor). | N1h pooled: NV plain +0.00036 ±0.00051 / PD −0.00044 ±0.00066, vul plain +0.00002 ±0.00061 / PD −0.00081 ±0.00074. N1i pooled: NV plain −0.00029 ±0.00043 / PD −0.00039 ±0.00062, vul plain −0.00014 ±0.00052 / PD −0.00036 ±0.00068; sd both arms ≈0. |
 | [N1j BBA-ladder counter + weak-2♦ cap](archive/one-notrump-competitive-closed.md#n1j--the-bba-ladder-counter-shipped-default-on-2026-08-15) | `defense_2c_landy_bba`, `defense_2c_landy_weak_2d_cap` | **both SHIPPED DEFAULT-ON 2026-08-15** — the anchor-aligned table replacing the stack (which stays wired behind `--defense-2c-landy-bba false`).  The ladder shipped at its **pre-pinned non-inferiority gate** (rationale: structural alignment; a wash ships) and beat it — zero CI-clear negatives, all 16 DD+sd cells leaning positive; the `2M ← X` guard passed **vacuously** (no hand left the values double for the takeout family, the three-experiments finding untouched); mirror leak 36-38% foreign, depressing (ours-only stronger: NV +182/+215, vul +171/+202 raw IMPs).  The cap shipped at the **standard** gate: plain wash \| PD win both vuls, sd sign-agreed, isolation gate **0 foreign** (second ever), every divergence the predicted `2♦ → Pass` (+2.58/+4.54 PD per fired ×59 — the N1i lead confirmed).  Engine: `2♦ → 3♣` diamond-transfer right-siding (+5.18/+6.06 PD per fired).  Smoke `18aba5ce…` unchanged through the flip; `[their-landy]` fixture re-blessed; 3 seeds 1786753231/1786753518/1786753808, 230.4k bd/vul, `scripts/ab-landy-bba.sh`.  See [closed §N1j](archive/one-notrump-competitive-closed.md#n1j--the-bba-ladder-counter-shipped-default-on-2026-08-15). | ladder (`on↔off`) pooled: NV plain +0.00083 ±0.00085 / PD +0.00083 ±0.00110, vul plain +0.00080 ±0.00100 / PD +0.00073 ±0.00123; sd-plain +0.00080/+0.00103, sd-PD +0.00070/+0.00113. cap (`cap↔on`) pooled: NV plain −0.00003 ±0.00027 / PD **+0.00037 ±0.00033**, vul plain +0.00017 ±0.00024 / PD **+0.00050 ±0.00035**; sd-PD +0.00017/+0.00033. |
 | N3 `(3♣)`–`(3♠)` preempt of our 1NT | `competition.nt_high_overcall_responses` (default **true**), `competition.nt_high_overcall_3nt_stopper` (**false** — no gate), `competition.nt_3c_transfers` (**false**) | **SHIPPED DEFAULT-ON 2026-08-18** (`scripts/ab-nt-high-overcall.sh`, `SEED_BASE=1787055415`, 230,400 bd/arm/vul). Owned plain CI-clear both vuls, PD positive both, sd sign-agreeing on all four cells. The private 3NT gate shipped off; `(3♣)` transfers remain a measured wash. The BBA-style double continuation was **REFUTED AND REMOVED 2026-08-19**: NV −0.0012 plain/PD, vul −0.0017/−0.0015, with sd agreeing and all eight CIs below zero; clean isolation. Its `4♦ ← 3NT` row missed game and lost −310/−348 NV, −420/−429 vul. See §N3 for the full history and mechanism. | owned package NV plain **+0.00208 ±0.00126** / PD +0.00079 ±0.00145; owned vul plain **+0.00293 ±0.00160** / PD +0.00180 ±0.00182 |
+| N3 opener's answer to responder's takeout `X` | `competition.nt_high_overcall_x_major_at_four` (**true**), `nt_high_overcall_x_leave_in` (**false**), `nt_high_overcall_x_leave_in_three` (**false**) | Round 5 (2026-08-19): the **fit rung SHIPPED DEFAULT-ON**; the **leave-in v1 REFUTED** — sd-lead CI-clear negative in all four cells at −1.75…−2.06 IMPs/fired, clean isolation (0 foreign of 9157/10493). Round 6 (2026-08-20) re-sliced those same dumps by opener's holding in their suit (`--by holding`): the loss is **not uniform** — `len4+` (on the boards the shipped fit rung does not take) is +1.92/+3.58 plain DD and −0.13/+1.09 sd per fired, the honor axis runs the *wrong* way (`has_stopper` = A/Kx/Qxx/Jxxx, so honors at three cards mark the boards whose 3NT was real), and the `4M` block that the shipped fit rung now takes was the worst in the slice. v2 therefore re-gates the knob to `len(over, 4..)` and puts the honor disjunct behind its own `_three` bit so the A/B prices them **separately**. **In-sample; ships nothing until the Round 7 fresh-seed A/B** (`ROUND=5`, `--filter-preempt`, arms `base`/`length`/`three`). |
+
 
 ### Memory compaction notes (2026-08-16)
 

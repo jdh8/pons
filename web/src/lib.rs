@@ -954,6 +954,7 @@ knob!(set_nt_high_overcall_3nt_stopper, nt_high_overcall_3nt_stopper, competitio
 knob!(set_nt_3c_transfers, nt_3c_transfers, competition.nt_3c_transfers: bool);
 knob!(set_nt_high_overcall_x_major_at_four, nt_high_overcall_x_major_at_four, competition.nt_high_overcall_x_major_at_four: bool);
 knob!(set_nt_high_overcall_x_leave_in, nt_high_overcall_x_leave_in, competition.nt_high_overcall_x_leave_in: bool);
+knob!(set_nt_high_overcall_x_leave_in_three, nt_high_overcall_x_leave_in_three, competition.nt_high_overcall_x_leave_in_three: bool);
 knob!(set_jordan_truscott, jordan_truscott, competition.jordan_truscott: bool);
 knob!(set_delayed_cue, delayed_cue, competition.delayed_cue: bool);
 knob!(set_competition_over_stayman, competition_over_stayman, competition.competition_over_stayman: bool);
@@ -1475,6 +1476,7 @@ static SETTINGS: &[Setting] = &[
     gated("nt_3c_transfers", COMPETITION, "…transfers over their (3♣)", false, set_nt_3c_transfers, nt_3c_transfers, "nt_high_overcall_responses"),
     gated("nt_high_overcall_x_major_at_four", COMPETITION, "…answer their (3♠) double in hearts at the four level", true, set_nt_high_overcall_x_major_at_four, nt_high_overcall_x_major_at_four, "nt_high_overcall_responses"),
     gated("nt_high_overcall_x_leave_in", COMPETITION, "…opener may pass the takeout double for penalty", false, set_nt_high_overcall_x_leave_in, nt_high_overcall_x_leave_in, "nt_high_overcall_responses"),
+    gated("nt_high_overcall_x_leave_in_three", COMPETITION, "…and on three to two of the top three honors", false, set_nt_high_overcall_x_leave_in_three, nt_high_overcall_x_leave_in_three, "nt_high_overcall_x_leave_in"),
     toggle("jordan_truscott", COMPETITION, "Jordan / Truscott 2NT", true, set_jordan_truscott, jordan_truscott),
     toggle("delayed_cue", COMPETITION, "", false, set_delayed_cue, delayed_cue),
     toggle("competition_over_stayman", COMPETITION, "", true, set_competition_over_stayman, competition_over_stayman),

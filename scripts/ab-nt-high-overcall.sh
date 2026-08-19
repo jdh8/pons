@@ -116,4 +116,41 @@ if [ "${ROUND:-1}" = 4 ]; then
     done
 fi
 
+# Round 5 (`ROUND=5`): the leave-in **v2**, re-gated on length after the v1 gate
+# was refuted and its own dumps were re-sliced by opener's holding
+# (docs/one-notrump-competitive.md §N3, "Round 6 — the leave-in re-sliced").
+# `base` is today's shipped default, so the fit rung (`x_major_at_four`) is ON
+# in every arm here — the boards it takes are the worst block in the v1 slice
+# and they are already gone.
+#
+# The two candidate disjuncts are SEPARATE arms, not one bundled gate: the
+# slice puts the whole surviving case in length (`len4+`: plain +1.92 NV /
+# +3.58 vul per fired) while at fixed length every measured honor step costs
+# (`len3 hon0` +0.62/+1.85 vs `len3 hon1` -0.75/+0.37).  Bundled, a win would
+# ship the bad half and a loss would bury the good one.
+#   length  opener passes with FOUR cards in their seven-card suit
+#   three   ...and with three to two of the top three honors (the full v2
+#           candidate).  `three` implies `length`, so read `three vs length`
+#           for the extension's own price.
+#
+# Reading it: this knob's mechanism is **adding doubles**, so measurement.md's
+# domain addendum applies — plain DD is the arbiter, sd-lead the tie-break, and
+# PD is a double-blind column that neither rescues nor kills.  Prior to beat:
+# v1's -2.06 IMPs/fired on sd-lead.  Run `probe-divergence --gate-opener ours`
+# before the headline.
+if [ "${ROUND:-1}" = 5 ]; then
+    for v in none both; do
+        arm base   "$v" --filter-preempt
+        arm length "$v" --filter-preempt --ns-nt-high-overcall-x-leave-in true
+        arm three  "$v" --filter-preempt --ns-nt-high-overcall-x-leave-in true \
+                        --ns-nt-high-overcall-x-leave-in-three true
+        diffpair length base   "$v"
+        diffpair three  base   "$v"
+        diffpair three  length "$v"
+        sddiff   length base   "$v"
+        sddiff   three  base   "$v"
+        sddiff   three  length "$v"
+    done
+fi
+
 log "nt-high-overcall done"

@@ -12,7 +12,7 @@ pub mod oracle;
 use contract_bridge::auction::{Auction, Call, display_calls};
 use contract_bridge::deck::full_deal;
 use contract_bridge::eval::hcp as holding_hcp;
-use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Hand, Seat, Suit};
+use contract_bridge::{AbsoluteVulnerability, Contract, FullDeal, Hand, Rank, Seat, Strain, Suit};
 use ddss::{NonEmptyStrainFlags, Solver, TrickCountTable};
 use pons::bidding::agreements::Agreements;
 use pons::bidding::card::{Card, american_card, dutch_card};
@@ -109,6 +109,71 @@ pub fn auction_key(auction: &[Call]) -> String {
 /// The seat acting after `len` calls from `dealer`
 pub const fn seat_to_act(dealer: Seat, len: usize) -> Seat {
     Seat::ALL[(dealer as usize + len) % 4]
+}
+
+/// The `1NT (3x) X -` leave-in slice key: opener's holding in **their** suit
+///
+/// `nt_high_overcall_x_leave_in`'s only row is a `Pass` priced between the
+/// four-card-major rungs and `3NT`, so every divergence of that A/B is the same
+/// five-call window — `1NT (3x) X -`, ON passing, OFF pulling — and the
+/// question the slice answers is *which* holdings in their seven-card suit are
+/// worth defending.  Key: their suit x length bucket x top honors (A/K/Q) x
+/// whether today's ladder already outbids the `Pass`.
+///
+/// `None` when the two auctions agree (nothing to bucket).  `"(other)"` when
+/// they diverge anywhere else — on a dump of this experiment that bucket must
+/// read **zero**, which is what makes the key a check and not just a label.
+/// `on` must be the leave-in arm: the window demands ON pass at the seam.
+///
+/// The `4M` half is the boards **today's** ladder no longer passes.
+/// `nt_high_overcall_x_major_at_four` shipped *after* these dumps were bid, so
+/// over `(3♠)` four hearts now answer `4♥` at 140 and outrank the `Pass` at
+/// 135 whatever this gate says.  Exclude those rows when judging a new gate.
+pub fn holding_key(on: &Board, off: &Board) -> Option<String> {
+    let (a, b) = (&on.table_a, &off.table_a);
+    let i = (0..a.len().min(b.len())).find(|&index| a[index] != b[index])?;
+    let other = || Some("(other)".to_owned());
+    if i < 4 || a[i] != Call::Pass {
+        return other();
+    }
+    let (Call::Bid(opening), Call::Bid(overcall)) = (a[i - 4], a[i - 3]) else {
+        return other();
+    };
+    if opening.level.get() != 1
+        || opening.strain != Strain::Notrump
+        || overcall.level.get() != 3
+        || a[i - 2] != Call::Double
+        || a[i - 1] != Call::Pass
+    {
+        return other();
+    }
+    let Some(over) = overcall.strain.suit() else {
+        return other();
+    };
+    // Opener bid the `1NT` at `i - 4` and answers the double at `i`, one full
+    // round later — the same seat either way.
+    let opener = seat_to_act(on.dealer, i - 4);
+    let holding = on.deal[opener][over];
+    let length = match holding.len() {
+        0 | 1 => "len0-1",
+        2 => "len2",
+        3 => "len3",
+        _ => "len4+",
+    };
+    let honors = match [Rank::A, Rank::K, Rank::Q]
+        .into_iter()
+        .filter(|&rank| holding.contains(rank))
+        .count()
+    {
+        0 => "hon0",
+        1 => "hon1",
+        _ => "hon2+",
+    };
+    let outbid = [Suit::Hearts, Suit::Spades]
+        .into_iter()
+        .any(|major| major != over && on.deal[opener][major].len() >= 4);
+    let outbid = if outbid { "4M" } else { "no4M" };
+    Some(format!("({overcall}) {length} {honors} {outbid}"))
 }
 
 /// `count` deals, board `i` seeded `base + i`, so every arm of an experiment
