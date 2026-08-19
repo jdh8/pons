@@ -252,6 +252,151 @@ So our transfer arm ([one-notrump-competitive.md](../one-notrump-competitive.md)
 buys is the invitational five-card major (which the natural table can only show
 as `X` or a pass) plus right-siding, which double dummy cannot price.
 
+### Their side of the lane — the advancer, the preemptor's rebid, and `(4x)`
+
+Probed 2026-08-19 (`--mode custom`, seed 20260819, `--vul none,both`,
+`--min-share 0`, `--meanings 50`; commands in [Reproduce](#reproduce), dumps in
+`ab-results/probe-3level/`). Everything above reads BBA in *our* seats; this
+reads BBA in *its own* — the seat that advances the preempt, and the preemptor's
+second turn. It is the evidence behind
+[one-notrump-competitive.md](../one-notrump-competitive.md) §N3's v2 queue.
+
+**Read the shares as per-random-hand, not per-auction.** The probe deals the
+actor a uniform random hand and asks EPBot for its call: EPBot sees the auction,
+but the *hand distribution* is not conditioned on our side having shown 23+
+points. Every advancer share below is therefore biased **towards action**, and
+the bias is an order of magnitude, not a rounding. Realized rates, counted over
+14,120 `1NT (3x)` boards of a `--filter-preempt` arm (`ab-results/nt-answer-tie/
+base-none`, sha `7f8fa998`, NV):
+
+| after | probe says Pass | **realized** Pass |
+| --- | ---: | ---: |
+| `1NT (3♣) X` | 88.2% | **99.7%** |
+| `1NT (3♦) X` | 88.2% | **100.0%** |
+| `1NT (3♥) X` | 50.2% | **97.1%** |
+| `1NT (3♠) X` | 50.9% | **98.3%** |
+| `1NT (3♥) 3NT` | 34.6% | **93.3%** |
+| `1NT (3♠) 3NT` | 35.4% | **90.9%** |
+
+So use the probe for **structure** — which calls exist, on what shape, and which
+do *not* exist at all — and an arm dump for **frequency**. The structural facts
+below (no advancer gadgetry, no `(3NT)` row, the preemptor never rebids, they
+sit for our double) survive the reweighting; the shares do not.
+
+Our own realized responses on the same 14,120 boards, for scale:
+
+| their call | n | our response |
+| --- | ---: | --- |
+| `(3♣)` | 4106 | Pass 28.0%, `X` 28.0%, `3♠` 14.6%, `3♥` 12.0%, `3♦` 11.2%, `4M` 5.6%, `3NT` 0.6% |
+| `(3♦)` | 4356 | `X` 33.9%, Pass 28.6%, `3♠` 14.1%, `3♥` 13.1%, `3NT` 4.5%, `4M` 5.7% |
+| `(3♥)` | 2828 | `X` 29.6%, Pass 28.2%, `3NT` 21.3%, `3♠` 17.9%, `4♠` 2.4% |
+| `(3♠)` | 2830 | Pass 30.9%, `X` 26.4%, `4♥` 23.5%, `3NT` 18.6% |
+
+#### The advancer over its partner's preempt (seat 3, 40k/vul)
+
+| lane | Pass | raise | other |
+| --- | ---: | --- | --- |
+| `1NT (3♣) -` | 84.6% | `4♣` 7.5%, `5♣` 3.8% | `3NT` 1.6% (`hcp 13–22`, bal 84%), `4NT` 1.0% |
+| `1NT (3♦) -` | 84.1% | `4♦` 8.2%, `5♦` 3.9% | `3NT` 1.2%, `4NT` 1.1% |
+| `1NT (3♥) -` | 48.0% | **`4♥` 49.8%** (`hcp 4–18`) | `4NT` 1.3% |
+| `1NT (3♠) -` | 48.3% | **`4♠` 49.6%** (`hcp 4–18`) | `4NT` 1.2% |
+
+There is **no advancer structure to counter** — no cue, no artificial raise, no
+new suit above 0.4%. Over a minor it passes or raises the minor; over a major it
+raises to game or passes, with essentially no strength gate (`hcp 4–18` on the
+raise). The `4NT` row is the both-minors two-suiter reappearing one level up.
+
+#### Sit-vs-rescue over **our** takeout double (seat 3, 40k/vul)
+
+This is the row the penalty-pass item needed. `X` is read as `takeout double`.
+
+| lane | **Pass** | rescue / raise | `XX` |
+| --- | ---: | --- | ---: |
+| `1NT (3♣) X` | **88.2%** | `4♣` 4.2%, `5♣` 3.0%, `6♣` 0.7% | 3.1% (`hcp 18–23`) |
+| `1NT (3♦) X` | **88.2%** | `4♦` 4.3%, `5♦` 3.0%, `6♦` 0.7% | 3.2% (`hcp 18–23`) |
+| `1NT (3♥) X` | 50.2% | `4♥` 29.3% (`hcp 3–14`, 4+♥), `3♠` 20.0% (`hcp 10–20`) | 0.3% |
+| `1NT (3♠) X` | 50.9% | `4♠` 44.8% (`hcp 4–17`) | 3.4% (`hcp 18–23`) |
+
+**BBA sits.** Over a minor preempt it passes our double ~88% of the time even
+with an action-biased hand distribution; over a major it sits half the time and
+otherwise raises to game. So a leave-in row in `nt_answer_double` *can* fire —
+this is not the `(2♦)` lane, where the runout was unconditional. The `XX` row is
+a business redouble on 18+, which our opener's leave-in must survive: it is 3%
+per random hand and rarer still opposite our 23+.
+
+#### The preemptor never bids again (seat 1, 300k/vul, filtered)
+
+Six two-ply lanes, each keeping only hands BBA actually preempts with
+(`--filter-call 3x --filter-prefix "1NT"`, ~0.4% acceptance, n≈900–1300 kept):
+
+| lane | Pass |
+| --- | ---: |
+| `1NT (3♣) X - 3♥ (?)` | **100.0%** |
+| `1NT (3♦) X - 3♥ (?)` | 99.8% (`4♦` 0.2%, 8+♦) |
+| `1NT (3♥) X - 3♠ (?)` | **100.0%** |
+| `1NT (3♠) X - 4♥ (?)` | **100.0%** |
+| `1NT (3♣) 3♥ - 4♥ (?)` | 99.4% (`5♣` 0.6%, 8+♣) |
+| `1NT (3♥) 3♠ - 4♠ (?)` | **100.0%** |
+
+The preemptor's hand is spent. Every `(4z)` tail in this lane therefore comes
+from the **advancer**, never from the preemptor — which is what prices the
+`X (4z)` node: over a minor it is the 11.8% of rescues above, over a major the
+`4M` raise.
+
+#### The advancer over our constructive responses (seat 3, 20k/vul)
+
+| our call | advancer Pass | its action |
+| --- | ---: | --- |
+| `(3♣) 3NT` | 54.9% | `4♣` 38.2%, `5♣` 4.1%, `6♣` 1.4%, **`X` 0.9%** |
+| `(3♦) 3NT` | 53.2% | `4♦` 40.1%, `5♦` 3.9%, `6♦` 1.5%, **`X` 0.9%** |
+| `(3♥) 3NT` | 34.6% | **`4♥` 63.4%**, `6♥` 1.5%, `X` 0.4% |
+| `(3♠) 3NT` | 35.4% | **`4♠` 62.6%**, `6♠` 1.5%, `X` 0.3% |
+| `(3♣) 3♦/3♥/3♠` | 60–65% | `4♣` 28–33%, `5♣` ~4% |
+| `(3♥) 3♠` | 42.2% | `4♥` 56.2% |
+| `(3♠) 4♥` | 25.7% | **`4♠` 68.7%**, `X` 4.1% |
+| `(3♥) 4♥` | 93.2% | `5♥` 4.5%, `4NT` 1.9% |
+
+Two structural facts: BBA **almost never doubles** our constructive response
+(≤0.9% everywhere), and it competes to the four level over `3NT` far more often
+than it doubles it. Our `4♥` over `(3♥)` buys the auction (93% pass) because it
+takes their suit away; the same `4♥` over `(3♠)` is overcalled `4♠` two thirds
+of the time.
+
+#### `(4x)` triggers — eight-card suits, and **there is no `(3NT)`**
+
+The direct seat rerun at 200k/vul with `--min-share 0`, which is what exposes
+rows the 40k table rounded away:
+
+| call | share (none) | band |
+| --- | ---: | --- |
+| `3♦` / `3♣` | 0.44% / 0.40% | `hcp 4–10`, **7+** in the suit |
+| `3♠` / `3♥` | 0.31% / 0.30% | `hcp 4–9`, **7+** |
+| `5♣` / `5♦` | 0.055% / 0.051% | `hcp 6–19` / `5–18`, **8+** |
+| `4♥` / `4♠` | 0.049% / 0.046% | `hcp 4–10` / `5–9`, **8+** |
+| `4NT` | 0.035% | `hcp 5–17`, 5-5 minors |
+| `4♦` / `4♣` | 0.012% / 0.006% | `hcp 3–8` / `4–7`, **8+** |
+| `6♣` / `6♦` | 0.0015% / 0.001% | `hcp 19–23`, 7+ |
+
+**BBA never bids `3NT` directly over our 1NT** — the row does not exist at
+200,000 hands per vulnerability, at either vulnerability. The `(3NT)` half of
+the v2 queue has no trigger against this opponent and is closed. The four-level
+rows are all **eight**-card suits: `(4x)` is not a widened `(3x)`, it is a
+different (and six times rarer) hand class, and `(5m)` is as common as `(4M)`.
+
+#### The advancer over their own `(4x)` (seat 3, 20k/vul)
+
+| lane | Pass | action |
+| --- | ---: | --- |
+| `1NT (4♣) -` / `(4♦) -` | 86.3% / 86.4% | `5m` 9.5% / 9.3%, `4NT` 2.5% / 3.1% |
+| `1NT (4♥) -` / `(4♠) -` | 95.3% / 95.5% | `4NT` 3.2% / 3.1%, scattered 5-level 0.5% |
+| `1NT (4♣) X` / `(4♦) X` | 96.7% / 96.8% | `6m` 2.6% / 2.5% |
+| `1NT (4♥) X` | **97.5%** | `6♥` 2.2% |
+| `1NT (4♠) X` | **99.9%** | `XX` 0.1% |
+
+They sit for our double of a `(4x)` preempt essentially always. Our floor cannot
+double there at all (`their_live_bid_at_most(3)`), so the whole `(4x)` double is
+a book-only opportunity — against an opponent that never runs from it.
+
 ## What this says about our packages
 
 Read as evidence about the anchor, not as a design to copy — nothing here has
@@ -318,6 +463,15 @@ cargo run --release --example probe-bba-constraints -- --mode counter-c --sample
     --conv "Multi-Landy=0" --conv "Cappelletti=0" --conv "Landy=0" --their-conv "Multi-Landy=1"
 # the three-level calls being natural preempts
 cargo run --release --example probe-bba-constraints -- --mode multi --min-share 0 --vul none,both --samples 40000
+# their side of the three-level lane (2026-08-19); full sweep in scripts under
+# ab-results/probe-3level/, every lane at --vul none,both --min-share 0 --meanings 50 --seed 20260819
+P='cargo run --release --example probe-bba-constraints -- --mode custom'
+$P --seat 3 --calls "1NT 3♣ -"   --samples 40000   # advancer, per (3♣)…(3♠)
+$P --seat 3 --calls "1NT 3♣ X"   --samples 40000   # ...sit-vs-rescue over our takeout X
+$P --seat 3 --calls "1NT 3♣ 3NT" --samples 20000   # ...over our constructive response
+$P --seat 1 --calls "1NT"        --samples 200000  # the direct table at 200k: (4x) rows, no (3NT)
+$P --seat 3 --calls "1NT 4♥ X"   --samples 20000   # advancer over our double of a (4x)
+$P --seat 1 --calls "1NT 3♣ X - 3♥" --filter-call 3♣ --filter-prefix "1NT" --samples 300000
 ```
 
 The last of those is the arm that shows the reading follows the caller's own

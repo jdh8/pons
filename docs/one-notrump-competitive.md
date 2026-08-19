@@ -1044,6 +1044,81 @@ replicated loss (NV +26/+43, vulnerable −11/+3 raw IMPs); `(3♦)`, `(3♥)`, 
 arm, knob, test, and harness were removed after measurement; do not retry the
 whole continuation.
 
+### The v2 queue, re-priced (probe + fresh-seed census, 2026-08-19)
+
+The N3 residue was queued against an opponent whose side of the lane had never
+been probed. It has been now — advancer tables, sit-vs-rescue over our double,
+the preemptor's second turn, and the `(4x)`/`(3NT)` triggers, in
+[bba-1nt-counter-defense.md](ai-bidder/bba-1nt-counter-defense.md) §"Their side
+of the lane". Four items move.
+
+**1. `(3NT)` is closed — no trigger.** BBA never bids `3NT` directly over our
+1NT: the row does not exist at 200,000 hands per vulnerability, at either
+vulnerability. Nothing to counter.
+
+**2. `(4x)` is re-priced down, twice.** On the fresh-seed anchor the whole `4+`
+bucket is **38 bd / −43 plain / −45 PD** (NV 23 bd −22/−27, vul 15 bd −21/−18),
+not the 43 bd / −89 of the series seed; per board −1.13 ±2.78, a CI that
+swallows the total. And the trigger is not a widened `(3x)`: BBA's four-level
+overcalls are **eight**-card suits (`4♥` 0.049%, `4♠` 0.046%, `4♦` 0.012%,
+`4♣` 0.006% of hands), six times rarer than the three-level rows, with `5♣` and
+`5♦` (also 8+) as common as `(4M)`. Widening the `(3x)` template to `(4x)`
+would author for a hand class the template does not describe. What survives is
+narrower and better supported: the advancer **sits for our double of a `(4x)`
+on 96.7–99.9%** of hands, and our floor cannot double above the three level at
+all, so a book `X` over `(4x)` is an uncontested opportunity — parked as a
+sized item, not the top of the queue.
+
+**3. The penalty pass survives its probe, and the realized rate is stronger than
+the probe's.** The item was queued on an unsourced "BBA sits over some doubles".
+It does, and then some. Per random advancer hand the probe reads 88.2% Pass over
+a minor and ~50% over a major; counted over **14,120 realized `1NT (3x)` boards**
+of a `--filter-preempt` arm — where the advancer's hand is conditioned on our
+side holding 23+ — it is **99.7% / 100.0% / 97.1% / 98.3%** over
+`(3♣)`/`(3♦)`/`(3♥)`/`(3♠)`. If opener leaves the double in, we defend the
+doubled three-level contract essentially every time. This is not the `(2♦)` lane,
+where the runout was unconditional and the item died without a run.
+
+**4. The `X (4z)` tail is closed — it does not happen.** The preemptor never bids
+again (six two-ply probe lanes, 99.4–100% Pass on filtered hands), and the
+advancer, once conditioned, acts over our double on **0.0–2.4%** of realized
+boards. The node `P* 1NT (3x) X (4z)` would own a tail that is two boards in a
+thousand. Removed from the queue; what is left of the tail is the advancer's
+`(4M)` over our **`3NT`** (6.7% over `(3♥)`, 9.1% over `(3♠)`), which is a
+different node and still floor-owned.
+
+#### What the census says instead — the two cells worth authoring
+
+Per-cell decomposition of the fresh-seed anchor (`--bucket … --responses 8`,
+both vulnerabilities pooled, boards / plain / PD):
+
+| cell | bd | plain | PD | mechanism |
+| --- | ---: | ---: | ---: | --- |
+| `(3♠) X (P) 3NT` | 20 | **−94** | **−123** | opener bids `3NT` on one stopper facing a *seven*-card suit — and does it **holding four hearts**, the suit responder's takeout double promised |
+| `(3♣) 3♠` | 16 | **−54** | **−57** | the force is answered `4♠` and dies: slam missed on a 5-5 11-count (`4♠+3`, BBA bid `6♠`), or `4♠` on a 5-3 where `3NT` was the make |
+| `(3♣)` Pass | 43 | −67 | −14 | responder has no call; PD nearly recovers it |
+| `(3♣) X` | 29 | −30 | −51 | |
+| `(3♣) 3♥` | 30 | −12 | −13 | |
+| `(3♣) 3♦` | 18 | +9 | +6 | |
+| `(3♠) 4♥` | 18 | +37 | +38 | the authored four-level rung, and the lane's best cell |
+
+The `(3♠) X (P) 3NT` cell is the largest single loss in N3 and has a one-row
+cause. Over `(3♠)` the cheap `3M@140` rung does not exist — hearts are *below*
+their suit — so `nt_answer_double`'s ladder runs `4♥@150` (four hearts **and**
+17+ points), `3NT@130` (one stopper), `4♥@25` (three-card tolerance). Opener
+with four hearts and 15–16 therefore bids `3NT` and buries the known 4-4 fit:
+on the worst NV board opener held `K5.QJ84.A92.KQ92` opposite `Q6.A972.K8643.63`
+and `3NT` went **three down** while `♥` was worth nine tricks. The repair is to
+give the shown major its **cheapest legal** rung — four when three is gone —
+above `3NT`, not to replace `3NT` everywhere.
+
+This is *not* the refuted BBA-style continuation. That arm bundled the same
+cheapest-level major with "no major → `3♦`/`4♦`", and its own decomposition put
+the whole loss on `4♦ ← 3NT` (−310/−348 and −420/−429). Over `(3♠)` "no major →
+`4♦`" is the arm's dominant branch, so the `(3♠)` column being negative there
+prices the `4♦` substitution, not the `4♥` rung. The un-bundled half is
+untested, and the census cell it targets is the lane's biggest.
+
 ### Disclosure — what BBA is told
 
 No card row exists for this lane. `card.rs`'s `SCHEMA` has no slot for
@@ -1064,16 +1139,27 @@ belongs in its ship row. The removed BBA arm used
   the floor then passes (2 bd, −34). Out of the book's line; the proposed
   repair is a floor rail "no cue above game unless slam-forcing", for the floor
   campaign.
-- Their `(4x)` overcalls (the `4+` bucket, 43 bd / −89 plain, PD negative at
-  both vuls; `(4♥)` alone is −118 plain / −126 PD, the rest nets positive): the
-  `(3x)` template widens to `(4x)` as a v2. The floor offers **no `X` over
-  `(4x)` at all** (`their_live_bid_at_most(3)`, `instinct.rs:6058`), so the net
-  alone acts there.
+- Their `(4x)` overcalls: **re-priced 2026-08-19** — see "The v2 queue,
+  re-priced" above. The fresh-seed bucket is 38 bd / −43 plain / −45 PD with a
+  CI that swallows it, and the trigger is an *eight*-card suit, so the `(3x)`
+  template does not widen. The floor still offers **no `X` over `(4x)` at all**
+  (`their_live_bid_at_most(3)`, `instinct.rs:6058`), and BBA's advancer sits for
+  that double on 96.7–99.9%, so a book `X` there is the surviving item.
 - We **never** overcall a 1NT opening at the three level (table B: 0 boards) —
   BBA does on 1.5% of its 1NT-defense hands. Obstruction is DD-blind, so a
   preempt package there is a single-dummy harness item, not this one.
-- `(3♥) 3NT` on a singleton in their suit (11 bd, −23) is the `direct_3nt_stopper`
-  question, which the A/B's third arm decides.
+- `(3♥) 3NT` on a singleton in their suit (11 bd, −23) was the
+  `direct_3nt_stopper` question; round 2 answered it (the lane's own bit,
+  shipped off).
+- **Dead rows, deliberately left**: in `nt_answer_double` the `4M@25`
+  three-card-tolerance rung is unreachable whenever that major clears their
+  suit — the identical `3M@30` rung outranks it on exactly the same hands — so
+  it is dead in the `(3♣)` and `(3♦)` tables and for spades in the `(3♥)` one.
+  Deleting them is **not** inert: an unreachable row still joins the *reading*
+  of its call, so dropping `4♥@25 len(♥, 3..)` would narrow a made `4♥` from
+  "three-plus hearts" to "four and a maximum" and move calls elsewhere.
+  Proposed reversible default: **leave them**, and revisit only inside a reading
+  A/B.
 - Opener's answer to a forcing **major** never shows the *other* four-card
   major (`1NT (3♣) 3♥ -` with four spades bids `4♥` or `3NT`, never `3♠`).
   Deliberate — one book answer, floor beyond — but it is a real 4-4 miss when
