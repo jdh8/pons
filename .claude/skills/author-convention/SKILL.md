@@ -50,7 +50,7 @@ Come back here only if the fix means authoring new nodes — then steps 3–11 a
    channel, so it passes out a doubled ask or bids a phantom suit. Measured
    twice in one campaign: N1b's doubled stopper-ask passed out in `3♥x`, N1c's
    interference hole at −4.68 PD/fired vul
-   (docs/one-notrump-competitive.md). A `systems_on_over_double` rebase often
+   ([closed N1 history](../../../docs/archive/one-notrump-competitive-closed.md#n1--the-landy-2-counter-shipped-default-on-2026-08-14)). A `systems_on_over_double` rebase often
    covers the whole `(X)` tail for free; the overcalls the opponents actually
    make need their own small tables. A relay whose saved space is never
    spent — or an advance left to the floor — measures as a loss even when the
@@ -74,7 +74,7 @@ Come back here only if the fix means authoring new nodes — then steps 3–11 a
      always-on alert for anything else.
    - If the convention is **theirs** (a `their.*` disclosure), wire the read
      side too: a disclosure that moves only the book leaves the floor bidding
-     on a false opponent envelope (docs/one-notrump-competitive.md §N1g). The
+     on a false opponent envelope ([closed §N1g](../../../docs/archive/one-notrump-competitive-closed.md#n1g--the-read-side-wiring-shipped-default-on-2026-08-14)). The
      reader must be seat-gated to their calls only.
 5. **Gate with an `Agreements` knob** (a field in the matching area struct, or
    `decision.reading` for read-side switches; no thread-locals since 0.11),

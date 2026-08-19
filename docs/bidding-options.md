@@ -417,8 +417,7 @@ set_defense_to_2c_landy, set_suppress_4432_vs_major,
 set_suppress_4432_vs_minor, set_direct_3nt_stopper.
 
 `set_defense_to_2c_landy` is authored and queued, not stale: run
-`scripts/ab-landy-counter.sh` (N1 of
-[one-notrump-competitive.md](one-notrump-competitive.md)).
+`scripts/ab-landy-counter.sh` ([closed N1 history](archive/one-notrump-competitive-closed.md#n1--the-landy-2-counter-shipped-default-on-2026-08-14)).
 
 **Blocked:** the direct-`1NT` reader trial failed its BBA non-loss gate and was
 reverted, so O1 and O2 remain off and their runners reject those modes.

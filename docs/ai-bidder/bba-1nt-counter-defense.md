@@ -408,7 +408,7 @@ applies to any of it.
   gadget cues — with the values `X` kept and a GF both-minors
   takeout/splinter family added.  Shipped at a pre-pinned non-inferiority
   gate on the structural-alignment rationale;
-  [one-notrump-competitive.md](../one-notrump-competitive.md) §N1j holds the
+  [closed §N1j](../archive/one-notrump-competitive-closed.md#n1j--the-bba-ladder-counter-shipped-default-on-2026-08-15) holds the
   verdicts and the reading ceiling (row 122 projects our *uncontested*
   Puppet scheme onto the lane, so alignment is structural, never literal).
 - **N1 (shipped) agrees with BBA on the ladder and disagrees on the double.**

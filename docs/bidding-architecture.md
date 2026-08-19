@@ -102,7 +102,7 @@ auction + hand
   registration blocks whose every suffix ends in `-` are the tell. Priced
   twice in one campaign (N1b's doubled ask passed out in `3♥x`; N1c's
   interference hole, −4.68 PD/fired vul —
-  [one-notrump-competitive.md](one-notrump-competitive.md)).
+  [closed N1 history](archive/one-notrump-competitive-closed.md#n1--the-landy-2-counter-shipped-default-on-2026-08-14)).
 
 ### Settle floor and the rejected TTL
 
