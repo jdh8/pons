@@ -1475,7 +1475,7 @@ static SETTINGS: &[Setting] = &[
     gated("nt_high_overcall_3nt_stopper", COMPETITION, "…direct 3NT needs its own stopper", false, set_nt_high_overcall_3nt_stopper, nt_high_overcall_3nt_stopper, "nt_high_overcall_responses"),
     gated("nt_3c_transfers", COMPETITION, "…transfers over their (3♣)", false, set_nt_3c_transfers, nt_3c_transfers, "nt_high_overcall_responses"),
     gated("nt_high_overcall_x_major_at_four", COMPETITION, "…answer their (3♠) double in hearts at the four level", true, set_nt_high_overcall_x_major_at_four, nt_high_overcall_x_major_at_four, "nt_high_overcall_responses"),
-    gated("nt_high_overcall_x_leave_in", COMPETITION, "…opener may pass the takeout double for penalty", false, set_nt_high_overcall_x_leave_in, nt_high_overcall_x_leave_in, "nt_high_overcall_responses"),
+    gated("nt_high_overcall_x_leave_in", COMPETITION, "…opener passes the takeout double for penalty with four of their suit", true, set_nt_high_overcall_x_leave_in, nt_high_overcall_x_leave_in, "nt_high_overcall_responses"),
     gated("nt_high_overcall_x_leave_in_three", COMPETITION, "…and on three to two of the top three honors", false, set_nt_high_overcall_x_leave_in_three, nt_high_overcall_x_leave_in_three, "nt_high_overcall_x_leave_in"),
     toggle("jordan_truscott", COMPETITION, "Jordan / Truscott 2NT", true, set_jordan_truscott, jordan_truscott),
     toggle("delayed_cue", COMPETITION, "", false, set_delayed_cue, delayed_cue),

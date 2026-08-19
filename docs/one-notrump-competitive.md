@@ -761,10 +761,19 @@ new `--by holding` bucket key shared by `ab-dump-bucket` and `ab-dump-sd`
 suit: `len` {≤2, 3, 4+} × `top_honors` {0, 1, 2+} × whether the `4M` fit rung
 fires.
 
-The window is exact: 9157/9157 (NV) and 10493/10493 (vul) divergent boards key
-to a real bucket, ON always passing and OFF always bidding, so the `(other)`
-bucket reads zero. `len0-1` never appears and never will — a balanced 15–17
-opener holds no singleton or void.
+The window is exact for *this* gate: 9157/9157 (NV) and 10493/10493 (vul)
+divergent boards key to a real bucket, ON always passing and OFF always
+bidding, so the `(other)` bucket reads zero. `len0-1` never appears and never
+will — a balanced 15–17 opener holds no singleton or void.
+
+**Do not read `(other)` as the isolation gate.** It collects genuinely foreign
+boards *and* in-lane boards whose first divergence is downstream of opener's
+answer, and only the first is a leak. v1's gate was wide enough (pass on ≤1
+honor) that every board reaching the table diverged right at the answer, so
+`(other)` happened to be zero; the narrow v2 gate leaves opener's call
+unchanged on most boards it reaches and moves only the *reading*, which
+surfaces as a later divergence — 12.7% / 9.4% in Round 7, every one of them
+still a `1NT (3x) X` auction we opened. Test foreignness explicitly.
 
 **Read the `no4M` rows, not the totals.** The `pass` arm predates the fit rung,
 so its dumps still route to `Pass` on boards where today's shipped
@@ -830,6 +839,115 @@ touch.
 in-sample and ships nothing until Round 7's fresh-seed A/B confirms it
 out-of-sample on plain DD, per [measurement.md](measurement.md)'s domain
 addendum for a knob whose mechanism is adding doubles.
+
+### Round 7 — the length leave-in **SHIPS DEFAULT-ON**, the honor half refuted (2026-08-20)
+
+`ab-results/nt-answer-x-v3`, `SEED_BASE=1787169600`, sha `14acdd1f`, 28 x 25,600
+= 716,800 bd/arm/vul, `--filter-preempt`, three arms against today's default
+(`base`, which already carries the `4M` fit rung):
+
+- `length` — `nt_high_overcall_x_leave_in` re-gated to `len(over, 4..)`
+- `three` — ...plus `nt_high_overcall_x_leave_in_three`, the full v2 candidate
+
+**IMPs per fired, NV / vulnerable:**
+
+| pairing | fired | plain DD | PD | sd plain | sd PD |
+| --- | ---: | --- | --- | --- | --- |
+| **`length` vs `base`** | 2124 / 2191 | **+2.383 / +3.410** | +2.885 / +4.074 | **+0.558 / +0.817** | +0.837 / +1.244 |
+| `three` vs `base` | 3298 / 3472 | +1.384 / +2.166 | +1.930 / +2.966 | **−0.546 / −0.630** | −0.218 / −0.109 |
+| `three` vs `length` | 1211 / 1298 | −0.405 / +0.012 | +0.200 / +1.033 | **−2.438 / −2.990** | −2.094 / −2.406 |
+
+Per board with CI: `length` vs `base` plain **+0.0071 ±0.0009** NV / **+0.0104
+±0.0012** vul, PD +0.0085 ±0.0010 / +0.0125 ±0.0013, sd-plain +0.0017 ±0.0009 /
++0.0025 ±0.0011, sd-PD +0.0025 ±0.0010 / +0.0038 ±0.0012.
+
+#### `length` — **SHIPPED DEFAULT-ON**
+
+CI-clear positive in **all eight cells**. No wash, no negative cell, no scorer
+disagreement, both vulnerabilities — the ship condition met without needing the
+decision table's tie-break rules, and the arbiter column (plain DD, since the
+mechanism is adding doubles) is the strongest of the four. v1 on this same lane
+was CI-clear *negative* in all four sd cells. Same convention, window and
+opponent model: the gate was reading the wrong feature.
+
+**Isolation: 0 foreign boards at both vulnerabilities** (2138 NV / 2201 vul
+divergences, every one a `1NT (3x) X` auction we opened). This is one of the
+campaign's few clean isolation gates.
+
+Bucketed by `--by holding`, **13 of 13 buckets positive on DD at both
+vulnerabilities**; on sd, 12 of 13 NV (only `(3♣) len4+ hon1` at −0.31 plain,
+PD-positive) and 12 of 12 vulnerable.
+
+Two things the bucket table shows that no earlier measurement could:
+
+1. **`hon2+` is the best cell, not a passenger.** `len4+` with two or more of
+   A/K/Q in their suit reads +4.21 (NV) / +4.63 (vul) plain per fired, the top
+   cell at both vulnerabilities. v1's `top_honors(..=1)` gate structurally
+   excluded it, so it appears in no prior dump and Round 6's slice could not
+   see it — roughly half of `length`'s fired boards are therefore genuinely
+   out-of-sample even against the slice that motivated the design.
+
+   This resolves the apparent contradiction with Round 6's finding 2. At
+   **three** cards an A/K/Q in their suit *is* the stopper (`has_stopper` = A,
+   Kx, Qxx, Jxxx), so passing spends a real stopper-backed `3NT`. At **four**
+   they hold seven and we hold four: the suit was never running against `3NT`
+   anyway, the stopper question is moot, and the same honors become pure
+   defensive tricks. Honors hurt at three and help at four for one reason.
+
+2. **A suit gradient.** The leave-in pays most against the highest overcall:
+   sd plain per fired at `hon2+` is `(3♠)` +1.67 / `(3♥)` +0.21 / `(3♦)` +0.09
+   / `(3♣)` +0.26 NV, and `(3♠)` +1.46 / `(3♣)` +1.79 vul. Over `(3♠)` opener's
+   alternatives are genuinely bad — `3NT` wants a spade stopper we do not have
+   holding four small, everything else is at the four level. Over `(3♣)`,
+   `3NT` is cheap and often right. **In-sample on this run**; a suit-dependent
+   gate is a Round 8 question, not a conclusion.
+
+Also confirmed: **no `4M` bucket appears at all**. In Round 6's slice the `4M`
+block was 1287/1577 boards and the worst in the table; with the fit rung in
+`base` those boards are bid identically in both arms and never diverge. Round
+6's finding 3 was right, and running against today's default rather than the
+pre-ship arm is what made it visible.
+
+#### `three` — **REFUTED, kept opt-in**
+
+Priced in isolation against the shipped gate, sd-lead is CI-clear negative at
+both vulnerabilities: **−2.44 / −2.99 IMPs per fired** — v1's own headline
+magnitude (−1.75 to −2.06), reproduced on fresh seeds. The honor half is not
+the weaker disjunct; it *is* the v1 loss.
+
+Its DD signature is `plain wash | PD win` (+0.0000 ±0.0009 plain vulnerable,
+**+0.0019 ±0.0009** PD), which the standard decision table would ship
+default-on. The domain addendum blocks it, and this is the cleanest example the
+campaign has produced of why that addendum exists: the knob's mechanism is
+*adding doubles*, and a double-dummy defender never misdefends exactly the
+doubled contracts it creates. Plain DD arbitrates, sd-lead breaks ties, PD is a
+double-blind column that neither rescues nor kills.
+
+Added to the length gate the extension **inverts the package**: `three` vs
+`base` is a CI-clear sd loss at both vulnerabilities where `length` vs `base`
+is a CI-clear win. **Bundled as one gate — which is what the v2 plan originally
+specified — this run would have returned a refutation at both vulnerabilities,
+and a +3.4 IMPs/fired winner would have been thrown away inside it.** The
+general rule: when a candidate gate is a disjunction and the slice gives its
+disjuncts different signs, they are separate arms, always.
+
+Kept as an opt-in knob (house rule for rejected-but-interesting treatments) and
+a single-dummy re-measure candidate on its vulnerable PD reading.
+
+#### Flagged, not fixed — reading drift is the one negative cell
+
+12.7% (NV) / 9.4% (vul) of divergences are boards where opener's call is
+**unchanged** and only a later call moves. Adding a `Pass` rule at weight 135
+narrows the complement — `3NT` in that seat now also denies four of their suit
+— so partner's inference shifts and a downstream slam try or double changes.
+This is [reading-drift-handoff.md](reading-drift-handoff.md)'s subject: a rule
+addition is never reading-neutral when a call's meaning is read off the bidder.
+
+Those boards are the only negative cell in the vulnerable slice: **−0.97 plain
+/ −0.72 PD per fired** on 197 boards, against +0.90 / +0.23 NV. Pooled it is a
+wash (+44 IMPs plain across both vuls) and it does not threaten the headline,
+but it is a real vulnerable cost inside a shipped win. Not fixed here; recorded
+for the reading-drift queue.
 
 ### Disclosure — what BBA is told
 
@@ -1293,7 +1411,7 @@ edits fail. Run it on every arm pair in this lane; the real fix is splitting
 | [N1h / N1i minor-rung re-pricing](archive/one-notrump-competitive-closed.md#n1h--n1i--the-minor-rungs-re-priced-both-refuted-both-opt-in) | `defense_2c_landy_low_minors`, `defense_2c_landy_hcp_rungs` | **both REFUTED 2026-08-15, both opt-in — the lane is closed.** Three shared seeds, 230.4k bd/vul, shared `low-off` baseline (verified board-identical before reuse); `ab-results/landy-low{,-v2,-v3}`, `scripts/ab-landy-rungs.sh`. N1h (cue `points(9..)`, `3m` `points(7..=8)`) = `plain wash \| PD loss`, vul PD **−0.00081 ±0.00074**. N1i (cue `hcp(9..)`, `3m` `hcp(7..=8)`, `2♦`/`2NT` `hcp(..=6)`) = no CI-clear cell, all eight leaning negative. **`cue ← X` negative in both** (−1.80 ×96, −2.96/−4.04 ×46) against N1d's original +2.0…+5.1 the other way — the cue floor is settled, do not probe it again. Leads recorded but not pursued: `Pass ← 2♦` +2.40 PD ×52 (per-seed +4.50/+1.33/−1.09), `3♦ ← 2♦` +3.96 plain/+3.11 PD ×27, `3♣ ← 2NT` −2.19 PD (the transfer's right-siding wins), `cue ← 3♣` −2.88 (shifting a band whole costs more than lowering its floor). | N1h pooled: NV plain +0.00036 ±0.00051 / PD −0.00044 ±0.00066, vul plain +0.00002 ±0.00061 / PD −0.00081 ±0.00074. N1i pooled: NV plain −0.00029 ±0.00043 / PD −0.00039 ±0.00062, vul plain −0.00014 ±0.00052 / PD −0.00036 ±0.00068; sd both arms ≈0. |
 | [N1j BBA-ladder counter + weak-2♦ cap](archive/one-notrump-competitive-closed.md#n1j--the-bba-ladder-counter-shipped-default-on-2026-08-15) | `defense_2c_landy_bba`, `defense_2c_landy_weak_2d_cap` | **both SHIPPED DEFAULT-ON 2026-08-15** — the anchor-aligned table replacing the stack (which stays wired behind `--defense-2c-landy-bba false`).  The ladder shipped at its **pre-pinned non-inferiority gate** (rationale: structural alignment; a wash ships) and beat it — zero CI-clear negatives, all 16 DD+sd cells leaning positive; the `2M ← X` guard passed **vacuously** (no hand left the values double for the takeout family, the three-experiments finding untouched); mirror leak 36-38% foreign, depressing (ours-only stronger: NV +182/+215, vul +171/+202 raw IMPs).  The cap shipped at the **standard** gate: plain wash \| PD win both vuls, sd sign-agreed, isolation gate **0 foreign** (second ever), every divergence the predicted `2♦ → Pass` (+2.58/+4.54 PD per fired ×59 — the N1i lead confirmed).  Engine: `2♦ → 3♣` diamond-transfer right-siding (+5.18/+6.06 PD per fired).  Smoke `18aba5ce…` unchanged through the flip; `[their-landy]` fixture re-blessed; 3 seeds 1786753231/1786753518/1786753808, 230.4k bd/vul, `scripts/ab-landy-bba.sh`.  See [closed §N1j](archive/one-notrump-competitive-closed.md#n1j--the-bba-ladder-counter-shipped-default-on-2026-08-15). | ladder (`on↔off`) pooled: NV plain +0.00083 ±0.00085 / PD +0.00083 ±0.00110, vul plain +0.00080 ±0.00100 / PD +0.00073 ±0.00123; sd-plain +0.00080/+0.00103, sd-PD +0.00070/+0.00113. cap (`cap↔on`) pooled: NV plain −0.00003 ±0.00027 / PD **+0.00037 ±0.00033**, vul plain +0.00017 ±0.00024 / PD **+0.00050 ±0.00035**; sd-PD +0.00017/+0.00033. |
 | N3 `(3♣)`–`(3♠)` preempt of our 1NT | `competition.nt_high_overcall_responses` (default **true**), `competition.nt_high_overcall_3nt_stopper` (**false** — no gate), `competition.nt_3c_transfers` (**false**) | **SHIPPED DEFAULT-ON 2026-08-18** (`scripts/ab-nt-high-overcall.sh`, `SEED_BASE=1787055415`, 230,400 bd/arm/vul). Owned plain CI-clear both vuls, PD positive both, sd sign-agreeing on all four cells. The private 3NT gate shipped off; `(3♣)` transfers remain a measured wash. The BBA-style double continuation was **REFUTED AND REMOVED 2026-08-19**: NV −0.0012 plain/PD, vul −0.0017/−0.0015, with sd agreeing and all eight CIs below zero; clean isolation. Its `4♦ ← 3NT` row missed game and lost −310/−348 NV, −420/−429 vul. See §N3 for the full history and mechanism. | owned package NV plain **+0.00208 ±0.00126** / PD +0.00079 ±0.00145; owned vul plain **+0.00293 ±0.00160** / PD +0.00180 ±0.00182 |
-| N3 opener's answer to responder's takeout `X` | `competition.nt_high_overcall_x_major_at_four` (**true**), `nt_high_overcall_x_leave_in` (**false**), `nt_high_overcall_x_leave_in_three` (**false**) | Round 5 (2026-08-19): the **fit rung SHIPPED DEFAULT-ON**; the **leave-in v1 REFUTED** — sd-lead CI-clear negative in all four cells at −1.75…−2.06 IMPs/fired, clean isolation (0 foreign of 9157/10493). Round 6 (2026-08-20) re-sliced those same dumps by opener's holding in their suit (`--by holding`): the loss is **not uniform** — `len4+` (on the boards the shipped fit rung does not take) is +1.92/+3.58 plain DD and −0.13/+1.09 sd per fired, the honor axis runs the *wrong* way (`has_stopper` = A/Kx/Qxx/Jxxx, so honors at three cards mark the boards whose 3NT was real), and the `4M` block that the shipped fit rung now takes was the worst in the slice. v2 therefore re-gates the knob to `len(over, 4..)` and puts the honor disjunct behind its own `_three` bit so the A/B prices them **separately**. **In-sample; ships nothing until the Round 7 fresh-seed A/B** (`ROUND=5`, `--filter-preempt`, arms `base`/`length`/`three`). |
+| N3 opener's answer to responder's takeout `X` | `competition.nt_high_overcall_x_major_at_four` (**true**), `nt_high_overcall_x_leave_in` (**true**), `nt_high_overcall_x_leave_in_three` (**false**) | Round 5 (2026-08-19): the **fit rung SHIPPED DEFAULT-ON**; the **leave-in v1 REFUTED** — sd-lead CI-clear negative in all four cells at −1.75…−2.06 IMPs/fired, clean isolation (0 foreign of 9157/10493). Round 6 (2026-08-20) re-sliced those same dumps by opener's holding in their suit (`--by holding`): the loss is **not uniform** — `len4+` (on the boards the shipped fit rung does not take) is +1.92/+3.58 plain DD and −0.13/+1.09 sd per fired, the honor axis runs the *wrong* way (`has_stopper` = A/Kx/Qxx/Jxxx, so honors at three cards mark the boards whose 3NT was real), and the `4M` block that the shipped fit rung now takes was the worst in the slice. v2 therefore re-gates the knob to `len(over, 4..)` and puts the honor disjunct behind its own `_three` bit so the A/B prices them **separately**. Round 7 (2026-08-20, `nt-answer-x-v3`, seed 1787169600, 716,800 bd/arm/vul) confirmed it out-of-sample: **`length` SHIPPED DEFAULT-ON — CI-clear positive in all eight cells** (plain +0.0071 ±0.0009 NV / +0.0104 ±0.0012 vul = +2.38/+3.41 per fired; PD +0.0085/+0.0125; sd-plain +0.0017/+0.0025; sd-PD +0.0025/+0.0038), **0 foreign boards** at both vuls, 13/13 buckets DD-positive. The strongest cell is `len4+ hon2+` (+4.21/+4.63), which v1's `top_honors(..=1)` gate structurally excluded — honors hurt at three cards (they *are* the stopper) and help at four (the suit cannot run anyway). **`three` REFUTED, kept opt-in**: sd-lead −2.44/−2.99 per fired in isolation, v1's own magnitude; its `plain wash \| PD win` DD signature is the doubling artifact the domain addendum names. Bundled as one gate the package would have measured as a loss at both vuls. Open: reading drift on 12.7%/9.4% of divergences is the only negative cell (−0.97 plain/fired vul). |
 
 
 ### Memory compaction notes (2026-08-16)

@@ -213,23 +213,26 @@ pub struct CompetitionKnobs {
     /// we hold 23+ and belong in game, not defending a doubled three-level
     /// partscore for +200.
     ///
-    /// **v2 (this gate, unmeasured, default off)** — `len(their suit, 4..)`.
-    /// v1's refutation says the *absence of a stopper* is not a reason to
-    /// defend; it says nothing about the hand that can actually beat them.  The
-    /// gate is now **trump tricks**: four cards in a suit they have shown seven
-    /// of.  Re-slicing v1's own dumps by opener's holding
-    /// (`docs/one-notrump-competitive.md` §N3, "Round 6") makes that the best
-    /// cell in the table — plain **+1.92** NV / **+3.58** vulnerable IMPs per
-    /// fired, against v1's headline −0.375 / +0.49 — and it fires ~9x more
-    /// rarely.  The three-card half of the original candidate is
-    /// [`nt_high_overcall_x_leave_in_three`][Self::nt_high_overcall_x_leave_in_three],
-    /// its own knob so the A/B can read the two as separate arms.
+    /// **v2 (this gate) — `len(their suit, 4..)`, measured 2026-08-20 and
+    /// SHIPPED DEFAULT-ON.**  v1's refutation says the *absence of a stopper*
+    /// is not a reason to defend; it says nothing about the hand that can
+    /// actually beat them.  The gate is now **trump tricks**: four cards in a
+    /// suit they have shown seven of.  Round 7
+    /// (`docs/one-notrump-competitive.md` §N3) is CI-clear positive in **all
+    /// eight cells** — plain **+0.0071 ±0.0009** NV / **+0.0104 ±0.0012**
+    /// vulnerable (+2.38 / +3.41 IMPs per fired), PD +0.0085 / +0.0125, sd-lead
+    /// +0.0017 / +0.0025 and +0.0025 / +0.0038 — against v1's CI-clear sd
+    /// *loss* in all four.  Isolation is clean: **0 foreign boards** at both
+    /// vulnerabilities.  It fires on ~0.30% of `--filter-preempt` boards.
     ///
-    /// Ships only on `docs/measurement.md`'s decision table, with the sd-lead
-    /// bracket as arbiter and **−2.06 IMPs/fired the prior to beat**; the
-    /// knob's mechanism is *adding doubles*, so perfect defense is a
-    /// double-blind column here (measurement.md's domain addendum), not a
-    /// rescuer.
+    /// The strongest cells are `len4+` with **two or more** of A/K/Q in their
+    /// suit (+4.21 / +4.63 plain per fired) — the cell v1's `top_honors(..=1)`
+    /// gate structurally excluded, so no earlier measurement could see it.
+    /// That resolves the apparent contradiction with
+    /// [`nt_high_overcall_x_leave_in_three`][Self::nt_high_overcall_x_leave_in_three]:
+    /// at *three* cards an honor in their suit is the stopper that makes `3NT`
+    /// playable, so passing spends a real game; at *four* they cannot run the
+    /// suit against us anyway, so the same honors are pure defensive tricks.
     pub nt_high_overcall_x_leave_in: bool,
     /// Extend the leave-in to three cards headed by two of the top three
     ///
@@ -251,6 +254,19 @@ pub struct CompetitionKnobs {
     /// stopper-backed game rather than a punt.  Bundling this into the length
     /// gate would let a win ship the bad half and a loss bury the good one,
     /// hence the split.
+    ///
+    /// **Measured 2026-08-20 and REFUTED; kept opt-in.**  Round 7 priced it in
+    /// isolation against the shipped length gate: sd-lead plain **−0.0041
+    /// ±0.0007** NV / **−0.0054 ±0.0009** vulnerable (**−2.44 / −2.99 IMPs per
+    /// fired** — v1's own headline magnitude, reproduced on fresh seeds), with
+    /// double dummy a graze-zero loss NV (−0.405/fired) and a dead wash
+    /// vulnerable (+0.012).  Its DD signature is `plain wash | PD win`
+    /// (+0.0019 ±0.0009 vulnerable), which the standard decision table would
+    /// ship — the domain addendum blocks it, because a double-dummy defender
+    /// never misdefends the doubled contracts this knob creates.  Added to the
+    /// length gate it *inverts the package*: `three` vs `base` is a CI-clear
+    /// sd loss at both vulnerabilities where `length` vs `base` is a CI-clear
+    /// win.  Retained as a single-dummy re-measure candidate.
     pub nt_high_overcall_x_leave_in_three: bool,
     // --- competition/lebensohl.rs
     /// Require a stopper for the direct `3NT` over their overcall
@@ -846,7 +862,7 @@ impl Default for CompetitionKnobs {
             nt_high_overcall_3nt_stopper: false,
             nt_3c_transfers: false,
             nt_high_overcall_x_major_at_four: true,
-            nt_high_overcall_x_leave_in: false,
+            nt_high_overcall_x_leave_in: true,
             nt_high_overcall_x_leave_in_three: false,
             direct_3nt_stopper: true,
             natural_floor: (5, 0),

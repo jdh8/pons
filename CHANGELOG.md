@@ -65,9 +65,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `1NT (3x) X -` leave-in slice.  A shared `common::holding_key` keys every
   divergent board by the 1NT opener's holding in **their** suit: suit x length
   bucket x count of A/K/Q x whether today's four-card-major rung already
-  outbids the `Pass`.  Anything outside that five-call window keys `(other)`,
-  which must read zero on a leave-in dump — the key is a check, not just a
-  label.  `ab-dump-bucket` also grew a `plain/fired` column, and an unknown
+  outbids the `Pass`.  Anything outside that five-call window keys `(other)`.
+  **`(other)` is not an isolation gate**: it collects both genuinely foreign
+  boards *and* in-lane boards whose first divergence is downstream of opener's
+  answer.  A wide gate produces zero of the latter (v1's did), but a narrow one
+  leaves the call unchanged on most boards it reaches and moves only the
+  *reading*, so the divergence surfaces later — 12.7% / 9.4% of v2's divergent
+  boards, all still `1NT (3x) X` auctions we opened, 0 foreign at both
+  vulnerabilities.  Check foreignness explicitly; do not read it off `(other)`.  `ab-dump-bucket` also grew a `plain/fired` column, and an unknown
   `--by` value now panics instead of silently falling through to `lane`.
 
 - **`competition.nt_high_overcall_x_leave_in_three`** (default off;
@@ -306,17 +311,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **`competition.nt_high_overcall_x_leave_in` re-gated on length** (still
-  default off).  v1's `top_honors(their suit, ..=1)` — pass on at most one of
-  A/K/Q, i.e. on essentially every no-major hand — was measured and refuted
-  2026-08-19 (sd-lead CI-clear negative in all four cells, −1.75 to −2.06
-  IMPs/fired).  v2 is `len(their suit, 4..)`: trump tricks rather than the
-  absence of a stopper.  Chosen from the re-slice above, so it is **in-sample**
-  and owes an out-of-sample A/B (`scripts/ab-nt-high-overcall.sh` `ROUND=5`,
-  arms `base` / `length` / `three`) before any default flip.  The knob's
-  mechanism is *adding doubles*, so per
-  [measurement.md](docs/measurement.md)'s domain addendum plain DD is the
-  arbiter, sd-lead the tie-break, and perfect defense a double-blind column.
+- **`competition.nt_high_overcall_x_leave_in` re-gated on length and SHIPPED
+  DEFAULT-ON.**  Over `1NT (3x) X (P)`, opener now converts partner's takeout
+  double to penalty holding **four cards** in the suit they have shown seven
+  of.  v1's `top_honors(their suit, ..=1)` — pass on at most one of A/K/Q, i.e.
+  on essentially every no-major hand — was measured and refuted 2026-08-19
+  (sd-lead CI-clear negative in all four cells, −1.75 to −2.06 IMPs/fired).  v2
+  is trump tricks rather than the absence of a stopper.
+
+  Measured 2026-08-20 (`ab-results/nt-answer-x-v3`, `SEED_BASE=1787169600`,
+  716,800 bd/arm/vul, `--filter-preempt`): **CI-clear positive in all eight
+  cells** — plain **+0.0071 ±0.0009** NV / **+0.0104 ±0.0012** vulnerable
+  (+2.38 / +3.41 IMPs per fired), PD +0.0085 / +0.0125, sd-lead +0.0017 /
+  +0.0025 plain and +0.0025 / +0.0038 PD.  No wash, no negative cell, no
+  scorer disagreement.  **Isolation clean: 0 foreign boards** at both
+  vulnerabilities.  Fires on ~0.30% of `--filter-preempt` boards.
+
+  The best cell is `len4+` with **two or more** of A/K/Q in their suit (+4.21 /
+  +4.63 plain per fired) — structurally excluded by v1's gate, so it is
+  out-of-sample even against the re-slice that motivated the design.  It also
+  resolves the honor paradox: at three cards an A/K/Q in their suit *is* the
+  stopper, so passing spends a real `3NT`; at four cards they cannot run the
+  suit against us anyway, so the same honors are pure defensive tricks.
+
+- **`competition.nt_high_overcall_x_leave_in_three` measured and REFUTED**
+  (stays default off).  Priced in isolation against the shipped length gate:
+  sd-lead **−0.0041 ±0.0007** NV / **−0.0054 ±0.0009** vulnerable (−2.44 /
+  −2.99 IMPs per fired — v1's own headline magnitude, reproduced on fresh
+  seeds), with double dummy a graze-zero loss NV and a dead wash vulnerable.
+  Its DD signature is `plain wash | PD win` (+0.0019 ±0.0009 vulnerable), which
+  the standard decision table would ship; [measurement.md](docs/measurement.md)'s
+  domain addendum blocks it, because a double-dummy defender never misdefends
+  the doubled contracts this knob creates.  Added to the length gate it inverts
+  the package — `three` vs `base` is a CI-clear sd loss at both vulnerabilities
+  where `length` vs `base` is a CI-clear win.  **Had the two disjuncts shipped
+  as one gate, as originally planned, this run would have read as a refutation
+  and discarded a +3.4 IMPs/fired winner.**
 
 - **`scripts/idle-run.sh` now supports a machine-local politeness hook.** On
   this box, `~/.config/pons/idle-run.local.sh` pauses the 20 GiB poker worker

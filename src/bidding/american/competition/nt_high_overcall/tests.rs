@@ -113,30 +113,34 @@ fn the_four_level_major_rung_bids_the_fit() {
     );
 }
 
-/// `nt_high_overcall_x_leave_in`: opener converts the takeout double to
-/// penalty on **length** in their seven-card suit, and on nothing else.
+/// `nt_high_overcall_x_leave_in` (**default on**): opener converts the takeout
+/// double to penalty on **length** in their seven-card suit, and on nothing
+/// else.
 ///
 /// The v1 gate was the opposite polarity (`top_honors(over, ..=1)`, i.e. pass
 /// on any no-major hand) and was measured and refuted; `thin` below is the hand
 /// that arm passed and this one does not.  The three-card half of the v2
-/// candidate is [`the_leave_in_three_is_its_own_knob`], deliberately a separate
-/// arm.
+/// candidate is [`the_leave_in_three_is_its_own_knob`], measured separately and
+/// refuted in its own right.
 #[test]
-fn the_leave_in_is_opt_in() {
+fn the_leave_in_defends_on_length() {
     let auction = [
         call(1, Strain::Notrump),
         call(3, Strain::Clubs),
         Call::Double,
         Call::Pass,
     ];
-    let mut on = arm();
-    on.competition.nt_high_overcall_x_leave_in = true;
-    // Three to one honor in their suit: no trump trick, so `3NT` on both
-    // settings.  The refuted v1 gate passed exactly this hand.
+    let mut off = arm();
+    off.competition.nt_high_overcall_x_leave_in = false;
+    // Three to one honor in their suit: no trump trick, so `3NT` either way.
+    // The refuted v1 gate passed exactly this hand.
     let thin = "AQ3.J72.AQJ4.K92";
     for (agreements, why) in [
-        (arm(), "the default punts to 3NT on the single stopper"),
-        (on, "and so does the knob: Kxx is not a trump holding"),
+        (
+            arm(),
+            "the shipped gate punts to 3NT: Kxx is not a trump holding",
+        ),
+        (off, "and so does the arm with the gate switched off"),
     ] {
         assert_eq!(
             best_call_with(&agreements, &auction, thin).0,
@@ -147,17 +151,21 @@ fn the_leave_in_is_opt_in() {
     // Four cards in a suit they have shown seven of.
     let long = "A3.J72.AQJ4.K952";
     assert_eq!(
-        best_call_with(&arm(), &auction, long).0,
+        best_call_with(&off, &auction, long).0,
         call(3, Strain::Notrump),
-        "the default still punts"
+        "switched off, opener still punts"
     );
-    let (left_in, floored) = best_call_with(&on, &auction, long);
-    assert_eq!(left_in, Call::Pass, "the knob defends on the length");
+    let (left_in, floored) = best_call_with(&arm(), &auction, long);
+    assert_eq!(
+        left_in,
+        Call::Pass,
+        "the shipped gate defends on the length"
+    );
     assert!(!floored, "an authored node, not the floor");
     // A four-card major outranks the leave-in, on a hand the gate does accept.
     let fit = "AQ32.J72.K4.KQ95";
     assert_eq!(
-        best_call_with(&on, &auction, fit).0,
+        best_call_with(&arm(), &auction, fit).0,
         call(3, Strain::Spades),
         "a fit is still bid"
     );
@@ -167,9 +175,11 @@ fn the_leave_in_is_opt_in() {
 /// two of the top three, and is inert on its own.
 ///
 /// The two disjuncts are separate knobs because the re-slice of v1's dumps
-/// (`docs/one-notrump-competitive.md` §N3, "Round 6") has the honor trend
-/// running *against* this half at every measured step, while the length half is
-/// the best cell in the table — so the A/B reads them as separate arms.
+/// (`docs/one-notrump-competitive.md` §N3, "Round 6") had the honor trend
+/// running *against* this half at every measured step, while the length half
+/// was the best cell in the table.  Round 7 measured them as separate arms and
+/// confirmed it: the length half ships, this one is CI-clear negative on
+/// sd-lead at both vulnerabilities (−2.44 / −2.99 IMPs per fired) and stays off.
 #[test]
 fn the_leave_in_three_is_its_own_knob() {
     let auction = [
@@ -180,12 +190,11 @@ fn the_leave_in_three_is_its_own_knob() {
     ];
     // `KQx` of their suit, no four-card major, only three clubs.
     let solid = "A32.J72.AJT4.KQ9";
-    let mut length_only = arm();
-    length_only.competition.nt_high_overcall_x_leave_in = true;
+    let length_only = arm(); // the shipped default: length gate on, extension off
     assert_eq!(
         best_call_with(&length_only, &auction, solid).0,
         call(3, Strain::Notrump),
-        "the length gate alone leaves the three-card holding to 3NT"
+        "the shipped length gate leaves the three-card holding to 3NT"
     );
     let mut both = length_only;
     both.competition.nt_high_overcall_x_leave_in_three = true;
@@ -194,6 +203,7 @@ fn the_leave_in_three_is_its_own_knob() {
     assert!(!floored, "an authored node, not the floor");
     // The extension is inert without the gate it rides on.
     let mut three_only = arm();
+    three_only.competition.nt_high_overcall_x_leave_in = false;
     three_only.competition.nt_high_overcall_x_leave_in_three = true;
     assert_eq!(
         best_call_with(&three_only, &auction, solid).0,
