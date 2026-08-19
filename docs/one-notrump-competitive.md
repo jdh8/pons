@@ -1044,6 +1044,66 @@ replicated loss (NV +26/+43, vulnerable −11/+3 raw IMPs); `(3♦)`, `(3♥)`, 
 arm, knob, test, and harness were removed after measurement; do not retry the
 whole continuation.
 
+### Round 4 — the answer tables' cross-call weight ties (2026-08-19)
+
+**Pre-pinned before the run** (N1j precedent; rationale = structural
+alignment, not an expected gain).
+
+*The defect.* All three of opener's answer tables price the two majors' rows at
+one weight — `nt_answer_double`'s `4M@150` / `3M@140` / `3M@30` / `4M@25`,
+`nt_answer_forcing_suit`'s minor arm `3M@140`, and `nt_answer_forcing_minor`'s
+`4M@130`. Production keeps the *first strict* maximum in call-encoding order,
+so on a cross-call tie the **encoding** decides and hearts always wins: opener
+with four hearts and five spades answers the takeout double `3♥`. The same bug
+class was fixed on the responder side at ship ("+ rank is load-bearing"), and
+`weight_tie_report` never saw it — that invariant only meters ties on the
+*same* call. The test helper `best_call_with` used `max_by`, which keeps the
+*last* maximum and so resolved ties the opposite way from production, hiding
+the defect from any pinned test.
+
+*The repair.* Each major's rows carry `at_least_as_long(major, rival)` whenever
+their overcall leaves both majors live; with only one live major there is no
+rival and no guard. A genuine 4-4 still fires both rows and still answers in
+hearts (byte-identical), a 5-4 now answers in its five-carder. `best_call_with`
+now reduces with a strict `>`, matching production, and
+`the_double_answer_picks_the_longer_major` pins all four cases.
+
+*The gate, pinned before reading any number.* Both arms under
+`--filter-preempt`, fresh `SEED_BASE`, arms sequential, no rebuild in flight,
+`fix` versus `base` at 716,800 boards per arm per vulnerability. **Ship iff no
+CI-clear negative cell across {NV, vul} × {plain, PD}.** Any CI-clear negative
+cell → revert and log. No knob: this is a repair, not a treatment, so the two
+arms are two *binaries* built from the same tree with and without the `src/`
+patch — both carrying the same `--filter-preempt`, so their accepted deal sets
+are identical per seed.
+
+*Measured — **SHIPPED**.* `ab-results/nt-answer-tie/`, seed `1787144117`, sha
+`7f8fa998`+patch, 716,800 boards/arm/vulnerability, 28 shards × 25,600:
+
+| vul | fired | plain/bd | PD/bd | plain/fired | PD/fired | sd plain/fired | sd-PD/fired |
+| --- | ---: | --- | --- | ---: | ---: | ---: | ---: |
+| none | 252 (0.04%) | +0.0002 ±0.0003 | +0.0002 ±0.0003 | +0.508 | +0.520 | +0.646 | +0.719 |
+| both | 221 (0.03%) | +0.0001 ±0.0003 | +0.0001 ±0.0003 | +0.416 | +0.267 | +0.221 | +0.032 |
+
+Eight of eight cells lean positive and none is CI-clear negative: the pinned
+gate passes and the repair ships. `probe-divergence --gate-opener ours` is
+**0 of 252** and **0 of 221** foreign — perfect isolation, as a book row keyed
+`P* 1NT (3x) X -` should be.
+
+The mechanism is not the one the defect description predicts. Only 6.0% / 3.6%
+of divergent boards are "a different bid"; **85.7% / 88.7% are "passed where the
+baseline bid"**, and game is reached in both arms on 94.4% / 100.0%. The guard
+is doing most of its work through the **reading**: `4♥ | ♥ at least as long as
+♠` tells responder opener is not hiding five spades, so responder stops
+correcting to `4♠` over a 4-4 answer. The call-level 5-4 repair is real but
+rare; the reading it publishes is what the IMPs came from.
+
+*`smoke-default` cannot see this lane.* The default-system hash is unchanged
+(`39ca60a251e03e558cfe44659b44ae45b1fe296d806e90cb3ed1cc9338bf72cd`,
+`--count 20000 --seed 1`) — but that is **not** an inertness proof here: we never
+overcall a 1NT opening at the three level, so a self-play smoke never reaches
+`1NT (3x)` at all. The A/B above is the whole evidence.
+
 ### The v2 queue, re-priced (probe + fresh-seed census, 2026-08-19)
 
 The N3 residue was queued against an opponent whose side of the lane had never

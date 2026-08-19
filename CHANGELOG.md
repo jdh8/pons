@@ -269,6 +269,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Opener's three N3 answer tables no longer let the call encoding pick the
+  major.** All three priced the two majors' rows at one weight
+  (`nt_answer_double`'s `4M@150` / `3M@140` / `3M@30` / `4M@25`,
+  `nt_answer_forcing_suit`'s minor arm, `nt_answer_forcing_minor`), and
+  production keeps the *first strict* maximum in call-encoding order — so
+  opener with four hearts and five spades answered the takeout double `3♥`
+  whatever the hand held. Each major's rows now carry
+  `at_least_as_long(major, rival)` whenever their overcall leaves both majors
+  live; a genuine 4-4 still answers hearts, a 5-4 answers in its five-carder.
+  `weight_tie_report` never caught this (it meters same-call ties only), and the
+  test helper `best_call_with` used `max_by`, which keeps the *last* maximum and
+  so resolved cross-call ties the **opposite** way from production — it now
+  reduces with a strict `>`, matching the engine.
+
+  **A/B (two binaries at `7f8fa998`, seed `1787144117`, 716,800 bd/arm/vul
+  against BBA under the new `--filter-preempt`, plain DD + PD + sd-lead):
+  positive in eight of eight cells, none CI-clear negative — the pre-pinned
+  non-inferiority gate.** NV +0.0002 ±0.0003 plain and PD per board (+0.508 /
+  +0.520 per fired, 252 fired); vulnerable +0.0001 ±0.0003 both scorers (+0.416
+  / +0.267 per fired, 221 fired); sd-lead +0.646 / +0.719 and +0.221 / +0.032
+  per fired. `probe-divergence --gate-opener ours` is 0 of 252 and 0 of 221
+  foreign. The IMPs come mostly from the **reading**, not the call: 85.7% /
+  88.7% of divergences are "passed where the baseline bid" — the published
+  `♥ at least as long as ♠` stops responder correcting a 4-4 answer to `4♠`.
+  `smoke-default` is unchanged but proves nothing here, because we never
+  overcall a 1NT opening at the three level and a self-play smoke never reaches
+  the node. [one-notrump-competitive.md](docs/one-notrump-competitive.md) §N3
+  Round 4.
+
 - **`bba-gen --filter-landy` paired on the wrong opponent.** The flag requires a
   1NT-opener candidate whose partner-of-the-overcaller seat is Landy-shaped, but
   it tested `seat.rho()` — the seat that acts one call *before* the opener.

@@ -29,6 +29,46 @@ fn the_forcing_three_level_suit_is_authored() {
     assert_eq!(raise, call(4, Strain::Spades), "three-card support raises");
 }
 
+/// Opener answers the takeout double in the **longer** major.
+///
+/// Both majors' rows sit at one weight, so before the `at_least_as_long` guard
+/// the call encoding — not the hand — decided, and a 4♥-5♠ answered `3♥`.
+#[test]
+fn the_double_answer_picks_the_longer_major() {
+    let auction = [
+        call(1, Strain::Notrump),
+        call(3, Strain::Clubs),
+        Call::Double,
+        Call::Pass,
+    ];
+    let (five_four, floored) = best_call_with(&arm(), &auction, "AQJ54.KQ98.K3.42");
+    assert_eq!(
+        five_four,
+        call(3, Strain::Spades),
+        "five spades outrank four hearts"
+    );
+    assert!(!floored, "an authored node, not the floor");
+    let (four_five, _) = best_call_with(&arm(), &auction, "KQ98.AQJ54.K3.42");
+    assert_eq!(
+        four_five,
+        call(3, Strain::Hearts),
+        "and the mirror image answers hearts"
+    );
+    // The jumped rung ties the same way, and is guarded the same way.
+    let (maximum, _) = best_call_with(&arm(), &auction, "AQJ54.KQ98.A3.42");
+    assert_eq!(
+        maximum,
+        call(4, Strain::Spades),
+        "a maximum jumps in the longer major"
+    );
+    let (four_four, _) = best_call_with(&arm(), &auction, "KQ98.AQJ5.K43.42");
+    assert_eq!(
+        four_four,
+        call(3, Strain::Hearts),
+        "a genuine 4-4 still fires both rows, and still answers hearts"
+    );
+}
+
 /// The double is the 4-4 major finder, and its `points(8..)` floor is the
 /// census repair — the floor doubled on 6–7 and opener drove to a bad game.
 #[test]

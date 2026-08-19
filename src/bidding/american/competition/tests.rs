@@ -144,9 +144,12 @@ pub(super) fn best_call_with(
         .bind()
         .classify_with_provenance(hand, RelativeVulnerability::NONE, auction)
         .expect("a legal auction classifies");
+    // `max_by` keeps the *last* maximum; production keeps the *first strict*
+    // one (`select_with_legal_state`), so a cross-call weight tie resolves the
+    // opposite way.  `reduce` with a strict `>` matches production.
     let best = (&logits.0)
         .into_iter()
-        .max_by(|(_, a), (_, b)| a.partial_cmp(b).expect("logits are never NaN"))
+        .reduce(|best, next| if next.1 > best.1 { next } else { best })
         .map(|(call, _)| call)
         .expect("array is never empty");
     (best, prov.depth == 0 && prov.fallback.is_some())

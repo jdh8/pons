@@ -1509,7 +1509,14 @@ fn authored_calls_read_what_they_gate() {
         // takeout `X` over a minor gates the `4+ ♥ | 4+ ♠` disjunction.  The
         // fielded reading is unaffected — `envelope_union` ships on and its
         // column stays 0, which is what the migration bought.
-        ("length", 75, 0),
+        // 75 → 85 when opener's three N3 answer tables took the same guard
+        // (2026-08-19): five rules per major (`3+`/`4+`/`4+ & 17+ points`
+        // tolerance and jump rungs of the double answer, the `5+` rung of the
+        // four-level-minor answer) now gate `at_least_as_long` against the
+        // rival major, so a 5-4 answers in its five-carder instead of losing
+        // the cross-call weight tie to the call encoding.  Same staircase, same
+        // blind spot, knob-on still 0.
+        ("length", 85, 0),
         ("points", 11, 0),
         // 0/0 measured at birth (2026-07-25): every `suit_hcp` gate the
         // walk reaches (Ogust, the Lebensohl trap pass) is `&`-chained, and

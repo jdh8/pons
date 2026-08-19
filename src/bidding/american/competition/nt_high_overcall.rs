@@ -7,8 +7,9 @@
 //! `docs/ai-bidder/bba-1nt-counter-defense.md` §`(3♣)`–`(3♠)`), so what this
 //! lane wants is an ordinary competitive scheme, not a counter-defense.
 //!
-//! Opt-in via `agreements.competition.nt_high_overcall_responses`; the `(3♣)`
-//! transfer variant rides `agreements.competition.nt_3c_transfers` on top.
+//! `agreements.competition.nt_high_overcall_responses` (default **on** since
+//! 2026-08-18); the `(3♣)` transfer variant rides
+//! `agreements.competition.nt_3c_transfers` on top, still opt-in.
 //!
 //! Sibling of [`super::high_overcall`], which covers the same overcall level
 //! over our *suit* openings.  It keys `1x`, never `1NT`, so the two never race.
@@ -221,6 +222,34 @@ fn nt_3c_transfer_responder(agreements: &Agreements) -> Rules {
     rules.rule(Call::Pass, 0, hcp(0..))
 }
 
+/// One major-suit row of an opener answer, guarded against its rival major
+///
+/// Two majors at the same weight tie, and production keeps the first strict
+/// maximum in call-encoding order — hearts — whatever the hand holds, so a
+/// 4♥-5♠ maximum answers `4♥`.  `at_least_as_long` hands the choice back to the
+/// hand: the 5-4 answers in its five-carder, while a genuine 4-4 still fires
+/// both rows and still answers in hearts.  Their overcall takes at most one
+/// major with it; with only one major left there is no rival and no guard.
+fn major_row<C: Constraint + 'static>(
+    rules: Rules,
+    call: Bid,
+    weight: i16,
+    major: Suit,
+    over: Suit,
+    when: Cons<C>,
+) -> Rules {
+    let rival = if major == Suit::Hearts {
+        Suit::Spades
+    } else {
+        Suit::Hearts
+    };
+    if rival == over {
+        rules.rule(call, weight, when)
+    } else {
+        rules.rule(call, weight, when & at_least_as_long(major, rival))
+    }
+}
+
 /// Opener's forced answer to responder's game-forcing three-level suit
 ///
 /// A major is raised to game on three-card support, else `3NT`.  A minor
@@ -240,7 +269,8 @@ fn nt_answer_forcing_suit(over: Suit, suit: Suit) -> Rules {
     let mut rules = Rules::new().rule(notrump, 150, stopper_in_their_suits());
     for major in [Suit::Hearts, Suit::Spades] {
         if major != over {
-            rules = rules.rule(Bid::new(3, Strain::from(major)), 140, len(major, 4..));
+            let call = Bid::new(3, Strain::from(major));
+            rules = major_row(rules, call, 140, major, over, len(major, 4..));
         }
     }
     rules
@@ -259,7 +289,8 @@ fn nt_answer_forcing_minor(over: Suit, minor: Suit) -> Rules {
     let mut rules = Rules::new().rule(game, 140, len(minor, 3..));
     for major in [Suit::Hearts, Suit::Spades] {
         if major != over {
-            rules = rules.rule(Bid::new(4, Strain::from(major)), 130, len(major, 5..));
+            let call = Bid::new(4, Strain::from(major));
+            rules = major_row(rules, call, 130, major, over, len(major, 5..));
         }
     }
     rules.rule(game, 100, hcp(0..))
@@ -279,9 +310,18 @@ fn nt_answer_double(over: Suit) -> Rules {
             continue;
         }
         let strain = Strain::from(major);
-        rules = rules.rule(Bid::new(4, strain), 150, len(major, 4..) & points(17..));
+        let jump = Bid::new(4, strain);
+        rules = major_row(
+            rules,
+            jump,
+            150,
+            major,
+            over,
+            len(major, 4..) & points(17..),
+        );
         if major > over {
-            rules = rules.rule(Bid::new(3, strain), 140, len(major, 4..));
+            let cheap = Bid::new(3, strain);
+            rules = major_row(rules, cheap, 140, major, over, len(major, 4..));
         }
     }
     rules = rules.rule(notrump, 130, stopper_in_their_suits());
@@ -291,9 +331,11 @@ fn nt_answer_double(over: Suit) -> Rules {
         }
         let strain = Strain::from(major);
         if major > over {
-            rules = rules.rule(Bid::new(3, strain), 30, len(major, 3..));
+            let cheap = Bid::new(3, strain);
+            rules = major_row(rules, cheap, 30, major, over, len(major, 3..));
         }
-        rules = rules.rule(Bid::new(4, strain), 25, len(major, 3..));
+        let jump = Bid::new(4, strain);
+        rules = major_row(rules, jump, 25, major, over, len(major, 3..));
     }
     rules.rule(notrump, 15, hcp(0..))
 }

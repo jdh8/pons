@@ -337,7 +337,8 @@ pub fn competition(agreements: &Agreements) -> Competitive {
     compile_into(&mut book, agreements, &[high_overcall_package()]);
 
     // Section 12: their three-level overcall of our 1NT
-    // (`agreements.competition.nt_high_overcall_responses`, default off).
+    // (`agreements.competition.nt_high_overcall_responses`, default on since
+    // 2026-08-18).
     // Exact `1NT (3x)` nodes — the Lebensohl package stops at the two level and
     // the `(2NT)` Unusual-vs-Unusual node is a different key, so nothing races
     // them.  Responder's one call and opener's one answer; everything deeper is
