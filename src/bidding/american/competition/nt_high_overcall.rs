@@ -310,7 +310,7 @@ fn nt_3c_transfer_squeezed(target: Suit) -> Rules {
 }
 
 /// Section 12 as a row package: their three-level overcall of our `1NT`
-/// (`agreements.competition.nt_high_overcall_responses`, default off)
+/// (`agreements.competition.nt_high_overcall_responses`, default on)
 ///
 /// Responder's one call and opener's one answer to each of them; every
 /// interfered tail past the `(3♣)` transfers, and every third call, is the

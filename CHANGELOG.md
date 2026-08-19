@@ -108,6 +108,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the earlier caveat is paid. Default behavior remains byte-identical:
   `smoke-default --count 20000 --seed 1` stays `39ca60a251e0…`.
 
+- **BBA-style continuation after responder doubles their three-level overcall
+  of our `1NT` — experimental arm removed after a clear loss.** The temporary
+  arm kept our double constraint unchanged and changed only opener's answer and
+  responder's placement, isolating the continuation from BBA's different
+  direct-double ranges. At 230,400 filtered
+  boards/arm/vulnerability, fresh seed `1787121438`, NV plain/PD
+  **−0.0012/−0.0012** IMPs/board and vulnerable **−0.0017/−0.0015**; the
+  single-dummy pair was −0.0012/−0.0013 and −0.0021/−0.0020. All eight CIs
+  exclude zero; 221/221 divergences were owned. `4♦ ← 3NT` was the mechanism,
+  missing game on 42/109 NV and 50/112 vulnerable divergences. The rules,
+  knob, test, and harness arm were deleted; the measurement record remains.
+
 - **`bba-gen --ns-direct-3nt-stopper`** — the arm flag for responder's direct
   `3NT` over their overcall of our `1NT`, so "does the direct `3NT` need its own
   stopper, or does `X` show it?" is spellable. `Option<bool>`, unset tracks the

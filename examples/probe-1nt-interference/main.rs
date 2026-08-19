@@ -26,7 +26,7 @@
 //!
 //! One call deeper — `--bucket 2♠ --responses 8` — splits that bucket by our
 //! response (table A) and by BBA's response to *our* `2♠` overcall of its 1NT
-//! (table B), then by response / advancer / opener, and classifies the hands
+//! (table B), then through responder's next turn, and classifies the hands
 //! that passed by which authored call they fell between.  `--show N --next
 //! "P P P"` dumps the worst boards of one continuation with the dealer,
 //! responder's hand and the DD makes.
@@ -68,7 +68,8 @@ struct Args {
     bucket: String,
     /// Split `--bucket` by the next calls — responder / advancer / opener — at
     /// table A (our response) and at table B (BBA's response to *our* overcall
-    /// of its 1NT).  Sub-rows with fewer boards than this fold into `other`.
+    /// of its 1NT), through responder's next turn.  Sub-rows with fewer boards
+    /// than this fold into `other`.
     #[arg(long)]
     responses: Option<usize>,
     /// With `--show`: only boards whose table-A calls after the overcall
@@ -364,12 +365,16 @@ fn main() {
             |a: &[Call], d: Seat| matches!(classify_auction(a, d), Class::Contested(..));
         let mut a1 = Vec::new();
         let mut a3 = Vec::new();
+        let mut a5 = Vec::new();
         let mut a1_only = Vec::new();
         let mut a3_only = Vec::new();
+        let mut a5_only = Vec::new();
         let mut b1 = Vec::new();
         let mut b3 = Vec::new();
+        let mut b5 = Vec::new();
         let mut b1_only = Vec::new();
         let mut b3_only = Vec::new();
+        let mut b5_only = Vec::new();
         for (i, b) in boards.iter().enumerate() {
             let row =
                 |a: &[Call], open: usize, n: usize| (next_calls(a, open + 1, n), plain[i], pd[i]);
@@ -378,9 +383,11 @@ fn main() {
             {
                 a1.push(row(&b.table_a, open, 1));
                 a3.push(row(&b.table_a, open, 3));
+                a5.push(row(&b.table_a, open, 5));
                 if !contested(&b.table_b, b.dealer) {
                     a1_only.push(row(&b.table_a, open, 1));
                     a3_only.push(row(&b.table_a, open, 3));
+                    a5_only.push(row(&b.table_a, open, 5));
                 }
             }
             if let Class::Contested(label, open) = classify_auction(&b.table_b, b.dealer)
@@ -388,9 +395,11 @@ fn main() {
             {
                 b1.push(row(&b.table_b, open, 1));
                 b3.push(row(&b.table_b, open, 3));
+                b5.push(row(&b.table_b, open, 5));
                 if !contested(&b.table_a, b.dealer) {
                     b1_only.push(row(&b.table_b, open, 1));
                     b3_only.push(row(&b.table_b, open, 3));
+                    b5_only.push(row(&b.table_b, open, 5));
                 }
             }
         }
@@ -409,9 +418,15 @@ fn main() {
             min,
         );
         sub_table("table A: our response / advancer / opener", &a3, min);
+        sub_table("table A: through responder's next turn", &a5, min);
         sub_table(
             "table A, A-only: our response / advancer / opener",
             &a3_only,
+            min,
+        );
+        sub_table(
+            "table A, A-only: through responder's next turn",
+            &a5_only,
             min,
         );
         sub_table(
@@ -429,9 +444,15 @@ fn main() {
             &b3,
             min,
         );
+        sub_table("table B: through BBA responder's next turn", &b5, min);
         sub_table(
             "table B, B-only: BBA's response / our advance / BBA opener",
             &b3_only,
+            min,
+        );
+        sub_table(
+            "table B, B-only: through BBA responder's next turn",
+            &b5_only,
             min,
         );
     }

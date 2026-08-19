@@ -3,7 +3,7 @@ use crate::bidding::agreements::Agreements;
 use contract_bridge::Strain;
 use contract_bridge::auction::Call;
 
-/// The package's own arm — default off, so nothing below is the shipped system.
+/// The package's own arm.
 fn arm() -> Agreements {
     let mut agreements = Agreements::default();
     agreements.competition.nt_high_overcall_responses = true;
