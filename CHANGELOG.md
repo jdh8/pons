@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Measured
 
+- **N3 Round 8 — the suit-dependent leave-in gate REFUTED out-of-sample;
+  nothing authored, and the shipped leave-in replicated on a fresh seed**
+  (`ab-results/nt-answer-x-v4`, seed `1787252714`, sha `9f8b7975`, 28 × 25,600
+  = 716,800 bd/arm/vul, two arms `base` vs `noleave`).  The headline
+  reproduces Round 7 on an independent seed, CI-clear positive in all eight
+  cells: plain **+0.0074 ±0.0009** NV / **+0.0111 ±0.0012** vul (+2.48 /
+  +3.52 IMPs per fired), PD +0.0093 / +0.0135, sd-plain +0.0015 / +0.0026,
+  sd-PD +0.0026 / +0.0044, with **0 foreign boards** at both vulnerabilities.
+  Per suit — the Round-8 question — every overcall suit is DD-positive at
+  both vulnerabilities (+1.92 to +4.20 per fired, 24 of 24 suit-by-honor
+  buckets); the in-sample gradient's shape replicates on sd at NV (`(3♠)`
+  +1.72, `(3♣)` −0.37 ≈ −0.0002/bd, inside CI) and vanishes vulnerable
+  (`(3♣)` +0.66), so per the pre-registered rule **no suit-gate knob is
+  authored** — the uniform `len(over, 4..)` gate stands.  The spade-only
+  *widening* of the refuted `_three` extension is dead too: Round 7's
+  `three vs length` dumps re-sliced by suit are sd-negative in **every** suit
+  (spades least bad at −1.82 / −2.48 per fired).  Reading drift replicates as
+  the one soft spot (11.8% / 9.6% of divergences, −0.56 DD per fired vul) and
+  stays on the reading-drift queue.
+  [one-notrump-competitive.md](docs/one-notrump-competitive.md) §N3 Round 8.
+
 - **Current `(3♣+)` census after the N3 answer refinements** — the shipping
   arms at HEAD `1e9a47e2` replayed the post-N3 anchor's seed `1787064872` and
   exact 32 × 6,400-board deal set at both vulnerabilities
@@ -75,8 +96,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **`ab-nt-high-overcall.sh` Round 8 — the leave-in's suit gradient, priced
-  out-of-sample** (in flight: `ab-results/nt-answer-x-v4`, seed `1787252714`,
-  28 × 25,600 bd/arm/vul, launched 2026-08-21 at `3364aa3c` + this runner).
+  out-of-sample** (`ab-results/nt-answer-x-v4`, seed `1787252714`, 28 × 25,600
+  bd/arm/vul; **measured same day — see Measured above: refuted, nothing
+  authored**).
   Round 7 shipped the `len(over, 4..)` leave-in and observed — in-sample —
   that it pays most vs `(3♠)` and least vs `(3♣)` on sd-lead.  The probe is
   deliberately **two arms and no new knob**: each divergent board's window

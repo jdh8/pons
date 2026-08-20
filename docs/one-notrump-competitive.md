@@ -214,7 +214,7 @@ is 5 calls; the most common runout point is after opener's transfer completion
 | N1h / N1i | Landy counter's minor rungs re-priced — a point lower, then regraded on `hcp` | `defense_2c_landy_low_minors`, `defense_2c_landy_hcp_rungs` | **both REFUTED 2026-08-15, both opt-in; lane closed.** `cue ← X` negative in both, so N1d's cue floor is settled — see [closed §N1h / N1i](archive/one-notrump-competitive-closed.md#n1h--n1i--the-minor-rungs-re-priced-both-refuted-both-opt-in) |
 | **N1j** | **BBA-ladder counter** — the anchor-aligned table, replacing the stack — **+ the weak-2♦ cap** | `defense_2c_landy_bba`, `defense_2c_landy_weak_2d_cap` | **both SHIPPED DEFAULT-ON 2026-08-15** — the ladder at its pinned non-inferiority gate (`wash \| wash`, all eight DD cells leaning positive), the cap at the standard gate (`plain wash \| PD win`, 0 foreign); see [closed §N1j](archive/one-notrump-competitive-closed.md#n1j--the-bba-ladder-counter-shipped-default-on-2026-08-15) |
 | N2 | Muiderberg `(2♠)` calibration | — | Current census −0.51/bd, PD −0.16/+0.36 NV/vul; **pre-fix census by response run 2026-08-15 (§N2)**: `X` wins, the `2NT` relay and Pass lose, opener bids `3NT` over the relay's minor sign-off 16/18. **Cause corrected 2026-08-16**: not the unlimited reading (built and measured as `strength_ceilings`, the node does not move) but `opener_forced_past_invitation`, which forces to game off any three-level suit bid — **N2e, now SHIPPED default-on as `instinct.forcing_ceiling_read`** (3 seeds, 12/12 cells positive, +0.0001 plain / +0.0003 PD). N2a stays parked (it would shadow the floor that now handles this seat); N2c/N2d queued and re-priced below. BBA's plain Lebensohl earns nothing at table B |
-| **N3** | **`(3♣)`–`(3♠)` overcalls of our 1NT** — responder's one call and opener's one answer | `nt_high_overcall_responses` (**on**), `nt_high_overcall_3nt_stopper` (**off** — no gate), `nt_3c_transfers` (off) | **SHIPPED DEFAULT-ON 2026-08-18** — owned plain **+0.0021/+0.0029 IMPs/board** (NV/vul, both CI-clear), PD +0.0008/+0.0018, single-dummy agreeing in sign on all four cells and **zero negative cells in sixteen readings**. The BBA-style double continuation was later **refuted on every scorer and removed**: its `4♦` placement missed too many games. Pre-ship census: 362 bd / −345 plain; post-ship fresh seed: 410 bd / −273 plain / −186 PD; current same-deal census after the answer refinements: **410 bd / −192 plain / −73 PD** (or 448 bd / −235 / −118 including `4+`). The anchor rows rank and attribute; the isolated A/B remains the verdict. Their calls are **natural 7-card preempts**, so this is an ordinary competitive scheme. See §N3 |
+| **N3** | **`(3♣)`–`(3♠)` overcalls of our 1NT** — responder's one call and opener's one answer | `nt_high_overcall_responses` (**on**), `nt_high_overcall_3nt_stopper` (**off** — no gate), `nt_3c_transfers` (off) | **SHIPPED DEFAULT-ON 2026-08-18** — owned plain **+0.0021/+0.0029 IMPs/board** (NV/vul, both CI-clear), PD +0.0008/+0.0018, single-dummy agreeing in sign on all four cells and **zero negative cells in sixteen readings**. The BBA-style double continuation was later **refuted on every scorer and removed**: its `4♦` placement missed too many games. Pre-ship census: 362 bd / −345 plain; post-ship fresh seed: 410 bd / −273 plain / −186 PD; current same-deal census after the answer refinements: **410 bd / −192 plain / −73 PD** (or 448 bd / −235 / −118 including `4+`). The anchor rows rank and attribute; the isolated A/B remains the verdict. Their calls are **natural 7-card preempts**, so this is an ordinary competitive scheme. **Round 8 (2026-08-21) closed the answer thread**: the suit-dependent leave-in gate refuted out-of-sample (every suit DD-positive, nothing authored), the spade widening dead in every suit, the leave-in replicated CI-clear on a fresh seed. See §N3 |
 | N4 | Multi `(2♦)` — the Transfer leg re-keyed for a Multi, the double family and relay authored to the seat; **v7 = BBA's own second-turn structure minus its PD-refused game bids** (takeout X of the resolved major, `hcp 6+` values double) | `their.two_diamonds_multi` (disclosure) | **SHIPPED 2026-08-15 (seven rounds, v7 pooled 3 seeds): NV `plain wash \| PD win` (+0.00100 ±0.00067), vul plain +0.00061 ±0.00056 \| PD +0.00061 ±0.00069; both-vul pool win\|win; paired vs v4 better on 3 of 4 cells** — census default in `their_2d_multi` + `vs_bba_agreements`; see [§N4](#n4--their-2-as-a-multi-shipped-2026-08-15--v7-seven-rounds-default-on-vs-bba-via-the-census) |
 | N4 residue | Read their disclosed Multi as exactly `6+♥ ∪ 6+♠`; test the honest `3♠` stopper ask after the correction to spades | `reading.their_multi_reading`, `competition.multi_stopper_ask` | **Reader SHIPPED DEFAULT-ON 2026-08-16** (`plain wash \| PD win`, 0 foreign). **Stopper ask REFUTED as a default** (`plain win \| PD wash` for both continuations); `FitSearch` and `OpenerPlaces` remain explicit opt-ins, default `Off`. See §N4 residue below |
 | N4b | `(2♦)` **diamond penalty double** — the cheap half of N4, no disclosure needed | `two_diamond_double` | **measured 2026-08-15 — sweep NULL, stays opt-in.** Raw headline was CI-clear positive in all 28 cells but **84.9% foreign** (isolation gate failed); owned subset is a wash. Spun off a real candidate: reading *their* double of a `2♦` overcall as diamonds — see [closed §N4b](archive/one-notrump-competitive-closed.md#n4b--the-2-diamond-penalty-double-built-2026-08-15-sweeping) |
@@ -992,11 +992,11 @@ wash (+44 IMPs plain across both vuls) and it does not threaten the headline,
 but it is a real vulnerable cost inside a shipped win. Not fixed here; recorded
 for the reading-drift queue.
 
-### Round 8 — the suit gradient out-of-sample (**IN FLIGHT 2026-08-21**)
+### Round 8 — the suit gate **REFUTED**, the uniform leave-in **replicated** (2026-08-21)
 
-`ab-results/nt-answer-x-v4`, `SEED_BASE=1787252714`, sha `3364aa3c` plus the
-uncommitted Round-8 runner, 28 x 25,600 = 716,800 bd/arm/vul,
-`--filter-preempt`, `ROUND=8` in `scripts/ab-nt-high-overcall.sh`. Two arms:
+`ab-results/nt-answer-x-v4`, `SEED_BASE=1787252714`, sha `9f8b7975`, 28 x
+25,600 = 716,800 bd/arm/vul, `--filter-preempt`, `ROUND=8` in
+`scripts/ab-nt-high-overcall.sh`. Two arms:
 
 - `base` — today's shipped default (the leave-in on, `len(over, 4..)`)
 - `noleave` — `--ns-nt-high-overcall-x-leave-in false`, the pre-Round-7 ladder
@@ -1024,17 +1024,52 @@ and `probe-divergence --gate-opener ours` runs before the headline as usual.)
 **Decision rule, pre-registered.** A suit-gate knob is authored only if some
 suit reads CI-clear negative out-of-sample — plain DD the arbiter (the
 mechanism keeps doubles in), sd-lead the tie-break, PD a double-blind column.
-Round 7's cells were DD-positive for every suit at both vulnerabilities, so
-the expected verdict is that the uniform gate stands; the gradient's NV sd
-spread (`(3♠)` +1.67 vs `(3♦)` +0.09 at `hon2+`) is what earns the check.
-Pool a second seed before concluding if the per-suit CIs straddle zero.
 
-**Deliberately excluded: the spade-only widening.** The refuted `three`
-extension peaked vs `(3♠)` in the same in-sample gradient. A widening is a new
-gate, not a subset of the shipped one, so it would need its own arm — and
-whether it ever earns one is decided first by re-slicing Round 7's existing
-`three vs length` dumps (`ab-results/nt-answer-x-v3`) with `--by holding`:
-only a positive spade bucket there buys the arm.
+#### Verdict — no suit earns a gate; nothing is authored
+
+**Headline (fresh seed): all eight cells CI-clear positive again**, NV /
+vulnerable per board: plain **+0.0074 ±0.0009 / +0.0111 ±0.0012** (+2.48 /
++3.52 per fired, 2143 / 2252 fired), PD +0.0093 ±0.0010 / +0.0135 ±0.0013,
+sd-plain +0.0015 ±0.0009 / +0.0026 ±0.0011, sd-PD +0.0026 ±0.0009 / +0.0044
+±0.0012 — Round 7's +0.0071/+0.0104 plain and +0.0017/+0.0025 sd-plain
+reproduced on an independent seed. **Isolation: 0 foreign of 2143 / 2252**
+(`probe-divergence --gate-opener ours` passes at both vulnerabilities).
+
+**Per suit (the Round-8 question), `len4+` cells pooled, per fired:**
+
+| suit | fired NV/vul | DD plain NV | DD plain vul | sd plain NV | sd plain vul |
+| --- | --- | ---: | ---: | ---: | ---: |
+| `(3♣)` | 388 / 382 | +2.32 | +4.13 | −0.37 | +0.66 |
+| `(3♦)` | 523 / 509 | +1.92 | +3.30 | −0.01 | +0.92 |
+| `(3♥)` | 541 / 643 | +2.63 | +4.11 | +0.32 | +0.79 |
+| `(3♠)` | 454 / 513 | +3.64 | +4.20 | +1.72 | +1.56 |
+
+**Every suit is solidly DD-positive at both vulnerabilities** — 12 of 12
+suit-by-honor buckets NV and 12 of 12 vulnerable. The in-sample gradient's
+*shape* replicates on sd at NV (`(3♠)` clearly best, `(3♣)` mildly negative
+at −0.37/fired ≈ −0.0002/bd, far inside the CI and sd-PD-positive) and
+**vanishes vulnerable**, where `(3♣)` is +0.66. No suit is CI-clear negative
+on any column, so per the pre-registered rule **no suit-gate knob exists**:
+the uniform `len(over, 4..)` gate stands, and the Round-7 gradient goes down
+as sampling noise around a real spades-best tilt that never crosses zero.
+
+**The spade-only widening is dead too.** Re-slicing Round 7's `three vs
+length` dumps (`ab-results/nt-answer-x-v3`) by suit: the `len3 hon2+`
+extension is sd-negative in **every** suit at both vulnerabilities — spades
+least bad and still **−1.82 / −2.48** per fired (373/411 boards), hearts worst
+at −2.75 / −3.37, PD agreeing everywhere, 100% of divergences keyed (no
+`(other)`). No suit ever buys that arm; `_three` stays a refuted opt-in.
+
+**Reading drift replicates as the one soft spot.** The `(other)` bucket —
+opener's call unchanged, a later call moved — is 11.8% / 9.6% of divergences:
+NV +1.41 DD / +1.15 sd per fired, vulnerable **−0.56 DD / −0.63 sd**, Round
+7's exact pattern (+0.90 / −0.97). Pooled it is positive and it threatens
+nothing, but the vulnerable drift cost is real and stays on the
+[reading-drift](reading-drift-handoff.md) queue.
+
+Round 8 closes N3's answer-to-the-double thread: the remaining queue items
+are the drift cell (owned by the reading-drift campaign), `(4x)` widening,
+the penalty pass, and the transfer re-measure.
 
 ### Disclosure — what BBA is told
 
@@ -1498,7 +1533,7 @@ edits fail. Run it on every arm pair in this lane; the real fix is splitting
 | [N1h / N1i minor-rung re-pricing](archive/one-notrump-competitive-closed.md#n1h--n1i--the-minor-rungs-re-priced-both-refuted-both-opt-in) | `defense_2c_landy_low_minors`, `defense_2c_landy_hcp_rungs` | **both REFUTED 2026-08-15, both opt-in — the lane is closed.** Three shared seeds, 230.4k bd/vul, shared `low-off` baseline (verified board-identical before reuse); `ab-results/landy-low{,-v2,-v3}`, `scripts/ab-landy-rungs.sh`. N1h (cue `points(9..)`, `3m` `points(7..=8)`) = `plain wash \| PD loss`, vul PD **−0.00081 ±0.00074**. N1i (cue `hcp(9..)`, `3m` `hcp(7..=8)`, `2♦`/`2NT` `hcp(..=6)`) = no CI-clear cell, all eight leaning negative. **`cue ← X` negative in both** (−1.80 ×96, −2.96/−4.04 ×46) against N1d's original +2.0…+5.1 the other way — the cue floor is settled, do not probe it again. Leads recorded but not pursued: `Pass ← 2♦` +2.40 PD ×52 (per-seed +4.50/+1.33/−1.09), `3♦ ← 2♦` +3.96 plain/+3.11 PD ×27, `3♣ ← 2NT` −2.19 PD (the transfer's right-siding wins), `cue ← 3♣` −2.88 (shifting a band whole costs more than lowering its floor). | N1h pooled: NV plain +0.00036 ±0.00051 / PD −0.00044 ±0.00066, vul plain +0.00002 ±0.00061 / PD −0.00081 ±0.00074. N1i pooled: NV plain −0.00029 ±0.00043 / PD −0.00039 ±0.00062, vul plain −0.00014 ±0.00052 / PD −0.00036 ±0.00068; sd both arms ≈0. |
 | [N1j BBA-ladder counter + weak-2♦ cap](archive/one-notrump-competitive-closed.md#n1j--the-bba-ladder-counter-shipped-default-on-2026-08-15) | `defense_2c_landy_bba`, `defense_2c_landy_weak_2d_cap` | **both SHIPPED DEFAULT-ON 2026-08-15** — the anchor-aligned table replacing the stack (which stays wired behind `--defense-2c-landy-bba false`).  The ladder shipped at its **pre-pinned non-inferiority gate** (rationale: structural alignment; a wash ships) and beat it — zero CI-clear negatives, all 16 DD+sd cells leaning positive; the `2M ← X` guard passed **vacuously** (no hand left the values double for the takeout family, the three-experiments finding untouched); mirror leak 36-38% foreign, depressing (ours-only stronger: NV +182/+215, vul +171/+202 raw IMPs).  The cap shipped at the **standard** gate: plain wash \| PD win both vuls, sd sign-agreed, isolation gate **0 foreign** (second ever), every divergence the predicted `2♦ → Pass` (+2.58/+4.54 PD per fired ×59 — the N1i lead confirmed).  Engine: `2♦ → 3♣` diamond-transfer right-siding (+5.18/+6.06 PD per fired).  Smoke `18aba5ce…` unchanged through the flip; `[their-landy]` fixture re-blessed; 3 seeds 1786753231/1786753518/1786753808, 230.4k bd/vul, `scripts/ab-landy-bba.sh`.  See [closed §N1j](archive/one-notrump-competitive-closed.md#n1j--the-bba-ladder-counter-shipped-default-on-2026-08-15). | ladder (`on↔off`) pooled: NV plain +0.00083 ±0.00085 / PD +0.00083 ±0.00110, vul plain +0.00080 ±0.00100 / PD +0.00073 ±0.00123; sd-plain +0.00080/+0.00103, sd-PD +0.00070/+0.00113. cap (`cap↔on`) pooled: NV plain −0.00003 ±0.00027 / PD **+0.00037 ±0.00033**, vul plain +0.00017 ±0.00024 / PD **+0.00050 ±0.00035**; sd-PD +0.00017/+0.00033. |
 | N3 `(3♣)`–`(3♠)` preempt of our 1NT | `competition.nt_high_overcall_responses` (default **true**), `competition.nt_high_overcall_3nt_stopper` (**false** — no gate), `competition.nt_3c_transfers` (**false**) | **SHIPPED DEFAULT-ON 2026-08-18** (`scripts/ab-nt-high-overcall.sh`, `SEED_BASE=1787055415`, 230,400 bd/arm/vul). Owned plain CI-clear both vuls, PD positive both, sd sign-agreeing on all four cells. The private 3NT gate shipped off; `(3♣)` transfers remain a measured wash. The BBA-style double continuation was **REFUTED AND REMOVED 2026-08-19**: NV −0.0012 plain/PD, vul −0.0017/−0.0015, with sd agreeing and all eight CIs below zero; clean isolation. Its `4♦ ← 3NT` row missed game and lost −310/−348 NV, −420/−429 vul. See §N3 for the full history and mechanism. | owned package NV plain **+0.00208 ±0.00126** / PD +0.00079 ±0.00145; owned vul plain **+0.00293 ±0.00160** / PD +0.00180 ±0.00182 |
-| N3 opener's answer to responder's takeout `X` | `competition.nt_high_overcall_x_major_at_four` (**true**), `nt_high_overcall_x_leave_in` (**true**), `nt_high_overcall_x_leave_in_three` (**false**) | Round 5 (2026-08-19): the **fit rung SHIPPED DEFAULT-ON**; the **leave-in v1 REFUTED** — sd-lead CI-clear negative in all four cells at −1.75…−2.06 IMPs/fired, clean isolation (0 foreign of 9157/10493). Round 6 (2026-08-20) re-sliced those same dumps by opener's holding in their suit (`--by holding`): the loss is **not uniform** — `len4+` (on the boards the shipped fit rung does not take) is +1.92/+3.58 plain DD and −0.13/+1.09 sd per fired, the honor axis runs the *wrong* way (`has_stopper` = A/Kx/Qxx/Jxxx, so honors at three cards mark the boards whose 3NT was real), and the `4M` block that the shipped fit rung now takes was the worst in the slice. v2 therefore re-gates the knob to `len(over, 4..)` and puts the honor disjunct behind its own `_three` bit so the A/B prices them **separately**. Round 7 (2026-08-20, `nt-answer-x-v3`, seed 1787169600, 716,800 bd/arm/vul) confirmed it out-of-sample: **`length` SHIPPED DEFAULT-ON — CI-clear positive in all eight cells** (plain +0.0071 ±0.0009 NV / +0.0104 ±0.0012 vul = +2.38/+3.41 per fired; PD +0.0085/+0.0125; sd-plain +0.0017/+0.0025; sd-PD +0.0025/+0.0038), **0 foreign boards** at both vuls, 13/13 buckets DD-positive. The strongest cell is `len4+ hon2+` (+4.21/+4.63), which v1's `top_honors(..=1)` gate structurally excluded — honors hurt at three cards (they *are* the stopper) and help at four (the suit cannot run anyway). **`three` REFUTED, kept opt-in**: sd-lead −2.44/−2.99 per fired in isolation, v1's own magnitude; its `plain wash \| PD win` DD signature is the doubling artifact the domain addendum names. Bundled as one gate the package would have measured as a loss at both vuls. Open: reading drift on 12.7%/9.4% of divergences is the only negative cell (−0.97 plain/fired vul). |
+| N3 opener's answer to responder's takeout `X` | `competition.nt_high_overcall_x_major_at_four` (**true**), `nt_high_overcall_x_leave_in` (**true**), `nt_high_overcall_x_leave_in_three` (**false**) | Round 5 (2026-08-19): the **fit rung SHIPPED DEFAULT-ON**; the **leave-in v1 REFUTED** — sd-lead CI-clear negative in all four cells at −1.75…−2.06 IMPs/fired, clean isolation (0 foreign of 9157/10493). Round 6 (2026-08-20) re-sliced those same dumps by opener's holding in their suit (`--by holding`): the loss is **not uniform** — `len4+` (on the boards the shipped fit rung does not take) is +1.92/+3.58 plain DD and −0.13/+1.09 sd per fired, the honor axis runs the *wrong* way (`has_stopper` = A/Kx/Qxx/Jxxx, so honors at three cards mark the boards whose 3NT was real), and the `4M` block that the shipped fit rung now takes was the worst in the slice. v2 therefore re-gates the knob to `len(over, 4..)` and puts the honor disjunct behind its own `_three` bit so the A/B prices them **separately**. Round 7 (2026-08-20, `nt-answer-x-v3`, seed 1787169600, 716,800 bd/arm/vul) confirmed it out-of-sample: **`length` SHIPPED DEFAULT-ON — CI-clear positive in all eight cells** (plain +0.0071 ±0.0009 NV / +0.0104 ±0.0012 vul = +2.38/+3.41 per fired; PD +0.0085/+0.0125; sd-plain +0.0017/+0.0025; sd-PD +0.0025/+0.0038), **0 foreign boards** at both vuls, 13/13 buckets DD-positive. The strongest cell is `len4+ hon2+` (+4.21/+4.63), which v1's `top_honors(..=1)` gate structurally excluded — honors hurt at three cards (they *are* the stopper) and help at four (the suit cannot run anyway). **`three` REFUTED, kept opt-in**: sd-lead −2.44/−2.99 per fired in isolation, v1's own magnitude; its `plain wash \| PD win` DD signature is the doubling artifact the domain addendum names. Bundled as one gate the package would have measured as a loss at both vuls. Open: reading drift on 12.7%/9.4% of divergences is the only negative cell (−0.97 plain/fired vul). Round 8 (2026-08-21, `nt-answer-x-v4`, seed 1787252714) **closed the suit-gate question**: two arms (`base` vs `noleave`) suffice because the suits partition the fired set; every suit DD-positive at both vuls (+1.92…+4.20 per fired), only `(3♣)` sd-plain NV mildly negative (−0.37, inside CI, vanishing vul), so **no suit gate is authored**; the spade-only widening of `_three` is sd-negative in every suit of the v3 re-slice (spades −1.82/−2.48); the leave-in itself replicated CI-clear in all eight cells with 0 foreign. |
 
 
 ### Memory compaction notes (2026-08-16)
