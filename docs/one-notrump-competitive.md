@@ -214,7 +214,7 @@ is 5 calls; the most common runout point is after opener's transfer completion
 | N1h / N1i | Landy counter's minor rungs re-priced — a point lower, then regraded on `hcp` | `defense_2c_landy_low_minors`, `defense_2c_landy_hcp_rungs` | **both REFUTED 2026-08-15, both opt-in; lane closed.** `cue ← X` negative in both, so N1d's cue floor is settled — see [closed §N1h / N1i](archive/one-notrump-competitive-closed.md#n1h--n1i--the-minor-rungs-re-priced-both-refuted-both-opt-in) |
 | **N1j** | **BBA-ladder counter** — the anchor-aligned table, replacing the stack — **+ the weak-2♦ cap** | `defense_2c_landy_bba`, `defense_2c_landy_weak_2d_cap` | **both SHIPPED DEFAULT-ON 2026-08-15** — the ladder at its pinned non-inferiority gate (`wash \| wash`, all eight DD cells leaning positive), the cap at the standard gate (`plain wash \| PD win`, 0 foreign); see [closed §N1j](archive/one-notrump-competitive-closed.md#n1j--the-bba-ladder-counter-shipped-default-on-2026-08-15) |
 | N2 | Muiderberg `(2♠)` calibration | — | Current census −0.51/bd, PD −0.16/+0.36 NV/vul; **pre-fix census by response run 2026-08-15 (§N2)**: `X` wins, the `2NT` relay and Pass lose, opener bids `3NT` over the relay's minor sign-off 16/18. **Cause corrected 2026-08-16**: not the unlimited reading (built and measured as `strength_ceilings`, the node does not move) but `opener_forced_past_invitation`, which forces to game off any three-level suit bid — **N2e, now SHIPPED default-on as `instinct.forcing_ceiling_read`** (3 seeds, 12/12 cells positive, +0.0001 plain / +0.0003 PD). N2a stays parked (it would shadow the floor that now handles this seat); N2c/N2d queued and re-priced below. BBA's plain Lebensohl earns nothing at table B |
-| **N3** | **`(3♣)`–`(3♠)` overcalls of our 1NT** — responder's one call and opener's one answer | `nt_high_overcall_responses` (**on**), `nt_high_overcall_3nt_stopper` (**off** — no gate), `nt_3c_transfers` (off) | **SHIPPED DEFAULT-ON 2026-08-18** — owned plain **+0.0021/+0.0029 IMPs/board** (NV/vul, both CI-clear), PD +0.0008/+0.0018, single-dummy agreeing in sign on all four cells and **zero negative cells in sixteen readings**. The BBA-style double continuation was later **refuted on every scorer and removed**: its `4♦` placement missed too many games. Pre-ship census: 362 bd / −345 plain; post-ship fresh seed: 410 bd / −273 plain / −186 PD. The anchor rows rank and attribute; the isolated A/B remains the verdict. Their calls are **natural 7-card preempts**, so this is an ordinary competitive scheme. See §N3 |
+| **N3** | **`(3♣)`–`(3♠)` overcalls of our 1NT** — responder's one call and opener's one answer | `nt_high_overcall_responses` (**on**), `nt_high_overcall_3nt_stopper` (**off** — no gate), `nt_3c_transfers` (off) | **SHIPPED DEFAULT-ON 2026-08-18** — owned plain **+0.0021/+0.0029 IMPs/board** (NV/vul, both CI-clear), PD +0.0008/+0.0018, single-dummy agreeing in sign on all four cells and **zero negative cells in sixteen readings**. The BBA-style double continuation was later **refuted on every scorer and removed**: its `4♦` placement missed too many games. Pre-ship census: 362 bd / −345 plain; post-ship fresh seed: 410 bd / −273 plain / −186 PD; current same-deal census after the answer refinements: **410 bd / −192 plain / −73 PD** (or 448 bd / −235 / −118 including `4+`). The anchor rows rank and attribute; the isolated A/B remains the verdict. Their calls are **natural 7-card preempts**, so this is an ordinary competitive scheme. See §N3 |
 | N4 | Multi `(2♦)` — the Transfer leg re-keyed for a Multi, the double family and relay authored to the seat; **v7 = BBA's own second-turn structure minus its PD-refused game bids** (takeout X of the resolved major, `hcp 6+` values double) | `their.two_diamonds_multi` (disclosure) | **SHIPPED 2026-08-15 (seven rounds, v7 pooled 3 seeds): NV `plain wash \| PD win` (+0.00100 ±0.00067), vul plain +0.00061 ±0.00056 \| PD +0.00061 ±0.00069; both-vul pool win\|win; paired vs v4 better on 3 of 4 cells** — census default in `their_2d_multi` + `vs_bba_agreements`; see [§N4](#n4--their-2-as-a-multi-shipped-2026-08-15--v7-seven-rounds-default-on-vs-bba-via-the-census) |
 | N4 residue | Read their disclosed Multi as exactly `6+♥ ∪ 6+♠`; test the honest `3♠` stopper ask after the correction to spades | `reading.their_multi_reading`, `competition.multi_stopper_ask` | **Reader SHIPPED DEFAULT-ON 2026-08-16** (`plain wash \| PD win`, 0 foreign). **Stopper ask REFUTED as a default** (`plain win \| PD wash` for both continuations); `FitSearch` and `OpenerPlaces` remain explicit opt-ins, default `Off`. See §N4 residue below |
 | N4b | `(2♦)` **diamond penalty double** — the cheap half of N4, no disclosure needed | `two_diamond_double` | **measured 2026-08-15 — sweep NULL, stays opt-in.** Raw headline was CI-clear positive in all 28 cells but **84.9% foreign** (isolation gate failed); owned subset is a wash. Spun off a real candidate: reading *their* double of a `2♦` overcall as diamonds — see [closed §N4b](archive/one-notrump-competitive-closed.md#n4b--the-2-diamond-penalty-double-built-2026-08-15-sweeping) |
@@ -308,6 +308,49 @@ pre-ship snapshot. In particular, `3♠` moved from PD-positive on the series
 seed to −1.44/−1.76 PD per board NV/vul here, while the isolated package A/B
 was positive on both scorers. Do not subtract the two anchor totals to estimate
 N3's value; the owned `stop ↔ base` A/B below remains the causal ship evidence.
+
+### Current-HEAD paired `(3♣+)` census (2026-08-21)
+
+The current shipping arms in
+`ab-results/anchor-confirm/2026-08-21-1e9a47e2`, HEAD `1e9a47e2`, replay the
+same seed `1787064872` and 32 × 6,400 boards/vulnerability as the 2026-08-18
+snapshot.  This time `(3♣+)` includes the four three-level suits **and** the
+probe's `4+` bucket (`3NT` and higher).  Per-bucket means carry their 95% CI
+half-widths:
+
+| RHO, NV | bd | plain | PD | plain/bd | PD/bd |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `3♣` | 70 | −76 | −70 | −1.086 ±1.449 | −1.000 ±1.695 |
+| `3♦` | 47 | +5 | +15 | +0.106 ±1.498 | +0.319 ±1.744 |
+| `3♥` | 47 | −23 | −5 | −0.489 ±1.278 | −0.106 ±1.425 |
+| `3♠` | 34 | −50 | −31 | −1.471 ±2.014 | −0.912 ±2.120 |
+| `4+` | 23 | −22 | −27 | −0.957 ±2.784 | −1.174 ±3.025 |
+
+| RHO, vulnerable | bd | plain | PD | plain/bd | PD/bd |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `3♣` | 70 | −76 | −66 | −1.086 ±1.796 | −0.943 ±2.082 |
+| `3♦` | 46 | +55 | +67 | +1.196 ±1.980 | +1.457 ±2.252 |
+| `3♥` | 58 | +30 | +59 | +0.517 ±1.593 | +1.017 ±1.797 |
+| `3♠` | 38 | −57 | −42 | −1.500 ±2.485 | −1.105 ±2.806 |
+| `4+` | 15 | −21 | −18 | −1.400 ±4.673 | −1.200 ±4.974 |
+
+| `(3♣+)` | bd | plain | PD | plain/bd | PD/bd | Δ plain vs 2026-08-18 | Δ PD vs 2026-08-18 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| NV | 221 | −166 | −118 | −0.75 | −0.53 | +28 | +42 |
+| vulnerable | 227 | −69 | 0 | −0.30 | 0.00 | +53 | +71 |
+| **pooled** | **448** | **−235** | **−118** | **−0.52** | **−0.26** | **+81** | **+113** |
+
+The old arms reproduce the published four-suit total exactly (410 boards,
+−273 plain / −186 PD); adding their unchanged `4+` row gives the paired
+`(3♣+)` baseline of 448 boards, −316 plain / −231 PD.  The current score is
+therefore −0.71 → −0.52 plain and −0.52 → −0.26 PD per board.  `4+` itself is
+unchanged (38 boards, −43 / −45); the movement is entirely in the authored
+three-level-suit buckets.
+
+This remains an attribution census, not a causal A/B: each number is the whole
+board's swing and includes the mirrored table.  It updates our current score
+against the lane but does not replace the isolated A/Bs that shipped the N3
+package and its answer refinements.
 
 ### Responder's table (`nt_over_high_overcall`)
 

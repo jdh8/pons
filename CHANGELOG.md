@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Measured
 
+- **Current `(3♣+)` census after the N3 answer refinements** — the shipping
+  arms at HEAD `1e9a47e2` replayed the post-N3 anchor's seed `1787064872` and
+  exact 32 × 6,400-board deal set at both vulnerabilities
+  (`ab-results/anchor-confirm/2026-08-21-1e9a47e2/`).  Across `3♣`, `3♦`,
+  `3♥`, `3♠`, and `4+` (`3NT` and higher), the same 448 boards improve from
+  **−316 plain / −231 PD** to **−235 / −118**: −0.71 → −0.52 plain and
+  −0.52 → −0.26 PD per board.  Split NV / vulnerable, the current totals are
+  −166 / −118 on 221 boards and −69 / 0 on 227.  The `4+` bucket is unchanged;
+  all +81 plain / +113 PD IMPs of movement sit in the authored three-level-suit
+  buckets.  This is a whole-board attribution census, not a causal treatment
+  A/B; the isolated A/Bs remain the ship evidence.
+  [one-notrump-competitive.md](docs/one-notrump-competitive.md) §N3.
+
 - **The refuted `1NT (3x) X` leave-in, re-sliced by opener's holding** — v1's
   own dumps (`ab-results/nt-answer-x-v2/`, seed `1787145997`, 716,800 bd/arm/vul)
   re-read through the new `--by holding` key, no new bidding run.  Verification
