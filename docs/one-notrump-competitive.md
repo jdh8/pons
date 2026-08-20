@@ -992,6 +992,50 @@ wash (+44 IMPs plain across both vuls) and it does not threaten the headline,
 but it is a real vulnerable cost inside a shipped win. Not fixed here; recorded
 for the reading-drift queue.
 
+### Round 8 — the suit gradient out-of-sample (**IN FLIGHT 2026-08-21**)
+
+`ab-results/nt-answer-x-v4`, `SEED_BASE=1787252714`, sha `3364aa3c` plus the
+uncommitted Round-8 runner, 28 x 25,600 = 716,800 bd/arm/vul,
+`--filter-preempt`, `ROUND=8` in `scripts/ab-nt-high-overcall.sh`. Two arms:
+
+- `base` — today's shipped default (the leave-in on, `len(over, 4..)`)
+- `noleave` — `--ns-nt-high-overcall-x-leave-in false`, the pre-Round-7 ladder
+
+**Why two arms answer a four-way question.** Round 7's suit gradient was
+in-sample; the obvious follow-up — one arm per candidate suit gate — is
+unnecessary here because the overcall suits **partition** the fired set: every
+divergent board's window is `1NT (3x) X -` with exactly one `(3x)`, and the
+`Pass` row's presence on a `(3♥)` board never consults the `(3♣)` table. So a
+hypothetical arm with the leave-in gated to any suit subset would bid every
+board identically to `base` on its in-subset boards and identically to
+`noleave` elsewhere — its paired diff vs `base` is byte-for-byte a suit-bucket
+subset of `base vs noleave`. One diff, bucketed, prices all fourteen candidate
+narrowings at once, and the Round-7 lesson about bundled disjuncts does not
+bite because the "disjuncts" live on disjoint boards. Read with:
+
+```sh
+ab-dump-bucket $R/base-VUL $R/noleave-VUL --by holding
+ab-dump-sd     $R/base-VUL $R/noleave-VUL -v VUL --sd-worlds 16 --show 0 --by holding
+```
+
+(`ON` must be the leave-in arm = `base`; the `(other)` bucket must read zero,
+and `probe-divergence --gate-opener ours` runs before the headline as usual.)
+
+**Decision rule, pre-registered.** A suit-gate knob is authored only if some
+suit reads CI-clear negative out-of-sample — plain DD the arbiter (the
+mechanism keeps doubles in), sd-lead the tie-break, PD a double-blind column.
+Round 7's cells were DD-positive for every suit at both vulnerabilities, so
+the expected verdict is that the uniform gate stands; the gradient's NV sd
+spread (`(3♠)` +1.67 vs `(3♦)` +0.09 at `hon2+`) is what earns the check.
+Pool a second seed before concluding if the per-suit CIs straddle zero.
+
+**Deliberately excluded: the spade-only widening.** The refuted `three`
+extension peaked vs `(3♠)` in the same in-sample gradient. A widening is a new
+gate, not a subset of the shipped one, so it would need its own arm — and
+whether it ever earns one is decided first by re-slicing Round 7's existing
+`three vs length` dumps (`ab-results/nt-answer-x-v3`) with `--by holding`:
+only a positive spade bucket there buys the arm.
+
 ### Disclosure — what BBA is told
 
 No card row exists for this lane. `card.rs`'s `SCHEMA` has no slot for

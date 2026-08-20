@@ -975,8 +975,10 @@ struct Args {
 
     /// Opener may leave in responder's takeout double of their three-level
     /// overcall, converting it to penalty, holding FOUR cards in their suit.
-    /// Implies --ns-nt-high-overcall; does nothing without it.  Unset =
-    /// the engine default (off); see `competition.nt_high_overcall_x_leave_in`.
+    /// Implies --ns-nt-high-overcall; does nothing without it.  **Engine
+    /// default ON since 2026-08-20**; pass `false` for the pre-ship arm.
+    /// Unset = the engine default; see
+    /// `competition.nt_high_overcall_x_leave_in`.
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
     ns_nt_high_overcall_x_leave_in: Option<bool>,
 

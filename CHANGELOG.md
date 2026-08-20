@@ -74,6 +74,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`ab-nt-high-overcall.sh` Round 8 — the leave-in's suit gradient, priced
+  out-of-sample** (in flight: `ab-results/nt-answer-x-v4`, seed `1787252714`,
+  28 × 25,600 bd/arm/vul, launched 2026-08-21 at `3364aa3c` + this runner).
+  Round 7 shipped the `len(over, 4..)` leave-in and observed — in-sample —
+  that it pays most vs `(3♠)` and least vs `(3♣)` on sd-lead.  The probe is
+  deliberately **two arms and no new knob**: each divergent board's window
+  holds exactly one `(3x)`, so the overcall suits partition the fired set and
+  any candidate suit-subset gate's paired diff against the shipped default is
+  byte-for-byte a suit bucket of `base vs noleave` — `--by holding` prices
+  all fourteen candidate narrowings from one run.  A gate knob is authored
+  only if some suit reads CI-clear negative (plain DD the arbiter, sd-lead
+  the tie-break).  The refuted `three` extension's spade-only *widening*
+  stays out until Round 7's `three vs length` dumps re-sliced by suit earn it
+  an arm.  Also refreshed three stale "default off" comments the leave-in
+  ship left behind (`nt_high_overcall.rs`, `bba-gen`).
+  [one-notrump-competitive.md](docs/one-notrump-competitive.md) §N3 Round 8.
+
 - **`ab-dump-bucket --by holding` / `ab-dump-sd --by holding`** — the
   `1NT (3x) X -` leave-in slice.  A shared `common::holding_key` keys every
   divergent board by the 1NT opener's holding in **their** suit: suit x length

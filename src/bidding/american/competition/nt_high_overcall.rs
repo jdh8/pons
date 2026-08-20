@@ -306,8 +306,9 @@ fn nt_answer_forcing_minor(over: Suit, minor: Suit) -> Rules {
 /// Two knobs sit in this ladder, both queued by the 2026-08-19 census
 /// decomposition: `nt_high_overcall_x_major_at_four` (**default on**) adds the
 /// four-level rung their `(3♠)` leaves missing, and
-/// `nt_high_overcall_x_leave_in` (default off; the wide v1 gate was refuted,
-/// this is the length/quality v2) lets opener convert the double to penalty.
+/// `nt_high_overcall_x_leave_in` (**default on** since 2026-08-20, re-gated to
+/// `len(over, 4..)` after the wide v1 gate was refuted) lets opener convert
+/// the double to penalty.
 fn nt_answer_double(over: Suit, agreements: &Agreements) -> Rules {
     let notrump = Bid::new(3, Strain::Notrump);
     let mut rules = Rules::new();

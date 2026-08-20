@@ -58,7 +58,7 @@
 # Resumable: an existing arm dir or diff file is skipped, and SEED_BASE persists
 # in $R/nt-high-overcall.seed.  Iron rule: do NOT rebuild binaries while this runs.
 R=${1:?usage: ab-nt-high-overcall.sh RESULTS_DIR}
-BUILD_EXTRA='--example ab-dump-sd'
+BUILD_EXTRA='--example ab-dump-sd --example ab-dump-bucket --example probe-divergence'
 . "$(dirname "$0")/ab-lib.sh"
 
 SEED_BASE=$(seed_for nt-high-overcall)
@@ -150,6 +150,38 @@ if [ "${ROUND:-1}" = 5 ]; then
         sddiff   length base   "$v"
         sddiff   three  base   "$v"
         sddiff   three  length "$v"
+    done
+fi
+
+# Round 8 (`ROUND=8`, numbered to match the doc's §N3 rounds): the leave-in's
+# suit gradient priced out-of-sample.  Round 7 shipped `length` and observed —
+# in-sample — that it pays most vs `(3♠)` and least vs `(3♣)` on sd-lead.
+#
+# No suit-gate knob is authored for this probe, deliberately: each divergent
+# board's window holds exactly one `(3x)`, so the overcall suits PARTITION the
+# fired set, and any candidate suit-subset gate's paired diff against the
+# shipped default is byte-for-byte a suit-bucket subset of `base vs noleave`.
+# Two arms price all fourteen candidate narrowings at once; read them with
+#   ab-dump-bucket $R/base-VUL $R/noleave-VUL --by holding
+#   ab-dump-sd     $R/base-VUL $R/noleave-VUL -v VUL --sd-worlds 16 --show 0 --by holding
+# (ON must be the leave-in arm = `base`, the shipped default; the `(other)`
+# bucket must read zero).  A gate knob is authored only if some suit reads
+# CI-clear negative here — plain DD is the arbiter (the mechanism keeps
+# doubles in), sd-lead the tie-break, PD a double-blind column.
+#
+# The WIDENING candidate (the refuted `three` extension restricted to spades,
+# where Round 7's hon2+ gradient peaked) is NOT here: it needs its own arm,
+# and whether it ever earns one is decided first by re-slicing Round 7's
+# existing `three vs length` dumps with `--by holding` — only a positive spade
+# bucket there buys the arm.
+#   base     today's shipped default (leave-in on, `len(over, 4..)`)
+#   noleave  --ns-nt-high-overcall-x-leave-in false (the pre-Round-7 ladder)
+if [ "${ROUND:-1}" = 8 ]; then
+    for v in none both; do
+        arm base    "$v" --filter-preempt
+        arm noleave "$v" --filter-preempt --ns-nt-high-overcall-x-leave-in false
+        diffpair base noleave "$v"
+        sddiff   base noleave "$v"
     done
 fi
 
