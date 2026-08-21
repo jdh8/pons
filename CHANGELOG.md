@@ -24,7 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The same knob authors the escape's **interfered tail**
   (`1NT (2♦) 2M (X | 2♠ | 2NT | 3♣/3♦/3♥/3♠)`, `multi_escape_overcalled`) —
   unauthored until now, where the floor bid *their* suit at the four level
-  over partner's escape.  **No user impact at the default**; A/B pending
+  over partner's escape.  **No user impact at the default**; the A/B is still
+  owed — both 2026-08-21 launches died on the isolation gate at 26/260 and
+  27/267 foreign, a reading seam fixed below
   (`scripts/ab-2d-multi-escape.sh`, arms `base`/`six`/`five`).
   [one-notrump-competitive.md](docs/one-notrump-competitive.md) §N4e.
 
@@ -62,6 +64,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [one-notrump-competitive.md](docs/one-notrump-competitive.md) §N4e.
 
 ### Fixed
+
+- **Their declared `(2♦)` Multi no longer reaches the 1NT-*overcall* lane.**
+  `systems_on_overcall_strip` re-reads `(1x) 1NT (2♦) …` as `P* 1NT (2♦) …`,
+  which re-keys into the **competition** book — whose `1NT (2♦)` leg is chosen
+  Multi-or-natural at *build* time (`defense_2d_multi`).  The strip's existing
+  `profile.their.two_diamonds_multi = false` stops the hand reader but cannot
+  un-compile that table, so under a declared Multi the whole Multi structure was
+  published in a lane where their `2♦` is a **response** to their own opening,
+  and the inference-aware floor bid it: partner's `2♠` in `1♥ 1NT 2♦ 2♠ 3♦` read
+  `points 5..=8` at `multi_weak_escape = None` and `points 0..=8` at `Some(6)`.
+  Caught by N4e's isolation gate, which killed two A/B launches at **26 of 260**
+  and **27 of 267** foreign boards (seeds 1787325027 / 1787327781) — every
+  foreign board that shape.  The strip now declines it and the natural walk
+  reads their real diamonds.  The graft was never the channel: it is
+  `register_one_nt` alone, which authors only uncontested keys (`[1NT, 2♦]` is
+  not even a prefix of it), so every call in that sub-lane is the floor's.
+  **No user impact at the default** — the disclosure is off by default,
+  `smoke-default` unchanged at `39ca60a2…`.  Under a declared Multi the sub-lane
+  loses its *borrowed* natural-Lebensohl reading in both arms (partner's `2♠`
+  now `points 0..=37, ♠ 4..=13`), so the anchor's absolute base there moves; the
+  alternative that keeps it — a Multi-blind competition book carried on the
+  `Partnership` for the strip to read against — is designed and deferred.
+  `their.two_clubs_landy` is the same misapplication one suit lower
+  (`(1♦) 1NT (2♣)`) and is **flagged, not fixed**: clearing it moves the Landy
+  campaign's measured base.  Pinned by
+  `multi_weak_escape_stays_out_of_the_overcall_lane`.
+  [one-notrump-competitive.md](docs/one-notrump-competitive.md) §N4e,
+  [reading-drift-handoff.md](docs/reading-drift-handoff.md).
 
 - **Doc/code discrepancies flagged in the `(2♦)` lane, none silently
   resolved.**  (1) `lebensohl_relay_shape`'s call-site comments claimed "6+

@@ -10,7 +10,7 @@ use super::knobs::*;
 use super::projection::*;
 use super::readers::*;
 use super::{LENGTH_CAP, POINTS_CAP};
-use crate::bidding::context::Context;
+use crate::bidding::context::{Context, DecisionProfile};
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Hand, Strain, Suit};
 
@@ -24,12 +24,14 @@ use contract_bridge::{Bid, Hand, Strain, Suit};
 /// removing one earlier call, so every later call keeps its relative seat (only
 /// their opening — their own natural suit — is lost, which the opponents' system
 /// discloses anyway).  [`None`] (the fast path) unless the graft is on and the
-/// shape is their 1-suit opening immediately overcalled `1NT`.
+/// shape is their 1-suit opening immediately overcalled `1NT` — and unless one
+/// of the two scope carve-outs in the body claims it (Gladiator's own
+/// structure; their declared Multi `(2♦)`).
 pub(super) fn systems_on_overcall_strip(
     auction: &[Call],
-    profile: ReadingProfile,
+    profile: DecisionProfile,
 ) -> Option<Vec<Call>> {
-    if !profile.nt_overcall_systems_on {
+    if !profile.reading.nt_overcall_systems_on {
         return None;
     }
     let open = auction.iter().position(|&c| c != Call::Pass)?;
@@ -70,7 +72,9 @@ pub(super) fn systems_on_overcall_strip(
     // was distilled on changes *calls*, not just readings.  That was ~40% of the
     // treatment's measured loss (`vs-X-*` and `contested-other`); see
     // `docs/reading-drift-handoff.md`.
-    if profile.nt_overcall_gladiator && matches!(opening.strain, Strain::Hearts | Strain::Spades) {
+    if profile.reading.nt_overcall_gladiator
+        && matches!(opening.strain, Strain::Hearts | Strain::Spades)
+    {
         let gladiator_owns_it = match auction.get(open + 2) {
             None | Some(&Call::Pass) => true,
             Some(&Call::Bid(rho)) => rho.level.get() == 2,
@@ -79,6 +83,27 @@ pub(super) fn systems_on_overcall_strip(
         if gladiator_owns_it {
             return None;
         }
+    }
+    // Their `(2♦)` here is a *response* to their own one-suit opening, never
+    // the Multi opening `their.two_diamonds_multi` declares — but the strip
+    // re-reads against the main competition book, whose `1NT (2♦)` leg is
+    // chosen Multi-or-natural at **build** time (`defense_2d_multi`,
+    // `american/competition/lebensohl.rs`), so clearing the profile flag below
+    // cannot un-compile it.  Nothing of ours is lost by declining: the graft is
+    // `register_one_nt` alone, which authors only uncontested keys — `[1NT, 2♦]`
+    // is not even a prefix of it — so every call in this sub-lane is the
+    // floor's, and the walk's natural reading of their real diamonds is the
+    // truthful one.  N4e's floorless escape was published here and the floor
+    // bid it: 26 of 260 divergent boards foreign on the campaign's isolation
+    // gate (seed 1787325027), replicated 27/267 (seed 1787327781).
+    //
+    // Their `2♣`-as-Landy (`two_clubs_landy`) is the same misapplication one
+    // suit lower and is deliberately left alone: clearing it moves the Landy
+    // campaign's measured base.  Flagged, not silently resolved.
+    if profile.their.two_diamonds_multi
+        && auction.get(open + 2) == Some(&Call::Bid(Bid::new(2, Strain::Diamonds)))
+    {
+        return None;
     }
     let mut stripped = auction.to_vec();
     stripped.remove(open);
@@ -326,7 +351,7 @@ impl Inferences {
         // bidder`).  The stripped opening is 1NT, which the strip never fires
         // on, so this recurses at most once.
         if let Some(stripped) =
-            systems_on_overcall_strip(context.auction(), context.reading_profile())
+            systems_on_overcall_strip(context.auction(), context.decision_profile())
         {
             let mut reading = match context.own_system() {
                 Some(partnership) => {

@@ -1831,3 +1831,62 @@ fn lebensohl_completion_alert_suppresses_the_club_reading() {
     let off = read_booked_with(&arm, &auction);
     assert_eq!(off.partner().length(Suit::Clubs), Range::new(4, 13));
 }
+
+/// N4e's floorless escape must stay out of `(1x) 1NT (2♦)`.
+///
+/// Their `(2♦)` there is a response to their own one-suit opening, never the
+/// Multi `their.two_diamonds_multi` declares — but the systems-on strip
+/// re-reads the lane against the competition book, whose `1NT (2♦)` leg is
+/// chosen Multi-or-natural at *build* time, so clearing the profile flag
+/// cannot un-compile the Multi table.  It published the escape and the
+/// inference-aware floor bid it: 26 of 260 divergent boards foreign on the
+/// campaign's isolation gate, replicated 27/267 on a second seed
+/// (`docs/one-notrump-competitive.md` §N4e).  The strip declines this one
+/// shape now, so the knob is invisible here — and still live in the lane it
+/// owns.
+#[test]
+fn multi_weak_escape_stays_out_of_the_overcall_lane() {
+    let mut base = crate::bidding::agreements::Agreements::default();
+    base.decision.their.two_diamonds_multi = true;
+    let mut armed = base;
+    armed.competition.multi_weak_escape = Some(6);
+
+    // `(1♥) 1NT (2♦) 2♠ (3♦)` and its minor twin: both foreign-board shapes
+    // off the gate. The knob must not move a single range.
+    let overcall_lane: [&[Call]; 2] = [
+        &[
+            bid(1, Strain::Hearts),
+            bid(1, Strain::Notrump),
+            bid(2, Strain::Diamonds),
+            bid(2, Strain::Spades),
+            bid(3, Strain::Diamonds),
+        ],
+        &[
+            bid(1, Strain::Clubs),
+            bid(1, Strain::Notrump),
+            bid(2, Strain::Diamonds),
+            bid(2, Strain::Hearts),
+            bid(3, Strain::Clubs),
+        ],
+    ];
+    for auction in overcall_lane {
+        assert_eq!(
+            read_booked_with(&base, auction),
+            read_booked_with(&armed, auction),
+            "the escape leaked into the 1NT-overcall lane: {auction:?}",
+        );
+    }
+
+    // The lane the package does own — our `1NT` *opening* — still moves.
+    let opening_lane = [
+        bid(1, Strain::Notrump),
+        bid(2, Strain::Diamonds),
+        bid(2, Strain::Spades),
+        bid(3, Strain::Diamonds),
+    ];
+    assert_ne!(
+        read_booked_with(&base, &opening_lane),
+        read_booked_with(&armed, &opening_lane),
+        "the escape stopped reading in the lane it owns",
+    );
+}

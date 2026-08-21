@@ -1139,6 +1139,19 @@ the `2NT` relay row no longer the lane's worst per board; `1NT 2♥ 2♠ -` read
 - **The strip** (`systems_on_overcall_strip`) is a claim that two structures
   coincide; phase 3 must keep it scoped per RHO call exactly as
   `gladiator_keeps_the_strip_where_it_has_no_structure` pins.
+- **The strip and the graft are not one source** — found 2026-08-22 by N4e's
+  isolation gate ([one-notrump-competitive.md](one-notrump-competitive.md)
+  §N4e). The graft is `register_one_nt`, uncontested keys only; the strip
+  re-keys into the *competition* book, contested tails included. A
+  `TheirDisclosures` field that picks book rows at **build** time therefore
+  cannot be neutralised by clearing its profile flag for the stripped read:
+  `their.two_diamonds_multi` published the whole Multi table in the 1NT-overcall
+  lane, where their `2♦` is a response, and the inference-aware floor bid it
+  (26/260 and 27/267 foreign boards on two seeds). The strip now declines that
+  one shape; `their.two_clubs_landy` is the same misapplication one suit lower
+  and is deliberately left alone. Full mechanism in
+  [reading-drift-handoff.md](reading-drift-handoff.md) §"The bidding-side half
+  of the same claim".
 - **The reader reaches auctions the classifier declines** — found 2026-08-18 by
   N3's isolation gate ([one-notrump-competitive.md](one-notrump-competitive.md)
   §N3). N3's package keys `P* 1NT (3x)`, an exact node with a leading-*pass*
@@ -1220,6 +1233,7 @@ the `2NT` relay row no longer the lane's worst per board; `1NT 2♥ 2♠ -` read
 | 2026-08-17 | **Phase 4 built — `reading.bid_exclusion`, default off.** Soundness green in every gate; A/B **not** run | Probe partner **1.302%→1.180%** (seed 20260816, 40k), the worklist's whole head cleared (`1♥ - 2NT - 4♥` 25/25→0, `1♠ - 2NT - 4♠` 17/17→0, Ogust `3♣` 77–95%→0); throughput **+0.2%**; smoke byte-identical `7aa33d58…`. First footprint was 12 boards/20,000 and eleven were the floor dropping its Blackwood ask — root-caused **not** to the floor but to `Strength::intersect_nonempty` widening a crossed gauge instead of emptying its box; with that fixed the footprint is **2/20,000**, both the fold buying an ask. See *Phase 4* below |
 | 2026-08-18 | **Michaels major-suit preferences authored as the exact complement of their game raises** | Selected calls unchanged; `1♥ (2♥) - 2♠` / `1♠ (2♠) - 3♥` make no three-card-fit promise. Soundness partner **1.238%→1.212%** (44 fewer / 168,097), so the predicted full return to 1.180% was false. A/B vs `97206fcc`, seeds 1786993552 / 1786993946 / 1786994335, 3 × 204,800 bd/arm/vul: **one divergence in 1,228,800, +11 plain / +11 PD**; smoke remains `9c56a4b2…`, cards unchanged |
 | 2026-08-18 | **Phase 5 features_v6 + honest evaluator retrain SHIPPED** | Both held-out gates improve; fresh American A/B wins all four cells, Dutch wins plain with PD wash. `american()` and `dutch()` flipped to v6; `legacy_view`, its duplicate cache, and `strip_side_blind` deleted. See *Phase 5 — honest-reading retrain shipped*. |
+| 2026-08-22 | **The strip published the graft's absent structure** — N4e's isolation gate | `their.two_diamonds_multi` picks Lebensohl's Multi leg at build time, so clearing the profile flag for the stripped read could not un-compile it; the Multi table reached `(1x) 1NT (2♦) …` and the floor bid N4e's floorless escape (26/260, replicated 27/267). Strip now declines that shape; default byte-identical (`smoke-default 39ca60a2…`), pinned by `multi_weak_escape_stays_out_of_the_overcall_lane`. Landy sibling flagged, Multi-blind strip book deferred |
 
 ### Memory compaction notes (2026-08-16)
 

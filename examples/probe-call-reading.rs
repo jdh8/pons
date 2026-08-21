@@ -54,6 +54,12 @@ struct Args {
     /// table's values double and opener's trump double read off `1N (2D) X`
     #[arg(long, default_value_t = false)]
     their_2d_multi: bool,
+
+    /// Minimum suit length for the floorless Multi escape
+    /// (`competition.multi_weak_escape`), so its published reading can be read
+    /// off `1H 1NT 2D 2S` as well as off `1N (2D) 2S`
+    #[arg(long)]
+    ns_multi_weak_escape: Option<u8>,
 }
 
 fn render(shown: &Envelope) -> String {
@@ -77,6 +83,7 @@ fn main() {
         (usize::from(next()), next(), next())
     });
     agreements.decision.their.two_diamonds_multi = args.their_2d_multi;
+    agreements.competition.multi_weak_escape = args.ns_multi_weak_escape;
     let vul = AbsoluteVulnerability::NONE;
     let partnership = american(&agreements).bind();
 

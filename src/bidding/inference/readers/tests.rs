@@ -884,7 +884,7 @@ fn gladiator_keeps_the_strip_where_it_has_no_structure() {
             .collect();
         let got = crate::bidding::inference::read::systems_on_overcall_strip(
             &auction,
-            agreements.decision.reading,
+            agreements.decision,
         )
         .is_some();
         if got != want {
@@ -1593,6 +1593,16 @@ fn their_multi_reader_is_disclosure_and_seat_gated() {
     }
 }
 
+/// Below our `1NT` **overcall** their `2♦` is a response to their own opening,
+/// so nothing about the disclosed Multi may reach it.
+///
+/// Until 2026-08-22 the strip fired here and cleared the disclosure in the
+/// *profile*, which stopped this hand reader but not the book: the competition
+/// book's `1NT (2♦)` leg is chosen Multi-or-natural at build time, so the whole
+/// Multi table was published in the lane anyway (N4e's isolation gate, 26/260
+/// foreign boards; `docs/one-notrump-competitive.md` §N4e). The strip now
+/// declines this shape outright, and the natural walk reads their real
+/// diamonds — at its own `4..` floor, not the stripped read's borrowed `5..`.
 #[test]
 fn their_multi_reader_does_not_extrapolate_through_the_strip() {
     let reading = read_booked_with(
@@ -1603,7 +1613,7 @@ fn their_multi_reader_does_not_extrapolate_through_the_strip() {
             bid(2, Strain::Diamonds),
         ],
     );
-    assert_eq!(reading.rho().length(Suit::Diamonds), Range::new(5, 13));
+    assert_eq!(reading.rho().length(Suit::Diamonds), Range::new(4, 13));
     assert_eq!(reading.rho().length(Suit::Hearts), Range::FULL_LENGTH);
     assert_eq!(reading.rho().length(Suit::Spades), Range::FULL_LENGTH);
 }

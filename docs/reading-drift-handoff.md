@@ -128,6 +128,40 @@ lesson is the narrower one: a strip is a claim that *two structures coincide*,
 and it should be scoped to the auctions where they actually do — not to a whole
 convention.
 
+### The bidding-side half of the same claim (2026-08-22)
+
+The graft is that claim's other half, and the two are **not** built from one
+source. `defensive()` grafts `register_one_nt` alone — only *uncontested* keys,
+so `[1NT, 2♦]` is not even a prefix of the grafted trie — while the strip
+re-keys the whole stripped auction into the **competition** book, contested
+continuations included. So in every `(1x) 1NT (2y) …` sub-lane the strip
+publishes a structure the graft never grafted; the floor bids it, and that is
+the shipped design, not an accident.
+
+It becomes a bug when a *build-time* row choice rides along. N4e's isolation
+gate caught one: `their.two_diamonds_multi` picks the Multi leg of the
+Lebensohl section at build time, so the strip's existing
+`profile.their.two_diamonds_multi = false` stopped the hand reader but could not
+un-compile the table — the Multi structure was published in a lane where their
+`2♦` is a *response* (26/260 and 27/267 foreign boards; see
+[one-notrump-competitive.md](one-notrump-competitive.md) §N4e). Fixed
+2026-08-22 by declining the strip for that one shape.
+
+Two things this leaves open, both flagged rather than resolved:
+
+- `their.two_clubs_landy` is the identical misapplication one suit lower
+  (`(1♦) 1NT (2♣)`), left at today's behavior because clearing it moves the
+  Landy campaign's measured base.
+- The general repair — a Multi-blind competition book carried on the
+  `Partnership` for the strip to read against, so the sub-lane keeps its natural
+  Lebensohl reading — is designed but unbuilt. It must be built *after* the
+  floors, or floor-authored calls in the stripped auction read as nothing.
+
+**The rule:** a `TheirDisclosures` field that re-keys book rows at build time
+cannot be neutralised by clearing its profile flag on the reading side. Either
+the strip declines that shape, or it reads against a book built without the
+declaration.
+
 ## The other three known leaks (unchanged, listed for completeness)
 
 - ~~**`Points::project` is floor-only**~~ ([constraint.rs](../src/bidding/constraint.rs)).
