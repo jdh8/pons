@@ -259,7 +259,9 @@ Probed 2026-08-19 (`--mode custom`, seed 20260819, `--vul none,both`,
 `ab-results/probe-3level/`). Everything above reads BBA in *our* seats; this
 reads BBA in *its own* — the seat that advances the preempt, and the preemptor's
 second turn. It is the evidence behind
-[one-notrump-competitive.md](../one-notrump-competitive.md) §N3's v2 queue.
+[one-notrump-competitive.md](../one-notrump-competitive.md) §N3's v2 queue,
+archived at
+[§N3 — measurement rounds](../archive/one-notrump-competitive-closed.md#n3--measurement-rounds).
 
 **Read the shares as per-random-hand, not per-auction.** The probe deals the
 actor a uniform random hand and asks EPBot for its call: EPBot sees the auction,

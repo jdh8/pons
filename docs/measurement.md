@@ -304,6 +304,25 @@ known bias, that a better opponent would double more, runs *against* the ON
 arm here, so a plain-DD win is a floor. Worked case:
 [docs/ai-bidder/competitive-accountant.md](ai-bidder/competitive-accountant.md).
 
+**The addendum's cleanest exemplar** (2026-08-20): the `1NT (3x) X` leave-in's
+honor half measured `plain wash | PD win` — the row above that ships
+default-on — while concealing a **−2.4 to −3.0 IMPs per fired** single-dummy
+loss at both vulnerabilities. Its mechanism is adding doubles, so plain DD
+arbitrates, the sd-lead bracket tie-breaks, and PD is a double-blind column
+that neither rescues nor kills. Its *length* sibling, priced the same way, was
+CI-clear positive on all four columns and shipped. Full rounds:
+[one-notrump-competitive-closed.md §N3](archive/one-notrump-competitive-closed.md#n3--measurement-rounds).
+
+**Split a disjunctive gate into separate arms.** When a candidate gate is a
+disjunction (`A | B`) and any slice gives its disjuncts different signs, they
+are two arms, always — never one bundled knob. Bundling lets a win ship the bad
+half or, worse, lets a loss bury the good one: measured on the same lane
+(2026-08-20), `len4+ | (len3 & hon2+)` as one gate would have returned a
+refutation at both vulnerabilities, and a **+3.4 IMPs/fired** winner would have
+been thrown away inside it. Run `A`, then `A|B` against `A` to price the
+extension in isolation; a preflight confirming the arms are nested as designed
+costs a few thousand boards.
+
 **Slam-boundary addendum** (2026-07-16; reading rule revised same day after
 the calibration showed the playout is a 2–4× too-deep pessimist): for a knob
 whose ON arm bids **more slams** (a lowered slam gate, a new slam drive, a
