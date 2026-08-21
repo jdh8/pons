@@ -10,9 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **`competition.multi_weak_escape` — the floorless weak escape over their
-  declared `(2♦)` Multi** (default `None`, byte-identical; `bba-gen
-  --ns-multi-weak-escape off|6|5`).  Below 5 HCP, `Pass` was the only finite
-  row in `multi_2d_responder`'s table — the natural `2♥`/`2♠` wants a
+  declared `(2♦)` Multi** (**shipped default-on 2026-08-22 at `Some(6)`**;
+  `bba-gen --ns-multi-weak-escape off|6|5`, `off` is the off-switch).  Below
+  5 HCP, `Pass` was the only finite row in `multi_2d_responder`'s table — the natural `2♥`/`2♠` wants a
   five-card major and `hcp 5+`, the `2NT` relay a five-card suit and the
   PD-distilled `hcp 6+` — and the census prices that pass at **−3.92 plain /
   −4.84 PD per board** on responder's `≤5 hcp, 6+ suit` class (37 bd, −145 /
@@ -24,11 +24,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The same knob authors the escape's **interfered tail**
   (`1NT (2♦) 2M (X | 2♠ | 2NT | 3♣/3♦/3♥/3♠)`, `multi_escape_overcalled`) —
   unauthored until now, where the floor bid *their* suit at the four level
-  over partner's escape.  **No user impact at the default**; the A/B is still
-  owed — both 2026-08-21 launches died on the isolation gate at 26/260 and
-  27/267 foreign, a reading seam fixed below
-  (`scripts/ab-2d-multi-escape.sh`, arms `base`/`six`/`five`).
-  [one-notrump-competitive.md](docs/one-notrump-competitive.md) §N4e.
+  over partner's escape.
+
+  **Measured ×2 seeds, 230,400 bd/arm/vul, both vulnerabilities
+  (`SEED_BASE` 1787340263 / 1787341972, `scripts/ab-2d-multi-escape.sh`):
+  `plain wash | PD win`** — pooled DD plain **+0.00028 ±0.00039**, PD
+  **+0.00063 ±0.00049**, sd plain +0.00013 ±0.00041, SD-PD
+  **+0.00052 ±0.00049**; all four PD cells and all four SD-PD cells
+  non-negative, one negative reading in sixteen (−0.0003, inside CI). The
+  decision table's one-sided-bet row: it never loses on the honest scorer and
+  gains when they punish. Fires on 0.07–0.11% of accepted deals at +0.16 to
+  +1.28 plain IMPs per fired.
+
+  **`Some(5)` is refuted as a default and stays opt-in**: pooled plain
+  **+0.00085 ±0.00051** with PD erasing it (**−0.00030 ±0.00069**) — the
+  doubling-artifact row — and the vulnerable PD cell CI-clear negative on
+  *both* seeds (−0.0016, −0.0017). Paired against `Some(6)` it is CI-clear
+  worse on PD (**−0.00095 ±0.00048**, vul −0.0021 / −0.0019). The five-card
+  band is exactly what `lebensohl_relay_shape`'s PD-distilled floor was
+  distilled against, so the pre-registered split earned its own arm.
+
+  **The default flip changes no default behavior**: the rows are gated on
+  `their.two_diamonds_multi`, which is undeclared by default, so
+  `smoke-default` is unchanged at `39ca60a2…` and the `.bbsa` cards are
+  byte-identical. No integration test encoded the old default. Two earlier
+  launches (2026-08-21) died on the isolation gate at 26/260 and 27/267
+  foreign — a reading seam, fixed below. After the fix, 8 of 12 pair-cells
+  gated **0 foreign** and 4 carried exactly **1** board of the campaign's
+  mirror-read leak (their 1NT, our `2♦`; worth +3 of +174 plain, quoted
+  rather than gated on, as N1c shipped at 1 of 132).
+  [one-notrump-competitive.md](docs/one-notrump-competitive.md) §N4e Round 2.
 
 - **`probe-decision` gained `PROBE_THEIR_2D_MULTI` and
   `PROBE_MULTI_WEAK_ESCAPE`.**  Their `(2♦)` Multi is a `decision.their`

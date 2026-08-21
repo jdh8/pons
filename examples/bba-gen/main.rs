@@ -706,9 +706,10 @@ struct Args {
     ns_multi_stopper_ask: String,
 
     /// Minimum suit length responder may escape their declared `(2♦)` Multi on
-    /// with no HCP floor: `off` (shipped default), `6`, or `5`.  Also authors
+    /// with no HCP floor: `6` (shipped default), `5` (refuted as a default,
+    /// opt-in), or `off` for the pre-2026-08-22 floored lane.  Also authors
     /// the escape's interfered tail (`1NT (2♦) 2M (X/2♠/2NT/3x)`).
-    #[arg(long, default_value = "off", value_name = "off|6|5")]
+    #[arg(long, default_value = "6", value_name = "off|6|5")]
     ns_multi_weak_escape: String,
 
     /// Author our defense to the opponents' 2♣ Stayman (`(1NT) - (2♣)`): X =

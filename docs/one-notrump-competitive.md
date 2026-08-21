@@ -193,16 +193,16 @@ is 5 calls; the most common runout point is after opener's transfer completion
 
 Shipped packages have left this table; they are represented by the coverage
 inventory above and by the [ledger](#ledger). The census's top bucket, `(2♦)`
-at −744 plain, was re-decomposed on 2026-08-21 and has **one** open item,
-**N4e** — the decomposition is [§N4e](#n4e--the-floorless-weak-escape-built-2026-08-21-ab-gate-blocked-twice-seam-fixed-2026-08-22),
-and it supersedes the "no open item" note that stood here: N4's v7 counter and
-its reader shipped against the *strong* half of that bucket and its residue
-was measured out, but responder's sub-5-HCP outlets were never authored at all.
+at −744 plain, was re-decomposed on 2026-08-21; its one open item, **N4e**,
+**shipped default-on 2026-08-22** and has moved to the [ledger](#ledger)
+([§N4e](#n4e--the-floorless-weak-escape-shipped-default-on-2026-08-22-the-six-card-rung-five-refuted)).
+N4's v7 counter and its reader had shipped against the *strong* half of that
+bucket and its residue was measured out; N4e was responder's sub-5-HCP outlets,
+never authored at all. The bucket has no open item again.
 
 | # | Package | Knob | State |
 | --- | --- | --- | --- |
 | **N3-x** | **`X` over their `(4x)`** — the floor cannot double above the three level at all (`their_live_bid_at_most(3)`, [instinct.rs:6058](../src/bidding/instinct.rs)), and BBA's advancer sits for our double on **96.7–99.9%** of hands | new (book) | Current `4+` bucket 38 bd / −43 plain / −45 PD, −1.13/bd on a CI that swallows the total. The `(3x)` template does **not** widen — their four-level overcalls are *eight*-card suits, six times rarer than the three-level rows — so this is an uncontested opportunity to size, not a copy |
-| **N4e** | **the floorless weak escape over their `(2♦)` Multi** — below 5 HCP `Pass` is the only finite row in responder's table, and that pass is **−3.92 plain / −4.84 PD per board** on the `≤5 hcp, 6+ suit` class (37 bd, −145 / −179): the worst per-board cell in the campaign, 1.9× N2d's total | `competition.multi_weak_escape` (**`None`**) | **built 2026-08-21; both A/B launches gate-blocked 2026-08-21, seam fixed 2026-08-22, re-run owed** — `scripts/ab-2d-multi-escape.sh`, arms `base` / `six` / `five`. Both launches died on `probe-divergence --gate-opener ours` at **26 of 260** and **27 of 267** foreign, every foreign board `(1x) 1NT (2♦) …`: the systems-on strip published the *Multi* table in the 1NT-**overcall** lane, where their `2♦` is a response. The same knob authors the escape's interfered tail, which the shipped lane leaves to the floor. [§N4e](#n4e--the-floorless-weak-escape-built-2026-08-21-ab-gate-blocked-twice-seam-fixed-2026-08-22) |
 | **N2d** | relay with a 6+ suit below 6 HCP, over `(2♠)` only (the weak major has no two-level call there) | book | **Re-read 2026-08-21: 25 bd, −77 plain / −52 PD, −3.08/bd** — still the worst hand class in the lane, and negative on both scorers. Contradicts the PD-distilled floor ([`lebensohl_relay_shape`](../src/bidding/american/competition/lebensohl.rs)); against Muiderberg the alternative is a making `2♠`, and BBA at table B bids these hands un-overcalled. Needs the A/B, not a re-derivation |
 | N5 | Complete Jacoby, then re-measure | `competition_over_transfer` | default-off on a measured loss *while missing its two most-fired cells* — `(2♥)` over our `2♦` and `(2♠)` over our `2♥`, i.e. they bid the major we are transferring to ([over_our_jacoby.rs:100-103](../src/bidding/american/competition/over_our_jacoby.rs)) — a half-built loss, resumable |
 | N3-fit | fresh-seed confirmation of the `4M` fit rung | `nt_high_overcall_x_major_at_four` (**on**) | Round 5 shipped it on one seed (+1.14/+1.69 per fired, 0 foreign) and explicitly owed a confirmation. Rounds 7–8 ran against a `base` that *carries* it, which is not an isolated confirmation — the row is shipped but not settled |
@@ -657,7 +657,7 @@ length. The systems-on overcall strip **declines that one shape outright**
 (2026-08-22), so `(1x) 1NT (2♦)` cannot enter this lane. Before then it only
 cleared the *profile* flag, which stops this hand reader but cannot un-compile
 the book's Multi table — the leak N4e's isolation gate caught; see
-[§N4e](#n4e--the-floorless-weak-escape-built-2026-08-21-ab-gate-blocked-twice-seam-fixed-2026-08-22).
+[§N4e](#n4e--the-floorless-weak-escape-shipped-default-on-2026-08-22-the-six-card-rung-five-refuted).
 It is temporary until a declared-opponent profile can project the opponents'
 own authored book.
 
@@ -737,7 +737,7 @@ the DD reading that shipped it. What changes is only the record: the sentence
 in the verdict above claiming sd "could not arbitrate any round" was wrong
 about this round.
 
-### N4e — the floorless weak escape (**built 2026-08-21; A/B gate-blocked twice, seam fixed 2026-08-22**)
+### N4e — the floorless weak escape (**SHIPPED DEFAULT-ON 2026-08-22; the six-card rung, five refuted**)
 
 The v7 counter and its reader shipped against the strong half of the `(2♦)`
 bucket. This is the re-decomposition of what is left, read with
@@ -914,9 +914,6 @@ On the winning arm, re-run `probe-1nt-interference --bucket "2♦" --responses 6
 the Pass row's `≤5 hcp, 6+ suit` class should shrink toward zero boards and the
 `2NT`/`2♥`/`2♠` rows should absorb them without going negative.
 
-**N2d stays parked.** Nothing here touches the `(2♠)` lane; if `six` ships,
-N2d's queue row gets a pointer to it, not a run.
-
 #### Round 1 (2026-08-21) — the A/B never ran: the strip leaked the Multi table
 
 Two launches, both killed by the pre-registered isolation gate. Neither
@@ -977,6 +974,89 @@ nothing. Deferred, not refuted.
 misapplication one suit lower — `(1♦) 1NT (2♣)` gets the Landy counter-defense
 though their `2♣` there is a response. Left at today's behavior deliberately:
 clearing it moves the Landy campaign's measured base. User's call.
+
+#### Round 2 (2026-08-22) — measured ×2 seeds: `six` ships, `five` is refuted
+
+`sha=d54ef73f`, 24 shards × 9,600 = **230,400 bd/arm/vul**, `--filter-1nt
+--their-2d-multi`, both vulnerabilities, arms sequential.
+`SEED_BASE` **1787340263** (`ab-results/2d-multi-escape`) and **1787341972**
+(`-s2`). Headline is IMPs per accepted deal — `--filter-1nt` is applied before
+any bidding, so the 230,400 boards of an arm *are* the accepted deals.
+
+**`six` (`Some(6)`) vs `base` — `plain wash | PD win`, replicated.**
+
+| seed / vul | fired | DD plain | DD PD | sd plain | **SD-PD** |
+| --- | --- | --- | --- | --- | --- |
+| 1 / none | 244 (0.11%) | +174, +0.0008 ±0.0008 | **+312, +0.0014 ±0.0010** | +123, +0.0005 ±0.0008 | **+270, +0.0012 ±0.0010** |
+| 1 / both | 183 (0.08%) | +29, +0.0001 ±0.0008 | +103, +0.0004 ±0.0010 | −70, −0.0003 ±0.0008 | +5, +0.0000 ±0.0010 |
+| 2 / none | 207 (0.09%) | +38, +0.0002 ±0.0007 | +116, +0.0005 ±0.0009 | +43, +0.0002 ±0.0008 | +139, +0.0006 ±0.0009 |
+| 2 / both | 165 (0.07%) | −2, −0.0000 ±0.0008 | +50, +0.0002 ±0.0010 | +32, +0.0001 ±0.0009 | +80, +0.0003 ±0.0010 |
+| **pooled** | 799 | **+239, +0.00028 ±0.00039** | **+581, +0.00063 ±0.00049** | +128, +0.00013 ±0.00041 | **+494, +0.00052 ±0.00049** |
+
+All four PD cells and all four SD-PD cells non-negative; **one** negative
+reading in sixteen (sd plain, seed 1 vul, −0.0003, well inside its CI). The
+knob's mechanism is *bidding more*, not doubling more, so the domain addendum
+does not apply and PD is a real arbiter: this is the `wash | win` one-sided bet
+— never loses on the honest scorer, gains when they punish — with the SD-PD
+bracket agreeing at +0.00052 ±0.00049. **Shipped default-on.**
+
+**`five` (`Some(5)`) vs `base` — the doubling-artifact row.**
+
+| seed / vul | fired | DD plain | DD PD | sd plain | SD-PD |
+| --- | --- | --- | --- | --- | --- |
+| 1 / none | 525 (0.23%) | +429, +0.0019 ±0.0010 | +272, +0.0012 ±0.0013 | +453, +0.0020 ±0.0010 | +384, +0.0017 ±0.0013 |
+| 1 / both | 428 (0.19%) | −25, −0.0001 ±0.0011 | **−377, −0.0016 ±0.0015** | +112, +0.0005 ±0.0011 | −156, −0.0007 ±0.0015 |
+| 2 / none | 493 (0.21%) | +410, +0.0018 ±0.0009 | +206, +0.0009 ±0.0012 | +517, +0.0022 ±0.0010 | +383, +0.0017 ±0.0012 |
+| 2 / both | 420 (0.18%) | −38, −0.0002 ±0.0011 | **−386, −0.0017 ±0.0015** | +47, +0.0002 ±0.0012 | −290, −0.0013 ±0.0015 |
+| **pooled** | 1866 | **+776, +0.00085 ±0.00051** | **−285, −0.00030 ±0.00069** | +1129, +0.00122 ±0.00054 | +321, +0.00035 ±0.00069 |
+
+A CI-clear plain win that PD erases, with the vulnerable PD cell **CI-clear
+negative on both seeds** — the artifact row verbatim. Not shipped.
+
+**`five` paired against `six` — `six` is the right rung.**
+
+| seed / vul | fired | DD plain | DD PD | SD-PD |
+| --- | --- | --- | --- | --- |
+| 1 / none | 282 (0.12%) | +255, +0.0011 ±0.0006 | −40, −0.0002 ±0.0008 | +111, +0.0005 ±0.0008 |
+| 1 / both | 246 (0.11%) | −54, −0.0002 ±0.0007 | **−480, −0.0021 ±0.0011** | −202, −0.0009 ±0.0010 |
+| 2 / none | 289 (0.13%) | +371, +0.0016 ±0.0006 | +89, +0.0004 ±0.0008 | +220, +0.0010 ±0.0008 |
+| 2 / both | 256 (0.11%) | −37, −0.0002 ±0.0008 | **−437, −0.0019 ±0.0011** | −262, −0.0011 ±0.0010 |
+| **pooled** | 1073 | +535, +0.00057 ±0.00034 | **−868, −0.00095 ±0.00048** | −133, −0.00013 ±0.00045 |
+
+The pre-registered split landed exactly as written: the five-card band is what
+`lebensohl_relay_shape`'s PD-distilled floor was distilled against, and freeing
+it buys plain-DD contracts that a competent doubler collects. **`Some(5)` stays
+opt-in** — the same `Option<u8>`, third state.
+
+**Gates.** After the strip fix, **8 of 12 pair-cells read 0 foreign** and four
+read exactly **1**: `six:base` none 1/244 and `five:base` none 1/525 on seed 1,
+`six:base` both 1/165 and `five:base` both 1/420 on seed 2. Every one is the
+same board class — the campaign's **mirror-read leak** on the swapped axis:
+
+```
+- 1NT 2♦ 2NT - 3♣ 3♦ X - - -      (on)   3♦x South
+- 1NT 2♦ 2NT - 3♣ - 3NT - - -     (off)  3NT East
+```
+
+*They* opened `1NT` and *we* overcalled `2♦`, but the trie key `P* 1NT (2♦) 2NT`
+is shape-identical to ours and `Phase::of` on that prefix routes it to the
+competition book, so their `2NT` decodes off **our** `multi_2d_responder` relay
+row — which this knob widens (`points ..=8` reads `6..=8` off and `0..=8` on).
+`readers.rs`'s hand reader has exactly this seat gate
+(`their_disclosed_overcall` requires the `1NT` to be ours); the book node has
+none, and the general cure is the declared-opponent book. Priced: the seed-1
+NV board is worth **+3 of the divergent set's +174 plain / +312 PD**, so the
+owner split moves NV plain +0.00076 → +0.00074 and PD +0.00135 → +0.00134 —
+inside their CIs, no cell changes verdict. Quoted here rather than gated on,
+by the same reading N1c shipped under at 1 of 132.
+
+**Owed.** Re-run `probe-1nt-interference --bucket "2♦" --responses 6` on a
+fresh anchor arm carrying the shipped default: the Pass row's `≤5 hcp, 6+ suit`
+class should shrink toward zero boards and the `2NT`/`2♥`/`2♠` rows should
+absorb them without going negative.
+
+**N2d stays parked**, and now gets the pointer the queue row promised: `six`
+shipped, so the `(2♠)` twin's case is a pointer to this round, not a run.
 
 ## N2 — Muiderberg `(2♥)/(2♠)`: the lane today
 
@@ -1103,7 +1183,7 @@ final pooled verdict, IMPs per board unless marked per fired.
 | N1j BBA-ladder counter + weak-`2♦` cap | `defense_2c_landy_bba`, `defense_2c_landy_weak_2d_cap` (**both on**) | **both SHIPPED DEFAULT-ON 2026-08-15** | ladder at a **pre-pinned non-inferiority gate**: `wash \| wash`, all 16 DD+sd cells leaning positive (NV plain +0.00083 ±0.00085). Cap at the standard gate: NV PD **+0.00037 ±0.00033**, vul **+0.00050 ±0.00035**, **0 foreign** | [closed §N1j](archive/one-notrump-competitive-closed.md#n1j--the-bba-ladder-counter-shipped-default-on-2026-08-15) |
 | N4 their `(2♦)` as a Multi | `their.two_diamonds_multi` — disclosure; engine default undeclared | **SHIPPED 2026-08-15, v7 of seven rounds** | v7 vs base ×3 seeds, owned: NV `plain wash \| PD win` (+0.00100 ±0.00067), vul plain **+0.00061 ±0.00056** \| PD +0.00061 ±0.00069, both-vul pool `win \| win`; paired vs v4 better on 3 of 4 cells. Every raw headline was 60–70% foreign — verdicts are owner-split | [§N4](#n4--their-2-as-a-multi-shipped-2026-08-15--v7-seven-rounds-default-on-vs-bba-via-the-census); [v1–v6](archive/one-notrump-competitive-closed.md#n4--measurement-rounds-v1v6) |
 | N4 residue — Multi reader / stopper ask | `reading.their_multi_reading` (**on**), `competition.multi_stopper_ask` (**Off**) | reader **SHIPPED DEFAULT-ON 2026-08-16**; ask **REFUTED as a default** | reader `plain wash \| PD win` ×3 seeds — −29 plain / **+643 PD** over 1.3824m boards, 0 foreign on every pair. Both stopper modes landed on `plain win \| PD wash` (the artifact row) and tied with each other, so no combined arm ran | [§N4 residue](#n4-residue--reader-shipped-stopper-ask-stays-opt-in-measured-2026-08-16) |
-| N4e floorless weak escape over their Multi | `competition.multi_weak_escape` (**`None`**) | **BUILT 2026-08-21; A/B GATE-BLOCKED ×2 2026-08-21 — seam fixed 2026-08-22, re-run owed** | Target: responder's `≤5 hcp, 6+ suit` pass, **37 bd, −145 plain / −179 PD, −3.92/−4.84 per board** — the worst per-board cell in the campaign. Both launches stopped at the isolation gate, **26/260 (10.0%) and 27/267 (10.1%) foreign**, no headline quoted; the seam was the systems-on strip, not the package. Ships with the escape's interfered tail (`1NT (2♦) 2M (X/2♠/2NT/3x)`), unauthored today. `six` and `five` arms, `scripts/ab-2d-multi-escape.sh` | [§N4e](#n4e--the-floorless-weak-escape-built-2026-08-21-ab-gate-blocked-twice-seam-fixed-2026-08-22) |
+| N4e floorless weak escape over their Multi | `competition.multi_weak_escape` (**`Some(6)`**) | **SHIPPED DEFAULT-ON 2026-08-22 at `Some(6)`; `Some(5)` REFUTED as a default** | `plain wash \| PD win` ×2 seeds, 921,600 bd per cell-set: pooled DD plain +0.00028 ±0.00039, **PD +0.00063 ±0.00049**, sd plain +0.00013 ±0.00041, **SD-PD +0.00052 ±0.00049** — all four PD and all four SD-PD cells non-negative, one negative reading in sixteen (−0.0003, inside CI). `five` is the doubling-artifact row (pooled plain **+0.00085 ±0.00051**, PD **−0.00030 ±0.00069**, vulnerable PD CI-clear negative on **both** seeds) and paired vs `six` is CI-clear worse on PD (**−0.00095 ±0.00048**). Two rounds were lost to the systems-on strip leaking the Multi table into the 1NT-overcall lane (26/260, 27/267 foreign); after the 2026-08-22 fix, 8 of 12 pair-cells gated **0 foreign** and 4 carried exactly **1** board of the campaign's mirror-read leak | [§N4e](#n4e--the-floorless-weak-escape-shipped-default-on-2026-08-22-the-six-card-rung-five-refuted) |
 | N4b `(2♦)` diamond penalty double | `competition.two_diamond_double` (**`None`**) | **measured 2026-08-15 — sweep NULL, opt-in** | all 28 raw cells CI-clear positive and **all of it a leak** (84.9% foreign); owned subset has no CI-clear cell in 28. Two findings kept: the **alert is what makes a gate a reading**, and the "they sit 43%" claim was retracted (0 of 141 on our-opened boards) | [closed §N4b](archive/one-notrump-competitive-closed.md#n4b--the-2-diamond-penalty-double-built-2026-08-15-sweeping) |
 | N3 `(3♣)`–`(3♠)` preempt of our 1NT | `nt_high_overcall_responses` (**on**), `nt_high_overcall_3nt_stopper` (**off**), `nt_3c_transfers` (**off**) | **SHIPPED DEFAULT-ON 2026-08-18** | owned plain **+0.00208 ±0.00126** NV / **+0.00293 ±0.00160** vul, PD +0.00079/+0.00180, sd agreeing on all four cells, **zero negative cells in sixteen readings**. The private `3NT` bit shipped **off** (+2.37/+1.65 per fired, 0 foreign); the BBA-style double continuation was **refuted and removed** (all eight cells negative) | [§N3 — measurement rounds](archive/one-notrump-competitive-closed.md#n3--measurement-rounds) |
 | N3 opener's answer to the takeout `X` | `nt_high_overcall_x_major_at_four` (**on**), `_x_leave_in` (**on**), `_x_leave_in_three` (**off**) | fit rung **SHIPPED 2026-08-19**; leave-in **SHIPPED 2026-08-20** (v2, `len(over, 4..)`); honor half **REFUTED** | fit rung 4/4 DD cells CI-clear (+1.14/+1.69 per fired), 0 foreign of 1103/1340. Leave-in `length` **CI-clear positive in all eight cells** — plain +0.0071 ±0.0009 NV / +0.0104 ±0.0012 vul (+2.38/+3.41 per fired), 0 foreign — and **replicated on a fresh seed** at +0.0074/+0.0111 with every suit DD-positive, so no suit gate exists. `three` sd-lead **−2.44/−2.99 per fired**: bundled as one gate the package would have measured as a loss at both vuls | [§N3 — measurement rounds](archive/one-notrump-competitive-closed.md#n3--measurement-rounds) |

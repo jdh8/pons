@@ -768,11 +768,11 @@ pub struct CompetitionKnobs {
     pub multi_stopper_ask: MultiStopperAsk,
     /// Minimum suit length that may escape their Multi with **no HCP floor**
     ///
-    /// Over a declared `(2♦)` Multi, `None` (the shipped default) leaves both
-    /// weak outlets floored — the natural `2♥`/`2♠` wants a five-card major and
-    /// `hcp 5+` ([`Self::natural_floor`]), the `2NT` relay a five-card suit and
-    /// the PD-distilled `hcp 6+` — so **below 5 HCP `Pass` is the only finite
-    /// row in responder's table**.  The census
+    /// Over a declared `(2♦)` Multi, `None` leaves both weak outlets floored —
+    /// the natural `2♥`/`2♠` wants a five-card major and `hcp 5+`
+    /// ([`Self::natural_floor`]), the `2NT` relay a five-card suit and the
+    /// PD-distilled `hcp 6+` — so **below 5 HCP `Pass` is the only finite row
+    /// in responder's table**.  The census
     /// (`docs/one-notrump-competitive.md` §N4) prices that pass at −3.92 plain
     /// / −4.84 PD per board on the `≤5 hcp, 6+ suit` class, the worst per-board
     /// cell in the campaign; the relay lane those hands want measures −0.08
@@ -791,8 +791,16 @@ pub struct CompetitionKnobs {
     /// five-card band — the half the relay's PD-distilled floor was distilled
     /// against — so it gets its own arm rather than riding along.
     ///
-    /// **Default `None`** while `scripts/ab-2d-multi-escape.sh` runs.  No
-    /// effect while their `2♦` is undeclared or natural.
+    /// **Default `Some(6)`, shipped 2026-08-22** on `plain wash | PD win`
+    /// replicated over two seeds — pooled DD plain +0.00028 ±0.00039, **PD
+    /// +0.00063 ±0.00049**, SD-PD **+0.00052 ±0.00049**, all four PD cells and
+    /// all four SD-PD cells non-negative (921,600 bd/cell-set,
+    /// `SEED_BASE` 1787340263 / 1787341972).  `Some(5)` is **refuted as a
+    /// default** and stays opt-in: it wins plain (+0.00085 ±0.00051) and PD
+    /// erases it (−0.00030 ±0.00069), the doubling-artifact row, and paired
+    /// against `Some(6)` it is CI-clear worse on PD (−0.00095 ±0.00048).  No
+    /// effect while their `2♦` is undeclared or natural, so the default system
+    /// is byte-identical.
     pub multi_weak_escape: Option<u8>,
     // --- competition/support_double.rs
     /// Support doubles/redoubles for the majors
@@ -923,7 +931,7 @@ impl Default for CompetitionKnobs {
             trap_pass: true,
             competitive_4333: Competitive4333::Suppress,
             multi_stopper_ask: MultiStopperAsk::Off,
-            multi_weak_escape: None,
+            multi_weak_escape: Some(6),
             major_support_double: true,
             uvu_over_majors: true,
             uvu_over_minors: false,

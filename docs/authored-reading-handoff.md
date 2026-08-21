@@ -1152,6 +1152,18 @@ the `2NT` relay row no longer the lane's worst per board; `1NT 2♥ 2♠ -` read
   and is deliberately left alone. Full mechanism in
   [reading-drift-handoff.md](reading-drift-handoff.md) §"The bidding-side half
   of the same claim".
+- **The mirror read has a seat gate on the reader side and none on the book
+  side** — isolated 2026-08-22 by N4e's gate, one board per pair-cell. Our
+  `1NT (2♦)` Multi table is keyed by call shape alone, so when *they* open
+  `1NT` and *we* overcall `2♦`, `Phase::of` on the prefix routes their next
+  call to the competition book and their `2NT` decodes off our
+  `multi_2d_responder` relay row (`points 6..=8` undeclared, `0..=8` under the
+  escape). `readers.rs`'s hand reader refuses exactly this
+  (`their_disclosed_overcall` requires the `1NT` to be ours); the compiled node
+  has no such gate, and nothing in `project_authored`'s alert walk supplies
+  one. The cure is the declared-opponent book (`Partnership::with_opponents`),
+  which is also what retires the hand readers — so this is one more entry on
+  that bill, not a separate repair.
 - **The reader reaches auctions the classifier declines** — found 2026-08-18 by
   N3's isolation gate ([one-notrump-competitive.md](one-notrump-competitive.md)
   §N3). N3's package keys `P* 1NT (3x)`, an exact node with a leading-*pass*

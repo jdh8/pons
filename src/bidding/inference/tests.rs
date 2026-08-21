@@ -1848,6 +1848,7 @@ fn lebensohl_completion_alert_suppresses_the_club_reading() {
 fn multi_weak_escape_stays_out_of_the_overcall_lane() {
     let mut base = crate::bidding::agreements::Agreements::default();
     base.decision.their.two_diamonds_multi = true;
+    base.competition.multi_weak_escape = None; // pinned: the escape is default-on since 2026-08-22
     let mut armed = base;
     armed.competition.multi_weak_escape = Some(6);
 
