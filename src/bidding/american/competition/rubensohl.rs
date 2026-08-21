@@ -245,8 +245,8 @@ pub(crate) fn transfer_lebensohl_responder(
     }
 
     // 2NT = Lebensohl relay to 3♣: a weak long-suit hand (sign off or correct),
-    // same shape as plain Lebensohl (see [`lebensohl_relay_shape`] — 6+ suit, or
-    // a 5-carder with the PD-distilled 6-HCP floor, never their suit).
+    // same shape as plain Lebensohl (see [`lebensohl_relay_shape`] — any 5-card
+    // suit but theirs, with the PD-distilled 6-HCP floor).
     let long_suit = lebensohl_relay_shape(over);
     rules = rules
         .rule(Bid::new(2, Strain::Notrump), 135, points(..=8) & long_suit)
@@ -401,18 +401,27 @@ fn stayman_2d_constructive(mut rules: Rules, gate_4333: bool, agreements: &Agree
 }
 
 /// The weak natural major escapes at the two level, shared by both `(2♦)` legs
-fn natural_major_escapes(mut rules: Rules, agreements: &Agreements) -> Rules {
+///
+/// `weak_len` is the Multi lane's floorless rung
+/// ([`CompetitionKnobs::multi_weak_escape`]): a suit that long is itself
+/// evidence their Multi is the *other* major, so it may act with no HCP floor.
+/// `None` — always, on the natural leg — keeps the shipped single rung, so the
+/// default system stays byte-identical.
+fn natural_major_escapes(mut rules: Rules, agreements: &Agreements, weak_len: Option<u8>) -> Rules {
     for s in [Suit::Hearts, Suit::Spades] {
         let strain = Strain::from(s);
-        rules = rules.rule(
-            Bid::new(2, strain),
-            140,
-            min_level_is(2, strain)
-                & len(s, 5..)
-                & points(..=8)
-                & hcp(natural_floor_hcp(agreements)..)
-                & points(natural_floor_pts(agreements)..),
-        );
+        let floored = len(s, 5..)
+            & hcp(natural_floor_hcp(agreements)..)
+            & points(natural_floor_pts(agreements)..);
+        let head = min_level_is(2, strain) & points(..=8);
+        rules = match weak_len {
+            None => rules.rule(Bid::new(2, strain), 140, head & floored),
+            Some(n) => rules.rule(
+                Bid::new(2, strain),
+                140,
+                head & (floored | len(s, usize::from(n)..)),
+            ),
+        };
     }
     rules
 }
@@ -455,9 +464,9 @@ pub(crate) fn transfer_stayman_2d_responder(gate_4333: bool, agreements: &Agreem
             .alert(TWO_DIAMOND_PENALTY),
         None => responder_double(rules, Suit::Diamonds, agreements),
     };
-    rules = natural_major_escapes(rules, agreements);
-    // Relay shape: 6+ suit, or a 5-carder with the PD-distilled 6-HCP floor,
-    // never their diamonds (see [`lebensohl_relay_shape`]).
+    rules = natural_major_escapes(rules, agreements, None);
+    // Relay shape: any 5-card suit but their diamonds, with the PD-distilled
+    // 6-HCP floor (see [`lebensohl_relay_shape`]).
     let long_suit = lebensohl_relay_shape(Suit::Diamonds);
     rules = rules
         .rule(Bid::new(2, Strain::Notrump), 135, points(..=8) & long_suit)
@@ -501,13 +510,18 @@ pub(crate) fn multi_2d_responder(gate_4333: bool, agreements: &Agreements) -> Ru
             150,
             points(10..) & stopper_in(Suit::Hearts) & stopper_in(Suit::Spades),
         );
-    rules = natural_major_escapes(rules, agreements);
-    rules = rules
-        .rule(
-            Bid::new(2, Strain::Notrump),
+    let weak_len = agreements.competition.multi_weak_escape;
+    rules = natural_major_escapes(rules, agreements, weak_len);
+    let relay = Bid::new(2, Strain::Notrump);
+    rules = match weak_len {
+        None => rules.rule(relay, 135, points(..=8) & multi_relay_shape()),
+        Some(n) => rules.rule(
+            relay,
             135,
-            points(..=8) & multi_relay_shape(),
-        )
+            points(..=8) & (multi_relay_shape() | multi_any_len(usize::from(n))),
+        ),
+    };
+    rules = rules
         .alert(LEBENSOHL_RELAY)
         // v6 (BBA mimic): BBA's `hcp 5–17` values double, the 41% workhorse
         // of its counter — 6 is where its Pass bucket (median 5) ends.  Below
@@ -522,12 +536,21 @@ pub(crate) fn multi_2d_responder(gate_4333: bool, agreements: &Agreements) -> Ru
 /// The `2NT`-relay shape over their Multi: a 5+ suit in *any* suit with the
 /// same PD-distilled 6-HCP floor as [`lebensohl_relay_shape`] — diamonds are
 /// ours to sign off in, since their `2♦` never held them
+///
+/// This is the only outlet a long *minor* or diamond suit has — the natural
+/// escape is majors-only — so under `multi_weak_escape` the caller unions
+/// [`multi_any_len`] onto it and a 6-card club suit below the floor gets a
+/// call instead of a pass.
 fn multi_relay_shape() -> Cons<impl Constraint + Clone> {
-    (len(Suit::Clubs, 5..)
-        | len(Suit::Diamonds, 5..)
-        | len(Suit::Hearts, 5..)
-        | len(Suit::Spades, 5..))
-        & hcp(6..)
+    multi_any_len(5) & hcp(6..)
+}
+
+/// A suit — any suit — at least `n` long
+fn multi_any_len(n: usize) -> Cons<impl Constraint + Clone> {
+    len(Suit::Clubs, n..)
+        | len(Suit::Diamonds, n..)
+        | len(Suit::Hearts, n..)
+        | len(Suit::Spades, n..)
 }
 
 /// Responder's rebid after `1NT (2♦ Multi) 2NT - 3♣ -`: pass with clubs, or a

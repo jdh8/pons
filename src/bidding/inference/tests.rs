@@ -826,6 +826,12 @@ fn gated_profiles_preserve_alert_invariant() {
         a.decision.their.two_diamonds_multi = true;
         profiles.push(("their-multi", a));
     }
+    {
+        let mut a = base;
+        a.decision.their.two_diamonds_multi = true;
+        a.competition.multi_weak_escape = Some(6);
+        profiles.push(("their-multi-escape", a));
+    }
     for (name, defense) in [
         ("woolsey", NotrumpDefense::Woolsey),
         ("meckwell", NotrumpDefense::Meckwell),

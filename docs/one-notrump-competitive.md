@@ -55,6 +55,7 @@ cargo run --release --features serde --example probe-1nt-interference -- \
     --dd-cache ab-results/anchor-confirm/dd-cache.json
 # --bucket "2♣" --show 8       the worst boards of one bucket
 # --bucket "2♠" --responses 8  that bucket by our response, and by hand class
+# --bucket "2♦" --responses 6  the N4e decomposition (§N4e); 6 keeps the 6-board rows
 ```
 
 Bucket the **shipped** arm (`american-*`, the v6 floor), not the
@@ -191,14 +192,17 @@ is 5 calls; the most common runout point is after opener's transfer completion
 ## Package queue — open work, ranked by the census
 
 Shipped packages have left this table; they are represented by the coverage
-inventory above and by the [ledger](#ledger). **The census's top bucket,
-`(2♦)` at −744 plain, has no open item** — N4's v7 counter and its reader both
-shipped against it and its residue was measured out ([§N4](#n4--their-2-as-a-multi-shipped-2026-08-15--v7-seven-rounds-default-on-vs-bba-via-the-census)).
-Re-opening that lane starts from a fresh decomposition, not from this queue.
+inventory above and by the [ledger](#ledger). The census's top bucket, `(2♦)`
+at −744 plain, was re-decomposed on 2026-08-21 and has **one** open item,
+**N4e** — the decomposition is [§N4e](#n4e--the-floorless-weak-escape-built-2026-08-21-ab-pending),
+and it supersedes the "no open item" note that stood here: N4's v7 counter and
+its reader shipped against the *strong* half of that bucket and its residue
+was measured out, but responder's sub-5-HCP outlets were never authored at all.
 
 | # | Package | Knob | State |
 | --- | --- | --- | --- |
 | **N3-x** | **`X` over their `(4x)`** — the floor cannot double above the three level at all (`their_live_bid_at_most(3)`, [instinct.rs:6058](../src/bidding/instinct.rs)), and BBA's advancer sits for our double on **96.7–99.9%** of hands | new (book) | Current `4+` bucket 38 bd / −43 plain / −45 PD, −1.13/bd on a CI that swallows the total. The `(3x)` template does **not** widen — their four-level overcalls are *eight*-card suits, six times rarer than the three-level rows — so this is an uncontested opportunity to size, not a copy |
+| **N4e** | **the floorless weak escape over their `(2♦)` Multi** — below 5 HCP `Pass` is the only finite row in responder's table, and that pass is **−3.92 plain / −4.84 PD per board** on the `≤5 hcp, 6+ suit` class (37 bd, −145 / −179): the worst per-board cell in the campaign, 1.9× N2d's total | `competition.multi_weak_escape` (**`None`**) | **built 2026-08-21, A/B pending** — `scripts/ab-2d-multi-escape.sh`, arms `base` / `six` / `five`. The same knob authors the escape's interfered tail, which the shipped lane leaves to the floor. [§N4e](#n4e--the-floorless-weak-escape-built-2026-08-21-ab-pending) |
 | **N2d** | relay with a 6+ suit below 6 HCP, over `(2♠)` only (the weak major has no two-level call there) | book | **Re-read 2026-08-21: 25 bd, −77 plain / −52 PD, −3.08/bd** — still the worst hand class in the lane, and negative on both scorers. Contradicts the PD-distilled floor ([`lebensohl_relay_shape`](../src/bidding/american/competition/lebensohl.rs)); against Muiderberg the alternative is a making `2♠`, and BBA at table B bids these hands un-overcalled. Needs the A/B, not a re-derivation |
 | N5 | Complete Jacoby, then re-measure | `competition_over_transfer` | default-off on a measured loss *while missing its two most-fired cells* — `(2♥)` over our `2♦` and `(2♠)` over our `2♥`, i.e. they bid the major we are transferring to ([over_our_jacoby.rs:100-103](../src/bidding/american/competition/over_our_jacoby.rs)) — a half-built loss, resumable |
 | N3-fit | fresh-seed confirmation of the `4M` fit rung | `nt_high_overcall_x_major_at_four` (**on**) | Round 5 shipped it on one seed (+1.14/+1.69 per fired, 0 foreign) and explicitly owed a confirmation. Rounds 7–8 ran against a `base` that *carries* it, which is not an isolated confirmation — the row is shipped but not settled |
@@ -483,7 +487,12 @@ run** (recorded here so nobody assumes it was): the shipped Transfer-Lebensohl
 The second field of `TheirDisclosures`: their `2♦` is a Multi, one unknown
 six-card major (BBA's 2/1 reference: `hcp 9–18`, median 13,
 [bba-multi-2d.md](ai-bidder/bba-multi-2d.md)). Undeclared keeps the natural
-leg, byte-identical (smoke `18aba5ce…` re-verified from the worktree).
+leg, byte-identical (smoke `18aba5ce…` re-verified from the worktree — that
+constant is **stale**: `smoke-default` was re-based to `cf583ff5…` on
+2026-08-16 by the strength-ceiling ship
+([authored-reading-handoff.md](authored-reading-handoff.md)) and has moved
+again since. Re-verify byte-identity by diffing the dump against `main` HEAD,
+not against a quoted digest).
 `bba-gen --their-2d-multi` arms it; `their_2d_multi` derives it from an
 explicit `Multi-Landy` row at face value and otherwise uses the shipped 2/1
 census default. `--their-2d-multi false` names the pre-N4 arm.
@@ -549,6 +558,18 @@ floor's.
    design round ("show a four-card major instead") has nothing to decompose
    against BBA. Conditional on our double, the advancer leans weak — the N4b
    `len5` arm saw `2♥` 136 / `2♠` 5 on our-opened boards.
+
+   **The two splits are inverted, and both are right (checked 2026-08-21).**
+   The probe reproduces unchanged on the shipped build — NV `2♠` 67.0% / `2♥`
+   33.0%, vul `2♠` 73.0% / `2♥` 26.9%, pass 0.0% — while the census arms'
+   *realized* auctions over our double are `2♥` **155 / 200 (77.5%)**, `2♠` 45
+   (22.5%), pass 0. They measure different populations: the probe deals the
+   advancer at random, and its `2♠` bucket is `hcp 6–18` (median 11) against
+   `2♥`'s `hcp 2–14` (median 6) — an advancer that strong rarely coexists with
+   our `hcp(6..)` double opposite a 15-17 opener. **Size the `ran` shapes off
+   the conditional split (`2♥` 77.5%), not the probe's unconditional one.**
+   No code changes on this: v7's `ran` tables already carry both legs, and the
+   reversible default if it is ever re-litigated is to leave them as built.
 2. **The advancer's split is by strength, not shape**, and the correction
    mechanics are BBA's own: over the weak `2♥` the overcaller passes with
    hearts (36.7%), corrects to `2♠` with spades (49.8%), jumps `3M` with a
@@ -608,9 +629,12 @@ v4 (three seeds, owned): **vul `plain wash | PD win`**; **NV `PD win | plain
 decomposition (above) put the whole NV plain deficit on the doubler's second
 turn; v6 mimicked BBA's second turn whole and found BBA's takeout double
 real and BBA's game bids the DD-declarer artifact; v7 kept the one and
-dropped the others and clears the gate. sd-lead could not arbitrate any
-round: `ab-dump-sd` has no owner split and the raw sd is leak-inflated like
-everything else here.
+dropped the others and clears the gate. sd-lead could not arbitrate rounds
+v1–v7: `ab-dump-sd` has no owner split, and those arms were 60–70% foreign,
+so the raw sd is leak-inflated like every other raw number here. **That
+caveat does not extend to the residue round** — its pairs are 0-foreign, its
+sd files were written and never reported, and they are now in
+[§N4 residue](#n4-residue--reader-shipped-stopper-ask-stays-opt-in-measured-2026-08-16).
 
 What the seven rounds established, beyond the numbers: **the floor cannot
 hold any seat of this structure** — it sold out with 10+, raised a weak
@@ -676,6 +700,218 @@ comparison was a statistical tie: NV only two contracts differed
 (`FitSearch − OpenerPlaces` +4 plain / −4 PD IMPs); vulnerable, none did.
 Because no stopper mode passed independently, there is no selected reader +
 stopper stack and the conditional combined confirmation arm was skipped.
+
+#### The sd-lead third scorer — written 2026-08-16, reported 2026-08-21
+
+`ab-2d-multi-residue.sh` called `sddiff` on every pair and the files were
+never read (`ab-results/2d-multi-residue/seed-{1,2,3}/sd.*.txt`, 16 worlds,
+230.4k bd per cell). Unlike the v1–v7 arms these pairs are **0 foreign**, so
+the leak-inflation caveat does not apply and the numbers stand as a third
+scorer:
+
+| pair | vul | seed 1 | seed 2 | seed 3 |
+| --- | --- | --- | --- | --- |
+| `FitSearch` vs base, sd-plain | NV | **+0.0008 ±0.0004** | **+0.0007 ±0.0004** | **+0.0006 ±0.0003** |
+| `FitSearch` vs base, sd-plain | both | **+0.0007 ±0.0004** | +0.0003 ±0.0003 | +0.0003 ±0.0003 |
+| `FitSearch` vs base, sd-PD | NV | +0.0005 ±0.0004 | +0.0002 ±0.0004 | +0.0001 ±0.0004 |
+| `FitSearch` vs base, sd-PD | both | +0.0004 ±0.0004 | −0.0001 ±0.0004 | −0.0001 ±0.0004 |
+| reader vs base, sd-plain | NV | −0.0005 ±0.0006 | +0.0002 ±0.0006 | +0.0002 ±0.0006 |
+| reader vs base, sd-PD | NV | +0.0001 ±0.0006 | +0.0004 ±0.0006 | **+0.0007 ±0.0007** |
+| reader vs base, sd-PD | both | +0.0000 ±0.0007 | +0.0006 ±0.0006 | +0.0005 ±0.0006 |
+
+`OpenerPlaces` is within ±4 IMPs of `FitSearch` in every cell (their direct
+`search vs place` sd pairs fire on 0–4 boards), so the two remain tied on this
+scorer as well.
+
+**The verdicts do not move.** `FitSearch` is sd-plain positive in all six
+cells — three CI-clear at NV, one CI-clear vulnerable, two vulnerable cells
+(+0.0003 ±0.0003) sitting on the boundary — and sd-PD wash-to-positive. That
+is the *same* `plain win | PD wash` doubling-artifact signature on a third
+scorer, not an escape from it, so **`multi_stopper_ask` stays default `Off`**.
+The reader's sd is a wash on plain and leans positive on PD, consistent with
+the DD reading that shipped it. What changes is only the record: the sentence
+in the verdict above claiming sd "could not arbitrate any round" was wrong
+about this round.
+
+### N4e — the floorless weak escape (**built 2026-08-21; A/B pending**)
+
+The v7 counter and its reader shipped against the strong half of the `(2♦)`
+bucket. This is the re-decomposition of what is left, read with
+`probe-1nt-interference --bucket "2♦" --responses 6` on the shipped arms
+`ab-results/anchor-confirm/2026-08-21-1e9a47e2/american-{none,both}` (seed
+1787064872, 204,800 bd/vulnerability, NV+vul pooled below).
+
+**Read the size first.** −744 IMPs over 409,600 boards is **−0.0018
+IMPs/board of the arm** — 0.3% of the −0.48/−0.59 gap to BBA — and per *board*
+`(2♦)` is not the worst cell: `3♠` −1.49, `4+` −1.13, `3♣` −1.09 all beat it.
+`(2♦)` leads the bucket table because their Multi fires twice as often as
+anything else (816 of 3,115 contested boards), not because we handle it
+uniquely badly. This is hygiene at the standard ship gate.
+
+#### By responder's first call (816 bd)
+
+| our response | bd | plain tot | plain/bd | PD tot | PD/bd | reading |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| **Pass** | 264 | **−452** | −1.71 | −226 | **−0.86** | real on both scorers |
+| **`X`** | 200 | **−203** | −1.02 | **+133** | **+0.67** | plain loss / PD win — artifact |
+| **`2♠`** | 57 | **−118** | −2.07 | −71 | −1.25 | n too small to separate from `2♥` |
+| `3♣` | 45 | −15 | −0.33 | −27 | −0.60 | — |
+| `2NT` relay | 79 | −6 | −0.08 | +11 | +0.14 | **the relay lane is free** |
+| `3NT` | 6 | −4 | | −11 | | — |
+| `3♥` | 61 | −2 | −0.03 | +6 | | — |
+| `2♥` | 52 | +5 | +0.10 | +77 | +1.48 | — |
+| `3♦` | 37 | +37 | +1.00 | +22 | +0.59 | — |
+| other | 15 | +14 | | +6 | | — |
+
+Three rows carry **−773**; everything else nets **+29**.
+
+#### Pass, split by responder's hand (the probe's own classifier)
+
+| class | bd | plain/bd | PD/bd | plain tot | PD tot |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| **≤5 hcp, 6+ suit** | 37 | **−3.92** | **−4.84** | −145 | −179 |
+| ≤5 hcp, 5-card suit | 97 | −1.73 | −0.84 | −168 | −81 |
+| ≤7 hcp, no 5-card suit | 130 | −1.07 | **+0.26** | −139 | +34 |
+
+The 6+-suit class is the worst per-board cell anywhere in this campaign —
+worse than N2d's `(2♠)` twin (25 bd, −3.08/−2.08) and 1.9× its total. The
+bottom row is PD-positive, i.e. mostly the DD-declarer artifact.
+
+#### `X`, split by the advancer and opener's answer
+
+| continuation | bd | plain/bd | PD/bd | plain | PD |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `X (2♥) - (-) -` sell-out | 48 | −1.94 | **+1.02** | −93 | +49 |
+| `X (2♥) - (2♠) -` | 22 | −2.00 | +1.18 | −44 | +26 |
+| **`X (2♥) X (2♠) -`** | 35 | **−2.40** | **−0.80** | −84 | −28 |
+| `X (2♠) …` (whole leg) | 45 | +0.82 | +2.13 | +37 | +96 |
+
+The heart leg loses, the spade leg wins, and every sub-cell except
+`X (2♥) X (2♠)` is PD-positive. **Only that one is real on both scorers**:
+responder doubles, the advancer bids the weak `2♥`, opener makes the penalty
+double with four hearts (`multi_penalty_answer`), they run to `2♠`, and
+`multi_responder_rebid(Spades, ran=true)` passes. It is already owned by
+`multi_stopper_ask`, which stays `Off` (§N4 residue), so **the `X` lane gets
+no new work**: −1.02 plain but **+0.67** PD, the sell-outs are the
+DD-declarer artifact, and perfect defense says our pass is right.
+
+#### The `2♠` row is not separable from `2♥`
+
+−2.07 ± ~1.5 against `2♥`'s +0.10 ± ~1.8 → a difference of 2.2 ± 2.3. Pooled,
+the natural two-level escape is **109 bd, −1.04 plain / +0.06 PD**. Same shape
+as N3 round 8's refuted suit gradient, so **no suit gate is authored** on the
+natural escape.
+
+#### Root cause — in code
+
+`multi_2d_responder` ([rubensohl.rs](../src/bidding/american/competition/rubensohl.rs))
+has these finite rows, in weight order: `4♣`/`4♦` Leaping Michaels
+`points(10..)`, `3♣` Stayman `points(10..)`, `3♦`/`3♥` transfers `points(9..)`,
+`3NT` `points(10..)`, `3♠`→♣ `points(10..)`, natural `2♥`/`2♠`
+`len(M,5..) & points(..=8) & hcp(5..)`, `2NT` relay
+`points(..=8) & (5+ any suit) & hcp(6..)`, `X` `hcp(6..)`, `Pass` 0.
+
+**Below 5 HCP, `Pass` is the only finite row in the table.** Between 5 and 6
+HCP it is the only row unless responder holds a five-card *major*:
+
+- 4 hcp with 6 hearts → pass (`96.KJT975.82.972`, −13)
+- 4 hcp with 6 clubs → pass (`J.8542.96.QJ9853`, −11)
+- 2 hcp with 7 diamonds → pass (`4.T63.QT97542.86`, −11)
+- **5 hcp with 6 clubs → pass, one HCP under the relay floor** (`632.7.QJT.Q97532`, −9)
+
+Meanwhile the `2NT` relay — where those hands want to go — measures **−0.08
+plain / +0.14 PD** for the hands that clear its floor, and its landing spots
+are all authored (`multi_relay_rebid` gives `3♦`/`3♥`/`3♠` or a pass in `3♣`;
+`multi_signoff_pass` keeps opener quiet).
+
+The standing objection is `lebensohl_relay_shape`'s **PD-distilled** 6-HCP
+floor ([lebensohl.rs](../src/bidding/american/competition/lebensohl.rs)): a
+sampled double-dummy gate "declines nearly every sub-6 hand — pushing a
+near-bust to the 3 level loses on DD, even with a 6-card suit". Two reasons
+that does not settle *this* lane: it was distilled over a **natural** overcall
+whose suit is known, and it is a **DD** gate, the regime that systematically
+flatters defending. The census's PD column — −4.84/bd on the 6+-suit class —
+is the perfect-defense answer to the same question, and it says the pass is
+losing. Which of the two is right is the A/B's job, and it is why the
+five-card band gets its own arm.
+
+Second gap: **`1NT (2♦) 2♥/2♠ (anything)` had no book node.** Only
+`{their} 2M -` was wired (opener's sign-off raise, under `natural_floor`);
+their competition over our escape fell to the floor, which in the dumps bid
+`4♥` (their suit) over partner's `4♣` for −1100 doubled, and doubled `4♠` into
+twelve tricks. The iron rule ("complete the convention — both sides'
+continuations **and the interfered tails**") was unmet, and widening the
+escape sends more traffic into it.
+
+#### The package — `competition.multi_weak_escape: Option<u8>`
+
+**One field, three states** — `None` (default, byte-identical), `Some(6)`,
+`Some(5)`: the minimum suit length that may act with **no HCP floor** over
+their *declared* Multi. One knob rather than two booleans, so the two arms of
+the A/B are the same measured change at two settings. Three rungs move
+together:
+
+| rung | change under `Some(n)` |
+| --- | --- |
+| natural `2♥`/`2♠` (140) | `len(M, n..)` with no HCP floor, alongside the existing `len(M,5..) & hcp(5..)`. At `n = 5` this simply removes the floor for five-card majors |
+| `2NT` relay (135) | `multi_relay_shape()` is unioned with `len(any, n..)`, no HCP floor — the only outlet a six-card *minor* or diamond suit has, since the natural escape is majors-only |
+| opener's sign-off raise | `lebensohl_signoff_raise` is fed `0` instead of `natural_floor_hcp` (5), so its `23 − resp_floor` game bar rises exactly as far as the reading `project_authored` publishes falls (`hcp 5..8` → `hcp 0..8`). Getting that pair out of step is the reading-drift failure mode, not a cosmetic detail |
+
+A six-card major is itself evidence their Multi is the *other* major, which is
+what makes a two-level escape safer here than over a natural overcall — hence
+the length gate rather than a flat floor removal.
+
+The same knob authors the **interfered tail** (`multi_escape_overcalled`):
+`1NT (2♦) 2M (X | 2♠ | 2NT | 3♣/3♦/3♥/3♠)`, opener's one answer, on N1f's
+`landy_cue_overcalled` doctrine one level lower — the competitive raise on a
+fit with a maximum, the values double when there is no raise to make, and
+Pass for everything else, which is *safe* because responder has shown a long
+suit and at most eight. Their double is a pure sit: running a known 5-3 fit
+out of a doubled two-level partial is the disaster the escape was authored to
+avoid. Above `3♠`, and everything past opener's answer, stays floor.
+
+Verified on the four census hands (`probe-decision`, with the new
+`PROBE_THEIR_2D_MULTI` / `PROBE_MULTI_WEAK_ESCAPE` env vars — before them
+*every forensic in this lane silently probed the natural `(2♦)` leg*):
+
+| hand | `None` | `Some(6)` | `Some(5)` |
+| --- | --- | --- | --- |
+| `632.7.QJT.Q97532` (5 hcp, 6♣) | `P` only | **`2NT`** 1.350 | `2NT` |
+| `96.KJT975.82.972` (4 hcp, 6♥) | `P` only | **`2♥`** 1.400 | `2♥` |
+| `4.T63.QT97542.86` (2 hcp, 7♦) | `P` only | **`2NT`** 1.350 | `2NT` |
+| `JT987.2.T5.86542` (5♠/5♣, 1 hcp) | `P` only | **`P`** (arm isolation) | **`2♠`** 1.400 |
+
+The default system is byte-identical: `smoke-default` was run at `main` HEAD
+and at the built tree and the dumps hash the same. The alert invariant holds
+on a new `their-multi-escape` gated profile (the relay keeps `LEBENSOHL_RELAY`;
+the natural `2M`, the raise and the values double are all natural).
+
+#### The A/B — `scripts/ab-2d-multi-escape.sh`, two arms
+
+`bba-gen --filter-1nt --their-2d-multi --ns-multi-weak-escape off|6|5`, arms
+**sequential**, one fresh `SEED_BASE=$(date +%s)` shared across all three,
+never rebuild in flight.
+
+| arm | setting | priced against | target cell |
+| --- | --- | --- | --- |
+| `base` | `None` | — | — |
+| `six` | `Some(6)` | `base` | 37 bd, −145 plain / −179 PD |
+| `five` | `Some(5)` | `base`, and **paired** vs `six` | adds the 97-bd five-card class (−168 / −81) |
+
+Both vulnerabilities, plain **and** PD, headline as IMPs per *accepted* deal
+with `per-board = conditional mean × trigger density` alongside;
+`probe-divergence --gate-opener ours` must read **0 foreign** on every pair
+before any headline is quoted. The `five` vs `six` paired comparison is what
+says whether the five-card band earns its own default — N3 rounds 6–7 are the
+precedent for splitting rather than bundling, and a `six` win plus a `five`
+loss is a live and expected outcome.
+
+On the winning arm, re-run `probe-1nt-interference --bucket "2♦" --responses 6`:
+the Pass row's `≤5 hcp, 6+ suit` class should shrink toward zero boards and the
+`2NT`/`2♥`/`2♠` rows should absorb them without going negative.
+
+**N2d stays parked.** Nothing here touches the `(2♠)` lane; if `six` ships,
+N2d's queue row gets a pointer to it, not a run.
 
 ## N2 — Muiderberg `(2♥)/(2♠)`: the lane today
 
@@ -802,6 +1038,7 @@ final pooled verdict, IMPs per board unless marked per fired.
 | N1j BBA-ladder counter + weak-`2♦` cap | `defense_2c_landy_bba`, `defense_2c_landy_weak_2d_cap` (**both on**) | **both SHIPPED DEFAULT-ON 2026-08-15** | ladder at a **pre-pinned non-inferiority gate**: `wash \| wash`, all 16 DD+sd cells leaning positive (NV plain +0.00083 ±0.00085). Cap at the standard gate: NV PD **+0.00037 ±0.00033**, vul **+0.00050 ±0.00035**, **0 foreign** | [closed §N1j](archive/one-notrump-competitive-closed.md#n1j--the-bba-ladder-counter-shipped-default-on-2026-08-15) |
 | N4 their `(2♦)` as a Multi | `their.two_diamonds_multi` — disclosure; engine default undeclared | **SHIPPED 2026-08-15, v7 of seven rounds** | v7 vs base ×3 seeds, owned: NV `plain wash \| PD win` (+0.00100 ±0.00067), vul plain **+0.00061 ±0.00056** \| PD +0.00061 ±0.00069, both-vul pool `win \| win`; paired vs v4 better on 3 of 4 cells. Every raw headline was 60–70% foreign — verdicts are owner-split | [§N4](#n4--their-2-as-a-multi-shipped-2026-08-15--v7-seven-rounds-default-on-vs-bba-via-the-census); [v1–v6](archive/one-notrump-competitive-closed.md#n4--measurement-rounds-v1v6) |
 | N4 residue — Multi reader / stopper ask | `reading.their_multi_reading` (**on**), `competition.multi_stopper_ask` (**Off**) | reader **SHIPPED DEFAULT-ON 2026-08-16**; ask **REFUTED as a default** | reader `plain wash \| PD win` ×3 seeds — −29 plain / **+643 PD** over 1.3824m boards, 0 foreign on every pair. Both stopper modes landed on `plain win \| PD wash` (the artifact row) and tied with each other, so no combined arm ran | [§N4 residue](#n4-residue--reader-shipped-stopper-ask-stays-opt-in-measured-2026-08-16) |
+| N4e floorless weak escape over their Multi | `competition.multi_weak_escape` (**`None`**) | **BUILT 2026-08-21 — A/B pending** | Target: responder's `≤5 hcp, 6+ suit` pass, **37 bd, −145 plain / −179 PD, −3.92/−4.84 per board** — the worst per-board cell in the campaign. Ships with the escape's interfered tail (`1NT (2♦) 2M (X/2♠/2NT/3x)`), unauthored today. `six` and `five` arms, `scripts/ab-2d-multi-escape.sh` | [§N4e](#n4e--the-floorless-weak-escape-built-2026-08-21-ab-pending) |
 | N4b `(2♦)` diamond penalty double | `competition.two_diamond_double` (**`None`**) | **measured 2026-08-15 — sweep NULL, opt-in** | all 28 raw cells CI-clear positive and **all of it a leak** (84.9% foreign); owned subset has no CI-clear cell in 28. Two findings kept: the **alert is what makes a gate a reading**, and the "they sit 43%" claim was retracted (0 of 141 on our-opened boards) | [closed §N4b](archive/one-notrump-competitive-closed.md#n4b--the-2-diamond-penalty-double-built-2026-08-15-sweeping) |
 | N3 `(3♣)`–`(3♠)` preempt of our 1NT | `nt_high_overcall_responses` (**on**), `nt_high_overcall_3nt_stopper` (**off**), `nt_3c_transfers` (**off**) | **SHIPPED DEFAULT-ON 2026-08-18** | owned plain **+0.00208 ±0.00126** NV / **+0.00293 ±0.00160** vul, PD +0.00079/+0.00180, sd agreeing on all four cells, **zero negative cells in sixteen readings**. The private `3NT` bit shipped **off** (+2.37/+1.65 per fired, 0 foreign); the BBA-style double continuation was **refuted and removed** (all eight cells negative) | [§N3 — measurement rounds](archive/one-notrump-competitive-closed.md#n3--measurement-rounds) |
 | N3 opener's answer to the takeout `X` | `nt_high_overcall_x_major_at_four` (**on**), `_x_leave_in` (**on**), `_x_leave_in_three` (**off**) | fit rung **SHIPPED 2026-08-19**; leave-in **SHIPPED 2026-08-20** (v2, `len(over, 4..)`); honor half **REFUTED** | fit rung 4/4 DD cells CI-clear (+1.14/+1.69 per fired), 0 foreign of 1103/1340. Leave-in `length` **CI-clear positive in all eight cells** — plain +0.0071 ±0.0009 NV / +0.0104 ±0.0012 vul (+2.38/+3.41 per fired), 0 foreign — and **replicated on a fresh seed** at +0.0074/+0.0111 with every suit DD-positive, so no suit gate exists. `three` sd-lead **−2.44/−2.99 per fired**: bundled as one gate the package would have measured as a loss at both vuls | [§N3 — measurement rounds](archive/one-notrump-competitive-closed.md#n3--measurement-rounds) |

@@ -705,6 +705,12 @@ struct Args {
     #[arg(long, default_value = "off", value_name = "off|search|place")]
     ns_multi_stopper_ask: String,
 
+    /// Minimum suit length responder may escape their declared `(2♦)` Multi on
+    /// with no HCP floor: `off` (shipped default), `6`, or `5`.  Also authors
+    /// the escape's interfered tail (`1NT (2♦) 2M (X/2♠/2NT/3x)`).
+    #[arg(long, default_value = "off", value_name = "off|6|5")]
+    ns_multi_weak_escape: String,
+
     /// Author our defense to the opponents' 2♣ Stayman (`(1NT) - (2♣)`): X =
     /// lead-directing clubs, natural overcalls, strong 3♣ (default off; opt-in A/B).
     #[arg(long, default_value_t = false)]
@@ -2120,6 +2126,13 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
         "place" => pons::bidding::american::MultiStopperAsk::OpenerPlaces,
         other => anyhow::bail!("--ns-multi-stopper-ask must be off|search|place, got {other:?}"),
     };
+    agreements.competition.multi_weak_escape =
+        match args.ns_multi_weak_escape.as_str() {
+            "off" => None,
+            n => Some(n.parse().map_err(|_| {
+                anyhow::anyhow!("--ns-multi-weak-escape must be off|6|5, got {n:?}")
+            })?),
+        };
     agreements.competition.competition_over_transfer = args.ns_comp_over_transfer;
     agreements.competition.cue_raise_answer = !args.no_ns_cue_raise_answer;
     agreements.competition.cue_minor_raise_answer = !args.no_ns_cue_minor_raise_answer;

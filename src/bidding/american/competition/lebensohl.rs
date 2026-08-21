@@ -1347,6 +1347,38 @@ pub(super) fn lebensohl_signoff_raise(signoff: Suit, resp_floor: u8) -> Rules {
         .rule(Call::Pass, 0, hcp(0..))
 }
 
+/// Opener's answer when they compete over responder's weak two-level escape
+/// (`1NT (2♦ Multi) 2♥/2♠ (X | 2♠ | 2NT | 3x)`)
+///
+/// Wired only under [`CompetitionKnobs::multi_weak_escape`], whose whole point
+/// is to route hands with **no HCP floor** into this escape — so the iron rule
+/// ("complete the convention: both sides' continuations *and* the interfered
+/// tails") makes it part of that package rather than a separate fix.  Left to
+/// the floor, this seat bid *their* suit at the four level over partner's
+/// escape (−1100 doubled) in the census dumps.
+///
+/// [`landy_cue_overcalled`]'s doctrine one level lower and opposite a far
+/// weaker partner: Pass is the default and is *safe* — responder has shown a
+/// long suit and at most eight, so no game is being stranded.  Above it sit
+/// only the two calls Pass cannot make, the competitive raise on a fit with a
+/// maximum and the values double when there is no raise to make.
+///
+/// `over` is their call; `None` is their double, which takes no room and gets a
+/// pure sit.  Running a known 5-3 fit out of a doubled two-level partial is the
+/// disaster the escape was authored to avoid, not a rescue.
+fn multi_escape_overcalled(major: Suit, over: Option<Bid>, agreements: &Agreements) -> Rules {
+    let mut rules = Rules::new();
+    if let Some(over) = over {
+        let max = agreements.notrump.size_ask_accept_floor;
+        let raise = cheapest_above(Strain::from(major), over);
+        if raise <= Bid::new(3, Strain::from(major)) {
+            rules = rules.rule(raise, 100, len(major, 3..) & hcp(max..));
+        }
+        rules = rules.rule(Call::Double, 90, hcp(max..));
+    }
+    rules.rule(Call::Pass, 0, hcp(0..))
+}
+
 /// Sections 5 / 5b / 5c as a row package: Lebensohl after our `1NT` is
 /// overcalled at the 2 level (`agreements.competition.lebensohl_style`)
 ///
@@ -2000,15 +2032,57 @@ pub(super) fn lebensohl_package() -> Package {
                 // [`lebensohl_signoff_raise`], but fed the natural floor (5, not
                 // the relay's 6) so opener's game bar is one point higher to
                 // compensate.
-                if natural_floor_on(agreements) {
+                //
+                // The Multi lane's floorless escape
+                // ([`CompetitionKnobs::multi_weak_escape`]) lets responder act
+                // with no HCP at all, so opener's game bar moves with the
+                // reading `project_authored` publishes: the same table, fed
+                // `0`.  Getting that pair out of step is the reading-drift
+                // failure mode, not a cosmetic detail.
+                let weak_escape = if multi {
+                    agreements.competition.multi_weak_escape
+                } else {
+                    None
+                };
+                if natural_floor_on(agreements) || weak_escape.is_some() {
+                    let resp_floor = if weak_escape.is_some() {
+                        0
+                    } else {
+                        natural_floor_hcp(agreements)
+                    };
                     for signoff in [Suit::Hearts, Suit::Spades] {
                         if (signoff as u8) <= (over as u8) {
                             continue; // not above the overcall — no 2-level natural
                         }
+                        let escape = Bid::new(2, Strain::from(signoff));
                         entries.extend(rows_of(
-                            Pattern::after(NT, &format!("{their} 2{} -", Strain::from(signoff))),
-                            lebensohl_signoff_raise(signoff, natural_floor_hcp(agreements)),
+                            Pattern::after(NT, &format!("{their} {escape} -")),
+                            lebensohl_signoff_raise(signoff, resp_floor),
                         ));
+                        if weak_escape.is_none() {
+                            continue;
+                        }
+                        // The interfered tail: their double, their advancer's
+                        // pass-or-correct `2♠`, and every competitive call up
+                        // to `3♠` (above that, and after opener's answer, the
+                        // floor keeps the seat).
+                        let overs = [
+                            Bid::new(2, Strain::Spades),
+                            Bid::new(2, Strain::Notrump),
+                            Bid::new(3, Strain::Clubs),
+                            Bid::new(3, Strain::Diamonds),
+                            Bid::new(3, Strain::Hearts),
+                            Bid::new(3, Strain::Spades),
+                        ];
+                        let theirs = std::iter::once(None)
+                            .chain(overs.into_iter().filter(|b| *b > escape).map(Some));
+                        for bid in theirs {
+                            let call = bid.map_or_else(|| "X".to_string(), |b| b.to_string());
+                            entries.extend(rows_of(
+                                Pattern::after(NT, &format!("{their} {escape} ({call})")),
+                                multi_escape_overcalled(signoff, bid, agreements),
+                            ));
+                        }
                     }
                 }
 

@@ -7,7 +7,76 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`competition.multi_weak_escape` — the floorless weak escape over their
+  declared `(2♦)` Multi** (default `None`, byte-identical; `bba-gen
+  --ns-multi-weak-escape off|6|5`).  Below 5 HCP, `Pass` was the only finite
+  row in `multi_2d_responder`'s table — the natural `2♥`/`2♠` wants a
+  five-card major and `hcp 5+`, the `2NT` relay a five-card suit and the
+  PD-distilled `hcp 6+` — and the census prices that pass at **−3.92 plain /
+  −4.84 PD per board** on responder's `≤5 hcp, 6+ suit` class (37 bd, −145 /
+  −179), the worst per-board cell in the 1NT-competitive campaign, while the
+  relay lane those hands want measures −0.08 / +0.14.  `Some(n)` adds a
+  floorless `len(suit, n..)` rung to both outlets and drops
+  `lebensohl_signoff_raise`'s `resp_floor` to `0` so opener's game bar rises
+  exactly as far as the published reading falls (`hcp 5..8` → `hcp 0..8`).
+  The same knob authors the escape's **interfered tail**
+  (`1NT (2♦) 2M (X | 2♠ | 2NT | 3♣/3♦/3♥/3♠)`, `multi_escape_overcalled`) —
+  unauthored until now, where the floor bid *their* suit at the four level
+  over partner's escape.  **No user impact at the default**; A/B pending
+  (`scripts/ab-2d-multi-escape.sh`, arms `base`/`six`/`five`).
+  [one-notrump-competitive.md](docs/one-notrump-competitive.md) §N4e.
+
+- **`probe-decision` gained `PROBE_THEIR_2D_MULTI` and
+  `PROBE_MULTI_WEAK_ESCAPE`.**  Their `(2♦)` Multi is a `decision.their`
+  disclosure with no probe channel, so **every forensic in that lane was
+  silently probing the natural `(2♦)` leg**.
+
 ### Measured
+
+- **The N4-residue sd-lead files, written 2026-08-16 and never reported.**
+  `ab-results/2d-multi-residue/seed-{1,2,3}/sd.*.txt` (16 worlds, 230.4k bd
+  per cell) exist for every pair, and unlike the v1–v7 arms these pairs are
+  **0 foreign**, so the leak-inflation caveat does not apply.  `FitSearch` vs
+  base is sd-plain positive in all six cells (+0.0003…+0.0008/bd; three
+  CI-clear at NV, one vulnerable, two vulnerable cells on the CI boundary)
+  and sd-PD wash-to-positive (+0.0005/+0.0002/+0.0001 NV,
+  +0.0004/−0.0001/−0.0001 vul).  That is the **same** `plain win | PD wash`
+  doubling-artifact signature on a third scorer, not an escape from it, so
+  `multi_stopper_ask` **stays default `Off`** — no verdict moves.  The v7
+  verdict's "sd-lead could not arbitrate any round" is corrected to name
+  rounds v1–v7 only.
+  [one-notrump-competitive.md](docs/one-notrump-competitive.md) §N4 residue.
+
+- **The `(2♦)` bucket re-decomposed** on the shipped arms
+  (`ab-results/anchor-confirm/2026-08-21-1e9a47e2/`, seed 1787064872, 816
+  boards pooled).  Three of ten response rows carry −773 of the bucket's
+  −744 and everything else nets +29: **Pass** 264 bd −1.71/−0.86, **`X`**
+  200 bd −1.02 plain / **+0.67 PD** (the artifact), **`2♠`** 57 bd −2.07 —
+  and `2♠` is not separable from `2♥`'s +0.10 (a difference of 2.2 ± 2.3), so
+  **no suit gate is authored** on the natural escape.  The `X` lane gets no
+  new work: its one both-scorer-real sub-cell (`X (2♥) X (2♠)`, 35 bd,
+  −2.40/−0.80) is already owned by `multi_stopper_ask`, which stays `Off`.
+  Whole-board attribution, not a causal A/B.
+  [one-notrump-competitive.md](docs/one-notrump-competitive.md) §N4e.
+
+### Fixed
+
+- **Doc/code discrepancies flagged in the `(2♦)` lane, none silently
+  resolved.**  (1) `lebensohl_relay_shape`'s call-site comments claimed "6+
+  suit, **or** a 5-carder with the PD-distilled 6-HCP floor"; the code is
+  `any5 & hcp(6..)` flat, with no 6+ exemption — the comments now match the
+  code, and whether the exemption *should* exist is exactly what the N4e A/B
+  asks.  (2) §N4's advancer split (`probe-bba-constraints --mode advance-x`:
+  `2♠` 66.9% / `2♥` 33.0%) reads inverted against the census arms' realized
+  auctions over our double (`2♥` 155/200, `2♠` 45/200).  The probe reproduces
+  unchanged; the two measure different populations — its `2♠` bucket is
+  `hcp 6–18` (median 11), an advancer that strong rarely coexists with our
+  `hcp(6..)` double opposite 15-17 — so **size the `ran` shapes off the
+  conditional 77.5%**, and no code changes.  (3) The `18aba5ce…` smoke
+  constant §N4 quotes as current was re-based on 2026-08-16 and has moved
+  since; the doc now says to diff against `main` HEAD instead.
 
 - **N3 Round 8 — the suit-dependent leave-in gate REFUTED out-of-sample;
   nothing authored, and the shipped leave-in replicated on a fresh seed**

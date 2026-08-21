@@ -11,6 +11,9 @@
 //! which is what an anchor `floor#N` row was generated under.
 //! `PROBE_NT_HIGH_OVERCALL=1` (or `=transfers`) engages the default-off N3
 //! package over their three-level overcall of our `1NT`.
+//! `PROBE_THEIR_2D_MULTI=1` declares their `(2♦)` a Multi (§N4) — without it
+//! this lane silently probes the natural `(2♦)` leg — and
+//! `PROBE_MULTI_WEAK_ESCAPE=6|5` adds the default-off floorless weak escape.
 //!
 //! Born on the N2 forensic (`docs/one-notrump-competitive.md` §N2): opener
 //! after the weak Lebensohl sign-off read partner as `hcp 6..37`, every suit
@@ -104,6 +107,20 @@ fn main() {
         Ok("1") => agreements.competition.nt_high_overcall_responses = true,
         Ok("0") => agreements.competition.nt_high_overcall_responses = false,
         _ => {}
+    }
+    // Their `(2♦)` is a *disclosure* (`decision.their`), undeclared by default,
+    // and this probe had no channel for one — so every forensic in the N4 lane
+    // silently read the natural `(2♦)` leg.  `PROBE_MULTI_WEAK_ESCAPE=6` (or
+    // `5`) rides it with the default-off floorless escape.
+    match std::env::var("PROBE_THEIR_2D_MULTI").as_deref() {
+        Ok("0") => agreements.decision.their.two_diamonds_multi = false,
+        Ok(_) => agreements.decision.their.two_diamonds_multi = true,
+        Err(_) => {}
+    }
+    match std::env::var("PROBE_MULTI_WEAK_ESCAPE").as_deref() {
+        Ok("0") | Ok("off") => agreements.competition.multi_weak_escape = None,
+        Ok(n) => agreements.competition.multi_weak_escape = Some(n.parse().expect("a suit length")),
+        Err(_) => {}
     }
     // The anchor's instinct arm (`bba-gen --our-floor american-instinct`) is what
     // `boards.jsonl`'s `floor#N` provenance names, so replaying one of its rows

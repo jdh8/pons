@@ -766,6 +766,34 @@ pub struct CompetitionKnobs {
     /// [`FitSearch`]: MultiStopperAsk::FitSearch
     /// [`OpenerPlaces`]: MultiStopperAsk::OpenerPlaces
     pub multi_stopper_ask: MultiStopperAsk,
+    /// Minimum suit length that may escape their Multi with **no HCP floor**
+    ///
+    /// Over a declared `(2♦)` Multi, `None` (the shipped default) leaves both
+    /// weak outlets floored — the natural `2♥`/`2♠` wants a five-card major and
+    /// `hcp 5+` ([`Self::natural_floor`]), the `2NT` relay a five-card suit and
+    /// the PD-distilled `hcp 6+` — so **below 5 HCP `Pass` is the only finite
+    /// row in responder's table**.  The census
+    /// (`docs/one-notrump-competitive.md` §N4) prices that pass at −3.92 plain
+    /// / −4.84 PD per board on the `≤5 hcp, 6+ suit` class, the worst per-board
+    /// cell in the campaign; the relay lane those hands want measures −0.08
+    /// plain / +0.14 PD.
+    ///
+    /// `Some(n)` adds a floorless `len(suit, n..)` rung to both outlets — a
+    /// natural two-level major, or the relay for a long minor or diamond suit,
+    /// the only outlet those hold — drops opener's sign-off raise to the
+    /// matching floor so the reading and the game bar move together, and
+    /// authors the escape's interfered tail (`1NT (2♦) 2M (X/2♠/2NT/3x)`),
+    /// which the shipped lane leaves to the floor.
+    ///
+    /// `Some(6)` is the six-card arm: a six-card major is itself evidence their
+    /// Multi is the *other* major, which is what makes a two-level escape safer
+    /// here than over a natural overcall.  `Some(5)` additionally frees the
+    /// five-card band — the half the relay's PD-distilled floor was distilled
+    /// against — so it gets its own arm rather than riding along.
+    ///
+    /// **Default `None`** while `scripts/ab-2d-multi-escape.sh` runs.  No
+    /// effect while their `2♦` is undeclared or natural.
+    pub multi_weak_escape: Option<u8>,
     // --- competition/support_double.rs
     /// Support doubles/redoubles for the majors
     ///
@@ -895,6 +923,7 @@ impl Default for CompetitionKnobs {
             trap_pass: true,
             competitive_4333: Competitive4333::Suppress,
             multi_stopper_ask: MultiStopperAsk::Off,
+            multi_weak_escape: None,
             major_support_double: true,
             uvu_over_majors: true,
             uvu_over_minors: false,
