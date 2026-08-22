@@ -682,16 +682,52 @@ a natural advance, so there is nothing to disclose.
 
 ### Follow-ups this A/B opened
 
-- **`(1NT) 2x (X)` is still the floor.**  M2 authors only the `-` tail.  The
-  contested tail shows up in the worst-board dumps (`1NT 2♠ X 2NT`, the floor
-  bidding the very notrump rung M2 removed over a pass), but a `--show` tail is
-  a selected worst tail, not a population claim — this is a lead to price, not
-  a measured hole.  The `(X)` bucket is the lane's **best** on the forensic
-  census (1135 bd, +450 plain / +729 PD), so widening M2 there needs its own
-  arm.
+- **`(1NT) 2x (X)` is still the floor; the census below closes widening it as
+  below resolution.**  M2 authors only the `-` tail.  The contested tail shows
+  up in the worst-board dumps (`1NT 2♠ X 2NT`, the floor bidding the very
+  notrump rung M2 removed over a pass), but a `--show` tail is a selected worst
+  tail, not a population claim.  The `(X)` bucket is the lane's **best** on the
+  forensic census (1135 bd, +450 plain / +729 PD).
 - **The `k = 9` arm**, above.
 - **The 8-vs-11 floor gap** against a suit opening, still open and still
   proposed as "leave it".
+
+#### `(1NT) 2x (X)` census — closed below resolution (2026-08-23)
+
+The gate was registered before reading the output: build only if a non-Pass
+advance is negative on both scorers at both vulnerabilities and costs at least
+M2's ≈0.0013 plain IMPs per board of an arm.  The source is the pre-ship
+`053c4fb8` anchor population (loose overcall, unauthored advance), read with
+`probe-1nt-interference --table b --responses 1` across all four suits.  M1 has
+since cut about 12% of the overcall population; the `(X)` tail's floor behaviour
+is unchanged.  As above, **these rank, they do not isolate**.
+
+Each vulnerability cell is `boards / plain total / PD total / plain total ÷
+204800`; the pooled cell is `boards / plain total / PD total / plain per board /
+PD per board`.
+
+| our advance | non-vul | vulnerable | pooled |
+| --- | ---: | ---: | ---: |
+| Pass | 1159 / +213 / +562 / +0.001040 | 1222 / +330 / +661 / +0.001611 | 2381 / +543 / +1223 / +0.228 / +0.514 |
+| `2NT` | 1 / 0 / 0 / 0 | 2 / −2 / −2 / −0.000010 | 3 / −2 / −2 / −0.667 / −0.667 |
+| `2♥` | 34 / −3 / −11 / −0.000015 | 36 / −20 / −47 / −0.000098 | 70 / −23 / −58 / −0.329 / −0.829 |
+| `2♠` | 48 / +43 / −22 / +0.000210 | 49 / +41 / −16 / +0.000200 | 97 / +84 / −38 / +0.866 / −0.392 |
+| `3♣` | 5 / −10 / −19 / −0.000049 | 5 / −17 / −31 / −0.000083 | 10 / −27 / −50 / −2.700 / −5.000 |
+| `3♦` | 5 / +11 / −7 / +0.000054 | 4 / +1 / −20 / +0.000005 | 9 / +12 / −27 / +1.333 / −3.000 |
+| `3♥` | 35 / +53 / +5 / +0.000259 | 27 / −1 / −58 / −0.000005 | 62 / +52 / −53 / +0.839 / −0.855 |
+| `3♠` | 27 / +84 / +46 / +0.000410 | 34 / +65 / +5 / +0.000317 | 61 / +149 / +51 / +2.443 / +0.836 |
+| `4♥` | 1 / +12 / +12 / +0.000059 | 2 / −3 / −3 / −0.000015 | 3 / +9 / +9 / +3.000 / +3.000 |
+| `4♠` | 4 / −29 / −32 / −0.000142 | 5 / −54 / −56 / −0.000264 | 9 / −83 / −88 / −9.222 / −9.778 |
+| `XX` | 0 / 0 / 0 / 0 | 2 / +4 / +11 / +0.000020 | 2 / +4 / +11 / +2.000 / +5.500 |
+| **non-Pass total** | **160 / +161 / −28 / +0.000786** | **166 / +14 / −217 / +0.000068** | **326 / +175 / −245 / +0.537 / −0.752** |
+
+Sanity gate: the `2♦` rows contribute 562/573 `X` boards non-vul/vulnerable,
+exactly the forensic's pooled 1135.  The decision gate does **not** open: the
+whole non-Pass mass is plain-positive at both vulnerabilities.  The only calls
+negative on both scorers in both arms are `2♥`, `3♣`, and `4♠`; the largest
+plain arm cost among them is `4♠` at −0.000142/−0.000264, still about 5×
+below the resolution floor in its worse arm.  Close the contested-tail
+follow-up as below resolution, the same limit M2 itself carries; no build or A/B.
 
 **Pre-registered reading** (before running, per
 [measurement.md](measurement.md) and its domain addendum): M1 is a knob that
