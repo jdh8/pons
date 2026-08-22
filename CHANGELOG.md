@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`probe-1nt-interference` can dump the mirror table.**  `--table b` re-aims
+  `--show`/`--next` at the boards where *they* opened 1NT and **we** overcalled
+  (same `-only` cut as the B panel), `--show-score pd` sorts by the
+  perfect-defense swing instead of plain DD, and every shown board is now
+  solved even when the two tables agreed — so a dump carries both contracts
+  with their plain **and** PD scores, all four seats' double-dummy tricks, and
+  the acting hand's point count.  The census tables are unchanged.  No bidding
+  change.
+
 - **Three opt-in knobs for the `1NT (2♦)` Multi lane**, all default-off and all
   inert while their `2♦` is undeclared (`smoke-default` `39ca60a2…`
   byte-identical).  Each owes its own arm; `scripts/ab-2d-multi-balance.sh`
@@ -142,6 +151,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   silently probing the natural `(2♦)` leg**.
 
 ### Measured
+
+- **The N4-mirror lane forensic — our natural `2♦` overcall of *their* 1NT.**
+  Both anchor-confirm arms (`2026-08-22-053c4fb8`, the same 204,800 deals at
+  two vulnerabilities), whole `2♦` lane, `B-only`: **2139 bd, +696 plain /
+  −397 PD**.  The campaign's `−558 PD` was the `BBA passes` row of the non-vul
+  arm alone; the `X` row is +450/+729 and `3NT` +319/+328, and ~half of the
+  `Pass` row sits at **table A**, where a 1NT-defense knob is inert.  BBA's `X`
+  over our `2♦` is **takeout** — 0 of 1135 boards ended in `2♦x` — so perfect
+  defense's double is the honest pessimistic end here, not an artifact to
+  discount.  The gateable leak is the **≤7-HCP tail** that `points(8..=14)`
+  admits through distribution points (264 bd, **−120 plain / −158 PD**, negative
+  on both scorers at both vulnerabilities; HCP is monotone through the band),
+  plus the **unauthored advance**: `(1NT) 2♦ (P)` has no book node, and the
+  floor's `2NT` fires on 33 bd at **−4.09 plain / −8.64 PD per board**, failing
+  26 times.  Two candidates (M1 HCP floor, M2 authored advance) with a
+  pre-registered `[plain DD, SD-PD]` decision rule; nothing shipped, no default
+  moved.
+  [defensive-overcalls.md](docs/defensive-overcalls.md#defense-to-their-1nt--the-1nt-2-mirror-panel-forensic-2026-08-23).
 
 - **The N4-residue sd-lead files, written 2026-08-16 and never reported.**
   `ab-results/2d-multi-residue/seed-{1,2,3}/sd.*.txt` (16 worlds, 230.4k bd

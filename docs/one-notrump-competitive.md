@@ -208,7 +208,7 @@ default-off
 | # | Package | Knob | State |
 | --- | --- | --- | --- |
 | **N4f** | **opener's balancing seat + the two Multi reading knobs** — `multi_balance`, `their_multi_advance_reading`, `their_multi_double_reading` | three knobs (**all off**) | **Measured ×2 rounds 2026-08-22 (4 seed-sets, 24 pairs, all 0 foreign): nothing ships.** `balance` is **below this harness's resolution** — ~18 bd per 230,400, signs flipping between rounds, pooled ≈ −0.00003 IMPs/bd; unresolved, wants an sd re-measure or a sub-lane harness. `xfloor` is a wash. `advance`'s round-1 loss was its bundled `♥3+ & ♠3+` claim (probed false), now removed; suppression-only diverges on **6 boards in 1.84 m** — the false read is **inert**. Its correctness-only default flip was withdrawn; flip it when a contested-floor retrain or a package consumes the advancer's length |
-| **N4-mirror** | **our `2♦` overcall of *their* 1NT**, passed out — plain +0.21, **PD −3.38/bd** on 165 isolated boards, **−558 PD IMPs** | — (defensive lane) | Found while pricing N4f from the census's never-quoted table-B panel. **−0.0027 IMPs/bd of the arm**, larger than this whole campaign's headroom, from one call. Belongs to [defensive-overcalls.md](defensive-overcalls.md) / `nt_defense.rs`, not here; filed so it is not lost |
+| **N4-mirror** | **our `2♦` overcall of *their* 1NT** | — (defensive lane) | **Handed over 2026-08-23, and the headline shrank.** The forensic (both arms, whole lane) reads **2139 bd, +696 plain / −397 PD**; the `−558` was the `BBA passes` row of the non-vul arm alone, and ~half of even that sits at **table A**, where a 1NT-*defense* knob is inert. BBA's `X` over our `2♦` is **takeout** (0 of 1135 ended in `2♦x`), so PD's double is the honest pessimistic end, not an artifact. Two candidates now live in [defensive-overcalls.md](defensive-overcalls.md#defense-to-their-1nt--the-1nt-2-mirror-panel-forensic-2026-08-23): **M1** an HCP floor (the ≤7-HCP tail `points(8..)` admits is −120 plain / −158 PD, negative on both scorers at both vuls) and **M2** the unauthored advance (`2NT` fires on 33 bd at −4.09/bd plain, failing 26 times). Nothing for this campaign to build |
 | **N3-x** | **`X` over their `(4x)`** — the floor cannot double above the three level at all (`their_live_bid_at_most(3)`, [instinct.rs:6058](../src/bidding/instinct.rs)), and BBA's advancer sits for our double on **96.7–99.9%** of hands | new (book) | Current `4+` bucket 38 bd / −43 plain / −45 PD, −1.13/bd on a CI that swallows the total. The `(3x)` template does **not** widen — their four-level overcalls are *eight*-card suits, six times rarer than the three-level rows — so this is an uncontested opportunity to size, not a copy |
 | **N2d** | relay with a 6+ suit below 6 HCP, over `(2♠)` only (the weak major has no two-level call there) | book | **Re-read 2026-08-21: 25 bd, −77 plain / −52 PD, −3.08/bd** — still the worst hand class in the lane, and negative on both scorers. Contradicts the PD-distilled floor ([`lebensohl_relay_shape`](../src/bidding/american/competition/lebensohl.rs)); against Muiderberg the alternative is a making `2♠`, and BBA at table B bids these hands un-overcalled. Needs the A/B, not a re-derivation |
 | N5 | Complete Jacoby, then re-measure | `competition_over_transfer` | default-off on a measured loss *while missing its two most-fired cells* — `(2♥)` over our `2♦` and `(2♠)` over our `2♥`, i.e. they bid the major we are transferring to ([over_our_jacoby.rs:100-103](../src/bidding/american/competition/over_our_jacoby.rs)) — a half-built loss, resumable |
@@ -1351,6 +1351,25 @@ the *entire* contested-1NT lane's headroom (0.0053 NV / 0.0014 vul), from one
 call. That is our **defense to their 1NT** ([defensive-overcalls.md](defensive-overcalls.md),
 `nt_defense.rs`), not this campaign, and nothing here touches it — but it is the
 biggest single number this round produced and it should be somebody's package.
+
+**Corrected 2026-08-23 by the N4-mirror forensic** — keep the table above as
+the record of what was seen, not as the lane's price.  Three things the panel
+row could not show:
+
+- It is **one arm**.  The vulnerable arm's `Pass` row is worse (174 bd, −244
+  plain / −971 PD), and the two arms are the *same* 204,800 deals at two
+  vulnerabilities.
+- It is **one post-hoc sub-bucket**, selected by an opponent action we cannot
+  see at bid time.  The whole `2♦` lane, both arms, is **2139 bd, +696 plain /
+  −397 PD**; the `X` row alone is +450 / +729 and `3NT` is +319 / +328.
+- Roughly **half** of the `Pass` row is table-A: on those boards *we* are the
+  1NT opener and no 1NT-defense knob can move them (raw points −4,170 plain /
+  −39,520 PD at table A against −4,000 / −39,400 at table B).
+
+The lane's real, gateable leak is the **≤7-HCP tail** that `points(8..=14)`
+admits through distribution points, plus the unauthored advance.  Full
+forensic, candidates and pre-registered decision rule:
+[defensive-overcalls.md](defensive-overcalls.md#defense-to-their-1nt--the-1nt-2-mirror-panel-forensic-2026-08-23).
 
 ## N2 — Muiderberg `(2♥)/(2♠)`: the lane today
 

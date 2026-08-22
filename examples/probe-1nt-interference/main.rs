@@ -31,6 +31,20 @@
 //! "P P P"` dumps the worst boards of one continuation with the dealer,
 //! responder's hand and the DD makes.
 //!
+//! `--table b` re-aims `--show`/`--next` at the **mirror** lane — *they* open
+//! 1NT and we overcall — cut like the B panel to boards where our own 1NT was
+//! uncontested or absent, with the acting hand printed as our overcaller;
+//! `--show-score pd` ranks by the perfect-defense swing.  Each dumped board
+//! carries both contracts with their plain and PD scores, so the gap between
+//! the two columns reads off directly as perfect defense's synthetic double.
+//!
+//! `--table b` re-aims `--show`/`--next` at the **mirror** lane — *they* open
+//! 1NT and we overcall — cut like the B panel to boards where our own 1NT was
+//! uncontested or absent, with the acting hand printed as our overcaller;
+//! `--show-score pd` ranks by the perfect-defense swing.  Each dumped board
+//! carries both contracts with their plain and PD scores, so the gap between
+//! the two columns reads off directly as perfect defense's synthetic double.
+//!
 //! **What this can and cannot say.**  The swing is the *board's* IMPs, not the
 //! interference decision's: the same deal may also have BBA opening 1NT at
 //! table B with us defending, and every later call is in there too.  So the
@@ -72,15 +86,41 @@ struct Args {
     /// than this fold into `other`.
     #[arg(long)]
     responses: Option<usize>,
-    /// With `--show`: only boards whose table-A calls after the overcall
-    /// start with this, e.g. `"P P P"` or `"2NT"`
+    /// With `--show`: only boards whose calls after the overcall start with
+    /// this, e.g. `"P P P"` or `"2NT"`, on the `--table` being shown
     #[arg(long, default_value = "")]
     next: String,
+    /// Which table `--show`/`--next` read: `a` (we open 1NT, they interfere)
+    /// or `b` — the mirror lane, *they* open 1NT and we overcall, cut like the
+    /// `-only` panel to boards where our own 1NT was uncontested or absent
+    #[arg(long, default_value = "a")]
+    table: String,
+    /// Sort `--show` by `plain` double-dummy or `pd` perfect-defense swing
+    #[arg(long, default_value = "plain")]
+    show_score: String,
 }
 
 /// A deal's cache key: its serde string, as `bba-decompose` writes it
 fn deal_key(deal: &FullDeal) -> String {
     serde_json::to_string(deal).expect("a deal serializes")
+}
+
+/// Solve every deal in `idxs` the cache is missing.  The census only needs the
+/// divergent set; `--show` also prints boards whose two tables agreed, and those
+/// need a table too if the dump is to carry their scores.
+fn solve_missing(cache: &mut HashMap<String, TrickCountTable>, boards: &[Board], idxs: &[usize]) {
+    let missing: Vec<usize> = idxs
+        .iter()
+        .copied()
+        .filter(|&i| !cache.contains_key(&deal_key(&boards[i].deal)))
+        .collect();
+    for chunk in missing.chunks(4096) {
+        let deals: Vec<FullDeal> = chunk.iter().map(|&i| boards[i].deal).collect();
+        let solved = Solver::lock(None).solve_deals(&deals, NonEmptyStrainFlags::ALL);
+        for (&i, table) in chunk.iter().zip(solved) {
+            cache.insert(deal_key(&boards[i].deal), table);
+        }
+    }
 }
 
 /// Load every `shard-*.json` in a dir, concatenated, plus the dump vulnerability.
@@ -255,18 +295,7 @@ fn main() {
         divergent.len(),
         divergent.len() - hits
     );
-    let missing: Vec<usize> = divergent
-        .iter()
-        .copied()
-        .filter(|&i| !cache.contains_key(&deal_key(&boards[i].deal)))
-        .collect();
-    for chunk in missing.chunks(4096) {
-        let deals: Vec<FullDeal> = chunk.iter().map(|&i| boards[i].deal).collect();
-        let solved = Solver::lock(None).solve_deals(&deals, NonEmptyStrainFlags::ALL);
-        for (&i, table) in chunk.iter().zip(solved) {
-            cache.insert(deal_key(&boards[i].deal), table);
-        }
-    }
+    solve_missing(&mut cache, &boards, &divergent);
 
     let mut plain = vec![0i64; boards.len()];
     let mut pd = vec![0i64; boards.len()];
@@ -294,6 +323,22 @@ fn main() {
                 entry.1.push(pd[index]);
             }
         }
+    }
+
+    // `--table b` re-aims `--show` at the mirror lane: BBA opens 1NT and *we*
+    // overcall.  Same `-only` cut as the panel, so the board's swing is one
+    // lane's, not a blend of both tables' 1NT fights.
+    let mirror = args.table == "b";
+    if mirror {
+        shown = boards
+            .iter()
+            .enumerate()
+            .filter(|(_, b)| {
+                matches!(classify_auction(&b.table_b, b.dealer), Class::Contested(ref l, _) if *l == args.bucket)
+                    && !matches!(classify_auction(&b.table_a, b.dealer), Class::Contested(..))
+            })
+            .map(|(i, _)| i)
+            .collect();
     }
 
     let uncontested = quiet.len();
@@ -529,29 +574,38 @@ fn main() {
     }
 
     if args.show > 0 {
-        shown.sort_by_key(|&i| plain[i]);
+        let by_pd = args.show_score == "pd";
+        fn pick(b: &Board, mirror: bool) -> &[Call] {
+            if mirror { &b.table_b } else { &b.table_a }
+        }
+        shown.sort_by_key(|&i| if by_pd { pd[i] } else { plain[i] });
         println!(
-            "\n--- {} worst plain boards in {} ---",
-            args.show, args.bucket
+            "\n--- {} worst {} boards in {} (table {}) ---",
+            args.show, args.show_score, args.bucket, args.table
         );
         let picked: Vec<usize> = shown
             .iter()
             .copied()
             .filter(|&i| {
-                let Class::Contested(_, open) = classify(&boards[i]) else {
+                let Class::Contested(_, open) =
+                    classify_auction(pick(&boards[i], mirror), boards[i].dealer)
+                else {
                     return false;
                 };
-                next_calls(&boards[i].table_a, open + 1, 3).starts_with(&args.next)
+                next_calls(pick(&boards[i], mirror), open + 1, 3).starts_with(&args.next)
             })
             .take(args.show)
             .collect();
+        solve_missing(&mut cache, &boards, &picked);
         for &i in &picked {
             let b = &boards[i];
-            let Class::Contested(_, open) = classify(b) else {
+            let Class::Contested(_, open) = classify_auction(pick(b, mirror), b.dealer) else {
                 unreachable!()
             };
-            let responder = seat_to_act(b.dealer, open + 2);
-            let hand = b.deal[responder];
+            // Table A's focus hand is our responder over their interference; the
+            // mirror's is our overcaller, one seat earlier.
+            let focus = seat_to_act(b.dealer, open + if mirror { 1 } else { 2 });
+            let hand = b.deal[focus];
             let hcp: u8 = [
                 contract_bridge::Suit::Clubs,
                 contract_bridge::Suit::Diamonds,
@@ -561,6 +615,7 @@ fn main() {
             .into_iter()
             .map(|s| contract_bridge::eval::hcp::<u8>(hand[s]))
             .sum();
+            let pts = pons::bidding::constraint::point_count(hand);
             let table = cache.get(&deal_key(&b.deal));
             let dd = |seat: Seat| {
                 table.map_or("?".to_owned(), |t| {
@@ -577,16 +632,37 @@ fn main() {
                     .join(" ")
                 })
             };
+            let (ca, cb) = contracts[i];
+            let name =
+                |c: Reached| c.map_or("passed out".to_owned(), |(k, s)| format!("{k} by {s:?}"));
+            // Plain/PD side by side per table: the gap between them IS perfect
+            // defense's synthetic double of a failing undoubled contract.
+            let score = |c: Reached| {
+                table.map_or("?/?".to_owned(), |t| {
+                    format!(
+                        "{}/{}",
+                        ns_score_contract(c, t, vul),
+                        ns_score_pd(c, t, vul)
+                    )
+                })
+            };
             println!(
-                "[{:+} plain / {:+} PD] dealer {:?}, responder {responder:?} {hand} ({hcp} hcp)\n  {}\n  us:  {}\n  bba: {}\n  DD N: {}   E: {}",
+                "[{:+} plain / {:+} PD] dealer {:?}, {} {focus:?} {hand} ({hcp} hcp, {pts} pts)\n  {}\n  us:  {}\n  bba: {}\n  A: {} {}   B: {} {}\n  DD N: {}   E: {}\n  DD S: {}   W: {}",
                 plain[i],
                 pd[i],
                 b.dealer,
+                if mirror { "overcaller" } else { "responder" },
                 b.deal,
                 b.table_a,
                 b.table_b,
+                name(ca),
+                score(ca),
+                name(cb),
+                score(cb),
                 dd(Seat::North),
                 dd(Seat::East),
+                dd(Seat::South),
+                dd(Seat::West),
             );
         }
         let p: Vec<i64> = picked.iter().map(|&i| plain[i]).collect();

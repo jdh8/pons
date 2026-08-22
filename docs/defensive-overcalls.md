@@ -440,6 +440,169 @@ here; the transferable lesson is there too — `bar` fired on 0.07–0.10% of bo
 because the residue was counted over a corpus scoped differently from the node's
 trigger. Price the trigger density before building.
 
+## Defense to their **1NT** — the `(1NT) 2♦` mirror panel (forensic, 2026-08-23)
+
+A different node from everything above: `chain_natural_overcalls`
+([nt_defense.rs:95](../src/bidding/american/defense/nt_defense.rs)), the four
+natural two-level overcalls of *their* 1NT, gated `len(suit,5..) &
+points(8..=14)` (`natural_overcall_points`, weight 100, **no vulnerability
+gate, no alert, no authored advance**).  Filed here because it is "they open,
+we act"; the competitive-1NT campaign found it while pricing N4f and handed it
+over ([one-notrump-competitive.md](one-notrump-competitive.md) §N4-mirror).
+
+**Source.** Anchor arms
+`ab-results/anchor-confirm/2026-08-22-053c4fb8/american-{none,both}`, read with
+`probe-1nt-interference --table b --bucket "2♦"` (the `--table` / `--show-score`
+flags and the solve-every-shown-board pass were added for this forensic).  The
+two arms are the **same 204,800 deals at two vulnerabilities**, not 409,600
+independent boards.  Numbers are board swings on the `B-only` cut (our own 1NT
+uncontested or absent at table A) — they **rank, they do not isolate**.
+
+### The campaign row quoted one sub-bucket of one arm
+
+The whole lane, both arms pooled — every board where BBA opened 1NT and we
+overcalled `2♦`:
+
+| arm | bd | plain | **PD** | plain/bd | **PD/bd** |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| non-vul | 1060 | +464 | +24 | +0.438 | +0.023 |
+| vulnerable | 1079 | +232 | −421 | +0.215 | −0.390 |
+| **pooled** | **2139** | **+696** | **−397** | **+0.325** | **−0.186** |
+
+The headline `−558 PD` was the **`BBA passes` row of the non-vul arm alone**.
+Split by BBA's response, pooled:
+
+| BBA's response to our `2♦` | bd | plain | PD | plain/bd | PD/bd |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `X` (takeout — see below) | 1135 | +450 | +729 | +0.396 | +0.642 |
+| **Pass** | **339** | **−209** | **−1529** | **−0.617** | **−4.510** |
+| `3NT` | 102 | +319 | +328 | +3.127 | +3.216 |
+| `2♥` | 134 | +122 | +111 | +0.910 | +0.828 |
+| `2♠` | 120 | +121 | +56 | +1.008 | +0.467 |
+| `3♣` | 98 | −57 | −54 | −0.582 | −0.551 |
+| `2NT` | 73 | −51 | −48 | −0.699 | −0.658 |
+| `4♠` / `4♥` / rare | 138 | +1 | +10 | — | — |
+
+The overcall is not a hole; it is a lane that wins on plain DD and pays it back
+under perfect defense, with one pathological sub-bucket.  Deleting the call
+would give up the `X` and `3NT` rows too, and `Pass` is not selectable at bid
+time.
+
+### Two structural facts the sub-bucket rests on
+
+**1. BBA cannot penalty-double our two-level overcall.** Of the 1135 boards
+where BBA's responder doubled our `2♦`, **zero** ended in `2♦x`: the ladder is
+`X P 2♥` (229), `X P 2♠` (156), `X P 3♦` (153), and the final contracts are
+`3NT` ×200, `3♠` ×160, `3♥` ×155, `2♠` ×129, `4♥` ×120, `4♠` ×108.  Their `X`
+is takeout.  So "BBA, a competent doubler, declined to double" is **not**
+evidence that PD over-prices this lane — BBA structurally never gets the
+chance, and a real field playing penalty doubles of a natural 1NT overcall
+would.  The PD column here is the honest pessimistic end of the bracket, not a
+`ns_score_pd` artifact to wave away.
+
+**2. Half of the `Pass` sub-bucket is at the other table and unreachable.**
+Mean *our* raw score per board: at table B (we hold the `2♦` hand)
+−151 plain / −125 PD across the lane, at table A (we are the 1NT **opener**,
+BBA holds the same cards and passes) +167 plain / +118 PD.  On the `Pass`
+sub-bucket those become −12 / −116 and −12 / −117 — i.e. the `Pass` boards are
+~180 points/board worse than the lane at table A too, and a 1NT-*defense* knob
+cannot move table A on these boards at all.  In raw points the `Pass` bucket's
+deficit splits −4,170 plain / −39,520 PD at table A against −4,000 / −39,400 at
+table B: **roughly half the row is not ours to fix.**
+
+### Where the loss is, on axes we can gate
+
+Every board in the lane sits inside `points(8..=14)` — the rule owns the node,
+nothing leaks from the floor.  But `point_count` is HCP **plus distribution**,
+so the 8-point floor admits 6- and 7-HCP hands (a 5-5 six-count reaches 8).
+Split by the overcaller's raw HCP:
+
+| HCP at the overcall | bd | plain | PD | plain/bd | PD/bd |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| **≤ 7** | **264** | **−120** | **−158** | **−0.455** | **−0.598** |
+| 8–9 | 833 | +210 | −259 | +0.252 | −0.311 |
+| 10–11 | 679 | +325 | −7 | +0.479 | −0.010 |
+| 12–13 | 295 | +274 | +59 | +0.929 | +0.200 |
+| 14+ | 68 | +7 | −32 | +0.103 | −0.471 |
+
+Monotone from ≤7 to 12–13 on **both** scorers, and the ≤7 rung is the only
+slice in the whole forensic that is negative on both scorers at both
+vulnerabilities (non-vul −43 plain / −66 PD, vul −77 / −92).  It is 12.3% of
+the lane and sits entirely at rule-points 8 (207 bd) and 9 (57 bd) — a strict
+refinement inside the two bottom rungs, not a blunt band move.
+
+Priced as "boards a tightening would remove" (removal does **not** recover
+these IMPs — those hands would pass into an unmeasured elsewhere; this ranks
+candidates, an A/B decides):
+
+| candidate cut | bd | plain | PD | nv plain/PD | vul plain/PD |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| **HCP floor 8** (drop hcp ≤7) | 264 | **−120** | **−158** | −43 / −66 | −77 / −92 |
+| HCP floor 9 (drop hcp ≤8) | 712 | −73 | −438 | +1 / −156 | −74 / −282 |
+| points floor 8→9 | 439 | −24 | −198 | −7 / −66 | −17 / −132 |
+| points floor 8→11 | 1273 | **+140** | −489 | +128 / −128 | +12 / −361 |
+| points ceiling 14→13 | 122 | +55 | −39 | +45 / +2 | +10 / −41 |
+
+Only the HCP floors cut a slice that is losing on plain DD as well.  The blunt
+points-floor row is the `plain win / PD loss` shape §O4 already chased and lost
+with — its 2026-08-12 refutation of `two_level_minor_overcall_tight` measured
+**plain −0.0102 ±0.0021 NV**, mechanism "declare-vs-defend switch", conclusion
+*points are the wrong axis*.  That precedent argues against the points band and
+for the HCP refinement; it is also the reason to expect a tightening here to
+give something back.
+
+For orientation, our natural two-level overcall of a **suit** opening has a
+floor of **11 points** ([Implemented state](#implemented-state)); over their
+*strong notrump*, where our side is capped near 25 HCP and has no sacrifice to
+buy, the same call is authored **three points looser**.
+
+### The unauthored advance is the worst per-board cell
+
+`(1NT) 2♦ (P)` has no authored node, so our advance is the instinct floor:
+
+| our advance | bd | plain | PD | plain/bd | PD/bd |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pass | 148 | +20 | −629 | +0.135 | −4.250 |
+| `2♥` | 57 | −55 | −244 | −0.965 | −4.281 |
+| `2♠` | 53 | −11 | −182 | −0.208 | −3.434 |
+| **`2NT`** | **33** | **−135** | **−285** | **−4.091** | **−8.636** |
+| `3♦` | 19 | −14 | −73 | −0.737 | −3.842 |
+| rest | 29 | −14 | −116 | — | — |
+
+The `2NT` advance fails on **26 of 33** boards (down 1 ×13, down 2 ×7,
+down 3 ×4, down 4 ×2).  Worst board, non-vul: overcaller `96.A9532.Q7543.3`
+(6 HCP, 8 points) bids `2♦` over `1NT`; advancer `J32.KJ4.T96.AQ95` — flat,
+11 HCP, three diamonds — bids `2NT` **into** a 15–17 opener, and plays it four
+down (−200 plain, −800 PD).  That is the iron rule's unauthored continuation,
+firing on 17 combined HCP.  Absolute size is small (−135 plain in the `2♦`
+lane; ×4 suits ≈ −0.0013 IMPs/bd of an arm), so it is a correctness fix that
+rides a package, **not** something an A/B can resolve alone.
+
+### Candidates
+
+- **M1 — HCP floor on the natural two-level overcall of their 1NT.**  Add
+  `& hcp(k..)` to `chain_natural_overcalls`, as a new
+  `DefenseKnobs::natural_overcall_hcp_floor: u8` with `0` inert so the default
+  stays byte-identical.  Do **not** move `natural_overcall_points`: it is a
+  *reading* knob shared with the DONT and Meckwell one-suiter floors
+  ([nt_dont.rs](../src/bidding/american/defense/nt_dont.rs),
+  [nt_meckwell.rs](../src/bidding/american/defense/nt_meckwell.rs)) and with the
+  Dutch profile's `(9, 13)`.  Arms `k ∈ {8, 9}` against the shipped default.
+- **M2 — author the `(1NT) 2x (P)` advance.**  Pass as the finite catch-all,
+  raise on support, `2NT`/`3NT` only on a real stopper plus values, new suit
+  natural and non-forcing.  Completes the convention so M1 is measured against
+  a live continuation, per the iron rule.
+
+**Pre-registered reading** (before running, per
+[measurement.md](measurement.md) and its domain addendum): M1 is a knob that
+**bids less**, against an anchor that **cannot double**.  Plain DD is therefore
+the *optimistic* end for the loose default (it never charges the overcall a
+double BBA never makes) and the *pessimistic* end for the tightening; PD is the
+reverse.  The arbiter is the realism pair **[plain DD, SD-PD]**
+(measurement.md:188-212), both vulnerabilities, two seeds.  Ship default-on
+only on a non-loss on plain DD **and** a win on SD-PD; a plain-DD loss with a
+PD win is the §O4 shape and stays an opt-in knob.
+
 ## Out of scope (decided, not deferred by neglect)
 
 - **Balancing/reopening seat** — stays with the floor lever (B2 item 0, the
