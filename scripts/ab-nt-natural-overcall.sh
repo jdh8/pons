@@ -61,8 +61,20 @@
 #   * Round 1 (seed set 1) is a SCREEN, not a ship verdict; seed set 2 replicates.
 #     `SEED_BASE` is persisted per set so a killed run resumes on the same seeds.
 #
+# POLARITY, since the package SHIPPED 2026-08-23: both knobs are now the
+# default, so `base` is the arm carrying flags (`--ns-nt-overcall-hcp-floor 0
+# --no-ns-nt-overcall-advance`) and the treatment arm is bare.  A re-measure that
+# forgets this measures nothing — check `arm base` still pins both OFF before
+# quoting any number.
+#
 # Headline is IMPs per *accepted* deal (`--filter-1nt` is applied before any
 # bidding, so an arm's boards ARE its accepted deals).
+#
+# RESULT: `pack` ran 2026-08-23 and SHIPPED — see the A/B table in
+# docs/defensive-overcalls.md.  `ab-results/nt-natural-overcall/` holds those
+# arms, generated under the PRE-ship polarity (base bare, pack8 flagged); they
+# are not resumable against this script as it now stands.  Point a re-measure at
+# a fresh results dir.
 #
 # Resumable: each seed set owns its seed, arms, probes and diffs.  Iron rule:
 # do NOT rebuild binaries while this runs.
@@ -95,28 +107,32 @@ for seed_set in 1 2; do
     SEED_BASE=$(seed_for nt-natural-overcall)
     log "=== nt-natural-overcall $MODE seed=$seed_set SEED_BASE=$SEED_BASE sha=$SHA shards=$SHARDS x $PER_SHARD bd/arm/vul"
 
+    # The pre-ship system: both knobs pinned off.  OFF_FLAGS is also the
+    # disclosure the blind leader needs for whichever arm carries them.
+    OFF_FLAGS="--ns-nt-overcall-hcp-floor 0 --no-ns-nt-overcall-advance"
     for v in none both; do
-        arm base "$v" --filter-1nt
+        # shellcheck disable=SC2086
+        arm base "$v" --filter-1nt $OFF_FLAGS
         case "$MODE" in
         pack)
-            arm pack8 "$v" --filter-1nt \
-                --ns-nt-overcall-hcp-floor 8 --ns-nt-overcall-advance
+            arm pack8 "$v" --filter-1nt
             compare pack8 base "$v" \
-                --on-ns-nt-overcall-hcp-floor 8 --on-ns-nt-overcall-advance
+                --off-ns-nt-overcall-hcp-floor 0 --off-no-ns-nt-overcall-advance
             ;;
         nine)
-            arm pack9 "$v" --filter-1nt \
-                --ns-nt-overcall-hcp-floor 9 --ns-nt-overcall-advance
-            compare pack9 base "$v" \
-                --on-ns-nt-overcall-hcp-floor 9 --on-ns-nt-overcall-advance
+            arm pack9 "$v" --filter-1nt --ns-nt-overcall-hcp-floor 9
+            compare pack9 base "$v" --on-ns-nt-overcall-hcp-floor 9 \
+                --off-ns-nt-overcall-hcp-floor 0 --off-no-ns-nt-overcall-advance
             ;;
         # Reserve: bisect a package verdict into its two halves.  M2 alone is
         # below resolution by construction — it is here to attribute, not to judge.
         bisect)
-            arm m1 "$v" --filter-1nt --ns-nt-overcall-hcp-floor 8
-            arm m2 "$v" --filter-1nt --ns-nt-overcall-advance
-            compare m1 base "$v" --on-ns-nt-overcall-hcp-floor 8
-            compare m2 base "$v" --on-ns-nt-overcall-advance
+            arm m1 "$v" --filter-1nt --no-ns-nt-overcall-advance
+            arm m2 "$v" --filter-1nt --ns-nt-overcall-hcp-floor 0
+            compare m1 base "$v" --on-no-ns-nt-overcall-advance \
+                --off-ns-nt-overcall-hcp-floor 0 --off-no-ns-nt-overcall-advance
+            compare m2 base "$v" --on-ns-nt-overcall-hcp-floor 0 \
+                --off-ns-nt-overcall-hcp-floor 0 --off-no-ns-nt-overcall-advance
             ;;
         *) echo "unknown mode $MODE (want pack|nine|bisect)" >&2; exit 2 ;;
         esac

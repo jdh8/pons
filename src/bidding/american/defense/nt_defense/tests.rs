@@ -20,25 +20,29 @@ fn always_pass_defense_passes_over_1nt() {
 /// M1: the raw-HCP floor cuts the tail `points(8..)` admits through distribution
 ///
 /// `96.A9532.Q7543.3` is the forensic's worst `2♦` overcaller — 6 HCP, 8 points
-/// through 5-5 shape. It overcalls on the shipped default and passes at floor 8.
+/// through 5-5 shape. The shipped floor of 8 passes it; `0` restores the overcall.
 #[test]
 fn natural_overcall_hcp_floor_cuts_the_shapely_tail() {
     let over_1nt = [call(1, Strain::Notrump)];
     let hand = "96.A9532.Q7543.3";
     let shipped = Agreements::default();
     assert_eq!(
-        shipped.defense.natural_overcall_hcp_floor, 0,
-        "inert default"
+        shipped.defense.natural_overcall_hcp_floor, 8,
+        "shipped default-on 2026-08-23"
     );
     assert_eq!(
         best_call_with(&shipped, &over_1nt, hand).0,
-        call(2, Strain::Hearts),
-        "the shipped default overcalls on 6 HCP / 8 points"
+        Call::Pass,
+        "the shipped floor rejects 6 HCP even at 8 points"
     );
-    let mut tight = Agreements::default();
-    tight.defense.natural_overcall_hcp_floor = 8;
-    assert_eq!(best_call_with(&tight, &over_1nt, hand).0, Call::Pass);
-    // A 9-count with the same suit is above both candidate floors.
+    let mut loose = Agreements::default();
+    loose.defense.natural_overcall_hcp_floor = 0;
+    assert_eq!(
+        best_call_with(&loose, &over_1nt, hand).0,
+        call(2, Strain::Hearts),
+        "0 restores the untightened overcall"
+    );
+    // A 10-count with the same suit is above both candidate floors.
     for k in [8, 9] {
         let mut agreements = Agreements::default();
         agreements.defense.natural_overcall_hcp_floor = k;
@@ -90,18 +94,27 @@ fn natural_overcall_advance_never_bids_notrump() {
     );
 }
 
-/// Off, the advance node is absent and the floor still owns the seat.
+/// Shipped on, the book owns the seat; off, it returns to the instinct floor.
 #[test]
-fn natural_overcall_advance_is_default_off() {
+fn natural_overcall_advance_ships_on_and_reverts() {
     let auction = [
         call(1, Strain::Notrump),
         call(2, Strain::Diamonds),
         Call::Pass,
     ];
-    let agreements = Agreements::default();
-    assert!(!agreements.defense.natural_overcall_advance_enabled);
-    let (_, floored) = best_call_with(&agreements, &auction, "J32.KJ4.T96.AQ95");
-    assert!(floored, "the shipped default leaves the seat to the floor");
+    let hand = "J32.KJ4.T96.AQ95";
+    let shipped = Agreements::default();
+    assert!(
+        shipped.defense.natural_overcall_advance_enabled,
+        "shipped default-on 2026-08-23"
+    );
+    let (c, floored) = best_call_with(&shipped, &auction, hand);
+    assert_eq!(c, Call::Pass);
+    assert!(!floored, "the shipped default answers from the book node");
+    let mut off = Agreements::default();
+    off.defense.natural_overcall_advance_enabled = false;
+    let (_, floored) = best_call_with(&off, &auction, hand);
+    assert!(floored, "off returns the seat to the instinct floor");
 }
 
 /// The advance package's row invariants, evaluated with its gate open.

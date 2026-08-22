@@ -592,11 +592,9 @@ rides a package, **not** something an A/B can resolve alone.
   raise on support, new suit natural and non-forcing.  Completes the convention
   so M1 is measured against a live continuation, per the iron rule.
 
-**Built 2026-08-23, both default-off** (`natural_overcall_hcp_floor: u8` = 0 and
-`natural_overcall_advance_enabled: bool` = false in `DefenseKnobs`;
-`smoke-default --count 20000 --seed 1` = `39ca60a2…` and both `cards/*.bbsa`
-byte-identical).  M1's `0` arm reissues the rule with **no** HCP term rather
-than an inert `hcp(0..)`, which is what buys the byte-identity.  As built:
+**SHIPPED DEFAULT-ON 2026-08-23** — `natural_overcall_hcp_floor: u8` = **8** and
+`natural_overcall_advance_enabled: bool` = **true** in `DefenseKnobs`.  `0` /
+`false` restore the old behaviour.  As built:
 
 | rung | constraint | weight |
 | --- | --- | ---: |
@@ -621,8 +619,79 @@ only at the `-` tail — `(1NT) 2x (X)` stays with the floor, which is the lane'
 
 Scoped to [`NotrumpDefense::Natural`], the shipped system and the measured lane;
 the other bundles repurpose these slots and own their own advance packages.
-The A/B runner is `scripts/ab-nt-natural-overcall.sh` (`pack` = the ship
-candidate, `nine` = the `k = 9` exploratory arm, `bisect` = held in reserve).
+
+### The A/B (`scripts/ab-nt-natural-overcall.sh pack`, 2026-08-23)
+
+M1 `k = 8` **and** M2 as one package against the shipped default, per the
+pre-registration.  `sha=42248850`, seeds `1787429313` / `1787430539`, 16 shards
+× 12,800 = **204,800 boards per arm per vulnerability**, `--filter-1nt` on both
+arms so they deal the same board set.  About **2.6%** of accepted deals fired.
+The isolation gate (`probe-divergence --gate-opener theirs`) read **0 foreign of
+~5,300 divergent boards in all four cells** — the knobs reach only auctions they
+own.
+
+| seed · vul | plain DD | PD | plain SD | **SD-PD** |
+| --- | ---: | ---: | ---: | ---: |
+| 1 · none | +0.0011 ±0.0034 | +0.0180 ±0.0045 | −0.0049 ±0.0035 | **+0.0086 ±0.0044** |
+| 1 · both | +0.0068 ±0.0044 | +0.0287 ±0.0058 | −0.0020 ±0.0045 | **+0.0164 ±0.0057** |
+| 2 · none | +0.0041 ±0.0033 | +0.0194 ±0.0045 | −0.0022 ±0.0035 | **+0.0100 ±0.0044** |
+| 2 · both | +0.0096 ±0.0043 | +0.0305 ±0.0057 | +0.0024 ±0.0045 | **+0.0202 ±0.0056** |
+
+IMPs/board; per fired, plain DD runs +0.04 to +0.38 and SD-PD +0.26 to +0.63.
+
+**Verdict: the pre-registered rule is met in every cell** — a plain-DD non-loss
+(all four positive, the two vulnerable cells CI-clear) *and* an SD-PD win (all
+four CI-clear).  Shipped default-on.
+
+**The 2×2 separates exactly as [measurement.md](measurement.md) says it must**,
+which is what makes the verdict readable rather than lucky:
+
+| axis | held fixed | measured |
+| --- | --- | ---: |
+| doubling (PD − plain DD) | double-dummy lead | +0.0169 / +0.0219 / +0.0153 / +0.0209 |
+| doubling (SD-PD − plain SD) | blind lead | +0.0135 / +0.0184 / +0.0122 / +0.0178 |
+| lead (plain SD − plain DD) | fallible doubler | −0.0060 / −0.0088 / −0.0063 / −0.0072 |
+| lead (SD-PD − PD) | perfect doubler | −0.0094 / −0.0123 / −0.0094 / −0.0103 |
+
+So **§O4's predicted give-back is real and visible** — the lead axis costs
+−0.006 to −0.012, the declare-vs-defend switch charging for the overcalls we no
+longer make — and the doubling axis pays 2–3× more.  That is precisely the
+signature the forensic predicted from its first structural fact: the anchor
+*cannot* penalty-double our two-level overcall, so plain DD never charges the
+loose baseline for it and the two doubling-aware brackets do.  Read against
+measurement.md's three-outcome table, SD-PD **higher** than plain SD is the
+"treatment is the sounder bidder, so restoring the doubling punishes the
+baseline more" row.
+
+Two limits stated rather than papered over:
+
+- **The package cannot be attributed.**  M2's own size (~−0.0013 IMPs/board of
+  an arm) is below this A/B's resolution by design, so it ships as a
+  correctness fix riding a measured win, never as a separately confirmed one.
+  `bisect` mode exists to split them and was **not** run: the pre-registration
+  reserves it for a loss or a split verdict, and running it now would be
+  choosing an arm after seeing the result.
+- **`k = 9` is untested.**  `k = 8` was the pre-registered ship candidate and it
+  won; `nine` mode remains available as its own future question, not as a
+  post-hoc upgrade of this one.
+
+`smoke-default --count 20000 --seed 1` moves `39ca60a2…` → `eccf17bc…` (a real
+bidding change).  Both `cards/*.bbsa` are **unchanged**: BBA's schema has rows
+for named conventions, none for the strength band of a natural overcall or for
+a natural advance, so there is nothing to disclose.
+
+### Follow-ups this A/B opened
+
+- **`(1NT) 2x (X)` is still the floor.**  M2 authors only the `-` tail.  The
+  contested tail shows up in the worst-board dumps (`1NT 2♠ X 2NT`, the floor
+  bidding the very notrump rung M2 removed over a pass), but a `--show` tail is
+  a selected worst tail, not a population claim — this is a lead to price, not
+  a measured hole.  The `(X)` bucket is the lane's **best** on the forensic
+  census (1135 bd, +450 plain / +729 PD), so widening M2 there needs its own
+  arm.
+- **The `k = 9` arm**, above.
+- **The 8-vs-11 floor gap** against a suit opening, still open and still
+  proposed as "leave it".
 
 **Pre-registered reading** (before running, per
 [measurement.md](measurement.md) and its domain addendum): M1 is a knob that

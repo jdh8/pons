@@ -1341,9 +1341,14 @@ pub struct DefenseKnobs {
     /// is negative on **both** scorers at **both** vulnerabilities (264 bd,
     /// −120 plain / −158 PD).
     ///
-    /// **`0` by default and inert** — the default arm reissues the rule with no
-    /// HCP term at all, so the shipped book stays byte-identical.  Set it to 8
-    /// or 9 to add `& hcp(k..)` on top of the points band; it does **not**
+    /// **Shipped default-on at `8` (2026-08-23).**  Measured as one package with
+    /// [`natural_overcall_advance_enabled`][Self::natural_overcall_advance_enabled]
+    /// over 204,800 boards/arm/vulnerability × two seeds: plain DD +0.0011 /
+    /// +0.0068 (seed 1, nv/vul) and +0.0041 / +0.0096 (seed 2), SD-PD +0.0086 /
+    /// +0.0164 and +0.0100 / +0.0202 — every SD-PD cell CI-clear, no cell
+    /// negative on either arbiter.  `0` restores the old untightened overcall
+    /// (and reissues the rule with no HCP term at all, rather than an inert
+    /// `hcp(0..)`); `9` is the wider cut, still unmeasured.  It does **not**
     /// touch
     /// [`natural_overcall_points`][field@crate::bidding::inference::ReadingProfile::natural_overcall_points],
     /// which is a *reading* knob shared with the DONT and Meckwell one-suiter
@@ -1360,9 +1365,11 @@ pub struct DefenseKnobs {
     /// non-forcing new suit at the two level — **no notrump rung at all**,
     /// since our side is capped near 25 HCP opposite a strong `1NT`.
     ///
-    /// **Off by default** (byte-identical); it rides M1's package because its
-    /// own effect (~−0.0013 IMPs/board of an arm across all four suits) is
-    /// below a single A/B's resolution.  No effect unless
+    /// **Shipped default-on 2026-08-23** as one package with
+    /// [`natural_overcall_hcp_floor`][Self::natural_overcall_hcp_floor] — its own
+    /// effect (~−0.0013 IMPs/board of an arm across all four suits) is below a
+    /// single A/B's resolution, so it is a correctness fix riding a measured
+    /// win, never separately confirmed.  No effect unless
     /// [`NotrumpDefense::Natural`][crate::bidding::american::NotrumpDefense::Natural]
     /// is the active system.  An A/B knob (`bba-gen --ns-nt-overcall-advance`).
     pub natural_overcall_advance_enabled: bool,
@@ -1943,8 +1950,8 @@ impl Default for DefenseKnobs {
             weak_two_notrump_advances_enabled: false,
             advance_minor_jump_enabled: true,
             notrump_balancing_enabled: false,
-            natural_overcall_hcp_floor: 0,
-            natural_overcall_advance_enabled: false,
+            natural_overcall_hcp_floor: 8,
+            natural_overcall_advance_enabled: true,
             leaping_michaels_enabled: true,
             weak_two_pass_gate: false,
             weak_two_notrump_shape: false,
