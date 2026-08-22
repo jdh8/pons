@@ -57,7 +57,8 @@ struct Args {
 
     /// Minimum suit length for the floorless Multi escape
     /// (`competition.multi_weak_escape`), so its published reading can be read
-    /// off `1H 1NT 2D 2S` as well as off `1N (2D) 2S`
+    /// off `1H 1NT 2D 2S` as well as off `1N (2D) 2S`.  Absent leaves the
+    /// shipped default (`Some(6)`) alone; `0` turns the escape off.
     #[arg(long)]
     ns_multi_weak_escape: Option<u8>,
 }
@@ -83,7 +84,9 @@ fn main() {
         (usize::from(next()), next(), next())
     });
     agreements.decision.their.two_diamonds_multi = args.their_2d_multi;
-    agreements.competition.multi_weak_escape = args.ns_multi_weak_escape;
+    if let Some(n) = args.ns_multi_weak_escape {
+        agreements.competition.multi_weak_escape = (n > 0).then_some(n);
+    }
     let vul = AbsoluteVulnerability::NONE;
     let partnership = american(&agreements).bind();
 

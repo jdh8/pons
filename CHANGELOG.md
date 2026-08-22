@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **[one-notrump-multi.md](docs/one-notrump-multi.md) — the `1NT (2♦)` tree
+  map**, and the two tools that regenerate it.  `render-book` gained
+  `--their-2d-multi` (declares their `2♦` a Multi, so the N4 tables are in the
+  book at all) and `--prefix "1NT 2♦"` (one lane's subtree; the filter matches
+  the printed heading, so `SuffixIs` guards — which read like more auction —
+  are matched on their whole key).  The document records all 89 authored
+  sections seat by seat, what each call reads as on the surface the nets see,
+  their pass-or-correct ladder (`2♥/2♠`, `3♥/3♠`, `4♦` all mean *bid your
+  major*), and the seats the floor owns — the largest being
+  `1NT (2♦) - (2M) ?`, responder's pass, which has **no book node**:
+  253 bd / −426 plain / −199 PD on the `1e9a47e2` arms, 57% of the bucket and
+  the only large cell negative on both scorers.  No system change.
+
 - **`competition.multi_weak_escape` — the floorless weak escape over their
   declared `(2♦)` Multi** (**shipped default-on 2026-08-22 at `Some(6)`**;
   `bba-gen --ns-multi-weak-escape off|6|5`, `off` is the off-switch).  Below
@@ -89,6 +102,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [one-notrump-competitive.md](docs/one-notrump-competitive.md) §N4e.
 
 ### Fixed
+
+- **`probe-call-reading` no longer measures a non-default system by omission.**
+  Absent `--ns-multi-weak-escape` used to overwrite the shipped
+  `multi_weak_escape = Some(6)` with `None`, so the weak escape read
+  `points 5..8` — its *pre-ship* rule — and looked out of step with opener's
+  answer table.  Absent now leaves the default alone (`0` turns the escape
+  off); the pair reads `points 0..8` on both halves, as the ship claimed.
 
 - **Their declared `(2♦)` Multi no longer reaches the 1NT-*overcall* lane.**
   `systems_on_overcall_strip` re-reads `(1x) 1NT (2♦) …` as `P* 1NT (2♦) …`,

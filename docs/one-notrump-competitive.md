@@ -476,6 +476,11 @@ lives:
 
 ## N4 — their `(2♦)` as a Multi (**SHIPPED 2026-08-15 — v7, seven rounds; default-on vs BBA via the census**)
 
+> The lane's **tree map** — every authored node, who owns each seat, what each
+> call reads as, and their pass-or-correct ladder — lives in
+> [one-notrump-multi.md](one-notrump-multi.md), regenerable from the book.
+> This section keeps the verdicts.
+
 The rebuild of the deleted `defense_2d_multi`, on the disclosure channel N1
 uses and with the continuations gated. Not the natural table
 [bba-multi-2d.md §4](ai-bidder/bba-multi-2d.md) sketched — that arm was **not
