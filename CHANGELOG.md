@@ -74,7 +74,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     on the advancer's suit length after their Multi.  That is the rounds' most
     useful result, and it prices any future read-side attack on this lane.
 
-  Full tables, the traced boards, and one flagged default flip in
+  Full tables, the traced boards, and the withdrawn default-flip argument in
   [docs/one-notrump-competitive.md](docs/one-notrump-competitive.md) §N4f.
 
 - **[one-notrump-multi.md](docs/one-notrump-multi.md) — the `1NT (2♦)` tree

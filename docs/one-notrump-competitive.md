@@ -1279,14 +1279,27 @@ rejected-but-interesting treatments. Two are ordinary parks; the third is not:
   needs a sub-lane harness or an order of magnitude more boards, not another
   seed. A single-dummy re-measure is the cheaper candidate.
 - `reading.their_multi_double_reading` — wash; ordinary park.
-- `reading.their_multi_advance_reading` — **off preserves a reading we have
-  measured to be false.** Their `3♥` is `♥ 2–5, median 3`; we publish
-  `♥ 6..13`. The knob removes that at a measured cost of nothing (6 boards,
-  ±noise, both scorers). The gate says a wash is not a win, so it stays off by
-  the letter. *Proposed reversible default:* flip it **on**, on the grounds
-  that a knob whose only job is to stop asserting a falsehood should not need
-  to win an A/B to be allowed to — it needs only to not lose, which it does not.
-  Flagged, not taken: this is a default flip and it is the user's call.
+- `reading.their_multi_advance_reading` — **stays off; no default flip
+  proposed.** An earlier draft of this section argued for flipping it on
+  because the reading it removes is false (their `3♥` is `♥ 2–5, median 3`
+  where we publish `♥ 6..13`) at "no measured cost". **That argument was
+  withdrawn**, and it is recorded here because it is a tempting one:
+
+  - It is *ship on analysis alone* wearing a correctness argument. Every
+    change feels correct from the inside; that is what the gate is for.
+  - "No measured cost" was an overstatement. Six fired boards with ±17 IMP
+    single-board swings is **unmeasured**, not harmless.
+  - "Correct" is narrower than it sounds: the probe reads *BBA's* advancer at
+    *one* forced node. It is correct-against-this-opponent-model, not true.
+  - Inertness argues the other way. A falsehood no decision consumes is a
+    **latent** bug; flipping it on would hand the next floor retrain an
+    unmeasured input, since the regime input reads `Agreements`
+    ([card-manifold.md](ai-bidder/card-manifold.md)).
+
+  *Disposition — a trigger, not a default:* flip it when something makes the
+  read live — a contested-floor retrain, or a package that consumes the
+  advancer's length. The fix is built, tested, probed and documented, so that
+  day costs one flag.
 
 ### Out of scope, found while pricing this — the mirror lane
 
