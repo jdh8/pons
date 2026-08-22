@@ -77,7 +77,7 @@ use doubler_rebid::doubler_rebid_package;
 use gladiator::{gladiator_package, gladiator_sohl_package};
 use leaping_michaels::leaping_michaels_package;
 use michaels::unusual_notrump_advance_package;
-use nt_defense::notrump_defense_package;
+use nt_defense::{natural_overcall_advance_package, notrump_defense_package};
 use nt_dont::direct_dont_advance_package;
 use nt_landy::{both_majors_double_package, landy_advance_package};
 use nt_meckwell::meckwell_advance_package;
@@ -382,6 +382,9 @@ pub fn defensive(agreements: &Agreements) -> Defensive {
             their_diamond_transfer_defense_package(),
         ],
     );
+
+    // Advancing partner's natural two-level overcall of their 1NT, when on.
+    compile_into(&mut d, agreements, &[natural_overcall_advance_package()]);
 
     // Advancing partner's Landy 2♣ (both majors) over their 1NT, when on.  Woolsey's
     // 2♣ is the identical both-majors call on the same shared band, so it reuses this

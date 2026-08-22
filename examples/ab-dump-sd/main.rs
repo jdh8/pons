@@ -110,6 +110,20 @@ struct Args {
     /// Read the OFF arm with the exact-six weak `(1♣) 2♦` extension.
     #[arg(long, default_value_t = false)]
     off_ns_direct_minor_weak_jump_overcall: bool,
+    /// Read the ON arm's natural two-level overcall of their 1NT with this raw-HCP
+    /// floor on top of the points band (`defense.natural_overcall_hcp_floor`).
+    #[arg(long, default_value_t = 0)]
+    on_ns_nt_overcall_hcp_floor: u8,
+    /// Read the OFF arm's natural two-level overcall of their 1NT with this raw-HCP floor.
+    #[arg(long, default_value_t = 0)]
+    off_ns_nt_overcall_hcp_floor: u8,
+    /// Read the ON arm with the `(1NT) 2x (P) ?` advance authored
+    /// (`defense.natural_overcall_advance_enabled`).
+    #[arg(long, default_value_t = false)]
+    on_ns_nt_overcall_advance: bool,
+    /// Read the OFF arm with the `(1NT) 2x (P) ?` advance authored.
+    #[arg(long, default_value_t = false)]
+    off_ns_nt_overcall_advance: bool,
     /// Read the ON arm with the takeout double barred on a six-card unbid minor
     /// (`defense.suppress_long_minor_takeout`).
     #[arg(long, default_value_t = false)]
@@ -221,6 +235,8 @@ fn main() {
     on_arm.defense.two_level_minor_overcall_tight = args.on_ns_two_level_minor_overcall_tight;
     on_arm.defense.direct_weak_jump_overcall = args.on_ns_direct_weak_jump_overcall;
     on_arm.defense.direct_minor_weak_jump_overcall = args.on_ns_direct_minor_weak_jump_overcall;
+    on_arm.defense.natural_overcall_hcp_floor = args.on_ns_nt_overcall_hcp_floor;
+    on_arm.defense.natural_overcall_advance_enabled = args.on_ns_nt_overcall_advance;
     on_arm.defense.suppress_long_minor_takeout = args.on_ns_suppress_long_minor_takeout;
     on_arm.defense.defensive_seam_split = args.on_ns_defensive_seam_split;
     on_arm.defense.weak_two_notrump_points = band(&args.on_ns_weak_two_nt_points);
@@ -237,6 +253,8 @@ fn main() {
     off_arm.defense.two_level_minor_overcall_tight = false;
     off_arm.defense.direct_weak_jump_overcall = args.off_ns_direct_weak_jump_overcall;
     off_arm.defense.direct_minor_weak_jump_overcall = args.off_ns_direct_minor_weak_jump_overcall;
+    off_arm.defense.natural_overcall_hcp_floor = args.off_ns_nt_overcall_hcp_floor;
+    off_arm.defense.natural_overcall_advance_enabled = args.off_ns_nt_overcall_advance;
     off_arm.defense.suppress_long_minor_takeout = args.off_ns_suppress_long_minor_takeout;
     off_arm.defense.defensive_seam_split = args.off_ns_defensive_seam_split;
     off_arm.defense.weak_two_notrump_points = band(&args.off_ns_weak_two_nt_points);

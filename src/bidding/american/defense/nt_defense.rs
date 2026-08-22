@@ -92,19 +92,100 @@ fn unusual_2nt(agreements: &Agreements) -> Rules {
 
 /// The four natural two-level suit overcalls (five-card suit, `points(8..=14)`),
 /// optionally skipping `2♣` when the Landy `2♣` overlay owns that slot.
+///
+/// `agreements.defense.natural_overcall_hcp_floor` (**M1**, `0` = off) adds a raw-HCP
+/// floor on top of the points band: `point_count` is HCP plus distribution, so
+/// `points(8..)` admits 6- and 7-HCP hands through shape.  The `0` arm reissues the
+/// rule with no HCP term rather than an inert `hcp(0..)`, so the default book stays
+/// byte-identical (the same idiom [`chain_natural_base`] uses for the double's shape).
 fn chain_natural_overcalls(mut rules: Rules, skip_clubs: bool, agreements: &Agreements) -> Rules {
     let (oc_lo, oc_hi) = agreements.decision.reading.natural_overcall_points;
+    let hcp_floor = agreements.defense.natural_overcall_hcp_floor;
     for suit in [Suit::Clubs, Suit::Diamonds, Suit::Hearts, Suit::Spades] {
         if suit == Suit::Clubs && skip_clubs {
             continue;
         }
-        rules = rules.rule(
-            Bid::new(2, Strain::from(suit)),
-            100,
-            len(suit, 5..) & points(oc_lo..=oc_hi),
-        );
+        let bid = Bid::new(2, Strain::from(suit));
+        let shape = len(suit, 5..) & points(oc_lo..=oc_hi);
+        rules = match hcp_floor {
+            0 => rules.rule(bid, 100, shape),
+            k => rules.rule(bid, 100, shape & hcp(k..)),
+        };
     }
     rules
+}
+
+/// Advancing partner's natural two-level overcall of their `1NT` (`(1NT) 2t (P) ?`)
+///
+/// Everything here is natural, unalerted and non-forcing, so no reading is owed —
+/// the node exists to stop the instinct floor, whose `2NT` rung is the lane's worst
+/// per-board cell.  **There is deliberately no notrump rung**: their opener holds
+/// 15–17 and partner is capped at `natural_overcall_points.1`, so our side is capped
+/// near 25 HCP with the strength sitting over the advancer — an invitational `2NT`
+/// has no target to invite to.  The ladder, high weight first:
+///
+/// - `4M` — a game raise of partner's *major* on four-card support and `game` points.
+/// - `3t` — a constructive raise on four-card support and `invite` points; below that
+///   the hand passes rather than pushing the level under a strong notrump.
+/// - a new suit at the **two** level — natural, non-forcing, 5+ cards with at most a
+///   doubleton in partner's suit: the misfit escape, the one thing Pass cannot do.
+/// - `Pass` — the finite catch-all.
+///
+/// Both thresholds track partner's floor exactly as [`super::nt_landy`]'s advances do
+/// (`22 - lo` / `20 - lo`), so tightening the overcall band asks less of the advancer.
+fn natural_overcall_advances(t: Suit, lo: u8) -> Rules {
+    let invite = 20u8.saturating_sub(lo);
+    let game = 22u8.saturating_sub(lo);
+    let mut rules = Rules::new();
+    if let Strain::Hearts | Strain::Spades = Strain::from(t) {
+        rules = rules.rule(
+            Bid::new(4, Strain::from(t)),
+            140,
+            len(t, 4..) & points(game..),
+        );
+    }
+    rules = rules.rule(
+        Bid::new(3, Strain::from(t)),
+        110,
+        len(t, 4..) & points(invite..),
+    );
+    // The new suit must be biddable at the two level, i.e. rank above partner's.
+    for other in Suit::ASC.into_iter().filter(|&s| s > t) {
+        rules = rules.rule(
+            Bid::new(2, Strain::from(other)),
+            100,
+            len(other, 5..) & len(t, ..=2),
+        );
+    }
+    rules.rule(Call::Pass, 0, hcp(0..))
+}
+
+/// Advancing our natural two-level overcalls of their `1NT`, when on
+///
+/// Scoped to [`NotrumpDefense::Natural`] — the shipped system and the measured lane.
+/// The other bundles either repurpose these slots (DONT, Meckwell, Woolsey, each with
+/// its own advance package) or leave them to the floor, and widening the gate would
+/// collide with those packages' keys.  `2♣` is skipped when the Landy overlay owns it,
+/// mirroring [`chain_natural_base`]'s own `skip_clubs`.
+pub(super) fn natural_overcall_advance_package() -> Package {
+    Package {
+        name: "nt-natural-overcall-advance",
+        gate: |agreements| {
+            agreements.defense.natural_overcall_advance_enabled
+                && agreements.decision.reading.notrump_defense == NotrumpDefense::Natural
+        },
+        entries: |agreements| {
+            let lo = agreements.decision.reading.natural_overcall_points.0;
+            Suit::ASC
+                .into_iter()
+                .filter(|&t| !(t == Suit::Clubs && agreements.decision.reading.landy))
+                .flat_map(|t| {
+                    let node = format!("P* (1NT) {} -", Bid::new(2, Strain::from(t)));
+                    rows_of(Pattern::node(&node), natural_overcall_advances(t, lo))
+                })
+                .collect()
+        },
+    }
 }
 
 /// Chain the untagged, floor-safe natural calls the active system uses: the owning

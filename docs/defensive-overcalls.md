@@ -589,9 +589,40 @@ rides a package, **not** something an A/B can resolve alone.
   [nt_meckwell.rs](../src/bidding/american/defense/nt_meckwell.rs)) and with the
   Dutch profile's `(9, 13)`.  Arms `k ∈ {8, 9}` against the shipped default.
 - **M2 — author the `(1NT) 2x (P)` advance.**  Pass as the finite catch-all,
-  raise on support, `2NT`/`3NT` only on a real stopper plus values, new suit
-  natural and non-forcing.  Completes the convention so M1 is measured against
-  a live continuation, per the iron rule.
+  raise on support, new suit natural and non-forcing.  Completes the convention
+  so M1 is measured against a live continuation, per the iron rule.
+
+**Built 2026-08-23, both default-off** (`natural_overcall_hcp_floor: u8` = 0 and
+`natural_overcall_advance_enabled: bool` = false in `DefenseKnobs`;
+`smoke-default --count 20000 --seed 1` = `39ca60a2…` and both `cards/*.bbsa`
+byte-identical).  M1's `0` arm reissues the rule with **no** HCP term rather
+than an inert `hcp(0..)`, which is what buys the byte-identity.  As built:
+
+| rung | constraint | weight |
+| --- | --- | ---: |
+| `4M` (partner's suit, majors only) | `len(t, 4..) & points(22 − lo ..)` | 140 |
+| `3t` raise | `len(t, 4..) & points(20 − lo ..)` | 110 |
+| new suit at the **two** level (ranks above `t`) | `len(s, 5..) & len(t, ..=2)` | 100 |
+| `Pass` | `hcp(0..)` — the finite catch-all | 0 |
+
+**Deviation from the candidate as written above, flagged not silently resolved:
+there is no notrump rung at all.**  The original M2 line said "`2NT`/`3NT` only
+on a real stopper plus values"; over a `1NT` opening there is no suit to stop,
+and the values do not exist either — their opener holds 15–17 and partner is
+capped at `natural_overcall_points.1`, so our side is capped near 25 HCP with
+the strength sitting over the advancer.  Since a book node with finite mass
+shadows the floor, dropping the rung *is* the fix to the lane's worst cell
+(`2NT`, 33 bd, −4.09/bd plain, failing 26 of 33).  The reversible default is the
+knob itself: it is off, and restoring an invitational `2NT` is a rung to add,
+not a design to unpick.  Two consequences, both accepted: with a minor fit there
+is no route to `3NT` or `5m` above the `3t` raise, and the advance is authored
+only at the `-` tail — `(1NT) 2x (X)` stays with the floor, which is the lane's
+**best** bucket (1135 bd, +450 plain / +729 PD) and needs no help.
+
+Scoped to [`NotrumpDefense::Natural`], the shipped system and the measured lane;
+the other bundles repurpose these slots and own their own advance packages.
+The A/B runner is `scripts/ab-nt-natural-overcall.sh` (`pack` = the ship
+candidate, `nine` = the `k = 9` exploratory arm, `bisect` = held in reserve).
 
 **Pre-registered reading** (before running, per
 [measurement.md](measurement.md) and its domain addendum): M1 is a knob that

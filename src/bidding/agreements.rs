@@ -1331,6 +1331,41 @@ pub struct DefenseKnobs {
     /// balancing doubles.  On, the balancing seat reuses `defense_to_notrump`
     /// instead.  An A/B knob (`bba-match --ns-balancing`).
     pub notrump_balancing_enabled: bool,
+    /// Raw-HCP floor under the natural two-level overcall of their `1NT`
+    ///
+    /// **M1** of the `(1NT) 2♦` mirror forensic
+    /// ([defensive-overcalls.md](../../docs/defensive-overcalls.md)).  The four
+    /// natural two-level overcalls are gated `points(8..=14)`, and `point_count`
+    /// is HCP **plus distribution**, so a 5-5 six-count reaches the floor: the
+    /// ≤7-HCP tail is 12.3% of the lane and the only slice in the forensic that
+    /// is negative on **both** scorers at **both** vulnerabilities (264 bd,
+    /// −120 plain / −158 PD).
+    ///
+    /// **`0` by default and inert** — the default arm reissues the rule with no
+    /// HCP term at all, so the shipped book stays byte-identical.  Set it to 8
+    /// or 9 to add `& hcp(k..)` on top of the points band; it does **not**
+    /// touch
+    /// [`natural_overcall_points`][field@crate::bidding::inference::ReadingProfile::natural_overcall_points],
+    /// which is a *reading* knob shared with the DONT and Meckwell one-suiter
+    /// floors.  An A/B knob (`bba-gen --ns-nt-overcall-hcp-floor`).
+    pub natural_overcall_hcp_floor: u8,
+    /// Author the advance of our natural two-level overcall of their `1NT`
+    ///
+    /// **M2** of the same forensic: `(1NT) 2x (P) ?` has no authored node, so
+    /// the advance is the instinct floor — whose `2NT` rung fired on 33 boards
+    /// of the `2♦` lane at −4.09 IMPs/board plain, failing 26 times (the worst
+    /// board bids `2NT` into a 15–17 opener on 17 combined HCP and plays it
+    /// four down).  On, the advance is a book node: `Pass` as the finite
+    /// catch-all, a constructive raise, a game raise of a major, and a natural
+    /// non-forcing new suit at the two level — **no notrump rung at all**,
+    /// since our side is capped near 25 HCP opposite a strong `1NT`.
+    ///
+    /// **Off by default** (byte-identical); it rides M1's package because its
+    /// own effect (~−0.0013 IMPs/board of an arm across all four suits) is
+    /// below a single A/B's resolution.  No effect unless
+    /// [`NotrumpDefense::Natural`][crate::bidding::american::NotrumpDefense::Natural]
+    /// is the active system.  An A/B knob (`bba-gen --ns-nt-overcall-advance`).
+    pub natural_overcall_advance_enabled: bool,
     // --- defense/leaping_michaels.rs
     /// Author Leaping Michaels over their weak two
     ///
@@ -1908,6 +1943,8 @@ impl Default for DefenseKnobs {
             weak_two_notrump_advances_enabled: false,
             advance_minor_jump_enabled: true,
             notrump_balancing_enabled: false,
+            natural_overcall_hcp_floor: 0,
+            natural_overcall_advance_enabled: false,
             leaping_michaels_enabled: true,
             weak_two_pass_gate: false,
             weak_two_notrump_shape: false,

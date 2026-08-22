@@ -9,6 +9,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Two opt-in knobs for our natural two-level overcall of *their* `1NT`**, both
+  default-off and both proven inert (`smoke-default --count 20000 --seed 1` =
+  `39ca60a2…`, `cards/American.bbsa` and `cards/Dutch.bbsa` byte-identical).
+  They are M1 and M2 of the `(1NT) 2♦` mirror forensic
+  ([docs/defensive-overcalls.md](docs/defensive-overcalls.md)); neither is
+  measured yet, and both ship as one package under
+  `scripts/ab-nt-natural-overcall.sh`.
+
+  - **`defense.natural_overcall_hcp_floor: u8`**
+    (`bba-gen --ns-nt-overcall-hcp-floor`) adds `& hcp(k..)` on top of
+    `chain_natural_overcalls`' `points(8..=14)`.  `point_count` is HCP **plus
+    distribution**, so a 5-5 six-count reaches the 8-point floor: the ≤7-HCP
+    tail is 12.3% of the `2♦` lane and the only slice in the whole forensic
+    that is negative on **both** scorers at **both** vulnerabilities (264 bd,
+    −120 plain / −158 PD; nv −43/−66, vul −77/−92).  Candidate floors `k ∈ {8,
+    9}`, `k = 8` pre-registered as the ship candidate.  `0` is off and reissues
+    the rule with no HCP term at all rather than an inert `hcp(0..)`, which is
+    what keeps the default byte-identical.  It deliberately does **not** move
+    `natural_overcall_points`, a *reading* knob shared with the DONT and
+    Meckwell one-suiter floors and with the Dutch profile's `(9, 13)`.
+
+  - **`defense.natural_overcall_advance_enabled: bool`**
+    (`bba-gen --ns-nt-overcall-advance`) authors `(1NT) 2x (P) ?`, today the
+    instinct floor: `Pass` as the finite catch-all, a `3t` raise on four-card
+    support and `20 − lo` points, a `4M` game raise on `22 − lo`, and a natural
+    non-forcing new suit at the two level with a 5+ suit and at most a
+    doubleton in partner's.  **No notrump rung** — their opener holds 15–17 and
+    partner is capped, so our side is capped near 25 HCP with the strength
+    sitting over the advancer, and the floor's `2NT` is the lane's worst cell
+    (33 bd, −4.09 IMPs/board plain, failing 26 of 33; the worst board bids
+    `2NT` into a 15–17 opener on 17 combined HCP and plays it four down).
+    Everything authored is natural and unalerted, so no reading is owed.  Its
+    own size across all four suits is ≈ −0.0013 IMPs/board of an arm — below a
+    single A/B's resolution — so it rides M1's package as the iron rule's
+    completed continuation rather than as its own arm.  Scoped to
+    `NotrumpDefense::Natural`.
+
+  `ab-dump-sd` gained `--{on,off}-ns-nt-overcall-hcp-floor` and
+  `--{on,off}-ns-nt-overcall-advance` so the blind leader is told each arm's
+  band; without the disclosure the SD-PD column samples worlds under the wrong
+  overcall.
+
 - **`probe-1nt-interference` can dump the mirror table.**  `--table b` re-aims
   `--show`/`--next` at the boards where *they* opened 1NT and **we** overcalled
   (same `-only` cut as the B panel), `--show-score pd` sorts by the

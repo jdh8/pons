@@ -1355,6 +1355,16 @@ struct Args {
     #[arg(long, default_value_t = false)]
     ns_balancing: bool,
 
+    /// Raw-HCP floor under the natural two-level overcall of their 1NT, on top of
+    /// the `points(8..=14)` band (M1; `0` = off and byte-identical, arms 8 and 9).
+    #[arg(long, default_value_t = 0)]
+    ns_nt_overcall_hcp_floor: u8,
+
+    /// Author the advance of our natural two-level overcall of their 1NT,
+    /// `(1NT) 2x (P) ?` — otherwise the instinct floor owns the seat (M2, default off).
+    #[arg(long, default_value_t = false)]
+    ns_nt_overcall_advance: bool,
+
     /// Which mutually-exclusive defense our side plays over BBA's 1NT (default
     /// `natural`).
     ///
@@ -2278,6 +2288,8 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     agreements.defense.direct_minor_weak_jump_overcall =
         !args.no_ns_direct_minor_weak_jump_overcall;
     agreements.defense.notrump_balancing_enabled = args.ns_balancing;
+    agreements.defense.natural_overcall_hcp_floor = args.ns_nt_overcall_hcp_floor;
+    agreements.defense.natural_overcall_advance_enabled = args.ns_nt_overcall_advance;
     agreements.defense.stayman_defense_enabled = args.ns_defense_to_their_stayman;
     agreements.defense.rich_advance_double_enabled = !args.no_ns_rich_advance;
     agreements.defense.advance_rubens_enabled = args.ns_advance_rubens;
