@@ -205,7 +205,7 @@ hole and its two reading defects — three knobs, all default off, all owing
 
 | # | Package | Knob | State |
 | --- | --- | --- | --- |
-| **N4f** | **opener's balancing seat + the two Multi reading knobs** — `multi_balance`, `their_multi_advance_reading`, `their_multi_double_reading` | three knobs (**all off**) | **Round 1 measured 2026-08-22 ×2 seeds, 0 foreign on all 12 pairs: nothing ships.** `balance` fires on 7–12 bd/cell — the anchor passes that seat 94.2%/92.7%, so ~18 bd per 230,400 is its whole reach and it is **below this harness's resolution**, unresolved rather than refuted. `xfloor` is a wash at n=1–15. `advance` was negative in **all eight cells**; the cause was the bundled `♥3+ & ♠3+` claim (probed false: their `3♥` is `♠ 2–4`), now removed — the suppression half owes a fresh arm |
+| **N4f** | **opener's balancing seat + the two Multi reading knobs** — `multi_balance`, `their_multi_advance_reading`, `their_multi_double_reading` | three knobs (**all off**) | **Measured ×2 rounds 2026-08-22 (4 seed-sets, 24 pairs, all 0 foreign): nothing ships.** `balance` is **below this harness's resolution** — ~18 bd per 230,400, signs flipping between rounds, pooled ≈ −0.00003 IMPs/bd; unresolved, wants an sd re-measure or a sub-lane harness. `xfloor` is a wash. `advance`'s round-1 loss was its bundled `♥3+ & ♠3+` claim (probed false), now removed; suppression-only diverges on **6 boards in 1.84 m** — the false read is **inert**. One flagged default flip: whether "stops asserting a falsehood at zero cost" should need to win a gate |
 | **N4-mirror** | **our `2♦` overcall of *their* 1NT**, passed out — plain +0.21, **PD −3.38/bd** on 165 isolated boards, **−558 PD IMPs** | — (defensive lane) | Found while pricing N4f from the census's never-quoted table-B panel. **−0.0027 IMPs/bd of the arm**, larger than this whole campaign's headroom, from one call. Belongs to [defensive-overcalls.md](defensive-overcalls.md) / `nt_defense.rs`, not here; filed so it is not lost |
 | **N3-x** | **`X` over their `(4x)`** — the floor cannot double above the three level at all (`their_live_bid_at_most(3)`, [instinct.rs:6058](../src/bidding/instinct.rs)), and BBA's advancer sits for our double on **96.7–99.9%** of hands | new (book) | Current `4+` bucket 38 bd / −43 plain / −45 PD, −1.13/bd on a CI that swallows the total. The `(3x)` template does **not** widen — their four-level overcalls are *eight*-card suits, six times rarer than the three-level rows — so this is an uncontested opportunity to size, not a copy |
 | **N2d** | relay with a 6+ suit below 6 HCP, over `(2♠)` only (the weak major has no two-level call there) | book | **Re-read 2026-08-21: 25 bd, −77 plain / −52 PD, −3.08/bd** — still the worst hand class in the lane, and negative on both scorers. Contradicts the PD-distilled floor ([`lebensohl_relay_shape`](../src/bidding/american/competition/lebensohl.rs)); against Muiderberg the alternative is a making `2♠`, and BBA at table B bids these hands un-overcalled. Needs the A/B, not a re-derivation |
@@ -1068,7 +1068,7 @@ absorb them without going negative.
 **N2d stays parked**, and now gets the pointer the queue row promised: `six`
 shipped, so the `(2♠)` twin's case is a pointer to this round, not a run.
 
-## N4f — opener's balancing seat and the two reading knobs (**round 1 measured 2026-08-22: nothing ships; the bundled positive read is refuted and removed**)
+## N4f — opener's balancing seat and the two reading knobs (**measured ×2 rounds 2026-08-22: nothing ships; all three stay opt-in**)
 
 The `(2♦)` bucket's one *named* hole plus the two reading defects
 [one-notrump-multi.md](one-notrump-multi.md) flagged. All three are built, all
@@ -1216,6 +1216,77 @@ an unsound one (a new positive assertion) behind a single knob, so the A/B
 could only say "the bundle loses". Splitting them would have cost one more arm
 and identified the culprit directly. *Do not bundle a removal with an
 assertion.*
+
+### Round 2 (2026-08-22) — the corrected `advance`, on a clean tree: the false read is also **inert**
+
+`sha=07d135f2` (round 1 ran from an uncommitted tree; this is the citable
+round), `ab-results/2d-multi-balance-r2/seed-{1,2}`, `SEED_BASE` 1787406494 /
+1787407382, same 230,400 bd/arm/vul. **All twelve pairs 0 foreign** again.
+
+The headline is the **divergence count**, not the IMPs:
+
+| arm | round 1 fired (8 cells) | round 2 fired (8 cells) |
+| --- | ---: | ---: |
+| `advance` | **143** | **6** |
+| `balance` | 40 | 27 |
+| `xfloor` | 40 | 52 |
+
+Removing the `♥3+ & ♠3+` claim collapsed the `advance` arm's reach by **96%**.
+So essentially the *entire* effect of round 1 was the false assertion, and the
+suppression half — which fixes a read that is demonstrably wrong (`♥ 6..13`
+published where the advancer holds `♥ 2–5`) — changes **1–2 decisions per
+230,400 boards**.
+
+That is the round's real finding, and it is worth more than the verdict:
+**a false reading in this lane is very nearly inert.** The contested floor is
+not leaning on the advancer's suit length after their Multi, so correcting it
+buys almost nothing. Anyone tempted to attack this lane through the read side
+should price that first.
+
+| arm | seed / vul | fired | plain | PD |
+| --- | --- | ---: | --- | --- |
+| `advance` | 1 / none | 2 | +9 | +8 |
+| `advance` | 1 / both | 1 | +15 | +18 |
+| `advance` | 2 / none | 2 | −13 | −13 |
+| `advance` | 2 / both | 1 | −17 | −17 |
+| `balance` | 1 / none | 12 | −12 | +4 |
+| `balance` | 1 / both | 4 | −31 | −29 |
+| `balance` | 2 / none | 7 | +8 | +11 |
+| `balance` | 2 / both | 4 | +1 | −6 |
+| `xfloor` | 1 / none | 14 | −11 | +5 |
+| `xfloor` | 1 / both | 9 | +11 | +34 |
+| `xfloor` | 2 / none | 19 | −37 | −27 |
+| `xfloor` | 2 / both | 10 | −30 | −16 |
+
+**`advance` — no verdict at n=1–2**, and one that cannot be had from this
+harness: a single board swings a cell by ±17 IMPs. Sound by construction,
+measured harmless, and inert.
+
+**`balance` — confirmed below resolution.** Its signs flip *between rounds* on
+the same cells (round 1 seed-1/vul was +14/+15, round 2 is −31/−29), which is
+what noise looks like. Pooled over both rounds — eight cells, 1.84 m boards —
+it is **−59 plain / −73 PD IMPs, ≈ −0.00003 IMPs/board**, inside every CI.
+
+**`xfloor` — wash**, seed-1 positive and seed-2 negative in both rounds.
+
+### Disposition — and one judgment call for the user
+
+All three stay **opt-in, default off**, per the house rule for
+rejected-but-interesting treatments. Two are ordinary parks; the third is not:
+
+- `competition.multi_balance` — **unresolved, not refuted.** Its reach is ~18
+  boards per 230,400 because the anchor's own action rate is 6%. Resolving it
+  needs a sub-lane harness or an order of magnitude more boards, not another
+  seed. A single-dummy re-measure is the cheaper candidate.
+- `reading.their_multi_double_reading` — wash; ordinary park.
+- `reading.their_multi_advance_reading` — **off preserves a reading we have
+  measured to be false.** Their `3♥` is `♥ 2–5, median 3`; we publish
+  `♥ 6..13`. The knob removes that at a measured cost of nothing (6 boards,
+  ±noise, both scorers). The gate says a wash is not a win, so it stays off by
+  the letter. *Proposed reversible default:* flip it **on**, on the grounds
+  that a knob whose only job is to stop asserting a falsehood should not need
+  to win an A/B to be allowed to — it needs only to not lose, which it does not.
+  Flagged, not taken: this is a default flip and it is the user's call.
 
 ### Out of scope, found while pricing this — the mirror lane
 

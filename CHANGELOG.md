@@ -57,13 +57,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `--ns-their-multi-double-read` so both reading arms stay regenerable, and
   `scripts/ab-2d-multi-balance.sh` runs the three as aligned arms.
 
-  **Round 1 (2026-08-22, ×2 seeds, 230,400 bd/arm/vul, 0 foreign on all twelve
-  pairs): nothing ships.**  `multi_balance` fires on 7–12 boards per cell —
-  opener needs five cards in the major they named, ~6% of hands, matching the
-  anchor's own 5.8%/7.3% — so it sits **below this harness's resolution** and is
-  unresolved rather than refuted.  `their_multi_double_reading` is a wash at
-  n=1–15.  `their_multi_advance_reading` lost in all eight cells for the reason
-  above and now owes a fresh arm with the claim gone.  Full tables in
+  **Measured over two rounds (2026-08-22, four seed sets, 230,400 bd/arm/vul,
+  0 foreign on all twenty-four pairs): nothing ships; all three stay opt-in.**
+
+  - `multi_balance` is **below this harness's resolution** — opener needs five
+    cards in the major they named, ~6% of hands (matching the anchor's own
+    5.8%/7.3%), so its whole reach is ~18 boards per 230,400.  Its signs flip
+    between rounds on the same cells; pooled over eight cells and 1.84 m boards
+    it is −59 plain / −73 PD IMPs, ≈ −0.00003 IMPs/board.  Unresolved rather
+    than refuted: it wants a sub-lane harness or a single-dummy re-measure, not
+    another seed.
+  - `their_multi_double_reading` is a wash.
+  - `their_multi_advance_reading`, with the refuted claim removed, diverges on
+    **6 boards in 1.84 m** — a 96% collapse from round 1's 143.  So the false
+    read it fixes is very nearly **inert**: the contested floor is not leaning
+    on the advancer's suit length after their Multi.  That is the rounds' most
+    useful result, and it prices any future read-side attack on this lane.
+
+  Full tables, the traced boards, and one flagged default flip in
   [docs/one-notrump-competitive.md](docs/one-notrump-competitive.md) §N4f.
 
 - **[one-notrump-multi.md](docs/one-notrump-multi.md) — the `1NT (2♦)` tree
