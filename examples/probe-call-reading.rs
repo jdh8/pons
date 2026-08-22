@@ -61,6 +61,18 @@ struct Args {
     /// shipped default (`Some(6)`) alone; `0` turns the escape off.
     #[arg(long)]
     ns_multi_weak_escape: Option<u8>,
+
+    /// Read their Multi *advance* as the whole pass-or-correct ladder and
+    /// claim `♥3+ & ♠3+` on its jump rungs
+    /// (`reading.their_multi_advance_reading`), so `1N (2D) X (3H)` and
+    /// `1N (2D) X (4D)` can be read on both arms
+    #[arg(long, default_value_t = false)]
+    ns_their_multi_advance_read: bool,
+
+    /// Read our values double of their Multi at its authored `hcp(6..)`
+    /// (`reading.their_multi_double_reading`), off `1N (2D) X -`
+    #[arg(long, default_value_t = false)]
+    ns_their_multi_double_read: bool,
 }
 
 fn render(shown: &Envelope) -> String {
@@ -84,6 +96,8 @@ fn main() {
         (usize::from(next()), next(), next())
     });
     agreements.decision.their.two_diamonds_multi = args.their_2d_multi;
+    agreements.decision.reading.their_multi_advance_reading = args.ns_their_multi_advance_read;
+    agreements.decision.reading.their_multi_double_reading = args.ns_their_multi_double_read;
     if let Some(n) = args.ns_multi_weak_escape {
         agreements.competition.multi_weak_escape = (n > 0).then_some(n);
     }

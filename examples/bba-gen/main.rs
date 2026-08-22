@@ -350,6 +350,19 @@ struct Args {
     #[arg(long, num_args = 0..=1, default_missing_value = "true")]
     ns_their_multi_read: Option<bool>,
 
+    /// Read their Multi *advance* as the whole pass-or-correct ladder
+    /// (`2♥/2♠/3♥/3♠/4♣/4♦/4♥/4♠`), suppressing the phantom suit each names,
+    /// and claim `♥3+ & ♠3+` on the jump rungs (default off; opt-in A/B).
+    /// Requires `--ns-their-multi-read`.
+    #[arg(long)]
+    ns_their_multi_advance_read: bool,
+
+    /// Read our values double of their declared Multi at its authored
+    /// `hcp(6..)` floor instead of the generic `DoubleStyle` 8+
+    /// (default off; opt-in A/B).
+    #[arg(long)]
+    ns_their_multi_double_read: bool,
+
     /// Add the GF minor cues to the Landy counter (`2♥` = 5+ clubs, `2♠` = 5+
     /// diamonds, both game-forcing) — the third arm of the Landy A/B.  Does
     /// nothing without --defense-2c-landy.
@@ -711,6 +724,11 @@ struct Args {
     /// the escape's interfered tail (`1NT (2♦) 2M (X/2♠/2NT/3x)`).
     #[arg(long, default_value = "6", value_name = "off|6|5")]
     ns_multi_weak_escape: String,
+
+    /// Author opener's balancing double at `1NT (2♦) - (2M)` — five cards in
+    /// the major they named, penalty; else pass (default off; opt-in A/B).
+    #[arg(long)]
+    ns_multi_balance: bool,
 
     /// Author our defense to the opponents' 2♣ Stayman (`(1NT) - (2♣)`): X =
     /// lead-directing clubs, natural overcalls, strong 3♣ (default off; opt-in A/B).
@@ -2083,6 +2101,8 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
     if let Some(read) = args.ns_their_multi_read {
         agreements.decision.reading.their_multi_reading = read;
     }
+    agreements.decision.reading.their_multi_advance_reading = args.ns_their_multi_advance_read;
+    agreements.decision.reading.their_multi_double_reading = args.ns_their_multi_double_read;
     agreements.competition.defense_2c_landy_cues = args.defense_2c_landy_cues;
     agreements.competition.defense_2c_landy_low_minors = args.defense_2c_landy_low_minors;
     agreements.competition.defense_2c_landy_hcp_rungs = args.defense_2c_landy_hcp_rungs;
@@ -2134,6 +2154,7 @@ fn arm_knobs(args: &Args) -> anyhow::Result<Agreements> {
                 anyhow::anyhow!("--ns-multi-weak-escape must be off|6|5, got {n:?}")
             })?),
         };
+    agreements.competition.multi_balance = args.ns_multi_balance;
     agreements.competition.competition_over_transfer = args.ns_comp_over_transfer;
     agreements.competition.cue_raise_answer = !args.no_ns_cue_raise_answer;
     agreements.competition.cue_minor_raise_answer = !args.no_ns_cue_minor_raise_answer;

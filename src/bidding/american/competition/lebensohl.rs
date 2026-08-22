@@ -10,12 +10,12 @@ use super::penalty_double::{
 };
 use super::rubensohl::{
     clubs_transfer_completion, cue_stayman_answer, lm_2d_both_majors_advance, lm_2d_clubs_ask,
-    lm_2d_clubs_major, multi_2d_responder, multi_clubs_transfer_completion, multi_fit_search_place,
-    multi_fit_search_rebid, multi_pass_answer, multi_penalty_answer, multi_quant_answer,
-    multi_relay_rebid, multi_responder_rebid, multi_signoff_pass, multi_stopper_answer,
-    multi_stopper_forcing_rebid, multi_stopper_over_four_spades, multi_takeout_answer,
-    stayman_2d_answer, stayman_2d_fit_rebid, transfer_completion, transfer_lebensohl_responder,
-    transfer_stayman_2d_responder, transfer_target,
+    lm_2d_clubs_major, multi_2d_responder, multi_balance_double, multi_clubs_transfer_completion,
+    multi_fit_search_place, multi_fit_search_rebid, multi_pass_answer, multi_penalty_answer,
+    multi_quant_answer, multi_relay_rebid, multi_responder_rebid, multi_signoff_pass,
+    multi_stopper_answer, multi_stopper_forcing_rebid, multi_stopper_over_four_spades,
+    multi_takeout_answer, stayman_2d_answer, stayman_2d_fit_rebid, transfer_completion,
+    transfer_lebensohl_responder, transfer_stayman_2d_responder, transfer_target,
 };
 use super::*;
 
@@ -1731,6 +1731,32 @@ pub(super) fn lebensohl_package() -> Package {
                             Pattern::after(NT, &format!("{their} X (2{})", Strain::from(major))),
                             multi_penalty_answer(major),
                         ));
+                    }
+                    // N4f: the same double one branch over — responder
+                    // *passed* the Multi and they named a major, the lane's
+                    // one seat with no node at all (57% of the bucket).  The
+                    // gate rises to five trumps because partner showed
+                    // nothing; the anchor's own action here is exactly
+                    // `len(M, 5..)` on 6-7% of hands and a pass on the rest.
+                    if agreements.competition.multi_balance {
+                        for major in [Suit::Hearts, Suit::Spades] {
+                            let advance = format!("{their} - (2{})", Strain::from(major));
+                            entries.extend(rows_of(
+                                Pattern::after(NT, &advance),
+                                multi_balance_double(major),
+                            ));
+                            // Responder sits, quiet or over their runout: the
+                            // floor's documented failure in this lane is
+                            // pulling exactly these penalty doubles.
+                            entries.extend(rows_of(
+                                Pattern::after(NT, &format!("{advance} X -")),
+                                multi_signoff_pass(),
+                            ));
+                            entries.extend(rows_of(
+                                Pattern::up_to(&format!("{NT} {advance} X"), "7♠"),
+                                multi_signoff_pass(),
+                            ));
+                        }
                     }
                     // v3: the double family's continuations, all of them the
                     // same two-rule table or a sit.  The first two runs left

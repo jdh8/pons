@@ -198,10 +198,15 @@ at −744 plain, was re-decomposed on 2026-08-21; its one open item, **N4e**,
 ([§N4e](#n4e--the-floorless-weak-escape-shipped-default-on-2026-08-22-the-six-card-rung-five-refuted)).
 N4's v7 counter and its reader had shipped against the *strong* half of that
 bucket and its residue was measured out; N4e was responder's sub-5-HCP outlets,
-never authored at all. The bucket has no open item again.
+never authored at all. **N4f** (2026-08-22) then built the bucket's last named
+hole and its two reading defects — three knobs, all default off, all owing
+`scripts/ab-2d-multi-balance.sh`
+([§N4f](#n4f--openers-balancing-seat-and-the-two-reading-knobs-built-2026-08-22-all-three-default-off-unmeasured)).
 
 | # | Package | Knob | State |
 | --- | --- | --- | --- |
+| **N4f** | **opener's balancing seat + the two Multi reading knobs** — `multi_balance`, `their_multi_advance_reading`, `their_multi_double_reading` | three knobs (**all off**) | **Round 1 measured 2026-08-22 ×2 seeds, 0 foreign on all 12 pairs: nothing ships.** `balance` fires on 7–12 bd/cell — the anchor passes that seat 94.2%/92.7%, so ~18 bd per 230,400 is its whole reach and it is **below this harness's resolution**, unresolved rather than refuted. `xfloor` is a wash at n=1–15. `advance` was negative in **all eight cells**; the cause was the bundled `♥3+ & ♠3+` claim (probed false: their `3♥` is `♠ 2–4`), now removed — the suppression half owes a fresh arm |
+| **N4-mirror** | **our `2♦` overcall of *their* 1NT**, passed out — plain +0.21, **PD −3.38/bd** on 165 isolated boards, **−558 PD IMPs** | — (defensive lane) | Found while pricing N4f from the census's never-quoted table-B panel. **−0.0027 IMPs/bd of the arm**, larger than this whole campaign's headroom, from one call. Belongs to [defensive-overcalls.md](defensive-overcalls.md) / `nt_defense.rs`, not here; filed so it is not lost |
 | **N3-x** | **`X` over their `(4x)`** — the floor cannot double above the three level at all (`their_live_bid_at_most(3)`, [instinct.rs:6058](../src/bidding/instinct.rs)), and BBA's advancer sits for our double on **96.7–99.9%** of hands | new (book) | Current `4+` bucket 38 bd / −43 plain / −45 PD, −1.13/bd on a CI that swallows the total. The `(3x)` template does **not** widen — their four-level overcalls are *eight*-card suits, six times rarer than the three-level rows — so this is an uncontested opportunity to size, not a copy |
 | **N2d** | relay with a 6+ suit below 6 HCP, over `(2♠)` only (the weak major has no two-level call there) | book | **Re-read 2026-08-21: 25 bd, −77 plain / −52 PD, −3.08/bd** — still the worst hand class in the lane, and negative on both scorers. Contradicts the PD-distilled floor ([`lebensohl_relay_shape`](../src/bidding/american/competition/lebensohl.rs)); against Muiderberg the alternative is a making `2♠`, and BBA at table B bids these hands un-overcalled. Needs the A/B, not a re-derivation |
 | N5 | Complete Jacoby, then re-measure | `competition_over_transfer` | default-off on a measured loss *while missing its two most-fired cells* — `(2♥)` over our `2♦` and `(2♠)` over our `2♥`, i.e. they bid the major we are transferring to ([over_our_jacoby.rs:100-103](../src/bidding/american/competition/over_our_jacoby.rs)) — a half-built loss, resumable |
@@ -518,7 +523,7 @@ it hunts are in the major they do *not* hold. What moves:
 
 | call | natural leg | Multi leg | why |
 | --- | --- | --- | --- |
-| `X` | `DoubleStyle::Optional`: `len(♦, 2..=3) & hcp(8..)`, opener cooperates (pass, or run to a 5-card suit with ≤2♦) | **`hcp(6..)`** (v7; v1–v5 `hcp(8..)` at 143), alerted `comp:multi-values`, weight 130 — below `3NT` 150, `3♠`→♣ 145, the natural `2M` 140 and the relay 135, so a weak 5+ suit still escapes or relays | BBA's own values double (`hcp 5–17`, 41% of its hands, median 9), no diamond claim — the *waiting* call; they name the major, we act on it (`multi_responder_rebid`). Read: `points 6..`, every suit ⊤ |
+| `X` | `DoubleStyle::Optional`: `len(♦, 2..=3) & hcp(8..)`, opener cooperates (pass, or run to a 5-card suit with ≤2♦) | **`hcp(6..)`** (v7; v1–v5 `hcp(8..)` at 143), alerted `comp:multi-values`, weight 130 — below `3NT` 150, `3♠`→♣ 145, the natural `2M` 140 and the relay 135, so a weak 5+ suit still escapes or relays | BBA's own values double (`hcp 5–17`, 41% of its hands, median 9), no diamond claim — the *waiting* call; they name the major, we act on it (`multi_responder_rebid`). Read: **`points 8..`, ♥ ≤4, ♠ ≤4** — the table used to claim `points 6..` and every suit ⊤, stale on both halves. The 8 is `responder_overcall_double_reading`'s hard-coded `DoubleStyle` floor, two points above this rule's own `hcp(6..)`; `reading.their_multi_double_reading` (§N4f) is the opt-in repair. The major caps are sound: by weight ordering a five-card major always escapes or transfers instead |
 | direct `3NT` | `points(10..) & stopper_in(♦)` | `points(10..) & stopper_in(♥) & stopper_in(♠)` | the blast that needs no more information; one major open → double first |
 | `2NT` relay shape | 5+ in ♣/♥/♠, `hcp 6+` | 5+ in **any** suit, `hcp 6+` | diamonds are ours to sign off in |
 | after `2NT - 3♣ -` | `3♥`/`3♠` (5+) or pass | **`3♦`**/`3♥`/`3♠` (5+) or pass (`multi_relay_rebid`) | the rung the natural leg cannot have |
@@ -1062,6 +1067,178 @@ absorb them without going negative.
 
 **N2d stays parked**, and now gets the pointer the queue row promised: `six`
 shipped, so the `(2♠)` twin's case is a pointer to this round, not a run.
+
+## N4f — opener's balancing seat and the two reading knobs (**round 1 measured 2026-08-22: nothing ships; the bundled positive read is refuted and removed**)
+
+The `(2♦)` bucket's one *named* hole plus the two reading defects
+[one-notrump-multi.md](one-notrump-multi.md) flagged. All three are built, all
+three default off, all three inert while their `2♦` is undeclared
+(`smoke-default` `39ca60a2…` byte-identical against `main` HEAD). They owe
+`scripts/ab-2d-multi-balance.sh` — three aligned arms, each pinning the other
+two off, `--their-2d-multi --filter-1nt` on every arm.
+
+### Phase 0 first: two probes re-ranked the package before any box was spent
+
+**The takeout double the literature prescribes is not what the anchor plays.**
+`probe-bba-constraints --mode custom --seat 0 --calls "1NT 2♦ - 2♥"
+--filter-call 1NT` (4000 hands/vul, `--min-share 0.005`) at the unauthored seat:
+
+| seat | BBA |
+| --- | --- |
+| `1NT (2♦) - (2♥) ?` | Pass **94.2%** · `X` **5.8%** = `hcp(15..=17) & len(♥, 5..) & balanced()` |
+| `1NT (2♦) - (2♠) ?` | Pass **92.7%** · `X` **7.3%** = `hcp(15..=17) & len(♠, 5..) & balanced()` |
+
+A trump-length **penalty** double of the suit they named, with **no natural
+rung at any share** — not the delayed *takeout* double of Multi theory, and not
+the `defense_to_weak_two`-derived table the package was originally designed as.
+
+**And opener's seat is not where the bucket's deficit is born.** BBA acts on 6%
+of hands there; 6% of 253 bd is ~15 boards, which cannot carry −426 plain at any
+plausible per-board value. Combined with N4e having already absorbed the Pass
+row's worst class (37 bd, −145/−179), the residual target is ~227 bd at
+**−307 plain / −47 PD** — a plain-only deficit. N4f is disaster removal at the
+standard gate, not the bucket's cause. Sized here so no later round re-derives it.
+
+**Responder's first call is not the leak either** (`--mode counter`, 8000 hands
+NV): BBA's `4♠`/`4♥` band is `hcp(6..=16) & len(M, 6..)` — a **six**-card major
+and the *strong* half, which our `3♦`/`3♥` transfer already reaches — so the
+long-major jump this round considered was dropped before it was built. The one
+seam the probe does confirm is BBA's natural **minor** single-suiter (`3♣` 2.3%
+`hcp 5–12`, `3♦` 1.6% `hcp 4–12`, both median six cards, 3.9% together), which
+our table has no home for: `3♣` is Stayman and `3♦` is the heart transfer.
+Unbuilt — opposite 15–17 the contract is usually `3NT` — but recorded, because
+this campaign had previously dismissed the band as rare and it is not.
+
+### The three knobs
+
+| knob | what it authors | pre-registered verdict row |
+| --- | --- | --- |
+| `competition.multi_balance` | `1NT (2♦) - (2M) ?`: `X` = `len(M, 5..)` (penalty, alert `comp:multi-penalty`), else pass; plus responder's sits quiet and over their runout. `multi_penalty_answer`'s four trumps raised to five — partner *passed* rather than doubling, so opener is short of the values half and only length acts | mechanism is *doubling more* → measurement.md's domain addendum: plain DD is the arbiter, `plain win \| PD wash` ships (v7's row) |
+| `reading.their_multi_advance_reading` | their advance as the whole pass-or-correct ladder: suppression widened to `2♥/2♠/3♥/3♠/4♣/4♦/4♥/4♠` via a Multi-only `multi_advance_ladder` (**not** by widening the shared `advancer_artificial` — the Landy reader shares it). Round 1 also carried `♥3+ & ♠3+` on the jump rungs; **refuted and removed** (below) | moves what the floor *believes*, not what it doubles → PD is a real arbiter, needs `wash \| win` or better |
+| `reading.their_multi_double_reading` | `1NT (2♦) X` reads its authored `hcp(6..)` instead of the generic `DoubleStyle` 8+ | as above |
+
+Measured readings, before and after (`probe-call-reading --their-2d-multi`):
+
+| auction | base | armed |
+| --- | --- | --- |
+| `1N (2D) X (3H)`, RHO | **♥ 6..13** | ⊤ on ♥ alone, then `♥ 3..13 & ♠ 3..13` |
+| `1N (2D) X (4D)`, RHO | **♦ 3..13** | `♦` ⊤, `♥ 3..13 & ♠ 3..13` |
+| `1N (2D) X (2H)`, RHO | ⊤ | unchanged — a two-level preference can be a singleton |
+| `1N (2D) X -`, partner | `points 8..` | `points 6..` |
+
+### Two build notes worth keeping
+
+1. **The suppression half had to be gated too.** A first cut gated only the
+   positive claim and widened the ladder unconditionally. `smoke-default` still
+   hashed identical — the reader is inert without the disclosure — but every
+   *anchor* arm's base would have moved silently, and the A/B's switch would
+   have looked like it only added a claim. Both halves now ride the knob.
+   The trap generalises: byte-identity of the default system does **not**
+   witness isolation for a knob whose lane only exists under a disclosure.
+2. **No strength claim is published on the ladder.** The census's advancer
+   hands run 1–7 HCP, but `Envelope` has no HCP axis and `points` would fold in
+   their distribution (4-4-4-1, 3-4-5-1, 4-3-6-0 …). And `(2♠)` would refuse
+   one anyway: `bba-multi-2d.md §2` measures it at `hcp 7–18`, median 11 — the
+   *strength-showing* catch-all, not the weak rung. Only `(2♥)` is weak.
+   `(4♣)` is included in the ladder on the user's call (`4♣`/`4♦` both land in
+   either 4M) but has **zero measured occurrences**; that rung is assumption,
+   not evidence, and is flagged as such in `one-notrump-multi.md` open item 3.
+
+### Round 1 (2026-08-22) — measured ×2 seeds: nothing ships, and the positive read is refuted with a mechanism
+
+`ab-results/2d-multi-balance/seed-{1,2}`, `SEED_BASE` 1787402545 / 1787403446,
+24 shards × 9,600 = **230,400 bd/arm/vul**, `--their-2d-multi --filter-1nt`,
+both vulnerabilities. **All twelve pairs passed `probe-divergence
+--gate-opener ours` at 0 foreign** — not one board opened by the other side,
+so the mirror-read residue that dogged N4e did not recur.
+
+Headline is IMPs per accepted deal; `/fired` is the conditional mean.
+
+| arm | seed / vul | fired | plain | PD |
+| --- | --- | ---: | --- | --- |
+| `balance` | 1 / none | 12 | −8, −0.667/fired | −13, −1.083/fired |
+| `balance` | 1 / both | 7 | +14, +2.000/fired | +15, +2.143/fired |
+| `balance` | 2 / none | 11 | −36, −3.273/fired | −47, −4.273/fired |
+| `balance` | 2 / both | 10 | +5, +0.500/fired | −8, −0.800/fired |
+| **`advance`** | 1 / none | 40 | **−24** | **−3** |
+| **`advance`** | 1 / both | 35 | **−51, −1.457/fired** | **−22, −0.629/fired** |
+| **`advance`** | 2 / none | 44 | **−74, −1.682/fired** | **−109, −2.477/fired** |
+| **`advance`** | 2 / both | 24 | **−120, −5.000/fired** | **−121, −5.042/fired** |
+| `xfloor` | 1 / none | 11 | −10 | +6 |
+| `xfloor` | 1 / both | 1 | +10 | +10 |
+| `xfloor` | 2 / none | 15 | −6 | −14 |
+| `xfloor` | 2 / both | 13 | −39 | −25 |
+
+**`balance` — no verdict, and the ceiling explains why.** 7–12 fired per cell,
+signs disagreeing by vulnerability *and* by seed, every per-board CI (±0.0002)
+swallowing every effect. The firing rate is not a bug: opener needs five cards
+in the major they named, ~6% of hands, exactly matching the anchor's own 5.8%/7.3%
+— so the seat's whole reach is ~18 boards per 230,400, and **this knob cannot
+be measured at this harness's resolution.** It stays opt-in, unresolved rather
+than refuted; an isolated sub-lane harness or an order of magnitude more boards
+is what it would take.
+
+**`xfloor` — wash.** 1–15 fired, one cell (`1/both`, n=1) contributing a
+±10 IMP swing on a single board. Nothing to read. Opt-in.
+
+**`advance` — negative in all eight cells, and the cause is the positive
+claim, not the suppression.** Tracing the worst boards (the iron rule) shows
+one repeated shape: our side stops competing because it believes a spade
+length the advancer does not have.
+
+```text
+[-13 IMP]  N:J98.A98.AQ96.AT3  E:A72.KJT7643.K2.6  S:KQT643..J87.9754  W:5.Q52.T543.KQJ82
+  on:  1NT 2♦ 2♠ 3♥ - 4♥ - - -                     South (♠6, ♥void) sells out
+  off: 1NT 2♦ 2♠ 3♥ - 4♥ 4♠ - - 5♥ - - X - - -     South saves, they push, we double
+```
+
+West's `3♥` there holds **one spade**; on the next-worst board it holds two
+(`A3.KQT8763.9.QT8`). The claim `♠3+` is simply false, and it is worth −13 IMPs
+a board when it talks a six-card suit out of a save.
+
+`probe-bba-constraints --mode custom --seat 3 --calls "1NT 2♦ 2♠"` (6000 hands
+NV) confirms it is systematic, and — usefully — splits the two halves in
+opposite directions:
+
+| their call | share | ♥ | ♠ | hcp |
+| --- | ---: | --- | --- | --- |
+| `3♥` | 38.2% | **2–5 (med 3)** | **2–4 (med 3)** | 7–13 |
+| `4♦` | 11.9% | 3–5 | 3–6 | 3–14 |
+
+So the *suppression* half is right and the base read is badly wrong — their
+`3♥` is `♥ 2–5`, where the natural walk publishes `♥ 6..13`. The *claim* half
+is wrong at both rungs' tails. **The claim is removed**; the knob is now
+suppression-only and owes a fresh arm.
+
+**The build lesson, which is the transferable part:** a sound change
+(suppression, which only ever removes a possibly-false length) was bundled with
+an unsound one (a new positive assertion) behind a single knob, so the A/B
+could only say "the bundle loses". Splitting them would have cost one more arm
+and identified the culprit directly. *Do not bundle a removal with an
+assertion.*
+
+### Out of scope, found while pricing this — the mirror lane
+
+The census's **table-B** panel, which no doc had quoted, prices *our* `2♦`
+overcall of *their* 1NT: **1184 boards, 2.6× table A's 461**. Isolated
+(`B-only`, our 1NT uncontested or absent):
+
+| BBA's response to our `2♦` | bd | plain/bd | **PD/bd** | plain tot | **PD tot** |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| **Pass** | 165 | +0.212 | **−3.382** | +35 | **−558** |
+| — passed out (`P P P`) | 77 | +0.714 | **−2.961** | +55 | −228 |
+| — `P 2NT P` (we advance) | 20 | −1.750 | **−5.300** | −35 | −106 |
+| — `P 2♥ P` | 29 | −0.345 | **−3.621** | −10 | −105 |
+| `X` | 562 | +0.452 | +0.731 | +254 | +411 |
+| `3NT` | 49 | +2.980 | +3.061 | +146 | +150 |
+
+Plain positive, PD −3.4 per board: the **inverse** of the doubling artifact — a
+contract only double-dummy declarer play rescues, which perfect defense beats.
+−558 PD IMPs over 204,800 boards is **−0.0027 IMPs/bd of the arm**, larger than
+the *entire* contested-1NT lane's headroom (0.0053 NV / 0.0014 vul), from one
+call. That is our **defense to their 1NT** ([defensive-overcalls.md](defensive-overcalls.md),
+`nt_defense.rs`), not this campaign, and nothing here touches it — but it is the
+biggest single number this round produced and it should be somebody's package.
 
 ## N2 — Muiderberg `(2♥)/(2♠)`: the lane today
 

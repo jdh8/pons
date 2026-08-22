@@ -802,6 +802,31 @@ pub struct CompetitionKnobs {
     /// effect while their `2♦` is undeclared or natural, so the default system
     /// is byte-identical.
     pub multi_weak_escape: Option<u8>,
+    /// Opener's balancing double when responder passes their declared Multi
+    ///
+    /// `1NT (2♦) - (2M) ?` — responder passed, the advancer named a major,
+    /// opener to act — is this lane's one seat with **no book node at all**:
+    /// 57% of the `(2♦)` bucket (253 bd, −426 plain, −199 PD on the
+    /// `1e9a47e2` arms), where the floor sells out at the two level.
+    ///
+    /// `true` authors a two-rule table — `X` with **five** cards in the major
+    /// they named (penalty, trump length, not takeout), else pass — plus
+    /// responder's sits over it, quiet and over their runout.
+    ///
+    /// The shape is the anchor's own, probed rather than borrowed:
+    /// `probe-bba-constraints --mode custom --seat 0 --calls "1NT 2♦ - 2♥"
+    /// --filter-call 1NT` reads Pass 94.2% / `X` 5.8% over `(2♥)` and Pass
+    /// 92.7% / `X` 7.3% over `(2♠)`, with the double distilling to
+    /// `hcp(15..=17) & len(M, 5..) & balanced()` and no natural rung at any
+    /// share.  It is [`Self::penalty_pass`]'s sibling reasoning one seat over:
+    /// `multi_penalty_answer` doubles with four trumps when responder doubled
+    /// first, and partner passing instead is what raises the gate to five.
+    ///
+    /// **Off by default, unmeasured.** BBA acting on only ~6% of hands caps
+    /// the package's reach far below the bucket's headline, so it owes its own
+    /// arm before any claim.  Inert while their `2♦` is undeclared or natural,
+    /// so the default system is byte-identical.
+    pub multi_balance: bool,
     // --- competition/support_double.rs
     /// Support doubles/redoubles for the majors
     ///
@@ -932,6 +957,7 @@ impl Default for CompetitionKnobs {
             competitive_4333: Competitive4333::Suppress,
             multi_stopper_ask: MultiStopperAsk::Off,
             multi_weak_escape: Some(6),
+            multi_balance: false,
             major_support_double: true,
             uvu_over_majors: true,
             uvu_over_minors: false,

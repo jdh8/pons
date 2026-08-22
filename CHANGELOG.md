@@ -9,6 +9,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Three opt-in knobs for the `1NT (2♦)` Multi lane**, all default-off and all
+  inert while their `2♦` is undeclared (`smoke-default` `39ca60a2…`
+  byte-identical).  Each owes its own arm; `scripts/ab-2d-multi-balance.sh`
+  runs them as three aligned arms against a shared base.
+
+  - **`competition.multi_balance`** (`bba-gen --ns-multi-balance`) authors
+    `1NT (2♦) - (2M) ?` — responder passed, the advancer named a major, opener
+    to act — the lane's one seat with **no book node at all** (57% of the
+    `(2♦)` bucket: 253 bd, −426 plain, −199 PD on the `1e9a47e2` arms), where
+    the floor reads their `2♦` as diamonds and sells out at the two level.
+    `X` on **five** cards in the major they named (penalty — trump length),
+    else pass, plus responder's sits over it quiet and over their runout,
+    because the floor's documented failure in this lane is pulling exactly
+    these doubles.  The shape is the anchor's own, probed rather than borrowed
+    from Multi theory: `probe-bba-constraints --mode custom --seat 0 --calls
+    "1NT 2♦ - 2♥" --filter-call 1NT` reads Pass **94.2%** / `X` 5.8% over
+    `(2♥)` and Pass 92.7% / `X` 7.3% over `(2♠)`, the double distilling to
+    `hcp(15..=17) & len(M, 5..) & balanced()` with **no natural rung at any
+    share** — so the anchor plays a trump-length *penalty* double here, not the
+    delayed *takeout* double the literature prescribes.  It is
+    `multi_penalty_answer`'s four trumps raised to five: partner passed rather
+    than doubling, so opener is short of the values half and only length acts.
+
+  - **`reading.their_multi_advance_reading`**
+    (`--ns-their-multi-advance-read`) reads their advance as the whole
+    pass-or-correct ladder, **suppression only**.  The shipped reader borrows
+    `advancer_artificial`, which matches only `2♦`/`2♥`/`2♠` because the Landy
+    reader shares it — so `1N (2D) X (3H)` read **♥ 6..13** and
+    `1N (2D) X (4D)` read **♦ 3..13**, suits the advancer need not hold.
+    `probe-bba-constraints --mode custom --seat 3 --calls "1NT 2♦ 2♠"` (6000
+    hands) measures their `3♥` at **♥ 2–5, median 3**, so the walk's `♥ 6..13`
+    is false across most of the band.  A first build also published
+    `♥3+ & ♠3+` on the jump rungs; the same probe refutes it (`3♥` is
+    `♠ 2–4`) and round 1 of the A/B measured it **negative in all eight
+    cells**, its worst boards showing our six-card spade suit talked out of a
+    correct `4♠` save by length the advancer did not have.  The claim is
+    removed; what remains only ever *removes* a possibly-false length.
+
+  - **`reading.their_multi_double_reading`** (`--ns-their-multi-double-read`)
+    reads our values double of their Multi at its authored `hcp(6..)`.
+    `responder_overcall_double_reading` hard-codes the `DoubleStyle` 8+ floor
+    for every `1NT (2X) X` and is not Multi-aware, so the N4 values call read
+    `points 8..` and asserted two points responder never promised.
+
+  `probe-call-reading` gained `--ns-their-multi-advance-read` and
+  `--ns-their-multi-double-read` so both reading arms stay regenerable, and
+  `scripts/ab-2d-multi-balance.sh` runs the three as aligned arms.
+
+  **Round 1 (2026-08-22, ×2 seeds, 230,400 bd/arm/vul, 0 foreign on all twelve
+  pairs): nothing ships.**  `multi_balance` fires on 7–12 boards per cell —
+  opener needs five cards in the major they named, ~6% of hands, matching the
+  anchor's own 5.8%/7.3% — so it sits **below this harness's resolution** and is
+  unresolved rather than refuted.  `their_multi_double_reading` is a wash at
+  n=1–15.  `their_multi_advance_reading` lost in all eight cells for the reason
+  above and now owes a fresh arm with the claim gone.  Full tables in
+  [docs/one-notrump-competitive.md](docs/one-notrump-competitive.md) §N4f.
+
 - **[one-notrump-multi.md](docs/one-notrump-multi.md) — the `1NT (2♦)` tree
   map**, and the two tools that regenerate it.  `render-book` gained
   `--their-2d-multi` (declares their `2♦` a Multi, so the N4 tables are in the

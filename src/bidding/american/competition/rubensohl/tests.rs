@@ -1,4 +1,4 @@
-use super::super::tests::{bid_transfer, bid_transfer_dbl, call};
+use super::super::tests::{best_call_with, bid_transfer, bid_transfer_dbl, call};
 use contract_bridge::Strain;
 use contract_bridge::auction::Call;
 
@@ -901,4 +901,52 @@ fn multi_stopper_four_spade_raise_uses_the_forcing_pass() {
     let (c, floored) = best_call_with(&arm, &after_pass, "32.AQ2.KQ2.AKJ43");
     assert_eq!(c, Call::Pass, "the doubled five-level signoff is fenced");
     assert!(!floored);
+}
+
+/// The N4f arm: their `2♦` declared a Multi, opener's balancing double armed.
+fn multi_balance_arm() -> crate::bidding::agreements::Agreements {
+    let mut arm = crate::bidding::agreements::Agreements::default();
+    arm.competition.lebensohl_style = super::super::lebensohl::LebensohlStyle::Transfer;
+    arm.decision.their.two_diamonds_multi = true;
+    arm.competition.multi_balance = true;
+    arm
+}
+
+/// `1NT (2♦) - (2M) ?` — the seat that had no book node at all.  Opener
+/// doubles on five cards in the major *they* named and passes on four, which
+/// is [`multi_penalty_answer`]'s gate raised because partner passed rather
+/// than doubling.
+///
+/// [`multi_penalty_answer`]: super::multi_penalty_answer
+#[test]
+fn multi_balance_doubles_on_five_trumps_only() {
+    for (major, five, four) in [
+        (Strain::Hearts, "K32.AQJ54.KQ3.J2", "K32.AQJ5.KQ32.J2"),
+        (Strain::Spades, "AQJ54.K32.KQ3.J2", "AQJ5.K32.KQ32.J2"),
+    ] {
+        let auction = [
+            call(1, Strain::Notrump),
+            call(2, Strain::Diamonds),
+            Call::Pass,
+            call(2, major),
+        ];
+        let arm = multi_balance_arm();
+
+        let (c, floored) = best_call_with(&arm, &auction, five);
+        assert_eq!(
+            c,
+            Call::Double,
+            "five {major:?} must double the pass-or-correct"
+        );
+        assert!(!floored, "the balancing double must come from the book");
+
+        let (c, _) = best_call_with(&arm, &auction, four);
+        assert_eq!(c, Call::Pass, "four {major:?} is not enough to act");
+
+        // Off by default: the whole seat stays the floor's.
+        let mut off = arm;
+        off.competition.multi_balance = false;
+        let (_, floored) = best_call_with(&off, &auction, five);
+        assert!(floored, "the seat must fall to the floor with the knob off");
+    }
 }

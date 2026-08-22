@@ -809,6 +809,32 @@ pub(crate) fn multi_penalty_answer(major: Suit) -> Rules {
         .rule(Call::Pass, 0, hcp(0..))
 }
 
+/// Opener's balancing seat after responder *passes* their Multi and the
+/// advancer names a major (`1NT (2♦) - (2M) ?`)
+///
+/// The lane's one seat with no book node at all — 57% of the `(2♦)` bucket
+/// (253 bd, −426 plain, −199 PD on the `1e9a47e2` arms) — where the floor,
+/// reading their `2♦` as diamonds, sells out at the two level.
+///
+/// This is [`multi_penalty_answer`] one branch over with the gate raised from
+/// four trumps to five, and the raise is what the anchor itself does.  Probed
+/// at the seat (`probe-bba-constraints --mode custom --seat 0 --calls
+/// "1NT 2♦ - 2♥" --filter-call 1NT`, 4000 hands/vul) BBA passes **94.2%** over
+/// `(2♥)` and **92.7%** over `(2♠)`, and its only action is
+/// `hcp(15..=17) & len(M, 5..) & balanced()` — a trump-length **penalty**
+/// double of the suit they named, not the delayed takeout double of Multi
+/// theory, and it never bids a natural suit in this seat at all.
+///
+/// Partner passed rather than doubling, so opener is short of the values half
+/// of the structure and only trump length can act; five cards behind a
+/// pass-or-correct is the whole case.  Total.
+pub(crate) fn multi_balance_double(major: Suit) -> Rules {
+    Rules::new()
+        .rule(Call::Double, 150, len(major, 5..))
+        .alert(MULTI_PENALTY)
+        .rule(Call::Pass, 0, hcp(0..))
+}
+
 /// Opener's completion of the `3♠`→♣ game-force over the Multi
 ///
 /// The natural leg's [`clubs_transfer_completion`] picks `3NT` on a *diamond*

@@ -240,7 +240,8 @@ pub(super) fn their_landy_reading(
 pub(super) struct TheirMultiReading {
     /// Their artificial `2♦`: one unknown six-card major.
     overcall_index: usize,
-    /// Their advancer's first `2♥`/`2♠`, which names no holding of its own.
+    /// Their advancer's first pass-or-correct, which names no holding of its
+    /// own — the whole ladder, not just the two-level rung.
     advance: Option<usize>,
 }
 
@@ -265,10 +266,74 @@ fn their_multi_reading(
     }
     let (opener_parity, overcall_index) =
         their_disclosed_overcall(auction, len, Bid::new(2, Strain::Diamonds))?;
+    // Both halves ride the knob: widening the ladder is itself a reading
+    // change, so leaving it ungated would move every anchor arm's base while
+    // the A/B's own switch looked like it only added the positive claim.
+    let advance = if profile.their_multi_advance_reading {
+        multi_advance_ladder(auction, overcall_index, opener_parity)
+    } else {
+        advancer_artificial(auction, overcall_index, opener_parity)
+    };
     Some(TheirMultiReading {
         overcall_index,
-        advance: advancer_artificial(auction, overcall_index, opener_parity),
+        advance,
     })
+}
+
+/// The advancer's first call from their Multi's **whole** pass-or-correct
+/// ladder
+///
+/// [`advancer_artificial`] matches only `2♦`/`2♥`/`2♠` because it is shared
+/// with the Landy reader, whose three-level advances *are* natural.  Over a
+/// Multi they are not: every rung of `2♥ / 2♠ / 3♥ / 3♠ / 4♣ / 4♦ / 4♥ / 4♠`
+/// is "bid your major", so the natural walk reading `3♥` as `♥ 6..13` or `4♦`
+/// as `♦ 3..13` asserts a suit the advancer need not hold at all.
+///
+/// Measured, not assumed: `probe-bba-constraints --mode custom --seat 3
+/// --calls "1NT 2♦ 2♠"` (6000 hands) puts the advancer's `3♥` at **♥ 2–5,
+/// median 3** — so the natural walk's `♥ 6..13` is false on most of the band —
+/// and its `4♦` at `♦` nothing, `♥ 3–5 / ♠ 3–6`.
+///
+/// **Suppression only, no positive claim.** A first build also published
+/// `♥3+ & ♠3+` on the jump rungs, reasoning that an advancer choosing a
+/// three- or four-level contract must be able to play either major.  The same
+/// probe refutes it — `3♥` is `♠ 2–4`, and its 10th-percentile tail runs to a
+/// singleton — and the A/B measured the cost: **negative in all eight cells**
+/// over two seeds, with the worst boards showing our side talked out of a
+/// correct `4♠` save by a spade length the advancer did not have (`♠1` on
+/// `5.Q52.T543.KQJ82`, `♠2` on `A3.KQT8763.9.QT8`).  What is left is sound by
+/// construction: it only ever *removes* a possibly-false length.
+fn multi_advance_ladder(
+    auction: &[Call],
+    overcall_index: usize,
+    opener_parity: usize,
+) -> Option<usize> {
+    const LADDER: [(u8, Strain); 9] = [
+        (2, Strain::Diamonds),
+        (2, Strain::Hearts),
+        (2, Strain::Spades),
+        (3, Strain::Hearts),
+        (3, Strain::Spades),
+        (4, Strain::Clubs),
+        (4, Strain::Diamonds),
+        (4, Strain::Hearts),
+        (4, Strain::Spades),
+    ];
+    auction
+        .iter()
+        .enumerate()
+        .skip(overcall_index + 1)
+        // Stop at their advancer's first *bid*; jump over everything we do.
+        .find_map(|(index, &call)| match call {
+            Call::Bid(bid) if index % 2 != opener_parity => Some(
+                LADDER
+                    .iter()
+                    .any(|&(level, strain)| bid == Bid::new(level, strain))
+                    .then_some(index),
+            ),
+            _ => None,
+        })
+        .flatten()
 }
 
 impl TheirLandyReading {
@@ -524,7 +589,19 @@ fn penalty_x_reading_with_profile(auction: &[Call], profile: ReadingProfile) -> 
 /// undercounts the partnership's strength.  Fires only for our own 1NT (the opener
 /// shares the actor's parity); their responder's double of our overcall is their
 /// convention, not ours.
-pub(super) fn responder_overcall_double_reading(auction: &[Call], len: usize) -> Option<usize> {
+///
+/// **The Multi lane is the exception**, and it was a defect: over a declared
+/// `(2♦)` Multi the double is not a `DoubleStyle` double at all but the N4
+/// values call, authored `hcp(6..)` (`multi_2d_responder`), so the flat 8
+/// asserted two points responder never promised.  With
+/// [`ReadingProfile::their_multi_double_reading`] on, the floor follows the
+/// lane's own rule.  Returns the index and the floor to publish.
+pub(super) fn responder_overcall_double_reading(
+    auction: &[Call],
+    len: usize,
+    profile: ReadingProfile,
+    their: TheirDisclosures,
+) -> Option<(usize, u8)> {
     let opening_index = auction.iter().position(|&c| c != Call::Pass)?;
     if auction[opening_index] != Call::Bid(Bid::new(1, Strain::Notrump))
         || opening_index % 2 != len % 2
@@ -536,7 +613,13 @@ pub(super) fn responder_overcall_double_reading(auction: &[Call], len: usize) ->
         Some(Call::Bid(bid)) if bid.strain.is_suit() => {}
         _ => return None,
     }
-    (auction.get(opening_index + 2) == Some(&Call::Double)).then_some(opening_index + 2)
+    if auction.get(opening_index + 2) != Some(&Call::Double) {
+        return None;
+    }
+    let multi = profile.their_multi_double_reading
+        && their.two_diamonds_multi
+        && auction[opening_index + 1] == Call::Bid(Bid::new(2, Strain::Diamonds));
+    Some((opening_index + 2, if multi { 6 } else { 8 }))
 }
 
 /// Our side's *subsequent* penalty doubles after the natural penalty X of their
@@ -734,7 +817,7 @@ pub(super) struct Readings {
     their_multi: Option<TheirMultiReading>,
     penalty_x: Option<usize>,
     penalty_latch_doubles: Vec<(usize, Suit)>,
-    overcall_double: Option<usize>,
+    overcall_double: Option<(usize, u8)>,
     gladiator: Option<GladiatorReading>,
 }
 
@@ -773,7 +856,7 @@ impl Readings {
             penalty_latch_doubles: penalty_latch_double_reading(auction, profile),
             // Responder's double of an overcall of our 1NT shows 8+ (every DoubleStyle),
             // recorded post-walk so opener does not undercount the partnership's strength.
-            overcall_double: responder_overcall_double_reading(auction, len),
+            overcall_double: responder_overcall_double_reading(auction, len, profile, their),
             // Our Gladiator advance of a 1NT overcall of their major: the 2♣ relay (and
             // its forced 2♦), the cue-Stayman, the 3M splinter, and the 4M both-minor
             // Leaping Michaels are bids of a suit the caller lacks — suppressed here,
@@ -955,10 +1038,11 @@ impl Readings {
             players[who].narrow_length(suit, Range::at_least(4, LENGTH_CAP));
         }
 
-        // Responder's double of an overcall of our 1NT: 8+ values (every DoubleStyle).
-        if let Some(double_index) = self.overcall_double {
+        // Responder's double of an overcall of our 1NT: 8+ values (every
+        // DoubleStyle), or the Multi lane's own `hcp(6..)` under its knob.
+        if let Some((double_index, floor)) = self.overcall_double {
             let who = relative_of(len, double_index) as usize;
-            players[who].narrow_points(Range::at_least(8, POINTS_CAP));
+            players[who].narrow_points(Range::at_least(floor, POINTS_CAP));
         }
     }
 }

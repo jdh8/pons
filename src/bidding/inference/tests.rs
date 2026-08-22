@@ -832,6 +832,12 @@ fn gated_profiles_preserve_alert_invariant() {
         a.competition.multi_weak_escape = Some(6);
         profiles.push(("their-multi-escape", a));
     }
+    {
+        let mut a = base;
+        a.decision.their.two_diamonds_multi = true;
+        a.competition.multi_balance = true;
+        profiles.push(("their-multi-balance", a));
+    }
     for (name, defense) in [
         ("woolsey", NotrumpDefense::Woolsey),
         ("meckwell", NotrumpDefense::Meckwell),
@@ -1889,5 +1895,121 @@ fn multi_weak_escape_stays_out_of_the_overcall_lane() {
         read_booked_with(&base, &opening_lane),
         read_booked_with(&armed, &opening_lane),
         "the escape stopped reading in the lane it owns",
+    );
+}
+
+/// The Multi advance ladder: every rung of their pass-or-correct suppresses
+/// the phantom suit it names.
+///
+/// Measured (`probe-bba-constraints --mode custom --seat 3 --calls
+/// "1NT 2♦ 2♠"`, 6000 hands): their `3♥` is **♥ 2–5, median 3** — so the
+/// natural walk's `♥ 6..13` is false across most of the band — and their `4♦`
+/// names no diamonds at all.  Suppression only: the `♥3+ & ♠3+` claim a first
+/// build published on the jump rungs is refuted by the same probe (`3♥` is
+/// `♠ 2–4`) and measured negative in all eight A/B cells.
+#[test]
+fn multi_advance_ladder_suppresses_the_whole_ladder() {
+    use crate::bidding::inference::Relative;
+
+    let mut base = crate::bidding::agreements::Agreements::default();
+    base.decision.their.two_diamonds_multi = true;
+    base.decision.reading.their_multi_reading = true;
+    let mut armed = base;
+    armed.decision.reading.their_multi_advance_reading = true;
+
+    // The advancer is RHO from the seat about to act.
+    let advance = |level, strain| {
+        [
+            bid(1, Strain::Notrump),
+            bid(2, Strain::Diamonds),
+            Call::Double,
+            bid(level, strain),
+        ]
+    };
+
+    for (level, strain, suit) in [
+        (3, Strain::Hearts, Suit::Hearts),
+        (3, Strain::Spades, Suit::Spades),
+        (4, Strain::Clubs, Suit::Clubs),
+        (4, Strain::Diamonds, Suit::Diamonds),
+    ] {
+        let auction = advance(level, strain);
+        assert_ne!(
+            read_booked_with(&base, &auction)
+                .get(Relative::Rho)
+                .length(suit),
+            Range::FULL_LENGTH,
+            "the shipped reader invents {suit} on their {level}{strain:?}",
+        );
+        assert_eq!(
+            read_booked_with(&armed, &auction)
+                .get(Relative::Rho)
+                .length(suit),
+            Range::FULL_LENGTH,
+            "the phantom {suit} must be gone on their {level}{strain:?}",
+        );
+    }
+
+    // No positive claim rides on any rung — refuted by probe and by A/B.
+    let jump = advance(3, Strain::Hearts);
+    let rho = *read_booked_with(&armed, &jump).get(Relative::Rho);
+    assert_eq!(rho.length(Suit::Spades), Range::FULL_LENGTH);
+    assert_eq!(rho.strength.points, Range::FULL_POINTS);
+
+    // The two-level preference is already covered by the shipped reader.
+    let two = advance(2, Strain::Hearts);
+    assert_eq!(
+        read_booked_with(&base, &two).get(Relative::Rho),
+        read_booked_with(&armed, &two).get(Relative::Rho),
+        "the knob must not move the rung the shipped reader already covers",
+    );
+}
+
+/// Our values double of their declared Multi is authored `hcp(6..)`, but the
+/// generic `DoubleStyle` reader publishes the flat 8+ for every `1NT (2X) X`.
+#[test]
+fn multi_values_double_reads_its_own_floor() {
+    let mut base = crate::bidding::agreements::Agreements::default();
+    base.decision.their.two_diamonds_multi = true;
+    base.decision.reading.their_multi_reading = true;
+    let mut armed = base;
+    armed.decision.reading.their_multi_double_reading = true;
+
+    // `1NT (2♦) X -` — opener reads partner's double.
+    let multi = [
+        bid(1, Strain::Notrump),
+        bid(2, Strain::Diamonds),
+        Call::Double,
+        Call::Pass,
+    ];
+    assert_eq!(
+        read_booked_with(&base, &multi)
+            .partner()
+            .strength
+            .points
+            .min,
+        8
+    );
+    assert_eq!(
+        read_booked_with(&armed, &multi)
+            .partner()
+            .strength
+            .points
+            .min,
+        6,
+        "the Multi values double is authored hcp(6..), not the DoubleStyle 8",
+    );
+
+    // A natural overcall is untouched: that double really is 8+.
+    let natural = [
+        bid(1, Strain::Notrump),
+        bid(2, Strain::Spades),
+        Call::Double,
+        Call::Pass,
+    ];
+    assert_eq!(
+        read_booked_with(&base, &natural).partner(),
+        read_booked_with(&armed, &natural).partner(),
+        "the knob must fire only on the declared Multi",
     );
 }

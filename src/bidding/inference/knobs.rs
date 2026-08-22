@@ -911,6 +911,54 @@ pub struct ReadingProfile {
     /// foreign call from its own authored book.
     pub their_multi_reading: bool,
 
+    /// Read the opponents' Multi **advance** as a pass-or-correct ladder
+    ///
+    /// Requires [`Self::their_multi_reading`] and the disclosure; inert
+    /// otherwise.  Two halves, both about the advancer:
+    ///
+    /// - **Suppression, widened.** The shipped reader borrows
+    ///   `advancer_artificial`, which matches only `2♦`/`2♥`/`2♠` because the
+    ///   Landy reader shares it and *its* three-level advances are natural.
+    ///   Over a Multi every rung of `2♥ / 2♠ / 3♥ / 3♠ / 4♣ / 4♦ / 4♥ / 4♠`
+    ///   means "bid your major", so the natural walk read `X (3♥)` as
+    ///   `♥ 6..13` and `X (4♦)` as `♦ 3..13` — phantom suits, on boards where
+    ///   the advance held a singleton diamond.
+    /// - **No positive claim.**  A first build also published `♥3+ & ♠3+` on
+    ///   the jump rungs, reasoning that an advancer choosing a three- or
+    ///   four-level contract must be able to play either major.  Both the
+    ///   probe and the A/B refuted it: `probe-bba-constraints --mode custom
+    ///   --seat 3 --calls "1NT 2♦ 2♠"` (6000 hands) puts their `3♥` at
+    ///   `♥ 2–5 / ♠ 2–4`, and the arm measured **negative in all eight
+    ///   cells** over two seeds, its worst boards showing our side talked out
+    ///   of a correct `4♠` save by spade length the advancer did not hold
+    ///   (`♠1` on `5.Q52.T543.KQJ82`).  What remains is sound by
+    ///   construction — it only ever *removes* a possibly-false length.
+    ///
+    /// The same probe is why suppression is worth having: their `3♥` really is
+    /// `♥ 2–5, median 3`, so the natural walk's `♥ 6..13` is false across most
+    /// of the band, and their `4♦` names no diamonds at all.
+    ///
+    /// **Off by default.**  The bundled first build was refuted (above); the
+    /// suppression half owes its own arm — a reading knob is a bidding knob.
+    pub their_multi_advance_reading: bool,
+
+    /// Read our values double of their Multi at its authored floor
+    ///
+    /// `1NT (2♦) X` over a declared Multi is the N4 values call, authored
+    /// `hcp(6..)` (`multi_2d_responder`) — but `responder_overcall_double_reading`
+    /// hard-codes the `DoubleStyle` 8+ floor for *every* `1NT (2X) X` and is
+    /// not Multi-aware, so the call reads `points 8..` and asserts two points
+    /// responder never promised.  On this knob the reader follows the lane's
+    /// own rule.
+    ///
+    /// A false assertion is strictly worse than none, so the fix is not in
+    /// doubt; the *measurement* is, because a reading knob is a bidding knob
+    /// and the `X` lane it lands in measures `−1.02 plain / +0.67 PD` — the
+    /// census's verdict there is "no new work". **Off by default, unmeasured**,
+    /// and isolable from the shipped [`Self::their_multi_reading`] rather than
+    /// riding it.
+    pub their_multi_double_reading: bool,
+
     /// Alert every forced completion, transfer completion and conventional
     /// answer — the uniform completion-alert doctrine
     ///
@@ -1078,6 +1126,8 @@ impl ReadingProfile {
             landy: true,
             their_landy_reading: false,
             their_multi_reading: false,
+            their_multi_advance_reading: false,
+            their_multi_double_reading: false,
             completion_alerts: false,
             notrump_defense: crate::bidding::american::NotrumpDefense::Woolsey,
             natural_overcall_points: (9, 13),
@@ -1141,6 +1191,8 @@ impl Default for ReadingProfile {
             landy: false,
             their_landy_reading: true,
             their_multi_reading: true,
+            their_multi_advance_reading: false,
+            their_multi_double_reading: false,
             completion_alerts: true,
             notrump_defense: crate::bidding::american::NotrumpDefense::Natural,
             natural_overcall_points: (8, 14),

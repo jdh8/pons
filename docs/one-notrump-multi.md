@@ -24,6 +24,14 @@ cargo run --release --example render-book -- --their-2d-multi --prefix "1NT 2♦
 
 # What one call reads as, from the seat about to act
 cargo run --release --example probe-call-reading -- --their-2d-multi "1N (2D) X -"
+# ...and on the two opt-in reading arms
+cargo run --release --example probe-call-reading -- --their-2d-multi \
+    --ns-their-multi-advance-read "1N (2D) X (3H)" "1N (2D) X (4D)"
+# What their advancer actually holds, which is what settled the readings above
+cargo run --release --example probe-bba-constraints -- --mode custom --seat 3 \
+    --calls "1NT 2♦ 2♠" --samples 6000 --min-share 0.01
+cargo run --release --example probe-call-reading -- --their-2d-multi \
+    --ns-their-multi-double-read "1N (2D) X -"
 
 # What each cell costs against BBA (needs an anchor arm on disk)
 cargo run --release --features serde --example probe-1nt-interference -- \
@@ -166,7 +174,7 @@ sees it. Our own calls, read by opener:
 
 | our call | reads as |
 | --- | --- |
-| `X` | `points 8..37`, ♥ ≤4, ♠ ≤4 |
+| `X` | `points 8..37`, ♥ ≤4, ♠ ≤4 — `points 6..` on `--ns-their-multi-double-read` (open item 1) |
 | `2♥` / `2♠` | `points 0..8`, suit 5+ — in step with the floorless rung |
 | `2NT` | `points 0..8`, shape ⊤ — the relay carries the same floorless arm |
 | `3♣` | `points 10..`, shape ⊤ |
@@ -182,8 +190,8 @@ Their calls:
 | --- | --- | --- |
 | `(2♦)` the Multi | suppressed (`⊤`) under `their_multi_reading`; **♦ 5..13, points 8..** without it | yes / no |
 | `(2♥)` / `(2♠)` advance | suppressed (`⊤`) | yes — names no holding of its own |
-| `(3♥)` / `(3♠)` after our `X` | **♥ 6..13** / **♠ 6..13** | **no** — a raise of an unknown major, not a suit of their own |
-| `(3♦)` / `(4♦)` after our `X` | **♦ 3..13** | **no** — phantom suit; the advance denies nothing in diamonds (♦1 on one loss board) |
+| `(3♥)` / `(3♠)` after our `X` | **♥ 6..13** / **♠ 6..13**; ⊤ on `--ns-their-multi-advance-read` | **no** → fixed on the knob — probed at `♥ 2–5, median 3`, so `6..` is false across most of the band |
+| `(3♦)` / `(4♦)` after our `X` | **♦ 3..13**; ⊤ on the knob | **no** → fixed on the knob — phantom suit; the advance denies nothing in diamonds (♦1 on one loss board) |
 | `(4♥)` after our `X` | nothing (`⊤`) | — |
 | `(3♥)`/`(3♠)`/`(4♦)` after our `2♠`/`2NT`/`3♣`/`3♥` | nothing (`⊤`) | harmless, but the major fit never reaches the floor |
 
@@ -195,21 +203,43 @@ lost with the advance reading as nothing at all and the floor bidding blind
 `advancer_artificial` (`readers.rs:295-317`) matches **only `2♦`/`2♥`/`2♠`** —
 the two-level rung. Every rung above it falls through to the natural walk, and
 the readings are identical with and without `their.two_diamonds_multi`.
+`multi_advance_ladder` covers the rest, under its own knob (open item 3).
 
 ## The holes — seats the floor owns
 
 | seat | authored? | cost (same arms) |
 | --- | --- | --- |
-| **`1NT (2♦) - (2M) ?`** — responder passed, they named the major, opener to act | **no node at all** | **253 bd, −426 plain, −199 PD** — 57% of the bucket, negative on *both* scorers |
+| **`1NT (2♦) - (2M) ?`** — responder passed, they named the major, opener to act | **behind `competition.multi_balance`, default off** (§N4f) | **253 bd, −426 plain, −199 PD** — 57% of the bucket, negative on *both* scorers |
 | `1NT (2♦) 2♥ (4♦)` and anything above `3♠` over the escape | no — tail stops at `3♠` | inside the `(4♦)` row above |
 | `1NT (2♦) X (3♥ \| 3♠ \| 4♦)` | no — the family keys on `(2♥)`/`(2♠)` only | not separately measured |
 | `1NT (2♦) 3♣ (X)`, `3♦ (3♠)`, … any interference over a constructive call | no — every constructive key ends in `-` | not separately measured |
 | `1NT (2♦) X (2♠) - (2NT)` and siblings | node exists, but it only passes | — |
 
-The first row is the lane's real work. The authored family hangs entirely off
-responder's `X`; when responder passes — 264 of 816 boards, the biggest single
-response — every later seat is the learned contested floor's, and opener sells
-out at the two level.
+The first row was the lane's one named hole; `multi_balance` now authors it,
+default off and owing its arm. **Read its ceiling before its headline**: the
+anchor passes that seat **94.2% / 92.7%** (probed 2026-08-22, below), so at most
+~6% of those 253 boards are reachable by *any* opener action, and the −426 plain
+is overwhelmingly earned elsewhere. The rest of the family hangs off responder's
+`X`; when responder passes — 264 of 816 boards, the biggest single response —
+every later seat is the learned contested floor's.
+
+### `1NT (2♦) - (2M) ?` — what the anchor does there
+
+`probe-bba-constraints --mode custom --seat 0 --calls "1NT 2♦ - 2♥"
+--filter-call 1NT`, 4000 hands per vulnerability, `--min-share 0.005`:
+
+| seat | BBA's table |
+| --- | --- |
+| `1NT (2♦) - (2♥) ?` | Pass **94.2%** · `X` **5.8%** = `hcp(15..=17) & len(♥, 5..) & balanced()` · `3♣` 0.5% (n=1) |
+| `1NT (2♦) - (2♠) ?` | Pass **92.7%** · `X` **7.3%** = `hcp(15..=17) & len(♠, 5..) & balanced()` |
+
+It is a **trump-length penalty double** of the suit they named — *not* the
+delayed takeout double of Multi theory ("pass 2♦, then double 2♥ for take-out")
+— and there is no natural rung at any share, even though `NotrumpShape::Wide6322`
+admits a five-card major and a six-card minor. `multi_balance` authors exactly
+that, at `len(M, 5..)`: `multi_penalty_answer`'s four trumps raised to five,
+because partner passed rather than doubling and opener is short of the values
+half of the structure.
 
 ## Open items and traps (flagged; no system change here)
 
@@ -220,9 +250,12 @@ out at the two level.
    `1NT (2X) X` and is not Multi-aware. §N4's table claims "Read: `points 6..`,
    every suit ⊤" — stale on both halves (the ♥≤4/♠≤4 cap is sound: by weight
    ordering a 5-card major always escapes or transfers instead).
-   *Proposed reversible default:* make the reader's floor follow the lane's own
-   rule, gated on `their_multi_reading`; the reading knob is a bidding knob, so
-   it needs its own A/B.
+   **Implemented 2026-08-22 behind `reading.their_multi_double_reading`**
+   (`bba-gen --ns-their-multi-double-read`, `probe-call-reading` likewise),
+   default off: on the knob the reader follows the lane's own rule and the
+   double reads `points 6..`. Its own arm rather than riding
+   `their_multi_reading`, so the shipped reader's base does not move; a reading
+   knob is a bidding knob.
 2. **Read the escape with the knob set.** `probe-call-reading` used to
    overwrite `multi_weak_escape` with `None` whenever `--ns-multi-weak-escape`
    was absent, so the escape read `points 5..8` — the *pre-ship* rule — and
@@ -230,12 +263,43 @@ out at the two level.
    shipped `Some(6)` alone (`0` turns it off), and the pair reads `points
    0..8` on both halves, as the ship claimed. No system change; only the probe
    moved.
-3. **The advancer's ladder above `2♠` is unread** — item 3/4 of the reading
-   table. *Proposed reversible default:* widen `advancer_artificial` to the
-   whole pass-or-correct ladder (`3♦/3♥/3♠/4♦`, and `4♥/4♠` for symmetry),
-   which only ever *removes* a false length — the soundness argument in its own
-   doc comment. The **positive** read ("3+ in both majors, ≤8 HCP") is a new
-   assertion and belongs to the declared-opponent book, not to a local reader.
+3. **The advancer's ladder above `2♠` is unread** — items 3/4 of the reading
+   table. **Implemented 2026-08-22 behind
+   `reading.their_multi_advance_reading`** (`--ns-their-multi-advance-read`),
+   default off, in two halves:
+
+   - *Suppression*, widened to the whole ladder
+     (`2♥/2♠/3♥/3♠/4♣/4♦/4♥/4♠`). `advancer_artificial` is **not** widened in
+     place — the Landy reader shares it and *its* three-level advances really
+     are natural — so the Multi reader gets its own `multi_advance_ladder`.
+   - *No positive claim.* Round 1 also published `♥3+ & ♠3+` on the jump
+     rungs, on the theory that an advancer choosing a three- or four-level
+     contract must be able to play either major. **Refuted twice over**
+     (§N4f round 1) and removed.
+
+   `4♣` is included in the ladder on the user's call (`4♣`/`4♦` both land in
+   either 4M) though the census has zero measured `(4♣)` advances — that rung
+   is assumption, not evidence.
+
+   **Why suppression is the half worth keeping.**
+   `probe-bba-constraints --mode custom --seat 3 --calls "1NT 2♦ 2♠"`, 6000
+   hands NV:
+
+   | their call | share | ♥ | ♠ | hcp |
+   | --- | ---: | --- | --- | --- |
+   | `3♥` | 38.2% | **2–5 (med 3)** | 2–4 (med 3) | 7–13 |
+   | Pass | 29.7% | 1–5 | 2–5 | 2–12 |
+   | `2NT` | 16.7% | 2–5 | 1–5 | 14–20 |
+   | `4♦` | 11.9% | 3–5 (med 4) | 3–6 (med 4) | 3–14 |
+   | `X` | 1.5% | 0–1 | 3–6 | 14–19 |
+
+   Their `3♥` is `♥ 2–5`, so the natural walk's `♥ 6..13` is false across most
+   of the band — suppression removes a genuinely wrong read. But `♠ 2–4` (and
+   a 10th-percentile tail below it) is why `♠3+` was wrong, and `4♦`'s `♠ 3–6`
+   has the same tail. And **no strength claim is published** either: the
+   envelope has no HCP axis, `points` would fold in the advancer's
+   distribution, and `(2♠)` would refuse one anyway (`bba-multi-2d.md §2`:
+   `hcp 7–18`, the strength-showing catch-all).
 4. `docs/ai-bidder/bba-1nt-defense.md` documents no four-level advance at all.
 
 ## See also
