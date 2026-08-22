@@ -216,7 +216,8 @@ the readings are identical with and without `their.two_diamonds_multi`.
 | `1NT (2♦) X (2♠) - (2NT)` and siblings | node exists, but it only passes | — |
 
 The first row was the lane's one named hole; `multi_balance` now authors it,
-default off and owing its arm. **Read its ceiling before its headline**: the
+default off and unresolved after two below-resolution rounds. **Read its
+ceiling before its headline**: the
 anchor passes that seat **94.2% / 92.7%** (probed 2026-08-22, below), so at most
 ~6% of those 253 boards are reachable by *any* opener action, and the −426 plain
 is overwhelmingly earned elsewhere. The rest of the family hangs off responder's

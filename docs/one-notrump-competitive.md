@@ -51,7 +51,7 @@ anchor arm off the deal-keyed DD cache — seconds, no generation, no new solve:
 
 ```bash
 cargo run --release --features serde --example probe-1nt-interference -- \
-    ab-results/anchor-confirm/2026-08-21-1e9a47e2/american-none \
+    ab-results/anchor-confirm/2026-08-22-053c4fb8/american-none \
     --dd-cache ab-results/anchor-confirm/dd-cache.json
 # --bucket "2♣" --show 8       the worst boards of one bucket
 # --bucket "2♠" --responses 8  that bucket by our response, and by hand class
@@ -69,11 +69,11 @@ not isolate. Isolation is a package's own A/B (`bba-gen --filter-1nt`, one
 knob). The confound is broadly common across buckets, which is what leaves the
 ranking usable.
 
-### Current — arms `1e9a47e2`, seed 1787064872, 204,800 boards/vulnerability (2026-08-21)
+### Current — arms `053c4fb8`, seed 1787064872, 204,800 boards/vulnerability (run 2026-08-23 local)
 
-`ab-results/anchor-confirm/2026-08-21-1e9a47e2/american-{none,both}`, the
+`ab-results/anchor-confirm/2026-08-22-053c4fb8/american-{none,both}`, the
 shipping system, replaying 100.00% of our calls with 0 mismatches; whole-arm
-plain **−0.4819 NV / −0.5872 vul** IMPs/board against BBA. We open 1NT on
+plain **−0.4818 NV / −0.5870 vul** IMPs/board against BBA. We open 1NT on
 **6.33%/6.53%** of boards and RHO contests **12.9%/10.8%** of those, so a
 contested 1NT is **0.82%/0.70% of all boards**. The three-level suits are split
 per RHO suit; `4+` is `3NT` and everything above it, still one floor-only
@@ -81,7 +81,7 @@ bucket.
 
 | RHO | boards (NV+vul) | plain total | plain/bd | PD/bd NV | PD/bd vul |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| **`2♦` Multi** | 816 | **−744** | −0.91 | +0.01 | −0.24 |
+| **`2♦` Multi** | 816 | **−689** | −0.84 | +0.08 | −0.02 |
 | **`3♣` preempt** | 140 | −152 | −1.09 | −1.00 | −0.94 |
 | **`3♠` preempt** | 72 | −107 | **−1.49** | −0.91 | −1.11 |
 | `2♣` Landy | 573 | −102 | −0.18 | +0.67 | +0.95 |
@@ -92,24 +92,25 @@ bucket.
 | **`3♥` preempt** | 105 | +7 | +0.07 | −0.11 | +1.02 |
 | **`3♦` preempt** | 93 | +60 | +0.65 | +0.32 | +1.46 |
 | `X` Woolsey | 336 | **+103** | +0.31 | +0.94 | +1.79 |
-| **all contested** | 3115 | −1193 | −0.52 / −0.22 | +0.20 | +0.51 |
+| **all contested** | 3115 | −1138 | −0.53 / −0.18 | +0.22 | +0.57 |
 | **uncontested 1NT** | 23223 | — | **+0.12 / −0.02** | — | — |
 
 **Three findings.**
 
 1. **The lane's whole headroom is ~0.003 IMPs/bd.** Contested costs −0.65 NV /
-   −0.20 vul relative to *uncontested*, on 0.82%/0.70% of boards — 0.0053 NV /
-   0.0014 vul per board of the arm. Against a −0.48/−0.59 gap to BBA nothing
+   −0.16 vul relative to *uncontested*, on 0.82%/0.70% of boards — 0.0053 NV /
+   0.0011 vul per board of the arm. Against a −0.48/−0.59 gap to BBA nothing
    here closes an anchor bucket; this is hygiene and disaster removal at the
    standard ship gate, as scoped.
-2. **Contested 1NT is not a leak.** −0.52/−0.22 against the arm's own
+2. **Contested 1NT is not a leak.** −0.53/−0.18 against the arm's own
    −0.48/−0.59: a shade below average NV, well above it vulnerable. Uncontested
    1NT (+0.12/−0.02) is the better board either way, and the 1NT opening stays
    one of our better boards even when contested.
-3. **`(2♦)` Multi is now the lane's whole loss.** At **−744 plain on 816
-   boards** it is five times the next bucket's total and PD-negative
-   vulnerable — and N4's v7 counter and its reader already shipped against it,
-   so nothing in the queue below owns it. Everything N3 and N1 touched has
+3. **`(2♦)` Multi remains the lane's largest bucket, but N4e landed.** At
+   **−689 plain on 816 boards** it is 4.5 times the next bucket's total, while
+   PD is nearly flat at +0.08/−0.02 NV/vul. The same-seed post-ship move is
+   **+55 plain / +109 PD**, and the weak-six disaster is gone (§N4e); the
+   residue names no new package. Everything N3 and N1 touched has
    moved: the four three-level suits pool to **410 bd / −192 plain / −73 PD**
    (paired against the same seed's post-ship baseline of −273 / −186 —
    [§N3](#measurement--eight-rounds-archived)), `X` is now **+103 plain,
@@ -136,9 +137,9 @@ us:  1NT 2NT X 3♦ - - -
 bba: 1NT 2NT X 3♦ - - X - - -
 ```
 
-Two re-anchors later there is still no replicated loss — `53a3c254` read
-+5 plain on 118 boards, this one −26 on 131, both well inside their CIs —
-so N6 stays parked.
+Three re-anchors later there is still no replicated loss — `53a3c254` read
++5 plain on 118 boards, while both `1e9a47e2` and this snapshot read −26 on
+131, all well inside their CIs — so N6 stays parked.
 
 ## Coverage inventory
 
@@ -192,26 +193,27 @@ is 5 calls; the most common runout point is after opener's transfer completion
 ## Package queue — open work, ranked by the census
 
 Shipped packages have left this table; they are represented by the coverage
-inventory above and by the [ledger](#ledger). The census's top bucket, `(2♦)`
-at −744 plain, was re-decomposed on 2026-08-21; its one open item, **N4e**,
+inventory above and by the [ledger](#ledger). The pre-N4e census's top bucket,
+`(2♦)` at −744 plain, was re-decomposed on 2026-08-21; its one open item, **N4e**,
 **shipped default-on 2026-08-22** and has moved to the [ledger](#ledger)
 ([§N4e](#n4e--the-floorless-weak-escape-shipped-default-on-2026-08-22-the-six-card-rung-five-refuted)).
 N4's v7 counter and its reader had shipped against the *strong* half of that
 bucket and its residue was measured out; N4e was responder's sub-5-HCP outlets,
-never authored at all. **N4f** (2026-08-22) then built the bucket's last named
-hole and its two reading defects — three knobs, all default off, all owing
-`scripts/ab-2d-multi-balance.sh`
-([§N4f](#n4f--openers-balancing-seat-and-the-two-reading-knobs-built-2026-08-22-all-three-default-off-unmeasured)).
+never authored at all. The post-ship replay moves the bucket to −689 plain / +29
+PD and closes N4e's owed probe. **N4f** (2026-08-22) then built and measured the
+bucket's last named hole and its two reading defects; all three knobs remain
+default-off
+([§N4f](#n4f--openers-balancing-seat-and-the-two-reading-knobs-measured-2-rounds-2026-08-22-nothing-ships-all-three-stay-opt-in)).
 
 | # | Package | Knob | State |
 | --- | --- | --- | --- |
-| **N4f** | **opener's balancing seat + the two Multi reading knobs** — `multi_balance`, `their_multi_advance_reading`, `their_multi_double_reading` | three knobs (**all off**) | **Measured ×2 rounds 2026-08-22 (4 seed-sets, 24 pairs, all 0 foreign): nothing ships.** `balance` is **below this harness's resolution** — ~18 bd per 230,400, signs flipping between rounds, pooled ≈ −0.00003 IMPs/bd; unresolved, wants an sd re-measure or a sub-lane harness. `xfloor` is a wash. `advance`'s round-1 loss was its bundled `♥3+ & ♠3+` claim (probed false), now removed; suppression-only diverges on **6 boards in 1.84 m** — the false read is **inert**. One flagged default flip: whether "stops asserting a falsehood at zero cost" should need to win a gate |
+| **N4f** | **opener's balancing seat + the two Multi reading knobs** — `multi_balance`, `their_multi_advance_reading`, `their_multi_double_reading` | three knobs (**all off**) | **Measured ×2 rounds 2026-08-22 (4 seed-sets, 24 pairs, all 0 foreign): nothing ships.** `balance` is **below this harness's resolution** — ~18 bd per 230,400, signs flipping between rounds, pooled ≈ −0.00003 IMPs/bd; unresolved, wants an sd re-measure or a sub-lane harness. `xfloor` is a wash. `advance`'s round-1 loss was its bundled `♥3+ & ♠3+` claim (probed false), now removed; suppression-only diverges on **6 boards in 1.84 m** — the false read is **inert**. Its correctness-only default flip was withdrawn; flip it when a contested-floor retrain or a package consumes the advancer's length |
 | **N4-mirror** | **our `2♦` overcall of *their* 1NT**, passed out — plain +0.21, **PD −3.38/bd** on 165 isolated boards, **−558 PD IMPs** | — (defensive lane) | Found while pricing N4f from the census's never-quoted table-B panel. **−0.0027 IMPs/bd of the arm**, larger than this whole campaign's headroom, from one call. Belongs to [defensive-overcalls.md](defensive-overcalls.md) / `nt_defense.rs`, not here; filed so it is not lost |
 | **N3-x** | **`X` over their `(4x)`** — the floor cannot double above the three level at all (`their_live_bid_at_most(3)`, [instinct.rs:6058](../src/bidding/instinct.rs)), and BBA's advancer sits for our double on **96.7–99.9%** of hands | new (book) | Current `4+` bucket 38 bd / −43 plain / −45 PD, −1.13/bd on a CI that swallows the total. The `(3x)` template does **not** widen — their four-level overcalls are *eight*-card suits, six times rarer than the three-level rows — so this is an uncontested opportunity to size, not a copy |
 | **N2d** | relay with a 6+ suit below 6 HCP, over `(2♠)` only (the weak major has no two-level call there) | book | **Re-read 2026-08-21: 25 bd, −77 plain / −52 PD, −3.08/bd** — still the worst hand class in the lane, and negative on both scorers. Contradicts the PD-distilled floor ([`lebensohl_relay_shape`](../src/bidding/american/competition/lebensohl.rs)); against Muiderberg the alternative is a making `2♠`, and BBA at table B bids these hands un-overcalled. Needs the A/B, not a re-derivation |
 | N5 | Complete Jacoby, then re-measure | `competition_over_transfer` | default-off on a measured loss *while missing its two most-fired cells* — `(2♥)` over our `2♦` and `(2♠)` over our `2♥`, i.e. they bid the major we are transferring to ([over_our_jacoby.rs:100-103](../src/bidding/american/competition/over_our_jacoby.rs)) — a half-built loss, resumable |
 | N3-fit | fresh-seed confirmation of the `4M` fit rung | `nt_high_overcall_x_major_at_four` (**on**) | Round 5 shipped it on one seed (+1.14/+1.69 per fired, 0 foreign) and explicitly owed a confirmation. Rounds 7–8 ran against a `base` that *carries* it, which is not an isolated confirmation — the row is shipped but not settled |
-| N6 | `(2NT)` penalty discipline | `uvu_encircle` et al. | 131 bd, −26 plain, CI ±1.36/±1.70 per board and the signs disagree by vulnerability — no replicated loss on either re-anchor since the starting snapshot. Mechanism stays priced: **BBA doubles 46.7%** and cues `3♣` for both majors ([reference](ai-bidder/bba-1nt-counter-defense.md)). Parked |
+| N6 | `(2NT)` penalty discipline | `uvu_encircle` et al. | 131 bd, −26 plain, CI ±1.36/±1.70 per board and the signs disagree by vulnerability — no replicated loss on any re-anchor since the starting snapshot. Mechanism stays priced: **BBA doubles 46.7%** and cues `3♣` for both majors ([reference](ai-bidder/bba-1nt-counter-defense.md)). Parked |
 | N3-three | single-dummy re-measure of the refuted honor half | `nt_high_overcall_x_leave_in_three` (**off**) | Round 7 refuted it at sd-lead −2.44/−2.99 per fired; its `plain wash \| PD win` DD signature is the doubling artifact. Kept opt-in as a house-rule re-measure candidate on its vulnerable PD reading |
 | N3-xfer | re-measure the `(3♣)` transfers | `nt_3c_transfers` (**off**) | Two seeds at round 2 and two more at round 3, all four pooled cells positive and all four an order of magnitude inside their CI. What it buys — the invitational five-card major, and right-siding — is DD-blind, so this is a single-dummy-harness item |
 | N2c | the no-call 8–9 count with 0-1 / 4+ in their suit | book | **Re-read 2026-08-21: 19 bd, +11 plain / +91 PD.** The class that motivated it now reads *positive on both scorers*. Demoted to **parked pending replication**, not closed — n is small enough that either sign is seed noise |
@@ -392,7 +394,7 @@ the [ledger](#ledger) carries their numbers. What the rounds settled:
 | 7 (2026-08-20) | `length` and `three` as separate arms, fresh seed | `length` **SHIPPED default-on** — CI-clear positive in all eight cells (+2.38/+3.41 per fired), 0 foreign, 13/13 buckets DD-positive; `three` **REFUTED**, opt-in |
 | 8 (2026-08-21) | is any suit-dependent gate worth authoring? | **no** — every suit DD-positive at both vulnerabilities, the round-7 gradient was noise around a real spades-best tilt that never crosses zero, the spade-only widening of `_three` sd-negative in every suit, and the leave-in replicated CI-clear on an independent seed |
 
-**Current score against the lane** — the census arms above, so this is
+**Score against the lane on the 2026-08-21 `1e9a47e2` arms** — this is
 attribution and not a causal A/B: each number is the whole board's swing and
 carries the mirrored table.
 
@@ -750,12 +752,12 @@ about this round.
 ### N4e — the floorless weak escape (**SHIPPED DEFAULT-ON 2026-08-22; the six-card rung, five refuted**)
 
 The v7 counter and its reader shipped against the strong half of the `(2♦)`
-bucket. This is the re-decomposition of what is left, read with
+bucket. This is the **pre-N4e** re-decomposition of what was left, read with
 `probe-1nt-interference --bucket "2♦" --responses 6` on the shipped arms
 `ab-results/anchor-confirm/2026-08-21-1e9a47e2/american-{none,both}` (seed
 1787064872, 204,800 bd/vulnerability, NV+vul pooled below).
 
-**Read the size first.** −744 IMPs over 409,600 boards is **−0.0018
+**Read the pre-ship size first.** −744 IMPs over 409,600 boards is **−0.0018
 IMPs/board of the arm** — 0.3% of the −0.48/−0.59 gap to BBA — and per *board*
 `(2♦)` is not the worst cell: `3♠` −1.49, `4+` −1.13, `3♣` −1.09 all beat it.
 `(2♦)` leads the bucket table because their Multi fires twice as often as
@@ -1060,10 +1062,35 @@ owner split moves NV plain +0.00076 → +0.00074 and PD +0.00135 → +0.00134 �
 inside their CIs, no cell changes verdict. Quoted here rather than gated on,
 by the same reading N1c shipped under at 1 of 132.
 
-**Owed.** Re-run `probe-1nt-interference --bucket "2♦" --responses 6` on a
-fresh anchor arm carrying the shipped default: the Pass row's `≤5 hcp, 6+ suit`
-class should shrink toward zero boards and the `2NT`/`2♥`/`2♠` rows should
-absorb them without going negative.
+#### Post-ship re-anchor (run 2026-08-23 local) — the loop is closed
+
+`ab-results/anchor-confirm/2026-08-22-053c4fb8/american-{none,both}` replays
+the same seed, 1787064872, at 204,800 bd/vulnerability with 100.00% replay and
+0 mismatches. The `(2♦)` boards are exactly paired with the pre-ship snapshot,
+and none overlaps `d54ef73f`'s overcall-strip fix. Cells below are
+`boards / plain total / PD total`:
+
+| slice | pre-ship `1e9a47e2` | post-ship `053c4fb8` | delta |
+| --- | ---: | ---: | ---: |
+| whole `(2♦)` bucket | 816 / −744 / −80 | 816 / **−689 / +29** | 0 / **+55 / +109** |
+| responder Pass | 264 / −452 / −226 | 213 / **−301 / −4** | −51 / **+151 / +222** |
+| Pass: ≤5 HCP, 6+ suit | 37 / −145 / −179 | **0 / 0 / 0** | −37 / **+145 / +179** |
+| `X` | 200 / −203 / +133 | 200 / −203 / +133 | 0 / 0 / 0 |
+| `2NT` relay | 79 / −6 / +11 | 110 / −51 / −1 | +31 / −45 / −12 |
+| `2♥` | 52 / +5 / +77 | 62 / −90 / −42 | +10 / −95 / −119 |
+| `2♠` | 57 / −118 / −71 | 67 / −74 / −53 | +10 / +44 / +18 |
+
+The 51 passes migrate exactly: 31 to `2NT`, 10 to `2♥`, and 10 to `2♠`.
+Bucket plain improves from −0.91 to −0.84 per board; PD moves from
++0.01/−0.24 to +0.08/−0.02 NV/vul. The 111-board N4e-owned divergent set at
+table A is **+55 plain / +132 PD**. The new `2♥` total is the worst first-call
+row at −90/−42, but the N4e-owned boards entering it are **+33/+57**.
+
+No named continuation crosses −100: `2♥ - -` is 31 boards at −49/−66, and
+`2♥ (2♠) -` is 16 at −35/−10. One relay-under-interference board is −16/−17;
+it is an isolated outlier, not a package. **N4e landed: the lane is done for
+now.** N4-mirror is the next adjacent proposal; regime-widening and its v7
+floor retrain remain the trigger for the parked reading knob.
 
 **N2d stays parked**, and now gets the pointer the queue row promised: `six`
 shipped, so the `(2♠)` twin's case is a pointer to this round, not a run.
@@ -1073,9 +1100,10 @@ shipped, so the `(2♠)` twin's case is a pointer to this round, not a run.
 The `(2♦)` bucket's one *named* hole plus the two reading defects
 [one-notrump-multi.md](one-notrump-multi.md) flagged. All three are built, all
 three default off, all three inert while their `2♦` is undeclared
-(`smoke-default` `39ca60a2…` byte-identical against `main` HEAD). They owe
-`scripts/ab-2d-multi-balance.sh` — three aligned arms, each pinning the other
-two off, `--their-2d-multi --filter-1nt` on every arm.
+(`smoke-default` `39ca60a2…` byte-identical against `main` HEAD). They were
+measured twice with `scripts/ab-2d-multi-balance.sh` — three aligned arms, each
+pinning the other two off, `--their-2d-multi --filter-1nt` on every arm — and
+nothing shipped.
 
 ### Phase 0 first: two probes re-ranked the package before any box was spent
 
@@ -1327,9 +1355,10 @@ biggest single number this round produced and it should be somebody's package.
 ## N2 — Muiderberg `(2♥)/(2♠)`: the lane today
 
 Their `2♥`/`2♠` show exactly five in the major plus a 4+ minor; we answer with
-Cohen Transfer Lebensohl (`lebensohl.rs:466`, `rubensohl.rs:98`). Current
-census: **`2♥` 409 bd / −99 plain / −0.24 per board** (PD +0.20/+0.84) and
-**`2♠` 402 bd / −90 / −0.22** (PD +0.18/+0.48) — mid-table, and PD-positive at
+Cohen Transfer Lebensohl (`lebensohl.rs:466`, `rubensohl.rs:98`). The
+2026-08-21 census read **`2♥` 409 bd / −99 plain / −0.24 per board** (PD
++0.20/+0.84) and **`2♠` 402 bd / −90 / −0.22** (PD +0.18/+0.48) — mid-table,
+and PD-positive at
 both vulnerabilities in both lanes.
 
 **Status.** The 2026-08-15 census by response put the lane's headroom in *our
@@ -1345,7 +1374,7 @@ that seat. The census tables, the mechanism, and the 2026-08-16 correction are
 archived in
 [§N2 — the pre-fix census](archive/one-notrump-competitive-closed.md#n2--the-pre-fix-census-2026-08-15).
 
-**Re-read on the current arms** (`1e9a47e2`, `--bucket "2♠" --responses 8`,
+**Re-read on the 2026-08-21 arms** (`1e9a47e2`, `--bucket "2♠" --responses 8`,
 NV+vul pooled, 402 boards). All three signs the 2026-08-15 census established
 replicate:
 
