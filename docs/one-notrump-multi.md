@@ -244,6 +244,12 @@ half of the structure.
 
 ## Open items and traps (flagged; no system change here)
 
+**N4 closed 2026-08-23** ([the queue](one-notrump-competitive.md#package-queue--open-work-ranked-by-the-census)).
+Everything below is a **recorded residue**, not open work: the three knobs
+stay opt-in — `multi_balance` below this harness's resolution, the two readers
+trigger-gated — and responder's natural minor single-suiter stays unbuilt at
+≈zero value. Reopening the lane needs a new bucket, not a new seed.
+
 1. **The values double reads two points too strong.** Rule
    `.rule(Call::Double, 130, hcp(6..))` (`rubensohl.rs:531`); measured reading
    `points 8..`. The source is `responder_overcall_double_reading`
