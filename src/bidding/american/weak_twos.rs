@@ -27,7 +27,20 @@
 use crate::bidding::agreements::Agreements;
 use crate::bidding::constraint::{hcp, len, longest_unbid, points, suit_hcp, support, top_honors};
 use crate::bidding::rows::{Bindings, Package, compile_into, expand};
+use crate::bidding::rules::Alert;
 use crate::bidding::{Rules, Trie};
+
+/// The Ogust inquiry and its five answers: conventional, so alerted.
+///
+/// The ladder describes opener's *range and trump quality* — `3♣` says
+/// "minimum, bad suit", not "clubs".  Unalerted, the natural walk read each
+/// answer as a new suit at the cheapest level and stamped four-plus cards in
+/// it, excluding 77-95 % of the answerers from their own box
+/// (`probe-reading-sound`, 2026-08-24).  `artificial_calls_are_alerted`'s
+/// witness is a documented *sufficient* one — it fires on a projection that
+/// floors an unnamed suit, and these rules floor no suit at all — so nothing
+/// caught the omission.
+const OGUST: Alert = Alert("ogust");
 use contract_bridge::auction::Call;
 use contract_bridge::{Bid, Strain, Suit};
 
@@ -61,6 +74,7 @@ pub(super) fn responses(our: Suit, agreements: &Agreements) -> Rules {
             200,
             points(14..) & support(2..),
         )
+        .alert(OGUST)
         // Pre-emptive game raise.
         .rule(Bid::new(4, trump), 130, support(4..))
         // Pre-emptive simple raise (RONF — raise is to play, not invitational).
@@ -145,33 +159,39 @@ fn ogust_answers(our: Suit) -> Rules {
     Rules::new()
         // Solid six-card suit (A-K-Q present): bid 3NT.  Matches BBA exactly.
         .rule(Bid::new(3, Strain::Notrump), 150, top_honors(our, 3..))
+        .alert(OGUST)
         // Minimum values (5–7 points), bad suit (under 5 HCP in trumps).
         .rule(
             Bid::new(3, Strain::Clubs),
             100,
             points(5..=7) & suit_hcp(our, ..5),
         )
+        .alert(OGUST)
         // Minimum values, good suit (5+ HCP in trumps).
         .rule(
             Bid::new(3, Strain::Diamonds),
             100,
             points(5..=7) & suit_hcp(our, 5..),
         )
+        .alert(OGUST)
         // Maximum values (8–10 points), bad suit.
         .rule(
             Bid::new(3, Strain::Hearts),
             100,
             points(8..=10) & suit_hcp(our, ..5),
         )
+        .alert(OGUST)
         // Maximum values, good suit.
         .rule(
             Bid::new(3, Strain::Spades),
             100,
             points(8..=10) & suit_hcp(our, 5..),
         )
+        .alert(OGUST)
         // Safety fallback: guarantees a legal response for any legitimate
         // weak-two hand even when the crisp constraints leave a gap.
         .rule(Bid::new(3, Strain::Clubs), 20, hcp(0..))
+        .alert(OGUST)
 }
 
 // ---------------------------------------------------------------------------

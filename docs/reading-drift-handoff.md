@@ -996,3 +996,220 @@ campaign), **+0.85 to +3.40 IMPs per fired board**, and PD > plain in
 every cell — the dichotomy's edge grows when the defense punishes the
 base arm's phantom asks.  The bar was a mere non-loss; the table clears
 it in every cell.
+
+### Fresh sweep — attribute, repair, one batched A/B (2026-08-24)
+
+Reopened at jdh8's request after the ambient partner-exclusion rate drifted
+back up. Scope fixed with jdh8: **fresh probe sweep only** — the three standing
+queues (named reading residues, wrong-node deletions, floor-vs-reader root
+cause) are recorded below as a deferred list, not worked.
+
+**Outcome in one line:** three repairs ship (partner exclusions **1.298 % →
+0.974 %**, four pooled washes over 614,400 bd/vul), one is **parked** —
+building it was right, and the A/B says the frozen floor cannot yet spend it.
+
+#### Instrument added — `probe-admit-node`
+
+`probe-reading-sound` ranks *nodes*; the repair needs the witness. The new
+`examples/probe-admit-node.rs` takes a worklist key, replays the seat that made
+its last call over seeded hands under the sweep's own route filter, and reports
+per chosen call how often the reading excludes the hand, **which axis** does the
+excluding, and the population's own **point floor** — the last of which is what
+told this pass to lower a claim rather than delete it. It converts straight
+into a `readings_admit_the_bidder` row: drop the key's last call and the rest is
+the node.
+
+```sh
+cargo run --release --example probe-admit-node -- "2♥ - 2NT - 3♣" "1♠ - - X"
+```
+
+#### Baseline census (40,000 boards, seed 20260816, BBA 2/1 opponents, `ReadingScope::All`)
+
+| seat | readings | excluded | rate |
+| --- | ---: | ---: | ---: |
+| LHO (them) | 148,978 | 12,228 | 8.208 % |
+| **partner (ours)** | 168,978 | **2,193** | **1.298 %** |
+| RHO (them) | 188,978 | 15,616 | 8.263 % |
+
+That reproduces the B2.4-era 1.299 % (2194/168,957) to within the bidding drift
+of the intervening N4/BBA-book work, so the 1.212 % post-Michaels figure is the
+outlier, not this one. 35,431 distinct partner nodes.
+
+Unlike 2026-07-31's *flat* tail, the head was **three families plus a diffuse
+tail**, and the head carried nearly all the mass:
+
+| family | exemplars (excluded/readings) | wrong claim |
+| --- | --- | --- |
+| takeout double outside the direct seat | `1♠ - - X` 26/87, `1♥ - - X` 16/75, `1♦ - - X` 15/57, `1♣ - - X` 14/47, `1♠ - 2♠ - - X` 7/12, `2♣ X` 8/14 | `points 11..` — opening values |
+| own-suit rebid after partner spoke | `(2♥) 2♠ - 3♥ - 3♠` 8/8, `(2♠) 3♥ - 3♠ - 4♥` 11/17, `1♥ (1♠) X - 4♥` 10/16, `1♦ (2♠) X - 3♦`, `1♣ (1♠) X (1NT) - 2♠` 6/6 | the suit `6..` |
+| Ogust answers | `2♥ - 2NT - 3♣` 19/20, `2♠ - 2NT - 3♣` 17/22, `2♦ - 2NT - 3♣` 12/14 | the answer's face suit `4..` |
+
+#### Triage, per the program's step 3
+
+- **the double family — the walk, wrong for three auction shapes.** Layer
+  confirmed with `PROBE_SCOPE=none/alerted/all`: the `points 11..` is invariant
+  across every reading scope, so it is the walk's, and the call is the floor's
+  (`fallback: Some(0)`). The *direct* double is clean at 0 % (`1♠ X`, `2♥ X`,
+  `1♥ - 1♠ X`, `1♠ - 2♠ X`, 8,000 replays each, minimum 11–12 points), so the
+  claim is right where the arm's own comment says it is and wrong everywhere
+  else the guard let it reach.
+- **the rebid family — the walk again**, and its cue leg is this ledger's own
+  filed residue (*the cue-agreement is invisible to `agreed_re_raise`*).
+- **the Ogust family — a genuinely conventional call, unalerted.** The ladder
+  says range and trump quality; `3♣` is not clubs. `artificial_calls_are_alerted`
+  cannot see it: its witness fires on a projection that floors an *unnamed* suit
+  and these rules floor no suit at all — a hole that witness's own docstring
+  declares ("a *sound sufficient* witness, not a complete one").
+- **the Unusual-2NT advance — floor-vs-reader**, deferred (below).
+
+#### What shipped (three repairs, each with its pin)
+
+Each lands with a `readings_admit_the_bidder` row, and every row was verified to
+**fail** with its repair reverted (88/16/112 failures across the three read.rs
+rows; all four `All`-scope cells for Ogust).
+
+- **A cue raise agrees partner's suit** (`cue_agreed_suits`, `read.rs`). The cue
+  branch already narrowed partner's length in the agreed suit but recorded the
+  agreement nowhere, so `agreed_re_raise` was blind to it and the overcaller's
+  *placement* in the agreed trump read as a sixth card: `(2♥) 2♠ - 3♥ - 3♠`
+  excluded 97 % of its own bidders, `(2♠) 3♥ - 3♠ - 4♥` 70 %, the 4M jumps
+  50 %. One four-byte lane mask, ORed in the cue branch, read in
+  `agreed_re_raise`. Closes the filed cue-blind residue.
+- **Partner's double asks this seat to describe** (`answering_partners_double`,
+  `read.rs`). The sixth card rests on having passed up a cheaper call; over a
+  negative double there was none, and the level is the opponents'. Placed
+  **ahead of `five_card_rebid`**, whose "routinely a good five" is the
+  uncontested rationale — over a negative double the same seat rebids a
+  four-card minor for want of a stopper (`1♦ (1♥) X - 2♦` was still 21 % wrong
+  on the five-card floor alone). `1♥ (1♠) X - 4♥` 67 % → 0, `1♦ (2♠) X - 3♦`
+  65 % → 0.
+- **The Ogust ladder is alerted** (`weak_twos.rs`, `Alert("ogust")` on the 2NT
+  ask and all six answer rules). **Scope call, flagged for jdh8:** the plan
+  filed conventional offenders as alert-candidates only, on the ground that
+  alerting moves disclosure and the cards. It does not here —
+  `cards/American.bbsa` already carries `Ogust = 1` and regenerates
+  **byte-identical**, because a card is a pure function of the knob state. What
+  moves is `tests/fixtures/alert-sites.txt` (`ogust 84`, the count tripwire) and
+  the reading, which the A/B prices like every other hunk. Reversible in one
+  line per rule.
+
+**Verification (same 40,000 deals/seed):**
+
+| seat | before | after |
+| --- | ---: | ---: |
+| LHO (them) | 8.208 % | 8.072 % |
+| **partner (ours)** | **1.298 %** (2193) | **0.974 %** (1646) |
+| RHO (them) | 8.263 % | 8.150 % |
+
+A quarter of the ambient rate, attributed and repaired, and the opponents
+improve ~0.11–0.14 points free (the rebid arm reads their calls too).
+`smoke-default` moves **156 of 20,000** boards (0.78 %) — a reading change is a
+bidding change, exactly as this file's second mechanism says; cards
+byte-identical.
+
+**A/B (ship arm): four pooled washes → SHIPPED default-on, knobless.**
+`ab-results/reading-sweep-rest{,-s2,-s3}/`, two-binary `ab-reading-drift.sh`
+protocol, base HEAD **69bef2ae**, seeds **1787511666 / 1787513437 /
+1787533343**, 3 × 204,800 bd/arm/vul, arms sequential under `idle-run.sh`.
+Pre-registered bar: non-loss.
+
+| vul | plain DD | perfect defense |
+| --- | --- | --- |
+| none | −0.00067 [±0.00092] wash | +0.00014 [±0.00110] wash |
+| both | −0.00085 [±0.00108] wash | −0.00010 [±0.00127] wash |
+
+Fired 0.36–0.40 %. Every per-seed cell also straddles zero.
+
+#### What parked — the takeout double's seat (`park/reading-takeout-double-seat`)
+
+Same diagnosis, better numbers on the soundness axis, and a measured plain loss:
+
+- **The claim.** `points 11..` is the *direct* seat's promise. Outside it the
+  same call is a king or more lighter: the **balancing** double (a pass ends the
+  auction — `1♠ - - X` and its three siblings excluded 27–30 % of their own
+  doublers), a doubler who has **already passed** (the pass caps the hand, so
+  this floor met that ceiling at exactly `[11,11]` — `- 1♣ - 1♠ X` 37 %,
+  `1♠ - 2♠ - - X` 35 %), and their **strong artificial 2♣** (20 %), which names
+  no suit to take out of. Over a preempt the balancer still needs the values
+  (`2♥ - - X` clean at 0 %), so the balancing carve stops at a one-level opening.
+- **Round 1 deleted the claim** in those three shapes, and its own isolation arm
+  says that is the whole batch loss: **−0.0032 [±0.0020] plain / −0.0038
+  [±0.0025] PD** at vul none (fired 0.74 %), against the ship arm's washes on
+  the same seed. The worst boards are the coverage signature — advancer flying
+  blind opposite `points 0..=37`, `1♣ - - X 1NT - 2♦ - 2NT - 3♥ - 4♠ - 5♣ - 5♦ -
+  5♠ - 6♣ X` for −16 against a base arm that stopped in `2♣`. **No retrain
+  cashes that**: the bit is not in the input any more. (Full-batch round 1, for
+  the record: plain −0.0034 [±0.0025] / −0.0035 [±0.0030], PD −0.0028 / −0.0029,
+  `ab-results/reading-sweep-2026-08-24/`.)
+- **Round 2 lowered the floor instead of deleting it** — `points 7..`, below
+  every one of 6,992 replayed doublers in the three shapes (balancing min 7, 1st
+  pct 8, 5,380 hands; passed hand min 9, 449; their `2♣` min 7, 1,163). Partner
+  exclusions **1.298 % → 0.663 %**, a 49 % cut, and the worst-board tail loses
+  its structural signature (mixed slam judgment, no phantom suit, no passed-out
+  answer). But over the same three seeds
+  (`ab-results/reading-sweep-r2{,-s2,-s3}/`, 614,400 bd/vul, fired 0.70–0.82 %):
+
+  | vul | plain DD | perfect defense |
+  | --- | --- | --- |
+  | none | **−0.00170 [±0.00125]** loss | +0.00007 [±0.00152] wash |
+  | both | −0.00128 [±0.00150] wash | +0.00048 [±0.00179] wash |
+
+  One plain cell excludes zero, so the batch misses its non-loss bar. The
+  residual −0.0013 is what a four-point loosening of a *common* call costs a
+  floor frozen on the old reading — the OOD half of the same story, and the half
+  a retrain **can** cash.
+- **The code.** Finished and green (`readings_admit_the_bidder` rows for all
+  three shapes, each verified to fail without it), kept as
+  `ab-results/park-reading-takeout-double-seat.patch` — a delta on the shipping
+  tree, `git apply`-clean — until the branch is cut.
+- **Flip plan.** Fold the honest balancing-double reading into the next matched
+  policy/evaluator retrain (the Phase-5 v6 recipe, `docs/ai-bidder/`), then
+  re-measure against `main` HEAD on a fresh `SEED_BASE`. The soundness case is
+  settled and the code is finished; only the floor's training view is stale.
+  Second, cheaper candidate if the retrain slips: scope the passed-hand carve to
+  non-direct doubles (`index != opening_index + 1`), which keeps the eleven on
+  `- - - 1x X`, where the population minimum really is 11.
+
+### Deferred queue (2026-08-24)
+
+Recorded, not worked — jdh8's scoping of the pass above.
+
+1. **Named reading residues.** Contested free-bid readings (vacuous `0..13`),
+   the strength-silent invite re-raise (`1♦ - 1♥ - 2♥ - 3♥`), the DOPI residue,
+   minor-suit RKCB initiation.
+2. **Wrong-node deletions.** The N8 `pass_out` solo deletion
+   ([one-notrump-competitive.md](one-notrump-competitive.md) package queue); and
+   a general hunt for finite-mass book nodes shadowing the smarter v6 floor.
+3. **Floor-vs-reader mismatch** (`project_reading-soundness-vs-bba`). Residual
+   exclusions where floor-made continuations disagree with authored readers —
+   root-cause design, its own campaign. **The 2026-08-24 sweep hands it a named
+   item**: the *advance of our Unusual 2NT* (`(1x) - (1y) 2NT - 3m` 5/6,
+   `(2x) 2NT - 3m` 5/8 — 40 % wrong in self-play replay). Both the `2NT` and its
+   advance are **floor calls with no rule**: the walk reads the advance as a
+   natural four-card minor and the floor bids it as pass-or-correct over a
+   two-suiter. Repairing the *reader* would be deciding that our sandwich `2NT`
+   is Unusual — an authoring decision, not a reading fix.
+
+Also newly filed by the sweep, on the worklist rather than in a queue:
+
+- **The remaining `i_bid_it` sixth card**, where partner spoke but neither cued
+  nor doubled: the overcaller's rebid over a `1NT` advance
+  (`1♣ (1♠) X (1NT) - 2♠`, 96 % excluded in replay, 6/6 live) and responder's
+  balancing rebid (`1♣ - 1♦ (1♠) - - 2♦`, 64 %). Deliberately not folded in:
+  two shipped pins defend the six in the neighbouring shapes —
+  `competitive_opener_rebid_shows_sixth_card` (`1♦ (1♥) - (2♥) 3♦`, partner
+  silent) and the control-bid pin's `- 1♦ (1♠) 2♥ - 3♦` leg (partner's free
+  constructive bid) — so the discriminator is neither "contested" nor "partner
+  acted". Its own predicate, its own A/B.
+- **The Leaping Michaels advance** (`(2♦) 4♣ - 4♥`, 7/7): the `4♣` shows the
+  majors, so the advance is a preference and claims no length.
+- **Rebids over the balancing double** (`1♥ - - X 3♣` 4/4, `1♣ - - X 1♥` 5/19).
+- **The diffuse opening/response tail** (`1♦ - 1♥ 1♠` 5/129, `1♣ - 1♥ 1♠` 3/79,
+  `1♣ - 1♦ 1♠` 2/57) — unchanged by this pass and still unattributed; an
+  opening's bucket collects all its interference variants, so the family is
+  diffuse by construction.
+- **`artificial_calls_are_alerted` has a known blind spot** and the Ogust ladder
+  proved it live: a convention whose rules floor *no* suit (a range/quality
+  ask-and-answer ladder) is invisible to the structural witness. Candidate
+  hardening — treat a rule set whose calls partition a *relay* node as
+  artificial by construction — is unbuilt.

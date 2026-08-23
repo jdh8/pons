@@ -380,6 +380,60 @@ fn readings_admit_the_bidder() {
                 Call::Double,
             ],
         ),
+        // A rebid of our own suit shows a sixth card only where a cheaper call
+        // was passed up.  Partner's cue raise agreed the suit, so the
+        // overcaller's return to it places the contract; partner's takeout
+        // double asks this seat to describe, so the return is the "nothing
+        // better to say" answer, at a level the opponents set.
+        (
+            "overcaller's answer to our cue raise",
+            &[
+                bid(2, Strain::Hearts),
+                bid(2, Strain::Spades),
+                Call::Pass,
+                bid(3, Strain::Hearts),
+                Call::Pass,
+            ],
+        ),
+        (
+            "opener's major rebid over partner's negative double",
+            &[
+                bid(1, Strain::Hearts),
+                bid(1, Strain::Spades),
+                Call::Double,
+                Call::Pass,
+            ],
+        ),
+        (
+            "opener's minor rebid over partner's negative double",
+            &[
+                bid(1, Strain::Diamonds),
+                bid(1, Strain::Hearts),
+                Call::Double,
+                Call::Pass,
+            ],
+        ),
+        // The Ogust ladder describes range and trump quality; `3♣` is not
+        // clubs.  Unalerted, the walk stamped four-plus in the answer's face
+        // suit and excluded 77-95 % of the answerers from their own box.
+        (
+            "Ogust answer over our weak 2♥",
+            &[
+                bid(2, Strain::Hearts),
+                Call::Pass,
+                bid(2, Strain::Notrump),
+                Call::Pass,
+            ],
+        ),
+        (
+            "Ogust answer over our weak 2♦",
+            &[
+                bid(2, Strain::Diamonds),
+                Call::Pass,
+                bid(2, Strain::Notrump),
+                Call::Pass,
+            ],
+        ),
     ];
 
     // The four 5-5-major witnesses that caught the strip's keyless re-read

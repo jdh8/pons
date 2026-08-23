@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`probe-admit-node` — one worklist key, replayed.**
+  [`examples/probe-admit-node.rs`](examples/probe-admit-node.rs) takes an
+  auction key off `probe-reading-sound`'s partner worklist, replays the seat
+  that made its last call over seeded hands under the `readings_admit_the_bidder`
+  route filter, and reports per chosen call how often the reading excludes the
+  hand, **which axis** excludes it, and the population's own point floor.
+  `probe-reading-sound` ranks nodes; this names the witness, and the point-floor
+  column is what tells a loosening repair whether to *lower* a wrong claim or
+  delete it. A key converts straight into a sweep row — drop its last call and
+  the rest is the node.
+
+  ```sh
+  cargo run --release --example probe-admit-node -- "2♥ - 2NT - 3♣" "1♠ - - X"
+  ```
+
 - **BBA's rule book, walked.**
   [`examples/probe-bba-book`](examples/probe-bba-book/main.rs) reads what
   EPBot says every call *means*, one auction at a time, and
@@ -371,6 +386,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [one-notrump-competitive.md](docs/one-notrump-competitive.md) §N4e.
 
 ### Fixed
+
+- **Our own partner's calls now read as hands our own bidder actually holds.**
+  `probe-reading-sound`'s partner census (40,000 boards, seed 20260816, BBA 2/1
+  opponents) goes **1.298 % → 0.974 %** — 547 fewer readings, of ~169,000, that
+  *exclude the hand that made the call*. A box that excludes its own bidder is
+  not a loose prior but a wrong one: the constrained sampler rejects the truth,
+  and the evaluator and policy nets are handed a feature vector describing a
+  hand partner cannot hold. The opponents improve 8.208 → 8.072 % and
+  8.263 → 8.150 % free of charge. Three knobless repairs:
+
+  - **A cue raise agrees partner's suit.** The walk's cue branch narrowed
+    partner's length in the agreed suit but recorded the agreement nowhere, so
+    the re-raise arm was blind to it and read the overcaller's *placement* in
+    the agreed trump as a promise of a sixth card. `(2♥) 2♠ - 3♥ - 3♠` excluded
+    97 % of its own bidders (every witness a five-card overcall),
+    `(2♠) 3♥ - 3♠ - 4♥` 70 %, the 4M jumps 50 %. This closes the campaign's
+    filed cue-blind residue.
+  - **Over partner's takeout double, a rebid of our own suit shows nothing
+    new.** The sixth card rests on having passed up a cheaper call; over a
+    negative double there is none, and the level is the opponents'.
+    `1♥ (1♠) X - 4♥` excluded 67 % (every witness a five-card major),
+    `1♦ (2♠) X - 3♦` 65 % (four diamonds). It sits *ahead* of the existing
+    five-card-rebid floor, whose "routinely a good five" is the uncontested
+    rationale — over a negative double the same seat rebids a four-card minor
+    for want of a stopper, and that node was still 21 % wrong on the five-card
+    floor alone.
+  - **The Ogust ladder is alerted.** `3♣` after `2♥ - 2NT` says "minimum, bad
+    suit", not clubs — but the 2NT ask and all five answers carried no
+    `.alert(...)`, so the natural walk stamped four-plus cards in each answer's
+    face suit and excluded 77-95 % of the answerers from their own box.
+    `artificial_calls_are_alerted` could not see it: its witness fires on a
+    projection that floors an *unnamed* suit, and these rules floor no suit at
+    all — a limitation its own docstring declares. Disclosure is unchanged
+    (`cards/American.bbsa` already carried `Ogust = 1` and regenerates
+    byte-identical, a card being a pure function of the knob state); the new
+    line is the `tests/fixtures/alert-sites.txt` count tripwire.
+
+  Each repair lands with a `readings_admit_the_bidder` row, every one verified
+  to fail with its repair reverted. **Measured: four pooled washes** vs BBA over
+  3 seeds × 204,800 boards/arm/vulnerability (614,400/vul; seeds 1787511666 /
+  1787513437 / 1787533343) — plain **−0.00067 [±0.00092]** / PD **+0.00014
+  [±0.00110]** non-vulnerable, plain **−0.00085 [±0.00108]** / PD **−0.00010
+  [±0.00127]** vulnerable, firing on 0.36-0.40 %. That is the pre-registered
+  non-loss for a soundness correction. Reading changes are bidding changes
+  wherever the inference-aware floor decides: 156 of 20,000 `smoke-default`
+  boards move (0.78 %); cards byte-identical.
+  [docs/reading-drift-handoff.md](docs/reading-drift-handoff.md) has the sweep,
+  the triage and the deferred queue.
+
+  A fourth repair of the same sweep — **the takeout double promises opening
+  values only in the direct seat** (the balancing double, the passed hand and
+  their strong artificial `2♣` are a king or more lighter, 20-37 % excluded
+  each) — is **parked on `park/reading-takeout-double-seat`**. It would take
+  the census to **0.663 %**, but over the same three seeds it measures plain
+  **−0.00170 [±0.00125]** non-vulnerable: a four-point loosening of a common
+  call costs a floor frozen on the old reading. The flip plan is the next
+  matched policy/evaluator retrain.
 
 - **`probe-call-reading` no longer measures a non-default system by omission.**
   Absent `--ns-multi-weak-escape` used to overwrite the shipped

@@ -35,6 +35,7 @@ meckstroth-2nt-default 8
 meckstroth-2nt-minor 8
 meckstroth-2nt-relay 8
 michaels 16
+ogust 84
 opener-jump-shift 44
 opener-reverse 20
 puppet 80

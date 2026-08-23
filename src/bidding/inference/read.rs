@@ -525,6 +525,11 @@ impl Inferences {
         // establish a fit even when a short minor opening itself promised only
         // three.
         let mut projected_lane_lengths = [[0u8; 4]; 4];
+        // Suits a lane agreed by *cueing the opponents'* suit rather than
+        // bidding one.  A cue raise supports partner's suit without naming it,
+        // so `lane_suits` never records it and the rebid arm's `agreed_re_raise`
+        // was blind to the agreement — the campaign's filed cue-blind residue.
+        let mut cue_agreed_suits = [0u8; 4];
         // A call whose authoring rule promised nothing reads its shape off the
         // walk as it always did, but its *strength* is the exclusion fold's to
         // state (`CallMasks::walk_shape`): the walk's guess is rolled back at
@@ -612,6 +617,16 @@ impl Inferences {
                 Call::Double => {
                     // A direct double of a natural suit opening, the defending
                     // side's first action, reads as takeout: opening values.
+                    //
+                    // Outside the direct seat the same call is a king or more
+                    // lighter — the balancing double (`1♠ - - X` excludes 27-30 %
+                    // of its own doublers, minimum 7 points), a doubler who has
+                    // already passed (`- 1♣ - 1♠ X` 37 %), their strong
+                    // artificial `2♣` (20 %).  Lowering the floor to seven in
+                    // those three shapes is sound and was built, but it measured
+                    // a plain loss at vul none over three seeds and is parked
+                    // pending a floor retrain: see
+                    // `docs/reading-drift-handoff.md`, the 2026-08-24 sweep.
                     if !substituted_call
                         && !is_opening_side
                         && first_action_of_side
@@ -846,7 +861,19 @@ impl Inferences {
                                 // of the opened suit, routinely a good five
                                 // (a minor, or a major stuck over the forcing
                                 // notrump).
-                                let agreed_re_raise = sound_lengths && partner_bid_it;
+                                // Partner's cue of the opponents' suit agreed
+                                // *this* one (the limit-plus cue raise below),
+                                // so the return to it places the contract and
+                                // shows no new length — the campaign's filed
+                                // cue-blind `agreed_re_raise`.  Measured on the
+                                // partner worklist 2026-08-24: `(2♥) 2♠ - 3♥ -
+                                // 3♠` excluded 97 % of its own bidders (every
+                                // witness a five-card overcall), `(2♠) 3♥ - 3♠ -
+                                // 4♥` 70 %, and the 4M jumps of the same shape
+                                // 50 %.
+                                let cue_agreed = cue_agreed_suits[(lane + 2) % 4] & mask != 0;
+                                let agreed_re_raise =
+                                    sound_lengths && (partner_bid_it || cue_agreed);
                                 let five_card_rebid = sound_lengths
                                     && lane == opener_lane
                                     && lane_bids[lane] == 1
@@ -882,8 +909,36 @@ impl Inferences {
                                                     2,
                                                     Strain::Diamonds,
                                                 )))));
-                                if !agreed_re_raise {
-                                    let floor = if five_card_rebid || xyz_rebid { 5 } else { 6 };
+                                // Partner's double is takeout: it names the
+                                // *other* suits and asks this seat to describe,
+                                // so the return to our own suit is the "nothing
+                                // better to say" answer, at a level the
+                                // opponents set rather than one this hand chose.
+                                // The sixth card rests on having passed up a
+                                // cheaper call, and here there was none; the
+                                // opening's or overcall's own floor stands.
+                                // Measured on the partner worklist 2026-08-24:
+                                // `1♥ (1♠) X - 4♥` excluded 67 % of its own
+                                // bidders (every witness a five-card major),
+                                // `1♦ (2♠) X - 3♦` 65 % (four diamonds), and the
+                                // 2m answers of the same shape 13-25 %.
+                                let answering_partners_double =
+                                    sound_lengths && lane_doubled[(lane + 2) % 4];
+                                // Ahead of `five_card_rebid`: its "routinely a
+                                // good five" is the *uncontested* rationale (the
+                                // 5-3-3-2 opener stuck over a forcing notrump),
+                                // and over a negative double the same seat
+                                // rebids a four-card minor for want of a
+                                // stopper (`1♦ (1♥) X - 2♦`, 21 % excluded on
+                                // the five-card floor alone).
+                                let floor = if answering_partners_double {
+                                    0
+                                } else if five_card_rebid || xyz_rebid {
+                                    5
+                                } else {
+                                    6
+                                };
+                                if !agreed_re_raise && floor > 0 {
                                     players[who]
                                         .narrow_length(suit, Range::at_least(floor, LENGTH_CAP));
                                 }
@@ -954,6 +1009,7 @@ impl Inferences {
                                     // Rubens cue-raise floors).
                                     let agreed =
                                         Suit::ASC[partner_natural.trailing_zeros() as usize];
+                                    cue_agreed_suits[lane] |= 1u8 << agreed as u8;
                                     players[who]
                                         .narrow_length(agreed, Range::at_least(3, LENGTH_CAP));
                                     // Fit agreed (the cue names partner's suit), so
