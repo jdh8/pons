@@ -7,9 +7,10 @@ set -eu
 cd "$(dirname "$0")/.."
 
 BANK=/nfs2/jdh8/pons/22.pdd
-OUT=target/corpus-v6
+OUT=${DUMP_OUT:-target/corpus-v6}
 BIN=target/release/examples/dump-teacher
 COMMON="--deals $BANK --teacher bba --configured --feature-version 6"
+[ "${DUMP_VS_BBA:-false}" = true ] && COMMON="$COMMON --vs-bba"
 mkdir -p "$OUT"
 
 # shellcheck disable=SC2086

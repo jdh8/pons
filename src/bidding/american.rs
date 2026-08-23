@@ -61,7 +61,9 @@
 //! the weights order them so the more descriptive bid wins.
 
 use super::agreements::Agreements;
-use super::common::{call, other_major, with_floor, with_floor_v6, with_instinct_floor};
+use super::common::{
+    call, other_major, with_floor, with_floor_v6, with_floor_v6_their, with_instinct_floor,
+};
 use super::{Competitive, Constructive, Defensive, System};
 
 /// The family tag of [`ReadingProfile::completion_alerts`][crate::bidding::ReadingProfile::completion_alerts]:
@@ -213,6 +215,18 @@ pub fn american_with_card(
 #[must_use]
 pub fn american_v6(agreements: &Agreements) -> System {
     american(agreements)
+}
+
+/// Experimental v6 twin retrained on BBA's disclosed Multi-Landy readings.
+#[must_use]
+pub fn american_v6_their(agreements: &Agreements) -> System {
+    with_floor_v6_their(
+        book(agreements),
+        super::features::CompactConfig::symmetric(&super::features::ConventionCard::capture(
+            agreements, false,
+        )),
+        agreements,
+    )
 }
 
 /// The 2/1 system with the deterministic **instinct** floor (the pre-BBA default)

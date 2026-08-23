@@ -198,6 +198,14 @@ struct Args {
     /// `--configured`.
     #[arg(long, default_value_t = 4)]
     feature_version: u8,
+    /// Read opponents as BBA's disclosed 1NT defenses while extracting features
+    ///
+    /// Applies `common::vs_bba_agreements` and arms the two corrected Multi
+    /// readings parked for a contested-floor retrain.  This changes only the
+    /// reader's inference columns; the BBA teacher targets and compact agreement
+    /// block stay on the same configured cells.
+    #[arg(long, requires = "configured")]
+    vs_bba: bool,
     /// `--configured` only: which system *we* are declared to play
     #[arg(long, default_value = "american", value_name = "american|dutch")]
     system: String,
@@ -430,6 +438,16 @@ fn arm_flips(flips: u16) -> Agreements {
         if flips & (1u16 << bit) != 0 {
             flip(&mut agreements);
         }
+    }
+    agreements
+}
+
+fn feature_agreements(flips: u16, vs_bba: bool) -> Agreements {
+    let mut agreements = arm_flips(flips);
+    if vs_bba {
+        agreements = common::vs_bba_agreements(agreements);
+        agreements.decision.reading.their_multi_advance_reading = true;
+        agreements.decision.reading.their_multi_double_reading = true;
     }
     agreements
 }
@@ -707,7 +725,7 @@ fn main() -> anyhow::Result<()> {
         // The side's full agreements — recognizer and flip axes — so its card,
         // partnership and (per pair, below) teacher are all built from the same
         // value.
-        let mut agreements = arm_flips(side.flips);
+        let mut agreements = feature_agreements(side.flips, args.vs_bba);
         agreements.decision.reading.rkcb_variant = rkcb_variant(side.kickback);
         let card = card_for(side.system(), &agreements)?;
         if compact_features {
@@ -810,7 +828,7 @@ fn main() -> anyhow::Result<()> {
         // `features_v3` reads `Inferences`, so this decides what the corpus
         // *says* a relocated ask is — and it must agree with the teacher that
         // produced the target.
-        let mut regime_agreements = arm_flips(0);
+        let mut regime_agreements = feature_agreements(0, args.vs_bba);
         regime_agreements.decision.reading.rkcb_variant = rkcb_variant(regimes[regime]);
         // The card is rendered *after* the knobs are armed, which is what keeps
         // card, code and net in sync: `american_card()` reads the same knobs the
@@ -926,7 +944,7 @@ fn main() -> anyhow::Result<()> {
                     None => {
                         let profile = match acting {
                             Some((ours, _)) => {
-                                let mut agreements = arm_flips(ours.flips);
+                                let mut agreements = feature_agreements(ours.flips, args.vs_bba);
                                 agreements.decision.reading.rkcb_variant =
                                     rkcb_variant(ours.kickback);
                                 agreements.decision
@@ -1005,6 +1023,7 @@ fn main() -> anyhow::Result<()> {
         "our_kickback": args.kickback,
         "mix_kickback": args.mix_kickback,
         "configured": args.configured,
+        "vs_bba": args.vs_bba,
         "replay": args.replay,
         "enrich": args.enrich.map(|(points, fit)| format!("{points}:{fit}")),
         "enrich_rejected": rejected,

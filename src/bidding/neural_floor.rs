@@ -118,13 +118,19 @@ impl Classifier for ConfiguredFloorBba {
 
 /// The shipped compact-config floor retrained on the live authored reading.
 #[derive(Clone, Debug)]
-pub struct ConfiguredFloorV6(CompactConfig, Arc<Rules>);
+pub struct ConfiguredFloorV6(CompactConfig, Arc<Rules>, fn(&[f32]) -> Logits);
 
 impl ConfiguredFloorV6 {
     /// Attach the v6 floor to one compact configuration cell and rail ladder.
     #[must_use]
     pub const fn new(compact: CompactConfig, ladder: Arc<Rules>) -> Self {
-        Self(compact, ladder)
+        Self(compact, ladder, neural::classify_bba_v6)
+    }
+
+    /// Attach the experimental twin trained on BBA's disclosed readings.
+    #[must_use]
+    pub(in crate::bidding) const fn new_their(compact: CompactConfig, ladder: Arc<Rules>) -> Self {
+        Self(compact, ladder, neural::classify_bba_v6_their)
     }
 }
 
@@ -134,7 +140,7 @@ impl Classifier for ConfiguredFloorV6 {
             return self.1.classify(hand, context);
         }
         let configured = context.clone().with_compact(&self.0);
-        let mut logits = neural::classify_bba_v6(&features::features_v6(hand, &configured));
+        let mut logits = (self.2)(&features::features_v6(hand, &configured));
         mask_illegal(&mut logits, context.auction());
         competitive_gate(&mut logits, hand, context);
         logits

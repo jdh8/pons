@@ -116,6 +116,17 @@ pub(in crate::bidding) fn with_floor_v6(
     with_floors(system, &ladder, contested)
 }
 
+/// Attach the v6 twin retrained on BBA's disclosed readings.
+pub(in crate::bidding) fn with_floor_v6_their(
+    system: System,
+    compact: CompactConfig,
+    agreements: &Agreements,
+) -> System {
+    let ladder = Arc::new(instinct(agreements));
+    let contested = Fallback::classify(ConfiguredFloorV6::new_their(compact, Arc::clone(&ladder)));
+    with_floors(system, &ladder, contested)
+}
+
 /// Attach the deterministic instinct floor to a system's contested books
 ///
 /// The fully-disclosable reference wiring: one ladder on all three books.

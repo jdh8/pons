@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **An opt-in BBA-reading v6 floor twin for the N4 retrain experiment.**
+  `american::american_v6_their` uses weights trained on the same v6 corpus
+  cells and deals with BBA's disclosed Multi-Landy readings and the two parked
+  Multi readers.  It is reproducible with `scripts/dump-v6-their.sh` and
+  measurable with `scripts/ab-v6-their-reading.sh`; the shipped `american()`
+  system is unchanged.  The twin did **not** ship: its two-seed owned `(2♦)`
+  slice was −0.000013 ±0.000468 plain DD / +0.001031 ±0.000629 PD IMPs per
+  accepted deal, missing the pre-registered plain-DD improvement gate.  The
+  broader 1NT-filtered arm was non-inferior on plain and won vulnerable PD, a
+  lead for a separate whole-floor experiment rather than an N4 result.
+
 - **Our natural two-level overcall of *their* `1NT` is tightened, and its
   advance is authored** — M1 and M2 of the `(1NT) 2♦` mirror forensic
   ([docs/defensive-overcalls.md](docs/defensive-overcalls.md)), measured as one

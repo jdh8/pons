@@ -204,15 +204,18 @@ PD and closes N4e's owed probe. **N4f** (2026-08-22) then built and measured the
 bucket's last named hole and its two reading defects; all three knobs remain
 default-off
 ([§N4f](#n4f--openers-balancing-seat-and-the-two-reading-knobs-measured-2-rounds-2026-08-22-nothing-ships-all-three-stay-opt-in)).
+The N4f retrain trigger fired on 2026-08-23, but its BBA-reading v6 twin missed
+the pre-registered plain-DD bucket gate and remains opt-in
+([retrain round](#the-retrain-trigger-fired-2026-08-23--pd-gain-plain-target-missed-no-ship)).
 
 **N4 is closed (2026-08-23).** Every named item in the `(2♦)` Multi lane has
 shipped, been refuted, or been priced below this harness's resolution, and
 nothing in it awaits a decision. Three residues are **recorded, not open**:
 `competition.multi_balance` is *unresolved below resolution* — ~18 bd of reach
 per 230,400, which wants a sub-lane harness or an sd re-measure, **not another
-seed**; the two reading knobs are **trigger-gated**, flipped by a
-contested-floor retrain or a package that consumes the advancer's length and
-never as a correctness default (§N4f keeps the withdrawn proposal on record);
+seed**; the two reading knobs are **trigger-gated**, and the first
+contested-floor retrain to consume them failed the N4 plain-DD gate, so they
+remain off (§N4f keeps the withdrawn correctness-only proposal on record);
 and responder's natural **minor** single-suiter over their Multi — 3.9% of
 BBA's hands, [§N4f Phase 0](#phase-0-first-two-probes-re-ranked-the-package-before-any-box-was-spent)
 — is unbuilt and priced at ≈zero, because opposite 15–17 the contract is
@@ -1344,6 +1347,66 @@ rejected-but-interesting treatments. Two are ordinary parks; the third is not.
   advancer's length. The fix is built, tested, probed and documented, so that
   day costs one flag.
 
+### The retrain trigger fired (2026-08-23) — PD gain, plain target missed; no ship
+
+The v6 corpus had been extracted with `Agreements::default()`: BBA supplied the
+teacher calls, but the feature reader still treated its `2♦` as natural and its
+`2♣` as natural clubs.  `scripts/dump-v6-their.sh` regenerated the exact same
+20 shards, deal slices, cells and seeds with `vs_bba_agreements` plus the two
+parked Multi readers.  Targets and tags stayed byte-identical in a paired 5k
+smoke; 226 of 52,711 feature rows changed.  The full twin has 6,768,279 rows,
+4,235,171 contested, and the same 176→256→256→38 recipe, seed 1, 300 epochs and
+30-column fold as shipped v6.
+
+The literal scalar CE gate missed narrowly: v6 on its old heldout features is
+0.300980140, while the twin on the corrected features is 0.301202792, delta
++0.000222656.  The paired 676,829-row 95% CI is
+[`−0.001115893`, `+0.001561204`], a wash.  On the 3,900 rows whose features
+actually changed, old-v6 CE moved 0.45695→0.69374 under the corrected reading;
+the twin recovered it to 0.47271.  That large train/serve recovery justified
+the pre-registered IMP screen without seed or epoch fishing, but it did not
+turn the CE gate into a win.
+
+`scripts/ab-v6-their-reading.sh` compared shipped v6 against the twin served
+with both readers, 204,800 accepted deals per arm/vulnerability × two fresh
+seeds (`1787439593`, `1787440309`), both scorers:
+
+| seed / vul | fired | plain DD | PD |
+| --- | ---: | ---: | ---: |
+| 1 / none | 19,322 | +0.0035 ±0.0078 | +0.0109 ±0.0096 |
+| 1 / both | 16,426 | +0.0011 ±0.0093 | **+0.0179 ±0.0112** |
+| 2 / none | 19,633 | −0.0007 ±0.0079 | +0.0008 ±0.0097 |
+| 2 / both | 16,545 | +0.0079 ±0.0093 | **+0.0192 ±0.0112** |
+| pooled / none | 38,955 | +0.0014 ±0.0056 | +0.0059 ±0.0068 |
+| pooled / both | 32,971 | +0.0045 ±0.0066 | **+0.0185 ±0.0079** |
+
+These are whole `--filter-1nt` floor-swap headlines, not N4 attribution.  The
+plan's `--gate-opener ours` requirement was inapplicable: a contested-floor
+retrain is supposed to move defensive auctions too, and the first NV pair had
+12,289 of 19,322 divergences on boards they opened.  That is scope, not the
+mirror-reading leak a one-package gate detects.  N4 was therefore cut directly
+from the paired records: baseline opener ours, opening `1NT`, their immediately
+following call `2♦`; every other accepted deal contributes zero.
+
+| pooled target slice | fired | plain DD | PD |
+| --- | ---: | ---: | ---: |
+| none | 484 | **−181, −0.00044 ±0.00064** | +316, +0.00077 ±0.00090 |
+| both | 326 | +170, +0.00042 ±0.00068 | **+529, +0.00129 ±0.00088** |
+| both vulnerabilities | 810 | **−11, −0.000013 ±0.000468** | **+845, +0.001031 ±0.000629** |
+
+The plain target is a wash, not the required improvement, and the signs reverse
+by vulnerability.  The mechanism is likewise a redistribution rather than a
+clean repair: Pass replacing v6's double gains +438 plain / +1,328 PD, but the
+unchanged initial `2♥` row loses −311/−312, the `2♠` row −121/−163, and new
+`3♠` actions lose −194/−309.  Exact `bba-decompose --multi-counter` replay on
+seed 1 matched **4,007,503 of 4,007,503** candidate calls.
+
+**Disposition.**  The BBA-reading twin and its reader stack remain opt-in; v6
+stays shipped and both reading knobs stay default-off.  The whole-anchor run is
+skipped because the pre-registered N4 plain gate already failed.  The broad
+vulnerable PD win is a credible lead for a separately registered general-floor
+experiment, not evidence that this retrain saved N4.
+
 ### Out of scope, found while pricing this — the mirror lane
 
 The census's **table-B** panel, which no doc had quoted, prices *our* `2♦`
@@ -1515,6 +1578,7 @@ final pooled verdict, IMPs per board unless marked per fired.
 | N4e floorless weak escape over their Multi | `competition.multi_weak_escape` (**`Some(6)`**) | **SHIPPED DEFAULT-ON 2026-08-22 at `Some(6)`; `Some(5)` REFUTED as a default** | `plain wash \| PD win` ×2 seeds, 921,600 bd per cell-set: pooled DD plain +0.00028 ±0.00039, **PD +0.00063 ±0.00049**, sd plain +0.00013 ±0.00041, **SD-PD +0.00052 ±0.00049** — all four PD and all four SD-PD cells non-negative, one negative reading in sixteen (−0.0003, inside CI). `five` is the doubling-artifact row (pooled plain **+0.00085 ±0.00051**, PD **−0.00030 ±0.00069**, vulnerable PD CI-clear negative on **both** seeds) and paired vs `six` is CI-clear worse on PD (**−0.00095 ±0.00048**). Two rounds were lost to the systems-on strip leaking the Multi table into the 1NT-overcall lane (26/260, 27/267 foreign); after the 2026-08-22 fix, 8 of 12 pair-cells gated **0 foreign** and 4 carried exactly **1** board of the campaign's mirror-read leak | [§N4e](#n4e--the-floorless-weak-escape-shipped-default-on-2026-08-22-the-six-card-rung-five-refuted) |
 | N4b `(2♦)` diamond penalty double | `competition.two_diamond_double` (**`None`**) | **measured 2026-08-15 — sweep NULL, opt-in** | all 28 raw cells CI-clear positive and **all of it a leak** (84.9% foreign); owned subset has no CI-clear cell in 28. Two findings kept: the **alert is what makes a gate a reading**, and the "they sit 43%" claim was retracted (0 of 141 on our-opened boards) | [closed §N4b](archive/one-notrump-competitive-closed.md#n4b--the-2-diamond-penalty-double-built-2026-08-15-sweeping) |
 | N4f opener's balancing seat + the two Multi reading knobs | `competition.multi_balance`, `reading.their_multi_advance_reading`, `reading.their_multi_double_reading` (**all off**) | **measured ×2 rounds 2026-08-22 — nothing ships; all three opt-in** | 4 seed-sets, 24 pairs, **0 foreign on every one**. `balance` is **below this harness's resolution** — ~18 bd of reach per 230,400, signs flipping between rounds, pooled ≈ −0.00003 IMPs/bd; unresolved, wants reach (a sub-lane harness or sd), not another seed. `xfloor` is a wash. `advance`'s round-1 loss was its bundled `♥3+ & ♠3+` claim — probed false, removed; suppression-only then diverged on **6 boards in 1.84 m**, so the false read is **inert**. Its correctness-only default flip was **withdrawn**: a trigger, not a default | [§N4f](#n4f--openers-balancing-seat-and-the-two-reading-knobs-measured-2-rounds-2026-08-22-nothing-ships-all-three-stay-opt-in) |
+| N4g BBA-reading v6 retrain | `american_v6_their` + both parked Multi readers (**all opt-in**) | **measured 2026-08-23 — N4 plain gate missed; no ship** | Matched-corpus CE +0.000223, paired CI a wash. Two-seed `--filter-1nt` screen is broad-positive (vul PD **+0.0185 ±0.0079**), but the owned `(2♦)` slice is **−11 plain / +845 PD** over 819,200 accepted deals: plain `−0.000013 ±0.000468`, not the pre-registered improvement. The whole anchor was skipped. Exact replay 4,007,503/4,007,503 | [retrain round](#the-retrain-trigger-fired-2026-08-23--pd-gain-plain-target-missed-no-ship) |
 | N4-mirror our `2♦` overcall of *their* 1NT | `natural_overcall_hcp_floor` = 8, `natural_overcall_advance_enabled` (**both on**) — the defensive lane's knobs | **handed over 2026-08-23; M1+M2 SHIPPED DEFAULT-ON there the same day** | The forensic corrected the −558 headline to the whole lane, both arms: **2139 bd, +696 plain / −397 PD**. M1 (HCP floor) + M2 (the unauthored advance) measured as one package, 204.8k bd/arm/vul × 2 seeds, **0 foreign in all four cells**: plain DD +0.0011/+0.0068 and +0.0041/+0.0096, **SD-PD +0.0086/+0.0164 and +0.0100/+0.0202, every cell CI-clear**. The contested tail `(1NT) 2x (X)` was censused and closed **below resolution**; `k = 9` and the 8-vs-11 floor gap stand as *leave it* | [defensive-overcalls.md](defensive-overcalls.md#defense-to-their-1nt--the-1nt-2-mirror-panel-forensic-2026-08-23) |
 | N3 `(3♣)`–`(3♠)` preempt of our 1NT | `nt_high_overcall_responses` (**on**), `nt_high_overcall_3nt_stopper` (**off**), `nt_3c_transfers` (**off**) | **SHIPPED DEFAULT-ON 2026-08-18** | owned plain **+0.00208 ±0.00126** NV / **+0.00293 ±0.00160** vul, PD +0.00079/+0.00180, sd agreeing on all four cells, **zero negative cells in sixteen readings**. The private `3NT` bit shipped **off** (+2.37/+1.65 per fired, 0 foreign); the BBA-style double continuation was **refuted and removed** (all eight cells negative) | [§N3 — measurement rounds](archive/one-notrump-competitive-closed.md#n3--measurement-rounds) |
 | N3 opener's answer to the takeout `X` | `nt_high_overcall_x_major_at_four` (**on**), `_x_leave_in` (**on**), `_x_leave_in_three` (**off**) | fit rung **SHIPPED 2026-08-19**; leave-in **SHIPPED 2026-08-20** (v2, `len(over, 4..)`); honor half **REFUTED** | fit rung 4/4 DD cells CI-clear (+1.14/+1.69 per fired), 0 foreign of 1103/1340. Leave-in `length` **CI-clear positive in all eight cells** — plain +0.0071 ±0.0009 NV / +0.0104 ±0.0012 vul (+2.38/+3.41 per fired), 0 foreign — and **replicated on a fresh seed** at +0.0074/+0.0111 with every suit DD-positive, so no suit gate exists. `three` sd-lead **−2.44/−2.99 per fired**: bundled as one gate the package would have measured as a loss at both vuls | [§N3 — measurement rounds](archive/one-notrump-competitive-closed.md#n3--measurement-rounds) |

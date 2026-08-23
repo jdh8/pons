@@ -158,5 +158,20 @@ pub fn classify_bba_v6(features: &[f32]) -> Logits {
     forward::<IN_V6>(&WEIGHTS_BBA_V6, features)
 }
 
+/// Evaluate the v6 twin retrained on BBA's disclosed Multi-Landy readings.
+static RAW_BBA_V6_THEIR: &[u8] = include_bytes!("weights/american_bba_v6_their.f32");
+const _: () = assert!(
+    RAW_BBA_V6_THEIR.len() == total(IN_V6) * 4,
+    "BBA-reading twin weights artifact size mismatch"
+);
+static WEIGHTS_BBA_V6_THEIR: LazyLock<Vec<f32>> = LazyLock::new(|| decode(RAW_BBA_V6_THEIR));
+
+/// Evaluate the BBA-reading v6 twin: 176 features → 38 logits.
+#[must_use]
+pub fn classify_bba_v6_their(features: &[f32]) -> Logits {
+    assert_eq!(features.len(), IN_V6, "expected {IN_V6} features");
+    forward::<IN_V6>(&WEIGHTS_BBA_V6_THEIR, features)
+}
+
 #[cfg(test)]
 mod tests;

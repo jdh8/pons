@@ -67,6 +67,14 @@ fn matches_candle_fixture_bba_v6() {
     );
 }
 
+#[test]
+fn matches_candle_fixture_bba_v6_their() {
+    check_fixture(
+        include_str!("../weights/american_bba_v6_their.fixture.json"),
+        |x| classify_bba_v6_their(x).iter().map(|(_, l)| *l).collect(),
+    );
+}
+
 /// Export gate: the full corpus scan found and folded exactly 30 constants.
 #[test]
 fn folded_v6_columns_are_exactly_zero() {
@@ -75,6 +83,18 @@ fn folded_v6_columns_are_exactly_zero() {
         .filter(|&i| (0..HID).all(|h| w1[h * IN_V6 + i].to_bits() == 0))
         .count();
     assert_eq!(zero, 30, "v6 artifact was not folded against its corpus");
+}
+
+#[test]
+fn folded_v6_their_columns_are_exactly_zero() {
+    let w1 = &WEIGHTS_BBA_V6_THEIR[..HID * IN_V6];
+    let zero = (0..IN_V6)
+        .filter(|&i| (0..HID).all(|h| w1[h * IN_V6 + i].to_bits() == 0))
+        .count();
+    assert_eq!(
+        zero, 30,
+        "BBA-reading twin was not folded against its corpus"
+    );
 }
 
 /// The shipped blob is folded (`scripts/fold-constant-inputs.py`): every card

@@ -704,9 +704,10 @@ pub fn seat_floor(name: &str, agreements: &Agreements) -> anyhow::Result<Partner
         // `american` uses.  `american` − `american-floor` prices the book.
         "american-floor" => pons::american_floor(agreements).bind(),
         "american-v6" => pons::bidding::american::american_v6(agreements).bind(),
+        "american-v6-their" => pons::bidding::american::american_v6_their(agreements).bind(),
         "dutch-v6" => pons::bidding::dutch::dutch_v6(agreements).bind(),
         other => anyhow::bail!(
-            "floor must be american|american-book|american-instinct|american-floor|american-v6|dutch|dutch-instinct|dutch-v6, got {other:?}"
+            "floor must be american|american-book|american-instinct|american-floor|american-v6|american-v6-their|dutch|dutch-instinct|dutch-v6, got {other:?}"
         ),
     })
 }
