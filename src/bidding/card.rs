@@ -195,8 +195,9 @@ fn pons_row(name: &str) -> i32 {
 
 /// Every convention row name, in the card's fixed schema order
 ///
-/// Shared by every system — the vendored cards in `vendor/bba/` all carry these
-/// same names in this same order, and only the values differ.
+/// Shared by every system.  The names mirror the vendored cards; the order is
+/// ours because EPBot's complement setters make the last row written win (the
+/// weak free-bid row therefore precedes its strong twin).
 const SCHEMA: &[&str] = &[
     "(1X)-1Y-(1Z)-2Z natural",
     "1D opening with 4 cards",
@@ -225,8 +226,8 @@ const SCHEMA: &[&str] = &[
     "1NT opening shape 5422",
     "1NT opening shape 6 minor",
     "1X-(Y)-2Z forcing",
-    "1X-(1Y)-2Z strong",
     "1X-(1Y)-2Z weak",
+    "1X-(1Y)-2Z strong",
     "2N-3C-3N both majors",
     "2N-3C Puppet Stayman",
     "4NT opening",
@@ -576,14 +577,10 @@ fn american_row(name: &str, a: &Agreements) -> i32 {
         // So the relay is under-disclosed only in its *shape*, not its
         // existence.  See `docs/ai-bidder/bba-kickback.md` §3.
         // The relay's second ask is the step above the queen reply — the
-        // default since 2026-08-02 — so 1 is simply the honest value, and it
-        // is free: this row is **inert in BBA** (probed both ways and crossed
-        // against `King ask by 5NT`, turning it on is byte-identical to
-        // setting no king-ask row at all, `docs/ai-bidder/bba-kickback.md`
-        // §3), which is exactly what makes it usable as a slot that describes
-        // us rather than instructing them (jdh8).  `King ask by 5NT` stays 1
-        // beside it, because that is the row BBA acts on and dropping it
-        // would tell them we have no king ask at all.
+        // default since 2026-08-02 — so 1 is the honest value.  BBA reads this
+        // row to place the king ask on that next step; writing it also clears
+        // the two mutually exclusive 5NT rows above, so it is the final state
+        // BBA plays even though `King ask by 5NT` was written first.
         "King ask by available bid" => 1,
         // Michaels and Unusual 2NT we author outright; `defense.unusual_notrump_range`
         // gates only our *defense* to theirs, not our own two-suiter bids.

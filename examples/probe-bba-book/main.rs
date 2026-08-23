@@ -49,10 +49,14 @@
 //! cargo run --release --features serde --example probe-bba-book -- \
 //!     --selfplay 25000 --seed "$SEED_BASE" --output reach-0.jsonl
 //!
-//! # (4) the full run, sharded (see scripts/bba-book.sh)
+//! # (4) cross-check the interpreter against hands BBA actually bids
+//! cargo run --release --features serde --example probe-bba-book -- \
+//!     --crosscheck 1000 --seed "$SEED_BASE"
+//!
+//! # (5) the full run, sharded (see scripts/bba-book.sh)
 //! scripts/idle-run.sh scripts/bba-book.sh ab-results/bba-book/$(date +%F)-$(git rev-parse --short HEAD)
 //!
-//! # (5) look one lane up
+//! # (6) look one lane up
 //! cargo run --release --features serde --example probe-bba-book -- \
 //!     --render ab-results/bba-book/latest --prefix "1♠ (2♥)"
 //! ```
@@ -62,7 +66,7 @@
 
 use clap::Parser;
 use contract_bridge::auction::{Auction, Call, display_calls};
-use contract_bridge::{AbsoluteVulnerability, Bid, Seat, Strain};
+use contract_bridge::{AbsoluteVulnerability, Bid, Hand, Seat, Strain, Suit};
 use std::collections::{BTreeMap, HashMap};
 use std::ffi::{CString, c_int};
 use std::io::Write;
@@ -73,7 +77,7 @@ mod common;
 use common::oracle::{
     BbaOracle, DEFAULT_LIB, Interpretation, SYSTEM_2_OVER_1, SeatInfo, load_bbsa, next_call,
 };
-use common::seeded_deals;
+use common::{hand_hcp, seat_to_act, seeded_deals};
 
 // ───────────────────────────── arguments ─────────────────────────────
 
@@ -161,7 +165,13 @@ struct Args {
     #[arg(long)]
     selfplay: Option<usize>,
 
-    /// Deal-stream seed for `--selfplay`; board `i` is seeded `seed + i`
+    /// Bid out N boards and check whether the hand that made each call fits the
+    /// hand-free interpreter's HCP and suit ranges
+    #[arg(long)]
+    crosscheck: Option<usize>,
+
+    /// Deal-stream seed for `--selfplay`/`--crosscheck`; board `i` is seeded
+    /// `seed + i`
     #[arg(long, default_value_t = 0)]
     seed: u64,
 
@@ -1057,6 +1067,157 @@ fn selfplay(
     Ok(())
 }
 
+#[derive(Default)]
+struct CrosscheckLabel {
+    decisions: usize,
+    mismatches: usize,
+    example: Option<String>,
+}
+
+/// Rotate table vulnerability into the walk's dealer-as-position-0 frame.
+fn canonical_vulnerability(vul: AbsoluteVulnerability, dealer: Seat) -> AbsoluteVulnerability {
+    if matches!(dealer, Seat::North | Seat::South) {
+        vul
+    } else if vul == AbsoluteVulnerability::NS {
+        AbsoluteVulnerability::EW
+    } else if vul == AbsoluteVulnerability::EW {
+        AbsoluteVulnerability::NS
+    } else {
+        vul
+    }
+}
+
+/// Why a real hand falls outside the same fields the renderer prints.
+fn containment_failure(hand: Hand, read: &Reading) -> Option<String> {
+    let mut failures = Vec::new();
+    let hcp = i32::from(hand_hcp(hand));
+    if !(read.h[0]..=read.h[1]).contains(&hcp) {
+        failures.push(format!("HCP {hcp} outside {}..={}", read.h[0], read.h[1]));
+    }
+    for (&key, &[lo, hi]) in &read.n {
+        let suit = match key {
+            'C' => Suit::Clubs,
+            'D' => Suit::Diamonds,
+            'H' => Suit::Hearts,
+            'S' => Suit::Spades,
+            _ => unreachable!("the reader emits only C/D/H/S length keys"),
+        };
+        let length = hand[suit].len() as i32;
+        if !(lo..=hi).contains(&length) {
+            failures.push(format!("{key} length {length} outside {lo}..={hi}"));
+        }
+    }
+    (!failures.is_empty()).then(|| failures.join(", "))
+}
+
+/// Does BBA's hand-free interpreter describe the hands its bidder actually uses?
+fn crosscheck(
+    oracle: &BbaOracle,
+    count: usize,
+    seed: u64,
+    out: &mut dyn Write,
+) -> anyhow::Result<()> {
+    anyhow::ensure!(count != 0, "--crosscheck must be greater than zero");
+    const VULS: [AbsoluteVulnerability; 4] = [
+        AbsoluteVulnerability::NONE,
+        AbsoluteVulnerability::NS,
+        AbsoluteVulnerability::EW,
+        AbsoluteVulnerability::ALL,
+    ];
+    let mut labels: BTreeMap<String, CrosscheckLabel> = BTreeMap::new();
+    let mut decisions = 0;
+    let mut mismatches = 0;
+    let start = std::time::Instant::now();
+
+    for (board, deal) in seeded_deals(seed, count).iter().enumerate() {
+        let dealer = Seat::ALL[board % 4];
+        let vul = VULS[(board / 4) % 4];
+        let auction = common::oracle::bid_out(oracle, oracle, true, dealer, vul, deal);
+        let canonical_vul = canonical_vulnerability(vul, dealer);
+        let root = oracle
+            .public(canonical_vul, &[])
+            .ok_or_else(|| anyhow::anyhow!("EPBot failed to allocate a bot"))?;
+        let path = oracle
+            .interpret_path(canonical_vul, &auction)
+            .ok_or_else(|| anyhow::anyhow!("EPBot failed to allocate a bot"))?;
+        debug_assert_eq!(path.len(), auction.len());
+
+        for (index, read) in path.iter().enumerate() {
+            debug_assert_eq!(read.caller as usize, index % 4);
+            let before = if index == 0 {
+                &root
+            } else {
+                &path[index - 1].public
+            };
+            let rendered = reading(before, read, canonical_vul, false);
+            let hand = deal[seat_to_act(dealer, index)];
+            let stats = labels.entry(read.label.clone()).or_default();
+            stats.decisions += 1;
+            decisions += 1;
+            if let Some(reason) = containment_failure(hand, &rendered) {
+                stats.mismatches += 1;
+                mismatches += 1;
+                stats.example.get_or_insert_with(|| {
+                    format!("{} | hand {hand} | {reason}", house(&auction[..=index]))
+                });
+            }
+        }
+
+        if (board + 1) % 100 == 0 {
+            eprintln!(
+                "probe-bba-book: cross-checked {} boards, {decisions} decisions, {:.1}s",
+                board + 1,
+                start.elapsed().as_secs_f64(),
+            );
+        }
+    }
+
+    writeln!(out, "boards: {count}  seed: {seed}")?;
+    writeln!(
+        out,
+        "containment disagreements: {mismatches}/{decisions} ({:.3}%)",
+        100.0 * mismatches as f64 / decisions as f64
+    )?;
+    writeln!(
+        out,
+        "bidder-label disagreements: unavailable — the outgoing meaning slot is empty or stale after get_bid; set_bid refreshes it through the interpreter"
+    )?;
+
+    let mut worst: Vec<_> = labels
+        .iter()
+        .filter(|(_, stats)| stats.mismatches != 0)
+        .collect();
+    worst.sort_by(|a, b| {
+        b.1.mismatches
+            .cmp(&a.1.mismatches)
+            .then_with(|| b.1.decisions.cmp(&a.1.decisions))
+            .then_with(|| a.0.cmp(b.0))
+    });
+    if worst.is_empty() {
+        writeln!(out, "worst containment labels: none")?;
+    } else {
+        writeln!(out, "worst containment labels (by mismatches):")?;
+        for (label, stats) in worst.into_iter().take(20) {
+            writeln!(
+                out,
+                "  {:>6}/{:<6} {:>6.2}%  {}",
+                stats.mismatches,
+                stats.decisions,
+                100.0 * stats.mismatches as f64 / stats.decisions as f64,
+                if label.is_empty() {
+                    "(unlabelled)"
+                } else {
+                    label
+                },
+            )?;
+            if let Some(example) = &stats.example {
+                writeln!(out, "                  {example}")?;
+            }
+        }
+    }
+    Ok(())
+}
+
 /// Sum every `reach-*.jsonl` in a directory
 fn load_reach(dir: &str) -> anyhow::Result<HashMap<String, u64>> {
     let mut reach: HashMap<String, u64> = HashMap::new();
@@ -1740,6 +1901,9 @@ fn main() -> anyhow::Result<()> {
     let mut out = open(args.output.as_ref())?;
     if let Some(count) = args.selfplay {
         return selfplay(&oracle, count, args.seed, &mut out);
+    }
+    if let Some(count) = args.crosscheck {
+        return crosscheck(&oracle, count, args.seed, &mut out);
     }
 
     let reach = match &args.corpus {

@@ -25,11 +25,16 @@ hand-free bot and the label is the book, read straight off the engine.
 | Sharded runner | **shipped** — [`scripts/bba-book.sh`](../../scripts/bba-book.sh) |
 | Dictionaries: convention ids, `feature` slots, label emission paths | **shipped** — §4, baked into the example with a drift check |
 | The book/floor boundary, located in the decompiled engine | **shipped** — §2 |
+| Interpreter-vs-bidder containment cross-check | **measured** — 873/10 711 calls outside the hand-free reading, §2 |
 | The walk's own bound (ceilings are not enough) | **measured** — §3 |
 | The book by region | **shipped** — §5, from a 55 792-node run |
+| Six suspected `american()` divergences | **probed and triaged** — §5.7, reproducible script checked in |
+| Generated-card truthfulness | **corrected; default vectors and shipped model output unchanged** — §6.1; ids 25/116 wait for a raw-card feature bump |
 
-No bidding behaviour changes from this work: it is reference and tooling only,
-so no A/B is owed. Anything authored *from* it goes through
+No **pons** bidding behaviour changes from this work, so no A/B is owed; the
+fixed-seed `smoke-default` dump is byte-identical.  The card row-order fix does
+change what **BBA** plays in `1X-(1Y)-2Z` lanes, so it is an anchor series break
+for that slice. Anything authored *from* these probes goes through
 [measurement.md](../measurement.md) like everything else.
 
 ## Reproduce
@@ -46,6 +51,10 @@ cargo run --release --features serde --example probe-bba-book -- --conventions 2
 cargo run --release --features serde --example probe-bba-book -- \
     --selfplay 10000 --seed "$SEED_BASE" --output corpus/reach-"$SEED_BASE".jsonl
 
+# Does the hand-free reading contain hands BBA actually bids this way?
+cargo run --release --features serde --example probe-bba-book -- \
+    --crosscheck 1000 --seed 1787487734
+
 # The walk, sharded across every core.
 RUN=ab-results/bba-book/$(date +%F)-$(git rev-parse --short HEAD)
 scripts/idle-run.sh scripts/bba-book.sh "$RUN" --corpus corpus --min-reach 2
@@ -54,6 +63,9 @@ scripts/idle-run.sh scripts/bba-book.sh "$RUN" --corpus corpus --min-reach 2
 cargo run --release --features serde --example probe-bba-book -- \
     --render "$RUN" --prefix "1♠ (2♥)"
 cargo run --release --features serde --example probe-bba-book -- --stats "$RUN"
+
+# The six §5.7 questions and the two silent-on card rows.
+scripts/bba-book-divergence.sh
 ```
 
 **Seed hygiene.** `common::seeded_deals` seeds board *i* as `seed + i`, so
@@ -172,6 +184,35 @@ the bidding side's staging slot; the walk reads positions 0..3. Measured over
 47 720 readings of the census dump: `feature[417]` appears **zero** times, on
 `calculated bid` children and book children alike. There is no machine-readable
 floor bit on the interpretation path, only the string.
+
+### Interpreter versus bidder: 8.15% fall outside the reading
+
+`--crosscheck` bids fresh boards BBA against BBA, reads each resulting auction
+with one hand-free `interpret_path`, and asks whether the hand that actually
+made each call satisfies the reading's HCP band and changed suit-length bands —
+exactly the `h`/`n` fields the renderer prints.  Dealer and vulnerability rotate
+as in `--selfplay`; vulnerability is swapped into the dealer-as-position-0
+frame when an E/W seat deals.
+
+On **1 000 boards / 10 711 decisions**, seed `1787487734`, **873 calls (8.150%)**
+fall outside their hand-free reading.  Aggregated by the interpreter's label,
+the largest counts are unlabelled calls 303/6 295 (4.81%), `calculated bid`
+205/855 (23.98%), `bidable suit` 145/1 174 (12.35%), and `takeout double`
+34/96 (35.42%).  The failures are substantive rather than formatting noise:
+BBA sometimes opens a 10-HCP five-card major outside the printed 11–20,
+doubles directly with 10 where its reading says 12+, and uses its
+`1M-3M inviting` call on 9 HCP where the reading says 10–11.
+
+This does **not** move the label census or its no-rule share: the cross-check
+replays the very call BBA made, and `calculated bid` still says which reader
+path fired.  It bounds every numerical range in §5 instead: those ranges are
+what BBA's interpreter declares, not a guarantee that its bidder stays inside
+them.  A bidder-label disagreement rate is unavailable non-circularly.  On a
+hand-holding bot the outgoing meaning slot is empty on its first decision and
+stale on later ones after `get_bid`; only `set_bid` refreshes it, by invoking
+the interpreter whose label is under test.  The existing dealt-vs-hand-free
+interpreter check remains 120/120 labels, but it cannot answer the bidder-label
+question.
 
 ## 3. The ceilings, and why they are not the bound
 
@@ -483,28 +524,22 @@ bilans engine — and they are the ones pons authors as rules. Anything that
 models "BBA's book" as the thing to beat is modelling the wrong half of these
 auctions.
 
-### 5.7 Divergences from `american()` worth an A/B
+### 5.7 Six suspected divergences from `american()`, probed
 
-Observations only — nothing here is a proposal, and each would go through
-[measurement.md](../measurement.md). Cross-reference
+[`scripts/bba-book-divergence.sh`](../../scripts/bba-book-divergence.sh)
+replays the exact nodes and representative hands.  Nothing here changes
+`american()`; the two surviving leads still owe fresh-seed A/Bs under
+[measurement.md](../measurement.md) and live in
 [21gf-ledger.md](21gf-ledger.md).
 
-1. **`1NT` with a 6-card minor.** BBA opens 15-17 `1NT` on 2-6 clubs or
-   diamonds. Where we open the minor, the anchor is already in notrump.
-2. **`3NT` opening = 25-27 balanced**, four stoppers. We should check what we do
-   with that hand and whether it matters at all (it is rare enough that this may
-   be a curiosity rather than a lead).
-3. **`1M - 3M` is invitational** (10-12, `1M-3M inviting = 1`), not preemptive.
-   That is a card row we chose; the blocking alternative is `1M-3M blocking`.
-4. **`Support 1NT`** over a takeout double — 7-9 with three-card support, in
-   place of a natural 1NT. [takeout-double-layers.md](../takeout-double-layers.md)
-   has no entry for this seat.
-5. **The takeout double's floor moves with the seat**: 12+ direct over an
-   opening, 10+ in the `1♠ (2♥)` sandwich. Compare
-   [takeout-double-layers.md](../takeout-double-layers.md), which has the
-   4-4-major rung table but no seat-dependent floor.
-6. **`2♣` response is not unconditionally forcing** — `1♠ - 2♣ - P` reads 11-12
-   with 5♠.
+| observation from BBA's reading | what `american()` actually bids in the probe | verdict |
+| --- | --- | --- |
+| `1NT` admits a 15-17 hand with a six-card minor | `1NT` on all four 6m/6322 hands | **matches** — the card row is truthful |
+| `3NT` opens 25-27 balanced | `2♣` on all four hands | **diverges**, but too rare and unsurprising to promote |
+| `1M - 3M` is a 10-12 four-card raise | 10/11 support points bid `3M`; 12+ shortness bids Jacoby `2NT`; weaker hands bid `2M`/`4M` | **matches categorically** — `1M-3M inviting = 1` is truthful |
+| after `1M (X)`, BBA's `1NT` shows 7-9 and 3+ support | pons raises `2M` with each 7-9 three-card-support hand and uses `1NT` only on the no-fit hand | **diverges; A/B lead** |
+| BBA's takeout double starts at 12 direct; its negative double after `1♠ (2♥)` starts at 10 with 3+ in both minors, ≤4♥ and ≤2♠ | pons also starts at 12 direct. At the response seat its `X` instead requires 4+♥ and starts at 8: it doubles four 8-11 overlap hands, but passes all five BBA-shaped 2=2=4=5 controls from 8 through 12 | **diverges in shape and strength; A/B lead, but not a floor-only experiment** |
+| BBA may pass `1♠ - 2♣` with an 11-12 minimum | pons rebids on all four route-valid tested minima; no pass | **diverges**, but copying one row would contradict pons's 2/1-GF premise |
 
 ## 6. Corrections to facts pons already records
 
@@ -548,18 +583,20 @@ lands except the seven below, which `set_system_type(0)` (the 2/1 seed) or the
 constructor's `initialize_CONVENTIONS` turns **on** and nothing in the card
 turns off:
 
-| id | name | on because | truthful? |
+| engine id | name | on because | truthful? |
 | --- | --- | --- | --- |
 | 25 | `1NT opening shape 5 major` | system-type seed | **yes** — `Wide6322` admits 5M(332) |
-| 116 | `NMF after 2NT rebid` | system-type seed | **unchecked** — we have no authored `1m - 1M - 2NT - 3♣`; the floor bids it |
+| 116 | `NMF after 2NT rebid` | system-type seed | **no** — the exact responder node has no `3♣`; after a forced `3♣` and pass, the generic floor bids `3NT` on every tested opener rather than giving an NMF answer |
 | 88 / 89 / 90 | `Lavinthal from void / on ace / to void` | constructor | card-play signals; no bidding read |
 | 98 / 99 | `Mark on queen / king` | constructor | card-play signals; no bidding read |
 
-A silent-on convention is disclosure we never made. The fix is one generated row
-apiece in `card.rs` (`1NT opening shape 5 major = 1`, `NMF after 2NT rebid = 0`
-or `1`, once someone decides what we play there); the engine accepts any name
-it knows, whether or not BBA's UI lists it. **Left as a flagged default** — 25
-is already truthful and 116 needs a probe of the floor's actual 3♣.
+A silent-on convention is disclosure we never made.  The values are now known:
+id 25 should be `1`, id 116 should be `0`.  Adding two generated rows today,
+however, would change `LEN_CARD_ROWS` 135→137, `LEN_CARD` 140→142 and the raw
+v4 feature width 368→372.  That raw-card ABI still has a checked-in artifact,
+so both explicit rows wait for its next feature-ABI bump, retrain or retirement.
+The shipped v6 floor reads compact agreement features by row name and is not
+silently depending on those positions.
 
 **Rows whose final state differs from what we wrote — three pairs, row order
 did it.** `verify_card` writes and reads each row in turn, so a pair rule that
@@ -567,15 +604,19 @@ fires on a *later* row is invisible to it:
 
 | rows (in card order) | wrote | BBA plays | why |
 | --- | --- | --- | --- |
-| `1X-(1Y)-2Z strong` (29), `1X-(1Y)-2Z weak` (30) | 0, 0 | **1**, 0 | each write sets its twin to `!value`; the last row written wins and flips the other. We meant "neither" — row 28 `1X-(Y)-2Z forcing = 1` is the agreement — and got "strong" |
+| `1X-(1Y)-2Z weak` (30), `1X-(1Y)-2Z strong` (29) | 0, 0 | **1**, 0 | each write sets its twin to `!value`; writing weak first makes strong the final `0`, which flips weak to `1`. BBA offers no "neither" state; weak is nearer to our forcing free bid than the old effective strong setting |
 | `Fourth suit` (63), `Fourth suit game force` (64) | 1, 1 | **0**, 1 | writing `64 = 1` clears 63. Harmless: 4SF-GF is what a 2/1 card means |
-| `King ask by 5NT` (83), `King ask by 5NT inviting` (84), `King ask by available bid` (85) | 1, 0, 1 | **0**, 0, 1 | writing `85 = 1` clears 83 and 84. `card.rs`'s comment says 85 is *inert* and "83 stays 1 because that is the row BBA acts on" — the decompile disagrees on both counts: the setter clears 83, and `EPBot.cs:43964` reads 85 to place the king ask on the next step instead of 5NT. The *state* is nevertheless the truthful one — our king ask **is** the step above the queen reply (`instinct::king_relay`) — so only the comment is wrong. Flagged, not edited |
+| `King ask by 5NT` (83), `King ask by 5NT inviting` (84), `King ask by available bid` (85) | 1, 0, 1 | **0**, 0, 1 | writing `85 = 1` clears 83 and 84. `EPBot.cs:43964` reads 85 to place the king ask on the next step instead of 5NT, which is exactly `instinct::king_relay`; the stale `card.rs` comment was corrected, with no value change |
 
-Row 29's flip is the one that misdescribes us. Proposed default: write
-`1X-(1Y)-2Z weak = 0` **before** `1X-(1Y)-2Z strong = 0` in `SCHEMA` (the
-final write then leaves strong 0 / weak 1, which is at least the nearer of the
-two to a forcing free bid), or drop both rows and let the seed's `weak = 1`
-stand. Either is a card change, so it waits for the user.
+The weak/strong order is now corrected in `SCHEMA`, and the generated American
+and Dutch cards were re-blessed.  Their literal bit vectors remain byte-identical
+because both rows contain `0`; `smoke-default --count 20000 --seed 1` is likewise
+byte-identical, SHA-256
+`eccf17bc3e2818be26a97750eb74949d9af4075a09eb5e9f735cd2508e1a3ed0`.
+Unequal foreign cards do attach the two raw positions to the opposite names,
+but both corresponding v4 input columns are folded to zero in the shipped W1.
+`--effective` correctly flags weak row 30 as `wrote 0, plays 1`: the complement
+setter makes that honest final state impossible to spell without an override.
 
 ### 6.2 The convention setter, transcribed
 
@@ -632,19 +673,9 @@ an omitted id keeps it.
 
 ## 7. Open work
 
-- The six divergences of §5.7 are observations. Each needs a probe before it is
-  an experiment, and none has one.
-- §6.1's two flagged card changes: the `1X-(1Y)-2Z` row order (we disclose
-  "strong" and mean "neither") and the two silent-on seeds (25, 116) that the
-  card should write explicitly. Both are `card.rs` changes and wait for the
-  user; the `King ask` comment in `card.rs` is wrong about the engine but the
-  state it leaves is truthful.
-- **Shard balance.** The frontier splits on auction length, so the all-pass key
-  `- - -` carries an entire seat's tree in one process (3 142 nodes, 173 s — it
-  finished eight minutes after the other 1 120 shards). `FRONTIER=4` would split
-  it at the cost of ~18 000 shards; re-sharding oversized keys only would be
-  better, and is unwritten.
-- The walk reads the **interpreter's** book. §2 shows the interpreter mirrors the
-  bidder's fallback, but the two are separate code paths and nothing here
-  measures where they disagree. A `--selfplay` cross-check — does BBA's own call
-  at a node carry the label the walk predicts? — would close it.
+- **Shard balance, deferred until it matters.** The all-pass frontier key carries
+  an entire seat's tree in one process (3 142 nodes, 173 s), but the complete
+  walk still finished in nine minutes. Re-shard oversized keys only when a
+  deeper `--reach-depth` or lower `--min-reach` makes that tail dominate wall
+  time; a blanket `FRONTIER=4` would create roughly 18 000 shards for no present
+  payoff.

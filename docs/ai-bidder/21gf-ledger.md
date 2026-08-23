@@ -4,6 +4,9 @@ Target spec for "author pons's 2/1 about as deep as BBA". One row per relevant
 `vendor/bba/21GF.bbsa` toggle. The plan that governs this work:
 `~/.claude/plans/author-the-2-1-bidding-replicated-mochi.md`.
 
+The `#` column is the row number in `21GF.bbsa`, **not** EPBot's engine
+convention id. Engine ids are written explicitly as `id N` where they occur.
+
 **Status legend:** `shipped` (authored + tested) · `partial` (some of it) ·
 `floor` (handled by `instinct()` only, not authored) · `gap` (absent) ·
 `conflict` (pons plays it differently) · `override` (user chose ≠ 21GF) ·
@@ -230,14 +233,14 @@ is not grounds to change a ship decision (cf. DoubleStyle, Jordan/Truscott).
 
 | # | Toggle | pons status | decision | A/B | commit |
 |---|--------|-------------|----------|-----|--------|
-| 7 | 1M-3M inviting (limit raise) | shipped | keep | — | — |
+| 7 | 1M-3M inviting (limit raise) | shipped; the authored rule is 10-12 support points and direct probes confirm the categorical inviting treatment | keep | — | 2026-08-23 |
 | 70 | Jacoby 2NT | shipped | keep | — | — |
 | 113 | Splinter | shipped | keep | — | — |
 | 68 | Inverted minors | shipped | keep | — | — |
 | 37 | Bergen | conflict (limit+J2NT) | A/B (Batch 3) | — | — |
 | 89 | Mixed raise | gap/conflict | A/B w/ Bergen | — | — |
 | 56 | Fit showing jumps | conflict (weak JS) | keep weak; comp later | — | — |
-| 116 | Support 1NT | verify | — | — | — |
+| 116 | Support 1NT | **conflict** — after `1M (X)`, pons raises `2M` with 7-9/three-card support and reserves `1NT` for no fit | A/B against BBA's support-showing `1NT` | pending; probe in `scripts/bba-book-divergence.sh` | 2026-08-23 |
 
 ## Constructive — opener rebids / checkback
 
@@ -273,9 +276,10 @@ is not grounds to change a ship decision (cf. DoubleStyle, Jordan/Truscott).
 | 105 | Rubensohl after 1m | floor (Rubens advances) | upgrade (Batch 1) | — | — |
 | 100 | Responsive double | takeout shipped (toggle); overcall-ext opt-in Off | keep both as-is | `responsive-ab`, 200k/cell vs floor. **Takeout: −0.175/−0.500 div** [a6f2206, ~0.1% div] → stays shipped (drag near-nil + DD-blind obstruction). **Overcall-ext: +0.648/−0.340 div** [a6f2206, ~0.4% div] → stays off (sign-mixed, suspect under the under-punishment caveat). Behind `set_responsive_takeout` (default on) / `set_responsive_overcall` (default off); defaults byte-identical. | (toggles + `responsive-ab`) |
 | 83 | Maximal doubles | gap | add (Batch 1) | — | — |
-| 71 | Jordan/Truscott 2NT | tried — DD-negative | **keep floor** (don't ship) | **vs floor: −1.0/−1.5 div** [`PD`, jordan-ab 500k] (2NT-only half −4.2/−4.4) — reverted, obstruction is DD-blind. | reverted |
+| 71 | Jordan/Truscott 2NT | **shipped, default on** | keep | plain +0.0041/+0.0067, PD +0.0049/+0.0065 IMPs/board NV/vul; all CIs >0, `competitive-book.md` P4 | `bc949dc` |
 | 117 | Support double/redouble | shipped | keep | — | — |
 | 28/30 | 1X-(Y)-2Z forcing/weak | partial | verify | — | — |
+| — | Negative-double shape/strength after `1M (2x)` | **conflict** — after `1♠ (2♥)`, pons requires 4+♥ and starts at 8; BBA starts at 10 with both minors and short spades. The floor difference exists only on the four-heart overlap; pons passes the BBA-shaped controls | diagnose the shape routing, then A/B the complete treatment rather than a floor alone | pending; probe in `scripts/bba-book-divergence.sh` | 2026-08-23 |
 | 122 | Transfers if RHO bids clubs | **confirmed** | add (Batch 1) | — | probed 2026-08-15 |
 
 **Row 122 is real, and selective.** The disclosure sweep filed
@@ -423,22 +427,12 @@ opt-in (best thresholds baked: `PenaltyLight` 4+, `Optional` 8+) for a future
 single-dummy re-measure where takeout's competitive value might genuinely pay.
 (this commit)
 
-**Jordan/Truscott (71) — tried and rejected (DD-negative).** Authored
-`1M (X) 2NT` = limit-raise-or-better + `3M` = preemptive, with opener's decline
-path (`2NT`→`3M` sign-off, responder pass/4M) and a sound `2NT` strength
-inference; reused the uncontested `major_responses` for every non-Jordan call;
-gated by `set_jordan`. A/B'd vs the system-on baseline (`jordan-ab`, contested
-seat-swap duplicate, `Tag::NATURAL` opponents take out double our major).
-Result: **vs floor: −1.0/−1.5 div** [`PD`, 500k] (the `2NT`-constructive half alone
-−4.2/−4.4). Two causes, both inherent
-to the harness: (1) the preemptive `3M`'s obstruction value is invisible to the
-double-dummy / perfect-defense measure (the solver sees through it — cf.
-`texas-vs-sat` "concealment is single-dummy"), while its overbid cost is counted;
-(2) making `2NT` limit-or-better diverts 13+ game-forcing raises out of pons's
-rich **Jacoby 2NT** machinery (shortness / slam) into a crude `3M/4M` stub,
-reaching worse games and missed slams that the doubler punishes. **Reverted** —
-the floor's system-on (`2NT` = Jacoby, `3M` = limit raise) stays. Revisit only
-under a single-dummy / IMPs-vs-humans measure where preemption actually pays.
+**Jordan/Truscott (71) — shipped after the coarse prototype was rejected.**
+The old `jordan-ab` stub diverted game-forcing raises out of Jacoby and lost;
+the later P4 package authored the whole over-double structure and its exact
+continuations. It won plain +0.0041/+0.0067 and PD +0.0049/+0.0065 IMPs/board
+NV/vul, all CIs clear, and is default-on. The current design and measurement
+live in [competitive-book.md](../competitive-book.md) §P4.
 
 ## Defensive — their opening
 

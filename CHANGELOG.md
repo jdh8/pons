@@ -18,8 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [keycard](docs/ai-bidder/bba-kickback.md),
   [the bilans arithmetic](docs/ai-bidder/bba-floor.md)) — and
   [takeout-double-layers.md](docs/takeout-double-layers.md) records that not
-  even a one-of-a-suit opening had a live census.  **No bidding behaviour
-  changes**; this is reference and tooling, so no A/B is owed.
+  even a one-of-a-suit opening had a live census.  **No pons bidding behaviour
+  changes**; the fixed-seed smoke dump is byte-identical, so no pons A/B is
+  owed. The corrected disclosure card does change BBA's anchor policy in one
+  forcing-free-bid lane, recorded as an anchor series break below.
 
   The instrument is `epbot_get_info_meaning` on a **hand-free** bot: EPBot names
   the rule that matched (`Jacoby 2NT`, `Drury`, `takeout double`) without
@@ -56,6 +58,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   passed 2000 descendants without finishing, so the walk takes its bound from
   BBA's own play (`--selfplay` reach corpus, `--reach-depth`).
 
+  `--crosscheck` now tests those readings against the hands BBA actually bids:
+  on 1,000 boards / 10,711 decisions (seed 1787487734), **873 calls (8.150%)**
+  fall outside the interpreter's printed HCP or suit-length ranges. The largest
+  counts are unlabelled 303/6,295, `calculated bid` 205/855, `bidable suit`
+  145/1,174 and `takeout double` 34/96. Bidder-label agreement cannot be
+  measured independently: `get_bid` leaves the outgoing meaning slot empty or
+  stale, while `set_bid` refreshes it by running the interpreter under test.
+  [`scripts/bba-book-divergence.sh`](scripts/bba-book-divergence.sh) also makes
+  all six candidate differences reproducible; only BBA's support-showing 1NT
+  and the response-seat double's shape/strength mismatch survived as A/B leads.
+
 - **`BbaOracle` can now be asked what a call means, not just what to bid.**
   `interpret`, `interpret_as`, `interpret_path`, `public`, `convention_names`,
   `convention_usage` and `meaning_with_buffer` bind EPBot's interpretation
@@ -77,10 +90,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   [bba-book.md](docs/ai-bidder/bba-book.md) §6.1 with the whole convention
   setter transcribed in §6.2: two UI-only rows the engine drops, seven ids the
   engine seeds **on** that the card never writes (`1NT opening shape 5 major`
-  is true of us; `NMF after 2NT rebid` is unchecked), and three row pairs
-  whose order-dependent twin rules leave a state `verify_card` cannot see — we
-  disclose `1X-(1Y)-2Z strong` while meaning neither.  The card changes are
-  flagged, not made.
+  is truthful; `NMF after 2NT rebid` is not), and three row pairs whose
+  order-dependent twin rules leave a state `verify_card` cannot see. The
+  generated card now writes weak before strong, making BBA play ids 30/29 as
+  1/0 instead of 0/1 — the nearer truthful disclosure for pons's forcing free
+  bids — and the stale king-ask comment is corrected. American and Dutch cards
+  were re-blessed; pons's 20,000-board seed-1 smoke hash remains
+  `eccf17bc3e2818be26a97750eb74949d9af4075a09eb5e9f735cd2508e1a3ed0`.
+  Explicit id-25=`1` and id-116=`0` rows are deferred because adding them would
+  change the raw-card feature ABI (135→137 rows, v4 width 368→372) before its
+  next bump, retrain or retirement.
 
   The §6 corrections were decided (all proposed defaults taken): `feature[144]`
   is `CONVENTION_SPLINTER`, not a cue — a splinter is the strictest control

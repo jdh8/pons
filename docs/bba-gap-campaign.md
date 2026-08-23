@@ -119,6 +119,12 @@ Each was paid for; the story behind each is in the archive.
    seed + the sha; the repo carries the headline (the series table below and a
    CHANGELOG line). The DD cache (`ab-results/anchor/dd-cache.json`) keys on
    deals and never invalidates.
+9. **Card-order series break (2026-08-23).** The generated card now writes
+   `1X-(1Y)-2Z weak` before its complementary `strong` row. EPBot therefore
+   plays ids 30/29 as 1/0 instead of 0/1: the nearer truthful disclosure for
+   pons's forcing free bids. Pons's fixed-seed smoke dump is byte-identical,
+   but BBA's anchor policy changed in those lanes, so headline and bucket moves
+   across this break are not attributable solely to pons changes.
 
 ## Runbook
 
