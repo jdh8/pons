@@ -434,7 +434,7 @@ because our card sets `4NT opening = 0`.
 | `1♥` / `1♠` | 11-20, 5+ | `5+ ♥` / `5+ ♠` |
 | `1NT` | 15-17, **2-6♣ 2-6♦**, 2-5♥ 2-5♠ | `NT style` |
 | `2♣` | 19+ | `strong`, alerted |
-| `2♦` | 4-10, 6-7♦, ≤3♥ ≤3♠ | `Weak natural 2D` — **not Multi** |
+| `2♦` | 4-10, 6-7♦, ≤3♥ ≤3♠ | `Weak natural 2D` — **not Multi** (id 110 is one flag away; its book is walked in [bba-multi-2d-opening.md](bba-multi-2d-opening.md)) |
 | `2♥` / `2♠` | 4-10, 6-7 | `Weak natural 2M` |
 | `2NT` | 20-21, four stoppers | `NT style` |
 | `3♣`-`3♠` | 4-10, 7-8 | `preemptive` |

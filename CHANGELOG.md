@@ -9,6 +9,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **BBA's Multi 2♦ *opening*, walked.**
+  [docs/ai-bidder/bba-multi-2d-opening.md](docs/ai-bidder/bba-multi-2d-opening.md)
+  reads EPBot's book for the opening BBA's 2/1 card does not play (id 110 is one
+  `--conv "Multi=1"` away from the shipped `Weak natural 2D`): a **weak-only
+  4-10 with one six-card major**, its responses (`2♥` pass-or-correct, the `2NT`
+  ask answering **max-first**, the 15+ `4♣` transfer), and its competitive tails.
+  Two findings for Dutch Phase 3, which adopts these rows verbatim: BBA has
+  **no Multi-specific defence** — the cue, Leaping Michaels and the
+  stopper-showing 3NT are all keyed to real diamonds and evaporate, leaving a
+  takeout double that asks for the one suit opener cannot have — and responder's
+  table over a `(2♠)` overcall **has no weak rung**, so a weak responder passes
+  them out in 2♠. No code changes; the reference the Phase-3 rows get authored
+  against.
+
+  ```sh
+  cargo run --release --features serde --example probe-bba-book -- \
+      --prefix "2♦" --conv "Multi=1" --reach-depth 4 --vuls none --output multi.jsonl
+  ```
+
 - **`probe-admit-node` — one worklist key, replayed.**
   [`examples/probe-admit-node.rs`](examples/probe-admit-node.rs) takes an
   auction key off `probe-reading-sound`'s partner worklist, replays the seat

@@ -66,7 +66,7 @@ the floor's transfer-completion still holds.
 | 1 | Dutch openings: wide 1♣, 1♦ 5+/4441, 1M 10–20, strong 2♣ | **DONE** (code; A/B pending) |
 | 2.1 | Wide-1♣ response table + opener's rebid after the `1♦` relay | **MEASURED — LOSS** (see below); on-plan for a half-built system |
 | 2.2 | Deep relay continuations (`1♣ - 1♦ - 1M/1NT/2♣/2♦`) + `1♣ - 2♣` / `1♣ - 2♦` continuations | **increments 1–2 AUTHORED** — inc.1 `1♣ - 1♦ - 1M` + `1♣ - 1♦ - 2♣`; inc.2 opener's rebid over `2♣`/`2♦` **+ responder's continuation** (opener-only cut LOST → responder side authored → **re-A/B WIN `+0.0021/bd plain both`**). Rare relay `1NT`/`2♦!` still deferred |
-| 3 | 2-level openings (Multi + **BBA's Polish two-suiters**/UNT) + strong-2♣ tree | pending — **Muiderberg superseded**, see below |
+| 3 | 2-level openings (Multi + **BBA's Polish two-suiters**/UNT) + strong-2♣ tree | pending — **Muiderberg superseded**, see below; the Multi rows to author are walked in [bba-multi-2d-opening.md](ai-bidder/bba-multi-2d-opening.md) |
 | 4 | Reader/floor reconciliation + divergent-opening competitive book | pending |
 | 5 | Iterate to champion vs BBA/BEN; promote if it wins | pending |
 | WJ-floor | Distil BBA-WJ as the floor over Dutch's divergent minors | **A/B A WON** (floor swap, +0.18/+0.28 plain, shipped); **A/B B LOST** (WJ over 1♦, −0.005/−0.017 PD — inherited overbid); **A/B C LOST** (WJ as *constructive* floor under 1♣, −0.012/−0.029 — nets have no settle rail); both routings removed, net kept; Phase 3's two-level rows are the remaining arm |
