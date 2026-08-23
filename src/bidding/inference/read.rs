@@ -618,22 +618,53 @@ impl Inferences {
                     // A direct double of a natural suit opening, the defending
                     // side's first action, reads as takeout: opening values.
                     //
-                    // Outside the direct seat the same call is a king or more
-                    // lighter — the balancing double (`1♠ - - X` excludes 27-30 %
-                    // of its own doublers, minimum 7 points), a doubler who has
-                    // already passed (`- 1♣ - 1♠ X` 37 %), their strong
-                    // artificial `2♣` (20 %).  Lowering the floor to seven in
-                    // those three shapes is sound and was built, but it measured
-                    // a plain loss at vul none over three seeds and is parked
-                    // pending a floor retrain: see
-                    // `docs/reading-drift-handoff.md`, the 2026-08-24 sweep.
+                    // Three shapes wear that seat's name without its hand, and
+                    // each was measured on `probe-reading-sound`'s partner
+                    // worklist (2026-08-24):
+                    //
+                    // - the **balancing** double, made a king light because a
+                    //   pass ends the auction: `1♠ - - X` and its three
+                    //   siblings excluded 27-30 % of their own doublers.  Over
+                    //   a preempt the balancer still needs the values
+                    //   (`2♥ - - X` is clean at 0 %), so this stops at a
+                    //   one-level opening;
+                    // - a doubler who has **already passed**: the pass caps the
+                    //   hand, and this floor met that ceiling at exactly
+                    //   `[11,11]` — `- 1♣ - 1♠ X` 37 %, `1♠ - 2♠ - - X` 35 %;
+                    // - their **strong artificial 2♣**, which names no suit to
+                    //   take out of; the double is a lead director (20 %).
+                    //
+                    // The floor **moves** rather than vanishing, and that is
+                    // the whole verdict of the round-1 A/B: deleting the claim
+                    // outright measured **−0.0032 [±0.0020] plain / −0.0038
+                    // [±0.0025] PD** at vul none on its own isolation arm, and
+                    // the worst boards are advancer flying blind opposite
+                    // `points 0..=37` (`1♣ - - X 1NT - 2♦ … 6♣ X`, −16, against
+                    // a base arm that stopped in `2♣`) — a coverage loss no
+                    // retrain can cash, because the bit is simply gone.  Seven
+                    // is below every one of 6,992 replayed doublers in these
+                    // shapes: balancing min 7 (1st pct 8, 5,380 hands), passed
+                    // hand min 9 (449), their `2♣` min 7 (1,163).
+                    let balancing = opening_bid.level.get() == 1
+                        && index >= 2
+                        && auction[index - 1] == Call::Pass
+                        && auction[index - 2] == Call::Pass;
+                    // Four calls back is this seat's own previous turn, and the
+                    // side has not acted, so that turn was a pass.
+                    let passed_hand = index >= 4;
+                    let strong_artificial = opening_bid == Bid::new(2, Strain::Clubs);
                     if !substituted_call
                         && !is_opening_side
                         && first_action_of_side
                         && index != opening_index
                         && opening_bid.strain.is_suit()
                     {
-                        players[who].narrow_points(Range::at_least(11, POINTS_CAP));
+                        let floor = if balancing || passed_hand || strong_artificial {
+                            7
+                        } else {
+                            11
+                        };
+                        players[who].narrow_points(Range::at_least(floor, POINTS_CAP));
                     }
                     lane_doubled[lane] = true;
                     side_acted[lane % 2] = true;

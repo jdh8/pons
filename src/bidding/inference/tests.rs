@@ -380,6 +380,27 @@ fn readings_admit_the_bidder() {
                 Call::Double,
             ],
         ),
+        // The takeout double's `points 11..` is the *direct* seat's promise.
+        // Three shapes wear the call without the hand (2026-08-24 sweep): the
+        // balancing double, made a king light because a pass ends the auction;
+        // a doubler who has already passed, whose own pass met this floor at
+        // exactly `[11,11]`; and their strong artificial `2♣`, which names no
+        // suit to take out of.
+        (
+            "balancing double of their 1♠",
+            &[bid(1, Strain::Spades), Call::Pass, Call::Pass],
+        ),
+        (
+            "delayed double by a passed hand",
+            &[
+                bid(1, Strain::Clubs),
+                Call::Pass,
+                bid(1, Strain::Diamonds),
+                Call::Pass,
+                bid(1, Strain::Hearts),
+            ],
+        ),
+        ("double of their strong 2♣", &[bid(2, Strain::Clubs)]),
         // A rebid of our own suit shows a sixth card only where a cheaper call
         // was passed up.  Partner's cue raise agreed the suit, so the
         // overcaller's return to it places the contract; partner's takeout
