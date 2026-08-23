@@ -179,8 +179,11 @@ struct Shown {
 /// The trigger conditions transcribed from `get_kolor_kickback` +
 /// `get_kolor_domniemany`'s retro-agreement fallback (decompiled EPBot64):
 /// does a 4-level bid in `strain` (♦/♥/♠) read as Kickback for `strain - 1`?
-/// `partner_cue` is the engine's own mid-cue flag on the answerer
-/// (`Item[partner].feature[144]`), the first arm of the cue suppression.
+/// `partner_cue` is the cue suppression of `interpretuj_blackwooda`:3712,
+/// computed by the caller from the answerer's bot as
+/// `feature[144] OR (feature[52] AND NOT feature[77] AND below game)` — a
+/// splinter outright (the engine's strictest cue), a cue bid only below game of
+/// the agreed suit and never after Jacoby 2NT (`bba-book.md` §6 row 1).
 /// Still unmodeled (triaged per mismatch): the opponents'-suit and HCP gates,
 /// splinter/forcing-1NT collisions, and interpretation-dispatch order
 /// (natural slam-try / self-sufficient-suit readings that win first).
@@ -267,6 +270,9 @@ fn main() -> anyhow::Result<()> {
                 // Candidate 4♦/4♥/4♠: evaluate the predictor on the shown
                 // state BEFORE the call lands, from the answerer's bot.
                 let partner_cue = {
+                    // 4♦/4♥ sit below 5♣/5♦; 4♠ is above 4♥, so the cue arm
+                    // never touches the ♥-ask.
+                    let below_game = (21..=22).contains(&code);
                     let mut buf = [0_i32; 512];
                     let mut count: c_int = 0;
                     let bytes = (buf.len() * size_of::<c_int>()) as c_int;
@@ -277,7 +283,7 @@ fn main() -> anyhow::Result<()> {
                         bytes,
                         &mut count,
                     );
-                    buf[144] > 0
+                    buf[144] > 0 || (buf[52] > 0 && buf[77] == 0 && below_game)
                 };
                 let predicted = (21..=23).contains(&code).then(|| {
                     let strain = (code - 5) as usize % 5;

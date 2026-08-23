@@ -94,6 +94,15 @@ test = true
 
 # Phase B of the BEN book extraction: per-prefix hidden-hand inference rows
 # for BEN's Info net to annotate (scripts/ben-info-dump.py) and compare.
+# The BBA book walk (docs/ai-bidder/bba-book.md): reads EPBot's own prose label
+# for every call of every auction under the campaign's ceilings, which partitions
+# its system into rule-book and bilans-floor.  Interpretation only — `get_bid` is
+# never called, so no hand is ever dealt.
+[[example]]
+name = "probe-bba-book"
+path = "examples/probe-bba-book/main.rs"
+required-features = ["serde"]
+
 [[example]]
 name = "probe-ben-info"
 path = "examples/probe-ben-info/main.rs"

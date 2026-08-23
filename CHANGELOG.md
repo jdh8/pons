@@ -9,6 +9,86 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **BBA's rule book, walked.**
+  [`examples/probe-bba-book`](examples/probe-bba-book/main.rs) reads what
+  EPBot says every call *means*, one auction at a time, and
+  [docs/ai-bidder/bba-book.md](docs/ai-bidder/bba-book.md) is the reference it
+  produces.  The anchor's book had never been mapped — only islands of it
+  ([the 1NT lanes](docs/ai-bidder/bba-1nt-defense.md),
+  [keycard](docs/ai-bidder/bba-kickback.md),
+  [the bilans arithmetic](docs/ai-bidder/bba-floor.md)) — and
+  [takeout-double-layers.md](docs/takeout-double-layers.md) records that not
+  even a one-of-a-suit opening had a live census.  **No bidding behaviour
+  changes**; this is reference and tooling, so no A/B is owed.
+
+  The instrument is `epbot_get_info_meaning` on a **hand-free** bot: EPBot names
+  the rule that matched (`Jacoby 2NT`, `Drury`, `takeout double`) without
+  `get_bid` ever running, so a reading costs ~1.9 ms and the label
+  `calculated bid` marks where the bilans floor took over.  `--self-check`
+  settles seven invariances, all of which hold: hand-free readings equal
+  dealt-hand ones (120/120 labels), the reading is reader-seat invariant
+  (45/45), one replayed bot equals a fresh bot per prefix (47/47), and the
+  reading is **vulnerability-invariant on 19 438 of 19 438** children of the
+  `1♠` subtree — while BBA's *bidding* does move with vulnerability on 3 of 400
+  opening hands, which is what proves the argument is live rather than dead.
+
+  The shipped run walks **55 792 nodes** (224 MB, 4.0 KB/node) across 1 121
+  shards in 9 minutes on 16 cores, and the renderer reaches all of them from
+  the root with **0 dangling children**.  It reproduces every earlier decode
+  exactly under `--card none`, and shows three of the four moving under
+  `cards/American.bbsa` — `Multi-Landy`, `Two way game tries` and `Drury` are all
+  rows our card turns off, so **the card is the book**, and the anchor is the
+  right-hand column.  The partition it measures: 12.9% of constructive readings
+  and 14.0% of contested ones are the floor's, and the calls that land there are
+  not obscure — BBA's **simple raise** (`1♠ - 2♠`, on 0.75% of boards) and
+  `1NT - 3NT` are both `calculated bid`.
+
+  Two findings bound what the walk proves, both recorded in the doc rather than
+  silently resolved.  The book/floor boundary is one `if` in
+  `odzywka_z_bilansu_exit_function` (`EPBot.cs:56569`), and its reading-side
+  mirror at `:2903` has *named* exits as well as the anonymous one — so
+  `bidable suit`, `balanced` and the `stopper !X` family are emitted by both the
+  book's readers and the floor's, and **every floor share is a lower bound**.
+  And the ceilings alone do not terminate: a single depth-6 contested node
+  passed 2000 descendants without finishing, so the walk takes its bound from
+  BBA's own play (`--selfplay` reach corpus, `--reach-depth`).
+
+- **`BbaOracle` can now be asked what a call means, not just what to bid.**
+  `interpret`, `interpret_as`, `interpret_path`, `public`, `convention_names`,
+  `convention_usage` and `meaning_with_buffer` bind EPBot's interpretation
+  surface (`epbot_get_info_meaning{,_extended}`, `epbot_convention_name`,
+  `epbot_get_used_conventions`).  `convention_names` enumerates BBA's whole
+  173-entry convention table off the **live** library, which the example bakes
+  in and re-checks with `--conventions` so a vendored-engine change cannot drift
+  under a dump.  `SeatInfo` gained `PartialEq`/`Eq`; `with_bot` was split so the
+  reader seat, holdings and vulnerability code can be supplied directly.
+
+- **[`scripts/bba-book.sh`](scripts/bba-book.sh)** shards the walk one process
+  per subtree (EPBot is thread-unsafe), resumably, and copies the walker into
+  the run directory so a mid-run rebuild cannot swap the program under the dump.
+
+- **The card audit** — `probe-bba-book --effective N` writes
+  `cards/American.bbsa` onto a fresh bot and reads every engine id back, via
+  the new `BbaOracle::convention_values`.  Three ways the card we *write*
+  differs from the card BBA *plays*, all recorded in
+  [bba-book.md](docs/ai-bidder/bba-book.md) §6.1 with the whole convention
+  setter transcribed in §6.2: two UI-only rows the engine drops, seven ids the
+  engine seeds **on** that the card never writes (`1NT opening shape 5 major`
+  is true of us; `NMF after 2NT rebid` is unchecked), and three row pairs
+  whose order-dependent twin rules leave a state `verify_card` cannot see — we
+  disclose `1X-(1Y)-2Z strong` while meaning neither.  The card changes are
+  flagged, not made.
+
+  The §6 corrections were decided (all proposed defaults taken): `feature[144]`
+  is `CONVENTION_SPLINTER`, not a cue — a splinter is the strictest control
+  bid, so the engine's cue-equivalent treatment is by design — and the
+  Kickback census predictor now mirrors the engine's full suppression
+  (`144 OR (52 AND NOT 77 AND below game)`): agreement 3043/3081 (98.8%), 38
+  false positives, still zero false negatives (was 3028, 53).  `SeatInfo`'s
+  doc comment now reads 406 as keycards, 425/441 as two slots, and names the
+  sparse-map hazard that was mistaken for a −1/0 swap; `hcp_range` defaults
+  a missing `403` to the engine's 37, not 0.
+
 - **An opt-in BBA-reading v6 floor twin for the N4 retrain experiment.**
   `american::american_v6_their` uses weights trained on the same v6 corpus
   cells and deals with BBA's disclosed Multi-Landy readings and the two parked

@@ -86,10 +86,14 @@ T+1 (`get_kolor_kickback`, plus the retro-agreement fallback in
    variants), opponents' shown HCP ≤ 18 for Kickback (plain Blackwood
    tolerates ≤ 20; ≤ 22 when they have no suit), opener ≥ 10 HCP if asking.
 6. **None of the suppressions**:
-   - partner is mid-cue (`feature[144]`), or a cue exchange is live and the
-     bid sits below game of the agreed suit — narrow in practice: a partner
-     call the engine reads as "calculated" is no cue, and the below-game arm
-     can never touch the ♥-ask (4♠ is above 4♥);
+   - partner has **splintered** (`feature[144]`, `CONVENTION_SPLINTER` — a
+     splinter promises a control and opens control bidding, so the engine
+     treats it as the strictest cue), or partner has **cue-bid**
+     (`feature[52]`, `CONVENTION_CUE_BID`) without a Jacoby 2NT (`feature[77]`)
+     and the bid sits below game of the agreed suit — the second arm is narrow
+     in practice: a partner call the engine reads as "calculated" is no cue,
+     and below-game can never touch the ♥-ask (4♠ is above 4♥).  An earlier
+     draft called 144 "mid-cue"; see `bba-book.md` §6 row 1;
    - forcing/semi-forcing 1NT contexts;
    - splinter collisions: the bid matches a responder splinter (2nd call),
      opener splinter (4th), or responder second-round splinter (6th);
@@ -266,24 +270,27 @@ against the shipped `.so`. The load-bearing rows:
 Self-play with `Kickback 1430 = 1` both sides over deals filtered to
 "some side holds 24+ combined HCP and an 8-card fit"; every 4♦/4♥/4♠ call
 compared against a predictor implementing §1's guard + fit/retro clauses on
-the engine's own shown-length state (`info_min/max_length`, plus the
-`feature[144]` cue flag).
+the engine's own shown-length state (`info_min/max_length`, plus partner's
+`feature[144]` splinter flag; the `feature[52]` cue arm with its below-game
+and no-Jacoby conditions was added 2026-08-23 after `bba-book.md` §6 row 1 —
+the 98.3% below predates it).
 
 5000 boards, seed 42: 58 543 calls, **3081 candidate 4♦/4♥/4♠ calls, 224
 labeled kickback** (♣ 18 / ♦ 48 / ♥ 158 — the ♥-ask dominates in practice),
 plus 214 4NT calls carrying the cosmetic `"Kickback 1430, for !S"` label.
-**Predictor agreement 3028/3081 (98.3%) with zero false negatives**: the
-engine never fired kickback outside the predicted set, so §1's guard +
-fit/retro clauses are a *complete upper bound*. All 53 misses are false
-positives where an earlier interpretation arm wins the dispatch before the
-Blackwood family is consulted:
+**Predictor agreement 3043/3081 (98.8%) with zero false negatives** (re-run
+2026-08-23 with the cue arm; 3028, 98.3%, 53 false positives before it — the
+arm bought 15 and missed nothing): the engine never fired kickback outside the
+predicted set, so §1's guard + fit/retro clauses are a *complete upper bound*.
+All 38 misses are false positives where an earlier interpretation arm wins the
+dispatch before the Blackwood family is consulted:
 
-| class | ≈count | example label |
+| class | count | example label |
 |---|---|---|
-| cue-bid continuation readings | 25 | `Cue bid, a !D stopper` |
-| natural slam-try / self-sufficient jumps | 19 | `slam try`, `bidable suit` |
+| cue-bid continuation readings | 11 | `Cue bid, a !D stopper` |
+| natural slam-try / self-sufficient jumps | 20 | `slam try` 11, `bidable suit` 9 |
 | competition fit-jumps | 5 | `limit raise or better in !S` |
-| misc | 4 | `Unknown bid` |
+| misc | 2 | `Unknown bid`, `Exclusion, for !D` |
 
 4NT residuals across the census: 518 calls — 179 `Blackwood`, the rest
 answer/queen/king strings, `Quantitative 4NT`, and the ♠-relabeling.

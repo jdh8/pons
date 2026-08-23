@@ -16,7 +16,7 @@ use pons::bidding::Bidder;
 use pons::bidding::array::{Array, Logits};
 use pons::bidding::card::{Card, foreign_card};
 use pons::bidding::context::relative;
-use std::ffi::{CString, c_char, c_int, c_void};
+use std::ffi::{CStr, CString, c_char, c_int, c_void};
 
 use super::seat_to_act;
 
@@ -98,6 +98,17 @@ type GetFlatArrFn = unsafe extern "C" fn(*mut c_void, *mut c_int, c_int, *mut c_
 type GetArrFn = unsafe extern "C" fn(*mut c_void, c_int, *mut c_int, c_int, *mut c_int) -> c_int;
 // `epbot_set_info_<field>(bot, position, data, count)`
 type SetArrFn = unsafe extern "C" fn(*mut c_void, c_int, *const c_int, c_int) -> c_int;
+// `epbot_get_info_meaning(bot, position, buf, buf_bytes) -> c_int` — BBA's own
+// prose label for the call *that position most recently made*, NUL-terminated
+// and refreshed by every `set_bid`.  This is the engine's rule book talking:
+// `Jacoby 2NT`, `Drury`, `takeout double`, and — when no rule matched and the
+// bilans floor chose the call — `calculated bid`.
+//
+// `epbot_get_info_meaning_extended` has the same signature and spells the same
+// reading out as ranges (`"… ALERT. 12 to 21 total points, 5 to 13 cards in
+// spades, …"`, where 0-37 means unconstrained).  `epbot_convention_name(bot,
+// index, buf, size)` shares the shape too, so all three bind as one type.
+type GetStrFn = unsafe extern "C" fn(*mut c_void, c_int, *mut c_char, c_int) -> c_int;
 
 /// The eight `info_*` array fields, in [`SeatInfo`]/[`InfoField`] order
 ///
@@ -175,6 +186,12 @@ pub struct BbaOracle {
     get_scoring: GetNoArgFn,
     set_scoring: SetIntFn,
     get_info_alerting: GetIntFn,
+    // The interpretation surface: what BBA says a call *means*, as opposed to
+    // what it does about one.  Used by `interpret`, never by `classify`.
+    get_meaning: GetStrFn,
+    get_meaning_extended: GetStrFn,
+    get_used_conventions: GetIntFn,
+    convention_name: GetStrFn,
     get_info: [GetArrFn; INFO_FIELDS.len()],
     set_info: [SetArrFn; INFO_FIELDS.len()],
     system: c_int,
@@ -231,6 +248,10 @@ impl BbaOracle {
                 get_scoring: *lib.get::<GetNoArgFn>(b"epbot_get_scoring\0")?,
                 set_scoring: *lib.get::<SetIntFn>(b"epbot_set_scoring\0")?,
                 get_info_alerting: *lib.get::<GetIntFn>(b"epbot_get_info_alerting\0")?,
+                get_meaning: *lib.get::<GetStrFn>(b"epbot_get_info_meaning\0")?,
+                get_meaning_extended: *lib.get::<GetStrFn>(b"epbot_get_info_meaning_extended\0")?,
+                get_used_conventions: *lib.get::<GetIntFn>(b"epbot_get_used_conventions\0")?,
+                convention_name: *lib.get::<GetStrFn>(b"epbot_convention_name\0")?,
                 get_info,
                 set_info,
                 _lib: lib,
@@ -445,7 +466,33 @@ impl BbaOracle {
         // favorable/unfavorable vulnerability are preserved by the replayed calls
         // and the mapping below, so the bid is identical to the true seating.
         let actor = (auction.len() % 4) as c_int;
-        let suits = hand_to_suits(hand);
+        self.with_reader_bot(
+            actor,
+            &hand_to_suits(hand),
+            epbot_vulnerability(vul, actor),
+            auction,
+            read,
+        )
+    }
+
+    /// [`with_bot`][Self::with_bot] with the seat, its holdings and EPBot's
+    /// vulnerability code passed in directly
+    ///
+    /// The interpretation walk needs two things `with_bot` cannot express: a
+    /// **hand-free** bot (`suits` empty, so nothing but the auction constrains
+    /// the reading) and a chosen reader seat (to check that a call's label does
+    /// not depend on who is looking).  Everything else — the per-side system and
+    /// convention writes, the replay, the fresh-bot-per-call discipline — is the
+    /// same code, so the two share it rather than drifting apart.
+    fn with_reader_bot<T>(
+        &self,
+        reader: c_int,
+        suits: &CStr,
+        vul_code: c_int,
+        auction: &[Call],
+        read: impl FnOnce(*mut c_void) -> T,
+    ) -> Option<T> {
+        let actor = reader;
         let empty = c"".as_ptr();
 
         // SAFETY: a fresh bot used and destroyed within this call; all argument
@@ -485,15 +532,7 @@ impl BbaOracle {
             if let Some(scoring) = self.scoring {
                 (self.set_scoring)(bot, scoring);
             }
-            (self.new_hand)(
-                bot,
-                actor,
-                suits.as_ptr(),
-                0,
-                epbot_vulnerability(vul, actor),
-                0,
-                0,
-            );
+            (self.new_hand)(bot, actor, suits.as_ptr(), 0, vul_code, 0, 0);
             for (index, &call) in auction.iter().enumerate() {
                 (self.set_bid)(bot, (index % 4) as c_int, encode_call(call), empty);
             }
@@ -520,6 +559,46 @@ impl BbaOracle {
         debug_assert!(status >= 0, "epbot_get_info_* failed with {status}");
         let count = usize::try_from(count).unwrap_or(0).min(INFO_CAPACITY);
         buffer[..count].to_vec()
+    }
+
+    /// Read one whole position's block of the `info_*` arrays
+    ///
+    /// Positions 0..4 are the public information the auction has established;
+    /// 4..8 are BBA's private reconstruction (see [`BbaState::seats`]).  The
+    /// interpretation walk reads only the public half, [`read_state`] both.
+    ///
+    /// [`read_state`]: Self::read_state
+    ///
+    /// # Safety
+    /// `bot` must be a live bot from [`BbaOracle::with_reader_bot`].
+    unsafe fn read_seat(&self, bot: *mut c_void, position: c_int) -> SeatInfo {
+        let suits = |field| {
+            // Every field but `feature` is one entry per suit; pad a short read
+            // rather than panicking, so a surprise is visible in the dump
+            // instead of aborting a long run.
+            // SAFETY: the caller's contract.
+            let values = unsafe { self.read_info(bot, field, position) };
+            core::array::from_fn(|suit| values.get(suit).copied().unwrap_or(0))
+        };
+        SeatInfo {
+            // SAFETY: the caller's contract, for this and every call below.
+            alerting: unsafe { (self.get_info_alerting)(bot, position) },
+            min_length: suits(InfoField::MinLength),
+            max_length: suits(InfoField::MaxLength),
+            probable_length: suits(InfoField::ProbableLength),
+            strength: suits(InfoField::Strength),
+            stoppers: suits(InfoField::Stoppers),
+            honors: suits(InfoField::Honors),
+            suit_power: suits(InfoField::SuitPower),
+            // Sparse: ~500 of the 512 feature slots are undecoded and almost all
+            // zero, so keeping the nonzero ones is lossless and small.
+            features: unsafe { self.read_info(bot, InfoField::Feature, position) }
+                .into_iter()
+                .enumerate()
+                .filter(|&(_, value)| value != 0)
+                .map(|(index, value)| (index as u16, value))
+                .collect(),
+        }
     }
 
     /// Read BBA's whole bilans state for one decision
@@ -589,34 +668,10 @@ impl BbaOracle {
             );
             buffer
         };
-        let seats = core::array::from_fn(|position| {
-            let position = position as c_int;
-            let suits = |field| {
-                // Every field but `feature` is one entry per suit; pad a short
-                // read rather than panicking, so a surprise is visible in the
-                // dump instead of aborting a long run.
-                let values = unsafe { self.read_info(bot, field, position) };
-                core::array::from_fn(|suit| values.get(suit).copied().unwrap_or(0))
-            };
-            SeatInfo {
-                alerting: unsafe { (self.get_info_alerting)(bot, position) },
-                min_length: suits(InfoField::MinLength),
-                max_length: suits(InfoField::MaxLength),
-                probable_length: suits(InfoField::ProbableLength),
-                strength: suits(InfoField::Strength),
-                stoppers: suits(InfoField::Stoppers),
-                honors: suits(InfoField::Honors),
-                suit_power: suits(InfoField::SuitPower),
-                // Sparse: ~500 of the 512 feature slots are undecoded and almost
-                // all zero, so keeping the nonzero ones is lossless and small.
-                features: unsafe { self.read_info(bot, InfoField::Feature, position) }
-                    .into_iter()
-                    .enumerate()
-                    .filter(|&(_, value)| value != 0)
-                    .map(|(index, value)| (index as u16, value))
-                    .collect(),
-            }
-        });
+        // SAFETY: `bot` is live for the whole of `read_state`, and every position
+        // below is in `0..INFO_POSITIONS`.
+        let seats =
+            core::array::from_fn(|position| unsafe { self.read_seat(bot, position as c_int) });
         BbaState {
             call,
             scoring,
@@ -624,6 +679,336 @@ impl BbaOracle {
             seats,
         }
     }
+
+    /// Read the last call's meaning off a live bot
+    ///
+    /// # Safety
+    /// `bot` must be a live bot whose auction has been replayed, and `caller`
+    /// must be the position that made its last call.
+    unsafe fn read_interpretation(&self, bot: *mut c_void, caller: c_int) -> Interpretation {
+        // SAFETY: the caller's contract, for every call below.
+        unsafe {
+            Interpretation {
+                caller,
+                label: read_str(self.get_meaning, bot, caller).1,
+                extended: read_str(self.get_meaning_extended, bot, caller).1,
+                alert: (self.get_info_alerting)(bot, caller),
+                public: core::array::from_fn(|position| self.read_seat(bot, position as c_int)),
+            }
+        }
+    }
+
+    /// What BBA says the auction's **last call** means, with no hand dealt
+    ///
+    /// This is the read of BBA's *rule book*, as distinct from
+    /// [`probe`][Self::probe]'s read of what its floor does with a hand: no
+    /// holdings are dealt, so the only thing constraining the reading is the
+    /// auction.  `epbot_get_bid` is never called, so the bilans engine never
+    /// runs — which is also why this is fast enough to walk a book with
+    /// (≈ 1 ms for a 14-call replay).
+    ///
+    /// The reader seat is the one about to act.  Labels have measured identical
+    /// across all four reader seats and across 40 random reader hands on every
+    /// node tried, but [`interpret_as`][Self::interpret_as] exists to keep
+    /// checking that.
+    ///
+    /// Returns [`None`] on an empty auction (there is no last call to read) or
+    /// if EPBot fails to allocate a bot.
+    #[must_use]
+    pub fn interpret(
+        &self,
+        vul: AbsoluteVulnerability,
+        auction: &[Call],
+    ) -> Option<Interpretation> {
+        self.interpret_as((auction.len() % 4) as c_int, None, vul, auction)
+    }
+
+    /// [`interpret`][Self::interpret] from a chosen seat, optionally holding a hand
+    ///
+    /// The two knobs are the self-check's: reader-seat invariance, and
+    /// hand-free-vs-dealt agreement.  A dealt hand is what every other caller of
+    /// this library gives EPBot, so a divergence here would mean the hand-free
+    /// reading is not the reading the engine actually bids on.
+    #[must_use]
+    pub fn interpret_as(
+        &self,
+        reader: c_int,
+        hand: Option<Hand>,
+        vul: AbsoluteVulnerability,
+        auction: &[Call],
+    ) -> Option<Interpretation> {
+        let caller = c_int::try_from(auction.len().checked_sub(1)? % 4).ok()?;
+        let suits = hand.map_or_else(CString::default, hand_to_suits);
+        self.with_reader_bot(reader, &suits, epbot_vul_code(vul), auction, |bot| {
+            // SAFETY: `bot` is live for the closure, with the auction replayed.
+            unsafe { self.read_interpretation(bot, caller) }
+        })
+    }
+
+    /// Every prefix's reading, from **one** bot replayed call by call
+    ///
+    /// [`interpret`][Self::interpret] builds a fresh bot per prefix; this reads
+    /// the same sequence off a single one, which is both ~n times cheaper and
+    /// the only way to catch the engine carrying state a fresh replay would not
+    /// reproduce.  The two agreeing is self-check (f).
+    ///
+    /// The reader seat is fixed at 0 here — the whole point is that it should
+    /// not matter.
+    #[must_use]
+    pub fn interpret_path(
+        &self,
+        vul: AbsoluteVulnerability,
+        auction: &[Call],
+    ) -> Option<Vec<Interpretation>> {
+        let empty = c"".as_ptr();
+        self.with_reader_bot(0, &CString::default(), epbot_vul_code(vul), &[], |bot| {
+            auction
+                .iter()
+                .enumerate()
+                .map(|(index, &call)| {
+                    let caller = (index % 4) as c_int;
+                    // SAFETY: `bot` is live for the closure; the ABI matches.
+                    unsafe {
+                        (self.set_bid)(bot, caller, encode_call(call), empty);
+                        self.read_interpretation(bot, caller)
+                    }
+                })
+                .collect()
+        })
+    }
+
+    /// The public (auction-derived) constraint on all four seats, no hand dealt
+    ///
+    /// This is the *before* block a child's reading is diffed against.  Unlike
+    /// [`interpret`][Self::interpret] it is defined on the empty auction, which
+    /// is where a book walk starts.
+    #[must_use]
+    pub fn public(&self, vul: AbsoluteVulnerability, auction: &[Call]) -> Option<[SeatInfo; 4]> {
+        let reader = (auction.len() % 4) as c_int;
+        self.with_reader_bot(
+            reader,
+            &CString::default(),
+            epbot_vul_code(vul),
+            auction,
+            |bot| {
+                // SAFETY: `bot` is live for the closure; positions 0..4 are the
+                // public half of the block.
+                core::array::from_fn(|position| unsafe { self.read_seat(bot, position as c_int) })
+            },
+        )
+    }
+
+    /// The meaning getter's raw `(status, text)` at a caller-chosen buffer size
+    ///
+    /// [`read_str`] hides the `-3` "buffer too small" status behind one retry.
+    /// This is how the self-check provokes it deliberately, rather than waiting
+    /// for a label long enough to trip it in a production run.
+    #[must_use]
+    pub fn meaning_with_buffer(
+        &self,
+        vul: AbsoluteVulnerability,
+        auction: &[Call],
+        bytes: usize,
+    ) -> Option<(c_int, String)> {
+        let caller = c_int::try_from(auction.len().checked_sub(1)? % 4).ok()?;
+        let reader = (auction.len() % 4) as c_int;
+        self.with_reader_bot(
+            reader,
+            &CString::default(),
+            epbot_vul_code(vul),
+            auction,
+            |bot| {
+                let mut buffer = vec![0_u8; bytes];
+                // SAFETY: `bot` is live for the closure; the buffer outlives the
+                // call and its size is passed in bytes.
+                let status = unsafe { read_str_into(self.get_meaning, bot, caller, &mut buffer) };
+                (status, until_nul(&buffer))
+            },
+        )
+    }
+
+    /// EPBot's convention table: `epbot_convention_name(bot, index)` for `0..count`
+    ///
+    /// This is the id-to-name map behind `.bbsa` cards, read off the live
+    /// library rather than reconstructed from a decompile.  It needs no auction
+    /// and no hand, so it runs on a bare bot.
+    #[must_use]
+    pub fn convention_names(&self, count: c_int) -> Option<Vec<String>> {
+        self.with_reader_bot(0, &CString::default(), 0, &[], |bot| {
+            (0..count)
+                // SAFETY: `bot` is live for the closure; the ABI matches.
+                .map(|index| unsafe { read_str(self.convention_name, bot, index).1 })
+                .collect()
+        })
+    }
+
+    /// Every convention's **effective** state once the card has been applied
+    ///
+    /// `(id, name, value)` for `0..count`, read back through
+    /// `epbot_get_conventions` on a bot configured exactly as
+    /// [`interpret`][Self::interpret] configures one.  This is the card audit:
+    /// `epbot_set_system_type` seeds a default set before the rows land, a
+    /// mutual-exclusion group ignores a `0` write, and a row the engine has no
+    /// id for is dropped — so the card says what we *wrote*, and only this says
+    /// what BBA *plays*.  The getter accepts a numeric string as an id.
+    #[must_use]
+    pub fn convention_values(&self, count: c_int) -> Option<Vec<(c_int, String, c_int)>> {
+        self.with_reader_bot(0, &CString::default(), 0, &[], |bot| {
+            (0..count)
+                .map(|id| {
+                    let key = CString::new(id.to_string()).expect("an integer has no NUL");
+                    // SAFETY: `bot` is live for the closure; the ABI matches.
+                    let value = unsafe { (self.get_conv)(bot, 0, key.as_ptr()) };
+                    let name = unsafe { read_str(self.convention_name, bot, id).1 };
+                    (id, name, value)
+                })
+                .collect()
+        })
+    }
+
+    /// How often each convention `0..count` has fired on this bot
+    ///
+    /// `epbot_get_used_conventions`'s argument is a **convention id**, not an
+    /// index into a list of ones that fired, and the return is a *cumulative*
+    /// count over the bot's life rather than a per-deal flag (read off
+    /// `EPBot.cs`'s `used_conventions` accessor).  A fresh bot per auction, as
+    /// [`interpret`][Self::interpret] builds, therefore makes the count a clean
+    /// per-auction tally; a bot reused across deals would need a snapshot and a
+    /// difference.
+    ///
+    /// This is the "conventions used" tally BBA's own UI displays — statistics,
+    /// not bidding state.  Only the self-check reads it; a call's convention is
+    /// taken from `feature[511]`, which names the *last* one to fire.
+    #[must_use]
+    pub fn convention_usage(
+        &self,
+        vul: AbsoluteVulnerability,
+        auction: &[Call],
+        count: c_int,
+    ) -> Option<Vec<(c_int, String, c_int)>> {
+        let reader = (auction.len() % 4) as c_int;
+        self.with_reader_bot(
+            reader,
+            &CString::default(),
+            epbot_vul_code(vul),
+            auction,
+            |bot| {
+                (0..count)
+                    .filter_map(|id| {
+                        // SAFETY: `bot` is live for the closure; the ABI matches.
+                        let used = unsafe { (self.get_used_conventions)(bot, id) };
+                        let name = unsafe { read_str(self.convention_name, bot, id).1 };
+                        (used != 0).then_some((id, name, used))
+                    })
+                    .collect()
+            },
+        )
+    }
+}
+
+/// What BBA says one call **means**, read straight off the engine
+///
+/// `label` is the engine's own name for the rule that matched (`Jacoby 2NT`,
+/// `Drury`, `takeout double`, `Multi-Landy, both majors`).
+/// [`CALCULATED`][Self::CALCULATED] means no rule matched and the bilans floor
+/// chose the call — the book/floor boundary the whole interpretation walk exists
+/// to locate.  `extended` spells the same reading out as ranges
+/// (`"… ALERT. 12 to 21 total points, 5 to 13 cards in spades, …"`, where a
+/// 0-to-37 band means unconstrained), and `public` is the auction-derived
+/// constraint on all four seats *after* the call, which a dump diffs against the
+/// parent node's.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+pub struct Interpretation {
+    /// The position that made the call this reading describes
+    pub caller: c_int,
+    /// BBA's own name for the matched rule, or [`CALCULATED`][Self::CALCULATED]
+    pub label: String,
+    /// The same reading spelled out as point and length ranges
+    pub extended: String,
+    /// `epbot_get_info_alerting` for the caller
+    pub alert: c_int,
+    /// Public information for positions 0..4, *after* the call
+    pub public: [SeatInfo; 4],
+}
+
+impl Interpretation {
+    /// The label BBA emits when **no rule matched** and its bilans floor chose
+    /// the call
+    pub const CALCULATED: &'static str = "calculated bid";
+
+    /// Whether this call is the floor's rather than the book's
+    #[must_use]
+    pub fn is_calculated(&self) -> bool {
+        self.label == Self::CALCULATED
+    }
+}
+
+/// EPBot's status code for "the buffer you gave me is too small"
+const BUFFER_TOO_SMALL: c_int = -3;
+
+/// Read one of EPBot's NUL-terminated string getters
+///
+/// A kilobyte holds every label and extended reading measured so far; the retry
+/// at 16 KiB is there so a surprise truncates nothing silently.  The status code
+/// is returned alongside so the self-check can assert on it.
+///
+/// # Safety
+/// `bot` must be a live bot, and `get` one of EPBot's `(bot, index, buf, bytes)`
+/// string getters.
+unsafe fn read_str(get: GetStrFn, bot: *mut c_void, index: c_int) -> (c_int, String) {
+    let mut small = [0_u8; 1024];
+    // SAFETY: the caller's contract.
+    let status = unsafe { read_str_into(get, bot, index, &mut small) };
+    if status != BUFFER_TOO_SMALL {
+        return (status, until_nul(&small));
+    }
+    let mut large = vec![0_u8; 16 * 1024];
+    // SAFETY: as above.
+    let status = unsafe { read_str_into(get, bot, index, &mut large) };
+    (status, until_nul(&large))
+}
+
+/// One raw call to a `(bot, index, buf, bytes)` string getter
+///
+/// # Safety
+/// `bot` must be live and `get` one of EPBot's string getters.
+unsafe fn read_str_into(get: GetStrFn, bot: *mut c_void, index: c_int, buffer: &mut [u8]) -> c_int {
+    let bytes = c_int::try_from(buffer.len()).expect("a string buffer fits in c_int");
+    // SAFETY: the caller's contract; the buffer outlives the call and its size is
+    // passed in bytes, as the ABI wants.
+    unsafe { get(bot, index, buffer.as_mut_ptr().cast::<c_char>(), bytes) }
+}
+
+/// The buffer up to its first NUL, lossily decoded and trimmed
+///
+/// EPBot pads several labels with a trailing space (`"stopper !S "`) and every
+/// extended reading with a leading one.  Nothing distinguishes two labels by
+/// that whitespace, and keeping it splits a label histogram in two, so it goes.
+fn until_nul(buffer: &[u8]) -> String {
+    let end = buffer.iter().position(|&b| b == 0).unwrap_or(buffer.len());
+    String::from_utf8_lossy(&buffer[..end]).trim().to_owned()
+}
+
+/// EPBot's vulnerability code for an absolute vulnerability
+///
+/// EPBot's bits are 1 = N/S and 2 = E/W, and so are
+/// [`AbsoluteVulnerability`]'s, so with the dealer canonicalized to position 0
+/// (even positions N/S, odd E/W) the two codes coincide exactly.  The
+/// `debug_assert` is the cross-check against the seat-relative helper every
+/// other caller goes through.
+fn epbot_vul_code(vul: AbsoluteVulnerability) -> c_int {
+    let code = c_int::from(vul.bits());
+    debug_assert!(
+        (0..4).all(|position| {
+            code == epbot_vulnerability(
+                relative(vul, seat_to_act(Seat::North, position)),
+                position as c_int,
+            )
+        }),
+        "the absolute vulnerability code must agree with the relative helper at every seat"
+    );
+    code
 }
 
 impl Bidder for BbaOracle {
@@ -642,7 +1027,7 @@ impl Bidder for BbaOracle {
 /// * `strength` is the suit's HCP, exactly.
 /// * `honors` is a bitmask: A = 16, K = 8, Q = 4, J = 2, T = 1, exactly.
 /// * `probable_length` is **effectively unused** — nonzero on under 1% of rows.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SeatInfo {
     pub alerting: c_int,
@@ -655,18 +1040,31 @@ pub struct SeatInfo {
     pub suit_power: [c_int; 4],
     /// The nonzero entries of the 512-slot `feature` array, by index
     ///
-    /// Decoded indices (BEN's `find_info`): 402/403 min/max HCP, 406 aces,
-    /// 407 kings, 319 queen (BBA swaps the meaning of −1 and 0), 424 trump
-    /// strain, 425 asking-bid code.  The rest are undecoded.
+    /// Decoded indices (`docs/ai-bidder/bba-book.md` §4.2): 402/403 min/max
+    /// HCP (a fresh seat is `0..37`), 406 **keycards** — not aces, the trump
+    /// king is routed in by `aktualizuj_partnera_LHO_RHO` — 407 kings, 319
+    /// trump queen, 424 trump strain, 425 the keycard ask's **bid index** and
+    /// 441 the **kind** of ask (a convention id) — two slots, not one.
+    ///
+    /// **Sparse-map hazard.** Only nonzero slots are kept, so a slot whose `0`
+    /// *means* something is indistinguishable from one never written: 319 is
+    /// −1 never asked / 0 denies / 1 holds, and the same goes for 314, 406,
+    /// 407 and 411.  An earlier note read this as "BBA swaps −1 and 0"; it
+    /// does not — the swap was the map dropping the `0`.  A consumer that needs
+    /// the denial must read the raw array (`probe-bba-book` walks the union of
+    /// the before/after key sets, so its deltas do see a slot fall to 0).
     pub features: std::collections::BTreeMap<u16, c_int>,
 }
 
 impl SeatInfo {
     /// The reconstructed HCP band, from `feature[402]`/`feature[403]`
+    ///
+    /// A missing `403` is the engine's own default of 37 (a fresh seat reads
+    /// `0..37`), never 0 — `(0, 0)` would be a false "at most 0 HCP".
     #[must_use]
     pub fn hcp_range(&self) -> (c_int, c_int) {
-        let get = |index| self.features.get(&index).copied().unwrap_or(0);
-        (get(402), get(403))
+        let get = |index, missing| self.features.get(&index).copied().unwrap_or(missing);
+        (get(402, 0), get(403, 37))
     }
 }
 
