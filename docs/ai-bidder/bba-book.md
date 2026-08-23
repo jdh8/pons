@@ -405,9 +405,10 @@ now; the shard runner uses `--prefix=` regardless.
 
 ### 5.0 The card *is* the book
 
-The single most important thing the walk establishes. Every label below is BBA
-playing [`cards/American.bbsa`](../../cards/American.bbsa), and that is a
-different system from EPBot's own 2/1 defaults. Four auctions, read both ways:
+The single most important thing the walk establishes. Except for §5.5.1's
+explicitly counterfactual Multi column, every label below is BBA playing
+[`cards/American.bbsa`](../../cards/American.bbsa), and that is a different
+system from EPBot's own 2/1 defaults. Four auctions, read both ways:
 
 | auction | `--card none` (EPBot defaults) | `--card cards/American.bbsa` | the row that moved |
 | --- | --- | --- | --- |
@@ -495,6 +496,65 @@ act": a node is an auction, and all four public blocks are read at every node.
 natural `bidable suit`.
 
 `--prefix="1♠ (1NT)"`: `X` is `penalty` 10+, `2♠` and `3NT` are the floor's.
+
+#### 5.5.1 BBA's counter to `1NT (2♦)`: natural versus Multi
+
+Two bounded walks read the same forced lane under opposite convention settings.
+The shipped-card run
+`ab-results/bba-book/2026-08-23-08c54312-dirty` (SHA `08c54312`, seven dirty
+files recorded in `RUN`) puts `cards/American.bbsa` on all four seats, where
+`Multi-Landy = 0`, so `(2♦)` is natural. The clean counterfactual run
+`ab-results/bba-book/2026-08-24-9365d342-multi2d` (SHA `9365d342`) uses
+`--prefix="1NT (2♦)" --conv "Multi-Landy=1" --vuls none`, reusing the first
+run's reach corpus. Both render **141 nodes with 0 dangling**. `--conv` writes
+all four seats, and the reused corpus is natural-card self-play: the second run
+compares hand-free interpreter labels, not Multi self-play frequencies.
+
+The Multi run used its pinned binary directly rather than
+[`scripts/bba-book.sh`](../../scripts/bba-book.sh): the runner currently
+forwards a supplied base `--prefix` alongside each generated shard prefix,
+which the argument parser rejects as a duplicate. Its `RUN` file records the
+exact flags and pinned-binary checksum.
+
+| call | natural `(2♦)` — `Multi-Landy = 0` | Multi `(2♦)` — `Multi-Landy = 1` |
+| --- | --- | --- |
+| `X` | 5+, `negative double` | **unchanged**: 5+, `negative double` |
+| `2♥` / `2♠` | natural, 4–9, 5+ in the bid major | unchanged |
+| `2NT` | 4+, alerted `Lebensohl after 1NT` | unchanged |
+| `3♣` | natural, 9–13, 5+♣ | natural, 9–16, 5+♣ |
+| `3♦` | bare `artificial`, alerted | **natural**, 9–16, 5+♦ |
+| `3♥` / `3♠` | natural weak jump, 5–8, 6+ | natural, 9–16, 5+ |
+| `3NT` | 9–15, ♦ stopper, ≤4 in each major; `stopper ♦` | 9–15, ≤4 in each major, **no stopper claim**; `calculated bid` |
+| `P` | ≤9 | unchanged |
+
+The cue asymmetry belongs to the natural book: over natural `(2♥)`, `3♥` is
+alerted `Lebensohl after 1NT`; over natural `(2♦)`, `3♦` is only bare
+`artificial`. Turning on Multi removes rather than regularises the asymmetry:
+`3♦` becomes natural. Consistently, the
+[defensive-overcalls.md](../defensive-overcalls.md) mirror panel found that none
+of the 1,135 boards where BBA doubled our natural `2♦` ended in `2♦x`.
+
+The unchanged `negative double` label is not the behavioral verdict. A separate
+5,000-hand live `counter` probe puts `X` in **41%** of the auction population,
+on **5–17 HCP (median 9)**: BBA's values workhorse over the unknown major. That
+distinction is exactly §2's interpreter-versus-bidder caveat.
+
+The natural reach corpus continued after `X -` on all **53/53** occurrences:
+`2♥` 19, `2♠` 21, `3♦` 13, Pass 0. The interpreter nevertheless exposes `P` as
+15–17 with no four-card major, so “never passed” is observed policy in this
+corpus, not an absent reading. Both walks retain `3♣` as `transfer completed`
+after `2NT -`; the natural corpus completed it 2/2, while the interpreter still
+exposes alternatives.
+
+**Mimic verdict: nothing to author.** Our `multi_2d_responder`
+(`rubensohl.rs:499-534`) already contains the behavioral backbone: `X` = values
+at weight 130 with 6+ HCP, followed by the same takeout-versus-penalty double
+split once they name the major. It also has the structure BBA's table lacks —
+`3♦`/`3♥` transfers, `3♣` Stayman into Smolen, `4♣`/`4♦` Leaping Michaels, the
+`2NT` scramble relay, and the N4e weak escapes. The full authored tree and its
+measured verdict are in [one-notrump-multi.md](../one-notrump-multi.md). N4
+stays closed; the remaining BBA differences are observations, not a knob or a
+new A/B.
 
 ### 5.6 The book/floor partition
 

@@ -9,6 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **BBA's counter to `1NT (2♦)`, natural and Multi, walked.**
+  [docs/ai-bidder/bba-book.md](docs/ai-bidder/bba-book.md) §5.5.1 compares the
+  141-node shipped-card natural-diamond lane with a clean bounded
+  `Multi-Landy=1` walk. The override leaves `X` labelled `negative double`, 5+,
+  and keeps the alerted Lebensohl `2NT`, but makes `3♦` natural, widens every
+  three-level suit to 9–16, and removes the ♦-stopper claim from `3NT`. A
+  separate 5,000-hand bidder probe supplies the behavioral meaning: `X` is the
+  41% values bucket, 5–17 HCP (median 9). The natural reach corpus continued
+  after `X -` on 53/53 occurrences even though the interpreter exposes a Pass
+  reading. [docs/one-notrump-multi.md](docs/one-notrump-multi.md) now points
+  back to the comparison and its two stale `readers.rs` anchors are current.
+  Documentation only: no pons bidding change, A/B, or measured IMPs.
+
 - **BBA's Multi 2♦ *opening*, walked.**
   [docs/ai-bidder/bba-multi-2d-opening.md](docs/ai-bidder/bba-multi-2d-opening.md)
   reads EPBot's book for the opening BBA's 2/1 card does not play (id 110 is one

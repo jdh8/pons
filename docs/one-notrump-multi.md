@@ -6,6 +6,9 @@ disclosure that swaps our natural-`(2♦)` leg for the N4 tables; while it is
 `false` (the engine default, and every arm that is not a BBA anchor) none of
 this lane exists and their `2♦` is read as diamonds.
 
+BBA's own counter under the natural and Multi readings is compared in
+[bba-book.md §5.5.1](ai-bidder/bba-book.md#551-bbas-counter-to-1nt-2-natural-versus-multi).
+
 This document is the **map**: every authored node, who owns each seat, and what
 each call reads as. The campaign ledger — which round shipped what, and the
 A/B numbers — stays in
@@ -200,7 +203,7 @@ so the phantom-♦ read is **reachable but did not fire there** — those boards
 lost with the advance reading as nothing at all and the floor bidding blind
 (one is opener doubling `4♥` holding ♥AJ4 opposite responder's heart void).
 
-`advancer_artificial` (`readers.rs:295-317`) matches **only `2♦`/`2♥`/`2♠`** —
+`advancer_artificial` (`readers.rs:360`) matches **only `2♦`/`2♥`/`2♠`** —
 the two-level rung. Every rung above it falls through to the natural walk, and
 the readings are identical with and without `their.two_diamonds_multi`.
 `multi_advance_ladder` covers the rest, under its own knob (open item 3).
@@ -253,10 +256,11 @@ trigger-gated — and responder's natural minor single-suiter stays unbuilt at
 1. **The values double reads two points too strong.** Rule
    `.rule(Call::Double, 130, hcp(6..))` (`rubensohl.rs:531`); measured reading
    `points 8..`. The source is `responder_overcall_double_reading`
-   (`readers.rs:527`), which hard-codes the `DoubleStyle` 8+ floor for every
-   `1NT (2X) X` and is not Multi-aware. §N4's table claims "Read: `points 6..`,
-   every suit ⊤" — stale on both halves (the ♥≤4/♠≤4 cap is sound: by weight
-   ordering a 5-card major always escapes or transfers instead).
+   (`readers.rs:599`): with `their_multi_double_reading` off, its base path
+   publishes the generic `DoubleStyle` 8+ floor for every `1NT (2X) X`. §N4's
+   table claims "Read: `points 6..`, every suit ⊤" — stale on both halves (the
+   ♥≤4/♠≤4 cap is sound: by weight ordering a 5-card major always escapes or
+   transfers instead).
    **Implemented 2026-08-22 behind `reading.their_multi_double_reading`**
    (`bba-gen --ns-their-multi-double-read`, `probe-call-reading` likewise),
    default off: on the knob the reader follows the lane's own rule and the
