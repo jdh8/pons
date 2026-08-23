@@ -152,16 +152,20 @@ strings the book also uses:
 `:3124` and `:3129` are the two arms of one `if` — the suit is too short to read
 as a bidable suit, or it is not. So a `bidable suit` reading is the floor's
 natural-suit reader *or* a book reader, indistinguishable by string, and the
-whole `stopper !X` family is the floor's notrump reader wearing a name. **Every
-floor share in §5 is therefore a lower bound**, and the two dominant labels of
-the census (`bidable suit` 31%, the `stopper` family 12%) are the reason.
+whole `stopper !X` family is the floor's notrump reader wearing a name. The two
+dominant labels of the census (`bidable suit` 31%, the `stopper` family 12%) are
+exactly the ambiguous ones, so **§5.6's `calculated bid` share is a lower bound
+on how often BBA improvises.**
 
-Proposed default, reversible either way: keep the partition keyed on
-`calculated bid` alone, as it is now, and report the generic-label share beside
-it rather than folding the two together. Folding them would be one flag
-(`--floor-labels`) and would shrink the walk considerably — but it would also
-silently reclassify every genuine natural book rule as floor, and no evidence
-here separates the two. **Left for the user to decide.**
+It bounds that and nothing else. The label answers *why BBA chose this call*; it
+says nothing about *what the call means*, and the meaning is rule-shaped at
+every node — `meaning_extended` returns a points band and four length bands
+whatever the label. `1♠ - 2♠` is `calculated bid` **and** 7-9 with 3+♠, which is
+our simple raise verbatim. So "can pons express this as a rule" cannot key the
+partition: it is true of the whole census, `calculated bid` included, and would
+collapse the column to zero. The key stays `calculated bid`, and §5.6 names it
+for what it counts — a **no-rule share**, not a share of readings outside our
+grammar.
 
 **`feature[417]` is invisible to the reader.** The flag is raised on `Item[14]`,
 the bidding side's staging slot; the walk reads positions 0..3. Measured over
@@ -453,23 +457,31 @@ natural `bidable suit`.
 
 ### 5.6 The book/floor partition
 
-| family | book readings | `calculated bid` | floor share |
+| family | labelled readings | `calculated bid` | no-rule share |
 | --- | ---: | ---: | ---: |
 | opening | 144 | 0 | 0.0% |
 | constructive | 368 878 | 54 747 | **12.9%** |
 | contested | 818 317 | 133 360 | **14.0%** |
 
-Both figures are **lower bounds** — §2's generic-label caveat. Verdicts over
-1 375 446 children: 1 071 588 above a ceiling, 213 221 stopped at the reach gate,
-55 791 expanded, 24 322 floor dead ends, 10 524 auction ends.
+**No-rule share, not floor share.** The column counts nodes where no authored
+rule fired and the bilans chose the call, and both figures are **lower bounds** —
+§2's generic-label caveat hides floor exits behind book strings. What the column
+is *not* is a count of readings pons could not author: every node's meaning
+arrives as a points band and four length bands, `calculated bid` nodes included,
+so reading-expressibility is 100% here and carries no information. The axis that
+separates BBA from us is the **choice**, not the meaning.
+
+Verdicts over 1 375 446 children: 1 071 588 above a ceiling, 213 221 stopped at
+the reach gate, 55 791 expanded, 24 322 floor dead ends, 10 524 auction ends.
 
 **The headline is where the floor sits, not how big it is.** BBA's *simple raise*
 is `calculated bid` — `1♠ - 2♠`, `1♠ (2♥) 2♠`, `1♠ (1NT) 2♠`, all of them — and
 so is `1NT - 3NT`. Those are not obscure corners: the reach corpus puts
 `1♠ - 2♠` on 0.75% of boards and `1♠ - 1NT` on 2.27%. The most ordinary
 constructive calls in bridge are the ones BBA has no rule for and hands to its
-bilans engine. Anything that models "BBA's book" as the thing to beat is
-modelling the wrong half of these auctions.
+bilans engine — and they are the ones pons authors as rules. Anything that
+models "BBA's book" as the thing to beat is modelling the wrong half of these
+auctions.
 
 ### 5.7 Divergences from `american()` worth an A/B
 
@@ -620,8 +632,6 @@ an omitted id keeps it.
 
 ## 7. Open work
 
-- **The generic-label question of §2** — whether `bidable suit` / `balanced` /
-  `stopper !X` should count as floor. The whole floor-share number turns on it.
 - The six divergences of §5.7 are observations. Each needs a probe before it is
   an experiment, and none has one.
 - §6.1's two flagged card changes: the `1X-(1Y)-2Z` row order (we disclose

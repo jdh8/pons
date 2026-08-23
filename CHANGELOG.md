@@ -38,17 +38,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   exactly under `--card none`, and shows three of the four moving under
   `cards/American.bbsa` — `Multi-Landy`, `Two way game tries` and `Drury` are all
   rows our card turns off, so **the card is the book**, and the anchor is the
-  right-hand column.  The partition it measures: 12.9% of constructive readings
-  and 14.0% of contested ones are the floor's, and the calls that land there are
-  not obscure — BBA's **simple raise** (`1♠ - 2♠`, on 0.75% of boards) and
-  `1NT - 3NT` are both `calculated bid`.
+  right-hand column.  The partition it measures is a **no-rule share** — 12.9% of
+  constructive readings and 14.0% of contested ones are calls BBA has no rule
+  for — and they are not obscure: BBA's **simple raise** (`1♠ - 2♠`, on 0.75% of
+  boards) and `1NT - 3NT` are both `calculated bid`.  It counts *choices*, not
+  meanings; every reading, floor ones included, arrives as a points band and four
+  length bands, so "expressible as a pons rule" is true of the whole census and
+  cannot key the partition.
 
   Two findings bound what the walk proves, both recorded in the doc rather than
   silently resolved.  The book/floor boundary is one `if` in
   `odzywka_z_bilansu_exit_function` (`EPBot.cs:56569`), and its reading-side
   mirror at `:2903` has *named* exits as well as the anonymous one — so
   `bidable suit`, `balanced` and the `stopper !X` family are emitted by both the
-  book's readers and the floor's, and **every floor share is a lower bound**.
+  book's readers and the floor's, and **every no-rule share is a lower bound**.
   And the ceilings alone do not terminate: a single depth-6 contested node
   passed 2000 descendants without finishing, so the walk takes its bound from
   BBA's own play (`--selfplay` reach corpus, `--reach-depth`).
