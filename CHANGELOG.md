@@ -59,9 +59,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   rung that measured positive on both scorers; and two rungs of the delayed
   table are dead in self-play as a consequence of the floorless transfers.
 
-  **A/B owed** — `scripts/ab-2d-multi-kk.sh`, two arms against shipped v7, both
-  vulnerabilities, plain and perfect defense; nothing ships until it reads.
-  Campaign row in
+  **Measured 2026-08-25** (`scripts/ab-2d-multi-kk.sh`, SHA `78ad4c02`,
+  `SEED_BASE 1787606986`, 230 400 bd/arm/vul): the **owned lane is the
+  shippable shape** — plain-DD wash at both vulnerabilities, PD **+0.285 /
+  +0.772** IMPs per fired (none/both), SD-PD agreeing (+0.205 / +0.699), the
+  win driven by the designed neutral pass — but the **isolation gate failed**
+  (55% of divergent boards foreign): the mirror-read leak makes *their*
+  negative double of *our* natural `2♦` overcall read as our K–K `X` (`hcp 8+`,
+  minors ≤5, majors unlimited), flipping advancer's floor from pass to a `2♥`
+  that cascades into doubled partials, priced at −1.6 / −2.5 PD per foreign
+  board. Raw totals are therefore a net loss and the knob **stays default-off**
+  pending an ownership gate on the table + readings, then a re-measure. Full
+  numbers and the leak forensic in the campaign row in
   [docs/one-notrump-competitive.md §N4-KK](docs/one-notrump-competitive.md),
   variant map in [docs/one-notrump-multi.md](docs/one-notrump-multi.md).
 

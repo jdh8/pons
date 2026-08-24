@@ -227,12 +227,12 @@ the defensive campaign and shipped there as M1+M2. Both rows have moved to the
 table but a *different published table* for the same object — the
 Kokish–Kraft notes, the most complete exact-object package the
 [survey](ai-bidder/multi-landy-2d-counter-defense-research.md) found. It is
-built, default-off and **owes its A/B**
-([§N4-KK](#n4-kk--the-kokishkraft-counter-as-an-opt-in-whole-table-variant-built-2026-08-25-ab-owed)).
+built, default-off, and **measured 2026-08-25**: the owned lane is the shippable shape, but the mirror-read leak fails the isolation gate, so it stays off pending an ownership gate
+([§N4-KK](#n4-kk--the-kokishkraft-counter-as-an-opt-in-whole-table-variant-measured-2026-08-25-stays-off)).
 
 | # | Package | Knob | State |
 | --- | --- | --- | --- |
-| **N4-KK** | **the Kokish–Kraft whole-table counter to their `(2♦)` Multi** — five changes at once: `X` at `hcp 8+` with no shape promise, a neutral pass with its own delayed *takeout* double, floorless `2NT`→♣ / `3♣`→♦ transfers, `3♠` both minors GF, a *penalty* repeated double, and the uncontested `4M` slam-try tier | `competition.multi_kokish_kraft` (**off**) | **built 2026-08-25, A/B owed** — `scripts/ab-2d-multi-kk.sh`, two arms vs shipped v7. Two design-sketch ordering repairs recorded at the rule (`3♠` above `3NT`; `3NT` keeps its stopper gate, else the values double collapses to `points 8..9`), each a one-line reversible sub-arm ([§N4-KK](#n4-kk--the-kokishkraft-counter-as-an-opt-in-whole-table-variant-built-2026-08-25-ab-owed)) |
+| **N4-KK** | **the Kokish–Kraft whole-table counter to their `(2♦)` Multi** — five changes at once: `X` at `hcp 8+` with no shape promise, a neutral pass with its own delayed *takeout* double, floorless `2NT`→♣ / `3♣`→♦ transfers, `3♠` both minors GF, a *penalty* repeated double, and the uncontested `4M` slam-try tier | `competition.multi_kokish_kraft` (**off**) | **measured 2026-08-25** — owned lane is the shippable shape (plain wash, PD +0.29/+0.77 per fired none/both, SD-PD agreeing) but the residue-1 mirror leak prices at −1.6/−2.5 PD per foreign board (55% of divergence) and fails the isolation gate; **stays off pending an ownership gate on the table + readings, then re-measure**. Two design-sketch ordering repairs recorded at the rule (`3♠` above `3NT`; `3NT` keeps its stopper gate, else the values double collapses to `points 8..9`), each a one-line reversible sub-arm ([§N4-KK](#n4-kk--the-kokishkraft-counter-as-an-opt-in-whole-table-variant-measured-2026-08-25-stays-off)) |
 | **N3-x** | **`X` over their `(4x)`** — the floor cannot double above the three level at all (`their_live_bid_at_most(3)`, [instinct.rs:6058](../src/bidding/instinct.rs)), and BBA's advancer sits for our double on **96.7–99.9%** of hands | new (book) | Current `4+` bucket 38 bd / −43 plain / −45 PD, −1.13/bd on a CI that swallows the total. The `(3x)` template does **not** widen — their four-level overcalls are *eight*-card suits, six times rarer than the three-level rows — so this is an uncontested opportunity to size, not a copy |
 | **N2d** | relay with a 6+ suit below 6 HCP, over `(2♠)` only (the weak major has no two-level call there) | book | **Re-read 2026-08-21: 25 bd, −77 plain / −52 PD, −3.08/bd** — still the worst hand class in the lane, and negative on both scorers. Contradicts the PD-distilled floor ([`lebensohl_relay_shape`](../src/bidding/american/competition/lebensohl.rs)); against Muiderberg the alternative is a making `2♠`, and BBA at table B bids these hands un-overcalled. Needs the A/B, not a re-derivation |
 | N5 | Complete Jacoby, then re-measure | `competition_over_transfer` | default-off on a measured loss *while missing its two most-fired cells* — `(2♥)` over our `2♦` and `(2♠)` over our `2♥`, i.e. they bid the major we are transferring to ([over_our_jacoby.rs:100-103](../src/bidding/american/competition/over_our_jacoby.rs)) — a half-built loss, resumable |
@@ -1457,7 +1457,7 @@ admits through distribution points, plus the unauthored advance.  Full
 forensic, candidates and pre-registered decision rule:
 [defensive-overcalls.md](defensive-overcalls.md#defense-to-their-1nt--the-1nt-2-mirror-panel-forensic-2026-08-23).
 
-## N4-KK — the Kokish–Kraft counter, as an opt-in whole-table variant (**BUILT 2026-08-25; A/B OWED**)
+## N4-KK — the Kokish–Kraft counter, as an opt-in whole-table variant (**MEASURED 2026-08-25; STAYS OFF**)
 
 The one bucket that reopens N4 (see the queue note above): not another rung of
 the shipped lane but a **different published table** for the same object, so it
@@ -1620,15 +1620,51 @@ the ladder under `1NT (2♦) 4♥` newly exposes it in this lane, but it is
 identical in the uncontested tree (`1NT - 4♥ - 4NT - 5♥ -` offers the same call)
 and production filters illegal calls at selection. Flagged for the slam module.
 
-### What is owed
+### The A/B (2026-08-25, SHA `78ad4c02`, `SEED_BASE 1787606986`, 230 400 bd/arm/vul)
 
-`scripts/ab-2d-multi-kk.sh` — two arms, `base` (shipped v7) vs `kk`, one fresh
-`SEED_BASE`, both vulnerabilities, plain **and** perfect defense, sequential
-under `scripts/idle-run.sh`. `probe-divergence --gate-opener ours` must read
-**0 foreign** before any headline, then `probe-1nt-interference --bucket "2♦"
---responses 6` for the decomposition. The floorless minor transfers are partly
-*obstructive*, and DD play scoring is blind to obstruction — read the verdict
-from [the decision table](measurement.md), where `plain wash | PD win` ships.
+`scripts/ab-2d-multi-kk.sh`, results in `ab-results/2d-multi-kk/`. The
+**isolation gate failed exactly as residue 1 predicted** — 843/1530 (none) and
+821/1312 (both) divergent boards were opened by *them* — so the script stopped
+before quoting raw headlines, by design. The headline is read from the
+owner-filtered diffs (`owned.*`, the divergent boards we opened); the foreign
+slice is priced separately below.
+
+**Owned lane** (687 fired none / 491 both; per fired, `kk − base`):
+
+| vul | plain DD | PD | SD plain | SD-PD |
+| --- | --- | --- | --- | --- |
+| none | −0.039 (−27 IMPs, wash) | **+0.285** (+196) | −0.071 | **+0.205** |
+| both | +0.305 (+150, wash-to-win) | **+0.772** (+379, sig at the CI edge) | +0.259 | **+0.699** |
+
+Plain wash at both vuls, PD win at both vuls, SD-PD agreeing — the decision
+table's `plain wash | PD win` shippable row, *for the lane itself*. The engine
+of the win is the **designed neutral pass**: first-diff `−` where v7 doubled
+(+141/+335 PD none/both) and `−` where v7 relayed `2NT` (+26/+244). The plain
+drag concentrates in `X` replacing v7's `3♣` GF route (−298/−169 plain, PD
+≥ 0). The residue tails are visible but not net-negative: `3♠` both-minors on
+5-4 drove past `3NT` into their cheap `5♥x` twice at −15…−17, and one floorless
+`2NT` transfer freak — the recorded 5-5 fallback and ceiling sub-arms price
+those.
+
+**Foreign slice** (they open `1NT`, we overcall a *natural* `2♦`; raw − owned):
+plain −55 / PD **−1376** at none (−1.63 per foreign board), plain **−623** /
+PD **−2029** at both (−0.76 / −2.47) — at both-vul the leak is a plain-DD loss
+too, not a doubling artifact. Raw totals are therefore a clear net loss (none:
+−82 plain / −1180 PD; both: −473 / −1650), and a default-on ship today loses.
+
+**Leak mechanism, probed** (`probe-decision`, worst board): with the knob on,
+*their negative double of our natural `2♦`* reads as our own K–K `X` — `hcp
+8+`, minors ≤ 5, **majors unlimited** — where v7 read `hcp 6+`, majors ≤ 4, a
+decent model of what their X actually shows. The poisoned read flips advancer's
+floor from `P` (logit 10.5) to `2♥` (11.0), and the cascade ends in doubled
+partials (the overcaller even ran to `2♠` on a doubleton). First-diff `2♥`
+where v7 passed is alone 238 bd / −321 plain / −1021 PD at none and 246 bd /
+−720 / −1416 at both. This is residue 1 made expensive: the fix is an
+**ownership gate** — key the K–K table and its readings on *our side having
+opened the `1NT`* — after which the gate should read 0 foreign and the script
+completes; the owned numbers say the re-measure is then expected to ship. The
+`probe-1nt-interference --bucket "2♦" --responses 6` decomposition rides that
+re-run.
 
 Recorded follow-ups, each owed its own seed: the `3♠` **5-5** fallback if 5-4
 measures badly, the bare stopperless `3NT` sub-arm above, a weight retune

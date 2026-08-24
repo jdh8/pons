@@ -319,15 +319,17 @@ trigger-gated — and responder's natural minor single-suiter stays unbuilt at
    `hcp 7–18`, the strength-showing catch-all).
 4. `docs/ai-bidder/bba-1nt-defense.md` documents no four-level advance at all.
 
-## The Kokish–Kraft variant — `competition.multi_kokish_kraft` (opt-in, A/B owed)
+## The Kokish–Kraft variant — `competition.multi_kokish_kraft` (opt-in, measured 2026-08-25 — stays off)
 
 Everything above maps the **shipped** v7 lane. One knob replaces most of it with
 a different published table for the same object: the Eric Kokish–Beverly Kraft
 notes, the most complete exact-object package in
-[the survey](ai-bidder/multi-landy-2d-counter-defense-research.md). Built
-2026-08-25, **default off, unmeasured**; the campaign row, the design-sketch
+[the survey](ai-bidder/multi-landy-2d-counter-defense-research.md). Built and
+measured 2026-08-25 — the owned lane reads plain-wash / PD-win (the shippable
+shape) but the mirror-read leak fails the isolation gate, so it **stays off**
+pending an ownership gate; the numbers, the leak forensic, the design-sketch
 repairs and what is owed live in
-[§N4-KK](one-notrump-competitive.md#n4-kk--the-kokishkraft-counter-as-an-opt-in-whole-table-variant-built-2026-08-25-ab-owed).
+[§N4-KK](one-notrump-competitive.md#n4-kk--the-kokishkraft-counter-as-an-opt-in-whole-table-variant-measured-2026-08-25-stays-off).
 
 Registered *instead of* the v7 subtree, never over it (`kokish_kraft_entries`,
 `lebensohl.rs`) — the two tables disagree on `2NT`, `3♣`, `3♠` and both delayed
